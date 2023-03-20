@@ -1,5 +1,6 @@
 use core::ops::{Index, IndexMut};
 
+#[derive(Clone, Copy, Debug)]
 #[repr(u8)]
 pub enum Strain {
     Clubs,
@@ -9,6 +10,7 @@ pub enum Strain {
     Notrump,
 }
 
+#[derive(Clone, Copy, Debug)]
 pub enum Seat {
     North,
     East,
@@ -16,6 +18,7 @@ pub enum Seat {
     West,
 }
 
+#[derive(Clone, Copy, Debug)]
 pub struct Card(u8);
 
 impl Card {
@@ -32,9 +35,14 @@ impl Card {
     }
 }
 
+#[derive(Clone, Copy, Debug)]
 pub struct Holding(u16);
 
 impl Holding {
+    pub fn bits(&self) -> u16 {
+        self.0
+    }
+
     pub fn len(&self) -> usize {
         self.0.count_ones() as usize
     }
@@ -60,6 +68,7 @@ impl Holding {
     }
 }
 
+#[derive(Clone, Copy, Debug)]
 pub struct Hand(Holding, Holding, Holding, Holding);
 
 impl Index<Strain> for Hand {
@@ -110,6 +119,7 @@ impl Hand {
     }
 }
 
+#[derive(Clone, Copy, Debug)]
 pub struct Deal([Hand; 4]);
 
 impl Index<Seat> for Deal {

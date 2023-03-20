@@ -1,6 +1,7 @@
 mod deal;
-use deal::*;
+mod dds;
 
 fn main() {
-    Card::new(Strain::Spades, 12);
+    let deals : [deal::Deal; 0] = [];
+    dds::solve(&deals, dds::StrainFlags::all());
 }

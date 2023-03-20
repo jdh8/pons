@@ -5,3 +5,4 @@ authors = ["Chen-Pang He <chen.pang.he@jdh8.org>"]
 edition = "2021"
 
 [dependencies]
+bitflags = "2.0"
