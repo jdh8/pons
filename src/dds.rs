@@ -90,7 +90,7 @@ impl From<&[Deal]> for ddTableDeals {
             noOfTables: slice.len() as i32,
             deals: unsafe { core::mem::zeroed() },
         };
-        core::iter::zip(&mut pack.deals, slice).for_each(|(mut y, x)| *y = (*x).into());
+        core::iter::zip(&mut pack.deals, slice).for_each(|(y, x)| *y = (*x).into());
         pack
     }
 }

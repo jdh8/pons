@@ -1,4 +1,4 @@
-use core::ops::{Index, IndexMut};
+use core::ops::{BitAnd, BitOr, BitXor, Index, IndexMut, Sub, Not};
 
 #[derive(Clone, Copy, Debug)]
 #[repr(u8)]
@@ -18,7 +18,7 @@ pub enum Seat {
     West,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Card(u8);
 
 impl Card {
@@ -35,36 +35,66 @@ impl Card {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+trait SmallSet<T> {
+    fn empty() -> Self;
+    fn all() -> Self;
+    fn len(&self) -> usize;
+
+    fn is_empty(&self) -> bool where Self: Sized, Self: PartialEq<Self> {
+        self == &Self::empty()
+    }
+
+    fn contains(&self, value: T) -> bool;
+    fn insert(&mut self, value: T) -> bool;
+    fn remove(&mut self, value: T) -> bool;
+    fn toggle(&mut self, value: T) -> bool;
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Holding(u16);
+
+impl SmallSet<u8> for Holding {
+    fn empty() -> Self {
+        Self(0)
+    }
+
+    fn all() -> Self {
+        Self(0x7FFC)
+    }
+
+    fn len(&self) -> usize {
+        self.0.count_ones() as usize
+    }
+
+    fn contains(&self, rank: u8) -> bool {
+        self.0 & 1 << rank != 0
+    }
+
+    fn insert(&mut self, rank: u8) -> bool {
+        let inserted = !self.contains(rank);
+        self.0 |= 1 << rank;
+        inserted
+    }
+
+    fn remove(&mut self, rank: u8) -> bool {
+        let removed = self.contains(rank);
+        self.0 &= !(1 << rank);
+        removed
+    }
+
+    fn toggle(&mut self, rank: u8) -> bool {
+        self.0 ^= 1 << rank;
+        self.contains(rank)
+    }
+}
 
 impl Holding {
     pub fn bits(&self) -> u16 {
         self.0
     }
 
-    pub fn len(&self) -> usize {
-        self.0.count_ones() as usize
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.0 == 0
-    }
-
-    pub fn contains(&self, rank: u8) -> bool {
-        self.0 & 1 << rank != 0
-    }
-
-    pub fn insert(&mut self, rank: u8) -> bool {
-        let inserted = !self.contains(rank);
-        self.0 |= 1 << rank;
-        inserted
-    }
-
-    pub fn remove(&mut self, rank: u8) -> bool {
-        let removed = self.contains(rank);
-        self.0 &= !(1 << rank);
-        removed
+    pub fn from_bits(bits: u16) -> Self {
+        Self(bits)
     }
 }
 
@@ -97,25 +127,33 @@ impl IndexMut<Strain> for Hand {
     }
 }
 
-impl Hand {
-    pub fn len(&self) -> usize {
+impl SmallSet<Card> for Hand {
+    fn empty() -> Self {
+        Self(Holding::empty(), Holding::empty(), Holding::empty(), Holding::empty())
+    }
+
+    fn all() -> Self {
+        Self(Holding::all(), Holding::all(), Holding::all(), Holding::all())
+    }
+
+    fn len(&self) -> usize {
         self.0.len() + self.1.len() + self.2.len() + self.3.len()
     }
 
-    pub fn is_empty(&self) -> bool {
-        self.0.is_empty() && self.1.is_empty() && self.2.is_empty() && self.3.is_empty()
-    }
-
-    pub fn contains(&self, card: Card) -> bool {
+    fn contains(&self, card: Card) -> bool {
         self[card.suit()].contains(card.rank())
     }
 
-    pub fn insert(&mut self, card: Card) -> bool {
+    fn insert(&mut self, card: Card) -> bool {
         self[card.suit()].insert(card.rank())
     }
 
-    pub fn remove(&mut self, card: Card) -> bool {
+    fn remove(&mut self, card: Card) -> bool {
         self[card.suit()].remove(card.rank())
+    }
+
+    fn toggle(&mut self, card: Card) -> bool {
+        self[card.suit()].toggle(card.rank())
     }
 }
 
