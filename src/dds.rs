@@ -4,7 +4,7 @@
 use crate::deal::{Deal, Seat, Strain};
 use bitflags::bitflags;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Default)]
 #[repr(C)]
 pub struct ddTableDeal {
     pub cards: [[u32; 4]; 4],
@@ -17,7 +17,7 @@ pub struct ddTableDeals {
     pub deals: [ddTableDeal; 200],
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Default)]
 #[repr(C)]
 pub struct ddTableResults {
     pub resTable: [[i32; 4]; 5],
@@ -30,6 +30,15 @@ pub struct ddTablesRes {
     pub results: [ddTableResults; 200],
 }
 
+impl Default for ddTablesRes {
+    fn default() -> Self {
+        Self {
+            noOfTables: 0,
+            results: [Default::default(); 200],
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub struct parResults {
@@ -37,10 +46,27 @@ pub struct parResults {
     pub parContractsString: [[i8; 128]; 2],
 }
 
+impl Default for parResults {
+    fn default() -> Self {
+        Self {
+            parScore: [[0; 16]; 2],
+            parContractsString: [[0; 128]; 2],
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub struct allParResults {
     pub presults: [parResults; 40],
+}
+
+impl Default for allParResults {
+    fn default() -> Self {
+        Self {
+            presults: [Default::default(); 40],
+        }
+    }
 }
 
 #[link(name = "dds")]
@@ -55,7 +81,7 @@ extern "C" {
 
 impl From<Deal> for ddTableDeal {
     fn from(deal: Deal) -> Self {
-        Self{cards: [
+        Self {cards: [
             [
                 deal[Seat::North][Strain::Spades].bits().into(),
                 deal[Seat::North][Strain::Hearts].bits().into(),
@@ -88,7 +114,7 @@ impl From<&[Deal]> for ddTableDeals {
     fn from(slice: &[Deal]) -> Self {
         let mut pack = Self {
             noOfTables: slice.len() as i32,
-            deals: unsafe { core::mem::zeroed() },
+            deals: [Default::default(); 200],
         };
         core::iter::zip(&mut pack.deals, slice).for_each(|(y, x)| *y = (*x).into());
         pack
@@ -150,7 +176,7 @@ bitflags! {
 }
 
 unsafe fn solve_segment(deals: &[Deal], filter: [i32; 5]) -> ddTablesRes {
-    let mut res: ddTablesRes = core::mem::zeroed();
+    let mut res = ddTablesRes::default();
     CalcAllTables(&deals.into(), -1, &filter[0], &mut res, core::ptr::null_mut());
     res
 }
