@@ -110,10 +110,7 @@ impl fmt::Display for Holding {
         
         for rank in (2..15).rev() {
             if self.contains(rank) {
-                match write!(f, "{}", table[rank as usize - 2] as char) {
-                    Ok(()) => (),
-                    Err(e) => { return Err(e); },
-                }
+                write!(f, "{}", table[rank as usize - 2] as char)?;
             }
         }
         Ok(())
