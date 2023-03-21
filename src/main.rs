@@ -1,8 +1,21 @@
 mod deal;
 mod dds;
 
-fn main() {
-    let deals: Vec<deal::Deal> = (0..100).map(|_| deal::shuffled_standard_52().deal()).collect();
+fn analyze_deals(n: usize) {
+    let deals: Vec<deal::Deal> = (0..n).map(|_| deal::shuffled_standard_52_deck().deal()).collect();
     let solutions = dds::solve(&deals, dds::StrainFlags::all());
-    println!("{}\n\n{:?}", solutions.len(), solutions);
+
+    for (deal, sol) in deals.iter().zip(solutions) {
+        println!("{}\n{:?}", deal, sol)
+    }
+}
+
+fn main() {
+    match std::env::args().nth(1) {
+        None => analyze_deals(100),
+        Some(string) => match string.parse::<usize>() {
+            Ok(n) => analyze_deals(n),
+            Err(_) => todo!(),
+        }
+    }
 }

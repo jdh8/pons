@@ -1,4 +1,5 @@
 use rand::prelude::SliceRandom;
+use core::fmt;
 use core::ops::{BitAnd, BitOr, BitXor, Index, IndexMut, Sub, Not};
 
 #[derive(Clone, Copy, Debug)]
@@ -103,6 +104,22 @@ impl Holding {
     }
 }
 
+impl fmt::Display for Holding {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let table = b"23456789TJQKA";
+        
+        for rank in (2..15).rev() {
+            if self.contains(rank) {
+                match write!(f, "{}", table[rank as usize - 2] as char) {
+                    Ok(()) => (),
+                    Err(e) => { return Err(e); },
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub struct Hand(Holding, Holding, Holding, Holding);
 
@@ -162,6 +179,16 @@ impl SmallSet<Card> for Hand {
     }
 }
 
+impl fmt::Display for Hand {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}.{}.{}.{}",
+            self[Strain::Spades],
+            self[Strain::Hearts],
+            self[Strain::Diamonds],
+            self[Strain::Clubs])
+    }
+}
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub struct Deal([Hand; 4]);
 
@@ -176,6 +203,16 @@ impl Index<Seat> for Deal {
 impl IndexMut<Seat> for Deal {
     fn index_mut(&mut self, seat: Seat) -> &mut Hand {
         &mut self.0[seat as usize]
+    }
+}
+
+impl fmt::Display for Deal {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "N:{} {} {} {}",
+            self[Seat::North],
+            self[Seat::East],
+            self[Seat::South],
+            self[Seat::West])
     }
 }
 
@@ -206,7 +243,7 @@ impl Deck {
     }
 }
 
-pub fn shuffled_standard_52() -> Deck {
+pub fn shuffled_standard_52_deck() -> Deck {
     let mut deck = Deck::standard_52();
     deck.shuffle();
     deck
