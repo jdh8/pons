@@ -1,3 +1,4 @@
+use rand::prelude::SliceRandom;
 use core::ops::{BitAnd, BitOr, BitXor, Index, IndexMut, Sub, Not};
 
 #[derive(Clone, Copy, Debug)]
@@ -11,6 +12,7 @@ pub enum Strain {
 }
 
 #[derive(Clone, Copy, Debug)]
+#[repr(u8)]
 pub enum Seat {
     North,
     East,
@@ -50,7 +52,7 @@ trait SmallSet<T> {
     fn toggle(&mut self, value: T) -> bool;
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub struct Holding(u16);
 
 impl SmallSet<u8> for Holding {
@@ -59,7 +61,7 @@ impl SmallSet<u8> for Holding {
     }
 
     fn all() -> Self {
-        Self(0x7FFC)
+        Self(Self::ALL)
     }
 
     fn len(&self) -> usize {
@@ -71,8 +73,9 @@ impl SmallSet<u8> for Holding {
     }
 
     fn insert(&mut self, rank: u8) -> bool {
-        let inserted = !self.contains(rank);
-        self.0 |= 1 << rank;
+        let insertion = 1u16 << rank & Self::ALL;
+        let inserted = insertion & !self.0 != 0;
+        self.0 |= insertion;
         inserted
     }
 
@@ -89,16 +92,18 @@ impl SmallSet<u8> for Holding {
 }
 
 impl Holding {
+    const ALL: u16 = 0x7FFC;
+
     pub fn bits(&self) -> u16 {
         self.0
     }
 
     pub fn from_bits(bits: u16) -> Self {
-        Self(bits)
+        Self(bits & Self::ALL)
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub struct Hand(Holding, Holding, Holding, Holding);
 
 impl Index<Strain> for Hand {
@@ -129,7 +134,7 @@ impl IndexMut<Strain> for Hand {
 
 impl SmallSet<Card> for Hand {
     fn empty() -> Self {
-        Self(Holding::empty(), Holding::empty(), Holding::empty(), Holding::empty())
+        Default::default()
     }
 
     fn all() -> Self {
@@ -157,7 +162,7 @@ impl SmallSet<Card> for Hand {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub struct Deal([Hand; 4]);
 
 impl Index<Seat> for Deal {
@@ -172,4 +177,37 @@ impl IndexMut<Seat> for Deal {
     fn index_mut(&mut self, seat: Seat) -> &mut Hand {
         &mut self.0[seat as usize]
     }
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct Deck {
+    pub cards: Vec<Card>,
+}
+
+impl Deck {
+    pub fn standard_52() -> Self {
+        let suits = [Strain::Clubs, Strain::Diamonds, Strain::Hearts, Strain::Spades];
+        let product = suits.iter().flat_map(|x| core::iter::repeat(x).zip(2..15));
+        Self { cards: product.map(|(suit, rank)| Card::new(*suit, rank)).collect() }
+    }
+
+    pub fn deal(&self) -> Deal {
+        let mut deal = Deal::default();
+
+        for (index, card) in self.cards.iter().enumerate() {
+            deal[unsafe { core::mem::transmute((index & 0x3) as u8) }].insert(*card);
+        }
+
+        deal
+    }
+
+    pub fn shuffle(&mut self) {
+        self.cards.shuffle(&mut rand::thread_rng());
+    }
+}
+
+pub fn shuffled_standard_52() -> Deck {
+    let mut deck = Deck::standard_52();
+    deck.shuffle();
+    deck
 }

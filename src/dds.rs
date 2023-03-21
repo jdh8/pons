@@ -152,8 +152,8 @@ fn make_row(row: [i32; 4]) -> TricksPerStrain {
     TricksPerStrain::new(row[0] as u8, row[1] as u8, row[2] as u8, row[3] as u8)
 }
 
-impl From<ddTableResults> for TricksTable {
-    fn from(table: ddTableResults) -> Self {
+impl From<&ddTableResults> for TricksTable {
+    fn from(table: &ddTableResults) -> Self {
         Self([
             make_row(table.resTable[Strain::Spades as usize]),
             make_row(table.resTable[Strain::Hearts as usize]),
@@ -197,12 +197,12 @@ pub fn solve(deals: &[Deal], flags: StrainFlags) -> Vec<TricksTable> {
 
     for i in 0..q {
         let res = unsafe { solve_segment(&deals[i * seglen .. (i + 1) * seglen], filter) };
-        tables.extend(res.results.map(TricksTable::from));
+        tables.extend(res.results[..seglen].iter().map(TricksTable::from));
     }
 
     if r > 0 {
         let res = unsafe { solve_segment(&deals[q * seglen ..], filter) };
-        tables.extend(res.results.map(TricksTable::from));
+        tables.extend(res.results[..r].iter().map(TricksTable::from));
     }
 
     tables
