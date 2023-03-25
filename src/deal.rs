@@ -106,11 +106,12 @@ impl Holding {
 
 impl fmt::Display for Holding {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use fmt::Write;
         let table = b"23456789TJQKA";
         
         for rank in (2..15).rev() {
             if self.contains(rank) {
-                write!(f, "{}", table[rank as usize - 2] as char)?;
+                f.write_char(table[rank as usize - 2] as char)?
             }
         }
         Ok(())
