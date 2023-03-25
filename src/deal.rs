@@ -74,7 +74,7 @@ impl SmallSet<u8> for Holding {
     }
 
     fn insert(&mut self, rank: u8) -> bool {
-        let insertion = 1u16 << rank & Self::ALL;
+        let insertion = 1 << rank & Self::ALL;
         let inserted = insertion & !self.0 != 0;
         self.0 |= insertion;
         inserted
@@ -87,7 +87,7 @@ impl SmallSet<u8> for Holding {
     }
 
     fn toggle(&mut self, rank: u8) -> bool {
-        self.0 ^= 1 << rank;
+        self.0 ^= 1 << rank & Self::ALL;
         self.contains(rank)
     }
 }
