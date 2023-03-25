@@ -3,6 +3,7 @@
 
 use crate::deal::{Deal, Seat, Strain};
 use bitflags::bitflags;
+use core::fmt;
 
 #[derive(Clone, Copy, Debug, Default)]
 #[repr(C)]
@@ -137,6 +138,16 @@ impl TricksPerStrain {
     }
 }
 
+impl fmt::Display for TricksPerStrain {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:X}{:X}{:X}{:X}",
+            self.at(Seat::North),
+            self.at(Seat::East),
+            self.at(Seat::South),
+            self.at(Seat::West))
+    }
+}
+
 #[derive(Clone, Copy, Debug)]
 pub struct TricksTable([TricksPerStrain; 5]);
 
@@ -161,6 +172,12 @@ impl From<&ddTableResults> for TricksTable {
             make_row(table.resTable[Strain::Clubs as usize]),
             make_row(table.resTable[Strain::Notrump as usize]),
         ])
+    }
+}
+
+impl fmt::Display for TricksTable {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}{}{}{}{}", self.0[0], self.0[1], self.0[2], self.0[3], self.0[4])
     }
 }
 

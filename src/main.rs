@@ -6,7 +6,7 @@ fn analyze_deals(n: usize) {
     let solutions = dds::solve(&deals, dds::StrainFlags::all());
 
     for (deal, sol) in deals.iter().zip(solutions) {
-        println!("{}\n{:?}", deal, sol)
+        println!("{} {}", deal, sol)
     }
 }
 
