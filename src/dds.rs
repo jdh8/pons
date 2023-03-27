@@ -208,8 +208,7 @@ pub fn solve(deals: &[Deal], flags: StrainFlags) -> Vec<TricksTable> {
     ];
 
     let seglen = (200 / flags.bits().count_ones()) as usize;
-    let q = deals.len() / seglen;
-    let r = deals.len() % seglen;
+    let (q, r) = (deals.len() / seglen, deals.len() % seglen);
     let mut tables = Vec::new();
 
     for i in 0..q {
