@@ -225,6 +225,46 @@ impl fmt::Display for Hand {
     }
 }
 
+impl BitAnd for Hand {
+    type Output = Self;
+
+    fn bitand(self, rhs: Self) -> Self {
+        Self(self.0 & rhs.0, self.1 & rhs.1, self.2 & rhs.2, self.3 & rhs.3)
+    }
+}
+
+impl BitOr for Hand {
+    type Output = Self;
+
+    fn bitor(self, rhs: Self) -> Self {
+        Self(self.0 | rhs.0, self.1 | rhs.1, self.2 | rhs.2, self.3 | rhs.3)
+    }
+}
+
+impl BitXor for Hand {
+    type Output = Self;
+
+    fn bitxor(self, rhs: Self) -> Self {
+        Self(self.0 ^ rhs.0, self.1 ^ rhs.1, self.2 ^ rhs.2, self.3 ^ rhs.3)
+    }
+}
+
+impl Not for Hand {
+    type Output = Self;
+
+    fn not(self) -> Self {
+        Self(!self.0, !self.1, !self.2, !self.3)
+    }
+}
+
+impl Sub for Hand {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self {
+        Self(self.0 - rhs.0, self.1 - rhs.1, self.2 - rhs.2, self.3 - rhs.3)
+    }
+}
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub struct Deal([Hand; 4]);
 
