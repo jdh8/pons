@@ -1,7 +1,8 @@
 // Keep our external names consistent with DDS
 #![allow(non_snake_case)]
 
-use crate::deal::{Deal, Seat, Strain};
+use crate::contract::Strain;
+use crate::deal::{Deal, Seat};
 use bitflags::bitflags;
 use core::fmt;
 

@@ -1,16 +1,7 @@
+use crate::contract::Strain;
 use rand::prelude::SliceRandom;
 use core::fmt;
 use core::ops::{BitAnd, BitOr, BitXor, Index, IndexMut, Not, Sub};
-
-#[derive(Clone, Copy, Debug)]
-#[repr(u8)]
-pub enum Strain {
-    Clubs,
-    Diamonds,
-    Hearts,
-    Spades,
-    Notrump,
-}
 
 #[derive(Clone, Copy, Debug)]
 #[repr(u8)]
@@ -21,20 +12,15 @@ pub enum Seat {
     West,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct Card(u8);
+#[derive(Clone, Copy, Debug)]
+pub struct Card {
+    pub suit: Strain,
+    pub rank: u8,
+}
 
 impl Card {
-    pub fn new(suit: Strain, rank: u8) -> Card {
-        Card((suit as u8) << 4 | rank)
-    }
-
-    pub fn rank(&self) -> u8 {
-        self.0 & 0xF
-    }
-
-    pub fn suit(&self) -> Strain {
-        unsafe { core::mem::transmute(self.0 >> 4) }
+    pub fn new(suit: Strain, rank: u8) -> Self {
+        Self { suit, rank }
     }
 }
 
@@ -199,19 +185,19 @@ impl SmallSet<Card> for Hand {
     }
 
     fn contains(&self, card: Card) -> bool {
-        self[card.suit()].contains(card.rank())
+        self[card.suit].contains(card.rank)
     }
 
     fn insert(&mut self, card: Card) -> bool {
-        self[card.suit()].insert(card.rank())
+        self[card.suit].insert(card.rank)
     }
 
     fn remove(&mut self, card: Card) -> bool {
-        self[card.suit()].remove(card.rank())
+        self[card.suit].remove(card.rank)
     }
 
     fn toggle(&mut self, card: Card) -> bool {
-        self[card.suit()].toggle(card.rank())
+        self[card.suit].toggle(card.rank)
     }
 }
 

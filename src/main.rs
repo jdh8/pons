@@ -1,3 +1,4 @@
+mod contract;
 mod deal;
 mod dds;
 
