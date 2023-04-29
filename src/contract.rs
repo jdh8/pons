@@ -37,8 +37,8 @@ impl From<Bid> for Call {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Penalty {
     None,
-    Double,
-    Redouble,
+    Doubled,
+    Redoubled,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -65,8 +65,8 @@ fn compute_doubled_penalty(undertricks: i32, vulnerable: bool) -> i32 {
 }
 
 impl Contract {
-    pub fn new(bid: Bid, penalty: Penalty) -> Self {
-        Self { bid, penalty }
+    pub fn new(level: u8, strain: Strain, penalty: Penalty) -> Self {
+        Self { bid: Bid::new(level, strain), penalty }
     }
 
     // Base score for making this contract

@@ -1,6 +1,7 @@
 mod contract;
 mod deal;
 mod dds;
+mod test;
 
 fn analyze_deals(n: usize) {
     let deals: Vec<deal::Deal> = (0..n).map(|_| deal::shuffled_standard_52_deck().deal()).collect();
