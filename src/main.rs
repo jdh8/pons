@@ -1,6 +1,7 @@
 mod contract;
 mod deal;
 mod dds;
+mod eval;
 mod test;
 
 fn analyze_deals(n: usize) {

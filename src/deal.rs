@@ -24,7 +24,7 @@ impl Card {
     }
 }
 
-trait SmallSet<T> {
+pub trait SmallSet<T> {
     fn empty() -> Self;
     fn all() -> Self;
     fn len(&self) -> usize;
