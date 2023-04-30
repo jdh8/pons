@@ -7,19 +7,19 @@ use rand::Rng;
 fn made_contracts() {
     use Strain::*;
 
-    assert_eq!(Contract::new(1, Clubs, None).score(9, false), 110);
-    assert_eq!(Contract::new(1, Hearts, None).score(9, false), 140);
-    assert_eq!(Contract::new(1, Notrump, None).score(7, false), 90);
+    assert_eq!(Contract::new(1, Clubs, Passed).score(9, false), 110);
+    assert_eq!(Contract::new(1, Hearts, Passed).score(9, false), 140);
+    assert_eq!(Contract::new(1, Notrump, Passed).score(7, false), 90);
 
-    assert_eq!(Contract::new(3, Notrump, None).score(9, false), 400);
-    assert_eq!(Contract::new(3, Notrump, None).score(9, true), 600);
-    assert_eq!(Contract::new(4, Hearts, None).score(10, false), 420);
-    assert_eq!(Contract::new(4, Spades, None).score(10, true), 620);
-    assert_eq!(Contract::new(5, Clubs, None).score(11, false), 400);
-    assert_eq!(Contract::new(5, Diamonds, None).score(11, true), 600);
+    assert_eq!(Contract::new(3, Notrump, Passed).score(9, false), 400);
+    assert_eq!(Contract::new(3, Notrump, Passed).score(9, true), 600);
+    assert_eq!(Contract::new(4, Hearts, Passed).score(10, false), 420);
+    assert_eq!(Contract::new(4, Spades, Passed).score(10, true), 620);
+    assert_eq!(Contract::new(5, Clubs, Passed).score(11, false), 400);
+    assert_eq!(Contract::new(5, Diamonds, Passed).score(11, true), 600);
 
-    assert_eq!(Contract::new(6, Spades, None).score(12, true), 1430);
-    assert_eq!(Contract::new(6, Notrump, None).score(12, false), 990);
+    assert_eq!(Contract::new(6, Spades, Passed).score(12, true), 1430);
+    assert_eq!(Contract::new(6, Notrump, Passed).score(12, false), 990);
 
     assert_eq!(Contract::new(2, Clubs, Doubled).score(8, false), 180);
     assert_eq!(Contract::new(2, Clubs, Doubled).score(9, false), 280);
@@ -38,7 +38,7 @@ impl Distribution<Strain> for Standard {
 #[test]
 fn set_contracts() {
     let level = rand::thread_rng().gen_range(1..=7);
-    let undoubled = Contract::new(level, rand::random(), None);
+    let undoubled = Contract::new(level, rand::random(), Passed);
 
     for tricks in 0..level + 6 {
         let undertricks = (level + 6 - tricks) as i32;

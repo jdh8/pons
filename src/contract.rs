@@ -36,7 +36,7 @@ impl From<Bid> for Call {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Penalty {
-    None,
+    Passed,
     Doubled,
     Redoubled,
 }
@@ -51,7 +51,7 @@ impl From<Bid> for Contract {
     fn from(bid: Bid) -> Self {
         Self {
             bid,
-            penalty: Penalty::None,
+            penalty: Penalty::Passed,
         }
     }
 }
@@ -93,7 +93,7 @@ impl Contract {
             };
 
             let per_trick = match self.penalty {
-                Penalty::None => if self.bid.strain >= Strain::Hearts { 30 } else { 20 },
+                Penalty::Passed => if self.bid.strain >= Strain::Hearts { 30 } else { 20 },
                 penalty => penalty as i32 * if vulnerable { 200 } else { 100 },
             };
             
@@ -101,7 +101,7 @@ impl Contract {
         }
         else {
             match self.penalty {
-                Penalty::None => overtricks * if vulnerable { 100 } else { 50 },
+                Penalty::Passed => overtricks * if vulnerable { 100 } else { 50 },
                 penalty => penalty as i32 * -compute_doubled_penalty(-overtricks, vulnerable),
             }
         }
