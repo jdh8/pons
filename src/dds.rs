@@ -1,6 +1,3 @@
-// Keep our external names consistent with DDS
-#![allow(non_snake_case)]
-
 use crate::contract::Strain;
 use crate::deal::{Deal, Seat};
 use bitflags::bitflags;
@@ -8,34 +5,34 @@ use core::fmt;
 
 #[derive(Clone, Copy, Debug, Default)]
 #[repr(C)]
-pub struct ddTableDeal {
-    pub cards: [[u32; 4]; 4],
+struct DDTableDeal {
+    cards: [[u32; 4]; 4],
 }
 
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
-pub struct ddTableDeals {
-    pub noOfTables: i32,
-    pub deals: [ddTableDeal; 200],
+struct DDTableDeals {
+    no_of_tables: i32,
+    deals: [DDTableDeal; 200],
 }
 
 #[derive(Clone, Copy, Debug, Default)]
 #[repr(C)]
-pub struct ddTableResults {
-    pub resTable: [[i32; 4]; 5],
+struct DDTableResults {
+    res_table: [[i32; 4]; 5],
 }
 
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
-pub struct ddTablesRes {
-    pub noOfTables: i32,
-    pub results: [ddTableResults; 200],
+struct DDTablesRes {
+    no_of_tables: i32,
+    results: [DDTableResults; 200],
 }
 
-impl Default for ddTablesRes {
+impl Default for DDTablesRes {
     fn default() -> Self {
         Self {
-            noOfTables: 0,
+            no_of_tables: 0,
             results: [Default::default(); 200],
         }
     }
@@ -43,27 +40,27 @@ impl Default for ddTablesRes {
 
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
-pub struct parResults {
-    pub parScore: [[i8; 16]; 2],
-    pub parContractsString: [[i8; 128]; 2],
+struct ParResults {
+    par_score: [[i8; 16]; 2],
+    par_contracts_string: [[i8; 128]; 2],
 }
 
-impl Default for parResults {
+impl Default for ParResults {
     fn default() -> Self {
         Self {
-            parScore: [[0; 16]; 2],
-            parContractsString: [[0; 128]; 2],
+            par_score: [[0; 16]; 2],
+            par_contracts_string: [[0; 128]; 2],
         }
     }
 }
 
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
-pub struct allParResults {
-    pub presults: [parResults; 40],
+struct AllParResults {
+    pub presults: [ParResults; 40],
 }
 
-impl Default for allParResults {
+impl Default for AllParResults {
     fn default() -> Self {
         Self {
             presults: [Default::default(); 40],
@@ -73,15 +70,15 @@ impl Default for allParResults {
 
 #[link(name = "dds")]
 extern "C" {
-    pub fn CalcAllTables(
-        dealsp: &ddTableDeals,
+    fn CalcAllTables(
+        dealsp: &DDTableDeals,
         mode: i32,
-        trumpFilter: *const i32,
-        resp: &mut ddTablesRes,
-        presp: *mut allParResults) -> i32;
+        trump_filter: *const i32,
+        resp: &mut DDTablesRes,
+        presp: *mut AllParResults) -> i32;
 } 
 
-impl From<Deal> for ddTableDeal {
+impl From<Deal> for DDTableDeal {
     fn from(deal: Deal) -> Self {
         Self {cards: [
             [
@@ -112,10 +109,10 @@ impl From<Deal> for ddTableDeal {
     }
 }
 
-impl From<&[Deal]> for ddTableDeals {
+impl From<&[Deal]> for DDTableDeals {
     fn from(slice: &[Deal]) -> Self {
         let mut pack = Self {
-            noOfTables: slice.len() as i32,
+            no_of_tables: slice.len() as i32,
             deals: [Default::default(); 200],
         };
         core::iter::zip(&mut pack.deals, slice).for_each(|(y, x)| *y = (*x).into());
@@ -164,14 +161,14 @@ fn make_row(row: [i32; 4]) -> TricksPerStrain {
     TricksPerStrain::new(row[0] as u8, row[1] as u8, row[2] as u8, row[3] as u8)
 }
 
-impl From<&ddTableResults> for TricksTable {
-    fn from(table: &ddTableResults) -> Self {
+impl From<&DDTableResults> for TricksTable {
+    fn from(table: &DDTableResults) -> Self {
         Self([
-            make_row(table.resTable[Strain::Spades as usize]),
-            make_row(table.resTable[Strain::Hearts as usize]),
-            make_row(table.resTable[Strain::Diamonds as usize]),
-            make_row(table.resTable[Strain::Clubs as usize]),
-            make_row(table.resTable[Strain::Notrump as usize]),
+            make_row(table.res_table[Strain::Spades as usize]),
+            make_row(table.res_table[Strain::Hearts as usize]),
+            make_row(table.res_table[Strain::Diamonds as usize]),
+            make_row(table.res_table[Strain::Clubs as usize]),
+            make_row(table.res_table[Strain::Notrump as usize]),
         ])
     }
 }
@@ -193,8 +190,8 @@ bitflags! {
     }
 }
 
-unsafe fn solve_segment(deals: &[Deal], filter: [i32; 5]) -> ddTablesRes {
-    let mut res = ddTablesRes::default();
+unsafe fn solve_segment(deals: &[Deal], filter: [i32; 5]) -> DDTablesRes {
+    let mut res = DDTablesRes::default();
     CalcAllTables(&deals.into(), -1, &filter[0], &mut res, core::ptr::null_mut());
     res
 }
