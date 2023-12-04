@@ -15,7 +15,7 @@ pub struct Bid {
 }
 
 impl Bid {
-    pub fn new(level: u8, strain: Strain) -> Self {
+    pub const fn new(level: u8, strain: Strain) -> Self {
         Self { level, strain }
     }
 }
@@ -56,7 +56,7 @@ impl From<Bid> for Contract {
     }
 }
 
-fn compute_doubled_penalty(undertricks: i32, vulnerable: bool) -> i32 {
+const fn compute_doubled_penalty(undertricks: i32, vulnerable: bool) -> i32 {
     match undertricks + vulnerable as i32 {
         1 => 100,
         2 => if vulnerable { 200 } else { 300 },
@@ -65,21 +65,21 @@ fn compute_doubled_penalty(undertricks: i32, vulnerable: bool) -> i32 {
 }
 
 impl Contract {
-    pub fn new(level: u8, strain: Strain, penalty: Penalty) -> Self {
+    pub const fn new(level: u8, strain: Strain, penalty: Penalty) -> Self {
         Self { bid: Bid::new(level, strain), penalty }
     }
 
     // Base score for making this contract
     // https://en.wikipedia.org/wiki/Bridge_scoring#Contract_points
     pub fn points(&self) -> i32 {
-        let level = self.bid.level as i32;
+        let level = i32::from(self.bid.level);
         let per_trick = if self.bid.strain >= Strain::Hearts { 30 } else { 20 };
         let notrump = if self.bid.strain == Strain::Notrump { 10 } else { 0 };
         (per_trick * level + notrump) << (self.penalty as u8)
     }
 
     pub fn score(&self, tricks: u8, vulnerable: bool) -> i32 {
-        let overtricks = tricks as i32 - self.bid.level as i32 - 6;
+        let overtricks = i32::from(tricks) - i32::from(self.bid.level) - 6;
 
         if overtricks >= 0 {
             let base = self.points();

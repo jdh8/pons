@@ -31,7 +31,7 @@ fn made_contracts() {
 
 impl Distribution<Strain> for Standard {
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> Strain {
-        unsafe { core::mem::transmute(rng.gen_range(0..5) as u8) }
+        unsafe { core::mem::transmute(rng.gen_range(0..5u8)) }
     }
 }
 
@@ -41,7 +41,7 @@ fn set_contracts() {
     let undoubled = Contract::new(level, rand::random(), Passed);
 
     for tricks in 0..level + 6 {
-        let undertricks = (level + 6 - tricks) as i32;
+        let undertricks = i32::from(level + 6 - tricks);
         assert_eq!(undoubled.score(tricks, false), -50 * undertricks);
         assert_eq!(undoubled.score(tricks, true), -100 * undertricks);
     }

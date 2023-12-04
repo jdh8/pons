@@ -33,7 +33,7 @@ impl Default for DDTablesRes {
     fn default() -> Self {
         Self {
             no_of_tables: 0,
-            results: [Default::default(); 200],
+            results: [DDTableResults::default(); 200],
         }
     }
 }
@@ -63,7 +63,7 @@ struct AllParResults {
 impl Default for AllParResults {
     fn default() -> Self {
         Self {
-            presults: [Default::default(); 40],
+            presults: [ParResults::default(); 40],
         }
     }
 }
@@ -112,8 +112,8 @@ impl From<Deal> for DDTableDeal {
 impl From<&[Deal]> for DDTableDeals {
     fn from(slice: &[Deal]) -> Self {
         let mut pack = Self {
-            no_of_tables: slice.len() as i32,
-            deals: [Default::default(); 200],
+            no_of_tables: i32::try_from(slice.len()).expect("The number of deals must be less than 2^31"),
+            deals: [DDTableDeal::default(); 200],
         };
         core::iter::zip(&mut pack.deals, slice).for_each(|(y, x)| *y = (*x).into());
         pack
@@ -124,14 +124,14 @@ impl From<&[Deal]> for DDTableDeals {
 pub struct TricksPerStrain(u16);
 
 impl TricksPerStrain {
-    pub fn new(n: u8, e: u8, s: u8, w: u8) -> Self {
-        Self(((n as u16) << (4 * Seat::North as u8) |
-              (e as u16) << (4 * Seat::East  as u8) |
-              (s as u16) << (4 * Seat::South as u8) |
-              (w as u16) << (4 * Seat::West  as u8)).into())
+    pub const fn new(n: u8, e: u8, s: u8, w: u8) -> Self {
+        Self((n as u16) << (4 * Seat::North as u8) |
+             (e as u16) << (4 * Seat::East  as u8) |
+             (s as u16) << (4 * Seat::South as u8) |
+             (w as u16) << (4 * Seat::West  as u8))
     }
 
-    pub fn at(&self, seat: Seat) -> u8 {
+    pub const fn at(self, seat: Seat) -> u8 {
         (self.0 >> (4 * seat as u8) & 0xF) as u8
     }
 }
@@ -157,7 +157,8 @@ impl core::ops::Index<Strain> for TricksTable {
     }
 }
 
-fn make_row(row: [i32; 4]) -> TricksPerStrain {
+const fn make_row(row: [i32; 4]) -> TricksPerStrain {
+    #[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
     TricksPerStrain::new(row[0] as u8, row[1] as u8, row[2] as u8, row[3] as u8)
 }
 
@@ -198,11 +199,11 @@ unsafe fn solve_segment(deals: &[Deal], filter: [i32; 5]) -> DDTablesRes {
 
 pub fn solve(deals: &[Deal], flags: StrainFlags) -> Vec<TricksTable> {
     let filter = [
-        !flags.contains(StrainFlags::SPADES) as i32,
-        !flags.contains(StrainFlags::HEARTS) as i32,
-        !flags.contains(StrainFlags::DIAMONDS) as i32,
-        !flags.contains(StrainFlags::CLUBS) as i32,
-        !flags.contains(StrainFlags::NOTRUMP) as i32,
+        i32::from(!flags.contains(StrainFlags::SPADES)),
+        i32::from(!flags.contains(StrainFlags::HEARTS)),
+        i32::from(!flags.contains(StrainFlags::DIAMONDS)),
+        i32::from(!flags.contains(StrainFlags::CLUBS)),
+        i32::from(!flags.contains(StrainFlags::NOTRUMP)),
     ];
 
     let seglen = (200 / flags.bits().count_ones()) as usize;

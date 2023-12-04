@@ -9,16 +9,12 @@ fn analyze_deals(n: usize) {
     let solutions = dds::solve(&deals, dds::StrainFlags::all());
 
     for (deal, sol) in deals.iter().zip(solutions) {
-        println!("{} {}", deal, sol)
+        println!("{deal} {sol}");
     }
 }
 
 fn main() {
-    match std::env::args().nth(1) {
-        None => analyze_deals(100),
-        Some(string) => match string.parse::<usize>() {
-            Ok(n) => analyze_deals(n),
-            Err(_) => todo!(),
-        }
-    }
+    std::env::args().nth(1).map_or_else(
+        || analyze_deals(100),
+         |string| string.parse::<usize>().map_or_else(|_| todo!(), analyze_deals));
 }

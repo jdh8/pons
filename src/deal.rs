@@ -19,7 +19,7 @@ pub struct Card {
 }
 
 impl Card {
-    pub fn new(suit: Strain, rank: u8) -> Self {
+    pub const fn new(suit: Strain, rank: u8) -> Self {
         Self { suit, rank }
     }
 }
@@ -29,7 +29,7 @@ pub trait SmallSet<T> {
     fn all() -> Self;
     fn len(&self) -> usize;
 
-    fn is_empty(&self) -> bool where Self: Sized, Self: PartialEq<Self> {
+    fn is_empty(&self) -> bool where Self: Sized + PartialEq<Self> {
         self == &Self::empty()
     }
 
@@ -81,11 +81,11 @@ impl SmallSet<u8> for Holding {
 impl Holding {
     const ALL: u16 = 0x7FFC;
 
-    pub fn bits(&self) -> u16 {
+    pub const fn bits(self) -> u16 {
         self.0
     }
 
-    pub fn from_bits(bits: u16) -> Self {
+    pub const fn from_bits(bits: u16) -> Self {
         Self(bits & Self::ALL)
     }
 }
@@ -135,7 +135,7 @@ impl fmt::Display for Holding {
         for rank in (2..15).rev() {
             if self.contains(rank) {
                 use fmt::Write;
-                f.write_char(b"23456789TJQKA"[rank as usize - 2] as char)?
+                f.write_char(b"23456789TJQKA"[rank as usize - 2] as char)?;
             }
         }
         Ok(())
@@ -173,7 +173,7 @@ impl IndexMut<Strain> for Hand {
 
 impl SmallSet<Card> for Hand {
     fn empty() -> Self {
-        Default::default()
+        Self::default()
     }
 
     fn all() -> Self {
@@ -294,6 +294,7 @@ impl Deck {
         let mut deal = Deal::default();
 
         for (index, card) in self.cards.iter().enumerate() {
+            #[allow(clippy::cast_possible_truncation)]
             deal[unsafe { core::mem::transmute((index & 0x3) as u8) }].insert(*card);
         }
 
