@@ -23,8 +23,8 @@ fn analyze_deals(n: usize) {
                 sol.at(deal::Seat::South),
                 sol.at(deal::Seat::West),
             );
-            acc.ns += usize::from(core::cmp::max(n, s));
-            acc.ew += usize::from(core::cmp::max(e, w));
+            acc.ns += usize::from(n.max(s));
+            acc.ew += usize::from(e.max(w));
             acc.total += usize::from(n + e + s + w);
             acc
         });
