@@ -2,11 +2,31 @@ use dds_bridge::contract::Strain;
 use dds_bridge::deal::{Deal, Seat};
 use dds_bridge::solver;
 
-#[derive(Clone, Copy, Debug, Default)]
-struct Accumulator {
-    ns: usize,
-    ew: usize,
-    total: usize,
+/// Histogram of notrump tricks
+#[derive(Debug, Clone, Copy, Default)]
+struct Histogram {
+    /// Histogram of notrump tricks for each player
+    each: [usize; 14],
+    /// Histogram of right-sided notrump tricks for each pair
+    right: [usize; 14],
+    /// Histogram of maximum notrump tricks for each deal
+    max: [usize; 14],
+}
+
+fn rev_cumsum(histogram: [usize; 14]) -> [usize; 14] {
+    let mut acc = 0;
+    let mut result = [0; 14];
+    for (i, &x) in histogram.iter().rev().enumerate() {
+        acc += x;
+        result[13 - i] = acc;
+    }
+    result
+}
+
+#[allow(clippy::cast_precision_loss)]
+fn normalize(cumsum: [usize; 14]) -> [f64; 14] {
+    let total = cumsum[0] as f64;
+    cumsum.map(|x| x as f64 / total)
 }
 
 fn analyze_deals(n: usize) -> Result<(), solver::Error> {
@@ -14,23 +34,29 @@ fn analyze_deals(n: usize) -> Result<(), solver::Error> {
         .take(n)
         .collect();
 
-    let solution = solver::solve_deals(&deals, solver::StrainFlags::NOTRUMP)?
+    let histogram = solver::solve_deals(&deals, solver::StrainFlags::NOTRUMP)?
         .into_iter()
         .map(|table| table[Strain::Notrump])
-        .fold(Accumulator::default(), |mut acc, sol| {
+        .fold(Histogram::default(), |mut acc, row| {
             let (n, e, s, w) = (
-                sol.at(Seat::North),
-                sol.at(Seat::East),
-                sol.at(Seat::South),
-                sol.at(Seat::West),
+                usize::from(row.at(Seat::North)),
+                usize::from(row.at(Seat::East)),
+                usize::from(row.at(Seat::South)),
+                usize::from(row.at(Seat::West)),
             );
-            acc.ns += usize::from(n.max(s));
-            acc.ew += usize::from(e.max(w));
-            acc.total += usize::from(n + e + s + w);
+            acc.each[n] += 1;
+            acc.each[e] += 1;
+            acc.each[s] += 1;
+            acc.each[w] += 1;
+            acc.right[n.max(s)] += 1;
+            acc.right[e.max(w)] += 1;
+            acc.max[n.max(e).max(s).max(w)] += 1;
             acc
         });
 
-    dbg!(solution);
+    dbg!(normalize(rev_cumsum(histogram.each)));
+    dbg!(normalize(rev_cumsum(histogram.right)));
+    dbg!(normalize(rev_cumsum(histogram.max)));
     Ok(())
 }
 
