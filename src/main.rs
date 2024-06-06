@@ -6,27 +6,21 @@ use dds_bridge::solver;
 #[derive(Debug, Clone, Copy, Default)]
 struct Histogram {
     /// Histogram of notrump tricks for each player
-    each: [usize; 14],
+    each: [u32; 14],
     /// Histogram of right-sided notrump tricks for each pair
-    right: [usize; 14],
+    right: [u32; 14],
     /// Histogram of maximum notrump tricks for each deal
-    max: [usize; 14],
+    max: [u32; 14],
 }
 
-fn rev_cumsum(histogram: [usize; 14]) -> [usize; 14] {
+fn to_cumulative_probability(histogram: [u32; 14]) -> [f64; 14] {
     let mut acc = 0;
-    let mut result = [0; 14];
-    for (i, &x) in histogram.iter().rev().enumerate() {
+    let mut cumsum = [0; 14];
+    for (i, x) in histogram.into_iter().rev().enumerate() {
         acc += x;
-        result[13 - i] = acc;
+        cumsum[13 - i] = acc;
     }
-    result
-}
-
-#[allow(clippy::cast_precision_loss)]
-fn normalize(cumsum: [usize; 14]) -> [f64; 14] {
-    let total = cumsum[0] as f64;
-    cumsum.map(|x| x as f64 / total)
+    cumsum.map(|x| f64::from(x) / f64::from(cumsum[0]))
 }
 
 fn analyze_deals(n: usize) -> Result<(), solver::Error> {
@@ -54,14 +48,19 @@ fn analyze_deals(n: usize) -> Result<(), solver::Error> {
             acc
         });
 
-    dbg!(normalize(rev_cumsum(histogram.each)));
-    dbg!(normalize(rev_cumsum(histogram.right)));
-    dbg!(normalize(rev_cumsum(histogram.max)));
+    dbg!(&to_cumulative_probability(histogram.each)[6..]);
+    dbg!(&to_cumulative_probability(histogram.right)[6..]);
+    dbg!(&to_cumulative_probability(histogram.max)[6..]);
     Ok(())
 }
 
 fn main() -> Result<(), solver::Error> {
     std::env::args().nth(1).map_or_else(
         || analyze_deals(100),
-        |string| string.parse::<usize>().map_or_else(|_| todo!(), analyze_deals))
+        |string| {
+            string
+                .parse::<usize>()
+                .map_or_else(|_| todo!(), analyze_deals)
+        },
+    )
 }
