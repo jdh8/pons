@@ -6,5 +6,5 @@ edition = "2021"
 
 [dependencies]
 bitflags = "2.0.2"
-dds-bridge = "0.5.3"
+dds-bridge = "0.8.0"
 rand = "0.8.5"
