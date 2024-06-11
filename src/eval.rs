@@ -1,33 +1,42 @@
+use core::iter::Sum;
 use dds_bridge::deal::{Hand, Holding, SmallSet as _};
 
-pub trait HandEvaluator {
-    fn eval(&self, hand: Hand) -> f64;
+pub trait HandEvaluator<T> {
+    fn eval(&self, hand: Hand) -> T;
 }
 
-pub struct SimpleEvaluator<F: Fn(Holding) -> f64>(F);
+pub struct SimpleEvaluator<T: Sum, F: Fn(Holding) -> T>(F);
 
-impl<F: Fn(Holding) -> f64> HandEvaluator for SimpleEvaluator<F> {
-    fn eval(&self, hand: Hand) -> f64 {
+impl<T: Sum, F: Fn(Holding) -> T> HandEvaluator<T> for SimpleEvaluator<T, F> {
+    fn eval(&self, hand: Hand) -> T {
         hand.0.map(&self.0).into_iter().sum()
     }
 }
 
-fn hcp(holding: Holding) -> f64 {
-    f64::from(
-        4 * i32::from(holding.contains(14))
-            + 3 * i32::from(holding.contains(13))
-            + 2 * i32::from(holding.contains(12))
-            + i32::from(holding.contains(11)),
-    )
+fn hcp(holding: Holding) -> i32 {
+    4 * i32::from(holding.contains(14))
+        + 3 * i32::from(holding.contains(13))
+        + 2 * i32::from(holding.contains(12))
+        + i32::from(holding.contains(11))
 }
 
-fn fifths(holding: Holding) -> f64 {
-    (if holding.contains(14) { 4.0 } else { 0.0 }
-        + if holding.contains(13) { 2.8 } else { 0.0 }
-        + if holding.contains(12) { 1.8 } else { 0.0 }
-        + if holding.contains(11) { 1.0 } else { 0.0 }
-        + if holding.contains(10) { 0.4 } else { 0.0 })
+fn deci_fifths(holding: Holding) -> i32 {
+    40 * i32::from(holding.contains(14))
+        + 28 * i32::from(holding.contains(13))
+        + 18 * i32::from(holding.contains(12))
+        + 10 * i32::from(holding.contains(11))
+        + 4 * i32::from(holding.contains(10))
 }
 
-pub const HCP: SimpleEvaluator<fn(Holding) -> f64> = SimpleEvaluator(hcp);
-pub const FIFTHS: SimpleEvaluator<fn(Holding) -> f64> = SimpleEvaluator(fifths);
+pub const HCP: SimpleEvaluator<i32, fn(Holding) -> i32> = SimpleEvaluator(hcp);
+pub const DECI_FIFTHS: SimpleEvaluator<i32, fn(Holding) -> i32> = SimpleEvaluator(deci_fifths);
+
+#[test]
+#[allow(clippy::unusual_byte_groupings)]
+fn test_four_kings() {
+    const KXXX: Holding = Holding::from_bits(0b01000_0000_0111_00);
+    const KXX: Holding = Holding::from_bits(0b01000_0000_0011_00);
+    const HAND: Hand = Hand([KXXX, KXX, KXX, KXX]);
+    assert_eq!(HCP.eval(HAND), 12);
+    assert_eq!(DECI_FIFTHS.eval(HAND), 28 * 4);
+}
