@@ -9,7 +9,7 @@ pub struct SimpleEvaluator<T: Sum, F: Fn(Holding) -> T>(F);
 
 impl<T: Sum, F: Fn(Holding) -> T> HandEvaluator<T> for SimpleEvaluator<T, F> {
     fn eval(&self, hand: Hand) -> T {
-        hand.0.map(&self.0).into_iter().sum()
+        hand.0.into_iter().map(&self.0).sum()
     }
 }
 
