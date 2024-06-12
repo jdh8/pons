@@ -43,6 +43,16 @@ pub fn deci_fifths(holding: Holding) -> i32 {
         + 4 * i32::from(holding.contains(10))
 }
 
+/// Plain old losing trick count
+#[must_use]
+pub fn ltc(holding: Holding) -> i32 {
+    let len = holding.len();
+    
+    i32::from(len >= 1 && !holding.contains(14))
+        + i32::from(len >= 2 && !holding.contains(13))
+        + i32::from(len >= 3 && !holding.contains(12))
+}
+
 /// High card points
 ///
 /// This is the well-known 4-3-2-1 point count by Milton Work.  Evaluation of
