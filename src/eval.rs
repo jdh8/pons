@@ -2,13 +2,13 @@ use core::iter::Sum;
 use dds_bridge::deal::{Hand, Holding, SmallSet as _};
 
 pub trait HandEvaluator<T> {
-    fn eval(&self, hand: Hand) -> T;
+    fn call(&self, hand: Hand) -> T;
 }
 
 pub struct SimpleEvaluator<T: Sum, F: Fn(Holding) -> T>(F);
 
 impl<T: Sum, F: Fn(Holding) -> T> HandEvaluator<T> for SimpleEvaluator<T, F> {
-    fn eval(&self, hand: Hand) -> T {
+    fn call(&self, hand: Hand) -> T {
         hand.0.into_iter().map(&self.0).sum()
     }
 }
@@ -37,6 +37,6 @@ fn test_four_kings() {
     const KXXX: Holding = Holding::from_bits(0b01000_0000_0111_00);
     const KXX: Holding = Holding::from_bits(0b01000_0000_0011_00);
     const HAND: Hand = Hand([KXXX, KXX, KXX, KXX]);
-    assert_eq!(HCP.eval(HAND), 12);
-    assert_eq!(DECI_FIFTHS.eval(HAND), 28 * 4);
+    assert_eq!(HCP.call(HAND), 12);
+    assert_eq!(DECI_FIFTHS.call(HAND), 28 * 4);
 }
