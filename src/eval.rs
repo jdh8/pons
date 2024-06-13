@@ -123,4 +123,7 @@ fn test_four_kings() {
     const HAND: Hand = Hand([KXXX, KXX, KXX, KXX]);
     assert_eq!(HCP.call(HAND), 12);
     assert_eq!(DECI_FIFTHS.call(HAND), 28 * 4);
+    assert_eq!(CENTI_BUMRAP.call(HAND), 1200);
+    assert_eq!(LTC.call(HAND), 8);
+    assert_eq!(HALF_NLTC.call(HAND), 16);
 }
