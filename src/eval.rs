@@ -43,6 +43,18 @@ pub fn deci_fifths(holding: Holding) -> i32 {
         + 4 * i32::from(holding.contains(10))
 }
 
+/// The BUM-RAP evaluator, &times; 100
+///
+/// This function is the kerenl of [`CENTI_BUMRAP`].
+#[must_use]
+pub fn centi_bumrap(holding: Holding) -> i32 {
+    450 * i32::from(holding.contains(14))
+        + 300 * i32::from(holding.contains(13))
+        + 150 * i32::from(holding.contains(12))
+        + 75 * i32::from(holding.contains(11))
+        + 25 * i32::from(holding.contains(10))
+}
+
 /// Plain old losing trick count
 ///
 /// This function is the kernel of [`LTC`].
@@ -81,6 +93,13 @@ pub const HCP: SimpleEvaluator<i32, fn(Holding) -> i32> = SimpleEvaluator(hcp);
 ///
 /// [Fifths]: https://bridge.thomasoandrews.com/valuations/cardvaluesfor3nt.html
 pub const DECI_FIFTHS: SimpleEvaluator<i32, fn(Holding) -> i32> = SimpleEvaluator(deci_fifths);
+
+/// The BUM-RAP evaluator, &times; 100
+///
+/// This is 100 &times; the BUM-RAP point count (4.5-3-1.5-0.75-0.25).  We
+/// make the result an integer to improve interoperability.  This evaluator
+/// calls [`centi_bumrap`] for each suit.
+pub const CENTI_BUMRAP: SimpleEvaluator<i32, fn(Holding) -> i32> = SimpleEvaluator(centi_bumrap);
 
 /// Plain old losing trick count
 pub const LTC: SimpleEvaluator<i32, fn(Holding) -> i32> = SimpleEvaluator(ltc);
