@@ -55,6 +55,18 @@ pub fn ltc(holding: Holding) -> i32 {
         + i32::from(len >= 3 && !holding.contains(12))
 }
 
+/// New Losing Trick Count &times; 2
+///
+/// This function is the kernel of [`HALF_NLTC`].
+#[must_use]
+pub fn half_nltc(holding: Holding) -> i32 {
+    let len = holding.len();
+    
+    3 * i32::from(len >= 1 && !holding.contains(14))
+        + 2 * i32::from(len >= 2 && !holding.contains(13))
+        + i32::from(len >= 3 && !holding.contains(12))
+}
+
 /// High card points
 ///
 /// This is the well-known 4-3-2-1 point count by Milton Work.  Evaluation of
@@ -72,6 +84,16 @@ pub const DECI_FIFTHS: SimpleEvaluator<i32, fn(Holding) -> i32> = SimpleEvaluato
 
 /// Plain old losing trick count
 pub const LTC: SimpleEvaluator<i32, fn(Holding) -> i32> = SimpleEvaluator(ltc);
+
+/// New Losing Trick Count &times; 2
+///
+/// [NLTC](https://en.wikipedia.org/wiki/Losing-Trick_Count#New_Losing-Trick_Count_(NLTC))
+/// is a variant of losing trick count that gives different weights to missing
+/// honors.  A missing A/K/Q is worth 1.5/1.0/0.5 tricks respectively.
+///
+/// This evaluator counts half losers to make the result an integer. This
+/// evaluator calls [`half_nltc`] for each suit.
+pub const HALF_NLTC: SimpleEvaluator<i32, fn(Holding) -> i32> = SimpleEvaluator(half_nltc);
 
 /// Test point counts with four kings
 #[test]
