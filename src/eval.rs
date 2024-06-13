@@ -44,6 +44,8 @@ pub fn deci_fifths(holding: Holding) -> i32 {
 }
 
 /// Plain old losing trick count
+///
+/// This function is the kernel of [`LTC`].
 #[must_use]
 pub fn ltc(holding: Holding) -> i32 {
     let len = holding.len();
@@ -67,6 +69,9 @@ pub const HCP: SimpleEvaluator<i32, fn(Holding) -> i32> = SimpleEvaluator(hcp);
 ///
 /// [Fifths]: https://bridge.thomasoandrews.com/valuations/cardvaluesfor3nt.html
 pub const DECI_FIFTHS: SimpleEvaluator<i32, fn(Holding) -> i32> = SimpleEvaluator(deci_fifths);
+
+/// Plain old losing trick count
+pub const LTC: SimpleEvaluator<i32, fn(Holding) -> i32> = SimpleEvaluator(ltc);
 
 /// Test point counts with four kings
 #[test]
