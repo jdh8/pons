@@ -2,21 +2,45 @@ use core::iter::Sum;
 use dds_bridge::{Hand, Holding, SmallSet as _};
 
 /// Trait for hand evaluators
-///
-/// This trait might be replaced with [`Fn`] in the future.
 pub trait HandEvaluator<T> {
     /// Evaluate a hand
-    fn call(&self, hand: Hand) -> T;
+    #[must_use]
+    fn eval(&self, hand: Hand) -> T;
+
+    /// Evaluate a pair
+    #[must_use]
+    fn eval_pair(&self, pair: [Hand; 2]) -> T
+    where
+        T: core::ops::Add<Output = T>,
+    {
+        self.eval(pair[0]) + self.eval(pair[1])
+    }
+}
+
+/// Functions are natural evaluators
+impl<F: Fn(Hand) -> T, T> HandEvaluator<T> for F {
+    fn eval(&self, hand: Hand) -> T {
+        self(hand)
+    }
 }
 
 /// Evaluator summing values of suit holdings
+#[derive(Debug)]
 pub struct SimpleEvaluator<T: Sum, F: Fn(Holding) -> T>(pub F);
 
 impl<T: Sum, F: Fn(Holding) -> T> HandEvaluator<T> for SimpleEvaluator<T, F> {
-    fn call(&self, hand: Hand) -> T {
+    fn eval(&self, hand: Hand) -> T {
         hand.0.into_iter().map(&self.0).sum()
     }
 }
+
+impl<T: Sum, F: Clone + Fn(Holding) -> T> Clone for SimpleEvaluator<T, F> {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
+
+impl<T: Sum, F: Copy + Fn(Holding) -> T> Copy for SimpleEvaluator<T, F> {}
 
 /// High card points
 ///
@@ -144,9 +168,9 @@ fn test_four_kings() {
     const KXXX: Holding = Holding::from_bits(0b01000_0000_0111_00);
     const KXX: Holding = Holding::from_bits(0b01000_0000_0011_00);
     const HAND: Hand = Hand([KXXX, KXX, KXX, KXX]);
-    assert_eq!(HCP.call(HAND), 12);
-    assert_eq!(DECI_FIFTHS.call(HAND), 28 * 4);
-    assert_eq!(CENTI_BUMRAP.call(HAND), 1200);
-    assert_eq!(LTC.call(HAND), 8);
-    assert_eq!(HALF_NLTC.call(HAND), 16);
+    assert_eq!(HCP.eval(HAND), 12);
+    assert_eq!(DECI_FIFTHS.eval(HAND), 28 * 4);
+    assert_eq!(CENTI_BUMRAP.eval(HAND), 1200);
+    assert_eq!(LTC.eval(HAND), 8);
+    assert_eq!(HALF_NLTC.eval(HAND), 16);
 }
