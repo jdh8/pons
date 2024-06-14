@@ -94,10 +94,10 @@ pub const HCP: SimpleEvaluator<i32, fn(Holding) -> i32> = SimpleEvaluator(hcp);
 
 /// High card points plus useful shortness
 ///
-/// For each suit, we take the maximum of high card points and shortness.  This
-/// method avoids double counting of short honors.  This evaluator is
+/// For each suit, we count max([HCP], shortness, HCP + shortness &minus; 1).
+/// This method avoids double counting of short honors.  This evaluator is
 /// particularly useful for suit contracts.
-pub const HCP_SHORTNESS: SimpleEvaluator<i32, fn(Holding) -> i32> =
+pub const HCP_PLUS: SimpleEvaluator<i32, fn(Holding) -> i32> =
     SimpleEvaluator(|x| hcp(x).max(shortness(x)));
 
 /// The [Fifths] evaluator for 3NT, &times; 10
@@ -118,10 +118,10 @@ pub const CENTI_BUMRAP: SimpleEvaluator<i32, fn(Holding) -> i32> = SimpleEvaluat
 
 /// BUM-RAP with shortness, &times; 100
 ///
-/// For each suit, we take the maximum of BUM-RAP and shortness.  This method
-/// avoids double counting of short honors.  This evaluator is particularly
-/// useful for suit contracts.
-pub const BUMRAP_SHORTNESS: SimpleEvaluator<i32, fn(Holding) -> i32> =
+/// For each suit, we count max([BUM-RAP][CENTI_BUMRAP], shortness, BUM-RAP +
+/// shortness &minus; 1).  This method avoids double counting of short honors.
+/// This evaluator is particularly useful for suit contracts.
+pub const CENTI_BUMRAP_PLUS: SimpleEvaluator<i32, fn(Holding) -> i32> =
     SimpleEvaluator(|x| centi_bumrap(x).max(100 * shortness(x)));
 
 /// Plain old losing trick count
