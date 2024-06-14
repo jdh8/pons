@@ -1,5 +1,5 @@
 use core::iter::Sum;
-use dds_bridge::deal::{Hand, Holding, SmallSet as _};
+use dds_bridge::{Hand, Holding, SmallSet as _};
 
 /// Trait for hand evaluators
 ///
