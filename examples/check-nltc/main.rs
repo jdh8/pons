@@ -1,6 +1,6 @@
-extern crate dds_bridge as dds;
-extern crate nalgebra as na;
-use pons::eval::{self, HandEvaluator};
+use dds_bridge as dds;
+use nalgebra as na;
+use pons::eval::{self, HandEvaluator as _};
 use std::process::ExitCode;
 
 fn calculate_par_suit_tricks(tricks: dds::TricksTable) -> Option<(dds::Suit, dds::Seat, i8)> {
@@ -86,7 +86,8 @@ fn compute_linear_regression(eval: &Evaluation) -> Coefficients {
             let (q, r) = matrix.qr().unpack();
             let q = q.fixed_columns::<2>(0);
             let r = r.fixed_rows::<2>(0);
-            r.solve_upper_triangular(&(q.transpose() * tricks)).expect("Same evaluation for all deals")
+            r.solve_upper_triangular(&(q.transpose() * tricks))
+                .expect("Same evaluation for all deals")
         })
         .collect();
     Coefficients::from_columns(&columns)
