@@ -31,16 +31,14 @@ const EVALUATORS: [SimpleEvaluator<i32>; 4] = [
 ];
 
 const COLUMNS: usize = EVALUATORS.len() + 1;
+type Evaluation = na::OMatrix<f64, na::Dyn, na::Const<COLUMNS>>;
+type Correlation = na::OMatrix<f64, na::Const<COLUMNS>, na::Const<COLUMNS>>;
 
-fn analyze_deals(
-    n: usize,
-) -> Result<na::OMatrix<f64, na::Const<COLUMNS>, na::Const<COLUMNS>>, dds::Error> {
-    type Correlation = na::OMatrix<f64, na::Const<COLUMNS>, na::Const<COLUMNS>>;
-    type Observation = na::OMatrix<f64, na::Dyn, na::Const<COLUMNS>>;
-
+fn eval_random_deals(n: usize) -> Result<Evaluation, dds::Error> {
     let deals: Vec<_> = core::iter::repeat_with(|| dds::Deal::new(&mut rand::thread_rng()))
         .take(n)
         .collect();
+
     let rows: Vec<_> = dds::solve_deals(&deals, !dds::StrainFlags::NOTRUMP)?
         .into_iter()
         .map(calculate_par_suit_tricks)
@@ -52,21 +50,26 @@ fn analyze_deals(
             })
         })
         .collect();
-    let observation = Observation::from_row_iterator(
+
+    Ok(Evaluation::from_row_iterator(
         rows.len(),
-        rows.into_iter().flat_map(|(tricks, evals)| {
-            core::iter::once(f64::from(tricks)).chain(evals.into_iter().map(f64::from))
+        rows.into_iter().flat_map(|(tricks, eval)| {
+            core::iter::once(f64::from(tricks)).chain(eval.into_iter().map(f64::from))
         }),
-    );
-    let mean = observation.row_mean();
-    let centered: Vec<_> = observation.row_iter().map(|row| row - mean).collect();
-    let centered = Observation::from_rows(&centered);
+    ))
+}
+
+fn compute_correlation(eval: &Evaluation) -> Correlation {
+    let mean = eval.row_mean();
+    let centered: Vec<_> = eval.row_iter().map(|row| row - mean).collect();
+    let centered = Evaluation::from_rows(&centered);
 
     #[allow(clippy::cast_precision_loss)]
     let covariance = centered.adjoint() * &centered / (centered.nrows() - 1) as f64;
-    Ok(Correlation::from_fn(|i, j| {
+
+    Correlation::from_fn(|i, j| {
         covariance[(i, j)] / (covariance[(i, i)] * covariance[(j, j)]).sqrt()
-    }))
+    })
 }
 
 #[doc = include_str!("README.md")]
@@ -82,9 +85,11 @@ fn main() -> Result<ExitCode, dds::Error> {
         }
         None => 100,
     };
+    let eval = eval_random_deals(n)?;
+
     println!(
         "Correlation matrix between `EVALUATORS`: {}",
-        analyze_deals(n)?
+        compute_correlation(&eval),
     );
     Ok(ExitCode::SUCCESS)
 }
