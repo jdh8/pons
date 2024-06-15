@@ -30,9 +30,10 @@ const EVALUATORS: [SimpleEvaluator<i32>; 4] = [
     eval::HALF_NLTC,
 ];
 
-const COLUMNS: usize = EVALUATORS.len() + 1;
-type Evaluation = na::OMatrix<f64, na::Dyn, na::Const<COLUMNS>>;
-type Correlation = na::OMatrix<f64, na::Const<COLUMNS>, na::Const<COLUMNS>>;
+type Columns = na::Const<{ EVALUATORS.len() + 1 }>;
+type Evaluation = na::OMatrix<f64, na::Dyn, Columns>;
+type Correlation = na::OMatrix<f64, Columns, Columns>;
+type Coefficients = na::OMatrix<f64, na::U2, na::Const<{ EVALUATORS.len() }>>;
 
 fn eval_random_deals(n: usize) -> Result<Evaluation, dds::Error> {
     let deals: Vec<_> = core::iter::repeat_with(|| dds::Deal::new(&mut rand::thread_rng()))
@@ -72,6 +73,25 @@ fn compute_correlation(eval: &Evaluation) -> Correlation {
     })
 }
 
+fn compute_linear_regression(eval: &Evaluation) -> Coefficients {
+    let tricks = eval.column(0);
+    let columns: Vec<_> = eval
+        .fixed_columns::<{ EVALUATORS.len() }>(1)
+        .column_iter()
+        .map(|col| {
+            let matrix = na::OMatrix::<f64, na::Dyn, na::U2>::from_columns(&[
+                col.into(),
+                na::DVector::from_element(eval.nrows(), 1.0),
+            ]);
+            let (q, r) = matrix.qr().unpack();
+            let q = q.fixed_columns::<2>(0);
+            let r = r.fixed_rows::<2>(0);
+            r.solve_upper_triangular(&(q.transpose() * tricks)).expect("Same evaluation for all deals")
+        })
+        .collect();
+    Coefficients::from_columns(&columns)
+}
+
 #[doc = include_str!("README.md")]
 fn main() -> Result<ExitCode, dds::Error> {
     let n = match std::env::args().nth(1) {
@@ -86,10 +106,14 @@ fn main() -> Result<ExitCode, dds::Error> {
         None => 100,
     };
     let eval = eval_random_deals(n)?;
-
+    println!("The number of valid deals: {}\n", eval.nrows());
     println!(
         "Correlation matrix between `EVALUATORS`: {}",
         compute_correlation(&eval),
+    );
+    println!(
+        "Linear regression coefficients: {}",
+        compute_linear_regression(&eval),
     );
     Ok(ExitCode::SUCCESS)
 }
