@@ -101,7 +101,22 @@ fn main() -> Result<ExitCode, dds::Error> {
         None => 100,
     };
     let eval = eval_random_deals(n)?;
-    println!("The number of valid deals: {}\n", eval.nrows());
+    let tricks = eval.column(0);
+    let mean = tricks.mean();
+
+    #[allow(clippy::cast_precision_loss)]
+    let variance = tricks
+        .iter()
+        .map(|&x| {
+            let x = x - mean;
+            x * x
+        })
+        .sum::<f64>()
+        / (tricks.len() - 1) as f64;
+
+    println!("The number of valid deals: {}", tricks.len());
+    println!("Average tricks of the best suit contract: {mean}");
+    println!("Standard deviation of the tricks: {}\n", variance.sqrt());
     println!(
         "Correlation matrix between `EVALUATORS`: {}",
         compute_correlation(&eval),
