@@ -5,6 +5,7 @@ authors = ["Chen-Pang He (https://jdh8.org)"]
 edition = "2021"
 description = "Rust package for contract bridge"
 repository = "https://github.com/jdh8/pons"
+license = "Apache-2.0"
 categories = ["game-development"]
 keywords = ["bridge"]
 
