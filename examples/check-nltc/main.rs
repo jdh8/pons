@@ -68,22 +68,20 @@ fn compute_correlation(eval: &Evaluation) -> Correlation {
 
 fn compute_linear_regression(eval: &Evaluation) -> Coefficients {
     let tricks = eval.column(0);
-    let columns: Vec<_> = eval
-        .fixed_columns::<{ EVALUATORS.len() }>(1)
-        .column_iter()
-        .map(|col| {
-            let matrix = na::OMatrix::<f64, na::Dyn, na::U2>::from_columns(&[
-                col.into(),
-                na::DVector::from_element(eval.nrows(), 1.0),
-            ]);
-            let (q, r) = matrix.qr().unpack();
-            let q = q.fixed_columns::<2>(0);
-            let r = r.fixed_rows::<2>(0);
-            r.solve_upper_triangular(&(q.transpose() * tricks))
-                .expect("Same evaluation for all deals")
-        })
-        .collect();
-    Coefficients::from_columns(&columns)
+    let eval = eval.fixed_columns::<{ EVALUATORS.len() }>(1);
+
+    Coefficients::from_iterator(eval.column_iter().flat_map(|col| {
+        let matrix = na::OMatrix::<f64, na::Dyn, na::U2>::from_columns(&[
+            col.into(),
+            na::DVector::from_element(eval.nrows(), 1.0),
+        ]);
+        let (q, r) = matrix.qr().unpack();
+        let q = q.fixed_columns::<2>(0);
+        let r = r.fixed_rows::<2>(0);
+
+        r.solve_upper_triangular(&(q.transpose() * tricks))
+            .map_or([f64::NAN; 2], Into::into)
+    }))
 }
 
 #[doc = include_str!("README.md")]
