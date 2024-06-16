@@ -9,15 +9,9 @@ fn calculate_par_suit_tricks(tricks: dds::TricksTable) -> Option<(dds::Suit, dds
         .contracts
         .into_iter()
         .find_map(|(contract, seat, overtricks)| {
+            let suit = dds::Suit::try_from(contract.bid.strain).ok();
             #[allow(clippy::cast_possible_wrap)] // level is always in 1..=7
-            match contract.bid.strain {
-                dds::Strain::Notrump => None,
-                dds::Strain::Spades => Some(dds::Suit::Spades),
-                dds::Strain::Hearts => Some(dds::Suit::Hearts),
-                dds::Strain::Diamonds => Some(dds::Suit::Diamonds),
-                dds::Strain::Clubs => Some(dds::Suit::Clubs),
-            }
-            .map(|suit| (suit, seat, contract.bid.level as i8 + 6 + overtricks))
+            suit.map(|suit| (suit, seat, contract.bid.level as i8 + 6 + overtricks))
         })
 }
 
