@@ -56,11 +56,10 @@ fn eval_random_deals(n: usize) -> Result<Evaluation, dds::Error> {
 
 fn compute_correlation(eval: &Evaluation) -> Correlation {
     let mean = eval.row_mean();
-    let centered: Vec<_> = eval.row_iter().map(|row| row - mean).collect();
-    let centered = Evaluation::from_rows(&centered);
+    let centered = eval.map_with_location(|_, j, x| x - mean[j]);
 
     #[allow(clippy::cast_precision_loss)]
-    let covariance = centered.adjoint() * &centered / (centered.nrows() - 1) as f64;
+    let covariance = centered.adjoint() * centered / (eval.nrows() - 1) as f64;
 
     Correlation::from_fn(|i, j| {
         covariance[(i, j)] / (covariance[(i, i)] * covariance[(j, j)]).sqrt()
