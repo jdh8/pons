@@ -2,6 +2,7 @@ use dds_bridge as dds;
 use nalgebra as na;
 use pons::eval::{self, HandEvaluator as _};
 use std::process::ExitCode;
+use core::ops::AddAssign as _;
 
 fn calculate_par_suit_tricks(tricks: dds::TricksTable) -> Option<(dds::Suit, dds::Seat, i8)> {
     dds::calculate_par(tricks, dds::Vulnerability::empty(), dds::Seat::North)
@@ -28,6 +29,7 @@ type Columns = na::Const<{ EVALUATORS.len() + 1 }>;
 type Evaluation = na::OMatrix<f64, na::Dyn, Columns>;
 type Correlation = na::OMatrix<f64, Columns, Columns>;
 type Coefficients = na::OMatrix<f64, na::U2, na::Const<{ EVALUATORS.len() }>>;
+type Histogram = na::OMatrix<f64, na::U8, na::Const<{ EVALUATORS.len() }>>;
 
 fn eval_random_deals(n: usize) -> Result<Evaluation, dds::Error> {
     let deals: Vec<_> = core::iter::repeat_with(|| dds::Deal::new(&mut rand::thread_rng()))
@@ -79,6 +81,18 @@ fn compute_linear_regression(eval: &Evaluation) -> Coefficients {
     }))
 }
 
+fn compute_mean_historgram(eval: &Evaluation) -> Histogram {
+    let mut sum = Histogram::zeros();
+    let mut count = Histogram::zeros();
+
+    for row in eval.row_iter() {
+        let i = (row[0] as usize).max(6) - 6;
+        sum.row_mut(i).add_assign(row.fixed_columns::<{ EVALUATORS.len() }>(1));
+        count.row_mut(i).add_scalar_mut(1.0);
+    }
+    sum.component_div(&count)
+} 
+
 #[doc = include_str!("README.md")]
 fn main() -> Result<ExitCode, dds::Error> {
     let n = match std::env::args().nth(1) {
@@ -116,6 +130,10 @@ fn main() -> Result<ExitCode, dds::Error> {
     println!(
         "Linear regression coefficients: {}",
         compute_linear_regression(&eval),
+    );
+    println!(
+        "Histogram of mean eval for tricks: {}",
+        compute_mean_historgram(&eval),
     );
     Ok(ExitCode::SUCCESS)
 }
