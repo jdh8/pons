@@ -15,4 +15,5 @@ dds-bridge = "0.9.1"
 rand = "0.8.5"
 
 [dev-dependencies]
+approx = "0.5.1"
 nalgebra = "0.32.6"

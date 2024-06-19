@@ -46,131 +46,141 @@ impl<T: Sum, F: Copy + Fn(Holding) -> T> Copy for SimpleEvaluator<T, F> {}
 ///
 /// This function is the kernel of [`HCP`].
 #[must_use]
-pub fn hcp(holding: Holding) -> i32 {
-    4 * i32::from(holding.contains(14))
-        + 3 * i32::from(holding.contains(13))
-        + 2 * i32::from(holding.contains(12))
-        + i32::from(holding.contains(11))
+pub fn hcp(holding: Holding) -> f64 {
+    f64::from(
+        4 * i32::from(holding.contains(14))
+            + 3 * i32::from(holding.contains(13))
+            + 2 * i32::from(holding.contains(12))
+            + i32::from(holding.contains(11)),
+    )
 }
 
 /// Short suit points
 #[must_use]
 #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
-pub fn shortness(holding: Holding) -> i32 {
-    3 - holding.len().max(3) as i32
+pub fn shortness(holding: Holding) -> f64 {
+    f64::from(3 - holding.len().max(3) as i32)
 }
 
-/// The [Fifths] evaluator for 3NT, &times; 10
+/// The [Fifths] evaluator for 3NT
 ///
-/// This function is the kernel of [`DECI_FIFTHS`].
+/// This function is the kernel of [`FIFTHS`].
 ///
 /// [Fifths]: https://bridge.thomasoandrews.com/valuations/cardvaluesfor3nt.html
 #[must_use]
-pub fn deci_fifths(holding: Holding) -> i32 {
-    40 * i32::from(holding.contains(14))
-        + 28 * i32::from(holding.contains(13))
-        + 18 * i32::from(holding.contains(12))
-        + 10 * i32::from(holding.contains(11))
-        + 4 * i32::from(holding.contains(10))
+pub fn fifths(holding: Holding) -> f64 {
+    f64::from(
+        40 * i32::from(holding.contains(14))
+            + 28 * i32::from(holding.contains(13))
+            + 18 * i32::from(holding.contains(12))
+            + 10 * i32::from(holding.contains(11))
+            + 4 * i32::from(holding.contains(10)),
+    ) / 10.0
 }
 
-/// The BUM-RAP evaluator, &times; 100
+/// The BUM-RAP evaluator
 ///
-/// This function is the kerenl of [`CENTI_BUMRAP`].
+/// This function is the kernel of [`BUMRAP`].
 #[must_use]
-pub fn centi_bumrap(holding: Holding) -> i32 {
-    450 * i32::from(holding.contains(14))
-        + 300 * i32::from(holding.contains(13))
-        + 150 * i32::from(holding.contains(12))
-        + 75 * i32::from(holding.contains(11))
-        + 25 * i32::from(holding.contains(10))
+pub fn bumrap(holding: Holding) -> f64 {
+    f64::from(
+        18 * i32::from(holding.contains(14))
+            + 12 * i32::from(holding.contains(13))
+            + 6 * i32::from(holding.contains(12))
+            + 3 * i32::from(holding.contains(11))
+            + i32::from(holding.contains(10)),
+    ) * 0.25
 }
 
 /// Plain old losing trick count
 ///
 /// This function is the kernel of [`LTC`].
 #[must_use]
-pub fn ltc(holding: Holding) -> i32 {
+pub fn ltc(holding: Holding) -> f64 {
     let len = holding.len();
 
-    i32::from(len >= 1 && !holding.contains(14))
-        + i32::from(len >= 2 && !holding.contains(13))
-        + i32::from(len >= 3 && !holding.contains(12))
+    f64::from(
+        i32::from(len >= 1 && !holding.contains(14))
+            + i32::from(len >= 2 && !holding.contains(13))
+            + i32::from(len >= 3 && !holding.contains(12)),
+    )
 }
 
-/// New Losing Trick Count &times; 2
+/// New Losing Trick Count
 ///
-/// This function is the kernel of [`HALF_NLTC`].
+/// This function is the kernel of [`NLTC`].
 #[must_use]
-pub fn half_nltc(holding: Holding) -> i32 {
+pub fn nltc(holding: Holding) -> f64 {
     let len = holding.len();
 
-    3 * i32::from(len >= 1 && !holding.contains(14))
-        + 2 * i32::from(len >= 2 && !holding.contains(13))
-        + i32::from(len >= 3 && !holding.contains(12))
+    f64::from(
+        3 * i32::from(len >= 1 && !holding.contains(14))
+            + 2 * i32::from(len >= 2 && !holding.contains(13))
+            + i32::from(len >= 3 && !holding.contains(12)),
+    ) * 0.5
 }
 
 /// High card points
 ///
 /// This is the well-known 4-3-2-1 point count by Milton Work.  Evaluation of
 /// each suit is done by [`hcp`].
-pub const HCP: SimpleEvaluator<i32, fn(Holding) -> i32> = SimpleEvaluator(hcp);
+pub const HCP: SimpleEvaluator<f64, fn(Holding) -> f64> = SimpleEvaluator(hcp);
 
 /// High card points plus useful shortness
 ///
 /// For each suit, we count max([HCP], shortness, HCP + shortness &minus; 1).
 /// This method avoids double counting of short honors.  This evaluator is
 /// particularly useful for suit contracts.
-pub const HCP_PLUS: SimpleEvaluator<i32, fn(Holding) -> i32> =
+pub const HCP_PLUS: SimpleEvaluator<f64, fn(Holding) -> f64> =
     SimpleEvaluator(|x| hcp(x).max(shortness(x)));
 
-/// The [Fifths] evaluator for 3NT, &times; 10
+/// The [Fifths] evaluator for 3NT
 ///
-/// This is 10 &times; Thomas Andrews's computed point count for 3NT.  We make
-/// the result an integer to improve interoperability.  This evaluator calls
-/// [`deci_fifths`] for each suit.
+/// This is Thomas Andrews's computed point count for 3NT.  This evaluator calls
+/// [`fifths`] for each suit.
 ///
 /// [Fifths]: https://bridge.thomasoandrews.com/valuations/cardvaluesfor3nt.html
-pub const DECI_FIFTHS: SimpleEvaluator<i32, fn(Holding) -> i32> = SimpleEvaluator(deci_fifths);
+pub const FIFTHS: SimpleEvaluator<f64, fn(Holding) -> f64> = SimpleEvaluator(fifths);
 
-/// The BUM-RAP evaluator, &times; 100
+/// The BUM-RAP evaluator
 ///
-/// This is 100 &times; the BUM-RAP point count (4.5-3-1.5-0.75-0.25).  We
-/// make the result an integer to improve interoperability.  This evaluator
-/// calls [`centi_bumrap`] for each suit.
-pub const CENTI_BUMRAP: SimpleEvaluator<i32, fn(Holding) -> i32> = SimpleEvaluator(centi_bumrap);
+/// This is the BUM-RAP point count (4.5-3-1.5-0.75-0.25).  This evaluator calls
+/// [`bumrap`] for each suit.
+pub const BUMRAP: SimpleEvaluator<f64, fn(Holding) -> f64> = SimpleEvaluator(bumrap);
 
-/// BUM-RAP with shortness, &times; 100
+/// BUM-RAP with shortness
 ///
-/// For each suit, we count max([BUM-RAP][CENTI_BUMRAP], shortness, BUM-RAP +
+/// For each suit, we count max([BUM-RAP][BUMRAP], shortness, BUM-RAP +
 /// shortness &minus; 1).  This method avoids double counting of short honors.
 /// This evaluator is particularly useful for suit contracts.
-pub const CENTI_BUMRAP_PLUS: SimpleEvaluator<i32, fn(Holding) -> i32> =
-    SimpleEvaluator(|x| centi_bumrap(x).max(100 * shortness(x)));
+pub const BUMRAP_PLUS: SimpleEvaluator<f64, fn(Holding) -> f64> =
+    SimpleEvaluator(|x| bumrap(x).max(shortness(x)));
 
 /// Plain old losing trick count
-pub const LTC: SimpleEvaluator<i32, fn(Holding) -> i32> = SimpleEvaluator(ltc);
+pub const LTC: SimpleEvaluator<f64, fn(Holding) -> f64> = SimpleEvaluator(ltc);
 
-/// New Losing Trick Count &times; 2
+/// New Losing Trick Count
 ///
 /// [NLTC](https://en.wikipedia.org/wiki/Losing-Trick_Count#New_Losing-Trick_Count_(NLTC))
 /// is a variant of losing trick count that gives different weights to missing
 /// honors.  A missing A/K/Q is worth 1.5/1.0/0.5 tricks respectively.
 ///
-/// This evaluator counts half losers to make the result an integer. This
-/// evaluator calls [`half_nltc`] for each suit.
-pub const HALF_NLTC: SimpleEvaluator<i32, fn(Holding) -> i32> = SimpleEvaluator(half_nltc);
+/// This evaluator calls [`nltc`] for each suit.
+pub const NLTC: SimpleEvaluator<f64, fn(Holding) -> f64> = SimpleEvaluator(nltc);
 
 /// Test point counts with four kings
 #[test]
 #[allow(clippy::unusual_byte_groupings)]
 fn test_four_kings() {
+    use approx::assert_ulps_eq;
+
     const KXXX: Holding = Holding::from_bits(0b01000_0000_0111_00);
     const KXX: Holding = Holding::from_bits(0b01000_0000_0011_00);
     const HAND: Hand = Hand([KXXX, KXX, KXX, KXX]);
-    assert_eq!(HCP.eval(HAND), 12);
-    assert_eq!(DECI_FIFTHS.eval(HAND), 28 * 4);
-    assert_eq!(CENTI_BUMRAP.eval(HAND), 1200);
-    assert_eq!(LTC.eval(HAND), 8);
-    assert_eq!(HALF_NLTC.eval(HAND), 16);
+
+    assert_ulps_eq!(HCP.eval(HAND), 12.0);
+    assert_ulps_eq!(FIFTHS.eval(HAND), 2.8 * 4.0);
+    assert_ulps_eq!(BUMRAP.eval(HAND), 12.0);
+    assert_ulps_eq!(LTC.eval(HAND), 8.0);
+    assert_ulps_eq!(NLTC.eval(HAND), 8.0);
 }

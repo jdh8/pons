@@ -18,12 +18,8 @@ fn calculate_par_suit_tricks(tricks: dds::TricksTable) -> Option<(dds::Suit, dds
 
 type SimpleEvaluator<T> = eval::SimpleEvaluator<T, fn(dds::Holding) -> T>;
 
-const EVALUATORS: [SimpleEvaluator<i32>; 4] = [
-    eval::HCP_PLUS,
-    eval::CENTI_BUMRAP_PLUS,
-    eval::LTC,
-    eval::HALF_NLTC,
-];
+const EVALUATORS: [SimpleEvaluator<f64>; 4] =
+    [eval::HCP_PLUS, eval::BUMRAP_PLUS, eval::LTC, eval::NLTC];
 
 type Columns = na::Const<{ EVALUATORS.len() + 1 }>;
 type Evaluation = na::OMatrix<f64, na::Dyn, Columns>;
@@ -49,9 +45,8 @@ fn eval_random_deals(n: usize) -> Result<Evaluation, dds::Error> {
 
     Ok(Evaluation::from_row_iterator(
         rows.len(),
-        rows.into_iter().flat_map(|(tricks, eval)| {
-            core::iter::once(f64::from(tricks)).chain(eval.into_iter().map(f64::from))
-        }),
+        rows.into_iter()
+            .flat_map(|(tricks, eval)| core::iter::once(f64::from(tricks)).chain(eval)),
     ))
 }
 
@@ -76,7 +71,7 @@ impl fmt::Display for Statistics {
     }
 }
 
-fn compute_historgram(eval: &Evaluation) -> Histogram<Statistics> {
+fn compute_histogram(eval: &Evaluation) -> Histogram<Statistics> {
     #[derive(Debug, Clone, Copy, Default, PartialEq)]
     struct Accumulator {
         count: f64,
@@ -140,7 +135,7 @@ fn main() -> Result<ExitCode, dds::Error> {
     );
     println!(
         "Histogram of mean eval for tricks: {}",
-        compute_historgram(&eval),
+        compute_histogram(&eval),
     );
     Ok(ExitCode::SUCCESS)
 }
