@@ -1,8 +1,8 @@
+use core::fmt;
 use dds_bridge as dds;
 use nalgebra as na;
 use pons::eval::{self, HandEvaluator as _};
 use std::process::ExitCode;
-use core::ops::AddAssign as _;
 
 fn calculate_par_suit_tricks(tricks: dds::TricksTable) -> Option<(dds::Suit, dds::Seat, i8)> {
     dds::calculate_par(tricks, dds::Vulnerability::empty(), dds::Seat::North)
@@ -28,7 +28,7 @@ const EVALUATORS: [SimpleEvaluator<i32>; 4] = [
 type Columns = na::Const<{ EVALUATORS.len() + 1 }>;
 type Evaluation = na::OMatrix<f64, na::Dyn, Columns>;
 type Correlation = na::OMatrix<f64, Columns, Columns>;
-type Histogram = na::OMatrix<f64, na::U8, na::Const<{ EVALUATORS.len() }>>;
+type Histogram<T> = na::OMatrix<T, na::U8, na::Const<{ EVALUATORS.len() }>>;
 
 fn eval_random_deals(n: usize) -> Result<Evaluation, dds::Error> {
     let deals: Vec<_> = core::iter::repeat_with(|| dds::Deal::new(&mut rand::thread_rng()))
@@ -62,17 +62,47 @@ fn compute_correlation(eval: &Evaluation) -> Correlation {
     moment.map_with_location(|i, j, x| x / (moment[(i, i)] * moment[(j, j)]).sqrt())
 }
 
-fn compute_mean_historgram(eval: &Evaluation) -> Histogram {
-    let mut sum = Histogram::zeros();
-    let mut count = Histogram::zeros();
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+struct Statistics {
+    mean: f64,
+    sd: f64,
+}
 
-    for row in eval.row_iter() {
-        let i = (row[0] as usize).max(6) - 6;
-        sum.row_mut(i).add_assign(row.fixed_columns::<{ EVALUATORS.len() }>(1));
-        count.row_mut(i).add_scalar_mut(1.0);
+impl fmt::Display for Statistics {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.mean.fmt(f)?;
+        " ± ".fmt(f)?;
+        self.sd.fmt(f)
     }
-    sum.component_div(&count)
-} 
+}
+
+fn compute_historgram(eval: &Evaluation) -> Histogram<Statistics> {
+    #[derive(Debug, Clone, Copy, Default, PartialEq)]
+    struct Accumulator {
+        count: f64,
+        mean: f64,
+        moment: f64,
+    }
+
+    let stat: Histogram<Accumulator> =
+        eval.row_iter().fold(Histogram::default(), |mut stat, row| {
+            #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+            let i = (row[0] as usize).max(6) - 6;
+            let row = row.fixed_columns::<{ EVALUATORS.len() }>(1);
+            stat.row_mut(i).zip_apply(&row, |acc, x| {
+                acc.count += 1.0;
+                let delta = x - acc.mean;
+                acc.mean += delta / acc.count;
+                acc.moment += delta * (x - acc.mean);
+            });
+            stat
+        });
+
+    stat.map(|acc| Statistics {
+        mean: if acc.count <= 0.5 { f64::NAN } else { acc.mean },
+        sd: (acc.moment / (acc.count - 1.0).max(0.0)).sqrt(),
+    })
+}
 
 #[doc = include_str!("README.md")]
 fn main() -> Result<ExitCode, dds::Error> {
@@ -110,7 +140,7 @@ fn main() -> Result<ExitCode, dds::Error> {
     );
     println!(
         "Histogram of mean eval for tricks: {}",
-        compute_mean_historgram(&eval),
+        compute_historgram(&eval),
     );
     Ok(ExitCode::SUCCESS)
 }
