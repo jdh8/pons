@@ -57,9 +57,8 @@ pub fn hcp(holding: Holding) -> f64 {
 
 /// Short suit points
 #[must_use]
-#[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
 pub fn shortness(holding: Holding) -> f64 {
-    f64::from(3 - holding.len().max(3) as i32)
+    (3 - holding.len().min(3)) as f64
 }
 
 /// The [Fifths] evaluator for 3NT
