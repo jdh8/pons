@@ -134,7 +134,7 @@ fn main() -> Result<ExitCode, dds::Error> {
         compute_correlation(&eval),
     );
     println!(
-        "Histogram of mean eval for tricks: {}",
+        "Histogram of eval (mean ± sd) for tricks: {}",
         compute_histogram(&eval),
     );
     Ok(ExitCode::SUCCESS)
