@@ -28,7 +28,6 @@ const EVALUATORS: [SimpleEvaluator<i32>; 4] = [
 type Columns = na::Const<{ EVALUATORS.len() + 1 }>;
 type Evaluation = na::OMatrix<f64, na::Dyn, Columns>;
 type Correlation = na::OMatrix<f64, Columns, Columns>;
-type Coefficients = na::OMatrix<f64, na::U2, na::Const<{ EVALUATORS.len() }>>;
 type Histogram = na::OMatrix<f64, na::U8, na::Const<{ EVALUATORS.len() }>>;
 
 fn eval_random_deals(n: usize) -> Result<Evaluation, dds::Error> {
@@ -36,7 +35,7 @@ fn eval_random_deals(n: usize) -> Result<Evaluation, dds::Error> {
         .take(n)
         .collect();
 
-    let rows: Vec<_> = dds::solve_deals(&deals, !dds::StrainFlags::NOTRUMP)?
+    let rows: Vec<_> = dds::solve_deals(&deals, dds::StrainFlags::all())?
         .into_iter()
         .map(calculate_par_suit_tricks)
         .enumerate()
@@ -61,24 +60,6 @@ fn compute_correlation(eval: &Evaluation) -> Correlation {
     let centered = eval.map_with_location(|_, j, x| x - mean[j]);
     let moment = centered.adjoint() * centered;
     moment.map_with_location(|i, j, x| x / (moment[(i, i)] * moment[(j, j)]).sqrt())
-}
-
-fn compute_linear_regression(eval: &Evaluation) -> Coefficients {
-    let tricks = eval.column(0);
-    let eval = eval.fixed_columns::<{ EVALUATORS.len() }>(1);
-
-    Coefficients::from_iterator(eval.column_iter().flat_map(|col| {
-        let matrix = na::OMatrix::<f64, na::Dyn, na::U2>::from_columns(&[
-            col.into(),
-            na::DVector::from_element(eval.nrows(), 1.0),
-        ]);
-        let (q, r) = matrix.qr().unpack();
-        let q = q.fixed_columns::<2>(0);
-        let r = r.fixed_rows::<2>(0);
-
-        r.solve_upper_triangular(&(q.transpose() * tricks))
-            .map_or([f64::NAN; 2], Into::into)
-    }))
 }
 
 fn compute_mean_historgram(eval: &Evaluation) -> Histogram {
@@ -126,10 +107,6 @@ fn main() -> Result<ExitCode, dds::Error> {
     println!(
         "Correlation matrix between `EVALUATORS`: {}",
         compute_correlation(&eval),
-    );
-    println!(
-        "Linear regression coefficients: {}",
-        compute_linear_regression(&eval),
     );
     println!(
         "Histogram of mean eval for tricks: {}",
