@@ -57,6 +57,8 @@ pub fn hcp(holding: Holding) -> f64 {
 
 /// Short suit points
 #[must_use]
+// SAFETY: the integer to cast is in 0..=3, so the cast is safe.
+#[allow(clippy::cast_precision_loss)]
 pub fn shortness(holding: Holding) -> f64 {
     (3 - holding.len().min(3)) as f64
 }
