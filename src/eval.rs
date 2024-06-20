@@ -185,3 +185,25 @@ fn test_four_kings() {
     assert_ulps_eq!(LTC.eval(HAND), 8.0);
     assert_ulps_eq!(NLTC.eval(HAND), 8.0);
 }
+
+/// Test a random hand from Cuebids: KJ53.K84.43.KT85
+/// <https://cuebids.com/session/deal/yrBmPu9P4O20qzclHpX1>
+#[test]
+#[allow(clippy::unusual_byte_groupings)]
+fn test_random_from_cuebids() {
+    use approx::assert_ulps_eq;
+
+    const KJ53: Holding = Holding::from_bits(0b01010_0000_1010_00);
+    const K84: Holding  = Holding::from_bits(0b01000_0100_0100_00);
+    const XX: Holding   = Holding::from_bits(0b00000_0000_0110_00);
+    const KT85: Holding = Holding::from_bits(0b01001_0100_1000_00);
+    const HAND: Hand = Hand([KT85, XX, K84, KJ53]);
+
+    assert_ulps_eq!(HCP.eval(HAND), 10.0);
+    assert_ulps_eq!(HCP_PLUS.eval(HAND), 11.0);
+    assert_ulps_eq!(FIFTHS.eval(HAND), 9.8);
+    assert_ulps_eq!(BUMRAP.eval(HAND), 10.0);
+    assert_ulps_eq!(BUMRAP_PLUS.eval(HAND), 11.0);
+    assert_ulps_eq!(LTC.eval(HAND), 8.0);
+    assert_ulps_eq!(NLTC.eval(HAND), 8.5);
+}
