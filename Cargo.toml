@@ -11,9 +11,9 @@ keywords = ["bridge"]
 
 [dependencies]
 bitflags = "2.0.2"
-dds-bridge = "0.9.1"
+dds-bridge = "0.9.3"
 rand = "0.8.5"
 
 [dev-dependencies]
 approx = "0.5.1"
-nalgebra = "0.32.6"
+nalgebra = "0.33.0"
