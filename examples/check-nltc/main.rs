@@ -1,22 +1,22 @@
 use core::fmt;
-use dds_bridge as dds;
+use dds_bridge::{deal, solver};
 use nalgebra as na;
 use pons::eval::{self, HandEvaluator as _};
 use std::process::ExitCode;
 
-fn calculate_par_suit_tricks(tricks: dds::TricksTable) -> Option<(dds::Suit, dds::Seat, i8)> {
-    dds::calculate_par(tricks, dds::Vulnerability::empty(), dds::Seat::North)
+fn calculate_par_suit_tricks(tricks: solver::TricksTable) -> Option<(deal::Suit, deal::Seat, i8)> {
+    solver::calculate_par(tricks, solver::Vulnerability::empty(), deal::Seat::North)
         .ok()?
         .contracts
         .into_iter()
         .find_map(|(contract, seat, overtricks)| {
-            let suit = dds::Suit::try_from(contract.bid.strain).ok();
+            let suit = deal::Suit::try_from(contract.bid.strain).ok();
             #[allow(clippy::cast_possible_wrap)] // level is always in 1..=7
             suit.map(|suit| (suit, seat, contract.bid.level as i8 + 6 + overtricks))
         })
 }
 
-type SimpleEvaluator<T> = eval::SimpleEvaluator<T, fn(dds::Holding) -> T>;
+type SimpleEvaluator<T> = eval::SimpleEvaluator<T, fn(deal::Holding) -> T>;
 
 const EVALUATORS: [SimpleEvaluator<f64>; 4] =
     [eval::HCP_PLUS, eval::BUMRAP_PLUS, eval::LTC, eval::NLTC];
@@ -26,12 +26,12 @@ type Evaluation = na::OMatrix<f64, na::Dyn, Columns>;
 type Correlation = na::OMatrix<f64, Columns, Columns>;
 type Histogram<T> = na::OMatrix<T, na::U8, na::Const<{ EVALUATORS.len() }>>;
 
-fn eval_random_deals(n: usize) -> Result<Evaluation, dds::Error> {
-    let deals: Vec<_> = core::iter::repeat_with(|| dds::Deal::new(&mut rand::thread_rng()))
+fn eval_random_deals(n: usize) -> Result<Evaluation, solver::Error> {
+    let deals: Vec<_> = core::iter::repeat_with(|| deal::Deal::new(&mut rand::thread_rng()))
         .take(n)
         .collect();
 
-    let rows: Vec<_> = dds::solve_deals(&deals, dds::StrainFlags::all())?
+    let rows: Vec<_> = solver::solve_deals(&deals, solver::StrainFlags::all())?
         .into_iter()
         .map(calculate_par_suit_tricks)
         .enumerate()
@@ -100,7 +100,7 @@ fn compute_histogram(eval: &Evaluation) -> Histogram<Statistics> {
 }
 
 #[doc = include_str!("README.md")]
-fn main() -> Result<ExitCode, dds::Error> {
+fn main() -> Result<ExitCode, solver::Error> {
     let n = match std::env::args().nth(1) {
         Some(string) => {
             if let Ok(n) = string.parse::<usize>() {

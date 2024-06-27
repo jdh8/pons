@@ -1,5 +1,5 @@
 use core::iter::Sum;
-use dds_bridge::{Hand, Holding, SmallSet as _};
+use dds_bridge::deal::{Hand, Holding, SmallSet as _};
 
 /// Trait for hand evaluators
 pub trait HandEvaluator<T> {
@@ -194,8 +194,8 @@ fn test_random_from_cuebids() {
     use approx::assert_ulps_eq;
 
     const KJ53: Holding = Holding::from_bits(0b01010_0000_1010_00);
-    const K84: Holding  = Holding::from_bits(0b01000_0100_0100_00);
-    const XX: Holding   = Holding::from_bits(0b00000_0000_0110_00);
+    const K84: Holding = Holding::from_bits(0b01000_0100_0100_00);
+    const XX: Holding = Holding::from_bits(0b00000_0000_0110_00);
     const KT85: Holding = Holding::from_bits(0b01001_0100_1000_00);
     const HAND: Hand = Hand([KT85, XX, K84, KJ53]);
 
