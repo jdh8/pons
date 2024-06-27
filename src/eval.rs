@@ -1,5 +1,5 @@
+use crate::bidding::{Hand, Holding, SmallSet as _};
 use core::iter::Sum;
-use dds_bridge::deal::{Hand, Holding, SmallSet as _};
 
 /// Trait for hand evaluators
 pub trait HandEvaluator<T> {
