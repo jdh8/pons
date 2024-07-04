@@ -41,6 +41,12 @@ impl Deref for Auction {
     }
 }
 
+impl From<Auction> for Vec<Call> {
+    fn from(auction: Auction) -> Self {
+        auction.0
+    }
+}
+
 impl Auction {
     /// Construct an empty auction
     #[must_use]
