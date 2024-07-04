@@ -70,7 +70,6 @@ impl Auction {
         if !admissible {
             return Err(IllegalCall::InadmissibleDouble(Penalty::Doubled));
         }
-
         Ok(())
     }
 
@@ -89,7 +88,6 @@ impl Auction {
         if !admissible {
             return Err(IllegalCall::InadmissibleDouble(Penalty::Redoubled));
         }
-
         Ok(())
     }
 
@@ -109,10 +107,9 @@ impl Auction {
         });
 
         if last >= Some(bid) {
-            Err(IllegalCall::InsufficientBid(bid, last))
-        } else {
-            Ok(())
+            return Err(IllegalCall::InsufficientBid(bid, last));
         }
+        Ok(())
     }
 
     /// Add a call to the auction with checks
