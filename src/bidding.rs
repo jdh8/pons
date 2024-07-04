@@ -140,6 +140,13 @@ impl Auction {
         self.0.pop()
     }
 
+    /// Truncate the auction to the first `len` calls
+    ///
+    /// If `len` is greater or equal to the current length, this has no effect.
+    pub fn truncate(&mut self, len: usize) {
+        self.0.truncate(len);
+    }
+
     /// Search the index of the declaring bid
     ///
     /// The first player of the declaring side who first bids the strain of
