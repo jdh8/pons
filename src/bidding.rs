@@ -135,6 +135,25 @@ impl Auction {
         Ok(())
     }
 
+    /// Try adding calls to the auction
+    ///
+    /// # Errors
+    /// If any call is illegal, an [`IllegalCall`] is returned.  Calls already
+    /// added to the auction are kept.  If you want to roll back the auction,
+    /// [`truncate`][Self::truncate] it to the previous length.
+    pub fn try_extend(&mut self, iter: impl IntoIterator<Item = Call>) -> Result<(), IllegalCall> {
+        let iter = iter.into_iter();
+
+        if let Some(size) = iter.size_hint().1 {
+            self.0.reserve(size);
+        }
+
+        for call in iter {
+            self.try_push(call)?;
+        }
+        Ok(())
+    }
+
     /// Pop the last call from the auction
     pub fn pop(&mut self) -> Option<Call> {
         self.0.pop()
