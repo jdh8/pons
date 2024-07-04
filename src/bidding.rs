@@ -1,29 +1,43 @@
 use core::ops::Deref;
 pub use dds_bridge::contract::*;
 pub use dds_bridge::deal::{Hand, Holding, SmallSet};
+use thiserror::Error;
+
+/// Types of illegal calls
+///
+/// The laws mentioned in the variants are from [The Laws of Duplicate Bridge
+/// 2017][laws].
+///
+/// [laws]: http://www.worldbridge.org/wp-content/uploads/2017/03/2017LawsofDuplicateBridge-nohighlights.pdf
+#[derive(Debug, Error, Clone, Copy, PartialEq, Eq)]
+pub enum IllegalCall {
+    /// Law 27: insufficient bid
+    #[error("Law 27: insufficient bid")]
+    InsufficientBid(Bid, Option<Bid>),
+
+    /// Law 36: inadmissible doubles and redoubles
+    #[error("Law 36: inadmissible doubles and redoubles")]
+    InadmissibleDouble(Penalty),
+
+    /// Law 38: bid of more than seven
+    #[error("Law 38: bid of more than seven")]
+    BidOfMoreThanSeven(Bid),
+
+    /// Law 39: call after the final pass
+    #[error("Law 39: call after the final pass")]
+    AfterFinalPass,
+}
 
 /// A sequence of [`Call`]s
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct Auction {
-    /// The sequence of [`Call`]s
-    calls: Vec<Call>,
-
-    /// The proposed contract
-    contract: Option<Contract>,
-
-    /// The index of [`Self::contract`] in [`Self::calls`]
-    ///
-    /// If the contract is being (re)doubled, the index updates to the
-    /// (re)double.
-    index: usize,
-}
+pub struct Auction(Vec<Call>);
 
 /// View the auction as a slice of calls
 impl Deref for Auction {
     type Target = [Call];
 
     fn deref(&self) -> &[Call] {
-        &self.calls
+        &self.0
     }
 }
 
@@ -31,86 +45,102 @@ impl Auction {
     /// Construct an empty auction
     #[must_use]
     pub const fn new() -> Self {
-        Self {
-            calls: Vec::new(),
-            contract: None,
-            index: 0,
-        }
+        Self(Vec::new())
     }
 
     /// Check if the auction is terminated (by 3 consecutive passes following
     /// a call)
     #[must_use]
     pub fn has_ended(&self) -> bool {
-        self.len() >= self.index + 4
+        self.len() >= 4 && self[self.len() - 3..] == [Call::Pass; 3]
     }
 
-    /// Add a call to the auction
-    pub fn push(&mut self, call: Call) -> bool {
+    /// Try doubling the last bid (dry run)
+    fn try_double(&self) -> Result<(), IllegalCall> {
+        let admissible = self
+            .iter()
+            .rev()
+            .copied()
+            .enumerate()
+            .find(|&(_, call)| call != Call::Pass)
+            .map_or(false, |(index, call)| {
+                index & 1 == 0 && matches!(call, Call::Bid(_))
+            });
+
+        if !admissible {
+            return Err(IllegalCall::InadmissibleDouble(Penalty::Doubled));
+        }
+
+        Ok(())
+    }
+
+    /// Try redoubling the last double (dry run)
+    fn try_redouble(&self) -> Result<(), IllegalCall> {
+        let admissible = self
+            .iter()
+            .rev()
+            .copied()
+            .enumerate()
+            .find(|&(_, call)| call != Call::Pass)
+            .map_or(false, |(index, call)| {
+                index & 1 == 0 && call == Call::Double
+            });
+
+        if !admissible {
+            return Err(IllegalCall::InadmissibleDouble(Penalty::Redoubled));
+        }
+
+        Ok(())
+    }
+
+    /// Try bidding a contract (dry run)
+    fn try_bid(&self, bid: Bid) -> Result<(), IllegalCall> {
+        if bid.level < 1 {
+            return Err(IllegalCall::InsufficientBid(bid, None));
+        }
+
+        if bid.level > 7 {
+            return Err(IllegalCall::BidOfMoreThanSeven(bid));
+        }
+
+        let last = self.iter().rev().find_map(|&call| match call {
+            Call::Bid(bid) => Some(bid),
+            _ => None,
+        });
+
+        if last >= Some(bid) {
+            Err(IllegalCall::InsufficientBid(bid, last))
+        } else {
+            Ok(())
+        }
+    }
+
+    /// Add a call to the auction with checks
+    ///
+    /// # Errors
+    /// [`IllegalCall`] if the call is forbidden by [The Laws of Duplicate
+    /// Bridge][laws].
+    ///
+    /// [laws]: http://www.worldbridge.org/wp-content/uploads/2017/03/2017LawsofDuplicateBridge-nohighlights.pdf
+    pub fn try_push(&mut self, call: Call) -> Result<(), IllegalCall> {
         if self.has_ended() {
-            return false;
+            return Err(IllegalCall::AfterFinalPass);
         }
 
         match call {
             Call::Pass => (),
-
-            Call::Double => {
-                let Some(contract) = self.contract else {
-                    return false;
-                };
-                if contract.penalty != Penalty::None {
-                    return false;
-                }
-                if (self.index ^ self.len()) & 1 == 0 {
-                    return false;
-                }
-
-                self.contract = Some(Contract {
-                    bid: contract.bid,
-                    penalty: Penalty::Doubled,
-                });
-                self.index = self.len();
-            }
-
-            Call::Redouble => {
-                let Some(contract) = self.contract else {
-                    return false;
-                };
-                if contract.penalty != Penalty::Doubled {
-                    return false;
-                }
-                if (self.index ^ self.len()) & 1 == 0 {
-                    return false;
-                }
-
-                self.contract = Some(Contract {
-                    bid: contract.bid,
-                    penalty: Penalty::Redoubled,
-                });
-                self.index = self.len();
-            }
-
-            Call::Bid(bid) => {
-                // Invalid bid
-                if bid.level < 1 || bid.level > 7 {
-                    return false;
-                }
-
-                // Insufficient bid
-                if self.contract.is_some_and(|contract| bid <= contract.bid) {
-                    return false;
-                }
-
-                self.contract = Some(Contract {
-                    bid,
-                    penalty: Penalty::None,
-                });
-                self.index = self.len();
-            }
+            Call::Double => self.try_double()?,
+            Call::Redouble => self.try_redouble()?,
+            Call::Bid(bid) => self.try_bid(bid)?,
         }
 
-        self.calls.push(call);
-        true
+        self.0.push(call);
+        Ok(())
+    }
+
+    /// Pop the last call from the auction
+    pub fn pop(&mut self) -> Option<Call> {
+        self.0.pop()
     }
 
     /// Search the index of the declaring bid
@@ -120,18 +150,23 @@ impl Auction {
     /// the declarer.
     #[must_use]
     pub fn declarer(&self) -> Option<usize> {
-        self.contract.and_then(|contract| {
-            let strain = contract.bid.strain;
-            let parity = self.index & 1 ^ usize::from(contract.penalty == Penalty::Doubled);
-
+        let (parity, strain) =
             self.iter()
-                .skip(parity)
-                .step_by(2)
-                .position(|call| match call {
-                    Call::Bid(bid) => bid.strain == strain,
-                    _ => false,
-                })
-                .map(|position| position << 1 | parity)
-        })
+                .copied()
+                .enumerate()
+                .rev()
+                .find_map(|(index, call)| match call {
+                    Call::Bid(bid) => Some((index & 1, bid.strain)),
+                    _ => None,
+                })?;
+
+        self.iter()
+            .skip(parity)
+            .step_by(2)
+            .position(|call| match call {
+                Call::Bid(bid) => bid.strain == strain,
+                _ => false,
+            })
+            .map(|position| position << 1 | parity)
     }
 }
