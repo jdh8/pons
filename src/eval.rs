@@ -1,4 +1,4 @@
-use crate::bidding::{Hand, Holding, SmallSet as _};
+use crate::bidding::{Hand, Holding, SmallSet};
 use core::iter::Sum;
 
 /// Trait for hand evaluators
@@ -168,6 +168,30 @@ pub const LTC: SimpleEvaluator<f64, fn(Holding) -> f64> = SimpleEvaluator(ltc);
 ///
 /// This evaluator calls [`nltc`] for each suit.
 pub const NLTC: SimpleEvaluator<f64, fn(Holding) -> f64> = SimpleEvaluator(nltc);
+
+/// [Zar points][zar], an evaluation by by Zar Petkov
+///
+/// [zar]: https://en.wikipedia.org/wiki/Zar_Points
+pub fn zar(hand: Hand) -> f64 {
+    let holdings = hand.0;
+    let mut lengths = holdings.map(SmallSet::len);
+    lengths.sort_unstable();
+
+    let sum = lengths[3] + lengths[2];
+    let diff = lengths[3] - lengths[0];
+    let honors: usize = holdings
+        .into_iter()
+        .map(|holding| {
+            6 * usize::from(holding.contains(14))
+                + 4 * usize::from(holding.contains(13))
+                + 2 * usize::from(holding.contains(12))
+                + usize::from(holding.contains(11))
+        })
+        .sum();
+
+    #[allow(clippy::cast_precision_loss)]
+    return (honors + sum + diff) as f64;
+}
 
 /// Test point counts with four kings
 #[test]
