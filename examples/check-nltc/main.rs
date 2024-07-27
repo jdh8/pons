@@ -1,7 +1,7 @@
 use core::fmt;
 use dds_bridge::{deal, solver};
 use nalgebra as na;
-use pons::eval::{self, HandEvaluator as _};
+use pons::eval;
 use std::process::ExitCode;
 
 fn calculate_par_suit_tricks(tricks: solver::TricksTable) -> Option<(deal::Suit, deal::Seat, i8)> {
@@ -16,10 +16,13 @@ fn calculate_par_suit_tricks(tricks: solver::TricksTable) -> Option<(deal::Suit,
         })
 }
 
-type SimpleEvaluator<T> = eval::SimpleEvaluator<T, fn(deal::Holding) -> T>;
-
-const EVALUATORS: [SimpleEvaluator<f64>; 4] =
-    [eval::HCP_PLUS, eval::BUMRAP_PLUS, eval::LTC, eval::NLTC];
+const EVALUATORS: [&'static dyn eval::HandEvaluator<f64>; 5] = [
+    &eval::HCP_PLUS,
+    &eval::BUMRAP_PLUS,
+    &eval::LTC,
+    &eval::NLTC,
+    &eval::zar,
+];
 
 type Columns = na::Const<{ EVALUATORS.len() + 1 }>;
 type Evaluation = na::OMatrix<f64, na::Dyn, Columns>;
@@ -130,11 +133,11 @@ fn main() -> Result<ExitCode, solver::Error> {
     println!("Average tricks of the best suit contract: {mean}");
     println!("Standard deviation of the tricks: {}\n", variance.sqrt());
     println!(
-        "Correlation matrix between `EVALUATORS`: {}",
+        "Correlation matrix between `EVALUATORS`: {:.12}",
         compute_correlation(&eval),
     );
     println!(
-        "Histogram of eval (mean ± sd) for tricks: {}",
+        "Histogram of eval (mean ± sd) for tricks: {:.6}",
         compute_histogram(&eval),
     );
     Ok(ExitCode::SUCCESS)
