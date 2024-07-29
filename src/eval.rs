@@ -131,7 +131,11 @@ pub fn nltc(holding: Holding) -> f64 {
 pub fn hcp_plus<T: From<u8> + PartialOrd>(holding: Holding) -> T {
     let count = hcp(holding);
     let short = shortness(holding);
-    if count < short { short } else { count }
+    if count < short {
+        short
+    } else {
+        count
+    }
 }
 
 /// The [Fifths] evaluator for 3NT
@@ -173,9 +177,11 @@ pub fn zar<T: From<u8>>(hand: Hand) -> T {
     let mut lengths = holdings.map(SmallSet::len);
     lengths.sort_unstable();
 
+    // SAFETY: the lengths are at most 13, so the cast is safe.
     #[allow(clippy::cast_possible_truncation)]
     let sum = (lengths[3] + lengths[2]) as u8;
 
+    // SAFETY: `lengths` is already sorted, so the result is non-negative.
     #[allow(clippy::cast_possible_truncation)]
     let diff = (lengths[3] - lengths[0]) as u8;
 
@@ -183,8 +189,7 @@ pub fn zar<T: From<u8>>(hand: Hand) -> T {
         .into_iter()
         .map(|holding| {
             let [a, k, q, j] = [14, 13, 12, 11].map(|r| holding.contains(r));
-            let count =
-                6 * u8::from(a) + 4 * u8::from(k) + 2 * u8::from(q) + u8::from(j);
+            let count = 6 * u8::from(a) + 4 * u8::from(k) + 2 * u8::from(q) + u8::from(j);
             let waste = match holding.len() {
                 1 => k || q || j,
                 2 => q || j,
