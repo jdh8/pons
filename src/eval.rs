@@ -95,8 +95,6 @@ pub fn bumrap(holding: Holding) -> f64 {
 }
 
 /// Plain old losing trick count
-///
-/// This function is the kernel of [`LTC`].
 #[must_use]
 pub fn ltc<T: From<u8>>(holding: Holding) -> T {
     let len = holding.len();
