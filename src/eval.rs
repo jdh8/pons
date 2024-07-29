@@ -1,4 +1,5 @@
 use crate::bidding::{Hand, Holding, SmallSet};
+use core::cmp::Ord;
 use core::iter::Sum;
 
 /// Trait for hand evaluators
@@ -44,23 +45,23 @@ impl<T: Sum, F: Copy + Fn(Holding) -> T> Copy for SimpleEvaluator<T, F> {}
 
 /// High card points
 ///
-/// This function is the kernel of [`HCP`].
+/// This is the well-known 4-3-2-1 point count by Milton Work.
 #[must_use]
-pub fn hcp(holding: Holding) -> f64 {
-    f64::from(
-        4 * i32::from(holding.contains(14))
-            + 3 * i32::from(holding.contains(13))
-            + 2 * i32::from(holding.contains(12))
-            + i32::from(holding.contains(11)),
+pub fn hcp<T: From<u8>>(holding: Holding) -> T {
+    T::from(
+        4 * u8::from(holding.contains(14))
+            + 3 * u8::from(holding.contains(13))
+            + 2 * u8::from(holding.contains(12))
+            + u8::from(holding.contains(11)),
     )
 }
 
 /// Short suit points
 #[must_use]
 // SAFETY: the integer to cast is in 0..=3, so the cast is safe.
-#[allow(clippy::cast_precision_loss)]
-pub fn shortness(holding: Holding) -> f64 {
-    (3 - holding.len().min(3)) as f64
+#[allow(clippy::cast_possible_truncation)]
+pub fn shortness<T: From<u8>>(holding: Holding) -> T {
+    T::from(3 - holding.len().min(3) as u8)
 }
 
 /// The [Fifths] evaluator for 3NT
@@ -97,13 +98,13 @@ pub fn bumrap(holding: Holding) -> f64 {
 ///
 /// This function is the kernel of [`LTC`].
 #[must_use]
-pub fn ltc(holding: Holding) -> f64 {
+pub fn ltc<T: From<u8>>(holding: Holding) -> T {
     let len = holding.len();
 
-    f64::from(
-        i32::from(len >= 1 && !holding.contains(14))
-            + i32::from(len >= 2 && !holding.contains(13))
-            + i32::from(len >= 3 && !holding.contains(12)),
+    T::from(
+        u8::from(len >= 1 && !holding.contains(14))
+            + u8::from(len >= 2 && !holding.contains(13))
+            + u8::from(len >= 3 && !holding.contains(12)),
     )
 }
 
@@ -121,19 +122,17 @@ pub fn nltc(holding: Holding) -> f64 {
     ) * 0.5
 }
 
-/// High card points
-///
-/// This is the well-known 4-3-2-1 point count by Milton Work.  Evaluation of
-/// each suit is done by [`hcp`].
-pub const HCP: SimpleEvaluator<f64, fn(Holding) -> f64> = SimpleEvaluator(hcp);
-
 /// High card points plus useful shortness
 ///
-/// For each suit, we count max([HCP], shortness, HCP + shortness &minus; 1).
+/// For each suit, we count max([HCP][hcp], shortness, HCP + shortness &minus; 1).
 /// This method avoids double counting of short honors.  This evaluator is
 /// particularly useful for suit contracts.
-pub const HCP_PLUS: SimpleEvaluator<f64, fn(Holding) -> f64> =
-    SimpleEvaluator(|x| hcp(x).max(shortness(x)));
+#[must_use]
+pub fn hcp_plus<T: From<u8> + PartialOrd>(holding: Holding) -> T {
+    let count = hcp(holding);
+    let short = shortness(holding);
+    if count < short { short } else { count }
+}
 
 /// The [Fifths] evaluator for 3NT
 ///
@@ -157,9 +156,6 @@ pub const BUMRAP: SimpleEvaluator<f64, fn(Holding) -> f64> = SimpleEvaluator(bum
 pub const BUMRAP_PLUS: SimpleEvaluator<f64, fn(Holding) -> f64> =
     SimpleEvaluator(|x| bumrap(x).max(shortness(x)));
 
-/// Plain old losing trick count
-pub const LTC: SimpleEvaluator<f64, fn(Holding) -> f64> = SimpleEvaluator(ltc);
-
 /// New Losing Trick Count
 ///
 /// [NLTC](https://en.wikipedia.org/wiki/Losing-Trick_Count#New_Losing-Trick_Count_(NLTC))
@@ -172,25 +168,33 @@ pub const NLTC: SimpleEvaluator<f64, fn(Holding) -> f64> = SimpleEvaluator(nltc)
 /// [Zar points][zar], an evaluation by by Zar Petkov
 ///
 /// [zar]: https://en.wikipedia.org/wiki/Zar_Points
-pub fn zar(hand: Hand) -> f64 {
+pub fn zar<T: From<u8>>(hand: Hand) -> T {
     let holdings = hand.0;
     let mut lengths = holdings.map(SmallSet::len);
     lengths.sort_unstable();
 
-    let sum = lengths[3] + lengths[2];
-    let diff = lengths[3] - lengths[0];
-    let honors: usize = holdings
+    #[allow(clippy::cast_possible_truncation)]
+    let sum = (lengths[3] + lengths[2]) as u8;
+
+    #[allow(clippy::cast_possible_truncation)]
+    let diff = (lengths[3] - lengths[0]) as u8;
+
+    let honors: u8 = holdings
         .into_iter()
         .map(|holding| {
-            6 * usize::from(holding.contains(14))
-                + 4 * usize::from(holding.contains(13))
-                + 2 * usize::from(holding.contains(12))
-                + usize::from(holding.contains(11))
+            let [a, k, q, j] = [14, 13, 12, 11].map(|r| holding.contains(r));
+            let count =
+                6 * u8::from(a) + 4 * u8::from(k) + 2 * u8::from(q) + u8::from(j);
+            let waste = match holding.len() {
+                1 => k || q || j,
+                2 => q || j,
+                _ => false,
+            };
+            count - u8::from(waste)
         })
         .sum();
 
-    #[allow(clippy::cast_precision_loss)]
-    return (honors + sum + diff) as f64;
+    T::from(honors + sum + diff)
 }
 
 /// Test point counts with four kings
@@ -203,10 +207,11 @@ fn test_four_kings() {
     const KXX: Holding = Holding::from_bits(0b01000_0000_0011_00);
     const HAND: Hand = Hand([KXXX, KXX, KXX, KXX]);
 
-    assert_ulps_eq!(HCP.eval(HAND), 12.0);
+    assert_eq!(SimpleEvaluator(hcp::<u8>).eval(HAND), 12);
     assert_ulps_eq!(FIFTHS.eval(HAND), 2.8 * 4.0);
     assert_ulps_eq!(BUMRAP.eval(HAND), 12.0);
-    assert_ulps_eq!(LTC.eval(HAND), 8.0);
+
+    assert_eq!(SimpleEvaluator(ltc::<u8>).eval(HAND), 8);
     assert_ulps_eq!(NLTC.eval(HAND), 8.0);
 }
 
@@ -223,11 +228,12 @@ fn test_random_from_cuebids() {
     const KT85: Holding = Holding::from_bits(0b01001_0100_1000_00);
     const HAND: Hand = Hand([KT85, XX, K84, KJ53]);
 
-    assert_ulps_eq!(HCP.eval(HAND), 10.0);
-    assert_ulps_eq!(HCP_PLUS.eval(HAND), 11.0);
+    assert_eq!(SimpleEvaluator(hcp::<u8>).eval(HAND), 10);
+    assert_eq!(SimpleEvaluator(hcp_plus::<u8>).eval(HAND), 11);
     assert_ulps_eq!(FIFTHS.eval(HAND), 9.8);
     assert_ulps_eq!(BUMRAP.eval(HAND), 10.0);
     assert_ulps_eq!(BUMRAP_PLUS.eval(HAND), 11.0);
-    assert_ulps_eq!(LTC.eval(HAND), 8.0);
+
+    assert_eq!(SimpleEvaluator(ltc::<u8>).eval(HAND), 8);
     assert_ulps_eq!(NLTC.eval(HAND), 8.5);
 }

@@ -17,9 +17,9 @@ fn calculate_par_suit_tricks(tricks: solver::TricksTable) -> Option<(deal::Suit,
 }
 
 const EVALUATORS: [&'static dyn eval::HandEvaluator<f64>; 5] = [
-    &eval::HCP_PLUS,
+    &eval::SimpleEvaluator(eval::hcp_plus::<f64>),
     &eval::BUMRAP_PLUS,
-    &eval::LTC,
+    &eval::SimpleEvaluator(eval::ltc::<f64>),
     &eval::NLTC,
     &eval::zar,
 ];
