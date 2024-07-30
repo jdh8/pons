@@ -1,6 +1,6 @@
-use core::fmt;
 use dds_bridge::{deal, solver};
 use pons::eval::{self, HandEvaluator as _};
+use pons::stats::{Accumulator, Statistics};
 use std::process::ExitCode;
 
 fn calculate_par_suit_tricks(tricks: solver::TricksTable) -> Option<(deal::Suit, deal::Seat, i8)> {
@@ -15,28 +15,7 @@ fn calculate_par_suit_tricks(tricks: solver::TricksTable) -> Option<(deal::Suit,
         })
 }
 
-#[derive(Debug, Clone, Copy, Default, PartialEq)]
-struct Statistics {
-    mean: f64,
-    sd: f64,
-}
-
-impl fmt::Display for Statistics {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        self.mean.fmt(f)?;
-        " ± ".fmt(f)?;
-        self.sd.fmt(f)
-    }
-}
-
 fn eval_random_deals(n: usize) -> Result<[Statistics; 64], solver::Error> {
-    #[derive(Debug, Clone, Copy, Default, PartialEq)]
-    struct Accumulator {
-        count: f64,
-        mean: f64,
-        moment: f64,
-    }
-
     let deals: Vec<_> = core::iter::repeat_with(|| deal::Deal::new(&mut rand::thread_rng()))
         .take(n)
         .collect();
@@ -51,19 +30,11 @@ fn eval_random_deals(n: usize) -> Result<[Statistics; 64], solver::Error> {
                 (eval::zar::<u8>.eval_pair(hands), tricks)
             })
         })
-        .fold([Accumulator::default(); 64], |mut array, (eval, tricks)| {
-            let acc = &mut array[(eval - 16).min(64) as usize];
-            let x = f64::from(tricks);
-            acc.count += 1.0;
-            let delta = x - acc.mean;
-            acc.mean += delta / acc.count;
-            acc.moment += delta * (x - acc.mean);
-            array
+        .fold([Accumulator::default(); 64], |mut acc, (eval, tricks)| {
+            acc[(eval - 16).min(64) as usize].push(tricks.into());
+            acc
         })
-        .map(|acc| Statistics {
-            mean: if acc.count <= 0.5 { f64::NAN } else { acc.mean },
-            sd: (acc.moment / (acc.count - 1.0).max(0.0)).sqrt(),
-        }))
+        .map(Accumulator::sample))
 }
 
 fn main() -> Result<ExitCode, solver::Error> {
@@ -78,9 +49,8 @@ fn main() -> Result<ExitCode, solver::Error> {
         }
         None => 100,
     };
-    let stats = eval_random_deals(n)?;
 
-    for (i, stat) in stats.into_iter().enumerate() {
+    for (i, stat) in eval_random_deals(n)?.into_iter().enumerate() {
         println!("{}: {stat}", i + 16);
     }
 

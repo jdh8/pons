@@ -1,7 +1,7 @@
-use core::fmt;
 use dds_bridge::{deal, solver};
 use nalgebra as na;
 use pons::eval;
+use pons::stats::{Accumulator, Statistics};
 use std::process::ExitCode;
 
 fn calculate_par_suit_tricks(tricks: solver::TricksTable) -> Option<(deal::Suit, deal::Seat, i8)> {
@@ -60,46 +60,16 @@ fn compute_correlation(eval: &Evaluation) -> Correlation {
     moment.map_with_location(|i, j, x| x / (moment[(i, i)] * moment[(j, j)]).sqrt())
 }
 
-#[derive(Debug, Clone, Copy, Default, PartialEq)]
-struct Statistics {
-    mean: f64,
-    sd: f64,
-}
-
-impl fmt::Display for Statistics {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        self.mean.fmt(f)?;
-        " ± ".fmt(f)?;
-        self.sd.fmt(f)
-    }
-}
-
 fn compute_histogram(eval: &Evaluation) -> Histogram<Statistics> {
-    #[derive(Debug, Clone, Copy, Default, PartialEq)]
-    struct Accumulator {
-        count: f64,
-        mean: f64,
-        moment: f64,
-    }
-
-    let stat: Histogram<Accumulator> =
-        eval.row_iter().fold(Histogram::default(), |mut stat, row| {
+    eval.row_iter()
+        .fold(Histogram::default(), |mut acc, row| {
             #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
             let i = (row[0] as usize).max(6) - 6;
             let row = row.fixed_columns::<{ EVALUATORS.len() }>(1);
-            stat.row_mut(i).zip_apply(&row, |acc, x| {
-                acc.count += 1.0;
-                let delta = x - acc.mean;
-                acc.mean += delta / acc.count;
-                acc.moment += delta * (x - acc.mean);
-            });
-            stat
-        });
-
-    stat.map(|acc| Statistics {
-        mean: if acc.count <= 0.5 { f64::NAN } else { acc.mean },
-        sd: (acc.moment / (acc.count - 1.0).max(0.0)).sqrt(),
-    })
+            acc.row_mut(i).zip_apply(&row, Accumulator::push);
+            acc
+        })
+        .map(Accumulator::sample)
 }
 
 #[doc = include_str!("README.md")]

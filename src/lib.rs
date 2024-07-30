@@ -15,3 +15,6 @@ pub mod bidding;
 
 /// Hand evaluation
 pub mod eval;
+
+/// One-variable statistics
+pub mod stats;
