@@ -69,9 +69,7 @@ impl Auction {
             .copied()
             .enumerate()
             .find(|&(_, call)| call != Call::Pass)
-            .map_or(false, |(index, call)| {
-                index & 1 == 0 && matches!(call, Call::Bid(_))
-            });
+            .is_some_and(|(index, call)| index & 1 == 0 && matches!(call, Call::Bid(_)));
 
         if !admissible {
             return Err(IllegalCall::InadmissibleDouble(Penalty::Doubled));
@@ -87,9 +85,7 @@ impl Auction {
             .copied()
             .enumerate()
             .find(|&(_, call)| call != Call::Pass)
-            .map_or(false, |(index, call)| {
-                index & 1 == 0 && call == Call::Double
-            });
+            .is_some_and(|(index, call)| index & 1 == 0 && call == Call::Double);
 
         if !admissible {
             return Err(IllegalCall::InadmissibleDouble(Penalty::Redoubled));
