@@ -195,3 +195,16 @@ impl Auction {
             .map(|position| position << 1 | parity)
     }
 }
+
+/// Trait for predicates
+pub trait Predicate<T> {
+    /// Check if the predicate holds
+    fn test(&self, value: T) -> bool;
+}
+
+/// Boolean functions are natural predicates
+impl<F: Fn(T) -> bool, T> Predicate<T> for F {
+    fn test(&self, value: T) -> bool {
+        self(value)
+    }
+}
