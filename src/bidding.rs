@@ -245,3 +245,24 @@ fn test_predicate_and() {
     assert!(!is_positive_even.test(1));
     assert!(!is_positive_even.test(-2));
 }
+
+/// Condition table for a bidding position
+/// 
+/// It is intentional to use a vector of pairs instead of a map.  This data
+/// structure allows duplicate calls for multi-layered conditions.  Ordering
+/// also potentially simplifies the predicates.  The first met condition
+/// decides the call.  [Pass][Call::Pass] if no condition holds.
+pub struct Position(pub Vec<(Box<dyn Predicate<Hand> + Send + Sync>, Call)>);
+
+impl Position {
+    /// Bid according to the first met condition.
+    ///
+    /// [`Pass`][Call::Pass] if no condition holds.
+    #[must_use]
+    pub fn call(&self, hand: Hand) -> Call {
+        self.0
+            .iter()
+            .find_map(|(condition, call)| condition.test(hand).then_some(*call))
+            .unwrap_or(Call::Pass)
+    }
+}
