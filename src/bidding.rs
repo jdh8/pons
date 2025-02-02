@@ -246,13 +246,31 @@ fn test_predicate_and() {
     assert!(!is_positive_even.test(-2));
 }
 
+/// Thread-safe boxed predicate
+pub type BoxPredicate<T> = Box<dyn Predicate<T> + Send + Sync>;
+
 /// Condition table for a bidding position
-/// 
+///
 /// It is intentional to use a vector of pairs instead of a map.  This data
 /// structure allows duplicate calls for multi-layered conditions.  Ordering
 /// also potentially simplifies the predicates.  The first met condition
 /// decides the call.  [Pass][Call::Pass] if no condition holds.
-pub struct Position(pub Vec<(Box<dyn Predicate<Hand> + Send + Sync>, Call)>);
+#[derive(Default)]
+pub struct Position(Vec<(Call, BoxPredicate<Hand>)>);
+
+impl Deref for Position {
+    type Target = Vec<(Call, BoxPredicate<Hand>)>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl From<Vec<(Call, BoxPredicate<Hand>)>> for Position {
+    fn from(position: Vec<(Call, BoxPredicate<Hand>)>) -> Self {
+        Self(position)
+    }
+}
 
 impl Position {
     /// Bid according to the first met condition.
@@ -262,7 +280,7 @@ impl Position {
     pub fn call(&self, hand: Hand) -> Call {
         self.0
             .iter()
-            .find_map(|(condition, call)| condition.test(hand).then_some(*call))
+            .find_map(|(call, condition)| condition.test(hand).then_some(*call))
             .unwrap_or(Call::Pass)
     }
 }
