@@ -284,3 +284,66 @@ impl Position {
             .unwrap_or(Call::Pass)
     }
 }
+
+const fn hash_call(call: Call) -> usize {
+    match call {
+        Call::Pass => 0,
+        Call::Double | Call::Redouble => 1,
+        Call::Bid(bid) => bid.level as usize * 5 + bid.strain as usize - 3,
+    }
+}
+
+/// Trie for storing bidding positions without vulnerability
+pub struct Trie {
+    children: [Option<Box<Trie>>; 37],
+    position: Option<Position>,
+}
+
+impl Default for Trie {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Trie {
+    /// Construct an empty trie
+    #[must_use]
+    pub const fn new() -> Self {
+        Self {
+            children: [const { None }; 37],
+            position: None,
+        }
+    }
+
+    /// Get the position handler of the auction
+    #[must_use]
+    pub fn get(&self, auction: &Auction) -> Option<&Position> {
+        let mut node = self;
+
+        for &call in auction.iter() {
+            node = node.children[hash_call(call)].as_deref()?;
+        }
+        node.position.as_ref()
+    }
+
+    /// Get the mutable position handler of the auction
+    #[must_use]
+    pub fn get_mut(&mut self, auction: &Auction) -> Option<&mut Position> {
+        let mut node = self;
+
+        for &call in auction.iter() {
+            node = node.children[hash_call(call)].as_deref_mut()?;
+        }
+        node.position.as_mut()
+    }
+
+    /// Insert a position handler into the trie
+    pub fn insert(&mut self, auction: &Auction, position: Position) -> Option<Position> {
+        let mut node = self;
+
+        for &call in auction.iter() {
+            node = node.children[hash_call(call)].get_or_insert_with(Box::default);
+        }
+        node.position.replace(position)
+    }
+}
