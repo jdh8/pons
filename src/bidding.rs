@@ -281,33 +281,33 @@ impl Trie {
 
     /// Get the position handler of the auction
     #[must_use]
-    pub fn get(&self, auction: &Auction) -> Option<&Position> {
-        let mut node = self;
-
-        for &call in auction.iter() {
-            node = node.children[hash_call(call)].as_deref()?;
+    pub fn get(&self, auction: &[Call]) -> Option<&Position> {
+        if auction.is_empty() {
+            return self.position.as_ref();
         }
-        node.position.as_ref()
+        self.children[hash_call(auction[0])]
+            .as_deref()?
+            .get(&auction[1..])
     }
 
     /// Get the mutable position handler of the auction
     #[must_use]
-    pub fn get_mut(&mut self, auction: &Auction) -> Option<&mut Position> {
-        let mut node = self;
-
-        for &call in auction.iter() {
-            node = node.children[hash_call(call)].as_deref_mut()?;
+    pub fn get_mut(&mut self, auction: &[Call]) -> Option<&mut Position> {
+        if auction.is_empty() {
+            return self.position.as_mut();
         }
-        node.position.as_mut()
+        self.children[hash_call(auction[0])]
+            .as_deref_mut()?
+            .get_mut(&auction[1..])
     }
 
     /// Insert a position handler into the trie
-    pub fn insert(&mut self, auction: &Auction, position: Position) -> Option<Position> {
-        let mut node = self;
-
-        for &call in auction.iter() {
-            node = node.children[hash_call(call)].get_or_insert_with(Box::default);
+    pub fn insert(&mut self, auction: &[Call], position: Position) -> Option<Position> {
+        if auction.is_empty() {
+            return self.position.replace(position);
         }
-        node.position.replace(position)
+        self.children[hash_call(auction[0])]
+            .get_or_insert_with(Box::default)
+            .insert(&auction[1..], position)
     }
 }
