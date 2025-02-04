@@ -1,6 +1,7 @@
 use core::ops::Deref;
 pub use dds_bridge::contract::*;
 pub use dds_bridge::deal::{Hand, Holding, SmallSet};
+use std::sync::Arc;
 use thiserror::Error;
 
 /// Types of illegal calls
@@ -209,8 +210,8 @@ impl<F: Fn(T) -> bool, T> Predicate<T> for F {
     }
 }
 
-/// Thread-safe boxed predicate
-pub type BoxPredicate<T> = Box<dyn Predicate<T> + Send + Sync>;
+/// Thread-safe reference-counting pointer of a predicate
+pub type ArcPredicate<T> = Arc<dyn Predicate<T> + Send + Sync>;
 
 /// Condition table for a bidding position
 ///
@@ -218,19 +219,19 @@ pub type BoxPredicate<T> = Box<dyn Predicate<T> + Send + Sync>;
 /// structure allows duplicate calls for multi-layered conditions.  Ordering
 /// also potentially simplifies the predicates.  The first met condition
 /// decides the call.  [Pass][Call::Pass] if no condition holds.
-#[derive(Default)]
-pub struct Position(Vec<(Call, BoxPredicate<Hand>)>);
+#[derive(Clone, Default)]
+pub struct Position(Vec<(Call, ArcPredicate<Hand>)>);
 
 impl Deref for Position {
-    type Target = Vec<(Call, BoxPredicate<Hand>)>;
+    type Target = [(Call, ArcPredicate<Hand>)];
 
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-impl From<Vec<(Call, BoxPredicate<Hand>)>> for Position {
-    fn from(position: Vec<(Call, BoxPredicate<Hand>)>) -> Self {
+impl From<Vec<(Call, ArcPredicate<Hand>)>> for Position {
+    fn from(position: Vec<(Call, ArcPredicate<Hand>)>) -> Self {
         Self(position)
     }
 }
