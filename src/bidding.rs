@@ -200,32 +200,6 @@ impl Auction {
 pub trait Predicate<T> {
     /// Check if the predicate holds
     fn test(&self, value: T) -> bool;
-
-    /// Compute the logical negation of a predicate
-    fn not(self) -> impl Predicate<T>
-    where
-        Self: Sized,
-    {
-        move |value| !self.test(value)
-    }
-
-    /// Compute the logical conjunction of two predicates
-    fn and(self, other: impl Predicate<T>) -> impl Predicate<T>
-    where
-        T: Copy,
-        Self: Sized,
-    {
-        move |value| self.test(value) && other.test(value)
-    }
-
-    /// Compute the logical disjunction of two predicates
-    fn or(self, other: impl Predicate<T>) -> impl Predicate<T>
-    where
-        T: Copy,
-        Self: Sized,
-    {
-        move |value| self.test(value) || other.test(value)
-    }
 }
 
 /// Boolean functions are natural predicates
@@ -233,17 +207,6 @@ impl<F: Fn(T) -> bool, T> Predicate<T> for F {
     fn test(&self, value: T) -> bool {
         self(value)
     }
-}
-
-#[test]
-fn test_predicate_and() {
-    let is_even = |x: i32| x % 2 == 0;
-    let is_positive = |x: i32| x > 0;
-    let is_positive_even = is_even.and(is_positive);
-
-    assert!(is_positive_even.test(2));
-    assert!(!is_positive_even.test(1));
-    assert!(!is_positive_even.test(-2));
 }
 
 /// Thread-safe boxed predicate
