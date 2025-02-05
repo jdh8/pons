@@ -258,6 +258,7 @@ const fn hash_call(call: Call) -> usize {
 }
 
 /// Trie for storing bidding positions without vulnerability
+#[derive(Clone)]
 pub struct Trie {
     children: [Option<Box<Trie>>; 37],
     position: Option<Position>,
