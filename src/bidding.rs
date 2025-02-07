@@ -1,6 +1,7 @@
-use core::ops::Deref;
+use core::ops::{Deref, Index, IndexMut};
 pub use dds_bridge::contract::*;
 pub use dds_bridge::deal::{Hand, Holding, SmallSet};
+pub use dds_bridge::solver::Vulnerability;
 use std::sync::Arc;
 use thiserror::Error;
 
@@ -257,7 +258,11 @@ const fn hash_call(call: Call) -> usize {
     }
 }
 
-/// Trie for storing bidding positions without vulnerability
+/// Trie as a vulnerability-agnostic bidding system
+///
+/// A trie stores [`Position`] for each covered auction without vulnerability.
+/// For example, `[P, 1♠]` as an index stands for the 2nd-seat opening of 1♠.
+/// The [`Position`] there describes how the 3rd seat should react.
 #[derive(Clone)]
 pub struct Trie {
     children: [Option<Box<Trie>>; 37],
@@ -280,7 +285,7 @@ impl Trie {
         }
     }
 
-    /// Get the position handler of the auction
+    /// Get the position handler for the auction
     #[must_use]
     pub fn get(&self, auction: &[Call]) -> Option<&Position> {
         let mut node = self;
@@ -291,7 +296,7 @@ impl Trie {
         node.position.as_ref()
     }
 
-    /// Get the mutable position handler of the auction
+    /// Get the mutable position handler for the auction
     #[must_use]
     pub fn get_mut(&mut self, auction: &[Call]) -> Option<&mut Position> {
         let mut node = self;
@@ -312,3 +317,43 @@ impl Trie {
         node.position.replace(position)
     }
 }
+
+impl Index<Vulnerability> for Trie {
+    type Output = Self;
+
+    fn index(&self, _: Vulnerability) -> &Self {
+        self
+    }
+}
+
+impl IndexMut<Vulnerability> for Trie {
+    fn index_mut(&mut self, _: Vulnerability) -> &mut Self {
+        self
+    }
+}
+
+/// A bidding system aware of vulnerability
+pub struct Forest([Trie; 4]);
+
+impl Index<Vulnerability> for Forest {
+    type Output = Trie;
+
+    fn index(&self, index: Vulnerability) -> &Trie {
+        &self.0[usize::from(index.bits())]
+    }
+}
+
+impl IndexMut<Vulnerability> for Forest {
+    fn index_mut(&mut self, index: Vulnerability) -> &mut Trie {
+        &mut self.0[usize::from(index.bits())]
+    }
+}
+
+/// Trait marking a bidding system
+///
+/// This trait is merely a marker since its supertraits already cover its usage.
+/// Indexing with [`Vulnerability`] results in a [`Trie`] that handles auctions.
+pub trait System: Index<Vulnerability, Output = Trie> + IndexMut<Vulnerability> {}
+
+impl System for Trie {}
+impl System for Forest {}
