@@ -16,7 +16,7 @@ fn calculate_par_suit_tricks(tricks: solver::TricksTable) -> Option<(deal::Suit,
 }
 
 fn eval_random_deals(n: usize) -> Result<[Statistics; 64], solver::Error> {
-    let deals: Vec<_> = core::iter::repeat_with(|| deal::Deal::new(&mut rand::thread_rng()))
+    let deals: Vec<_> = core::iter::repeat_with(|| deal::Deal::new(&mut rand::rng()))
         .take(n)
         .collect();
 

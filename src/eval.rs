@@ -206,8 +206,8 @@ pub fn zar<T: From<u8>>(hand: Hand) -> T {
 fn test_four_kings() {
     use approx::assert_ulps_eq;
 
-    const KXXX: Holding = Holding::from_bits(0b01000_0000_0111_00);
-    const KXX: Holding = Holding::from_bits(0b01000_0000_0011_00);
+    const KXXX: Holding = Holding::from_bits_truncate(0b01000_0000_0111_00);
+    const KXX: Holding = Holding::from_bits_truncate(0b01000_0000_0011_00);
     const HAND: Hand = Hand([KXXX, KXX, KXX, KXX]);
 
     assert_eq!(SimpleEvaluator(hcp::<u8>).eval(HAND), 12);
@@ -225,10 +225,10 @@ fn test_four_kings() {
 fn test_random_from_cuebids() {
     use approx::assert_ulps_eq;
 
-    const KJ53: Holding = Holding::from_bits(0b01010_0000_1010_00);
-    const K84: Holding = Holding::from_bits(0b01000_0100_0100_00);
-    const XX: Holding = Holding::from_bits(0b00000_0000_0110_00);
-    const KT85: Holding = Holding::from_bits(0b01001_0100_1000_00);
+    const KJ53: Holding = Holding::from_bits_truncate(0b01010_0000_1010_00);
+    const K84: Holding = Holding::from_bits_truncate(0b01000_0100_0100_00);
+    const XX: Holding = Holding::from_bits_truncate(0b00000_0000_0110_00);
+    const KT85: Holding = Holding::from_bits_truncate(0b01001_0100_1000_00);
     const HAND: Hand = Hand([KT85, XX, K84, KJ53]);
 
     assert_eq!(SimpleEvaluator(hcp::<u8>).eval(HAND), 10);
