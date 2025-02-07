@@ -326,12 +326,6 @@ impl Index<Vulnerability> for Trie {
     }
 }
 
-impl IndexMut<Vulnerability> for Trie {
-    fn index_mut(&mut self, _: Vulnerability) -> &mut Self {
-        self
-    }
-}
-
 /// A bidding system aware of vulnerability
 pub struct Forest([Trie; 4]);
 
@@ -353,7 +347,7 @@ impl IndexMut<Vulnerability> for Forest {
 ///
 /// This trait is merely a marker since its supertraits already cover its usage.
 /// Indexing with [`Vulnerability`] results in a [`Trie`] that handles auctions.
-pub trait System: Index<Vulnerability, Output = Trie> + IndexMut<Vulnerability> {}
+pub trait System: Index<Vulnerability, Output = Trie> {}
 
 impl System for Trie {}
 impl System for Forest {}
