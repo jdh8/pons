@@ -347,6 +347,16 @@ impl IndexMut<Vulnerability> for Forest {
 ///
 /// This trait is merely a marker since its supertraits already cover its usage.
 /// Indexing with [`Vulnerability`] results in a [`Trie`] that handles auctions.
+///
+/// A bidding system generally assumes that dealer is north.  This default is
+/// also reflected in [`dds_bridge::deal::Seat`].  We can rotate vulnerability
+/// with [`Vulnerability::swap`].
+///
+/// ```
+/// use dds_bridge::deal::Seat;
+/// 
+/// assert!(Seat::North as usize == 0);
+/// ```
 pub trait System: Index<Vulnerability, Output = Trie> {}
 
 impl System for Trie {}
