@@ -198,58 +198,6 @@ impl Auction {
     }
 }
 
-/// Trait for predicates
-pub trait Predicate<T> {
-    /// Check if the predicate holds
-    fn test(&self, value: T) -> bool;
-}
-
-/// Boolean functions are natural predicates
-impl<F: Fn(T) -> bool, T> Predicate<T> for F {
-    fn test(&self, value: T) -> bool {
-        self(value)
-    }
-}
-
-/// Thread-safe reference-counting pointer of a predicate
-pub type ArcPredicate<T> = Arc<dyn Predicate<T> + Send + Sync>;
-
-/// Condition table for a bidding position
-///
-/// It is intentional to use a vector of pairs instead of a map.  This data
-/// structure allows duplicate calls for multi-layered conditions.  Ordering
-/// also potentially simplifies the predicates.  The first met condition
-/// decides the call.  [Pass][Call::Pass] if no condition holds.
-#[derive(Clone, Default)]
-pub struct Position(Vec<(Call, ArcPredicate<Hand>)>);
-
-impl Deref for Position {
-    type Target = [(Call, ArcPredicate<Hand>)];
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl From<Vec<(Call, ArcPredicate<Hand>)>> for Position {
-    fn from(position: Vec<(Call, ArcPredicate<Hand>)>) -> Self {
-        Self(position)
-    }
-}
-
-impl Position {
-    /// Bid according to the first met condition.
-    ///
-    /// [`Pass`][Call::Pass] if no condition holds.
-    #[must_use]
-    pub fn call(&self, hand: Hand) -> Call {
-        self.0
-            .iter()
-            .find_map(|(call, condition)| condition.test(hand).then_some(*call))
-            .unwrap_or(Call::Pass)
-    }
-}
-
 const fn hash_call(call: Call) -> usize {
     match call {
         Call::Pass => 0,
@@ -260,13 +208,13 @@ const fn hash_call(call: Call) -> usize {
 
 /// Trie as a vulnerability-agnostic bidding system
 ///
-/// A trie stores [`Position`] for each covered auction without vulnerability.
+/// A trie stores strategy for each covered auction without vulnerability.
 /// For example, `[P, 1♠]` as an index stands for the 2nd-seat opening of 1♠.
-/// The [`Position`] there describes how the 3rd seat should react.
+/// The strategy there describes how the 3rd seat should react.
 #[derive(Clone)]
 pub struct Trie {
     children: [Option<Box<Trie>>; 37],
-    position: Option<Position>,
+    strategy: Option<fn(Hand) -> Call>,
 }
 
 impl Default for Trie {
@@ -281,40 +229,33 @@ impl Trie {
     pub const fn new() -> Self {
         Self {
             children: [const { None }; 37],
-            position: None,
+            strategy: None,
         }
     }
 
-    /// Get the position handler for the auction
+    /// Get the strategy for the auction
     #[must_use]
-    pub fn get(&self, auction: &[Call]) -> Option<&Position> {
+    pub fn get(&self, auction: &[Call]) -> Option<fn(Hand) -> Call> {
         let mut node = self;
 
         for &call in auction {
             node = node.children[hash_call(call)].as_deref()?;
         }
-        node.position.as_ref()
+        node.strategy
     }
 
-    /// Get the mutable position handler for the auction
-    #[must_use]
-    pub fn get_mut(&mut self, auction: &[Call]) -> Option<&mut Position> {
-        let mut node = self;
-
-        for &call in auction {
-            node = node.children[hash_call(call)].as_deref_mut()?;
-        }
-        node.position.as_mut()
-    }
-
-    /// Insert a position handler into the trie
-    pub fn insert(&mut self, auction: &[Call], position: Position) -> Option<Position> {
+    /// Insert a strategy into the trie
+    pub fn insert(
+        &mut self,
+        auction: &[Call],
+        strategy: fn(Hand) -> Call,
+    ) -> Option<fn(Hand) -> Call> {
         let mut node = self;
 
         for &call in auction {
             node = node.children[hash_call(call)].get_or_insert_with(Box::default);
         }
-        node.position.replace(position)
+        node.strategy.replace(strategy)
     }
 }
 
@@ -327,6 +268,7 @@ impl Index<Vulnerability> for Trie {
 }
 
 /// A bidding system aware of vulnerability
+#[derive(Clone)]
 pub struct Forest([Trie; 4]);
 
 impl Index<Vulnerability> for Forest {
@@ -354,7 +296,7 @@ impl IndexMut<Vulnerability> for Forest {
 ///
 /// ```
 /// use dds_bridge::deal::Seat;
-/// 
+///
 /// assert!(Seat::North as usize == 0);
 /// ```
 pub trait System: Index<Vulnerability, Output = Trie> {}
