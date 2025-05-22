@@ -2,7 +2,6 @@ use core::ops::{Deref, Index, IndexMut};
 pub use dds_bridge::contract::*;
 pub use dds_bridge::deal::{Hand, Holding, SmallSet};
 pub use dds_bridge::solver::Vulnerability;
-use std::sync::Arc;
 use thiserror::Error;
 
 /// Types of illegal calls
