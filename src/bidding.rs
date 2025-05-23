@@ -213,6 +213,9 @@ const fn hash_call(call: Call) -> usize {
     }
 }
 
+/// Bidding strategy at a position
+pub type Strategy = fn(Hand) -> Call;
+
 /// Trie as a vulnerability-agnostic bidding system
 ///
 /// A trie stores strategy for each covered auction without vulnerability.
@@ -221,7 +224,7 @@ const fn hash_call(call: Call) -> usize {
 #[derive(Debug, Clone)]
 pub struct Trie {
     children: [Option<Box<Trie>>; 37],
-    strategy: Option<fn(Hand) -> Call>,
+    strategy: Option<Strategy>,
 }
 
 impl Default for Trie {
@@ -242,7 +245,7 @@ impl Trie {
 
     /// Get the strategy for the exact auction
     #[must_use]
-    pub fn get(&self, auction: &[Call]) -> Option<fn(Hand) -> Call> {
+    pub fn get(&self, auction: &[Call]) -> Option<Strategy> {
         let mut node = self;
 
         for &call in auction {
@@ -252,11 +255,7 @@ impl Trie {
     }
 
     /// Insert a strategy into the trie
-    pub fn insert(
-        &mut self,
-        auction: &[Call],
-        strategy: fn(Hand) -> Call,
-    ) -> Option<fn(Hand) -> Call> {
+    pub fn insert(&mut self, auction: &[Call], strategy: Strategy) -> Option<Strategy> {
         let mut node = self;
 
         for &call in auction {
