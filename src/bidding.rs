@@ -14,7 +14,12 @@ use thiserror::Error;
 pub enum IllegalCall {
     /// Law 27: insufficient bid
     #[error("Law 27: insufficient bid")]
-    InsufficientBid(Bid, Option<Bid>),
+    InsufficientBid {
+        /// The offending bid
+        this: Bid,
+        /// The last bid in the auction
+        last: Option<Bid>,
+    },
 
     /// Law 36: inadmissible doubles and redoubles
     #[error("Law 36: inadmissible doubles and redoubles")]
@@ -97,7 +102,10 @@ impl Auction {
     /// Try bidding a contract (dry run)
     fn try_bid(&self, bid: Bid) -> Result<(), IllegalCall> {
         if bid.level < 1 {
-            return Err(IllegalCall::InsufficientBid(bid, None));
+            return Err(IllegalCall::InsufficientBid {
+                this: bid,
+                last: None,
+            });
         }
 
         if bid.level > 7 {
@@ -110,7 +118,7 @@ impl Auction {
         });
 
         if last >= Some(bid) {
-            return Err(IllegalCall::InsufficientBid(bid, last));
+            return Err(IllegalCall::InsufficientBid { this: bid, last });
         }
         Ok(())
     }
