@@ -218,7 +218,7 @@ const fn hash_call(call: Call) -> usize {
 /// A trie stores strategy for each covered auction without vulnerability.
 /// For example, `[P, 1♠]` as an index stands for the 2nd-seat opening of 1♠.
 /// The strategy there describes how the 3rd seat should react.
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Trie {
     children: [Option<Box<Trie>>; 37],
     strategy: Option<fn(Hand) -> Call>,
@@ -240,7 +240,7 @@ impl Trie {
         }
     }
 
-    /// Get the strategy for the auction
+    /// Get the strategy for the exact auction
     #[must_use]
     pub fn get(&self, auction: &[Call]) -> Option<fn(Hand) -> Call> {
         let mut node = self;
@@ -275,7 +275,7 @@ impl Index<Vulnerability> for Trie {
 }
 
 /// A bidding system aware of vulnerability
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Forest([Trie; 4]);
 
 impl Index<Vulnerability> for Forest {
