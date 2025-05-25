@@ -1,3 +1,4 @@
+mod trie;
 use core::ops::{Deref, Index, IndexMut};
 pub use dds_bridge::contract::*;
 pub use dds_bridge::deal::{Hand, Holding, SmallSet};
@@ -243,15 +244,23 @@ impl Trie {
         }
     }
 
-    /// Get the strategy for the exact auction
+    /// Get the sub-trie for the auction
+    ///
+    /// This method is not made public because auctions have context.
     #[must_use]
-    pub fn get(&self, auction: &[Call]) -> Option<Strategy> {
+    fn subtrie(&self, auction: &[Call]) -> Option<&Self> {
         let mut node = self;
 
         for &call in auction {
             node = node.children[encode_call(call)].as_deref()?;
         }
-        node.strategy
+        Some(node)
+    }
+
+    /// Get the strategy for the exact auction
+    #[must_use]
+    pub fn get(&self, auction: &[Call]) -> Option<Strategy> {
+        self.subtrie(auction).and_then(|node| node.strategy)
     }
 
     /// Insert a strategy into the trie
@@ -262,6 +271,11 @@ impl Trie {
             node = node.children[encode_call(call)].get_or_insert_with(Box::default);
         }
         node.strategy.replace(strategy)
+    }
+
+    #[must_use]
+    fn suffix_iter(&self, auction: &[Call]) -> trie::SuffixIter {
+        trie::SuffixIter::new(self.subtrie(auction), auction)
     }
 }
 
