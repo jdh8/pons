@@ -205,7 +205,7 @@ impl Auction {
     }
 }
 
-const fn hash_call(call: Call) -> usize {
+const fn encode_call(call: Call) -> usize {
     match call {
         Call::Pass => 0,
         Call::Double | Call::Redouble => 1,
@@ -249,7 +249,7 @@ impl Trie {
         let mut node = self;
 
         for &call in auction {
-            node = node.children[hash_call(call)].as_deref()?;
+            node = node.children[encode_call(call)].as_deref()?;
         }
         node.strategy
     }
@@ -259,7 +259,7 @@ impl Trie {
         let mut node = self;
 
         for &call in auction {
-            node = node.children[hash_call(call)].get_or_insert_with(Box::default);
+            node = node.children[encode_call(call)].get_or_insert_with(Box::default);
         }
         node.strategy.replace(strategy)
     }
