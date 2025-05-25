@@ -1,4 +1,6 @@
-mod trie;
+/// Helper module for [`Trie`]
+pub mod trie;
+
 use core::ops::{Deref, Index, IndexMut};
 pub use dds_bridge::contract::*;
 pub use dds_bridge::deal::{Hand, Holding, SmallSet};
@@ -273,9 +275,15 @@ impl Trie {
         node.strategy.replace(strategy)
     }
 
+    /// Iterate over all suffixes of the auction
+    ///
+    /// # Panics
+    /// Consuming the iterator panics when
+    /// 1. The trie forms an illegal auction somewhere.
+    /// 2. [`trie::SuffixIter`] contains a bug.
     #[must_use]
-    fn suffix_iter(&self, auction: &[Call]) -> trie::SuffixIter {
-        trie::SuffixIter::new(self.subtrie(auction), auction)
+    pub fn suffix_iter(&self, auction: &[Call]) -> trie::SuffixIter {
+        trie::SuffixIter::new(self, auction)
     }
 }
 
