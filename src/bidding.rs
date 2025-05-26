@@ -321,6 +321,12 @@ impl Trie {
         self.subtrie(auction).and_then(|node| node.strategy)
     }
 
+    /// Check if the query auction is a prefix in the trie
+    #[must_use]
+    pub fn is_prefix(&self, auction: &[Call]) -> bool {
+        self.subtrie(auction).is_some()
+    }
+
     /// Insert a strategy into the trie
     pub fn insert(&mut self, auction: &[Call], strategy: Strategy) -> Option<Strategy> {
         let mut node = self;
