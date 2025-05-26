@@ -331,7 +331,13 @@ impl Trie {
         node.strategy.replace(strategy)
     }
 
-    /// Iterate over all suffixes of the auction
+    /// Depth first iteration over all strategies
+    #[must_use]
+    pub fn iter(&self) -> trie::SuffixIter {
+        self.suffix_iter(&[])
+    }
+
+    /// Depth first iteration over all suffixes of the auction
     #[must_use]
     pub fn suffix_iter(&self, auction: &[Call]) -> trie::SuffixIter {
         trie::SuffixIter::new(self, auction)
@@ -343,6 +349,15 @@ impl Index<Vulnerability> for Trie {
 
     fn index(&self, _: Vulnerability) -> &Self {
         self
+    }
+}
+
+impl<'a> IntoIterator for &'a Trie {
+    type Item = (Box<[Call]>, Result<Strategy, IllegalCall>);
+    type IntoIter = trie::SuffixIter<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
     }
 }
 
