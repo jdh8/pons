@@ -129,6 +129,7 @@ impl Auction {
     /// Add a call to the auction with checks
     ///
     /// # Errors
+    ///
     /// [`IllegalCall`] if the call is forbidden by [The Laws of Duplicate
     /// Bridge][laws].
     ///
@@ -156,6 +157,7 @@ impl Auction {
     /// 2. Force pushing the original `call` despite of an error.
     ///
     /// # Errors
+    ///
     /// [`IllegalCall`] if the call is forbidden by [The Laws of Duplicate
     /// Bridge][laws] after trying redoubling with [`Call::Double`].
     pub fn force_push(&mut self, call: Call) -> Result<(), IllegalCall> {
@@ -177,6 +179,7 @@ impl Auction {
     /// Try adding calls to the auction
     ///
     /// # Errors
+    ///
     /// If any call is illegal, an [`IllegalCall`] is returned.  Calls already
     /// added to the auction are kept.  If you want to roll back the auction,
     /// [`truncate`][Self::truncate] it to the previous length.
