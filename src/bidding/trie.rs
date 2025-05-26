@@ -19,6 +19,21 @@ const fn decode_call(index: usize) -> Option<Call> {
     }
 }
 
+const _: () = {
+    let mut id = 0;
+
+    while id < 37 {
+        let call = decode_call(id).expect("Invalid call ID!");
+        assert!(super::encode_call(call) == id);
+        id += 1;
+    }
+
+    assert!(decode_call(37).is_none());
+    assert!(decode_call(38).is_none());
+    assert!(decode_call(39).is_none());
+    assert!(decode_call(40).is_none());
+};
+
 #[derive(Debug, Clone, Copy)]
 struct SuffixStackEntry<'a> {
     depth: usize,
