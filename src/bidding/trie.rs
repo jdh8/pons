@@ -1,4 +1,4 @@
-use super::{Auction, Call, IllegalCall, Penalty, Strategy, Trie};
+use super::{Auction, Call, IllegalCall, Strategy, Trie};
 
 const fn decode_call(index: usize) -> Option<Call> {
     match index {
@@ -16,20 +16,6 @@ const fn decode_call(index: usize) -> Option<Call> {
             }))
         }
         _ => None,
-    }
-}
-
-/// [`Auction::try_push`] but coerces [`Call::Double`] to [`Call::Redouble`]
-///
-/// # Errors
-/// When coercing double to redouble cannot fix the auction.
-fn force_push(auction: &mut Auction, call: Call) {
-    match auction.try_push(call) {
-        Ok(()) => {}
-        Err(IllegalCall::InadmissibleDouble(Penalty::Doubled)) => auction
-            .try_push(Call::Redouble)
-            .expect("Redouble should be admissible"),
-        _ => panic!("Cannot fix the auction with a redouble"),
     }
 }
 
@@ -94,7 +80,7 @@ impl<'a> SuffixIter<'a> {
 }
 
 impl Iterator for SuffixIter<'_> {
-    type Item = (Box<[Call]>, Strategy);
+    type Item = (Box<[Call]>, Result<Strategy, IllegalCall>);
 
     fn next(&mut self) -> Option<Self::Item> {
         while self.value.is_none() {
@@ -102,13 +88,17 @@ impl Iterator for SuffixIter<'_> {
             self.stack
                 .extend(collect_children(entry.node, entry.depth + 1));
             self.value = entry.node.strategy;
-            self.auction.0.drain(self.separator + entry.depth..);
+            self.auction.truncate(self.separator + entry.depth);
 
             let call = decode_call(entry.index).expect("Invalid call index!");
-            force_push(&mut self.auction, call);
+            if let Err(e) = self.auction.force_push(call) {
+                return Some((self.auction[self.separator..].into(), Err(e)));
+            }
         }
 
-        let value = self.value.take().expect("The loop above ensures a value");
-        Some((self.auction[self.separator..].into(), value))
+        Some((
+            self.auction[self.separator..].into(),
+            Ok(self.value.take()?),
+        ))
     }
 }

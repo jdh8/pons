@@ -149,6 +149,30 @@ impl Auction {
         Ok(())
     }
 
+    /// Force adding a call to the auction
+    /// 
+    /// 1. If [`Call::Double`] is inadmissible, this method tries to
+    ///    redouble the last double.
+    /// 2. Force pushing the original `call` despite of an error.
+    /// 
+    /// # Errors
+    /// [`IllegalCall`] if the call is forbidden by [The Laws of Duplicate
+    /// Bridge][laws] after trying redoubling with [`Call::Double`].
+    pub fn force_push(&mut self, call: Call) -> Result<(), IllegalCall> {
+        let error = match self.try_push(call) {
+            Ok(()) => return Ok(()),
+            Err(IllegalCall::InadmissibleDouble(Penalty::Doubled)) => {
+                match self.try_push(Call::Redouble) {
+                    Ok(()) => return Ok(()),
+                    Err(e) => e,
+                }
+            }
+            Err(e) => e,
+        };
+        self.0.push(call);
+        Err(error)
+    }
+
     /// Try adding calls to the auction
     ///
     /// # Errors
@@ -276,11 +300,6 @@ impl Trie {
     }
 
     /// Iterate over all suffixes of the auction
-    ///
-    /// # Panics
-    /// Consuming the iterator panics when
-    /// 1. The trie forms an illegal auction somewhere.
-    /// 2. [`trie::SuffixIter`] contains a bug.
     #[must_use]
     pub fn suffix_iter(&self, auction: &[Call]) -> trie::SuffixIter {
         trie::SuffixIter::new(self, auction)
