@@ -342,6 +342,12 @@ impl Trie {
     pub fn suffix_iter(&self, auction: Auction) -> trie::SuffixIter {
         trie::SuffixIter::new(self, auction)
     }
+
+    /// Iterate over common prefixes of the auction
+    #[must_use]
+    pub fn common_prefix_iter(&self, auction: Auction) -> trie::CommonPrefixIter {
+        trie::CommonPrefixIter::new(self, auction)
+    }
 }
 
 impl Index<Vulnerability> for Trie {

@@ -117,3 +117,40 @@ impl Iterator for SuffixIter<'_> {
         ))
     }
 }
+
+/// Common prefix iterator for a given auction
+#[derive(Debug, Clone)]
+pub struct CommonPrefixIter<'a> {
+    trie: &'a Trie,
+    query: Auction,
+    depth: usize,
+    value: Option<Strategy>,
+}
+
+impl<'a> CommonPrefixIter<'a> {
+    /// Construct a common prefix iterator for a trie and an auction
+    #[must_use]
+    pub fn new(trie: &'a Trie, query: Auction) -> Self {
+        Self {
+            trie,
+            query,
+            depth: 0,
+            value: trie.strategy,
+        }
+    }
+}
+
+impl Iterator for CommonPrefixIter<'_> {
+    type Item = (Box<[Call]>, Strategy);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        while self.value.is_none() {
+            let &call = self.query.get(self.depth)?;
+            self.trie = self.trie.children[super::encode_call(call)].as_deref()?;
+            self.value = self.trie.strategy;
+            self.depth += 1;
+        }
+
+        Some((self.query[..self.depth].into(), self.value.take()?))
+    }
+}
