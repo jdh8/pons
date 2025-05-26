@@ -80,16 +80,16 @@ impl<'a> SuffixIter<'a> {
 
     /// Construct a suffix iterator for a trie and an auction
     #[must_use]
-    pub fn new(trie: &'a Trie, auction: &[Call]) -> Self {
-        let Some(node) = trie.subtrie(auction) else {
+    pub fn new(trie: &'a Trie, auction: Auction) -> Self {
+        let Some(node) = trie.subtrie(&auction) else {
             return Self::empty();
         };
 
         Self {
             stack: collect_children(node, 0).collect(),
-            auction: Auction(auction.to_vec()),
             separator: auction.len(),
             value: node.strategy,
+            auction,
         }
     }
 }

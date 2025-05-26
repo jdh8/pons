@@ -334,12 +334,12 @@ impl Trie {
     /// Depth first iteration over all strategies
     #[must_use]
     pub fn iter(&self) -> trie::SuffixIter {
-        self.suffix_iter(&[])
+        self.suffix_iter(Auction::new())
     }
 
     /// Depth first iteration over all suffixes of the auction
     #[must_use]
-    pub fn suffix_iter(&self, auction: &[Call]) -> trie::SuffixIter {
+    pub fn suffix_iter(&self, auction: Auction) -> trie::SuffixIter {
         trie::SuffixIter::new(self, auction)
     }
 }
