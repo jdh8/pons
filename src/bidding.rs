@@ -71,7 +71,7 @@ impl Auction {
     }
 
     /// Try doubling the last bid (dry run)
-    fn try_double(&self) -> Result<(), IllegalCall> {
+    fn dry_double(&self) -> Result<(), IllegalCall> {
         let admissible = self
             .iter()
             .rev()
@@ -87,7 +87,7 @@ impl Auction {
     }
 
     /// Try redoubling the last double (dry run)
-    fn try_redouble(&self) -> Result<(), IllegalCall> {
+    fn dry_redouble(&self) -> Result<(), IllegalCall> {
         let admissible = self
             .iter()
             .rev()
@@ -103,7 +103,7 @@ impl Auction {
     }
 
     /// Try bidding a contract (dry run)
-    fn try_bid(&self, bid: Bid) -> Result<(), IllegalCall> {
+    fn dry_bid(&self, bid: Bid) -> Result<(), IllegalCall> {
         if bid.level < 1 {
             return Err(IllegalCall::InsufficientBid {
                 this: bid,
@@ -141,9 +141,9 @@ impl Auction {
 
         match call {
             Call::Pass => (),
-            Call::Double => self.try_double()?,
-            Call::Redouble => self.try_redouble()?,
-            Call::Bid(bid) => self.try_bid(bid)?,
+            Call::Double => self.dry_double()?,
+            Call::Redouble => self.dry_redouble()?,
+            Call::Bid(bid) => self.dry_bid(bid)?,
         }
 
         self.0.push(call);
@@ -165,7 +165,7 @@ impl Auction {
 
         let error = match self.try_push(call) {
             Ok(()) => return Ok(()),
-            Err(INADMISSIBLE_DOUBLE) => match self.try_redouble() {
+            Err(INADMISSIBLE_DOUBLE) => match self.try_push(Call::Redouble) {
                 Ok(()) => return Ok(()),
                 Err(_) => INADMISSIBLE_DOUBLE,
             },
