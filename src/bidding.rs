@@ -242,6 +242,36 @@ const fn encode_call(call: Call) -> usize {
     }
 }
 
+const _: () = {
+    let mut calls = [Call::Pass; 37];
+    let mut level = 1;
+    let mut strain = 0;
+
+    while level <= 7 {
+        while strain <= 4 {
+            let bid = Bid {
+                level,
+                strain: Strain::ASC[strain],
+            };
+            calls[encode_call(Call::Bid(bid))] = Call::Bid(bid);
+            strain += 1;
+        }
+        strain = 0;
+        level += 1;
+    }
+
+    assert!(encode_call(Call::Pass) == 0);
+    assert!(encode_call(Call::Double) == 1);
+    assert!(encode_call(Call::Redouble) == 1);
+
+    let mut index = 2;
+
+    while index < 37 {
+        assert!(matches!(calls[index], Call::Bid(_)));
+        index += 1;
+    }
+};
+
 /// Bidding strategy at a position
 pub type Strategy = fn(Hand) -> Call;
 
