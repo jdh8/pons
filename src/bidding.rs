@@ -70,8 +70,8 @@ impl Auction {
         self.len() >= 4 && self[self.len() - 3..] == [Call::Pass; 3]
     }
 
-    /// Try doubling the last bid (dry run)
-    fn dry_double(&self) -> Result<(), IllegalCall> {
+    /// Test doubling the last bid
+    fn can_double(&self) -> Result<(), IllegalCall> {
         let admissible = self
             .iter()
             .rev()
@@ -86,8 +86,8 @@ impl Auction {
         Ok(())
     }
 
-    /// Try redoubling the last double (dry run)
-    fn dry_redouble(&self) -> Result<(), IllegalCall> {
+    /// Test redoubling the last double (dry run)
+    fn can_redouble(&self) -> Result<(), IllegalCall> {
         let admissible = self
             .iter()
             .rev()
@@ -102,8 +102,8 @@ impl Auction {
         Ok(())
     }
 
-    /// Try bidding a contract (dry run)
-    fn dry_bid(&self, bid: Bid) -> Result<(), IllegalCall> {
+    /// Test bidding a contract (dry run)
+    fn can_bid(&self, bid: Bid) -> Result<(), IllegalCall> {
         if bid.level < 1 {
             return Err(IllegalCall::InsufficientBid {
                 this: bid,
@@ -126,6 +126,20 @@ impl Auction {
         Ok(())
     }
 
+    /// Test adding a call to the auction
+    fn can_push(&self, call: Call) -> Result<(), IllegalCall> {
+        if self.has_ended() {
+            return Err(IllegalCall::AfterFinalPass);
+        }
+
+        match call {
+            Call::Pass => Ok(()),
+            Call::Double => self.can_double(),
+            Call::Redouble => self.can_redouble(),
+            Call::Bid(bid) => self.can_bid(bid),
+        }
+    }
+
     /// Add a call to the auction with checks
     ///
     /// # Errors
@@ -135,17 +149,7 @@ impl Auction {
     ///
     /// [laws]: http://www.worldbridge.org/wp-content/uploads/2017/03/2017LawsofDuplicateBridge-nohighlights.pdf
     pub fn try_push(&mut self, call: Call) -> Result<(), IllegalCall> {
-        if self.has_ended() {
-            return Err(IllegalCall::AfterFinalPass);
-        }
-
-        match call {
-            Call::Pass => (),
-            Call::Double => self.dry_double()?,
-            Call::Redouble => self.dry_redouble()?,
-            Call::Bid(bid) => self.dry_bid(bid)?,
-        }
-
+        self.can_push(call)?;
         self.0.push(call);
         Ok(())
     }
@@ -160,20 +164,14 @@ impl Auction {
     ///
     /// [`IllegalCall`] if the call is forbidden by [The Laws of Duplicate
     /// Bridge][laws] after trying redoubling with [`Call::Double`].
-    pub fn force_push(&mut self, call: Call) -> Result<(), IllegalCall> {
-        const INADMISSIBLE_DOUBLE: IllegalCall = IllegalCall::InadmissibleDouble(Penalty::Doubled);
+    pub fn force_push(&mut self, mut call: Call) -> Result<(), IllegalCall> {
+        if call == Call::Double && self.can_redouble().is_ok() {
+            call = Call::Redouble;
+        }
 
-        let error = match self.try_push(call) {
-            Ok(()) => return Ok(()),
-            Err(INADMISSIBLE_DOUBLE) => match self.try_push(Call::Redouble) {
-                Ok(()) => return Ok(()),
-                Err(_) => INADMISSIBLE_DOUBLE,
-            },
-            Err(e) => e,
-        };
-
+        let report = self.can_push(call);
         self.0.push(call);
-        Err(error)
+        report
     }
 
     /// Try adding calls to the auction
