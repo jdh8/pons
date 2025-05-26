@@ -164,6 +164,8 @@ impl Auction {
     ///
     /// [`IllegalCall`] if the call is forbidden by [The Laws of Duplicate
     /// Bridge][laws] after trying redoubling with [`Call::Double`].
+    ///
+    /// [laws]: http://www.worldbridge.org/wp-content/uploads/2017/03/2017LawsofDuplicateBridge-nohighlights.pdf
     pub fn force_push(&mut self, mut call: Call) -> Result<(), IllegalCall> {
         if call == Call::Double && self.can_redouble().is_ok() {
             call = Call::Redouble;
@@ -339,20 +341,20 @@ impl Trie {
 
     /// Depth first iteration over all strategies
     #[must_use]
-    pub fn iter(&self) -> trie::SuffixIter {
-        self.suffix_iter(Auction::new())
+    pub fn iter(&self) -> trie::Suffixes {
+        self.suffixes(Auction::new())
     }
 
     /// Depth first iteration over all suffixes of the auction
     #[must_use]
-    pub fn suffix_iter(&self, auction: Auction) -> trie::SuffixIter {
-        trie::SuffixIter::new(self, auction)
+    pub fn suffixes(&self, auction: Auction) -> trie::Suffixes {
+        trie::Suffixes::new(self, auction)
     }
 
     /// Iterate over common prefixes of the auction
     #[must_use]
-    pub fn common_prefix_iter(&self, auction: Auction) -> trie::CommonPrefixIter {
-        trie::CommonPrefixIter::new(self, auction)
+    pub fn common_prefixes(&self, auction: Auction) -> trie::CommonPrefixes {
+        trie::CommonPrefixes::new(self, auction)
     }
 }
 
@@ -366,7 +368,7 @@ impl Index<Vulnerability> for Trie {
 
 impl<'a> IntoIterator for &'a Trie {
     type Item = (Box<[Call]>, Result<Strategy, IllegalCall>);
-    type IntoIter = trie::SuffixIter<'a>;
+    type IntoIter = trie::Suffixes<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.iter()

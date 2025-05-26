@@ -35,19 +35,19 @@ const _: () = {
 };
 
 #[derive(Debug, Clone, Copy)]
-struct SuffixStackEntry<'a> {
+struct StackEntry<'a> {
     depth: usize,
     index: usize,
     node: &'a Trie,
 }
 
-fn collect_children(node: &Trie, depth: usize) -> impl Iterator<Item = SuffixStackEntry> {
+fn collect_children(node: &Trie, depth: usize) -> impl Iterator<Item = StackEntry> {
     node.children
         .iter()
         .enumerate()
         .rev()
         .filter_map(move |(index, child)| {
-            child.as_ref().map(|child| SuffixStackEntry {
+            child.as_ref().map(|child| StackEntry {
                 depth,
                 index,
                 node: child,
@@ -57,16 +57,16 @@ fn collect_children(node: &Trie, depth: usize) -> impl Iterator<Item = SuffixSta
 
 /// Suffix iterator for a given auction
 ///
-/// This is the return type of [`Trie::suffix_iter`].
+/// This is the return type of [`Trie::suffixes`].
 #[derive(Debug, Clone)]
-pub struct SuffixIter<'a> {
-    stack: Vec<SuffixStackEntry<'a>>,
+pub struct Suffixes<'a> {
+    stack: Vec<StackEntry<'a>>,
     auction: Auction,
     separator: usize,
     value: Option<Strategy>,
 }
 
-impl<'a> SuffixIter<'a> {
+impl<'a> Suffixes<'a> {
     /// Construct an empty iterator
     #[must_use]
     pub const fn empty() -> Self {
@@ -94,7 +94,7 @@ impl<'a> SuffixIter<'a> {
     }
 }
 
-impl Iterator for SuffixIter<'_> {
+impl Iterator for Suffixes<'_> {
     type Item = (Box<[Call]>, Result<Strategy, IllegalCall>);
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -120,14 +120,14 @@ impl Iterator for SuffixIter<'_> {
 
 /// Common prefix iterator for a given auction
 #[derive(Debug, Clone)]
-pub struct CommonPrefixIter<'a> {
+pub struct CommonPrefixes<'a> {
     trie: &'a Trie,
     query: Auction,
     depth: usize,
     value: Option<Strategy>,
 }
 
-impl<'a> CommonPrefixIter<'a> {
+impl<'a> CommonPrefixes<'a> {
     /// Construct a common prefix iterator for a trie and an auction
     #[must_use]
     pub fn new(trie: &'a Trie, query: Auction) -> Self {
@@ -140,7 +140,7 @@ impl<'a> CommonPrefixIter<'a> {
     }
 }
 
-impl Iterator for CommonPrefixIter<'_> {
+impl Iterator for CommonPrefixes<'_> {
     type Item = (Box<[Call]>, Strategy);
 
     fn next(&mut self) -> Option<Self::Item> {
