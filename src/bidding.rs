@@ -329,6 +329,24 @@ impl Trie {
         self.subtrie(auction).is_some()
     }
 
+    /// Get the longest prefix of the auction that has a strategy
+    #[must_use]
+    pub fn longest_prefix<'a>(&self, auction: &'a [Call]) -> Option<(&'a [Call], Strategy)> {
+        let mut prefix = self.strategy.map(|x| (&[][..], x));
+        let mut node = self;
+
+        for (depth, &call) in auction.iter().enumerate() {
+            node = match node.children[encode_call(call)] {
+                Some(ref child) => child,
+                None => break,
+            };
+            if let Some(strategy) = node.strategy {
+                prefix.replace((&auction[..=depth], strategy));
+            }
+        }
+        prefix
+    }
+
     /// Insert a strategy into the trie
     pub fn insert(&mut self, auction: &[Call], strategy: Strategy) -> Option<Strategy> {
         let mut node = self;
