@@ -5,6 +5,7 @@ use core::ops::{Deref, Index, IndexMut};
 pub use dds_bridge::contract::*;
 pub use dds_bridge::deal::{Hand, Holding, SmallSet};
 pub use dds_bridge::solver::Vulnerability;
+use std::sync::Arc;
 use thiserror::Error;
 
 /// Types of illegal calls
@@ -274,15 +275,15 @@ const _: () = {
     }
 };
 
-/// Bidding strategy at a position
-pub type Strategy = fn(Hand) -> Call;
+/// Thread-safe reference-counted strategy
+pub type Strategy = Arc<dyn Fn(Hand) -> Call + Send + Sync>;
 
 /// Trie as a vulnerability-agnostic bidding system
 ///
 /// A trie stores strategy for each covered auction without vulnerability.
 /// For example, `[P, 1♠]` as an index stands for the 2nd-seat opening of 1♠.
 /// The strategy there describes how the 3rd seat should react.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Trie {
     children: [Option<Box<Trie>>; 37],
     strategy: Option<Strategy>,
@@ -320,7 +321,7 @@ impl Trie {
     /// Get the strategy for the exact auction
     #[must_use]
     pub fn get(&self, auction: &[Call]) -> Option<Strategy> {
-        self.subtrie(auction).and_then(|node| node.strategy)
+        self.subtrie(auction).and_then(|node| node.strategy.clone())
     }
 
     /// Check if the query auction is a prefix in the trie
@@ -332,7 +333,7 @@ impl Trie {
     /// Get the longest prefix of the auction that has a strategy
     #[must_use]
     pub fn longest_prefix<'a>(&self, auction: &'a [Call]) -> Option<(&'a [Call], Strategy)> {
-        let mut prefix = self.strategy.map(|x| (&[][..], x));
+        let mut prefix = self.strategy.clone().map(|x| (&[][..], x));
         let mut node = self;
 
         for (depth, &call) in auction.iter().enumerate() {
@@ -340,21 +341,21 @@ impl Trie {
                 Some(ref child) => child,
                 None => break,
             };
-            if let Some(strategy) = node.strategy {
-                prefix.replace((&auction[..=depth], strategy));
+            if let Some(ref strategy) = node.strategy {
+                prefix.replace((&auction[..=depth], strategy.clone()));
             }
         }
         prefix
     }
 
     /// Insert a strategy into the trie
-    pub fn insert(&mut self, auction: &[Call], strategy: Strategy) -> Option<Strategy> {
+    pub fn insert(&mut self, auction: &[Call], strategy: impl Into<Strategy>) -> Option<Strategy> {
         let mut node = self;
 
         for &call in auction {
             node = node.children[encode_call(call)].get_or_insert_with(Box::default);
         }
-        node.strategy.replace(strategy)
+        node.strategy.replace(strategy.into())
     }
 
     /// Depth first iteration over all strategies
@@ -394,7 +395,7 @@ impl<'a> IntoIterator for &'a Trie {
 }
 
 /// A bidding system aware of vulnerability
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Forest([Trie; 4]);
 
 impl Index<Vulnerability> for Forest {

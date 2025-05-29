@@ -34,7 +34,7 @@ const _: () = {
     assert!(decode_call(40).is_none());
 };
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone, Copy)]
 struct StackEntry<'a> {
     depth: usize,
     index: usize,
@@ -58,7 +58,7 @@ fn collect_children(node: &Trie, depth: usize) -> impl Iterator<Item = StackEntr
 /// Suffix iterator for a given auction
 ///
 /// This is the return type of [`Trie::suffixes`].
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Suffixes<'a> {
     stack: Vec<StackEntry<'a>>,
     auction: Auction,
@@ -88,7 +88,7 @@ impl<'a> Suffixes<'a> {
         Self {
             stack: collect_children(node, 0).collect(),
             separator: auction.len(),
-            value: node.strategy,
+            value: node.strategy.clone(),
             auction,
         }
     }
@@ -102,7 +102,7 @@ impl Iterator for Suffixes<'_> {
             let entry = self.stack.pop()?;
             self.stack
                 .extend(collect_children(entry.node, entry.depth + 1));
-            self.value = entry.node.strategy;
+            self.value = entry.node.strategy.clone();
             self.auction.truncate(self.separator + entry.depth);
 
             let call = decode_call(entry.index).expect("Invalid call index!");
@@ -119,7 +119,7 @@ impl Iterator for Suffixes<'_> {
 }
 
 /// Common prefix iterator for a given auction
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct CommonPrefixes<'a> {
     trie: &'a Trie,
     query: Auction,
@@ -135,7 +135,7 @@ impl<'a> CommonPrefixes<'a> {
             trie,
             query,
             depth: 0,
-            value: trie.strategy,
+            value: trie.strategy.clone(),
         }
     }
 }
@@ -147,7 +147,7 @@ impl Iterator for CommonPrefixes<'_> {
         while self.value.is_none() {
             let &call = self.query.get(self.depth)?;
             self.trie = self.trie.children[super::encode_call(call)].as_deref()?;
-            self.value = self.trie.strategy;
+            self.value = self.trie.strategy.clone();
             self.depth += 1;
         }
 
