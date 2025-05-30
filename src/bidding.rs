@@ -2,6 +2,7 @@
 pub mod trie;
 
 use core::ops::{Deref, Index, IndexMut};
+use core::panic::RefUnwindSafe;
 pub use dds_bridge::contract::*;
 pub use dds_bridge::deal::{Hand, Holding, SmallSet};
 pub use dds_bridge::solver::Vulnerability;
@@ -282,18 +283,18 @@ const _: () = {
 
 /// Thread-safe wrapper of a strategy
 #[derive(Clone)]
-pub struct Strategy(Arc<dyn Fn(Hand) -> Call + Send + Sync>);
+pub struct Strategy(Arc<dyn Fn(Hand) -> Call + Send + Sync + RefUnwindSafe>);
 
 impl Strategy {
     /// Construct a new strategy
     #[must_use]
-    pub fn new(f: impl Fn(Hand) -> Call + Send + Sync + 'static) -> Self {
+    pub fn new(f: impl Fn(Hand) -> Call + Send + Sync + RefUnwindSafe + 'static) -> Self {
         Self(Arc::new(f))
     }
 }
 
 impl Deref for Strategy {
-    type Target = dyn Fn(Hand) -> Call + Send + Sync;
+    type Target = dyn Fn(Hand) -> Call + Send + Sync + RefUnwindSafe;
 
     #[inline]
     fn deref(&self) -> &Self::Target {

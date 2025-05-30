@@ -1,6 +1,6 @@
 [package]
 name = "pons"
-version = "0.3.1-dev"
+version = "0.3.1"
 authors = ["Chen-Pang He (https://jdh8.org)"]
 edition = "2021"
 description = "Rust package for contract bridge"
