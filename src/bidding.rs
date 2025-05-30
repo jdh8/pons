@@ -275,8 +275,33 @@ const _: () = {
     }
 };
 
-/// Thread-safe reference-counted strategy
-pub type Strategy = Arc<dyn Fn(Hand) -> Call + Send + Sync>;
+/// Thread-safe wrapper of a strategy
+#[derive(Clone)]
+pub struct Strategy(Arc<dyn Fn(Hand) -> Call + Send + Sync>);
+
+impl Strategy {
+    /// Construct a new strategy
+    #[must_use]
+    pub fn new(f: impl Fn(Hand) -> Call + Send + Sync + 'static) -> Self {
+        Self(Arc::new(f))
+    }
+}
+
+impl Deref for Strategy {
+    type Target = dyn Fn(Hand) -> Call + Send + Sync;
+
+    #[inline]
+    fn deref(&self) -> &Self::Target {
+        &*self.0
+    }
+}
+
+impl AsRef<dyn Fn(Hand) -> Call + Send + Sync> for Strategy {
+    #[inline]
+    fn as_ref(&self) -> &(dyn Fn(Hand) -> Call + Send + Sync + 'static) {
+        &*self.0
+    }
+}
 
 /// Trie as a vulnerability-agnostic bidding system
 ///
@@ -349,13 +374,13 @@ impl Trie {
     }
 
     /// Insert a strategy into the trie
-    pub fn insert(&mut self, auction: &[Call], strategy: impl Into<Strategy>) -> Option<Strategy> {
+    pub fn insert(&mut self, auction: &[Call], strategy: Strategy) -> Option<Strategy> {
         let mut node = self;
 
         for &call in auction {
             node = node.children[encode_call(call)].get_or_insert_with(Box::default);
         }
-        node.strategy.replace(strategy.into())
+        node.strategy.replace(strategy)
     }
 
     /// Depth first iteration over all strategies
