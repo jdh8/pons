@@ -46,12 +46,14 @@ pub struct Auction(Vec<Call>);
 impl Deref for Auction {
     type Target = [Call];
 
+    #[inline]
     fn deref(&self) -> &[Call] {
         &self.0
     }
 }
 
 impl From<Auction> for Vec<Call> {
+    #[inline]
     fn from(auction: Auction) -> Self {
         auction.0
     }
@@ -60,6 +62,7 @@ impl From<Auction> for Vec<Call> {
 impl Auction {
     /// Construct an empty auction
     #[must_use]
+    #[inline]
     pub const fn new() -> Self {
         Self(Vec::new())
     }
@@ -67,6 +70,7 @@ impl Auction {
     /// Check if the auction is terminated (by 3 consecutive passes following
     /// a call)
     #[must_use]
+    #[inline]
     pub fn has_ended(&self) -> bool {
         self.len() >= 4 && self[self.len() - 3..] == [Call::Pass; 3]
     }
@@ -198,6 +202,7 @@ impl Auction {
     }
 
     /// Pop the last call from the auction
+    #[inline]
     pub fn pop(&mut self) -> Option<Call> {
         self.0.pop()
     }
@@ -308,6 +313,7 @@ pub struct Trie {
 }
 
 impl Default for Trie {
+    #[inline]
     fn default() -> Self {
         Self::new()
     }
@@ -316,6 +322,7 @@ impl Default for Trie {
 impl Trie {
     /// Construct an empty trie
     #[must_use]
+    #[inline]
     pub const fn new() -> Self {
         Self {
             children: [const { None }; 37],
@@ -391,6 +398,7 @@ impl Trie {
 
     /// Iterate over common prefixes of the auction
     #[must_use]
+    #[inline]
     pub const fn common_prefixes(&self, auction: Auction) -> trie::CommonPrefixes {
         trie::CommonPrefixes::new(self, auction)
     }
@@ -399,6 +407,7 @@ impl Trie {
 impl Index<Vulnerability> for Trie {
     type Output = Self;
 
+    #[inline]
     fn index(&self, _: Vulnerability) -> &Self {
         self
     }
@@ -420,12 +429,14 @@ pub struct Forest([Trie; 4]);
 impl Index<Vulnerability> for Forest {
     type Output = Trie;
 
+    #[inline]
     fn index(&self, index: Vulnerability) -> &Trie {
         &self.0[usize::from(index.bits())]
     }
 }
 
 impl IndexMut<Vulnerability> for Forest {
+    #[inline]
     fn index_mut(&mut self, index: Vulnerability) -> &mut Trie {
         &mut self.0[usize::from(index.bits())]
     }

@@ -130,6 +130,7 @@ pub struct CommonPrefixes<'a> {
 impl<'a> CommonPrefixes<'a> {
     /// Construct a common prefix iterator for a trie and an auction
     #[must_use]
+    #[inline]
     pub const fn new(trie: &'a Trie, query: Auction) -> Self {
         Self {
             trie,
