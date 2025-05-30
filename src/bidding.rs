@@ -296,13 +296,6 @@ impl Deref for Strategy {
     }
 }
 
-impl AsRef<dyn Fn(Hand) -> Call + Send + Sync> for Strategy {
-    #[inline]
-    fn as_ref(&self) -> &(dyn Fn(Hand) -> Call + Send + Sync + 'static) {
-        &*self.0
-    }
-}
-
 /// Trie as a vulnerability-agnostic bidding system
 ///
 /// A trie stores strategy for each covered auction without vulnerability.
