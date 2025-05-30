@@ -345,8 +345,8 @@ impl Trie {
 
     /// Get the strategy for the exact auction
     #[must_use]
-    pub fn get(&self, auction: &[Call]) -> Option<Strategy> {
-        self.subtrie(auction).and_then(|node| node.strategy.clone())
+    pub fn get(&self, auction: &[Call]) -> Option<&Strategy> {
+        self.subtrie(auction).and_then(|node| node.strategy.as_ref())
     }
 
     /// Check if the query auction is a prefix in the trie
@@ -357,8 +357,8 @@ impl Trie {
 
     /// Get the longest prefix of the auction that has a strategy
     #[must_use]
-    pub fn longest_prefix<'a>(&self, auction: &'a [Call]) -> Option<(&'a [Call], Strategy)> {
-        let mut prefix = self.strategy.clone().map(|x| (&[][..], x));
+    pub fn longest_prefix<'a>(&self, auction: &'a [Call]) -> Option<(&'a [Call], &Strategy)> {
+        let mut prefix = self.strategy.as_ref().map(|x| (&[][..], x));
         let mut node = self;
 
         for (depth, &call) in auction.iter().enumerate() {
@@ -367,7 +367,7 @@ impl Trie {
                 None => break,
             };
             if let Some(ref strategy) = node.strategy {
-                prefix.replace((&auction[..=depth], strategy.clone()));
+                prefix.replace((&auction[..=depth], strategy));
             }
         }
         prefix
@@ -397,7 +397,7 @@ impl Trie {
 
     /// Iterate over common prefixes of the auction
     #[must_use]
-    pub fn common_prefixes(&self, auction: Auction) -> trie::CommonPrefixes {
+    pub const fn common_prefixes(&self, auction: Auction) -> trie::CommonPrefixes {
         trie::CommonPrefixes::new(self, auction)
     }
 }
@@ -411,7 +411,7 @@ impl Index<Vulnerability> for Trie {
 }
 
 impl<'a> IntoIterator for &'a Trie {
-    type Item = (Box<[Call]>, Result<Strategy, IllegalCall>);
+    type Item = (Box<[Call]>, Result<&'a Strategy, IllegalCall>);
     type IntoIter = trie::Suffixes<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
