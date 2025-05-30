@@ -339,7 +339,8 @@ impl Trie {
     /// Get the strategy for the exact auction
     #[must_use]
     pub fn get(&self, auction: &[Call]) -> Option<&Strategy> {
-        self.subtrie(auction).and_then(|node| node.strategy.as_ref())
+        self.subtrie(auction)
+            .and_then(|node| node.strategy.as_ref())
     }
 
     /// Check if the query auction is a prefix in the trie
@@ -355,11 +356,11 @@ impl Trie {
         let mut node = self;
 
         for (depth, &call) in auction.iter().enumerate() {
-            node = match node.children[encode_call(call)] {
-                Some(ref child) => child,
+            node = match node.children[encode_call(call)].as_deref() {
+                Some(child) => child,
                 None => break,
             };
-            if let Some(ref strategy) = node.strategy {
+            if let Some(strategy) = node.strategy.as_ref() {
                 prefix.replace((&auction[..=depth], strategy));
             }
         }
