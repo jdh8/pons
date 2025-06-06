@@ -2,10 +2,8 @@
 pub mod trie;
 
 use core::ops::{Deref, Index, IndexMut};
-use core::panic::RefUnwindSafe;
 pub use dds_bridge::contract::*;
 pub use dds_bridge::deal::{Hand, Holding, SmallSet};
-use std::sync::Arc;
 use thiserror::Error;
 
 bitflags::bitflags! {
@@ -291,26 +289,8 @@ const _: () = {
     }
 };
 
-/// Thread-safe wrapper of a strategy
-#[derive(Clone)]
-pub struct Strategy(Arc<dyn Fn(Hand) -> Call + Send + Sync + RefUnwindSafe>);
-
-impl Strategy {
-    /// Construct a new strategy
-    #[must_use]
-    pub fn new(f: impl Fn(Hand) -> Call + Send + Sync + RefUnwindSafe + 'static) -> Self {
-        Self(Arc::new(f))
-    }
-}
-
-impl Deref for Strategy {
-    type Target = dyn Fn(Hand) -> Call + Send + Sync + RefUnwindSafe;
-
-    #[inline]
-    fn deref(&self) -> &Self::Target {
-        &*self.0
-    }
-}
+/// Callback pointer: ([`Hand`], `&[Call]`, [`Vulnerability`]) → [`Call`]
+pub type Strategy = fn(Hand, &[Call], Vulnerability) -> Call;
 
 /// Trie as a vulnerability-agnostic bidding system
 ///
@@ -356,9 +336,8 @@ impl Trie {
 
     /// Get the strategy for the exact auction
     #[must_use]
-    pub fn get(&self, auction: &[Call]) -> Option<&Strategy> {
-        self.subtrie(auction)
-            .and_then(|node| node.strategy.as_ref())
+    pub fn get(&self, auction: &[Call]) -> Option<Strategy> {
+        self.subtrie(auction).and_then(|node| node.strategy)
     }
 
     /// Check if the query auction is a prefix in the trie
@@ -369,8 +348,8 @@ impl Trie {
 
     /// Get the longest prefix of the auction that has a strategy
     #[must_use]
-    pub fn longest_prefix<'a>(&self, auction: &'a [Call]) -> Option<(&'a [Call], &Strategy)> {
-        let mut prefix = self.strategy.as_ref().map(|x| (&[][..], x));
+    pub fn longest_prefix<'a>(&self, auction: &'a [Call]) -> Option<(&'a [Call], Strategy)> {
+        let mut prefix = self.strategy.map(|x| (&[][..], x));
         let mut node = self;
 
         for (depth, &call) in auction.iter().enumerate() {
@@ -378,7 +357,7 @@ impl Trie {
                 Some(child) => child,
                 None => break,
             };
-            if let Some(strategy) = node.strategy.as_ref() {
+            if let Some(strategy) = node.strategy {
                 prefix.replace((&auction[..=depth], strategy));
             }
         }
@@ -425,7 +404,7 @@ impl Index<Vulnerability> for Trie {
 }
 
 impl<'a> IntoIterator for &'a Trie {
-    type Item = (Box<[Call]>, Result<&'a Strategy, IllegalCall>);
+    type Item = (Box<[Call]>, Result<Strategy, IllegalCall>);
     type IntoIter = trie::Suffixes<'a>;
 
     fn into_iter(self) -> Self::IntoIter {

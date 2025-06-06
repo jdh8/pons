@@ -63,7 +63,7 @@ pub struct Suffixes<'a> {
     stack: Vec<StackEntry<'a>>,
     auction: Auction,
     separator: usize,
-    value: Option<&'a Strategy>,
+    value: Option<Strategy>,
 }
 
 impl<'a> Suffixes<'a> {
@@ -88,21 +88,21 @@ impl<'a> Suffixes<'a> {
         Self {
             stack: collect_children(node, 0).collect(),
             separator: auction.len(),
-            value: node.strategy.as_ref(),
+            value: node.strategy,
             auction,
         }
     }
 }
 
-impl<'a> Iterator for Suffixes<'a> {
-    type Item = (Box<[Call]>, Result<&'a Strategy, IllegalCall>);
+impl Iterator for Suffixes<'_> {
+    type Item = (Box<[Call]>, Result<Strategy, IllegalCall>);
 
     fn next(&mut self) -> Option<Self::Item> {
         while self.value.is_none() {
             let entry = self.stack.pop()?;
             self.stack
                 .extend(collect_children(entry.node, entry.depth + 1));
-            self.value = entry.node.strategy.as_ref();
+            self.value = entry.node.strategy;
             self.auction.truncate(self.separator + entry.depth);
 
             let call = decode_call(entry.index).expect("Invalid call index!");
@@ -124,7 +124,7 @@ pub struct CommonPrefixes<'a> {
     trie: &'a Trie,
     query: Auction,
     depth: usize,
-    value: Option<&'a Strategy>,
+    value: Option<Strategy>,
 }
 
 impl<'a> CommonPrefixes<'a> {
@@ -136,19 +136,19 @@ impl<'a> CommonPrefixes<'a> {
             trie,
             query,
             depth: 0,
-            value: trie.strategy.as_ref(),
+            value: trie.strategy,
         }
     }
 }
 
-impl<'a> Iterator for CommonPrefixes<'a> {
-    type Item = (Box<[Call]>, &'a Strategy);
+impl Iterator for CommonPrefixes<'_> {
+    type Item = (Box<[Call]>, Strategy);
 
     fn next(&mut self) -> Option<Self::Item> {
         while self.value.is_none() {
             let &call = self.query.get(self.depth)?;
             self.trie = self.trie.children[super::encode_call(call)].as_deref()?;
-            self.value = self.trie.strategy.as_ref();
+            self.value = self.trie.strategy;
             self.depth += 1;
         }
 
