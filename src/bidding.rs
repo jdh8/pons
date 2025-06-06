@@ -5,9 +5,19 @@ use core::ops::{Deref, Index, IndexMut};
 use core::panic::RefUnwindSafe;
 pub use dds_bridge::contract::*;
 pub use dds_bridge::deal::{Hand, Holding, SmallSet};
-pub use dds_bridge::solver::Vulnerability;
 use std::sync::Arc;
 use thiserror::Error;
+
+bitflags::bitflags! {
+    /// Vulnerability of sides
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+    pub struct Vulnerability: u8 {
+        /// We are vulnerable
+        const WE = 1;
+        /// Opponents are vulnerable
+        const THEY = 2;
+    }
+}
 
 /// Types of illegal calls
 ///
@@ -447,10 +457,6 @@ impl IndexMut<Vulnerability> for Forest {
 ///
 /// This trait is merely a marker since its supertraits already cover its usage.
 /// Indexing with [`Vulnerability`] results in a [`Trie`] that handles auctions.
-///
-/// A bidding system generally assumes that dealer is north.  This default is
-/// also reflected in [`dds_bridge::deal::Seat`].  We can rotate vulnerability
-/// with [`Vulnerability::swap`].
 ///
 /// ```
 /// use dds_bridge::deal::Seat;
