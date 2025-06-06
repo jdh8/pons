@@ -289,7 +289,7 @@ const _: () = {
     }
 };
 
-/// Callback pointer: ([`Hand`], `&[Call]`, [`Vulnerability`]) → [`Call`]
+/// Strategy callback pointer
 pub type Strategy = fn(Hand, &[Call], Vulnerability) -> Call;
 
 /// Trie as a vulnerability-agnostic bidding system
