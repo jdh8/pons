@@ -1,4 +1,4 @@
-use super::{Auction, Call, IllegalCall, Strategy, Trie};
+use super::{Auction, Call, IllegalCall, Decision, Trie};
 
 const fn decode_call(index: usize) -> Option<Call> {
     match index {
@@ -63,7 +63,7 @@ pub struct Suffixes<'a> {
     stack: Vec<StackEntry<'a>>,
     auction: Auction,
     separator: usize,
-    value: Option<Strategy>,
+    value: Option<Decision>,
 }
 
 impl<'a> Suffixes<'a> {
@@ -95,7 +95,7 @@ impl<'a> Suffixes<'a> {
 }
 
 impl Iterator for Suffixes<'_> {
-    type Item = (Box<[Call]>, Result<Strategy, IllegalCall>);
+    type Item = (Box<[Call]>, Result<Decision, IllegalCall>);
 
     fn next(&mut self) -> Option<Self::Item> {
         while self.value.is_none() {
@@ -124,7 +124,7 @@ pub struct CommonPrefixes<'a> {
     trie: &'a Trie,
     query: Auction,
     depth: usize,
-    value: Option<Strategy>,
+    value: Option<Decision>,
 }
 
 impl<'a> CommonPrefixes<'a> {
@@ -142,7 +142,7 @@ impl<'a> CommonPrefixes<'a> {
 }
 
 impl Iterator for CommonPrefixes<'_> {
-    type Item = (Box<[Call]>, Strategy);
+    type Item = (Box<[Call]>, Decision);
 
     fn next(&mut self) -> Option<Self::Item> {
         while self.value.is_none() {

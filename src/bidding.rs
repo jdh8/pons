@@ -289,10 +289,10 @@ const _: () = {
     }
 };
 
-/// Strategy callback pointer
-pub type Strategy = fn(Hand, &[Call], Vulnerability) -> Call;
+/// Decision node for a decision [`Trie`]
+pub type Decision = fn(Hand, &[Call], Vulnerability) -> Call;
 
-/// Trie as a vulnerability-agnostic bidding system
+/// Decision trie as a vulnerability-agnostic bidding system
 ///
 /// A trie stores strategy for each covered auction without vulnerability.
 /// For example, `[P, 1♠]` as an index stands for the 2nd-seat opening of 1♠.
@@ -300,7 +300,7 @@ pub type Strategy = fn(Hand, &[Call], Vulnerability) -> Call;
 #[derive(Clone)]
 pub struct Trie {
     children: [Option<Box<Trie>>; 37],
-    strategy: Option<Strategy>,
+    strategy: Option<Decision>,
 }
 
 impl Default for Trie {
@@ -336,7 +336,7 @@ impl Trie {
 
     /// Get the strategy for the exact auction
     #[must_use]
-    pub fn get(&self, auction: &[Call]) -> Option<Strategy> {
+    pub fn get(&self, auction: &[Call]) -> Option<Decision> {
         self.subtrie(auction).and_then(|node| node.strategy)
     }
 
@@ -348,7 +348,7 @@ impl Trie {
 
     /// Get the longest prefix of the auction that has a strategy
     #[must_use]
-    pub fn longest_prefix<'a>(&self, auction: &'a [Call]) -> Option<(&'a [Call], Strategy)> {
+    pub fn longest_prefix<'a>(&self, auction: &'a [Call]) -> Option<(&'a [Call], Decision)> {
         let mut prefix = self.strategy.map(|x| (&[][..], x));
         let mut node = self;
 
@@ -365,7 +365,7 @@ impl Trie {
     }
 
     /// Insert a strategy into the trie
-    pub fn insert(&mut self, auction: &[Call], strategy: Strategy) -> Option<Strategy> {
+    pub fn insert(&mut self, auction: &[Call], strategy: Decision) -> Option<Decision> {
         let mut node = self;
 
         for &call in auction {
@@ -404,7 +404,7 @@ impl Index<Vulnerability> for Trie {
 }
 
 impl<'a> IntoIterator for &'a Trie {
-    type Item = (Box<[Call]>, Result<Strategy, IllegalCall>);
+    type Item = (Box<[Call]>, Result<Decision, IllegalCall>);
     type IntoIter = trie::Suffixes<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
