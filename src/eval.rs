@@ -1,6 +1,6 @@
-use crate::bidding::{Hand, Holding, SmallSet};
 use core::cmp::Ord;
 use core::iter::Sum;
+use dds_bridge::deal::{Hand, Holding, SmallSet};
 
 /// Trait for hand evaluators
 pub trait HandEvaluator<T> {

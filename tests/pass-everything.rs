@@ -1,3 +1,5 @@
+use dds_bridge::contract::Call;
+use dds_bridge::deal::Hand;
 use pons::bidding::*;
 
 #[test]
