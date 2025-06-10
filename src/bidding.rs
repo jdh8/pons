@@ -291,11 +291,7 @@ const _: () = {
     }
 };
 
-/// Frequency of a call at a given position
-///
-/// The underlying `u8` value represents weight.  Weights of all calls are
-/// collected, and RNG selects a call with a probability proportional to its
-/// weight.
+/// Frequency of a call (`self.0` / [`u8::MAX`])
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Frequency(pub u8);
 
