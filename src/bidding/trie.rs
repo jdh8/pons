@@ -1,4 +1,4 @@
-use super::{Auction, Call, IllegalCall, Decision, Trie};
+use super::{Auction, Call, Filter, IllegalCall, Trie};
 
 const fn decode_call(index: usize) -> Option<Call> {
     match index {
@@ -63,7 +63,7 @@ pub struct Suffixes<'a> {
     stack: Vec<StackEntry<'a>>,
     auction: Auction,
     separator: usize,
-    value: Option<Decision>,
+    value: Option<&'a Filter>,
 }
 
 impl<'a> Suffixes<'a> {
@@ -88,21 +88,21 @@ impl<'a> Suffixes<'a> {
         Self {
             stack: collect_children(node, 0).collect(),
             separator: auction.len(),
-            value: node.strategy,
+            value: node.filter.as_ref(),
             auction,
         }
     }
 }
 
-impl Iterator for Suffixes<'_> {
-    type Item = (Box<[Call]>, Result<Decision, IllegalCall>);
+impl<'a> Iterator for Suffixes<'a> {
+    type Item = (Box<[Call]>, Result<&'a Filter, IllegalCall>);
 
     fn next(&mut self) -> Option<Self::Item> {
         while self.value.is_none() {
             let entry = self.stack.pop()?;
             self.stack
                 .extend(collect_children(entry.node, entry.depth + 1));
-            self.value = entry.node.strategy;
+            self.value = entry.node.filter.as_ref();
             self.auction.truncate(self.separator + entry.depth);
 
             let call = decode_call(entry.index).expect("Invalid call index!");
@@ -124,7 +124,7 @@ pub struct CommonPrefixes<'a> {
     trie: &'a Trie,
     query: Auction,
     depth: usize,
-    value: Option<Decision>,
+    value: Option<&'a Filter>,
 }
 
 impl<'a> CommonPrefixes<'a> {
@@ -136,19 +136,19 @@ impl<'a> CommonPrefixes<'a> {
             trie,
             query,
             depth: 0,
-            value: trie.strategy,
+            value: trie.filter.as_ref(),
         }
     }
 }
 
-impl Iterator for CommonPrefixes<'_> {
-    type Item = (Box<[Call]>, Decision);
+impl<'a> Iterator for CommonPrefixes<'a> {
+    type Item = (Box<[Call]>, &'a Filter);
 
     fn next(&mut self) -> Option<Self::Item> {
         while self.value.is_none() {
             let &call = self.query.get(self.depth)?;
             self.trie = self.trie.children[super::encode_call(call)].as_deref()?;
-            self.value = self.trie.strategy;
+            self.value = self.trie.filter.as_ref();
             self.depth += 1;
         }
 

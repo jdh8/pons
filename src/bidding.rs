@@ -4,6 +4,8 @@ pub mod trie;
 use core::ops::{Deref, Index, IndexMut};
 pub use dds_bridge::contract::*;
 pub use dds_bridge::deal::{Hand, Holding, SmallSet};
+use std::panic::RefUnwindSafe;
+use std::sync::Arc;
 use thiserror::Error;
 
 bitflags::bitflags! {
@@ -289,18 +291,21 @@ const _: () = {
     }
 };
 
-/// Decision node for a decision [`Trie`]
-pub type Decision = fn(Hand, &[Call], Vulnerability) -> Call;
+/// Evaluation of fitness of a call
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Fitness;
+
+/// Evaluate if a predefined call fits the hand
+pub type Filter = Arc<dyn Fn(Hand) -> Fitness + Send + Sync + RefUnwindSafe>;
 
 /// Decision trie as a vulnerability-agnostic bidding system
 ///
-/// A trie stores strategy for each covered auction without vulnerability.
+/// A trie stores filter for each covered auction without vulnerability.
 /// For example, `[P, 1♠]` as an index stands for the 2nd-seat opening of 1♠.
-/// The strategy there describes how the 3rd seat should react.
 #[derive(Clone)]
 pub struct Trie {
     children: [Option<Box<Trie>>; 37],
-    strategy: Option<Decision>,
+    filter: Option<Filter>,
 }
 
 impl Default for Trie {
@@ -317,7 +322,7 @@ impl Trie {
     pub const fn new() -> Self {
         Self {
             children: [const { None }; 37],
-            strategy: None,
+            filter: None,
         }
     }
 
@@ -334,10 +339,10 @@ impl Trie {
         Some(node)
     }
 
-    /// Get the strategy for the exact auction
+    /// Get the filter for the exact auction
     #[must_use]
-    pub fn get(&self, auction: &[Call]) -> Option<Decision> {
-        self.subtrie(auction).and_then(|node| node.strategy)
+    pub fn get(&self, auction: &[Call]) -> Option<&Filter> {
+        self.subtrie(auction).and_then(|node| node.filter.as_ref())
     }
 
     /// Check if the query auction is a prefix in the trie
@@ -346,10 +351,10 @@ impl Trie {
         self.subtrie(auction).is_some()
     }
 
-    /// Get the longest prefix of the auction that has a strategy
+    /// Get the longest prefix of the auction that has a filter
     #[must_use]
-    pub fn longest_prefix<'a>(&self, auction: &'a [Call]) -> Option<(&'a [Call], Decision)> {
-        let mut prefix = self.strategy.map(|x| (&[][..], x));
+    pub fn longest_prefix<'a>(&self, auction: &'a [Call]) -> Option<(&'a [Call], &Filter)> {
+        let mut prefix = self.filter.as_ref().map(|f| (&[][..], f));
         let mut node = self;
 
         for (depth, &call) in auction.iter().enumerate() {
@@ -357,21 +362,21 @@ impl Trie {
                 Some(child) => child,
                 None => break,
             };
-            if let Some(strategy) = node.strategy {
-                prefix.replace((&auction[..=depth], strategy));
+            if let Some(f) = node.filter.as_ref() {
+                prefix.replace((&auction[..=depth], f));
             }
         }
         prefix
     }
 
-    /// Insert a strategy into the trie
-    pub fn insert(&mut self, auction: &[Call], strategy: Decision) -> Option<Decision> {
+    /// Insert a filter into the trie
+    pub fn insert(&mut self, auction: &[Call], eval: Filter) -> Option<Filter> {
         let mut node = self;
 
         for &call in auction {
             node = node.children[encode_call(call)].get_or_insert_with(Box::default);
         }
-        node.strategy.replace(strategy)
+        node.filter.replace(eval)
     }
 
     /// Depth first iteration over all strategies
@@ -404,7 +409,7 @@ impl Index<Vulnerability> for Trie {
 }
 
 impl<'a> IntoIterator for &'a Trie {
-    type Item = (Box<[Call]>, Result<Decision, IllegalCall>);
+    type Item = (Box<[Call]>, Result<&'a Filter, IllegalCall>);
     type IntoIter = trie::Suffixes<'a>;
 
     fn into_iter(self) -> Self::IntoIter {

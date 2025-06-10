@@ -1,13 +1,11 @@
 use pons::bidding::*;
+use std::sync::Arc;
 
 #[test]
 fn test_pass_everything() {
     let mut trie = Trie::new();
-    trie.insert(&[], |_, _, _| Call::Pass);
+    trie.insert(&[Call::Pass], Arc::new(|_| Fitness));
 
-    let strategy = trie.get(&[]).expect("I just inserted this!");
-    assert_eq!(
-        strategy(Hand::default(), &[], Vulnerability::empty()),
-        Call::Pass
-    );
+    let filter = trie.get(&[Call::Pass]).expect("I just inserted this!");
+    assert_eq!(filter(Hand::default()), Fitness);
 }
