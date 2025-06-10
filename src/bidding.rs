@@ -291,12 +291,35 @@ const _: () = {
     }
 };
 
-/// Evaluation of fitness of a call
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Fitness;
+/// Frequency of a call at a given position
+///
+/// The underlying `u8` value represents weight.  Weights of all calls are
+/// collected, and RNG selects a call with a probability proportional to its
+/// weight.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Frequency(pub u8);
 
-/// Evaluate if a predefined call fits the hand
-pub type Filter = Arc<dyn Fn(Hand) -> Fitness + Send + Sync + RefUnwindSafe>;
+/// Evaluate [`Frequency`] of a call, given a [`Hand`] and predefined position
+#[derive(Clone)]
+pub struct Filter(Arc<dyn Fn(Hand) -> Frequency + Send + Sync + RefUnwindSafe>);
+
+impl Filter {
+    /// Construct a filter from a callback
+    #[inline]
+    #[must_use]
+    pub fn new(f: impl Fn(Hand) -> Frequency + Send + Sync + RefUnwindSafe + 'static) -> Self {
+        Self(Arc::new(f))
+    }
+}
+
+impl Deref for Filter {
+    type Target = dyn Fn(Hand) -> Frequency + Send + Sync + RefUnwindSafe;
+
+    #[inline]
+    fn deref(&self) -> &Self::Target {
+        &*self.0
+    }
+}
 
 /// Decision trie as a vulnerability-agnostic bidding system
 ///
@@ -370,16 +393,16 @@ impl Trie {
     }
 
     /// Insert a filter into the trie
-    pub fn insert(&mut self, auction: &[Call], eval: Filter) -> Option<Filter> {
+    pub fn insert(&mut self, auction: &[Call], f: Filter) -> Option<Filter> {
         let mut node = self;
 
         for &call in auction {
             node = node.children[encode_call(call)].get_or_insert_with(Box::default);
         }
-        node.filter.replace(eval)
+        node.filter.replace(f)
     }
 
-    /// Depth first iteration over all strategies
+    /// Depth first iteration over all filtered nodes
     #[must_use]
     pub fn iter(&self) -> trie::Suffixes {
         self.suffixes(Auction::new())
