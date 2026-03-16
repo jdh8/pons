@@ -4,13 +4,14 @@ use core::ops::{Index, IndexMut};
 const fn encode_call(call: Call) -> usize {
     match call {
         Call::Pass => 0,
-        Call::Double | Call::Redouble => 1,
-        Call::Bid(bid) => bid.level as usize * 5 + bid.strain as usize - 3,
+        Call::Double => 1,
+        Call::Redouble => 2,
+        Call::Bid(bid) => 3 + (bid.level - 1) as usize * 5 + bid.strain as usize,
     }
 }
 
 const _: () = {
-    let mut calls = [Call::Pass; 37];
+    let mut calls = [Call::Pass; 38];
     let mut level = 1;
     let mut strain = 0;
 
@@ -29,11 +30,11 @@ const _: () = {
 
     assert!(encode_call(Call::Pass) == 0);
     assert!(encode_call(Call::Double) == 1);
-    assert!(encode_call(Call::Redouble) == 1);
+    assert!(encode_call(Call::Redouble) == 2);
 
-    let mut index = 2;
+    let mut index = 3;
 
-    while index < 37 {
+    while index < 38 {
         assert!(matches!(calls[index], Call::Bid(_)));
         index += 1;
     }
@@ -45,7 +46,7 @@ const _: () = {
 /// For example, `[P, 1♠]` as an index stands for the 2nd-seat opening of 1♠.
 #[derive(Clone)]
 pub struct Trie {
-    children: [Option<Box<Self>>; 37],
+    children: [Option<Box<Self>>; 38],
     filter: Option<Filter>,
 }
 
@@ -62,7 +63,7 @@ impl Trie {
     #[inline]
     pub const fn new() -> Self {
         Self {
-            children: [const { None }; 37],
+            children: [const { None }; 38],
             filter: None,
         }
     }
@@ -153,12 +154,13 @@ const fn decode_call(index: usize) -> Option<Call> {
     match index {
         0 => Some(Call::Pass),
         1 => Some(Call::Double),
-        2..=36 => {
-            let code = index + 3;
+        2 => Some(Call::Redouble),
+        3..=37 => {
+            let code = index - 3 + 5;
             let (level, strain) = (code / 5, code % 5);
 
             Some(Call::Bid(super::Bid {
-                // SAFETY: Maximum `level` is (36 + 3) / 5 which is within `u8`
+                // SAFETY: Maximum `level` is within `u8`
                 #[allow(clippy::cast_possible_truncation)]
                 level: level as u8,
                 strain: super::Strain::ASC[strain],
@@ -171,13 +173,12 @@ const fn decode_call(index: usize) -> Option<Call> {
 const _: () = {
     let mut id = 0;
 
-    while id < 37 {
+    while id < 38 {
         let call = decode_call(id).expect("Invalid call ID!");
         assert!(encode_call(call) == id);
         id += 1;
     }
 
-    assert!(decode_call(37).is_none());
     assert!(decode_call(38).is_none());
     assert!(decode_call(39).is_none());
     assert!(decode_call(40).is_none());
