@@ -45,7 +45,7 @@ const _: () = {
 /// For example, `[P, 1♠]` as an index stands for the 2nd-seat opening of 1♠.
 #[derive(Clone)]
 pub struct Trie {
-    children: [Option<Box<Trie>>; 37],
+    children: [Option<Box<Self>>; 37],
     filter: Option<Filter>,
 }
 
@@ -122,20 +122,20 @@ impl Trie {
 
     /// Depth first iteration over all filtered nodes
     #[must_use]
-    pub fn iter(&self) -> Suffixes {
+    pub fn iter(&'_ self) -> Suffixes<'_> {
         self.suffixes(Auction::new())
     }
 
     /// Depth first iteration over all suffixes of the auction
     #[must_use]
-    pub fn suffixes(&self, auction: Auction) -> Suffixes {
+    pub fn suffixes(&'_ self, auction: Auction) -> Suffixes<'_> {
         Suffixes::new(self, auction)
     }
 
     /// Iterate over common prefixes of the auction
     #[must_use]
     #[inline]
-    pub const fn common_prefixes(&self, auction: Auction) -> CommonPrefixes {
+    pub const fn common_prefixes(&'_ self, auction: Auction) -> CommonPrefixes<'_> {
         CommonPrefixes::new(self, auction)
     }
 }
@@ -190,7 +190,7 @@ struct StackEntry<'a> {
     node: &'a Trie,
 }
 
-fn collect_children(node: &Trie, depth: usize) -> impl Iterator<Item = StackEntry> {
+fn collect_children(node: &'_ Trie, depth: usize) -> impl Iterator<Item = StackEntry<'_>> {
     node.children
         .iter()
         .enumerate()
