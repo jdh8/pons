@@ -129,11 +129,7 @@ pub fn nltc(holding: Holding) -> f64 {
 pub fn hcp_plus<T: From<u8> + PartialOrd>(holding: Holding) -> T {
     let count = hcp(holding);
     let short = shortness(holding);
-    if count < short {
-        short
-    } else {
-        count
-    }
+    if count < short { short } else { count }
 }
 
 /// The [Fifths] evaluator for 3NT
