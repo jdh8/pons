@@ -1,3 +1,6 @@
+/// Helper module for [`Table`]
+pub mod table;
+
 /// Helper module for [`Trie`]
 pub mod trie;
 
@@ -6,6 +9,7 @@ use dds_bridge::contract::{Bid, Call, Penalty, Strain};
 use dds_bridge::deal::Hand;
 use std::panic::RefUnwindSafe;
 use std::sync::Arc;
+pub use table::Table;
 use thiserror::Error;
 pub use trie::Trie;
 

@@ -1,44 +1,5 @@
-use super::{Auction, Bid, Call, Filter, IllegalCall, Strain, Vulnerability};
+use super::{Auction, Call, Filter, IllegalCall, Table, Vulnerability};
 use core::ops::{Index, IndexMut};
-
-const fn encode_call(call: Call) -> usize {
-    match call {
-        Call::Pass => 0,
-        Call::Double => 1,
-        Call::Redouble => 2,
-        Call::Bid(bid) => 3 + (bid.level - 1) as usize * 5 + bid.strain as usize,
-    }
-}
-
-const _: () = {
-    let mut calls = [Call::Pass; 38];
-    let mut level = 1;
-    let mut strain = 0;
-
-    while level <= 7 {
-        while strain <= 4 {
-            let bid = Bid {
-                level,
-                strain: Strain::ASC[strain],
-            };
-            calls[encode_call(Call::Bid(bid))] = Call::Bid(bid);
-            strain += 1;
-        }
-        strain = 0;
-        level += 1;
-    }
-
-    assert!(encode_call(Call::Pass) == 0);
-    assert!(encode_call(Call::Double) == 1);
-    assert!(encode_call(Call::Redouble) == 2);
-
-    let mut index = 3;
-
-    while index < 38 {
-        assert!(matches!(calls[index], Call::Bid(_)));
-        index += 1;
-    }
-};
 
 /// Decision trie as a vulnerability-agnostic bidding system
 ///
@@ -46,12 +7,11 @@ const _: () = {
 /// For example, `[P, 1♠]` as an index stands for the 2nd-seat opening of 1♠.
 #[derive(Clone)]
 pub struct Trie {
-    children: [Option<Box<Self>>; 38],
+    children: Table<Box<Self>>,
     filter: Option<Filter>,
 }
 
 impl Default for Trie {
-    #[inline]
     fn default() -> Self {
         Self::new()
     }
@@ -63,7 +23,7 @@ impl Trie {
     #[inline]
     pub const fn new() -> Self {
         Self {
-            children: [const { None }; 38],
+            children: Table::new(),
             filter: None,
         }
     }
@@ -76,7 +36,7 @@ impl Trie {
         let mut node = self;
 
         for &call in auction {
-            node = node.children[encode_call(call)].as_deref()?;
+            node = node.children.get(call)?;
         }
         Some(node)
     }
@@ -100,7 +60,7 @@ impl Trie {
         let mut node = self;
 
         for (depth, &call) in auction.iter().enumerate() {
-            node = match node.children[encode_call(call)].as_deref() {
+            node = match node.children.get(call) {
                 Some(child) => child,
                 None => break,
             };
@@ -116,7 +76,7 @@ impl Trie {
         let mut node = self;
 
         for &call in auction {
-            node = node.children[encode_call(call)].get_or_insert_with(Box::default);
+            node = node.children.entry(call).get_or_insert_with(Box::default);
         }
         node.filter.replace(f)
     }
@@ -150,59 +110,19 @@ impl<'a> IntoIterator for &'a Trie {
     }
 }
 
-const fn decode_call(index: usize) -> Option<Call> {
-    match index {
-        0 => Some(Call::Pass),
-        1 => Some(Call::Double),
-        2 => Some(Call::Redouble),
-        3..=37 => {
-            let code = index - 3 + 5;
-            let (level, strain) = (code / 5, code % 5);
-
-            Some(Call::Bid(super::Bid {
-                // SAFETY: Maximum `level` is within `u8`
-                #[allow(clippy::cast_possible_truncation)]
-                level: level as u8,
-                strain: super::Strain::ASC[strain],
-            }))
-        }
-        _ => None,
-    }
-}
-
-const _: () = {
-    let mut id = 0;
-
-    while id < 38 {
-        let call = decode_call(id).expect("Invalid call ID!");
-        assert!(encode_call(call) == id);
-        id += 1;
-    }
-
-    assert!(decode_call(38).is_none());
-    assert!(decode_call(39).is_none());
-    assert!(decode_call(40).is_none());
-};
-
 #[derive(Clone, Copy)]
 struct StackEntry<'a> {
     depth: usize,
-    index: usize,
+    call: Call,
     node: &'a Trie,
 }
 
 fn collect_children(node: &'_ Trie, depth: usize) -> impl Iterator<Item = StackEntry<'_>> {
-    node.children
-        .iter()
-        .enumerate()
-        .rev()
-        .filter_map(move |(index, child)| {
-            child.as_ref().map(|child| StackEntry {
-                depth,
-                index,
-                node: child,
-            })
-        })
+    node.children.iter().map(move |(call, child)| StackEntry {
+        depth,
+        call,
+        node: child,
+    })
 }
 
 /// Suffix iterator for a given auction
@@ -255,8 +175,7 @@ impl<'a> Iterator for Suffixes<'a> {
             self.value = entry.node.filter.as_ref();
             self.auction.truncate(self.separator + entry.depth);
 
-            let call = decode_call(entry.index).expect("Invalid call index!");
-            if let Err(e) = self.auction.force_push(call) {
+            if let Err(e) = self.auction.force_push(entry.call) {
                 return Some((self.auction[self.separator..].into(), Err(e)));
             }
         }
@@ -297,7 +216,7 @@ impl<'a> Iterator for CommonPrefixes<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         while self.value.is_none() {
             let &call = self.query.get(self.depth)?;
-            self.trie = self.trie.children[encode_call(call)].as_deref()?;
+            self.trie = self.trie.children.get(call)?;
             self.value = self.trie.filter.as_ref();
             self.depth += 1;
         }
@@ -309,7 +228,6 @@ impl<'a> Iterator for CommonPrefixes<'a> {
 impl Index<Vulnerability> for Trie {
     type Output = Self;
 
-    #[inline]
     fn index(&self, _: Vulnerability) -> &Self {
         self
     }
@@ -322,14 +240,12 @@ pub struct Forest([Trie; 4]);
 impl Index<Vulnerability> for Forest {
     type Output = Trie;
 
-    #[inline]
     fn index(&self, index: Vulnerability) -> &Trie {
         &self.0[usize::from(index.bits())]
     }
 }
 
 impl IndexMut<Vulnerability> for Forest {
-    #[inline]
     fn index_mut(&mut self, index: Vulnerability) -> &mut Trie {
         &mut self.0[usize::from(index.bits())]
     }
