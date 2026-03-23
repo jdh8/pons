@@ -1,15 +1,17 @@
-/// Helper module for [`Table`]
-pub mod table;
-
+/// Helper module for [`Array`]
+pub mod array;
+/// Helper module for [`Map`]
+pub mod map;
 /// Helper module for [`Trie`]
 pub mod trie;
+
+pub use map::Map;
+pub use trie::Trie;
 
 use core::ops::{Deref, Index};
 use dds_bridge::contract::{Bid, Call, Penalty, Strain};
 use dds_bridge::deal::Hand;
-pub use table::Table;
 use thiserror::Error;
-pub use trie::Trie;
 
 bitflags::bitflags! {
     /// Vulnerability of sides

@@ -1,4 +1,5 @@
-use super::{Auction, Call, Hand, IllegalCall, Table, Vulnerability};
+use super::map::Map;
+use super::{Auction, Call, Hand, IllegalCall, Vulnerability};
 use core::ops::{Index, IndexMut};
 
 /// Natural logarithm of odds
@@ -6,7 +7,7 @@ use core::ops::{Index, IndexMut};
 pub struct Logit(pub f32);
 
 /// Function that classifies a hand into logits for each call
-pub type Classifier = fn(Hand) -> Table<Logit>;
+pub type Classifier = fn(Hand) -> Map<Logit>;
 
 /// Decision trie as a vulnerability-agnostic bidding system
 ///
@@ -15,7 +16,7 @@ pub type Classifier = fn(Hand) -> Table<Logit>;
 /// opening of 1♠.
 #[derive(Clone)]
 pub struct Trie {
-    children: Table<Box<Self>>,
+    children: Map<Box<Self>>,
     classify: Option<Classifier>,
 }
 
@@ -31,7 +32,7 @@ impl Trie {
     #[inline]
     pub const fn new() -> Self {
         Self {
-            children: Table::new(),
+            children: Map::new(),
             classify: None,
         }
     }
@@ -52,7 +53,8 @@ impl Trie {
     /// Get the [`Classifier`] for the exact auction
     #[must_use]
     pub fn get(&self, auction: &[Call]) -> Option<&Classifier> {
-        self.subtrie(auction).and_then(|node| node.classify.as_ref())
+        self.subtrie(auction)
+            .and_then(|node| node.classify.as_ref())
     }
 
     /// Check if the query auction is a prefix in the trie

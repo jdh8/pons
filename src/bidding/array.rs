@@ -1,5 +1,6 @@
 use super::{Bid, Call, Strain};
-use core::iter::{Enumerate, FilterMap, FusedIterator};
+use core::iter::{Enumerate, FusedIterator};
+use core::ops::{Index, IndexMut};
 
 /// Number of possible calls
 const CALL_VARIANTS: usize = 3 + 7 * 5;
@@ -81,38 +82,31 @@ fn test_decode_call_invalid() {
     decode_call(CALL_VARIANTS);
 }
 
-/// Bidding table is a map from calls to custom data.
+/// [`Array`] maps each call to a value.
+///
+/// Like a mathematical function, every potentially valid call maps to a
+/// corresponding value.  This type can be viewed as a 'dense' version of
+/// [`super::Map`], which is more efficient but less flexible.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Table<T>([Option<T>; CALL_VARIANTS]);
+pub struct Array<T>([T; CALL_VARIANTS]);
 
-impl<T> Table<T> {
-    /// Create a new bidding table with all entries set to `None`
+impl<T> Array<T> {
+    /// Create a new array from a function
     #[must_use]
-    pub const fn new() -> Self {
-        Self([const { None }; CALL_VARIANTS])
+    pub fn from_fn(mut f: impl FnMut(Call) -> T) -> Self {
+        Self(core::array::from_fn(|index| f(decode_call(index))))
     }
 
     /// Get the value corresponding to a call
     #[must_use]
-    pub const fn get(&self, call: Call) -> Option<&T> {
-        self.0[encode_call(call)].as_ref()
+    pub const fn get(&self, call: Call) -> &T {
+        &self.0[encode_call(call)]
     }
 
-    /// Get the mutable entry for in-place manipulation
+    /// Get the mutable reference to the value corresponding to a call
     #[must_use]
-    pub const fn entry(&mut self, call: Call) -> &mut Option<T> {
+    pub const fn get_mut(&mut self, call: Call) -> &mut T {
         &mut self.0[encode_call(call)]
-    }
-
-    /// Get the mutable reference to the value
-    #[must_use]
-    pub const fn get_mut(&mut self, call: Call) -> Option<&mut T> {
-        self.entry(call).as_mut()
-    }
-
-    /// Insert a value for a call, replacing the existing one if any
-    pub const fn insert(&mut self, call: Call, value: T) -> Option<T> {
-        self.entry(call).replace(value)
     }
 
     /// Visit all key-value pairs in the table
@@ -120,7 +114,7 @@ impl<T> Table<T> {
         self.0
             .iter()
             .enumerate()
-            .filter_map(|(index, entry)| entry.as_ref().map(|entry| (decode_call(index), entry)))
+            .map(|(index, entry)| (decode_call(index), entry))
     }
 
     /// Visit all key-value pairs in the table with mutable access to the values
@@ -128,27 +122,57 @@ impl<T> Table<T> {
         self.0
             .iter_mut()
             .enumerate()
-            .filter_map(|(index, entry)| entry.as_mut().map(|entry| (decode_call(index), entry)))
+            .map(|(index, entry)| (decode_call(index), entry))
     }
 }
 
-impl<T> Default for Table<T> {
+impl<T> Array<Option<T>> {
+    /// New array with all `None` values
+    #[must_use]
+    pub const fn new() -> Self {
+        Self([const { None }; CALL_VARIANTS])
+    }
+}
+
+impl<T: Clone> Array<T> {
+    /// Create a new array with all entries set to the same value
+    #[must_use]
+    pub fn repeat(value: T) -> Self {
+        Self(core::array::repeat(value))
+    }
+}
+
+impl<T> Index<Call> for Array<T> {
+    type Output = T;
+
+    fn index(&self, call: Call) -> &Self::Output {
+        self.get(call)
+    }
+}
+
+impl<T> IndexMut<Call> for Array<T> {
+    fn index_mut(&mut self, call: Call) -> &mut Self::Output {
+        self.get_mut(call)
+    }
+}
+
+impl<T: Default> Default for Array<T> {
     fn default() -> Self {
-        Self::new()
+        Self::from_fn(|_| T::default())
     }
 }
 
-impl<T> IntoIterator for Table<T> {
+impl<T> IntoIterator for Array<T> {
     type Item = (Call, T);
-    type IntoIter = FilterMap<
-        Enumerate<core::array::IntoIter<Option<T>, CALL_VARIANTS>>,
-        fn((usize, Option<T>)) -> Option<(Call, T)>,
+    type IntoIter = core::iter::Map<
+        Enumerate<core::array::IntoIter<T, CALL_VARIANTS>>,
+        fn((usize, T)) -> (Call, T),
     >;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0
             .into_iter()
             .enumerate()
-            .filter_map(|(index, entry)| entry.map(|entry| (decode_call(index), entry)))
+            .map(|(index, entry)| (decode_call(index), entry))
     }
 }

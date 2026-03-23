@@ -3,8 +3,8 @@ use dds_bridge::deal::Hand;
 use pons::bidding::trie::Logit;
 use pons::bidding::*;
 
-const JUST_PASS: Table<Logit> = {
-    let mut table = Table::new();
+const JUST_PASS: Map<Logit> = {
+    let mut table = Map::new();
     table.insert(Call::Pass, Logit(0.0));
     table
 };
