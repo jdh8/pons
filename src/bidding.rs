@@ -1,10 +1,11 @@
-/// Helper module for [`Array`]
+/// [`Call`]-indexed array
 pub mod array;
-/// Helper module for [`Map`]
+/// [`Call`]-keyed hash map
 pub mod map;
-/// Helper module for [`Trie`]
+/// [`Trie`] as a bidding system
 pub mod trie;
 
+pub use array::Array;
 pub use map::Map;
 pub use trie::Trie;
 

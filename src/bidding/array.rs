@@ -6,6 +6,7 @@ use core::ops::{Index, IndexMut};
 /// Number of possible calls
 const CALL_VARIANTS: usize = 3 + 7 * 5;
 
+/// Hash/encode calls into indices for array storage
 #[inline]
 const fn encode_call(call: Call) -> usize {
     match call {
@@ -46,6 +47,7 @@ const _: () = {
     }
 };
 
+/// Decode indices back to calls 
 #[inline]
 const fn decode_call(index: usize) -> Call {
     match index {
@@ -83,11 +85,11 @@ fn test_decode_call_invalid() {
     decode_call(CALL_VARIANTS);
 }
 
-/// [`Array`] maps each call to a value.
+/// Fixed-size array indexed by [`Call`]s
 ///
 /// Like a mathematical function, every potentially valid call maps to a
-/// corresponding value.  This type can be viewed as a 'dense' version of
-/// [`super::Map`], which is more efficient but less flexible.
+/// corresponding value.  This type serves as the underlying hash table for
+/// [`super::Map`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Array<T>([T; CALL_VARIANTS]);
 
@@ -149,7 +151,7 @@ impl<T> Array<T> {
 }
 
 impl<T> Array<Option<T>> {
-    /// New array with all `None` values
+    /// New array with all [`None`] values
     #[must_use]
     pub const fn new() -> Self {
         Self([const { None }; CALL_VARIANTS])

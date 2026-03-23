@@ -2,11 +2,10 @@ use super::Call;
 use super::array::Array;
 use core::iter::{FilterMap, FusedIterator};
 
-/// Bidding table optionally maps calls to values.
+/// Fixed-size map whose keys are [`Call`]s 
 ///
 /// This type resembles [`std::collections::HashMap`] but needs no dynamic
-/// allocation because calls form a small finite set.  A mathematical relation
-/// also models this type.
+/// allocation because calls form a small finite set.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Map<T>(Array<Option<T>>);
 
