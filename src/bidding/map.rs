@@ -74,3 +74,9 @@ impl<T> IntoIterator for Map<T> {
             .filter_map(|(call, entry)| entry.map(|entry| (call, entry)))
     }
 }
+
+impl<T> From<Array<T>> for Map<T> {
+    fn from(array: Array<T>) -> Self {
+        Self(array.map(|_, value| Some(value)))
+    }
+}
