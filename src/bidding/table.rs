@@ -1,6 +1,9 @@
 use super::{Bid, Call, Strain};
 use core::iter::{Enumerate, FilterMap, FusedIterator};
 
+/// Number of possible calls
+const CALL_VARIANTS: usize = 3 + 7 * 5;
+
 #[inline]
 const fn encode_call(call: Call) -> usize {
     match call {
@@ -12,7 +15,7 @@ const fn encode_call(call: Call) -> usize {
 }
 
 const _: () = {
-    let mut calls = [Call::Pass; 38];
+    let mut calls = [Call::Pass; CALL_VARIANTS];
     let mut level = 1;
     let mut strain = 0;
 
@@ -35,7 +38,7 @@ const _: () = {
 
     let mut index = 3;
 
-    while index < 38 {
+    while index < CALL_VARIANTS {
         assert!(matches!(calls[index], Call::Bid(_)));
         index += 1;
     }
@@ -65,7 +68,7 @@ const fn decode_call(index: usize) -> Call {
 const _: () = {
     let mut id = 0;
 
-    while id < 38 {
+    while id < CALL_VARIANTS {
         let call = decode_call(id);
         assert!(encode_call(call) == id);
         id += 1;
@@ -75,18 +78,18 @@ const _: () = {
 #[test]
 #[should_panic(expected = "Invalid call ID!")]
 fn test_decode_call_invalid() {
-    decode_call(38);
+    decode_call(CALL_VARIANTS);
 }
 
 /// Bidding table is a map from calls to custom data.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Table<T>([Option<T>; 38]);
+pub struct Table<T>([Option<T>; CALL_VARIANTS]);
 
 impl<T> Table<T> {
     /// Create a new bidding table with all entries set to `None`
     #[must_use]
     pub const fn new() -> Self {
-        Self([const { None }; 38])
+        Self([const { None }; CALL_VARIANTS])
     }
 
     /// Get the value corresponding to a call
@@ -138,7 +141,7 @@ impl<T> Default for Table<T> {
 impl<T> IntoIterator for Table<T> {
     type Item = (Call, T);
     type IntoIter = FilterMap<
-        Enumerate<core::array::IntoIter<Option<T>, 38>>,
+        Enumerate<core::array::IntoIter<Option<T>, CALL_VARIANTS>>,
         fn((usize, Option<T>)) -> Option<(Call, T)>,
     >;
 
