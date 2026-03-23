@@ -7,8 +7,6 @@ pub mod trie;
 use core::ops::{Deref, Index};
 use dds_bridge::contract::{Bid, Call, Penalty, Strain};
 use dds_bridge::deal::Hand;
-use std::panic::RefUnwindSafe;
-use std::sync::Arc;
 pub use table::Table;
 use thiserror::Error;
 pub use trie::Trie;
@@ -255,32 +253,6 @@ impl Auction {
                 _ => false,
             })
             .map(|position| position << 1 | parity)
-    }
-}
-
-/// Frequency of a call (`self.0` / [`u8::MAX`])
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Frequency(pub u8);
-
-/// Evaluate [`Frequency`] of a call, given a [`Hand`] and predefined position
-#[derive(Clone)]
-pub struct Filter(Arc<dyn Fn(Hand) -> Frequency + Send + Sync + RefUnwindSafe>);
-
-impl Filter {
-    /// Construct a filter from a callback
-    #[inline]
-    #[must_use]
-    pub fn new(f: impl Fn(Hand) -> Frequency + Send + Sync + RefUnwindSafe + 'static) -> Self {
-        Self(Arc::new(f))
-    }
-}
-
-impl Deref for Filter {
-    type Target = dyn Fn(Hand) -> Frequency + Send + Sync + RefUnwindSafe;
-
-    #[inline]
-    fn deref(&self) -> &Self::Target {
-        &*self.0
     }
 }
 
