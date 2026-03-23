@@ -53,6 +53,29 @@ impl<T> Map<T> {
             .iter_mut()
             .filter_map(|(call, entry)| entry.as_mut().map(|entry| (call, entry)))
     }
+
+    /// Map all values as is and fill in missing values with a function
+    pub fn unwrap_or_else(self, mut f: impl FnMut(Call) -> T) -> Array<T> {
+        self.0.map(|call, entry| entry.unwrap_or_else(|| f(call)))
+    }
+
+    /// Map all values as is and fill in missing values with [`Default`]
+    pub fn unwrap_or_default(self) -> Array<T>
+    where
+        T: Default,
+    {
+        self.unwrap_or_else(|_| T::default())
+    }
+
+    /// Unwrap all values, panicking if any value is missing
+    ///
+    /// # Panics
+    /// 
+    /// Panics if any call has no value.  The panic message includes the first
+    /// call with no value.
+    pub fn unwrap(self) -> Array<T> {
+        self.unwrap_or_else(|call| panic!("missing value for {call:?}"))
+    }
 }
 
 impl<T> Default for Map<T> {
