@@ -1,5 +1,6 @@
 use super::{Bid, Call, Strain};
 use core::iter::{Enumerate, FusedIterator};
+use core::mem::MaybeUninit;
 use core::ops::{Index, IndexMut};
 
 /// Number of possible calls
@@ -109,6 +110,16 @@ impl<T> Array<T> {
         &mut self.0[encode_call(call)]
     }
 
+    /// Borrow all values
+    pub const fn each_ref(&self) -> Array<&T> {
+        Array(self.0.each_ref())
+    }
+
+    /// Mutably borrow all values
+    pub const fn each_mut(&mut self) -> Array<&mut T> {
+        Array(self.0.each_mut())
+    }
+
     /// Visit all key-value pairs in the table
     pub fn iter(&self) -> impl FusedIterator<Item = (Call, &T)> + DoubleEndedIterator {
         self.0
@@ -123,6 +134,17 @@ impl<T> Array<T> {
             .iter_mut()
             .enumerate()
             .map(|(index, entry)| (decode_call(index), entry))
+    }
+
+    /// Map all values with a function
+    pub fn map<U>(self, mut f: impl FnMut(Call, T) -> U) -> Array<U> {
+        let mut result = [const { MaybeUninit::uninit() }; CALL_VARIANTS];
+
+        for (index, value) in self.0.into_iter().enumerate() {
+            result[index] = MaybeUninit::new(f(decode_call(index), value));
+        }
+
+        Array(unsafe { core::mem::transmute_copy(&result) })
     }
 }
 
