@@ -1,6 +1,6 @@
 use super::Call;
 use super::array::{self, Array};
-use core::iter::FilterMap;
+use core::iter::{FilterMap, Flatten};
 
 /// Fixed-size map whose keys are [`Call`]s
 ///
@@ -8,6 +8,15 @@ use core::iter::FilterMap;
 /// allocation because calls form a small finite set.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Map<T>(Array<Option<T>>);
+
+/// Iterator over values by reference
+pub type Values<'a, T> = Flatten<array::Values<'a, Option<T>>>;
+
+/// Iterator over values by mutable reference
+pub type ValuesMut<'a, T> = Flatten<array::ValuesMut<'a, Option<T>>>;
+
+/// Iterator over moving values
+pub type IntoValues<T> = Flatten<array::IntoValues<Option<T>>>;
 
 impl<T> Map<T> {
     /// Create a new bidding table with all entries set to `None`
@@ -47,6 +56,21 @@ impl<T> Map<T> {
     /// Visit all key-value pairs in the table with mutable access to the values
     pub fn iter_mut(&mut self) -> IterMut<'_, T> {
         self.into_iter()
+    }
+
+    /// Visit all values
+    pub fn values(&self) -> Values<'_, T> {
+        self.0.values().flatten()
+    }
+
+    /// Visit all values with mutable access
+    pub fn values_mut(&mut self) -> ValuesMut<'_, T> {
+        self.0.values_mut().flatten()
+    }
+
+    /// Consume all values
+    pub fn into_values(self) -> IntoValues<T> {
+        self.0.into_values().flatten()
     }
 
     /// Map all values as is and fill in missing values with a function
