@@ -2,7 +2,6 @@ use super::{Bid, Call, Strain};
 use core::iter::Enumerate;
 use core::mem::MaybeUninit;
 use core::ops::{Index, IndexMut};
-use core::slice::{Iter, IterMut};
 
 /// Number of possible calls
 const CALL_VARIANTS: usize = 3 + 7 * 5;
@@ -124,12 +123,12 @@ impl<T> Array<T> {
     }
 
     /// Visit all key-value pairs in the table
-    pub fn iter(&self) -> <&Self as IntoIterator>::IntoIter {
+    pub fn iter(&self) -> Iter<'_, T> {
         self.into_iter()
     }
 
     /// Visit all key-value pairs in the table with mutable access to the values
-    pub fn iter_mut(&mut self) -> <&mut Self as IntoIterator>::IntoIter {
+    pub fn iter_mut(&mut self) -> IterMut<'_, T> {
         self.into_iter()
     }
 
@@ -181,9 +180,23 @@ impl<T: Default> Default for Array<T> {
     }
 }
 
+/// Iterator by reference
+pub type Iter<'a, T> =
+    core::iter::Map<Enumerate<core::slice::Iter<'a, T>>, fn((usize, &T)) -> (Call, &T)>;
+
+/// Iterator by mutable reference
+pub type IterMut<'a, T> =
+    core::iter::Map<Enumerate<core::slice::IterMut<'a, T>>, fn((usize, &mut T)) -> (Call, &mut T)>;
+
+/// Iterator by value
+pub type IntoIter<T> = core::iter::Map<
+    Enumerate<core::array::IntoIter<T, CALL_VARIANTS>>,
+    fn((usize, T)) -> (Call, T),
+>;
+
 impl<'a, T> IntoIterator for &'a Array<T> {
     type Item = (Call, &'a T);
-    type IntoIter = core::iter::Map<Enumerate<Iter<'a, T>>, fn((usize, &T)) -> (Call, &T)>;
+    type IntoIter = Iter<'a, T>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0
@@ -195,8 +208,7 @@ impl<'a, T> IntoIterator for &'a Array<T> {
 
 impl<'a, T> IntoIterator for &'a mut Array<T> {
     type Item = (Call, &'a mut T);
-    type IntoIter =
-        core::iter::Map<Enumerate<IterMut<'a, T>>, fn((usize, &mut T)) -> (Call, &mut T)>;
+    type IntoIter = IterMut<'a, T>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0
@@ -208,10 +220,7 @@ impl<'a, T> IntoIterator for &'a mut Array<T> {
 
 impl<T> IntoIterator for Array<T> {
     type Item = (Call, T);
-    type IntoIter = core::iter::Map<
-        Enumerate<core::array::IntoIter<T, CALL_VARIANTS>>,
-        fn((usize, T)) -> (Call, T),
-    >;
+    type IntoIter = IntoIter<T>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0

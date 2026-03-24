@@ -1,5 +1,5 @@
 use super::Call;
-use super::array::Array;
+use super::array::{self, Array};
 use core::iter::FilterMap;
 
 /// Fixed-size map whose keys are [`Call`]s
@@ -40,12 +40,12 @@ impl<T> Map<T> {
     }
 
     /// Visit all key-value pairs in the table
-    pub fn iter(&self) -> <&Self as IntoIterator>::IntoIter {
+    pub fn iter(&self) -> Iter<'_, T> {
         self.into_iter()
     }
 
     /// Visit all key-value pairs in the table with mutable access to the values
-    pub fn iter_mut(&mut self) -> <&mut Self as IntoIterator>::IntoIter {
+    pub fn iter_mut(&mut self) -> IterMut<'_, T> {
         self.into_iter()
     }
 
@@ -109,12 +109,21 @@ impl<T> FromIterator<(Call, T)> for Map<T> {
     }
 }
 
+/// Iterator by reference
+pub type Iter<'a, T> =
+    FilterMap<array::Iter<'a, Option<T>>, fn((Call, &Option<T>)) -> Option<(Call, &T)>>;
+
+/// Iterator by mutable reference
+pub type IterMut<'a, T> =
+    FilterMap<array::IterMut<'a, Option<T>>, fn((Call, &mut Option<T>)) -> Option<(Call, &mut T)>>;
+
+/// Iterator by value
+pub type IntoIter<T> =
+    FilterMap<array::IntoIter<Option<T>>, fn((Call, Option<T>)) -> Option<(Call, T)>>;
+
 impl<'a, T> IntoIterator for &'a Map<T> {
     type Item = (Call, &'a T);
-    type IntoIter = FilterMap<
-        <&'a Array<Option<T>> as IntoIterator>::IntoIter,
-        fn((Call, &Option<T>)) -> Option<(Call, &T)>,
-    >;
+    type IntoIter = Iter<'a, T>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0
@@ -125,10 +134,7 @@ impl<'a, T> IntoIterator for &'a Map<T> {
 
 impl<'a, T> IntoIterator for &'a mut Map<T> {
     type Item = (Call, &'a mut T);
-    type IntoIter = FilterMap<
-        <&'a mut Array<Option<T>> as IntoIterator>::IntoIter,
-        fn((Call, &mut Option<T>)) -> Option<(Call, &mut T)>,
-    >;
+    type IntoIter = IterMut<'a, T>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0
@@ -139,10 +145,7 @@ impl<'a, T> IntoIterator for &'a mut Map<T> {
 
 impl<T> IntoIterator for Map<T> {
     type Item = (Call, T);
-    type IntoIter = FilterMap<
-        <Array<Option<T>> as IntoIterator>::IntoIter,
-        fn((Call, Option<T>)) -> Option<(Call, T)>,
-    >;
+    type IntoIter = IntoIter<T>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0
