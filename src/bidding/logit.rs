@@ -10,13 +10,13 @@ impl Logit {
     pub const NEVER: Self = Self(-f32::INFINITY);
 
     /// The greater logit
-    #[must_use] 
+    #[must_use]
     pub const fn max(self, other: Self) -> Self {
         Self(self.0.max(other.0))
     }
 
     /// The lesser logit
-    #[must_use] 
+    #[must_use]
     pub const fn min(self, other: Self) -> Self {
         Self(self.0.min(other.0))
     }

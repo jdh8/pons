@@ -77,6 +77,18 @@ const _: () = {
     }
 };
 
+/// All calls in order of their encoding
+pub const KEYS: [Call; CALL_VARIANTS] = {
+    let mut calls = [Call::Pass; CALL_VARIANTS];
+    let mut index = 0;
+
+    while index < CALL_VARIANTS {
+        calls[index] = decode_call(index);
+        index += 1;
+    }
+    calls
+};
+
 #[test]
 #[should_panic(expected = "Invalid call ID!")]
 fn test_decode_call_invalid() {
@@ -90,6 +102,15 @@ fn test_decode_call_invalid() {
 /// [`super::Map`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Array<T>([T; CALL_VARIANTS]);
+
+/// Iterator over values by reference
+pub type Values<'a, T> = core::slice::Iter<'a, T>;
+
+/// Iterator over values by mutable reference
+pub type ValuesMut<'a, T> = core::slice::IterMut<'a, T>;
+
+/// Iterator over moving values
+pub type IntoValues<T> = core::array::IntoIter<T, CALL_VARIANTS>;
 
 impl<T> Array<T> {
     /// Create a new array from a function
@@ -142,13 +163,18 @@ impl<T> Array<T> {
     }
 
     /// Visit all values
-    pub fn values(&self) -> core::slice::Iter<'_, T> {
+    pub fn values(&self) -> Values<'_, T> {
         self.0.iter()
     }
 
     /// Visit all values with mutable access
-    pub fn values_mut(&mut self) -> core::slice::IterMut<'_, T> {
+    pub fn values_mut(&mut self) -> ValuesMut<'_, T> {
         self.0.iter_mut()
+    }
+
+    /// Consume all values
+    pub fn into_values(self) -> IntoValues<T> {
+        self.0.into_iter()
     }
 }
 
@@ -189,26 +215,21 @@ impl<T: Default> Default for Array<T> {
 }
 
 /// Iterator by reference
-pub type Iter<'a, T> =
-    core::iter::Map<Enumerate<core::slice::Iter<'a, T>>, fn((usize, &T)) -> (Call, &T)>;
+pub type Iter<'a, T> = core::iter::Map<Enumerate<Values<'a, T>>, fn((usize, &T)) -> (Call, &T)>;
 
 /// Iterator by mutable reference
 pub type IterMut<'a, T> =
-    core::iter::Map<Enumerate<core::slice::IterMut<'a, T>>, fn((usize, &mut T)) -> (Call, &mut T)>;
+    core::iter::Map<Enumerate<ValuesMut<'a, T>>, fn((usize, &mut T)) -> (Call, &mut T)>;
 
 /// Iterator by value
-pub type IntoIter<T> = core::iter::Map<
-    Enumerate<core::array::IntoIter<T, CALL_VARIANTS>>,
-    fn((usize, T)) -> (Call, T),
->;
+pub type IntoIter<T> = core::iter::Map<Enumerate<IntoValues<T>>, fn((usize, T)) -> (Call, T)>;
 
 impl<'a, T> IntoIterator for &'a Array<T> {
     type Item = (Call, &'a T);
     type IntoIter = Iter<'a, T>;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.0
-            .iter()
+        self.values()
             .enumerate()
             .map(|(index, entry)| (decode_call(index), entry))
     }
@@ -219,8 +240,7 @@ impl<'a, T> IntoIterator for &'a mut Array<T> {
     type IntoIter = IterMut<'a, T>;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.0
-            .iter_mut()
+        self.values_mut()
             .enumerate()
             .map(|(index, entry)| (decode_call(index), entry))
     }
@@ -231,8 +251,7 @@ impl<T> IntoIterator for Array<T> {
     type IntoIter = IntoIter<T>;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.0
-            .into_iter()
+        self.into_values()
             .enumerate()
             .map(|(index, entry)| (decode_call(index), entry))
     }
