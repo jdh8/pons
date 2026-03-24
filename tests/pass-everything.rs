@@ -1,19 +1,18 @@
 use dds_bridge::contract::Call;
 use dds_bridge::deal::Hand;
-use pons::bidding::trie::Logit;
 use pons::bidding::*;
-
-const JUST_PASS: Map<Logit> = {
-    let mut table = Map::new();
-    table.insert(Call::Pass, Logit(0.0));
-    table
-};
 
 #[test]
 fn test_pass_everything() {
+    fn just_pass() -> Array<Logit> {
+        let mut table = Array::default();
+        table[Call::Pass] = Logit(0.0);
+        table
+    }
+
     let mut trie = Trie::new();
-    trie.insert(&[Call::Pass], |_| JUST_PASS);
+    trie.insert(&[Call::Pass], |_| just_pass());
 
     let f = trie.get(&[Call::Pass]).expect("I just inserted this!");
-    assert_eq!(f(Hand::default()), JUST_PASS);
+    assert_eq!(f(Hand::default()), just_pass());
 }

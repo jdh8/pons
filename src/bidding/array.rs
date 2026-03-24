@@ -7,7 +7,6 @@ use core::ops::{Index, IndexMut};
 const CALL_VARIANTS: usize = 3 + 7 * 5;
 
 /// Hash/encode calls into indices for array storage
-#[inline]
 const fn encode_call(call: Call) -> usize {
     match call {
         Call::Pass => 0,
@@ -48,7 +47,6 @@ const _: () = {
 };
 
 /// Decode indices back to calls
-#[inline]
 const fn decode_call(index: usize) -> Call {
     match index {
         0 => Call::Pass,
@@ -141,6 +139,16 @@ impl<T> Array<T> {
         }
 
         Array(unsafe { core::mem::transmute_copy(&result) })
+    }
+
+    /// Visit all values
+    pub fn values(&self) -> core::slice::Iter<'_, T> {
+        self.0.iter()
+    }
+
+    /// Visit all values with mutable access
+    pub fn values_mut(&mut self) -> core::slice::IterMut<'_, T> {
+        self.0.iter_mut()
     }
 }
 

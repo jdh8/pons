@@ -1,11 +1,14 @@
 /// [`Call`]-indexed array
 pub mod array;
+/// Additive log-odds for decision making
+pub mod logit;
 /// [`Call`]-keyed hash map
 pub mod map;
 /// [`Trie`] as a bidding system
 pub mod trie;
 
 pub use array::Array;
+pub use logit::Logit;
 pub use map::Map;
 pub use trie::Trie;
 
@@ -63,14 +66,12 @@ pub struct Auction(Vec<Call>);
 impl Deref for Auction {
     type Target = [Call];
 
-    #[inline]
     fn deref(&self) -> &[Call] {
         &self.0
     }
 }
 
 impl From<Auction> for Vec<Call> {
-    #[inline]
     fn from(auction: Auction) -> Self {
         auction.0
     }
@@ -79,7 +80,6 @@ impl From<Auction> for Vec<Call> {
 impl Auction {
     /// Construct an empty auction
     #[must_use]
-    #[inline]
     pub const fn new() -> Self {
         Self(Vec::new())
     }
@@ -87,7 +87,6 @@ impl Auction {
     /// Check if the auction is terminated (by 3 consecutive passes following
     /// a call)
     #[must_use]
-    #[inline]
     pub fn has_ended(&self) -> bool {
         self.len() >= 4 && self[self.len() - 3..] == [Call::Pass; 3]
     }
@@ -219,7 +218,6 @@ impl Auction {
     }
 
     /// Pop the last call from the auction
-    #[inline]
     pub fn pop(&mut self) -> Option<Call> {
         self.0.pop()
     }

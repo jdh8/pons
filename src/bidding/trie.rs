@@ -2,12 +2,8 @@ use super::map::Map;
 use super::{Auction, Call, Hand, IllegalCall, Vulnerability};
 use core::ops::{Index, IndexMut};
 
-/// Natural logarithm of odds
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
-pub struct Logit(pub f32);
-
 /// Function that classifies a hand into logits for each call
-pub type Classifier = fn(Hand) -> Map<Logit>;
+pub type Classifier = fn(Hand) -> super::Array<super::Logit>;
 
 /// Decision trie as a vulnerability-agnostic bidding system
 ///
@@ -29,7 +25,6 @@ impl Default for Trie {
 impl Trie {
     /// Construct an empty trie
     #[must_use]
-    #[inline]
     pub const fn new() -> Self {
         Self {
             children: Map::new(),
@@ -105,7 +100,6 @@ impl Trie {
 
     /// Iterate over common prefixes of the auction
     #[must_use]
-    #[inline]
     pub const fn common_prefixes(&'_ self, auction: Auction) -> CommonPrefixes<'_> {
         CommonPrefixes::new(self, auction)
     }
@@ -209,7 +203,6 @@ pub struct CommonPrefixes<'a> {
 impl<'a> CommonPrefixes<'a> {
     /// Construct a common prefix iterator for a trie and an auction
     #[must_use]
-    #[inline]
     pub const fn new(trie: &'a Trie, query: Auction) -> Self {
         Self {
             trie,
