@@ -1,7 +1,8 @@
 use super::{Bid, Call, Strain};
-use core::iter::{Enumerate, FusedIterator};
+use core::iter::Enumerate;
 use core::mem::MaybeUninit;
 use core::ops::{Index, IndexMut};
+use core::slice::{Iter, IterMut};
 
 /// Number of possible calls
 const CALL_VARIANTS: usize = 3 + 7 * 5;
@@ -47,7 +48,7 @@ const _: () = {
     }
 };
 
-/// Decode indices back to calls 
+/// Decode indices back to calls
 #[inline]
 const fn decode_call(index: usize) -> Call {
     match index {
@@ -123,19 +124,13 @@ impl<T> Array<T> {
     }
 
     /// Visit all key-value pairs in the table
-    pub fn iter(&self) -> impl FusedIterator<Item = (Call, &T)> + DoubleEndedIterator {
-        self.0
-            .iter()
-            .enumerate()
-            .map(|(index, entry)| (decode_call(index), entry))
+    pub fn iter(&self) -> <&Self as IntoIterator>::IntoIter {
+        self.into_iter()
     }
 
     /// Visit all key-value pairs in the table with mutable access to the values
-    pub fn iter_mut(&mut self) -> impl FusedIterator<Item = (Call, &mut T)> + DoubleEndedIterator {
-        self.0
-            .iter_mut()
-            .enumerate()
-            .map(|(index, entry)| (decode_call(index), entry))
+    pub fn iter_mut(&mut self) -> <&mut Self as IntoIterator>::IntoIter {
+        self.into_iter()
     }
 
     /// Map all values with a function
@@ -183,6 +178,31 @@ impl<T> IndexMut<Call> for Array<T> {
 impl<T: Default> Default for Array<T> {
     fn default() -> Self {
         Self::from_fn(|_| T::default())
+    }
+}
+
+impl<'a, T> IntoIterator for &'a Array<T> {
+    type Item = (Call, &'a T);
+    type IntoIter = core::iter::Map<Enumerate<Iter<'a, T>>, fn((usize, &T)) -> (Call, &T)>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0
+            .iter()
+            .enumerate()
+            .map(|(index, entry)| (decode_call(index), entry))
+    }
+}
+
+impl<'a, T> IntoIterator for &'a mut Array<T> {
+    type Item = (Call, &'a mut T);
+    type IntoIter =
+        core::iter::Map<Enumerate<IterMut<'a, T>>, fn((usize, &mut T)) -> (Call, &mut T)>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0
+            .iter_mut()
+            .enumerate()
+            .map(|(index, entry)| (decode_call(index), entry))
     }
 }
 
