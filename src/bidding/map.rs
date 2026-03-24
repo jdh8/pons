@@ -9,6 +9,10 @@ use core::iter::{FilterMap, Flatten};
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Map<T>(Array<Option<T>>);
 
+/// Iterator over keys
+pub type Keys<'a, T> =
+    FilterMap<array::Iter<'a, Option<T>>, fn((Call, &Option<T>)) -> Option<Call>>;
+
 /// Iterator over values by reference
 pub type Values<'a, T> = Flatten<array::Values<'a, Option<T>>>;
 
@@ -56,6 +60,13 @@ impl<T> Map<T> {
     /// Visit all key-value pairs in the table with mutable access to the values
     pub fn iter_mut(&mut self) -> IterMut<'_, T> {
         self.into_iter()
+    }
+
+    /// Visit all keys
+    pub fn keys(&self) -> Keys<'_, T> {
+        self.0
+            .iter()
+            .filter_map(|(call, entry)| entry.is_some().then_some(call))
     }
 
     /// Visit all values
