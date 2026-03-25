@@ -274,6 +274,15 @@ impl Logits {
     pub const fn new() -> Self {
         Self(Array([f32::NEG_INFINITY; CALL_VARIANTS]))
     }
+
+    /// Convert to an array of odds
+    ///
+    /// The maximum value is set to one for numerical stability.
+    #[must_use]
+    pub fn to_odds(self) -> Array<f32> {
+        let max = self.into_values().fold(f32::NEG_INFINITY, f32::max);
+        Array(core::array::from_fn(|i| (self.0.0[i] - max).exp()))
+    }
 }
 
 impl Default for Logits {
