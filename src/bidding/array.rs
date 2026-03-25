@@ -1,7 +1,7 @@
 use super::{Bid, Call, Strain};
 use core::iter::Enumerate;
 use core::mem::MaybeUninit;
-use core::ops::{Index, IndexMut};
+use core::ops::{Deref, DerefMut, Index, IndexMut};
 
 /// Number of possible calls
 const CALL_VARIANTS: usize = 3 + 7 * 5;
@@ -254,5 +254,44 @@ impl<T> IntoIterator for Array<T> {
         self.into_values()
             .enumerate()
             .map(|(index, entry)| (decode_call(index), entry))
+    }
+}
+
+/// Logits for all calls
+///
+/// Logits are log odds.  Their additive nature allows linear operations.  This
+/// property is useful for machine learning.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Logits(pub Array<f32>);
+
+impl Logits {
+    /// Initialize all logits to negative infinity
+    ///
+    /// A logit of negative infinity corresponds to a probability of zero.  This
+    /// means that all calls are initially considered impossible until evidence
+    /// suggests otherwise.
+    #[must_use]
+    pub const fn new() -> Self {
+        Self(Array([f32::NEG_INFINITY; CALL_VARIANTS]))
+    }
+}
+
+impl Default for Logits {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Deref for Logits {
+    type Target = Array<f32>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for Logits {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
     }
 }

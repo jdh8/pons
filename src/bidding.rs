@@ -1,14 +1,11 @@
 /// [`Call`]-indexed array
 pub mod array;
-/// Additive log-odds for decision making
-pub mod logit;
 /// [`Call`]-keyed hash map
 pub mod map;
 /// [`Trie`] as a bidding system
 pub mod trie;
 
 pub use array::Array;
-pub use logit::Logit;
 pub use map::Map;
 pub use trie::Trie;
 
