@@ -86,13 +86,13 @@ impl Trie {
         node.classify.replace(f)
     }
 
-    /// Depth first iteration over all filtered nodes
+    /// Depth first iteration over all nodes with a [`Classifier`]
     #[must_use]
     pub fn iter(&'_ self) -> Suffixes<'_> {
         self.suffixes(Auction::new())
     }
 
-    /// Depth first iteration over all suffixes of the auction
+    /// Depth first iteration over all suffixes to the auction
     #[must_use]
     pub fn suffixes(&'_ self, auction: Auction) -> Suffixes<'_> {
         Suffixes::new(self, auction)
