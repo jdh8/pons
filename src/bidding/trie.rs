@@ -3,7 +3,7 @@ use super::{Auction, Call, Hand, IllegalCall, Vulnerability};
 use core::ops::{Index, IndexMut};
 
 /// Function that classifies a hand into logits for each call
-pub type Classifier = fn(Hand, Vulnerability, &[Call]) -> super::array::Logits;
+pub type Classifier = fn(Hand, Vulnerability, CommonPrefixes) -> super::array::Logits;
 
 /// Decision trie as a vulnerability-agnostic bidding system
 ///

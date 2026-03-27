@@ -267,17 +267,18 @@ impl Auction {
 /// vulnerability and the auction.
 pub trait System {
     /// Classify a hand into logits for each call
-    fn classify(&self, hand: Hand, vul: Vulnerability, auction: &[Call]) -> Option<array::Logits>;
+    fn classify(&self, hand: Hand, vul: Vulnerability, auction: Auction) -> Option<array::Logits>;
 }
 
 impl System for Trie {
-    fn classify(&self, hand: Hand, vul: Vulnerability, auction: &[Call]) -> Option<array::Logits> {
-        self.get(auction).map(|f| f(hand, vul, auction))
+    fn classify(&self, hand: Hand, vul: Vulnerability, auction: Auction) -> Option<array::Logits> {
+        self.get(&auction)
+            .map(|f| f(hand, vul, self.common_prefixes(auction)))
     }
 }
 
 impl System for trie::Forest {
-    fn classify(&self, hand: Hand, vul: Vulnerability, auction: &[Call]) -> Option<array::Logits> {
-        self[vul].get(auction).map(|f| f(hand, vul, auction))
+    fn classify(&self, hand: Hand, vul: Vulnerability, auction: Auction) -> Option<array::Logits> {
+        self[vul].classify(hand, vul, auction)
     }
 }
