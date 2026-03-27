@@ -9,7 +9,7 @@ pub use array::Array;
 pub use map::Map;
 pub use trie::Trie;
 
-use core::ops::{Deref, Index};
+use core::ops::Deref;
 use dds_bridge::contract::{Bid, Call, Penalty, Strain};
 use dds_bridge::deal::Hand;
 use thiserror::Error;
@@ -23,6 +23,13 @@ bitflags::bitflags! {
         /// Opponents are vulnerable
         const THEY = 2;
     }
+}
+
+impl Vulnerability {
+    /// No player is vulnerable
+    pub const NONE: Self = Self::empty();
+    /// All players are vulnerable
+    pub const ALL: Self = Self::all();
 }
 
 /// Types of illegal calls
@@ -254,17 +261,23 @@ impl Auction {
     }
 }
 
-/// Trait marking a bidding system
+/// Trait for a bidding system
 ///
-/// This trait is merely a marker since its supertraits already cover its usage.
-/// Indexing with [`Vulnerability`] results in a [`Trie`] that handles auctions.
-///
-/// ```
-/// use dds_bridge::deal::Seat;
-///
-/// assert!(Seat::North as usize == 0);
-/// ```
-pub trait System: Index<Vulnerability, Output = Trie> {}
+/// A bidding system tries classifying a hand into logits for each call given
+/// vulnerability and the auction.
+pub trait System {
+    /// Classify a hand into logits for each call
+    fn classify(&self, hand: Hand, vul: Vulnerability, auction: &[Call]) -> Option<array::Logits>;
+}
 
-impl System for Trie {}
-impl System for trie::Forest {}
+impl System for Trie {
+    fn classify(&self, hand: Hand, vul: Vulnerability, auction: &[Call]) -> Option<array::Logits> {
+        self.get(auction).map(|f| f(hand, vul, auction))
+    }
+}
+
+impl System for trie::Forest {
+    fn classify(&self, hand: Hand, vul: Vulnerability, auction: &[Call]) -> Option<array::Logits> {
+        self[vul].get(auction).map(|f| f(hand, vul, auction))
+    }
+}

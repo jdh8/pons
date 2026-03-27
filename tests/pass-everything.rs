@@ -11,8 +11,8 @@ const JUST_PASS: array::Logits = {
 #[test]
 fn test_pass_everything() {
     let mut trie = Trie::new();
-    trie.insert(&[Call::Pass], |_| JUST_PASS);
+    trie.insert(&[Call::Pass], |_, _, _| JUST_PASS);
 
     let f = trie.get(&[Call::Pass]).expect("I just inserted this!");
-    assert_eq!(f(Hand::default()), JUST_PASS);
+    assert_eq!(f(Hand::default(), Vulnerability::NONE, &[]), JUST_PASS);
 }
