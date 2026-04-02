@@ -23,7 +23,10 @@ struct Args {
     dealer: Seat,
 
     /// Number of simulated deals
-    #[arg(short, long, default_value = "1000")]
+    ///
+    /// 1. Reduced from 1000 to 90 for reasonable runtime on my i7-9700
+    /// 2. Odd multiple of 10 to avoid rounding from 0.5
+    #[arg(short, long, default_value = "90")]
     count: usize,
 }
 
