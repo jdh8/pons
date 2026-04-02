@@ -1,4 +1,4 @@
-use dds_bridge::{deal, solver};
+use dds_bridge::{deal, deck, solver};
 use nalgebra as na;
 use pons::eval;
 use pons::stats::{Accumulator, Statistics};
@@ -30,7 +30,7 @@ type Correlation = na::OMatrix<f64, Columns, Columns>;
 type Histogram<T> = na::OMatrix<T, na::U8, na::Const<{ EVALUATORS.len() }>>;
 
 fn eval_random_deals(n: usize) -> Result<Evaluation, solver::Error> {
-    let deals: Vec<_> = core::iter::repeat_with(|| deal::Deal::new(&mut rand::rng()))
+    let deals: Vec<_> = core::iter::repeat_with(|| deck::full_deal(&mut rand::rng()))
         .take(n)
         .collect();
 

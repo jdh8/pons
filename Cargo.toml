@@ -11,10 +11,12 @@ keywords = ["bridge"]
 
 [dependencies]
 bitflags = "2.11.0"
-dds-bridge = "0.12.1"
+dds-bridge = "0.13.1"
 rand = "0.10.0"
 thiserror = "2.0.18"
 
 [dev-dependencies]
+anyhow = "1.0.102"
 approx = "0.5.1"
-nalgebra = "0.34.1"
+clap = { version = "^4.5.60", features = ["derive"] }
+nalgebra = "0.34.2"

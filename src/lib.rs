@@ -12,3 +12,6 @@ pub mod eval;
 
 /// One-variable statistics
 pub mod stats;
+
+/// Advanced solvers compared to [`dds_bridge::solver`]
+pub mod solver;
