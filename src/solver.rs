@@ -10,7 +10,8 @@ use dds_bridge::solver::{self, Error, StrainFlags, Vulnerability};
 ///
 /// # Errors
 ///
-/// A [`SystemError`] propagated from DDS or a [`std::sync::PoisonError`]
+/// A [`dds_bridge::solver::SystemError`] propagated from DDS or a
+/// [`std::sync::PoisonError`]
 pub fn emulate_par(
     north: Hand,
     south: Hand,
