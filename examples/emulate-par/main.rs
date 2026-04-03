@@ -1,7 +1,7 @@
 use clap::Parser;
 use dds_bridge::deal::{Hand, Seat};
 use dds_bridge::solver::Vulnerability;
-use pons::solver;
+use pons::random;
 
 /// Emulate par score for North-South by simulating random deals
 #[derive(Parser)]
@@ -32,7 +32,7 @@ struct Args {
 
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
-    let (score, contract) = solver::emulate_par(
+    let (score, contract) = random::emulate_par(
         args.north,
         args.south,
         args.vulnerability,
