@@ -1,6 +1,6 @@
 use clap::Parser;
 use dds_bridge::deal::{Deal, Hand, Seat, SmallSet as _};
-use dds_bridge::solver::Vulnerability;
+use dds_bridge::solver::{self, StrainFlags, Vulnerability};
 use pons::random;
 use pons::stats;
 
@@ -34,13 +34,11 @@ struct Args {
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
     let cards = Deal([args.north, Hand::EMPTY, args.south, Hand::EMPTY]);
+    let deals = random::fill_n_deals(&mut rand::rng(), &cards, args.count)?;
+    let solutions = solver::solve_deals(&deals, StrainFlags::all())?;
 
-    let (score, contract) = stats::average_ns_par(
-        &random::fill_n_deals(&mut rand::rng(), &cards, args.count)?,
-        args.vulnerability,
-        args.dealer,
-        args.count,
-    )?;
+    let (score, contract) =
+        stats::average_ns_par(&solutions, args.vulnerability, args.dealer, args.count)?;
 
     match contract {
         Some((contract, seat)) => {

@@ -1,8 +1,8 @@
 use core::fmt;
 use core::num::Wrapping;
 use dds_bridge::contract::{Bid, Contract, Penalty, Strain};
-use dds_bridge::deal::{Deal, Seat};
-use dds_bridge::solver::{self, Error, StrainFlags, Vulnerability};
+use dds_bridge::deal::Seat;
+use dds_bridge::solver::{self, Error, Vulnerability};
 
 /// Representation of statistics on a variable
 ///
@@ -79,7 +79,7 @@ impl Accumulator {
     }
 }
 
-/// Calculate average NS par score from the provided deals.
+/// Calculate average NS par score from the solved deals.
 ///
 /// This idea is inspired by [Cuebids](https://cuebids.com/).
 ///
@@ -88,7 +88,7 @@ impl Accumulator {
 /// A [`dds_bridge::solver::SystemError`] propagated from DDS or a
 /// [`std::sync::PoisonError`]
 pub fn average_ns_par(
-    deals: &[Deal],
+    tricks_table: &[solver::TricksTable],
     vul: Vulnerability,
     dealer: Seat,
     n: usize,
@@ -120,8 +120,8 @@ pub fn average_ns_par(
     };
 
     // seat -> strain -> tricks -> frequency
-    let histogram = solver::solve_deals(deals, StrainFlags::all())?
-        .into_iter()
+    let histogram = tricks_table
+        .iter()
         .fold([[[0usize; 14]; 5]; 4], |mut hist, tricks| {
             for seat in Seat::ALL {
                 for strain in Strain::ASC {

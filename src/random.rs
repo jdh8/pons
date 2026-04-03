@@ -81,5 +81,3 @@ pub fn fill_n_deals(
 ) -> Result<Vec<Deal>, SystemError> {
     fill_n_filtered_deals(rng, deal, n, |_| true)
 }
-
-
