@@ -7,5 +7,5 @@ pub mod bidding;
 pub mod eval;
 /// Tools involving random deal generation
 pub mod random;
-/// One-variable statistics
+/// Statistics
 pub mod stats;

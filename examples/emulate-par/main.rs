@@ -2,6 +2,7 @@ use clap::Parser;
 use dds_bridge::deal::{Deal, Hand, Seat, SmallSet as _};
 use dds_bridge::solver::Vulnerability;
 use pons::random;
+use pons::stats;
 
 /// Emulate par score for North-South by simulating random deals
 #[derive(Parser)]
@@ -34,7 +35,7 @@ fn main() -> anyhow::Result<()> {
     let args = Args::parse();
     let cards = Deal([args.north, Hand::EMPTY, args.south, Hand::EMPTY]);
 
-    let (score, contract) = random::average_ns_par(
+    let (score, contract) = stats::average_ns_par(
         &random::fill_n_deals(&mut rand::rng(), &cards, args.count)?,
         args.vulnerability,
         args.dealer,
