@@ -1,5 +1,5 @@
 use clap::Parser;
-use dds_bridge::deal::{Hand, Seat};
+use dds_bridge::deal::{Deal, Hand, Seat, SmallSet as _};
 use dds_bridge::solver::Vulnerability;
 use pons::random;
 
@@ -32,9 +32,10 @@ struct Args {
 
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
-    let (score, contract) = random::emulate_par(
-        args.north,
-        args.south,
+    let cards = Deal([args.north, Hand::EMPTY, args.south, Hand::EMPTY]);
+
+    let (score, contract) = random::average_ns_par(
+        &random::fill_n_deals(&mut rand::rng(), &cards, args.count)?,
         args.vulnerability,
         args.dealer,
         args.count,

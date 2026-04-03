@@ -7,11 +7,14 @@ use rand::Rng;
 
 pub use dds_bridge::deck::full_deal;
 
-/// Given existing cards in a deal, randomly fill the remaining cards.
+/// Given a deal, randomly fill the remaining cards and filter the results.
+///
+/// The filter is applied before collecting the results, so the resulting vector
+/// still has `n` deals.
 ///
 /// - `deal`: The initial deal with some cards already assigned.
-/// - `count`: The number of deals to generate.
-/// - `filter`: An optional function to filter deals.
+/// - `n`: The number of deals to generate.
+/// - `filter`: A constraint to filter deals.
 ///
 /// # Errors
 ///
@@ -19,11 +22,11 @@ pub use dds_bridge::deck::full_deal;
 ///
 /// - Any hand having more than 13 cards.
 /// - Duplicate cards across hands.
-pub fn fill_deals(
+pub fn fill_n_filtered_deals(
     rng: &mut (impl Rng + ?Sized),
     deal: &Deal,
-    count: usize,
-    filter: Option<impl FnMut(&Deal) -> bool>,
+    n: usize,
+    filter: impl FnMut(&Deal) -> bool,
 ) -> Result<Vec<Deal>, SystemError> {
     if deal.0.into_iter().any(|hand| hand.len() > 13) {
         return Err(SystemError::TooManyCards);
@@ -44,7 +47,7 @@ pub fn fill_deals(
         .min_by_key(|&seat| deal[seat].len())
         .expect("Seat::ALL shall not be empty");
 
-    let repeat = core::iter::repeat_with(|| {
+    Ok(core::iter::repeat_with(|| {
         let mut deck = deck.clone();
         let mut deal = *deal;
 
@@ -54,15 +57,33 @@ pub fn fill_deals(
         }
         deal[shortest] = deal[shortest] | deck.collect();
         deal
-    });
-
-    Ok(match filter {
-        Some(f) => repeat.filter(f).take(count).collect(),
-        None => repeat.take(count).collect(),
     })
+    .filter(filter)
+    .take(n)
+    .collect())
 }
 
-/// Emulate `n` deals and calculate par for the NS pair
+/// Given existing cards in a deal, randomly fill the remaining cards.
+///
+/// - `deal`: The initial deal with some cards already assigned.
+/// - `n`: The number of deals to generate.
+///
+/// # Errors
+///
+///
+/// [`dds_bridge::solver::SystemError`] if `deal` is invalid, such as
+///
+/// - Any hand having more than 13 cards.
+/// - Duplicate cards across hands.
+pub fn fill_n_deals(
+    rng: &mut (impl Rng + ?Sized),
+    deal: &Deal,
+    n: usize,
+) -> Result<Vec<Deal>, SystemError> {
+    fill_n_filtered_deals(rng, deal, n, |_| true)
+}
+
+/// Calculate average NS par score from the provided deals.
 ///
 /// This idea is inspired by [Cuebids](https://cuebids.com/).
 ///
@@ -70,9 +91,8 @@ pub fn fill_deals(
 ///
 /// A [`dds_bridge::solver::SystemError`] propagated from DDS or a
 /// [`std::sync::PoisonError`]
-pub fn emulate_par(
-    north: Hand,
-    south: Hand,
+pub fn average_ns_par(
+    deals: &[Deal],
     vul: Vulnerability,
     dealer: Seat,
     n: usize,
@@ -103,18 +123,8 @@ pub fn emulate_par(
         }
     };
 
-    let deck = Deck::from(Hand::ALL ^ north ^ south);
-    let deals: Vec<_> = (0..n)
-        .map(|_| {
-            let mut deck = deck.clone();
-            let east = deck.partial_shuffle(&mut rand::rng(), 13);
-            let west = deck.collect();
-            Deal([north, east, south, west])
-        })
-        .collect();
-
     // seat -> strain -> tricks -> frequency
-    let histogram = solver::solve_deals(&deals, StrainFlags::all())?
+    let histogram = solver::solve_deals(deals, StrainFlags::all())?
         .into_iter()
         .fold([[[0usize; 14]; 5]; 4], |mut hist, tricks| {
             for seat in Seat::ALL {
