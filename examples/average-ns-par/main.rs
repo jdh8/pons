@@ -37,8 +37,12 @@ fn main() -> anyhow::Result<()> {
     let deals = random::fill_n_deals(&mut rand::rng(), &cards, args.count)?;
     let solutions = solver::solve_deals(&deals, StrainFlags::all())?;
 
-    let (score, contract) =
-        stats::average_ns_par(&solutions, args.vulnerability, args.dealer, args.count)?;
+    let (score, contract) = stats::average_ns_par(
+        solutions.into_iter().collect(),
+        args.vulnerability,
+        args.dealer,
+        args.count,
+    )?;
 
     match contract {
         Some((contract, seat)) => {

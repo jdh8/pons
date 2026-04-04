@@ -1,5 +1,6 @@
 use core::fmt;
 use core::num::Wrapping;
+use core::ops::{Index, IndexMut};
 use dds_bridge::contract::{Bid, Contract, Penalty, Strain};
 use dds_bridge::deal::Seat;
 use dds_bridge::solver::{self, Error, Vulnerability};
@@ -79,6 +80,71 @@ impl Accumulator {
     }
 }
 
+/// Histograms of tricks taken by a seat in all strains
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
+pub struct HistogramRow(pub [[usize; 14]; 5]);
+
+impl HistogramRow {
+    /// Constant default constructor
+    #[must_use]
+    pub const fn new() -> Self {
+        Self([[0; 14]; 5])
+    }
+}
+
+impl Index<Strain> for HistogramRow {
+    type Output = [usize; 14];
+
+    fn index(&self, index: Strain) -> &Self::Output {
+        &self.0[index as usize]
+    }
+}
+
+impl IndexMut<Strain> for HistogramRow {
+    fn index_mut(&mut self, index: Strain) -> &mut Self::Output {
+        &mut self.0[index as usize]
+    }
+}
+
+/// Histograms of tricks taken by all seats in all strains
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
+pub struct HistogramTable(pub [HistogramRow; 4]);
+
+impl HistogramTable {
+    /// Constant default constructor
+    #[must_use]
+    pub const fn new() -> Self {
+        Self([HistogramRow::new(); 4])
+    }
+}
+
+impl Index<Seat> for HistogramTable {
+    type Output = HistogramRow;
+
+    fn index(&self, index: Seat) -> &Self::Output {
+        &self.0[index as usize]
+    }
+}
+
+impl IndexMut<Seat> for HistogramTable {
+    fn index_mut(&mut self, index: Seat) -> &mut Self::Output {
+        &mut self.0[index as usize]
+    }
+}
+
+impl FromIterator<solver::TricksTable> for HistogramTable {
+    fn from_iter<I: IntoIterator<Item = solver::TricksTable>>(iter: I) -> Self {
+        iter.into_iter().fold(Self::new(), |mut hist, tricks| {
+            for seat in Seat::ALL {
+                for strain in Strain::ASC {
+                    hist[seat][strain][usize::from(tricks[strain].get(seat))] += 1;
+                }
+            }
+            hist
+        })
+    }
+}
+
 /// Calculate average NS par score from the solved deals.
 ///
 /// This idea is inspired by [Cuebids](https://cuebids.com/).
@@ -88,7 +154,7 @@ impl Accumulator {
 /// A [`dds_bridge::solver::SystemError`] propagated from DDS or a
 /// [`std::sync::PoisonError`]
 pub fn average_ns_par(
-    tricks_table: &[solver::TricksTable],
+    histogram: HistogramTable,
     vul: Vulnerability,
     dealer: Seat,
     n: usize,
@@ -119,19 +185,6 @@ pub fn average_ns_par(
         }
     };
 
-    // seat -> strain -> tricks -> frequency
-    let histogram = tricks_table
-        .iter()
-        .fold([[[0usize; 14]; 5]; 4], |mut hist, tricks| {
-            for seat in Seat::ALL {
-                for strain in Strain::ASC {
-                    hist[seat as usize][strain as usize][usize::from(tricks[strain].get(seat))] +=
-                        1;
-                }
-            }
-            hist
-        });
-
     // seat -> bid -> (score, contract)
     let scores = Seat::ALL.map(|seat| {
         #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
@@ -161,7 +214,7 @@ pub fn average_ns_par(
                 bid,
                 penalty: Penalty::Doubled,
             };
-            let hist = histogram[seat as usize][bid.strain as usize];
+            let hist = histogram[seat][bid.strain];
             let normal = (score(normal, hist, vul.contains(side)), normal);
             let doubled = (score(doubled, hist, vul.contains(side)), doubled);
             normal.min(doubled)
