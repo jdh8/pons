@@ -1,7 +1,8 @@
+use super::bidding::array::Array;
 use core::fmt;
 use core::num::Wrapping;
 use core::ops::{Index, IndexMut};
-use dds_bridge::contract::{Bid, Contract, Penalty, Strain};
+use dds_bridge::contract::{Call, Contract, Penalty, Strain};
 use dds_bridge::deal::Seat;
 use dds_bridge::solver::{self, Error, Vulnerability};
 
@@ -159,87 +160,65 @@ pub fn average_ns_par(
     dealer: Seat,
     n: usize,
 ) -> Result<(f64, Option<(Contract, Seat)>), Error> {
-    const BID_VARIANTS: usize = 7 * 5;
+    #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
+    const fn score(contract: Contract, hist: [usize; 14], vul: bool) -> i64 {
+        let mut sum = 0;
+        let mut tricks = 0;
 
-    /// Encode a bid to an array index
-    const fn encode_bid(bid: Bid) -> usize {
-        (bid.level as usize - 1) * 5 + bid.strain as usize
-    }
-
-    /// Decode an array index back to the bid
-    #[allow(clippy::cast_possible_truncation)]
-    const fn decode_bid(code: usize) -> Bid {
-        let level = (code / 5) as u8 + 1;
-        let strain = Strain::ASC[code % 5];
-        Bid { level, strain }
-    }
-
-    // Check at compile time that `encode_bid` and `decode_bid` cancel each other
-    const _: () = {
-        let mut code = 0;
-
-        while code < BID_VARIANTS {
-            let bid = decode_bid(code);
-            assert!(code == encode_bid(bid));
-            code += 1;
+        while tricks <= 13 {
+            sum += (hist[tricks] as i64) * contract.score(tricks as u8, vul) as i64;
+            tricks += 1;
         }
-    };
+        sum
+    }
 
     // seat -> bid -> (score, contract)
     let scores = Seat::ALL.map(|seat| {
-        #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
-        const fn score(contract: Contract, hist: [usize; 14], vul: bool) -> i64 {
-            let mut sum = 0;
-            let mut tricks = 0;
-
-            while tricks <= 13 {
-                sum += (hist[tricks] as i64) * contract.score(tricks as u8, vul) as i64;
-                tricks += 1;
-            }
-            sum
-        }
-
         let side = match seat {
             Seat::North | Seat::South => Vulnerability::NS,
             Seat::East | Seat::West => Vulnerability::EW,
         };
 
-        let mut table: [_; BID_VARIANTS] = core::array::from_fn(|bid| {
-            let bid = decode_bid(bid);
-            let normal = Contract {
-                bid,
-                penalty: Penalty::None,
-            };
-            let doubled = Contract {
-                bid,
-                penalty: Penalty::Doubled,
-            };
-            let hist = histogram[seat][bid.strain];
-            let normal = (score(normal, hist, vul.contains(side)), normal);
-            let doubled = (score(doubled, hist, vul.contains(side)), doubled);
-            normal.min(doubled)
+        let mut array = Array::from_fn(|call| match call {
+            Call::Bid(bid) => {
+                let normal = Contract {
+                    bid,
+                    penalty: Penalty::None,
+                };
+                let doubled = Contract {
+                    bid,
+                    penalty: Penalty::Doubled,
+                };
+                let hist = histogram[seat][bid.strain];
+                let normal = (score(normal, hist, vul.contains(side)), Some(normal));
+                let doubled = (score(doubled, hist, vul.contains(side)), Some(doubled));
+                normal.min(doubled)
+            }
+            _ => (0, None),
         });
 
-        for bid in (0..BID_VARIANTS - 1).rev() {
-            table[bid] = table[bid].max(table[bid + 1]);
+        let slice = &mut array[..];
+        for i in (0..slice.len() - 1).rev() {
+            slice[i] = slice[i].max(slice[i + 1]);
         }
 
         match seat {
-            Seat::North | Seat::South => table,
-            Seat::East | Seat::West => table.map(|(score, contract)| (-score, contract)),
+            Seat::North | Seat::South => array,
+            Seat::East | Seat::West => array.map(|_, (score, contract)| (-score, contract)),
         }
     });
 
     let mut par_score = 0;
     let mut par_contract: Option<(Contract, Seat)> = None;
+
     let mut improve_for = |seat: Seat| {
-        let bid = par_contract.map_or(0, |(contract, _)| encode_bid(contract.bid));
-        let (score, contract) = scores[seat as usize][bid];
-        let is_improved = match seat {
-            Seat::North | Seat::South => score > par_score,
-            Seat::East | Seat::West => score < par_score,
-        };
-        if is_improved {
+        let call = par_contract.map_or(Call::Pass, |(contract, _)| contract.bid.into());
+        if let (score, Some(contract)) = scores[seat as usize][call]
+            && match seat {
+                Seat::North | Seat::South => score > par_score,
+                Seat::East | Seat::West => score < par_score,
+            }
+        {
             par_score = score;
             par_contract.replace((contract, seat));
         }

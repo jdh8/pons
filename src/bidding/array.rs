@@ -1,7 +1,7 @@
 use super::{Bid, Call, Strain};
 use core::iter::Enumerate;
 use core::mem::MaybeUninit;
-use core::ops::{Deref, DerefMut, Index, IndexMut, Range, RangeFrom, RangeInclusive};
+use core::ops::{Deref, DerefMut, Index, IndexMut, Range, RangeFrom, RangeFull, RangeInclusive};
 
 /// Number of possible calls
 const CALL_VARIANTS: usize = 3 + 7 * 5;
@@ -205,6 +205,34 @@ impl<T> Index<Call> for Array<T> {
 impl<T> IndexMut<Call> for Array<T> {
     fn index_mut(&mut self, call: Call) -> &mut Self::Output {
         self.get_mut(call)
+    }
+}
+
+impl<T> Index<Bid> for Array<T> {
+    type Output = T;
+
+    fn index(&self, bid: Bid) -> &Self::Output {
+        self.get(Call::Bid(bid))
+    }
+}
+
+impl<T> IndexMut<Bid> for Array<T> {
+    fn index_mut(&mut self, bid: Bid) -> &mut Self::Output {
+        self.get_mut(Call::Bid(bid))
+    }
+}
+
+impl<T> Index<RangeFull> for Array<T> {
+    type Output = [T];
+
+    fn index(&self, _: RangeFull) -> &Self::Output {
+        &self.0
+    }
+}
+
+impl<T> IndexMut<RangeFull> for Array<T> {
+    fn index_mut(&mut self, _: RangeFull) -> &mut Self::Output {
+        &mut self.0
     }
 }
 
