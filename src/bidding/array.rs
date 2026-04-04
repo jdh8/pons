@@ -1,7 +1,7 @@
 use super::{Bid, Call, Strain};
 use core::iter::Enumerate;
 use core::mem::MaybeUninit;
-use core::ops::{Deref, DerefMut, Index, IndexMut};
+use core::ops::{Deref, DerefMut, Index, IndexMut, Range, RangeFrom, RangeInclusive};
 
 /// Number of possible calls
 const CALL_VARIANTS: usize = 3 + 7 * 5;
@@ -205,6 +205,58 @@ impl<T> Index<Call> for Array<T> {
 impl<T> IndexMut<Call> for Array<T> {
     fn index_mut(&mut self, call: Call) -> &mut Self::Output {
         self.get_mut(call)
+    }
+}
+
+impl<T> Index<Range<Bid>> for Array<T> {
+    type Output = [T];
+
+    fn index(&self, range: Range<Bid>) -> &Self::Output {
+        let start = encode_call(Call::Bid(range.start));
+        let end = encode_call(Call::Bid(range.end));
+        &self.0[start..end]
+    }
+}
+
+impl<T> IndexMut<Range<Bid>> for Array<T> {
+    fn index_mut(&mut self, range: Range<Bid>) -> &mut Self::Output {
+        let start = encode_call(Call::Bid(range.start));
+        let end = encode_call(Call::Bid(range.end));
+        &mut self.0[start..end]
+    }
+}
+
+impl<T> Index<RangeFrom<Bid>> for Array<T> {
+    type Output = [T];
+
+    fn index(&self, range: RangeFrom<Bid>) -> &Self::Output {
+        let start = encode_call(Call::Bid(range.start));
+        &self.0[start..]
+    }
+}
+
+impl<T> IndexMut<RangeFrom<Bid>> for Array<T> {
+    fn index_mut(&mut self, range: RangeFrom<Bid>) -> &mut Self::Output {
+        let start = encode_call(Call::Bid(range.start));
+        &mut self.0[start..]
+    }
+}
+
+impl<T> Index<RangeInclusive<Bid>> for Array<T> {
+    type Output = [T];
+
+    fn index(&self, range: RangeInclusive<Bid>) -> &Self::Output {
+        let start = encode_call(Call::Bid(*range.start()));
+        let end = encode_call(Call::Bid(*range.end()));
+        &self.0[start..=end]
+    }
+}
+
+impl<T> IndexMut<RangeInclusive<Bid>> for Array<T> {
+    fn index_mut(&mut self, range: RangeInclusive<Bid>) -> &mut Self::Output {
+        let start = encode_call(Call::Bid(*range.start()));
+        let end = encode_call(Call::Bid(*range.end()));
+        &mut self.0[start..=end]
     }
 }
 
