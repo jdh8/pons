@@ -208,20 +208,6 @@ impl<T> IndexMut<Call> for Array<T> {
     }
 }
 
-impl<T> Index<Bid> for Array<T> {
-    type Output = T;
-
-    fn index(&self, bid: Bid) -> &Self::Output {
-        self.get(Call::Bid(bid))
-    }
-}
-
-impl<T> IndexMut<Bid> for Array<T> {
-    fn index_mut(&mut self, bid: Bid) -> &mut Self::Output {
-        self.get_mut(Call::Bid(bid))
-    }
-}
-
 impl<T> Index<RangeFull> for Array<T> {
     type Output = [T];
 
@@ -236,54 +222,54 @@ impl<T> IndexMut<RangeFull> for Array<T> {
     }
 }
 
-impl<T> Index<Range<Bid>> for Array<T> {
+impl<T> Index<Range<Call>> for Array<T> {
     type Output = [T];
 
-    fn index(&self, range: Range<Bid>) -> &Self::Output {
-        let start = encode_call(Call::Bid(range.start));
-        let end = encode_call(Call::Bid(range.end));
+    fn index(&self, range: Range<Call>) -> &Self::Output {
+        let start = encode_call(range.start);
+        let end = encode_call(range.end);
         &self.0[start..end]
     }
 }
 
-impl<T> IndexMut<Range<Bid>> for Array<T> {
-    fn index_mut(&mut self, range: Range<Bid>) -> &mut Self::Output {
-        let start = encode_call(Call::Bid(range.start));
-        let end = encode_call(Call::Bid(range.end));
+impl<T> IndexMut<Range<Call>> for Array<T> {
+    fn index_mut(&mut self, range: Range<Call>) -> &mut Self::Output {
+        let start = encode_call(range.start);
+        let end = encode_call(range.end);
         &mut self.0[start..end]
     }
 }
 
-impl<T> Index<RangeFrom<Bid>> for Array<T> {
+impl<T> Index<RangeFrom<Call>> for Array<T> {
     type Output = [T];
 
-    fn index(&self, range: RangeFrom<Bid>) -> &Self::Output {
-        let start = encode_call(Call::Bid(range.start));
+    fn index(&self, range: RangeFrom<Call>) -> &Self::Output {
+        let start = encode_call(range.start);
         &self.0[start..]
     }
 }
 
-impl<T> IndexMut<RangeFrom<Bid>> for Array<T> {
-    fn index_mut(&mut self, range: RangeFrom<Bid>) -> &mut Self::Output {
-        let start = encode_call(Call::Bid(range.start));
+impl<T> IndexMut<RangeFrom<Call>> for Array<T> {
+    fn index_mut(&mut self, range: RangeFrom<Call>) -> &mut Self::Output {
+        let start = encode_call(range.start);
         &mut self.0[start..]
     }
 }
 
-impl<T> Index<RangeInclusive<Bid>> for Array<T> {
+impl<T> Index<RangeInclusive<Call>> for Array<T> {
     type Output = [T];
 
-    fn index(&self, range: RangeInclusive<Bid>) -> &Self::Output {
-        let start = encode_call(Call::Bid(*range.start()));
-        let end = encode_call(Call::Bid(*range.end()));
+    fn index(&self, range: RangeInclusive<Call>) -> &Self::Output {
+        let start = encode_call(*range.start());
+        let end = encode_call(*range.end());
         &self.0[start..=end]
     }
 }
 
-impl<T> IndexMut<RangeInclusive<Bid>> for Array<T> {
-    fn index_mut(&mut self, range: RangeInclusive<Bid>) -> &mut Self::Output {
-        let start = encode_call(Call::Bid(*range.start()));
-        let end = encode_call(Call::Bid(*range.end()));
+impl<T> IndexMut<RangeInclusive<Call>> for Array<T> {
+    fn index_mut(&mut self, range: RangeInclusive<Call>) -> &mut Self::Output {
+        let start = encode_call(*range.start());
+        let end = encode_call(*range.end());
         &mut self.0[start..=end]
     }
 }
