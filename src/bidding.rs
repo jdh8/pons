@@ -184,7 +184,7 @@ impl Auction {
     /// 1. If [`Call::Double`] is inadmissible, this method tries to
     ///    redouble the last double.
     /// 2. Force pushing the original `call` despite of an error.
-    /// 
+    ///
     /// This function returns the call that is actually pushed to the auction,
     /// which may be different from the input `call` if redoubling is applied.
     /// When an error occurs, the call is always pushed as is.

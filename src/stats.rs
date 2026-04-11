@@ -5,6 +5,7 @@ use core::ops::{Index, IndexMut};
 use dds_bridge::contract::{Call, Contract, Penalty, Strain};
 use dds_bridge::deal::Seat;
 use dds_bridge::solver::{self, Error, Vulnerability};
+use std::num::NonZeroUsize;
 
 /// Representation of statistics on a variable
 ///
@@ -82,14 +83,27 @@ impl Accumulator {
 }
 
 /// Histograms of tricks taken by a seat in all strains
+///
+/// Each strain either contains no data or the same nonzero number of entries.
+/// This invariant is not enforced by the type system, but it is expected to be
+/// upheld by the code.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
-pub struct HistogramRow(pub [[usize; 14]; 5]);
+pub struct HistogramRow([[usize; 14]; 5]);
 
 impl HistogramRow {
     /// Constant default constructor
     #[must_use]
     pub const fn new() -> Self {
         Self([[0; 14]; 5])
+    }
+
+    /// Count the total number of entries in the histogram
+    #[must_use]
+    pub fn count(&self) -> usize {
+        self.0
+            .into_iter()
+            .find_map(|hist| NonZeroUsize::new(hist.into_iter().sum()))
+            .map_or(0, NonZeroUsize::get)
     }
 }
 
@@ -108,14 +122,24 @@ impl IndexMut<Strain> for HistogramRow {
 }
 
 /// Histograms of tricks taken by all seats in all strains
+///
+/// Each seat contains the same number of entries, which is the total number of
+/// solved deals.  This invariant is not enforced by the type system, but it is
+/// expected to be upheld by the code.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
-pub struct HistogramTable(pub [HistogramRow; 4]);
+pub struct HistogramTable([HistogramRow; 4]);
 
 impl HistogramTable {
     /// Constant default constructor
     #[must_use]
     pub const fn new() -> Self {
         Self([HistogramRow::new(); 4])
+    }
+
+    /// Count the total number of entries in the histogram
+    #[must_use]
+    pub fn count(self) -> usize {
+        self.0[0].count()
     }
 }
 
@@ -158,7 +182,6 @@ pub fn average_ns_par(
     histogram: HistogramTable,
     vul: Vulnerability,
     dealer: Seat,
-    n: usize,
 ) -> Result<(f64, Option<(Contract, Seat)>), Error> {
     #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
     const fn score(contract: Contract, hist: [usize; 14], vul: bool) -> i64 {
@@ -230,5 +253,5 @@ pub fn average_ns_par(
     improve_for(dealer);
 
     #[allow(clippy::cast_precision_loss)]
-    Ok((par_score as f64 / n as f64, par_contract))
+    Ok((par_score as f64 / (histogram.count() as f64), par_contract))
 }

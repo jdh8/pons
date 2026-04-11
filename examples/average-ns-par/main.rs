@@ -41,7 +41,6 @@ fn main() -> anyhow::Result<()> {
         solutions.into_iter().collect(),
         args.vulnerability,
         args.dealer,
-        args.count,
     )?;
 
     match contract {
