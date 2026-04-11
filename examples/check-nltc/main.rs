@@ -63,6 +63,9 @@ fn compute_correlation(eval: &Evaluation) -> Correlation {
 fn compute_histogram(eval: &Evaluation) -> Histogram<Statistics> {
     eval.row_iter()
         .fold(Histogram::default(), |mut acc, row| {
+            // SAFETY: `row[0]` is tricks since the beginning.  It is stored as
+            // `f64` for `nalgebra`, but it is always an integer in 0..=13, so
+            // the cast is safe.
             #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
             let i = (row[0] as usize).max(6) - 6;
             let row = row.fixed_columns::<{ EVALUATORS.len() }>(1);
