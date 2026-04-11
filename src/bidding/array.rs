@@ -164,6 +164,8 @@ impl<T> Array<T> {
             result[index] = MaybeUninit::new(f(decode_call(index), value)?);
         }
 
+        // SAFETY: All entries in `result` are initialized by the loop above,
+        // and `Array` is a transparent wrapper around an array.
         Ok(Array(unsafe { core::mem::transmute_copy(&result) }))
     }
 
