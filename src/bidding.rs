@@ -17,7 +17,7 @@ use thiserror::Error;
 bitflags::bitflags! {
     /// Vulnerability of sides
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-    pub struct Vulnerability: u8 {
+    pub struct RelativeVulnerability: u8 {
         /// We are vulnerable
         const WE = 1;
         /// Opponents are vulnerable
@@ -25,7 +25,7 @@ bitflags::bitflags! {
     }
 }
 
-impl Vulnerability {
+impl RelativeVulnerability {
     /// No player is vulnerable
     pub const NONE: Self = Self::empty();
     /// All players are vulnerable
@@ -267,18 +267,33 @@ impl Auction {
 /// vulnerability and the auction.
 pub trait System {
     /// Classify a hand into logits for each call
-    fn classify(&self, hand: Hand, vul: Vulnerability, auction: Auction) -> Option<array::Logits>;
+    fn classify(
+        &self,
+        hand: Hand,
+        vul: RelativeVulnerability,
+        auction: Auction,
+    ) -> Option<array::Logits>;
 }
 
 impl System for Trie {
-    fn classify(&self, hand: Hand, vul: Vulnerability, auction: Auction) -> Option<array::Logits> {
+    fn classify(
+        &self,
+        hand: Hand,
+        vul: RelativeVulnerability,
+        auction: Auction,
+    ) -> Option<array::Logits> {
         self.get(&auction)
             .map(|f| f(hand, vul, self.common_prefixes(auction)))
     }
 }
 
 impl System for trie::Forest {
-    fn classify(&self, hand: Hand, vul: Vulnerability, auction: Auction) -> Option<array::Logits> {
+    fn classify(
+        &self,
+        hand: Hand,
+        vul: RelativeVulnerability,
+        auction: Auction,
+    ) -> Option<array::Logits> {
         self[vul].classify(hand, vul, auction)
     }
 }

@@ -1,9 +1,9 @@
 use super::map::Map;
-use super::{Auction, Call, Hand, IllegalCall, Vulnerability};
+use super::{Auction, Call, Hand, IllegalCall, RelativeVulnerability};
 use core::ops::{Index, IndexMut};
 
 /// Function that classifies a hand into logits for each call
-pub type Classifier = fn(Hand, Vulnerability, CommonPrefixes) -> super::array::Logits;
+pub type Classifier = fn(Hand, RelativeVulnerability, CommonPrefixes) -> super::array::Logits;
 
 /// Decision trie as a vulnerability-agnostic bidding system
 ///
@@ -232,16 +232,16 @@ impl<'a> Iterator for CommonPrefixes<'a> {
 #[derive(Clone)]
 pub struct Forest([Trie; 4]);
 
-impl Index<Vulnerability> for Forest {
+impl Index<RelativeVulnerability> for Forest {
     type Output = Trie;
 
-    fn index(&self, index: Vulnerability) -> &Trie {
+    fn index(&self, index: RelativeVulnerability) -> &Trie {
         &self.0[usize::from(index.bits())]
     }
 }
 
-impl IndexMut<Vulnerability> for Forest {
-    fn index_mut(&mut self, index: Vulnerability) -> &mut Trie {
+impl IndexMut<RelativeVulnerability> for Forest {
+    fn index_mut(&mut self, index: RelativeVulnerability) -> &mut Trie {
         &mut self.0[usize::from(index.bits())]
     }
 }
