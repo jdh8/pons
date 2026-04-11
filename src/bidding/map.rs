@@ -96,16 +96,6 @@ impl<T> Map<T> {
     {
         self.unwrap_or_else(|_| T::default())
     }
-
-    /// Unwrap all values, panicking if any value is missing
-    ///
-    /// # Panics
-    ///
-    /// Panics if any call has no value.  The panic message includes the first
-    /// call with no value.
-    pub fn unwrap(self) -> Array<T> {
-        self.unwrap_or_else(|call| panic!("missing value for {call:?}"))
-    }
 }
 
 impl<T> Default for Map<T> {
@@ -133,6 +123,14 @@ impl<'a, T: Copy> Extend<(&'a Call, &'a T)> for Map<T> {
 impl<T> From<Array<T>> for Map<T> {
     fn from(array: Array<T>) -> Self {
         Self(array.map(|_, value| Some(value)))
+    }
+}
+
+impl<T> TryInto<Array<T>> for Map<T> {
+    type Error = Call;
+
+    fn try_into(self) -> Result<Array<T>, Self::Error> {
+        self.0.try_map(|call, entry| entry.ok_or(call))
     }
 }
 

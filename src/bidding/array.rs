@@ -1,4 +1,5 @@
 use super::{Bid, Call, Strain};
+use core::convert::Infallible;
 use core::iter::Enumerate;
 use core::mem::MaybeUninit;
 use core::ops::{Deref, DerefMut, Index, IndexMut, Range, RangeFrom, RangeFull, RangeInclusive};
@@ -151,15 +152,26 @@ impl<T> Array<T> {
         self.into_iter()
     }
 
-    /// Map all values with a function
-    pub fn map<U>(self, mut f: impl FnMut(Call, T) -> U) -> Array<U> {
+    /// Fallible [`map`][Self::map] that fails fast
+    ///
+    /// # Errors
+    ///
+    /// Returns the first error produced by the mapping function, if any.
+    pub fn try_map<U, E>(self, mut f: impl FnMut(Call, T) -> Result<U, E>) -> Result<Array<U>, E> {
         let mut result = [const { MaybeUninit::uninit() }; CALL_VARIANTS];
 
         for (index, value) in self.0.into_iter().enumerate() {
-            result[index] = MaybeUninit::new(f(decode_call(index), value));
+            result[index] = MaybeUninit::new(f(decode_call(index), value)?);
         }
 
-        Array(unsafe { core::mem::transmute_copy(&result) })
+        Ok(Array(unsafe { core::mem::transmute_copy(&result) }))
+    }
+
+    /// Map all values with a function
+    #[allow(clippy::missing_panics_doc)]
+    pub fn map<U>(self, mut f: impl FnMut(Call, T) -> U) -> Array<U> {
+        self.try_map::<_, Infallible>(|call, value| Ok(f(call, value)))
+            .unwrap()
     }
 
     /// Visit all values
