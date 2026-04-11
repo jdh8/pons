@@ -11,8 +11,8 @@ keywords = ["bridge"]
 
 [dependencies]
 bitflags = "2.11.0"
-dds-bridge = "0.13.1"
-rand = "0.10.0"
+dds-bridge = "0.13.2"
+rand = "0.10.1"
 thiserror = "2.0.18"
 
 [dev-dependencies]

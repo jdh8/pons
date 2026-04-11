@@ -5,7 +5,5 @@
 pub mod bidding;
 /// Hand evaluation
 pub mod eval;
-/// Tools involving random deal generation
-pub mod random;
 /// Statistics
 pub mod stats;
