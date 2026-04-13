@@ -1,5 +1,4 @@
-use super::map::Map;
-use super::{Auction, Call, Hand, IllegalCall, RelativeVulnerability};
+use super::{Auction, Call, Hand, IllegalCall, Map, RelativeVulnerability};
 use core::ops::{Index, IndexMut};
 
 /// Function that classifies a hand into logits for each call

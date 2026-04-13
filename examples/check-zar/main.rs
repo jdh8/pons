@@ -1,7 +1,7 @@
 use dds_bridge::{Suit, deal, solver};
 use pons::deck;
 use pons::eval::{self, HandEvaluator as _};
-use pons::stats::{Accumulator, Statistics};
+use pons::{Accumulator, Statistics};
 use std::process::ExitCode;
 
 fn calculate_par_suit_tricks(tricks: solver::TricksTable) -> Option<(Suit, deal::Seat, i8)> {

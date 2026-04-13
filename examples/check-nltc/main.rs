@@ -2,7 +2,7 @@ use dds_bridge::{Suit, deal, solver};
 use nalgebra as na;
 use pons::deck;
 use pons::eval;
-use pons::stats::{Accumulator, Statistics};
+use pons::{Accumulator, Statistics};
 use std::process::ExitCode;
 
 fn calculate_par_suit_tricks(tricks: solver::TricksTable) -> Option<(Suit, deal::Seat, i8)> {

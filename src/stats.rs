@@ -1,5 +1,5 @@
-use super::bidding::Call;
-use super::bidding::array::Array;
+use super::Call;
+use super::bidding::Array;
 use core::fmt;
 use core::ops::{Index, IndexMut};
 use dds_bridge::solver::{self, SystemError, Vulnerability};

@@ -1,6 +1,6 @@
 use dds_bridge::solver::*;
 use dds_bridge_sys as sys;
-use pons::deck::full_deal;
+use pons::full_deal;
 
 #[test]
 fn test_solving_deals() {

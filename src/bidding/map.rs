@@ -1,5 +1,4 @@
-use super::Call;
-use super::array::{self, Array};
+use super::{Array, Call, array};
 use core::iter::{FilterMap, Flatten};
 
 /// Fixed-size map whose keys are [`Call`]s
