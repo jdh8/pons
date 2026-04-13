@@ -355,13 +355,15 @@ impl Logits {
         Self(Array([f32::NEG_INFINITY; CALL_VARIANTS]))
     }
 
-    /// Convert to an array of odds
+    /// Compute the softmax (normalized probability distribution)
     ///
-    /// The maximum value is set to one for numerical stability.
+    /// The maximum logit is subtracted before exponentiation for numerical stability.
     #[must_use]
-    pub fn to_odds(&self) -> Array<f32> {
-        let max = self.values().copied().fold(f32::NEG_INFINITY, f32::max);
-        Array(core::array::from_fn(|i| (self.0.0[i] - max).exp()))
+    pub fn softmax(self) -> Array<f32> {
+        let max = self.into_values().fold(f32::NEG_INFINITY, f32::max);
+        let exp: [_; CALL_VARIANTS] = core::array::from_fn(|i| (self.0.0[i] - max).exp());
+        let sum: f32 = exp.iter().sum();
+        Array(core::array::from_fn(|i| exp[i] / sum))
     }
 }
 
