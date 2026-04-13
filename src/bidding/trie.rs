@@ -232,6 +232,31 @@ impl<'a> Iterator for CommonPrefixes<'a> {
 #[derive(Clone)]
 pub struct Forest([Trie; 4]);
 
+impl Forest {
+    /// Construct a forest with empty tries
+    #[must_use]
+    pub const fn new() -> Self {
+        Self([Trie::new(), Trie::new(), Trie::new(), Trie::new()])
+    }
+
+    /// Construct a forest from a function mapping each vulnerability to a trie
+    #[must_use]
+    pub fn from_fn(mut f: impl FnMut(RelativeVulnerability) -> Trie) -> Self {
+        Self([
+            f(RelativeVulnerability::NONE),
+            f(RelativeVulnerability::WE),
+            f(RelativeVulnerability::THEY),
+            f(RelativeVulnerability::ALL),
+        ])
+    }
+}
+
+impl Default for Forest {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Index<RelativeVulnerability> for Forest {
     type Output = Trie;
 
