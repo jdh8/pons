@@ -34,7 +34,7 @@ fn main() -> anyhow::Result<()> {
     let args = Args::parse();
     let cards = Deal::new(args.north, Hand::EMPTY, args.south, Hand::EMPTY);
     let solutions = solver::Solver::lock().solve_deals(
-        &deck::fill_deals(&mut rand::rng(), &cards)?
+        &deck::fill_deals(&mut rand::rng(), cards)?
             .take(args.count)
             .collect::<Vec<_>>(),
         StrainFlags::all(),

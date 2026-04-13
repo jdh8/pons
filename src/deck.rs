@@ -188,13 +188,13 @@ impl<R: Rng + ?Sized> FusedIterator for FillDeals<'_, R> {}
 ///
 /// [`Error::Invalid`] if `deal` is invalid determined by
 /// [`Deal::validate_and_collect`].
-pub fn fill_deals<'a, R: Rng + ?Sized>(
-    rng: &'a mut R,
-    deal: &Deal,
-) -> Result<FillDeals<'a, R>, Error> {
+pub fn fill_deals<R: Rng + ?Sized>(
+    rng: &mut R,
+    deal: Deal,
+) -> Result<FillDeals<'_, R>, Error> {
     Ok(FillDeals {
         rng,
-        deal: *deal,
+        deal,
         deck: Deck::try_from(!deal.validate_and_collect().ok_or(Error::Invalid)?)?,
 
         #[allow(clippy::missing_panics_doc)]
