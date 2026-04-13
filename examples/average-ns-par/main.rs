@@ -40,23 +40,15 @@ fn main() -> anyhow::Result<()> {
         StrainFlags::all(),
     )?;
 
-    let (score, contract) = stats::average_ns_par(
+    let par = stats::average_ns_par(
         solutions.into_iter().collect(),
         args.vulnerability,
         args.dealer,
     )?;
 
-    match contract {
-        Some((contract, seat)) => {
-            println!(
-                "NS par: {}{}{}{}, {score:.0}",
-                contract.bid.level.get(),
-                contract.bid.strain,
-                contract.penalty,
-                seat.letter()
-            );
-        }
-        None => println!("NS par: P, {score:.0}"),
+    match par.contract {
+        Some((contract, seat)) => println!("NS par: {contract}{seat}, {:.0}", par.score),
+        None => println!("NS par: P, {:.0}", par.score),
     }
     Ok(())
 }

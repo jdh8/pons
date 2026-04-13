@@ -202,6 +202,15 @@ impl FromIterator<solver::TricksTable> for HistogramTable {
     }
 }
 
+/// Par score computed from a histogram of solved deals
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ParResult {
+    /// Par score across all solved deals
+    pub score: f64,
+    /// Par contract and its declarer, or [`None`] if the par is to pass out
+    pub contract: Option<(Contract, Seat)>,
+}
+
 /// Calculate average NS par score from the solved deals.
 ///
 /// This idea is inspired by [Cuebids](https://cuebids.com/).
@@ -214,7 +223,7 @@ pub fn average_ns_par(
     histogram: HistogramTable,
     vul: Vulnerability,
     dealer: Seat,
-) -> Result<(f64, Option<(Contract, Seat)>), SystemError> {
+) -> Result<ParResult, SystemError> {
     #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
     const fn score(contract: Contract, hist: [usize; 14], vul: bool) -> i64 {
         let mut sum = 0;
@@ -285,5 +294,8 @@ pub fn average_ns_par(
     improve_for(dealer);
 
     #[allow(clippy::cast_precision_loss)]
-    Ok((par_score as f64 / (histogram.count() as f64), par_contract))
+    Ok(ParResult {
+        score: par_score as f64 / (histogram.count() as f64),
+        contract: par_contract,
+    })
 }
