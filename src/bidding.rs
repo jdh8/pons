@@ -9,6 +9,7 @@ pub use array::Array;
 pub use map::Map;
 pub use trie::Trie;
 
+use core::borrow::Borrow;
 use core::ops::Deref;
 use dds_bridge::{Bid, Hand, Penalty, Strain};
 use thiserror::Error;
@@ -90,6 +91,18 @@ impl Deref for Auction {
 
     fn deref(&self) -> &[Call] {
         &self.0
+    }
+}
+
+impl AsRef<[Call]> for Auction {
+    fn as_ref(&self) -> &[Call] {
+        self
+    }
+}
+
+impl Borrow<[Call]> for Auction {
+    fn borrow(&self) -> &[Call] {
+        self
     }
 }
 
