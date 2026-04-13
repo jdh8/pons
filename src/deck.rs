@@ -90,8 +90,8 @@ impl Deck {
     ///
     /// [`CapacityError`] if the resulting deck would contain more than 52 cards.
     pub fn try_extend(&mut self, hand: Hand) -> Result<(), CapacityError<Card>> {
-        for card in hand.iter() {
-            self.cards.try_push(card)?;
+        for card in hand {
+            self.try_push(card)?;
         }
         Ok(())
     }
