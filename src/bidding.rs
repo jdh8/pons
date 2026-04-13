@@ -172,6 +172,15 @@ impl Auction {
         }
     }
 
+    /// Add a call to the auction
+    ///
+    /// # Panics
+    ///
+    /// Panics if the call is illegal.
+    pub fn push(&mut self, call: Call) {
+        self.try_push(call).unwrap();
+    }
+
     /// Add a call to the auction with checks
     ///
     /// # Errors
