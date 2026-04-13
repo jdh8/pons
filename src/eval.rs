@@ -126,10 +126,15 @@ pub fn nltc(holding: Holding) -> f64 {
 /// This method avoids double counting of short honors.  This evaluator is
 /// particularly useful for suit contracts.
 #[must_use]
-pub fn hcp_plus<T: From<u8> + PartialOrd>(holding: Holding) -> T {
-    let count = hcp(holding);
-    let short = shortness(holding);
-    if count < short { short } else { count }
+pub fn hcp_plus<T: From<u8>>(holding: Holding) -> T {
+    let count: u8 = hcp(holding);
+    let short: u8 = shortness(holding);
+
+    T::from(if count > 0 && short > 0 {
+        count + short - 1
+    } else {
+        count.max(short)
+    })
 }
 
 /// The [Fifths] evaluator for 3NT
