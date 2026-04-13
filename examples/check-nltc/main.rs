@@ -1,6 +1,6 @@
-use dds_bridge::{deal, solver, Suit};
-use pons::deck;
+use dds_bridge::{Suit, deal, solver};
 use nalgebra as na;
+use pons::deck;
 use pons::eval;
 use pons::stats::{Accumulator, Statistics};
 use std::process::ExitCode;
@@ -13,7 +13,13 @@ fn calculate_par_suit_tricks(tricks: solver::TricksTable) -> Option<(Suit, deal:
         .find_map(|pc| {
             let suit = Suit::try_from(pc.contract.bid.strain).ok();
             #[allow(clippy::cast_possible_wrap)] // level is always in 1..=7
-            suit.map(|suit| (suit, pc.declarer, pc.contract.bid.level.get() as i8 + 6 + pc.overtricks))
+            suit.map(|suit| {
+                (
+                    suit,
+                    pc.declarer,
+                    pc.contract.bid.level.get() as i8 + 6 + pc.overtricks,
+                )
+            })
         })
 }
 
@@ -35,7 +41,8 @@ fn eval_random_deals(n: usize) -> Result<Evaluation, solver::SystemError> {
         .take(n)
         .collect();
 
-    let rows: Vec<_> = solver::Solver::lock().solve_deals(&deals, solver::StrainFlags::all())?
+    let rows: Vec<_> = solver::Solver::lock()
+        .solve_deals(&deals, solver::StrainFlags::all())?
         .into_iter()
         .map(calculate_par_suit_tricks)
         .enumerate()
