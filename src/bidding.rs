@@ -27,7 +27,6 @@ pub enum Call {
 }
 
 impl From<Bid> for Call {
-    #[inline]
     fn from(bid: Bid) -> Self {
         Self::Bid(bid)
     }
