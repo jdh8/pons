@@ -186,32 +186,6 @@ impl Auction {
         Ok(())
     }
 
-    /// Force adding a call to the auction
-    ///
-    /// 1. If [`Call::Double`] is inadmissible, this method tries to
-    ///    redouble the last double.
-    /// 2. Force pushing the original `call` despite of an error.
-    ///
-    /// This function returns the call that is actually pushed to the auction,
-    /// which may be different from the input `call` if redoubling is applied.
-    /// When an error occurs, the call is always pushed as is.
-    ///
-    /// # Errors
-    ///
-    /// [`IllegalCall`] if the call is forbidden by [The Laws of Duplicate
-    /// Bridge][laws] after trying redoubling with [`Call::Double`].
-    ///
-    /// [laws]: http://www.worldbridge.org/wp-content/uploads/2017/03/2017LawsofDuplicateBridge-nohighlights.pdf
-    pub fn force_push(&mut self, mut call: Call) -> Result<Call, IllegalCall> {
-        if call == Call::Double && self.can_redouble().is_ok() {
-            call = Call::Redouble;
-        }
-
-        let report = self.can_push(call).map(|()| call);
-        self.0.push(call);
-        report
-    }
-
     /// Try adding calls to the auction
     ///
     /// # Errors

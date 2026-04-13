@@ -179,7 +179,7 @@ impl<'a> Iterator for Suffixes<'a> {
             self.value = entry.node.classify.as_ref();
             self.auction.truncate(self.separator + entry.depth);
 
-            if let Err(e) = self.auction.force_push(entry.call) {
+            if let Err(e) = self.auction.try_push(entry.call) {
                 return Some((self.auction[self.separator..].into(), Err(e)));
             }
         }
