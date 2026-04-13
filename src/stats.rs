@@ -13,10 +13,28 @@ use std::num::NonZeroUsize;
 /// [`Accumulator`] makes such distinction instead.
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub struct Statistics {
+    mean: f64,
+    sd: f64,
+}
+
+impl Statistics {
+    /// Construct a new statistics with the given mean and standard deviation
+    #[must_use]
+    pub const fn new(mean: f64, sd: f64) -> Self {
+        Self { mean, sd }
+    }
+
     /// Mean, a.k.a. average or expected value
-    pub mean: f64,
+    #[must_use]
+    pub const fn mean(self) -> f64 {
+        self.mean
+    }
+
     /// Standard deviation, a measure of dispersion
-    pub sd: f64,
+    #[must_use]
+    pub const fn sd(self) -> f64 {
+        self.sd
+    }
 }
 
 impl fmt::Display for Statistics {
@@ -32,12 +50,9 @@ impl fmt::Display for Statistics {
 /// This accumulator uses constant space while keeping numerical stability.
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub struct Accumulator {
-    /// The number of seen values
-    pub count: usize,
-    /// The mean of the seen values
-    pub mean: f64,
-    /// [Squared deviations from the mean](https://en.wikipedia.org/wiki/Squared_deviations_from_the_mean)
-    pub sdm: f64,
+    count: usize,
+    mean: f64,
+    sdm: f64,
 }
 
 impl Accumulator {
@@ -49,6 +64,24 @@ impl Accumulator {
             mean: 0.0,
             sdm: 0.0,
         }
+    }
+
+    /// The number of seen values
+    #[must_use]
+    pub const fn count(self) -> usize {
+        self.count
+    }
+
+    /// The mean of the seen values
+    #[must_use]
+    pub const fn mean(self) -> f64 {
+        self.mean
+    }
+
+    /// [Squared deviations from the mean](https://en.wikipedia.org/wiki/Squared_deviations_from_the_mean)
+    #[must_use]
+    pub const fn sdm(self) -> f64 {
+        self.sdm
     }
 
     /// Update the accumulator with a new value
