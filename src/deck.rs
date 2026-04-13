@@ -188,10 +188,7 @@ impl<R: Rng + ?Sized> FusedIterator for FillDeals<'_, R> {}
 ///
 /// [`Error::Invalid`] if `deal` is invalid determined by
 /// [`Deal::validate_and_collect`].
-pub fn fill_deals<R: Rng + ?Sized>(
-    rng: &mut R,
-    deal: Deal,
-) -> Result<FillDeals<'_, R>, Error> {
+pub fn fill_deals<R: Rng + ?Sized>(rng: &mut R, deal: Deal) -> Result<FillDeals<'_, R>, Error> {
     Ok(FillDeals {
         rng,
         deal,
