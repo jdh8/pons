@@ -359,8 +359,8 @@ impl Logits {
     ///
     /// The maximum value is set to one for numerical stability.
     #[must_use]
-    pub fn to_odds(self) -> Array<f32> {
-        let max = self.into_values().fold(f32::NEG_INFINITY, f32::max);
+    pub fn to_odds(&self) -> Array<f32> {
+        let max = self.values().copied().fold(f32::NEG_INFINITY, f32::max);
         Array(core::array::from_fn(|i| (self.0.0[i] - max).exp()))
     }
 }
