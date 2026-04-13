@@ -3,6 +3,7 @@ use core::convert::Infallible;
 use core::iter::Enumerate;
 use core::mem::MaybeUninit;
 use core::ops::{Deref, DerefMut, Index, IndexMut, Range, RangeFrom, RangeFull, RangeInclusive};
+use dds_bridge::Level;
 
 /// Number of possible calls
 const CALL_VARIANTS: usize = 3 + 7 * 5;
@@ -13,19 +14,19 @@ const fn encode_call(call: Call) -> usize {
         Call::Pass => 0,
         Call::Double => 1,
         Call::Redouble => 2,
-        Call::Bid(bid) => 3 + (bid.level - 1) as usize * 5 + bid.strain as usize,
+        Call::Bid(bid) => 3 + (bid.level.get() as usize - 1) * 5 + bid.strain as usize,
     }
 }
 
 const _: () = {
     let mut calls = [Call::Pass; CALL_VARIANTS];
-    let mut level = 1;
+    let mut level: u8 = 1;
     let mut strain = 0;
 
     while level <= 7 {
         while strain <= 4 {
             let bid = Bid {
-                level,
+                level: Level::new(level),
                 strain: Strain::ASC[strain],
             };
             calls[encode_call(Call::Bid(bid))] = Call::Bid(bid);
@@ -58,9 +59,8 @@ const fn decode_call(index: usize) -> Call {
             let (level, strain) = (code / 5, code % 5);
 
             Call::Bid(super::Bid {
-                // SAFETY: Maximum `level` is within `u8`
                 #[allow(clippy::cast_possible_truncation)]
-                level: level as u8,
+                level: Level::new(level as u8),
                 strain: super::Strain::ASC[strain],
             })
         }

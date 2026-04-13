@@ -1,10 +1,9 @@
 use super::bidding::array::Array;
+use super::bidding::Call;
 use core::fmt;
-use core::num::Wrapping;
 use core::ops::{Index, IndexMut};
-use dds_bridge::contract::{Call, Contract, Penalty, Strain};
-use dds_bridge::deal::Seat;
-use dds_bridge::solver::{self, Error, Vulnerability};
+use dds_bridge::solver::{self, SystemError, Vulnerability};
+use dds_bridge::{Contract, Penalty, Seat, Strain};
 use std::num::NonZeroUsize;
 
 /// Representation of statistics on a variable
@@ -182,7 +181,7 @@ pub fn average_ns_par(
     histogram: HistogramTable,
     vul: Vulnerability,
     dealer: Seat,
-) -> Result<(f64, Option<(Contract, Seat)>), Error> {
+) -> Result<(f64, Option<(Contract, Seat)>), SystemError> {
     #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
     const fn score(contract: Contract, hist: [usize; 14], vul: bool) -> i64 {
         let mut sum = 0;
@@ -206,7 +205,7 @@ pub fn average_ns_par(
             Call::Bid(bid) => {
                 let normal = Contract {
                     bid,
-                    penalty: Penalty::None,
+                    penalty: Penalty::Undoubled,
                 };
                 let doubled = Contract {
                     bid,
@@ -247,9 +246,9 @@ pub fn average_ns_par(
         }
     };
     improve_for(dealer);
-    improve_for(dealer - Wrapping(1));
-    improve_for(dealer - Wrapping(2));
-    improve_for(dealer - Wrapping(3));
+    improve_for(dealer.rho());
+    improve_for(dealer.partner());
+    improve_for(dealer.lho());
     improve_for(dealer);
 
     #[allow(clippy::cast_precision_loss)]

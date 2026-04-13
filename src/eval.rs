@@ -1,6 +1,6 @@
 use core::cmp::Ord;
 use core::iter::Sum;
-use dds_bridge::deal::{Hand, Holding, SmallSet};
+use dds_bridge::{Hand, Holding, Rank, Suit};
 
 /// Trait for hand evaluators
 pub trait HandEvaluator<T> {
@@ -31,7 +31,7 @@ pub struct SimpleEvaluator<T: Sum, F: Fn(Holding) -> T>(pub F);
 
 impl<T: Sum, F: Fn(Holding) -> T> HandEvaluator<T> for SimpleEvaluator<T, F> {
     fn eval(&self, hand: Hand) -> T {
-        hand.0.into_iter().map(&self.0).sum()
+        Suit::ASC.into_iter().map(|s| (self.0)(hand[s])).sum()
     }
 }
 
@@ -49,10 +49,10 @@ impl<T: Sum, F: Copy + Fn(Holding) -> T> Copy for SimpleEvaluator<T, F> {}
 #[must_use]
 pub fn hcp<T: From<u8>>(holding: Holding) -> T {
     T::from(
-        4 * u8::from(holding.contains(14))
-            + 3 * u8::from(holding.contains(13))
-            + 2 * u8::from(holding.contains(12))
-            + u8::from(holding.contains(11)),
+        4 * u8::from(holding.contains(Rank::A))
+            + 3 * u8::from(holding.contains(Rank::K))
+            + 2 * u8::from(holding.contains(Rank::Q))
+            + u8::from(holding.contains(Rank::J)),
     )
 }
 
@@ -72,11 +72,11 @@ pub fn shortness<T: From<u8>>(holding: Holding) -> T {
 #[must_use]
 pub fn fifths(holding: Holding) -> f64 {
     f64::from(
-        40 * i32::from(holding.contains(14))
-            + 28 * i32::from(holding.contains(13))
-            + 18 * i32::from(holding.contains(12))
-            + 10 * i32::from(holding.contains(11))
-            + 4 * i32::from(holding.contains(10)),
+        40 * i32::from(holding.contains(Rank::A))
+            + 28 * i32::from(holding.contains(Rank::K))
+            + 18 * i32::from(holding.contains(Rank::Q))
+            + 10 * i32::from(holding.contains(Rank::J))
+            + 4 * i32::from(holding.contains(Rank::T)),
     ) / 10.0
 }
 
@@ -86,11 +86,11 @@ pub fn fifths(holding: Holding) -> f64 {
 #[must_use]
 pub fn bumrap(holding: Holding) -> f64 {
     f64::from(
-        18 * i32::from(holding.contains(14))
-            + 12 * i32::from(holding.contains(13))
-            + 6 * i32::from(holding.contains(12))
-            + 3 * i32::from(holding.contains(11))
-            + i32::from(holding.contains(10)),
+        18 * i32::from(holding.contains(Rank::A))
+            + 12 * i32::from(holding.contains(Rank::K))
+            + 6 * i32::from(holding.contains(Rank::Q))
+            + 3 * i32::from(holding.contains(Rank::J))
+            + i32::from(holding.contains(Rank::T)),
     ) * 0.25
 }
 
@@ -100,9 +100,9 @@ pub fn ltc<T: From<u8>>(holding: Holding) -> T {
     let len = holding.len();
 
     T::from(
-        u8::from(len >= 1 && !holding.contains(14))
-            + u8::from(len >= 2 && !holding.contains(13))
-            + u8::from(len >= 3 && !holding.contains(12)),
+        u8::from(len >= 1 && !holding.contains(Rank::A))
+            + u8::from(len >= 2 && !holding.contains(Rank::K))
+            + u8::from(len >= 3 && !holding.contains(Rank::Q)),
     )
 }
 
@@ -114,9 +114,9 @@ pub fn nltc(holding: Holding) -> f64 {
     let len = holding.len();
 
     f64::from(
-        3 * i32::from(len >= 1 && !holding.contains(14))
-            + 2 * i32::from(len >= 2 && !holding.contains(13))
-            + i32::from(len >= 3 && !holding.contains(12)),
+        3 * i32::from(len >= 1 && !holding.contains(Rank::A))
+            + 2 * i32::from(len >= 2 && !holding.contains(Rank::K))
+            + i32::from(len >= 3 && !holding.contains(Rank::Q)),
     ) * 0.5
 }
 
@@ -167,8 +167,8 @@ pub const NLTC: SimpleEvaluator<f64, fn(Holding) -> f64> = SimpleEvaluator(nltc)
 ///
 /// [zar]: https://en.wikipedia.org/wiki/Zar_Points
 pub fn zar<T: From<u8>>(hand: Hand) -> T {
-    let holdings = hand.0;
-    let mut lengths = holdings.map(SmallSet::len);
+    let holdings = Suit::ASC.map(|s| hand[s]);
+    let mut lengths = holdings.map(Holding::len);
     lengths.sort_unstable();
 
     // SAFETY: the lengths are at most 13, so the cast is safe.
@@ -182,7 +182,7 @@ pub fn zar<T: From<u8>>(hand: Hand) -> T {
     let honors: u8 = holdings
         .into_iter()
         .map(|holding| {
-            let [a, k, q, j] = [14, 13, 12, 11].map(|r| holding.contains(r));
+            let [a, k, q, j] = [Rank::A, Rank::K, Rank::Q, Rank::J].map(|r| holding.contains(r));
             let count = 6 * u8::from(a) + 4 * u8::from(k) + 2 * u8::from(q) + u8::from(j);
             let waste = match holding.len() {
                 1 => k || q || j,
@@ -204,7 +204,7 @@ fn test_four_kings() {
 
     const KXXX: Holding = Holding::from_bits_truncate(0b01000_0000_0111_00);
     const KXX: Holding = Holding::from_bits_truncate(0b01000_0000_0011_00);
-    const HAND: Hand = Hand([KXXX, KXX, KXX, KXX]);
+    const HAND: Hand = Hand::new(KXXX, KXX, KXX, KXX);
 
     assert_eq!(SimpleEvaluator(hcp::<u8>).eval(HAND), 12);
     assert_ulps_eq!(FIFTHS.eval(HAND), 2.8 * 4.0);
@@ -225,7 +225,7 @@ fn test_random_from_cuebids() {
     const K84: Holding = Holding::from_bits_truncate(0b01000_0100_0100_00);
     const XX: Holding = Holding::from_bits_truncate(0b00000_0000_0110_00);
     const KT85: Holding = Holding::from_bits_truncate(0b01001_0100_1000_00);
-    const HAND: Hand = Hand([KT85, XX, K84, KJ53]);
+    const HAND: Hand = Hand::new(KT85, XX, K84, KJ53);
 
     assert_eq!(SimpleEvaluator(hcp::<u8>).eval(HAND), 10);
     assert_eq!(SimpleEvaluator(hcp_plus::<u8>).eval(HAND), 11);

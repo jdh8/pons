@@ -10,9 +10,28 @@ pub use map::Map;
 pub use trie::Trie;
 
 use core::ops::Deref;
-use dds_bridge::contract::{Bid, Call, Penalty, Strain};
-use dds_bridge::deal::Hand;
+use dds_bridge::{Bid, Hand, Penalty, Strain};
 use thiserror::Error;
+
+/// Any legal announcement in the bidding stage
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Call {
+    /// A call indicating no wish to change the contract
+    Pass,
+    /// A call increasing penalties and bonuses for the contract
+    Double,
+    /// A call doubling the score to the previous double
+    Redouble,
+    /// A call proposing a contract
+    Bid(Bid),
+}
+
+impl From<Bid> for Call {
+    #[inline]
+    fn from(bid: Bid) -> Self {
+        Self::Bid(bid)
+    }
+}
 
 bitflags::bitflags! {
     /// Vulnerability of sides
@@ -129,17 +148,6 @@ impl Auction {
 
     /// Test bidding a contract (dry run)
     fn can_bid(&self, bid: Bid) -> Result<(), IllegalCall> {
-        if bid.level < 1 {
-            return Err(IllegalCall::InsufficientBid {
-                this: bid,
-                last: None,
-            });
-        }
-
-        if bid.level > 7 {
-            return Err(IllegalCall::BidOfMoreThanSeven(bid));
-        }
-
         let last = self.iter().rev().find_map(|&call| match call {
             Call::Bid(bid) => Some(bid),
             _ => None,

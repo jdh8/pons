@@ -1,8 +1,7 @@
 use clap::Parser;
-use dds_bridge::deal::{Deal, Hand, Seat, SmallSet as _};
-use dds_bridge::deck;
 use dds_bridge::solver::{self, StrainFlags, Vulnerability};
-use pons::stats;
+use dds_bridge::{Deal, Hand, Seat};
+use pons::{deck, stats};
 
 /// Emulate par score for North-South by simulating random deals
 #[derive(Parser)]
@@ -33,9 +32,9 @@ struct Args {
 
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
-    let cards = Deal([args.north, Hand::EMPTY, args.south, Hand::EMPTY]);
-    let deals = deck::fill_n_deals(&mut rand::rng(), &cards, args.count)?;
-    let solutions = solver::solve_deals(&deals, StrainFlags::all())?;
+    let cards = Deal::new(args.north, Hand::EMPTY, args.south, Hand::EMPTY);
+    let deals: Vec<_> = deck::fill_deals(&mut rand::rng(), &cards)?.take(args.count).collect();
+    let solutions = solver::Solver::lock().solve_deals(&deals, StrainFlags::all())?;
 
     let (score, contract) = stats::average_ns_par(
         solutions.into_iter().collect(),
@@ -47,10 +46,10 @@ fn main() -> anyhow::Result<()> {
         Some((contract, seat)) => {
             println!(
                 "NS par: {}{}{}{}, {score:.0}",
-                contract.bid.level,
-                contract.bid.strain.unicode(),
+                contract.bid.level.get(),
+                contract.bid.strain,
                 contract.penalty,
-                char::from(seat)
+                seat.letter()
             );
         }
         None => println!("NS par: P, {score:.0}"),

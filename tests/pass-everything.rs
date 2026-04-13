@@ -1,5 +1,4 @@
-use dds_bridge::contract::Call;
-use dds_bridge::deal::Hand;
+use dds_bridge::Hand;
 use pons::bidding::*;
 
 const JUST_PASS: array::Logits = {
