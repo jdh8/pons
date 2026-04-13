@@ -4,7 +4,7 @@ use core::fmt;
 use core::ops::{Index, IndexMut};
 use dds_bridge::solver::{self, SystemError, Vulnerability};
 use dds_bridge::{Contract, Penalty, Seat, Strain};
-use std::num::NonZeroUsize;
+use std::num::NonZero;
 
 /// Representation of statistics on a variable
 ///
@@ -131,11 +131,10 @@ impl HistogramRow {
 
     /// Count the total number of entries in the histogram
     #[must_use]
-    pub fn count(&self) -> usize {
+    pub fn count(&self) -> Option<NonZero<usize>> {
         self.0
             .into_iter()
-            .find_map(|hist| NonZeroUsize::new(hist.into_iter().sum()))
-            .map_or(0, NonZeroUsize::get)
+            .find_map(|hist| NonZero::new(hist.into_iter().sum()))
     }
 }
 
@@ -170,7 +169,7 @@ impl HistogramTable {
 
     /// Count the total number of entries in the histogram
     #[must_use]
-    pub fn count(self) -> usize {
+    pub fn count(self) -> Option<NonZero<usize>> {
         self.0[0].count()
     }
 }
@@ -223,7 +222,7 @@ pub fn average_ns_par(
     histogram: HistogramTable,
     vul: Vulnerability,
     dealer: Seat,
-) -> Result<ParResult, SystemError> {
+) -> Result<Option<ParResult>, SystemError> {
     #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
     const fn score(contract: Contract, hist: [usize; 14], vul: bool) -> i64 {
         let mut sum = 0;
@@ -235,6 +234,10 @@ pub fn average_ns_par(
         }
         sum
     }
+
+    let Some(count) = histogram.count() else {
+        return Ok(None);
+    };
 
     // seat -> bid -> (score, contract)
     let scores = Seat::ALL.map(|seat| {
@@ -294,8 +297,8 @@ pub fn average_ns_par(
     improve_for(dealer);
 
     #[allow(clippy::cast_precision_loss)]
-    Ok(ParResult {
-        score: par_score as f64 / (histogram.count() as f64),
+    Ok(Some(ParResult {
+        score: par_score as f64 / count.get() as f64,
         contract: par_contract,
-    })
+    }))
 }

@@ -46,6 +46,11 @@ fn main() -> anyhow::Result<()> {
         args.dealer,
     )?;
 
+    let Some(par) = par else {
+        println!("No data");
+        return Ok(());
+    };
+
     match par.contract {
         Some((contract, seat)) => println!("NS par: {contract}{seat}, {:.0}", par.score),
         None => println!("NS par: P, {:.0}", par.score),
