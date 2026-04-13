@@ -218,11 +218,37 @@ impl Auction {
         self.0.truncate(len);
     }
 
-    /// Search the index of the declaring bid
+    /// Find the position of the declaring bid in the call sequence
     ///
-    /// The first player of the declaring side who first bids the strain of
-    /// the contract is the declarer.  This method locates the bid that makes
-    /// the declarer.
+    /// The declarer is the first player on the declaring side to have bid the
+    /// strain of the final contract.  This method returns the index of that
+    /// bid in `self`, so `self[index]` is the declaring bid.
+    ///
+    /// The index also encodes the relative seat: `index % 2 == 0` is the
+    /// dealer's side, and `index % 2 == 1` is the other side.  To obtain the
+    /// absolute [`dds_bridge::Seat`], add the dealer's seat offset modulo 4.
+    ///
+    /// Returns [`None`] if the auction has no bid (passed out).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use pons::bidding::{Auction, Call};
+    /// use dds_bridge::{Bid, Level, Strain};
+    ///
+    /// // 1♥ by opener (index 1), raised to 4♥ — declarer bid 1♥ at index 1
+    /// let mut auction = Auction::new();
+    /// let one_heart = Call::Bid(Bid { level: Level::new(1), strain: Strain::Hearts });
+    /// let four_hearts = Call::Bid(Bid { level: Level::new(4), strain: Strain::Hearts });
+    /// auction.try_push(Call::Pass).unwrap();  // index 0 (dealer)
+    /// auction.try_push(one_heart).unwrap();   // index 1 (declarer)
+    /// auction.try_push(Call::Pass).unwrap();  // index 2
+    /// auction.try_push(four_hearts).unwrap(); // index 3 (dummy)
+    /// auction.try_push(Call::Pass).unwrap();
+    /// auction.try_push(Call::Pass).unwrap();
+    /// auction.try_push(Call::Pass).unwrap();
+    /// assert_eq!(auction.declarer(), Some(1));
+    /// ```
     #[must_use]
     pub fn declarer(&self) -> Option<usize> {
         let (parity, strain) =
