@@ -15,6 +15,9 @@ use dds_bridge::{Bid, Hand, Penalty, Strain};
 use thiserror::Error;
 
 /// Any legal announcement in the bidding stage
+///
+/// This enum is intentionally exhaustive: the laws of contract bridge define
+/// exactly these call types, so no future variants are possible.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Call {
     /// A call indicating no wish to change the contract
@@ -58,6 +61,7 @@ impl RelativeVulnerability {
 ///
 /// [laws]: http://www.worldbridge.org/wp-content/uploads/2017/03/2017LawsofDuplicateBridge-nohighlights.pdf
 #[derive(Debug, Error, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum IllegalCall {
     /// Law 27: insufficient bid
     #[error("Law 27: insufficient bid")]

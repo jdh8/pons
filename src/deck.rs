@@ -7,6 +7,7 @@ use thiserror::Error;
 
 /// Error while generating deals
 #[derive(Debug, Error, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum Error {
     /// The deck is already full and cannot accept more cards.
     #[error("{0}")]
