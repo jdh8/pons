@@ -1,4 +1,5 @@
 use super::{Auction, Call, Hand, IllegalCall, Map, RelativeVulnerability};
+use core::iter::FusedIterator;
 use core::ops::{Index, IndexMut};
 use std::sync::Arc;
 
@@ -217,6 +218,8 @@ impl<'a> Iterator for Suffixes<'a> {
     }
 }
 
+impl FusedIterator for Suffixes<'_> {}
+
 /// Common prefix iterator for a given auction
 #[derive(Clone)]
 pub struct CommonPrefixes<'a> {
@@ -253,6 +256,8 @@ impl<'a> Iterator for CommonPrefixes<'a> {
         Some((self.query[..self.depth].into(), self.value.take()?))
     }
 }
+
+impl FusedIterator for CommonPrefixes<'_> {}
 
 /// A bidding system aware of vulnerability
 #[derive(Clone)]
