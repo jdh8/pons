@@ -116,7 +116,7 @@ impl Deck {
     pub fn pop(&mut self, rng: &mut (impl Rng + ?Sized)) -> Option<Card> {
         match self.cards.len() {
             ..=1 => self.cards.pop(),
-            len => self.cards.swap_pop(rng.random_range(0..len)),
+            len => self.cards.swap_pop(rng.random_range(..len)),
         }
     }
 }
@@ -144,9 +144,9 @@ pub fn full_deal(rng: &mut (impl Rng + ?Sized)) -> Deal {
 
     Deal::new(
         rest.iter().copied().collect(),
-        shuffled[00..13].iter().copied().collect(),
+        shuffled[..13].iter().copied().collect(),
         shuffled[13..26].iter().copied().collect(),
-        shuffled[26..39].iter().copied().collect(),
+        shuffled[26..].iter().copied().collect(),
     )
 }
 
