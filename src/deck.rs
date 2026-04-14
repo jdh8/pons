@@ -1,7 +1,6 @@
+use arrayvec::{ArrayVec, CapacityError};
 use core::iter::FusedIterator;
 use dds_bridge::{Card, Deal, Hand, Rank, Seat, Suit};
-
-use arrayvec::{ArrayVec, CapacityError};
 use rand::prelude::SliceRandom as _;
 use rand::{Rng, RngExt as _};
 use thiserror::Error;
@@ -84,13 +83,16 @@ impl Deck {
         self.cards.try_push(card)
     }
 
-    /// Try pushing cards in a hand into the deck
+    /// Try pushing cards into the deck
     ///
     /// # Errors
     ///
     /// [`CapacityError`] if the resulting deck would contain more than 52 cards.
-    pub fn try_extend(&mut self, hand: Hand) -> Result<(), CapacityError<Card>> {
-        for card in hand {
+    pub fn try_extend(
+        &mut self,
+        iter: impl IntoIterator<Item = Card>,
+    ) -> Result<(), CapacityError<Card>> {
+        for card in iter {
             self.try_push(card)?;
         }
         Ok(())
@@ -102,9 +104,9 @@ impl Deck {
         self.cards.drain(..).collect()
     }
 
-    /// Randomly pick `n` cards from the deck and collect them into a hand.
+    /// Randomly draw `n` cards from the deck and collect them into a hand.
     #[must_use]
-    pub fn partial_shuffle(&mut self, rng: &mut (impl Rng + ?Sized), n: usize) -> Hand {
+    pub fn draw(&mut self, rng: &mut (impl Rng + ?Sized), n: usize) -> Hand {
         self.cards.partial_shuffle(rng, n);
         self.cards.drain(self.cards.len() - n..).collect()
     }
@@ -113,7 +115,7 @@ impl Deck {
     #[must_use]
     pub fn pop(&mut self, rng: &mut (impl Rng + ?Sized)) -> Option<Card> {
         match self.cards.len() {
-            0..=1 => self.cards.pop(),
+            ..=1 => self.cards.pop(),
             len => self.cards.swap_pop(rng.random_range(0..len)),
         }
     }
@@ -125,17 +127,17 @@ impl Default for Deck {
     }
 }
 
-impl TryFrom<Hand> for Deck {
-    type Error = CapacityError<Card>;
-
-    fn try_from(hand: Hand) -> Result<Self, Self::Error> {
+impl From<Hand> for Deck {
+    fn from(hand: Hand) -> Self {
         let mut deck = Self::new();
-        deck.try_extend(hand)?;
-        Ok(deck)
+        deck.try_extend(hand)
+            .expect("a Hand has at most 52 cards, which fits in a Deck");
+        deck
     }
 }
 
 /// Shuffle and evenly deal 52 cards into 4 hands
+#[must_use]
 pub fn full_deal(rng: &mut (impl Rng + ?Sized)) -> Deal {
     let mut deck = Deck::standard_52().cards;
     let (shuffled, rest) = deck.partial_shuffle(rng, 39);
@@ -168,7 +170,7 @@ impl<R: Rng + ?Sized> Iterator for FillDeals<'_, R> {
     fn next(&mut self) -> Option<Deal> {
         let mut deck = self.deck.clone();
         let mut deal = self.deal;
-        let mut fill = |hand: &mut Hand| *hand |= deck.partial_shuffle(self.rng, 13 - hand.len());
+        let mut fill = |hand: &mut Hand| *hand |= deck.draw(self.rng, 13 - hand.len());
 
         fill(&mut deal[self.shortest.lho()]);
         fill(&mut deal[self.shortest.partner()]);
@@ -188,11 +190,12 @@ impl<R: Rng + ?Sized> FusedIterator for FillDeals<'_, R> {}
 ///
 /// [`Error::Invalid`] if `deal` is invalid determined by
 /// [`Deal::validate_and_collect`].
+#[must_use = "iterators are lazy and do nothing unless consumed"]
 pub fn fill_deals<R: Rng + ?Sized>(rng: &mut R, deal: Deal) -> Result<FillDeals<'_, R>, Error> {
     Ok(FillDeals {
         rng,
         deal,
-        deck: Deck::try_from(!deal.validate_and_collect().ok_or(Error::Invalid)?)?,
+        deck: Deck::from(!deal.validate_and_collect().ok_or(Error::Invalid)?),
 
         #[allow(clippy::missing_panics_doc)]
         shortest: Seat::ALL
