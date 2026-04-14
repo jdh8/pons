@@ -39,7 +39,7 @@ fn eval_random_deals(n: usize) -> Result<[Statistics; 64], solver::SystemError> 
             })
         })
         .fold([Accumulator::default(); 64], |mut acc, (eval, tricks)| {
-            acc[(eval - 16).min(64) as usize].push(tricks.into());
+            acc[eval.saturating_sub(16).min(63) as usize].push(tricks.into());
             acc
         })
         .map(Accumulator::sample))

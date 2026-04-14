@@ -98,15 +98,20 @@ impl Deck {
         Ok(())
     }
 
-    /// Drain the remaining cards in the deck into a hand.
+    /// Take the remaining cards in the deck into a hand.
     #[must_use]
-    pub fn drain(&mut self) -> Hand {
+    pub fn take(&mut self) -> Hand {
         self.cards.drain(..).collect()
     }
 
     /// Randomly draw `n` cards from the deck and collect them into a hand.
+    ///
+    /// If `n >= self.len()`, all remaining cards are drawn without shuffling.
     #[must_use]
     pub fn draw(&mut self, rng: &mut (impl Rng + ?Sized), n: usize) -> Hand {
+        if n >= self.cards.len() {
+            return self.take();
+        }
         self.cards.partial_shuffle(rng, n);
         self.cards.drain(self.cards.len() - n..).collect()
     }
@@ -176,7 +181,7 @@ impl<R: Rng + ?Sized> Iterator for FillDeals<'_, R> {
         fill(&mut deal[self.shortest.partner()]);
         fill(&mut deal[self.shortest.rho()]);
 
-        deal[self.shortest] |= deck.drain();
+        deal[self.shortest] |= deck.take();
         Some(deal)
     }
 }

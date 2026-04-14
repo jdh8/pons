@@ -104,6 +104,8 @@ impl Accumulator {
     }
 
     /// Compute sample mean and standard deviation
+    ///
+    /// Returns `sd = NaN` when `count <= 1` (undefined for fewer than 2 samples).
     #[must_use]
     #[allow(clippy::cast_precision_loss)]
     pub fn sample(self) -> Statistics {

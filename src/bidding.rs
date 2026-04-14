@@ -72,10 +72,6 @@ pub enum IllegalCall {
     #[error("Law 36: inadmissible doubles and redoubles")]
     InadmissibleDouble(Penalty),
 
-    /// Law 38: bid of more than seven
-    #[error("Law 38: bid of more than seven")]
-    BidOfMoreThanSeven(Bid),
-
     /// Law 39: call after the final pass
     #[error("Law 39: call after the final pass")]
     AfterFinalPass,
@@ -109,6 +105,24 @@ impl Borrow<[Call]> for Auction {
 impl From<Auction> for Vec<Call> {
     fn from(auction: Auction) -> Self {
         auction.0
+    }
+}
+
+impl IntoIterator for Auction {
+    type Item = Call;
+    type IntoIter = std::vec::IntoIter<Call>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
+impl<'a> IntoIterator for &'a Auction {
+    type Item = &'a Call;
+    type IntoIter = core::slice::Iter<'a, Call>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.iter()
     }
 }
 

@@ -346,9 +346,17 @@ impl Logits {
     /// Compute the softmax (normalized probability distribution)
     ///
     /// The maximum logit is subtracted before exponentiation for numerical stability.
+    ///
+    /// If all logits are [`f32::NEG_INFINITY`] (the default), a uniform
+    /// distribution is returned, reflecting total ignorance.
     #[must_use]
     pub fn softmax(self) -> Array<f32> {
         let max = self.into_values().fold(f32::NEG_INFINITY, f32::max);
+
+        if max == f32::NEG_INFINITY {
+            #[allow(clippy::cast_precision_loss)]
+            return Array([1.0 / CALL_VARIANTS as f32; CALL_VARIANTS]);
+        }
         let exp: [_; CALL_VARIANTS] = core::array::from_fn(|i| (self.0.0[i] - max).exp());
         let sum: f32 = exp.iter().sum();
         Array(core::array::from_fn(|i| exp[i] / sum))

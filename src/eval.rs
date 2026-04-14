@@ -156,8 +156,11 @@ pub const BUMRAP: SimpleEvaluator<f64, fn(Holding) -> f64> = SimpleEvaluator(bum
 /// For each suit, we count max([BUM-RAP][BUMRAP], shortness, BUM-RAP +
 /// shortness &minus; 1).  This method avoids double counting of short honors.
 /// This evaluator is particularly useful for suit contracts.
-pub const BUMRAP_PLUS: SimpleEvaluator<f64, fn(Holding) -> f64> =
-    SimpleEvaluator(|x| bumrap(x).max(shortness(x)));
+pub const BUMRAP_PLUS: SimpleEvaluator<f64, fn(Holding) -> f64> = SimpleEvaluator(|x| {
+    let b: f64 = bumrap(x);
+    let s: f64 = shortness(x);
+    b.max(s).max(b + s - 1.0)
+});
 
 /// New Losing Trick Count
 ///
