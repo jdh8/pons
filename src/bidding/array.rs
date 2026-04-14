@@ -78,18 +78,6 @@ const _: () = {
     }
 };
 
-/// All calls in order of their encoding
-pub const KEYS: [Call; CALL_VARIANTS] = {
-    let mut calls = [Call::Pass; CALL_VARIANTS];
-    let mut index = 0;
-
-    while index < CALL_VARIANTS {
-        calls[index] = decode_call(index);
-        index += 1;
-    }
-    calls
-};
-
 #[test]
 #[should_panic(expected = "Invalid call ID!")]
 fn test_decode_call_invalid() {
