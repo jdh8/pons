@@ -1,10 +1,10 @@
 use dds_bridge::{Card, Deal, Hand, Rank, Seat, Suit};
-use pons::deck::{Error, fill_deals};
+use pons::deck::{InvalidDeal, fill_deals};
 use pons::{Deck, full_deal};
 
 #[test]
-fn test_deck_new_is_empty() {
-    let deck = Deck::new();
+fn test_deck_empty() {
+    let deck = Deck::EMPTY;
     assert_eq!(deck.len(), 0);
     assert!(deck.is_empty());
 }
@@ -16,57 +16,48 @@ fn test_deck_default() {
 }
 
 #[test]
-fn test_deck_standard_52() {
-    let deck = Deck::standard_52();
+fn test_deck_all() {
+    let deck = Deck::ALL;
     assert_eq!(deck.len(), 52);
     assert!(!deck.is_empty());
 }
 
 #[test]
-fn test_deck_standard_52_all_unique() {
-    let mut deck = Deck::standard_52();
+fn test_deck_all_unique() {
+    let mut deck = Deck::ALL;
     let hand = deck.take();
     assert_eq!(hand.len(), 52);
 }
 
 #[test]
-fn test_deck_try_push() {
-    let mut deck = Deck::new();
+fn test_deck_insert() {
+    let mut deck = Deck::EMPTY;
     let card = Card::new(Suit::Clubs, Rank::A);
-    assert!(deck.try_push(card).is_ok());
+    assert!(deck.insert(card));
     assert_eq!(deck.len(), 1);
 }
 
 #[test]
-fn test_deck_try_push_capacity() {
-    let mut deck = Deck::standard_52();
+fn test_deck_insert_duplicate() {
+    let mut deck = Deck::EMPTY;
     let card = Card::new(Suit::Clubs, Rank::A);
-    assert!(deck.try_push(card).is_err());
-}
-
-#[test]
-fn test_deck_try_extend() {
-    let mut deck = Deck::new();
-    let cards = [
-        Card::new(Suit::Clubs, Rank::A),
-        Card::new(Suit::Diamonds, Rank::K),
-    ];
-    assert!(deck.try_extend(cards).is_ok());
-    assert_eq!(deck.len(), 2);
+    assert!(deck.insert(card));
+    assert!(!deck.insert(card));
+    assert_eq!(deck.len(), 1);
 }
 
 #[test]
 fn test_deck_clear() {
-    let mut deck = Deck::standard_52();
+    let mut deck = Deck::ALL;
     deck.clear();
     assert!(deck.is_empty());
 }
 
 #[test]
 fn test_deck_take() {
-    let mut deck = Deck::new();
-    deck.try_push(Card::new(Suit::Clubs, Rank::A)).unwrap();
-    deck.try_push(Card::new(Suit::Diamonds, Rank::K)).unwrap();
+    let mut deck = Deck::EMPTY;
+    deck.insert(Card::new(Suit::Clubs, Rank::A));
+    deck.insert(Card::new(Suit::Diamonds, Rank::K));
     let hand = deck.take();
     assert_eq!(hand.len(), 2);
     assert!(deck.is_empty());
@@ -74,7 +65,7 @@ fn test_deck_take() {
 
 #[test]
 fn test_deck_draw() {
-    let mut deck = Deck::standard_52();
+    let mut deck = Deck::ALL;
     let rng = &mut rand::rng();
     let hand = deck.draw(rng, 13);
     assert_eq!(hand.len(), 13);
@@ -83,7 +74,7 @@ fn test_deck_draw() {
 
 #[test]
 fn test_deck_draw_all() {
-    let mut deck = Deck::standard_52();
+    let mut deck = Deck::ALL;
     let rng = &mut rand::rng();
     let hand = deck.draw(rng, 100);
     assert_eq!(hand.len(), 52);
@@ -92,7 +83,7 @@ fn test_deck_draw_all() {
 
 #[test]
 fn test_deck_pop() {
-    let mut deck = Deck::standard_52();
+    let mut deck = Deck::ALL;
     let rng = &mut rand::rng();
     let card = deck.pop(rng);
     assert!(card.is_some());
@@ -101,15 +92,15 @@ fn test_deck_pop() {
 
 #[test]
 fn test_deck_pop_empty() {
-    let mut deck = Deck::new();
+    let mut deck = Deck::EMPTY;
     let rng = &mut rand::rng();
     assert!(deck.pop(rng).is_none());
 }
 
 #[test]
 fn test_deck_pop_singleton() {
-    let mut deck = Deck::new();
-    deck.try_push(Card::new(Suit::Clubs, Rank::A)).unwrap();
+    let mut deck = Deck::EMPTY;
+    deck.insert(Card::new(Suit::Clubs, Rank::A));
     let rng = &mut rand::rng();
     let card = deck.pop(rng);
     assert_eq!(card, Some(Card::new(Suit::Clubs, Rank::A)));
@@ -211,6 +202,6 @@ fn test_fill_deals_iterator_is_infinite() {
 
 #[test]
 fn test_error_display() {
-    let err = Error::Invalid;
+    let err = InvalidDeal;
     assert!(!format!("{err}").is_empty());
 }

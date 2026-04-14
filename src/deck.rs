@@ -1,108 +1,57 @@
-use arrayvec::{ArrayVec, CapacityError};
 use core::iter::FusedIterator;
-use dds_bridge::{Card, Deal, Hand, Rank, Seat, Suit};
-use rand::prelude::SliceRandom as _;
+use dds_bridge::{Card, Deal, Hand, Seat};
 use rand::{Rng, RngExt as _};
 use thiserror::Error;
 
-/// Error while generating deals
+/// The deal is not a valid subset of a bridge deal
 #[derive(Debug, Error, Clone, Copy, PartialEq, Eq)]
-#[non_exhaustive]
-pub enum Error {
-    /// The deck is already full and cannot accept more cards.
-    #[error("{0}")]
-    Capacity(CapacityError<Card>),
-    /// The deal is not a valid subset of a bridge deal
-    #[error("The deal is not a valid subset of a bridge deal")]
-    Invalid,
-}
-
-impl From<CapacityError<Card>> for Error {
-    fn from(value: CapacityError<Card>) -> Self {
-        Self::Capacity(value)
-    }
-}
+#[error("The deal is not a valid subset of a bridge deal")]
+pub struct InvalidDeal;
 
 /// A subset of the standard 52-card deck
 ///
-/// It requires shuffling to partially retrieve cards from the deck.  However,
-/// it is deterministic to collect all cards.
-#[derive(Debug, Clone)]
-pub struct Deck {
-    cards: ArrayVec<Card, 52>,
-}
+/// This is a set of unique cards backed by [`Hand`].  Duplicates are
+/// structurally impossible.  It requires shuffling to partially retrieve
+/// cards from the deck.  However, it is deterministic to collect all cards.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct Deck(Hand);
 
 impl Deck {
-    /// The maximum number of cards in a deck
-    pub const CAPACITY: usize = 52;
-
     /// The standard 52-card deck
-    #[must_use]
-    pub fn standard_52() -> Self {
-        let mut cards = ArrayVec::new();
-        for i in 0..Self::CAPACITY {
-            // SAFETY: `i` < `Self::CAPACITY` = 52, so `(i >> 2) as u8 + 2` is
-            // in the range [2, 14], which is valid for `Rank`.
-            #[allow(clippy::cast_possible_truncation)]
-            let rank = Rank::new((i >> 2) as u8 + 2);
-            cards.push(Card::new(Suit::ASC[i & 3], rank));
-        }
-        Self { cards }
-    }
+    pub const ALL: Self = Self(Hand::ALL);
 
-    /// Create a new empty deck
-    #[must_use]
-    pub const fn new() -> Self {
-        Self {
-            cards: ArrayVec::new_const(),
-        }
-    }
+    /// An empty deck
+    pub const EMPTY: Self = Self(Hand::EMPTY);
 
     /// The number of cards currently in the deck
     #[must_use]
     pub const fn len(&self) -> usize {
-        self.cards.len()
+        self.0.len()
     }
 
     /// Whether the deck is empty
     #[must_use]
     pub const fn is_empty(&self) -> bool {
-        self.cards.is_empty()
+        self.0.is_empty()
     }
 
     /// Clear the deck, removing all the cards.
-    pub fn clear(&mut self) {
-        self.cards.clear();
+    pub const fn clear(&mut self) {
+        self.0 = Hand::EMPTY;
     }
 
-    /// Try pushing a card into the deck
+    /// Insert a card into the deck
     ///
-    /// # Errors
-    ///
-    /// [`CapacityError`] if the deck already contains 52 cards.
-    pub fn try_push(&mut self, card: Card) -> Result<(), CapacityError<Card>> {
-        self.cards.try_push(card)
-    }
-
-    /// Try pushing cards into the deck
-    ///
-    /// # Errors
-    ///
-    /// [`CapacityError`] if the resulting deck would contain more than 52 cards.
-    pub fn try_extend(
-        &mut self,
-        iter: impl IntoIterator<Item = Card>,
-    ) -> Result<(), CapacityError<Card>> {
-        for card in iter {
-            self.try_push(card)?;
-        }
-        Ok(())
+    /// Returns `true` if the card was newly inserted, `false` if it was
+    /// already present.
+    pub fn insert(&mut self, card: Card) -> bool {
+        self.0.insert(card)
     }
 
     /// Take the remaining cards in the deck into a hand.
     #[must_use]
-    pub fn take(&mut self) -> Hand {
-        self.cards.drain(..).collect()
+    pub const fn take(&mut self) -> Hand {
+        core::mem::replace(&mut self.0, Hand::EMPTY)
     }
 
     /// Randomly draw `n` cards from the deck and collect them into a hand.
@@ -110,49 +59,47 @@ impl Deck {
     /// If `n >= self.len()`, all remaining cards are drawn without shuffling.
     #[must_use]
     pub fn draw(&mut self, rng: &mut (impl Rng + ?Sized), n: usize) -> Hand {
-        if n >= self.cards.len() {
+        let len = self.0.len();
+        if n >= len {
             return self.take();
         }
-        self.cards.partial_shuffle(rng, n);
-        self.cards.drain(self.cards.len() - n..).collect()
+
+        let mut hand = Hand::EMPTY;
+        for i in 0..n {
+            // Clear random number of lowest set bits so the new lowest is our pick.
+            let bits = (0..rng.random_range(..len - i))
+                .fold(self.0.to_bits(), |bits, _| bits & (bits - 1));
+            // Isolate the lowest set bit and move it from deck to hand.
+            let selected = Hand::from_bits_retain(bits & bits.wrapping_neg());
+            hand |= selected;
+            self.0 ^= selected;
+        }
+        hand
     }
 
     /// Randomly pop a card from the deck
     #[must_use]
     pub fn pop(&mut self, rng: &mut (impl Rng + ?Sized)) -> Option<Card> {
-        match self.cards.len() {
-            ..=1 => self.cards.pop(),
-            len => self.cards.swap_pop(rng.random_range(..len)),
-        }
-    }
-}
-
-impl Default for Deck {
-    fn default() -> Self {
-        Self::new()
+        self.draw(rng, 1).into_iter().next()
     }
 }
 
 impl From<Hand> for Deck {
     fn from(hand: Hand) -> Self {
-        let mut deck = Self::new();
-        deck.try_extend(hand)
-            .expect("a Hand has at most 52 cards, which fits in a Deck");
-        deck
+        Self(hand)
     }
 }
 
 /// Shuffle and evenly deal 52 cards into 4 hands
 #[must_use]
 pub fn full_deal(rng: &mut (impl Rng + ?Sized)) -> Deal {
-    let mut deck = Deck::standard_52().cards;
-    let (shuffled, rest) = deck.partial_shuffle(rng, 39);
+    let mut deck = Deck::ALL;
 
     Deal::new(
-        rest.iter().copied().collect(),
-        shuffled[..13].iter().copied().collect(),
-        shuffled[13..26].iter().copied().collect(),
-        shuffled[26..].iter().copied().collect(),
+        deck.draw(rng, 13),
+        deck.draw(rng, 13),
+        deck.draw(rng, 13),
+        deck.take(),
     )
 }
 
@@ -174,7 +121,7 @@ impl<R: Rng + ?Sized> Iterator for FillDeals<'_, R> {
     type Item = Deal;
 
     fn next(&mut self) -> Option<Deal> {
-        let mut deck = self.deck.clone();
+        let mut deck = self.deck;
         let mut deal = self.deal;
         let mut fill = |hand: &mut Hand| *hand |= deck.draw(self.rng, 13 - hand.len());
 
@@ -194,14 +141,17 @@ impl<R: Rng + ?Sized> FusedIterator for FillDeals<'_, R> {}
 ///
 /// # Errors
 ///
-/// [`Error::Invalid`] if `deal` is invalid determined by
+/// [`InvalidDeal`] if `deal` is invalid determined by
 /// [`Deal::validate_and_collect`].
 #[must_use = "iterators are lazy and do nothing unless consumed"]
-pub fn fill_deals<R: Rng + ?Sized>(rng: &mut R, deal: Deal) -> Result<FillDeals<'_, R>, Error> {
+pub fn fill_deals<R: Rng + ?Sized>(
+    rng: &mut R,
+    deal: Deal,
+) -> Result<FillDeals<'_, R>, InvalidDeal> {
     Ok(FillDeals {
         rng,
         deal,
-        deck: Deck::from(!deal.validate_and_collect().ok_or(Error::Invalid)?),
+        deck: Deck::from(!deal.validate_and_collect().ok_or(InvalidDeal)?),
 
         #[allow(clippy::missing_panics_doc)]
         shortest: Seat::ALL
