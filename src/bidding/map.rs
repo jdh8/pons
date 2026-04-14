@@ -40,12 +40,6 @@ impl<T> Map<T> {
         self.0.get_mut(call)
     }
 
-    /// Get the mutable reference to the value
-    #[must_use]
-    pub const fn get_mut(&mut self, call: Call) -> Option<&mut T> {
-        self.entry(call).as_mut()
-    }
-
     /// Insert a value for a call, replacing the existing one if any
     pub const fn insert(&mut self, call: Call, value: T) -> Option<T> {
         self.entry(call).replace(value)
