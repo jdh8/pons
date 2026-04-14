@@ -10,7 +10,7 @@ const JUST_PASS: array::Logits = {
 #[test]
 fn test_pass_everything() {
     let mut trie = Trie::new();
-    trie.insert(&[], |_, _, _| JUST_PASS);
+    trie.insert(&[], |_, _| JUST_PASS);
 
     assert_eq!(
         trie.classify(Hand::default(), RelativeVulnerability::NONE, Auction::new()),

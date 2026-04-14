@@ -330,7 +330,7 @@ impl System for Trie {
         auction: Auction,
     ) -> Option<array::Logits> {
         self.get(&auction)
-            .map(|f| f(hand, vul, self.common_prefixes(auction)))
+            .map(|f| f.classify(hand, vul, self.common_prefixes(auction)))
     }
 }
 

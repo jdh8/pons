@@ -1,8 +1,31 @@
 use super::{Auction, Call, Hand, IllegalCall, Map, RelativeVulnerability};
 use core::ops::{Index, IndexMut};
+use std::sync::Arc;
 
-/// Function that classifies a hand into logits for each call
-pub type Classifier = fn(Hand, RelativeVulnerability, CommonPrefixes) -> super::array::Logits;
+/// Trait for a function that classifies a hand into logits for each call
+pub trait Classifier: Send + Sync {
+    /// Classify a hand with the given context into logits
+    fn classify(
+        &self,
+        hand: Hand,
+        vul: RelativeVulnerability,
+        prefixes: CommonPrefixes<'_>,
+    ) -> super::array::Logits;
+}
+
+impl<F> Classifier for F
+where
+    F: Fn(Hand, RelativeVulnerability) -> super::array::Logits + Send + Sync,
+{
+    fn classify(
+        &self,
+        hand: Hand,
+        vul: RelativeVulnerability,
+        _: CommonPrefixes<'_>,
+    ) -> super::array::Logits {
+        self(hand, vul)
+    }
+}
 
 /// Decision trie as a vulnerability-agnostic bidding system
 ///
@@ -12,7 +35,7 @@ pub type Classifier = fn(Hand, RelativeVulnerability, CommonPrefixes) -> super::
 #[derive(Clone)]
 pub struct Trie {
     children: Map<Box<Self>>,
-    classify: Option<Classifier>,
+    classify: Option<Arc<dyn Classifier>>,
 }
 
 impl Default for Trie {
@@ -46,9 +69,9 @@ impl Trie {
 
     /// Get the [`Classifier`] for the exact auction
     #[must_use]
-    pub fn get(&self, auction: &[Call]) -> Option<&Classifier> {
+    pub fn get(&self, auction: &[Call]) -> Option<&dyn Classifier> {
         self.subtrie(auction)
-            .and_then(|node| node.classify.as_ref())
+            .and_then(|node| node.classify.as_deref())
     }
 
     /// Check if the query auction is a prefix in the trie
@@ -59,8 +82,11 @@ impl Trie {
 
     /// Get the longest prefix of the auction that has a [`Classifier`]
     #[must_use]
-    pub fn longest_prefix<'a>(&self, auction: &'a [Call]) -> Option<(&'a [Call], &Classifier)> {
-        let mut prefix = self.classify.as_ref().map(|f| (&[][..], f));
+    pub fn longest_prefix<'a>(
+        &self,
+        auction: &'a [Call],
+    ) -> Option<(&'a [Call], &dyn Classifier)> {
+        let mut prefix = self.classify.as_deref().map(|f| (&[][..], f));
         let mut node = self;
 
         for (depth, &call) in auction.iter().enumerate() {
@@ -68,7 +94,7 @@ impl Trie {
                 Some(child) => child,
                 None => break,
             };
-            if let Some(f) = node.classify.as_ref() {
+            if let Some(f) = node.classify.as_deref() {
                 prefix.replace((&auction[..=depth], f));
             }
         }
@@ -76,13 +102,17 @@ impl Trie {
     }
 
     /// Insert a [`Classifier`] into the trie
-    pub fn insert(&mut self, auction: &[Call], f: Classifier) -> Option<Classifier> {
+    pub fn insert(
+        &mut self,
+        auction: &[Call],
+        f: impl Classifier + 'static,
+    ) -> Option<Arc<dyn Classifier>> {
         let mut node = self;
 
         for &call in auction {
             node = node.children.entry(call).get_or_insert_with(Box::default);
         }
-        node.classify.replace(f)
+        node.classify.replace(Arc::new(f))
     }
 
     /// Depth first iteration over all nodes with a [`Classifier`]
@@ -99,13 +129,13 @@ impl Trie {
 
     /// Iterate over common prefixes of the auction
     #[must_use]
-    pub const fn common_prefixes(&'_ self, auction: Auction) -> CommonPrefixes<'_> {
+    pub fn common_prefixes(&'_ self, auction: Auction) -> CommonPrefixes<'_> {
         CommonPrefixes::new(self, auction)
     }
 }
 
 impl<'a> IntoIterator for &'a Trie {
-    type Item = (Box<[Call]>, Result<&'a Classifier, IllegalCall>);
+    type Item = (Box<[Call]>, Result<&'a dyn Classifier, IllegalCall>);
     type IntoIter = Suffixes<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -136,7 +166,7 @@ pub struct Suffixes<'a> {
     stack: Vec<StackEntry<'a>>,
     auction: Auction,
     separator: usize,
-    value: Option<&'a Classifier>,
+    value: Option<&'a dyn Classifier>,
 }
 
 impl<'a> Suffixes<'a> {
@@ -161,21 +191,21 @@ impl<'a> Suffixes<'a> {
         Self {
             stack: collect_children(node, 0).collect(),
             separator: auction.len(),
-            value: node.classify.as_ref(),
+            value: node.classify.as_deref(),
             auction,
         }
     }
 }
 
 impl<'a> Iterator for Suffixes<'a> {
-    type Item = (Box<[Call]>, Result<&'a Classifier, IllegalCall>);
+    type Item = (Box<[Call]>, Result<&'a dyn Classifier, IllegalCall>);
 
     fn next(&mut self) -> Option<Self::Item> {
         while self.value.is_none() {
             let entry = self.stack.pop()?;
             self.stack
                 .extend(collect_children(entry.node, entry.depth + 1));
-            self.value = entry.node.classify.as_ref();
+            self.value = entry.node.classify.as_deref();
             self.auction.truncate(self.separator + entry.depth);
 
             if let Err(e) = self.auction.try_push(entry.call) {
@@ -196,30 +226,30 @@ pub struct CommonPrefixes<'a> {
     trie: &'a Trie,
     query: Auction,
     depth: usize,
-    value: Option<&'a Classifier>,
+    value: Option<&'a dyn Classifier>,
 }
 
 impl<'a> CommonPrefixes<'a> {
     /// Construct a common prefix iterator for a trie and an auction
     #[must_use]
-    pub const fn new(trie: &'a Trie, query: Auction) -> Self {
+    pub fn new(trie: &'a Trie, query: Auction) -> Self {
         Self {
             trie,
             query,
             depth: 0,
-            value: trie.classify.as_ref(),
+            value: trie.classify.as_deref(),
         }
     }
 }
 
 impl<'a> Iterator for CommonPrefixes<'a> {
-    type Item = (Box<[Call]>, &'a Classifier);
+    type Item = (Box<[Call]>, &'a dyn Classifier);
 
     fn next(&mut self) -> Option<Self::Item> {
         while self.value.is_none() {
             let &call = self.query.get(self.depth)?;
             self.trie = self.trie.children.get(call)?;
-            self.value = self.trie.classify.as_ref();
+            self.value = self.trie.classify.as_deref();
             self.depth += 1;
         }
 
