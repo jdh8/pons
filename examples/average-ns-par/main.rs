@@ -40,13 +40,11 @@ fn main() -> anyhow::Result<()> {
         StrainFlags::all(),
     )?;
 
-    let par = stats::average_ns_par(
+    let Some(par) = stats::average_ns_par(
         solutions.into_iter().collect(),
         args.vulnerability,
         args.dealer,
-    )?;
-
-    let Some(par) = par else {
+    ) else {
         println!("No data");
         return Ok(());
     };

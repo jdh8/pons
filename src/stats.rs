@@ -2,7 +2,7 @@ use super::Call;
 use super::bidding::Array;
 use core::fmt;
 use core::ops::{Index, IndexMut};
-use dds_bridge::solver::{self, SystemError, Vulnerability};
+use dds_bridge::solver::{self, Vulnerability};
 use dds_bridge::{Contract, Penalty, Seat, Strain};
 use std::num::NonZero;
 
@@ -210,19 +210,24 @@ pub struct ParResult {
     pub contract: Option<(Contract, Seat)>,
 }
 
-/// Calculate average NS par score from the solved deals.
+/// Calculate the average NS par score from a histogram of solved deals.
+///
+/// The par contract is determined by a competitive bidding simulation starting
+/// from `dealer`: each side bids to a contract that improves their expected
+/// score over the current par, given the trick distribution in `histogram`.
+/// The returned score is the expected par score over all deals in `histogram`,
+/// from the NS perspective (NS contracts are positive, EW contracts are
+/// negative).
 ///
 /// This idea is inspired by [Cuebids](https://cuebids.com/).
 ///
-/// # Errors
-///
-/// A [`dds_bridge::solver::SystemError`] propagated from DDS or a
-/// [`std::sync::PoisonError`]
+/// Returns [`None`] if `histogram` is empty.
+#[must_use]
 pub fn average_ns_par(
     histogram: HistogramTable,
     vul: Vulnerability,
     dealer: Seat,
-) -> Result<Option<ParResult>, SystemError> {
+) -> Option<ParResult> {
     #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
     const fn score(contract: Contract, hist: [usize; 14], vul: bool) -> i64 {
         let mut sum = 0;
@@ -234,10 +239,6 @@ pub fn average_ns_par(
         }
         sum
     }
-
-    let Some(count) = histogram.count() else {
-        return Ok(None);
-    };
 
     // seat -> bid -> (score, contract)
     let scores = Seat::ALL.map(|seat| {
@@ -275,6 +276,7 @@ pub fn average_ns_par(
         }
     });
 
+    let count = histogram.count()?;
     let mut par_score = 0;
     let mut par_contract: Option<(Contract, Seat)> = None;
 
@@ -297,8 +299,8 @@ pub fn average_ns_par(
     improve_for(dealer);
 
     #[allow(clippy::cast_precision_loss)]
-    Ok(Some(ParResult {
+    Some(ParResult {
         score: par_score as f64 / count.get() as f64,
         contract: par_contract,
-    }))
+    })
 }
