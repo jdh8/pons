@@ -157,7 +157,15 @@ impl<T> Array<T> {
         let mut result = [const { MaybeUninit::uninit() }; CALL_VARIANTS];
 
         for (index, value) in self.0.into_iter().enumerate() {
-            result[index] = MaybeUninit::new(f(decode_call(index), value)?);
+            match f(decode_call(index), value) {
+                Ok(u) => result[index] = MaybeUninit::new(u),
+                Err(e) => {
+                    // Drop the already-initialized entries before returning.
+                    // SAFETY: `result[..index]` are initialized by previous iterations.
+                    unsafe { result[..index].assume_init_drop() };
+                    return Err(e);
+                }
+            }
         }
 
         // SAFETY: All entries in `result` are initialized by the loop above,
