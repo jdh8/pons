@@ -82,10 +82,7 @@ impl Trie {
 
     /// Get the longest prefix of the auction that has a [`Classifier`]
     #[must_use]
-    pub fn longest_prefix<'a>(
-        &self,
-        auction: &'a [Call],
-    ) -> Option<(&'a [Call], &dyn Classifier)> {
+    pub fn longest_prefix<'a>(&self, auction: &'a [Call]) -> Option<(&'a [Call], &dyn Classifier)> {
         let mut prefix = self.classify.as_deref().map(|f| (&[][..], f));
         let mut node = self;
 

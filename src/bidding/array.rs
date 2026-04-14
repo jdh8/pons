@@ -68,6 +68,7 @@ const fn decode_call(index: usize) -> Call {
     }
 }
 
+/// Compile-time assertion that `encode_call` and `decode_call` are inverses
 const _: () = {
     let mut id = 0;
 
@@ -77,6 +78,13 @@ const _: () = {
         id += 1;
     }
 };
+
+#[test]
+fn test_encode_special_calls() {
+    assert_eq!(encode_call(Call::Pass), 0);
+    assert_eq!(encode_call(Call::Double), 1);
+    assert_eq!(encode_call(Call::Redouble), 2);
+}
 
 #[test]
 #[should_panic(expected = "Invalid call ID!")]
