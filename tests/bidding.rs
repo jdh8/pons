@@ -2,19 +2,11 @@ use dds_bridge::{Bid, Level, Penalty, Strain};
 use pons::bidding::array::Logits;
 use pons::bidding::{Array, Auction, Call, IllegalCall, Map, RelativeVulnerability};
 
-fn bid(level: u8, strain: Strain) -> Call {
+const fn bid(level: u8, strain: Strain) -> Call {
     Call::Bid(Bid {
         level: Level::new(level),
         strain,
     })
-}
-
-fn one_club() -> Call {
-    bid(1, Strain::ASC[0])
-}
-
-fn seven_nt() -> Call {
-    bid(7, Strain::ASC[4])
 }
 
 // ===== Auction =====
@@ -252,7 +244,7 @@ fn test_array_from_fn_and_get() {
     });
     assert_eq!(*arr.get(Call::Pass), 42);
     assert_eq!(*arr.get(Call::Double), 0);
-    assert_eq!(*arr.get(one_club()), 0);
+    assert_eq!(*arr.get(bid(1, Strain::Clubs)), 0);
 }
 
 #[test]
@@ -347,29 +339,48 @@ fn test_array_each_mut() {
     let mut arr = Array::from_fn(|_| 0);
     let mut mutables = arr.each_mut();
     **mutables.get_mut(Call::Pass) = 42;
-    drop(mutables);
     assert_eq!(arr[Call::Pass], 42);
 }
 
 #[test]
 fn test_array_range_index() {
     let arr = Array::from_fn(|_| 0u8);
-    let slice = &arr[Call::Pass..Call::Redouble];
-    assert_eq!(slice.len(), 2); // Pass, Double
+    let one_club = Bid {
+        level: Level::new(1),
+        strain: Strain::Clubs,
+    };
+    let two_club = Bid {
+        level: Level::new(2),
+        strain: Strain::Clubs,
+    };
+    let slice = &arr[one_club..two_club];
+    assert_eq!(slice.len(), 5); // 1C, 1D, 1H, 1S, 1NT
 }
 
 #[test]
 fn test_array_range_from_index() {
     let arr = Array::from_fn(|_| 0u8);
-    let slice = &arr[seven_nt()..];
+    let seven_nt = Bid {
+        level: Level::new(7),
+        strain: Strain::Notrump,
+    };
+    let slice = &arr[seven_nt..];
     assert_eq!(slice.len(), 1);
 }
 
 #[test]
 fn test_array_range_inclusive_index() {
     let arr = Array::from_fn(|_| 0u8);
-    let slice = &arr[Call::Pass..=Call::Redouble];
-    assert_eq!(slice.len(), 3);
+    let one_club = Bid {
+        level: Level::new(1),
+        strain: Strain::Clubs,
+    };
+    let one_nt = Bid {
+        level: Level::new(1),
+        strain: Strain::Notrump,
+    };
+    let slice = &arr[one_club..=one_nt];
+    assert_eq!(slice.len(), 5);
 }
 
 #[test]
@@ -397,8 +408,9 @@ fn test_array_option_new() {
 #[test]
 fn test_logits_new() {
     let logits = Logits::new();
+
     for &v in logits.values() {
-        assert_eq!(v, f32::NEG_INFINITY);
+        assert!(v.eq(&f32::NEG_INFINITY));
     }
 }
 
@@ -445,7 +457,7 @@ fn test_map_new_is_empty() {
     let map: Map<i32> = Map::new();
     assert!(map.get(Call::Pass).is_none());
     assert!(map.get(Call::Double).is_none());
-    assert!(map.get(one_club()).is_none());
+    assert!(map.get(bid(1, Strain::Clubs)).is_none());
 }
 
 #[test]
@@ -494,7 +506,7 @@ fn test_map_values() {
     map.insert(Call::Pass, 10);
     map.insert(Call::Double, 20);
     let mut values: Vec<_> = map.values().copied().collect();
-    values.sort();
+    values.sort_unstable();
     assert_eq!(values, vec![10, 20]);
 }
 
@@ -514,7 +526,7 @@ fn test_map_into_values() {
     map.insert(Call::Pass, 10);
     map.insert(Call::Double, 20);
     let mut values: Vec<_> = map.into_values().collect();
-    values.sort();
+    values.sort_unstable();
     assert_eq!(values, vec![10, 20]);
 }
 
@@ -553,7 +565,7 @@ fn test_map_iter() {
 fn test_map_iter_mut() {
     let mut map = Map::new();
     map.insert(Call::Pass, 5);
-    for (_, v) in map.iter_mut() {
+    for (_, v) in &mut map {
         *v *= 2;
     }
     assert_eq!(map.get(Call::Pass), Some(&10));

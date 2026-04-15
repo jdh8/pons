@@ -13,7 +13,11 @@ fn test_pass_everything() {
     trie.insert(&[], |_, _| JUST_PASS);
 
     assert_eq!(
-        trie.classify(Hand::default(), RelativeVulnerability::NONE, Auction::new()),
+        trie.classify(
+            Hand::default(),
+            RelativeVulnerability::NONE,
+            &Auction::new()
+        ),
         Some(JUST_PASS)
     );
 }
