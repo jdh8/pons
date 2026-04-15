@@ -410,15 +410,9 @@ fn test_logits_default() {
 
 #[test]
 fn test_logits_softmax_uniform() {
-    // All NEG_INFINITY -> uniform distribution
+    // All NEG_INFINITY -> None
     let logits = Logits::new();
-    let probs = logits.softmax();
-    let first = probs[Call::Pass];
-    for (_, &p) in &probs {
-        assert!((p - first).abs() < 1e-6);
-    }
-    let sum: f32 = probs.values().copied().sum();
-    assert!((sum - 1.0).abs() < 1e-5);
+    assert!(logits.softmax().is_none());
 }
 
 #[test]
@@ -426,7 +420,7 @@ fn test_logits_softmax_one_hot() {
     // Only Pass has logit 0, rest NEG_INFINITY -> Pass gets ~1.0
     let mut logits = Logits::new();
     *logits.get_mut(Call::Pass) = 0.0;
-    let probs = logits.softmax();
+    let probs = logits.softmax().unwrap();
     assert!((probs[Call::Pass] - 1.0).abs() < 1e-6);
     assert!(probs[Call::Double].abs() < 1e-6);
 }
@@ -435,7 +429,7 @@ fn test_logits_softmax_one_hot() {
 fn test_logits_softmax_equal() {
     // All logits equal -> uniform
     let logits = Logits(Array::repeat(5.0f32));
-    let probs = logits.softmax();
+    let probs = logits.softmax().unwrap();
     let first = probs[Call::Pass];
     for (_, &p) in &probs {
         assert!((p - first).abs() < 1e-6);
