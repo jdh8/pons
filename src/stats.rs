@@ -214,14 +214,26 @@ pub struct ParResult {
 
 /// Calculate the average NS par score from a histogram of solved deals.
 ///
+/// # Algorithm and Soundness
+///
 /// The par contract is determined by a competitive bidding simulation starting
-/// from `dealer`: each side bids to a contract that improves their expected
-/// score over the current par, given the trick distribution in `histogram`.
+/// from `dealer`. Each side, in turn, is allowed to improve their contract if
+/// doing so increases their expected score, given the trick distribution in
+/// `histogram`. This process is repeated in a fixed order (dealer, RHO,
+/// partner, LHO, dealer) to ensure both sides have a chance to respond.
+///
+/// This greedy improvement loop is guaranteed to converge to a competitive
+/// equilibrium (Nash equilibrium) in this finite, discrete setting: each side
+/// only ever improves or passes, and the set of possible contracts is finite,
+/// so the process must terminate. The final state is stable: neither side can
+/// unilaterally improve their expected score by changing contracts.
+///
 /// The returned score is the expected par score over all deals in `histogram`,
 /// from the NS perspective (NS contracts are positive, EW contracts are
 /// negative).
 ///
-/// This idea is inspired by [Cuebids](https://cuebids.com/).
+/// This idea is inspired by [Cuebids](https://cuebids.com/) and is standard in
+/// double dummy bridge analysis.
 ///
 /// Returns [`None`] if `histogram` is empty.
 #[must_use]
