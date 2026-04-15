@@ -322,7 +322,7 @@ pub trait System {
         &self,
         hand: Hand,
         vul: RelativeVulnerability,
-        auction: Auction,
+        auction: &[Call],
     ) -> Option<array::Logits>;
 }
 
@@ -331,9 +331,9 @@ impl System for Trie {
         &self,
         hand: Hand,
         vul: RelativeVulnerability,
-        auction: Auction,
+        auction: &[Call],
     ) -> Option<array::Logits> {
-        self.get(&auction)
+        self.get(auction)
             .map(|f| f.classify(hand, vul, self.common_prefixes(auction)))
     }
 }
@@ -343,7 +343,7 @@ impl System for trie::Forest {
         &self,
         hand: Hand,
         vul: RelativeVulnerability,
-        auction: Auction,
+        auction: &[Call],
     ) -> Option<array::Logits> {
         self[vul].classify(hand, vul, auction)
     }

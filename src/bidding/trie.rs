@@ -1,4 +1,4 @@
-use super::{Auction, Call, Hand, IllegalCall, Map, RelativeVulnerability};
+use super::{Call, Hand, Map, RelativeVulnerability};
 use core::iter::FusedIterator;
 use core::ops::{Index, IndexMut};
 use std::sync::Arc;
@@ -10,7 +10,7 @@ pub trait Classifier: Send + Sync {
         &self,
         hand: Hand,
         vul: RelativeVulnerability,
-        prefixes: CommonPrefixes<'_>,
+        prefixes: CommonPrefixes<'_, '_>,
     ) -> super::array::Logits;
 }
 
@@ -22,7 +22,7 @@ where
         &self,
         hand: Hand,
         vul: RelativeVulnerability,
-        _: CommonPrefixes<'_>,
+        _: CommonPrefixes<'_, '_>,
     ) -> super::array::Logits {
         self(hand, vul)
     }
@@ -116,24 +116,24 @@ impl Trie {
     /// Depth first iteration over all nodes with a [`Classifier`]
     #[must_use]
     pub fn iter(&'_ self) -> Suffixes<'_> {
-        self.suffixes(Auction::new())
+        self.suffixes(&[])
     }
 
     /// Depth first iteration over all suffixes to the auction
     #[must_use]
-    pub fn suffixes(&'_ self, auction: Auction) -> Suffixes<'_> {
+    pub fn suffixes(&self, auction: &[Call]) -> Suffixes<'_> {
         Suffixes::new(self, auction)
     }
 
     /// Iterate over common prefixes of the auction
     #[must_use]
-    pub fn common_prefixes(&'_ self, auction: Auction) -> CommonPrefixes<'_> {
-        CommonPrefixes::new(self, auction)
+    pub fn common_prefixes<'q>(&self, query: &'q [Call]) -> CommonPrefixes<'_, 'q> {
+        CommonPrefixes::new(self, query)
     }
 }
 
 impl<'a> IntoIterator for &'a Trie {
-    type Item = (Box<[Call]>, Result<&'a dyn Classifier, IllegalCall>);
+    type Item = (Box<[Call]>, &'a dyn Classifier);
     type IntoIter = Suffixes<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -162,7 +162,7 @@ fn collect_children(node: &'_ Trie, depth: usize) -> impl Iterator<Item = StackE
 #[derive(Clone)]
 pub struct Suffixes<'a> {
     stack: Vec<StackEntry<'a>>,
-    auction: Auction,
+    auction: Vec<Call>,
     separator: usize,
     value: Option<&'a dyn Classifier>,
 }
@@ -173,7 +173,7 @@ impl<'a> Suffixes<'a> {
     pub const fn empty() -> Self {
         Self {
             stack: Vec::new(),
-            auction: Auction::new(),
+            auction: Vec::new(),
             separator: 0,
             value: None,
         }
@@ -181,8 +181,8 @@ impl<'a> Suffixes<'a> {
 
     /// Construct a suffix iterator for a trie and an auction
     #[must_use]
-    pub fn new(trie: &'a Trie, auction: Auction) -> Self {
-        let Some(node) = trie.subtrie(&auction) else {
+    pub fn new(trie: &'a Trie, auction: &[Call]) -> Self {
+        let Some(node) = trie.subtrie(auction) else {
             return Self::empty();
         };
 
@@ -190,13 +190,13 @@ impl<'a> Suffixes<'a> {
             stack: collect_children(node, 0).collect(),
             separator: auction.len(),
             value: node.classify.as_deref(),
-            auction,
+            auction: auction.to_vec(),
         }
     }
 }
 
 impl<'a> Iterator for Suffixes<'a> {
-    type Item = (Box<[Call]>, Result<&'a dyn Classifier, IllegalCall>);
+    type Item = (Box<[Call]>, &'a dyn Classifier);
 
     fn next(&mut self) -> Option<Self::Item> {
         while self.value.is_none() {
@@ -205,16 +205,10 @@ impl<'a> Iterator for Suffixes<'a> {
                 .extend(collect_children(entry.node, entry.depth + 1));
             self.value = entry.node.classify.as_deref();
             self.auction.truncate(self.separator + entry.depth);
-
-            if let Err(e) = self.auction.try_push(entry.call) {
-                return Some((self.auction[self.separator..].into(), Err(e)));
-            }
+            self.auction.push(entry.call);
         }
 
-        Some((
-            self.auction[self.separator..].into(),
-            Ok(self.value.take()?),
-        ))
+        Some((self.auction[self.separator..].into(), self.value.take()?))
     }
 }
 
@@ -222,17 +216,17 @@ impl FusedIterator for Suffixes<'_> {}
 
 /// Common prefix iterator for a given auction
 #[derive(Clone)]
-pub struct CommonPrefixes<'a> {
-    trie: &'a Trie,
-    query: Auction,
+pub struct CommonPrefixes<'trie, 'q> {
+    trie: &'trie Trie,
+    query: &'q [Call],
     depth: usize,
-    value: Option<&'a dyn Classifier>,
+    value: Option<&'trie dyn Classifier>,
 }
 
-impl<'a> CommonPrefixes<'a> {
+impl<'trie, 'q> CommonPrefixes<'trie, 'q> {
     /// Construct a common prefix iterator for a trie and an auction
     #[must_use]
-    pub fn new(trie: &'a Trie, query: Auction) -> Self {
+    pub fn new(trie: &'trie Trie, query: &'q [Call]) -> Self {
         Self {
             trie,
             query,
@@ -242,8 +236,8 @@ impl<'a> CommonPrefixes<'a> {
     }
 }
 
-impl<'a> Iterator for CommonPrefixes<'a> {
-    type Item = (Box<[Call]>, &'a dyn Classifier);
+impl<'trie, 'q> Iterator for CommonPrefixes<'trie, 'q> {
+    type Item = (&'q [Call], &'trie dyn Classifier);
 
     fn next(&mut self) -> Option<Self::Item> {
         while self.value.is_none() {
@@ -253,11 +247,11 @@ impl<'a> Iterator for CommonPrefixes<'a> {
             self.depth += 1;
         }
 
-        Some((self.query[..self.depth].into(), self.value.take()?))
+        Some((&self.query[..self.depth], self.value.take()?))
     }
 }
 
-impl FusedIterator for CommonPrefixes<'_> {}
+impl FusedIterator for CommonPrefixes<'_, '_> {}
 
 /// A bidding system aware of vulnerability
 #[derive(Clone)]
