@@ -10,6 +10,7 @@ pub use map::Map;
 pub use trie::Trie;
 
 use core::borrow::Borrow;
+use core::fmt::{self, Write as _};
 use core::ops::Deref;
 use dds_bridge::{Bid, Hand, Penalty, Strain};
 use thiserror::Error;
@@ -33,6 +34,17 @@ pub enum Call {
 impl From<Bid> for Call {
     fn from(bid: Bid) -> Self {
         Self::Bid(bid)
+    }
+}
+
+impl fmt::Display for Call {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Pass => f.write_char('P'),
+            Self::Double => f.write_char('X'),
+            Self::Redouble => f.write_str("XX"),
+            Self::Bid(bid) => bid.fmt(f),
+        }
     }
 }
 
