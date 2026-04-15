@@ -1,4 +1,5 @@
 use super::{Call, Hand, Map, RelativeVulnerability};
+use core::fmt;
 use core::iter::FusedIterator;
 use core::ops::{Index, IndexMut};
 use std::sync::Arc;
@@ -12,6 +13,12 @@ pub trait Classifier: Send + Sync {
         vul: RelativeVulnerability,
         prefixes: CommonPrefixes<'_, '_>,
     ) -> super::array::Logits;
+}
+
+impl fmt::Debug for dyn Classifier {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Classifier({:p})", &self)
+    }
 }
 
 impl<F> Classifier for F
@@ -33,7 +40,7 @@ where
 /// A trie stores a [`Classifier`] for each covered auction without
 /// vulnerability.  For example, `[P, 1♠]` as an index stands for the 2nd-seat
 /// opening of 1♠.
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Trie {
     children: Map<Box<Self>>,
     classify: Option<Arc<dyn Classifier>>,
