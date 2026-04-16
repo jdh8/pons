@@ -10,16 +10,14 @@ const fn bid(level: u8, strain: Strain) -> Call {
     })
 }
 
-fn just_pass() -> Logits {
-    let mut logits = Logits::new();
-    *logits.0.get_mut(Call::Pass) = 0.0;
-    logits
-}
-
-fn marker_logits(value: f32) -> Logits {
+const fn marker_logits(value: f32) -> Logits {
     let mut logits = Logits::new();
     *logits.0.get_mut(Call::Pass) = value;
     logits
+}
+
+const fn just_pass() -> Logits {
+    marker_logits(0.0)
 }
 
 fn classify_at(trie: &Trie, auction: &[Call]) -> Logits {

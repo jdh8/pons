@@ -1,7 +1,7 @@
 use approx::assert_ulps_eq;
 use dds_bridge::{Hand, Holding};
 use pons::eval::{
-    BUMRAP, BUMRAP_PLUS, FIFTHS, HandEvaluator as _, NLTC, SimpleEvaluator, hcp, hcp_plus, ltc,
+    BUMRAP, BUMRAP_PLUS, FIFTHS, HandEvaluator, NLTC, SimpleEvaluator, hcp, hcp_plus, ltc,
     shortness, zar,
 };
 
@@ -98,7 +98,7 @@ fn test_empty_hand() {
     assert_eq!(zar::<u8>(hand), 0);
 }
 
-/// Test eval_pair sums both hands
+/// Test [`HandEvaluator::eval_pair`] sums both hands
 #[test]
 #[allow(clippy::unusual_byte_groupings)]
 fn test_eval_pair() {
@@ -109,14 +109,14 @@ fn test_eval_pair() {
     assert_eq!(SimpleEvaluator(hcp::<u8>).eval_pair([HAND, HAND]), 24);
 }
 
-/// Test BUMRAP_PLUS intermediate values
+/// Test [`BUMRAP_PLUS`] intermediate values
 #[test]
 #[allow(clippy::unusual_byte_groupings)]
 fn test_bumrap_plus_shortness() {
-    // Void: shortness = 3, bumrap = 0 -> max(3, 0, 2) = 3
-    assert_ulps_eq!(BUMRAP_PLUS.0(Holding::EMPTY), 3.0);
-
     // Singleton ace: shortness = 2, bumrap = 4.5 -> max(4.5, 2, 5.5) = 5.5
     const A: Holding = Holding::from_bits_truncate(0b10000_0000_0000_00);
     assert_ulps_eq!(BUMRAP_PLUS.0(A), 5.5);
+
+    // Void: shortness = 3, bumrap = 0 -> max(3, 0, 2) = 3
+    assert_ulps_eq!(BUMRAP_PLUS.0(Holding::EMPTY), 3.0);
 }
