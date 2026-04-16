@@ -148,7 +148,7 @@ impl<'a> IntoIterator for &'a Trie {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 struct StackEntry<'a> {
     depth: usize,
     call: Call,
