@@ -10,14 +10,14 @@ categories = ["game-development"]
 keywords = ["bridge"]
 
 [dependencies]
-bitflags = "2.11.0"
-dds-bridge = "0.14.0"
-rand = "0.10.1"
-thiserror = "2.0.18"
+bitflags = "2"
+dds-bridge = "0.14"
+rand = "0.10"
+thiserror = "2"
 
 [dev-dependencies]
-anyhow = "1.0.102"
-approx = "0.5.1"
-clap = { version = "4.6.0", features = ["derive"] }
-dds-bridge-sys = "2.0.4"
-nalgebra = "0.34.2"
+anyhow = "1"
+approx = "0.5"
+clap = { version = "4", features = ["derive"] }
+dds-bridge-sys = "2"
+nalgebra = "0.34"
