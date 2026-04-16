@@ -8,6 +8,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  RUSTDOCFLAGS: -D warnings
 
 jobs:
   fmt:
@@ -29,7 +30,7 @@ jobs:
     steps:
     - uses: actions/checkout@v6
     - name: Build docs
-      run: cargo doc --no-deps --all-features -- -D warnings
+      run: cargo doc --no-deps --all-features
 
   test:
     strategy:
