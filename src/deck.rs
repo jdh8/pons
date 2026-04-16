@@ -58,10 +58,10 @@ impl Deck {
     ///
     /// If `n >= self.len()`, all remaining cards are drawn without shuffling.
     ///
-    /// On each iteration, pick a uniform `k` in `[0, remaining)`, then strip
-    /// the `k` lowest set bits from `self.0`; the new lowest set bit is the
-    /// `k`-th smallest card, which is moved from the deck to the hand. This
-    /// performs `n` selections without materialising the card set.
+    /// On each iteration, pick a uniform `k` in `0..remaining`, then strip the
+    /// `k` lowest set bits from `self.0`.  The new lowest set bit is the `k`-th
+    /// smallest card, which is moved from the deck to the hand.  This performs
+    /// `n` selections without materializing the card set.
     #[must_use]
     pub fn draw(&mut self, rng: &mut (impl Rng + ?Sized), n: usize) -> Hand {
         let len = self.0.len();
