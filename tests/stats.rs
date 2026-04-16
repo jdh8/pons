@@ -1,6 +1,6 @@
 use core::num::NonZero;
 use dds_bridge::solver::Vulnerability;
-use dds_bridge::{Bid, Contract, Level, Penalty, Seat, Strain};
+use dds_bridge::{Bid, Contract, Penalty, Seat, Strain};
 use pons::stats::{Accumulator, HistogramRow, HistogramTable, Statistics, average_ns_par};
 
 #[test]
@@ -21,7 +21,7 @@ fn test_statistics_default() {
 fn test_statistics_display() {
     let s = Statistics::new(3.0, 1.5);
     let display = format!("{s}");
-    assert!(display.contains("3"));
+    assert!(display.contains('3'));
     assert!(display.contains("±"));
     assert!(display.contains("1.5"));
 }
