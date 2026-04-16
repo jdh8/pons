@@ -32,7 +32,10 @@ fn test_deck_all_unique() {
 #[test]
 fn test_deck_insert() {
     let mut deck = Deck::EMPTY;
-    let card = Card { suit: Suit::Clubs, rank: Rank::A };
+    let card = Card {
+        suit: Suit::Clubs,
+        rank: Rank::A,
+    };
     assert!(deck.insert(card));
     assert_eq!(deck.len(), 1);
 }
@@ -40,7 +43,10 @@ fn test_deck_insert() {
 #[test]
 fn test_deck_insert_duplicate() {
     let mut deck = Deck::EMPTY;
-    let card = Card { suit: Suit::Clubs, rank: Rank::A };
+    let card = Card {
+        suit: Suit::Clubs,
+        rank: Rank::A,
+    };
     assert!(deck.insert(card));
     assert!(!deck.insert(card));
     assert_eq!(deck.len(), 1);
@@ -56,8 +62,14 @@ fn test_deck_clear() {
 #[test]
 fn test_deck_take() {
     let mut deck = Deck::EMPTY;
-    deck.insert(Card { suit: Suit::Clubs, rank: Rank::A });
-    deck.insert(Card { suit: Suit::Diamonds, rank: Rank::K });
+    deck.insert(Card {
+        suit: Suit::Clubs,
+        rank: Rank::A,
+    });
+    deck.insert(Card {
+        suit: Suit::Diamonds,
+        rank: Rank::K,
+    });
     let hand = deck.take();
     assert_eq!(hand.len(), 2);
     assert!(deck.is_empty());
@@ -100,18 +112,33 @@ fn test_deck_pop_empty() {
 #[test]
 fn test_deck_pop_singleton() {
     let mut deck = Deck::EMPTY;
-    deck.insert(Card { suit: Suit::Clubs, rank: Rank::A });
+    deck.insert(Card {
+        suit: Suit::Clubs,
+        rank: Rank::A,
+    });
     let rng = &mut rand::rng();
     let card = deck.pop(rng);
-    assert_eq!(card, Some(Card { suit: Suit::Clubs, rank: Rank::A }));
+    assert_eq!(
+        card,
+        Some(Card {
+            suit: Suit::Clubs,
+            rank: Rank::A
+        })
+    );
     assert!(deck.is_empty());
 }
 
 #[test]
 fn test_deck_from_hand() {
     let hand: Hand = [
-        Card { suit: Suit::Clubs, rank: Rank::A },
-        Card { suit: Suit::Hearts, rank: Rank::K },
+        Card {
+            suit: Suit::Clubs,
+            rank: Rank::A,
+        },
+        Card {
+            suit: Suit::Hearts,
+            rank: Rank::K,
+        },
     ]
     .into_iter()
     .collect();
@@ -172,24 +199,30 @@ fn test_fill_deals_from_empty() {
 fn test_fill_deals_preserves_known_cards() {
     let rng = &mut rand::rng();
     let north: Hand = [
-        Card { suit: Suit::Spades, rank: Rank::A },
-        Card { suit: Suit::Spades, rank: Rank::K },
+        Card {
+            suit: Suit::Spades,
+            rank: Rank::A,
+        },
+        Card {
+            suit: Suit::Spades,
+            rank: Rank::K,
+        },
     ]
     .into_iter()
     .collect();
     let mut deal = Deal::default();
     deal[Seat::North] = north;
     let filled = fill_deals(rng, deal).unwrap().next().unwrap();
-    assert!(
-        filled[Seat::North]
-            .into_iter()
-            .any(|c| c == Card { suit: Suit::Spades, rank: Rank::A })
-    );
-    assert!(
-        filled[Seat::North]
-            .into_iter()
-            .any(|c| c == Card { suit: Suit::Spades, rank: Rank::K })
-    );
+    assert!(filled[Seat::North].into_iter().any(|c| c
+        == Card {
+            suit: Suit::Spades,
+            rank: Rank::A
+        }));
+    assert!(filled[Seat::North].into_iter().any(|c| c
+        == Card {
+            suit: Suit::Spades,
+            rank: Rank::K
+        }));
 }
 
 #[test]
