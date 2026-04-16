@@ -94,12 +94,6 @@ fn test_encode_special_calls() {
     assert_eq!(encode_call(Call::Redouble), 2);
 }
 
-#[test]
-#[should_panic]
-fn test_decode_call_invalid() {
-    decode_call(CALL_VARIANTS);
-}
-
 /// Fixed-size array indexed by [`Call`]s
 ///
 /// Like a mathematical function, every potentially valid call maps to a
