@@ -1,7 +1,7 @@
+use core::num::NonZero;
 use dds_bridge::solver::Vulnerability;
 use dds_bridge::{Bid, Contract, Level, Penalty, Seat, Strain};
 use pons::stats::{Accumulator, HistogramRow, HistogramTable, Statistics, average_ns_par};
-use core::num::NonZero;
 
 #[test]
 fn test_statistics_new() {
