@@ -19,5 +19,18 @@ thiserror = "2"
 anyhow = "1"
 approx = "0.5"
 clap = { version = "4", features = ["derive"] }
+criterion = { version = "0.8", default-features = false, features = ["cargo_bench_support"] }
 dds-bridge-sys = "2"
 nalgebra = "0.34"
+
+[[bench]]
+name = "shuffle"
+harness = false
+
+[[bench]]
+name = "trie"
+harness = false
+
+[[bench]]
+name = "par"
+harness = false
