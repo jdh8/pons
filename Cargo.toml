@@ -11,7 +11,7 @@ keywords = ["bridge"]
 
 [dependencies]
 bitflags = "2"
-dds-bridge = "0.14"
+dds-bridge = "0.15"
 rand = "0.10"
 thiserror = "2"
 
