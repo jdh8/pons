@@ -4,14 +4,11 @@ use pons::bidding::array::Logits;
 use pons::bidding::{Call, RelativeVulnerability, System, Trie};
 use std::hint::black_box;
 
-fn bid(level: u8, strain: Strain) -> Call {
-    Call::Bid(Bid {
-        level: Level::new(level),
-        strain,
-    })
+const fn bid(level: u8, strain: Strain) -> Call {
+    Call::Bid(Bid::new(level, strain))
 }
 
-fn just_pass() -> Logits {
+const fn just_pass() -> Logits {
     let mut logits = Logits::new();
     *logits.0.get_mut(Call::Pass) = 0.0;
     logits
