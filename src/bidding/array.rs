@@ -54,12 +54,15 @@ const _: () = {
 };
 
 /// Decode indices back to calls
+///
+/// Callers must pass `index < CALL_VARIANTS`; the round-trip with
+/// [`encode_call`] is verified at compile time below.
 const fn decode_call(index: usize) -> Call {
     match index {
         0 => Call::Pass,
         1 => Call::Double,
         2 => Call::Redouble,
-        3..=37 => {
+        3..CALL_VARIANTS => {
             let code = index - 3 + 5;
             let (level, strain) = (code / 5, code % 5);
 
@@ -69,7 +72,7 @@ const fn decode_call(index: usize) -> Call {
                 strain: super::Strain::ASC[strain],
             })
         }
-        _ => panic!("Invalid call ID!"),
+        _ => unreachable!(),
     }
 }
 
@@ -92,7 +95,7 @@ fn test_encode_special_calls() {
 }
 
 #[test]
-#[should_panic(expected = "Invalid call ID!")]
+#[should_panic]
 fn test_decode_call_invalid() {
     decode_call(CALL_VARIANTS);
 }

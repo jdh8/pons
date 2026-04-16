@@ -202,6 +202,17 @@ impl<'a> Suffixes<'a> {
     }
 }
 
+impl fmt::Debug for Suffixes<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Suffixes")
+            .field("auction", &self.auction)
+            .field("separator", &self.separator)
+            .field("pending", &self.stack.len())
+            .field("has_value", &self.value.is_some())
+            .finish()
+    }
+}
+
 impl<'a> Iterator for Suffixes<'a> {
     type Item = (Box<[Call]>, &'a dyn Classifier);
 
@@ -243,6 +254,16 @@ impl<'trie, 'q> CommonPrefixes<'trie, 'q> {
     }
 }
 
+impl fmt::Debug for CommonPrefixes<'_, '_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("CommonPrefixes")
+            .field("query", &self.query)
+            .field("depth", &self.depth)
+            .field("has_value", &self.value.is_some())
+            .finish()
+    }
+}
+
 impl<'trie, 'q> Iterator for CommonPrefixes<'trie, 'q> {
     type Item = (&'q [Call], &'trie dyn Classifier);
 
@@ -261,7 +282,7 @@ impl<'trie, 'q> Iterator for CommonPrefixes<'trie, 'q> {
 impl FusedIterator for CommonPrefixes<'_, '_> {}
 
 /// A bidding system aware of vulnerability
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Forest([Trie; 4]);
 
 impl Forest {

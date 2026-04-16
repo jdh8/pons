@@ -57,6 +57,11 @@ impl Deck {
     /// Randomly draw `n` cards from the deck and collect them into a hand.
     ///
     /// If `n >= self.len()`, all remaining cards are drawn without shuffling.
+    ///
+    /// On each iteration, pick a uniform `k` in `[0, remaining)`, then strip
+    /// the `k` lowest set bits from `self.0`; the new lowest set bit is the
+    /// `k`-th smallest card, which is moved from the deck to the hand. This
+    /// performs `n` selections without materialising the card set.
     #[must_use]
     pub fn draw(&mut self, rng: &mut (impl Rng + ?Sized), n: usize) -> Hand {
         let len = self.0.len();
@@ -66,10 +71,8 @@ impl Deck {
 
         let mut hand = Hand::EMPTY;
         for i in 0..n {
-            // Clear random number of lowest set bits so the new lowest is our pick.
             let bits = (0..rng.random_range(..len - i))
                 .fold(self.0.to_bits(), |bits, _| bits & (bits - 1));
-            // Isolate the lowest set bit and move it from deck to hand.
             let selected = Hand::from_bits_retain(bits & bits.wrapping_neg());
             hand |= selected;
             self.0 ^= selected;
