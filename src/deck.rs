@@ -1,4 +1,6 @@
+use core::fmt;
 use core::iter::FusedIterator;
+use core::str::FromStr;
 use dds_bridge::{Card, Deal, Hand, Seat};
 use rand::{Rng, RngExt as _};
 use thiserror::Error;
@@ -93,6 +95,20 @@ impl From<Hand> for Deck {
     }
 }
 
+impl fmt::Display for Deck {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+impl FromStr for Deck {
+    type Err = <Hand as FromStr>::Err;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        s.parse::<Hand>().map(Self)
+    }
+}
+
 /// Shuffle and evenly deal 52 cards into 4 hands
 #[must_use]
 pub fn full_deal(rng: &mut (impl Rng + ?Sized)) -> Deal {
@@ -162,4 +178,35 @@ pub fn fill_deals<R: Rng + ?Sized>(
             .min_by_key(|&seat| deal[seat].len())
             .expect("Seat::ALL shall not be empty"),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn roundtrip(deck: Deck) {
+        assert_eq!(deck.to_string().parse::<Deck>().unwrap(), deck);
+    }
+
+    #[test]
+    fn full_and_empty_roundtrip() {
+        roundtrip(Deck::ALL);
+        roundtrip(Deck::EMPTY);
+    }
+
+    #[test]
+    fn partial_deck_roundtrip() {
+        let mut deck = Deck::EMPTY;
+        for s in ["♠A", "♥K", "♦Q", "♣J", "♠2"] {
+            deck.insert(s.parse().unwrap());
+        }
+        roundtrip(deck);
+    }
+
+    #[test]
+    fn parses_from_hand_notation() {
+        let deck: Deck = "AKQJ.T98.765.432".parse().unwrap();
+        assert_eq!(deck.len(), 13);
+        assert_eq!(deck.to_string(), "AKQJ.T98.765.432");
+    }
 }
