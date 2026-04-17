@@ -12,6 +12,7 @@ pub use trie::Trie;
 use core::borrow::Borrow;
 use core::fmt::{self, Write as _};
 use core::ops::Deref;
+use core::str::FromStr;
 use dds_bridge::{Bid, Hand, Penalty, Strain};
 use thiserror::Error;
 
@@ -48,6 +49,24 @@ impl fmt::Display for Call {
     }
 }
 
+/// Error returned when parsing a [`Call`] fails
+#[derive(Debug, Error, Clone, Copy, PartialEq, Eq)]
+#[error("Invalid call: expected pass, double, redouble, or a bid like '1NT' or '3♠'")]
+pub struct ParseCallError;
+
+impl FromStr for Call {
+    type Err = ParseCallError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_ascii_uppercase().as_str() {
+            "P" | "PASS" => Ok(Self::Pass),
+            "X" | "DBL" | "DOUBLE" => Ok(Self::Double),
+            "XX" | "RDBL" | "REDOUBLE" => Ok(Self::Redouble),
+            _ => s.parse::<Bid>().map(Self::Bid).map_err(|_| ParseCallError),
+        }
+    }
+}
+
 bitflags::bitflags! {
     /// Vulnerability of sides
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -64,6 +83,37 @@ impl RelativeVulnerability {
     pub const NONE: Self = Self::empty();
     /// All players are vulnerable
     pub const ALL: Self = Self::all();
+}
+
+impl fmt::Display for RelativeVulnerability {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match *self {
+            Self::NONE => f.write_str("none"),
+            Self::WE => f.write_str("we"),
+            Self::THEY => f.write_str("they"),
+            Self::ALL => f.write_str("both"),
+            _ => unreachable!("RelativeVulnerability has only 4 valid bit combinations"),
+        }
+    }
+}
+
+/// Error returned when parsing a [`RelativeVulnerability`] fails
+#[derive(Debug, Error, Clone, Copy, PartialEq, Eq)]
+#[error("Invalid relative vulnerability: expected one of none, we, they, both, all")]
+pub struct ParseRelativeVulnerabilityError;
+
+impl FromStr for RelativeVulnerability {
+    type Err = ParseRelativeVulnerabilityError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_ascii_lowercase().as_str() {
+            "none" => Ok(Self::NONE),
+            "we" => Ok(Self::WE),
+            "they" => Ok(Self::THEY),
+            "both" | "all" => Ok(Self::ALL),
+            _ => Err(ParseRelativeVulnerabilityError),
+        }
+    }
 }
 
 /// Types of illegal calls
@@ -96,6 +146,43 @@ pub enum IllegalCall {
 /// A sequence of [`Call`]s
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Auction(Vec<Call>);
+
+impl fmt::Display for Auction {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut iter = self.0.iter();
+        if let Some(first) = iter.next() {
+            first.fmt(f)?;
+            for call in iter {
+                f.write_char(' ')?;
+                call.fmt(f)?;
+            }
+        }
+        Ok(())
+    }
+}
+
+/// Error returned when parsing an [`Auction`] fails
+#[derive(Debug, Error, Clone, Copy, PartialEq, Eq)]
+pub enum ParseAuctionError {
+    /// A token could not be parsed as a [`Call`]
+    #[error(transparent)]
+    Call(#[from] ParseCallError),
+    /// A parsed call would violate the laws of bidding
+    #[error(transparent)]
+    Illegal(#[from] IllegalCall),
+}
+
+impl FromStr for Auction {
+    type Err = ParseAuctionError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let mut auction = Self::new();
+        for token in s.split_ascii_whitespace() {
+            auction.try_push(token.parse()?)?;
+        }
+        Ok(auction)
+    }
+}
 
 /// View the auction as a slice of calls
 impl Deref for Auction {
@@ -358,5 +445,121 @@ impl System for trie::Forest {
         auction: &[Call],
     ) -> Option<array::Logits> {
         self[vul].classify(hand, vul, auction)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use dds_bridge::Level;
+
+    fn bid(level: u8, strain: Strain) -> Call {
+        Call::Bid(Bid {
+            level: Level::new(level),
+            strain,
+        })
+    }
+
+    #[test]
+    fn call_roundtrip() {
+        for call in [
+            Call::Pass,
+            Call::Double,
+            Call::Redouble,
+            bid(1, Strain::Spades),
+            bid(3, Strain::Notrump),
+            bid(7, Strain::Clubs),
+        ] {
+            assert_eq!(call.to_string().parse::<Call>().unwrap(), call);
+        }
+    }
+
+    #[test]
+    fn call_parses_aliases_case_insensitive() {
+        assert_eq!("p".parse::<Call>().unwrap(), Call::Pass);
+        assert_eq!("PASS".parse::<Call>().unwrap(), Call::Pass);
+        assert_eq!("pass".parse::<Call>().unwrap(), Call::Pass);
+        assert_eq!("x".parse::<Call>().unwrap(), Call::Double);
+        assert_eq!("dbl".parse::<Call>().unwrap(), Call::Double);
+        assert_eq!("DOUBLE".parse::<Call>().unwrap(), Call::Double);
+        assert_eq!("xx".parse::<Call>().unwrap(), Call::Redouble);
+        assert_eq!("RDBL".parse::<Call>().unwrap(), Call::Redouble);
+        assert_eq!("redouble".parse::<Call>().unwrap(), Call::Redouble);
+    }
+
+    #[test]
+    fn call_rejects_garbage() {
+        for s in ["", "Q", "8C", "1Z", "pas", "xxx"] {
+            assert!(s.parse::<Call>().is_err(), "should reject: {s:?}");
+        }
+    }
+
+    #[test]
+    fn relative_vulnerability_roundtrip() {
+        for v in [
+            RelativeVulnerability::NONE,
+            RelativeVulnerability::WE,
+            RelativeVulnerability::THEY,
+            RelativeVulnerability::ALL,
+        ] {
+            assert_eq!(v.to_string().parse::<RelativeVulnerability>().unwrap(), v);
+        }
+    }
+
+    #[test]
+    fn relative_vulnerability_parses_case_insensitive_and_aliases() {
+        assert_eq!(
+            "NONE".parse::<RelativeVulnerability>().unwrap(),
+            RelativeVulnerability::NONE,
+        );
+        assert_eq!(
+            "We".parse::<RelativeVulnerability>().unwrap(),
+            RelativeVulnerability::WE,
+        );
+        assert_eq!(
+            "all".parse::<RelativeVulnerability>().unwrap(),
+            RelativeVulnerability::ALL,
+        );
+        assert!("ns".parse::<RelativeVulnerability>().is_err());
+    }
+
+    #[test]
+    fn auction_roundtrip() {
+        let mut auction = Auction::new();
+        for call in [
+            Call::Pass,
+            bid(1, Strain::Spades),
+            bid(2, Strain::Hearts),
+            Call::Double,
+            Call::Pass,
+            Call::Pass,
+            Call::Pass,
+        ] {
+            auction.try_push(call).unwrap();
+        }
+        let s = auction.to_string();
+        assert_eq!(s, "P 1♠ 2♥ X P P P");
+        assert_eq!(s.parse::<Auction>().unwrap(), auction);
+    }
+
+    #[test]
+    fn empty_auction_roundtrip() {
+        let auction = Auction::new();
+        assert_eq!(auction.to_string(), "");
+        assert_eq!("".parse::<Auction>().unwrap(), auction);
+        assert_eq!("   \t ".parse::<Auction>().unwrap(), auction);
+    }
+
+    #[test]
+    fn auction_rejects_illegal_sequence() {
+        // 2♠ after 3♥ is insufficient
+        let err = "3♥ 2♠".parse::<Auction>().unwrap_err();
+        assert!(matches!(err, ParseAuctionError::Illegal(_)));
+    }
+
+    #[test]
+    fn auction_rejects_bad_token() {
+        let err = "P 1♠ Q".parse::<Auction>().unwrap_err();
+        assert!(matches!(err, ParseAuctionError::Call(_)));
     }
 }
