@@ -12,6 +12,7 @@ use std::num::NonZero;
 /// specify if the standard deviation is a sample or population one.  Usually,
 /// [`Accumulator`] makes such distinction instead.
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Statistics {
     mean: f64,
     sd: f64,
@@ -49,6 +50,7 @@ impl fmt::Display for Statistics {
 ///
 /// This accumulator uses constant space while keeping numerical stability.
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Accumulator {
     count: usize,
     mean: f64,
@@ -122,6 +124,7 @@ impl Accumulator {
 /// This invariant is not enforced by the type system, but it is expected to be
 /// upheld by the code.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct HistogramRow([[usize; 14]; 5]);
 
 impl HistogramRow {
@@ -160,6 +163,7 @@ impl IndexMut<Strain> for HistogramRow {
 /// solved deals.  This invariant is not enforced by the type system, but it is
 /// expected to be upheld by the code.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct HistogramTable([HistogramRow; 4]);
 
 impl HistogramTable {
@@ -205,6 +209,7 @@ impl FromIterator<solver::TricksTable> for HistogramTable {
 
 /// Par score computed from a histogram of solved deals
 #[derive(Debug, Clone, Copy, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ParResult {
     /// Par score across all solved deals
     pub score: f64,

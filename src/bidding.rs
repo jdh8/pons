@@ -70,6 +70,7 @@ impl FromStr for Call {
 bitflags::bitflags! {
     /// Vulnerability of sides
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+    #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
     pub struct RelativeVulnerability: u8 {
         /// We are vulnerable
         const WE = 1;
@@ -123,6 +124,7 @@ impl FromStr for RelativeVulnerability {
 ///
 /// [laws]: http://www.worldbridge.org/wp-content/uploads/2017/03/2017LawsofDuplicateBridge-nohighlights.pdf
 #[derive(Debug, Error, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[non_exhaustive]
 pub enum IllegalCall {
     /// Law 27: insufficient bid
@@ -445,6 +447,50 @@ impl System for trie::Forest {
         auction: &[Call],
     ) -> Option<array::Logits> {
         self[vul].classify(hand, vul, auction)
+    }
+}
+
+#[cfg(feature = "serde")]
+mod serde_string {
+    use super::{Auction, Call};
+    use core::fmt::Display;
+    use core::str::FromStr;
+    use serde::{Deserialize, Deserializer, Serialize, Serializer, de};
+
+    fn serialize<T: Display, S: Serializer>(value: &T, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.collect_str(value)
+    }
+
+    fn deserialize<'de, T, D>(deserializer: D) -> Result<T, D::Error>
+    where
+        T: FromStr,
+        T::Err: Display,
+        D: Deserializer<'de>,
+    {
+        let s = <&str>::deserialize(deserializer)?;
+        s.parse().map_err(de::Error::custom)
+    }
+
+    impl Serialize for Call {
+        fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+            serialize(self, s)
+        }
+    }
+    impl<'de> Deserialize<'de> for Call {
+        fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+            deserialize(d)
+        }
+    }
+
+    impl Serialize for Auction {
+        fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+            serialize(self, s)
+        }
+    }
+    impl<'de> Deserialize<'de> for Auction {
+        fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+            deserialize(d)
+        }
     }
 }
 

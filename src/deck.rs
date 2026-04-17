@@ -7,6 +7,7 @@ use thiserror::Error;
 
 /// The deal is not a valid subset of a bridge deal
 #[derive(Debug, Error, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[error("The deal is not a valid subset of a bridge deal")]
 pub struct InvalidDeal;
 
@@ -178,6 +179,26 @@ pub fn fill_deals<R: Rng + ?Sized>(
             .min_by_key(|&seat| deal[seat].len())
             .expect("Seat::ALL shall not be empty"),
     })
+}
+
+#[cfg(feature = "serde")]
+mod serde_impl {
+    use super::Deck;
+    use core::str::FromStr;
+    use serde::{Deserialize, Deserializer, Serialize, Serializer, de};
+
+    impl Serialize for Deck {
+        fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+            s.collect_str(self)
+        }
+    }
+
+    impl<'de> Deserialize<'de> for Deck {
+        fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+            let s = <&str>::deserialize(d)?;
+            Self::from_str(s).map_err(de::Error::custom)
+        }
+    }
 }
 
 #[cfg(test)]
