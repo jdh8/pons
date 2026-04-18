@@ -120,12 +120,14 @@ impl<T> Array<T> {
 
     /// Get the value corresponding to a call
     #[must_use]
+    #[inline]
     pub const fn get(&self, call: Call) -> &T {
         &self.0[encode_call(call)]
     }
 
     /// Get the mutable reference to the value corresponding to a call
     #[must_use]
+    #[inline]
     pub const fn get_mut(&mut self, call: Call) -> &mut T {
         &mut self.0[encode_call(call)]
     }

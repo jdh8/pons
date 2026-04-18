@@ -27,12 +27,14 @@ impl Statistics {
 
     /// Mean, a.k.a. average or expected value
     #[must_use]
+    #[inline]
     pub const fn mean(self) -> f64 {
         self.mean
     }
 
     /// Standard deviation, a measure of dispersion
     #[must_use]
+    #[inline]
     pub const fn sd(self) -> f64 {
         self.sd
     }
@@ -70,18 +72,21 @@ impl Accumulator {
 
     /// The number of seen values
     #[must_use]
+    #[inline]
     pub const fn count(self) -> usize {
         self.count
     }
 
     /// The mean of the seen values
     #[must_use]
+    #[inline]
     pub const fn mean(self) -> f64 {
         self.mean
     }
 
     /// [Squared deviations from the mean](https://en.wikipedia.org/wiki/Squared_deviations_from_the_mean)
     #[must_use]
+    #[inline]
     pub const fn sdm(self) -> f64 {
         self.sdm
     }
@@ -136,7 +141,7 @@ impl HistogramRow {
 
     /// Count the total number of entries in the histogram
     #[must_use]
-    pub fn count(&self) -> Option<NonZero<usize>> {
+    pub fn count(self) -> Option<NonZero<usize>> {
         self.0
             .into_iter()
             .find_map(|hist| NonZero::new(hist.into_iter().sum()))

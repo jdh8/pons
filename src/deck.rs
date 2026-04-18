@@ -28,12 +28,14 @@ impl Deck {
 
     /// The number of cards currently in the deck
     #[must_use]
+    #[inline]
     pub const fn len(&self) -> usize {
         self.0.len()
     }
 
     /// Whether the deck is empty
     #[must_use]
+    #[inline]
     pub const fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
@@ -53,6 +55,7 @@ impl Deck {
 
     /// Take the remaining cards in the deck into a hand.
     #[must_use]
+    #[inline]
     pub const fn take(&mut self) -> Hand {
         core::mem::replace(&mut self.0, Hand::EMPTY)
     }

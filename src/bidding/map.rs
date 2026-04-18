@@ -38,12 +38,14 @@ impl<T> Map<T> {
 
     /// Get the value corresponding to a call
     #[must_use]
+    #[inline]
     pub const fn get(&self, call: Call) -> Option<&T> {
         self.0.get(call).as_ref()
     }
 
     /// Get the mutable entry for in-place manipulation
     #[must_use]
+    #[inline]
     pub const fn entry(&mut self, call: Call) -> &mut Option<T> {
         self.0.get_mut(call)
     }
