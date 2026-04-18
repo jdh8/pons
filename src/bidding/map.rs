@@ -1,3 +1,11 @@
+//! Sparse map keyed by [`Call`]
+//!
+//! [`Map<T>`] is a thin wrapper around [`Array<Option<T>>`][Array] that
+//! exposes a [`HashMap`][std::collections::HashMap]-like surface over the
+//! finite set of legal bridge calls.  It performs no heap allocation: a [`Map`]
+//! is a fixed-size array of optional values plus iterator adapters that skip
+//! absent entries.
+
 use super::{Array, Call, array};
 use core::iter::{FilterMap, Flatten};
 

@@ -27,7 +27,10 @@ impl<F: Fn(Hand) -> T, T> HandEvaluator<T> for F {
 
 /// Evaluator summing values of suit holdings
 #[derive(Debug)]
-pub struct SimpleEvaluator<T: Sum, F: Fn(Holding) -> T>(pub F);
+pub struct SimpleEvaluator<T: Sum, F: Fn(Holding) -> T>(
+    /// The per-suit kernel: invoked once per holding, its results are summed.
+    pub F,
+);
 
 impl<T: Sum, F: Fn(Holding) -> T> HandEvaluator<T> for SimpleEvaluator<T, F> {
     fn eval(&self, hand: Hand) -> T {
