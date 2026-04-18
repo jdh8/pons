@@ -59,7 +59,7 @@ let solutions = solver::Solver::lock().solve_deals(
 )?;
 let par = stats::average_ns_par(
     solutions.into_iter().collect(),
-    Vulnerability::None,
+    Vulnerability::NONE,
     Seat::North,
 );
 ```
