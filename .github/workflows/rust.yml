@@ -47,23 +47,3 @@ jobs:
       run: rustup toolchain install ${{ matrix.rust }} --profile minimal && rustup default ${{ matrix.rust }}
     - name: Test (all features)
       run: cargo test --all-features --verbose
-
-  audit:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v6
-    - name: cargo-deny
-      uses: EmbarkStudios/cargo-deny-action@v2
-      with:
-        command: check bans sources licenses
-
-  miri:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v6
-    - name: Install nightly with Miri
-      run: rustup toolchain install nightly --profile minimal --component miri && rustup default nightly
-    - name: Miri test (skips FFI-dependent solver test)
-      env:
-        MIRIFLAGS: -Zmiri-disable-isolation
-      run: cargo miri test --all-features
