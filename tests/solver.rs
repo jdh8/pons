@@ -3,6 +3,7 @@ use dds_bridge_sys as sys;
 use pons::full_deal;
 
 #[test]
+#[cfg_attr(miri, ignore = "dds-bridge-sys performs FFI which Miri cannot execute")]
 fn test_solving_deals() {
     const N: usize = sys::MAXNOOFBOARDS as usize * 2;
     let deals: [_; N] = core::array::from_fn(|_| full_deal(&mut rand::rng()));
