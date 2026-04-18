@@ -18,7 +18,7 @@ serde = ["dep:serde", "dds-bridge/serde", "bitflags/serde"]
 
 [dependencies]
 bitflags = "2"
-dds-bridge = "0.15"
+dds-bridge = "0.16"
 rand = "0.10"
 serde = { version = "1", features = ["derive"], optional = true }
 thiserror = "2"
