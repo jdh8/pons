@@ -45,6 +45,7 @@ fn histogram() -> impl Strategy<Value = HistogramTable> {
                     let mut bucket = [0usize; 14];
                     let mut assigned = 0;
                     for k in 0..13 {
+                        #[allow(clippy::cast_possible_truncation)]
                         let share = (u64::from(ws[k]) * n as u64 / u64::from(total)) as usize;
                         bucket[k] = share;
                         assigned += share;
