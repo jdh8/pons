@@ -1,6 +1,6 @@
 [package]
 name = "pons"
-version = "0.6.0-dev"
+version = "0.6.0"
 authors = ["Chen-Pang He (https://jdh8.org)"]
 edition = "2024"
 rust-version = "1.93"
