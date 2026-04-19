@@ -19,7 +19,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `fill_deals` helper
 - Criterion benchmarks for shuffle, trie, and parallel solving
 - proptest-based roundtrip and histogram invariant tests
-- `cargo-deny` and Miri jobs in CI
 
 ### Changed
 - `System::classify` now takes a slice
