@@ -7,7 +7,6 @@ use std::process::ExitCode;
 
 fn calculate_par_suit_tricks(tricks: solver::TricksTable) -> Option<(Suit, deal::Seat, i8)> {
     solver::calculate_par(tricks, solver::Vulnerability::empty(), deal::Seat::North)
-        .ok()?
         .contracts
         .into_iter()
         .find_map(|pc| {
@@ -36,13 +35,13 @@ type Evaluation = na::OMatrix<f64, na::Dyn, Columns>;
 type Correlation = na::OMatrix<f64, Columns, Columns>;
 type Histogram<T> = na::OMatrix<T, na::U8, na::Const<{ EVALUATORS.len() }>>;
 
-fn eval_random_deals(n: usize) -> Result<Evaluation, solver::SystemError> {
+fn eval_random_deals(n: usize) -> Evaluation {
     let deals: Vec<_> = core::iter::repeat_with(|| deck::full_deal(&mut rand::rng()))
         .take(n)
         .collect();
 
     let rows: Vec<_> = solver::Solver::lock()
-        .solve_deals(&deals, solver::StrainFlags::all())?
+        .solve_deals(&deals, solver::StrainFlags::all())
         .into_iter()
         .map(calculate_par_suit_tricks)
         .enumerate()
@@ -54,11 +53,11 @@ fn eval_random_deals(n: usize) -> Result<Evaluation, solver::SystemError> {
         })
         .collect();
 
-    Ok(Evaluation::from_row_iterator(
+    Evaluation::from_row_iterator(
         rows.len(),
         rows.into_iter()
             .flat_map(|(tricks, eval)| core::iter::once(f64::from(tricks)).chain(eval)),
-    ))
+    )
 }
 
 fn compute_correlation(eval: &Evaluation) -> Correlation {
@@ -84,19 +83,19 @@ fn compute_histogram(eval: &Evaluation) -> Histogram<Statistics> {
 }
 
 #[doc = include_str!("README.md")]
-fn main() -> Result<ExitCode, solver::SystemError> {
+fn main() -> ExitCode {
     let n = match std::env::args().nth(1) {
         Some(string) => {
             if let Ok(n) = string.parse::<usize>() {
                 n
             } else {
                 eprintln!("{}", include_str!("README.md"));
-                return Ok(ExitCode::FAILURE);
+                return ExitCode::FAILURE;
             }
         }
         None => 100,
     };
-    let eval = eval_random_deals(n)?;
+    let eval = eval_random_deals(n);
     let tricks = eval.column(0);
     let mean = tricks.mean();
 
@@ -121,5 +120,5 @@ fn main() -> Result<ExitCode, solver::SystemError> {
         "Histogram of eval (mean ± sd) for tricks: {:.6}",
         compute_histogram(&eval),
     );
-    Ok(ExitCode::SUCCESS)
+    ExitCode::SUCCESS
 }

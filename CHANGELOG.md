@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+- Updated `dds-bridge` dependency to 0.17
+
 ## [0.6.0] — 2026-04-19
 
 ### Added
@@ -84,6 +89,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Trie` for bidding strategies, with depth-first iteration, suffix and prefix iterators
 - Statistics utilities for evaluators; histograms
 
+[Unreleased]: https://github.com/jdh8/pons/compare/v0.6.0...HEAD
 [0.6.0]: https://github.com/jdh8/pons/releases/tag/0.6.0
 [0.5.0]: https://github.com/jdh8/pons/releases/tag/0.5.0
 [0.3.1]: https://github.com/jdh8/pons/releases/tag/0.3.1

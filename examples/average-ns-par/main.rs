@@ -38,7 +38,7 @@ fn main() -> anyhow::Result<()> {
             .take(args.count)
             .collect::<Vec<_>>(),
         StrainFlags::all(),
-    )?;
+    );
 
     let Some(par) = stats::average_ns_par(
         solutions.into_iter().collect(),

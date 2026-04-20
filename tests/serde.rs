@@ -2,7 +2,7 @@
 
 #![cfg(feature = "serde")]
 
-use dds_bridge::{Bid, Level, Strain};
+use dds_bridge::{Bid, Strain};
 use pons::bidding::{Auction, Call, IllegalCall, RelativeVulnerability};
 use pons::deck::Deck;
 use pons::stats::{Accumulator, HistogramRow, HistogramTable, Statistics};
@@ -16,11 +16,8 @@ where
     assert_eq!(&parsed, value, "round-trip mismatch for {json}");
 }
 
-fn bid(level: u8, strain: Strain) -> Call {
-    Call::Bid(Bid {
-        level: Level::new(level),
-        strain,
-    })
+const fn bid(level: u8, strain: Strain) -> Call {
+    Call::Bid(Bid::new(level, strain))
 }
 
 #[test]

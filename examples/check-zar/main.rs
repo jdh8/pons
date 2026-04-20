@@ -6,7 +6,6 @@ use std::process::ExitCode;
 
 fn calculate_par_suit_tricks(tricks: solver::TricksTable) -> Option<(Suit, deal::Seat, i8)> {
     solver::calculate_par(tricks, solver::Vulnerability::empty(), deal::Seat::North)
-        .ok()?
         .contracts
         .into_iter()
         .find_map(|pc| {
@@ -22,13 +21,13 @@ fn calculate_par_suit_tricks(tricks: solver::TricksTable) -> Option<(Suit, deal:
         })
 }
 
-fn eval_random_deals(n: usize) -> Result<[Statistics; 64], solver::SystemError> {
+fn eval_random_deals(n: usize) -> [Statistics; 64] {
     let deals: Vec<_> = core::iter::repeat_with(|| deck::full_deal(&mut rand::rng()))
         .take(n)
         .collect();
 
-    Ok(solver::Solver::lock()
-        .solve_deals(&deals, solver::StrainFlags::all())?
+    solver::Solver::lock()
+        .solve_deals(&deals, solver::StrainFlags::all())
         .into_iter()
         .map(calculate_par_suit_tricks)
         .enumerate()
@@ -42,25 +41,25 @@ fn eval_random_deals(n: usize) -> Result<[Statistics; 64], solver::SystemError> 
             acc[eval.saturating_sub(16).min(63) as usize].push(tricks.into());
             acc
         })
-        .map(Accumulator::sample))
+        .map(Accumulator::sample)
 }
 
-fn main() -> Result<ExitCode, solver::SystemError> {
+fn main() -> ExitCode {
     let n = match std::env::args().nth(1) {
         Some(string) => {
             if let Ok(n) = string.parse::<usize>() {
                 n
             } else {
                 //eprintln!("{}", include_str!("README.md"));
-                return Ok(ExitCode::FAILURE);
+                return ExitCode::FAILURE;
             }
         }
         None => 100,
     };
 
-    for (i, stat) in eval_random_deals(n)?.into_iter().enumerate() {
+    for (i, stat) in eval_random_deals(n).into_iter().enumerate() {
         println!("{}: {stat}", i + 16);
     }
 
-    Ok(ExitCode::SUCCESS)
+    ExitCode::SUCCESS
 }

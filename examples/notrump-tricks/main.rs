@@ -24,13 +24,13 @@ fn to_cumulative_probability(histogram: [u32; 14]) -> [f64; 14] {
     cumsum.map(|x| f64::from(x) / f64::from(cumsum[0]))
 }
 
-fn analyze_deals(n: usize) -> Result<(), solver::SystemError> {
+fn analyze_deals(n: usize) {
     let deals: Vec<_> = core::iter::repeat_with(|| full_deal(&mut rand::rng()))
         .take(n)
         .collect();
 
     let histogram = solver::Solver::lock()
-        .solve_deals(&deals, solver::StrainFlags::NOTRUMP)?
+        .solve_deals(&deals, solver::StrainFlags::NOTRUMP)
         .into_iter()
         .map(|table| table[Strain::Notrump])
         .fold(Histogram::default(), |mut acc, row| {
@@ -53,21 +53,20 @@ fn analyze_deals(n: usize) -> Result<(), solver::SystemError> {
     dbg!(&to_cumulative_probability(histogram.each)[6..]);
     dbg!(&to_cumulative_probability(histogram.right)[6..]);
     dbg!(&to_cumulative_probability(histogram.max)[6..]);
-    Ok(())
 }
 
 #[doc = include_str!("README.md")]
-fn main() -> Result<ExitCode, solver::SystemError> {
+fn main() -> ExitCode {
     match std::env::args().nth(1) {
         Some(string) => {
             if let Ok(n) = string.parse::<usize>() {
-                analyze_deals(n)
+                analyze_deals(n);
             } else {
                 eprintln!("{}", include_str!("README.md"));
-                return Ok(ExitCode::FAILURE);
+                return ExitCode::FAILURE;
             }
         }
         None => analyze_deals(100),
-    }?;
-    Ok(ExitCode::SUCCESS)
+    }
+    ExitCode::SUCCESS
 }

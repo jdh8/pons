@@ -1,6 +1,6 @@
 [package]
 name = "pons"
-version = "0.6.0"
+version = "0.6.1-dev"
 authors = ["Chen-Pang He (https://jdh8.org)"]
 edition = "2024"
 rust-version = "1.93"
@@ -18,7 +18,7 @@ serde = ["dep:serde", "dds-bridge/serde", "bitflags/serde"]
 
 [dependencies]
 bitflags = "2"
-dds-bridge = "0.16"
+dds-bridge = "0.17"
 rand = "0.10"
 serde = { version = "1", features = ["derive"], optional = true }
 thiserror = "2"
