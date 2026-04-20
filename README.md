@@ -25,7 +25,7 @@ brainstem][pons] and also "bridge" in Latin.
 
 Deal 10 random hands and evaluate the North hand with several point counts:
 
-```rs
+```rust
 use pons::{full_deal, eval};
 use pons::eval::HandEvaluator;
 use dds_bridge::Seat;
@@ -47,7 +47,7 @@ Estimate NS par from random fill-in deals (requires `dds-bridge`'s solver,
 linked via `dds-bridge-sys` in `dev-dependencies`; see
 [`examples/average-ns-par`](examples/average-ns-par/main.rs)):
 
-```rs
+```rust
 use pons::{deck, stats};
 use dds_bridge::{Deal, Hand, Seat};
 use dds_bridge::solver::{self, StrainFlags, Vulnerability};
