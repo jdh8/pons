@@ -1,5 +1,5 @@
-use dds_bridge::{Card, Deal, Hand, Rank, Seat, Suit};
-use pons::deck::{InvalidDeal, fill_deals};
+use dds_bridge::{Builder, Card, Hand, Rank, Seat, Subset, Suit};
+use pons::deck::fill_deals;
 use pons::{Deck, full_deal};
 
 #[test]
@@ -177,15 +177,14 @@ fn test_full_deal_all_unique() {
 fn test_fill_deals_from_full_deal() {
     let rng = &mut rand::rng();
     let deal = full_deal(rng);
-    let filled = fill_deals(rng, deal).unwrap().next().unwrap();
+    let filled = fill_deals(rng, deal.into()).next().unwrap();
     assert_eq!(filled, deal);
 }
 
 #[test]
 fn test_fill_deals_from_empty() {
     let rng = &mut rand::rng();
-    let deal = Deal::default();
-    let filled = fill_deals(rng, deal).unwrap().next().unwrap();
+    let filled = fill_deals(rng, Subset::EMPTY).next().unwrap();
     for seat in Seat::ALL {
         assert_eq!(filled[seat].len(), 13);
     }
@@ -210,9 +209,10 @@ fn test_fill_deals_preserves_known_cards() {
     ]
     .into_iter()
     .collect();
-    let mut deal = Deal::default();
-    deal[Seat::North] = north;
-    let filled = fill_deals(rng, deal).unwrap().next().unwrap();
+    let mut builder = Builder::default();
+    builder[Seat::North] = north;
+    let subset = builder.build_subset().unwrap();
+    let filled = fill_deals(rng, subset).next().unwrap();
     assert!(filled[Seat::North].into_iter().any(|c| c
         == Card {
             suit: Suit::Spades,
@@ -228,13 +228,6 @@ fn test_fill_deals_preserves_known_cards() {
 #[test]
 fn test_fill_deals_iterator_is_infinite() {
     let rng = &mut rand::rng();
-    let deal = Deal::default();
-    let deals: Vec<_> = fill_deals(rng, deal).unwrap().take(5).collect();
+    let deals: Vec<_> = fill_deals(rng, Subset::EMPTY).take(5).collect();
     assert_eq!(deals.len(), 5);
-}
-
-#[test]
-fn test_error_display() {
-    let err = InvalidDeal;
-    assert!(!format!("{err}").is_empty());
 }

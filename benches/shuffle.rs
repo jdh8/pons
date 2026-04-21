@@ -1,5 +1,5 @@
 use criterion::{Criterion, criterion_group, criterion_main};
-use dds_bridge::{Deal, Seat};
+use dds_bridge::{Builder, Seat};
 use pons::deck::{Deck, fill_deals, full_deal};
 use rand::SeedableRng;
 use rand::rngs::SmallRng;
@@ -23,16 +23,16 @@ fn bench_full_deal(c: &mut Criterion) {
 }
 
 fn bench_fill_deals_known_north(c: &mut Criterion) {
-    let mut deal = Deal::default();
+    let mut builder = Builder::default();
     let mut rng = SmallRng::seed_from_u64(42);
     let mut deck = Deck::ALL;
-    deal[Seat::North] = deck.draw(&mut rng, 13);
+    builder[Seat::North] = deck.draw(&mut rng, 13);
+    let subset = builder.build_subset().expect("known partial deal is valid");
 
     c.bench_function("fill_deals_with_known_north_x100", |b| {
         let mut rng = SmallRng::seed_from_u64(0);
         b.iter(|| {
-            let iter = fill_deals(&mut rng, deal).expect("known partial deal is valid");
-            for d in iter.take(100) {
+            for d in fill_deals(&mut rng, subset).take(100) {
                 black_box(d);
             }
         });

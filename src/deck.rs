@@ -1,15 +1,8 @@
 use core::fmt;
 use core::iter::FusedIterator;
 use core::str::FromStr;
-use dds_bridge::{Card, Deal, Hand, Seat};
+use dds_bridge::{Builder, Card, FullDeal, Hand, Seat, Subset};
 use rand::{Rng, RngExt as _};
-use thiserror::Error;
-
-/// The deal is not a valid subset of a bridge deal
-#[derive(Debug, Error, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[error("The deal is not a valid subset of a bridge deal")]
-pub struct InvalidDeal;
 
 /// A subset of the standard 52-card deck
 ///
@@ -115,15 +108,17 @@ impl FromStr for Deck {
 
 /// Shuffle and evenly deal 52 cards into 4 hands
 #[must_use]
-pub fn full_deal(rng: &mut (impl Rng + ?Sized)) -> Deal {
+pub fn full_deal(rng: &mut (impl Rng + ?Sized)) -> FullDeal {
     let mut deck = Deck::ALL;
 
-    Deal::new(
+    Builder::new(
         deck.draw(rng, 13),
         deck.draw(rng, 13),
         deck.draw(rng, 13),
         deck.take(),
     )
+    .build_full()
+    .expect("each hand receives exactly 13 cards by construction")
 }
 
 /// An infinite iterator that fills undealt cards randomly into a partial deal.
@@ -132,7 +127,7 @@ pub fn full_deal(rng: &mut (impl Rng + ?Sized)) -> Deal {
 #[derive(Debug)]
 pub struct FillDeals<'a, R: Rng + ?Sized> {
     rng: &'a mut R,
-    deal: Deal,
+    builder: Builder,
     deck: Deck,
 
     /// The seat with the fewest cards in the initial deal.  This seat will be
@@ -141,47 +136,45 @@ pub struct FillDeals<'a, R: Rng + ?Sized> {
 }
 
 impl<R: Rng + ?Sized> Iterator for FillDeals<'_, R> {
-    type Item = Deal;
+    type Item = FullDeal;
 
-    fn next(&mut self) -> Option<Deal> {
+    fn next(&mut self) -> Option<FullDeal> {
         let mut deck = self.deck;
-        let mut deal = self.deal;
+        let mut builder = self.builder;
         let mut fill = |hand: &mut Hand| *hand |= deck.draw(self.rng, 13 - hand.len());
 
-        fill(&mut deal[self.shortest.lho()]);
-        fill(&mut deal[self.shortest.partner()]);
-        fill(&mut deal[self.shortest.rho()]);
+        fill(&mut builder[self.shortest.lho()]);
+        fill(&mut builder[self.shortest.partner()]);
+        fill(&mut builder[self.shortest.rho()]);
 
-        deal[self.shortest] |= deck.take();
-        Some(deal)
+        builder[self.shortest] |= deck.take();
+        Some(
+            builder
+                .build_full()
+                .expect("each seat holds exactly 13 cards after filling"),
+        )
     }
 }
 
 impl<R: Rng + ?Sized> FusedIterator for FillDeals<'_, R> {}
 
 /// Given a partial deal, return an iterator that fills in the remaining cards
-/// randomly on each iteration.
-///
-/// # Errors
-///
-/// [`InvalidDeal`] if `deal` is invalid determined by
-/// [`Deal::validate_and_collect`].
+/// randomly on each iteration.  The partial deal is provided as a [`Subset`],
+/// whose invariants guarantee the iterator can always produce a [`FullDeal`].
 #[must_use = "iterators are lazy and do nothing unless consumed"]
-pub fn fill_deals<R: Rng + ?Sized>(
-    rng: &mut R,
-    deal: Deal,
-) -> Result<FillDeals<'_, R>, InvalidDeal> {
-    Ok(FillDeals {
+pub fn fill_deals<R: Rng + ?Sized>(rng: &mut R, subset: Subset) -> FillDeals<'_, R> {
+    let builder = Builder::from(subset);
+    FillDeals {
         rng,
-        deal,
-        deck: Deck::from(!deal.validate_and_collect().ok_or(InvalidDeal)?),
+        builder,
+        deck: Deck::from(!subset.collected()),
 
         #[allow(clippy::missing_panics_doc)]
         shortest: Seat::ALL
             .into_iter()
-            .min_by_key(|&seat| deal[seat].len())
+            .min_by_key(|&seat| builder[seat].len())
             .expect("Seat::ALL shall not be empty"),
-    })
+    }
 }
 
 #[cfg(feature = "serde")]
