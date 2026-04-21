@@ -32,7 +32,9 @@ struct Args {
 
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
-    let cards = Builder::new(args.north, Hand::EMPTY, args.south, Hand::EMPTY)
+    let cards = Builder::new()
+        .north(args.north)
+        .south(args.south)
         .build_subset()
         .map_err(|_| anyhow::anyhow!("north and south hands overlap or exceed 13 cards"))?;
     let solutions = solver::Solver::lock().solve_deals(

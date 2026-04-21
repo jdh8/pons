@@ -54,7 +54,9 @@ use dds_bridge::solver::{self, StrainFlags, Vulnerability};
 # let north_hand: Hand = "T9762.AT54.JT75.".parse().unwrap();
 # let south_hand: Hand = "A.KQ962.A86.Q642".parse().unwrap();
 
-let cards = Builder::new(north_hand, Hand::EMPTY, south_hand, Hand::EMPTY)
+let cards = Builder::new()
+    .north(north_hand)
+    .south(south_hand)
     .build_subset()
     .expect("north and south hands are disjoint and ≤13 each");
 let solutions = solver::Solver::lock().solve_deals(

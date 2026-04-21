@@ -111,14 +111,13 @@ impl FromStr for Deck {
 pub fn full_deal(rng: &mut (impl Rng + ?Sized)) -> FullDeal {
     let mut deck = Deck::ALL;
 
-    Builder::new(
-        deck.draw(rng, 13),
-        deck.draw(rng, 13),
-        deck.draw(rng, 13),
-        deck.take(),
-    )
-    .build_full()
-    .expect("each hand receives exactly 13 cards by construction")
+    Builder::new()
+        .north(deck.draw(rng, 13))
+        .east(deck.draw(rng, 13))
+        .south(deck.draw(rng, 13))
+        .west(deck.take())
+        .build_full()
+        .expect("each hand receives exactly 13 cards by construction")
 }
 
 /// An infinite iterator that fills undealt cards randomly into a partial deal.
