@@ -4,7 +4,7 @@ use pons::eval::{self, HandEvaluator as _};
 use pons::{Accumulator, Statistics};
 use std::process::ExitCode;
 
-fn calculate_par_suit_tricks(tricks: solver::TricksTable) -> Option<(Suit, Seat, i8)> {
+fn calculate_par_suit_tricks(tricks: solver::TrickCountTable) -> Option<(Suit, Seat, i8)> {
     solver::calculate_par(tricks, solver::Vulnerability::empty(), Seat::North)
         .contracts
         .into_iter()

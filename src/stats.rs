@@ -199,8 +199,8 @@ impl IndexMut<Seat> for HistogramTable {
     }
 }
 
-impl FromIterator<solver::TricksTable> for HistogramTable {
-    fn from_iter<I: IntoIterator<Item = solver::TricksTable>>(iter: I) -> Self {
+impl FromIterator<solver::TrickCountTable> for HistogramTable {
+    fn from_iter<I: IntoIterator<Item = solver::TrickCountTable>>(iter: I) -> Self {
         iter.into_iter().fold(Self::new(), |mut hist, tricks| {
             for seat in Seat::ALL {
                 for strain in Strain::ASC {

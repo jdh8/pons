@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated `dds-bridge` dependency to 0.18
 - `full_deal` now returns `FullDeal` (was `Deal`)
 - `fill_deals` now takes a pre-validated `PartialDeal`; no longer returns `Result`
+- Track `dds-bridge`'s trick-count rename: `solver::TricksTable` → `solver::TrickCountTable` in `stats::HistogramTable`'s `FromIterator` impl and in the `check-zar` / `check-nltc` examples. Pure rename on the consumer side.
 
 ### Internal
 - Moved serde submodules to separate files
