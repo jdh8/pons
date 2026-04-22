@@ -14,13 +14,14 @@ categories = ["game-development"]
 keywords = ["bridge"]
 
 [features]
-serde = ["dep:serde", "dds-bridge/serde", "bitflags/serde"]
+serde = ["dep:serde", "dep:serde_with", "dds-bridge/serde", "bitflags/serde"]
 
 [dependencies]
 bitflags = "2"
 dds-bridge = { version = "0.18.0-dev", path = "../dds-bridge" }
 rand = "0.10"
 serde = { version = "1", features = ["derive"], optional = true }
+serde_with = { version = "3", default-features = false, features = ["macros"], optional = true }
 thiserror = "2"
 
 [dev-dependencies]

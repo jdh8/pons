@@ -5,9 +5,6 @@ pub mod map;
 /// [`Trie`] as a bidding system
 pub mod trie;
 
-#[cfg(feature = "serde")]
-mod serde_;
-
 pub use array::Array;
 pub use map::Map;
 pub use trie::Trie;
@@ -24,6 +21,10 @@ use thiserror::Error;
 /// This enum is intentionally exhaustive: the laws of contract bridge define
 /// exactly these call types, so no future variants are possible.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(
+    feature = "serde",
+    derive(serde_with::SerializeDisplay, serde_with::DeserializeFromStr)
+)]
 pub enum Call {
     /// A call indicating no wish to change the contract
     Pass,
@@ -150,6 +151,10 @@ pub enum IllegalCall {
 
 /// A sequence of [`Call`]s
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[cfg_attr(
+    feature = "serde",
+    derive(serde_with::SerializeDisplay, serde_with::DeserializeFromStr)
+)]
 pub struct Auction(Vec<Call>);
 
 impl fmt::Display for Auction {

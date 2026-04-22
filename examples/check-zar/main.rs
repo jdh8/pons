@@ -1,11 +1,11 @@
-use dds_bridge::{Suit, deal, solver};
+use dds_bridge::{Seat, Suit, solver};
 use pons::deck;
 use pons::eval::{self, HandEvaluator as _};
 use pons::{Accumulator, Statistics};
 use std::process::ExitCode;
 
-fn calculate_par_suit_tricks(tricks: solver::TricksTable) -> Option<(Suit, deal::Seat, i8)> {
-    solver::calculate_par(tricks, solver::Vulnerability::empty(), deal::Seat::North)
+fn calculate_par_suit_tricks(tricks: solver::TricksTable) -> Option<(Suit, Seat, i8)> {
+    solver::calculate_par(tricks, solver::Vulnerability::empty(), Seat::North)
         .contracts
         .into_iter()
         .find_map(|pc| {
