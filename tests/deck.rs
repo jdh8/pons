@@ -1,4 +1,4 @@
-use dds_bridge::{Builder, Card, Hand, Rank, Seat, Subset, Suit};
+use dds_bridge::{Builder, Card, Hand, Rank, Seat, SubsetDeal, Suit};
 use pons::deck::fill_deals;
 use pons::{Deck, full_deal};
 
@@ -184,7 +184,7 @@ fn test_fill_deals_from_full_deal() {
 #[test]
 fn test_fill_deals_from_empty() {
     let rng = &mut rand::rng();
-    let filled = fill_deals(rng, Subset::EMPTY).next().unwrap();
+    let filled = fill_deals(rng, SubsetDeal::EMPTY).next().unwrap();
     for seat in Seat::ALL {
         assert_eq!(filled[seat].len(), 13);
     }
@@ -228,6 +228,6 @@ fn test_fill_deals_preserves_known_cards() {
 #[test]
 fn test_fill_deals_iterator_is_infinite() {
     let rng = &mut rand::rng();
-    let deals: Vec<_> = fill_deals(rng, Subset::EMPTY).take(5).collect();
+    let deals: Vec<_> = fill_deals(rng, SubsetDeal::EMPTY).take(5).collect();
     assert_eq!(deals.len(), 5);
 }
