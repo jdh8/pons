@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Updated `dds-bridge` dependency to 0.18
 - `full_deal` now returns `FullDeal` (was `Deal`)
-- `fill_deals` now takes a pre-validated `Subset`; no longer returns `Result`
+- `fill_deals` now takes a pre-validated `PartialDeal`; no longer returns `Result`
 
 ### Internal
 - Moved serde submodules to separate files

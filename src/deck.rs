@@ -1,7 +1,7 @@
 use core::fmt;
 use core::iter::FusedIterator;
 use core::str::FromStr;
-use dds_bridge::{Builder, Card, FullDeal, Hand, Seat, SubsetDeal};
+use dds_bridge::{Builder, Card, FullDeal, Hand, Seat, PartialDeal};
 use rand::{Rng, RngExt as _};
 
 /// A subset of the standard 52-card deck
@@ -158,10 +158,10 @@ impl<R: Rng + ?Sized> Iterator for FillDeals<'_, R> {
 impl<R: Rng + ?Sized> FusedIterator for FillDeals<'_, R> {}
 
 /// Given a partial deal, return an iterator that fills in the remaining cards
-/// randomly on each iteration.  The partial deal is provided as a [`SubsetDeal`],
+/// randomly on each iteration.  The partial deal is provided as a [`PartialDeal`],
 /// whose invariants guarantee the iterator can always produce a [`FullDeal`].
 #[must_use = "iterators are lazy and do nothing unless consumed"]
-pub fn fill_deals<R: Rng + ?Sized>(rng: &mut R, subset: SubsetDeal) -> FillDeals<'_, R> {
+pub fn fill_deals<R: Rng + ?Sized>(rng: &mut R, subset: PartialDeal) -> FillDeals<'_, R> {
     let builder = Builder::from(subset);
     FillDeals {
         rng,

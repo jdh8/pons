@@ -57,7 +57,7 @@ use dds_bridge::solver::{self, StrainFlags, Vulnerability};
 let cards = Builder::new()
     .north(north_hand)
     .south(south_hand)
-    .build_subset()
+    .build_partial()
     .expect("north and south hands are disjoint and ≤13 each");
 let solutions = solver::Solver::lock().solve_deals(
     &deck::fill_deals(&mut rand::rng(), cards).take(90).collect::<Vec<_>>(),

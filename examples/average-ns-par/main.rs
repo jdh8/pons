@@ -35,7 +35,7 @@ fn main() -> anyhow::Result<()> {
     let cards = Builder::new()
         .north(args.north)
         .south(args.south)
-        .build_subset()
+        .build_partial()
         .map_err(|_| anyhow::anyhow!("north and south hands overlap or exceed 13 cards"))?;
     let solutions = solver::Solver::lock().solve_deals(
         &deck::fill_deals(&mut rand::rng(), cards)
