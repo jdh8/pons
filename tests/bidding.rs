@@ -76,26 +76,28 @@ fn test_auction_declarer_different_strain() {
 }
 
 #[test]
-fn test_auction_double() {
+fn test_auction_double() -> Result<(), IllegalCall> {
     let mut auction = Auction::new();
     auction.push(bid(1, Strain::Clubs));
-    auction.try_push(Call::Double).unwrap();
+    auction.try_push(Call::Double)?;
     auction.push(Call::Pass);
     auction.push(Call::Pass);
     auction.push(Call::Pass);
     assert!(auction.has_ended());
+    Ok(())
 }
 
 #[test]
-fn test_auction_redouble() {
+fn test_auction_redouble() -> Result<(), IllegalCall> {
     let mut auction = Auction::new();
     auction.push(bid(1, Strain::Clubs));
     auction.push(Call::Double);
-    auction.try_push(Call::Redouble).unwrap();
+    auction.try_push(Call::Redouble)?;
     auction.push(Call::Pass);
     auction.push(Call::Pass);
     auction.push(Call::Pass);
     assert!(auction.has_ended());
+    Ok(())
 }
 
 #[test]
@@ -178,12 +180,11 @@ fn test_auction_truncate() {
 }
 
 #[test]
-fn test_auction_try_extend() {
+fn test_auction_try_extend() -> Result<(), IllegalCall> {
     let mut auction = Auction::new();
-    auction
-        .try_extend([bid(1, Strain::Clubs), Call::Pass, Call::Pass, Call::Pass])
-        .unwrap();
+    auction.try_extend([bid(1, Strain::Clubs), Call::Pass, Call::Pass, Call::Pass])?;
     assert!(auction.has_ended());
+    Ok(())
 }
 
 #[test]
@@ -428,26 +429,32 @@ fn test_logits_softmax_uniform() {
 }
 
 #[test]
-fn test_logits_softmax_one_hot() {
+fn test_logits_softmax_one_hot() -> anyhow::Result<()> {
     // Only Pass has logit 0, rest NEG_INFINITY -> Pass gets ~1.0
     let mut logits = Logits::new();
     *logits.get_mut(Call::Pass) = 0.0;
-    let probs = logits.softmax().unwrap();
+    let probs = logits
+        .softmax()
+        .ok_or_else(|| anyhow::anyhow!("softmax returned None"))?;
     assert!((probs[Call::Pass] - 1.0).abs() < 1e-6);
     assert!(probs[Call::Double].abs() < 1e-6);
+    Ok(())
 }
 
 #[test]
-fn test_logits_softmax_equal() {
+fn test_logits_softmax_equal() -> anyhow::Result<()> {
     // All logits equal -> uniform
     let logits = Logits(Array::repeat(5.0f32));
-    let probs = logits.softmax().unwrap();
+    let probs = logits
+        .softmax()
+        .ok_or_else(|| anyhow::anyhow!("softmax returned None"))?;
     let first = probs[Call::Pass];
     for (_, &p) in &probs {
         assert!((p - first).abs() < 1e-6);
     }
     let sum: f32 = probs.values().copied().sum();
     assert!((sum - 1.0).abs() < 1e-5);
+    Ok(())
 }
 
 // ===== Map =====

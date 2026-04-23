@@ -382,21 +382,24 @@ impl Auction {
     /// # Examples
     ///
     /// ```
-    /// use pons::bidding::{Auction, Call};
+    /// use pons::bidding::{Auction, Call, IllegalCall};
     /// use dds_bridge::{Bid, Level, Strain};
     ///
+    /// # fn main() -> Result<(), IllegalCall> {
     /// // 1♥ by opener (index 1), raised to 4♥ — declarer bid 1♥ at index 1
     /// let mut auction = Auction::new();
     /// let one_heart = Call::Bid(Bid { level: Level::new(1), strain: Strain::Hearts });
     /// let four_hearts = Call::Bid(Bid { level: Level::new(4), strain: Strain::Hearts });
-    /// auction.try_push(Call::Pass).unwrap();  // index 0 (dealer)
-    /// auction.try_push(one_heart).unwrap();   // index 1 (declarer)
-    /// auction.try_push(Call::Pass).unwrap();  // index 2
-    /// auction.try_push(four_hearts).unwrap(); // index 3 (dummy)
-    /// auction.try_push(Call::Pass).unwrap();
-    /// auction.try_push(Call::Pass).unwrap();
-    /// auction.try_push(Call::Pass).unwrap();
+    /// auction.try_push(Call::Pass)?;  // index 0 (dealer)
+    /// auction.try_push(one_heart)?;   // index 1 (declarer)
+    /// auction.try_push(Call::Pass)?;  // index 2
+    /// auction.try_push(four_hearts)?; // index 3 (dummy)
+    /// auction.try_push(Call::Pass)?;
+    /// auction.try_push(Call::Pass)?;
+    /// auction.try_push(Call::Pass)?;
     /// assert_eq!(auction.declarer(), Some(1));
+    /// # Ok(())
+    /// # }
     /// ```
     #[must_use]
     pub fn declarer(&self) -> Option<usize> {
@@ -471,7 +474,7 @@ mod tests {
     }
 
     #[test]
-    fn call_roundtrip() {
+    fn call_roundtrip() -> Result<(), ParseCallError> {
         for call in [
             Call::Pass,
             Call::Double,
@@ -480,21 +483,23 @@ mod tests {
             bid(3, Strain::Notrump),
             bid(7, Strain::Clubs),
         ] {
-            assert_eq!(call.to_string().parse::<Call>().unwrap(), call);
+            assert_eq!(call.to_string().parse::<Call>()?, call);
         }
+        Ok(())
     }
 
     #[test]
-    fn call_parses_aliases_case_insensitive() {
-        assert_eq!("p".parse::<Call>().unwrap(), Call::Pass);
-        assert_eq!("PASS".parse::<Call>().unwrap(), Call::Pass);
-        assert_eq!("pass".parse::<Call>().unwrap(), Call::Pass);
-        assert_eq!("x".parse::<Call>().unwrap(), Call::Double);
-        assert_eq!("dbl".parse::<Call>().unwrap(), Call::Double);
-        assert_eq!("DOUBLE".parse::<Call>().unwrap(), Call::Double);
-        assert_eq!("xx".parse::<Call>().unwrap(), Call::Redouble);
-        assert_eq!("RDBL".parse::<Call>().unwrap(), Call::Redouble);
-        assert_eq!("redouble".parse::<Call>().unwrap(), Call::Redouble);
+    fn call_parses_aliases_case_insensitive() -> Result<(), ParseCallError> {
+        assert_eq!("p".parse::<Call>()?, Call::Pass);
+        assert_eq!("PASS".parse::<Call>()?, Call::Pass);
+        assert_eq!("pass".parse::<Call>()?, Call::Pass);
+        assert_eq!("x".parse::<Call>()?, Call::Double);
+        assert_eq!("dbl".parse::<Call>()?, Call::Double);
+        assert_eq!("DOUBLE".parse::<Call>()?, Call::Double);
+        assert_eq!("xx".parse::<Call>()?, Call::Redouble);
+        assert_eq!("RDBL".parse::<Call>()?, Call::Redouble);
+        assert_eq!("redouble".parse::<Call>()?, Call::Redouble);
+        Ok(())
     }
 
     #[test]
@@ -505,36 +510,39 @@ mod tests {
     }
 
     #[test]
-    fn relative_vulnerability_roundtrip() {
+    fn relative_vulnerability_roundtrip() -> Result<(), ParseRelativeVulnerabilityError> {
         for v in [
             RelativeVulnerability::NONE,
             RelativeVulnerability::WE,
             RelativeVulnerability::THEY,
             RelativeVulnerability::ALL,
         ] {
-            assert_eq!(v.to_string().parse::<RelativeVulnerability>().unwrap(), v);
+            assert_eq!(v.to_string().parse::<RelativeVulnerability>()?, v);
         }
+        Ok(())
     }
 
     #[test]
-    fn relative_vulnerability_parses_case_insensitive_and_aliases() {
+    fn relative_vulnerability_parses_case_insensitive_and_aliases()
+    -> Result<(), ParseRelativeVulnerabilityError> {
         assert_eq!(
-            "NONE".parse::<RelativeVulnerability>().unwrap(),
+            "NONE".parse::<RelativeVulnerability>()?,
             RelativeVulnerability::NONE,
         );
         assert_eq!(
-            "We".parse::<RelativeVulnerability>().unwrap(),
+            "We".parse::<RelativeVulnerability>()?,
             RelativeVulnerability::WE,
         );
         assert_eq!(
-            "all".parse::<RelativeVulnerability>().unwrap(),
+            "all".parse::<RelativeVulnerability>()?,
             RelativeVulnerability::ALL,
         );
         assert!("ns".parse::<RelativeVulnerability>().is_err());
+        Ok(())
     }
 
     #[test]
-    fn auction_roundtrip() {
+    fn auction_roundtrip() -> anyhow::Result<()> {
         let mut auction = Auction::new();
         for call in [
             Call::Pass,
@@ -545,19 +553,21 @@ mod tests {
             Call::Pass,
             Call::Pass,
         ] {
-            auction.try_push(call).unwrap();
+            auction.try_push(call)?;
         }
         let s = auction.to_string();
         assert_eq!(s, "P 1♠ 2♥ X P P P");
-        assert_eq!(s.parse::<Auction>().unwrap(), auction);
+        assert_eq!(s.parse::<Auction>()?, auction);
+        Ok(())
     }
 
     #[test]
-    fn empty_auction_roundtrip() {
+    fn empty_auction_roundtrip() -> Result<(), ParseAuctionError> {
         let auction = Auction::new();
         assert_eq!(auction.to_string(), "");
-        assert_eq!("".parse::<Auction>().unwrap(), auction);
-        assert_eq!("   \t ".parse::<Auction>().unwrap(), auction);
+        assert_eq!("".parse::<Auction>()?, auction);
+        assert_eq!("   \t ".parse::<Auction>()?, auction);
+        Ok(())
     }
 
     #[test]

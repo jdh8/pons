@@ -1,7 +1,9 @@
+use dds_bridge::hand::ParseHandError;
 use dds_bridge::{Bid, Hand, Level, Strain};
-use pons::bidding::{Auction, Call};
+use pons::bidding::{Auction, Call, ParseAuctionError, ParseCallError};
 use pons::deck::Deck;
 use proptest::prelude::*;
+use proptest::test_runner::TestCaseError;
 
 fn strain() -> impl Strategy<Value = Strain> {
     prop_oneof![
@@ -50,21 +52,21 @@ proptest! {
     #[test]
     fn call_display_parse_roundtrip(c in call()) {
         let printed = c.to_string();
-        let parsed: Call = printed.parse().unwrap();
+        let parsed: Call = printed.parse().map_err(|e: ParseCallError| TestCaseError::fail(e.to_string()))?;
         prop_assert_eq!(parsed, c);
     }
 
     #[test]
     fn auction_display_parse_roundtrip(a in auction()) {
         let printed = a.to_string();
-        let parsed: Auction = printed.parse().unwrap();
+        let parsed: Auction = printed.parse().map_err(|e: ParseAuctionError| TestCaseError::fail(e.to_string()))?;
         prop_assert_eq!(parsed, a);
     }
 
     #[test]
     fn deck_display_parse_roundtrip(d in deck()) {
         let printed = d.to_string();
-        let parsed: Deck = printed.parse().unwrap();
+        let parsed: Deck = printed.parse().map_err(|e: ParseHandError| TestCaseError::fail(e.to_string()))?;
         prop_assert_eq!(parsed, d);
     }
 }

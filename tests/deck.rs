@@ -1,3 +1,4 @@
+use anyhow::anyhow;
 use dds_bridge::{Builder, Card, Hand, PartialDeal, Rank, Seat, Suit};
 use pons::deck::fill_deals;
 use pons::{Deck, full_deal};
@@ -174,17 +175,22 @@ fn test_full_deal_all_unique() {
 }
 
 #[test]
-fn test_fill_deals_from_full_deal() {
+fn test_fill_deals_from_full_deal() -> anyhow::Result<()> {
     let rng = &mut rand::rng();
     let deal = full_deal(rng);
-    let filled = fill_deals(rng, deal.into()).next().unwrap();
+    let filled = fill_deals(rng, deal.into())
+        .next()
+        .ok_or_else(|| anyhow!("fill_deals iterator was empty"))?;
     assert_eq!(filled, deal);
+    Ok(())
 }
 
 #[test]
-fn test_fill_deals_from_empty() {
+fn test_fill_deals_from_empty() -> anyhow::Result<()> {
     let rng = &mut rand::rng();
-    let filled = fill_deals(rng, PartialDeal::EMPTY).next().unwrap();
+    let filled = fill_deals(rng, PartialDeal::EMPTY)
+        .next()
+        .ok_or_else(|| anyhow!("fill_deals iterator was empty"))?;
     for seat in Seat::ALL {
         assert_eq!(filled[seat].len(), 13);
     }
@@ -192,10 +198,11 @@ fn test_fill_deals_from_empty() {
         .iter()
         .fold(Hand::default(), |acc, &s| acc | filled[s]);
     assert_eq!(all.len(), 52);
+    Ok(())
 }
 
 #[test]
-fn test_fill_deals_preserves_known_cards() {
+fn test_fill_deals_preserves_known_cards() -> anyhow::Result<()> {
     let rng = &mut rand::rng();
     let north: Hand = [
         Card {
@@ -211,8 +218,12 @@ fn test_fill_deals_preserves_known_cards() {
     .collect();
     let mut builder = Builder::default();
     builder[Seat::North] = north;
-    let subset = builder.build_partial().unwrap();
-    let filled = fill_deals(rng, subset).next().unwrap();
+    let subset = builder
+        .build_partial()
+        .map_err(|_| anyhow!("build_partial rejected builder"))?;
+    let filled = fill_deals(rng, subset)
+        .next()
+        .ok_or_else(|| anyhow!("fill_deals iterator was empty"))?;
     assert!(filled[Seat::North].into_iter().any(|c| c
         == Card {
             suit: Suit::Spades,
@@ -223,6 +234,7 @@ fn test_fill_deals_preserves_known_cards() {
             suit: Suit::Spades,
             rank: Rank::K
         }));
+    Ok(())
 }
 
 #[test]
