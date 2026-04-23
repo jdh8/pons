@@ -1,4 +1,4 @@
-use dds_bridge::solver;
+use dds_bridge::solver::{self, NonEmptyStrainFlags, StrainFlags};
 use dds_bridge::{Seat, Strain};
 use pons::full_deal;
 use std::process::ExitCode;
@@ -25,15 +25,12 @@ fn to_cumulative_probability(histogram: [u32; 14]) -> [f64; 14] {
 }
 
 fn analyze_deals(n: usize) {
+    const NOTRUMP: NonEmptyStrainFlags = NonEmptyStrainFlags::new(StrainFlags::NOTRUMP).unwrap();
+
     let deals: Vec<_> = core::iter::repeat_with(|| full_deal(&mut rand::rng()))
         .take(n)
         .collect();
 
-    const NOTRUMP: solver::NonEmptyStrainFlags =
-        match solver::NonEmptyStrainFlags::new(solver::StrainFlags::NOTRUMP) {
-            Some(flags) => flags,
-            None => unreachable!(),
-        };
     let histogram = solver::Solver::lock()
         .solve_deals(&deals, NOTRUMP)
         .into_iter()
