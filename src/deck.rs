@@ -10,6 +10,10 @@ use rand::{Rng, RngExt as _};
 /// structurally impossible.  It requires shuffling to partially retrieve
 /// cards from the deck.  However, it is deterministic to collect all cards.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+#[cfg_attr(
+    feature = "serde",
+    derive(serde_with::SerializeDisplay, serde_with::DeserializeFromStr)
+)]
 pub struct Deck(Hand);
 
 impl Deck {
@@ -178,26 +182,6 @@ pub fn fill_deals<R: Rng + ?Sized>(rng: &mut R, subset: PartialDeal) -> FillDeal
             .into_iter()
             .min_by_key(|&seat| builder[seat].len())
             .expect("Seat::ALL shall not be empty"),
-    }
-}
-
-#[cfg(feature = "serde")]
-mod serde_impl {
-    use super::Deck;
-    use core::str::FromStr;
-    use serde::{Deserialize, Deserializer, Serialize, Serializer, de};
-
-    impl Serialize for Deck {
-        fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
-            s.collect_str(self)
-        }
-    }
-
-    impl<'de> Deserialize<'de> for Deck {
-        fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
-            let s = <&str>::deserialize(d)?;
-            Self::from_str(s).map_err(de::Error::custom)
-        }
     }
 }
 
