@@ -160,9 +160,11 @@ impl<R: Rng + ?Sized> Iterator for FillDeals<'_, R> {
 
 impl<R: Rng + ?Sized> FusedIterator for FillDeals<'_, R> {}
 
-/// Given a partial deal, return an iterator that fills in the remaining cards
-/// randomly on each iteration.  The partial deal is provided as a [`PartialDeal`],
-/// whose invariants guarantee the iterator can always produce a [`FullDeal`].
+/// Return an iterator that completes `subset` with random cards on each iteration.
+///
+/// Every iteration deals the cards missing from `subset` to the seats that need
+/// them, yielding a fresh [`FullDeal`].  Because the input is a [`PartialDeal`],
+/// its invariants guarantee that every iteration produces a valid deal.
 #[must_use = "iterators are lazy and do nothing unless consumed"]
 pub fn fill_deals<R: Rng + ?Sized>(rng: &mut R, subset: PartialDeal) -> FillDeals<'_, R> {
     let builder = Builder::from(subset);
