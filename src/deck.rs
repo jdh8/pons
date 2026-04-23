@@ -111,6 +111,9 @@ impl FromStr for Deck {
 pub fn full_deal(rng: &mut (impl Rng + ?Sized)) -> FullDeal {
     let mut deck = Deck::ALL;
 
+    // SAFETY: the panic condition is guaranteed not to occur by construction,
+    // since the deck has 52 cards and each hand receives exactly 13 cards.
+    #[allow(clippy::missing_panics_doc)]
     Builder::new()
         .north(deck.draw(rng, 13))
         .east(deck.draw(rng, 13))
