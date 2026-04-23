@@ -29,8 +29,13 @@ fn analyze_deals(n: usize) {
         .take(n)
         .collect();
 
+    const NOTRUMP: solver::NonEmptyStrainFlags =
+        match solver::NonEmptyStrainFlags::new(solver::StrainFlags::NOTRUMP) {
+            Some(flags) => flags,
+            None => unreachable!(),
+        };
     let histogram = solver::Solver::lock()
-        .solve_deals(&deals, solver::StrainFlags::NOTRUMP)
+        .solve_deals(&deals, NOTRUMP)
         .into_iter()
         .map(|table| table[Strain::Notrump])
         .fold(Histogram::default(), |mut acc, row| {

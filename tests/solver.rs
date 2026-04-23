@@ -9,7 +9,7 @@ fn test_solving_deals() {
     let deals: [_; N] = core::array::from_fn(|_| full_deal(&mut rand::rng()));
     let solver = Solver::lock();
     let array = deals.map(|x| solver.solve_deal(x));
-    let vec = solver.solve_deals(&deals, StrainFlags::all());
+    let vec = solver.solve_deals(&deals, NonEmptyStrainFlags::ALL);
     core::mem::drop(solver);
     assert_eq!(array, vec.as_slice());
 }

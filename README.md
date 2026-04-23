@@ -50,7 +50,7 @@ linked via `dds-bridge-sys` in `dev-dependencies`; see
 ```rust
 use pons::{deck, stats};
 use dds_bridge::{Builder, Hand, Seat};
-use dds_bridge::solver::{self, StrainFlags, Vulnerability};
+use dds_bridge::solver::{self, NonEmptyStrainFlags, Vulnerability};
 # let north_hand: Hand = "T9762.AT54.JT75.".parse().unwrap();
 # let south_hand: Hand = "A.KQ962.A86.Q642".parse().unwrap();
 
@@ -61,7 +61,7 @@ let cards = Builder::new()
     .expect("north and south hands are disjoint and ≤13 each");
 let solutions = solver::Solver::lock().solve_deals(
     &deck::fill_deals(&mut rand::rng(), cards).take(90).collect::<Vec<_>>(),
-    StrainFlags::all(),
+    NonEmptyStrainFlags::ALL,
 );
 let par = stats::average_ns_par(
     solutions.into_iter().collect(),

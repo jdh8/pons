@@ -1,5 +1,5 @@
 use clap::Parser;
-use dds_bridge::solver::{self, StrainFlags, Vulnerability};
+use dds_bridge::solver::{self, NonEmptyStrainFlags, Vulnerability};
 use dds_bridge::{Builder, Hand, Seat};
 use pons::{deck, stats};
 
@@ -41,7 +41,7 @@ fn main() -> anyhow::Result<()> {
         &deck::fill_deals(&mut rand::rng(), cards)
             .take(args.count)
             .collect::<Vec<_>>(),
-        StrainFlags::all(),
+        NonEmptyStrainFlags::ALL,
     );
 
     let Some(par) = stats::average_ns_par(
