@@ -23,11 +23,13 @@ fn bench_full_deal(c: &mut Criterion) {
 }
 
 fn bench_fill_deals_known_north(c: &mut Criterion) {
-    let mut builder = Builder::default();
     let mut rng = SmallRng::seed_from_u64(42);
     let mut deck = Deck::ALL;
-    builder[Seat::North] = deck.draw(&mut rng, 13);
-    let subset = builder.build_partial().expect("known partial deal is valid");
+
+    let subset = Builder::new()
+        .north(deck.draw(&mut rng, 13))
+        .build_partial()
+        .expect("known partial deal is valid");
 
     c.bench_function("fill_deals_with_known_north_x100", |b| {
         let mut rng = SmallRng::seed_from_u64(0);

@@ -1,7 +1,7 @@
 use core::fmt;
 use core::iter::FusedIterator;
 use core::str::FromStr;
-use dds_bridge::{Builder, Card, FullDeal, Hand, Seat, PartialDeal};
+use dds_bridge::{Builder, Card, FullDeal, Hand, PartialDeal, Seat};
 use rand::{Rng, RngExt as _};
 
 /// A subset of the standard 52-card deck

@@ -1,4 +1,4 @@
-use dds_bridge::{Builder, Card, Hand, Rank, Seat, PartialDeal, Suit};
+use dds_bridge::{Builder, Card, Hand, PartialDeal, Rank, Seat, Suit};
 use pons::deck::fill_deals;
 use pons::{Deck, full_deal};
 
