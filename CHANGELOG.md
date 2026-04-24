@@ -5,13 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.6.1] — 2026-04-25
 
 ### Changed
 - Updated `dds-bridge` dependency to 0.18
 - `full_deal` now returns `FullDeal` (was `Deal`)
 - `fill_deals` now takes a pre-validated `PartialDeal`; no longer returns `Result`
 - Track `dds-bridge`'s trick-count rename: `solver::TricksTable` → `solver::TrickCountTable` in `stats::HistogramTable`'s `FromIterator` impl and in the `check-zar` / `check-nltc` examples. Pure rename on the consumer side.
+- The `serde` feature now also pulls in `serde_with` (optional dep).
 
 ### Internal
 - Replaced the last hand-written `serde_impl` submodule (on `Deck`) with `serde_with::SerializeDisplay` / `DeserializeFromStr` derives. No change to the serialized form.
@@ -97,7 +98,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Trie` for bidding strategies, with depth-first iteration, suffix and prefix iterators
 - Statistics utilities for evaluators; histograms
 
-[Unreleased]: https://github.com/jdh8/pons/compare/v0.6.0...HEAD
+[0.6.1]: https://github.com/jdh8/pons/compare/0.6.0...0.6.1
 [0.6.0]: https://github.com/jdh8/pons/releases/tag/0.6.0
 [0.5.0]: https://github.com/jdh8/pons/releases/tag/0.5.0
 [0.3.1]: https://github.com/jdh8/pons/releases/tag/0.3.1
