@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- New `defend-2sx-or-3nt` example: compares the expected NS score from
+  defending 2♠× vs declaring 3NT after the auction `(2♠) X (P)`. Demonstrates
+  building a one-classifier `Trie` bidding system and scoring concrete
+  contracts with `dds_bridge::Contract::score`. Accepts an optional `--south`
+  for hand-specific analysis or randomizes all four seats when omitted.
+
 ## [0.6.1] — 2026-04-25
 
 ### Changed
