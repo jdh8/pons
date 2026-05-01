@@ -9,9 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - New `defend-2sx-or-3nt` example: compares the expected NS score from
-  defending 2♠× vs declaring 3NT after the auction `(2♠) X (P)`. Demonstrates
-  building a one-classifier `Trie` bidding system and scoring concrete
-  contracts with `dds_bridge::Contract::score`. Accepts an optional `--south`
+  defending 2♠× vs declaring 3NT after the auction `(2♠) X (P)`. The
+  bidding system is a single `Trie` with three classifiers — West's
+  weak-two opening at `[]`, North's takeout double at `[2♠]`, and South's
+  3NT-or-Pass at `[2♠, X, P]` — and deals where West/North do not pick the
+  expected calls are rejection-sampled out before double-dummy solving.
+  Scoring uses `dds_bridge::Contract::score`. Accepts an optional `--south`
   for hand-specific analysis or randomizes all four seats when omitted.
 
 ## [0.6.1] — 2026-04-25
