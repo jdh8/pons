@@ -12,10 +12,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   defending 2♠× vs declaring 3NT after the auction `(2♠) X (P)`. The
   bidding system is a single `Trie` with three classifiers — West's
   weak-two opening at `[]`, North's takeout double at `[2♠]`, and South's
-  3NT-or-Pass at `[2♠, X, P]` — and deals where West/North do not pick the
-  expected calls are rejection-sampled out before double-dummy solving.
-  Scoring uses `dds_bridge::Contract::score`. Accepts an optional `--south`
-  for hand-specific analysis or randomizes all four seats when omitted.
+  natural call at `[2♠, X, P]` (which may be Pass, 3NT, or an
+  out-of-scope call such as a 3-level new suit, jump in hearts, or
+  Lebensohl 2NT). Deals are rejection-sampled: only those where West
+  opens 2♠, North doubles, *and* South naturally faces a P-or-3NT
+  decision are kept and double-dummy solved. Scoring uses
+  `dds_bridge::Contract::score`. Accepts an optional `--south` for
+  hand-specific analysis (errors if the hand falls out of scope) or
+  randomizes all four seats when omitted.
 
 ## [0.6.1] — 2026-04-25
 
