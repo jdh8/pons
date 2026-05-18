@@ -14,9 +14,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   weak-two opening at `[]`, North's takeout double at `[2♠]`, and South's
   natural call at `[2♠, X, P]` (which may be Pass, 3NT, or an
   out-of-scope call such as a 3-level new suit, jump in hearts, or
-  Lebensohl 2NT). Deals are rejection-sampled: only those where West
-  opens 2♠, North doubles, *and* South naturally faces a P-or-3NT
-  decision are kept and double-dummy solved. Scoring uses
+  Lebensohl 2NT). South's classifier is used only as an eligibility
+  filter: deals are rejection-sampled so only those where West opens 2♠,
+  North doubles, *and* South naturally faces a P-or-3NT decision are
+  kept and double-dummy solved. Each accepted deal is scored under three
+  strategies — always defend 2♠×, always declare 3NT, and a per-deal
+  oracle that picks the higher of the two — giving an upper bound on
+  what any policy keyed on South's hand could achieve. Scoring uses
   `dds_bridge::Contract::score`. Accepts an optional `--south` for
   hand-specific analysis (errors if the hand falls out of scope) or
   randomizes all four seats when omitted.

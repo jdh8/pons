@@ -182,8 +182,8 @@ fn south_in_scope(system: &Trie, deal: &FullDeal) -> bool {
 struct Totals {
     pass: i64,
     nt: i64,
-    system: i64,
-    chose_3nt: usize,
+    oracle: i64,
+    oracle_chose_3nt: usize,
 }
 
 fn collect_deals(
@@ -229,38 +229,36 @@ fn collect_deals(
     Ok((deals, attempts))
 }
 
-fn score_deals(system: &Trie, deals: &[FullDeal], vulnerability: Vulnerability) -> Totals {
+fn score_deals(deals: &[FullDeal], vulnerability: Vulnerability) -> Totals {
     let tables = solver::Solver::lock().solve_deals(deals, NonEmptyStrainFlags::ALL);
     let two_sx = Contract::new(2, Strain::Spades, Penalty::Doubled);
     let three_nt = Contract::new(3, Strain::Notrump, Penalty::Undoubled);
     let ns_vul = vulnerability.contains(Vulnerability::NS);
     let ew_vul = vulnerability.contains(Vulnerability::EW);
-    let south_auction = [TWO_SPADES, Call::Double, Call::Pass];
 
     let mut totals = Totals {
         pass: 0,
         nt: 0,
-        system: 0,
-        chose_3nt: 0,
+        oracle: 0,
+        oracle_chose_3nt: 0,
     };
 
-    for (deal, table) in deals.iter().zip(tables.iter()) {
+    for table in tables.iter() {
         let tricks_w_spades = u8::from(table[Strain::Spades].get(Seat::West));
         let tricks_s_nt = u8::from(table[Strain::Notrump].get(Seat::South));
         let pass_score = -i64::from(two_sx.score(tricks_w_spades, ew_vul));
         let nt_score = i64::from(three_nt.score(tricks_s_nt, ns_vul));
 
-        let chosen = decide_call(system, &south_auction, deal[Seat::South]);
-        let system_score = if chosen == THREE_NT {
-            totals.chose_3nt += 1;
-            nt_score
+        let (oracle_score, picked_3nt) = if nt_score > pass_score {
+            (nt_score, true)
         } else {
-            pass_score
+            (pass_score, false)
         };
 
         totals.pass += pass_score;
         totals.nt += nt_score;
-        totals.system += system_score;
+        totals.oracle += oracle_score;
+        totals.oracle_chose_3nt += usize::from(picked_3nt);
     }
 
     totals
@@ -271,34 +269,23 @@ fn print_summary(args: &Args, deals: &[FullDeal], attempts: usize, totals: &Tota
     let n = deals.len() as f64;
     let avg_pass = totals.pass as f64 / n;
     let avg_3nt = totals.nt as f64 / n;
-    let avg_system = totals.system as f64 / n;
+    let avg_oracle = totals.oracle as f64 / n;
 
     println!(
         "Sample size: {got} / {target} valid deals ({attempts} attempts)",
         got = deals.len(),
         target = args.count,
     );
-    if args.south.is_some() {
-        let call = if totals.chose_3nt == deals.len() {
-            "3NT"
-        } else if totals.chose_3nt == 0 {
-            "P"
-        } else {
-            unreachable!("system is deterministic for a fixed south hand")
-        };
-        println!("System call: {call}");
-    } else {
-        let pct = 100.0 * totals.chose_3nt as f64 / n;
-        println!(
-            "System chose 3NT: {chose_3nt}/{got} ({pct:.0}%)",
-            chose_3nt = totals.chose_3nt,
-            got = deals.len()
-        );
-    }
+    let pct = 100.0 * totals.oracle_chose_3nt as f64 / n;
+    println!(
+        "Oracle chose 3NT: {chose_3nt}/{got} ({pct:.0}%)",
+        chose_3nt = totals.oracle_chose_3nt,
+        got = deals.len()
+    );
     println!("Average NS score:");
-    println!("  Always defend 2♠x : {avg_pass:+.0}");
-    println!("  Always declare 3NT: {avg_3nt:+.0}");
-    println!("  System policy     : {avg_system:+.0}");
+    println!("  Always defend 2♠x     : {avg_pass:+.0}");
+    println!("  Always declare 3NT    : {avg_3nt:+.0}");
+    println!("  Oracle (best per deal): {avg_oracle:+.0}");
 }
 
 fn main() -> anyhow::Result<()> {
@@ -325,7 +312,7 @@ fn main() -> anyhow::Result<()> {
         );
     }
 
-    let totals = score_deals(&system, &deals, args.vulnerability);
+    let totals = score_deals(&deals, args.vulnerability);
     print_summary(&args, &deals, attempts, &totals);
     Ok(())
 }
