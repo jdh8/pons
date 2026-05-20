@@ -1,6 +1,6 @@
 [package]
 name = "pons"
-version = "0.6.1"
+version = "0.7.0"
 authors = ["Chen-Pang He (https://jdh8.org)"]
 edition = "2024"
 rust-version = "1.93"
@@ -18,7 +18,7 @@ serde = ["dep:serde", "dep:serde_with", "dds-bridge/serde", "bitflags/serde"]
 
 [dependencies]
 bitflags = "2"
-dds-bridge = "0.18"
+dds-bridge = "0.19"
 rand = "0.10"
 serde = { version = "1", features = ["derive"], optional = true }
 serde_with = { version = "3", default-features = false, features = ["macros"], optional = true }
@@ -29,10 +29,14 @@ anyhow = "1"
 approx = "0.5"
 clap = { version = "4", features = ["derive"] }
 criterion = { version = "0.8", default-features = false, features = ["cargo_bench_support"] }
-dds-bridge-sys = "2"
+dds-bridge-sys = "3"
 nalgebra = "0.34"
 proptest = { version = "1", default-features = false, features = ["std"] }
 serde_json = "1"
+
+[patch.crates-io]
+dds-bridge = { path = "../dds-bridge" }
+dds-bridge-sys = { path = "../dds-bridge-sys" }
 
 [[bench]]
 name = "shuffle"

@@ -5,7 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.7.0] - unreleased
+
+### Changed
+
+- **Breaking:** Bump `dds-bridge` to **0.19** and `dds-bridge-sys` to **3.0**
+  (the latter is a dev-dependency used only by `tests/solver.rs`). The
+  underlying DDS C++ library moves to v3.0.0 with PascalCase struct names
+  and snake_case fields; `pons`'s own safe API is unaffected, but downstream
+  users who pin to older versions of these dependencies should also bump
+  them in lockstep. See the `dds-bridge-sys` v3.0.0 and `dds-bridge` v0.19.0
+  changelogs for the rename map.
 
 ### Added
 - New `defend-2sx-or-3nt` example: compares the expected NS score from
