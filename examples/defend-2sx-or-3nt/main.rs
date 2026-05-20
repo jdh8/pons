@@ -243,7 +243,7 @@ fn score_deals(deals: &[FullDeal], vulnerability: Vulnerability) -> Totals {
         oracle_chose_3nt: 0,
     };
 
-    for table in tables.iter() {
+    for table in &tables {
         let tricks_w_spades = u8::from(table[Strain::Spades].get(Seat::West));
         let tricks_s_nt = u8::from(table[Strain::Notrump].get(Seat::South));
         let pass_score = -i64::from(two_sx.score(tricks_w_spades, ew_vul));
