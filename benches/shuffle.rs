@@ -1,9 +1,9 @@
+use core::hint::black_box;
 use criterion::{Criterion, criterion_group, criterion_main};
 use dds_bridge::Builder;
 use pons::deck::{Deck, fill_deals, full_deal};
 use rand::SeedableRng;
 use rand::rngs::SmallRng;
-use std::hint::black_box;
 
 fn bench_draw_13(c: &mut Criterion) {
     c.bench_function("Deck::draw_13_from_full", |b| {

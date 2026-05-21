@@ -79,7 +79,7 @@ fn test_accumulator_sample() {
     let samp = acc.sample();
     assert!(samp.mean().eq(&3.0));
     // sample sd = sqrt(2/1) = sqrt(2)
-    assert!((samp.sd() - std::f64::consts::SQRT_2).abs() < 1e-10);
+    assert!((samp.sd() - core::f64::consts::SQRT_2).abs() < 1e-10);
 }
 
 #[test]

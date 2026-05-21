@@ -243,7 +243,7 @@ fn test_forest_default_constructs() {
 
 #[test]
 fn test_forest_from_fn_called_once_per_vulnerability() {
-    use std::cell::RefCell;
+    use core::cell::RefCell;
     let calls = RefCell::new(Vec::<RelativeVulnerability>::new());
     let _forest = Forest::from_fn(|vul| {
         calls.borrow_mut().push(vul);

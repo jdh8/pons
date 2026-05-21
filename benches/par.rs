@@ -1,3 +1,4 @@
+use core::hint::black_box;
 use criterion::{Criterion, criterion_group, criterion_main};
 use dds_bridge::Seat;
 use dds_bridge::solver::{Solver, Vulnerability};
@@ -5,7 +6,6 @@ use pons::deck::full_deal;
 use pons::stats::{HistogramTable, average_ns_par};
 use rand::SeedableRng;
 use rand::rngs::SmallRng;
-use std::hint::black_box;
 
 /// Solve a small batch of random deals and collect into a histogram.
 fn build_histogram(seed: u64, deals: usize) -> HistogramTable {

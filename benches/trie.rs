@@ -1,8 +1,8 @@
+use core::hint::black_box;
 use criterion::{Criterion, criterion_group, criterion_main};
 use dds_bridge::{Bid, Hand, Level, Strain};
 use pons::bidding::array::Logits;
 use pons::bidding::{Call, RelativeVulnerability, System, Trie};
-use std::hint::black_box;
 
 const fn bid(level: u8, strain: Strain) -> Call {
     Call::Bid(Bid::new(level, strain))

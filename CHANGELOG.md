@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- Refer to `core::num::NonZero`, `core::hint::black_box`, `core::cell::RefCell`,
+  and `core::f64::consts::SQRT_2` instead of their `std::` re-exports for
+  consistency with the rest of the crate, which already uses `core::` paths.
+  No behavior change.
+
 ## [0.7.0] — 2026-05-20
 
 ### Changed
