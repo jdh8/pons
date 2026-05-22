@@ -24,6 +24,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`Hand`, `Strain`, `Bid`, `Seat`, etc.) — these live in the new
   `contract-bridge` crate, not `dds-bridge`. Replace
   `use dds_bridge::Hand;` with `use contract_bridge::Hand;`.
+- Track `dds-bridge`'s flattening of the `solver` module to the crate
+  root: `dds_bridge::solver::*` imports become `dds_bridge::*` (e.g.
+  `dds_bridge::solver::Vulnerability` → `dds_bridge::Vulnerability`).
 
 ### Removed
 

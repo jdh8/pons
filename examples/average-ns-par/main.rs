@@ -1,7 +1,7 @@
 use clap::Parser;
 use contract_bridge::deck;
 use contract_bridge::{Builder, Hand, Seat};
-use dds_bridge::solver::{self, Vulnerability};
+use dds_bridge::{Vulnerability, solve_deals};
 use pons::stats;
 
 /// Emulate par score for North-South by simulating random deals
@@ -38,7 +38,7 @@ fn main() -> anyhow::Result<()> {
         .south(args.south)
         .build_partial()
         .map_err(|_| anyhow::anyhow!("north and south hands overlap or exceed 13 cards"))?;
-    let solutions = solver::solve_deals(
+    let solutions = solve_deals(
         &deck::fill_deals(&mut rand::rng(), cards)
             .take(args.count)
             .collect::<Vec<_>>(),

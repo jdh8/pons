@@ -1,6 +1,6 @@
 use contract_bridge::deck::full_deal;
 use contract_bridge::{Seat, Strain};
-use dds_bridge::solver;
+use dds_bridge::solve_deals;
 use std::process::ExitCode;
 
 /// Histogram of notrump tricks
@@ -29,7 +29,7 @@ fn analyze_deals(n: usize) {
         .take(n)
         .collect();
 
-    let histogram = solver::solve_deals(&deals)
+    let histogram = solve_deals(&deals)
         .into_iter()
         .map(|table| table[Strain::Notrump])
         .fold(Histogram::default(), |mut acc, row| {

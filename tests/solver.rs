@@ -1,5 +1,5 @@
 use contract_bridge::deck::full_deal;
-use dds_bridge::solver::*;
+use dds_bridge::*;
 use dds_bridge_sys as sys;
 
 #[test]

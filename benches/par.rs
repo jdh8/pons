@@ -2,7 +2,7 @@ use contract_bridge::Seat;
 use contract_bridge::deck::full_deal;
 use core::hint::black_box;
 use criterion::{Criterion, criterion_group, criterion_main};
-use dds_bridge::solver::{Solver, Vulnerability};
+use dds_bridge::{Solver, Vulnerability};
 use pons::stats::{HistogramTable, average_ns_par};
 use rand::SeedableRng;
 use rand::rngs::SmallRng;

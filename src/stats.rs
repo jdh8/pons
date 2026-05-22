@@ -4,7 +4,7 @@ use contract_bridge::{Contract, Penalty, Seat, Strain};
 use core::fmt;
 use core::num::NonZero;
 use core::ops::{Index, IndexMut};
-use dds_bridge::solver::{self, Vulnerability};
+use dds_bridge::{TrickCountTable, Vulnerability};
 
 /// Representation of statistics on a variable
 ///
@@ -199,8 +199,8 @@ impl IndexMut<Seat> for HistogramTable {
     }
 }
 
-impl FromIterator<solver::TrickCountTable> for HistogramTable {
-    fn from_iter<I: IntoIterator<Item = solver::TrickCountTable>>(iter: I) -> Self {
+impl FromIterator<TrickCountTable> for HistogramTable {
+    fn from_iter<I: IntoIterator<Item = TrickCountTable>>(iter: I) -> Self {
         iter.into_iter().fold(Self::new(), |mut hist, tricks| {
             for seat in Seat::ALL {
                 for strain in Strain::ASC {
