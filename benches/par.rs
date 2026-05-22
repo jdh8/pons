@@ -10,7 +10,7 @@ use rand::rngs::SmallRng;
 /// Solve a small batch of random deals and collect into a histogram.
 fn build_histogram(seed: u64, deals: usize) -> HistogramTable {
     let mut rng = SmallRng::seed_from_u64(seed);
-    let solver = Solver::lock();
+    let mut solver = Solver::default();
     (0..deals)
         .map(|_| solver.solve_deal(full_deal(&mut rng)))
         .collect()

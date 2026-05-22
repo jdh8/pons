@@ -7,12 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0]
+
 ### Changed
 
-- Refer to `core::num::NonZero`, `core::hint::black_box`, `core::cell::RefCell`,
-  and `core::f64::consts::SQRT_2` instead of their `std::` re-exports for
-  consistency with the rest of the crate, which already uses `core::` paths.
-  No behavior change.
+- **Breaking:** Bump `dds-bridge` to **0.20**, which redesigns the
+  `Solver` API. `Solver::lock()` is replaced by `Solver::new(config)` /
+  `Solver::default()`, and the batch helpers (`solve_deals`,
+  `solve_boards`, `analyse_plays`) plus `analyse_play` and `system_info`
+  are now free functions in the `solver` module. Update call sites:
+  - `Solver::lock().solve_deal(d)` → `Solver::default().solve_deal(d)`
+    (hoist `let mut solver = …` when calling more than once).
+  - `Solver::lock().solve_deals(&deals, NonEmptyStrainFlags::ALL)` →
+    `solver::solve_deals(&deals)` (the strain-flags argument is dropped;
+    it had been informational since `dds-bridge` 0.19.1).
+
+  See the `dds-bridge` 0.20.0 changelog for the complete migration.
+- Refer to `core::num::NonZero`, `core::hint::black_box`,
+  `core::cell::RefCell`, and `core::f64::consts::SQRT_2` instead of their
+  `std::` re-exports for consistency with the rest of the crate, which
+  already uses `core::` paths. No behavior change.
 
 ## [0.7.0] — 2026-05-20
 

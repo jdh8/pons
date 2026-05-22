@@ -1,5 +1,5 @@
 use clap::Parser;
-use dds_bridge::solver::{self, NonEmptyStrainFlags, Vulnerability};
+use dds_bridge::solver::{self, Vulnerability};
 use dds_bridge::{
     Bid, Builder, Contract, FullDeal, Hand, Level, Penalty, Rank, Seat, Strain, Suit,
 };
@@ -230,7 +230,7 @@ fn collect_deals(
 }
 
 fn score_deals(deals: &[FullDeal], vulnerability: Vulnerability) -> Totals {
-    let tables = solver::Solver::lock().solve_deals(deals, NonEmptyStrainFlags::ALL);
+    let tables = solver::solve_deals(deals);
     let two_sx = Contract::new(2, Strain::Spades, Penalty::Doubled);
     let three_nt = Contract::new(3, Strain::Notrump, Penalty::Undoubled);
     let ns_vul = vulnerability.contains(Vulnerability::NS);

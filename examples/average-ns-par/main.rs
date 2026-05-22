@@ -1,5 +1,5 @@
 use clap::Parser;
-use dds_bridge::solver::{self, NonEmptyStrainFlags, Vulnerability};
+use dds_bridge::solver::{self, Vulnerability};
 use dds_bridge::{Builder, Hand, Seat};
 use pons::{deck, stats};
 
@@ -37,11 +37,10 @@ fn main() -> anyhow::Result<()> {
         .south(args.south)
         .build_partial()
         .map_err(|_| anyhow::anyhow!("north and south hands overlap or exceed 13 cards"))?;
-    let solutions = solver::Solver::lock().solve_deals(
+    let solutions = solver::solve_deals(
         &deck::fill_deals(&mut rand::rng(), cards)
             .take(args.count)
             .collect::<Vec<_>>(),
-        NonEmptyStrainFlags::ALL,
     );
 
     let Some(par) = stats::average_ns_par(
