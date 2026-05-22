@@ -1,12 +1,13 @@
 use clap::Parser;
-use dds_bridge::solver::{self, Vulnerability};
-use dds_bridge::{
+use contract_bridge::auction::{Call, RelativeVulnerability};
+use contract_bridge::deck::{self, full_deal};
+use contract_bridge::eval::{self, HandEvaluator};
+use contract_bridge::{
     Bid, Builder, Contract, FullDeal, Hand, Level, Penalty, Rank, Seat, Strain, Suit,
 };
+use dds_bridge::solver::{self, Vulnerability};
 use pons::bidding::array::Logits;
-use pons::bidding::{Call, RelativeVulnerability, System, Trie};
-use pons::eval::{self, HandEvaluator};
-use pons::{deck, full_deal};
+use pons::bidding::{System, Trie};
 
 const TWO_SPADES: Call = Call::Bid(Bid {
     level: Level::new(2),

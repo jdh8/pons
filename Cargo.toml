@@ -14,12 +14,12 @@ categories = ["game-development"]
 keywords = ["bridge"]
 
 [features]
-serde = ["dep:serde", "dep:serde_with", "dds-bridge/serde", "bitflags/serde"]
+serde = ["dep:serde", "dep:serde_with", "contract-bridge/serde", "dds-bridge/serde", "bitflags/serde"]
 
 [dependencies]
 bitflags = "2"
+contract-bridge = { version = "0.1", features = ["rand"] }
 dds-bridge = "0.20"
-rand = "0.10"
 serde = { version = "1", features = ["derive"], optional = true }
 serde_with = { version = "3", default-features = false, features = ["macros"], optional = true }
 thiserror = "2"
@@ -32,6 +32,7 @@ criterion = { version = "0.8", default-features = false, features = ["cargo_benc
 dds-bridge-sys = "3"
 nalgebra = "0.34"
 proptest = { version = "1", default-features = false, features = ["std"] }
+rand = "0.10"
 serde_json = "1"
 
 [[bench]]
@@ -47,5 +48,6 @@ name = "par"
 harness = false
 
 [patch.crates-io]
+contract-bridge = { path = "../contract-bridge" }
 dds-bridge = { path = "../dds-bridge" }
 dds-bridge-sys = { path = "../dds-bridge-sys" }

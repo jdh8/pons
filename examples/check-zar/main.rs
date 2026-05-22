@@ -1,6 +1,7 @@
-use dds_bridge::{Seat, Suit, solver};
-use pons::deck;
-use pons::eval::{self, HandEvaluator as _};
+use contract_bridge::deck;
+use contract_bridge::eval::{self, HandEvaluator as _};
+use contract_bridge::{Seat, Suit};
+use dds_bridge::solver;
 use pons::{Accumulator, Statistics};
 use std::process::ExitCode;
 

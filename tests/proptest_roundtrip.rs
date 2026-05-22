@@ -1,7 +1,7 @@
-use dds_bridge::hand::ParseHandError;
-use dds_bridge::{Bid, Hand, Level, Strain};
-use pons::bidding::{Auction, Call, ParseAuctionError, ParseCallError};
-use pons::deck::Deck;
+use contract_bridge::auction::{Auction, Call, ParseAuctionError, ParseCallError};
+use contract_bridge::deck::Deck;
+use contract_bridge::hand::ParseHandError;
+use contract_bridge::{Bid, Hand, Level, Strain};
 use proptest::prelude::*;
 use proptest::test_runner::TestCaseError;
 

@@ -2,9 +2,9 @@
 
 #![cfg(feature = "serde")]
 
-use dds_bridge::{Bid, Strain};
-use pons::bidding::{Auction, Call, IllegalCall, RelativeVulnerability};
-use pons::deck::Deck;
+use contract_bridge::auction::{Auction, Call, IllegalCall, RelativeVulnerability};
+use contract_bridge::deck::Deck;
+use contract_bridge::{Bid, Strain};
 use pons::stats::{Accumulator, HistogramRow, HistogramTable, Statistics};
 
 fn roundtrip<T>(value: &T) -> Result<(), serde_json::Error>

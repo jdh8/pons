@@ -1,7 +1,8 @@
-use dds_bridge::{Seat, Suit, solver};
+use contract_bridge::deck;
+use contract_bridge::eval;
+use contract_bridge::{Seat, Suit};
+use dds_bridge::solver;
 use nalgebra as na;
-use pons::deck;
-use pons::eval;
 use pons::{Accumulator, Statistics};
 use std::process::ExitCode;
 

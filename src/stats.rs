@@ -1,10 +1,10 @@
-use super::Call;
 use super::bidding::Array;
+use contract_bridge::auction::Call;
+use contract_bridge::{Contract, Penalty, Seat, Strain};
 use core::fmt;
 use core::num::NonZero;
 use core::ops::{Index, IndexMut};
 use dds_bridge::solver::{self, Vulnerability};
-use dds_bridge::{Contract, Penalty, Seat, Strain};
 
 /// Representation of statistics on a variable
 ///

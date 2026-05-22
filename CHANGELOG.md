@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Breaking:** Auction primitives (`Call`, `Auction`, `IllegalCall`,
+  `RelativeVulnerability`, and their parse errors), the entire `eval`
+  module (`HandEvaluator`, `SimpleEvaluator`, `hcp`, `shortness`,
+  `fifths`, `bumrap`, `ltc`, `nltc`, `zar`, `hcp_plus`, `FIFTHS`,
+  `BUMRAP`, `BUMRAP_PLUS`, `NLTC`), and the entire `deck` module
+  (`Deck`, `full_deal`, `FillDeals`, `fill_deals`) move into the new
+  `contract-bridge` crate. Update imports such as
+  `use pons::bidding::Call;` → `use contract_bridge::auction::Call;`,
+  `use pons::eval::hcp;` → `use contract_bridge::eval::hcp;`, and
+  `use pons::deck::full_deal;` →
+  `use contract_bridge::deck::full_deal;`.
+- **Breaking:** `pons` no longer re-exports bridge data types
+  (`Hand`, `Strain`, `Bid`, `Seat`, etc.) — these live in the new
+  `contract-bridge` crate, not `dds-bridge`. Replace
+  `use dds_bridge::Hand;` with `use contract_bridge::Hand;`.
+
+### Removed
+
+- `pons::deck` and `pons::eval` modules (moved to `contract-bridge`).
+- The crate-root re-exports `Deck`, `full_deal`, `HandEvaluator`,
+  `Auction`, `Call` (moved to `contract-bridge`).
+
 ## [0.8.0]
 
 ### Changed

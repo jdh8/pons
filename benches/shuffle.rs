@@ -1,7 +1,7 @@
+use contract_bridge::Builder;
+use contract_bridge::deck::{Deck, fill_deals, full_deal};
 use core::hint::black_box;
 use criterion::{Criterion, criterion_group, criterion_main};
-use dds_bridge::Builder;
-use pons::deck::{Deck, fill_deals, full_deal};
 use rand::SeedableRng;
 use rand::rngs::SmallRng;
 

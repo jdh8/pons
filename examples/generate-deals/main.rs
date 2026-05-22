@@ -1,5 +1,5 @@
-use dds_bridge::Seat;
-use pons::full_deal;
+use contract_bridge::Seat;
+use contract_bridge::deck::full_deal;
 use std::process::ExitCode;
 
 fn generate_deals(n: usize) {

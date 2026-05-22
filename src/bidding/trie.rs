@@ -1,4 +1,6 @@
-use super::{Call, Hand, Map, RelativeVulnerability};
+use super::Map;
+use contract_bridge::Hand;
+use contract_bridge::auction::{Call, RelativeVulnerability};
 use core::fmt;
 use core::iter::FusedIterator;
 use core::ops::{Index, IndexMut};

@@ -12,10 +12,10 @@ brainstem][pons] and also "bridge" in Latin.
 
 ## Modules
 
-- [`bidding`](https://docs.rs/pons/latest/pons/bidding/) — [`Call`], [`Auction`], and a [`Trie`]-based representation of a bidding system.
-- [`deck`](https://docs.rs/pons/latest/pons/deck/) — card sets, shuffling, and iterators that fill in partial deals.
-- [`eval`](https://docs.rs/pons/latest/pons/eval/) — hand-evaluation kernels (HCP, shortness, LTC, NLTC, BUM-RAP, Fifths, Zar).
+- [`bidding`](https://docs.rs/pons/latest/pons/bidding/) — [`Trie`]-based representation of a bidding system. Auction primitives ([`Call`], [`Auction`], etc.) live in the [`contract-bridge`](https://crates.io/crates/contract-bridge) crate.
 - [`stats`](https://docs.rs/pons/latest/pons/stats/) — numerically stable accumulators and double-dummy par scoring over histograms.
+
+Card sets and shuffling live in [`contract-bridge::deck`](https://docs.rs/contract-bridge/latest/contract_bridge/deck/); hand-evaluation kernels in [`contract-bridge::eval`](https://docs.rs/contract-bridge/latest/contract_bridge/eval/).
 
 ## Feature flags
 
@@ -26,9 +26,9 @@ brainstem][pons] and also "bridge" in Latin.
 Deal 10 random hands and evaluate the North hand with several point counts:
 
 ```rust
-use pons::{full_deal, eval};
-use pons::eval::HandEvaluator;
-use dds_bridge::Seat;
+use contract_bridge::Seat;
+use contract_bridge::deck::full_deal;
+use contract_bridge::eval::{self, HandEvaluator};
 
 let mut rng = rand::rng();
 for _ in 0..10 {
@@ -48,9 +48,10 @@ linked via `dds-bridge-sys` in `dev-dependencies`; see
 [`examples/average-ns-par`](examples/average-ns-par/main.rs)):
 
 ```rust
-use pons::{deck, stats};
-use dds_bridge::{Builder, Hand, Seat};
+use contract_bridge::deck;
+use contract_bridge::{Builder, Hand, Seat};
 use dds_bridge::solver::{self, Vulnerability};
+use pons::stats;
 # let north_hand: Hand = "T9762.AT54.JT75.".parse().unwrap();
 # let south_hand: Hand = "A.KQ962.A86.Q642".parse().unwrap();
 
@@ -85,6 +86,6 @@ Run any of them with `cargo run --example <name>`.
 Pons currently requires Rust **1.93**. The CI matrix builds and tests on the
 MSRV toolchain on Ubuntu, macOS, and Windows.
 
-[`Call`]: https://docs.rs/pons/latest/pons/bidding/enum.Call.html
-[`Auction`]: https://docs.rs/pons/latest/pons/bidding/struct.Auction.html
+[`Call`]: https://docs.rs/contract-bridge/latest/contract_bridge/auction/enum.Call.html
+[`Auction`]: https://docs.rs/contract-bridge/latest/contract_bridge/auction/struct.Auction.html
 [`Trie`]: https://docs.rs/pons/latest/pons/bidding/trie/struct.Trie.html

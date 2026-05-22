@@ -1,7 +1,8 @@
 use clap::Parser;
+use contract_bridge::deck;
+use contract_bridge::{Builder, Hand, Seat};
 use dds_bridge::solver::{self, Vulnerability};
-use dds_bridge::{Builder, Hand, Seat};
-use pons::{deck, stats};
+use pons::stats;
 
 /// Emulate par score for North-South by simulating random deals
 #[derive(Parser)]

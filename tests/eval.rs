@@ -1,9 +1,9 @@
 use approx::assert_ulps_eq;
-use dds_bridge::{Hand, Holding};
-use pons::eval::{
+use contract_bridge::eval::{
     BUMRAP, BUMRAP_PLUS, FIFTHS, HandEvaluator, NLTC, SimpleEvaluator, hcp, hcp_plus, ltc,
     shortness, zar,
 };
+use contract_bridge::{Hand, Holding};
 
 /// Test point counts with four kings
 #[test]

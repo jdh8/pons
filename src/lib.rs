@@ -3,14 +3,8 @@
 
 /// Bidding in contract bridge
 pub mod bidding;
-/// Card shuffling
-pub mod deck;
-/// Hand evaluation
-pub mod eval;
 /// Statistics
 pub mod stats;
 
-pub use bidding::{Auction, Call, Trie, trie::Forest};
-pub use deck::{Deck, full_deal};
-pub use eval::HandEvaluator;
+pub use bidding::{Trie, trie::Forest};
 pub use stats::{Accumulator, Statistics};

@@ -1,7 +1,7 @@
 use anyhow::anyhow;
-use dds_bridge::{Builder, Card, Hand, PartialDeal, Rank, Seat, Suit};
-use pons::deck::fill_deals;
-use pons::{Deck, full_deal};
+use contract_bridge::deck::fill_deals;
+use contract_bridge::deck::{Deck, full_deal};
+use contract_bridge::{Builder, Card, Hand, PartialDeal, Rank, Seat, Suit};
 
 #[test]
 fn test_deck_empty() {

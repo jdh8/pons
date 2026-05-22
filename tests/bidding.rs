@@ -1,6 +1,7 @@
-use dds_bridge::{Bid, Level, Penalty, Strain};
+use contract_bridge::auction::{Auction, Call, IllegalCall, RelativeVulnerability};
+use contract_bridge::{Bid, Level, Penalty, Strain};
 use pons::bidding::array::Logits;
-use pons::bidding::{Array, Auction, Call, IllegalCall, Map, RelativeVulnerability};
+use pons::bidding::{Array, Map};
 
 const fn bid(level: u8, strain: Strain) -> Call {
     Call::Bid(Bid {

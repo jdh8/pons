@@ -1,9 +1,9 @@
-use super::{Bid, Call, Strain};
+use contract_bridge::auction::Call;
+use contract_bridge::{Bid, Level, Strain};
 use core::convert::Infallible;
 use core::iter::Enumerate;
 use core::mem::MaybeUninit;
 use core::ops::{Deref, DerefMut, Index, IndexMut, Range, RangeFrom, RangeFull, RangeInclusive};
-use dds_bridge::Level;
 
 /// Number of possible calls
 const CALL_VARIANTS: usize = 3 + 7 * 5;
@@ -66,10 +66,10 @@ const fn decode_call(index: usize) -> Call {
             let code = index - 3 + 5;
             let (level, strain) = (code / 5, code % 5);
 
-            Call::Bid(super::Bid {
+            Call::Bid(Bid {
                 #[allow(clippy::cast_possible_truncation)]
                 level: Level::new(level as u8),
-                strain: super::Strain::ASC[strain],
+                strain: Strain::ASC[strain],
             })
         }
         _ => unreachable!(),

@@ -1,7 +1,8 @@
-use dds_bridge::{Bid, Hand, Level, Strain};
+use contract_bridge::auction::{Call, RelativeVulnerability};
+use contract_bridge::{Bid, Hand, Level, Strain};
 use pons::bidding::array::Logits;
 use pons::bidding::trie::Forest;
-use pons::bidding::{Call, RelativeVulnerability, System, Trie};
+use pons::bidding::{System, Trie};
 
 const fn bid(level: u8, strain: Strain) -> Call {
     Call::Bid(Bid {

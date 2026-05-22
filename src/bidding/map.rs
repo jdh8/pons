@@ -6,7 +6,8 @@
 //! is a fixed-size array of optional values plus iterator adapters that skip
 //! absent entries.
 
-use super::{Array, Call, array};
+use super::{Array, array};
+use contract_bridge::auction::Call;
 use core::iter::{FilterMap, Flatten};
 
 /// Fixed-size map whose keys are [`Call`]s
