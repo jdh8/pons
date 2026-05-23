@@ -46,8 +46,3 @@ harness = false
 [[bench]]
 name = "par"
 harness = false
-
-[patch.crates-io]
-contract-bridge = { path = "../contract-bridge" }
-ddss = { path = "../ddss" }
-ddss-sys = { path = "../ddss-sys" }
