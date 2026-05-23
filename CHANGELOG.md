@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- Relocated tests that exercised only lower-crate APIs out of `pons`,
+  so failures point at the crate they actually cover. `tests/eval.rs`,
+  `tests/deck.rs`, `tests/proptest_roundtrip.rs`, and `tests/solver.rs`
+  are removed; the auction block in `tests/bidding.rs` and the
+  contract-bridge/ddss serde tests in `tests/serde.rs` are removed in
+  place, leaving only `Array`/`Map`/`Logits` tests and pons stats serde
+  respectively. The moved tests now live in `contract-bridge` (auction,
+  deck, eval, proptest, serde) and `ddss`/`dds-bridge` (large-batch
+  solver). No behavior or public-API change in pons.
+- Dev-dependencies pruned: `approx` and `ddss-sys` are no longer used
+  by anything in `pons` and are removed from `Cargo.toml`.
+
 ## [0.8.0] — 2026-05-24
 
 ### Changed

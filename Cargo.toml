@@ -26,10 +26,8 @@ thiserror = "2"
 
 [dev-dependencies]
 anyhow = "1"
-approx = "0.5"
 clap = { version = "4", features = ["derive"] }
 criterion = { version = "0.8", default-features = false, features = ["cargo_bench_support"] }
-ddss-sys = "0.1"
 nalgebra = "0.34"
 proptest = { version = "1", default-features = false, features = ["std"] }
 rand = "0.10"
