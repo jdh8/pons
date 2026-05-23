@@ -1,5 +1,5 @@
 use contract_bridge::{Seat, Strain};
-use dds_bridge::Vulnerability;
+use ddss::Vulnerability;
 use pons::stats::{HistogramRow, HistogramTable, average_ns_par};
 use proptest::prelude::*;
 

@@ -2,7 +2,7 @@ use contract_bridge::Seat;
 use contract_bridge::deck::full_deal;
 use core::hint::black_box;
 use criterion::{Criterion, criterion_group, criterion_main};
-use dds_bridge::{Solver, Vulnerability};
+use ddss::{Solver, Vulnerability};
 use pons::stats::{HistogramTable, average_ns_par};
 use rand::SeedableRng;
 use rand::rngs::SmallRng;
@@ -10,7 +10,7 @@ use rand::rngs::SmallRng;
 /// Solve a small batch of random deals and collect into a histogram.
 fn build_histogram(seed: u64, deals: usize) -> HistogramTable {
     let mut rng = SmallRng::seed_from_u64(seed);
-    let mut solver = Solver::default();
+    let solver = Solver::lock();
     (0..deals)
         .map(|_| solver.solve_deal(full_deal(&mut rng)))
         .collect()

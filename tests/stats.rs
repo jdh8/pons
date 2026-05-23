@@ -1,7 +1,7 @@
 use anyhow::anyhow;
 use contract_bridge::{Bid, Contract, Penalty, Seat, Strain};
 use core::num::NonZero;
-use dds_bridge::Vulnerability;
+use ddss::Vulnerability;
 use pons::stats::{Accumulator, HistogramRow, HistogramTable, Statistics, average_ns_par};
 
 #[test]

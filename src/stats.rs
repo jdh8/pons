@@ -4,7 +4,7 @@ use contract_bridge::{Contract, Penalty, Seat, Strain};
 use core::fmt;
 use core::num::NonZero;
 use core::ops::{Index, IndexMut};
-use dds_bridge::{TrickCountTable, Vulnerability};
+use ddss::{TrickCountTable, Vulnerability};
 
 /// Representation of statistics on a variable
 ///

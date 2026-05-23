@@ -1,7 +1,7 @@
 use contract_bridge::deck;
 use contract_bridge::eval::{self, HandEvaluator as _};
 use contract_bridge::{Seat, Suit};
-use dds_bridge::{TrickCountTable, Vulnerability, calculate_par, solve_deals};
+use ddss::{NonEmptyStrainFlags, Solver, TrickCountTable, Vulnerability, calculate_par};
 use pons::{Accumulator, Statistics};
 use std::process::ExitCode;
 
@@ -27,7 +27,8 @@ fn eval_random_deals(n: usize) -> [Statistics; 64] {
         .take(n)
         .collect();
 
-    solve_deals(&deals)
+    Solver::lock()
+        .solve_deals(&deals, NonEmptyStrainFlags::ALL)
         .into_iter()
         .map(calculate_par_suit_tricks)
         .enumerate()

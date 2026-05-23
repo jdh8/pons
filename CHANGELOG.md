@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Breaking:** Replace the `dds-bridge` dependency with `ddss` (a
+  performance-oriented DDS fork) and the `dds-bridge-sys` dev-dependency
+  with `ddss-sys`. Most public types are structurally compatible — `Par`,
+  `ParContract`, `TrickCountTable`, `TrickCountRow`, and `Vulnerability` all
+  live at the same paths under `ddss::*` — so downstream callers usually
+  only need to swap the crate name in imports. Two shape changes:
+  - `dds_bridge::Solver::default()` → `ddss::Solver::lock()`. The new
+    handle holds a reentrant lock, so its solve methods take `&self` (drop
+    the `mut`) and the type is `!Send`.
+  - The free `dds_bridge::solve_deals(&deals)` is now a method that takes
+    a non-empty strain selector: `Solver::lock().solve_deals(&deals,
+    NonEmptyStrainFlags::ALL)` reproduces the old all-strains behavior.
+  `calculate_par` remains a free function with the same signature and can
+  be called with or without a held `Solver` (it acquires the global ddss
+  lock internally; the lock is reentrant per thread).
 - **Breaking:** Auction primitives (`Call`, `Auction`, `IllegalCall`,
   `RelativeVulnerability`, and their parse errors), the entire `eval`
   module (`HandEvaluator`, `SimpleEvaluator`, `hcp`, `shortness`,

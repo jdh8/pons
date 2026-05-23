@@ -43,14 +43,14 @@ for _ in 0..10 {
 }
 ```
 
-Estimate NS par from random fill-in deals (requires `dds-bridge`'s solver,
-linked via `dds-bridge-sys` in `dev-dependencies`; see
+Estimate NS par from random fill-in deals (requires `ddss`'s solver,
+linked via `ddss-sys` in `dev-dependencies`; see
 [`examples/average-ns-par`](examples/average-ns-par/main.rs)):
 
 ```rust
 use contract_bridge::deck;
 use contract_bridge::{Builder, Hand, Seat};
-use dds_bridge::{Vulnerability, solve_deals};
+use ddss::{NonEmptyStrainFlags, Solver, Vulnerability};
 use pons::stats;
 # let north_hand: Hand = "T9762.AT54.JT75.".parse().unwrap();
 # let south_hand: Hand = "A.KQ962.A86.Q642".parse().unwrap();
@@ -60,8 +60,9 @@ let cards = Builder::new()
     .south(south_hand)
     .build_partial()
     .expect("north and south hands are disjoint and ≤13 each");
-let solutions = solve_deals(
+let solutions = Solver::lock().solve_deals(
     &deck::fill_deals(&mut rand::rng(), cards).take(90).collect::<Vec<_>>(),
+    NonEmptyStrainFlags::ALL,
 );
 let par = stats::average_ns_par(
     solutions.into_iter().collect(),
