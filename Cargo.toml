@@ -44,3 +44,6 @@ harness = false
 [[bench]]
 name = "par"
 harness = false
+
+[profile.dev.package."*"]
+opt-level = 2

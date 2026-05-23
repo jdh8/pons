@@ -82,6 +82,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   heap via `Box::new_zeroed`, instead of routing through a stack
   temporary as `Box::default()` does at opt-level 0.
 
+### Internal
+
+- Set `[profile.dev.package."*"]` to `opt-level = 2`, so dependencies —
+  most notably `ddss-sys`'s C++ DDS engine via `cc` — are optimized in
+  dev builds. Pons's own Rust stays at opt-level 0 so any future
+  stack-temp-class bug in this crate's own code still surfaces under
+  `cargo test`. Big speedup for the `average_ns_par` doctest and
+  `tests/par.rs`.
+
 ## [0.7.0] — 2026-05-20
 
 ### Changed
