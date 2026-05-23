@@ -48,6 +48,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `pons::deck` and `pons::eval` modules (moved to `contract-bridge`).
 - The crate-root re-exports `Deck`, `full_deal`, `HandEvaluator`,
   `Auction`, `Call` (moved to `contract-bridge`).
+- The `generate-deals` and `notrump-tricks` examples. They no longer
+  depended on anything in `pons` and now live with the crates they
+  actually need: `generate-deals` in
+  [`contract-bridge`](https://github.com/jdh8/contract-bridge/tree/main/examples/generate-deals)
+  and `notrump-tricks` in
+  [`ddss`](https://github.com/jdh8/ddss/tree/main/examples/notrump-tricks)
+  (with a [parallel
+  copy](https://github.com/jdh8/dds-bridge/tree/main/examples/notrump-tricks)
+  in `dds-bridge`).
 
 ## [0.8.0]
 

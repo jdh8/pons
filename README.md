@@ -75,12 +75,19 @@ let par = stats::average_ns_par(
 
 The [`examples/`](examples/) directory has runnable programs:
 
-- `generate-deals` — stream random deals to stdout.
-- `notrump-tricks` — average tricks taken in notrump per hand feature.
 - `check-nltc` and `check-zar` — validate hand-evaluation methods against double-dummy results.
 - `average-ns-par` — Monte-Carlo NS par score for a partial deal.
+- `defend-2sx-or-3nt` — compare expected NS score from defending 2♠× vs declaring 3NT.
 
 Run any of them with `cargo run --example <name>`.
+
+Two examples that don't need pons live one level down the stack:
+[`generate-deals`](https://github.com/jdh8/contract-bridge/tree/main/examples/generate-deals)
+in `contract-bridge` and
+[`notrump-tricks`](https://github.com/jdh8/ddss/tree/main/examples/notrump-tricks)
+in `ddss` (with a [parallel
+copy](https://github.com/jdh8/dds-bridge/tree/main/examples/notrump-tricks)
+in `dds-bridge`).
 
 ## MSRV
 
