@@ -58,6 +58,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   copy](https://github.com/jdh8/dds-bridge/tree/main/examples/notrump-tricks)
   in `dds-bridge`).
 
+### Fixed
+
+- README's `average_ns_par` doctest no longer overflows the stack on
+  Windows. The fix is in `ddss` 0.1.2 (now the minimum required
+  version): the batch solver's FFI packs are allocated directly on the
+  heap via `Box::new_zeroed`, instead of routing through a stack
+  temporary as `Box::default()` does at opt-level 0.
+
 ## [0.7.0] — 2026-05-20
 
 ### Changed

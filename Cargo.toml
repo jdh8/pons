@@ -19,7 +19,7 @@ serde = ["dep:serde", "dep:serde_with", "contract-bridge/serde", "ddss/serde", "
 [dependencies]
 bitflags = "2"
 contract-bridge = { version = "0.1", features = ["rand"] }
-ddss = "0.1"
+ddss = "0.1.2"
 serde = { version = "1", features = ["derive"], optional = true }
 serde_with = { version = "3", default-features = false, features = ["macros"], optional = true }
 thiserror = "2"
