@@ -89,11 +89,6 @@ in `ddss` (with a [parallel
 copy](https://github.com/jdh8/dds-bridge/tree/main/examples/notrump-tricks)
 in `dds-bridge`).
 
-## MSRV
-
-Pons currently requires Rust **1.93**. The CI matrix builds and tests on the
-MSRV toolchain on Ubuntu, macOS, and Windows.
-
 [`Call`]: https://docs.rs/contract-bridge/latest/contract_bridge/auction/enum.Call.html
 [`Auction`]: https://docs.rs/contract-bridge/latest/contract_bridge/auction/struct.Auction.html
 [`Trie`]: https://docs.rs/pons/latest/pons/bidding/trie/struct.Trie.html
