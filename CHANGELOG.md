@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Breaking:** `stats::average_ns_par`'s vulnerability parameter is now
+  `contract_bridge::AbsoluteVulnerability` instead of `ddss::Vulnerability`.
+  `AbsoluteVulnerability` is a new NS/EW bit set in `contract-bridge` 0.1.1 (now
+  the minimum required version) that mirrors the existing `RelativeVulnerability`
+  for symmetry. The four values map one-to-one — replace
+  `ddss::Vulnerability::{NONE, NS, EW, ALL}` with the same constants on
+  `contract_bridge::AbsoluteVulnerability`. The double-dummy solver is unchanged
+  (still `ddss`).
+
 ## [0.8.0] — 2026-05-24
 
 ### Changed

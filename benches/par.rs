@@ -1,8 +1,8 @@
-use contract_bridge::Seat;
 use contract_bridge::deck::full_deal;
+use contract_bridge::{AbsoluteVulnerability, Seat};
 use core::hint::black_box;
 use criterion::{Criterion, criterion_group, criterion_main};
-use ddss::{Solver, Vulnerability};
+use ddss::Solver;
 use pons::stats::{HistogramTable, average_ns_par};
 use rand::SeedableRng;
 use rand::rngs::SmallRng;
@@ -22,7 +22,7 @@ fn bench_par_none_north(c: &mut Criterion) {
         b.iter(|| {
             black_box(average_ns_par(
                 black_box(hist),
-                Vulnerability::NONE,
+                AbsoluteVulnerability::NONE,
                 Seat::North,
             ))
         });
@@ -35,7 +35,7 @@ fn bench_par_all_east(c: &mut Criterion) {
         b.iter(|| {
             black_box(average_ns_par(
                 black_box(hist),
-                Vulnerability::ALL,
+                AbsoluteVulnerability::ALL,
                 Seat::East,
             ))
         });

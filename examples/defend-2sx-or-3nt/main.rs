@@ -3,9 +3,10 @@ use contract_bridge::auction::{Call, RelativeVulnerability};
 use contract_bridge::deck::{self, full_deal};
 use contract_bridge::eval::{self, HandEvaluator};
 use contract_bridge::{
-    Bid, Builder, Contract, FullDeal, Hand, Level, Penalty, Rank, Seat, Strain, Suit,
+    AbsoluteVulnerability, Bid, Builder, Contract, FullDeal, Hand, Level, Penalty, Rank, Seat,
+    Strain, Suit,
 };
-use ddss::{NonEmptyStrainFlags, Solver, Vulnerability};
+use ddss::{NonEmptyStrainFlags, Solver};
 use pons::bidding::array::Logits;
 use pons::bidding::{System, Trie};
 
@@ -43,7 +44,7 @@ struct Args {
 
     /// Vulnerability: none, ns, ew, both
     #[arg(short, long, default_value = "none")]
-    vulnerability: Vulnerability,
+    vulnerability: AbsoluteVulnerability,
 
     /// Number of valid deals to accept
     #[arg(short, long, default_value = "90")]
@@ -230,12 +231,12 @@ fn collect_deals(
     Ok((deals, attempts))
 }
 
-fn score_deals(deals: &[FullDeal], vulnerability: Vulnerability) -> Totals {
+fn score_deals(deals: &[FullDeal], vulnerability: AbsoluteVulnerability) -> Totals {
     let tables = Solver::lock().solve_deals(deals, NonEmptyStrainFlags::ALL);
     let two_sx = Contract::new(2, Strain::Spades, Penalty::Doubled);
     let three_nt = Contract::new(3, Strain::Notrump, Penalty::Undoubled);
-    let ns_vul = vulnerability.contains(Vulnerability::NS);
-    let ew_vul = vulnerability.contains(Vulnerability::EW);
+    let ns_vul = vulnerability.contains(AbsoluteVulnerability::NS);
+    let ew_vul = vulnerability.contains(AbsoluteVulnerability::EW);
 
     let mut totals = Totals {
         pass: 0,

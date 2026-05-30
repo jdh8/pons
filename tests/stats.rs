@@ -1,7 +1,6 @@
 use anyhow::anyhow;
-use contract_bridge::{Bid, Contract, Penalty, Seat, Strain};
+use contract_bridge::{AbsoluteVulnerability, Bid, Contract, Penalty, Seat, Strain};
 use core::num::NonZero;
-use ddss::Vulnerability;
 use pons::stats::{Accumulator, HistogramRow, HistogramTable, Statistics, average_ns_par};
 
 #[test]
@@ -169,7 +168,10 @@ fn uniform_hist(tricks: u8) -> HistogramTable {
 #[test]
 fn test_par_empty_histogram_returns_none() {
     let hist = HistogramTable::new();
-    assert_eq!(average_ns_par(hist, Vulnerability::NONE, Seat::North), None);
+    assert_eq!(
+        average_ns_par(hist, AbsoluteVulnerability::NONE, Seat::North),
+        None
+    );
 }
 
 #[test]
@@ -177,7 +179,7 @@ fn test_par_pass_out_when_every_contract_loses() -> anyhow::Result<()> {
     // Six tricks for everyone in every strain: any contract goes down at
     // least one trick, so neither side wants to bid.
     let hist = uniform_hist(6);
-    let par = average_ns_par(hist, Vulnerability::NONE, Seat::North)
+    let par = average_ns_par(hist, AbsoluteVulnerability::NONE, Seat::North)
         .ok_or_else(|| anyhow!("expected a par result"))?;
     assert!(par.score.eq(&0.0));
     assert_eq!(par.contract, None);
@@ -188,7 +190,7 @@ fn test_par_pass_out_when_every_contract_loses() -> anyhow::Result<()> {
 fn test_par_pass_out_independent_of_dealer() -> anyhow::Result<()> {
     let hist = uniform_hist(6);
     for dealer in Seat::ALL {
-        let par = average_ns_par(hist, Vulnerability::NONE, dealer)
+        let par = average_ns_par(hist, AbsoluteVulnerability::NONE, dealer)
             .ok_or_else(|| anyhow!("expected a par result for dealer {dealer:?}"))?;
         assert!(par.score.eq(&0.0), "dealer {dealer:?}");
         assert_eq!(par.contract, None, "dealer {dealer:?}");
@@ -206,7 +208,7 @@ fn test_par_ns_partial_1nt() -> anyhow::Result<()> {
     hist[Seat::South][Strain::Notrump] = [0; 14];
     hist[Seat::South][Strain::Notrump][7] = 1;
 
-    let par = average_ns_par(hist, Vulnerability::NONE, Seat::North)
+    let par = average_ns_par(hist, AbsoluteVulnerability::NONE, Seat::North)
         .ok_or_else(|| anyhow!("expected a par result"))?;
 
     let one_nt = Contract {
@@ -231,7 +233,7 @@ fn test_par_ns_game_4h_vul() -> anyhow::Result<()> {
     hist[Seat::South][Strain::Hearts] = [0; 14];
     hist[Seat::South][Strain::Hearts][10] = 1;
 
-    let par = average_ns_par(hist, Vulnerability::NS, Seat::North)
+    let par = average_ns_par(hist, AbsoluteVulnerability::NS, Seat::North)
         .ok_or_else(|| anyhow!("expected a par result"))?;
 
     let four_h = Contract {
@@ -261,7 +263,7 @@ fn test_par_ew_sacrifice_against_vulnerable_game() -> anyhow::Result<()> {
     hist[Seat::West][Strain::Spades] = [0; 14];
     hist[Seat::West][Strain::Spades][9] = 1;
 
-    let par = average_ns_par(hist, Vulnerability::NS, Seat::North)
+    let par = average_ns_par(hist, AbsoluteVulnerability::NS, Seat::North)
         .ok_or_else(|| anyhow!("expected a par result"))?;
 
     let four_sx = Contract {
@@ -303,7 +305,7 @@ fn test_par_count_averages_across_deals() -> anyhow::Result<()> {
     // else has count 2 at index 6. Total deals = 2.
     assert_eq!(hist.count().map(NonZero::get), Some(2));
 
-    let par = average_ns_par(hist, Vulnerability::NONE, Seat::North)
+    let par = average_ns_par(hist, AbsoluteVulnerability::NONE, Seat::North)
         .ok_or_else(|| anyhow!("expected a par result"))?;
 
     // The algorithm sums per-deal scores for a single (bid, penalty) and

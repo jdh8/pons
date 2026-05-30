@@ -1,10 +1,10 @@
 use super::bidding::Array;
 use contract_bridge::auction::Call;
-use contract_bridge::{Contract, Penalty, Seat, Strain};
+use contract_bridge::{AbsoluteVulnerability, Contract, Penalty, Seat, Strain};
 use core::fmt;
 use core::num::NonZero;
 use core::ops::{Index, IndexMut};
-use ddss::{TrickCountTable, Vulnerability};
+use ddss::TrickCountTable;
 
 /// Representation of statistics on a variable
 ///
@@ -249,7 +249,7 @@ pub struct ParResult {
 #[must_use]
 pub fn average_ns_par(
     histogram: HistogramTable,
-    vul: Vulnerability,
+    vul: AbsoluteVulnerability,
     dealer: Seat,
 ) -> Option<ParResult> {
     #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
@@ -267,8 +267,8 @@ pub fn average_ns_par(
     // seat -> bid -> (score, contract)
     let scores = Seat::ALL.map(|seat| {
         let side = match seat {
-            Seat::North | Seat::South => Vulnerability::NS,
-            Seat::East | Seat::West => Vulnerability::EW,
+            Seat::North | Seat::South => AbsoluteVulnerability::NS,
+            Seat::East | Seat::West => AbsoluteVulnerability::EW,
         };
 
         let mut array = Array::from_fn(|call| match call {

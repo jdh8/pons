@@ -1,5 +1,4 @@
-use contract_bridge::{Seat, Strain};
-use ddss::Vulnerability;
+use contract_bridge::{AbsoluteVulnerability, Seat, Strain};
 use pons::stats::{HistogramRow, HistogramTable, average_ns_par};
 use proptest::prelude::*;
 
@@ -12,12 +11,12 @@ fn seat() -> impl Strategy<Value = Seat> {
     ]
 }
 
-fn vulnerability() -> impl Strategy<Value = Vulnerability> {
+fn vulnerability() -> impl Strategy<Value = AbsoluteVulnerability> {
     prop_oneof![
-        Just(Vulnerability::NONE),
-        Just(Vulnerability::NS),
-        Just(Vulnerability::EW),
-        Just(Vulnerability::ALL),
+        Just(AbsoluteVulnerability::NONE),
+        Just(AbsoluteVulnerability::NS),
+        Just(AbsoluteVulnerability::EW),
+        Just(AbsoluteVulnerability::ALL),
     ]
 }
 

@@ -1,7 +1,7 @@
 use clap::Parser;
 use contract_bridge::deck;
-use contract_bridge::{Builder, Hand, Seat};
-use ddss::{NonEmptyStrainFlags, Solver, Vulnerability};
+use contract_bridge::{AbsoluteVulnerability, Builder, Hand, Seat};
+use ddss::{NonEmptyStrainFlags, Solver};
 use pons::stats;
 
 /// Emulate par score for North-South by simulating random deals
@@ -17,7 +17,7 @@ struct Args {
 
     /// Vulnerability: none, ns, ew, both
     #[arg(short, long, default_value = "none")]
-    vulnerability: Vulnerability,
+    vulnerability: AbsoluteVulnerability,
 
     /// Dealer seat: N, E, S, W (or full name)
     #[arg(short, long, default_value = "n")]

@@ -49,8 +49,8 @@ linked via `ddss-sys` in `dev-dependencies`; see
 
 ```rust
 use contract_bridge::deck;
-use contract_bridge::{Builder, Hand, Seat};
-use ddss::{NonEmptyStrainFlags, Solver, Vulnerability};
+use contract_bridge::{AbsoluteVulnerability, Builder, Hand, Seat};
+use ddss::{NonEmptyStrainFlags, Solver};
 use pons::stats;
 # let north_hand: Hand = "T9762.AT54.JT75.".parse().unwrap();
 # let south_hand: Hand = "A.KQ962.A86.Q642".parse().unwrap();
@@ -66,7 +66,7 @@ let solutions = Solver::lock().solve_deals(
 );
 let par = stats::average_ns_par(
     solutions.into_iter().collect(),
-    Vulnerability::NONE,
+    AbsoluteVulnerability::NONE,
     Seat::North,
 );
 ```
