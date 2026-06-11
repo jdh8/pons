@@ -8,6 +8,7 @@ use contract_bridge::{
 };
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::bidding::array::Logits;
+use pons::bidding::trie::classifier;
 use pons::bidding::{System, Trie};
 
 const TWO_SPADES: Call = Call::Bid(Bid {
@@ -132,25 +133,31 @@ fn south_call(hand: Hand) -> Call {
 fn build_system() -> Trie {
     let mut trie = Trie::new();
 
-    trie.insert(&[], |hand: Hand, _vul: RelativeVulnerability| {
-        let mut logits = Logits::new();
-        *logits.0.get_mut(west_call(hand)) = 1.0;
-        logits
-    });
+    trie.insert(
+        &[],
+        classifier(|hand, _| {
+            let mut logits = Logits::new();
+            *logits.0.get_mut(west_call(hand)) = 1.0;
+            logits
+        }),
+    );
 
-    trie.insert(&[TWO_SPADES], |hand: Hand, _vul: RelativeVulnerability| {
-        let mut logits = Logits::new();
-        *logits.0.get_mut(north_call(hand)) = 1.0;
-        logits
-    });
+    trie.insert(
+        &[TWO_SPADES],
+        classifier(|hand, _| {
+            let mut logits = Logits::new();
+            *logits.0.get_mut(north_call(hand)) = 1.0;
+            logits
+        }),
+    );
 
     trie.insert(
         &[TWO_SPADES, Call::Double, Call::Pass],
-        |hand: Hand, _vul: RelativeVulnerability| {
+        classifier(|hand, _| {
             let mut logits = Logits::new();
             *logits.0.get_mut(south_call(hand)) = 1.0;
             logits
-        },
+        }),
     );
 
     trie

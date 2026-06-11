@@ -1,8 +1,8 @@
 use contract_bridge::auction::{Call, RelativeVulnerability};
 use contract_bridge::{Bid, Hand, Level, Strain};
 use pons::bidding::array::Logits;
-use pons::bidding::trie::Forest;
-use pons::bidding::{System, Trie};
+use pons::bidding::trie::{Forest, classifier};
+use pons::bidding::{Context, System, Trie};
 
 const fn bid(level: u8, strain: Strain) -> Call {
     Call::Bid(Bid {
@@ -25,11 +25,9 @@ fn classify_at(trie: &Trie, auction: &[Call]) -> Logits {
     let f = trie
         .get(auction)
         .expect("classifier missing at exact auction");
-    f.classify(
-        Hand::default(),
-        RelativeVulnerability::NONE,
-        trie.common_prefixes(auction),
-    )
+    let context = Context::new(RelativeVulnerability::NONE, auction)
+        .with_prefixes(trie.common_prefixes(auction));
+    f.classify(Hand::default(), &context)
 }
 
 #[test]
@@ -51,7 +49,7 @@ fn test_trie_default_constructs() {
 fn test_trie_insert_and_get_round_trip() {
     let mut trie = Trie::new();
     let auction = [bid(1, Strain::Clubs)];
-    trie.insert(&auction, |_, _| marker_logits(1.0));
+    trie.insert(&auction, classifier(|_, _| marker_logits(1.0)));
 
     assert_eq!(classify_at(&trie, &auction), marker_logits(1.0));
 }
@@ -60,8 +58,14 @@ fn test_trie_insert_and_get_round_trip() {
 fn test_trie_insert_returns_previous_when_overwriting() {
     let mut trie = Trie::new();
     let auction = [bid(1, Strain::Clubs)];
-    assert!(trie.insert(&auction, |_, _| marker_logits(1.0)).is_none());
-    assert!(trie.insert(&auction, |_, _| marker_logits(2.0)).is_some());
+    assert!(
+        trie.insert(&auction, classifier(|_, _| marker_logits(1.0)))
+            .is_none()
+    );
+    assert!(
+        trie.insert(&auction, classifier(|_, _| marker_logits(2.0)))
+            .is_some()
+    );
     assert_eq!(classify_at(&trie, &auction), marker_logits(2.0));
 }
 
@@ -69,7 +73,7 @@ fn test_trie_insert_returns_previous_when_overwriting() {
 fn test_trie_is_prefix() {
     let mut trie = Trie::new();
     let auction = [bid(1, Strain::Clubs), Call::Pass, bid(1, Strain::Hearts)];
-    trie.insert(&auction, |_, _| just_pass());
+    trie.insert(&auction, classifier(|_, _| just_pass()));
 
     assert!(trie.is_prefix(&[]));
     assert!(trie.is_prefix(&auction[..1]));
@@ -87,9 +91,12 @@ fn test_trie_longest_prefix_picks_deepest_match() {
     let one_h = bid(1, Strain::Hearts);
     let one_d = bid(1, Strain::Diamonds);
 
-    trie.insert(&[], |_, _| marker_logits(0.0));
-    trie.insert(&[one_c], |_, _| marker_logits(1.0));
-    trie.insert(&[one_c, Call::Pass, one_h], |_, _| marker_logits(2.0));
+    trie.insert(&[], classifier(|_, _| marker_logits(0.0)));
+    trie.insert(&[one_c], classifier(|_, _| marker_logits(1.0)));
+    trie.insert(
+        &[one_c, Call::Pass, one_h],
+        classifier(|_, _| marker_logits(2.0)),
+    );
 
     // Diverges after [1C, P]: deepest match is [1C].
     let query = [one_c, Call::Pass, one_d];
@@ -120,7 +127,7 @@ fn test_trie_longest_prefix_skips_empty_intermediate() {
     let one_c = bid(1, Strain::Clubs);
     let one_h = bid(1, Strain::Hearts);
     let auction = [one_c, Call::Pass, one_h];
-    trie.insert(&auction, |_, _| just_pass());
+    trie.insert(&auction, classifier(|_, _| just_pass()));
 
     let (prefix, _) = trie
         .longest_prefix(&auction)
@@ -137,9 +144,15 @@ fn test_trie_suffixes_enumerate_with_correct_paths() {
     let one_c = bid(1, Strain::Clubs);
     let one_h = bid(1, Strain::Hearts);
 
-    trie.insert(&[one_c], |_, _| marker_logits(1.0));
-    trie.insert(&[one_c, Call::Pass, one_h], |_, _| marker_logits(2.0));
-    trie.insert(&[bid(1, Strain::Spades)], |_, _| marker_logits(3.0));
+    trie.insert(&[one_c], classifier(|_, _| marker_logits(1.0)));
+    trie.insert(
+        &[one_c, Call::Pass, one_h],
+        classifier(|_, _| marker_logits(2.0)),
+    );
+    trie.insert(
+        &[bid(1, Strain::Spades)],
+        classifier(|_, _| marker_logits(3.0)),
+    );
 
     let suffixes: Vec<Box<[Call]>> = trie.suffixes(&[one_c]).map(|(s, _)| s).collect();
     assert_eq!(suffixes.len(), 2);
@@ -156,8 +169,8 @@ fn test_trie_suffixes_empty_when_prefix_absent() {
 #[test]
 fn test_trie_suffixes_isolated_to_subtree() {
     let mut trie = Trie::new();
-    trie.insert(&[bid(1, Strain::Clubs)], |_, _| just_pass());
-    trie.insert(&[bid(1, Strain::Hearts)], |_, _| just_pass());
+    trie.insert(&[bid(1, Strain::Clubs)], classifier(|_, _| just_pass()));
+    trie.insert(&[bid(1, Strain::Hearts)], classifier(|_, _| just_pass()));
 
     assert_eq!(trie.suffixes(&[bid(1, Strain::Clubs)]).count(), 1);
 }
@@ -174,9 +187,12 @@ fn test_trie_suffixes_is_fused() {
 #[test]
 fn test_trie_iter_visits_every_classifier() {
     let mut trie = Trie::new();
-    trie.insert(&[bid(1, Strain::Clubs)], |_, _| just_pass());
-    trie.insert(&[bid(1, Strain::Hearts)], |_, _| just_pass());
-    trie.insert(&[bid(1, Strain::Hearts), Call::Pass], |_, _| just_pass());
+    trie.insert(&[bid(1, Strain::Clubs)], classifier(|_, _| just_pass()));
+    trie.insert(&[bid(1, Strain::Hearts)], classifier(|_, _| just_pass()));
+    trie.insert(
+        &[bid(1, Strain::Hearts), Call::Pass],
+        classifier(|_, _| just_pass()),
+    );
 
     assert_eq!(trie.iter().count(), 3);
 }
@@ -187,9 +203,12 @@ fn test_trie_common_prefixes_returns_ancestors_with_classifiers() {
     let one_c = bid(1, Strain::Clubs);
     let one_h = bid(1, Strain::Hearts);
 
-    trie.insert(&[], |_, _| marker_logits(0.0));
-    trie.insert(&[one_c], |_, _| marker_logits(1.0));
-    trie.insert(&[one_c, Call::Pass, one_h], |_, _| marker_logits(2.0));
+    trie.insert(&[], classifier(|_, _| marker_logits(0.0)));
+    trie.insert(&[one_c], classifier(|_, _| marker_logits(1.0)));
+    trie.insert(
+        &[one_c, Call::Pass, one_h],
+        classifier(|_, _| marker_logits(2.0)),
+    );
 
     let query = [one_c, Call::Pass, one_h];
     let prefixes: Vec<Vec<Call>> = trie
@@ -209,7 +228,7 @@ fn test_trie_common_prefixes_skips_uncovered_intermediate() {
     let one_c = bid(1, Strain::Clubs);
     let one_h = bid(1, Strain::Hearts);
     // Only the deepest node has a classifier; intermediates do not.
-    trie.insert(&[one_c, Call::Pass, one_h], |_, _| just_pass());
+    trie.insert(&[one_c, Call::Pass, one_h], classifier(|_, _| just_pass()));
 
     let query = [one_c, Call::Pass, one_h];
     let prefixes: Vec<Vec<Call>> = trie
@@ -222,10 +241,26 @@ fn test_trie_common_prefixes_skips_uncovered_intermediate() {
 #[test]
 fn test_trie_common_prefixes_empty_when_diverges() {
     let mut trie = Trie::new();
-    trie.insert(&[bid(1, Strain::Clubs)], |_, _| just_pass());
+    trie.insert(&[bid(1, Strain::Clubs)], classifier(|_, _| just_pass()));
 
     let query = [bid(1, Strain::Spades)];
     assert_eq!(trie.common_prefixes(&query).count(), 0);
+}
+
+#[test]
+fn test_pass_everything_classifies_root() {
+    let mut trie = Trie::new();
+    trie.insert(&[], classifier(|_, _| just_pass()));
+
+    let result = trie.classify(Hand::default(), RelativeVulnerability::NONE, &[]);
+    assert_eq!(result, Some(just_pass()));
+}
+
+#[test]
+fn test_system_trie_returns_none_for_unknown_auction() {
+    let trie = Trie::new();
+    let result = trie.classify(Hand::default(), RelativeVulnerability::NONE, &[]);
+    assert!(result.is_none());
 }
 
 #[test]
@@ -261,7 +296,7 @@ fn test_forest_from_fn_called_once_per_vulnerability() {
 #[test]
 fn test_forest_index_mut_modifies_targeted_trie() {
     let mut forest = Forest::new();
-    forest[RelativeVulnerability::WE].insert(&[], |_, _| just_pass());
+    forest[RelativeVulnerability::WE].insert(&[], classifier(|_, _| just_pass()));
 
     assert!(forest[RelativeVulnerability::WE].get(&[]).is_some());
     assert!(forest[RelativeVulnerability::NONE].get(&[]).is_none());
@@ -270,26 +305,10 @@ fn test_forest_index_mut_modifies_targeted_trie() {
 }
 
 #[test]
-fn test_pass_everything_classifies_root() {
-    let mut trie = Trie::new();
-    trie.insert(&[], |_, _| just_pass());
-
-    let result = trie.classify(Hand::default(), RelativeVulnerability::NONE, &[]);
-    assert_eq!(result, Some(just_pass()));
-}
-
-#[test]
-fn test_system_trie_returns_none_for_unknown_auction() {
-    let trie = Trie::new();
-    let result = trie.classify(Hand::default(), RelativeVulnerability::NONE, &[]);
-    assert!(result.is_none());
-}
-
-#[test]
 fn test_system_forest_dispatches_by_vulnerability() {
     let mut forest = Forest::new();
-    forest[RelativeVulnerability::NONE].insert(&[], |_, _| marker_logits(1.0));
-    forest[RelativeVulnerability::ALL].insert(&[], |_, _| marker_logits(2.0));
+    forest[RelativeVulnerability::NONE].insert(&[], classifier(|_, _| marker_logits(1.0)));
+    forest[RelativeVulnerability::ALL].insert(&[], classifier(|_, _| marker_logits(2.0)));
 
     assert_eq!(
         forest.classify(Hand::default(), RelativeVulnerability::NONE, &[]),

@@ -1,4 +1,5 @@
 use super::Map;
+use super::context::Context;
 use contract_bridge::Hand;
 use contract_bridge::auction::{Call, RelativeVulnerability};
 use core::fmt;
@@ -9,12 +10,7 @@ use std::sync::Arc;
 /// Trait for a function that classifies a hand into logits for each call
 pub trait Classifier: Send + Sync {
     /// Classify a hand with the given context into logits
-    fn classify(
-        &self,
-        hand: Hand,
-        vul: RelativeVulnerability,
-        prefixes: CommonPrefixes<'_, '_>,
-    ) -> super::array::Logits;
+    fn classify(&self, hand: Hand, context: &Context<'_>) -> super::array::Logits;
 }
 
 impl fmt::Debug for dyn Classifier {
@@ -25,16 +21,33 @@ impl fmt::Debug for dyn Classifier {
 
 impl<F> Classifier for F
 where
-    F: Fn(Hand, RelativeVulnerability) -> super::array::Logits + Send + Sync,
+    F: Fn(Hand, &Context<'_>) -> super::array::Logits + Send + Sync,
 {
-    fn classify(
-        &self,
-        hand: Hand,
-        vul: RelativeVulnerability,
-        _: CommonPrefixes<'_, '_>,
-    ) -> super::array::Logits {
-        self(hand, vul)
+    fn classify(&self, hand: Hand, context: &Context<'_>) -> super::array::Logits {
+        self(hand, context)
     }
+}
+
+/// Coerce a closure into a [`Classifier`]
+///
+/// The compiler cannot generalize the lifetime of `&Context` when a plain
+/// closure is passed straight to a generic [`Classifier`] parameter such as
+/// [`Trie::insert`].  Routing the closure through this identity function
+/// provides the expected signature:
+///
+/// ```
+/// use pons::Trie;
+/// use pons::bidding::array::Logits;
+/// use pons::bidding::trie::classifier;
+///
+/// let mut trie = Trie::new();
+/// trie.insert(&[], classifier(|_, _| Logits::new()));
+/// ```
+pub fn classifier<F>(f: F) -> F
+where
+    F: Fn(Hand, &Context<'_>) -> super::array::Logits + Send + Sync,
+{
+    f
 }
 
 /// Decision trie as a vulnerability-agnostic bidding system

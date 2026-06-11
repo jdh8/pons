@@ -3,6 +3,7 @@ use contract_bridge::{Bid, Hand, Level, Strain};
 use core::hint::black_box;
 use criterion::{Criterion, criterion_group, criterion_main};
 use pons::bidding::array::Logits;
+use pons::bidding::trie::classifier;
 use pons::bidding::{System, Trie};
 
 const fn bid(level: u8, strain: Strain) -> Call {
@@ -18,18 +19,19 @@ const fn just_pass() -> Logits {
 /// Build a trie populated with a small grid of opening + response auctions.
 fn populated_trie() -> Trie {
     let mut trie = Trie::new();
-    trie.insert(&[], |_, _| just_pass());
+    let pass = classifier(|_, _| just_pass());
+    trie.insert(&[], pass);
     for level in 1..=3 {
         for strain in Strain::ASC {
             let opening = bid(level, strain);
-            trie.insert(&[opening], |_, _| just_pass());
-            trie.insert(&[opening, Call::Pass], |_, _| just_pass());
+            trie.insert(&[opening], pass);
+            trie.insert(&[opening, Call::Pass], pass);
             for response_level in level..=4.min(level + 2) {
                 for response_strain in Strain::ASC {
                     let response = bid(response_level, response_strain);
                     if matches!(response, Call::Bid(b) if b > Bid { level: Level::new(level), strain })
                     {
-                        trie.insert(&[opening, Call::Pass, response], |_, _| just_pass());
+                        trie.insert(&[opening, Call::Pass, response], pass);
                     }
                 }
             }

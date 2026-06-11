@@ -1,13 +1,18 @@
 /// [`Call`]-indexed array
 pub mod array;
+pub mod constraint;
+pub mod context;
 /// [`Call`]-keyed hash map
 pub mod map;
+pub mod rules;
 /// [`Trie`] as a bidding system
 pub mod trie;
 
 pub use array::Array;
+pub use context::Context;
 pub use map::Map;
-pub use trie::Trie;
+pub use rules::Rules;
+pub use trie::{Trie, classifier};
 
 use contract_bridge::Hand;
 use contract_bridge::auction::{Call, RelativeVulnerability};
@@ -16,8 +21,18 @@ use contract_bridge::auction::{Call, RelativeVulnerability};
 ///
 /// A bidding system tries classifying a hand into logits for each call given
 /// vulnerability and the auction.
+///
+/// # Vulnerability convention
+///
+/// `vul` is **relative to the side to act** — the side of the player whose
+/// call is being classified.  Composite systems pass it through unchanged;
+/// drivers convert from absolute vulnerability once per call with
+/// [`context::relative`].
 pub trait System {
     /// Classify a hand into logits for each call
+    ///
+    /// `auction` is the raw table auction (all four players' calls), and
+    /// `vul` is relative to the side to act.
     fn classify(
         &self,
         hand: Hand,
@@ -33,8 +48,9 @@ impl System for Trie {
         vul: RelativeVulnerability,
         auction: &[Call],
     ) -> Option<array::Logits> {
-        self.get(auction)
-            .map(|f| f.classify(hand, vul, self.common_prefixes(auction)))
+        let classifier = self.get(auction)?;
+        let context = Context::new(vul, auction).with_prefixes(self.common_prefixes(auction));
+        Some(classifier.classify(hand, &context))
     }
 }
 
