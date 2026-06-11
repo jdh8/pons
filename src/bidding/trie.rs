@@ -1,5 +1,6 @@
 use super::Map;
 use super::context::Context;
+use super::fallback::{Fallback, Guard};
 use contract_bridge::Hand;
 use contract_bridge::auction::{Call, RelativeVulnerability};
 use core::fmt;
@@ -55,16 +56,39 @@ where
 /// A trie stores a [`Classifier`] for each covered auction without
 /// vulnerability.  For example, `[P, 1♠]` as an index stands for the 2nd-seat
 /// opening of 1♠.
+///
+/// Besides the exact book, every node may carry guarded [`Fallback`]s that
+/// cover the continuations the book does not; see [`Trie::resolve`].
 #[derive(Debug, Clone)]
 pub struct Trie {
     children: Map<Box<Self>>,
     classify: Option<Arc<dyn Classifier>>,
+    fallbacks: Vec<(Arc<dyn Guard>, Fallback)>,
 }
 
 impl Default for Trie {
     fn default() -> Self {
         Self::new()
     }
+}
+
+/// Maximum number of rebases during one resolution
+///
+/// Rebases rewrite the auction and resolve again; this limit breaks rewrite
+/// cycles.
+pub const REBASE_LIMIT: usize = 8;
+
+/// How a classifier was found by [`Trie::resolve`]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Provenance {
+    /// Depth of the node where the classifier was found, measured in the
+    /// possibly rewritten auction
+    pub depth: usize,
+    /// Index of the fallback entry at that node, or [`None`] for the exact
+    /// book classifier
+    pub fallback: Option<usize>,
+    /// Number of rebases taken
+    pub rebases: usize,
 }
 
 impl Trie {
@@ -74,6 +98,7 @@ impl Trie {
         Self {
             children: Map::new(),
             classify: None,
+            fallbacks: Vec::new(),
         }
     }
 
@@ -133,6 +158,111 @@ impl Trie {
             node = node.children.entry(call).get_or_insert_with(Box::default);
         }
         node.classify.replace(Arc::new(f))
+    }
+
+    /// Attach a guarded [`Fallback`] at the node for the auction
+    ///
+    /// Fallbacks at a node cover every continuation below it that resolution
+    /// reaches; within a node they are tried in declaration order.  See
+    /// [`Trie::resolve`] for the full precedence.
+    pub fn fallback_at(
+        &mut self,
+        auction: &[Call],
+        guard: impl Guard + 'static,
+        fallback: Fallback,
+    ) {
+        let mut node = self;
+
+        for &call in auction {
+            node = node.children.entry(call).get_or_insert_with(Box::default);
+        }
+        node.fallbacks.push((Arc::new(guard), fallback));
+    }
+
+    /// Resolve an auction to a classifier
+    ///
+    /// Precedence, most specific first:
+    ///
+    /// 1. the exact classifier for the full auction (the book),
+    /// 2. walking **up** from the deepest reachable node, the first fallback
+    ///    whose guard admits the uncovered suffix — deeper nodes win, and
+    ///    entries at one node apply in declaration order,
+    /// 3. [`None`].
+    ///
+    /// A [`Fallback::Rebase`] rewrites the auction and resolves again, at
+    /// most [`REBASE_LIMIT`] times.  The returned [`Provenance`] tells where
+    /// the classifier was found.
+    ///
+    /// `auction` is the trie key to resolve.  `context`, which guards also
+    /// receive, always describes the *original* table auction: even when the
+    /// classifier is found through a rebase, it classifies the real one.
+    #[must_use]
+    pub fn resolve(
+        &self,
+        context: &Context<'_>,
+        auction: &[Call],
+    ) -> Option<(&dyn Classifier, Provenance)> {
+        self.resolve_at(context, auction, 0)
+    }
+
+    fn resolve_at(
+        &self,
+        context: &Context<'_>,
+        auction: &[Call],
+        rebases: usize,
+    ) -> Option<(&dyn Classifier, Provenance)> {
+        let mut path = Vec::with_capacity(auction.len() + 1);
+        let mut node = self;
+        path.push(node);
+
+        for &call in auction {
+            match node.children.get(call) {
+                Some(child) => {
+                    node = child;
+                    path.push(node);
+                }
+                None => break,
+            }
+        }
+
+        if path.len() == auction.len() + 1
+            && let Some(classifier) = node.classify.as_deref()
+        {
+            let provenance = Provenance {
+                depth: auction.len(),
+                fallback: None,
+                rebases,
+            };
+            return Some((classifier, provenance));
+        }
+
+        for (depth, node) in path.iter().enumerate().rev() {
+            for (index, (guard, fallback)) in node.fallbacks.iter().enumerate() {
+                if !guard.admits(context, &auction[depth..]) {
+                    continue;
+                }
+
+                match fallback {
+                    Fallback::Classify(classifier) => {
+                        let provenance = Provenance {
+                            depth,
+                            fallback: Some(index),
+                            rebases,
+                        };
+                        return Some((classifier.as_ref(), provenance));
+                    }
+                    Fallback::Rebase(rewrite) => {
+                        if rebases < REBASE_LIMIT
+                            && let Some(rewritten) = rewrite.rewrite(auction, depth)
+                            && let Some(found) = self.resolve_at(context, &rewritten, rebases + 1)
+                        {
+                            return Some(found);
+                        }
+                    }
+                }
+            }
+        }
+        None
     }
 
     /// Depth first iteration over all nodes with a [`Classifier`]

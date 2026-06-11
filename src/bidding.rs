@@ -2,6 +2,7 @@
 pub mod array;
 pub mod constraint;
 pub mod context;
+pub mod fallback;
 /// [`Call`]-keyed hash map
 pub mod map;
 pub mod rules;
@@ -48,8 +49,8 @@ impl System for Trie {
         vul: RelativeVulnerability,
         auction: &[Call],
     ) -> Option<array::Logits> {
-        let classifier = self.get(auction)?;
         let context = Context::new(vul, auction).with_prefixes(self.common_prefixes(auction));
+        let (classifier, _) = self.resolve(&context, auction)?;
         Some(classifier.classify(hand, &context))
     }
 }
