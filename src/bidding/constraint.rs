@@ -152,6 +152,7 @@ where
 }
 
 /// Total high card points in the given range
+#[must_use]
 pub fn hcp(range: impl RangeBounds<u8> + Clone + Send + Sync) -> Cons<impl Constraint + Clone> {
     pred(move |hand: Hand, _: &Context<'_>| {
         range.contains(&SimpleEvaluator(eval::hcp::<u8>).eval(hand))
@@ -167,6 +168,7 @@ pub fn len(
 }
 
 /// Balanced shape: 4333, 4432, or 5332
+#[must_use]
 pub fn balanced() -> Cons<impl Constraint + Clone> {
     pred(|hand: Hand, _: &Context<'_>| {
         let lengths = Suit::ASC.map(|suit| hand[suit].len());
@@ -176,6 +178,7 @@ pub fn balanced() -> Cons<impl Constraint + Clone> {
 }
 
 /// [New Losing Trick Count][eval::NLTC] at most the given number of losers
+#[must_use]
 pub fn nltc_at_most(losers: f64) -> Cons<impl Constraint + Clone> {
     pred(move |hand: Hand, _: &Context<'_>| eval::NLTC.eval(hand) <= losers)
 }
@@ -196,7 +199,7 @@ pub fn support(
 /// Whether a holding stops the suit for notrump purposes
 ///
 /// The crisp textbook definition: A, Kx, Qxx, or Jxxx.
-fn has_stopper(holding: Holding) -> bool {
+const fn has_stopper(holding: Holding) -> bool {
     holding.contains(Rank::A)
         || (holding.contains(Rank::K) && holding.len() >= 2)
         || (holding.contains(Rank::Q) && holding.len() >= 3)
@@ -206,6 +209,7 @@ fn has_stopper(holding: Holding) -> bool {
 /// A stopper in every suit the opponents have bid
 ///
 /// Trivially satisfied when the opponents have bid no suit.
+#[must_use]
 pub fn stopper_in_their_suits() -> Cons<impl Constraint + Clone> {
     pred(|hand: Hand, context: &Context<'_>| {
         context.their_suits().all(|suit| has_stopper(hand[suit]))
@@ -213,22 +217,26 @@ pub fn stopper_in_their_suits() -> Cons<impl Constraint + Clone> {
 }
 
 /// The player to act passed on their first turn
+#[must_use]
 pub fn passed_hand() -> Cons<impl Constraint + Clone> {
     pred(|_: Hand, context: &Context<'_>| context.passed_hand())
 }
 
 /// The opponents have made nothing but passes
+#[must_use]
 pub fn undisturbed() -> Cons<impl Constraint + Clone> {
     pred(|_: Hand, context: &Context<'_>| context.undisturbed())
 }
 
 /// Our side is vulnerable
+#[must_use]
 pub fn vulnerable() -> Cons<impl Constraint + Clone> {
     use contract_bridge::auction::RelativeVulnerability;
     pred(|_: Hand, context: &Context<'_>| context.vul().contains(RelativeVulnerability::WE))
 }
 
 /// The opponents are vulnerable
+#[must_use]
 pub fn they_vulnerable() -> Cons<impl Constraint + Clone> {
     use contract_bridge::auction::RelativeVulnerability;
     pred(|_: Hand, context: &Context<'_>| context.vul().contains(RelativeVulnerability::THEY))
@@ -239,6 +247,7 @@ pub fn they_vulnerable() -> Cons<impl Constraint + Clone> {
 /// This is the exception mechanism for seat-specific openings (e.g. no
 /// preempts in 4th seat); 1st/2nd and 3rd/4th seats are otherwise treated
 /// alike structurally.
+#[must_use]
 pub fn nth_seat(seat: u8) -> Cons<impl Constraint + Clone> {
     pred(move |_: Hand, context: &Context<'_>| context.seat_to_open() == Some(seat))
 }
@@ -260,38 +269,37 @@ mod tests {
         Context::new(RelativeVulnerability::NONE, &[])
     }
 
+    fn assert_pass(logit: f32) {
+        assert!(logit.is_finite() && logit.abs() <= f32::EPSILON);
+    }
+
+    fn assert_reject(logit: f32) {
+        assert!(logit.is_infinite() && logit.is_sign_negative());
+    }
+
     #[test]
     fn test_hcp_and_balanced() {
         let context = empty_context();
-        assert_eq!(hcp(15..=17).eval(hand(BALANCED_15), &context), 0.0);
-        assert_eq!(
-            hcp(16..).eval(hand(BALANCED_15), &context),
-            f32::NEG_INFINITY,
-        );
-        assert_eq!(balanced().eval(hand(BALANCED_15), &context), 0.0);
-        assert_eq!(
-            balanced().eval(hand("AKQJ2.K543.QJ4.2"), &context),
-            f32::NEG_INFINITY,
-        );
+        assert_pass(hcp(15..=17).eval(hand(BALANCED_15), &context));
+        assert_reject(hcp(16..).eval(hand(BALANCED_15), &context));
+        assert_pass(balanced().eval(hand(BALANCED_15), &context));
+        assert_reject(balanced().eval(hand("AKQJ2.K543.QJ4.2"), &context));
     }
 
     #[test]
     fn test_combinators() {
         let context = empty_context();
         let strong_notrump = hcp(15..=17) & balanced();
-        assert_eq!(strong_notrump.eval(hand(BALANCED_15), &context), 0.0);
+        assert_pass(strong_notrump.eval(hand(BALANCED_15), &context));
 
         let either = hcp(16..) | len(Suit::Spades, 4..);
-        assert_eq!(either.eval(hand(BALANCED_15), &context), 0.0);
+        assert_pass(either.eval(hand(BALANCED_15), &context));
 
         let neither = hcp(16..) | len(Suit::Spades, 5..);
-        assert_eq!(neither.eval(hand(BALANCED_15), &context), f32::NEG_INFINITY);
+        assert_reject(neither.eval(hand(BALANCED_15), &context));
 
-        assert_eq!(
-            (!balanced()).eval(hand(BALANCED_15), &context),
-            f32::NEG_INFINITY,
-        );
-        assert_eq!((!hcp(16..)).eval(hand(BALANCED_15), &context), 0.0);
+        assert_reject((!balanced()).eval(hand(BALANCED_15), &context));
+        assert_pass((!hcp(16..)).eval(hand(BALANCED_15), &context));
     }
 
     #[test]
@@ -304,31 +312,19 @@ mod tests {
         ];
         let context = Context::new(RelativeVulnerability::NONE, &auction);
 
-        assert_eq!(support(3..).eval(hand(BALANCED_15), &context), 0.0);
-        assert_eq!(
-            support(4..).eval(hand(BALANCED_15), &context),
-            f32::NEG_INFINITY,
-        );
+        assert_pass(support(3..).eval(hand(BALANCED_15), &context));
+        assert_reject(support(4..).eval(hand(BALANCED_15), &context));
 
         // QJ4 of diamonds stops their suit; T92 of clubs would not, but
         // clubs is not their suit.
-        assert_eq!(
-            stopper_in_their_suits().eval(hand(BALANCED_15), &context),
-            0.0,
-        );
-        assert_eq!(
-            stopper_in_their_suits().eval(hand("AKQ2.K53.T92.QJ4"), &context),
-            f32::NEG_INFINITY,
-        );
+        assert_pass(stopper_in_their_suits().eval(hand(BALANCED_15), &context));
+        assert_reject(stopper_in_their_suits().eval(hand("AKQ2.K53.T92.QJ4"), &context));
     }
 
     #[test]
     fn test_support_without_partner_suit() {
         let context = empty_context();
-        assert_eq!(
-            support(0..).eval(hand(BALANCED_15), &context),
-            f32::NEG_INFINITY,
-        );
+        assert_reject(support(0..).eval(hand(BALANCED_15), &context));
     }
 
     #[test]
@@ -336,15 +332,9 @@ mod tests {
         let auction = [Call::Pass];
         let context = Context::new(RelativeVulnerability::WE, &auction);
 
-        assert_eq!(vulnerable().eval(hand(BALANCED_15), &context), 0.0);
-        assert_eq!(
-            they_vulnerable().eval(hand(BALANCED_15), &context),
-            f32::NEG_INFINITY,
-        );
-        assert_eq!(nth_seat(2).eval(hand(BALANCED_15), &context), 0.0);
-        assert_eq!(
-            nth_seat(1).eval(hand(BALANCED_15), &context),
-            f32::NEG_INFINITY,
-        );
+        assert_pass(vulnerable().eval(hand(BALANCED_15), &context));
+        assert_reject(they_vulnerable().eval(hand(BALANCED_15), &context));
+        assert_pass(nth_seat(2).eval(hand(BALANCED_15), &context));
+        assert_reject(nth_seat(1).eval(hand(BALANCED_15), &context));
     }
 }

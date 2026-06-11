@@ -10,7 +10,7 @@
 //! A [`Fallback`] either classifies directly or *rebases*: it rewrites the
 //! auction and resolves again.  Rebasing is the structural workhorse of
 //! competitive bidding — "system on over their double" is one
-//! [`ReplaceNext`]`(Pass)` entry instead of a copy of the whole book under
+//! [`ReplaceNext`](Pass) entry instead of a copy of the whole book under
 //! the double.
 
 use super::context::Context;
@@ -50,7 +50,7 @@ where
 /// Like [`classifier`][super::trie::classifier], this identity function
 /// provides the expected signature that the compiler cannot generalize on
 /// its own.
-pub fn guard<F>(f: F) -> F
+pub const fn guard<F>(f: F) -> F
 where
     F: Fn(&Context<'_>, &[Call]) -> bool + Send + Sync,
 {
@@ -143,7 +143,7 @@ where
 /// Like [`classifier`][super::trie::classifier], this identity function
 /// provides the expected signature that the compiler cannot generalize on
 /// its own.
-pub fn rewriter<F>(f: F) -> F
+pub const fn rewriter<F>(f: F) -> F
 where
     F: Fn(&[Call], usize) -> Option<Vec<Call>> + Send + Sync,
 {

@@ -59,6 +59,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Reduced Clippy noise across bidding internals and tests: several small
+  closure-coercion/context helpers are now `const fn`, builder-style
+  constraint constructors gained `#[must_use]`, doc-code link formatting was
+  cleaned up, and float assertions in tests were refactored to robust helper
+  predicates instead of direct float equality.
+
 - **Breaking:** `bidding::trie::Classifier::classify` now takes
   `(Hand, &Context)` instead of
   `(Hand, RelativeVulnerability, CommonPrefixes)`. The context carries the

@@ -59,6 +59,10 @@ fn classify_marker(system: &impl System, auction: &[Call]) -> Option<f32> {
         .map(|logits| *logits.0.get(Call::Pass))
 }
 
+fn assert_marker_eq(actual: f32, expected: f32) {
+    assert!((actual - expected).abs() <= f32::EPSILON);
+}
+
 #[test]
 fn test_forest_shares_first_and_second_seat() {
     let mut forest = Forest::new();
@@ -146,7 +150,7 @@ fn test_versus_passes_vulnerability_through() {
                 .classify(Hand::default(), vul, &passes[..len])
                 .expect("probe always answers");
             // Vulnerability is relative to the side to act: no flipping.
-            assert_eq!(*logits.0.get(Call::Pass), f32::from(vul.bits()));
+            assert_marker_eq(*logits.0.get(Call::Pass), f32::from(vul.bits()));
         }
     }
 }

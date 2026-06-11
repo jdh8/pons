@@ -43,7 +43,7 @@ where
 /// let mut trie = Trie::new();
 /// trie.insert(&[], classifier(|_, _| Logits::new()));
 /// ```
-pub fn classifier<F>(f: F) -> F
+pub const fn classifier<F>(f: F) -> F
 where
     F: Fn(Hand, &Context<'_>) -> super::array::Logits + Send + Sync,
 {
@@ -544,7 +544,7 @@ impl Forest {
     ///
     /// `auction` is the pass-stripped key (see the type-level docs).  When
     /// both classes are selected, the books share one
-    /// [`Arc`]`<dyn Classifier>` — sharing is pointer-cheap.  To override
+    /// [`Arc<dyn Classifier>`] — sharing is pointer-cheap.  To override
     /// one class afterwards, insert into that class alone; exact inserts
     /// replace.
     pub fn insert(&mut self, auction: &[Call], classes: SeatClasses, f: impl Classifier + 'static) {

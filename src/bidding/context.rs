@@ -110,14 +110,14 @@ impl<'a> Context<'a> {
     ///
     /// [`Trie`]: super::Trie
     #[must_use]
-    pub fn with_prefixes(mut self, prefixes: CommonPrefixes<'a, 'a>) -> Self {
+    pub const fn with_prefixes(mut self, prefixes: CommonPrefixes<'a, 'a>) -> Self {
         self.prefixes = Some(prefixes);
         self
     }
 
     /// Vulnerability relative to the side to act
     #[must_use]
-    pub const fn vul(self: &Context<'a>) -> RelativeVulnerability {
+    pub const fn vul(&self) -> RelativeVulnerability {
         self.vul
     }
 

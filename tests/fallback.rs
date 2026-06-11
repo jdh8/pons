@@ -29,6 +29,10 @@ fn resolve_marker(trie: &Trie, auction: &[Call]) -> Option<(f32, Provenance)> {
     Some((*logits.0.get(Call::Pass), provenance))
 }
 
+fn assert_marker_eq(actual: f32, expected: f32) {
+    assert!((actual - expected).abs() <= f32::EPSILON);
+}
+
 #[test]
 fn test_exact_beats_fallback() {
     let mut trie = Trie::new();
@@ -37,7 +41,7 @@ fn test_exact_beats_fallback() {
     trie.fallback_at(&[], Always, marker(9.0));
 
     let (value, provenance) = resolve_marker(&trie, &auction).expect("expected exact match");
-    assert_eq!(value, 1.0);
+    assert_marker_eq(value, 1.0);
     assert_eq!(
         provenance,
         Provenance {
@@ -57,7 +61,7 @@ fn test_deeper_fallback_beats_shallower() {
 
     let query = [one_h, bid(1, Strain::Spades)];
     let (value, provenance) = resolve_marker(&trie, &query).expect("expected fallback");
-    assert_eq!(value, 2.0);
+    assert_marker_eq(value, 2.0);
     assert_eq!(
         provenance,
         Provenance {
@@ -69,7 +73,7 @@ fn test_deeper_fallback_beats_shallower() {
 
     // A query diverging at the root only reaches the root fallback.
     let (value, _) = resolve_marker(&trie, &[bid(2, Strain::Clubs)]).expect("expected fallback");
-    assert_eq!(value, 1.0);
+    assert_marker_eq(value, 1.0);
 }
 
 #[test]
@@ -86,13 +90,13 @@ fn test_declaration_order_within_node() {
     // Both guards admit a 1♠ overcall: the first declared entry wins.
     let (value, provenance) =
         resolve_marker(&trie, &[one_h, bid(1, Strain::Spades)]).expect("expected fallback");
-    assert_eq!(value, 1.0);
+    assert_marker_eq(value, 1.0);
     assert_eq!(provenance.fallback, Some(0));
 
     // Only the catch-all admits a 3♣ overcall.
     let (value, provenance) =
         resolve_marker(&trie, &[one_h, bid(3, Strain::Clubs)]).expect("expected fallback");
-    assert_eq!(value, 2.0);
+    assert_marker_eq(value, 2.0);
     assert_eq!(provenance.fallback, Some(1));
 }
 
@@ -117,7 +121,7 @@ fn test_rebase_system_on_over_double() {
     // [1NT, X, 2♥] resolves through [1NT, P, 2♥].
     let (value, provenance) =
         resolve_marker(&trie, &[one_nt, Call::Double, two_h]).expect("expected rebase");
-    assert_eq!(value, 1.0);
+    assert_marker_eq(value, 1.0);
     assert_eq!(
         provenance,
         Provenance {
@@ -168,7 +172,7 @@ fn test_root_default_always_answers() {
         &[bid(3, Strain::Notrump), Call::Double, Call::Redouble][..],
     ] {
         let (value, _) = resolve_marker(&trie, auction).expect("root default answers");
-        assert_eq!(value, 7.0);
+        assert_marker_eq(value, 7.0);
     }
 }
 
