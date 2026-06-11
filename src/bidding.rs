@@ -1,5 +1,6 @@
 /// [`Call`]-indexed array
 pub mod array;
+pub mod compose;
 pub mod constraint;
 pub mod context;
 pub mod fallback;
@@ -10,6 +11,7 @@ pub mod rules;
 pub mod trie;
 
 pub use array::Array;
+pub use compose::{OrElse, Versus};
 pub use context::Context;
 pub use map::Map;
 pub use rules::Rules;
@@ -40,6 +42,41 @@ pub trait System {
         vul: RelativeVulnerability,
         auction: &[Call],
     ) -> Option<array::Logits>;
+
+    /// Compose a table where `self`'s partnership is the dealer's side
+    ///
+    /// `a.vs(b)` dispatches by parity: `a` answers at even auction lengths,
+    /// `b` at odd ones.  Pick the seating per board by dealer — `ns.vs(ew)`
+    /// when North/South deal, `ew.vs(ns)` otherwise.
+    fn vs<B: System>(self, other: B) -> Versus<Self, B>
+    where
+        Self: Sized,
+    {
+        Versus::new(self, other)
+    }
+
+    /// Layer `self` over a fallback system
+    ///
+    /// `a.or_else(b)` answers from `a`, falling through to `b` when `a`
+    /// returns [`None`] or logits without any probability mass.
+    fn or_else<B: System>(self, other: B) -> OrElse<Self, B>
+    where
+        Self: Sized,
+    {
+        OrElse::new(self, other)
+    }
+}
+
+/// References delegate to the referent, so `(&a).vs(&a)` needs no clone
+impl<S: System + ?Sized> System for &S {
+    fn classify(
+        &self,
+        hand: Hand,
+        vul: RelativeVulnerability,
+        auction: &[Call],
+    ) -> Option<array::Logits> {
+        (**self).classify(hand, vul, auction)
+    }
 }
 
 /// A bare trie is a *table* model: all four players bid from this book.

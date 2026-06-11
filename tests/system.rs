@@ -17,6 +17,42 @@ const fn marker_logits(value: f32) -> Logits {
     logits
 }
 
+/// System always answering with a marker value
+struct Constant(f32);
+
+impl System for Constant {
+    fn classify(&self, _: Hand, _: RelativeVulnerability, _: &[Call]) -> Option<Logits> {
+        Some(marker_logits(self.0))
+    }
+}
+
+/// System echoing the vulnerability it receives
+struct VulProbe;
+
+impl System for VulProbe {
+    fn classify(&self, _: Hand, vul: RelativeVulnerability, _: &[Call]) -> Option<Logits> {
+        Some(marker_logits(f32::from(vul.bits())))
+    }
+}
+
+/// System with no answer at all
+struct Silent;
+
+impl System for Silent {
+    fn classify(&self, _: Hand, _: RelativeVulnerability, _: &[Call]) -> Option<Logits> {
+        None
+    }
+}
+
+/// System answering with logits carrying no probability mass
+struct NoMass;
+
+impl System for NoMass {
+    fn classify(&self, _: Hand, _: RelativeVulnerability, _: &[Call]) -> Option<Logits> {
+        Some(Logits::new())
+    }
+}
+
 fn classify_marker(system: &impl System, auction: &[Call]) -> Option<f32> {
     system
         .classify(Hand::default(), RelativeVulnerability::NONE, auction)
@@ -81,4 +117,62 @@ fn test_forest_third_seat_continuation() {
         classify_marker(&forest, &[Call::Pass, Call::Pass, one_h, Call::Pass]),
         Some(6.0),
     );
+}
+
+#[test]
+fn test_versus_dispatches_by_parity() {
+    let table = Constant(1.0).vs(Constant(2.0));
+    let passes = [Call::Pass; 3];
+
+    assert_eq!(classify_marker(&table, &passes[..0]), Some(1.0));
+    assert_eq!(classify_marker(&table, &passes[..1]), Some(2.0));
+    assert_eq!(classify_marker(&table, &passes[..2]), Some(1.0));
+    assert_eq!(classify_marker(&table, &passes[..3]), Some(2.0));
+}
+
+#[test]
+fn test_versus_passes_vulnerability_through() {
+    let table = VulProbe.vs(VulProbe);
+    let passes = [Call::Pass; 2];
+
+    for vul in [
+        RelativeVulnerability::NONE,
+        RelativeVulnerability::WE,
+        RelativeVulnerability::THEY,
+        RelativeVulnerability::ALL,
+    ] {
+        for len in 0..=2 {
+            let logits = table
+                .classify(Hand::default(), vul, &passes[..len])
+                .expect("probe always answers");
+            // Vulnerability is relative to the side to act: no flipping.
+            assert_eq!(*logits.0.get(Call::Pass), f32::from(vul.bits()));
+        }
+    }
+}
+
+#[test]
+fn test_versus_borrows_without_cloning() {
+    let system = Constant(1.0);
+    let table = (&system).vs(&system);
+    assert_eq!(classify_marker(&table, &[]), Some(1.0));
+    assert_eq!(classify_marker(&table, &[Call::Pass]), Some(1.0));
+}
+
+#[test]
+fn test_or_else_falls_through_on_none() {
+    let layered = Silent.or_else(Constant(9.0));
+    assert_eq!(classify_marker(&layered, &[]), Some(9.0));
+}
+
+#[test]
+fn test_or_else_falls_through_on_no_mass() {
+    let layered = NoMass.or_else(Constant(9.0));
+    assert_eq!(classify_marker(&layered, &[]), Some(9.0));
+}
+
+#[test]
+fn test_or_else_prefers_first_answer_with_mass() {
+    let layered = Constant(1.0).or_else(Constant(9.0));
+    assert_eq!(classify_marker(&layered, &[]), Some(1.0));
 }
