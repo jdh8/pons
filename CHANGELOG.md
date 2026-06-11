@@ -7,7 +7,78 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `bidding::context`: `Context`, the mechanical auction context passed to
+  classifiers and constraints — vulnerability (relative to the side to act),
+  the raw table auction, and facts derived from it (bid strains per side,
+  partner's last bid, the contract to beat, doubling state, passed-hand and
+  seat facts, `min_level`). Also `context::relative(AbsoluteVulnerability,
+  Seat)`, the only vulnerability conversion in the crate: drivers convert
+  once per `classify` call, and systems pass the relative value through
+  unchanged.
+- `bidding::constraint`: a composable constraint vocabulary for authoring
+  rules. A `Constraint` maps `(Hand, &Context)` to a logit contribution;
+  crisp predicates return `0.0`/`-∞`. Primitives: `hcp`, `len`, `balanced`,
+  `nltc_at_most`, the context-relative `support`, `stopper_in_their_suits`,
+  `passed_hand`, `undisturbed`, `vulnerable`, `they_vulnerable`, `nth_seat`,
+  and the `pred` escape hatch. Constraints compose with `&` (sum, AND for
+  crisp), `|` (max, OR), and `!` (crisp flip) on the `Cons` wrapper.
+- `bidding::rules`: `Rules`, an ordered rule list acting as a `Classifier`.
+  Each `Rule` ties a call to a constraint with a weight (soft priority); a
+  call's logit is the **max** of `weight + constraint` over its rules.
+  `Rules::explain` reports the winning rule per call — "why did you bid
+  that".
+- `bidding::fallback`: guarded fallbacks generalizing the trie over
+  competitive auctions. `Trie::fallback_at` attaches ordered `(Guard,
+  Fallback)` entries to a node; `Trie::resolve` answers from the exact book
+  first, then walks up from the deepest reachable node taking the first
+  admitted fallback, reporting a `Provenance` (depth, entry index, rebase
+  count). `Fallback::Rebase` rewrites the auction and re-resolves (at most
+  `REBASE_LIMIT` times) — "system on over their double" is
+  `FirstIs(Call::Double)` + `ReplaceNext(Call::Pass)` instead of a copied
+  subtree. Stock guards: `Always`, `Undisturbed`, `FirstIs`,
+  `OvercallAtMost`.
+- `bidding::compose`: lazy `System` combinators. `a.vs(b)` composes a table
+  where `a`'s partnership is the dealer's side, dispatching purely by
+  auction-length parity; the opposing slot is also where an approximate
+  opponent model goes. `a.or_else(b)` layers `a` over a fallback system,
+  falling through on `None` or logits without probability mass. A blanket
+  `impl System for &S` lets `(&a).vs(&a)` work without cloning.
+- `Trie::merge` and `Forest::merge`: structural union for assembling a
+  system from separately authored fragments (uncontested core + competitive
+  packages). On collision `self` keeps its classifier and the keys are
+  reported back; fallback lists concatenate with `self`'s first; `Arc`s are
+  reused.
+- `Forest::insert` and `Forest::fallback_at` take a `SeatClasses` mask
+  (`UNPASSED | PASSED`) and share one `Arc` across both books when both are
+  selected.
+- `classifier`, `guard`, and `rewriter`: identity functions giving plain
+  closures the higher-ranked `&Context`/`&[Call]` signature the compiler
+  cannot generalize on its own.
+
 ### Changed
+
+- **Breaking:** `bidding::trie::Classifier::classify` now takes
+  `(Hand, &Context)` instead of
+  `(Hand, RelativeVulnerability, CommonPrefixes)`. The context carries the
+  vulnerability and (optionally) the common prefixes. Closure classifiers
+  change from `|hand, vul| …` to `classifier(|hand, context| …)`.
+- **Breaking:** `Forest` is redesigned from the vulnerability-indexed
+  `[Trie; 4]` into a *partnership system* `{ unpassed, passed }` keyed by
+  pass-stripped auctions. `Forest::from_fn` and the
+  `Index<RelativeVulnerability>` impls are removed; vulnerability
+  conditions move into constraints (`vulnerable()` / `they_vulnerable()`).
+  With `k` leading passes, the opener's side is "passed" iff `k ≥ 2`, the
+  defenders' iff `k ≥ 1`; stripping makes 1st/2nd-seat books (and 3rd/4th)
+  literally share nodes and normalizes parity: even stripped depth = the
+  opening side acts.
+- `System for Trie` resolves through fallbacks (`Trie::resolve`) instead of
+  exact lookup only, so a trie with fallbacks now answers auctions outside
+  its book. `get`, `longest_prefix`, `common_prefixes`, and `suffixes` are
+  unchanged. The `System` docs pin the vulnerability convention: `vul` is
+  relative to the side to act, and composite systems pass it through
+  unchanged.
 
 - **Breaking:** `stats::average_ns_par`'s vulnerability parameter is now
   `contract_bridge::AbsoluteVulnerability` instead of `ddss::Vulnerability`.
