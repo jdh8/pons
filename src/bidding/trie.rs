@@ -151,12 +151,24 @@ impl Trie {
         auction: &[Call],
         f: impl Classifier + 'static,
     ) -> Option<Arc<dyn Classifier>> {
+        self.insert_arc(auction, Arc::new(f))
+    }
+
+    /// Insert an already shared [`Classifier`] into the trie
+    ///
+    /// Sharing one [`Arc`] across several keys (or across the books of a
+    /// [`Forest`]) is pointer-cheap.
+    pub fn insert_arc(
+        &mut self,
+        auction: &[Call],
+        f: Arc<dyn Classifier>,
+    ) -> Option<Arc<dyn Classifier>> {
         let mut node = self;
 
         for &call in auction {
             node = node.children.entry(call).get_or_insert_with(Box::default);
         }
-        node.classify.replace(Arc::new(f))
+        node.classify.replace(f)
     }
 
     /// Attach a guarded [`Fallback`] at the node for the auction
@@ -170,12 +182,52 @@ impl Trie {
         guard: impl Guard + 'static,
         fallback: Fallback,
     ) {
+        self.fallback_arc_at(auction, Arc::new(guard), fallback);
+    }
+
+    /// Attach a guarded [`Fallback`] with an already shared [`Guard`]
+    pub fn fallback_arc_at(&mut self, auction: &[Call], guard: Arc<dyn Guard>, fallback: Fallback) {
         let mut node = self;
 
         for &call in auction {
             node = node.children.entry(call).get_or_insert_with(Box::default);
         }
-        node.fallbacks.push((Arc::new(guard), fallback));
+        node.fallbacks.push((guard, fallback));
+    }
+
+    /// Merge another trie into this one, reusing the shared classifiers
+    ///
+    /// This is the structural union for assembling a system from separately
+    /// authored fragments (an uncontested core, a competitive package, …).
+    /// Classifiers from `other` fill nodes that have none; when both tries
+    /// classify the same auction, `self` keeps its classifier and the
+    /// auction is reported back — fragments are expected to occupy disjoint
+    /// paths, so a collision is almost certainly an authoring bug.  Fallback
+    /// lists concatenate with `self`'s entries first.
+    pub fn merge(&mut self, other: Self) -> Vec<Box<[Call]>> {
+        let mut collisions = Vec::new();
+        self.merge_at(other, &mut Vec::new(), &mut collisions);
+        collisions
+    }
+
+    fn merge_at(&mut self, other: Self, path: &mut Vec<Call>, collisions: &mut Vec<Box<[Call]>>) {
+        if let Some(classifier) = other.classify {
+            if self.classify.is_some() {
+                collisions.push(path.as_slice().into());
+            } else {
+                self.classify = Some(classifier);
+            }
+        }
+        self.fallbacks.extend(other.fallbacks);
+
+        for (call, child) in other.children {
+            path.push(call);
+            self.children
+                .entry(call)
+                .get_or_insert_with(Box::default)
+                .merge_at(*child, path, collisions);
+            path.pop();
+        }
     }
 
     /// Resolve an auction to a classifier
@@ -192,9 +244,10 @@ impl Trie {
     /// most [`REBASE_LIMIT`] times.  The returned [`Provenance`] tells where
     /// the classifier was found.
     ///
-    /// `auction` is the trie key to resolve.  `context`, which guards also
-    /// receive, always describes the *original* table auction: even when the
-    /// classifier is found through a rebase, it classifies the real one.
+    /// `auction` is the trie key to resolve — for a partnership [`Forest`],
+    /// the pass-stripped key.  `context`, which guards also receive, always
+    /// describes the *original* table auction: even when the classifier is
+    /// found through a rebase or a stripped key, it classifies the real one.
     #[must_use]
     pub fn resolve(
         &self,
@@ -456,6 +509,27 @@ pub struct Forest {
     pub passed: Trie,
 }
 
+bitflags::bitflags! {
+    /// Seat classes of a partnership [`Forest`]
+    ///
+    /// Selects which book(s) of a forest an insertion targets.  Most
+    /// definitions apply to both classes ([`SeatClasses::ALL`]) and share one
+    /// classifier; class-specific books (light 3rd-seat openings, no 2/1
+    /// game forces by a passed hand) target one class.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    pub struct SeatClasses: u8 {
+        /// The side that has not passed before the first non-pass call
+        const UNPASSED = 1;
+        /// The side that passed before the first non-pass call
+        const PASSED = 2;
+    }
+}
+
+impl SeatClasses {
+    /// Both seat classes
+    pub const ALL: Self = Self::all();
+}
+
 impl Forest {
     /// Construct a forest with empty tries
     #[must_use]
@@ -464,5 +538,55 @@ impl Forest {
             unpassed: Trie::new(),
             passed: Trie::new(),
         }
+    }
+
+    /// Insert a [`Classifier`] into the selected book(s)
+    ///
+    /// `auction` is the pass-stripped key (see the type-level docs).  When
+    /// both classes are selected, the books share one
+    /// [`Arc`]`<dyn Classifier>` — sharing is pointer-cheap.  To override
+    /// one class afterwards, insert into that class alone; exact inserts
+    /// replace.
+    pub fn insert(&mut self, auction: &[Call], classes: SeatClasses, f: impl Classifier + 'static) {
+        let f: Arc<dyn Classifier> = Arc::new(f);
+
+        if classes.contains(SeatClasses::UNPASSED) {
+            self.unpassed.insert_arc(auction, Arc::clone(&f));
+        }
+        if classes.contains(SeatClasses::PASSED) {
+            self.passed.insert_arc(auction, f);
+        }
+    }
+
+    /// Attach a guarded [`Fallback`] in the selected book(s)
+    ///
+    /// The guard and the fallback are shared across the books like
+    /// [`Forest::insert`] shares classifiers.
+    pub fn fallback_at(
+        &mut self,
+        auction: &[Call],
+        classes: SeatClasses,
+        guard: impl Guard + 'static,
+        fallback: Fallback,
+    ) {
+        let guard: Arc<dyn Guard> = Arc::new(guard);
+
+        if classes.contains(SeatClasses::UNPASSED) {
+            self.unpassed
+                .fallback_arc_at(auction, Arc::clone(&guard), fallback.clone());
+        }
+        if classes.contains(SeatClasses::PASSED) {
+            self.passed.fallback_arc_at(auction, guard, fallback);
+        }
+    }
+
+    /// Merge another forest into this one, book by book
+    ///
+    /// See [`Trie::merge`] for the collision policy.  The reported keys do
+    /// not distinguish which book collided.
+    pub fn merge(&mut self, other: Self) -> Vec<Box<[Call]>> {
+        let mut collisions = self.unpassed.merge(other.unpassed);
+        collisions.extend(self.passed.merge(other.passed));
+        collisions
     }
 }

@@ -262,3 +262,68 @@ fn test_system_trie_returns_none_for_unknown_auction() {
     let result = trie.classify(Hand::default(), RelativeVulnerability::NONE, &[]);
     assert!(result.is_none());
 }
+
+#[test]
+fn test_merge_disjoint_fragments() {
+    let one_h = bid(1, Strain::Hearts);
+    let one_s = bid(1, Strain::Spades);
+
+    let mut core = Trie::new();
+    core.insert(&[one_h], classifier(|_, _| marker_logits(1.0)));
+
+    let mut package = Trie::new();
+    package.insert(&[one_s], classifier(|_, _| marker_logits(2.0)));
+    package.insert(&[one_h, Call::Pass], classifier(|_, _| marker_logits(3.0)));
+
+    assert!(core.merge(package).is_empty());
+    assert_eq!(classify_at(&core, &[one_h]), marker_logits(1.0));
+    assert_eq!(classify_at(&core, &[one_s]), marker_logits(2.0));
+    assert_eq!(classify_at(&core, &[one_h, Call::Pass]), marker_logits(3.0));
+}
+
+#[test]
+fn test_merge_reports_collisions_and_keeps_self() {
+    let one_h = bid(1, Strain::Hearts);
+
+    let mut core = Trie::new();
+    core.insert(&[one_h], classifier(|_, _| marker_logits(1.0)));
+
+    let mut other = Trie::new();
+    other.insert(&[one_h], classifier(|_, _| marker_logits(2.0)));
+    other.insert(&[one_h, Call::Pass], classifier(|_, _| marker_logits(3.0)));
+
+    let collisions = core.merge(other);
+    assert_eq!(collisions.len(), 1);
+    assert_eq!(&*collisions[0], &[one_h]);
+
+    // Self keeps its classifier; the non-colliding node still merges.
+    assert_eq!(classify_at(&core, &[one_h]), marker_logits(1.0));
+    assert_eq!(classify_at(&core, &[one_h, Call::Pass]), marker_logits(3.0));
+}
+
+#[test]
+fn test_merge_concatenates_fallbacks_self_first() {
+    use pons::bidding::fallback::{Always, Fallback};
+
+    let mut core = Trie::new();
+    core.fallback_at(
+        &[],
+        Always,
+        Fallback::classify(classifier(|_, _| marker_logits(1.0))),
+    );
+
+    let mut other = Trie::new();
+    other.fallback_at(
+        &[],
+        Always,
+        Fallback::classify(classifier(|_, _| marker_logits(2.0))),
+    );
+
+    core.merge(other);
+    let result = core.classify(
+        Hand::default(),
+        RelativeVulnerability::NONE,
+        &[bid(2, Strain::Clubs)],
+    );
+    assert_eq!(result, Some(marker_logits(1.0)));
+}

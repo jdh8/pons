@@ -15,7 +15,7 @@ pub use compose::{OrElse, Versus};
 pub use context::Context;
 pub use map::Map;
 pub use rules::Rules;
-pub use trie::{Trie, classifier};
+pub use trie::{SeatClasses, Trie, classifier};
 
 use contract_bridge::Hand;
 use contract_bridge::auction::{Call, RelativeVulnerability};
@@ -81,7 +81,7 @@ impl<S: System + ?Sized> System for &S {
 
 /// A bare trie is a *table* model: all four players bid from this book.
 ///
-/// For a partnership system composed against opponents, see
+/// For a partnership-specific system composed against opponents, see
 /// [`Forest`][trie::Forest].
 impl System for Trie {
     fn classify(
