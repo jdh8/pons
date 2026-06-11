@@ -6,5 +6,7 @@ pub mod bidding;
 /// Statistics
 pub mod stats;
 
-pub use bidding::{Context, OrElse, Rules, SeatClasses, System, Trie, Versus, trie::Forest};
+pub use bidding::{
+    Constructive, Context, Defensive, OrElse, Partnership, Rules, System, Trie, Versus,
+};
 pub use stats::{Accumulator, Statistics};

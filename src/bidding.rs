@@ -1,5 +1,7 @@
 /// [`Call`]-indexed array
 pub mod array;
+/// Role-aware partnership books
+pub mod book;
 pub mod compose;
 pub mod constraint;
 pub mod context;
@@ -11,11 +13,12 @@ pub mod rules;
 pub mod trie;
 
 pub use array::Array;
+pub use book::{Constructive, Defensive, Partnership};
 pub use compose::{OrElse, Versus};
 pub use context::Context;
 pub use map::Map;
 pub use rules::Rules;
-pub use trie::{SeatClasses, Trie, classifier};
+pub use trie::{Trie, classifier};
 
 use contract_bridge::Hand;
 use contract_bridge::auction::{Call, RelativeVulnerability};
@@ -79,10 +82,13 @@ impl<S: System + ?Sized> System for &S {
     }
 }
 
-/// A bare trie is a *table* model: all four players bid from this book.
+/// A bare trie is a hand-built *table* model: all four players bid from this
+/// one book, keyed by the literal auction.
 ///
-/// For a partnership-specific system composed against opponents, see
-/// [`Forest`][trie::Forest].
+/// This is the low-level escape hatch — handy for a small, fixed table (such as
+/// an analysis fragment) or a system whose pass semantics the role-aware books
+/// cannot express.  Author a partnership's notes from its own side with
+/// [`Constructive`] and [`Defensive`] instead, paired into a [`Partnership`].
 impl System for Trie {
     fn classify(
         &self,
@@ -92,32 +98,6 @@ impl System for Trie {
     ) -> Option<array::Logits> {
         let context = Context::new(vul, auction).with_prefixes(self.common_prefixes(auction));
         let (classifier, _) = self.resolve(&context, auction)?;
-        Some(classifier.classify(hand, &context))
-    }
-}
-
-/// A forest is a *partnership* system: it strips the leading passes off the
-/// table auction and selects the [`passed`][trie::Forest::passed] or
-/// [`unpassed`][trie::Forest::unpassed] book for the side to act.  The
-/// classifier still receives the context of the raw auction.
-impl System for trie::Forest {
-    fn classify(
-        &self,
-        hand: Hand,
-        vul: RelativeVulnerability,
-        auction: &[Call],
-    ) -> Option<array::Logits> {
-        let leading = auction
-            .iter()
-            .take_while(|&&call| call == Call::Pass)
-            .count();
-        let openers = (auction.len() - leading).is_multiple_of(2);
-        let passed = leading >= if openers { 2 } else { 1 };
-        let trie = if passed { &self.passed } else { &self.unpassed };
-        let stripped = &auction[leading..];
-
-        let context = Context::new(vul, auction).with_prefixes(trie.common_prefixes(stripped));
-        let (classifier, _) = trie.resolve(&context, stripped)?;
         Some(classifier.classify(hand, &context))
     }
 }

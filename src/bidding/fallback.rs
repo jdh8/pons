@@ -10,7 +10,7 @@
 //! A [`Fallback`] either classifies directly or *rebases*: it rewrites the
 //! auction and resolves again.  Rebasing is the structural workhorse of
 //! competitive bidding — "system on over their double" is one
-//! [`ReplaceNext`](Pass) entry instead of a copy of the whole book under
+//! [`ReplaceNext`]`(Pass)` entry instead of a copy of the whole book under
 //! the double.
 
 use super::context::Context;

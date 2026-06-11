@@ -45,14 +45,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   opponent model goes. `a.or_else(b)` layers `a` over a fallback system,
   falling through on `None` or logits without probability mass. A blanket
   `impl System for &S` lets `(&a).vs(&a)` work without cloning.
-- `Trie::merge` and `Forest::merge`: structural union for assembling a
-  system from separately authored fragments (uncontested core + competitive
-  packages). On collision `self` keeps its classifier and the keys are
-  reported back; fallback lists concatenate with `self`'s first; `Arc`s are
-  reused.
-- `Forest::insert` and `Forest::fallback_at` take a `SeatClasses` mask
-  (`UNPASSED | PASSED`) and share one `Arc` across both books when both are
-  selected.
+- `bidding::book`: role-aware partnership books. A `Constructive` book covers
+  the auctions where we open — openings keyed per seat by their leading passes,
+  continuations, and our competitive bidding over interference as guarded
+  fallbacks — and a `Defensive` book covers the auctions where they open
+  (overcalls, doubles, defense). Both wrap and deref to `Trie`; each adds a
+  *gated* `System` impl that answers only for its role (constructive when our
+  side opened or is about to, defensive when the opponents did).
+  `Partnership::new(constructive, defensive)` pairs them into one side's
+  system, composed against opponents with `a.vs(b)`. Standard pass only —
+  forcing/strong-pass openings are out of scope (use a bare `Trie`).
+- `Trie::merge`: structural union for assembling a system from separately
+  authored fragments (uncontested core + competitive packages). On collision
+  `self` keeps its classifier and the keys are reported back; fallback lists
+  concatenate with `self`'s first; `Arc`s are reused.
 - `classifier`, `guard`, and `rewriter`: identity functions giving plain
   closures the higher-ranked `&Context`/`&[Call]` signature the compiler
   cannot generalize on its own.
@@ -70,15 +76,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `(Hand, RelativeVulnerability, CommonPrefixes)`. The context carries the
   vulnerability and (optionally) the common prefixes. Closure classifiers
   change from `|hand, vul| …` to `classifier(|hand, context| …)`.
-- **Breaking:** `Forest` is redesigned from the vulnerability-indexed
-  `[Trie; 4]` into a *partnership system* `{ unpassed, passed }` keyed by
-  pass-stripped auctions. `Forest::from_fn` and the
-  `Index<RelativeVulnerability>` impls are removed; vulnerability
-  conditions move into constraints (`vulnerable()` / `they_vulnerable()`).
-  With `k` leading passes, the opener's side is "passed" iff `k ≥ 2`, the
-  defenders' iff `k ≥ 1`; stripping makes 1st/2nd-seat books (and 3rd/4th)
-  literally share nodes and normalizes parity: even stripped depth = the
-  opening side acts.
+- **Breaking:** the vulnerability-indexed `Forest` (`[Trie; 4]`, with `from_fn`
+  and the `Index<RelativeVulnerability>` impls) and its `SeatClasses` mask are
+  removed in favor of `bidding::book`. Vulnerability conditions live in
+  constraints (`vulnerable()` / `they_vulnerable()`), seats are explicit leading
+  passes in the book key, and seat-dependent strength is a constraint
+  (`nth_seat` / `passed_hand`). Author partnership notes with `Constructive`,
+  `Defensive`, and `Partnership` instead of a bare `Trie`, which stays as the
+  low-level table-model escape hatch (and the way to express forcing passes).
 - `System for Trie` resolves through fallbacks (`Trie::resolve`) instead of
   exact lookup only, so a trie with fallbacks now answers auctions outside
   its book. `get`, `longest_prefix`, `common_prefixes`, and `suffixes` are
