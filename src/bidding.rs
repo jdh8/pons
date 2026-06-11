@@ -11,6 +11,8 @@ pub mod map;
 pub mod rules;
 /// [`Trie`] as a bidding system
 pub mod trie;
+/// The basic 2/1 game-forcing system
+pub mod two_over_one;
 
 pub use array::Array;
 pub use book::{Constructive, Defensive, Partnership};
@@ -19,6 +21,7 @@ pub use context::Context;
 pub use map::Map;
 pub use rules::Rules;
 pub use trie::{Trie, classifier};
+pub use two_over_one::two_over_one;
 
 use contract_bridge::Hand;
 use contract_bridge::auction::{Call, RelativeVulnerability};

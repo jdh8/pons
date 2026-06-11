@@ -62,6 +62,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `classifier`, `guard`, and `rewriter`: identity functions giving plain
   closures the higher-ranked `&Context`/`&[Call]` signature the compiler
   cannot generalize on its own.
+- `bidding::two_over_one`: the first concrete, reusable system —
+  `two_over_one()` builds a `Partnership` for basic Two-over-One Game Forcing
+  (re-exported as `pons::two_over_one`). It covers the uncontested openings
+  (strong 15–17 / 20–21 notrumps, strong artificial 2♣, five-card majors,
+  better-minor 1♣/1♦, weak twos, preempts, a lighter 3rd/4th-seat major), the
+  first response to every one-level opening (the 2/1 game force, the forcing
+  1NT, single/limit/Jacoby-2NT/weak-jump raises, 1♠ over 1♥, four-card majors
+  up the line over a minor), the 1NT structure (Stayman and Jacoby transfers
+  with their opener completions), one round of opener's rebids (after a
+  one-level new suit and the forcing 1NT), negative doubles with "system on
+  over their double", and a defensive book (natural overcalls, takeout
+  doubles, the 15–18 1NT overcall, simple advances, and a penalty-oriented
+  defense to their 1NT). The public sub-builders `openings`, `major_responses`,
+  `minor_responses`, `notrump_responses`, and `defense_to_suit` return `Rules`
+  for reuse and testing. Authored entirely from the existing vocabulary; no new
+  infrastructure. Out of scope for now (left for later passes): 2/1 opener
+  rebids, inverted minors, jump shifts, slam machinery, and fuller competition.
 
 ### Changed
 
