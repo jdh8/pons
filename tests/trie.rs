@@ -1,7 +1,7 @@
 use contract_bridge::auction::{Call, RelativeVulnerability};
 use contract_bridge::{Bid, Hand, Level, Strain};
 use pons::bidding::array::Logits;
-use pons::bidding::trie::{Forest, classifier};
+use pons::bidding::trie::classifier;
 use pons::bidding::{Context, System, Trie};
 
 const fn bid(level: u8, strain: Strain) -> Call {
@@ -261,66 +261,4 @@ fn test_system_trie_returns_none_for_unknown_auction() {
     let trie = Trie::new();
     let result = trie.classify(Hand::default(), RelativeVulnerability::NONE, &[]);
     assert!(result.is_none());
-}
-
-#[test]
-fn test_forest_indexes_each_vulnerability() {
-    let forest = Forest::new();
-    let _: &Trie = &forest[RelativeVulnerability::NONE];
-    let _: &Trie = &forest[RelativeVulnerability::WE];
-    let _: &Trie = &forest[RelativeVulnerability::THEY];
-    let _: &Trie = &forest[RelativeVulnerability::ALL];
-}
-
-#[test]
-fn test_forest_default_constructs() {
-    let _: Forest = Forest::default();
-}
-
-#[test]
-fn test_forest_from_fn_called_once_per_vulnerability() {
-    use core::cell::RefCell;
-    let calls = RefCell::new(Vec::<RelativeVulnerability>::new());
-    let _forest = Forest::from_fn(|vul| {
-        calls.borrow_mut().push(vul);
-        Trie::new()
-    });
-    let calls = calls.into_inner();
-    assert_eq!(calls.len(), 4);
-    assert!(calls.contains(&RelativeVulnerability::NONE));
-    assert!(calls.contains(&RelativeVulnerability::WE));
-    assert!(calls.contains(&RelativeVulnerability::THEY));
-    assert!(calls.contains(&RelativeVulnerability::ALL));
-}
-
-#[test]
-fn test_forest_index_mut_modifies_targeted_trie() {
-    let mut forest = Forest::new();
-    forest[RelativeVulnerability::WE].insert(&[], classifier(|_, _| just_pass()));
-
-    assert!(forest[RelativeVulnerability::WE].get(&[]).is_some());
-    assert!(forest[RelativeVulnerability::NONE].get(&[]).is_none());
-    assert!(forest[RelativeVulnerability::THEY].get(&[]).is_none());
-    assert!(forest[RelativeVulnerability::ALL].get(&[]).is_none());
-}
-
-#[test]
-fn test_system_forest_dispatches_by_vulnerability() {
-    let mut forest = Forest::new();
-    forest[RelativeVulnerability::NONE].insert(&[], classifier(|_, _| marker_logits(1.0)));
-    forest[RelativeVulnerability::ALL].insert(&[], classifier(|_, _| marker_logits(2.0)));
-
-    assert_eq!(
-        forest.classify(Hand::default(), RelativeVulnerability::NONE, &[]),
-        Some(marker_logits(1.0))
-    );
-    assert_eq!(
-        forest.classify(Hand::default(), RelativeVulnerability::ALL, &[]),
-        Some(marker_logits(2.0))
-    );
-    assert!(
-        forest
-            .classify(Hand::default(), RelativeVulnerability::WE, &[])
-            .is_none()
-    );
 }

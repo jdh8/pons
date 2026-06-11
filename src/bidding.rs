@@ -42,6 +42,10 @@ pub trait System {
     ) -> Option<array::Logits>;
 }
 
+/// A bare trie is a *table* model: all four players bid from this book.
+///
+/// For a partnership system composed against opponents, see
+/// [`Forest`][trie::Forest].
 impl System for Trie {
     fn classify(
         &self,
@@ -55,6 +59,10 @@ impl System for Trie {
     }
 }
 
+/// A forest is a *partnership* system: it strips the leading passes off the
+/// table auction and selects the [`passed`][trie::Forest::passed] or
+/// [`unpassed`][trie::Forest::unpassed] book for the side to act.  The
+/// classifier still receives the context of the raw auction.
 impl System for trie::Forest {
     fn classify(
         &self,
@@ -62,6 +70,17 @@ impl System for trie::Forest {
         vul: RelativeVulnerability,
         auction: &[Call],
     ) -> Option<array::Logits> {
-        self[vul].classify(hand, vul, auction)
+        let leading = auction
+            .iter()
+            .take_while(|&&call| call == Call::Pass)
+            .count();
+        let openers = (auction.len() - leading).is_multiple_of(2);
+        let passed = leading >= if openers { 2 } else { 1 };
+        let trie = if passed { &self.passed } else { &self.unpassed };
+        let stripped = &auction[leading..];
+
+        let context = Context::new(vul, auction).with_prefixes(trie.common_prefixes(stripped));
+        let (classifier, _) = trie.resolve(&context, stripped)?;
+        Some(classifier.classify(hand, &context))
     }
 }

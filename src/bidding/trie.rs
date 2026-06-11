@@ -2,10 +2,9 @@ use super::Map;
 use super::context::Context;
 use super::fallback::{Fallback, Guard};
 use contract_bridge::Hand;
-use contract_bridge::auction::{Call, RelativeVulnerability};
+use contract_bridge::auction::Call;
 use core::fmt;
 use core::iter::FusedIterator;
-use core::ops::{Index, IndexMut};
 use std::sync::Arc;
 
 /// Trait for a function that classifies a hand into logits for each call
@@ -426,45 +425,44 @@ impl<'trie, 'q> Iterator for CommonPrefixes<'trie, 'q> {
 
 impl FusedIterator for CommonPrefixes<'_, '_> {}
 
-/// A bidding system aware of vulnerability
-#[derive(Clone, Debug)]
-pub struct Forest([Trie; 4]);
+/// A partnership system: two books keyed by pass-stripped auctions
+///
+/// Most systems treat the 1st and 2nd seats alike, and the 3rd and 4th
+/// alike: what changes the book is whether our side has already passed.
+/// A forest therefore stores two [`Trie`]s and strips the leading passes
+/// off the table auction before lookup:
+///
+/// - [`unpassed`](Self::unpassed) serves the side that did not pass before
+///   the first non-pass call (1st/2nd-seat openings, direct defense),
+/// - [`passed`](Self::passed) serves the side that did (3rd/4th-seat
+///   openings, defense after our initial pass).
+///
+/// The trie is selected per *side*, not per auction: with `k` leading
+/// passes, the opener's side is passed iff `k ≥ 2`, the defenders' iff
+/// `k ≥ 1`.  Stripping also normalizes parity — at **even** stripped depth
+/// the opening side acts, at **odd** depth the defending side, in both
+/// tries, for every seat.  This is what makes 1st/2nd-seat books literally
+/// share nodes.
+///
+/// Exact-seat exceptions (e.g. no preempts in 4th seat) belong in
+/// constraints such as [`nth_seat`](super::constraint::nth_seat), and
+/// vulnerability conditions in [`vulnerable`](super::constraint::vulnerable)
+/// — not in extra keys.
+#[derive(Clone, Debug, Default)]
+pub struct Forest {
+    /// Book for the side that has not passed before the first non-pass call
+    pub unpassed: Trie,
+    /// Book for the side that passed before the first non-pass call
+    pub passed: Trie,
+}
 
 impl Forest {
     /// Construct a forest with empty tries
     #[must_use]
     pub const fn new() -> Self {
-        Self([Trie::new(), Trie::new(), Trie::new(), Trie::new()])
-    }
-
-    /// Construct a forest from a function mapping each vulnerability to a trie
-    #[must_use]
-    pub fn from_fn(mut f: impl FnMut(RelativeVulnerability) -> Trie) -> Self {
-        Self([
-            f(RelativeVulnerability::NONE),
-            f(RelativeVulnerability::WE),
-            f(RelativeVulnerability::THEY),
-            f(RelativeVulnerability::ALL),
-        ])
-    }
-}
-
-impl Default for Forest {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl Index<RelativeVulnerability> for Forest {
-    type Output = Trie;
-
-    fn index(&self, index: RelativeVulnerability) -> &Trie {
-        &self.0[usize::from(index.bits())]
-    }
-}
-
-impl IndexMut<RelativeVulnerability> for Forest {
-    fn index_mut(&mut self, index: RelativeVulnerability) -> &mut Trie {
-        &mut self.0[usize::from(index.bits())]
+        Self {
+            unpassed: Trie::new(),
+            passed: Trie::new(),
+        }
     }
 }
