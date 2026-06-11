@@ -79,6 +79,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   for reuse and testing. Authored entirely from the existing vocabulary; no new
   infrastructure. Out of scope for now (left for later passes): 2/1 opener
   rebids, inverted minors, jump shifts, slam machinery, and fuller competition.
+  A `two-over-one` example (`cargo run --example two-over-one`) bids out random
+  boards end to end with both sides playing the system, paired via `vs`.
 
 ### Changed
 

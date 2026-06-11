@@ -268,11 +268,11 @@ pub fn minor_responses(minor: Suit) -> Rules {
             1.4,
             len(Suit::Spades, 4..) & hcp(6..) & len(Suit::Hearts, ..4),
         )
-        // Notrump ladder without a four-card major.
+        // Notrump ladder without a four-card major (3NT open-ended for game-plus).
         .rule(
             Bid::new(3, Strain::Notrump),
             1.0,
-            hcp(13..=15) & balanced() & len(Suit::Hearts, ..4) & len(Suit::Spades, ..4),
+            hcp(13..) & balanced() & len(Suit::Hearts, ..4) & len(Suit::Spades, ..4),
         )
         .rule(
             Bid::new(2, Strain::Notrump),
@@ -318,10 +318,12 @@ pub fn notrump_responses() -> Rules {
             (len(Suit::Hearts, 4..=4) | len(Suit::Spades, 4..=4)) & hcp(8..),
         )
         // Natural notrump raises (no five-card major — that would transfer).
+        // 3NT is open-ended: a strong balanced hand bids game and leaves slam
+        // exploration to a later pass rather than being stranded without a call.
         .rule(
             Bid::new(3, Strain::Notrump),
             1.0,
-            hcp(10..=15) & len(Suit::Hearts, ..5) & len(Suit::Spades, ..5),
+            hcp(10..) & len(Suit::Hearts, ..5) & len(Suit::Spades, ..5),
         )
         .rule(
             Bid::new(2, Strain::Notrump),
@@ -470,7 +472,9 @@ fn negative_doubles(opening_major: Suit) -> Rules {
 /// Our action over their one-of-a-suit opening
 ///
 /// One decision: a natural overcall (five-card suit), a takeout double, a
-/// 15–18 1NT overcall, or pass.
+/// 15–18 1NT overcall, or pass.  Strong hands (17+) double first regardless of
+/// shape, planning to bid again — otherwise an opening-strength hand with
+/// length in the opponents' suit would be stuck.
 #[must_use]
 pub fn defense_to_suit(their_opening: Bid) -> Rules {
     let theirs = their_opening.strain;
@@ -481,6 +485,7 @@ pub fn defense_to_suit(their_opening: Bid) -> Rules {
             hcp(15..=18) & balanced() & stopper_in_their_suits(),
         )
         .rule(Call::Double, 1.3, hcp(12..) & short_in_their_suits())
+        .rule(Call::Double, 1.2, hcp(17..))
         .rule(Call::Pass, 0.0, hcp(0..));
 
     for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
@@ -662,4 +667,69 @@ pub fn two_over_one() -> Partnership {
     d.insert(&[call(1, Strain::Notrump)], defense_to_notrump());
 
     Partnership::new(c, d)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::bidding::context::Context;
+    use crate::bidding::trie::Classifier;
+    use contract_bridge::auction::RelativeVulnerability;
+
+    /// The highest-logit call a sub-builder makes for a hand in a context
+    fn best(rules: &Rules, auction: &[Call], hand: &str) -> Call {
+        let hand: Hand = hand.parse().expect("valid test hand");
+        let context = Context::new(RelativeVulnerability::NONE, auction);
+        let logits = rules.classify(hand, &context);
+        (&logits.0)
+            .into_iter()
+            .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("logits are never NaN"))
+            .map(|(call, _)| call)
+            .expect("array is never empty")
+    }
+
+    #[test]
+    fn openings_pick_the_descriptive_bid() {
+        let o = openings();
+        // 16 balanced -> 1NT; 22 -> 2♣; five hearts -> 1♥; six spades, weak -> 2♠.
+        assert_eq!(best(&o, &[], "AQ32.K53.QJ4.A92"), call(1, Strain::Notrump));
+        assert_eq!(best(&o, &[], "AKQ2.AKJ.KQ4.932"), call(2, Strain::Clubs));
+        assert_eq!(best(&o, &[], "A2.KQJ53.Q42.J92"), call(1, Strain::Hearts));
+        assert_eq!(best(&o, &[], "KQJ732.53.842.92"), call(2, Strain::Spades));
+    }
+
+    #[test]
+    fn openings_suppress_weak_twos_in_fourth_seat() {
+        // The same six-spade 6-count opens 2♠ in first seat but passes in fourth.
+        let o = openings();
+        assert_eq!(best(&o, &[], "KQJ732.53.842.92"), call(2, Strain::Spades));
+        assert_eq!(best(&o, &[Call::Pass; 3], "KQJ732.53.842.92"), Call::Pass,);
+    }
+
+    #[test]
+    fn major_responses_run_the_2_over_1_ladder() {
+        let r = major_responses(Suit::Hearts);
+        let a = [call(1, Strain::Hearts), Call::Pass];
+        assert_eq!(best(&r, &a, "K2.KQ54.A964.Q92"), call(2, Strain::Notrump));
+        assert_eq!(best(&r, &a, "Q32.J53.A964.Q92"), call(2, Strain::Hearts));
+        assert_eq!(best(&r, &a, "A2.K3.Q543.KJ85"), call(2, Strain::Clubs));
+    }
+
+    #[test]
+    fn notrump_responses_transfer_and_stayman() {
+        let r = notrump_responses();
+        let a = [call(1, Strain::Notrump), Call::Pass];
+        assert_eq!(best(&r, &a, "KJ542.Q32.K43.92"), call(2, Strain::Hearts));
+        assert_eq!(best(&r, &a, "KJ54.Q32.K43.Q92"), call(2, Strain::Clubs));
+    }
+
+    #[test]
+    fn defense_doubles_with_strength() {
+        let r = defense_to_suit(Bid::new(1, Strain::Diamonds));
+        let a = [call(1, Strain::Diamonds)];
+        // 18 HCP with length in their suit still doubles (planning to bid again).
+        assert_eq!(best(&r, &a, "A.Q6.KJ852.AKJ42"), Call::Double);
+        // A light five-card major overcalls.
+        assert_eq!(best(&r, &a, "AQJ32.853.42.K92"), call(1, Strain::Spades));
+    }
 }

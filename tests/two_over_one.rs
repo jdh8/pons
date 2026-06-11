@@ -250,6 +250,98 @@ fn test_defense() {
     );
 }
 
+// --- More openings ----------------------------------------------------------
+
+#[test]
+fn test_more_openings() {
+    let system = two_over_one();
+    let open = &[][..];
+
+    // 20 HCP balanced -> 2NT.
+    assert_eq!(
+        best_call(&system, open, "AKQ2.KQ5.KJ4.Q92"),
+        call(2, Strain::Notrump)
+    );
+    // Nine-count with six hearts -> a weak two.
+    assert_eq!(
+        best_call(&system, open, "53.KQJ732.K42.92"),
+        call(2, Strain::Hearts)
+    );
+    // Seven-card spade suit, weak -> a three-level preempt.
+    assert_eq!(
+        best_call(&system, open, "KQJ8732.5.842.92"),
+        call(3, Strain::Spades)
+    );
+    // A weak-two shape passes in fourth seat (no preempts there).
+    assert_eq!(
+        best_call(&system, &[Call::Pass; 3], "KQJ732.53.842.92"),
+        Call::Pass,
+    );
+}
+
+// --- Response grades --------------------------------------------------------
+
+#[test]
+fn test_major_raise_grades() {
+    let system = two_over_one();
+    let after_1h = &[call(1, Strain::Hearts), Call::Pass][..];
+
+    // 12 HCP, three-card support -> limit raise.
+    assert_eq!(
+        best_call(&system, after_1h, "K32.K53.A964.Q92"),
+        call(3, Strain::Hearts)
+    );
+}
+
+#[test]
+fn test_minor_raise() {
+    let system = two_over_one();
+    // 1♦ - eight-count with five-card support -> a simple raise.
+    assert_eq!(
+        best_call(
+            &system,
+            &[call(1, Strain::Diamonds), Call::Pass],
+            "T32.J53.KQ942.Q2"
+        ),
+        call(2, Strain::Diamonds),
+    );
+}
+
+#[test]
+fn test_notrump_ladder() {
+    let system = two_over_one();
+    let after_1nt = &[call(1, Strain::Notrump), Call::Pass][..];
+
+    // 11 HCP balanced, no four-card major -> raise straight to 3NT.
+    assert_eq!(
+        best_call(&system, after_1nt, "K32.Q43.KJ4.Q932"),
+        call(3, Strain::Notrump)
+    );
+    // Five hearts -> transfer (2♦).
+    assert_eq!(
+        best_call(&system, after_1nt, "K3.KJ542.Q43.J92"),
+        call(2, Strain::Diamonds)
+    );
+}
+
+// --- More defense -----------------------------------------------------------
+
+#[test]
+fn test_defense_extras() {
+    let system = two_over_one();
+
+    // (1♦) - 18 HCP with length in diamonds: double first, plan to bid again.
+    assert_eq!(
+        best_call(&system, &[call(1, Strain::Diamonds)], "A.Q6.KJ852.AKJ42"),
+        Call::Double,
+    );
+    // (1♣) - 17 HCP balanced with a club stopper -> 1NT overcall.
+    assert_eq!(
+        best_call(&system, &[call(1, Strain::Clubs)], "AQ2.KJ3.KQ54.Q92"),
+        call(1, Strain::Notrump),
+    );
+}
+
 // --- Full table -------------------------------------------------------------
 
 #[test]
