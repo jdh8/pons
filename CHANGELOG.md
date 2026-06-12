@@ -14,8 +14,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   qualified `[`Pair::against`]` with its full crate path so rustdoc can resolve
   it from `competition`.
 
+### Changed
+
+- The `defend-2sx-or-3nt` example now drives all three seats with the real
+  `two_over_one` system instead of three hand-rolled classifiers: West's
+  weak-two opening comes from the constructive book, North's takeout double
+  and South's advance from the new weak-two defense. The rejection sampler
+  keeps only deals that reach `(2♠) X (P)` with South's advance in
+  `{Pass, 3NT}`, so the reported averages still cover exactly the P-vs-3NT
+  decision.
+
 ### Added
 
+- `bidding::two_over_one::defense_to_weak_two` and `advance_double`: defense to
+  the opponents' weak twos and advancing partner's takeout double, filling the
+  one gap the `defend-2sx-or-3nt` example needed. The defensive book now
+  answers a `(2♦/2♥/2♠)` opening with a takeout double, a natural 15–18 2NT
+  overcall, and cheapest-level suit overcalls; `advance_double` answers
+  `(opening) X (P)` for advancer with a penalty pass on a trump stack, a
+  major-suit game jump, 3NT with a stopper, cheapest-level new suits, and a
+  lebensohl-style escape to the cheapest notrump. Bid levels are derived from
+  the opening, so the one advancer builder serves both one-bids and weak twos
+  (it is now also registered after `(1x) X (P)`).
 - `bidding::context`: `Context`, the mechanical auction context passed to
   classifiers and constraints — vulnerability (relative to the side to act),
   the raw table auction, and facts derived from it (bid strains per side,

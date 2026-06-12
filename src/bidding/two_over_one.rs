@@ -34,7 +34,9 @@
 //!   negative doubles, system-on over their double, support
 //!   doubles/redoubles.
 //! - **Defense**: overcalls, takeout doubles, 1NT overcall, Michaels and the
-//!   unusual 2NT with advances, responsive doubles, defense to 1NT.
+//!   unusual 2NT with advances, advancing partner's takeout double, responsive
+//!   doubles, defense to 1NT, and defense to weak twos (takeout double, natural
+//!   2NT and suit overcalls).
 //!
 //! Deeper competitive sequences (lebensohl, reopening actions) and minor-suit
 //! keycard are left for later passes — see the crate changelog.
@@ -73,7 +75,7 @@ mod strong_two;
 mod weak_twos;
 
 pub use competition::competition;
-pub use defense::defense_to_suit;
+pub use defense::{advance_double, defense_to_suit, defense_to_weak_two};
 pub use notrump::notrump_responses;
 pub use openings::openings;
 pub use responses::{major_responses, minor_responses};

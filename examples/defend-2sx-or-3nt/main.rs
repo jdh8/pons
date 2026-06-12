@@ -1,15 +1,27 @@
+//! Compare defending 2♠× and declaring 3NT after `(2♠) X (P)`.
+//!
+//! West opens a weak 2♠, North makes a takeout double, East passes, and South
+//! must choose between defending 2♠ doubled and declaring 3NT.  All three
+//! decisions are taken by the real `two_over_one` system: West's weak-two
+//! opening from the constructive book, North's takeout double and South's
+//! advance from the defensive book (`defense_to_weak_two` and
+//! `advance_double`).
+//!
+//! Rejection sampling keeps only the deals that actually reach this auction —
+//! West opens 2♠, North doubles, and South's advance is `Pass` or `3NT` — so
+//! the reported averages cover exactly the P-vs-3NT decision.  Hands the system
+//! advances with a new suit, a major-suit game, or a lebensohl 2NT fall out of
+//! scope and are discarded.
+
 use clap::Parser;
 use contract_bridge::auction::{Call, RelativeVulnerability};
 use contract_bridge::deck::{self, full_deal};
-use contract_bridge::eval::{self, HandEvaluator};
 use contract_bridge::{
-    AbsoluteVulnerability, Bid, Builder, Contract, FullDeal, Hand, Level, Penalty, Rank, Seat,
-    Strain, Suit,
+    AbsoluteVulnerability, Bid, Builder, Contract, FullDeal, Hand, Level, Penalty, Seat, Strain,
 };
 use ddss::{NonEmptyStrainFlags, Solver};
-use pons::bidding::array::Logits;
-use pons::bidding::trie::classifier;
-use pons::bidding::{System, Trie};
+use pons::bidding::{Family, Stance, System};
+use pons::two_over_one;
 
 const TWO_SPADES: Call = Call::Bid(Bid {
     level: Level::new(2),
@@ -20,20 +32,6 @@ const THREE_NT: Call = Call::Bid(Bid {
     level: Level::new(3),
     strain: Strain::Notrump,
 });
-
-const TWO_NT: Call = Call::Bid(Bid {
-    level: Level::new(2),
-    strain: Strain::Notrump,
-});
-
-const fn bid(level: u8, strain: Strain) -> Call {
-    Call::Bid(Bid {
-        level: Level::new(level),
-        strain,
-    })
-}
-
-const FIFTHS_THRESHOLD: f64 = 12.0;
 
 /// Compare defending 2♠× and declaring 3NT after `(2♠) X (P)`
 #[derive(Parser)]
@@ -56,117 +54,21 @@ struct Args {
     max_attempts_per_deal: usize,
 }
 
-fn hcp_total(hand: Hand) -> u8 {
-    Suit::ASC.iter().map(|&s| eval::hcp::<u8>(hand[s])).sum()
-}
-
-/// West's natural opening at `[]`: 2♠ iff a textbook weak two
-/// (exactly six spades, fewer than four hearts, 5–10 HCP).
-fn west_call(hand: Hand) -> Call {
-    let spades = hand[Suit::Spades];
-    let hearts = hand[Suit::Hearts];
-    let hcp = hcp_total(hand);
-    if spades.len() == 6 && hearts.len() < 4 && (5..=10).contains(&hcp) {
-        TWO_SPADES
-    } else {
-        Call::Pass
-    }
-}
-
-/// North's natural call after `[2♠]`: takeout double iff 12+ HCP, ≤2 spades,
-/// ≥3 hearts.
-fn north_call(hand: Hand) -> Call {
-    let hcp = hcp_total(hand);
-    let spades = hand[Suit::Spades].len();
-    let hearts = hand[Suit::Hearts].len();
-    if hcp >= 12 && spades <= 2 && hearts >= 3 {
-        Call::Double
-    } else {
-        Call::Pass
-    }
-}
-
-/// South's natural call after `[2♠, X, P]`. Hands that would naturally bid a
-/// new suit, jump-raise hearts, or escape via Lebensohl 2NT all return calls
-/// other than `Pass` / `3NT`, and the example rejects those deals so the
-/// reported averages only cover the P-vs-3NT decision.
-fn south_call(hand: Hand) -> Call {
-    let spades = hand[Suit::Spades];
-    let hearts = hand[Suit::Hearts];
-    let clubs = hand[Suit::Clubs];
-    let diamonds = hand[Suit::Diamonds];
-    let hcp = hcp_total(hand);
-    let strength: f64 = eval::FIFTHS.eval(hand);
-
-    if hearts.len() >= 4 {
-        let level = if hcp >= 10 { 4 } else { 3 };
-        return bid(level, Strain::Hearts);
-    }
-    if clubs.len() >= 5 {
-        return bid(3, Strain::Clubs);
-    }
-    if diamonds.len() >= 5 {
-        return bid(3, Strain::Diamonds);
-    }
-
-    let spade_honors = u8::from(spades.contains(Rank::A))
-        + u8::from(spades.contains(Rank::K))
-        + u8::from(spades.contains(Rank::Q))
-        + u8::from(spades.contains(Rank::J));
-    if spades.len() >= 4 && spade_honors >= 2 && hcp >= 6 {
-        return Call::Pass;
-    }
-
-    let stopper = spades.contains(Rank::A) || spades.contains(Rank::K) || spades.contains(Rank::Q);
-    if spades.len() <= 3 && strength >= FIFTHS_THRESHOLD && stopper {
-        return THREE_NT;
-    }
-
-    TWO_NT
-}
-
-/// Build the bidding system: three classifiers wired to the same `Trie`.
+/// The 2/1 system bound against natural opponents
 ///
-/// * `[]`              — West's opening (2♠ or Pass)
-/// * `[2♠]`            — North's call (Double or Pass)
-/// * `[2♠, X, P]`      — South's natural call (Pass, 3NT, or out-of-scope)
-fn build_system() -> Trie {
-    let mut trie = Trie::new();
-
-    trie.insert(
-        &[],
-        classifier(|hand, _| {
-            let mut logits = Logits::new();
-            *logits.0.get_mut(west_call(hand)) = 1.0;
-            logits
-        }),
-    );
-
-    trie.insert(
-        &[TWO_SPADES],
-        classifier(|hand, _| {
-            let mut logits = Logits::new();
-            *logits.0.get_mut(north_call(hand)) = 1.0;
-            logits
-        }),
-    );
-
-    trie.insert(
-        &[TWO_SPADES, Call::Double, Call::Pass],
-        classifier(|hand, _| {
-            let mut logits = Logits::new();
-            *logits.0.get_mut(south_call(hand)) = 1.0;
-            logits
-        }),
-    );
-
-    trie
+/// One [`Stance`] answers all three seats: West opens from the constructive
+/// book, North and South act from the defensive book.  The auction is keyed as
+/// an analysis fragment — West sits at index 0, so `[]` is West's opening,
+/// `[2♠]` is North's call, and `[2♠, X, P]` is South's advance.
+fn build_system() -> Stance {
+    two_over_one().against(Family::NATURAL)
 }
 
-fn decide_call(system: &Trie, auction: &[Call], hand: Hand) -> Call {
+/// The highest-logit legal call the system assigns the hand for the auction
+fn decide_call(system: &Stance, auction: &[Call], hand: Hand) -> Call {
     let logits = system
         .classify(hand, RelativeVulnerability::NONE, auction)
-        .expect("classifier registered for this auction");
+        .expect("the 2/1 system covers this auction");
     (&logits.0)
         .into_iter()
         .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("logits are never NaN"))
@@ -174,15 +76,15 @@ fn decide_call(system: &Trie, auction: &[Call], hand: Hand) -> Call {
         .expect("Array<f32> always has 38 entries")
 }
 
-fn west_opens(system: &Trie, deal: &FullDeal) -> bool {
+fn west_opens(system: &Stance, deal: &FullDeal) -> bool {
     decide_call(system, &[], deal[Seat::West]) == TWO_SPADES
 }
 
-fn north_doubles(system: &Trie, deal: &FullDeal) -> bool {
+fn north_doubles(system: &Stance, deal: &FullDeal) -> bool {
     decide_call(system, &[TWO_SPADES], deal[Seat::North]) == Call::Double
 }
 
-fn south_in_scope(system: &Trie, deal: &FullDeal) -> bool {
+fn south_in_scope(system: &Stance, deal: &FullDeal) -> bool {
     let south_auction = [TWO_SPADES, Call::Double, Call::Pass];
     let call = decide_call(system, &south_auction, deal[Seat::South]);
     call == Call::Pass || call == THREE_NT
@@ -197,7 +99,7 @@ struct Totals {
 
 fn collect_deals(
     args: &Args,
-    system: &Trie,
+    system: &Stance,
     rng: &mut (impl rand::Rng + ?Sized),
 ) -> anyhow::Result<(Vec<FullDeal>, usize)> {
     let cap = args.count.saturating_mul(args.max_attempts_per_deal);

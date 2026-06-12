@@ -122,3 +122,101 @@ fn test_regression_single_suit_overcall() {
         call(1, Strain::Spades),
     );
 }
+
+// --- Defense to a weak two --------------------------------------------------
+
+/// (2♠) with opening values and short spades → takeout double
+#[test]
+fn test_weak_two_takeout_double() {
+    let system = stance();
+    // 14 HCP, a spade doubleton — the workhorse takeout double
+    assert_eq!(
+        best_call(&system, &[call(2, Strain::Spades)], "32.AKJ5.KJ54.Q92"),
+        Call::Double,
+    );
+}
+
+/// (2♠) with 15–18 balanced and a stopper → natural 2NT overcall
+#[test]
+fn test_weak_two_notrump_overcall() {
+    let system = stance();
+    // 17 HCP, 3=3=4=3 with a spade stopper
+    assert_eq!(
+        best_call(&system, &[call(2, Strain::Spades)], "KQ5.AQ5.KJ54.Q92"),
+        call(2, Strain::Notrump),
+    );
+}
+
+/// (2♠) with a five-card minor and modest values → natural 3♣ overcall
+#[test]
+fn test_weak_two_suit_overcall() {
+    let system = stance();
+    // 11 HCP, five clubs — overcall at the cheapest level, a rung up
+    assert_eq!(
+        best_call(&system, &[call(2, Strain::Spades)], "432.32.K54.AKJ54"),
+        call(3, Strain::Clubs),
+    );
+}
+
+// --- Advancing a takeout double of a weak two -------------------------------
+
+/// (2♠) – X – (P) with a spade stack → pass for penalty
+#[test]
+fn test_advance_double_penalty_pass() {
+    let system = stance();
+    // 14 HCP, KQJ9 of spades sitting over the weak two — convert for penalty
+    assert_eq!(
+        best_call(
+            &system,
+            &[call(2, Strain::Spades), Call::Double, Call::Pass],
+            "KQJ9.A32.A32.432"
+        ),
+        Call::Pass,
+    );
+}
+
+/// (2♠) – X – (P) with a stopper and game values → 3NT
+#[test]
+fn test_advance_double_three_notrump() {
+    let system = stance();
+    // 14 HCP, balanced with a spade stopper and no four-card major
+    assert_eq!(
+        best_call(
+            &system,
+            &[call(2, Strain::Spades), Call::Double, Call::Pass],
+            "A32.K32.KQ54.Q92"
+        ),
+        call(3, Strain::Notrump),
+    );
+}
+
+/// (2♠) – X – (P) with four hearts and opening values → jump to 4♥
+#[test]
+fn test_advance_double_major_game() {
+    let system = stance();
+    // 14 HCP, four hearts opposite the takeout double — bid the major game
+    assert_eq!(
+        best_call(
+            &system,
+            &[call(2, Strain::Spades), Call::Double, Call::Pass],
+            "A32.KQ54.K32.Q92"
+        ),
+        call(4, Strain::Hearts),
+    );
+}
+
+/// The same advance machinery answers over a one-level opening: (1♦) – X – (P)
+/// with a weak five-card major → cheapest-level natural advance 1♠
+#[test]
+fn test_advance_double_over_one_bid() {
+    let system = stance();
+    // 6 HCP, five spades — pick the major at the one level
+    assert_eq!(
+        best_call(
+            &system,
+            &[call(1, Strain::Diamonds), Call::Double, Call::Pass],
+            "KQJ54.432.32.432"
+        ),
+        call(1, Strain::Spades),
+    );
+}

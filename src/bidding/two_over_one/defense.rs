@@ -2,11 +2,13 @@
 //!
 //! This module covers everything our side does when the opponents open the
 //! auction: simple overcalls, the 1NT overcall, takeout doubles, the
-//! Michaels cue-bid, the Unusual 2NT, advances of all of these, and
-//! responsive doubles when partner has made a takeout double and they raise.
+//! Michaels cue-bid, the Unusual 2NT, advances of all of these, advancing
+//! partner's takeout double, responsive doubles when partner has made a
+//! takeout double and they raise, and defense to a weak-two opening (takeout
+//! double, a natural 2NT overcall, and natural suit overcalls).
 
 use super::super::constraint::{
-    Cons, Constraint, balanced, hcp, len, pred, stopper_in_their_suits, support,
+    Cons, Constraint, balanced, hcp, len, pred, stopper_in_their_suits, support, top_honors,
 };
 use super::super::context::Context;
 use super::super::{Defensive, Rules};
@@ -109,6 +111,46 @@ pub fn defense_to_suit(their_opening: Bid) -> Rules {
     }
 }
 
+/// Our action over their weak-two opening
+///
+/// A weak two steals a level of room, so the toolkit is leaner than over a
+/// one-bid: a takeout double (the workhorse), a natural 2NT overcall (15–18
+/// with a stopper), and natural suit overcalls at the cheapest legal level.
+/// Strong hands (17+) still double first, planning to bid again.
+///
+/// Overcall levels are derived from `their_opening`, so the suits higher than
+/// theirs sit at the opening level and the lower ones one rung up — over 2♥, a
+/// spade overcall is 2♠ but a club overcall is 3♣.
+#[must_use]
+pub fn defense_to_weak_two(their_opening: Bid) -> Rules {
+    let theirs = their_opening.strain;
+    let level = their_opening.level.get();
+
+    let mut rules = Rules::new()
+        .rule(
+            Bid::new(2, Strain::Notrump),
+            1.5,
+            hcp(15..=18) & balanced() & stopper_in_their_suits(),
+        )
+        .rule(Call::Double, 1.3, hcp(12..) & short_in_their_suits())
+        .rule(Call::Double, 1.2, hcp(17..))
+        .rule(Call::Pass, 0.0, hcp(0..));
+
+    // Natural overcalls: five-card suit, 10–16 HCP, at the cheapest legal level.
+    for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
+        let strain = Strain::from(suit);
+        if strain != theirs {
+            let overcall_level = if strain > theirs { level } else { level + 1 };
+            rules = rules.rule(
+                Bid::new(overcall_level, strain),
+                1.0,
+                len(suit, 5..) & hcp(10..=16),
+            );
+        }
+    }
+    rules
+}
+
 /// Our action over their 1NT opening: penalty double or natural two-level overcall
 pub fn defense_to_notrump() -> Rules {
     let mut rules = Rules::new()
@@ -136,6 +178,58 @@ pub fn advances(our_suit: Suit) -> Rules {
         .rule(Bid::new(3, s), 1.4, support(3..) & hcp(11..=12))
         .rule(Bid::new(2, s), 1.0, support(3..) & hcp(6..=10))
         .rule(Call::Pass, 0.0, hcp(..6))
+}
+
+/// Advancer's action after partner's takeout double, RHO passing: `(opening) X (P)`
+///
+/// Partner doubled for takeout and asked us to pick.  In priority order:
+///
+/// - **pass for penalty** with a trump stack (four-plus of their suit, two top
+///   honors) — converting the takeout double into penalties;
+/// - **jump to a major-suit game** with four-plus cards and opening values;
+/// - **bid 3NT** with a stopper in their suit and game-going values;
+/// - **bid a new suit** at the cheapest legal level with four-plus cards;
+/// - **escape to the cheapest notrump** as a weak catch-all — no fit, no
+///   stopper, nothing better to say (lebensohl in spirit);
+/// - **pass** as the final fallback.
+///
+/// Suit and notrump levels are derived from `their_opening`, so the one builder
+/// answers over a one-bid (advances at the one and two levels) and over a weak
+/// two (advances at the two and three levels) alike.
+#[must_use]
+pub fn advance_double(their_opening: Bid) -> Rules {
+    let theirs = their_opening.strain;
+    let t = theirs.suit().expect("their opening is always a suit bid");
+    let level = their_opening.level.get();
+
+    let mut rules = Rules::new()
+        // Convert for penalty: a trump stack sits for the double.
+        .rule(Call::Pass, 1.5, len(t, 4..) & top_honors(t, 2..) & hcp(6..))
+        // 3NT to play: a stopper in their suit and game values.
+        .rule(
+            Bid::new(3, Strain::Notrump),
+            1.3,
+            hcp(13..) & stopper_in_their_suits(),
+        )
+        // Weak escape to the cheapest notrump: no fit, no stopper, no stack.
+        .rule(Bid::new(level, Strain::Notrump), 0.3, hcp(0..))
+        // Final fallback.
+        .rule(Call::Pass, 0.0, hcp(0..));
+
+    for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
+        let strain = Strain::from(suit);
+        if strain == theirs {
+            continue;
+        }
+        let bid_level = if strain > theirs { level } else { level + 1 };
+        // Natural advance at the cheapest legal level.
+        rules = rules.rule(Bid::new(bid_level, strain), 1.0, len(suit, 4..));
+        // Major-suit game jump with support and opening values.
+        if matches!(suit, Suit::Hearts | Suit::Spades) {
+            rules = rules.rule(Bid::new(4, strain), 1.4, len(suit, 4..) & hcp(11..));
+        }
+    }
+    rules
 }
 
 /// Advancer's response to partner's Michaels cue-bid over their opening `t`
@@ -279,6 +373,14 @@ pub fn defensive() -> Defensive {
         let opening = Bid::new(1, theirs);
         d.insert(&[Call::Bid(opening)], defense_to_suit(opening));
 
+        // Advancing partner's takeout double: [1t, X, P] — advancer to act.
+        insert_all_seats(
+            &mut d,
+            &[Call::Bid(opening), Call::Double, Call::Pass],
+            3,
+            advance_double(opening),
+        );
+
         // Advances of natural overcalls.
         for our in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
             let strain = Strain::from(our);
@@ -317,6 +419,23 @@ pub fn defensive() -> Defensive {
                 responsive_doubles(suit, raise_lvl),
             );
         }
+    }
+
+    // Over each weak-two opening: takeout double, natural overcalls, 2NT, and
+    // advancing partner's takeout double.  Clubs is omitted — a 2♣ opening is
+    // the strong artificial bid, not a weak two.
+    for suit in [Suit::Diamonds, Suit::Hearts, Suit::Spades] {
+        let theirs = Strain::from(suit);
+        let opening = Bid::new(2, theirs);
+        d.insert(&[Call::Bid(opening)], defense_to_weak_two(opening));
+
+        // Advancing partner's takeout double: [2t, X, P] — advancer to act.
+        insert_all_seats(
+            &mut d,
+            &[Call::Bid(opening), Call::Double, Call::Pass],
+            3,
+            advance_double(opening),
+        );
     }
 
     d.insert(&[call(1, Strain::Notrump)], defense_to_notrump());

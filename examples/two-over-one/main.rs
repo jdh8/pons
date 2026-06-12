@@ -1,6 +1,6 @@
 //! Bid out random boards with the basic 2/1 game-forcing system.
 //!
-//! Both sides play [`pons::two_over_one`], bound against each other and seated
+//! Both sides play [`pons::two_over_one()`], bound against each other and seated
 //! into a [`Table`].  Each turn the player to act classifies their hand against
 //! the running auction and makes the highest-logit *legal* call; an auction the
 //! book does not cover resolves to a pass, so the bidding always terminates.
