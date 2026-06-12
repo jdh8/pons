@@ -43,6 +43,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- The `practice-bidding` example: an interactive harness for judging the
+  bidding books by sitting at the table. It shuffles random boards — optionally
+  rejection-sampled against `--min-hcp` / `--max-hcp` / `--min-suit` bounds on
+  your hand — and lets you bid one seat while pons bots bid the others:
+  `--bots 3` seats bots at all three other chairs, `--bots 1` gives you a bot
+  partner against silently passing opponents for uncontested practice. After
+  each of your calls it prints the book's top three candidates with softmax
+  weights and tracks your agreement rate with the bot's first choice. When the
+  auction ends it reveals the deal and renders two double-dummy verdicts via
+  `ddss`: the final contract scored on the actual layout (with the par score
+  for reference, both signed from your side), and its make rate, mean score,
+  and trick range across `--simulations` reshuffles of the two unseen opposing
+  hands with your side's cards held fixed.
 - `bidding::instinct`: the instinct bidder, a keyless floor for off-book
   auctions. `instinct()` is one context-driven `Rules` ladder that answers
   *every* auction with a sane natural action: penalty pass only with a trump
