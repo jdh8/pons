@@ -7,7 +7,7 @@ pub mod bidding;
 pub mod stats;
 
 pub use bidding::{
-    Constructive, Context, Defensive, OrElse, Partnership, Rules, System, Trie, Versus,
-    two_over_one,
+    Competitive, Constructive, Context, Defensive, Family, OrElse, Pair, Phase, Rules, Stance,
+    System, Table, Trie, Versus, two_over_one,
 };
 pub use stats::{Accumulator, Statistics};

@@ -45,16 +45,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   opponent model goes. `a.or_else(b)` layers `a` over a fallback system,
   falling through on `None` or logits without probability mass. A blanket
   `impl System for &S` lets `(&a).vs(&a)` work without cloning.
-- `bidding::book`: role-aware partnership books. A `Constructive` book covers
-  the auctions where we open — openings keyed per seat by their leading passes,
-  continuations, and our competitive bidding over interference as guarded
-  fallbacks — and a `Defensive` book covers the auctions where they open
-  (overcalls, doubles, defense). Both wrap and deref to `Trie`; each adds a
-  *gated* `System` impl that answers only for its role (constructive when our
-  side opened or is about to, defensive when the opponents did).
-  `Partnership::new(constructive, defensive)` pairs them into one side's
-  system, composed against opponents with `a.vs(b)`. Standard pass only —
-  forcing/strong-pass openings are out of scope (use a bare `Trie`).
+- `bidding::book`: role-aware pair books, split three ways by the `Phase` of
+  the auction. A `Constructive` book covers the strictly uncontested auctions
+  (openings keyed per seat by their leading passes, and the continuations
+  while the opponents only pass), a `Competitive` book covers the auctions
+  where we open and they intervene (negative doubles, "system on" rebases),
+  and a `Defensive` book covers the auctions where they open (overcalls,
+  doubles, defense). All three wrap and deref to `Trie`; each adds a *gated*
+  `System` impl that answers only for its phase. `Phase::of(&[Call])` is the
+  single routing point that assumes a standard pass — forcing/strong-pass
+  openings stay out of scope (use a bare `Trie`).
+- `bidding::book`: `Pair` and `Stance` — a pair's authored system and its
+  bound form. A `Pair` assembles the three books with a `Family` identity (an
+  open `&'static str` newtype with stock constants such as `NATURAL` and
+  `POLISH_CLUB`; downstream systems mint their own) plus optional
+  per-opponent-family overrides (`competitive_vs`, `defensive_vs`), because
+  what the competitive and defensive books mean depends on the opponents'
+  system. Binding happens once at table assembly: `pair.against(them)`
+  selects the books for that opposing family and returns a `Stance`, the
+  `System` that classifies by `Phase`. `against` merges a structural clone of
+  the constructive trie into the bound competitive trie (classifiers stay
+  `Arc`-shared), so a competitive rebase such as "system on over their
+  double" lands in the uncontested core; constructive-phase queries use the
+  unmerged constructive trie, so no competitive fallback can leak into
+  undisturbed auctions. Seat-dependent systems (e.g. transfer openings in
+  1st/2nd seat only) need no extra machinery — each seat already has its own
+  subtree under its leading-pass prefix — and vulnerability-dependent
+  agreements are authored with the `vulnerable()`/`they_vulnerable()`
+  constraints.
+- `bidding::table`: `Table`, the absolute-seat table driver. It seats two
+  systems as North/South and East/West with a dealer and an
+  `AbsoluteVulnerability`, rotates the seat to act, converts the
+  vulnerability once per call, filters illegal calls with the contract-bridge
+  law (`Auction::can_push`), and bids a deal out (`classify`, `next_call`,
+  `bid_out`). `Table::of_pairs(ns, ew, dealer, vul)` binds two `Pair`s
+  against each other's families and seats them. `Versus` remains the lazy,
+  dealer-relative composer; `Table` is the full-board driver and deliberately
+  not a `System` (the trait speaks relative vulnerability).
 - `Trie::merge`: structural union for assembling a system from separately
   authored fragments (uncontested core + competitive packages). On collision
   `self` keeps its classifier and the keys are reported back; fallback lists
@@ -63,8 +90,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   closures the higher-ranked `&Context`/`&[Call]` signature the compiler
   cannot generalize on its own.
 - `bidding::two_over_one`: the first concrete, reusable system —
-  `two_over_one()` builds a `Partnership` for basic Two-over-One Game Forcing
-  (re-exported as `pons::two_over_one`). It covers the uncontested openings
+  `two_over_one()` builds a `Pair` (family `NATURAL`) for basic Two-over-One
+  Game Forcing (re-exported as `pons::two_over_one`). It covers the uncontested openings
   (strong 15–17 / 20–21 notrumps, strong artificial 2♣, five-card majors,
   better-minor 1♣/1♦, weak twos, preempts, a lighter 3rd/4th-seat major), the
   first response to every one-level opening (the 2/1 game force, the forcing
@@ -76,11 +103,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   doubles, the 15–18 1NT overcall, simple advances, and a penalty-oriented
   defense to their 1NT). The public sub-builders `openings`, `major_responses`,
   `minor_responses`, `notrump_responses`, and `defense_to_suit` return `Rules`
-  for reuse and testing. Authored entirely from the existing vocabulary; no new
-  infrastructure. Out of scope for now (left for later passes): 2/1 opener
-  rebids, inverted minors, jump shifts, slam machinery, and fuller competition.
-  A `two-over-one` example (`cargo run --example two-over-one`) bids out random
-  boards end to end with both sides playing the system, paired via `vs`.
+  for reuse and testing, and `competition()` returns the `Competitive` book.
+  Authored entirely from the existing vocabulary; no new infrastructure. Out
+  of scope for now (left for later passes): 2/1 opener rebids, inverted
+  minors, jump shifts, slam machinery, and fuller competition. A
+  `two-over-one` example (`cargo run --example two-over-one`) bids out random
+  boards end to end with both sides playing the system, seated via
+  `Table::of_pairs`.
 
 ### Changed
 
@@ -89,6 +118,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   constraint constructors gained `#[must_use]`, doc-code link formatting was
   cleaned up, and float assertions in tests were refactored to robust helper
   predicates instead of direct float equality.
+
+- **Breaking:** `Partnership` is replaced by `Pair` + `Stance`, and book
+  routing is now three-way via `Phase::of`. `Constructive` answers *only*
+  strictly undisturbed auctions; competition over our openings moves out of
+  the constructive trie into the new `Competitive` book (`two_over_one`'s
+  negative doubles and system-on now live in its `competition()` builder).
+  Assemble the three books with `Pair::new(family, constructive, competitive,
+  defensive)` and bind once against the opponents' family —
+  `pair.against(them)` returns the `Stance` that implements `System`; a
+  `Pair` itself is authoring material, not a `System`. `two_over_one()` now
+  returns the `Pair`.
+- pons now requires `contract-bridge` 0.1.2 for the newly public
+  `Auction::can_push`, the dry-run legality check behind `Table::next_call`.
+  Until 0.1.2 is published, `Cargo.toml` carries a `[patch.crates-io]` entry
+  pointing at the sibling checkout; drop it at release.
 
 - **Breaking:** `bidding::trie::Classifier::classify` now takes
   `(Hand, &Context)` instead of
@@ -100,9 +144,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   removed in favor of `bidding::book`. Vulnerability conditions live in
   constraints (`vulnerable()` / `they_vulnerable()`), seats are explicit leading
   passes in the book key, and seat-dependent strength is a constraint
-  (`nth_seat` / `passed_hand`). Author partnership notes with `Constructive`,
-  `Defensive`, and `Partnership` instead of a bare `Trie`, which stays as the
-  low-level table-model escape hatch (and the way to express forcing passes).
+  (`nth_seat` / `passed_hand`). Author a pair's notes with the role-aware
+  books assembled into a `Pair` (see above) instead of a bare `Trie`, which
+  stays as the low-level table-model escape hatch (and the way to express
+  forcing passes).
 - `System for Trie` resolves through fallbacks (`Trie::resolve`) instead of
   exact lookup only, so a trie with fallbacks now answers auctions outside
   its book. `get`, `longest_prefix`, `common_prefixes`, and `suffixes` are

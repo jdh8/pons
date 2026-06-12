@@ -2,12 +2,17 @@
 
 use contract_bridge::auction::{Call, RelativeVulnerability};
 use contract_bridge::{Bid, Hand, Strain};
-use pons::bidding::System;
 use pons::bidding::array::Logits;
+use pons::bidding::{Family, Stance, System};
 use pons::two_over_one;
 
 const fn call(level: u8, strain: Strain) -> Call {
     Call::Bid(Bid::new(level, strain))
+}
+
+/// The 2/1 pair bound against natural opponents
+fn stance() -> Stance {
+    two_over_one().against(Family::NATURAL)
 }
 
 /// The single highest-logit call the system assigns the hand for the auction
@@ -27,7 +32,7 @@ fn best_call(system: &impl System, auction: &[Call], hand: &str) -> Call {
 
 #[test]
 fn test_openings() {
-    let system = two_over_one();
+    let system = stance();
     let open = &[][..];
 
     // 16 HCP balanced -> 1NT, even though 2♣ exists for the very strong.
@@ -76,7 +81,7 @@ fn test_openings() {
 
 #[test]
 fn test_light_third_seat_major() {
-    let system = two_over_one();
+    let system = stance();
     // The same 9-count that passes in first seat opens 1♠ in third.
     assert_eq!(
         best_call(&system, &[Call::Pass, Call::Pass], "AQJ32.853.Q42.92"),
@@ -88,7 +93,7 @@ fn test_light_third_seat_major() {
 
 #[test]
 fn test_major_responses() {
-    let system = two_over_one();
+    let system = stance();
     let after_1h = &[call(1, Strain::Hearts), Call::Pass][..];
 
     // 9 HCP, three-card support -> single raise.
@@ -122,7 +127,7 @@ fn test_major_responses() {
 
 #[test]
 fn test_minor_responses() {
-    let system = two_over_one();
+    let system = stance();
 
     // 1♣ - four hearts up the line -> 1♥.
     assert_eq!(
@@ -148,7 +153,7 @@ fn test_minor_responses() {
 
 #[test]
 fn test_notrump_responses_and_completions() {
-    let system = two_over_one();
+    let system = stance();
     let p = Call::Pass;
     let one_nt = call(1, Strain::Notrump);
 
@@ -187,7 +192,7 @@ fn test_notrump_responses_and_completions() {
 
 #[test]
 fn test_opener_rebid_raises_spades() {
-    let system = two_over_one();
+    let system = stance();
     let p = Call::Pass;
     // 1♥ - 1♠ - ?: 14 HCP with four spades raises to 2♠.
     assert_eq!(
@@ -204,7 +209,7 @@ fn test_opener_rebid_raises_spades() {
 
 #[test]
 fn test_negative_double_and_system_on() {
-    let system = two_over_one();
+    let system = stance();
     let one_h = call(1, Strain::Hearts);
 
     // 1♥ - (2♣) - ?: 10 HCP with four spades makes a negative double.
@@ -227,7 +232,7 @@ fn test_negative_double_and_system_on() {
 
 #[test]
 fn test_defense() {
-    let system = two_over_one();
+    let system = stance();
 
     // (1♣) - ?: 9 HCP with five spades overcalls 1♠.
     assert_eq!(
@@ -254,7 +259,7 @@ fn test_defense() {
 
 #[test]
 fn test_more_openings() {
-    let system = two_over_one();
+    let system = stance();
     let open = &[][..];
 
     // 20 HCP balanced -> 2NT.
@@ -283,7 +288,7 @@ fn test_more_openings() {
 
 #[test]
 fn test_major_raise_grades() {
-    let system = two_over_one();
+    let system = stance();
     let after_1h = &[call(1, Strain::Hearts), Call::Pass][..];
 
     // 12 HCP, three-card support -> limit raise.
@@ -295,7 +300,7 @@ fn test_major_raise_grades() {
 
 #[test]
 fn test_minor_raise() {
-    let system = two_over_one();
+    let system = stance();
     // 1♦ - eight-count with five-card support -> a simple raise.
     assert_eq!(
         best_call(
@@ -309,7 +314,7 @@ fn test_minor_raise() {
 
 #[test]
 fn test_notrump_ladder() {
-    let system = two_over_one();
+    let system = stance();
     let after_1nt = &[call(1, Strain::Notrump), Call::Pass][..];
 
     // 11 HCP balanced, no four-card major -> raise straight to 3NT.
@@ -328,7 +333,7 @@ fn test_notrump_ladder() {
 
 #[test]
 fn test_defense_extras() {
-    let system = two_over_one();
+    let system = stance();
 
     // (1♦) - 18 HCP with length in diamonds: double first, plan to bid again.
     assert_eq!(
@@ -346,8 +351,9 @@ fn test_defense_extras() {
 
 #[test]
 fn test_full_board_smoke() {
-    // Two copies paired into a table: the dealer's side opens, the other defends.
-    let table = two_over_one().vs(two_over_one());
+    // Two bound copies paired into a table: the dealer's side opens, the
+    // other defends.
+    let table = stance().vs(stance());
 
     assert_eq!(
         best_call(&table, &[], "AQ32.K53.QJ4.A92"),
@@ -362,5 +368,29 @@ fn test_full_board_smoke() {
                 &[call(1, Strain::Clubs)]
             )
             .is_some()
+    );
+}
+
+// --- Binding ----------------------------------------------------------------
+
+#[test]
+fn test_competition_book_needs_binding() {
+    // The unbound competitive book answers the negative double directly...
+    let book = pons::bidding::two_over_one::competition();
+    let one_h = call(1, Strain::Hearts);
+
+    assert_eq!(
+        best_call(&book, &[one_h, call(2, Strain::Clubs)], "KQ32.J5.A964.982"),
+        Call::Double,
+    );
+    // ...but its system-on rebase lands in the uncontested core, which only
+    // the stance bound by `Pair::against` contains.
+    assert!(
+        book.classify(
+            "Q32.J53.A964.Q92".parse().unwrap(),
+            RelativeVulnerability::NONE,
+            &[one_h, Call::Double]
+        )
+        .is_none()
     );
 }

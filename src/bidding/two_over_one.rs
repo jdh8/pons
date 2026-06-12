@@ -1,20 +1,24 @@
 //! A basic 2/1 game-forcing bidding system
 //!
-//! [`two_over_one`] assembles a [`Partnership`] for the Two-over-One Game
-//! Forcing system, the modern North American standard: five-card majors, a
-//! strong 15–17 notrump, the strong artificial 2♣, and — the defining feature —
-//! a new suit at the two level in response to a one-of-a-major opening is
-//! **game forcing**.
+//! [`two_over_one()`][crate::bidding::two_over_one::two_over_one] assembles a
+//! [`Pair`] for the Two-over-One Game Forcing system, the modern North
+//! American standard: five-card majors, a strong 15–17 notrump, the strong
+//! artificial 2♣, and — the defining feature — a new suit at the two level in
+//! response to a one-of-a-major opening is **game forcing**.
 //!
 //! This is a *basic* slice: it covers the uncontested openings, the first
 //! response to every one-level opening, the 1NT response structure (Stayman and
 //! Jacoby transfers), one round of opener's rebids, and a small competitive and
 //! defensive layer.  It is authored entirely from the existing constraint
-//! vocabulary ([`constraint`][super::constraint]), the [`Rules`] classifier, and
-//! the role-aware books ([`Constructive`]/[`Defensive`]); nothing here is system
-//! infrastructure.  Several deeper layers (2/1 opener rebids, inverted minors,
-//! slam machinery, fuller competition) are deliberately left for later passes —
-//! see the crate changelog.
+//! vocabulary ([`constraint`][crate::bidding::constraint]), the [`Rules`]
+//! classifier, and the role-aware books — the strictly uncontested core in a
+//! [`Constructive`] book,
+//! [`competition()`][crate::bidding::two_over_one::competition] over our
+//! openings in a [`Competitive`] book, and our actions over their openings in
+//! a [`Defensive`] book; nothing here is system infrastructure.  Several
+//! deeper layers (2/1 opener rebids, inverted minors, slam machinery, fuller
+//! competition) are deliberately left for later passes — see the crate
+//! changelog.
 //!
 //! # Forcing by omission
 //!
@@ -36,7 +40,7 @@ use super::constraint::{
 use super::context::Context;
 use super::fallback::{Fallback, FirstIs, OvercallAtMost, ReplaceNext};
 use super::trie::Classifier;
-use super::{Constructive, Defensive, Partnership, Rules};
+use super::{Competitive, Constructive, Defensive, Family, Pair, Rules, Trie};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Hand, Strain, Suit};
 use std::sync::Arc;
@@ -57,7 +61,7 @@ const fn call(level: u8, strain: Strain) -> Call {
 /// [`insert_arc`][super::Trie::insert_arc]).  This authors a table once and
 /// makes it answer in every seat that could have reached it.
 fn insert_all_seats(
-    book: &mut Constructive,
+    book: &mut Trie,
     suffix: &[Call],
     max_passes: usize,
     rules: impl Classifier + 'static,
@@ -72,18 +76,18 @@ fn insert_all_seats(
 }
 
 /// Insert an opening table at every seat (`[]`, `[P]`, `[P, P]`, `[P, P, P]`)
-fn insert_opening(book: &mut Constructive, rules: Rules) {
+fn insert_opening(book: &mut Trie, rules: Rules) {
     insert_all_seats(book, &[], 3, rules);
 }
 
 /// Insert a response table under our `opening`, for every seat that opened it
-fn insert_response(book: &mut Constructive, opening: Call, rules: Rules) {
+fn insert_response(book: &mut Trie, opening: Call, rules: Rules) {
     insert_all_seats(book, &[opening, Call::Pass], 2, rules);
 }
 
 /// Attach a guarded fallback at `suffix` under every leading-pass prefix
 fn fallback_all_seats(
-    book: &mut Constructive,
+    book: &mut Trie,
     suffix: &[Call],
     max_passes: usize,
     guard: Arc<dyn super::fallback::Guard>,
@@ -532,20 +536,51 @@ fn advances(our_suit: Suit) -> Rules {
 // Assembly
 // ---------------------------------------------------------------------------
 
-/// Build the basic 2/1 game-forcing system as one side's [`Partnership`]
+/// The competitive package over our openings: negative doubles and system-on
 ///
-/// Pair two of these with [`vs`][super::System::vs] for a full table:
-/// `two_over_one().vs(two_over_one())`.
+/// Standalone, the system-on rebase has nothing to land on; bind through
+/// [`Pair::against`] (as [`two_over_one`] is meant to be used) so it resolves
+/// into the uncontested core.
+#[must_use]
+pub fn competition() -> Competitive {
+    let mut book = Competitive::new();
+
+    // Over our major openings: negative doubles and system-on.
+    for major in [Suit::Hearts, Suit::Spades] {
+        let opening = call(1, Strain::from(major));
+        fallback_all_seats(
+            &mut book,
+            &[opening],
+            2,
+            Arc::new(OvercallAtMost(Bid::new(2, Strain::Spades))),
+            Fallback::classify(negative_doubles(major)),
+        );
+        fallback_all_seats(
+            &mut book,
+            &[opening],
+            2,
+            Arc::new(FirstIs(Call::Double)),
+            Fallback::rebase(ReplaceNext(Call::Pass)),
+        );
+    }
+    book
+}
+
+/// Build the basic 2/1 game-forcing system as one side's [`Pair`]
+///
+/// Bind it against the opponents' [`Family`] for a playable system, and seat
+/// two pairs with [`Table::of_pairs`][super::Table::of_pairs] for a full
+/// table.
 ///
 /// ```
 /// use pons::two_over_one;
-/// use pons::bidding::System;
+/// use pons::bidding::{Family, System};
 /// use contract_bridge::auction::{Call, RelativeVulnerability};
 /// use contract_bridge::{Bid, Strain};
 ///
-/// let system = two_over_one();
+/// let stance = two_over_one().against(Family::NATURAL);
 /// let hand = "AQ32.K53.QJ4.A92".parse().unwrap(); // 16 HCP, balanced
-/// let logits = system
+/// let logits = stance
 ///     .classify(hand, RelativeVulnerability::NONE, &[])
 ///     .expect("an opening decision");
 /// let best = (&logits.0)
@@ -556,7 +591,7 @@ fn advances(our_suit: Suit) -> Rules {
 /// assert_eq!(best, Call::Bid(Bid::new(1, Strain::Notrump)));
 /// ```
 #[must_use]
-pub fn two_over_one() -> Partnership {
+pub fn two_over_one() -> Pair {
     let mut c = Constructive::new();
 
     // Openings, one table for every seat.
@@ -629,25 +664,6 @@ pub fn two_over_one() -> Partnership {
         }
     }
 
-    // Competition over our major openings: negative doubles and system-on.
-    for major in [Suit::Hearts, Suit::Spades] {
-        let opening = call(1, Strain::from(major));
-        fallback_all_seats(
-            &mut c,
-            &[opening],
-            2,
-            Arc::new(OvercallAtMost(Bid::new(2, Strain::Spades))),
-            Fallback::classify(negative_doubles(major)),
-        );
-        fallback_all_seats(
-            &mut c,
-            &[opening],
-            2,
-            Arc::new(FirstIs(Call::Double)),
-            Fallback::rebase(ReplaceNext(Call::Pass)),
-        );
-    }
-
     // Defensive book: our action when they open, plus advances of our overcalls.
     let mut d = Defensive::new();
     for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
@@ -666,7 +682,7 @@ pub fn two_over_one() -> Partnership {
     }
     d.insert(&[call(1, Strain::Notrump)], defense_to_notrump());
 
-    Partnership::new(c, d)
+    Pair::new(Family::NATURAL, c, competition(), d)
 }
 
 #[cfg(test)]

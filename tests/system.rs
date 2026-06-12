@@ -2,7 +2,7 @@ use contract_bridge::auction::{Call, RelativeVulnerability};
 use contract_bridge::{Bid, Hand, Level, Strain};
 use pons::bidding::array::Logits;
 use pons::bidding::trie::classifier;
-use pons::bidding::{Constructive, Defensive, Partnership, System};
+use pons::bidding::{Competitive, Constructive, Defensive, Family, Pair, System};
 
 const fn bid(level: u8, strain: Strain) -> Call {
     Call::Bid(Bid {
@@ -64,44 +64,93 @@ fn assert_marker_eq(actual: f32, expected: f32) {
 }
 
 #[test]
-fn test_partnership_routes_by_who_opened() {
+fn test_stance_routes_by_phase() {
     let one_s = bid(1, Strain::Spades);
+    let two_h = bid(2, Strain::Hearts);
 
     let mut constructive = Constructive::new();
     constructive.insert(&[], classifier(|_, _| marker_logits(1.0)));
     constructive.insert(&[one_s, Call::Pass], classifier(|_, _| marker_logits(2.0)));
 
+    let mut competitive = Competitive::new();
+    competitive.insert(&[one_s, two_h], classifier(|_, _| marker_logits(4.0)));
+
     let mut defensive = Defensive::new();
     defensive.insert(&[one_s], classifier(|_, _| marker_logits(3.0)));
 
-    let partnership = Partnership::new(constructive, defensive);
+    let stance =
+        Pair::new(Family::NATURAL, constructive, competitive, defensive).against(Family::NATURAL);
 
     // Nobody has opened: the opening decision is constructive.
-    assert_eq!(classify_marker(&partnership, &[]), Some(1.0));
-    // We opened 1♠; our continuation is constructive.
-    assert_eq!(
-        classify_marker(&partnership, &[one_s, Call::Pass]),
-        Some(2.0)
-    );
+    assert_eq!(classify_marker(&stance, &[]), Some(1.0));
+    // We opened 1♠ and they only passed: still constructive.
+    assert_eq!(classify_marker(&stance, &[one_s, Call::Pass]), Some(2.0));
+    // We opened 1♠ and they overcalled 2♥: competitive.
+    assert_eq!(classify_marker(&stance, &[one_s, two_h]), Some(4.0));
     // They opened 1♠: the defensive book answers.
-    assert_eq!(classify_marker(&partnership, &[one_s]), Some(3.0));
+    assert_eq!(classify_marker(&stance, &[one_s]), Some(3.0));
 }
 
 #[test]
-fn test_books_gate_on_who_opened() {
+fn test_books_gate_on_phase() {
     let one_s = bid(1, Strain::Spades);
+    let two_h = bid(2, Strain::Hearts);
 
-    // The constructive book holds the key, but [1♠] is a they-opened auction,
-    // so its gate keeps it silent.
+    // The constructive book holds the keys, but [1♠] is a they-opened auction
+    // and [1♠, 2♥] is competitive, so its gate keeps it silent on both.
     let mut constructive = Constructive::new();
     constructive.insert(&[one_s], classifier(|_, _| marker_logits(1.0)));
+    constructive.insert(&[one_s, two_h], classifier(|_, _| marker_logits(1.5)));
     assert_eq!(classify_marker(&constructive, &[one_s]), None);
+    assert_eq!(classify_marker(&constructive, &[one_s, two_h]), None);
+
+    // The competitive book answers only when we opened and they intervened.
+    let mut competitive = Competitive::new();
+    competitive.insert(&[], classifier(|_, _| marker_logits(2.0)));
+    competitive.insert(&[one_s], classifier(|_, _| marker_logits(2.5)));
+    competitive.insert(&[one_s, two_h], classifier(|_, _| marker_logits(3.0)));
+    assert_eq!(classify_marker(&competitive, &[]), None);
+    assert_eq!(classify_marker(&competitive, &[one_s]), None);
+    assert_eq!(classify_marker(&competitive, &[one_s, two_h]), Some(3.0));
 
     // The defensive book holds the opening node, but [] is constructive, so
     // its gate keeps it silent.
     let mut defensive = Defensive::new();
-    defensive.insert(&[], classifier(|_, _| marker_logits(2.0)));
+    defensive.insert(&[], classifier(|_, _| marker_logits(4.0)));
     assert_eq!(classify_marker(&defensive, &[]), None);
+}
+
+#[test]
+fn test_family_override_selects_book() {
+    let one_c = bid(1, Strain::Clubs);
+
+    let mut natural_defense = Defensive::new();
+    natural_defense.insert(&[one_c], classifier(|_, _| marker_logits(1.0)));
+
+    let mut special_defense = Defensive::new();
+    special_defense.insert(&[one_c], classifier(|_, _| marker_logits(2.0)));
+
+    let pair = Pair::new(
+        Family::NATURAL,
+        Constructive::new(),
+        Competitive::new(),
+        natural_defense,
+    )
+    .defensive_vs(Family::POLISH_CLUB, special_defense);
+
+    assert_eq!(
+        classify_marker(&pair.against(Family::NATURAL), &[one_c]),
+        Some(1.0)
+    );
+    assert_eq!(
+        classify_marker(&pair.against(Family::POLISH_CLUB), &[one_c]),
+        Some(2.0)
+    );
+    // A family with no override gets the default defense.
+    assert_eq!(
+        classify_marker(&pair.against(Family::STRONG_CLUB), &[one_c]),
+        Some(1.0)
+    );
 }
 
 #[test]

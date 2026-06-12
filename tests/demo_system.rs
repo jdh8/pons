@@ -3,16 +3,18 @@
 //! This wires every layer together: constraint-built [`Rules`] in a
 //! [`Constructive`] book (openings authored per seat by their leading passes,
 //! a lighter 3rd/4th-seat opening selected with [`nth_seat`]), our competitive
-//! bidding over interference as guarded fallbacks (a negative-double package
-//! and "system on over their double" as a rebase), a small [`Defensive`] book
-//! of overcalls, and the two paired into a [`Partnership`].
+//! bidding over interference in a [`Competitive`] book (a negative-double
+//! package as a guarded fallback and "system on over their double" as a
+//! rebase), a small [`Defensive`] book of overcalls, and the three assembled
+//! into a [`Pair`] that is bound against the opponents' [`Family`] with
+//! [`Pair::against`].
 
 use contract_bridge::auction::{Call, RelativeVulnerability};
 use contract_bridge::{Bid, Hand, Strain, Suit};
 use pons::bidding::array::Logits;
 use pons::bidding::constraint::{balanced, hcp, len, nth_seat, support};
 use pons::bidding::fallback::{Fallback, FirstIs, OvercallAtMost, ReplaceNext};
-use pons::bidding::{Constructive, Defensive, Partnership, Rules, System};
+use pons::bidding::{Competitive, Constructive, Defensive, Family, Pair, Rules, Stance, System};
 
 const fn call(level: u8, strain: Strain) -> Call {
     Call::Bid(Bid::new(level, strain))
@@ -79,7 +81,7 @@ fn overcalls() -> Rules {
         .rule(Call::Pass, 0.0, hcp(0..))
 }
 
-fn demo_system() -> Partnership {
+fn demo_system() -> Pair {
     let mut constructive = Constructive::new();
     let one_h = call(1, Strain::Hearts);
 
@@ -94,14 +96,18 @@ fn demo_system() -> Partnership {
     constructive.insert(&[one_h, Call::Pass], heart_responses());
     constructive.insert(&[Call::Pass, one_h, Call::Pass], heart_responses());
 
+    // The competitive book: what to do when they intervene over our opening.
+    let mut competitive = Competitive::new();
+
     // Negative doubles through 2♠ over interference with our 1♥ opening.
-    constructive.fallback_at(
+    competitive.fallback_at(
         &[one_h],
         OvercallAtMost(Bid::new(2, Strain::Spades)),
         Fallback::classify(negative_doubles()),
     );
-    // System on over their double.
-    constructive.fallback_at(
+    // System on over their double: the rebase lands in the uncontested core,
+    // which `Pair::against` merges into the bound competitive trie.
+    competitive.fallback_at(
         &[one_h],
         FirstIs(Call::Double),
         Fallback::rebase(ReplaceNext(Call::Pass)),
@@ -111,7 +117,12 @@ fn demo_system() -> Partnership {
     let mut defensive = Defensive::new();
     defensive.insert(&[call(1, Strain::Clubs)], overcalls());
 
-    Partnership::new(constructive, defensive)
+    Pair::new(Family::NATURAL, constructive, competitive, defensive)
+}
+
+/// The demo pair bound against natural opponents — bind once, then classify
+fn demo_stance() -> Stance {
+    demo_system().against(Family::NATURAL)
 }
 
 fn best_call(system: &impl System, auction: &[Call], hand: &str) -> Call {
@@ -139,7 +150,7 @@ const DOUBLER: &str = "KQ32.J5.A964.982";
 
 #[test]
 fn test_first_and_second_seat_openings_match() {
-    let system = demo_system();
+    let system = demo_stance();
 
     // Each seat is authored explicitly, but the same opening table makes 1st
     // and 2nd seat agree.
@@ -160,7 +171,7 @@ fn test_first_and_second_seat_openings_match() {
 
 #[test]
 fn test_light_third_seat_opening() {
-    let system = demo_system();
+    let system = demo_stance();
     let two_passes = [Call::Pass; 2];
 
     // The same 9-count opens 1♠ in 3rd seat: nth_seat(3) enables the light rule,
@@ -178,7 +189,7 @@ fn test_light_third_seat_opening() {
 
 #[test]
 fn test_responses_authored_for_each_opening_seat() {
-    let system = demo_system();
+    let system = demo_stance();
     let one_h = call(1, Strain::Hearts);
 
     // 1st-seat opening: 1♥ - (P) - ?
@@ -195,7 +206,7 @@ fn test_responses_authored_for_each_opening_seat() {
 
 #[test]
 fn test_negative_double_package() {
-    let system = demo_system();
+    let system = demo_stance();
     let one_h = call(1, Strain::Hearts);
 
     // 1♥ - (2♣) - ?: the package handles any overcall through 2♠.
@@ -211,7 +222,7 @@ fn test_negative_double_package() {
 
 #[test]
 fn test_system_on_over_their_double() {
-    let system = demo_system();
+    let system = demo_stance();
     let one_h = call(1, Strain::Hearts);
 
     // 1♥ - (X) - ?: the rebase maps onto the undisturbed responses.
@@ -223,7 +234,7 @@ fn test_system_on_over_their_double() {
 
 #[test]
 fn test_defensive_overcall_when_they_open() {
-    let system = demo_system();
+    let system = demo_stance();
 
     // (1♣) - ?: the auction routes to the defensive book, where a 9-count with
     // five spades overcalls 1♠.

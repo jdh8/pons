@@ -1,28 +1,42 @@
-//! Role-aware partnership books
+//! Role-aware pair books
 //!
-//! A partnership writes its notes from its own side of the table.  The natural
-//! split is by *who makes the first non-pass call*:
+//! A pair writes its notes from its own side of the table.  The natural split
+//! is by the [`Phase`] of the auction — who opened, and whether the opponents
+//! have intervened:
 //!
-//! - a [`Constructive`] book covers the auctions where **we** open — our
+//! - a [`Constructive`] book covers the strictly uncontested auctions — our
 //!   openings (in every seat, keyed by their leading passes) and the
-//!   continuations, including our competitive bidding when they interfere (as
-//!   guarded [`Fallback`][crate::bidding::fallback::Fallback]s);
+//!   continuations while the opponents only pass;
+//! - a [`Competitive`] book covers the auctions where **we** open and **they**
+//!   intervene — negative doubles, competitive raises, and "system on"
+//!   rebases ([`Fallback`][crate::bidding::fallback::Fallback]s);
 //! - a [`Defensive`] book covers the auctions where **they** open — our
 //!   overcalls, takeout doubles, and defense to their conventional openings.
 //!
-//! Both wrap the low-level [`Trie`] engine and add nothing to authoring: they
-//! deref to it, so [`insert`][Trie::insert], [`fallback_at`][Trie::fallback_at],
-//! and friends are available directly.  What the newtype adds is a *gated*
-//! [`System`] implementation that answers only for its role; a [`Partnership`]
-//! pairs the two into one side's complete system.
+//! All three wrap the low-level [`Trie`] engine and add nothing to authoring:
+//! they deref to it, so [`insert`][Trie::insert],
+//! [`fallback_at`][Trie::fallback_at], and friends are available directly.
+//! What the newtype adds is a *gated* [`System`] implementation that answers
+//! only for its phase.  A [`Pair`] assembles the three books with a [`Family`]
+//! identity; binding it against the opponents' family with [`Pair::against`]
+//! yields a [`Stance`], the system that actually classifies.
+//!
+//! # Key disjointness
+//!
+//! The books occupy disjoint keys by construction: every opposing call in a
+//! constructive key is a pass, while a competitive key contains an opposing
+//! non-pass call.  [`Pair::against`] exploits this to merge a clone of the
+//! constructive trie into the bound competitive trie collision-free, which is
+//! what lets a competitive rebase land in the uncontested core.
 //!
 //! # Standard pass only
 //!
 //! These types assume a **standard pass**: a leading [`Pass`][Call::Pass] is
-//! neutral and the opener is whoever makes the first non-pass call.  Forcing or
+//! neutral and the opener is whoever makes the first non-pass call.  This
+//! assumption lives in exactly one routing point, [`Phase::of`].  Forcing or
 //! strong-pass systems, where the opening pass itself carries meaning, are out
 //! of scope — author them as a bare [`Trie`] table model (which keys on the
-//! literal auction with no pass semantics) until a dedicated type exists.
+//! literal auction with no pass semantics) until a dedicated router exists.
 
 use super::System;
 use super::array::Logits;
@@ -31,20 +45,6 @@ use super::trie::Trie;
 use contract_bridge::Hand;
 use contract_bridge::auction::{Call, RelativeVulnerability};
 use core::ops::{Deref, DerefMut};
-
-/// Whether the opponents made the first non-pass call
-///
-/// `Versus` dispatches a partnership by parity, so within a partnership's
-/// `classify` the side to act owns the indices with `auction.len()` parity.
-/// The opener owns the indices with `opening_index` parity; the opponents
-/// opened iff those parities differ.  With no opening yet (all passes) the side
-/// to act may still open, which is constructive, so this is `false`.
-fn they_opened(auction: &[Call]) -> bool {
-    match auction.iter().position(|&call| call != Call::Pass) {
-        Some(opening) => opening % 2 != auction.len() % 2,
-        None => false,
-    }
-}
 
 /// Resolve `auction` against `trie` exactly like the bare table model
 fn resolve(
@@ -58,12 +58,13 @@ fn resolve(
     Some(classifier.classify(hand, &context))
 }
 
-/// Our book for the auctions where **we** open
+/// Our book for the strictly uncontested auctions
 ///
 /// Keyed by the raw table auction, so seats are explicit leading passes: the
 /// opening lives at `[]`, `[P]`, `[P, P]`, `[P, P, P]` for 1st through 4th seat,
 /// and continuations hang off the matching prefix.  As a [`System`] it answers
-/// only when our side opened (or is about to); see the [module docs][self].
+/// only while nobody has opened or we opened and the opponents have only
+/// passed; see the [module docs][self].
 #[derive(Clone, Debug, Default)]
 pub struct Constructive(pub Trie);
 
@@ -91,7 +92,7 @@ impl DerefMut for Constructive {
 
 impl System for Constructive {
     fn classify(&self, hand: Hand, vul: RelativeVulnerability, auction: &[Call]) -> Option<Logits> {
-        (!they_opened(auction))
+        (Phase::of(auction) == Phase::Constructive)
             .then(|| resolve(&self.0, hand, vul, auction))
             .flatten()
     }
@@ -130,43 +131,328 @@ impl DerefMut for Defensive {
 
 impl System for Defensive {
     fn classify(&self, hand: Hand, vul: RelativeVulnerability, auction: &[Call]) -> Option<Logits> {
-        they_opened(auction)
+        (Phase::of(auction) == Phase::Defensive)
             .then(|| resolve(&self.0, hand, vul, auction))
             .flatten()
     }
 }
 
-/// One side's complete system: its constructive and defensive books
+/// The role of the side to act, given who opened
 ///
-/// As a [`System`] it routes each query to the book for the auction — the
-/// [`Constructive`] book when our side opened (or is about to), the
-/// [`Defensive`] book when the opponents did.  Compose two partnerships into a
-/// table with [`System::vs`].
-#[derive(Clone, Debug, Default)]
-pub struct Partnership {
-    /// The book for the auctions where we open
-    pub constructive: Constructive,
-    /// The book for the auctions where they open
-    pub defensive: Defensive,
+/// Each phase selects one of a pair's three books.  [`Phase::of`] is also the
+/// **single point** that assumes a standard pass: a leading pass is neutral and
+/// the opener is whoever makes the first non-pass call.  A future strong-pass
+/// router would replace this one function; until then, author such systems as
+/// a bare [`Trie`] table model (see the [module docs][self]).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Phase {
+    /// Nobody has opened yet, or we opened and the opponents have only passed
+    Constructive,
+    /// We opened and the opponents have intervened
+    Competitive,
+    /// The opponents opened
+    Defensive,
 }
 
-impl Partnership {
-    /// Pair a constructive and a defensive book into one side's system
+impl Phase {
+    /// The phase of the auction for the side to act
+    ///
+    /// The side to act owns the indices with `auction.len()` parity and the
+    /// opener owns the indices with the opening's parity: the opponents opened
+    /// iff those parities differ.  When our side opened, the auction is
+    /// competitive iff the opponents have intervened — any non-pass call
+    /// (a bid, a double, even a redouble) at every other index after the
+    /// opening.  With no opening yet (all passes) the side to act may still
+    /// open, which is constructive.
     #[must_use]
-    pub const fn new(constructive: Constructive, defensive: Defensive) -> Self {
-        Self {
-            constructive,
-            defensive,
+    pub fn of(auction: &[Call]) -> Self {
+        let Some(opening) = auction.iter().position(|&call| call != Call::Pass) else {
+            return Self::Constructive;
+        };
+
+        if opening % 2 != auction.len() % 2 {
+            return Self::Defensive;
+        }
+
+        // We opened, so the opponents' calls start right after the opening
+        // and sit at every other index; before it they only passed.
+        let mut their_calls = auction[opening + 1..].iter().step_by(2);
+
+        if their_calls.any(|&call| call != Call::Pass) {
+            Self::Competitive
+        } else {
+            Self::Constructive
         }
     }
 }
 
-impl System for Partnership {
+/// An opponent-visible system family
+///
+/// Defensive agreements target what the opponents' calls *mean*, so a [`Pair`]
+/// declares the family it plays and selects its competitive and defensive
+/// books against the opponents' family — once, at table assembly
+/// ([`Pair::against`]).  A family is one convention card: a system that varies
+/// by seat or vulnerability is still one family, because the variation is
+/// visible to both sides (the seat through the auction keys, the vulnerability
+/// through the [`Context`]).
+///
+/// The newtype is open — downstream systems mint their own families as
+/// constants, such as `const MOSCITO: Family = Family("moscito");`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct Family(pub &'static str);
+
+impl Family {
+    /// Natural systems: mostly natural openings with a strong notrump,
+    /// such as Standard American, 2/1, and Acol
+    pub const NATURAL: Self = Self("natural");
+    /// Polish Club and kindred small-club systems
+    pub const POLISH_CLUB: Self = Self("polish-club");
+    /// Strong club systems, such as Precision
+    pub const STRONG_CLUB: Self = Self("strong-club");
+    /// Natural systems with a weak notrump
+    pub const WEAK_NOTRUMP: Self = Self("weak-notrump");
+}
+
+impl Default for Family {
+    fn default() -> Self {
+        Self::NATURAL
+    }
+}
+
+/// Our book for the auctions where **we** open and **they** intervene
+///
+/// Keyed by the raw table auction like its siblings: `[1♥, 2♣]` is our
+/// decision after our 1st-seat 1♥ opening and their 2♣ overcall.  As a
+/// [`System`] it answers only in its [`Phase`].
+///
+/// Standalone, a rebase ([`Fallback::Rebase`][super::fallback::Fallback]) sees
+/// only this trie; bind through [`Pair::against`] so that "system on" rebases
+/// reach the uncontested core.
+#[derive(Clone, Debug, Default)]
+pub struct Competitive(pub Trie);
+
+impl Competitive {
+    /// Construct an empty competitive book
+    #[must_use]
+    pub const fn new() -> Self {
+        Self(Trie::new())
+    }
+}
+
+impl Deref for Competitive {
+    type Target = Trie;
+
+    fn deref(&self) -> &Trie {
+        &self.0
+    }
+}
+
+impl DerefMut for Competitive {
+    fn deref_mut(&mut self) -> &mut Trie {
+        &mut self.0
+    }
+}
+
+impl System for Competitive {
     fn classify(&self, hand: Hand, vul: RelativeVulnerability, auction: &[Call]) -> Option<Logits> {
-        if they_opened(auction) {
-            self.defensive.classify(hand, vul, auction)
-        } else {
-            self.constructive.classify(hand, vul, auction)
+        (Phase::of(auction) == Phase::Competitive)
+            .then(|| resolve(&self.0, hand, vul, auction))
+            .flatten()
+    }
+}
+
+/// One pair's authored system: its identity and its three books
+///
+/// A pair writes a [`Constructive`] book (strictly uncontested), a
+/// [`Competitive`] book (we open, they intervene), and a [`Defensive`] book
+/// (they open), and may override the latter two against specific opposing
+/// families.  A pair is *authoring material*, not yet a [`System`]: bind it
+/// against the opponents' [`Family`] with [`against`][Self::against] — once,
+/// at table assembly — to get a [`Stance`] that classifies.
+///
+/// The books occupy disjoint keys by construction: a constructive key has all
+/// opposing calls as passes, while a competitive key contains an opposing
+/// non-pass call.
+#[derive(Clone, Debug, Default)]
+pub struct Pair {
+    /// The family this pair plays, which the opponents defend against
+    pub family: Family,
+    /// The book for the strictly uncontested auctions
+    pub constructive: Constructive,
+    /// The default book for when we open and they intervene
+    pub competitive: Competitive,
+    /// The default book for when they open
+    pub defensive: Defensive,
+    competitive_vs: Vec<(Family, Competitive)>,
+    defensive_vs: Vec<(Family, Defensive)>,
+}
+
+impl Pair {
+    /// Assemble a pair from its family and its three default books
+    #[must_use]
+    pub const fn new(
+        family: Family,
+        constructive: Constructive,
+        competitive: Competitive,
+        defensive: Defensive,
+    ) -> Self {
+        Self {
+            family,
+            constructive,
+            competitive,
+            defensive,
+            competitive_vs: Vec::new(),
+            defensive_vs: Vec::new(),
         }
+    }
+
+    /// Override the competitive book against one opposing family
+    ///
+    /// The first matching override wins; opponents with no override get the
+    /// default book.
+    #[must_use]
+    pub fn competitive_vs(mut self, them: Family, book: Competitive) -> Self {
+        self.competitive_vs.push((them, book));
+        self
+    }
+
+    /// Override the defensive book against one opposing family
+    ///
+    /// The first matching override wins; opponents with no override get the
+    /// default book.
+    #[must_use]
+    pub fn defensive_vs(mut self, them: Family, book: Defensive) -> Self {
+        self.defensive_vs.push((them, book));
+        self
+    }
+
+    /// Bind this pair against an opposing family
+    ///
+    /// Selects the competitive and defensive books for `them` and merges a
+    /// clone of the constructive trie into the bound competitive trie
+    /// ([`Trie::merge`], classifiers stay shared), so that competitive rebases
+    /// — the "system on" idiom — resolve into the uncontested core.  Bind once
+    /// per table, not per call.
+    ///
+    /// # Panics
+    ///
+    /// In debug builds, panics if the competitive and constructive books
+    /// classify the same exact auction; by the key disjointness above, such a
+    /// collision is an authoring bug.
+    #[must_use]
+    pub fn against(&self, them: Family) -> Stance {
+        let competitive = self
+            .competitive_vs
+            .iter()
+            .find(|entry| entry.0 == them)
+            .map_or(&self.competitive, |entry| &entry.1);
+        let defensive = self
+            .defensive_vs
+            .iter()
+            .find(|entry| entry.0 == them)
+            .map_or(&self.defensive, |entry| &entry.1);
+
+        let mut bound = competitive.0.clone();
+        let collisions = bound.merge(self.constructive.0.clone());
+        debug_assert!(
+            collisions.is_empty(),
+            "competitive and constructive books collide at {collisions:?}"
+        );
+
+        Stance {
+            constructive: self.constructive.0.clone(),
+            competitive: bound,
+            defensive: defensive.0.clone(),
+        }
+    }
+}
+
+/// A pair's system bound against one opposing family
+///
+/// Built by [`Pair::against`].  As a [`System`] it routes each query by
+/// [`Phase`]: the constructive trie answers the strictly uncontested auctions,
+/// the bound competitive trie (which contains the uncontested core for its
+/// rebases) answers when they intervene over our opening, and the defensive
+/// trie answers when they open.  Constructive-phase queries use the *unmerged*
+/// constructive trie, so no competitive fallback can leak into undisturbed
+/// auctions.
+#[derive(Clone, Debug, Default)]
+pub struct Stance {
+    constructive: Trie,
+    competitive: Trie,
+    defensive: Trie,
+}
+
+impl System for Stance {
+    fn classify(&self, hand: Hand, vul: RelativeVulnerability, auction: &[Call]) -> Option<Logits> {
+        let trie = match Phase::of(auction) {
+            Phase::Constructive => &self.constructive,
+            Phase::Competitive => &self.competitive,
+            Phase::Defensive => &self.defensive,
+        };
+        resolve(trie, hand, vul, auction)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Phase;
+    use contract_bridge::auction::Call;
+    use contract_bridge::{Bid, Strain};
+
+    const fn bid(level: u8, strain: Strain) -> Call {
+        Call::Bid(Bid::new(level, strain))
+    }
+
+    const P: Call = Call::Pass;
+    const ONE_HEART: Call = bid(1, Strain::Hearts);
+    const ONE_SPADE: Call = bid(1, Strain::Spades);
+    const TWO_CLUBS: Call = bid(2, Strain::Clubs);
+    const TWO_HEARTS: Call = bid(2, Strain::Hearts);
+    const TWO_SPADES: Call = bid(2, Strain::Spades);
+
+    #[test]
+    fn test_phase_before_any_opening() {
+        assert_eq!(Phase::of(&[]), Phase::Constructive);
+        assert_eq!(Phase::of(&[P]), Phase::Constructive);
+        assert_eq!(Phase::of(&[P, P, P]), Phase::Constructive);
+        assert_eq!(Phase::of(&[P, P, P, P]), Phase::Constructive);
+    }
+
+    #[test]
+    fn test_phase_when_we_opened_undisturbed() {
+        assert_eq!(Phase::of(&[ONE_HEART, P]), Phase::Constructive);
+        assert_eq!(
+            Phase::of(&[ONE_HEART, P, TWO_HEARTS, P]),
+            Phase::Constructive
+        );
+        assert_eq!(Phase::of(&[P, P, ONE_SPADE, P]), Phase::Constructive);
+    }
+
+    #[test]
+    fn test_phase_when_they_intervened() {
+        assert_eq!(Phase::of(&[ONE_HEART, TWO_CLUBS]), Phase::Competitive);
+        assert_eq!(Phase::of(&[ONE_HEART, Call::Double]), Phase::Competitive);
+        assert_eq!(Phase::of(&[P, ONE_HEART, Call::Double]), Phase::Competitive);
+        assert_eq!(
+            Phase::of(&[ONE_HEART, P, TWO_HEARTS, TWO_SPADES]),
+            Phase::Competitive
+        );
+        // Our own redouble is not a disturbance, but their double is.
+        assert_eq!(
+            Phase::of(&[ONE_SPADE, Call::Double, Call::Redouble, P]),
+            Phase::Competitive
+        );
+    }
+
+    #[test]
+    fn test_phase_when_they_opened() {
+        assert_eq!(Phase::of(&[ONE_HEART]), Phase::Defensive);
+        assert_eq!(Phase::of(&[P, P, ONE_SPADE]), Phase::Defensive);
+        assert_eq!(Phase::of(&[ONE_HEART, TWO_CLUBS, P]), Phase::Defensive);
+        assert_eq!(
+            Phase::of(&[ONE_HEART, P, TWO_HEARTS, TWO_SPADES, P]),
+            Phase::Defensive
+        );
     }
 }

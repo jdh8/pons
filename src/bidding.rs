@@ -9,17 +9,19 @@ pub mod fallback;
 /// [`Call`]-keyed hash map
 pub mod map;
 pub mod rules;
+pub mod table;
 /// [`Trie`] as a bidding system
 pub mod trie;
 /// The basic 2/1 game-forcing system
 pub mod two_over_one;
 
 pub use array::Array;
-pub use book::{Constructive, Defensive, Partnership};
+pub use book::{Competitive, Constructive, Defensive, Family, Pair, Phase, Stance};
 pub use compose::{OrElse, Versus};
 pub use context::Context;
 pub use map::Map;
 pub use rules::Rules;
+pub use table::Table;
 pub use trie::{Trie, classifier};
 pub use two_over_one::two_over_one;
 
@@ -90,8 +92,10 @@ impl<S: System + ?Sized> System for &S {
 ///
 /// This is the low-level escape hatch — handy for a small, fixed table (such as
 /// an analysis fragment) or a system whose pass semantics the role-aware books
-/// cannot express.  Author a partnership's notes from its own side with
-/// [`Constructive`] and [`Defensive`] instead, paired into a [`Partnership`].
+/// cannot express (the [`Phase`] router assumes a standard pass).  Author a
+/// pair's notes from its own side with [`Constructive`], [`Competitive`], and
+/// [`Defensive`] instead, assembled into a [`Pair`] and bound with
+/// [`Pair::against`].
 impl System for Trie {
     fn classify(
         &self,
