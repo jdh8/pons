@@ -5,71 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
-
-### Fixed
-
-- The defensive book's entry tables are now seat-fanned. `defense_to_suit`,
-  `defense_to_weak_two`, `defense_to_notrump`, and the advances of natural
-  overcalls were keyed only at the raw opening with no leading passes, so
-  they answered only when the opponents opened in *first seat*; with any
-  leading pass — `(P) 1♦`, our dealer passing first — the same decisions fell
-  off the book (and before the instinct floor, were silently passed). Found
-  by the first run of the `instinct-floor` telemetry.
-- Broken intra-doc links in `bidding::two_over_one`: replaced the unresolvable
-  `[`slam`]` reference (a private module) with plain backtick notation, and
-  qualified `[`Pair::against`]` with its full crate path so rustdoc can resolve
-  it from `competition`.
-
-### Changed
-
-- `bidding::instinct` learned to bid opposite our own strong notrump: it
-  completes a standard transfer (Jacoby 2♦/2♥, 3♦/3♥ over 2NT, South African
-  Texas 4♣/4♦) and, rather than pass a *forced* game out, bids the cheapest
-  game — a six-card major, else 3NT — when a responder holds game values
-  opposite a 15–17 1NT / 20–21 2NT, or when opener is forced past invitation.
-  This is the one convention instinct reads, so the deep BTU / strawberry 1NT
-  structures stay sound even where the book does not author every continuation.
-  Authored rules and weak hands are unaffected: the floor is reached last and
-  still defaults to Pass below an invitation.
-- `notrump::register` split into `register_one_nt` (the 1NT-opening response
-  block) and `register_two_nt_and_rebids` (the 2NT-strength and 18–19-rebid
-  structures), so the strawberry variant can swap in BTU for the former while
-  reusing the latter. `two_over_one()` is unchanged.
-- `two_over_one()` attaches the instinct floor (see `bidding::instinct` under
-  *Added*) to its competitive and defensive books as a root `Always`
-  fallback, so the bound stance never falls off the book in a contested
-  auction. Auctions that previously classified as `None` — and so were passed
-  by drivers, including passing partner's takeout double on a worthless hand
-  — now get a natural answer: their three-level preempts, jump overcalls past
-  the negative-double range, and deep competitive continuations among them.
-  Authored rules are unaffected: resolution reaches the root fallback last.
-  The standalone `competition()` and `defensive()` builders stay floor-less.
-- The `defend-2sx-or-3nt` example is now a flavor-comparison harness for the
-  `(2♠) X (P)` defend-vs-declare decision. West's weak-two opening still comes
-  from the real `two_over_one` system, while North's takeout double and South's
-  Pass-vs-3NT advance are swept across alternative *flavors* — Shape / Support /
-  Sound doubles and Defense / Balanced / Offense responses — each written as a
-  crisp constraint in the `bidding::constraint` vocabulary. It reports
-  per-double-flavor population stats and per-response-policy regret against a
-  double-dummy oracle.
-- The `defend-2sx-or-3nt` example studies a *realistic* population and plays
-  realistic auctions. Deals are accepted through a four-gate funnel — West
-  opens 2♠ per the system (at the table's actual vulnerability, via `Table`),
-  North doubles by a swept flavor, *East's pass over the double is the
-  system's own call* (deals where East would raise never reach South), and
-  *South's decision is live* (the system's advance over `(2♠) X (P)` is Pass
-  or 3NT, not a suit bid or an escape). Neither branch assumes the auction
-  stops at South's call: the table bids both continuations out with
-  `Table::bid_out_from` — West may run from the penalty pass, East/West may
-  double 3NT or sacrifice — and the *final* contract is scored with
-  `scoring::final_contract` / `scoring::ns_score`. New divergence telemetry
-  reports how often (and where) the bid-outs left the nominal 2♠×/3NT
-  contracts. The funnel is far tighter than the old gate, so
-  `--max-attempts-per-deal` now defaults to 20000 (was 5000); numbers are not
-  comparable with earlier runs — the live population is markedly more
-  NS-favorable, and the swept response policies now beat both trivial
-  baselines instead of losing to "always 3NT".
+## [0.9.0] — 2026-06-13
 
 ### Added
 
@@ -313,7 +249,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **Breaking** (within the unreleased 2/1 card): raise meanings moved to the
+- **Breaking** (within this release's 2/1 card, never published in an earlier
+  version): raise meanings moved to the
   modern defaults. `1m–2m` is now the strong inverted raise (10+, forcing)
   and `1m–3m` the weak preemptive one; direct `1M–3M` limit raises promise
   four trumps, with the three-card limit raise routed through the forcing
@@ -337,8 +274,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   returns the `Pair`.
 - pons now requires `contract-bridge` 0.1.2 for the newly public
   `Auction::can_push`, the dry-run legality check behind `Table::next_call`.
-  Until 0.1.2 is published, `Cargo.toml` carries a `[patch.crates-io]` entry
-  pointing at the sibling checkout; drop it at release.
 
 - **Breaking:** `bidding::trie::Classifier::classify` now takes
   `(Hand, &Context)` instead of
@@ -369,9 +304,73 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `ddss::Vulnerability::{NONE, NS, EW, ALL}` with the same constants on
   `contract_bridge::AbsoluteVulnerability`. The double-dummy solver is unchanged
   (still `ddss`).
+- `bidding::instinct` learned to bid opposite our own strong notrump: it
+  completes a standard transfer (Jacoby 2♦/2♥, 3♦/3♥ over 2NT, South African
+  Texas 4♣/4♦) and, rather than pass a *forced* game out, bids the cheapest
+  game — a six-card major, else 3NT — when a responder holds game values
+  opposite a 15–17 1NT / 20–21 2NT, or when opener is forced past invitation.
+  This is the one convention instinct reads, so the deep BTU / strawberry 1NT
+  structures stay sound even where the book does not author every continuation.
+  Authored rules and weak hands are unaffected: the floor is reached last and
+  still defaults to Pass below an invitation.
+- `notrump::register` split into `register_one_nt` (the 1NT-opening response
+  block) and `register_two_nt_and_rebids` (the 2NT-strength and 18–19-rebid
+  structures), so the strawberry variant can swap in BTU for the former while
+  reusing the latter. `two_over_one()` is unchanged.
+- `two_over_one()` attaches the instinct floor (see `bidding::instinct` under
+  *Added*) to its competitive and defensive books as a root `Always`
+  fallback, so the bound stance never falls off the book in a contested
+  auction. Auctions that previously classified as `None` — and so were passed
+  by drivers, including passing partner's takeout double on a worthless hand
+  — now get a natural answer: their three-level preempts, jump overcalls past
+  the negative-double range, and deep competitive continuations among them.
+  Authored rules are unaffected: resolution reaches the root fallback last.
+  The standalone `competition()` and `defensive()` builders stay floor-less.
+- The `defend-2sx-or-3nt` example is now a flavor-comparison harness for the
+  `(2♠) X (P)` defend-vs-declare decision. West's weak-two opening still comes
+  from the real `two_over_one` system, while North's takeout double and South's
+  Pass-vs-3NT advance are swept across alternative *flavors* — Shape / Support /
+  Sound doubles and Defense / Balanced / Offense responses — each written as a
+  crisp constraint in the `bidding::constraint` vocabulary. It reports
+  per-double-flavor population stats and per-response-policy regret against a
+  double-dummy oracle.
+- The `defend-2sx-or-3nt` example studies a *realistic* population and plays
+  realistic auctions. Deals are accepted through a four-gate funnel — West
+  opens 2♠ per the system (at the table's actual vulnerability, via `Table`),
+  North doubles by a swept flavor, *East's pass over the double is the
+  system's own call* (deals where East would raise never reach South), and
+  *South's decision is live* (the system's advance over `(2♠) X (P)` is Pass
+  or 3NT, not a suit bid or an escape). Neither branch assumes the auction
+  stops at South's call: the table bids both continuations out with
+  `Table::bid_out_from` — West may run from the penalty pass, East/West may
+  double 3NT or sacrifice — and the *final* contract is scored with
+  `scoring::final_contract` / `scoring::ns_score`. New divergence telemetry
+  reports how often (and where) the bid-outs left the nominal 2♠×/3NT
+  contracts. The funnel is far tighter than the old gate, so
+  `--max-attempts-per-deal` now defaults to 20000 (was 5000); numbers are not
+  comparable with earlier runs — the live population is markedly more
+  NS-favorable, and the swept response policies now beat both trivial
+  baselines instead of losing to "always 3NT".
+- docs.rs now documents the crate with `--all-features`
+  (`[package.metadata.docs.rs]`), so the `serde` impls appear in the rendered
+  docs.
 
 ### Fixed
 
+- The defensive book's entry tables are now seat-fanned. `defense_to_suit`,
+  `defense_to_weak_two`, `defense_to_notrump`, and the advances of natural
+  overcalls were keyed only at the raw opening with no leading passes, so
+  they answered only when the opponents opened in *first seat*; with any
+  leading pass — `(P) 1♦`, our dealer passing first — the same decisions fell
+  off the book (and before the instinct floor, were silently passed). Found
+  by the first run of the `instinct-floor` telemetry.
+- Broken intra-doc links in `bidding::two_over_one`: replaced the unresolvable
+  `[`slam`]` reference (a private module) with plain backtick notation, and
+  qualified `[`Pair::against`]` with its full crate path so rustdoc can resolve
+  it from `competition`. The strawberry builder's links to its private
+  convention modules (`stenberg`, `btu_notrump`, `rubens`, the `notrump`
+  register blocks) likewise became plain backticks, and the `bidding::instinct`
+  links now disambiguate the module from the `instinct()` function.
 - Seat-fan coverage gaps: responses and continuations now answer after
   4th-seat openings (leading-pass fan extended to three passes), and the
   defensive book answers when their opening arrives after leading passes —
@@ -581,6 +580,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Trie` for bidding strategies, with depth-first iteration, suffix and prefix iterators
 - Statistics utilities for evaluators; histograms
 
+[0.9.0]: https://github.com/jdh8/pons/compare/0.8.0...0.9.0
 [0.8.0]: https://github.com/jdh8/pons/compare/0.7.0...0.8.0
 [0.7.0]: https://github.com/jdh8/pons/compare/0.6.1...0.7.0
 [0.6.1]: https://github.com/jdh8/pons/compare/0.6.0...0.6.1

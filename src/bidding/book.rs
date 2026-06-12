@@ -398,7 +398,7 @@ impl Stance {
     /// Same routing and result as the [`System`] implementation, with the
     /// provenance of the winning classifier alongside the logits.  This is
     /// the telemetry hook for the instinct floor
-    /// ([`bidding::instinct`][crate::bidding::instinct]): `depth == 0` with
+    /// ([`bidding::instinct`][mod@crate::bidding::instinct]): `depth == 0` with
     /// `fallback == Some(_)` is the floor firing, and the auctions that fire
     /// it most often are the next nodes worth authoring properly.
     #[must_use]

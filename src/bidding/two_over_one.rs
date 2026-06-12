@@ -38,7 +38,7 @@
 //!   doubles, defense to 1NT, and defense to weak twos (takeout double, natural
 //!   2NT and suit overcalls).
 //! - **Instinct floor**: both contested books carry the
-//!   [`instinct`][crate::bidding::instinct] ladder as a root fallback, so
+//!   [`instinct`][crate::bidding::instinct()] ladder as a root fallback, so
 //!   every contested auction gets a sane natural answer — in particular,
 //!   partner's takeout double is never passed without a trump stack.
 //!
@@ -209,7 +209,7 @@ fn with_instinct_floor(mut pair: Pair) -> Pair {
 /// this pair passes whenever the books run out — the pre-floor behavior,
 /// including passing partner's takeout double on a worthless hand.
 /// [`two_over_one()`] is exactly this pair with
-/// [`instinct`][crate::bidding::instinct] attached to both contested books;
+/// [`instinct`][crate::bidding::instinct()] attached to both contested books;
 /// see the `instinct-floor` example for an A/B match between the two.
 #[must_use]
 pub fn bare_two_over_one() -> Pair {
@@ -238,12 +238,12 @@ pub fn bare_two_over_one() -> Pair {
 /// from the author's *Strawberry Polish Club* notes (<https://polish.club>)
 /// layered in — each chosen to remain *applicable* to a 2/1 framework:
 ///
-/// - **Strawberry Stenberg 2NT** ([`stenberg`]) replaces Jacoby 2NT as opener's
+/// - **Strawberry Stenberg 2NT** (`stenberg`) replaces Jacoby 2NT as opener's
 ///   rebid structure after `1M – 2NT`. The 2NT raise itself is unchanged.
-/// - **BTU strong-1NT responses** ([`btu_notrump`]) replace the baseline 1NT
-///   response block ([`notrump::register_one_nt`]); the 2NT-strength and
-///   18–19-rebid structures ([`notrump::register_two_nt_and_rebids`]) are kept.
-/// - **Rubens (transfer) advances** ([`rubens`]) overlay transfer advances of
+/// - **BTU strong-1NT responses** (`btu_notrump`) replace the baseline 1NT
+///   response block (`notrump::register_one_nt`); the 2NT-strength and
+///   18–19-rebid structures (`notrump::register_two_nt_and_rebids`) are kept.
+/// - **Rubens (transfer) advances** (`rubens`) overlay transfer advances of
 ///   partner's overcall and takeout double onto the natural defensive book.
 ///
 /// This is the floor-less ablation handle, mirroring [`bare_two_over_one`], so
@@ -410,7 +410,7 @@ mod tests {
     ///
     /// The constructive instinct floor handles natural continuations (e.g.
     /// raising a super-accepted major); the instinct *forced-to-game* rules
-    /// ([`crate::bidding::instinct`]) catch the artificial ones (a notrump
+    /// ([`crate::bidding::instinct`][mod@crate::bidding::instinct]) catch the artificial ones (a notrump
     /// super-accept, an asking relay) where a keyless raise has nothing to say.
     #[test]
     fn strawberry_btu_gf_auctions_reach_game() {
