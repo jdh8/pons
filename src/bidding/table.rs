@@ -92,16 +92,25 @@ impl<N: System, E: System> Table<N, E> {
             .unwrap_or(Call::Pass)
     }
 
-    /// Bid out a deal from the dealer until the auction ends
+    /// Continue a seeded auction until it ends
+    ///
+    /// Call `i` of the seed is attributed to
+    /// [`seat_to_act(i)`][Self::seat_to_act], i.e. the seed is positioned
+    /// from the dealer.  A seed that has already ended is returned unchanged.
+    /// [`bid_out`][Self::bid_out] is this with an empty seed.
     #[must_use]
-    pub fn bid_out(&self, deal: &FullDeal) -> Auction {
-        let mut auction = Auction::new();
-
+    pub fn bid_out_from(&self, deal: &FullDeal, mut auction: Auction) -> Auction {
         while !auction.has_ended() {
             let seat = self.seat_to_act(auction.len());
             auction.push(self.next_call(deal[seat], &auction));
         }
         auction
+    }
+
+    /// Bid out a deal from the dealer until the auction ends
+    #[must_use]
+    pub fn bid_out(&self, deal: &FullDeal) -> Auction {
+        self.bid_out_from(deal, Auction::new())
     }
 }
 

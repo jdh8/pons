@@ -24,11 +24,12 @@
 use clap::Parser;
 use contract_bridge::auction::{Auction, Call};
 use contract_bridge::deck::full_deal;
-use contract_bridge::{AbsoluteVulnerability, Bid, Contract, FullDeal, Penalty, Seat};
-use ddss::{NonEmptyStrainFlags, Solver, TrickCountTable};
+use contract_bridge::{AbsoluteVulnerability, FullDeal, Seat};
+use ddss::{NonEmptyStrainFlags, Solver};
 use pons::bidding::context::relative;
 use pons::bidding::two_over_one::bare_two_over_one;
 use pons::bidding::{Family, Stance};
+use pons::scoring::{final_contract, imps, ns_score};
 use pons::two_over_one;
 use std::collections::HashMap;
 
@@ -154,68 +155,6 @@ fn bid_out(
         auction.push(next_call(stance, deal[seat], dealer, vul, &auction, tap));
     }
     auction
-}
-
-// ---------------------------------------------------------------------------
-// Scoring
-// ---------------------------------------------------------------------------
-
-/// The final contract and absolute declarer, or [`None`] for a pass-out
-fn final_contract(auction: &Auction, dealer: Seat) -> Option<(Contract, Seat)> {
-    let mut last_bid: Option<Bid> = None;
-    let mut penalty = Penalty::Undoubled;
-
-    for &call in auction.iter() {
-        match call {
-            Call::Bid(bid) => {
-                last_bid = Some(bid);
-                penalty = Penalty::Undoubled;
-            }
-            Call::Double => penalty = Penalty::Doubled,
-            Call::Redouble => penalty = Penalty::Redoubled,
-            Call::Pass => {}
-        }
-    }
-
-    let bid = last_bid?;
-    let index = auction.declarer()?;
-    Some((Contract { bid, penalty }, seat_to_act(dealer, index)))
-}
-
-/// Double-dummy NS score of a contract played by its declarer (0 for a pass-out)
-fn ns_score(
-    result: Option<(Contract, Seat)>,
-    table: &TrickCountTable,
-    vul: AbsoluteVulnerability,
-) -> i64 {
-    let Some((contract, declarer)) = result else {
-        return 0;
-    };
-    let tricks = u8::from(table[contract.bid.strain].get(declarer));
-    let declarer_vul = vul.contains(match declarer {
-        Seat::North | Seat::South => AbsoluteVulnerability::NS,
-        Seat::East | Seat::West => AbsoluteVulnerability::EW,
-    });
-    let score = i64::from(contract.score(tricks, declarer_vul));
-    match declarer {
-        Seat::North | Seat::South => score,
-        Seat::East | Seat::West => -score,
-    }
-}
-
-/// Upper bounds (exclusive) of the point difference for 0, 1, 2, … IMPs
-const IMP_BOUNDS: [i64; 24] = [
-    20, 50, 90, 130, 170, 220, 270, 320, 370, 430, 500, 600, 750, 900, 1100, 1300, 1500, 1750,
-    2000, 2250, 2500, 3000, 3500, 4000,
-];
-
-/// Convert a point difference to International Match Points
-fn imps(diff: i64) -> i64 {
-    let magnitude = IMP_BOUNDS
-        .iter()
-        .take_while(|&&bound| diff.abs() >= bound)
-        .count();
-    i64::try_from(magnitude).expect("at most 24 IMPs") * diff.signum()
 }
 
 // ---------------------------------------------------------------------------

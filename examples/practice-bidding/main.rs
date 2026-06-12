@@ -20,13 +20,12 @@ use clap::Parser;
 use contract_bridge::auction::{Auction, Call};
 use contract_bridge::deck::{fill_deals, full_deal};
 use contract_bridge::eval::{self, HandEvaluator as _, SimpleEvaluator};
-use contract_bridge::{
-    AbsoluteVulnerability, Bid, Builder, Contract, FullDeal, Penalty, Seat, Strain, Suit,
-};
+use contract_bridge::{AbsoluteVulnerability, Builder, Contract, FullDeal, Seat, Strain, Suit};
 use ddss::{
     NonEmptyStrainFlags, Solver, StrainFlags, TrickCountTable, Vulnerability, calculate_par,
 };
 use pons::bidding::Table;
+use pons::scoring::{final_contract, ns_score};
 use pons::two_over_one;
 
 // ---------------------------------------------------------------------------
@@ -98,28 +97,6 @@ const fn seat_to_act(dealer: Seat, len: usize) -> Seat {
     Seat::ALL[(dealer as usize + len) % 4]
 }
 
-/// The final contract and absolute declarer, or `None` for a pass-out
-fn final_contract(auction: &Auction, dealer: Seat) -> Option<(Contract, Seat)> {
-    let mut last_bid: Option<Bid> = None;
-    let mut penalty = Penalty::Undoubled;
-
-    for &call in auction {
-        match call {
-            Call::Bid(bid) => {
-                last_bid = Some(bid);
-                penalty = Penalty::Undoubled;
-            }
-            Call::Double => penalty = Penalty::Doubled,
-            Call::Redouble => penalty = Penalty::Redoubled,
-            Call::Pass => {}
-        }
-    }
-
-    let bid = last_bid?;
-    let index = auction.declarer()?;
-    Some((Contract { bid, penalty }, seat_to_act(dealer, index)))
-}
-
 /// Signed human-side score: positive means good for the human's side
 fn human_side_score(
     contract: Contract,
@@ -128,18 +105,10 @@ fn human_side_score(
     vul: AbsoluteVulnerability,
     human_seat: Seat,
 ) -> i64 {
-    let tricks = u8::from(table[contract.bid.strain].get(declarer));
-    let declarer_vul = vul.contains(match declarer {
-        Seat::North | Seat::South => AbsoluteVulnerability::NS,
-        Seat::East | Seat::West => AbsoluteVulnerability::EW,
-    });
-    let score = i64::from(contract.score(tricks, declarer_vul));
-    let human_is_ns = matches!(human_seat, Seat::North | Seat::South);
-    let declarer_is_ns = matches!(declarer, Seat::North | Seat::South);
-    if human_is_ns == declarer_is_ns {
-        score
-    } else {
-        -score
+    let ns = ns_score(Some((contract, declarer)), table, vul);
+    match human_seat {
+        Seat::North | Seat::South => ns,
+        Seat::East | Seat::West => -ns,
     }
 }
 

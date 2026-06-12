@@ -53,9 +53,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   crisp constraint in the `bidding::constraint` vocabulary. It reports
   per-double-flavor population stats and per-response-policy regret against a
   double-dummy oracle.
+- The `defend-2sx-or-3nt` example studies a *realistic* population and plays
+  realistic auctions. Deals are accepted through a four-gate funnel — West
+  opens 2♠ per the system (at the table's actual vulnerability, via `Table`),
+  North doubles by a swept flavor, *East's pass over the double is the
+  system's own call* (deals where East would raise never reach South), and
+  *South's decision is live* (the system's advance over `(2♠) X (P)` is Pass
+  or 3NT, not a suit bid or an escape). Neither branch assumes the auction
+  stops at South's call: the table bids both continuations out with
+  `Table::bid_out_from` — West may run from the penalty pass, East/West may
+  double 3NT or sacrifice — and the *final* contract is scored with
+  `scoring::final_contract` / `scoring::ns_score`. New divergence telemetry
+  reports how often (and where) the bid-outs left the nominal 2♠×/3NT
+  contracts. The funnel is far tighter than the old gate, so
+  `--max-attempts-per-deal` now defaults to 20000 (was 5000); numbers are not
+  comparable with earlier runs — the live population is markedly more
+  NS-favorable, and the swept response policies now beat both trivial
+  baselines instead of losing to "always 3NT".
 
 ### Added
 
+- `scoring`: per-board scoring primitives promoted from the `instinct-floor`
+  example so every simulation harness shares one scorer —
+  `final_contract(auction, dealer)` (the last bid with its doubles and the
+  absolute declarer), `ns_score(result, tricks, vulnerability)` (the signed
+  NS score of a final contract priced from a double-dummy `TrickCountTable`,
+  0 for a pass-out), and `imps(diff)` (the standard WBF scale). The
+  `instinct-floor`, `practice-bidding`, and `defend-2sx-or-3nt` examples now
+  use these instead of private copies.
+- `Table::bid_out_from`: continue a seeded auction (positioned from the
+  dealer) until it ends; `Table::bid_out` is now this with an empty seed.
+  This is the driver for forcing an auction prefix and letting the systems
+  finish the board, as the `defend-2sx-or-3nt` example does with its
+  `(2♠) X (P) + decision` seeds.
 - `two_over_one_strawberry()` (with its floor-less `bare_two_over_one_strawberry()`
   ablation), an opt-in variant of the 2/1 system that layers in three optional
   conventions from the author's *Strawberry Polish Club* notes

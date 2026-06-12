@@ -3,6 +3,7 @@
 
 /// Bidding in contract bridge
 pub mod bidding;
+pub mod scoring;
 /// Statistics
 pub mod stats;
 

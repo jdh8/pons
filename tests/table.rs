@@ -154,6 +154,30 @@ fn test_bid_out_terminates_after_a_contract() {
 }
 
 #[test]
+fn test_bid_out_from_continues_seed() {
+    let table = Table::new(Silent, Silent, Seat::North, AbsoluteVulnerability::NONE);
+    let deal = full_deal(&mut rand::rng());
+
+    // A seeded 1♣ by North is passed out by the silent table.
+    let mut seed = Auction::new();
+    seed.push(ONE_CLUB);
+    assert_eq!(
+        &table.bid_out_from(&deal, seed)[..],
+        &[ONE_CLUB, Call::Pass, Call::Pass, Call::Pass]
+    );
+
+    // An already-ended seed is returned unchanged.
+    let mut ended = Auction::new();
+    ended
+        .try_extend([ONE_CLUB, Call::Pass, Call::Pass, Call::Pass])
+        .expect("a completed auction is legal");
+    assert_eq!(
+        &table.bid_out_from(&deal, ended)[..],
+        &[ONE_CLUB, Call::Pass, Call::Pass, Call::Pass]
+    );
+}
+
+#[test]
 fn test_of_pairs_binds_and_plays() {
     let mut constructive = Constructive::new();
     constructive.insert(&[], classifier(|_, _| single(ONE_CLUB, 1.0)));
