@@ -29,7 +29,7 @@
 //!   three levels, quantitative 4NT at every notrump strength.
 //! - **Weak twos**: Ogust 2NT, RONF raises, forcing new suits.
 //! - **Slam**: RKCB 1430 with the 5NT king ask
-//!   ([`slam`]) below every major-suit trump agreement.
+//!   (`slam`) below every major-suit trump agreement.
 //! - **Competition**: cue-bid (limit-plus) raises, preemptive jump raises,
 //!   negative doubles, system-on over their double, support
 //!   doubles/redoubles.
