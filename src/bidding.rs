@@ -6,6 +6,7 @@ pub mod compose;
 pub mod constraint;
 pub mod context;
 pub mod fallback;
+pub mod instinct;
 /// [`Call`]-keyed hash map
 pub mod map;
 pub mod rules;
@@ -19,6 +20,7 @@ pub use array::Array;
 pub use book::{Competitive, Constructive, Defensive, Family, Pair, Phase, Stance};
 pub use compose::{OrElse, Versus};
 pub use context::Context;
+pub use instinct::instinct;
 pub use map::Map;
 pub use rules::Rules;
 pub use table::Table;

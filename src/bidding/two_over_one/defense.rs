@@ -8,20 +8,14 @@
 //! double, a natural 2NT overcall, and natural suit overcalls).
 
 use super::super::constraint::{
-    Cons, Constraint, balanced, hcp, len, pred, stopper_in_their_suits, support, top_honors,
+    balanced, hcp, len, min_level_is, pred, short_in_their_suits, stopper_in_their_suits, support,
+    top_honors,
 };
 use super::super::context::Context;
 use super::super::{Defensive, Rules};
 use super::{call, insert_all_seats};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Hand, Strain, Suit};
-
-/// Takeout shape: at most three cards in each suit the opponents have bid
-fn short_in_their_suits() -> Cons<impl Constraint + Clone> {
-    pred(|hand: Hand, context: &Context<'_>| {
-        context.their_suits().all(|suit| hand[suit].len() <= 3)
-    })
-}
 
 // ---------------------------------------------------------------------------
 // Direct overcalls and doubles
@@ -300,17 +294,6 @@ fn unusual_nt_advances(t: Suit) -> Rules {
 // ---------------------------------------------------------------------------
 // Responsive doubles
 // ---------------------------------------------------------------------------
-
-/// Minimum-level check: is `bid_level` the cheapest legal level for `strain`?
-///
-/// Used to anchor dynamic-level rules so they only fire when the bid is
-/// actually at the table minimum, preventing duplication across levels.
-fn min_level_is(bid_level: u8, strain: Strain) -> Cons<impl Constraint + Clone> {
-    pred(move |_: Hand, ctx: &Context<'_>| {
-        ctx.min_level(strain)
-            .is_some_and(|min| min.get() == bid_level)
-    })
-}
 
 /// Advancer's action when partner made a takeout double and they raised `t` to `raise_lvl`
 ///

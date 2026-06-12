@@ -243,6 +243,22 @@ pub fn stopper_in_their_suits() -> Cons<impl Constraint + Clone> {
     })
 }
 
+/// The opponents have bid the given strain
+#[must_use]
+pub fn they_bid(strain: Strain) -> Cons<impl Constraint + Clone> {
+    pred(move |_: Hand, context: &Context<'_>| context.they_bid(strain))
+}
+
+/// Takeout shape: at most three cards in each suit the opponents have bid
+///
+/// Trivially satisfied when the opponents have bid no suit.
+#[must_use]
+pub fn short_in_their_suits() -> Cons<impl Constraint + Clone> {
+    pred(|hand: Hand, context: &Context<'_>| {
+        context.their_suits().all(|suit| hand[suit].len() <= 3)
+    })
+}
+
 /// Partner's last bid suit is the given one
 ///
 /// Violated when partner has not bid a suit yet.  Where [`support`] grades

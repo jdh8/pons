@@ -1,0 +1,364 @@
+//! The instinct bidder: a keyless floor for off-book auctions
+//!
+//! Competitive auctions cannot be enumerated — interference multiplies
+//! sequences combinatorially, and a book that stops mid-auction leaves the
+//! driver to pass by default.  The worst of those defaults is passing
+//! partner's takeout double on a worthless hand, turning a routine advance
+//! into a doubled partscore for the opponents.
+//!
+//! [`instinct()`] is the floor under the book: one context-driven [`Rules`]
+//! ladder that answers *every* auction with a sane natural action.  Attach it
+//! as a root [`Always`][super::fallback::Always] fallback — as
+//! [`two_over_one()`][crate::bidding::two_over_one::two_over_one] does for its
+//! competitive and defensive books — and the system never falls off the book.
+//! By [`Trie::resolve`][super::Trie::resolve] precedence the root is reached
+//! last, so instinct can never override an authored rule, only catch what
+//! falls past all of them.
+//!
+//! # Everything is natural
+//!
+//! Instinct fires precisely where the book has no agreement, so partner's
+//! continuation is usually off-book too — decoded by *partner's* instinct.
+//! The two halves stay coherent because every instinct call is natural:
+//! bids show the bid suit, raises show support, doubles are takeout.  No
+//! conventional calls (in particular no strength-showing cue-bids) belong
+//! here until both sides of the convention are authored.
+//!
+//! # The forced advance
+//!
+//! The one situation instinct must *not* treat as optional is partner's live
+//! takeout double: the auction ends `… (bid) X (Pass)` with their suit bid at
+//! the three level or below doubled by partner.  There, the pass rules are
+//! replaced by an advance ladder — penalty pass only with a genuine trump
+//! stack, a major-suit game jump or 3NT with values, the longest unbid suit
+//! at the cheapest level, and a notrump escape so that *some* action is
+//! always available.  The interpretation of the double is deliberately
+//! mechanical: a classifier may know its system, and instinct's system is
+//! plain standard.
+//!
+//! # Observability
+//!
+//! Instinct activations are visible in the
+//! [`Provenance`][super::trie::Provenance] returned by
+//! [`Trie::resolve`][super::Trie::resolve]: `depth == 0` with
+//! `fallback == Some(_)` is the floor firing.  In simulation, count these —
+//! the most-hit auctions are the next nodes worth authoring properly.
+
+use super::Rules;
+use super::constraint::{
+    Cons, Constraint, balanced, hcp, len, min_level_is, partner_suit_is, pred,
+    short_in_their_suits, stopper_in_their_suits, support, they_bid,
+};
+use super::context::Context;
+use contract_bridge::auction::Call;
+use contract_bridge::{Bid, Hand, Penalty, Rank, Strain, Suit};
+
+/// Partner's takeout double is live: the auction ends `… (bid) X (Pass)`
+///
+/// Mechanically: the last two calls are partner's double and RHO's pass, and
+/// the doubled contract is their suit bid at the three level or below —
+/// doubles of notrump or of game-level contracts read as penalty, not as a
+/// request to act.
+fn forced_advance() -> Cons<impl Constraint + Clone> {
+    pred(|_: Hand, context: &Context<'_>| {
+        let auction = context.auction();
+        let n = auction.len();
+        n >= 2
+            && auction[n - 1] == Call::Pass
+            && auction[n - 2] == Call::Double
+            && context
+                .last_bid()
+                .is_some_and(|bid| bid.strain.suit().is_some() && bid.level.get() <= 3)
+    })
+}
+
+/// A trump stack in the doubled suit: four-plus cards with two top honors
+///
+/// The one holding that converts partner's takeout double into penalties.
+fn doubled_suit_stack() -> Cons<impl Constraint + Clone> {
+    pred(|hand: Hand, context: &Context<'_>| {
+        context
+            .last_bid()
+            .and_then(|bid| bid.strain.suit())
+            .is_some_and(|suit| {
+                let holding = hand[suit];
+                let honors = [Rank::A, Rank::K, Rank::Q]
+                    .into_iter()
+                    .filter(|&rank| holding.contains(rank))
+                    .count();
+                holding.len() >= 4 && honors >= 2
+            })
+    })
+}
+
+/// Our side has not bid yet (doubles and passes do not count)
+///
+/// The anchor for overcall-shaped actions: once we have shown a suit or
+/// notrump, instinct competes by raising or doubling instead.
+fn we_have_not_bid() -> Cons<impl Constraint + Clone> {
+    pred(|_: Hand, context: &Context<'_>| {
+        !Suit::ASC
+            .into_iter()
+            .map(Strain::from)
+            .chain([Strain::Notrump])
+            .any(|strain| context.we_bid(strain))
+    })
+}
+
+/// The opponents' undoubled suit bid at most `level` is the call to beat
+///
+/// This is the legality *and* sanity anchor for instinct doubles: the last
+/// non-pass call is an opposing suit bid, not yet doubled, low enough that a
+/// double still reads as takeout.
+fn their_live_bid_at_most(level: u8) -> Cons<impl Constraint + Clone> {
+    pred(move |_: Hand, context: &Context<'_>| {
+        context.penalty() == Penalty::Undoubled
+            && context
+                .last_bid()
+                .is_some_and(|bid| bid.strain.suit().is_some() && bid.level.get() <= level)
+            && context
+                .auction()
+                .iter()
+                .rposition(|&call| call != Call::Pass)
+                .is_some_and(|index| (context.auction().len() - index) % 2 == 1)
+    })
+}
+
+/// The strain is still biddable at or below the given level
+fn level_available(level: u8, strain: Strain) -> Cons<impl Constraint + Clone> {
+    pred(move |_: Hand, context: &Context<'_>| {
+        context
+            .min_level(strain)
+            .is_some_and(|min| min.get() <= level)
+    })
+}
+
+/// Build the instinct ladder: a sane natural action for any auction
+///
+/// Forced (partner's live takeout double — see the [module docs][self]):
+/// penalty pass on a trump stack, a major-suit game jump or 3NT with values,
+/// the longest unbid suit at the cheapest level (majors and five-card suits
+/// preferred), and a cheapest-notrump escape as the guaranteed action.
+///
+/// Otherwise: raise partner's suit with three-card support and rising
+/// strength per level, overcall notrump (15–18 balanced with stoppers) or a
+/// five-card suit if we have not bid, double their low suit bid for takeout
+/// on shape (or any 17+), and pass.
+///
+/// The unconditioned pass at weight `-5` is the absolute last resort: it
+/// keeps the logits finite when every action is illegal, while sitting far
+/// enough below every forced action (≥ 3 nats) that sampling drivers never
+/// pass a forced auction by accident.
+#[must_use]
+pub fn instinct() -> Rules {
+    let mut rules = Rules::new()
+        // Forced: a trump stack sits for partner's takeout double.
+        .rule(Call::Pass, 1.5, forced_advance() & doubled_suit_stack())
+        // Forced: 3NT to play with game values and their suits stopped.
+        .rule(
+            Bid::new(3, Strain::Notrump),
+            1.3,
+            forced_advance()
+                & hcp(13..)
+                & stopper_in_their_suits()
+                & level_available(3, Strain::Notrump),
+        )
+        // Unforced default; the -5 entry below is the absolute last resort.
+        .rule(Call::Pass, 0.0, !forced_advance())
+        .rule(Call::Pass, -5.0, hcp(0..));
+
+    // Forced: jump to a major-suit game with four-plus cards and values —
+    // in an unbid major, never in the suit partner asked us to take out of.
+    for major in [Suit::Hearts, Suit::Spades] {
+        let strain = Strain::from(major);
+        rules = rules.rule(
+            Bid::new(4, strain),
+            1.45,
+            forced_advance()
+                & len(major, 4..)
+                & hcp(11..)
+                & level_available(4, strain)
+                & !they_bid(strain),
+        );
+    }
+
+    for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
+        let strain = Strain::from(suit);
+        let major_bonus = if matches!(suit, Suit::Hearts | Suit::Spades) {
+            0.05
+        } else {
+            0.0
+        };
+
+        // Forced: a new suit at the cheapest level; longer suits and majors
+        // are preferred.  Bidding their suit would be a cue-bid — excluded.
+        for level in 1u8..=4 {
+            rules = rules
+                .rule(
+                    Bid::new(level, strain),
+                    1.0 + major_bonus,
+                    forced_advance()
+                        & min_level_is(level, strain)
+                        & len(suit, 4..)
+                        & !they_bid(strain),
+                )
+                .rule(
+                    Bid::new(level, strain),
+                    1.1 + major_bonus,
+                    forced_advance()
+                        & min_level_is(level, strain)
+                        & len(suit, 5..)
+                        & !they_bid(strain),
+                );
+        }
+
+        // Raise partner's suit with three-card support; each level up asks
+        // for more strength, so competitive raises terminate by themselves.
+        for (level, threshold) in [(2u8, 6u8), (3, 10), (4, 13)] {
+            rules = rules.rule(
+                Bid::new(level, strain),
+                1.2,
+                partner_suit_is(suit)
+                    & min_level_is(level, strain)
+                    & support(3..)
+                    & hcp(threshold..),
+            );
+        }
+
+        // Overcall a five-card suit if we have not bid; the strength floor
+        // rises with the level and stronger hands double first.
+        for (level, floor) in [(1u8, 8u8), (2, 10), (3, 13)] {
+            rules = rules.rule(
+                Bid::new(level, strain),
+                1.0 + major_bonus,
+                we_have_not_bid()
+                    & min_level_is(level, strain)
+                    & len(suit, 5..)
+                    & hcp(floor..=16)
+                    & !they_bid(strain),
+            );
+        }
+    }
+
+    for level in 1u8..=4 {
+        // Forced: the notrump escape guarantees an action — no fit, no
+        // stopper, no four-card suit outside theirs still has a call.
+        rules = rules.rule(
+            Bid::new(level, Strain::Notrump),
+            0.3,
+            forced_advance() & min_level_is(level, Strain::Notrump),
+        );
+    }
+
+    for level in 1u8..=3 {
+        // Notrump overcall: 15–18 balanced with their suits stopped.
+        rules = rules.rule(
+            Bid::new(level, Strain::Notrump),
+            1.05,
+            we_have_not_bid()
+                & min_level_is(level, Strain::Notrump)
+                & balanced()
+                & hcp(15..=18)
+                & stopper_in_their_suits(),
+        );
+    }
+
+    // Takeout double of their low suit bid: shape with opening values, or
+    // any strong hand planning to bid again.
+    rules
+        .rule(
+            Call::Double,
+            0.9,
+            their_live_bid_at_most(3) & short_in_their_suits() & hcp(12..),
+        )
+        .rule(Call::Double, 0.8, their_live_bid_at_most(3) & hcp(17..))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::bidding::trie::Classifier;
+    use contract_bridge::auction::RelativeVulnerability;
+
+    const fn call(level: u8, strain: Strain) -> Call {
+        Call::Bid(Bid::new(level, strain))
+    }
+
+    /// The highest-logit instinct call for a hand in an auction
+    fn best(auction: &[Call], hand: &str) -> Call {
+        let hand: Hand = hand.parse().expect("valid test hand");
+        let context = Context::new(RelativeVulnerability::NONE, auction);
+        let logits = instinct().classify(hand, &context);
+        (&logits.0)
+            .into_iter()
+            .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("logits are never NaN"))
+            .map(|(call, _)| call)
+            .expect("array is never empty")
+    }
+
+    #[test]
+    fn forced_advance_never_passes() {
+        // Partner doubled their 3♣ for takeout; a worthless hand still bids
+        // its five-card suit instead of converting to penalties.
+        let auction = [call(3, Strain::Clubs), Call::Double, Call::Pass];
+        assert_eq!(best(&auction, "96432.J85.9742.2"), call(3, Strain::Spades));
+        // A yarborough whose only length is in their suit escapes to the
+        // cheapest notrump.
+        assert_eq!(best(&auction, "964.J85.974.9632"), call(3, Strain::Notrump));
+    }
+
+    #[test]
+    fn trump_stack_converts_to_penalties() {
+        // KQ92 behind the 2♠ bidder sits for partner's takeout double.
+        let auction = [call(2, Strain::Spades), Call::Double, Call::Pass];
+        assert_eq!(best(&auction, "KQ92.A532.J42.96"), Call::Pass);
+    }
+
+    #[test]
+    fn forced_advance_bids_game_with_values() {
+        let auction = [call(2, Strain::Spades), Call::Double, Call::Pass];
+        // 13 HCP with their suit stopped: 3NT to play.
+        assert_eq!(best(&auction, "KJ92.A53.KQ42.96"), call(3, Strain::Notrump));
+        // 11 HCP with four hearts: jump to the major-suit game.
+        assert_eq!(best(&auction, "92.AQ53.KQ42.962"), call(4, Strain::Hearts));
+    }
+
+    #[test]
+    fn unforced_raise_with_fit() {
+        // Partner opened 1♠ and they overcalled 2♥: raise with three-card
+        // support and 8 HCP.
+        let auction = [call(1, Strain::Spades), call(2, Strain::Hearts)];
+        assert_eq!(best(&auction, "Q32.953.A964.Q92"), call(2, Strain::Spades));
+    }
+
+    #[test]
+    fn unforced_takeout_double_on_shape() {
+        // Their 3♦ preempt: 13 HCP, short in diamonds, no five-card suit.
+        let auction = [call(3, Strain::Diamonds)];
+        assert_eq!(best(&auction, "KQ32.AJ53.2.A942"), Call::Double);
+    }
+
+    #[test]
+    fn unforced_pass_without_values() {
+        // Nothing to say over their 3♦: too weak to act at the three level.
+        let auction = [call(3, Strain::Diamonds)];
+        assert_eq!(best(&auction, "Q5432.J53.942.92"), Call::Pass);
+    }
+
+    #[test]
+    fn doubles_only_their_live_bids() {
+        // The call to beat is our own 2♠ (partner raised our overcall):
+        // doubling our side is never on the table.
+        let auction = [
+            call(1, Strain::Hearts),
+            call(1, Strain::Spades),
+            Call::Pass,
+            call(2, Strain::Spades),
+            Call::Pass,
+        ];
+        let hand: Hand = "92.K53.AQJ42.962".parse().expect("valid test hand");
+        let context = Context::new(RelativeVulnerability::NONE, &auction);
+        let logits = instinct().classify(hand, &context);
+        assert_eq!(*logits.0.get(Call::Double), f32::NEG_INFINITY);
+    }
+}

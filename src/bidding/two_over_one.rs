@@ -37,9 +37,14 @@
 //!   unusual 2NT with advances, advancing partner's takeout double, responsive
 //!   doubles, defense to 1NT, and defense to weak twos (takeout double, natural
 //!   2NT and suit overcalls).
+//! - **Instinct floor**: both contested books carry the
+//!   [`instinct`][crate::bidding::instinct] ladder as a root fallback, so
+//!   every contested auction gets a sane natural answer — in particular,
+//!   partner's takeout double is never passed without a trump stack.
 //!
 //! Deeper competitive sequences (lebensohl, reopening actions) and minor-suit
-//! keycard are left for later passes — see the crate changelog.
+//! keycard are left for later authored passes — until then the instinct floor
+//! answers those auctions; see the crate changelog.
 //!
 //! # Forcing by omission
 //!
@@ -55,7 +60,8 @@
 //! Constraints are kept disjoint where practical; where calls can both apply,
 //! the weights order them so the more descriptive bid wins.
 
-use super::fallback::{Fallback, Guard};
+use super::fallback::{Always, Fallback, Guard};
+use super::instinct::instinct;
 use super::trie::Classifier;
 use super::{Constructive, Family, Pair, Trie};
 use contract_bridge::auction::Call;
@@ -189,12 +195,17 @@ pub fn two_over_one() -> Pair {
     strong_two::register(&mut c);
     weak_twos::register(&mut c);
 
-    Pair::new(
-        Family::NATURAL,
-        c,
-        competition::competition(),
-        defense::defensive(),
-    )
+    // The instinct floor: a root `Always` fallback on both contested books,
+    // shared through the `Fallback`'s `Arc`.  Resolution reaches the root
+    // last, so the floor never overrides an authored rule — it only catches
+    // the auctions that fall past all of them.
+    let floor = Fallback::classify(instinct());
+    let mut competitive = competition::competition();
+    let mut defensive = defense::defensive();
+    competitive.fallback_at(&[], Always, floor.clone());
+    defensive.fallback_at(&[], Always, floor);
+
+    Pair::new(Family::NATURAL, c, competitive, defensive)
 }
 
 #[cfg(test)]

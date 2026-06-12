@@ -6,7 +6,7 @@
 //! openings, and opener's answer to partner's negative double of a two-level
 //! minor overcall.
 
-use super::super::constraint::{hcp, len, min_level_is, pred, support};
+use super::super::constraint::{hcp, len, min_level_is, support, they_bid};
 use super::super::context::Context;
 use super::super::fallback::{Fallback, FirstIs, OvercallAtMost, ReplaceNext, guard};
 use super::super::{Competitive, Rules};
@@ -14,17 +14,6 @@ use super::{call, fallback_all_seats};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Strain, Suit};
 use std::sync::Arc;
-
-// ---------------------------------------------------------------------------
-// Constraint helpers
-// ---------------------------------------------------------------------------
-
-/// The opponents have bid `strain`
-fn they_bid(
-    strain: Strain,
-) -> super::super::constraint::Cons<impl super::super::constraint::Constraint + Clone> {
-    pred(move |_hand, ctx: &Context<'_>| ctx.they_bid(strain))
-}
 
 // ---------------------------------------------------------------------------
 // Section 1: direct-seat response to their overcall

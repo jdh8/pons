@@ -16,6 +16,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `two_over_one()` attaches the instinct floor (see `bidding::instinct` under
+  *Added*) to its competitive and defensive books as a root `Always`
+  fallback, so the bound stance never falls off the book in a contested
+  auction. Auctions that previously classified as `None` — and so were passed
+  by drivers, including passing partner's takeout double on a worthless hand
+  — now get a natural answer: their three-level preempts, jump overcalls past
+  the negative-double range, and deep competitive continuations among them.
+  Authored rules are unaffected: resolution reaches the root fallback last.
+  The standalone `competition()` and `defensive()` builders stay floor-less.
 - The `defend-2sx-or-3nt` example is now a flavor-comparison harness for the
   `(2♠) X (P)` defend-vs-declare decision. West's weak-two opening still comes
   from the real `two_over_one` system, while North's takeout double and South's
@@ -27,6 +36,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `bidding::instinct`: the instinct bidder, a keyless floor for off-book
+  auctions. `instinct()` is one context-driven `Rules` ladder that answers
+  *every* auction with a sane natural action: penalty pass only with a trump
+  stack, raises of partner's suit with three-card support and rising strength
+  per level, notrump and five-card-suit overcalls when we have not bid,
+  takeout doubles of their low suit bids, and pass. Partner's *live takeout
+  double* (the auction ends `… (bid) X (Pass)` with their suit bid at the
+  three level or below doubled) is recognized mechanically and never passed
+  without a trump stack — the advance ladder guarantees an action down to a
+  cheapest-notrump escape. Every instinct call is natural, so the floor stays
+  coherent when both partners land on it; strength-showing cue-bids are
+  deliberately excluded until both sides of the convention can be authored.
+  Floor activations are observable as `Provenance { depth: 0, fallback:
+  Some(_), .. }` from `Trie::resolve` — in simulation, the most-hit auctions
+  are the next nodes worth authoring properly.
+- `bidding::constraint`: `they_bid(strain)` and `short_in_their_suits()`
+  (takeout shape: at most three cards in each suit the opponents have bid),
+  promoted from private helpers in the 2/1 books.
 - `bidding::two_over_one::defense_to_weak_two` and `advance_double`: defense to
   the opponents' weak twos and advancing partner's takeout double, filling the
   one gap the `defend-2sx-or-3nt` example needed. The defensive book now
