@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Broken intra-doc links in `bidding::two_over_one`: replaced the unresolvable
+  `[`slam`]` reference (a private module) with plain backtick notation, and
+  qualified `[`Pair::against`]` with its full crate path so rustdoc can resolve
+  it from `competition`.
+
 ### Added
 
 - `bidding::context`: `Context`, the mechanical auction context passed to
