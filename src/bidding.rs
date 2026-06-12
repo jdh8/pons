@@ -25,7 +25,7 @@ pub use map::Map;
 pub use rules::Rules;
 pub use table::Table;
 pub use trie::{Trie, classifier};
-pub use two_over_one::two_over_one;
+pub use two_over_one::{two_over_one, two_over_one_strawberry};
 
 use contract_bridge::Hand;
 use contract_bridge::auction::{Call, RelativeVulnerability};

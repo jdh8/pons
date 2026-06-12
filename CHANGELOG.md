@@ -56,6 +56,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `two_over_one_strawberry()` (with its floor-less `bare_two_over_one_strawberry()`
+  ablation), an opt-in variant of the 2/1 system that layers in three optional
+  conventions from the author's *Strawberry Polish Club* notes
+  (<https://polish.club>), each chosen to stay applicable to a 2/1 framework,
+  while leaving the canonical `two_over_one()` untouched for A/B comparison.
+  Exported at the crate root alongside `two_over_one`. To avoid authoring a node
+  per artificial continuation, the variant also floors its *constructive* book;
+  with the strong-notrump instinct rules a game-forcing 1NT auction reaches game
+  even where the book stops (covered by an end-to-end test that plays full
+  auctions through the stance).
+  - **Strawberry Stenberg 2NT** (`stenberg`) replaces Jacoby 2NT as opener's
+    rebid after `1M – 2NT`: the cheapest step shows a minimum, every other rebid
+    a maximum that describes a side fragment, a five-card side suit, or a
+    two-suiter, with RKCB 1430 below the agreed major.
+  - **BTU responses to the strong 1NT** (`btu_notrump`) replace the baseline
+    1NT response block — BTU Stayman 2♣ (with the invitational 5=♠ relay and
+    Smolen), Jacoby transfers 2♦/2♥ with super-accepts, minor-suit transfers
+    2♠/2NT, Puppet Stayman 3♣, splinters, South African Texas, and the
+    quantitative ladder — while keeping the 2NT-strength and 18–19-rebid
+    structures shared with the baseline.
+  - **Rubens (transfer) advances** (`rubens`) overlay the defensive book: over
+    partner's overcall, the step just below partner's suit is a limit-plus
+    transfer raise that partner completes.
 - The `practice-bidding` example: an interactive harness for judging the
   bidding books by sitting at the table. It shuffles random boards — optionally
   rejection-sampled against `--min-hcp` / `--max-hcp` / `--min-suit` bounds on
