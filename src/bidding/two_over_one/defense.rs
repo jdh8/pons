@@ -1,6 +1,6 @@
 //! Defense: our actions when they open
 
-use super::call;
+use super::{call, insert_all_seats};
 use crate::bidding::constraint::{
     Cons, Constraint, balanced, hcp, len, pred, stopper_in_their_suits, support,
 };
@@ -76,22 +76,31 @@ fn advances(our_suit: Suit) -> Rules {
 }
 
 /// The defensive book: our actions over their openings, plus advances
+///
+/// Every key is fanned under `0..=3` leading passes — the defensive book
+/// keys the raw table auction, so their opening may arrive after any mix of
+/// leading passes (ours and theirs).
 pub(super) fn defensive() -> Defensive {
     let mut d = Defensive::new();
     for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
         let theirs = Strain::from(suit);
         let opening = Bid::new(1, theirs);
-        d.insert(&[Call::Bid(opening)], defense_to_suit(opening));
+        insert_all_seats(&mut d, &[Call::Bid(opening)], 3, defense_to_suit(opening));
 
         for our in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
             let strain = Strain::from(our);
             if strain != theirs {
                 let level = if strain > theirs { 1 } else { 2 };
                 let overcall = call(level, strain);
-                d.insert(&[Call::Bid(opening), overcall, Call::Pass], advances(our));
+                insert_all_seats(
+                    &mut d,
+                    &[Call::Bid(opening), overcall, Call::Pass],
+                    3,
+                    advances(our),
+                );
             }
         }
     }
-    d.insert(&[call(1, Strain::Notrump)], defense_to_notrump());
+    insert_all_seats(&mut d, &[call(1, Strain::Notrump)], 3, defense_to_notrump());
     d
 }

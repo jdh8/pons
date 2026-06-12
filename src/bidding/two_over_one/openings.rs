@@ -1,6 +1,6 @@
 //! Uncontested openings for every seat
 
-use super::insert_opening;
+use super::insert_uncontested;
 use crate::bidding::constraint::{Cons, Constraint, balanced, hcp, len, nth_seat, pred};
 use crate::bidding::context::Context;
 use crate::bidding::{Rules, Trie};
@@ -91,5 +91,5 @@ pub fn openings() -> Rules {
 
 /// Register the opening table in the constructive book
 pub(super) fn register(book: &mut Trie) {
-    insert_opening(book, openings());
+    insert_uncontested(book, &[], openings());
 }

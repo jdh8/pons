@@ -1,6 +1,6 @@
 //! The 1NT response structure: Stayman, Jacoby transfers, and completions
 
-use super::{call, insert_all_seats, insert_response};
+use super::{call, insert_uncontested};
 use crate::bidding::constraint::{hcp, len};
 use crate::bidding::{Rules, Trie};
 use contract_bridge::auction::Call;
@@ -62,28 +62,20 @@ fn complete_transfer(into: Suit) -> Rules {
 
 /// Register the 1NT response structure and its continuations
 pub(super) fn register(book: &mut Trie) {
-    let p = Call::Pass;
     let one_nt = call(1, Strain::Notrump);
 
-    insert_response(book, one_nt, notrump_responses());
+    insert_uncontested(book, &[one_nt], notrump_responses());
 
     // 1NT continuations: Stayman answers and transfer completions.
-    insert_all_seats(
+    insert_uncontested(book, &[one_nt, call(2, Strain::Clubs)], stayman_answers());
+    insert_uncontested(
         book,
-        &[one_nt, p, call(2, Strain::Clubs), p],
-        2,
-        stayman_answers(),
-    );
-    insert_all_seats(
-        book,
-        &[one_nt, p, call(2, Strain::Diamonds), p],
-        2,
+        &[one_nt, call(2, Strain::Diamonds)],
         complete_transfer(Suit::Hearts),
     );
-    insert_all_seats(
+    insert_uncontested(
         book,
-        &[one_nt, p, call(2, Strain::Hearts), p],
-        2,
+        &[one_nt, call(2, Strain::Hearts)],
         complete_transfer(Suit::Spades),
     );
 }

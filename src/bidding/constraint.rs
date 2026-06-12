@@ -31,7 +31,7 @@
 
 use super::context::Context;
 use contract_bridge::eval::{self, HandEvaluator, SimpleEvaluator};
-use contract_bridge::{Hand, Holding, Rank, Suit};
+use contract_bridge::{Hand, Holding, Level, Rank, Strain, Suit};
 use core::ops::{BitAnd, BitOr, Not, RangeBounds};
 
 /// Trait for a logit contribution of a hand feature
@@ -196,6 +196,24 @@ pub fn support(
     })
 }
 
+/// Count of top honors (A, K, Q) in the given suit, in the given range
+///
+/// Suit quality for preempts, positives, and asking bids: "two of the top
+/// three honors" is `top_honors(suit, 2..)`.
+pub fn top_honors(
+    suit: Suit,
+    range: impl RangeBounds<usize> + Clone + Send + Sync,
+) -> Cons<impl Constraint + Clone> {
+    pred(move |hand: Hand, _: &Context<'_>| {
+        let holding = hand[suit];
+        let count = [Rank::A, Rank::K, Rank::Q]
+            .into_iter()
+            .filter(|&rank| holding.contains(rank))
+            .count();
+        range.contains(&count)
+    })
+}
+
 /// Whether a holding stops the suit for notrump purposes
 ///
 /// The crisp textbook definition: A, Kx, Qxx, or Jxxx.
@@ -206,6 +224,15 @@ const fn has_stopper(holding: Holding) -> bool {
         || (holding.contains(Rank::J) && holding.len() >= 4)
 }
 
+/// A stopper in the given suit
+///
+/// The same crisp textbook definition as [`stopper_in_their_suits`]: A, Kx,
+/// Qxx, or Jxxx.
+#[must_use]
+pub fn stopper_in(suit: Suit) -> Cons<impl Constraint + Clone> {
+    pred(move |hand: Hand, _: &Context<'_>| has_stopper(hand[suit]))
+}
+
 /// A stopper in every suit the opponents have bid
 ///
 /// Trivially satisfied when the opponents have bid no suit.
@@ -214,6 +241,26 @@ pub fn stopper_in_their_suits() -> Cons<impl Constraint + Clone> {
     pred(|hand: Hand, context: &Context<'_>| {
         context.their_suits().all(|suit| has_stopper(hand[suit]))
     })
+}
+
+/// Partner's last bid suit is the given one
+///
+/// Violated when partner has not bid a suit yet.  Where [`support`] grades
+/// *how well* we fit partner's suit, this pins down *which* suit partner bid
+/// last — the anchor for raises of a specific second suit.
+#[must_use]
+pub fn partner_suit_is(suit: Suit) -> Cons<impl Constraint + Clone> {
+    pred(move |_: Hand, context: &Context<'_>| context.partner_last_suit() == Some(suit))
+}
+
+/// The strain's cheapest legal level is exactly the given one
+///
+/// The legality anchor for rules whose call sits at a dynamic level (cue
+/// bids, competitive raises): `min_level_is(2, their_strain)` admits the rule
+/// only when the two-level cue is exactly the cheapest available.
+#[must_use]
+pub fn min_level_is(level: u8, strain: Strain) -> Cons<impl Constraint + Clone> {
+    pred(move |_: Hand, context: &Context<'_>| context.min_level(strain) == Some(Level::new(level)))
 }
 
 /// The player to act passed on their first turn
@@ -325,6 +372,37 @@ mod tests {
     fn test_support_without_partner_suit() {
         let context = empty_context();
         assert_reject(support(0..).eval(hand(BALANCED_15), &context));
+    }
+
+    #[test]
+    fn test_top_honors_and_stopper_in() {
+        let context = empty_context();
+        // AKQ2 of spades has all three top honors; T92 of clubs has none.
+        assert_pass(top_honors(Suit::Spades, 3..).eval(hand(BALANCED_15), &context));
+        assert_pass(top_honors(Suit::Hearts, 1..=1).eval(hand(BALANCED_15), &context));
+        assert_reject(top_honors(Suit::Clubs, 1..).eval(hand(BALANCED_15), &context));
+
+        // K53 of hearts stops the suit; T92 of clubs does not.
+        assert_pass(stopper_in(Suit::Hearts).eval(hand(BALANCED_15), &context));
+        assert_reject(stopper_in(Suit::Clubs).eval(hand(BALANCED_15), &context));
+    }
+
+    #[test]
+    fn test_partner_suit_and_min_level() {
+        // Partner overcalled 1♥ over their 1♦ opening.
+        let auction = [
+            Call::Bid(Bid::new(1, Strain::Diamonds)),
+            Call::Bid(Bid::new(1, Strain::Hearts)),
+            Call::Pass,
+        ];
+        let context = Context::new(RelativeVulnerability::NONE, &auction);
+
+        assert_pass(partner_suit_is(Suit::Hearts).eval(hand(BALANCED_15), &context));
+        assert_reject(partner_suit_is(Suit::Spades).eval(hand(BALANCED_15), &context));
+
+        assert_pass(min_level_is(1, Strain::Spades).eval(hand(BALANCED_15), &context));
+        assert_pass(min_level_is(2, Strain::Diamonds).eval(hand(BALANCED_15), &context));
+        assert_reject(min_level_is(2, Strain::Spades).eval(hand(BALANCED_15), &context));
     }
 
     #[test]

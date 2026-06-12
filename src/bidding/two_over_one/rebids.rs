@@ -1,9 +1,8 @@
 //! Opener's rebids (one round)
 
-use super::{call, insert_all_seats};
+use super::{call, insert_uncontested};
 use crate::bidding::constraint::{balanced, hcp, len, support};
 use crate::bidding::{Rules, Trie};
-use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Strain, Suit};
 
 /// Opener's rebid after `1♥ – 1♠`: raise spades, rebid hearts, or show shape
@@ -95,39 +94,31 @@ fn rebid_one_club_one_diamond() -> Rules {
 
 /// Register opener's rebids after a one-level new suit and the forcing 1NT
 pub(super) fn register(book: &mut Trie) {
-    let p = Call::Pass;
-
-    insert_all_seats(
+    insert_uncontested(
         book,
-        &[call(1, Strain::Hearts), p, call(1, Strain::Spades), p],
-        2,
+        &[call(1, Strain::Hearts), call(1, Strain::Spades)],
         rebid_one_heart_one_spade(),
     );
     for major in [Suit::Hearts, Suit::Spades] {
-        insert_all_seats(
+        insert_uncontested(
             book,
-            &[call(1, Strain::from(major)), p, call(1, Strain::Notrump), p],
-            2,
+            &[call(1, Strain::from(major)), call(1, Strain::Notrump)],
             rebid_after_forcing_notrump(major),
         );
     }
-    insert_all_seats(
+    insert_uncontested(
         book,
-        &[call(1, Strain::Clubs), p, call(1, Strain::Diamonds), p],
-        2,
+        &[call(1, Strain::Clubs), call(1, Strain::Diamonds)],
         rebid_one_club_one_diamond(),
     );
     for minor in [Suit::Clubs, Suit::Diamonds] {
         for responder_major in [Suit::Hearts, Suit::Spades] {
-            insert_all_seats(
+            insert_uncontested(
                 book,
                 &[
                     call(1, Strain::from(minor)),
-                    p,
                     call(1, Strain::from(responder_major)),
-                    p,
                 ],
-                2,
                 rebid_raise_major(responder_major, minor),
             );
         }

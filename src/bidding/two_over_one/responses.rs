@@ -1,6 +1,6 @@
 //! First responses to our one-of-a-suit openings
 
-use super::{call, insert_response};
+use super::{call, insert_uncontested};
 use crate::bidding::constraint::{balanced, hcp, len, support};
 use crate::bidding::{Rules, Trie};
 use contract_bridge::auction::Call;
@@ -107,9 +107,17 @@ pub fn minor_responses(minor: Suit) -> Rules {
 /// Register the first responses to every one-of-a-suit opening
 pub(super) fn register(book: &mut Trie) {
     for major in [Suit::Hearts, Suit::Spades] {
-        insert_response(book, call(1, Strain::from(major)), major_responses(major));
+        insert_uncontested(
+            book,
+            &[call(1, Strain::from(major))],
+            major_responses(major),
+        );
     }
     for minor in [Suit::Clubs, Suit::Diamonds] {
-        insert_response(book, call(1, Strain::from(minor)), minor_responses(minor));
+        insert_uncontested(
+            book,
+            &[call(1, Strain::from(minor))],
+            minor_responses(minor),
+        );
     }
 }

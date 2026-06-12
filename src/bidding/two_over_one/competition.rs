@@ -37,14 +37,14 @@ pub fn competition() -> Competitive {
         fallback_all_seats(
             &mut book,
             &[opening],
-            2,
+            3,
             Arc::new(OvercallAtMost(Bid::new(2, Strain::Spades))),
             Fallback::classify(negative_doubles(major)),
         );
         fallback_all_seats(
             &mut book,
             &[opening],
-            2,
+            3,
             Arc::new(FirstIs(Call::Double)),
             Fallback::rebase(ReplaceNext(Call::Pass)),
         );

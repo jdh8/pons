@@ -36,17 +36,22 @@
 
 use super::fallback::{Fallback, Guard};
 use super::trie::Classifier;
-use super::{Constructive, Family, Pair, Rules, Trie};
+use super::{Constructive, Family, Pair, Trie};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Strain};
 use std::sync::Arc;
 
 mod competition;
 mod defense;
+mod game_force;
 mod notrump;
 mod openings;
+mod raises;
 mod rebids;
 mod responses;
+mod slam;
+mod strong_two;
+mod weak_twos;
 
 pub use competition::competition;
 pub use defense::defense_to_suit;
@@ -84,14 +89,26 @@ fn insert_all_seats(
     }
 }
 
-/// Insert an opening table at every seat (`[]`, `[P]`, `[P, P]`, `[P, P, P]`)
-fn insert_opening(book: &mut Trie, rules: Rules) {
-    insert_all_seats(book, &[], 3, rules);
+/// Interleave one opposing pass after each of our calls
+///
+/// The constructive book keys the *raw table auction*, so an undisturbed
+/// sequence of our calls `[1♥, 1♠]` lives at `[1♥, P, 1♠, P]` (plus leading
+/// passes for the opener's seat).  This is the one place that spells out the
+/// interleaving; author keys through it, never by hand.
+fn uncontested(our_calls: &[Call]) -> Vec<Call> {
+    our_calls
+        .iter()
+        .flat_map(|&call| [call, Call::Pass])
+        .collect()
 }
 
-/// Insert a response table under our `opening`, for every seat that opened it
-fn insert_response(book: &mut Trie, opening: Call, rules: Rules) {
-    insert_all_seats(book, &[opening, Call::Pass], 2, rules);
+/// Insert a continuation table after our undisturbed `our_calls`, every seat
+///
+/// Keys at `uncontested(our_calls)` under every leading-pass prefix
+/// (`0..=3`), so the table answers regardless of which seat opened.  An empty
+/// `our_calls` registers an opening table.
+fn insert_uncontested(book: &mut Trie, our_calls: &[Call], rules: impl Classifier + 'static) {
+    insert_all_seats(book, &uncontested(our_calls), 3, rules);
 }
 
 /// Attach a guarded fallback at `suffix` under every leading-pass prefix
@@ -146,6 +163,10 @@ pub fn two_over_one() -> Pair {
     responses::register(&mut c);
     notrump::register(&mut c);
     rebids::register(&mut c);
+    game_force::register(&mut c);
+    raises::register(&mut c);
+    strong_two::register(&mut c);
+    weak_twos::register(&mut c);
 
     Pair::new(
         Family::NATURAL,
@@ -158,6 +179,7 @@ pub fn two_over_one() -> Pair {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::bidding::Rules;
     use crate::bidding::context::Context;
     use contract_bridge::auction::RelativeVulnerability;
     use contract_bridge::{Hand, Suit};
