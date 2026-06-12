@@ -354,7 +354,7 @@ pub fn defensive() -> Defensive {
     for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
         let theirs = Strain::from(suit);
         let opening = Bid::new(1, theirs);
-        d.insert(&[Call::Bid(opening)], defense_to_suit(opening));
+        insert_all_seats(&mut d, &[Call::Bid(opening)], 3, defense_to_suit(opening));
 
         // Advancing partner's takeout double: [1t, X, P] — advancer to act.
         insert_all_seats(
@@ -370,7 +370,12 @@ pub fn defensive() -> Defensive {
             if strain != theirs {
                 let level = if strain > theirs { 1 } else { 2 };
                 let overcall = call(level, strain);
-                d.insert(&[Call::Bid(opening), overcall, Call::Pass], advances(our));
+                insert_all_seats(
+                    &mut d,
+                    &[Call::Bid(opening), overcall, Call::Pass],
+                    3,
+                    advances(our),
+                );
             }
         }
 
@@ -410,7 +415,12 @@ pub fn defensive() -> Defensive {
     for suit in [Suit::Diamonds, Suit::Hearts, Suit::Spades] {
         let theirs = Strain::from(suit);
         let opening = Bid::new(2, theirs);
-        d.insert(&[Call::Bid(opening)], defense_to_weak_two(opening));
+        insert_all_seats(
+            &mut d,
+            &[Call::Bid(opening)],
+            3,
+            defense_to_weak_two(opening),
+        );
 
         // Advancing partner's takeout double: [2t, X, P] — advancer to act.
         insert_all_seats(
@@ -421,6 +431,6 @@ pub fn defensive() -> Defensive {
         );
     }
 
-    d.insert(&[call(1, Strain::Notrump)], defense_to_notrump());
+    insert_all_seats(&mut d, &[call(1, Strain::Notrump)], 3, defense_to_notrump());
     d
 }

@@ -184,6 +184,28 @@ fn fallback_all_seats(
 /// ```
 #[must_use]
 pub fn two_over_one() -> Pair {
+    let mut pair = bare_two_over_one();
+
+    // The instinct floor: a root `Always` fallback on both contested books,
+    // shared through the `Fallback`'s `Arc`.  Resolution reaches the root
+    // last, so the floor never overrides an authored rule — it only catches
+    // the auctions that fall past all of them.
+    let floor = Fallback::classify(instinct());
+    pair.competitive.fallback_at(&[], Always, floor.clone());
+    pair.defensive.fallback_at(&[], Always, floor);
+    pair
+}
+
+/// Build the 2/1 pair *without* the instinct floor: the bare authored books
+///
+/// This is the ablation handle for measuring the floor.  A driver seating
+/// this pair passes whenever the books run out — the pre-floor behavior,
+/// including passing partner's takeout double on a worthless hand.
+/// [`two_over_one()`] is exactly this pair with
+/// [`instinct`][crate::bidding::instinct] attached to both contested books;
+/// see the `instinct-floor` example for an A/B match between the two.
+#[must_use]
+pub fn bare_two_over_one() -> Pair {
     let mut c = Constructive::new();
 
     openings::register(&mut c);
@@ -195,17 +217,12 @@ pub fn two_over_one() -> Pair {
     strong_two::register(&mut c);
     weak_twos::register(&mut c);
 
-    // The instinct floor: a root `Always` fallback on both contested books,
-    // shared through the `Fallback`'s `Arc`.  Resolution reaches the root
-    // last, so the floor never overrides an authored rule — it only catches
-    // the auctions that fall past all of them.
-    let floor = Fallback::classify(instinct());
-    let mut competitive = competition::competition();
-    let mut defensive = defense::defensive();
-    competitive.fallback_at(&[], Always, floor.clone());
-    defensive.fallback_at(&[], Always, floor);
-
-    Pair::new(Family::NATURAL, c, competitive, defensive)
+    Pair::new(
+        Family::NATURAL,
+        c,
+        competition::competition(),
+        defense::defensive(),
+    )
 }
 
 #[cfg(test)]

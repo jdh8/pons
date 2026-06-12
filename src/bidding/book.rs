@@ -41,7 +41,7 @@
 use super::System;
 use super::array::Logits;
 use super::context::Context;
-use super::trie::Trie;
+use super::trie::{Provenance, Trie};
 use contract_bridge::Hand;
 use contract_bridge::auction::{Call, RelativeVulnerability};
 use core::ops::{Deref, DerefMut};
@@ -383,14 +383,41 @@ pub struct Stance {
     defensive: Trie,
 }
 
-impl System for Stance {
-    fn classify(&self, hand: Hand, vul: RelativeVulnerability, auction: &[Call]) -> Option<Logits> {
-        let trie = match Phase::of(auction) {
+impl Stance {
+    /// The trie answering for the auction's [`Phase`]
+    fn trie_for(&self, auction: &[Call]) -> &Trie {
+        match Phase::of(auction) {
             Phase::Constructive => &self.constructive,
             Phase::Competitive => &self.competitive,
             Phase::Defensive => &self.defensive,
-        };
-        resolve(trie, hand, vul, auction)
+        }
+    }
+
+    /// Classify with the resolution [`Provenance`] — where the answer came from
+    ///
+    /// Same routing and result as the [`System`] implementation, with the
+    /// provenance of the winning classifier alongside the logits.  This is
+    /// the telemetry hook for the instinct floor
+    /// ([`bidding::instinct`][crate::bidding::instinct]): `depth == 0` with
+    /// `fallback == Some(_)` is the floor firing, and the auctions that fire
+    /// it most often are the next nodes worth authoring properly.
+    #[must_use]
+    pub fn classify_with_provenance(
+        &self,
+        hand: Hand,
+        vul: RelativeVulnerability,
+        auction: &[Call],
+    ) -> Option<(Logits, Provenance)> {
+        let trie = self.trie_for(auction);
+        let context = Context::new(vul, auction).with_prefixes(trie.common_prefixes(auction));
+        let (classifier, provenance) = trie.resolve(&context, auction)?;
+        Some((classifier.classify(hand, &context), provenance))
+    }
+}
+
+impl System for Stance {
+    fn classify(&self, hand: Hand, vul: RelativeVulnerability, auction: &[Call]) -> Option<Logits> {
+        resolve(self.trie_for(auction), hand, vul, auction)
     }
 }
 

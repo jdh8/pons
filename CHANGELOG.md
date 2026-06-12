@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The defensive book's entry tables are now seat-fanned. `defense_to_suit`,
+  `defense_to_weak_two`, `defense_to_notrump`, and the advances of natural
+  overcalls were keyed only at the raw opening with no leading passes, so
+  they answered only when the opponents opened in *first seat*; with any
+  leading pass — `(P) 1♦`, our dealer passing first — the same decisions fell
+  off the book (and before the instinct floor, were silently passed). Found
+  by the first run of the `instinct-floor` telemetry.
 - Broken intra-doc links in `bidding::two_over_one`: replaced the unresolvable
   `[`slam`]` reference (a private module) with plain backtick notation, and
   qualified `[`Pair::against`]` with its full crate path so rustdoc can resolve
@@ -54,6 +61,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `bidding::constraint`: `they_bid(strain)` and `short_in_their_suits()`
   (takeout shape: at most three cards in each suit the opponents have bid),
   promoted from private helpers in the 2/1 books.
+- `Stance::classify_with_provenance`: the same routing and logits as the
+  `System` implementation, plus the resolution `Provenance` — the telemetry
+  hook for counting instinct-floor activations (`depth == 0` with `fallback`
+  set) and ranking which off-book auctions to author next.
+- `bidding::two_over_one::bare_two_over_one`: the 2/1 pair *without* the
+  instinct floor — the ablation handle; `two_over_one()` is now this pair
+  with the floor attached.
+- `instinct-floor` example: an A/B duplicate match (floored vs bare 2/1 on
+  identical boards, swings scored double dummy and credited to the floored
+  team in points and IMPs) plus floor telemetry (activation rate and the
+  most-hit off-book auctions). First run: the floor is worth about +0.5
+  IMPs/board against its own absence, and the telemetry's top entries —
+  later-seat openings falling off the defensive book — drove the seat-fan
+  fix above.
 - `bidding::two_over_one::defense_to_weak_two` and `advance_double`: defense to
   the opponents' weak twos and advancing partner's takeout double, filling the
   one gap the `defend-2sx-or-3nt` example needed. The defensive book now
