@@ -16,13 +16,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- The `defend-2sx-or-3nt` example now drives all three seats with the real
-  `two_over_one` system instead of three hand-rolled classifiers: West's
-  weak-two opening comes from the constructive book, North's takeout double
-  and South's advance from the new weak-two defense. The rejection sampler
-  keeps only deals that reach `(2♠) X (P)` with South's advance in
-  `{Pass, 3NT}`, so the reported averages still cover exactly the P-vs-3NT
-  decision.
+- The `defend-2sx-or-3nt` example is now a flavor-comparison harness for the
+  `(2♠) X (P)` defend-vs-declare decision. West's weak-two opening still comes
+  from the real `two_over_one` system, while North's takeout double and South's
+  Pass-vs-3NT advance are swept across alternative *flavors* — Shape / Support /
+  Sound doubles and Defense / Balanced / Offense responses — each written as a
+  crisp constraint in the `bidding::constraint` vocabulary. It reports
+  per-double-flavor population stats and per-response-policy regret against a
+  double-dummy oracle.
 
 ### Added
 
