@@ -133,6 +133,83 @@ fn level_available(level: u8, strain: Strain) -> Cons<impl Constraint + Clone> {
     })
 }
 
+/// The opening bid (first non-pass call) and its index, if it is a bid
+fn opening_bid(auction: &[Call]) -> Option<(usize, Bid)> {
+    let index = auction.iter().position(|&call| call != Call::Pass)?;
+    match auction[index] {
+        Call::Bid(bid) => Some((index, bid)),
+        _ => None,
+    }
+}
+
+/// Our side opened a strong notrump of `level`, and the player to act is its
+/// opener (`partner == false`) or its responder (`partner == true`)
+///
+/// This is the one place instinct reads a *convention*: a strong notrump
+/// opening is the anchor for completing transfers and refusing to pass below a
+/// forced game, the deep conventional structures the book may not author.
+fn our_strong_notrump(context: &Context<'_>, level: u8, partner: bool) -> bool {
+    let auction = context.auction();
+    let Some((index, bid)) = opening_bid(auction) else {
+        return false;
+    };
+    // Our side owns the indices sharing the player-to-act's parity.
+    if index % 2 != auction.len() % 2 {
+        return false;
+    }
+    if bid.strain != Strain::Notrump || bid.level.get() != level {
+        return false;
+    }
+    // Seats four apart are the same player; two apart are partners.
+    match (auction.len() - index) % 4 {
+        0 => !partner,
+        2 => partner,
+        _ => false,
+    }
+}
+
+/// Partner's call immediately before ours, if it was a bid
+fn partner_last_call(auction: &[Call]) -> Option<Bid> {
+    match auction.len().checked_sub(2).map(|i| auction[i]) {
+        Some(Call::Bid(bid)) => Some(bid),
+        _ => None,
+    }
+}
+
+/// The current contract is below game: no bid, or a partscore-level suit bid
+fn below_game() -> Cons<impl Constraint + Clone> {
+    pred(|_: Hand, context: &Context<'_>| {
+        context.last_bid().is_none_or(|bid| {
+            let level = bid.level.get();
+            level <= 2 || (level == 3 && bid.strain != Strain::Notrump)
+        })
+    })
+}
+
+/// Partner opened a strong notrump of `level` (we are the responder)
+fn partner_strong_notrump(level: u8) -> Cons<impl Constraint + Clone> {
+    pred(move |_: Hand, context: &Context<'_>| our_strong_notrump(context, level, true))
+}
+
+/// We opened a strong notrump and partner forced past invitation with a
+/// three-level suit bid — so passing below game is wrong
+fn opener_forced_to_game() -> Cons<impl Constraint + Clone> {
+    pred(|_: Hand, context: &Context<'_>| {
+        (our_strong_notrump(context, 1, false) || our_strong_notrump(context, 2, false))
+            && partner_last_call(context.auction())
+                .is_some_and(|bid| bid.level.get() == 3 && bid.strain != Strain::Notrump)
+    })
+}
+
+/// We opened the strong notrump of `nt_level` and partner just transferred with
+/// the call `from` — the cue to complete the transfer
+fn partner_transferred(from: Bid, nt_level: u8) -> Cons<impl Constraint + Clone> {
+    pred(move |_: Hand, context: &Context<'_>| {
+        our_strong_notrump(context, nt_level, false)
+            && partner_last_call(context.auction()) == Some(from)
+    })
+}
+
 /// Build the instinct ladder: a sane natural action for any auction
 ///
 /// Forced (partner's live takeout double — see the [module docs][self]):
@@ -263,6 +340,59 @@ pub fn instinct() -> Rules {
         );
     }
 
+    // Opposite our own strong notrump: complete partner's transfer.  Standard
+    // Jacoby (2♦/2♥, 3♦/3♥ over 2NT) and South African Texas (4♣/4♦); the book
+    // authors these where it can, so this only catches off-book and competitive
+    // continuations.  Bid the suit just above partner's artificial call.
+    let transfers = [
+        (
+            1u8,
+            Bid::new(2, Strain::Diamonds),
+            Bid::new(2, Strain::Hearts),
+        ),
+        (1, Bid::new(2, Strain::Hearts), Bid::new(2, Strain::Spades)),
+        (1, Bid::new(4, Strain::Clubs), Bid::new(4, Strain::Hearts)),
+        (
+            1,
+            Bid::new(4, Strain::Diamonds),
+            Bid::new(4, Strain::Spades),
+        ),
+        (
+            2,
+            Bid::new(3, Strain::Diamonds),
+            Bid::new(3, Strain::Hearts),
+        ),
+        (2, Bid::new(3, Strain::Hearts), Bid::new(3, Strain::Spades)),
+    ];
+    for (nt_level, from, to) in transfers {
+        rules = rules.rule(
+            to,
+            1.5,
+            partner_transferred(from, nt_level) & level_available(to.level.get(), to.strain),
+        );
+    }
+
+    // Forced to game opposite our strong notrump: a responder with game-going
+    // values (10+ opposite a 15–17 1NT, 5+ opposite a 20–21 2NT), or an opener
+    // whom partner has forced past invitation.  Below game, pick the cheapest
+    // game — a six-card major, else 3NT — rather than pass the auction out.
+    let forced_game = (partner_strong_notrump(1) & hcp(10..))
+        | (partner_strong_notrump(2) & hcp(5..))
+        | opener_forced_to_game();
+    rules = rules.rule(
+        Bid::new(3, Strain::Notrump),
+        1.40,
+        forced_game.clone() & below_game() & level_available(3, Strain::Notrump),
+    );
+    for major in [Suit::Hearts, Suit::Spades] {
+        let strain = Strain::from(major);
+        rules = rules.rule(
+            Bid::new(4, strain),
+            1.45,
+            forced_game.clone() & below_game() & len(major, 6..) & level_available(4, strain),
+        );
+    }
+
     // Takeout double of their low suit bid: shape with opening values, or
     // any strong hand planning to bid again.
     rules
@@ -360,5 +490,48 @@ mod tests {
         let context = Context::new(RelativeVulnerability::NONE, &auction);
         let logits = instinct().classify(hand, &context);
         assert_eq!(*logits.0.get(Call::Double), f32::NEG_INFINITY);
+    }
+
+    #[test]
+    fn completes_partners_transfer_over_notrump() {
+        // We opened 1NT and partner transferred 2♦ (hearts): complete with 2♥,
+        // even off-book, rather than passing or raising the artificial diamonds.
+        let auction = [
+            call(1, Strain::Notrump),
+            Call::Pass,
+            call(2, Strain::Diamonds),
+            Call::Pass,
+        ];
+        assert_eq!(best(&auction, "AQ32.KJ5.KQ4.Q92"), call(2, Strain::Hearts));
+    }
+
+    #[test]
+    fn forced_to_game_opposite_strong_notrump() {
+        // Partner opened 1NT; after an artificial 2NT super-accept of our heart
+        // transfer a game-forced 12-count bids 3NT, never passing below game.
+        let auction = [
+            call(1, Strain::Notrump),
+            Call::Pass,
+            call(2, Strain::Diamonds),
+            Call::Pass,
+            call(2, Strain::Notrump),
+            Call::Pass,
+        ];
+        assert_eq!(best(&auction, "KQ52.AQ984.J6.32"), call(3, Strain::Notrump));
+    }
+
+    #[test]
+    fn keeps_passing_with_a_weak_responder() {
+        // Partner opened 1NT but we are too weak to force game: still pass when
+        // off-book (the forced-to-game floor must not fire on invitational-or-less).
+        let auction = [
+            call(1, Strain::Notrump),
+            Call::Pass,
+            call(2, Strain::Diamonds),
+            Call::Pass,
+            call(2, Strain::Notrump),
+            Call::Pass,
+        ];
+        assert_eq!(best(&auction, "8632.J9842.96.42"), Call::Pass);
     }
 }

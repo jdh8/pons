@@ -23,6 +23,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `bidding::instinct` learned to bid opposite our own strong notrump: it
+  completes a standard transfer (Jacoby 2♦/2♥, 3♦/3♥ over 2NT, South African
+  Texas 4♣/4♦) and, rather than pass a *forced* game out, bids the cheapest
+  game — a six-card major, else 3NT — when a responder holds game values
+  opposite a 15–17 1NT / 20–21 2NT, or when opener is forced past invitation.
+  This is the one convention instinct reads, so the deep BTU / strawberry 1NT
+  structures stay sound even where the book does not author every continuation.
+  Authored rules and weak hands are unaffected: the floor is reached last and
+  still defaults to Pass below an invitation.
 - `notrump::register` split into `register_one_nt` (the 1NT-opening response
   block) and `register_two_nt_and_rebids` (the 2NT-strength and 18–19-rebid
   structures), so the strawberry variant can swap in BTU for the former while
