@@ -372,6 +372,90 @@ fn test_full_board_smoke() {
     );
 }
 
+// --- End-to-end auctions across conventions ---------------------------------
+
+#[test]
+fn test_jacoby_into_keycards() {
+    // 1♠ - 2NT (Jacoby) - 3♣ (shortness) - 4NT (RKCB): opener answers.
+    let system = stance();
+    let p = Call::Pass;
+    let auction = [
+        call(1, Strain::Spades),
+        p,
+        call(2, Strain::Notrump),
+        p,
+        call(3, Strain::Clubs),
+        p,
+        call(4, Strain::Notrump),
+        p,
+    ];
+    // ♠A plus the trump king = 2 keycards without the trump queen -> 5♥.
+    assert_eq!(
+        best_call(&system, &auction, "AKJ52.K765.Q72.9"),
+        call(5, Strain::Hearts),
+    );
+}
+
+#[test]
+fn test_game_force_into_keycards() {
+    // 1♠ - 2♣ - 2♦ - 3♠ (sets trump) - 4NT: responder answers 1430.
+    let system = stance();
+    let p = Call::Pass;
+    let auction = [
+        call(1, Strain::Spades),
+        p,
+        call(2, Strain::Clubs),
+        p,
+        call(2, Strain::Diamonds),
+        p,
+        call(3, Strain::Spades),
+        p,
+        call(4, Strain::Notrump),
+        p,
+    ];
+    // ♥A + ♣A + ♠K = 3 keycards -> 5♦ (0 or 3).
+    assert_eq!(
+        best_call(&system, &auction, "K32.A2.Q54.AKJ92"),
+        call(5, Strain::Diamonds),
+    );
+}
+
+#[test]
+fn test_strong_two_system_on_transfer() {
+    // 2♣ - 2♥ (double negative) - 2NT (22-24): transfers stay on.
+    let system = stance();
+    let p = Call::Pass;
+    let auction = [
+        call(2, Strain::Clubs),
+        p,
+        call(2, Strain::Hearts),
+        p,
+        call(2, Strain::Notrump),
+        p,
+    ];
+    // A bust with five spades transfers at the three level.
+    assert_eq!(
+        best_call(&system, &auction, "J8542.T32.943.92"),
+        call(3, Strain::Hearts),
+    );
+
+    // ... and opener completes the transfer.
+    let completed = [
+        call(2, Strain::Clubs),
+        p,
+        call(2, Strain::Hearts),
+        p,
+        call(2, Strain::Notrump),
+        p,
+        call(3, Strain::Hearts),
+        p,
+    ];
+    assert_eq!(
+        best_call(&system, &completed, "AKQ2.AKJ.KQ4.932"),
+        call(3, Strain::Spades),
+    );
+}
+
 // --- Binding ----------------------------------------------------------------
 
 #[test]

@@ -104,14 +104,65 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   defense to their 1NT). The public sub-builders `openings`, `major_responses`,
   `minor_responses`, `notrump_responses`, and `defense_to_suit` return `Rules`
   for reuse and testing, and `competition()` returns the `Competitive` book.
-  Authored entirely from the existing vocabulary; no new infrastructure. Out
-  of scope for now (left for later passes): 2/1 opener rebids, inverted
-  minors, jump shifts, slam machinery, and fuller competition. A
+  Authored entirely from the existing vocabulary; no new infrastructure. A
   `two-over-one` example (`cargo run --example two-over-one`) bids out random
   boards end to end with both sides playing the system, seated via
   `Table::of_pairs`.
+- `bidding::two_over_one`: the system is now a complete 2/1 card rather than
+  a basic slice. New in this pass, each in its own submodule:
+  - **2/1 game-force continuations** through the slam-try level: opener's
+    rebids after every two-level response (jump rebid, raise, six-card
+    rebid, 12–14/18–19 2NT, new suits up the line), responder's rebids
+    (trump-setting 3M, second-suit raises, 3NT), opener's 4NT hook once
+    trump is set, and an `Undisturbed`-guarded *game backstop* so no
+    uncovered game-forcing continuation dies below game.
+  - **Forcing 1NT continuations**: the three-card limit raise (1NT then
+    3M), 2NT invites, weak six-card runouts, preference, and opener's
+    accept/decline.
+  - **Jacoby 2NT rebids**: side-suit shortness at the three level, a good
+    five-card second suit at the four level, 3M (18+) / 3NT (15–17) with no
+    shortness, 4M minimum; responder drives with 4NT.
+  - **Splinters** (double jump = four trumps, 10–13, singleton/void),
+    **inverted minors**, and **weak jump shifts** (6-card suit, 2–5 HCP),
+    with opener continuations.
+  - **The strong 2♣ structure**: 2♦ waiting, 2♥ double negative (0–3),
+    natural five-card positives and the 2NT balanced positive; opener's
+    natural rebids (2NT = 22–24, 3NT = 25–27) and responder continuations.
+  - **The 2NT machinery** at every strength: three-level Stayman and Jacoby
+    transfers over the 2NT opening *and* the 2♣–2x–2NT rebids ("system
+    on"), plus quantitative 4NT raises over 1NT, 2NT, and the 18–19 2NT
+    rebid, with opener's graded accept/decline.
+  - **Weak-two continuations**: Ogust 2NT (min/max × bad/good suit, 3NT =
+    solid), RONF preemptive raises, forcing new suits with opener's reply.
+  - **RKCB 1430** below every major-suit trump agreement (after Jacoby
+    rebids, splinters, game-force trump setting, and the 2♣ major raise):
+    the 1430 answers, asker continuations with a documented 0/3–1/4
+    ambiguity policy, the 5NT king ask, and grand-slam decisions.
+  - **Fuller competition**: cue-bid (limit-plus) raises, preemptive jump
+    raises, competitive raises, negative doubles over all four openings
+    (system on over their double everywhere), weak jump shifts in
+    competition, support doubles/redoubles (exactly three-card support),
+    and opener's forced answer to a negative double.
+  - **Two-suited defense**: Michaels cue-bids and the unusual 2NT with
+    longer-suit advances and game jumps, plus responsive doubles after
+    partner's takeout double and their raise.
+
+  Still left for later passes: lebensohl and reopening actions in deeper
+  competitive auctions, responder's natural rebids after `1m–1M–2m`, and
+  minor-suit keycard.
+- `bidding::constraint`: four new public primitives — `top_honors(suit,
+  range)` (count of A/K/Q for suit quality), `stopper_in(suit)`,
+  `partner_suit_is(suit)` (pins partner's last bid suit, where `support`
+  only grades it), and `min_level_is(level, strain)` (the legality anchor
+  for rules whose call sits at a dynamic level, such as cue bids).
 
 ### Changed
+
+- **Breaking** (within the unreleased 2/1 card): raise meanings moved to the
+  modern defaults. `1m–2m` is now the strong inverted raise (10+, forcing)
+  and `1m–3m` the weak preemptive one; direct `1M–3M` limit raises promise
+  four trumps, with the three-card limit raise routed through the forcing
+  1NT.
 
 - Reduced Clippy noise across bidding internals and tests: several small
   closure-coercion/context helpers are now `const fn`, builder-style
@@ -163,6 +214,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `ddss::Vulnerability::{NONE, NS, EW, ALL}` with the same constants on
   `contract_bridge::AbsoluteVulnerability`. The double-dummy solver is unchanged
   (still `ddss`).
+
+### Fixed
+
+- Seat-fan coverage gaps: responses and continuations now answer after
+  4th-seat openings (leading-pass fan extended to three passes), and the
+  defensive book answers when their opening arrives after leading passes —
+  previously `[P, 1♦]` and kin were silently off-book.
 
 ## [0.8.0] — 2026-05-24
 

@@ -1,4 +1,4 @@
-//! A basic 2/1 game-forcing bidding system
+//! A 2/1 game-forcing bidding system
 //!
 //! [`two_over_one()`][crate::bidding::two_over_one::two_over_one] assembles a
 //! [`Pair`] for the Two-over-One Game Forcing system, the modern North
@@ -6,19 +6,38 @@
 //! artificial 2♣, and — the defining feature — a new suit at the two level in
 //! response to a one-of-a-major opening is **game forcing**.
 //!
-//! This is a *basic* slice: it covers the uncontested openings, the first
-//! response to every one-level opening, the 1NT response structure (Stayman and
-//! Jacoby transfers), one round of opener's rebids, and a small competitive and
-//! defensive layer.  It is authored entirely from the existing constraint
-//! vocabulary ([`constraint`][crate::bidding::constraint]), the [`Rules`]
-//! classifier, and the role-aware books — the strictly uncontested core in a
-//! [`Constructive`] book,
-//! [`competition()`][crate::bidding::two_over_one::competition] over our
+//! The system is authored entirely from the constraint vocabulary
+//! ([`constraint`][crate::bidding::constraint]), the [`Rules`] classifier, and
+//! the role-aware books — the strictly uncontested core in a [`Constructive`]
+//! book, [`competition()`][crate::bidding::two_over_one::competition] over our
 //! openings in a [`Competitive`][super::Competitive] book, and our actions
 //! over their openings in a [`Defensive`][super::Defensive] book; nothing here
-//! is system infrastructure.  Several deeper layers (2/1 opener rebids,
-//! inverted minors, slam machinery, fuller competition) are deliberately left
-//! for later passes — see the crate changelog.
+//! is system infrastructure.
+//!
+//! # Conventions
+//!
+//! - **Openings**: 15–17 1NT, 20–21 2NT, strong artificial 2♣ (22+),
+//!   five-card majors (light in 3rd/4th seat), better minor, weak twos,
+//!   three-level preempts.
+//! - **Responses**: 2/1 game forces with full continuations to game and the
+//!   slam-try level, forcing 1NT (with the three-card limit raise rebid),
+//!   Jacoby 2NT with shortness/second-suit rebids, splinters, inverted
+//!   minors, weak jump shifts.
+//! - **The 2♣ structure**: 2♦ waiting, 2♥ double negative, natural positives;
+//!   notrump rebids carry the 2NT machinery ("system on").
+//! - **Notrump structures**: Stayman and Jacoby transfers at the two and
+//!   three levels, quantitative 4NT at every notrump strength.
+//! - **Weak twos**: Ogust 2NT, RONF raises, forcing new suits.
+//! - **Slam**: RKCB 1430 with the 5NT king ask
+//!   ([`slam`]) below every major-suit trump agreement.
+//! - **Competition**: cue-bid (limit-plus) raises, preemptive jump raises,
+//!   negative doubles, system-on over their double, support
+//!   doubles/redoubles.
+//! - **Defense**: overcalls, takeout doubles, 1NT overcall, Michaels and the
+//!   unusual 2NT with advances, responsive doubles, defense to 1NT.
+//!
+//! Deeper competitive sequences (lebensohl, reopening actions) and minor-suit
+//! keycard are left for later passes — see the crate changelog.
 //!
 //! # Forcing by omission
 //!
