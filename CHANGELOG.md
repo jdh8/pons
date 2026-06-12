@@ -23,6 +23,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `notrump::register` split into `register_one_nt` (the 1NT-opening response
+  block) and `register_two_nt_and_rebids` (the 2NT-strength and 18–19-rebid
+  structures), so the strawberry variant can swap in BTU for the former while
+  reusing the latter. `two_over_one()` is unchanged.
 - `two_over_one()` attaches the instinct floor (see `bidding::instinct` under
   *Added*) to its competitive and defensive books as a root `Always`
   fallback, so the bound stance never falls off the book in a contested
