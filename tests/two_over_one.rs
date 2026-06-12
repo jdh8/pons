@@ -291,9 +291,9 @@ fn test_major_raise_grades() {
     let system = stance();
     let after_1h = &[call(1, Strain::Hearts), Call::Pass][..];
 
-    // 12 HCP, three-card support -> limit raise.
+    // 12 HCP, four-card support -> limit raise (limit raises promise four trumps).
     assert_eq!(
-        best_call(&system, after_1h, "K32.K53.A964.Q92"),
+        best_call(&system, after_1h, "K32.K653.A96.Q92"),
         call(3, Strain::Hearts)
     );
 }
@@ -301,14 +301,15 @@ fn test_major_raise_grades() {
 #[test]
 fn test_minor_raise() {
     let system = stance();
-    // 1♦ - eight-count with five-card support -> a simple raise.
+    // 1♦ - eight-count with five-card support -> inverted minors flip the raise
+    // meanings: 3♦ is the weak preemptive raise.
     assert_eq!(
         best_call(
             &system,
             &[call(1, Strain::Diamonds), Call::Pass],
             "T32.J53.KQ942.Q2"
         ),
-        call(2, Strain::Diamonds),
+        call(3, Strain::Diamonds),
     );
 }
 
