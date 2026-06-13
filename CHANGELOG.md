@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `bidding::features` — a versioned feature extractor (M0.3 of the AI-bidder
+  effort). `features(hand, context)` returns a `Vec<f32>` of exactly 160
+  values (`FEATURES_LEN`) encoding five blocks: per-suit rank/length/honor
+  indicators (76), global hand evaluations (HCP, upgraded points, Fifths,
+  CCCC, NLTC, balanced flag — 6), laws-only auction facts (our/their strains,
+  contract-to-beat, partner's last bid, penalty, seat, we-opened — 36),
+  inferences per seat (length ranges, point ranges from `Inferences::read` —
+  40), and relative vulnerability (2). Layout is versioned as
+  `FEATURES_VERSION = 1`; block offsets are exported as `OFFSET_*` /
+  `LEN_*` constants.
 - `bidding::constraint::cccc_at_least`, gating on the Kaplan–Rubens CCCC
   ("Four C's") evaluation newly available as `contract_bridge::eval::cccc`
   (validated bit-for-bit against Richard Pavlicek's published distribution

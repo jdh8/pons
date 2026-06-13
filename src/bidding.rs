@@ -6,6 +6,8 @@ pub mod compose;
 pub mod constraint;
 pub mod context;
 pub mod fallback;
+/// Versioned feature extractor for the AI instinct bidder
+pub mod features;
 /// Per-player shape and strength accumulated from the calls
 pub mod inference;
 pub mod instinct;
@@ -22,6 +24,7 @@ pub use array::Array;
 pub use book::{Competitive, Constructive, Defensive, Family, Pair, Phase, Stance};
 pub use compose::{OrElse, Versus};
 pub use context::Context;
+pub use features::{FEATURES_LEN, FEATURES_VERSION, features};
 pub use inference::{Inference, Inferences, Range, Relative};
 pub use instinct::instinct;
 pub use map::Map;
