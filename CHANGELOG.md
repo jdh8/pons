@@ -5,6 +5,58 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.0] — Unreleased
+
+### Added
+
+- `bidding::constraint::cccc_at_least`, gating on the Kaplan–Rubens CCCC
+  ("Four C's") evaluation newly available as `contract_bridge::eval::cccc`
+  (validated bit-for-bit against Richard Pavlicek's published distribution
+  over all 635,013,559,600 hands). CCCC weighs honor placement together with
+  shape, making it the right gauge for suit contracts; Fifths remains the
+  gauge toward notrump, especially 3NT. The `check-nltc` example gains a CCCC
+  column: on 2000-deal pair sums it correlates 0.72 with par suit-contract
+  tricks, in the same league as BUM-RAP+ (0.75) and ahead of NLTC.
+- `bidding::constraint::points`, the fuzzy-strength gauge: raw HCP plus an
+  `upgrade` (also exported) for clean unbalanced hands. An unbalanced hand
+  whose short suits (≤ 2 cards) waste no honors gets +1, and +1 more with ten
+  or more cards in its two longest suits; any A/K/Q/J in shortness voids the
+  upgrade, except the working Ax and Kx. Balanced hands never upgrade, so
+  `points` coincides with `hcp` for them.
+- `bidding::constraint::fifths`, gating on Thomas Andrews's computed point
+  count for 3NT (an `f64` range on the same 40-point scale as HCP).
+- The `fuzzy-strength` example: an A/B duplicate match where the same 2/1
+  books bid with fuzzy strength on one side and raw HCP on the other, via a
+  per-thread ablation hook read at classification time. `--policy
+  points|fifths|both` ablates the two gauges separately.
+
+### Changed
+
+- **The 2/1 system is now sharp on shape, fuzzy on strength.** Roughly a
+  hundred rule sites across openings, responses, raises, rebids, the
+  game-force structure, Stenberg, weak twos and their Ogust ladder, strong
+  2♣, competition, defense, Rubens advances, and the instinct floor swap raw
+  `hcp` for `points` wherever strength gates a suit-oriented call — including
+  caps, so a clean shapely maximum upgrades *out* of a weak two. Boundary
+  pairs (an overcall cap and its double-then-bid floor) convert together so
+  no upgraded hand falls between bands.
+- Notrump-defining ranges (1NT/2NT openings, opener's balanced 12–14 / 18–19
+  / 22–24 / 25–27 rebids, the 13–15 and 15–17 balanced 3NT rebids) gauge
+  `fifths` over half-open bands (`hcp(15..=17)` → `fifths(15.0..18.0)`), so a
+  queen-heavy 20-count now opens 1♣ planning a 2NT rebid while a ten-rich
+  14-count upgrades into the strong notrump. Responder's notrump ladders
+  (including the whole BTU structure) intentionally stay on raw HCP for a
+  follow-up. The last-resort 1NT rebid fallbacks became unconditional
+  (`hcp(0..)`) so light or off-band openers always retain a book call.
+- Measured by the `fuzzy-strength` example over 20,000-board A/B matches per
+  configuration, the combined policy scores level with raw HCP (runs between
+  −0.04 and +0.03 IMPs/board, within noise at this sample size) while
+  diverging on ~21% of boards. Ablated at 20,000 boards apiece, each half
+  alone also measures −0.01 IMPs/board (`points` diverging on 17% of boards,
+  `fifths` on 5%). The policy is kept for its descriptive value — sharper
+  announced ranges at equal measured strength — and the ablation hooks stay
+  for tuning the halves separately.
+
 ## [0.9.0] — 2026-06-13
 
 ### Added
