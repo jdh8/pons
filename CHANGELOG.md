@@ -9,6 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `bidding::ev::{ev, ev_all}` — the call-EV evaluator (M2.2 of the AI-bidder
+  effort). For a candidate call it answers the question the rule books never
+  could: *what is this call worth?* — by Monte-Carlo rollout grounded in
+  cardplay. It samples layouts with `sample_layouts`, seeds the candidate onto
+  the prior auction, lets a continuation policy bid each layout out, scores the
+  contract reached double dummy, and averages the result in the actor's favour.
+  `ev_all` scores a slate of candidates over the *same* layouts and a single
+  double-dummy solve per layout, so the cost is `n` solves rather than `k · n`;
+  `ev` is the one-call wrapper. The continuation policy is a `System` parameter,
+  not hardwired — callers pass the deterministic `two_over_one()` for now, and
+  the M3 search-improvement loop will swap in successive nets without touching
+  this code; all four seats bid the same policy (a self-play assumption). EVs are
+  average scores in points (positive good for the actor); a call illegal in the
+  prior auction, or an auction so tight no layout can be sampled, scores `NaN`
+  (read as *no signal*). The evaluator is ungated. Five tests cover the ranking
+  sanity (a sound game out-values a hopeless grand, which prices out negative),
+  determinism under a fixed seed, the illegal-candidate and infeasible-auction
+  `NaN` paths, and the empty-slate case. This evaluator is the shared engine
+  behind both the M2.3 live search bidder and the M3 offline training targets.
 - `bidding::sampler::sample_layouts` — the constrained layout sampler (M2.1 of
   the AI-bidder effort, starting Milestone 2). The inverse of `Inferences`: given
   the player to act, their hand, and their seat, it deals the other three hands

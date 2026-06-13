@@ -129,7 +129,7 @@ The piece `Inferences` was built for; needed before any "beat the teacher" work.
   the actor's `hand` and absolute `seat` are explicit parameters — `Context`
   carries neither — and `&Inferences` is taken directly (read via
   `Inferences::read`) so the core is testable without crafting an auction.
-- ⬜ **M2.2 Call EV evaluator.** For a candidate call, continue the auction under
+- ✅ **M2.2 Call EV evaluator.** For a candidate call, continue the auction under
   the current policy over sampled layouts, reach a contract, score double-dummy,
   average. *Deliverable:* `ev(hand, context, call) -> f32`. *Measure:* sanity on
   known textbook decisions (it should prefer the obviously-right call). *Deps:*
@@ -137,7 +137,21 @@ The piece `Inferences` was built for; needed before any "beat the teacher" work.
   player) and M3.1 (offline training targets) — same engine, two uses. The
   double-dummy solves are shared across candidate calls: solve each sampled layout
   once with `NonEmptyStrainFlags::ALL` and score every candidate contract from its
-  `TrickCountTable`, so cost is `n` solves, not `k·n`.
+  `TrickCountTable`, so cost is `n` solves, not `k·n`. **Done:**
+  `bidding::ev::{ev, ev_all}` (ungated). `ev_all` samples layouts, solves each
+  once with `ALL`, and prices a whole candidate slate off the shared
+  `TrickCountTable`s; `ev` wraps it for one call. The rollout reuses
+  `Table::bid_out_from` — seed the candidate onto the prior auction, then bid out
+  — with the continuation policy seated in **all four seats** (self-play). EVs are
+  average scores in points in the actor's favour; an illegal candidate, or an
+  auction too tight or infeasible to sample, returns `NaN` ("no signal"). Five tests:
+  ranking sanity (sound game > hopeless grand, grand prices out negative),
+  fixed-seed determinism, the illegal-candidate and infeasible `NaN` paths, and
+  the empty slate. *Decision (settled this milestone):* the continuation policy is
+  a `System` **parameter**, not hardwired — `ev`'s `policy: &impl System` defaults
+  callers to the deterministic `two_over_one()` for debuggable validation (and ≈
+  the M1 net at bootstrap); M3.2 swaps in successive nets with no change to this
+  code.
 - ⬜ **M2.3 Live search bidder (gated).** Wrap M2.2 as a runtime
   `Classifier`/`System`: at each non-forced decision, use the net's softmax as a
   prior to shortlist the top-`k` legal calls, run `ev` over sampled layouts,
