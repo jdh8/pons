@@ -12,6 +12,10 @@ readme = "README.md"
 license = "Apache-2.0"
 categories = ["game-development"]
 keywords = ["bridge"]
+# The off-crate distillation trainer is a separate workspace and is already
+# skipped by `cargo package`; exclude it explicitly so it stays out of the
+# published tarball even if it were ever made a workspace member.
+exclude = ["trainer"]
 
 [package.metadata.docs.rs]
 all-features = true
