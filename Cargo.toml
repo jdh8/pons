@@ -56,5 +56,14 @@ harness = false
 name = "par"
 harness = false
 
+# The neural-floor A/B example (AI-bidder M1.4) imports `neural-floor`-gated
+# items, so it builds only with that feature — otherwise `cargo build --examples`
+# would fail to resolve `two_over_one_neural`. Every other example is still
+# auto-discovered.
+[[example]]
+name = "neural-floor"
+path = "examples/neural-floor/main.rs"
+required-features = ["neural-floor"]
+
 [profile.dev.package."*"]
 opt-level = 2

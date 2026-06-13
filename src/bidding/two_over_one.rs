@@ -190,17 +190,41 @@ pub fn two_over_one() -> Pair {
     with_instinct_floor(bare_two_over_one())
 }
 
-/// Attach the instinct floor to a pair's contested books
+/// The 2/1 pair with the distilled **neural** floor (AI-bidder M1.3)
+///
+/// Exactly [`two_over_one`] but for the floor: the deterministic
+/// [`instinct`][crate::bidding::instinct()] ladder is replaced by the
+/// [`NeuralFloor`][crate::bidding::neural_floor::NeuralFloor] safety shell — the learned
+/// net in the judgement middle, the forced rails preserved by delegation.  An
+/// added option, never a replacement; [`two_over_one`] stays the baseline.  Bind
+/// it against the opponents' [`Family`] with [`Pair::against`] and seat it the
+/// same way.  Gated behind the `neural-floor` feature.
+#[cfg(feature = "neural-floor")]
+#[must_use]
+pub fn two_over_one_neural() -> Pair {
+    with_floor(bare_two_over_one(), super::neural_floor::NeuralFloor)
+}
+
+/// Attach any classifier as the floor on a pair's contested books
 ///
 /// A root `Always` fallback on both contested books, shared through the
 /// `Fallback`'s `Arc`.  Resolution reaches the root last, so the floor never
-/// overrides an authored rule — it only catches the auctions that fall past
-/// all of them.  Shared by [`two_over_one`] and [`two_over_one_strawberry`].
-fn with_instinct_floor(mut pair: Pair) -> Pair {
-    let floor = Fallback::classify(instinct());
+/// overrides an authored rule — it only catches the auctions that fall past all
+/// of them.  Generic over the floor so [`two_over_one`] (the deterministic
+/// [`instinct`][crate::bidding::instinct()]) and
+/// [`two_over_one_neural`] (the distilled net) share one wiring.
+fn with_floor<C: Classifier + 'static>(mut pair: Pair, floor: C) -> Pair {
+    let floor = Fallback::classify(floor);
     pair.competitive.fallback_at(&[], Always, floor.clone());
     pair.defensive.fallback_at(&[], Always, floor);
     pair
+}
+
+/// Attach the deterministic instinct floor to a pair's contested books
+///
+/// Shared by [`two_over_one`] and [`two_over_one_strawberry`].
+fn with_instinct_floor(pair: Pair) -> Pair {
+    with_floor(pair, instinct())
 }
 
 /// Build the 2/1 pair *without* the instinct floor: the bare authored books

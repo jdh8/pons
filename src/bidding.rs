@@ -16,6 +16,9 @@ pub mod map;
 /// Hand-rolled forward pass for the distilled neural floor (feature-gated)
 #[cfg(feature = "neural-floor")]
 pub mod neural;
+/// Deterministic safety shell over the distilled neural floor (feature-gated)
+#[cfg(feature = "neural-floor")]
+pub mod neural_floor;
 pub mod rules;
 pub mod table;
 /// [`Trie`] as a bidding system
@@ -34,6 +37,8 @@ pub use map::Map;
 pub use rules::Rules;
 pub use table::Table;
 pub use trie::{Trie, classifier};
+#[cfg(feature = "neural-floor")]
+pub use two_over_one::two_over_one_neural;
 pub use two_over_one::{two_over_one, two_over_one_strawberry};
 
 use contract_bridge::Hand;

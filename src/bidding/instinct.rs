@@ -81,17 +81,20 @@ fn inference_aware() -> Cons<impl Constraint + Clone> {
 /// the doubled contract is their suit bid at the three level or below —
 /// doubles of notrump or of game-level contracts read as penalty, not as a
 /// request to act.
+fn forced_advance_now(context: &Context<'_>) -> bool {
+    let auction = context.auction();
+    let n = auction.len();
+    n >= 2
+        && auction[n - 1] == Call::Pass
+        && auction[n - 2] == Call::Double
+        && context
+            .last_bid()
+            .is_some_and(|bid| bid.strain.suit().is_some() && bid.level.get() <= 3)
+}
+
+/// [`forced_advance_now`] as a hand-ignoring [`Constraint`] for the ladder
 fn forced_advance() -> Cons<impl Constraint + Clone> {
-    pred(|_: Hand, context: &Context<'_>| {
-        let auction = context.auction();
-        let n = auction.len();
-        n >= 2
-            && auction[n - 1] == Call::Pass
-            && auction[n - 2] == Call::Double
-            && context
-                .last_bid()
-                .is_some_and(|bid| bid.strain.suit().is_some() && bid.level.get() <= 3)
-    })
+    pred(|_: Hand, context: &Context<'_>| forced_advance_now(context))
 }
 
 /// A trump stack in the doubled suit: four-plus cards with two top honors
@@ -313,11 +316,60 @@ fn not_penalizing() -> Cons<impl Constraint + Clone> {
 
 /// We opened the strong notrump of `nt_level` and partner just transferred with
 /// the call `from` — the cue to complete the transfer
+fn partner_transferred_now(context: &Context<'_>, from: Bid, nt_level: u8) -> bool {
+    our_strong_notrump(context, nt_level, false)
+        && partner_last_call(context.auction()) == Some(from)
+}
+
+/// [`partner_transferred_now`] as a hand-ignoring [`Constraint`] for the ladder
 fn partner_transferred(from: Bid, nt_level: u8) -> Cons<impl Constraint + Clone> {
-    pred(move |_: Hand, context: &Context<'_>| {
-        our_strong_notrump(context, nt_level, false)
-            && partner_last_call(context.auction()) == Some(from)
-    })
+    pred(move |_: Hand, context: &Context<'_>| partner_transferred_now(context, from, nt_level))
+}
+
+/// The transfers instinct completes opposite our own strong notrump, each
+/// `(nt_level, partner's artificial call, completion)`
+///
+/// Standard Jacoby (2♦/2♥ over 1NT, 3♦/3♥ over 2NT) and South African Texas
+/// (4♣/4♦).  Shared by the ladder's completion rules and the [`forced`] rail
+/// predicate so the two never disagree on which transfers are in force.
+const TRANSFERS: [(u8, Bid, Bid); 6] = [
+    (
+        1,
+        Bid::new(2, Strain::Diamonds),
+        Bid::new(2, Strain::Hearts),
+    ),
+    (1, Bid::new(2, Strain::Hearts), Bid::new(2, Strain::Spades)),
+    (1, Bid::new(4, Strain::Clubs), Bid::new(4, Strain::Hearts)),
+    (
+        1,
+        Bid::new(4, Strain::Diamonds),
+        Bid::new(4, Strain::Spades),
+    ),
+    (
+        2,
+        Bid::new(3, Strain::Diamonds),
+        Bid::new(3, Strain::Hearts),
+    ),
+    (2, Bid::new(3, Strain::Hearts), Bid::new(3, Strain::Spades)),
+];
+
+/// An auction-determined forced situation: partner's live takeout double, a
+/// prior call committing our side to game, or partner's just-made transfer over
+/// our strong notrump
+///
+/// Hand-independent — it follows from the calls alone.  The neural safety shell
+/// consults it to decide when to delegate to the deterministic [`instinct()`]
+/// ladder instead of trusting the learned net: the net handles the judgement
+/// middle, but never these forced rails.  Hand-conditioned forces (a
+/// strong-notrump responder who holds game values) are deliberately excluded —
+/// they are judgement the net is trusted with, measured on the harness.
+#[cfg(feature = "neural-floor")]
+pub(crate) fn forced(context: &Context<'_>) -> bool {
+    forced_advance_now(context)
+        || Interpretation::read(context).forced_to_game
+        || TRANSFERS
+            .iter()
+            .any(|&(nt_level, from, _)| partner_transferred_now(context, from, nt_level))
 }
 
 /// Build the instinct ladder: a sane natural action for any auction
@@ -454,27 +506,7 @@ pub fn instinct() -> Rules {
     // Jacoby (2♦/2♥, 3♦/3♥ over 2NT) and South African Texas (4♣/4♦); the book
     // authors these where it can, so this only catches off-book and competitive
     // continuations.  Bid the suit just above partner's artificial call.
-    let transfers = [
-        (
-            1u8,
-            Bid::new(2, Strain::Diamonds),
-            Bid::new(2, Strain::Hearts),
-        ),
-        (1, Bid::new(2, Strain::Hearts), Bid::new(2, Strain::Spades)),
-        (1, Bid::new(4, Strain::Clubs), Bid::new(4, Strain::Hearts)),
-        (
-            1,
-            Bid::new(4, Strain::Diamonds),
-            Bid::new(4, Strain::Spades),
-        ),
-        (
-            2,
-            Bid::new(3, Strain::Diamonds),
-            Bid::new(3, Strain::Hearts),
-        ),
-        (2, Bid::new(3, Strain::Hearts), Bid::new(3, Strain::Spades)),
-    ];
-    for (nt_level, from, to) in transfers {
+    for (nt_level, from, to) in TRANSFERS {
         rules = rules.rule(
             to,
             1.5,

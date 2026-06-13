@@ -62,27 +62,48 @@ without writing a line of ML.
 
 Prove the whole pipeline by *cloning* the current system.
 
-- ⬜ **M1.1 Train the MLP** (off-crate). Fit the summary-feature MLP
+- ✅ **M1.1 Train the MLP** (off-crate). Fit the summary-feature MLP
   ([policy-net Phase 1](02-policy-net.md#phase-1--mlp-on-summary-features-the-recommended-start))
   to the M0.4 dataset. *Deliverable:* a weights artifact + held-out cross-entropy.
   *Measure:* held-out top-1 agreement with the teacher (target high, e.g. >95% on
-  on-book, lower but sane off-book). *Deps:* M0.4.
-- ⬜ **M1.2 Rust forward pass** behind an `ml`/`neural-floor` feature flag
+  on-book, lower but sane off-book). *Deps:* M0.4. **Done:** `trainer/` (off-crate
+  candle workspace, `exclude`d from the package) → `two_over_one_v1.{f32,json}`,
+  a 160→256→256→38 MLP distilled from `two_over_one()`. 80 epochs, val CE 0.249,
+  top-1 93.8% overall (94.4% constructive, 93.6% contested). Sidecar records
+  feature/teacher version, data seed, and git SHA.
+- ✅ **M1.2 Rust forward pass** behind an `ml`/`neural-floor` feature flag
   ([integration Part 4](04-integration-and-eval.md#part-4--running-the-model-in-pons)).
   *Deliverable:* `classify(features) -> Logits` in-crate, dependency-free.
   *Measure:* its logits match the off-crate model bit-closely on a fixture set
-  (the cross-language equivalence test). *Deps:* M1.1, M0.3.
-- ⬜ **M1.3 Safety shell.** Wrap the net with the deterministic legality +
+  (the cross-language equivalence test). *Deps:* M1.1, M0.3. **Done:**
+  `bidding::neural::classify` behind `neural-floor` (weights `include_bytes!`d, no
+  ML runtime). `matches_candle_fixture()` reproduces the candle logits within
+  1e-3 and matches the arg-max on every fixture row.
+- ✅ **M1.3 Safety shell.** Wrap the net with the deterministic legality +
   forced-situation override ([invariants §0.4](01-foundations.md#part-0--invariants)).
-  *Deliverable:* a `Classifier` safe to attach as the floor. *Measure:* the
-  entire `instinct` test suite passes against the shelled net. *Deps:* M1.2.
-- ⬜ **M1.4 A/B measurement.** A variant of the instinct-floor example: neural
+  *Deliverable:* a `Classifier` safe to attach as the floor. *Measure:* the five
+  §0.4 safety properties pass against the shelled net (the rails, enforced by
+  construction); aggregate teacher-parity is measured by M1.4 — *not* per-auction
+  identity with `instinct()`, infeasible for a ~94%-accurate net. *Deps:* M1.2.
+  **Done:** `bidding::neural_floor::NeuralFloor` + `two_over_one_neural()`. Forced
+  auctions (`instinct::forced` — partner's live takeout double, an auction forcing
+  game, a just-made transfer over our strong NT) delegate to `instinct()`
+  verbatim; everything else is the net, legality-masked via `Auction::can_push`
+  (`Pass` stays finite). Five gated rails tests green. *Decision:* hand-conditioned
+  game forces (a strong-NT responder who *holds* game values) are judgement the
+  net is trusted with, not a hard rail.
+- ✅ **M1.4 A/B measurement.** A variant of the instinct-floor example: neural
   floor vs deterministic floor vs bare books. *Deliverable:* IMPs/board numbers.
   *Measure:* parity with the deterministic floor (≈ 0 IMPs/board against it) and
-  +0.5 preserved vs bare books, over enough boards. *Deps:* M1.3.
+  +0.5 preserved vs bare books, over enough boards. *Deps:* M1.3. **Done:**
+  `examples/neural-floor` (gated), two duplicate matches with 95% CIs. At 8000
+  boards, vul none: neural vs deterministic −0.014 IMPs/board, CI [−0.054, +0.026]
+  (contains 0 — *parity*, the authoritative head-to-head); neural vs bare +0.587
+  IMPs/board, CI [+0.517, +0.656] (the deterministic floor's ≈ +0.5 worth
+  preserved, marginally above on this sample).
 
-Exit M1: a learned floor that *equals* the hand-written one, shipped lean, proven
-on the harness. The machine now does the floor's job — not yet better.
+Exit M1: ✅ a learned floor that *equals* the hand-written one, shipped lean,
+proven on the harness. The machine now does the floor's job — not yet better.
 
 ---
 

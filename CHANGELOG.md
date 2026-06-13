@@ -9,6 +9,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `bidding::neural_floor::NeuralFloor` and `two_over_one_neural()` behind the
+  `neural-floor` feature — the safety shell that makes the distilled net usable
+  as a floor (M1.3 of the AI-bidder effort, completing Milestone 1). The shell is
+  a drop-in `Classifier`: in auction-determined forced situations (partner's live
+  takeout double, an auction that forces game, a just-made transfer over our
+  strong notrump) it delegates to the deterministic `instinct()` ladder verbatim
+  — the learned net is never trusted on the rails — and everywhere else it
+  returns the net's logits legality-masked with `Auction::can_push`, keeping
+  `Pass` finite so a distribution always exists. `two_over_one_neural()` mirrors
+  `two_over_one()` with this floor swapped in; the deterministic `instinct()`
+  floor stays the default and baseline (nothing is removed, an option is added).
+  Five gated tests pin the five §0.4 safety properties against the shelled net.
+  Hand-conditioned game forces are left to the net as judgement, measured by the
+  example below, not hard-railed.
+- `examples/neural-floor` behind the `neural-floor` feature — the A/B measurement
+  for the learned floor (M1.4 of the AI-bidder effort). Two duplicate matches
+  with 95% confidence intervals: the neural floor against the deterministic floor
+  (the distillation parity target) and against bare books (the floor's worth).
+  At 8000 boards (vul none) the neural floor is at parity with the deterministic
+  floor — −0.01 IMPs/board, CI [−0.05, +0.03], containing zero — while preserving
+  the floor's gain over bare books (+0.59 IMPs/board, CI [+0.52, +0.66], against
+  the hand-built floor's recorded ≈ +0.5). The distilled floor *equals* the
+  hand-written one on the harness; the machine now does the floor's job.
 - `bidding::neural` behind the new `neural-floor` cargo feature — the in-crate
   forward pass for the distilled floor (M1.2 of the AI-bidder effort). A
   hand-rolled `f32` matmul + ReLU that embeds the trained `two_over_one_v1`
