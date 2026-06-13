@@ -15,15 +15,25 @@ Legend: ⬜ not started · ✅ done.
 
 The foundation. Pure bridge/Rust work; de-risks everything downstream.
 
-- ⬜ **M0.1 Rule labels.** Add a short string label to each `rule(...)` in the
+- ✅ **M0.1 Rule labels.** Add a short string label to each `rule(...)` in the
   books (or a parallel map). *Deliverable:* `explain()` can name a human-readable
   meaning per winning rule. *Measure:* every node `explain()`s to a non-empty
-  label. *Deps:* none.
-- ⬜ **M0.2 Corpus exporter.** A dev tool that walks the trie and emits the
+  label. *Deps:* none. **Done (Hybrid):** opt-in mechanism only — `Rule.label`
+  (`&'static str`, empty default), `Rules::note("…")` builder, `Rule::label()`
+  accessor, and `Classifier::as_rules()` to recover a node's authored `Rules`
+  from the type-erased trie. No bulk authoring; descriptions are auto-derived
+  (M0.2) and patched with `note` where needed.
+- ✅ **M0.2 Corpus exporter.** A dev tool that walks the trie and emits the
   per-node corpus records `{auction, call, tags, description, constraint-summary}`
   (schema in [foundations §1d](01-foundations.md#1d-the-description-corpus-component-as-prerequisite)).
   *Deliverable:* a corpus file for the 2/1 system. *Measure:* record count ≈ node
-  count; spot-check 20 records for accuracy. *Deps:* M0.1.
+  count; spot-check 20 records for accuracy. *Deps:* M0.1. **Done:**
+  `examples/export-corpus` → JSONL; 770 authored nodes, 2314 `(node,call)`
+  records (2074 constructive, 240 defensive, 0 competitive — that book is mostly
+  rebases/fallbacks), 1479 with a specific WBF tag. Shallow natural nodes
+  (openings, NT responses, T/O doubles, 2/1, raises, weak-twos) verified
+  accurate; deep artificial trees (RKCB/BTU) tagged coarsely → `note`-patch
+  targets. No `constraint` field yet (constraints are eval-only, unreadable).
 - ✅ **M0.3 Feature extractor (spec + reference impl).** Define `features(hand,
   context) -> Vec<f32>` (foundations §1a–1b): suit-exchangeable hand block +
   `Context`/`Inferences` summary + vul + seat. *Deliverable:* a documented,

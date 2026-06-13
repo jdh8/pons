@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `examples/export-corpus` — the description-corpus exporter (M0.2 of the
+  AI-bidder effort). Walks the floorless 2/1 books, recovers each authored node
+  through `Classifier::as_rules()`, and emits one JSONL record per `(node, call)`
+  with WBF tags derived structurally from the auction (and the rule's `note`
+  label as the description where present). A dev tool, not part of the library
+  API.
 - `bidding::rules`: rules can now carry a human-readable `label` (M0.1 of the
   AI-bidder effort). `Rules::note("…")` chains after `rule(…)` to label the
   preceding rule, `Rule::label()` reads it back (empty by default, so the
