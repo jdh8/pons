@@ -135,39 +135,76 @@ net is a calibrated distribution), which is itself useful as a sampling prior.
 **Goal:** improve the policy beyond the books in the off-book auctions, using
 the cardplay truth the books never consulted.
 
-The engine is **one step of policy improvement**, the core loop behind
-AlphaZero-style systems, here without deep tree search because a bridge auction
-is short and the expensive part is the hidden-hand uncertainty, not depth:
+The distilled net (Phase 1) is the *raw policy*: one forward pass, no lookahead —
+fast, but it commits to its first instinct. It "bids too fast." **Net + search is
+the strong policy.** Search here is **one step of policy improvement**, the core
+loop behind AlphaZero-style systems — and, as in AlphaZero, it is run **both at
+training time and at play time**, not only to make training data. There is no deep
+tree search: a bridge auction is short and the expensive part is the hidden-hand
+uncertainty, not depth.
 
-1. **Constrained sampling.** Given `(hand, auction)`, deal many full layouts for
+The engine — the same operator in both uses:
+
+1. **Prior → shortlist.** The net's softmax proposes the plausible calls. Search
+   only the top-`k` (it would waste a DD solve on a call the policy already knows
+   is absurd). *Net proposes, search disposes.*
+2. **Constrained sampling.** Given `(hand, auction)`, deal many full layouts for
    the other three hands *consistent with the auction* — every player's cards
    fall within the `Inferences` ranges their calls promised. (This is the future
    sampler the inference module was built for; it is a milestone in
    [`plan.md`](plan.md).)
-2. **Evaluate each candidate call.** For each legal call `c`, continue the auction
-   (opponents and partner bidding via the current policy), reach a contract, and
-   score it **double-dummy** (you already solve DD). Average over the sampled
-   layouts → an EV for `c`. Single-dummy / Monte-Carlo cardplay is the more honest
-   but pricier evaluator; DD is the practical start.
-3. **Form an improved target.** A distribution peaked on the high-EV calls (e.g.
-   softmax of EVs at some temperature, or the argmax with a margin). This target
-   is, by construction, *at least as good as* the current policy at this state —
-   that is the policy-improvement theorem in plain terms.
-4. **Train toward it**, exactly like distillation but with the search target
-   replacing the teacher softmax. Then **iterate**: the improved net becomes the
-   policy used inside step 2's continuations next round (self-play). Each round
-   the evaluator is bidding with a slightly better policy, so the targets get
-   slightly better, and so on.
+3. **Evaluate each candidate call.** For each shortlisted call `c`, continue the
+   auction (opponents and partner bidding via the current policy), reach a
+   contract, and score it **double-dummy** (you already solve DD). Average over the
+   sampled layouts → an EV for `c`. Single-dummy / Monte-Carlo cardplay is the more
+   honest but pricier evaluator; DD is the practical start.
+4. **Form an improved distribution.** A distribution peaked on the high-EV calls
+   (softmax of EVs at some temperature, or the argmax with a margin). By
+   construction it is *at least as good as* the current policy at this state — the
+   policy-improvement theorem in plain terms.
 
-**Honesty about cost and risk.** Step 2 is expensive (many layouts × many calls ×
-a DD solve each). Budget it: sample only at *decision points that matter*
-(off-book, contested), cap layouts, and cache. Risk: the loop can chase
-double-dummy artifacts (DD is a clairvoyant evaluator and rewards lines no human
-could find at the table). Mitigations — single-dummy evaluation, entropy
-regularization (don't let the policy collapse to overconfident lines), and the
-A/B harness as the ground-truth arbiter every iteration. If a round of search
-*loses* IMPs/board against the previous net, that round is rejected. The harness
-is the judge, not the training loss.
+The same four steps, used two ways:
+
+#### As a runtime player (the "thinking" bidder)
+
+Wrap steps 1–4 as a drop-in `Classifier`/`System`, behind a `search` cargo
+feature, and return the improved distribution directly. This *is* the policy at
+the table: it simulates before it bids. It ships gated and slow on purpose —
+strength over latency — and is the strongest *bidding* player we can field. The
+deterministic forced-rails shell wraps it exactly as it wraps the bare net (see
+below): the rails are never searched. Scope is **bidding only**; Monte-Carlo
+cardplay is a separate, larger effort (no cardplay policy exists in `pons` yet)
+and is out of scope here.
+
+#### As an offline teacher (the path to the *fast* floor)
+
+Take the improved distribution as a training target and **distill toward it**,
+exactly like Phase 1 but with the search target replacing the teacher softmax.
+Then **iterate**: the improved net becomes the policy used inside step 3's
+continuations next round (self-play), the targets get a little better, and so on.
+This bakes the search player's strength back into a single forward pass, so the
+**fast (distilled) floor stays one matmul stack** and needs no runtime search —
+the gated search player remains available when maximum strength is worth the wait.
+Distillation, not the runtime player, remains the path to the fast floor.
+(`instinct()` stays the untouched baseline; both learned floors are added
+options.)
+
+**Cost, and the one efficiency that makes it affordable.** Step 3 reads as "many
+layouts × many calls × a DD solve each", but the DD solves are *shared*: solve
+each sampled layout **once** with all strains (`NonEmptyStrainFlags::ALL`) and its
+`TrickCountTable` scores *any* final contract×declarer on that exact layout. So
+cost is **`n` DD solves total, not `k·n`** — plus `k·n` *cheap* continuation
+auctions (matmuls). Budget the rest: search only at *decision points that matter*
+(off-book, contested; forced nodes delegate to `instinct()` for free), cap `k` and
+`n`, and cache.
+
+**Risk.** The loop can chase double-dummy artifacts — DD is a clairvoyant
+evaluator and rewards lines no human could find at the table. Mitigations:
+single-dummy evaluation later, entropy via the EV temperature (don't let the
+policy collapse to overconfident lines), and the A/B harness as the ground-truth
+arbiter — for the runtime player *and* every distillation round. If a search
+config or a retrained net *loses* IMPs/board against its predecessor, it is
+rejected. The harness is the judge, not the training loss.
 
 ---
 

@@ -120,22 +120,45 @@ The piece `Inferences` was built for; needed before any "beat the teacher" work.
   the current policy over sampled layouts, reach a contract, score double-dummy,
   average. *Deliverable:* `ev(hand, context, call) -> f32`. *Measure:* sanity on
   known textbook decisions (it should prefer the obviously-right call). *Deps:*
-  M2.1, the policy from M1.
+  M2.1, the policy from M1. *Note:* this evaluator feeds **both** M2.3 (the live
+  player) and M3.1 (offline training targets) — same engine, two uses. The
+  double-dummy solves are shared across candidate calls: solve each sampled layout
+  once with `NonEmptyStrainFlags::ALL` and score every candidate contract from its
+  `TrickCountTable`, so cost is `n` solves, not `k·n`.
+- ⬜ **M2.3 Live search bidder (gated).** Wrap M2.2 as a runtime
+  `Classifier`/`System`: at each non-forced decision, use the net's softmax as a
+  prior to shortlist the top-`k` legal calls, run `ev` over sampled layouts,
+  return a distribution peaked on the high-EV calls — behind a `search` cargo
+  feature, wrapped in the same forced-rails shell as `NeuralFloor`. This *is*
+  "simulations in action": the policy simulates before it bids. *Deliverable:* a
+  feature-gated `two_over_one_search()` / `SearchFloor`. *Measure:* A/B IMPs/board
+  vs the deterministic floor (strictly positive) **and** vs the distilled net
+  (search should beat the raw policy), over a board count large enough to exclude
+  zero; the five §0.4 rails tests stay green against the shelled search bidder.
+  *Deps:* M2.2, M1 (net as prior/policy). *Decisions:* bidding only; slow & gated
+  is acceptable (knobs — `n` layouts, `k` shortlist, EV temperature — default to
+  strength, not latency); the default build and `instinct()` baseline are
+  untouched.
 
 Exit M2: we can ask "what is each call actually worth on this hand?" — the signal
-the books never had.
+the books never had — and we can *bid by it* at the table (M2.3), gated.
 
 ---
 
 ## Milestone 3 — Search-improved floor (Phase 2 of Component B)
 
-The point of the exercise.
+The point of the exercise — and the path to the **fast, shipped** learned floor.
+M2.3's live search bidder is strong but slow; M3 distills its strength back into a
+single forward pass so the default build stays fast and needs no runtime search.
+The gated search bidder remains available when maximum strength is worth the wait.
+(`instinct()` stays the untouched baseline; both learned floors are added options.)
 
-- ⬜ **M3.1 Improvement targets.** Turn per-call EVs into a training target
-  distribution ([policy-net Phase 2](02-policy-net.md#phase-2--search-beat-the-teacher)).
-  *Deliverable:* a dataset of `(features, search_target)` over sampled decisions.
-  *Measure:* targets differ from the teacher mainly off-book/contested (where the
-  books were silent). *Deps:* M2.2.
+- ⬜ **M3.1 Improvement targets.** Run the M2.3 search bidder over sampled
+  decisions and record its improved distribution as the training target
+  ([policy-net Phase 2](02-policy-net.md#phase-2--search-beat-the-teacher)).
+  *Deliverable:* a dataset of `(features, search_target)`. *Measure:* targets
+  differ from the teacher mainly off-book/contested (where the books were silent).
+  *Deps:* M2.3.
 - ⬜ **M3.2 Train + iterate.** Retrain toward the search target; feed the improved
   net back into M2.2's continuations; repeat. *Deliverable:* successive nets.
   *Measure:* each round's A/B IMPs/board vs the prior net — **accept only gains**.
@@ -194,7 +217,9 @@ Exit M5: one model, any system, driven by written meanings.
 ```
 M0  ──► M1 ──────────────► (working learned floor, = teacher)
   │       │
-  │       └─► M2 ─► M3 ──► (learned floor > teacher)      ← the real goal
+  │       └─► M2 ──► M2.3 ──► (gated live search bidder: net+search > raw net)
+  │              │      │
+  │              │      └─► M3 ──► (distill it → fast default floor > teacher)  ← the real goal
   │
   └─► M4 ─────────────────► (faster authoring + 2nd system)
             │

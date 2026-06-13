@@ -20,6 +20,12 @@ relevant to the task. `plan.md` is the milestone map and the source of truth for
 
 - **Distill, then search** — clone `two_over_one()` first (M1), beat it with
   constrained-sampling + double-dummy search second (M3).
+- **Search runs at inference time too** — not only as an offline teacher. M2.3 is
+  a gated, slow "thinking" bidder (`two_over_one_search()`) that simulates before
+  it bids; **bidding only** (no cardplay engine). Distillation (M3) stays the path
+  to the *fast (distilled)* floor; the live search bidder is an added gated option
+  and the teacher whose EVs M3 distills. (`instinct()` stays the baseline; both
+  learned floors are added options, never a removal.)
 - **Both LM roles, sequenced** — authoring compiler (M4) before runtime
   meaning-encoder (M5).
 - **Offline train, distill to Rust** — training is off-crate; only a lean

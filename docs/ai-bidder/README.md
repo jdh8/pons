@@ -85,7 +85,10 @@ these framings.
 | CNN | A small filter slid across positions; assumes *translation invariance*. Bad fit for card ranks (an Ace is not "a Two shifted up"). |
 | Distillation | Train a fast "student" to copy a "teacher"'s output distribution. Here: student net copies `two_over_one()`'s softmax. |
 | Policy | A function: state → distribution over actions. **Your floor is already a (deterministic) policy.** The net is a learned one. |
-| Policy improvement / search | Use a slow accurate evaluator (DD over sampled layouts) to score each candidate call, then nudge the policy toward the higher-EV one. Iterate. |
+| Policy improvement / search | Use a slow accurate evaluator (DD over sampled layouts) to score each candidate call, then nudge the policy toward the higher-EV one. Iterate. Run it **at training time** (to make targets) *and* **at play time** (net+search beats the raw net). |
+| Prior policy | The cheap policy (the net's softmax) used to *propose* which calls are worth evaluating — search only the top-`k`. "Net proposes, search disposes." |
+| Rollout | Play the auction out to a contract under the current policy, then score that contract double-dummy on one sampled layout. Average rollouts → a call's EV. |
+| Test-time / inference-time search | Running the policy-improvement operator *at the table*, not only during training. The reason a slow, gated "thinking" bidder beats the fast one-matmul floor. |
 | Self-play | The system generates its own training auctions by bidding against itself, scored by the evaluator. |
 | Temperature / calibration | Scaling logits before softmax. The books use a ~3-nat gap convention; the net must match that scale. |
 | Overfitting / generalization | Memorizing noise vs learning signal. Held-out boards measure the difference. |
