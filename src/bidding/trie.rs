@@ -11,6 +11,16 @@ use std::sync::Arc;
 pub trait Classifier: Send + Sync {
     /// Classify a hand with the given context into logits
     fn classify(&self, hand: Hand, context: &Context<'_>) -> super::array::Logits;
+
+    /// Downcast to the authored [`Rules`][super::rules::Rules], if this is one
+    ///
+    /// Classifiers live type-erased in the [`Trie`]; the description-corpus
+    /// exporter and `explain()`-style tooling recover the authored rules — their
+    /// calls, weights, and labels — through this hook.  Defaults to [`None`];
+    /// only [`Rules`][super::rules::Rules] overrides it to return itself.
+    fn as_rules(&self) -> Option<&super::rules::Rules> {
+        None
+    }
 }
 
 impl fmt::Debug for dyn Classifier {

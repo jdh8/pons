@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `bidding::rules`: rules can now carry a human-readable `label` (M0.1 of the
+  AI-bidder effort). `Rules::note("…")` chains after `rule(…)` to label the
+  preceding rule, `Rule::label()` reads it back (empty by default, so the
+  authored books are unchanged), and `Classifier::as_rules()` downcasts a
+  type-erased trie classifier back to its authored `Rules` — the hook the
+  description-corpus exporter uses to recover each node's calls and labels.
 - `bidding::features` — a versioned feature extractor (M0.3 of the AI-bidder
   effort). `features(hand, context)` returns a `Vec<f32>` of exactly 160
   values (`FEATURES_LEN`) encoding five blocks: per-suit rank/length/honor

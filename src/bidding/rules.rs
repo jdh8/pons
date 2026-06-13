@@ -25,6 +25,7 @@ pub struct Rule {
     call: Call,
     weight: f32,
     when: Arc<dyn Constraint>,
+    label: &'static str,
 }
 
 impl Rule {
@@ -40,6 +41,16 @@ impl Rule {
         self.weight
     }
 
+    /// The human-readable meaning of this rule, or `""` if unlabeled
+    ///
+    /// Set with [`Rules::note`].  Feeds the description corpus and any
+    /// `explain()`-style tooling that names a bid's meaning; the empty default
+    /// keeps the 510 authored rules churn-free until a meaning is worth adding.
+    #[must_use]
+    pub const fn label(&self) -> &'static str {
+        self.label
+    }
+
     /// The logit this rule contributes for a hand
     #[must_use]
     pub fn eval(&self, hand: Hand, context: &Context<'_>) -> f32 {
@@ -52,6 +63,7 @@ impl fmt::Debug for Rule {
         f.debug_struct("Rule")
             .field("call", &self.call)
             .field("weight", &self.weight)
+            .field("label", &self.label)
             .finish_non_exhaustive()
     }
 }
@@ -81,7 +93,27 @@ impl Rules {
             call: call.into(),
             weight,
             when: Arc::new(when),
+            label: "",
         });
+        self
+    }
+
+    /// Label the most recently added rule with a human-readable meaning
+    ///
+    /// Chains after [`rule`][Self::rule]: `….rule(call, w, when).note("T/O")`.
+    /// The label feeds the description corpus (see [`Rule::label`]).  Labeling
+    /// is opt-in and incremental — most rules stay unlabeled and have their
+    /// meaning derived structurally at export time.
+    ///
+    /// # Panics
+    ///
+    /// Panics if no rule has been added yet.
+    #[must_use]
+    pub fn note(mut self, label: &'static str) -> Self {
+        self.rules
+            .last_mut()
+            .expect("note() requires a preceding rule()")
+            .label = label;
         self
     }
 
@@ -121,6 +153,10 @@ impl Classifier for Rules {
             *slot = slot.max(rule.eval(hand, context));
         }
         logits
+    }
+
+    fn as_rules(&self) -> Option<&Rules> {
+        Some(self)
     }
 }
 
@@ -169,6 +205,24 @@ mod tests {
 
         let weak = "98432.K53.QJ4.92".parse().expect("valid hand");
         assert_eq!(best_call(&rules.classify(weak, &context)), Call::Pass);
+    }
+
+    #[test]
+    fn test_note_labels_last_rule_and_downcasts() {
+        let rules = Rules::new()
+            .rule(Bid::new(1, Strain::Notrump), 1.0, hcp(15..=17) & balanced())
+            .note("15-17 BAL")
+            .rule(Call::Pass, 0.0, hcp(..11));
+
+        // note() labels the immediately preceding rule; the unlabeled one is "".
+        assert_eq!(rules.rules()[0].label(), "15-17 BAL");
+        assert_eq!(rules.rules()[1].label(), "");
+
+        // The corpus hook recovers the authored rules through a type-erased ref.
+        let erased: &dyn Classifier = &rules;
+        let recovered = erased.as_rules().expect("Rules downcasts to itself");
+        assert_eq!(recovered.rules().len(), 2);
+        assert_eq!(recovered.rules()[0].label(), "15-17 BAL");
     }
 
     #[test]
