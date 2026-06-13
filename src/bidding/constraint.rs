@@ -32,6 +32,7 @@
 use super::context::Context;
 use contract_bridge::eval::{self, HandEvaluator, SimpleEvaluator};
 use contract_bridge::{Hand, Holding, Level, Rank, Strain, Suit};
+use core::cell::Cell;
 use core::ops::{BitAnd, BitOr, Not, RangeBounds};
 
 /// Trait for a logit contribution of a hand feature
@@ -151,11 +152,116 @@ where
     Cons(move |hand: Hand, context: &Context<'_>| crisp(condition(hand, context)))
 }
 
+std::thread_local! {
+    /// Whether [`points`] applies its upgrade on top of raw HCP
+    static FUZZY_POINTS: Cell<bool> = const { Cell::new(true) };
+    /// Whether [`fifths`] evaluates Fifths rather than raw HCP
+    static FUZZY_FIFTHS: Cell<bool> = const { Cell::new(true) };
+}
+
+/// Enable or disable fuzzy strength on the current thread
+///
+/// For A/B measurement only: with fuzzy strength disabled, [`points`] and
+/// [`fifths`] fall back to comparing raw HCP against the same bounds, so one
+/// set of books serves as both the baseline and the upgraded system.  The
+/// flags are read at classification time and are per-thread; classify on the
+/// thread that set them.
+#[doc(hidden)]
+pub fn set_fuzzy_strength(enabled: bool) {
+    set_fuzzy_points(enabled);
+    set_fuzzy_fifths(enabled);
+}
+
+/// Enable or disable the [`points`] upgrade alone (see [`set_fuzzy_strength`])
+#[doc(hidden)]
+pub fn set_fuzzy_points(enabled: bool) {
+    FUZZY_POINTS.with(|flag| flag.set(enabled));
+}
+
+/// Enable or disable [`fifths`] alone (see [`set_fuzzy_strength`])
+#[doc(hidden)]
+pub fn set_fuzzy_fifths(enabled: bool) {
+    FUZZY_FIFTHS.with(|flag| flag.set(enabled));
+}
+
+/// Raw high card points of a hand
+fn raw_hcp(hand: Hand) -> u8 {
+    SimpleEvaluator(eval::hcp::<u8>).eval(hand)
+}
+
 /// Total high card points in the given range
 #[must_use]
 pub fn hcp(range: impl RangeBounds<u8> + Clone + Send + Sync) -> Cons<impl Constraint + Clone> {
+    pred(move |hand: Hand, _: &Context<'_>| range.contains(&raw_hcp(hand)))
+}
+
+/// Whether a short suit (at most two cards) blocks the fuzzy-strength upgrade
+///
+/// Honors in shortness are wasted: any of A/K/Q/J in a suit of at most two
+/// cards blocks the upgrade, except the working holdings Ax and Kx.
+const fn blocks_upgrade(holding: Holding) -> bool {
+    holding.len() <= 2
+        && (holding.contains(Rank::Q)
+            || holding.contains(Rank::J)
+            || (holding.contains(Rank::A) && holding.contains(Rank::K))
+            || (holding.len() == 1 && (holding.contains(Rank::A) || holding.contains(Rank::K))))
+}
+
+/// Fuzzy-strength upgrade on top of raw HCP
+///
+/// Sharp on shape, fuzzy on strength: an unbalanced hand whose short suits
+/// waste no honors (see below) upgrades by 1 point, plus 1 more with ten or
+/// more cards in its two longest suits.  Balanced hands never upgrade, so
+/// [`points`] coincides with [`hcp`] for them.
+///
+/// An honor (A, K, Q, or J) in a suit of at most two cards is wasted and
+/// voids the whole upgrade, except the working holdings Ax and Kx.
+#[must_use]
+pub fn upgrade(hand: Hand) -> u8 {
+    let holdings = Suit::ASC.map(|suit| hand[suit]);
+
+    if holdings.iter().any(|&holding| blocks_upgrade(holding)) {
+        return 0;
+    }
+
+    let mut lengths = holdings.map(Holding::len);
+    lengths.sort_unstable();
+    u8::from(!is_balanced(hand)) + u8::from(lengths[2] + lengths[3] >= 10)
+}
+
+/// Upgraded points — HCP plus [`upgrade`] — in the given range
+///
+/// The strength gauge for suit-oriented calls.  Notrump-defining ranges use
+/// [`fifths`] instead, and ranges indifferent to shape keep [`hcp`].
+#[must_use]
+pub fn points(range: impl RangeBounds<u8> + Clone + Send + Sync) -> Cons<impl Constraint + Clone> {
     pred(move |hand: Hand, _: &Context<'_>| {
-        range.contains(&SimpleEvaluator(eval::hcp::<u8>).eval(hand))
+        let bonus = if FUZZY_POINTS.with(Cell::get) {
+            upgrade(hand)
+        } else {
+            0
+        };
+        range.contains(&(raw_hcp(hand) + bonus))
+    })
+}
+
+/// Total [Fifths][eval::FIFTHS] in the given range
+///
+/// Thomas Andrews's computed point count for 3NT, on the same 40-point scale
+/// as HCP (A&nbsp;=&nbsp;4, K&nbsp;=&nbsp;2.8, Q&nbsp;=&nbsp;1.8,
+/// J&nbsp;=&nbsp;1, T&nbsp;=&nbsp;0.4).  The strength gauge for
+/// notrump-defining ranges; convert an integer HCP band to a half-open
+/// interval, e.g. `hcp(15..=17)` becomes `fifths(15.0..18.0)` so adjacent
+/// bands keep tiling.
+#[must_use]
+pub fn fifths(range: impl RangeBounds<f64> + Clone + Send + Sync) -> Cons<impl Constraint + Clone> {
+    pred(move |hand: Hand, _: &Context<'_>| {
+        let value = if FUZZY_FIFTHS.with(Cell::get) {
+            eval::FIFTHS.eval(hand)
+        } else {
+            f64::from(raw_hcp(hand))
+        };
+        range.contains(&value)
     })
 }
 
@@ -167,20 +273,33 @@ pub fn len(
     pred(move |hand: Hand, _: &Context<'_>| range.contains(&hand[suit].len()))
 }
 
+/// Balanced shape kernel shared by [`balanced`] and [`upgrade`]
+fn is_balanced(hand: Hand) -> bool {
+    let lengths = Suit::ASC.map(|suit| hand[suit].len());
+    lengths.iter().all(|&length| length >= 2)
+        && lengths.iter().filter(|&&length| length == 2).count() <= 1
+}
+
 /// Balanced shape: 4333, 4432, or 5332
 #[must_use]
 pub fn balanced() -> Cons<impl Constraint + Clone> {
-    pred(|hand: Hand, _: &Context<'_>| {
-        let lengths = Suit::ASC.map(|suit| hand[suit].len());
-        lengths.iter().all(|&length| length >= 2)
-            && lengths.iter().filter(|&&length| length == 2).count() <= 1
-    })
+    pred(|hand: Hand, _: &Context<'_>| is_balanced(hand))
 }
 
 /// [New Losing Trick Count][eval::NLTC] at most the given number of losers
 #[must_use]
 pub fn nltc_at_most(losers: f64) -> Cons<impl Constraint + Clone> {
     pred(move |hand: Hand, _: &Context<'_>| eval::NLTC.eval(hand) <= losers)
+}
+
+/// [Kaplan–Rubens CCCC][eval::cccc] at least the given strength
+///
+/// CCCC weighs honor placement together with shape, which makes it
+/// particularly accurate for suit contracts; prefer [`fifths`] toward
+/// notrump.
+#[must_use]
+pub fn cccc_at_least(points: f64) -> Cons<impl Constraint + Clone> {
+    pred(move |hand: Hand, _: &Context<'_>| eval::cccc(hand) >= points)
 }
 
 /// Support for partner's last bid suit in the given range
@@ -347,6 +466,82 @@ mod tests {
         assert_reject(hcp(16..).eval(hand(BALANCED_15), &context));
         assert_pass(balanced().eval(hand(BALANCED_15), &context));
         assert_reject(balanced().eval(hand("AKQJ2.K543.QJ4.2"), &context));
+    }
+
+    #[test]
+    fn test_blocks_upgrade() {
+        let clean = ["", "2", "32", "A2", "K2", "KT", "AKQ", "QJ2", "J32"];
+        let wasted = [
+            "A", "K", "Q", "J", "Q2", "J2", "AK", "AQ", "AJ", "KQ", "KJ", "QJ",
+        ];
+
+        for text in clean {
+            let holding: Holding = text.parse().expect(text);
+            assert!(!blocks_upgrade(holding), "{text} should not block");
+        }
+        for text in wasted {
+            let holding: Holding = text.parse().expect(text);
+            assert!(blocks_upgrade(holding), "{text} should block");
+        }
+    }
+
+    #[test]
+    fn test_upgrade() {
+        // Balanced hands never upgrade, clean doubleton or not.
+        assert_eq!(upgrade(hand(BALANCED_15)), 0);
+        assert_eq!(upgrade(hand("AQJ32.K53.QJ4.92")), 0);
+
+        // Unbalanced, clean singleton: +1.
+        assert_eq!(upgrade(hand("KQ765.A876.532.2")), 1);
+
+        // Two-suiter with 10+ cards in the two longest suits: +2.
+        assert_eq!(upgrade(hand("KQ765.A8765.32.2")), 2);
+        assert_eq!(upgrade(hand("KQ8765.A876.32.2")), 2);
+
+        // Ax and Kx are working short holdings, not wasted.
+        assert_eq!(upgrade(hand("KQ765.87654.A2.2")), 2);
+
+        // Wasted short honors void the whole upgrade.
+        assert_eq!(upgrade(hand("KQ765.A876.532.K")), 0); // stiff K
+        assert_eq!(upgrade(hand("KQ765.A8765.Q2.2")), 0); // Qx
+        assert_eq!(upgrade(hand("KQ765.87654.AK.2")), 0); // AK tight
+    }
+
+    #[test]
+    fn test_points_and_fifths() {
+        let context = empty_context();
+
+        // 9 HCP, clean 5-5: counts as 11 upgraded points.
+        let two_suiter = hand("KQ765.A8765.32.2");
+        assert_pass(points(11..=11).eval(two_suiter, &context));
+        assert_reject(points(..=10).eval(two_suiter, &context));
+
+        // Balanced hands score their raw HCP.
+        assert_pass(points(15..=15).eval(hand(BALANCED_15), &context));
+
+        // BALANCED_15 is 15 HCP but only 14.6 Fifths: its queens and jacks
+        // are worth less toward 3NT, so it drops out of a 15-17 notrump.
+        assert_reject(fifths(15.0..18.0).eval(hand(BALANCED_15), &context));
+        assert_pass(fifths(12.0..15.0).eval(hand(BALANCED_15), &context));
+
+        // CCCC of this 4333 is 14.90 (oracle-verified in contract-bridge).
+        assert_pass(cccc_at_least(14.9).eval(hand("AQ32.K53.QJ4.A92"), &context));
+        assert_reject(cccc_at_least(15.0).eval(hand("AQ32.K53.QJ4.A92"), &context));
+    }
+
+    #[test]
+    fn test_fuzzy_strength_toggle() {
+        let context = empty_context();
+        let two_suiter = hand("KQ765.A8765.32.2");
+
+        set_fuzzy_strength(false);
+        // Raw HCP: 9 points, and fifths degrades to raw HCP too.
+        assert_pass(points(9..=9).eval(two_suiter, &context));
+        assert_pass(fifths(15.0..18.0).eval(hand(BALANCED_15), &context));
+        assert_reject(fifths(15.5..18.0).eval(hand(BALANCED_15), &context));
+        set_fuzzy_strength(true);
+
+        assert_pass(points(11..=11).eval(two_suiter, &context));
     }
 
     #[test]

@@ -23,12 +23,13 @@ fn calculate_par_suit_tricks(tricks: TrickCountTable) -> Option<(Suit, Seat, i8)
         })
 }
 
-const EVALUATORS: [&'static dyn eval::HandEvaluator<f64>; 5] = [
+const EVALUATORS: [&'static dyn eval::HandEvaluator<f64>; 6] = [
     &eval::SimpleEvaluator(eval::hcp_plus::<f64>),
     &eval::BUMRAP_PLUS,
     &eval::SimpleEvaluator(eval::ltc::<f64>),
     &eval::NLTC,
     &eval::zar,
+    &eval::cccc,
 ];
 
 type Columns = na::Const<{ EVALUATORS.len() + 1 }>;
