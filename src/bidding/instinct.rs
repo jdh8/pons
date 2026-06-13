@@ -46,12 +46,34 @@
 
 use super::Rules;
 use super::constraint::{
-    Cons, Constraint, balanced, hcp, len, min_level_is, partner_suit_is, points, pred,
-    short_in_their_suits, stopper_in_their_suits, support, they_bid,
+    Cons, Constraint, balanced, hcp, len, min_level_is, partner_shown_len, partner_suit_is, points,
+    pred, short_in_their_suits, stopper_in_their_suits, support, they_bid,
 };
 use super::context::Context;
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Hand, Penalty, Rank, Strain, Suit};
+use core::cell::Cell;
+
+std::thread_local! {
+    /// Whether the floor consults the auction interpretation for known fits
+    static INFERENCE_AWARE: Cell<bool> = const { Cell::new(true) };
+}
+
+/// Enable or disable inference-aware instinct rules on the current thread
+///
+/// For A/B measurement only (see the `inference-floor` example): with it
+/// disabled the floor ignores partner's shown shape, falling back to the
+/// shape-blind 3NT / six-card-major game selection.  The flag is read at
+/// classification time and is per-thread; classify on the thread that set it.
+#[doc(hidden)]
+pub fn set_inference_aware(enabled: bool) {
+    INFERENCE_AWARE.with(|flag| flag.set(enabled));
+}
+
+/// The floor is consulting the auction interpretation (see [`set_inference_aware`])
+fn inference_aware() -> Cons<impl Constraint + Clone> {
+    pred(|_: Hand, _: &Context<'_>| INFERENCE_AWARE.with(Cell::get))
+}
 
 /// Partner's takeout double is live: the auction ends `… (bid) X (Pass)`
 ///
@@ -483,6 +505,25 @@ pub fn instinct() -> Rules {
             1.45,
             forced_game.clone() & below_game() & len(major, 6..) & level_available(4, strain),
         );
+        // A *known* eight-card major fit outranks 3NT: bid the major game when
+        // our five-card suit meets partner's shown three-card support, or our
+        // three-card support meets partner's shown five-card suit.  The shown
+        // lengths come from the auction interpretation ([`Inferences`]), so this
+        // fires only on a fit the calls have actually promised — e.g. opposite
+        // our 1NT after partner's natural, forcing three-level major.
+        //
+        // [`Inferences`]: super::inference::Inferences
+        let known_major_fit = (len(major, 5..) & partner_shown_len(major, 3..))
+            | (len(major, 3..) & partner_shown_len(major, 5..));
+        rules = rules.rule(
+            Bid::new(4, strain),
+            1.50,
+            forced_game.clone()
+                & below_game()
+                & inference_aware()
+                & known_major_fit
+                & level_available(4, strain),
+        );
     }
 
     // Takeout double of their low suit bid: shape with opening values, or
@@ -610,6 +651,20 @@ mod tests {
             Call::Pass,
         ];
         assert_eq!(best(&auction, "KQ52.AQ984.J6.32"), call(3, Strain::Notrump));
+    }
+
+    #[test]
+    fn forced_to_game_picks_the_known_major_fit() {
+        // We opened 1NT; partner's off-book, forcing 3♥ shows five-plus hearts.
+        // With three-card support that is a known eight-card fit, so bid 4♥
+        // rather than the stopperless-agnostic 3NT.
+        let auction = [
+            call(1, Strain::Notrump),
+            Call::Pass,
+            call(3, Strain::Hearts),
+            Call::Pass,
+        ];
+        assert_eq!(best(&auction, "AQ52.K53.KQ4.32"), call(4, Strain::Hearts));
     }
 
     #[test]

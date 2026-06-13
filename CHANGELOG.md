@@ -29,6 +29,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   books bid with fuzzy strength on one side and raw HCP on the other, via a
   per-thread ablation hook read at classification time. `--policy
   points|fifths|both` ablates the two gauges separately.
+- `bidding::inference`, a per-player summary of what the calls have shown —
+  each suit's length range and the point range — accumulated across an auction
+  and derived purely from the calls under standard 2/1 meanings (`Inferences`,
+  `Inference`, the inclusive `Range`, and a `Relative` seat). It fills the gap
+  the eval-only `Constraint` leaves: a `len(..)` rule's length cannot be read
+  back out, so the summary is reconstructed from the calls (like the instinct
+  floor's `Interpretation`). Every range only ever *narrows*, so a hand that
+  made the calls always falls within it — the soundness the future constrained
+  sampler relies on; the deriver stays silent on artificial structures
+  (Stayman, transfers, the strong-2♣ responses) rather than misread them.
+- `bidding::constraint::partner_shown_len` and `partner_shown_points`, crisp
+  predicates reading partner's guaranteed minimum from `Inferences` — what
+  partner's calls *promised*, where `support` grades what *our* hand holds.
+- The `inference-floor` example: an A/B duplicate match measuring the
+  inference-aware floor against the pre-inference floor via the
+  `set_inference_aware` ablation hook.
 
 ### Changed
 
@@ -48,6 +64,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (including the whole BTU structure) intentionally stay on raw HCP for a
   follow-up. The last-resort 1NT rebid fallbacks became unconditional
   (`hcp(0..)`) so light or off-band openers always retain a book call.
+- **The instinct floor now reads partner's shown shape.** In a forced-to-game
+  auction it bids a *known* eight-card-plus major fit (our five-card suit
+  opposite partner's shown three-card support, or our support opposite
+  partner's shown five-card suit — e.g. opposite our 1NT after partner's
+  natural, forcing three-level major) rather than the shape-blind 3NT.
+  Measured by the `inference-floor` example over 20,000-board A/B matches, it
+  scores non-negative at every vulnerability (+0.00 to +0.01 IMPs/board, ~1.5
+  to 3 IMPs per divergent board) while diverging on only ~0.3% of boards — the
+  triggering auctions are rare, so the gain is small but real and never a
+  regression.
 - Measured by the `fuzzy-strength` example over 20,000-board A/B matches per
   configuration, the combined policy scores level with raw HCP (runs between
   −0.04 and +0.03 IMPs/board, within noise at this sample size) while

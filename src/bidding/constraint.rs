@@ -30,6 +30,7 @@
 //! ```
 
 use super::context::Context;
+use super::inference::Inferences;
 use contract_bridge::eval::{self, HandEvaluator, SimpleEvaluator};
 use contract_bridge::{Hand, Holding, Level, Rank, Strain, Suit};
 use core::cell::Cell;
@@ -315,6 +316,39 @@ pub fn support(
     })
 }
 
+/// Partner has shown at least the given length in `suit` (see [`Inferences`])
+///
+/// Where [`support`] grades *our* fit for partner's last suit, this reads what
+/// partner's calls have *promised* in `suit` — the guaranteed minimum length
+/// from [`Inferences::read`], tested against `range`.  Comparing the shown
+/// minimum (not the maximum) keeps the constraint sound: it fires only on
+/// length partner cannot lack.
+///
+/// [`Inferences`]: super::inference::Inferences
+/// [`Inferences::read`]: super::inference::Inferences::read
+pub fn partner_shown_len(
+    suit: Suit,
+    range: impl RangeBounds<u8> + Clone + Send + Sync,
+) -> Cons<impl Constraint + Clone> {
+    pred(move |_: Hand, context: &Context<'_>| {
+        let shown = Inferences::read(context).partner().length(suit);
+        range.contains(&shown.min)
+    })
+}
+
+/// Partner has shown at least the given points (see [`partner_shown_len`])
+///
+/// Reads the guaranteed minimum of partner's shown point range and tests it
+/// against `range`, on the same upgraded [`points`] scale.
+pub fn partner_shown_points(
+    range: impl RangeBounds<u8> + Clone + Send + Sync,
+) -> Cons<impl Constraint + Clone> {
+    pred(move |_: Hand, context: &Context<'_>| {
+        let shown = Inferences::read(context).partner().points;
+        range.contains(&shown.min)
+    })
+}
+
 /// Count of top honors (A, K, Q) in the given suit, in the given range
 ///
 /// Suit quality for preempts, positives, and asking bids: "two of the top
@@ -577,6 +611,21 @@ mod tests {
         // clubs is not their suit.
         assert_pass(stopper_in_their_suits().eval(hand(BALANCED_15), &context));
         assert_reject(stopper_in_their_suits().eval(hand("AKQ2.K53.T92.QJ4"), &context));
+    }
+
+    #[test]
+    fn test_partner_shown_len_and_points() {
+        // Partner opened 1♦ (3+ diamonds, 12+), RHO passed; we act.
+        let auction = [Call::Bid(Bid::new(1, Strain::Diamonds)), Call::Pass];
+        let context = Context::new(RelativeVulnerability::NONE, &auction);
+
+        assert_pass(partner_shown_len(Suit::Diamonds, 3..).eval(hand(BALANCED_15), &context));
+        assert_reject(partner_shown_len(Suit::Diamonds, 4..).eval(hand(BALANCED_15), &context));
+        assert_pass(partner_shown_points(12..).eval(hand(BALANCED_15), &context));
+        assert_reject(partner_shown_points(13..).eval(hand(BALANCED_15), &context));
+
+        // Nothing shown in an unbid suit: the minimum is zero.
+        assert_reject(partner_shown_len(Suit::Spades, 1..).eval(hand(BALANCED_15), &context));
     }
 
     #[test]

@@ -6,6 +6,8 @@ pub mod compose;
 pub mod constraint;
 pub mod context;
 pub mod fallback;
+/// Per-player shape and strength accumulated from the calls
+pub mod inference;
 pub mod instinct;
 /// [`Call`]-keyed hash map
 pub mod map;
@@ -20,6 +22,7 @@ pub use array::Array;
 pub use book::{Competitive, Constructive, Defensive, Family, Pair, Phase, Stance};
 pub use compose::{OrElse, Versus};
 pub use context::Context;
+pub use inference::{Inference, Inferences, Range, Relative};
 pub use instinct::instinct;
 pub use map::Map;
 pub use rules::Rules;
