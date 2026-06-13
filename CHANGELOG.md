@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `examples/teacher-dump` — the distillation dataset generator (M0.4 of the
+  AI-bidder effort, completing Milestone 0). Bids out random boards with
+  `two_over_one()` and writes one `(features, teacher_softmax)` row per decision
+  to a flat little-endian `f32` file (160 features + 38-way softmax = 198 floats
+  per row) plus a JSON sidecar pinning the feature version, teacher, seed, git
+  SHA, and counts. A dev tool, not part of the library API.
 - `examples/export-corpus` — the description-corpus exporter (M0.2 of the
   AI-bidder effort). Walks the floorless 2/1 books, recovers each authored node
   through `Classifier::as_rules()`, and emits one JSONL record per `(node, call)`

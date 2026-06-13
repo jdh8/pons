@@ -43,13 +43,17 @@ The foundation. Pure bridge/Rust work; de-risks everything downstream.
   evals + 36 context + 40 inferences + 2 vul), `FEATURES_VERSION`/`FEATURES_LEN`
   + `OFFSET_*`/`LEN_*` constants, 11 layout-pinning tests. Tags chosen for the
   corpus: WBF abbreviations (`wbf-abbreviations.md`).
-- ⬜ **M0.4 Teacher dump.** Using the feature extractor, bid out random boards
+- ✅ **M0.4 Teacher dump.** Using the feature extractor, bid out random boards
   with `two_over_one()` and record `(features, teacher_softmax)` at each decision,
   oversampling off-book/contested auctions. *Deliverable:* a training dataset.
   *Measure:* dataset stats (size, off-book fraction, call-distribution sanity).
-  *Deps:* M0.3.
+  *Deps:* M0.3. **Done:** `examples/teacher-dump` → flat LE-`f32` (198/row) +
+  JSON sidecar (versioned). Sanity at 3000 boards: 28951 rows, every softmax sums
+  to 1.0, ~72% contested, sane call histogram (P 57%, X 6.5%, openings…). Random
+  boards already yield mostly-contested rows; targeted off-book oversampling is
+  left to M1 data prep.
 
-Exit M0: we have a corpus, a versioned feature spec, and a teacher dataset —
+Exit M0: ✅ we have a corpus, a versioned feature spec, and a teacher dataset —
 without writing a line of ML.
 
 ---
