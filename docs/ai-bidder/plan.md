@@ -111,11 +111,24 @@ proven on the harness. The machine now does the floor's job — not yet better.
 
 The piece `Inferences` was built for; needed before any "beat the teacher" work.
 
-- ⬜ **M2.1 Sampler.** Given `(auction)`, deal the other hands consistent with
+- ✅ **M2.1 Sampler.** Given `(auction)`, deal the other hands consistent with
   every player's `Inferences` ranges. *Deliverable:* `sample_layouts(context, n)`.
   *Measure:* soundness — every sampled hand falls within its shown ranges
   (property test); coverage — the dealt distribution isn't degenerate. *Deps:*
-  none (builds on `Inferences`).
+  none (builds on `Inferences`). **Done:** `bidding::sampler::sample_layouts(hand,
+  seat, &Inferences, rng, n) -> Vec<FullDeal>` (ungated — the natural completion
+  of `Inferences`). Rejection sampling on `contract_bridge::deck::fill_deals`:
+  the actor's hand is pinned into a partial deal so each draw deals only the
+  other 39 cards, kept iff LHO/partner/RHO land within their shown ranges
+  (lengths + `constraint::point_count`, the shared upgraded-points scalar). An
+  `n * 256` attempt budget terminates tight/infeasible auctions, returning ≤ `n`
+  layouts so a shortfall is visible to the caller. Six tests: soundness
+  (proptest), count met on feasible auctions, non-degenerate coverage, empty on
+  an infeasible auction, zero-request. `rand` promoted to a direct dep (already
+  transitive via `contract-bridge`, so the tree is unchanged). *Signature note:*
+  the actor's `hand` and absolute `seat` are explicit parameters — `Context`
+  carries neither — and `&Inferences` is taken directly (read via
+  `Inferences::read`) so the core is testable without crafting an auction.
 - ⬜ **M2.2 Call EV evaluator.** For a candidate call, continue the auction under
   the current policy over sampled layouts, reach a contract, score double-dummy,
   average. *Deliverable:* `ev(hand, context, call) -> f32`. *Measure:* sanity on

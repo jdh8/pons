@@ -20,6 +20,8 @@ pub mod neural;
 #[cfg(feature = "neural-floor")]
 pub mod neural_floor;
 pub mod rules;
+/// Constrained layout sampling: deals consistent with an auction's inferences
+pub mod sampler;
 pub mod table;
 /// [`Trie`] as a bidding system
 pub mod trie;
@@ -35,6 +37,7 @@ pub use inference::{Inference, Inferences, Range, Relative};
 pub use instinct::instinct;
 pub use map::Map;
 pub use rules::Rules;
+pub use sampler::sample_layouts;
 pub use table::Table;
 pub use trie::{Trie, classifier};
 #[cfg(feature = "neural-floor")]

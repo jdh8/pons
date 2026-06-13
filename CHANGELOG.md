@@ -9,6 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `bidding::sampler::sample_layouts` — the constrained layout sampler (M2.1 of
+  the AI-bidder effort, starting Milestone 2). The inverse of `Inferences`: given
+  the player to act, their hand, and their seat, it deals the other three hands
+  at random so that LHO, partner, and RHO each fall within their shown length and
+  point ranges. It pins the actor's thirteen cards into a partial deal and
+  rejection-samples on top of `contract_bridge::deck::fill_deals`, so accepted
+  layouts satisfy every range by construction; an attempt budget bounds tight or
+  infeasible auctions, which may return fewer layouts than requested rather than
+  loop forever. This is the substrate the M2.2 call-EV evaluator will score each
+  candidate call over by double dummy. The sampler is ungated — the natural
+  completion of `Inferences`, which was built for exactly this — and takes the
+  caller's RNG, so the learned floor stays deterministic. Six tests cover
+  soundness (a property test over random hands), the count being met on feasible
+  auctions, non-degenerate coverage, and termination on an infeasible auction.
+- `bidding::constraint::point_count` — the upgraded-points scalar (raw HCP plus
+  the fuzzy-strength `upgrade`) that the suit-oriented `points` constraint gauges
+  and that `Inferences` records its point ranges on. A single definition now
+  shared by the new sampler and the `Inferences` soundness test, so the value can
+  never drift from the ranges checked against it.
+- `rand` is now a direct dependency (`0.10`). It was already compiled
+  transitively via `contract-bridge`'s `rand` feature, so the dependency tree is
+  unchanged; the sampler simply names it directly to take the caller's RNG.
 - `bidding::neural_floor::NeuralFloor` and `two_over_one_neural()` behind the
   `neural-floor` feature — the safety shell that makes the distilled net usable
   as a floor (M1.3 of the AI-bidder effort, completing Milestone 1). The shell is

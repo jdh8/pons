@@ -451,7 +451,7 @@ fn is_two_over_one(opening: Bid, response: Bid) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::bidding::constraint::upgrade;
+    use crate::bidding::constraint::point_count;
     use contract_bridge::auction::RelativeVulnerability;
     use contract_bridge::{Bid, Hand, Level};
     use proptest::prelude::*;
@@ -636,7 +636,7 @@ mod tests {
             // The opener sits to the actor's right after a single call.
             let inf = read(&[call]);
             let opener = inf.rho();
-            let points = hand_points(hand);
+            let points = point_count(hand);
             prop_assert!(
                 opener.points.contains(points),
                 "{call} opener with {points} points outside {:?}",
@@ -654,12 +654,5 @@ mod tests {
                 );
             }
         }
-    }
-
-    /// A hand's points on the same scale [`apply_opening`] records: HCP plus
-    /// the fuzzy-strength upgrade.
-    fn hand_points(hand: Hand) -> u8 {
-        use contract_bridge::eval::{self, HandEvaluator, SimpleEvaluator};
-        SimpleEvaluator(eval::hcp::<u8>).eval(hand) + upgrade(hand)
     }
 }

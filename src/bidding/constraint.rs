@@ -230,6 +230,20 @@ pub fn upgrade(hand: Hand) -> u8 {
     u8::from(!is_balanced(hand)) + u8::from(lengths[2] + lengths[3] >= 10)
 }
 
+/// Upgraded points as a scalar — raw HCP plus the fuzzy-strength [`upgrade`]
+///
+/// The number the suit-oriented [`points`] constraint gauges with fuzzy
+/// strength on, and the scale [`Inferences`] records its point ranges on.  A
+/// reader that needs the value rather than a range — constrained sampling, for
+/// one — shares this single definition so it can never drift from the ranges it
+/// checks against.
+///
+/// [`Inferences`]: super::inference::Inferences
+#[must_use]
+pub fn point_count(hand: Hand) -> u8 {
+    raw_hcp(hand) + upgrade(hand)
+}
+
 /// Upgraded points — HCP plus [`upgrade`] — in the given range
 ///
 /// The strength gauge for suit-oriented calls.  Notrump-defining ranges use
