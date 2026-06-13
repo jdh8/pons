@@ -15,19 +15,24 @@
 //!    policy the search uses as its *prior*.  Search should beat the policy it
 //!    proposes from — "net proposes, search disposes".
 //!
-//! Boards whose two tables reach different contracts are scored double dummy and
-//! the swing credited to the search ("home") team, reported as IMPs/board with a
-//! 95% confidence interval over boards.
+//! Both matches run over the **same** boards (so the two verdicts are comparable),
+//! scored double dummy on the divergent boards and credited to the search ("home")
+//! team as IMPs/board with a 95% confidence interval.  Pass `--seed` to fix the
+//! boards across runs (e.g. to compare knob settings on identical deals); `--worst`
+//! dumps the boards where search swung the most, the cheapest way to see *why* a
+//! number came out the way it did — silly contracts (a bug or coordination flaw)
+//! versus sensible-but-unlucky ones (variance).
 //!
 //! # This is slow
 //!
 //! Every non-forced decision runs a full double-dummy search (128 layouts × up to
 //! 8 candidates by default, ~1.4 s each), so a board costs *thousands* of solves,
 //! not one.  The default board count is therefore small — a smoke test, not a
-//! verdict.  A tight interval needs thousands of boards and a long, patient run:
+//! verdict.  A tight interval needs thousands of boards and a long, patient run
+//! (use `--progress` to watch it tick):
 //!
 //! ```text
-//! cargo run --release --features search --example search-floor -- --count 2000
+//! cargo run --release --features search --example search-floor -- --count 2000 --progress
 //! ```
 
 #![allow(clippy::cast_precision_loss)]
@@ -35,12 +40,14 @@
 use clap::Parser;
 use contract_bridge::auction::{Auction, Call};
 use contract_bridge::deck::full_deal;
-use contract_bridge::{AbsoluteVulnerability, FullDeal, Hand, Seat};
+use contract_bridge::{AbsoluteVulnerability, Contract, FullDeal, Hand, Seat};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::bidding::context::relative;
 use pons::bidding::{Family, Stance, System};
 use pons::scoring::{final_contract, imps, ns_score};
 use pons::{Accumulator, two_over_one, two_over_one_neural, two_over_one_search};
+use rand::SeedableRng;
+use rand::rngs::StdRng;
 
 /// Measure the live-search floor: A/B duplicate matches with intervals
 #[derive(Parser)]
@@ -55,6 +62,25 @@ struct Args {
     /// Vulnerability: none, ns, ew, both
     #[arg(short, long, default_value = "none")]
     vulnerability: AbsoluteVulnerability,
+
+    /// Fix the board RNG seed for reproducible runs (default: entropy)
+    ///
+    /// The same seed deals the same boards, so two runs at different knob
+    /// settings can be compared on identical deals (a paired comparison that
+    /// cancels board luck).
+    #[arg(short, long)]
+    seed: Option<u64>,
+
+    /// Dump this many of search's biggest losing and winning boards per match
+    ///
+    /// The cheap diagnostic: read the boards where search swung the most to tell
+    /// silly contracts (a bug or coordination flaw) from variance.  `0` disables.
+    #[arg(short, long, default_value = "5")]
+    worst: usize,
+
+    /// Print a progress line to stderr every ~10% of boards while bidding
+    #[arg(short, long)]
+    progress: bool,
 }
 
 /// The seat acting after `len` calls from `dealer`
@@ -111,7 +137,23 @@ fn bid_out(
     auction
 }
 
-/// One board: the deal and both tables' auctions
+/// A board to play: a deal and its dealer (dealt once, played by both matches)
+struct BoardDeal {
+    deal: FullDeal,
+    dealer: Seat,
+}
+
+/// Deal `count` boards, dealer rotating per board, from the caller's RNG
+fn make_boards(count: usize, rng: &mut impl rand::Rng) -> Vec<BoardDeal> {
+    (0..count)
+        .map(|index| BoardDeal {
+            dealer: Seat::ALL[index % 4],
+            deal: full_deal(rng),
+        })
+        .collect()
+}
+
+/// One played board: the deal and both tables' auctions
 struct Board {
     deal: FullDeal,
     dealer: Seat,
@@ -123,34 +165,38 @@ struct Board {
 
 /// The outcome of one duplicate match
 struct MatchResult {
+    /// Every played board, for the worst/best-board dump
+    boards: Vec<Board>,
     /// Per-board IMP swing to the home team (0 on non-divergent boards)
     swings: Vec<i64>,
     /// Boards whose two tables reached different contracts
     divergent: usize,
 }
 
-/// Run a `count`-board duplicate match, crediting swings to `home`
+/// Run a duplicate match over `boards`, crediting swings to `home`
 fn duplicate_match(
     home: &Stance,
     away: &Stance,
-    count: usize,
+    boards: &[BoardDeal],
     vul: AbsoluteVulnerability,
-    rng: &mut impl rand::Rng,
+    label: &str,
+    progress: bool,
 ) -> MatchResult {
-    // Bid every board at both tables, dealer rotating per board.  Each call may
-    // trigger a full double-dummy search inside the floor, so this is the slow
-    // part — not the divergent-board scoring below.
-    let boards: Vec<Board> = (0..count)
-        .map(|index| {
-            let dealer = Seat::ALL[index % 4];
-            let deal = full_deal(rng);
-            let table_a = bid_out(home, away, true, dealer, vul, &deal);
-            let table_b = bid_out(home, away, false, dealer, vul, &deal);
+    // Bid every board at both tables.  Each call may trigger a full double-dummy
+    // search inside the floor, so this is the slow part — not the scoring below.
+    let step = (boards.len() / 10).max(1);
+    let played: Vec<Board> = boards
+        .iter()
+        .enumerate()
+        .map(|(index, board)| {
+            if progress && index > 0 && index % step == 0 {
+                eprintln!("  [{label}] {index}/{} boards bid", boards.len());
+            }
             Board {
-                deal,
-                dealer,
-                table_a,
-                table_b,
+                deal: board.deal,
+                dealer: board.dealer,
+                table_a: bid_out(home, away, true, board.dealer, vul, &board.deal),
+                table_b: bid_out(home, away, false, board.dealer, vul, &board.deal),
             }
         })
         .collect();
@@ -158,7 +204,7 @@ fn duplicate_match(
     // Only boards whose tables reach different results can swing; solve those
     // double dummy in one batch and credit the swing to the home team (NS at
     // table A, EW at table B).
-    let contracts: Vec<_> = boards
+    let contracts: Vec<_> = played
         .iter()
         .map(|board| {
             (
@@ -167,13 +213,13 @@ fn duplicate_match(
             )
         })
         .collect();
-    let divergent: Vec<usize> = (0..boards.len())
+    let divergent: Vec<usize> = (0..played.len())
         .filter(|&index| contracts[index].0 != contracts[index].1)
         .collect();
-    let deals: Vec<FullDeal> = divergent.iter().map(|&index| boards[index].deal).collect();
+    let deals: Vec<FullDeal> = divergent.iter().map(|&index| played[index].deal).collect();
     let tables = Solver::lock().solve_deals(&deals, NonEmptyStrainFlags::ALL);
 
-    let mut swings = vec![0i64; count];
+    let mut swings = vec![0i64; played.len()];
     for (&index, table) in divergent.iter().zip(tables.iter()) {
         let (contract_a, contract_b) = contracts[index];
         let points = ns_score(contract_a, table, vul) - ns_score(contract_b, table, vul);
@@ -181,6 +227,7 @@ fn duplicate_match(
     }
 
     MatchResult {
+        boards: played,
         swings,
         divergent: divergent.len(),
     }
@@ -190,13 +237,8 @@ fn duplicate_match(
 ///
 /// M2.3's win condition is *strictly positive* IMPs/board: the search team
 /// should be ahead, with the interval excluding zero once enough boards are in.
-fn report(
-    label: &str,
-    opponent: &str,
-    result: &MatchResult,
-    count: usize,
-    vul: AbsoluteVulnerability,
-) {
+fn report(label: &str, opponent: &str, result: &MatchResult, vul: AbsoluteVulnerability) {
+    let count = result.swings.len();
     let mut acc = Accumulator::new();
     for &swing in &result.swings {
         acc.push(swing as f64);
@@ -225,42 +267,121 @@ fn report(
     println!("  Should beat {opponent} (strictly positive): {verdict}");
 }
 
+/// A contract and its declarer rendered for the board dump
+fn fmt_contract(contract: Option<(Contract, Seat)>) -> String {
+    match contract {
+        Some((contract, declarer)) => format!("{contract} by {declarer}"),
+        None => "passed out".to_owned(),
+    }
+}
+
+/// Dump the boards where search swung the most — the cheap "why" diagnostic
+///
+/// Shows the `worst` biggest losses and biggest gains: a few disasters with sane
+/// gains points to variance, a systematic tilt or absurd contracts to a bug or
+/// the partner-coordination gap (the rollout assumes a net partner, but partner
+/// is search).
+fn dump_extremes(opponent: &str, result: &MatchResult, worst: usize) {
+    if worst == 0 {
+        return;
+    }
+    let mut swung: Vec<usize> = (0..result.swings.len())
+        .filter(|&index| result.swings[index] != 0)
+        .collect();
+    if swung.is_empty() {
+        println!("\n  (no boards swung — nothing to dump)");
+        return;
+    }
+    swung.sort_by_key(|&index| result.swings[index]); // ascending: worst losses first
+
+    let losses: Vec<usize> = swung.iter().take(worst).copied().collect();
+    let gains: Vec<usize> = swung.iter().rev().take(worst).copied().collect();
+    dump_boards(
+        &format!("{} worst for search vs {opponent} (losses)", losses.len()),
+        result,
+        &losses,
+    );
+    dump_boards(
+        &format!("{} best for search vs {opponent} (gains)", gains.len()),
+        result,
+        &gains,
+    );
+}
+
+/// Print the deal, both auctions, and both contracts for the given boards
+fn dump_boards(title: &str, result: &MatchResult, indices: &[usize]) {
+    println!("\n  --- {title} ---");
+    for &index in indices {
+        let board = &result.boards[index];
+        println!(
+            "\n  Board {index} (dealer {}, swing {:+} IMPs to search)",
+            board.dealer, result.swings[index],
+        );
+        println!("    deal: {}", board.deal);
+        println!(
+            "    A (search N/S): {}  ->  {}",
+            board.table_a,
+            fmt_contract(final_contract(&board.table_a, board.dealer)),
+        );
+        println!(
+            "    B (search E/W): {}  ->  {}",
+            board.table_b,
+            fmt_contract(final_contract(&board.table_b, board.dealer)),
+        );
+    }
+}
+
 fn main() {
     let args = Args::parse();
-    let mut rng = rand::rng();
 
     let search = two_over_one_search().against(Family::NATURAL);
     let deterministic = two_over_one().against(Family::NATURAL);
     let neural = two_over_one_neural().against(Family::NATURAL);
 
+    // Deal the boards once so both matches play identical deals (and a `--seed`
+    // makes them reproducible across runs).
+    let boards = match args.seed {
+        Some(seed) => make_boards(args.count, &mut StdRng::seed_from_u64(seed)),
+        None => make_boards(args.count, &mut rand::rng()),
+    };
+
     println!(
         "AI-bidder M2.3: live double-dummy search floor vs the deterministic floor and the \
-         distilled net\n({} boards per match; the search is slow — thousands of boards need a \
+         distilled net\n({} boards per match{}; the search is slow — thousands of boards need a \
          long run)",
         args.count,
+        args.seed.map_or(String::new(), |s| format!(", seed {s}")),
     );
 
     let vs_deterministic = duplicate_match(
         &search,
         &deterministic,
-        args.count,
+        &boards,
         args.vulnerability,
-        &mut rng,
+        "vs deterministic",
+        args.progress,
     );
     report(
         "Search floor vs deterministic floor",
         "the deterministic floor",
         &vs_deterministic,
-        args.count,
         args.vulnerability,
     );
+    dump_extremes("the deterministic floor", &vs_deterministic, args.worst);
 
-    let vs_neural = duplicate_match(&search, &neural, args.count, args.vulnerability, &mut rng);
+    let vs_neural = duplicate_match(
+        &search,
+        &neural,
+        &boards,
+        args.vulnerability,
+        "vs net",
+        args.progress,
+    );
     report(
         "Search floor vs distilled net",
         "the raw net prior",
         &vs_neural,
-        args.count,
         args.vulnerability,
     );
+    dump_extremes("the raw net prior", &vs_neural, args.worst);
 }
