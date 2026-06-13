@@ -145,9 +145,10 @@ fn opening_bid(auction: &[Call]) -> Option<(usize, Bid)> {
 /// Our side opened a strong notrump of `level`, and the player to act is its
 /// opener (`partner == false`) or its responder (`partner == true`)
 ///
-/// This is the one place instinct reads a *convention*: a strong notrump
-/// opening is the anchor for completing transfers and refusing to pass below a
-/// forced game, the deep conventional structures the book may not author.
+/// This is one of the two conventions instinct reads (the other is the strong
+/// 2♣ — see [`forcing_two_clubs_response`]): a strong notrump opening is the
+/// anchor for completing transfers and refusing to pass below a forced game,
+/// the deep conventional structures the book may not author.
 fn our_strong_notrump(context: &Context<'_>, level: u8, partner: bool) -> bool {
     let auction = context.auction();
     let Some((index, bid)) = opening_bid(auction) else {
@@ -192,13 +193,100 @@ fn partner_strong_notrump(level: u8) -> Cons<impl Constraint + Clone> {
 }
 
 /// We opened a strong notrump and partner forced past invitation with a
-/// three-level suit bid — so passing below game is wrong
-fn opener_forced_to_game() -> Cons<impl Constraint + Clone> {
-    pred(|_: Hand, context: &Context<'_>| {
-        (our_strong_notrump(context, 1, false) || our_strong_notrump(context, 2, false))
-            && partner_last_call(context.auction())
-                .is_some_and(|bid| bid.level.get() == 3 && bid.strain != Strain::Notrump)
-    })
+/// three-level suit bid — so passing below game is wrong, whatever our hand
+fn opener_forced_past_invitation(context: &Context<'_>) -> bool {
+    (our_strong_notrump(context, 1, false) || our_strong_notrump(context, 2, false))
+        && partner_last_call(context.auction())
+            .is_some_and(|bid| bid.level.get() == 3 && bid.strain != Strain::Notrump)
+}
+
+/// Our side opened a strong 2♣ and responder answered past the double negative
+///
+/// The artificial `2♣` promises 22+ and is forcing — but for one round only.
+/// Responder's *answer* settles the game force: the 0–3 HCP double negative
+/// (`2♥`) keeps open the option to stop short, while every other response — the
+/// waiting `2♦` or a natural positive — commits *both* partners to at least
+/// game.  So the force is read off responder's call, not off the 2♣ opening.
+/// (Interference, where responder's seat holds a pass or double rather than a
+/// response, is out of scope and reads as not forced.)
+fn forcing_two_clubs_response(context: &Context<'_>) -> bool {
+    let auction = context.auction();
+    let Some((index, bid)) = opening_bid(auction) else {
+        return false;
+    };
+    // The player to act must be on the opening side — opener or responder.
+    if index % 2 != auction.len() % 2 {
+        return false;
+    }
+    if bid != Bid::new(2, Strain::Clubs) {
+        return false;
+    }
+    // Responder sits two seats past the opening; the force is on once that
+    // answer is in and is any bid other than the double-negative 2♥.
+    matches!(
+        auction.get(index + 2),
+        Some(&Call::Bid(response)) if response != Bid::new(2, Strain::Hearts)
+    )
+}
+
+/// We are sitting for a penalty: the live contract is the opponents' bid
+/// doubled (or redoubled) by our side
+///
+/// Since a side may only double the other, a doubled contract whose last bid is
+/// theirs was doubled by us — passing it out is the intended penalty action.
+fn penalizing(context: &Context<'_>) -> bool {
+    let auction = context.auction();
+    context.penalty() != Penalty::Undoubled
+        && auction
+            .iter()
+            .rposition(|call| matches!(call, Call::Bid(_)))
+            .is_some_and(|index| (auction.len() - index) % 2 == 1)
+}
+
+/// Instinct's reading of an auction: the system intent the laws-only [`Context`]
+/// deliberately omits, reconstructed from the immutable auction on demand
+///
+/// There is no per-classification scratchpad to cache this in, so each flag is
+/// recovered by a short walk of the auction whenever the floor consults it.
+/// Every flag here is *hand-independent* — it follows from the calls alone — so
+/// hand-conditioned forces (a strong-notrump responder who holds game values)
+/// stay as ordinary [`Constraint`]s rather than living here.
+#[derive(Clone, Copy, Debug)]
+struct Interpretation {
+    /// Our side is committed to at least game by a prior call: a strong 2♣
+    /// whose response cleared the double negative, or an opener forced past
+    /// invitation opposite our strong notrump.
+    forced_to_game: bool,
+    /// We are sitting for our own penalty double, so passing below game is the
+    /// intended action rather than a missed game.
+    penalizing: bool,
+}
+
+impl Interpretation {
+    /// Read the auction's intent from its [`Context`]
+    fn read(context: &Context<'_>) -> Self {
+        Self {
+            forced_to_game: forcing_two_clubs_response(context)
+                || opener_forced_past_invitation(context),
+            penalizing: penalizing(context),
+        }
+    }
+}
+
+/// A prior call has committed our side to game (see [`Interpretation`])
+fn auction_forces_game() -> Cons<impl Constraint + Clone> {
+    pred(|_: Hand, context: &Context<'_>| Interpretation::read(context).forced_to_game)
+}
+
+/// We are not sitting for a penalty double of our own (see [`Interpretation`])
+///
+/// A game force forbids passing below game — *unless* we are penalizing the
+/// opponents, where passing their doubled contract out is the whole point.
+/// There the forced-to-game rules step aside and let the natural defense —
+/// including the [forced advance][forced_advance] of partner's penalty double —
+/// govern.
+fn not_penalizing() -> Cons<impl Constraint + Clone> {
+    pred(|_: Hand, context: &Context<'_>| !Interpretation::read(context).penalizing)
 }
 
 /// We opened the strong notrump of `nt_level` and partner just transferred with
@@ -372,13 +460,17 @@ pub fn instinct() -> Rules {
         );
     }
 
-    // Forced to game opposite our strong notrump: a responder with game-going
-    // values (10+ opposite a 15–17 1NT, 5+ opposite a 20–21 2NT), or an opener
-    // whom partner has forced past invitation.  Below game, pick the cheapest
-    // game — a six-card major, else 3NT — rather than pass the auction out.
-    let forced_game = (partner_strong_notrump(1) & hcp(10..))
+    // Forced to game.  Two strands feed it: the hand-conditioned strong-notrump
+    // responder forces (10+ opposite a 15–17 1NT, 5+ opposite a 20–21 2NT) stay
+    // as constraints, while the hand-independent forces — a strong 2♣ whose
+    // response cleared the double negative, or an opener forced past invitation —
+    // come from the auction interpretation.  Below game, pick the cheapest game —
+    // a six-card major, else 3NT — rather than pass the auction out, but step
+    // aside when we are penalizing the opponents with a double of our own.
+    let forced_game = ((partner_strong_notrump(1) & hcp(10..))
         | (partner_strong_notrump(2) & hcp(5..))
-        | opener_forced_to_game();
+        | auction_forces_game())
+        & not_penalizing();
     rules = rules.rule(
         Bid::new(3, Strain::Notrump),
         1.40,
@@ -533,5 +625,71 @@ mod tests {
             Call::Pass,
         ];
         assert_eq!(best(&auction, "8632.J9842.96.42"), Call::Pass);
+    }
+
+    #[test]
+    fn forced_to_game_after_strong_two_clubs() {
+        // 2♣ (strong) – 2♦ (game-forcing waiting) – 2NT (22–24 balanced): the
+        // auction is game forcing, so a flat 7-count bids 3NT, never passing.
+        // 2♣–2♥ is the double negative, so 2♦ commits the partnership to game.
+        let auction = [
+            call(2, Strain::Clubs),
+            Call::Pass,
+            call(2, Strain::Diamonds),
+            Call::Pass,
+            call(2, Strain::Notrump),
+            Call::Pass,
+        ];
+        assert_eq!(best(&auction, "QJ52.K43.T62.J32"), call(3, Strain::Notrump));
+    }
+
+    #[test]
+    fn forced_two_clubs_bids_major_game() {
+        // The same forcing 2♣–2♦–2NT auction, but holding six hearts: jump to
+        // the major-suit game in preference to 3NT.
+        let auction = [
+            call(2, Strain::Clubs),
+            Call::Pass,
+            call(2, Strain::Diamonds),
+            Call::Pass,
+            call(2, Strain::Notrump),
+            Call::Pass,
+        ];
+        assert_eq!(best(&auction, "3.QJ9854.K32.J32"), call(4, Strain::Hearts));
+    }
+
+    #[test]
+    fn double_negative_two_clubs_may_pass() {
+        // 2♣ – 2♥ is the double negative (0–3 HCP); after opener's 2NT the
+        // partnership may still stop, so a yarborough passes off-book — the
+        // forcing-2♣ floor must not fire once responder has shown the bust.
+        let auction = [
+            call(2, Strain::Clubs),
+            Call::Pass,
+            call(2, Strain::Hearts),
+            Call::Pass,
+            call(2, Strain::Notrump),
+            Call::Pass,
+        ];
+        assert_eq!(best(&auction, "8632.J9842.96.42"), Call::Pass);
+    }
+
+    #[test]
+    fn forced_game_steps_aside_when_penalizing() {
+        // 2♣ – 2♦ (game forcing) – 2NT, then they sacrifice in 3♦ and partner
+        // doubles for penalty.  Passing the double out is the game-forcing
+        // action, so the floor must not pull it to a stopperless 3NT; with six
+        // clubs and no diamond guard, show the suit instead.
+        let auction = [
+            call(2, Strain::Clubs),
+            Call::Pass,
+            call(2, Strain::Diamonds),
+            Call::Pass,
+            call(2, Strain::Notrump),
+            call(3, Strain::Diamonds),
+            Call::Double,
+            Call::Pass,
+        ];
+        assert_eq!(best(&auction, "K3.KQ4.65.QJ8765"), call(4, Strain::Clubs));
     }
 }

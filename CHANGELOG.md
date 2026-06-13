@@ -57,6 +57,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   announced ranges at equal measured strength — and the ablation hooks stay
   for tuning the halves separately.
 
+### Fixed
+
+- The instinct floor no longer passes a game-forcing 2♣ auction out below 3NT.
+  The strong 2♣ opening is forcing for one round only; it is responder's
+  *answer* that settles the game force — the 0–3 HCP double negative (2♥) keeps
+  the option to stop short, while the waiting 2♦ or any positive commits both
+  partners to at least game. The floor now reads that force off responder's
+  call (its second convention, after the strong notrump), so off-book
+  continuations such as `2♣ – 2♦ – 2NT` reach 3NT or the cheapest major game
+  instead of dying in a partscore, while `2♣ – 2♥ – 2NT` may still be passed.
+  The forced-to-game rules (for both the 2♣ and strong-notrump conventions)
+  also step aside whenever we are penalizing the opponents with a double of our
+  own, so a game force never pulls partner's penalty double of a partscore.
+  Instinct now reconstructs this forcing state through a small `Interpretation`
+  of the auction it owns, keeping system interpretation out of the mechanical
+  `Context`.
+
 ## [0.9.0] — 2026-06-13
 
 ### Added
