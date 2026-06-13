@@ -7,7 +7,7 @@ in the main loop where they're design (per the "divide and delegate" working
 style). **Nothing here is started until explicitly chosen** — this is the map,
 not a green light.
 
-Legend: ⬜ not started.
+Legend: ⬜ not started · ✅ done.
 
 ---
 
@@ -24,11 +24,15 @@ The foundation. Pure bridge/Rust work; de-risks everything downstream.
   (schema in [foundations §1d](01-foundations.md#1d-the-description-corpus-component-as-prerequisite)).
   *Deliverable:* a corpus file for the 2/1 system. *Measure:* record count ≈ node
   count; spot-check 20 records for accuracy. *Deps:* M0.1.
-- ⬜ **M0.3 Feature extractor (spec + reference impl).** Define `features(hand,
+- ✅ **M0.3 Feature extractor (spec + reference impl).** Define `features(hand,
   context) -> Vec<f32>` (foundations §1a–1b): suit-exchangeable hand block +
   `Context`/`Inferences` summary + vul + seat. *Deliverable:* a documented,
   versioned feature vector and a Rust function producing it. *Measure:* unit
   tests pin the layout; round-trips a few known hands/auctions. *Deps:* none.
+  **Done:** `bidding::features` — `FEATURES_V1`, 160 floats (76 hand + 6 global
+  evals + 36 context + 40 inferences + 2 vul), `FEATURES_VERSION`/`FEATURES_LEN`
+  + `OFFSET_*`/`LEN_*` constants, 11 layout-pinning tests. Tags chosen for the
+  corpus: WBF abbreviations (`wbf-abbreviations.md`).
 - ⬜ **M0.4 Teacher dump.** Using the feature extractor, bid out random boards
   with `two_over_one()` and record `(features, teacher_softmax)` at each decision,
   oversampling off-book/contested auctions. *Deliverable:* a training dataset.
