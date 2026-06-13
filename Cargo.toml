@@ -18,6 +18,10 @@ all-features = true
 
 [features]
 serde = ["dep:serde", "dep:serde_with", "contract-bridge/serde", "ddss/serde", "bitflags/serde"]
+# Distilled neural floor (AI-bidder M1.2): embeds the trained weights and a
+# hand-rolled forward pass. Off by default so the standard build stays lean and
+# dependency-free — the weights are `include_bytes!`d, no ML runtime is pulled in.
+neural-floor = []
 
 [dependencies]
 bitflags = "2"

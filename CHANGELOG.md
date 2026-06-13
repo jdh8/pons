@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `bidding::neural` behind the new `neural-floor` cargo feature — the in-crate
+  forward pass for the distilled floor (M1.2 of the AI-bidder effort). A
+  hand-rolled `f32` matmul + ReLU that embeds the trained `two_over_one_v1`
+  weights with `include_bytes!` and evaluates `classify(features) -> Logits`
+  with no ML dependency. The feature is off by default, so the standard build is
+  byte-for-byte unchanged. A parity test reproduces the trainer's candle logits
+  on the exported fixture within `1e-3` and matches the arg-max (chosen call)
+  exactly. The deterministic safety shell — legality masking and forced-situation
+  overrides — follows in M1.3.
 - `trainer/` — the off-crate distillation trainer (M1.1 of the AI-bidder
   effort). A self-contained cargo workspace built with `candle` that is never
   compiled by the `pons` build (an empty `[workspace]` table decouples it, and

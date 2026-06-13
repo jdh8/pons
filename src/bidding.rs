@@ -13,6 +13,9 @@ pub mod inference;
 pub mod instinct;
 /// [`Call`]-keyed hash map
 pub mod map;
+/// Hand-rolled forward pass for the distilled neural floor (feature-gated)
+#[cfg(feature = "neural-floor")]
+pub mod neural;
 pub mod rules;
 pub mod table;
 /// [`Trie`] as a bidding system
