@@ -9,12 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `trainer/` — the off-crate distillation trainer (M1.1 of the AI-bidder
+  effort). A self-contained cargo workspace built with `candle` that is never
+  compiled by the `pons` build (an empty `[workspace]` table decouples it, and
+  the crate carries no ML dependency). It fits a `160 → 256 → 256 → 38` MLP to
+  the teacher's softmax by soft-target cross-entropy and exports the weights as
+  a flat little-endian `f32` artifact plus a versioned sidecar and a
+  forward-pass parity fixture into `src/bidding/weights/`. On a 484k-row dataset
+  it reaches ≈94% held-out top-1 agreement with `two_over_one()` (validation
+  cross-entropy 0.25 against a 0.20-nat teacher-entropy floor). The weights ship
+  in-repo for M1.2 to embed and run by a hand-rolled forward pass; the library
+  itself is unchanged.
 - `examples/teacher-dump` — the distillation dataset generator (M0.4 of the
   AI-bidder effort, completing Milestone 0). Bids out random boards with
   `two_over_one()` and writes one `(features, teacher_softmax)` row per decision
   to a flat little-endian `f32` file (160 features + 38-way softmax = 198 floats
   per row) plus a JSON sidecar pinning the feature version, teacher, seed, git
-  SHA, and counts. A dev tool, not part of the library API.
+  SHA, and counts, plus a sibling `.tags` file (one `u8` per row marking
+  contested-phase decisions) so the trainer can split held-out agreement by
+  phase. A dev tool, not part of the library API.
 - `examples/export-corpus` — the description-corpus exporter (M0.2 of the
   AI-bidder effort). Walks the floorless 2/1 books, recovers each authored node
   through `Classifier::as_rules()`, and emits one JSONL record per `(node, call)`

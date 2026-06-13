@@ -1,0 +1,22 @@
+[package]
+name = "pons-trainer"
+version = "0.1.0"
+edition = "2024"
+publish = false
+description = "Off-crate trainer for the pons AI instinct bidder (M1 distillation). Not part of the pons build."
+
+# Empty `[workspace]` table: makes this crate its own workspace root, so the
+# parent `pons` package never adopts it. `cargo build`/`cargo test` at the pons
+# repo root never compile candle — the trainer is built and run only from inside
+# `trainer/`. The trainer intentionally does NOT depend on `pons`: it mirrors the
+# feature/softmax constants below and asserts them against the data sidecar, so
+# it stays a lean candle build (no DDS/contract-bridge compile just to train).
+[workspace]
+
+[dependencies]
+candle-core = "0.10"
+candle-nn = "0.10"
+clap = { version = "4", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+anyhow = "1"

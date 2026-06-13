@@ -14,8 +14,10 @@
 //! Output is a flat little-endian `f32` file — one row of `160 + 38 = 198`
 //! floats — plus a JSON sidecar pinning the feature version, teacher, seed, and
 //! counts (a distilled model is meaningless without its exact feature
-//! extractor; they version together). The Rust/candle trainer reads the `.f32`
-//! with a trivial loader.
+//! extractor; they version together), and a sibling `.tags` file of one `u8`
+//! per row (`1` = contested-phase decision, `0` = constructive) so the trainer
+//! can report held-out agreement split by phase. The Rust/candle trainer reads
+//! the `.f32` with a trivial loader.
 //!
 //! ```text
 //! cargo run --release --example teacher-dump -- --boards 100000 --seed 1
@@ -76,7 +78,9 @@ fn main() -> std::io::Result<()> {
 
     let f32_path = format!("{}.f32", args.out);
     let json_path = format!("{}.json", args.out);
+    let tags_path = format!("{}.tags", args.out);
     let mut writer = BufWriter::new(std::fs::File::create(&f32_path)?);
+    let mut tags_writer = BufWriter::new(std::fs::File::create(&tags_path)?);
 
     let mut rows = 0u64;
     let mut contested = 0u64;
@@ -121,8 +125,10 @@ fn main() -> std::io::Result<()> {
             for value in row {
                 writer.write_all(&value.to_le_bytes())?;
             }
+            let contested_row = Phase::of(&auction) != Phase::Constructive;
+            tags_writer.write_all(&[u8::from(contested_row)])?;
             rows += 1;
-            if Phase::of(&auction) != Phase::Constructive {
+            if contested_row {
                 contested += 1;
             }
 
@@ -133,6 +139,7 @@ fn main() -> std::io::Result<()> {
         }
     }
     writer.flush()?;
+    tags_writer.flush()?;
 
     let git_sha = git_sha();
     let metadata = serde_json::json!({
@@ -143,6 +150,7 @@ fn main() -> std::io::Result<()> {
         "row_bytes": ROW_LEN * 4,
         "dtype": "f32-le",
         "layout": "row = [160 features][38 teacher_softmax]",
+        "tags": "sibling .tags file: one u8 per row, 1 = contested phase, 0 = constructive",
         "teacher": "two_over_one()",
         "git_sha": git_sha,
         "seed": args.seed,
