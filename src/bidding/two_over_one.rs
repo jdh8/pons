@@ -205,6 +205,26 @@ pub fn two_over_one_neural() -> Pair {
     with_floor(bare_two_over_one(), super::neural_floor::NeuralFloor)
 }
 
+/// The 2/1 pair with the gated live-**search** floor (AI-bidder M2.3)
+///
+/// Exactly [`two_over_one`] but for the floor: the deterministic
+/// [`instinct`][crate::bidding::instinct()] ladder is replaced by the
+/// [`SearchFloor`][crate::bidding::search_floor::SearchFloor] safety shell, which
+/// at each non-forced decision shortlists the distilled net's top calls and
+/// scores them by cardplay EV before bidding the best — the policy *thinks*
+/// before it bids.  Strong but slow; an added gated option, never a replacement.
+/// Bind it against the opponents' [`Family`] with [`Pair::against`] and seat it
+/// the same way.  Gated behind the `search` feature (which implies
+/// `neural-floor`).
+#[cfg(feature = "search")]
+#[must_use]
+pub fn two_over_one_search() -> Pair {
+    with_floor(
+        bare_two_over_one(),
+        super::search_floor::SearchFloor::default(),
+    )
+}
+
 /// Attach any classifier as the floor on a pair's contested books
 ///
 /// A root `Always` fallback on both contested books, shared through the

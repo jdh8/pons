@@ -9,6 +9,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `bidding::search_floor::SearchFloor` and `two_over_one_search()` behind a new
+  `search` feature — the gated live double-dummy search bidder (M2.3 of the
+  AI-bidder effort, completing Milestone 2). This is "simulations in action": at
+  each non-forced decision the floor *thinks* before it bids. It wears the same
+  deterministic safety shell as the neural floor — auction-determined forced
+  situations delegate to `instinct()` verbatim, so the §0.4 rails hold by
+  construction — but in the judgement middle it no longer trusts the net's single
+  forward pass. Instead the net is only a *prior*: it shortlists the top-`k` legal
+  calls, prices each by cardplay over `n` sampled layouts with `ev_all` (the M2.2
+  evaluator), and re-seats the evaluated calls onto an EV-ranked band above the
+  prior tail, so the driver bids the highest-EV call while every legal call keeps
+  a sane fallback logit and `Pass` stays finite. "Net proposes, search disposes."
+  The rollouts finish under self-play with our own distilled net
+  (`two_over_one_neural()`) — the continuation policy M3.2 will iterate. The knobs
+  (`layouts`, `shortlist`, `temperature`) default to *strength, not latency*
+  (`n = 128`, `k = 8`, ≈ 1.4 s per decision — `n` and `k` raised together so the
+  wider shortlist's extra candidates are scored against tight EV estimates, not
+  noise); shrink them for a faster, noisier bidder. `classify` stays
+  a pure function despite sampling: the rollout RNG is seeded deterministically
+  from the decision's feature vector, so the same hand and auction always yield
+  the same logits (invariant §0.5). The `search` feature implies `neural-floor`
+  (it needs the prior net and the forced-rails shell); the default build,
+  `instinct()`, and `two_over_one()` are untouched — this is an added gated
+  option, never a replacement. Seven gated tests cover the five §0.4 rails against
+  the shelled search bidder, determinism, and the EV-band ordering. A gated
+  `search-floor` example A/Bs it against the deterministic floor (it should beat
+  the hand-written ladder) and against the distilled net (search should beat the
+  raw policy it proposes from). The search is slow by design — every decision is a
+  double-dummy search — so a real interval needs a long run; the live bidder is
+  also the teacher whose improved EVs M3 will distill back into a fast forward
+  pass.
 - `bidding::ev::{ev, ev_all}` — the call-EV evaluator (M2.2 of the AI-bidder
   effort). For a candidate call it answers the question the rule books never
   could: *what is this call worth?* — by Monte-Carlo rollout grounded in

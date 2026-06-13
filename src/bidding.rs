@@ -24,6 +24,9 @@ pub mod neural_floor;
 pub mod rules;
 /// Constrained layout sampling: deals consistent with an auction's inferences
 pub mod sampler;
+/// Gated live double-dummy search bidder over the net prior (feature-gated)
+#[cfg(feature = "search")]
+pub mod search_floor;
 pub mod table;
 /// [`Trie`] as a bidding system
 pub mod trie;
@@ -45,6 +48,8 @@ pub use table::Table;
 pub use trie::{Trie, classifier};
 #[cfg(feature = "neural-floor")]
 pub use two_over_one::two_over_one_neural;
+#[cfg(feature = "search")]
+pub use two_over_one::two_over_one_search;
 pub use two_over_one::{two_over_one, two_over_one_strawberry};
 
 use contract_bridge::Hand;

@@ -63,7 +63,10 @@ impl Classifier for NeuralFloor {
 /// Reuses [`Auction::can_push`] — the very predicate the driver filters with —
 /// so the mask can never drift from the laws.  `Pass` is always legal, so it
 /// stays finite and a distribution always exists (invariant §0.2).
-fn mask_illegal(logits: &mut Logits, auction: &[Call]) {
+///
+/// Shared with the M2.3 live-search floor (`search` feature), whose judgement
+/// path masks the same net prior before shortlisting candidates by EV.
+pub(crate) fn mask_illegal(logits: &mut Logits, auction: &[Call]) {
     let mut played = Auction::new();
     // The slice is a real prior auction, so every call in it is legal.
     played

@@ -26,6 +26,11 @@ serde = ["dep:serde", "dep:serde_with", "contract-bridge/serde", "ddss/serde", "
 # hand-rolled forward pass. Off by default so the standard build stays lean and
 # dependency-free — the weights are `include_bytes!`d, no ML runtime is pulled in.
 neural-floor = []
+# Gated live double-dummy search bidder (AI-bidder M2.3): at each non-forced
+# decision it shortlists the net's top calls, scores them by cardplay EV over
+# sampled layouts (the M2.2 evaluator), and bids the best. Slow and off by
+# default; implies `neural-floor` for the prior net and the forced-rails shell.
+search = ["neural-floor"]
 
 [dependencies]
 bitflags = "2"
@@ -66,6 +71,13 @@ harness = false
 name = "neural-floor"
 path = "examples/neural-floor/main.rs"
 required-features = ["neural-floor"]
+
+# The live-search A/B example (AI-bidder M2.3) imports `search`-gated items
+# (`two_over_one_search`), so it builds only with that feature.
+[[example]]
+name = "search-floor"
+path = "examples/search-floor/main.rs"
+required-features = ["search"]
 
 [profile.dev.package."*"]
 opt-level = 2

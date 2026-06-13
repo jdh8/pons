@@ -152,7 +152,7 @@ The piece `Inferences` was built for; needed before any "beat the teacher" work.
   callers to the deterministic `two_over_one()` for debuggable validation (and ≈
   the M1 net at bootstrap); M3.2 swaps in successive nets with no change to this
   code.
-- ⬜ **M2.3 Live search bidder (gated).** Wrap M2.2 as a runtime
+- ✅ **M2.3 Live search bidder (gated).** Wrap M2.2 as a runtime
   `Classifier`/`System`: at each non-forced decision, use the net's softmax as a
   prior to shortlist the top-`k` legal calls, run `ev` over sampled layouts,
   return a distribution peaked on the high-EV calls — behind a `search` cargo
@@ -165,7 +165,27 @@ The piece `Inferences` was built for; needed before any "beat the teacher" work.
   *Deps:* M2.2, M1 (net as prior/policy). *Decisions:* bidding only; slow & gated
   is acceptable (knobs — `n` layouts, `k` shortlist, EV temperature — default to
   strength, not latency); the default build and `instinct()` baseline are
-  untouched.
+  untouched. **Done:** `bidding::search_floor::SearchFloor` + `two_over_one_search()`
+  behind the `search` feature (⊇ `neural-floor`). The shell mirrors `NeuralFloor`:
+  `forced` auctions delegate to `instinct()` verbatim (same rails); the judgement
+  middle masks the net prior, shortlists its top-`k = 8` legal calls, prices them
+  with `ev_all` over `n = 128` layouts, and re-seats the evaluated calls onto an
+  EV-ranked band (`prior_max + 3` nats, EV-temperature `100` pts/nat) so the
+  driver bids the highest-EV call while the un-evaluated tail and `Pass` stay
+  finite; an all-`NaN` slate degrades to the bare net. *Decisions settled this
+  milestone:* continuation policy is **neural self-play** (`two_over_one_neural()`
+  bidding all four seats — the policy M3.2 iterates); budget defaults to
+  **strength** (`n = 128`, `k = 8`, ≈ 1.4 s/decision — measured: cost ≈ linear in
+  `n` since the shared DD solve dominates, while `k` is near-free at ≈ 45 ms/extra
+  candidate, so `n` and `k` were raised together to keep the wider shortlist
+  scored against tight EV estimates). *Determinism* (§0.5): `classify` stays pure by
+  seeding the rollout RNG from the decision's feature vector. *Seat:* the
+  `Classifier` gets no absolute seat, so the actor is canonicalized to North and
+  the absolute vulnerability rebuilt from the relative one (EV is fully
+  actor-relative, so the choice is free). Seven gated tests (the five §0.4 rails +
+  determinism + EV-band ordering) green; `examples/search-floor` is the A/B
+  harness (vs deterministic floor, vs distilled net). Headline IMPs/board await a
+  long measurement run — the search is slow by design.
 
 Exit M2: we can ask "what is each call actually worth on this hand?" — the signal
 the books never had — and we can *bid by it* at the table (M2.3), gated.
