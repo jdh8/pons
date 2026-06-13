@@ -11,3 +11,7 @@ Cargo.lock
 
 # VS Code config
 /.vscode/
+
+# Claude and AI context
+/.claude/*
+!/.claude/skills/
