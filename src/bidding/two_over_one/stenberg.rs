@@ -29,7 +29,7 @@
 //! would be passed below game.
 
 use super::{call, insert_uncontested, slam};
-use crate::bidding::constraint::{balanced, hcp, len};
+use crate::bidding::constraint::{balanced, fifths, hcp, len, points};
 use crate::bidding::{Rules, Trie};
 use contract_bridge::auction::Call;
 use contract_bridge::{Strain, Suit};
@@ -45,7 +45,7 @@ fn side_suits(major: Suit) -> [Suit; 3] {
 
 /// Opener's Stenberg rebid after `1M – 2NT`: minimum, or maximum with a feature
 ///
-/// This node is **forcing** — there is no pass rule.  A maximum is 15+ HCP; the
+/// This node is **forcing** — there is no pass rule.  A maximum is 15+ points; the
 /// fragment and five-card-suit rebids outrank the plain shape bids so the most
 /// descriptive call wins.
 fn stenberg_rebids(major: Suit) -> Rules {
@@ -53,28 +53,28 @@ fn stenberg_rebids(major: Suit) -> Rules {
 
     let rules = Rules::new()
         // 3♣: a minimum opener (the cheapest step) — the catch-all below.
-        .rule(call(3, Strain::Clubs), 0.5, hcp(..15))
+        .rule(call(3, Strain::Clubs), 0.5, points(..15))
         // 3♦: maximum, no side shortness.
         .rule(
             call(3, Strain::Diamonds),
             1.5,
-            hcp(15..) & !len(a, ..=1) & !len(b, ..=1) & !len(c, ..=1),
+            points(15..) & !len(a, ..=1) & !len(b, ..=1) & !len(c, ..=1),
         )
         // 3♥/3♠/3NT: maximum with a fragment (0–1) in the ascending side suit.
         // Tiny weight steps show the cheapest shortness when two suits are short.
-        .rule(call(3, Strain::Hearts), 2.00, hcp(15..) & len(a, ..=1))
-        .rule(call(3, Strain::Spades), 1.98, hcp(15..) & len(b, ..=1))
-        .rule(call(3, Strain::Notrump), 1.96, hcp(15..) & len(c, ..=1))
+        .rule(call(3, Strain::Hearts), 2.00, points(15..) & len(a, ..=1))
+        .rule(call(3, Strain::Spades), 1.98, points(15..) & len(b, ..=1))
+        .rule(call(3, Strain::Notrump), 1.96, points(15..) & len(c, ..=1))
         // 4♣/4♦: maximum with a good five-card side suit.
         .rule(
             call(4, Strain::Clubs),
             2.20,
-            hcp(15..) & len(Suit::Clubs, 5..),
+            points(15..) & len(Suit::Clubs, 5..),
         )
         .rule(
             call(4, Strain::Diamonds),
             2.15,
-            hcp(15..) & len(Suit::Diamonds, 5..),
+            points(15..) & len(Suit::Diamonds, 5..),
         );
 
     if major == Suit::Hearts {
@@ -83,7 +83,7 @@ fn stenberg_rebids(major: Suit) -> Rules {
         rules.rule(
             call(4, Strain::Hearts),
             2.30,
-            hcp(15..) & len(Suit::Hearts, 6..) & len(Suit::Spades, 4..),
+            points(15..) & len(Suit::Hearts, 6..) & len(Suit::Spades, 4..),
         )
     } else {
         // 4♥: maximum with a five-card heart side suit.  4♠: the same five-card
@@ -92,12 +92,12 @@ fn stenberg_rebids(major: Suit) -> Rules {
             .rule(
                 call(4, Strain::Hearts),
                 2.20,
-                hcp(15..) & len(Suit::Hearts, 5..),
+                points(15..) & len(Suit::Hearts, 5..),
             )
             .rule(
                 call(4, Strain::Spades),
                 1.0,
-                hcp(..15) & len(Suit::Hearts, 5..),
+                points(..15) & len(Suit::Hearts, 5..),
             )
     }
 }
@@ -109,8 +109,12 @@ fn stenberg_rebids(major: Suit) -> Rules {
 fn responder_after_min(major: Suit) -> Rules {
     let t = Strain::from(major);
     Rules::new()
-        .rule(call(4, Strain::Notrump), 1.0, hcp(15..))
-        .rule(call(3, Strain::Notrump), 0.8, hcp(13..=15) & balanced())
+        .rule(call(4, Strain::Notrump), 1.0, points(15..))
+        .rule(
+            call(3, Strain::Notrump),
+            0.8,
+            fifths(13.0..16.0) & balanced(),
+        )
         .rule(call(4, t), 0.5, hcp(0..))
 }
 
@@ -121,7 +125,7 @@ fn responder_after_min(major: Suit) -> Rules {
 fn responder_after_descriptive(major: Suit, rebid: Call) -> Rules {
     let t = Strain::from(major);
     let game = call(4, t);
-    let rules = Rules::new().rule(call(4, Strain::Notrump), 1.0, hcp(15..));
+    let rules = Rules::new().rule(call(4, Strain::Notrump), 1.0, points(15..));
     if rebid == game {
         rules.rule(Call::Pass, 0.0, hcp(0..))
     } else {
@@ -229,10 +233,22 @@ mod tests {
     fn spade_minimum_with_five_hearts_bids_four_spades() {
         let r = stenberg_rebids(Suit::Spades);
         let raise = [call(1, Strain::Spades), call(2, Strain::Notrump)];
-        // 13 HCP, 5 spades + 5 hearts — minimum with a heart side suit → 4♠.
+        // 12 HCP, 5-5 but a wasted ♦Q — minimum with a heart side suit → 4♠.
+        assert_eq!(
+            best(&r, &raise, "KQ954.AJ842.Q4.2"),
+            call(4, Strain::Spades)
+        );
+    }
+
+    #[test]
+    fn clean_five_five_upgrades_to_maximum_four_hearts() {
+        let r = stenberg_rebids(Suit::Spades);
+        let raise = [call(1, Strain::Spades), call(2, Strain::Notrump)];
+        // 13 HCP, clean 5-5 (Kx and a small singleton waste nothing):
+        // worth 15 points, so the heart side suit shows as a maximum.
         assert_eq!(
             best(&r, &raise, "KQ954.AJ842.K4.2"),
-            call(4, Strain::Spades)
+            call(4, Strain::Hearts)
         );
     }
 }

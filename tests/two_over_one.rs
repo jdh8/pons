@@ -40,10 +40,16 @@ fn test_openings() {
         best_call(&system, open, "AQ32.K53.QJ4.A92"),
         call(1, Strain::Notrump)
     );
-    // 20 HCP balanced -> 2NT.
+    // 20 HCP balanced (20.4 Fifths) -> 2NT.
+    assert_eq!(
+        best_call(&system, open, "AJT2.KQT.KJT.AQ9"),
+        call(2, Strain::Notrump)
+    );
+    // Queen-heavy 20 count (18.8 Fifths) downgrades: open 1♣ planning a
+    // 2NT rebid instead of overstating the hand with 2NT directly.
     assert_eq!(
         best_call(&system, open, "AKQ2.KQ5.KJ4.Q92"),
-        call(2, Strain::Notrump)
+        call(1, Strain::Clubs)
     );
     // 22 HCP -> the strong, artificial 2♣.
     assert_eq!(
@@ -262,9 +268,9 @@ fn test_more_openings() {
     let system = stance();
     let open = &[][..];
 
-    // 20 HCP balanced -> 2NT.
+    // 20 HCP balanced (20.4 Fifths) -> 2NT.
     assert_eq!(
-        best_call(&system, open, "AKQ2.KQ5.KJ4.Q92"),
+        best_call(&system, open, "AJT2.KQT.KJT.AQ9"),
         call(2, Strain::Notrump)
     );
     // Nine-count with six hearts -> a weak two.

@@ -8,8 +8,8 @@
 //! double, a natural 2NT overcall, and natural suit overcalls).
 
 use super::super::constraint::{
-    balanced, hcp, len, min_level_is, pred, short_in_their_suits, stopper_in_their_suits, support,
-    top_honors,
+    balanced, hcp, len, min_level_is, points, pred, short_in_their_suits, stopper_in_their_suits,
+    support, top_honors,
 };
 use super::super::context::Context;
 use super::super::{Defensive, Rules};
@@ -46,10 +46,10 @@ pub fn defense_to_suit(their_opening: Bid) -> Rules {
             hcp(15..=18) & balanced() & stopper_in_their_suits(),
         )
         .rule(Call::Double, 1.3, hcp(12..) & short_in_their_suits())
-        .rule(Call::Double, 1.2, hcp(17..))
+        .rule(Call::Double, 1.2, points(17..))
         .rule(Call::Pass, 0.0, hcp(0..));
 
-    // Natural overcalls: five-card suit, 8–16 HCP.
+    // Natural overcalls: five-card suit, 8–16 points.
     for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
         let strain = Strain::from(suit);
         if strain != theirs {
@@ -58,7 +58,7 @@ pub fn defense_to_suit(their_opening: Bid) -> Rules {
             rules = rules.rule(
                 Bid::new(level, strain),
                 weight,
-                len(suit, 5..) & hcp(8..=16),
+                len(suit, 5..) & points(8..=16),
             );
         }
     }
@@ -69,19 +69,23 @@ pub fn defense_to_suit(their_opening: Bid) -> Rules {
         Suit::Clubs | Suit::Diamonds => rules.rule(
             Bid::new(2, theirs),
             2.0,
-            len(Suit::Hearts, 5..) & len(Suit::Spades, 5..) & hcp(8..),
+            len(Suit::Hearts, 5..) & len(Suit::Spades, 5..) & points(8..),
         ),
         // t = ♥ → spades + a minor
         Suit::Hearts => rules.rule(
             Bid::new(2, theirs),
             2.0,
-            len(Suit::Spades, 5..) & (len(Suit::Clubs, 5..) | len(Suit::Diamonds, 5..)) & hcp(8..),
+            len(Suit::Spades, 5..)
+                & (len(Suit::Clubs, 5..) | len(Suit::Diamonds, 5..))
+                & points(8..),
         ),
         // t = ♠ → hearts + a minor
         Suit::Spades => rules.rule(
             Bid::new(2, theirs),
             2.0,
-            len(Suit::Hearts, 5..) & (len(Suit::Clubs, 5..) | len(Suit::Diamonds, 5..)) & hcp(8..),
+            len(Suit::Hearts, 5..)
+                & (len(Suit::Clubs, 5..) | len(Suit::Diamonds, 5..))
+                & points(8..),
         ),
     };
 
@@ -90,17 +94,17 @@ pub fn defense_to_suit(their_opening: Bid) -> Rules {
         Suit::Clubs => rules.rule(
             Bid::new(2, Strain::Notrump),
             1.9,
-            len(Suit::Diamonds, 5..) & len(Suit::Hearts, 5..) & hcp(8..),
+            len(Suit::Diamonds, 5..) & len(Suit::Hearts, 5..) & points(8..),
         ),
         Suit::Diamonds => rules.rule(
             Bid::new(2, Strain::Notrump),
             1.9,
-            len(Suit::Clubs, 5..) & len(Suit::Hearts, 5..) & hcp(8..),
+            len(Suit::Clubs, 5..) & len(Suit::Hearts, 5..) & points(8..),
         ),
         Suit::Hearts | Suit::Spades => rules.rule(
             Bid::new(2, Strain::Notrump),
             1.9,
-            len(Suit::Clubs, 5..) & len(Suit::Diamonds, 5..) & hcp(8..),
+            len(Suit::Clubs, 5..) & len(Suit::Diamonds, 5..) & points(8..),
         ),
     }
 }
@@ -127,10 +131,10 @@ pub fn defense_to_weak_two(their_opening: Bid) -> Rules {
             hcp(15..=18) & balanced() & stopper_in_their_suits(),
         )
         .rule(Call::Double, 1.3, hcp(12..) & short_in_their_suits())
-        .rule(Call::Double, 1.2, hcp(17..))
+        .rule(Call::Double, 1.2, points(17..))
         .rule(Call::Pass, 0.0, hcp(0..));
 
-    // Natural overcalls: five-card suit, 10–16 HCP, at the cheapest legal level.
+    // Natural overcalls: five-card suit, 10–16 points, at the cheapest legal level.
     for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
         let strain = Strain::from(suit);
         if strain != theirs {
@@ -138,7 +142,7 @@ pub fn defense_to_weak_two(their_opening: Bid) -> Rules {
             rules = rules.rule(
                 Bid::new(overcall_level, strain),
                 1.0,
-                len(suit, 5..) & hcp(10..=16),
+                len(suit, 5..) & points(10..=16),
             );
         }
     }
@@ -154,7 +158,7 @@ pub fn defense_to_notrump() -> Rules {
         rules = rules.rule(
             Bid::new(2, Strain::from(suit)),
             1.0,
-            len(suit, 5..) & hcp(8..=14),
+            len(suit, 5..) & points(8..=14),
         );
     }
     rules
@@ -169,8 +173,8 @@ pub fn advances(our_suit: Suit) -> Rules {
     let s = Strain::from(our_suit);
     Rules::new()
         .rule(Bid::new(4, s), 1.6, support(5..) & hcp(..6))
-        .rule(Bid::new(3, s), 1.4, support(3..) & hcp(11..=12))
-        .rule(Bid::new(2, s), 1.0, support(3..) & hcp(6..=10))
+        .rule(Bid::new(3, s), 1.4, support(3..) & points(11..=12))
+        .rule(Bid::new(2, s), 1.0, support(3..) & points(6..=10))
         .rule(Call::Pass, 0.0, hcp(..6))
 }
 
@@ -220,7 +224,7 @@ pub fn advance_double(their_opening: Bid) -> Rules {
         rules = rules.rule(Bid::new(bid_level, strain), 1.0, len(suit, 4..));
         // Major-suit game jump with support and opening values.
         if matches!(suit, Suit::Hearts | Suit::Spades) {
-            rules = rules.rule(Bid::new(4, strain), 1.4, len(suit, 4..) & hcp(11..));
+            rules = rules.rule(Bid::new(4, strain), 1.4, len(suit, 4..) & points(11..));
         }
     }
     rules
@@ -241,12 +245,12 @@ fn michaels_advances(t: Suit) -> Rules {
                 .rule(
                     Bid::new(4, Strain::Hearts),
                     1.3,
-                    hcp(10..) & len(Suit::Hearts, 3..) & hearts_longer.clone(),
+                    points(10..) & len(Suit::Hearts, 3..) & hearts_longer.clone(),
                 )
                 .rule(
                     Bid::new(4, Strain::Spades),
                     1.3,
-                    hcp(10..) & len(Suit::Spades, 3..) & spades_longer.clone(),
+                    points(10..) & len(Suit::Spades, 3..) & spades_longer.clone(),
                 )
                 .rule(Bid::new(2, Strain::Hearts), 1.0, hearts_longer)
                 .rule(Bid::new(2, Strain::Spades), 1.0, spades_longer)
@@ -256,7 +260,7 @@ fn michaels_advances(t: Suit) -> Rules {
             .rule(
                 Bid::new(4, Strain::Spades),
                 1.3,
-                hcp(10..) & len(Suit::Spades, 3..),
+                points(10..) & len(Suit::Spades, 3..),
             )
             .rule(Bid::new(2, Strain::Spades), 0.5, hcp(0..)),
         // Partner shows hearts + a minor: bid hearts.
@@ -264,7 +268,7 @@ fn michaels_advances(t: Suit) -> Rules {
             .rule(
                 Bid::new(4, Strain::Hearts),
                 1.3,
-                hcp(10..) & len(Suit::Hearts, 3..),
+                points(10..) & len(Suit::Hearts, 3..),
             )
             .rule(Bid::new(3, Strain::Hearts), 0.5, hcp(0..)),
     }
@@ -306,14 +310,14 @@ fn responsive_doubles(t: Suit, _raise_lvl: u8) -> Rules {
         Rules::new().rule(
             Call::Double,
             1.5,
-            len(Suit::Clubs, 4..) & len(Suit::Diamonds, 4..) & hcp(8..),
+            len(Suit::Clubs, 4..) & len(Suit::Diamonds, 4..) & points(8..),
         )
     } else {
         // t minor → both majors
         Rules::new().rule(
             Call::Double,
             1.5,
-            len(Suit::Hearts, 4..) & len(Suit::Spades, 4..) & hcp(8..),
+            len(Suit::Hearts, 4..) & len(Suit::Spades, 4..) & points(8..),
         )
     };
 
@@ -329,7 +333,7 @@ fn responsive_doubles(t: Suit, _raise_lvl: u8) -> Rules {
             rules = rules.rule(
                 Bid::new(bid_lvl, strain),
                 1.0,
-                min_level_is(bid_lvl, strain) & len(suit, 5..) & hcp(8..),
+                min_level_is(bid_lvl, strain) & len(suit, 5..) & points(8..),
             );
         }
     }

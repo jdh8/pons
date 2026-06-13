@@ -20,7 +20,7 @@
 //! still get a natural answer.
 
 use super::{call, insert_all_seats};
-use crate::bidding::constraint::{hcp, support};
+use crate::bidding::constraint::{hcp, points, support};
 use crate::bidding::{Rules, Trie};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Strain, Suit};
@@ -46,9 +46,9 @@ fn overcall_advances(over: Suit, level: u8) -> Rules {
 
     let mut rules = Rules::new()
         // Weak game raise: a long trump fit, few points.
-        .rule(Bid::new(4, o), 1.6, support(5..) & hcp(..6))
+        .rule(Bid::new(4, o), 1.6, support(5..) & points(..6))
         // Natural simple raise: three-card support, constructive but not strong.
-        .rule(Bid::new(level + 1, o), 1.0, support(3..) & hcp(6..=9))
+        .rule(Bid::new(level + 1, o), 1.0, support(3..) & points(6..=9))
         .rule(Call::Pass, 0.0, hcp(..6));
 
     // Transfer raise: the step below partner's suit, limit-plus with support.
@@ -56,7 +56,7 @@ fn overcall_advances(over: Suit, level: u8) -> Rules {
         rules = rules.rule(
             Bid::new(level + 1, Strain::from(below)),
             1.5,
-            support(3..) & hcp(10..=12),
+            support(3..) & points(10..=12),
         );
     }
     rules
@@ -70,7 +70,7 @@ fn completion(over: Suit, level: u8) -> Rules {
     let o = Strain::from(over);
     Rules::new()
         // Accept to game with a maximum overcall.
-        .rule(Bid::new(4, o), 1.0, hcp(14..))
+        .rule(Bid::new(4, o), 1.0, points(14..))
         // Complete the transfer at the cheapest level (sign-off).
         .rule(Bid::new(level + 1, o), 0.5, hcp(0..))
 }

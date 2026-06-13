@@ -1,7 +1,7 @@
 //! Opener's rebids (one round) and the forcing-1NT continuations
 
 use super::{call, insert_uncontested};
-use crate::bidding::constraint::{balanced, hcp, len, support};
+use crate::bidding::constraint::{balanced, fifths, hcp, len, points, support};
 use crate::bidding::{Rules, Trie};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Strain, Suit};
@@ -11,24 +11,32 @@ use contract_bridge::{Bid, Strain, Suit};
 /// Forcing on opener — there is no pass rule.
 fn rebid_one_heart_one_spade() -> Rules {
     Rules::new()
-        .rule(Bid::new(4, Strain::Spades), 2.6, support(4..) & hcp(19..))
+        .rule(
+            Bid::new(4, Strain::Spades),
+            2.6,
+            support(4..) & points(19..),
+        )
         .rule(
             Bid::new(3, Strain::Spades),
             2.2,
-            support(4..) & hcp(16..=18),
+            support(4..) & points(16..=18),
         )
         .rule(
             Bid::new(2, Strain::Spades),
             1.8,
-            support(4..) & hcp(12..=15),
+            support(4..) & points(12..=15),
         )
         .rule(Bid::new(2, Strain::Hearts), 1.4, len(Suit::Hearts, 6..))
-        .rule(Bid::new(2, Strain::Notrump), 1.2, hcp(18..=19) & balanced())
+        .rule(
+            Bid::new(2, Strain::Notrump),
+            1.2,
+            fifths(18.0..20.0) & balanced(),
+        )
         .rule(Bid::new(2, Strain::Clubs), 0.9, len(Suit::Clubs, 4..))
         .rule(Bid::new(2, Strain::Diamonds), 0.9, len(Suit::Diamonds, 4..))
         // Balanced minimum, and the guaranteed-legal fallback.
-        .rule(Bid::new(1, Strain::Notrump), 0.5, hcp(12..=14))
-        .rule(Bid::new(1, Strain::Notrump), 0.2, hcp(12..))
+        .rule(Bid::new(1, Strain::Notrump), 0.5, fifths(12.0..15.0))
+        .rule(Bid::new(1, Strain::Notrump), 0.2, hcp(0..))
 }
 
 /// Opener's rebid after `1M – 1NT` (the forcing notrump)
@@ -38,7 +46,11 @@ fn rebid_one_heart_one_spade() -> Rules {
 fn rebid_after_forcing_notrump(major: Suit) -> Rules {
     let trump = Strain::from(major);
     let mut rules = Rules::new()
-        .rule(Bid::new(2, Strain::Notrump), 1.2, hcp(18..=19) & balanced())
+        .rule(
+            Bid::new(2, Strain::Notrump),
+            1.2,
+            fifths(18.0..20.0) & balanced(),
+        )
         .rule(Bid::new(2, trump), 1.0, len(major, 6..));
     for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts] {
         if Strain::from(suit) < trump {
@@ -56,17 +68,25 @@ fn rebid_after_forcing_notrump(major: Suit) -> Rules {
 fn rebid_raise_major(responder_major: Suit, opener_minor: Suit) -> Rules {
     let m = Strain::from(responder_major);
     Rules::new()
-        .rule(Bid::new(4, m), 2.6, support(4..) & hcp(19..))
-        .rule(Bid::new(3, m), 2.2, support(4..) & hcp(16..=18))
-        .rule(Bid::new(2, m), 1.8, support(4..) & hcp(12..=15))
-        .rule(Bid::new(2, Strain::Notrump), 1.2, hcp(18..=19) & balanced())
+        .rule(Bid::new(4, m), 2.6, support(4..) & points(19..))
+        .rule(Bid::new(3, m), 2.2, support(4..) & points(16..=18))
+        .rule(Bid::new(2, m), 1.8, support(4..) & points(12..=15))
+        .rule(
+            Bid::new(2, Strain::Notrump),
+            1.2,
+            fifths(18.0..20.0) & balanced(),
+        )
         .rule(
             Bid::new(2, Strain::from(opener_minor)),
             0.9,
             len(opener_minor, 5..),
         )
-        .rule(Bid::new(1, Strain::Notrump), 0.5, hcp(12..=14) & balanced())
-        .rule(Bid::new(1, Strain::Notrump), 0.2, hcp(12..))
+        .rule(
+            Bid::new(1, Strain::Notrump),
+            0.5,
+            fifths(12.0..15.0) & balanced(),
+        )
+        .rule(Bid::new(1, Strain::Notrump), 0.2, hcp(0..))
 }
 
 /// Opener's rebid after `1♣ – 1♦`
@@ -81,16 +101,24 @@ fn rebid_one_club_one_diamond() -> Rules {
         .rule(
             Bid::new(3, Strain::Diamonds),
             1.5,
-            support(4..) & hcp(16..=18),
+            support(4..) & points(16..=18),
         )
         .rule(
             Bid::new(2, Strain::Diamonds),
             1.2,
-            support(4..) & hcp(12..=15),
+            support(4..) & points(12..=15),
         )
-        .rule(Bid::new(2, Strain::Notrump), 1.1, hcp(18..=19) & balanced())
-        .rule(Bid::new(1, Strain::Notrump), 0.5, hcp(12..=14) & balanced())
-        .rule(Bid::new(1, Strain::Notrump), 0.2, hcp(12..))
+        .rule(
+            Bid::new(2, Strain::Notrump),
+            1.1,
+            fifths(18.0..20.0) & balanced(),
+        )
+        .rule(
+            Bid::new(1, Strain::Notrump),
+            0.5,
+            fifths(12.0..15.0) & balanced(),
+        )
+        .rule(Bid::new(1, Strain::Notrump), 0.2, hcp(0..))
 }
 
 // ---------------------------------------------------------------------------
@@ -147,10 +175,10 @@ fn opener_accept_notrump_invite() -> Rules {
 
 /// Opener accepts or declines responder's 3M limit raise
 ///
-/// Accept with 14+ HCP (bid game in the major), decline with a pass.
+/// Accept with 14+ points (bid game in the major), decline with a pass.
 fn opener_accept_limit_raise(major: Suit) -> Rules {
     Rules::new()
-        .rule(Bid::new(4, Strain::from(major)), 1.0, hcp(14..))
+        .rule(Bid::new(4, Strain::from(major)), 1.0, points(14..))
         .rule(Call::Pass, 0.0, hcp(0..))
 }
 

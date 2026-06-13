@@ -94,7 +94,7 @@ fn jacoby_1s_rebid_big_balanced() {
 #[test]
 fn jacoby_1s_rebid_medium_balanced() {
     let system = stance();
-    // 15 HCP, no shortness → 3NT (15–17 balanced)
+    // 16 HCP (16.6 Fifths), 5-4-2-2, no shortness → 3NT (15–17)
     assert_eq!(
         best_call(
             &system,
@@ -104,7 +104,7 @@ fn jacoby_1s_rebid_medium_balanced() {
                 call(2, Strain::Notrump),
                 Call::Pass
             ],
-            "AKJ52.KQ7.Q72.92",
+            "AKT52.KQT4.A2.92",
         ),
         call(3, Strain::Notrump),
     );

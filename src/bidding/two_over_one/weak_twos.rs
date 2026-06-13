@@ -5,7 +5,7 @@
 //! 1. **Responder's first bid** (`2M–?`): Ogust 2NT, preemptive raises, and a
 //!    one-round-forcing new suit.
 //! 2. **Opener's Ogust answers** (`2M–2NT–?`): a conventional five-rung ladder
-//!    encoding suit quality and HCP range.
+//!    encoding suit quality and points range.
 //! 3. **Asker's Ogust continuations** (`2M–2NT–<answer>–?`): sign-off or game
 //!    based on what opener revealed.
 //! 4. **Opener's reply to a forcing new suit** (`2M–<new suit>–?`): raise or
@@ -25,7 +25,7 @@
 //! obligatory).
 
 use super::{call, insert_uncontested};
-use crate::bidding::constraint::{hcp, len, support, top_honors};
+use crate::bidding::constraint::{hcp, len, points, support, top_honors};
 use crate::bidding::{Rules, Trie};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Strain, Suit};
@@ -53,7 +53,11 @@ fn responses(our: Suit) -> Rules {
     let trump = Strain::from(our);
     let mut rules = Rules::new()
         // Ogust 2NT: at least two-card support and opening values.
-        .rule(Bid::new(2, Strain::Notrump), 2.0, hcp(14..) & support(2..))
+        .rule(
+            Bid::new(2, Strain::Notrump),
+            2.0,
+            points(14..) & support(2..),
+        )
         // Pre-emptive game raise.
         .rule(Bid::new(4, trump), 1.3, support(4..))
         // Pre-emptive simple raise (RONF — raise is to play, not invitational).
@@ -71,7 +75,7 @@ fn responses(our: Suit) -> Rules {
         rules = rules.rule(
             Bid::new(level, Strain::from(x)),
             1.5,
-            len(x, 5..) & top_honors(x, 2..) & hcp(14..),
+            len(x, 5..) & top_honors(x, 2..) & points(14..),
         );
     }
     rules
@@ -83,16 +87,16 @@ fn responses(our: Suit) -> Rules {
 
 /// Opener's answers to the Ogust 2NT inquiry after a weak-two in `our`
 ///
-/// The five-rung ladder encodes HCP range and suit quality regardless of
+/// The five-rung ladder encodes points range and suit quality regardless of
 /// which suit was opened:
 ///
 /// | Call | Meaning | Weight |
 /// |------|---------|--------|
 /// | 3NT  | Solid suit (A-K-Q) | 1.5 |
-/// | 3♣   | Minimum HCP, bad suit (< 2 top honors) | 1.0 |
-/// | 3♦   | Minimum HCP, good suit (≥ 2 top honors) | 1.0 |
-/// | 3♥   | Maximum HCP, bad suit | 1.0 |
-/// | 3♠   | Maximum HCP, good suit | 1.0 |
+/// | 3♣   | Minimum points, bad suit (< 2 top honors) | 1.0 |
+/// | 3♦   | Minimum points, good suit (≥ 2 top honors) | 1.0 |
+/// | 3♥   | Maximum points, bad suit | 1.0 |
+/// | 3♠   | Maximum points, good suit | 1.0 |
 ///
 /// A safety fallback of 3♣ at weight 0.2 guarantees a legal call when none
 /// of the crisp rules fire (which should not happen with a legitimate weak
@@ -102,29 +106,29 @@ fn ogust_answers(our: Suit) -> Rules {
     Rules::new()
         // Solid six-card suit (A-K-Q present): bid 3NT.
         .rule(Bid::new(3, Strain::Notrump), 1.5, top_honors(our, 3..))
-        // Minimum values (5–7 HCP), bad suit (fewer than two of A/K/Q).
+        // Minimum values (5–7 points), bad suit (fewer than two of A/K/Q).
         .rule(
             Bid::new(3, Strain::Clubs),
             1.0,
-            hcp(5..=7) & !top_honors(our, 2..),
+            points(5..=7) & !top_honors(our, 2..),
         )
         // Minimum values, good suit (two or more of A/K/Q).
         .rule(
             Bid::new(3, Strain::Diamonds),
             1.0,
-            hcp(5..=7) & top_honors(our, 2..),
+            points(5..=7) & top_honors(our, 2..),
         )
-        // Maximum values (8–10 HCP), bad suit.
+        // Maximum values (8–10 points), bad suit.
         .rule(
             Bid::new(3, Strain::Hearts),
             1.0,
-            hcp(8..=10) & !top_honors(our, 2..),
+            points(8..=10) & !top_honors(our, 2..),
         )
         // Maximum values, good suit.
         .rule(
             Bid::new(3, Strain::Spades),
             1.0,
-            hcp(8..=10) & top_honors(our, 2..),
+            points(8..=10) & top_honors(our, 2..),
         )
         // Safety fallback: guarantees a legal response for any legitimate
         // weak-two hand even when the crisp constraints leave a gap.
@@ -149,7 +153,7 @@ fn asker_after_min_major(our: Suit) -> Rules {
     let trump = Strain::from(our);
     Rules::new()
         // With game-going values, push to game anyway.
-        .rule(Bid::new(4, trump), 1.0, hcp(17..))
+        .rule(Bid::new(4, trump), 1.0, points(17..))
         // Sign-off at three: opener was minimum, asker is short of game force.
         .rule(Bid::new(3, trump), 0.5, hcp(0..))
 }
@@ -199,7 +203,7 @@ fn asker_after_diamonds_min_good() -> Rules {
 fn asker_after_diamonds_max() -> Rules {
     // Forcing node: game is in range given combined values.
     Rules::new()
-        .rule(Bid::new(5, Strain::Diamonds), 1.0, hcp(17..))
+        .rule(Bid::new(5, Strain::Diamonds), 1.0, points(17..))
         .rule(Bid::new(3, Strain::Notrump), 0.5, hcp(0..))
 }
 

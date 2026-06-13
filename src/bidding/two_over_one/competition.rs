@@ -6,7 +6,7 @@
 //! openings, and opener's answer to partner's negative double of a two-level
 //! minor overcall.
 
-use super::super::constraint::{hcp, len, min_level_is, support, they_bid};
+use super::super::constraint::{hcp, len, min_level_is, points, support, they_bid};
 use super::super::context::Context;
 use super::super::fallback::{Fallback, FirstIs, OvercallAtMost, ReplaceNext, guard};
 use super::super::{Competitive, Rules};
@@ -49,7 +49,10 @@ fn over_their_overcall(opening: Suit) -> Rules {
             rules = rules.rule(
                 Bid::new(lvl, t_strain),
                 2.0,
-                they_bid(t_strain) & min_level_is(lvl, t_strain) & support(raise_min..) & hcp(10..),
+                they_bid(t_strain)
+                    & min_level_is(lvl, t_strain)
+                    & support(raise_min..)
+                    & points(10..),
             );
         }
     }
@@ -58,21 +61,21 @@ fn over_their_overcall(opening: Suit) -> Rules {
     rules = rules.rule(
         Bid::new(3, o_strain),
         1.6,
-        min_level_is(2, o_strain) & support(jump_min..) & hcp(..=9),
+        min_level_is(2, o_strain) & support(jump_min..) & points(..=9),
     );
 
     // Competitive raise: 3o when it's the minimum legal bid
     rules = rules.rule(
         Bid::new(3, o_strain),
         1.3,
-        min_level_is(3, o_strain) & support(raise_min..) & hcp(6..=9),
+        min_level_is(3, o_strain) & support(raise_min..) & points(6..=9),
     );
 
     // Single raise
     rules = rules.rule(
         Bid::new(2, o_strain),
         1.5,
-        min_level_is(2, o_strain) & support(raise_min..) & hcp(6..=9),
+        min_level_is(2, o_strain) & support(raise_min..) & points(6..=9),
     );
 
     // Negative double
@@ -98,7 +101,7 @@ fn over_their_overcall(opening: Suit) -> Rules {
             rules = rules.rule(
                 Bid::new(lvl, x_strain),
                 1.1,
-                min_level_is(lvl - 1, x_strain) & len(x, 6..) & hcp(2..=5) & !they_bid(x_strain),
+                min_level_is(lvl - 1, x_strain) & len(x, 6..) & points(2..=5) & !they_bid(x_strain),
             );
         }
     }

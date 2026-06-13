@@ -46,7 +46,7 @@
 
 use super::Rules;
 use super::constraint::{
-    Cons, Constraint, balanced, hcp, len, min_level_is, partner_suit_is, pred,
+    Cons, Constraint, balanced, hcp, len, min_level_is, partner_suit_is, points, pred,
     short_in_their_suits, stopper_in_their_suits, support, they_bid,
 };
 use super::context::Context;
@@ -253,7 +253,7 @@ pub fn instinct() -> Rules {
             1.45,
             forced_advance()
                 & len(major, 4..)
-                & hcp(11..)
+                & points(11..)
                 & level_available(4, strain)
                 & !they_bid(strain),
         );
@@ -298,7 +298,7 @@ pub fn instinct() -> Rules {
                 partner_suit_is(suit)
                     & min_level_is(level, strain)
                     & support(3..)
-                    & hcp(threshold..),
+                    & points(threshold..),
             );
         }
 
@@ -311,7 +311,7 @@ pub fn instinct() -> Rules {
                 we_have_not_bid()
                     & min_level_is(level, strain)
                     & len(suit, 5..)
-                    & hcp(floor..=16)
+                    & points(floor..=16)
                     & !they_bid(strain),
             );
         }
@@ -401,7 +401,7 @@ pub fn instinct() -> Rules {
             0.9,
             their_live_bid_at_most(3) & short_in_their_suits() & hcp(12..),
         )
-        .rule(Call::Double, 0.8, their_live_bid_at_most(3) & hcp(17..))
+        .rule(Call::Double, 0.8, their_live_bid_at_most(3) & points(17..))
 }
 
 #[cfg(test)]

@@ -1,7 +1,7 @@
 //! Continuations after the strong raises: Jacoby 2NT and splinters
 
 use super::{call, insert_uncontested, slam};
-use crate::bidding::constraint::{hcp, len, top_honors};
+use crate::bidding::constraint::{fifths, hcp, len, points, top_honors};
 use crate::bidding::{Rules, Trie};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Strain, Suit};
@@ -49,14 +49,14 @@ fn jacoby_rebids(major: Suit) -> Rules {
     let [a, b, c] = [side_suits[0], side_suits[1], side_suits[2]];
     let no_shortness = !len(a, ..=1) & !len(b, ..=1) & !len(c, ..=1);
 
-    // 3M: 18+ HCP, no side shortness (big balanced-ish raise acceptance).
-    rules = rules.rule(Bid::new(3, trump), 1.5, hcp(18..) & no_shortness.clone());
+    // 3M: 18+ points, no side shortness (big balanced-ish raise acceptance).
+    rules = rules.rule(Bid::new(3, trump), 1.5, points(18..) & no_shortness.clone());
 
-    // 3NT: 15–17 HCP, no side shortness (medium, balanced).
+    // 3NT: 15–17 Fifths, no side shortness (medium, balanced).
     rules = rules.rule(
         Bid::new(3, Strain::Notrump),
         1.4,
-        hcp(15..=17) & no_shortness,
+        fifths(15.0..18.0) & no_shortness,
     );
 
     // 4M: minimum opener, always applies (guaranteed legal).
@@ -75,12 +75,12 @@ fn responder_after_jacoby(major: Suit, opener_bid: Call) -> Rules {
     if opener_bid == four_major {
         // Opener showed a minimum; slam needs extra values.
         Rules::new()
-            .rule(four_nt, 1.0, hcp(18..))
+            .rule(four_nt, 1.0, points(18..))
             .rule(Call::Pass, 0.0, hcp(0..))
     } else {
         // Opener showed something descriptive; slam is in range with 16+.
         Rules::new()
-            .rule(four_nt, 1.0, hcp(16..))
+            .rule(four_nt, 1.0, points(16..))
             .rule(four_major, 0.5, hcp(0..))
     }
 }

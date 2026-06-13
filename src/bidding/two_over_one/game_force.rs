@@ -16,7 +16,9 @@ use super::fallback_all_seats;
 use super::uncontested;
 use super::{Trie, call};
 use crate::bidding::Rules;
-use crate::bidding::constraint::{balanced, hcp, len, partner_suit_is, pred, support};
+use crate::bidding::constraint::{
+    balanced, fifths, hcp, len, partner_suit_is, points, pred, support,
+};
 use crate::bidding::fallback::{Fallback, Undisturbed};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Strain, Suit};
@@ -41,7 +43,7 @@ fn opener_rebid(major: Suit, resp: Suit) -> Rules {
 
     let mut rules = Rules::new()
         // Jump to 3M: solid six-card major.
-        .rule(call(3, major_strain), 1.7, len(major, 6..) & hcp(15..))
+        .rule(call(3, major_strain), 1.7, len(major, 6..) & points(15..))
         // Raise responder's suit.
         .rule(call(3, resp_strain), 1.6, support(4..))
         // Simple rebid of the major.
@@ -50,7 +52,7 @@ fn opener_rebid(major: Suit, resp: Suit) -> Rules {
         .rule(
             call(2, Strain::Notrump),
             1.2,
-            balanced() & (hcp(12..=14) | hcp(18..=19)),
+            balanced() & (fifths(12.0..15.0) | fifths(18.0..20.0)),
         );
 
     // New suits x ∉ {major, resp}.  Collect them in ascending strain order
@@ -128,7 +130,7 @@ fn responder_rebid(major: Suit, resp: Suit) -> Rules {
 fn opener_third(major: Suit) -> Rules {
     let major_strain = Strain::from(major);
     Rules::new()
-        .rule(call(4, Strain::Notrump), 1.0, hcp(15..))
+        .rule(call(4, Strain::Notrump), 1.0, points(15..))
         .rule(call(4, major_strain), 0.5, hcp(0..))
 }
 
@@ -151,7 +153,7 @@ fn opener_rebid_1d_2c() -> Rules {
         .rule(
             call(2, Strain::Notrump),
             1.2,
-            balanced() & (hcp(12..=14) | hcp(18..=19)),
+            balanced() & (fifths(12.0..15.0) | fifths(18.0..20.0)),
         )
         // New four-card majors.
         .rule(call(2, Strain::Hearts), 1.0, len(Suit::Hearts, 4..))

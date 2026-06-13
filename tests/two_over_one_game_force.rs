@@ -47,7 +47,8 @@ fn opener_rebid_1s_2c_four_diamonds() {
 
 #[test]
 fn opener_rebid_1s_2c_six_spades() {
-    // 14 HCP, six spades → rebid 2♠.
+    // 13 HCP (14 points after the clean-shape upgrade), six spades — short
+    // of the 15 a jump to 3♠ would promise → rebid 2♠.
     let auction = &[
         call(1, Strain::Spades),
         Call::Pass,
@@ -55,7 +56,7 @@ fn opener_rebid_1s_2c_six_spades() {
         Call::Pass,
     ];
     assert_eq!(
-        best_call(&stance(), auction, "AQJ752.A2.K54.92"),
+        best_call(&stance(), auction, "AQJ752.A2.Q54.92"),
         call(2, Strain::Spades),
     );
 }
