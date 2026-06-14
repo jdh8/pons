@@ -34,11 +34,12 @@
 use super::fallback::{Always, Fallback};
 use super::instinct::instinct;
 use super::trie::Classifier;
-use super::{Competitive, Constructive, Defensive, Family, Pair, Trie};
+use super::{Competitive, Constructive, Family, Pair, Trie};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Strain};
 use std::sync::Arc;
 
+mod defense;
 mod openings;
 mod responses;
 
@@ -141,7 +142,12 @@ pub fn bare_polish_club() -> Pair {
     openings::register(&mut c);
     responses::register(&mut c);
 
-    Pair::new(Family::POLISH_CLUB, c, Competitive::new(), Defensive::new())
+    Pair::new(
+        Family::POLISH_CLUB,
+        c,
+        Competitive::new(),
+        defense::defensive(),
+    )
 }
 
 /// Attach the deterministic instinct floor to a pair's contested books

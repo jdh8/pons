@@ -9,6 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Strawberry Polish Club defensive book** (AI-bidder **M4.3**, follow-up pass):
+  `bidding::polish_club`'s previously-empty Defensive book is now authored from the
+  system's notes (the `Defense/` chapters of <https://polish.club>), so our actions
+  when the opponents open are answered by the system rather than the `instinct`
+  floor. Over their one-of-a-suit opening: **NLTC-gauged** natural overcalls and
+  preemptive jumps (a one-level overcall is `8.5–6.0` losers, a two-level `7.5–6.0`,
+  a jump `9.5–8.0`), a takeout double (`≤7.5` losers, short in their suit), the
+  15–18 1NT, the **Bailey cue** of their suit (the highest unbid suit plus another),
+  and the **Unusual 2NT** (the two lowest unbid). A distinct **balancing seat**
+  (plain-HCP, lighter, where a 4-4-4-1 doubles rather than overcalling a four-card
+  suit), **Landy** over their 1NT, natural-with-takeout over their weak two, and a
+  takeout-flavored structure over **Multi 2♦**, plus the principal advances (raising
+  an overcall, advancing a takeout double, the Unusual 2NT, and responsive doubles).
+  Deep transfer/relay advance tails (Rubens, Rumpelsohl, the Bailey-cue and Multi
+  continuations) and the Competitive book stay on the `instinct` floor, as the
+  constructive backbone leaves its relay tails. Every rule renders truthfully, so
+  `export-corpus --system polish-club` is still **0-opaque** and now emits **339
+  records** (up from 59). This adds one DSL primitive — **`nltc(range)`** (faithful
+  NLTC bands, mirroring the existing `nltc_at_most`; `describe()`s as e.g.
+  `6.0–8.5 NLTC`) — and `tests/polish_club_defense.rs` (9 behavioral spot-checks).
+  No new crate dependencies; `instinct` stays the baseline and the floor.
 - **Search-improved distillation targets** (AI-bidder **M3.1**): a new gated
   `search-dump` example (behind the `search` feature) that bids out random boards
   with the M2.3 live double-dummy search floor and records, at every decision, a

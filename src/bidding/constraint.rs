@@ -652,6 +652,30 @@ pub fn nltc_at_most(losers: f64) -> Cons<impl Constraint + Clone> {
     Cons(NltcAtMost(losers))
 }
 
+/// New Losing Trick Count in a range (the [`nltc`] constraint)
+#[derive(Clone)]
+struct Nltc<R>(R);
+
+impl<R: RangeBounds<f64> + Clone + Send + Sync> Constraint for Nltc<R> {
+    fn eval(&self, hand: Hand, _: &Context<'_>) -> f32 {
+        crisp(self.0.contains(&eval::NLTC.eval(hand)))
+    }
+
+    fn describe(&self) -> Description {
+        describe_real_range(&self.0, "NLTC")
+    }
+}
+
+/// [New Losing Trick Count][eval::NLTC] in the given range
+///
+/// Fewer losers is stronger, so the polish.club notes write a band high-to-low
+/// (e.g. "8.5–6.0 NLTC"); pass it low-to-high as `nltc(6.0..=8.5)`.  The
+/// open-ended [`nltc_at_most`] is the ceiling-only special case.
+#[must_use]
+pub fn nltc(range: impl RangeBounds<f64> + Clone + Send + Sync) -> Cons<impl Constraint + Clone> {
+    Cons(Nltc(range))
+}
+
 /// Kaplan–Rubens CCCC floor (the [`cccc_at_least`] constraint)
 #[derive(Clone)]
 struct CcccAtLeast(f64);
@@ -1295,6 +1319,8 @@ mod tests {
     fn test_describe_atoms() {
         assert_eq!(prose(&balanced()), "balanced");
         assert_eq!(prose(&nltc_at_most(7.0)), "NLTC ≤ 7");
+        assert_eq!(prose(&nltc(6.0..=8.5)), "6.0–8.5 NLTC");
+        assert_eq!(prose(&nltc(..=7.5)), "≤7.5 NLTC");
         assert_eq!(prose(&cccc_at_least(14.9)), "CCCC ≥ 14.9");
         assert_eq!(prose(&stopper_in(Suit::Hearts)), "stopper in ♥");
         assert_eq!(prose(&stopper_in_their_suits()), "stopper in their suit(s)");

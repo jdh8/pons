@@ -306,16 +306,25 @@ Parallelizable with M1–M3 once M0 exists; high near-term leverage.
   inclusive 15–17 1NT envelope, Ekren 2♣, Multi 2♦, Muiderberg 2♥/2♠, unusual
   2NT, preempts) and the defining first responses (the artificial 1♣ framework —
   negative 1♦ relay + positives, forcing by omission — natural 1♦/1♥/1♠ responses,
-  shared 1NT reusing 2/1's notrump responses) are authored; the deep relay tails
-  and the Competitive/Defensive books are floored by `instinct` (attached to all
-  three books). `export-corpus --system polish-club` emits a **0-opaque** second
+  shared 1NT reusing 2/1's notrump responses) are authored; the Competitive book
+  and the deep relay tails are floored by `instinct` (attached to all three
+  books). `export-corpus --system polish-club` emits a **0-opaque** second
   corpus (every bespoke shape via `described`); `tests/polish_club.rs` makes the 8
   curated textbook openings hard assertions, plus a 0-opaque guard and a reach-game
   check. The `polish-club-reference` example cross-checks against BBA WJ
   (informational — notes authoritative): **86% opening agreement on the overlap**
   (1-level + Multi 2♦) over 1000 boards, divergences listed as the next targets.
-  *Deferred (next passes):* opener's rebid relays, the preempt response trees, and
-  the Competitive/Defensive books (floored until then); BTU 1NT responses.
+  **Defensive book (follow-up pass, done):** authored from the `Defense/` chapters
+  — NLTC-gauged overcalls + preemptive jumps, takeout double, 1NT, the Bailey cue
+  (highest unbid + another) and Unusual 2NT over their one-suit opening; a
+  plain-HCP balancing seat (4-4-4-1 doubles, not a four-card overcall); Landy over
+  their 1NT; natural-with-takeout over their weak two; a takeout-flavored structure
+  over Multi 2♦; plus the principal advances. Adds the `nltc(range)` DSL primitive
+  (faithful NLTC bands); `tests/polish_club_defense.rs` spot-checks 9 actions; the
+  corpus is now **339 records**, still 0-opaque.
+  *Deferred (next passes):* opener's rebid relays, the preempt response trees, the
+  **Competitive book** and the deep defensive transfer/relay tails (floored until
+  then); BTU 1NT responses.
 
 Exit M4: book authoring is "write the meaning, verify, commit" — and a second
 system exists.
