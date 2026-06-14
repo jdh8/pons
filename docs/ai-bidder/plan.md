@@ -342,11 +342,35 @@ was trained on BBA-bid deals). It plugs into three existing slots, strongest fir
   trails BBA's mature 2/1 by ≈ 2.6 IMPs/board, the gap concentrated in
   competitive/contested auctions (the thinnest part of the books). 371 tests
   green; `libloading` stays a dev-dependency, default build untouched.
-- ⬜ **S.2 Polish Club reference (feeds M4.3 + M5).** Harvest BBA's **WJ (Polish
+- ✅ **S.2 Polish Club reference (feeds M4.3 + M5).** Harvest BBA's **WJ (Polish
   Club)** auctions as ground truth for the M4.3 port and a head-start on the second
   corpus M5 needs. *Deliverable:* a WJ reference set + per-auction checks for the
   ported books via `bidding::verify`. *Measure:* the ported system agrees with BBA
-  on textbook WJ auctions. *Deps:* S.0; pairs with M4.3.
+  on textbook WJ auctions. *Deps:* S.0; pairs with M4.3. **Done (reference half):**
+  `examples/bba-wj-reference` — a table of WJ bidders (**EPBot system type 2**,
+  confirmed from `WJ.bbsa`'s `System type = 2` *and* behaviorally: an 18-balanced
+  hand opens 1♣, the Polish Club catch-all) self-plays random boards; every
+  `(auction, call)` becomes a JSONL record with the actor's hand, and — for the
+  **first round** — BBA's *self-reported meaning*: a short systemic label
+  (`"Polish 1C"`, `"Multi"`, `"5+ !H"`) **plus parsed constraint ranges** (point
+  range + per-suit length ranges, straight onto the `Constraint` DSL). Meaning
+  capture uses two FFI calls recovered here by `objdump`
+  (`epbot_get_info_meaning[_extended](bot, position, buf, len)` fill a string
+  buffer); they are reliable only for the **first four calls** — past position 4
+  the same indices report per-seat hand inferences, so the harness captures
+  positions `0..4` and drops the trivial-range "no info" sentinel. Openings + first
+  responses are a system's defining, most-distinct slice and what the port builds
+  first. A curated set of 8 **textbook Polish Club openings** doubles as the
+  *measure*: the system-defining calls (strong-balanced→1♣, 15–17→1NT, 5-card
+  majors→1♥/1♠) are hard assertions (all green; BBA is ground truth), the rest
+  recorded — surfacing real WJ knowledge (a 6-spade weak hand opens **2♦ "Multi"**;
+  1♦ shows **5+**). 21070 records / 2000 boards, ~38% carrying a meaning; output to
+  `target/` (gitignored) with a versioned sidecar (system, seed, git SHA, schema,
+  counts). All 371 tests green (no crate tests added — the harness is a dev-only
+  example, its curated-fixture assertions the acceptance gate); `libloading`
+  stays a dev-dependency, default build untouched. *Deferred to M4.3 (the port half):* the `bidding::verify` per-auction
+  check needs the *ported* books, which don't exist yet — S.2 produces the
+  reference those checks will diff against.
 - ⬜ **S.3 (optional) Imitation teacher for M3.** BBA's calls as an extra,
   cheap/deterministic target alongside the M2.3 search teacher. *Caveat:* imitating
   BBA is capped at BBA — it cannot *exceed* a human system the way the double-dummy

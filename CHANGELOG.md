@@ -9,6 +9,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- A **WJ (Polish Club) reference set** (AI-bidder Side-track S, S.2): a new
+  `bba-wj-reference` example that harvests BBA's **WJ — *Wspólny Język* / Polish
+  Club** bidding (EPBot **system type 2**, confirmed both from `WJ.bbsa`'s
+  `System type = 2` and behaviorally — an 18-balanced hand opens 1♣, the Polish
+  Club catch-all, not 1NT/1♠) as ground truth for the upcoming Polish Club port
+  (M4.3) and a head-start on the second system corpus (M5). A table of WJ bidders
+  self-plays random boards (reusing the S.1 `BbaOracle` flow — one fresh bot per
+  decision, dealer canonicalized to position 0), and every `(auction, call)`
+  becomes a JSONL record carrying the actor's hand and — for the **first round**
+  of bidding — BBA's *self-reported meaning*: a short systemic label
+  (`"Polish 1C"`, `"Multi"`, `"5+ !H"`) **plus parsed constraint ranges** (a point
+  range and per-suit length ranges that map straight onto the `Constraint` DSL the
+  port authors against). The meaning is read through two more EPBot calls
+  recovered here by disassembly — `epbot_get_info_meaning` and
+  `…_meaning_extended`, which fill a string buffer for the bid at a given position;
+  they report systemic meanings reliably only for the **first four calls**, so the
+  harness captures positions `0..4` and drops EPBot's trivial-range "no info"
+  sentinel (openings and first responses are a system's defining, most-distinct
+  slice and exactly what the port builds first). A curated set of eight **textbook
+  Polish Club openings** doubles as the milestone's measure: the system-defining
+  calls (strong-balanced → 1♣, 15–17 balanced → 1NT, five-card majors → 1♥/1♠) are
+  hard assertions against BBA as ground truth (all green), the rest recorded —
+  surfacing concrete WJ knowledge for the port (a weak six-spade hand opens
+  **2♦ "Multi"**; 1♦ shows **5+**). Output is JSONL plus a versioned JSON sidecar
+  (system, seed, git SHA, schema, counts) written under `target/` (gitignored);
+  ~21000 records over 2000 boards, ~38% carrying a meaning. The proper
+  `bidding::verify` per-auction check against the *ported* books lands with M4.3
+  (no ported books exist yet) — S.2 produces the reference those checks will diff
+  against. Still purely external tooling: `libloading` **dev-dependency** only, the
+  proprietary binary stays git-ignored under `/vendor/`, and the crate's default
+  build, dependencies, and `instinct()` baseline are untouched.
 - A **BBA/EPBot eval anchor** (AI-bidder Side-track S, S.1): a new `bba-match`
   example that pits our deterministic `two_over_one()` floor against **BBA's own
   2/1 Game Force card** (EPBot system 0, verified by name) in an A/B duplicate
