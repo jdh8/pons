@@ -308,6 +308,44 @@ Exit M5: one model, any system, driven by written meanings.
 
 ---
 
+## Side-track S — External reference bidder (BBA / EPBot)
+
+Optional, parallelizable, **pure tooling** — never touches the default build, the
+`instinct()` baseline, or any invariant. Edward Piwowar's BBA is a mature,
+rule-based, ~100%-reproducible engine shipped as a Windows .NET binary with a
+**published programmer CLI/DLL**; we drive it as a black box under Wine (no
+decompiling, no redistribution — the same legitimate use by which open-source BEN
+was trained on BBA-bid deals). It plugs into three existing slots, strongest first:
+
+- ⬜ **S.0 Feasibility + harvest harness.** Run EPBot headlessly under Wine
+  (WineHQ + wine-mono / `dotnet48`). A Rust `BbaOracle` deals with `full_deal`,
+  serializes to PBN (`contract-bridge` `Deal`/`Hand` `Display`), shells out to BBA,
+  parses the returned auctions. *Deliverable:* `examples/bba-oracle` round-tripping
+  deals → BBA → `Auction`. *Measure:* zero parse errors over N deals; auctions
+  spot-check against the hands. *Deps:* none (external tool). *Gate:* if Wine can't
+  load EPBot, fall back (C# shim / VM / contact author) before building further.
+- ⬜ **S.1 Eval anchor (feeds every milestone's measure).** A/B duplicate match,
+  our `two_over_one()` vs **BBA's 2/1** card — apples-to-apples, so divergences are
+  pure quality gaps in our DSL, not system differences. Reuses the `instinct-floor`
+  / `scoring.rs` / `ddss` harness. *Deliverable:* IMPs/board (ours vs BBA) +
+  divergence-board dump. *Measure:* a CI excluding noise; the dump names concrete
+  under-bidding auctions. *Deps:* S.0. *Value:* turns "did we improve?" into "how
+  far from a mature engine?" — calibrates the M1/M3 gains.
+- ⬜ **S.2 Polish Club reference (feeds M4.3 + M5).** Harvest BBA's **WJ (Polish
+  Club)** auctions as ground truth for the M4.3 port and a head-start on the second
+  corpus M5 needs. *Deliverable:* a WJ reference set + per-auction checks for the
+  ported books via `bidding::verify`. *Measure:* the ported system agrees with BBA
+  on textbook WJ auctions. *Deps:* S.0; pairs with M4.3.
+- ⬜ **S.3 (optional) Imitation teacher for M3.** BBA's calls as an extra,
+  cheap/deterministic target alongside the M2.3 search teacher. *Caveat:* imitating
+  BBA is capped at BBA — it cannot *exceed* a human system the way the double-dummy
+  search teacher can, so this is a sanity/regularizer signal, **not** the path to
+  "beat the floor." *Deps:* S.0, M3.1.
+
+Slots in: S.1 → eval harness (now) · S.2 → M4.3 / M5 · S.3 → M3 (optional).
+
+---
+
 ## Critical path and what to do first
 
 ```
@@ -320,6 +358,8 @@ M0  ──► M1 ──────────────► (working learned 
   └─► M4 ─────────────────► (faster authoring + 2nd system)
             │
             └─► (with M5.2) ─► M5 ─► (cross-system bidder)  ← the dream
+
+S (BBA/EPBot) ─► external eval anchor (now) · WJ reference → M4.3/M5 · teacher → M3
 ```
 
 **Recommended first chunk:** all of **M0**. It is pure bridge/Rust, unblocks

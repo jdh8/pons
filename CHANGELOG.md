@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- A **BBA/EPBot reference-bidder spike** (AI-bidder Side-track S, S.0): a new
+  `bba-oracle` example that drives Edward Piwowar's EPBot engine as a black-box
+  bidding oracle to benchmark our bidding against a mature, rule-based system —
+  the way the open-source BEN engine was trained on BBA-bid deals. EPBot ships a
+  self-contained native Linux library (`libEPBot.so`, .NET-NativeAOT), so the
+  example `dlopen`s it and calls the `epbot_*` C ABI **directly — no Wine, no
+  .NET runtime, no subprocess**. The undocumented ABI was recovered (objdump +
+  a pure-Python decompile of `EPBotFFI`) and is documented inline: `epbot_create`/
+  `_new_hand`(7 args; the four holdings as one `'\n'`-joined string)/`_get_bid`/
+  `_destroy`, plus the bid-code encoding (`0/1/2 = Pass/X/XX`, contract =
+  `5 + (level-1)*5 + strain`). The spike bids known hands to their textbook 2/1
+  openings. Purely external tooling: a `libloading` **dev-dependency** only, the
+  proprietary binary stays git-ignored under `/vendor/`, and the crate's default
+  build, dependencies, and `instinct()` baseline are untouched. The full harness
+  (complete auctions + a `BbaOracle` `System` + the 2/1 A/B match) is S.1, planned
+  in [`docs/ai-bidder/plan.md`](docs/ai-bidder/plan.md) "Side-track S".
 - A **behavioral constraint verifier** (M4.2 of the AI-bidder effort): a new
   ungated `bidding::verify` module that checks a candidate `Constraint` *accepts
   the right hands*, complementing M4.1's round-trip check that it *renders* to the
