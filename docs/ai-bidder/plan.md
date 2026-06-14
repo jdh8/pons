@@ -260,10 +260,25 @@ Parallelizable with M1–M3 once M0 exists; high near-term leverage.
   behavioral correctness is M4.2. The same model authored the spec and acted as
   compiler, so this proves sufficiency + guards `describe()` drift, not adversarial
   generalization (M4.2/M4.3 test that).
-- ⬜ **M4.2 Verification harness.** Given a candidate `Constraint`, check it
+- ✅ **M4.2 Verification harness.** Given a candidate `Constraint`, check it
   compiles and matches intent over random hands (and against the original rule
   when porting). *Deliverable:* a verifier. *Measure:* catches deliberately-broken
-  constraints. *Deps:* M4.1.
+  constraints. *Deps:* M4.1. **Done:** `bidding::verify` (ungated) — where M4.1's
+  round-trip is a *string* compare (`describe() == gloss`), this is a *behavioral*
+  one. `compare(reference, candidate, rng, n)` samples `n` random hands (crisp
+  accept = finite logit) and returns a `Report`: accept rates + a bounded sample
+  of counterexample hands. `accepts`/`predicate` adapt a `Constraint`; a book
+  `Rule`'s public `eval` is the porting oracle (`compare_against_rules`);
+  `check_examples` scores against hand labels. `tests/dsl_verify.rs` is the
+  measure — it catches the canonical "5+ ♥"→`len(♥, 4..)` break, off-by-one bands,
+  swapped `&`/`|`, dropped/extra clauses, and a `described` closure with `>` where
+  intent is `≥` (the escape-hatch body the round-trip cannot see — the reason M4.2
+  exists), while faithful recompiles agree. `examples/verify-constraint` runs the
+  M4.3 loop on the real 1♠ opening (faithful → 0 disagreements; broken → caught,
+  every witness a four-card spade hand) plus the escape-hatch blind spot.
+  *Decisions:* fixed (caller-supplied, default-empty) `Context` — the dominant
+  disagreements and every `described` hand predicate are context-free; sampling is
+  strong evidence, not proof, so `n` is taken large (tests/example use 8000).
 - ⬜ **M4.3 Polish Club port (assisted).** Use M4.1+M4.2 to author the Polish Club
   books from their written notes. *Deliverable:* a second system's books + corpus.
   *Measure:* the ported system bids textbook auctions correctly; produces the

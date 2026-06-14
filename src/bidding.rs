@@ -32,6 +32,8 @@ pub mod table;
 pub mod trie;
 /// The basic 2/1 game-forcing system
 pub mod two_over_one;
+/// Behavioral verification of authored constraints (AI-bidder M4.2)
+pub mod verify;
 
 pub use array::Array;
 pub use book::{Competitive, Constructive, Defensive, Family, Pair, Phase, Stance};
@@ -51,6 +53,7 @@ pub use two_over_one::two_over_one_neural;
 #[cfg(feature = "search")]
 pub use two_over_one::two_over_one_search;
 pub use two_over_one::{two_over_one, two_over_one_strawberry};
+pub use verify::{Report, accepts, compare};
 
 use contract_bridge::Hand;
 use contract_bridge::auction::{Call, RelativeVulnerability};

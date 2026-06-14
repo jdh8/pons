@@ -9,6 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- A **behavioral constraint verifier** (M4.2 of the AI-bidder effort): a new
+  ungated `bidding::verify` module that checks a candidate `Constraint` *accepts
+  the right hands*, complementing M4.1's round-trip check that it *renders* to the
+  right gloss. M4.1's `describe().to_string() == gloss` is a string compare, so it
+  is blind to the body of a `described("label", closure)` escape hatch (only the
+  label renders) and to whether a primitive's bounds match looser human intent
+  when porting. `verify::compare(reference, candidate, rng, n)` samples `n` random
+  hands and returns a `Report` (accept rates plus a bounded sample of
+  counterexample hands) of where the two disagree; `accepts`/`predicate` adapt a
+  `Constraint` to the comparison, a book `Rule`'s public `eval` serves as the
+  porting oracle (`compare_against_rules`), and `check_examples` checks a
+  constraint against hand-labeled intent. A new `tests/dsl_verify.rs` is the
+  milestone measure — it catches a battery of deliberately-broken constraints
+  (the canonical "5+ ♥" mis-compiled to `len(♥, 4..)`, off-by-one bands, a
+  swapped `&`/`|`, dropped/extra clauses, and a `described` closure that uses `>`
+  where intent is `≥`) while faithful recompiles agree. A new `verify-constraint`
+  example runs the M4.3 porting loop on real book data: it pulls the 1♠ opening
+  from the 2/1 books and shows a faithful recompile (0 disagreements) versus a
+  broken one (caught, every counterexample a four-card spade hand), then the
+  escape-hatch blind spot (two "prefers diamonds" closures that render
+  identically yet disagree on equal-length hands). Offline tooling; nothing
+  learned ships, and the instinct/neural/search rails stay green.
 - A **DSL authoring-compiler spec** (M4.1 of the AI-bidder effort):
   [`docs/ai-bidder/dsl-spec.md`](docs/ai-bidder/dsl-spec.md) is a precise,
   pasteable English→`Constraint` prompt — the grammar (the `&`/`|`/`!` tree and
