@@ -9,6 +9,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- A **BBA/EPBot eval anchor** (AI-bidder Side-track S, S.1): a new `bba-match`
+  example that pits our deterministic `two_over_one()` floor against **BBA's own
+  2/1 Game Force card** (EPBot system 0, verified by name) in an A/B duplicate
+  match — apples-to-apples, so every divergence is a pure quality gap in our DSL,
+  not a difference of methods. A `BbaOracle` implements pons's public `System`
+  trait by driving a fresh EPBot bot per decision (configure all four seats,
+  deal the actor's hand, replay the auction with `epbot_set_bid`, read the call
+  with `epbot_get_bid`), with the dealer canonicalized to position 0 so
+  `classify` stays a pure function of `(hand, vul, auction)`. The S.0 ABI was
+  generalized to full auctions: `epbot_set_bid(bot, position, bid, meaning)` and
+  `epbot_set_system_type(bot, position, system)` were decompiled and confirmed,
+  the ten is EPBot-canonical `T` (`Holding`'s `Display`, verified via
+  `epbot_get_cards`), and an earlier "crash on the second bot" was traced to a
+  pointer-truncation bug in a throwaway probe, not the library. The harness
+  reuses the `instinct-floor`/`scoring`/`ddss` machinery, reports IMPs/board with
+  a 95% confidence interval, and dumps the worst divergent boards (the deal plus
+  both tables' auctions) as concrete authoring targets. Measured at 2000 boards,
+  vul none: **−2.59 IMPs/board, 95% CI [−2.83, −2.35]** — our floor trails a
+  mature engine by ≈ 2.6 IMPs/board, the gap concentrated in competitive/
+  contested auctions (where the books are thinnest). Still purely external
+  tooling: a `libloading` **dev-dependency** only, the proprietary binary stays
+  git-ignored under `/vendor/`, and the crate's default build, dependencies, and
+  `instinct()` baseline are untouched.
 - A **BBA/EPBot reference-bidder spike** (AI-bidder Side-track S, S.0): a new
   `bba-oracle` example that drives Edward Piwowar's EPBot engine as a black-box
   bidding oracle to benchmark our bidding against a mature, rule-based system —
