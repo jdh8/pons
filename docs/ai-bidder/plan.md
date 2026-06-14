@@ -317,13 +317,15 @@ rule-based, ~100%-reproducible engine shipped as a Windows .NET binary with a
 decompiling, no redistribution — the same legitimate use by which open-source BEN
 was trained on BBA-bid deals). It plugs into three existing slots, strongest first:
 
-- ⬜ **S.0 Feasibility + harvest harness.** Run EPBot headlessly under Wine
-  (WineHQ + wine-mono / `dotnet48`). A Rust `BbaOracle` deals with `full_deal`,
-  serializes to PBN (`contract-bridge` `Deal`/`Hand` `Display`), shells out to BBA,
-  parses the returned auctions. *Deliverable:* `examples/bba-oracle` round-tripping
-  deals → BBA → `Auction`. *Measure:* zero parse errors over N deals; auctions
-  spot-check against the hands. *Deps:* none (external tool). *Gate:* if Wine can't
-  load EPBot, fall back (C# shim / VM / contact author) before building further.
+- ✅ **S.0 Feasibility + harvest harness.** *Original plan was Wine (WineHQ +
+  wine-mono / `dotnet48`) shelling out to the .NET binary; superseded by a
+  cleaner route:* a native `libEPBot.so` linked directly via FFI (`libloading`,
+  no Wine, no subprocess, no PBN round-trip). A Rust `BbaOracle` deals with
+  `full_deal` and drives EPBot in-process. *Deliverable:* `examples/bba-oracle`
+  round-tripping deals → BBA → `Auction` — done. *Measure:* zero parse errors;
+  auctions spot-checked against hands. The ABI (`set_bid`,
+  `epbot_get_cards`, the `T` ten encoding) was decompiled and confirmed here and
+  generalized in S.1. *Deps:* none (external tool). **Done:** commit `6f4f70d`.
 - ✅ **S.1 Eval anchor (feeds every milestone's measure).** A/B duplicate match,
   our `two_over_one()` vs **BBA's 2/1** card — apples-to-apples, so divergences are
   pure quality gaps in our DSL, not system differences. Reuses the `instinct-floor`
