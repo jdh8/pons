@@ -11,7 +11,7 @@
 
 use super::Map;
 use super::array::Logits;
-use super::constraint::Constraint;
+use super::constraint::{Constraint, Description};
 use super::context::Context;
 use super::trie::Classifier;
 use contract_bridge::Hand;
@@ -55,6 +55,20 @@ impl Rule {
     #[must_use]
     pub fn eval(&self, hand: Hand, context: &Context<'_>) -> f32 {
         self.weight + self.when.eval(hand, context)
+    }
+
+    /// The constraint's meaning as a [`Description`]
+    ///
+    /// Renders the *actual* constraint behind the call — `15–17 HCP, and
+    /// balanced` — rather than the hand-authored [`label`][Self::label] or a
+    /// structurally-guessed gloss.  This is the readable face of a book: the
+    /// meaning is read straight from the logic it bids on, so the two cannot
+    /// drift.  A bare [`pred`][super::constraint::pred] renders
+    /// [`Opaque`][Description::Opaque]; use
+    /// [`described`][super::constraint::described] to give one a meaning.
+    #[must_use]
+    pub fn describe(&self) -> Description {
+        self.when.describe()
     }
 }
 

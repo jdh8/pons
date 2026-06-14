@@ -9,6 +9,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- A **self-describing constraint DSL** (M4 of the AI-bidder effort, the
+  authoring compiler's foundation): `Constraint::describe()` now renders any
+  authored constraint to canonical English, the inverse of `eval()`. Until now a
+  `Constraint` was eval-only and opaque — once built as `Arc<dyn Constraint>` you
+  could run it but never read what it *meant*, and the corpus exporter had to
+  re-guess descriptions structurally from the bid shape, divorced from the real
+  logic. Now every primitive names itself (`hcp(15..=17)` → "15–17 HCP",
+  `len(Spades, 5..)` → "5+ ♠", `support(3..)` → "3+ card support for partner")
+  and the combinators compose those: `&` reads as a comma list ("12–21 points,
+  and 5+ ♠"), `|` as ", or", `!` as "not (…)", with nested groups parenthesized.
+  The new public `Description` tree carries the structure (so a terse WBF-tag
+  renderer can be added later without touching primitives) and `impl Display`
+  prints the prose. This is the readable face of a book — the meaning is read
+  straight from the logic it bids on, so author and reader cannot drift, and it
+  is the verification substrate the later English→`Constraint` LLM compiler will
+  round-trip against. **Non-breaking and behaviour-preserving:** `describe()` has
+  a default (`Opaque`) so external impls compile unchanged, the ~21 primitives
+  were turned from anonymous closures into named structs with byte-identical
+  `eval`, and the full instinct/neural/search rails stay green.
+- `bidding::constraint::described(label, condition)` — a labeled escape hatch: a
+  one-off predicate that carries its own meaning, where a bare `pred()` renders
+  `Opaque`. Used to label the books' bespoke predicates (better-minor selection,
+  Michaels/Unusual length comparisons, the RKCB keycard/queen/king holdings), so
+  every node in the 2/1 corpus now describes truthfully.
+- `bidding::rules::Rule::describe()` — the meaning of a rule's call, read from
+  its constraint.
+- A `render-book` example: prints the floor-less 2/1 books as readable prose —
+  each auction, then per call its weight and the constraint's own English
+  description — including the full RKCB 1430 ladder ("exactly 2 keycards, and
+  holds the ♠ queen"). A stderr coverage metric counts any rules still opaque (0
+  for the corpus books).
+- The `export-corpus` exporter now emits a truthful `constraint` field from
+  `Rule::describe()` and makes it the default `description` (precedence: a
+  hand-authored `note()` label, then the truthful constraint render, then — only
+  for a bare opaque predicate — the structural gloss). At 770 nodes / 2314
+  records the corpus is now **0 opaque**: every record carries its real meaning,
+  not a re-guessed one. The `tags` field (the controlled WBF vocabulary) is
+  unchanged.
 - `bidding::search_floor::SearchFloor` and `two_over_one_search()` behind a new
   `search` feature — the gated live double-dummy search bidder (M2.3 of the
   AI-bidder effort, completing Milestone 2). This is "simulations in action": at

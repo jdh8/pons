@@ -46,7 +46,7 @@ use core::ops::RangeBounds;
 use std::sync::Arc;
 
 use super::{insert_uncontested, uncontested};
-use crate::bidding::constraint::{hcp, pred};
+use crate::bidding::constraint::{described, hcp};
 use crate::bidding::trie::Classifier;
 use contract_bridge::Hand;
 
@@ -93,6 +93,29 @@ fn count_kings_outside(hand: Hand, trump: Suit) -> usize {
         .count()
 }
 
+/// Format a count range as a constraint label, mirroring the prose of the
+/// constraint DSL's range primitives ("exactly 2 keycards", "3+ keycards").
+fn count_label(range: &impl RangeBounds<usize>, noun: &str) -> String {
+    use core::ops::Bound;
+    let lo = match range.start_bound() {
+        Bound::Included(&x) => Some(x),
+        Bound::Excluded(&x) => Some(x + 1),
+        Bound::Unbounded => None,
+    };
+    let hi = match range.end_bound() {
+        Bound::Included(&x) => Some(x),
+        Bound::Excluded(&x) => Some(x.saturating_sub(1)),
+        Bound::Unbounded => None,
+    };
+    match (lo, hi) {
+        (Some(a), Some(b)) if a == b => format!("exactly {a} {noun}"),
+        (Some(a), Some(b)) => format!("{a}–{b} {noun}"),
+        (Some(a), None) => format!("{a}+ {noun}"),
+        (None, Some(b)) => format!("≤{b} {noun}"),
+        (None, None) => noun.to_string(),
+    }
+}
+
 /// Keycard count in the given range
 ///
 /// Satisfied when the count of keycards (four aces + trump king) is within
@@ -101,7 +124,8 @@ fn keycards(
     trump: Suit,
     range: impl RangeBounds<usize> + Clone + Send + Sync + 'static,
 ) -> crate::bidding::constraint::Cons<impl crate::bidding::constraint::Constraint + Clone> {
-    pred(
+    described(
+        count_label(&range, "keycards"),
         move |hand: Hand, _: &crate::bidding::context::Context<'_>| {
             range.contains(&count_keycards(hand, trump))
         },
@@ -112,7 +136,10 @@ fn keycards(
 fn has_trump_queen(
     trump: Suit,
 ) -> crate::bidding::constraint::Cons<impl crate::bidding::constraint::Constraint + Clone> {
-    pred(move |hand: Hand, _: &crate::bidding::context::Context<'_>| hand[trump].contains(Rank::Q))
+    described(
+        format!("holds the {trump} queen"),
+        move |hand: Hand, _: &crate::bidding::context::Context<'_>| hand[trump].contains(Rank::Q),
+    )
 }
 
 /// Count of kings in the three non-trump suits, in the given range
@@ -120,7 +147,8 @@ fn kings_outside(
     trump: Suit,
     range: impl RangeBounds<usize> + Clone + Send + Sync + 'static,
 ) -> crate::bidding::constraint::Cons<impl crate::bidding::constraint::Constraint + Clone> {
-    pred(
+    described(
+        count_label(&range, "kings outside trumps"),
         move |hand: Hand, _: &crate::bidding::context::Context<'_>| {
             range.contains(&count_kings_outside(hand, trump))
         },

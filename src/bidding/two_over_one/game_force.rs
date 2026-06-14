@@ -17,7 +17,7 @@ use super::uncontested;
 use super::{Trie, call};
 use crate::bidding::Rules;
 use crate::bidding::constraint::{
-    balanced, fifths, hcp, len, partner_suit_is, points, pred, support,
+    balanced, described, fifths, hcp, len, partner_suit_is, points, support,
 };
 use crate::bidding::fallback::{Fallback, Undisturbed};
 use contract_bridge::auction::Call;
@@ -195,12 +195,14 @@ fn game_backstop() -> Rules {
         .rule(
             call(4, Strain::Hearts),
             0.7,
-            pred(|_, ctx| ctx.we_bid(Strain::Hearts)) & len(Suit::Hearts, 3..),
+            described("our side bid ♥", |_, ctx| ctx.we_bid(Strain::Hearts))
+                & len(Suit::Hearts, 3..),
         )
         .rule(
             call(4, Strain::Spades),
             0.7,
-            pred(|_, ctx| ctx.we_bid(Strain::Spades)) & len(Suit::Spades, 3..),
+            described("our side bid ♠", |_, ctx| ctx.we_bid(Strain::Spades))
+                & len(Suit::Spades, 3..),
         )
         .rule(call(3, Strain::Notrump), 0.5, hcp(0..))
 }

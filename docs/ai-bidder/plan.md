@@ -222,10 +222,30 @@ Exit M3: a floor that beats the hand-written one on cardplay-grounded evidence.
 
 Parallelizable with M1–M3 once M0 exists; high near-term leverage.
 
+- ✅ **M4.0 Self-describing DSL (readable books).** Make the `Constraint` DSL
+  render its own meaning (`Constraint → English`), the inverse of the compiler and
+  the round-trip substrate that makes M4.1/M4.2 verifiable. *Deliverable:* a
+  readable face for every authored book. *Measure:* every corpus node renders a
+  truthful constraint description; rails stay green (`eval` unchanged). *Deps:*
+  none (pure Rust). **Done:** `Constraint::describe() -> Description` (default
+  `Opaque`, so non-breaking) with each of the ~21 primitives turned from an
+  anonymous `pred` closure into a named struct that names itself, the combinators
+  composing into an `All`/`Any`/`Not` tree, and `Description: Display` rendering
+  prose ("12–21 points, and 5+ ♠"). `described(label, cond)` is the labeled escape
+  hatch for bespoke book predicates (better-minor, Michaels/Unusual lengths, RKCB
+  keycards), used to drive the corpus to **0 opaque**. `Rule::describe()` surfaces
+  it; the `render-book` example prints the books as prose; `export-corpus` now
+  emits a truthful `constraint` field (precedence: `note` label → constraint
+  render → structural gloss) and an opaque-coverage count. 770 nodes / 2314
+  records, 0 opaque; all 353 tests green (the instinct/neural/search rails are the
+  acceptance gate). *Decision:* led M4 with this per the user's "make books more
+  readable" steer — it is the readability deliverable **and** the verification
+  substrate the LLM compiler needs, so it precedes M4.1.
 - ⬜ **M4.1 DSL spec prompt.** A precise `Constraint`-DSL grammar + vocabulary +
   gold `(English, Rust)` pairs from existing rules. *Deliverable:* a compiler
   prompt/spec. *Measure:* it reproduces held-out existing rules from their English
-  gloss. *Deps:* M0.2.
+  gloss. *Deps:* M0.2, M4.0 (the self-describing DSL *is* the executable spec, and
+  its `describe()` is the round-trip checker).
 - ⬜ **M4.2 Verification harness.** Given a candidate `Constraint`, check it
   compiles and matches intent over random hands (and against the original rule
   when porting). *Deliverable:* a verifier. *Measure:* catches deliberately-broken

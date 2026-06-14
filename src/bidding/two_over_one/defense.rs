@@ -8,8 +8,8 @@
 //! double, a natural 2NT overcall, and natural suit overcalls).
 
 use super::super::constraint::{
-    balanced, hcp, len, min_level_is, points, pred, short_in_their_suits, stopper_in_their_suits,
-    support, top_honors,
+    balanced, described, hcp, len, min_level_is, points, short_in_their_suits,
+    stopper_in_their_suits, support, top_honors,
 };
 use super::super::context::Context;
 use super::super::{Defensive, Rules};
@@ -235,10 +235,11 @@ fn michaels_advances(t: Suit) -> Rules {
     match t {
         // Partner shows both majors: prefer the longer one.
         Suit::Clubs | Suit::Diamonds => {
-            let hearts_longer = pred(|hand: Hand, _: &Context<'_>| {
-                hand[Suit::Hearts].len() >= hand[Suit::Spades].len()
-            });
-            let spades_longer = pred(|hand: Hand, _: &Context<'_>| {
+            let hearts_longer = described(
+                "♥ at least as long as ♠",
+                |hand: Hand, _: &Context<'_>| hand[Suit::Hearts].len() >= hand[Suit::Spades].len(),
+            );
+            let spades_longer = described("♠ longer than ♥", |hand: Hand, _: &Context<'_>| {
                 hand[Suit::Spades].len() > hand[Suit::Hearts].len()
             });
             Rules::new()
@@ -288,8 +289,14 @@ const fn unusual_suits(t: Suit) -> (Suit, Suit) {
 /// Advancer's response to partner's Unusual 2NT over their opening `t`
 fn unusual_nt_advances(t: Suit) -> Rules {
     let (a, b) = unusual_suits(t);
-    let a_longer = pred(move |hand: Hand, _: &Context<'_>| hand[a].len() >= hand[b].len());
-    let b_longer = pred(move |hand: Hand, _: &Context<'_>| hand[b].len() > hand[a].len());
+    let a_longer = described(
+        format!("{a} at least as long as {b}"),
+        move |hand: Hand, _: &Context<'_>| hand[a].len() >= hand[b].len(),
+    );
+    let b_longer = described(
+        format!("{b} longer than {a}"),
+        move |hand: Hand, _: &Context<'_>| hand[b].len() > hand[a].len(),
+    );
     Rules::new()
         .rule(Bid::new(3, Strain::from(a)), 1.0, a_longer)
         .rule(Bid::new(3, Strain::from(b)), 1.0, b_longer)

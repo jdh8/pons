@@ -5,17 +5,25 @@
 //!
 //! ```text
 //! {"book":"constructive","auction":["1H","P"],"call":"2C",
-//!  "weight":1.0,"tags":["FG","NAT"],"label":"","description":"…"}
+//!  "weight":1.0,"tags":["FG","NAT"],"label":"",
+//!  "constraint":"12–21 points, and 5+ ♦","description":"…"}
 //! ```
 //!
 //! Tags are drawn from the WBF abbreviation vocabulary (see
 //! `docs/ai-bidder/wbf-abbreviations.md`) and **derived structurally** from the
 //! auction + call: the keyless reading already encoded in
-//! [`Inferences`][pons::bidding::Inferences] and [`Context`].  Where a rule
-//! carries a hand-authored [`label`][pons::bidding::rules::Rule::label]
-//! (`Rules::note`), that label becomes the `description`; otherwise a templated
-//! description is generated.  This is the "auto-derive + patch" hybrid: the
-//! machine tags every node, humans patch the prose where it matters.
+//! [`Inferences`][pons::bidding::Inferences] and [`Context`].
+//!
+//! The `constraint` field is the **truthful** render of the call's
+//! highest-weight rule, read straight from its [`Constraint`] via
+//! [`Rule::describe`][pons::bidding::rules::Rule::describe] (AI-bidder M4) — not
+//! a structural guess.  The `description` field then prefers, in order: a
+//! hand-authored [`label`][pons::bidding::rules::Rule::label] (`Rules::note`);
+//! else the truthful `constraint` render; else, only when the constraint is a
+//! bare opaque predicate, a structurally-templated gloss.  So prose is truthful
+//! by default, with human overrides and an opaque last resort.
+//!
+//! [`Constraint`]: pons::bidding::constraint::Constraint
 //!
 //! Records are deduplicated by authored-rules identity, so the four seat
 //! variants of a shared opening table (keyed under 0–3 leading passes) yield one
@@ -35,6 +43,7 @@
 
 use contract_bridge::auction::{Call, RelativeVulnerability};
 use contract_bridge::{Bid, Strain};
+use pons::bidding::constraint::Description;
 use pons::bidding::context::Context;
 use pons::bidding::trie::Trie;
 use pons::bidding::two_over_one::bare_two_over_one;
@@ -59,6 +68,7 @@ fn main() {
     let mut nodes = 0usize;
     let mut records = 0usize;
     let mut specific = 0usize;
+    let mut opaque = 0usize;
     let mut per_book = [0usize; 3];
 
     for (book_index, (book, trie)) in books.into_iter().enumerate() {
@@ -83,6 +93,9 @@ fn main() {
                 if !matches!(record.tags.as_slice(), ["NAT"] | ["NF"]) {
                     specific += 1;
                 }
+                if record.opaque {
+                    opaque += 1;
+                }
                 per_book[book_index] += 1;
                 records += 1;
                 println!("{}", record.to_json());
@@ -93,7 +106,7 @@ fn main() {
     eprintln!(
         "export-corpus: {nodes} authored nodes, {records} (node,call) records \
          ({} constructive, {} competitive, {} defensive), {specific} with a \
-         specific (non-NAT/NF) tag.",
+         specific (non-NAT/NF) tag, {opaque} with an opaque constraint.",
         per_book[0], per_book[1], per_book[2]
     );
 }
@@ -106,7 +119,12 @@ struct Record {
     weight: f32,
     tags: Vec<&'static str>,
     label: &'static str,
+    /// Truthful render of the representative rule's constraint (`describe`).
+    constraint: String,
     description: String,
+    /// Whether that constraint was a bare opaque predicate (a coverage metric,
+    /// not serialized): true means `description` fell back to the gloss.
+    opaque: bool,
 }
 
 impl Record {
@@ -119,6 +137,7 @@ impl Record {
             "weight": self.weight,
             "tags": self.tags,
             "label": self.label,
+            "constraint": self.constraint,
             "description": self.description,
         })
         .to_string()
@@ -130,17 +149,18 @@ impl Record {
 fn node_records(node: &Node<'_>) -> Vec<Record> {
     let ctx = Context::new(RelativeVulnerability::NONE, &node.auction);
 
-    // Best (weight, label) per call, in first-seen order.
+    // Best (weight, label, constraint description) per call, first-seen order.
+    // The representative is the highest-weight rule for the call.
     let mut order: Vec<Call> = Vec::new();
-    let mut best: std::collections::HashMap<Call, (f32, &'static str)> =
+    let mut best: std::collections::HashMap<Call, (f32, &'static str, Description)> =
         std::collections::HashMap::new();
     for rule in node.rules.rules() {
         let entry = best.entry(rule.call()).or_insert_with(|| {
             order.push(rule.call());
-            (f32::NEG_INFINITY, "")
+            (f32::NEG_INFINITY, "", Description::Opaque)
         });
         if rule.weight() > entry.0 {
-            *entry = (rule.weight(), rule.label());
+            *entry = (rule.weight(), rule.label(), rule.describe());
         } else if entry.1.is_empty() && !rule.label().is_empty() {
             // Keep a label even if a higher-weight sibling rule lacked one.
             entry.1 = rule.label();
@@ -150,12 +170,17 @@ fn node_records(node: &Node<'_>) -> Vec<Record> {
     order
         .into_iter()
         .map(|call| {
-            let (weight, label) = best[&call];
+            let (weight, label, description) = best.remove(&call).expect("call was seen");
             let (tags, derived) = derive(node.book, call, &ctx);
-            let description = if label.is_empty() {
+            let constraint = description.to_string();
+            let opaque = matches!(description, Description::Opaque);
+            // Prefer a human label, then the truthful constraint, then the gloss.
+            let prose = if !label.is_empty() {
+                label.to_string()
+            } else if opaque {
                 derived
             } else {
-                label.to_string()
+                constraint.clone()
             };
             Record {
                 book: node.book,
@@ -164,7 +189,9 @@ fn node_records(node: &Node<'_>) -> Vec<Record> {
                 weight,
                 tags,
                 label,
-                description,
+                constraint,
+                description: prose,
+                opaque,
             }
         })
         .collect()

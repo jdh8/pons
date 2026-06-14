@@ -1,7 +1,9 @@
 //! Uncontested openings for every seat
 
 use super::insert_uncontested;
-use crate::bidding::constraint::{Cons, Constraint, balanced, fifths, len, nth_seat, points, pred};
+use crate::bidding::constraint::{
+    Cons, Constraint, balanced, described, fifths, len, nth_seat, points,
+};
 use crate::bidding::context::Context;
 use crate::bidding::{Rules, Trie};
 use contract_bridge::auction::Call;
@@ -12,7 +14,7 @@ use contract_bridge::{Bid, Hand, Strain, Suit};
 /// Open the longer minor; with equal length open 1♦ on four-or-more (the
 /// standard 4-4 → 1♦, 3-3 → 1♣ split).
 fn prefers_diamonds() -> Cons<impl Constraint + Clone> {
-    pred(|hand: Hand, _: &Context<'_>| {
+    described("prefers diamonds", |hand: Hand, _: &Context<'_>| {
         let clubs = hand[Suit::Clubs].len();
         let diamonds = hand[Suit::Diamonds].len();
         diamonds > clubs || (diamonds == clubs && diamonds >= 4)

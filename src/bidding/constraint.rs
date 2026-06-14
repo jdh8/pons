@@ -34,7 +34,9 @@ use super::inference::Inferences;
 use contract_bridge::eval::{self, HandEvaluator, SimpleEvaluator};
 use contract_bridge::{Hand, Holding, Level, Rank, Strain, Suit};
 use core::cell::Cell;
-use core::ops::{BitAnd, BitOr, Not, RangeBounds};
+use core::fmt;
+use core::ops::{BitAnd, BitOr, Bound, Not, RangeBounds};
+use std::borrow::Cow;
 
 /// Trait for a logit contribution of a hand feature
 ///
@@ -43,6 +45,19 @@ use core::ops::{BitAnd, BitOr, Not, RangeBounds};
 pub trait Constraint: Send + Sync {
     /// Evaluate the constraint into a logit contribution
     fn eval(&self, hand: Hand, context: &Context<'_>) -> f32;
+
+    /// Render the constraint's meaning as a [`Description`]
+    ///
+    /// The inverse of evaluation: instead of scoring a hand, name what the
+    /// constraint *requires*.  Primitives describe themselves (`hcp(15..=17)`
+    /// → "15–17 HCP"); the combinators compose those descriptions.  The
+    /// default is [`Description::Opaque`] — a bare [`pred`] closure carries no
+    /// meaning it can recover, so it stays opaque until wrapped by
+    /// [`described`].  Independent of the auction: a description is a property
+    /// of the authored constraint, not of any one hand or [`Context`].
+    fn describe(&self) -> Description {
+        Description::Opaque
+    }
 }
 
 /// Closures are natural constraints
@@ -69,6 +84,10 @@ impl<T: Constraint> Constraint for Cons<T> {
     fn eval(&self, hand: Hand, context: &Context<'_>) -> f32 {
         self.0.eval(hand, context)
     }
+
+    fn describe(&self) -> Description {
+        self.0.describe()
+    }
 }
 
 /// Sum of two constraints, the logical AND for crisp constraints
@@ -79,6 +98,10 @@ impl<A: Constraint, B: Constraint> Constraint for And<A, B> {
     fn eval(&self, hand: Hand, context: &Context<'_>) -> f32 {
         self.0.eval(hand, context) + self.1.eval(hand, context)
     }
+
+    fn describe(&self) -> Description {
+        self.0.describe().and(self.1.describe())
+    }
 }
 
 /// Maximum of two constraints, the logical OR for crisp constraints
@@ -88,6 +111,10 @@ pub struct Or<A, B>(A, B);
 impl<A: Constraint, B: Constraint> Constraint for Or<A, B> {
     fn eval(&self, hand: Hand, context: &Context<'_>) -> f32 {
         self.0.eval(hand, context).max(self.1.eval(hand, context))
+    }
+
+    fn describe(&self) -> Description {
+        self.0.describe().or(self.1.describe())
     }
 }
 
@@ -101,6 +128,10 @@ pub struct Flip<T>(T);
 impl<T: Constraint> Constraint for Flip<T> {
     fn eval(&self, hand: Hand, context: &Context<'_>) -> f32 {
         crisp(self.0.eval(hand, context) == f32::NEG_INFINITY)
+    }
+
+    fn describe(&self) -> Description {
+        self.0.describe().negate()
     }
 }
 
@@ -133,6 +164,185 @@ const fn crisp(condition: bool) -> f32 {
     if condition { 0.0 } else { f32::NEG_INFINITY }
 }
 
+/// A structured, human-readable description of a [`Constraint`]
+///
+/// The render side of the constraint DSL.  Where [`Constraint::eval`] scores a
+/// hand, [`Constraint::describe`] returns one of these trees naming what the
+/// constraint *means*, so an authored book can be printed as canonical English
+/// instead of staying an opaque `eval`-only closure.  It is the inverse of the
+/// planned English→`Constraint` authoring compiler, and the substrate that
+/// makes the two directions round-trippable.
+///
+/// The tree mirrors the combinators: `&` builds [`All`][Self::All], `|` builds
+/// [`Any`][Self::Any], `!` builds [`Not`][Self::Not].  [`Display`][fmt::Display]
+/// renders it to prose.
+///
+/// ```
+/// use pons::bidding::constraint::{Constraint, balanced, hcp, len};
+/// use contract_bridge::Suit;
+///
+/// assert_eq!((hcp(15..=17) & balanced()).describe().to_string(), "15–17 HCP, and balanced");
+/// assert_eq!(len(Suit::Spades, 5..).describe().to_string(), "5+ ♠");
+/// ```
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Description {
+    /// A leaf meaning, e.g. `"15–17 HCP"`
+    Atom(Cow<'static, str>),
+    /// A conjunction (from `&` / [`And`]): every part must hold
+    All(Vec<Description>),
+    /// A disjunction (from `|` / [`Or`]): any part may hold
+    Any(Vec<Description>),
+    /// A negation (from `!` / [`Flip`])
+    Not(Box<Description>),
+    /// An unreadable predicate — a bare [`pred`] that carries no label
+    Opaque,
+}
+
+impl Description {
+    /// A leaf description from any string
+    fn atom(text: impl Into<Cow<'static, str>>) -> Self {
+        Self::Atom(text.into())
+    }
+
+    /// Conjoin two descriptions, flattening nested [`All`][Self::All] so that
+    /// `a & b & c` reads as one comma list rather than a nested tree.
+    fn and(self, other: Self) -> Self {
+        let mut parts = self.into_all_parts();
+        parts.extend(other.into_all_parts());
+        Self::All(parts)
+    }
+
+    /// Disjoin two descriptions, flattening nested [`Any`][Self::Any].
+    fn or(self, other: Self) -> Self {
+        let mut parts = self.into_any_parts();
+        parts.extend(other.into_any_parts());
+        Self::Any(parts)
+    }
+
+    /// Negate, cancelling a double negation.
+    fn negate(self) -> Self {
+        match self {
+            Self::Not(inner) => *inner,
+            other => Self::Not(Box::new(other)),
+        }
+    }
+
+    fn into_all_parts(self) -> Vec<Self> {
+        match self {
+            Self::All(parts) => parts,
+            other => vec![other],
+        }
+    }
+
+    fn into_any_parts(self) -> Vec<Self> {
+        match self {
+            Self::Any(parts) => parts,
+            other => vec![other],
+        }
+    }
+}
+
+/// Render one list member, parenthesizing a nested conjunction or disjunction
+/// so a mixed tree stays unambiguous: `… and (seat 3, or seat 4)`.
+fn write_member(f: &mut fmt::Formatter<'_>, member: &Description) -> fmt::Result {
+    match member {
+        Description::All(_) | Description::Any(_) => write!(f, "({member})"),
+        _ => write!(f, "{member}"),
+    }
+}
+
+/// Join `parts` into a prose list: `"a, b, {last_word} c"`, a single part bare.
+fn write_list(f: &mut fmt::Formatter<'_>, parts: &[Description], last_word: &str) -> fmt::Result {
+    match parts.split_last() {
+        None => Ok(()),
+        Some((last, [])) => write_member(f, last),
+        Some((last, init)) => {
+            for part in init {
+                write_member(f, part)?;
+                f.write_str(", ")?;
+            }
+            f.write_str(last_word)?;
+            write_member(f, last)
+        }
+    }
+}
+
+impl fmt::Display for Description {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Atom(text) => f.write_str(text),
+            Self::Opaque => f.write_str("(opaque condition)"),
+            Self::Not(inner) => write!(f, "not ({inner})"),
+            Self::All(parts) => write_list(f, parts, "and "),
+            Self::Any(parts) => write_list(f, parts, "or "),
+        }
+    }
+}
+
+/// Integer widths that range descriptions normalize through
+trait ToU64: Copy {
+    fn to_u64(self) -> u64;
+}
+
+impl ToU64 for u8 {
+    fn to_u64(self) -> u64 {
+        u64::from(self)
+    }
+}
+
+impl ToU64 for usize {
+    fn to_u64(self) -> u64 {
+        self as u64
+    }
+}
+
+/// Render an integer [`RangeBounds`] as an [`Atom`][Description::Atom] with a
+/// trailing `noun`: `"15–17 HCP"`, `"5+ ♠"`, `"exactly 6 ♠"`, `"≤10 HCP"`.
+///
+/// Bounds are normalized to inclusive integers, so the half-open `..11` reads
+/// as `"≤10 HCP"` rather than exposing the exclusive endpoint.
+fn describe_int_range<T: ToU64>(range: &impl RangeBounds<T>, noun: &str) -> Description {
+    let lo = match range.start_bound() {
+        Bound::Included(&x) => Some(x.to_u64()),
+        Bound::Excluded(&x) => Some(x.to_u64() + 1),
+        Bound::Unbounded => None,
+    };
+    let hi = match range.end_bound() {
+        Bound::Included(&x) => Some(x.to_u64()),
+        Bound::Excluded(&x) => Some(x.to_u64().saturating_sub(1)),
+        Bound::Unbounded => None,
+    };
+    let text = match (lo, hi) {
+        (Some(a), Some(b)) if a == b => format!("exactly {a} {noun}"),
+        (Some(a), Some(b)) => format!("{a}–{b} {noun}"),
+        (Some(a), None) => format!("{a}+ {noun}"),
+        (None, Some(b)) => format!("≤{b} {noun}"),
+        (None, None) => format!("any {noun}"),
+    };
+    Description::atom(text)
+}
+
+/// Render a floating-point [`RangeBounds`] as an [`Atom`][Description::Atom],
+/// e.g. the half-open fifths band `15.0..18.0` → `"15.0–18.0 fifths"`.
+///
+/// Endpoints print to one decimal as written; the band is shown literally
+/// rather than nudged to `"≤17.999"`.
+fn describe_real_range(range: &impl RangeBounds<f64>, noun: &str) -> Description {
+    let endpoint = |bound: Bound<&f64>| match bound {
+        Bound::Included(&x) | Bound::Excluded(&x) => Some(x),
+        Bound::Unbounded => None,
+    };
+    let lo = endpoint(range.start_bound());
+    let hi = endpoint(range.end_bound());
+    let text = match (lo, hi) {
+        (Some(a), Some(b)) => format!("{a:.1}–{b:.1} {noun}"),
+        (Some(a), None) => format!("{a:.1}+ {noun}"),
+        (None, Some(b)) => format!("≤{b:.1} {noun}"),
+        (None, None) => format!("any {noun}"),
+    };
+    Description::atom(text)
+}
+
 /// Crisp predicate over a hand and its context
 ///
 /// This is the escape hatch for one-off conditions:
@@ -151,6 +361,58 @@ where
     F: Fn(Hand, &Context<'_>) -> bool + Clone + Send + Sync,
 {
     Cons(move |hand: Hand, context: &Context<'_>| crisp(condition(hand, context)))
+}
+
+/// A labeled crisp predicate
+///
+/// Carries its own meaning so it describes to `label` instead of the
+/// [`Opaque`][Description::Opaque] a bare closure gives.
+#[derive(Clone)]
+struct Described<F> {
+    condition: F,
+    label: Cow<'static, str>,
+}
+
+impl<F> Constraint for Described<F>
+where
+    F: Fn(Hand, &Context<'_>) -> bool + Send + Sync,
+{
+    fn eval(&self, hand: Hand, context: &Context<'_>) -> f32 {
+        crisp((self.condition)(hand, context))
+    }
+
+    fn describe(&self) -> Description {
+        Description::atom(self.label.clone())
+    }
+}
+
+/// A crisp predicate that knows its own meaning (a labeled [`pred`])
+///
+/// The same escape hatch as [`pred`], but the one-off condition carries a
+/// `label` so it renders to that prose rather than
+/// [`Opaque`][Description::Opaque].  Use it on bespoke book predicates the
+/// vocabulary has no primitive for:
+///
+/// ```
+/// use pons::bidding::constraint::{Constraint, described};
+/// use contract_bridge::Suit;
+///
+/// let prefers_diamonds = described("prefers diamonds", |hand, _| {
+///     hand[Suit::Diamonds].len() >= hand[Suit::Clubs].len()
+/// });
+/// assert_eq!(prefers_diamonds.describe().to_string(), "prefers diamonds");
+/// ```
+pub fn described<F>(
+    label: impl Into<Cow<'static, str>>,
+    condition: F,
+) -> Cons<impl Constraint + Clone>
+where
+    F: Fn(Hand, &Context<'_>) -> bool + Clone + Send + Sync,
+{
+    Cons(Described {
+        condition,
+        label: label.into(),
+    })
 }
 
 std::thread_local! {
@@ -190,10 +452,24 @@ fn raw_hcp(hand: Hand) -> u8 {
     SimpleEvaluator(eval::hcp::<u8>).eval(hand)
 }
 
+/// Raw high card points in a range (the [`hcp`] constraint)
+#[derive(Clone)]
+struct Hcp<R>(R);
+
+impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for Hcp<R> {
+    fn eval(&self, hand: Hand, _: &Context<'_>) -> f32 {
+        crisp(self.0.contains(&raw_hcp(hand)))
+    }
+
+    fn describe(&self) -> Description {
+        describe_int_range(&self.0, "HCP")
+    }
+}
+
 /// Total high card points in the given range
 #[must_use]
 pub fn hcp(range: impl RangeBounds<u8> + Clone + Send + Sync) -> Cons<impl Constraint + Clone> {
-    pred(move |hand: Hand, _: &Context<'_>| range.contains(&raw_hcp(hand)))
+    Cons(Hcp(range))
 }
 
 /// Whether a short suit (at most two cards) blocks the fuzzy-strength upgrade
@@ -244,20 +520,51 @@ pub fn point_count(hand: Hand) -> u8 {
     raw_hcp(hand) + upgrade(hand)
 }
 
+/// Upgraded points in a range (the [`points`] constraint)
+#[derive(Clone)]
+struct Points<R>(R);
+
+impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for Points<R> {
+    fn eval(&self, hand: Hand, _: &Context<'_>) -> f32 {
+        let bonus = if FUZZY_POINTS.with(Cell::get) {
+            upgrade(hand)
+        } else {
+            0
+        };
+        crisp(self.0.contains(&(raw_hcp(hand) + bonus)))
+    }
+
+    fn describe(&self) -> Description {
+        describe_int_range(&self.0, "points")
+    }
+}
+
 /// Upgraded points — HCP plus [`upgrade`] — in the given range
 ///
 /// The strength gauge for suit-oriented calls.  Notrump-defining ranges use
 /// [`fifths`] instead, and ranges indifferent to shape keep [`hcp`].
 #[must_use]
 pub fn points(range: impl RangeBounds<u8> + Clone + Send + Sync) -> Cons<impl Constraint + Clone> {
-    pred(move |hand: Hand, _: &Context<'_>| {
-        let bonus = if FUZZY_POINTS.with(Cell::get) {
-            upgrade(hand)
+    Cons(Points(range))
+}
+
+/// Fifths in a range (the [`fifths`] constraint)
+#[derive(Clone)]
+struct Fifths<R>(R);
+
+impl<R: RangeBounds<f64> + Clone + Send + Sync> Constraint for Fifths<R> {
+    fn eval(&self, hand: Hand, _: &Context<'_>) -> f32 {
+        let value = if FUZZY_FIFTHS.with(Cell::get) {
+            eval::FIFTHS.eval(hand)
         } else {
-            0
+            f64::from(raw_hcp(hand))
         };
-        range.contains(&(raw_hcp(hand) + bonus))
-    })
+        crisp(self.0.contains(&value))
+    }
+
+    fn describe(&self) -> Description {
+        describe_real_range(&self.0, "fifths")
+    }
 }
 
 /// Total [Fifths][eval::FIFTHS] in the given range
@@ -270,14 +577,24 @@ pub fn points(range: impl RangeBounds<u8> + Clone + Send + Sync) -> Cons<impl Co
 /// bands keep tiling.
 #[must_use]
 pub fn fifths(range: impl RangeBounds<f64> + Clone + Send + Sync) -> Cons<impl Constraint + Clone> {
-    pred(move |hand: Hand, _: &Context<'_>| {
-        let value = if FUZZY_FIFTHS.with(Cell::get) {
-            eval::FIFTHS.eval(hand)
-        } else {
-            f64::from(raw_hcp(hand))
-        };
-        range.contains(&value)
-    })
+    Cons(Fifths(range))
+}
+
+/// Length of a suit in a range (the [`len`] constraint)
+#[derive(Clone)]
+struct Len<R> {
+    suit: Suit,
+    range: R,
+}
+
+impl<R: RangeBounds<usize> + Clone + Send + Sync> Constraint for Len<R> {
+    fn eval(&self, hand: Hand, _: &Context<'_>) -> f32 {
+        crisp(self.range.contains(&hand[self.suit].len()))
+    }
+
+    fn describe(&self) -> Description {
+        describe_int_range(&self.range, &self.suit.to_string())
+    }
 }
 
 /// Length of the given suit in the given range
@@ -285,7 +602,7 @@ pub fn len(
     suit: Suit,
     range: impl RangeBounds<usize> + Clone + Send + Sync,
 ) -> Cons<impl Constraint + Clone> {
-    pred(move |hand: Hand, _: &Context<'_>| range.contains(&hand[suit].len()))
+    Cons(Len { suit, range })
 }
 
 /// Balanced shape kernel shared by [`balanced`] and [`upgrade`]
@@ -295,16 +612,58 @@ fn is_balanced(hand: Hand) -> bool {
         && lengths.iter().filter(|&&length| length == 2).count() <= 1
 }
 
+/// Balanced shape (the [`balanced`] constraint)
+#[derive(Clone)]
+struct Balanced;
+
+impl Constraint for Balanced {
+    fn eval(&self, hand: Hand, _: &Context<'_>) -> f32 {
+        crisp(is_balanced(hand))
+    }
+
+    fn describe(&self) -> Description {
+        Description::atom("balanced")
+    }
+}
+
 /// Balanced shape: 4333, 4432, or 5332
 #[must_use]
 pub fn balanced() -> Cons<impl Constraint + Clone> {
-    pred(|hand: Hand, _: &Context<'_>| is_balanced(hand))
+    Cons(Balanced)
+}
+
+/// New Losing Trick Count ceiling (the [`nltc_at_most`] constraint)
+#[derive(Clone)]
+struct NltcAtMost(f64);
+
+impl Constraint for NltcAtMost {
+    fn eval(&self, hand: Hand, _: &Context<'_>) -> f32 {
+        crisp(eval::NLTC.eval(hand) <= self.0)
+    }
+
+    fn describe(&self) -> Description {
+        Description::atom(format!("NLTC ≤ {}", self.0))
+    }
 }
 
 /// [New Losing Trick Count][eval::NLTC] at most the given number of losers
 #[must_use]
 pub fn nltc_at_most(losers: f64) -> Cons<impl Constraint + Clone> {
-    pred(move |hand: Hand, _: &Context<'_>| eval::NLTC.eval(hand) <= losers)
+    Cons(NltcAtMost(losers))
+}
+
+/// Kaplan–Rubens CCCC floor (the [`cccc_at_least`] constraint)
+#[derive(Clone)]
+struct CcccAtLeast(f64);
+
+impl Constraint for CcccAtLeast {
+    fn eval(&self, hand: Hand, _: &Context<'_>) -> f32 {
+        crisp(eval::cccc(hand) >= self.0)
+    }
+
+    fn describe(&self) -> Description {
+        Description::atom(format!("CCCC ≥ {}", self.0))
+    }
 }
 
 /// [Kaplan–Rubens CCCC][eval::cccc] at least the given strength
@@ -314,7 +673,25 @@ pub fn nltc_at_most(losers: f64) -> Cons<impl Constraint + Clone> {
 /// notrump.
 #[must_use]
 pub fn cccc_at_least(points: f64) -> Cons<impl Constraint + Clone> {
-    pred(move |hand: Hand, _: &Context<'_>| eval::cccc(hand) >= points)
+    Cons(CcccAtLeast(points))
+}
+
+/// Fit for partner's last suit (the [`support`] constraint)
+#[derive(Clone)]
+struct Support<R>(R);
+
+impl<R: RangeBounds<usize> + Clone + Send + Sync> Constraint for Support<R> {
+    fn eval(&self, hand: Hand, context: &Context<'_>) -> f32 {
+        crisp(
+            context
+                .partner_last_suit()
+                .is_some_and(|suit| self.0.contains(&hand[suit].len())),
+        )
+    }
+
+    fn describe(&self) -> Description {
+        describe_int_range(&self.0, "card support for partner")
+    }
 }
 
 /// Support for partner's last bid suit in the given range
@@ -323,11 +700,25 @@ pub fn cccc_at_least(points: f64) -> Cons<impl Constraint + Clone> {
 pub fn support(
     range: impl RangeBounds<usize> + Clone + Send + Sync,
 ) -> Cons<impl Constraint + Clone> {
-    pred(move |hand: Hand, context: &Context<'_>| {
-        context
-            .partner_last_suit()
-            .is_some_and(|suit| range.contains(&hand[suit].len()))
-    })
+    Cons(Support(range))
+}
+
+/// Length partner has shown in a suit (the [`partner_shown_len`] constraint)
+#[derive(Clone)]
+struct PartnerShownLen<R> {
+    suit: Suit,
+    range: R,
+}
+
+impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for PartnerShownLen<R> {
+    fn eval(&self, _: Hand, context: &Context<'_>) -> f32 {
+        let shown = Inferences::read(context).partner().length(self.suit);
+        crisp(self.range.contains(&shown.min))
+    }
+
+    fn describe(&self) -> Description {
+        describe_int_range(&self.range, &format!("{} shown by partner", self.suit))
+    }
 }
 
 /// Partner has shown at least the given length in `suit` (see [`Inferences`])
@@ -344,10 +735,22 @@ pub fn partner_shown_len(
     suit: Suit,
     range: impl RangeBounds<u8> + Clone + Send + Sync,
 ) -> Cons<impl Constraint + Clone> {
-    pred(move |_: Hand, context: &Context<'_>| {
-        let shown = Inferences::read(context).partner().length(suit);
-        range.contains(&shown.min)
-    })
+    Cons(PartnerShownLen { suit, range })
+}
+
+/// Points partner has shown (the [`partner_shown_points`] constraint)
+#[derive(Clone)]
+struct PartnerShownPoints<R>(R);
+
+impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for PartnerShownPoints<R> {
+    fn eval(&self, _: Hand, context: &Context<'_>) -> f32 {
+        let shown = Inferences::read(context).partner().points;
+        crisp(self.0.contains(&shown.min))
+    }
+
+    fn describe(&self) -> Description {
+        describe_int_range(&self.0, "points shown by partner")
+    }
 }
 
 /// Partner has shown at least the given points (see [`partner_shown_len`])
@@ -357,10 +760,29 @@ pub fn partner_shown_len(
 pub fn partner_shown_points(
     range: impl RangeBounds<u8> + Clone + Send + Sync,
 ) -> Cons<impl Constraint + Clone> {
-    pred(move |_: Hand, context: &Context<'_>| {
-        let shown = Inferences::read(context).partner().points;
-        range.contains(&shown.min)
-    })
+    Cons(PartnerShownPoints(range))
+}
+
+/// Count of top honors in a suit (the [`top_honors`] constraint)
+#[derive(Clone)]
+struct TopHonors<R> {
+    suit: Suit,
+    range: R,
+}
+
+impl<R: RangeBounds<usize> + Clone + Send + Sync> Constraint for TopHonors<R> {
+    fn eval(&self, hand: Hand, _: &Context<'_>) -> f32 {
+        let holding = hand[self.suit];
+        let count = [Rank::A, Rank::K, Rank::Q]
+            .into_iter()
+            .filter(|&rank| holding.contains(rank))
+            .count();
+        crisp(self.range.contains(&count))
+    }
+
+    fn describe(&self) -> Description {
+        describe_int_range(&self.range, &format!("of the top honors in {}", self.suit))
+    }
 }
 
 /// Count of top honors (A, K, Q) in the given suit, in the given range
@@ -371,14 +793,7 @@ pub fn top_honors(
     suit: Suit,
     range: impl RangeBounds<usize> + Clone + Send + Sync,
 ) -> Cons<impl Constraint + Clone> {
-    pred(move |hand: Hand, _: &Context<'_>| {
-        let holding = hand[suit];
-        let count = [Rank::A, Rank::K, Rank::Q]
-            .into_iter()
-            .filter(|&rank| holding.contains(rank))
-            .count();
-        range.contains(&count)
-    })
+    Cons(TopHonors { suit, range })
 }
 
 /// Whether a holding stops the suit for notrump purposes
@@ -391,13 +806,42 @@ const fn has_stopper(holding: Holding) -> bool {
         || (holding.contains(Rank::J) && holding.len() >= 4)
 }
 
+/// A stopper in a specific suit (the [`stopper_in`] constraint)
+#[derive(Clone)]
+struct StopperIn(Suit);
+
+impl Constraint for StopperIn {
+    fn eval(&self, hand: Hand, _: &Context<'_>) -> f32 {
+        crisp(has_stopper(hand[self.0]))
+    }
+
+    fn describe(&self) -> Description {
+        Description::atom(format!("stopper in {}", self.0))
+    }
+}
+
 /// A stopper in the given suit
 ///
 /// The same crisp textbook definition as [`stopper_in_their_suits`]: A, Kx,
 /// Qxx, or Jxxx.
 #[must_use]
 pub fn stopper_in(suit: Suit) -> Cons<impl Constraint + Clone> {
-    pred(move |hand: Hand, _: &Context<'_>| has_stopper(hand[suit]))
+    Cons(StopperIn(suit))
+}
+
+/// A stopper in every suit the opponents bid (the
+/// [`stopper_in_their_suits`] constraint)
+#[derive(Clone)]
+struct StopperInTheirSuits;
+
+impl Constraint for StopperInTheirSuits {
+    fn eval(&self, hand: Hand, context: &Context<'_>) -> f32 {
+        crisp(context.their_suits().all(|suit| has_stopper(hand[suit])))
+    }
+
+    fn describe(&self) -> Description {
+        Description::atom("stopper in their suit(s)")
+    }
 }
 
 /// A stopper in every suit the opponents have bid
@@ -405,15 +849,41 @@ pub fn stopper_in(suit: Suit) -> Cons<impl Constraint + Clone> {
 /// Trivially satisfied when the opponents have bid no suit.
 #[must_use]
 pub fn stopper_in_their_suits() -> Cons<impl Constraint + Clone> {
-    pred(|hand: Hand, context: &Context<'_>| {
-        context.their_suits().all(|suit| has_stopper(hand[suit]))
-    })
+    Cons(StopperInTheirSuits)
+}
+
+/// The opponents have bid a strain (the [`they_bid`] constraint)
+#[derive(Clone)]
+struct TheyBid(Strain);
+
+impl Constraint for TheyBid {
+    fn eval(&self, _: Hand, context: &Context<'_>) -> f32 {
+        crisp(context.they_bid(self.0))
+    }
+
+    fn describe(&self) -> Description {
+        Description::atom(format!("opponents bid {}", self.0))
+    }
 }
 
 /// The opponents have bid the given strain
 #[must_use]
 pub fn they_bid(strain: Strain) -> Cons<impl Constraint + Clone> {
-    pred(move |_: Hand, context: &Context<'_>| context.they_bid(strain))
+    Cons(TheyBid(strain))
+}
+
+/// Takeout shape against their suits (the [`short_in_their_suits`] constraint)
+#[derive(Clone)]
+struct ShortInTheirSuits;
+
+impl Constraint for ShortInTheirSuits {
+    fn eval(&self, hand: Hand, context: &Context<'_>) -> f32 {
+        crisp(context.their_suits().all(|suit| hand[suit].len() <= 3))
+    }
+
+    fn describe(&self) -> Description {
+        Description::atom("at most three cards in each of their suits")
+    }
 }
 
 /// Takeout shape: at most three cards in each suit the opponents have bid
@@ -421,9 +891,21 @@ pub fn they_bid(strain: Strain) -> Cons<impl Constraint + Clone> {
 /// Trivially satisfied when the opponents have bid no suit.
 #[must_use]
 pub fn short_in_their_suits() -> Cons<impl Constraint + Clone> {
-    pred(|hand: Hand, context: &Context<'_>| {
-        context.their_suits().all(|suit| hand[suit].len() <= 3)
-    })
+    Cons(ShortInTheirSuits)
+}
+
+/// Which suit partner bid last (the [`partner_suit_is`] constraint)
+#[derive(Clone)]
+struct PartnerSuitIs(Suit);
+
+impl Constraint for PartnerSuitIs {
+    fn eval(&self, _: Hand, context: &Context<'_>) -> f32 {
+        crisp(context.partner_last_suit() == Some(self.0))
+    }
+
+    fn describe(&self) -> Description {
+        Description::atom(format!("partner's last suit is {}", self.0))
+    }
 }
 
 /// Partner's last bid suit is the given one
@@ -433,7 +915,24 @@ pub fn short_in_their_suits() -> Cons<impl Constraint + Clone> {
 /// last — the anchor for raises of a specific second suit.
 #[must_use]
 pub fn partner_suit_is(suit: Suit) -> Cons<impl Constraint + Clone> {
-    pred(move |_: Hand, context: &Context<'_>| context.partner_last_suit() == Some(suit))
+    Cons(PartnerSuitIs(suit))
+}
+
+/// The cheapest legal level for a strain (the [`min_level_is`] constraint)
+#[derive(Clone)]
+struct MinLevelIs {
+    level: u8,
+    strain: Strain,
+}
+
+impl Constraint for MinLevelIs {
+    fn eval(&self, _: Hand, context: &Context<'_>) -> f32 {
+        crisp(context.min_level(self.strain) == Some(Level::new(self.level)))
+    }
+
+    fn describe(&self) -> Description {
+        Description::atom(format!("{}{} is the cheapest bid", self.level, self.strain))
+    }
 }
 
 /// The strain's cheapest legal level is exactly the given one
@@ -443,33 +942,103 @@ pub fn partner_suit_is(suit: Suit) -> Cons<impl Constraint + Clone> {
 /// only when the two-level cue is exactly the cheapest available.
 #[must_use]
 pub fn min_level_is(level: u8, strain: Strain) -> Cons<impl Constraint + Clone> {
-    pred(move |_: Hand, context: &Context<'_>| context.min_level(strain) == Some(Level::new(level)))
+    Cons(MinLevelIs { level, strain })
+}
+
+/// The actor passed on their first turn (the [`passed_hand`] constraint)
+#[derive(Clone)]
+struct PassedHand;
+
+impl Constraint for PassedHand {
+    fn eval(&self, _: Hand, context: &Context<'_>) -> f32 {
+        crisp(context.passed_hand())
+    }
+
+    fn describe(&self) -> Description {
+        Description::atom("a passed hand")
+    }
 }
 
 /// The player to act passed on their first turn
 #[must_use]
 pub fn passed_hand() -> Cons<impl Constraint + Clone> {
-    pred(|_: Hand, context: &Context<'_>| context.passed_hand())
+    Cons(PassedHand)
+}
+
+/// The opponents have only passed (the [`undisturbed`] constraint)
+#[derive(Clone)]
+struct Undisturbed;
+
+impl Constraint for Undisturbed {
+    fn eval(&self, _: Hand, context: &Context<'_>) -> f32 {
+        crisp(context.undisturbed())
+    }
+
+    fn describe(&self) -> Description {
+        Description::atom("the opponents have passed throughout")
+    }
 }
 
 /// The opponents have made nothing but passes
 #[must_use]
 pub fn undisturbed() -> Cons<impl Constraint + Clone> {
-    pred(|_: Hand, context: &Context<'_>| context.undisturbed())
+    Cons(Undisturbed)
+}
+
+/// Our side is vulnerable (the [`vulnerable`] constraint)
+#[derive(Clone)]
+struct Vulnerable;
+
+impl Constraint for Vulnerable {
+    fn eval(&self, _: Hand, context: &Context<'_>) -> f32 {
+        use contract_bridge::auction::RelativeVulnerability;
+        crisp(context.vul().contains(RelativeVulnerability::WE))
+    }
+
+    fn describe(&self) -> Description {
+        Description::atom("vulnerable")
+    }
 }
 
 /// Our side is vulnerable
 #[must_use]
 pub fn vulnerable() -> Cons<impl Constraint + Clone> {
-    use contract_bridge::auction::RelativeVulnerability;
-    pred(|_: Hand, context: &Context<'_>| context.vul().contains(RelativeVulnerability::WE))
+    Cons(Vulnerable)
+}
+
+/// The opponents are vulnerable (the [`they_vulnerable`] constraint)
+#[derive(Clone)]
+struct TheyVulnerable;
+
+impl Constraint for TheyVulnerable {
+    fn eval(&self, _: Hand, context: &Context<'_>) -> f32 {
+        use contract_bridge::auction::RelativeVulnerability;
+        crisp(context.vul().contains(RelativeVulnerability::THEY))
+    }
+
+    fn describe(&self) -> Description {
+        Description::atom("opponents vulnerable")
+    }
 }
 
 /// The opponents are vulnerable
 #[must_use]
 pub fn they_vulnerable() -> Cons<impl Constraint + Clone> {
-    use contract_bridge::auction::RelativeVulnerability;
-    pred(|_: Hand, context: &Context<'_>| context.vul().contains(RelativeVulnerability::THEY))
+    Cons(TheyVulnerable)
+}
+
+/// About to open in a specific seat (the [`nth_seat`] constraint)
+#[derive(Clone)]
+struct NthSeat(u8);
+
+impl Constraint for NthSeat {
+    fn eval(&self, _: Hand, context: &Context<'_>) -> f32 {
+        crisp(context.seat_to_open() == Some(self.0))
+    }
+
+    fn describe(&self) -> Description {
+        Description::atom(format!("opening in seat {}", self.0))
+    }
 }
 
 /// About to make the first non-pass call in the given seat (1–4)
@@ -479,7 +1048,7 @@ pub fn they_vulnerable() -> Cons<impl Constraint + Clone> {
 /// alike structurally.
 #[must_use]
 pub fn nth_seat(seat: u8) -> Cons<impl Constraint + Clone> {
-    pred(move |_: Hand, context: &Context<'_>| context.seat_to_open() == Some(seat))
+    Cons(NthSeat(seat))
 }
 
 #[cfg(test)]
@@ -688,5 +1257,112 @@ mod tests {
         assert_reject(they_vulnerable().eval(hand(BALANCED_15), &context));
         assert_pass(nth_seat(2).eval(hand(BALANCED_15), &context));
         assert_reject(nth_seat(1).eval(hand(BALANCED_15), &context));
+    }
+
+    /// Render a constraint to its prose, the inverse of evaluation.
+    fn prose(constraint: &impl Constraint) -> String {
+        constraint.describe().to_string()
+    }
+
+    #[test]
+    fn test_describe_ranges() {
+        // Closed, open-ended, capped, and exact integer bands.
+        assert_eq!(prose(&hcp(15..=17)), "15–17 HCP");
+        assert_eq!(prose(&hcp(16..)), "16+ HCP");
+        assert_eq!(prose(&hcp(..11)), "≤10 HCP"); // half-open → inclusive
+        assert_eq!(prose(&points(12..=21)), "12–21 points");
+        assert_eq!(prose(&len(Suit::Spades, 5..)), "5+ ♠");
+        assert_eq!(prose(&len(Suit::Hearts, 6..=6)), "exactly 6 ♥");
+        assert_eq!(prose(&support(3..)), "3+ card support for partner");
+        assert_eq!(
+            prose(&top_honors(Suit::Spades, 2..)),
+            "2+ of the top honors in ♠"
+        );
+        assert_eq!(
+            prose(&partner_shown_len(Suit::Diamonds, 3..)),
+            "3+ ♦ shown by partner",
+        );
+        assert_eq!(
+            prose(&partner_shown_points(12..)),
+            "12+ points shown by partner"
+        );
+        // Fifths print as a literal float band, never nudged to "≤17.999".
+        assert_eq!(prose(&fifths(15.0..18.0)), "15.0–18.0 fifths");
+        assert_eq!(prose(&fifths(20.0..22.0)), "20.0–22.0 fifths");
+    }
+
+    #[test]
+    fn test_describe_atoms() {
+        assert_eq!(prose(&balanced()), "balanced");
+        assert_eq!(prose(&nltc_at_most(7.0)), "NLTC ≤ 7");
+        assert_eq!(prose(&cccc_at_least(14.9)), "CCCC ≥ 14.9");
+        assert_eq!(prose(&stopper_in(Suit::Hearts)), "stopper in ♥");
+        assert_eq!(prose(&stopper_in_their_suits()), "stopper in their suit(s)");
+        assert_eq!(
+            prose(&short_in_their_suits()),
+            "at most three cards in each of their suits",
+        );
+        assert_eq!(prose(&they_bid(Strain::Spades)), "opponents bid ♠");
+        assert_eq!(prose(&they_bid(Strain::Notrump)), "opponents bid NT");
+        assert_eq!(
+            prose(&partner_suit_is(Suit::Hearts)),
+            "partner's last suit is ♥"
+        );
+        assert_eq!(
+            prose(&min_level_is(2, Strain::Diamonds)),
+            "2♦ is the cheapest bid"
+        );
+        assert_eq!(prose(&passed_hand()), "a passed hand");
+        assert_eq!(
+            prose(&undisturbed()),
+            "the opponents have passed throughout"
+        );
+        assert_eq!(prose(&vulnerable()), "vulnerable");
+        assert_eq!(prose(&they_vulnerable()), "opponents vulnerable");
+        assert_eq!(prose(&nth_seat(3)), "opening in seat 3");
+    }
+
+    #[test]
+    fn test_describe_composition() {
+        // `&` flattens into one comma list with a trailing "and".
+        assert_eq!(
+            prose(&(points(12..=21) & len(Suit::Spades, 5..))),
+            "12–21 points, and 5+ ♠",
+        );
+        assert_eq!(
+            prose(&(points(12..=21) & len(Suit::Spades, 5..) & balanced())),
+            "12–21 points, 5+ ♠, and balanced",
+        );
+        // `|` flattens with a trailing "or"; `!` wraps in "not (…)".
+        assert_eq!(
+            prose(&(len(Suit::Clubs, 5..) | len(Suit::Diamonds, 5..))),
+            "5+ ♣, or 5+ ♦",
+        );
+        assert_eq!(prose(&!hcp(16..)), "not (16+ HCP)");
+        // Double negation cancels.
+        assert_eq!(prose(&!!balanced()), "balanced");
+        // A nested group is parenthesized so a mixed tree stays unambiguous.
+        assert_eq!(
+            prose(&(points(9..=11) & len(Suit::Spades, 5..) & (nth_seat(3) | nth_seat(4)))),
+            "9–11 points, 5+ ♠, and (opening in seat 3, or opening in seat 4)",
+        );
+    }
+
+    #[test]
+    fn test_describe_opaque_and_labeled() {
+        // A bare predicate carries no recoverable meaning.
+        assert_eq!(pred(|_, _| true).describe(), Description::Opaque);
+        assert_eq!(prose(&pred(|_, _| true)), "(opaque condition)");
+        // Opacity surfaces as one element, not a whole-conjunction collapse.
+        assert_eq!(
+            prose(&(hcp(15..) & pred(|_, _| true))),
+            "15+ HCP, and (opaque condition)",
+        );
+        // The labeled escape hatch describes to its label and still evaluates.
+        let prefers_diamonds = described("prefers diamonds", |hand: Hand, _: &Context<'_>| {
+            hand[Suit::Diamonds].len() >= hand[Suit::Clubs].len()
+        });
+        assert_eq!(prose(&prefers_diamonds), "prefers diamonds");
+        assert_pass(prefers_diamonds.eval(hand(BALANCED_15), &empty_context()));
     }
 }
