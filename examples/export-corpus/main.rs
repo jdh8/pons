@@ -45,19 +45,30 @@ use contract_bridge::auction::{Call, RelativeVulnerability};
 use contract_bridge::{Bid, Strain};
 use pons::bidding::constraint::Description;
 use pons::bidding::context::Context;
+use pons::bidding::polish_club::bare_polish_club;
 use pons::bidding::trie::Trie;
 use pons::bidding::two_over_one::bare_two_over_one;
 use std::collections::HashSet;
 
 /// One auction prefix the books classify, plus the rules found there.
 struct Node<'a> {
+    system: &'static str,
     book: &'static str,
     auction: Vec<Call>,
     rules: &'a pons::bidding::Rules,
 }
 
 fn main() {
-    let pair = bare_two_over_one();
+    // `--system {two-over-one|polish-club}`; default preserves the original 2/1.
+    let requested = std::env::args().skip_while(|arg| arg != "--system").nth(1);
+    let (system, pair) = match requested.as_deref() {
+        Some("polish-club") => ("polish-club", bare_polish_club()),
+        None | Some("two-over-one") => ("two-over-one", bare_two_over_one()),
+        Some(other) => {
+            eprintln!("export-corpus: unknown system {other:?}; use two-over-one or polish-club");
+            std::process::exit(2);
+        }
+    };
     let books: [(&'static str, &Trie); 3] = [
         ("constructive", &pair.constructive.0),
         ("competitive", &pair.competitive.0),
@@ -84,6 +95,7 @@ fn main() {
             }
             nodes += 1;
             let node = Node {
+                system,
                 book,
                 auction: auction.to_vec(),
                 rules,
@@ -104,15 +116,17 @@ fn main() {
     }
 
     eprintln!(
-        "export-corpus: {nodes} authored nodes, {records} (node,call) records \
-         ({} constructive, {} competitive, {} defensive), {specific} with a \
-         specific (non-NAT/NF) tag, {opaque} with an opaque constraint.",
+        "export-corpus: system {system}, {nodes} authored nodes, {records} \
+         (node,call) records ({} constructive, {} competitive, {} defensive), \
+         {specific} with a specific (non-NAT/NF) tag, {opaque} with an opaque \
+         constraint.",
         per_book[0], per_book[1], per_book[2]
     );
 }
 
 /// A single corpus record.
 struct Record {
+    system: &'static str,
     book: &'static str,
     auction: Vec<Call>,
     call: Call,
@@ -131,6 +145,7 @@ impl Record {
     fn to_json(&self) -> String {
         let auction: Vec<String> = self.auction.iter().map(|c| format!("{c}")).collect();
         serde_json::json!({
+            "system": self.system,
             "book": self.book,
             "auction": auction,
             "call": format!("{}", self.call),
@@ -183,6 +198,7 @@ fn node_records(node: &Node<'_>) -> Vec<Record> {
                 constraint.clone()
             };
             Record {
+                system: node.system,
                 book: node.book,
                 auction: node.auction.clone(),
                 call,

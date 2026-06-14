@@ -9,6 +9,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- A **second authored system, Strawberry Polish Club** (AI-bidder **M4.3**),
+  exposed as `polish_club()` / `bare_polish_club()` (family
+  `Family::POLISH_CLUB`) in a new `bidding::polish_club` module — the port half
+  of the S.2 reference, authored from the system's own notes
+  (<https://polish.club>, [source](https://github.com/jdh8/polish.club)) with the
+  M4.1 DSL spec and the M4.2 `verify` harness. It is a *genuinely different*
+  system from the existing `two_over_one_strawberry` (a `NATURAL`-family 2/1 with
+  a few polish.club conventions); here 1♣ is the artificial small-club itself.
+  This first pass authors the **Constructive backbone**: the full opening ladder
+  (the three-variant forcing 1♣, the natural 1♦, five-card majors, the inclusive
+  15–17 1NT envelope, Ekren 2♣, Multi 2♦, Muiderberg 2♥/2♠, unusual 2NT,
+  three-level preempts) and the defining first responses (the artificial 1♣
+  framework — the negative 1♦ relay and the positives, forcing by omission — plus
+  natural responses to 1♦/1♥/1♠, with the shared 1NT reusing the verified 2/1
+  notrump responses). The deep relay tails (Checkback Gladiator, Odwrotka, the
+  strong-club rebid relays, the preempt continuations) and the Competitive and
+  Defensive books are left to the `instinct` floor, which is attached to *all
+  three* books (including the constructive one) so no uncontested auction strands;
+  `instinct` stays the baseline and this is an added system, never a removal. Every
+  authored constraint renders truthfully (the bespoke shapes use the `described`
+  escape hatch), so `export-corpus --system polish-club` emits a **0-opaque**
+  second corpus (the artifact M5 needs); `export-corpus` gained a
+  `--system {two-over-one|polish-club}` flag (default unchanged) and a `system`
+  field per record. A new `polish-club-reference` example cross-checks the port
+  against BBA's WJ (informational — the notes are authoritative, divergences are
+  reported not failed): on 1000 boards our openings agree with WJ **86% on the
+  overlap** (1-level + Multi 2♦) and the disagreement lists (e.g. our inclusive
+  1NT absorbing 15–17 five-card-major/six-card-minor hands WJ opens in a suit; our
+  Ekren/Muiderberg firing where generic WJ passes) are the next authoring targets.
+  The eight curated textbook openings are now hard assertions against *our* system
+  (`tests/polish_club.rs`), alongside a 0-opaque guard and a reach-game check. No
+  new crate dependencies (the BBA example stays `libloading`/`clap` dev-deps).
 - A **WJ (Polish Club) reference set** (AI-bidder Side-track S, S.2): a new
   `bba-wj-reference` example that harvests BBA's **WJ — *Wspólny Język* / Polish
   Club** bidding (EPBot **system type 2**, confirmed both from `WJ.bbsa`'s

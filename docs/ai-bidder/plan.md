@@ -279,10 +279,27 @@ Parallelizable with M1–M3 once M0 exists; high near-term leverage.
   *Decisions:* fixed (caller-supplied, default-empty) `Context` — the dominant
   disagreements and every `described` hand predicate are context-free; sampling is
   strong evidence, not proof, so `n` is taken large (tests/example use 8000).
-- ⬜ **M4.3 Polish Club port (assisted).** Use M4.1+M4.2 to author the Polish Club
+- ✅ **M4.3 Polish Club port (assisted).** Use M4.1+M4.2 to author the Polish Club
   books from their written notes. *Deliverable:* a second system's books + corpus.
   *Measure:* the ported system bids textbook auctions correctly; produces the
-  second corpus needed for Component A Role 2. *Deps:* M4.2.
+  second corpus needed for Component A Role 2. *Deps:* M4.2. **Done (Constructive
+  backbone):** `bidding::polish_club` — `polish_club()` / `bare_polish_club()`
+  (`Family::POLISH_CLUB`), the *Strawberry Polish Club* (<https://polish.club>),
+  authored from the chapter sources with the M4.1 spec and M4.2 `verify`. The
+  opening ladder (three-variant forcing 1♣, natural 1♦, five-card majors, the
+  inclusive 15–17 1NT envelope, Ekren 2♣, Multi 2♦, Muiderberg 2♥/2♠, unusual
+  2NT, preempts) and the defining first responses (the artificial 1♣ framework —
+  negative 1♦ relay + positives, forcing by omission — natural 1♦/1♥/1♠ responses,
+  shared 1NT reusing 2/1's notrump responses) are authored; the deep relay tails
+  and the Competitive/Defensive books are floored by `instinct` (attached to all
+  three books). `export-corpus --system polish-club` emits a **0-opaque** second
+  corpus (every bespoke shape via `described`); `tests/polish_club.rs` makes the 8
+  curated textbook openings hard assertions, plus a 0-opaque guard and a reach-game
+  check. The `polish-club-reference` example cross-checks against BBA WJ
+  (informational — notes authoritative): **86% opening agreement on the overlap**
+  (1-level + Multi 2♦) over 1000 boards, divergences listed as the next targets.
+  *Deferred (next passes):* opener's rebid relays, the preempt response trees, and
+  the Competitive/Defensive books (floored until then); BTU 1NT responses.
 
 Exit M4: book authoring is "write the meaning, verify, commit" — and a second
 system exists.
@@ -370,9 +387,10 @@ was trained on BBA-bid deals). It plugs into three existing slots, strongest fir
   `target/` (gitignored) with a versioned sidecar (system, seed, git SHA, schema,
   counts). All 371 tests green (no crate tests added — the harness is a dev-only
   example, its curated-fixture assertions the acceptance gate); `libloading`
-  stays a dev-dependency, default build untouched. *Deferred to M4.3 (the port half):* the `bidding::verify` per-auction
-  check needs the *ported* books, which don't exist yet — S.2 produces the
-  reference those checks will diff against.
+  stays a dev-dependency, default build untouched. **Port half done in M4.3:** the
+  `polish-club-reference` example now drives the *ported* books against WJ and
+  reports call-agreement (86% on the overlap openings); the reference S.2 produced
+  is what it diffs against.
 - ⬜ **S.3 (optional) Imitation teacher for M3.** BBA's calls as an extra,
   cheap/deterministic target alongside the M2.3 search teacher. *Caveat:* imitating
   BBA is capped at BBA — it cannot *exceed* a human system the way the double-dummy

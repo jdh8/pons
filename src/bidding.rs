@@ -21,6 +21,8 @@ pub mod neural;
 /// Deterministic safety shell over the distilled neural floor (feature-gated)
 #[cfg(feature = "neural-floor")]
 pub mod neural_floor;
+/// The Strawberry Polish Club system (AI-bidder M4.3)
+pub mod polish_club;
 pub mod rules;
 /// Constrained layout sampling: deals consistent with an auction's inferences
 pub mod sampler;
@@ -44,6 +46,7 @@ pub use features::{FEATURES_LEN, FEATURES_VERSION, features};
 pub use inference::{Inference, Inferences, Range, Relative};
 pub use instinct::instinct;
 pub use map::Map;
+pub use polish_club::{bare_polish_club, polish_club};
 pub use rules::Rules;
 pub use sampler::sample_layouts;
 pub use table::Table;
