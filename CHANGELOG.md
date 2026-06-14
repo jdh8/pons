@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- A **DSL authoring-compiler spec** (M4.1 of the AI-bidder effort):
+  [`docs/ai-bidder/dsl-spec.md`](docs/ai-bidder/dsl-spec.md) is a precise,
+  pasteable English→`Constraint` prompt — the grammar (the `&`/`|`/`!` tree and
+  how `describe()` renders it), a vocabulary table for all 22 primitives with
+  their exact glosses and range conventions, the `described(...)` escape-hatch
+  discipline, gold `(English, Rust)` pairs harvested from the live 2/1 books, and
+  explicit compile instructions. It turns book authoring — and the planned Polish
+  Club port — into "write the meaning, verify, commit": an LLM proposes a
+  `Constraint`, deterministic Rust verifies it. The spec is offline tooling;
+  nothing learned ships. A new `tests/dsl_roundtrip.rs` is that mechanical check —
+  it pins every primitive gloss and the combinator/range rendering against
+  `describe()`, and reproduces 12 held-out real rules from their gloss alone (100%
+  exact round-trip), so the spec is provably sufficient and `describe()` cannot
+  drift from it unnoticed. The behavioral verifier (accept/reject over random
+  hands) is the next milestone, M4.2.
 - A **self-describing constraint DSL** (M4 of the AI-bidder effort, the
   authoring compiler's foundation): `Constraint::describe()` now renders any
   authored constraint to canonical English, the inverse of `eval()`. Until now a

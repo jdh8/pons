@@ -241,11 +241,25 @@ Parallelizable with M1–M3 once M0 exists; high near-term leverage.
   acceptance gate). *Decision:* led M4 with this per the user's "make books more
   readable" steer — it is the readability deliverable **and** the verification
   substrate the LLM compiler needs, so it precedes M4.1.
-- ⬜ **M4.1 DSL spec prompt.** A precise `Constraint`-DSL grammar + vocabulary +
+- ✅ **M4.1 DSL spec prompt.** A precise `Constraint`-DSL grammar + vocabulary +
   gold `(English, Rust)` pairs from existing rules. *Deliverable:* a compiler
   prompt/spec. *Measure:* it reproduces held-out existing rules from their English
   gloss. *Deps:* M0.2, M4.0 (the self-describing DSL *is* the executable spec, and
-  its `describe()` is the round-trip checker).
+  its `describe()` is the round-trip checker). **Done:** [`dsl-spec.md`](dsl-spec.md)
+  — a pasteable English→`Constraint` prompt: the `&`/`|`/`!` grammar and its
+  `describe()` rendering, a vocabulary table for all 22 primitives (exact gloss +
+  range conventions), the `described(...)` escape-hatch discipline, gold pairs
+  harvested from the live books, and explicit compile instructions.
+  `tests/dsl_roundtrip.rs` is the mechanical round-trip: it pins every primitive
+  gloss and the combinator/range rendering against `describe()`, and reproduces
+  **12/12 held-out real rules** from their gloss alone (exact identity). *Measure
+  met:* 100% held-out reproduction; the lone ambiguity is range spelling (`..=11`
+  vs `..12`), where several Rust forms render one gloss and the checker accepts
+  any. *Scope:* the round-trip verifies structure + primitive arguments, but for a
+  `described` atom only its label (a closure body never appears in a gloss) —
+  behavioral correctness is M4.2. The same model authored the spec and acted as
+  compiler, so this proves sufficiency + guards `describe()` drift, not adversarial
+  generalization (M4.2/M4.3 test that).
 - ⬜ **M4.2 Verification harness.** Given a candidate `Constraint`, check it
   compiles and matches intent over random hands (and against the original rule
   when porting). *Deliverable:* a verifier. *Measure:* catches deliberately-broken

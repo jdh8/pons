@@ -31,7 +31,8 @@ examples does it well today. So Role 1 is, pragmatically:
 
 1. Write a precise spec of the `Constraint` DSL as a prompt (grammar + the
    vocabulary table from `constraint.rs` + 10–20 gold `(English, Rust)` pairs
-   harvested from existing rules).
+   harvested from existing rules). **Done (M4.1):** [`dsl-spec.md`](dsl-spec.md),
+   verified by `tests/dsl_roundtrip.rs` (12/12 held-out rules round-trip exactly).
 2. Compile each described node through the LLM into a candidate `Constraint`.
 3. **Verify mechanically** — this is the part that makes it trustworthy and is
    squarely your domain:
