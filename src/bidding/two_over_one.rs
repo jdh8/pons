@@ -219,10 +219,21 @@ pub fn two_over_one_neural() -> Pair {
 #[cfg(feature = "search")]
 #[must_use]
 pub fn two_over_one_search() -> Pair {
-    with_floor(
-        bare_two_over_one(),
-        super::search_floor::SearchFloor::default(),
-    )
+    two_over_one_search_with(super::search_floor::SearchFloor::default())
+}
+
+/// The 2/1 pair with a caller-tuned live-search floor (AI-bidder M3.1)
+///
+/// Like [`two_over_one_search`] but with explicit
+/// [`SearchFloor`][crate::bidding::search_floor::SearchFloor] knobs, so
+/// data-generation and tuning runs can trade strength for speed (smaller
+/// `layouts`/`shortlist`) without re-wiring the floor.  `two_over_one_search()`
+/// is exactly `two_over_one_search_with(SearchFloor::default())`.  Gated behind
+/// the `search` feature.
+#[cfg(feature = "search")]
+#[must_use]
+pub fn two_over_one_search_with(floor: super::search_floor::SearchFloor) -> Pair {
+    with_floor(bare_two_over_one(), floor)
 }
 
 /// Attach any classifier as the floor on a pair's contested books

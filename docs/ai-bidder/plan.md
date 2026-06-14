@@ -200,12 +200,28 @@ single forward pass so the default build stays fast and needs no runtime search.
 The gated search bidder remains available when maximum strength is worth the wait.
 (`instinct()` stays the untouched baseline; both learned floors are added options.)
 
-- ⬜ **M3.1 Improvement targets.** Run the M2.3 search bidder over sampled
+- ✅ **M3.1 Improvement targets.** Run the M2.3 search bidder over sampled
   decisions and record its improved distribution as the training target
   ([policy-net Phase 2](02-policy-net.md#phase-2--search-beat-the-teacher)).
   *Deliverable:* a dataset of `(features, search_target)`. *Measure:* targets
   differ from the teacher mainly off-book/contested (where the books were silent).
-  *Deps:* M2.3.
+  *Deps:* M2.3. **Done:** a gated `search-dump` example (sister to `teacher-dump`)
+  self-plays the search bidder over seeded boards and writes
+  `(features, search_softmax)` rows in the **same `f32`/`.json`/`.tags` layout the
+  trainer already reads** — a trainer-compatible *superset* of `teacher-dump`,
+  identical on book nodes and upgraded off-book (the `.tags` byte gains `bit1` =
+  off-book). Off-book activation is read from `Stance::classify_with_provenance`
+  (`depth == 0 && fallback.is_some()`, as in `instinct-floor`). The example prints
+  and records the measure — arg-max disagreement rate + mean total-variation
+  distance vs both the deterministic teacher (`two_over_one`) and the raw net prior
+  (`two_over_one_neural`), split by off-book/on-book and contested/constructive. A
+  40-board smoke run confirms the shape: **~51 % arg-max disagreement and ~0.53 mean
+  TV off-book vs `0`/`0` on-book** (identical book logits by construction), and all
+  off-book rows are contested (the floor sits only under the competitive/defensive
+  books, so the constructive book never strands). A small additive
+  `two_over_one_search_with(SearchFloor)` constructor (gated `search`) exposes the
+  `--layouts`/`--shortlist`/`--temperature` knobs so dataset cost is tunable; the
+  full production dataset is the offline run that feeds M3.2.
 - ⬜ **M3.2 Train + iterate.** Retrain toward the search target; feed the improved
   net back into M2.2's continuations; repeat. *Deliverable:* successive nets.
   *Measure:* each round's A/B IMPs/board vs the prior net — **accept only gains**.

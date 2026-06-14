@@ -83,5 +83,13 @@ name = "search-floor"
 path = "examples/search-floor/main.rs"
 required-features = ["search"]
 
+# The search-target dump (AI-bidder M3.1) bids out boards with the live-search
+# floor (`two_over_one_search_with`) to record distillation targets, so it too
+# builds only with the `search` feature.
+[[example]]
+name = "search-dump"
+path = "examples/search-dump/main.rs"
+required-features = ["search"]
+
 [profile.dev.package."*"]
 opt-level = 2

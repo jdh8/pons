@@ -9,6 +9,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Search-improved distillation targets** (AI-bidder **M3.1**): a new gated
+  `search-dump` example (behind the `search` feature) that bids out random boards
+  with the M2.3 live double-dummy search floor and records, at every decision, a
+  training row of `(features, search_target)` — the improved call distribution the
+  net is distilled toward in M3.2. The output is **byte-identical in layout to
+  `teacher-dump`** (a flat little-endian `f32` file of `160 + 38 = 198` floats per
+  row, a `.json` sidecar, and a `.tags` file), so the off-crate trainer consumes it
+  unchanged; the only difference is the target, which the search improves on the
+  teacher exactly where the books were silent (the file is a trainer-compatible
+  *superset* of `teacher-dump`, identical on book nodes and upgraded off-book). The
+  `.tags` byte gains a second bit (`bit1` = off-book / search fired, alongside the
+  existing `bit0` = contested phase). The example also prints and records **the
+  M3.1 measure**: at each row it classifies the deterministic teacher
+  (`two_over_one`) and the raw net prior (`two_over_one_neural`) and reports, split
+  by off-book/on-book and contested/constructive, the arg-max disagreement rate and
+  the mean total-variation distance — confirming the targets differ from the teacher
+  *mainly off-book* (on-book rows are `0` by construction; a 40-board smoke run shows
+  ~51 % arg-max disagreement and ~0.53 mean TV off-book vs `0`/`0` on-book). A small
+  additive constructor, **`two_over_one_search_with(SearchFloor)`** (gated `search`,
+  re-exported at the crate root), lets data-generation runs trade strength for speed
+  via the `--layouts`/`--shortlist`/`--temperature` knobs; `two_over_one_search()`
+  is now exactly `two_over_one_search_with(SearchFloor::default())`. No change to the
+  default build, the safety shell, or the `instinct`/`search_floor` rails; no new
+  crate dependencies.
 - A **second authored system, Strawberry Polish Club** (AI-bidder **M4.3**),
   exposed as `polish_club()` / `bare_polish_club()` (family
   `Family::POLISH_CLUB`) in a new `bidding::polish_club` module — the port half

@@ -53,9 +53,9 @@ pub use table::Table;
 pub use trie::{Trie, classifier};
 #[cfg(feature = "neural-floor")]
 pub use two_over_one::two_over_one_neural;
-#[cfg(feature = "search")]
-pub use two_over_one::two_over_one_search;
 pub use two_over_one::{two_over_one, two_over_one_strawberry};
+#[cfg(feature = "search")]
+pub use two_over_one::{two_over_one_search, two_over_one_search_with};
 pub use verify::{Report, accepts, compare};
 
 use contract_bridge::Hand;
