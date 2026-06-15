@@ -211,12 +211,8 @@ fn print_census(offbook: u64, hist: &[u64; 8], seven_nt: u64) {
     };
     println!("\n=== off-book advancing-call census ({offbook} decisions) ===");
     println!("  pass/dbl/rdbl: {:>6} ({:4.1}%)", hist[0], pct(hist[0]));
-    for level in 1..=7 {
-        println!(
-            "  level {level}:      {:>6} ({:4.1}%)",
-            hist[level],
-            pct(hist[level])
-        );
+    for (level, &count) in hist.iter().enumerate().take(8).skip(1) {
+        println!("  level {level}:      {count:>6} ({:4.1}%)", pct(count));
     }
     let slam_plus = hist[6] + hist[7];
     println!(
@@ -366,7 +362,7 @@ fn print_hit(
 
 fn print_summary(probes: &[Probe]) {
     let n = probes.len().max(1) as f64;
-    let mean = |f: &dyn Fn(&Probe) -> f64| probes.iter().map(|p| f(p)).sum::<f64>() / n;
+    let mean = |f: &dyn Fn(&Probe) -> f64| probes.iter().map(f).sum::<f64>() / n;
     let imp_negative = probes.iter().filter(|p| p.imp_7v6 <= 0.0).count();
     println!(
         "\n========== SUMMARY over {} probed 7NT nodes ==========",
