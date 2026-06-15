@@ -6,8 +6,8 @@
 //! strong 15–17 notrump, and a preemptive two-level (Ekren 2♣, Multi 2♦,
 //! Muiderberg 2♥/2♠, unusual 2NT).  It is the **second** authored system in the
 //! crate, ported from its written notes with the authoring toolchain
-//! ([`dsl-spec`](../../../docs/ai-bidder/dsl-spec.md) and
-//! [`verify`][super::verify]), and the source of the second description corpus.
+//! (`docs/ai-bidder/dsl-spec.md` and
+//! [`verify`][mod@crate::bidding::verify]), and the source of the second description corpus.
 //!
 //! # Not the strawberry 2/1 variant
 //!
@@ -92,7 +92,7 @@ fn insert_uncontested(book: &mut Trie, our_calls: &[Call], rules: impl Classifie
 /// Build the Strawberry Polish Club system as one side's [`Pair`]
 ///
 /// Bind it against the opponents' [`Family`] with [`Pair::against`] for a
-/// playable system, exactly like [`two_over_one`][super::two_over_one].
+/// playable system, exactly like [`two_over_one`][super::two_over_one()].
 ///
 /// ```
 /// use pons::bidding::polish_club::polish_club;

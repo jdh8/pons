@@ -12,7 +12,7 @@
 //!    policy (a self-play assumption: "what happens if everyone plays like us").
 //! 3. **Score double-dummy.**  Solve each sampled layout once and price the
 //!    contract each candidate reached, signed to the **actor's** favour, under
-//!    **perfect-defense doubling** ([`ns_score_doubling_failures`]): a contract
+//!    **perfect-defense doubling** ([`ns_score_doubling_failures`][crate::scoring::ns_score_doubling_failures]): a contract
 //!    that fails double-dummy is scored *doubled*.  The cardplay already assumes
 //!    optimal defense, so the penalty must too — otherwise the rollout's weak
 //!    doubling lets failing sacrifices price far too cheaply and the search
@@ -20,13 +20,13 @@
 //! 4. **Average** over layouts.  That average is the call's EV.
 //!
 //! The continuation policy is a [`System`] *parameter*, not hardwired.  M2.2
-//! defaults callers to the deterministic [`two_over_one`][crate::two_over_one]
+//! defaults callers to the deterministic [`two_over_one`][crate::two_over_one()]
 //! (debuggable, and ≈ the distilled net at bootstrap); the M3 search-improvement
 //! loop swaps in successive nets without touching this code.
 //!
 //! The double-dummy solve is the cost, so it is **shared across candidates**:
-//! [`ev_all`] solves each layout once with [`NonEmptyStrainFlags::ALL`] and
-//! prices every candidate contract from that one [`TrickCountTable`].  Cost is
+//! [`ev_all`] solves each layout once with [`NonEmptyStrainFlags::ALL`][ddss::NonEmptyStrainFlags::ALL] and
+//! prices every candidate contract from that one [`TrickCountTable`][ddss::TrickCountTable].  Cost is
 //! `n` solves, not `k · n`.  This batch form is also what the M2.3 live search
 //! bidder wants — score the net-shortlisted top-`k` at once.
 

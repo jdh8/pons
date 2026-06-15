@@ -1,17 +1,17 @@
 //! What the calls have shown, accumulated across an auction
 //!
 //! [`Context`] gives the *laws-only* facts of an auction; the authored books
-//! and the [instinct floor][super::instinct] read *system intent* off the
-//! calls on demand (see [`Interpretation`][super::instinct]).  This module is
+//! and the [instinct floor][super::instinct()] read *system intent* off the
+//! calls on demand (see [`Interpretation`][super::instinct()]).  This module is
 //! the richest such reading: for every player, the range of cards each suit
 //! may hold and the range of points shown, derived **purely from the calls**
 //! under standard 2/1 meanings.
 //!
-//! Two consumers want this summary that the per-bid [`Constraint`]s cannot
+//! Two consumers want this summary that the per-bid [`Constraint`][crate::bidding::constraint::Constraint]s cannot
 //! give them — a `Constraint` is eval-only, so the length a `len(..)` rule
 //! asserts can never be read back out:
 //!
-//! - the [instinct floor][super::instinct], so a forced auction can pick a
+//! - the [instinct floor][super::instinct()], so a forced auction can pick a
 //!   known major-suit fit over notrump instead of re-deriving partner's shape
 //!   from scratch;
 //! - constrained sampling (future), which needs per-player {suit → length} and
@@ -31,7 +31,7 @@
 //!
 //! # One system
 //!
-//! The meanings encoded here are those of [`two_over_one`][super::two_over_one]
+//! The meanings encoded here are those of [`two_over_one`][super::two_over_one()]
 //! (five-card majors, strong 15–17 notrump, strong artificial 2♣); like the
 //! instinct floor, this reading is tied to that system.
 
@@ -152,7 +152,7 @@ impl Inference {
 ///
 /// The discriminant is the seating order from the actor — the natural index
 /// for a sampler walking the four hands — *not* the auction's parity, so map
-/// an auction position through [`relative_of`] rather than casting.
+/// an auction position through `relative_of` rather than casting.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
 pub enum Relative {

@@ -1,7 +1,7 @@
 //! Gated live double-dummy search bidder — AI-bidder M2.3.
 //!
 //! This is "simulations in action": the floor *thinks* before it bids.  Where
-//! [`NeuralFloor`][super::neural_floor::NeuralFloor] returns the distilled net's
+//! [`NeuralFloor`][crate::bidding::neural_floor::NeuralFloor] returns the distilled net's
 //! judgement in one forward pass,
 //! [`SearchFloor`][crate::bidding::search_floor::SearchFloor] uses that net only
 //! as a *prior* — to propose which calls are worth simulating — then scores the
@@ -11,18 +11,18 @@
 //! It wears the **same deterministic safety shell** as the neural floor, so the
 //! §0.4 forced rails are preserved by construction:
 //!
-//! - **Forced** — when [`forced`] reports an auction-determined forced situation
+//! - **Forced** — when `forced` reports an auction-determined forced situation
 //!   (partner's live takeout double, a prior call committing us to game, a
 //!   just-made transfer over our strong notrump), it returns the deterministic
-//!   [`instinct`] answer verbatim.  The net is never trusted on the rails, and
+//!   [`instinct`][instinct()] answer verbatim.  The net is never trusted on the rails, and
 //!   neither is the search.
 //! - **Judgement** — otherwise it runs the search:
 //!   1. evaluate the net prior and mask the illegal calls (exactly the neural
 //!      floor's judgement path);
-//!   2. shortlist the top-[`shortlist`][SearchFloor::shortlist] legal calls by
+//!   2. shortlist the top-`shortlist` legal calls by
 //!      that prior;
-//!   3. price each over [`layouts`][SearchFloor::layouts] sampled deals with
-//!      [`ev_all`] under the [continuation policy](POLICY) (our own distilled net
+//!   3. price each over `layouts` sampled deals with
+//!      [`ev_all`] under the continuation policy (our own distilled net
 //!      bidding all four seats — self-play);
 //!   4. re-seat the evaluated calls onto an EV-ranked band above the prior tail,
 //!      so the driver's arg-max is the best-EV call while every legal call keeps
@@ -30,7 +30,7 @@
 //!
 //! # Determinism
 //!
-//! [`Classifier::classify`] must be a pure function (invariant §0.5), yet the
+//! [`Classifier::classify`][crate::bidding::trie::Classifier::classify] must be a pure function (invariant §0.5), yet the
 //! rollout samples layouts.  The shell reconciles this by seeding the rollout
 //! RNG *from the decision itself* (a hash of the feature vector, which is a
 //! deterministic function of the hand, the auction, vulnerability, and seat): the
@@ -39,13 +39,13 @@
 //!
 //! # Seat canonicalization
 //!
-//! A [`Classifier`] receives only the hand and a [`Context`] (relative
+//! A [`Classifier`][crate::bidding::trie::Classifier] receives only the hand and a [`Context`] (relative
 //! vulnerability + the raw auction); it never learns the actor's absolute seat,
 //! which [`ev_all`] needs.  Because an EV is computed entirely *relative* to the
 //! actor — the sampler, [the dealer placement][ev_all], and the scoring sign all
 //! key off it — the absolute choice is free, so the shell pins the actor to
-//! [`Seat::North`] and rebuilds the absolute vulnerability from the relative one
-//! (the inverse of [`relative`][super::context::relative] at North: we ↔ NS,
+//! [`Seat::North`][contract_bridge::Seat::North] and rebuilds the absolute vulnerability from the relative one
+//! (the inverse of [`relative`][crate::bidding::context::relative] at North: we ↔ NS,
 //! they ↔ EW).
 
 use super::array::Logits;

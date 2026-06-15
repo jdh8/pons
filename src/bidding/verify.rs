@@ -1,12 +1,12 @@
 //! Behavioral verification for the authoring compiler (AI-bidder M4.2)
 //!
-//! The authoring compiler ([`docs/ai-bidder/dsl-spec.md`]) turns an English
-//! gloss into a [`Constraint`].  Milestone M4.1's round-trip check is a *string*
+//! The authoring compiler (`docs/ai-bidder/dsl-spec.md`) turns an English
+//! gloss into a [`Constraint`][crate::bidding::constraint::Constraint].  Milestone M4.1's round-trip check is a *string*
 //! compare — `compiled.describe().to_string() == gloss` — which proves the
 //! compiled tree *renders* to the intended meaning.  That check is blind in
 //! exactly two places the compiler can still go wrong:
 //!
-//! 1. The body of a [`described`][super::constraint::described] escape hatch.
+//! 1. The body of a [`described`][crate::bidding::constraint::described()] escape hatch.
 //!    `describe()` renders only the *label*, so a closure for "prefers diamonds"
 //!    or "exactly 2 keycards" could accept the wrong hands and round-trip anyway.
 //! 2. Porting from looser human notes (M4.3), where "matches the original rule"
@@ -20,10 +20,10 @@
 //!
 //! # What "accepts" means
 //!
-//! A crisp [`Constraint`] contributes `0.0` when satisfied and
+//! A crisp [`Constraint`][crate::bidding::constraint::Constraint] contributes `0.0` when satisfied and
 //! [`f32::NEG_INFINITY`] when violated; the trait forbids `+∞`, so **finite ⇔
 //! satisfied**.  [`accepts`] is therefore `eval(hand, ctx) > f32::NEG_INFINITY`,
-//! the very test [`classify`][super::trie::Classifier::classify] and
+//! the very test `classify` and
 //! [`explain`][super::Rules::explain] use to admit a call.  All current
 //! primitives are crisp; a fuzzy evaluator would need a threshold instead, which
 //! this first cut does not model.
@@ -32,7 +32,7 @@
 //!
 //! - **Fixed context.** Comparison is over the *hand* space at a caller-supplied
 //!   [`Context`] (an empty one by default).  The dominant intent disagreements —
-//!   shape, strength, and every [`described`] hand predicate — are context-free,
+//!   shape, strength, and every [`described`][crate::bidding::constraint::described()] hand predicate — are context-free,
 //!   as is the canonical soundness case ("5+ ♥" must not accept four-card
 //!   holdings).  Varying the context across legal auctions is future work.
 //! - **Sampling, not proof.** A disagreement confined to a single rare holding
@@ -122,7 +122,7 @@ fn random_hands(rng: &mut impl Rng) -> impl Iterator<Item = Hand> + '_ {
 ///
 /// `reference` is intent, `candidate` is the compiler's output (see [`Report`]).
 /// For a constraint, wrap it with [`predicate`]; for a book rule, pass
-/// `|hand| rule.eval(hand, ctx).is_finite()`.  Up to [`MAX_COUNTEREXAMPLES`]
+/// `|hand| rule.eval(hand, ctx).is_finite()`.  Up to `MAX_COUNTEREXAMPLES`
 /// disagreeing hands are retained as witnesses; the counts always cover all `n`.
 pub fn compare(
     reference: impl Fn(Hand) -> bool,
