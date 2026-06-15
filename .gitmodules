@@ -1,3 +1,4 @@
 [submodule "vendor/bba"]
 	path = vendor/bba
 	url = https://github.com/EdwardPiwowar/BBA.git
+	ignore = untracked
