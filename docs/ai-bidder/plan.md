@@ -335,9 +335,17 @@ system exists.
 
 The portability dream. Last, because it needs the most prerequisites.
 
-- ⬜ **M5.1 Tag features.** Feed the discrete `tags` per prior call into the
+- ✅ **M5.1 Tag features.** Feed the discrete `tags` per prior call into the
   policy as categorical inputs. *Measure:* no regression; ideally a small gain.
-  *Deps:* M0.2, M1.
+  *Deps:* M0.2, M1. **Done:** `bidding::tags` (shared structural reader, lifted
+  from `export-corpus`), `features_v2` (244 = 160 + last-4-calls × 21-tag
+  multi-hot, version 2), `classify_v2`/`NeuralFloorV2`/`two_over_one_neural_v2`
+  (gated), layout-agnostic trainer + `teacher-dump --features-version 2`.
+  **Result (20k-board A/B, vul none):** distillation fidelity up (teacher top-1
+  95.0% vs v1 93.8%, val CE 0.235 vs 0.249) but **IMPs/board at parity vs v1**
+  (−0.016, CI [−0.039, +0.007]); floor worth preserved (+0.540 vs bare). The
+  teacher is the ceiling for pure distillation — the tag inputs are now in place
+  to pay off when distilling the search target (M3.2).
 - ⬜ **M5.2 Sequence-model policy.** Move Component B to a small transformer over
   the call sequence. *Measure:* matches or beats the MLP on the harness. *Deps:*
   M1 (as baseline).

@@ -30,6 +30,17 @@ pub const FEATURES_VERSION: u32 = 1;
 /// Number of `f32` values returned by [`features`]
 pub const FEATURES_LEN: usize = 160;
 
+/// Layout version tag for the tag-augmented extractor [`features_v2`]
+pub const FEATURES_VERSION_V2: u32 = 2;
+
+/// Number of recent calls whose tags [`features_v2`] multi-hot encodes
+pub const TAG_WINDOW: usize = 4;
+
+/// Number of `f32` values returned by [`features_v2`]: the v1 vector plus a
+/// [`TAG_WINDOW`]-call tag block (one [`TAG_COUNT`][super::tags::TAG_COUNT]-wide
+/// slot per call)
+pub const FEATURES_LEN_V2: usize = FEATURES_LEN + TAG_WINDOW * super::tags::TAG_COUNT;
+
 // ── Block offsets (used in tests and as documentation) ──────────────────────
 
 /// Offset of the per-suit hand block (76 values)
@@ -251,6 +262,43 @@ pub fn features(hand: Hand, context: &Context<'_>) -> Vec<f32> {
     out
 }
 
+/// Extract the version-2 feature vector: [`features`] plus the WBF tags of the
+/// last [`TAG_WINDOW`] calls (AI-bidder M5.1)
+///
+/// The trailing block holds `TAG_WINDOW` per-call multi-hot slots, **most recent
+/// first**: slot 0 is the call we are answering, slot 1 the one before it, and so
+/// on — each a [`TAG_COUNT`][super::tags::TAG_COUNT]-wide indicator over
+/// [`TAGS`][super::tags::TAGS].  Slots reaching before the start of the auction
+/// stay zero.  Each prior call's tags are read structurally with the same
+/// [`derive_tags`][super::tags::derive_tags] the corpus uses, recovering its book
+/// from the auction via [`infer_book`][super::tags::infer_book].
+///
+/// Returns exactly [`FEATURES_LEN_V2`] finite `f32` values; the first
+/// [`FEATURES_LEN`] are byte-identical to [`features`].
+#[must_use]
+pub fn features_v2(hand: Hand, context: &Context<'_>) -> Vec<f32> {
+    use super::tags::{TAG_COUNT, derive_tags, infer_book, tag_multihot};
+
+    let mut out = features(hand, context);
+    out.resize(FEATURES_LEN_V2, 0.0);
+
+    let auction = context.auction();
+    let vul = context.vul();
+    for slot in 0..TAG_WINDOW {
+        // slot 0 = most recent call; stop once we run off the front.
+        let Some(index) = auction.len().checked_sub(slot + 1) else {
+            break;
+        };
+        let prefix = Context::new(vul, &auction[..index]);
+        let tags = derive_tags(infer_book(&prefix), auction[index], &prefix);
+        let start = FEATURES_LEN + slot * TAG_COUNT;
+        tag_multihot(&tags, &mut out[start..start + TAG_COUNT]);
+    }
+
+    debug_assert_eq!(out.len(), FEATURES_LEN_V2);
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -466,5 +514,81 @@ mod tests {
         assert_eq!(f2[penalty_offset], 0.0);
         assert_eq!(f2[penalty_offset + 1], 0.0);
         assert_eq!(f2[penalty_offset + 2], 1.0, "redoubled");
+    }
+
+    // ── version 2: tag features ─────────────────────────────────────────────
+
+    use super::super::tags::{TAG_COUNT, tag_index};
+
+    #[test]
+    fn v2_length_matches_constant() {
+        assert_eq!(FEATURES_LEN_V2, FEATURES_LEN + TAG_WINDOW * TAG_COUNT);
+        let h = hand("AKQ32.K532.QJ4.9");
+        assert_eq!(features_v2(h, &empty_context()).len(), FEATURES_LEN_V2);
+
+        let auction = [bid(1, Strain::Hearts), Call::Pass];
+        let ctx = Context::new(RelativeVulnerability::WE, &auction);
+        assert_eq!(features_v2(h, &ctx).len(), FEATURES_LEN_V2);
+    }
+
+    #[test]
+    fn v2_prefix_is_identical_to_v1() {
+        let auction = [
+            bid(1, Strain::Spades),
+            Call::Pass,
+            bid(2, Strain::Clubs),
+            Call::Double,
+        ];
+        let ctx = Context::new(RelativeVulnerability::ALL, &auction);
+        let h = hand("AKQ32.K532.QJ4.9");
+        let v1 = features(h, &ctx);
+        let v2 = features_v2(h, &ctx);
+        assert_eq!(v2[..FEATURES_LEN], v1[..], "v1 prefix must be untouched");
+    }
+
+    #[test]
+    fn v2_empty_auction_has_no_tag_bits() {
+        let h = hand("AKQ32.K532.QJ4.9");
+        let f = features_v2(h, &empty_context());
+        for &v in &f[FEATURES_LEN..] {
+            assert_eq!(v, 0.0, "no prior calls → tag block all zero");
+        }
+    }
+
+    #[test]
+    fn v2_tag_block_reads_recent_calls_most_recent_first() {
+        // Partner opened 1♥, RHO passed; responder (us) to act.
+        let auction = [bid(1, Strain::Hearts), Call::Pass];
+        let ctx = Context::new(RelativeVulnerability::NONE, &auction);
+        let h = hand("K2.KQ54.A964.Q92");
+        let f = features_v2(h, &ctx);
+
+        let slot = |s: usize| &f[FEATURES_LEN + s * TAG_COUNT..FEATURES_LEN + (s + 1) * TAG_COUNT];
+
+        // slot 0 = the most recent call (the pass) → NF.
+        assert_eq!(slot(0)[tag_index("NF").unwrap()], 1.0, "pass → NF");
+        // slot 1 = partner's 1♥ opening → NAT (one-level suit opening).
+        assert_eq!(slot(1)[tag_index("NAT").unwrap()], 1.0, "1♥ open → NAT");
+        // slots 2 and 3 reach before the auction → all zero.
+        assert!(slot(2).iter().all(|&v| v == 0.0));
+        assert!(slot(3).iter().all(|&v| v == 0.0));
+    }
+
+    #[test]
+    fn v2_all_values_finite_and_in_range() {
+        let auction = [
+            bid(1, Strain::Hearts),
+            Call::Pass,
+            bid(2, Strain::Clubs),
+            Call::Pass,
+        ];
+        let ctx = Context::new(RelativeVulnerability::ALL, &auction);
+        let h = hand("AQ32.K53.QJ4.A92");
+        let f = features_v2(h, &ctx);
+        assert_eq!(f.len(), FEATURES_LEN_V2);
+        for (i, &v) in f.iter().enumerate() {
+            assert!(v.is_finite(), "feature[{i}] not finite: {v}");
+            assert!((0.0..=1.5).contains(&v), "feature[{i}] out of range: {v}");
+        }
     }
 }

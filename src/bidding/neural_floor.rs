@@ -58,6 +58,27 @@ impl Classifier for NeuralFloor {
     }
 }
 
+/// The version-2 (tag-augmented) distilled floor, made safe to attach
+///
+/// Identical to [`NeuralFloor`] but feeding
+/// [`features_v2`][super::features::features_v2] to
+/// [`neural::classify_v2`] — the same forced-rail delegation and legality mask,
+/// now over the net that also sees the recent calls' tags (AI-bidder M5.1).
+#[derive(Clone, Copy, Debug, Default)]
+pub struct NeuralFloorV2;
+
+impl Classifier for NeuralFloorV2 {
+    fn classify(&self, hand: Hand, context: &Context<'_>) -> Logits {
+        if forced(context) {
+            // Rails: trust the deterministic floor, never the net.
+            return LADDER.classify(hand, context);
+        }
+        let mut logits = neural::classify_v2(&features::features_v2(hand, context));
+        mask_illegal(&mut logits, context.auction());
+        logits
+    }
+}
+
 /// Set every call the laws forbid to `-∞`, leaving the rest as the net set them
 ///
 /// Reuses [`Auction::can_push`] — the very predicate the driver filters with —
@@ -99,6 +120,18 @@ mod tests {
     /// The shelled net's highest-logit call
     fn best(auction: &[Call], hand: &str) -> Call {
         let logits = shelled(auction, hand);
+        (&logits.0)
+            .into_iter()
+            .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("logits are never NaN"))
+            .map(|(call, _)| call)
+            .expect("array is never empty")
+    }
+
+    /// As [`best`], but through the version-2 (tag-augmented) shell.
+    fn best_v2(auction: &[Call], hand: &str) -> Call {
+        let hand: Hand = hand.parse().expect("valid test hand");
+        let context = Context::new(RelativeVulnerability::NONE, auction);
+        let logits = NeuralFloorV2.classify(hand, &context);
         (&logits.0)
             .into_iter()
             .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("logits are never NaN"))
@@ -182,6 +215,38 @@ mod tests {
             Call::Pass,
         ];
         let logits = shelled(&auction, "92.K53.AQJ42.962");
+        assert_eq!(*logits.0.get(Call::Double), f32::NEG_INFINITY);
+        assert!(logits.0.get(Call::Pass).is_finite());
+    }
+
+    // The version-2 shell wraps the tag-augmented net with the *same* rails:
+    // forced situations delegate to instinct, and the legality mask still holds.
+
+    #[test]
+    fn v2_forced_advance_never_passes() {
+        // Partner doubled their 3♣ for takeout; the v2 shell delegates to instinct
+        // exactly as v1 does, so a hand that can act never penalty-passes.
+        let auction = [call(3, Strain::Clubs), Call::Double, Call::Pass];
+        assert_eq!(
+            best_v2(&auction, "96432.J85.9742.2"),
+            call(3, Strain::Spades)
+        );
+    }
+
+    #[test]
+    fn v2_masks_illegal_keeps_pass_finite() {
+        // Not a forced auction → the v2 net + legality mask. Doubling our own
+        // side's 2♠ is illegal, so the mask zeroes it; Pass stays finite.
+        let auction = [
+            call(1, Strain::Hearts),
+            call(1, Strain::Spades),
+            Call::Pass,
+            call(2, Strain::Spades),
+            Call::Pass,
+        ];
+        let hand: Hand = "92.K53.AQJ42.962".parse().unwrap();
+        let context = Context::new(RelativeVulnerability::NONE, &auction);
+        let logits = NeuralFloorV2.classify(hand, &context);
         assert_eq!(*logits.0.get(Call::Double), f32::NEG_INFINITY);
         assert!(logits.0.get(Call::Pass).is_finite());
     }

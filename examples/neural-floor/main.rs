@@ -1,4 +1,5 @@
-//! Measure the distilled neural floor (AI-bidder M1.4): A/B duplicate matches.
+//! Measure the distilled neural floors (AI-bidder M1.4, M5.1): A/B duplicate
+//! matches.
 //!
 //! The companion to the `instinct-floor` example, for the *learned* floor.  The
 //! [`NeuralFloor`][pons::bidding::neural_floor::NeuralFloor] safety shell —
@@ -6,7 +7,11 @@
 //! [`instinct`][pons::instinct] and everything else is the legality-masked net —
 //! is run as a [`Pair`][pons::Pair] floor
 //! ([`two_over_one_neural`][pons::two_over_one_neural]) against two opponents,
-//! each board bid twice duplicate-style with the seats swapped:
+//! each board bid twice duplicate-style with the seats swapped.  The
+//! tag-augmented v2 floor
+//! ([`two_over_one_neural_v2`][pons::two_over_one_neural_v2], M5.1) is measured
+//! the same way, and head-to-head against v1 — the M5.1 win condition is **no
+//! regression vs v1, ideally a small gain**.  Each floor is run:
 //!
 //! 1. **vs the deterministic floor** ([`two_over_one`]): the distillation target.
 //!    A faithful clone scores ≈ 0 IMPs/board — *parity*.
@@ -35,7 +40,7 @@ use pons::bidding::context::relative;
 use pons::bidding::two_over_one::bare_two_over_one;
 use pons::bidding::{Family, Stance, System};
 use pons::scoring::{final_contract, imps, ns_score};
-use pons::{Accumulator, two_over_one, two_over_one_neural};
+use pons::{Accumulator, two_over_one, two_over_one_neural, two_over_one_neural_v2};
 
 /// Measure the distilled neural floor: A/B duplicate matches with intervals
 #[derive(Parser)]
@@ -226,16 +231,19 @@ fn main() {
     let mut rng = rand::rng();
 
     let neural = two_over_one_neural().against(Family::NATURAL);
+    let neural_v2 = two_over_one_neural_v2().against(Family::NATURAL);
     let deterministic = two_over_one().against(Family::NATURAL);
     let bare = bare_two_over_one().against(Family::NATURAL);
 
     println!(
-        "AI-bidder M1.4: distilled neural floor vs the deterministic floor and bare books\n\
+        "AI-bidder M1.4 / M5.1: distilled neural floors (v1 and the tag-augmented v2) \
+         vs the deterministic floor and bare books\n\
          ({} boards per match; thousands needed for a tight interval)",
         args.count,
     );
 
-    let vs_deterministic = duplicate_match(
+    // ── version 1 (M1.4): the plain distilled floor ─────────────────────────
+    let v1_vs_det = duplicate_match(
         &neural,
         &deterministic,
         args.count,
@@ -243,19 +251,62 @@ fn main() {
         &mut rng,
     );
     report(
-        "Neural floor vs deterministic floor",
-        &vs_deterministic,
+        "v1 neural floor vs deterministic floor",
+        &v1_vs_det,
         args.count,
         args.vulnerability,
         0.0,
     );
 
-    let vs_bare = duplicate_match(&neural, &bare, args.count, args.vulnerability, &mut rng);
+    let v1_vs_bare = duplicate_match(&neural, &bare, args.count, args.vulnerability, &mut rng);
     report(
-        "Neural floor vs bare books",
-        &vs_bare,
+        "v1 neural floor vs bare books",
+        &v1_vs_bare,
         args.count,
         args.vulnerability,
         0.5,
+    );
+
+    // ── version 2 (M5.1): the tag-augmented floor ───────────────────────────
+    let v2_vs_det = duplicate_match(
+        &neural_v2,
+        &deterministic,
+        args.count,
+        args.vulnerability,
+        &mut rng,
+    );
+    report(
+        "v2 (tag) neural floor vs deterministic floor",
+        &v2_vs_det,
+        args.count,
+        args.vulnerability,
+        0.0,
+    );
+
+    let v2_vs_bare = duplicate_match(&neural_v2, &bare, args.count, args.vulnerability, &mut rng);
+    report(
+        "v2 (tag) neural floor vs bare books",
+        &v2_vs_bare,
+        args.count,
+        args.vulnerability,
+        0.5,
+    );
+
+    // The headline M5.1 comparison: does seeing the recent calls' tags beat the
+    // plain v1 floor head-to-head?  Target 0 = "no regression"; CI above 0 = the
+    // tag block is a net gain.
+    let v2_vs_v1 = duplicate_match(
+        &neural_v2,
+        &neural,
+        args.count,
+        args.vulnerability,
+        &mut rng,
+    );
+    report(
+        "v2 (tag) neural floor vs v1 neural floor — the M5.1 gain",
+        &v2_vs_v1,
+        args.count,
+        args.vulnerability,
+        0.0,
     );
 }

@@ -12,15 +12,13 @@ use anyhow::{Context, Result, bail};
 use serde::Deserialize;
 use std::path::Path;
 
-/// Feature-vector length (`pons::bidding::features::FEATURES_LEN`).
-pub const FEATURES_LEN: usize = 160;
 /// Softmax width = number of distinct calls (`bidding::array::CALL_VARIANTS`).
 pub const SOFTMAX_LEN: usize = 38;
-/// Floats per training row.
-pub const ROW_LEN: usize = FEATURES_LEN + SOFTMAX_LEN;
-/// Feature-spec version this trainer is written against
-/// (`pons::bidding::features::FEATURES_VERSION`). Bump together.
-pub const EXPECTED_FEATURE_VERSION: u32 = 1;
+/// Feature-spec versions this trainer understands
+/// (`pons::bidding::features`): v1 is the 160-float vector, v2 adds the tag
+/// block. The actual `features_len` is read from the dump sidecar and the model
+/// input is sized from it, so a v1 dump and a v2 dump both train unchanged.
+pub const SUPPORTED_FEATURE_VERSIONS: [u32; 2] = [1, 2];
 
 /// Fields of the teacher-dump JSON sidecar that we care about (serde ignores
 /// the rest).
@@ -41,13 +39,15 @@ pub struct Meta {
 
 /// A loaded teacher dataset, rows still in dump order (board-by-board).
 pub struct Dataset {
-    /// `rows * FEATURES_LEN` floats, row-major.
+    /// `rows * features_len` floats, row-major.
     pub features: Vec<f32>,
     /// `rows * SOFTMAX_LEN` floats, row-major (teacher softmax target).
     pub targets: Vec<f32>,
     /// One tag per row: `1` = contested phase, `0` = constructive.
     pub tags: Vec<u8>,
     pub rows: usize,
+    /// Feature-vector length for this dump, read from the sidecar (160 for v1).
+    pub features_len: usize,
     pub meta: Meta,
 }
 
@@ -63,27 +63,33 @@ impl Dataset {
         )
         .with_context(|| format!("parsing sidecar {json_path}"))?;
 
-        // Fail loudly on any layout/version drift between dump and trainer.
-        if meta.feature_version != EXPECTED_FEATURE_VERSION {
+        // Accept any known feature version; size everything from the sidecar so a
+        // v1 and a v2 dump both load. Only the softmax width is fixed (the call
+        // set), and the row layout must be internally consistent.
+        if !SUPPORTED_FEATURE_VERSIONS.contains(&meta.feature_version) {
             bail!(
-                "feature_version mismatch: dump is {}, trainer expects {EXPECTED_FEATURE_VERSION} \
-                 (bump the trainer constants together with pons::bidding::features)",
+                "feature_version {} unsupported; this trainer understands {SUPPORTED_FEATURE_VERSIONS:?} \
+                 (bump together with pons::bidding::features)",
                 meta.feature_version
             );
         }
-        if meta.features_len != FEATURES_LEN || meta.softmax_len != SOFTMAX_LEN {
+        let features_len = meta.features_len;
+        if meta.softmax_len != SOFTMAX_LEN {
             bail!(
-                "layout mismatch: dump features_len/softmax_len = {}/{}, trainer expects {FEATURES_LEN}/{SOFTMAX_LEN}",
-                meta.features_len,
+                "softmax_len mismatch: dump {}, trainer expects {SOFTMAX_LEN}",
                 meta.softmax_len
             );
         }
-        if meta.row_len != ROW_LEN {
-            bail!("row_len mismatch: dump {}, trainer {ROW_LEN}", meta.row_len);
+        let row_len = features_len + SOFTMAX_LEN;
+        if meta.row_len != row_len {
+            bail!(
+                "row_len mismatch: dump {} but features_len {features_len} + softmax_len {SOFTMAX_LEN} = {row_len}",
+                meta.row_len
+            );
         }
 
         let bytes = std::fs::read(&f32_path).with_context(|| format!("reading {f32_path}"))?;
-        let row_bytes = ROW_LEN * 4;
+        let row_bytes = row_len * 4;
         if bytes.len() % row_bytes != 0 {
             bail!(
                 "{f32_path} length {} is not a multiple of row size {row_bytes}",
@@ -98,13 +104,13 @@ impl Dataset {
             );
         }
 
-        let mut features = Vec::with_capacity(rows * FEATURES_LEN);
+        let mut features = Vec::with_capacity(rows * features_len);
         let mut targets = Vec::with_capacity(rows * SOFTMAX_LEN);
         for row in bytes.chunks_exact(row_bytes) {
             let mut floats = row
                 .chunks_exact(4)
                 .map(|b| f32::from_le_bytes([b[0], b[1], b[2], b[3]]));
-            features.extend((&mut floats).take(FEATURES_LEN));
+            features.extend((&mut floats).take(features_len));
             targets.extend(floats);
         }
 
@@ -115,6 +121,7 @@ impl Dataset {
             targets,
             tags,
             rows,
+            features_len,
             meta,
         })
     }

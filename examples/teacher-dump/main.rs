@@ -4,14 +4,17 @@
 //! *teacher*) and records, at every decision point, a training row of
 //! `(features, teacher_softmax)`:
 //!
-//! - **features** — the 160-float `FEATURES_V1` vector
-//!   ([`features`][pons::bidding::features::features]) for the hand to act.
+//! - **features** — the feature vector for the hand to act: the 160-float
+//!   v1 vector ([`features`][pons::bidding::features::features]) by default, or
+//!   the tag-augmented v2 vector
+//!   ([`features_v2`][pons::bidding::features::features_v2]) under
+//!   `--features-version 2` (AI-bidder M5.1).
 //! - **teacher_softmax** — the teacher's `Logits` at that node, masked to the
 //!   *legal* calls and pushed through `softmax`, giving a 38-way distribution
 //!   over calls. Matching the full distribution (not just the argmax) is what
 //!   makes distillation transfer the teacher's near-misses and mixtures.
 //!
-//! Output is a flat little-endian `f32` file — one row of `160 + 38 = 198`
+//! Output is a flat little-endian `f32` file — one row of `features_len + 38`
 //! floats — plus a JSON sidecar pinning the feature version, teacher, seed, and
 //! counts (a distilled model is meaningless without its exact feature
 //! extractor; they version together), and a sibling `.tags` file of one `u8`
@@ -33,7 +36,9 @@ use contract_bridge::auction::{Auction, Call};
 use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, Seat};
 use pons::bidding::context::{Context, relative};
-use pons::bidding::features::{FEATURES_LEN, FEATURES_VERSION, features};
+use pons::bidding::features::{
+    FEATURES_LEN, FEATURES_LEN_V2, FEATURES_VERSION, FEATURES_VERSION_V2, features, features_v2,
+};
 use pons::bidding::{Family, Phase, System};
 use pons::two_over_one;
 use rand::rngs::StdRng;
@@ -43,8 +48,6 @@ use std::io::{BufWriter, Write};
 
 /// Number of calls in a `Logits` array (the softmax width).
 const SOFTMAX_LEN: usize = 38;
-/// Floats per training row.
-const ROW_LEN: usize = FEATURES_LEN + SOFTMAX_LEN;
 
 #[derive(Parser)]
 #[command(about = "Dump (features, teacher_softmax) training rows from two_over_one()")]
@@ -55,6 +58,9 @@ struct Args {
     /// RNG seed (for reproducibility)
     #[arg(long, default_value_t = 0)]
     seed: u64,
+    /// Feature extractor version: 1 = the 160-float vector, 2 = + the tag block
+    #[arg(long, default_value_t = 1)]
+    features_version: u32,
     /// Output path stem; writes `<out>.f32` and `<out>.json`
     #[arg(long, default_value = "target/teacher-data")]
     out: String,
@@ -70,6 +76,15 @@ const VULS: [AbsoluteVulnerability; 4] = [
 
 fn main() -> std::io::Result<()> {
     let args = Args::parse();
+    let (feature_version, features_len) = match args.features_version {
+        1 => (FEATURES_VERSION, FEATURES_LEN),
+        2 => (FEATURES_VERSION_V2, FEATURES_LEN_V2),
+        other => {
+            eprintln!("teacher-dump: unknown --features-version {other}; use 1 or 2");
+            std::process::exit(2);
+        }
+    };
+    let row_len = features_len + SOFTMAX_LEN;
     let pair = two_over_one();
     // Both sides play the same system; a Stance routes by auction phase, so one
     // suffices for whichever seat is to act (vulnerability passed in relative).
@@ -86,7 +101,7 @@ fn main() -> std::io::Result<()> {
     let mut contested = 0u64;
     let mut forced_pass = 0u64; // decisions the teacher had no logits for
     let mut call_hist: BTreeMap<String, u64> = BTreeMap::new();
-    let mut row = [0f32; ROW_LEN];
+    let mut row = vec![0f32; row_len];
 
     for _ in 0..args.boards {
         let deal = full_deal(&mut rng);
@@ -119,10 +134,14 @@ fn main() -> std::io::Result<()> {
 
             // Record the row: features ++ softmax.
             let context = Context::new(rel, &auction);
-            let feats = features(hand, &context);
-            row[..FEATURES_LEN].copy_from_slice(&feats);
-            row[FEATURES_LEN..].copy_from_slice(&softmax[..]);
-            for value in row {
+            let feats = if feature_version == FEATURES_VERSION_V2 {
+                features_v2(hand, &context)
+            } else {
+                features(hand, &context)
+            };
+            row[..features_len].copy_from_slice(&feats);
+            row[features_len..].copy_from_slice(&softmax[..]);
+            for value in &row {
                 writer.write_all(&value.to_le_bytes())?;
             }
             let contested_row = Phase::of(&auction) != Phase::Constructive;
@@ -143,13 +162,13 @@ fn main() -> std::io::Result<()> {
 
     let git_sha = git_sha();
     let metadata = serde_json::json!({
-        "feature_version": FEATURES_VERSION,
-        "features_len": FEATURES_LEN,
+        "feature_version": feature_version,
+        "features_len": features_len,
         "softmax_len": SOFTMAX_LEN,
-        "row_len": ROW_LEN,
-        "row_bytes": ROW_LEN * 4,
+        "row_len": row_len,
+        "row_bytes": row_len * 4,
         "dtype": "f32-le",
-        "layout": "row = [160 features][38 teacher_softmax]",
+        "layout": format!("row = [{features_len} features][{SOFTMAX_LEN} teacher_softmax]"),
         "tags": "sibling .tags file: one u8 per row, 1 = contested phase, 0 = constructive",
         "teacher": "two_over_one()",
         "git_sha": git_sha,
@@ -169,10 +188,11 @@ fn main() -> std::io::Result<()> {
         }
     };
     eprintln!(
-        "teacher-dump: {rows} rows from {} boards → {f32_path} ({:.1} MB), \
+        "teacher-dump: {rows} rows (feature v{feature_version}, {features_len} features) \
+         from {} boards → {f32_path} ({:.1} MB), \
          {contested} contested ({:.0}%), {forced_pass} forced passes.",
         args.boards,
-        (rows as usize * ROW_LEN * 4) as f64 / 1e6,
+        (rows as usize * row_len * 4) as f64 / 1e6,
         pct(contested),
     );
     eprintln!("top advancing calls:");

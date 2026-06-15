@@ -15,7 +15,7 @@ use anyhow::{Context as _, Result};
 use candle_core::{D, DType, Device, Tensor};
 use candle_nn::{AdamW, Optimizer, ParamsAdamW, VarBuilder, VarMap};
 use clap::Parser;
-use data::{FEATURES_LEN, SOFTMAX_LEN};
+use data::SOFTMAX_LEN;
 use model::{Mlp, PARAM_NAMES};
 use std::io::{BufWriter, Write};
 use std::path::Path;
@@ -67,11 +67,13 @@ fn main() -> Result<()> {
     let device = Device::Cpu;
 
     let ds = data::Dataset::load(&args.data)?;
+    let features_len = ds.features_len;
     let nval =
         (((ds.rows as f64) * args.val_frac).round() as usize).clamp(1, ds.rows.saturating_sub(1));
     let ntrain = ds.rows - nval;
     eprintln!(
-        "loaded {} rows (feature v{}, seed {}, teacher {:?}); train {ntrain} / val {nval}",
+        "loaded {} rows (feature v{}, {features_len} features, seed {}, teacher {:?}); \
+         train {ntrain} / val {nval}",
         ds.rows, ds.meta.feature_version, ds.meta.seed, ds.meta.teacher
     );
 
@@ -82,15 +84,15 @@ fn main() -> Result<()> {
             &device,
         )?)
     };
-    let xtrain = slice(&ds.features, 0, ntrain, FEATURES_LEN)?;
+    let xtrain = slice(&ds.features, 0, ntrain, features_len)?;
     let ytrain = slice(&ds.targets, 0, ntrain, SOFTMAX_LEN)?;
-    let xval = slice(&ds.features, ntrain, nval, FEATURES_LEN)?;
+    let xval = slice(&ds.features, ntrain, nval, features_len)?;
     let yval = slice(&ds.targets, ntrain, nval, SOFTMAX_LEN)?;
     let val_tags = &ds.tags[ntrain..];
 
     let varmap = VarMap::new();
     let vb = VarBuilder::from_varmap(&varmap, DType::F32, &device);
-    let model = Mlp::new(FEATURES_LEN, args.hidden, SOFTMAX_LEN, vb)?;
+    let model = Mlp::new(features_len, args.hidden, SOFTMAX_LEN, vb)?;
     let mut opt = AdamW::new(
         varmap.all_vars(),
         ParamsAdamW {
@@ -222,10 +224,13 @@ fn export(
     let sidecar = serde_json::json!({
         "trainer": "pons-trainer 0.1.0",
         "feature_version": ds.meta.feature_version,
-        "features_len": FEATURES_LEN,
+        "features_len": ds.features_len,
         "softmax_len": SOFTMAX_LEN,
         "hidden": args.hidden,
-        "arch": "x -> Linear(160,H) -> relu -> Linear(H,H) -> relu -> Linear(H,38)",
+        "arch": format!(
+            "x -> Linear({},H) -> relu -> Linear(H,H) -> relu -> Linear(H,{SOFTMAX_LEN})",
+            ds.features_len
+        ),
         "param_order": PARAM_NAMES,
         "param_shapes": shapes,
         "param_floats": total,

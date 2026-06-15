@@ -9,6 +9,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Tag features for the neural floor** (AI-bidder **M5.1**): a second, opt-in
+  feature-spec version that feeds the **WBF tags of the recent calls** into the
+  policy net as categorical inputs. A new `bidding::tags` module lifts the
+  structural tag reader (`derive`, `infer_book`, the `TAGS` vocabulary, and
+  `tag_multihot`) out of `examples/export-corpus` so the corpus exporter and the
+  featurizer share one source of truth (the exporter's output is byte-identical).
+  `features::features_v2` returns the v1 160-float vector followed by a
+  multi-hot of the last `TAG_WINDOW` (= 4) calls' tags over the 21-tag
+  vocabulary — **244 floats**, version 2 — with each prior call read by the same
+  `derive`, recovering its book from the auction via `infer_book`. The net is
+  trained, distilled, and embedded exactly as v1: `bidding::neural::classify_v2`
+  (hand-rolled forward pass, now dimension-parameterized and bit-matched to the
+  trainer on a fixture), the `NeuralFloorV2` safety shell (same forced-rail
+  delegation + legality mask), and `two_over_one_neural_v2()` (gated behind
+  `neural-floor`; `two_over_one()` stays the baseline and `two_over_one_neural()`
+  the v1 floor — an added option, never a removal). The off-crate trainer and
+  `teacher-dump` are now **layout-agnostic**: `teacher-dump --features-version 2`
+  emits the v2 dump, the trainer sizes the model input from the dump sidecar, and
+  **v1 dumps still load unchanged**.
+  **Measured** (20 000-board duplicate A/B, vul none): the tag block improves the
+  *distillation fidelity* (held-out top-1 agreement with the teacher 95.0% vs the
+  v1 net's 93.8%, val cross-entropy 0.235 vs 0.249) but lands at **parity on
+  IMPs/board vs v1** (−0.016 IMPs/board, 95% CI [−0.039, +0.007] — within noise),
+  while preserving the floor's worth over bare books (+0.540 IMPs/board, CI
+  [+0.495, +0.585], containing the +0.5 baseline) and the teacher-clone parity
+  (−0.015 vs the deterministic floor). The expected reading: for *pure teacher
+  distillation* the deterministic teacher is the ceiling, so richer inputs buy
+  fidelity, not table result; the tag infrastructure is in place to pay off when
+  the floor is distilled toward a better-than-teacher search target (M3.2). New
+  artifact `src/bidding/weights/two_over_one_v2.{f32,json,fixture.json}`; no new
+  crate dependencies; the default build is unchanged.
 - **`scoring::ns_score_doubling_failures`** — a sibling of `ns_score` that scores
   a contract under **perfect-defense doubling**: any contract failing
   double-dummy is scored *doubled*, a making one keeps its auction penalty. This

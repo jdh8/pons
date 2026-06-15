@@ -30,6 +30,8 @@ pub mod sampler;
 #[cfg(feature = "search")]
 pub mod search_floor;
 pub mod table;
+/// Structural tag reading of a call — the shared corpus/feature vocabulary
+pub mod tags;
 /// [`Trie`] as a bidding system
 pub mod trie;
 /// The basic 2/1 game-forcing system
@@ -51,9 +53,9 @@ pub use rules::Rules;
 pub use sampler::sample_layouts;
 pub use table::Table;
 pub use trie::{Trie, classifier};
-#[cfg(feature = "neural-floor")]
-pub use two_over_one::two_over_one_neural;
 pub use two_over_one::{two_over_one, two_over_one_strawberry};
+#[cfg(feature = "neural-floor")]
+pub use two_over_one::{two_over_one_neural, two_over_one_neural_v2};
 #[cfg(feature = "search")]
 pub use two_over_one::{two_over_one_search, two_over_one_search_with};
 pub use verify::{Report, accepts, compare};

@@ -205,6 +205,23 @@ pub fn two_over_one_neural() -> Pair {
     with_floor(bare_two_over_one(), super::neural_floor::NeuralFloor)
 }
 
+/// The 2/1 pair with the **tag-augmented** distilled neural floor (AI-bidder M5.1)
+///
+/// Exactly [`two_over_one_neural`] but for the floor's feature extractor: the net
+/// also sees the WBF tags of the recent calls
+/// ([`features_v2`][crate::bidding::features::features_v2]), wrapped in the same
+/// [`NeuralFloorV2`][crate::bidding::neural_floor::NeuralFloorV2] safety shell —
+/// the learned net in the judgement middle, the forced rails preserved by
+/// delegation.  An added option, never a replacement: [`two_over_one`] stays the
+/// baseline and [`two_over_one_neural`] the v1 learned floor.  Bind it against the
+/// opponents' [`Family`] with [`Pair::against`] and seat it the same way.  Gated
+/// behind the `neural-floor` feature.
+#[cfg(feature = "neural-floor")]
+#[must_use]
+pub fn two_over_one_neural_v2() -> Pair {
+    with_floor(bare_two_over_one(), super::neural_floor::NeuralFloorV2)
+}
+
 /// The 2/1 pair with the gated live-**search** floor (AI-bidder M2.3)
 ///
 /// Exactly [`two_over_one`] but for the floor: the deterministic
