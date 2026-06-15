@@ -472,6 +472,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Notrump opening inferences are now sound under fuzzy strength.** The 1NT/2NT
+  openings gate on `fifths` (which downgrades quack-heavy hands), but the
+  inference layer recorded their point ranges on the raw-HCP scale, so a balanced
+  quack-heavy 19-count (e.g. ♠KQJx ♥KQx ♦KQx ♣Kxx — 17.6 fifths) opened 1NT yet
+  fell outside the announced 14–18. Because `hcp − fifths ≤ 1.6`, the sound
+  envelopes are 1NT **14–19** (was 14–18) and 2NT **19–23** (was 19–22); the
+  inference now uses them. Caught by the `opening_inference_contains_the_opener`
+  proptest (intermittent: it needed a quack-heavy draw). Announced NT point
+  ranges widen by one at the top; no bids change.
+- **`grand-probe` example and the AI-bidder doc comments compile cleanly under
+  the CI lint gates** — the `grand-probe` example tripped `needless_range_loop`
+  and `redundant_closure` (clippy `-D warnings`), and ~20 intra-doc links in the
+  bidding modules were unresolved or ambiguous under rustdoc `-D warnings`. Both
+  gates had been red since the AI-bidder modules landed; fixed with no behavior
+  change.
 - **Call-EV evaluator now prices contracts under perfect-defense doubling**
   (AI-bidder, M3.1 follow-up). The cardplay rollout already assumes optimal
   defense, but it left the *doubling* decision to the weak continuation policy,

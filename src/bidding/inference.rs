@@ -391,7 +391,12 @@ fn apply_opening(inf: &mut Inference, bid: Bid, seat: u8) {
         }
         (1, Strain::Notrump) => {
             balanced(inf);
-            inf.narrow_points(Range::new(14, 18));
+            // The opening gates on `fifths(15.0..18.0)`, which downgrades
+            // quack-heavy hands (K/Q worth less than HCP).  Since
+            // `hcp - fifths = 0.2·(#K+#Q) - 0.4·(#T) ≤ 1.6` and a balanced
+            // hand's `point_count` is its raw HCP, a 1NT opener can hold up to
+            // 19 points (e.g. ♠KQJx ♥KQx ♦KQx ♣Kxx: 19 HCP, 17.6 fifths).
+            inf.narrow_points(Range::new(14, 19));
         }
         (2, Strain::Clubs) => {
             // Strong and artificial: 22+ points, but nothing about shape.
@@ -399,7 +404,10 @@ fn apply_opening(inf: &mut Inference, bid: Bid, seat: u8) {
         }
         (2, Strain::Notrump) => {
             balanced(inf);
-            inf.narrow_points(Range::new(19, 22));
+            // As with 1NT: `fifths(20.0..22.0)` admits a quack-heavy 23-count
+            // (fifths within 1.6 of raw HCP), so the sound point envelope is
+            // 19–23, not 19–22.
+            inf.narrow_points(Range::new(19, 23));
         }
         (2, strain) if strain.is_suit() => {
             inf.narrow_length(strain.suit().unwrap(), Range::new(6, 6));
@@ -477,7 +485,7 @@ mod tests {
         // A strong notrump is balanced; an artificial 2♣ says only "strong".
         let one_nt = read(&[bid(1, Strain::Notrump)]);
         assert_eq!(one_nt.rho().length(Suit::Spades), Range::new(2, 5));
-        assert_eq!(one_nt.rho().points, Range::new(14, 18));
+        assert_eq!(one_nt.rho().points, Range::new(14, 19));
 
         let two_clubs = read(&[bid(2, Strain::Clubs)]);
         assert_eq!(two_clubs.rho().length(Suit::Spades), Range::FULL_LENGTH);
