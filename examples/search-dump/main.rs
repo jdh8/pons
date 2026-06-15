@@ -341,7 +341,7 @@ fn main() -> std::io::Result<()> {
 
     eprintln!("\ntop advancing calls:");
     let mut hist: Vec<(String, u64)> = call_hist.into_iter().collect();
-    hist.sort_by(|a, b| b.1.cmp(&a.1));
+    hist.sort_by_key(|(_, count)| std::cmp::Reverse(*count));
     for (call, count) in hist.into_iter().take(12) {
         eprintln!("  {call:>4}  {count:>8}  ({:.1}%)", pct(count));
     }
