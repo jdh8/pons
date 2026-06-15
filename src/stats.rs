@@ -238,6 +238,13 @@ pub struct ParResult {
 /// so the process must terminate. The final state is stable: neither side can
 /// unilaterally improve their expected score by changing contracts.
 ///
+/// Each contract is priced under **perfect-defense doubling**: the defenders
+/// double it iff doing so worsens declarer's result — i.e. iff it is going
+/// down. This is what makes sacrifices priced realistically (a failing save
+/// costs the *doubled* penalty), and is the same assumption as
+/// [`crate::scoring::ns_score_doubling_failures`] applied to the expected score
+/// over the trick distribution rather than per deal.
+///
 /// The returned score is the expected par score over all deals in `histogram`,
 /// from the NS perspective (NS contracts are positive, EW contracts are
 /// negative).
@@ -284,6 +291,14 @@ pub fn average_ns_par(
                 let hist = histogram[seat][bid.strain];
                 let normal = (score(normal, hist, vul.contains(side)), Some(normal));
                 let doubled = (score(doubled, hist, vul.contains(side)), Some(doubled));
+                // Perfect-defense doubling: the defenders double a contract iff
+                // that worsens declarer's result — i.e. iff it is going down.
+                // `min` takes the doubled score only when it is worse for
+                // declarer (a failing contract); a making contract keeps its
+                // undoubled score, so doubling never rewards declarer.  The
+                // per-deal analogue is [`crate::scoring::ns_score_doubling_failures`];
+                // here the same rule is applied to the expected score over the
+                // trick histogram.
                 normal.min(doubled)
             }
             _ => (0, None),

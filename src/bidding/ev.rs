@@ -11,7 +11,12 @@
 //!    and let a *continuation policy* bid it out — all four seats bid the same
 //!    policy (a self-play assumption: "what happens if everyone plays like us").
 //! 3. **Score double-dummy.**  Solve each sampled layout once and price the
-//!    contract each candidate reached, signed to the **actor's** favour.
+//!    contract each candidate reached, signed to the **actor's** favour, under
+//!    **perfect-defense doubling** ([`ns_score_doubling_failures`]): a contract
+//!    that fails double-dummy is scored *doubled*.  The cardplay already assumes
+//!    optimal defense, so the penalty must too — otherwise the rollout's weak
+//!    doubling lets failing sacrifices price far too cheaply and the search
+//!    chases phantom saves into runaway competitive auctions.
 //! 4. **Average** over layouts.  That average is the call's EV.
 //!
 //! The continuation policy is a [`System`] *parameter*, not hardwired.  M2.2
@@ -30,7 +35,7 @@ use super::context::Context;
 use super::inference::Inferences;
 use super::sampler::sample_layouts;
 use super::table::Table;
-use crate::scoring::{final_contract, ns_score};
+use crate::scoring::{final_contract, ns_score_doubling_failures};
 use contract_bridge::auction::{Auction, Call};
 use contract_bridge::{AbsoluteVulnerability, Hand, Seat};
 use ddss::{NonEmptyStrainFlags, Solver};
@@ -123,7 +128,8 @@ pub fn ev_all(
                 .zip(tables.iter())
                 .map(|(deal, tricks)| {
                     let auction = table.bid_out_from(deal, seed.clone());
-                    let score = ns_score(final_contract(&auction, dealer), tricks, vul);
+                    let score =
+                        ns_score_doubling_failures(final_contract(&auction, dealer), tricks, vul);
                     if actor_is_ns { score } else { -score }
                 })
                 .sum();

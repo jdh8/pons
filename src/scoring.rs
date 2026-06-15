@@ -70,6 +70,53 @@ pub fn ns_score(
     }
 }
 
+/// NS score assuming **perfect-defense doubling**: a contract that fails
+/// double-dummy is scored *doubled*; a making contract keeps its auction
+/// penalty.
+///
+/// The cardplay rollout already assumes optimal defense, yet leaves the
+/// *doubling* decision to a weak continuation policy that under-doubles — so a
+/// failing sacrifice looks far cheaper than it would at a table where the
+/// defenders double a contract that is going down.  This applies the same
+/// perfect-defense assumption to the penalty: the side that is *not* declaring
+/// doubles iff the contract fails.  Symmetric (it doubles either side's failing
+/// contract), so it sharpens both our overbids and our defense of theirs, and it
+/// never rewards doubling a making contract.
+///
+/// [`stats::average_ns_par`][crate::stats::average_ns_par] makes the same
+/// assumption for par scoring (there as `min(undoubled, doubled)` on the
+/// expected score); this is its per-deal analogue.
+#[must_use]
+pub fn ns_score_doubling_failures(
+    result: Option<(Contract, Seat)>,
+    table: &TrickCountTable,
+    vul: AbsoluteVulnerability,
+) -> i64 {
+    let Some((contract, declarer)) = result else {
+        return 0;
+    };
+    let tricks = u8::from(table[contract.bid.strain].get(declarer));
+    let failing = u32::from(tricks) < 6 + u32::from(contract.bid.level.get());
+    let penalty = if failing {
+        Penalty::Doubled
+    } else {
+        contract.penalty
+    };
+    let contract = Contract {
+        bid: contract.bid,
+        penalty,
+    };
+    let declarer_vul = vul.contains(match declarer {
+        Seat::North | Seat::South => AbsoluteVulnerability::NS,
+        Seat::East | Seat::West => AbsoluteVulnerability::EW,
+    });
+    let score = i64::from(contract.score(tricks, declarer_vul));
+    match declarer {
+        Seat::North | Seat::South => score,
+        Seat::East | Seat::West => -score,
+    }
+}
+
 /// Upper bounds (exclusive) of the point difference for 0, 1, 2, … IMPs
 const IMP_BOUNDS: [i64; 24] = [
     20, 50, 90, 130, 170, 220, 270, 320, 370, 430, 500, 600, 750, 900, 1100, 1300, 1500, 1750,

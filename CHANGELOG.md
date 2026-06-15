@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`scoring::ns_score_doubling_failures`** — a sibling of `ns_score` that scores
+  a contract under **perfect-defense doubling**: any contract failing
+  double-dummy is scored *doubled*, a making one keeps its auction penalty. This
+  is the per-deal form of the par scorer's long-standing `min(undoubled,
+  doubled)` heuristic in `stats::average_ns_par` (now documented and named at
+  both sites). It is the EV evaluator's new scorer (see *Fixed*). Also adds a
+  gated `grand-probe` diagnostic example (behind the `search` feature) that
+  replays the search self-play, measures the DD make-rate and a points-vs-IMP
+  recompute at each 7NT node, and has a `--census` mode tallying the
+  advancing-call level histogram — the regression check that the grand flood
+  stays gone.
 - **Strawberry Polish Club defensive book** (AI-bidder **M4.3**, follow-up pass):
   `bidding::polish_club`'s previously-empty Defensive book is now authored from the
   system's notes (the `Defense/` chapters of <https://polish.club>), so our actions
@@ -452,6 +463,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Call-EV evaluator now prices contracts under perfect-defense doubling**
+  (AI-bidder, M3.1 follow-up). The cardplay rollout already assumes optimal
+  defense, but it left the *doubling* decision to the weak continuation policy,
+  which under-doubles — so a failing sacrifice priced at its cheap *undoubled*
+  penalty and the live double-dummy search chased phantom saves into runaway
+  competitive auctions (probing the M3.1 `search-dump` targets found 7NT chosen
+  as often as games, on ~0%-making hands, purely because the rollout never
+  doubled the save). `bidding::ev::ev_all` now scores every layout with
+  `scoring::ns_score_doubling_failures`: a contract that fails double-dummy is
+  scored *doubled*, extending the perfect-defense assumption to the penalty. In a
+  50-board census this cut slam-or-higher advancing calls from **12.6% to 0.4%**
+  (grand slams **6.2% → 0%**) and the count of off-book search decisions by
+  **62%** — the auctions stop spiralling once saves are priced honestly. This
+  changes only the gated `search` floor and the distillation targets it produces;
+  `instinct` and the distilled neural floor are untouched.
 - The instinct floor no longer passes a game-forcing 2♣ auction out below 3NT.
   The strong 2♣ opening is forcing for one round only; it is responder's
   *answer* that settles the game force — the 0–3 HCP double negative (2♥) keeps
