@@ -10,8 +10,9 @@
 //! all documented inline below. S.1 (the `BbaOracle` harness + 2/1 A/B match)
 //! generalizes these bindings to full auctions.
 //!
-//! The native library is proprietary and git-ignored. Point `BBA_LIB` at it, or
-//! drop it at the default vendored path:
+//! EPBot ships in the `vendor/bba` git submodule (BBA is free for non-commercial
+//! use and redistribution); `git submodule update --init vendor/bba` resolves the
+//! default library path, or point `BBA_LIB` elsewhere:
 //!
 //! ```text
 //! cargo run --example bba-oracle
@@ -44,7 +45,7 @@ fn main() -> anyhow::Result<()> {
         Err(e) => {
             eprintln!(
                 "could not load EPBot native lib at `{path}`: {e}\n\
-                 Set BBA_LIB to the libEPBot.so path (it is proprietary + git-ignored)."
+                 Fetch it with `git submodule update --init vendor/bba`, or set BBA_LIB."
             );
             std::process::exit(1);
         }

@@ -81,6 +81,25 @@ The [`examples/`](examples/) directory has runnable programs:
 
 Run any of them with `cargo run --example <name>`.
 
+### Benchmarking against BBA/EPBot
+
+A few examples (`bba-match`, `polish-club-reference`, `bba-wj-reference`)
+benchmark pons's bidding against [BBA/EPBot][bba], Edward Piwowar's mature
+reference engine, driven natively through its C ABI. EPBot is bundled as the
+[`vendor/bba`][bba] git submodule — free for non-commercial use *and*
+redistribution per its author — so fetch it once and the default library path
+resolves:
+
+```sh
+git submodule update --init vendor/bba
+cargo run --release --example bba-match -- --count 1000
+```
+
+Set `BBA_LIB` to override the library path. Published comparison numbers credit
+EPBot as the reference engine.
+
+[bba]: https://github.com/EdwardPiwowar/BBA
+
 Two examples that don't need pons live one level down the stack:
 [`generate-deals`](https://github.com/jdh8/contract-bridge/tree/main/examples/generate-deals)
 in `contract-bridge` and

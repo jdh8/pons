@@ -426,6 +426,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BBA/EPBot is now bundled as a git submodule.** With redistribution permitted
+  by its author (free for non-commercial use), the reference engine that the
+  `bba-match`, `polish-club-reference`, and `bba-wj-reference` examples benchmark
+  against ships as the `vendor/bba` submodule (`github.com/EdwardPiwowar/BBA`,
+  pinned). Fetch it with `git submodule update --init vendor/bba` and the
+  examples' default library path resolves — no manual download or `BBA_LIB`
+  needed. The submodule is excluded from the published crate, so the packaged
+  tarball is unchanged. Published comparison numbers credit EPBot as the
+  reference engine.
 - **The 2/1 system is now sharp on shape, fuzzy on strength.** Roughly a
   hundred rule sites across openings, responses, raises, rebids, the
   game-force structure, Stenberg, weak twos and their Ogust ladder, strong

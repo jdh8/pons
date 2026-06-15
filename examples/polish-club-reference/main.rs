@@ -16,6 +16,9 @@
 //! the **overlap** openings (1♣/1♦/1♥/1♠/1NT/2♦) where the two systems should
 //! line up.
 //!
+//! EPBot ships in the `vendor/bba` git submodule — `git submodule update --init
+//! vendor/bba` resolves the default library path; `BBA_LIB` overrides it.
+//!
 //! ```text
 //! cargo run --release --example polish-club-reference -- --count 2000 --seed 1
 //! BBA_LIB=/path/to/libEPBot.so cargo run --example polish-club-reference
@@ -375,7 +378,7 @@ fn main() -> anyhow::Result<()> {
         Err(error) => {
             eprintln!(
                 "could not load EPBot native lib at `{path}`: {error}\n\
-                 Set BBA_LIB to the libEPBot.so path (it is proprietary + git-ignored)."
+                 Fetch it with `git submodule update --init vendor/bba`, or set BBA_LIB."
             );
             std::process::exit(1);
         }

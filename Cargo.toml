@@ -12,10 +12,10 @@ readme = "README.md"
 license = "Apache-2.0"
 categories = ["game-development"]
 keywords = ["bridge"]
-# The off-crate distillation trainer is a separate workspace and is already
-# skipped by `cargo package`; exclude it explicitly so it stays out of the
-# published tarball even if it were ever made a workspace member.
-exclude = ["trainer"]
+# Dev-only trees kept out of the published tarball: the off-crate distillation
+# trainer (its own workspace) and the vendored BBA/EPBot reference engine (the
+# `vendor/bba` git submodule, ~50 MB, used only by the benchmark examples).
+exclude = ["trainer", "vendor"]
 
 [package.metadata.docs.rs]
 all-features = true
@@ -46,9 +46,9 @@ thiserror = "2"
 [dev-dependencies]
 anyhow = "1"
 clap = { version = "4", features = ["derive"] }
-# AI-bidder Side-track S: the `bba-oracle` example dlopens the proprietary
-# native EPBot library (git-ignored under vendor/) to drive it as a reference
-# bidder. Dev-only — never part of the published default build.
+# AI-bidder Side-track S: the BBA reference examples dlopen EPBot's native lib
+# (the `vendor/bba` git submodule) to drive it as a reference bidder. Dev-only —
+# never part of the published default build.
 libloading = "0.8"
 criterion = { version = "0.8", default-features = false, features = ["cargo_bench_support"] }
 nalgebra = "0.35"

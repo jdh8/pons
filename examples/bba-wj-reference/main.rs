@@ -33,8 +33,9 @@
 //! `bidding::verify` per-auction check against the *ported* books lands with
 //! M4.3 — this milestone produces the reference those checks diff against.
 //!
-//! The EPBot library is proprietary and git-ignored.  Point `BBA_LIB` at it, or
-//! drop it at the default vendored path:
+//! EPBot ships in the `vendor/bba` git submodule (BBA is free for non-commercial
+//! use and redistribution); `git submodule update --init vendor/bba` resolves the
+//! default library path, or point `BBA_LIB` elsewhere:
 //!
 //! ```text
 //! cargo run --release --example bba-wj-reference -- --count 2000 --seed 1
@@ -637,7 +638,7 @@ fn main() -> anyhow::Result<()> {
         Err(error) => {
             eprintln!(
                 "could not load EPBot native lib at `{path}`: {error}\n\
-                 Set BBA_LIB to the libEPBot.so path (it is proprietary + git-ignored)."
+                 Fetch it with `git submodule update --init vendor/bba`, or set BBA_LIB."
             );
             std::process::exit(1);
         }
