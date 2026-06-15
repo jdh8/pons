@@ -86,18 +86,13 @@ training lands. Two fixes:
 
 ### The legality + safety shell (restating the key invariant)
 
-The net outputs 38 logits unconditionally. Wrap it:
-
-1. **Mask** illegal calls to `−∞` (the driver does this already; do it in the
-   shell too so the distribution is honest).
-2. **Override** the handful of forced situations the floor detects deterministically
-   (`forced_advance`, `auction_forces_game`, transfer completion, penalty
-   sitting). In those states the shell *replaces or floors* the net's logits with
-   the safe action. The net is trusted for judgement, never for the rails.
-
-This shell is small, deterministic, testable, and is what lets us trust a learned
-component. It is the reason a model can replace the floor without replacing the
-floor's *guarantees*.
+The shell from [invariants §0.4](01-foundations.md#part-0--invariants) wraps the
+net's 38 logits: **mask** illegal calls to `−∞`, and **override** the forced
+situations the floor detects (`forced_advance`, `auction_forces_game`, transfer
+completion, penalty sitting), *replacing or flooring* the net's logits with the
+safe action. Small, deterministic, testable — the net is trusted for judgement,
+never for the rails. It lets a model replace the floor without replacing its
+*guarantees*.
 
 ---
 

@@ -1,11 +1,8 @@
 # Phased plan
 
-Small, well-specified, individually measurable chunks. Each milestone names a
-**deliverable**, a **measure** (how we know it worked), and its **deps**. Chunks
-are sized to be handed to a focused subagent where they're mechanical, and kept
-in the main loop where they're design (per the "divide and delegate" working
-style). **Nothing here is started until explicitly chosen** — this is the map,
-not a green light.
+Small, well-specified, individually measurable chunks; each milestone names a
+**deliverable**, a **measure**, and its **deps**. A map, not a green light —
+nothing starts until explicitly chosen.
 
 Legend: ⬜ not started · ✅ done.
 
@@ -165,27 +162,19 @@ The piece `Inferences` was built for; needed before any "beat the teacher" work.
   *Deps:* M2.2, M1 (net as prior/policy). *Decisions:* bidding only; slow & gated
   is acceptable (knobs — `n` layouts, `k` shortlist, EV temperature — default to
   strength, not latency); the default build and `instinct()` baseline are
-  untouched. **Done:** `bidding::search_floor::SearchFloor` + `two_over_one_search()`
-  behind the `search` feature (⊇ `neural-floor`). The shell mirrors `NeuralFloor`:
-  `forced` auctions delegate to `instinct()` verbatim (same rails); the judgement
-  middle masks the net prior, shortlists its top-`k = 8` legal calls, prices them
-  with `ev_all` over `n = 128` layouts, and re-seats the evaluated calls onto an
-  EV-ranked band (`prior_max + 3` nats, EV-temperature `100` pts/nat) so the
-  driver bids the highest-EV call while the un-evaluated tail and `Pass` stay
-  finite; an all-`NaN` slate degrades to the bare net. *Decisions settled this
-  milestone:* continuation policy is **neural self-play** (`two_over_one_neural()`
-  bidding all four seats — the policy M3.2 iterates); budget defaults to
-  **strength** (`n = 128`, `k = 8`, ≈ 1.4 s/decision — measured: cost ≈ linear in
-  `n` since the shared DD solve dominates, while `k` is near-free at ≈ 45 ms/extra
-  candidate, so `n` and `k` were raised together to keep the wider shortlist
-  scored against tight EV estimates). *Determinism* (§0.5): `classify` stays pure by
-  seeding the rollout RNG from the decision's feature vector. *Seat:* the
-  `Classifier` gets no absolute seat, so the actor is canonicalized to North and
-  the absolute vulnerability rebuilt from the relative one (EV is fully
-  actor-relative, so the choice is free). Seven gated tests (the five §0.4 rails +
-  determinism + EV-band ordering) green; `examples/search-floor` is the A/B
-  harness (vs deterministic floor, vs distilled net). Headline IMPs/board await a
-  long measurement run — the search is slow by design.
+  untouched. **Done:** `bidding::search_floor::SearchFloor` + `two_over_one_search()` behind
+  the `search` feature (⊇ `neural-floor`). Shell mirrors `NeuralFloor` (`forced` →
+  `instinct()`); the judgement middle masks the net prior, shortlists top-`k = 8`,
+  prices them with `ev_all` over `n = 128` layouts, and re-seats onto an EV-ranked
+  band (`prior_max + 3` nats, EV-temp `100` pts/nat; `Pass` and the un-evaluated
+  tail stay finite; all-`NaN` → bare net). *Decisions:* continuation policy is
+  **neural self-play** (`two_over_one_neural()` all four seats — the policy M3.2
+  iterates); budget defaults to **strength** (`n = 128`, `k = 8`, ≈ 1.4 s/decision
+  — cost ≈ linear in `n`, the shared DD solve dominating; `k` ≈ 45 ms/extra
+  candidate). *Determinism* (§0.5): rollout RNG seeded from the feature vector.
+  *Seat:* actor canonicalized to North (EV is actor-relative, so free). Seven
+  gated tests green (five §0.4 rails + determinism + EV-band); `examples/search-floor`
+  is the A/B harness. Headline IMPs/board await a long run (search is slow by design).
 
 Exit M2: we can ask "what is each call actually worth on this hand?" — the signal
 the books never had — and we can *bid by it* at the table (M2.3), gated.
@@ -194,34 +183,29 @@ the books never had — and we can *bid by it* at the table (M2.3), gated.
 
 ## Milestone 3 — Search-improved floor (Phase 2 of Component B)
 
-The point of the exercise — and the path to the **fast, shipped** learned floor.
-M2.3's live search bidder is strong but slow; M3 distills its strength back into a
-single forward pass so the default build stays fast and needs no runtime search.
-The gated search bidder remains available when maximum strength is worth the wait.
-(`instinct()` stays the untouched baseline; both learned floors are added options.)
+Distill M2.3's strong-but-slow search bidder back into one forward pass: the
+default floor stays fast, the gated search bidder remains for maximum strength.
+(`instinct()` stays the baseline; both learned floors are added options.)
 
 - ✅ **M3.1 Improvement targets.** Run the M2.3 search bidder over sampled
   decisions and record its improved distribution as the training target
   ([policy-net Phase 2](02-policy-net.md#phase-2--search-beat-the-teacher)).
   *Deliverable:* a dataset of `(features, search_target)`. *Measure:* targets
   differ from the teacher mainly off-book/contested (where the books were silent).
-  *Deps:* M2.3. **Done:** a gated `search-dump` example (sister to `teacher-dump`)
-  self-plays the search bidder over seeded boards and writes
-  `(features, search_softmax)` rows in the **same `f32`/`.json`/`.tags` layout the
-  trainer already reads** — a trainer-compatible *superset* of `teacher-dump`,
-  identical on book nodes and upgraded off-book (the `.tags` byte gains `bit1` =
-  off-book). Off-book activation is read from `Stance::classify_with_provenance`
-  (`depth == 0 && fallback.is_some()`, as in `instinct-floor`). The example prints
-  and records the measure — arg-max disagreement rate + mean total-variation
-  distance vs both the deterministic teacher (`two_over_one`) and the raw net prior
-  (`two_over_one_neural`), split by off-book/on-book and contested/constructive. A
-  40-board smoke run confirms the shape: **~51 % arg-max disagreement and ~0.53 mean
-  TV off-book vs `0`/`0` on-book** (identical book logits by construction), and all
-  off-book rows are contested (the floor sits only under the competitive/defensive
-  books, so the constructive book never strands). A small additive
-  `two_over_one_search_with(SearchFloor)` constructor (gated `search`) exposes the
-  `--layouts`/`--shortlist`/`--temperature` knobs so dataset cost is tunable; the
-  full production dataset is the offline run that feeds M3.2.
+  *Deps:* M2.3. **Done:** a gated `search-dump` example (sister to `teacher-dump`) self-plays
+  the search bidder over seeded boards and writes `(features, search_softmax)` rows
+  in the **same `f32`/`.json`/`.tags` layout the trainer already reads** — a
+  trainer-compatible *superset* of `teacher-dump`, identical on book nodes and
+  upgraded off-book (the `.tags` byte gains `bit1` = off-book; activation read from
+  `Stance::classify_with_provenance`, `depth == 0 && fallback.is_some()`). Measure:
+  arg-max disagreement + mean total-variation vs both the deterministic teacher
+  (`two_over_one`) and the raw net prior (`two_over_one_neural`), split off/on-book
+  and contested/constructive. 40-board smoke: **~51 % arg-max disagreement, ~0.53
+  mean TV off-book vs `0`/`0` on-book** (identical book logits by construction); all
+  off-book rows contested (the floor sits only under the competitive/defensive
+  books). The additive `two_over_one_search_with(SearchFloor)` constructor (gated
+  `search`) exposes `--layouts`/`--shortlist`/`--temperature`; the full production
+  dataset feeds M3.2.
 - ⬜ **M3.2 Train + iterate.** Retrain toward the search target; feed the improved
   net back into M2.2's continuations; repeat. *Deliverable:* successive nets.
   *Measure:* each round's A/B IMPs/board vs the prior net — **accept only gains**.
@@ -243,27 +227,24 @@ Parallelizable with M1–M3 once M0 exists; high near-term leverage.
   the round-trip substrate that makes M4.1/M4.2 verifiable. *Deliverable:* a
   readable face for every authored book. *Measure:* every corpus node renders a
   truthful constraint description; rails stay green (`eval` unchanged). *Deps:*
-  none (pure Rust). **Done:** `Constraint::describe() -> Description` (default
-  `Opaque`, so non-breaking) with each of the ~21 primitives turned from an
-  anonymous `pred` closure into a named struct that names itself, the combinators
-  composing into an `All`/`Any`/`Not` tree, and `Description: Display` rendering
-  prose ("12–21 points, and 5+ ♠"). `described(label, cond)` is the labeled escape
-  hatch for bespoke book predicates (better-minor, Michaels/Unusual lengths, RKCB
-  keycards), used to drive the corpus to **0 opaque**. `Rule::describe()` surfaces
-  it; the `render-book` example prints the books as prose; `export-corpus` now
-  emits a truthful `constraint` field (precedence: `note` label → constraint
-  render → structural gloss) and an opaque-coverage count. 770 nodes / 2314
-  records, 0 opaque; all 353 tests green (the instinct/neural/search rails are the
-  acceptance gate). *Decision:* led M4 with this per the user's "make books more
-  readable" steer — it is the readability deliverable **and** the verification
-  substrate the LLM compiler needs, so it precedes M4.1.
+  none (pure Rust). **Done:** `Constraint::describe() -> Description` (default `Opaque`, non-breaking):
+  each of the ~21 primitives became a named struct that names itself, combinators
+  compose into an `All`/`Any`/`Not` tree, and `Description: Display` renders prose
+  ("12–21 points, and 5+ ♠"). `described(label, cond)` is the labeled escape hatch
+  for bespoke predicates (better-minor, Michaels/Unusual lengths, RKCB keycards),
+  driving the corpus to **0 opaque**. `Rule::describe()` surfaces it; `render-book`
+  prints the books as prose; `export-corpus` emits a truthful `constraint` field
+  (precedence: `note` label → constraint render → structural gloss) + opaque count.
+  770 nodes / 2314 records, 0 opaque; all 353 tests green. *Decision:* led M4 with
+  this per the user's "make books more readable" steer — it is the readability
+  deliverable **and** the verification substrate M4.1's compiler needs.
 - ✅ **M4.1 DSL spec prompt.** A precise `Constraint`-DSL grammar + vocabulary +
   gold `(English, Rust)` pairs from existing rules. *Deliverable:* a compiler
   prompt/spec. *Measure:* it reproduces held-out existing rules from their English
   gloss. *Deps:* M0.2, M4.0 (the self-describing DSL *is* the executable spec, and
   its `describe()` is the round-trip checker). **Done:** [`dsl-spec.md`](dsl-spec.md)
   — a pasteable English→`Constraint` prompt: the `&`/`|`/`!` grammar and its
-  `describe()` rendering, a vocabulary table for all 22 primitives (exact gloss +
+  `describe()` rendering, a vocabulary table for all 23 primitives (exact gloss +
   range conventions), the `described(...)` escape-hatch discipline, gold pairs
   harvested from the live books, and explicit compile instructions.
   `tests/dsl_roundtrip.rs` is the mechanical round-trip: it pins every primitive
@@ -298,33 +279,28 @@ Parallelizable with M1–M3 once M0 exists; high near-term leverage.
 - ✅ **M4.3 Polish Club port (assisted).** Use M4.1+M4.2 to author the Polish Club
   books from their written notes. *Deliverable:* a second system's books + corpus.
   *Measure:* the ported system bids textbook auctions correctly; produces the
-  second corpus needed for Component A Role 2. *Deps:* M4.2. **Done (Constructive
+  second corpus needed for Component A Role 2. *Deps:* M4.2. **Done (constructive
   backbone):** `bidding::polish_club` — `polish_club()` / `bare_polish_club()`
   (`Family::POLISH_CLUB`), the *Strawberry Polish Club* (<https://polish.club>),
-  authored from the chapter sources with the M4.1 spec and M4.2 `verify`. The
-  opening ladder (three-variant forcing 1♣, natural 1♦, five-card majors, the
-  inclusive 15–17 1NT envelope, Ekren 2♣, Multi 2♦, Muiderberg 2♥/2♠, unusual
-  2NT, preempts) and the defining first responses (the artificial 1♣ framework —
-  negative 1♦ relay + positives, forcing by omission — natural 1♦/1♥/1♠ responses,
-  shared 1NT reusing 2/1's notrump responses) are authored; the Competitive book
-  and the deep relay tails are floored by `instinct` (attached to all three
-  books). `export-corpus --system polish-club` emits a **0-opaque** second
-  corpus (every bespoke shape via `described`); `tests/polish_club.rs` makes the 8
-  curated textbook openings hard assertions, plus a 0-opaque guard and a reach-game
-  check. The `polish-club-reference` example cross-checks against BBA WJ
-  (informational — notes authoritative): **86% opening agreement on the overlap**
-  (1-level + Multi 2♦) over 1000 boards, divergences listed as the next targets.
-  **Defensive book (follow-up pass, done):** authored from the `Defense/` chapters
-  — NLTC-gauged overcalls + preemptive jumps, takeout double, 1NT, the Bailey cue
-  (highest unbid + another) and Unusual 2NT over their one-suit opening; a
-  plain-HCP balancing seat (4-4-4-1 doubles, not a four-card overcall); Landy over
-  their 1NT; natural-with-takeout over their weak two; a takeout-flavored structure
-  over Multi 2♦; plus the principal advances. Adds the `nltc(range)` DSL primitive
-  (faithful NLTC bands); `tests/polish_club_defense.rs` spot-checks 9 actions; the
-  corpus is now **339 records**, still 0-opaque.
-  *Deferred (next passes):* opener's rebid relays, the preempt response trees, the
-  **Competitive book** and the deep defensive transfer/relay tails (floored until
-  then); BTU 1NT responses.
+  authored from chapter sources with the M4.1 spec + M4.2 `verify`. Opening ladder:
+  three-variant forcing 1♣, natural 1♦, five-card majors, inclusive 15–17 1NT,
+  Ekren 2♣, Multi 2♦, Muiderberg 2♥/2♠, unusual 2NT, preempts. First responses:
+  the artificial 1♣ framework (negative 1♦ relay + positives, forcing by omission),
+  natural 1♦/1♥/1♠, shared 1NT reusing 2/1's notrump responses. Competitive book +
+  deep relay tails floored by `instinct` (attached to all three books).
+  `export-corpus --system polish-club` → **0-opaque** corpus (bespoke shapes via
+  `described`); `tests/polish_club.rs` hard-asserts 8 textbook openings + 0-opaque +
+  reach-game. `polish-club-reference` cross-checks vs BBA WJ (informational;
+  notes authoritative): **86% opening agreement on the overlap** (1-level + Multi
+  2♦), 1000 boards. **Defensive book (done):** from `Defense/` — NLTC-gauged
+  overcalls + preemptive jumps, takeout double, 1NT, the Bailey cue (highest unbid +
+  another), Unusual 2NT over a one-suiter; plain-HCP balancing (4-4-4-1 doubles,
+  not a four-card overcall); Landy over their 1NT; natural-with-takeout over their
+  weak two; takeout-flavored over Multi 2♦; principal advances. Adds the
+  `nltc(range)` DSL primitive (faithful NLTC bands); `tests/polish_club_defense.rs`
+  spot-checks 9 actions; corpus now **339 records**, 0-opaque.
+  *Deferred:* opener's rebid relays, preempt response trees, the **Competitive
+  book**, deep defensive transfer/relay tails (floored); BTU 1NT responses.
 
 Exit M4: book authoring is "write the meaning, verify, commit" — and a second
 system exists.
@@ -361,11 +337,9 @@ Exit M5: one model, any system, driven by written meanings.
 ## Side-track S — External reference bidder (BBA / EPBot)
 
 Optional, parallelizable, **pure tooling** — never touches the default build, the
-`instinct()` baseline, or any invariant. Edward Piwowar's BBA is a mature,
-rule-based, ~100%-reproducible engine shipped as a Windows .NET binary with a
-**published programmer CLI/DLL**; we drive it as a black box under Wine (no
-decompiling, no redistribution — the same legitimate use by which open-source BEN
-was trained on BBA-bid deals). It plugs into three existing slots, strongest first:
+`instinct()` baseline, or any invariant. Edward Piwowar's BBA/EPBot is a mature,
+rule-based, ~100%-reproducible engine; we drive it as a black box (native
+`libEPBot.so` via FFI — see S.0). It plugs into three existing slots, strongest first:
 
 - ✅ **S.0 Feasibility + harvest harness.** *Original plan was Wine (WineHQ +
   wine-mono / `dotnet48`) shelling out to the .NET binary; superseded by a
@@ -384,46 +358,39 @@ was trained on BBA-bid deals). It plugs into three existing slots, strongest fir
   under-bidding auctions. *Deps:* S.0. *Value:* turns "did we improve?" into "how
   far from a mature engine?" — calibrates the M1/M3 gains. **Done:**
   `examples/bba-match` — `BbaOracle: System` drives EPBot system 0 ("2/1GF - 2/1
-  Game Force", verified by name) one fresh bot per decision (S.0 ABI generalized
-  to full auctions: `set_bid(bot, position, bid, meaning)` and
-  `set_system_type(bot, position, system)` decompiled + confirmed; the ten is
-  EPBot-canonical `T` per `epbot_get_cards`; the dealer is canonicalized to
-  position 0 so `classify` is pure in `(hand, vul, auction)`). The duplicate
-  match reports IMPs/board with a 95% CI and dumps the worst divergent boards.
-  At 2000 boards, vul none: **−2.59 IMPs/board, CI [−2.83, −2.35]** — our floor
-  trails BBA's mature 2/1 by ≈ 2.6 IMPs/board, the gap concentrated in
-  competitive/contested auctions (the thinnest part of the books). 371 tests
-  green; `libloading` stays a dev-dependency, default build untouched.
+  Game Force", verified by name), one fresh bot per decision (S.0 ABI generalized:
+  `set_bid(bot, position, bid, meaning)` and `set_system_type(bot, position,
+  system)` decompiled + confirmed; the ten is EPBot-canonical `T`; the dealer is
+  canonicalized to position 0 so `classify` is pure in `(hand, vul, auction)`).
+  Reports IMPs/board with a 95% CI + the worst divergent boards. **2000 boards, vul
+  none: −2.59 IMPs/board, CI [−2.83, −2.35]** — our floor trails BBA's mature 2/1
+  by ≈ 2.6, the gap concentrated in competitive/contested auctions (the thinnest
+  part of the books). 371 tests green; `libloading` stays a dev-dependency, default
+  build untouched.
 - ✅ **S.2 Polish Club reference (feeds M4.3 + M5).** Harvest BBA's **WJ (Polish
   Club)** auctions as ground truth for the M4.3 port and a head-start on the second
   corpus M5 needs. *Deliverable:* a WJ reference set + per-auction checks for the
   ported books via `bidding::verify`. *Measure:* the ported system agrees with BBA
   on textbook WJ auctions. *Deps:* S.0; pairs with M4.3. **Done (reference half):**
-  `examples/bba-wj-reference` — a table of WJ bidders (**EPBot system type 2**,
-  confirmed from `WJ.bbsa`'s `System type = 2` *and* behaviorally: an 18-balanced
-  hand opens 1♣, the Polish Club catch-all) self-plays random boards; every
-  `(auction, call)` becomes a JSONL record with the actor's hand, and — for the
-  **first round** — BBA's *self-reported meaning*: a short systemic label
-  (`"Polish 1C"`, `"Multi"`, `"5+ !H"`) **plus parsed constraint ranges** (point
-  range + per-suit length ranges, straight onto the `Constraint` DSL). Meaning
-  capture uses two FFI calls recovered here by `objdump`
-  (`epbot_get_info_meaning[_extended](bot, position, buf, len)` fill a string
-  buffer); they are reliable only for the **first four calls** — past position 4
-  the same indices report per-seat hand inferences, so the harness captures
-  positions `0..4` and drops the trivial-range "no info" sentinel. Openings + first
-  responses are a system's defining, most-distinct slice and what the port builds
-  first. A curated set of 8 **textbook Polish Club openings** doubles as the
-  *measure*: the system-defining calls (strong-balanced→1♣, 15–17→1NT, 5-card
-  majors→1♥/1♠) are hard assertions (all green; BBA is ground truth), the rest
-  recorded — surfacing real WJ knowledge (a 6-spade weak hand opens **2♦ "Multi"**;
-  1♦ shows **5+**). 21070 records / 2000 boards, ~38% carrying a meaning; output to
-  `target/` (gitignored) with a versioned sidecar (system, seed, git SHA, schema,
-  counts). All 371 tests green (no crate tests added — the harness is a dev-only
-  example, its curated-fixture assertions the acceptance gate); `libloading`
-  stays a dev-dependency, default build untouched. **Port half done in M4.3:** the
-  `polish-club-reference` example now drives the *ported* books against WJ and
-  reports call-agreement (86% on the overlap openings); the reference S.2 produced
-  is what it diffs against.
+  `examples/bba-wj-reference` — WJ bidders (**EPBot system type 2**, confirmed from
+  `WJ.bbsa`'s `System type = 2` *and* behaviorally: an 18-balanced hand opens 1♣)
+  self-play random boards; every `(auction, call)` becomes a JSONL record with the
+  hand and — for the **first round** — BBA's *self-reported meaning*: a systemic
+  label (`"Polish 1C"`, `"Multi"`, `"5+ !H"`) **plus parsed constraint ranges**
+  (point + per-suit length, straight onto the `Constraint` DSL). Meaning capture
+  uses two FFI calls recovered by `objdump`
+  (`epbot_get_info_meaning[_extended](bot, position, buf, len)`), reliable only for
+  the **first four calls** — past position 4 the indices report per-seat hand
+  inferences, so it captures positions `0..4` and drops the "no info" sentinel. 8
+  **textbook Polish Club openings** double as the *measure*: the defining calls
+  (strong-balanced→1♣, 15–17→1NT, 5-card majors→1♥/1♠) are hard assertions (green;
+  BBA is ground truth), the rest recorded (a 6-spade weak hand opens **2♦
+  "Multi"**; 1♦ shows **5+**). 21070 records / 2000 boards, ~38% with a meaning;
+  output to `target/` (gitignored) with a versioned sidecar (system, seed, git SHA,
+  schema, counts). 371 tests green (dev-only example; curated fixtures are the
+  gate); `libloading` stays a dev-dependency, default build untouched. **Port half
+  in M4.3:** `polish-club-reference` drives the *ported* books against WJ (86% on
+  the overlap openings); this S.2 reference is what it diffs against.
 - ⬜ **S.3 (optional) Imitation teacher for M3.** BBA's calls as an extra,
   cheap/deterministic target alongside the M2.3 search teacher. *Caveat:* imitating
   BBA is capped at BBA — it cannot *exceed* a human system the way the double-dummy

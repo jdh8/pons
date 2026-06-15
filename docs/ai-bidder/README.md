@@ -47,19 +47,12 @@ model, in two cooperating halves:
 
 ## The one fact that makes "distill to Rust" the right call
 
-**Training is hard; inference is arithmetic.**
-
-- *Training* — finding the weights — needs automatic differentiation, a GPU is
-  nice, and a mature toolchain (PyTorch / JAX / `burn` / `candle`). That part
-  stays **outside** the crate.
-- *Inference* — using the weights — is a handful of matrix multiplies and one
-  elementwise nonlinearity. `z₁ = σ(W₁·x + b₁); z₂ = σ(W₂·z₁ + b₂); …`. That is
-  a few `for` loops (or SIMD) over `f32` arrays, the kind of code you already
-  write. It lands **inside** the crate with no heavy dependency.
-
-So the model that replaces the floor is, at runtime, just a function from an
-input array of hand+auction features to the 38-entry `Logits` array — the same
-shape the floor returns now.
+**Training is hard; inference is arithmetic.** Finding the weights needs autodiff
+and a real toolchain (PyTorch / JAX / `burn` / `candle`), which stays **outside**
+the crate; *using* them is a few matmuls and one nonlinearity (`σ(W·x + b)`) —
+hand-writable in Rust, no heavy dependency — so only a small weights artifact and
+a forward pass ship **inside**, returning the same 38-entry `Logits` the floor
+does now. (Glossary below: *Training*, *Forward pass*.)
 
 ## ML, in terms you already own
 

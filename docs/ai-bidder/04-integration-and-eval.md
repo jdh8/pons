@@ -82,8 +82,8 @@ nothing is removed, a new option is added.
 template: A/B duplicate match, divergent boards solved double-dummy, swing
 credited in **IMPs/board**, plus floor-activation telemetry (where the floor
 fires, which off-book auctions are most common). Every milestone reuses this
-pattern. Minimal new work: a variant that pits the *neural* floor against the
-*deterministic* floor (and against bare books).
+pattern: the `neural-floor` and `search-floor` examples pit the *neural* and
+*search* floors against the *deterministic* floor and bare books.
 
 ### What to measure each milestone
 

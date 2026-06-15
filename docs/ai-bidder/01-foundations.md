@@ -174,9 +174,9 @@ Bootstrapping sources, cheapest first:
    human-authored description set for the *next* system.
 
 The corpus is small (hundreds–thousands of nodes), high-quality, and **bridge
-data, not ML data** — squarely your domain. It is the first concrete, low-risk
-deliverable and unblocks both Component A's compiler (text↔constraint pairs to
-learn from / test against) and its runtime encoder.
+data, not ML data** — squarely your domain. It was the first deliverable built
+(M0.2) and unblocks both Component A's compiler (text↔constraint pairs to learn
+from / test against) and its runtime encoder.
 
 ---
 

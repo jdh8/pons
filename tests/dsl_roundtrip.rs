@@ -30,10 +30,10 @@
 use contract_bridge::{Hand, Strain, Suit};
 use pons::bidding::Context;
 use pons::bidding::constraint::{
-    Constraint, balanced, cccc_at_least, described, fifths, hcp, len, min_level_is, nltc_at_most,
-    nth_seat, partner_shown_len, partner_shown_points, partner_suit_is, passed_hand, points,
-    short_in_their_suits, stopper_in, stopper_in_their_suits, support, they_bid, they_vulnerable,
-    top_honors, undisturbed, vulnerable,
+    Constraint, balanced, cccc_at_least, described, fifths, hcp, len, min_level_is, nltc,
+    nltc_at_most, nth_seat, partner_shown_len, partner_shown_points, partner_suit_is, passed_hand,
+    points, short_in_their_suits, stopper_in, stopper_in_their_suits, support, they_bid,
+    they_vulnerable, top_honors, undisturbed, vulnerable,
 };
 
 /// Render a constraint to its canonical English — the compiler's target.
@@ -55,6 +55,7 @@ fn vocabulary_glosses() {
     assert_eq!(gloss(points(12..=21)), "12–21 points");
     assert_eq!(gloss(fifths(15.0..18.0)), "15.0–18.0 fifths");
     assert_eq!(gloss(nltc_at_most(7.0)), "NLTC ≤ 7");
+    assert_eq!(gloss(nltc(6.0..=8.5)), "6.0–8.5 NLTC");
     assert_eq!(gloss(cccc_at_least(14.9)), "CCCC ≥ 14.9");
 
     // Shape
