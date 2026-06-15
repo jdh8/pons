@@ -26,6 +26,16 @@
 //! cargo run --release --features search --example search-dump -- --boards 3000 --seed 1 --progress
 //! ```
 //!
+//! This run saturates every core for hours.  On a shared machine, wrap it in the
+//! polite "scavenger" policy (SCHED_IDLE + idle I/O) — see
+//! [`docs/shared-machine-data-gen.md`](../../docs/shared-machine-data-gen.md) and
+//! `scripts/idle-run.sh`:
+//!
+//! ```text
+//! scripts/idle-run.sh cargo run --release --features search \
+//!   --example search-dump -- --boards 10000 --seed 1 --progress
+//! ```
+//!
 //! # The M3.1 measure
 //!
 //! M3.1's win condition is that the targets *differ from the teacher mainly
