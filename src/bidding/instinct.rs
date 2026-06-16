@@ -46,10 +46,11 @@
 
 use super::Rules;
 use super::constraint::{
-    Cons, Constraint, balanced, hcp, len, min_level_is, partner_shown_len, partner_suit_is, points,
-    pred, short_in_their_suits, stopper_in_their_suits, support, they_bid,
+    Cons, Constraint, balanced, hcp, len, min_level_is, partner_shown_len, partner_suit_is,
+    point_count, points, pred, short_in_their_suits, stopper_in_their_suits, support, they_bid,
 };
 use super::context::Context;
+use super::inference::Inferences;
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Hand, Penalty, Rank, Strain, Suit};
 use core::cell::Cell;
@@ -209,6 +210,28 @@ fn below_game() -> Cons<impl Constraint + Clone> {
             let level = bid.level.get();
             level <= 2 || (level == 3 && bid.strain != Strain::Notrump)
         })
+    })
+}
+
+/// The current contract is below slam: nothing above the five level yet
+fn below_slam() -> Cons<impl Constraint + Clone> {
+    pred(|_: Hand, context: &Context<'_>| context.last_bid().is_none_or(|bid| bid.level.get() <= 5))
+}
+
+/// Our side holds at least `threshold` combined points: our exact count plus the
+/// *sound floor* of partner's shown points ([`Inferences`]), so the true total
+/// is never less than the test admits
+///
+/// This is the general game/slam trigger.  Where the special-cased forces (a
+/// strong-notrump responder, a strong 2♣) encode a single auction, this fires on
+/// *any* auction whose shown strength reaches a milestone — the inference floor
+/// makes it sound, never an overbid on a hand that could be weaker than counted.
+///
+/// [`Inferences`]: super::inference::Inferences
+fn combined_points(threshold: u8) -> Cons<impl Constraint + Clone> {
+    pred(move |hand: Hand, context: &Context<'_>| {
+        let partner_min = Inferences::read(context).partner().points.min;
+        u16::from(point_count(hand)) + u16::from(partner_min) >= u16::from(threshold)
     })
 }
 
@@ -514,49 +537,112 @@ pub fn instinct() -> Rules {
         );
     }
 
-    // Forced to game.  Two strands feed it: the hand-conditioned strong-notrump
-    // responder forces (10+ opposite a 15–17 1NT, 5+ opposite a 20–21 2NT) stay
-    // as constraints, while the hand-independent forces — a strong 2♣ whose
-    // response cleared the double negative, or an opener forced past invitation —
-    // come from the auction interpretation.  Below game, pick the cheapest game —
-    // a six-card major, else 3NT — rather than pass the auction out, but step
-    // aside when we are penalizing the opponents with a double of our own.
-    let forced_game = ((partner_strong_notrump(1) & hcp(10..))
+    // Game values.  Three strands force game regardless of the point estimate:
+    // the hand-conditioned strong-notrump responder forces (10+ opposite a 15–17
+    // 1NT, 5+ opposite a 20–21 2NT), and the hand-independent forces from the
+    // auction interpretation — a strong 2♣ past the double negative, or an opener
+    // forced past invitation.  A fourth strand is *general*: our own count plus
+    // the sound floor of partner's shown points reaching 25 (the inference makes
+    // it sound, never an overbid).  Below game we take the cheapest milestone — a
+    // known major fit, else 3NT, dropping to the minor game only when their suit
+    // is unstopped — but step aside when penalizing the opponents.
+    let game_values = ((partner_strong_notrump(1) & hcp(10..))
         | (partner_strong_notrump(2) & hcp(5..))
-        | auction_forces_game())
+        | auction_forces_game()
+        | combined_points(25))
         & not_penalizing();
     rules = rules.rule(
         Bid::new(3, Strain::Notrump),
         1.40,
-        forced_game.clone() & below_game() & level_available(3, Strain::Notrump),
+        game_values.clone() & below_game() & level_available(3, Strain::Notrump),
     );
+    for minor in [Suit::Clubs, Suit::Diamonds] {
+        let strain = Strain::from(minor);
+        // 3NT is the milestone of choice; reach for the minor game only when
+        // notrump is unsafe (a suit they bid is unstopped) and we hold a known
+        // eight-card fit.  Uncontested, their suits are vacuously stopped, so
+        // this never fires and 3NT plays.
+        let known_minor_fit = (len(minor, 5..) & partner_shown_len(minor, 3..))
+            | (len(minor, 3..) & partner_shown_len(minor, 5..));
+        rules = rules.rule(
+            Bid::new(5, strain),
+            1.42,
+            game_values.clone()
+                & below_game()
+                & inference_aware()
+                & known_minor_fit
+                & !stopper_in_their_suits()
+                & level_available(5, strain),
+        );
+    }
     for major in [Suit::Hearts, Suit::Spades] {
         let strain = Strain::from(major);
-        rules = rules.rule(
-            Bid::new(4, strain),
-            1.45,
-            forced_game.clone() & below_game() & len(major, 6..) & level_available(4, strain),
-        );
-        // A *known* eight-card major fit outranks 3NT: bid the major game when
-        // our five-card suit meets partner's shown three-card support, or our
-        // three-card support meets partner's shown five-card suit.  The shown
-        // lengths come from the auction interpretation ([`Inferences`]), so this
-        // fires only on a fit the calls have actually promised — e.g. opposite
-        // our 1NT after partner's natural, forcing three-level major.
+        // A *known* eight-card major fit outranks 3NT: our five-card suit meets
+        // partner's shown three-card support, or our three meet partner's shown
+        // five.  The shown lengths come from the auction interpretation
+        // ([`Inferences`]), so this fires only on a fit the calls have promised.
         //
         // [`Inferences`]: super::inference::Inferences
         let known_major_fit = (len(major, 5..) & partner_shown_len(major, 3..))
             | (len(major, 3..) & partner_shown_len(major, 5..));
         rules = rules.rule(
             Bid::new(4, strain),
+            1.45,
+            game_values.clone() & below_game() & len(major, 6..) & level_available(4, strain),
+        );
+        rules = rules.rule(
+            Bid::new(4, strain),
             1.50,
-            forced_game.clone()
+            game_values.clone()
                 & below_game()
                 & inference_aware()
-                & known_major_fit
+                & known_major_fit.clone()
                 & level_available(4, strain),
         );
+        // Slam is a milestone too: with a known major fit and the combined
+        // minimum in the small- (33) or grand- (37) slam zone, bid it.
+        rules = rules.rule(
+            Bid::new(6, strain),
+            1.65,
+            combined_points(33)
+                & not_penalizing()
+                & below_slam()
+                & inference_aware()
+                & known_major_fit.clone()
+                & level_available(6, strain),
+        );
+        rules = rules.rule(
+            Bid::new(7, strain),
+            1.75,
+            combined_points(37)
+                & not_penalizing()
+                & below_slam()
+                & inference_aware()
+                & known_major_fit
+                & level_available(7, strain),
+        );
     }
+    // Notrump slam when no major fit is known: small at 33, grand at 37, with
+    // their suits stopped (vacuous when uncontested).
+    rules = rules
+        .rule(
+            Bid::new(6, Strain::Notrump),
+            1.60,
+            combined_points(33)
+                & not_penalizing()
+                & below_slam()
+                & stopper_in_their_suits()
+                & level_available(6, Strain::Notrump),
+        )
+        .rule(
+            Bid::new(7, Strain::Notrump),
+            1.70,
+            combined_points(37)
+                & not_penalizing()
+                & below_slam()
+                & stopper_in_their_suits()
+                & level_available(7, Strain::Notrump),
+        );
 
     // Takeout double of their low suit bid: shape with opening values, or
     // any strong hand planning to bid again.
@@ -778,5 +864,40 @@ mod tests {
             Call::Pass,
         ];
         assert_eq!(best(&auction, "K3.KQ4.65.QJ8765"), call(4, Strain::Clubs));
+    }
+
+    #[test]
+    fn milestone_game_opposite_a_limited_rebid() {
+        // 1♦–1♥–1NT: opposite the 12–16 rebid a balanced 16 has 28+ combined,
+        // a cold 3NT the constructive book never reached (the board that started
+        // this).  The floor reads the rebid's strength and bids the game.
+        let auction = [
+            call(1, Strain::Diamonds),
+            Call::Pass,
+            call(1, Strain::Hearts),
+            Call::Pass,
+            call(1, Strain::Notrump),
+            Call::Pass,
+        ];
+        assert_eq!(best(&auction, "J9.AKJ7.K94.A852"), call(3, Strain::Notrump));
+        // A 10-count is only invitational (22–24 combined): the floor uses the
+        // *guaranteed* minimum, so it stays sound and passes rather than overbid.
+        assert_eq!(best(&auction, "KJ9.QJ73.K94.852"), Call::Pass);
+    }
+
+    #[test]
+    fn milestone_slam_opposite_a_strong_rebid() {
+        // 1♦–1♥–2NT is the 18–19 jump rebid; a balanced 16 lifts the combined
+        // minimum to 34, the small-slam zone, so bid 6NT instead of stranding in
+        // game.  No known major fit, so notrump is the strain.
+        let auction = [
+            call(1, Strain::Diamonds),
+            Call::Pass,
+            call(1, Strain::Hearts),
+            Call::Pass,
+            call(2, Strain::Notrump),
+            Call::Pass,
+        ];
+        assert_eq!(best(&auction, "KQ.AKJ7.K94.8542"), call(6, Strain::Notrump));
     }
 }

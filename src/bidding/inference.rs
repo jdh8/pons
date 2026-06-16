@@ -330,6 +330,59 @@ impl Inferences {
                         }
                     }
 
+                    // Strength shown by limited natural rebids and raises, read
+                    // only when the opponents have stayed silent (a competitive
+                    // 2NT or raise can be off-meaning).  Every branch narrows by
+                    // a sound bound — the true point count always falls within.
+                    if index != opening_index && !side_acted[defending_parity] {
+                        let responder_lane = (opener_lane + 2) % 4;
+                        let opener_rebid =
+                            is_opening_side && lane == opener_lane && lane_bids[lane] == 1;
+                        let responder_first =
+                            is_opening_side && lane == responder_lane && lane_bids[lane] == 0;
+                        let opening_one_suit =
+                            opening_bid.level.get() == 1 && opening_bid.strain.is_suit();
+
+                        if bid.strain == Strain::Notrump && opening_one_suit {
+                            if opener_rebid {
+                                // A balanced rebid.  1NT is a minimum (12–16: a
+                                // 17 would open the strong notrump); a *jump* to
+                                // 2NT is the strong 18–19 rebid.  A non-jump 2NT
+                                // (over a two-level response) is a minimum and is
+                                // left to the opening's bound.
+                                let nt_jump = bid
+                                    .level
+                                    .get()
+                                    .saturating_sub(cheapest_level(highest, Strain::Notrump));
+                                if bid.level.get() == 1 {
+                                    players[who].narrow_points(Range::new(12, 16));
+                                } else if bid.level.get() == 2 && nt_jump >= 1 {
+                                    players[who].narrow_points(Range::new(18, 21));
+                                }
+                            } else if responder_first && bid.level.get() == 1 {
+                                // A 1NT response: a natural or forcing notrump.
+                                players[who].narrow_points(Range::new(6, 12));
+                            }
+                        } else if let Some(suit) = bid.strain.suit() {
+                            // Responder raising opener's suit shows limited
+                            // support strength: a single raise constructive, a
+                            // jump raise invitational.
+                            let partner_bid_it =
+                                lane_suits[(lane + 2) % 4] & (1 << suit as u8) != 0;
+                            if responder_first && partner_bid_it {
+                                let jump = bid
+                                    .level
+                                    .get()
+                                    .saturating_sub(cheapest_level(highest, bid.strain));
+                                match jump {
+                                    0 => players[who].narrow_points(Range::new(6, 10)),
+                                    1 => players[who].narrow_points(Range::new(10, 12)),
+                                    _ => {}
+                                }
+                            }
+                        }
+                    }
+
                     if let Some(suit) = bid.strain.suit() {
                         lane_suits[lane] |= 1 << suit as u8;
                     }
@@ -347,9 +400,11 @@ impl Inferences {
 }
 
 /// Whether `bid` is higher than the standing `highest` contract
+///
+/// Bridge contracts rank by level first, then strain — `2♣` outranks `1♠`.
 fn outranks(bid: Bid, highest: Bid) -> bool {
-    bid.strain > highest.strain
-        || (bid.strain == highest.strain && bid.level.get() > highest.level.get())
+    bid.level.get() > highest.level.get()
+        || (bid.level.get() == highest.level.get() && bid.strain > highest.strain)
 }
 
 /// The cheapest level a strain can be bid over the standing `highest` contract
@@ -601,6 +656,89 @@ mod tests {
             read(&[bid(1, Strain::Hearts), Call::Pass]).partner().points,
             Range::new(12, 21)
         );
+    }
+
+    #[test]
+    fn limited_notrump_rebids_narrow_strength() {
+        // [1♦, P, 1♥, P, 1NT, P]: the opener (partner) showed a 12–16 minimum.
+        let one_nt = read(&[
+            bid(1, Strain::Diamonds),
+            Call::Pass,
+            bid(1, Strain::Hearts),
+            Call::Pass,
+            bid(1, Strain::Notrump),
+            Call::Pass,
+        ]);
+        assert_eq!(one_nt.partner().points, Range::new(12, 16));
+
+        // A jump to 2NT is the strong 18–19 rebid (sound bound 18–21).
+        let two_nt = read(&[
+            bid(1, Strain::Diamonds),
+            Call::Pass,
+            bid(1, Strain::Hearts),
+            Call::Pass,
+            bid(2, Strain::Notrump),
+            Call::Pass,
+        ]);
+        assert_eq!(two_nt.partner().points, Range::new(18, 21));
+    }
+
+    #[test]
+    fn cheapest_two_notrump_over_a_response_is_not_strong() {
+        // [1♦, P, 2♣, P, 2NT, P]: 2NT is the *cheapest* notrump over a 2/1, a
+        // minimum — it must not be read as the 18–19 jump.  Opener stays 12–21.
+        let inf = read(&[
+            bid(1, Strain::Diamonds),
+            Call::Pass,
+            bid(2, Strain::Clubs),
+            Call::Pass,
+            bid(2, Strain::Notrump),
+            Call::Pass,
+        ]);
+        assert_eq!(inf.partner().points, Range::new(12, 21));
+    }
+
+    #[test]
+    fn raises_and_one_notrump_response_narrow_the_responder() {
+        // [1♥, P, 2♥, P]: a single raise is 6–10.
+        let single = read(&[
+            bid(1, Strain::Hearts),
+            Call::Pass,
+            bid(2, Strain::Hearts),
+            Call::Pass,
+        ]);
+        assert_eq!(single.partner().points, Range::new(6, 10));
+        // [1♥, P, 3♥, P]: a limit (jump) raise is 10–12.
+        let limit = read(&[
+            bid(1, Strain::Hearts),
+            Call::Pass,
+            bid(3, Strain::Hearts),
+            Call::Pass,
+        ]);
+        assert_eq!(limit.partner().points, Range::new(10, 12));
+        // [1♥, P, 1NT, P]: a 1NT response is 6–12.
+        let one_nt = read(&[
+            bid(1, Strain::Hearts),
+            Call::Pass,
+            bid(1, Strain::Notrump),
+            Call::Pass,
+        ]);
+        assert_eq!(one_nt.partner().points, Range::new(6, 12));
+    }
+
+    #[test]
+    fn competition_suppresses_the_limited_rebid_reading() {
+        // [1♦, P, 1♥, 1♠, 1NT, P]: with the opponents in, opener's 1NT is not
+        // the quiet 12–16 rebid — leave the strength at the opening's 12–21.
+        let inf = read(&[
+            bid(1, Strain::Diamonds),
+            Call::Pass,
+            bid(1, Strain::Hearts),
+            bid(1, Strain::Spades),
+            bid(1, Strain::Notrump),
+            Call::Pass,
+        ]);
+        assert_eq!(inf.partner().points, Range::new(12, 21));
     }
 
     #[test]

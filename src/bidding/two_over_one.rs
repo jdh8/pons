@@ -283,6 +283,14 @@ fn with_floor<C: Classifier + 'static>(mut pair: Pair, floor: C) -> Pair {
     let floor = Fallback::classify(floor);
     pair.competitive.fallback_at(&[], Always, floor.clone());
     pair.defensive.fallback_at(&[], Always, floor);
+    // Uncontested auctions never reach the contested floor, so an off-book
+    // constructive sequence would pass out below a cold game (e.g. `1♦–1♥–1NT`
+    // passed out on a balanced 16 opposite the 12–14 rebid).  Floor the
+    // constructive book with the deterministic instinct ladder — the learned
+    // floors are trained on contested auctions only, so the natural milestone
+    // bidder is the right answer here — and those sequences reach game or slam.
+    pair.constructive
+        .fallback_at(&[], Always, Fallback::classify(instinct()));
     pair
 }
 
@@ -368,16 +376,11 @@ pub fn bare_two_over_one_strawberry() -> Pair {
 /// opponents' [`Family`] with [`Pair::against`] and seat it the same way.
 #[must_use]
 pub fn two_over_one_strawberry() -> Pair {
-    let mut pair = with_instinct_floor(bare_two_over_one_strawberry());
-    // The deep BTU / strawberry continuations are not exhaustively authored
-    // (super-accepts, slam relays, …), so — unlike the baseline — also floor the
-    // *constructive* book.  Uncovered uncontested auctions then get instinct's
-    // natural answer (a raise to game, a sign-off) instead of a pass-out below
-    // game.  Instinct's unforced default is still Pass, so weak auctions are
-    // unaffected.
-    let floor = Fallback::classify(instinct());
-    pair.constructive.fallback_at(&[], Always, floor);
-    pair
+    // `with_floor` already floors the constructive book with instinct (the deep
+    // BTU / strawberry continuations — super-accepts, slam relays — are not
+    // exhaustively authored, so uncovered uncontested auctions get instinct's
+    // natural milestone answer instead of a pass-out below game).
+    with_instinct_floor(bare_two_over_one_strawberry())
 }
 
 #[cfg(test)]

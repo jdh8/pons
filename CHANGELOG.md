@@ -519,6 +519,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The instinct floor is now a milestone bidder, and it floors the constructive
+  book too.** Two coupled changes, worth **+1.12 IMPs/board** (instinct-floor A/B,
+  4000 boards, up from ≈+0.5 for the old contested-only floor):
+  - *General game/slam selection.* The floor's game bidding was special-cased to
+    three forced auctions (strong-notrump responder, strong 2♣, takeout-double
+    advance). It now also fires on a general trigger: our own `point_count` plus
+    the **sound floor** of partner's shown points (`Inferences::partner().points.min`)
+    reaching a milestone — 25 for game, 33/37 for small/grand slam. Below game it
+    takes the cheapest milestone (a known eight-card major fit → 4M, else 3NT,
+    dropping to 5m only when a suit they bid is unstopped); in the slam zone it
+    bids 6M/6NT/7M/7NT. Because the trigger reads the *guaranteed* minimum, it
+    never overbids a hand that could be weaker than counted — it only stops
+    passing out cold games.
+  - *Constructive flooring.* `with_floor` now attaches the deterministic instinct
+    ladder to the **constructive** book as well, not just the contested books.
+    Uncontested off-book auctions previously fell through to a pass — e.g.
+    `1♦–1♥–1NT` was passed out on a balanced 16 opposite the 12–14 rebid, a cold
+    3NT (the learned neural/search floors don't help here: they are wired onto the
+    contested books only). They now reach the milestone. `two_over_one_strawberry`
+    floored the constructive book by hand for the same reason; that is now the
+    default and its bespoke block is gone.
+- **The auction inference reads limited rebids and raises.** `Inferences` now
+  narrows the shown point range for opener's 1NT rebid (12–16) and **jump** 2NT
+  rebid (18–21, the slam-enabling minimum), the single (6–10) and limit (10–12)
+  raise, and the 1NT response (6–12) — each a sound bound, read only when the
+  opponents stay silent (a competitive 2NT or raise can be off-meaning). A latent
+  bug in the highest-contract tracker (`outranks` ranked strain before level, so
+  `2♣` did not outrank `1♠`) was fixed in passing; it gated the jump detection the
+  new readings rely on. Sharper partner-strength is what lets the milestone floor
+  reach slams.
 - **BBA/EPBot is now bundled as a git submodule.** With redistribution permitted
   by its author (free for non-commercial use), the reference engine that the
   `bba-match`, `polish-club-reference`, and `bba-wj-reference` examples benchmark
