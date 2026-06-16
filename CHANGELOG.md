@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`calibrate-eval` example**: regresses double-dummy tricks on the partnership
+  hand evaluators (HCP, Fifths, BUM-RAP, LTC, NLTC, Zar, CCCC) using the
+  precomputed 100k-deal database `sol100000.txt` — **no DD solving**, so it is
+  fast and cannot overfit the bidder. It decodes that file's **GIB** format
+  (West-first deal; 20 hex DD cells over strains `NT,S,H,D,C` × declarers
+  `E,N,W,S`, with East/West stored as `13 − tricks`; verified against the
+  solver) and reports, per evaluator and per context (notrump vs an 8+-card
+  trump fit), the trick mapping (slope, intercept, residual σ, R²) and a
+  concentration term `c·|eᴺ − eˢ|` that measures non-additivity. Findings: the
+  evaluators are essentially perfectly additive (`c ≈ 0`); BUM-RAP/Fifths fit
+  notrump tricks best, NLTC clearly beats LTC for suit play, and the textbook
+  "tricks = 24 − losers" base is empirically closer to 22 (NLTC) / 20 (LTC).
+
 - **Tag features for the neural floor** (AI-bidder **M5.1**): a second, opt-in
   feature-spec version that feeds the **WBF tags of the recent calls** into the
   policy net as categorical inputs. A new `bidding::tags` module lifts the
