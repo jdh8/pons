@@ -111,8 +111,9 @@ fn test_deep_contested_auction_is_covered() {
 
 // --- Rubens advances: the floor owns advancing a simple overcall ------------
 
-/// (1♣) 1♠ (P): advancing with our own five-card diamond suit transfers — 2♣
-/// shows diamonds.  Reaches the floor now that the book authors no `advances`.
+/// (1♣) 1♠ (P): advancing with our own five-card diamond suit and a good 9
+/// (10+ upgraded points) transfers — 2♣ shows diamonds.  Reaches the floor now
+/// that the book authors no `advances`.
 #[test]
 fn test_rubens_new_suit_transfer_through_system() {
     let system = stance();
@@ -120,7 +121,7 @@ fn test_rubens_new_suit_transfer_through_system() {
         best_call(
             &system,
             &[call(1, Strain::Clubs), call(1, Strain::Spades), Call::Pass],
-            "2.J32.KQT54.J432",
+            "2.K32.KQT54.J432",
         ),
         call(2, Strain::Clubs),
     );

@@ -9,13 +9,12 @@
 //! (`docs/ai-bidder/dsl-spec.md` and
 //! [`verify`][mod@crate::bidding::verify]), and the source of the second description corpus.
 //!
-//! # Not the strawberry 2/1 variant
+//! # A genuine Polish Club, not natural 2/1
 //!
-//! This is a genuinely different system from
-//! [`two_over_one_strawberry`][super::two_over_one::two_over_one_strawberry],
-//! which is a `NATURAL`-family 2/1 with a few polish.club conventions layered on
-//! (it keeps a natural 1♦ and the strong artificial 2♣).  Here 1♣ is the
-//! artificial small-club itself and the family is [`Family::POLISH_CLUB`].
+//! Unlike [`two_over_one`][super::two_over_one::two_over_one] — a
+//! `NATURAL`-family 2/1 with a natural 1♦ and a strong artificial 2♣ — here 1♣
+//! is the artificial small-club itself and the family is
+//! [`Family::POLISH_CLUB`].
 //!
 //! # Scope (M4.3, first pass)
 //!
@@ -24,9 +23,9 @@
 //! Gladiator, Odwrotka, the strong-club relays) left to the
 //! [`instinct`][super::instinct()] floor, which is attached to *all three* books
 //! (including the constructive one, as in
-//! [`two_over_one_strawberry`][super::two_over_one::two_over_one_strawberry]) so
-//! no uncontested auction strands.  The Competitive and Defensive books are
-//! empty for now; the floor answers those auctions until a later pass.
+//! [`two_over_one`][super::two_over_one::two_over_one]) so no uncontested
+//! auction strands.  The Competitive and Defensive books are empty for now; the
+//! floor answers those auctions until a later pass.
 //!
 //! [`instinct`][super::instinct()] stays the baseline and the floor; this is an
 //! added system, never a removal.

@@ -68,7 +68,6 @@ use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Strain};
 use std::sync::Arc;
 
-mod btu_notrump;
 mod competition;
 mod defense;
 mod game_force;
@@ -77,9 +76,7 @@ mod openings;
 mod raises;
 mod rebids;
 mod responses;
-mod rubens;
 mod slam;
-mod stenberg;
 mod strong_two;
 mod weak_twos;
 
@@ -317,8 +314,6 @@ fn with_floor<C: Classifier + 'static>(mut pair: Pair, floor: C) -> Pair {
 }
 
 /// Attach the deterministic instinct floor to a pair's contested books
-///
-/// Shared by [`two_over_one`] and [`two_over_one_strawberry`].
 fn with_instinct_floor(pair: Pair) -> Pair {
     with_floor(pair, instinct())
 }
@@ -350,59 +345,6 @@ pub fn bare_two_over_one() -> Pair {
         competition::competition(),
         defense::defensive(),
     )
-}
-
-/// Build the strawberry variant pair: 2/1 with optional polish.club conventions
-///
-/// The same natural 2/1 core as [`bare_two_over_one`], with three conventions
-/// from the author's *Strawberry Polish Club* notes (<https://polish.club>)
-/// layered in — each chosen to remain *applicable* to a 2/1 framework:
-///
-/// - **Strawberry Stenberg 2NT** (`stenberg`) replaces Jacoby 2NT as opener's
-///   rebid structure after `1M – 2NT`. The 2NT raise itself is unchanged.
-/// - **BTU strong-1NT responses** (`btu_notrump`) replace the baseline 1NT
-///   response block (`notrump::register_one_nt`); the 2NT-strength and
-///   18–19-rebid structures (`notrump::register_two_nt_and_rebids`) are kept.
-/// - **Rubens (transfer) advances** (`rubens`) overlay transfer advances of
-///   partner's overcall and takeout double onto the natural defensive book.
-///
-/// This is the floor-less ablation handle, mirroring [`bare_two_over_one`], so
-/// the two can be A/B'd against each other and against the baseline 2/1.
-#[must_use]
-pub fn bare_two_over_one_strawberry() -> Pair {
-    let mut c = Constructive::new();
-
-    openings::register(&mut c);
-    responses::register(&mut c);
-    // Keep the 2NT-strength and 18–19 rebid structures; swap the 1NT block.
-    notrump::register_two_nt_and_rebids(&mut c);
-    btu_notrump::register(&mut c);
-    rebids::register(&mut c);
-    game_force::register(&mut c);
-    // Stenberg 2NT instead of `raises::register` (Jacoby 2NT).
-    stenberg::register(&mut c);
-    strong_two::register(&mut c);
-    weak_twos::register(&mut c);
-
-    // Overlay transfer (Rubens) advances onto the natural defensive book.
-    let mut defensive = defense::defensive();
-    rubens::register(&mut defensive);
-
-    Pair::new(Family::NATURAL, c, competition::competition(), defensive)
-}
-
-/// Build the strawberry variant with the instinct floor attached
-///
-/// The playable counterpart to [`bare_two_over_one_strawberry`], exactly as
-/// [`two_over_one`] is to [`bare_two_over_one`].  Bind it against the
-/// opponents' [`Family`] with [`Pair::against`] and seat it the same way.
-#[must_use]
-pub fn two_over_one_strawberry() -> Pair {
-    // `with_floor` already floors the constructive book with instinct (the deep
-    // BTU / strawberry continuations — super-accepts, slam relays — are not
-    // exhaustively authored, so uncovered uncontested auctions get instinct's
-    // natural milestone answer instead of a pass-out below game).
-    with_instinct_floor(bare_two_over_one_strawberry())
 }
 
 #[cfg(test)]
@@ -468,86 +410,5 @@ mod tests {
         assert_eq!(best(&r, &a, "A.Q6.KJ852.AKJ42"), Call::Double);
         // A light five-card major overcalls.
         assert_eq!(best(&r, &a, "AQJ32.853.42.K92"), call(1, Strain::Spades));
-    }
-
-    /// Play out an uncontested auction from a 1NT opening: opener and responder
-    /// both bid from the strawberry stance, the opponents always pass.
-    fn play_uncontested(opener: &str, responder: &str) -> Vec<Call> {
-        use crate::bidding::{Family, System};
-
-        let stance = super::two_over_one_strawberry().against(Family::NATURAL);
-        let oh: Hand = opener.parse().expect("valid opener hand");
-        let rh: Hand = responder.parse().expect("valid responder hand");
-
-        // Seat 0 has opened 1NT; seat 1 (an opponent) passed.
-        let mut auction = vec![call(1, Strain::Notrump), Call::Pass];
-        loop {
-            let n = auction.len();
-            if n >= 4 && auction[n - 3..].iter().all(|&c| c == Call::Pass) {
-                break;
-            }
-            assert!(n <= 48, "auction did not terminate: {auction:?}");
-            let next = match n % 4 {
-                seat @ (0 | 2) => {
-                    let hand = if seat == 0 { oh } else { rh };
-                    match stance.classify(hand, RelativeVulnerability::NONE, &auction) {
-                        // Off-book in the floorless constructive book → pass.
-                        None => Call::Pass,
-                        Some(logits) => (&logits.0)
-                            .into_iter()
-                            .filter(|(_, l)| l.is_finite())
-                            .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("not NaN"))
-                            .map(|(c, _)| c)
-                            .unwrap_or(Call::Pass),
-                    }
-                }
-                _ => Call::Pass,
-            };
-            auction.push(next);
-        }
-        auction
-    }
-
-    /// The last bid (final contract) of an auction.
-    fn final_bid(auction: &[Call]) -> Bid {
-        auction
-            .iter()
-            .rev()
-            .find_map(|c| match c {
-                Call::Bid(b) => Some(*b),
-                _ => None,
-            })
-            .expect("some contract was reached")
-    }
-
-    /// End-to-end: game-forcing responses to a strawberry 1NT must reach game,
-    /// never strand below it in the floorless constructive book.
-    ///
-    /// The constructive instinct floor handles natural continuations (e.g.
-    /// raising a super-accepted major); the instinct *forced-to-game* rules
-    /// ([`crate::bidding::instinct`][mod@crate::bidding::instinct]) catch the artificial ones (a notrump
-    /// super-accept, an asking relay) where a keyless raise has nothing to say.
-    #[test]
-    fn strawberry_btu_gf_auctions_reach_game() {
-        // A flat 17-count that opens a strawberry 1NT.
-        let opener = "AQ32.KJ5.KQ4.Q92";
-        // Game-forcing responder hands exercising distinct BTU branches.
-        let gf_hands = [
-            "KQ542.AJ842.K.32", // 5-5 majors → 3♦
-            "AJ52.Q73.AJ54.32", // GF 4♠, no 5-card major → Puppet 3♣
-            "73.AKQ842.K64.53", // GF 6♥ → South African Texas 4♣
-            "KQ52.AQ984.J6.32", // GF 5♥/4♠ → transfer / Smolen
-            "K92.Q73.AQ54.Q32", // GF balanced, no major → 3NT
-        ];
-        for rh in gf_hands {
-            let auction = play_uncontested(opener, rh);
-            let bid = final_bid(&auction);
-            let reached_game =
-                bid.level.get() >= 4 || (bid.level.get() == 3 && bid.strain == Strain::Notrump);
-            assert!(
-                reached_game,
-                "GF responder {rh} stranded below game: {auction:?} (final {bid:?})"
-            );
-        }
     }
 }

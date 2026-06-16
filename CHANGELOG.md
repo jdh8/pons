@@ -12,10 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Rubens (transfer) advances of a simple overcall, in the instinct floor.**
   When partner makes a *simple* (non-jump) suit overcall of a one-level opening
   and RHO passes, advancer's calls from the cue up to a two-level raise are
-  transfers to the next suit — a new-suit transfer shows a five-card suit, and
-  the transfer that lands in partner's suit is a limit-plus raise; over a
-  two-level overcall, where there is no room for the ladder, the cue itself is
-  the limit-plus raise. Jump overcalls are preemptive and advance naturally, as
+  transfers to the next suit — a new-suit transfer shows a five-card suit and
+  **10+ upgraded points** (a *good* 9 and all 10+, since the transfer commits
+  partner to the two level), and the transfer that lands in partner's suit is a
+  limit-plus raise; over a two-level overcall, where there is no room for the
+  ladder, the cue itself is the limit-plus raise. Jump overcalls are preemptive and advance naturally, as
   do advances of preemptive openings. The convention is implemented once,
   *programmatically*, in the keyless floor: `overcall_shape` /
   `advance_of_overcall` derive the transfer band for every (opening, overcall)
@@ -653,6 +654,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `fifths` on 5%). The policy is kept for its descriptive value — sharper
   announced ranges at equal measured strength — and the ablation hooks stay
   for tuning the halves separately.
+
+### Removed
+
+- **The strawberry 2/1 variant (`two_over_one_strawberry`,
+  `bare_two_over_one_strawberry`) and its three convention modules.** This was a
+  `NATURAL`-family 2/1 with a few polish.club conventions layered on — Strawberry
+  Stenberg 2NT (`stenberg`), BTU strong-1NT responses (`btu_notrump`), and a
+  **book** overlay of Rubens transfer raises (`two_over_one::rubens`). The book
+  Rubens collided with the new floor Rubens: it authored the transfer raise only
+  for 10–12 points, so a game-strength raise leaked past it to the floor's
+  cue-raise, giving the *same* limit-plus raise two different (and strength
+  inverted) calls. Rather than maintain two Rubens implementations, the variant
+  is dropped; the keyless floor's Rubens is the single source of truth, and the
+  genuine Polish Club port lives on in `polish_club()`. The conventions remain in
+  git history if ever wanted.
 
 ### Fixed
 

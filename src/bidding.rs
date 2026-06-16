@@ -53,7 +53,7 @@ pub use rules::Rules;
 pub use sampler::sample_layouts;
 pub use table::Table;
 pub use trie::{Trie, classifier};
-pub use two_over_one::{two_over_one, two_over_one_strawberry};
+pub use two_over_one::two_over_one;
 #[cfg(feature = "neural-floor")]
 pub use two_over_one::{two_over_one_neural, two_over_one_neural_search, two_over_one_neural_v2};
 #[cfg(feature = "search")]

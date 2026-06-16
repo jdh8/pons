@@ -193,9 +193,9 @@ pub(super) fn register(book: &mut Trie) {
 /// Register the standard 1NT-opening response structure
 ///
 /// Stayman 2♣, Jacoby transfers 2♦/2♥, notrump raises, and the quantitative
-/// 4NT invite — the baseline 2/1 treatment.  Factored out so an alternative
-/// 1NT scheme (such as `btu_notrump`) can replace just this block while
-/// [`register_two_nt_and_rebids`] keeps the rest.
+/// 4NT invite — the baseline 2/1 treatment.  Factored from the
+/// 2NT-strength/18–19-rebid block ([`register_two_nt_and_rebids`]) so an
+/// alternative 1NT scheme could replace just this part.
 pub(super) fn register_one_nt(book: &mut Trie) {
     let one_nt = call(1, Strain::Notrump);
     let four_nt = call(4, Strain::Notrump);
@@ -219,8 +219,8 @@ pub(super) fn register_one_nt(book: &mut Trie) {
 
 /// Register the 2NT-strength structure and the 18–19 2NT-rebid continuations
 ///
-/// Shared by both the baseline and the strawberry assemblies — only the
-/// 1NT-opening block ([`register_one_nt`]) varies between them.
+/// The half of the notrump book that an alternative 1NT-opening scheme would
+/// keep unchanged — only [`register_one_nt`] varies.
 pub(super) fn register_two_nt_and_rebids(book: &mut Trie) {
     let one_nt = call(1, Strain::Notrump);
     let two_nt = call(2, Strain::Notrump);

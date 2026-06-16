@@ -766,9 +766,10 @@ pub fn instinct() -> Rules {
 
     // Rubens advances of partner's simple overcall.  Over a one-level overcall
     // the calls from the cue up to just below a two-level raise are transfers to
-    // the next suit: a new-suit transfer shows a five-card suit, the transfer
-    // into partner's suit is a limit-plus raise.  Over a two-level overcall the
-    // cue itself is the limit-plus raise.  Both halves are read in [`Inferences`]
+    // the next suit: a new-suit transfer shows a five-card suit and 10+ upgraded
+    // points — a *good* 9 and all 10+, since the transfer commits partner to the
+    // two-level — and the transfer into partner's suit is a limit-plus raise.
+    // Over a two-level overcall the cue itself is the limit-plus raise.  Both halves are read in [`Inferences`]
     // (the transfer/cue suit is a relay, not a holding), so partner's instinct
     // completes the transfer and the milestone never misreads it as natural.
     //
@@ -782,7 +783,7 @@ pub fn instinct() -> Rules {
                 1.35,
                 rubens_transfer(source, false)
                     & len(target, 5..)
-                    & points(8..)
+                    & points(10..)
                     & min_level_is(2, source_strain),
             )
             .rule(
@@ -1105,9 +1106,14 @@ mod tests {
     #[test]
     fn rubens_new_suit_transfer() {
         // (1♣) 1♠ (P): advancing partner's spade overcall with our own five-card
-        // diamond suit, we transfer — 2♣ shows diamonds (the next suit up).
+        // diamond suit, we transfer — 2♣ shows diamonds (the next suit up).  The
+        // floor is 10 upgraded points (a *good* 9 and all 10+), since the
+        // transfer commits partner to the two-level.
         let auction = [call(1, Strain::Clubs), call(1, Strain::Spades), Call::Pass];
-        assert_eq!(best(&auction, "2.J32.KQT54.J432"), call(2, Strain::Clubs));
+        // A good 9: working K/KQ in a five-card suit upgrades over the floor.
+        assert_eq!(best(&auction, "2.K32.KQT54.J432"), call(2, Strain::Clubs));
+        // A bare 8 does not reach it: too weak to introduce the suit, pass.
+        assert_eq!(best(&auction, "2.Q32.KQT54.J432"), Call::Pass);
     }
 
     #[test]
