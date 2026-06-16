@@ -250,12 +250,14 @@ fn test_defense() {
         best_call(&system, &[call(1, Strain::Spades)], "2.KQ54.AJ43.KQ92"),
         Call::Double,
     );
-    // (1♣) - 1♠ - (P) - ?: advancer raises with three-card support.
+    // (1♣) - 1♠ - (P) - ?: advancing partner's overcall is the instinct floor's
+    // Rubens job now; a weak three-card raise still takes the simple 2♠ (a limit
+    // raise would transfer — see the Rubens rails in two_over_one_instinct).
     assert_eq!(
         best_call(
             &system,
             &[call(1, Strain::Clubs), call(1, Strain::Spades), Call::Pass],
-            "Q32.K54.A432.J92",
+            "Q32.J54.A432.J92",
         ),
         call(2, Strain::Spades),
     );

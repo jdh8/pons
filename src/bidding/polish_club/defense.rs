@@ -24,7 +24,7 @@
 
 use super::super::constraint::{
     balanced, described, hcp, len, min_level_is, nltc, points, short_in_their_suits,
-    stopper_in_their_suits, support, top_honors,
+    stopper_in_their_suits, top_honors,
 };
 use super::super::context::Context;
 use super::super::{Defensive, Rules};
@@ -291,17 +291,6 @@ pub fn defense_to_multi() -> Rules {
 // Advances
 // ---------------------------------------------------------------------------
 
-/// Advancer's raise of partner's natural overcall in `our_suit`
-#[must_use]
-pub fn advances(our_suit: Suit) -> Rules {
-    let s = Strain::from(our_suit);
-    Rules::new()
-        .rule(Bid::new(4, s), 1.6, support(5..) & hcp(..6))
-        .rule(Bid::new(3, s), 1.4, support(3..) & points(11..=12))
-        .rule(Bid::new(2, s), 1.0, support(3..) & points(6..=10))
-        .rule(Call::Pass, 0.0, hcp(..6))
-}
-
 /// Advancer's action after partner's takeout double, RHO passing: `(1Y) X (P)`
 ///
 /// Pass for penalty on a trump stack, jump to a major game with a fit and
@@ -426,19 +415,10 @@ pub fn defensive() -> Defensive {
             advance_double(opening),
         );
 
-        // Advancing partner's natural overcalls.
-        for our in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
-            let strain = Strain::from(our);
-            if strain != theirs {
-                let level = if strain > theirs { 1 } else { 2 };
-                insert_all_seats(
-                    &mut d,
-                    &[open, call(level, strain), Call::Pass],
-                    3,
-                    advances(our),
-                );
-            }
-        }
+        // Advancing partner's natural overcalls ([1t, overcall, Pass]) is left
+        // to the instinct floor's Rubens transfers: the floor computes the
+        // transfer band for every (opening, overcall) pair programmatically,
+        // which the written WJ notes could not express cleanly as a table.
 
         // Advancing the Unusual 2NT: [1t, 2NT, P].
         insert_all_seats(

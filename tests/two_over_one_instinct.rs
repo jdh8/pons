@@ -109,6 +109,71 @@ fn test_deep_contested_auction_is_covered() {
 
 // --- Precedence ---------------------------------------------------------------
 
+// --- Rubens advances: the floor owns advancing a simple overcall ------------
+
+/// (1♣) 1♠ (P): advancing with our own five-card diamond suit transfers — 2♣
+/// shows diamonds.  Reaches the floor now that the book authors no `advances`.
+#[test]
+fn test_rubens_new_suit_transfer_through_system() {
+    let system = stance();
+    assert_eq!(
+        best_call(
+            &system,
+            &[call(1, Strain::Clubs), call(1, Strain::Spades), Call::Pass],
+            "2.J32.KQT54.J432",
+        ),
+        call(2, Strain::Clubs),
+    );
+}
+
+/// (1♣) 1♠ (P): a limit raise of spades goes through the transfer into their
+/// suit — 2♥, not a direct 2♠.
+#[test]
+fn test_rubens_limit_raise_through_system() {
+    let system = stance();
+    assert_eq!(
+        best_call(
+            &system,
+            &[call(1, Strain::Clubs), call(1, Strain::Spades), Call::Pass],
+            "K54.K32.K43.Q432",
+        ),
+        call(2, Strain::Hearts),
+    );
+}
+
+/// (1♦) 1♠ (P): a weak six-card raise jumps preemptively to game.
+#[test]
+fn test_rubens_preemptive_raise_through_system() {
+    let system = stance();
+    assert_eq!(
+        best_call(
+            &system,
+            &[
+                call(1, Strain::Diamonds),
+                call(1, Strain::Spades),
+                Call::Pass
+            ],
+            "KJ7532.432.2.432",
+        ),
+        call(4, Strain::Spades),
+    );
+}
+
+/// (1♠) 2♣ (P): a two-level overcall has no room for the ladder, so the cue
+/// (2♠) is the limit-plus club raise.
+#[test]
+fn test_rubens_cue_raise_through_system() {
+    let system = stance();
+    assert_eq!(
+        best_call(
+            &system,
+            &[call(1, Strain::Spades), call(2, Strain::Clubs), Call::Pass],
+            "432.K32.K2.KQJ54",
+        ),
+        call(2, Strain::Spades),
+    );
+}
+
 /// The floor never shadows an authored rule: the direct overcall node still
 /// answers from the defensive book
 #[test]

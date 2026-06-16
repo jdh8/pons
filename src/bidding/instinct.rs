@@ -395,6 +395,110 @@ pub(crate) fn forced(context: &Context<'_>) -> bool {
             .any(|&(nt_level, from, _)| partner_transferred_now(context, from, nt_level))
 }
 
+/// The opponents opened a one-level suit `X`, and our side answered with a
+/// *simple* (non-jump) suit overcall `Y` — the setting for Rubens advances
+///
+/// Returns `(X, Y, overcall index, overcall level)`.  Only a one-level opening
+/// and a non-jump overcall qualify: a jump overcall is preemptive (advance it
+/// naturally, like over a preempt), and a preemptive opening leaves no room.  A
+/// cue-bid (`Y == X`) is not a natural overcall.  Shared with [`Inferences`] so
+/// the bidding and the reading agree on which calls are Rubens transfers.
+///
+/// [`Inferences`]: super::inference::Inferences
+pub(crate) fn overcall_shape(auction: &[Call]) -> Option<(Suit, Suit, usize, u8)> {
+    let (open_index, opening) = opening_bid(auction)?;
+    let x = opening.strain.suit()?;
+    if opening.level.get() != 1 {
+        return None;
+    }
+    let opening_side = open_index % 2;
+    let overcall_index =
+        (open_index + 1..auction.len()).find(|&i| matches!(auction[i], Call::Bid(_)))?;
+    // The first bid after the opening must be the *other* side's — an overcall,
+    // not the opening side bidding on.
+    if overcall_index % 2 == opening_side {
+        return None;
+    }
+    let Call::Bid(overcall) = auction[overcall_index] else {
+        return None;
+    };
+    let y = overcall.strain.suit()?;
+    if y == x {
+        return None;
+    }
+    // A simple overcall sits at the cheapest level: one when above the opening,
+    // two when below it.  Anything higher is a (preemptive) jump.
+    let simple = if (y as u8) > (x as u8) { 1 } else { 2 };
+    (overcall.level.get() == simple).then_some((x, y, overcall_index, simple))
+}
+
+/// We are advancing partner's simple overcall, RHO having passed: the auction is
+/// `(1X) Y (Pass)` to us
+///
+/// Returns `(X = the cue suit, Y = partner's overcall, overcall level)`.
+fn advance_of_overcall(context: &Context<'_>) -> Option<(Suit, Suit, u8)> {
+    let auction = context.auction();
+    let (x, y, overcall_index, level) = overcall_shape(auction)?;
+    (overcall_index + 2 == auction.len() && auction[auction.len() - 1] == Call::Pass)
+        .then_some((x, y, level))
+}
+
+/// `2 source` is a Rubens transfer over partner's one-level overcall: the band
+/// `X ≤ source < Y`, transferring to the next suit up
+///
+/// `into_partner` selects the transfer that lands in partner's suit `Y` (a
+/// limit-plus raise) over a new-suit transfer (advancer's own five-card suit).
+fn rubens_transfer(source: Suit, into_partner: bool) -> Cons<impl Constraint + Clone> {
+    pred(move |_: Hand, context: &Context<'_>| {
+        advance_of_overcall(context).is_some_and(|(x, y, level)| {
+            level == 1
+                && (x as u8) <= (source as u8)
+                && (source as u8) < (y as u8)
+                && (source as u8 + 1 == y as u8) == into_partner
+        })
+    })
+}
+
+/// `2 cue` is the Rubens cue-raise over partner's simple *two-level* overcall —
+/// a limit-plus raise, the cue being the opponents' suit `X`
+fn rubens_cue_raise(cue: Suit) -> Cons<impl Constraint + Clone> {
+    pred(move |_: Hand, context: &Context<'_>| {
+        advance_of_overcall(context).is_some_and(|(x, _, level)| level == 2 && x as u8 == cue as u8)
+    })
+}
+
+/// Partner answered our simple one-level overcall with a Rubens transfer, RHO
+/// passing — the cue to complete it
+///
+/// Returns the suit to complete into: the suit just above partner's transfer.
+/// Mechanical (hand-independent), like completing a transfer over our own
+/// notrump — see [`TRANSFERS`].
+fn rubens_completion(context: &Context<'_>) -> Option<Suit> {
+    let auction = context.auction();
+    let len = auction.len();
+    let (x, y, overcall_index, level) = overcall_shape(auction)?;
+    // Only a one-level overcall carries the transfer ladder; the sequence is
+    // overcall, (pass), transfer, (pass), us.
+    if level != 1
+        || overcall_index + 4 != len
+        || auction[overcall_index + 1] != Call::Pass
+        || auction[len - 1] != Call::Pass
+    {
+        return None;
+    }
+    let Call::Bid(transfer) = auction[overcall_index + 2] else {
+        return None;
+    };
+    let source = transfer.strain.suit()?;
+    (transfer.level.get() == 2 && (x as u8) <= (source as u8) && (source as u8) < (y as u8))
+        .then(|| Suit::ASC[(source as u8 + 1) as usize])
+}
+
+/// [`rubens_completion`] as a [`Constraint`]: complete into `target`
+fn rubens_completes(target: Suit) -> Cons<impl Constraint + Clone> {
+    pred(move |_: Hand, context: &Context<'_>| rubens_completion(context) == Some(target))
+}
+
 /// Build the instinct ladder: a sane natural action for any auction
 ///
 /// Forced (partner's live takeout double — see the [module docs][self]):
@@ -486,6 +590,16 @@ pub fn instinct() -> Rules {
                     & points(threshold..),
             );
         }
+
+        // Preemptive jump to game: five-card support but too weak to invite —
+        // the weak distributional raise, distinct from the point-showing raises
+        // above.  Now that the floor owns advances of an overcall, this is the
+        // weak end the book's `advances` used to cover.
+        rules = rules.rule(
+            Bid::new(4, strain),
+            1.3,
+            partner_suit_is(suit) & support(5..) & hcp(..6) & level_available(4, strain),
+        );
 
         // Overcall a five-card suit if we have not bid; the strength floor
         // rises with the level and stronger hands double first.
@@ -649,6 +763,54 @@ pub fn instinct() -> Rules {
                 & stopper_in_their_suits()
                 & level_available(7, Strain::Notrump),
         );
+
+    // Rubens advances of partner's simple overcall.  Over a one-level overcall
+    // the calls from the cue up to just below a two-level raise are transfers to
+    // the next suit: a new-suit transfer shows a five-card suit, the transfer
+    // into partner's suit is a limit-plus raise.  Over a two-level overcall the
+    // cue itself is the limit-plus raise.  Both halves are read in [`Inferences`]
+    // (the transfer/cue suit is a relay, not a holding), so partner's instinct
+    // completes the transfer and the milestone never misreads it as natural.
+    //
+    // [`Inferences`]: super::inference::Inferences
+    for source in [Suit::Clubs, Suit::Diamonds, Suit::Hearts] {
+        let source_strain = Strain::from(source);
+        let target = Suit::ASC[(source as u8 + 1) as usize];
+        rules = rules
+            .rule(
+                Bid::new(2, source_strain),
+                1.35,
+                rubens_transfer(source, false)
+                    & len(target, 5..)
+                    & points(8..)
+                    & min_level_is(2, source_strain),
+            )
+            .rule(
+                Bid::new(2, source_strain),
+                1.45,
+                rubens_transfer(source, true)
+                    & support(3..)
+                    & points(10..)
+                    & min_level_is(2, source_strain),
+            );
+    }
+    for cue in [Suit::Diamonds, Suit::Hearts, Suit::Spades] {
+        let cue_strain = Strain::from(cue);
+        rules = rules.rule(
+            Bid::new(2, cue_strain),
+            1.45,
+            rubens_cue_raise(cue) & support(3..) & points(10..) & min_level_is(2, cue_strain),
+        );
+    }
+    // Complete partner's transfer into the suit just above it — mechanical, like
+    // completing a transfer over our own notrump.
+    for target in [Suit::Diamonds, Suit::Hearts, Suit::Spades] {
+        rules = rules.rule(
+            Bid::new(2, Strain::from(target)),
+            1.55,
+            rubens_completes(target),
+        );
+    }
 
     // Takeout double of their low suit bid: shape with opening values, or
     // any strong hand planning to bid again.
@@ -938,5 +1100,55 @@ mod tests {
         assert_eq!(best(&auction, "AKQ.AQJ.32.K432"), call(3, Strain::Notrump));
         // No club guard and no fit: pass rather than bid into an unstopped suit.
         assert_eq!(best(&auction, "AKQ4.AKQ4.32.432"), Call::Pass);
+    }
+
+    #[test]
+    fn rubens_new_suit_transfer() {
+        // (1♣) 1♠ (P): advancing partner's spade overcall with our own five-card
+        // diamond suit, we transfer — 2♣ shows diamonds (the next suit up).
+        let auction = [call(1, Strain::Clubs), call(1, Strain::Spades), Call::Pass];
+        assert_eq!(best(&auction, "2.J32.KQT54.J432"), call(2, Strain::Clubs));
+    }
+
+    #[test]
+    fn rubens_limit_raise_transfer() {
+        // (1♣) 1♠ (P): a limit raise of partner's spades goes through the
+        // transfer that lands in their suit — 2♥ (the bid just below 2♠).
+        let auction = [call(1, Strain::Clubs), call(1, Strain::Spades), Call::Pass];
+        assert_eq!(best(&auction, "K54.K32.K43.Q432"), call(2, Strain::Hearts));
+    }
+
+    #[test]
+    fn rubens_completion_is_mechanical() {
+        // (1♣) 1♠ (P) 2♣ (P): partner transferred to diamonds; the overcaller
+        // completes into 2♦ regardless of hand.
+        let auction = [
+            call(1, Strain::Clubs),
+            call(1, Strain::Spades),
+            Call::Pass,
+            call(2, Strain::Clubs),
+            Call::Pass,
+        ];
+        assert_eq!(
+            best(&auction, "AKJ52.K3.952.J32"),
+            call(2, Strain::Diamonds)
+        );
+    }
+
+    #[test]
+    fn rubens_two_level_cue_raise() {
+        // (1♠) 2♣ (P): partner overcalled at the two level, so the cue (2♠) is
+        // the limit-plus raise of clubs — no transfer ladder where there is no room.
+        let auction = [call(1, Strain::Spades), call(2, Strain::Clubs), Call::Pass];
+        assert_eq!(best(&auction, "432.K32.K2.KQJ54"), call(2, Strain::Spades));
+    }
+
+    #[test]
+    fn rubens_skips_jump_overcalls() {
+        // (1♣) 2♠ (P): partner's 2♠ is a jump (1♠ was available), a preemptive
+        // weak jump overcall — not a simple overcall, so no Rubens.  A limit hand
+        // with support raises spades naturally rather than transferring.
+        let auction = [call(1, Strain::Clubs), call(2, Strain::Spades), Call::Pass];
+        assert_eq!(best(&auction, "K54.K32.K43.Q432"), call(3, Strain::Spades));
     }
 }

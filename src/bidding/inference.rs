@@ -247,6 +247,10 @@ impl Inferences {
         let mut side_acted = [false; 2];
         let mut highest: Option<Bid> = None;
 
+        // Rubens advances name relay suits; identify them so the natural reading
+        // skips them, and capture a cue-raise's strength to apply afterwards.
+        let (rubens_suppress, rubens_cue) = rubens_reading(auction);
+
         for (index, &call) in auction.iter().enumerate() {
             let lane = index % 4;
             let who = relative_of(len, index) as usize;
@@ -278,7 +282,8 @@ impl Inferences {
                         let over_one_notrump = is_opening_side
                             && opening_bid == Bid::new(1, Strain::Notrump)
                             && bid.level.get() == 3;
-                        let suppress = is_opening_side && opening_artificial && !over_one_notrump;
+                        let suppress = (is_opening_side && opening_artificial && !over_one_notrump)
+                            || rubens_suppress.contains(&Some(index));
 
                         if !suppress {
                             let jump = bid
@@ -395,6 +400,15 @@ impl Inferences {
             }
         }
 
+        // A two-level cue-raise shows a limit-plus raise: three-plus cards in
+        // partner's overcall and opening values.  Recorded after the walk (the
+        // cue itself named the opponents' suit, suppressed above).
+        if let Some((cue_index, overcall_suit)) = rubens_cue {
+            let who = relative_of(len, cue_index) as usize;
+            players[who].narrow_length(overcall_suit, Range::at_least(3, LENGTH_CAP));
+            players[who].narrow_points(Range::at_least(10, POINTS_CAP));
+        }
+
         Self { players }
     }
 }
@@ -414,6 +428,56 @@ const fn cheapest_level(highest: Option<Bid>, strain: Strain) -> u8 {
         Some(h) if strain as u8 > h.strain as u8 => h.level.get(),
         Some(h) => h.level.get() + 1,
     }
+}
+
+/// The Rubens-artificial calls of an advance, and a cue-raise's strength reading
+///
+/// In a [Rubens advance][super::instinct::overcall_shape] of a simple overcall,
+/// some calls *name* a suit they do not *hold*: the advancer's transfer (a relay
+/// to the next suit up) or cue-raise, and the overcaller's forced completion.
+/// Returns `(suppress, cue)` — `suppress` lists those indices, whose bid suit
+/// must not be read as natural length; `cue` is `(index, Y)` of a two-level
+/// cue-raise, read separately as a limit-plus raise (three-plus cards in
+/// partner's overcall `Y`, ten-plus points).
+///
+/// A new-suit transfer's target is the *advancer's* own suit and the completion
+/// is a forced relay, so neither is read as length (soundness over tightness, as
+/// with transfers over our own notrump).  The cue-raise's *strength*, by
+/// contrast, is what lets the overcaller reach game, so it is recorded.
+fn rubens_reading(auction: &[Call]) -> ([Option<usize>; 2], Option<(usize, Suit)>) {
+    let none = ([None, None], None);
+    let Some((x, y, overcall_index, level)) = super::instinct::overcall_shape(auction) else {
+        return none;
+    };
+    // The advance comes after the overcaller's partner (RHO of the overcaller)
+    // passes; the advancer's call sits two past the overcall.
+    if auction.get(overcall_index + 1) != Some(&Call::Pass) {
+        return none;
+    }
+    let advance_index = overcall_index + 2;
+    let Some(&Call::Bid(advance)) = auction.get(advance_index) else {
+        return none;
+    };
+    if level == 2 {
+        // Two-level overcall: the cue-raise (2X) is the lone artificial call.
+        return if advance == Bid::new(2, Strain::from(x)) {
+            ([Some(advance_index), None], Some((advance_index, y)))
+        } else {
+            none
+        };
+    }
+    // One-level overcall: a transfer 2S (X ≤ S < Y), then the completion 2(S+1).
+    let Some(source) = advance.strain.suit() else {
+        return none;
+    };
+    if advance.level.get() != 2 || (source as u8) < (x as u8) || (source as u8) >= (y as u8) {
+        return none;
+    }
+    let target = Strain::from(Suit::ASC[(source as u8 + 1) as usize]);
+    let completion = (auction.get(advance_index + 1) == Some(&Call::Pass)
+        && auction.get(advance_index + 2) == Some(&Call::Bid(Bid::new(2, target))))
+    .then_some(advance_index + 2);
+    ([Some(advance_index), completion], None)
 }
 
 /// Apply the meaning of the opening bid (the first non-pass call)
@@ -739,6 +803,37 @@ mod tests {
             Call::Pass,
         ]);
         assert_eq!(inf.partner().points, Range::new(12, 21));
+    }
+
+    #[test]
+    fn rubens_cue_raise_shows_support() {
+        // (1♠) 2♣ (P) 2♠ (P): we overcalled 2♣, partner cue-raised 2♠ — a
+        // limit-plus club raise.  The overcaller reads three-plus clubs and
+        // ten-plus points, but no spade length (the cue is a relay).
+        let inf = read(&[
+            bid(1, Strain::Spades),
+            bid(2, Strain::Clubs),
+            Call::Pass,
+            bid(2, Strain::Spades),
+            Call::Pass,
+        ]);
+        assert!(inf.partner().length(Suit::Clubs).min >= 3);
+        assert!(inf.partner().points.min >= 10);
+        assert_eq!(inf.partner().length(Suit::Spades), Range::FULL_LENGTH);
+    }
+
+    #[test]
+    fn rubens_transfer_is_not_read_as_natural() {
+        // (1♣) 1♠ (P) 2♣ (P): we overcalled 1♠, partner transferred 2♣ (a relay
+        // to diamonds).  The bid suit must not be read as a club holding.
+        let inf = read(&[
+            bid(1, Strain::Clubs),
+            bid(1, Strain::Spades),
+            Call::Pass,
+            bid(2, Strain::Clubs),
+            Call::Pass,
+        ]);
+        assert_eq!(inf.partner().length(Suit::Clubs), Range::FULL_LENGTH);
     }
 
     #[test]

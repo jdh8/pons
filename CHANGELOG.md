@@ -9,6 +9,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Rubens (transfer) advances of a simple overcall, in the instinct floor.**
+  When partner makes a *simple* (non-jump) suit overcall of a one-level opening
+  and RHO passes, advancer's calls from the cue up to a two-level raise are
+  transfers to the next suit — a new-suit transfer shows a five-card suit, and
+  the transfer that lands in partner's suit is a limit-plus raise; over a
+  two-level overcall, where there is no room for the ladder, the cue itself is
+  the limit-plus raise. Jump overcalls are preemptive and advance naturally, as
+  do advances of preemptive openings. The convention is implemented once,
+  *programmatically*, in the keyless floor: `overcall_shape` /
+  `advance_of_overcall` derive the transfer band for every (opening, overcall)
+  pair, so one rule set serves all of them (a per-suit authored table could
+  not), and the meaning is mirrored in `Inferences` — the transfer/cue suit is a
+  relay, not a holding (suppressed), while a cue-raise is read as three-plus
+  support and ten-plus points so the overcaller can still reach game. Partner's
+  instinct therefore completes the transfer mechanically and never misreads it.
+  The floor now **owns advancing a simple overcall**: the books' raises-only
+  `advances()` — which returned a degenerate result on hands it could not
+  classify, such as a five-card side suit with no support — is removed from both
+  the 2/1 and Polish Club defensive books, and the floor's Rubens transfers,
+  natural raises, and a weak preemptive jump cover the position. *Measured:*
+  floor worth preserved at **+1.03 IMPs/board** (instinct-floor A/B, 8000 boards,
+  vul none), with transfers confirmed firing in the off-book telemetry; against
+  BBA's 2/1 (`bba-match`, 2000 boards, vul none) **−2.02 IMPs/board vs −2.13
+  pre-Rubens** — neutral-to-slightly-positive, no regression from moving
+  advances to the floor. Eleven tests: floor and inference unit tests plus four
+  full-system integration rails (new-suit transfer, limit-raise transfer,
+  preemptive raise, two-level cue-raise).
 - **`constructive-abc` example + `two_over_one_constructive_floor` builder.**
   The neural/search floors only ever own the *contested* books — unbooked
   *constructive* auctions are always answered by the deterministic `instinct()`
