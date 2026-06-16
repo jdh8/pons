@@ -17,10 +17,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `E,N,W,S`, with East/West stored as `13 − tricks`; verified against the
   solver) and reports, per evaluator and per context (notrump vs an 8+-card
   trump fit), the trick mapping (slope, intercept, residual σ, R²) and a
-  concentration term `c·|eᴺ − eˢ|` that measures non-additivity. Findings: the
-  evaluators are essentially perfectly additive (`c ≈ 0`); BUM-RAP/Fifths fit
-  notrump tricks best, NLTC clearly beats LTC for suit play, and the textbook
-  "tricks = 24 − losers" base is empirically closer to 22 (NLTC) / 20 (LTC).
+  concentration term `c·|eᴺ − eˢ|` that measures non-additivity. Hands taking
+  fewer than 6 double-dummy tricks are dropped (never bid), and the survivors
+  are further split into partscore (6–8), game (9–11) and slam (12–13) zones,
+  each reporting the strength `Σ` it requires and its own linear `tricks = b·Σ + a`
+  fit. Findings: the evaluators are essentially perfectly additive (`c ≈ 0`);
+  BUM-RAP/Fifths fit notrump tricks best while Zar/CCCC win the suit fit; NLTC
+  clearly beats LTC; the textbook "tricks = 24 − losers" base is empirically
+  closer to 22 (NLTC) / 20 (LTC); and the slope flattens sharply toward slam
+  (an extra notrump HCP is worth ≈ 0.4 tricks overall but only ≈ 0.05 in the
+  slam zone — slams are decided by controls and fit, not raw points).
 
 - **Tag features for the neural floor** (AI-bidder **M5.1**): a second, opt-in
   feature-spec version that feeds the **WBF tags of the recent calls** into the
