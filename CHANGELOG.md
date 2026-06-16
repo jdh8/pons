@@ -74,11 +74,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   higher-entropy distribution. **Measured** (20 000-board duplicate A/B, vul none):
   **+0.787 IMPs/board vs the v1 teacher-distilled net** (95 % CI [+0.718, +0.857]),
   and +0.700 vs the deterministic floor ([+0.630, +0.770]) and +0.816 vs bare
-  books — a decisive gain by the harness metric, concentrated **off-book/competitive** (where
-  the search teacher, with perfect-defense doubling, focused). *Caveat:* divergence
-  from the v1 net is high (75 % of boards) and the A/B is double-dummy-scored like
-  the teacher, so the magnitude likely overstates real-table value (DD rewards the
-  DD-trained net's aggressiveness). New artifact
+  books — a decisive gain, concentrated **off-book/competitive**. The high divergence
+  (75 % of boards) is the net reaching makeable games/slams the conservative v1
+  misses, *not* overbidding: against double-dummy par (small slam makeable on
+  10.65 % of deals, grand 2.94 %) the search net in fact **under**-bids slams
+  (4.0 %/1.7 %) while v1 is the pathological under-bidder (≈0). A
+  perfect-defense-doubling rescore — DD the optimistic bound, PD the pessimistic —
+  **brackets** the gain and it survives both: search vs v1 holds at 0.35 IMPs/board
+  under PD (vs 0.79–0.86 under DD across two 20k samples), CI excluding 0; search vs
+  the deterministic floor 0.40 under PD. The `examples/neural-floor` A/B now prints
+  both views per matchup. Only the single-dummy haircut (deferred — needs a cardplay
+  engine) stays unquantified. New artifact
   `src/bidding/weights/two_over_one_v1_search.{f32,json,fixture.json}`; no new crate
   dependencies; the default build is unchanged. Iteration (round 2: regenerate
   targets with this net as the search policy) is deferred.

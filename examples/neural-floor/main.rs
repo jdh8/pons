@@ -39,7 +39,7 @@ use ddss::{NonEmptyStrainFlags, Solver};
 use pons::bidding::context::relative;
 use pons::bidding::two_over_one::bare_two_over_one;
 use pons::bidding::{Family, Stance, System};
-use pons::scoring::{final_contract, imps, ns_score};
+use pons::scoring::{final_contract, imps, ns_score, ns_score_doubling_failures};
 use pons::{
     Accumulator, two_over_one, two_over_one_neural, two_over_one_neural_search,
     two_over_one_neural_v2,
@@ -125,6 +125,11 @@ struct Board {
 struct MatchResult {
     /// Per-board IMP swing to the home team (0 on non-divergent boards)
     swings: Vec<i64>,
+    /// Same swings, but scored under perfect-defense doubling
+    /// ([`ns_score_doubling_failures`]): a contract that fails double dummy is
+    /// priced *doubled*, so phantom/failing contracts are punished as good
+    /// defenders would. The realism check on the DD-optimistic `swings`.
+    swings_pd: Vec<i64>,
     /// Boards whose two tables reached different contracts
     divergent: usize,
 }
@@ -172,14 +177,19 @@ fn duplicate_match(
     let tables = Solver::lock().solve_deals(&deals, NonEmptyStrainFlags::ALL);
 
     let mut swings = vec![0i64; count];
+    let mut swings_pd = vec![0i64; count];
     for (&index, table) in divergent.iter().zip(tables.iter()) {
         let (contract_a, contract_b) = contracts[index];
         let points = ns_score(contract_a, table, vul) - ns_score(contract_b, table, vul);
         swings[index] = imps(points);
+        let points_pd = ns_score_doubling_failures(contract_a, table, vul)
+            - ns_score_doubling_failures(contract_b, table, vul);
+        swings_pd[index] = imps(points_pd);
     }
 
     MatchResult {
         swings,
+        swings_pd,
         divergent: divergent.len(),
     }
 }
@@ -192,15 +202,24 @@ fn report(
     vul: AbsoluteVulnerability,
     target: f64,
 ) {
-    let mut acc = Accumulator::new();
-    for &swing in &result.swings {
-        acc.push(swing as f64);
-    }
-    let stats = acc.sample();
-    let mean = stats.mean();
-    let se = stats.sd() / (count.max(1) as f64).sqrt();
-    let (lo, hi) = (mean - 1.96 * se, mean + 1.96 * se);
-    let total: i64 = result.swings.iter().sum();
+    let summarize = |swings: &[i64]| -> (i64, f64, f64, f64, f64) {
+        let mut acc = Accumulator::new();
+        for &swing in swings {
+            acc.push(swing as f64);
+        }
+        let stats = acc.sample();
+        let mean = stats.mean();
+        let se = stats.sd() / (count.max(1) as f64).sqrt();
+        (
+            swings.iter().sum(),
+            mean,
+            mean - 1.96 * se,
+            mean + 1.96 * se,
+            se,
+        )
+    };
+    let (total, mean, lo, hi, se) = summarize(&result.swings);
+    let (total_pd, mean_pd, lo_pd, hi_pd, _) = summarize(&result.swings_pd);
 
     println!("\n=== {label}: {count} boards, vulnerability {vul} ===");
     println!(
@@ -210,6 +229,10 @@ fn report(
     );
     println!("Home (neural) team: {total:+} IMPs, {mean:+.3} IMPs/board");
     println!("  95% CI: [{lo:+.3}, {hi:+.3}]  (SE {se:.3}, n = {count})");
+    println!(
+        "  perfect-defense doubling: {total_pd:+} IMPs, {mean_pd:+.3} IMPs/board, \
+         CI [{lo_pd:+.3}, {hi_pd:+.3}]"
+    );
 
     if target == 0.0 {
         let within = (lo..=hi).contains(&0.0);
