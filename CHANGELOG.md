@@ -629,7 +629,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **Notrump opening inferences are now sound under fuzzy strength.** The 1NT/2NT
+- **The instinct floor's 3NT game milestone now requires a stopper in their
+  suits, so it never bids notrump game into an unstopped enemy suit in a
+  competitive auction.** The milestone game/slam ladder already fires in
+  competition (an overcall shows 8+, a takeout double 11+, and the combined-points
+  trigger has no "uncontested" guard), and its slam and minor-game rules already
+  gate on `stopper_in_their_suits()` — but the plain 3NT game rule did not, so a
+  game-values hand opposite a competitive overcall could bid 3NT with the
+  opponents' long suit wide open. The guard is **vacuous when uncontested** (no
+  suit of theirs to stop), so constructive auctions are unchanged; only contested
+  ones differ — a stopperless, fitless game-values hand now passes (or competes)
+  rather than bidding a doomed notrump. Floor worth on the `instinct-floor` A/B is
+  preserved (6000 boards: **+1.10 IMPs/board** vul none, **+0.40** both), and the
+  telemetry confirms the floor's competitive judgement firing — milestone games
+  (`3NT  1♦ P 1♥ P 2♦ P`) and reopening takeout doubles (`X  1♦ 1♠ P P`) — in the
+  off-book tail it owns.
   openings gate on `fifths` (which downgrades quack-heavy hands), but the
   inference layer recorded their point ranges on the raw-HCP scale, so a balanced
   quack-heavy 19-count (e.g. ♠KQJx ♥KQx ♦KQx ♣Kxx — 17.6 fifths) opened 1NT yet

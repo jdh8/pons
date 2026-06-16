@@ -544,8 +544,11 @@ pub fn instinct() -> Rules {
     // forced past invitation.  A fourth strand is *general*: our own count plus
     // the sound floor of partner's shown points reaching 25 (the inference makes
     // it sound, never an overbid).  Below game we take the cheapest milestone — a
-    // known major fit, else 3NT, dropping to the minor game only when their suit
-    // is unstopped — but step aside when penalizing the opponents.
+    // known major fit, else 3NT with their suits stopped, dropping to the minor
+    // game only when their suit is unstopped — but step aside when penalizing the
+    // opponents.  The 3NT stopper guard is vacuous uncontested (no suit of theirs
+    // to stop), so it changes only competitive auctions: never a notrump game bid
+    // into an unstopped enemy suit.
     let game_values = ((partner_strong_notrump(1) & hcp(10..))
         | (partner_strong_notrump(2) & hcp(5..))
         | auction_forces_game()
@@ -554,7 +557,10 @@ pub fn instinct() -> Rules {
     rules = rules.rule(
         Bid::new(3, Strain::Notrump),
         1.40,
-        game_values.clone() & below_game() & level_available(3, Strain::Notrump),
+        game_values.clone()
+            & below_game()
+            & stopper_in_their_suits()
+            & level_available(3, Strain::Notrump),
     );
     for minor in [Suit::Clubs, Suit::Diamonds] {
         let strain = Strain::from(minor);
@@ -899,5 +905,38 @@ mod tests {
             Call::Pass,
         ];
         assert_eq!(best(&auction, "KQ.AKJ7.K94.8542"), call(6, Strain::Notrump));
+    }
+
+    #[test]
+    fn milestone_game_opposite_a_competitive_overcall() {
+        // LHO opened 3♦, partner overcalled 3♠ (the overcall reading: 5+ ♠,
+        // 8+ points), RHO passed.  A 21-count with three-card support lifts the
+        // combined minimum to 29 with a known eight-card spade fit, so the floor
+        // bids the game it would otherwise miss off-book.
+        let auction = [
+            call(3, Strain::Diamonds),
+            call(3, Strain::Spades),
+            Call::Pass,
+        ];
+        assert_eq!(best(&auction, "K32.AKJ.AQ4.KJ32"), call(4, Strain::Spades));
+        // A flat 12-count is only 20 combined: below the milestone, and no raise
+        // fits below game, so the floor stays sound and passes rather than overbid.
+        assert_eq!(best(&auction, "K32.KJ4.KQ4.5432"), Call::Pass);
+    }
+
+    #[test]
+    fn milestone_notrump_game_needs_a_stopper_in_competition() {
+        // LHO opened 3♣, partner overcalled 3♦, RHO passed.  Game values opposite
+        // the overcall, but no major fit and no diamond fit — the strain is 3NT,
+        // and the floor must hold a club guard to bid it.
+        let auction = [
+            call(3, Strain::Clubs),
+            call(3, Strain::Diamonds),
+            Call::Pass,
+        ];
+        // A club stopper (K432): 3NT is the milestone game.
+        assert_eq!(best(&auction, "AKQ.AQJ.32.K432"), call(3, Strain::Notrump));
+        // No club guard and no fit: pass rather than bid into an unstopped suit.
+        assert_eq!(best(&auction, "AKQ4.AKQ4.32.432"), Call::Pass);
     }
 }
