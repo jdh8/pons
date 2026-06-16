@@ -137,6 +137,35 @@ pub fn classify_v2(features: &[f32]) -> Logits {
     forward(WEIGHTS_V2.as_slice(), features, IN_V2)
 }
 
+// ── search-target: v1-featured, distilled from the live-search teacher ───────
+// AI-bidder M3.2. Same 160-input shape and forward pass as v1; only the training
+// *target* differs (the M3.1 search softmax instead of the deterministic teacher
+// softmax). Not the live search bidder — a fast net that learned its judgement.
+
+/// Embedded search-target weights: v1 layout (160 inputs), search-distilled.
+static RAW_SEARCH_V1: &[u8] = include_bytes!("weights/two_over_one_v1_search.f32");
+const _: () = assert!(
+    RAW_SEARCH_V1.len() == total(IN_V1) * 4,
+    "search-target weights artifact size mismatch"
+);
+
+/// Search-target weights decoded to `f32` once, on first use.
+static WEIGHTS_SEARCH_V1: LazyLock<Vec<f32>> = LazyLock::new(|| decode(RAW_SEARCH_V1));
+
+/// Evaluate the search-target distilled floor: 160 features → 38 logits, in
+/// `Call`-index order. Same shape and forward pass as [`classify`]; only the
+/// trained weights differ — distilled from the M2.3 live-search teacher's
+/// EV-grounded targets (AI-bidder M3.2). Deterministic — fixed weights, no RNG.
+///
+/// # Panics
+///
+/// Panics if `features.len()` is not the pinned v1 [`FEATURES_LEN`] (160).
+#[must_use]
+pub fn classify_search(features: &[f32]) -> Logits {
+    assert_eq!(features.len(), IN_V1, "expected {IN_V1} features");
+    forward(WEIGHTS_SEARCH_V1.as_slice(), features, IN_V1)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -200,5 +229,13 @@ mod tests {
         check_fixture(include_str!("weights/two_over_one_v2.fixture.json"), |x| {
             classify_v2(x).iter().map(|(_, l)| *l).collect()
         });
+    }
+
+    #[test]
+    fn matches_candle_fixture_search() {
+        check_fixture(
+            include_str!("weights/two_over_one_v1_search.fixture.json"),
+            |x| classify_search(x).iter().map(|(_, l)| *l).collect(),
+        );
     }
 }

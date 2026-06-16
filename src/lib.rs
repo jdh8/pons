@@ -13,7 +13,7 @@ pub use bidding::{
     two_over_one_strawberry,
 };
 #[cfg(feature = "neural-floor")]
-pub use bidding::{two_over_one_neural, two_over_one_neural_v2};
+pub use bidding::{two_over_one_neural, two_over_one_neural_search, two_over_one_neural_v2};
 #[cfg(feature = "search")]
 pub use bidding::{two_over_one_search, two_over_one_search_with};
 pub use stats::{Accumulator, Statistics};

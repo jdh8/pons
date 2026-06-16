@@ -40,7 +40,10 @@ use pons::bidding::context::relative;
 use pons::bidding::two_over_one::bare_two_over_one;
 use pons::bidding::{Family, Stance, System};
 use pons::scoring::{final_contract, imps, ns_score};
-use pons::{Accumulator, two_over_one, two_over_one_neural, two_over_one_neural_v2};
+use pons::{
+    Accumulator, two_over_one, two_over_one_neural, two_over_one_neural_search,
+    two_over_one_neural_v2,
+};
 
 /// Measure the distilled neural floor: A/B duplicate matches with intervals
 #[derive(Parser)]
@@ -232,12 +235,13 @@ fn main() {
 
     let neural = two_over_one_neural().against(Family::NATURAL);
     let neural_v2 = two_over_one_neural_v2().against(Family::NATURAL);
+    let neural_search = two_over_one_neural_search().against(Family::NATURAL);
     let deterministic = two_over_one().against(Family::NATURAL);
     let bare = bare_two_over_one().against(Family::NATURAL);
 
     println!(
-        "AI-bidder M1.4 / M5.1: distilled neural floors (v1 and the tag-augmented v2) \
-         vs the deterministic floor and bare books\n\
+        "AI-bidder M1.4 / M5.1 / M3.2: distilled neural floors (v1, tag-augmented v2, \
+         and the search-target net) vs the deterministic floor and bare books\n\
          ({} boards per match; thousands needed for a tight interval)",
         args.count,
     );
@@ -308,5 +312,58 @@ fn main() {
         args.count,
         args.vulnerability,
         0.0,
+    );
+
+    // ── M3.2 round 1: the search-target net (v1 features, distilled from the
+    // live-search teacher) ──────────────────────────────────────────────────
+    // The headline: does training toward the search target (M3.1) beat training
+    // toward the deterministic teacher, head-to-head at the same features and
+    // arch?  Target 0 = no regression; CI strictly above 0 = a real gain.
+    let search_vs_v1 = duplicate_match(
+        &neural_search,
+        &neural,
+        args.count,
+        args.vulnerability,
+        &mut rng,
+    );
+    report(
+        "search-target net vs v1 neural floor — the M3.2 round-1 gain",
+        &search_vs_v1,
+        args.count,
+        args.vulnerability,
+        0.0,
+    );
+
+    // Regression guard: the search-target net must stay at least at parity with
+    // the deterministic floor it ultimately derives from.
+    let search_vs_det = duplicate_match(
+        &neural_search,
+        &deterministic,
+        args.count,
+        args.vulnerability,
+        &mut rng,
+    );
+    report(
+        "search-target net vs deterministic floor",
+        &search_vs_det,
+        args.count,
+        args.vulnerability,
+        0.0,
+    );
+
+    // The floor's worth is preserved: ≈ +0.5 IMPs/board vs bare books.
+    let search_vs_bare = duplicate_match(
+        &neural_search,
+        &bare,
+        args.count,
+        args.vulnerability,
+        &mut rng,
+    );
+    report(
+        "search-target net vs bare books",
+        &search_vs_bare,
+        args.count,
+        args.vulnerability,
+        0.5,
     );
 }

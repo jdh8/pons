@@ -79,6 +79,28 @@ impl Classifier for NeuralFloorV2 {
     }
 }
 
+/// The search-target distilled floor, made safe to attach (AI-bidder M3.2)
+///
+/// Identical to [`NeuralFloor`] in shape and rails — v1 features, the same
+/// forced-rail delegation and legality mask — but over the net distilled from the
+/// M2.3 **live-search teacher** ([`neural::classify_search`]) rather than from the
+/// deterministic [`instinct()`].  The fast net that learned the search's
+/// judgement; an added option, never a replacement.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct NeuralFloorSearch;
+
+impl Classifier for NeuralFloorSearch {
+    fn classify(&self, hand: Hand, context: &Context<'_>) -> Logits {
+        if forced(context) {
+            // Rails: trust the deterministic floor, never the net.
+            return LADDER.classify(hand, context);
+        }
+        let mut logits = neural::classify_search(&features::features(hand, context));
+        mask_illegal(&mut logits, context.auction());
+        logits
+    }
+}
+
 /// Set every call the laws forbid to `-∞`, leaving the rest as the net set them
 ///
 /// Reuses [`Auction::can_push`] — the very predicate the driver filters with —
@@ -247,6 +269,44 @@ mod tests {
         let hand: Hand = "92.K53.AQJ42.962".parse().unwrap();
         let context = Context::new(RelativeVulnerability::NONE, &auction);
         let logits = NeuralFloorV2.classify(hand, &context);
+        assert_eq!(*logits.0.get(Call::Double), f32::NEG_INFINITY);
+        assert!(logits.0.get(Call::Pass).is_finite());
+    }
+
+    // The search-target shell (AI-bidder M3.2) wraps the search-distilled net with
+    // the *same* rails: forced situations delegate to instinct, the mask still holds.
+
+    #[test]
+    fn search_forced_advance_never_passes() {
+        // Partner doubled their 3♣ for takeout; the search shell delegates to
+        // instinct exactly as v1 does, so a hand that can act never penalty-passes.
+        let auction = [call(3, Strain::Clubs), Call::Double, Call::Pass];
+        let hand: Hand = "96432.J85.9742.2".parse().unwrap();
+        let context = Context::new(RelativeVulnerability::NONE, &auction);
+        let chosen = NeuralFloorSearch
+            .classify(hand, &context)
+            .0
+            .into_iter()
+            .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("logits are never NaN"))
+            .map(|(call, _)| call)
+            .expect("array is never empty");
+        assert_eq!(chosen, call(3, Strain::Spades));
+    }
+
+    #[test]
+    fn search_masks_illegal_keeps_pass_finite() {
+        // Not a forced auction → the search net + legality mask. Doubling our own
+        // side's 2♠ is illegal, so the mask zeroes it; Pass stays finite.
+        let auction = [
+            call(1, Strain::Hearts),
+            call(1, Strain::Spades),
+            Call::Pass,
+            call(2, Strain::Spades),
+            Call::Pass,
+        ];
+        let hand: Hand = "92.K53.AQJ42.962".parse().unwrap();
+        let context = Context::new(RelativeVulnerability::NONE, &auction);
+        let logits = NeuralFloorSearch.classify(hand, &context);
         assert_eq!(*logits.0.get(Call::Double), f32::NEG_INFINITY);
         assert!(logits.0.get(Call::Pass).is_finite());
     }

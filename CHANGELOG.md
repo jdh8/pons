@@ -40,6 +40,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the floor is distilled toward a better-than-teacher search target (M3.2). New
   artifact `src/bidding/weights/two_over_one_v2.{f32,json,fixture.json}`; no new
   crate dependencies; the default build is unchanged.
+- **Search-target neural floor** (AI-bidder **M3.2**, round 1): a third distilled
+  floor, trained toward the **double-dummy search teacher's** EV-grounded targets
+  (the M3.1 `search-dump`) instead of the deterministic teacher — same v1 features
+  and 160→256→256→38 shape, only the training target differs. `neural::classify_search`
+  (hand-rolled forward pass, bit-matched to the trainer on a fixture), the
+  `NeuralFloorSearch` safety shell (the *same* forced-rail delegation to `instinct()`
+  + legality mask as the v1/v2 floors), and `two_over_one_neural_search()` (gated
+  behind `neural-floor`; `two_over_one()` and `two_over_one_neural()` stay the
+  baselines — an added option, never a removal). Trained on the 10 000-board dump
+  (97 701 rows, git_sha `1d43577`): held-out fit to the *richer* search target is
+  val-CE 0.776, top-1 89.4 % constructive / 73.8 % contested — looser than the
+  near-deterministic teacher clone *by design*, since the search softmax is a
+  higher-entropy distribution. **Measured** (20 000-board duplicate A/B, vul none):
+  **+0.787 IMPs/board vs the v1 teacher-distilled net** (95 % CI [+0.718, +0.857]),
+  and +0.700 vs the deterministic floor ([+0.630, +0.770]) and +0.816 vs bare
+  books — a decisive gain by the harness metric, concentrated **off-book/competitive** (where
+  the search teacher, with perfect-defense doubling, focused). *Caveat:* divergence
+  from the v1 net is high (75 % of boards) and the A/B is double-dummy-scored like
+  the teacher, so the magnitude likely overstates real-table value (DD rewards the
+  DD-trained net's aggressiveness). New artifact
+  `src/bidding/weights/two_over_one_v1_search.{f32,json,fixture.json}`; no new crate
+  dependencies; the default build is unchanged. Iteration (round 2: regenerate
+  targets with this net as the search policy) is deferred.
 - **`scoring::ns_score_doubling_failures`** — a sibling of `ns_score` that scores
   a contract under **perfect-defense doubling**: any contract failing
   double-dummy is scored *doubled*, a making one keeps its auction penalty. This

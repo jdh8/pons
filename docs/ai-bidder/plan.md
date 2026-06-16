@@ -206,10 +206,21 @@ default floor stays fast, the gated search bidder remains for maximum strength.
   books). The additive `two_over_one_search_with(SearchFloor)` constructor (gated
   `search`) exposes `--layouts`/`--shortlist`/`--temperature`; the full production
   dataset feeds M3.2.
-- ⬜ **M3.2 Train + iterate.** Retrain toward the search target; feed the improved
+- 🟡 **M3.2 Train + iterate.** Retrain toward the search target; feed the improved
   net back into M2.2's continuations; repeat. *Deliverable:* successive nets.
   *Measure:* each round's A/B IMPs/board vs the prior net — **accept only gains**.
-  *Deps:* M3.1.
+  *Deps:* M3.1. **Round 1 done:** trained a v1-featured net on the 10 000-board
+  `search-dump` (97 701 rows, git_sha `1d43577`) toward the search softmax —
+  `neural::classify_search`, the `NeuralFloorSearch` shell (same forced-rail
+  delegation + legality mask), and `two_over_one_neural_search()` (gated
+  `neural-floor`; baselines untouched). Held-out fit to the harder target: val-CE
+  0.776, top-1 89.4 % constructive / 73.8 % contested (looser than the teacher clone
+  by design). **A/B (20 000 boards, vul none): +0.787 IMPs/board vs the v1 net** (CI
+  [+0.718, +0.857]), +0.700 vs the deterministic floor, +0.816 vs bare — a decisive
+  gain by the harness metric. *Caveat:* 75 % divergence from the v1 net and a
+  DD-scored A/B (like the teacher) mean the magnitude likely overstates real-table
+  value; the gain concentrates off-book/competitive, as M3 intended. **Round 2
+  (regenerate targets with this net as the policy, then retrain) deferred.**
 - ⬜ **M3.3 Champion.** The best net by harness score becomes the optional neural
   floor. *Measure:* strictly positive IMPs/board vs the deterministic floor, with
   a board count large enough to exclude zero. *Deps:* M3.2.

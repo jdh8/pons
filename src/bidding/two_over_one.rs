@@ -222,6 +222,24 @@ pub fn two_over_one_neural_v2() -> Pair {
     with_floor(bare_two_over_one(), super::neural_floor::NeuralFloorV2)
 }
 
+/// The 2/1 pair with the **search-target** distilled neural floor (AI-bidder M3.2)
+///
+/// Exactly [`two_over_one_neural`] in shape — v1 features, the
+/// [`NeuralFloorSearch`][crate::bidding::neural_floor::NeuralFloorSearch] safety
+/// shell with the same forced-rail delegation — but the net is distilled from the
+/// **live-search teacher** (M2.3's EV-grounded targets, dumped at M3.1), *not* from
+/// the deterministic [`two_over_one`] and *not* the live search bidder
+/// [`two_over_one_search`] itself.  The fast net that learned the search's
+/// judgement.  An added option, never a replacement: [`two_over_one`] stays the
+/// baseline and [`two_over_one_neural`] the teacher-distilled floor.  Bind it
+/// against the opponents' [`Family`] with [`Pair::against`] and seat it the same
+/// way.  Gated behind the `neural-floor` feature.
+#[cfg(feature = "neural-floor")]
+#[must_use]
+pub fn two_over_one_neural_search() -> Pair {
+    with_floor(bare_two_over_one(), super::neural_floor::NeuralFloorSearch)
+}
+
 /// The 2/1 pair with the gated live-**search** floor (AI-bidder M2.3)
 ///
 /// Exactly [`two_over_one`] but for the floor: the deterministic

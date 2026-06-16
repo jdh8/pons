@@ -1,0 +1,57 @@
+{
+  "arch": "x -> Linear(160,H) -> relu -> Linear(H,H) -> relu -> Linear(H,38)",
+  "batch": 4096,
+  "data_contested_rows": 71465,
+  "data_git_sha": "1d43577a802bb27e2bfb421787db6732565a8693",
+  "data_rows": 97701,
+  "data_seed": 1,
+  "dtype": "f32-le",
+  "epochs": 300,
+  "feature_version": 1,
+  "features_len": 160,
+  "git_sha": "3e56f79d3ca4db16b762355e114f27188e2cd5c9",
+  "hidden": 256,
+  "lr": 0.001,
+  "param_floats": 116774,
+  "param_order": [
+    "l1.weight",
+    "l1.bias",
+    "l2.weight",
+    "l2.bias",
+    "l3.weight",
+    "l3.bias"
+  ],
+  "param_shapes": {
+    "l1.bias": [
+      256
+    ],
+    "l1.weight": [
+      256,
+      160
+    ],
+    "l2.bias": [
+      256
+    ],
+    "l2.weight": [
+      256,
+      256
+    ],
+    "l3.bias": [
+      38
+    ],
+    "l3.weight": [
+      38,
+      256
+    ]
+  },
+  "softmax_len": 38,
+  "teacher": "",
+  "train_rows": 87931,
+  "trainer": "pons-trainer 0.1.0",
+  "val_ce": 0.7762332558631897,
+  "val_rows": 9770,
+  "val_top1_constructive": 0.8936915993690491,
+  "val_top1_contested": 0.7379894256591797,
+  "val_top1_overall": 0.7789150476455688,
+  "wd": 0.0
+}
