@@ -38,7 +38,8 @@ fi
 # gracefully: SCHED_IDLE for CPU, idle class for I/O.
 prefix=()
 if command -v chrt >/dev/null 2>&1; then
-	prefix+=(chrt --idle 0) # SCHED_IDLE, static priority 0 (the only legal value)
+	# nice is cosmetic here: SCHED_IDLE ignores it, but htop still paints it blue.
+	prefix+=(nice -n10 chrt --idle 0) # SCHED_IDLE, static priority 0 (the only legal value)
 else
 	echo "idle-run: chrt not found; falling back to 'nice -n19'" >&2
 	prefix+=(nice -n19)

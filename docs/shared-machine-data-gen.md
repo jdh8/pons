@@ -17,7 +17,7 @@ scheduling class (plus the idle I/O class) and set **no CPU quota**:
 ```sh
 scripts/idle-run.sh cargo run --release --features search \
   --example search-dump -- --boards 10000 --seed 1 --progress
-# expands to:  chrt --idle 0  ionice -c3  <command>
+# expands to:  nice -n10  chrt --idle 0  ionice -c3  <command>
 ```
 
 This is the *scavenger* pattern:
@@ -38,6 +38,9 @@ weight — it still competes, and (see below) it does **not** reliably yield acr
 - needs **no privilege** (de-prioritizing yourself is always allowed); and
 - is **inherited by child processes**, so wrapping the parent (`cargo`) covers
   every solver thread it spawns.
+
+We *also* prepend a cosmetic `nice -n10`: `SCHED_IDLE` ignores the nice value for
+scheduling, but it's still stored on the task, so it shows up low-priority (blue) in `htop`.
 
 Verify it took effect: `chrt -p <pid>` should print `SCHED_IDLE`.
 
