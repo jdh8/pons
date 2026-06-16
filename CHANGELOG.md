@@ -519,6 +519,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The live-search floor's rollout continuation is now self-play against the
+  search-target net (AI-bidder M3.2 round 2).** `SearchFloor`'s `POLICY` — the
+  policy that finishes every rollout auction so `ev_all` can score a candidate —
+  was the teacher-distilled `two_over_one_neural`; it is now
+  `two_over_one_neural_search` (the M3.2 round-1 net). Each round's distillation
+  targets are thus scored by the previous round's policy: "feed the improved net
+  back into the continuations." Behind the `search` feature; affects
+  `two_over_one_search` only.
 - **The `practice-bidding` example now bids with the learned floor by default.**
   A new `--floor` flag selects the bots' (and the "Bot's opinion" feedback's)
   floor: `neural-search` (the M3.2 search-distilled net) or `instinct` (the
