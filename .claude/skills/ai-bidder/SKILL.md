@@ -52,6 +52,26 @@ relevant to the task. `plan.md` is the milestone map and the source of truth for
    version, data seed, git SHA. A model is meaningless without its exact feature
    extractor.
 
+## Laziest thing that works (ponytail)
+
+This effort is where over-engineering breeds — speculative abstractions, heavy
+ML runtimes, training infra, a node authored per artificial bid. Stop at the
+first rung that holds:
+
+1. **Does it need to exist?** YAGNI. Smarten the keyless instinct floor
+   (forced-to-game, transfer-completion) and floor the book; do **not** author a
+   node per artificial bid. A milestone the user hasn't chosen is not work yet.
+2. **Reuse the seam.** The output is already an ML interface — `Logits`,
+   `Classifier`/`System`, `Inferences`, `Rules::explain`. Wire to those before
+   writing new machinery.
+3. **Inference is arithmetic.** A forward pass is a few matmuls + one
+   nonlinearity, hand-rolled in Rust. Training (autodiff) stays off-crate; never
+   a heavy ML dep in the default build.
+4. **Shortest diff that moves IMPs/board.** Deletion over addition. Floor the
+   book, don't replace it; `instinct()` is never removed.
+5. Mark a deliberate shortcut with a `// ponytail:` comment naming the ceiling
+   and the upgrade path.
+
 ## Teaching stance (important)
 
 The user is expert in **bridge, math, and low-level programming**, and is
@@ -71,7 +91,8 @@ design, and integration decisions in the main loop.
 
 ## Guardrail
 
-Do **not** add a heavy ML runtime to the crate's default build, and do not write
-crate ML code before its milestone is explicitly chosen. Design docs may contain
-illustrative sketches; the crate stays untouched until a milestone starts.
+The ponytail ladder, made non-negotiable: do **not** add a heavy ML runtime to
+the crate's default build, and do not write crate ML code before its milestone is
+explicitly chosen. Design docs may contain illustrative sketches; the crate stays
+untouched until a milestone starts.
 </content>
