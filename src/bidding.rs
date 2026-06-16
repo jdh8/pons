@@ -139,7 +139,7 @@ impl System for Trie {
         auction: &[Call],
     ) -> Option<array::Logits> {
         let context = Context::new(vul, auction).with_prefixes(self.common_prefixes(auction));
-        let (classifier, _) = self.resolve(&context, auction)?;
-        Some(classifier.classify(hand, &context))
+        self.classify_floored(hand, &context, auction)
+            .map(|(logits, _)| logits)
     }
 }

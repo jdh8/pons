@@ -54,8 +54,8 @@ fn resolve(
     auction: &[Call],
 ) -> Option<Logits> {
     let context = Context::new(vul, auction).with_prefixes(trie.common_prefixes(auction));
-    let (classifier, _) = trie.resolve(&context, auction)?;
-    Some(classifier.classify(hand, &context))
+    trie.classify_floored(hand, &context, auction)
+        .map(|(logits, _)| logits)
 }
 
 /// Our book for the strictly uncontested auctions
@@ -410,8 +410,7 @@ impl Stance {
     ) -> Option<(Logits, Provenance)> {
         let trie = self.trie_for(auction);
         let context = Context::new(vul, auction).with_prefixes(trie.common_prefixes(auction));
-        let (classifier, provenance) = trie.resolve(&context, auction)?;
-        Some((classifier.classify(hand, &context), provenance))
+        trie.classify_floored(hand, &context, auction)
     }
 }
 

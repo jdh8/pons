@@ -263,7 +263,41 @@ impl Trie {
         context: &Context<'_>,
         auction: &[Call],
     ) -> Option<(&dyn Classifier, Provenance)> {
-        self.resolve_at(context, auction, 0)
+        self.resolve_at(context, auction, 0, false)
+    }
+
+    /// Classify, falling through to the fallback chain when the exact node
+    /// yields no mass for `hand`
+    ///
+    /// [`resolve`][Self::resolve] picks the most specific classifier
+    /// structurally, by auction prefix, and a deliberately partial book node can
+    /// then reject the hand — leaving all-[`f32::NEG_INFINITY`] logits that
+    /// shadow the floor it sits above.  This consults that node first and, only
+    /// when it has no mass, walks up to the fallback chain (the
+    /// floor).  The root `Always` floor is total, so this returns mass whenever a
+    /// floor is attached; with no floor (the bare-book ablation) it returns the
+    /// degenerate logits, and the driver passes as before.
+    ///
+    /// `ponytail:` single fall-through — it assumes the next mass-bearing
+    /// candidate is the floor, which holds for the root-only floor wiring.  If
+    /// intermediate partial fallbacks ever appear, loop until the result has
+    /// mass.
+    #[must_use]
+    pub fn classify_floored(
+        &self,
+        hand: Hand,
+        context: &Context<'_>,
+        auction: &[Call],
+    ) -> Option<(super::array::Logits, Provenance)> {
+        if let Some((classifier, provenance)) = self.resolve(context, auction) {
+            let logits = classifier.classify(hand, context);
+            if logits.has_mass() {
+                return Some((logits, provenance));
+            }
+        }
+        // The exact node rejected this hand — consult the fallback chain.
+        let (classifier, provenance) = self.resolve_at(context, auction, 0, true)?;
+        Some((classifier.classify(hand, context), provenance))
     }
 
     fn resolve_at(
@@ -271,6 +305,7 @@ impl Trie {
         context: &Context<'_>,
         auction: &[Call],
         rebases: usize,
+        skip_exact: bool,
     ) -> Option<(&dyn Classifier, Provenance)> {
         let mut path = Vec::with_capacity(auction.len() + 1);
         let mut node = self;
@@ -286,7 +321,8 @@ impl Trie {
             }
         }
 
-        if path.len() == auction.len() + 1
+        if !skip_exact
+            && path.len() == auction.len() + 1
             && let Some(classifier) = node.classify.as_deref()
         {
             let provenance = Provenance {
@@ -315,7 +351,8 @@ impl Trie {
                     Fallback::Rebase(rewrite) => {
                         if rebases < REBASE_LIMIT
                             && let Some(rewritten) = rewrite.rewrite(auction, depth)
-                            && let Some(found) = self.resolve_at(context, &rewritten, rebases + 1)
+                            && let Some(found) =
+                                self.resolve_at(context, &rewritten, rebases + 1, false)
                         {
                             return Some(found);
                         }
@@ -486,3 +523,70 @@ impl<'trie, 'q> Iterator for CommonPrefixes<'trie, 'q> {
 }
 
 impl FusedIterator for CommonPrefixes<'_, '_> {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::bidding::Rules;
+    use crate::bidding::constraint::hcp;
+    use crate::bidding::fallback::Always;
+    use contract_bridge::auction::RelativeVulnerability;
+    use contract_bridge::{Bid, Strain};
+
+    /// A deliberately partial book node — it only passes weak hands — must not
+    /// shadow the floor: a strong hand it rejects (all-`-∞` logits) falls
+    /// through to the total floor rather than leaving the driver with no call.
+    /// This is the 7NT degenerate-result regression.
+    #[test]
+    fn partial_node_falls_through_to_the_floor() {
+        let auction = [Call::Bid(Bid::new(1, Strain::Clubs))];
+        let weak_only = Rules::new().rule(Call::Pass, 0.0, hcp(..6));
+        // A total floor: `hcp(0..)` accepts every hand, so Pass is always finite.
+        let floor = Rules::new().rule(Call::Pass, 0.0, hcp(0..));
+
+        let mut trie = Trie::new();
+        trie.insert(&auction, weak_only);
+        trie.fallback_at(&[], Always, Fallback::classify(floor));
+
+        let strong: Hand = "AKQ2.KQ5.AQJ4.92".parse().expect("valid test hand");
+        let context = Context::new(RelativeVulnerability::NONE, &auction);
+
+        // The exact node alone rejects this 21-count: all-`-∞`, no mass.
+        let (exact, _) = trie.resolve(&context, &auction).expect("exact node");
+        assert!(!exact.classify(strong, &context).has_mass());
+
+        // `classify_floored` falls through to the total floor instead.
+        let (logits, provenance) = trie
+            .classify_floored(strong, &context, &auction)
+            .expect("the floor answers");
+        assert!(logits.has_mass(), "the floor gives the hand a finite call");
+        assert_eq!(provenance.depth, 0, "the answer came from the root floor");
+        assert!(
+            provenance.fallback.is_some(),
+            "via a fallback, not the book"
+        );
+    }
+
+    /// A node that *does* cover the hand keeps its own answer — fall-through
+    /// triggers only on a no-mass result, never overriding a live book rule.
+    #[test]
+    fn exact_node_with_mass_is_not_floored() {
+        let auction = [Call::Bid(Bid::new(1, Strain::Clubs))];
+        let opener = Rules::new().rule(Call::Pass, 0.0, hcp(0..));
+        let floor = Rules::new().rule(Call::Pass, -5.0, hcp(0..));
+
+        let mut trie = Trie::new();
+        trie.insert(&auction, opener);
+        trie.fallback_at(&[], Always, Fallback::classify(floor));
+
+        let hand: Hand = "AKQ2.KQ5.AQJ4.92".parse().expect("valid test hand");
+        let context = Context::new(RelativeVulnerability::NONE, &auction);
+        let (_, provenance) = trie
+            .classify_floored(hand, &context, &auction)
+            .expect("the node answers");
+        assert_eq!(
+            provenance.fallback, None,
+            "the exact node wins, not the floor"
+        );
+    }
+}

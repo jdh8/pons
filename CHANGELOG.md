@@ -656,6 +656,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **A partial book node no longer shadows the floor: a hand it rejects now
+  falls through to the floor instead of producing a degenerate all-`-∞`
+  result.** A book node admits only the calls whose constraints match the hand,
+  so a deliberately partial node — the codebase's "partial nodes, the floor
+  catches the rest" design — left a hand it did not cover with no probability
+  mass. Resolution returns the most specific (exact) node first and only walks up
+  to the `Always`-guarded floor when *no* exact node matches, and the classify
+  wrappers did not check the result for mass — so the partial node shadowed the
+  total floor and the driver, finding no finite call, silently passed (the 7NT
+  degenerate-result report). Resolution is now **mass-aware**: `Trie` gains
+  `classify_floored`, which consults the exact node first and, only when it
+  yields no mass for the hand, walks up to the fallback chain — reaching the
+  always-total instinct floor. The bare-book ablation (no floor attached) is
+  unchanged: it still returns no mass and the driver passes. Telemetry benefits
+  too — `classify_with_provenance` now attributes the floor (`depth == 0,
+  fallback == Some(_)`) on a fall-through, the "next node worth authoring"
+  signal. No authored node changed; the only behavior difference is for hands
+  that previously degenerated. Regression tests in `trie`.
 - **The instinct floor's 3NT game milestone now requires a stopper in their
   suits, so it never bids notrump game into an unstopped enemy suit in a
   competitive auction.** The milestone game/slam ladder already fires in
