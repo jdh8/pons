@@ -519,6 +519,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The `practice-bidding` example now bids with the learned floor by default.**
+  A new `--floor` flag selects the bots' (and the "Bot's opinion" feedback's)
+  floor: `neural-search` (the M3.2 search-distilled net) or `instinct` (the
+  deterministic ladder). The default is `neural-search` when built with
+  `--features neural-floor`, else `instinct`, so the no-feature build still
+  compiles and runs. The deterministic floor was only ever the pre-AI-bidder
+  default; with the net compiled in, practice now feels what the net plays.
 - **The instinct floor is now a milestone bidder, and it floors the constructive
   book too.** Two coupled changes, worth **+1.12 IMPs/board** (instinct-floor A/B,
   4000 boards, up from ≈+0.5 for the old contested-only floor):

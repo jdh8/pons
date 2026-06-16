@@ -24,9 +24,11 @@ use contract_bridge::{AbsoluteVulnerability, Builder, Contract, FullDeal, Seat, 
 use ddss::{
     NonEmptyStrainFlags, Solver, StrainFlags, TrickCountTable, Vulnerability, calculate_par,
 };
-use pons::bidding::Table;
+use pons::bidding::{Pair, Table};
 use pons::scoring::{final_contract, ns_score};
 use pons::two_over_one;
+#[cfg(feature = "neural-floor")]
+use pons::two_over_one_neural_search;
 
 // ---------------------------------------------------------------------------
 // CLI
@@ -86,6 +88,36 @@ struct Args {
     /// Reshuffled-opponent simulations for the verdict (0 disables simulation)
     #[arg(long, default_value = "1000")]
     simulations: usize,
+
+    /// Bidding floor for the bots: neural-search (default, needs
+    /// `--features neural-floor`) or instinct
+    #[arg(long, default_value = DEFAULT_FLOOR)]
+    floor: Floor,
+}
+
+/// Default floor: the learned net when it's compiled in, else the instinct ladder.
+#[cfg(feature = "neural-floor")]
+const DEFAULT_FLOOR: &str = "neural-search";
+#[cfg(not(feature = "neural-floor"))]
+const DEFAULT_FLOOR: &str = "instinct";
+
+/// Which bidding floor the bots (and the "Bot's opinion" feedback) use
+#[derive(Clone, Copy, clap::ValueEnum)]
+enum Floor {
+    /// Deterministic instinct ladder (baseline)
+    Instinct,
+    /// Distilled search-target neural floor (AI-bidder M3.2)
+    #[cfg(feature = "neural-floor")]
+    NeuralSearch,
+}
+
+/// Build a fresh 2/1 pair for the chosen floor
+fn build_pair(floor: Floor) -> Pair {
+    match floor {
+        Floor::Instinct => two_over_one(),
+        #[cfg(feature = "neural-floor")]
+        Floor::NeuralSearch => two_over_one_neural_search(),
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -348,8 +380,8 @@ fn main() {
         );
 
         // Build the table fresh per board so dealer/vul are correct
-        let ns = two_over_one();
-        let ew = two_over_one();
+        let ns = build_pair(args.floor);
+        let ew = build_pair(args.floor);
         let table = Table::of_pairs(&ns, &ew, dealer, args.vulnerability);
 
         let mut auction = Auction::new();
