@@ -23,6 +23,11 @@
 # VS Code config
 /.vscode/
 
+# Distributed data-gen (the fleet): collected shards and the private host list.
+# Datasets are regenerable from seed + SHA; only hosts.example is tracked.
+/data/
+/scripts/fleet/hosts
+
 # Claude and AI context
 /.claude/*
 !/.claude/skills/

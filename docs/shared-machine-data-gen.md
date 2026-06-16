@@ -94,6 +94,27 @@ systemd-run --user --scope -p CPUQuota=600% -p CPUWeight=10 -p MemoryMax=12G \
   `--out`) for natural checkpoints you can stop and resume, instead of one
   monolithic run.
 
+## Spreading across machines
+
+The same seed-shardability that makes checkpoints work makes the job
+**distributable** — different seeds are disjoint and their `.f32`/`.tags` rows
+concatenate into one dataset. `scripts/fleet/` does this over plain ssh: one
+shard per seed, dispatched with GNU `parallel --sshloginfile` (each remote run
+still wrapped in `idle-run.sh`), pulled back with `rsync`, then `cat`-merged.
+
+```sh
+cp scripts/fleet/hosts.example scripts/fleet/hosts   # edit: one worker per line
+git push                                                # workers must be able to fetch the SHA
+scripts/fleet/run.sh --provision --shards 200 --per 50 # build on each host, then run
+scripts/fleet/merge.sh data/fleet-<runid>             # → merged.{f32,tags,json}
+```
+
+It pins the coordinator's git SHA, refuses to run any host not on it (skew
+silently corrupts the dataset), and `--resume`s incomplete shards on re-run.
+`-j1` means one all-core solver per host, so a faster box just finishes its shard
+and grabs the next — heterogeneous speed self-balances when shards ≫ hosts. See
+the script headers for the full knob list.
+
 ## Etiquette
 
 Check who is on first (`w` / `who`), prefer nights/weekends for full-throttle

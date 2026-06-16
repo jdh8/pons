@@ -1,0 +1,20 @@
+# scripts/fleet/hosts — GNU parallel --sshloginfile format.
+# Copy to scripts/fleet/hosts and edit.  (The real `hosts` is gitignored.)
+#
+# One worker per line:
+#   hostname          ssh to hostname (uses ~/.ssh/config; key-based, non-interactive)
+#   user@hostname     explicit user
+#   :                 this machine (run locally, no ssh)
+#   # comment         ignored; blank lines ignored
+#
+# A leading "N/" sets job slots, but this harness forces -j1 — ONE all-core,
+# multithreaded solver per host — so leave it off.  Heterogeneous speed
+# self-balances: parallel refills a host's single slot the instant it finishes a
+# shard, so a 2x-faster box completes ~2x the shards.  That only works with many
+# small shards (shards >> hosts), so keep --per small and --shards large.
+#
+# The coordinator (whoever runs run.sh) need not appear here — list a box only if
+# you want it to do work.  Example: two remote workers + this machine.
+worker-7950x3d
+slow-laptop
+:

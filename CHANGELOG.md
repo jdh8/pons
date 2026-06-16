@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`scripts/fleet/` — distributed data-gen.** A small ssh harness that spreads
+  the CPU-bound double-dummy dumps (`search-dump` / `teacher-dump`) across several
+  machines without manual syncing. Because a dump is deterministic given
+  `(git SHA, seed)` and its `.f32`/`.tags` rows are independent and concatenable,
+  distribution needs no daemon or queue: `run.sh` partitions the seed space into
+  one shard per seed and dispatches them with GNU `parallel --sshloginfile`
+  (each remote run still wrapped in `scripts/idle-run.sh` for SCHED_IDLE
+  politeness), pulls the shards back with `rsync`, and `merge.sh` validates the
+  sidecars agree (feature/layout/system/SHA) and `cat`s them into one dump the
+  off-crate trainer reads unchanged. It pins the coordinator's SHA and refuses
+  any host not on it (skew would silently corrupt the dataset), builds on each
+  host (so it is arch-agnostic), `--resume`s incomplete shards on re-run, and
+  self-balances across heterogeneous hosts (`-j1` = one all-core solver per box,
+  faster boxes grab more shards). Copy `hosts.example` to `hosts` to use.
 - **`calibrate-eval` example**: regresses double-dummy tricks on the partnership
   hand evaluators (HCP, Fifths, BUM-RAP, LTC, NLTC, Zar, CCCC) using the
   precomputed 100k-deal database `sol100000.txt` — **no DD solving**, so it is
