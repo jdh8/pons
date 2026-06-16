@@ -9,6 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`constructive-abc` example + `two_over_one_constructive_floor` builder.**
+  The neural/search floors only ever own the *contested* books — unbooked
+  *constructive* auctions are always answered by the deterministic `instinct()`
+  milestone ladder. This A/B/C harness measures whether that partition leaves
+  points on the table: it silences the opponents (East/West always pass) so every
+  auction is constructive, bids each board three times — `instinct()`,
+  `SearchFloor`, `NeuralFloorSearch` floored onto the *constructive* book — over
+  the same deal, solves it once double dummy, and reports the pairwise IMP swings.
+  The new `bidding::two_over_one::two_over_one_constructive_floor(floor)` builder
+  (gated `neural-floor`) exposes the constructive-floor knob the standard
+  constructors hard-wire to `instinct()`; the example is gated `search` and the
+  search arm dominates runtime (~seconds/board), so `--layouts`/`--shortlist`
+  trade strength for speed. No change to any shipping bidder — purely a new
+  measurement path and an added builder. First run (2000 boards, none vul, 45%
+  divergent): the bare net `NeuralFloorSearch` loses **0.8 IMPs/board** to
+  `instinct()` on constructive auctions, while the live `SearchFloor` ties it
+  (+0.002) — the search rescues a weak constructive prior with real cardplay,
+  the bare net cannot. Confirms the partition: the milestone ladder is the right
+  constructive floor and the learned floors stay contested-only.
 - **`scripts/fleet/` — distributed data-gen.** A small ssh harness that spreads
   the CPU-bound double-dummy dumps (`search-dump` / `teacher-dump`) across several
   machines without manual syncing. Because a dump is deterministic given

@@ -271,6 +271,28 @@ pub fn two_over_one_search_with(floor: super::search_floor::SearchFloor) -> Pair
     with_floor(bare_two_over_one(), floor)
 }
 
+/// Build a 2/1 pair whose **constructive** book falls back to an arbitrary
+/// classifier — the knob the standard constructors deny
+///
+/// [`two_over_one`] and the neural variants hard-wire the deterministic
+/// [`instinct`][crate::bidding::instinct()] ladder onto the constructive book —
+/// the learned floors own only the contested books.  This
+/// builder lifts that wiring so a learned floor (the live
+/// [`SearchFloor`][crate::bidding::search_floor::SearchFloor] or the distilled
+/// [`NeuralFloorSearch`][crate::bidding::neural_floor::NeuralFloorSearch]) can be
+/// *measured* on uncontested constructive auctions against the instinct baseline
+/// — the `constructive-abc` A/B/C example.  The contested books are left bare:
+/// that harness silences the opponents, so they never resolve.  Gated behind the
+/// `neural-floor` feature.
+#[cfg(feature = "neural-floor")]
+#[must_use]
+pub fn two_over_one_constructive_floor<C: Classifier + 'static>(floor: C) -> Pair {
+    let mut pair = bare_two_over_one();
+    pair.constructive
+        .fallback_at(&[], Always, Fallback::classify(floor));
+    pair
+}
+
 /// Attach any classifier as the floor on a pair's contested books
 ///
 /// A root `Always` fallback on both contested books, shared through the

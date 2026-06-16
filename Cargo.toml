@@ -91,5 +91,13 @@ name = "search-dump"
 path = "examples/search-dump/main.rs"
 required-features = ["search"]
 
+# The constructive-only floor A/B/C asks whether the search floors should also
+# own the unbooked constructive nodes; it uses `SearchFloor` and
+# `two_over_one_constructive_floor`, so it builds only with the `search` feature.
+[[example]]
+name = "constructive-abc"
+path = "examples/constructive-abc/main.rs"
+required-features = ["search"]
+
 [profile.dev.package."*"]
 opt-level = 2
