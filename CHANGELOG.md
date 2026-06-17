@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Both-majors response (1NT–3♦) — 5+/5+ in the majors, invitational+.** A 5-5
+  major two-suiter previously had no one-bid home: it transferred and rebid the
+  other major (clumsy, and game-forcing 5-5s fell through to the floor entirely).
+  New nodes in [`american::notrump`]: responder bids `3♦` to show both majors
+  (gated `points(8..)` so the 5-5 shape upgrade counts and weak 5-5s still take
+  the transfer route; weight `2.1` outranks the `2.0` transfers). Opener picks the
+  strain by strength — a **minimum (15–16)** signs off in three of the better
+  major (`3♥/3♠`, spades-with-three else hearts), a **maximum (17)** jumps to the
+  eight-card major game (`4♥/4♠`) or `3NT` when 2-2 in the majors. Over a minimum
+  signoff responder passes the invitation or raises to game (`points(10..)`).
+  Authored, not floored, for the usual reason — the keyless floor misreads `3♦`
+  as natural diamonds and force-bids game. *Measured* (`stayman-abc`, seeded
+  before/after duplicate match, opponents silenced, 200k boards, double-dummy):
+  **+2.17 IMPs/divergent board vul none, +2.80 vul both** (5-5 INV+ is rare, ~0.05%
+  of boards diverge). The `points(8..)` floor was tuned on the A/B (beats `7..`
+  on per-divergent at tied total IMPs, and `9..` on both counts).
 - **Puppet Stayman (1NT–3♣) and the minor-suit transfers (1NT–2NT diamonds,
   1NT–2♠ clubs/invite).** Three new constructive structures fill 1NT-response
   slots that previously carried no precision — a weak long-minor hand just passed

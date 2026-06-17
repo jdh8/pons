@@ -14,7 +14,9 @@
 //! [`american`][super::american] during system assembly.
 
 use super::{call, insert_uncontested};
-use crate::bidding::constraint::{Cons, Constraint, balanced, described, hcp, len, stopper_in};
+use crate::bidding::constraint::{
+    Cons, Constraint, balanced, described, hcp, len, points, stopper_in,
+};
 use crate::bidding::{Context, Rules, Trie};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Hand, Rank, Strain, Suit};
@@ -49,6 +51,16 @@ pub fn notrump_responses() -> Rules {
             Bid::new(2, Strain::Hearts),
             2.0,
             len(Suit::Spades, 5..) & (len(Suit::Hearts, ..4) | hcp(..9)),
+        )
+        // Both-majors 3♦: 5+/5+ in the majors, invitational+.  Outranks the
+        // transfers (2.0) so a 5-5 INV+ hand shows both suits in one bid rather
+        // than transferring and rebidding; weaker 5-5s (below the `points` floor)
+        // still take the transfer route.  `points` (not `hcp`) so the 5-5 shape
+        // upgrade counts — these are the unbalanced hands the gauge was built for.
+        .rule(
+            Bid::new(3, Strain::Diamonds),
+            2.1,
+            len(Suit::Hearts, 5..) & len(Suit::Spades, 5..) & points(8..),
         )
         // Puppet Stayman: game-forcing, balanced, with a three-card major.  Ranks
         // *above* Stayman so a 4-3 hand — holding both a four- and a three-card
@@ -370,6 +382,54 @@ fn puppet_smolen_completion(shown_major: Suit) -> Rules {
             len(shown_major, 4..),
         )
         .rule(Bid::new(3, Strain::Notrump), 0.5, len(shown_major, ..4))
+}
+
+// ---------------------------------------------------------------------------
+// Both-majors 3♦ (1NT–3♦ = 5+/5+ majors, invitational+)
+// ---------------------------------------------------------------------------
+
+/// Opener's answer to the both-majors 3♦: pick the strain by strength
+///
+/// With a maximum (17) jump to the eight-card major game, or 3NT when 2-2 in the
+/// majors leaves only a seven-card fit.  A minimum (15–16) signs off in three of
+/// the better major — spades whenever holding three, else hearts — leaving
+/// responder to pass an invitation or raise with game values.  Authored, not
+/// floored: the keyless floor misreads 3♦ as natural diamonds and forces game.
+//
+// ponytail: "better major" is spades-with-three, else hearts — it finds an
+// eight-card fit when one exists but prefers spades on a tie (e.g. 3♠ on 3-4
+// majors).  Good enough; refine only if the A/B asks for it.
+fn five_five_major_answer() -> Rules {
+    Rules::new()
+        .rule(
+            Bid::new(4, Strain::Spades),
+            1.2,
+            hcp(17..) & len(Suit::Spades, 3..),
+        )
+        .rule(
+            Bid::new(4, Strain::Hearts),
+            1.2,
+            hcp(17..) & len(Suit::Spades, ..3) & len(Suit::Hearts, 3..),
+        )
+        .rule(
+            Bid::new(3, Strain::Notrump),
+            1.2,
+            hcp(17..) & len(Suit::Spades, ..3) & len(Suit::Hearts, ..3),
+        )
+        .rule(Bid::new(3, Strain::Spades), 1.0, len(Suit::Spades, 3..))
+        .rule(Bid::new(3, Strain::Hearts), 1.0, len(Suit::Spades, ..3))
+}
+
+/// Responder's decision over opener's minimum 3-level signoff
+///
+/// Opener showed 15–16 by signing off in `major`; responder raises to game with
+/// the upper half of the invitational+ range and otherwise passes.  Needed
+/// because the floor forces responder to game off the 3♦ opening and so could
+/// not pass the invitation.  `points` again — responder is the 5-5 hand.
+fn five_five_min_rebid(major: Suit) -> Rules {
+    Rules::new()
+        .rule(Bid::new(4, Strain::from(major)), 1.0, points(10..))
+        .rule(Call::Pass, 0.9, points(..10))
 }
 
 // ---------------------------------------------------------------------------
@@ -746,6 +806,22 @@ pub(super) fn register_one_nt(book: &mut Trie) {
         book,
         &[one_nt, three_c, three_d, three_s],
         puppet_smolen_completion(Suit::Hearts),
+    );
+
+    // --- Both-majors 3♦ (1NT–3♦) ----------------------------------------------
+    //
+    // Opener signs off in 3M with a minimum or jumps to game (4M / 3NT) with a
+    // maximum; over a minimum signoff responder passes an invitation or raises.
+    insert_uncontested(book, &[one_nt, three_d], five_five_major_answer());
+    insert_uncontested(
+        book,
+        &[one_nt, three_d, three_h],
+        five_five_min_rebid(Suit::Hearts),
+    );
+    insert_uncontested(
+        book,
+        &[one_nt, three_d, three_s],
+        five_five_min_rebid(Suit::Spades),
     );
 
     // --- Diamond transfer (1NT–2NT) -------------------------------------------
