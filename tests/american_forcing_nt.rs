@@ -6,6 +6,7 @@
 use contract_bridge::auction::{Call, RelativeVulnerability};
 use contract_bridge::{Bid, Hand, Strain};
 use pons::american;
+use pons::bidding::american::set_meckstroth_adjunct;
 use pons::bidding::array::Logits;
 use pons::bidding::{Family, Stance, System};
 
@@ -157,5 +158,133 @@ fn responder_runs_to_six_card_diamond_suit() {
     assert_eq!(
         best_call(&system, &after_1s_1nt_2c(), "Q32.J53.KQ8642.4"),
         call(2, Strain::Diamonds),
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Meckstroth adjunct: opener's invitational 3m jump after the forcing 1NT
+// ---------------------------------------------------------------------------
+
+/// Auction shorthand for 1♠ – (P) – 1NT – (P) — opener to rebid
+fn after_1s_1nt() -> Vec<Call> {
+    let p = Call::Pass;
+    vec![call(1, Strain::Spades), p, call(1, Strain::Notrump), p]
+}
+
+#[test]
+fn opener_jumps_to_invitational_three_clubs() {
+    // AK853.Q2.4.AQ976 — 14 HCP (16 points), 5-5 spades+clubs: 3♣ INV jump
+    let system = stance();
+    assert_eq!(
+        best_call(&system, &after_1s_1nt(), "AK853.Q2.4.AQ976"),
+        call(3, Strain::Clubs),
+    );
+}
+
+#[test]
+fn opener_jumps_to_invitational_three_diamonds() {
+    // AK853.Q2.AQ976.4 — 14 HCP (16 points), 5-5 spades+diamonds: 3♦ INV jump
+    let system = stance();
+    assert_eq!(
+        best_call(&system, &after_1s_1nt(), "AK853.Q2.AQ976.4"),
+        call(3, Strain::Diamonds),
+    );
+}
+
+#[test]
+fn baseline_opener_rebids_natural_two_clubs_without_adjunct() {
+    // Same 5-5 hand, adjunct off: opener underbids with a natural 2♣ (the gap
+    // the adjunct fills).  The toggle is read at construction time, so build the
+    // baseline arm with it off, then restore the default.
+    set_meckstroth_adjunct(false);
+    let base = american().against(Family::NATURAL);
+    set_meckstroth_adjunct(true);
+    assert_eq!(
+        best_call(&base, &after_1s_1nt(), "AK853.Q2.4.AQ976"),
+        call(2, Strain::Clubs),
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Meckstroth adjunct: responder over opener's invitational 3♦
+//   1♠ – (P) – 1NT – (P) – 3♦ – (P) – ?
+// ---------------------------------------------------------------------------
+
+/// Auction shorthand for 1♠ – (P) – 1NT – (P) – 3♦ – (P)
+fn after_1s_1nt_3d() -> Vec<Call> {
+    let p = Call::Pass;
+    vec![
+        call(1, Strain::Spades),
+        p,
+        call(1, Strain::Notrump),
+        p,
+        call(3, Strain::Diamonds),
+        p,
+    ]
+}
+
+#[test]
+fn responder_accepts_invitational_minor_to_major_game() {
+    // K42.Q53.84.AQ952 — 10 HCP, 3 spades: accept to the 5-3 major game (4♠)
+    let system = stance();
+    assert_eq!(
+        best_call(&system, &after_1s_1nt_3d(), "K42.Q53.84.AQ952"),
+        call(4, Strain::Spades),
+    );
+}
+
+#[test]
+fn responder_accepts_invitational_minor_to_notrump_game() {
+    // Q2.KJ3.Q84.KJ952 — 12 HCP, 2 spades: accept to notrump game (3NT)
+    let system = stance();
+    assert_eq!(
+        best_call(&system, &after_1s_1nt_3d(), "Q2.KJ3.Q84.KJ952"),
+        call(3, Strain::Notrump),
+    );
+}
+
+#[test]
+fn responder_declines_invitational_minor_with_preference() {
+    // Q42.J53.864.K952 — 6 HCP, 3 spades: decline, preference to 3♠
+    let system = stance();
+    assert_eq!(
+        best_call(&system, &after_1s_1nt_3d(), "Q42.J53.864.K952"),
+        call(3, Strain::Spades),
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Meckstroth adjunct on the 1♥ – 1♠ auction
+// ---------------------------------------------------------------------------
+
+#[test]
+fn opener_jumps_to_invitational_three_clubs_over_one_spade() {
+    // 1♥ – (P) – 1♠ – (P) – ? with Q2.AK853.4.AQ976 (5-5 hearts+clubs): 3♣ INV
+    let p = Call::Pass;
+    let auction = vec![call(1, Strain::Hearts), p, call(1, Strain::Spades), p];
+    let system = stance();
+    assert_eq!(
+        best_call(&system, &auction, "Q2.AK853.4.AQ976"),
+        call(3, Strain::Clubs),
+    );
+}
+
+#[test]
+fn responder_accepts_invitational_minor_to_heart_game() {
+    // 1♥ – (P) – 1♠ – (P) – 3♣ – (P) – ? with KJ52.Q43.A4.9762:
+    // 10 HCP, 4 spades, 3 hearts → 5-3 heart game (4♥)
+    let p = Call::Pass;
+    let auction = vec![
+        call(1, Strain::Hearts),
+        p,
+        call(1, Strain::Spades),
+        p,
+        call(3, Strain::Clubs),
+        p,
+    ];
+    let system = stance();
+    assert_eq!(
+        best_call(&system, &auction, "KJ52.Q43.A4.9762"),
+        call(4, Strain::Hearts),
     );
 }

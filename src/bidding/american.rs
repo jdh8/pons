@@ -84,6 +84,7 @@ pub use competition::competition;
 pub use defense::{advance_double, defense_to_suit, defense_to_weak_two};
 pub use notrump::notrump_responses;
 pub use openings::{NotrumpShape, openings, openings_with};
+pub use rebids::set_meckstroth_adjunct;
 pub use responses::{major_responses, minor_responses};
 
 /// A bid as a [`Call`], for trie keys

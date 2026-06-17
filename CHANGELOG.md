@@ -9,6 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Meckstroth adjunct — opener's invitational `3m` jump after a forcing 1NT
+  (and `1♥–1♠`), now the default.** After `1M–1NT` or `1♥–1♠`, opener's
+  medium *shapely* hands (5-5 / 6-5, ≈15–17 points) previously had no
+  descriptive rebid and underbid as a natural two-level minor; opener now jumps
+  to **`3♣`/`3♦` to show 5+ of the minor, invitational**, and responder accepts
+  game with a maximum (4M with a 5-3 fit, else 3NT) or declines to a preference
+  in opener's five-card major. The strong 2NT rebid is left as the
+  forcing-to-game/strong slice (its existing natural continuation already drives
+  responder to game opposite a 6+ forcing 1NT, so the full artificial relay
+  ladder is deferred). Disjoint by strength: 18–19 balanced → 2NT, 15–17 with a
+  five-card minor → `3m`, a minimum → the natural two level. Gated by
+  `set_meckstroth_adjunct(bool)` (default on); the new `meckstroth-abc` example
+  is the constructive A/B harness. *Measured* (opponents silenced, 50k boards
+  per cell): consistently positive across all three vulnerabilities on both
+  points and IMPs — **+0.67 IMPs/divergent board vul none, +1.38 vul ns, +1.43
+  vul both**, with zero regression. The situation is rare (~0.25% of boards), so
+  the whole-match figure is +0.002–0.004 IMPs/board; the win is real but
+  low-frequency.
 - **`american_wide_6322()` — experimental 6322-minor 1NT option.** A
   `NotrumpShape` enum (`Balanced` / `Wide` / `Wide6322`) now selects the 1NT
   opening shape; `Wide6322` adds a 6322 with a six-card minor on top of the
