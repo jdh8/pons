@@ -83,7 +83,7 @@ mod weak_twos;
 pub use competition::competition;
 pub use defense::{advance_double, defense_to_suit, defense_to_weak_two};
 pub use notrump::notrump_responses;
-pub use openings::openings;
+pub use openings::{openings, openings_with};
 pub use responses::{major_responses, minor_responses};
 
 /// A bid as a [`Call`], for trie keys
@@ -185,6 +185,19 @@ fn fallback_all_seats(
 #[must_use]
 pub fn two_over_one() -> Pair {
     with_instinct_floor(bare_two_over_one())
+}
+
+/// The 2/1 pair with the **wide 1NT** opening shape (deferred shape redesign)
+///
+/// Exactly [`two_over_one`] but for the opening table: a 5422 with a five-card
+/// minor also opens the strong 1NT ([`openings_with`]).  Strength and the
+/// inference side are unchanged — this is the shape-only A/B arm against the
+/// classic-balanced baseline; see the `nt-shape-abc` (constructive) and
+/// `nt-shape-contested` examples.  An added option, never a replacement:
+/// [`two_over_one`] stays the baseline.
+#[must_use]
+pub fn two_over_one_wide() -> Pair {
+    with_instinct_floor(bare_two_over_one_with(true))
 }
 
 /// The 2/1 pair with the distilled **neural** floor (AI-bidder M1.3)
@@ -328,9 +341,19 @@ fn with_instinct_floor(pair: Pair) -> Pair {
 /// see the `instinct-floor` example for an A/B match between the two.
 #[must_use]
 pub fn bare_two_over_one() -> Pair {
+    bare_two_over_one_with(false)
+}
+
+/// [`bare_two_over_one`] with the wide 1NT opening shape selectable
+///
+/// `wide` selects the deferred shape redesign in the opening table
+/// ([`openings_with`]); everything else is identical.  `bare_two_over_one()` is
+/// `bare_two_over_one_with(false)`.
+#[must_use]
+fn bare_two_over_one_with(wide: bool) -> Pair {
     let mut c = Constructive::new();
 
-    openings::register(&mut c);
+    openings::register(&mut c, wide);
     responses::register(&mut c);
     notrump::register(&mut c);
     rebids::register(&mut c);
