@@ -597,6 +597,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The optional search-target neural floor (`two_over_one_neural_search()`) is
+  now the round-2 net (AI-bidder M3.2 / M3.3).** The M3.1 search-dump was
+  regenerated with the round-1 net as the rollout continuation policy *and* the
+  doubling-aware `ev_all` (104 476 rows / 10k boards), then distilled into the
+  same `160→256→256→38` net at the same hyperparameters. The new weights replace
+  the old ones in place — the public API, the safety shell, and `instinct()` (the
+  default and baseline) are untouched. **A/B (20 000 boards), round-2 vs round-1,
+  on the default perfect-defense measure** (failing contracts priced doubled, as
+  real opponents would): **+1.661 IMPs/board vul none** (CI [+1.550, +1.772]),
+  **+2.069 vul both** (CI [+1.957, +2.181]) — round 2 learned to *stop reaching
+  doubled-down contracts*, the discipline its doubling-aware targets reward.
+  Beats the deterministic floor on the same measure (+0.178 vul none, +1.716 vul
+  both; CIs exclude 0), so it is the M3.3 champion. On the optimistic double-dummy
+  bound (which scores down contracts undoubled) the round-1→round-2 step is parity
+  vul none (+0.046, CI [−0.034, +0.127]) and a gain vul both (+0.424), so round 2
+  is never worse on either bound.
 - **The `fifths` strength gauge no longer scores Fifths alone — it averages
   Fifths with an honor-weighted companion.** Fifths is tuned for 3NT (it
   rewards aces and tens, discounts kings and queens), so it misjudges an

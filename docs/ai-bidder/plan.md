@@ -206,7 +206,7 @@ default floor stays fast, the gated search bidder remains for maximum strength.
   books). The additive `two_over_one_search_with(SearchFloor)` constructor (gated
   `search`) exposes `--layouts`/`--shortlist`/`--temperature`; the full production
   dataset feeds M3.2.
-- 🟡 **M3.2 Train + iterate.** Retrain toward the search target; feed the improved
+- ✅ **M3.2 Train + iterate.** Retrain toward the search target; feed the improved
   net back into M2.2's continuations; repeat. *Deliverable:* successive nets.
   *Measure:* each round's A/B IMPs/board vs the prior net — **accept only gains**.
   *Deps:* M3.1. **Round 1 done:** trained a v1-featured net on the 10 000-board
@@ -220,12 +220,33 @@ default floor stays fast, the gated search bidder remains for maximum strength.
   gain by the harness metric. *Caveat:* 75 % divergence from the v1 net and a
   DD-scored A/B (like the teacher) mean the magnitude likely overstates real-table
   value; the gain concentrates off-book/competitive, as M3 intended. **Round 2
-  (regenerate targets with this net as the policy, then retrain) deferred.**
-- ⬜ **M3.3 Champion.** The best net by harness score becomes the optional neural
+  done (promoted):** regenerated the search-dump with the round-1 net as the
+  rollout continuation policy *and* the doubling-aware `ev_all` (104 476 rows / 10k
+  boards, git_sha `6a4ae96`), retrained identically (val-CE 0.967, top-1 88.1 %
+  constructive / 70.3 % contested — a harder, more disciplined target). **A/B
+  (20 000 boards) round-2 vs round-1, on the default perfect-defense measure
+  (failing contracts priced doubled): +1.661 IMPs/board vul none (CI
+  [+1.550, +1.772]), +2.069 vul both (CI [+1.957, +2.181]).** Round 2 learned to
+  *stop reaching doubled-down contracts* — the discipline its doubling-aware
+  targets reward. It also beats the deterministic floor on the same measure (+0.178
+  vul none, +1.716 vul both; CIs exclude 0). On the optimistic double-dummy bound
+  (down contracts scored undoubled) the step is parity vul none (+0.046) and a gain
+  vul both (+0.424) — never worse on either bound. Promoted: the round-2 weights
+  replaced the production search net in place (`two_over_one_neural_search()` is now
+  round 2 everywhere; the temporary comparison wiring was reverted).
+- ✅ **M3.3 Champion.** The best net by harness score becomes the optional neural
   floor. *Measure:* strictly positive IMPs/board vs the deterministic floor, with
-  a board count large enough to exclude zero. *Deps:* M3.2.
+  a board count large enough to exclude zero. *Deps:* M3.2. **Done:** the round-2
+  search net is the champion — on the default perfect-defense measure it beats the
+  deterministic floor at 20 000 boards by +0.178 vul none (CI [+0.075, +0.282]) and
+  +1.716 vul both (CI [+1.608, +1.824]), and is positive on the optimistic
+  double-dummy bound too (+0.123 / +0.583). It is the in-place production search net
+  (`two_over_one_neural_search()`, gated `neural-floor`); `instinct()` stays the
+  default and baseline, this is the optional learned floor it intended.
 
-Exit M3: a floor that beats the hand-written one on cardplay-grounded evidence.
+Exit M3: ✅ a floor that beats the hand-written one on cardplay-grounded evidence —
+decisively on the default perfect-defense measure, and at parity-or-better on the
+optimistic double-dummy bound, across two search-distillation rounds.
 
 ---
 

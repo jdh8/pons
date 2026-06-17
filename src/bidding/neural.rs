@@ -139,8 +139,12 @@ pub fn classify_v2(features: &[f32]) -> Logits {
 
 // ── search-target: v1-featured, distilled from the live-search teacher ───────
 // AI-bidder M3.2. Same 160-input shape and forward pass as v1; only the training
-// *target* differs (the M3.1 search softmax instead of the deterministic teacher
+// *target* differs (the search softmax instead of the deterministic teacher
 // softmax). Not the live search bidder — a fast net that learned its judgement.
+// Currently the **round-2** net: targets regenerated with the round-1 search net
+// as the rollout continuation policy (and a doubling-aware EV evaluator), which
+// taught it to avoid doubled-down contracts — +1.66 IMPs/board over round 1 on the
+// default perfect-defense measure (20k boards, vul none; +2.07 vul both).
 
 /// Embedded search-target weights: v1 layout (160 inputs), search-distilled.
 static RAW_SEARCH_V1: &[u8] = include_bytes!("weights/two_over_one_v1_search.f32");
