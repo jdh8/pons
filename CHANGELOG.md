@@ -613,6 +613,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   bound (which scores down contracts undoubled) the round-1→round-2 step is parity
   vul none (+0.046, CI [−0.034, +0.127]) and a gain vul both (+0.424), so round 2
   is never worse on either bound.
+- **The neural-floor A/B harness now reports perfect-defense doubling as the
+  default measure, double-dummy as the optimistic bound.** `examples/neural-floor`
+  used to headline the double-dummy swing — which prices every failing contract
+  undoubled, i.e. as if the opponents passed it out instead of doubling what they
+  can beat — and relegate perfect-defense doubling to a sub-line. The head-to-head
+  verdict now runs on the PD swing; the DD swing is still printed as the optimistic
+  bound. (The vs-bare floor-worth target stays on DD: PD vs a passing opponent is a
+  scorer artifact, since bare never owns a failing contract.)
 - **The `fifths` strength gauge no longer scores Fifths alone — it averages
   Fifths with an honor-weighted companion.** Fifths is tuned for 3NT (it
   rewards aces and tens, discounts kings and queens), so it misjudges an

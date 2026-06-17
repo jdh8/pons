@@ -123,12 +123,14 @@ struct Board {
 
 /// The outcome of one duplicate match
 struct MatchResult {
-    /// Per-board IMP swing to the home team (0 on non-divergent boards)
+    /// Per-board IMP swing to the home team under double-dummy scoring (0 on
+    /// non-divergent boards). The *optimistic bound*: a failing contract is priced
+    /// undoubled, as if the opponents passed it out rather than doubling it.
     swings: Vec<i64>,
-    /// Same swings, but scored under perfect-defense doubling
-    /// ([`ns_score_doubling_failures`]): a contract that fails double dummy is
-    /// priced *doubled*, so phantom/failing contracts are punished as good
-    /// defenders would. The realism check on the DD-optimistic `swings`.
+    /// Same swings under perfect-defense doubling ([`ns_score_doubling_failures`]):
+    /// a contract that fails double dummy is priced *doubled*, as real opponents
+    /// would double what they can beat. The **default measure** — `report()`'s
+    /// headline and verdict run on this, not the DD-optimistic `swings`.
     swings_pd: Vec<i64>,
     /// Boards whose two tables reached different contracts
     divergent: usize,
@@ -218,8 +220,12 @@ fn report(
             se,
         )
     };
-    let (total, mean, lo, hi, se) = summarize(&result.swings);
-    let (total_pd, mean_pd, lo_pd, hi_pd, _) = summarize(&result.swings_pd);
+    // Perfect-defense doubling is the default measure: real opponents double the
+    // contracts they can beat, so DD (which scores every down contract undoubled,
+    // as if they passed it out) only bounds the optimistic side. Headline + verdict
+    // run on PD; DD is printed as the optimistic bound.
+    let (total_pd, mean_pd, lo_pd, hi_pd, se_pd) = summarize(&result.swings_pd);
+    let (total, mean, lo, hi, _) = summarize(&result.swings);
 
     println!("\n=== {label}: {count} boards, vulnerability {vul} ===");
     println!(
@@ -227,26 +233,29 @@ fn report(
         result.divergent,
         100.0 * result.divergent as f64 / count.max(1) as f64,
     );
-    println!("Home (neural) team: {total:+} IMPs, {mean:+.3} IMPs/board");
-    println!("  95% CI: [{lo:+.3}, {hi:+.3}]  (SE {se:.3}, n = {count})");
+    println!("Home (neural) team: {total_pd:+} IMPs, {mean_pd:+.3} IMPs/board");
+    println!("  95% CI: [{lo_pd:+.3}, {hi_pd:+.3}]  (SE {se_pd:.3}, n = {count})");
     println!(
-        "  perfect-defense doubling: {total_pd:+} IMPs, {mean_pd:+.3} IMPs/board, \
-         CI [{lo_pd:+.3}, {hi_pd:+.3}]"
+        "  double-dummy (optimistic bound): {total:+} IMPs, {mean:+.3} IMPs/board, \
+         CI [{lo:+.3}, {hi:+.3}]"
     );
 
     if target == 0.0 {
-        let within = (lo..=hi).contains(&0.0);
-        let verdict = match (within, mean.abs() < 0.1) {
+        let within = (lo_pd..=hi_pd).contains(&0.0);
+        let verdict = match (within, mean_pd.abs() < 0.1) {
             (true, true) => "parity — CI contains 0 and |mean| < 0.1 (within noise)",
             (true, false) => "CI contains 0, but |mean| ≥ 0.1 — collect more boards",
-            (false, _) if mean > 0.0 => "CI excludes 0, net ahead (a pleasant surprise)",
+            (false, _) if mean_pd > 0.0 => "CI excludes 0, net ahead (a pleasant surprise)",
             (false, _) => "CI excludes 0, net behind — inspect divergent boards",
         };
         println!("  Target ≈ 0 (parity): {verdict}");
     } else {
+        // The vs-bare floor-worth target (+0.5) is a DD-frame number: PD vs bare is
+        // a scorer artifact (bare passes out and never owns a failing contract, so
+        // PD asymmetrically punishes the active side), so check this target on DD.
         let contains = (lo..=hi).contains(&target);
         println!(
-            "  Target ≈ {target:+.1}: CI {} the {target:+.1} target",
+            "  Target ≈ {target:+.1}: CI {} the {target:+.1} target (double-dummy)",
             if contains { "contains" } else { "excludes" },
         );
     }
@@ -337,8 +346,8 @@ fn main() {
         0.0,
     );
 
-    // ── M3.2 round 1: the search-target net (v1 features, distilled from the
-    // live-search teacher) ──────────────────────────────────────────────────
+    // ── M3.2: the search-target net (v1 features, distilled from the live-search
+    // teacher; currently the round-2 net) ─────────────────────────────────────
     // The headline: does training toward the search target (M3.1) beat training
     // toward the deterministic teacher, head-to-head at the same features and
     // arch?  Target 0 = no regression; CI strictly above 0 = a real gain.
@@ -350,7 +359,7 @@ fn main() {
         &mut rng,
     );
     report(
-        "search-target net vs v1 neural floor — the M3.2 round-1 gain",
+        "search-target net vs v1 neural floor — the M3.2 gain",
         &search_vs_v1,
         args.count,
         args.vulnerability,
