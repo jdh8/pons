@@ -15,8 +15,15 @@
 //! swing credited to the redesign team (NS at A, EW at B).  A positive
 //! IMPs/board favors the redesign.
 //!
+//! `--baseline` and `--redesign` each pick a shape policy — `classic`
+//! (balanced only), `wide` (the shipped 5422-minor default), or `wide6322` (also
+//! a 6322 with a six-card minor) — so the harness measures any pair of policies.
+//! The default `classic` vs `wide` measures the shipped redesign; `--baseline
+//! wide --redesign wide6322` measures the marginal value of adding 6322.
+//!
 //! ```text
 //! cargo run --release --example nt-shape-contested -- --count 20000 --vulnerability ns
+//! cargo run --release --example nt-shape-contested -- --baseline wide --redesign wide6322 --count 100000
 //! ```
 
 use clap::Parser;
@@ -25,12 +32,12 @@ use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Hand, Seat};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::bidding::context::relative;
-use pons::bidding::two_over_one::two_over_one_classic;
-use pons::bidding::{Family, Stance, System};
+use pons::bidding::two_over_one::{two_over_one_classic, two_over_one_wide_6322};
+use pons::bidding::{Family, Pair, Stance, System};
 use pons::scoring::{final_contract, imps, ns_score};
 use pons::two_over_one;
 
-/// Contested 1NT-shape A/B: classic balanced 1NT vs the wide redesign
+/// Contested 1NT-shape A/B between two opening-shape policies
 #[derive(Parser)]
 struct Args {
     /// Number of boards in the match (dealer rotates per board)
@@ -40,6 +47,24 @@ struct Args {
     /// Vulnerability: none, ns, ew, both
     #[arg(short, long, default_value = "none")]
     vulnerability: AbsoluteVulnerability,
+
+    /// Baseline arm: classic | wide | wide6322
+    #[arg(short, long, default_value = "classic")]
+    baseline: String,
+
+    /// Redesign arm (the one the swing is credited to): classic | wide | wide6322
+    #[arg(short, long, default_value = "wide")]
+    redesign: String,
+}
+
+/// The 2/1 pair for a shape-policy name (`classic` / `wide` / `wide6322`)
+fn system(name: &str) -> Pair {
+    match name {
+        "classic" => two_over_one_classic(),
+        "wide" => two_over_one(),
+        "wide6322" => two_over_one_wide_6322(),
+        other => panic!("unknown shape policy {other:?} (classic | wide | wide6322)"),
+    }
 }
 
 /// The seat acting after `len` calls from `dealer`
@@ -99,8 +124,8 @@ fn bid_out(
 fn main() {
     let args = Args::parse();
     let mut rng = rand::rng();
-    let redesign = two_over_one().against(Family::NATURAL);
-    let baseline = two_over_one_classic().against(Family::NATURAL);
+    let redesign = system(&args.redesign).against(Family::NATURAL);
+    let baseline = system(&args.baseline).against(Family::NATURAL);
 
     // Each board at both tables (redesign NS at A, EW at B), dealer rotating.
     let mut deals: Vec<FullDeal> = Vec::with_capacity(args.count);
@@ -152,8 +177,8 @@ fn main() {
     }
 
     println!(
-        "=== Contested 1NT-shape A/B: {} boards, vulnerability {} ===",
-        args.count, args.vulnerability,
+        "=== Contested 1NT-shape A/B: {} vs {}, {} boards, vulnerability {} ===",
+        args.redesign, args.baseline, args.count, args.vulnerability,
     );
     println!("(opponents bid — competitive value included; shape change only)");
     println!(
@@ -163,7 +188,9 @@ fn main() {
         100.0 * divergent.len() as f64 / args.count.max(1) as f64,
     );
     println!(
-        "Redesign (wide 1NT): {points:+} points, {total_imps:+} IMPs ({:+.3} IMPs/board)",
+        "{} (vs {}): {points:+} points, {total_imps:+} IMPs ({:+.3} IMPs/board)",
+        args.redesign,
+        args.baseline,
         total_imps as f64 / args.count.max(1) as f64,
     );
 }

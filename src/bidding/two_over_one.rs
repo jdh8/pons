@@ -83,7 +83,7 @@ mod weak_twos;
 pub use competition::competition;
 pub use defense::{advance_double, defense_to_suit, defense_to_weak_two};
 pub use notrump::notrump_responses;
-pub use openings::{openings, openings_with};
+pub use openings::{NotrumpShape, openings, openings_with};
 pub use responses::{major_responses, minor_responses};
 
 /// A bid as a [`Call`], for trie keys
@@ -196,7 +196,19 @@ pub fn two_over_one() -> Pair {
 /// `nt-shape-abc` (constructive) and `nt-shape-contested` examples.
 #[must_use]
 pub fn two_over_one_classic() -> Pair {
-    with_instinct_floor(bare_two_over_one_with(false))
+    with_instinct_floor(bare_two_over_one_with(NotrumpShape::Balanced))
+}
+
+/// The 2/1 pair with the **experimental** wider 1NT shape ([`NotrumpShape::Wide6322`])
+///
+/// Exactly [`two_over_one`] but its 1NT also opens a 6322 with a six-card minor,
+/// on top of the shipped 5422-minor.  An experiment measured against the
+/// `two_over_one` default in the `nt-shape-contested` example; not yet adopted (a
+/// constructive ablation found the 6322 addition net-neutral — the open question
+/// is whether competition changes that).
+#[must_use]
+pub fn two_over_one_wide_6322() -> Pair {
+    with_instinct_floor(bare_two_over_one_with(NotrumpShape::Wide6322))
 }
 
 /// The 2/1 pair with the distilled **neural** floor (AI-bidder M1.3)
@@ -342,20 +354,20 @@ fn with_instinct_floor(pair: Pair) -> Pair {
 /// 1NT); [`two_over_one_classic`] is the balanced-only baseline.
 #[must_use]
 pub fn bare_two_over_one() -> Pair {
-    bare_two_over_one_with(true)
+    bare_two_over_one_with(NotrumpShape::Wide)
 }
 
-/// [`bare_two_over_one`] with the wide 1NT opening shape selectable
+/// [`bare_two_over_one`] with the 1NT [`NotrumpShape`] policy selectable
 ///
-/// `wide` selects the shape redesign in the opening table ([`openings_with`]);
-/// everything else is identical.  `bare_two_over_one()` is
-/// `bare_two_over_one_with(true)` (wide ships); the classic balanced baseline is
-/// `bare_two_over_one_with(false)`, behind [`two_over_one_classic`].
+/// `shape` selects the opening table's 1NT shape ([`openings_with`]); everything
+/// else is identical.  `bare_two_over_one()` ships [`NotrumpShape::Wide`]; the
+/// classic balanced baseline ([`NotrumpShape::Balanced`]) is behind
+/// [`two_over_one_classic`].
 #[must_use]
-fn bare_two_over_one_with(wide: bool) -> Pair {
+fn bare_two_over_one_with(shape: NotrumpShape) -> Pair {
     let mut c = Constructive::new();
 
-    openings::register(&mut c, wide);
+    openings::register(&mut c, shape);
     responses::register(&mut c);
     notrump::register(&mut c);
     rebids::register(&mut c);

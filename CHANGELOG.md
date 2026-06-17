@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`two_over_one_wide_6322()` — experimental 6322-minor 1NT option.** A
+  `NotrumpShape` enum (`Balanced` / `Wide` / `Wide6322`) now selects the 1NT
+  opening shape; `Wide6322` adds a 6322 with a six-card minor on top of the
+  shipped `Wide` (5422-minor) default. Kept as an option, **not** the default: a
+  constructive ablation had found the 6322 addition net-neutral, but a
+  *contested* re-test (`nt-shape-contested --baseline wide --redesign wide6322`,
+  100k boards) shows it is worth **+0.52 IMPs/divergent board vul none and +0.64
+  vul both** (~2.8–3.6σ) — the 6-card minor's preemptive value pays off only in
+  competition. Adopting it as the default is gated on the deferred inference pass
+  (a 6-card suit breaks the current "1NT opener is 2–5 in every suit" inference,
+  which a 5422 satisfied but a 6322 does not). The `nt-shape-contested` example
+  gained `--baseline`/`--redesign` flags to compare any two shape policies.
 - **Wider 1NT opening shape, now the default.** The strong 1NT (`two_over_one`)
   opens not only the balanced patterns (4333/4432/5332) but also a **5422 with a
   five-card minor** — a five-card major still prefers a one-of-a-major opening it

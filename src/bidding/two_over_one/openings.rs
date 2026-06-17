@@ -9,24 +9,37 @@ use crate::bidding::{Rules, Trie};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Hand, Strain, Suit};
 
-/// Shapes eligible for a 1NT opening
+/// Which hand shapes the strong 1NT opening admits ([`openings_with`])
 ///
-/// Always the balanced patterns (4333/4432/5332).  With the wide redesign
-/// (`wide`) it also admits a 5422 whose five-card suit is a minor — a five-card
-/// major prefers a one-of-a-major opening it can rebid, so it is left out.
-/// Strength ([`fifths`] 15–17) and the inference side are untouched; this is the
-/// shape-only A/B knob for the deferred redesign (see the `nt-shape-abc` and
-/// `nt-shape-contested` examples).
-fn notrump_shape(wide: bool) -> Cons<impl Constraint + Clone> {
+/// Every variant opens the balanced patterns (4333/4432/5332).  A long *major*
+/// always prefers a one-of-a-major opening it can rebid, so the shapely
+/// additions are minor-only.  Strength ([`fifths`] 15–17) and the inference side
+/// are untouched; this is the shape-only knob for the deferred redesign (see the
+/// `nt-shape-abc` and `nt-shape-contested` examples).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum NotrumpShape {
+    /// Balanced only — the classic baseline.
+    Balanced,
+    /// Balanced plus a 5422 with a five-card minor — the shipped default.
+    Wide,
+    /// [`Wide`][NotrumpShape::Wide] plus a 6322 with a six-card minor
+    /// (experimental).
+    Wide6322,
+}
+
+/// Shapes eligible for a 1NT opening, per the [`NotrumpShape`] policy
+fn notrump_shape(shape: NotrumpShape) -> Cons<impl Constraint + Clone> {
     balanced()
         | described("wide 1NT shape", move |hand: Hand, _: &Context<'_>| {
-            if !wide {
-                return false;
-            }
             let mut lengths = Suit::ASC.map(|suit| hand[suit].len());
             lengths.sort_unstable();
-            lengths == [2, 2, 4, 5]
-                && (hand[Suit::Clubs].len() == 5 || hand[Suit::Diamonds].len() == 5)
+            let long = match (shape, lengths) {
+                (NotrumpShape::Balanced, _) => return false,
+                (_, [2, 2, 4, 5]) => 5,
+                (NotrumpShape::Wide6322, [2, 2, 3, 6]) => 6,
+                _ => return false,
+            };
+            hand[Suit::Clubs].len() == long || hand[Suit::Diamonds].len() == long
         })
 }
 
@@ -54,16 +67,16 @@ fn prefers_diamonds() -> Cons<impl Constraint + Clone> {
 /// upgrades out of a weak two — it is too good for one.
 #[must_use]
 pub fn openings() -> Rules {
-    openings_with(true)
+    openings_with(NotrumpShape::Wide)
 }
 
-/// [`openings`] with the wide 1NT shape selectable
+/// [`openings`] with the 1NT [`NotrumpShape`] policy selectable
 ///
-/// `wide` is the shape redesign: a 5422 with a five-card minor also opens 1NT.
-/// `openings()` ships it (`openings_with(true)`); the classic balanced-only
-/// table is `openings_with(false)`.
+/// `openings()` ships [`NotrumpShape::Wide`] (a 5422 with a five-card minor also
+/// opens 1NT); [`NotrumpShape::Balanced`] is the classic baseline and
+/// [`NotrumpShape::Wide6322`] the experimental superset.
 #[must_use]
-pub fn openings_with(wide: bool) -> Rules {
+pub fn openings_with(shape: NotrumpShape) -> Rules {
     let mut rules = Rules::new()
         // Strong, artificial 2♣ — top priority.
         .rule(Bid::new(2, Strain::Clubs), 3.0, points(22..))
@@ -71,7 +84,7 @@ pub fn openings_with(wide: bool) -> Rules {
         .rule(
             Bid::new(1, Strain::Notrump),
             2.0,
-            fifths(15.0..18.0) & notrump_shape(wide),
+            fifths(15.0..18.0) & notrump_shape(shape),
         )
         .rule(
             Bid::new(2, Strain::Notrump),
@@ -136,8 +149,8 @@ pub fn openings_with(wide: bool) -> Rules {
 }
 
 /// Register the opening table in the constructive book
-pub(super) fn register(book: &mut Trie, wide: bool) {
-    insert_uncontested(book, &[], openings_with(wide));
+pub(super) fn register(book: &mut Trie, shape: NotrumpShape) {
+    insert_uncontested(book, &[], openings_with(shape));
 }
 
 #[cfg(test)]
@@ -173,19 +186,26 @@ mod tests {
         let balanced16 = "AQ32.K53.QJ4.A92";
 
         // Classic: only the balanced hand opens 1NT; the shapely ones open a suit.
-        let narrow = openings_with(false);
+        let narrow = openings_with(NotrumpShape::Balanced);
         assert_eq!(opens(&narrow, balanced16), one_nt);
         assert_eq!(opens(&narrow, five422_minor), one_c);
         assert_eq!(opens(&narrow, five422_major), one_s);
         assert_eq!(opens(&narrow, six322_minor), one_c);
         assert_eq!(opens(&narrow, six322_major), one_s);
 
-        // Redesign: only the long-minor 5422 joins 1NT; majors and 6322 stay suits.
-        let wide = openings_with(true);
+        // Wide (default): the long-minor 5422 joins 1NT; majors and 6322 stay suits.
+        let wide = openings_with(NotrumpShape::Wide);
         assert_eq!(opens(&wide, balanced16), one_nt);
         assert_eq!(opens(&wide, five422_minor), one_nt);
         assert_eq!(opens(&wide, five422_major), one_s);
         assert_eq!(opens(&wide, six322_minor), one_c);
         assert_eq!(opens(&wide, six322_major), one_s);
+
+        // Wide6322: the long-minor 6322 also joins 1NT; majors still stay suits.
+        let wide6322 = openings_with(NotrumpShape::Wide6322);
+        assert_eq!(opens(&wide6322, five422_minor), one_nt);
+        assert_eq!(opens(&wide6322, five422_major), one_s);
+        assert_eq!(opens(&wide6322, six322_minor), one_nt);
+        assert_eq!(opens(&wide6322, six322_major), one_s);
     }
 }
