@@ -9,6 +9,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Opener accepts a 1NT–2NT invitation — via the inference, not a node.**
+  `american()` previously *passed* a `1NT–2NT` invite even with a maximum: opener
+  was blind to responder's strength because `Inferences::read`'s notrump-raise
+  reading was gated to one-of-a-suit openings, so a raise of our *own* 1NT opening
+  showed nothing. Teaching the inference that `1NT–2NT` shows ≈8–9 and `1NT–3NT`
+  10+ (naturally; the artificial Stayman/transfers stay silent) lets the **keyless
+  floor judge game itself** — it already knew "bid game when the combined range
+  suffices", it just couldn't see responder. With the fix, **both `american()` (the
+  deterministic instinct floor) and `american_search()` accept opposite a maximum
+  (3NT) and decline opposite a minimum (Pass)** — no hand-authored acceptance node,
+  in keeping with "smarten the floor, don't author a node per bid". *Measured*
+  (`nt-invite-abc`, opponents silenced, 60k boards/cell): consistently positive,
+  **+2.48 IMPs/divergent board vul none, +5.06 vul both** (~0.2% of boards, so
+  +0.005–0.009 IMPs/board overall), zero regression. Gated by
+  `set_nt_invite_inference(bool)` (default on) for the A/B and as a regression
+  guard. *Deferred* (future session): apply the same inference treatment to the
+  other partially-authored notrump continuations — invitational/game sequences
+  after transfers and Stayman, and natural raises of the 2NT opening (the
+  `nt-range-split` diagnostic below still shows ~23 such hands the book under-bids).
+- **`Inferences::narrowed_points` + the `nt-range-split` diagnostic (AI-bidder).**
+  The new `Inferences::narrowed_points(who, range)` returns a copy with one player's
+  shown points intersected to a sub-range — the seam for splitting a 1NT opener's
+  shown range into halves and sampling layouts from each (`sample_layouts`). The
+  `nt-range-split` example uses it as an *oracle*: opposite openers from each half it
+  scores the best NS game against the best NS partscore double-dummy (game good
+  opposite both → FG, the upper half only → INV, neither → PASS — the meaning of an
+  invitation), and compares that verdict to where `american()` lands by bidding the
+  `1NT–Pass` auction out. This is what *found* the invite-acceptance gap above (the
+  empty INV column); after the inference fix its disagreement drops 26.4% → 22.8%
+  (the residual is the deferred transfer/Stayman continuations). Plan:
+  `docs/ai-bidder/`.
 - **Meckstroth adjunct — opener's invitational `3m` jump after a forcing 1NT
   (and `1♥–1♠`), now the default.** After `1M–1NT` or `1♥–1♠`, opener's
   medium *shapely* hands (5-5 / 6-5, ≈15–17 points) previously had no

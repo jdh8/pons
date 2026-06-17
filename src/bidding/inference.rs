@@ -38,11 +38,34 @@
 use super::context::Context;
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Strain, Suit};
+use std::cell::Cell;
 
 /// The largest a suit length range may span
 const LENGTH_CAP: u8 = 13;
 /// The largest a point range may span (all forty HCP, then some)
 const POINTS_CAP: u8 = 37;
+
+std::thread_local! {
+    /// Whether [`Inferences::read`] quantifies a natural notrump raise of our own
+    /// 1NT opening (2NT invitational, 3NT game).  On by default; turn it off to
+    /// reproduce the pre-fix behaviour where opener was blind to responder's
+    /// strength and so could not accept an invitation.  The
+    /// [`nt-invite-abc`](../../examples) example A/Bs the two.
+    static NT_INVITE_INFERENCE: Cell<bool> = const { Cell::new(true) };
+}
+
+/// Toggle reading natural notrump raises of our 1NT opening (default on).
+///
+/// The fix this gates is what lets opener — and the sampler behind the search
+/// floor — know responder is invitational (≈8–9) or game-going (10+), so the
+/// keyless floor can judge whether game is good without a hand-authored node.
+pub fn set_nt_invite_inference(on: bool) {
+    NT_INVITE_INFERENCE.with(|cell| cell.set(on));
+}
+
+fn nt_invite_inference() -> bool {
+    NT_INVITE_INFERENCE.with(Cell::get)
+}
 
 /// An inclusive `[min, max]` range of a shown quantity — a length or points
 ///
@@ -218,6 +241,20 @@ impl Inferences {
         self.get(Relative::Rho)
     }
 
+    /// A copy with one player's shown points intersected down to `points`
+    ///
+    /// Splits a shown range into halves for what-if sampling: narrowing an
+    /// opener's points to the upper or lower half of what they have shown lets a
+    /// caller deal layouts from each half and ask, double-dummy, whether game is
+    /// good opposite a maximum but not a minimum — the meaning of an invitation.
+    /// Intersects (never widens), so the result stays within what was shown.
+    #[must_use]
+    pub fn narrowed_points(&self, who: Relative, points: Range) -> Self {
+        let mut copy = *self;
+        copy.players[who as usize].points = copy.players[who as usize].points.intersect(points);
+        copy
+    }
+
     /// Derive, hand-independently, what every player's calls have shown under
     /// standard 2/1 meanings, relative to the side to act
     #[must_use]
@@ -239,6 +276,7 @@ impl Inferences {
         let opening_artificial =
             opening_bid.strain == Strain::Notrump || opening_bid == Bid::new(2, Strain::Clubs);
         let defending_parity = (opener_lane + 1) % 2;
+        let read_nt_invite = nt_invite_inference();
 
         // Suits bid and the count of bids made, per auction lane (`index % 4`);
         // lanes of equal parity are partners, the same side.
@@ -348,7 +386,24 @@ impl Inferences {
                         let opening_one_suit =
                             opening_bid.level.get() == 1 && opening_bid.strain.is_suit();
 
-                        if bid.strain == Strain::Notrump && opening_one_suit {
+                        if read_nt_invite
+                            && bid.strain == Strain::Notrump
+                            && opening_bid == Bid::new(1, Strain::Notrump)
+                            && responder_first
+                        {
+                            // A natural notrump raise of our 1NT opening: 2NT
+                            // invites (8–9), 3NT is at least game values (10+).
+                            // Both deny a five-card major (those transfer);
+                            // Stayman and the transfers themselves are artificial
+                            // and stay silent.  This is what lets opener (or the
+                            // sampler behind the search floor) know responder's
+                            // strength and judge whether game is good.
+                            match bid.level.get() {
+                                2 => players[who].narrow_points(Range::new(8, 10)),
+                                3 => players[who].narrow_points(Range::at_least(10, POINTS_CAP)),
+                                _ => {}
+                            }
+                        } else if bid.strain == Strain::Notrump && opening_one_suit {
                             if opener_rebid {
                                 // A balanced rebid.  1NT is a minimum (12–16: a
                                 // 17 would open the strong notrump); a *jump* to
@@ -621,6 +676,31 @@ mod tests {
         let one_club = read(&[bid(1, Strain::Clubs)]);
         assert_eq!(one_club.rho().length(Suit::Clubs), Range::new(3, 13));
         assert_eq!(one_club.rho().length(Suit::Hearts), Range::new(0, 4));
+    }
+
+    #[test]
+    fn narrowed_points_intersects_one_player() {
+        // 1NT shows 14-19; narrow the opener (here our RHO) to the upper half.
+        let inf = read(&[bid(1, Strain::Notrump)]);
+        assert_eq!(inf.rho().points, Range::new(14, 19));
+
+        let upper = inf.narrowed_points(Relative::Rho, Range::new(17, 19));
+        assert_eq!(
+            upper.rho().points,
+            Range::new(17, 19),
+            "narrowed to the half"
+        );
+        assert_eq!(inf.rho().points, Range::new(14, 19), "original unchanged");
+        // Shape and the other players are untouched.
+        assert_eq!(
+            upper.rho().length(Suit::Spades),
+            inf.rho().length(Suit::Spades)
+        );
+        assert_eq!(upper.partner().points, inf.partner().points);
+
+        // Intersection, not replacement: a wider request cannot widen what was shown.
+        let clamped = inf.narrowed_points(Relative::Rho, Range::new(0, POINTS_CAP));
+        assert_eq!(clamped.rho().points, Range::new(14, 19));
     }
 
     #[test]
