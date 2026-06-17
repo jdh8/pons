@@ -13,21 +13,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `american()` previously *passed* a `1NT–2NT` invite even with a maximum: opener
   was blind to responder's strength because `Inferences::read`'s notrump-raise
   reading was gated to one-of-a-suit openings, so a raise of our *own* 1NT opening
-  showed nothing. Teaching the inference that `1NT–2NT` shows ≈8–9 and `1NT–3NT`
-  10+ (naturally; the artificial Stayman/transfers stay silent) lets the **keyless
-  floor judge game itself** — it already knew "bid game when the combined range
-  suffices", it just couldn't see responder. With the fix, **both `american()` (the
-  deterministic instinct floor) and `american_search()` accept opposite a maximum
-  (3NT) and decline opposite a minimum (Pass)** — no hand-authored acceptance node,
-  in keeping with "smarten the floor, don't author a node per bid". *Measured*
-  (`nt-invite-abc`, opponents silenced, 60k boards/cell): consistently positive,
-  **+2.48 IMPs/divergent board vul none, +5.06 vul both** (~0.2% of boards, so
-  +0.005–0.009 IMPs/board overall), zero regression. Gated by
+  showed nothing. Teaching the inference that `1NT–2NT` shows an invitational ≈8 and
+  `1NT–3NT` is game-going 9+ (naturally; the artificial Stayman/transfers stay
+  silent) lets the **keyless floor judge game itself** — it already knew "bid game
+  when the combined range suffices", it just couldn't see responder. With the fix,
+  **both `american()` (the deterministic instinct floor) and `american_search()`
+  accept opposite a maximum (3NT) and decline opposite a minimum (Pass)** — no
+  hand-authored acceptance node, in keeping with "smarten the floor, don't author a
+  node per bid". *Measured* (`nt-invite-abc`, opponents silenced, 60k boards/cell):
+  consistently positive, **+1.96 IMPs/divergent board vul none, +4.48 vul both**
+  (~0.1% of boards, so +0.002–0.004 IMPs/board overall), zero regression. Gated by
   `set_nt_invite_inference(bool)` (default on) for the A/B and as a regression
   guard. *Deferred* (future session): apply the same inference treatment to the
   other partially-authored notrump continuations — invitational/game sequences
   after transfers and Stayman, and natural raises of the 2NT opening (the
   `nt-range-split` diagnostic below still shows ~23 such hands the book under-bids).
+- **Responder forces game with 9+ over 1NT (was: invite 8–9, force 10+).** A/B
+  verification of "upgrade the 9-count to a game force": opposite a 15–17 notrump a
+  flat 9 makes game often enough that the invitational stop loses more by missing
+  games (opener declining with a useful minimum) than the occasional 24-count game
+  costs. *Measured* (constructive A/B, opponents silenced, 120k boards/cell, forcing
+  every 9 vs inviting 8–9): **+0.98 IMPs/divergent board vul none, +2.91 vul both**
+  (+0.0016 / +0.0046 IMPs/board), zero regression. Deciding the 9 by Thomas Andrews's
+  tempered **Fifths** instead (force good 9s, invite quack-heavy ones) was measured
+  *worse* — even low-Fifths 9s gain ≈+0.9 IMPs/divergent when forced, so the
+  selective threshold just leaves games unbid (matching Andrews's own caveat that
+  the fractional valuation does not help at the 1NT invitation boundary). So the
+  blunt HCP threshold wins; responder's 2NT is now a bare-8 invitation and `3NT`
+  shows 9+. The inference (above) was updated to match.
 - **`Inferences::narrowed_points` + the `nt-range-split` diagnostic (AI-bidder).**
   The new `Inferences::narrowed_points(who, range)` returns a copy with one player's
   shown points intersected to a sub-range — the seam for splitting a 1NT opener's

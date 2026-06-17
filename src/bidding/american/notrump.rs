@@ -47,17 +47,24 @@ pub fn notrump_responses() -> Rules {
             hcp(16..=17) & len(Suit::Hearts, ..5) & len(Suit::Spades, ..5),
         )
         // Natural notrump raises (no five-card major — that would transfer).
-        // 3NT is open-ended: a strong balanced hand bids game and leaves slam
-        // exploration to a later pass rather than being stranded without a call.
+        // Game-force with 9+, invite with a bare 8.  Forcing every 9 (rather
+        // than inviting 8–9 and forcing 10+) is A/B-verified worth ≈+1 IMP per
+        // divergent board vul none and ≈+3 vul both: opposite a 15–17 opener a 9
+        // makes game often enough that the invitational stop loses more by missing
+        // games (opener declining with a useful minimum) than it gains.  Deciding
+        // the 9 by Fifths instead was measured *worse* — even quack-heavy 9s are
+        // worth forcing, so selectivity just leaves games unbid.  3NT is
+        // open-ended: a strong balanced hand bids game and leaves slam exploration
+        // to a later pass.
         .rule(
             Bid::new(3, Strain::Notrump),
             1.0,
-            hcp(10..) & len(Suit::Hearts, ..5) & len(Suit::Spades, ..5),
+            hcp(9..) & len(Suit::Hearts, ..5) & len(Suit::Spades, ..5),
         )
         .rule(
             Bid::new(2, Strain::Notrump),
             1.0,
-            hcp(8..=9) & len(Suit::Hearts, ..5) & len(Suit::Spades, ..5),
+            hcp(8..=8) & len(Suit::Hearts, ..5) & len(Suit::Spades, ..5),
         )
         .rule(
             Call::Pass,

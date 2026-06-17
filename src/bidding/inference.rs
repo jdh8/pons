@@ -392,15 +392,15 @@ impl Inferences {
                             && responder_first
                         {
                             // A natural notrump raise of our 1NT opening: 2NT
-                            // invites (8–9), 3NT is at least game values (10+).
-                            // Both deny a five-card major (those transfer);
-                            // Stayman and the transfers themselves are artificial
-                            // and stay silent.  This is what lets opener (or the
-                            // sampler behind the search floor) know responder's
-                            // strength and judge whether game is good.
+                            // invites (a bare 8), 3NT forces game (9+).  Both deny
+                            // a five-card major (those transfer); Stayman and the
+                            // transfers themselves are artificial and stay silent.
+                            // This is what lets opener (or the sampler behind the
+                            // search floor) know responder's strength and judge
+                            // whether game is good.
                             match bid.level.get() {
-                                2 => players[who].narrow_points(Range::new(8, 10)),
-                                3 => players[who].narrow_points(Range::at_least(10, POINTS_CAP)),
+                                2 => players[who].narrow_points(Range::new(8, 9)),
+                                3 => players[who].narrow_points(Range::at_least(9, POINTS_CAP)),
                                 _ => {}
                             }
                         } else if bid.strain == Strain::Notrump && opening_one_suit {
