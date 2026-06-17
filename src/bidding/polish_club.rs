@@ -160,7 +160,7 @@ fn with_instinct_floor(mut pair: Pair) -> Pair {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::bidding::{Family, System};
+    use crate::bidding::Family;
 
     // The textbook-opening fixtures live in `tests/polish_club.rs`
     // (`textbook_openings_are_correct`); this is just the assembly smoke test.
