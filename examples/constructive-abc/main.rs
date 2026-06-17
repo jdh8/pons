@@ -4,7 +4,7 @@
 //! the neural/search floors own only the contested books, while the constructive
 //! book is always floored by the deterministic
 //! [`instinct`][pons::bidding::instinct] ladder (see
-//! [`two_over_one_constructive_floor`][pons::bidding::two_over_one::two_over_one_constructive_floor]).
+//! [`american_constructive_floor`][pons::bidding::american::american_constructive_floor]).
 //! This harness lifts that partition to ask one question: *if* we let the search
 //! floors answer the unbooked constructive nodes, do they bid them better than
 //! the milestone heuristics?
@@ -34,10 +34,10 @@ use contract_bridge::auction::{Auction, Call};
 use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Hand, Seat};
 use ddss::{NonEmptyStrainFlags, Solver};
+use pons::bidding::american::american_constructive_floor;
 use pons::bidding::context::relative;
 use pons::bidding::neural_floor::NeuralFloorSearch;
 use pons::bidding::search_floor::SearchFloor;
-use pons::bidding::two_over_one::two_over_one_constructive_floor;
 use pons::bidding::{Family, Stance, System};
 use pons::instinct;
 use pons::scoring::{final_contract, imps, ns_score};
@@ -121,14 +121,14 @@ fn main() {
     // so the contested books they each leave bare are never reached.
     let names = ["instinct", "search", "neural"];
     let stances = [
-        two_over_one_constructive_floor(instinct()).against(Family::NATURAL),
-        two_over_one_constructive_floor(SearchFloor {
+        american_constructive_floor(instinct()).against(Family::NATURAL),
+        american_constructive_floor(SearchFloor {
             layouts: args.layouts,
             shortlist: args.shortlist,
             ..SearchFloor::default()
         })
         .against(Family::NATURAL),
-        two_over_one_constructive_floor(NeuralFloorSearch).against(Family::NATURAL),
+        american_constructive_floor(NeuralFloorSearch).against(Family::NATURAL),
     ];
 
     // Bid every board with all three arms over the same deal.

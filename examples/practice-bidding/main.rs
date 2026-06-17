@@ -24,11 +24,11 @@ use contract_bridge::{AbsoluteVulnerability, Builder, Contract, FullDeal, Seat, 
 use ddss::{
     NonEmptyStrainFlags, Solver, StrainFlags, TrickCountTable, Vulnerability, calculate_par,
 };
+use pons::american;
+#[cfg(feature = "neural-floor")]
+use pons::american_neural_search;
 use pons::bidding::{Pair, Table};
 use pons::scoring::{final_contract, ns_score};
-use pons::two_over_one;
-#[cfg(feature = "neural-floor")]
-use pons::two_over_one_neural_search;
 
 // ---------------------------------------------------------------------------
 // CLI
@@ -114,9 +114,9 @@ enum Floor {
 /// Build a fresh 2/1 pair for the chosen floor
 fn build_pair(floor: Floor) -> Pair {
     match floor {
-        Floor::Instinct => two_over_one(),
+        Floor::Instinct => american(),
         #[cfg(feature = "neural-floor")]
-        Floor::NeuralSearch => two_over_one_neural_search(),
+        Floor::NeuralSearch => american_neural_search(),
     }
 }
 

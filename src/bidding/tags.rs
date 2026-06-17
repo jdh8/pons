@@ -179,7 +179,7 @@ fn derive_bid(ctx: &Context<'_>, bid: Bid) -> (Vec<&'static str>, String) {
     }
     // Cheapest new suit. A 2-level new suit over partner's 1-major opening is
     // a game-forcing 2/1.
-    if bid.level.get() == 2 && is_two_over_one(ctx, bid) {
+    if bid.level.get() == 2 && is_american(ctx, bid) {
         return (vec!["FG", "NAT"], "Two-over-one — game forcing.".into());
     }
     (vec!["NAT"], "Natural new suit.".into())
@@ -217,7 +217,7 @@ fn jump_over(ctx: &Context<'_>, bid: Bid) -> u8 {
 }
 
 /// Whether `bid` is a game-forcing 2/1 over partner's 1-major opening.
-fn is_two_over_one(ctx: &Context<'_>, bid: Bid) -> bool {
+fn is_american(ctx: &Context<'_>, bid: Bid) -> bool {
     let Some(partner) = ctx.partner_last_bid() else {
         return false;
     };
@@ -308,7 +308,7 @@ mod tests {
     }
 
     #[test]
-    fn derives_two_over_one_game_force() {
+    fn derives_american_game_force() {
         // 1♥–P, then 2♣ is a game-forcing two-over-one.
         let auction = [bid(1, Strain::Hearts), Call::Pass];
         let c = ctx(&auction);

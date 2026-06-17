@@ -41,7 +41,7 @@ The foundation. Pure bridge/Rust work; de-risks everything downstream.
   + `OFFSET_*`/`LEN_*` constants, 11 layout-pinning tests. Tags chosen for the
   corpus: WBF abbreviations (`wbf-abbreviations.md`).
 - ✅ **M0.4 Teacher dump.** Using the feature extractor, bid out random boards
-  with `two_over_one()` and record `(features, teacher_softmax)` at each decision,
+  with `american()` and record `(features, teacher_softmax)` at each decision,
   oversampling off-book/contested auctions. *Deliverable:* a training dataset.
   *Measure:* dataset stats (size, off-book fraction, call-distribution sanity).
   *Deps:* M0.3. **Done:** `examples/teacher-dump` → flat LE-`f32` (198/row) +
@@ -64,8 +64,8 @@ Prove the whole pipeline by *cloning* the current system.
   to the M0.4 dataset. *Deliverable:* a weights artifact + held-out cross-entropy.
   *Measure:* held-out top-1 agreement with the teacher (target high, e.g. >95% on
   on-book, lower but sane off-book). *Deps:* M0.4. **Done:** `trainer/` (off-crate
-  candle workspace, `exclude`d from the package) → `two_over_one_v1.{f32,json}`,
-  a 160→256→256→38 MLP distilled from `two_over_one()`. 80 epochs, val CE 0.249,
+  candle workspace, `exclude`d from the package) → `american_v1.{f32,json}`,
+  a 160→256→256→38 MLP distilled from `american()`. 80 epochs, val CE 0.249,
   top-1 93.8% overall (94.4% constructive, 93.6% contested). Sidecar records
   feature/teacher version, data seed, and git SHA.
 - ✅ **M1.2 Rust forward pass** behind an `ml`/`neural-floor` feature flag
@@ -82,7 +82,7 @@ Prove the whole pipeline by *cloning* the current system.
   §0.4 safety properties pass against the shelled net (the rails, enforced by
   construction); aggregate teacher-parity is measured by M1.4 — *not* per-auction
   identity with `instinct()`, infeasible for a ~94%-accurate net. *Deps:* M1.2.
-  **Done:** `bidding::neural_floor::NeuralFloor` + `two_over_one_neural()`. Forced
+  **Done:** `bidding::neural_floor::NeuralFloor` + `american_neural()`. Forced
   auctions (`instinct::forced` — partner's live takeout double, an auction forcing
   game, a just-made transfer over our strong NT) delegate to `instinct()`
   verbatim; everything else is the net, legality-masked via `Auction::can_push`
@@ -146,7 +146,7 @@ The piece `Inferences` was built for; needed before any "beat the teacher" work.
   fixed-seed determinism, the illegal-candidate and infeasible `NaN` paths, and
   the empty slate. *Decision (settled this milestone):* the continuation policy is
   a `System` **parameter**, not hardwired — `ev`'s `policy: &impl System` defaults
-  callers to the deterministic `two_over_one()` for debuggable validation (and ≈
+  callers to the deterministic `american()` for debuggable validation (and ≈
   the M1 net at bootstrap); M3.2 swaps in successive nets with no change to this
   code.
 - ✅ **M2.3 Live search bidder (gated).** Wrap M2.2 as a runtime
@@ -155,20 +155,20 @@ The piece `Inferences` was built for; needed before any "beat the teacher" work.
   return a distribution peaked on the high-EV calls — behind a `search` cargo
   feature, wrapped in the same forced-rails shell as `NeuralFloor`. This *is*
   "simulations in action": the policy simulates before it bids. *Deliverable:* a
-  feature-gated `two_over_one_search()` / `SearchFloor`. *Measure:* A/B IMPs/board
+  feature-gated `american_search()` / `SearchFloor`. *Measure:* A/B IMPs/board
   vs the deterministic floor (strictly positive) **and** vs the distilled net
   (search should beat the raw policy), over a board count large enough to exclude
   zero; the five §0.4 rails tests stay green against the shelled search bidder.
   *Deps:* M2.2, M1 (net as prior/policy). *Decisions:* bidding only; slow & gated
   is acceptable (knobs — `n` layouts, `k` shortlist, EV temperature — default to
   strength, not latency); the default build and `instinct()` baseline are
-  untouched. **Done:** `bidding::search_floor::SearchFloor` + `two_over_one_search()` behind
+  untouched. **Done:** `bidding::search_floor::SearchFloor` + `american_search()` behind
   the `search` feature (⊇ `neural-floor`). Shell mirrors `NeuralFloor` (`forced` →
   `instinct()`); the judgement middle masks the net prior, shortlists top-`k = 8`,
   prices them with `ev_all` over `n = 128` layouts, and re-seats onto an EV-ranked
   band (`prior_max + 3` nats, EV-temp `100` pts/nat; `Pass` and the un-evaluated
   tail stay finite; all-`NaN` → bare net). *Decisions:* continuation policy is
-  **neural self-play** (`two_over_one_neural()` all four seats — the policy M3.2
+  **neural self-play** (`american_neural()` all four seats — the policy M3.2
   iterates); budget defaults to **strength** (`n = 128`, `k = 8`, ≈ 1.4 s/decision
   — cost ≈ linear in `n`, the shared DD solve dominating; `k` ≈ 45 ms/extra
   candidate). *Determinism* (§0.5): rollout RNG seeded from the feature vector.
@@ -199,11 +199,11 @@ default floor stays fast, the gated search bidder remains for maximum strength.
   upgraded off-book (the `.tags` byte gains `bit1` = off-book; activation read from
   `Stance::classify_with_provenance`, `depth == 0 && fallback.is_some()`). Measure:
   arg-max disagreement + mean total-variation vs both the deterministic teacher
-  (`two_over_one`) and the raw net prior (`two_over_one_neural`), split off/on-book
+  (`american`) and the raw net prior (`american_neural`), split off/on-book
   and contested/constructive. 40-board smoke: **~51 % arg-max disagreement, ~0.53
   mean TV off-book vs `0`/`0` on-book** (identical book logits by construction); all
   off-book rows contested (the floor sits only under the competitive/defensive
-  books). The additive `two_over_one_search_with(SearchFloor)` constructor (gated
+  books). The additive `american_search_with(SearchFloor)` constructor (gated
   `search`) exposes `--layouts`/`--shortlist`/`--temperature`; the full production
   dataset feeds M3.2.
 - ✅ **M3.2 Train + iterate.** Retrain toward the search target; feed the improved
@@ -212,7 +212,7 @@ default floor stays fast, the gated search bidder remains for maximum strength.
   *Deps:* M3.1. **Round 1 done:** trained a v1-featured net on the 10 000-board
   `search-dump` (97 701 rows, git_sha `1d43577`) toward the search softmax —
   `neural::classify_search`, the `NeuralFloorSearch` shell (same forced-rail
-  delegation + legality mask), and `two_over_one_neural_search()` (gated
+  delegation + legality mask), and `american_neural_search()` (gated
   `neural-floor`; baselines untouched). Held-out fit to the harder target: val-CE
   0.776, top-1 89.4 % constructive / 73.8 % contested (looser than the teacher clone
   by design). **A/B (20 000 boards, vul none): +0.787 IMPs/board vs the v1 net** (CI
@@ -232,7 +232,7 @@ default floor stays fast, the gated search bidder remains for maximum strength.
   vul none, +1.716 vul both; CIs exclude 0). On the optimistic double-dummy bound
   (down contracts scored undoubled) the step is parity vul none (+0.046) and a gain
   vul both (+0.424) — never worse on either bound. Promoted: the round-2 weights
-  replaced the production search net in place (`two_over_one_neural_search()` is now
+  replaced the production search net in place (`american_neural_search()` is now
   round 2 everywhere; the temporary comparison wiring was reverted).
 - ✅ **M3.3 Champion.** The best net by harness score becomes the optional neural
   floor. *Measure:* strictly positive IMPs/board vs the deterministic floor, with
@@ -241,7 +241,7 @@ default floor stays fast, the gated search bidder remains for maximum strength.
   deterministic floor at 20 000 boards by +0.178 vul none (CI [+0.075, +0.282]) and
   +1.716 vul both (CI [+1.608, +1.824]), and is positive on the optimistic
   double-dummy bound too (+0.123 / +0.583). It is the in-place production search net
-  (`two_over_one_neural_search()`, gated `neural-floor`); `instinct()` stays the
+  (`american_neural_search()`, gated `neural-floor`); `instinct()` stays the
   default and baseline, this is the optional learned floor it intended.
 
 Exit M3: ✅ a floor that beats the hand-written one on cardplay-grounded evidence —
@@ -347,7 +347,7 @@ The portability dream. Last, because it needs the most prerequisites.
   policy as categorical inputs. *Measure:* no regression; ideally a small gain.
   *Deps:* M0.2, M1. **Done:** `bidding::tags` (shared structural reader, lifted
   from `export-corpus`), `features_v2` (244 = 160 + last-4-calls × 21-tag
-  multi-hot, version 2), `classify_v2`/`NeuralFloorV2`/`two_over_one_neural_v2`
+  multi-hot, version 2), `classify_v2`/`NeuralFloorV2`/`american_neural_v2`
   (gated), layout-agnostic trainer + `teacher-dump --features-version 2`.
   **Result (20k-board A/B, vul none):** distillation fidelity up (teacher top-1
   95.0% vs v1 93.8%, val CE 0.235 vs 0.249) but **IMPs/board at parity vs v1**
@@ -383,7 +383,7 @@ rule-based, ~100%-reproducible engine; we drive it as a black box (native
   `epbot_get_cards`, the `T` ten encoding) was decompiled and confirmed here and
   generalized in S.1. *Deps:* none (external tool). **Done:** commit `6f4f70d`.
 - ✅ **S.1 Eval anchor (feeds every milestone's measure).** A/B duplicate match,
-  our `two_over_one()` vs **BBA's 2/1** card — apples-to-apples, so divergences are
+  our `american()` vs **BBA's 2/1** card — apples-to-apples, so divergences are
   pure quality gaps in our DSL, not system differences. Reuses the `instinct-floor`
   / `scoring.rs` / `ddss` harness. *Deliverable:* IMPs/board (ours vs BBA) +
   divergence-board dump. *Measure:* a CI excluding noise; the dump names concrete

@@ -136,7 +136,7 @@ What does the net try to output? This is where the three training regimes differ
 (see [`02-policy-net.md`](02-policy-net.md)). For the foundation:
 
 - **Distillation target (Phase 1).** The teacher is the assembled
-  `two_over_one()` system. For a sampled `(hand, auction)`, the target is the
+  `american()` system. For a sampled `(hand, auction)`, the target is the
   teacher's **full softmax distribution** over calls — not just its argmax. The
   net minimizes cross-entropy to that distribution. Matching the *distribution*
   (soft targets) transfers far more than matching the single best call: it
@@ -168,7 +168,7 @@ Bootstrapping sources, cheapest first:
 1. **`Rules::explain()`** already names the winning rule per call. Pair it with a
    short per-rule label (a string we add next to each `rule(...)`), and the
    corpus generates itself from the books.
-2. **Doc comments** on the `two_over_one` modules are dense, accurate prose — a
+2. **Doc comments** on the `american` modules are dense, accurate prose — a
    ready-made description source, harvestable semi-automatically.
 3. **The Strawberry Polish Club notes** (the system being ported) are a parallel
    human-authored description set for the *next* system.

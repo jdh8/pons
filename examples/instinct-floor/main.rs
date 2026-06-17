@@ -4,8 +4,8 @@
 //! answered from the same random boards:
 //!
 //! 1. **Is the floor worth points?**  Each board is bid twice, duplicate
-//!    style: at table A the floored [`two_over_one`] pair sits North/South
-//!    against the bare books ([`bare_two_over_one`], which passes whenever
+//!    style: at table A the floored [`american`] pair sits North/South
+//!    against the bare books ([`bare_american`], which passes whenever
 //!    its books run out — the pre-floor behavior); at table B the teams swap
 //!    seats.  Boards whose two auctions reach different contracts are scored
 //!    double dummy, and the swing is credited to the floored team in points
@@ -26,11 +26,11 @@ use contract_bridge::auction::{Auction, Call};
 use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Seat};
 use ddss::{NonEmptyStrainFlags, Solver};
+use pons::american;
+use pons::bidding::american::bare_american;
 use pons::bidding::context::relative;
-use pons::bidding::two_over_one::bare_two_over_one;
 use pons::bidding::{Family, Stance};
 use pons::scoring::{final_contract, imps, ns_score};
-use pons::two_over_one;
 use std::collections::HashMap;
 
 /// Measure the instinct floor: A/B duplicate match plus floor telemetry
@@ -175,8 +175,8 @@ struct Board {
 fn main() {
     let args = Args::parse();
     let mut rng = rand::rng();
-    let floored = two_over_one().against(Family::NATURAL);
-    let bare = bare_two_over_one().against(Family::NATURAL);
+    let floored = american().against(Family::NATURAL);
+    let bare = bare_american().against(Family::NATURAL);
     let mut telemetry = Telemetry::default();
 
     // Bid every board at both tables, dealer rotating per board.

@@ -45,7 +45,7 @@
     ]
   },
   "softmax_len": 38,
-  "teacher": "two_over_one()",
+  "teacher": "american()",
   "train_rows": 435399,
   "trainer": "pons-trainer 0.1.0",
   "val_ce": 0.24850700795650482,

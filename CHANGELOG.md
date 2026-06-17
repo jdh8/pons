@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **`two_over_one_wide_6322()` — experimental 6322-minor 1NT option.** A
+- **`american_wide_6322()` — experimental 6322-minor 1NT option.** A
   `NotrumpShape` enum (`Balanced` / `Wide` / `Wide6322`) now selects the 1NT
   opening shape; `Wide6322` adds a 6322 with a six-card minor on top of the
   shipped `Wide` (5422-minor) default. Kept as an option, **not** the default: a
@@ -21,14 +21,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (a 6-card suit breaks the current "1NT opener is 2–5 in every suit" inference,
   which a 5422 satisfied but a 6322 does not). The `nt-shape-contested` example
   gained `--baseline`/`--redesign` flags to compare any two shape policies.
-- **Wider 1NT opening shape, now the default.** The strong 1NT (`two_over_one`)
+- **Wider 1NT opening shape, now the default.** The strong 1NT (`american`)
   opens not only the balanced patterns (4333/4432/5332) but also a **5422 with a
   five-card minor** — a five-card major still prefers a one-of-a-major opening it
   can rebid, and a 6322 (either suit) keeps opening its long suit (an A/B
   ablation showed any-5422 *loses* by burying the major fit, and the 6322
   addition was net-neutral, so both are left out). Strength (`fifths` 15–17) is
   unchanged; this is a shape-only change. The pre-change balanced-only system is
-  preserved as `two_over_one_classic()` (the A/B baseline). *Measured*
+  preserved as `american_classic()` (the A/B baseline). *Measured*
   (5422-minor wide vs balanced classic): **constructive** A/B (`nt-shape-abc`,
   opponents silenced) +0.32 IMPs per divergent board; **contested** A/B
   (`nt-shape-contested`, opponents bidding, 100k boards) +0.57 IMPs/divergent vul
@@ -68,7 +68,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   advances to the floor. Eleven tests: floor and inference unit tests plus four
   full-system integration rails (new-suit transfer, limit-raise transfer,
   preemptive raise, two-level cue-raise).
-- **`constructive-abc` example + `two_over_one_constructive_floor` builder.**
+- **`constructive-abc` example + `american_constructive_floor` builder.**
   The neural/search floors only ever own the *contested* books — unbooked
   *constructive* auctions are always answered by the deterministic `instinct()`
   milestone ladder. This A/B/C harness measures whether that partition leaves
@@ -76,7 +76,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   auction is constructive, bids each board three times — `instinct()`,
   `SearchFloor`, `NeuralFloorSearch` floored onto the *constructive* book — over
   the same deal, solves it once double dummy, and reports the pairwise IMP swings.
-  The new `bidding::two_over_one::two_over_one_constructive_floor(floor)` builder
+  The new `bidding::american::american_constructive_floor(floor)` builder
   (gated `neural-floor`) exposes the constructive-floor knob the standard
   constructors hard-wire to `instinct()`; the example is gated `search` and the
   search arm dominates runtime (~seconds/board), so `--layouts`/`--shortlist`
@@ -133,8 +133,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   trained, distilled, and embedded exactly as v1: `bidding::neural::classify_v2`
   (hand-rolled forward pass, now dimension-parameterized and bit-matched to the
   trainer on a fixture), the `NeuralFloorV2` safety shell (same forced-rail
-  delegation + legality mask), and `two_over_one_neural_v2()` (gated behind
-  `neural-floor`; `two_over_one()` stays the baseline and `two_over_one_neural()`
+  delegation + legality mask), and `american_neural_v2()` (gated behind
+  `neural-floor`; `american()` stays the baseline and `american_neural()`
   the v1 floor — an added option, never a removal). The off-crate trainer and
   `teacher-dump` are now **layout-agnostic**: `teacher-dump --features-version 2`
   emits the v2 dump, the trainer sizes the model input from the dump sidecar, and
@@ -149,7 +149,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   distillation* the deterministic teacher is the ceiling, so richer inputs buy
   fidelity, not table result; the tag infrastructure is in place to pay off when
   the floor is distilled toward a better-than-teacher search target (M3.2). New
-  artifact `src/bidding/weights/two_over_one_v2.{f32,json,fixture.json}`; no new
+  artifact `src/bidding/weights/american_v2.{f32,json,fixture.json}`; no new
   crate dependencies; the default build is unchanged.
 - **Search-target neural floor** (AI-bidder **M3.2**, round 1): a third distilled
   floor, trained toward the **double-dummy search teacher's** EV-grounded targets
@@ -157,8 +157,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and 160→256→256→38 shape, only the training target differs. `neural::classify_search`
   (hand-rolled forward pass, bit-matched to the trainer on a fixture), the
   `NeuralFloorSearch` safety shell (the *same* forced-rail delegation to `instinct()`
-  + legality mask as the v1/v2 floors), and `two_over_one_neural_search()` (gated
-  behind `neural-floor`; `two_over_one()` and `two_over_one_neural()` stay the
+  + legality mask as the v1/v2 floors), and `american_neural_search()` (gated
+  behind `neural-floor`; `american()` and `american_neural()` stay the
   baselines — an added option, never a removal). Trained on the 10 000-board dump
   (97 701 rows, git_sha `1d43577`): held-out fit to the *richer* search target is
   val-CE 0.776, top-1 89.4 % constructive / 73.8 % contested — looser than the
@@ -177,7 +177,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the deterministic floor 0.40 under PD. The `examples/neural-floor` A/B now prints
   both views per matchup. Only the single-dummy haircut (deferred — needs a cardplay
   engine) stays unquantified. New artifact
-  `src/bidding/weights/two_over_one_v1_search.{f32,json,fixture.json}`; no new crate
+  `src/bidding/weights/american_v1_search.{f32,json,fixture.json}`; no new crate
   dependencies; the default build is unchanged. Iteration (round 2: regenerate
   targets with this net as the search policy) is deferred.
 - **`scoring::ns_score_doubling_failures`** — a sibling of `ns_score` that scores
@@ -225,15 +225,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `.tags` byte gains a second bit (`bit1` = off-book / search fired, alongside the
   existing `bit0` = contested phase). The example also prints and records **the
   M3.1 measure**: at each row it classifies the deterministic teacher
-  (`two_over_one`) and the raw net prior (`two_over_one_neural`) and reports, split
+  (`american`) and the raw net prior (`american_neural`) and reports, split
   by off-book/on-book and contested/constructive, the arg-max disagreement rate and
   the mean total-variation distance — confirming the targets differ from the teacher
   *mainly off-book* (on-book rows are `0` by construction; a 40-board smoke run shows
   ~51 % arg-max disagreement and ~0.53 mean TV off-book vs `0`/`0` on-book). A small
-  additive constructor, **`two_over_one_search_with(SearchFloor)`** (gated `search`,
+  additive constructor, **`american_search_with(SearchFloor)`** (gated `search`,
   re-exported at the crate root), lets data-generation runs trade strength for speed
-  via the `--layouts`/`--shortlist`/`--temperature` knobs; `two_over_one_search()`
-  is now exactly `two_over_one_search_with(SearchFloor::default())`. No change to the
+  via the `--layouts`/`--shortlist`/`--temperature` knobs; `american_search()`
+  is now exactly `american_search_with(SearchFloor::default())`. No change to the
   default build, the safety shell, or the `instinct`/`search_floor` rails; no new
   crate dependencies.
 - A **second authored system, Strawberry Polish Club** (AI-bidder **M4.3**),
@@ -242,7 +242,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   of the S.2 reference, authored from the system's own notes
   (<https://polish.club>, [source](https://github.com/jdh8/polish.club)) with the
   M4.1 DSL spec and the M4.2 `verify` harness. It is a *genuinely different*
-  system from the existing `two_over_one_strawberry` (a `NATURAL`-family 2/1 with
+  system from the existing `american_strawberry` (a `NATURAL`-family 2/1 with
   a few polish.club conventions); here 1♣ is the artificial small-club itself.
   This first pass authors the **Constructive backbone**: the full opening ladder
   (the three-variant forcing 1♣, the natural 1♦, five-card majors, the inclusive
@@ -258,7 +258,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   authored constraint renders truthfully (the bespoke shapes use the `described`
   escape hatch), so `export-corpus --system polish-club` emits a **0-opaque**
   second corpus (the artifact M5 needs); `export-corpus` gained a
-  `--system {two-over-one|polish-club}` flag (default unchanged) and a `system`
+  `--system {american|polish-club}` flag (default unchanged) and a `system`
   field per record. A new `polish-club-reference` example cross-checks the port
   against BBA's WJ (informational — the notes are authoritative, divergences are
   reported not failed): on 1000 boards our openings agree with WJ **86% on the
@@ -300,7 +300,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   proprietary binary stays git-ignored under `/vendor/`, and the crate's default
   build, dependencies, and `instinct()` baseline are untouched.
 - A **BBA/EPBot eval anchor** (AI-bidder Side-track S, S.1): a new `bba-match`
-  example that pits our deterministic `two_over_one()` floor against **BBA's own
+  example that pits our deterministic `american()` floor against **BBA's own
   2/1 Game Force card** (EPBot system 0, verified by name) in an A/B duplicate
   match — apples-to-apples, so every divergence is a pure quality gap in our DSL,
   not a difference of methods. A `BbaOracle` implements pons's public `System`
@@ -413,7 +413,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   records the corpus is now **0 opaque**: every record carries its real meaning,
   not a re-guessed one. The `tags` field (the controlled WBF vocabulary) is
   unchanged.
-- `bidding::search_floor::SearchFloor` and `two_over_one_search()` behind a new
+- `bidding::search_floor::SearchFloor` and `american_search()` behind a new
   `search` feature — the gated live double-dummy search bidder (M2.3 of the
   AI-bidder effort, completing Milestone 2). This is "simulations in action": at
   each non-forced decision the floor *thinks* before it bids. It wears the same
@@ -426,7 +426,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   prior tail, so the driver bids the highest-EV call while every legal call keeps
   a sane fallback logit and `Pass` stays finite. "Net proposes, search disposes."
   The rollouts finish under self-play with our own distilled net
-  (`two_over_one_neural()`) — the continuation policy M3.2 will iterate. The knobs
+  (`american_neural()`) — the continuation policy M3.2 will iterate. The knobs
   (`layouts`, `shortlist`, `temperature`) default to *strength, not latency*
   (`n = 128`, `k = 8`, ≈ 1.4 s per decision — `n` and `k` raised together so the
   wider shortlist's extra candidates are scored against tight EV estimates, not
@@ -435,7 +435,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   from the decision's feature vector, so the same hand and auction always yield
   the same logits (invariant §0.5). The `search` feature implies `neural-floor`
   (it needs the prior net and the forced-rails shell); the default build,
-  `instinct()`, and `two_over_one()` are untouched — this is an added gated
+  `instinct()`, and `american()` are untouched — this is an added gated
   option, never a replacement. Seven gated tests cover the five §0.4 rails against
   the shelled search bidder, determinism, and the EV-band ordering. A gated
   `search-floor` example A/Bs it against the deterministic floor (it should beat
@@ -453,7 +453,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `ev_all` scores a slate of candidates over the *same* layouts and a single
   double-dummy solve per layout, so the cost is `n` solves rather than `k · n`;
   `ev` is the one-call wrapper. The continuation policy is a `System` parameter,
-  not hardwired — callers pass the deterministic `two_over_one()` for now, and
+  not hardwired — callers pass the deterministic `american()` for now, and
   the M3 search-improvement loop will swap in successive nets without touching
   this code; all four seats bid the same policy (a self-play assumption). EVs are
   average scores in points (positive good for the actor); a call illegal in the
@@ -485,7 +485,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `rand` is now a direct dependency (`0.10`). It was already compiled
   transitively via `contract-bridge`'s `rand` feature, so the dependency tree is
   unchanged; the sampler simply names it directly to take the caller's RNG.
-- `bidding::neural_floor::NeuralFloor` and `two_over_one_neural()` behind the
+- `bidding::neural_floor::NeuralFloor` and `american_neural()` behind the
   `neural-floor` feature — the safety shell that makes the distilled net usable
   as a floor (M1.3 of the AI-bidder effort, completing Milestone 1). The shell is
   a drop-in `Classifier`: in auction-determined forced situations (partner's live
@@ -493,8 +493,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   strong notrump) it delegates to the deterministic `instinct()` ladder verbatim
   — the learned net is never trusted on the rails — and everywhere else it
   returns the net's logits legality-masked with `Auction::can_push`, keeping
-  `Pass` finite so a distribution always exists. `two_over_one_neural()` mirrors
-  `two_over_one()` with this floor swapped in; the deterministic `instinct()`
+  `Pass` finite so a distribution always exists. `american_neural()` mirrors
+  `american()` with this floor swapped in; the deterministic `instinct()`
   floor stays the default and baseline (nothing is removed, an option is added).
   Five gated tests pin the five §0.4 safety properties against the shelled net.
   Hand-conditioned game forces are left to the net as judgement, measured by the
@@ -510,7 +510,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   hand-written one on the harness; the machine now does the floor's job.
 - `bidding::neural` behind the new `neural-floor` cargo feature — the in-crate
   forward pass for the distilled floor (M1.2 of the AI-bidder effort). A
-  hand-rolled `f32` matmul + ReLU that embeds the trained `two_over_one_v1`
+  hand-rolled `f32` matmul + ReLU that embeds the trained `american_v1`
   weights with `include_bytes!` and evaluates `classify(features) -> Logits`
   with no ML dependency. The feature is off by default, so the standard build is
   byte-for-byte unchanged. A parity test reproduces the trainer's candle logits
@@ -524,13 +524,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the teacher's softmax by soft-target cross-entropy and exports the weights as
   a flat little-endian `f32` artifact plus a versioned sidecar and a
   forward-pass parity fixture into `src/bidding/weights/`. On a 484k-row dataset
-  it reaches ≈94% held-out top-1 agreement with `two_over_one()` (validation
+  it reaches ≈94% held-out top-1 agreement with `american()` (validation
   cross-entropy 0.25 against a 0.20-nat teacher-entropy floor). The weights ship
   in-repo for M1.2 to embed and run by a hand-rolled forward pass; the library
   itself is unchanged.
 - `examples/teacher-dump` — the distillation dataset generator (M0.4 of the
   AI-bidder effort, completing Milestone 0). Bids out random boards with
-  `two_over_one()` and writes one `(features, teacher_softmax)` row per decision
+  `american()` and writes one `(features, teacher_softmax)` row per decision
   to a flat little-endian `f32` file (160 features + 38-way softmax = 198 floats
   per row) plus a JSON sidecar pinning the feature version, teacher, seed, git
   SHA, and counts, plus a sibling `.tags` file (one `u8` per row marking
@@ -597,7 +597,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **The optional search-target neural floor (`two_over_one_neural_search()`) is
+- **Renamed the `two_over_one*` system to `american*` (breaking).** The 2/1
+  game-force system is now named by identity, matching its sibling `polish_club`
+  (WJ): `two_over_one` → `american` throughout. The module `bidding::two_over_one`
+  → `bidding::american`; every function follows (`two_over_one()` → `american()`,
+  `_classic`, `_wide_6322`, `_neural`, `_neural_v2`, `_neural_search`, `_search`,
+  `_search_with`, `_constructive_floor`, and `bare_two_over_one()` →
+  `bare_american()`), as do the crate-root re-exports. The `export-corpus`
+  `--system` value `two-over-one` is now `american` (parallel to `polish-club`),
+  and the example `cargo run --example two-over-one` is now `--example american`.
+  Bundled neural weights were renamed in step (`weights/american_v{1,2}.f32`,
+  `american_v1_search.f32`). Prose still calls the system "2/1" / "Two-over-One
+  Game Forcing" — only identifiers and names changed.
+- **The optional search-target neural floor (`american_neural_search()`) is
   now the round-2 net (AI-bidder M3.2 / M3.3).** The M3.1 search-dump was
   regenerated with the round-1 net as the rollout continuation policy *and* the
   doubling-aware `ev_all` (104 476 rows / 10k boards), then distilled into the
@@ -641,11 +653,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **The live-search floor's rollout continuation is now self-play against the
   search-target net (AI-bidder M3.2 round 2).** `SearchFloor`'s `POLICY` — the
   policy that finishes every rollout auction so `ev_all` can score a candidate —
-  was the teacher-distilled `two_over_one_neural`; it is now
-  `two_over_one_neural_search` (the M3.2 round-1 net). Each round's distillation
+  was the teacher-distilled `american_neural`; it is now
+  `american_neural_search` (the M3.2 round-1 net). Each round's distillation
   targets are thus scored by the previous round's policy: "feed the improved net
   back into the continuations." Behind the `search` feature; affects
-  `two_over_one_search` only.
+  `american_search` only.
 - **The `practice-bidding` example now bids with the learned floor by default.**
   A new `--floor` flag selects the bots' (and the "Bot's opinion" feedback's)
   floor: `neural-search` (the M3.2 search-distilled net) or `instinct` (the
@@ -671,7 +683,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     Uncontested off-book auctions previously fell through to a pass — e.g.
     `1♦–1♥–1NT` was passed out on a balanced 16 opposite the 12–14 rebid, a cold
     3NT (the learned neural/search floors don't help here: they are wired onto the
-    contested books only). They now reach the milestone. `two_over_one_strawberry`
+    contested books only). They now reach the milestone. `american_strawberry`
     floored the constructive book by hand for the same reason; that is now the
     default and its bespoke block is gone.
 - **The auction inference reads limited rebids and raises.** `Inferences` now
@@ -729,11 +741,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
-- **The strawberry 2/1 variant (`two_over_one_strawberry`,
-  `bare_two_over_one_strawberry`) and its three convention modules.** This was a
+- **The strawberry 2/1 variant (`american_strawberry`,
+  `bare_american_strawberry`) and its three convention modules.** This was a
   `NATURAL`-family 2/1 with a few polish.club conventions layered on — Strawberry
   Stenberg 2NT (`stenberg`), BTU strong-1NT responses (`btu_notrump`), and a
-  **book** overlay of Rubens transfer raises (`two_over_one::rubens`). The book
+  **book** overlay of Rubens transfer raises (`american::rubens`). The book
   Rubens collided with the new floor Rubens: it authored the transfer raise only
   for 10–12 points, so a game-strength raise leaked past it to the floor's
   cue-raise, giving the *same* limit-plus raise two different (and strength
@@ -838,12 +850,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   This is the driver for forcing an auction prefix and letting the systems
   finish the board, as the `defend-2sx-or-3nt` example does with its
   `(2♠) X (P) + decision` seeds.
-- `two_over_one_strawberry()` (with its floor-less `bare_two_over_one_strawberry()`
+- `american_strawberry()` (with its floor-less `bare_american_strawberry()`
   ablation), an opt-in variant of the 2/1 system that layers in three optional
   conventions from the author's *Strawberry Polish Club* notes
   (<https://polish.club>), each chosen to stay applicable to a 2/1 framework,
-  while leaving the canonical `two_over_one()` untouched for A/B comparison.
-  Exported at the crate root alongside `two_over_one`. To avoid authoring a node
+  while leaving the canonical `american()` untouched for A/B comparison.
+  Exported at the crate root alongside `american`. To avoid authoring a node
   per artificial continuation, the variant also floors its *constructive* book;
   with the strong-notrump instinct rules a game-forcing 1NT auction reaches game
   even where the book stops (covered by an end-to-end test that plays full
@@ -896,8 +908,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `System` implementation, plus the resolution `Provenance` — the telemetry
   hook for counting instinct-floor activations (`depth == 0` with `fallback`
   set) and ranking which off-book auctions to author next.
-- `bidding::two_over_one::bare_two_over_one`: the 2/1 pair *without* the
-  instinct floor — the ablation handle; `two_over_one()` is now this pair
+- `bidding::american::bare_american`: the 2/1 pair *without* the
+  instinct floor — the ablation handle; `american()` is now this pair
   with the floor attached.
 - `instinct-floor` example: an A/B duplicate match (floored vs bare 2/1 on
   identical boards, swings scored double dummy and credited to the floored
@@ -906,7 +918,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   IMPs/board against its own absence, and the telemetry's top entries —
   later-seat openings falling off the defensive book — drove the seat-fan
   fix above.
-- `bidding::two_over_one::defense_to_weak_two` and `advance_double`: defense to
+- `bidding::american::defense_to_weak_two` and `advance_double`: defense to
   the opponents' weak twos and advancing partner's takeout double, filling the
   one gap the `defend-2sx-or-3nt` example needed. The defensive book now
   answers a `(2♦/2♥/2♠)` opening with a takeout double, a natural 15–18 2NT
@@ -996,9 +1008,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `classifier`, `guard`, and `rewriter`: identity functions giving plain
   closures the higher-ranked `&Context`/`&[Call]` signature the compiler
   cannot generalize on its own.
-- `bidding::two_over_one`: the first concrete, reusable system —
-  `two_over_one()` builds a `Pair` (family `NATURAL`) for basic Two-over-One
-  Game Forcing (re-exported as `pons::two_over_one`). It covers the uncontested openings
+- `bidding::american`: the first concrete, reusable system —
+  `american()` builds a `Pair` (family `NATURAL`) for basic Two-over-One
+  Game Forcing (re-exported as `pons::american`). It covers the uncontested openings
   (strong 15–17 / 20–21 notrumps, strong artificial 2♣, five-card majors,
   better-minor 1♣/1♦, weak twos, preempts, a lighter 3rd/4th-seat major), the
   first response to every one-level opening (the 2/1 game force, the forcing
@@ -1012,10 +1024,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `minor_responses`, `notrump_responses`, and `defense_to_suit` return `Rules`
   for reuse and testing, and `competition()` returns the `Competitive` book.
   Authored entirely from the existing vocabulary; no new infrastructure. A
-  `two-over-one` example (`cargo run --example two-over-one`) bids out random
+  `american` example (`cargo run --example american`) bids out random
   boards end to end with both sides playing the system, seated via
   `Table::of_pairs`.
-- `bidding::two_over_one`: the system is now a complete 2/1 card rather than
+- `bidding::american`: the system is now a complete 2/1 card rather than
   a basic slice. New in this pass, each in its own submodule:
   - **2/1 game-force continuations** through the slam-try level: opener's
     rebids after every two-level response (jump rebid, raise, six-card
@@ -1081,12 +1093,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Breaking:** `Partnership` is replaced by `Pair` + `Stance`, and book
   routing is now three-way via `Phase::of`. `Constructive` answers *only*
   strictly undisturbed auctions; competition over our openings moves out of
-  the constructive trie into the new `Competitive` book (`two_over_one`'s
+  the constructive trie into the new `Competitive` book (`american`'s
   negative doubles and system-on now live in its `competition()` builder).
   Assemble the three books with `Pair::new(family, constructive, competitive,
   defensive)` and bind once against the opponents' family —
   `pair.against(them)` returns the `Stance` that implements `System`; a
-  `Pair` itself is authoring material, not a `System`. `two_over_one()` now
+  `Pair` itself is authoring material, not a `System`. `american()` now
   returns the `Pair`.
 - pons now requires `contract-bridge` 0.1.2 for the newly public
   `Auction::can_push`, the dry-run legality check behind `Table::next_call`.
@@ -1132,8 +1144,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `notrump::register` split into `register_one_nt` (the 1NT-opening response
   block) and `register_two_nt_and_rebids` (the 2NT-strength and 18–19-rebid
   structures), so the strawberry variant can swap in BTU for the former while
-  reusing the latter. `two_over_one()` is unchanged.
-- `two_over_one()` attaches the instinct floor (see `bidding::instinct` under
+  reusing the latter. `american()` is unchanged.
+- `american()` attaches the instinct floor (see `bidding::instinct` under
   *Added*) to its competitive and defensive books as a root `Always`
   fallback, so the bound stance never falls off the book in a contested
   auction. Auctions that previously classified as `None` — and so were passed
@@ -1144,7 +1156,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   The standalone `competition()` and `defensive()` builders stay floor-less.
 - The `defend-2sx-or-3nt` example is now a flavor-comparison harness for the
   `(2♠) X (P)` defend-vs-declare decision. West's weak-two opening still comes
-  from the real `two_over_one` system, while North's takeout double and South's
+  from the real `american` system, while North's takeout double and South's
   Pass-vs-3NT advance are swept across alternative *flavors* — Shape / Support /
   Sound doubles and Defense / Balanced / Offense responses — each written as a
   crisp constraint in the `bidding::constraint` vocabulary. It reports
@@ -1180,7 +1192,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   leading pass — `(P) 1♦`, our dealer passing first — the same decisions fell
   off the book (and before the instinct floor, were silently passed). Found
   by the first run of the `instinct-floor` telemetry.
-- Broken intra-doc links in `bidding::two_over_one`: replaced the unresolvable
+- Broken intra-doc links in `bidding::american`: replaced the unresolvable
   `[`slam`]` reference (a private module) with plain backtick notation, and
   qualified `[`Pair::against`]` with its full crate path so rustdoc can resolve
   it from `competition`. The strawberry builder's links to its private

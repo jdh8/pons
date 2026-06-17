@@ -1,6 +1,6 @@
 //! Corpus exporter (AI-bidder M0.2)
 //!
-//! Walks the floorless 2/1 books ([`bare_two_over_one`]) and emits one JSONL
+//! Walks the floorless 2/1 books ([`bare_american`]) and emits one JSONL
 //! record per `(node, call)` the books authorise:
 //!
 //! ```text
@@ -42,12 +42,12 @@
 //!   which overrides the derived description.
 
 use contract_bridge::auction::{Call, RelativeVulnerability};
+use pons::bidding::american::bare_american;
 use pons::bidding::constraint::Description;
 use pons::bidding::context::Context;
 use pons::bidding::polish_club::bare_polish_club;
 use pons::bidding::tags::derive;
 use pons::bidding::trie::Trie;
-use pons::bidding::two_over_one::bare_two_over_one;
 use std::collections::HashSet;
 
 /// One auction prefix the books classify, plus the rules found there.
@@ -59,13 +59,13 @@ struct Node<'a> {
 }
 
 fn main() {
-    // `--system {two-over-one|polish-club}`; default preserves the original 2/1.
+    // `--system {american|polish-club}`; default preserves the original 2/1.
     let requested = std::env::args().skip_while(|arg| arg != "--system").nth(1);
     let (system, pair) = match requested.as_deref() {
         Some("polish-club") => ("polish-club", bare_polish_club()),
-        None | Some("two-over-one") => ("two-over-one", bare_two_over_one()),
+        None | Some("american") => ("american", bare_american()),
         Some(other) => {
-            eprintln!("export-corpus: unknown system {other:?}; use two-over-one or polish-club");
+            eprintln!("export-corpus: unknown system {other:?}; use american or polish-club");
             std::process::exit(2);
         }
     };

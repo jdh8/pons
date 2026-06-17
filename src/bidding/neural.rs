@@ -36,11 +36,11 @@ fn decode(raw: &[u8]) -> Vec<f32> {
 
 // ── version 1: the 160-input distilled floor ────────────────────────────────
 
-/// Input width of `two_over_one_v1`, pinned to the artifact (= [`FEATURES_LEN`]).
+/// Input width of `american_v1`, pinned to the artifact (= [`FEATURES_LEN`]).
 const IN_V1: usize = FEATURES_LEN;
 
 /// Embedded v1 weights: little-endian `f32`, layer order `l1.w,l1.b,…,l3.b`.
-static RAW_V1: &[u8] = include_bytes!("weights/two_over_one_v1.f32");
+static RAW_V1: &[u8] = include_bytes!("weights/american_v1.f32");
 const _: () = assert!(
     RAW_V1.len() == total(IN_V1) * 4,
     "v1 weights artifact size mismatch"
@@ -112,11 +112,11 @@ pub fn classify(features: &[f32]) -> Logits {
 
 // ── version 2: the tag-augmented distilled floor (AI-bidder M5.1) ────────────
 
-/// Input width of `two_over_one_v2` (= [`FEATURES_LEN_V2`]).
+/// Input width of `american_v2` (= [`FEATURES_LEN_V2`]).
 const IN_V2: usize = FEATURES_LEN_V2;
 
 /// Embedded v2 weights: same layer order as v1, wider first layer.
-static RAW_V2: &[u8] = include_bytes!("weights/two_over_one_v2.f32");
+static RAW_V2: &[u8] = include_bytes!("weights/american_v2.f32");
 const _: () = assert!(
     RAW_V2.len() == total(IN_V2) * 4,
     "v2 weights artifact size mismatch"
@@ -147,7 +147,7 @@ pub fn classify_v2(features: &[f32]) -> Logits {
 // default perfect-defense measure (20k boards, vul none; +2.07 vul both).
 
 /// Embedded search-target weights: v1 layout (160 inputs), search-distilled.
-static RAW_SEARCH_V1: &[u8] = include_bytes!("weights/two_over_one_v1_search.f32");
+static RAW_SEARCH_V1: &[u8] = include_bytes!("weights/american_v1_search.f32");
 const _: () = assert!(
     RAW_SEARCH_V1.len() == total(IN_V1) * 4,
     "search-target weights artifact size mismatch"
@@ -223,14 +223,14 @@ mod tests {
 
     #[test]
     fn matches_candle_fixture() {
-        check_fixture(include_str!("weights/two_over_one_v1.fixture.json"), |x| {
+        check_fixture(include_str!("weights/american_v1.fixture.json"), |x| {
             classify(x).iter().map(|(_, l)| *l).collect()
         });
     }
 
     #[test]
     fn matches_candle_fixture_v2() {
-        check_fixture(include_str!("weights/two_over_one_v2.fixture.json"), |x| {
+        check_fixture(include_str!("weights/american_v2.fixture.json"), |x| {
             classify_v2(x).iter().map(|(_, l)| *l).collect()
         });
     }
@@ -238,7 +238,7 @@ mod tests {
     #[test]
     fn matches_candle_fixture_search() {
         check_fixture(
-            include_str!("weights/two_over_one_v1_search.fixture.json"),
+            include_str!("weights/american_v1_search.fixture.json"),
             |x| classify_search(x).iter().map(|(_, l)| *l).collect(),
         );
     }

@@ -1,7 +1,7 @@
 # pons-trainer
 
 Off-crate trainer for the **AI instinct bidder** (milestone M1.1). It distills
-the deterministic `two_over_one()` floor into a small MLP and exports the weights
+the deterministic `american()` floor into a small MLP and exports the weights
 for the crate to embed and run by hand (M1.2).
 
 This is its **own cargo workspace** (note the empty `[workspace]` table in
@@ -34,7 +34,7 @@ inside this directory.
    off-book.
 
 3. **Artifact.** Writes into the crate at
-   `src/bidding/weights/two_over_one_v1.{f32,json,fixture.json}`:
+   `src/bidding/weights/american_v1.{f32,json,fixture.json}`:
    - `.f32` — weights, layer order `l1.w, l1.b, l2.w, l2.b, l3.w, l3.b`, each
      `(out, in)` row-major (candle's `Linear` convention).
    - `.json` — feature version, hidden size, layer shapes, data seed, git SHA,

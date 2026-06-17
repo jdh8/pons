@@ -21,11 +21,11 @@ use contract_bridge::auction::{Auction, Call};
 use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Hand, Seat};
 use ddss::{NonEmptyStrainFlags, Solver};
+use pons::american;
 use pons::bidding::context::relative;
 use pons::bidding::instinct::set_inference_aware;
 use pons::bidding::{Family, Stance, System};
 use pons::scoring::{final_contract, imps, ns_score};
-use pons::two_over_one;
 
 /// Measure the inference-aware floor: an A/B duplicate match
 #[derive(Parser)]
@@ -106,7 +106,7 @@ struct Board {
 fn main() {
     let args = Args::parse();
     let mut rng = rand::rng();
-    let stance = two_over_one().against(Family::NATURAL);
+    let stance = american().against(Family::NATURAL);
 
     // Bid every board at both tables, dealer rotating per board.
     let boards: Vec<Board> = (0..args.count)

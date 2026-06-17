@@ -2,9 +2,9 @@
 
 use contract_bridge::auction::{Call, RelativeVulnerability};
 use contract_bridge::{Bid, Hand, Strain};
+use pons::american;
 use pons::bidding::array::Logits;
 use pons::bidding::{Family, Stance, System};
-use pons::two_over_one;
 
 const fn call(level: u8, strain: Strain) -> Call {
     Call::Bid(Bid::new(level, strain))
@@ -12,7 +12,7 @@ const fn call(level: u8, strain: Strain) -> Call {
 
 /// The 2/1 pair bound against natural opponents
 fn stance() -> Stance {
-    two_over_one().against(Family::NATURAL)
+    american().against(Family::NATURAL)
 }
 
 /// The single highest-logit call the system assigns the hand for the auction
@@ -252,7 +252,7 @@ fn test_defense() {
     );
     // (1♣) - 1♠ - (P) - ?: advancing partner's overcall is the instinct floor's
     // Rubens job now; a weak three-card raise still takes the simple 2♠ (a limit
-    // raise would transfer — see the Rubens rails in two_over_one_instinct).
+    // raise would transfer — see the Rubens rails in american_instinct).
     assert_eq!(
         best_call(
             &system,
@@ -469,7 +469,7 @@ fn test_strong_two_system_on_transfer() {
 #[test]
 fn test_competition_book_needs_binding() {
     // The unbound competitive book answers the negative double directly...
-    let book = pons::bidding::two_over_one::competition();
+    let book = pons::bidding::american::competition();
     let one_h = call(1, Strain::Hearts);
 
     assert_eq!(

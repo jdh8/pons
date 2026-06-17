@@ -4,7 +4,7 @@
 //! `src/1H.md`, `src/1S.md`).  The artificial 1♣ response framework (the
 //! negative 1♦ relay and the positives) is the defining slice; the natural
 //! responses to 1♦/1♥/1♠ mirror standard practice, and the 15–17 1NT reuses the
-//! verified [`two_over_one`][crate::bidding::two_over_one] notrump responses
+//! verified [`american`][crate::bidding::american] notrump responses
 //! (Stayman and Jacoby transfers) — the BTU response set is a later refinement.
 //!
 //! The deep relay tails (Checkback Gladiator, Odwrotka, the strong-club rebid
@@ -14,8 +14,8 @@
 //! opening can never be passed out.
 
 use super::{call, insert_uncontested};
+use crate::bidding::american::notrump_responses;
 use crate::bidding::constraint::{balanced, hcp, len, points, support};
-use crate::bidding::two_over_one::notrump_responses;
 use crate::bidding::{Rules, Trie};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Strain, Suit};

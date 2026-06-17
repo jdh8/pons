@@ -11,7 +11,7 @@
 //!
 //! # A genuine Polish Club, not natural 2/1
 //!
-//! Unlike [`two_over_one`][super::two_over_one::two_over_one] — a
+//! Unlike [`american`][super::american::american] — a
 //! `NATURAL`-family 2/1 with a natural 1♦ and a strong artificial 2♣ — here 1♣
 //! is the artificial small-club itself and the family is
 //! [`Family::POLISH_CLUB`].
@@ -23,7 +23,7 @@
 //! Gladiator, Odwrotka, the strong-club relays) left to the
 //! [`instinct`][super::instinct()] floor, which is attached to *all three* books
 //! (including the constructive one, as in
-//! [`two_over_one`][super::two_over_one::two_over_one]) so no uncontested
+//! [`american`][super::american::american]) so no uncontested
 //! auction strands.  The Competitive and Defensive books are empty for now; the
 //! floor answers those auctions until a later pass.
 //!
@@ -50,7 +50,7 @@ const fn call(level: u8, strain: Strain) -> Call {
 }
 
 // ---------------------------------------------------------------------------
-// Seat-fan helpers (mirrors `two_over_one`'s private plumbing)
+// Seat-fan helpers (mirrors `american`'s private plumbing)
 // ---------------------------------------------------------------------------
 
 /// Insert one classifier at `suffix` under every leading-pass prefix
@@ -91,7 +91,7 @@ fn insert_uncontested(book: &mut Trie, our_calls: &[Call], rules: impl Classifie
 /// Build the Strawberry Polish Club system as one side's [`Pair`]
 ///
 /// Bind it against the opponents' [`Family`] with [`Pair::against`] for a
-/// playable system, exactly like [`two_over_one`][super::two_over_one()].
+/// playable system, exactly like [`american`][super::american()].
 ///
 /// ```
 /// use pons::bidding::polish_club::polish_club;
@@ -132,7 +132,7 @@ pub fn polish_club_one_club() -> Call {
 /// Build the Polish Club pair *without* the instinct floor: the bare books
 ///
 /// The ablation handle for measuring the floor and the input to corpus export,
-/// mirroring [`bare_two_over_one`][super::two_over_one::bare_two_over_one].  The
+/// mirroring [`bare_american`][super::american::bare_american].  The
 /// Competitive and Defensive books are empty in this first pass.
 #[must_use]
 pub fn bare_polish_club() -> Pair {

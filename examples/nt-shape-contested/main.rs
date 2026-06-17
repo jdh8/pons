@@ -3,7 +3,7 @@
 //!
 //! The companion `nt-shape-abc` silences the opponents and so sees only the
 //! *constructive* value of the wider 1NT (a 5422 with a five-card minor — the
-//! shipped [`two_over_one`] vs the balanced-only [`two_over_one_classic`]).  The
+//! shipped [`american`] vs the balanced-only [`american_classic`]).  The
 //! redesign's real case is competitive: a 1NT
 //! opening steals bidding space, describes the hand in one bid, and right-sides
 //! the contract.  This harness measures that.
@@ -31,11 +31,11 @@ use contract_bridge::auction::{Auction, Call};
 use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Hand, Seat};
 use ddss::{NonEmptyStrainFlags, Solver};
+use pons::american;
+use pons::bidding::american::{american_classic, american_wide_6322};
 use pons::bidding::context::relative;
-use pons::bidding::two_over_one::{two_over_one_classic, two_over_one_wide_6322};
 use pons::bidding::{Family, Pair, Stance, System};
 use pons::scoring::{final_contract, imps, ns_score};
-use pons::two_over_one;
 
 /// Contested 1NT-shape A/B between two opening-shape policies
 #[derive(Parser)]
@@ -60,9 +60,9 @@ struct Args {
 /// The 2/1 pair for a shape-policy name (`classic` / `wide` / `wide6322`)
 fn system(name: &str) -> Pair {
     match name {
-        "classic" => two_over_one_classic(),
-        "wide" => two_over_one(),
-        "wide6322" => two_over_one_wide_6322(),
+        "classic" => american_classic(),
+        "wide" => american(),
+        "wide6322" => american_wide_6322(),
         other => panic!("unknown shape policy {other:?} (classic | wide | wide6322)"),
     }
 }

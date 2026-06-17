@@ -9,7 +9,7 @@
 //! [`instinct()`] is the floor under the book: one context-driven [`Rules`]
 //! ladder that answers *every* auction with a sane natural action.  Attach it
 //! as a root [`Always`][super::fallback::Always] fallback — as
-//! [`two_over_one()`][crate::bidding::two_over_one::two_over_one] does for its
+//! [`american()`][crate::bidding::american::american] does for its
 //! competitive and defensive books — and the system never falls off the book.
 //! By [`Trie::resolve`][super::Trie::resolve] precedence the root is reached
 //! last, so instinct can never override an authored rule, only catch what

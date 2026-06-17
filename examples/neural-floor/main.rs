@@ -6,16 +6,16 @@
 //! the distilled net wrapped so the forced rails delegate to
 //! [`instinct`][pons::instinct] and everything else is the legality-masked net —
 //! is run as a [`Pair`][pons::Pair] floor
-//! ([`two_over_one_neural`][pons::two_over_one_neural]) against two opponents,
+//! ([`american_neural`][pons::american_neural]) against two opponents,
 //! each board bid twice duplicate-style with the seats swapped.  The
 //! tag-augmented v2 floor
-//! ([`two_over_one_neural_v2`][pons::two_over_one_neural_v2], M5.1) is measured
+//! ([`american_neural_v2`][pons::american_neural_v2], M5.1) is measured
 //! the same way, and head-to-head against v1 — the M5.1 win condition is **no
 //! regression vs v1, ideally a small gain**.  Each floor is run:
 //!
-//! 1. **vs the deterministic floor** ([`two_over_one`]): the distillation target.
+//! 1. **vs the deterministic floor** ([`american`]): the distillation target.
 //!    A faithful clone scores ≈ 0 IMPs/board — *parity*.
-//! 2. **vs bare books** ([`bare_two_over_one`], which passes off-book): the
+//! 2. **vs bare books** ([`bare_american`], which passes off-book): the
 //!    floor's worth.  Parity with the deterministic floor means ≈ +0.5
 //!    IMPs/board here too — the learned floor preserves the hand-built one's gain.
 //!
@@ -36,14 +36,11 @@ use contract_bridge::auction::{Auction, Call};
 use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Hand, Seat};
 use ddss::{NonEmptyStrainFlags, Solver};
+use pons::bidding::american::bare_american;
 use pons::bidding::context::relative;
-use pons::bidding::two_over_one::bare_two_over_one;
 use pons::bidding::{Family, Stance, System};
 use pons::scoring::{final_contract, imps, ns_score, ns_score_doubling_failures};
-use pons::{
-    Accumulator, two_over_one, two_over_one_neural, two_over_one_neural_search,
-    two_over_one_neural_v2,
-};
+use pons::{Accumulator, american, american_neural, american_neural_search, american_neural_v2};
 
 /// Measure the distilled neural floor: A/B duplicate matches with intervals
 #[derive(Parser)]
@@ -265,11 +262,11 @@ fn main() {
     let args = Args::parse();
     let mut rng = rand::rng();
 
-    let neural = two_over_one_neural().against(Family::NATURAL);
-    let neural_v2 = two_over_one_neural_v2().against(Family::NATURAL);
-    let neural_search = two_over_one_neural_search().against(Family::NATURAL);
-    let deterministic = two_over_one().against(Family::NATURAL);
-    let bare = bare_two_over_one().against(Family::NATURAL);
+    let neural = american_neural().against(Family::NATURAL);
+    let neural_v2 = american_neural_v2().against(Family::NATURAL);
+    let neural_search = american_neural_search().against(Family::NATURAL);
+    let deterministic = american().against(Family::NATURAL);
+    let bare = bare_american().against(Family::NATURAL);
 
     println!(
         "AI-bidder M1.4 / M5.1 / M3.2: distilled neural floors (v1, tag-augmented v2, \

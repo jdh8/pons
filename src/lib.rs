@@ -9,10 +9,10 @@ pub mod stats;
 
 pub use bidding::{
     Competitive, Constructive, Context, Defensive, Family, OrElse, Pair, Phase, Rules, Stance,
-    System, Table, Trie, Versus, bare_polish_club, instinct, polish_club, two_over_one,
+    System, Table, Trie, Versus, american, bare_polish_club, instinct, polish_club,
 };
 #[cfg(feature = "neural-floor")]
-pub use bidding::{two_over_one_neural, two_over_one_neural_search, two_over_one_neural_v2};
+pub use bidding::{american_neural, american_neural_search, american_neural_v2};
 #[cfg(feature = "search")]
-pub use bidding::{two_over_one_search, two_over_one_search_with};
+pub use bidding::{american_search, american_search_with};
 pub use stats::{Accumulator, Statistics};

@@ -1,6 +1,6 @@
 //! Teacher dump (AI-bidder M0.4)
 //!
-//! Bids out random boards with the assembled `two_over_one()` system (the
+//! Bids out random boards with the assembled `american()` system (the
 //! *teacher*) and records, at every decision point, a training row of
 //! `(features, teacher_softmax)`:
 //!
@@ -35,12 +35,12 @@ use clap::Parser;
 use contract_bridge::auction::{Auction, Call};
 use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, Seat};
+use pons::american;
 use pons::bidding::context::{Context, relative};
 use pons::bidding::features::{
     FEATURES_LEN, FEATURES_LEN_V2, FEATURES_VERSION, FEATURES_VERSION_V2, features, features_v2,
 };
 use pons::bidding::{Family, Phase, System};
-use pons::two_over_one;
 use rand::rngs::StdRng;
 use rand::{RngExt, SeedableRng};
 use std::collections::BTreeMap;
@@ -50,7 +50,7 @@ use std::io::{BufWriter, Write};
 const SOFTMAX_LEN: usize = 38;
 
 #[derive(Parser)]
-#[command(about = "Dump (features, teacher_softmax) training rows from two_over_one()")]
+#[command(about = "Dump (features, teacher_softmax) training rows from american()")]
 struct Args {
     /// Number of random boards to bid out
     #[arg(long, default_value_t = 5000)]
@@ -85,7 +85,7 @@ fn main() -> std::io::Result<()> {
         }
     };
     let row_len = features_len + SOFTMAX_LEN;
-    let pair = two_over_one();
+    let pair = american();
     // Both sides play the same system; a Stance routes by auction phase, so one
     // suffices for whichever seat is to act (vulnerability passed in relative).
     let stance = pair.against(Family::NATURAL);
@@ -170,7 +170,7 @@ fn main() -> std::io::Result<()> {
         "dtype": "f32-le",
         "layout": format!("row = [{features_len} features][{SOFTMAX_LEN} teacher_softmax]"),
         "tags": "sibling .tags file: one u8 per row, 1 = contested phase, 0 = constructive",
-        "teacher": "two_over_one()",
+        "teacher": "american()",
         "git_sha": git_sha,
         "seed": args.seed,
         "boards": args.boards,

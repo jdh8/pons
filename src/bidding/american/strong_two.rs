@@ -13,7 +13,7 @@
 //!
 //! Every node in this auction is forcing unless it carries a
 //! [`Call::Pass`] rule; see the module-level note in
-//! [`two_over_one`][super] on *forcing by omission*.
+//! [`american`][super] on *forcing by omission*.
 
 use super::super::constraint::{balanced, fifths, hcp, len, points, support, top_honors};
 use super::super::{Rules, Trie};
@@ -229,7 +229,7 @@ fn opener_after_diamonds_raise() -> Rules {
 
 /// Register all strong 2♣ continuations into the constructive book
 ///
-/// Called once from [`two_over_one`][super::two_over_one] to attach the
+/// Called once from [`american`][super::american] to attach the
 /// full strong-two structure.  Every table is inserted via
 /// [`insert_uncontested`], which fans 0–2 leading passes so the same
 /// logic fires regardless of which seat held the 2♣ opening.

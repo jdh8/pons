@@ -1,20 +1,20 @@
 //! Bid out random boards with the basic 2/1 game-forcing system.
 //!
-//! Both sides play [`pons::two_over_one()`], bound against each other and seated
+//! Both sides play [`pons::american()`], bound against each other and seated
 //! into a [`Table`].  Each turn the player to act classifies their hand against
 //! the running auction and makes the highest-logit *legal* call; an auction the
 //! book does not cover resolves to a pass, so the bidding always terminates.
 //!
 //! ```text
-//! cargo run --example two-over-one -- --count 3 --dealer south --vulnerability ns
+//! cargo run --example american -- --count 3 --dealer south --vulnerability ns
 //! ```
 
 use clap::Parser;
 use contract_bridge::auction::Call;
 use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Seat};
+use pons::american;
 use pons::bidding::Table;
-use pons::two_over_one;
 
 /// Bid out random boards with the basic 2/1 game-forcing system
 #[derive(Parser)]
@@ -60,8 +60,8 @@ fn print_auction(auction: &[Call], dealer: Seat) {
 
 fn main() {
     let args = Args::parse();
-    let ns = two_over_one();
-    let ew = two_over_one();
+    let ns = american();
+    let ew = american();
     let table = Table::of_pairs(&ns, &ew, args.dealer, args.vulnerability);
     let mut rng = rand::rng();
 

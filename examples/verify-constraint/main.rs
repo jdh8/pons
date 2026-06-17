@@ -20,10 +20,10 @@
 use contract_bridge::auction::Call;
 use contract_bridge::{Hand, Suit};
 use pons::bidding::Context;
+use pons::bidding::american::bare_american;
 use pons::bidding::constraint::{Constraint, described, len, points};
 use pons::bidding::rules::Rule;
 use pons::bidding::trie::Trie;
-use pons::bidding::two_over_one::bare_two_over_one;
 use pons::bidding::verify::{Report, compare, empty_context, predicate};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -96,7 +96,7 @@ fn the_escape_hatch_blind_spot(ctx: &Context<'_>, rng: &mut StdRng) {
 
 /// Find a rule in the constructive opening node by its rendered gloss.
 fn opening_rule(gloss: &str) -> Option<Rule> {
-    let pair = bare_two_over_one();
+    let pair = bare_american();
     let opening = find_node(&pair.constructive.0, &[])?;
     opening
         .rules()

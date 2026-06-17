@@ -69,7 +69,7 @@ harness = false
 
 # The neural-floor A/B example (AI-bidder M1.4) imports `neural-floor`-gated
 # items, so it builds only with that feature — otherwise `cargo build --examples`
-# would fail to resolve `two_over_one_neural`. Every other example is still
+# would fail to resolve `american_neural`. Every other example is still
 # auto-discovered.
 [[example]]
 name = "neural-floor"
@@ -77,14 +77,14 @@ path = "examples/neural-floor/main.rs"
 required-features = ["neural-floor"]
 
 # The live-search A/B example (AI-bidder M2.3) imports `search`-gated items
-# (`two_over_one_search`), so it builds only with that feature.
+# (`american_search`), so it builds only with that feature.
 [[example]]
 name = "search-floor"
 path = "examples/search-floor/main.rs"
 required-features = ["search"]
 
 # The search-target dump (AI-bidder M3.1) bids out boards with the live-search
-# floor (`two_over_one_search_with`) to record distillation targets, so it too
+# floor (`american_search_with`) to record distillation targets, so it too
 # builds only with the `search` feature.
 [[example]]
 name = "search-dump"
@@ -93,7 +93,7 @@ required-features = ["search"]
 
 # The constructive-only floor A/B/C asks whether the search floors should also
 # own the unbooked constructive nodes; it uses `SearchFloor` and
-# `two_over_one_constructive_floor`, so it builds only with the `search` feature.
+# `american_constructive_floor`, so it builds only with the `search` feature.
 [[example]]
 name = "constructive-abc"
 path = "examples/constructive-abc/main.rs"

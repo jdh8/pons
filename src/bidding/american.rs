@@ -1,6 +1,6 @@
 //! A 2/1 game-forcing bidding system
 //!
-//! [`two_over_one()`][crate::bidding::two_over_one::two_over_one] assembles a
+//! [`american()`][crate::bidding::american::american] assembles a
 //! [`Pair`] for the Two-over-One Game Forcing system, the modern North
 //! American standard: five-card majors, a strong 15–17 notrump, the strong
 //! artificial 2♣, and — the defining feature — a new suit at the two level in
@@ -9,7 +9,7 @@
 //! The system is authored entirely from the constraint vocabulary
 //! ([`constraint`][crate::bidding::constraint]), the [`Rules`] classifier, and
 //! the role-aware books — the strictly uncontested core in a [`Constructive`]
-//! book, [`competition()`][crate::bidding::two_over_one::competition] over our
+//! book, [`competition()`][crate::bidding::american::competition] over our
 //! openings in a [`Competitive`][super::Competitive] book, and our actions
 //! over their openings in a [`Defensive`][super::Defensive] book; nothing here
 //! is system infrastructure.
@@ -165,12 +165,12 @@ fn fallback_all_seats(
 /// table.
 ///
 /// ```
-/// use pons::two_over_one;
+/// use pons::american;
 /// use pons::bidding::{Family, System};
 /// use contract_bridge::auction::{Call, RelativeVulnerability};
 /// use contract_bridge::{Bid, Strain};
 ///
-/// let stance = two_over_one().against(Family::NATURAL);
+/// let stance = american().against(Family::NATURAL);
 /// let hand = "AQ32.K53.QJ4.A92".parse().unwrap(); // 16 HCP, balanced
 /// let logits = stance
 ///     .classify(hand, RelativeVulnerability::NONE, &[])
@@ -183,87 +183,87 @@ fn fallback_all_seats(
 /// assert_eq!(best, Call::Bid(Bid::new(1, Strain::Notrump)));
 /// ```
 #[must_use]
-pub fn two_over_one() -> Pair {
-    with_instinct_floor(bare_two_over_one())
+pub fn american() -> Pair {
+    with_instinct_floor(bare_american())
 }
 
 /// The 2/1 pair with the **classic balanced** 1NT opening (pre-redesign)
 ///
-/// Exactly [`two_over_one`] but for the opening table: the strong 1NT is only
+/// Exactly [`american`] but for the opening table: the strong 1NT is only
 /// the balanced patterns (4333/4432/5332), without the wide-shape redesign that
-/// [`two_over_one`] now ships (a 5422 with a five-card minor also opens 1NT —
+/// [`american`] now ships (a 5422 with a five-card minor also opens 1NT —
 /// [`openings_with`]).  The ablation handle for measuring that redesign; see the
 /// `nt-shape-abc` (constructive) and `nt-shape-contested` examples.
 #[must_use]
-pub fn two_over_one_classic() -> Pair {
-    with_instinct_floor(bare_two_over_one_with(NotrumpShape::Balanced))
+pub fn american_classic() -> Pair {
+    with_instinct_floor(bare_american_with(NotrumpShape::Balanced))
 }
 
 /// The 2/1 pair with the **experimental** wider 1NT shape ([`NotrumpShape::Wide6322`])
 ///
-/// Exactly [`two_over_one`] but its 1NT also opens a 6322 with a six-card minor,
+/// Exactly [`american`] but its 1NT also opens a 6322 with a six-card minor,
 /// on top of the shipped 5422-minor.  An experiment measured against the
-/// `two_over_one` default in the `nt-shape-contested` example; not yet adopted (a
+/// `american` default in the `nt-shape-contested` example; not yet adopted (a
 /// constructive ablation found the 6322 addition net-neutral — the open question
 /// is whether competition changes that).
 #[must_use]
-pub fn two_over_one_wide_6322() -> Pair {
-    with_instinct_floor(bare_two_over_one_with(NotrumpShape::Wide6322))
+pub fn american_wide_6322() -> Pair {
+    with_instinct_floor(bare_american_with(NotrumpShape::Wide6322))
 }
 
 /// The 2/1 pair with the distilled **neural** floor (AI-bidder M1.3)
 ///
-/// Exactly [`two_over_one`] but for the floor: the deterministic
+/// Exactly [`american`] but for the floor: the deterministic
 /// [`instinct`][crate::bidding::instinct()] ladder is replaced by the
 /// [`NeuralFloor`][crate::bidding::neural_floor::NeuralFloor] safety shell — the learned
 /// net in the judgement middle, the forced rails preserved by delegation.  An
-/// added option, never a replacement; [`two_over_one`] stays the baseline.  Bind
+/// added option, never a replacement; [`american`] stays the baseline.  Bind
 /// it against the opponents' [`Family`] with [`Pair::against`] and seat it the
 /// same way.  Gated behind the `neural-floor` feature.
 #[cfg(feature = "neural-floor")]
 #[must_use]
-pub fn two_over_one_neural() -> Pair {
-    with_floor(bare_two_over_one(), super::neural_floor::NeuralFloor)
+pub fn american_neural() -> Pair {
+    with_floor(bare_american(), super::neural_floor::NeuralFloor)
 }
 
 /// The 2/1 pair with the **tag-augmented** distilled neural floor (AI-bidder M5.1)
 ///
-/// Exactly [`two_over_one_neural`] but for the floor's feature extractor: the net
+/// Exactly [`american_neural`] but for the floor's feature extractor: the net
 /// also sees the WBF tags of the recent calls
 /// ([`features_v2`][crate::bidding::features::features_v2]), wrapped in the same
 /// [`NeuralFloorV2`][crate::bidding::neural_floor::NeuralFloorV2] safety shell —
 /// the learned net in the judgement middle, the forced rails preserved by
-/// delegation.  An added option, never a replacement: [`two_over_one`] stays the
-/// baseline and [`two_over_one_neural`] the v1 learned floor.  Bind it against the
+/// delegation.  An added option, never a replacement: [`american`] stays the
+/// baseline and [`american_neural`] the v1 learned floor.  Bind it against the
 /// opponents' [`Family`] with [`Pair::against`] and seat it the same way.  Gated
 /// behind the `neural-floor` feature.
 #[cfg(feature = "neural-floor")]
 #[must_use]
-pub fn two_over_one_neural_v2() -> Pair {
-    with_floor(bare_two_over_one(), super::neural_floor::NeuralFloorV2)
+pub fn american_neural_v2() -> Pair {
+    with_floor(bare_american(), super::neural_floor::NeuralFloorV2)
 }
 
 /// The 2/1 pair with the **search-target** distilled neural floor (AI-bidder M3.2)
 ///
-/// Exactly [`two_over_one_neural`] in shape — v1 features, the
+/// Exactly [`american_neural`] in shape — v1 features, the
 /// [`NeuralFloorSearch`][crate::bidding::neural_floor::NeuralFloorSearch] safety
 /// shell with the same forced-rail delegation — but the net is distilled from the
 /// **live-search teacher** (M2.3's EV-grounded targets, dumped at M3.1), *not* from
-/// the deterministic [`two_over_one`] and *not* the live search bidder
-/// [`two_over_one_search`] itself.  The fast net that learned the search's
-/// judgement.  An added option, never a replacement: [`two_over_one`] stays the
-/// baseline and [`two_over_one_neural`] the teacher-distilled floor.  Bind it
+/// the deterministic [`american`] and *not* the live search bidder
+/// [`american_search`] itself.  The fast net that learned the search's
+/// judgement.  An added option, never a replacement: [`american`] stays the
+/// baseline and [`american_neural`] the teacher-distilled floor.  Bind it
 /// against the opponents' [`Family`] with [`Pair::against`] and seat it the same
 /// way.  Gated behind the `neural-floor` feature.
 #[cfg(feature = "neural-floor")]
 #[must_use]
-pub fn two_over_one_neural_search() -> Pair {
-    with_floor(bare_two_over_one(), super::neural_floor::NeuralFloorSearch)
+pub fn american_neural_search() -> Pair {
+    with_floor(bare_american(), super::neural_floor::NeuralFloorSearch)
 }
 
 /// The 2/1 pair with the gated live-**search** floor (AI-bidder M2.3)
 ///
-/// Exactly [`two_over_one`] but for the floor: the deterministic
+/// Exactly [`american`] but for the floor: the deterministic
 /// [`instinct`][crate::bidding::instinct()] ladder is replaced by the
 /// [`SearchFloor`][crate::bidding::search_floor::SearchFloor] safety shell, which
 /// at each non-forced decision shortlists the distilled net's top calls and
@@ -274,28 +274,28 @@ pub fn two_over_one_neural_search() -> Pair {
 /// `neural-floor`).
 #[cfg(feature = "search")]
 #[must_use]
-pub fn two_over_one_search() -> Pair {
-    two_over_one_search_with(super::search_floor::SearchFloor::default())
+pub fn american_search() -> Pair {
+    american_search_with(super::search_floor::SearchFloor::default())
 }
 
 /// The 2/1 pair with a caller-tuned live-search floor (AI-bidder M3.1)
 ///
-/// Like [`two_over_one_search`] but with explicit
+/// Like [`american_search`] but with explicit
 /// [`SearchFloor`][crate::bidding::search_floor::SearchFloor] knobs, so
 /// data-generation and tuning runs can trade strength for speed (smaller
-/// `layouts`/`shortlist`) without re-wiring the floor.  `two_over_one_search()`
-/// is exactly `two_over_one_search_with(SearchFloor::default())`.  Gated behind
+/// `layouts`/`shortlist`) without re-wiring the floor.  `american_search()`
+/// is exactly `american_search_with(SearchFloor::default())`.  Gated behind
 /// the `search` feature.
 #[cfg(feature = "search")]
 #[must_use]
-pub fn two_over_one_search_with(floor: super::search_floor::SearchFloor) -> Pair {
-    with_floor(bare_two_over_one(), floor)
+pub fn american_search_with(floor: super::search_floor::SearchFloor) -> Pair {
+    with_floor(bare_american(), floor)
 }
 
 /// Build a 2/1 pair whose **constructive** book falls back to an arbitrary
 /// classifier — the knob the standard constructors deny
 ///
-/// [`two_over_one`] and the neural variants hard-wire the deterministic
+/// [`american`] and the neural variants hard-wire the deterministic
 /// [`instinct`][crate::bidding::instinct()] ladder onto the constructive book —
 /// the learned floors own only the contested books.  This
 /// builder lifts that wiring so a learned floor (the live
@@ -307,8 +307,8 @@ pub fn two_over_one_search_with(floor: super::search_floor::SearchFloor) -> Pair
 /// `neural-floor` feature.
 #[cfg(feature = "neural-floor")]
 #[must_use]
-pub fn two_over_one_constructive_floor<C: Classifier + 'static>(floor: C) -> Pair {
-    let mut pair = bare_two_over_one();
+pub fn american_constructive_floor<C: Classifier + 'static>(floor: C) -> Pair {
+    let mut pair = bare_american();
     pair.constructive
         .fallback_at(&[], Always, Fallback::classify(floor));
     pair
@@ -319,9 +319,9 @@ pub fn two_over_one_constructive_floor<C: Classifier + 'static>(floor: C) -> Pai
 /// A root `Always` fallback on both contested books, shared through the
 /// `Fallback`'s `Arc`.  Resolution reaches the root last, so the floor never
 /// overrides an authored rule — it only catches the auctions that fall past all
-/// of them.  Generic over the floor so [`two_over_one`] (the deterministic
+/// of them.  Generic over the floor so [`american`] (the deterministic
 /// [`instinct`][crate::bidding::instinct()]) and
-/// [`two_over_one_neural`] (the distilled net) share one wiring.
+/// [`american_neural`] (the distilled net) share one wiring.
 fn with_floor<C: Classifier + 'static>(mut pair: Pair, floor: C) -> Pair {
     let floor = Fallback::classify(floor);
     pair.competitive.fallback_at(&[], Always, floor.clone());
@@ -347,24 +347,24 @@ fn with_instinct_floor(pair: Pair) -> Pair {
 /// This is the ablation handle for measuring the floor.  A driver seating
 /// this pair passes whenever the books run out — the pre-floor behavior,
 /// including passing partner's takeout double on a worthless hand.
-/// [`two_over_one()`] is exactly this pair with
+/// [`american()`] is exactly this pair with
 /// [`instinct`][crate::bidding::instinct()] attached to both contested books;
 /// see the `instinct-floor` example for an A/B match between the two.  The
 /// opening table ships the wide 1NT shape (a 5422 with a five-card minor opens
-/// 1NT); [`two_over_one_classic`] is the balanced-only baseline.
+/// 1NT); [`american_classic`] is the balanced-only baseline.
 #[must_use]
-pub fn bare_two_over_one() -> Pair {
-    bare_two_over_one_with(NotrumpShape::Wide)
+pub fn bare_american() -> Pair {
+    bare_american_with(NotrumpShape::Wide)
 }
 
-/// [`bare_two_over_one`] with the 1NT [`NotrumpShape`] policy selectable
+/// [`bare_american`] with the 1NT [`NotrumpShape`] policy selectable
 ///
 /// `shape` selects the opening table's 1NT shape ([`openings_with`]); everything
-/// else is identical.  `bare_two_over_one()` ships [`NotrumpShape::Wide`]; the
+/// else is identical.  `bare_american()` ships [`NotrumpShape::Wide`]; the
 /// classic balanced baseline ([`NotrumpShape::Balanced`]) is behind
-/// [`two_over_one_classic`].
+/// [`american_classic`].
 #[must_use]
-fn bare_two_over_one_with(shape: NotrumpShape) -> Pair {
+fn bare_american_with(shape: NotrumpShape) -> Pair {
     let mut c = Constructive::new();
 
     openings::register(&mut c, shape);

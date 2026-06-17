@@ -31,7 +31,7 @@
 //!
 //! # One system
 //!
-//! The meanings encoded here are those of [`two_over_one`][super::two_over_one()]
+//! The meanings encoded here are those of [`american`][super::american()]
 //! (five-card majors, strong 15–17 notrump, strong artificial 2♣); like the
 //! instinct floor, this reading is tied to that system.
 
@@ -558,7 +558,7 @@ fn apply_response_points(inf: &mut Inference, response: Bid, opening: Bid, eligi
     }
     match response.level.get() {
         1 => inf.narrow_points(Range::at_least(6, POINTS_CAP)),
-        2 if is_two_over_one(opening, response) => {
+        2 if is_american(opening, response) => {
             inf.narrow_points(Range::at_least(13, POINTS_CAP));
         }
         _ => {}
@@ -566,7 +566,7 @@ fn apply_response_points(inf: &mut Inference, response: Bid, opening: Bid, eligi
 }
 
 /// Whether a two-level new suit is a game-forcing 2/1 over `opening`
-fn is_two_over_one(opening: Bid, response: Bid) -> bool {
+fn is_american(opening: Bid, response: Bid) -> bool {
     response.level.get() == 2
         && match opening.strain {
             Strain::Hearts | Strain::Spades => true,
@@ -855,7 +855,7 @@ mod tests {
         #[test]
         fn opening_inference_contains_the_opener(seed in any::<u64>()) {
             use crate::bidding::trie::Classifier;
-            use crate::bidding::two_over_one::openings;
+            use crate::bidding::american::openings;
             use contract_bridge::deck::full_deal;
             use rand::SeedableRng;
 

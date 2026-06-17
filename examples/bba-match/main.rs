@@ -1,6 +1,6 @@
 //! AI-bidder **Side-track S.1** — the external eval anchor.
 //!
-//! A duplicate A/B match of our deterministic [`two_over_one`] floor against
+//! A duplicate A/B match of our deterministic [`american`] floor against
 //! **BBA's own 2/1 Game Force card**, driven natively through EPBot's C ABI
 //! (`libEPBot.so`, no Wine — see the S.0 spike in `examples/bba-oracle`).  The
 //! two systems play the *same* 2/1 system, so every divergence is a pure
@@ -30,11 +30,11 @@ use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, Bid, FullDeal, Hand, Level, Seat, Strain, Suit};
 use ddss::{NonEmptyStrainFlags, Solver};
 use libloading::Library;
+use pons::american;
 use pons::bidding::array::{Array, Logits};
 use pons::bidding::context::relative;
 use pons::bidding::{Family, System};
 use pons::scoring::{final_contract, imps, ns_score};
-use pons::two_over_one;
 use std::ffi::{CString, c_char, c_int, c_void};
 
 const DEFAULT_LIB: &str = "vendor/bba/Native-libraries/linux/x64/libEPBot.so";
@@ -370,7 +370,7 @@ fn main() -> anyhow::Result<()> {
             std::process::exit(1);
         }
     };
-    let ours = two_over_one().against(Family::NATURAL);
+    let ours = american().against(Family::NATURAL);
     let mut rng = rand::rng();
 
     // Bid every board at both tables, dealer rotating per board.

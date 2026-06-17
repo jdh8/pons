@@ -11,7 +11,7 @@
 //!   new-suit response.
 //!
 //! The public surface is [`register`], called once by
-//! [`two_over_one`][super::two_over_one] during system assembly.
+//! [`american`][super::american] during system assembly.
 
 use super::{call, insert_uncontested};
 use crate::bidding::constraint::{hcp, len};

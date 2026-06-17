@@ -6,7 +6,7 @@
 //! [`NeuralFloor`][crate::bidding::neural_floor::NeuralFloor] wraps it so it is
 //! safe to attach as the floor, exactly where
 //! [`instinct()`][super::instinct::instinct] attaches (see
-//! [`two_over_one_neural`][super::two_over_one::two_over_one_neural]).
+//! [`american_neural`][super::american::american_neural]).
 //!
 //! The shell has two paths:
 //!

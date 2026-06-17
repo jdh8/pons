@@ -5,13 +5,13 @@
 //! shell — the distilled net used only as a prior to shortlist calls, then each
 //! priced by double-dummy cardplay EV ([`ev_all`][pons::bidding::ev_all]) over
 //! sampled layouts before bidding the best — runs as a [`Pair`][pons::Pair] floor
-//! ([`two_over_one_search`][pons::two_over_one_search]) against two opponents,
+//! ([`american_search`][pons::american_search]) against two opponents,
 //! each board bid twice duplicate-style with the seats swapped:
 //!
-//! 1. **vs the deterministic floor** ([`two_over_one`]): the hand-written
+//! 1. **vs the deterministic floor** ([`american`]): the hand-written
 //!    `instinct()` ladder.  Beating it (strictly positive IMPs/board) is the
 //!    whole point of M2.3 — cardplay-grounded judgement over a static rule.
-//! 2. **vs the distilled net** ([`two_over_one_neural`]): the raw one-forward-pass
+//! 2. **vs the distilled net** ([`american_neural`]): the raw one-forward-pass
 //!    policy the search uses as its *prior*.  Search should beat the policy it
 //!    proposes from — "net proposes, search disposes".
 //!
@@ -45,7 +45,7 @@ use ddss::{NonEmptyStrainFlags, Solver};
 use pons::bidding::context::relative;
 use pons::bidding::{Family, Stance, System};
 use pons::scoring::{final_contract, imps, ns_score};
-use pons::{Accumulator, two_over_one, two_over_one_neural, two_over_one_search};
+use pons::{Accumulator, american, american_neural, american_search};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
 
@@ -334,9 +334,9 @@ fn dump_boards(title: &str, result: &MatchResult, indices: &[usize]) {
 fn main() {
     let args = Args::parse();
 
-    let search = two_over_one_search().against(Family::NATURAL);
-    let deterministic = two_over_one().against(Family::NATURAL);
-    let neural = two_over_one_neural().against(Family::NATURAL);
+    let search = american_search().against(Family::NATURAL);
+    let deterministic = american().against(Family::NATURAL);
+    let neural = american_neural().against(Family::NATURAL);
 
     // Deal the boards once so both matches play identical deals (and a `--seed`
     // makes them reproducible across runs).

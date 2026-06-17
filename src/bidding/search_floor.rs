@@ -48,13 +48,13 @@
 //! (the inverse of [`relative`][crate::bidding::context::relative] at North: we ↔ NS,
 //! they ↔ EW).
 
+use super::american::american_neural_search;
 use super::array::Logits;
 use super::context::Context;
 use super::ev::ev_all;
 use super::instinct::{forced, instinct};
 use super::neural_floor::mask_illegal;
 use super::trie::Classifier;
-use super::two_over_one::two_over_one_neural_search;
 use super::{Family, Rules, Stance, features, neural};
 use contract_bridge::auction::{AbsoluteVulnerability, Call, RelativeVulnerability};
 use contract_bridge::{Hand, Seat};
@@ -67,14 +67,14 @@ static LADDER: LazyLock<Rules> = LazyLock::new(instinct);
 
 /// The continuation policy that finishes every rollout auction
 ///
-/// Our search-target distilled floor ([`two_over_one_neural_search`] — the M3.2
+/// Our search-target distilled floor ([`american_neural_search`] — the M3.2
 /// round-1 net) bound for self-play: the rollout assumes all four seats bid as we
 /// would.  This is the policy M3.2 iterates — "feed the improved net back into the
 /// continuations" — so each round's targets are scored by the previous round's
-/// policy.  Round 1 used the teacher-distilled `two_over_one_neural`; this is the
+/// policy.  Round 1 used the teacher-distilled `american_neural`; this is the
 /// round-2 continuation.  Built once and shared across decisions.
 static POLICY: LazyLock<Stance> =
-    LazyLock::new(|| two_over_one_neural_search().against(Family::NATURAL));
+    LazyLock::new(|| american_neural_search().against(Family::NATURAL));
 
 /// How far above the un-evaluated prior tail the EV band sits, in nats
 ///

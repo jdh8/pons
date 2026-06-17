@@ -21,13 +21,13 @@ use contract_bridge::auction::{Auction, Call};
 use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Hand, Seat};
 use ddss::{NonEmptyStrainFlags, Solver};
+use pons::american;
 use pons::bidding::constraint::{
     FifthsCompanion, set_fifths_companion, set_fuzzy_fifths, set_fuzzy_points,
 };
 use pons::bidding::context::relative;
 use pons::bidding::{Family, Stance, System};
 use pons::scoring::{final_contract, imps, ns_score};
-use pons::two_over_one;
 
 /// A/B the Fifths companion gauge: an HCP-vs-BUM-RAP duplicate match
 #[derive(Parser)]
@@ -115,7 +115,7 @@ struct Board {
 fn main() {
     let args = Args::parse();
     let mut rng = rand::rng();
-    let stance = two_over_one().against(Family::NATURAL);
+    let stance = american().against(Family::NATURAL);
 
     // Bid every board at both tables, dealer rotating per board.
     let boards: Vec<Board> = (0..args.count)

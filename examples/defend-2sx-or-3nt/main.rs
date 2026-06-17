@@ -1,6 +1,6 @@
 //! Compare flavors of the `(2♠) X (P)` decision by double-dummy simulation.
 //!
-//! The scenario: West opens a weak 2♠ (from the real [`two_over_one`]
+//! The scenario: West opens a weak 2♠ (from the real [`american`]
 //! system), North makes a takeout double, East passes, and South must choose
 //! between defending and declaring 3NT.  Deals are accepted through a
 //! four-gate funnel so the studied population is the *live* one:
@@ -48,10 +48,10 @@ use contract_bridge::{
     AbsoluteVulnerability, Bid, Contract, FullDeal, Hand, Penalty, Seat, Strain, Suit,
 };
 use ddss::{NonEmptyStrainFlags, Solver};
+use pons::american;
 use pons::bidding::constraint::{Constraint, hcp, len, stopper_in, top_honors};
 use pons::bidding::{Context, Stance, Table};
 use pons::scoring::{final_contract, ns_score};
-use pons::two_over_one;
 use std::collections::HashMap;
 
 const TWO_SPADES: Call = Call::Bid(Bid::new(2, Strain::Spades));
@@ -152,7 +152,7 @@ fn response_flavors() -> Vec<Flavor> {
 
 /// Both pairs play 2/1 at a table with West dealing, at the CLI vulnerability
 fn build_table(vul: AbsoluteVulnerability) -> Table<Stance, Stance> {
-    let pair = two_over_one();
+    let pair = american();
     Table::of_pairs(&pair, &pair, Seat::West, vul)
 }
 

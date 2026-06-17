@@ -2,7 +2,7 @@
 //!
 //! Diagnostic-only sibling of [`search-dump`](../search-dump/main.rs).  It
 //! replays the same self-play with the live double-dummy search bidder
-//! ([`two_over_one_search`][pons::two_over_one_search]) and, at every *off-book*
+//! ([`american_search`][pons::american_search]) and, at every *off-book*
 //! node where the search's arg-max is **7NT**, characterizes that decision.
 //!
 //! It was written to test the hypothesis that the 7NT flood was *double-dummy
@@ -37,7 +37,7 @@ use pons::bidding::inference::Inferences;
 use pons::bidding::sampler::sample_layouts;
 use pons::bidding::search_floor::SearchFloor;
 use pons::scoring::{imps, ns_score};
-use pons::{two_over_one_neural, two_over_one_search_with};
+use pons::{american_neural, american_search_with};
 use rand::rngs::StdRng;
 use rand::{RngExt, SeedableRng};
 
@@ -99,13 +99,13 @@ struct Probe {
 
 fn main() {
     let args = Args::parse();
-    let search = two_over_one_search_with(SearchFloor {
+    let search = american_search_with(SearchFloor {
         layouts: args.nav_layouts,
         shortlist: args.nav_shortlist,
         temperature: 100.0,
     })
     .against(Family::NATURAL);
-    let policy = two_over_one_neural().against(Family::NATURAL);
+    let policy = american_neural().against(Family::NATURAL);
     let mut rng = StdRng::seed_from_u64(args.seed);
     let seven_nt = nt(7, Strain::Notrump);
 

@@ -100,12 +100,12 @@ never for the rails. It lets a model replace the floor without replacing its
 
 ### Phase 1 — Distillation (clone the current system)
 
-**Goal:** a learned floor that *matches* `two_over_one()`, proving the entire
+**Goal:** a learned floor that *matches* `american()`, proving the entire
 pipeline (features → train → distill to Rust → measure on the A/B harness) before
 any attempt to beat it.
 
 1. **Generate data.** Deal random boards; bid them out with the real
-   `two_over_one()` system; at every decision point record
+   `american()` system; at every decision point record
    `(features, teacher_softmax)`. Millions of `(hand, auction)` examples are free
    — they're just simulation. *Weight* the sampling toward off-book auctions (the
    floor's actual domain), e.g. by oversampling competitive sequences, so the

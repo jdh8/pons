@@ -156,7 +156,7 @@ fn answer_neg_double_of_minor(opening_major: Suit) -> Rules {
 /// opener's answers to negative doubles of minor overcalls
 ///
 /// Standalone, the system-on rebase has nothing to land on; bind through
-/// [`Pair::against`][crate::bidding::Pair::against] (as [`two_over_one`][super::two_over_one] is meant to be
+/// [`Pair::against`][crate::bidding::Pair::against] (as [`american`][super::american] is meant to be
 /// used) so it resolves into the uncontested core.
 #[must_use]
 pub fn competition() -> Competitive {

@@ -68,7 +68,7 @@ Start at 2 (or 1 if it suffices). Escalate to 3 only when forced.
 The model attaches exactly where `instinct()` does: as the root `Always`
 fallback, behind the book, wrapped in the legality+safety shell from
 [`02-policy-net.md`](02-policy-net.md). A new constructor (say
-`two_over_one_neural()`) mirrors `two_over_one()` but swaps the floor. The
+`american_neural()`) mirrors `american()` but swaps the floor. The
 deterministic `instinct()` stays as the default and the comparison baseline —
 nothing is removed, a new option is added.
 

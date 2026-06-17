@@ -76,7 +76,7 @@ these framings.
 | Attention (transformer) | For each position, a weighted average of all positions' vectors; the weights are `softmax` of learned dot-products. A differentiable, content-addressable lookup. |
 | Deep Sets / equivariance | If the input is a set (the 4 suits are exchangeable), apply one shared per-element function, then pool (sum/mean). Bakes the symmetry into the architecture. |
 | CNN | A small filter slid across positions; assumes *translation invariance*. Bad fit for card ranks (an Ace is not "a Two shifted up"). |
-| Distillation | Train a fast "student" to copy a "teacher"'s output distribution. Here: student net copies `two_over_one()`'s softmax. |
+| Distillation | Train a fast "student" to copy a "teacher"'s output distribution. Here: student net copies `american()`'s softmax. |
 | Policy | A function: state → distribution over actions. **Your floor is already a (deterministic) policy.** The net is a learned one. |
 | Policy improvement / search | Use a slow accurate evaluator (DD over sampled layouts) to score each candidate call, then nudge the policy toward the higher-EV one. Iterate. Run it **at training time** (to make targets) *and* **at play time** (net+search beats the raw net). |
 | Prior policy | The cheap policy (the net's softmax) used to *propose* which calls are worth evaluating — search only the top-`k`. "Net proposes, search disposes." |

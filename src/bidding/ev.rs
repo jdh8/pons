@@ -20,7 +20,7 @@
 //! 4. **Average** over layouts.  That average is the call's EV.
 //!
 //! The continuation policy is a [`System`] *parameter*, not hardwired.  M2.2
-//! defaults callers to the deterministic [`two_over_one`][crate::two_over_one()]
+//! defaults callers to the deterministic [`american`][crate::american()]
 //! (debuggable, and ≈ the distilled net at bootstrap); the M3 search-improvement
 //! loop swaps in successive nets without touching this code.
 //!
@@ -155,8 +155,8 @@ fn dealer_of(seat: Seat, prior_len: usize) -> Seat {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::american;
     use crate::bidding::Family;
-    use crate::two_over_one;
     use contract_bridge::auction::RelativeVulnerability;
     use contract_bridge::{Bid, Level, Strain};
     use rand::SeedableRng;
@@ -178,7 +178,7 @@ mod tests {
 
     /// The deterministic continuation policy used throughout these tests.
     fn deterministic() -> impl System {
-        two_over_one().against(Family::NATURAL)
+        american().against(Family::NATURAL)
     }
 
     /// Sanity: the evaluator prefers the obviously-right call.  As dealer with a

@@ -1,3 +1,5 @@
+/// The basic 2/1 game-forcing system
+pub mod american;
 /// [`Call`]-indexed array
 pub mod array;
 /// Role-aware partnership books
@@ -34,11 +36,14 @@ pub mod table;
 pub mod tags;
 /// [`Trie`] as a bidding system
 pub mod trie;
-/// The basic 2/1 game-forcing system
-pub mod two_over_one;
 /// Behavioral verification of authored constraints (AI-bidder M4.2)
 pub mod verify;
 
+pub use american::american;
+#[cfg(feature = "neural-floor")]
+pub use american::{american_neural, american_neural_search, american_neural_v2};
+#[cfg(feature = "search")]
+pub use american::{american_search, american_search_with};
 pub use array::Array;
 pub use book::{Competitive, Constructive, Defensive, Family, Pair, Phase, Stance};
 pub use compose::{OrElse, Versus};
@@ -53,11 +58,6 @@ pub use rules::Rules;
 pub use sampler::sample_layouts;
 pub use table::Table;
 pub use trie::{Trie, classifier};
-pub use two_over_one::two_over_one;
-#[cfg(feature = "neural-floor")]
-pub use two_over_one::{two_over_one_neural, two_over_one_neural_search, two_over_one_neural_v2};
-#[cfg(feature = "search")]
-pub use two_over_one::{two_over_one_search, two_over_one_search_with};
 pub use verify::{Report, accepts, compare};
 
 use contract_bridge::Hand;

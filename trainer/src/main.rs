@@ -1,4 +1,4 @@
-//! Distill `two_over_one()` into an MLP — AI-bidder M1.1.
+//! Distill `american()` into an MLP — AI-bidder M1.1.
 //!
 //! Reads the teacher dump (`examples/teacher-dump`), fits a `160 -> H -> H -> 38`
 //! MLP to the teacher's softmax by soft-target cross-entropy
@@ -21,13 +21,13 @@ use std::io::{BufWriter, Write};
 use std::path::Path;
 
 #[derive(Parser)]
-#[command(about = "Distill two_over_one() into an MLP (AI-bidder M1.1)")]
+#[command(about = "Distill american() into an MLP (AI-bidder M1.1)")]
 struct Args {
     /// Teacher-dump path stem; reads `<stem>.f32`, `<stem>.json`, `<stem>.tags`
     #[arg(long, default_value = "../target/teacher-data")]
     data: String,
     /// Output stem for the artifact: `<stem>.f32` + `<stem>.json` + `<stem>.fixture.json`
-    #[arg(long, default_value = "../src/bidding/weights/two_over_one_v1")]
+    #[arg(long, default_value = "../src/bidding/weights/american_v1")]
     weights_out: String,
     /// Hidden width of both hidden layers
     #[arg(long, default_value_t = 256)]
