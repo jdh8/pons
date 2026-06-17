@@ -161,49 +161,13 @@ fn with_instinct_floor(mut pair: Pair) -> Pair {
 mod tests {
     use super::*;
     use crate::bidding::{Family, System};
-    use contract_bridge::Hand;
-    use contract_bridge::auction::{Call, RelativeVulnerability};
-    use contract_bridge::{Bid, Strain};
 
-    /// The highest finite-logit call the assembled system makes for a hand
-    fn opens(hand: &str) -> Call {
-        let stance = polish_club().against(Family::NATURAL);
-        let hand: Hand = hand.parse().expect("valid test hand");
-        let logits = stance
-            .classify(hand, RelativeVulnerability::NONE, &[])
-            .expect("an opening decision");
-        (&logits.0)
-            .into_iter()
-            .filter(|(_, l)| l.is_finite())
-            .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("logits are never NaN"))
-            .map(|(call, _)| call)
-            .expect("some opening")
-    }
-
-    fn bid(level: u8, strain: Strain) -> Call {
-        Call::Bid(Bid::new(level, strain))
-    }
-
+    // The textbook-opening fixtures live in `tests/polish_club.rs`
+    // (`textbook_openings_are_correct`); this is just the assembly smoke test.
     #[test]
     fn assembles_without_panic() {
         // `Pair::against` debug-asserts no constructive/competitive collision.
         let _ = polish_club().against(Family::NATURAL);
         let _ = bare_polish_club().against(Family::NATURAL);
-    }
-
-    #[test]
-    fn opens_the_textbook_hands() {
-        // Strong balanced and natural clubs both open the artificial 1♣.
-        assert_eq!(opens("AQ5.KJ4.KQ72.K43"), bid(1, Strain::Clubs)); // 18 bal
-        assert_eq!(opens("AQ5.AKJ.KQ72.Q43"), bid(1, Strain::Clubs)); // 21 bal
-        assert_eq!(opens("43.K43.Q82.AKJ95"), bid(1, Strain::Clubs)); // 5♣
-        // Five-card majors open one of the major.
-        assert_eq!(opens("K3.AQ952.KJ3.842"), bid(1, Strain::Hearts)); // 5♥
-        assert_eq!(opens("AQ952.K3.KJ3.842"), bid(1, Strain::Spades)); // 5♠
-        // The strong notrump and the natural diamond.
-        assert_eq!(opens("KJ4.AQ5.Q872.K32"), bid(1, Strain::Notrump)); // 15 bal
-        assert_eq!(opens("K3.842.AQJ95.KJ3"), bid(1, Strain::Diamonds)); // 5♦
-        // A weak six-card major opens Multi 2♦.
-        assert_eq!(opens("KQJ976.43.852.42"), bid(2, Strain::Diamonds)); // weak 6♠
     }
 }
