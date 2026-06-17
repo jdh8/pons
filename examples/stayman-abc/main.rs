@@ -135,7 +135,10 @@ fn main() {
     let contracts: Vec<Option<(Contract, Seat)>> = boards
         .iter()
         .map(|(dealer, deal)| {
-            final_contract(&bid_uncontested(&sys, *dealer, args.vulnerability, deal), *dealer)
+            final_contract(
+                &bid_uncontested(&sys, *dealer, args.vulnerability, deal),
+                *dealer,
+            )
         })
         .collect();
 
@@ -152,9 +155,15 @@ fn main() {
         .lines()
         .map(decode)
         .collect();
-    assert_eq!(baseline.len(), contracts.len(), "board count mismatch — same seed/count?");
+    assert_eq!(
+        baseline.len(),
+        contracts.len(),
+        "board count mismatch — same seed/count?"
+    );
 
-    let divergent: Vec<usize> = (0..args.count).filter(|&i| baseline[i] != contracts[i]).collect();
+    let divergent: Vec<usize> = (0..args.count)
+        .filter(|&i| baseline[i] != contracts[i])
+        .collect();
     let solve_deals: Vec<FullDeal> = divergent.iter().map(|&i| boards[i].1).collect();
     let tables = Solver::lock().solve_deals(&solve_deals, NonEmptyStrainFlags::ALL);
 
