@@ -4,8 +4,8 @@
 //! ([`fifths`][pons::bidding::constraint::fifths] 15–17) and the inference side
 //! are unchanged (a future session).  Both arms run the same 2/1 system; the
 //! only difference is whether the 1NT opening also admits the modern shapely
-//! hand — a 5422 whose five-card suit is a minor ([`two_over_one_wide`] vs the
-//! baseline [`two_over_one`]).
+//! hand — a 5422 whose five-card suit is a minor (the shipped default
+//! [`two_over_one`] vs the balanced-only [`two_over_one_classic`]).
 //!
 //! Opponents are silenced (East/West always pass), so every auction is
 //! constructive start to finish — this measures the *constructive* value of the
@@ -24,7 +24,7 @@ use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Hand, Seat};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::bidding::context::relative;
-use pons::bidding::two_over_one::two_over_one_wide;
+use pons::bidding::two_over_one::two_over_one_classic;
 use pons::bidding::{Family, Stance, System};
 use pons::scoring::{final_contract, imps, ns_score};
 use pons::two_over_one;
@@ -95,10 +95,11 @@ fn bid_uncontested(
 fn main() {
     let args = Args::parse();
     let mut rng = rand::rng();
-    // arm 0 = baseline (classic 1NT), arm 1 = redesign (wide 1NT).
+    // arm 0 = baseline (classic balanced 1NT), arm 1 = redesign (wide 1NT, the
+    // shipped default).
     let stances = [
+        two_over_one_classic().against(Family::NATURAL),
         two_over_one().against(Family::NATURAL),
-        two_over_one_wide().against(Family::NATURAL),
     ];
 
     // Both arms bid the same deal; the only difference is the opening table.

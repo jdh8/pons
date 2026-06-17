@@ -46,20 +46,22 @@ fn prefers_diamonds() -> Cons<impl Constraint + Clone> {
 ///
 /// Strong notrumps (15–17 / 20–21), the artificial 2♣ (22+), five-card majors,
 /// better-minor one-of-a-minor openings, weak twos, and three-level preempts.
-/// A lighter five-card major is allowed in third and fourth seat.
+/// A lighter five-card major is allowed in third and fourth seat.  The 1NT also
+/// opens a 5422 with a five-card minor (`wide`; see [`openings_with`]).
 ///
 /// Sharp on shape, fuzzy on strength: suit openings gauge upgraded
 /// [`points`], notrump ranges gauge [`fifths`].  A clean shapely maximum
 /// upgrades out of a weak two — it is too good for one.
 #[must_use]
 pub fn openings() -> Rules {
-    openings_with(false)
+    openings_with(true)
 }
 
 /// [`openings`] with the wide 1NT shape selectable
 ///
-/// `wide` is the deferred shape-only redesign: a 5422 with a five-card minor
-/// also opens 1NT.  `openings()` is `openings_with(false)`, the shipped table.
+/// `wide` is the shape redesign: a 5422 with a five-card minor also opens 1NT.
+/// `openings()` ships it (`openings_with(true)`); the classic balanced-only
+/// table is `openings_with(false)`.
 #[must_use]
 pub fn openings_with(wide: bool) -> Rules {
     let mut rules = Rules::new()

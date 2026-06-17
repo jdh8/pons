@@ -9,25 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Wide 1NT opening shape (deferred redesign, shape only) as a measured
-  option.** `two_over_one_wide()` is exactly `two_over_one()` but its 1NT opening
-  also admits a **5422 with a five-card minor** — a five-card major still prefers
-  a one-of-a-major opening it can rebid, and a 6322 (either suit) keeps opening
-  its long suit (an A/B ablation showed the 6322 addition was net-neutral, so it
-  is left out). Strength (`fifths` 15–17) and the inference side are
-  **unchanged**, so this is a pure shape experiment; the shipped default
-  `two_over_one()` is byte-for-byte the classic balanced 1NT. Implemented by
-  threading a `wide` flag into the opening table (`openings_with`,
-  `bare_two_over_one_with`); no new runtime cost on the default path. *Measured*
-  (5422-minor only, vs the balanced baseline): **constructive** A/B
-  (`nt-shape-abc`, opponents silenced) +0.32 IMPs per divergent board;
-  **contested** A/B (`nt-shape-contested`, opponents bidding, 100k boards) +0.57
-  IMPs/divergent vul none and **+0.93 vul both** — a clear, statistically solid
-  win that grows with competition and vulnerability, exactly the modern
-  rationale. The shape fires on ~1% of boards, so the whole-match figure is
-  +0.006–0.009 IMPs/board. Adopting it as the default is gated on the deferred
-  evaluation/inference pass (the reading side still assumes a 1NT opener is
-  balanced).
+- **Wider 1NT opening shape, now the default.** The strong 1NT (`two_over_one`)
+  opens not only the balanced patterns (4333/4432/5332) but also a **5422 with a
+  five-card minor** — a five-card major still prefers a one-of-a-major opening it
+  can rebid, and a 6322 (either suit) keeps opening its long suit (an A/B
+  ablation showed any-5422 *loses* by burying the major fit, and the 6322
+  addition was net-neutral, so both are left out). Strength (`fifths` 15–17) is
+  unchanged; this is a shape-only change. The pre-change balanced-only system is
+  preserved as `two_over_one_classic()` (the A/B baseline). *Measured*
+  (5422-minor wide vs balanced classic): **constructive** A/B (`nt-shape-abc`,
+  opponents silenced) +0.32 IMPs per divergent board; **contested** A/B
+  (`nt-shape-contested`, opponents bidding, 100k boards) +0.57 IMPs/divergent vul
+  none and **+0.93 vul both** — a clear, statistically solid win that grows with
+  competition and vulnerability, exactly the modern rationale. The shape fires on
+  ~1% of boards, so the whole-match figure is +0.006–0.009 IMPs/board. The
+  opening inference stays **sound** (the `opening_inference_contains_the_opener`
+  proptest passes at 200k cases — a 5422 fits the existing "each suit 2–5, 14–19
+  points" 1NT inference); *tightening* it to convey the possible five-card minor
+  is left for the deferred evaluation/inference pass.
 
 - **Rubens (transfer) advances of a simple overcall, in the instinct floor.**
   When partner makes a *simple* (non-jump) suit overcall of a one-level opening

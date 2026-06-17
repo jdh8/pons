@@ -2,8 +2,9 @@
 //! with the opponents bidding.
 //!
 //! The companion `nt-shape-abc` silences the opponents and so sees only the
-//! *constructive* value of the wider 1NT (a 5422 with a five-card minor —
-//! [`two_over_one_wide`]).  The redesign's real case is competitive: a 1NT
+//! *constructive* value of the wider 1NT (a 5422 with a five-card minor — the
+//! shipped [`two_over_one`] vs the balanced-only [`two_over_one_classic`]).  The
+//! redesign's real case is competitive: a 1NT
 //! opening steals bidding space, describes the hand in one bid, and right-sides
 //! the contract.  This harness measures that.
 //!
@@ -24,7 +25,7 @@ use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Hand, Seat};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::bidding::context::relative;
-use pons::bidding::two_over_one::two_over_one_wide;
+use pons::bidding::two_over_one::two_over_one_classic;
 use pons::bidding::{Family, Stance, System};
 use pons::scoring::{final_contract, imps, ns_score};
 use pons::two_over_one;
@@ -98,8 +99,8 @@ fn bid_out(
 fn main() {
     let args = Args::parse();
     let mut rng = rand::rng();
-    let redesign = two_over_one_wide().against(Family::NATURAL);
-    let baseline = two_over_one().against(Family::NATURAL);
+    let redesign = two_over_one().against(Family::NATURAL);
+    let baseline = two_over_one_classic().against(Family::NATURAL);
 
     // Each board at both tables (redesign NS at A, EW at B), dealer rotating.
     let mut deals: Vec<FullDeal> = Vec::with_capacity(args.count);

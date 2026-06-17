@@ -16,9 +16,9 @@
 //!
 //! # Conventions
 //!
-//! - **Openings**: 15–17 1NT, 20–21 2NT, strong artificial 2♣ (22+),
-//!   five-card majors (light in 3rd/4th seat), better minor, weak twos,
-//!   three-level preempts.
+//! - **Openings**: 15–17 1NT (balanced, or a 5422 with a five-card minor),
+//!   20–21 2NT, strong artificial 2♣ (22+), five-card majors (light in 3rd/4th
+//!   seat), better minor, weak twos, three-level preempts.
 //! - **Responses**: 2/1 game forces with full continuations to game and the
 //!   slam-try level, forcing 1NT (with the three-card limit raise rebid),
 //!   Jacoby 2NT with shortness/second-suit rebids, splinters, inverted
@@ -187,17 +187,16 @@ pub fn two_over_one() -> Pair {
     with_instinct_floor(bare_two_over_one())
 }
 
-/// The 2/1 pair with the **wide 1NT** opening shape (deferred shape redesign)
+/// The 2/1 pair with the **classic balanced** 1NT opening (pre-redesign)
 ///
-/// Exactly [`two_over_one`] but for the opening table: a 5422 with a five-card
-/// minor also opens the strong 1NT ([`openings_with`]).  Strength and the
-/// inference side are unchanged — this is the shape-only A/B arm against the
-/// classic-balanced baseline; see the `nt-shape-abc` (constructive) and
-/// `nt-shape-contested` examples.  An added option, never a replacement:
-/// [`two_over_one`] stays the baseline.
+/// Exactly [`two_over_one`] but for the opening table: the strong 1NT is only
+/// the balanced patterns (4333/4432/5332), without the wide-shape redesign that
+/// [`two_over_one`] now ships (a 5422 with a five-card minor also opens 1NT —
+/// [`openings_with`]).  The ablation handle for measuring that redesign; see the
+/// `nt-shape-abc` (constructive) and `nt-shape-contested` examples.
 #[must_use]
-pub fn two_over_one_wide() -> Pair {
-    with_instinct_floor(bare_two_over_one_with(true))
+pub fn two_over_one_classic() -> Pair {
+    with_instinct_floor(bare_two_over_one_with(false))
 }
 
 /// The 2/1 pair with the distilled **neural** floor (AI-bidder M1.3)
@@ -338,17 +337,20 @@ fn with_instinct_floor(pair: Pair) -> Pair {
 /// including passing partner's takeout double on a worthless hand.
 /// [`two_over_one()`] is exactly this pair with
 /// [`instinct`][crate::bidding::instinct()] attached to both contested books;
-/// see the `instinct-floor` example for an A/B match between the two.
+/// see the `instinct-floor` example for an A/B match between the two.  The
+/// opening table ships the wide 1NT shape (a 5422 with a five-card minor opens
+/// 1NT); [`two_over_one_classic`] is the balanced-only baseline.
 #[must_use]
 pub fn bare_two_over_one() -> Pair {
-    bare_two_over_one_with(false)
+    bare_two_over_one_with(true)
 }
 
 /// [`bare_two_over_one`] with the wide 1NT opening shape selectable
 ///
-/// `wide` selects the deferred shape redesign in the opening table
-/// ([`openings_with`]); everything else is identical.  `bare_two_over_one()` is
-/// `bare_two_over_one_with(false)`.
+/// `wide` selects the shape redesign in the opening table ([`openings_with`]);
+/// everything else is identical.  `bare_two_over_one()` is
+/// `bare_two_over_one_with(true)` (wide ships); the classic balanced baseline is
+/// `bare_two_over_one_with(false)`, behind [`two_over_one_classic`].
 #[must_use]
 fn bare_two_over_one_with(wide: bool) -> Pair {
     let mut c = Constructive::new();
