@@ -45,7 +45,6 @@ use contract_bridge::auction::{Call, RelativeVulnerability};
 use pons::bidding::american::bare_american;
 use pons::bidding::constraint::Description;
 use pons::bidding::context::Context;
-use pons::bidding::polish_club::bare_polish_club;
 use pons::bidding::tags::derive;
 use pons::bidding::trie::Trie;
 use std::collections::HashSet;
@@ -59,16 +58,8 @@ struct Node<'a> {
 }
 
 fn main() {
-    // `--system {american|polish-club}`; default preserves the original 2/1.
-    let requested = std::env::args().skip_while(|arg| arg != "--system").nth(1);
-    let (system, pair) = match requested.as_deref() {
-        Some("polish-club") => ("polish-club", bare_polish_club()),
-        None | Some("american") => ("american", bare_american()),
-        Some(other) => {
-            eprintln!("export-corpus: unknown system {other:?}; use american or polish-club");
-            std::process::exit(2);
-        }
-    };
+    let system = "american";
+    let pair = bare_american();
     let books: [(&'static str, &Trie); 3] = [
         ("constructive", &pair.constructive.0),
         ("competitive", &pair.competitive.0),

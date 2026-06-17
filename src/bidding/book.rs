@@ -205,8 +205,6 @@ impl Family {
     /// Natural systems: mostly natural openings with a strong notrump,
     /// such as Standard American, 2/1, and Acol
     pub const NATURAL: Self = Self("natural");
-    /// Polish Club and kindred small-club systems
-    pub const POLISH_CLUB: Self = Self("polish-club");
     /// Strong club systems, such as Precision
     pub const STRONG_CLUB: Self = Self("strong-club");
     /// Natural systems with a weak notrump

@@ -34,8 +34,7 @@ is a string compare:
 
 The English in the corpus *is* `describe()`'s output. Your target is therefore
 not "some English a human might write" but the **exact canonical form** below.
-(For looser human notes — the Polish Club port, M4.3 — normalize to the canonical
-primitives; see §7.)
+(For looser human notes, normalize to the canonical primitives; see §7.)
 
 ---
 
@@ -94,8 +93,6 @@ column is the exact `describe()` output; `{R}` is the range rendered per §4.
 | `hcp(range: u8)` | raw high-card points | `{R} HCP` | `hcp(15..=17)` → `15–17 HCP` |
 | `points(range: u8)` | HCP + shape upgrade (suit-oriented strength) | `{R} points` | `points(12..=21)` → `12–21 points` |
 | `fifths(range: f64)` | Andrews Fifths, 40-pt scale (notrump-defining strength) | `{Rf} fifths` | `fifths(15.0..18.0)` → `15.0–18.0 fifths` |
-| `nltc_at_most(losers: f64)` | New Losing Trick Count ceiling | `NLTC ≤ {n}` | `nltc_at_most(7.0)` → `NLTC ≤ 7` |
-| `nltc(range: f64)` | New Losing Trick Count band (range form of the ceiling) | `{Rf} NLTC` | `nltc(6.0..=8.5)` → `6.0–8.5 NLTC` |
 | `cccc_at_least(points: f64)` | Kaplan–Rubens CCCC floor | `CCCC ≥ {n}` | `cccc_at_least(14.9)` → `CCCC ≥ 14.9` |
 
 ### Shape
@@ -162,11 +159,11 @@ So a gloss has more than one valid spelling: `≤11 points` compiles equally to
 `points(..=11)` or `points(..12)`; both round-trip. Pick whichever reads best;
 the verifier accepts either.
 
-`fifths` and `nltc(range)` take an `f64` range and render endpoints **literally**
-to one decimal (`{Rf}`): `15.0..18.0` → `15.0–18.0 fifths`, `22.0..` →
-`22.0+ fifths`, `nltc(..=7.5)` → `≤7.5 NLTC`. Bands are conventionally written
-half-open (`15.0..18.0`) so adjacent bands tile. `nltc_at_most`/`cccc_at_least`
-take a single `f64` printed with default formatting (`7.0` → `7`, `14.9` → `14.9`).
+`fifths` takes an `f64` range and renders endpoints **literally** to one decimal
+(`{Rf}`): `15.0..18.0` → `15.0–18.0 fifths`, `22.0..` → `22.0+ fifths`. Bands are
+conventionally written half-open (`15.0..18.0`) so adjacent bands tile.
+`cccc_at_least` takes a single `f64` printed with default formatting (`14.9` →
+`14.9`).
 
 Suits render as `♠ ♥ ♦ ♣` (`Suit::Spades`, `Suit::Hearts`, `Suit::Diamonds`,
 `Suit::Clubs`); strains add `NT` (`Strain::Notrump`).
@@ -253,7 +250,7 @@ the vocabulary; study the mapping, then compile new glosses the same way.
 
 ---
 
-## 7. From human notes (M4.3 — the Polish Club port)
+## 7. From human notes
 
 Real system notes are looser than `describe()` prose. **Normalize to the
 canonical primitives**: pick the noun the strength is expressed in (`points`,
@@ -269,7 +266,7 @@ round-trip then checks your output against that canonical form.
 ```
 
 (`fifths`/`points` vs `hcp` is a judgement call the gloss usually settles for you;
-when porting from notes, prefer `fifths` for notrump ranges, `points` for
+when authoring from notes, prefer `fifths` for notrump ranges, `points` for
 suit-oriented strength, `hcp` where shape is irrelevant — matching how the 2/1
 books choose.)
 
@@ -309,12 +306,11 @@ set and the per-primitive vocabulary coverage live in
 --all-features`.
 
 **Result:** all 12 held-out rules reproduced exactly (round-trip = identity), and
-all 23 primitive glosses in §3 are pinned against `describe()`. The single
+all 21 primitive glosses in §3 are pinned against `describe()`. The single
 recurring ambiguity is range spelling (§4), where multiple Rust spellings render
 the same gloss and the verifier accepts any.
 
 *Honesty:* the same model authored this spec and acted as the compiler, so the
 measure proves **sufficiency** (the spec contains enough to deterministically
 recover round-tripping Rust) and **guards against `describe()` drift** — not
-adversarial generalization, which the behavioral verifier (M4.2) and the live
-Polish Club port (M4.3) will test.
+adversarial generalization, which the behavioral verifier (M4.2) tests.

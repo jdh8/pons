@@ -276,7 +276,7 @@ Parallelizable with M1–M3 once M0 exists; high near-term leverage.
   gloss. *Deps:* M0.2, M4.0 (the self-describing DSL *is* the executable spec, and
   its `describe()` is the round-trip checker). **Done:** [`dsl-spec.md`](dsl-spec.md)
   — a pasteable English→`Constraint` prompt: the `&`/`|`/`!` grammar and its
-  `describe()` rendering, a vocabulary table for all 23 primitives (exact gloss +
+  `describe()` rendering, a vocabulary table for all 21 primitives (exact gloss +
   range conventions), the `described(...)` escape-hatch discipline, gold pairs
   harvested from the live books, and explicit compile instructions.
   `tests/dsl_roundtrip.rs` is the mechanical round-trip: it pins every primitive
@@ -288,7 +288,7 @@ Parallelizable with M1–M3 once M0 exists; high near-term leverage.
   `described` atom only its label (a closure body never appears in a gloss) —
   behavioral correctness is M4.2. The same model authored the spec and acted as
   compiler, so this proves sufficiency + guards `describe()` drift, not adversarial
-  generalization (M4.2/M4.3 test that).
+  generalization (M4.2 tests that).
 - ✅ **M4.2 Verification harness.** Given a candidate `Constraint`, check it
   compiles and matches intent over random hands (and against the original rule
   when porting). *Deliverable:* a verifier. *Measure:* catches deliberately-broken
@@ -303,39 +303,14 @@ Parallelizable with M1–M3 once M0 exists; high near-term leverage.
   swapped `&`/`|`, dropped/extra clauses, and a `described` closure with `>` where
   intent is `≥` (the escape-hatch body the round-trip cannot see — the reason M4.2
   exists), while faithful recompiles agree. `examples/verify-constraint` runs the
-  M4.3 loop on the real 1♠ opening (faithful → 0 disagreements; broken → caught,
-  every witness a four-card spade hand) plus the escape-hatch blind spot.
+  author-verify loop on the real 1♠ opening (faithful → 0 disagreements; broken →
+  caught, every witness a four-card spade hand) plus the escape-hatch blind spot.
   *Decisions:* fixed (caller-supplied, default-empty) `Context` — the dominant
   disagreements and every `described` hand predicate are context-free; sampling is
   strong evidence, not proof, so `n` is taken large (tests/example use 8000).
-- ✅ **M4.3 Polish Club port (assisted).** Use M4.1+M4.2 to author the Polish Club
-  books from their written notes. *Deliverable:* a second system's books + corpus.
-  *Measure:* the ported system bids textbook auctions correctly; produces the
-  second corpus needed for Component A Role 2. *Deps:* M4.2. **Done (constructive
-  backbone):** `bidding::polish_club` — `polish_club()` / `bare_polish_club()`
-  (`Family::POLISH_CLUB`), the *Strawberry Polish Club* (<https://polish.club>),
-  authored from chapter sources with the M4.1 spec + M4.2 `verify`. Opening ladder:
-  three-variant forcing 1♣, natural 1♦, five-card majors, inclusive 15–17 1NT,
-  Ekren 2♣, Multi 2♦, Muiderberg 2♥/2♠, unusual 2NT, preempts. First responses:
-  the artificial 1♣ framework (negative 1♦ relay + positives, forcing by omission),
-  natural 1♦/1♥/1♠, shared 1NT reusing 2/1's notrump responses. Competitive book +
-  deep relay tails floored by `instinct` (attached to all three books).
-  `export-corpus --system polish-club` → **0-opaque** corpus (bespoke shapes via
-  `described`); `tests/polish_club.rs` hard-asserts 8 textbook openings + 0-opaque +
-  reach-game. `polish-club-reference` cross-checks vs BBA WJ (informational;
-  notes authoritative): **86% opening agreement on the overlap** (1-level + Multi
-  2♦), 1000 boards. **Defensive book (done):** from `Defense/` — NLTC-gauged
-  overcalls + preemptive jumps, takeout double, 1NT, the Bailey cue (highest unbid +
-  another), Unusual 2NT over a one-suiter; plain-HCP balancing (4-4-4-1 doubles,
-  not a four-card overcall); Landy over their 1NT; natural-with-takeout over their
-  weak two; takeout-flavored over Multi 2♦; principal advances. Adds the
-  `nltc(range)` DSL primitive (faithful NLTC bands); `tests/polish_club_defense.rs`
-  spot-checks 9 actions; corpus now **339 records**, 0-opaque.
-  *Deferred:* opener's rebid relays, preempt response trees, the **Competitive
-  book**, deep defensive transfer/relay tails (floored); BTU 1NT responses.
 
-Exit M4: book authoring is "write the meaning, verify, commit" — and a second
-system exists.
+Exit M4: book authoring is "write the meaning, verify, commit" — the compiler +
+verifier accelerate extending and refining the 2/1 books.
 
 ---
 
@@ -357,12 +332,17 @@ The portability dream. Last, because it needs the most prerequisites.
 - ⬜ **M5.2 Sequence-model policy.** Move Component B to a small transformer over
   the call sequence. *Measure:* matches or beats the MLP on the harness. *Deps:*
   M1 (as baseline).
-- ⬜ **M5.3 Meaning encoder + cross-system training.** Embed text descriptions as
-  meaning vectors; train across 2/1 **and** Polish Club. *Measure:* the *same* net
-  bids both systems from their notes, each competitive with its single-system
-  baseline on the harness. *Deps:* M4.3, M5.2.
+- ⬜ **M5.3 Meaning encoder.** Embed each prior call's text description as a
+  meaning vector and feed it to the sequence-model policy, so the system enters the
+  net as *meanings* rather than baked-in weights. *Measure:* matches or beats the
+  tag-feature net on the 2/1 harness. *Deps:* M5.2. *Note:* the longer-term payoff
+  — one net bidding *any* system from its written notes — needs training data
+  spanning more than one system to be measurable; with the codebase now 2/1-only,
+  that cross-system measurement is out of scope until a second system's corpus
+  exists.
 
-Exit M5: one model, any system, driven by written meanings.
+Exit M5: the 2/1 policy is driven by written meanings rather than baked-in
+weights, laying the groundwork for cross-system portability.
 
 ---
 
@@ -399,37 +379,13 @@ rule-based, ~100%-reproducible engine; we drive it as a black box (native
   by ≈ 2.6, the gap concentrated in competitive/contested auctions (the thinnest
   part of the books). 371 tests green; `libloading` stays a dev-dependency, default
   build untouched.
-- ✅ **S.2 Polish Club reference (feeds M4.3 + M5).** Harvest BBA's **WJ (Polish
-  Club)** auctions as ground truth for the M4.3 port and a head-start on the second
-  corpus M5 needs. *Deliverable:* a WJ reference set + per-auction checks for the
-  ported books via `bidding::verify`. *Measure:* the ported system agrees with BBA
-  on textbook WJ auctions. *Deps:* S.0; pairs with M4.3. **Done (reference half):**
-  `examples/bba-wj-reference` — WJ bidders (**EPBot system type 2**, confirmed from
-  `WJ.bbsa`'s `System type = 2` *and* behaviorally: an 18-balanced hand opens 1♣)
-  self-play random boards; every `(auction, call)` becomes a JSONL record with the
-  hand and — for the **first round** — BBA's *self-reported meaning*: a systemic
-  label (`"Polish 1C"`, `"Multi"`, `"5+ !H"`) **plus parsed constraint ranges**
-  (point + per-suit length, straight onto the `Constraint` DSL). Meaning capture
-  uses two FFI calls recovered by `objdump`
-  (`epbot_get_info_meaning[_extended](bot, position, buf, len)`), reliable only for
-  the **first four calls** — past position 4 the indices report per-seat hand
-  inferences, so it captures positions `0..4` and drops the "no info" sentinel. 8
-  **textbook Polish Club openings** double as the *measure*: the defining calls
-  (strong-balanced→1♣, 15–17→1NT, 5-card majors→1♥/1♠) are hard assertions (green;
-  BBA is ground truth), the rest recorded (a 6-spade weak hand opens **2♦
-  "Multi"**; 1♦ shows **5+**). 21070 records / 2000 boards, ~38% with a meaning;
-  output to `target/` (gitignored) with a versioned sidecar (system, seed, git SHA,
-  schema, counts). 371 tests green (dev-only example; curated fixtures are the
-  gate); `libloading` stays a dev-dependency, default build untouched. **Port half
-  in M4.3:** `polish-club-reference` drives the *ported* books against WJ (86% on
-  the overlap openings); this S.2 reference is what it diffs against.
-- ⬜ **S.3 (optional) Imitation teacher for M3.** BBA's calls as an extra,
+- ⬜ **S.2 (optional) Imitation teacher for M3.** BBA's calls as an extra,
   cheap/deterministic target alongside the M2.3 search teacher. *Caveat:* imitating
   BBA is capped at BBA — it cannot *exceed* a human system the way the double-dummy
   search teacher can, so this is a sanity/regularizer signal, **not** the path to
   "beat the floor." *Deps:* S.0, M3.1.
 
-Slots in: S.1 → eval harness (now) · S.2 → M4.3 / M5 · S.3 → M3 (optional).
+Slots in: S.1 → eval harness (now) · S.2 → M3 (optional).
 
 ---
 
@@ -442,11 +398,11 @@ M0  ──► M1 ──────────────► (working learned 
   │              │      │
   │              │      └─► M3 ──► (distill it → fast default floor > teacher)  ← the real goal
   │
-  └─► M4 ─────────────────► (faster authoring + 2nd system)
+  └─► M4 ─────────────────► (faster 2/1 authoring)
             │
-            └─► (with M5.2) ─► M5 ─► (cross-system bidder)  ← the dream
+            └─► (with M5.2) ─► M5 ─► (meaning-driven 2/1 policy)  ← the dream
 
-S (BBA/EPBot) ─► external eval anchor (now) · WJ reference → M4.3/M5 · teacher → M3
+S (BBA/EPBot) ─► external eval anchor (now) · teacher → M3 (optional)
 ```
 
 **Recommended first chunk:** all of **M0**. It is pure bridge/Rust, unblocks

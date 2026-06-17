@@ -76,8 +76,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   instinct therefore completes the transfer mechanically and never misreads it.
   The floor now **owns advancing a simple overcall**: the books' raises-only
   `advances()` — which returned a degenerate result on hands it could not
-  classify, such as a five-card side suit with no support — is removed from both
-  the 2/1 and Polish Club defensive books, and the floor's Rubens transfers,
+  classify, such as a five-card side suit with no support — is removed from
+  the 2/1 defensive book, and the floor's Rubens transfers,
   natural raises, and a weak preemptive jump cover the position. *Measured:*
   floor worth preserved at **+1.03 IMPs/board** (instinct-floor A/B, 8000 boards,
   vul none), with transfers confirmed firing in the off-book telemetry; against
@@ -209,27 +209,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   recompute at each 7NT node, and has a `--census` mode tallying the
   advancing-call level histogram — the regression check that the grand flood
   stays gone.
-- **Strawberry Polish Club defensive book** (AI-bidder **M4.3**, follow-up pass):
-  `bidding::polish_club`'s previously-empty Defensive book is now authored from the
-  system's notes (the `Defense/` chapters of <https://polish.club>), so our actions
-  when the opponents open are answered by the system rather than the `instinct`
-  floor. Over their one-of-a-suit opening: **NLTC-gauged** natural overcalls and
-  preemptive jumps (a one-level overcall is `8.5–6.0` losers, a two-level `7.5–6.0`,
-  a jump `9.5–8.0`), a takeout double (`≤7.5` losers, short in their suit), the
-  15–18 1NT, the **Bailey cue** of their suit (the highest unbid suit plus another),
-  and the **Unusual 2NT** (the two lowest unbid). A distinct **balancing seat**
-  (plain-HCP, lighter, where a 4-4-4-1 doubles rather than overcalling a four-card
-  suit), **Landy** over their 1NT, natural-with-takeout over their weak two, and a
-  takeout-flavored structure over **Multi 2♦**, plus the principal advances (raising
-  an overcall, advancing a takeout double, the Unusual 2NT, and responsive doubles).
-  Deep transfer/relay advance tails (Rubens, Rumpelsohl, the Bailey-cue and Multi
-  continuations) and the Competitive book stay on the `instinct` floor, as the
-  constructive backbone leaves its relay tails. Every rule renders truthfully, so
-  `export-corpus --system polish-club` is still **0-opaque** and now emits **339
-  records** (up from 59). This adds one DSL primitive — **`nltc(range)`** (faithful
-  NLTC bands, mirroring the existing `nltc_at_most`; `describe()`s as e.g.
-  `6.0–8.5 NLTC`) — and `tests/polish_club_defense.rs` (9 behavioral spot-checks).
-  No new crate dependencies; `instinct` stays the baseline and the floor.
 - **Search-improved distillation targets** (AI-bidder **M3.1**): a new gated
   `search-dump` example (behind the `search` feature) that bids out random boards
   with the M2.3 live double-dummy search floor and records, at every decision, a
@@ -254,69 +233,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   is now exactly `american_search_with(SearchFloor::default())`. No change to the
   default build, the safety shell, or the `instinct`/`search_floor` rails; no new
   crate dependencies.
-- A **second authored system, Strawberry Polish Club** (AI-bidder **M4.3**),
-  exposed as `polish_club()` / `bare_polish_club()` (family
-  `Family::POLISH_CLUB`) in a new `bidding::polish_club` module — the port half
-  of the S.2 reference, authored from the system's own notes
-  (<https://polish.club>, [source](https://github.com/jdh8/polish.club)) with the
-  M4.1 DSL spec and the M4.2 `verify` harness. It is a *genuinely different*
-  system from the existing `american_strawberry` (a `NATURAL`-family 2/1 with
-  a few polish.club conventions); here 1♣ is the artificial small-club itself.
-  This first pass authors the **Constructive backbone**: the full opening ladder
-  (the three-variant forcing 1♣, the natural 1♦, five-card majors, the inclusive
-  15–17 1NT envelope, Ekren 2♣, Multi 2♦, Muiderberg 2♥/2♠, unusual 2NT,
-  three-level preempts) and the defining first responses (the artificial 1♣
-  framework — the negative 1♦ relay and the positives, forcing by omission — plus
-  natural responses to 1♦/1♥/1♠, with the shared 1NT reusing the verified 2/1
-  notrump responses). The deep relay tails (Checkback Gladiator, Odwrotka, the
-  strong-club rebid relays, the preempt continuations) and the Competitive and
-  Defensive books are left to the `instinct` floor, which is attached to *all
-  three* books (including the constructive one) so no uncontested auction strands;
-  `instinct` stays the baseline and this is an added system, never a removal. Every
-  authored constraint renders truthfully (the bespoke shapes use the `described`
-  escape hatch), so `export-corpus --system polish-club` emits a **0-opaque**
-  second corpus (the artifact M5 needs); `export-corpus` gained a
-  `--system {american|polish-club}` flag (default unchanged) and a `system`
-  field per record. A new `polish-club-reference` example cross-checks the port
-  against BBA's WJ (informational — the notes are authoritative, divergences are
-  reported not failed): on 1000 boards our openings agree with WJ **86% on the
-  overlap** (1-level + Multi 2♦) and the disagreement lists (e.g. our inclusive
-  1NT absorbing 15–17 five-card-major/six-card-minor hands WJ opens in a suit; our
-  Ekren/Muiderberg firing where generic WJ passes) are the next authoring targets.
-  The eight curated textbook openings are now hard assertions against *our* system
-  (`tests/polish_club.rs`), alongside a 0-opaque guard and a reach-game check. No
-  new crate dependencies (the BBA example stays `libloading`/`clap` dev-deps).
-- A **WJ (Polish Club) reference set** (AI-bidder Side-track S, S.2): a new
-  `bba-wj-reference` example that harvests BBA's **WJ — *Wspólny Język* / Polish
-  Club** bidding (EPBot **system type 2**, confirmed both from `WJ.bbsa`'s
-  `System type = 2` and behaviorally — an 18-balanced hand opens 1♣, the Polish
-  Club catch-all, not 1NT/1♠) as ground truth for the upcoming Polish Club port
-  (M4.3) and a head-start on the second system corpus (M5). A table of WJ bidders
-  self-plays random boards (reusing the S.1 `BbaOracle` flow — one fresh bot per
-  decision, dealer canonicalized to position 0), and every `(auction, call)`
-  becomes a JSONL record carrying the actor's hand and — for the **first round**
-  of bidding — BBA's *self-reported meaning*: a short systemic label
-  (`"Polish 1C"`, `"Multi"`, `"5+ !H"`) **plus parsed constraint ranges** (a point
-  range and per-suit length ranges that map straight onto the `Constraint` DSL the
-  port authors against). The meaning is read through two more EPBot calls
-  recovered here by disassembly — `epbot_get_info_meaning` and
-  `…_meaning_extended`, which fill a string buffer for the bid at a given position;
-  they report systemic meanings reliably only for the **first four calls**, so the
-  harness captures positions `0..4` and drops EPBot's trivial-range "no info"
-  sentinel (openings and first responses are a system's defining, most-distinct
-  slice and exactly what the port builds first). A curated set of eight **textbook
-  Polish Club openings** doubles as the milestone's measure: the system-defining
-  calls (strong-balanced → 1♣, 15–17 balanced → 1NT, five-card majors → 1♥/1♠) are
-  hard assertions against BBA as ground truth (all green), the rest recorded —
-  surfacing concrete WJ knowledge for the port (a weak six-spade hand opens
-  **2♦ "Multi"**; 1♦ shows **5+**). Output is JSONL plus a versioned JSON sidecar
-  (system, seed, git SHA, schema, counts) written under `target/` (gitignored);
-  ~21000 records over 2000 boards, ~38% carrying a meaning. The proper
-  `bidding::verify` per-auction check against the *ported* books lands with M4.3
-  (no ported books exist yet) — S.2 produces the reference those checks will diff
-  against. Still purely external tooling: `libloading` **dev-dependency** only, the
-  proprietary binary stays git-ignored under `/vendor/`, and the crate's default
-  build, dependencies, and `instinct()` baseline are untouched.
 - A **BBA/EPBot eval anchor** (AI-bidder Side-track S, S.1): a new `bba-match`
   example that pits our deterministic `american()` floor against **BBA's own
   2/1 Game Force card** (EPBot system 0, verified by name) in an A/B duplicate
@@ -381,11 +297,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A **DSL authoring-compiler spec** (M4.1 of the AI-bidder effort):
   [`docs/ai-bidder/dsl-spec.md`](docs/ai-bidder/dsl-spec.md) is a precise,
   pasteable English→`Constraint` prompt — the grammar (the `&`/`|`/`!` tree and
-  how `describe()` renders it), a vocabulary table for all 22 primitives with
+  how `describe()` renders it), a vocabulary table for every primitive with
   their exact glosses and range conventions, the `described(...)` escape-hatch
   discipline, gold `(English, Rust)` pairs harvested from the live 2/1 books, and
-  explicit compile instructions. It turns book authoring — and the planned Polish
-  Club port — into "write the meaning, verify, commit": an LLM proposes a
+  explicit compile instructions. It turns book authoring into "write the meaning,
+  verify, commit": an LLM proposes a
   `Constraint`, deterministic Rust verifies it. The spec is offline tooling;
   nothing learned ships. A new `tests/dsl_roundtrip.rs` is that mechanical check —
   it pins every primitive gloss and the combinator/range rendering against
@@ -616,13 +532,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **Renamed the `two_over_one*` system to `american*` (breaking).** The 2/1
-  game-force system is now named by identity, matching its sibling `polish_club`
-  (WJ): `two_over_one` → `american` throughout. The module `bidding::two_over_one`
+  game-force system is now named by identity: `two_over_one` → `american`
+  throughout. The module `bidding::two_over_one`
   → `bidding::american`; every function follows (`two_over_one()` → `american()`,
   `_classic`, `_wide_6322`, `_neural`, `_neural_v2`, `_neural_search`, `_search`,
   `_search_with`, `_constructive_floor`, and `bare_two_over_one()` →
   `bare_american()`), as do the crate-root re-exports. The `export-corpus`
-  `--system` value `two-over-one` is now `american` (parallel to `polish-club`),
+  `--system` value `two-over-one` is now `american`,
   and the example `cargo run --example two-over-one` is now `--example american`.
   Bundled neural weights were renamed in step (`weights/american_v{1,2}.f32`,
   `american_v1_search.f32`). Prose still calls the system "2/1" / "Two-over-One
@@ -715,7 +631,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   reach slams.
 - **BBA/EPBot is now bundled as a git submodule.** With redistribution permitted
   by its author (free for non-commercial use), the reference engine that the
-  `bba-match`, `polish-club-reference`, and `bba-wj-reference` examples benchmark
+  `bba-match` and `bba-oracle` examples benchmark
   against ships as the `vendor/bba` submodule (`github.com/EdwardPiwowar/BBA`,
   pinned). Fetch it with `git submodule update --init vendor/bba` and the
   examples' default library path resolves — no manual download or `BBA_LIB`
@@ -768,9 +684,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   for 10–12 points, so a game-strength raise leaked past it to the floor's
   cue-raise, giving the *same* limit-plus raise two different (and strength
   inverted) calls. Rather than maintain two Rubens implementations, the variant
-  is dropped; the keyless floor's Rubens is the single source of truth, and the
-  genuine Polish Club port lives on in `polish_club()`. The conventions remain in
-  git history if ever wanted.
+  is dropped; the keyless floor's Rubens is the single source of truth. The
+  conventions remain in git history if ever wanted.
+- **The in-development second system and the `nltc` / `nltc_at_most` DSL
+  constraints.** The project refocuses on a single mature 2/1 (`american`)
+  system, on top of which other systems can later be built. The second authored
+  system (`polish_club()` / `bare_polish_club()`, the `Family::POLISH_CLUB`
+  constant), its `polish-club-reference` and `bba-wj-reference` examples, and the
+  `export-corpus --system` selector are dropped — `export-corpus` now always
+  walks the 2/1 books. The two NLTC *constraint* primitives `nltc(range)` and
+  `nltc_at_most(losers)`, used only by that system, are removed; the NLTC hand
+  *evaluator* (`eval::NLTC`, the `bba-match`/`bba-oracle` 2/1 reference, and the
+  `calibrate-eval` example) is unaffected. `nltc_at_most` shipped in 0.9.0, so
+  its removal is breaking for any direct user. Everything remains in git history.
 
 ### Fixed
 
@@ -995,7 +921,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `bidding::book`: `Pair` and `Stance` — a pair's authored system and its
   bound form. A `Pair` assembles the three books with a `Family` identity (an
   open `&'static str` newtype with stock constants such as `NATURAL` and
-  `POLISH_CLUB`; downstream systems mint their own) plus optional
+  `STRONG_CLUB`; downstream systems mint their own) plus optional
   per-opponent-family overrides (`competitive_vs`, `defensive_vs`), because
   what the competitive and defensive books mean depends on the opponents'
   system. Binding happens once at table assembly: `pair.against(them)`

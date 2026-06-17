@@ -16,11 +16,10 @@ call in words (the way a convention card or system notes do), and it produces th
 `Constraint` (or the `Rules` entry) that the books currently require you to write
 by hand in Rust.
 
-**Why this first:** it attacks the actual bottleneck. Porting the
-[Strawberry Polish Club](https://polish.club/) is on the roadmap; today each node
-is hand-coded Rust. If authoring becomes "write the meaning in English", the port
-goes at the speed of describing the system, and the descriptions *are* the corpus
-Component A's runtime half needs. Two birds.
+**Why this first:** it attacks the actual bottleneck. Today each node is hand-coded
+Rust. If authoring becomes "write the meaning in English", extending and refining
+the 2/1 books goes at the speed of describing the system, and the descriptions
+*are* the corpus Component A's runtime half needs. Two birds.
 
 **Why it does not need a trained-from-scratch model:** the target language — the
 `Constraint` DSL — is small and closed (`hcp`, `points`, `fifths`, `len`,
@@ -65,11 +64,11 @@ tokens but the *meaning* of each prior call, as a learned vector. "Read tags and
 descriptions from each call", literally.
 
 **Why it is the dream:** today the policy net (Component B, Phase 1) is trained
-on *one* system — its weights *are* 2/1. To bid Polish Club it must be retrained.
-If instead the system enters the model only as **text descriptions of each
-call**, then one trained net bids *any* system: feed it the Polish Club node
-descriptions and it plays Polish Club, feed it Precision's and it plays Precision
-— no retraining. The net learns "given what each bid *means* and my hand, what
+on *one* system — its weights *are* 2/1. To bid a different system it must be
+retrained. If instead the system enters the model only as **text descriptions of
+each call**, then one trained net bids *any* system: feed it Precision's node
+descriptions and it plays Precision, feed it another card's and it plays that —
+no retraining. The net learns "given what each bid *means* and my hand, what
 should I do", a system-agnostic skill, instead of memorizing one system's table.
 
 **How embeddings work (in your terms):** an embedding is a lookup table from a
@@ -90,9 +89,10 @@ network with two input streams: hand features, and per-call meaning vectors.
 last. It needs (a) the corpus at real scale and quality, (b) Component B already
 on a sequence architecture, and (c) training data spanning *more than one system*
 to actually teach portability — a net trained only on 2/1 descriptions will lean
-on 2/1 regularities even if you feed it Polish Club text. The Polish Club port
-(via Role 1) is therefore a *prerequisite*: it produces the second system's
-corpus that makes "portability" measurable rather than aspirational.
+on 2/1 regularities even if you feed it another system's text. So a second
+system's corpus (authored via Role 1) is a *prerequisite* for this role: it is
+what makes "portability" measurable rather than aspirational. With the codebase
+now 2/1-only, that corpus does not exist yet, which is why this role stays last.
 
 **Do we even need a bespoke "domain-specific language model"?** Probably not a
 large one. The vocabulary of bridge meanings is tiny and regular. Options, cheap
@@ -115,14 +115,17 @@ signal the tags miss.
    `{auction, call, tags, description, constraint}`, bootstrapped from
    `explain()` + doc comments.
 2. **Compiler** (Role 1): English → `Constraint`, LLM-proposed + Rust-verified,
-   used to accelerate the Polish Club port. Offline, ships nothing.
+   used to accelerate authoring and refining the 2/1 books. Offline, ships nothing.
 3. **Tag features** (Role 2, first cut): discrete tags as categorical inputs to
    Component B.
 4. **Meaning encoder** (Role 2, full): text descriptions → meaning vectors, joint
-   with a sequence-model policy, trained across ≥ 2 systems to earn portability.
+   with a sequence-model policy, on the 2/1 corpus. The portability payoff —
+   training across ≥ 2 systems so one net bids any of them — is the eventual goal,
+   but earning it needs a second system's corpus to exist.
 
-Steps 1–2 are tractable now and high-leverage. Steps 3–4 depend on Component B
-reaching its sequence-model phase and on a second system's corpus existing.
+Steps 1–2 are tractable now and high-leverage. Step 3 depends on Component B
+reaching its sequence-model phase; the cross-system payoff of step 4 additionally
+depends on a second system's corpus existing.
 
 ---
 

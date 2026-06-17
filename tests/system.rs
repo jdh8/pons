@@ -136,14 +136,14 @@ fn test_family_override_selects_book() {
         Competitive::new(),
         natural_defense,
     )
-    .defensive_vs(Family::POLISH_CLUB, special_defense);
+    .defensive_vs(Family::WEAK_NOTRUMP, special_defense);
 
     assert_eq!(
         classify_marker(&pair.against(Family::NATURAL), &[one_c]),
         Some(1.0)
     );
     assert_eq!(
-        classify_marker(&pair.against(Family::POLISH_CLUB), &[one_c]),
+        classify_marker(&pair.against(Family::WEAK_NOTRUMP), &[one_c]),
         Some(2.0)
     );
     // A family with no override gets the default defense.

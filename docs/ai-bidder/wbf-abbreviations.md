@@ -2,8 +2,7 @@
 
 The description corpus (M0.1/M0.2) needs a *controlled vocabulary* for its
 `tags` field so Component A learns canonical bridge terms instead of ad-hoc
-ones we invent. We adopt the World Bridge Federation's standard abbreviations,
-the same set the [Strawberry Polish Club](https://polish.club/) notes use.
+ones we invent. We adopt the World Bridge Federation's standard abbreviations.
 
 **Source:** *Guide to Completion of the System Card* (WBF), §1.3 "Abbreviations",
 `http://www.worldbridge.org/wp-content/uploads/2017/04/Guidetocompletion.pdf`

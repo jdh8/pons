@@ -12,7 +12,7 @@
 //! constraints, each of which the verifier flags with counterexamples, while the
 //! faithful recompiles in [`faithful_recompile_agrees`] pass clean.  This is a
 //! black-box test — it uses only the public [`pons::bidding::verify`] API, exactly
-//! as the compiler's consumer (and the M4.3 Polish Club port) will.
+//! as the compiler's consumer will.
 //!
 //! [`described`]: pons::bidding::constraint::described
 

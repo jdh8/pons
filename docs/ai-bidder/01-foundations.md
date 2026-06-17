@@ -170,8 +170,6 @@ Bootstrapping sources, cheapest first:
    corpus generates itself from the books.
 2. **Doc comments** on the `american` modules are dense, accurate prose — a
    ready-made description source, harvestable semi-automatically.
-3. **The Strawberry Polish Club notes** (the system being ported) are a parallel
-   human-authored description set for the *next* system.
 
 The corpus is small (hundreds–thousands of nodes), high-quality, and **bridge
 data, not ML data** — squarely your domain. It was the first deliverable built

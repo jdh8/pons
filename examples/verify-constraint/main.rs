@@ -1,7 +1,6 @@
 //! Behavioral constraint verifier (AI-bidder M4.2)
 //!
-//! The runnable face of [`pons::bidding::verify`] and the template the Polish Club
-//! port (M4.3) will drive.  The authoring compiler turns an English gloss into a
+//! The runnable face of [`pons::bidding::verify`].  The authoring compiler turns an English gloss into a
 //! candidate `Constraint`; M4.1's round-trip proves it *renders* back to the
 //! gloss, but a string compare cannot see whether it *accepts the right hands*.
 //! This example shows the behavioral check that can:
