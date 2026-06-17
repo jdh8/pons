@@ -700,6 +700,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`examples/grand-probe` now declares `required-features = ["search"]`** so
+  `cargo build --examples` (no features) no longer fails resolving the
+  `search`-gated `search_floor`/`american_search_with` imports it uses.
 - **A partial book node no longer shadows the floor: a hand it rejects now
   falls through to the floor instead of producing a degenerate all-`-∞`
   result.** A book node admits only the calls whose constraints match the hand,

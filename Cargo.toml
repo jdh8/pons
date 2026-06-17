@@ -99,5 +99,13 @@ name = "constructive-abc"
 path = "examples/constructive-abc/main.rs"
 required-features = ["search"]
 
+# The grand-slam probe (AI-bidder M3.1 diagnostic) replays the live-search
+# bidder (`search_floor::SearchFloor`, `american_search_with`), so it builds
+# only with the `search` feature.
+[[example]]
+name = "grand-probe"
+path = "examples/grand-probe/main.rs"
+required-features = ["search"]
+
 [profile.dev.package."*"]
 opt-level = 2
