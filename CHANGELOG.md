@@ -9,6 +9,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Stayman (1NT–2♣) is now fully authored — further bidding, Smolen, and the
+  "ignore 2♣ ⇒ revert to notrump" rule.** Previously only opener's `2♥/2♠/2♦`
+  answer was in the book; every continuation fell to the keyless floor, which
+  misbid them — it reads any three-level suit response over our 1NT as
+  *forcing*, so it force-bid game over an invitational Stayman raise and could
+  never decline. New constructive nodes ([`american::notrump`]):
+  - **After opener shows a major (`2♥/2♠`):** invitational raise (`3M`), game
+    (`4M`), or — balanced or slam-interested — the **other major (`3OM`)** as an
+    artificial slam try / choice of game. Opener answers `3OM` with `3NT` on a
+    flat 4-3-3-3, the cheapest control cue on a maximum, else the major game.
+    Opener accepts the invitational raise into the major game with a maximum
+    (`3NT` only on a flat 4-3-3-3), passes a minimum.
+  - **Without a fit, "ignore the 2♣ detour":** `2NT` invites, and `3NT`/`4NT`
+    are bid exactly as over a bare 1NT — so `4NT` is quantitative (16–17), opener
+    accepting `6NT` with a max.
+  - **Smolen:** with game-forcing 5–4 in the majors, responder jumps in the
+    four-card major to show *five* in the other (`1NT–2♣–2♦–3♥/3♠`), so the strong
+    notrump declares; opener completes to game in the long major. Mirrored at the
+    **2NT-strength** level (`…3♣–3♦–3♥/3♠`).
+
+  The judgement that *is* sound for the keyless floor stays there: `Inferences::read`
+  now reads the 1NT–2♣ auction (opener's answer pins a four-card major or denies
+  both; responder's `2♣` and invitational continuations pin strength), feeding the
+  sampler behind `american_search()` and any competitive fallback, while the
+  artificial `3OM`/Smolen jumps are suppressed from the natural suit reading rather
+  than misread as long suits. *Measured* (`stayman-abc`, a seeded before/after
+  duplicate match — the change is structural, so the two arms are two binaries
+  rather than a runtime toggle — opponents silenced, 60k boards, double-dummy as in
+  `nt-invite-abc`): **+1.38 IMPs/divergent board vul none, +2.03 vul both**
+  (~0.9% of boards diverge, so +0.013 / +0.019 IMPs/board overall), every divergent
+  board class net positive. The `american_stayman` test suite pins the new behaviour.
 - **Opener accepts a 1NT–2NT invitation — via the inference, not a node.**
   `american()` previously *passed* a `1NT–2NT` invite even with a maximum: opener
   was blind to responder's strength because `Inferences::read`'s notrump-raise

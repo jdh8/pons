@@ -277,6 +277,12 @@ impl Inferences {
             opening_bid.strain == Strain::Notrump || opening_bid == Bid::new(2, Strain::Clubs);
         let defending_parity = (opener_lane + 1) % 2;
         let read_nt_invite = nt_invite_inference();
+        // A 1NT–2♣ Stayman auction (opponents silent): opener's major answer and
+        // responder's strength are read below so the floor judges the fit and
+        // accepts or declines invitations.  The artificial 3OM / Smolen jumps are
+        // suppressed from the natural suit reading rather than re-derived.
+        let stayman = opening_bid == Bid::new(1, Strain::Notrump)
+            && auction.get(opening_index + 2) == Some(&Call::Bid(Bid::new(2, Strain::Clubs)));
 
         // Suits bid and the count of bids made, per auction lane (`index % 4`);
         // lanes of equal parity are partners, the same side.
@@ -320,7 +326,18 @@ impl Inferences {
                         let over_one_notrump = is_opening_side
                             && opening_bid == Bid::new(1, Strain::Notrump)
                             && bid.level.get() == 3;
+                        // Responder's 3OM slam try and Smolen jumps are
+                        // artificial three-level majors in a new suit (partner
+                        // never bid it); never read them as a natural long suit.
+                        let stayman_artificial = stayman
+                            && is_opening_side
+                            && lane != opener_lane
+                            && lane_bids[lane] >= 1
+                            && bid.level.get() == 3
+                            && matches!(bid.strain, Strain::Hearts | Strain::Spades)
+                            && lane_suits[(lane + 2) % 4] & (1u8 << suit as u8) == 0;
                         let suppress = (is_opening_side && opening_artificial && !over_one_notrump)
+                            || stayman_artificial
                             || rubens_suppress.contains(&Some(index));
 
                         if !suppress {
@@ -439,6 +456,55 @@ impl Inferences {
                                     1 => players[who].narrow_points(Range::new(10, 12)),
                                     _ => {}
                                 }
+                            }
+                        }
+                    }
+
+                    // Stayman: read opener's major answer and responder's
+                    // strength (opponents silent) so the floor judges the fit and
+                    // accepts or declines invitations.
+                    if stayman && is_opening_side && !side_acted[defending_parity] {
+                        let responder_lane = (opener_lane + 2) % 4;
+                        if index == opening_index + 2 {
+                            // Responder's 2♣ Stayman shows invitational+ values.
+                            players[who].narrow_points(Range::at_least(8, POINTS_CAP));
+                        } else if index == opening_index + 4 && lane == opener_lane {
+                            // Opener's answer names or denies a four-card major.
+                            match bid.strain {
+                                Strain::Hearts => players[who]
+                                    .narrow_length(Suit::Hearts, Range::at_least(4, LENGTH_CAP)),
+                                Strain::Spades => {
+                                    players[who].narrow_length(
+                                        Suit::Spades,
+                                        Range::at_least(4, LENGTH_CAP),
+                                    );
+                                    players[who].narrow_length(Suit::Hearts, Range::new(0, 3));
+                                }
+                                Strain::Diamonds => {
+                                    players[who].narrow_length(Suit::Hearts, Range::new(0, 3));
+                                    players[who].narrow_length(Suit::Spades, Range::new(0, 3));
+                                }
+                                _ => {}
+                            }
+                        } else if index == opening_index + 6 && lane == responder_lane {
+                            // Responder's invitational continuations pin strength
+                            // for opener's accept/decline; game and quantitative
+                            // calls speak for themselves.
+                            let raise_of_major = bid
+                                .strain
+                                .suit()
+                                .is_some_and(|s| lane_suits[opener_lane] & (1u8 << s as u8) != 0);
+                            match (bid.level.get(), bid.strain) {
+                                (2, Strain::Notrump) => {
+                                    players[who].narrow_points(Range::new(8, 9))
+                                }
+                                (3, Strain::Notrump) => {
+                                    players[who].narrow_points(Range::at_least(9, POINTS_CAP));
+                                }
+                                (3, s) if s.is_suit() && raise_of_major => {
+                                    players[who].narrow_points(Range::new(8, 9));
+                                }
+                                _ => {}
                             }
                         }
                     }
