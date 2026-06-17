@@ -597,6 +597,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The `fifths` strength gauge no longer scores Fifths alone — it averages
+  Fifths with an honor-weighted companion.** Fifths is tuned for 3NT (it
+  rewards aces and tens, discounts kings and queens), so it misjudges an
+  *initial* notrump bid that may yet land in a suit contract. Every
+  `fifths(...)` range — the 1NT/2NT openings, opener's 1NT/2NT rebids, and the
+  balanced descriptions in the game-force, Jacoby, and strong-2♣ structures —
+  now bands the **average of Fifths and a companion count**, halving the 3NT
+  bias toward a real-honor scale. The notrump *raises* (1NT–2NT, 1NT–3NT,
+  quantitative 4NT) are unaffected; they already gauge plain `hcp`, which is
+  where Fifths-alone would have been fine anyway. A new `FifthsCompanion` enum
+  and `set_fifths_companion` hook (both `#[doc(hidden)]`, A/B only) pick the
+  companion: **BUM-RAP is the default**, chosen by the new `fifths-companion`
+  A/B example — it edged Milton Work HCP across every vulnerability (combined
+  −0.28 IMPs per divergent board to the HCP team over 120k boards, ~2.9σ;
+  whole-match ≈ −0.01 IMPs/board, as only ~2% of boards diverge). User-visible
+  effect: a tens-rich light hand can no longer sneak into a notrump range on
+  Fifths, and a quack-heavy hand is no longer shut out of one.
 - **The live-search floor's rollout continuation is now self-play against the
   search-target net (AI-bidder M3.2 round 2).** `SearchFloor`'s `POLICY` — the
   policy that finishes every rollout auction so `ev_all` can score a candidate —

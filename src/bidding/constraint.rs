@@ -415,11 +415,31 @@ where
     })
 }
 
+/// Which honor-weighted count tempers [`fifths`] (the A/B companion gauge)
+///
+/// Fifths is tuned for 3NT — it rewards aces and tens and discounts kings and
+/// queens — so on its own it misjudges a hand headed for a suit contract.  A
+/// notrump-defining range never gauges Fifths alone; it averages Fifths with
+/// one of these honor counts, so a tens-rich hand can't reach the band on
+/// Fifths and a quack-heavy hand isn't shut out of it.  BUM-RAP is the
+/// default — it edged HCP across every vulnerability in the
+/// `fifths-companion` A/B match.
+#[doc(hidden)]
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum FifthsCompanion {
+    /// Milton Work 4-3-2-1 HCP
+    Hcp,
+    /// BUM-RAP 4.5-3-1.5-0.75-0.25
+    Bumrap,
+}
+
 std::thread_local! {
     /// Whether [`points`] applies its upgrade on top of raw HCP
     static FUZZY_POINTS: Cell<bool> = const { Cell::new(true) };
     /// Whether [`fifths`] evaluates Fifths rather than raw HCP
     static FUZZY_FIFTHS: Cell<bool> = const { Cell::new(true) };
+    /// The honor count averaged with Fifths in [`fifths`] (BUM-RAP won the A/B)
+    static FIFTHS_COMPANION: Cell<FifthsCompanion> = const { Cell::new(FifthsCompanion::Bumrap) };
 }
 
 /// Enable or disable fuzzy strength on the current thread
@@ -445,6 +465,12 @@ pub fn set_fuzzy_points(enabled: bool) {
 #[doc(hidden)]
 pub fn set_fuzzy_fifths(enabled: bool) {
     FUZZY_FIFTHS.with(|flag| flag.set(enabled));
+}
+
+/// Choose the honor count averaged into [`fifths`] (see [`FifthsCompanion`])
+#[doc(hidden)]
+pub fn set_fifths_companion(companion: FifthsCompanion) {
+    FIFTHS_COMPANION.with(|cell| cell.set(companion));
 }
 
 /// Raw high card points of a hand
@@ -555,7 +581,13 @@ struct Fifths<R>(R);
 impl<R: RangeBounds<f64> + Clone + Send + Sync> Constraint for Fifths<R> {
     fn eval(&self, hand: Hand, _: &Context<'_>) -> f32 {
         let value = if FUZZY_FIFTHS.with(Cell::get) {
-            eval::FIFTHS.eval(hand)
+            // Never Fifths alone: average it with a real-honor count so the
+            // 3NT-tuned tens/aces bias is halved toward Milton Work / BUM-RAP.
+            let companion = match FIFTHS_COMPANION.with(Cell::get) {
+                FifthsCompanion::Hcp => f64::from(raw_hcp(hand)),
+                FifthsCompanion::Bumrap => eval::BUMRAP.eval(hand),
+            };
+            (eval::FIFTHS.eval(hand) + companion) / 2.0
         } else {
             f64::from(raw_hcp(hand))
         };
@@ -567,14 +599,20 @@ impl<R: RangeBounds<f64> + Clone + Send + Sync> Constraint for Fifths<R> {
     }
 }
 
-/// Total [Fifths][eval::FIFTHS] in the given range
+/// Tempered [Fifths][eval::FIFTHS] in the given range
 ///
 /// Thomas Andrews's computed point count for 3NT, on the same 40-point scale
 /// as HCP (A&nbsp;=&nbsp;4, K&nbsp;=&nbsp;2.8, Q&nbsp;=&nbsp;1.8,
 /// J&nbsp;=&nbsp;1, T&nbsp;=&nbsp;0.4).  The strength gauge for
-/// notrump-defining ranges; convert an integer HCP band to a half-open
-/// interval, e.g. `hcp(15..=17)` becomes `fifths(15.0..18.0)` so adjacent
-/// bands keep tiling.
+/// notrump-defining ranges, but never on its own: Fifths is too 3NT-oriented,
+/// so the value banded here is the *average* of Fifths and an honor-weighted
+/// companion ([`FifthsCompanion`], HCP or BUM-RAP) — half the 3NT tens/aces
+/// bias.  Convert an integer HCP band to a half-open interval, e.g.
+/// `hcp(15..=17)` becomes `fifths(15.0..18.0)` so adjacent bands keep tiling.
+// ponytail: blended unconditionally — every current `fifths` site is an
+// *initial* NT bid, where the 3NT bias hurts.  Raising a notrump partner has
+// shown (1NT–2NT, 1NT–3NT) is the one place pure Fifths is fine, but those
+// rules gate on `hcp` today; add a pure-Fifths variant only when one needs it.
 #[must_use]
 pub fn fifths(range: impl RangeBounds<f64> + Clone + Send + Sync) -> Cons<impl Constraint + Clone> {
     Cons(Fifths(range))
@@ -1161,13 +1199,32 @@ mod tests {
         assert_pass(points(15..=15).eval(hand(BALANCED_15), &context));
 
         // BALANCED_15 is 15 HCP but only 14.6 Fifths: its queens and jacks
-        // are worth less toward 3NT, so it drops out of a 15-17 notrump.
+        // are worth less toward 3NT.  The banded value averages Fifths with
+        // the honor companion (≈14.55 BUM-RAP, 14.8 HCP — same verdict either
+        // way), so it still drops out of a 15-17 notrump but stays inside a
+        // 12-14 one.
         assert_reject(fifths(15.0..18.0).eval(hand(BALANCED_15), &context));
         assert_pass(fifths(12.0..15.0).eval(hand(BALANCED_15), &context));
 
         // CCCC of this 4333 is 14.90 (oracle-verified in contract-bridge).
         assert_pass(cccc_at_least(14.9).eval(hand("AQ32.K53.QJ4.A92"), &context));
         assert_reject(cccc_at_least(15.0).eval(hand("AQ32.K53.QJ4.A92"), &context));
+    }
+
+    #[test]
+    fn test_fifths_companion() {
+        let context = empty_context();
+        // Quack-heavy 18-count: 18.2 Fifths, 18 HCP, 16.5 BUM-RAP.  The
+        // Fifths/HCP average (18.1) tops a 15-17 notrump, but the lighter
+        // Fifths/BUM-RAP average (17.35) keeps it inside — the two gauges
+        // straddle the band edge.
+        let quacky = hand("AQ4.QJT.QJT.KQJT");
+
+        set_fifths_companion(FifthsCompanion::Hcp);
+        assert_reject(fifths(15.0..18.0).eval(quacky, &context));
+
+        set_fifths_companion(FifthsCompanion::Bumrap);
+        assert_pass(fifths(15.0..18.0).eval(quacky, &context));
     }
 
     #[test]
