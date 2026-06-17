@@ -338,6 +338,7 @@ impl Inferences {
                             && lane_suits[(lane + 2) % 4] & (1u8 << suit as u8) == 0;
                         let suppress = (is_opening_side && opening_artificial && !over_one_notrump)
                             || stayman_artificial
+                            || nt_structure_artificial(auction, index, opening_index)
                             || rubens_suppress.contains(&Some(index));
 
                         if !suppress {
@@ -408,15 +409,16 @@ impl Inferences {
                             && opening_bid == Bid::new(1, Strain::Notrump)
                             && responder_first
                         {
-                            // A natural notrump raise of our 1NT opening: 2NT
-                            // invites (a bare 8), 3NT forces game (9+).  Both deny
-                            // a five-card major (those transfer); Stayman and the
-                            // transfers themselves are artificial and stay silent.
-                            // This is what lets opener (or the sampler behind the
-                            // search floor) know responder's strength and judge
-                            // whether game is good.
+                            // Responder's notrump action over our 1NT opening.
+                            // 2NT is now the diamond transfer (5+ diamonds), not a
+                            // points raise; 3NT still forces game (9+).  Stayman,
+                            // the major transfers, and the two-way 2♠ are
+                            // artificial and stay silent.  This is what lets opener
+                            // (or the sampler behind the search floor) judge
+                            // responder.
                             match bid.level.get() {
-                                2 => players[who].narrow_points(Range::new(8, 9)),
+                                2 => players[who]
+                                    .narrow_length(Suit::Diamonds, Range::at_least(5, LENGTH_CAP)),
                                 3 => players[who].narrow_points(Range::at_least(9, POINTS_CAP)),
                                 _ => {}
                             }
@@ -532,6 +534,38 @@ impl Inferences {
 
         Self { players }
     }
+}
+
+/// Whether the call at `index` is an artificial relay/puppet/splinter in the
+/// Puppet-Stayman or minor-suit-transfer structures over our 1NT opening — so it
+/// must not be read as a natural long suit
+///
+/// Once responder enters a new structure (a 3♣ Puppet, 2NT diamond transfer, or
+/// 2♠ relay as their first call), every later three-level suit bid by our side is
+/// an artificial relay or splinter — except opener's genuine five-card major show
+/// over Puppet (`1NT–3♣–3♥/3♠`).  Positions assume the standard uncontested
+/// auction; a contested one shifts them and matches none.
+fn nt_structure_artificial(auction: &[Call], index: usize, opening_index: usize) -> bool {
+    let resp_first = auction.get(opening_index + 2);
+    let entered = matches!(
+        resp_first,
+        Some(&Call::Bid(b))
+            if b == Bid::new(3, Strain::Clubs)
+                || b == Bid::new(2, Strain::Notrump)
+                || b == Bid::new(2, Strain::Spades)
+    );
+    if !entered {
+        return false;
+    }
+    // Opener's natural five-card major show over Puppet stays a real suit.
+    let opener_puppet_major = index == opening_index + 4
+        && resp_first == Some(&Call::Bid(Bid::new(3, Strain::Clubs)))
+        && matches!(
+            auction.get(index),
+            Some(&Call::Bid(b))
+                if b.level.get() == 3 && matches!(b.strain, Strain::Hearts | Strain::Spades)
+        );
+    !opener_puppet_major
 }
 
 /// Whether `bid` is higher than the standing `highest` contract

@@ -9,6 +9,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Puppet Stayman (1NT–3♣) and the minor-suit transfers (1NT–2NT diamonds,
+  1NT–2♠ clubs/invite).** Three new constructive structures fill 1NT-response
+  slots that previously carried no precision — a weak long-minor hand just passed
+  1NT, a balanced game force blasted 3NT, and a 5-3 major fit was missed. New
+  nodes in [`american::notrump`]:
+  - **Puppet Stayman (`3♣`):** a game-forcing balanced hand with a three-card
+    major hunts opener's five-card major. Opener shows it (`3♥/3♠`) or denies
+    (`3♦`); over the denial responder bids the *shorter* major Smolen-style to
+    show four in the longer, finding a 4-4 with opener declaring, else 3NT. The
+    **2♣-vs-3♣ carve**: a 4-3 game force Puppets (it holds both a four- and a
+    three-card major); a 4-4 or 4-(0-2) takes plain Stayman; invitational hands
+    always take `2♣` (Puppet is game-forcing). `balanced()` keeps Puppet off
+    shapely hands, which use the minor transfers instead.
+  - **Diamond transfer (`2NT`):** 6+♦, or 5♦4♣. Opener completes to `3♦` only
+    with three-card support (an assured eight-card fit), else `3♣` pass-or-correct
+    so a 5♦4♣ hand can pick the better minor.
+  - **Two-way `2♠`:** a club one-suiter (weak signoff, or game-going) or a
+    balanced invitational eight. Opener shows strength — `3♣` maximum, `2NT`
+    minimum — so responder pass-or-corrects safely: the invite plays `2NT`/`3NT`,
+    weak clubs land in `3♣`, and a game-going club hand splinters (`3♦/3♥/3♠`) for
+    opener to pick `3NT` vs `5♣`. The bare-8 invite **relocated here** from the
+    old natural `2NT` (now the diamond transfer); min→2NT and max→3NT reproduce
+    the old accept/decline outcomes, so that win is preserved, not reverted.
+  - **Smolen reachability:** a game-forcing 5-4 in the majors now keeps off the
+    Jacoby transfer (its `hcp(..9)` arm) and takes `2♣` Stayman, so the existing
+    Smolen jump right-sides game to the strong notrump (the jump's floor dropped
+    10→9 to match "force every 9"). A plain 5-3 still transfers.
+
+  `Inferences::read` now reads a `2NT` response as the diamond transfer (5+♦), not
+  an 8–9 points raise, and suppresses the new artificial relays/puppets/splinters
+  from the natural suit reading so the floor and the search sampler are not
+  misled. *Measured* (`stayman-abc`, a seeded before/after duplicate match — the
+  change is structural, two binaries rather than a runtime toggle — opponents
+  silenced, 60k boards, double-dummy): **+0.76 IMPs/divergent board vul none,
+  +1.15 vul both** (~1.0% of boards diverge, so +0.0072 / +0.0109 IMPs/board
+  overall), every divergent class net positive; the Smolen-reachability lever
+  alone adds +0.0022 / +0.0030 IMPs/board. The `american_minor_transfers` test
+  suite pins the new behaviour.
 - **Stayman (1NT–2♣) is now fully authored — further bidding, Smolen, and the
   "ignore 2♣ ⇒ revert to notrump" rule.** Previously only opener's `2♥/2♠/2♦`
   answer was in the book; every continuation fell to the keyless floor, which

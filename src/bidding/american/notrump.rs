@@ -14,7 +14,7 @@
 //! [`american`][super::american] during system assembly.
 
 use super::{call, insert_uncontested};
-use crate::bidding::constraint::{Cons, Constraint, balanced, described, hcp, len};
+use crate::bidding::constraint::{Cons, Constraint, balanced, described, hcp, len, stopper_in};
 use crate::bidding::{Context, Rules, Trie};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Hand, Rank, Strain, Suit};
@@ -23,22 +23,71 @@ use contract_bridge::{Bid, Hand, Rank, Strain, Suit};
 // 1NT response structure
 // ---------------------------------------------------------------------------
 
-/// Responses to our 1NT opening: Stayman, Jacoby transfers, and notrump raises
+/// Responses to our 1NT opening: Stayman, Jacoby transfers, Puppet Stayman, the
+/// minor-suit transfers, and notrump raises
 ///
-/// Stayman requires at least invitational values (8+ HCP) and a four-card
-/// major; transfers apply at any strength; the quantitative 4NT invites
-/// slam opposite 15–17 with a balanced 16–17 HCP hand and no four-card major.
+/// Stayman (2♣) needs invitational+ values and a four-card major; Jacoby
+/// transfers (2♦/2♥) a five-card major, any strength.  Puppet Stayman (3♣) is a
+/// game-forcing balanced hand with a three-card major, hunting opener's five-card
+/// major.  The minor transfers cover diamonds (2NT: 6+♦ or 5♦4♣) and clubs (2♠:
+/// 6+♣, or — relocated from the old natural 2NT — a balanced invitational eight).
+/// The quantitative 4NT invites slam opposite a balanced 16–17 with no four-card
+/// major.
 #[must_use]
 pub fn notrump_responses() -> Rules {
     Rules::new()
-        // Jacoby transfers, any strength.
-        .rule(Bid::new(2, Strain::Diamonds), 2.0, len(Suit::Hearts, 5..))
-        .rule(Bid::new(2, Strain::Hearts), 2.0, len(Suit::Spades, 5..))
+        // Jacoby transfers — any strength, except a game-forcing 5-4 in the
+        // majors (the `hcp(..9)` arm denies it): that hand keeps off the transfer
+        // and takes the 2♣ Stayman/Smolen route, which right-sides game to the
+        // strong notrump.  A plain 5-3 still transfers.
+        .rule(
+            Bid::new(2, Strain::Diamonds),
+            2.0,
+            len(Suit::Hearts, 5..) & (len(Suit::Spades, ..4) | hcp(..9)),
+        )
+        .rule(
+            Bid::new(2, Strain::Hearts),
+            2.0,
+            len(Suit::Spades, 5..) & (len(Suit::Hearts, ..4) | hcp(..9)),
+        )
+        // Puppet Stayman: game-forcing, balanced, with a three-card major.  Ranks
+        // *above* Stayman so a 4-3 hand — holding both a four- and a three-card
+        // major — takes the Puppet route, which catches opener's five-card major
+        // in the three-card suit (plain Stayman would miss it).  `balanced()`
+        // keeps Puppet off shapely hands, leaving them to the 2♠/2NT transfers;
+        // a balanced no-four-card-major hand almost always has a three-card major
+        // (2-2 majors need two doubletons), so this routes most balanced game
+        // forces through 3♣ — the no-fit case just relays back to 3NT.
+        .rule(
+            Bid::new(3, Strain::Clubs),
+            1.6,
+            balanced()
+                & hcp(9..=15)
+                & (len(Suit::Hearts, 3..=3) | len(Suit::Spades, 3..=3))
+                & len(Suit::Hearts, ..5)
+                & len(Suit::Spades, ..5),
+        )
         // Stayman: a four-card major and at least invitational values.
         .rule(
             Bid::new(2, Strain::Clubs),
             1.5,
             (len(Suit::Hearts, 4..=4) | len(Suit::Spades, 4..=4)) & hcp(8..),
+        )
+        // Two-way 2♠: a six-card club one-suiter (weak signoff, or game-going via
+        // a later splinter) OR a balanced invitational eight with no four-card
+        // major.  The bare-8 invite relocated here when 2NT became the diamond
+        // transfer; min→2NT and max→3NT reproduce the old natural-2NT outcomes.
+        .rule(
+            Bid::new(2, Strain::Spades),
+            1.3,
+            len(Suit::Clubs, 6..)
+                | (hcp(8..=8) & balanced() & len(Suit::Hearts, ..4) & len(Suit::Spades, ..4)),
+        )
+        // 2NT: transfer to diamonds — six diamonds, or a 5♦-4♣ minor two-suiter.
+        .rule(
+            Bid::new(2, Strain::Notrump),
+            1.3,
+            len(Suit::Diamonds, 6..) | (len(Suit::Diamonds, 5..) & len(Suit::Clubs, 4..)),
         )
         // Quantitative 4NT slam invite (balanced, no four-card major).
         .rule(
@@ -46,25 +95,19 @@ pub fn notrump_responses() -> Rules {
             1.2,
             hcp(16..=17) & len(Suit::Hearts, ..5) & len(Suit::Spades, ..5),
         )
-        // Natural notrump raises (no five-card major — that would transfer).
-        // Game-force with 9+, invite with a bare 8.  Forcing every 9 (rather
-        // than inviting 8–9 and forcing 10+) is A/B-verified worth ≈+1 IMP per
+        // Natural 3NT game-force, 9+, no five-card major (those transfer).  A
+        // balanced hand with a three-card major prefers Puppet (3♣ outranks), so
+        // in practice this catches game forces lacking a three-card major and the
+        // 18–19 too strong for the quantitative 4NT.  Forcing every 9 (rather than
+        // inviting 8–9 and forcing 10+) is A/B-verified worth ≈+1 IMP per
         // divergent board vul none and ≈+3 vul both: opposite a 15–17 opener a 9
         // makes game often enough that the invitational stop loses more by missing
-        // games (opener declining with a useful minimum) than it gains.  Deciding
-        // the 9 by Fifths instead was measured *worse* — even quack-heavy 9s are
-        // worth forcing, so selectivity just leaves games unbid.  3NT is
-        // open-ended: a strong balanced hand bids game and leaves slam exploration
-        // to a later pass.
+        // games than it gains.  Deciding the 9 by Fifths instead was measured
+        // *worse* — even quack-heavy 9s are worth forcing.
         .rule(
             Bid::new(3, Strain::Notrump),
             1.0,
             hcp(9..) & len(Suit::Hearts, ..5) & len(Suit::Spades, ..5),
-        )
-        .rule(
-            Bid::new(2, Strain::Notrump),
-            1.0,
-            hcp(8..=8) & len(Suit::Hearts, ..5) & len(Suit::Spades, ..5),
         )
         .rule(
             Call::Pass,
@@ -196,12 +239,12 @@ fn stayman_no_major_rebid() -> Rules {
         .rule(
             Bid::new(3, Strain::Hearts),
             1.4,
-            len(Suit::Hearts, 4..=4) & len(Suit::Spades, 5..) & hcp(10..),
+            len(Suit::Hearts, 4..=4) & len(Suit::Spades, 5..) & hcp(9..),
         )
         .rule(
             Bid::new(3, Strain::Spades),
             1.4,
-            len(Suit::Spades, 4..=4) & len(Suit::Hearts, 5..) & hcp(10..),
+            len(Suit::Spades, 4..=4) & len(Suit::Hearts, 5..) & hcp(9..),
         )
         .rule(Bid::new(4, Strain::Notrump), 1.2, hcp(16..=17))
         .rule(Bid::new(3, Strain::Notrump), 1.0, hcp(9..))
@@ -256,6 +299,219 @@ fn accept_major_invitation(major: Suit) -> Rules {
         .rule(Bid::new(3, Strain::Notrump), 1.1, hcp(17..) & flat_4333())
         .rule(Bid::new(4, Strain::from(major)), 1.0, hcp(17..))
         .rule(Call::Pass, 0.0, hcp(0..))
+}
+
+// ---------------------------------------------------------------------------
+// Puppet Stayman (1NT–3♣)
+// ---------------------------------------------------------------------------
+
+/// Opener's answer to Puppet Stayman: a five-card major, else 3♦ to deny
+///
+/// Puppet is balanced and game-forcing, so opener always cooperates — name a
+/// five-card major (`3♥`/`3♠`), otherwise bid `3♦`, denying five but possibly
+/// holding a four-card major for the Smolen-style 4-4 hunt below.
+fn puppet_answers() -> Rules {
+    Rules::new()
+        .rule(Bid::new(3, Strain::Hearts), 1.0, len(Suit::Hearts, 5..))
+        .rule(
+            Bid::new(3, Strain::Spades),
+            1.0,
+            len(Suit::Spades, 5..) & len(Suit::Hearts, ..5),
+        )
+        .rule(
+            Bid::new(3, Strain::Diamonds),
+            0.5,
+            len(Suit::Hearts, ..5) & len(Suit::Spades, ..5),
+        )
+}
+
+/// Responder's rebid after opener names a five-card major over Puppet
+///
+/// Three-card support is an eight-card fit — bid game in the major so opener
+/// declares; otherwise opener's major was responder's short one, so settle in
+/// 3NT.  Puppet hands are balanced, so there is no splinter slam-try here (that
+/// tool lives in the shapely 2♠ club structure).
+fn puppet_major_rebid(major: Suit) -> Rules {
+    Rules::new()
+        .rule(Bid::new(4, Strain::from(major)), 1.0, len(major, 3..))
+        .rule(Bid::new(3, Strain::Notrump), 0.5, len(major, ..3))
+}
+
+/// Responder's rebid after opener denies a five-card major (`1NT–3♣–3♦`)
+///
+/// Smolen-style: a four-card major (so responder is 4-3) bids the *shorter*
+/// three-card major to show four in the longer, right-siding game to opener.
+/// With no four-card major (3-3, or three and a short major) there is no 4-4 to
+/// find — settle in 3NT.
+fn puppet_deny_rebid() -> Rules {
+    Rules::new()
+        .rule(
+            Bid::new(3, Strain::Hearts),
+            1.0,
+            len(Suit::Spades, 4..=4) & len(Suit::Hearts, 3..=3),
+        )
+        .rule(
+            Bid::new(3, Strain::Spades),
+            1.0,
+            len(Suit::Hearts, 4..=4) & len(Suit::Spades, 3..=3),
+        )
+        .rule(Bid::new(3, Strain::Notrump), 0.5, hcp(0..))
+}
+
+/// Opener completes the Puppet 4-4 hunt: game in responder's shown major, or 3NT
+///
+/// Responder's short-major bid named four cards in `shown_major`; raise to game
+/// with four-card support, else 3NT.
+fn puppet_smolen_completion(shown_major: Suit) -> Rules {
+    Rules::new()
+        .rule(
+            Bid::new(4, Strain::from(shown_major)),
+            1.0,
+            len(shown_major, 4..),
+        )
+        .rule(Bid::new(3, Strain::Notrump), 0.5, len(shown_major, ..4))
+}
+
+// ---------------------------------------------------------------------------
+// Minor-suit transfers (1NT–2NT diamonds, 1NT–2♠ clubs/invite)
+// ---------------------------------------------------------------------------
+
+/// Opener passes a weak responder retreat
+///
+/// Authored only to override the keyless floor, which reads a three-level suit
+/// response to our 1NT as game-forcing and would otherwise refuse to pass.
+fn pass_out() -> Rules {
+    Rules::new().rule(Call::Pass, 0.0, hcp(0..))
+}
+
+/// Opener's reply to the 2NT diamond transfer: complete to 3♦ with a fit, else 3♣
+///
+/// Three-card diamond support is an assured eight-card fit — complete the
+/// transfer.  Short diamonds bid `3♣` instead, pass-or-correct, letting a 5♦4♣
+/// responder pick the better minor.
+fn diamond_transfer_answer() -> Rules {
+    Rules::new()
+        .rule(Bid::new(3, Strain::Diamonds), 1.0, len(Suit::Diamonds, 3..))
+        .rule(Bid::new(3, Strain::Clubs), 0.5, len(Suit::Diamonds, ..3))
+}
+
+/// Responder's rebid after opener completes the diamond transfer (`…2NT–3♦`)
+///
+/// Game values bid 3NT — a long suit bids game on fewer points (`threshold` ≈ 8,
+/// below the 9 a balanced hand needs).  Otherwise pass the diamond partscore.
+fn diamond_transfer_game(threshold: u8) -> Rules {
+    Rules::new()
+        .rule(Bid::new(3, Strain::Notrump), 1.0, hcp(threshold..))
+        .rule(Call::Pass, 0.0, hcp(..threshold))
+}
+
+/// Responder's rebid after opener's pass-or-correct `3♣` (`…2NT–3♣`, short ♦)
+///
+/// Game values bid 3NT; a six-card diamond suit retreats to `3♦` (a 6-2 fit beats
+/// the possible club misfit); otherwise (5♦4♣) pass and sit for opener's clubs.
+fn diamond_transfer_correct(threshold: u8) -> Rules {
+    Rules::new()
+        .rule(Bid::new(3, Strain::Notrump), 1.0, hcp(threshold..))
+        .rule(
+            Bid::new(3, Strain::Diamonds),
+            0.5,
+            len(Suit::Diamonds, 6..) & hcp(..threshold),
+        )
+        .rule(Call::Pass, 0.0, len(Suit::Diamonds, ..6) & hcp(..threshold))
+}
+
+/// A six-card club one-suiter short in `short` with game values — a splinter shape
+fn club_splinter(short: Suit, threshold: u8) -> Cons<impl Constraint + Clone> {
+    len(Suit::Clubs, 6..) & hcp(threshold..) & len(short, ..2)
+}
+
+/// A six-card club hand with game values and no singleton — game-going, slamless
+fn club_no_shortness(threshold: u8) -> Cons<impl Constraint + Clone> {
+    len(Suit::Clubs, 6..)
+        & hcp(threshold..)
+        & len(Suit::Diamonds, 2..)
+        & len(Suit::Hearts, 2..)
+        & len(Suit::Spades, 2..)
+}
+
+/// Opener's reply to the two-way 2♠: `3♣` with a maximum, `2NT` with a minimum
+///
+/// Showing strength lets responder pass-or-correct safely: the weak club hand
+/// lands in `3♣` either way, the balanced invite plays `2NT` (min) or `3NT`
+/// (max), and a game-going club hand splinters.
+fn two_spade_answer() -> Rules {
+    Rules::new()
+        .rule(Bid::new(3, Strain::Clubs), 1.0, hcp(17..))
+        .rule(Bid::new(2, Strain::Notrump), 0.9, hcp(0..))
+}
+
+/// Responder's pass-or-correct after opener's minimum `2NT` over the two-way 2♠
+fn two_spade_over_min() -> Rules {
+    Rules::new()
+        // Balanced invite: opener is minimum, settle in 2NT.
+        .rule(Call::Pass, 0.0, hcp(8..=8) & balanced())
+        // Weak club one-suiter: correct to the club partscore.
+        .rule(
+            Bid::new(3, Strain::Clubs),
+            0.8,
+            len(Suit::Clubs, 6..) & hcp(..8),
+        )
+        // Game-going clubs with a singleton: splinter so opener picks 3NT or 5♣.
+        .rule(
+            Bid::new(3, Strain::Diamonds),
+            1.0,
+            club_splinter(Suit::Diamonds, 8),
+        )
+        .rule(
+            Bid::new(3, Strain::Hearts),
+            1.0,
+            club_splinter(Suit::Hearts, 8),
+        )
+        .rule(
+            Bid::new(3, Strain::Spades),
+            1.0,
+            club_splinter(Suit::Spades, 8),
+        )
+        // Game-going clubs without a singleton: 3NT.
+        .rule(Bid::new(3, Strain::Notrump), 0.9, club_no_shortness(8))
+}
+
+/// Responder's action after opener's maximum `3♣` over the two-way 2♠
+fn two_spade_over_max() -> Rules {
+    Rules::new()
+        // Weak club one-suiter: pass the club partscore.
+        .rule(Call::Pass, 0.0, len(Suit::Clubs, 6..) & hcp(..8))
+        // Game-going clubs with a singleton: splinter.
+        .rule(
+            Bid::new(3, Strain::Diamonds),
+            1.0,
+            club_splinter(Suit::Diamonds, 8),
+        )
+        .rule(
+            Bid::new(3, Strain::Hearts),
+            1.0,
+            club_splinter(Suit::Hearts, 8),
+        )
+        .rule(
+            Bid::new(3, Strain::Spades),
+            1.0,
+            club_splinter(Suit::Spades, 8),
+        )
+        // Balanced invite (opener maximum → accept game) or game clubs without a
+        // singleton: 3NT.
+        .rule(
+            Bid::new(3, Strain::Notrump),
+            0.9,
+            (hcp(8..=8) & balanced()) | club_no_shortness(8),
+        )
+}
+
+/// Opener picks the game over responder's club splinter: 3NT with the short suit
+/// stopped, else 5♣
+fn pick_game_over_club_splinter(short: Suit) -> Rules {
+    Rules::new()
+        .rule(Bid::new(3, Strain::Notrump), 1.0, stopper_in(short))
+        .rule(Bid::new(5, Strain::Clubs), 0.9, hcp(0..))
 }
 
 // ---------------------------------------------------------------------------
@@ -460,6 +716,66 @@ pub(super) fn register_one_nt(book: &mut Trie) {
         &[one_nt, two_c, two_d, four_nt],
         quantitative_answer(17),
     );
+
+    // --- Puppet Stayman (1NT–3♣) ----------------------------------------------
+    //
+    // Opener shows a five-card major (3♥/3♠) or denies with 3♦; responder raises
+    // a 5-3 fit, or — Smolen-style after 3♦ — bids the shorter major to find a
+    // 4-4 with opener declaring.
+    let three_c = call(3, Strain::Clubs);
+    let three_d = call(3, Strain::Diamonds);
+    insert_uncontested(book, &[one_nt, three_c], puppet_answers());
+    insert_uncontested(
+        book,
+        &[one_nt, three_c, three_h],
+        puppet_major_rebid(Suit::Hearts),
+    );
+    insert_uncontested(
+        book,
+        &[one_nt, three_c, three_s],
+        puppet_major_rebid(Suit::Spades),
+    );
+    insert_uncontested(book, &[one_nt, three_c, three_d], puppet_deny_rebid());
+    // Responder's shorter-major bid named four cards in the *other* major.
+    insert_uncontested(
+        book,
+        &[one_nt, three_c, three_d, three_h],
+        puppet_smolen_completion(Suit::Spades),
+    );
+    insert_uncontested(
+        book,
+        &[one_nt, three_c, three_d, three_s],
+        puppet_smolen_completion(Suit::Hearts),
+    );
+
+    // --- Diamond transfer (1NT–2NT) -------------------------------------------
+    insert_uncontested(book, &[one_nt, two_nt], diamond_transfer_answer());
+    insert_uncontested(book, &[one_nt, two_nt, three_d], diamond_transfer_game(8));
+    insert_uncontested(
+        book,
+        &[one_nt, two_nt, three_c],
+        diamond_transfer_correct(8),
+    );
+    // Weak retreat to 3♦ over opener's pass-or-correct 3♣ — opener must pass.
+    insert_uncontested(book, &[one_nt, two_nt, three_c, three_d], pass_out());
+
+    // --- Two-way 2♠ (clubs or balanced invite) --------------------------------
+    insert_uncontested(book, &[one_nt, two_s], two_spade_answer());
+    insert_uncontested(book, &[one_nt, two_s, two_nt], two_spade_over_min());
+    insert_uncontested(book, &[one_nt, two_s, three_c], two_spade_over_max());
+    // Weak-club correction to 3♣ over opener's minimum 2NT — opener must pass.
+    insert_uncontested(book, &[one_nt, two_s, two_nt, three_c], pass_out());
+    // Opener picks 3NT/5♣ over the game-going club splinter (3♦/3♥/3♠), after
+    // either the minimum (2NT) or maximum (3♣) reply.
+    for opener_reply in [two_nt, three_c] {
+        for short in [Suit::Diamonds, Suit::Hearts, Suit::Spades] {
+            insert_uncontested(
+                book,
+                &[one_nt, two_s, opener_reply, call(3, Strain::from(short))],
+                pick_game_over_club_splinter(short),
+            );
+        }
+    }
 }
 
 /// Register the 2NT-strength structure and the 18–19 2NT-rebid continuations

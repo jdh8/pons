@@ -437,7 +437,8 @@ mod tests {
         let r = notrump_responses();
         let a = [call(1, Strain::Notrump), Call::Pass];
         assert_eq!(best(&r, &a, "KJ542.Q32.K43.92"), call(2, Strain::Hearts));
-        assert_eq!(best(&r, &a, "KJ54.Q32.K43.Q92"), call(2, Strain::Clubs));
+        // Four-four in the majors takes Stayman; a 4-3 hand would Puppet (3♣).
+        assert_eq!(best(&r, &a, "KJ54.KQ32.43.Q92"), call(2, Strain::Clubs));
     }
 
     #[test]
