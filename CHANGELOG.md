@@ -9,6 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **A deeper deterministic floor — Milestone 6.1: parametric auction
+  inferences.** The keyless [`instinct()`] floor now *derives* responder's
+  major-suit length from a completed Jacoby transfer rather than going silent on
+  it ([`Inferences`]): `1NT–2♦–2♥` shows five-plus hearts, and a follow-up jump to
+  game (`…–4♥`, the canonical case) or raise of the suit (`…–3♥`, which also pins
+  invitational strength) shows **six** — responder bypassed the choice-of-games
+  `3NT`. A new six-two arm in the floor's `known_major_fit` lets opener act on
+  that shown six-card suit opposite a doubleton — the fit the prior bidder could
+  not see after a transfer (`known_major_fit` needed three-card support on one
+  side). Both majors, over 1NT and 2NT; uncontested only. *Why it matters:* the
+  floor can now accept a transfer invitation with a maximum (`1NT–2♦–2♥–3♥` →
+  `4♥` on a six-two fit) instead of always passing, and the sampler behind the
+  search floor deals layouts consistent with the shown six-card suit. *Measure*
+  (seeded constructive A/B, baseline vs M6.1 `american()`, opponents silenced,
+  200 000 boards): **+1.94 IMPs/divergent vul none, +2.25 vul both** (306
+  divergent boards; +0.003 IMPs/board — the gain concentrates in the rare
+  transfer/limit auctions it touches). No regression: the whole inference floor
+  stays **+0.05 IMPs/board** (`inference-floor`, 20 000 boards, both
+  vulnerabilities). Derived, not authored — no node per sequence.
 - **A reverse-engineering study of BBA/EPBot's *floor*** (AI-bidder side study):
   a new report [`docs/ai-bidder/bba-floor.md`](docs/ai-bidder/bba-floor.md)
   answering how a mature engine bids where authoring runs out — the analogue of

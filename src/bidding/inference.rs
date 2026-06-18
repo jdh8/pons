@@ -532,6 +532,22 @@ impl Inferences {
             players[who].narrow_points(Range::at_least(10, POINTS_CAP));
         }
 
+        // A completed Jacoby major transfer over our own strong notrump shows
+        // responder's suit; a follow-up jump to game or raise of the transferred
+        // suit upgrades it to a six-card suit (and pins invitational strength).
+        // The generic walk suppresses the artificial transfer and its
+        // completion, so derive this here (soundness over tightness, as with the
+        // Rubens advances above).
+        if let Some((responder_index, major, min_length, points)) =
+            transfer_major_reading(auction, opening_index)
+        {
+            let who = relative_of(len, responder_index) as usize;
+            players[who].narrow_length(major, Range::at_least(min_length, LENGTH_CAP));
+            if let Some(points) = points {
+                players[who].narrow_points(points);
+            }
+        }
+
         Self { players }
     }
 }
@@ -633,6 +649,97 @@ fn rubens_reading(auction: &[Call]) -> ([Option<usize>; 2], Option<(usize, Suit)
         && auction.get(advance_index + 2) == Some(&Call::Bid(Bid::new(2, target))))
     .then_some(advance_index + 2);
     ([Some(advance_index), completion], None)
+}
+
+/// The bid at `index`, if the call there is a bid (not a pass/double/redouble)
+fn bid_at(auction: &[Call], index: usize) -> Option<Bid> {
+    match auction.get(index) {
+        Some(&Call::Bid(bid)) => Some(bid),
+        _ => None,
+    }
+}
+
+/// What a completed Jacoby *major* transfer over our own strong notrump shows
+/// about responder, returned as `(responder_index, major, min_length, points)`
+///
+/// The generic walk suppresses the artificial transfer and its completion, so
+/// this reads them after the fact:
+///
+/// - a completed transfer shows responder holds **five-plus** in the major;
+/// - a follow-up raise of the transferred suit (`1NT–2♦–2♥–3♥`) or jump to game
+///   (`…–4♥`, or `2NT–3♦–3♥–4♥`) shows **six-plus** — responder bypassed the
+///   choice-of-games `3NT` (which would be exactly five) for a known long suit;
+/// - the invitational `3M` raise also pins invitational strength (8–9, the same
+///   bound the Stayman reading uses for a major raise).
+///
+/// South African Texas is a direct transfer to game (no choice of games to
+/// bypass) and the minor transfers are out of scope, so neither is read here.
+/// Positions assume the standard uncontested auction (opponents passing); a
+/// contested one shifts them and matches none — those continuations fall outside
+/// the floor's natural-only scope.
+fn transfer_major_reading(
+    auction: &[Call],
+    opening_index: usize,
+) -> Option<(usize, Suit, u8, Option<Range>)> {
+    // Each `(opening, responder's transfer, opener's completion)`; game in the
+    // major is always the four level.
+    const MAJORS: [(Bid, Bid, Bid); 4] = [
+        (
+            Bid::new(1, Strain::Notrump),
+            Bid::new(2, Strain::Diamonds),
+            Bid::new(2, Strain::Hearts),
+        ),
+        (
+            Bid::new(1, Strain::Notrump),
+            Bid::new(2, Strain::Hearts),
+            Bid::new(2, Strain::Spades),
+        ),
+        (
+            Bid::new(2, Strain::Notrump),
+            Bid::new(3, Strain::Diamonds),
+            Bid::new(3, Strain::Hearts),
+        ),
+        (
+            Bid::new(2, Strain::Notrump),
+            Bid::new(3, Strain::Hearts),
+            Bid::new(3, Strain::Spades),
+        ),
+    ];
+
+    let opening = bid_at(auction, opening_index)?;
+    // The opponents must stay silent for these positions to hold.
+    if auction.get(opening_index + 1) != Some(&Call::Pass) {
+        return None;
+    }
+    let transfer = bid_at(auction, opening_index + 2)?;
+    let &(_, _, completion) = MAJORS
+        .iter()
+        .find(|&&(o, t, _)| o == opening && t == transfer)?;
+    let major = completion.strain.suit()?;
+    let responder_index = opening_index + 2;
+
+    // The transfer alone shows a five-card major.
+    let mut min_length = 5;
+    let mut points = None;
+
+    // Opener's completion, then responder's continuation, each after a pass.
+    if auction.get(opening_index + 3) == Some(&Call::Pass)
+        && bid_at(auction, opening_index + 4) == Some(completion)
+        && auction.get(opening_index + 5) == Some(&Call::Pass)
+        && let Some(follow) = bid_at(auction, opening_index + 6)
+    {
+        let raise_to_three = follow == Bid::new(3, completion.strain);
+        let jump_to_game = follow == Bid::new(4, completion.strain);
+        if raise_to_three || jump_to_game {
+            min_length = 6;
+        }
+        if raise_to_three {
+            // Invitational, like the Stayman major raise.
+            points = Some(Range::new(8, 9));
+        }
+    }
+
+    Some((responder_index, major, min_length, points))
 }
 
 /// Apply the meaning of the opening bid (the first non-pass call)
@@ -886,6 +993,110 @@ mod tests {
         ];
         let inf = read(&auction);
         assert_eq!(inf.partner().length(Suit::Hearts), Range::new(5, 13));
+    }
+
+    #[test]
+    fn completed_major_transfer_shows_five() {
+        // [1NT, P, 2♦, P, 2♥, P]: partner transferred to hearts and we
+        // completed; at length 6 the responder is us (Me).  The transfer shows a
+        // five-card major even before a jump confirms the sixth, while the
+        // transferred-*from* suit stays unread.
+        let auction = [
+            bid(1, Strain::Notrump),
+            Call::Pass,
+            bid(2, Strain::Diamonds),
+            Call::Pass,
+            bid(2, Strain::Hearts),
+            Call::Pass,
+        ];
+        let inf = read(&auction);
+        assert_eq!(inf.me().length(Suit::Hearts), Range::new(5, 13));
+        assert_eq!(inf.me().length(Suit::Diamonds), Range::FULL_LENGTH);
+    }
+
+    #[test]
+    fn transfer_jump_to_game_shows_six() {
+        // [1NT, P, 2♦, P, 2♥, P, 4♥, P]: partner transferred then jumped past
+        // 3NT to 4♥, showing a six-card major (the M6.1 canonical case).  At
+        // length 8 the responder sits as Partner.
+        let auction = [
+            bid(1, Strain::Notrump),
+            Call::Pass,
+            bid(2, Strain::Diamonds),
+            Call::Pass,
+            bid(2, Strain::Hearts),
+            Call::Pass,
+            bid(4, Strain::Hearts),
+            Call::Pass,
+        ];
+        let inf = read(&auction);
+        assert_eq!(inf.partner().length(Suit::Hearts), Range::new(6, 13));
+    }
+
+    #[test]
+    fn transfer_then_three_major_invites_with_six() {
+        // [1NT, P, 2♦, P, 2♥, P, 3♥, P]: a raise of the transferred suit is
+        // invitational with a six-card major.
+        let auction = [
+            bid(1, Strain::Notrump),
+            Call::Pass,
+            bid(2, Strain::Diamonds),
+            Call::Pass,
+            bid(2, Strain::Hearts),
+            Call::Pass,
+            bid(3, Strain::Hearts),
+            Call::Pass,
+        ];
+        let inf = read(&auction);
+        assert_eq!(inf.partner().length(Suit::Hearts), Range::new(6, 13));
+        assert_eq!(inf.partner().points, Range::new(8, 9));
+    }
+
+    #[test]
+    fn transfer_major_reading_covers_spades_and_two_notrump() {
+        // Spade transfer (2♥ → 2♠) jumped to 4♠.
+        let spades = read(&[
+            bid(1, Strain::Notrump),
+            Call::Pass,
+            bid(2, Strain::Hearts),
+            Call::Pass,
+            bid(2, Strain::Spades),
+            Call::Pass,
+            bid(4, Strain::Spades),
+            Call::Pass,
+        ]);
+        assert_eq!(spades.partner().length(Suit::Spades), Range::new(6, 13));
+
+        // The same shape over a 2NT opening (3♦ → 3♥, jump 4♥).
+        let two_nt = read(&[
+            bid(2, Strain::Notrump),
+            Call::Pass,
+            bid(3, Strain::Diamonds),
+            Call::Pass,
+            bid(3, Strain::Hearts),
+            Call::Pass,
+            bid(4, Strain::Hearts),
+            Call::Pass,
+        ]);
+        assert_eq!(two_nt.partner().length(Suit::Hearts), Range::new(6, 13));
+    }
+
+    #[test]
+    fn contested_transfer_auction_is_not_specially_read() {
+        // [1NT, 2♣, 2♦, P, 2♥, P, 4♥, P]: with the opponents in, the transfer
+        // positions shift, so the special reading must not pin a six-card suit.
+        let auction = [
+            bid(1, Strain::Notrump),
+            bid(2, Strain::Clubs),
+            bid(2, Strain::Diamonds),
+            Call::Pass,
+            bid(2, Strain::Hearts),
+            Call::Pass,
+            bid(4, Strain::Hearts),
+            Call::Pass,
+        ];
+        let inf = read(&auction);
+        assert!(inf.partner().length(Suit::Hearts).min < 6);
     }
 
     #[test]

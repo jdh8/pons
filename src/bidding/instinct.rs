@@ -698,13 +698,16 @@ pub fn instinct() -> Rules {
     for major in [Suit::Hearts, Suit::Spades] {
         let strain = Strain::from(major);
         // A *known* eight-card major fit outranks 3NT: our five-card suit meets
-        // partner's shown three-card support, or our three meet partner's shown
-        // five.  The shown lengths come from the auction interpretation
-        // ([`Inferences`]), so this fires only on a fit the calls have promised.
+        // partner's shown three-card support, our three meet partner's shown
+        // five, or our doubleton meets partner's shown six (a transferred suit
+        // jumped or raised to game — see [`Inferences`]).  The shown lengths come
+        // from the auction interpretation, so this fires only on a fit the calls
+        // have promised.
         //
         // [`Inferences`]: super::inference::Inferences
         let known_major_fit = (len(major, 5..) & partner_shown_len(major, 3..))
-            | (len(major, 3..) & partner_shown_len(major, 5..));
+            | (len(major, 3..) & partner_shown_len(major, 5..))
+            | (len(major, 2..) & partner_shown_len(major, 6..));
         rules = rules.rule(
             Bid::new(4, strain),
             1.45,
@@ -846,6 +849,27 @@ mod tests {
             .expect("array is never empty")
     }
 
+    /// The full-`american()` call for a hand and whether the floor produced it
+    ///
+    /// `depth == 0` with `fallback == Some(_)` is the instinct floor firing — so
+    /// the second tuple field tells a test the node is off-book (floor territory),
+    /// guarding against a floor rule that is silently shadowed by a book node.
+    fn american_floored(auction: &[Call], hand: &str) -> (Call, bool) {
+        use crate::bidding::Family;
+        use crate::bidding::american::american;
+        let hand: Hand = hand.parse().expect("valid test hand");
+        let (logits, provenance) = american()
+            .against(Family::NATURAL)
+            .classify_with_provenance(hand, RelativeVulnerability::NONE, auction)
+            .expect("a legal auction classifies");
+        let call = (&logits.0)
+            .into_iter()
+            .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("logits are never NaN"))
+            .map(|(call, _)| call)
+            .expect("array is never empty");
+        (call, provenance.depth == 0 && provenance.fallback.is_some())
+    }
+
     #[test]
     fn forced_advance_never_passes() {
         // Partner doubled their 3♣ for takeout; a worthless hand still bids
@@ -952,6 +976,47 @@ mod tests {
             Call::Pass,
         ];
         assert_eq!(best(&auction, "AQ52.K53.KQ4.32"), call(4, Strain::Hearts));
+    }
+
+    #[test]
+    fn transfer_invite_reaches_the_floor_and_finds_the_six_two_fit() {
+        // 1NT–2♦–2♥–3♥: partner transferred to hearts and raised, an off-book
+        // invitation with a six-card suit.  The auction is floor territory, and a
+        // maximum 1NT accepts to 4♥ — the known six-two fit (our doubleton
+        // opposite partner's shown six) outranks 3NT, the inference M6.1 added.
+        let invite = [
+            call(1, Strain::Notrump),
+            Call::Pass,
+            call(2, Strain::Diamonds),
+            Call::Pass,
+            call(2, Strain::Hearts),
+            Call::Pass,
+            call(3, Strain::Hearts),
+            Call::Pass,
+        ];
+        let (bid, from_floor) = american_floored(&invite, "AKQ2.J5.AQ52.K42");
+        assert!(from_floor, "the transfer invite is off-book, the floor decides");
+        assert_eq!(bid, call(4, Strain::Hearts));
+    }
+
+    #[test]
+    fn transfer_jump_to_game_reaches_the_floor_and_passes() {
+        // 1NT–2♦–2♥–4♥: the jump past 3NT is off-book too.  Game is already
+        // reached and the floor has no slam machinery yet (M6.2), so it passes —
+        // M6.1 derives the six-card major (length only) without over-reaching.
+        let game = [
+            call(1, Strain::Notrump),
+            Call::Pass,
+            call(2, Strain::Diamonds),
+            Call::Pass,
+            call(2, Strain::Hearts),
+            Call::Pass,
+            call(4, Strain::Hearts),
+            Call::Pass,
+        ];
+        let (bid, from_floor) = american_floored(&game, "AKQ2.J5.AQ52.K42");
+        assert!(from_floor, "the 4♥ jump is off-book, the floor decides");
+        assert_eq!(bid, Call::Pass);
     }
 
     #[test]

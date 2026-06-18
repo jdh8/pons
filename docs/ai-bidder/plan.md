@@ -368,13 +368,29 @@ measures against — *without authoring a node per sequence*
 the rails stay green. Each chunk's measure is IMPs/board on the `instinct-floor`
 A/B vs baseline, and the BBA gap (S.1's −2.6) on the relevant auctions.
 
-- ⬜ **M6.1 Parametric auction inferences.** Push the floor deeper by *deriving*
+- ✅ **M6.1 Parametric auction inferences.** Push the floor deeper by *deriving*
   facts from the auction rather than authoring, via the existing `Inferences` /
   `inference.rs` reader. Canonical case: `1NT–2♦–2♥–4♥` — responder transferred
   (5+♥) then jumped past the choice-of-games `3NT` to `4♥`, so the floor can
   *know* a 6-card major and act on it. *Deliverable:* a few derived inferences
   the floor reads on demand. *Measure:* no regression, ideally a gain on
-  transfer/limit auctions. *Deps:* none (reuses `inference.rs`).
+  transfer/limit auctions. *Deps:* none (reuses `inference.rs`). **Done:** a
+  post-walk `transfer_major_reading` in `inference.rs` (the generic walk
+  suppresses the artificial transfer + completion, so it is derived after the
+  fact, like the Rubens cue): a completed Jacoby major transfer → 5+ in the
+  major, a follow-up jump-to-`4M` or raise-to-`3M` → 6+ (the `3M` raise also pins
+  invitational 8–9, mirroring the Stayman raise); both majors, 1NT + 2NT,
+  uncontested. Plus a **six-two arm** in `instinct()`'s `known_major_fit`
+  (`len(major,2..) & partner_shown_len(major,6..)`) so opener acts on the shown
+  six opposite a doubleton — the exact gap `project_sat-slam-try` flagged.
+  Verified off-book by `classify_with_provenance` (not shadowed —
+  `project_floor_shadowed_by_book_nodes`): `1NT–2♦–2♥–3♥`/`–4♥` fire the floor,
+  and a max accepts `1NT–2♦–2♥–3♥` → `4♥`. **A/B** (seeded constructive,
+  `stayman-abc` harness, baseline vs M6.1, opponents silenced, 200k boards):
+  **+1.94 IMPs/divergent vul none, +2.25 vul both** (306 divergent, +0.003
+  IMPs/board); whole inference floor still +0.05 IMPs/board (`inference-floor`,
+  20k). Length-only on the `4M` jump (slam machinery is M6.2); the derived 6+ also
+  makes the sampler sound on transfer auctions.
 - ⬜ **M6.2 Slam machinery on the floor.** Slam bidding is inherently conventional
   and arises in the deep auctions the floor owns. Add a *self-consistent* keycard
   layer so **instinct decodes instinct** on both sides, reusing the
