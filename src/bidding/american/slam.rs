@@ -34,10 +34,19 @@
 //! 6♥ (2) or 6♠ (signoff with 3).  For heart trumps 6♥ is the catch-all
 //! signoff (2+ kings).
 //!
-//! # Scope
+//! # Minor-suit trumps (plain 4NT)
 //!
-//! Minor-suit keycard is out of scope: the signoff space below 5-of-a-minor
-//! does not exist in this model.  Only major-suit trumps are supported.
+//! Minor trumps use the same `5♣/5♦/5♥/5♠` answers, but those answers overshoot
+//! the natural 5-of-a-minor signoff, so the asker is cramped.  When it wants to
+//! stop it signs off in 5-of-the-minor *only when that call is still legal*
+//! (i.e. higher than partner's answer — diamonds after a 5♣ answer), passes when
+//! partner's answer *is* 5-of-the-minor (clubs after 5♣, diamonds after 5♦), and
+//! otherwise has no room below slam and simply bids 6-of-the-minor.
+//!
+//! The 5NT king ask is **major-only**: over a minor, 5NT would be misread as a
+//! king ask and the king responses (6♣/6♦) collide with the trump slam, so
+//! grand-slam exploration in a minor is not supported.  Kickback (4♣/4♦), the
+//! usual remedy, is out of scope.
 
 use crate::bidding::{Rules, Trie};
 use contract_bridge::auction::Call;
@@ -258,6 +267,57 @@ fn asker_after_5s(trump: Suit) -> Rules {
     rules
 }
 
+// ---------------------------------------------------------------------------
+// Minor-trump asker continuations (plain 4NT; cramped signoff; no king ask)
+// ---------------------------------------------------------------------------
+//
+// The keycard counts mirror the major tables; only the signoff differs, because
+// the answers overshoot 5-of-a-minor.  Every table keeps a legal finite call for
+// every hand (a `6m` or `Pass` catch-all): a node whose only finite logits are
+// *illegal* calls would not fall through to the floor — `Table::next_call` would
+// filter them and silently pass, stranding a bad contract.
+
+/// Asker after a 5♣ answer when trumps are a minor
+///
+/// 3+ keycards (≥5 total) drive to 6-of-the-minor.  To stop: diamonds can sign
+/// off in 5♦ (legal over 5♣); clubs must Pass to play partner's 5♣.
+fn asker_after_5c_minor(trump: Suit) -> Rules {
+    let t = Strain::from(trump);
+    let rules = Rules::new().rule(Bid::new(6, t), 1.0, keycards(trump, 3..));
+    if trump == Suit::Diamonds {
+        rules.rule(Bid::new(5, t), 0.5, hcp(0..))
+    } else {
+        rules.rule(Call::Pass, 0.5, hcp(0..))
+    }
+}
+
+/// Asker after a 5♦ answer when trumps are a minor
+///
+/// Diamonds: slam set mirrors the major `asker_after_5d` (≤2 assume partner 3,
+/// or 4+); to stop, Pass to play partner's 5♦.  Clubs: no room below 6♣.
+fn asker_after_5d_minor(trump: Suit) -> Rules {
+    let t = Strain::from(trump);
+    if trump == Suit::Diamonds {
+        Rules::new()
+            .rule(
+                Bid::new(6, t),
+                1.0,
+                keycards(trump, 2..=2) | keycards(trump, 4..),
+            )
+            .rule(Call::Pass, 0.5, hcp(0..))
+    } else {
+        no_room_six(trump)
+    }
+}
+
+/// Asker with no room to stop below slam: bid 6-of-the-minor
+///
+/// Used for the 5♥/5♠ answers (both minors) and the clubs 5♦ answer — all sit
+/// above 5-of-either-minor, so signing off below slam is impossible.
+fn no_room_six(trump: Suit) -> Rules {
+    Rules::new().rule(Bid::new(6, Strain::from(trump)), 1.0, hcp(0..))
+}
+
 /// King answers at the 5NT node (for all answer paths — shared table)
 ///
 /// 5NT promises all five keycards; this asks for kings outside trumps.
@@ -288,7 +348,7 @@ fn king_answers(trump: Suit) -> Rules {
             // 6♥ is a catch-all signoff for 2+ outside kings
             rules = rules.rule(Bid::new(6, Strain::Hearts), 0.5, hcp(0..));
         }
-        _ => unreachable!("install_rkcb only supports major-suit trumps"),
+        _ => unreachable!("the 5NT king ask is major-only; minors never install it"),
     }
     rules
 }
@@ -324,9 +384,10 @@ fn asker_after_6h(trump: Suit) -> Rules {
 /// Install RKCB 1430 below an agreed trump suit
 ///
 /// `our_calls` is the undisturbed sequence of our side's calls so far (the
-/// same form [`uncontested`][super::uncontested] takes); the 4NT ask, its
-/// answers, and the 5NT king ask are inserted below it.  Major-suit trumps
-/// only — minor-suit keycard needs signoff space this table does not model.
+/// same form [`uncontested`][super::uncontested] takes); the 4NT ask and its
+/// answers are inserted below it.  Both majors and minors are supported; for
+/// minors the asker's signoff is cramped (see the module docs) and the 5NT king
+/// ask is skipped.
 ///
 /// The 4NT bid itself must already be in the caller's table; this function
 /// registers everything that comes *after* 4NT.
@@ -359,11 +420,23 @@ pub(super) fn install_rkcb(book: &mut Trie, our_calls: &[Call], trump: Suit) {
     //    `our_calls + [4NT, ans]`
     // -----------------------------------------------------------------------
 
-    // Build the shared asker tables once
-    let after_5c = Arc::new(asker_after_5c(trump)) as Arc<dyn Classifier>;
-    let after_5d = Arc::new(asker_after_5d(trump)) as Arc<dyn Classifier>;
-    let after_5h = Arc::new(asker_after_5h(trump)) as Arc<dyn Classifier>;
-    let after_5s = Arc::new(asker_after_5s(trump)) as Arc<dyn Classifier>;
+    // Build the shared asker tables once.  Majors use the full ladder; minors
+    // use the cramped-signoff tables (and skip the king ask further down).
+    let (after_5c, after_5d, after_5h, after_5s) = if matches!(trump, Suit::Hearts | Suit::Spades) {
+        (
+            Arc::new(asker_after_5c(trump)) as Arc<dyn Classifier>,
+            Arc::new(asker_after_5d(trump)) as Arc<dyn Classifier>,
+            Arc::new(asker_after_5h(trump)) as Arc<dyn Classifier>,
+            Arc::new(asker_after_5s(trump)) as Arc<dyn Classifier>,
+        )
+    } else {
+        (
+            Arc::new(asker_after_5c_minor(trump)) as Arc<dyn Classifier>,
+            Arc::new(asker_after_5d_minor(trump)) as Arc<dyn Classifier>,
+            Arc::new(no_room_six(trump)) as Arc<dyn Classifier>,
+            Arc::new(no_room_six(trump)) as Arc<dyn Classifier>,
+        )
+    };
 
     let suffix_5c = uncontested(&extend(&[ans_5c]));
     let suffix_5d = uncontested(&extend(&[ans_5d]));
@@ -374,6 +447,13 @@ pub(super) fn install_rkcb(book: &mut Trie, our_calls: &[Call], trump: Suit) {
     insert_arc_all_seats(book, &suffix_5d, 3, Arc::clone(&after_5d));
     insert_arc_all_seats(book, &suffix_5h, 3, Arc::clone(&after_5h));
     insert_arc_all_seats(book, &suffix_5s, 3, Arc::clone(&after_5s));
+
+    // ponytail: no grand-slam king ask for minors — plain 4NT has no room for it
+    // (5NT misreads as the ask; 6♣/6♦ king answers collide with the trump slam).
+    // Grand-in-minor stays under-bid; the upgrade path is Kickback (out of scope).
+    if matches!(trump, Suit::Clubs | Suit::Diamonds) {
+        return;
+    }
 
     // -----------------------------------------------------------------------
     // 3. King answers at `our_calls + [4NT, ans, 5NT]` — shared table
@@ -574,6 +654,192 @@ mod tests {
             best(&trie, &auction, "K9732.K53.942.92"),
             Call::Bid(Bid::new(6, Strain::Diamonds)),
             "1 outside king → 6♦"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // Minor-suit keycard (plain 4NT)
+    // -----------------------------------------------------------------------
+
+    /// A trie with minor RKCB installed below `[1m, 2m, 4NT]`
+    fn minor_trie(trump: Suit) -> Trie {
+        let mut trie = Trie::new();
+        let m = Strain::from(trump);
+        let our_calls = [Call::Bid(Bid::new(1, m)), Call::Bid(Bid::new(2, m))];
+        install_rkcb(&mut trie, &our_calls, trump);
+        trie
+    }
+
+    /// The answer node auction `[1m, P, 2m, P, 4NT, P]`
+    fn minor_ans_auction(trump: Suit) -> Vec<Call> {
+        let m = Strain::from(trump);
+        vec![
+            Call::Bid(Bid::new(1, m)),
+            Call::Pass,
+            Call::Bid(Bid::new(2, m)),
+            Call::Pass,
+            Call::Bid(Bid::new(4, Strain::Notrump)),
+            Call::Pass,
+        ]
+    }
+
+    /// `minor_ans_auction` extended by one keycard answer `+ [answer, P]`
+    fn after_minor_answer(trump: Suit, answer: Bid) -> Vec<Call> {
+        let mut a = minor_ans_auction(trump);
+        a.push(Call::Bid(answer));
+        a.push(Call::Pass);
+        a
+    }
+
+    /// The generic answer table still fires for a minor trump (clubs).
+    #[test]
+    fn minor_answers_keycard_counts() {
+        let trie = minor_trie(Suit::Clubs);
+        let auction = minor_ans_auction(Suit::Clubs);
+
+        // A654.832.K65.987 — A♠ only (K is diamonds) → 1 keycard → 5♣
+        assert_eq!(
+            best(&trie, &auction, "A654.832.K65.987"),
+            Call::Bid(Bid::new(5, Strain::Clubs)),
+            "1 keycard → 5♣"
+        );
+        // Q654.832.K65.J87 — no aces, no K♣ → 0 keycards → 5♦
+        assert_eq!(
+            best(&trie, &auction, "Q654.832.K65.J87"),
+            Call::Bid(Bid::new(5, Strain::Diamonds)),
+            "0 keycards → 5♦"
+        );
+        // A654.A32.65.J987 — A♠ A♥, clubs J987 (no K/Q) → 2 keycards no Q → 5♥
+        assert_eq!(
+            best(&trie, &auction, "A654.A32.65.J987"),
+            Call::Bid(Bid::new(5, Strain::Hearts)),
+            "2 keycards, no trump Q → 5♥"
+        );
+        // A654.A32.65.Q987 — A♠ A♥ + Q♣ → 2 keycards with Q → 5♠
+        assert_eq!(
+            best(&trie, &auction, "A654.A32.65.Q987"),
+            Call::Bid(Bid::new(5, Strain::Spades)),
+            "2 keycards with trump Q → 5♠"
+        );
+    }
+
+    /// Clubs after a 5♣ answer: 3+ keycards → 6♣; otherwise Pass to play 5♣.
+    #[test]
+    fn clubs_after_5c_signoff_is_pass() {
+        let trie = minor_trie(Suit::Clubs);
+        let auction = after_minor_answer(Suit::Clubs, Bid::new(5, Strain::Clubs));
+
+        // A654.A32.65.KQ87 — A♠ A♥ + K♣ → 3 keycards → 6♣
+        assert_eq!(
+            best(&trie, &auction, "A654.A32.65.KQ87"),
+            Call::Bid(Bid::new(6, Strain::Clubs)),
+            "asker 3 keycards after 5♣ → 6♣"
+        );
+        // A654.832.K65.987 — 1 keycard → off two → Pass to play partner's 5♣
+        assert_eq!(
+            best(&trie, &auction, "A654.832.K65.987"),
+            Call::Pass,
+            "asker ≤2 keycards after 5♣ → Pass (play 5♣)"
+        );
+    }
+
+    /// Clubs after a 5♦/5♥/5♠ answer: no room — always 6♣, never Pass or 5♣.
+    #[test]
+    fn clubs_no_room_always_six() {
+        let trie = minor_trie(Suit::Clubs);
+        for answer in [
+            Bid::new(5, Strain::Diamonds),
+            Bid::new(5, Strain::Hearts),
+            Bid::new(5, Strain::Spades),
+        ] {
+            let auction = after_minor_answer(Suit::Clubs, answer);
+            for hand in ["A654.A32.65.KQ87", "Q654.Q32.Q65.Q98"] {
+                let call = best(&trie, &auction, hand);
+                assert_eq!(
+                    call,
+                    Call::Bid(Bid::new(6, Strain::Clubs)),
+                    "clubs after {answer:?}, hand {hand}: must be 6♣ (no room to stop)"
+                );
+            }
+        }
+    }
+
+    /// Diamonds after a 5♣ answer: 3+ keycards → 6♦; otherwise sign off in 5♦.
+    #[test]
+    fn diamonds_after_5c_signoff_is_5d() {
+        let trie = minor_trie(Suit::Diamonds);
+        let auction = after_minor_answer(Suit::Diamonds, Bid::new(5, Strain::Clubs));
+
+        // A654.A32.K65.987 — A♠ A♥ + K♦ → 3 keycards → 6♦
+        assert_eq!(
+            best(&trie, &auction, "A654.A32.K65.987"),
+            Call::Bid(Bid::new(6, Strain::Diamonds)),
+            "asker 3 keycards after 5♣ → 6♦"
+        );
+        // A654.832.J65.987 — A♠ only, no K♦ → 1 keycard → 5♦ signoff (legal over 5♣)
+        assert_eq!(
+            best(&trie, &auction, "A654.832.J65.987"),
+            Call::Bid(Bid::new(5, Strain::Diamonds)),
+            "asker ≤2 keycards after 5♣ → 5♦ signoff"
+        );
+    }
+
+    /// Diamonds after a 5♦ answer: 3+ keycards (knows partner 0) → Pass; 2 → 6♦.
+    #[test]
+    fn diamonds_after_5d_signoff_is_pass() {
+        let trie = minor_trie(Suit::Diamonds);
+        let auction = after_minor_answer(Suit::Diamonds, Bid::new(5, Strain::Diamonds));
+
+        // A654.A32.K65.987 — 3 keycards → knows partner 0 → Pass to play 5♦
+        assert_eq!(
+            best(&trie, &auction, "A654.A32.K65.987"),
+            Call::Pass,
+            "asker 3 keycards after 5♦ → Pass (play 5♦)"
+        );
+        // A654.A32.J65.987 — A♠ A♥, no K♦ → 2 keycards → assumes partner 3 → 6♦
+        assert_eq!(
+            best(&trie, &auction, "A654.A32.J65.987"),
+            Call::Bid(Bid::new(6, Strain::Diamonds)),
+            "asker 2 keycards after 5♦ → 6♦"
+        );
+    }
+
+    /// The asker never bids 5NT for a minor (the king ask is major-only).
+    #[test]
+    fn minors_never_bid_5nt() {
+        for trump in [Suit::Clubs, Suit::Diamonds] {
+            let trie = minor_trie(trump);
+            for answer in [
+                Bid::new(5, Strain::Clubs),
+                Bid::new(5, Strain::Diamonds),
+                Bid::new(5, Strain::Hearts),
+                Bid::new(5, Strain::Spades),
+            ] {
+                let auction = after_minor_answer(trump, answer);
+                for hand in ["A654.A32.AK5.AQ8", "Q654.Q32.Q65.Q98"] {
+                    assert_ne!(
+                        best(&trie, &auction, hand),
+                        Call::Bid(Bid::new(5, Strain::Notrump)),
+                        "{trump:?} after {answer:?}, hand {hand}: must never bid 5NT"
+                    );
+                }
+            }
+        }
+    }
+
+    /// The 5NT king-ask node is never installed for a minor trump.
+    #[test]
+    fn minor_king_ask_node_absent() {
+        let trie = minor_trie(Suit::Clubs);
+        // [1♣, P, 2♣, P, 4NT, P, 5♣, P, 5NT, P] — the major king-ask path
+        let mut auction = after_minor_answer(Suit::Clubs, Bid::new(5, Strain::Clubs));
+        auction.push(Call::Bid(Bid::new(5, Strain::Notrump)));
+        auction.push(Call::Pass);
+        let hand: Hand = "A654.A32.65.KQ87".parse().unwrap();
+        assert!(
+            trie.classify(hand, RelativeVulnerability::NONE, &auction)
+                .is_none(),
+            "no king-answer table should exist for a minor trump"
         );
     }
 }

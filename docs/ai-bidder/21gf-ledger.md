@@ -80,7 +80,7 @@ balancing/reopening, and slam accuracy (missed grands).
 | 51 | DOPI | gap | add (Batch 2) | — | — |
 | 103 | ROPI | gap | add (Batch 2) | — | — |
 | 42 | BROMAD | gap (confirm meaning) | Batch 2 | — | — |
-| — | **Plain-4NT minor keycard** | gap (in scope) | add (Batch 2) | — | — |
+| — | **Plain-4NT minor keycard** | shipped (small slam) | keep; grand-in-minor deferred | **+6.80/+8.76 IMPs/div (none/both)** (2M, 46 div) | next commit |
 
 ## Competitive — our opening contested
 

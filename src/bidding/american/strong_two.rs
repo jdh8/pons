@@ -207,19 +207,19 @@ fn opener_after_spades_raise() -> Rules {
 
 /// Opener after `2♣–(P)–2♦–(P)–3♣–(P)–4♣–(P)` (at `&[2♣, 2♦, 3♣, 4♣]`)
 ///
-/// With 27+ HCP, bid the small slam; otherwise accept game.
+/// With 28+ HCP, launch minor RKCB (4NT); otherwise sign off in 5♣.
 fn opener_after_clubs_raise() -> Rules {
     Rules::new()
-        .rule(Bid::new(6, Strain::Clubs), 1.0, hcp(27..))
+        .rule(Bid::new(4, Strain::Notrump), 1.0, hcp(28..))
         .rule(Bid::new(5, Strain::Clubs), 0.5, hcp(0..))
 }
 
 /// Opener after `2♣–(P)–2♦–(P)–3♦–(P)–4♦–(P)` (at `&[2♣, 2♦, 3♦, 4♦]`)
 ///
-/// With 27+ HCP, bid the small slam; otherwise accept game.
+/// With 28+ HCP, launch minor RKCB (4NT); otherwise sign off in 5♦.
 fn opener_after_diamonds_raise() -> Rules {
     Rules::new()
-        .rule(Bid::new(6, Strain::Diamonds), 1.0, hcp(27..))
+        .rule(Bid::new(4, Strain::Notrump), 1.0, hcp(28..))
         .rule(Bid::new(5, Strain::Diamonds), 0.5, hcp(0..))
 }
 
@@ -312,7 +312,28 @@ pub(super) fn register(book: &mut Trie) {
 
     // Opener after responder's minor raise (waiting sequence).
     insert_uncontested(book, &[c2, d2, c3, c4], opener_after_clubs_raise());
+    super::slam::install_rkcb(
+        book,
+        &[
+            call(2, Strain::Clubs),
+            call(2, Strain::Diamonds),
+            call(3, Strain::Clubs),
+            call(4, Strain::Clubs),
+        ],
+        Suit::Clubs,
+    );
+
     insert_uncontested(book, &[c2, d2, d3, d4], opener_after_diamonds_raise());
+    super::slam::install_rkcb(
+        book,
+        &[
+            call(2, Strain::Clubs),
+            call(2, Strain::Diamonds),
+            call(3, Strain::Diamonds),
+            call(4, Strain::Diamonds),
+        ],
+        Suit::Diamonds,
+    );
 
     // Suppress unused-variable warnings for variables used only in some branches.
     let _ = (h4, s4);

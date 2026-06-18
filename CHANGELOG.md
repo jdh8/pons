@@ -9,6 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Plain-4NT minor-suit keycard** (Roman Keycard Blackwood 1430 for an agreed
+  minor — Batch 2 of the "author 2/1 as deep as BBA" effort). [`install_rkcb`] was
+  major-only, so a minor fit carrying slam values could not ask for keycards at
+  all: the strong-`2♣` minor raise blind-jumped to `6m`/`5m` on raw HCP, and
+  inverted minor raises topped out at `3NT`. The ask now works for clubs and
+  diamonds with the same `5♣/5♦/5♥/5♠` answers and a *cramped-signoff* asker — it
+  signs off in 5-of-the-minor when that call is still legal (diamonds over a `5♣`
+  answer), passes when partner's answer *is* 5-of-the-minor, and otherwise has no
+  room and bids the small slam. Wired into the two cleanest minor-agreement
+  auctions: the **strong-`2♣` minor raise** (`2♣–2♦–3m–4m`, opener launches `4NT`
+  with 28+) and the **inverted minor raise** (`1m–2m–3NT`, responder launches
+  `4NT` with slam values over opener's 18–19). *Why it matters:* a cold minor slam
+  the floor could never bid is a ~12-IMP swing. *Measure* (`stayman-abc`
+  constructive A/B, new vs the pre-change floor, 2 000 000 boards):
+  **+6.80/+8.76 IMPs/divergent (none/both)** over 46 divergent boards (~1 in
+  43 000 — minor-slam auctions are rare; +0.0002 IMPs/board). *Scope:* plain 4NT
+  only — the 5NT king ask is **major-only** (over a minor, 5NT misreads as the ask
+  and the `6♣/6♦` king answers collide with the trump slam), so grand slams in a
+  minor stay under-bid; Kickback, the usual remedy, is out of scope. Tracked in
+  [`docs/ai-bidder/21gf-ledger.md`](docs/ai-bidder/21gf-ledger.md).
 - **Lebensohl after our 1NT is overcalled** (toward BBA's 21GF depth — first
   competitive convention of the "author 2/1 as deep as BBA" effort). When we open
   `1NT` and an opponent overcalls at the two level, responder previously fell to
