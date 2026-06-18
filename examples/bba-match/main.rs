@@ -70,6 +70,31 @@ struct Args {
     /// experiment); unset = our authored `american` floor
     #[arg(long)]
     our_system: Option<c_int>,
+
+    /// Force a named BBA convention on/off on *our* side (repeatable), e.g.
+    /// `--our-conv "Rubensohl after 1m=1"`.  Only meaningful with `--our-system`.
+    #[arg(long = "our-conv", value_parser = parse_override, value_name = "NAME=0|1")]
+    our_conv: Vec<(CString, c_int)>,
+
+    /// Force a named BBA convention on/off on *their* side (repeatable), e.g.
+    /// `--their-conv "Rubensohl after 1m=0"`.  Pair with `--our-conv` to isolate
+    /// one toggle in a BBA-vs-BBA A/B.
+    #[arg(long = "their-conv", value_parser = parse_override, value_name = "NAME=0|1")]
+    their_conv: Vec<(CString, c_int)>,
+}
+
+/// Parse a `NAME=0|1` convention override for `--our-conv` / `--their-conv`
+fn parse_override(spec: &str) -> Result<(CString, c_int), String> {
+    let (name, value) = spec
+        .rsplit_once('=')
+        .ok_or("expected NAME=0|1 (e.g. \"Rubensohl after 1m=1\")")?;
+    let on = match value.trim() {
+        "0" => 0,
+        "1" => 1,
+        other => return Err(format!("value must be 0 or 1, got `{other}`")),
+    };
+    let name = CString::new(name.trim()).map_err(|_| "name has an interior NUL".to_string())?;
+    Ok((name, on))
 }
 
 /// EPBot system label for the indices we use (the pinned `vendor/bba` build)
@@ -79,6 +104,14 @@ fn system_label(system: c_int) -> &'static str {
         2 => "WJ (Polish Club)",
         _ => "EPBot system",
     }
+}
+
+/// Render convention overrides for a side's label, e.g. ` [Rubensohl after 1m=1]`
+fn label_overrides(overrides: &[(CString, c_int)]) -> String {
+    overrides
+        .iter()
+        .map(|(name, value)| format!(" [{}={value}]", name.to_string_lossy()))
+        .collect()
 }
 
 // ---------------------------------------------------------------------------
@@ -97,6 +130,12 @@ type NewHandFn =
 // EPBot interprets each bid itself from the configured system.
 type SetBidFn = unsafe extern "C" fn(*mut c_void, c_int, c_int, *const c_char);
 type GetBidFn = unsafe extern "C" fn(*mut c_void) -> c_int;
+// `epbot_set_conventions(bot, seat, name, on)` — per-seat convention toggle.
+// Addressing (seat + name, NOT index) recovered from objdump and validated
+// against `21GF.bbsa` (240/258 boolean toggles round-trip via get_conventions);
+// `get_bid` genuinely consults the flag.  Lets `--our-conv`/`--their-conv`
+// isolate one named convention in a BBA-vs-BBA A/B.
+type SetConvFn = unsafe extern "C" fn(*mut c_void, c_int, *const c_char, c_int) -> c_int;
 
 /// EPBot 2/1 bidder behind pons's [`System`] trait.
 ///
@@ -117,12 +156,18 @@ struct BbaOracle {
     new_hand: NewHandFn,
     set_bid: SetBidFn,
     get_bid: GetBidFn,
+    set_conv: SetConvFn,
     system: c_int,
+    /// Named conventions forced to a value on all four seats of every fresh bot,
+    /// applied after `set_system` (which loads the system's defaults).  This is
+    /// the single-toggle lever for the BBA-vs-BBA A/B: load both sides at the
+    /// same `system` and override one convention on one side only.
+    overrides: Vec<(CString, c_int)>,
 }
 
 impl BbaOracle {
     /// Load the EPBot library and bind the `epbot_*` symbols
-    fn load(path: &str, system: c_int) -> anyhow::Result<Self> {
+    fn load(path: &str, system: c_int, overrides: Vec<(CString, c_int)>) -> anyhow::Result<Self> {
         // SAFETY: loading a trusted native library; its initializers run here.
         let lib = unsafe { Library::new(path) }?;
         // SAFETY: each symbol has the signature confirmed in the S.0 spike;
@@ -136,8 +181,10 @@ impl BbaOracle {
                 new_hand: *lib.get::<NewHandFn>(b"epbot_new_hand\0")?,
                 set_bid: *lib.get::<SetBidFn>(b"epbot_set_bid\0")?,
                 get_bid: *lib.get::<GetBidFn>(b"epbot_get_bid\0")?,
+                set_conv: *lib.get::<SetConvFn>(b"epbot_set_conventions\0")?,
                 _lib: lib,
                 system,
+                overrides,
             })
         }
     }
@@ -163,6 +210,12 @@ impl System for BbaOracle {
             }
             for seat in 0..4 {
                 (self.set_system)(bot, seat, self.system);
+            }
+            // Force any isolated convention(s) AFTER set_system loads defaults.
+            for (name, value) in &self.overrides {
+                for seat in 0..4 {
+                    (self.set_conv)(bot, seat, name.as_ptr(), *value);
+                }
             }
             (self.new_hand)(
                 bot,
@@ -379,7 +432,7 @@ struct Board {
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
     let path = std::env::var("BBA_LIB").unwrap_or_else(|_| DEFAULT_LIB.into());
-    let bba = match BbaOracle::load(&path, args.system) {
+    let bba = match BbaOracle::load(&path, args.system, args.their_conv.clone()) {
         Ok(bba) => bba,
         Err(error) => {
             eprintln!(
@@ -394,7 +447,7 @@ fn main() -> anyhow::Result<()> {
     // of `main`, so `ours` can borrow whichever is selected.
     let our_floor = american().against(Family::NATURAL);
     let our_oracle = match args.our_system {
-        Some(system) => Some(BbaOracle::load(&path, system)?),
+        Some(system) => Some(BbaOracle::load(&path, system, args.our_conv.clone())?),
         None => None,
     };
     let ours: &dyn System = match &our_oracle {
@@ -402,9 +455,18 @@ fn main() -> anyhow::Result<()> {
         None => &our_floor,
     };
     let our_label = match args.our_system {
-        Some(system) => format!("BBA {}", system_label(system)),
+        Some(system) => format!(
+            "BBA {}{}",
+            system_label(system),
+            label_overrides(&args.our_conv)
+        ),
         None => "our american floor".into(),
     };
+    let their_label = format!(
+        "BBA {}{}",
+        system_label(args.system),
+        label_overrides(&args.their_conv)
+    );
     let mut rng = rand::rng();
 
     // Bid every board at both tables, dealer rotating per board.
@@ -458,11 +520,8 @@ fn main() -> anyhow::Result<()> {
 
     let (mean, half_width) = mean_with_ci(&board_imps);
     println!(
-        "=== {} (us) vs BBA {} (them): {} boards, vulnerability {} ===",
-        our_label,
-        system_label(args.system),
-        args.count,
-        args.vulnerability,
+        "=== {} (us) vs {} (them): {} boards, vulnerability {} ===",
+        our_label, their_label, args.count, args.vulnerability,
     );
     println!(
         "Divergent boards: {} of {} ({:.0}%)",

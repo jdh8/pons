@@ -26,7 +26,7 @@ Verified directly from the engine (`examples/bba-conv-probe`):
 EPBot's `libEPBot.so` exposes a **per-seat named-convention API** (signatures
 recovered by `objdump`, validated against `21GF.bbsa`):
 
-```
+```c
 epbot_convention_index(bot, char* name) -> int          // name → index; -1 bad bot
 epbot_get_conventions(bot, int seat, char* name) -> int // 0/1; -1 bad bot
 epbot_set_conventions(bot, int seat, char* name, int on) -> int
@@ -48,9 +48,9 @@ number is measured against the **engine default**, not the file exactly.
 
 ## The A/B result
 
-`examples/bba-toggle-ab` (a copy of `bba-match` + a convention override applied to
-all four seats; our pair = toggle ON, theirs = OFF; same deal at both tables,
-divergent contracts solved double-dummy):
+`bba-match --our-system 0 --our-conv "Rubensohl after 1m=1" --their-conv
+"Rubensohl after 1m=0"` (both sides BBA 2/1, the toggle forced ON for our pair and
+OFF for theirs; same deal at both tables, divergent contracts solved double-dummy):
 
 | Vul | Boards | Divergent | IMPs/board (95% CI) |
 |---|---|---|---|
@@ -61,22 +61,25 @@ divergent contracts solved double-dummy):
 zero both-vul. Individual boards swing hard (a 2NT-transfer reaching 6♣ for +10; a
 7♠ overreach for −14), but the net is ~nothing.
 
-This matches the ledger's prior result that **Rubensohl-after-1NT lost to plain
-Lebensohl** (toggle 80, commit `bfe5e59`), and the DD-blindness theme: a
-double-dummy solver sees through the right-siding/concealment that transfers buy
-(see `project_preemption-dd-negative`). **Steer: authoring toggle 105 has low
-expected payoff on the DD/perfect-defense harness** — defer to a single-dummy
-measure if its real value is to show.
+This fits the DD-blindness theme: a double-dummy solver sees through the
+right-siding / concealment that transfers buy (see
+`project_preemption-dd-negative`), so transfer conventions tend to measure ~flat
+here even when they help at the table. **Steer: authoring toggle 105 has low
+expected payoff on the DD/perfect-defense harness** — its real value, if any,
+would need a single-dummy measure to show.
 
 ## Reproduce
 
-```
-BBA_LIB=vendor/bba/Native-libraries/linux/x64/libEPBot.so \
-  cargo run --release --example bba-toggle-ab -- --count 20000
-# TOGGLE=<other convention name> picks a different toggle to isolate
-cargo run --example bba-conv-probe   # ABI ground-truth + on/off bid probe
+```sh
+# single-toggle BBA-vs-BBA A/B (our side ON, their side OFF), DD-scored
+cargo run --release --example bba-match -- --count 20000 --our-system 0 \
+  --our-conv "Rubensohl after 1m=1" --their-conv "Rubensohl after 1m=0"
+
+# any named convention works; bba-conv-probe shows the ABI ground-truth
+# (240/258 round-trip vs 21GF.bbsa) plus the on/off bid divergence
+cargo run --example bba-conv-probe
 ```
 
-`bba-toggle-ab` is a throwaway copy of `bba-match`; fold the convention-override
-into `bba-match` proper (add `epbot_set_conventions` + a `--enable`/`--disable`
-flag) once it's wanted as standing infrastructure.
+The convention-override lever lives in `bba-match` itself: `--our-conv` /
+`--their-conv` take `NAME=0|1` (repeatable), so any named toggle can be flipped on
+either side and IMP'd. `bba-conv-probe` stays as the ABI reference.
