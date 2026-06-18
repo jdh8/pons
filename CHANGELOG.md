@@ -9,6 +9,64 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **South African Texas over 1NT — `4♣/4♦` to-play transfers and `4♥/4♠`
+  non-forcing slam tries.** A 6-card-major responder gains a four-level structure
+  on top of the two-level Jacoby transfers ([`american::notrump`]):
+  - **`4♣ → 4♥`, `4♦ → 4♠`** (game, no slam, 9–14 HCP): jump transfers that put
+    the opener in `4M` — identical in placement to the old `2♦/2♥`-then-game route,
+    but *preemptive*, denying the opponents the two level they would otherwise
+    balance in.
+  - **direct `4♥/4♠`** (slam-invitational, 15–18): a non-forcing slam try. Opener
+    passes the game with a minimum or launches RKCB 1430 with a maximum (17),
+    reusing the existing [`american::slam`] ladder to place `6M` (or `5M` when
+    missing two keycards). Because responder names the major first, the slam is
+    responder-declared.
+
+  The carve (weights 2.5/2.6 over the 2.0 Jacoby transfers; a `len(other major,
+  ..5)` guard keeps 5-5+ two-suiters on the both-majors `3♦`; an HCP split routes
+  game to the transfer and slam-invitational to the direct try) sends each 6-card
+  hand to the right level. *Why it matters:* the prior bidder **could not bid a
+  major slam after a Jacoby transfer** — the floor's `6M` milestone needs a
+  `known_major_fit` (`partner_shown_len(major, 3..)`), which a transfer's
+  completion never establishes — so those slams went unbid. The direct `4♥/4♠`
+  defines the 6-card fit explicitly and bypasses the gap. *Measured* (`sat-ab`,
+  seeded before/after duplicate match, 10M deals, opponents silent, double-dummy):
+  **+2.53 IMPs/divergent board vul none, +3.78 vul both** — the divergent boards
+  are the slam-invitational hands (21% of the 6-major class; the to-play `4♣/4♦`
+  hands reach the same `4M`-by-opener as before, so they do not diverge); +0.54 /
+  +0.81 IMPs per 6-major board.
+- **`sat-slam-try` diagnostic example — the revised SAT `4♥/4♠` non-forcing slam
+  try.** A follow-up to `texas-vs-sat`: in the *swapped* South African Texas,
+  `4♣/4♦` are the everyday transfers (opener declares — declarer-equivalent to
+  Texas) and a *direct* `4♥/4♠` is a non-forcing slam try, opener passing with a
+  minimum or launching RKCB with a maximum. The to-play hands no longer diverge
+  from Texas, so the example measures only the **slam-invitational** ones — where
+  double-dummy *can* see the difference. Baseline = the current bidder; gadget =
+  the opener-max keycard slam, modeled by hand. **Finding** (12M deals per
+  vulnerability, ~3,600 configs each): **+1.38 IMPs/board vul none, +1.57 vul
+  both.** The gadget reaches `6M` on ~17% of configs at a **94% double-dummy
+  make-rate**, while the current bidder reaches slam only ~3%. *The catch:* much
+  of the gain is the current bidder's **structural slam hole** — the floor's `6M`
+  milestone requires a `known_major_fit` (`partner_shown_len(major, 3..)`), which
+  a Jacoby transfer's completion never establishes, so the system cannot bid a
+  major slam after a transfer. The gadget bypasses it; patching the floor would
+  recover much of the same gain for *every* transfer auction. Now authored — see
+  the South African Texas entry above; the seeded `sat-ab` A/B confirms the
+  modeled gain on the real bidder.
+- **`texas-vs-sat` diagnostic example — Texas vs South African Texas, the
+  declarer question.** Measures the one *double-dummy-visible* difference between
+  the two 4-level-transfer schemes: who declares `4M` on a 6-card-major
+  game-but-not-slam hand opposite a strong 1NT — Texas (and the crate's current
+  transfer-then-game) puts the **opener** in; South African Texas's direct
+  `1NT–4♥/4♠` puts **responder** in. The DD/perfect-defense scorer is blind to
+  *concealment* — the textbook reason Texas exists — so the example isolates only
+  the residual opening-lead swing, and says so. **Finding** (600k deals per
+  vulnerability, ~4,300 qualifying configs each): responder declaring scores
+  **−0.052 IMPs/board vul none, −0.088 vul both** — opener declaring (Texas) is
+  better *even on the concealment-blind metric*, the same direction as the larger
+  effect double-dummy cannot see, and no hand feature (responder shortness
+  included) flips the sign. The current treatment already declares from opener,
+  so **no system change** — South African Texas is not adopted.
 - **Both-majors response (1NT–3♦) — 5+/5+ in the majors, invitational+.** A 5-5
   major two-suiter previously had no one-bid home: it transferred and rebid the
   other major (clumsy, and game-forcing 5-5s fell through to the floor entirely).

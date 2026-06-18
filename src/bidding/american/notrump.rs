@@ -13,7 +13,7 @@
 //! The public surface is [`register`], called once by
 //! [`american`][super::american] during system assembly.
 
-use super::{call, insert_uncontested};
+use super::{call, insert_uncontested, slam};
 use crate::bidding::constraint::{
     Cons, Constraint, balanced, described, hcp, len, points, stopper_in,
 };
@@ -61,6 +61,36 @@ pub fn notrump_responses() -> Rules {
             Bid::new(3, Strain::Diamonds),
             2.1,
             len(Suit::Hearts, 5..) & len(Suit::Spades, 5..) & points(8..),
+        )
+        // South African Texas at the four level — a 6-card major.  `4♣/4♦`
+        // transfer to the major as the everyday *preemptive* to-play route:
+        // jumping straight to game robs the opponents of the two-level a slow
+        // Jacoby transfer would leave them to balance in.  A *direct* `4♥/4♠` is a
+        // non-forcing slam try (opener passes a minimum, or launches RKCB with a
+        // maximum — see [`slam_try_answer`]).  All four outrank the 2.0 Jacoby
+        // transfers so the 6-card hand takes the four-level route; the `len(other
+        // major, ..5)` guard keeps a 5-5+ two-suiter on the both-majors 3♦, and
+        // the `hcp` split routes game-no-slam to the transfer and slam-invitational
+        // (15–18) to the direct slam try.
+        .rule(
+            Bid::new(4, Strain::Clubs),
+            2.5,
+            len(Suit::Hearts, 6..) & len(Suit::Spades, ..5) & hcp(9..=14),
+        )
+        .rule(
+            Bid::new(4, Strain::Diamonds),
+            2.5,
+            len(Suit::Spades, 6..) & len(Suit::Hearts, ..5) & hcp(9..=14),
+        )
+        .rule(
+            Bid::new(4, Strain::Hearts),
+            2.6,
+            len(Suit::Hearts, 6..) & len(Suit::Spades, ..5) & hcp(15..=18),
+        )
+        .rule(
+            Bid::new(4, Strain::Spades),
+            2.6,
+            len(Suit::Spades, 6..) & len(Suit::Hearts, ..5) & hcp(15..=18),
         )
         // Puppet Stayman: game-forcing, balanced, with a three-card major.  Ranks
         // *above* Stayman so a 4-3 hand — holding both a four- and a three-card
@@ -147,6 +177,25 @@ fn stayman_answers() -> Rules {
 /// Complete a Jacoby transfer by bidding the anchor suit
 fn complete_transfer(into: Suit) -> Rules {
     Rules::new().rule(Bid::new(2, Strain::from(into)), 1.0, hcp(0..))
+}
+
+/// Complete a four-level Texas transfer by bidding game in the anchor major
+///
+/// `4♣ → 4♥`, `4♦ → 4♠`.  Responder showed 6+ with game-no-slam values, so
+/// opener simply names the game and declares.
+fn complete_texas(into: Suit) -> Rules {
+    Rules::new().rule(Bid::new(4, Strain::from(into)), 1.0, hcp(0..))
+}
+
+/// Opener's answer to a direct four-of-a-major slam try (`1NT–4♥/4♠`)
+///
+/// Non-forcing: a **maximum** (17) accepts by launching RKCB (`4NT`); a minimum
+/// signs off by passing the major game.  The 1430 ladder ([`slam`]) then exchanges
+/// keycards and places `6M`, or `5M` when the partnership is missing two.
+fn slam_try_answer() -> Rules {
+    Rules::new()
+        .rule(Bid::new(4, Strain::Notrump), 1.0, hcp(17..))
+        .rule(Call::Pass, 0.0, hcp(..17))
 }
 
 /// The other major
@@ -824,6 +873,22 @@ pub(super) fn register_one_nt(book: &mut Trie) {
         five_five_min_rebid(Suit::Spades),
     );
 
+    // --- South African Texas (1NT–4♣/4♦ transfers, 1NT–4♥/4♠ slam tries) ------
+    //
+    // To-play transfers: opener names the game in the anchor major and declares.
+    // Slam tries: opener passes (minimum) or launches RKCB (maximum); the 1430
+    // ladder in `slam` registers the keycard exchange and the slam placement.
+    let four_c = call(4, Strain::Clubs);
+    let four_d = call(4, Strain::Diamonds);
+    let four_h = call(4, Strain::Hearts);
+    let four_s = call(4, Strain::Spades);
+    insert_uncontested(book, &[one_nt, four_c], complete_texas(Suit::Hearts));
+    insert_uncontested(book, &[one_nt, four_d], complete_texas(Suit::Spades));
+    insert_uncontested(book, &[one_nt, four_h], slam_try_answer());
+    insert_uncontested(book, &[one_nt, four_s], slam_try_answer());
+    slam::install_rkcb(book, &[one_nt, four_h], Suit::Hearts);
+    slam::install_rkcb(book, &[one_nt, four_s], Suit::Spades);
+
     // --- Diamond transfer (1NT–2NT) -------------------------------------------
     insert_uncontested(book, &[one_nt, two_nt], diamond_transfer_answer());
     insert_uncontested(book, &[one_nt, two_nt, three_d], diamond_transfer_game(8));
@@ -959,5 +1024,84 @@ pub(super) fn register_two_nt_and_rebids(book: &mut Trie) {
         // Opener's reply to the quantitative 4NT raise.
         our.push(four_nt);
         insert_uncontested(book, &our, accept_quantitative_nineteen());
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::american;
+    use crate::bidding::{Family, System};
+    use contract_bridge::auction::{Call, RelativeVulnerability};
+    use contract_bridge::{Bid, Strain};
+
+    const P: Call = Call::Pass;
+
+    fn bid(level: u8, strain: Strain) -> Call {
+        Call::Bid(Bid::new(level, strain))
+    }
+
+    /// The highest-logit call `american()` assigns the hand at the auction
+    fn best(auction: &[Call], hand: &str) -> Call {
+        let hand = hand.parse().expect("valid test hand");
+        let logits = american()
+            .against(Family::NATURAL)
+            .classify(hand, RelativeVulnerability::NONE, auction)
+            .expect("a decision");
+        (&logits.0)
+            .into_iter()
+            .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("logits are never NaN"))
+            .map(|(call, _)| call)
+            .expect("the logits array is never empty")
+    }
+
+    /// The revised South African Texas: 4♣/4♦ to-play transfers and the 4♥/4♠
+    /// non-forcing slam try wired into RKCB, end to end through `american()`.
+    #[test]
+    fn south_african_texas_slam_try() {
+        let one_nt = [bid(1, Strain::Notrump), P];
+
+        // Responder, 6 hearts: a 16-count makes the direct 4♥ slam try; a 10-count
+        // takes the 4♣ to-play transfer.
+        assert_eq!(best(&one_nt, "42.AKJ872.KQ4.K2"), bid(4, Strain::Hearts));
+        assert_eq!(best(&one_nt, "42.AKJ872.Q43.32"), bid(4, Strain::Clubs));
+
+        // Opener over the slam try (1NT–P–4♥–P): a maximum (17) launches RKCB, a
+        // minimum (15) signs off by passing the major game.
+        let over_try = [bid(1, Strain::Notrump), P, bid(4, Strain::Hearts), P];
+        assert_eq!(best(&over_try, "KQ3.K53.AQ54.K92"), bid(4, Strain::Notrump));
+        assert_eq!(best(&over_try, "KQ3.K53.KQ54.Q92"), P);
+
+        // Opener completes the 4♣ to-play transfer (1NT–P–4♣–P) → 4♥.
+        let over_transfer = [bid(1, Strain::Notrump), P, bid(4, Strain::Clubs), P];
+        assert_eq!(
+            best(&over_transfer, "KQ3.K53.KQ54.Q92"),
+            bid(4, Strain::Hearts)
+        );
+
+        // RKCB is wired: responder answers keycards over 4NT (A♥+K♥ = 2, no ♥Q → 5♥),
+        // then the asker with 3 keycards places the small slam.
+        let over_ask = [
+            bid(1, Strain::Notrump),
+            P,
+            bid(4, Strain::Hearts),
+            P,
+            bid(4, Strain::Notrump),
+            P,
+        ];
+        assert_eq!(best(&over_ask, "42.AKJ872.KQ4.K2"), bid(5, Strain::Hearts));
+        let over_answer = [
+            bid(1, Strain::Notrump),
+            P,
+            bid(4, Strain::Hearts),
+            P,
+            bid(4, Strain::Notrump),
+            P,
+            bid(5, Strain::Hearts),
+            P,
+        ];
+        assert_eq!(
+            best(&over_answer, "KQ3.AK3.AQ54.J92"),
+            bid(6, Strain::Hearts)
+        );
     }
 }
