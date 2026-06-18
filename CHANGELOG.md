@@ -9,6 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Lebensohl after our 1NT is overcalled** (toward BBA's 21GF depth — first
+  competitive convention of the "author 2/1 as deep as BBA" effort). When we open
+  `1NT` and an opponent overcalls at the two level, responder previously fell to
+  the natural [`instinct()`] floor. A new competitive-book section gives plain
+  Lebensohl: a weak hand relays through `2NT` to a forced `3♣` (sign off in clubs
+  or correct to a six-card suit), while a game hand bids a **forcing** three-level
+  suit or a to-play `3NT` directly — so a game is never stranded in a partscore.
+  Penalty doubles and weak natural two-level bids round out the table.
+  *Why it matters:* the floor competes naturally but cannot relay a weak hand to
+  the right partscore or force game cleanly under interference. *Measure*
+  (contested seat-swap A/B, Lebensohl vs the floor, opponents overcall,
+  `lebensohl-ab` 200 000 boards vul none): **+0.26 IMPs/divergent** (1 764
+  divergent, ~0.9 % of boards; +0.002 IMPs/board — a small, correct gain
+  concentrated in the rare overcalled-1NT auctions). A first attempt at
+  *Rubensohl* (transfer-Lebensohl) measured a **net loss** (−1.7 IMPs/divergent):
+  its transfers stranded game hands in partscores because the rebid re-evaluated
+  too conservatively, and it shadowed the floor's penalty doubles — recorded in
+  [`docs/ai-bidder/21gf-ledger.md`](docs/ai-bidder/21gf-ledger.md). Gated by
+  `set_lebensohl` (default on); the ledger tracks pons's 2/1 against the
+  `21GF.bbsa` convention card.
 - **A deeper deterministic floor — Milestone 6.1: parametric auction
   inferences.** The keyless [`instinct()`] floor now *derives* responder's
   major-suit length from a completed Jacoby transfer rather than going silent on

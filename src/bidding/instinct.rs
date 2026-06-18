@@ -995,7 +995,10 @@ mod tests {
             Call::Pass,
         ];
         let (bid, from_floor) = american_floored(&invite, "AKQ2.J5.AQ52.K42");
-        assert!(from_floor, "the transfer invite is off-book, the floor decides");
+        assert!(
+            from_floor,
+            "the transfer invite is off-book, the floor decides"
+        );
         assert_eq!(bid, call(4, Strain::Hearts));
     }
 

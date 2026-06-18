@@ -6,14 +6,39 @@
 //! openings, and opener's answer to partner's negative double of a two-level
 //! minor overcall.
 
-use super::super::constraint::{hcp, len, min_level_is, points, support, they_bid};
+use super::super::constraint::{hcp, len, min_level_is, points, stopper_in, support, they_bid};
 use super::super::context::Context;
 use super::super::fallback::{Fallback, FirstIs, OvercallAtMost, ReplaceNext, guard};
 use super::super::{Competitive, Rules};
 use super::{call, fallback_all_seats};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Strain, Suit};
+use std::cell::Cell;
 use std::sync::Arc;
+
+thread_local! {
+    /// Whether the competitive book carries the Lebensohl package (Section 5).
+    static LEBENSOHL_ON: Cell<bool> = const { Cell::new(true) };
+}
+
+/// Enable or disable Lebensohl over our overcalled 1NT in books built *after*
+/// this call (thread-local, read once at book-construction time).
+///
+/// **Default on:** plain Lebensohl measures a small positive vs the instinct
+/// floor (`lebensohl-ab`, 200k boards: +0.26 IMPs/divergent, ~0.9% of boards),
+/// and matches BBA's 21GF. An earlier Rubensohl (transfer-Lebensohl) attempt
+/// measured a net loss — its transfers stranded game hands in partscores (the
+/// rebid re-evaluated too conservatively). Plain Lebensohl separates weak (2NT
+/// relay, sign-off) from strong (direct 3NT / forcing 3-level), avoiding the
+/// stranding. The toggle is kept for the `lebensohl-ab` A/B example.
+pub fn set_lebensohl(on: bool) {
+    LEBENSOHL_ON.with(|cell| cell.set(on));
+}
+
+/// Whether the Lebensohl package is currently enabled
+fn lebensohl_enabled() -> bool {
+    LEBENSOHL_ON.with(Cell::get)
+}
 
 // ---------------------------------------------------------------------------
 // Section 1: direct-seat response to their overcall
@@ -148,6 +173,98 @@ fn answer_neg_double_of_minor(opening_major: Suit) -> Rules {
 }
 
 // ---------------------------------------------------------------------------
+// Section 5: Lebensohl after our 1NT is overcalled
+// ---------------------------------------------------------------------------
+
+/// Responder's plain-Lebensohl actions after our `1NT` and a natural 2-level
+/// overcall in `over`
+///
+/// A book node here *shadows* the instinct floor, so this table covers every
+/// responder hand. The Lebensohl idea separates weak from strong: weak hands
+/// relay through `2NT` to a `3♣` sign-off (or correct to a long suit), while game
+/// hands bid a forcing 3-level suit or a to-play `3NT` directly — so a game is
+/// never stranded in a partscore (the failure mode of the Rubensohl v1 attempt).
+//
+// ponytail: the cue (Stayman / stopper-ask, "slow shows / fast denies") is
+// skipped — 4-4-major game hands bid 3NT. Author the cue + opener's reply if the
+// A/B shows it matters.
+fn lebensohl_responder(over: Suit) -> Rules {
+    let mut rules = Rules::new();
+
+    // Forcing 3-level new suit: game-forcing, 5+ cards. A jump (when the 2-level
+    // was available) or the cheapest 3-level bid (suit at/below the overcall) —
+    // either way 3-of-a-suit over the interference is forcing. (All 3-level bids
+    // clear a 2-level overcall, so no min-level gate is needed.)
+    for s in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
+        if s == over {
+            continue;
+        }
+        let strain = Strain::from(s);
+        rules = rules.rule(Bid::new(3, strain), 1.8, len(s, 5..) & points(10..));
+    }
+
+    // Direct 3NT to play: game values with their suit stopped.
+    rules = rules.rule(
+        Bid::new(3, Strain::Notrump),
+        1.7,
+        points(10..) & stopper_in(over),
+    );
+
+    // Penalty double of their overcall.
+    rules = rules.rule(Call::Double, 1.55, len(over, 4..) & hcp(9..));
+
+    // Natural new suit at the 2 level (above the overcall, below 2NT): weak,
+    // competitive, to play.
+    for s in [Suit::Diamonds, Suit::Hearts, Suit::Spades] {
+        if s == over {
+            continue;
+        }
+        let strain = Strain::from(s);
+        rules = rules.rule(
+            Bid::new(2, strain),
+            1.5,
+            min_level_is(2, strain) & len(s, 5..) & points(..=9),
+        );
+    }
+
+    // 2NT = Lebensohl relay to 3♣: a weak hand with a six-card suit that is not
+    // biddable naturally at the 2 level (long clubs, or a suit below the overcall)
+    // — sign off in 3♣ or correct to the long suit. Balanced weak hands pass.
+    let long_suit = len(Suit::Clubs, 6..)
+        | len(Suit::Diamonds, 6..)
+        | len(Suit::Hearts, 6..)
+        | len(Suit::Spades, 6..);
+    rules = rules.rule(Bid::new(2, Strain::Notrump), 1.4, points(..=9) & long_suit);
+
+    // Pass — weak, nothing constructive to say.
+    rules.rule(Call::Pass, 0.0, hcp(0..))
+}
+
+/// Opener completes responder's Lebensohl `2NT` relay with the forced `3♣`
+fn complete_lebensohl_relay() -> Rules {
+    Rules::new().rule(Bid::new(3, Strain::Clubs), 1.0, hcp(0..))
+}
+
+/// Responder's rebid after the `2NT` relay is completed at `3♣`
+///
+/// Pass to play clubs, or correct to the six-card suit (still a weak sign-off).
+fn lebensohl_relay_rebid(over: Suit) -> Rules {
+    let mut rules = Rules::new();
+    for s in [Suit::Diamonds, Suit::Hearts, Suit::Spades] {
+        if s == over {
+            continue;
+        }
+        let strain = Strain::from(s);
+        rules = rules.rule(
+            Bid::new(3, strain),
+            1.0,
+            min_level_is(3, strain) & len(s, 6..),
+        );
+    }
+    rules.rule(Call::Pass, 0.0, hcp(0..))
+}
+
+// ---------------------------------------------------------------------------
 // Assembly
 // ---------------------------------------------------------------------------
 
@@ -243,5 +360,118 @@ pub fn competition() -> Competitive {
         );
     }
 
+    // Section 5: Lebensohl after our 1NT is overcalled at the 2 level. Purely
+    // additive — nothing else lands at [1NT] in the competitive book.
+    if lebensohl_enabled() {
+        let one_nt = call(1, Strain::Notrump);
+        let two_nt = call(2, Strain::Notrump);
+        let three_clubs = call(3, Strain::Clubs);
+        for over in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
+            let overcall = call(2, Strain::from(over));
+
+            // Responder's first action: the uncovered suffix is exactly their overcall.
+            fallback_all_seats(
+                &mut book,
+                &[one_nt],
+                3,
+                Arc::new(guard(move |_: &Context<'_>, suffix: &[Call]| {
+                    suffix == [overcall]
+                })),
+                Fallback::classify(lebensohl_responder(over)),
+            );
+
+            // Opener completes the 2NT relay with 3♣: suffix is [overcall, 2NT, P].
+            fallback_all_seats(
+                &mut book,
+                &[one_nt],
+                3,
+                Arc::new(guard(move |_: &Context<'_>, suffix: &[Call]| {
+                    suffix == [overcall, two_nt, Call::Pass]
+                })),
+                Fallback::classify(complete_lebensohl_relay()),
+            );
+
+            // Responder's rebid after 3♣: suffix is [overcall, 2NT, P, 3♣, P].
+            fallback_all_seats(
+                &mut book,
+                &[one_nt],
+                3,
+                Arc::new(guard(move |_: &Context<'_>, suffix: &[Call]| {
+                    suffix == [overcall, two_nt, Call::Pass, three_clubs, Call::Pass]
+                })),
+                Fallback::classify(lebensohl_relay_rebid(over)),
+            );
+        }
+    }
+
     book
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::bidding::Family;
+    use crate::bidding::american::american;
+    use contract_bridge::auction::{Call, RelativeVulnerability};
+    use contract_bridge::{Bid, Hand, Strain};
+
+    const fn call(level: u8, strain: Strain) -> Call {
+        Call::Bid(Bid::new(level, strain))
+    }
+
+    /// `american()`'s best call for a hand in an auction, and whether the instinct
+    /// floor (not a book node) produced it
+    ///
+    /// Lebensohl is default-on; set it explicitly so the test is independent of
+    /// any other test on this thread having toggled it off.
+    fn bid(auction: &[Call], hand: &str) -> (Call, bool) {
+        super::set_lebensohl(true);
+        let hand: Hand = hand.parse().expect("valid test hand");
+        let (logits, prov) = american()
+            .against(Family::NATURAL)
+            .classify_with_provenance(hand, RelativeVulnerability::NONE, auction)
+            .expect("a legal auction classifies");
+        let best = (&logits.0)
+            .into_iter()
+            .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("logits are never NaN"))
+            .map(|(call, _)| call)
+            .expect("array is never empty");
+        (best, prov.depth == 0 && prov.fallback.is_some())
+    }
+
+    #[test]
+    fn lebensohl_forcing_three_level_is_a_book_node() {
+        // 1NT–(2♦); responder 5 spades, game values, no diamond stopper →
+        // forcing 3♠ (a jump), not a partscore.
+        let auction = [call(1, Strain::Notrump), call(2, Strain::Diamonds)];
+        let (c, floored) = bid(&auction, "KQT95.A43.32.J32");
+        assert_eq!(c, call(3, Strain::Spades));
+        assert!(!floored, "the forcing 3-level bid must come from the book");
+    }
+
+    #[test]
+    fn lebensohl_weak_long_suit_relays_then_completes() {
+        // Weak hand, 6 clubs, over 2♦ → 2NT relay; opener is forced to bid 3♣.
+        let responder = [call(1, Strain::Notrump), call(2, Strain::Diamonds)];
+        let (c, floored) = bid(&responder, "32.43.32.KQ9876");
+        assert_eq!(c, call(2, Strain::Notrump));
+        assert!(!floored, "the Lebensohl relay must come from the book");
+
+        let opener = [
+            call(1, Strain::Notrump),
+            call(2, Strain::Diamonds),
+            call(2, Strain::Notrump),
+            Call::Pass,
+        ];
+        let (completion, _) = bid(&opener, "AQ32.KQ5.AQ4.A32");
+        assert_eq!(completion, call(3, Strain::Clubs));
+    }
+
+    #[test]
+    fn lebensohl_weak_bids_natural_two_level() {
+        // A weak hand with 5 hearts bids natural 2♥ (below 2NT), to play.
+        let auction = [call(1, Strain::Notrump), call(2, Strain::Diamonds)];
+        let (c, floored) = bid(&auction, "K2.QJ976.432.432");
+        assert_eq!(c, call(2, Strain::Hearts));
+        assert!(!floored, "the natural 2-level bid must come from the book");
+    }
 }
