@@ -89,7 +89,7 @@ balancing/reopening, and slam accuracy (missed grands).
 | 80 | Lebensohl after 1NT | **shipped** | plain Lebensohl (Rubensohl tried first, lost) | Ruben −1.68/div; **Leben +0.26/div** (200k, 0.9% divergent) | bfe5e59 |
 | 105 | Rubensohl after 1m | floor (Rubens advances) | upgrade (Batch 1) | — | — |
 | 106 | Rubensohl after double | floor | upgrade (Batch 1) | — | — |
-| 100 | Responsive double | floor | author (Batch 1) | — | — |
+| 100 | Responsive double | partial; overcall-ext tried — DD-negative | **keep floor** (don't ship the light overcall double) | takeout-X-then-raise authored (`defense.rs`); 8+ floor double after partner's *overcall* A/B'd **−0.034/board, −2.37/div** (200k, 1.4% div) → reverted | reverted |
 | 83 | Maximal doubles | gap | add (Batch 1) | — | — |
 | 71 | Jordan/Truscott 2NT | tried — DD-negative | **keep floor** (don't ship) | full **−1.0/−1.5** IMPs/div; 2NT-only **−4.2/−4.4** (jordan-ab 500k/300k) | reverted |
 | 117 | Support double/redouble | shipped | keep | — | — |
