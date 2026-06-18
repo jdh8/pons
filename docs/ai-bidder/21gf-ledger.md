@@ -172,6 +172,31 @@ under a single-dummy / IMPs-vs-humans measure where preemption actually pays.
 | 123 | Two-suit takeout double | gap | add (Batch 1) | — | — |
 | 129 | Unusual 4NT | verify | — | — | — |
 | 48 | Cue bid | partial | verify | — | — |
+| — | **Lebensohl after a takeout double** (advancer, weak twos) | measured, did not ship | **keep floor**; Plain / Transfer / Pam / Lawrence all rejected (best is Transfer, DD-neutral) | Transfer vs off −0.006/+0.084/board (none/both, 200k); Transfer vs Plain +1.85/+2.66/div; Plain vs off −0.108/−0.050; Lawrence vs Transfer −0.053/−0.092/board (200k); Pam vs Transfer −0.009/−0.005/board (200k) → revert all | — (no opt-in shipped) |
+
+**Lebensohl after a takeout double (advancer over a weak two) — measured, did
+not ship.** After `(2X)–X–(P)` the flat `advance_double` ladder can't
+distinguish a weak long-suit hand from a constructive one, so the doubler
+can't tell when to move. Four sohl structures were authored under the
+`(2X)–X–(P)` prefix (reusing the Section-5 builders for `Plain` / `Transfer`,
+plus `Pam` = `2NT` shows 5-5 minors and `Lawrence` = three-band
+weak/INV/GF strength) and A/B'd on `sohl-after-double-ab` (contested
+seat-swap, 200k filtered boards/cell). Headlines: `Transfer` vs floor
+**−0.006 / +0.084 IMPs/board** (best, but DD-neutral); `Transfer` vs `Plain`
+**+1.85 / +2.66 IMPs/divergent**; `Plain` vs floor **−0.108 / −0.050**;
+`Lawrence` vs `Transfer` **−0.053 / −0.092 IMPs/board**; `Pam` vs `Transfer`
+**−0.009 / −0.005 IMPs/board**. Mechanism: a takeout double already advertises
+the fit (short in their suit, length elsewhere), so the floor's natural
+advancing locates most fits — `Transfer`'s right-siding is DD-blind upside,
+`Lawrence` loses 5-card-suit *shape* information by collapsing INV into a
+single direct-3X slot, and `Pam`'s 5-5-minors trigger is too rare (~0.4 %
+divergence) to recover the slot it eats from weak long-clubs. None earned the
+public-API surface; the whole `set_advance_sohl_style` infrastructure and the
+`sohl-after-double-ab` harness were ripped. Stopper-routing ("slow shows /
+fast denies") was *not* tested per user direction (strength was hypothesised
+to dominate; the `Lawrence` loss is consistent with that). Distinct from
+`106` (Rubensohl after *our* opening is doubled — still floor). Revisit only
+under a single-dummy measure that can see right-siding.
 
 ## Openings
 

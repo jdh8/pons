@@ -402,7 +402,11 @@ pub fn defensive() -> Defensive {
 
     // Over each weak-two opening: takeout double, natural overcalls, 2NT, and
     // advancing partner's takeout double.  Clubs is omitted — a 2♣ opening is
-    // the strong artificial bid, not a weak two.
+    // the strong artificial bid, not a weak two.  Advancing the takeout double
+    // is left to the floor (`advance_double`): the *Lebensohl after takeout
+    // double* experiment (Plain / Transfer / Pam / Lawrence) measured at best
+    // DD-neutral vs the floor, so no opt-in earned the public-API surface; see
+    // `docs/ai-bidder/21gf-ledger.md`.
     for suit in [Suit::Diamonds, Suit::Hearts, Suit::Spades] {
         let theirs = Strain::from(suit);
         let opening = Bid::new(2, theirs);
@@ -412,8 +416,6 @@ pub fn defensive() -> Defensive {
             3,
             defense_to_weak_two(opening),
         );
-
-        // Advancing partner's takeout double: [2t, X, P] — advancer to act.
         insert_all_seats(
             &mut d,
             &[Call::Bid(opening), Call::Double, Call::Pass],

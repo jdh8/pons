@@ -34,6 +34,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the earlier −1.7 loss is gone, now a gain. The double-dummy measure is blind to
   the right-siding effect, so the real table value is higher still. Tracked in
   [`docs/ai-bidder/21gf-ledger.md`](docs/ai-bidder/21gf-ledger.md).
+- **Lebensohl after a takeout double (advancer over a weak two) — measured,
+  did not ship.** Plain / Transfer / Pam (pick-a-minor) / Lawrence (three-band
+  strength) sohl structures were authored over the `(2X)–X–(P)` advancer
+  prefix and A/B'd against the `advance_double` floor on `sohl-after-double-ab`
+  (contested seat-swap, 200k filtered boards/cell). At best DD-neutral vs the
+  floor (a takeout double already advertises the fit, so natural advancing
+  finds most of it). No opt-in earned the public-API surface; the experiment
+  is reverted. Tracked in
+  [`docs/ai-bidder/21gf-ledger.md`](docs/ai-bidder/21gf-ledger.md).
 - **Plain-4NT minor-suit keycard** (Roman Keycard Blackwood 1430 for an agreed
   minor — Batch 2 of the "author 2/1 as deep as BBA" effort). [`install_rkcb`] was
   major-only, so a minor fit carrying slam values could not ask for keycards at

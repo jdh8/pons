@@ -230,7 +230,12 @@ fn answer_neg_double_of_minor(opening_major: Suit) -> Rules {
 // ponytail: the cue (Stayman / stopper-ask, "slow shows / fast denies") is
 // skipped — 4-4-major game hands bid 3NT. Author the cue + opener's reply if the
 // A/B shows it matters.
-fn lebensohl_responder(over: Suit) -> Rules {
+//
+// The Section-5 builders below are pure functions of `(over, hand)` — the auction
+// prefix and the bidder's identity never enter — so `american/defense.rs` reuses
+// them verbatim for "sohl after a takeout double" (advancing partner's takeout
+// double of a weak two), where the opponents' suit is likewise at the two level.
+pub(super) fn lebensohl_responder(over: Suit) -> Rules {
     let mut rules = Rules::new();
 
     // Forcing 3-level new suit: game-forcing, 5+ cards. A jump (when the 2-level
@@ -283,14 +288,14 @@ fn lebensohl_responder(over: Suit) -> Rules {
 }
 
 /// Opener completes responder's Lebensohl `2NT` relay with the forced `3♣`
-fn complete_lebensohl_relay() -> Rules {
+pub(super) fn complete_lebensohl_relay() -> Rules {
     Rules::new().rule(Bid::new(3, Strain::Clubs), 1.0, hcp(0..))
 }
 
 /// Responder's rebid after the `2NT` relay is completed at `3♣`
 ///
 /// Pass to play clubs, or correct to the six-card suit (still a weak sign-off).
-fn lebensohl_relay_rebid(over: Suit) -> Rules {
+pub(super) fn lebensohl_relay_rebid(over: Suit) -> Rules {
     let mut rules = Rules::new();
     for s in [Suit::Diamonds, Suit::Hearts, Suit::Spades] {
         if s == over {
@@ -318,7 +323,7 @@ fn lebensohl_relay_rebid(over: Suit) -> Rules {
 /// (that bid is the Stayman cue, not a transfer) or no higher suit remains
 /// (the lowest target, clubs, has no dedicated transfer — those rare hands use
 /// the `2NT` relay or `3NT`).
-fn transfer_target(bid_suit: Suit, over: Suit) -> Option<Suit> {
+pub(super) fn transfer_target(bid_suit: Suit, over: Suit) -> Option<Suit> {
     if bid_suit == over {
         return None; // the cue = Stayman, not a transfer
     }
@@ -337,7 +342,7 @@ fn transfer_target(bid_suit: Suit, over: Suit) -> Option<Suit> {
 /// natural 2-level call, a 3-level transfer to a suit above theirs is INV+ — so
 /// opener is driven to game (see [`transfer_completion`]) and a game is never
 /// stranded in a partscore (the Rubensohl-v1 failure).
-fn transfer_lebensohl_responder(over: Suit) -> Rules {
+pub(super) fn transfer_lebensohl_responder(over: Suit) -> Rules {
     let mut rules = Rules::new();
 
     // 3-level transfers (INV+, 5+ in the target) and the cue (Stayman, GF).
@@ -410,7 +415,7 @@ fn transfer_lebensohl_responder(over: Suit) -> Rules {
 /// A transfer to a major is INV+, so opener is driven to **game**: `4M` with a
 /// fit, else `3NT`. A transfer to a minor (rare — long minor, no stopper) is
 /// completed at the 3 level, or `3NT` with a stopper; responder drives on.
-fn transfer_completion(target: Suit, over: Suit) -> Rules {
+pub(super) fn transfer_completion(target: Suit, over: Suit) -> Rules {
     let t = Strain::from(target);
     let mut rules = Rules::new();
     if matches!(target, Suit::Hearts | Suit::Spades) {
@@ -433,7 +438,7 @@ fn transfer_completion(target: Suit, over: Suit) -> Rules {
 /// Opener's reply to responder's Transfer-Lebensohl cue (Stayman, game-forcing)
 ///
 /// Shows a 4-card unbid major at its cheapest legal level, else `3NT`.
-fn cue_stayman_answer(over: Suit) -> Rules {
+pub(super) fn cue_stayman_answer(over: Suit) -> Rules {
     let mut rules = Rules::new();
     for major in [Suit::Hearts, Suit::Spades] {
         if major == over {
@@ -447,10 +452,6 @@ fn cue_stayman_answer(over: Suit) -> Rules {
     // No 4-card unbid major → 3NT (always legal above the 3-level cue).
     rules.rule(Bid::new(3, Strain::Notrump), 1.3, hcp(0..))
 }
-
-// ---------------------------------------------------------------------------
-// Assembly
-// ---------------------------------------------------------------------------
 
 /// The competitive package over our openings: cue-bid raises, preemptive raises,
 /// negative doubles for all four openings, support doubles/redoubles, and
