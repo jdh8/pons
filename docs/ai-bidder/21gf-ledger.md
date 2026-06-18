@@ -86,7 +86,7 @@ balancing/reopening, and slam accuracy (missed grands).
 
 | # | Toggle | pons status | decision | A/B | commit |
 |---|--------|-------------|----------|-----|--------|
-| 80 | Lebensohl after 1NT | **shipped** | **Transfer Lebensohl (Rubensohl)** default; plain kept as option | Transfer vs plain **+0.46/+1.24/div** (none/both, 200k); vs floor +0.35/+0.05; (plain vs floor +0.26, Ruben-v1 −1.68) | bfe5e59 + retry |
+| 80 | Lebensohl after 1NT | **shipped** | **Transfer Lebensohl (Rubensohl)** default; plain kept as option | Transfer vs plain **+0.46/+1.24/div** (none/both, 200k); vs floor +0.35/+0.05; (plain vs floor +0.26, Ruben-v1 −1.68) | bfe5e59 (plain), bee9204 (transfer) |
 | 105 | Rubensohl after 1m | floor (Rubens advances) | upgrade (Batch 1) | — | — |
 | 106 | Rubensohl after double | floor | upgrade (Batch 1) | — | — |
 | 100 | Responsive double | partial; overcall-ext tried — DD-negative | **keep floor** (don't ship the light overcall double) | takeout-X-then-raise authored (`defense.rs`); 8+ floor double after partner's *overcall* A/B'd **−0.034/board, −2.37/div** (200k, 1.4% div) → reverted | reverted |
