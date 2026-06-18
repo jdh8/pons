@@ -16,28 +16,57 @@ use contract_bridge::{Bid, Strain, Suit};
 use std::cell::Cell;
 use std::sync::Arc;
 
-thread_local! {
-    /// Whether the competitive book carries the Lebensohl package (Section 5).
-    static LEBENSOHL_ON: Cell<bool> = const { Cell::new(true) };
-}
-
-/// Enable or disable Lebensohl over our overcalled 1NT in books built *after*
-/// this call (thread-local, read once at book-construction time).
+/// Which Lebensohl package the competitive book carries over our overcalled
+/// `1NT` (Section 5)
 ///
-/// **Default on:** plain Lebensohl measures a small positive vs the instinct
-/// floor (`lebensohl-ab`, 200k boards: +0.26 IMPs/divergent, ~0.9% of boards),
-/// and matches BBA's 21GF. An earlier Rubensohl (transfer-Lebensohl) attempt
-/// measured a net loss — its transfers stranded game hands in partscores (the
-/// rebid re-evaluated too conservatively). Plain Lebensohl separates weak (2NT
-/// relay, sign-off) from strong (direct 3NT / forcing 3-level), avoiding the
-/// stranding. The toggle is kept for the `lebensohl-ab` A/B example.
-pub fn set_lebensohl(on: bool) {
-    LEBENSOHL_ON.with(|cell| cell.set(on));
+/// - `Off` — no Lebensohl node; responder falls to the instinct floor.
+/// - `Plain` — weak `2NT` relay / sign-off vs strong direct `3NT` / forcing
+///   3-level; matches BBA's 21GF. The prior default (+0.26 IMPs/divergent vs the
+///   floor, 200k boards).
+/// - `Transfer` — Larry Cohen's *Transfer Lebensohl* (Rubensohl), **the
+///   default**: 3-level bids transfer up the line *through* the adverse suit, the
+///   cue is Stayman, and a transfer to a suit above theirs is INV+ so opener is
+///   driven to game. That game-force is the anti-stranding fix for the earlier
+///   Rubensohl attempt (which stranded game hands in partscores); it measures
+///   **+0.46/+1.24 IMPs/divergent (none/both) vs plain Lebensohl** (`lebensohl-ab`,
+///   200k boards each), and +0.35/+0.05 vs the bare floor.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum LebensohlStyle {
+    /// Responder falls to the instinct floor (no Lebensohl node)
+    Off,
+    /// Plain Lebensohl (weak relay vs forcing 3-level) — the prior default
+    Plain,
+    /// Transfer Lebensohl / Rubensohl (Larry Cohen's version) — the default
+    Transfer,
 }
 
-/// Whether the Lebensohl package is currently enabled
-fn lebensohl_enabled() -> bool {
-    LEBENSOHL_ON.with(Cell::get)
+thread_local! {
+    /// Which Lebensohl package the competitive book carries (Section 5).
+    static LEBENSOHL_STYLE: Cell<LebensohlStyle> = const { Cell::new(LebensohlStyle::Transfer) };
+}
+
+/// Select the Lebensohl package for books built *after* this call (thread-local,
+/// read once at book-construction time)
+pub fn set_lebensohl_style(style: LebensohlStyle) {
+    LEBENSOHL_STYLE.with(|cell| cell.set(style));
+}
+
+/// Enable plain Lebensohl (`true` → [`LebensohlStyle::Plain`]) or disable it
+/// (`false` → [`LebensohlStyle::Off`])
+///
+/// Back-compat shim over [`set_lebensohl_style`]; for Transfer Lebensohl call
+/// that directly with [`LebensohlStyle::Transfer`].
+pub fn set_lebensohl(on: bool) {
+    set_lebensohl_style(if on {
+        LebensohlStyle::Plain
+    } else {
+        LebensohlStyle::Off
+    });
+}
+
+/// The currently selected Lebensohl package
+fn lebensohl_style() -> LebensohlStyle {
+    LEBENSOHL_STYLE.with(Cell::get)
 }
 
 // ---------------------------------------------------------------------------
@@ -265,6 +294,148 @@ fn lebensohl_relay_rebid(over: Suit) -> Rules {
 }
 
 // ---------------------------------------------------------------------------
+// Section 5b: Transfer Lebensohl (Rubensohl) — Larry Cohen's version
+// ---------------------------------------------------------------------------
+
+/// The suit a 3-level Rubensohl bid in `bid_suit` shows, given the opponents'
+/// 2-level overcall in `over`
+///
+/// The cheapest suit strictly above `bid_suit` that is *not* their suit — a
+/// transfer *through* the adverse suit. `None` when `bid_suit` is their suit
+/// (that bid is the Stayman cue, not a transfer) or no higher suit remains
+/// (the lowest target, clubs, has no dedicated transfer — those rare hands use
+/// the `2NT` relay or `3NT`).
+fn transfer_target(bid_suit: Suit, over: Suit) -> Option<Suit> {
+    if bid_suit == over {
+        return None; // the cue = Stayman, not a transfer
+    }
+    [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades]
+        .into_iter()
+        .find(|&s| (s as u8) > (bid_suit as u8) && s != over)
+}
+
+/// Responder's Transfer-Lebensohl actions after our `1NT` and a natural 2-level
+/// overcall in `over`
+///
+/// Weak hands keep the plain-Lebensohl outlets (natural 2-level, `2NT` relay to
+/// `3♣`, penalty double). Invitational-or-better hands transfer at the 3 level:
+/// each non-cue suit bid transfers to the next suit up *through* the adverse
+/// suit, and the cue (their suit) is Stayman. Because a weak hand always has a
+/// natural 2-level call, a 3-level transfer to a suit above theirs is INV+ — so
+/// opener is driven to game (see [`transfer_completion`]) and a game is never
+/// stranded in a partscore (the Rubensohl-v1 failure).
+fn transfer_lebensohl_responder(over: Suit) -> Rules {
+    let mut rules = Rules::new();
+
+    // 3-level transfers (INV+, 5+ in the target) and the cue (Stayman, GF).
+    for bid_suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
+        let strain = Strain::from(bid_suit);
+        if bid_suit == over {
+            // Cue = Stayman: game values with a 4-card unbid major. (The arms
+            // differ in constraint type, so each returns the updated `Rules`.)
+            let cue = Bid::new(3, strain);
+            rules = match over {
+                Suit::Hearts => rules.rule(cue, 1.7, len(Suit::Spades, 4..) & points(10..)),
+                Suit::Spades => rules.rule(cue, 1.7, len(Suit::Hearts, 4..) & points(10..)),
+                _ => rules.rule(
+                    cue,
+                    1.7,
+                    (len(Suit::Hearts, 4..) | len(Suit::Spades, 4..)) & points(10..),
+                ),
+            };
+        } else if let Some(target) = transfer_target(bid_suit, over) {
+            // Transfer: show 5+ in the target, invitational or better. A major
+            // target outranks the cue so a 5-card major is shown by the
+            // transfer, not Stayman; a minor target is rare (long minor, no
+            // stopper) and yields to Stayman / 3NT.
+            let weight = if matches!(target, Suit::Hearts | Suit::Spades) {
+                1.8
+            } else {
+                1.45
+            };
+            rules = rules.rule(Bid::new(3, strain), weight, len(target, 5..) & points(9..));
+        }
+    }
+
+    // Direct 3NT to play: game values with their suit stopped, no major to show.
+    rules = rules.rule(
+        Bid::new(3, Strain::Notrump),
+        1.5,
+        points(10..) & stopper_in(over),
+    );
+
+    // Penalty double of their overcall (kept — the Rubensohl-v1 attempt lost the
+    // floor's penalty doubles by shadowing them with no double of its own).
+    rules = rules.rule(Call::Double, 1.55, len(over, 4..) & hcp(9..));
+
+    // Natural new suit at the 2 level (above the overcall, below 2NT): weak.
+    for s in [Suit::Diamonds, Suit::Hearts, Suit::Spades] {
+        if s == over {
+            continue;
+        }
+        let strain = Strain::from(s);
+        rules = rules.rule(
+            Bid::new(2, strain),
+            1.4,
+            min_level_is(2, strain) & len(s, 5..) & points(..=8),
+        );
+    }
+
+    // 2NT = Lebensohl relay to 3♣: a weak long-suit hand (sign off or correct).
+    let long_suit = len(Suit::Clubs, 6..)
+        | len(Suit::Diamonds, 6..)
+        | len(Suit::Hearts, 6..)
+        | len(Suit::Spades, 6..);
+    rules = rules.rule(Bid::new(2, Strain::Notrump), 1.35, points(..=8) & long_suit);
+
+    // Pass — weak, nothing constructive to say.
+    rules.rule(Call::Pass, 0.0, hcp(0..))
+}
+
+/// Opener's reply after responder's Transfer-Lebensohl transfer to `target`
+///
+/// A transfer to a major is INV+, so opener is driven to **game**: `4M` with a
+/// fit, else `3NT`. A transfer to a minor (rare — long minor, no stopper) is
+/// completed at the 3 level, or `3NT` with a stopper; responder drives on.
+fn transfer_completion(target: Suit, over: Suit) -> Rules {
+    let t = Strain::from(target);
+    let mut rules = Rules::new();
+    if matches!(target, Suit::Hearts | Suit::Spades) {
+        rules = rules.rule(Bid::new(4, t), 1.6, len(target, 3..)).rule(
+            Bid::new(3, Strain::Notrump),
+            1.4,
+            len(target, ..3),
+        );
+    } else {
+        // ponytail: minor-target 5m / slam exploration is left to the floor;
+        // 3NT-or-complete covers the common game. Author it if the A/B shows
+        // minor transfers matter.
+        rules = rules
+            .rule(Bid::new(3, Strain::Notrump), 1.5, stopper_in(over))
+            .rule(Bid::new(3, t), 1.3, len(target, 3..));
+    }
+    rules.rule(Call::Pass, 0.0, hcp(0..))
+}
+
+/// Opener's reply to responder's Transfer-Lebensohl cue (Stayman, game-forcing)
+///
+/// Shows a 4-card unbid major at its cheapest legal level, else `3NT`.
+fn cue_stayman_answer(over: Suit) -> Rules {
+    let mut rules = Rules::new();
+    for major in [Suit::Hearts, Suit::Spades] {
+        if major == over {
+            continue;
+        }
+        let m = Strain::from(major);
+        rules = rules
+            .rule(Bid::new(3, m), 1.6, len(major, 4..) & min_level_is(3, m))
+            .rule(Bid::new(4, m), 1.5, len(major, 4..) & min_level_is(4, m));
+    }
+    // No 4-card unbid major → 3NT (always legal above the 3-level cue).
+    rules.rule(Bid::new(3, Strain::Notrump), 1.3, hcp(0..))
+}
+
+// ---------------------------------------------------------------------------
 // Assembly
 // ---------------------------------------------------------------------------
 
@@ -361,8 +532,10 @@ pub fn competition() -> Competitive {
     }
 
     // Section 5: Lebensohl after our 1NT is overcalled at the 2 level. Purely
-    // additive — nothing else lands at [1NT] in the competitive book.
-    if lebensohl_enabled() {
+    // additive — nothing else lands at [1NT] in the competitive book. Plain or
+    // Transfer (Rubensohl) per [`LebensohlStyle`]; both keep the weak 2NT relay.
+    let style = lebensohl_style();
+    if style != LebensohlStyle::Off {
         let one_nt = call(1, Strain::Notrump);
         let two_nt = call(2, Strain::Notrump);
         let three_clubs = call(3, Strain::Clubs);
@@ -370,6 +543,10 @@ pub fn competition() -> Competitive {
             let overcall = call(2, Strain::from(over));
 
             // Responder's first action: the uncovered suffix is exactly their overcall.
+            let responder = match style {
+                LebensohlStyle::Transfer => transfer_lebensohl_responder(over),
+                _ => lebensohl_responder(over),
+            };
             fallback_all_seats(
                 &mut book,
                 &[one_nt],
@@ -377,7 +554,7 @@ pub fn competition() -> Competitive {
                 Arc::new(guard(move |_: &Context<'_>, suffix: &[Call]| {
                     suffix == [overcall]
                 })),
-                Fallback::classify(lebensohl_responder(over)),
+                Fallback::classify(responder),
             );
 
             // Opener completes the 2NT relay with 3♣: suffix is [overcall, 2NT, P].
@@ -401,6 +578,30 @@ pub fn competition() -> Competitive {
                 })),
                 Fallback::classify(lebensohl_relay_rebid(over)),
             );
+
+            // Transfer style only: opener's reply to each 3-level transfer / cue.
+            // Suffix is [overcall, 3X, P] where 3X is responder's transfer or cue.
+            if style == LebensohlStyle::Transfer {
+                for bid_suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
+                    let resp = call(3, Strain::from(bid_suit));
+                    let reply = if bid_suit == over {
+                        cue_stayman_answer(over)
+                    } else if let Some(target) = transfer_target(bid_suit, over) {
+                        transfer_completion(target, over)
+                    } else {
+                        continue; // no transfer target (the lowest suit) — floored
+                    };
+                    fallback_all_seats(
+                        &mut book,
+                        &[one_nt],
+                        3,
+                        Arc::new(guard(move |_: &Context<'_>, suffix: &[Call]| {
+                            suffix == [overcall, resp, Call::Pass]
+                        })),
+                        Fallback::classify(reply),
+                    );
+                }
+            }
         }
     }
 
@@ -420,11 +621,7 @@ mod tests {
 
     /// `american()`'s best call for a hand in an auction, and whether the instinct
     /// floor (not a book node) produced it
-    ///
-    /// Lebensohl is default-on; set it explicitly so the test is independent of
-    /// any other test on this thread having toggled it off.
-    fn bid(auction: &[Call], hand: &str) -> (Call, bool) {
-        super::set_lebensohl(true);
+    fn best_call(auction: &[Call], hand: &str) -> (Call, bool) {
         let hand: Hand = hand.parse().expect("valid test hand");
         let (logits, prov) = american()
             .against(Family::NATURAL)
@@ -436,6 +633,19 @@ mod tests {
             .map(|(call, _)| call)
             .expect("array is never empty");
         (best, prov.depth == 0 && prov.fallback.is_some())
+    }
+
+    /// As [`best_call`], with plain Lebensohl forced on (independent of any other
+    /// test on this thread having changed the style)
+    fn bid(auction: &[Call], hand: &str) -> (Call, bool) {
+        super::set_lebensohl_style(super::LebensohlStyle::Plain);
+        best_call(auction, hand)
+    }
+
+    /// As [`best_call`], with Transfer Lebensohl (Rubensohl) forced on
+    fn bid_transfer(auction: &[Call], hand: &str) -> (Call, bool) {
+        super::set_lebensohl_style(super::LebensohlStyle::Transfer);
+        best_call(auction, hand)
     }
 
     #[test]
@@ -471,6 +681,63 @@ mod tests {
         // A weak hand with 5 hearts bids natural 2♥ (below 2NT), to play.
         let auction = [call(1, Strain::Notrump), call(2, Strain::Diamonds)];
         let (c, floored) = bid(&auction, "K2.QJ976.432.432");
+        assert_eq!(c, call(2, Strain::Hearts));
+        assert!(!floored, "the natural 2-level bid must come from the book");
+    }
+
+    #[test]
+    fn transfer_lebensohl_shows_spades_through_their_hearts() {
+        // 1NT–(2♥); responder, 5 spades and game values, transfers *through*
+        // hearts: 3♦ shows spades (not diamonds), a book node.
+        let auction = [call(1, Strain::Notrump), call(2, Strain::Hearts)];
+        let (c, floored) = bid_transfer(&auction, "AKQ65.43.K32.J32");
+        assert_eq!(c, call(3, Strain::Diamonds));
+        assert!(!floored, "the transfer must come from the book");
+    }
+
+    #[test]
+    fn transfer_lebensohl_opener_bids_game_not_a_partscore() {
+        // After 1NT–(2♥)–3♦ (transfer to spades), opener with a fit must bid
+        // the spade *game*, never a 3♠ partscore (the Rubensohl-v1 failure).
+        let auction = [
+            call(1, Strain::Notrump),
+            call(2, Strain::Hearts),
+            call(3, Strain::Diamonds),
+            Call::Pass,
+        ];
+        let (c, _) = bid_transfer(&auction, "AK5.KQ52.A43.432");
+        assert_eq!(c, call(4, Strain::Spades));
+    }
+
+    #[test]
+    fn transfer_lebensohl_cue_is_stayman() {
+        // 1NT–(2♦)–3♦ is the cue = Stayman; opener answers a 4-card major.
+        let auction = [
+            call(1, Strain::Notrump),
+            call(2, Strain::Diamonds),
+            call(3, Strain::Diamonds),
+            Call::Pass,
+        ];
+        let (c, floored) = bid_transfer(&auction, "AQ32.K43.A32.K32");
+        assert_eq!(c, call(3, Strain::Spades));
+        assert!(!floored, "the Stayman answer must come from the book");
+    }
+
+    #[test]
+    fn transfer_lebensohl_keeps_the_penalty_double() {
+        // Length and values in their suit, no game bid of our own: penalty
+        // double, from the book — Rubensohl v1 lost this by shadowing the floor.
+        let auction = [call(1, Strain::Notrump), call(2, Strain::Diamonds)];
+        let (c, floored) = bid_transfer(&auction, "K2.K43.J932.Q432");
+        assert_eq!(c, Call::Double);
+        assert!(!floored, "the penalty double must come from the book");
+    }
+
+    #[test]
+    fn transfer_lebensohl_weak_bids_natural_two_level() {
+        // Weak 5-card heart hand still bids natural 2♥ (transfers are INV+).
+        let auction = [call(1, Strain::Notrump), call(2, Strain::Diamonds)];
+        let (c, floored) = bid_transfer(&auction, "K2.QJ976.432.432");
         assert_eq!(c, call(2, Strain::Hearts));
         assert!(!floored, "the natural 2-level bid must come from the book");
     }

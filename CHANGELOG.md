@@ -9,6 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Transfer Lebensohl (Rubensohl) — now the default over our overcalled 1NT**
+  (Larry Cohen's version). A first attempt at transfer-Lebensohl lost (−1.7
+  IMPs/divergent — see the plain-Lebensohl entry below) by stranding game hands
+  in partscores; Cohen's structure fixes exactly that. After `1NT–(2X)`,
+  responder's three-level bids are **transfers up the line, *through* the adverse
+  suit** (over `(2♥)`, `3♦` shows spades — skipping their hearts), the **cue is
+  Stayman**, and a transfer to a suit *above* theirs is invitational-or-better, so
+  **opener is driven to game** (`4M` with a fit, else `3NT`) — never a three-level
+  partscore. Weak hands keep the plain outlets (natural two-level, `2NT` relay to
+  `3♣`, penalty double). Selected by a new [`LebensohlStyle`]
+  (`Off`/`Plain`/`Transfer`) via [`set_lebensohl_style`]; [`set_lebensohl`]`(bool)`
+  stays as a `Plain`/`Off` shim. *Why it matters:* right-siding the strong `1NT`
+  hand as declarer and describing shape more precisely under interference reaches
+  better contracts. *Measure* (`lebensohl-ab` contested seat-swap A/B, 200 000
+  boards per cell): **+0.46 / +1.24 IMPs/divergent (none / both) vs plain
+  Lebensohl** (the incumbent default; 1 637 / 1 781 divergent, ~0.8–0.9 % of
+  boards; +0.004 / +0.011 IMPs/board), and **+0.35 / +0.05 vs the bare floor** — so
+  the earlier −1.7 loss is gone, now a gain. The double-dummy measure is blind to
+  the right-siding effect, so the real table value is higher still. Tracked in
+  [`docs/ai-bidder/21gf-ledger.md`](docs/ai-bidder/21gf-ledger.md).
 - **Plain-4NT minor-suit keycard** (Roman Keycard Blackwood 1430 for an agreed
   minor — Batch 2 of the "author 2/1 as deep as BBA" effort). [`install_rkcb`] was
   major-only, so a minor fit carrying slam values could not ask for keycards at
@@ -46,8 +66,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   *Rubensohl* (transfer-Lebensohl) measured a **net loss** (−1.7 IMPs/divergent):
   its transfers stranded game hands in partscores because the rebid re-evaluated
   too conservatively, and it shadowed the floor's penalty doubles — recorded in
-  [`docs/ai-bidder/21gf-ledger.md`](docs/ai-bidder/21gf-ledger.md). Gated by
-  `set_lebensohl` (default on); the ledger tracks pons's 2/1 against the
+  [`docs/ai-bidder/21gf-ledger.md`](docs/ai-bidder/21gf-ledger.md). Plain
+  Lebensohl is now the [`LebensohlStyle::Plain`] option; the corrected Transfer
+  Lebensohl (see above) is the default. The ledger tracks pons's 2/1 against the
   `21GF.bbsa` convention card.
 - **A deeper deterministic floor — Milestone 6.1: parametric auction
   inferences.** The keyless [`instinct()`] floor now *derives* responder's

@@ -86,7 +86,7 @@ balancing/reopening, and slam accuracy (missed grands).
 
 | # | Toggle | pons status | decision | A/B | commit |
 |---|--------|-------------|----------|-----|--------|
-| 80 | Lebensohl after 1NT | **shipped** | plain Lebensohl (Rubensohl tried first, lost) | Ruben −1.68/div; **Leben +0.26/div** (200k, 0.9% divergent) | bfe5e59 |
+| 80 | Lebensohl after 1NT | **shipped** | **Transfer Lebensohl (Rubensohl)** default; plain kept as option | Transfer vs plain **+0.46/+1.24/div** (none/both, 200k); vs floor +0.35/+0.05; (plain vs floor +0.26, Ruben-v1 −1.68) | bfe5e59 + retry |
 | 105 | Rubensohl after 1m | floor (Rubens advances) | upgrade (Batch 1) | — | — |
 | 106 | Rubensohl after double | floor | upgrade (Batch 1) | — | — |
 | 100 | Responsive double | partial; overcall-ext tried — DD-negative | **keep floor** (don't ship the light overcall double) | takeout-X-then-raise authored (`defense.rs`); 8+ floor double after partner's *overcall* A/B'd **−0.034/board, −2.37/div** (200k, 1.4% div) → reverted | reverted |
@@ -95,6 +95,22 @@ balancing/reopening, and slam accuracy (missed grands).
 | 117 | Support double/redouble | shipped | keep | — | — |
 | 28/30 | 1X-(Y)-2Z forcing/weak | partial | verify | — | — |
 | 122 | Transfers if RHO bids clubs | gap | add (Batch 1) | — | — |
+
+**Transfer Lebensohl (80) — Rubensohl take 2, shipped as default.** The first
+Rubensohl attempt lost (−1.68/div) by stranding game hands in partscores. Larry
+Cohen's *Transfer Lebensohl* fixes that: after `1NT–(2X)` the 3-level bids are
+transfers up the line *through* the adverse suit (over `(2♥)`, `3♦` shows
+spades), the cue is Stayman, and a transfer to a suit above theirs is INV+ so
+opener is **driven to game** (`4M` with a fit, else `3NT`) — the anti-stranding
+rule the user specified. Weak hands keep the plain outlets (natural 2-level,
+`2NT` relay, penalty double). A/B (`lebensohl-ab`, `--ns transfer`, 200k
+boards/cell): **+0.46/+1.24 IMPs/divergent (none/both) vs plain** (the incumbent
+default) and +0.35/+0.05 vs the bare floor — reversing v1's loss. Selected by
+`LebensohlStyle` (`set_lebensohl_style`); `Transfer` is the default, `Plain` kept
+for the A/B and as a fallback. Unlike the preemptive conventions below, the win
+is mostly *constructive* (reaching the right game / strain), which the
+DD / perfect-defense measure can see; the right-siding (strong `1NT` hand
+declares) is invisible on top, so the table value is higher still.
 
 **Jordan/Truscott (71) — tried and rejected (DD-negative).** Authored
 `1M–(X)–2NT` = limit-raise-or-better + `3M` = preemptive, with opener's decline

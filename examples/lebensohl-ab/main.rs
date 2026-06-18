@@ -7,18 +7,22 @@
 //! 3-level suit or a to-play 3NT directly — so a game is never stranded in a
 //! partscore.
 //!
-//! Both arms run the same 2/1 system; the only difference is the
-//! [`set_lebensohl`] toggle, read once at book-construction time.  Lebensohl only
-//! fires when the opponents overcall our 1NT, so — unlike the constructive
-//! `*-abc` harnesses — the opponents must bid.  This uses the contested
-//! seat-swap duplicate match (the `nt-shape-contested` template): at table A the
-//! Lebensohl pair sits North/South against the baseline pair East/West; at table
-//! B they swap.  A board whose tables reach different contracts is solved double
-//! dummy and the swing credited to the Lebensohl team.  A positive IMPs/board
-//! favors Lebensohl.
+//! Both arms run the same 2/1 system; the only difference is the Lebensohl
+//! [`LebensohlStyle`] each pair carries (`--ns` / `--ew`: off / plain /
+//! transfer), read once at book-construction time.  Lebensohl only fires when
+//! the opponents overcall our 1NT, so — unlike the constructive `*-abc`
+//! harnesses — the opponents must bid.  This uses the contested seat-swap
+//! duplicate match (the `nt-shape-contested` template): at table A the measured
+//! (`--ns`) pair sits North/South against the baseline (`--ew`) pair East/West;
+//! at table B they swap.  A board whose tables reach different contracts is
+//! solved double dummy and the swing credited to the NS pair.  A positive
+//! IMPs/board favors the `--ns` style.
 //!
 //! ```text
+//! # Transfer Lebensohl (Rubensohl) vs plain Lebensohl (the incumbent):
 //! cargo run --release --example lebensohl-ab -- --count 50000
+//! # Transfer Lebensohl vs the bare instinct floor (the v1 baseline):
+//! cargo run --release --example lebensohl-ab -- --count 50000 --ew off
 //! ```
 
 use clap::Parser;
@@ -27,7 +31,7 @@ use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Hand, Seat};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
-use pons::bidding::american::set_lebensohl;
+use pons::bidding::american::{LebensohlStyle, set_lebensohl_style};
 use pons::bidding::context::relative;
 use pons::bidding::{Family, Stance, System};
 use pons::scoring::{final_contract, imps, ns_score};
@@ -42,6 +46,24 @@ struct Args {
     /// Vulnerability: none, ns, ew, both
     #[arg(short, long, default_value = "none")]
     vulnerability: AbsoluteVulnerability,
+
+    /// Lebensohl style for the measured (NS) pair: off, plain, transfer
+    #[arg(long, default_value = "transfer")]
+    ns: String,
+
+    /// Lebensohl style for the baseline (EW) pair: off, plain, transfer
+    #[arg(long, default_value = "plain")]
+    ew: String,
+}
+
+/// Parse a Lebensohl style name (off / plain / transfer)
+fn style_from(name: &str) -> LebensohlStyle {
+    match name {
+        "off" => LebensohlStyle::Off,
+        "plain" => LebensohlStyle::Plain,
+        "transfer" => LebensohlStyle::Transfer,
+        other => panic!("unknown lebensohl style {other:?} (use off / plain / transfer)"),
+    }
 }
 
 /// The seat acting after `len` calls from `dealer`
@@ -102,9 +124,9 @@ fn main() {
     let args = Args::parse();
     let mut rng = rand::rng();
 
-    set_lebensohl(false);
+    set_lebensohl_style(style_from(&args.ew));
     let baseline = american().against(Family::NATURAL);
-    set_lebensohl(true);
+    set_lebensohl_style(style_from(&args.ns));
     let lebensohl = american().against(Family::NATURAL);
 
     // Each board at both tables (Lebensohl NS at A, EW at B), dealer rotating.
@@ -171,7 +193,10 @@ fn main() {
         "=== Contested Lebensohl A/B: {} boards, vulnerability {} ===",
         args.count, args.vulnerability,
     );
-    println!("(opponents overcall our 1NT — Lebensohl on vs off)");
+    println!(
+        "(opponents overcall our 1NT — NS {} vs EW {})",
+        args.ns, args.ew,
+    );
     println!(
         "Divergent boards: {} of {} ({:.1}%)",
         divergent.len(),
@@ -179,7 +204,9 @@ fn main() {
         100.0 * divergent.len() as f64 / args.count.max(1) as f64,
     );
     println!(
-        "Lebensohl (vs baseline): {points:+} points, {total_imps:+} IMPs ({:+.3} IMPs/board, {:+.3} IMPs/divergent)",
+        "NS {} (vs EW {}): {points:+} points, {total_imps:+} IMPs ({:+.3} IMPs/board, {:+.3} IMPs/divergent)",
+        args.ns,
+        args.ew,
         total_imps as f64 / args.count.max(1) as f64,
         total_imps as f64 / divergent.len().max(1) as f64,
     );

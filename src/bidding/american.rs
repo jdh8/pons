@@ -80,7 +80,7 @@ mod slam;
 mod strong_two;
 mod weak_twos;
 
-pub use competition::{competition, set_lebensohl};
+pub use competition::{LebensohlStyle, competition, set_lebensohl, set_lebensohl_style};
 pub use defense::{advance_double, defense_to_suit, defense_to_weak_two};
 pub use notrump::notrump_responses;
 pub use openings::{NotrumpShape, openings, openings_with};
