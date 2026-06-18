@@ -13,9 +13,45 @@ use super::super::constraint::{
 };
 use super::super::context::Context;
 use super::super::{Defensive, Rules};
+use super::competition::{
+    LebensohlStyle, complete_lebensohl_relay, cue_stayman_answer, lebensohl_relay_rebid,
+    lebensohl_responder, transfer_completion, transfer_lebensohl_responder, transfer_target,
+};
 use super::{call, insert_all_seats};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Hand, Strain, Suit};
+use std::cell::Cell;
+
+// ---------------------------------------------------------------------------
+// Sohl after a takeout double (advancing partner's takeout double of a weak two)
+// ---------------------------------------------------------------------------
+
+thread_local! {
+    /// Which sohl package the advancer carries after partner's takeout double of
+    /// a weak two (`(2X)–X–(P)`); see [`set_advance_sohl_style`].
+    static ADVANCE_SOHL: Cell<LebensohlStyle> = const { Cell::new(LebensohlStyle::Off) };
+}
+
+/// Select the sohl package the **advancer** carries after partner's takeout
+/// double of a weak two, for books built *after* this call (thread-local, read
+/// once at book-construction time)
+///
+/// Reuses [`LebensohlStyle`]: `Off` (the **default**) keeps the flat
+/// [`advance_double`] ladder; `Plain` adds the weak `2NT` relay vs a forcing
+/// 3-level suit; `Transfer` adds Larry Cohen's transfers-through + cue-Stayman
+/// (the best variant in the A/B, but only DD-neutral vs the floor — so it stays
+/// opt-in, not the default; see `docs/ai-bidder/21gf-ledger.md`). The geometry
+/// matches Lebensohl after our overcalled `1NT` (the opponents' suit is at the
+/// two level in both), so the Section-5 builders are reused verbatim under the
+/// `(2X)–X–(P)` prefix.
+pub fn set_advance_sohl_style(style: LebensohlStyle) {
+    ADVANCE_SOHL.with(|cell| cell.set(style));
+}
+
+/// The currently selected advance-of-double sohl package
+fn advance_sohl_style() -> LebensohlStyle {
+    ADVANCE_SOHL.with(Cell::get)
+}
 
 // ---------------------------------------------------------------------------
 // Direct overcalls and doubles
@@ -220,6 +256,89 @@ pub fn advance_double(their_opening: Bid) -> Rules {
     rules
 }
 
+/// Insert the advancer's actions after partner's takeout double of weak-two
+/// `opening` (in `suit`), honoring the selected [`set_advance_sohl_style`]
+///
+/// `Off` keeps the flat [`advance_double`] ladder.  `Plain`/`Transfer` shadow it
+/// with the reused Section-5 sohl builders under the `[2X, X, P]` prefix — the
+/// weak `2NT` relay (and, for `Transfer`, the transfers-through + cue-Stayman) —
+/// plus the doubler's continuations (relay completion, the rebid after `3♣`, and
+/// the transfer / cue answers).  A forcing 3-level suit (`Plain`) or a
+/// constructive advance is driven on by the instinct floor, which already
+/// handles forced-to-game auctions.
+fn insert_advance_of_double(d: &mut Defensive, suit: Suit, opening: Bid, style: LebensohlStyle) {
+    let dbl_p = [Call::Bid(opening), Call::Double, Call::Pass];
+    if style == LebensohlStyle::Off {
+        insert_all_seats(d, &dbl_p, 3, advance_double(opening));
+        return;
+    }
+
+    // Advancer's first action shadows the floor (the builders end in a 0.0 Pass,
+    // which covers the weak and penalty-pass hands).
+    let advancer = if style == LebensohlStyle::Transfer {
+        transfer_lebensohl_responder(suit)
+    } else {
+        lebensohl_responder(suit)
+    };
+    insert_all_seats(d, &dbl_p, 3, advancer);
+
+    // Doubler completes the 2NT relay with a forced 3♣; advancer then signs off.
+    let two_nt = call(2, Strain::Notrump);
+    let three_clubs = call(3, Strain::Clubs);
+    insert_all_seats(
+        d,
+        &[
+            Call::Bid(opening),
+            Call::Double,
+            Call::Pass,
+            two_nt,
+            Call::Pass,
+        ],
+        3,
+        complete_lebensohl_relay(),
+    );
+    insert_all_seats(
+        d,
+        &[
+            Call::Bid(opening),
+            Call::Double,
+            Call::Pass,
+            two_nt,
+            Call::Pass,
+            three_clubs,
+            Call::Pass,
+        ],
+        3,
+        lebensohl_relay_rebid(suit),
+    );
+
+    // Transfer style: the doubler answers each 3-level transfer / cue.
+    if style == LebensohlStyle::Transfer {
+        for bid_suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
+            let resp = call(3, Strain::from(bid_suit));
+            let reply = if bid_suit == suit {
+                cue_stayman_answer(suit)
+            } else if let Some(target) = transfer_target(bid_suit, suit) {
+                transfer_completion(target, suit)
+            } else {
+                continue; // the lowest suit has no transfer target — floored
+            };
+            insert_all_seats(
+                d,
+                &[
+                    Call::Bid(opening),
+                    Call::Double,
+                    Call::Pass,
+                    resp,
+                    Call::Pass,
+                ],
+                3,
+                reply,
+            );
+        }
+    }
+}
+
 /// Advancer's response to partner's Michaels cue-bid over their opening `t`
 fn michaels_advances(t: Suit) -> Rules {
     match t {
@@ -350,6 +469,7 @@ fn responsive_doubles(t: Suit, _raise_lvl: u8) -> Rules {
 #[must_use]
 pub fn defensive() -> Defensive {
     let mut d = Defensive::new();
+    let advance_sohl = advance_sohl_style();
 
     // Over each one-of-a-suit opening: overcalls, double, 1NT, Michaels, Unusual.
     for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
@@ -402,11 +522,7 @@ pub fn defensive() -> Defensive {
 
     // Over each weak-two opening: takeout double, natural overcalls, 2NT, and
     // advancing partner's takeout double.  Clubs is omitted — a 2♣ opening is
-    // the strong artificial bid, not a weak two.  Advancing the takeout double
-    // is left to the floor (`advance_double`): the *Lebensohl after takeout
-    // double* experiment (Plain / Transfer / Pam / Lawrence) measured at best
-    // DD-neutral vs the floor, so no opt-in earned the public-API surface; see
-    // `docs/ai-bidder/21gf-ledger.md`.
+    // the strong artificial bid, not a weak two.
     for suit in [Suit::Diamonds, Suit::Hearts, Suit::Spades] {
         let theirs = Strain::from(suit);
         let opening = Bid::new(2, theirs);
@@ -416,14 +532,139 @@ pub fn defensive() -> Defensive {
             3,
             defense_to_weak_two(opening),
         );
-        insert_all_seats(
-            &mut d,
-            &[Call::Bid(opening), Call::Double, Call::Pass],
-            3,
-            advance_double(opening),
-        );
+
+        // Advancing partner's takeout double: [2t, X, P] — advancer to act.
+        // Plain/Transfer sohl per `set_advance_sohl_style` (default Off keeps the
+        // flat `advance_double` ladder).
+        insert_advance_of_double(&mut d, suit, opening, advance_sohl);
     }
 
     insert_all_seats(&mut d, &[call(1, Strain::Notrump)], 3, defense_to_notrump());
     d
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::bidding::Family;
+    use crate::bidding::american::{LebensohlStyle, american, set_advance_sohl_style};
+    use contract_bridge::auction::{Call, RelativeVulnerability};
+    use contract_bridge::{Bid, Hand, Strain};
+
+    const fn call(level: u8, strain: Strain) -> Call {
+        Call::Bid(Bid::new(level, strain))
+    }
+
+    /// `american()`'s best call for a hand in an auction, and whether the instinct
+    /// floor (not a book node) produced it
+    fn best_call(auction: &[Call], hand: &str) -> (Call, bool) {
+        let hand: Hand = hand.parse().expect("valid test hand");
+        let (logits, prov) = american()
+            .against(Family::NATURAL)
+            .classify_with_provenance(hand, RelativeVulnerability::NONE, auction)
+            .expect("a legal auction classifies");
+        let best = (&logits.0)
+            .into_iter()
+            .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("logits are never NaN"))
+            .map(|(call, _)| call)
+            .expect("array is never empty");
+        (best, prov.depth == 0 && prov.fallback.is_some())
+    }
+
+    /// Best call with the advance-of-double sohl forced to `style` (independent of
+    /// any other test on this thread having changed it)
+    fn advance(style: LebensohlStyle, auction: &[Call], hand: &str) -> (Call, bool) {
+        set_advance_sohl_style(style);
+        best_call(auction, hand)
+    }
+
+    /// `(2♦)–X–(P)` — partner doubled their weak two, advancer to act
+    fn over_2d() -> [Call; 3] {
+        [call(2, Strain::Diamonds), Call::Double, Call::Pass]
+    }
+
+    #[test]
+    fn off_keeps_the_flat_advance_no_relay() {
+        // Default Off: a weak six-club hand bids the natural 3♣ (advance_double),
+        // not the 2NT relay — the toggle gates the new structure.
+        let (c, _) = advance(LebensohlStyle::Off, &over_2d(), "32.43.32.KQ9876");
+        assert_eq!(c, call(3, Strain::Clubs));
+    }
+
+    #[test]
+    fn plain_weak_long_suit_relays_then_completes() {
+        // Plain: weak hand, six clubs → 2NT relay; the doubler is forced to 3♣.
+        let (c, floored) = advance(LebensohlStyle::Plain, &over_2d(), "32.43.32.KQ9876");
+        assert_eq!(c, call(2, Strain::Notrump));
+        assert!(!floored, "the relay must come from the book");
+
+        let relayed = [
+            call(2, Strain::Diamonds),
+            Call::Double,
+            Call::Pass,
+            call(2, Strain::Notrump),
+            Call::Pass,
+        ];
+        let (completion, _) = advance(LebensohlStyle::Plain, &relayed, "AKJ2.KQ52.4.A532");
+        assert_eq!(completion, call(3, Strain::Clubs));
+    }
+
+    #[test]
+    fn plain_forcing_three_level_is_a_book_node() {
+        // Plain: five spades and game values → forcing 3♠ (a jump over 2♦),
+        // never a weak partscore.
+        let (c, floored) = advance(LebensohlStyle::Plain, &over_2d(), "KQT95.A43.32.J32");
+        assert_eq!(c, call(3, Strain::Spades));
+        assert!(!floored, "the forcing 3-level bid must come from the book");
+    }
+
+    #[test]
+    fn transfer_shows_spades_through_their_hearts() {
+        // Transfer: over (2♥), five spades and game values transfer *through*
+        // hearts — 3♦ shows spades (not diamonds), a book node.
+        let over_2h = [call(2, Strain::Hearts), Call::Double, Call::Pass];
+        let (c, floored) = advance(LebensohlStyle::Transfer, &over_2h, "AKQ65.43.K32.J32");
+        assert_eq!(c, call(3, Strain::Diamonds));
+        assert!(!floored, "the transfer must come from the book");
+    }
+
+    #[test]
+    fn transfer_doubler_bids_game_not_partscore() {
+        // After (2♥)–X–(P)–3♦ (transfer to spades), the doubler with a fit bids
+        // the spade *game*, never a 3♠ partscore.
+        let auction = [
+            call(2, Strain::Hearts),
+            Call::Double,
+            Call::Pass,
+            call(3, Strain::Diamonds),
+            Call::Pass,
+        ];
+        let (c, _) = advance(LebensohlStyle::Transfer, &auction, "AK52.4.A432.K432");
+        assert_eq!(c, call(4, Strain::Spades));
+    }
+
+    #[test]
+    fn transfer_cue_is_stayman() {
+        // (2♦)–X–(P)–3♦ is the cue = Stayman; the doubler shows a 4-card major.
+        let auction = [
+            call(2, Strain::Diamonds),
+            Call::Double,
+            Call::Pass,
+            call(3, Strain::Diamonds),
+            Call::Pass,
+        ];
+        let (c, floored) = advance(LebensohlStyle::Transfer, &auction, "AQ32.K32.4.KJ432");
+        assert_eq!(c, call(3, Strain::Spades));
+        assert!(!floored, "the Stayman answer must come from the book");
+    }
+
+    #[test]
+    fn penalty_pass_sits_for_the_double() {
+        // A trump stack in their suit (five spades over 2♠) has no constructive
+        // call — the book's terminal Pass leaves the takeout double in for
+        // penalty, exactly as the flat ladder would.
+        let over_2s = [call(2, Strain::Spades), Call::Double, Call::Pass];
+        let (c, floored) = advance(LebensohlStyle::Plain, &over_2s, "KQJ95.J32.432.32");
+        assert_eq!(c, Call::Pass);
+        assert!(!floored, "the sign-off Pass must come from the book node");
+    }
 }

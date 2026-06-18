@@ -35,13 +35,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the right-siding effect, so the real table value is higher still. Tracked in
   [`docs/ai-bidder/21gf-ledger.md`](docs/ai-bidder/21gf-ledger.md).
 - **Lebensohl after a takeout double (advancer over a weak two) — measured,
-  did not ship.** Plain / Transfer / Pam (pick-a-minor) / Lawrence (three-band
+  opt-in.** Plain / Transfer / Pam (pick-a-minor) / Lawrence (three-band
   strength) sohl structures were authored over the `(2X)–X–(P)` advancer
   prefix and A/B'd against the `advance_double` floor on `sohl-after-double-ab`
   (contested seat-swap, 200k filtered boards/cell). At best DD-neutral vs the
   floor (a takeout double already advertises the fit, so natural advancing
-  finds most of it). No opt-in earned the public-API surface; the experiment
-  is reverted. Tracked in
+  finds most of it). `Transfer` (the best) is kept behind
+  [`set_advance_sohl_style`] as an opt-in (**default `Off`** — the floor);
+  `Plain` is the A/B arm, while `Pam` / `Lawrence` were rejected and not
+  retained. Tracked in
   [`docs/ai-bidder/21gf-ledger.md`](docs/ai-bidder/21gf-ledger.md).
 - **Plain-4NT minor-suit keycard** (Roman Keycard Blackwood 1430 for an agreed
   minor — Batch 2 of the "author 2/1 as deep as BBA" effort). [`install_rkcb`] was
