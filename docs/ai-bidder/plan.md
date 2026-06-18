@@ -6,6 +6,17 @@ nothing starts until explicitly chosen.
 
 Legend: ⬜ not started · ✅ done.
 
+**Standing principles** (apply to every milestone; not repeated below):
+
+- **Spend runtime for better calls.** It is usually fine to do real work in
+  `pons` at decision time — search, inference, simulation — to bid/play better.
+  The bottleneck is the double-dummy solver, not our per-call logic; optimize
+  decision quality first, runtime only when it actually bites.
+- **BBA is a reference for bridge *and* for programming.** EPBot is a mature
+  engine to learn from on both axes. When building any new feature, compare with
+  BBA — reverse-engineering it is fine (see [`bba-floor.md`](bba-floor.md) for
+  the method: `strace`, the `MB.TXT` export, the introspection FFI).
+
 ---
 
 ## Milestone 0 — Corpus + baseline lock-in (no ML)
@@ -343,6 +354,47 @@ The portability dream. Last, because it needs the most prerequisites.
 
 Exit M5: the 2/1 policy is driven by written meanings rather than baked-in
 weights, laying the groundwork for cross-system portability.
+
+---
+
+## Milestone 6 — Deeper deterministic floor (inference + conventions)
+
+Motivated by the BBA floor study ([`bba-floor.md`](bba-floor.md)): BBA's floor
+is parametric and fires conventions (the probe caught `4NT = Blackwood` on a
+depth-8 auction), whereas pons's `instinct()` is all-natural and stalls below
+slam off-book. Smarten the keyless floor directly — the baseline every A/B
+measures against — *without authoring a node per sequence*
+(`feedback_instinct_floor_over_node_authoring`); `instinct()` stays default and
+the rails stay green. Each chunk's measure is IMPs/board on the `instinct-floor`
+A/B vs baseline, and the BBA gap (S.1's −2.6) on the relevant auctions.
+
+- ⬜ **M6.1 Parametric auction inferences.** Push the floor deeper by *deriving*
+  facts from the auction rather than authoring, via the existing `Inferences` /
+  `inference.rs` reader. Canonical case: `1NT–2♦–2♥–4♥` — responder transferred
+  (5+♥) then jumped past the choice-of-games `3NT` to `4♥`, so the floor can
+  *know* a 6-card major and act on it. *Deliverable:* a few derived inferences
+  the floor reads on demand. *Measure:* no regression, ideally a gain on
+  transfer/limit auctions. *Deps:* none (reuses `inference.rs`).
+- ⬜ **M6.2 Slam machinery on the floor.** Slam bidding is inherently conventional
+  and arises in the deep auctions the floor owns. Add a *self-consistent* keycard
+  layer so **instinct decodes instinct** on both sides, reusing the
+  `american::slam` 1430 ladder. *Deliverable:* the floor asks/answers keycards
+  once a fit + extras are known; **control cue-bids are a follow-on, only if RKCB
+  measures a gain.** *Measure:* slam-rich IMPs/board vs baseline; BBA gap on deep
+  slam auctions. *Deps:* M6.1 (the fit/extras inferences). *Wrinkle:* a floor
+  convention read by an *on-book* partner — gate to all-off-book continuations
+  first, leave the floor-meets-book seam for later.
+- ⬜ **M6.3 Competitive conventions on the floor.** *Deliverable:* start with
+  Rubens advances (they build on the existing Rubens overcall structure); add a
+  Lebensohl variant (Rubinsohl over interference) once the first measures.
+  *Measure:* contested IMPs/board vs baseline + vs BBA. *Deps:* none. *Note:*
+  verify the floor rule fires and isn't shadowed
+  (`project_floor_shadowed_by_book_nodes`); contested is where the learned floors
+  already live (`project_floors_contested_only`).
+
+Exit M6: the deterministic floor explores slam and handles the key competitive
+conventions, narrowing the BBA gap in exactly the deep/contested auctions where
+the books are thinnest — by deriving and generalizing, not by enumeration.
 
 ---
 

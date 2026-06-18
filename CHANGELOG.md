@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **A reverse-engineering study of BBA/EPBot's *floor*** (AI-bidder side study):
+  a new report [`docs/ai-bidder/bba-floor.md`](docs/ai-bidder/bba-floor.md)
+  answering how a mature engine bids where authoring runs out — the analogue of
+  pons's [`instinct()`] floor. Findings: (1) `strace` shows `libEPBot.so` loads
+  **no** external data files, so `MB.TXT` is a compiled-in export, not the
+  runtime source; (2) static classification of all 6094 `MB.TXT` rules shows
+  **66% are generic/parametric** (suit-variable templates, char-class ranges,
+  constraint-only catch-alls) and specific literal-auction nodes are **shallow**
+  (1–3 calls, vanishing past depth 5); weights are bimodal so broad floor rules
+  (weight 0–9) always lose to specifics (90–99); (3) a live probe
+  (`examples/bba-floor-probe`) confirms the compiled engine is **programmatic** —
+  on deep off-book auctions its call escalates monotonically with the hand and it
+  labels its own floor bids `"calculated bid"`. Throwaway reproducers
+  (`scripts/bba_floor_stats.py`, `examples/bba-floor-probe/`) reuse the existing
+  `bba-match` FFI; no change to the crate's default build, dependencies, or
+  `instinct()` baseline.
 - **South African Texas over 1NT — `4♣/4♦` to-play transfers and `4♥/4♠`
   non-forcing slam tries.** A 6-card-major responder gains a four-level structure
   on top of the two-level Jacoby transfers ([`american::notrump`]):
