@@ -80,13 +80,13 @@ balancing/reopening, and slam accuracy (missed grands).
 | 51 | DOPI | gap | add (Batch 2) | — | — |
 | 103 | ROPI | gap | add (Batch 2) | — | — |
 | 42 | BROMAD | gap (confirm meaning) | Batch 2 | — | — |
-| — | **Plain-4NT minor keycard** | shipped (small slam) | keep; grand-in-minor deferred | **+6.80/+8.76 IMPs/div (none/both)** (2M, 46 div) | next commit |
+| — | **Plain-4NT minor keycard** | shipped (small slam) | keep; grand-in-minor deferred | **+6.80/+8.76 IMPs/div (none/both)** (2M, 46 div) | 99da1b3 |
 
 ## Competitive — our opening contested
 
 | # | Toggle | pons status | decision | A/B | commit |
 |---|--------|-------------|----------|-----|--------|
-| 80 | Lebensohl after 1NT | **shipped** | plain Lebensohl (Rubensohl tried first, lost) | Ruben −1.68/div; **Leben +0.26/div** (200k, 0.9% divergent) | next commit |
+| 80 | Lebensohl after 1NT | **shipped** | plain Lebensohl (Rubensohl tried first, lost) | Ruben −1.68/div; **Leben +0.26/div** (200k, 0.9% divergent) | bfe5e59 |
 | 105 | Rubensohl after 1m | floor (Rubens advances) | upgrade (Batch 1) | — | — |
 | 106 | Rubensohl after double | floor | upgrade (Batch 1) | — | — |
 | 100 | Responsive double | floor | author (Batch 1) | — | — |
