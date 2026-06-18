@@ -19,24 +19,32 @@ use std::sync::Arc;
 /// Which Lebensohl package the competitive book carries over our overcalled
 /// `1NT` (Section 5)
 ///
+/// Terminology: *Rubensohl* proper makes `2NT` an artificial **club** transfer;
+/// the transfer styles here keep the weak `2NT` **relay**, which makes them
+/// *Transfer Lebensohl*. (The `2NT`-role swap — clubs vs relay — is a deferred
+/// A/B.)
+///
 /// - `Off` — no Lebensohl node; responder falls to the instinct floor.
 /// - `Plain` — weak `2NT` relay / sign-off vs strong direct `3NT` / forcing
 ///   3-level; matches BBA's 21GF. The prior default (+0.26 IMPs/divergent vs the
 ///   floor, 200k boards).
-/// - `Transfer` — Larry Cohen's *Transfer Lebensohl* (Rubensohl), **the
-///   default**: 3-level bids transfer up the line *through* the adverse suit, the
-///   cue is Stayman, and a transfer to a suit above theirs is INV+ so opener is
-///   driven to game. That game-force is the anti-stranding fix for the earlier
-///   Rubensohl attempt (which stranded game hands in partscores); it measures
+/// - `Transfer` — Larry Cohen's *Transfer Lebensohl*, **the default**: 3-level
+///   bids transfer up the line *through* the adverse suit, the cue is Stayman, and
+///   a transfer to a suit above theirs is INV+ so opener is driven to game. That
+///   game-force is the anti-stranding fix for the earlier transfer-Lebensohl
+///   attempt (which stranded game hands in partscores); it measures
 ///   **+0.46/+1.24 IMPs/divergent (none/both) vs plain Lebensohl** (`lebensohl-ab`,
 ///   200k boards each), and +0.35/+0.05 vs the bare floor.
+///
+/// (A standard low-Stayman + Smolen hybrid over `(2♦)`/`(2♥)` was tried and
+/// reverted — it measured DD-negative vs `Transfer`; see `docs/ai-bidder/21gf-ledger.md`.)
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum LebensohlStyle {
     /// Responder falls to the instinct floor (no Lebensohl node)
     Off,
     /// Plain Lebensohl (weak relay vs forcing 3-level) — the prior default
     Plain,
-    /// Transfer Lebensohl / Rubensohl (Larry Cohen's version) — the default
+    /// Transfer Lebensohl (Larry Cohen's version; `2NT` relay) — the default
     Transfer,
 }
 
@@ -533,7 +541,7 @@ pub fn competition() -> Competitive {
 
     // Section 5: Lebensohl after our 1NT is overcalled at the 2 level. Purely
     // additive — nothing else lands at [1NT] in the competitive book. Plain or
-    // Transfer (Rubensohl) per [`LebensohlStyle`]; both keep the weak 2NT relay.
+    // Transfer Lebensohl per [`LebensohlStyle`]; both keep the weak 2NT relay.
     let style = lebensohl_style();
     if style != LebensohlStyle::Off {
         let one_nt = call(1, Strain::Notrump);
@@ -579,7 +587,7 @@ pub fn competition() -> Competitive {
                 Fallback::classify(lebensohl_relay_rebid(over)),
             );
 
-            // Transfer style only: opener's reply to each 3-level transfer / cue.
+            // Transfer style: opener's reply to each 3-level transfer / cue.
             // Suffix is [overcall, 3X, P] where 3X is responder's transfer or cue.
             if style == LebensohlStyle::Transfer {
                 for bid_suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
@@ -642,7 +650,7 @@ mod tests {
         best_call(auction, hand)
     }
 
-    /// As [`best_call`], with Transfer Lebensohl (Rubensohl) forced on
+    /// As [`best_call`], with Transfer Lebensohl forced on
     fn bid_transfer(auction: &[Call], hand: &str) -> (Call, bool) {
         super::set_lebensohl_style(super::LebensohlStyle::Transfer);
         best_call(auction, hand)

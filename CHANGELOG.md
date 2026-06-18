@@ -9,10 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Transfer Lebensohl (Rubensohl) — now the default over our overcalled 1NT**
-  (Larry Cohen's version). A first attempt at transfer-Lebensohl lost (−1.7
-  IMPs/divergent — see the plain-Lebensohl entry below) by stranding game hands
-  in partscores; Cohen's structure fixes exactly that. After `1NT–(2X)`,
+- **Transfer Lebensohl — now the default over our overcalled 1NT** (Larry Cohen's
+  version). A first attempt at transfer-Lebensohl lost (−1.7 IMPs/divergent — see
+  the plain-Lebensohl entry below) by stranding game hands in partscores; Cohen's
+  structure fixes exactly that. (Naming: this keeps the weak `2NT` *relay*, which
+  makes it Transfer Lebensohl; *Rubensohl* proper makes `2NT` an artificial club
+  transfer — not played here.) After `1NT–(2X)`,
   responder's three-level bids are **transfers up the line, *through* the adverse
   suit** (over `(2♥)`, `3♦` shows spades — skipping their hearts), the **cue is
   Stayman**, and a transfer to a suit *above* theirs is invitational-or-better, so

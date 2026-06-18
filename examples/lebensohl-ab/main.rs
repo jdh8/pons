@@ -28,7 +28,8 @@
 use clap::Parser;
 use contract_bridge::auction::{Auction, Call};
 use contract_bridge::deck::full_deal;
-use contract_bridge::{AbsoluteVulnerability, FullDeal, Hand, Seat};
+use contract_bridge::eval::hcp as holding_hcp;
+use contract_bridge::{AbsoluteVulnerability, FullDeal, Hand, Seat, Suit};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
 use pons::bidding::american::{LebensohlStyle, set_lebensohl_style};
@@ -54,6 +55,39 @@ struct Args {
     /// Lebensohl style for the baseline (EW) pair: off, plain, transfer
     #[arg(long, default_value = "plain")]
     ew: String,
+
+    /// Only count deals that can plausibly reach `1NT–(2♦/2♥)` (a cheap shape
+    /// pre-filter), so the DD budget lands on boards that can actually diverge.
+    /// `--count` is then the number of such filtered boards.
+    #[arg(long, default_value = "false")]
+    filter_dh: bool,
+}
+
+/// Total HCP of a hand
+fn hand_hcp(hand: Hand) -> u8 {
+    Suit::ASC.iter().map(|&s| holding_hcp::<u8>(hand[s])).sum()
+}
+
+/// A balanced 15–17 (a `1NT` opener)
+fn is_1nt_opener(hand: Hand) -> bool {
+    let lengths = Suit::ASC.map(|s| hand[s].len());
+    let balanced =
+        lengths.iter().all(|&l| l >= 2) && lengths.iter().filter(|&&l| l == 2).count() <= 1;
+    balanced && (15..=17).contains(&hand_hcp(hand))
+}
+
+/// Cheap pre-filter (no bidding): could this deal plausibly reach `1NT–(2♦/2♥)`?
+///
+/// Some seat is a `1NT` opener whose left-hand opponent holds a five-card diamond
+/// or heart suit. For an A/B that only diverges on red-suit overcalls of our 1NT,
+/// this is a *superset* of the divergence condition, so filtering on it concentrates
+/// the DD budget on relevant boards without biasing the per-divergent estimate.
+fn could_reach_1nt_dh(deal: &FullDeal) -> bool {
+    Seat::ALL.iter().any(|&opener| {
+        let lho = Seat::ALL[(opener as usize + 1) % 4];
+        is_1nt_opener(deal[opener])
+            && (deal[lho][Suit::Diamonds].len() >= 5 || deal[lho][Suit::Hearts].len() >= 5)
+    })
 }
 
 /// Parse a Lebensohl style name (off / plain / transfer)
@@ -130,11 +164,18 @@ fn main() {
     let lebensohl = american().against(Family::NATURAL);
 
     // Each board at both tables (Lebensohl NS at A, EW at B), dealer rotating.
+    // With `--filter-dh`, deal until `count` boards pass the cheap shape filter.
     let mut deals: Vec<FullDeal> = Vec::with_capacity(args.count);
     let mut contracts = Vec::with_capacity(args.count);
-    for index in 0..args.count {
-        let dealer = Seat::ALL[index % 4];
+    let mut auctions: Vec<(Auction, Auction)> = Vec::with_capacity(args.count);
+    let mut scanned = 0usize;
+    while deals.len() < args.count {
         let deal = full_deal(&mut rng);
+        scanned += 1;
+        if args.filter_dh && !could_reach_1nt_dh(&deal) {
+            continue;
+        }
+        let dealer = Seat::ALL[deals.len() % 4];
         let table_a = bid_out(
             &lebensohl,
             &baseline,
@@ -156,7 +197,10 @@ fn main() {
             final_contract(&table_a, dealer),
             final_contract(&table_b, dealer),
         ));
-        eprint!("\rbid {}/{}", index + 1, args.count);
+        auctions.push((table_a, table_b));
+        if deals.len().is_multiple_of(1000) {
+            eprint!("\rbid {}/{} (scanned {scanned})", deals.len(), args.count);
+        }
     }
     eprintln!();
 
@@ -180,12 +224,18 @@ fn main() {
         worst.push((imps(swing), i));
     }
     worst.sort_by_key(|w| w.0);
-    eprintln!("=== Worst 15 divergent boards for Lebensohl ===");
+    eprintln!("=== Worst 15 divergent boards for the --ns style ===");
     for &(imp, i) in worst.iter().take(15) {
         let dealer = Seat::ALL[i % 4];
         eprintln!(
-            "[{imp:+} IMP] dealer {dealer:?}  A(lebensohl NS): {:?}  B(baseline NS): {:?}\n  {}",
-            contracts[i].0, contracts[i].1, deals[i],
+            "[{imp:+} IMP] dealer {dealer:?}  {}\n  A ({} NS): {} -> {:?}\n  B ({} NS): {} -> {:?}",
+            deals[i],
+            args.ns,
+            auctions[i].0,
+            contracts[i].0,
+            args.ew,
+            auctions[i].1,
+            contracts[i].1,
         );
     }
 
@@ -197,6 +247,13 @@ fn main() {
         "(opponents overcall our 1NT — NS {} vs EW {})",
         args.ns, args.ew,
     );
+    if args.filter_dh {
+        println!(
+            "(pre-filtered to plausible 1NT–(2♦/2♥): kept {} of {scanned} dealt, {:.1}%)",
+            args.count,
+            100.0 * args.count as f64 / scanned.max(1) as f64,
+        );
+    }
     println!(
         "Divergent boards: {} of {} ({:.1}%)",
         divergent.len(),
