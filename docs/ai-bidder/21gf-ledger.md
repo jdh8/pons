@@ -91,10 +91,27 @@ balancing/reopening, and slam accuracy (missed grands).
 | 106 | Rubensohl after double | floor | upgrade (Batch 1) | — | — |
 | 100 | Responsive double | floor | author (Batch 1) | — | — |
 | 83 | Maximal doubles | gap | add (Batch 1) | — | — |
-| 71 | Jordan/Truscott 2NT | gap | add (Batch 1) | — | — |
+| 71 | Jordan/Truscott 2NT | tried — DD-negative | **keep floor** (don't ship) | full **−1.0/−1.5** IMPs/div; 2NT-only **−4.2/−4.4** (jordan-ab 500k/300k) | reverted |
 | 117 | Support double/redouble | shipped | keep | — | — |
 | 28/30 | 1X-(Y)-2Z forcing/weak | partial | verify | — | — |
 | 122 | Transfers if RHO bids clubs | gap | add (Batch 1) | — | — |
+
+**Jordan/Truscott (71) — tried and rejected (DD-negative).** Authored
+`1M–(X)–2NT` = limit-raise-or-better + `3M` = preemptive, with opener's decline
+path (`2NT`→`3M` sign-off, responder pass/4M) and a sound `2NT` strength
+inference; reused the uncontested `major_responses` for every non-Jordan call;
+gated by `set_jordan`. A/B'd vs the system-on baseline (`jordan-ab`, contested
+seat-swap duplicate, `Family::NATURAL` opponents take out double our major).
+Result: **−1.0/−1.5 IMPs/divergent** (full package, 500k boards, none/both) and
+**−4.2/−4.4** (the `2NT`-constructive half alone, 300k). Two causes, both inherent
+to the harness: (1) the preemptive `3M`'s obstruction value is invisible to the
+double-dummy / perfect-defense measure (the solver sees through it — cf.
+`texas-vs-sat` "concealment is single-dummy"), while its overbid cost is counted;
+(2) making `2NT` limit-or-better diverts 13+ game-forcing raises out of pons's
+rich **Jacoby 2NT** machinery (shortness / slam) into a crude `3M/4M` stub,
+reaching worse games and missed slams that the doubler punishes. **Reverted** —
+the floor's system-on (`2NT` = Jacoby, `3M` = limit raise) stays. Revisit only
+under a single-dummy / IMPs-vs-humans measure where preemption actually pays.
 
 ## Defensive — their opening
 
