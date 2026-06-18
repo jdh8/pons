@@ -21,8 +21,7 @@ use std::sync::Arc;
 ///
 /// Terminology: *Rubensohl* proper makes `2NT` an artificial **club** transfer;
 /// the transfer styles here keep the weak `2NT` **relay**, which makes them
-/// *Transfer Lebensohl*. (The `2NT`-role swap — clubs vs relay — is a deferred
-/// A/B.)
+/// *Transfer Lebensohl*.
 ///
 /// - `Off` — no Lebensohl node; responder falls to the instinct floor.
 /// - `Plain` — weak `2NT` relay / sign-off vs strong direct `3NT` / forcing
@@ -36,8 +35,14 @@ use std::sync::Arc;
 ///   **+0.46/+1.24 IMPs/divergent (none/both) vs plain Lebensohl** (`lebensohl-ab`,
 ///   200k boards each), and +0.35/+0.05 vs the bare floor.
 ///
-/// (A standard low-Stayman + Smolen hybrid over `(2♦)`/`(2♥)` was tried and
-/// reverted — it measured DD-negative vs `Transfer`; see `docs/ai-bidder/21gf-ledger.md`.)
+/// (Two refinements were tried and reverted, both DD-negative vs `Transfer`; see
+/// `docs/ai-bidder/21gf-ledger.md`. A standard low-Stayman + Smolen hybrid over
+/// `(2♦)`/`(2♥)`. And the `2NT`-role swap — **true Rubensohl**: `2NT` a two-way
+/// club transfer, every transfer *below* the overcall two-way, transfers *above*
+/// still INV+ — measured **−0.017/−0.046 IMPs/board (none/both)**, 200k boards
+/// each: making the low transfers two-way costs `Transfer`'s auto-drive-to-game
+/// on invitational hands, while its only gain — right-siding the low-suit
+/// partscore — is DD-blind.)
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum LebensohlStyle {
     /// Responder falls to the instinct floor (no Lebensohl node)

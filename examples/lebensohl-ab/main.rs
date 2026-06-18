@@ -19,7 +19,7 @@
 //! IMPs/board favors the `--ns` style.
 //!
 //! ```text
-//! # Transfer Lebensohl (Rubensohl) vs plain Lebensohl (the incumbent):
+//! # Transfer Lebensohl vs plain Lebensohl (the incumbent):
 //! cargo run --release --example lebensohl-ab -- --count 50000
 //! # Transfer Lebensohl vs the bare instinct floor (the v1 baseline):
 //! cargo run --release --example lebensohl-ab -- --count 50000 --ew off

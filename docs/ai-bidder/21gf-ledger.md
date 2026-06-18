@@ -86,7 +86,7 @@ balancing/reopening, and slam accuracy (missed grands).
 
 | # | Toggle | pons status | decision | A/B | commit |
 |---|--------|-------------|----------|-----|--------|
-| 80 | Lebensohl after 1NT | **shipped** | **Transfer Lebensohl** (Cohen) default; plain kept as option | Transfer vs plain **+0.46/+1.24/div** (none/both, 200k); vs floor +0.35/+0.05; (plain vs floor +0.26, Ruben-v1 −1.68) | bfe5e59 (plain), bee9204 (transfer) |
+| 80 | Lebensohl after 1NT | **shipped** | **Transfer Lebensohl** (Cohen) default; plain kept as option | Transfer vs plain **+0.46/+1.24/div** (none/both, 200k); vs floor +0.35/+0.05; (plain vs floor +0.26, Ruben-v1 −1.68); 2NT-role swap true-Rubensohl −0.017/−0.046/board (200k) reverted | bfe5e59 (plain), bee9204 (transfer) |
 | 105 | Rubensohl after 1m | floor (Rubens advances) | upgrade (Batch 1) | — | — |
 | 106 | Rubensohl after double | floor | upgrade (Batch 1) | — | — |
 | 100 | Responsive double | partial; overcall-ext tried — DD-negative | **keep floor** (don't ship the light overcall double) | takeout-X-then-raise authored (`defense.rs`); 8+ floor double after partner's *overcall* A/B'd **−0.034/board, −2.37/div** (200k, 1.4% div) → reverted | reverted |
@@ -123,11 +123,25 @@ after loosening the gate (fire on one 4-card major) the **fair re-test was
 −1.31/−1.76 IMPs/div (none/both, 300k filtered)** — a clear loss. Standard low-Stayman
 reaches DD-worse contracts than Cohen's cue=Stayman (e.g. a 5-5 hand routes through
 Stayman→denial→`3NT`, missing the 5-3 major game Cohen's transfer-*through* finds), and
-Smolen's right-siding is DD-blind. **Reverted.** The deferred `2NT`-role A/B (clubs =
-Rubensohl vs relay = Transfer Lebensohl) is independent — it can be run on the Cohen
-structure. `lebensohl-ab` kept a cheap `--filter-dh` shape pre-filter (concentrates
-`1NT–(2♦/2♥)` boards ~10× so DD lands on boards that can diverge) + a worst-board
-auction diagnostic.
+Smolen's right-siding is DD-blind. **Reverted.** `lebensohl-ab` kept a cheap
+`--filter-dh` shape pre-filter (concentrates `1NT–(2♦/2♥)` boards ~10× so DD
+lands on boards that can diverge) + a worst-board auction diagnostic.
+
+**The `2NT`-role A/B (80, follow-up — tried & reverted).** The `2NT`-role swap —
+**true Rubensohl** (`2NT` an artificial **club** transfer) vs the relay (Transfer
+Lebensohl) — was authored on the Cohen structure and A/B'd vs `Transfer`. Design
+(jdh8's rule): every transfer to a suit *below* the overcall is two-way (weak
+transfers then passes; strong continues), so `2NT`=clubs is two-way; transfers to
+a suit *above* the overcall stay INV+ (weak hands escape with a natural 2-level
+bid), identical to `Transfer` — so opener still auto-drives those to game. The
+**fair test was −0.017/−0.046 IMPs/board (none/both, 200k filtered each)** — a
+clear, consistent loss. Mechanism: for weak hands both arms reach the *same*
+contract (right-siding the low-suit partscore is DD-blind), so Rubensohl's only
+gain is invisible to DD, while making the low transfers two-way *costs*
+`Transfer`'s auto-drive-to-game on invitational hands (opener accepts minimally,
+the borderline responder stops short). **Reverted** (kept only as this ledger
+note + the `LebensohlStyle` doc); revive from git if a single-dummy measure that
+can see right-siding ever shows promise.
 
 **Jordan/Truscott (71) — tried and rejected (DD-negative).** Authored
 `1M–(X)–2NT` = limit-raise-or-better + `3M` = preemptive, with opener's decline
