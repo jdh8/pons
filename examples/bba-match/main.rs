@@ -23,6 +23,11 @@
 //! cargo run --release --example bba-match -- --count 1000
 //! BBA_LIB=/path/to/libEPBot.so cargo run --release --example bba-match
 //! ```
+//!
+//! `--our-system <index>` swaps our side for a *second* EPBot card, turning the
+//! harness into a BBA-vs-BBA experiment (e.g. `--our-system 2` is WJ / Polish
+//! Club, `--system 0` 2/1).  Left unset, our side stays the [`american`] floor —
+//! the original S.1 anchor, unchanged.
 
 use clap::Parser;
 use contract_bridge::auction::{Auction, Call, RelativeVulnerability};
@@ -57,9 +62,23 @@ struct Args {
     #[arg(short, long, default_value = "15")]
     top: usize,
 
-    /// EPBot system index for *both* sides (0 = 2/1 Game Force)
+    /// EPBot system index for *their* side (0 = 2/1 Game Force, 2 = WJ)
     #[arg(short, long, default_value_t = SYSTEM_2_OVER_1)]
     system: c_int,
+
+    /// Drive *our* side with EPBot at this system index too (BBA-vs-BBA
+    /// experiment); unset = our authored `american` floor
+    #[arg(long)]
+    our_system: Option<c_int>,
+}
+
+/// EPBot system label for the indices we use (the pinned `vendor/bba` build)
+fn system_label(system: c_int) -> &'static str {
+    match system {
+        0 => "2/1 Game Force",
+        2 => "WJ (Polish Club)",
+        _ => "EPBot system",
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -370,7 +389,22 @@ fn main() -> anyhow::Result<()> {
             std::process::exit(1);
         }
     };
-    let ours = american().against(Family::NATURAL);
+    // Our side: the authored floor by default, or a second EPBot card when
+    // `--our-system` is given (the BBA-vs-BBA experiment).  Both live to the end
+    // of `main`, so `ours` can borrow whichever is selected.
+    let our_floor = american().against(Family::NATURAL);
+    let our_oracle = match args.our_system {
+        Some(system) => Some(BbaOracle::load(&path, system)?),
+        None => None,
+    };
+    let ours: &dyn System = match &our_oracle {
+        Some(oracle) => oracle,
+        None => &our_floor,
+    };
+    let our_label = match args.our_system {
+        Some(system) => format!("BBA {}", system_label(system)),
+        None => "our american floor".into(),
+    };
     let mut rng = rand::rng();
 
     // Bid every board at both tables, dealer rotating per board.
@@ -378,8 +412,8 @@ fn main() -> anyhow::Result<()> {
         .map(|index| {
             let dealer = Seat::ALL[index % 4];
             let deal = full_deal(&mut rng);
-            let table_a = bid_out(&ours, &bba, true, dealer, args.vulnerability, &deal);
-            let table_b = bid_out(&ours, &bba, false, dealer, args.vulnerability, &deal);
+            let table_a = bid_out(ours, &bba, true, dealer, args.vulnerability, &deal);
+            let table_b = bid_out(ours, &bba, false, dealer, args.vulnerability, &deal);
             Board {
                 deal,
                 dealer,
@@ -424,8 +458,11 @@ fn main() -> anyhow::Result<()> {
 
     let (mean, half_width) = mean_with_ci(&board_imps);
     println!(
-        "=== Our 2/1 floor vs BBA 2/1: {} boards, vulnerability {} (EPBot system {}) ===",
-        args.count, args.vulnerability, args.system,
+        "=== {} (us) vs BBA {} (them): {} boards, vulnerability {} ===",
+        our_label,
+        system_label(args.system),
+        args.count,
+        args.vulnerability,
     );
     println!(
         "Divergent boards: {} of {} ({:.0}%)",
@@ -440,11 +477,11 @@ fn main() -> anyhow::Result<()> {
         mean + half_width,
     );
 
-    // The boards we lost by the most: where BBA's 2/1 out-bid ours.  Sort by
+    // The boards we lost by the most: where their side out-bid ours.  Sort by
     // IMP swing ascending (most negative first), break ties by points.
     swings.sort_by(|a, b| a.2.cmp(&b.2).then_with(|| a.1.cmp(&b.1)));
     println!(
-        "\n=== Worst {} divergent boards for us (BBA's edge) ===",
+        "\n=== Worst {} divergent boards for us (their edge) ===",
         args.top.min(swings.len()),
     );
     for &(index, points, imp) in swings.iter().take(args.top) {

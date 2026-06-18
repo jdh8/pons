@@ -68,6 +68,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   transfer/limit auctions it touches). No regression: the whole inference floor
   stays **+0.05 IMPs/board** (`inference-floor`, 20 000 boards, both
   vulnerabilities). Derived, not authored — no node per sequence.
+- **`bba-match --our-system` — BBA-vs-BBA system comparison** (AI-bidder side
+  experiment). The 2/1 eval-anchor example gains an optional flag that drives
+  *our* side with a second EPBot card instead of the [`american`] floor, so the
+  same engine bids both tables and every swing is a pure methods difference, with
+  no bidding-skill confound. *Finding* (WJ / Polish Club, system 2, vs 2/1 Game
+  Force, system 0; 10 000 boards each; double-dummy scored; swing credited to
+  WJ): **+0.123 IMPs/board non-vulnerable** (95% CI [+0.051, +0.196]) and
+  **−0.022 both-vulnerable** (CI [−0.111, +0.068], a statistical tie) — WJ holds
+  a small constructive edge non-vul that washes out when both sides risk the big
+  penalties; double-dummy is blind to WJ's obstruction value, so this reads as a
+  *floor* on its real-table edge. Default (flag unset) keeps the S.1 anchor
+  (`american` vs BBA 2/1) unchanged; no change to the crate's default build or
+  dependencies.
 - **A reverse-engineering study of BBA/EPBot's *floor*** (AI-bidder side study):
   a new report [`docs/ai-bidder/bba-floor.md`](docs/ai-bidder/bba-floor.md)
   answering how a mature engine bids where authoring runs out — the analogue of
