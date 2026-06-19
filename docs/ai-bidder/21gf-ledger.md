@@ -86,7 +86,7 @@ balancing/reopening, and slam accuracy (missed grands).
 
 | # | Toggle | pons status | decision | A/B | commit |
 |---|--------|-------------|----------|-----|--------|
-| 80 | Lebensohl after 1NT | **shipped** | **TransferSmolen** default (Cohen base + `(2♦)` `3♣`-Stayman/Smolen/Leaping-Michaels); `Transfer`/`Plain`/`Rubensohl` kept as options | Transfer vs plain **+0.46/+1.24/div** (none/both, 200k); vs floor +0.35/+0.05; (plain vs floor +0.26, Ruben-v1 −1.68); 2NT-role swap true-Rubensohl −0.017/−0.046/board (200k). **PD re-val (5611eac): Transfer-vs-plain +0.46/+0.69/div HOLDS (ship decision intact); vs floor FLIPS to −0.66/−0.62/div — PD doubles the failing game-drives, harness-blind to the obstruction value.** **2NT-role swap re-measured under PD: +0.001/−0.023/board (none/both, 200k each) — neutral non-vul, still a clear loss vul; no flip; re-authored as `LebensohlStyle::Rubensohl` opt-in.** **TransferSmolen v2 (`(2♦)`-only: `3♣`-Stayman + Smolen, Jacoby-reshuffled transfers `3♦`→♥/`3♥`→♠/`3♠`→♣, Leaping Michaels `4♣`/`4♦`) vs Transfer (PD, 200k filtered/cell): +0.020/+0.024 board, +2.286/+2.822/div (none/both) → WIN, promoted to default.** | bfe5e59 (plain), bee9204 (transfer) |
+| 80 | Lebensohl after 1NT | **shipped** | **TransferSmolen** default (Cohen base + `(2♦)` `3♣`-Stayman/Smolen/Leaping-Michaels); `Transfer`/`Plain`/`Rubensohl` kept as options | Transfer vs plain **+0.46/+1.24/div** (none/both, 200k); vs floor +0.35/+0.05; (plain vs floor +0.26, Ruben-v1 −1.68); 2NT-role swap true-Rubensohl −0.017/−0.046/board (200k). **PD re-val (5611eac): Transfer-vs-plain +0.46/+0.69/div HOLDS (ship decision intact); vs floor FLIPS to −0.66/−0.62/div — PD doubles the failing game-drives, harness-blind to the obstruction value.** **2NT-role swap re-measured under PD: +0.001/−0.023/board (none/both, 200k each) — neutral non-vul, still a clear loss vul; no flip; re-authored as `LebensohlStyle::Rubensohl` opt-in.** **TransferSmolen v2 (`(2♦)`-only: `3♣`-Stayman + Smolen, Jacoby-reshuffled transfers `3♦`→♥/`3♥`→♠/`3♠`→♣, Leaping Michaels `4♣`/`4♦`) vs Transfer (PD, 200k filtered/cell): +0.020/+0.024 board, +2.286/+2.822/div (none/both) → WIN, promoted to default.** **Top-step clubs transfer (`(2♦/2♥)`→`3♠`, `(2♠)`→`3♥` = forced GF 6+♣, completion `3NT`/`5♣`) added — was floored; theory-correct (Cohen wraps the chain to clubs). PD two-binary `transfersmolen` vs floor: −0.0008/−0.0012 board (none/both, 200k filtered/cell), ≈0.04% of boards; the losses are normal making games vs the floor's speculative overcall penalty doubles that perfect defense over-credits → DD-blind to competition, kept in default pending an SD re-measure.** | bfe5e59 (plain), bee9204 (transfer) |
 | 105 | Rubensohl after 1m | floor (Rubens advances) | upgrade (Batch 1) | — | — |
 | 100 | Responsive double | takeout shipped (toggle); overcall-ext opt-in Off | **keep both as-is under PD** | **PD re-measure (`responsive-ab`, 200k filtered/cell, both vs bare floor):** takeout-X-then-raise (= BBA's `Responsive double`, on in 21GF) **−1.18/−1.89/div** (−0.0003/−0.0006 per raw deal, none/both) → kept shipped (drag negligible + DD-blind obstruction, cf. Lebensohl-vs-floor); overcall-ext (non-standard; nearest = Snapdragon, off in 21GF) **−2.16/−3.53/div** (−0.0020/−0.0032 per raw deal) → still rejected (PD does not rescue the old −0.034/−2.37; *worse* vul). Now behind `set_responsive_takeout` (default on) / `set_responsive_overcall` (default off); defaults byte-identical. | (toggles + `responsive-ab`) |
 | 83 | Maximal doubles | gap | add (Batch 1) | — | — |
@@ -148,6 +148,32 @@ the majors, *adds* genuine fit-finding the measure can see (5-3 major games via
 Stayman+Smolen, 5-5 major games via Leaping Michaels), and only adds nodes over the
 `(2♦)` Cohen base. Promoted: the `set_lebensohl_style` default is now
 `TransferSmolen`; `Transfer`/`Plain`/`Rubensohl` stay as opt-in arms.
+
+**The top-step clubs transfer (80, follow-up — shipped, theory-correct, DD-marginally-negative).**
+Cohen's transfer chain runs *up the line through* the adverse suit, so the highest
+3-level step has no suit above it to transfer into and wraps back to **clubs**:
+`1NT–(2♦/2♥)–3♠` and `1NT–(2♠)–3♥` are a *forced* game-force transfer to clubs (6+♣,
+`points(10..)`; completion `3NT` with a stopper in their suit, else `5♣` — `3♣` is
+unplayable below the top step, so game is forced). Previously these fell to the
+natural floor, leaving a 6+♣ GF hand with no call: the weak `2NT`→`3♣` relay is
+`points(..=8)`, so it cannot carry a game force (bidding it strands the game in `3♣`).
+`TransferSmolen` already had the `(2♦)`→`3♠`→♣ leg; this adds the same wrap for
+`(2♥)`/`(2♠)` and for plain `Transfer` over `(2♦)`. Lives in the shared
+`transfer_lebensohl_responder` builder (guarded `over != Clubs` — over `(2♣)` clubs is
+their suit) plus a generalized `clubs_transfer_completion(over)`. A/B (two binaries at
+a fixed seed, `--ns transfersmolen --ew off`, PD, 200k filtered/cell): after − before
+= **−0.0008/−0.0012 IMPs/board (none/both)**, ≈87 boards changed (0.04%), ≈−1.8/−2.8
+IMPs each. The worst boards are textbook DD-blindness: the transfer reaches a normal
+making `3NT` (e.g. 27 combined HCP with a running club source), while the floor
+instead makes a *speculative penalty double of the overcall* (`2♦×`/`2♥×`) that
+perfect double-dummy defense turns into a giant set — the harness over-credits the
+defense, exactly the obstruction-blindness flagged for Lebensohl-vs-floor above. Kept
+in the default as a theory-correct completion (the bid a 6+♣ GF hand otherwise lacks),
+pending a single-dummy re-measure. (Cohen's full *slow-shows-stopper* layer —
+`2NT`→`3♣`→cue = Stayman *with* a stopper — is a separate, unimplemented refinement;
+`2NT` here is only the weak relay.) `lebensohl-ab` gains `--seed` (deterministic
+two-binary runs) and `--only-topstep` (restrict to top-step boards; note it also
+catches floor `3♠`-natural auctions, so the clean isolation is the two-binary delta).
 
 **The `2NT`-role A/B (80, follow-up — measured twice, kept opt-in).** The `2NT`-role
 swap — **true Rubensohl** (`2NT` an artificial **club** transfer) vs the relay

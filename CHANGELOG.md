@@ -28,6 +28,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   fit-finding the double-dummy / perfect-defense measure can credit (5-3 major games
   through Stayman+Smolen, 5-5 major games through Leaping Michaels), not the DD-blind
   right-siding that sank the earlier attempt.
+- **Transfer Lebensohl's top step is now a forcing transfer to clubs (ledger #80).**
+  Cohen's transfers run *up the line through* the adverse suit, so the highest 3-level
+  step has no suit above it and wraps back to clubs: `1NT–(2♦/2♥)–3♠` and `1NT–(2♠)–3♥`
+  are now a *forced* game-force transfer to clubs (6+♣, game values, no stopper in
+  their suit; opener completes `3NT` with a stopper, else `5♣`). These previously fell
+  to the natural instinct floor, leaving a 6+♣ game-forcing hand with no call — the
+  weak `2NT`→`3♣` relay is limited to ≤8 points and can't carry a game force. Applies
+  to both `Transfer` and `TransferSmolen` (and fixes plain `Transfer` over `(2♦)`);
+  `TransferSmolen` already shipped the analogous `(2♦)–3♠`→♣ leg. Perfect-defense A/B
+  (two binaries at a fixed `--seed`, `transfersmolen` vs the bare floor, 200k
+  filtered/cell): **−0.0008/−0.0012 IMPs/board (none/both)** — a tiny, consistent loss
+  confined to ≈0.04% of boards. Those boards are normal making games (`3NT`/`5♣`) that
+  double-dummy scores below the floor's *speculative penalty doubles of the overcall*
+  under perfect defense — the harness's known blindness to competition/obstruction
+  (cf. Lebensohl-vs-floor #80), not a transfer misjudgment. Kept in the default as a
+  theory-correct completion, pending a single-dummy re-measure. `examples/lebensohl-ab`
+  gains `--seed` (deterministic two-binary runs) and `--only-topstep` (restrict to
+  top-step boards).
 - **Responsive double re-measured under perfect defense (ledger #100); two opt-in
   toggles, defaults unchanged.** The shipped responsive double after partner's
   *takeout* double and their raise (`(1t)–X–(2t)–X` — the canonical convention, and

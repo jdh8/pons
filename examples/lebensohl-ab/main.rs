@@ -29,13 +29,15 @@ use clap::Parser;
 use contract_bridge::auction::{Auction, Call};
 use contract_bridge::deck::full_deal;
 use contract_bridge::eval::hcp as holding_hcp;
-use contract_bridge::{AbsoluteVulnerability, FullDeal, Hand, Seat, Suit};
+use contract_bridge::{AbsoluteVulnerability, Bid, FullDeal, Hand, Seat, Strain, Suit};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
 use pons::bidding::american::{LebensohlStyle, set_lebensohl_style};
 use pons::bidding::context::relative;
 use pons::bidding::{Family, Stance, System};
 use pons::scoring::{final_contract, imps, ns_score};
+use rand::SeedableRng;
+use rand::rngs::StdRng;
 
 /// Contested Lebensohl A/B
 #[derive(Parser)]
@@ -56,11 +58,44 @@ struct Args {
     #[arg(long, default_value = "plain")]
     ew: String,
 
+    /// RNG seed (fixed by default so before/after builds deal identical boards —
+    /// the two-binary comparison for a structural change to the default book)
+    #[arg(long, default_value = "20260620")]
+    seed: u64,
+
     /// Only count deals that can plausibly reach `1NT–(2♦/2♥)` (a cheap shape
     /// pre-filter), so the DD budget lands on boards that can actually diverge.
     /// `--count` is then the number of such filtered boards.
     #[arg(long, default_value = "false")]
     filter_dh: bool,
+
+    /// Restrict the totals and the worst-board list to boards whose auction
+    /// reached a Transfer-Lebensohl *top-step* clubs transfer
+    /// (`1NT (2♦/2♥) 3♠` or `1NT (2♠) 3♥`) — the boards the top-step fix changed.
+    #[arg(long, default_value = "false")]
+    only_topstep: bool,
+}
+
+/// Does this auction contain a top-step clubs transfer (`1NT (2♦/2♥) 3♠` or
+/// `1NT (2♠) 3♥`) — i.e. is this a board the top-step fix can change?
+fn contains_top_step(auction: &[Call]) -> bool {
+    let nt = Call::Bid(Bid::new(1, Strain::Notrump));
+    auction.windows(3).any(|w| {
+        let (Call::Bid(over), Call::Bid(resp)) = (w[1], w[2]) else {
+            return false;
+        };
+        if w[0] != nt {
+            return false;
+        }
+        let top = if over == Bid::new(2, Strain::Diamonds) || over == Bid::new(2, Strain::Hearts) {
+            Bid::new(3, Strain::Spades)
+        } else if over == Bid::new(2, Strain::Spades) {
+            Bid::new(3, Strain::Hearts)
+        } else {
+            return false;
+        };
+        resp == top
+    })
 }
 
 /// Total HCP of a hand
@@ -163,7 +198,7 @@ fn bid_out(
 #[allow(clippy::cast_precision_loss)]
 fn main() {
     let args = Args::parse();
-    let mut rng = rand::rng();
+    let mut rng = StdRng::seed_from_u64(args.seed);
 
     set_lebensohl_style(style_from(&args.ew));
     let baseline = american().against(Family::NATURAL);
@@ -215,6 +250,11 @@ fn main() {
     // the swing to the Lebensohl team (NS at A, EW at B).
     let divergent: Vec<usize> = (0..args.count)
         .filter(|&i| contracts[i].0 != contracts[i].1)
+        .filter(|&i| {
+            !args.only_topstep
+                || contains_top_step(&auctions[i].0)
+                || contains_top_step(&auctions[i].1)
+        })
         .collect();
     let solve_deals: Vec<FullDeal> = divergent.iter().map(|&i| deals[i]).collect();
     let tables = Solver::lock().solve_deals(&solve_deals, NonEmptyStrainFlags::ALL);

@@ -394,6 +394,18 @@ pub(super) fn transfer_lebensohl_responder(over: Suit) -> Rules {
                 1.45
             };
             rules = rules.rule(Bid::new(3, strain), weight, len(target, 5..) & points(9..));
+        } else if over != Suit::Clubs {
+            // Top step (no suit above to transfer into): a *forced* game-force
+            // transfer to clubs, 6+♣. Its completion lands at game, so 3♣ can
+            // never be the contract — the only forcing long-club route (the
+            // 2NT→3♣ relay is the *weak* one). Weight below 3NT's 1.5 so a 6♣
+            // hand *with* a stopper picks 3NT; only no-stopper hands transfer.
+            // (Over (2♣) clubs is their suit — there is no top-step transfer.)
+            rules = rules.rule(
+                Bid::new(3, strain),
+                1.45,
+                len(Suit::Clubs, 6..) & points(10..),
+            );
         }
     }
 
@@ -700,21 +712,17 @@ fn stayman_2d_fit_rebid(major: Suit) -> Rules {
         .rule(Bid::new(3, Strain::Notrump), 0.5, hcp(0..))
 }
 
-/// Opener's completion of the `3♠`→clubs transfer (a forced game-force)
+/// Opener's completion of the top-step→clubs transfer (a forced game-force)
 ///
-/// Responder has 6+ clubs, no diamond stopper, game values. Opener bids `3NT`
-/// with a diamond stopper of its own, else raises to `5♣` — `3♣` is unplayable
-/// below `3♠`, so the auction must reach game. (`5♣` is the finite catch-all.)
+/// Responder has 6+ clubs, no stopper in `over`, game values. Opener bids `3NT`
+/// with a stopper of its own, else raises to `5♣` — `3♣` is unplayable below the
+/// top step, so the auction must reach game. (`5♣` is the finite catch-all.)
 //
 // ponytail: minor-suit slam exploration is left to the floor; 3NT-or-5♣ covers
 // the common game. Author a keycard ladder here only if the A/B shows it matters.
-fn clubs_transfer_2d_completion() -> Rules {
+fn clubs_transfer_completion(over: Suit) -> Rules {
     Rules::new()
-        .rule(
-            Bid::new(3, Strain::Notrump),
-            1.4,
-            stopper_in(Suit::Diamonds),
-        )
+        .rule(Bid::new(3, Strain::Notrump), 1.4, stopper_in(over))
         .rule(Bid::new(5, Strain::Clubs), 0.5, hcp(0..))
 }
 
@@ -914,8 +922,10 @@ pub fn competition() -> Competitive {
                         cue_stayman_answer(over)
                     } else if let Some(target) = transfer_target(bid_suit, over) {
                         transfer_completion(target, over)
+                    } else if over != Suit::Clubs {
+                        clubs_transfer_completion(over) // top step → clubs (forced GF)
                     } else {
-                        continue; // no transfer target (the lowest suit) — floored
+                        continue; // over (2♣): clubs is their suit — floored
                     };
                     fallback_all_seats(
                         &mut book,
@@ -1026,7 +1036,7 @@ pub fn competition() -> Competitive {
                         vec![overcall, h3, p],
                         transfer_completion(Suit::Spades, over),
                     ),
-                    (vec![overcall, s3, p], clubs_transfer_2d_completion()),
+                    (vec![overcall, s3, p], clubs_transfer_completion(over)),
                     // Leaping Michaels: 4♦ both majors, 4♣ clubs + a major (ask).
                     (vec![overcall, d4, p], lm_2d_both_majors_advance()),
                     (vec![overcall, c4, p], lm_2d_clubs_ask()),
@@ -1342,5 +1352,47 @@ mod tests {
         ];
         let (signoff, _) = bid_rubensohl(&rebid, "32.432.KQ976.432");
         assert_eq!(signoff, Call::Pass);
+    }
+
+    #[test]
+    fn transfer_lebensohl_top_step_is_a_clubs_transfer() {
+        // The top step (no suit above to transfer into) is a forced game-force
+        // transfer to clubs: 6+♣, game values, no stopper in their suit. The same
+        // 10-HCP hand bids it over every overcall — 3♠ over (2♦)/(2♥), 3♥ over
+        // (2♠) — a book node, never the natural floor.
+        let hand = "32.543.32.AKQJ86";
+        for (over, top) in [
+            (Strain::Diamonds, Strain::Spades),
+            (Strain::Hearts, Strain::Spades),
+            (Strain::Spades, Strain::Hearts),
+        ] {
+            let auction = [call(1, Strain::Notrump), call(2, over)];
+            let (c, floored) = bid_transfersmolen(&auction, hand);
+            assert_eq!(c, call(3, top), "top step → clubs over (2{over:?})");
+            assert!(!floored, "the clubs transfer must come from the book");
+        }
+        // Plain Transfer (Cohen) gets it over (2♦) too — previously floored.
+        let auction = [call(1, Strain::Notrump), call(2, Strain::Diamonds)];
+        let (c, floored) = bid_transfer(&auction, hand);
+        assert_eq!(c, call(3, Strain::Spades));
+        assert!(!floored);
+    }
+
+    #[test]
+    fn transfer_lebensohl_top_step_opener_completes_at_game() {
+        // After 1NT–(2♥)–3♠ (transfer to clubs, forced GF): opener bids 3NT with
+        // a heart stopper, else raises to 5♣ — 3♣ is unplayable, so it reaches game.
+        let auction = [
+            call(1, Strain::Notrump),
+            call(2, Strain::Hearts),
+            call(3, Strain::Spades),
+            Call::Pass,
+        ];
+        let (c, floored) = bid_transfersmolen(&auction, "A432.KQ5.A32.432");
+        assert_eq!(c, call(3, Strain::Notrump), "stopper → 3NT");
+        assert!(!floored, "the completion must come from the book");
+
+        let (c, _) = bid_transfersmolen(&auction, "A432.543.AKQ.432");
+        assert_eq!(c, call(5, Strain::Clubs), "no stopper → 5♣");
     }
 }
