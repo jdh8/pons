@@ -32,10 +32,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `american_search` as a default-on knob rather than living on as a twin. Strong but
   *very* slow (it searches every non-forced on-book decision); gated behind the
   `search` feature, with [`examples/search-book`](examples/search-book/main.rs) as
-  the IMPs/board A/B harness. **Measured (120 boards, vul none, seed 1): wrapping
-  *every* leaf as-is REGRESSES** — −1.925 IMPs/board vs `american_search` (95% CI
-  [−3.147, −0.703]) and −1.133 vs `american` ([−2.223, −0.043]), both excluding 0.
-  The losses concentrate in *competitive* auctions where the convention is undecoded:
+  the IMPs/board A/B harness. **Measured (120 boards, vul none, seed 1,
+  perfect-defense scoring): wrapping *every* leaf as-is REGRESSES** — −2.958
+  IMPs/board vs `american` (95% CI [−4.605, −1.312], excludes 0 — a clear loss) and
+  −1.700 vs `american_search` ([−3.552, +0.152], point estimate firmly negative). The
+  losses concentrate in *competitive* auctions where the convention is undecoded:
   the layout sampler then deals partner ranges too wide, so double-dummy over-values
   doubled grands (the divergent dump shows leaf-pricing reaching failing `7♣xx`). The
   fix is the M7.1 `Inferences::read` decode sweep (skip the search on any leaf with no

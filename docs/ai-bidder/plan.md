@@ -459,9 +459,16 @@ opt-in behind `search`.
   the M7 *treatment arm***: keep both names during M7 to measure; on a win, collapse
   leaf-wrapping into `american_search` as a default-on knob and delete `_book`
   (gate per book if it splits contested vs constructive). **RESULT (120 boards, vul
-  none, seed 1):** leaf-pricing **regresses −1.925 IMPs/board vs `american_search`**
-  (CI [−3.147, −0.703], excludes 0) and **−1.133 vs `american`** (CI [−2.223,
-  −0.043]) — the win condition FAILS. The divergent dump is unambiguous: all three
+  none, seed 1, perfect-defense measure — failing contracts doubled, the corrected
+  `ns_score`):** leaf-pricing **regresses −2.958 IMPs/board vs `american`** (CI
+  [−4.605, −1.312], excludes 0 — a clear loss) and **−1.700 vs `american_search`**
+  (CI [−3.552, +0.152] — point estimate firmly negative, the wider SE leaves 0 just
+  inside). The win condition FAILS. (For reference, the earlier *optimistic*-bound
+  numbers were −1.133 / −1.925; perfect defense makes the loss vs `american` worse,
+  as expected — it doubles the overbids. Baseline context: `american_search` itself
+  is only −1.050 vs `american` under perfect defense, CI [−2.237, +0.137] — the live
+  search's edge over the floor was a scoring artifact, so leaf-pricing builds on a
+  shaky base.) The divergent dump is unambiguous: all three
   worst losses are leaf-pricing reaching a **redoubled grand (`7♣xx`)** that fails,
   in wild *competitive* auctions. This is the **M7.1 soundness gate** biting (§3 of
   05-search-at-every-leaf.md): competitive leaves are mostly *undecoded*, so the
