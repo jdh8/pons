@@ -88,7 +88,6 @@ balancing/reopening, and slam accuracy (missed grands).
 |---|--------|-------------|----------|-----|--------|
 | 80 | Lebensohl after 1NT | **shipped** | **Transfer Lebensohl** (Cohen) default; plain kept as option | Transfer vs plain **+0.46/+1.24/div** (none/both, 200k); vs floor +0.35/+0.05; (plain vs floor +0.26, Ruben-v1 −1.68); 2NT-role swap true-Rubensohl −0.017/−0.046/board (200k) reverted | bfe5e59 (plain), bee9204 (transfer) |
 | 105 | Rubensohl after 1m | floor (Rubens advances) | upgrade (Batch 1) | — | — |
-| 106 | Rubensohl after double | floor | upgrade (Batch 1) | — | — |
 | 100 | Responsive double | partial; overcall-ext tried — DD-negative | **keep floor** (don't ship the light overcall double) | takeout-X-then-raise authored (`defense.rs`); 8+ floor double after partner's *overcall* A/B'd **−0.034/board, −2.37/div** (200k, 1.4% div) → reverted | reverted |
 | 83 | Maximal doubles | gap | add (Batch 1) | — | — |
 | 71 | Jordan/Truscott 2NT | tried — DD-negative | **keep floor** (don't ship) | full **−1.0/−1.5** IMPs/div; 2NT-only **−4.2/−4.4** (jordan-ab 500k/300k) | reverted |
@@ -168,11 +167,12 @@ under a single-dummy / IMPs-vs-humans measure where preemption actually pays.
 | 84 | Michaels cuebid | shipped | keep | — | — |
 | 127 | Unusual 2NT | shipped | keep | — | — |
 | 126 | Unusual 1NT | gap | add (Batch 1) | — | — |
-| 79 | Leaping Michaels | gap | add (Batch 1) | — | — |
+| 79 | Leaping Michaels | measured, rejected | keep floor (opt-in, default off) | `4♣/4♦` strong 5-5 two-suiters over a weak two; A/B'd **−0.599/−0.881/board** (none/both, 40k filtered, 27.6% div) → kept opt-in (`set_leaping_michaels`) | (this commit) |
 | 123 | Two-suit takeout double | gap | add (Batch 1) | — | — |
 | 129 | Unusual 4NT | verify | — | — | — |
 | 48 | Cue bid | partial | verify | — | — |
-| — | **Lebensohl after a takeout double** (advancer, weak twos) | measured (Transfer opt-in, default off) | **keep floor as default**; Transfer kept opt-in (best), Plain / Pam / Lawrence rejected | Transfer vs off −0.006/+0.084/board (none/both, 200k); Transfer vs Plain +1.85/+2.66/div; Plain vs off −0.108/−0.050; Lawrence vs Transfer −0.053/−0.092/board (200k); Pam vs Transfer −0.009/−0.005/board (200k) | `set_advance_sohl_style` |
+| 106 | **Rubensohl after double** (advancer, weak twos; = `Transfer`) | shipped (opt-in, default off) | **keep floor as default**; `Transfer` = best, kept opt-in | Transfer vs off −0.006/+0.084/board (none/both, 200k); Transfer vs Plain +1.85/+2.66/div | a6e7ab9 (`set_advance_sohl_style`) |
+| 82 | **Lebensohl after double** (advancer, weak twos; = `Plain`) | measured, rejected | keep floor; `Plain` DD-negative | Plain vs off −0.108/−0.050/board (200k); Pam/Lawrence also rejected (see note) | a6e7ab9 |
 
 **Lebensohl after a takeout double (advancer over a weak two) — measured;
 best variant (`Transfer`) kept opt-in.** After `(2X)–X–(P)` the flat `advance_double` ladder can't
@@ -196,9 +196,26 @@ divergence) to recover the slot it eats from weak long-clubs. Only `Transfer`
 were rejected and not retained in code; the `sohl-after-double-ab` harness is
 kept. Stopper-routing ("slow shows /
 fast denies") was *not* tested per user direction (strength was hypothesised
-to dominate; the `Lawrence` loss is consistent with that). Distinct from
-`106` (Rubensohl after *our* opening is doubled — still floor). Revisit only
-under a single-dummy measure that can see right-siding.
+to dominate; the `Lawrence` loss is consistent with that). This **is** toggle
+`#106` (`Transfer` = Rubensohl after double) and `#82` (`Plain` = Lebensohl
+after double); the "our opening is doubled" responder case is a *separate* BBA
+toggle (`Transfers if RHO doubles`), not this one. Revisit only under a
+single-dummy measure that can see right-siding.
+
+**Leaping Michaels (79) — measured, DD-negative, kept opt-in.** Over their weak
+two, a jump to `4♣`/`4♦` names a 5-5 two-suiter with game-forcing values: over a
+major it shows a minor + the *other* major; over `2♦` the `4♦` cue shows both
+majors and `4♣` shows clubs + a major (advancer's continuation left to the
+instinct floor). Authored in `defense_to_weak_two` behind `set_leaping_michaels`
+(default `Off`) and A/B'd on `leaping-michaels-ab` (contested seat-swap, 40k
+filtered boards, 27.6 % divergence): **−0.599 / −0.881 IMPs/board** (none/both)
+vs the floor — a clear loss, worse vulnerable. Mechanism: the convention is
+nominally *constructive*, but the 4-level jump destroys the lower-level
+constructive auction the baseline uses to find the right strain, and DD is blind
+to the descriptive/obstructive value the jump buys (same wall as the preempts in
+`#71`/`#100`). Reaching game/slam a level too high on a misfit costs more than the
+occasional well-placed two-suiter gains. Kept opt-in, not shipped; revisit only
+under a single-dummy measure.
 
 ## Openings
 
