@@ -414,6 +414,60 @@ the books are thinnest — by deriving and generalizing, not by enumeration.
 
 ---
 
+## Milestone 7 — Search at every leaf (rules propose, DD disposes)
+
+Full design: [`05-search-at-every-leaf.md`](05-search-at-every-leaf.md). Today an
+authored leaf is the final word: `Trie::classify_floored` returns a book node's
+logits verbatim when they have mass, and the live double-dummy search
+(`SearchFloor`) is wired only as the contested-book floor — so DD search runs
+*only where the book is silent*. Leaping Michaels proved the upside of crossing
+that line by hand (cap the authored advance at game, decode the convention,
++2.8 IMPs/board for search over the rule floor). M7 generalizes it: an authored
+bid encodes *meaning* (its constraints), and DD search makes the *judgement* (its
+weights). The leaf's logits become a *prior*, not a verdict — fed through the
+existing `shortlist → ev_all → blend` seam. All §0 safety invariants are
+inherited verbatim; `instinct()` and `american()` are untouched; the new bidder is
+opt-in behind `search`.
+
+- ⬜ **M7.0 Search-aware classification path.** Add a path so a resolved *book*
+  leaf with mass (and not forced) feeds its logits as the search prior instead of
+  being terminal, reusing `shortlist`/`ev_all`/`blend` unchanged. Candidate set =
+  **book finite calls ∪ neural top-k**, so DD can override a one-call rule.
+  *Deliverable:* a new gated constructor (e.g. `american_search_book()`) alongside
+  `american_search()`; a `Pair`/`Trie`-level wrapper, not a `Trie::classify_floored`
+  rewrite if avoidable. *Measure:* parity-or-better vs `american_search()` on
+  contested (`search-floor` harness); the `instinct` rails stay green (forced →
+  deterministic, before any search). *Deps:* none (the seam exists).
+- ⬜ **M7.1 `Inferences::read` completeness sweep.** The soundness gate: DD EV is
+  only as good as the decode, since the sampler conditions on `Inferences::read`
+  ranges. An undecoded convention widens partner's range (sound but biased EV —
+  never a crash, `inference.rs` is superset-by-construction), so quietly-weak EV is
+  the failure mode. Audit every authored convention; add the missing `read` arms
+  (same post-walk seam as `leaping_michaels_reading` / `transfer_major_reading`).
+  *Deliverable:* a decode per convention, + the explicit fallback "no usable decode
+  → keep the authored logits, skip the search here." *Measure:* a sampler-soundness
+  check per convention; A/B per decode. *Deps:* none, but **gates M7.0/M7.2
+  quality** (not correctness).
+- ⬜ **M7.2 Extend to constructive leaves.** Wrap constructive book nodes too — the
+  literal "every leaf." Re-test the `project_floors_contested_only` boundary: DD-
+  pricing the *authored candidates* is a different experiment from putting the raw
+  *net* on constructive (which lost 0.8 IMPs/board), so it must clear its own A/B
+  before shipping. *Measure:* constructive A/B (`constructive-abc` template); expect
+  gains in reach (games/slams), not in light competition — the DD harness is blind
+  to obstruction (`project_preemption-dd-negative`). *Deps:* M7.0, M7.1.
+- ⬜ **M7.3 (optional) Continuation policy = full system.** The rollout finishes
+  with the bare distilled net (`POLICY`), not book+floor, so a *book* leaf is
+  priced assuming the *net* continues — a fidelity mismatch. If M7.0/M7.2 leave
+  measurable EV bias, swap the rollout continuation to the book+floor system.
+  *Measure:* IMPs/board delta vs the bare-net continuation. *Deps:* M7.0.
+
+Exit M7: every authored leaf where judgement matters is priced by double-dummy
+cardplay, not a fixed weight — the system reaches the contracts the specific cards
+are *for*, while the authored constraints still carry the meaning partner relies
+on.
+
+---
+
 ## Side-track S — External reference bidder (BBA / EPBot)
 
 Optional, parallelizable, **pure tooling** — never touches the default build, the
@@ -464,11 +518,15 @@ M0  ──► M1 ──────────────► (working learned 
   │       │
   │       └─► M2 ──► M2.3 ──► (gated live search bidder: net+search > raw net)
   │              │      │
-  │              │      └─► M3 ──► (distill it → fast default floor > teacher)  ← the real goal
+  │              │      ├─► M3 ──► (distill it → fast default floor > teacher)  ← the real goal
+  │              │      │
+  │              │      └─► M7 ──► (search wraps authored leaves: rules propose, DD disposes)
   │
   └─► M4 ─────────────────► (faster 2/1 authoring)
             │
             └─► (with M5.2) ─► M5 ─► (meaning-driven 2/1 policy)  ← the dream
+
+M6 (deeper deterministic floor) ─► feeds M7's decode sweep (Inferences::read)
 
 S (BBA/EPBot) ─► external eval anchor (now) · teacher → M3 (optional)
 ```
