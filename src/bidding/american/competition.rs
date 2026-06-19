@@ -34,15 +34,21 @@ use std::sync::Arc;
 ///   attempt (which stranded game hands in partscores); it measures
 ///   **+0.46/+1.24 IMPs/divergent (none/both) vs plain Lebensohl** (`lebensohl-ab`,
 ///   200k boards each), and +0.35/+0.05 vs the bare floor.
+/// - `Rubensohl` — true Rubensohl: `2NT` is an artificial **club** transfer and a
+///   transfer to any suit *below* the overcall is two-way (weak signs off, strong
+///   continues); transfers *above* the overcall stay INV+, the cue is Stayman, and
+///   weak hands above escape with a natural 2-level bid (all identical to
+///   `Transfer`). **Measured worse than `Transfer`**: DD `−0.017/−0.046` and
+///   perfect-defense `+0.001/−0.023 IMPs/board` (none/both, 200k each) — neutral
+///   non-vul, a clear loss vul. Kept opt-in (the default stays `Transfer`) for a
+///   future single-dummy re-measure that can see its right-siding edge.
 ///
-/// (Two refinements were tried and reverted, both DD-negative vs `Transfer`; see
-/// `docs/ai-bidder/21gf-ledger.md`. A standard low-Stayman + Smolen hybrid over
-/// `(2♦)`/`(2♥)`. And the `2NT`-role swap — **true Rubensohl**: `2NT` a two-way
-/// club transfer, every transfer *below* the overcall two-way, transfers *above*
-/// still INV+ — measured **−0.017/−0.046 IMPs/board (none/both)**, 200k boards
-/// each: making the low transfers two-way costs `Transfer`'s auto-drive-to-game
-/// on invitational hands, while its only gain — right-siding the low-suit
-/// partscore — is DD-blind.)
+/// (A third refinement, a standard low-Stayman + Smolen hybrid over `(2♦)`/`(2♥)`,
+/// was tried and reverted — DD `−1.31/−1.76 IMPs/div`; see
+/// `docs/ai-bidder/21gf-ledger.md`. The `Rubensohl` loss above shares its root
+/// cause: making the low transfers two-way costs `Transfer`'s auto-drive-to-game on
+/// invitational hands, while its only gain — right-siding the low-suit partscore —
+/// is invisible to the double-dummy / perfect-defense measure.)
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum LebensohlStyle {
     /// Responder falls to the instinct floor (no Lebensohl node)
@@ -51,6 +57,8 @@ pub enum LebensohlStyle {
     Plain,
     /// Transfer Lebensohl (Larry Cohen's version; `2NT` relay) — the default
     Transfer,
+    /// True Rubensohl (`2NT` an artificial club transfer; low transfers two-way)
+    Rubensohl,
 }
 
 thread_local! {
@@ -453,6 +461,116 @@ pub(super) fn cue_stayman_answer(over: Suit) -> Rules {
     rules.rule(Bid::new(3, Strain::Notrump), 1.3, hcp(0..))
 }
 
+// ---------------------------------------------------------------------------
+// Section 5c: true Rubensohl — `2NT` = club transfer, low transfers two-way
+// ---------------------------------------------------------------------------
+
+/// Responder's true-Rubensohl actions after our `1NT` and a 2-level overcall in
+/// `over` (the [`LebensohlStyle::Rubensohl`] package)
+///
+/// Differs from Transfer Lebensohl only in the low suits: `2NT` is an artificial
+/// **club** transfer, and a 3-level transfer to a suit *below* the overcall is
+/// likewise a transfer — both **two-way** (any strength: a weak hand signs off
+/// after opener completes, a strong hand continues; see [`two_way_transfer_rebid`]).
+/// Transfers to a suit *above* the overcall stay INV+ (opener auto-drives to game),
+/// the cue is Stayman, and weak hands above escape with a natural 2-level bid — all
+/// identical to Transfer Lebensohl. (jdh8's rule, A/B'd against `Transfer`.)
+pub(super) fn rubensohl_responder(over: Suit) -> Rules {
+    let mut rules = Rules::new();
+
+    // 2NT = artificial club transfer (two-way). Clubs sit below every overcall
+    // except (2♣), where 2NT has no club target.
+    if over != Suit::Clubs {
+        rules = rules.rule(Bid::new(2, Strain::Notrump), 1.45, len(Suit::Clubs, 5..));
+    }
+
+    // 3-level transfers and the Stayman cue (the cue is identical to Transfer).
+    for bid_suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
+        let strain = Strain::from(bid_suit);
+        if bid_suit == over {
+            let cue = Bid::new(3, strain);
+            rules = match over {
+                Suit::Hearts => rules.rule(cue, 1.7, len(Suit::Spades, 4..) & points(10..)),
+                Suit::Spades => rules.rule(cue, 1.7, len(Suit::Hearts, 4..) & points(10..)),
+                _ => rules.rule(
+                    cue,
+                    1.7,
+                    (len(Suit::Hearts, 4..) | len(Suit::Spades, 4..)) & points(10..),
+                ),
+            };
+        } else if let Some(target) = transfer_target(bid_suit, over) {
+            let weight = if matches!(target, Suit::Hearts | Suit::Spades) {
+                1.8
+            } else {
+                1.45
+            };
+            let bid = Bid::new(3, strain);
+            rules = if (target as u8) < (over as u8) {
+                // Transfer to a suit below the overcall — two-way (any strength).
+                rules.rule(bid, weight, len(target, 5..))
+            } else {
+                // Transfer to a suit above the overcall — INV+ (auto-driven).
+                rules.rule(bid, weight, len(target, 5..) & points(9..))
+            };
+        }
+    }
+
+    // Direct 3NT to play, penalty double, natural weak 2-level — identical to
+    // Transfer Lebensohl.
+    rules = rules.rule(
+        Bid::new(3, Strain::Notrump),
+        1.5,
+        points(10..) & stopper_in(over),
+    );
+    rules = rules.rule(Call::Double, 1.55, len(over, 4..) & hcp(9..));
+    for s in [Suit::Diamonds, Suit::Hearts, Suit::Spades] {
+        if s == over {
+            continue;
+        }
+        let strain = Strain::from(s);
+        rules = rules.rule(
+            Bid::new(2, strain),
+            1.4,
+            min_level_is(2, strain) & len(s, 5..) & points(..=8),
+        );
+    }
+    rules.rule(Call::Pass, 0.0, hcp(0..))
+}
+
+/// Opener completes responder's two-way Rubensohl transfer by bidding the target
+/// suit at the 3 level (forced; responder's rebid reveals strength)
+pub(super) fn complete_two_way_transfer(target: Suit) -> Rules {
+    Rules::new().rule(Bid::new(3, Strain::from(target)), 1.0, hcp(0..))
+}
+
+/// Responder's rebid after opener completes a two-way Rubensohl transfer to `target`
+///
+/// Weak hands sign off (pass the completed transfer). Game-forcing hands drive on:
+/// `3NT` with the overcall stopped, else game in the target suit.
+//
+// ponytail: slam exploration after a two-way transfer is left to the floor —
+// pass / 3NT / game-in-target covers the common outcomes. Author a slam ladder
+// here only if the A/B shows two-way-transfer slams matter.
+pub(super) fn two_way_transfer_rebid(target: Suit, over: Suit) -> Rules {
+    let t = Strain::from(target);
+    let mut rules = Rules::new();
+
+    // Game-forcing: bid game in the target, or 3NT with their suit stopped.
+    if matches!(target, Suit::Hearts | Suit::Spades) {
+        rules = rules.rule(Bid::new(4, t), 1.5, points(10..) & len(target, 5..));
+    } else {
+        rules = rules.rule(Bid::new(5, t), 1.3, points(13..) & len(target, 6..));
+    }
+    rules = rules.rule(
+        Bid::new(3, Strain::Notrump),
+        1.4,
+        points(10..) & stopper_in(over),
+    );
+
+    // Weak — sign off in the completed transfer.
+    rules.rule(Call::Pass, 0.0, hcp(0..))
+}
+
 /// The competitive package over our openings: cue-bid raises, preemptive raises,
 /// negative doubles for all four openings, support doubles/redoubles, and
 /// opener's answers to negative doubles of minor overcalls
@@ -559,6 +677,7 @@ pub fn competition() -> Competitive {
             // Responder's first action: the uncovered suffix is exactly their overcall.
             let responder = match style {
                 LebensohlStyle::Transfer => transfer_lebensohl_responder(over),
+                LebensohlStyle::Rubensohl => rubensohl_responder(over),
                 _ => lebensohl_responder(over),
             };
             fallback_all_seats(
@@ -583,6 +702,13 @@ pub fn competition() -> Competitive {
             );
 
             // Responder's rebid after 3♣: suffix is [overcall, 2NT, P, 3♣, P].
+            // Under Rubensohl the 2NT→3♣ completion is a *two-way club transfer*
+            // (weak passes, strong drives on); under Plain/Transfer it is the weak
+            // relay sign-off.
+            let relay_rebid = match style {
+                LebensohlStyle::Rubensohl => two_way_transfer_rebid(Suit::Clubs, over),
+                _ => lebensohl_relay_rebid(over),
+            };
             fallback_all_seats(
                 &mut book,
                 &[one_nt],
@@ -590,7 +716,7 @@ pub fn competition() -> Competitive {
                 Arc::new(guard(move |_: &Context<'_>, suffix: &[Call]| {
                     suffix == [overcall, two_nt, Call::Pass, three_clubs, Call::Pass]
                 })),
-                Fallback::classify(lebensohl_relay_rebid(over)),
+                Fallback::classify(relay_rebid),
             );
 
             // Transfer style: opener's reply to each 3-level transfer / cue.
@@ -614,6 +740,62 @@ pub fn competition() -> Competitive {
                         })),
                         Fallback::classify(reply),
                     );
+                }
+            }
+
+            // Rubensohl style: the cue is Stayman; a transfer to a suit *above* the
+            // overcall is INV+ and auto-driven (same as Transfer); a transfer to a
+            // suit *below* is two-way, so opener completes at the 3 level and
+            // responder's rebid (the [overcall, 3X, P, 3target, P] node) shows
+            // strength.
+            if style == LebensohlStyle::Rubensohl {
+                for bid_suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
+                    let resp = call(3, Strain::from(bid_suit));
+                    if bid_suit == over {
+                        fallback_all_seats(
+                            &mut book,
+                            &[one_nt],
+                            3,
+                            Arc::new(guard(move |_: &Context<'_>, suffix: &[Call]| {
+                                suffix == [overcall, resp, Call::Pass]
+                            })),
+                            Fallback::classify(cue_stayman_answer(over)),
+                        );
+                    } else if let Some(target) = transfer_target(bid_suit, over) {
+                        if (target as u8) < (over as u8) {
+                            // Two-way: opener completes 3-of-target, then responder rebids.
+                            let completed = call(3, Strain::from(target));
+                            fallback_all_seats(
+                                &mut book,
+                                &[one_nt],
+                                3,
+                                Arc::new(guard(move |_: &Context<'_>, suffix: &[Call]| {
+                                    suffix == [overcall, resp, Call::Pass]
+                                })),
+                                Fallback::classify(complete_two_way_transfer(target)),
+                            );
+                            fallback_all_seats(
+                                &mut book,
+                                &[one_nt],
+                                3,
+                                Arc::new(guard(move |_: &Context<'_>, suffix: &[Call]| {
+                                    suffix == [overcall, resp, Call::Pass, completed, Call::Pass]
+                                })),
+                                Fallback::classify(two_way_transfer_rebid(target, over)),
+                            );
+                        } else {
+                            // INV+ transfer above the overcall — opener auto-drives.
+                            fallback_all_seats(
+                                &mut book,
+                                &[one_nt],
+                                3,
+                                Arc::new(guard(move |_: &Context<'_>, suffix: &[Call]| {
+                                    suffix == [overcall, resp, Call::Pass]
+                                })),
+                                Fallback::classify(transfer_completion(target, over)),
+                            );
+                        }
+                    }
                 }
             }
         }
@@ -659,6 +841,12 @@ mod tests {
     /// As [`best_call`], with Transfer Lebensohl forced on
     fn bid_transfer(auction: &[Call], hand: &str) -> (Call, bool) {
         super::set_lebensohl_style(super::LebensohlStyle::Transfer);
+        best_call(auction, hand)
+    }
+
+    /// As [`best_call`], with true Rubensohl forced on
+    fn bid_rubensohl(auction: &[Call], hand: &str) -> (Call, bool) {
+        super::set_lebensohl_style(super::LebensohlStyle::Rubensohl);
         best_call(auction, hand)
     }
 
@@ -754,5 +942,50 @@ mod tests {
         let (c, floored) = bid_transfer(&auction, "K2.QJ976.432.432");
         assert_eq!(c, call(2, Strain::Hearts));
         assert!(!floored, "the natural 2-level bid must come from the book");
+    }
+
+    #[test]
+    fn rubensohl_2nt_is_a_club_transfer() {
+        // 1NT–(2♦); weak hand with long clubs → 2NT (artificial club transfer),
+        // a book node. (Plain/Transfer reach the same 3♣ via the relay; here the
+        // *role* of 2NT differs — it is a transfer, not a relay.)
+        let auction = [call(1, Strain::Notrump), call(2, Strain::Diamonds)];
+        let (c, floored) = bid_rubensohl(&auction, "32.43.32.KQ9876");
+        assert_eq!(c, call(2, Strain::Notrump));
+        assert!(
+            !floored,
+            "the Rubensohl club transfer must come from the book"
+        );
+    }
+
+    #[test]
+    fn rubensohl_low_transfer_is_two_way_and_weak_signs_off() {
+        // 1NT–(2♠); a weak hand with 5 diamonds transfers 3♣ (two-way, → ♦).
+        let resp = [call(1, Strain::Notrump), call(2, Strain::Spades)];
+        let (c, floored) = bid_rubensohl(&resp, "32.432.KQ976.432");
+        assert_eq!(c, call(3, Strain::Clubs));
+        assert!(!floored, "the two-way transfer must come from the book");
+
+        // Opener completes 3♣ → 3♦ (forced).
+        let opener = [
+            call(1, Strain::Notrump),
+            call(2, Strain::Spades),
+            call(3, Strain::Clubs),
+            Call::Pass,
+        ];
+        let (completion, _) = bid_rubensohl(&opener, "AQ32.KQ5.A4.AJ32");
+        assert_eq!(completion, call(3, Strain::Diamonds));
+
+        // The weak responder signs off (passes the completed 3♦) — no auto-drive.
+        let rebid = [
+            call(1, Strain::Notrump),
+            call(2, Strain::Spades),
+            call(3, Strain::Clubs),
+            Call::Pass,
+            call(3, Strain::Diamonds),
+            Call::Pass,
+        ];
+        let (signoff, _) = bid_rubensohl(&rebid, "32.432.KQ976.432");
+        assert_eq!(signoff, Call::Pass);
     }
 }

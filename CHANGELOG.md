@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`LebensohlStyle::Rubensohl` — true Rubensohl as an opt-in over our overcalled
+  `1NT`.** A fourth [`LebensohlStyle`][pons::bidding::american::LebensohlStyle]
+  alongside `Off`/`Plain`/`Transfer`: `2NT` is an artificial **club** transfer and
+  any transfer to a suit *below* the overcall is two-way (weak signs off, strong
+  continues), while transfers *above* stay INV+ and the cue is Stayman — identical
+  to the default `Transfer` Lebensohl elsewhere. Re-authored to answer "does the new
+  perfect-defense scoring change the 2NT-role verdict?": it does not — `Rubensohl`
+  vs `Transfer` measures **+0.001/−0.023 IMPs/board (none/both, 200k boards each)**,
+  neutral non-vul and a clear loss vul, matching the earlier DD result
+  (−0.017/−0.046). Its only edge over `Transfer` is right-siding, which the
+  double-dummy / perfect-defense measure cannot see. **The default is unchanged
+  (`Transfer`)**; the variant is kept opt-in (`set_lebensohl_style`, and
+  `examples/lebensohl-ab --ns rubensohl`) for a future single-dummy re-measure.
 - **Search at every authored leaf (AI-bidder M7.0) — `american_search_book`.**
   A new gated bidder, [`SearchBook`][pons::bidding::search_floor::SearchBook] /
   [`american_search_book`], that prices **authored book leaves by double-dummy
