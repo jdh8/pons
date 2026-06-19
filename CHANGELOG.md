@@ -9,6 +9,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Search at every authored leaf (AI-bidder M7.0) — `american_search_book`.**
+  A new gated bidder, [`SearchBook`][pons::bidding::search_floor::SearchBook] /
+  [`american_search_book`], that prices **authored book leaves by double-dummy
+  cardplay**, not only the off-book auctions. Today
+  [`american_search`][pons::american_search] runs the live search only where the
+  book is silent (the contested fallback floor); `SearchBook` widens it to every
+  *non-forced* book leaf: the leaf's authored logits become the search *prior*
+  (rather than the final word), and DD re-judges among the calls the rule proposes
+  **∪ the net's top-`k` natural alternatives** — so it can override an inflexible
+  one-call rule — over sampled layouts, then bids the highest-EV call. "Rules
+  propose, DD disposes," at every leaf. The authored *constraints* (meaning) are
+  untouched — an opening still forbids `Pass` — only the authored *weights*
+  (judgement) are overridden by the specific cards. The EV-pricing core
+  (`price_and_blend`) is shared with `SearchFloor` (extracted byte-identically), and
+  every §0 safety invariant is inherited verbatim: a forced auction delegates to the
+  deterministic stance before any search, legality masking is unchanged, and the
+  rollout RNG is seeded from the decision (determinism). It wraps a *bound* `Stance`
+  (build it with `american_search_book(them)`); [`american`] and `instinct()` are
+  untouched and stay the default. This is the **treatment arm** of the M7 A/B
+  against `american_search` (DD off-book only) — on a measured win it folds into
+  `american_search` as a default-on knob rather than living on as a twin. Strong but
+  *very* slow (it searches every non-forced on-book decision); gated behind the
+  `search` feature, with [`examples/search-book`](examples/search-book/main.rs) as
+  the IMPs/board A/B harness (headline awaits a long run).
 - **Constraint extraction from the trained net — sample-and-probe (new example):**
   added [`examples/extract-constraints`](examples/extract-constraints/main.rs),
   which recovers human-readable *candidate* bidding constraints for **any

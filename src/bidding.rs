@@ -53,6 +53,8 @@ pub use instinct::instinct;
 pub use map::Map;
 pub use rules::Rules;
 pub use sampler::sample_layouts;
+#[cfg(feature = "search")]
+pub use search_floor::{SearchBook, SearchFloor, american_search_book};
 pub use table::Table;
 pub use trie::{Trie, classifier};
 pub use verify::{Report, accepts, compare};

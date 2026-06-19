@@ -83,6 +83,14 @@ name = "search-floor"
 path = "examples/search-floor/main.rs"
 required-features = ["search"]
 
+# The leaf-pricing A/B example (AI-bidder M7.0) measures `american_search_book`
+# (DD on authored leaves too) against `american_search` (DD off-book only), so it
+# builds only with the `search` feature.
+[[example]]
+name = "search-book"
+path = "examples/search-book/main.rs"
+required-features = ["search"]
+
 # The search-target dump (AI-bidder M3.1) bids out boards with the live-search
 # floor (`american_search_with`) to record distillation targets, so it too
 # builds only with the `search` feature.

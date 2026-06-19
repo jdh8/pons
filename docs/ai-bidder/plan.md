@@ -429,7 +429,7 @@ existing `shortlist → ev_all → blend` seam. All §0 safety invariants are
 inherited verbatim; `instinct()` and `american()` are untouched; the new bidder is
 opt-in behind `search`.
 
-- ⬜ **M7.0 Search-aware classification path.** Add a path so a resolved *book*
+- ✅ **M7.0 Search-aware classification path.** Add a path so a resolved *book*
   leaf with mass (and not forced) feeds its logits as the search prior instead of
   being terminal, reusing `shortlist`/`ev_all`/`blend` unchanged. Candidate set =
   **book finite calls ∪ neural top-k**, so DD can override a one-call rule.
@@ -437,7 +437,28 @@ opt-in behind `search`.
   `american_search()`; a `Pair`/`Trie`-level wrapper, not a `Trie::classify_floored`
   rewrite if avoidable. *Measure:* parity-or-better vs `american_search()` on
   contested (`search-floor` harness); the `instinct` rails stay green (forced →
-  deterministic, before any search). *Deps:* none (the seam exists).
+  deterministic, before any search). *Deps:* none (the seam exists). **Done:**
+  `SearchBook` — a `System` wrapping a *bound* `Stance` (search_floor.rs), plus
+  `american_search_book(them)`. It runs the search at every **non-forced authored
+  book leaf** (`provenance.fallback == None`, with mass), feeding the leaf logits
+  through the existing seam: candidate set = the rule's finite calls ∪ the net's
+  top-`k`, `ev_all`-priced, `blend`ed back over the leaf prior. The reusable core
+  (`price_and_blend`) was *extracted* from `SearchFloor::classify` — byte-identical
+  refactor, the old `deterministic_given_a_decision` test is the guard — so both
+  search bidders share one EV-pricing path. Rails inherited verbatim: a `forced`
+  auction delegates to the wrapped stance (no search), and an auction that falls
+  past the book to a fallback floor (the `SearchFloor` on contested, `instinct` on
+  constructive) is returned as that floor gave it — only a real authored leaf is
+  re-priced. *Key:* the authored leaf still owns the **meaning** — an opening keeps
+  `Pass = -∞`; DD re-judges only among the calls the rule (∪ net) proposes, never
+  resurrecting a call the agreement forbade. Four gated rails/determinism tests
+  green; `examples/search-book` is the A/B harness (`SearchBook` vs `american_search`
+  for the parity verdict, vs `american` for the deterministic reference). **It is
+  the M7 *treatment arm***: keep both names during M7 to measure; on a win, collapse
+  leaf-wrapping into `american_search` as a default-on knob and delete `_book`
+  ([[project_preemption-dd-negative]] — gate per book if it splits contested vs
+  constructive). Headline IMPs/board await a long run (it searches every on-book
+  decision — even slower than `american_search`; smoke at 2 boards bids out clean).
 - ⬜ **M7.1 `Inferences::read` completeness sweep.** The soundness gate: DD EV is
   only as good as the decode, since the sampler conditions on `Inferences::read`
   ranges. An undecoded convention widens partner's range (sound but biased EV —

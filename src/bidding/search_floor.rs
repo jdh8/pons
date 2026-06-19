@@ -48,14 +48,14 @@
 //! (the inverse of [`relative`][crate::bidding::context::relative] at North: we ↔ NS,
 //! they ↔ EW).
 
-use super::american::american_neural_search;
+use super::american::{american_neural_search, american_search};
 use super::array::Logits;
 use super::context::Context;
 use super::ev::ev_all;
 use super::instinct::{forced, instinct};
 use super::neural_floor::mask_illegal;
 use super::trie::Classifier;
-use super::{Family, Rules, Stance, features, neural};
+use super::{Family, Rules, Stance, System, features, neural};
 use contract_bridge::auction::{AbsoluteVulnerability, Call, RelativeVulnerability};
 use contract_bridge::{Hand, Seat};
 use rand::SeedableRng;
@@ -127,30 +127,153 @@ impl Classifier for SearchFloor {
         let mut prior = neural::classify(&feats);
         mask_illegal(&mut prior, context.auction());
 
-        // Shortlist the net's top-k legal calls to actually simulate.
+        // Shortlist the net's top-k legal calls to actually simulate, then price
+        // them by cardplay EV and re-seat the best above the prior tail.
         let shortlist = shortlist(&prior, self.shortlist);
         if shortlist.is_empty() {
             // Only -∞ logits (no legal call); leave the prior for the driver.
             return prior;
         }
-
-        // Price the shortlist by cardplay EV over deterministically-seeded
-        // layouts, then re-seat the evaluated calls above the prior tail.
-        let vul = absolute_vul(context.vul());
-        let mut rng = StdRng::seed_from_u64(seed_from_features(&feats));
-        let evs = ev_all(
-            hand,
-            Seat::North,
-            vul,
-            context,
-            &shortlist,
-            &*POLICY,
-            &mut rng,
-            self.layouts,
-        );
-        blend(&mut prior, &shortlist, &evs, self.temperature);
+        price_and_blend(&mut prior, &shortlist, hand, context, &feats, self);
         prior
     }
+}
+
+/// Price `candidates` by cardplay EV and re-seat them onto `base`
+///
+/// The reusable core shared by [`SearchFloor`] (prior = the net) and
+/// [`SearchBook`] (prior = the authored book leaf ∪ the net): sample layouts,
+/// solve once, [`ev_all`]-price every candidate over the shared solves under the
+/// continuation [`POLICY`], then [`blend`] the EV-ranked band above the prior
+/// tail.  `feats` is the decision's feature vector — passed in (both callers
+/// already have it) so the RNG seed stays a pure function of the decision
+/// (determinism, §0.5) without recomputing the features.  A no-op on an empty
+/// candidate set; an all-`NaN` slate leaves `base` untouched (degrade to the bare
+/// prior).
+fn price_and_blend(
+    base: &mut Logits,
+    candidates: &[Call],
+    hand: Hand,
+    context: &Context<'_>,
+    feats: &[f32],
+    knobs: &SearchFloor,
+) {
+    if candidates.is_empty() {
+        return;
+    }
+    let vul = absolute_vul(context.vul());
+    let mut rng = StdRng::seed_from_u64(seed_from_features(feats));
+    let evs = ev_all(
+        hand,
+        Seat::North,
+        vul,
+        context,
+        candidates,
+        &*POLICY,
+        &mut rng,
+        knobs.layouts,
+    );
+    blend(base, candidates, &evs, knobs.temperature);
+}
+
+/// The 2/1 search bidder that prices **authored book leaves** by DD too — M7.0
+///
+/// Where [`SearchFloor`] runs the double-dummy search only where the book is
+/// silent (the contested fallback floor), `SearchBook` widens it to every
+/// non-forced *book* leaf: the leaf's authored logits become the search *prior*
+/// instead of the final word, so cardplay re-judges among the calls the rule
+/// proposed — unioned with the net's natural alternatives — and bids the
+/// highest-EV one.  "Rules propose, DD disposes", at every leaf (see
+/// [`05-search-at-every-leaf.md`]).  The authored *constraints* (meaning) stay;
+/// only the authored *weights* (judgement) are overridden.
+///
+/// It wraps a **bound** [`Stance`] (so build it with
+/// [`american_search_book`], which seats the live-search floor underneath it),
+/// and inherits every §0 safety invariant verbatim:
+///
+/// - **Forced rails first** — a `forced` auction delegates to the wrapped
+///   stance (book leaf on-book, the [`SearchFloor`]'s `forced → instinct()`
+///   off-book); the search never runs on the rails.
+/// - **Floors already handled** — an auction that falls past the book to a
+///   fallback floor (the [`SearchFloor`] on contested, the deterministic
+///   [`instinct`][instinct()] ladder on constructive) is returned as that floor
+///   gave it; only a real authored leaf (provenance `fallback: None`, with mass)
+///   is re-priced.
+/// - **Legality + determinism** — the same `mask_illegal` / `blend` masking and
+///   RNG seeding as [`SearchFloor`].
+///
+/// This is the **treatment arm** of the M7 A/B against [`american_search`] (DD
+/// off-book only); strong but even slower (it searches every non-forced on-book
+/// decision).  Gated behind the `search` feature; [`american`][super::american::american]
+/// and [`instinct`][instinct()] are untouched and stay the default.
+///
+/// [`05-search-at-every-leaf.md`]: https://github.com/Chen-Pang-He/pons/blob/main/docs/ai-bidder/05-search-at-every-leaf.md
+/// [`american_search`]: super::american::american_search
+// ponytail: american_search_book is the M7 treatment arm; collapse into
+// american_search (default-on knob) on a measured win, or gate per book if it
+// splits contested vs constructive.
+#[derive(Clone, Debug)]
+pub struct SearchBook {
+    stance: Stance,
+    knobs: SearchFloor,
+}
+
+impl SearchBook {
+    /// Wrap a bound [`Stance`] with default search knobs
+    #[must_use]
+    pub fn new(stance: Stance) -> Self {
+        Self::with(stance, SearchFloor::default())
+    }
+
+    /// Wrap a bound [`Stance`] with explicit search knobs
+    ///
+    /// The knobs (`layouts`/`shortlist`/`temperature`) are the same
+    /// [`SearchFloor`] bundle, so data-generation and tuning runs can trade
+    /// strength for speed without re-wiring.
+    #[must_use]
+    pub const fn with(stance: Stance, knobs: SearchFloor) -> Self {
+        Self { stance, knobs }
+    }
+}
+
+impl System for SearchBook {
+    fn classify(&self, hand: Hand, vul: RelativeVulnerability, auction: &[Call]) -> Option<Logits> {
+        let context = Context::new(vul, auction);
+        if forced(&context) {
+            // Rails: the wrapped stance's deterministic answer, never the search.
+            return self.stance.classify(hand, vul, auction);
+        }
+
+        let (mut book, provenance) = self.stance.classify_with_provenance(hand, vul, auction)?;
+        if provenance.fallback.is_some() {
+            // Fell past the book to a fallback floor — the SearchFloor (contested)
+            // or the instinct ladder (constructive) already produced this; leave it.
+            return Some(book);
+        }
+
+        // A real authored book leaf with mass: price it by DD instead of trusting
+        // its fixed weights.  Candidate set = the rule's own calls ∪ the net's
+        // top-k natural alternatives, so DD can override a one-call rule.
+        mask_illegal(&mut book, auction);
+        let feats = features::features(hand, &context);
+        let mut net = neural::classify(&feats);
+        mask_illegal(&mut net, auction);
+        let candidates = union_dedup(finite_calls(&book), shortlist(&net, self.knobs.shortlist));
+        price_and_blend(&mut book, &candidates, hand, &context, &feats, &self.knobs);
+        Some(book)
+    }
+}
+
+/// The 2/1 pair as a leaf-pricing [`SearchBook`], bound against `them` — M7.0
+///
+/// Builds the M7 treatment arm: [`american_search`] (the live-search floor under
+/// the bare authored books) bound against the opposing [`Family`], then wrapped
+/// so every non-forced book leaf is DD-priced too.  The named handle the
+/// `search-book` A/B uses; see [`SearchBook`] for the lifecycle of this name.
+/// Gated behind the `search` feature.
+#[must_use]
+pub fn american_search_book(them: Family) -> SearchBook {
+    SearchBook::new(american_search().against(them))
 }
 
 /// The top-`k` legal calls of a masked prior, highest logit first
@@ -166,6 +289,32 @@ fn shortlist(prior: &Logits, k: usize) -> Vec<Call> {
         .collect();
     ranked.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("a masked prior is never NaN"));
     ranked.into_iter().take(k).map(|(call, _)| call).collect()
+}
+
+/// The legal (finite-logit) calls of a masked `logits`, in array order
+///
+/// For an authored book leaf this is the calls the rule actually proposes — the
+/// conventional candidates [`SearchBook`] unions with the net's natural
+/// alternatives before pricing them by DD.
+fn finite_calls(logits: &Logits) -> Vec<Call> {
+    logits
+        .iter()
+        .filter(|&(_, &logit)| logit.is_finite())
+        .map(|(call, _)| call)
+        .collect()
+}
+
+/// `a` followed by the entries of `b` not already present, order preserved
+///
+/// The candidate slates are a handful of calls each, so the linear membership
+/// scan is free.
+fn union_dedup(mut a: Vec<Call>, b: Vec<Call>) -> Vec<Call> {
+    for call in b {
+        if !a.contains(&call) {
+            a.push(call);
+        }
+    }
+    a
 }
 
 /// Re-seat the EV-scored shortlist onto a band above the net's prior tail
@@ -373,5 +522,86 @@ mod tests {
         let chosen = best(&auction, "K92.AQ4.KJ32.Q92");
         assert!(logits.0.get(chosen).is_finite());
         assert!(logits.0.get(Call::Pass).is_finite());
+    }
+
+    // M7.0 — the leaf-pricing bidder.  Small knobs keep the DD solves cheap; the
+    // wrapped stance is the live-search pair bound against a natural opponent.
+
+    /// A fast book-search bidder over the bound 2/1 stance.
+    fn book() -> (Stance, SearchBook) {
+        let stance = american_search().against(Family::NATURAL);
+        let knobs = SearchFloor {
+            layouts: 8,
+            shortlist: 3,
+            ..SearchFloor::default()
+        };
+        (stance.clone(), SearchBook::with(stance, knobs))
+    }
+
+    /// The book-search bidder's highest-logit call for a hand in an auction
+    fn book_best(book: &SearchBook, auction: &[Call], hand: &str) -> Call {
+        let hand: Hand = hand.parse().expect("valid test hand");
+        let logits = book
+            .classify(hand, RelativeVulnerability::NONE, auction)
+            .expect("a covered auction");
+        (&logits.0)
+            .into_iter()
+            .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("logits are never NaN"))
+            .map(|(call, _)| call)
+            .expect("array is never empty")
+    }
+
+    /// Rails (§0.4): on a forced auction the wrapper delegates to the stance
+    /// verbatim — the search never re-prices the rails, so the logits are
+    /// identical.  (If `forced` failed to fire, the search would mutate them.)
+    #[test]
+    fn forced_leaf_delegates_to_the_stance() {
+        let (stance, book) = book();
+        // 2♣ opening, forced to game: a forced-to-game responder.
+        let auction = [
+            call(2, Strain::Clubs),
+            Call::Pass,
+            call(2, Strain::Diamonds),
+            Call::Pass,
+            call(2, Strain::Notrump),
+            Call::Pass,
+        ];
+        let hand: Hand = "3.QJ9854.K32.J32".parse().expect("valid test hand");
+        assert_eq!(
+            book.classify(hand, RelativeVulnerability::NONE, &auction),
+            stance.classify(hand, RelativeVulnerability::NONE, &auction),
+        );
+    }
+
+    /// Legality (§0.4): a real, non-forced book leaf gets DD-priced and yields a
+    /// finite, legal arg-max.  The authored leaf still owns the *meaning*: an
+    /// opening forbids `Pass` (`-∞`), and the wrapper faithfully keeps it that way
+    /// — DD re-judges only among the calls the rule (∪ the net) proposes, it never
+    /// resurrects a call the agreement forbade.
+    #[test]
+    fn priced_leaf_arg_max_is_legal() {
+        let (_, book) = book();
+        // First seat, a clear opener: the constructive opening is a book leaf.
+        let auction = [];
+        let hand: Hand = "AKQ2.KQ5.AQJ4.92".parse().expect("valid test hand");
+        let logits = book
+            .classify(hand, RelativeVulnerability::NONE, &auction)
+            .expect("the opening leaf answers");
+        assert!(logits.has_mass(), "the leaf gives the hand a finite call");
+        let chosen = book_best(&book, &auction, "AKQ2.KQ5.AQJ4.92");
+        assert!(logits.0.get(chosen).is_finite());
+        assert_ne!(chosen, Call::Pass, "a 21-count never passes the opening");
+    }
+
+    /// Determinism (§0.5): the wrapper seeds its rollout RNG from the decision,
+    /// so the same hand and auction reproduce the same logits exactly.
+    #[test]
+    fn priced_leaf_is_deterministic() {
+        let (_, book) = book();
+        let auction = [];
+        let hand: Hand = "AKQ2.KQ5.AQJ4.92".parse().expect("valid test hand");
+        let a = book.classify(hand, RelativeVulnerability::NONE, &auction);
+        let b = book.classify(hand, RelativeVulnerability::NONE, &auction);
+        assert_eq!(a, b);
     }
 }
