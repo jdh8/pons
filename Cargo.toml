@@ -21,7 +21,7 @@ exclude = ["trainer", "vendor"]
 all-features = true
 
 [features]
-serde = ["dep:serde", "dep:serde_with", "contract-bridge/serde", "ddss/serde", "bitflags/serde"]
+serde = ["dep:serde", "contract-bridge/serde", "ddss/serde", "bitflags/serde"]
 # Distilled neural floor (AI-bidder M1.2): embeds the trained weights and a
 # hand-rolled forward pass. Off by default so the standard build stays lean and
 # dependency-free — the weights are `include_bytes!`d, no ML runtime is pulled in.
@@ -40,7 +40,6 @@ ddss = "0.1.2"
 # directly so the constrained sampler (AI-bidder M2.1) can take the caller's RNG.
 rand = "0.10"
 serde = { version = "1", features = ["derive"], optional = true }
-serde_with = { version = "3", default-features = false, features = ["macros"], optional = true }
 thiserror = "2"
 
 [dev-dependencies]

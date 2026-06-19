@@ -1069,6 +1069,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   *evaluator* (`eval::NLTC`, the `bba-match`/`bba-oracle` 2/1 reference, and the
   `calibrate-eval` example) is unaffected. `nltc_at_most` shipped in 0.9.0, so
   its removal is breaking for any direct user. Everything remains in git history.
+- **The direct `serde_with` dependency.** It was wired into the `serde` feature
+  but never referenced — no `#[serde_as]`, no custom (de)serialization anywhere
+  in the crate. Dropped from `[dependencies]` and from the `serde` feature list.
+  No API change: `serde` derives on the stats and inference types are unaffected,
+  and `serde_with` is still pulled transitively by `contract-bridge`/`ddss` (for
+  *their* serde impls) when `--features serde` is enabled.
 
 ### Fixed
 
