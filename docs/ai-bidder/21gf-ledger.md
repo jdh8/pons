@@ -179,11 +179,11 @@ under a single-dummy / IMPs-vs-humans measure where preemption actually pays.
 | 123 | Two-suit takeout double | gap | add (Batch 1) | — | — |
 | 129 | Unusual 4NT | verify | — | — | — |
 | 48 | Cue bid | partial | verify | — | — |
-| 106 | **Rubensohl after double** (advancer, weak twos; = `Transfer`) | shipped (opt-in, default off) | **keep floor as default**; `Transfer` = best, kept opt-in | Transfer vs off −0.006/+0.084/board (none/both, 200k); Transfer vs Plain +1.85/+2.66/div. **PD re-val (5611eac): Transfer-vs-off FLIPS to +0.154/+0.245/board (+1.56/+2.51/div, 80k filter) — DD-POSITIVE; the "only DD-neutral → keep off" basis is gone. Promotion candidate; kept opt-in for now pending a deeper re-measure.** | a6e7ab9 (`set_advance_sohl_style`) |
-| 82 | **Lebensohl after double** (advancer, weak twos; = `Plain`) | measured, rejected | keep floor; `Plain` DD-negative | Plain vs off −0.108/−0.050/board (200k); Pam/Lawrence also rejected (see note) | a6e7ab9 |
+| 106 | **Sohl after double** (advancer, weak twos) | **shipped, `Transfer` default ON**; true `Rubensohl` opt-in | `Transfer` promoted to default (clear PD win); true `Rubensohl` wired but opt-in | **Deeper PD re-measure (200k filtered/cell): Transfer vs off +0.145/+0.227/board none/both (+1.48/+2.33/div; reps +0.139/+0.234) → PROMOTED to default.** true-`Rubensohl` now wired (2NT=club transfer, two-way low transfers) and measured: vs off +0.140/+0.212, but **Rubensohl vs Transfer −0.007/−0.037/board (2.5% div) → no gain, kept opt-in** (its edge is DD-blind right-siding, same finding as the 1NT context). | (this commit) (`set_advance_sohl_style`) |
+| 82 | **Lebensohl after double** (advancer, weak twos; = `Plain`) | measured; opt-in, dominated | `Transfer` (#106) is the default; `Plain` positive but worse | **PD re-measure: Plain vs off FLIPS to +0.089/+0.139/board (200k filtered) — DD-positive (was −0.108/−0.050 optimistic), but dominated by `Transfer` (+0.145/+0.227).** Kept as the `Plain` opt-in / A/B arm. | a6e7ab9 |
 
 **Lebensohl after a takeout double (advancer over a weak two) — measured;
-best variant (`Transfer`) kept opt-in.** After `(2X)–X–(P)` the flat `advance_double` ladder can't
+best variant (`Transfer`) PROMOTED to default.** After `(2X)–X–(P)` the flat `advance_double` ladder can't
 distinguish a weak long-suit hand from a constructive one, so the doubler
 can't tell when to move. Four sohl structures were authored under the
 `(2X)–X–(P)` prefix (reusing the Section-5 builders for `Plain` / `Transfer`,
@@ -198,17 +198,30 @@ the fit (short in their suit, length elsewhere), so the floor's natural
 advancing locates most fits — `Transfer`'s right-siding is DD-blind upside,
 `Lawrence` loses 5-card-suit *shape* information by collapsing INV into a
 single direct-3X slot, and `Pam`'s 5-5-minors trigger is too rare (~0.4 %
-divergence) to recover the slot it eats from weak long-clubs. Only `Transfer`
-(the best) is kept — behind `set_advance_sohl_style` as an opt-in (default
-`Off`, the floor); `Plain` stays as the A/B arm, while `Pam` and `Lawrence`
-were rejected and not retained in code; the `sohl-after-double-ab` harness is
-kept. Stopper-routing ("slow shows /
+divergence) to recover the slot it eats from weak long-clubs. Stopper-routing ("slow shows /
 fast denies") was *not* tested per user direction (strength was hypothesised
 to dominate; the `Lawrence` loss is consistent with that). This **is** toggle
-`#106` (`Transfer` = Rubensohl after double) and `#82` (`Plain` = Lebensohl
-after double); the "our opening is doubled" responder case is a *separate* BBA
-toggle (`Transfers if RHO doubles`), not this one. Revisit only under a
-single-dummy measure that can see right-siding.
+`#106` and `#82`; the "our opening is doubled" responder case is a *separate*
+BBA toggle (`Transfers if RHO doubles`), not this one.
+
+**Update (this commit) — perfect-defense re-measure + `Transfer` promoted to
+default + true `Rubensohl` wired.** The old "DD-neutral → keep `Off`" basis was
+an artifact of the optimistic scorer. Under perfect defense (`ns_score`, 200k
+filtered boards/cell, both vulnerabilities) the picture is clearly positive and
+`Transfer` is promoted from opt-in to the **default** advance-of-double sohl:
+`Transfer` vs `Off` **+0.145 / +0.227 IMPs/board** (none/both; reps
++0.139/+0.234, ~9.7% divergent, +1.48/+2.33 IMPs/div). `Plain` (#82) also flips
+DD-positive (**+0.089 / +0.139** vs `Off`, was −0.108/−0.050) but stays dominated
+by `Transfer`, so it remains the `Plain` opt-in / A/B arm, not the default. True
+`Rubensohl` (the fourth `LebensohlStyle`: `2NT` = artificial club transfer, the
+low transfers two-way) is now **wired into the `(2X)–X–(P)` context too** (a
+verbatim mirror of the Section-5 1NT-context wiring; exposed as
+`--ns rubensohl` on `sohl-after-double-ab`): vs `Off` **+0.140 / +0.212**, but
+head-to-head **`Rubensohl` vs `Transfer` −0.007 / −0.037 IMPs/board** (only ~2.5%
+divergent) — no gain, so it is **kept opt-in** (its edge is DD-blind right-siding,
+exactly the 1NT-context finding). Default is now `Transfer`; `Off` / `Plain` /
+`Rubensohl` remain selectable via `set_advance_sohl_style`. Revisit `Rubensohl`
+only under a single-dummy measure that can see right-siding.
 
 **Leaping Michaels (79) — shipped opt-in, a clear DD win once the advances were
 authored.** Over their weak two, a jump to `4♣`/`4♦` names a 5-5 two-suiter with

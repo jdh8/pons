@@ -160,16 +160,18 @@ fn test_weak_two_suit_overcall() {
 
 // --- Advancing a takeout double of a weak two -------------------------------
 
-/// (2♠) – X – (P) with a spade stack → pass for penalty
+/// (2♠) – X – (P) with a weak spade stack → pass for penalty
 #[test]
 fn test_advance_double_penalty_pass() {
     let system = stance();
-    // 14 HCP, KQJ9 of spades sitting over the weak two — convert for penalty
+    // 6 HCP, KQJ9x of spades sitting over the weak two and nothing else — convert
+    // for penalty. The default Transfer Lebensohl keeps this weak penalty pass;
+    // only stopper-plus-game-values hands push on to 3NT (see below).
     assert_eq!(
         best_call(
             &system,
             &[call(2, Strain::Spades), Call::Double, Call::Pass],
-            "KQJ9.A32.A32.432"
+            "KQJ95.J32.432.32"
         ),
         Call::Pass,
     );
@@ -190,18 +192,20 @@ fn test_advance_double_three_notrump() {
     );
 }
 
-/// (2♠) – X – (P) with four hearts and opening values → jump to 4♥
+/// (2♠) – X – (P) with four hearts and game values → 3♠ cue (Stayman)
 #[test]
-fn test_advance_double_major_game() {
+fn test_advance_double_major_cue() {
     let system = stance();
-    // 14 HCP, four hearts opposite the takeout double — bid the major game
+    // 14 HCP, four hearts opposite the takeout double — the default Transfer
+    // Lebensohl bids the 3♠ cue (Stayman) to find the heart fit, rather than
+    // jumping blind to 4♥.
     assert_eq!(
         best_call(
             &system,
             &[call(2, Strain::Spades), Call::Double, Call::Pass],
             "A32.KQ54.K32.Q92"
         ),
-        call(4, Strain::Hearts),
+        call(3, Strain::Spades),
     );
 }
 

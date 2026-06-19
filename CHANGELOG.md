@@ -22,6 +22,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   double-dummy / perfect-defense measure cannot see. **The default is unchanged
   (`Transfer`)**; the variant is kept opt-in (`set_lebensohl_style`, and
   `examples/lebensohl-ab --ns rubensohl`) for a future single-dummy re-measure.
+- **True `Rubensohl` wired into the takeout-double advance too.**
+  `set_advance_sohl_style(LebensohlStyle::Rubensohl)` now carries the artificial
+  `2NT` club transfer + two-way low transfers after `(2X)–X–(P)`, completing the
+  four-style set there (`Off`/`Plain`/`Transfer`/`Rubensohl`); it is a verbatim
+  mirror of the 1NT-context wiring and exposed as `examples/sohl-after-double-ab
+  --ns rubensohl`. Measured (perfect defense, 200k filtered/cell): vs the flat
+  ladder **+0.140 / +0.212 IMPs/board**, but head-to-head **`Rubensohl` vs the new
+  `Transfer` default −0.007 / −0.037 IMPs/board** (only ~2.5% divergent) — no gain,
+  so it stays opt-in (same DD-blind-right-siding finding as the 1NT context).
 - **Search at every authored leaf (AI-bidder M7.0) — `american_search_book`.**
   A new gated bidder, [`SearchBook`][pons::bidding::search_floor::SearchBook] /
   [`american_search_book`], that prices **authored book leaves by double-dummy
@@ -925,6 +934,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Transfer Lebensohl after a takeout double is now the default advance (was
+  opt-in `Off`).** After `(2X)–X–(P)` the advancer now carries `Transfer`
+  Lebensohl by default — `set_advance_sohl_style`'s default flips from `Off` (the
+  flat `advance_double` ladder) to `LebensohlStyle::Transfer`. A deeper
+  perfect-defense re-measure (200k filtered boards/cell, both vulnerabilities)
+  makes it a clear win over the flat ladder: **+0.145 / +0.227 IMPs/board**
+  (none/both; reproduced +0.139/+0.234). The earlier "DD-neutral → keep opt-in"
+  verdict was an artifact of the optimistic scorer (corrected by the `ns_score`
+  perfect-defense fix). `Plain` also flips DD-positive (+0.089/+0.139, was
+  −0.108/−0.050) but stays dominated. `set_advance_sohl_style(LebensohlStyle::Off)`
+  recovers the prior flat-ladder default; `Plain` / `Rubensohl` remain selectable.
 - **`scoring::ns_score` now assumes perfect-defense doubling (breaking); the
   optimistic variant is removed.** A contract that fails double dummy is now scored
   *doubled* — a competent defense always doubles what it can beat, so in a
