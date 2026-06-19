@@ -43,51 +43,27 @@ pub fn final_contract(auction: &Auction, dealer: Seat) -> Option<(Contract, Seat
     Some((Contract { bid, penalty }, seat_at(dealer, index)))
 }
 
-/// Double-dummy NS score of a final contract (0 for a pass-out)
+/// Double-dummy NS score of a final contract (0 for a pass-out), assuming
+/// **perfect-defense doubling**: a contract that fails double-dummy is scored
+/// *doubled*; a making contract keeps its auction penalty.
 ///
-/// Looks the declarer's tricks up in the solved `table`, scores the contract
-/// at the declaring side's vulnerability, and signs the result for
-/// North/South: positive is good for NS.  Takes the [`Option`] straight from
+/// Looks the declarer's tricks up in the solved `table`, scores the contract at
+/// the declaring side's vulnerability, and signs the result for North/South:
+/// positive is good for NS.  Takes the [`Option`] straight from
 /// [`final_contract`] so a passed-out board scores 0.
-#[must_use]
-pub fn ns_score(
-    result: Option<(Contract, Seat)>,
-    table: &TrickCountTable,
-    vul: AbsoluteVulnerability,
-) -> i64 {
-    let Some((contract, declarer)) = result else {
-        return 0;
-    };
-    let tricks = u8::from(table[contract.bid.strain].get(declarer));
-    let declarer_vul = vul.contains(match declarer {
-        Seat::North | Seat::South => AbsoluteVulnerability::NS,
-        Seat::East | Seat::West => AbsoluteVulnerability::EW,
-    });
-    let score = i64::from(contract.score(tricks, declarer_vul));
-    match declarer {
-        Seat::North | Seat::South => score,
-        Seat::East | Seat::West => -score,
-    }
-}
-
-/// NS score assuming **perfect-defense doubling**: a contract that fails
-/// double-dummy is scored *doubled*; a making contract keeps its auction
-/// penalty.
 ///
-/// The cardplay rollout already assumes optimal defense, yet leaves the
-/// *doubling* decision to a weak continuation policy that under-doubles — so a
-/// failing sacrifice looks far cheaper than it would at a table where the
-/// defenders double a contract that is going down.  This applies the same
-/// perfect-defense assumption to the penalty: the side that is *not* declaring
-/// doubles iff the contract fails.  Symmetric (it doubles either side's failing
-/// contract), so it sharpens both our overbids and our defense of theirs, and it
-/// never rewards doubling a making contract.
+/// There is no optimistic, undoubled-failure variant: in a double-dummy model
+/// the opponents always hold the red card, so pricing a failing overbid undoubled
+/// would model an opponent who *cannot* double — never the case at a real table.
+/// The doubling rule is symmetric (it doubles either side's failing contract), so
+/// it sharpens both our overbids and our defense of theirs, and it never rewards
+/// doubling a making contract.
 ///
 /// [`stats::average_ns_par`][crate::stats::average_ns_par] makes the same
 /// assumption for par scoring (there as `min(undoubled, doubled)` on the
 /// expected score); this is its per-deal analogue.
 #[must_use]
-pub fn ns_score_doubling_failures(
+pub fn ns_score(
     result: Option<(Contract, Seat)>,
     table: &TrickCountTable,
     vul: AbsoluteVulnerability,

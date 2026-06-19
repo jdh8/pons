@@ -43,7 +43,7 @@ use contract_bridge::{
 };
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::bidding::{Context, Inferences, Range, Relative, american, sample_layouts};
-use pons::scoring::{final_contract, ns_score_doubling_failures};
+use pons::scoring::{final_contract, ns_score};
 use pons::{Pair, Table};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -138,7 +138,7 @@ fn total_score(
     };
     tables
         .iter()
-        .map(|table| ns_score_doubling_failures(Some((contract, declarer)), table, vul))
+        .map(|table| ns_score(Some((contract, declarer)), table, vul))
         .sum()
 }
 

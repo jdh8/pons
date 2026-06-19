@@ -11,7 +11,7 @@
 //! cold grands but **phantom sacrifices** in runaway competitive auctions, where
 //! the rollout under-doubles so a failing save prices too cheaply.  The fix is
 //! perfect-defense doubling in the EV scorer
-//! ([`scoring::ns_score_doubling_failures`][pons::scoring::ns_score_doubling_failures]),
+//! ([`scoring::ns_score`][pons::scoring::ns_score]),
 //! now the default; this probe is kept as the regression check that the grand
 //! flood stays gone.
 //!

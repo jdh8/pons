@@ -219,6 +219,10 @@ fn duplicate_match(
     let deals: Vec<FullDeal> = divergent.iter().map(|&index| played[index].deal).collect();
     let tables = Solver::lock().solve_deals(&deals, NonEmptyStrainFlags::ALL);
 
+    // Perfect-defense doubling is the verdict measure: assume the opponents double
+    // every contract that fails (a real defense punishes an overbid).  Scoring a
+    // failing overbid undoubled is the wrong model for a bidding A/B — it lets the
+    // aggressive search bidder off the hook for exactly the contracts DD over-reaches into.
     let mut swings = vec![0i64; played.len()];
     for (&index, table) in divergent.iter().zip(tables.iter()) {
         let (contract_a, contract_b) = contracts[index];

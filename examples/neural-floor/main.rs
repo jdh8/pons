@@ -39,7 +39,7 @@ use ddss::{NonEmptyStrainFlags, Solver};
 use pons::bidding::american::bare_american;
 use pons::bidding::context::relative;
 use pons::bidding::{Family, Stance, System};
-use pons::scoring::{final_contract, imps, ns_score, ns_score_doubling_failures};
+use pons::scoring::{final_contract, imps, ns_score};
 use pons::{Accumulator, american, american_neural, american_neural_search, american_neural_v2};
 
 /// Measure the distilled neural floor: A/B duplicate matches with intervals
@@ -120,15 +120,12 @@ struct Board {
 
 /// The outcome of one duplicate match
 struct MatchResult {
-    /// Per-board IMP swing to the home team under double-dummy scoring (0 on
-    /// non-divergent boards). The *optimistic bound*: a failing contract is priced
-    /// undoubled, as if the opponents passed it out rather than doubling it.
+    /// Per-board IMP swing to the home team (0 on non-divergent boards), scored
+    /// with perfect-defense doubling ([`ns_score`]): a contract that fails double
+    /// dummy is priced *doubled*, as real opponents would double what they can
+    /// beat. There is no optimistic, undoubled-failure bound — that model was
+    /// removed (opponents always hold the red card).
     swings: Vec<i64>,
-    /// Same swings under perfect-defense doubling ([`ns_score_doubling_failures`]):
-    /// a contract that fails double dummy is priced *doubled*, as real opponents
-    /// would double what they can beat. The **default measure** — `report()`'s
-    /// headline and verdict run on this, not the DD-optimistic `swings`.
-    swings_pd: Vec<i64>,
     /// Boards whose two tables reached different contracts
     divergent: usize,
 }
@@ -176,19 +173,14 @@ fn duplicate_match(
     let tables = Solver::lock().solve_deals(&deals, NonEmptyStrainFlags::ALL);
 
     let mut swings = vec![0i64; count];
-    let mut swings_pd = vec![0i64; count];
     for (&index, table) in divergent.iter().zip(tables.iter()) {
         let (contract_a, contract_b) = contracts[index];
         let points = ns_score(contract_a, table, vul) - ns_score(contract_b, table, vul);
         swings[index] = imps(points);
-        let points_pd = ns_score_doubling_failures(contract_a, table, vul)
-            - ns_score_doubling_failures(contract_b, table, vul);
-        swings_pd[index] = imps(points_pd);
     }
 
     MatchResult {
         swings,
-        swings_pd,
         divergent: divergent.len(),
     }
 }
@@ -217,12 +209,9 @@ fn report(
             se,
         )
     };
-    // Perfect-defense doubling is the default measure: real opponents double the
-    // contracts they can beat, so DD (which scores every down contract undoubled,
-    // as if they passed it out) only bounds the optimistic side. Headline + verdict
-    // run on PD; DD is printed as the optimistic bound.
-    let (total_pd, mean_pd, lo_pd, hi_pd, se_pd) = summarize(&result.swings_pd);
-    let (total, mean, lo, hi, _) = summarize(&result.swings);
+    // Perfect-defense doubling (a failing contract is priced doubled) is the only
+    // measure: in a double-dummy model the opponents always hold the red card.
+    let (total, mean, lo, hi, se) = summarize(&result.swings);
 
     println!("\n=== {label}: {count} boards, vulnerability {vul} ===");
     println!(
@@ -230,29 +219,27 @@ fn report(
         result.divergent,
         100.0 * result.divergent as f64 / count.max(1) as f64,
     );
-    println!("Home (neural) team: {total_pd:+} IMPs, {mean_pd:+.3} IMPs/board");
-    println!("  95% CI: [{lo_pd:+.3}, {hi_pd:+.3}]  (SE {se_pd:.3}, n = {count})");
-    println!(
-        "  double-dummy (optimistic bound): {total:+} IMPs, {mean:+.3} IMPs/board, \
-         CI [{lo:+.3}, {hi:+.3}]"
-    );
+    println!("Home (neural) team: {total:+} IMPs, {mean:+.3} IMPs/board");
+    println!("  95% CI: [{lo:+.3}, {hi:+.3}]  (SE {se:.3}, n = {count})");
 
     if target == 0.0 {
-        let within = (lo_pd..=hi_pd).contains(&0.0);
-        let verdict = match (within, mean_pd.abs() < 0.1) {
+        let within = (lo..=hi).contains(&0.0);
+        let verdict = match (within, mean.abs() < 0.1) {
             (true, true) => "parity — CI contains 0 and |mean| < 0.1 (within noise)",
             (true, false) => "CI contains 0, but |mean| ≥ 0.1 — collect more boards",
-            (false, _) if mean_pd > 0.0 => "CI excludes 0, net ahead (a pleasant surprise)",
+            (false, _) if mean > 0.0 => "CI excludes 0, net ahead (a pleasant surprise)",
             (false, _) => "CI excludes 0, net behind — inspect divergent boards",
         };
         println!("  Target ≈ 0 (parity): {verdict}");
     } else {
-        // The vs-bare floor-worth target (+0.5) is a DD-frame number: PD vs bare is
-        // a scorer artifact (bare passes out and never owns a failing contract, so
-        // PD asymmetrically punishes the active side), so check this target on DD.
+        // Floor-worth target (+0.5) vs the bare books.  Under perfect defense this is
+        // stricter than the old DD-frame number: bare passes out and never owns a
+        // failing contract, so the doubling only ever lands on the active floor's
+        // overbids.  That asymmetry is now intended — an overbid the bare baseline
+        // never makes should pay the doubled price a real defense extracts.
         let contains = (lo..=hi).contains(&target);
         println!(
-            "  Target ≈ {target:+.1}: CI {} the {target:+.1} target (double-dummy)",
+            "  Target ≈ {target:+.1}: CI {} the {target:+.1} target",
             if contains { "contains" } else { "excludes" },
         );
     }

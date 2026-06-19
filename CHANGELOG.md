@@ -911,6 +911,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **`scoring::ns_score` now assumes perfect-defense doubling (breaking); the
+  optimistic variant is removed.** A contract that fails double dummy is now scored
+  *doubled* — a competent defense always doubles what it can beat, so in a
+  double-dummy model the opponents always hold the red card and pricing a failing
+  overbid undoubled modelled an opponent who *cannot* double. This folds the old
+  `ns_score_doubling_failures` behavior into `ns_score` and **removes
+  `ns_score_doubling_failures`** (it is now redundant). Every A/B harness that
+  scored with plain `ns_score` (`instinct-floor`, `inference-floor`,
+  `leaping-michaels-ab`, `lebensohl-ab`, `stayman-abc`, `nt-shape-contested`, …)
+  is corrected to perfect defense by this one change; `neural-floor`'s dual
+  optimistic/perfect-defense reporting collapses to the single (now correct)
+  measure. The cardplay EV evaluator (`bidding::ev`) is unaffected — it already
+  used the doubling behavior. *Consequence:* convention A/Bs previously reported on
+  the optimistic bound (Leaping Michaels, Transfer Lebensohl, Stayman, the 1NT
+  redesigns, the BBA gap, …) should be re-validated under perfect defense, since
+  competitive conventions can shift most where overbids go doubled.
 - **Renamed the `two_over_one*` system to `american*` (breaking).** The 2/1
   game-force system is now named by identity: `two_over_one` → `american`
   throughout. The module `bidding::two_over_one`

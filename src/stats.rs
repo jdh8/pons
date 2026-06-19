@@ -242,7 +242,7 @@ pub struct ParResult {
 /// double it iff doing so worsens declarer's result — i.e. iff it is going
 /// down. This is what makes sacrifices priced realistically (a failing save
 /// costs the *doubled* penalty), and is the same assumption as
-/// [`crate::scoring::ns_score_doubling_failures`] applied to the expected score
+/// [`crate::scoring::ns_score`] applied to the expected score
 /// over the trick distribution rather than per deal.
 ///
 /// The returned score is the expected par score over all deals in `histogram`,
@@ -296,7 +296,7 @@ pub fn average_ns_par(
                 // `min` takes the doubled score only when it is worse for
                 // declarer (a failing contract); a making contract keeps its
                 // undoubled score, so doubling never rewards declarer.  The
-                // per-deal analogue is [`crate::scoring::ns_score_doubling_failures`];
+                // per-deal analogue is [`crate::scoring::ns_score`];
                 // here the same rule is applied to the expected score over the
                 // trick histogram.
                 normal.min(doubled)
