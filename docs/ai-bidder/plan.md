@@ -4,7 +4,7 @@ Small, well-specified, individually measurable chunks; each milestone names a
 **deliverable**, a **measure**, and its **deps**. A map, not a green light —
 nothing starts until explicitly chosen.
 
-Legend: ⬜ not started · ✅ done.
+Legend: ⬜ not started · 🚧 in progress / blocked · ✅ done.
 
 **Standing principles** (apply to every milestone; not repeated below):
 
@@ -429,7 +429,9 @@ existing `shortlist → ev_all → blend` seam. All §0 safety invariants are
 inherited verbatim; `instinct()` and `american()` are untouched; the new bidder is
 opt-in behind `search`.
 
-- ✅ **M7.0 Search-aware classification path.** Add a path so a resolved *book*
+- 🚧 **M7.0 Search-aware classification path** (wiring shipped, commit 496260b;
+  the as-is measure **regresses** — see the result below, blocked on M7.1). Add a
+  path so a resolved *book*
   leaf with mass (and not forced) feeds its logits as the search prior instead of
   being terminal, reusing `shortlist`/`ev_all`/`blend` unchanged. Candidate set =
   **book finite calls ∪ neural top-k**, so DD can override a one-call rule.
@@ -456,9 +458,22 @@ opt-in behind `search`.
   for the parity verdict, vs `american` for the deterministic reference). **It is
   the M7 *treatment arm***: keep both names during M7 to measure; on a win, collapse
   leaf-wrapping into `american_search` as a default-on knob and delete `_book`
-  ([[project_preemption-dd-negative]] — gate per book if it splits contested vs
-  constructive). Headline IMPs/board await a long run (it searches every on-book
-  decision — even slower than `american_search`; smoke at 2 boards bids out clean).
+  (gate per book if it splits contested vs constructive). **RESULT (120 boards, vul
+  none, seed 1):** leaf-pricing **regresses −1.925 IMPs/board vs `american_search`**
+  (CI [−3.147, −0.703], excludes 0) and **−1.133 vs `american`** (CI [−2.223,
+  −0.043]) — the win condition FAILS. The divergent dump is unambiguous: all three
+  worst losses are leaf-pricing reaching a **redoubled grand (`7♣xx`)** that fails,
+  in wild *competitive* auctions. This is the **M7.1 soundness gate** biting (§3 of
+  05-search-at-every-leaf.md): competitive leaves are mostly *undecoded*, so the
+  sampler deals partner ranges too wide → 7♣ "makes" on the biased layouts → DD
+  picks it → it dies at the real table. Same pathology as
+  [[project_m31-7nt-sacrifice-instability]] and [[project_preemption-dd-negative]]
+  (DD/perfect-defense is blind to obstruction and rewards sacrifice/escalation real
+  defense punishes). **Lesson: M7.1 is a hard prerequisite, not a quality nicety —
+  do NOT wrap competitive leaves before decoding them.** Next: M7.1 decode sweep +
+  the design's explicit fallback (no usable decode → keep authored logits, skip the
+  search), or first test M7.2 constructive-only leaves where there is no competitive
+  escalation. The bidder stays gated/opt-in; `american()`/`instinct()` unchanged.
 - ⬜ **M7.1 `Inferences::read` completeness sweep.** The soundness gate: DD EV is
   only as good as the decode, since the sampler conditions on `Inferences::read`
   ranges. An undecoded convention widens partner's range (sound but biased EV —
