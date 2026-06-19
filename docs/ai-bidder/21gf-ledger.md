@@ -86,7 +86,7 @@ balancing/reopening, and slam accuracy (missed grands).
 
 | # | Toggle | pons status | decision | A/B | commit |
 |---|--------|-------------|----------|-----|--------|
-| 80 | Lebensohl after 1NT | **shipped** | **Transfer Lebensohl** (Cohen) default; plain kept as option | Transfer vs plain **+0.46/+1.24/div** (none/both, 200k); vs floor +0.35/+0.05; (plain vs floor +0.26, Ruben-v1 −1.68); 2NT-role swap true-Rubensohl −0.017/−0.046/board (200k) reverted | bfe5e59 (plain), bee9204 (transfer) |
+| 80 | Lebensohl after 1NT | **shipped** | **Transfer Lebensohl** (Cohen) default; plain kept as option | Transfer vs plain **+0.46/+1.24/div** (none/both, 200k); vs floor +0.35/+0.05; (plain vs floor +0.26, Ruben-v1 −1.68); 2NT-role swap true-Rubensohl −0.017/−0.046/board (200k) reverted. **PD re-val (5611eac): Transfer-vs-plain +0.46/+0.69/div HOLDS (ship decision intact); vs floor FLIPS to −0.66/−0.62/div — PD doubles the failing game-drives, harness-blind to the obstruction value.** | bfe5e59 (plain), bee9204 (transfer) |
 | 105 | Rubensohl after 1m | floor (Rubens advances) | upgrade (Batch 1) | — | — |
 | 100 | Responsive double | partial; overcall-ext tried — DD-negative | **keep floor** (don't ship the light overcall double) | takeout-X-then-raise authored (`defense.rs`); 8+ floor double after partner's *overcall* A/B'd **−0.034/board, −2.37/div** (200k, 1.4% div) → reverted | reverted |
 | 83 | Maximal doubles | gap | add (Batch 1) | — | — |
@@ -167,11 +167,11 @@ under a single-dummy / IMPs-vs-humans measure where preemption actually pays.
 | 84 | Michaels cuebid | shipped | keep | — | — |
 | 127 | Unusual 2NT | shipped | keep | — | — |
 | 126 | Unusual 1NT | gap | add (Batch 1) | — | — |
-| 79 | Leaping Michaels | **shipped, default ON** | keep on | `4♣/4♦` strong 5-5 two-suiters + authored advances; A/B'd **+1.090/+1.452/board** (none/both, 40k filtered, ~24% div) vs prior defense. Inference reader decodes the two-suiter so `american_search` picks the advance by DD (+2.8/board directional, slam-capable). `set_leaping_michaels(false)` to disable. | (this commit) |
+| 79 | Leaping Michaels | **shipped, default ON** | keep on | `4♣/4♦` strong 5-5 two-suiters + authored advances; A/B'd **+1.090/+1.452/board** (none/both, 40k filtered, ~24% div) vs prior defense. Inference reader decodes the two-suiter so `american_search` picks the advance by DD (+2.8/board directional, slam-capable). `set_leaping_michaels(false)` to disable. **PD re-val (5611eac): +1.100/+1.445/board — unchanged (reaches making GF games, almost no failing contracts to double).** | (this commit) |
 | 123 | Two-suit takeout double | gap | add (Batch 1) | — | — |
 | 129 | Unusual 4NT | verify | — | — | — |
 | 48 | Cue bid | partial | verify | — | — |
-| 106 | **Rubensohl after double** (advancer, weak twos; = `Transfer`) | shipped (opt-in, default off) | **keep floor as default**; `Transfer` = best, kept opt-in | Transfer vs off −0.006/+0.084/board (none/both, 200k); Transfer vs Plain +1.85/+2.66/div | a6e7ab9 (`set_advance_sohl_style`) |
+| 106 | **Rubensohl after double** (advancer, weak twos; = `Transfer`) | shipped (opt-in, default off) | **keep floor as default**; `Transfer` = best, kept opt-in | Transfer vs off −0.006/+0.084/board (none/both, 200k); Transfer vs Plain +1.85/+2.66/div. **PD re-val (5611eac): Transfer-vs-off FLIPS to +0.154/+0.245/board (+1.56/+2.51/div, 80k filter) — DD-POSITIVE; the "only DD-neutral → keep off" basis is gone. Promotion candidate; kept opt-in for now pending a deeper re-measure.** | a6e7ab9 (`set_advance_sohl_style`) |
 | 82 | **Lebensohl after double** (advancer, weak twos; = `Plain`) | measured, rejected | keep floor; `Plain` DD-negative | Plain vs off −0.108/−0.050/board (200k); Pam/Lawrence also rejected (see note) | a6e7ab9 |
 
 **Lebensohl after a takeout double (advancer over a weak two) — measured;
@@ -237,6 +237,35 @@ overbids (the small-sample / shortlist noise; a larger run would tighten).
 the prior weak-two defense. The plan's "spend runtime for better calls" (M2.3)
 makes `american_search` the blessed way to play it — the slam upside lives there,
 while the fast floor's authored rules bank the clean +1.09/+1.45.
+
+**Perfect-defense re-validation sweep (after `ns_score` fix 5611eac).** `ns_score`
+now doubles any contract that fails double-dummy (a real defense doubles what it
+can beat); the optimistic-undoubled variant is gone. That re-priced every prior
+A/B, so the toggle-based competitive conventions were re-measured. PD only changes
+scores on divergent boards where one arm reaches a *failing* (now-doubled)
+contract, which splits the results cleanly:
+
+- **Convention-vs-convention CHOICES all hold** (both arms share the obstruction
+  value, so it cancels and only the constructive/placement edge remains): Leaping
+  Michaels on-vs-off **+1.100/+1.445/board** (was +1.090/+1.452, 40k filter);
+  Transfer-vs-Plain Lebensohl **+0.46/+0.69/div** (was +0.46/+1.24, both-vul
+  shrank, 80k filter-dh); wide-vs-classic 1NT **constructive** **+0.11/+0.32/div**
+  (was +0.32 none, `nt-shape-abc` 500k). **No ship decision is overturned.**
+- **Convention-vs-NOTHING comparisons flip negative** for the obstructive ones —
+  PD sharpens the documented DD-blindness-to-obstruction (the solver sees through
+  the obstruction; PD now fully counts the failing-overbid cost): Transfer
+  Lebensohl vs the bare floor **−0.66/−0.62/div** (was +0.35/+0.05); wide-vs-classic
+  1NT **contested** (`nt-shape-contested`, 100k) **−0.50/−0.61/div** (was
+  +0.57/+0.93). Per-board impact is tiny (−0.005…−0.058 — rare auctions). The flip
+  is a harness artifact, not a bad convention.
+- **sohl-after-double (#106) flipped DD-POSITIVE** — see the row; its opt-in
+  rationale is gone (promotion candidate, kept opt-in pending a deeper re-measure).
+- **The two-binary *constructive* conventions** (Stayman, 1NT-3♦ #14, Puppet #12,
+  SAT #119, M6.1 inferences, minor keycard #75) were **not** empirically re-run:
+  they reach *making* contracts, so PD only doubles the looser baseline's failures
+  → predicted to hold or improve, and they shipped with large margins. Re-validating
+  each needs a per-feature `git stash` rebuild (old-tree `--phase bid` → new-tree
+  `--phase score`; the harness file format is stable). Lowest priority.
 
 ## Openings
 
