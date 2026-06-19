@@ -4,6 +4,7 @@
 use contract_bridge::auction::{Call, RelativeVulnerability};
 use contract_bridge::{Bid, Hand, Strain};
 use pons::american;
+use pons::bidding::american::set_responsive_overcall;
 use pons::bidding::array::Logits;
 use pons::bidding::{Family, Stance, System};
 
@@ -87,6 +88,26 @@ fn test_responsive_double() {
         ),
         Call::Double,
     );
+}
+
+/// (1♥) – 2♣ – (2♥) with 4-4 in the unbid suits → overcall responsive double,
+/// but only when the opt-in toggle is on (off by default → floored, not a double)
+#[test]
+fn test_responsive_overcall_double_toggle() {
+    // 10 HCP, four spades and four diamonds (the two suits unbid by opener and the
+    // 2♣ overcaller); partner overcalled 2♣, they raised to 2♥.
+    let auction = [
+        call(1, Strain::Hearts),
+        call(2, Strain::Clubs),
+        call(2, Strain::Hearts),
+    ];
+    let hand = "KQ54.32.KQ54.932";
+
+    set_responsive_overcall(true);
+    assert_eq!(best_call(&stance(), &auction, hand), Call::Double);
+
+    set_responsive_overcall(false);
+    assert_ne!(best_call(&stance(), &auction, hand), Call::Double);
 }
 
 // --- Unusual 2NT advance ----------------------------------------------------

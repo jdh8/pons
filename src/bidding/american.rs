@@ -84,7 +84,7 @@ pub use competition::{LebensohlStyle, competition, set_lebensohl, set_lebensohl_
 pub(crate) use defense::leaping_michaels_enabled;
 pub use defense::{
     advance_double, defense_to_suit, defense_to_weak_two, set_advance_sohl_style,
-    set_leaping_michaels,
+    set_leaping_michaels, set_responsive_overcall, set_responsive_takeout,
 };
 pub use notrump::notrump_responses;
 pub use openings::{NotrumpShape, openings, openings_with};

@@ -9,6 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Responsive double re-measured under perfect defense (ledger #100); two opt-in
+  toggles, defaults unchanged.** The shipped responsive double after partner's
+  *takeout* double and their raise (`(1t)–X–(2t)–X` — the canonical convention, and
+  BBA's single `Responsive double` toggle, on in `21GF.bbsa`) is now gated by
+  [`set_responsive_takeout`][pons::bidding::american::set_responsive_takeout]
+  (default **on**), and a non-standard *overcall* extension (`(1t)–overcall–(2t)–X`,
+  nearest to BBA's `Snapdragon Double`, off in 21GF) by
+  [`set_responsive_overcall`][pons::bidding::american::set_responsive_overcall]
+  (default **off**). The new `examples/responsive-ab` A/B (200k filtered/cell,
+  perfect-defense `ns_score`) measures both against the bare instinct floor: takeout
+  **−1.18/−1.89 IMPs/divergent** (−0.0003/−0.0006 per raw deal, none/both),
+  overcall-ext **−2.16/−3.53** (−0.0020/−0.0032 per raw deal). Both stay as they
+  were — the overcall extension remains rejected (the new scoring does not rescue the
+  reverted −0.034/−2.37 result; it is slightly *worse* vulnerable, as perfect defense
+  punishes the doubled-down overbids), and the takeout part stays shipped: its per-deal
+  drag is negligible and its competitive/obstruction value is invisible to the
+  double-dummy measure (the same reason `Lebensohl`-vs-floor was kept despite flipping
+  negative under perfect defense). **The `american()` default is byte-identical to
+  before** (takeout on, overcall off).
+
 - **`LebensohlStyle::Rubensohl` — true Rubensohl as an opt-in over our overcalled
   `1NT`.** A fourth [`LebensohlStyle`][pons::bidding::american::LebensohlStyle]
   alongside `Off`/`Plain`/`Transfer`: `2NT` is an artificial **club** transfer and
