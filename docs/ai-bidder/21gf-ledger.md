@@ -167,7 +167,7 @@ under a single-dummy / IMPs-vs-humans measure where preemption actually pays.
 | 84 | Michaels cuebid | shipped | keep | — | — |
 | 127 | Unusual 2NT | shipped | keep | — | — |
 | 126 | Unusual 1NT | gap | add (Batch 1) | — | — |
-| 79 | Leaping Michaels | measured, rejected | keep floor (opt-in, default off) | `4♣/4♦` strong 5-5 two-suiters over a weak two; A/B'd **−0.599/−0.881/board** (none/both, 40k filtered, 27.6% div) → kept opt-in (`set_leaping_michaels`) | (this commit) |
+| 79 | Leaping Michaels | **shipped, default ON** | keep on | `4♣/4♦` strong 5-5 two-suiters + authored advances; A/B'd **+1.090/+1.452/board** (none/both, 40k filtered, ~24% div) vs prior defense. Inference reader decodes the two-suiter so `american_search` picks the advance by DD (+2.8/board directional, slam-capable). `set_leaping_michaels(false)` to disable. | (this commit) |
 | 123 | Two-suit takeout double | gap | add (Batch 1) | — | — |
 | 129 | Unusual 4NT | verify | — | — | — |
 | 48 | Cue bid | partial | verify | — | — |
@@ -202,20 +202,41 @@ after double); the "our opening is doubled" responder case is a *separate* BBA
 toggle (`Transfers if RHO doubles`), not this one. Revisit only under a
 single-dummy measure that can see right-siding.
 
-**Leaping Michaels (79) — measured, DD-negative, kept opt-in.** Over their weak
-two, a jump to `4♣`/`4♦` names a 5-5 two-suiter with game-forcing values: over a
-major it shows a minor + the *other* major; over `2♦` the `4♦` cue shows both
-majors and `4♣` shows clubs + a major (advancer's continuation left to the
-instinct floor). Authored in `defense_to_weak_two` behind `set_leaping_michaels`
-(default `Off`) and A/B'd on `leaping-michaels-ab` (contested seat-swap, 40k
-filtered boards, 27.6 % divergence): **−0.599 / −0.881 IMPs/board** (none/both)
-vs the floor — a clear loss, worse vulnerable. Mechanism: the convention is
-nominally *constructive*, but the 4-level jump destroys the lower-level
-constructive auction the baseline uses to find the right strain, and DD is blind
-to the descriptive/obstructive value the jump buys (same wall as the preempts in
-`#71`/`#100`). Reaching game/slam a level too high on a misfit costs more than the
-occasional well-placed two-suiter gains. Kept opt-in, not shipped; revisit only
-under a single-dummy measure.
+**Leaping Michaels (79) — shipped opt-in, a clear DD win once the advances were
+authored.** Over their weak two, a jump to `4♣`/`4♦` names a 5-5 two-suiter with
+game-forcing values: over a major it shows a minor + the *other* major; over `2♦`
+the `4♦` cue shows both majors and `4♣` shows clubs + a major. Authored in
+`defense_to_weak_two` behind `set_leaping_michaels` (default `Off`), with advancer
+continuations in `leaping_michaels_advances` (a fit major game — taking even a
+7-card fit, which scores well and makes on ten tricks; else the `5m` minor game;
+never a passed-out partscore; over `2♦`, `4♥` is pass-or-correct to opener's
+major). A/B on `leaping-michaels-ab` (contested seat-swap, 40k filtered, ~24 %
+div): **+1.090 / +1.452 IMPs/board** (none/both) vs the floor.
+
+*The first cut measured −0.6 / −0.9* — but that was the **unauthored advancer**,
+not the convention: worst-board analysis showed the instinct floor *passing* the
+two-suiter, leaving us in `4m` (or, over the `2♦` cue, declaring the opponents'
+diamonds). Authoring the advance flipped the sign by +1.7 IMPs/board. The lesson
+is the inverse of the obstruction wall (`#71`/`#100`): a constructive competitive
+convention can win big on DD when it reaches a *better strain* — but only if the
+whole sequence, advances included, is authored; a half-built convention measures
+as a loss for a reason that has nothing to do with the idea.
+
+The authored advance is capped at game. To let the bidder reach the slams a big
+two-suiter is *for*, `Inferences::read` now decodes the overcall's two suits
+(`leaping_michaels_reading`, post-walk like the Rubens cue), so the constrained
+sampler conditions partner correctly and the live double-dummy search bidder
+(`american_search`, `--features search`) prices the advance — 4M / 5m / slam — by
+cardplay EV. The authored length rules become the fast-floor *prior*; DD disposes.
+A directional A/B (search+LM NS vs authored-rules+LM EW, 60 filtered boards, trimmed
+64-layout search) measured **+2.8 IMPs/board** for search *on top of* the rule floor,
+and the auctions show it reaching the slams the game-capped rules cannot (e.g. a
+`6♥` off the `2♦` both-majors cue, a `7♣` grand) — at the cost of a few search
+overbids (the small-sample / shortlist noise; a larger run would tighten).
+**Shipped default ON** (`Cell::new(true)`); `set_leaping_michaels(false)` recovers
+the prior weak-two defense. The plan's "spend runtime for better calls" (M2.3)
+makes `american_search` the blessed way to play it — the slam upside lives there,
+while the fast floor's authored rules bank the clean +1.09/+1.45.
 
 ## Openings
 

@@ -295,6 +295,11 @@ impl Inferences {
         // skips them, and capture a cue-raise's strength to apply afterwards.
         let (rubens_suppress, rubens_cue) = rubens_reading(auction);
 
+        // A Leaping Michaels jump (4♣/4♦ over their weak two) shows two suits, so
+        // its natural single-suit reading is suppressed and the pair recorded
+        // post-walk (cf. the Rubens cue).
+        let leaping_michaels = leaping_michaels_reading(auction);
+
         for (index, &call) in auction.iter().enumerate() {
             let lane = index % 4;
             let who = relative_of(len, index) as usize;
@@ -339,7 +344,8 @@ impl Inferences {
                         let suppress = (is_opening_side && opening_artificial && !over_one_notrump)
                             || stayman_artificial
                             || nt_structure_artificial(auction, index, opening_index)
-                            || rubens_suppress.contains(&Some(index));
+                            || rubens_suppress.contains(&Some(index))
+                            || leaping_michaels.is_some_and(|(i, _, _)| i == index);
 
                         if !suppress {
                             let jump = bid
@@ -548,6 +554,20 @@ impl Inferences {
             }
         }
 
+        // A Leaping Michaels overcall of a weak two shows a 5-5 two-suiter with
+        // game-forcing values (point_count ≥ 14, matching the overcall gate).
+        // Over 2♦, 4♣'s major is unknown, so only clubs is pinned.  The jump's
+        // natural single-suit reading was suppressed above so this records the
+        // pair — the signal the search sampler needs to condition partner.
+        if let Some((overcall_index, primary, secondary)) = leaping_michaels {
+            let who = relative_of(len, overcall_index) as usize;
+            players[who].narrow_length(primary, Range::at_least(5, LENGTH_CAP));
+            if let Some(secondary) = secondary {
+                players[who].narrow_length(secondary, Range::at_least(5, LENGTH_CAP));
+            }
+            players[who].narrow_points(Range::at_least(14, POINTS_CAP));
+        }
+
         Self { players }
     }
 }
@@ -649,6 +669,66 @@ fn rubens_reading(auction: &[Call]) -> ([Option<usize>; 2], Option<(usize, Suit)
         && auction.get(advance_index + 2) == Some(&Call::Bid(Bid::new(2, target))))
     .then_some(advance_index + 2);
     ([Some(advance_index), completion], None)
+}
+
+/// What a Leaping Michaels jump shows about the overcaller
+///
+/// Returns `(overcall_index, primary, secondary)`: the overcaller holds five-plus
+/// in `primary` (and in `secondary` when known), game-forcing values.  Over a
+/// major the jump is a minor + the *other* major (both known); over `2♦` the `4♦`
+/// cue shows both majors, while `4♣` shows clubs + an *unknown* major, so only
+/// clubs is pinned (`secondary` is `None`).  The jump's natural single-suit
+/// reading is suppressed in the walk so the pair is recorded post-walk — mirrors
+/// [`rubens_reading`].
+///
+/// Returns `None` unless Leaping Michaels is enabled *and* the auction is a weak
+/// two followed by the defending side's first action being a `4♣`/`4♦` jump, so a
+/// natural four-level bid is never mistaken for the convention.
+fn leaping_michaels_reading(auction: &[Call]) -> Option<(usize, Suit, Option<Suit>)> {
+    if !crate::bidding::american::leaping_michaels_enabled() {
+        return None;
+    }
+    let opening_index = auction.iter().position(|&c| c != Call::Pass)?;
+    let Call::Bid(opening) = auction[opening_index] else {
+        return None;
+    };
+    let theirs = opening.strain.suit()?;
+    // A weak two (2♦/2♥/2♠); 2♣ is the strong artificial opening, not a weak two.
+    if opening.level.get() != 2 || theirs == Suit::Clubs {
+        return None;
+    }
+    // The overcall is the defending side's *first* action: a jump to 4♣ or 4♦.
+    let opener_parity = opening_index % 2;
+    for (index, &call) in auction.iter().enumerate().skip(opening_index + 1) {
+        match call {
+            Call::Pass => {}
+            Call::Bid(bid) if index % 2 != opener_parity => {
+                let lm = bid.strain.suit()?;
+                if bid.level.get() != 4 || !matches!(lm, Suit::Clubs | Suit::Diamonds) {
+                    return None;
+                }
+                let (primary, secondary) = leaping_michaels_suits(theirs, lm);
+                return Some((index, primary, secondary));
+            }
+            // The defending side did something else first — not a Leaping Michaels.
+            _ => return None,
+        }
+    }
+    None
+}
+
+/// The suit(s) a Leaping Michaels jump `lm` (clubs or diamonds) shows over their
+/// weak two `theirs`, as `(primary, secondary)`
+fn leaping_michaels_suits(theirs: Suit, lm: Suit) -> (Suit, Option<Suit>) {
+    match theirs {
+        // Over a major: lm + the OTHER major.
+        Suit::Hearts => (lm, Some(Suit::Spades)),
+        Suit::Spades => (lm, Some(Suit::Hearts)),
+        // Over 2♦: 4♦ cue = both majors; 4♣ = clubs + an unknown major.
+        Suit::Diamonds if lm == Suit::Diamonds => (Suit::Hearts, Some(Suit::Spades)),
+        Suit::Diamonds => (Suit::Clubs, None),
+        Suit::Clubs => (lm, None),
+    }
 }
 
 /// The bid at `index`, if the call there is a bid (not a pass/double/redouble)
@@ -883,6 +963,36 @@ mod tests {
         let one_club = read(&[bid(1, Strain::Clubs)]);
         assert_eq!(one_club.rho().length(Suit::Clubs), Range::new(3, 13));
         assert_eq!(one_club.rho().length(Suit::Hearts), Range::new(0, 4));
+    }
+
+    #[test]
+    fn leaping_michaels_conditions_partner() {
+        use crate::bidding::american::set_leaping_michaels;
+
+        // (2♥)–4♣–(P): the advancer reads partner's two-suiter — five-plus clubs
+        // AND five-plus spades, game-forcing — so the search sampler deals partner
+        // the right shape rather than a natural club one-suiter.
+        set_leaping_michaels(true);
+        let advance = read(&[bid(2, Strain::Hearts), bid(4, Strain::Clubs), Call::Pass]);
+        assert_eq!(advance.partner().length(Suit::Clubs), Range::new(5, 13));
+        assert_eq!(advance.partner().length(Suit::Spades), Range::new(5, 13));
+        assert_eq!(advance.partner().points, Range::new(14, 37));
+
+        // Over 2♦, the 4♦ cue shows both majors; 4♣ shows clubs + an unknown
+        // major, so only clubs is pinned.
+        let cue = read(&[
+            bid(2, Strain::Diamonds),
+            bid(4, Strain::Diamonds),
+            Call::Pass,
+        ]);
+        assert_eq!(cue.partner().length(Suit::Hearts), Range::new(5, 13));
+        assert_eq!(cue.partner().length(Suit::Spades), Range::new(5, 13));
+
+        // Disabled (the default): a 4♣ jump reads as a natural one-suiter, so
+        // spades stay unconstrained — the convention must not leak when off.
+        set_leaping_michaels(false);
+        let off = read(&[bid(2, Strain::Hearts), bid(4, Strain::Clubs), Call::Pass]);
+        assert_eq!(off.partner().length(Suit::Spades), Range::FULL_LENGTH);
     }
 
     #[test]

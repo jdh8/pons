@@ -53,6 +53,34 @@ fn advance_sohl_style() -> LebensohlStyle {
     ADVANCE_SOHL.with(Cell::get)
 }
 
+thread_local! {
+    /// Whether Leaping Michaels (4♣/4♦ strong two-suiters over their weak two)
+    /// is active; see [`set_leaping_michaels`].
+    static LEAPING_MICHAELS: Cell<bool> = const { Cell::new(true) };
+}
+
+/// Toggle Leaping Michaels for books built *after* this call (thread-local, read
+/// once at book-construction time)
+///
+/// Over their weak two, a jump to `4♣`/`4♦` names a 5-5 two-suiter with
+/// game-forcing values: over a major it is a minor plus the *other* major; over
+/// `2♦` the `4♦` cue shows both majors and `4♣` shows clubs plus a major.  **On by
+/// default** — the authored advances make it a clear DD win (+1.090/+1.452
+/// IMPs/board, none/both), and the inference reader lets the live-search bidder
+/// price the advance (and reach slam) on top; see `docs/ai-bidder/21gf-ledger.md`.
+/// Turn it off to recover the pre-Leaping-Michaels weak-two defense.
+pub fn set_leaping_michaels(on: bool) {
+    LEAPING_MICHAELS.with(|cell| cell.set(on));
+}
+
+/// Whether Leaping Michaels is currently enabled
+///
+/// Crate-visible so the inference reader can condition partner's hand on the
+/// two-suiter when the search bidder samples (see `inference::leaping_michaels_reading`).
+pub(crate) fn leaping_michaels_enabled() -> bool {
+    LEAPING_MICHAELS.with(Cell::get)
+}
+
 // ---------------------------------------------------------------------------
 // Direct overcalls and doubles
 // ---------------------------------------------------------------------------
@@ -180,6 +208,51 @@ pub fn defense_to_weak_two(their_opening: Bid) -> Rules {
                 1.0,
                 len(suit, 5..) & points(10..=16),
             );
+        }
+    }
+
+    // Leaping Michaels: a jump to 4♣/4♦ showing a 5-5 two-suiter with
+    // game-forcing values.  These are all 4-level jumps, so they never collide
+    // with the natural overcalls above (which sit at the 2/3 level), and 4♦ over
+    // 2♦ is a cue the natural loop skips.
+    if leaping_michaels_enabled() {
+        let t = theirs.suit().expect("weak two is a suit bid");
+        let gf = points(14..);
+        match t {
+            // Over a major: a minor plus the OTHER major.
+            Suit::Hearts | Suit::Spades => {
+                let other = if t == Suit::Hearts {
+                    Suit::Spades
+                } else {
+                    Suit::Hearts
+                };
+                for minor in [Suit::Clubs, Suit::Diamonds] {
+                    rules = rules.rule(
+                        Bid::new(4, Strain::from(minor)),
+                        2.0,
+                        len(minor, 5..) & len(other, 5..) & gf.clone(),
+                    );
+                }
+            }
+            // Over 2♦: 4♣ = clubs + a major; 4♦ (cue) = both majors.  Advancer's
+            // continuation (incl. the 4♣ major-ask) is authored in
+            // `leaping_michaels_advances`.
+            Suit::Diamonds => {
+                rules = rules
+                    .rule(
+                        Bid::new(4, Strain::Clubs),
+                        2.0,
+                        len(Suit::Clubs, 5..)
+                            & (len(Suit::Hearts, 5..) | len(Suit::Spades, 5..))
+                            & gf.clone(),
+                    )
+                    .rule(
+                        Bid::new(4, Strain::Diamonds),
+                        2.0,
+                        len(Suit::Hearts, 5..) & len(Suit::Spades, 5..) & gf.clone(),
+                    );
+            }
+            Suit::Clubs => {} // no weak 2♣ in our system
         }
     }
     rules
@@ -384,6 +457,71 @@ fn michaels_advances(t: Suit) -> Rules {
     }
 }
 
+/// Advancer's response to partner's Leaping Michaels jump over their weak two
+///
+/// `theirs` is the suit they opened; `lm` is the suit of the jump (Clubs or
+/// Diamonds).  The overcall is game-forcing, so every advance reaches game.
+/// - Over a **major**, the jump names `lm` plus the *other* major: bid that
+///   major game with a fit, else the `lm` minor game.
+/// - Over **2♦**, the `4♦` *cue* shows both majors → pick the longer; the `4♣`
+///   jump shows clubs + an unknown major → `5♣` with a club fit and no major,
+///   else `4♥` pass-or-correct (see [`leaping_michaels_2d_4c_rebid`]).
+fn leaping_michaels_advances(theirs: Suit, lm: Suit) -> Rules {
+    match theirs {
+        // Over a major: lm + the OTHER major, both known.
+        Suit::Hearts | Suit::Spades => {
+            let major = if theirs == Suit::Hearts {
+                Suit::Spades
+            } else {
+                Suit::Hearts
+            };
+            // Prefer the major game even on a doubleton (a 7-card fit) — it
+            // scores well and needs only ten tricks; retreat to the 5m game only
+            // on a genuine major misfit (≤1), where DD has to make eleven.
+            Rules::new()
+                .rule(Bid::new(4, Strain::from(major)), 1.3, len(major, 2..))
+                .rule(Bid::new(5, Strain::from(lm)), 1.2, len(major, 0..=1))
+        }
+        // Over 2♦.
+        Suit::Diamonds => match lm {
+            // 4♦ cue = both majors: pick the longer (both forced to game).
+            Suit::Diamonds => {
+                let hearts_longer =
+                    described("♥ at least as long as ♠", |h: Hand, _: &Context<'_>| {
+                        h[Suit::Hearts].len() >= h[Suit::Spades].len()
+                    });
+                let spades_longer = described("♠ longer than ♥", |h: Hand, _: &Context<'_>| {
+                    h[Suit::Spades].len() > h[Suit::Hearts].len()
+                });
+                Rules::new()
+                    .rule(Bid::new(4, Strain::Hearts), 1.3, hearts_longer)
+                    .rule(Bid::new(4, Strain::Spades), 1.3, spades_longer)
+            }
+            // 4♣ = clubs + a major: 5♣ with a club fit and no major, else 4♥
+            // pass-or-correct (partner names their major).
+            Suit::Clubs => Rules::new()
+                .rule(
+                    Bid::new(5, Strain::Clubs),
+                    1.2,
+                    len(Suit::Clubs, 3..) & len(Suit::Hearts, 0..=2) & len(Suit::Spades, 0..=2),
+                )
+                .rule(Bid::new(4, Strain::Hearts), 1.3, hcp(0..)),
+            _ => unreachable!("a Leaping Michaels jump is clubs or diamonds"),
+        },
+        Suit::Clubs => unreachable!("there is no weak 2♣ opening"),
+    }
+}
+
+/// Overcaller's rebid after `(2♦)–4♣–(P)–4♥–(P)`: pass-or-correct to their major
+///
+/// `4♣` over `2♦` showed clubs + a major; advancer's `4♥` is pass-or-correct, so
+/// the overcaller passes with hearts or corrects to `4♠` with spades.
+fn leaping_michaels_2d_4c_rebid() -> Rules {
+    Rules::new()
+        .rule(Bid::new(4, Strain::Spades), 1.3, len(Suit::Spades, 5..))
+        .rule(Call::Pass, 1.0, hcp(0..))
+}
+
 /// The two suits shown by an Unusual 2NT over their opening `t`
 ///
 /// Returns `(a, b)` where `a < b` (lower suit first).
@@ -537,6 +675,36 @@ pub fn defensive() -> Defensive {
         // Plain/Transfer sohl per `set_advance_sohl_style` (default Off keeps the
         // flat `advance_double` ladder).
         insert_advance_of_double(&mut d, suit, opening, advance_sohl);
+
+        // Advances of Leaping Michaels: [2t, 4m, P] — advancer to act.  The jump
+        // is below game, so the advancer is forced on (a fit major game, else the
+        // 5m minor game — never a passed 4m partscore).
+        if leaping_michaels_enabled() {
+            for lm in [Suit::Clubs, Suit::Diamonds] {
+                insert_all_seats(
+                    &mut d,
+                    &[Call::Bid(opening), call(4, Strain::from(lm)), Call::Pass],
+                    3,
+                    leaping_michaels_advances(suit, lm),
+                );
+            }
+            // Over 2♦, 4♣ shows clubs + an unknown major; advancer's 4♥ is
+            // pass-or-correct, so the overcaller names their major in rebid.
+            if suit == Suit::Diamonds {
+                insert_all_seats(
+                    &mut d,
+                    &[
+                        Call::Bid(opening),
+                        call(4, Strain::Clubs),
+                        Call::Pass,
+                        call(4, Strain::Hearts),
+                        Call::Pass,
+                    ],
+                    3,
+                    leaping_michaels_2d_4c_rebid(),
+                );
+            }
+        }
     }
 
     insert_all_seats(&mut d, &[call(1, Strain::Notrump)], 3, defense_to_notrump());
@@ -546,7 +714,9 @@ pub fn defensive() -> Defensive {
 #[cfg(test)]
 mod tests {
     use crate::bidding::Family;
-    use crate::bidding::american::{LebensohlStyle, american, set_advance_sohl_style};
+    use crate::bidding::american::{
+        LebensohlStyle, american, set_advance_sohl_style, set_leaping_michaels,
+    };
     use contract_bridge::auction::{Call, RelativeVulnerability};
     use contract_bridge::{Bid, Hand, Strain};
 
@@ -666,5 +836,98 @@ mod tests {
         let (c, floored) = advance(LebensohlStyle::Plain, &over_2s, "KQJ95.J32.432.32");
         assert_eq!(c, Call::Pass);
         assert!(!floored, "the sign-off Pass must come from the book node");
+    }
+
+    /// Best call with Leaping Michaels forced to `on` (and the sohl toggles reset,
+    /// independent of any other test on this thread)
+    fn leaping(on: bool, auction: &[Call], hand: &str) -> (Call, bool) {
+        set_advance_sohl_style(LebensohlStyle::Off);
+        set_leaping_michaels(on);
+        best_call(auction, hand)
+    }
+
+    #[test]
+    fn leaping_michaels_minor_plus_other_major_over_a_major() {
+        // Over (2♥): 5-5 clubs+spades, game values → 4♣; 5-5 diamonds+spades → 4♦.
+        let over_2h = [call(2, Strain::Hearts)];
+        let (c, floored) = leaping(true, &over_2h, "AKQ65.4.32.KQJ76");
+        assert_eq!(c, call(4, Strain::Clubs));
+        assert!(!floored, "Leaping Michaels must come from the book node");
+
+        let (d, _) = leaping(true, &over_2h, "AKQ65.4.KQJ76.32");
+        assert_eq!(d, call(4, Strain::Diamonds));
+    }
+
+    #[test]
+    fn leaping_michaels_cue_shows_both_majors_over_2d() {
+        // Over (2♦): 5-5 in the majors → 4♦ (the cue), both majors.
+        let over_2d = [call(2, Strain::Diamonds)];
+        let (c, floored) = leaping(true, &over_2d, "AKQ65.KQJ76.4.32");
+        assert_eq!(c, call(4, Strain::Diamonds));
+        assert!(!floored, "Leaping Michaels must come from the book node");
+    }
+
+    #[test]
+    fn leaping_michaels_advancer_picks_the_major_game() {
+        // (2♥)–4♣–(P): partner shows clubs + spades. With spade support the
+        // advancer bids the 4♠ game; with none, the 5♣ minor game (never pass 4♣).
+        let auction = [call(2, Strain::Hearts), call(4, Strain::Clubs), Call::Pass];
+        let (fit, floored) = leaping(true, &auction, "KQ7.32.J865.A432");
+        assert_eq!(fit, call(4, Strain::Spades));
+        assert!(!floored, "the advance must come from the book node");
+
+        // A doubleton (7-card fit) still takes the 4♠ game — it scores well and
+        // needs only ten tricks.
+        let (thin, _) = leaping(true, &auction, "K7.QJ32.8654.A32");
+        assert_eq!(thin, call(4, Strain::Spades));
+
+        // A genuine major misfit (≤1) retreats to the 5♣ game, not a passed 4♣.
+        let (no_fit, _) = leaping(true, &auction, "2.QJ32.J8654.KQ4");
+        assert_eq!(no_fit, call(5, Strain::Clubs));
+    }
+
+    #[test]
+    fn leaping_michaels_advancer_picks_longer_major_over_2d_cue() {
+        // (2♦)–4♦–(P): the cue shows both majors; advancer picks the longer.
+        let auction = [
+            call(2, Strain::Diamonds),
+            call(4, Strain::Diamonds),
+            Call::Pass,
+        ];
+        let (c, floored) = leaping(true, &auction, "AQ32.K8.654.9432");
+        assert_eq!(c, call(4, Strain::Spades));
+        assert!(!floored, "the advance must come from the book node");
+    }
+
+    #[test]
+    fn leaping_michaels_2d_4c_pass_or_correct() {
+        // (2♦)–4♣–(P): clubs + an unknown major → 4♥ pass-or-correct, then the
+        // overcaller with spades corrects to 4♠.
+        let advance = [
+            call(2, Strain::Diamonds),
+            call(4, Strain::Clubs),
+            Call::Pass,
+        ];
+        let (relay, _) = leaping(true, &advance, "K32.A87.9654.J32");
+        assert_eq!(relay, call(4, Strain::Hearts));
+
+        let rebid = [
+            call(2, Strain::Diamonds),
+            call(4, Strain::Clubs),
+            Call::Pass,
+            call(4, Strain::Hearts),
+            Call::Pass,
+        ];
+        let (correct, _) = leaping(true, &rebid, "AKQ65.4.32.KQJ76");
+        assert_eq!(correct, call(4, Strain::Spades));
+    }
+
+    #[test]
+    fn leaping_michaels_silent_when_disabled() {
+        // Turned off: the same club-spade two-suiter never jumps to 4♣ (the
+        // escape hatch back to the pre-Leaping-Michaels weak-two defense).
+        let over_2h = [call(2, Strain::Hearts)];
+        let (c, _) = leaping(false, &over_2h, "AKQ65.4.32.KQJ76");
+        assert_ne!(c, call(4, Strain::Clubs));
     }
 }

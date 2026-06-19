@@ -27,6 +27,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   it directly is both simpler and faithful. Output is verifier-ready hypotheses,
   not proof: check a `sketch` with [`bidding::verify`] before authoring a rule.
   Builds under the `search` feature.
+- **Leaping Michaels over a weak two — now on by default.** Over an opponent's
+  weak two, a jump to `4♣`/`4♦` names a 5-5 two-suiter with game-forcing values:
+  over a major it shows a minor + the *other* major; over `2♦` the `4♦` cue shows
+  both majors and `4♣` shows clubs + a major. Advancer continuations are authored
+  too — a fit major game (taking even a 7-card fit, which scores well and needs
+  only ten tricks), else the `5m` minor game, never a passed-out partscore; over
+  `2♦`, `4♥` is pass-or-correct to opener's major. *Measure* (`leaping-michaels-ab`
+  contested seat-swap A/B, 40 000 filtered boards): **+1.090 / +1.452 IMPs/board
+  (none / both) vs the prior weak-two defense** — a clear win, so it ships **on**;
+  [`set_leaping_michaels`]`(false)` recovers the old behavior. (An earlier cut that
+  left the advance to the instinct floor measured *negative*: the floor passed the
+  two-suiter, stranding us in `4m` or the opponents' suit; authoring the advance
+  flipped the sign.) The inference reader
+  ([`Inferences::read`][pons::bidding::inference]) also decodes the overcall's
+  two-suiter, so the live double-dummy search bidder (`american_search`,
+  `--features search`) chooses the advance by cardplay EV — adding **+2.8
+  IMPs/board over the authored rules** in a directional A/B and reaching the slams
+  (`6♥`, `7♣`) the game-capped rules cannot. See the ledger (toggle 79).
 - **Transfer Lebensohl — now the default over our overcalled 1NT** (Larry Cohen's
   version). A first attempt at transfer-Lebensohl lost (−1.7 IMPs/divergent — see
   the plain-Lebensohl entry below) by stranding game hands in partscores; Cohen's
