@@ -80,7 +80,7 @@ balancing/reopening, and slam accuracy (missed grands).
 | 51 | DOPI | gap | add (Batch 2) | — | — |
 | 103 | ROPI | gap | add (Batch 2) | — | — |
 | 42 | BROMAD | gap (confirm meaning) | Batch 2 | — | — |
-| — | **Plain-4NT minor keycard** | shipped (small slam) | keep; grand-in-minor deferred | **+6.80/+8.76 IMPs/div (none/both)** (2M, 46 div) | 99da1b3 |
+| — | **Plain-4NT minor keycard** | shipped (small slam) | keep; grand-in-minor deferred | **+6.80/+8.76 IMPs/div (none/both)** (2M, 46 div, optimistic). **PD re-measure (5611eac): +5.41/+7.05 IMPs/div (none/both)** (10M, 202 div) — HOLDS, ship intact; PD trims the gain (rare push-to-failing-slam now doubled) but stays clearly positive. | 99da1b3 |
 
 ## Competitive — our opening contested
 
@@ -282,11 +282,15 @@ contract, which splits the results cleanly:
 - **sohl-after-double (#106) flipped DD-POSITIVE** — see the row; its opt-in
   rationale is gone (promotion candidate, kept opt-in pending a deeper re-measure).
 - **The two-binary *constructive* conventions** (Stayman, 1NT-3♦ #14, Puppet #12,
-  SAT #119, M6.1 inferences, minor keycard #75) were **not** empirically re-run:
-  they reach *making* contracts, so PD only doubles the looser baseline's failures
-  → predicted to hold or improve, and they shipped with large margins. Re-validating
-  each needs a per-feature `git stash` rebuild (old-tree `--phase bid` → new-tree
-  `--phase score`; the harness file format is stable). Lowest priority.
+  SAT #119, M6.1 inferences, minor keycard #75): they reach *making* contracts, so PD
+  only doubles the looser baseline's failures → predicted to hold or improve, and they
+  shipped with large margins. Re-validating each needs a per-feature worktree rebuild
+  (old-arm `--phase bid` → new-arm `--phase score`; the harness file format is stable).
+  **minor keycard #75 now empirically re-run under PD: +5.41/+7.05 IMPs/div (none/both,
+  10M, 202 div) — HOLDS** (was +6.80/+8.76 optimistic; PD trims but stays clearly
+  positive; isolated by reverting just 99da1b3, zero drift in the touched files). The
+  other four remain predicted-only (lowest priority; SAT #119 has the most failing-slam
+  exposure).
 
 ## Openings
 
