@@ -9,6 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Constraint extraction from the trained net — sample-and-probe (new example):**
+  added [`examples/extract-constraints`](examples/extract-constraints/main.rs),
+  which recovers human-readable *candidate* bidding constraints for **any
+  auction, including competitive ones**. For a fixed auction prefix (`--auction
+  "1♦ 1♠"`) it deals random actor hands — filtered to the actor's own shown
+  shape — runs the real distilled bidder (`american_neural_search` by default, or
+  `--net v2`/`neural`; legality mask and forced rails included), buckets each hand
+  by the call it produces, and summarises every bucket in the DSL's own vocabulary:
+  a chosen-share %, an HCP range, per-suit length bands, balanced %, and a
+  copy-pasteable `sketch:` line such as `hcp(15..=18) & balanced()` (1NT) or, after
+  `1♦ (1♠)`, `hcp(2..=9) & len(Diamonds, 5..)` (the preemptive `3♦` raise) versus
+  `hcp(9..=18) & len(Diamonds, 5..)` (the `2♠` cue-raise). This replaces an earlier
+  weight-linearization + data-dump approach that ignored the ReLU and matched a
+  fixed corpus by exact context — brittle exactly where it mattered, contested
+  auctions. The net's output depends only on `(actor hand, auction)`, so probing
+  it directly is both simpler and faithful. Output is verifier-ready hypotheses,
+  not proof: check a `sketch` with [`bidding::verify`] before authoring a rule.
+  Builds under the `search` feature.
 - **Transfer Lebensohl — now the default over our overcalled 1NT** (Larry Cohen's
   version). A first attempt at transfer-Lebensohl lost (−1.7 IMPs/divergent — see
   the plain-Lebensohl entry below) by stranding game hands in partscores; Cohen's

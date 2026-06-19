@@ -107,5 +107,13 @@ name = "grand-probe"
 path = "examples/grand-probe/main.rs"
 required-features = ["search"]
 
+# The constraint-extraction probe (AI-bidder M4) samples actor hands and runs
+# the distilled net (`american_neural_search`/`_v2`/`_neural`) to summarise each
+# call's hand conditions, so it builds only with the `search` feature.
+[[example]]
+name = "extract-constraints"
+path = "examples/extract-constraints/main.rs"
+required-features = ["search"]
+
 [profile.dev.package."*"]
 opt-level = 2
