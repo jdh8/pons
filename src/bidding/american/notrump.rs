@@ -313,7 +313,7 @@ fn stayman_no_major_rebid() -> Rules {
 }
 
 /// Opener completes Smolen by bidding game in responder's shown five-card major
-fn smolen_completion(five_card: Suit) -> Rules {
+pub(super) fn smolen_completion(five_card: Suit) -> Rules {
     let strain = Strain::from(five_card);
     Rules::new()
         // Eight-card fit: bid game in the long major so opener declares.
@@ -324,7 +324,7 @@ fn smolen_completion(five_card: Suit) -> Rules {
 
 /// Smolen at the three level: responder's jump after opener denies a major
 /// (`…3♣–3♦`).  Game is already forced, so no strength gate.
-fn smolen_at_three() -> Rules {
+pub(super) fn smolen_at_three() -> Rules {
     Rules::new()
         .rule(
             Bid::new(3, Strain::Hearts),

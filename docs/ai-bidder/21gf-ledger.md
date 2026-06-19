@@ -86,7 +86,7 @@ balancing/reopening, and slam accuracy (missed grands).
 
 | # | Toggle | pons status | decision | A/B | commit |
 |---|--------|-------------|----------|-----|--------|
-| 80 | Lebensohl after 1NT | **shipped** | **Transfer Lebensohl** (Cohen) default; plain kept as option | Transfer vs plain **+0.46/+1.24/div** (none/both, 200k); vs floor +0.35/+0.05; (plain vs floor +0.26, Ruben-v1 −1.68); 2NT-role swap true-Rubensohl −0.017/−0.046/board (200k). **PD re-val (5611eac): Transfer-vs-plain +0.46/+0.69/div HOLDS (ship decision intact); vs floor FLIPS to −0.66/−0.62/div — PD doubles the failing game-drives, harness-blind to the obstruction value.** **2NT-role swap re-measured under PD: +0.001/−0.023/board (none/both, 200k each) — neutral non-vul, still a clear loss vul; no flip, `Transfer` stays default. Re-authored as `LebensohlStyle::Rubensohl` opt-in (default untouched) for a future single-dummy re-measure.** | bfe5e59 (plain), bee9204 (transfer) |
+| 80 | Lebensohl after 1NT | **shipped** | **TransferSmolen** default (Cohen base + `(2♦)` `3♣`-Stayman/Smolen/Leaping-Michaels); `Transfer`/`Plain`/`Rubensohl` kept as options | Transfer vs plain **+0.46/+1.24/div** (none/both, 200k); vs floor +0.35/+0.05; (plain vs floor +0.26, Ruben-v1 −1.68); 2NT-role swap true-Rubensohl −0.017/−0.046/board (200k). **PD re-val (5611eac): Transfer-vs-plain +0.46/+0.69/div HOLDS (ship decision intact); vs floor FLIPS to −0.66/−0.62/div — PD doubles the failing game-drives, harness-blind to the obstruction value.** **2NT-role swap re-measured under PD: +0.001/−0.023/board (none/both, 200k each) — neutral non-vul, still a clear loss vul; no flip; re-authored as `LebensohlStyle::Rubensohl` opt-in.** **TransferSmolen v2 (`(2♦)`-only: `3♣`-Stayman + Smolen, Jacoby-reshuffled transfers `3♦`→♥/`3♥`→♠/`3♠`→♣, Leaping Michaels `4♣`/`4♦`) vs Transfer (PD, 200k filtered/cell): +0.020/+0.024 board, +2.286/+2.822/div (none/both) → WIN, promoted to default.** | bfe5e59 (plain), bee9204 (transfer) |
 | 105 | Rubensohl after 1m | floor (Rubens advances) | upgrade (Batch 1) | — | — |
 | 100 | Responsive double | takeout shipped (toggle); overcall-ext opt-in Off | **keep both as-is under PD** | **PD re-measure (`responsive-ab`, 200k filtered/cell, both vs bare floor):** takeout-X-then-raise (= BBA's `Responsive double`, on in 21GF) **−1.18/−1.89/div** (−0.0003/−0.0006 per raw deal, none/both) → kept shipped (drag negligible + DD-blind obstruction, cf. Lebensohl-vs-floor); overcall-ext (non-standard; nearest = Snapdragon, off in 21GF) **−2.16/−3.53/div** (−0.0020/−0.0032 per raw deal) → still rejected (PD does not rescue the old −0.034/−2.37; *worse* vul). Now behind `set_responsive_takeout` (default on) / `set_responsive_overcall` (default off); defaults byte-identical. | (toggles + `responsive-ab`) |
 | 83 | Maximal doubles | gap | add (Batch 1) | — | — |
@@ -111,7 +111,7 @@ is mostly *constructive* (reaching the right game / strain), which the
 DD / perfect-defense measure can see; the right-siding (strong `1NT` hand
 declares) is invisible on top, so the table value is higher still.
 
-**Naming + the TransferSmolen experiment (80, follow-up — tried & reverted).**
+**Naming + the TransferSmolen v1 experiment (80, follow-up — tried & reverted; superseded by v2 below).**
 *Rubensohl* proper makes `2NT` an artificial **club** transfer; what ships keeps
 the weak `2NT` **relay**, so it is *Transfer Lebensohl* (Cohen). A **TransferSmolen**
 hybrid — Cohen over `(2♠)` but the *standard low-Stayman* structure over `(2♦)`/`(2♥)`
@@ -125,6 +125,29 @@ Stayman→denial→`3NT`, missing the 5-3 major game Cohen's transfer-*through* 
 Smolen's right-siding is DD-blind. **Reverted.** `lebensohl-ab` kept a cheap
 `--filter-dh` shape pre-filter (concentrates `1NT–(2♦/2♥)` boards ~10× so DD
 lands on boards that can diverge) + a worst-board auction diagnostic.
+
+**TransferSmolen v2 (80, follow-up — shipped as the new default).** The narrowed
+retry the user specified *wins*. It keeps Cohen untouched over `(2♥)`/`(2♠)`/`(2♣)`
+and changes only the `(2♦)` branch, where `3♣` sits free below the `3♦` cue: `3♣`
+becomes game-forcing Stayman (opener answers `3♥`/`3♠`, or `3♦` to deny — leaving
+room for responder's Smolen `3♥`/`3♠`, which shows the 5-4), and the 3-level
+transfers shift down to direct Jacoby (`3♦`→♥, `3♥`→♠, `3♠`→♣). The `3♠`→♣ leg is a
+*forced* game-force — its completion is `4♣`, so `3♣` can never be the contract.
+Two Leaping Michaels jumps are added: `4♦` = both majors 5-5, `4♣` = clubs + a 5+
+major (classic shapes from `defense.rs`, but only `points(10..)` — partner opened a
+15-17 `1NT`, so the 14+ a silent partner needs drops to ≈8 HCP after the 5-5
+distribution upgrade). Key authoring subtlety: a 5-4 GF major hand fits both `3♣`
+Stayman and a Jacoby transfer, so Stayman is gated to *exactly* a 4-card major and
+weighted above the transfers — otherwise the hand would transfer and Smolen could
+never fire. A/B (`lebensohl-ab --ns transfersmolen --ew transfer`, PD, 200k
+filtered/cell): **+0.020/+0.024 IMPs/board, +2.286/+2.822 IMPs/divergent
+(none/both)** — a clean, consistent win and a full reversal of v1's −1.31/−1.76.
+Why it wins where v1 lost: v1's *standard low-Stayman* reached DD-worse contracts
+and leaned on DD-blind right-siding; v2 keeps Cohen's transfer-through value over
+the majors, *adds* genuine fit-finding the measure can see (5-3 major games via
+Stayman+Smolen, 5-5 major games via Leaping Michaels), and only adds nodes over the
+`(2♦)` Cohen base. Promoted: the `set_lebensohl_style` default is now
+`TransferSmolen`; `Transfer`/`Plain`/`Rubensohl` stay as opt-in arms.
 
 **The `2NT`-role A/B (80, follow-up — measured twice, kept opt-in).** The `2NT`-role
 swap — **true Rubensohl** (`2NT` an artificial **club** transfer) vs the relay

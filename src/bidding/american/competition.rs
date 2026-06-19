@@ -10,6 +10,7 @@ use super::super::constraint::{hcp, len, min_level_is, points, stopper_in, suppo
 use super::super::context::Context;
 use super::super::fallback::{Fallback, FirstIs, OvercallAtMost, ReplaceNext, guard};
 use super::super::{Competitive, Rules};
+use super::notrump::{smolen_at_three, smolen_completion};
 use super::{call, fallback_all_seats};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Strain, Suit};
@@ -27,7 +28,8 @@ use std::sync::Arc;
 /// - `Plain` — weak `2NT` relay / sign-off vs strong direct `3NT` / forcing
 ///   3-level; matches BBA's 21GF. The prior default (+0.26 IMPs/divergent vs the
 ///   floor, 200k boards).
-/// - `Transfer` — Larry Cohen's *Transfer Lebensohl*, **the default**: 3-level
+/// - `Transfer` — Larry Cohen's *Transfer Lebensohl* (the base of the default
+///   `TransferSmolen`, and what it still plays over `(2♥)`/`(2♠)`/`(2♣)`): 3-level
 ///   bids transfer up the line *through* the adverse suit, the cue is Stayman, and
 ///   a transfer to a suit above theirs is INV+ so opener is driven to game. That
 ///   game-force is the anti-stranding fix for the earlier transfer-Lebensohl
@@ -43,12 +45,21 @@ use std::sync::Arc;
 ///   non-vul, a clear loss vul. Kept opt-in (the default stays `Transfer`) for a
 ///   future single-dummy re-measure that can see its right-siding edge.
 ///
-/// (A third refinement, a standard low-Stayman + Smolen hybrid over `(2♦)`/`(2♥)`,
-/// was tried and reverted — DD `−1.31/−1.76 IMPs/div`; see
-/// `docs/ai-bidder/21gf-ledger.md`. The `Rubensohl` loss above shares its root
-/// cause: making the low transfers two-way costs `Transfer`'s auto-drive-to-game on
-/// invitational hands, while its only gain — right-siding the low-suit partscore —
-/// is invisible to the double-dummy / perfect-defense measure.)
+/// - `TransferSmolen` — **the default.** `Transfer` over `(2♥)`/`(2♠)`/`(2♣)`, but
+///   over `(2♦)` it frees `3♣` for game-forcing Stayman (Smolen after opener's `3♦`
+///   denial), reshuffles the 3-level transfers to direct Jacoby (`3♦`→♥, `3♥`→♠,
+///   `3♠`→♣ — the `3♠`→♣ leg a forced game-force, its completion being `4♣`), and
+///   adds Leaping Michaels `4♦` (both majors) / `4♣` (clubs + a major). Measures
+///   **+0.020/+0.024 IMPs/board, +2.286/+2.822 IMPs/divergent (none/both) vs
+///   `Transfer`** (`lebensohl-ab`, 200k filtered each).
+///
+/// (An earlier standard-low-Stayman + Smolen hybrid over *both* `(2♦)` and `(2♥)`
+/// — no Jacoby reshuffle, no Leaping Michaels — measured DD `−1.31/−1.76 IMPs/div`
+/// and was reverted. `TransferSmolen` is the narrowed `(2♦)`-only retry, and it
+/// *wins*: the Jacoby reshuffle plus Leaping Michaels add genuine fit-finding (5-3
+/// major games through Stayman+Smolen, 5-5 major games through Leaping Michaels)
+/// that the perfect-defense measure credits — unlike the reverted hybrid, whose
+/// only gain was DD-blind right-siding. See `docs/ai-bidder/21gf-ledger.md`.)
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum LebensohlStyle {
     /// Responder falls to the instinct floor (no Lebensohl node)
@@ -59,11 +70,14 @@ pub enum LebensohlStyle {
     Transfer,
     /// True Rubensohl (`2NT` an artificial club transfer; low transfers two-way)
     Rubensohl,
+    /// `Transfer` over `(2♥)`/`(2♠)`/`(2♣)`; over `(2♦)`, `3♣`-Stayman + Smolen,
+    /// Jacoby transfers (`3♦`→♥/`3♥`→♠/`3♠`→♣), and Leaping Michaels `4♣`/`4♦`
+    TransferSmolen,
 }
 
 thread_local! {
     /// Which Lebensohl package the competitive book carries (Section 5).
-    static LEBENSOHL_STYLE: Cell<LebensohlStyle> = const { Cell::new(LebensohlStyle::Transfer) };
+    static LEBENSOHL_STYLE: Cell<LebensohlStyle> = const { Cell::new(LebensohlStyle::TransferSmolen) };
 }
 
 /// Select the Lebensohl package for books built *after* this call (thread-local,
@@ -571,6 +585,170 @@ pub(super) fn two_way_transfer_rebid(target: Suit, over: Suit) -> Rules {
     rules.rule(Call::Pass, 0.0, hcp(0..))
 }
 
+// ---------------------------------------------------------------------------
+// Section 5d: TransferSmolen over (2♦) — 3♣-Stayman + Smolen, Jacoby transfers
+// (3♦→♥, 3♥→♠, 3♠→♣), and Leaping Michaels 4♣/4♦
+// ---------------------------------------------------------------------------
+
+/// Responder's action after our `1NT` and a `(2♦)` overcall, in the
+/// [`LebensohlStyle::TransferSmolen`] package
+///
+/// `2♦` leaves `3♣` free below the cue, so Stayman moves there (with Smolen after
+/// opener's `3♦` denial) and the transfers shift down to direct Jacoby: `3♦`→♥,
+/// `3♥`→♠, `3♠`→♣. The major transfers are INV+ and auto-driven to game by
+/// [`transfer_completion`]; the `3♠`→♣ leg is a *forced* game-force (its completion
+/// is `4♣`, so `3♣` is unplayable). Leaping Michaels `4♦` (both majors) and `4♣`
+/// (clubs + a major) show 5-5 game-forcing two-suiters — partner opened `1NT`, so
+/// `points(10..)` (≈ 8 HCP after the 5-5 upgrade) already forces game. The weak
+/// outlets (natural 2-level, `2NT` relay, penalty double, direct `3NT`) match
+/// `Transfer` so the A/B isolates the constructive change.
+fn transfer_stayman_2d_responder() -> Rules {
+    let mut rules = Rules::new();
+
+    // 3♣ = Stayman: game-forcing with *exactly* a 4-card major. A single 5-card
+    // major transfers instead; a 5-4 GF hand has its 4-card major here and so comes
+    // to Stayman (for Smolen) — hence weight above the transfers, which it also fits.
+    rules = rules.rule(
+        Bid::new(3, Strain::Clubs),
+        1.85,
+        (len(Suit::Hearts, 4..=4) | len(Suit::Spades, 4..=4)) & points(10..),
+    );
+
+    // Direct Jacoby transfers above their suit (INV+, auto-driven to game).
+    rules = rules
+        .rule(
+            Bid::new(3, Strain::Diamonds),
+            1.8,
+            len(Suit::Hearts, 5..) & points(9..),
+        )
+        .rule(
+            Bid::new(3, Strain::Hearts),
+            1.8,
+            len(Suit::Spades, 5..) & points(9..),
+        );
+
+    // 3♠→clubs: a *forced* game-force with 6+ clubs (its completion is 4♣, so 3♣
+    // can never be the contract). Weight below 3NT's, so a 6-club hand *with* a
+    // diamond stopper picks 3NT; only the no-stopper hands transfer.
+    rules = rules.rule(
+        Bid::new(3, Strain::Spades),
+        1.45,
+        len(Suit::Clubs, 6..) & points(10..),
+    );
+
+    // Leaping Michaels: 5-5 game-forcing two-suiters.
+    rules = rules
+        .rule(
+            Bid::new(4, Strain::Diamonds),
+            2.0,
+            len(Suit::Hearts, 5..) & len(Suit::Spades, 5..) & points(10..),
+        )
+        .rule(
+            Bid::new(4, Strain::Clubs),
+            2.0,
+            len(Suit::Clubs, 5..)
+                & (len(Suit::Hearts, 5..) | len(Suit::Spades, 5..))
+                & points(10..),
+        );
+
+    // Weak / to-play outlets — identical to `transfer_lebensohl_responder(Diamonds)`.
+    rules = rules.rule(
+        Bid::new(3, Strain::Notrump),
+        1.5,
+        points(10..) & stopper_in(Suit::Diamonds),
+    );
+    rules = rules.rule(Call::Double, 1.55, len(Suit::Diamonds, 4..) & hcp(9..));
+    for s in [Suit::Hearts, Suit::Spades] {
+        let strain = Strain::from(s);
+        rules = rules.rule(
+            Bid::new(2, strain),
+            1.4,
+            min_level_is(2, strain) & len(s, 5..) & points(..=8),
+        );
+    }
+    let long_suit = len(Suit::Clubs, 6..)
+        | len(Suit::Diamonds, 6..)
+        | len(Suit::Hearts, 6..)
+        | len(Suit::Spades, 6..);
+    rules = rules.rule(Bid::new(2, Strain::Notrump), 1.35, points(..=8) & long_suit);
+
+    rules.rule(Call::Pass, 0.0, hcp(0..))
+}
+
+/// Opener's answer to `3♣` Stayman over `(2♦)`: a 4-card major, else `3♦`
+///
+/// `3♥`/`3♠` shows a 4-card major (hearts first when both); `3♦` denies one,
+/// leaving `3♥`/`3♠` free for responder's Smolen. `3♦` is the finite catch-all.
+fn stayman_2d_answer() -> Rules {
+    Rules::new()
+        .rule(Bid::new(3, Strain::Hearts), 1.6, len(Suit::Hearts, 4..))
+        .rule(
+            Bid::new(3, Strain::Spades),
+            1.55,
+            len(Suit::Spades, 4..) & len(Suit::Hearts, ..4),
+        )
+        .rule(Bid::new(3, Strain::Diamonds), 0.5, hcp(0..))
+}
+
+/// Responder's rebid after opener shows a 4-card major over `3♣` Stayman
+///
+/// Game-forcing already: raise the shown major to game with 4-card support (an
+/// eight-card fit), else settle in `3NT` (the finite catch-all).
+fn stayman_2d_fit_rebid(major: Suit) -> Rules {
+    Rules::new()
+        .rule(Bid::new(4, Strain::from(major)), 1.4, len(major, 4..))
+        .rule(Bid::new(3, Strain::Notrump), 0.5, hcp(0..))
+}
+
+/// Opener's completion of the `3♠`→clubs transfer (a forced game-force)
+///
+/// Responder has 6+ clubs, no diamond stopper, game values. Opener bids `3NT`
+/// with a diamond stopper of its own, else raises to `5♣` — `3♣` is unplayable
+/// below `3♠`, so the auction must reach game. (`5♣` is the finite catch-all.)
+//
+// ponytail: minor-suit slam exploration is left to the floor; 3NT-or-5♣ covers
+// the common game. Author a keycard ladder here only if the A/B shows it matters.
+fn clubs_transfer_2d_completion() -> Rules {
+    Rules::new()
+        .rule(
+            Bid::new(3, Strain::Notrump),
+            1.4,
+            stopper_in(Suit::Diamonds),
+        )
+        .rule(Bid::new(5, Strain::Clubs), 0.5, hcp(0..))
+}
+
+/// Opener's reply to Leaping Michaels `4♦` (both majors, 5-5 game-forcing)
+///
+/// Bid game in the better major fit, preferring the nine-card fit (4-card
+/// support) and breaking ties toward spades. `4♥` is the finite catch-all.
+fn lm_2d_both_majors_advance() -> Rules {
+    Rules::new()
+        .rule(Bid::new(4, Strain::Spades), 1.6, len(Suit::Spades, 4..))
+        .rule(Bid::new(4, Strain::Hearts), 1.55, len(Suit::Hearts, 4..))
+        .rule(Bid::new(4, Strain::Spades), 1.5, len(Suit::Spades, 3..))
+        .rule(Bid::new(4, Strain::Hearts), 1.0, hcp(0..))
+}
+
+/// Opener's reply to Leaping Michaels `4♣` (clubs + an unknown 5+ major)
+///
+/// `4♦` asks which major; responder names it in [`lm_2d_clubs_major`].
+//
+// ponytail: opener always relays — the major usually outplays 5♣, and opener's
+// final placement (pass the major / correct to 5♣) is left to the floor. Add a
+// direct 5♣ sign-off only if the A/B shows the relay costs.
+fn lm_2d_clubs_ask() -> Rules {
+    Rules::new().rule(Bid::new(4, Strain::Diamonds), 1.4, hcp(0..))
+}
+
+/// Responder names the 5+ major behind a `4♣` Leaping Michaels, over the `4♦` ask
+fn lm_2d_clubs_major() -> Rules {
+    Rules::new()
+        .rule(Bid::new(4, Strain::Hearts), 1.5, len(Suit::Hearts, 5..))
+        .rule(Bid::new(4, Strain::Spades), 1.5, len(Suit::Spades, 5..))
+        .rule(Bid::new(5, Strain::Clubs), 0.5, hcp(0..))
+}
+
 /// The competitive package over our openings: cue-bid raises, preemptive raises,
 /// negative doubles for all four openings, support doubles/redoubles, and
 /// opener's answers to negative doubles of minor overcalls
@@ -678,6 +856,10 @@ pub fn competition() -> Competitive {
             let responder = match style {
                 LebensohlStyle::Transfer => transfer_lebensohl_responder(over),
                 LebensohlStyle::Rubensohl => rubensohl_responder(over),
+                LebensohlStyle::TransferSmolen if over == Suit::Diamonds => {
+                    transfer_stayman_2d_responder()
+                }
+                LebensohlStyle::TransferSmolen => transfer_lebensohl_responder(over),
                 _ => lebensohl_responder(over),
             };
             fallback_all_seats(
@@ -721,7 +903,11 @@ pub fn competition() -> Competitive {
 
             // Transfer style: opener's reply to each 3-level transfer / cue.
             // Suffix is [overcall, 3X, P] where 3X is responder's transfer or cue.
-            if style == LebensohlStyle::Transfer {
+            // TransferSmolen reuses these completions for every overcall except
+            // (2♦), which has its own block below.
+            if style == LebensohlStyle::Transfer
+                || (style == LebensohlStyle::TransferSmolen && over != Suit::Diamonds)
+            {
                 for bid_suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
                     let resp = call(3, Strain::from(bid_suit));
                     let reply = if bid_suit == over {
@@ -798,6 +984,66 @@ pub fn competition() -> Competitive {
                     }
                 }
             }
+
+            // Section 5d: TransferSmolen over (2♦) — 3♣-Stayman + Smolen, the
+            // Jacoby transfers (3♦→♥, 3♥→♠, 3♠→♣), and Leaping Michaels 4♣/4♦.
+            // (The 2♥/2♠/2♣ branches reuse the Transfer completions above.)
+            if style == LebensohlStyle::TransferSmolen && over == Suit::Diamonds {
+                let p = Call::Pass;
+                let c3 = call(3, Strain::Clubs);
+                let d3 = call(3, Strain::Diamonds);
+                let h3 = call(3, Strain::Hearts);
+                let s3 = call(3, Strain::Spades);
+                let c4 = call(4, Strain::Clubs);
+                let d4 = call(4, Strain::Diamonds);
+                let nodes: Vec<(Vec<Call>, Rules)> = vec![
+                    // 3♣ Stayman, opener's answer; then Smolen after the 3♦ denial.
+                    (vec![overcall, c3, p], stayman_2d_answer()),
+                    (vec![overcall, c3, p, d3, p], smolen_at_three()),
+                    (
+                        vec![overcall, c3, p, d3, p, h3, p],
+                        smolen_completion(Suit::Spades),
+                    ),
+                    (
+                        vec![overcall, c3, p, d3, p, s3, p],
+                        smolen_completion(Suit::Hearts),
+                    ),
+                    // Opener showed a 4-card major over Stayman; responder places.
+                    (
+                        vec![overcall, c3, p, h3, p],
+                        stayman_2d_fit_rebid(Suit::Hearts),
+                    ),
+                    (
+                        vec![overcall, c3, p, s3, p],
+                        stayman_2d_fit_rebid(Suit::Spades),
+                    ),
+                    // Jacoby transfers: 3♦→♥, 3♥→♠ (auto-driven), 3♠→♣ (forced GF).
+                    (
+                        vec![overcall, d3, p],
+                        transfer_completion(Suit::Hearts, over),
+                    ),
+                    (
+                        vec![overcall, h3, p],
+                        transfer_completion(Suit::Spades, over),
+                    ),
+                    (vec![overcall, s3, p], clubs_transfer_2d_completion()),
+                    // Leaping Michaels: 4♦ both majors, 4♣ clubs + a major (ask).
+                    (vec![overcall, d4, p], lm_2d_both_majors_advance()),
+                    (vec![overcall, c4, p], lm_2d_clubs_ask()),
+                    (vec![overcall, c4, p, d4, p], lm_2d_clubs_major()),
+                ];
+                for (suffix, rules) in nodes {
+                    fallback_all_seats(
+                        &mut book,
+                        &[one_nt],
+                        3,
+                        Arc::new(guard(move |_: &Context<'_>, s: &[Call]| {
+                            s == suffix.as_slice()
+                        })),
+                        Fallback::classify(rules),
+                    );
+                }
+            }
         }
     }
 
@@ -848,6 +1094,115 @@ mod tests {
     fn bid_rubensohl(auction: &[Call], hand: &str) -> (Call, bool) {
         super::set_lebensohl_style(super::LebensohlStyle::Rubensohl);
         best_call(auction, hand)
+    }
+
+    /// As [`best_call`], with the TransferSmolen package forced on
+    fn bid_transfersmolen(auction: &[Call], hand: &str) -> (Call, bool) {
+        super::set_lebensohl_style(super::LebensohlStyle::TransferSmolen);
+        best_call(auction, hand)
+    }
+
+    #[test]
+    fn transfer_smolen_three_clubs_is_stayman() {
+        // 1NT–(2♦): a 4-4 majors game-force bids 3♣ Stayman (a book node).
+        let auction = [call(1, Strain::Notrump), call(2, Strain::Diamonds)];
+        let (c, floored) = bid_transfersmolen(&auction, "AQ32.KJ32.A2.432");
+        assert_eq!(c, call(3, Strain::Clubs));
+        assert!(!floored, "Stayman must come from the book");
+    }
+
+    #[test]
+    fn transfer_smolen_opener_answers_stayman() {
+        // 1NT–(2♦)–3♣: opener shows a 4-card major (3♥ here).
+        let auction = [
+            call(1, Strain::Notrump),
+            call(2, Strain::Diamonds),
+            call(3, Strain::Clubs),
+            Call::Pass,
+        ];
+        let (c, floored) = bid_transfersmolen(&auction, "K2.AQ54.A32.Q432");
+        assert_eq!(c, call(3, Strain::Hearts));
+        assert!(!floored, "the Stayman answer must come from the book");
+    }
+
+    #[test]
+    fn transfer_smolen_three_diamonds_is_the_heart_transfer() {
+        // The reshuffle: 1NT–(2♦)–3♦ shows hearts (the freed cue slot), a book node.
+        let auction = [call(1, Strain::Notrump), call(2, Strain::Diamonds)];
+        let (c, floored) = bid_transfersmolen(&auction, "K3.KQ976.A32.432");
+        assert_eq!(c, call(3, Strain::Diamonds));
+        assert!(!floored, "the heart transfer must come from the book");
+
+        // Opener auto-drives the INV+ transfer to game with a fit.
+        let opener = [
+            call(1, Strain::Notrump),
+            call(2, Strain::Diamonds),
+            call(3, Strain::Diamonds),
+            Call::Pass,
+        ];
+        let (c, _) = bid_transfersmolen(&opener, "AQ5.A432.KQ4.J32");
+        assert_eq!(c, call(4, Strain::Hearts));
+    }
+
+    #[test]
+    fn transfer_smolen_routes_five_four_to_stayman_not_a_transfer() {
+        // A 5♠4♥ game-force must bid 3♣ Stayman (1.85), not the 3♥ spade transfer
+        // (1.8) — else Smolen could never show the 5-4.
+        let auction = [call(1, Strain::Notrump), call(2, Strain::Diamonds)];
+        let (c, _) = bid_transfersmolen(&auction, "AKJ54.Q432.K2.32");
+        assert_eq!(c, call(3, Strain::Clubs));
+    }
+
+    #[test]
+    fn transfer_smolen_jumps_smolen_after_the_denial() {
+        // 1NT–(2♦)–3♣–P–3♦(no major)–P: responder bids Smolen 3♥ to show 5 spades.
+        let auction = [
+            call(1, Strain::Notrump),
+            call(2, Strain::Diamonds),
+            call(3, Strain::Clubs),
+            Call::Pass,
+            call(3, Strain::Diamonds),
+            Call::Pass,
+        ];
+        let (c, floored) = bid_transfersmolen(&auction, "AKJ54.Q432.K2.32");
+        assert_eq!(c, call(3, Strain::Hearts));
+        assert!(!floored, "Smolen must come from the book");
+
+        // Opener completes in the five-card spade game.
+        let mut full = auction.to_vec();
+        full.push(call(3, Strain::Hearts));
+        full.push(Call::Pass);
+        let (c, _) = bid_transfersmolen(&full, "Q32.A65.AQ43.K32");
+        assert_eq!(c, call(4, Strain::Spades));
+    }
+
+    #[test]
+    fn transfer_smolen_leaping_michaels_both_majors() {
+        // 1NT–(2♦)–4♦ = both majors 5-5, game-forcing.
+        let auction = [call(1, Strain::Notrump), call(2, Strain::Diamonds)];
+        let (c, floored) = bid_transfersmolen(&auction, "KQ954.AJ876.2.32");
+        assert_eq!(c, call(4, Strain::Diamonds));
+        assert!(!floored, "Leaping Michaels must come from the book");
+
+        // Opener bids game in the better major (4♠ on three-card support).
+        let opener = [
+            call(1, Strain::Notrump),
+            call(2, Strain::Diamonds),
+            call(4, Strain::Diamonds),
+            Call::Pass,
+        ];
+        let (c, _) = bid_transfersmolen(&opener, "A32.K43.AQ32.Q42");
+        assert_eq!(c, call(4, Strain::Spades));
+    }
+
+    #[test]
+    fn transfer_smolen_keeps_cohen_over_a_major_overcall() {
+        // Over (2♥), TransferSmolen is plain Cohen: 5 spades transfers through
+        // hearts — 3♦ shows spades, exactly as `Transfer`.
+        let auction = [call(1, Strain::Notrump), call(2, Strain::Hearts)];
+        let (c, floored) = bid_transfersmolen(&auction, "AKQ65.43.K32.J32");
+        assert_eq!(c, call(3, Strain::Diamonds));
+        assert!(!floored, "the Cohen transfer must come from the book");
     }
 
     #[test]

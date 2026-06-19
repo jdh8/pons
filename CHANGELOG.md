@@ -9,6 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`TransferSmolen` is the new default Lebensohl over a `(2♦)` overcall of our 1NT
+  (ledger #80); behavior over `(2♥)`/`(2♠)`/`(2♣)` is unchanged.** When an opponent
+  overcalls our `1NT` with `2♦`, responder now plays a richer structure than Cohen's
+  Transfer Lebensohl: `3♣` is game-forcing Stayman with a Smolen continuation
+  (`1NT–(2♦)–3♣–P–3♦–P–3♥/3♠` shows 5-4 majors), the 3-level transfers shift down to
+  direct Jacoby (`3♦`→♥, `3♥`→♠, `3♠`→♣ — the club leg a *forced* game-force, since
+  its `4♣` completion leaves `3♣` unplayable), and `4♦`/`4♣` are Leaping Michaels
+  (both majors 5-5 / clubs + a 5+ major). Over a `2♥`/`2♠`/`2♣` overcall it is
+  byte-identical to `Transfer`. Selected by the new
+  [`LebensohlStyle::TransferSmolen`][pons::bidding::american::LebensohlStyle] (now
+  the [`set_lebensohl_style`][pons::bidding::american::set_lebensohl_style] default);
+  `Transfer`, `Plain`, and `Rubensohl` remain opt-in. A/B vs `Transfer`
+  (`examples/lebensohl-ab --ns transfersmolen --ew transfer`, perfect-defense
+  `ns_score`, 200k filtered boards/cell): **+0.020/+0.024 IMPs/board,
+  +2.286/+2.822 IMPs/divergent (none/both)** — a clean win that reverses an earlier,
+  reverted standard-Stayman+Smolen hybrid (−1.31/−1.76/div). The gain is genuine
+  fit-finding the double-dummy / perfect-defense measure can credit (5-3 major games
+  through Stayman+Smolen, 5-5 major games through Leaping Michaels), not the DD-blind
+  right-siding that sank the earlier attempt.
 - **Responsive double re-measured under perfect defense (ledger #100); two opt-in
   toggles, defaults unchanged.** The shipped responsive double after partner's
   *takeout* double and their raise (`(1t)–X–(2t)–X` — the canonical convention, and
