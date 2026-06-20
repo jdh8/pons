@@ -7,8 +7,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.10.0] — Unreleased
 
+### Changed
+
+- **Over a `(2♣)` overcall of our `1NT` we now play *systems on*, not Lebensohl.**
+  A 2♣ overcall steals no room — every transfer and relay still sits above it — so
+  imposing the Lebensohl relay/transfer-through structure was wrong (and bred a
+  losing "natural 2♦" escape that has no opener game-raise). Responder now keeps
+  the **uncontested** 1NT structure: Jacoby transfers (`2♦`→♥, `2♥`→♠), the minor
+  transfers, the 2NT/3-level responses — and shows the now-unbiddable **2♣ Stayman
+  with a Double** (X inherits the 2♣ rule's exact logit, so it never drifts). The
+  book reuses `notrump_responses()` by rebasing `1NT–(2♣)–…` onto the uncontested
+  tree (the 2♣ overcall maps to the opponent's pass; a Double maps to the stolen
+  2♣). Lebensohl proper now applies only over `(2♦/2♥/2♠)`, the overcalls that
+  actually take away room.
+- **Responder's weak natural `2♦/2♥/2♠` escape is now floored at 6 HCP, and opener
+  game-raises it** — the relay sign-off's treatment (`lebensohl_relay_shape` +
+  `lebensohl_signoff_raise`) extended to the one-level-lower direct escape, since
+  they are the same weak 5-card-suit hand. A/B (floored vs unfloored, 300k
+  unfiltered, perfect-defense): **+0.012/+0.016 IMPs/board (none/both)**, every
+  mechanism positive — the floor sends sub-6 hands to defend (`resp P`, the largest
+  share), opener stops overbidding a known-weak signoff (`late P`), and a maximum
+  with a fit reaches game (`4♥/4♠`). Lowering the floor to 5 HCP or to 6 total
+  points was a measured wash (+0.001, the majors gaining roughly what the
+  raise-less minor loses), so 6 HCP — matching the relay — ships. Gated behind
+  `set_natural_floor(hcp_floor, points_floor)` for further A/B.
+
 ### Added
 
+- **`lebensohl-ab --diverge-diff`: per-call attribution of the A/B swing.** Buckets
+  every divergent board by the measured (`--ns`) pair's *first* call the baseline
+  (`--ew`) would not have made — tagged `resp` (responder's action directly over
+  `1NT–(2X)`) or `late` (e.g. opener completing a transfer) — and reports
+  boards/IMPs/contribution per call (the `contrib` column sums to the headline
+  IMPs/board). Isolates which call drives the result. Finding (transfer vs the
+  bare floor, 200k unfiltered, none-vul, perfect-defense): the penalty double is
+  the single worst call (−5.05 IMPs/board × 201 boards, −0.005/board), the weak
+  natural 2-level escapes also lose, and the `2NT` relay + `3♦`/`3♥` transfers are
+  the positive drivers — i.e. the competitive outlets, not the constructive ones,
+  carry the PD loss against the floor.
+- **`lebensohl-ab --pd-natural`: PD-gate + distill for the weak natural escape.**
+  Mirrors `--pd-relay` for responder's natural `2♦/2♥/2♠` over the overcall
+  (double-dummy compare bidding vs defending; `--log-relay` emits `NATURAL` lines).
+  Distill (12k filtered boards, 64 layouts, perfect-defense): unlike the `2NT`
+  relay, the weak natural has **no rescuing floor** — bidding loses to defending at
+  *every* HCP 0–8 (mean EV margin −34 to −119 score points, never positive) and at
+  every suit length (6-card −34, 5-card −53). The least-bad slice is a 6+ length
+  gate, but even that stays PD-negative — there is no HCP crossover to distill.
+  Per the standing DD-blind-to-obstruction caveat, this is **not** taken as a
+  signal to floor or drop the escape (its obstructive value is invisible to
+  perfect defense); deferred to a single-dummy measure.
 - **Plain Lebensohl gains a direct cue-bid (Stayman) and good-5 sign-offs, to
   compete on even terms with Transfer Lebensohl.** After `1NT` is overcalled and
   `LebensohlStyle::Plain` is selected, responder's cue of the opponents' suit is

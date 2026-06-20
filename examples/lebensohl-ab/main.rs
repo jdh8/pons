@@ -28,11 +28,11 @@
 use clap::Parser;
 use contract_bridge::auction::{Auction, Call};
 use contract_bridge::deck::full_deal;
-use contract_bridge::eval::hcp as holding_hcp;
+use contract_bridge::eval::{hcp as holding_hcp, nltc};
 use contract_bridge::{AbsoluteVulnerability, Bid, FullDeal, Hand, Seat, Strain, Suit};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
-use pons::bidding::american::{LebensohlStyle, set_lebensohl_style};
+use pons::bidding::american::{LebensohlStyle, set_lebensohl_style, set_natural_floor};
 use pons::bidding::constraint::point_count;
 use pons::bidding::context::{Context, relative};
 use pons::bidding::ev::ev_all;
@@ -40,6 +40,7 @@ use pons::bidding::{Family, Stance, System};
 use pons::scoring::{final_contract, imps, ns_score};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
+use std::collections::HashMap;
 
 /// Contested Lebensohl A/B
 #[derive(Parser)]
@@ -59,6 +60,16 @@ struct Args {
     /// Lebensohl style, baseline (EW) pair: off/plain/transfer
     #[arg(long, default_value = "plain")]
     ew: String,
+
+    /// Floor the measured (NS) pair's weak natural `2♦/2♥/2♠` escape and let opener
+    /// game-raise it: `off`, `Nhcp` (HCP floor) or `Npts` (total-points floor) —
+    /// e.g. `6hcp` (the relay mirror), `5hcp`, `6pts`. A/B floor level/metric.
+    #[arg(long, default_value = "off")]
+    ns_floor: String,
+
+    /// Weak-natural floor for the baseline (EW) pair (see `--ns-floor`).
+    #[arg(long, default_value = "off")]
+    ew_floor: String,
 
     /// RNG seed (fixed by default so before/after builds deal identical boards —
     /// the two-binary comparison for a structural change to the default book)
@@ -85,6 +96,15 @@ struct Args {
     #[arg(long, default_value = "false")]
     pd_relay: bool,
 
+    /// PD-gate the measured (NS) pair's *weak natural* `2♦/2♥/2♠` escape the same
+    /// way as `--pd-relay`: when the book bids a natural 2-level suit over the
+    /// overcall, double-dummy compare bidding vs defending (`Pass`) and take the
+    /// higher EV. With `--log-relay`, emits a `NATURAL` line per decision — the
+    /// data for distilling a strength floor on the weak natural (it currently has
+    /// none: `points(..=8)` caps the top, the bottom is open).
+    #[arg(long, default_value = "false")]
+    pd_natural: bool,
+
     /// Sampled layouts per PD-relay decision (the ev_all budget).
     #[arg(long, default_value = "64")]
     pd_layouts: usize,
@@ -93,6 +113,17 @@ struct Args {
     /// relay/defend verdict + EVs) — the data for distilling a static heuristic.
     #[arg(long, default_value = "false")]
     log_relay: bool,
+
+    /// Per-call divergence diff: bucket every divergent board by the measured
+    /// (`--ns`) pair's *first* call the baseline (`--ew`) would not have made,
+    /// and report IMPs per bucket. Each call is tagged `resp` (responder's action
+    /// directly over our `1NT–(2X)`: the penalty double, a transfer, the relay,
+    /// direct `3NT`) or `late` (a later call, e.g. opener completing a transfer).
+    /// Answers "which call drives the swing" — e.g. is it the penalty double, or
+    /// the transfers / 3NT? Each board lands in exactly one bucket, so the
+    /// `contrib` column sums to the headline IMPs/board.
+    #[arg(long, default_value = "false")]
+    diverge_diff: bool,
 }
 
 /// The opponents' 2-level overcall suit when the auction is at the responder's
@@ -107,13 +138,15 @@ fn relay_node_over(auction: &[Call]) -> Option<Suit> {
         .find(|&s| auction[n - 1] == Call::Bid(Bid::new(2, Strain::from(s))))
 }
 
-/// The NS pair's call, PD-gating the 2NT relay when `--pd-relay` is set
+/// The NS pair's call, PD-gating a weak escape when `--pd-relay`/`--pd-natural` is set
 ///
-/// Identical to [`next_call`] except: when the book's choice is the Lebensohl
-/// `2NT` relay at the responder node, sample layouts and double-dummy compare
-/// relaying against defending (`Pass`), taking the higher-EV call. This is the
-/// "relay only when competing beats defending" judgment a static suit-quality
-/// gate cannot make (it needs the full deal + vulnerability).
+/// Identical to [`next_call`] except: when the book's choice at the responder
+/// node is a *weak escape* we are gating — the `2NT` relay (`--pd-relay`) or a
+/// natural `2♦/2♥/2♠` (`--pd-natural`) — sample layouts and double-dummy compare
+/// the book call against defending (`Pass`), taking the higher-EV call. This is
+/// the "compete only when it beats defending" judgment a static strength gate
+/// cannot make (it needs the full deal + vulnerability); `--log-relay` records
+/// each decision for distilling that gate into a static floor.
 #[allow(clippy::too_many_arguments)]
 fn next_call_ns(
     stance: &Stance,
@@ -122,43 +155,55 @@ fn next_call_ns(
     vul: AbsoluteVulnerability,
     auction: &Auction,
     pd_relay: bool,
+    pd_natural: bool,
     pd_layouts: usize,
     log_relay: bool,
     seed: u64,
 ) -> Call {
     let base = next_call(stance, hand, dealer, vul, auction);
-    let two_nt = Call::Bid(Bid::new(2, Strain::Notrump));
-    if !pd_relay || base != two_nt {
-        return base;
-    }
     let Some(over) = relay_node_over(auction) else {
         return base;
     };
+    let two_nt = Call::Bid(Bid::new(2, Strain::Notrump));
+    let is_relay = pd_relay && base == two_nt;
+    // At this node the only 2-level suit bids are the weak naturals.
+    let is_natural = pd_natural
+        && matches!(base, Call::Bid(b)
+            if b.level.get() == 2 && b.strain.suit().is_some_and(|s| s != over));
+    if !is_relay && !is_natural {
+        return base;
+    }
 
     let seat = seat_to_act(dealer, auction.len());
     let context = Context::new(relative(vul, seat), auction);
-    let calls = [two_nt, Call::Pass];
+    let calls = [base, Call::Pass];
     let mut rng = StdRng::seed_from_u64(seed);
     let evs = ev_all(
         hand, seat, vul, &context, &calls, stance, &mut rng, pd_layouts,
     );
     // Defend only when both lines scored and defending strictly wins; otherwise
-    // keep the relay (NaN = no signal → trust the book).
+    // keep the book call (NaN = no signal → trust the book).
     let defend = evs[0].is_finite() && evs[1].is_finite() && evs[1] > evs[0];
 
     if log_relay {
+        let bid_suit = match base {
+            Call::Bid(b) => b.strain.suit(),
+            _ => None,
+        };
         eprintln!(
-            "RELAY {} over={over:?} len_over={} hcp_over={} hcp_total={} pts={} ev_relay={:.0} ev_defend={:.0}",
-            if defend { "DEFEND" } else { "relay" },
+            "{} {} over={over:?} bid={base} len_bid={} len_over={} hcp_total={} pts={} nltc={:.1} ev_bid={:.0} ev_defend={:.0}",
+            if is_relay { "RELAY" } else { "NATURAL" },
+            if defend { "DEFEND" } else { "bid" },
+            bid_suit.map_or(0, |s| hand[s].len()),
             hand[over].len(),
-            holding_hcp::<u8>(hand[over]),
             hand_hcp(hand),
             point_count(hand),
+            Suit::ASC.iter().map(|&s| nltc(hand[s])).sum::<f64>(),
             evs[0],
             evs[1],
         );
     }
-    if defend { Call::Pass } else { two_nt }
+    if defend { Call::Pass } else { base }
 }
 
 /// Does this auction contain a top-step clubs transfer (`1NT (2♦/2♥) 3♠` or
@@ -210,6 +255,20 @@ fn could_reach_1nt_dh(deal: &FullDeal) -> bool {
     })
 }
 
+/// Parse a weak-natural floor spec into `(hcp_floor, points_floor)` for
+/// [`set_natural_floor`]: `off`→`(0,0)`, `Nhcp`→`(N,0)`, `Npts`→`(0,N)`.
+fn floor_from(spec: &str) -> (u8, u8) {
+    if spec == "off" {
+        return (0, 0);
+    }
+    let (num, kind) = spec.split_at(spec.len().saturating_sub(3));
+    match (num.parse::<u8>(), kind) {
+        (Ok(n), "hcp") => (n, 0),
+        (Ok(n), "pts") => (0, n),
+        _ => panic!("bad floor spec {spec:?} (use off / Nhcp / Npts, e.g. 6hcp or 6pts)"),
+    }
+}
+
 /// Parse a Lebensohl style name (off / plain / transfer)
 fn style_from(name: &str) -> LebensohlStyle {
     match name {
@@ -255,6 +314,49 @@ fn next_call(
         .unwrap_or(Call::Pass)
 }
 
+/// Rebuild an [`Auction`] from a prefix of its calls (for replaying counterfactuals)
+fn prefix_auction(calls: &[Call]) -> Auction {
+    let mut auction = Auction::new();
+    for &call in calls {
+        auction.push(call);
+    }
+    auction
+}
+
+/// The measured pair's first call the baseline stance would not have made
+///
+/// Replays `auction` (the measured/Lebensohl pair sits NS when `is_ns`); at each
+/// of that pair's turns it compares the actual call to what `baseline` would
+/// choose for the same hand and prefix. Returns the call index, the diverging
+/// call, and whether it is the responder's action directly over our `1NT–(2X)`
+/// (so the diff can separate the responder node from later, e.g. opener
+/// completing a transfer). `None` if the pair never diverged at this table.
+fn first_divergent(
+    auction: &Auction,
+    baseline: &Stance,
+    dealer: Seat,
+    vul: AbsoluteVulnerability,
+    deal: &FullDeal,
+    is_ns: bool,
+) -> Option<(usize, Call, bool)> {
+    (0..auction.len()).find_map(|i| {
+        let seat = seat_to_act(dealer, i);
+        let seat_is_ns = matches!(seat, Seat::North | Seat::South);
+        if seat_is_ns != is_ns {
+            return None; // a baseline seat at this table — not a measured call
+        }
+        let counterfactual = next_call(
+            baseline,
+            deal[seat],
+            dealer,
+            vul,
+            &prefix_auction(&auction[..i]),
+        );
+        (counterfactual != auction[i])
+            .then(|| (i, auction[i], relay_node_over(&auction[..i]).is_some()))
+    })
+}
+
 /// Bid one deal with the Lebensohl pair on the side picked by `lebensohl_is_ns`
 #[allow(clippy::too_many_arguments)]
 fn bid_out(
@@ -265,6 +367,7 @@ fn bid_out(
     vul: AbsoluteVulnerability,
     deal: &FullDeal,
     pd_relay: bool,
+    pd_natural: bool,
     pd_layouts: usize,
     log_relay: bool,
     seed: u64,
@@ -276,7 +379,8 @@ fn bid_out(
         let is_lebensohl = seat_is_ns == lebensohl_is_ns;
         let call = if is_lebensohl {
             next_call_ns(
-                lebensohl, deal[seat], dealer, vul, &auction, pd_relay, pd_layouts, log_relay, seed,
+                lebensohl, deal[seat], dealer, vul, &auction, pd_relay, pd_natural, pd_layouts,
+                log_relay, seed,
             )
         } else {
             next_call(baseline, deal[seat], dealer, vul, &auction)
@@ -292,8 +396,12 @@ fn main() {
     let mut rng = StdRng::seed_from_u64(args.seed);
 
     set_lebensohl_style(style_from(&args.ew));
+    let (ew_h, ew_p) = floor_from(&args.ew_floor);
+    set_natural_floor(ew_h, ew_p);
     let baseline = american().against(Family::NATURAL);
     set_lebensohl_style(style_from(&args.ns));
+    let (ns_h, ns_p) = floor_from(&args.ns_floor);
+    set_natural_floor(ns_h, ns_p);
     let lebensohl = american().against(Family::NATURAL);
 
     // Each board at both tables (Lebensohl NS at A, EW at B), dealer rotating.
@@ -317,6 +425,7 @@ fn main() {
             args.vulnerability,
             &deal,
             args.pd_relay,
+            args.pd_natural,
             args.pd_layouts,
             args.log_relay,
             args.seed,
@@ -329,6 +438,7 @@ fn main() {
             args.vulnerability,
             &deal,
             args.pd_relay,
+            args.pd_natural,
             args.pd_layouts,
             args.log_relay,
             args.seed,
@@ -361,13 +471,49 @@ fn main() {
     let mut points = 0i64;
     let mut total_imps = 0i64;
     let mut worst: Vec<(i64, usize)> = Vec::new();
+    let mut buckets: HashMap<String, (usize, i64)> = HashMap::new();
     for (&i, table) in divergent.iter().zip(tables.iter()) {
         let (contract_a, contract_b) = contracts[i];
         let swing = ns_score(contract_a, table, args.vulnerability)
             - ns_score(contract_b, table, args.vulnerability);
+        let board_imps = imps(swing);
         points += swing;
-        total_imps += imps(swing);
-        worst.push((imps(swing), i));
+        total_imps += board_imps;
+        worst.push((board_imps, i));
+
+        if args.diverge_diff {
+            // Credit the board to the measured pair's earliest divergent call,
+            // looking at both tables (the Lebensohl node usually fires at only
+            // one orientation, so this is rarely ambiguous).
+            let dealer = Seat::ALL[i % 4];
+            let trig_a = first_divergent(
+                &auctions[i].0,
+                &baseline,
+                dealer,
+                args.vulnerability,
+                &deals[i],
+                true,
+            );
+            let trig_b = first_divergent(
+                &auctions[i].1,
+                &baseline,
+                dealer,
+                args.vulnerability,
+                &deals[i],
+                false,
+            );
+            let trigger = match (trig_a, trig_b) {
+                (Some(a), Some(b)) => Some(if a.0 <= b.0 { a } else { b }),
+                (a, b) => a.or(b),
+            };
+            let label = trigger.map_or_else(
+                || "(none)".to_string(),
+                |(_, call, at_node)| format!("{} {call}", if at_node { "resp" } else { "late" }),
+            );
+            let entry = buckets.entry(label).or_insert((0, 0));
+            entry.0 += 1;
+            entry.1 += board_imps;
+        }
     }
     worst.sort_by_key(|w| w.0);
     eprintln!("=== Worst 15 divergent boards for the --ns style ===");
@@ -413,4 +559,27 @@ fn main() {
         total_imps as f64 / args.count.max(1) as f64,
         total_imps as f64 / divergent.len().max(1) as f64,
     );
+
+    if args.diverge_diff {
+        // Sort worst-first (most negative total) so the calls dragging the
+        // --ns style down sit at the top. `contrib` = bucket IMPs / all boards,
+        // so the column sums to the headline IMPs/board above.
+        let mut rows: Vec<(String, (usize, i64))> = buckets.into_iter().collect();
+        rows.sort_by_key(|(_, (_, imp))| *imp);
+        println!(
+            "=== Divergence diff: NS {} first divergent call vs EW {} ===",
+            args.ns, args.ew,
+        );
+        println!(
+            "{:<9} {:>7} {:>8} {:>9} {:>9}",
+            "call", "boards", "IMPs", "per-bd", "contrib",
+        );
+        for (label, (n, imp)) in &rows {
+            println!(
+                "{label:<9} {n:>7} {imp:>+8} {:>+9.3} {:>+9.4}",
+                *imp as f64 / *n as f64,
+                *imp as f64 / args.count.max(1) as f64,
+            );
+        }
+    }
 }

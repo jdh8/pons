@@ -10,12 +10,13 @@ use super::super::constraint::{
     Cons, Constraint, hcp, len, min_level_is, points, stopper_in, support, they_bid,
 };
 use super::super::context::Context;
-use super::super::fallback::{Fallback, FirstIs, OvercallAtMost, ReplaceNext, guard};
+use super::super::fallback::{Fallback, FirstIs, OvercallAtMost, ReplaceNext, guard, rewriter};
+use super::super::trie::{Classifier, classifier};
 use super::super::{Competitive, Rules};
-use super::notrump::{smolen_at_three, smolen_completion};
+use super::notrump::{notrump_responses, smolen_at_three, smolen_completion};
 use super::{call, fallback_all_seats};
 use contract_bridge::auction::Call;
-use contract_bridge::{Bid, Strain, Suit};
+use contract_bridge::{Bid, Hand, Strain, Suit};
 use std::cell::Cell;
 use std::sync::Arc;
 
@@ -123,6 +124,49 @@ pub fn set_delayed_cue(on: bool) {
 /// Whether the stopper-split cue is enabled
 pub(super) fn delayed_cue() -> bool {
     DELAYED_CUE.with(Cell::get)
+}
+
+thread_local! {
+    /// The weak natural `2♦/2♥/2♠` escape's strength floor as
+    /// `(hcp_floor, points_floor)` — one is `0`; `(0, 0)` = no floor (see
+    /// [`set_natural_floor`]). Defaults to a `6`-HCP floor (with opener's
+    /// game-raise), the relay sign-off's treatment one level lower; A/B measured
+    /// it at `+0.012`/`+0.016` IMPs/board (none/both) vs no floor, and `5`-HCP /
+    /// `6`-points variants at a marginal `+0.001` (majors gain, weak `2♦` loses).
+    static NATURAL_FLOOR: Cell<(u8, u8)> = const { Cell::new((6, 0)) };
+}
+
+/// Floor responder's weak natural 2-level escape (for books built *after* this
+/// call; thread-local, read once at book-construction time)
+///
+/// The direct natural `2♦/2♥/2♠` over the overcall is the same weak 5-card-suit
+/// hand as the relay-then-correct sign-off (`2NT`→`3♣`→`3M`), one level lower —
+/// but unlike that sign-off it currently has no strength floor and opener cannot
+/// raise it. A non-zero floor makes the two symmetric: it adds the floor to the
+/// natural (an HCP floor *or* a total-points floor — being a level lower than the
+/// relay, the 2X floor can be lower or playing-strength oriented), and registers
+/// opener's [`lebensohl_signoff_raise`] over a natural *major* sign-off so a
+/// maximum with a fit stretches to game. Pass `(hcp, 0)` for an HCP floor,
+/// `(0, points)` for a points floor, `(0, 0)` to disable. Off by default.
+pub fn set_natural_floor(hcp_floor: u8, points_floor: u8) {
+    NATURAL_FLOOR.with(|cell| cell.set((hcp_floor, points_floor)));
+}
+
+/// Whether the weak natural escape is floored (and opener may raise it)
+fn natural_floor_on() -> bool {
+    let (hcp, points) = NATURAL_FLOOR.with(Cell::get);
+    hcp > 0 || points > 0
+}
+
+/// The HCP floor on the weak natural escape (`0` = none) — a bound, so the
+/// constraint type stays stable whether or not the floor is engaged.
+fn natural_floor_hcp() -> u8 {
+    NATURAL_FLOOR.with(Cell::get).0
+}
+
+/// The total-points floor on the weak natural escape (`0` = none)
+fn natural_floor_pts() -> u8 {
+    NATURAL_FLOOR.with(Cell::get).1
 }
 
 /// The single unbid major when `over` is itself a major (the other major)
@@ -362,7 +406,11 @@ pub(super) fn lebensohl_responder(over: Suit) -> Rules {
         rules = rules.rule(
             Bid::new(2, strain),
             1.5,
-            min_level_is(2, strain) & len(s, 5..) & points(..=9),
+            min_level_is(2, strain)
+                & len(s, 5..)
+                & points(..=9)
+                & hcp(natural_floor_hcp()..)
+                & points(natural_floor_pts()..),
         );
     }
 
@@ -558,7 +606,11 @@ pub(super) fn transfer_lebensohl_responder(over: Suit) -> Rules {
         rules = rules.rule(
             Bid::new(2, strain),
             1.4,
-            min_level_is(2, strain) & len(s, 5..) & points(..=8),
+            min_level_is(2, strain)
+                & len(s, 5..)
+                & points(..=8)
+                & hcp(natural_floor_hcp()..)
+                & points(natural_floor_pts()..),
         );
     }
 
@@ -722,7 +774,11 @@ pub(super) fn transfer_stayman_2d_responder() -> Rules {
         rules = rules.rule(
             Bid::new(2, strain),
             1.4,
-            min_level_is(2, strain) & len(s, 5..) & points(..=8),
+            min_level_is(2, strain)
+                & len(s, 5..)
+                & points(..=8)
+                & hcp(natural_floor_hcp()..)
+                & points(natural_floor_pts()..),
         );
     }
     // Relay shape: 6+ suit, or a 5-carder with the PD-distilled 6-HCP floor,
@@ -903,7 +959,59 @@ pub fn competition() -> Competitive {
         let one_nt = call(1, Strain::Notrump);
         let two_nt = call(2, Strain::Notrump);
         let three_clubs = call(3, Strain::Clubs);
-        for over in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
+
+        // Over a natural (2♣) overcall we play *systems on*, not Lebensohl: 2♣
+        // steals no room (every transfer/relay still sits above it), so responder
+        // keeps the uncontested 1NT structure (Jacoby transfers, minor transfers,
+        // the 2NT invite, …) and shows the now-unbiddable 2♣ Stayman with a Double.
+        // Rather than re-author all of that, rebase onto the uncontested tree: the
+        // (2♣) overcall maps to the opponent's pass, and a Double directly over it
+        // maps to the 2♣ Stayman it replaces. (So there is no natural 2♦/2♥/2♠
+        // escape over 2♣ — those are transfers.)
+        let two_clubs = call(2, Strain::Clubs);
+        fallback_all_seats(
+            &mut book,
+            &[one_nt],
+            3,
+            Arc::new(FirstIs(two_clubs)),
+            Fallback::rebase(rewriter(move |auction: &[Call], depth: usize| {
+                if auction.get(depth) != Some(&two_clubs) {
+                    return None;
+                }
+                let mut rewritten = auction.to_vec();
+                rewritten[depth] = Call::Pass; // (2♣) steals no room → systems on
+                if auction.get(depth + 1) == Some(&Call::Double) {
+                    rewritten[depth + 1] = two_clubs; // stolen 2♣ Stayman = Double
+                }
+                Some(rewritten)
+            })),
+        );
+
+        // The rebase routes every *continuation*, but responder must be handed a
+        // finite logit on Double to *choose* the stolen Stayman (the rebase only
+        // offers the uncontested calls, where 2♣ is illegal here). So classify
+        // responder's own call with the uncontested responses, moving the 2♣
+        // Stayman logit onto Double: X *is* the stolen 2♣ — same weight, same
+        // constraint, nothing to drift if Stayman is retuned. Empty-suffix guard →
+        // only responder's first call; deeper calls fall through to the rebase.
+        let responses = notrump_responses();
+        fallback_all_seats(
+            &mut book,
+            &[one_nt, two_clubs],
+            3,
+            Arc::new(guard(|_: &Context<'_>, suffix: &[Call]| suffix.is_empty())),
+            Fallback::classify(classifier(move |hand: Hand, context: &Context<'_>| {
+                let mut logits = responses.classify(hand, context);
+                let stayman = *logits.0.get(two_clubs);
+                *logits.0.get_mut(two_clubs) = f32::NEG_INFINITY; // 2♣ is stolen
+                *logits.0.get_mut(Call::Double) = stayman; // X inherits 2♣ exactly
+                logits
+            })),
+        );
+
+        // Lebensohl proper applies only over (2♦/2♥/2♠) — the overcalls that
+        // actually steal room. (2♣) is the systems-on rebase above.
+        for over in [Suit::Diamonds, Suit::Hearts, Suit::Spades] {
             let overcall = call(2, Strain::from(over));
 
             // Responder's first action: the uncovered suffix is exactly their overcall.
@@ -975,6 +1083,30 @@ pub fn competition() -> Competitive {
                     })),
                     Fallback::classify(lebensohl_signoff_raise(signoff)),
                 );
+            }
+
+            // Floored natural escape (only under [`set_natural_floor`]): opener's
+            // reply to a *direct* natural major sign-off — the one-level-lower
+            // mirror of the relay sign-off raise above. Suffix is [overcall, 2M, P]
+            // where 2M is a major *above* the overcall (a weak 5-card-suit hand
+            // bids it naturally rather than relaying). Reuses the same
+            // [`lebensohl_signoff_raise`]: a maximum with a fit stretches to 4M.
+            if natural_floor_on() {
+                for signoff in [Suit::Hearts, Suit::Spades] {
+                    if (signoff as u8) <= (over as u8) {
+                        continue; // not above the overcall — no 2-level natural
+                    }
+                    let two_m = call(2, Strain::from(signoff));
+                    fallback_all_seats(
+                        &mut book,
+                        &[one_nt],
+                        3,
+                        Arc::new(guard(move |_: &Context<'_>, suffix: &[Call]| {
+                            suffix == [overcall, two_m, Call::Pass]
+                        })),
+                        Fallback::classify(lebensohl_signoff_raise(signoff)),
+                    );
+                }
             }
 
             // Plain style: opener's reply to the direct cue (Stayman). Suffix is

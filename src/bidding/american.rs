@@ -82,6 +82,7 @@ mod weak_twos;
 
 pub use competition::{
     LebensohlStyle, competition, set_delayed_cue, set_lebensohl, set_lebensohl_style,
+    set_natural_floor,
 };
 pub(crate) use defense::leaping_michaels_enabled;
 pub use defense::{
