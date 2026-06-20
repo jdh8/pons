@@ -466,19 +466,29 @@ pub(super) fn lebensohl_relay_rebid(over: Suit) -> Rules {
 
 /// Opener's reply to responder's weak Lebensohl sign-off in a major
 ///
-/// The relay's PD-distilled 6-HCP floor (see [`lebensohl_relay_shape`]) makes
-/// the weak hand a known 6–9 with a 5+ suit, so a *maximum* 1NT opener (17,
-/// where the range is 15–17) facing a major sign-off with a fit can stretch to
-/// game: the combined floor is now high enough to reach the 4M zone with a
-/// long-trump dummy.  Anything short of a maximum with three-card support
-/// passes (the floor's signoff).  Only majors — a minor sign-off's game is the
-/// 5 level, out of reach for a 6–9 weak hand.
-pub(super) fn lebensohl_signoff_raise(signoff: Suit) -> Rules {
+/// Responder's sign-off is a known weak hand with a 5+ suit, floored at
+/// `resp_floor` points (the relay's PD-distilled 6, or the direct natural
+/// escape's lower 5 — see [`lebensohl_relay_shape`] and [`set_natural_floor`]).
+/// A *maximum* 1NT opener with a fit stretches to game: the combined floor is
+/// then high enough to reach the 4M zone with a long-trump dummy.
+///
+/// The gauge is points *plus* trump length, not points alone — a
+/// Law-of-Total-Tricks dummy adjustment that trades one point per extra trump.
+/// The combined target is 23 (a 17-max opposite the relay's 6-floor with an
+/// 8-card fit); a lower responder floor raises opener's bar by the same amount,
+/// and each trump beyond three lowers it by one.  Anything short passes the
+/// sign-off.  Only majors — a minor sign-off's game is the 5 level, out of
+/// reach for a weak hand.
+pub(super) fn lebensohl_signoff_raise(signoff: Suit, resp_floor: u8) -> Rules {
+    let game = Bid::new(4, Strain::from(signoff));
+    let base = 23u8.saturating_sub(resp_floor); // opener points with bare 3-card support
     Rules::new()
         .rule(
-            Bid::new(4, Strain::from(signoff)),
+            game,
             1.0,
-            points(17..) & len(signoff, 3..),
+            (len(signoff, 3..=3) & points(base..))
+                | (len(signoff, 4..=4) & points(base.saturating_sub(1)..))
+                | (len(signoff, 5..) & points(base.saturating_sub(2)..)),
         )
         .rule(Call::Pass, 0.0, hcp(0..))
 }
@@ -1084,7 +1094,7 @@ pub fn competition() -> Competitive {
                                 Call::Pass,
                             ]
                     })),
-                    Fallback::classify(lebensohl_signoff_raise(signoff)),
+                    Fallback::classify(lebensohl_signoff_raise(signoff, 6)),
                 );
             }
 
@@ -1092,8 +1102,9 @@ pub fn competition() -> Competitive {
             // reply to a *direct* natural major sign-off — the one-level-lower
             // mirror of the relay sign-off raise above. Suffix is [overcall, 2M, P]
             // where 2M is a major *above* the overcall (a weak 5-card-suit hand
-            // bids it naturally rather than relaying). Reuses the same
-            // [`lebensohl_signoff_raise`]: a maximum with a fit stretches to 4M.
+            // bids it naturally rather than relaying). Same
+            // [`lebensohl_signoff_raise`], but fed the natural floor (5, not the
+            // relay's 6) so opener's game bar is one point higher to compensate.
             if natural_floor_on() {
                 for signoff in [Suit::Hearts, Suit::Spades] {
                     if (signoff as u8) <= (over as u8) {
@@ -1107,7 +1118,7 @@ pub fn competition() -> Competitive {
                         Arc::new(guard(move |_: &Context<'_>, suffix: &[Call]| {
                             suffix == [overcall, two_m, Call::Pass]
                         })),
-                        Fallback::classify(lebensohl_signoff_raise(signoff)),
+                        Fallback::classify(lebensohl_signoff_raise(signoff, natural_floor_hcp())),
                     );
                 }
             }

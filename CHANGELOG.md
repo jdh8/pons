@@ -33,6 +33,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   +2.5/+2.3 IMPs/divergent (none/both), all-positive, while `4` HCP overbids (the
   game-raises turn negative). One lower than the relay, matching the 2X sitting one
   level lower. Gated behind `set_natural_floor(hcp_floor, points_floor)` for A/B.
+- **Opener's Lebensohl sign-off raise is now gauged by points *plus* trump length,
+  and calibrated to each floor.** `lebensohl_signoff_raise` previously raised flat
+  `17+ points & 3+ support` regardless of which sign-off it answered — so the
+  5-HCP-floored *direct* `2X` escape inherited a bar tuned for the relay's 6-HCP
+  floor, one point too light for the weaker hand. It now takes the responder floor
+  and stretches to 4M when `opener points + trump support` reach a combined target
+  of 23 (a Law-of-Total-Tricks dummy adjustment: one point lighter per trump beyond
+  three, one point heavier per point of missing responder floor). The relay's old
+  `17/3` boundary is preserved exactly and *gains* lighter big-fit raises (`16/4`,
+  `15/5`); the natural escape's bare-3-card bar rises to the correct `18` (and
+  likewise gains `17/4`, `16/5`). A/B against the flat old rule (both pairs on
+  Transfer with the 5-HCP floor, so only the raise gauge differs; 1M filtered, PD):
+  **+0.007/+0.006 IMPs/board (none/both), +1.56/+1.39 IMPs/divergent**. The swing
+  splits exactly along the two changes: opener *passing* the natural `17/3` hands it
+  used to raise (the 17-vs-18 boundary) is worth +1.69/+1.40 IMPs/board — raising a
+  17-count opposite a known weak 5-8 overbids — and the length-driven lighter raises
+  (`16/4`, `15/5`) add +0.06–1.48/board. (The pass magnitudes are PD-inflated: the
+  measure doubles the failing 4M overbids; the direction holds before doubling.)
 
 ### Added
 
