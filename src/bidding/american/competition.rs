@@ -6,7 +6,9 @@
 //! openings, and opener's answer to partner's negative double of a two-level
 //! minor overcall.
 
-use super::super::constraint::{hcp, len, min_level_is, points, stopper_in, support, they_bid};
+use super::super::constraint::{
+    hcp, len, min_level_is, points, stopper_in, support, they_bid, top_honors,
+};
 use super::super::context::Context;
 use super::super::fallback::{Fallback, FirstIs, OvercallAtMost, ReplaceNext, guard};
 use super::super::{Competitive, Rules};
@@ -303,6 +305,22 @@ pub(super) fn lebensohl_responder(over: Suit) -> Rules {
         rules = rules.rule(Bid::new(3, strain), 1.8, len(s, 5..) & points(10..));
     }
 
+    // Direct cue of their suit = Stayman: game-forcing with a 4-card unbid major
+    // (no 5-card suit to bid forcingly — those use the 3-level above). Answered by
+    // [`cue_stayman_answer`]. Stopper-agnostic, mirroring Transfer's default cue,
+    // so a 4-4 major fit is found even with a stopper. Weight sits between the
+    // natural forcing 3-level (1.8) and direct 3NT (1.7): a known 5-card suit is
+    // bid naturally, a bare 4-card major cues, else 3NT.
+    let cue = Bid::new(3, Strain::from(over));
+    rules = match unbid_major(over) {
+        Some(major) => rules.rule(cue, 1.75, len(major, 4..) & points(10..)),
+        None => rules.rule(
+            cue,
+            1.75,
+            (len(Suit::Hearts, 4..) | len(Suit::Spades, 4..)) & points(10..),
+        ),
+    };
+
     // Direct 3NT to play: game values with their suit stopped.
     rules = rules.rule(
         Bid::new(3, Strain::Notrump),
@@ -327,13 +345,21 @@ pub(super) fn lebensohl_responder(over: Suit) -> Rules {
         );
     }
 
-    // 2NT = Lebensohl relay to 3♣: a weak hand with a six-card suit that is not
+    // 2NT = Lebensohl relay to 3♣: a weak hand with a long suit that is not
     // biddable naturally at the 2 level (long clubs, or a suit below the overcall)
-    // — sign off in 3♣ or correct to the long suit. Balanced weak hands pass.
-    let long_suit = len(Suit::Clubs, 6..)
-        | len(Suit::Diamonds, 6..)
-        | len(Suit::Hearts, 6..)
-        | len(Suit::Spades, 6..);
+    // — sign off in 3♣ or correct to the suit (see [`lebensohl_relay_rebid`]).
+    // A relay suit is 6+, or a good 5-carder (two of the top three honors) so a
+    // decent 5-card suit below the overcall can still compete to the 3 level
+    // rather than be stranded — but never *their* suit (a stack there is a penalty
+    // pass). The natural 2-level outranks this relay, so above-the-overcall suits
+    // are still bid naturally; balanced weak hands pass.
+    let relay = |s: Suit| len(s, 6..) | (len(s, 5..) & top_honors(s, 2..));
+    let long_suit = match over {
+        Suit::Clubs => relay(Suit::Diamonds) | relay(Suit::Hearts) | relay(Suit::Spades),
+        Suit::Diamonds => relay(Suit::Clubs) | relay(Suit::Hearts) | relay(Suit::Spades),
+        Suit::Hearts => relay(Suit::Clubs) | relay(Suit::Diamonds) | relay(Suit::Spades),
+        Suit::Spades => relay(Suit::Clubs) | relay(Suit::Diamonds) | relay(Suit::Hearts),
+    };
     rules = rules.rule(Bid::new(2, Strain::Notrump), 1.4, points(..=9) & long_suit);
 
     // Pass — weak, nothing constructive to say.
@@ -358,7 +384,7 @@ pub(super) fn lebensohl_relay_rebid(over: Suit) -> Rules {
         rules = rules.rule(
             Bid::new(3, strain),
             1.0,
-            min_level_is(3, strain) & len(s, 6..),
+            min_level_is(3, strain) & (len(s, 6..) | (len(s, 5..) & top_honors(s, 2..))),
         );
     }
     // Stopper-split on: the *delayed* cue of their suit — Stayman with a stopper,
@@ -505,10 +531,15 @@ pub(super) fn transfer_lebensohl_responder(over: Suit) -> Rules {
     }
 
     // 2NT = Lebensohl relay to 3♣: a weak long-suit hand (sign off or correct).
-    let long_suit = len(Suit::Clubs, 6..)
-        | len(Suit::Diamonds, 6..)
-        | len(Suit::Hearts, 6..)
-        | len(Suit::Spades, 6..);
+    // A relay suit is 6+ or a good 5-carder (two of the top three honors), but
+    // never their suit — same as plain Lebensohl (see [`lebensohl_responder`]).
+    let relay = |s: Suit| len(s, 6..) | (len(s, 5..) & top_honors(s, 2..));
+    let long_suit = match over {
+        Suit::Clubs => relay(Suit::Diamonds) | relay(Suit::Hearts) | relay(Suit::Spades),
+        Suit::Diamonds => relay(Suit::Clubs) | relay(Suit::Hearts) | relay(Suit::Spades),
+        Suit::Hearts => relay(Suit::Clubs) | relay(Suit::Diamonds) | relay(Suit::Spades),
+        Suit::Spades => relay(Suit::Clubs) | relay(Suit::Diamonds) | relay(Suit::Hearts),
+    };
     rules = rules.rule(Bid::new(2, Strain::Notrump), 1.35, points(..=8) & long_suit);
 
     // Pass — weak, nothing constructive to say.
@@ -668,10 +699,9 @@ pub(super) fn transfer_stayman_2d_responder() -> Rules {
             min_level_is(2, strain) & len(s, 5..) & points(..=8),
         );
     }
-    let long_suit = len(Suit::Clubs, 6..)
-        | len(Suit::Diamonds, 6..)
-        | len(Suit::Hearts, 6..)
-        | len(Suit::Spades, 6..);
+    // Relay suit: 6+ or a good 5-carder, never their diamonds (see above).
+    let relay = |s: Suit| len(s, 6..) | (len(s, 5..) & top_honors(s, 2..));
+    let long_suit = relay(Suit::Clubs) | relay(Suit::Hearts) | relay(Suit::Spades);
     rules = rules.rule(Bid::new(2, Strain::Notrump), 1.35, points(..=8) & long_suit);
 
     rules.rule(Call::Pass, 0.0, hcp(0..))
@@ -890,6 +920,22 @@ pub fn competition() -> Competitive {
                 })),
                 Fallback::classify(lebensohl_relay_rebid(over)),
             );
+
+            // Plain style: opener's reply to the direct cue (Stayman). Suffix is
+            // [overcall, 3X, P] where 3X is the cue of their suit. (Transfer wires
+            // its cue reply in the block below.)
+            if style == LebensohlStyle::Plain {
+                let cue = call(3, Strain::from(over));
+                fallback_all_seats(
+                    &mut book,
+                    &[one_nt],
+                    3,
+                    Arc::new(guard(move |_: &Context<'_>, suffix: &[Call]| {
+                        suffix == [overcall, cue, Call::Pass]
+                    })),
+                    Fallback::classify(cue_stayman_answer(over)),
+                );
+            }
 
             // Transfer style: opener's reply to each 3-level transfer / cue.
             // Suffix is [overcall, 3X, P] where 3X is responder's transfer or cue.
@@ -1188,6 +1234,49 @@ mod tests {
         let (c, floored) = bid(&auction, "K2.QJ976.432.432");
         assert_eq!(c, call(2, Strain::Hearts));
         assert!(!floored, "the natural 2-level bid must come from the book");
+    }
+
+    #[test]
+    fn lebensohl_cue_is_stayman() {
+        // 1NT–(2♥): a game-force with 4 spades and no 5-card suit cues 3♥ = Stayman
+        // (it cannot bid a forcing 3-level suit, and the cue outranks direct 3NT).
+        let auction = [call(1, Strain::Notrump), call(2, Strain::Hearts)];
+        let (c, floored) = bid(&auction, "AQ32.K43.A32.K32");
+        assert_eq!(c, call(3, Strain::Hearts));
+        assert!(!floored, "the cue must come from the book");
+
+        // Opener answers Stayman with the 4-card spade fit.
+        let opener = [
+            call(1, Strain::Notrump),
+            call(2, Strain::Hearts),
+            call(3, Strain::Hearts),
+            Call::Pass,
+        ];
+        let (a, floored) = bid(&opener, "KJ54.A32.K43.Q32");
+        assert_eq!(a, call(3, Strain::Spades));
+        assert!(!floored, "the Stayman answer must come from the book");
+    }
+
+    #[test]
+    fn lebensohl_good_five_relays_then_signs_off_at_the_three_level() {
+        // Weak hand, a good 5-card heart suit it cannot show at the 2 level (below
+        // their 2♠): relay 2NT, then correct 3♣→3♥ as a 3-level sign-off.
+        let responder = [call(1, Strain::Notrump), call(2, Strain::Spades)];
+        let (c, floored) = bid(&responder, "32.KQJ32.432.432");
+        assert_eq!(c, call(2, Strain::Notrump));
+        assert!(!floored, "the relay must come from the book");
+
+        let after_3c = [
+            call(1, Strain::Notrump),
+            call(2, Strain::Spades),
+            call(2, Strain::Notrump),
+            Call::Pass,
+            call(3, Strain::Clubs),
+            Call::Pass,
+        ];
+        let (c, floored) = bid(&after_3c, "32.KQJ32.432.432");
+        assert_eq!(c, call(3, Strain::Hearts));
+        assert!(!floored, "the 3-level sign-off must come from the book");
     }
 
     #[test]

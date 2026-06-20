@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Plain Lebensohl gains a direct cue-bid (Stayman) and good-5 sign-offs, to
+  compete on even terms with Transfer Lebensohl.** After `1NT` is overcalled and
+  `LebensohlStyle::Plain` is selected, responder's cue of the opponents' suit is
+  now game-forcing Stayman with a 4-card unbid major and no 5-card suit of its
+  own (the cue outranks a direct `3NT`, so a 4-4 major fit is found even with a
+  stopper); opener answers it via the existing cue-Stayman machinery. Previously
+  such hands could only bid `3NT`, never finding the major fit. The weak `2NT`
+  relay now also admits a *good* 5-card suit (two of the top three honors) below
+  the overcall — relay then correct `3♣`→`3M` as a 3-level sign-off — instead of
+  requiring 6+; and a stack in *their* suit no longer wrongly relays (it is a
+  penalty pass). The good-5 relay (and the their-suit exclusion) applies to
+  **both** Plain and Transfer Lebensohl; the new cue is Plain-only (Transfer
+  already cues). *(Note: advancing
+  a takeout double reuses the Plain responder table, so the advancer can now bid
+  the cue, but the doubler's reply there is still floored — the point/shape
+  re-tuning for the lighter, shapier double is deferred to a future session.)*
+
 - **Transfer Lebensohl now *recognizes* a partner's delayed cue, and can
   optionally bid it (ledger #106).** Larry Cohen's stopper-split cue: a *delayed*
   cue (relay through `2NT`, then the opponents' suit) is Stayman *with* a stopper
