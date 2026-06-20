@@ -33,6 +33,7 @@ use contract_bridge::{AbsoluteVulnerability, Bid, FullDeal, Hand, Seat, Strain, 
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
 use pons::bidding::american::{LebensohlStyle, set_lebensohl_style};
+use pons::bidding::constraint::point_count;
 use pons::bidding::context::{Context, relative};
 use pons::bidding::ev::ev_all;
 use pons::bidding::{Family, Stance, System};
@@ -147,11 +148,12 @@ fn next_call_ns(
 
     if log_relay {
         eprintln!(
-            "RELAY {} over={over:?} len_over={} hcp_over={} hcp_total={} ev_relay={:.0} ev_defend={:.0}",
+            "RELAY {} over={over:?} len_over={} hcp_over={} hcp_total={} pts={} ev_relay={:.0} ev_defend={:.0}",
             if defend { "DEFEND" } else { "relay" },
             hand[over].len(),
             holding_hcp::<u8>(hand[over]),
             hand_hcp(hand),
+            point_count(hand),
             evs[0],
             evs[1],
         );

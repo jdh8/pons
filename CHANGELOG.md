@@ -33,6 +33,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   cue, but the doubler's reply there is still floored — the point/shape re-tuning
   for the lighter, shapier double is deferred to a future session.)*
 
+- **A maximum 1NT opener can now stretch a weak Lebensohl sign-off to game.**
+  After responder relays `2NT` weakly and corrects `3♣`→`3M` (a 6–9 sign-off in
+  a major, the floor above), a *maximum* opener (17, in the 15–17 range) holding
+  three-card support raises to game instead of passing — the relay's 6-HCP floor
+  makes the combined count high enough to reach `4M` on a long-trump dummy.
+  Applies to both Lebensohl styles, majors only (a minor's game is the 5 level,
+  out of reach for a 6–9 hand). A/B (lebensohl-ab, 500k unfiltered, vs floor):
+  +0.0010 to +0.0012 IMPs/board across plain/transfer × non-vul/vul — a rare node
+  (the sign-off-to-major sequence only arises over a `2♠` overcall) but positive
+  in every cell and never negative. *(Re-confirmed that the relay floor belongs in
+  raw HCP, not points: a perfect-defense crossover analysis shows the
+  relay-vs-defend boundary is sharp at 6 HCP — 21%→80% — but mushy on the
+  shape-upgraded points scale, because the upgrade drags light, shapely
+  defend-hands into the relay bucket. The driver is defensive values, not playing
+  strength.)*
+
 - **Transfer Lebensohl now *recognizes* a partner's delayed cue, and can
   optionally bid it (ledger #106).** Larry Cohen's stopper-split cue: a *delayed*
   cue (relay through `2NT`, then the opponents' suit) is Stayman *with* a stopper

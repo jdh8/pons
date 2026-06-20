@@ -413,6 +413,25 @@ pub(super) fn lebensohl_relay_rebid(over: Suit) -> Rules {
     rules.rule(Call::Pass, 0.0, hcp(0..))
 }
 
+/// Opener's reply to responder's weak Lebensohl sign-off in a major
+///
+/// The relay's PD-distilled 6-HCP floor (see [`lebensohl_relay_shape`]) makes
+/// the weak hand a known 6–9 with a 5+ suit, so a *maximum* 1NT opener (17,
+/// where the range is 15–17) facing a major sign-off with a fit can stretch to
+/// game: the combined floor is now high enough to reach the 4M zone with a
+/// long-trump dummy.  Anything short of a maximum with three-card support
+/// passes (the floor's signoff).  Only majors — a minor sign-off's game is the
+/// 5 level, out of reach for a 6–9 weak hand.
+pub(super) fn lebensohl_signoff_raise(signoff: Suit) -> Rules {
+    Rules::new()
+        .rule(
+            Bid::new(4, Strain::from(signoff)),
+            1.0,
+            points(17..) & len(signoff, 3..),
+        )
+        .rule(Call::Pass, 0.0, hcp(0..))
+}
+
 // ---------------------------------------------------------------------------
 // Section 5b: Transfer Lebensohl (Rubensohl) — Larry Cohen's version
 // ---------------------------------------------------------------------------
@@ -928,6 +947,36 @@ pub fn competition() -> Competitive {
                 Fallback::classify(lebensohl_relay_rebid(over)),
             );
 
+            // Opener's reply to a weak major sign-off: pass, or stretch to game
+            // with a maximum + fit (see [`lebensohl_signoff_raise`]). Suffix is
+            // [overcall, 2NT, P, 3♣, P, 3M, P]. Only a major *below* the overcall
+            // is reachable via the relay — a higher major is bid naturally at the
+            // 2 level — so in practice this wires only (2♠)→3♥.
+            for signoff in [Suit::Hearts, Suit::Spades] {
+                if (signoff as u8) >= (over as u8) {
+                    continue;
+                }
+                let three_m = call(3, Strain::from(signoff));
+                fallback_all_seats(
+                    &mut book,
+                    &[one_nt],
+                    3,
+                    Arc::new(guard(move |_: &Context<'_>, suffix: &[Call]| {
+                        suffix
+                            == [
+                                overcall,
+                                two_nt,
+                                Call::Pass,
+                                three_clubs,
+                                Call::Pass,
+                                three_m,
+                                Call::Pass,
+                            ]
+                    })),
+                    Fallback::classify(lebensohl_signoff_raise(signoff)),
+                );
+            }
+
             // Plain style: opener's reply to the direct cue (Stayman). Suffix is
             // [overcall, 3X, P] where 3X is the cue of their suit. (Transfer wires
             // its cue reply in the block below.)
@@ -1284,6 +1333,28 @@ mod tests {
         let (c, floored) = bid(&after_3c, "32.KQJ32.432.432");
         assert_eq!(c, call(3, Strain::Hearts));
         assert!(!floored, "the 3-level sign-off must come from the book");
+    }
+
+    #[test]
+    fn lebensohl_maximum_raises_weak_signoff_to_game() {
+        // 1NT–(2♠)–2NT–P–3♣–P–3♥–P: responder's weak heart sign-off. A maximum
+        // (17) opener with three-card support stretches to 4♥; a minimum passes.
+        let after_signoff = [
+            call(1, Strain::Notrump),
+            call(2, Strain::Spades),
+            call(2, Strain::Notrump),
+            Call::Pass,
+            call(3, Strain::Clubs),
+            Call::Pass,
+            call(3, Strain::Hearts),
+            Call::Pass,
+        ];
+        let (c, floored) = bid(&after_signoff, "AK32.K43.A43.K32");
+        assert_eq!(c, call(4, Strain::Hearts));
+        assert!(!floored, "the game raise must come from the book");
+
+        let (c, _) = bid(&after_signoff, "AK32.K43.KQ3.432");
+        assert_eq!(c, Call::Pass, "a minimum passes the weak sign-off");
     }
 
     #[test]
