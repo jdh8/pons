@@ -9,25 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **`TransferSmolen` is the new default Lebensohl over a `(2♦)` overcall of our 1NT
-  (ledger #80); behavior over `(2♥)`/`(2♠)`/`(2♣)` is unchanged.** When an opponent
-  overcalls our `1NT` with `2♦`, responder now plays a richer structure than Cohen's
-  Transfer Lebensohl: `3♣` is game-forcing Stayman with a Smolen continuation
+- **Transfer Lebensohl now plays a richer structure over a `(2♦)` overcall of our
+  `1NT` (ledger #80); behavior over `(2♥)`/`(2♠)`/`(2♣)` is unchanged.** When an
+  opponent overcalls our `1NT` with `2♦`, responder now plays more than bare Cohen:
+  `3♣` is game-forcing Stayman with a Smolen continuation
   (`1NT–(2♦)–3♣–P–3♦–P–3♥/3♠` shows 5-4 majors), the 3-level transfers shift down to
   direct Jacoby (`3♦`→♥, `3♥`→♠, `3♠`→♣ — the club leg a *forced* game-force, since
   its `4♣` completion leaves `3♣` unplayable), and `4♦`/`4♣` are Leaping Michaels
   (both majors 5-5 / clubs + a 5+ major). Over a `2♥`/`2♠`/`2♣` overcall it is
-  byte-identical to `Transfer`. Selected by the new
-  [`LebensohlStyle::TransferSmolen`][pons::bidding::american::LebensohlStyle] (now
-  the [`set_lebensohl_style`][pons::bidding::american::set_lebensohl_style] default);
-  `Transfer`, `Plain`, and `Rubensohl` remain opt-in. A/B vs `Transfer`
-  (`examples/lebensohl-ab --ns transfersmolen --ew transfer`, perfect-defense
-  `ns_score`, 200k filtered boards/cell): **+0.020/+0.024 IMPs/board,
-  +2.286/+2.822 IMPs/divergent (none/both)** — a clean win that reverses an earlier,
-  reverted standard-Stayman+Smolen hybrid (−1.31/−1.76/div). The gain is genuine
-  fit-finding the double-dummy / perfect-defense measure can credit (5-3 major games
-  through Stayman+Smolen, 5-5 major games through Leaping Michaels), not the DD-blind
-  right-siding that sank the earlier attempt.
+  byte-identical to bare Cohen. This `(2♦)` package is part of the default
+  [`LebensohlStyle::Transfer`][pons::bidding::american::LebensohlStyle]
+  ([`set_lebensohl_style`][pons::bidding::american::set_lebensohl_style]); `Plain`
+  and `Rubensohl` remain opt-in. A/B of the package vs bare Cohen-over-`(2♦)`
+  (`examples/lebensohl-ab`, perfect-defense `ns_score`, 200k filtered boards/cell):
+  **+0.020/+0.024 IMPs/board, +2.286/+2.822 IMPs/divergent (none/both)** — a clean
+  win that reverses an earlier, reverted standard-Stayman+Smolen hybrid
+  (−1.31/−1.76/div). The gain is genuine fit-finding the double-dummy / perfect-defense
+  measure can credit (5-3 major games through Stayman+Smolen, 5-5 major games through
+  Leaping Michaels), not the DD-blind right-siding that sank the earlier attempt.
 - **Transfer Lebensohl's top step is now a forcing transfer to clubs (ledger #80).**
   Cohen's transfers run *up the line through* the adverse suit, so the highest 3-level
   step has no suit above it and wraps back to clubs: `1NT–(2♦/2♥)–3♠` and `1NT–(2♠)–3♥`
@@ -35,9 +34,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   their suit; opener completes `3NT` with a stopper, else `5♣`). These previously fell
   to the natural instinct floor, leaving a 6+♣ game-forcing hand with no call — the
   weak `2NT`→`3♣` relay is limited to ≤8 points and can't carry a game force. Applies
-  to both `Transfer` and `TransferSmolen` (and fixes plain `Transfer` over `(2♦)`);
-  `TransferSmolen` already shipped the analogous `(2♦)–3♠`→♣ leg. Perfect-defense A/B
-  (two binaries at a fixed `--seed`, `transfersmolen` vs the bare floor, 200k
+  to `Transfer` over every overcall, and to the `(2♦)` Smolen leg's own `3♠`→♣
+  transfer. Perfect-defense A/B
+  (two binaries at a fixed `--seed`, `transfer` vs the bare floor, 200k
   filtered/cell): **−0.0008/−0.0012 IMPs/board (none/both)** — a tiny, consistent loss
   confined to ≈0.04% of boards. Those boards are normal making games (`3NT`/`5♣`) that
   double-dummy scores below the floor's *speculative penalty doubles of the overcall*
@@ -88,6 +87,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ladder **+0.140 / +0.212 IMPs/board**, but head-to-head **`Rubensohl` vs the new
   `Transfer` default −0.007 / −0.037 IMPs/board** (only ~2.5% divergent) — no gain,
   so it stays opt-in (same DD-blind-right-siding finding as the 1NT context).
+- **The advancer after a takeout double of a weak `(2♦)` now plays Transfer's `(2♦)`
+  Smolen package (ledger #80).** After `(2♦)–X–(P)`, the default
+  [`set_advance_sohl_style(LebensohlStyle::Transfer)`][pons::bidding::american::set_advance_sohl_style]
+  advance now answers with `3♣`-Stayman + Smolen, direct Jacoby transfers, and Leaping
+  Michaels `4♣`/`4♦` — the same package the 1NT context plays — instead of bare Cohen
+  transfers-through; `(2♥)`/`(2♠)` advances are unchanged. It reuses the Section-5d
+  builders verbatim under the `(2X)–X–(P)` prefix. Head-to-head vs the prior
+  plain-Cohen advance (`examples/sohl-after-double-ab`, perfect-defense `ns_score`,
+  200k filtered/cell): **+0.014/+0.019 IMPs/board, +1.77/+2.52 IMPs/divergent
+  (none/both)** — a clean win whose per-divergent edge *rises* with vulnerability, the
+  signature of reaching better contracts (which the measure credits) rather than
+  right-siding (which it cannot see). With the package now winning in **both**
+  contexts, the experimental `TransferSmolen` style is folded into `Transfer` (it
+  never shipped as a separate variant): `Transfer` *is* Cohen-plus-Smolen-over-`(2♦)`,
+  so the styles are again `Off`/`Plain`/`Transfer`/`Rubensohl`.
 - **Search at every authored leaf (AI-bidder M7.0) — `american_search_book`.**
   A new gated bidder, [`SearchBook`][pons::bidding::search_floor::SearchBook] /
   [`american_search_book`], that prices **authored book leaves by double-dummy
