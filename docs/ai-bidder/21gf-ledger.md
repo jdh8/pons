@@ -250,8 +250,8 @@ advancing locates most fits — `Transfer`'s right-siding is DD-blind upside,
 `Lawrence` loses 5-card-suit *shape* information by collapsing INV into a
 single direct-3X slot, and `Pam`'s 5-5-minors trigger is too rare (~0.4 %
 divergence) to recover the slot it eats from weak long-clubs. Stopper-routing ("slow shows /
-fast denies") was *not* tested per user direction (strength was hypothesised
-to dominate; the `Lawrence` loss is consistent with that). This **is** toggle
+fast denies") was later tested too and is dead flat on DD (see the
+`set_delayed_cue` update below); the strength hypothesis held. This **is** toggle
 `#106` and `#82`; the "our opening is doubled" responder case is a *separate*
 BBA toggle (`Transfers if RHO doubles`), not this one.
 
@@ -287,6 +287,41 @@ dropped: `Transfer` *is* Cohen-plus-Smolen-over-`(2♦)` everywhere, styles back
 `Off`/`Plain`/`Transfer`/`Rubensohl`. The current default `Transfer` (incl. Smolen)
 vs the floor re-measures **+0.146/+0.249 board** (was +0.145/+0.227 pre-Smolen;
 both-vul lifts as the package finds vulnerable games).
+
+**Update (this session) — stopper-routing ("slow shows / fast denies") finally
+tested; near-zero on DD, kept opt-in.** The gap flagged above ("not tested per
+user direction") is now closed. Larry Cohen's split cue, adapted to our Transfer
+Lebensohl: the *direct* cue of their suit denies a stopper, while a *delayed*
+cue (relay through `2NT`, then their suit) is Stayman *with* a stopper — and, per
+the user, also denies a 5-card unbid major (Smolen / Leaping Michaels own those).
+Stopper hands relay slowly and still find the 4-4 major fit (`cue_stayman_answer`,
+3NT safe); no-stopper hands keep the fast cue and, lacking a major fit, run to a
+minor-suit game instead of a stopperless 3NT (`cue_stayman_answer_no_stopper`).
+Authored only in the single-unbid-major contexts — over `(2♥)`/`(2♠)` — behind a
+default-off `set_delayed_cue` toggle; `--delayed-cue` on `sohl-after-double-ab`.
+Isolation A/B (delayed-cue-`Transfer` NS vs plain-`Transfer` EW, PD, 200k
+filtered/cell): **+0.000 / +0.001 IMPs/board, +0.098 / +0.387 IMPs/divergent
+(none/both)** on only **~0.4 % divergence**. Verdict: **dead flat — rejected as
+default, kept opt-in.** Mechanism is exactly as predicted: stopper hands reach the
+*same* contract fast or slow (zero swing), so the only divergence is the rare
+no-stopper-no-fit hand choosing 4m over 3NT — and the genuine payload of "I hold
+their suit stopped" (concealment, right-siding the 3NT) is single-dummy, which the
+PD harness looks straight through. Same wall as `TransferSmolen`/`Rubensohl`:
+right-siding refinements don't register on DD. Revisit only under a single-dummy
+measure. Toggle stays `set_delayed_cue(false)` by default; the shipped system is
+unchanged.
+
+*Recognition split from policy (kept default-on).* Because the delayed cue is a
+brand-new auction position the floor had no meaning for, the *answer* node is
+purely additive and is wired **always-on** in both the `1NT`-overcalled and
+`(2X)–X–(P)` contexts (over `(2♥)`/`(2♠)`): the bot answers a partner's delayed
+cue (the other major with a fit, else `3NT`) even though it never *bids* one. The
+node is unreachable in bot-vs-bot play (the bot's advancer never produces the cue
+with the toggle off), so self-play and every A/B are byte-identical — it only
+activates opposite a human partner who plays the convention. `set_delayed_cue`
+gates only the *bidding* side (the bot routing its own stopper hands through the
+delayed cue + reading its own direct cue as stopper-denying). Test:
+`tests/american_defense.rs::test_recognize_delayed_cue_major_fit`.
 
 **Leaping Michaels (79) — shipped opt-in, a clear DD win once the advances were
 authored.** Over their weak two, a jump to `4♣`/`4♦` names a 5-5 two-suiter with

@@ -9,6 +9,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Transfer Lebensohl now *recognizes* a partner's delayed cue, and can
+  optionally bid it (ledger #106).** Larry Cohen's stopper-split cue: a *delayed*
+  cue (relay through `2NT`, then the opponents' suit) is Stayman *with* a stopper
+  in their suit and exactly a 4-card unbid major (denying 5 — Smolen / Leaping
+  Michaels keep those), versus the plain *direct* cue. Two layers, split so the
+  shipped system is byte-identical in self-play:
+  - **Recognition is on by default.** Over `(2♥)`/`(2♠)`, in both the `1NT`-overcalled
+    and the `(2X)–X–(P)` advance contexts, the bot now answers a delayed cue (show
+    the other major at game with a fit, else `3NT` — partner's stopper makes it
+    safe), so a human partner who plays the convention gets a sensible reply. The
+    bot never *bids* the delayed cue itself, so this node is dormant in bot-vs-bot
+    play and changes no measurement; it only activates opposite a partner who bids it.
+  - **Bidding it is opt-in**, behind the new
+    [`set_delayed_cue`][pons::bidding::american::set_delayed_cue] toggle (default
+    `false`); `--delayed-cue` on the `sohl-after-double-ab` example. When on, the
+    bot also routes its stopper hands through the delayed cue and reads its own
+    direct cue as denying a stopper (running no-stopper, no-fit hands to a minor
+    game over a stopperless `3NT`). Isolation A/B (delayed-cue-`Transfer` vs
+    plain-`Transfer`, perfect-defense, 200k filtered boards/cell): **+0.000 / +0.001
+    IMPs/board (none/both)** on ~0.4 % divergence — **dead flat, so it stays
+    opt-in, not default.** Stopper hands reach the same contract fast or slow, and
+    the real value of showing a stopper (concealment, right-siding the notrump) is
+    single-dummy, which the double-dummy / perfect-defense measure looks through —
+    the same wall that sank the reverted `TransferSmolen` and the opt-in `Rubensohl`.
+
 - **Transfer Lebensohl now plays a richer structure over a `(2♦)` overcall of our
   `1NT` (ledger #80); behavior over `(2♥)`/`(2♠)`/`(2♣)` is unchanged.** When an
   opponent overcalls our `1NT` with `2♦`, responder now plays more than bare Cohen:

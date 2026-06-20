@@ -230,6 +230,36 @@ fn test_advance_double_major_cue() {
     );
 }
 
+/// Recognition (default, no `set_delayed_cue`): a partner who plays the delayed
+/// cue — (2♠)–X–(P)–2NT–(P)–3♣–(P)–3♠ = Stayman with a spade stopper — is answered
+/// even though the bot never bids it itself. With four hearts the answerer shows
+/// the fit (4♥, since 3♥ is below the 3♠ cue).
+#[test]
+fn test_recognize_delayed_cue_major_fit() {
+    let system = stance();
+    let auction = [
+        call(2, Strain::Spades),
+        Call::Double,
+        Call::Pass,
+        call(2, Strain::Notrump),
+        Call::Pass,
+        call(3, Strain::Clubs),
+        Call::Pass,
+        call(3, Strain::Spades),
+        Call::Pass,
+    ];
+    // Doubler with four hearts opposite the delayed cue → 4♥ (the fit).
+    assert_eq!(
+        best_call(&system, &auction, "32.KQ54.AK32.Q92"),
+        call(4, Strain::Hearts),
+    );
+    // No four-card major → 3NT (partner promised the spade stopper).
+    assert_eq!(
+        best_call(&system, &auction, "K2.KJ2.AQ32.KJ32"),
+        call(3, Strain::Notrump),
+    );
+}
+
 /// The same advance machinery answers over a one-level opening: (1♦) – X – (P)
 /// with a weak five-card major → cheapest-level natural advance 1♠
 #[test]

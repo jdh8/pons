@@ -80,7 +80,9 @@ mod slam;
 mod strong_two;
 mod weak_twos;
 
-pub use competition::{LebensohlStyle, competition, set_lebensohl, set_lebensohl_style};
+pub use competition::{
+    LebensohlStyle, competition, set_delayed_cue, set_lebensohl, set_lebensohl_style,
+};
 pub(crate) use defense::leaping_michaels_enabled;
 pub use defense::{
     advance_double, defense_to_suit, defense_to_weak_two, set_advance_sohl_style,

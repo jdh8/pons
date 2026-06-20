@@ -103,6 +103,42 @@ fn lebensohl_style() -> LebensohlStyle {
     LEBENSOHL_STYLE.with(Cell::get)
 }
 
+thread_local! {
+    /// Whether the Transfer-Lebensohl cue is split by stopper (see
+    /// [`set_delayed_cue`]).
+    static DELAYED_CUE: Cell<bool> = const { Cell::new(false) };
+}
+
+/// Enable the stopper-split cue for books built *after* this call (thread-local,
+/// read once at book-construction time)
+///
+/// Larry Cohen's fast-denies / slow-shows, adapted to our Transfer Lebensohl:
+/// the *direct* cue of their suit denies a stopper, while a *delayed* cue (relay
+/// through `2NT`, then their suit) is Stayman *with* a stopper. It also denies a
+/// 5-card unbid major (Smolen / Leaping Michaels handle those). Only the
+/// single-unbid-major contexts — over `(2♥)` and `(2♠)` — are affected. Off by
+/// default; gated behind this toggle for A/B measurement.
+pub fn set_delayed_cue(on: bool) {
+    DELAYED_CUE.with(|cell| cell.set(on));
+}
+
+/// Whether the stopper-split cue is enabled
+pub(super) fn delayed_cue() -> bool {
+    DELAYED_CUE.with(Cell::get)
+}
+
+/// The single unbid major when `over` is itself a major (the other major)
+///
+/// `None` when `over` is a minor (then both majors are unbid) — the stopper-split
+/// cue is only authored for the single-unbid-major contexts.
+pub(super) fn unbid_major(over: Suit) -> Option<Suit> {
+    match over {
+        Suit::Hearts => Some(Suit::Spades),
+        Suit::Spades => Some(Suit::Hearts),
+        _ => None,
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Section 1: direct-seat response to their overcall
 // ---------------------------------------------------------------------------
@@ -329,6 +365,16 @@ pub(super) fn lebensohl_relay_rebid(over: Suit) -> Rules {
             min_level_is(3, strain) & len(s, 6..),
         );
     }
+    // Stopper-split on: the *delayed* cue of their suit — Stayman with a stopper,
+    // game-forcing, exactly a 4-card unbid major (denies 5). Answered by
+    // [`cue_stayman_answer`] (the stopper is guaranteed, so 3NT is safe).
+    if let (true, Some(major)) = (delayed_cue(), unbid_major(over)) {
+        rules = rules.rule(
+            Bid::new(3, Strain::from(over)),
+            1.5,
+            points(10..) & stopper_in(over) & len(major, 4..) & len(major, ..5),
+        );
+    }
     rules.rule(Call::Pass, 0.0, hcp(0..))
 }
 
@@ -372,10 +418,28 @@ pub(super) fn transfer_lebensohl_responder(over: Suit) -> Rules {
         if bid_suit == over {
             // Cue = Stayman: game values with a 4-card unbid major. (The arms
             // differ in constraint type, so each returns the updated `Rules`.)
+            // With the stopper-split on, the *direct* cue denies a stopper —
+            // stopper hands relay through 2NT to the delayed cue (the broadened
+            // 2NT below + [`lebensohl_relay_rebid`]).
             let cue = Bid::new(3, strain);
-            rules = match over {
-                Suit::Hearts => rules.rule(cue, 1.7, len(Suit::Spades, 4..) & points(10..)),
-                Suit::Spades => rules.rule(cue, 1.7, len(Suit::Hearts, 4..) & points(10..)),
+            let split = delayed_cue() && unbid_major(over).is_some();
+            rules = match (over, split) {
+                (Suit::Hearts, true) => rules.rule(
+                    cue,
+                    1.7,
+                    len(Suit::Spades, 4..) & points(10..) & !stopper_in(over),
+                ),
+                (Suit::Spades, true) => rules.rule(
+                    cue,
+                    1.7,
+                    len(Suit::Hearts, 4..) & points(10..) & !stopper_in(over),
+                ),
+                (Suit::Hearts, false) => {
+                    rules.rule(cue, 1.7, len(Suit::Spades, 4..) & points(10..))
+                }
+                (Suit::Spades, false) => {
+                    rules.rule(cue, 1.7, len(Suit::Hearts, 4..) & points(10..))
+                }
                 _ => rules.rule(
                     cue,
                     1.7,
@@ -414,6 +478,18 @@ pub(super) fn transfer_lebensohl_responder(over: Suit) -> Rules {
         1.5,
         points(10..) & stopper_in(over),
     );
+
+    // Stopper-split on: a GF hand with a stopper *and* exactly a 4-card unbid
+    // major relays through 2NT to bid the cue *slowly* (Stayman with a stopper,
+    // see [`lebensohl_relay_rebid`]) — outweighing direct 3NT (1.5) so the 4-4
+    // major fit is still found. Denies a 5-card major (Smolen / Leaping Michaels).
+    if let (true, Some(major)) = (delayed_cue(), unbid_major(over)) {
+        rules = rules.rule(
+            Bid::new(2, Strain::Notrump),
+            1.6,
+            points(10..) & stopper_in(over) & len(major, 4..) & len(major, ..5),
+        );
+    }
 
     // Penalty double of their overcall (kept — the Rubensohl-v1 attempt lost the
     // floor's penalty doubles by shadowing them with no double of its own).
@@ -484,6 +560,35 @@ pub(super) fn cue_stayman_answer(over: Suit) -> Rules {
     }
     // No 4-card unbid major → 3NT (always legal above the 3-level cue).
     rules.rule(Bid::new(3, Strain::Notrump), 1.3, hcp(0..))
+}
+
+/// Answerer's reply to the *direct* (no-stopper) cue under the stopper-split
+///
+/// The cuer denied a stopper in their suit, so 3NT needs *our* own stopper;
+/// without it (and without a 4-card-major fit) we run to a minor-suit game
+/// rather than a stopperless 3NT. A 4-card unbid major is shown first (the fit).
+/// The trailing low-weight 3NT is a guaranteed-finite catch-all (it never wins
+/// against the minors, but keeps the node from silently passing the game force).
+pub(super) fn cue_stayman_answer_no_stopper(over: Suit) -> Rules {
+    let mut rules = Rules::new();
+    for major in [Suit::Hearts, Suit::Spades] {
+        if major == over {
+            continue;
+        }
+        let m = Strain::from(major);
+        rules = rules
+            .rule(Bid::new(3, m), 1.6, len(major, 4..) & min_level_is(3, m))
+            .rule(Bid::new(4, m), 1.5, len(major, 4..) & min_level_is(4, m));
+    }
+    // 3NT only with our own stopper (the cuer has none).
+    rules = rules.rule(Bid::new(3, Strain::Notrump), 1.45, stopper_in(over));
+    // No fit, no stopper → minor-suit game.
+    for minor in [Suit::Clubs, Suit::Diamonds] {
+        let m = Strain::from(minor);
+        rules = rules.rule(Bid::new(4, m), 1.2, len(minor, 4..) & min_level_is(4, m));
+    }
+    // Guaranteed-finite catch-all (rare: no major, no stopper, no 4-card minor).
+    rules.rule(Bid::new(3, Strain::Notrump), 1.0, hcp(0..))
 }
 
 // ---------------------------------------------------------------------------
@@ -933,6 +1038,32 @@ pub fn competition() -> Competitive {
                         Fallback::classify(reply),
                     );
                 }
+            }
+
+            // Recognize a delayed cue (2NT relay, then their suit) over (2♥)/(2♠):
+            // Stayman with a stopper, answered like the direct cue but with 3NT
+            // safe. Always wired so a human partner who plays it gets a sensible
+            // reply, even though the bot only *bids* it under `set_delayed_cue`.
+            if style == LebensohlStyle::Transfer && unbid_major(over).is_some() {
+                let cue = call(3, Strain::from(over));
+                fallback_all_seats(
+                    &mut book,
+                    &[one_nt],
+                    3,
+                    Arc::new(guard(move |_: &Context<'_>, suffix: &[Call]| {
+                        suffix
+                            == [
+                                overcall,
+                                two_nt,
+                                Call::Pass,
+                                three_clubs,
+                                Call::Pass,
+                                cue,
+                                Call::Pass,
+                            ]
+                    })),
+                    Fallback::classify(cue_stayman_answer(over)),
+                );
             }
 
             // Rubensohl style: the cue is Stayman; a transfer to a suit *above* the

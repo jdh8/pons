@@ -15,10 +15,11 @@ use super::super::context::Context;
 use super::super::{Defensive, Rules};
 use super::competition::{
     LebensohlStyle, clubs_transfer_completion, complete_lebensohl_relay, complete_two_way_transfer,
-    cue_stayman_answer, lebensohl_relay_rebid, lebensohl_responder, lm_2d_both_majors_advance,
-    lm_2d_clubs_ask, lm_2d_clubs_major, rubensohl_responder, stayman_2d_answer,
-    stayman_2d_fit_rebid, transfer_completion, transfer_lebensohl_responder,
-    transfer_stayman_2d_responder, transfer_target, two_way_transfer_rebid,
+    cue_stayman_answer, cue_stayman_answer_no_stopper, delayed_cue, lebensohl_relay_rebid,
+    lebensohl_responder, lm_2d_both_majors_advance, lm_2d_clubs_ask, lm_2d_clubs_major,
+    rubensohl_responder, stayman_2d_answer, stayman_2d_fit_rebid, transfer_completion,
+    transfer_lebensohl_responder, transfer_stayman_2d_responder, transfer_target,
+    two_way_transfer_rebid,
 };
 use super::notrump::{smolen_at_three, smolen_completion};
 use super::{call, insert_all_seats};
@@ -451,10 +452,22 @@ fn insert_advance_of_double(d: &mut Defensive, suit: Suit, opening: Bid, style: 
     // Transfer style: the doubler answers each 3-level transfer / cue. Over (2♦)
     // the Smolen block below owns the 3-level replies, so this covers (2♥)/(2♠).
     if style == LebensohlStyle::Transfer && suit != Suit::Diamonds {
+        // Over (2♥)/(2♠) the delayed cue (2NT relay, then their suit) is always
+        // *recognized* — answered as Stayman with a stopper — even when the bot
+        // never bids it itself, so a human partner who plays it gets a sensible
+        // reply. `split` (the default-off `set_delayed_cue` toggle) additionally
+        // makes the bot *bid* the convention and read the direct cue as denying a
+        // stopper (so it is answered without a free 3NT).
+        let recognize = matches!(suit, Suit::Hearts | Suit::Spades);
+        let split = delayed_cue() && recognize;
         for bid_suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
             let resp = call(3, Strain::from(bid_suit));
             let reply = if bid_suit == suit {
-                cue_stayman_answer(suit)
+                if split {
+                    cue_stayman_answer_no_stopper(suit)
+                } else {
+                    cue_stayman_answer(suit)
+                }
             } else if let Some(target) = transfer_target(bid_suit, suit) {
                 transfer_completion(target, suit)
             } else {
@@ -471,6 +484,28 @@ fn insert_advance_of_double(d: &mut Defensive, suit: Suit, opening: Bid, style: 
                 ],
                 3,
                 reply,
+            );
+        }
+        // Delayed cue: (2X)–X–P–2NT–P–3X (their suit) — Stayman with a stopper,
+        // answered exactly like the direct cue but with 3NT safe. Wired whenever
+        // it could be bid (recognition), independent of whether the bot bids it.
+        if recognize {
+            let cue = call(3, Strain::from(suit));
+            insert_all_seats(
+                d,
+                &[
+                    Call::Bid(opening),
+                    Call::Double,
+                    Call::Pass,
+                    call(2, Strain::Notrump),
+                    Call::Pass,
+                    call(3, Strain::Clubs),
+                    Call::Pass,
+                    cue,
+                    Call::Pass,
+                ],
+                3,
+                cue_stayman_answer(suit),
             );
         }
     }

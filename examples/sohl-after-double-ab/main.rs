@@ -40,7 +40,7 @@ use contract_bridge::eval::hcp as holding_hcp;
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Hand, Seat, Suit};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
-use pons::bidding::american::{LebensohlStyle, set_advance_sohl_style};
+use pons::bidding::american::{LebensohlStyle, set_advance_sohl_style, set_delayed_cue};
 use pons::bidding::context::relative;
 use pons::bidding::{Family, Stance, System};
 use pons::scoring::{final_contract, imps, ns_score};
@@ -69,6 +69,13 @@ struct Args {
     /// `--count` is then the number of such filtered boards.
     #[arg(long, default_value = "false")]
     filter: bool,
+
+    /// Give the measured (NS) pair the stopper-split delayed cue (direct cue
+    /// denies a stopper; the delayed 2NT-then-cue is Stayman with a stopper).
+    /// Both pairs otherwise carry `--ns`/`--ew` Transfer, so this isolates the
+    /// delayed cue. Only affects the (2♥)/(2♠) advances.
+    #[arg(long, default_value = "false")]
+    delayed_cue: bool,
 }
 
 /// Total HCP of a hand
@@ -173,10 +180,13 @@ fn main() {
     let args = Args::parse();
     let mut rng = rand::rng();
 
+    set_delayed_cue(false);
     set_advance_sohl_style(style_from(&args.ew));
     let baseline = american().against(Family::NATURAL);
+    set_delayed_cue(args.delayed_cue);
     set_advance_sohl_style(style_from(&args.ns));
     let sohl = american().against(Family::NATURAL);
+    set_delayed_cue(false);
 
     // Each board at both tables (sohl NS at A, EW at B), dealer rotating.
     // With `--filter`, deal until `count` boards pass the cheap shape filter.
