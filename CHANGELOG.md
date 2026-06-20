@@ -1048,6 +1048,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Refreshed the Transfer Lebensohl A/B numbers in the 21GF ledger (ledger #80)
+  after the relay/floor/stretch updates above.** Re-measured on the current book
+  (`lebensohl-ab`, 200k filtered/cell, seed 20260620, perfect-defense): `Transfer`
+  vs `off` is now −0.010/−0.022 IMPs/board (−0.103/−0.226/div, none/both), up from
+  −0.048/−0.065; `Transfer` vs `plain` is +0.049/+0.082 board (+0.873/+1.463/div).
+  Documentation only — no code change.
+
 - **Transfer Lebensohl after a takeout double is now the default advance (was
   opt-in `Off`).** After `(2X)–X–(P)` the advancer now carries `Transfer`
   Lebensohl by default — `set_advance_sohl_style`'s default flips from `Off` (the

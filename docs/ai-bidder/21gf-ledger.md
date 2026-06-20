@@ -86,7 +86,7 @@ balancing/reopening, and slam accuracy (missed grands).
 
 | # | Toggle | pons status | decision | A/B | commit |
 |---|--------|-------------|----------|-----|--------|
-| 80 | Lebensohl after 1NT | **shipped** | **`Transfer`** default = Cohen + `(2♦)` `3♣`-Stayman/Smolen/Leaping-Michaels (folded in); `Plain` opt-in (true `Rubensohl` removed 2026-06-20) | **Default `Transfer` vs `off` (PD, 200k filtered, seed 20260620): −0.048/−0.065 board, −0.552/−0.746/div (none/both)** — harness-blind to obstruction, kept anyway (see rationale). | bfe5e59 (plain), bee9204 (transfer) |
+| 80 | Lebensohl after 1NT | **shipped** | **`Transfer`** default = Cohen + `(2♦)` `3♣`-Stayman/Smolen/Leaping-Michaels (folded in); `Plain` opt-in (true `Rubensohl` removed 2026-06-20) | **Default `Transfer` vs `off` (PD, 200k filtered, seed 20260620): −0.010/−0.022 board, −0.103/−0.226/div (none/both)** (19618 div) — re-measured 2026-06-21 after the relay/floor/stretch updates `e234f99..6e8694e` (moved up from −0.048/−0.065); still harness-blind to obstruction, kept anyway (see rationale). `6e8694e`'s `(2♠)`-only opener stretch is outside the `--filter-dh` red-suit window, so it is not captured here. | bfe5e59 (plain), bee9204 (transfer), e234f99, 63af4de, 2a32a89, 6e8694e |
 | 105 | Rubensohl after 1m | floor (Rubens advances) | upgrade (Batch 1) | — | — |
 | 100 | Responsive double | takeout shipped (toggle); overcall-ext opt-in Off | **keep both as-is under PD** | **PD re-measure (`responsive-ab`, 200k filtered/cell, both vs bare floor):** takeout-X-then-raise (= BBA's `Responsive double`, on in 21GF) **−1.18/−1.89/div** (−0.0003/−0.0006 per raw deal, none/both) → kept shipped (drag negligible + DD-blind obstruction, cf. Lebensohl-vs-floor); overcall-ext (non-standard; nearest = Snapdragon, off in 21GF) **−2.16/−3.53/div** (−0.0020/−0.0032 per raw deal) → still rejected (PD does not rescue the old −0.034/−2.37; *worse* vul). Now behind `set_responsive_takeout` (default on) / `set_responsive_overcall` (default off); defaults byte-identical. | (toggles + `responsive-ab`) |
 | 83 | Maximal doubles | gap | add (Batch 1) | — | — |
@@ -103,8 +103,10 @@ spades), the cue is Stayman, and a transfer to a suit above theirs is INV+ so
 opener is **driven to game** (`4M` with a fit, else `3NT`) — the anti-stranding
 rule the user specified. Weak hands keep the plain outlets (natural 2-level,
 `2NT` relay, penalty double). A/B (`lebensohl-ab`, `--ns transfer`, 200k
-boards/cell): **+0.46/+1.24 IMPs/divergent (none/both) vs plain** (the incumbent
-default) and +0.35/+0.05 vs the bare floor — reversing v1's loss. Selected by
+filtered/cell, re-measured 2026-06-21 after `e234f99..6e8694e`): **+0.873/+1.463
+IMPs/divergent (none/both) vs plain** (the incumbent default, +0.049/+0.082
+board) and −0.103/−0.226/div vs the bare floor (the four updates moved both up;
+see row 80) — reversing v1's loss. Selected by
 `LebensohlStyle` (`set_lebensohl_style`); `Transfer` is the default, `Plain` kept
 for the A/B and as a fallback. Unlike the preemptive conventions below, the win
 is mostly *constructive* (reaching the right game / strain), which the
