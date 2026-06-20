@@ -129,11 +129,14 @@ pub(super) fn delayed_cue() -> bool {
 thread_local! {
     /// The weak natural `2♦/2♥/2♠` escape's strength floor as
     /// `(hcp_floor, points_floor)` — one is `0`; `(0, 0)` = no floor (see
-    /// [`set_natural_floor`]). Defaults to a `6`-HCP floor (with opener's
-    /// game-raise), the relay sign-off's treatment one level lower; A/B measured
-    /// it at `+0.012`/`+0.016` IMPs/board (none/both) vs no floor, and `5`-HCP /
-    /// `6`-points variants at a marginal `+0.001` (majors gain, weak `2♦` loses).
-    static NATURAL_FLOOR: Cell<(u8, u8)> = const { Cell::new((6, 0)) };
+    /// [`set_natural_floor`]). Defaults to a **`5`-HCP** floor (with opener's
+    /// game-raise): a floor of any kind beats none by `+0.012`/`+0.016` IMPs/board
+    /// (none/both), and — once `(2♣)` went systems-on, leaving the natural escape
+    /// all *majors* (every one game-raisable, no raise-less minor) — `5` HCP beats
+    /// the relay's `6` by `+2.5`/`+2.3` IMPs/divergent (none/both), all-positive.
+    /// `4` HCP is too loose: the raises turn negative (overbidding). One lower than
+    /// the relay's `6`, matching the 2X sitting one level lower.
+    static NATURAL_FLOOR: Cell<(u8, u8)> = const { Cell::new((5, 0)) };
 }
 
 /// Floor responder's weak natural 2-level escape (for books built *after* this

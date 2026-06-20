@@ -20,17 +20,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   tree (the 2♣ overcall maps to the opponent's pass; a Double maps to the stolen
   2♣). Lebensohl proper now applies only over `(2♦/2♥/2♠)`, the overcalls that
   actually take away room.
-- **Responder's weak natural `2♦/2♥/2♠` escape is now floored at 6 HCP, and opener
+- **Responder's weak natural `2♦/2♥/2♠` escape is now floored at 5 HCP, and opener
   game-raises it** — the relay sign-off's treatment (`lebensohl_relay_shape` +
   `lebensohl_signoff_raise`) extended to the one-level-lower direct escape, since
   they are the same weak 5-card-suit hand. A/B (floored vs unfloored, 300k
   unfiltered, perfect-defense): **+0.012/+0.016 IMPs/board (none/both)**, every
-  mechanism positive — the floor sends sub-6 hands to defend (`resp P`, the largest
+  mechanism positive — the floor sends sub-5 hands to defend (`resp P`, the largest
   share), opener stops overbidding a known-weak signoff (`late P`), and a maximum
-  with a fit reaches game (`4♥/4♠`). Lowering the floor to 5 HCP or to 6 total
-  points was a measured wash (+0.001, the majors gaining roughly what the
-  raise-less minor loses), so 6 HCP — matching the relay — ships. Gated behind
-  `set_natural_floor(hcp_floor, points_floor)` for further A/B.
+  with a fit reaches game (`4♥/4♠`). The level was tuned *after* `(2♣)` went
+  systems-on (below), which leaves the natural escape all *majors* — every one
+  game-raisable, with no raise-less minor: `5` HCP then beats the relay's `6` by
+  +2.5/+2.3 IMPs/divergent (none/both), all-positive, while `4` HCP overbids (the
+  game-raises turn negative). One lower than the relay, matching the 2X sitting one
+  level lower. Gated behind `set_natural_floor(hcp_floor, points_floor)` for A/B.
 
 ### Added
 
