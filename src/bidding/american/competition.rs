@@ -6,9 +6,7 @@
 //! openings, and opener's answer to partner's negative double of a two-level
 //! minor overcall.
 
-use super::super::constraint::{
-    hcp, len, min_level_is, points, stopper_in, support, they_bid, top_honors,
-};
+use super::super::constraint::{hcp, len, min_level_is, points, stopper_in, support, they_bid};
 use super::super::context::Context;
 use super::super::fallback::{Fallback, FirstIs, OvercallAtMost, ReplaceNext, guard};
 use super::super::{Competitive, Rules};
@@ -345,15 +343,15 @@ pub(super) fn lebensohl_responder(over: Suit) -> Rules {
         );
     }
 
-    // 2NT = Lebensohl relay to 3♣: a weak hand with a long suit that is not
+    // 2NT = Lebensohl relay to 3♣: a weak hand with a 5+ suit that is not
     // biddable naturally at the 2 level (long clubs, or a suit below the overcall)
-    // — sign off in 3♣ or correct to the suit (see [`lebensohl_relay_rebid`]).
-    // A relay suit is 6+, or a good 5-carder (two of the top three honors) so a
-    // decent 5-card suit below the overcall can still compete to the 3 level
-    // rather than be stranded — but never *their* suit (a stack there is a penalty
-    // pass). The natural 2-level outranks this relay, so above-the-overcall suits
-    // are still bid naturally; balanced weak hands pass.
-    let relay = |s: Suit| len(s, 6..) | (len(s, 5..) & top_honors(s, 2..));
+    // — sign off in 3♣ or correct to the suit (see [`lebensohl_relay_rebid`]) — so
+    // a 5-card suit below the overcall can still compete to the 3 level rather than
+    // be stranded. Never *their* suit (a stack there is a penalty pass). The
+    // natural 2-level outranks this relay, so above-the-overcall suits are still
+    // bid naturally; balanced weak hands pass. (Gating on a *good* 5-carder, two
+    // of the top three honors, measured worse on DD — any 5-card suit is better.)
+    let relay = |s: Suit| len(s, 5..);
     let long_suit = match over {
         Suit::Clubs => relay(Suit::Diamonds) | relay(Suit::Hearts) | relay(Suit::Spades),
         Suit::Diamonds => relay(Suit::Clubs) | relay(Suit::Hearts) | relay(Suit::Spades),
@@ -384,7 +382,7 @@ pub(super) fn lebensohl_relay_rebid(over: Suit) -> Rules {
         rules = rules.rule(
             Bid::new(3, strain),
             1.0,
-            min_level_is(3, strain) & (len(s, 6..) | (len(s, 5..) & top_honors(s, 2..))),
+            min_level_is(3, strain) & len(s, 5..),
         );
     }
     // Stopper-split on: the *delayed* cue of their suit — Stayman with a stopper,
@@ -530,10 +528,10 @@ pub(super) fn transfer_lebensohl_responder(over: Suit) -> Rules {
         );
     }
 
-    // 2NT = Lebensohl relay to 3♣: a weak long-suit hand (sign off or correct).
-    // A relay suit is 6+ or a good 5-carder (two of the top three honors), but
-    // never their suit — same as plain Lebensohl (see [`lebensohl_responder`]).
-    let relay = |s: Suit| len(s, 6..) | (len(s, 5..) & top_honors(s, 2..));
+    // 2NT = Lebensohl relay to 3♣: a weak hand with a 5+ suit (sign off or
+    // correct), but never their suit — same as plain Lebensohl (see
+    // [`lebensohl_responder`]).
+    let relay = |s: Suit| len(s, 5..);
     let long_suit = match over {
         Suit::Clubs => relay(Suit::Diamonds) | relay(Suit::Hearts) | relay(Suit::Spades),
         Suit::Diamonds => relay(Suit::Clubs) | relay(Suit::Hearts) | relay(Suit::Spades),
@@ -699,8 +697,8 @@ pub(super) fn transfer_stayman_2d_responder() -> Rules {
             min_level_is(2, strain) & len(s, 5..) & points(..=8),
         );
     }
-    // Relay suit: 6+ or a good 5-carder, never their diamonds (see above).
-    let relay = |s: Suit| len(s, 6..) | (len(s, 5..) & top_honors(s, 2..));
+    // Relay suit: any 5+ suit, never their diamonds (see above).
+    let relay = |s: Suit| len(s, 5..);
     let long_suit = relay(Suit::Clubs) | relay(Suit::Hearts) | relay(Suit::Spades);
     rules = rules.rule(Bid::new(2, Strain::Notrump), 1.35, points(..=8) & long_suit);
 
@@ -1258,8 +1256,8 @@ mod tests {
     }
 
     #[test]
-    fn lebensohl_good_five_relays_then_signs_off_at_the_three_level() {
-        // Weak hand, a good 5-card heart suit it cannot show at the 2 level (below
+    fn lebensohl_five_card_suit_relays_then_signs_off_at_the_three_level() {
+        // Weak hand, a 5-card heart suit it cannot show at the 2 level (below
         // their 2♠): relay 2NT, then correct 3♣→3♥ as a 3-level sign-off.
         let responder = [call(1, Strain::Notrump), call(2, Strain::Spades)];
         let (c, floored) = bid(&responder, "32.KQJ32.432.432");

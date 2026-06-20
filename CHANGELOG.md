@@ -16,12 +16,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   own (the cue outranks a direct `3NT`, so a 4-4 major fit is found even with a
   stopper); opener answers it via the existing cue-Stayman machinery. Previously
   such hands could only bid `3NT`, never finding the major fit. The weak `2NT`
-  relay now also admits a *good* 5-card suit (two of the top three honors) below
-  the overcall — relay then correct `3♣`→`3M` as a 3-level sign-off — instead of
-  requiring 6+; and a stack in *their* suit no longer wrongly relays (it is a
-  penalty pass). The good-5 relay (and the their-suit exclusion) applies to
-  **both** Plain and Transfer Lebensohl; the new cue is Plain-only (Transfer
-  already cues). *(Note: advancing
+  relay now also admits **any** 5-card suit below the overcall — relay then
+  correct `3♣`→`3M` as a 3-level sign-off — instead of requiring 6+; and a stack
+  in *their* suit no longer wrongly relays (it is a penalty pass). The 5-card
+  relay (and the their-suit exclusion) applies to **both** Plain and Transfer
+  Lebensohl; the new cue is Plain-only (Transfer already cues). A/B
+  (lebensohl-ab, 100k filtered, vs floor) found admitting *any* 5-card suit beats
+  gating on a *good* one (two of the top three honors) by +0.010 to +0.022
+  IMPs/board — more relaying competes better, even on double dummy. *(Note: advancing
   a takeout double reuses the Plain responder table, so the advancer can now bid
   the cue, but the doubler's reply there is still floored — the point/shape
   re-tuning for the lighter, shapier double is deferred to a future session.)*
