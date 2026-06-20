@@ -32,7 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     opt-in, not default.** Stopper hands reach the same contract fast or slow, and
     the real value of showing a stopper (concealment, right-siding the notrump) is
     single-dummy, which the double-dummy / perfect-defense measure looks through —
-    the same wall that sank the reverted `TransferSmolen` and the opt-in `Rubensohl`.
+    the same wall that sank the reverted `TransferSmolen` and the removed `Rubensohl`.
 
 - **Transfer Lebensohl now plays a richer structure over a `(2♦)` overcall of our
   `1NT` (ledger #80); behavior over `(2♥)`/`(2♠)`/`(2♣)` is unchanged.** When an
@@ -45,7 +45,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   byte-identical to bare Cohen. This `(2♦)` package is part of the default
   [`LebensohlStyle::Transfer`][pons::bidding::american::LebensohlStyle]
   ([`set_lebensohl_style`][pons::bidding::american::set_lebensohl_style]); `Plain`
-  and `Rubensohl` remain opt-in. A/B of the package vs bare Cohen-over-`(2♦)`
+  remains opt-in. A/B of the package vs bare Cohen-over-`(2♦)`
   (`examples/lebensohl-ab`, perfect-defense `ns_score`, 200k filtered boards/cell):
   **+0.020/+0.024 IMPs/board, +2.286/+2.822 IMPs/divergent (none/both)** — a clean
   win that reverses an earlier, reverted standard-Stayman+Smolen hybrid
@@ -90,28 +90,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   negative under perfect defense). **The `american()` default is byte-identical to
   before** (takeout on, overcall off).
 
-- **`LebensohlStyle::Rubensohl` — true Rubensohl as an opt-in over our overcalled
-  `1NT`.** A fourth [`LebensohlStyle`][pons::bidding::american::LebensohlStyle]
-  alongside `Off`/`Plain`/`Transfer`: `2NT` is an artificial **club** transfer and
-  any transfer to a suit *below* the overcall is two-way (weak signs off, strong
-  continues), while transfers *above* stay INV+ and the cue is Stayman — identical
-  to the default `Transfer` Lebensohl elsewhere. Re-authored to answer "does the new
-  perfect-defense scoring change the 2NT-role verdict?": it does not — `Rubensohl`
-  vs `Transfer` measures **+0.001/−0.023 IMPs/board (none/both, 200k boards each)**,
-  neutral non-vul and a clear loss vul, matching the earlier DD result
-  (−0.017/−0.046). Its only edge over `Transfer` is right-siding, which the
-  double-dummy / perfect-defense measure cannot see. **The default is unchanged
-  (`Transfer`)**; the variant is kept opt-in (`set_lebensohl_style`, and
-  `examples/lebensohl-ab --ns rubensohl`) for a future single-dummy re-measure.
-- **True `Rubensohl` wired into the takeout-double advance too.**
-  `set_advance_sohl_style(LebensohlStyle::Rubensohl)` now carries the artificial
-  `2NT` club transfer + two-way low transfers after `(2X)–X–(P)`, completing the
-  four-style set there (`Off`/`Plain`/`Transfer`/`Rubensohl`); it is a verbatim
-  mirror of the 1NT-context wiring and exposed as `examples/sohl-after-double-ab
-  --ns rubensohl`. Measured (perfect defense, 200k filtered/cell): vs the flat
-  ladder **+0.140 / +0.212 IMPs/board**, but head-to-head **`Rubensohl` vs the new
-  `Transfer` default −0.007 / −0.037 IMPs/board** (only ~2.5% divergent) — no gain,
-  so it stays opt-in (same DD-blind-right-siding finding as the 1NT context).
 - **The advancer after a takeout double of a weak `(2♦)` now plays Transfer's `(2♦)`
   Smolen package (ledger #80).** After `(2♦)–X–(P)`, the default
   [`set_advance_sohl_style(LebensohlStyle::Transfer)`][pons::bidding::american::set_advance_sohl_style]
@@ -126,7 +104,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   right-siding (which it cannot see). With the package now winning in **both**
   contexts, the experimental `TransferSmolen` style is folded into `Transfer` (it
   never shipped as a separate variant): `Transfer` *is* Cohen-plus-Smolen-over-`(2♦)`,
-  so the styles are again `Off`/`Plain`/`Transfer`/`Rubensohl`.
+  so the styles are again `Off`/`Plain`/`Transfer`.
 - **Search at every authored leaf (AI-bidder M7.0) — `american_search_book`.**
   A new gated bidder, [`SearchBook`][pons::bidding::search_floor::SearchBook] /
   [`american_search_book`], that prices **authored book leaves by double-dummy
@@ -1201,6 +1179,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+- **True Rubensohl (`LebensohlStyle::Rubensohl`).** The `2NT`-club-transfer /
+  two-way-low-transfer variant of Lebensohl — added earlier this cycle as an opt-in
+  fourth style — is removed, along with `rubensohl_responder`,
+  `complete_two_way_transfer`, `two_way_transfer_rebid`, and their wiring in both the
+  overcalled-`1NT` and takeout-double-advance contexts. It never measured a win
+  (its only edge over the default `Transfer` is DD-blind right-siding:
+  `+0.001/−0.023 IMPs/board` head-to-head, neutral non-vul / a loss vul), and the
+  `Transfer` refinements that prompted a fresh look (top-step clubs transfer, delayed
+  cue, `(2♦)` Smolen) don't port onto it — its transfer machinery consumes the very
+  seams those refinements use. The remaining styles are `Off`/`Plain`/`Transfer`;
+  the default and `american()` are unchanged. The `--ns rubensohl` / `--ew rubensohl`
+  options on `lebensohl-ab` and `sohl-after-double-ab` are gone.
 - **The strawberry 2/1 variant (`american_strawberry`,
   `bare_american_strawberry`) and its three convention modules.** This was a
   `NATURAL`-family 2/1 with a few polish.club conventions layered on — Strawberry

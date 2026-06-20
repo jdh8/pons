@@ -50,11 +50,11 @@ struct Args {
     #[arg(short, long, default_value = "none")]
     vulnerability: AbsoluteVulnerability,
 
-    /// Lebensohl style, measured (NS) pair: off/plain/transfer/rubensohl
+    /// Lebensohl style, measured (NS) pair: off/plain/transfer
     #[arg(long, default_value = "transfer")]
     ns: String,
 
-    /// Lebensohl style, baseline (EW) pair: off/plain/transfer/rubensohl
+    /// Lebensohl style, baseline (EW) pair: off/plain/transfer
     #[arg(long, default_value = "plain")]
     ew: String,
 
@@ -131,11 +131,10 @@ fn style_from(name: &str) -> LebensohlStyle {
         "off" => LebensohlStyle::Off,
         "plain" => LebensohlStyle::Plain,
         "transfer" => LebensohlStyle::Transfer,
-        "rubensohl" => LebensohlStyle::Rubensohl,
         other => {
             panic!(
                 "unknown lebensohl style {other:?} \
-                 (use off / plain / transfer / rubensohl)"
+                 (use off / plain / transfer)"
             )
         }
     }

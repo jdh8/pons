@@ -5,14 +5,13 @@
 //! long-suit hand and a constructive hand both bid the same cheapest call, so the
 //! doubler can't tell when to move). The **sohl** package separates them: weak
 //! hands relay through `2NT` to a `3♣` sign-off (or correct), while constructive
-//! hands bid a forcing 3-level suit (`plain`), transfer up the line through the
-//! adverse suit with the cue as Stayman (`transfer`), or transfer two-way with an
-//! artificial `2NT` club transfer (`rubensohl`) — so a game is found, not
+//! hands bid a forcing 3-level suit (`plain`) or transfer up the line through the
+//! adverse suit with the cue as Stayman (`transfer`) — so a game is found, not
 //! stranded.
 //!
 //! Both arms run the same 2/1 system; the only difference is the
 //! [`LebensohlStyle`] each pair carries for the advance of a takeout double
-//! (`--ns` / `--ew`: off / plain / transfer / rubensohl), read once at book-construction
+//! (`--ns` / `--ew`: off / plain / transfer), read once at book-construction
 //! time via [`set_advance_sohl_style`]. The convention only fires when the
 //! *opponents* open a weak two and our side doubles, so — like `lebensohl-ab` —
 //! the opponents must bid. This uses the contested seat-swap duplicate match
@@ -29,8 +28,6 @@
 //! cargo run --release --example sohl-after-double-ab -- --count 200000 --filter --ns plain
 //! # Transfer vs plain (which sohl is best):
 //! cargo run --release --example sohl-after-double-ab -- --count 200000 --filter --ns transfer --ew plain
-//! # True Rubensohl (2NT = club transfer, two-way low transfers) vs the floor:
-//! cargo run --release --example sohl-after-double-ab -- --count 200000 --filter --ns rubensohl
 //! ```
 
 use clap::Parser;
@@ -56,11 +53,11 @@ struct Args {
     #[arg(short, long, default_value = "none")]
     vulnerability: AbsoluteVulnerability,
 
-    /// Sohl style for the measured (NS) pair: off, plain, transfer, rubensohl
+    /// Sohl style for the measured (NS) pair: off, plain, transfer
     #[arg(long, default_value = "transfer")]
     ns: String,
 
-    /// Sohl style for the baseline (EW) pair: off, plain, transfer, rubensohl
+    /// Sohl style for the baseline (EW) pair: off, plain, transfer
     #[arg(long, default_value = "off")]
     ew: String,
 
@@ -111,14 +108,13 @@ fn could_reach_weak_two_double(deal: &FullDeal) -> bool {
     })
 }
 
-/// Parse a sohl style name (off / plain / transfer / rubensohl)
+/// Parse a sohl style name (off / plain / transfer)
 fn style_from(name: &str) -> LebensohlStyle {
     match name {
         "off" => LebensohlStyle::Off,
         "plain" => LebensohlStyle::Plain,
         "transfer" => LebensohlStyle::Transfer,
-        "rubensohl" => LebensohlStyle::Rubensohl,
-        other => panic!("unknown sohl style {other:?} (use off / plain / transfer / rubensohl)"),
+        other => panic!("unknown sohl style {other:?} (use off / plain / transfer)"),
     }
 }
 

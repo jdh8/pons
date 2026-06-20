@@ -86,7 +86,7 @@ balancing/reopening, and slam accuracy (missed grands).
 
 | # | Toggle | pons status | decision | A/B | commit |
 |---|--------|-------------|----------|-----|--------|
-| 80 | Lebensohl after 1NT | **shipped** | **`Transfer`** default = Cohen + `(2♦)` `3♣`-Stayman/Smolen/Leaping-Michaels (folded in); `Plain`/`Rubensohl` opt-in | **Default `Transfer` vs `off` (PD, 200k filtered, seed 20260620): −0.048/−0.065 board, −0.552/−0.746/div (none/both)** — harness-blind to obstruction, kept anyway (see rationale). | bfe5e59 (plain), bee9204 (transfer) |
+| 80 | Lebensohl after 1NT | **shipped** | **`Transfer`** default = Cohen + `(2♦)` `3♣`-Stayman/Smolen/Leaping-Michaels (folded in); `Plain` opt-in (true `Rubensohl` removed 2026-06-20) | **Default `Transfer` vs `off` (PD, 200k filtered, seed 20260620): −0.048/−0.065 board, −0.552/−0.746/div (none/both)** — harness-blind to obstruction, kept anyway (see rationale). | bfe5e59 (plain), bee9204 (transfer) |
 | 105 | Rubensohl after 1m | floor (Rubens advances) | upgrade (Batch 1) | — | — |
 | 100 | Responsive double | takeout shipped (toggle); overcall-ext opt-in Off | **keep both as-is under PD** | **PD re-measure (`responsive-ab`, 200k filtered/cell, both vs bare floor):** takeout-X-then-raise (= BBA's `Responsive double`, on in 21GF) **−1.18/−1.89/div** (−0.0003/−0.0006 per raw deal, none/both) → kept shipped (drag negligible + DD-blind obstruction, cf. Lebensohl-vs-floor); overcall-ext (non-standard; nearest = Snapdragon, off in 21GF) **−2.16/−3.53/div** (−0.0020/−0.0032 per raw deal) → still rejected (PD does not rescue the old −0.034/−2.37; *worse* vul). Now behind `set_responsive_takeout` (default on) / `set_responsive_overcall` (default off); defaults byte-identical. | (toggles + `responsive-ab`) |
 | 83 | Maximal doubles | gap | add (Batch 1) | — | — |
@@ -196,10 +196,20 @@ contracts; it does not let the harness see *who declares*, so it cannot reward
 Rubensohl's right-siding edge — the verdict is unchanged. Per the user's gating
 ("if the cheap probe stays neutral/negative the full standard ladder won't rescue
 it, since its extra structure — Smolen, transfer-into-suit, 3♠-minors — is all
-right-siding"), the full standard ledger was **not** authored. The variant is kept
-as `LebensohlStyle::Rubensohl` (opt-in via `set_lebensohl_style`; the default stays
-`Transfer`) for a future single-dummy / live-search re-measure that can see
-right-siding (e.g. `lebensohl-ab --ns rubensohl --ew transfer`).
+right-siding"), the full standard ledger was **not** authored. The variant was kept
+as `LebensohlStyle::Rubensohl` (opt-in via `set_lebensohl_style`; the default stayed
+`Transfer`) for a future single-dummy / live-search re-measure that could see
+right-siding.
+
+**REMOVED (2026-06-20).** True Rubensohl was deleted — `LebensohlStyle::Rubensohl`,
+`rubensohl_responder`, `complete_two_way_transfer`, `two_way_transfer_rebid`, and
+their dispatch in the `1NT`-overcall and after-double contexts. jdh8 judged it
+inferior: its only edge is DD-blind right-siding (never measured a win), and he
+prefers the Smolen+LM-over-minors / Cohen-over-majors split that `Transfer` already
+carries. The refinements that motivated this revisit (top-step clubs transfer,
+delayed cue, `(2♦)` Smolen) don't port to Rubensohl anyway — its `2NT`-club-transfer
+and two-way machinery consume the very seams those refinements exploit. Only three
+styles remain: `Off`/`Plain`/`Transfer`.
 
 **Jordan/Truscott (71) — tried and rejected (DD-negative).** Authored
 `1M–(X)–2NT` = limit-raise-or-better + `3M` = preemptive, with opener's decline
@@ -230,7 +240,7 @@ under a single-dummy / IMPs-vs-humans measure where preemption actually pays.
 | 123 | Two-suit takeout double | gap | add (Batch 1) | — | — |
 | 129 | Unusual 4NT | verify | — | — | — |
 | 48 | Cue bid | partial | verify | — | — |
-| 106 | **Rubensohl after double** (advancer, weak twos) | **shipped, `Transfer` default ON**; true `Rubensohl` opt-in | `Transfer` default = Cohen + `(2♦)` Smolen (folded in); true `Rubensohl` opt-in | **Default `Transfer` vs `off` (PD, 200k filtered, seed 20260620): +0.155/+0.256 board, +1.579/+2.608/div (none/both)** — the current default, incl. the `(2♦)` Smolen package. | (this commit) (`set_advance_sohl_style`) |
+| 106 | **Sohl after double** (advancer, weak twos) | **shipped, `Transfer` default ON** (true `Rubensohl` removed 2026-06-20) | `Transfer` default = Cohen + `(2♦)` Smolen (folded in) | **Default `Transfer` vs `off` (PD, 200k filtered, seed 20260620): +0.155/+0.256 board, +1.579/+2.608/div (none/both)** — the current default, incl. the `(2♦)` Smolen package. | (this commit) (`set_advance_sohl_style`) |
 | 82 | **Lebensohl after double** (advancer, weak twos; = `Plain`) | measured; opt-in, dominated | `Transfer` (#106) is the default; `Plain` positive but worse | **PD re-measure: Plain vs off FLIPS to +0.089/+0.139/board (200k filtered) — DD-positive (was −0.108/−0.050 optimistic), but dominated by `Transfer` (+0.145/+0.227).** Kept as the `Plain` opt-in / A/B arm. | a6e7ab9 |
 
 **Lebensohl after a takeout double (advancer over a weak two) — measured;
@@ -284,7 +294,8 @@ diamond-only, ~0.8% divergence). Head-to-head vs the plain-Cohen advance
 vulnerability (reaching better contracts, not right-siding). Winning in **both**
 contexts, the experimental `TransferSmolen` style was renamed to `Transfer` and
 dropped: `Transfer` *is* Cohen-plus-Smolen-over-`(2♦)` everywhere, styles back to
-`Off`/`Plain`/`Transfer`/`Rubensohl`. The current default `Transfer` (incl. Smolen)
+`Off`/`Plain`/`Transfer`/`Rubensohl` (true `Rubensohl` later removed 2026-06-20;
+styles are now `Off`/`Plain`/`Transfer`). The current default `Transfer` (incl. Smolen)
 vs the floor re-measures **+0.146/+0.249 board** (was +0.145/+0.227 pre-Smolen;
 both-vul lifts as the package finds vulnerable games).
 

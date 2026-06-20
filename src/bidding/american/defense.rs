@@ -14,12 +14,11 @@ use super::super::constraint::{
 use super::super::context::Context;
 use super::super::{Defensive, Rules};
 use super::competition::{
-    LebensohlStyle, clubs_transfer_completion, complete_lebensohl_relay, complete_two_way_transfer,
-    cue_stayman_answer, cue_stayman_answer_no_stopper, delayed_cue, lebensohl_relay_rebid,
-    lebensohl_responder, lm_2d_both_majors_advance, lm_2d_clubs_ask, lm_2d_clubs_major,
-    rubensohl_responder, stayman_2d_answer, stayman_2d_fit_rebid, transfer_completion,
-    transfer_lebensohl_responder, transfer_stayman_2d_responder, transfer_target,
-    two_way_transfer_rebid,
+    LebensohlStyle, clubs_transfer_completion, complete_lebensohl_relay, cue_stayman_answer,
+    cue_stayman_answer_no_stopper, delayed_cue, lebensohl_relay_rebid, lebensohl_responder,
+    lm_2d_both_majors_advance, lm_2d_clubs_ask, lm_2d_clubs_major, stayman_2d_answer,
+    stayman_2d_fit_rebid, transfer_completion, transfer_lebensohl_responder,
+    transfer_stayman_2d_responder, transfer_target,
 };
 use super::notrump::{smolen_at_three, smolen_completion};
 use super::{call, insert_all_seats};
@@ -44,15 +43,12 @@ thread_local! {
 /// Reuses [`LebensohlStyle`]: `Off` keeps the flat [`advance_double`] ladder;
 /// `Plain` adds the weak `2NT` relay vs a forcing 3-level suit; `Transfer` (the
 /// **default**) adds Larry Cohen's transfers-through + cue-Stayman, plus, over
-/// `(2♦)`, `3♣`-Stayman + Smolen + Leaping Michaels; `Rubensohl`
-/// makes `2NT` an artificial club transfer and the low transfers two-way (the cue
-/// and the high transfers stay as `Transfer`). The geometry matches Lebensohl
+/// `(2♦)`, `3♣`-Stayman + Smolen + Leaping Michaels. The geometry matches Lebensohl
 /// after our overcalled `1NT` (the opponents' suit is at the two level in both),
 /// so the Section-5 builders are reused verbatim under the `(2X)–X–(P)` prefix.
 /// `Transfer` is the default because it is a clear perfect-defense win over the
-/// flat ladder (+0.145/+0.227 IMPs/board none/both, 200k filtered); `Rubensohl`
-/// adds nothing on top (it loses the head-to-head, its edge being DD-blind
-/// right-siding). See `docs/ai-bidder/21gf-ledger.md` for the full A/B numbers.
+/// flat ladder (+0.145/+0.227 IMPs/board none/both, 200k filtered).
+/// See `docs/ai-bidder/21gf-ledger.md` for the full A/B numbers.
 pub fn set_advance_sohl_style(style: LebensohlStyle) {
     ADVANCE_SOHL.with(|cell| cell.set(style));
 }
@@ -387,13 +383,11 @@ pub fn advance_double(their_opening: Bid) -> Rules {
 /// Insert the advancer's actions after partner's takeout double of weak-two
 /// `opening` (in `suit`), honoring the selected [`set_advance_sohl_style`]
 ///
-/// `Off` keeps the flat [`advance_double`] ladder.  `Plain`/`Transfer`/`Rubensohl`
+/// `Off` keeps the flat [`advance_double`] ladder.  `Plain`/`Transfer`
 /// shadow it with the reused Section-5 sohl builders under the `[2X, X, P]`
-/// prefix — the `2NT` relay/club-transfer (and, for `Transfer`/`Rubensohl`, the
-/// transfers + cue-Stayman) — plus the doubler's continuations (relay completion,
-/// the rebid after `3♣`, and the transfer / cue answers).  Under `Rubensohl` the
-/// `2NT→3♣` node is a two-way club transfer and the low transfers are two-way; the
-/// cue and high transfers match `Transfer`.  Over `(2♦)`, `Transfer` additionally
+/// prefix — the `2NT` relay (and, for `Transfer`, the transfers + cue-Stayman) —
+/// plus the doubler's continuations (relay completion, the rebid after `3♣`, and
+/// the transfer / cue answers).  Over `(2♦)`, `Transfer` additionally
 /// plays `3♣`-Stayman + Smolen + Leaping Michaels.  A forcing 3-level suit (`Plain`) or a
 /// constructive advance is driven on by the instinct floor, which already
 /// handles forced-to-game auctions.
@@ -409,13 +403,11 @@ fn insert_advance_of_double(d: &mut Defensive, suit: Suit, opening: Bid, style: 
     let advancer = match style {
         LebensohlStyle::Transfer if suit == Suit::Diamonds => transfer_stayman_2d_responder(),
         LebensohlStyle::Transfer => transfer_lebensohl_responder(suit),
-        LebensohlStyle::Rubensohl => rubensohl_responder(suit),
         _ => lebensohl_responder(suit),
     };
     insert_all_seats(d, &dbl_p, 3, advancer);
 
-    // Doubler completes the 2NT relay/club-transfer with a forced 3♣; advancer
-    // then signs off (Plain/Transfer) or shows strength (Rubensohl two-way).
+    // Doubler completes the 2NT relay with a forced 3♣; advancer then signs off.
     let two_nt = call(2, Strain::Notrump);
     let three_clubs = call(3, Strain::Clubs);
     insert_all_seats(
@@ -430,10 +422,6 @@ fn insert_advance_of_double(d: &mut Defensive, suit: Suit, opening: Bid, style: 
         3,
         complete_lebensohl_relay(),
     );
-    let relay_rebid = match style {
-        LebensohlStyle::Rubensohl => two_way_transfer_rebid(Suit::Clubs, suit),
-        _ => lebensohl_relay_rebid(suit),
-    };
     insert_all_seats(
         d,
         &[
@@ -446,7 +434,7 @@ fn insert_advance_of_double(d: &mut Defensive, suit: Suit, opening: Bid, style: 
             Call::Pass,
         ],
         3,
-        relay_rebid,
+        lebensohl_relay_rebid(suit),
     );
 
     // Transfer style: the doubler answers each 3-level transfer / cue. Over (2♦)
@@ -507,48 +495,6 @@ fn insert_advance_of_double(d: &mut Defensive, suit: Suit, opening: Bid, style: 
                 3,
                 cue_stayman_answer(suit),
             );
-        }
-    }
-
-    // Rubensohl style: cue is Stayman; a transfer below the overcall is two-way
-    // (doubler completes at the 3 level, advancer's rebid shows strength); a
-    // transfer above is INV+ and auto-driven — mirroring the 1NT-context wiring.
-    if style == LebensohlStyle::Rubensohl {
-        for bid_suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
-            let resp = call(3, Strain::from(bid_suit));
-            let resp_prefix = [
-                Call::Bid(opening),
-                Call::Double,
-                Call::Pass,
-                resp,
-                Call::Pass,
-            ];
-            if bid_suit == suit {
-                insert_all_seats(d, &resp_prefix, 3, cue_stayman_answer(suit));
-            } else if let Some(target) = transfer_target(bid_suit, suit) {
-                if (target as u8) < (suit as u8) {
-                    // Two-way: doubler completes 3-of-target, then advancer rebids.
-                    let completed = call(3, Strain::from(target));
-                    insert_all_seats(d, &resp_prefix, 3, complete_two_way_transfer(target));
-                    insert_all_seats(
-                        d,
-                        &[
-                            Call::Bid(opening),
-                            Call::Double,
-                            Call::Pass,
-                            resp,
-                            Call::Pass,
-                            completed,
-                            Call::Pass,
-                        ],
-                        3,
-                        two_way_transfer_rebid(target, suit),
-                    );
-                } else {
-                    // INV+ transfer above the overcall — doubler auto-drives.
-                    insert_all_seats(d, &resp_prefix, 3, transfer_completion(target, suit));
-                }
-            }
         }
     }
 
@@ -1052,31 +998,6 @@ mod tests {
         let (c, floored) = advance(LebensohlStyle::Transfer, &auction, "AQ32.K32.4.KJ432");
         assert_eq!(c, call(3, Strain::Spades));
         assert!(!floored, "the Stayman answer must come from the book");
-    }
-
-    #[test]
-    fn rubensohl_2nt_is_a_club_transfer() {
-        // Rubensohl: over (2♠), a weak six-club hand starts with the artificial
-        // 2NT club transfer — a book node, not the floor's natural call.
-        let over_2s = [call(2, Strain::Spades), Call::Double, Call::Pass];
-        let (c, floored) = advance(LebensohlStyle::Rubensohl, &over_2s, "32.43.32.KQ9876");
-        assert_eq!(c, call(2, Strain::Notrump));
-        assert!(!floored, "the club transfer must come from the book");
-
-        // The doubler completes with a forced 3♣; the weak advancer then passes
-        // (the two-way rebid node, not the floor).
-        let completed = [
-            call(2, Strain::Spades),
-            Call::Double,
-            Call::Pass,
-            call(2, Strain::Notrump),
-            Call::Pass,
-            call(3, Strain::Clubs),
-            Call::Pass,
-        ];
-        let (rebid, floored) = advance(LebensohlStyle::Rubensohl, &completed, "32.43.32.KQ9876");
-        assert_eq!(rebid, Call::Pass);
-        assert!(!floored, "the weak sign-off must come from the book node");
     }
 
     #[test]
