@@ -934,8 +934,8 @@ mod tests {
 
     #[test]
     fn plain_weak_long_suit_relays_then_completes() {
-        // Plain: weak hand, six clubs → 2NT relay; the doubler is forced to 3♣.
-        let (c, floored) = advance(LebensohlStyle::Plain, &over_2d(), "32.43.32.KQ9876");
+        // Plain: weak hand (6 HCP), six clubs → 2NT relay; doubler forced to 3♣.
+        let (c, floored) = advance(LebensohlStyle::Plain, &over_2d(), "J2.43.32.KQ9876");
         assert_eq!(c, call(2, Strain::Notrump));
         assert!(!floored, "the relay must come from the book");
 

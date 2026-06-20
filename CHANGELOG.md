@@ -16,17 +16,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   own (the cue outranks a direct `3NT`, so a 4-4 major fit is found even with a
   stopper); opener answers it via the existing cue-Stayman machinery. Previously
   such hands could only bid `3NT`, never finding the major fit. The weak `2NT`
-  relay now also admits **any** 5-card suit below the overcall — relay then
-  correct `3♣`→`3M` as a 3-level sign-off — instead of requiring 6+; and a stack
-  in *their* suit no longer wrongly relays (it is a penalty pass). The 5-card
-  relay (and the their-suit exclusion) applies to **both** Plain and Transfer
-  Lebensohl; the new cue is Plain-only (Transfer already cues). A/B
-  (lebensohl-ab, 100k filtered, vs floor) found admitting *any* 5-card suit beats
-  gating on a *good* one (two of the top three honors) by +0.010 to +0.022
-  IMPs/board — more relaying competes better, even on double dummy. *(Note: advancing
-  a takeout double reuses the Plain responder table, so the advancer can now bid
-  the cue, but the doubler's reply there is still floored — the point/shape
-  re-tuning for the lighter, shapier double is deferred to a future session.)*
+  relay now also admits a 5-card suit below the overcall — relay then correct
+  `3♣`→`3M` as a 3-level sign-off — instead of requiring 6+, **gated by a 6+ HCP
+  floor**; and a stack in *their* suit no longer wrongly relays (it is a penalty
+  pass). The 5-card relay, the HCP floor, and the their-suit exclusion apply to
+  **both** Plain and Transfer Lebensohl; the new cue is Plain-only (Transfer
+  already cues). The 6-HCP floor is **PD-distilled**: a perfect-defense gate
+  (`lebensohl-ab --pd-relay`, double-dummy comparing relay vs defend per board)
+  beats blanket all-5-card relaying by +0.023 to +0.032 IMPs/board, and a plain
+  `hcp(6..)` floor — adverse-suit values were *not* predictive; overall weakness
+  is the driver — recovers ~60–80% of that gain with zero runtime cost (pushing a
+  near-bust to the 3 level loses on DD even with a 6-card suit). A/B steps
+  (lebensohl-ab, vs floor): any-5 beats good-5 (two top-three honors) by +0.010
+  to +0.022, then the HCP floor adds the PD gain on top. *(Note: advancing a
+  takeout double reuses the Plain responder table, so the advancer can now bid the
+  cue, but the doubler's reply there is still floored — the point/shape re-tuning
+  for the lighter, shapier double is deferred to a future session.)*
 
 - **Transfer Lebensohl now *recognizes* a partner's delayed cue, and can
   optionally bid it (ledger #106).** Larry Cohen's stopper-split cue: a *delayed*

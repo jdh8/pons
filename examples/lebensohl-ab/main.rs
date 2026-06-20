@@ -33,7 +33,8 @@ use contract_bridge::{AbsoluteVulnerability, Bid, FullDeal, Hand, Seat, Strain, 
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
 use pons::bidding::american::{LebensohlStyle, set_lebensohl_style};
-use pons::bidding::context::relative;
+use pons::bidding::context::{Context, relative};
+use pons::bidding::ev::ev_all;
 use pons::bidding::{Family, Stance, System};
 use pons::scoring::{final_contract, imps, ns_score};
 use rand::SeedableRng;
@@ -74,6 +75,88 @@ struct Args {
     /// (`1NT (2♦/2♥) 3♠` or `1NT (2♠) 3♥`) — the boards the top-step fix changed.
     #[arg(long, default_value = "false")]
     only_topstep: bool,
+
+    /// PD-gate the measured (NS) pair's 5-card 2NT relay: at the responder's
+    /// `1NT–(2X)` node, when the book would relay (`2NT`), double-dummy compare
+    /// relaying vs defending (`Pass`) over sampled layouts and take the higher EV.
+    /// "Relay only when our 3-level line out-scores defending their contract."
+    /// Slow (one ev_all per relay decision), so pair with a small `--count`.
+    #[arg(long, default_value = "false")]
+    pd_relay: bool,
+
+    /// Sampled layouts per PD-relay decision (the ev_all budget).
+    #[arg(long, default_value = "64")]
+    pd_layouts: usize,
+
+    /// Log each PD-relay decision to stderr (over-suit defensive features + the
+    /// relay/defend verdict + EVs) — the data for distilling a static heuristic.
+    #[arg(long, default_value = "false")]
+    log_relay: bool,
+}
+
+/// The opponents' 2-level overcall suit when the auction is at the responder's
+/// Lebensohl node (the last two calls are our `1NT` then a 2-level suit overcall)
+fn relay_node_over(auction: &[Call]) -> Option<Suit> {
+    let n = auction.len();
+    if n < 2 || auction[n - 2] != Call::Bid(Bid::new(1, Strain::Notrump)) {
+        return None;
+    }
+    [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades]
+        .into_iter()
+        .find(|&s| auction[n - 1] == Call::Bid(Bid::new(2, Strain::from(s))))
+}
+
+/// The NS pair's call, PD-gating the 2NT relay when `--pd-relay` is set
+///
+/// Identical to [`next_call`] except: when the book's choice is the Lebensohl
+/// `2NT` relay at the responder node, sample layouts and double-dummy compare
+/// relaying against defending (`Pass`), taking the higher-EV call. This is the
+/// "relay only when competing beats defending" judgment a static suit-quality
+/// gate cannot make (it needs the full deal + vulnerability).
+#[allow(clippy::too_many_arguments)]
+fn next_call_ns(
+    stance: &Stance,
+    hand: Hand,
+    dealer: Seat,
+    vul: AbsoluteVulnerability,
+    auction: &Auction,
+    pd_relay: bool,
+    pd_layouts: usize,
+    log_relay: bool,
+    seed: u64,
+) -> Call {
+    let base = next_call(stance, hand, dealer, vul, auction);
+    let two_nt = Call::Bid(Bid::new(2, Strain::Notrump));
+    if !pd_relay || base != two_nt {
+        return base;
+    }
+    let Some(over) = relay_node_over(auction) else {
+        return base;
+    };
+
+    let seat = seat_to_act(dealer, auction.len());
+    let context = Context::new(relative(vul, seat), auction);
+    let calls = [two_nt, Call::Pass];
+    let mut rng = StdRng::seed_from_u64(seed);
+    let evs = ev_all(
+        hand, seat, vul, &context, &calls, stance, &mut rng, pd_layouts,
+    );
+    // Defend only when both lines scored and defending strictly wins; otherwise
+    // keep the relay (NaN = no signal → trust the book).
+    let defend = evs[0].is_finite() && evs[1].is_finite() && evs[1] > evs[0];
+
+    if log_relay {
+        eprintln!(
+            "RELAY {} over={over:?} len_over={} hcp_over={} hcp_total={} ev_relay={:.0} ev_defend={:.0}",
+            if defend { "DEFEND" } else { "relay" },
+            hand[over].len(),
+            holding_hcp::<u8>(hand[over]),
+            hand_hcp(hand),
+            evs[0],
+            evs[1],
+        );
+    }
+    if defend { Call::Pass } else { two_nt }
 }
 
 /// Does this auction contain a top-step clubs transfer (`1NT (2♦/2♥) 3♠` or
@@ -171,6 +254,7 @@ fn next_call(
 }
 
 /// Bid one deal with the Lebensohl pair on the side picked by `lebensohl_is_ns`
+#[allow(clippy::too_many_arguments)]
 fn bid_out(
     lebensohl: &Stance,
     baseline: &Stance,
@@ -178,17 +262,24 @@ fn bid_out(
     dealer: Seat,
     vul: AbsoluteVulnerability,
     deal: &FullDeal,
+    pd_relay: bool,
+    pd_layouts: usize,
+    log_relay: bool,
+    seed: u64,
 ) -> Auction {
     let mut auction = Auction::new();
     while !auction.has_ended() {
         let seat = seat_to_act(dealer, auction.len());
         let seat_is_ns = matches!(seat, Seat::North | Seat::South);
-        let stance = if seat_is_ns == lebensohl_is_ns {
-            lebensohl
+        let is_lebensohl = seat_is_ns == lebensohl_is_ns;
+        let call = if is_lebensohl {
+            next_call_ns(
+                lebensohl, deal[seat], dealer, vul, &auction, pd_relay, pd_layouts, log_relay, seed,
+            )
         } else {
-            baseline
+            next_call(baseline, deal[seat], dealer, vul, &auction)
         };
-        auction.push(next_call(stance, deal[seat], dealer, vul, &auction));
+        auction.push(call);
     }
     auction
 }
@@ -223,6 +314,10 @@ fn main() {
             dealer,
             args.vulnerability,
             &deal,
+            args.pd_relay,
+            args.pd_layouts,
+            args.log_relay,
+            args.seed,
         );
         let table_b = bid_out(
             &lebensohl,
@@ -231,6 +326,10 @@ fn main() {
             dealer,
             args.vulnerability,
             &deal,
+            args.pd_relay,
+            args.pd_layouts,
+            args.log_relay,
+            args.seed,
         );
         deals.push(deal);
         contracts.push((

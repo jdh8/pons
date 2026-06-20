@@ -6,7 +6,9 @@
 //! openings, and opener's answer to partner's negative double of a two-level
 //! minor overcall.
 
-use super::super::constraint::{hcp, len, min_level_is, points, stopper_in, support, they_bid};
+use super::super::constraint::{
+    Cons, Constraint, hcp, len, min_level_is, points, stopper_in, support, they_bid,
+};
 use super::super::context::Context;
 use super::super::fallback::{Fallback, FirstIs, OvercallAtMost, ReplaceNext, guard};
 use super::super::{Competitive, Rules};
@@ -133,6 +135,27 @@ pub(super) fn unbid_major(over: Suit) -> Option<Suit> {
         Suit::Spades => Some(Suit::Hearts),
         _ => None,
     }
+}
+
+/// The 2NT-relay shape over their `over` overcall: a 5+ suit (not their suit)
+/// with 6+ HCP.
+///
+/// The 6-HCP floor is PD-distilled. A perfect-defense gate (relay only when
+/// sampled double-dummy says our 3-level line out-scores defending) declines
+/// nearly every sub-6 hand — pushing a near-bust to the 3 level loses on DD,
+/// even with a 6-card suit — and this plain HCP floor recovers ~60–80% of that
+/// gate's IMPs/board gain over relaying every 5-card suit (A/B, lebensohl-ab,
+/// `--pd-relay`). Adverse-suit length/honors were *not* predictive; overall
+/// weakness is the driver.
+fn lebensohl_relay_shape(over: Suit) -> Cons<impl Constraint + Clone> {
+    let five = |s: Suit| len(s, 5..);
+    let any5 = match over {
+        Suit::Clubs => five(Suit::Diamonds) | five(Suit::Hearts) | five(Suit::Spades),
+        Suit::Diamonds => five(Suit::Clubs) | five(Suit::Hearts) | five(Suit::Spades),
+        Suit::Hearts => five(Suit::Clubs) | five(Suit::Diamonds) | five(Suit::Spades),
+        Suit::Spades => five(Suit::Clubs) | five(Suit::Diamonds) | five(Suit::Hearts),
+    };
+    any5 & hcp(6..)
 }
 
 // ---------------------------------------------------------------------------
@@ -343,21 +366,13 @@ pub(super) fn lebensohl_responder(over: Suit) -> Rules {
         );
     }
 
-    // 2NT = Lebensohl relay to 3♣: a weak hand with a 5+ suit that is not
-    // biddable naturally at the 2 level (long clubs, or a suit below the overcall)
-    // — sign off in 3♣ or correct to the suit (see [`lebensohl_relay_rebid`]) — so
-    // a 5-card suit below the overcall can still compete to the 3 level rather than
-    // be stranded. Never *their* suit (a stack there is a penalty pass). The
-    // natural 2-level outranks this relay, so above-the-overcall suits are still
-    // bid naturally; balanced weak hands pass. (Gating on a *good* 5-carder, two
-    // of the top three honors, measured worse on DD — any 5-card suit is better.)
-    let relay = |s: Suit| len(s, 5..);
-    let long_suit = match over {
-        Suit::Clubs => relay(Suit::Diamonds) | relay(Suit::Hearts) | relay(Suit::Spades),
-        Suit::Diamonds => relay(Suit::Clubs) | relay(Suit::Hearts) | relay(Suit::Spades),
-        Suit::Hearts => relay(Suit::Clubs) | relay(Suit::Diamonds) | relay(Suit::Spades),
-        Suit::Spades => relay(Suit::Clubs) | relay(Suit::Diamonds) | relay(Suit::Hearts),
-    };
+    // 2NT = Lebensohl relay to 3♣: a weak hand with a long suit not biddable
+    // naturally at the 2 level (long clubs, or a suit below the overcall) — sign
+    // off in 3♣ or correct (see [`lebensohl_relay_rebid`]). The natural 2-level
+    // outranks this relay, so above-the-overcall suits are still bid naturally;
+    // balanced weak hands pass. See [`lebensohl_relay_shape`] for the 6+/good-5
+    // shape and the PD-distilled 6-HCP floor on the 5-card arm.
+    let long_suit = lebensohl_relay_shape(over);
     rules = rules.rule(Bid::new(2, Strain::Notrump), 1.4, points(..=9) & long_suit);
 
     // Pass — weak, nothing constructive to say.
@@ -528,16 +543,10 @@ pub(super) fn transfer_lebensohl_responder(over: Suit) -> Rules {
         );
     }
 
-    // 2NT = Lebensohl relay to 3♣: a weak hand with a 5+ suit (sign off or
-    // correct), but never their suit — same as plain Lebensohl (see
-    // [`lebensohl_responder`]).
-    let relay = |s: Suit| len(s, 5..);
-    let long_suit = match over {
-        Suit::Clubs => relay(Suit::Diamonds) | relay(Suit::Hearts) | relay(Suit::Spades),
-        Suit::Diamonds => relay(Suit::Clubs) | relay(Suit::Hearts) | relay(Suit::Spades),
-        Suit::Hearts => relay(Suit::Clubs) | relay(Suit::Diamonds) | relay(Suit::Spades),
-        Suit::Spades => relay(Suit::Clubs) | relay(Suit::Diamonds) | relay(Suit::Hearts),
-    };
+    // 2NT = Lebensohl relay to 3♣: a weak long-suit hand (sign off or correct),
+    // same shape as plain Lebensohl (see [`lebensohl_relay_shape`] — 6+ suit, or
+    // a 5-carder with the PD-distilled 6-HCP floor, never their suit).
+    let long_suit = lebensohl_relay_shape(over);
     rules = rules.rule(Bid::new(2, Strain::Notrump), 1.35, points(..=8) & long_suit);
 
     // Pass — weak, nothing constructive to say.
@@ -697,9 +706,9 @@ pub(super) fn transfer_stayman_2d_responder() -> Rules {
             min_level_is(2, strain) & len(s, 5..) & points(..=8),
         );
     }
-    // Relay suit: any 5+ suit, never their diamonds (see above).
-    let relay = |s: Suit| len(s, 5..);
-    let long_suit = relay(Suit::Clubs) | relay(Suit::Hearts) | relay(Suit::Spades);
+    // Relay shape: 6+ suit, or a 5-carder with the PD-distilled 6-HCP floor,
+    // never their diamonds (see [`lebensohl_relay_shape`]).
+    let long_suit = lebensohl_relay_shape(Suit::Diamonds);
     rules = rules.rule(Bid::new(2, Strain::Notrump), 1.35, points(..=8) & long_suit);
 
     rules.rule(Call::Pass, 0.0, hcp(0..))
@@ -1209,9 +1218,9 @@ mod tests {
 
     #[test]
     fn lebensohl_weak_long_suit_relays_then_completes() {
-        // Weak hand, 6 clubs, over 2♦ → 2NT relay; opener is forced to bid 3♣.
+        // Weak hand (6 HCP), 6 clubs, over 2♦ → 2NT relay; opener forced to 3♣.
         let responder = [call(1, Strain::Notrump), call(2, Strain::Diamonds)];
-        let (c, floored) = bid(&responder, "32.43.32.KQ9876");
+        let (c, floored) = bid(&responder, "J2.43.32.KQ9876");
         assert_eq!(c, call(2, Strain::Notrump));
         assert!(!floored, "the Lebensohl relay must come from the book");
 
