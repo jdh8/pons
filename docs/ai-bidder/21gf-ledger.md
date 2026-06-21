@@ -213,6 +213,30 @@ delayed cue, `(2♦)` Smolen) don't port to Rubensohl anyway — its `2NT`-club-
 and two-way machinery consume the very seams those refinements exploit. Only three
 styles remain: `Off`/`Plain`/`Transfer`.
 
+**Responder's double of the overcall (`1NT–(2♦/2♥/2♠)–X`) — penalty stays
+default; verdict is measure-dependent.** The status-quo penalty double
+(`len(over,4..) & hcp(9..)`) was A/B'd against a takeout double (`≤3 & 7+`), a
+cooperative/optional double (`2-3 & 7+/8+`), and a lower-floor penalty (`4+ & 7+`,
+plus a looser `3+ & 7+`), via the new `DoubleStyle` toggle (`set_double_style`)
+and `lebensohl-ab --ns-dbl/--ew-dbl` (200k filtered, vs penalty 4+/9+, none/both):
+
+- **Perfect-defense** (old `ns_score`): **every alternative loses** — `PenaltyLight`
+  4+/7 −0.035/−0.041, `Optional` 2-3/8 −0.039/−0.041, `Optional` 2-3/7
+  −0.081/−0.089, `Takeout` ≤3/7 −0.089/−0.092; looser `PenaltyLight` 3+/7 worst
+  (−0.100/−0.115).
+- **Plain DD** (current A/B scorer, `ns_score_contract` after the scoring split,
+  commit a6f2206): the **flip** — `Takeout` **+0.011/+0.018**, `Optional` 2-3/8
+  **+0.012/+0.015** go marginally positive (+0.14–0.32 IMPs/div); `PenaltyLight`
+  still loses (−0.018/−0.023).
+
+PD auto-doubles the failing takeout/optional overbids; plain DD scores them
+undoubled → they look slightly positive, but the edge is near-noise and is
+plausibly the overbid under-punishment PD exists to correct (cf. Jordan/Truscott
+below, responsive-X). Per the user, **default stays Penalty**; `DoubleStyle` kept
+opt-in (best thresholds baked: `PenaltyLight` 4+, `Optional` 8+) for a future
+single-dummy re-measure where takeout's competitive value might genuinely pay.
+(this commit)
+
 **Jordan/Truscott (71) — tried and rejected (DD-negative).** Authored
 `1M–(X)–2NT` = limit-raise-or-better + `3M` = preemptive, with opener's decline
 path (`2NT`→`3M` sign-off, responder pass/4M) and a sound `2NT` strength

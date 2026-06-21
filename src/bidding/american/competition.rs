@@ -102,6 +102,72 @@ fn lebensohl_style() -> LebensohlStyle {
     LEBENSOHL_STYLE.with(Cell::get)
 }
 
+/// The meaning of responder's double of the overcall in `1NT − (overcall) − X`.
+///
+/// All variants are *authored* in the book (a finite logit), so the instinct
+/// floor's own takeout double — whose `hcp(12..)` threshold is too strong here —
+/// is shadowed and we control the strength. Opener has **no** authored
+/// continuation after the double: the floor pulls (game jump / 3NT with a
+/// stopper / longest unbid suit) or passes with a trump stack, which is correct
+/// for both the penalty and takeout meanings. Gated behind [`set_double_style`]
+/// for A/B measurement; [`DoubleStyle::Penalty`] is the default (status quo).
+///
+/// A/B verdict (200k, filtered, vs `Penalty` 4+/9+) — **measure-dependent**:
+/// - **Perfect-defense** (the old `ns_score`): every alternative *loses* —
+///   `PenaltyLight` 4+/7 `−0.035`/`−0.041`, `Optional` 2-3/8 `−0.039`/`−0.041`,
+///   `Optional` 2-3/7 `−0.081`/`−0.089`, `Takeout` ≤3/7 `−0.089`/`−0.092`
+///   IMPs/board (none/both); looser `PenaltyLight` 3+/7 worst (`−0.100`/`−0.115`).
+/// - **Plain DD** (the current A/B scorer, [`crate::scoring::ns_score_contract`]):
+///   the flip — `Takeout` `+0.011`/`+0.018` and `Optional` 2-3/8 `+0.012`/`+0.015`
+///   go marginally *positive*, while `PenaltyLight` still loses (`−0.018`/`−0.023`).
+///
+/// PD auto-doubles the failing takeout/optional overbids (punishing them); plain
+/// DD scores them undoubled, so they look slightly positive — but the edge is
+/// near-noise and is plausibly the overbid under-punishment PD exists to correct
+/// (the opponents under-double in the sim). Penalty stays the **default**; the
+/// other styles are kept opt-in for a future single-dummy re-measure.
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
+pub enum DoubleStyle {
+    /// Status quo / baseline: penalty, `len(over, 4..) & hcp(9..)`
+    #[default]
+    Penalty,
+    /// Penalty at a lower floor: `len(over, 4..) & hcp(7..)`
+    PenaltyLight,
+    /// Classic takeout: `len(over, ..=3) & hcp(7..)`
+    Takeout,
+    /// Cooperative / optional takeout, never short: `len(over, 2..=3) & hcp(8..)`
+    Optional,
+}
+
+thread_local! {
+    /// The meaning of responder's double of the overcall (see [`DoubleStyle`]).
+    static DOUBLE_STYLE: Cell<DoubleStyle> = const { Cell::new(DoubleStyle::Penalty) };
+}
+
+/// Select responder's double meaning for books built *after* this call
+/// (thread-local, read once at book-construction time)
+pub fn set_double_style(style: DoubleStyle) {
+    DOUBLE_STYLE.with(|cell| cell.set(style));
+}
+
+/// The currently selected double meaning
+fn double_style() -> DoubleStyle {
+    DOUBLE_STYLE.with(Cell::get)
+}
+
+/// Author responder's double of their `over` overcall per the active
+/// [`DoubleStyle`]. Shadows the instinct floor's takeout double so the threshold
+/// is the one chosen here.
+fn responder_double(rules: Rules, over: Suit) -> Rules {
+    // The `len` ranges have distinct types, so author inside each arm.
+    match double_style() {
+        DoubleStyle::Penalty => rules.rule(Call::Double, 1.55, len(over, 4..) & hcp(9..)),
+        DoubleStyle::PenaltyLight => rules.rule(Call::Double, 1.55, len(over, 4..) & hcp(7..)),
+        DoubleStyle::Takeout => rules.rule(Call::Double, 1.55, len(over, ..=3) & hcp(7..)),
+        DoubleStyle::Optional => rules.rule(Call::Double, 1.55, len(over, 2..=3) & hcp(8..)),
+    }
+}
+
 thread_local! {
     /// Whether the Transfer-Lebensohl cue is split by stopper (see
     /// [`set_delayed_cue`]).
@@ -396,8 +462,8 @@ pub(super) fn lebensohl_responder(over: Suit) -> Rules {
         points(10..) & stopper_in(over),
     );
 
-    // Penalty double of their overcall.
-    rules = rules.rule(Call::Double, 1.55, len(over, 4..) & hcp(9..));
+    // Responder's double of their overcall (penalty by default; see [`DoubleStyle`]).
+    rules = responder_double(rules, over);
 
     // Natural new suit at the 2 level (above the overcall, below 2NT): weak,
     // competitive, to play.
@@ -606,9 +672,10 @@ pub(super) fn transfer_lebensohl_responder(over: Suit) -> Rules {
         );
     }
 
-    // Penalty double of their overcall (kept — the Rubensohl-v1 attempt lost the
-    // floor's penalty doubles by shadowing them with no double of its own).
-    rules = rules.rule(Call::Double, 1.55, len(over, 4..) & hcp(9..));
+    // Responder's double of their overcall (penalty by default; see
+    // [`DoubleStyle`]). Authoring it is also what kept the floor's penalty
+    // doubles — the Rubensohl-v1 attempt lost them by shadowing with no double.
+    rules = responder_double(rules, over);
 
     // Natural new suit at the 2 level (above the overcall, below 2NT): weak.
     for s in [Suit::Diamonds, Suit::Hearts, Suit::Spades] {
@@ -781,7 +848,7 @@ pub(super) fn transfer_stayman_2d_responder() -> Rules {
         1.5,
         points(10..) & stopper_in(Suit::Diamonds),
     );
-    rules = rules.rule(Call::Double, 1.55, len(Suit::Diamonds, 4..) & hcp(9..));
+    rules = responder_double(rules, Suit::Diamonds);
     for s in [Suit::Hearts, Suit::Spades] {
         let strain = Strain::from(s);
         rules = rules.rule(
@@ -1550,6 +1617,69 @@ mod tests {
         let (c, floored) = bid_transfer(&auction, "K2.K43.J932.Q432");
         assert_eq!(c, Call::Double);
         assert!(!floored, "the penalty double must come from the book");
+    }
+
+    /// As [`bid_transfer`], with the given double meaning forced on; resets the
+    /// double style to the default afterward so it cannot leak across tests on
+    /// the same thread.
+    fn bid_transfer_dbl(style: super::DoubleStyle, auction: &[Call], hand: &str) -> (Call, bool) {
+        super::set_lebensohl_style(super::LebensohlStyle::Transfer);
+        super::set_double_style(style);
+        let result = best_call(auction, hand);
+        super::set_double_style(super::DoubleStyle::Penalty);
+        result
+    }
+
+    #[test]
+    fn takeout_authored_double() {
+        // Takeout: short in their suit (2♦) with values doubles from the book —
+        // a hand that the penalty default (4+ ♦) would never double.
+        let auction = [call(1, Strain::Notrump), call(2, Strain::Diamonds)];
+        let (c, floored) =
+            bid_transfer_dbl(super::DoubleStyle::Takeout, &auction, "K432.K432.32.Q43");
+        assert_eq!(c, Call::Double);
+        assert!(
+            !floored,
+            "the authored takeout double must come from the book"
+        );
+    }
+
+    #[test]
+    fn optional_double_two_three_cards() {
+        // Optional: exactly 3 cards in their suit (♦) with values doubles…
+        let auction = [call(1, Strain::Notrump), call(2, Strain::Diamonds)];
+        let (c, floored) =
+            bid_transfer_dbl(super::DoubleStyle::Optional, &auction, "K43.K43.432.Q43");
+        assert_eq!(c, Call::Double);
+        assert!(!floored, "the optional double must come from the book");
+
+        // …but a singleton in their suit does NOT double (it routes elsewhere).
+        let (c, _) = bid_transfer_dbl(super::DoubleStyle::Optional, &auction, "K432.K432.2.Q432");
+        assert_ne!(
+            c,
+            Call::Double,
+            "short-in-their-suit must not make an optional double"
+        );
+    }
+
+    #[test]
+    fn opener_pulls_a_takeout_double() {
+        // After 1NT–(2♦)–X–(P), opener has no authored node and falls to the
+        // floor: a maximum with a diamond stopper pulls to 3NT…
+        let auction = [
+            call(1, Strain::Notrump),
+            call(2, Strain::Diamonds),
+            Call::Double,
+            Call::Pass,
+        ];
+        let (c, floored) =
+            bid_transfer_dbl(super::DoubleStyle::Takeout, &auction, "AQ2.AQ2.A32.Q432");
+        assert_eq!(c, call(3, Strain::Notrump));
+        assert!(floored, "opener's pull comes from the instinct floor");
+
+        // …while a diamond stack sits for penalty (passes the double).
+        let (c, _) = bid_transfer_dbl(super::DoubleStyle::Takeout, &auction, "K32.A32.AKQ2.J32");
+        assert_eq!(c, Call::Pass, "a trump stack converts to penalty");
     }
 
     #[test]

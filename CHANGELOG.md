@@ -69,6 +69,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`DoubleStyle` toggle for responder's double of an overcall (`1NT–(2♦/2♥/2♠)–X`),
+  opt-in via `set_double_style`; default `Penalty` is unchanged.** Measured the best
+  meaning for that double — penalty (status quo `4+/9+`), a lower-floor penalty
+  (`4+/7`), a takeout double (`≤3/7`), and a cooperative/optional double (`2-3/8`) —
+  on the A/B harness (new `lebensohl-ab --ns-dbl/--ew-dbl`, parser `dbl_from`).
+  Verdict is **measure-dependent** (200k filtered, none/both): under
+  perfect-defense scoring penalty wins clearly (every alternative loses, e.g.
+  `Takeout` −0.089/−0.092, `Optional` 2-3/8 −0.039/−0.041 IMPs/board); under plain
+  double-dummy (the current A/B scorer after the `ns_score` split) `Takeout`
+  +0.011/+0.018 and `Optional` 2-3/8 +0.012/+0.015 flip marginally positive, while
+  `PenaltyLight` still loses on both. The plain-DD edge is near-noise and is
+  plausibly the overbid under-punishment PD corrects (opponents under-double in the
+  sim), so the **default stays Penalty** and the toggle is kept opt-in for a future
+  single-dummy re-measure. Opener needs no new continuation — the instinct floor
+  already pulls the double (or passes with a trump stack).
 - **`lebensohl-ab --diverge-diff`: per-call attribution of the A/B swing.** Buckets
   every divergent board by the measured (`--ns`) pair's *first* call the baseline
   (`--ew`) would not have made — tagged `resp` (responder's action directly over

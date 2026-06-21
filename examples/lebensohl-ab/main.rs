@@ -32,7 +32,9 @@ use contract_bridge::eval::{hcp as holding_hcp, nltc};
 use contract_bridge::{AbsoluteVulnerability, Bid, FullDeal, Hand, Seat, Strain, Suit};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
-use pons::bidding::american::{LebensohlStyle, set_lebensohl_style, set_natural_floor};
+use pons::bidding::american::{
+    DoubleStyle, LebensohlStyle, set_double_style, set_lebensohl_style, set_natural_floor,
+};
 use pons::bidding::constraint::point_count;
 use pons::bidding::context::{Context, relative};
 use pons::bidding::ev::ev_all;
@@ -60,6 +62,15 @@ struct Args {
     /// Lebensohl style, baseline (EW) pair: off/plain/transfer
     #[arg(long, default_value = "plain")]
     ew: String,
+
+    /// Responder's double meaning, measured (NS) pair:
+    /// penalty/penalty-light/takeout/optional
+    #[arg(long, default_value = "penalty")]
+    ns_dbl: String,
+
+    /// Responder's double meaning, baseline (EW) pair
+    #[arg(long, default_value = "penalty")]
+    ew_dbl: String,
 
     /// Floor the measured (NS) pair's weak natural `2♦/2♥/2♠` escape and let opener
     /// game-raise it: `off`, `Nhcp` (HCP floor) or `Npts` (total-points floor) —
@@ -284,6 +295,22 @@ fn style_from(name: &str) -> LebensohlStyle {
     }
 }
 
+/// Parse a double-meaning name (penalty / penalty-light / takeout / optional)
+fn dbl_from(name: &str) -> DoubleStyle {
+    match name {
+        "penalty" => DoubleStyle::Penalty,
+        "penalty-light" => DoubleStyle::PenaltyLight,
+        "takeout" => DoubleStyle::Takeout,
+        "optional" => DoubleStyle::Optional,
+        other => {
+            panic!(
+                "unknown double style {other:?} \
+                 (use penalty / penalty-light / takeout / optional)"
+            )
+        }
+    }
+}
+
 /// The seat acting after `len` calls from `dealer`
 const fn seat_to_act(dealer: Seat, len: usize) -> Seat {
     Seat::ALL[(dealer as usize + len) % 4]
@@ -396,10 +423,12 @@ fn main() {
     let mut rng = StdRng::seed_from_u64(args.seed);
 
     set_lebensohl_style(style_from(&args.ew));
+    set_double_style(dbl_from(&args.ew_dbl));
     let (ew_h, ew_p) = floor_from(&args.ew_floor);
     set_natural_floor(ew_h, ew_p);
     let baseline = american().against(Family::NATURAL);
     set_lebensohl_style(style_from(&args.ns));
+    set_double_style(dbl_from(&args.ns_dbl));
     let (ns_h, ns_p) = floor_from(&args.ns_floor);
     set_natural_floor(ns_h, ns_p);
     let lebensohl = american().against(Family::NATURAL);
