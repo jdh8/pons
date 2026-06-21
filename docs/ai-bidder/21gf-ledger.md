@@ -17,13 +17,19 @@ balancing/reopening, and slam accuracy (missed grands).
 
 **Scoring basis:** A/B duplicate results are scored **plain double-dummy**
 (`scoring::ns_score_contract`, the contract's *actual* auction penalty) as of commit
-`a6f2206`. Figures labeled **PD** were taken under the prior **perfect-defense** scorer
-(a contract failing double-dummy was auto-doubled) and are *not directly comparable* —
-the competitive rows below now carry both bases. `par` and the `bidding::ev`
-call-evaluator keep perfect defense (`ns_score_bid`). **Caveat:** plain DD
-*under-punishes* a failing competitive overbid (PD doubled it), so a plain-DD figure
-that flips positive on an overbid is **suspect** — it is recorded, but is not grounds to
-change a ship decision (cf. DoubleStyle, Jordan/Truscott).
+`a6f2206`. `par` and the `bidding::ev` call-evaluator keep perfect defense
+(`ns_score_bid`). Rows carry a **`PD`** tag only where it is still load-bearing.
+
+**A/B notation.** A result reads `±a/±b unit` — IMPs at {none-vul / both-vul} vs the
+baseline named in the sentence. `unit` is `board` (per deal) or `div` (per divergent
+deal); `[N, p%]` appends sample size and divergence rate when known. Scorer is **plain
+double-dummy** unless a figure is tagged **`PD`** (the older perfect-defense scorer,
+which auto-doubles failing contracts; kept only where it is the current best or the
+decision turns on the PD-vs-plain-DD contrast). The trailing `| <hash>` closes each row.
+
+**Caveat:** plain DD *under-punishes* a failing competitive overbid (PD doubled it), so
+a plain-DD figure that flips positive on an overbid is **suspect** — it is recorded, but
+is not grounds to change a ship decision (cf. DoubleStyle, Jordan/Truscott).
 
 ## Locked decisions (from planning dialogue)
 
@@ -90,17 +96,17 @@ change a ship decision (cf. DoubleStyle, Jordan/Truscott).
 | 51 | DOPI | gap | add (Batch 2) | — | — |
 | 103 | ROPI | gap | add (Batch 2) | — | — |
 | 42 | BROMAD | gap (confirm meaning) | Batch 2 | — | — |
-| — | **Plain-4NT minor keycard** | shipped (small slam) | keep; grand-in-minor deferred | **+6.80/+8.76 IMPs/div (none/both)** (2M, 46 div, optimistic). **PD re-measure (5611eac): +5.41/+7.05 IMPs/div (none/both)** (10M, 202 div) — HOLDS, ship intact; PD trims the gain (rare push-to-failing-slam now doubled) but stays clearly positive. **Plain DD (a6f2206): not re-run — constructive (reaches *making* slams; plain DD only doubles the looser baseline's failures), so predicted stable, with the +5.41/+7.05 PD figure as the conservative bound.** | 99da1b3 |
+| — | **Plain-4NT minor keycard** | shipped (small slam) | keep; grand-in-minor deferred | **vs floor: +5.41/+7.05 div** [`PD` 5611eac, 10M, 202 div] — HOLDS. Plain DD not re-run; constructive (reaches *making* slams), so the `PD` figure is the conservative bound. | 99da1b3 |
 
 ## Competitive — our opening contested
 
 | # | Toggle | pons status | decision | A/B | commit |
 |---|--------|-------------|----------|-----|--------|
-| 80 | Lebensohl after 1NT | **shipped** | **`Transfer`** default = Cohen + `(2♦)` `3♣`-Stayman/Smolen/Leaping-Michaels (folded in); `Plain` opt-in (true `Rubensohl` removed 2026-06-20) | **Default `Transfer` vs `off` (PD, 200k filtered, seed 20260620): −0.010/−0.022 board, −0.103/−0.226/div (none/both)** (19618 div) — re-measured 2026-06-21 after the relay/floor/stretch updates `e234f99..6e8694e` (moved up from −0.048/−0.065); still harness-blind to obstruction, kept anyway (see rationale). `6e8694e`'s `(2♠)`-only opener stretch is outside the `--filter-dh` red-suit window, so it is not captured here. **Plain DD (a6f2206, current A/B scorer; same config): +0.080/+0.075 board, +0.789/+0.738/div (none/both, 20393 div) — flips positive vs the floor (the obstruction overbids are no longer auto-doubled). Per the under-punishment caveat this positive is suspect; `Transfer` stays default on its constructive merits (vs `Plain`), not this number.** | bfe5e59 (plain), bee9204 (transfer), e234f99, 63af4de, 2a32a89, 6e8694e |
+| 80 | Lebensohl after 1NT | **shipped** | **`Transfer`** default = Cohen + `(2♦)` `3♣`-Stayman/Smolen/Leaping-Michaels (folded in); `Plain` opt-in (true `Rubensohl` removed 2026-06-20) | **`Transfer` vs floor: +0.080/+0.075 board, +0.789/+0.738 div** [a6f2206, 20393 div] — positive but **suspect** (obstruction overbids no longer auto-doubled; see caveat). `Transfer` stays default on its constructive merit vs `Plain`, not this number. | bfe5e59 (plain), bee9204 (transfer), e234f99, 63af4de, 2a32a89, 6e8694e |
 | 105 | Rubensohl after 1m | floor (Rubens advances) | upgrade (Batch 1) | — | — |
-| 100 | Responsive double | takeout shipped (toggle); overcall-ext opt-in Off | **keep both as-is under PD** | **PD re-measure (`responsive-ab`, 200k filtered/cell, both vs bare floor):** takeout-X-then-raise (= BBA's `Responsive double`, on in 21GF) **−1.18/−1.89/div** (−0.0003/−0.0006 per raw deal, none/both) → kept shipped (drag negligible + DD-blind obstruction, cf. Lebensohl-vs-floor); overcall-ext (non-standard; nearest = Snapdragon, off in 21GF) **−2.16/−3.53/div** (−0.0020/−0.0032 per raw deal) → still rejected (PD does not rescue the old −0.034/−2.37; *worse* vul). **Plain DD (a6f2206, same config): takeout −0.0001/−0.0002 per raw deal (−0.175/−0.500/div, ~0.1% div); overcall-ext +0.0006/−0.0003 per raw deal (+0.648/−0.340/div, ~0.4% div) — both soften toward zero (failing overbids no longer auto-doubled). Decisions unchanged: takeout stays shipped (drag now near-nil), overcall-ext stays off (its plain-DD wobble is sign-mixed and suspect under the under-punishment caveat).** Now behind `set_responsive_takeout` (default on) / `set_responsive_overcall` (default off); defaults byte-identical. | (toggles + `responsive-ab`) |
+| 100 | Responsive double | takeout shipped (toggle); overcall-ext opt-in Off | keep both as-is | `responsive-ab`, 200k/cell vs floor. **Takeout: −0.175/−0.500 div** [a6f2206, ~0.1% div] → stays shipped (drag near-nil + DD-blind obstruction). **Overcall-ext: +0.648/−0.340 div** [a6f2206, ~0.4% div] → stays off (sign-mixed, suspect under the under-punishment caveat). Behind `set_responsive_takeout` (default on) / `set_responsive_overcall` (default off); defaults byte-identical. | (toggles + `responsive-ab`) |
 | 83 | Maximal doubles | gap | add (Batch 1) | — | — |
-| 71 | Jordan/Truscott 2NT | tried — DD-negative | **keep floor** (don't ship) | full **−1.0/−1.5** IMPs/div; 2NT-only **−4.2/−4.4** (jordan-ab 500k/300k) | reverted |
+| 71 | Jordan/Truscott 2NT | tried — DD-negative | **keep floor** (don't ship) | **vs floor: −1.0/−1.5 div** [`PD`, jordan-ab 500k] (2NT-only half −4.2/−4.4) — reverted, obstruction is DD-blind. | reverted |
 | 117 | Support double/redouble | shipped | keep | — | — |
 | 28/30 | 1X-(Y)-2Z forcing/weak | partial | verify | — | — |
 | 122 | Transfers if RHO bids clubs | gap | add (Batch 1) | — | — |
@@ -113,12 +119,9 @@ spades), the cue is Stayman, and a transfer to a suit above theirs is INV+ so
 opener is **driven to game** (`4M` with a fit, else `3NT`) — the anti-stranding
 rule the user specified. Weak hands keep the plain outlets (natural 2-level,
 `2NT` relay, penalty double). A/B (`lebensohl-ab`, `--ns transfer`, 200k
-filtered/cell, re-measured 2026-06-21 after `e234f99..6e8694e`): **+0.873/+1.463
-IMPs/divergent (none/both) vs plain** (the incumbent default, +0.049/+0.082
-board) and −0.103/−0.226/div vs the bare floor (the four updates moved both up;
-see row 80) — reversing v1's loss. (Plain DD re-measure, `a6f2206`: vs plain
-**+0.051/+0.084 board, +0.989/+1.624 IMPs/div (none/both)** — holds; the
-convention-vs-convention choice is basis-independent, as expected.) Selected by
+filtered/cell): **`Transfer` vs `Plain`: +0.051/+0.084 board, +0.989/+1.624 div**
+[a6f2206] — reversing v1's loss (the convention-vs-convention choice is
+basis-independent, as expected). Selected by
 `LebensohlStyle` (`set_lebensohl_style`); `Transfer` is the default, `Plain` kept
 for the A/B and as a fallback. Unlike the preemptive conventions below, the win
 is mostly *constructive* (reaching the right game / strain), which the
@@ -130,10 +133,9 @@ declares) is invisible on top, so the table value is higher still.
 the weak `2NT` **relay**, so it is *Transfer Lebensohl* (Cohen). A **TransferSmolen**
 hybrid — Cohen over `(2♠)` but the *standard low-Stayman* structure over `(2♦)`/`(2♥)`
 (the bid into their suit is Stayman, `3♣`/`3♦`, freeing a Smolen continuation) — was
-authored and A/B'd vs `Transfer`. First pass read −0.7/div but was contaminated by a
-too-tight Stayman gate (single-4-card-major hands stranded into a penalty double);
-after loosening the gate (fire on one 4-card major) the **fair re-test was
-−1.31/−1.76 IMPs/div (none/both, 300k filtered)** — a clear loss. Standard low-Stayman
+authored and A/B'd vs `Transfer`. After loosening a too-tight Stayman gate (fire on
+one 4-card major) the re-measure was **−1.31/−1.76 div** [`PD`, 300k] — a clear loss.
+Standard low-Stayman
 reaches DD-worse contracts than Cohen's cue=Stayman (e.g. a 5-5 hand routes through
 Stayman→denial→`3NT`, missing the 5-3 major game Cohen's transfer-*through* finds), and
 Smolen's right-siding is DD-blind. **Reverted.** `lebensohl-ab` kept a cheap
@@ -153,10 +155,9 @@ major (classic shapes from `defense.rs`, but only `points(10..)` — partner ope
 distribution upgrade). Key authoring subtlety: a 5-4 GF major hand fits both `3♣`
 Stayman and a Jacoby transfer, so Stayman is gated to *exactly* a 4-card major and
 weighted above the transfers — otherwise the hand would transfer and Smolen could
-never fire. A/B (`lebensohl-ab --ns transfersmolen --ew transfer`, PD, 200k
-filtered/cell): **+0.020/+0.024 IMPs/board, +2.286/+2.822 IMPs/divergent
-(none/both)** — a clean, consistent win and a full reversal of v1's −1.31/−1.76.
-Why it wins where v1 lost: v1's *standard low-Stayman* reached DD-worse contracts
+never fire. A/B (`lebensohl-ab --ns transfersmolen --ew transfer`, 200k filtered/cell):
+**vs `Transfer`: +0.020/+0.024 board, +2.286/+2.822 div** [`PD`] — a clean win and a
+full reversal of v1's −1.31/−1.76. Why it wins where v1 lost: v1's *standard low-Stayman* reached DD-worse contracts
 and leaned on DD-blind right-siding; v2 keeps Cohen's transfer-through value over
 the majors, *adds* genuine fit-finding the measure can see (5-3 major games via
 Stayman+Smolen, 5-5 major games via Leaping Michaels), and only adds nodes over the
@@ -175,11 +176,10 @@ natural floor, leaving a 6+♣ GF hand with no call: the weak `2NT`→`3♣` rel
 `points(..=8)`, so it cannot carry a game force (bidding it strands the game in `3♣`).
 `TransferSmolen` already had the `(2♦)`→`3♠`→♣ leg; this adds the same wrap for
 `(2♥)`/`(2♠)` and for plain `Transfer` over `(2♦)`. Lives in the shared
-`transfer_lebensohl_responder` builder (guarded `over != Clubs` — over `(2♣)` clubs is
 their suit) plus a generalized `clubs_transfer_completion(over)`. A/B (two binaries at
-a fixed seed, `--ns transfersmolen --ew off`, PD, 200k filtered/cell): after − before
-= **−0.0008/−0.0012 IMPs/board (none/both)**, ≈87 boards changed (0.04%), ≈−1.8/−2.8
-IMPs each. The worst boards are textbook DD-blindness: the transfer reaches a normal
+a fixed seed, `--ns transfersmolen --ew off`, 200k filtered/cell): **vs `off`:
+−0.0008/−0.0012 board** [`PD`], ≈87 boards changed (0.04%), ≈−1.8/−2.8 IMPs each.
+The worst boards are textbook DD-blindness: the transfer reaches a normal
 making `3NT` (e.g. 27 combined HCP with a running club source), while the floor
 instead makes a *speculative penalty double of the overcall* (`2♦×`/`2♥×`) that
 perfect double-dummy defense turns into a giant set — the harness over-credits the
@@ -191,21 +191,18 @@ pending a single-dummy re-measure. (Cohen's full *slow-shows-stopper* layer —
 two-binary runs) and `--only-topstep` (restrict to top-step boards; note it also
 catches floor `3♠`-natural auctions, so the clean isolation is the two-binary delta).
 
-**The `2NT`-role A/B (80, follow-up — measured twice, kept opt-in).** The `2NT`-role
+**The `2NT`-role A/B (80, follow-up — kept opt-in).** The `2NT`-role
 swap — **true Rubensohl** (`2NT` an artificial **club** transfer) vs the relay
 (Transfer Lebensohl) — was authored on the Cohen structure and A/B'd vs `Transfer`.
 Design (jdh8's rule): every transfer to a suit *below* the overcall is two-way (weak
 transfers then passes; strong continues), so `2NT`=clubs is two-way; transfers to
 a suit *above* the overcall stay INV+ (weak hands escape with a natural 2-level
-bid), identical to `Transfer` — so opener still auto-drives those to game. The
-**original DD test was −0.017/−0.046 IMPs/board (none/both, 200k filtered each)** — a
-clear, consistent loss. Mechanism: for weak hands both arms reach the *same*
-contract (right-siding the low-suit partscore is DD-blind), so Rubensohl's only
-gain is invisible to DD, while making the low transfers two-way *costs*
-`Transfer`'s auto-drive-to-game on invitational hands (opener accepts minimally,
-the borderline responder stops short). **Re-measured under perfect-defense scoring
-(5611eac, the user's question): +0.001/−0.023 IMPs/board (none/both, 200k filtered
-each)** — neutral non-vul, still a clear loss vul. PD only doubles *failing*
+bid), identical to `Transfer` — so opener still auto-drives those to game.
+**vs `Transfer`: +0.001/−0.023 board** [`PD` 5611eac, 200k] — neutral non-vul, still
+a clear loss vul. Mechanism: for weak hands both arms reach the *same* contract
+(right-siding the low-suit partscore is DD-blind), so Rubensohl's only gain is
+invisible to DD, while making the low transfers two-way *costs* `Transfer`'s
+auto-drive-to-game on invitational hands. PD only doubles *failing*
 contracts; it does not let the harness see *who declares*, so it cannot reward
 Rubensohl's right-siding edge — the verdict is unchanged. Per the user's gating
 ("if the cheap probe stays neutral/negative the full standard ladder won't rescue
@@ -255,8 +252,8 @@ path (`2NT`→`3M` sign-off, responder pass/4M) and a sound `2NT` strength
 inference; reused the uncontested `major_responses` for every non-Jordan call;
 gated by `set_jordan`. A/B'd vs the system-on baseline (`jordan-ab`, contested
 seat-swap duplicate, `Family::NATURAL` opponents take out double our major).
-Result: **−1.0/−1.5 IMPs/divergent** (full package, 500k boards, none/both) and
-**−4.2/−4.4** (the `2NT`-constructive half alone, 300k). Two causes, both inherent
+Result: **vs floor: −1.0/−1.5 div** [`PD`, 500k] (the `2NT`-constructive half alone
+−4.2/−4.4). Two causes, both inherent
 to the harness: (1) the preemptive `3M`'s obstruction value is invisible to the
 double-dummy / perfect-defense measure (the solver sees through it — cf.
 `texas-vs-sat` "concealment is single-dummy"), while its overbid cost is counted;
@@ -274,12 +271,12 @@ under a single-dummy / IMPs-vs-humans measure where preemption actually pays.
 | 84 | Michaels cuebid | shipped | keep | — | — |
 | 127 | Unusual 2NT | shipped | keep | — | — |
 | 126 | Unusual 1NT | gap | add (Batch 1) | — | — |
-| 79 | Leaping Michaels | **shipped, default ON** | keep on | `4♣/4♦` strong 5-5 two-suiters + authored advances; A/B'd **+1.090/+1.452/board** (none/both, 40k filtered, ~24% div) vs prior defense. Inference reader decodes the two-suiter so `american_search` picks the advance by DD (+2.8/board directional, slam-capable). `set_leaping_michaels(false)` to disable. **PD re-val (5611eac): +1.100/+1.445/board — unchanged (reaches making GF games, almost no failing contracts to double).** **Plain DD (a6f2206, 40k filtered): +1.010/+1.195/board, +3.906/+4.624/div (none/both, 25.8% div) — holds; PD≈plain-DD as predicted (constructive, almost no failing contracts to double).** | (this commit) |
+| 79 | Leaping Michaels | **shipped, default ON** | keep on | `4♣/4♦` strong 5-5 two-suiters + authored advances. **vs floor: +1.010/+1.195 board, +3.906/+4.624 div** [a6f2206, 40k, 25.8% div]. Inference reader decodes the two-suiter so `american_search` prices the advance by DD (slam-capable). `set_leaping_michaels(false)` to disable. | (this commit) |
 | 123 | Two-suit takeout double | gap | add (Batch 1) | — | — |
 | 129 | Unusual 4NT | verify | — | — | — |
 | 48 | Cue bid | partial | verify | — | — |
-| 106 | **Sohl after double** (advancer, weak twos) | **shipped, `Transfer` default ON** (true `Rubensohl` removed 2026-06-20) | `Transfer` default = Cohen + `(2♦)` Smolen (folded in) | **Default `Transfer` vs `off` (PD, 200k filtered, seed 20260620): +0.155/+0.256 board, +1.579/+2.608/div (none/both)** — the current default, incl. the `(2♦)` Smolen package. **Plain DD (a6f2206, same config): +0.016/+0.102 board, +0.164/+1.052/div (none/both, ~9.8% div) — lower than PD but positive at both vulnerabilities (here PD had *credited* `Transfer` by doubling the `off` baseline's failures; plain DD removes that credit). `Transfer` stays default.** | (this commit) (`set_advance_sohl_style`) |
-| 82 | **Lebensohl after double** (advancer, weak twos; = `Plain`) | measured; opt-in, dominated | `Transfer` (#106) is the default; `Plain` positive but worse | **PD re-measure: Plain vs off FLIPS to +0.089/+0.139/board (200k filtered) — DD-positive (was −0.108/−0.050 optimistic), but dominated by `Transfer` (+0.145/+0.227).** **Plain DD (a6f2206, 200k filtered): Plain vs off −0.160/−0.153 board, −1.964/−1.840/div (none/both, ~8% div) — flips back *negative* (PD had credited the `off` baseline's auto-doubled failures; plain DD honors only real auction penalties). Decision unchanged and reinforced: `Plain` stays opt-in, dominated by `Transfer`.** Kept as the `Plain` opt-in / A/B arm. | a6e7ab9 |
+| 106 | **Sohl after double** (advancer, weak twos) | **shipped, `Transfer` default ON** (true `Rubensohl` removed 2026-06-20) | `Transfer` default = Cohen + `(2♦)` Smolen (folded in) | **`Transfer` vs `off`: +0.016/+0.102 board, +0.164/+1.052 div** [a6f2206, ~9.8% div] — positive at both vulnerabilities (incl. the `(2♦)` Smolen package). `Transfer` stays default. | (this commit) (`set_advance_sohl_style`) |
+| 82 | **Lebensohl after double** (advancer, weak twos; = `Plain`) | measured; opt-in, dominated | `Transfer` (#106) is the default; `Plain` worse | **`Plain` vs `off`: −0.160/−0.153 board, −1.964/−1.840 div** [a6f2206, ~8% div] — negative, and dominated by `Transfer`. Stays opt-in / A/B arm. | a6e7ab9 |
 
 **Lebensohl after a takeout double (advancer over a weak two) — measured;
 best variant (`Transfer`) PROMOTED to default.** After `(2X)–X–(P)` the flat `advance_double` ladder can't
@@ -288,11 +285,8 @@ can't tell when to move. Four sohl structures were authored under the
 `(2X)–X–(P)` prefix (reusing the Section-5 builders for `Plain` / `Transfer`,
 plus `Pam` = `2NT` shows 5-5 minors and `Lawrence` = three-band
 weak/INV/GF strength) and A/B'd on `sohl-after-double-ab` (contested
-seat-swap, 200k filtered boards/cell). Headlines: `Transfer` vs floor
-**−0.006 / +0.084 IMPs/board** (best, but DD-neutral); `Transfer` vs `Plain`
-**+1.85 / +2.66 IMPs/divergent**; `Plain` vs floor **−0.108 / −0.050**;
-`Lawrence` vs `Transfer` **−0.053 / −0.092 IMPs/board**; `Pam` vs `Transfer`
-**−0.009 / −0.005 IMPs/board**. Mechanism: a takeout double already advertises
+seat-swap, 200k filtered boards/cell). `Transfer` won (current figures in
+rows #106/#82); `Lawrence` and `Pam` both lost to it. Mechanism: a takeout double already advertises
 the fit (short in their suit, length elsewhere), so the floor's natural
 advancing locates most fits — `Transfer`'s right-siding is DD-blind upside,
 `Lawrence` loses 5-card-suit *shape* information by collapsing INV into a
@@ -303,41 +297,32 @@ fast denies") was later tested too and is dead flat on DD (see the
 `#106` and `#82`; the "our opening is doubled" responder case is a *separate*
 BBA toggle (`Transfers if RHO doubles`), not this one.
 
-**Update (this commit) — perfect-defense re-measure + `Transfer` promoted to
-default + true `Rubensohl` wired.** The old "DD-neutral → keep `Off`" basis was
-an artifact of the optimistic scorer. Under perfect defense (`ns_score`, 200k
-filtered boards/cell, both vulnerabilities) the picture is clearly positive and
-`Transfer` is promoted from opt-in to the **default** advance-of-double sohl:
-`Transfer` vs `Off` **+0.145 / +0.227 IMPs/board** (none/both; reps
-+0.139/+0.234, ~9.7% divergent, +1.48/+2.33 IMPs/div). `Plain` (#82) also flips
-DD-positive (**+0.089 / +0.139** vs `Off`, was −0.108/−0.050) but stays dominated
-by `Transfer`, so it remains the `Plain` opt-in / A/B arm, not the default. True
-`Rubensohl` (the fourth `LebensohlStyle`: `2NT` = artificial club transfer, the
-low transfers two-way) is now **wired into the `(2X)–X–(P)` context too** (a
-verbatim mirror of the Section-5 1NT-context wiring; exposed as
-`--ns rubensohl` on `sohl-after-double-ab`): vs `Off` **+0.140 / +0.212**, but
-head-to-head **`Rubensohl` vs `Transfer` −0.007 / −0.037 IMPs/board** (only ~2.5%
-divergent) — no gain, so it is **kept opt-in** (its edge is DD-blind right-siding,
-exactly the 1NT-context finding). Default is now `Transfer`; `Off` / `Plain` /
-`Rubensohl` remain selectable via `set_advance_sohl_style`. Revisit `Rubensohl`
-only under a single-dummy measure that can see right-siding.
+**Update (this commit) — `Transfer` promoted to default + true `Rubensohl`
+wired.** The old "DD-neutral → keep `Off`" basis was an artifact of the optimistic
+scorer; `Transfer` is positive (current figures in row #106) and is promoted from
+opt-in to the **default** advance-of-double sohl. `Plain` (#82) stays dominated, an
+opt-in / A/B arm. True `Rubensohl` (the fourth `LebensohlStyle`: `2NT` = artificial
+club transfer, the low transfers two-way) is **wired into the `(2X)–X–(P)` context
+too** (a verbatim mirror of the Section-5 1NT-context wiring; `--ns rubensohl` on
+`sohl-after-double-ab`): head-to-head **`Rubensohl` vs `Transfer`: −0.007/−0.037
+board** [`PD`, ~2.5% div] — no gain, **kept opt-in** (its edge is DD-blind
+right-siding, exactly the 1NT-context finding). Default is now `Transfer`; `Off` /
+`Plain` / `Rubensohl` remain selectable via `set_advance_sohl_style`. Revisit
+`Rubensohl` only under a single-dummy measure that can see right-siding.
 
 **Update (this session) — the `(2♦)` Smolen package now carried after the double
 too, and `TransferSmolen` folded into `Transfer`.** The `(2♦)`-only `3♣`-Stayman +
 Smolen + Jacoby-reshuffle + Leaping-Michaels package that won in the 1NT context
 (#80) was wired into the `(2X)–X–(P)` advance as well (verbatim Section-5d reuse,
 diamond-only, ~0.8% divergence). Head-to-head vs the plain-Cohen advance
-(`sohl-after-double-ab`, PD, 200k filtered/cell): **+0.014/+0.019 board,
-+1.768/+2.517/div (none/both)** — a clean win whose per-div edge *rises* with
-vulnerability (reaching better contracts, not right-siding). (Plain DD re-measure,
-`a6f2206`: **+0.168/+0.249 board, +3.309/+4.772/div (none/both)** — the win is *larger*
-under plain DD; `Transfer` clearly beats `Plain` on either basis.) Winning in **both**
-contexts, the experimental `TransferSmolen` style was renamed to `Transfer` and
-dropped: `Transfer` *is* Cohen-plus-Smolen-over-`(2♦)` everywhere, styles back to
+(`sohl-after-double-ab`, 200k filtered/cell): **`Transfer` vs `Plain`:
++0.168/+0.249 board, +3.309/+4.772 div** [a6f2206] — a clean win whose per-div edge
+*rises* with vulnerability (reaching better contracts, not right-siding). Winning in
+**both** contexts, the experimental `TransferSmolen` style was renamed to `Transfer`
+and dropped: `Transfer` *is* Cohen-plus-Smolen-over-`(2♦)` everywhere, styles back to
 `Off`/`Plain`/`Transfer`/`Rubensohl` (true `Rubensohl` later removed 2026-06-20;
-styles are now `Off`/`Plain`/`Transfer`). The current default `Transfer` (incl. Smolen)
-vs the floor re-measures **+0.146/+0.249 board** (was +0.145/+0.227 pre-Smolen;
-both-vul lifts as the package finds vulnerable games).
+styles are now `Off`/`Plain`/`Transfer`). Current default `Transfer` vs floor: see
+row #106.
 
 **Update (this session) — stopper-routing ("slow shows / fast denies") finally
 tested; near-zero on DD, kept opt-in.** The gap flagged above ("not tested per
@@ -350,10 +335,9 @@ Stopper hands relay slowly and still find the 4-4 major fit (`cue_stayman_answer
 minor-suit game instead of a stopperless 3NT (`cue_stayman_answer_no_stopper`).
 Authored only in the single-unbid-major contexts — over `(2♥)`/`(2♠)` — behind a
 default-off `set_delayed_cue` toggle; `--delayed-cue` on `sohl-after-double-ab`.
-Isolation A/B (delayed-cue-`Transfer` NS vs plain-`Transfer` EW, PD, 200k
-filtered/cell): **+0.000 / +0.001 IMPs/board, +0.098 / +0.387 IMPs/divergent
-(none/both)** on only **~0.4 % divergence**. Verdict: **dead flat — rejected as
-default, kept opt-in.** Mechanism is exactly as predicted: stopper hands reach the
+Isolation A/B (delayed-cue-`Transfer` NS vs plain-`Transfer` EW, 200k filtered/cell):
+**+0.000/+0.001 board, +0.098/+0.387 div** [`PD`, ~0.4% div]. Verdict: **dead flat —
+rejected as default, kept opt-in.** Mechanism is exactly as predicted: stopper hands reach the
 *same* contract fast or slow (zero swing), so the only divergence is the rare
 no-stopper-no-fit hand choosing 4m over 3NT — and the genuine payload of "I hold
 their suit stopped" (concealment, right-siding the 3NT) is single-dummy, which the
@@ -382,10 +366,10 @@ the `4♦` cue shows both majors and `4♣` shows clubs + a major. Authored in
 continuations in `leaping_michaels_advances` (a fit major game — taking even a
 7-card fit, which scores well and makes on ten tricks; else the `5m` minor game;
 never a passed-out partscore; over `2♦`, `4♥` is pass-or-correct to opener's
-major). A/B on `leaping-michaels-ab` (contested seat-swap, 40k filtered, ~24 %
-div): **+1.090 / +1.452 IMPs/board** (none/both) vs the floor.
+major). A/B on `leaping-michaels-ab` (contested seat-swap): a clear win vs the floor
+(current figure in row #79).
 
-*The first cut measured −0.6 / −0.9* — but that was the **unauthored advancer**,
+*The first cut measured −0.6/−0.9* — but that was the **unauthored advancer**,
 not the convention: worst-board analysis showed the instinct floor *passing* the
 two-suiter, leaving us in `4m` (or, over the `2♦` cue, declaring the opponents'
 diamonds). Authoring the advance flipped the sign by +1.7 IMPs/board. The lesson
@@ -408,7 +392,7 @@ overbids (the small-sample / shortlist noise; a larger run would tighten).
 **Shipped default ON** (`Cell::new(true)`); `set_leaping_michaels(false)` recovers
 the prior weak-two defense. The plan's "spend runtime for better calls" (M2.3)
 makes `american_search` the blessed way to play it — the slam upside lives there,
-while the fast floor's authored rules bank the clean +1.09/+1.45.
+while the fast floor's authored rules bank the row-#79 figure.
 
 **Perfect-defense re-validation sweep (after `ns_score` fix 5611eac).** `ns_score`
 now doubles any contract that fails double-dummy (a real defense doubles what it
@@ -437,8 +421,8 @@ contract, which splits the results cleanly:
   only doubles the looser baseline's failures → predicted to hold or improve, and they
   shipped with large margins. Re-validating each needs a per-feature worktree rebuild
   (old-arm `--phase bid` → new-arm `--phase score`; the harness file format is stable).
-  **minor keycard #75 now empirically re-run under PD: +5.41/+7.05 IMPs/div (none/both,
-  10M, 202 div) — HOLDS** (was +6.80/+8.76 optimistic; PD trims but stays clearly
+  **minor keycard #75 now re-measured under PD: +5.41/+7.05 div** [10M, 202 div] **—
+  HOLDS** (was +6.80/+8.76 optimistic; PD trims but stays clearly
   positive; isolated by reverting just 99da1b3, zero drift in the touched files). The
   other four remain predicted-only (lowest priority; SAT #119 has the most failing-slam
   exposure).
