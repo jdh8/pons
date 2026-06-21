@@ -643,6 +643,36 @@ pub fn len(
     Cons(Len { suit, range })
 }
 
+/// High card points held *in one suit* in a range (the [`suit_hcp`] constraint)
+#[derive(Clone)]
+struct SuitHcp<R> {
+    suit: Suit,
+    range: R,
+}
+
+impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for SuitHcp<R> {
+    fn eval(&self, hand: Hand, _: &Context<'_>) -> f32 {
+        crisp(self.range.contains(&eval::hcp::<u8>(hand[self.suit])))
+    }
+
+    fn describe(&self) -> Description {
+        describe_int_range(&self.range, &format!("HCP in {}", self.suit))
+    }
+}
+
+/// High card points held in the given suit, in the given range
+///
+/// Suit-specific HCP (A=4, K=3, Q=2, J=1). Distinguishes a *too-good stopper* —
+/// strong honors in the opponents' suit that defend better than they declare —
+/// from a thin one or a long running source; see the Lebensohl trap pass.
+#[must_use]
+pub fn suit_hcp(
+    suit: Suit,
+    range: impl RangeBounds<u8> + Clone + Send + Sync,
+) -> Cons<impl Constraint + Clone> {
+    Cons(SuitHcp { suit, range })
+}
+
 /// Balanced shape kernel shared by [`balanced`] and [`upgrade`]
 fn is_balanced(hand: Hand) -> bool {
     let lengths = Suit::ASC.map(|suit| hand[suit].len());

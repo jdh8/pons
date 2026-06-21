@@ -35,11 +35,11 @@ use contract_bridge::auction::{Auction, Call};
 use contract_bridge::deck::full_deal;
 use contract_bridge::eval::{hcp as holding_hcp, nltc};
 use contract_bridge::{AbsoluteVulnerability, Bid, FullDeal, Hand, Seat, Strain, Suit};
-use ddss::{NonEmptyStrainFlags, Solver};
+use ddss::{NonEmptyStrainFlags, Solver, TrickCountTable};
 use pons::american;
 use pons::bidding::american::{
     DoubleStyle, LebensohlStyle, set_direct_3nt_stopper, set_double_override, set_double_style,
-    set_lebensohl_style, set_natural_floor,
+    set_lebensohl_style, set_natural_floor, set_trap_pass,
 };
 use pons::bidding::constraint::point_count;
 use pons::bidding::context::{Context, relative};
@@ -91,6 +91,17 @@ struct Args {
     #[arg(long, default_value = "on")]
     ew_3nt_stopper: String,
 
+    /// Trap pass for the measured (NS) pair: with a too-good stopper (5+ HCP in
+    /// their suit) responder passes instead of bidding a direct `3NT` (waiting for
+    /// opener to reopen with a takeout double, then converting to penalty); the
+    /// threshold is distilled from `--pd-3nt`. `on`/`off`, default `on`.
+    #[arg(long, default_value = "on")]
+    ns_trap: String,
+
+    /// Trap pass for the baseline (EW) pair (see `--ns-trap`).
+    #[arg(long, default_value = "on")]
+    ew_trap: String,
+
     /// Floor the measured (NS) pair's weak natural `2♦/2♥/2♠` escape and let opener
     /// game-raise it: `off`, `Nhcp` (HCP floor) or `Npts` (total-points floor) —
     /// e.g. `6hcp` (the relay mirror), `5hcp`, `6pts`. A/B floor level/metric.
@@ -135,6 +146,14 @@ struct Args {
     #[arg(long, default_value = "false")]
     pd_natural: bool,
 
+    /// PD-gate the measured (NS) pair's direct `3NT` over the overcall: when the
+    /// book bids `3NT`, double-dummy compare it against trapping (`Pass`) and take
+    /// the higher EV — the per-board oracle for "trap or bid game". With
+    /// `--log-relay`, emits a `THREENT` line per decision (with `len_over`/
+    /// `hcp_over`) — the data for distilling a smarter trap gate than blunt length.
+    #[arg(long, default_value = "false")]
+    pd_3nt: bool,
+
     /// Sampled layouts per PD-relay decision (the ev_all budget).
     #[arg(long, default_value = "64")]
     pd_layouts: usize,
@@ -154,6 +173,14 @@ struct Args {
     /// `contrib` column sums to the headline IMPs/board.
     #[arg(long, default_value = "false")]
     diverge_diff: bool,
+
+    /// Dump every divergent board whose `--diverge-diff` bucket matches this
+    /// label (e.g. `"resp 3NT"`) — the full deal, both auctions/contracts, the
+    /// board swing, and the double-dummy "makes" grid for each side, so the
+    /// losing/winning hands in one bucket can be inspected and the best action
+    /// read off. Requires `--diverge-diff`. Empty = off.
+    #[arg(long, default_value = "")]
+    show_bucket: String,
 }
 
 /// The opponents' 2-level overcall suit when the auction is at the responder's
@@ -193,6 +220,7 @@ fn next_call_ns(
     auction: &Auction,
     pd_relay: bool,
     pd_natural: bool,
+    pd_3nt: bool,
     pd_layouts: usize,
     log_relay: bool,
     seed: u64,
@@ -202,12 +230,16 @@ fn next_call_ns(
         return base;
     };
     let two_nt = Call::Bid(Bid::new(2, Strain::Notrump));
+    let three_nt = Call::Bid(Bid::new(3, Strain::Notrump));
     let is_relay = pd_relay && base == two_nt;
     // At this node the only 2-level suit bids are the weak naturals.
     let is_natural = pd_natural
         && matches!(base, Call::Bid(b)
             if b.level.get() == 2 && b.strain.suit().is_some_and(|s| s != over));
-    if !is_relay && !is_natural {
+    // Direct 3NT vs trapping (pass): the smarter trap gate — let the double-dummy
+    // rollout decide per board, then distill which holdings should trap.
+    let is_3nt = pd_3nt && base == three_nt;
+    if !is_relay && !is_natural && !is_3nt {
         return base;
     }
 
@@ -227,12 +259,22 @@ fn next_call_ns(
             Call::Bid(b) => b.strain.suit(),
             _ => None,
         };
+        let kind = if is_relay {
+            "RELAY"
+        } else if is_natural {
+            "NATURAL"
+        } else {
+            "THREENT"
+        };
+        // For the 3NT trap distill, the holding *in their suit* is the signal:
+        // length plus honor strength (a running AKQxx wants 3NT; a flat stack
+        // traps). Log `len_over`/`hcp_over` alongside the usual features.
         eprintln!(
-            "{} {} over={over:?} bid={base} len_bid={} len_over={} hcp_total={} pts={} nltc={:.1} ev_bid={:.0} ev_defend={:.0}",
-            if is_relay { "RELAY" } else { "NATURAL" },
+            "{kind} {} over={over:?} bid={base} len_bid={} len_over={} hcp_over={} hcp_total={} pts={} nltc={:.1} ev_bid={:.0} ev_defend={:.0}",
             if defend { "DEFEND" } else { "bid" },
             bid_suit.map_or(0, |s| hand[s].len()),
             hand[over].len(),
+            holding_hcp::<u8>(hand[over]),
             hand_hcp(hand),
             point_count(hand),
             Suit::ASC.iter().map(|&s| nltc(hand[s])).sum::<f64>(),
@@ -268,6 +310,36 @@ fn contains_top_step(auction: &[Call]) -> bool {
 /// Total HCP of a hand
 fn hand_hcp(hand: Hand) -> u8 {
     Suit::ASC.iter().map(|&s| holding_hcp::<u8>(hand[s])).sum()
+}
+
+/// The double-dummy "makes" grid for `side` (its two seats): the most tricks
+/// either seat takes as declarer in each strain — i.e. what that side can make.
+fn dd_makes(table: &TrickCountTable, side: [Seat; 2]) -> String {
+    [
+        Strain::Clubs,
+        Strain::Diamonds,
+        Strain::Hearts,
+        Strain::Spades,
+        Strain::Notrump,
+    ]
+    .into_iter()
+    .map(|strain| {
+        let tricks = side
+            .iter()
+            .map(|&seat| u8::from(table[strain].get(seat)))
+            .max()
+            .unwrap_or(0);
+        let sym = match strain {
+            Strain::Clubs => "♣",
+            Strain::Diamonds => "♦",
+            Strain::Hearts => "♥",
+            Strain::Spades => "♠",
+            Strain::Notrump => "NT",
+        };
+        format!("{sym}{tricks}")
+    })
+    .collect::<Vec<_>>()
+    .join(" ")
 }
 
 /// A balanced 15–17 (a `1NT` opener)
@@ -453,6 +525,7 @@ fn bid_out(
     deal: &FullDeal,
     pd_relay: bool,
     pd_natural: bool,
+    pd_3nt: bool,
     pd_layouts: usize,
     log_relay: bool,
     seed: u64,
@@ -464,8 +537,8 @@ fn bid_out(
         let is_lebensohl = seat_is_ns == lebensohl_is_ns;
         let call = if is_lebensohl {
             next_call_ns(
-                lebensohl, deal[seat], dealer, vul, &auction, pd_relay, pd_natural, pd_layouts,
-                log_relay, seed,
+                lebensohl, deal[seat], dealer, vul, &auction, pd_relay, pd_natural, pd_3nt,
+                pd_layouts, log_relay, seed,
             )
         } else {
             next_call(baseline, deal[seat], dealer, vul, &auction)
@@ -483,12 +556,14 @@ fn main() {
     set_lebensohl_style(style_from(&args.ew));
     apply_double(&args.ew_dbl);
     set_direct_3nt_stopper(args.ew_3nt_stopper != "off");
+    set_trap_pass(args.ew_trap == "on");
     let (ew_h, ew_p) = floor_from(&args.ew_floor);
     set_natural_floor(ew_h, ew_p);
     let baseline = american().against(Family::NATURAL);
     set_lebensohl_style(style_from(&args.ns));
     apply_double(&args.ns_dbl);
     set_direct_3nt_stopper(args.ns_3nt_stopper != "off");
+    set_trap_pass(args.ns_trap == "on");
     let (ns_h, ns_p) = floor_from(&args.ns_floor);
     set_natural_floor(ns_h, ns_p);
     let lebensohl = american().against(Family::NATURAL);
@@ -515,6 +590,7 @@ fn main() {
             &deal,
             args.pd_relay,
             args.pd_natural,
+            args.pd_3nt,
             args.pd_layouts,
             args.log_relay,
             args.seed,
@@ -528,6 +604,7 @@ fn main() {
             &deal,
             args.pd_relay,
             args.pd_natural,
+            args.pd_3nt,
             args.pd_layouts,
             args.log_relay,
             args.seed,
@@ -563,7 +640,10 @@ fn main() {
     let mut systems_on = (0usize, 0i64);
     let mut worst: Vec<(i64, usize)> = Vec::new();
     let mut buckets: HashMap<String, (usize, i64)> = HashMap::new();
-    for (&i, table) in divergent.iter().zip(tables.iter()) {
+    // Boards to dump for `--show-bucket`: (position into `tables`, board index,
+    // board IMPs, the divergent trigger).
+    let mut show: Vec<(usize, usize, i64, (usize, Call, bool))> = Vec::new();
+    for (pos, (&i, table)) in divergent.iter().zip(tables.iter()).enumerate() {
         let (contract_a, contract_b) = contracts[i];
         let swing = ns_score_contract(contract_a, table, args.vulnerability)
             - ns_score_contract(contract_b, table, args.vulnerability);
@@ -611,6 +691,11 @@ fn main() {
                 || "(none)".to_string(),
                 |(_, call, at_node)| format!("{} {call}", if at_node { "resp" } else { "late" }),
             );
+            if !args.show_bucket.is_empty() && label == args.show_bucket {
+                if let Some(trig) = trigger {
+                    show.push((pos, i, board_imps, trig));
+                }
+            }
             let entry = buckets.entry(label).or_insert((0, 0));
             entry.0 += 1;
             entry.1 += board_imps;
@@ -630,6 +715,39 @@ fn main() {
             auctions[i].1,
             contracts[i].1,
         );
+    }
+
+    if !args.show_bucket.is_empty() {
+        println!(
+            "=== bucket {:?}: {} board(s), vul {} (DD makes = most tricks either seat takes as declarer) ===",
+            args.show_bucket,
+            show.len(),
+            args.vulnerability,
+        );
+        for &(pos, i, board_imps, (tidx, tcall, _)) in &show {
+            let dealer = Seat::ALL[i % 4];
+            let responder = seat_to_act(dealer, tidx);
+            println!(
+                "[{board_imps:+} IMP] dealer {dealer:?}  responder {responder:?} bid {tcall}  {}",
+                deals[i],
+            );
+            println!(
+                "  A ({} NS): {} -> {:?}",
+                args.ns, auctions[i].0, contracts[i].0
+            );
+            println!(
+                "  B ({} NS): {} -> {:?}",
+                args.ew, auctions[i].1, contracts[i].1
+            );
+            println!(
+                "  NS makes (DD): {}",
+                dd_makes(&tables[pos], [Seat::North, Seat::South])
+            );
+            println!(
+                "  EW makes (DD): {}",
+                dd_makes(&tables[pos], [Seat::East, Seat::West])
+            );
+        }
     }
 
     println!(

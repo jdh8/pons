@@ -7,7 +7,7 @@
 //! minor overcall.
 
 use super::super::constraint::{
-    Cons, Constraint, hcp, len, min_level_is, points, stopper_in, support, they_bid,
+    Cons, Constraint, hcp, len, min_level_is, points, stopper_in, suit_hcp, support, they_bid,
 };
 use super::super::context::Context;
 use super::super::fallback::{Fallback, FirstIs, OvercallAtMost, ReplaceNext, guard, rewriter};
@@ -215,6 +215,56 @@ pub fn set_direct_3nt_stopper(on: bool) {
 /// Whether a direct `3NT` requires responder's own stopper in their suit
 fn direct_3nt_stopper() -> bool {
     DIRECT_3NT_STOPPER.with(Cell::get)
+}
+
+thread_local! {
+    /// Whether responder *traps* with a too-good stopper: a direct `3NT`
+    /// additionally denies **5+ HCP in the overcall suit**, so a strong holding
+    /// (AQ, KQ, AKJ…) passes instead — waiting for opener to reopen with a takeout
+    /// double and converting it to penalty. On by default. See [`set_trap_pass`].
+    static TRAP_PASS: Cell<bool> = const { Cell::new(true) };
+}
+
+/// Enable the trap pass: with a too-good stopper (5+ HCP in their suit) responder
+/// passes rather than declaring `3NT` (for books built *after* this call;
+/// thread-local). Strong honors in the overcaller's suit defend better than they
+/// declare — sit, let opener reopen with a takeout double, and convert to penalty.
+///
+/// The `5`-HCP threshold is **distilled from a per-board double-dummy oracle**
+/// (`lebensohl-ab --pd-3nt --log-relay`): comparing `3NT` against trapping over
+/// sampled layouts, the trap rate rises monotonically with HCP *in their suit*
+/// (hcp 4 → 53%, 5 → 77%, 6+ → ~100%) and is **independent of length** — a long
+/// weak holding (e.g. ♠A9642, 4 HCP) is a running source that wants `3NT`, while a
+/// short strong one (♥AQ, 6 HCP) defends. The earlier length-based gate (4+ cards)
+/// got this backwards and lost; this honor gate is the fix. **On by default**
+/// (A/B vs off, isolated, 200k plain DD: the 1NT-Lebensohl responder gains
+/// `+172`/`+185` IMPs — the original `resp 3NT` losers, −22/−20, are erased — at a
+/// near-wash in the shared advance-of-takeout-double context; net `+155`/`+230`).
+pub fn set_trap_pass(on: bool) {
+    TRAP_PASS.with(|cell| cell.set(on));
+}
+
+/// Whether responder traps (passes) with a too-good stopper instead of `3NT`
+fn trap_pass() -> bool {
+    TRAP_PASS.with(Cell::get)
+}
+
+/// Author responder's direct `3NT` over the overcall at `weight`, honoring the
+/// stopper ([`direct_3nt_stopper`]) and trap-pass ([`trap_pass`]) toggles. The
+/// trap denies a too-good stopper (`suit_hcp(over, ..=4)`). The `&`-chained
+/// constraints have distinct types, so each combination is authored in its own arm.
+fn author_direct_3nt(rules: Rules, weight: f32, over: Suit) -> Rules {
+    let nt = Bid::new(3, Strain::Notrump);
+    match (direct_3nt_stopper(), trap_pass()) {
+        (true, true) => rules.rule(
+            nt,
+            weight,
+            points(10..) & stopper_in(over) & suit_hcp(over, ..=4),
+        ),
+        (true, false) => rules.rule(nt, weight, points(10..) & stopper_in(over)),
+        (false, true) => rules.rule(nt, weight, points(10..) & suit_hcp(over, ..=4)),
+        (false, false) => rules.rule(nt, weight, points(10..)),
+    }
 }
 
 thread_local! {
@@ -504,17 +554,9 @@ pub(super) fn lebensohl_responder(over: Suit) -> Rules {
         ),
     };
 
-    // Direct 3NT to play: game values with their suit stopped (or, with the
-    // stopper requirement off, on game values alone — leaning on opener's 1NT).
-    rules = if direct_3nt_stopper() {
-        rules.rule(
-            Bid::new(3, Strain::Notrump),
-            1.7,
-            points(10..) & stopper_in(over),
-        )
-    } else {
-        rules.rule(Bid::new(3, Strain::Notrump), 1.7, points(10..))
-    };
+    // Direct 3NT to play: game values with their suit stopped (toggles: drop the
+    // stopper requirement, and/or trap-pass with 4+ in their suit).
+    rules = author_direct_3nt(rules, 1.7, over);
 
     // Responder's double of their overcall (penalty by default; see [`DoubleStyle`]).
     rules = responder_double(rules, over);
@@ -708,17 +750,9 @@ pub(super) fn transfer_lebensohl_responder(over: Suit) -> Rules {
     }
 
     // Direct 3NT to play: game values with their suit stopped, no major to show
-    // (or, with the stopper requirement off, on game values alone — leaning on
-    // opener's 1NT for the stop; the A/B knob for "does 3NT need its own stopper").
-    rules = if direct_3nt_stopper() {
-        rules.rule(
-            Bid::new(3, Strain::Notrump),
-            1.5,
-            points(10..) & stopper_in(over),
-        )
-    } else {
-        rules.rule(Bid::new(3, Strain::Notrump), 1.5, points(10..))
-    };
+    // (toggles: drop the stopper requirement, and/or trap-pass with 4+ in their
+    // suit — long-in-their-suit defends better than it declares).
+    rules = author_direct_3nt(rules, 1.5, over);
 
     // Stopper-split on: a GF hand with a stopper *and* exactly a 4-card unbid
     // major relays through 2NT to bid the cue *slowly* (Stayman with a stopper,
@@ -1775,6 +1809,27 @@ mod tests {
             assert_eq!(c, call(3, top), "top step → clubs over (2{over:?})");
             assert!(!floored, "the clubs transfer must come from the book");
         }
+    }
+
+    #[test]
+    fn transfer_lebensohl_traps_a_too_good_stopper() {
+        // Over 1NT–(2♥) with game values, a *too-good* heart stopper (♥AQ86, 6
+        // HCP in their suit) traps: pass and wait for opener's reopening takeout
+        // double, then convert. A merely *adequate* stopper (♥A964, 4 HCP) is a
+        // source of tricks and still declares 3NT. (Trap pass on by default.)
+        let auction = [call(1, Strain::Notrump), call(2, Strain::Hearts)];
+        let (trap, _) = bid_transfer(&auction, "K32.AQ86.KJ5.J32");
+        assert_eq!(
+            trap,
+            Call::Pass,
+            "a too-good stopper (6 HCP in hearts) traps"
+        );
+        let (bid, _) = bid_transfer(&auction, "K32.A964.KJ5.Q32");
+        assert_eq!(
+            bid,
+            call(3, Strain::Notrump),
+            "an adequate stopper (4 HCP in hearts) still bids 3NT"
+        );
     }
 
     #[test]

@@ -94,6 +94,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   top-step clubs transfer, 1.45, so short-suit one-suiter / stopper-game hands are
   pulled into the double; the X bucket stays net-positive even so, but lowering the
   takeout weight below the constructive bids is a deferred refinement to A/B.)*
+- **Responder *traps* with a too-good stopper instead of declaring `3NT`
+  (`set_trap_pass`, on by default).** A direct `3NT` over the overcall now denies
+  **5+ HCP in the opponents' suit** (`suit_hcp(over, ..=4)`): a strong holding
+  (♥AQ86, ♥AQ754) passes and waits for opener to reopen with a takeout double,
+  converting it to penalty, while an adequate-but-not-too-good stopper or a long
+  *weak* source of tricks (♠A9642, 4 HCP) still bids `3NT`. The `5`-HCP threshold
+  is **distilled from a per-board double-dummy oracle** (`lebensohl-ab --pd-3nt
+  --log-relay`, which compares `3NT` vs trapping over sampled layouts): the trap
+  rate rises monotonically with HCP *in their suit* (4 → 53%, 5 → 77%, 6+ → ~100%)
+  and is independent of length — a length-based gate gets it backwards. A/B (vs
+  off, isolated, 200k plain DD): the 1NT-Lebensohl responder gains **+172/+185
+  IMPs** (none/both — the prior `resp 3NT` losers, −22/−20, are erased) at a
+  near-wash in the shared advance-of-a-takeout-double context; net **+155/+230**.
+  New general constraint `constraint::suit_hcp(suit, range)` (suit-specific HCP).
 - **A/B knobs on `lebensohl-ab` for tuning the double and 3NT.** `--ns-dbl/--ew-dbl`
   now also accept a parametric spec `LEN:HCP` (`set_double_override`) — `LEN` is
   `LO-HI`/`LO+`/`LO` in their suit, `HCP` the floor (e.g. `4+:9` = penalty,
@@ -101,7 +115,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   of the four named styles. `--ns-3nt-stopper on|off` (`set_direct_3nt_stopper`)
   drops responder's own-stopper requirement for a direct `3NT`, leaning on opener's
   1NT; measured ≈ neutral (+0.001 none / −0.000 both vs needing a stopper), so the
-  default keeps the stopper. Both default to today's behavior.
+  default keeps the stopper. `--ns-trap on|off` (`set_trap_pass`) toggles the trap
+  pass above; `--pd-3nt` is the double-dummy oracle that distilled it (`--log-relay`
+  emits `THREENT` decisions); `--show-bucket "<label>"` dumps every board in a
+  `--diverge-diff` bucket with the deal, both auctions, and the DD makes grid.
 - **`lebensohl-ab --diverge-diff`: per-call attribution of the A/B swing.** Buckets
   every divergent board by the measured (`--ns`) pair's *first* call the baseline
   (`--ew`) would not have made — tagged `resp` (responder's action directly over
