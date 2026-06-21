@@ -9,6 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The natural penalty double of their 1NT now fires on *any* 15+ hand, not only
+  balanced ones.** The authored double was gated `hcp(15..) & balanced()`, so a
+  strong *shapely* hand — which qualifies for neither the balanced double nor the
+  `8–14` natural overcall — silently *passed* the floor's catch-all. The new
+  `set_natural_double_shape(DoubleShape)` knob widens the shape gate (the 15+ HCP
+  floor is unchanged): `Balanced` (the historic gate), `SemiBalanced` (also
+  5422/6322/7222), and **`Any` — every 15+ hand, now the default**. A/B'd vs the
+  balanced-only double (`examples/landy-ab --ns-majors "" --ns-double-shape any`,
+  contested seat-swap, plain double-dummy, 500k filtered, ~66k divergent):
+  **+0.951 IMPs/divergent (+0.0018/raw deal) non-vul, +1.185 (+0.0022/raw) both
+  vul** — every doubler shape is net positive, monotonically more so the longer
+  the suit (5422 +0.32/+0.43, 6322 +2.12/+2.67, 7222 +4.89/+6.01,
+  one-suiters with 8+ cards +7 to +16 per board). `landy-ab` now also prints an
+  **IMPs-won-per-doubler-shape** breakdown (sorted-length buckets), so each shape's
+  marginal gain over the balanced baseline reads straight off one run. *Caveat:* the
+  baseline **passes** these hands, so this measures double-vs-pass, not
+  double-vs-natural-suit-bid — passing a 15+ one-suiter over their 1NT is the worst
+  case, which is why even a blunt forced penalty double wins big; letting the very
+  strongest one-suiters bid their suit instead is a possible future refinement.
+  `set_natural_double_shape(DoubleShape::Balanced)` restores the old behavior.
+
 - **`scoring::ns_score` split into two scorers for two questions** —
   `ns_score_contract` (plain double-dummy, the contract's *actual* penalty) and
   `ns_score_bid` (perfect-defense doubling: a contract that fails double-dummy is

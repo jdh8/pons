@@ -37,8 +37,8 @@ use contract_bridge::{AbsoluteVulnerability, Bid, FullDeal, Hand, Seat, Strain, 
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
 use pons::bidding::american::{
-    set_always_pass_defense, set_landy, set_landy_hcp, set_natural_defense,
-    set_unusual_notrump_defense,
+    DoubleShape, set_always_pass_defense, set_landy, set_landy_hcp, set_natural_defense,
+    set_natural_double_shape, set_unusual_notrump_defense,
 };
 use pons::bidding::context::relative;
 use pons::bidding::{Family, Stance, System};
@@ -82,6 +82,13 @@ struct Args {
     /// `off` drops the baseline pair to the floor over their 1NT.
     #[arg(long, default_value = "on")]
     ew_natural: String,
+
+    /// Shape gate of the *measured* pair's penalty double (15+ HCP fixed):
+    /// `balanced` (default, the shipped 4333/4432/5332), `semibal` (also 5422/6322/
+    /// 7222), or `any` (every 15+ hand). The baseline stays `balanced`. Pair with
+    /// `--ns-majors ""` to isolate the double-shape change.
+    #[arg(long, default_value = "balanced")]
+    ns_double_shape: String,
 
     /// Silly always-pass defense for the *baseline* pair: `on` or `off` (default).
     /// `on` makes the baseline never act over their 1NT — the truest "do nothing"
@@ -131,6 +138,30 @@ fn parse_on_off(spec: &str, flag: &str) -> bool {
     }
 }
 
+/// Parse the `--ns-double-shape` flag into a [`DoubleShape`].
+fn parse_double_shape(spec: &str) -> DoubleShape {
+    match spec {
+        "balanced" => DoubleShape::Balanced,
+        "semibal" => DoubleShape::SemiBalanced,
+        "any" => DoubleShape::Any,
+        other => panic!("unknown --ns-double-shape {other:?} (use balanced, semibal, or any)"),
+    }
+}
+
+/// The hand's shape as a sorted-descending length string, e.g. `"5422"`, `"7321"`.
+fn shape_label(hand: Hand) -> String {
+    let mut lengths = Suit::ASC.map(|s| hand[s].len());
+    lengths.sort_unstable_by(|a, b| b.cmp(a));
+    lengths.iter().map(usize::to_string).collect()
+}
+
+/// Exactly 5422/6322/7222 (one long suit, the rest doubleton-or-better, not balanced)
+fn is_semibal(hand: Hand) -> bool {
+    let mut lengths = Suit::ASC.map(|s| hand[s].len());
+    lengths.sort_unstable();
+    matches!(lengths, [2, 2, 4, 5] | [2, 2, 3, 6] | [2, 2, 2, 7])
+}
+
 /// Render a range for the headline: `None` → `"off"`, open-top → `"8+"`, else `"8-15"`.
 fn label(range: Option<(u8, u8)>) -> String {
     match range {
@@ -169,15 +200,36 @@ fn defender_has_natural_action(hand: Hand) -> bool {
     (longest >= 5 && (6..=16).contains(&hcp)) || is_balanced_hcp(hand, 14, 40)
 }
 
+/// A defender who would double under the measured shape gate but *not* under the
+/// baseline (`Balanced`) — i.e. a 15+ non-balanced hand of the widened shape. The
+/// divergence source when isolating `--ns-double-shape` (majors/minors off).
+fn defender_has_extended_double(hand: Hand, shape: DoubleShape) -> bool {
+    // Balanced 15+ hands double in *both* arms, so they never diverge here.
+    hand_hcp(hand) >= 15
+        && !is_balanced_hcp(hand, 0, 40)
+        && match shape {
+            DoubleShape::Balanced => false,
+            DoubleShape::SemiBalanced => is_semibal(hand),
+            DoubleShape::Any => true,
+        }
+}
+
 /// Cheap pre-filter (no bidding): could this deal plausibly reach an enabled
 /// two-suiter overcall of a 1NT opening?
 ///
 /// A superset of the divergence condition: a balanced 14–18 HCP hand (a 1NT-opener
 /// candidate — generous around the 15–17 `fifths` band so no real opener is missed)
 /// with a defender (its LHO or RHO) holding the shape of an *active* arm (5-4 majors
-/// when `2♣` is on, 5-5 minors when `2NT` is on). Every divergent board has this;
-/// keying on only the active arms keeps the DD budget on boards that can swing.
-fn could_reach_landy(deal: &FullDeal, majors: bool, minors: bool, natural: bool) -> bool {
+/// when `2♣` is on, 5-5 minors when `2NT` is on, or a widened-shape penalty double
+/// when `extended` is set). Every divergent board has this; keying on only the active
+/// arms keeps the DD budget on boards that can swing.
+fn could_reach_landy(
+    deal: &FullDeal,
+    majors: bool,
+    minors: bool,
+    natural: bool,
+    extended: Option<DoubleShape>,
+) -> bool {
     Seat::ALL.iter().any(|&opener| {
         if !is_balanced_hcp(deal[opener], 14, 18) {
             return false;
@@ -188,6 +240,7 @@ fn could_reach_landy(deal: &FullDeal, majors: bool, minors: bool, natural: bool)
             (majors && two_suiter_5_4(deal[d], Suit::Hearts, Suit::Spades))
                 || (minors && two_suiter_5_5(deal[d], Suit::Clubs, Suit::Diamonds))
                 || (natural && defender_has_natural_action(deal[d]))
+                || extended.is_some_and(|s| defender_has_extended_double(deal[d], s))
         })
     })
 }
@@ -202,7 +255,11 @@ const fn seat_to_act(dealer: Seat, len: usize) -> Seat {
 /// passing we attribute the board's swing to. `None` if the natural pair opened
 /// the 1NT (so never defended) or only passed. `natural_is_ns` says which side
 /// carried the natural defense in this auction.
-fn natural_action_over_1nt(auction: &[Call], dealer: Seat, natural_is_ns: bool) -> Option<Call> {
+fn natural_action_over_1nt(
+    auction: &[Call],
+    dealer: Seat,
+    natural_is_ns: bool,
+) -> Option<(Seat, Call)> {
     let one_nt = Call::Bid(Bid::new(1, Strain::Notrump));
     let i = auction.iter().position(|&c| c == one_nt)?;
     let opener_is_ns = matches!(seat_to_act(dealer, i), Seat::North | Seat::South);
@@ -210,8 +267,9 @@ fn natural_action_over_1nt(auction: &[Call], dealer: Seat, natural_is_ns: bool) 
         return None; // the natural pair opened the 1NT, not defended it
     }
     auction[i + 1..].iter().enumerate().find_map(|(off, &c)| {
-        let seat_is_ns = matches!(seat_to_act(dealer, i + 1 + off), Seat::North | Seat::South);
-        (seat_is_ns == natural_is_ns && c != Call::Pass).then_some(c)
+        let seat = seat_to_act(dealer, i + 1 + off);
+        let seat_is_ns = matches!(seat, Seat::North | Seat::South);
+        (seat_is_ns == natural_is_ns && c != Call::Pass).then_some((seat, c))
     })
 }
 
@@ -278,6 +336,7 @@ fn main() {
     let args = Args::parse();
     let majors = parse_range(&args.ns_majors);
     let minors = parse_range(&args.ns_minors);
+    let double_shape = parse_double_shape(&args.ns_double_shape);
     let mut rng = StdRng::seed_from_u64(args.seed);
 
     // Baseline = the bare floor (both two-suiters off); measured = the configured
@@ -295,12 +354,14 @@ fn main() {
     set_unusual_notrump_defense(None);
     set_landy_hcp(false);
     set_natural_defense(ew_natural);
+    set_natural_double_shape(DoubleShape::Balanced);
     set_always_pass_defense(ew_always_pass);
     let baseline = american().against(Family::NATURAL);
     set_landy(majors);
     set_unusual_notrump_defense(minors);
     set_landy_hcp(use_hcp);
     set_natural_defense(ns_natural);
+    set_natural_double_shape(double_shape);
     set_always_pass_defense(false);
     let measured = american().against(Family::NATURAL);
 
@@ -320,8 +381,17 @@ fn main() {
         } else {
             ns_natural != ew_natural
         };
+        // The measured pair widens the double's shape gate above the baseline's
+        // `Balanced`, so non-balanced 15+ hands are a fresh divergence source.
+        let extended = (double_shape != DoubleShape::Balanced).then_some(double_shape);
         if args.filter
-            && !could_reach_landy(&deal, majors.is_some(), minors.is_some(), natural_diverges)
+            && !could_reach_landy(
+                &deal,
+                majors.is_some(),
+                minors.is_some(),
+                natural_diverges,
+                extended,
+            )
         {
             continue;
         }
@@ -370,6 +440,11 @@ fn main() {
     // natural pair are the *defenders* of the 1NT).
     let mut by_action: std::collections::BTreeMap<String, (i64, i64)> =
         std::collections::BTreeMap::new();
+    // Per-doubler-shape tally: sorted-length label -> (boards, IMPs). When isolating
+    // `--ns-double-shape`, every divergent board is triggered by a non-balanced 15+
+    // doubler, so each row is that shape's marginal gain over the balanced baseline.
+    let mut by_shape: std::collections::BTreeMap<String, (i64, i64)> =
+        std::collections::BTreeMap::new();
     for (&i, table) in divergent.iter().zip(tables.iter()) {
         let (contract_a, contract_b) = contracts[i];
         let swing = ns_score_contract(contract_a, table, args.vulnerability)
@@ -379,12 +454,17 @@ fn main() {
         total_imps += board_imps;
         worst.push((board_imps, i));
         let dealer = Seat::ALL[i % 4];
-        let action = natural_action_over_1nt(&auctions[i].0, dealer, true)
+        let actor = natural_action_over_1nt(&auctions[i].0, dealer, true)
             .or_else(|| natural_action_over_1nt(&auctions[i].1, dealer, false));
-        let key = action.map_or_else(|| "(other)".to_string(), action_label);
+        let key = actor.map_or_else(|| "(other)".to_string(), |(_, call)| action_label(call));
         let entry = by_action.entry(key).or_default();
         entry.0 += 1;
         entry.1 += board_imps;
+        if let Some((seat, _)) = actor {
+            let shape = by_shape.entry(shape_label(deals[i][seat])).or_default();
+            shape.0 += 1;
+            shape.1 += board_imps;
+        }
     }
     worst.sort_by_key(|w| w.0);
     eprintln!("=== Worst 15 divergent boards for Landy ===");
@@ -404,12 +484,13 @@ fn main() {
         "off".to_string()
     };
     let arms = format!(
-        "2♣ majors {}, 2NT minors {} [{}], natural NS {}/EW {}",
+        "2♣ majors {}, 2NT minors {} [{}], natural NS {}/EW {}, X-shape {}",
         label(majors),
         label(minors),
         args.strength,
         if ns_natural { "on" } else { "off" },
         ew_label,
+        args.ns_double_shape,
     );
     println!(
         "=== Landy-vs-default A/B ({arms}): {} boards, vulnerability {} ===",
@@ -438,6 +519,14 @@ fn main() {
         println!(
             "  {action:<7} {boards:>6} boards  {imps_won:+7} IMPs  ({:+.3} IMPs/action-board)",
             *imps_won as f64 / (*boards).max(1) as f64,
+        );
+    }
+    println!("--- IMPs won per doubler shape (per-subtype marginal gain) ---");
+    for (shape, (boards, imps_won)) in &by_shape {
+        println!(
+            "  {shape:<7} {boards:>6} boards  {imps_won:+7} IMPs  ({:+.3} IMPs/shape-board, {:+.4} IMPs/raw-deal)",
+            *imps_won as f64 / (*boards).max(1) as f64,
+            *imps_won as f64 / scanned.max(1) as f64,
         );
     }
     // The filter-independent real-world rate (per *raw* deal dealt): the headline

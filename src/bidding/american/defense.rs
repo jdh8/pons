@@ -195,6 +195,57 @@ fn natural_defense_enabled() -> bool {
     NATURAL_DEFENSE.with(Cell::get)
 }
 
+/// Which shapes qualify for the natural penalty double of their 1NT (the 15+ HCP
+/// floor is fixed; this only widens the *shape* gate). See [`set_natural_double_shape`].
+#[derive(Clone, Copy, PartialEq, Eq, Default, Debug)]
+pub enum DoubleShape {
+    /// 4333/4432/5332 only — the historic gate before the all-shape A/B.
+    Balanced,
+    /// Balanced plus the semi-balanced single-long-suit hands 5422/6322/7222.
+    SemiBalanced,
+    /// Any shape (the 15+ HCP floor alone gates the double) — **the default**.
+    /// A/B'd a clear win over `Balanced`: every shape bucket gains, more the longer
+    /// the suit (a 15+ one-suiter that used to *pass* over their 1NT is the worst
+    /// case a penalty double fixes).
+    #[default]
+    Any,
+}
+
+thread_local! {
+    /// Which shapes earn the natural penalty double of their 1NT; **[`Any`]
+    /// by default**. See [`set_natural_double_shape`].
+    ///
+    /// [`Any`]: DoubleShape::Any
+    static NATURAL_DOUBLE_SHAPE: Cell<DoubleShape> = const { Cell::new(DoubleShape::Any) };
+}
+
+/// Widen (or narrow) the shape gate of the natural penalty double for books built
+/// *after* this call (thread-local, read once at book-construction time)
+///
+/// [`DoubleShape::Any`] (the **default**) doubles every 15+ hand regardless of shape.
+/// [`DoubleShape::SemiBalanced`] doubles balanced plus 5422/6322/7222, and
+/// [`DoubleShape::Balanced`] restores the historic 15+ balanced-only double. The HCP
+/// floor (15+) is unchanged. An A/B knob
+/// (`examples/landy-ab --ns-double-shape balanced|semibal|any`).
+pub fn set_natural_double_shape(shape: DoubleShape) {
+    NATURAL_DOUBLE_SHAPE.with(|cell| cell.set(shape));
+}
+
+/// The shape gate currently authored for the natural penalty double
+fn natural_double_shape() -> DoubleShape {
+    NATURAL_DOUBLE_SHAPE.with(Cell::get)
+}
+
+/// Semi-balanced shape for the penalty double: balanced, or one of 5422/6322/7222
+fn semi_balanced() -> Cons<impl Constraint + Clone> {
+    balanced()
+        | described("5422/6322/7222", |hand: Hand, _: &Context<'_>| {
+            let mut lengths = Suit::ASC.map(|suit| hand[suit].len());
+            lengths.sort_unstable();
+            matches!(lengths, [2, 2, 4, 5] | [2, 2, 3, 6] | [2, 2, 2, 7])
+        })
+}
+
 thread_local! {
     /// The always-pass defense to their 1NT — a finite logit on `Pass`
     /// for every hand, which shadows the instinct floor at `[1NT]` so our side
@@ -468,10 +519,15 @@ pub fn defense_to_notrump() -> Rules {
     // the toggleable arm: with all three arms off the node carries no finite logit
     // and the position falls to the instinct floor (the A/B baseline).
     if natural_defense_enabled() {
-        rules =
-            rules
-                .rule(Call::Double, 1.3, hcp(15..) & balanced())
-                .rule(Call::Pass, 0.0, hcp(0..));
+        // The penalty double's HCP floor is fixed at 15; the shape gate widens with
+        // `set_natural_double_shape`. Each arm reissues `.rule()` so the differing
+        // constraint types unify to `Rules` (same trick as the `use_hcp` branches).
+        rules = match natural_double_shape() {
+            DoubleShape::Balanced => rules.rule(Call::Double, 1.3, hcp(15..) & balanced()),
+            DoubleShape::SemiBalanced => rules.rule(Call::Double, 1.3, hcp(15..) & semi_balanced()),
+            DoubleShape::Any => rules.rule(Call::Double, 1.3, hcp(15..)),
+        };
+        rules = rules.rule(Call::Pass, 0.0, hcp(0..));
         for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
             // Landy reuses 2♣ for both majors, so the natural club overcall is gone.
             if landy.is_some() && suit == Suit::Clubs {
