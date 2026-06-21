@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **`scoring::ns_score` split into two scorers for two questions** —
+  `ns_score_contract` (plain double-dummy, the contract's *actual* penalty) and
+  `ns_score_bid` (perfect-defense doubling: a contract that fails double-dummy is
+  scored doubled, a making one undoubled, so it takes a `Bid` not a `Contract`).
+  The old single `ns_score` was a hybrid (PD-double on failure but honor-the-
+  auction-penalty on make) that fit neither job. **Scoring a reached contract** (a
+  duplicate A/B result) now honors the penalty actually bid (`ns_score_contract`);
+  **evaluating a call** (the `bidding::ev` rollout, contract-choice probes) uses
+  perfect defense (`ns_score_bid`). The A/B duplicate harnesses move from PD to
+  plain DD — a measurement re-baseline: prior PD-era A/B figures are not directly
+  comparable, and findings driven by PD auto-doubling failing overbids (the
+  obstruction-wall sweep) soften under plain DD. `stats::average_ns_par` keeps its
+  perfect-defense `min(undoubled, doubled)` assumption (par is inherently a
+  best-defense concept).
+
 - **Over a `(2♣)` overcall of our `1NT` we now play *systems on*, not Lebensohl.**
   A 2♣ overcall steals no room — every transfer and relay still sits above it — so
   imposing the Lebensohl relay/transfer-through structure was wrong (and bred a

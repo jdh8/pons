@@ -51,7 +51,7 @@ use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
 use pons::bidding::constraint::{Constraint, hcp, len, stopper_in, top_honors};
 use pons::bidding::{Context, Stance, Table};
-use pons::scoring::{final_contract, ns_score};
+use pons::scoring::{final_contract, ns_score_contract};
 use std::collections::HashMap;
 
 const TWO_SPADES: Call = Call::Bid(Bid::new(2, Strain::Spades));
@@ -335,8 +335,8 @@ fn score_deals(
                     .or_default() += 1;
             }
             Outcome {
-                defend: ns_score(defend, tricks, vulnerability),
-                declare: ns_score(declare, tricks, vulnerability),
+                defend: ns_score_contract(defend, tricks, vulnerability),
+                declare: ns_score_contract(declare, tricks, vulnerability),
             }
         })
         .collect();

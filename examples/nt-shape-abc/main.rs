@@ -27,7 +27,7 @@ use pons::american;
 use pons::bidding::american::american_classic;
 use pons::bidding::context::relative;
 use pons::bidding::{Family, Stance, System};
-use pons::scoring::{final_contract, imps, ns_score};
+use pons::scoring::{final_contract, imps, ns_score_contract};
 
 /// 1NT-shape A/B: classic balanced 1NT vs the wide redesign
 #[derive(Parser)]
@@ -128,8 +128,8 @@ fn main() {
     let mut points = 0i64;
     let mut total_imps = 0i64;
     for (&i, table) in divergent.iter().zip(tables.iter()) {
-        let base = ns_score(contracts[i][0], table, args.vulnerability);
-        let wide = ns_score(contracts[i][1], table, args.vulnerability);
+        let base = ns_score_contract(contracts[i][0], table, args.vulnerability);
+        let wide = ns_score_contract(contracts[i][1], table, args.vulnerability);
         points += wide - base;
         total_imps += imps(wide - base);
     }

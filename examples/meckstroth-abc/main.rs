@@ -26,7 +26,7 @@ use pons::american;
 use pons::bidding::american::set_meckstroth_adjunct;
 use pons::bidding::context::relative;
 use pons::bidding::{Family, Stance, System};
-use pons::scoring::{final_contract, imps, ns_score};
+use pons::scoring::{final_contract, imps, ns_score_contract};
 
 /// Meckstroth-adjunct A/B: baseline rebids vs the `3m = INV` jumps
 #[derive(Parser)]
@@ -129,8 +129,8 @@ fn main() {
     let mut points = 0i64;
     let mut total_imps = 0i64;
     for (&i, table) in divergent.iter().zip(tables.iter()) {
-        let base = ns_score(contracts[i][0], table, args.vulnerability);
-        let adj = ns_score(contracts[i][1], table, args.vulnerability);
+        let base = ns_score_contract(contracts[i][0], table, args.vulnerability);
+        let adj = ns_score_contract(contracts[i][1], table, args.vulnerability);
         points += adj - base;
         total_imps += imps(adj - base);
     }

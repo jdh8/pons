@@ -26,7 +26,7 @@ use pons::american;
 use pons::bidding::context::relative;
 use pons::bidding::set_nt_invite_inference;
 use pons::bidding::{Family, Stance, System};
-use pons::scoring::{final_contract, imps, ns_score};
+use pons::scoring::{final_contract, imps, ns_score_contract};
 
 /// 1NT invite-acceptance A/B: blind opener vs reads-the-raise opener
 #[derive(Parser)]
@@ -126,8 +126,8 @@ fn main() {
     let mut points = 0i64;
     let mut total_imps = 0i64;
     for (&i, table) in divergent.iter().zip(tables.iter()) {
-        let base = ns_score(baseline[i], table, args.vulnerability);
-        let fix = ns_score(fixed[i], table, args.vulnerability);
+        let base = ns_score_contract(baseline[i], table, args.vulnerability);
+        let fix = ns_score_contract(fixed[i], table, args.vulnerability);
         points += fix - base;
         total_imps += imps(fix - base);
     }

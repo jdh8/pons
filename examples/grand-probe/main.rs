@@ -11,7 +11,7 @@
 //! cold grands but **phantom sacrifices** in runaway competitive auctions, where
 //! the rollout under-doubles so a failing save prices too cheaply.  The fix is
 //! perfect-defense doubling in the EV scorer
-//! ([`scoring::ns_score`][pons::scoring::ns_score]),
+//! ([`scoring::ns_score_bid`][pons::scoring::ns_score_bid]),
 //! now the default; this probe is kept as the regression check that the grand
 //! flood stays gone.
 //!
@@ -27,7 +27,7 @@
 use clap::Parser;
 use contract_bridge::auction::{Auction, Call};
 use contract_bridge::deck::full_deal;
-use contract_bridge::{AbsoluteVulnerability, Bid, Contract, Hand, Level, Penalty, Seat, Strain};
+use contract_bridge::{AbsoluteVulnerability, Bid, Hand, Level, Seat, Strain};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::bidding::Family;
 use pons::bidding::array::Logits;
@@ -36,7 +36,7 @@ use pons::bidding::ev::ev_all;
 use pons::bidding::inference::Inferences;
 use pons::bidding::sampler::sample_layouts;
 use pons::bidding::search_floor::SearchFloor;
-use pons::scoring::{imps, ns_score};
+use pons::scoring::{imps, ns_score_bid};
 use pons::{american_neural, american_search_with};
 use rand::rngs::StdRng;
 use rand::{RngExt, SeedableRng};
@@ -245,29 +245,26 @@ fn probe_node(
     }
     let tables = Solver::lock().solve_deals(&deals, NonEmptyStrainFlags::ALL);
 
-    // Actor-side sign: ns_score is +ve for NS, so flip for an EW actor.
+    // Actor-side sign: ns_score_bid is +ve for NS, so flip for an EW actor.
     let sign: i64 = if matches!(seat, Seat::North | Seat::South) {
         1
     } else {
         -1
     };
+    // Contract-choice probe (7NT vs 6NT): perfect-defense scoring, so pass the
+    // bare bid and let `ns_score_bid` derive the penalty (a failing grand is
+    // doubled).
     let c7 = Some((
-        Contract {
-            bid: Bid {
-                level: Level::new(7),
-                strain: Strain::Notrump,
-            },
-            penalty: Penalty::Undoubled,
+        Bid {
+            level: Level::new(7),
+            strain: Strain::Notrump,
         },
         seat,
     ));
     let c6 = Some((
-        Contract {
-            bid: Bid {
-                level: Level::new(6),
-                strain: Strain::Notrump,
-            },
-            penalty: Penalty::Undoubled,
+        Bid {
+            level: Level::new(6),
+            strain: Strain::Notrump,
         },
         seat,
     ));
@@ -279,8 +276,8 @@ fn probe_node(
             makes += 1;
         }
         tricks_sum += u64::from(tricks);
-        let s7 = sign * ns_score(c7, table, vul);
-        let s6 = sign * ns_score(c6, table, vul);
+        let s7 = sign * ns_score_bid(c7, table, vul);
+        let s6 = sign * ns_score_bid(c6, table, vul);
         p7 += s7;
         p6 += s6;
         imp_sum += imps(s7 - s6); // per-layout IMPs of bidding 7NT over 6NT

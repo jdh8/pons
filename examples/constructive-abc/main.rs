@@ -40,7 +40,7 @@ use pons::bidding::neural_floor::NeuralFloorSearch;
 use pons::bidding::search_floor::SearchFloor;
 use pons::bidding::{Family, Stance, System};
 use pons::instinct;
-use pons::scoring::{final_contract, imps, ns_score};
+use pons::scoring::{final_contract, imps, ns_score_contract};
 
 /// Constructive-only floor A/B/C: instinct vs SearchFloor vs NeuralFloorSearch
 #[derive(Parser)]
@@ -163,8 +163,9 @@ fn main() {
     let mut points = [0i64; 3];
     let mut imp_totals = [0i64; 3];
     for (&i, table) in divergent.iter().zip(tables.iter()) {
-        let scores: [i64; 3] =
-            std::array::from_fn(|arm| ns_score(contracts[i][arm], table, args.vulnerability));
+        let scores: [i64; 3] = std::array::from_fn(|arm| {
+            ns_score_contract(contracts[i][arm], table, args.vulnerability)
+        });
         for (p, &(x, y)) in pairings.iter().enumerate() {
             let swing = scores[x] - scores[y];
             points[p] += swing;

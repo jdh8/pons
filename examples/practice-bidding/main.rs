@@ -28,7 +28,7 @@ use pons::american;
 #[cfg(feature = "neural-floor")]
 use pons::american_neural_search;
 use pons::bidding::{Pair, Table};
-use pons::scoring::{final_contract, ns_score};
+use pons::scoring::{final_contract, ns_score_contract};
 
 // ---------------------------------------------------------------------------
 // CLI
@@ -137,7 +137,7 @@ fn human_side_score(
     vul: AbsoluteVulnerability,
     human_seat: Seat,
 ) -> i64 {
-    let ns = ns_score(Some((contract, declarer)), table, vul);
+    let ns = ns_score_contract(Some((contract, declarer)), table, vul);
     match human_seat {
         Seat::North | Seat::South => ns,
         Seat::East | Seat::West => -ns,

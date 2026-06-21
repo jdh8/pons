@@ -41,7 +41,7 @@ use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
 use pons::bidding::context::relative;
 use pons::bidding::{Family, Stance, System};
-use pons::scoring::{final_contract, imps, ns_score};
+use pons::scoring::{final_contract, imps, ns_score_contract};
 
 /// Revised SAT: the `4♥/4♠` non-forcing-slam-try gadget vs the current bidder
 #[derive(Parser)]
@@ -245,8 +245,8 @@ fn main() {
         // Gadget: modeled, responder-declared.
         let gadget = gadget_contract(deal[*opener], deal[*responder], *major);
 
-        let base_score = ns_score(base, table, args.vulnerability);
-        let gadget_score = ns_score(Some((gadget, *responder)), table, args.vulnerability);
+        let base_score = ns_score_contract(base, table, args.vulnerability);
+        let gadget_score = ns_score_contract(Some((gadget, *responder)), table, args.vulnerability);
         total_points += gadget_score - base_score;
         total_imps += imps(gadget_score - base_score);
 

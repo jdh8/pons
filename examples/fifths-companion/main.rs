@@ -27,7 +27,7 @@ use pons::bidding::constraint::{
 };
 use pons::bidding::context::relative;
 use pons::bidding::{Family, Stance, System};
-use pons::scoring::{final_contract, imps, ns_score};
+use pons::scoring::{final_contract, imps, ns_score_contract};
 
 /// A/B the Fifths companion gauge: an HCP-vs-BUM-RAP duplicate match
 #[derive(Parser)]
@@ -155,8 +155,8 @@ fn main() {
     let mut total_imps = 0i64;
     for (&index, table) in divergent.iter().zip(tables.iter()) {
         let (contract_a, contract_b) = contracts[index];
-        let swing = ns_score(contract_a, table, args.vulnerability)
-            - ns_score(contract_b, table, args.vulnerability);
+        let swing = ns_score_contract(contract_a, table, args.vulnerability)
+            - ns_score_contract(contract_b, table, args.vulnerability);
         total_points += swing;
         total_imps += imps(swing);
     }

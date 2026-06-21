@@ -44,7 +44,7 @@ use contract_bridge::{AbsoluteVulnerability, Contract, FullDeal, Hand, Seat};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::bidding::context::relative;
 use pons::bidding::{Family, System};
-use pons::scoring::{final_contract, imps, ns_score};
+use pons::scoring::{final_contract, imps, ns_score_contract};
 use pons::{Accumulator, american, american_search, american_search_book};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -215,7 +215,8 @@ fn duplicate_match(
     let mut swings = vec![0i64; played.len()];
     for (&index, table) in divergent.iter().zip(tables.iter()) {
         let (contract_a, contract_b) = contracts[index];
-        let points = ns_score(contract_a, table, vul) - ns_score(contract_b, table, vul);
+        let points =
+            ns_score_contract(contract_a, table, vul) - ns_score_contract(contract_b, table, vul);
         swings[index] = imps(points);
     }
 

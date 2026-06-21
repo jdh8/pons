@@ -40,7 +40,7 @@ use pons::american;
 use pons::bidding::american::{LebensohlStyle, set_advance_sohl_style, set_delayed_cue};
 use pons::bidding::context::relative;
 use pons::bidding::{Family, Stance, System};
-use pons::scoring::{final_contract, imps, ns_score};
+use pons::scoring::{final_contract, imps, ns_score_contract};
 
 /// Contested sohl-after-double A/B
 #[derive(Parser)]
@@ -224,8 +224,8 @@ fn main() {
     let mut worst: Vec<(i64, usize)> = Vec::new();
     for (&i, table) in divergent.iter().zip(tables.iter()) {
         let (contract_a, contract_b) = contracts[i];
-        let swing = ns_score(contract_a, table, args.vulnerability)
-            - ns_score(contract_b, table, args.vulnerability);
+        let swing = ns_score_contract(contract_a, table, args.vulnerability)
+            - ns_score_contract(contract_b, table, args.vulnerability);
         points += swing;
         total_imps += imps(swing);
         worst.push((imps(swing), i));

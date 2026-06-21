@@ -2,9 +2,22 @@
 //!
 //! Per-board primitives connecting the three stages of a simulated board:
 //! a completed [`Auction`] yields the [`final_contract`], a double-dummy
-//! [`TrickCountTable`] prices it as a signed [`ns_score`], and a score
-//! difference between two tables converts to [`imps`].  Promoted from the
-//! `instinct-floor` example so every simulation harness shares one scorer.
+//! [`TrickCountTable`] prices it — as either [`ns_score_contract`] (plain DD,
+//! the contract's *actual* penalty) or [`ns_score_bid`] (perfect-defense
+//! doubling, for evaluating a *call*) — and a score difference between two
+//! tables converts to [`imps`].  Promoted from the `instinct-floor` example so
+//! every simulation harness shares one scorer.
+//!
+//! Two scorers because there are two questions. **Scoring a reached contract**
+//! (a duplicate A/B result) honors the penalty the auction actually produced —
+//! that is [`ns_score_contract`], plain double-dummy. **Evaluating a call**
+//! (the EV rollout in [`crate::bidding::ev`], a contract-choice probe) assumes
+//! perfect-defense doubling: a contract that fails double-dummy is scored
+//! *doubled*, a making one *undoubled*, regardless of the auction — because the
+//! cardplay already assumes optimal defense, so the doubling must too, or a
+//! failing sacrifice prices far too cheaply.  That is [`ns_score_bid`], which
+//! takes a [`Bid`] (not a [`Contract`]) precisely because it derives the
+//! penalty itself.
 
 use contract_bridge::auction::{Auction, Call};
 use contract_bridge::{AbsoluteVulnerability, Bid, Contract, Penalty, Seat};
@@ -43,27 +56,44 @@ pub fn final_contract(auction: &Auction, dealer: Seat) -> Option<(Contract, Seat
     Some((Contract { bid, penalty }, seat_at(dealer, index)))
 }
 
-/// Double-dummy NS score of a final contract (0 for a pass-out), assuming
-/// **perfect-defense doubling**: a contract that fails double-dummy is scored
-/// *doubled*; a making contract keeps its auction penalty.
+/// Signed-for-NS double-dummy score of `bid` played by `declarer` with the given
+/// `penalty`; the shared tail of both public scorers.
+fn ns_score_with(
+    bid: Bid,
+    declarer: Seat,
+    penalty: Penalty,
+    table: &TrickCountTable,
+    vul: AbsoluteVulnerability,
+) -> i64 {
+    let tricks = u8::from(table[bid.strain].get(declarer));
+    let declarer_vul = vul.contains(match declarer {
+        Seat::North | Seat::South => AbsoluteVulnerability::NS,
+        Seat::East | Seat::West => AbsoluteVulnerability::EW,
+    });
+    let score = i64::from(Contract { bid, penalty }.score(tricks, declarer_vul));
+    match declarer {
+        Seat::North | Seat::South => score,
+        Seat::East | Seat::West => -score,
+    }
+}
+
+/// Whether `bid` fails double-dummy when played by `declarer` (tricks short of
+/// the book-plus-level needed)
+fn fails_dd(bid: Bid, declarer: Seat, table: &TrickCountTable) -> bool {
+    let tricks = u8::from(table[bid.strain].get(declarer));
+    u32::from(tricks) < 6 + u32::from(bid.level.get())
+}
+
+/// Plain double-dummy NS score of a reached contract (0 for a pass-out): the
+/// contract's *actual* penalty, scored at the declaring side's vulnerability and
+/// signed for North/South (positive is good for NS).
 ///
-/// Looks the declarer's tricks up in the solved `table`, scores the contract at
-/// the declaring side's vulnerability, and signs the result for North/South:
-/// positive is good for NS.  Takes the [`Option`] straight from
-/// [`final_contract`] so a passed-out board scores 0.
-///
-/// There is no optimistic, undoubled-failure variant: in a double-dummy model
-/// the opponents always hold the red card, so pricing a failing overbid undoubled
-/// would model an opponent who *cannot* double — never the case at a real table.
-/// The doubling rule is symmetric (it doubles either side's failing contract), so
-/// it sharpens both our overbids and our defense of theirs, and it never rewards
-/// doubling a making contract.
-///
-/// [`stats::average_ns_par`][crate::stats::average_ns_par] makes the same
-/// assumption for par scoring (there as `min(undoubled, doubled)` on the
-/// expected score); this is its per-deal analogue.
+/// This is the scorer for a **duplicate A/B result** — the contract was bid and
+/// (re)doubled in the simulation, so it is priced exactly as it stands, with no
+/// synthetic doubling.  Takes the [`Option`] straight from [`final_contract`].
+/// To evaluate a *call* against perfect defense instead, use [`ns_score_bid`].
 #[must_use]
-pub fn ns_score(
+pub fn ns_score_contract(
     result: Option<(Contract, Seat)>,
     table: &TrickCountTable,
     vul: AbsoluteVulnerability,
@@ -71,26 +101,40 @@ pub fn ns_score(
     let Some((contract, declarer)) = result else {
         return 0;
     };
-    let tricks = u8::from(table[contract.bid.strain].get(declarer));
-    let failing = u32::from(tricks) < 6 + u32::from(contract.bid.level.get());
-    let penalty = if failing {
+    ns_score_with(contract.bid, declarer, contract.penalty, table, vul)
+}
+
+/// Perfect-defense NS score of a `bid` played by `declarer` (0 for a pass-out):
+/// the contract is scored **doubled if it fails double-dummy, undoubled if it
+/// makes**, regardless of any auction penalty — hence a [`Bid`], not a
+/// [`Contract`].
+///
+/// This is the scorer for **evaluating a call**: in a double-dummy model the
+/// opponents always hold the red card, so a failing overbid must be priced
+/// doubled (an opponent who *cannot* double is never the case at a real table),
+/// while a making contract is never doubled (that only helps declarer).  The
+/// rule is symmetric — it doubles either side's failing contract — so it sharpens
+/// both our overbids and our defense of theirs.  Used by the EV rollout in
+/// [`crate::bidding::ev`] and contract-choice probes.
+///
+/// [`stats::average_ns_par`][crate::stats::average_ns_par] makes the same
+/// assumption for par scoring (there as `min(undoubled, doubled)` on the
+/// expected score); this is its per-deal analogue.
+#[must_use]
+pub fn ns_score_bid(
+    result: Option<(Bid, Seat)>,
+    table: &TrickCountTable,
+    vul: AbsoluteVulnerability,
+) -> i64 {
+    let Some((bid, declarer)) = result else {
+        return 0;
+    };
+    let penalty = if fails_dd(bid, declarer, table) {
         Penalty::Doubled
     } else {
-        contract.penalty
+        Penalty::Undoubled
     };
-    let contract = Contract {
-        bid: contract.bid,
-        penalty,
-    };
-    let declarer_vul = vul.contains(match declarer {
-        Seat::North | Seat::South => AbsoluteVulnerability::NS,
-        Seat::East | Seat::West => AbsoluteVulnerability::EW,
-    });
-    let score = i64::from(contract.score(tricks, declarer_vul));
-    match declarer {
-        Seat::North | Seat::South => score,
-        Seat::East | Seat::West => -score,
-    }
+    ns_score_with(bid, declarer, penalty, table, vul)
 }
 
 /// Upper bounds (exclusive) of the point difference for 0, 1, 2, … IMPs

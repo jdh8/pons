@@ -37,7 +37,7 @@ use pons::bidding::constraint::point_count;
 use pons::bidding::context::{Context, relative};
 use pons::bidding::ev::ev_all;
 use pons::bidding::{Family, Stance, System};
-use pons::scoring::{final_contract, imps, ns_score};
+use pons::scoring::{final_contract, imps, ns_score_contract};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
 use std::collections::HashMap;
@@ -474,8 +474,8 @@ fn main() {
     let mut buckets: HashMap<String, (usize, i64)> = HashMap::new();
     for (&i, table) in divergent.iter().zip(tables.iter()) {
         let (contract_a, contract_b) = contracts[i];
-        let swing = ns_score(contract_a, table, args.vulnerability)
-            - ns_score(contract_b, table, args.vulnerability);
+        let swing = ns_score_contract(contract_a, table, args.vulnerability)
+            - ns_score_contract(contract_b, table, args.vulnerability);
         let board_imps = imps(swing);
         points += swing;
         total_imps += board_imps;

@@ -39,7 +39,7 @@ use pons::american;
 use pons::bidding::array::{Array, Logits};
 use pons::bidding::context::relative;
 use pons::bidding::{Family, System};
-use pons::scoring::{final_contract, imps, ns_score};
+use pons::scoring::{final_contract, imps, ns_score_contract};
 use std::ffi::{CString, c_char, c_int, c_void};
 
 const DEFAULT_LIB: &str = "vendor/bba/Native-libraries/linux/x64/libEPBot.so";
@@ -510,8 +510,8 @@ fn main() -> anyhow::Result<()> {
     let mut swings: Vec<(usize, i64, i64)> = Vec::with_capacity(divergent.len());
     for (&index, table) in divergent.iter().zip(tables.iter()) {
         let (contract_a, contract_b) = contracts[index];
-        let swing = ns_score(contract_a, table, args.vulnerability)
-            - ns_score(contract_b, table, args.vulnerability);
+        let swing = ns_score_contract(contract_a, table, args.vulnerability)
+            - ns_score_contract(contract_b, table, args.vulnerability);
         total_points += swing;
         board_imps[index] = imps(swing);
         swings.push((index, swing, imps(swing)));

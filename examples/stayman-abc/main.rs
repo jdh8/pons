@@ -24,7 +24,7 @@ use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
 use pons::bidding::context::relative;
 use pons::bidding::{Family, Stance, System};
-use pons::scoring::{final_contract, imps, ns_score};
+use pons::scoring::{final_contract, imps, ns_score_contract};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
 use std::fs;
@@ -170,8 +170,8 @@ fn main() {
     let mut points = 0i64;
     let mut total_imps = 0i64;
     for (&i, table) in divergent.iter().zip(tables.iter()) {
-        let base = ns_score(baseline[i], table, args.vulnerability);
-        let new = ns_score(contracts[i], table, args.vulnerability);
+        let base = ns_score_contract(baseline[i], table, args.vulnerability);
+        let new = ns_score_contract(contracts[i], table, args.vulnerability);
         points += new - base;
         total_imps += imps(new - base);
     }

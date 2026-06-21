@@ -17,7 +17,7 @@
 //! — this uses the contested seat-swap duplicate match: at table A the measured
 //! pair sits North/South against the floor East/West; at table B they swap. A board
 //! whose tables reach different contracts is solved double dummy and the swing
-//! credited to the measured pair under **perfect-defense** [`ns_score`] (a failing
+//! credited to the measured pair under **perfect-defense** [`ns_score_contract`] (a failing
 //! contract is scored doubled). A positive IMPs/board favors the convention.
 //!
 //! ```text
@@ -39,7 +39,7 @@ use pons::american;
 use pons::bidding::american::{set_responsive_overcall, set_responsive_takeout};
 use pons::bidding::context::relative;
 use pons::bidding::{Family, Stance, System};
-use pons::scoring::{final_contract, imps, ns_score};
+use pons::scoring::{final_contract, imps, ns_score_contract};
 
 /// Contested responsive-double A/B under perfect-defense scoring
 #[derive(Parser)]
@@ -215,8 +215,8 @@ fn main() {
     let mut worst: Vec<(i64, usize)> = Vec::new();
     for (&i, table) in divergent.iter().zip(tables.iter()) {
         let (contract_a, contract_b) = contracts[i];
-        let swing = ns_score(contract_a, table, args.vulnerability)
-            - ns_score(contract_b, table, args.vulnerability);
+        let swing = ns_score_contract(contract_a, table, args.vulnerability)
+            - ns_score_contract(contract_b, table, args.vulnerability);
         points += swing;
         total_imps += imps(swing);
         worst.push((imps(swing), i));

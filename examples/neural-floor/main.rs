@@ -39,7 +39,7 @@ use ddss::{NonEmptyStrainFlags, Solver};
 use pons::bidding::american::bare_american;
 use pons::bidding::context::relative;
 use pons::bidding::{Family, Stance, System};
-use pons::scoring::{final_contract, imps, ns_score};
+use pons::scoring::{final_contract, imps, ns_score_contract};
 use pons::{Accumulator, american, american_neural, american_neural_search, american_neural_v2};
 
 /// Measure the distilled neural floor: A/B duplicate matches with intervals
@@ -121,7 +121,7 @@ struct Board {
 /// The outcome of one duplicate match
 struct MatchResult {
     /// Per-board IMP swing to the home team (0 on non-divergent boards), scored
-    /// with perfect-defense doubling ([`ns_score`]): a contract that fails double
+    /// with perfect-defense doubling ([`ns_score_contract`]): a contract that fails double
     /// dummy is priced *doubled*, as real opponents would double what they can
     /// beat. There is no optimistic, undoubled-failure bound — that model was
     /// removed (opponents always hold the red card).
@@ -175,7 +175,8 @@ fn duplicate_match(
     let mut swings = vec![0i64; count];
     for (&index, table) in divergent.iter().zip(tables.iter()) {
         let (contract_a, contract_b) = contracts[index];
-        let points = ns_score(contract_a, table, vul) - ns_score(contract_b, table, vul);
+        let points =
+            ns_score_contract(contract_a, table, vul) - ns_score_contract(contract_b, table, vul);
         swings[index] = imps(points);
     }
 
