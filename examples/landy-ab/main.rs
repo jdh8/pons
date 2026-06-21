@@ -36,7 +36,9 @@ use contract_bridge::eval::hcp as holding_hcp;
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Hand, Seat, Suit};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
-use pons::bidding::american::{set_landy, set_landy_hcp, set_unusual_notrump_defense};
+use pons::bidding::american::{
+    set_landy, set_landy_hcp, set_natural_defense, set_unusual_notrump_defense,
+};
 use pons::bidding::context::relative;
 use pons::bidding::{Family, Stance, System};
 use pons::scoring::{final_contract, imps, ns_score_contract};
@@ -67,6 +69,18 @@ struct Args {
     /// Strength gauge for the two-suiter overcalls: `points` (default) or `hcp`
     #[arg(long, default_value = "points")]
     strength: String,
+
+    /// Natural one-suiter defense (penalty X + natural 2♣/♦/♥/♠) for the *measured*
+    /// pair: `on` (default) or `off`. Set the measured arm `on` and the baseline arm
+    /// `off` (with `--ns-majors "" --ns-minors ""`) to measure the natural defense
+    /// vs the bare instinct floor.
+    #[arg(long, default_value = "on")]
+    ns_natural: String,
+
+    /// Natural one-suiter defense for the *baseline* pair: `on` (default) or `off`.
+    /// `off` drops the baseline pair to the floor over their 1NT.
+    #[arg(long, default_value = "on")]
+    ew_natural: String,
 
     /// Only count deals that can plausibly reach a Landy overcall of 1NT (a cheap
     /// shape pre-filter), so the DD budget lands on boards that can actually
@@ -99,6 +113,15 @@ fn parse_range(spec: &str) -> Option<(u8, u8)> {
     })
 }
 
+/// Parse an `on`/`off` flag into a bool, panicking on anything else.
+fn parse_on_off(spec: &str, flag: &str) -> bool {
+    match spec {
+        "on" => true,
+        "off" => false,
+        other => panic!("unknown {flag} {other:?} (use on or off)"),
+    }
+}
+
 /// Render a range for the headline: `None` → `"off"`, open-top → `"8+"`, else `"8-15"`.
 fn label(range: Option<(u8, u8)>) -> String {
     match range {
@@ -127,6 +150,16 @@ fn two_suiter_5_5(hand: Hand, a: Suit, b: Suit) -> bool {
     hand[a].len() >= 5 && hand[b].len() >= 5
 }
 
+/// Could this defender make a *natural* call over their 1NT — a one-suiter overcall
+/// (a 5+ card suit with overcall-ish strength) or a penalty double (strong balanced)?
+/// Generous bands around the authored `points(8..=14)` / `15+ balanced`, so the
+/// divergence superset stays a superset.
+fn defender_has_natural_action(hand: Hand) -> bool {
+    let hcp = hand_hcp(hand);
+    let longest = Suit::ASC.iter().map(|&s| hand[s].len()).max().unwrap_or(0);
+    (longest >= 5 && (6..=16).contains(&hcp)) || is_balanced_hcp(hand, 14, 40)
+}
+
 /// Cheap pre-filter (no bidding): could this deal plausibly reach an enabled
 /// two-suiter overcall of a 1NT opening?
 ///
@@ -135,7 +168,7 @@ fn two_suiter_5_5(hand: Hand, a: Suit, b: Suit) -> bool {
 /// with a defender (its LHO or RHO) holding the shape of an *active* arm (5-4 majors
 /// when `2♣` is on, 5-5 minors when `2NT` is on). Every divergent board has this;
 /// keying on only the active arms keeps the DD budget on boards that can swing.
-fn could_reach_landy(deal: &FullDeal, majors: bool, minors: bool) -> bool {
+fn could_reach_landy(deal: &FullDeal, majors: bool, minors: bool, natural: bool) -> bool {
     Seat::ALL.iter().any(|&opener| {
         if !is_balanced_hcp(deal[opener], 14, 18) {
             return false;
@@ -145,6 +178,7 @@ fn could_reach_landy(deal: &FullDeal, majors: bool, minors: bool) -> bool {
         [lho, rho].iter().any(|&d| {
             (majors && two_suiter_5_4(deal[d], Suit::Hearts, Suit::Spades))
                 || (minors && two_suiter_5_5(deal[d], Suit::Clubs, Suit::Diamonds))
+                || (natural && defender_has_natural_action(deal[d]))
         })
     })
 }
@@ -217,13 +251,17 @@ fn main() {
         "points" => false,
         other => panic!("unknown --strength {other:?} (use points or hcp)"),
     };
+    let ns_natural = parse_on_off(&args.ns_natural, "--ns-natural");
+    let ew_natural = parse_on_off(&args.ew_natural, "--ew-natural");
     set_landy(None);
     set_unusual_notrump_defense(None);
     set_landy_hcp(false);
+    set_natural_defense(ew_natural);
     let baseline = american().against(Family::NATURAL);
     set_landy(majors);
     set_unusual_notrump_defense(minors);
     set_landy_hcp(use_hcp);
+    set_natural_defense(ns_natural);
     let measured = american().against(Family::NATURAL);
 
     // Each board at both tables (Landy NS at A, EW at B), dealer rotating.
@@ -235,7 +273,14 @@ fn main() {
     while deals.len() < args.count {
         let deal = full_deal(&mut rng);
         scanned += 1;
-        if args.filter && !could_reach_landy(&deal, majors.is_some(), minors.is_some()) {
+        if args.filter
+            && !could_reach_landy(
+                &deal,
+                majors.is_some(),
+                minors.is_some(),
+                ns_natural != ew_natural,
+            )
+        {
             continue;
         }
         let dealer = Seat::ALL[deals.len() % 4];
@@ -297,10 +342,12 @@ fn main() {
     }
 
     let arms = format!(
-        "2♣ majors {}, 2NT minors {} [{}]",
+        "2♣ majors {}, 2NT minors {} [{}], natural NS {}/EW {}",
         label(majors),
         label(minors),
         args.strength,
+        if ns_natural { "on" } else { "off" },
+        if ew_natural { "on" } else { "off" },
     );
     println!(
         "=== Landy-vs-default A/B ({arms}): {} boards, vulnerability {} ===",

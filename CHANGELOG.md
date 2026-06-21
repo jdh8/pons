@@ -69,6 +69,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The natural defense to their 1NT is now distilled-confirmed, A/B-validated,
+  and toggleable.** The authored natural defense (penalty double 15+ balanced,
+  natural two-level overcalls on a five-card suit `8–14` points) had never been
+  measured standalone. Probing the distilled net over `(1NT)`
+  (`examples/extract-constraints --auction "1NT"`) reproduces the authored ranges
+  almost exactly — `hcp(15..=21) & balanced()` for the double, `hcp(7..=14) &
+  len(suit, 5..)` per overcall (the net's `hcp(7)` floor matches the authored
+  `points(8)` once the five-card length point is counted) — so no constants
+  changed. A new `set_natural_defense(bool)` toggle (on by default) drops the
+  whole natural arm so the `[1NT]` node falls to the bare instinct floor, enabling
+  a standalone contested A/B (`examples/landy-ab --ns-natural on --ew-natural off`,
+  plain double-dummy, 200k filtered): the natural defense is a **clear win vs the
+  floor — +0.744 IMPs/divergent (+0.010/raw deal) non-vul, +1.276 (+0.018/raw)
+  both vul**. Unlike pure obstruction (Lebensohl-vs-floor measured negative), a
+  natural defense adds DD-visible constructive value — fit-finding, sacrifices, and
+  penalty doubles that cash — so it survives the obstruction-blind measure. Kept on
+  by default; `set_natural_defense(false)` reverts to the floor.
+
 - **Unusual `2NT` (both minors) over an opponent's 1NT — now the default
   defense.** A natural `2NT` over their strong notrump is nearly worthless, so the
   bid is repurposed as a both-minors (5-5) two-suiter, `8–13` points, advanced by

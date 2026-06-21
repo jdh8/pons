@@ -87,8 +87,8 @@ pub use competition::{
 };
 pub use defense::{
     advance_double, defense_to_suit, defense_to_weak_two, set_advance_sohl_style, set_landy,
-    set_landy_hcp, set_leaping_michaels, set_responsive_overcall, set_responsive_takeout,
-    set_unusual_notrump_defense,
+    set_landy_hcp, set_leaping_michaels, set_natural_defense, set_responsive_overcall,
+    set_responsive_takeout, set_unusual_notrump_defense,
 };
 pub(crate) use defense::{landy_range, leaping_michaels_enabled, unusual_notrump_range};
 pub use notrump::notrump_responses;

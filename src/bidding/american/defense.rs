@@ -170,6 +170,32 @@ fn landy_use_hcp() -> bool {
 }
 
 thread_local! {
+    /// Whether the natural one-suiter defense to their 1NT (penalty double + the
+    /// four natural two-level overcalls + the owning `Pass` catch-all) is authored;
+    /// **on by default**.  See [`set_natural_defense`].
+    static NATURAL_DEFENSE: Cell<bool> = const { Cell::new(true) };
+}
+
+/// Toggle the natural one-suiter defense to an opponent's 1NT for books built
+/// *after* this call (thread-local, read once at book-construction time)
+///
+/// `true` (the **default**) authors the penalty double (15+ balanced), the four
+/// natural two-level suit overcalls (five-card suit, 8–14), and the owning `Pass`
+/// catch-all that lets the node keep a hand that qualifies for none of them.
+/// `false` drops all of those, so when the two-suiter overlays ([`set_landy`],
+/// [`set_unusual_notrump_defense`]) are also off the `[1NT]` node yields no finite
+/// logit and the position falls through to the bare instinct floor — the baseline
+/// arm of the standalone A/B (`examples/landy-ab --natural-measured`).
+pub fn set_natural_defense(on: bool) {
+    NATURAL_DEFENSE.with(|cell| cell.set(on));
+}
+
+/// Whether the natural one-suiter defense is currently authored
+fn natural_defense_enabled() -> bool {
+    NATURAL_DEFENSE.with(Cell::get)
+}
+
+thread_local! {
     /// Whether the responsive double after partner's **takeout double** + their
     /// raise (`[1t, X, raise]`) is authored; see [`set_responsive_takeout`].
     static RESPONSIVE_TAKEOUT: Cell<bool> = const { Cell::new(true) };
@@ -405,21 +431,28 @@ fn five_four(a: Suit, b: Suit) -> Cons<impl Constraint + Clone> {
 /// club overcall; [`set_unusual_notrump_defense`] turns `2NT` into both minors
 /// (≥5-4), a purely additive repurposing of an otherwise-useless natural `2NT`.
 pub fn defense_to_notrump() -> Rules {
-    let mut rules = Rules::new()
-        .rule(Call::Double, 1.3, hcp(15..) & balanced())
-        .rule(Call::Pass, 0.0, hcp(0..));
+    let mut rules = Rules::new();
 
     let landy = landy_range();
-    for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
-        // Landy reuses 2♣ for both majors, so the natural club overcall is gone.
-        if landy.is_some() && suit == Suit::Clubs {
-            continue;
+    // The natural penalty double + suit overcalls + owning `Pass` catch-all are
+    // the toggleable arm: with all three arms off the node carries no finite logit
+    // and the position falls to the instinct floor (the A/B baseline).
+    if natural_defense_enabled() {
+        rules =
+            rules
+                .rule(Call::Double, 1.3, hcp(15..) & balanced())
+                .rule(Call::Pass, 0.0, hcp(0..));
+        for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
+            // Landy reuses 2♣ for both majors, so the natural club overcall is gone.
+            if landy.is_some() && suit == Suit::Clubs {
+                continue;
+            }
+            rules = rules.rule(
+                Bid::new(2, Strain::from(suit)),
+                1.0,
+                len(suit, 5..) & points(8..=14),
+            );
         }
-        rules = rules.rule(
-            Bid::new(2, Strain::from(suit)),
-            1.0,
-            len(suit, 5..) & points(8..=14),
-        );
     }
 
     let use_hcp = landy_use_hcp();
