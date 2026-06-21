@@ -69,21 +69,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **`DoubleStyle` toggle for responder's double of an overcall (`1NT–(2♦/2♥/2♠)–X`),
-  opt-in via `set_double_style`; default `Penalty` is unchanged.** Measured the best
-  meaning for that double — penalty (status quo `4+/9+`), a lower-floor penalty
-  (`4+/7`), a takeout double (`≤3/7`), and a cooperative/optional double (`2-3/8`) —
-  on the A/B harness (new `lebensohl-ab --ns-dbl/--ew-dbl`, parser `dbl_from`).
-  Verdict is **measure-dependent** (200k filtered, none/both): under
-  perfect-defense scoring penalty wins clearly (every alternative loses, e.g.
-  `Takeout` −0.089/−0.092, `Optional` 2-3/8 −0.039/−0.041 IMPs/board); under plain
-  double-dummy (the current A/B scorer after the `ns_score` split) `Takeout`
-  +0.011/+0.018 and `Optional` 2-3/8 +0.012/+0.015 flip marginally positive, while
-  `PenaltyLight` still loses on both. The plain-DD edge is near-noise and is
-  plausibly the overbid under-punishment PD corrects (opponents under-double in the
-  sim), so the **default stays Penalty** and the toggle is kept opt-in for a future
-  single-dummy re-measure. Opener needs no new continuation — the instinct floor
-  already pulls the double (or passes with a trump stack).
+- **Responder's double of an overcall (`1NT–(2♦/2♥/2♠)–X`) is now a takeout
+  double (`≤3` in their suit, `8+` HCP) by default**, replacing the old penalty
+  double (`4+/9`). Selected via the `DoubleStyle` toggle (`set_double_style`,
+  default now `Takeout`); penalty and the other meanings stay opt-in. Isolating
+  just the double on the A/B harness (both pairs Transfer, NS varies the style,
+  200k, plain double-dummy, none/both), the penalty double is monotone-bad: every
+  *extra* penalty double loses (`4+/8` −0.001/−0.002, `4+/7` −0.002) and every
+  *removed* one gains (`4+/11` and `5+/9` +0.002/+0.003), while takeout beats
+  penalty outright (`≤3/8` **+0.004/+0.005**, `≤3/7` +0.004/+0.005; the floor moves
+  to `8` because `≤3/9` already loses on the double itself and `≤3/8` has the
+  cleanest per-board gain). Against the bare floor the change converts the single
+  worst response bucket — the penalty double leaked −4.0/−4.8 IMPs/board — into a
+  small winner (+0.12/+0.15) and erases the penalty-*pass* leak (short-suit values
+  hands now double instead of passing), lifting the whole package +0.004/+0.005
+  IMPs/board (`+0.010/+0.011` vs floor). **Measure caveat:** under perfect-defense
+  scoring the flip reverses — PD auto-doubles the takeout overbid, so penalty wins
+  there (`Takeout` ≤3/7 −0.089/−0.092); the measure-robust part is only that the
+  *marginal* penalty double (4-card, 8–10 HCP) is a net loser. The shipped A/B
+  scorer is plain DD, so takeout is the default; re-measure under a single-dummy
+  scorer before treating it as final. Opener needs no new continuation — the
+  instinct floor pulls the double (or passes with a trump stack). *(Known weight
+  interaction: the takeout double, 1.55, outranks direct 3NT, 1.5, and the
+  top-step clubs transfer, 1.45, so short-suit one-suiter / stopper-game hands are
+  pulled into the double; the X bucket stays net-positive even so, but lowering the
+  takeout weight below the constructive bids is a deferred refinement to A/B.)*
+- **A/B knobs on `lebensohl-ab` for tuning the double and 3NT.** `--ns-dbl/--ew-dbl`
+  now also accept a parametric spec `LEN:HCP` (`set_double_override`) — `LEN` is
+  `LO-HI`/`LO+`/`LO` in their suit, `HCP` the floor (e.g. `4+:9` = penalty,
+  `0-3:8` = takeout) — sweeping the penalty/takeout boundary as a continuum instead
+  of the four named styles. `--ns-3nt-stopper on|off` (`set_direct_3nt_stopper`)
+  drops responder's own-stopper requirement for a direct `3NT`, leaning on opener's
+  1NT; measured ≈ neutral (+0.001 none / −0.000 both vs needing a stopper), so the
+  default keeps the stopper. Both default to today's behavior.
 - **`lebensohl-ab --diverge-diff`: per-call attribution of the A/B swing.** Buckets
   every divergent board by the measured (`--ns`) pair's *first* call the baseline
   (`--ew`) would not have made — tagged `resp` (responder's action directly over

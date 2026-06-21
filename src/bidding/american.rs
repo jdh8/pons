@@ -81,13 +81,13 @@ mod strong_two;
 mod weak_twos;
 
 pub use competition::{
-    DoubleStyle, LebensohlStyle, competition, set_delayed_cue, set_double_style, set_lebensohl,
-    set_lebensohl_style, set_natural_floor,
+    DoubleStyle, LebensohlStyle, competition, set_delayed_cue, set_direct_3nt_stopper,
+    set_double_override, set_double_style, set_lebensohl, set_lebensohl_style, set_natural_floor,
 };
 pub(crate) use defense::leaping_michaels_enabled;
 pub use defense::{
-    advance_double, defense_to_suit, defense_to_weak_two, set_advance_sohl_style,
-    set_leaping_michaels, set_responsive_overcall, set_responsive_takeout,
+    NotrumpDefense, advance_double, defense_to_suit, defense_to_weak_two, set_advance_sohl_style,
+    set_leaping_michaels, set_notrump_defense, set_responsive_overcall, set_responsive_takeout,
 };
 pub use notrump::notrump_responses;
 pub use openings::{NotrumpShape, openings, openings_with};

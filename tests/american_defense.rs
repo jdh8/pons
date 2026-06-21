@@ -1,7 +1,7 @@
 //! Integration tests for two-suited overcalls, their advances, and responsive doubles
 //! in the 2/1 defensive book
 
-use contract_bridge::auction::{Call, RelativeVulnerability};
+use contract_bridge::auction::{Auction, Call, RelativeVulnerability};
 use contract_bridge::{Bid, Hand, Strain};
 use pons::american;
 use pons::bidding::american::set_responsive_overcall;
@@ -17,17 +17,26 @@ fn stance() -> Stance {
     american().against(Family::NATURAL)
 }
 
-/// The single highest-logit call the system assigns the hand for the auction
+/// The single highest-logit *legal* call the system assigns the hand
+///
+/// Mirrors the real bidder: illegal calls are filtered before the argmax, so an
+/// authored-but-illegal bid (e.g. a shared builder's `Double` in a context where
+/// our side already doubled) is skipped rather than chosen.
 fn best_call(system: &impl System, auction: &[Call], hand: &str) -> Call {
     let hand: Hand = hand.parse().expect("valid test hand");
     let logits: Logits = system
         .classify(hand, RelativeVulnerability::NONE, auction)
         .expect("system covers this auction");
+    let mut prefix = Auction::new();
+    for &c in auction {
+        prefix.push(c);
+    }
     (&logits.0)
         .into_iter()
+        .filter(|&(call, logit)| logit.is_finite() && prefix.can_push(call).is_ok())
         .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("logits are never NaN"))
         .map(|(call, _)| call)
-        .expect("array is never empty")
+        .expect("at least one legal call")
 }
 
 // --- Michaels cue-bid -------------------------------------------------------

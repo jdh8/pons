@@ -38,7 +38,8 @@ use contract_bridge::{AbsoluteVulnerability, Bid, FullDeal, Hand, Seat, Strain, 
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
 use pons::bidding::american::{
-    DoubleStyle, LebensohlStyle, set_double_style, set_lebensohl_style, set_natural_floor,
+    DoubleStyle, LebensohlStyle, set_direct_3nt_stopper, set_double_override, set_double_style,
+    set_lebensohl_style, set_natural_floor,
 };
 use pons::bidding::constraint::point_count;
 use pons::bidding::context::{Context, relative};
@@ -68,14 +69,27 @@ struct Args {
     #[arg(long, default_value = "plain")]
     ew: String,
 
-    /// Responder's double meaning, measured (NS) pair:
-    /// penalty/penalty-light/takeout/optional
-    #[arg(long, default_value = "penalty")]
+    /// Responder's double meaning, measured (NS) pair. A named style
+    /// (`penalty`/`penalty-light`/`takeout`/`optional`) or a parametric spec
+    /// `LEN:HCP` tuning the threshold directly: `LEN` is `LO-HI` / `LO+` / `LO`
+    /// (their-suit length), `HCP` the floor — e.g. `4+:9` (= penalty), `0-3:8`
+    /// (= takeout, the default), `4+:8`, `2-3:8`.
+    #[arg(long, default_value = "takeout")]
     ns_dbl: String,
 
-    /// Responder's double meaning, baseline (EW) pair
-    #[arg(long, default_value = "penalty")]
+    /// Responder's double meaning, baseline (EW) pair (see `--ns-dbl`).
+    #[arg(long, default_value = "takeout")]
     ew_dbl: String,
+
+    /// Does the measured (NS) pair's direct `3NT` over the overcall need its own
+    /// stopper (`on`, the default) or may it be bid on game values alone, trusting
+    /// opener's 1NT (`off`)?
+    #[arg(long, default_value = "on")]
+    ns_3nt_stopper: String,
+
+    /// 3NT stopper requirement for the baseline (EW) pair (see `--ns-3nt-stopper`).
+    #[arg(long, default_value = "on")]
+    ew_3nt_stopper: String,
 
     /// Floor the measured (NS) pair's weak natural `2♦/2♥/2♠` escape and let opener
     /// game-raise it: `off`, `Nhcp` (HCP floor) or `Npts` (total-points floor) —
@@ -323,6 +337,38 @@ fn dbl_from(name: &str) -> DoubleStyle {
     }
 }
 
+/// Select responder's double for books built *after* this call: a named style
+/// (clears any override) or a parametric `LEN:HCP` spec (sets the override). `LEN`
+/// is `LO-HI`, `LO+` (open top, capped at 13), or `LO` (exact); `HCP` is the floor.
+fn apply_double(spec: &str) {
+    if matches!(spec, "penalty" | "penalty-light" | "takeout" | "optional") {
+        set_double_override(None);
+        set_double_style(dbl_from(spec));
+        return;
+    }
+    let (len_part, hcp_part) = spec
+        .split_once(':')
+        .unwrap_or_else(|| panic!("bad double spec {spec:?} (use a style or LEN:HCP, e.g. 4+:9)"));
+    let floor: u8 = hcp_part
+        .parse()
+        .unwrap_or_else(|_| panic!("bad HCP floor in {spec:?}"));
+    let (lo, hi) = if let Some((a, b)) = len_part.split_once('-') {
+        (parse_len(a, spec), parse_len(b, spec))
+    } else if let Some(a) = len_part.strip_suffix('+') {
+        (parse_len(a, spec), 13)
+    } else {
+        let n = parse_len(len_part, spec);
+        (n, n)
+    };
+    set_double_override(Some((lo, hi, floor)));
+}
+
+/// Parse one suit-length component of a `--ns-dbl` spec
+fn parse_len(s: &str, spec: &str) -> usize {
+    s.parse()
+        .unwrap_or_else(|_| panic!("bad length in double spec {spec:?}"))
+}
+
 /// The seat acting after `len` calls from `dealer`
 const fn seat_to_act(dealer: Seat, len: usize) -> Seat {
     Seat::ALL[(dealer as usize + len) % 4]
@@ -435,12 +481,14 @@ fn main() {
     let mut rng = StdRng::seed_from_u64(args.seed);
 
     set_lebensohl_style(style_from(&args.ew));
-    set_double_style(dbl_from(&args.ew_dbl));
+    apply_double(&args.ew_dbl);
+    set_direct_3nt_stopper(args.ew_3nt_stopper != "off");
     let (ew_h, ew_p) = floor_from(&args.ew_floor);
     set_natural_floor(ew_h, ew_p);
     let baseline = american().against(Family::NATURAL);
     set_lebensohl_style(style_from(&args.ns));
-    set_double_style(dbl_from(&args.ns_dbl));
+    apply_double(&args.ns_dbl);
+    set_direct_3nt_stopper(args.ns_3nt_stopper != "off");
     let (ns_h, ns_p) = floor_from(&args.ns_floor);
     set_natural_floor(ns_h, ns_p);
     let lebensohl = american().against(Family::NATURAL);
