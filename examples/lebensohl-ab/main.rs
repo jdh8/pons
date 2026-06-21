@@ -18,6 +18,11 @@
 //! solved double dummy and the swing credited to the NS pair.  A positive
 //! IMPs/board favors the `--ns` style.
 //!
+//! Lebensohl variants only differ over a `2♦/2♥/2♠` overcall; over `2♣` every
+//! variant plays *systems on* (Stayman / transfers as if uncontested), so those
+//! boards are not a Lebensohl response — they are kept out of the Lebensohl
+//! headline and reported in a separate `systems on` row.
+//!
 //! ```text
 //! # Transfer Lebensohl vs plain Lebensohl (the incumbent):
 //! cargo run --release --example lebensohl-ab -- --count 50000
@@ -147,6 +152,13 @@ fn relay_node_over(auction: &[Call]) -> Option<Suit> {
     [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades]
         .into_iter()
         .find(|&s| auction[n - 1] == Call::Bid(Bid::new(2, Strain::from(s))))
+}
+
+/// Did an opponent overcall our `1NT` with `2♣`? (systems-on, not Lebensohl)
+fn overcalled_2c(auction: &Auction) -> bool {
+    let one_nt = Call::Bid(Bid::new(1, Strain::Notrump));
+    let two_c = Call::Bid(Bid::new(2, Strain::Clubs));
+    (1..auction.len()).any(|i| auction[i] == two_c && auction[i - 1] == one_nt)
 }
 
 /// The NS pair's call, PD-gating a weak escape when `--pd-relay`/`--pd-natural` is set
@@ -499,6 +511,8 @@ fn main() {
 
     let mut points = 0i64;
     let mut total_imps = 0i64;
+    // 2♣ overcall: systems-on for every variant, not Lebensohl — counted apart.
+    let mut systems_on = (0usize, 0i64);
     let mut worst: Vec<(i64, usize)> = Vec::new();
     let mut buckets: HashMap<String, (usize, i64)> = HashMap::new();
     for (&i, table) in divergent.iter().zip(tables.iter()) {
@@ -506,6 +520,16 @@ fn main() {
         let swing = ns_score_contract(contract_a, table, args.vulnerability)
             - ns_score_contract(contract_b, table, args.vulnerability);
         let board_imps = imps(swing);
+
+        if overcalled_2c(&auctions[i].0) || overcalled_2c(&auctions[i].1) {
+            // Over (2♣) every Lebensohl variant plays *systems on* (Stayman /
+            // transfers as if uncontested), not Lebensohl: keep it out of the
+            // Lebensohl headline and collapse it into one `systems on` row.
+            systems_on.0 += 1;
+            systems_on.1 += board_imps;
+            continue;
+        }
+
         points += swing;
         total_imps += board_imps;
         worst.push((board_imps, i));
@@ -575,24 +599,33 @@ fn main() {
             100.0 * args.count as f64 / scanned.max(1) as f64,
         );
     }
+    let leb_divergent = divergent.len() - systems_on.0;
     println!(
-        "Divergent boards: {} of {} ({:.1}%)",
-        divergent.len(),
+        "Divergent boards: {} of {} ({:.1}%); systems-on (1NT–2♣) {} excluded",
+        leb_divergent,
         args.count,
-        100.0 * divergent.len() as f64 / args.count.max(1) as f64,
+        100.0 * leb_divergent as f64 / args.count.max(1) as f64,
+        systems_on.0,
     );
     println!(
         "NS {} (vs EW {}): {points:+} points, {total_imps:+} IMPs ({:+.3} IMPs/board, {:+.3} IMPs/divergent)",
         args.ns,
         args.ew,
         total_imps as f64 / args.count.max(1) as f64,
-        total_imps as f64 / divergent.len().max(1) as f64,
+        total_imps as f64 / leb_divergent.max(1) as f64,
+    );
+    println!(
+        "systems on (1NT–2♣, not Lebensohl): {} boards, {:+} IMPs ({:+.3}/board) — excluded above",
+        systems_on.0,
+        systems_on.1,
+        systems_on.1 as f64 / systems_on.0.max(1) as f64,
     );
 
     if args.diverge_diff {
         // Sort worst-first (most negative total) so the calls dragging the
         // --ns style down sit at the top. `contrib` = bucket IMPs / all boards,
-        // so the column sums to the headline IMPs/board above.
+        // so the Lebensohl rows sum to the headline IMPs/board above (the
+        // trailing `systems on` row is over 2♣ and is *not* part of that sum).
         let mut rows: Vec<(String, (usize, i64))> = buckets.into_iter().collect();
         rows.sort_by_key(|(_, (_, imp))| *imp);
         println!(
@@ -600,15 +633,23 @@ fn main() {
             args.ns, args.ew,
         );
         println!(
-            "{:<9} {:>7} {:>8} {:>9} {:>9}",
+            "{:<11} {:>7} {:>8} {:>9} {:>9}",
             "call", "boards", "IMPs", "per-bd", "contrib",
         );
         for (label, (n, imp)) in &rows {
             println!(
-                "{label:<9} {n:>7} {imp:>+8} {:>+9.3} {:>+9.4}",
+                "{label:<11} {n:>7} {imp:>+8} {:>+9.3} {:>+9.4}",
                 *imp as f64 / *n as f64,
                 *imp as f64 / args.count.max(1) as f64,
             );
         }
+        println!(
+            "{:<11} {:>7} {:>+8} {:>+9.3} {:>9}",
+            "systems on",
+            systems_on.0,
+            systems_on.1,
+            systems_on.1 as f64 / systems_on.0.max(1) as f64,
+            "—",
+        );
     }
 }
