@@ -196,6 +196,30 @@ fn natural_defense_enabled() -> bool {
 }
 
 thread_local! {
+    /// The always-pass defense to their 1NT — a finite logit on `Pass`
+    /// for every hand, which shadows the instinct floor at `[1NT]` so our side
+    /// never competes. **Off by default.** See [`set_always_pass_defense`].
+    static ALWAYS_PASS_DEFENSE: Cell<bool> = const { Cell::new(false) };
+}
+
+/// Toggle the always-pass defense to an opponent's 1NT for books built
+/// *after* this call (thread-local, read once at book-construction time)
+///
+/// When on, the `[1NT]` node authors only `Pass` (for every hand), so our side
+/// never acts over their 1NT — the truest "do nothing" baseline, distinct from
+/// [`set_natural_defense`]`(false)` which drops to the instinct floor (and the
+/// floor still competes a little). Overrides the natural and two-suiter arms.
+/// The A/B baseline knob for `examples/landy-ab --ew-always-pass`.
+pub fn set_always_pass_defense(on: bool) {
+    ALWAYS_PASS_DEFENSE.with(|cell| cell.set(on));
+}
+
+/// Whether the always-pass defense is currently authored
+fn always_pass_defense_enabled() -> bool {
+    ALWAYS_PASS_DEFENSE.with(Cell::get)
+}
+
+thread_local! {
     /// Whether the responsive double after partner's **takeout double** + their
     /// raise (`[1t, X, raise]`) is authored; see [`set_responsive_takeout`].
     static RESPONSIVE_TAKEOUT: Cell<bool> = const { Cell::new(true) };
@@ -431,6 +455,12 @@ fn five_four(a: Suit, b: Suit) -> Cons<impl Constraint + Clone> {
 /// club overcall; [`set_unusual_notrump_defense`] turns `2NT` into both minors
 /// (≥5-4), a purely additive repurposing of an otherwise-useless natural `2NT`.
 pub fn defense_to_notrump() -> Rules {
+    // The always-pass baseline: a finite logit on `Pass` for every hand
+    // shadows the floor here, so our side never competes over their 1NT.
+    if always_pass_defense_enabled() {
+        return Rules::new().rule(Call::Pass, 0.0, hcp(0..));
+    }
+
     let mut rules = Rules::new();
 
     let landy = landy_range();
@@ -1202,7 +1232,8 @@ pub fn defensive() -> Defensive {
 mod tests {
     use crate::bidding::Family;
     use crate::bidding::american::{
-        LebensohlStyle, american, set_advance_sohl_style, set_leaping_michaels,
+        LebensohlStyle, american, set_advance_sohl_style, set_always_pass_defense,
+        set_leaping_michaels,
     };
     use contract_bridge::auction::{Call, RelativeVulnerability};
     use contract_bridge::{Bid, Hand, Strain};
@@ -1334,6 +1365,19 @@ mod tests {
         let (c, floored) = advance(LebensohlStyle::Transfer, &over_2d(), "AQ32.KJ32.A2.432");
         assert_eq!(c, call(3, Strain::Clubs));
         assert!(!floored, "the Stayman bid must come from the book");
+    }
+
+    #[test]
+    fn always_pass_defense_passes_over_1nt() {
+        // The always-pass baseline: a 15-count balanced hand that would normally make a
+        // penalty double passes instead, and the Pass is a book node (not the floor)
+        // so it shadows whatever the floor would have done over their 1NT.
+        let over_1nt = [call(1, Strain::Notrump)];
+        set_always_pass_defense(true);
+        let (c, floored) = best_call(&over_1nt, "AQ32.KQ3.K32.Q32");
+        set_always_pass_defense(false);
+        assert_eq!(c, Call::Pass);
+        assert!(!floored, "the always-pass must come from the book node");
     }
 
     #[test]

@@ -69,6 +69,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **An always-pass defense to their 1NT as a true do-nothing baseline.**
+  `set_always_pass_defense(true)` authors only `Pass` at the `[1NT]` node (a finite
+  logit for every hand shadows the instinct floor), so our side never competes
+  over their 1NT — distinct from `set_natural_defense(false)`, which falls to the
+  floor (and the floor still competes a little). This isolates the *full* value of
+  having any 1NT defense. A/B vs the natural defense (`examples/landy-ab
+  --ns-natural on --ew-always-pass on --ns-majors "" --ns-minors ""`, plain
+  double-dummy, 200k filtered): natural beats always-passing by **+0.566
+  IMPs/divergent (+0.0166/raw deal) non-vul, +0.609 (+0.0178/raw) both vul**. The
+  ordering is `always-pass < floor < natural`: per raw deal natural is *further*
+  ahead of always-passing (+0.0166) than ahead of the floor (+0.0104), so the
+  floor's own competition over their 1NT is worth something — always-passing is
+  the worst option. `examples/landy-ab` also now prints an **IMPs-won-per-natural-
+  defensive-action breakdown** (`X` / `2♣` / `2♦` / `2♥` / `2♠`), attributing each
+  divergent board's swing to the overcall or double that caused it. **Every action
+  is net positive vs always-passing** (IMPs/action-board, non-vul / both-vul):
+  `2♣` +0.98 / +1.21, `2♥` +0.78 / +0.86, `2♠` +0.52 / +0.54, `2♦` +0.30 / +0.17,
+  `X` (penalty double) +0.20 / +0.44 — the natural minor/major overcalls carry
+  most of the value, the penalty double the least per board but still a gain.
+
 - **The natural defense to their 1NT is now distilled-confirmed, A/B-validated,
   and toggleable.** The authored natural defense (penalty double 15+ balanced,
   natural two-level overcalls on a five-card suit `8–14` points) had never been

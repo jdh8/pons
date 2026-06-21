@@ -33,11 +33,12 @@ use clap::Parser;
 use contract_bridge::auction::{Auction, Call};
 use contract_bridge::deck::full_deal;
 use contract_bridge::eval::hcp as holding_hcp;
-use contract_bridge::{AbsoluteVulnerability, FullDeal, Hand, Seat, Suit};
+use contract_bridge::{AbsoluteVulnerability, Bid, FullDeal, Hand, Seat, Strain, Suit};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
 use pons::bidding::american::{
-    set_landy, set_landy_hcp, set_natural_defense, set_unusual_notrump_defense,
+    set_always_pass_defense, set_landy, set_landy_hcp, set_natural_defense,
+    set_unusual_notrump_defense,
 };
 use pons::bidding::context::relative;
 use pons::bidding::{Family, Stance, System};
@@ -81,6 +82,14 @@ struct Args {
     /// `off` drops the baseline pair to the floor over their 1NT.
     #[arg(long, default_value = "on")]
     ew_natural: String,
+
+    /// Silly always-pass defense for the *baseline* pair: `on` or `off` (default).
+    /// `on` makes the baseline never act over their 1NT — the truest "do nothing"
+    /// baseline (distinct from `--ew-natural off`, which drops to the floor). Pair
+    /// with `--ns-natural on --ns-majors "" --ns-minors ""` to measure the natural
+    /// defense vs always-passing.
+    #[arg(long, default_value = "off")]
+    ew_always_pass: String,
 
     /// Only count deals that can plausibly reach a Landy overcall of 1NT (a cheap
     /// shape pre-filter), so the DD budget lands on boards that can actually
@@ -188,6 +197,34 @@ const fn seat_to_act(dealer: Seat, len: usize) -> Seat {
     Seat::ALL[(dealer as usize + len) % 4]
 }
 
+/// The natural pair's first non-pass call over the opponents' 1NT opening — the
+/// defensive action (`X` / `2♣` / `2♦` / `2♥` / `2♠`) whose value over always-
+/// passing we attribute the board's swing to. `None` if the natural pair opened
+/// the 1NT (so never defended) or only passed. `natural_is_ns` says which side
+/// carried the natural defense in this auction.
+fn natural_action_over_1nt(auction: &[Call], dealer: Seat, natural_is_ns: bool) -> Option<Call> {
+    let one_nt = Call::Bid(Bid::new(1, Strain::Notrump));
+    let i = auction.iter().position(|&c| c == one_nt)?;
+    let opener_is_ns = matches!(seat_to_act(dealer, i), Seat::North | Seat::South);
+    if opener_is_ns == natural_is_ns {
+        return None; // the natural pair opened the 1NT, not defended it
+    }
+    auction[i + 1..].iter().enumerate().find_map(|(off, &c)| {
+        let seat_is_ns = matches!(seat_to_act(dealer, i + 1 + off), Seat::North | Seat::South);
+        (seat_is_ns == natural_is_ns && c != Call::Pass).then_some(c)
+    })
+}
+
+/// A short bucket label for an attributed defensive call (`X`, `2♣`, … or the
+/// raw call for anything unexpected like a balancing jump).
+fn action_label(call: Call) -> String {
+    match call {
+        Call::Double => "X".to_string(),
+        Call::Bid(bid) => format!("{bid}"),
+        other => format!("{other:?}"),
+    }
+}
+
 /// The highest-logit *legal* call, defaulting to a pass
 fn next_call(
     stance: &Stance,
@@ -253,15 +290,18 @@ fn main() {
     };
     let ns_natural = parse_on_off(&args.ns_natural, "--ns-natural");
     let ew_natural = parse_on_off(&args.ew_natural, "--ew-natural");
+    let ew_always_pass = parse_on_off(&args.ew_always_pass, "--ew-always-pass");
     set_landy(None);
     set_unusual_notrump_defense(None);
     set_landy_hcp(false);
     set_natural_defense(ew_natural);
+    set_always_pass_defense(ew_always_pass);
     let baseline = american().against(Family::NATURAL);
     set_landy(majors);
     set_unusual_notrump_defense(minors);
     set_landy_hcp(use_hcp);
     set_natural_defense(ns_natural);
+    set_always_pass_defense(false);
     let measured = american().against(Family::NATURAL);
 
     // Each board at both tables (Landy NS at A, EW at B), dealer rotating.
@@ -273,13 +313,15 @@ fn main() {
     while deals.len() < args.count {
         let deal = full_deal(&mut rng);
         scanned += 1;
+        // The baseline never acts when always-pass is on, so NS's natural action
+        // diverges whenever it is enabled (no need to also differ from EW).
+        let natural_diverges = if ew_always_pass {
+            ns_natural
+        } else {
+            ns_natural != ew_natural
+        };
         if args.filter
-            && !could_reach_landy(
-                &deal,
-                majors.is_some(),
-                minors.is_some(),
-                ns_natural != ew_natural,
-            )
+            && !could_reach_landy(&deal, majors.is_some(), minors.is_some(), natural_diverges)
         {
             continue;
         }
@@ -323,13 +365,26 @@ fn main() {
     let mut points = 0i64;
     let mut total_imps = 0i64;
     let mut worst: Vec<(i64, usize)> = Vec::new();
+    // Per-defensive-action tally: label -> (boards, IMPs). The natural action that
+    // drives a board's divergence appears at exactly one table (the one where the
+    // natural pair are the *defenders* of the 1NT).
+    let mut by_action: std::collections::BTreeMap<String, (i64, i64)> =
+        std::collections::BTreeMap::new();
     for (&i, table) in divergent.iter().zip(tables.iter()) {
         let (contract_a, contract_b) = contracts[i];
         let swing = ns_score_contract(contract_a, table, args.vulnerability)
             - ns_score_contract(contract_b, table, args.vulnerability);
+        let board_imps = imps(swing);
         points += swing;
-        total_imps += imps(swing);
-        worst.push((imps(swing), i));
+        total_imps += board_imps;
+        worst.push((board_imps, i));
+        let dealer = Seat::ALL[i % 4];
+        let action = natural_action_over_1nt(&auctions[i].0, dealer, true)
+            .or_else(|| natural_action_over_1nt(&auctions[i].1, dealer, false));
+        let key = action.map_or_else(|| "(other)".to_string(), action_label);
+        let entry = by_action.entry(key).or_default();
+        entry.0 += 1;
+        entry.1 += board_imps;
     }
     worst.sort_by_key(|w| w.0);
     eprintln!("=== Worst 15 divergent boards for Landy ===");
@@ -341,13 +396,20 @@ fn main() {
         );
     }
 
+    let ew_label = if ew_always_pass {
+        "always-pass".to_string()
+    } else if ew_natural {
+        "on".to_string()
+    } else {
+        "off".to_string()
+    };
     let arms = format!(
         "2♣ majors {}, 2NT minors {} [{}], natural NS {}/EW {}",
         label(majors),
         label(minors),
         args.strength,
         if ns_natural { "on" } else { "off" },
-        if ew_natural { "on" } else { "off" },
+        ew_label,
     );
     println!(
         "=== Landy-vs-default A/B ({arms}): {} boards, vulnerability {} ===",
@@ -371,6 +433,13 @@ fn main() {
         total_imps as f64 / args.count.max(1) as f64,
         total_imps as f64 / divergent.len().max(1) as f64,
     );
+    println!("--- IMPs won per natural defensive action ---");
+    for (action, (boards, imps_won)) in &by_action {
+        println!(
+            "  {action:<7} {boards:>6} boards  {imps_won:+7} IMPs  ({:+.3} IMPs/action-board)",
+            *imps_won as f64 / (*boards).max(1) as f64,
+        );
+    }
     // The filter-independent real-world rate (per *raw* deal dealt): the headline
     // effect size, unlike IMPs/filtered-board, does not move with the filter's tightness.
     println!(
