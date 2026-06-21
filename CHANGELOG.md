@@ -69,6 +69,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Unusual `2NT` (both minors) over an opponent's 1NT — now the default
+  defense.** A natural `2NT` over their strong notrump is nearly worthless, so the
+  bid is repurposed as a both-minors (5-5) two-suiter, `8–13` points, advanced by
+  picking the longer minor. Purely additive — it sacrifices no natural call. A/B'd
+  vs the bare floor (`examples/landy-ab --ns-minors`, contested seat-swap, plain
+  double-dummy, 100k filtered): a vulnerability-dependent wash (≈+0.0001 IMPs/board
+  non-vul, ≈−0.0001 vul), shipped on because it is additive and its
+  obstruction/lead-direction value is invisible to the DD measure (same call as the
+  shipped takeout responsive double). Best-measured settings: the 5-5 shape and the
+  `13` ceiling both helped (capping strong hands, which do better doubling/passing),
+  and `points` beat `hcp` for the strength gauge. `set_unusual_notrump_defense(None)`
+  reverts to the floor's natural `2NT`.
+
+- **Landy `2♣` (both majors) over their 1NT — opt-in, off by default.**
+  `set_landy(Some((lo, hi)))` turns `2♣` into both majors (at least 5-4), on
+  `points(lo..=hi)` — replacing the natural `2♣` club overcall (a club one-suiter
+  then passes or doubles). The advancer's responses are authored per the canonical
+  structure (`2♦` = equal majors weak, correct to the longer; `2♥/2♠` = preference
+  signoff; `2NT` = game-forcing ask; `3♥/3♠` = invitational; `4♥/4♠` = to play),
+  and the overcaller answers both the `2♦` relay and the `2NT` ask (the min/med/max
+  × 5-4/5-5 rebid ladder). Response strengths and the rebid buckets **track the
+  configured `2♣` range** (a lighter overcall asks more of the advancer; anchored
+  so `lo = 10` reproduces the textbook 10–12 invite / 12+ force). **Off by
+  default** — A/B'd it loses at every floor (it gives up the natural club overcall —
+  the obstruction-blind-DD wall), so it stays opt-in for a future single-dummy
+  re-measure. `set_landy_hcp(true)` gauges either two-suiter's range on raw HCP
+  instead of shape-upgraded points (default points; points measured better). The
+  inference reader decodes both two-suiters (suppressing the `2♣` club and `2♦`
+  relay natural readings) so the live-search bidder conditions partner correctly.
+  New `examples/landy-ab` is the contested seat-swap A/B
+  (`--ns-majors`/`--ns-minors LO[:HI]`, `--strength points|hcp`).
+
 - **Responder's double of an overcall (`1NT–(2♦/2♥/2♠)–X`) is now a takeout
   double (`≤3` in their suit, `8+` HCP) by default**, replacing the old penalty
   double (`4+/9`). Selected via the `DoubleStyle` toggle (`set_double_style`,

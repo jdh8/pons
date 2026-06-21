@@ -8,7 +8,7 @@
 //! double, a natural 2NT overcall, and natural suit overcalls).
 
 use super::super::constraint::{
-    balanced, described, hcp, len, min_level_is, points, short_in_their_suits,
+    Cons, Constraint, balanced, described, hcp, len, min_level_is, points, short_in_their_suits,
     stopper_in_their_suits, top_honors,
 };
 use super::super::context::Context;
@@ -84,6 +84,89 @@ pub fn set_leaping_michaels(on: bool) {
 /// two-suiter when the search bidder samples (see `inference::leaping_michaels_reading`).
 pub(crate) fn leaping_michaels_enabled() -> bool {
     LEAPING_MICHAELS.with(Cell::get)
+}
+
+thread_local! {
+    /// Landy defense to their 1NT: `None` = off (the default natural overcalls +
+    /// penalty double); `Some((lo, hi))` = on, with `2♣` = both majors and
+    /// `2NT` = both minors on `points(lo..=hi)`.  See [`set_landy`].
+    static LANDY: Cell<Option<(u8, u8)>> = const { Cell::new(None) };
+}
+
+/// Configure the Landy defense to an opponent's 1NT for books built *after* this
+/// call (thread-local, read once at book-construction time)
+///
+/// `None` (the **default**) keeps today's natural defense: a penalty double
+/// (15+ balanced) and natural two-level suit overcalls.  `Some((lo, hi))` turns
+/// Landy on: `2♣` shows at least 5-4 in the majors and `2NT` at least 5-4 in the
+/// minors, both on `points(lo..=hi)`, at the cost of the natural `2♣` club
+/// overcall.  The range is the A/B sweep knob (`examples/landy-ab --ns-range`);
+/// the advancer's invite/game thresholds and the overcaller's min/med/max
+/// rebid track it, so a lighter overcall asks more of the advancer.
+pub fn set_landy(range: Option<(u8, u8)>) {
+    LANDY.with(|cell| cell.set(range));
+}
+
+/// The configured Landy range, or `None` when Landy is off
+///
+/// Crate-visible so the inference reader can condition partner on the two-suiter
+/// (see `inference::landy_reading`).
+pub(crate) fn landy_range() -> Option<(u8, u8)> {
+    LANDY.with(Cell::get)
+}
+
+thread_local! {
+    /// The both-minors `2NT` overcall of their 1NT: `None` = off (the floor's
+    /// natural — and near-useless — 2NT); `Some((lo, hi))` = both minors (5-5) on
+    /// `points(lo..=hi)`.  **On by default** at `8..=13`; see
+    /// [`set_unusual_notrump_defense`].
+    static UNUSUAL_NT: Cell<Option<(u8, u8)>> = const { Cell::new(Some((8, 13))) };
+}
+
+/// Configure the both-minors `2NT` overcall of an opponent's 1NT for books built
+/// *after* this call (thread-local, read once at book-construction time)
+///
+/// Independent of [`set_landy`]: a natural `2NT` over their strong 1NT is nearly
+/// worthless, so this repurposes the bid as a both-minors (5-5) two-suiter on
+/// `points(lo..=hi)` — purely additive, it sacrifices no natural call.  **On by
+/// default at `Some((8, 13))`**: A/B'd vs the floor (`examples/landy-ab
+/// --ns-minors`) it is a vulnerability-dependent wash on plain double-dummy
+/// (≈+0.0001 IMPs/board non-vul, ≈−0.0001 vul), shipped on because it is additive
+/// and its obstruction/lead-direction value is invisible to the DD measure; the
+/// `8`-floor `13`-ceiling and the 5-5 shape were the best-measured settings
+/// (capping strong hands and requiring 5-5 both helped).  `None` reverts to the
+/// floor's natural `2NT`.
+pub fn set_unusual_notrump_defense(range: Option<(u8, u8)>) {
+    UNUSUAL_NT.with(|cell| cell.set(range));
+}
+
+/// The configured both-minors `2NT` range, or `None` when off
+///
+/// Crate-visible so the inference reader can condition partner on the two-suiter.
+pub(crate) fn unusual_notrump_range() -> Option<(u8, u8)> {
+    UNUSUAL_NT.with(Cell::get)
+}
+
+thread_local! {
+    /// Whether the Landy `2♣` / unusual `2NT` strength range gauges raw [`hcp`]
+    /// rather than the default shape-upgraded [`points`]; see [`set_landy_hcp`].
+    static LANDY_HCP: Cell<bool> = const { Cell::new(false) };
+}
+
+/// Gauge the two-suiter overcall strength on raw HCP instead of upgraded points,
+/// for books built *after* this call (thread-local, read once at book-construction)
+///
+/// A 5-4/5-5 two-suiter earns a distributional bonus, so [`points`] runs ~2 above
+/// HCP — letting thin hands clear the floor.  `true` gauges the `2♣`/`2NT` range on
+/// raw [`hcp`] (tighter); `false` (the **default**) keeps [`points`].  An A/B knob
+/// (`examples/landy-ab --strength hcp`).
+pub fn set_landy_hcp(on: bool) {
+    LANDY_HCP.with(|cell| cell.set(on));
+}
+
+/// Whether the two-suiter strength range gauges raw HCP
+fn landy_use_hcp() -> bool {
+    LANDY_HCP.with(Cell::get)
 }
 
 thread_local! {
@@ -309,19 +392,167 @@ pub fn defense_to_weak_two(their_opening: Bid) -> Rules {
     rules
 }
 
-/// Our action over their 1NT opening: penalty double or natural two-level overcall
+/// At least 5-4 (or 4-5) in the two named suits — the Landy two-suiter shape
+fn five_four(a: Suit, b: Suit) -> Cons<impl Constraint + Clone> {
+    (len(a, 5..) & len(b, 4..)) | (len(a, 4..) & len(b, 5..))
+}
+
+/// Our action over their 1NT opening
+///
+/// Default: a penalty double (15+ balanced) and natural two-level suit overcalls
+/// (five-card suit, 8–14).  Two independent two-suiter add-ons:
+/// [`set_landy`] turns `2♣` into both majors (≥5-4), replacing the natural `2♣`
+/// club overcall; [`set_unusual_notrump_defense`] turns `2NT` into both minors
+/// (≥5-4), a purely additive repurposing of an otherwise-useless natural `2NT`.
 pub fn defense_to_notrump() -> Rules {
     let mut rules = Rules::new()
         .rule(Call::Double, 1.3, hcp(15..) & balanced())
         .rule(Call::Pass, 0.0, hcp(0..));
+
+    let landy = landy_range();
     for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
+        // Landy reuses 2♣ for both majors, so the natural club overcall is gone.
+        if landy.is_some() && suit == Suit::Clubs {
+            continue;
+        }
         rules = rules.rule(
             Bid::new(2, Strain::from(suit)),
             1.0,
             len(suit, 5..) & points(8..=14),
         );
     }
+
+    let use_hcp = landy_use_hcp();
+    if let Some((lo, hi)) = landy {
+        // 2♣ = both majors, at least 5-4.
+        let shape = five_four(Suit::Hearts, Suit::Spades);
+        rules = if use_hcp {
+            rules.rule(Bid::new(2, Strain::Clubs), 1.9, shape & hcp(lo..=hi))
+        } else {
+            rules.rule(Bid::new(2, Strain::Clubs), 1.9, shape & points(lo..=hi))
+        };
+    }
+    if let Some((lo, hi)) = unusual_notrump_range() {
+        // 2NT = both minors, 5-5 or better (committing to the three level).
+        let shape = len(Suit::Clubs, 5..) & len(Suit::Diamonds, 5..);
+        rules = if use_hcp {
+            rules.rule(Bid::new(2, Strain::Notrump), 1.8, shape & hcp(lo..=hi))
+        } else {
+            rules.rule(Bid::new(2, Strain::Notrump), 1.8, shape & points(lo..=hi))
+        };
+    }
     rules
+}
+
+/// Advancer's responses to partner's Landy `2♣` (both majors), per
+/// [bridgebum](https://www.bridgebum.com/landy.php)
+///
+/// `2♦` = equal majors, weak (correct to the longer); `2♥`/`2♠` = preference
+/// signoff; `2NT` = game-forcing ask; `3♥`/`3♠` = invitational with 4-card
+/// support; `4♥`/`4♠` = to play game with a fit.  The invite/game point
+/// thresholds track the `2♣` range — anchored so `lo = 10` reproduces bridgebum's
+/// 10–12 invite / 12+ force — so a lighter overcall needs a stronger advancer to
+/// reach the same game.
+fn landy_advances(lo: u8) -> Rules {
+    let invite = 20u8.saturating_sub(lo);
+    let game = 22u8.saturating_sub(lo);
+
+    let hearts_longer = described("♥ at least as long as ♠", |h: Hand, _: &Context<'_>| {
+        h[Suit::Hearts].len() >= h[Suit::Spades].len()
+    });
+    let spades_longer = described("♠ longer than ♥", |h: Hand, _: &Context<'_>| {
+        h[Suit::Spades].len() > h[Suit::Hearts].len()
+    });
+    let equal_majors = described("equal majors", |h: Hand, _: &Context<'_>| {
+        h[Suit::Hearts].len() == h[Suit::Spades].len()
+    });
+
+    Rules::new()
+        // Game with a known 4-card fit (preferred over the ask).
+        .rule(
+            Bid::new(4, Strain::Hearts),
+            1.4,
+            len(Suit::Hearts, 4..) & points(game..) & hearts_longer.clone(),
+        )
+        .rule(
+            Bid::new(4, Strain::Spades),
+            1.4,
+            len(Suit::Spades, 4..) & points(game..) & spades_longer.clone(),
+        )
+        // Game-forcing ask without a clear 4-card major.
+        .rule(Bid::new(2, Strain::Notrump), 1.2, points(game..))
+        // Invitational with 4-card support.
+        .rule(
+            Bid::new(3, Strain::Hearts),
+            1.1,
+            len(Suit::Hearts, 4..) & points(invite..game) & hearts_longer.clone(),
+        )
+        .rule(
+            Bid::new(3, Strain::Spades),
+            1.1,
+            len(Suit::Spades, 4..) & points(invite..game) & spades_longer.clone(),
+        )
+        // Weak: equal majors → 2♦ relay; else preference signoff.
+        .rule(
+            Bid::new(2, Strain::Diamonds),
+            1.0,
+            equal_majors & points(..invite),
+        )
+        .rule(
+            Bid::new(2, Strain::Hearts),
+            0.9,
+            hearts_longer & points(..invite),
+        )
+        .rule(
+            Bid::new(2, Strain::Spades),
+            0.9,
+            spades_longer & points(..invite),
+        )
+}
+
+/// Overcaller's rebid after the `2♦` relay (`[1NT, 2♣, P, 2♦, P]`): name the
+/// longer major, so the equal-majors advancer plays the right strain
+fn landy_2d_rebid() -> Rules {
+    let hearts_longer = described("♥ at least as long as ♠", |h: Hand, _: &Context<'_>| {
+        h[Suit::Hearts].len() >= h[Suit::Spades].len()
+    });
+    let spades_longer = described("♠ longer than ♥", |h: Hand, _: &Context<'_>| {
+        h[Suit::Spades].len() > h[Suit::Hearts].len()
+    });
+    Rules::new()
+        .rule(Bid::new(2, Strain::Hearts), 1.0, hearts_longer)
+        .rule(Bid::new(2, Strain::Spades), 1.0, spades_longer)
+}
+
+/// Overcaller's rebid after the game-forcing `2NT` ask (`[1NT, 2♣, P, 2NT, P]`)
+///
+/// The sourced min/med/max × 5-4/5-5 ladder, with the strength buckets tracking
+/// the `2♣` range (partition `[lo, hi]` into thirds, `hi` capped at 16 when the
+/// overcall is open-topped): a 5-5 hand shows `3♥`/`3♠`/`3NT` for min/medium/max;
+/// a 5-4 hand shows `3♣` (min-or-medium) / `3♦` (max).
+fn landy_2nt_rebid(lo: u8, hi: u8) -> Rules {
+    let hi = hi.min(16);
+    let step = hi.saturating_sub(lo) / 3;
+    let med = lo + step;
+    let max = lo + 2 * step;
+    let five_five = len(Suit::Hearts, 5..) & len(Suit::Spades, 5..);
+
+    Rules::new()
+        // 5-5: 3♥ minimum, 3♠ medium, 3NT maximum.
+        .rule(
+            Bid::new(3, Strain::Hearts),
+            1.3,
+            five_five.clone() & points(lo..med),
+        )
+        .rule(
+            Bid::new(3, Strain::Spades),
+            1.3,
+            five_five.clone() & points(med..max),
+        )
+        .rule(Bid::new(3, Strain::Notrump), 1.3, five_five & points(max..))
+        // 5-4 (the source omits a min-5-4 slot, so 3♣ folds min+medium together).
+        .rule(Bid::new(3, Strain::Clubs), 1.2, points(lo..max))
+        .rule(Bid::new(3, Strain::Diamonds), 1.2, points(max..))
 }
 
 // ---------------------------------------------------------------------------
@@ -879,7 +1110,58 @@ pub fn defensive() -> Defensive {
         }
     }
 
-    insert_all_seats(&mut d, &[call(1, Strain::Notrump)], 3, defense_to_notrump());
+    let notrump = call(1, Strain::Notrump);
+    insert_all_seats(&mut d, &[notrump], 3, defense_to_notrump());
+
+    // Advancing partner's Landy 2♣ (both majors) over their 1NT, when on.
+    if let Some((lo, hi)) = landy_range() {
+        let landy_2c = call(2, Strain::Clubs);
+
+        // [1NT, 2♣, P] — advancer picks a major / asks via the 2♦ / 2NT routes.
+        insert_all_seats(
+            &mut d,
+            &[notrump, landy_2c, Call::Pass],
+            3,
+            landy_advances(lo),
+        );
+        // [1NT, 2♣, P, 2♦, P] — overcaller corrects to the longer major.
+        insert_all_seats(
+            &mut d,
+            &[
+                notrump,
+                landy_2c,
+                Call::Pass,
+                call(2, Strain::Diamonds),
+                Call::Pass,
+            ],
+            3,
+            landy_2d_rebid(),
+        );
+        // [1NT, 2♣, P, 2NT, P] — overcaller answers the game-forcing ask.
+        insert_all_seats(
+            &mut d,
+            &[
+                notrump,
+                landy_2c,
+                Call::Pass,
+                call(2, Strain::Notrump),
+                Call::Pass,
+            ],
+            3,
+            landy_2nt_rebid(lo, hi),
+        );
+    }
+
+    // Advancing partner's both-minors 2NT over their 1NT, when on.
+    if unusual_notrump_range().is_some() {
+        // [1NT, 2NT, P] — pick the longer minor (reuse the Unusual 2NT advance).
+        insert_all_seats(
+            &mut d,
+            &[notrump, call(2, Strain::Notrump), Call::Pass],
+            3,
+            unusual_nt_advances(Suit::Spades),
+        );
+    }
     d
 }
 

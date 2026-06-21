@@ -300,6 +300,11 @@ impl Inferences {
         // post-walk (cf. the Rubens cue).
         let leaping_michaels = leaping_michaels_reading(auction);
 
+        // A Landy 2♣ (both majors) over their 1NT, and the advancer's 2♦ relay,
+        // are artificial bids in real suits — suppress their natural reading and
+        // record the two-suiter post-walk (cf. Leaping Michaels).
+        let landy = landy_reading(auction);
+
         for (index, &call) in auction.iter().enumerate() {
             let lane = index % 4;
             let who = relative_of(len, index) as usize;
@@ -345,7 +350,8 @@ impl Inferences {
                             || stayman_artificial
                             || nt_structure_artificial(auction, index, opening_index)
                             || rubens_suppress.contains(&Some(index))
-                            || leaping_michaels.is_some_and(|(i, _, _)| i == index);
+                            || leaping_michaels.is_some_and(|(i, _, _)| i == index)
+                            || landy.is_some_and(|l| l.suppresses(index));
 
                         if !suppress {
                             let jump = bid
@@ -568,6 +574,23 @@ impl Inferences {
             players[who].narrow_points(Range::at_least(14, POINTS_CAP));
         }
 
+        // A Landy overcall of their 1NT shows at least 5-4 in a pair of suits
+        // (majors over 2♣, minors over 2NT) with the configured points floor.  The
+        // 2♣'s natural club reading (and the 2♦ relay's diamond reading) were
+        // suppressed above, so record the pair here for the search sampler.
+        if let Some(landy) = landy {
+            let who = relative_of(len, landy.overcall_index) as usize;
+            // 2♣ shows at least 5-4 in the majors; 2NT at least 5-5 in the minors.
+            let (a, b, min_len) = if landy.majors {
+                (Suit::Hearts, Suit::Spades, 4)
+            } else {
+                (Suit::Clubs, Suit::Diamonds, 5)
+            };
+            players[who].narrow_length(a, Range::at_least(min_len, LENGTH_CAP));
+            players[who].narrow_length(b, Range::at_least(min_len, LENGTH_CAP));
+            players[who].narrow_points(Range::at_least(landy.floor, POINTS_CAP));
+        }
+
         Self { players }
     }
 }
@@ -715,6 +738,97 @@ fn leaping_michaels_reading(auction: &[Call]) -> Option<(usize, Suit, Option<Sui
         }
     }
     None
+}
+
+/// What a Landy two-suiter shows about the overcaller
+///
+/// `overcall_index` is our `2♣` (both majors) or `2NT` (both minors) over their
+/// 1NT; `majors` distinguishes the two; `floor` is the configured points floor;
+/// `relay_index` is the advancer's artificial `2♦` relay over `2♣`, if present
+/// (a real diamond suit whose natural reading must be suppressed).
+#[derive(Clone, Copy)]
+struct LandyReading {
+    overcall_index: usize,
+    majors: bool,
+    floor: u8,
+    relay_index: Option<usize>,
+}
+
+impl LandyReading {
+    /// Whether the call at `index` is an artificial Landy bid in a *real* suit
+    /// whose natural single-suit reading must be suppressed: our `2♣` (clubs) or
+    /// the advancer's `2♦` relay (diamonds).  The `2NT` overcall is not a suit, so
+    /// it never needs suppression.
+    fn suppresses(&self, index: usize) -> bool {
+        (self.majors && self.overcall_index == index) || self.relay_index == Some(index)
+    }
+}
+
+/// Read a two-suiter overcall of their 1NT: a Landy `2♣` (both majors, gated by
+/// [`set_landy`]) or a both-minors `2NT` (gated by [`set_unusual_notrump_defense`])
+///
+/// Returns `None` unless the relevant toggle is on *and* the auction is `1NT`
+/// followed by the defending side's first action being that bid, so a natural bid
+/// is never mistaken for the convention.  Mirrors [`leaping_michaels_reading`].
+fn landy_reading(auction: &[Call]) -> Option<LandyReading> {
+    let majors_floor = crate::bidding::american::landy_range();
+    let minors_floor = crate::bidding::american::unusual_notrump_range();
+    if majors_floor.is_none() && minors_floor.is_none() {
+        return None;
+    }
+    let opening_index = auction.iter().position(|&c| c != Call::Pass)?;
+    if auction[opening_index] != Call::Bid(Bid::new(1, Strain::Notrump)) {
+        return None;
+    }
+    let opener_parity = opening_index % 2;
+
+    // The overcall is the defending side's *first* action: an enabled 2♣ or 2NT.
+    let (overcall_index, majors, floor) = auction
+        .iter()
+        .enumerate()
+        .skip(opening_index + 1)
+        .find_map(|(index, &call)| match call {
+            Call::Pass => None,
+            Call::Bid(bid) if index % 2 != opener_parity => {
+                let hit = if bid == Bid::new(2, Strain::Clubs) {
+                    majors_floor.map(|(lo, _)| (index, true, lo))
+                } else if bid == Bid::new(2, Strain::Notrump) {
+                    minors_floor.map(|(lo, _)| (index, false, lo))
+                } else {
+                    None
+                };
+                Some(hit)
+            }
+            // The opener's side acted (a response), or a defender did something
+            // else (e.g. a penalty double) — not a two-suiter overcall.
+            _ => Some(None),
+        })
+        .flatten()?;
+
+    // The advancer's artificial 2♦ relay, the defending side's next action over 2♣.
+    let relay_index = majors
+        .then(|| {
+            auction
+                .iter()
+                .enumerate()
+                .skip(overcall_index + 1)
+                .find_map(|(index, &call)| match call {
+                    Call::Pass => None,
+                    Call::Bid(bid) if index % 2 != opener_parity => {
+                        Some((bid == Bid::new(2, Strain::Diamonds)).then_some(index))
+                    }
+                    _ => Some(None),
+                })
+                .flatten()
+        })
+        .flatten();
+
+    Some(LandyReading {
+        overcall_index,
+        majors,
+        floor,
+        relay_index,
+    })
 }
 
 /// The suit(s) a Leaping Michaels jump `lm` (clubs or diamonds) shows over their
@@ -993,6 +1107,48 @@ mod tests {
         set_leaping_michaels(false);
         let off = read(&[bid(2, Strain::Hearts), bid(4, Strain::Clubs), Call::Pass]);
         assert_eq!(off.partner().length(Suit::Spades), Range::FULL_LENGTH);
+    }
+
+    #[test]
+    fn landy_conditions_partner() {
+        use crate::bidding::american::{set_landy, set_unusual_notrump_defense};
+
+        // (1NT)–2♣–(P): the advancer reads partner's both-majors two-suiter (at
+        // least 4-4 in the majors, 8+ points) rather than a natural club suit.
+        set_landy(Some((8, 15)));
+        set_unusual_notrump_defense(Some((8, 15)));
+        let advance = read(&[bid(1, Strain::Notrump), bid(2, Strain::Clubs), Call::Pass]);
+        assert_eq!(advance.partner().length(Suit::Hearts), Range::new(4, 13));
+        assert_eq!(advance.partner().length(Suit::Spades), Range::new(4, 13));
+        assert_eq!(advance.partner().length(Suit::Clubs), Range::FULL_LENGTH);
+        assert_eq!(advance.partner().points, Range::new(8, 37));
+
+        // (1NT)–2NT–(P): both minors, 5-5 (the independent unusual-2NT toggle).
+        let minors = read(&[bid(1, Strain::Notrump), bid(2, Strain::Notrump), Call::Pass]);
+        assert_eq!(minors.partner().length(Suit::Clubs), Range::new(5, 13));
+        assert_eq!(minors.partner().length(Suit::Diamonds), Range::new(5, 13));
+
+        // The advancer's 2♦ relay is artificial — read from the overcaller's seat,
+        // partner's (the relayer's) diamonds stay unconstrained.
+        let relay = read(&[
+            bid(1, Strain::Notrump),
+            bid(2, Strain::Clubs),
+            Call::Pass,
+            bid(2, Strain::Diamonds),
+            Call::Pass,
+        ]);
+        assert_eq!(relay.partner().length(Suit::Diamonds), Range::FULL_LENGTH);
+
+        // Disabled: 2♣ reads as a natural club one-suiter, so spades stay
+        // unconstrained — the convention must not leak when off.
+        set_landy(None);
+        set_unusual_notrump_defense(None);
+        let off = read(&[bid(1, Strain::Notrump), bid(2, Strain::Clubs), Call::Pass]);
+        assert_eq!(off.partner().length(Suit::Spades), Range::FULL_LENGTH);
+
+        // Restore the shipped defaults so sibling tests on this thread are unaffected
+        // (unusual 2NT ships on; Landy 2♣ ships off).
+        set_unusual_notrump_defense(Some((8, 13)));
     }
 
     #[test]

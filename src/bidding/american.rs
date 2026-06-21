@@ -85,11 +85,12 @@ pub use competition::{
     set_double_override, set_double_style, set_lebensohl, set_lebensohl_style, set_natural_floor,
     set_trap_pass,
 };
-pub(crate) use defense::leaping_michaels_enabled;
 pub use defense::{
-    advance_double, defense_to_suit, defense_to_weak_two, set_advance_sohl_style,
-    set_leaping_michaels, set_responsive_overcall, set_responsive_takeout,
+    advance_double, defense_to_suit, defense_to_weak_two, set_advance_sohl_style, set_landy,
+    set_landy_hcp, set_leaping_michaels, set_responsive_overcall, set_responsive_takeout,
+    set_unusual_notrump_defense,
 };
+pub(crate) use defense::{landy_range, leaping_michaels_enabled, unusual_notrump_range};
 pub use notrump::notrump_responses;
 pub use openings::{NotrumpShape, openings, openings_with};
 pub use rebids::set_meckstroth_adjunct;
