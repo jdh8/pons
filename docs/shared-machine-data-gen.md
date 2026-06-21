@@ -69,6 +69,20 @@ Because of (1) and (2), prefer to **scale the thread/core count to the current
 load** and run off-hours when you can, rather than assuming priority makes a
 flat-out box invisible.
 
+## Do not run your own idle-run jobs in parallel
+
+Each `--features search` job already spins **one worker per hardware thread**
+(`SetMaxThreads(0)`), so it owns the whole box by itself. Launching several at
+once (e.g. four A/B variants in the background with `&`) is **N× self-
+oversubscription**: your own equal-priority threads thrash against each other, and
+`SCHED_IDLE` does *not* arbitrate this — it only deprioritizes you against
+*normal*-priority users, not against your other idle tasks. Measured: four
+concurrent 500k `landy-ab` runs drove load to ~126 on 32 cores and produced *zero*
+output in ~20 min — slower wall-clock than running them one after another, where a
+single run saturates the cores cleanly. **Chain multi-config sweeps sequentially**
+(`for … do …; done` or `&&`); only genuinely single-threaded jobs are safe to
+idle-run in parallel.
+
 ## When to add a hard cap
 
 If the box is **reliably busy** (not our usual case), priority isn't enough — add
