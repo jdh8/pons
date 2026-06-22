@@ -106,6 +106,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **A natural runout when our `1NT` is doubled (`[1NT, (X)]`), on by default.**
+  The instinct floor had no agreement here, so responder fell to the catch-all
+  **Pass** — sitting a hand that may be broke for an effectively-penalty double,
+  the `−500`/`−800`/`−1100` disaster a runout exists to prevent. The floor now
+  runs a natural escape, the structure mirroring our own defense to *their* `1NT`
+  (the penalty double makes the doubler "a `1NT` opener"). It is **universal** —
+  the whole partnership runs out, not just the weak responder:
+  - **`2♣`/`2♦`/`2♥`/`2♠`** = natural, weak, to play — escape to the longest
+    five-plus-card suit (longer suits and majors preferred);
+  - **`2NT`** = unusual, both minors (4-4, no five-card suit to run to): opener
+    names the better minor;
+  - **direct Redouble** = values, to play `1NT` redoubled — keyed on raw
+    (defensive) HCP at or above the `set_runout_xx_min` floor (default `7`);
+  - **opener escapes too** — in the balancing seat (`1NT-X-P-P`), a minimum-ish
+    opener with a five-card suit runs it, or **SOS-redoubles** (the *balancing*
+    redouble) with none, forcing responder to bid its longest suit (four-card
+    suits included);
+  - **whoever ran is captain** — partner passes the escape / SOS answer, at a
+    weight that *outranks the `1.5` transfer completion*, so a `2♦`/`2♥` escape
+    is never misread as a Jacoby transfer and "completed" into the wrong suit.
+  The double need not be penalty: left in, any double of `1NT` plays for the
+  penalty, so the runout fires over a conventional double too. Knobs (all
+  per-thread): `set_one_nt_runout(bool)` (the whole runout), `set_runout_xx_min(u8)`
+  (the run/redouble HCP boundary), and `set_one_nt_runout_universal(bool)` (opener
+  escape + SOS vs responder-direct only); the new `examples/ab-one-nt-runout`
+  harness A/B's them (seat-swap duplicate, plain double-dummy, `--show`,
+  `--xx-min`, `--no-universal`). Measured vs the old Pass floor (500k–1M boards):
+  the responder-direct escape alone is **+2.43 IMPs/divergent non-vul, +4.95 both
+  vul**; the redouble's marginal value is monotonic the lower the `xx-min` floor
+  (probed `6`–`12`), best near `7`; and the universal layer adds a further
+  **+1211 IMPs non-vul, +2048 both** over direct-only (500k, `xx-min 7`). The full
+  default system runs **`+0.011` IMPs/raw deal non-vul, `+0.020` both vul**, the
+  vul edge ≈ 2× non-vul (escaping a doubled penalty). The suit escapes are
+  double-dummy-*robust* (fleeing a doubled penalty wins under any measure); the
+  redouble and the SOS 4-3-fit rescues lean on double-dummy declarer play, so the
+  `xx-min` floor sits at `7` (not lower) as a hedge and the universal layer is a
+  candidate to re-confirm under a future single-dummy measure. *Deferred:*
+  penalty doubles of the opponents' escape *from* our `1NT` redoubled (pure
+  upside — the measured win already includes the floor's crude handling of it).
+
 - **The Landy advancer now has responses to a doubled `2♣` (`[1NT, 2♣, X]`).**
   When we overcall their `1NT` with Landy `2♣` (both majors, short clubs) and the
   opponents double — the stolen `2♣` Stayman — their opener can sit for `2♣`

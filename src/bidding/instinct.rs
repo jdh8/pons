@@ -52,13 +52,29 @@ use super::constraint::{
 use super::context::Context;
 use super::inference::Inferences;
 use contract_bridge::auction::Call;
+use contract_bridge::eval::hcp as holding_hcp;
 use contract_bridge::{Bid, Hand, Penalty, Rank, Strain, Suit};
 use core::cell::Cell;
 
 std::thread_local! {
     /// Whether the floor consults the auction interpretation for known fits
     static INFERENCE_AWARE: Cell<bool> = const { Cell::new(true) };
+
+    /// Whether a weak responder runs from our doubled 1NT (default on)
+    static ONE_NT_RUNOUT: Cell<bool> = const { Cell::new(true) };
+
+    /// HCP floor at which responder redoubles a doubled 1NT to play (A/B knob)
+    static RUNOUT_XX_MIN: Cell<u8> = const { Cell::new(7) };
+
+    /// Whether the runout is universal: opener also escapes / SOS-redoubles in
+    /// the balancing seat, not just the weak responder direct (default on)
+    static ONE_NT_RUNOUT_UNIVERSAL: Cell<bool> = const { Cell::new(true) };
 }
+
+/// Responder runs from a doubled 1NT below this many HCP; with more, 1NT-X
+/// rates to make opposite a 15–17 opener, so sit (or redouble — see
+/// [`set_runout_xx_min`]).  A named knob for A/B tuning.
+const RUNOUT_MAX_HCP: u8 = 8;
 
 /// Enable or disable inference-aware instinct rules on the current thread
 ///
@@ -74,6 +90,196 @@ pub fn set_inference_aware(enabled: bool) {
 /// The floor is consulting the auction interpretation (see [`set_inference_aware`])
 fn inference_aware() -> Cons<impl Constraint + Clone> {
     pred(|_: Hand, _: &Context<'_>| INFERENCE_AWARE.with(Cell::get))
+}
+
+/// Enable or disable the doubled-1NT runout on the current thread
+///
+/// On by default: when our 1NT is doubled, a weak responder escapes to its
+/// longest five-plus-card suit instead of sitting for the penalty (and opener
+/// passes that escape).  Disable to fall back to the natural floor — Pass.  For
+/// A/B measurement (see the `ab-one-nt-runout` example); read at classification
+/// time, per-thread.
+#[doc(hidden)]
+pub fn set_one_nt_runout(enabled: bool) {
+    ONE_NT_RUNOUT.with(|flag| flag.set(enabled));
+}
+
+/// The doubled-1NT runout is enabled (see [`set_one_nt_runout`])
+fn one_nt_runout_enabled() -> Cons<impl Constraint + Clone> {
+    pred(|_: Hand, _: &Context<'_>| ONE_NT_RUNOUT.with(Cell::get))
+}
+
+/// Set the HCP floor at which responder redoubles a doubled 1NT to play
+///
+/// For A/B measurement (see `ab-one-nt-runout --xx-min`).  XX shows values and
+/// suggests defending 1NT redoubled; keyed on raw HCP (defensive strength), not
+/// the shape-upgraded point count — a shapely weak hand should run, not sit.
+#[doc(hidden)]
+pub fn set_runout_xx_min(floor: u8) {
+    RUNOUT_XX_MIN.with(|cell| cell.set(floor));
+}
+
+/// Responder holds redouble values: raw HCP at or above the [`RUNOUT_XX_MIN`]
+/// floor (see [`set_runout_xx_min`])
+fn responder_has_xx_values() -> Cons<impl Constraint + Clone> {
+    pred(|hand: Hand, _: &Context<'_>| {
+        let hcp: u8 = Suit::ASC
+            .iter()
+            .map(|&suit| holding_hcp::<u8>(hand[suit]))
+            .sum();
+        hcp >= RUNOUT_XX_MIN.with(Cell::get)
+    })
+}
+
+/// Enable or disable the *universal* doubled-1NT runout on the current thread
+///
+/// On by default: opener too escapes its own five-plus-card suit, and SOS-
+/// redoubles (the balancing redouble) when it has none, in the seat where the
+/// double comes back to it with a weak partner.  Off restricts the runout to the
+/// weak responder's direct seat.  For A/B measurement (see
+/// `ab-one-nt-runout --universal`); read at classification time, per-thread.
+#[doc(hidden)]
+pub fn set_one_nt_runout_universal(enabled: bool) {
+    ONE_NT_RUNOUT_UNIVERSAL.with(|flag| flag.set(enabled));
+}
+
+/// The universal runout is enabled (see [`set_one_nt_runout_universal`])
+fn one_nt_runout_universal() -> Cons<impl Constraint + Clone> {
+    pred(|_: Hand, _: &Context<'_>| ONE_NT_RUNOUT_UNIVERSAL.with(Cell::get))
+}
+
+/// Partner opened a strong 1NT, RHO doubled it, and it is responder's first
+/// turn — the runout situation.  The double need not be penalty: left in, any
+/// double of 1NT plays for the penalty, so a weak responder escapes regardless.
+fn responder_one_nt_runout_now(context: &Context<'_>) -> bool {
+    let auction = context.auction();
+    let n = auction.len();
+    our_strong_notrump(context, 1, true)
+        && auction.last() == Some(&Call::Double)
+        && n >= 2
+        && matches!(auction[n - 2], Call::Bid(bid) if bid == Bid::new(1, Strain::Notrump))
+}
+
+/// [`responder_one_nt_runout_now`] as a hand-ignoring [`Constraint`]
+fn responder_one_nt_runout() -> Cons<impl Constraint + Clone> {
+    pred(|_: Hand, context: &Context<'_>| responder_one_nt_runout_now(context))
+}
+
+/// We opened a strong 1NT, LHO doubled, partner ran out to a suit, and it is
+/// our turn again.  Responder ran because it is weak, so it captains the
+/// auction: opener passes rather than read the escape as a natural new suit.
+fn opener_after_one_nt_runout_now(context: &Context<'_>) -> bool {
+    let auction = context.auction();
+    if !our_strong_notrump(context, 1, false) {
+        return false;
+    }
+    let Some((index, _)) = opening_bid(auction) else {
+        return false;
+    };
+    auction.get(index + 1) == Some(&Call::Double)
+        && matches!(
+            auction.get(index + 2),
+            Some(&Call::Bid(bid)) if bid.strain.suit().is_some()
+        )
+}
+
+/// [`opener_after_one_nt_runout_now`] as a hand-ignoring [`Constraint`]
+fn opener_after_one_nt_runout() -> Cons<impl Constraint + Clone> {
+    pred(|_: Hand, context: &Context<'_>| opener_after_one_nt_runout_now(context))
+}
+
+/// We opened a strong 1NT, LHO doubled, partner scrambled `2NT` (both minors),
+/// and it is our turn — name the better minor at the three level.
+fn opener_after_one_nt_minors_now(context: &Context<'_>) -> bool {
+    let auction = context.auction();
+    if !our_strong_notrump(context, 1, false) {
+        return false;
+    }
+    let Some((index, _)) = opening_bid(auction) else {
+        return false;
+    };
+    auction.get(index + 1) == Some(&Call::Double)
+        && auction.get(index + 2) == Some(&Call::Bid(Bid::new(2, Strain::Notrump)))
+}
+
+/// [`opener_after_one_nt_minors_now`] as a hand-ignoring [`Constraint`]
+fn opener_after_one_nt_minors() -> Cons<impl Constraint + Clone> {
+    pred(|_: Hand, context: &Context<'_>| opener_after_one_nt_minors_now(context))
+}
+
+/// Diamonds are at least as long as clubs (the minor to name over a scramble)
+fn longer_diamonds() -> Cons<impl Constraint + Clone> {
+    pred(|hand: Hand, _: &Context<'_>| hand[Suit::Diamonds].len() >= hand[Suit::Clubs].len())
+}
+
+/// We opened a strong 1NT, LHO doubled, partner and the doubler's partner both
+/// passed, and it is our turn — the balancing seat.  Partner had no escape, so
+/// it is weak: opener may run its own suit or SOS-redouble rather than sit.
+fn opener_balancing_runout_now(context: &Context<'_>) -> bool {
+    if !our_strong_notrump(context, 1, false) {
+        return false;
+    }
+    let auction = context.auction();
+    let Some((index, _)) = opening_bid(auction) else {
+        return false;
+    };
+    auction.len() == index + 4
+        && auction.get(index + 1) == Some(&Call::Double)
+        && auction[index + 2] == Call::Pass
+        && auction[index + 3] == Call::Pass
+}
+
+/// [`opener_balancing_runout_now`] as a hand-ignoring [`Constraint`]
+fn opener_balancing_runout() -> Cons<impl Constraint + Clone> {
+    pred(|_: Hand, context: &Context<'_>| opener_balancing_runout_now(context))
+}
+
+/// Opener SOS-redoubled (the balancing redouble) and it is back to responder:
+/// pick a suit, four-card suits included — opener has none of its own.
+fn responder_after_opener_sos_now(context: &Context<'_>) -> bool {
+    if !our_strong_notrump(context, 1, true) {
+        return false;
+    }
+    let auction = context.auction();
+    let Some((index, _)) = opening_bid(auction) else {
+        return false;
+    };
+    auction.len() >= index + 6
+        && auction.get(index + 1) == Some(&Call::Double)
+        && auction[index + 2] == Call::Pass
+        && auction[index + 3] == Call::Pass
+        && auction[index + 4] == Call::Redouble
+        && auction[index + 5..].iter().all(|&call| call == Call::Pass)
+}
+
+/// [`responder_after_opener_sos_now`] as a hand-ignoring [`Constraint`]
+fn responder_after_opener_sos() -> Cons<impl Constraint + Clone> {
+    pred(|_: Hand, context: &Context<'_>| responder_after_opener_sos_now(context))
+}
+
+/// Responder answered our SOS redouble with a suit; pass it (responder captains
+/// the rescue) rather than read it as a natural new suit and raise.
+fn opener_after_responder_sos_now(context: &Context<'_>) -> bool {
+    if !our_strong_notrump(context, 1, false) {
+        return false;
+    }
+    let auction = context.auction();
+    let Some((index, _)) = opening_bid(auction) else {
+        return false;
+    };
+    auction.len() >= index + 8
+        && auction.get(index + 1) == Some(&Call::Double)
+        && auction[index + 2] == Call::Pass
+        && auction[index + 3] == Call::Pass
+        && auction[index + 4] == Call::Redouble
+        && auction[index + 5] == Call::Pass
+        && matches!(auction[index + 6], Call::Bid(bid) if bid.strain.suit().is_some())
+        && auction[index + 7..].iter().all(|&call| call == Call::Pass)
+}
+
+/// [`opener_after_responder_sos_now`] as a hand-ignoring [`Constraint`]
+fn opener_after_responder_sos() -> Cons<impl Constraint + Clone> {
+    pred(|_: Hand, context: &Context<'_>| opener_after_responder_sos_now(context))
 }
 
 /// Partner's takeout double is live: the auction ends `… (bid) X (Pass)`
@@ -615,6 +821,169 @@ pub fn instinct() -> Rules {
             );
         }
     }
+
+    // Runout after our 1NT is doubled (default on; `set_one_nt_runout`).  A weak
+    // responder escapes to its longest five-plus-card suit rather than sit for
+    // the (effectively penalty) double; the values end redoubles and opener
+    // passes the escape — both rules below.  The run/XX boundary is the
+    // `set_runout_xx_min` knob (raw HCP), measured best near 7.
+    //
+    // ponytail: natural escapes only.  The both-minor 2NT scramble for weak 4-4
+    // minors, and a penalty double of the opponents' escape *from 1NT-XX*, are
+    // not authored yet (Phase 2).
+    for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
+        let strain = Strain::from(suit);
+        let major_bonus = if matches!(suit, Suit::Hearts | Suit::Spades) {
+            0.05
+        } else {
+            0.0
+        };
+        rules = rules
+            .rule(
+                Bid::new(2, strain),
+                1.0 + major_bonus,
+                one_nt_runout_enabled()
+                    & responder_one_nt_runout()
+                    & len(suit, 5..)
+                    & hcp(..RUNOUT_MAX_HCP),
+            )
+            .rule(
+                Bid::new(2, strain),
+                1.1 + major_bonus,
+                one_nt_runout_enabled()
+                    & responder_one_nt_runout()
+                    & len(suit, 6..)
+                    & hcp(..RUNOUT_MAX_HCP),
+            );
+    }
+
+    // Runout, the values end: responder redoubles to play 1NT-XX rather than
+    // run.  Outranks the escape so a values hand with a long suit still sits for
+    // the (re)double; stays below the 1.40 game milestone so a game-going hand
+    // bids it instead.  Opener then passes (1NT-XX) or bids game off the floor.
+    rules = rules.rule(
+        Call::Redouble,
+        1.2,
+        one_nt_runout_enabled() & responder_one_nt_runout() & responder_has_xx_values(),
+    );
+
+    // Runout, the both-minors end: 2NT = unusual, four-four in the minors with
+    // no five-card suit to run to (a 5+ suit prefers the natural escape, which
+    // outweighs this; a five-card major is excluded).  Opener picks the better
+    // minor.  Weight below the suit escape, above Pass — a 4-4 minor bust escapes
+    // 1NT-X to a known eight-card fit rather than sit.
+    rules = rules.rule(
+        Bid::new(2, Strain::Notrump),
+        0.5,
+        one_nt_runout_enabled()
+            & responder_one_nt_runout()
+            & hcp(..RUNOUT_MAX_HCP)
+            & len(Suit::Clubs, 4..)
+            & len(Suit::Diamonds, 4..)
+            & len(Suit::Hearts, ..5)
+            & len(Suit::Spades, ..5),
+    );
+
+    // Opener passes partner's runout: responder ran because it is weak, so it
+    // captains the auction.  Weight outranks the natural raise *and* the 1.5
+    // transfer completion — without it a 2♦/2♥ escape is misread as a Jacoby
+    // transfer and opener "completes" it into responder's short suit.
+    // ponytail: always pass; pulling to a better suit on a misfit is deferred.
+    rules = rules.rule(
+        Call::Pass,
+        1.55,
+        one_nt_runout_enabled() & opener_after_one_nt_runout(),
+    );
+
+    // Opener answers partner's 2NT minors-scramble with the better minor (longer,
+    // ties to diamonds).  Weight outranks the 1.5 transfer completion — the floor
+    // reads 2NT as a diamond transfer, which would force a club-longer hand to 3♦.
+    rules = rules
+        .rule(
+            Bid::new(3, Strain::Diamonds),
+            1.6,
+            one_nt_runout_enabled() & opener_after_one_nt_minors() & longer_diamonds(),
+        )
+        .rule(
+            Bid::new(3, Strain::Clubs),
+            1.6,
+            one_nt_runout_enabled() & opener_after_one_nt_minors() & !longer_diamonds(),
+        );
+
+    // Universal runout, opener's balancing seat (`set_one_nt_runout_universal`).
+    // The double came back to opener with a weak partner (it had no escape), so
+    // 1NT-X rates to fail: opener runs its own five-plus-card suit rather than
+    // sit — but only minimum-ish, since a maximum still rates to make 1NT-X.
+    for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
+        let strain = Strain::from(suit);
+        let major_bonus = if matches!(suit, Suit::Hearts | Suit::Spades) {
+            0.05
+        } else {
+            0.0
+        };
+        rules = rules
+            .rule(
+                Bid::new(2, strain),
+                1.0 + major_bonus,
+                one_nt_runout_enabled()
+                    & one_nt_runout_universal()
+                    & opener_balancing_runout()
+                    & len(suit, 5..)
+                    & hcp(..17),
+            )
+            .rule(
+                Bid::new(2, strain),
+                1.1 + major_bonus,
+                one_nt_runout_enabled()
+                    & one_nt_runout_universal()
+                    & opener_balancing_runout()
+                    & len(suit, 6..)
+                    & hcp(..17),
+            );
+    }
+
+    // Balancing redouble = SOS: no five-card suit to run to and not a maximum —
+    // ask partner to pick a suit, four-card suits included.
+    rules = rules.rule(
+        Call::Redouble,
+        1.0,
+        one_nt_runout_enabled()
+            & one_nt_runout_universal()
+            & opener_balancing_runout()
+            & hcp(..17)
+            & len(Suit::Clubs, ..5)
+            & len(Suit::Diamonds, ..5)
+            & len(Suit::Hearts, ..5)
+            & len(Suit::Spades, ..5),
+    );
+
+    // Responder answers the SOS redouble with its longest suit (four-card OK).
+    for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
+        let strain = Strain::from(suit);
+        let major_bonus = if matches!(suit, Suit::Hearts | Suit::Spades) {
+            0.05
+        } else {
+            0.0
+        };
+        for (length, weight) in [(4usize, 1.0f32), (5, 1.1), (6, 1.2)] {
+            rules = rules.rule(
+                Bid::new(2, strain),
+                weight + major_bonus,
+                one_nt_runout_enabled()
+                    & one_nt_runout_universal()
+                    & responder_after_opener_sos()
+                    & len(suit, length..),
+            );
+        }
+    }
+
+    // Opener passes responder's SOS answer — responder captains the rescue.
+    // Outranks the natural raise and the transfer completion, as elsewhere.
+    rules = rules.rule(
+        Call::Pass,
+        1.55,
+        one_nt_runout_enabled() & one_nt_runout_universal() & opener_after_responder_sos(),
+    );
 
     for level in 1u8..=4 {
         // Forced: the notrump escape guarantees an action — no fit, no
@@ -1224,5 +1593,111 @@ mod tests {
         // with support raises spades naturally rather than transferring.
         let auction = [call(1, Strain::Clubs), call(2, Strain::Spades), Call::Pass];
         assert_eq!(best(&auction, "K54.K32.K43.Q432"), call(3, Strain::Spades));
+    }
+
+    #[test]
+    fn one_nt_runout_disabled_passes() {
+        // Disabled, responder has no runout and falls to the natural floor —
+        // Pass — even broke with a five-card suit.
+        set_one_nt_runout(false);
+        let doubled = [call(1, Strain::Notrump), Call::Double];
+        assert_eq!(best(&doubled, "32.QJ763.9742.83"), Call::Pass);
+        set_one_nt_runout(true);
+    }
+
+    #[test]
+    fn one_nt_runout_escapes_to_the_long_suit() {
+        set_one_nt_runout(true);
+        let doubled = [call(1, Strain::Notrump), Call::Double];
+        // A broke hand with five hearts runs to 2♥ rather than sit for it.
+        assert_eq!(best(&doubled, "32.QJ763.9742.83"), call(2, Strain::Hearts));
+        // Length beats the major preference: six clubs over five spades.
+        assert_eq!(best(&doubled, "T9842.3.7.QJ9632"), call(2, Strain::Clubs));
+        // A balanced bust has nowhere to run: it sits.
+        assert_eq!(best(&doubled, "432.J85.K74.9632"), Call::Pass);
+        set_one_nt_runout(true);
+    }
+
+    #[test]
+    fn one_nt_runout_redoubles_with_values() {
+        set_one_nt_runout(true);
+        set_runout_xx_min(8);
+        let doubled = [call(1, Strain::Notrump), Call::Double];
+        // 8 balanced HCP — too good to run, not enough to force game opposite a
+        // 15–17 opener (23 combined): redouble to play 1NT-XX.
+        assert_eq!(best(&doubled, "K43.KQ5.8642.972"), Call::Redouble);
+        // A shapely bust at the same boundary still runs, never redoubles.
+        assert_eq!(best(&doubled, "3.QJ763.97642.83"), call(2, Strain::Hearts));
+        set_runout_xx_min(7);
+        set_one_nt_runout(true);
+    }
+
+    #[test]
+    fn one_nt_runout_2nt_scrambles_the_minors() {
+        set_one_nt_runout(true);
+        // 4-4 in the minors, no five-card suit, broke: 2NT asks opener to pick.
+        let doubled = [call(1, Strain::Notrump), Call::Double];
+        assert_eq!(best(&doubled, "K3.842.Q642.J642"), call(2, Strain::Notrump));
+        // Opener names the longer minor: clubs here, diamonds when reversed —
+        // never blindly "completing" 2NT as a diamond transfer.
+        let after = [
+            call(1, Strain::Notrump),
+            Call::Double,
+            call(2, Strain::Notrump),
+            Call::Pass,
+        ];
+        assert_eq!(best(&after, "AQ5.KQ4.32.AK842"), call(3, Strain::Clubs));
+        assert_eq!(best(&after, "AQ5.KQ4.AK842.32"), call(3, Strain::Diamonds));
+        set_one_nt_runout(true);
+    }
+
+    #[test]
+    fn one_nt_runout_universal_opener_escapes_and_sos() {
+        set_one_nt_runout(true);
+        set_one_nt_runout_universal(true);
+        // Balancing seat (1NT-X-P-P): partner is broke, opener acts rather than
+        // sit 1NT-X.  A minimum with five spades runs to 2♠.
+        let balancing = [
+            call(1, Strain::Notrump),
+            Call::Double,
+            Call::Pass,
+            Call::Pass,
+        ];
+        assert_eq!(
+            best(&balancing, "AQ542.KJ.K43.Q32"),
+            call(2, Strain::Spades)
+        );
+        // A minimum with no five-card suit SOS-redoubles instead.
+        assert_eq!(best(&balancing, "AQ4.KJ2.K432.Q32"), Call::Redouble);
+        // Responder answers the SOS with its longest suit, a four-carder.
+        let after_sos = [
+            call(1, Strain::Notrump),
+            Call::Double,
+            Call::Pass,
+            Call::Pass,
+            Call::Redouble,
+            Call::Pass,
+        ];
+        assert_eq!(
+            best(&after_sos, "QJ32.842.642.J32"),
+            call(2, Strain::Spades)
+        );
+        set_one_nt_runout_universal(true);
+        set_one_nt_runout(true);
+    }
+
+    #[test]
+    fn one_nt_runout_opener_passes_not_completes_phantom_transfer() {
+        set_one_nt_runout(true);
+        // 1NT–(X)–2♥ is partner's *runout*, not a Jacoby transfer: opener passes
+        // rather than "complete" it to 2♠ (responder's short suit).
+        let after_runout = [
+            call(1, Strain::Notrump),
+            Call::Double,
+            call(2, Strain::Hearts),
+            Call::Pass,
+        ];
+        assert_eq!(best(&after_runout, "AQ4.KJ3.KQ52.432"), Call::Pass);
+        set_one_nt_runout(true);
     }
 }
