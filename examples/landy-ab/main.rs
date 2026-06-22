@@ -46,6 +46,7 @@ use pons::bidding::{Family, Stance, System};
 use pons::scoring::{final_contract, imps, ns_score_bid, ns_score_contract};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
+use rayon::prelude::*;
 
 /// Contested Landy-vs-default A/B under plain-DD duplicate scoring
 #[derive(Parser)]
@@ -478,24 +479,24 @@ fn main() {
     let measured = american().against(Family::NATURAL);
 
     // Each board at both tables (Landy NS at A, EW at B), dealer rotating.
-    // With `--filter`, deal until `count` boards pass the cheap shape filter.
-    let mut deals: Vec<FullDeal> = Vec::with_capacity(args.count);
-    let mut contracts = Vec::with_capacity(args.count);
-    let mut auctions: Vec<(Auction, Auction)> = Vec::with_capacity(args.count);
+    // The baseline never acts when always-pass is on, so NS's natural action
+    // diverges whenever it is enabled (no need to also differ from EW).
+    let natural_diverges = if ew_always_pass {
+        ns_natural
+    } else {
+        ns_natural != ew_natural
+    };
+    // The measured pair widens the double's shape gate above the baseline's
+    // `Balanced`, so non-balanced 15+ hands are a fresh divergence source.
+    let extended = (double_shape != DoubleShape::Balanced).then_some(double_shape);
+
+    // Phase 1 (sequential, cheap): deal + the shape-only filter until `count`
+    // boards pass. The RNG stays single-threaded so a seed reproduces a run.
+    let mut passing: Vec<FullDeal> = Vec::with_capacity(args.count);
     let mut scanned = 0usize;
-    while deals.len() < args.count {
+    while passing.len() < args.count {
         let deal = full_deal(&mut rng);
         scanned += 1;
-        // The baseline never acts when always-pass is on, so NS's natural action
-        // diverges whenever it is enabled (no need to also differ from EW).
-        let natural_diverges = if ew_always_pass {
-            ns_natural
-        } else {
-            ns_natural != ew_natural
-        };
-        // The measured pair widens the double's shape gate above the baseline's
-        // `Balanced`, so non-balanced 15+ hands are a fresh divergence source.
-        let extended = (double_shape != DoubleShape::Balanced).then_some(double_shape);
         if args.filter
             && !could_reach_landy(
                 &deal,
@@ -508,34 +509,38 @@ fn main() {
         {
             continue;
         }
-        let dealer = Seat::ALL[deals.len() % 4];
-        let table_a = bid_out(
-            &measured,
-            &baseline,
-            true,
-            dealer,
-            args.vulnerability,
-            &deal,
-        );
-        let table_b = bid_out(
-            &measured,
-            &baseline,
-            false,
-            dealer,
-            args.vulnerability,
-            &deal,
-        );
-        deals.push(deal);
-        contracts.push((
-            final_contract(&table_a, dealer),
-            final_contract(&table_b, dealer),
-        ));
-        auctions.push((table_a, table_b));
-        if deals.len().is_multiple_of(1000) {
-            eprint!("\rbid {}/{} (scanned {scanned})", deals.len(), args.count);
-        }
+        passing.push(deal);
     }
-    eprintln!();
+    eprintln!("scanned {scanned} for {} boards; bidding...", passing.len());
+
+    // Phase 2 (parallel): bidding is pure (the books read their thread-locals at
+    // construction), so fan the two-table auctions across Rayon's work-stealing
+    // pool — auction lengths vary, so dynamic balancing beats static chunks. The
+    // DD solver stays on the main thread below; it parallelizes itself.
+    let vul = args.vulnerability;
+    let results: Vec<_> = passing
+        .par_iter()
+        .enumerate()
+        .map(|(i, &deal)| {
+            let dealer = Seat::ALL[i % 4];
+            let table_a = bid_out(&measured, &baseline, true, dealer, vul, &deal);
+            let table_b = bid_out(&measured, &baseline, false, dealer, vul, &deal);
+            let contracts = (
+                final_contract(&table_a, dealer),
+                final_contract(&table_b, dealer),
+            );
+            (deal, contracts, (table_a, table_b))
+        })
+        .collect();
+
+    let mut deals: Vec<FullDeal> = Vec::with_capacity(results.len());
+    let mut contracts = Vec::with_capacity(results.len());
+    let mut auctions: Vec<(Auction, Auction)> = Vec::with_capacity(results.len());
+    for (deal, c, a) in results {
+        deals.push(deal);
+        contracts.push(c);
+        auctions.push(a);
+    }
 
     // Only boards whose tables diverge can swing; solve those once and credit the
     // swing to the Landy team (NS at A, EW at B).
