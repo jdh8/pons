@@ -42,6 +42,8 @@ use pons::bidding::array::{Array, Logits};
 use pons::bidding::context::relative;
 use pons::bidding::{Family, System};
 use pons::scoring::{final_contract, imps, ns_score_contract};
+use rand::SeedableRng;
+use rand::rngs::StdRng;
 use std::collections::BTreeMap;
 use std::ffi::{CString, c_char, c_int, c_void};
 
@@ -91,6 +93,25 @@ struct Args {
     /// 1NT report printed after the headline.
     #[arg(long, default_value_t = false)]
     filter_1nt: bool,
+
+    /// Enable our Unusual-vs-Unusual structure over 1NT-(2NT) — BBA overcalls our
+    /// 1NT with a both-minors 2NT (Multi-Landy), so this is the live test.  Sets
+    /// the responder structure + the encircling chase at the given floors.
+    #[arg(long, default_value_t = false)]
+    uvu: bool,
+
+    /// Responder's penalty-double HCP floor for `--uvu`
+    #[arg(long, default_value_t = 9)]
+    uvu_x_floor: u8,
+
+    /// Responder's INV+ cue-bid points floor for `--uvu`
+    #[arg(long, default_value_t = 8)]
+    uvu_cue_floor: u8,
+
+    /// Deal seed for reproducible boards (pairs an `--uvu` on/off comparison so
+    /// the boards UvU does not touch are identical and cancel); unset = random
+    #[arg(long)]
+    seed: Option<u64>,
 }
 
 /// Parse a `NAME=0|1` convention override for `--our-conv` / `--their-conv`
@@ -511,6 +532,14 @@ fn main() -> anyhow::Result<()> {
     // Our side: the authored floor by default, or a second EPBot card when
     // `--our-system` is given (the BBA-vs-BBA experiment).  Both live to the end
     // of `main`, so `ours` can borrow whichever is selected.
+    if args.uvu {
+        // Read at book construction (responder structure) and, for the encircling
+        // chase, at classify time — fine here, the match is sequential (FFI).
+        pons::bidding::american::set_uvu(true);
+        pons::bidding::american::set_uvu_x_floor(args.uvu_x_floor);
+        pons::bidding::american::set_uvu_cue_floor(args.uvu_cue_floor);
+        pons::bidding::instinct::set_uvu_encircle(true);
+    }
     let our_floor = american().against(Family::NATURAL);
     let our_oracle = match args.our_system {
         Some(system) => Some(BbaOracle::load(&path, system, args.our_conv.clone())?),
@@ -533,7 +562,8 @@ fn main() -> anyhow::Result<()> {
         system_label(args.system),
         label_overrides(&args.their_conv)
     );
-    let mut rng = rand::rng();
+    let seed = args.seed.unwrap_or_else(rand::random);
+    let mut rng = StdRng::seed_from_u64(seed);
 
     // Bid every board at both tables, dealer rotating per board.  Sequential by
     // design: each EPBot decision creates/destroys a native bot through the FFI,
@@ -619,6 +649,11 @@ fn main() -> anyhow::Result<()> {
     let mut open_by: BTreeMap<String, (i64, i64)> = BTreeMap::new();
     let mut defend = (0i64, 0i64);
     let mut defend_by: BTreeMap<String, (i64, i64)> = BTreeMap::new();
+    // Focus subset: we open 1NT and the overcall is exactly 2NT — the auctions
+    // the UvU counter-measures act on, bucketed by our response.
+    let two_nt = Call::Bid(Bid::new(2, Strain::Notrump));
+    let mut uvu = (0i64, 0i64);
+    let mut uvu_by: BTreeMap<String, (i64, i64)> = BTreeMap::new();
     for &(index, _points, imp) in &swings {
         let board = &boards[index];
         let Some((nt_index, opener_ns)) = opening_1nt(&board.table_a, board.dealer) else {
@@ -626,6 +661,7 @@ fn main() -> anyhow::Result<()> {
         };
         let key = first_ns_call_after(&board.table_a, board.dealer, nt_index)
             .map_or_else(|| "(none)".into(), action_label);
+        let is_uvu = opener_ns && board.table_a.get(nt_index + 1) == Some(&two_nt);
         let (sum, by) = if opener_ns {
             (&mut open, &mut open_by)
         } else {
@@ -633,9 +669,16 @@ fn main() -> anyhow::Result<()> {
         };
         sum.0 += 1;
         sum.1 += imp;
-        let entry = by.entry(key).or_default();
+        let entry = by.entry(key.clone()).or_default();
         entry.0 += 1;
         entry.1 += imp;
+        if is_uvu {
+            uvu.0 += 1;
+            uvu.1 += imp;
+            let entry = uvu_by.entry(key).or_default();
+            entry.0 += 1;
+            entry.1 += imp;
+        }
     }
     let report = |title: &str, sum: (i64, i64), by: &BTreeMap<String, (i64, i64)>| {
         println!(
@@ -657,6 +700,7 @@ fn main() -> anyhow::Result<()> {
         defend,
         &defend_by,
     );
+    report("OUR 1NT-(2NT) responses (focus)", uvu, &uvu_by);
     if args.filter_1nt {
         println!(
             "\n(pre-filtered to deals with a 15-17 balanced hand: kept {} of {scanned}, {:.1}%)",

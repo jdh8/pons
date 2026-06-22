@@ -164,6 +164,68 @@ fn double_style() -> DoubleStyle {
 }
 
 thread_local! {
+    /// Whether the competitive book carries the Unusual-vs-Unusual structure over
+    /// our `1NT` when an opponent overcalls a both-minors `2NT` (Section 5d).
+    /// Default on: the constructive cues are DD-robust (A/B +0.6–2.6 IMPs/board
+    /// per call vs the passing floor) and the auction was previously unauthored.
+    static UVU: Cell<bool> = const { Cell::new(true) };
+    /// Responder's penalty-double HCP floor over `1NT − (2NT)`.
+    static UVU_X_FLOOR: Cell<u8> = const { Cell::new(9) };
+    /// Responder's INV+ cue-bid points floor over `1NT − (2NT)`.
+    static UVU_CUE_FLOOR: Cell<u8> = const { Cell::new(8) };
+    /// Length floor for responder's weak natural `3♥`/`3♠` escape over `1NT − (2NT)`
+    /// (`6` = a clean six-bagger; `5` lets a five-card major escape when defending
+    /// the both-minors overcall looks bad — the A/B sweep knob).
+    static UVU_NATURAL_FLOOR: Cell<u8> = const { Cell::new(6) };
+}
+
+/// Enable the Unusual-vs-Unusual structure over `1NT − (2NT both minors)` for
+/// books built *after* this call (thread-local, read once at construction).
+///
+/// Responder's `X` is penalty ("I can beat ≥1 of their suits"); the constructive
+/// answers are cue-bids — `3♣` = INV+ Stayman or 5+♠, `3♦` = INV+ 5+♥, `4♣`/`4♦`
+/// = FG+ 5-5-majors splinters — with symmetric Smolen after the `3♣`→`3♦` denial.
+/// Default **on** ([`set_uvu_x_floor`] / [`set_uvu_cue_floor`] tune the strength
+/// ranges; the A/B best is `9` HCP / `8` points).
+pub fn set_uvu(on: bool) {
+    UVU.with(|cell| cell.set(on));
+}
+
+/// Whether the Unusual-vs-Unusual `(2NT)` structure is enabled
+fn uvu() -> bool {
+    UVU.with(Cell::get)
+}
+
+/// Set responder's penalty-double HCP floor over `1NT − (2NT)` — the A/B sweep
+/// knob for "I can penalize one of their suits" (default `9`)
+pub fn set_uvu_x_floor(floor: u8) {
+    UVU_X_FLOOR.with(|cell| cell.set(floor));
+}
+
+fn uvu_x_floor() -> u8 {
+    UVU_X_FLOOR.with(Cell::get)
+}
+
+/// Set responder's INV+ cue-bid points floor over `1NT − (2NT)` (default `8`)
+pub fn set_uvu_cue_floor(floor: u8) {
+    UVU_CUE_FLOOR.with(|cell| cell.set(floor));
+}
+
+fn uvu_cue_floor() -> u8 {
+    UVU_CUE_FLOOR.with(Cell::get)
+}
+
+/// Set the length floor for responder's weak natural `3♥`/`3♠` escape over
+/// `1NT − (2NT)` (default `6`; `5` lets a five-card major escape a bad defence)
+pub fn set_uvu_natural_floor(floor: u8) {
+    UVU_NATURAL_FLOOR.with(|cell| cell.set(floor));
+}
+
+fn uvu_natural_floor() -> u8 {
+    UVU_NATURAL_FLOOR.with(Cell::get)
+}
+
+thread_local! {
     /// Optional parametric override of responder's double as
     /// `(min_len, max_len, min_hcp)` in their suit, superseding [`DoubleStyle`]
     /// for A/B sweeps that tune the length/strength threshold directly. `None`
@@ -1069,6 +1131,120 @@ pub(super) fn lm_2d_clubs_major() -> Rules {
         .rule(Bid::new(5, Strain::Clubs), 0.5, hcp(0..))
 }
 
+/// Responder's first call over `1NT − (2NT both minors)` — Unusual vs Unusual
+///
+/// `X` is penalty ("I can beat ≥1 of their suits", `hcp(x_floor..)`); the cues
+/// find a major fit — `3♣` = INV+ Stayman (a 4-card major) or 5+♠, `3♦` = INV+
+/// 5+♥. `4♣`/`4♦` are FG+ 5-5-majors splinters into the short minor (every 5-5
+/// hand is short in exactly one minor, so they cover all of them — 5-5 never goes
+/// through Stayman). `3♥`/`3♠` are weak natural sign-offs (a clean 6-card major);
+/// `3NT` is to play. The [`set_uvu_x_floor`] / [`set_uvu_cue_floor`]
+/// knobs sweep the strength ranges. Pass is the finite catch-all.
+pub(super) fn uvu_responder() -> Rules {
+    let x_floor = uvu_x_floor();
+    let cue_floor = uvu_cue_floor();
+    let weak = cue_floor.saturating_sub(1); // points cap for the weak naturals
+    let both_majors_55 = len(Suit::Spades, 5..) & len(Suit::Hearts, 5..);
+
+    let mut rules = Rules::new();
+
+    // FG+ 5-5-majors splinters: shortness in the named minor (always available —
+    // a 5-5 hand holds ≤1 in exactly one minor).
+    rules = rules
+        .rule(
+            Bid::new(4, Strain::Clubs),
+            2.0,
+            both_majors_55.clone() & len(Suit::Clubs, ..=1) & points(10..),
+        )
+        .rule(
+            Bid::new(4, Strain::Diamonds),
+            2.0,
+            both_majors_55 & len(Suit::Diamonds, ..=1) & points(10..),
+        );
+
+    // 3♣ = INV+ Stayman (a 4-card major) or 5+♠ (not 5-5); 3♦ = INV+ 5+♥ (≤3♠, so
+    // 5♥4♠ prefers 3♣ to hunt the spade fit, and 5-5 is excluded).
+    rules = rules
+        .rule(
+            Bid::new(3, Strain::Clubs),
+            1.85,
+            ((len(Suit::Spades, 5..) & len(Suit::Hearts, ..=4))
+                | len(Suit::Spades, 4..=4)
+                | (len(Suit::Hearts, 4..=4) & len(Suit::Spades, ..=3)))
+                & points(cue_floor..),
+        )
+        .rule(
+            Bid::new(3, Strain::Diamonds),
+            1.8,
+            len(Suit::Hearts, 5..) & len(Suit::Spades, ..=3) & points(cue_floor..),
+        );
+
+    // 3NT to play: game values, both minors stopped, no major to pursue.
+    rules = rules.rule(
+        Bid::new(3, Strain::Notrump),
+        1.5,
+        points(10..) & stopper_in(Suit::Clubs) & stopper_in(Suit::Diamonds),
+    );
+
+    // Penalty X: values *and* a minor we can punish — the (either-or) suit
+    // penalty, "I can beat their clubs OR their diamonds". They are 5-5, so a
+    // punishing holding is a trick sitting over a 5-card suit: 4+ length, or 4+
+    // HCP (AJ/KJ/KQ/AQ) of honors. (Length alone is rare when they hold the
+    // minors — honors carry it.) The A/B sweep knob; the suit-specific chase of
+    // their actual runout is the encircling follow-up.
+    rules = rules.rule(
+        Call::Double,
+        1.4,
+        hcp(x_floor..)
+            & (len(Suit::Clubs, 4..)
+                | suit_hcp(Suit::Clubs, 4..)
+                | len(Suit::Diamonds, 4..)
+                | suit_hcp(Suit::Diamonds, 4..)),
+    );
+
+    // Weak natural sign-offs: a long major below INV values, to play. The length
+    // floor (default 6) drops to 5 to let a five-card major escape when defending
+    // the both-minors overcall looks bad (the A/B sweep knob).
+    let nat = usize::from(uvu_natural_floor());
+    rules = rules
+        .rule(
+            Bid::new(3, Strain::Hearts),
+            1.3,
+            len(Suit::Hearts, nat..) & points(..=weak),
+        )
+        .rule(
+            Bid::new(3, Strain::Spades),
+            1.3,
+            len(Suit::Spades, nat..) & points(..=weak),
+        );
+
+    rules.rule(Call::Pass, 0.0, hcp(0..))
+}
+
+/// Responder's symmetric Smolen after `1NT − (2NT) − 3♣ − (P) − 3♦` — opener
+/// denied a 4-card major, so show the 5-card major right-sided into opener
+///
+/// `3♥` = 5+♠, `3♠` = 5+♥; neither promises the *other* major (opener's `3♦`
+/// already killed any 4-4 fit, leaving only the 5-3 hunt). `3NT` is the
+/// no-five-card-major catch-all (the plain 4-4 Stayman hand).
+pub(super) fn uvu_smolen() -> Rules {
+    Rules::new()
+        .rule(Bid::new(3, Strain::Hearts), 1.5, len(Suit::Spades, 5..))
+        .rule(Bid::new(3, Strain::Spades), 1.5, len(Suit::Hearts, 5..))
+        .rule(Bid::new(3, Strain::Notrump), 0.5, hcp(0..))
+}
+
+/// Responder's rebid after `1NT − (2NT) − 3♣ − (P) − 3♥` (opener showed 4 hearts)
+///
+/// Raise to `4♥` with a fit; with 5+♠ and no heart fit show the spades (`3♠`,
+/// opener places); else `3NT` (the finite catch-all).
+pub(super) fn uvu_rebid_over_3h() -> Rules {
+    Rules::new()
+        .rule(Bid::new(4, Strain::Hearts), 1.5, len(Suit::Hearts, 4..))
+        .rule(Bid::new(3, Strain::Spades), 1.4, len(Suit::Spades, 5..))
+        .rule(Bid::new(3, Strain::Notrump), 0.5, hcp(0..))
+}
+
 /// The competitive package over our openings: cue-bid raises, preemptive raises,
 /// negative doubles for all four openings, support doubles/redoubles, and
 /// opener's answers to negative doubles of minor overcalls
@@ -1478,6 +1654,70 @@ pub fn competition() -> Competitive {
         }
     }
 
+    // Section 5d: Unusual vs Unusual over a both-minors (2NT) overcall of our 1NT
+    // (`set_uvu`, default off). Responder's `X` is penalty; `3♣`/`3♦` are
+    // INV+ cues (Stayman/5+♠, 5+♥); `4♣`/`4♦` are FG+ 5-5-majors splinters; the
+    // `3♣`→`3♦` denial runs symmetric Smolen. Opener's `3♣` answer, the Smolen
+    // completions, the splinter advance, and the `3♠` rebid are all shared with
+    // the (2♦) Transfer machinery.
+    if uvu() {
+        let one_nt = call(1, Strain::Notrump);
+        let p = Call::Pass;
+        let overcall = call(2, Strain::Notrump);
+        let c3 = call(3, Strain::Clubs);
+        let d3 = call(3, Strain::Diamonds);
+        let h3 = call(3, Strain::Hearts);
+        let s3 = call(3, Strain::Spades);
+        let c4 = call(4, Strain::Clubs);
+        let d4 = call(4, Strain::Diamonds);
+
+        // Responder's first action: the uncovered suffix is exactly their 2NT.
+        fallback_all_seats(
+            &mut book,
+            &[one_nt],
+            3,
+            Arc::new(guard(move |_: &Context<'_>, suffix: &[Call]| {
+                suffix == [overcall]
+            })),
+            Fallback::classify(uvu_responder()),
+        );
+
+        let nodes: Vec<(Vec<Call>, Rules)> = vec![
+            // 3♣ Stayman/5+♠: opener answers, then symmetric Smolen / fit rebids.
+            (vec![overcall, c3, p], stayman_2d_answer()),
+            (vec![overcall, c3, p, d3, p], uvu_smolen()),
+            (
+                vec![overcall, c3, p, d3, p, h3, p],
+                smolen_completion(Suit::Spades),
+            ),
+            (
+                vec![overcall, c3, p, d3, p, s3, p],
+                smolen_completion(Suit::Hearts),
+            ),
+            (vec![overcall, c3, p, h3, p], uvu_rebid_over_3h()),
+            (
+                vec![overcall, c3, p, s3, p],
+                stayman_2d_fit_rebid(Suit::Spades),
+            ),
+            // 3♦ = 5+♥: opener raises with a fit, else 3NT.
+            (vec![overcall, d3, p], smolen_completion(Suit::Hearts)),
+            // 4♣/4♦ = FG+ 5-5-majors splinters: opener bids the better major game.
+            (vec![overcall, c4, p], lm_2d_both_majors_advance()),
+            (vec![overcall, d4, p], lm_2d_both_majors_advance()),
+        ];
+        for (suffix, rules) in nodes {
+            fallback_all_seats(
+                &mut book,
+                &[one_nt],
+                3,
+                Arc::new(guard(move |_: &Context<'_>, s: &[Call]| {
+                    s == suffix.as_slice()
+                })),
+                Fallback::classify(rules),
+            );
+        }
+    }
+
     book
 }
 
@@ -1519,6 +1759,95 @@ mod tests {
     fn bid_transfer(auction: &[Call], hand: &str) -> (Call, bool) {
         super::set_lebensohl_style(super::LebensohlStyle::Transfer);
         best_call(auction, hand)
+    }
+
+    /// As [`best_call`], with the Unusual-vs-Unusual `(2NT)` structure forced on
+    /// at the default A/B floors
+    fn bid_uvu(auction: &[Call], hand: &str) -> (Call, bool) {
+        super::set_uvu(true);
+        super::set_uvu_x_floor(9);
+        super::set_uvu_cue_floor(8);
+        best_call(auction, hand)
+    }
+
+    #[test]
+    fn uvu_three_clubs_is_stayman() {
+        // 1NT–(2NT both minors): a 4-4 majors hand bids 3♣ (Stayman), a book node.
+        let auction = [call(1, Strain::Notrump), call(2, Strain::Notrump)];
+        let (c, floored) = bid_uvu(&auction, "AQ32.KJ32.A2.432");
+        assert_eq!(c, call(3, Strain::Clubs));
+        assert!(!floored, "the cue must come from the book");
+    }
+
+    #[test]
+    fn uvu_three_diamonds_shows_hearts() {
+        // 1NT–(2NT): 5+♥ with ≤3♠ bids 3♦ (the heart cue).
+        let auction = [call(1, Strain::Notrump), call(2, Strain::Notrump)];
+        let (c, _) = bid_uvu(&auction, "K3.KQ976.A32.432");
+        assert_eq!(c, call(3, Strain::Diamonds));
+    }
+
+    #[test]
+    fn uvu_splinter_with_five_five() {
+        // 1NT–(2NT): 5-5 majors short a club → 4♣ splinter (FG+).
+        let auction = [call(1, Strain::Notrump), call(2, Strain::Notrump)];
+        let (c, _) = bid_uvu(&auction, "AQ876.KJ987.32.A");
+        assert_eq!(c, call(4, Strain::Clubs));
+    }
+
+    #[test]
+    fn uvu_penalty_double_on_values() {
+        // 1NT–(2NT): flat values, no 4-card major, no minor stopper → penalty X.
+        let auction = [call(1, Strain::Notrump), call(2, Strain::Notrump)];
+        let (c, floored) = bid_uvu(&auction, "KJ2.AQ2.J532.532");
+        assert_eq!(c, Call::Double);
+        assert!(!floored, "the penalty X must come from the book");
+    }
+
+    #[test]
+    fn uvu_smolen_shows_the_five_card_spade() {
+        // 1NT–(2NT)–3♣–(P)–3♦ (denial): responder's 3♥ = Smolen 5+♠ (no ♥ promise).
+        let auction = [
+            call(1, Strain::Notrump),
+            call(2, Strain::Notrump),
+            call(3, Strain::Clubs),
+            Call::Pass,
+            call(3, Strain::Diamonds),
+            Call::Pass,
+        ];
+        let (c, floored) = bid_uvu(&auction, "AQ876.K32.A32.32");
+        assert_eq!(c, call(3, Strain::Hearts));
+        assert!(!floored, "Smolen must come from the book");
+    }
+
+    #[test]
+    fn uvu_disabled_falls_to_floor() {
+        // Disabled, 1NT–(2NT) has no book node → instinct floor (the toggle works).
+        super::set_uvu(false);
+        let auction = [call(1, Strain::Notrump), call(2, Strain::Notrump)];
+        let (_, floored) = best_call(&auction, "AQ32.KJ32.A2.432");
+        super::set_uvu(true); // restore the default for sibling tests on this thread
+        assert!(floored, "without the toggle the auction is unauthored");
+    }
+
+    #[test]
+    fn uvu_encircling_doubles_the_runout() {
+        // 1NT-(2NT)-X, opponents run to 3♣: responder with a club stack doubles
+        // (the UvU penalty chase), and partner would leave it in. The chase is
+        // the instinct floor's, gated on set_uvu_encircle (read on this thread).
+        super::set_uvu(true);
+        crate::bidding::instinct::set_uvu_encircle(true);
+        let auction = [
+            call(1, Strain::Notrump),
+            call(2, Strain::Notrump),
+            Call::Double,
+            call(3, Strain::Clubs),
+            Call::Pass,
+            Call::Pass,
+        ];
+        let (c, _) = best_call(&auction, "K54.84.732.KQJT9");
+        crate::bidding::instinct::set_uvu_encircle(false); // restore for siblings
+        assert_eq!(c, Call::Double, "encircle the 3♣ runout with a club stack");
     }
 
     #[test]

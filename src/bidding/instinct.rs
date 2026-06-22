@@ -103,6 +103,11 @@ std::thread_local! {
     /// Whether we double their escape from our 1NT-XX on values, once
     /// responder's business redouble has shown them (default on; A/B'd a win)
     static PENALIZE_ESCAPE_VALUES: Cell<bool> = const { Cell::new(true) };
+
+    /// Whether we encircle (penalty-double) the opponents' escape from our
+    /// `1NT-(2NT)-X` — the Unusual-vs-Unusual penalty chase. Default on (it only
+    /// fires after our own UvU `X`, so it is dormant unless [`set_uvu`] is on).
+    static UVU_ENCIRCLE: Cell<bool> = const { Cell::new(true) };
 }
 
 /// Responder runs from a doubled 1NT below this many HCP; with more, 1NT-X
@@ -222,6 +227,23 @@ pub fn set_penalize_escape_values(enabled: bool) {
 /// The values escape penalty is enabled (see [`set_penalize_escape_values`])
 fn penalize_escape_values_enabled() -> Cons<impl Constraint + Clone> {
     pred(|_: Hand, _: &Context<'_>| PENALIZE_ESCAPE_VALUES.with(Cell::get))
+}
+
+/// Enable or disable the Unusual-vs-Unusual penalty chase after `1NT-(2NT)-X`
+///
+/// "All our doubles are penalty from the first X on"; a pass conveys inability
+/// to punish *this* contract.  The responder `X` itself lives in the american
+/// book ([`set_uvu`][crate::bidding::american::set_uvu]); this only adds the
+/// follow-up chase of the opponents' escape.  Read at classification time,
+/// per-thread.  On by default — but dormant unless our UvU `X` was bid.
+#[doc(hidden)]
+pub fn set_uvu_encircle(enabled: bool) {
+    UVU_ENCIRCLE.with(|flag| flag.set(enabled));
+}
+
+/// The UvU penalty chase is enabled (see [`set_uvu_encircle`])
+fn uvu_encircle_enabled() -> Cons<impl Constraint + Clone> {
+    pred(|_: Hand, _: &Context<'_>| UVU_ENCIRCLE.with(Cell::get))
 }
 
 /// Partner opened a strong 1NT, RHO doubled it, and it is responder's first
@@ -419,6 +441,58 @@ fn opp_escaped_our_business_xx() -> Cons<impl Constraint + Clone> {
 fn leave_in_escape_penalty() -> Cons<impl Constraint + Clone> {
     pred(|_: Hand, context: &Context<'_>| {
         our_doubled_one_nt_escape(context).is_some() && context.penalty() == Penalty::Doubled
+    })
+}
+
+/// The opponents have escaped our `1NT-(2NT)-X` penalty double and it is our turn
+///
+/// Our side opened 1NT, RHO overcalled a (both-minors) 2NT, our side doubled it
+/// for penalty, and since then we have only passed or doubled — so the live suit
+/// contract is *theirs* (their escape from the X).  Returns the index of our
+/// opening 1NT when the pattern holds; mirrors [`our_doubled_one_nt_escape`] for
+/// the Unusual-vs-Unusual chase ([`set_uvu_encircle`]).
+fn our_uvu_penalty_escape(context: &Context<'_>) -> Option<usize> {
+    let auction = context.auction();
+    let (index, bid) = opening_bid(auction)?;
+    // Our side is to act, opened 1NT, RHO overcalled 2NT, our side doubled it.
+    if index % 2 != auction.len() % 2 || bid != Bid::new(1, Strain::Notrump) {
+        return None;
+    }
+    if auction.get(index + 1) != Some(&Call::Bid(Bid::new(2, Strain::Notrump)))
+        || auction.get(index + 2) != Some(&Call::Double)
+    {
+        return None;
+    }
+    // We made no contract bid since the opening: the live suit is their escape.
+    let we_only_doubled = auction
+        .iter()
+        .enumerate()
+        .skip(index + 1)
+        .filter(|(i, _)| i % 2 == index % 2)
+        .all(|(_, &call)| !matches!(call, Call::Bid(_)));
+    if !we_only_doubled {
+        return None;
+    }
+    // The live contract is a suit at the three level or below.
+    context
+        .last_bid()
+        .filter(|bid| bid.strain.suit().is_some() && bid.level.get() <= 3)?;
+    Some(index)
+}
+
+/// Their escape from our UvU penalty `X` is live and undoubled — we may double
+/// it for penalty (see [`our_uvu_penalty_escape`])
+fn opp_escaped_our_uvu_undoubled() -> Cons<impl Constraint + Clone> {
+    pred(|_: Hand, context: &Context<'_>| {
+        our_uvu_penalty_escape(context).is_some() && context.penalty() == Penalty::Undoubled
+    })
+}
+
+/// We doubled their UvU escape for penalty; partner leaves it in (see
+/// [`our_uvu_penalty_escape`])
+fn leave_in_uvu_penalty() -> Cons<impl Constraint + Clone> {
+    pred(|_: Hand, context: &Context<'_>| {
+        our_uvu_penalty_escape(context).is_some() && context.penalty() == Penalty::Doubled
     })
 }
 
@@ -1198,6 +1272,22 @@ pub fn instinct() -> Rules {
         1.55,
         one_nt_runout_enabled() & leave_in_escape_penalty(),
     );
+
+    // UvU encircling: the opponents ran from our 1NT-(2NT)-X.  Double their
+    // escape with a trump stack — and keep doubling as they keep running — by
+    // agreement; partner leaves in.  Mirrors the doubled-1NT escape chase above,
+    // gated on its own A/B knob ([`set_uvu_encircle`]), independent of the runout.
+    rules = rules
+        .rule(
+            Call::Double,
+            1.6,
+            uvu_encircle_enabled() & opp_escaped_our_uvu_undoubled() & doubled_suit_stack(),
+        )
+        .rule(
+            Call::Pass,
+            1.55,
+            uvu_encircle_enabled() & leave_in_uvu_penalty(),
+        );
 
     for level in 1u8..=4 {
         // Forced: the notrump escape guarantees an action — no fit, no

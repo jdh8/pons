@@ -9,8 +9,14 @@
 //! (and the replayed auction) for a different position.  Run from the repo root:
 //!
 //! ```text
-//! cargo run --release --example probe-bba-1nt
+//! cargo run --release --example probe-bba-1nt            # BBA's defense over (1NT)
+//! cargo run --release --example probe-bba-1nt responder  # BBA's Unusual-vs-Unusual: 1NT-(2NT)
 //! ```
+//!
+//! The `responder` mode reads BBA's *opening-side* call after `1NT-(2NT)`, where
+//! that `2NT` is BBA's own Multi-Landy both-minors overcall — i.e. how BBA plays
+//! "Unusual vs Unusual" over our 1NT.  Both vulnerabilities are shown because the
+//! penalty-double decision is vul-sensitive.
 
 use libloading::Library;
 use std::ffi::{CString, c_char, c_int, c_void};
@@ -90,6 +96,122 @@ fn main() -> anyhow::Result<()> {
         ("balanced 13 HCP ", "AQJ", "K72", "J986", "Q83"),
         ("flat 8 HCP      ", "Q872", "K72", "J96", "Q83"),
     ];
+
+    if std::env::args().nth(1).as_deref() == Some("responder") {
+        // Opening-side responder over 1NT-(2NT both minors) = "Unusual vs Unusual".
+        // (label, ♠, ♥, ♦, ♣) — responder (position 2) after [1NT, (2NT)].
+        let hands: &[(&str, &str, &str, &str, &str)] = &[
+            ("penalize ♦ only  ", "K54", "84", "KQJT9", "732"),
+            ("penalize ♣ only  ", "K54", "84", "732", "KQJT9"),
+            ("penalize both min", "832", "54", "KQT9", "KQJT"),
+            ("4-4 majors GF    ", "KQ87", "AQ96", "84", "732"),
+            ("5♠ invitational  ", "KQT98", "A4", "843", "732"),
+            ("5-5 majors       ", "KQ987", "AQ876", "8", "32"),
+            ("balanced game    ", "Q97", "K94", "AQ7", "T987"),
+            ("weak flat        ", "Q872", "J94", "T75", "962"),
+            ("values, no stack ", "AJ7", "KQ7", "J85", "QT83"),
+            ("strong 1-suit ♦  ", "A54", "K4", "KQJT9", "732"),
+            ("weak both minors ", "8432", "4", "QJT9", "QJT9"),
+        ];
+        println!("BBA (system 0) responder over 1NT-(2NT both minors):\n");
+        for &(label, s, h, d, c) in hands {
+            let hand = suits(s, h, d, c);
+            // SAFETY: fresh bot per probe; responder (position 2) holds `hand`;
+            // replay opener's 1NT (code 9) and the both-minors 2NT (code 14).
+            let call = |vul: c_int| unsafe {
+                let bot = create();
+                for seat in 0..4 {
+                    set_system(bot, seat, 0);
+                }
+                new_hand(bot, 2, hand.as_ptr(), 0, vul, 0, 0);
+                set_bid(bot, 0, 9, c"".as_ptr()); // 1NT by opener (position 0)
+                set_bid(bot, 1, 14, c"".as_ptr()); // (2NT) both minors (position 1)
+                let code = get_bid(bot);
+                destroy(bot);
+                decode(code)
+            };
+            // vul bit 1 = N/S (us, position 2 is even), bit 2 = E/W (them).
+            println!(
+                "  {label} ♠{s} ♥{h} ♦{d} ♣{c}  ->  NV {:<5}  they-vul {:<5}  both {}",
+                call(0),
+                call(2),
+                call(3),
+            );
+        }
+        return Ok(());
+    }
+
+    if std::env::args().nth(1).as_deref() == Some("runout") {
+        // Is there a *delayed* penalty double of the opponents' 3♣ runout?
+        // After 1NT-(2NT)-P, the advancer picks a minor (3♣ here).  We probe two
+        // seats with club-stacked hands: opener reopening over 3♣, and responder's
+        // delayed double after opener+overcaller pass.  `prefix` is the replayed
+        // auction up to (but not including) the actor; `actor` is its seat.
+        let probe = |label: &str, actor: c_int, prefix: &[c_int], s, h, d, c| {
+            let hand = suits(s, h, d, c);
+            // SAFETY: fresh bot; `actor` holds `hand`; replay `prefix` then read.
+            let call = |vul: c_int| unsafe {
+                let bot = create();
+                for seat in 0..4 {
+                    set_system(bot, seat, 0);
+                }
+                new_hand(bot, actor, hand.as_ptr(), 0, vul, 0, 0);
+                for (index, &code) in prefix.iter().enumerate() {
+                    set_bid(bot, (index % 4) as c_int, code, c"".as_ptr());
+                }
+                let code = get_bid(bot);
+                destroy(bot);
+                decode(code)
+            };
+            println!(
+                "  {label} ♠{s} ♥{h} ♦{d} ♣{c}  ->  NV {:<5}  they-vul {:<5}  both {}",
+                call(0),
+                call(2),
+                call(3),
+            );
+        };
+        // 1NT=9, 2NT=14, Pass=0, 3♣=15.
+        println!("BBA (system 0) over the opponents' 3♣ runout after 1NT-(2NT)-P-3♣:\n");
+        println!("opener reopening [1NT,(2NT),P,(3♣)]:");
+        probe(
+            "16, club stack ",
+            0,
+            &[9, 14, 0, 15],
+            "AQ5",
+            "K72",
+            "K85",
+            "KJ83",
+        );
+        probe(
+            "17, balanced   ",
+            0,
+            &[9, 14, 0, 15],
+            "AQ5",
+            "KQ7",
+            "KJ86",
+            "Q83",
+        );
+        println!("\nresponder delayed [1NT,(2NT),P,(3♣),P,P]:");
+        probe(
+            "penalize ♣ only",
+            2,
+            &[9, 14, 0, 15, 0, 0],
+            "K54",
+            "84",
+            "732",
+            "KQJT9",
+        );
+        probe(
+            "9 HCP, ♣ stack ",
+            2,
+            &[9, 14, 0, 15, 0, 0],
+            "J54",
+            "Q84",
+            "73",
+            "KQJT9",
+        );
+        return Ok(());
+    }
 
     println!("BBA (EPBot system 0, 2/1 GF) direct call over (1NT):\n");
     for &(label, s, h, d, c) in hands {

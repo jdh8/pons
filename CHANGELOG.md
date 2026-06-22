@@ -118,6 +118,66 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Unusual vs Unusual over our `1NT − (2NT)` (default on).** When an opponent
+  overcalls our 1NT with a both-minors `2NT` (e.g. BBA's Multi-Landy), responder
+  previously had no authored call and the auction fell to the instinct floor
+  (Pass/guess). `competition.rs` §5d now adds a responder structure, gated by the
+  new `set_uvu` knob (**default on**):
+  - **`X`** — penalty, an (either-or) *suit* penalty: values plus a trick in a
+    minor (4+ length or 4+ HCP — AJ/KJ/KQ/AQ — in either minor). Floor
+    `set_uvu_x_floor` (HCP, default `9`).
+  - **`3♣`** — INV+, Stayman (a 4-card major) or 5+♠; **`3♦`** — INV+, 5+♥. Floor
+    `set_uvu_cue_floor` (points, default `8`). Symmetric Smolen after the
+    `3♣`→`3♦` denial (`3♥` = 5+♠, `3♠` = 5+♥; neither promises the other major,
+    as the denial already killed any 4-4 fit).
+  - **`4♣`/`4♦`** — FG+ 5-5-majors splinters (every 5-5 hand is short in exactly
+    one minor, so the splinters cover them all; 5-5 never goes through Stayman).
+  - weak natural `3♥`/`3♠`, to-play `3NT`, else Pass.
+
+  The opener's answers, Smolen completions and splinter advance reuse the
+  existing `(2♦)` Transfer-Lebensohl machinery. An **encircling** penalty chase
+  (`instinct.rs`, `set_uvu_encircle`, default on but dormant unless our `X` was
+  bid) doubles the opponents' runout from our `X` — every partnership double is
+  penalty from the first `X`, and a pass conveys inability to punish.
+
+  Measured (`examples/ab-uvu`, a shape-filtered Rayon self-A/B, plain DD): per
+  counter-measure vs the passing floor, **`3♣` +0.67, `3♦` +0.61, `4♣` +2.6,
+  `4♦` +2.4 IMPs/board** (vul none; similar at both) — DD-robust, like Transfer
+  Lebensohl. Against BBA (seed-paired `bba-match`), the full structure trims the
+  `1NT-(2NT)` loss (`+35`/`+32` IMPs over 20k boards, none/both); the subset
+  still loses (~`−1.3` IMPs/board — the obstruction wall is single-dummy), but
+  the cues recover ~`+1` IMP/board over passing. The penalty `X` is inherently
+  rare over a both-minors `2NT` (you cannot stack a suit they hold 5-5), so its
+  value lives in the encircling chase, not the immediate double — single-dummy
+  territory the DD harness cannot price.
+
+- **Runout when our own both-minors `2NT` overcall is doubled (bug fix).** The
+  `set_unusual_notrump_defense` `2NT` (default on) had no authored continuation
+  over `[1NT, 2NT, X]`, so a penalty double left the advancer with no escape — the
+  auction fell to the floor (Pass) and we hung in a hopeless `2NT` doubled. The
+  advancer now always **runs to the longer minor** (`3♣`/`3♦`); it never sits,
+  because the doubler holds values behind a 15-17 1NT. This also de-biases the
+  `ab-uvu` penalty-`X` measurement: the passive baseline used to sit in `2NT-X`
+  and get slaughtered double-dummy, flattering our `X` to a flat ~`+11` IMPs/board;
+  with both sides running, the `X`'s value scales with strength (~`+5`/board at the
+  default floor) — the honest signal.
+
+- **`examples/ab-uvu` gains `--natural-floor`.** Sweeps the length floor of
+  responder's weak `3♥`/`3♠` escape over `(2NT)`. Lowering it to 5 (a five-card
+  major escaping a bad defence) measured DD-negative (the marginal escapers lose
+  ~1–2 IMPs/board — the obstruction wall), so the default stays 6.
+
+- **`bba-match` gains `--uvu` (+ `--uvu-x-floor` / `--uvu-cue-floor`), `--seed`,
+  and a `1NT-(2NT)` focus report; `examples/ab-uvu` is new.** `--uvu` forces the
+  UvU structure + encircling on at the given floors; `--seed` makes the deals
+  reproducible so an on/off comparison is paired (the boards UvU never touches
+  cancel). The new focus report buckets the `[1NT, (2NT)]` divergent boards by
+  our response. `ab-uvu` is the Rayon self-A/B (shape-filtered for density,
+  sweeps the X / cue floors, per-call attribution). `examples/probe-bba-1nt`
+  gains `responder` and `runout` modes that read BBA's own Unusual-vs-Unusual
+  handling from real hands (BBA plays `X` = ~11+ values, not suit-specific; its
+  suit penalty is a delayed double of the runout).
+
 - **`examples/probe-bba-1nt` — read BBA's actual 1NT defense from real hands.**
   A small probe that feeds crafted archetype hands to the live EPBot engine
   (system 0, the card `bba-match` uses) and prints its direct-seat call over a

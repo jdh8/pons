@@ -1707,6 +1707,14 @@ pub fn defensive() -> Defensive {
             3,
             unusual_nt_advances(Suit::Spades),
         );
+        // [1NT, 2NT, X] — doubled: never sit, just run to the longer minor (sitting
+        // in 2NT-X is a loser — the doubler has values behind a 15-17 1NT).
+        insert_all_seats(
+            &mut d,
+            &[notrump, call(2, Strain::Notrump), Call::Double],
+            3,
+            unusual_nt_advances(Suit::Spades),
+        );
     }
 
     // Advancing a passed hand's conventional defense to their 1NT, when on.  The
@@ -2137,5 +2145,23 @@ mod tests {
             let (off, _) = passed(None, &over_1nt, hand);
             assert_eq!(on, off, "DONT changed the direct-seat call for {hand}");
         }
+    }
+
+    #[test]
+    fn doubled_unusual_2nt_runs_never_sits() {
+        // Their 1NT, our both-minors 2NT (on by default), their penalty X — the
+        // advancer must run to the longer minor, never sit in the doomed 2NT-X.
+        let auction = [
+            call(1, Strain::Notrump),
+            call(2, Strain::Notrump),
+            Call::Double,
+        ];
+        // Clubs longer → 3♣ (a book node, not a floored pass).
+        let (c, floored) = best_call(&auction, "432.32.QJ8.T9876");
+        assert_eq!(c, call(3, Strain::Clubs));
+        assert!(!floored, "the runout must come from the book");
+        // Diamonds longer → 3♦.
+        let (d, _) = best_call(&auction, "432.32.QJ876.T98");
+        assert_eq!(d, call(3, Strain::Diamonds));
     }
 }
