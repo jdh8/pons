@@ -801,23 +801,110 @@ fn landy_advances(lo: u8) -> Rules {
 ///
 /// The opponents' Double is the stolen `2♣` Stayman, and their opener can sit for
 /// `2♣` doubled with good clubs (the [`set_penalty_pass`] conversion) — a disaster
-/// for us, since the Landy overcaller is both-majors / short-club, so passing the
-/// Double leaves us declaring `2♣` doubled in a misfit.  So we **ignore the Double**
-/// and advance exactly as if it were a pass ([`landy_advances`]) — *except* a hand
-/// with a genuine club stack and no 4-card major fit passes to actually *play* `2♣`
-/// doubled (the doubler walked into our clubs).
+/// for us, since the Landy overcaller is both-majors / short-club.  The Double also
+/// hands us an extra step (the Redouble), so we run a richer escape than over a pass:
+///
+/// - **Redouble** = equal majors, "you pick" — the relay the undoubled `2♦` was.
+/// - **Pass** = a long club one-suiter: play `2♣` doubled (the doubler walked in).
+/// - **`2♦`** = a long diamond one-suiter, natural and to play (the freed bid).
+/// - **`2♥`/`2♠`** = the longer major (weak signoff), as over a pass.
+/// - the strong arms (`4M` game, `2NT` game-ask, `3M` invite) are unchanged — the
+///   Double buys no room above `2NT`.
+///
+/// A minor one-suiter (Pass / `2♦`) needs *both majors ≤2*: opposite the overcaller's
+/// guaranteed 5-card major a 3-card major has an 8-card fit worth more than a doubled
+/// minor, so those hands relay (Redouble) or sign off into the major instead.
 ///
 /// [`set_penalty_pass`]: super::set_penalty_pass
 fn landy_advances_over_double(lo: u8) -> Rules {
-    landy_advances(lo).rule(
-        Call::Pass,
-        // Outranks the weak 2♦/2♥/2♠ signoffs (≤1.0); below the 2NT ask (1.2) and
-        // the major invite/game arms, so only a weak club one-suiter sits for 2♣x.
-        1.05,
-        // ponytail: 6+ clubs with no 4-card major = "playable clubs". Tunable —
-        // A/B the length/major-fit gate if the conversion exposes a better spot.
-        len(Suit::Clubs, 6..) & len(Suit::Hearts, ..=3) & len(Suit::Spades, ..=3),
-    )
+    let invite = 20u8.saturating_sub(lo);
+    let game = 22u8.saturating_sub(lo);
+
+    let hearts_longer = described("♥ at least as long as ♠", |h: Hand, _: &Context<'_>| {
+        h[Suit::Hearts].len() >= h[Suit::Spades].len()
+    });
+    let spades_longer = described("♠ longer than ♥", |h: Hand, _: &Context<'_>| {
+        h[Suit::Spades].len() > h[Suit::Hearts].len()
+    });
+    let equal_majors = described("equal majors", |h: Hand, _: &Context<'_>| {
+        h[Suit::Hearts].len() == h[Suit::Spades].len()
+    });
+    // Both majors ≤2: no 8-card fit opposite the overcaller's 5-carder, so a long
+    // minor outranks a major signoff. ponytail: tunable length/major-fit gate.
+    let short_majors = len(Suit::Hearts, ..=2) & len(Suit::Spades, ..=2);
+
+    Rules::new()
+        // Strong arms — identical to the undoubled advance (no room gained above 2NT).
+        .rule(
+            Bid::new(4, Strain::Hearts),
+            1.4,
+            len(Suit::Hearts, 4..) & points(game..) & hearts_longer.clone(),
+        )
+        .rule(
+            Bid::new(4, Strain::Spades),
+            1.4,
+            len(Suit::Spades, 4..) & points(game..) & spades_longer.clone(),
+        )
+        .rule(Bid::new(2, Strain::Notrump), 1.2, points(game..))
+        .rule(
+            Bid::new(3, Strain::Hearts),
+            1.1,
+            len(Suit::Hearts, 4..) & points(invite..game) & hearts_longer.clone(),
+        )
+        .rule(
+            Bid::new(3, Strain::Spades),
+            1.1,
+            len(Suit::Spades, 4..) & points(invite..game) & spades_longer.clone(),
+        )
+        // Long club one-suiter, no major fit: sit for 2♣ doubled.
+        .rule(
+            Call::Pass,
+            1.05,
+            len(Suit::Clubs, 6..) & short_majors.clone(),
+        )
+        // Long diamond one-suiter, no major fit: natural 2♦, to play.
+        .rule(
+            Bid::new(2, Strain::Diamonds),
+            1.0,
+            len(Suit::Diamonds, 6..) & short_majors & points(..game),
+        )
+        // Equal majors: Redouble asks the overcaller to name the longer one.
+        .rule(Call::Redouble, 0.95, equal_majors & points(..invite))
+        // Otherwise sign off in the longer major.
+        .rule(
+            Bid::new(2, Strain::Hearts),
+            0.9,
+            hearts_longer & points(..invite),
+        )
+        .rule(
+            Bid::new(2, Strain::Spades),
+            0.9,
+            spades_longer & points(..invite),
+        )
+}
+
+/// Overcaller's rebid after advancer's *natural* `2♦` over the doubled Landy
+/// (`[1NT, 2♣, X, 2♦, P]`): pass partner's diamonds, but with a singleton/void
+/// diamond pull to the longer major (a 5-2 major fit beats a 6-1 diamond one).
+fn landy_doubled_2d_rebid() -> Rules {
+    let hearts_longer = described("♥ at least as long as ♠", |h: Hand, _: &Context<'_>| {
+        h[Suit::Hearts].len() >= h[Suit::Spades].len()
+    });
+    let spades_longer = described("♠ longer than ♥", |h: Hand, _: &Context<'_>| {
+        h[Suit::Spades].len() > h[Suit::Hearts].len()
+    });
+    Rules::new()
+        .rule(
+            Bid::new(2, Strain::Hearts),
+            1.0,
+            len(Suit::Diamonds, ..=1) & hearts_longer,
+        )
+        .rule(
+            Bid::new(2, Strain::Spades),
+            1.0,
+            len(Suit::Diamonds, ..=1) & spades_longer,
+        )
+        .rule(Call::Pass, 0.0, hcp(0..))
 }
 
 /// Overcaller's rebid after the `2♦` relay (`[1NT, 2♣, P, 2♦, P]`): name the
@@ -1528,17 +1615,23 @@ pub fn defensive() -> Defensive {
             landy_2nt_rebid(lo, hi),
         );
 
-        // [1NT, 2♣, X] — opponents doubled (stolen Stayman); advancer ignores it and
-        // advances normally, but passes to play 2♣ doubled with a real club stack.
-        // The 2♦-relay / 2NT-ask continuations mirror the undoubled ones above, with
-        // the Double standing in for the opponent's pass (same overcaller-rebid seat).
+        // [1NT, 2♣, X] — opponents doubled (stolen Stayman); advancer runs the
+        // richer escape (Redouble = equal-majors relay, Pass = clubs, 2♦ = natural
+        // diamonds, 2♥/2♠ = longer major). The Double frees the Redouble step.
         insert_all_seats(
             &mut d,
             &[notrump, landy_2c, Call::Double],
             3,
             landy_advances_over_double(lo),
         );
-        // [1NT, 2♣, X, 2♦, P] — overcaller corrects the relay to the longer major.
+        // [1NT, 2♣, X, XX, P] — Redouble was the equal-majors relay; name the major.
+        insert_all_seats(
+            &mut d,
+            &[notrump, landy_2c, Call::Double, Call::Redouble, Call::Pass],
+            3,
+            landy_2d_rebid(),
+        );
+        // [1NT, 2♣, X, 2♦, P] — advancer's 2♦ is natural; pass it or pull to a major.
         insert_all_seats(
             &mut d,
             &[
@@ -1549,7 +1642,7 @@ pub fn defensive() -> Defensive {
                 Call::Pass,
             ],
             3,
-            landy_2d_rebid(),
+            landy_doubled_2d_rebid(),
         );
         // [1NT, 2♣, X, 2NT, P] — overcaller answers the game-forcing ask.
         insert_all_seats(
