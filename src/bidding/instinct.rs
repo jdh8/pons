@@ -56,6 +56,28 @@ use contract_bridge::eval::hcp as holding_hcp;
 use contract_bridge::{Bid, Hand, Penalty, Rank, Strain, Suit};
 use core::cell::Cell;
 
+/// What responder's `2NT` shows in the doubled-1NT runout (A/B knob)
+///
+/// This governs only the weak, no-five-card-suit responder's both-minor action;
+/// a hand with a five-card suit always escapes naturally, in every mode.
+#[doc(hidden)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
+pub enum Unusual2nt {
+    /// `2NT` = both minors, four-four (the scramble); opener picks the better
+    /// minor.  The historic behavior, now an opt-in.
+    FourFour,
+    /// `FourFour` plus a five-five-minors hand bids `2NT` too (above the natural
+    /// escape) so opener picks the better fit rather than guess a minor.  A/B'd a
+    /// *loss* vs the default, so opt-in only.
+    FiveFiveAdd,
+    /// No `2NT` relay: a four-four bust bids its longer minor directly at the two
+    /// level — one double-exposure instead of the relay's two.  The default: A/B'd
+    /// a win over the relay (the extra exposure and higher landing level cost more
+    /// than the better minor the relay finds).
+    #[default]
+    Direct,
+}
+
 std::thread_local! {
     /// Whether the floor consults the auction interpretation for known fits
     static INFERENCE_AWARE: Cell<bool> = const { Cell::new(true) };
@@ -69,6 +91,18 @@ std::thread_local! {
     /// Whether the runout is universal: opener also escapes / SOS-redoubles in
     /// the balancing seat, not just the weak responder direct (default on)
     static ONE_NT_RUNOUT_UNIVERSAL: Cell<bool> = const { Cell::new(true) };
+
+    /// What responder's `2NT` shows in the runout (see [`set_unusual_2nt`]);
+    /// `Direct` (no relay) by default, A/B'd a win over the `FourFour` relay
+    static UNUSUAL_2NT: Cell<Unusual2nt> = const { Cell::new(Unusual2nt::Direct) };
+
+    /// Whether we double the opponents' escape from our doubled 1NT on a trump
+    /// stack in their suit (default on; A/B'd +5..+7 IMPs/divergent)
+    static PENALIZE_ESCAPE_STACK: Cell<bool> = const { Cell::new(true) };
+
+    /// Whether we double their escape from our 1NT-XX on values, once
+    /// responder's business redouble has shown them (default on; A/B'd a win)
+    static PENALIZE_ESCAPE_VALUES: Cell<bool> = const { Cell::new(true) };
 }
 
 /// Responder runs from a doubled 1NT below this many HCP; with more, 1NT-X
@@ -146,6 +180,48 @@ pub fn set_one_nt_runout_universal(enabled: bool) {
 /// The universal runout is enabled (see [`set_one_nt_runout_universal`])
 fn one_nt_runout_universal() -> Cons<impl Constraint + Clone> {
     pred(|_: Hand, _: &Context<'_>| ONE_NT_RUNOUT_UNIVERSAL.with(Cell::get))
+}
+
+/// Set what responder's `2NT` shows in the doubled-1NT runout
+///
+/// For A/B measurement (see `ab-one-nt-runout --compare minors5|direct`); read
+/// at classification time, per-thread.  [`Unusual2nt::Direct`] is the default.
+#[doc(hidden)]
+pub fn set_unusual_2nt(mode: Unusual2nt) {
+    UNUSUAL_2NT.with(|cell| cell.set(mode));
+}
+
+/// Responder's `2NT` is configured to `mode` (see [`set_unusual_2nt`])
+fn unusual_2nt_is(mode: Unusual2nt) -> Cons<impl Constraint + Clone> {
+    pred(move |_: Hand, _: &Context<'_>| UNUSUAL_2NT.with(Cell::get) == mode)
+}
+
+/// Enable or disable the trump-stack penalty double of the opponents' escape
+///
+/// For A/B measurement (see `ab-one-nt-runout --compare escape-stack`); read at
+/// classification time, per-thread.  On by default.
+#[doc(hidden)]
+pub fn set_penalize_escape_stack(enabled: bool) {
+    PENALIZE_ESCAPE_STACK.with(|flag| flag.set(enabled));
+}
+
+/// The trump-stack escape penalty is enabled (see [`set_penalize_escape_stack`])
+fn penalize_escape_stack_enabled() -> Cons<impl Constraint + Clone> {
+    pred(|_: Hand, _: &Context<'_>| PENALIZE_ESCAPE_STACK.with(Cell::get))
+}
+
+/// Enable or disable the values penalty double of their escape from our 1NT-XX
+///
+/// For A/B measurement (see `ab-one-nt-runout --compare escape-values`); read at
+/// classification time, per-thread.  On by default.
+#[doc(hidden)]
+pub fn set_penalize_escape_values(enabled: bool) {
+    PENALIZE_ESCAPE_VALUES.with(|flag| flag.set(enabled));
+}
+
+/// The values escape penalty is enabled (see [`set_penalize_escape_values`])
+fn penalize_escape_values_enabled() -> Cons<impl Constraint + Clone> {
+    pred(|_: Hand, _: &Context<'_>| PENALIZE_ESCAPE_VALUES.with(Cell::get))
 }
 
 /// Partner opened a strong 1NT, RHO doubled it, and it is responder's first
@@ -280,6 +356,70 @@ fn opener_after_responder_sos_now(context: &Context<'_>) -> bool {
 /// [`opener_after_responder_sos_now`] as a hand-ignoring [`Constraint`]
 fn opener_after_responder_sos() -> Cons<impl Constraint + Clone> {
     pred(|_: Hand, context: &Context<'_>| opener_after_responder_sos_now(context))
+}
+
+/// The opponents have escaped our doubled (or redoubled) 1NT and it is our turn
+///
+/// Our side opened 1NT, LHO doubled, and since then we have only passed or
+/// (re)doubled — never made a contract bid — so the live suit contract is
+/// *theirs* (their escape), not a suit of ours.  Returns the index of our
+/// opening 1NT when the pattern holds.  Counting our own doubles as "no contract
+/// bid" is what lets the penalty chase recurse as they keep running.
+fn our_doubled_one_nt_escape(context: &Context<'_>) -> Option<usize> {
+    let auction = context.auction();
+    let (index, bid) = opening_bid(auction)?;
+    // Our side is to act, and opened a 1NT that LHO doubled.
+    if index % 2 != auction.len() % 2 || bid != Bid::new(1, Strain::Notrump) {
+        return None;
+    }
+    if auction.get(index + 1) != Some(&Call::Double) {
+        return None;
+    }
+    // We made no contract bid since the opening: the live suit contract is the
+    // opponents' escape, not a suit of ours that they doubled.
+    let we_only_doubled = auction
+        .iter()
+        .enumerate()
+        .skip(index + 1)
+        .filter(|(i, _)| i % 2 == index % 2)
+        .all(|(_, &call)| !matches!(call, Call::Bid(_)));
+    if !we_only_doubled {
+        return None;
+    }
+    // The live contract is a suit at the three level or below.
+    context
+        .last_bid()
+        .filter(|bid| bid.strain.suit().is_some() && bid.level.get() <= 3)?;
+    Some(index)
+}
+
+/// Their escape from our (re)doubled 1NT is live and undoubled — we may double
+/// it for penalty (see [`our_doubled_one_nt_escape`])
+fn opp_escaped_our_nt_undoubled() -> Cons<impl Constraint + Clone> {
+    pred(|_: Hand, context: &Context<'_>| {
+        our_doubled_one_nt_escape(context).is_some() && context.penalty() == Penalty::Undoubled
+    })
+}
+
+/// Their escape is undoubled *and* responder's business redouble (1NT-X-XX) has
+/// already shown the values — combined we hold the balance, so a values double
+/// is sound without a personal stack (see [`our_doubled_one_nt_escape`])
+fn opp_escaped_our_business_xx() -> Cons<impl Constraint + Clone> {
+    pred(|_: Hand, context: &Context<'_>| {
+        our_doubled_one_nt_escape(context).is_some_and(|index| {
+            context.penalty() == Penalty::Undoubled
+                && context.auction().get(index + 2) == Some(&Call::Redouble)
+        })
+    })
+}
+
+/// We doubled their escape for penalty; partner leaves it in rather than read it
+/// as the takeout the `forced_advance` default would advance (see
+/// [`our_doubled_one_nt_escape`])
+fn leave_in_escape_penalty() -> Cons<impl Constraint + Clone> {
+    pred(|_: Hand, context: &Context<'_>| {
+        our_doubled_one_nt_escape(context).is_some() && context.penalty() == Penalty::Doubled
+    })
 }
 
 /// Partner's takeout double is live: the auction ends `… (bid) X (Pass)`
@@ -828,9 +968,9 @@ pub fn instinct() -> Rules {
     // passes the escape — both rules below.  The run/XX boundary is the
     // `set_runout_xx_min` knob (raw HCP), measured best near 7.
     //
-    // ponytail: natural escapes only.  The both-minor 2NT scramble for weak 4-4
-    // minors, and a penalty double of the opponents' escape *from 1NT-XX*, are
-    // not authored yet (Phase 2).
+    // The both-minor 2NT action (`set_unusual_2nt`) and the penalty double of
+    // the opponents' escape (`set_penalize_escape_stack` / `_values`) are
+    // authored below as A/B knobs; see the `ab-one-nt-runout --compare` axes.
     for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
         let strain = Strain::from(suit);
         let major_bonus = if matches!(suit, Suit::Hearts | Suit::Spades) {
@@ -871,18 +1011,59 @@ pub fn instinct() -> Rules {
     // no five-card suit to run to (a 5+ suit prefers the natural escape, which
     // outweighs this; a five-card major is excluded).  Opener picks the better
     // minor.  Weight below the suit escape, above Pass — a 4-4 minor bust escapes
-    // 1NT-X to a known eight-card fit rather than sit.
+    // 1NT-X to a known eight-card fit rather than sit.  Opt-in only: the default
+    // `Direct` mode runs straight to a minor (below); A/B'd the relay a loser.
     rules = rules.rule(
         Bid::new(2, Strain::Notrump),
         0.5,
         one_nt_runout_enabled()
             & responder_one_nt_runout()
+            & !unusual_2nt_is(Unusual2nt::Direct)
             & hcp(..RUNOUT_MAX_HCP)
             & len(Suit::Clubs, 4..)
             & len(Suit::Diamonds, 4..)
             & len(Suit::Hearts, ..5)
             & len(Suit::Spades, ..5),
     );
+
+    // Runout, 2NT extended (`set_unusual_2nt(FiveFiveAdd)`): a five-five-minors
+    // hand bids 2NT too, above the natural minor escape (1.0/1.1), so opener
+    // picks the better fit instead of responder guessing a minor.  A five-five
+    // hand cannot hold a five-card major, so no major guard is needed.
+    rules = rules.rule(
+        Bid::new(2, Strain::Notrump),
+        1.15,
+        one_nt_runout_enabled()
+            & responder_one_nt_runout()
+            & unusual_2nt_is(Unusual2nt::FiveFiveAdd)
+            & hcp(..RUNOUT_MAX_HCP)
+            & len(Suit::Clubs, 5..)
+            & len(Suit::Diamonds, 5..),
+    );
+
+    // Runout, the direct escape (`set_unusual_2nt(Direct)`, the default): no 2NT
+    // relay — a weak four-four-minors bust bids its longer minor (ties to
+    // diamonds) at the two level, one double-exposure instead of the relay's two.
+    // Opener passes it like any escape (`opener_after_one_nt_runout`, above).
+    let direct_bust = one_nt_runout_enabled()
+        & responder_one_nt_runout()
+        & unusual_2nt_is(Unusual2nt::Direct)
+        & hcp(..RUNOUT_MAX_HCP)
+        & len(Suit::Clubs, 4..)
+        & len(Suit::Diamonds, 4..)
+        & len(Suit::Hearts, ..5)
+        & len(Suit::Spades, ..5);
+    rules = rules
+        .rule(
+            Bid::new(2, Strain::Diamonds),
+            1.0,
+            direct_bust.clone() & longer_diamonds(),
+        )
+        .rule(
+            Bid::new(2, Strain::Clubs),
+            1.0,
+            direct_bust & !longer_diamonds(),
+        );
 
     // Opener passes partner's runout: responder ran because it is weak, so it
     // captains the auction.  Weight outranks the natural raise *and* the 1.5
@@ -983,6 +1164,39 @@ pub fn instinct() -> Rules {
         Call::Pass,
         1.55,
         one_nt_runout_enabled() & one_nt_runout_universal() & opener_after_responder_sos(),
+    );
+
+    // Encircling: the opponents ran from our doubled (or redoubled) 1NT.  We
+    // hold the balance, so double their escape for penalty — and keep doubling
+    // as they keep running — rather than let them buy it cheaply.  Two arms,
+    // each an A/B knob: a trump stack in their suit (sound in any seat), or
+    // general values once responder's business redouble has shown them.  Weight
+    // outranks the floor's takeout double of the same suit (<=0.9).
+    rules = rules
+        .rule(
+            Call::Double,
+            1.6,
+            one_nt_runout_enabled()
+                & penalize_escape_stack_enabled()
+                & opp_escaped_our_nt_undoubled()
+                & doubled_suit_stack(),
+        )
+        .rule(
+            Call::Double,
+            1.6,
+            one_nt_runout_enabled()
+                & penalize_escape_values_enabled()
+                & opp_escaped_our_business_xx()
+                & hcp(7..),
+        );
+
+    // Partner leaves in our penalty double of their escape: it is penalty by
+    // agreement, not the takeout the `forced_advance` default would advance.
+    // Outranks every forced-advance action (<=1.5).
+    rules = rules.rule(
+        Call::Pass,
+        1.55,
+        one_nt_runout_enabled() & leave_in_escape_penalty(),
     );
 
     for level in 1u8..=4 {
@@ -1635,6 +1849,8 @@ mod tests {
     #[test]
     fn one_nt_runout_2nt_scrambles_the_minors() {
         set_one_nt_runout(true);
+        // The 2NT relay is the opt-in `FourFour` mode (the default is `Direct`).
+        set_unusual_2nt(Unusual2nt::FourFour);
         // 4-4 in the minors, no five-card suit, broke: 2NT asks opener to pick.
         let doubled = [call(1, Strain::Notrump), Call::Double];
         assert_eq!(best(&doubled, "K3.842.Q642.J642"), call(2, Strain::Notrump));
@@ -1648,6 +1864,112 @@ mod tests {
         ];
         assert_eq!(best(&after, "AQ5.KQ4.32.AK842"), call(3, Strain::Clubs));
         assert_eq!(best(&after, "AQ5.KQ4.AK842.32"), call(3, Strain::Diamonds));
+        set_unusual_2nt(Unusual2nt::Direct);
+        set_one_nt_runout(true);
+    }
+
+    #[test]
+    fn one_nt_runout_2nt_shape_modes() {
+        set_one_nt_runout(true);
+        let doubled = [call(1, Strain::Notrump), Call::Double];
+        // A weak 5-5 in the minors.  In `FourFour` it escapes naturally to a
+        // five-card minor; the 2NT scramble is only the no-five-card-suit action.
+        set_unusual_2nt(Unusual2nt::FourFour);
+        assert_ne!(best(&doubled, "3.42.KQ876.J8765"), call(2, Strain::Notrump));
+        // FiveFiveAdd routes the 5-5 hand through 2NT so opener picks the better
+        // minor instead of responder guessing.
+        set_unusual_2nt(Unusual2nt::FiveFiveAdd);
+        assert_eq!(best(&doubled, "3.42.KQ876.J8765"), call(2, Strain::Notrump));
+        // Direct suppresses 2NT: the 4-4 bust runs straight to its longer minor
+        // (ties to diamonds) at the two level.
+        set_unusual_2nt(Unusual2nt::Direct);
+        assert_eq!(
+            best(&doubled, "K3.842.Q642.J642"),
+            call(2, Strain::Diamonds)
+        );
+        set_unusual_2nt(Unusual2nt::Direct);
+        set_one_nt_runout(true);
+    }
+
+    #[test]
+    fn one_nt_runout_penalizes_escape_on_stack() {
+        set_one_nt_runout(true);
+        set_penalize_escape_values(false);
+        // 1NT-(X)-XX (business redouble); RHO runs to 2♣.  A club stack (and not
+        // short in their suit, so the floor would not take out) doubles the run
+        // for penalty.  Toggling the arm off withdraws the double.
+        let run = [
+            call(1, Strain::Notrump),
+            Call::Double,
+            Call::Redouble,
+            call(2, Strain::Clubs),
+        ];
+        set_penalize_escape_stack(true);
+        assert_eq!(best(&run, "Q52.K43.Q43.AKJ4"), Call::Double);
+        set_penalize_escape_stack(false);
+        assert_ne!(best(&run, "Q52.K43.Q43.AKJ4"), Call::Double);
+        set_penalize_escape_stack(true);
+        set_penalize_escape_values(true);
+        set_one_nt_runout(true);
+    }
+
+    #[test]
+    fn one_nt_runout_leaves_in_escape_penalty() {
+        set_one_nt_runout(true);
+        set_penalize_escape_stack(true);
+        // 1NT-(X)-XX-(2♣)-X-(P): partner doubled their run for penalty.  We pass
+        // to leave it in, never advancing it as if it were a takeout double.
+        let doubled_run = [
+            call(1, Strain::Notrump),
+            Call::Double,
+            Call::Redouble,
+            call(2, Strain::Clubs),
+            Call::Double,
+            Call::Pass,
+        ];
+        assert_eq!(best(&doubled_run, "KQ3.K54.J632.987"), Call::Pass);
+        set_penalize_escape_stack(true);
+        set_one_nt_runout(true);
+    }
+
+    #[test]
+    fn one_nt_runout_penalizes_escape_on_values() {
+        set_one_nt_runout(true);
+        set_penalize_escape_stack(false);
+        set_penalize_escape_values(true);
+        // After responder's business redouble shows values, opener doubles their
+        // run on general strength — no personal trump stack, and not short in
+        // their suit, so the double is ours and not the floor's takeout.
+        let run = [
+            call(1, Strain::Notrump),
+            Call::Double,
+            Call::Redouble,
+            call(2, Strain::Clubs),
+        ];
+        assert_eq!(best(&run, "AQ5.KQ43.K3.6432"), Call::Double);
+        // The chase recurses: they run on to 2♦, the values hand doubles again.
+        let again = [
+            call(1, Strain::Notrump),
+            Call::Double,
+            Call::Redouble,
+            call(2, Strain::Clubs),
+            Call::Double,
+            call(2, Strain::Diamonds),
+        ];
+        assert_eq!(best(&again, "KQ3.K54.J632.987"), Call::Double);
+        // But opener's *SOS* redouble shows no values, so the values arm stays
+        // silent there: 1NT-(X)-P-P-XX(SOS)-(2♣) is not a values double.
+        let sos = [
+            call(1, Strain::Notrump),
+            Call::Double,
+            Call::Pass,
+            Call::Pass,
+            Call::Redouble,
+            call(2, Strain::Clubs),
+        ];
+        assert_ne!(best(&sos, "J32.Q54.J632.987"), Call::Double);
+        set_penalize_escape_stack(true);
+        set_penalize_escape_values(true);
         set_one_nt_runout(true);
     }
 

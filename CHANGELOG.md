@@ -154,9 +154,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   double-dummy-*robust* (fleeing a doubled penalty wins under any measure); the
   redouble and the SOS 4-3-fit rescues lean on double-dummy declarer play, so the
   `xx-min` floor sits at `7` (not lower) as a hedge and the universal layer is a
-  candidate to re-confirm under a future single-dummy measure. *Deferred:*
-  penalty doubles of the opponents' escape *from* our `1NT` redoubled (pure
-  upside — the measured win already includes the floor's crude handling of it).
+  candidate to re-confirm under a future single-dummy measure. The both-minor
+  action and the penalty double of the opponents' escape are now tunable — see
+  the next two entries.
+
+- **The 4-4-minor bust now runs *direct* to its longer minor, not through `2NT`.**
+  The Phase-1 `2NT` scramble (relay to opener's better minor) kept the auction
+  alive an extra round and landed at the three level — two fresh chances for the
+  opponents to double, and a level higher. The new default (`Unusual2nt::Direct`)
+  skips the relay: the bust bids its own longer minor (ties to diamonds) at the
+  two level, one double-exposure instead of two. A/B'd vs the relay
+  (`examples/ab-one-nt-runout --compare direct`, seat-swap, plain double-dummy,
+  2M boards × two seeds): **+0.6–0.7 IMPs/divergent non-vul, +2.0–2.2 both vul**,
+  the most frequent runout-shape axis. The relay survives as opt-in
+  `set_unusual_2nt(FourFour)`; a third mode, `FiveFiveAdd` (route 5-5 minors
+  through `2NT` so opener picks the better fit), A/B'd a clear **loss** (−4.5/−8.4
+  IMPs/divergent) and stays off. Knob: `set_unusual_2nt(Unusual2nt)`.
+
+- **We now double the opponents' escape from our (re)doubled `1NT` for penalty
+  (default on).** When they run from our `1NT-X` (the advancer pulls partner's
+  penalty double) or our `1NT-X-XX` (they flee the business redouble), the floor
+  used to take the run out as if it were a takeout double. It now *doubles them*
+  — and keeps doubling as they keep running (the chase recurses) — with partner
+  leaving the double in rather than advancing it. Two arms, each a per-thread
+  knob: `set_penalize_escape_stack(bool)` (a trump stack — 4+ cards, two top
+  honors — in their suit, sound in any seat) and `set_penalize_escape_values(bool)`
+  (general values once responder's business redouble has shown them, no personal
+  stack). A/B'd (`--compare escape-stack` / `escape-values`, 2M × two seeds):
+  **+5–7 IMPs/divergent across both arms and both vulnerabilities**, never
+  negative — but rare (the opponent bots seldom escape, so the per-board figure is
+  ≈ `0`; real opponents run more, so the harness understates the frequency). The
+  doubled penalties are scored as bid, so this is double-dummy-visible, not the
+  obstruction-blind trap. The `ab-one-nt-runout` harness gains a `--compare` axis
+  (`runout` | `escape-stack` | `escape-values` | `minors5` | `direct`) that flips
+  one feature between the two tables, holding the rest at baseline.
 
 - **The Landy advancer now has responses to a doubled `2♣` (`[1NT, 2♣, X]`).**
   When we overcall their `1NT` with Landy `2♣` (both majors, short clubs) and the
