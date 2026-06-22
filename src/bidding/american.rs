@@ -83,7 +83,7 @@ mod weak_twos;
 pub use competition::{
     DoubleStyle, LebensohlStyle, competition, set_delayed_cue, set_direct_3nt_stopper,
     set_double_override, set_double_style, set_lebensohl, set_lebensohl_style, set_natural_floor,
-    set_trap_pass,
+    set_penalty_pass, set_trap_pass,
 };
 pub use defense::{
     DoubleShape, PassedHandDefense, advance_double, defense_to_suit, defense_to_weak_two,

@@ -13,7 +13,7 @@ use super::super::context::Context;
 use super::super::fallback::{Fallback, FirstIs, OvercallAtMost, ReplaceNext, guard, rewriter};
 use super::super::trie::{Classifier, classifier};
 use super::super::{Competitive, Rules};
-use super::notrump::{notrump_responses, smolen_at_three, smolen_completion};
+use super::notrump::{notrump_responses, smolen_at_three, smolen_completion, stayman_answers};
 use super::{call, fallback_all_seats};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Hand, Strain, Suit};
@@ -193,6 +193,42 @@ fn responder_double(rules: Rules, over: Suit) -> Rules {
         DoubleStyle::PenaltyLight => rules.rule(Call::Double, 1.55, len(over, 4..) & hcp(7..)),
         DoubleStyle::Optional => rules.rule(Call::Double, 1.55, len(over, 2..=3) & hcp(8..)),
     }
+}
+
+thread_local! {
+    /// Opener's penalty-pass over a `(2♣)` overcall, as
+    /// `(min_club_len, min_club_hcp, convert_over_major)`. After `1NT-(2♣)-X-(P)`
+    /// — where the systems-on Double is the stolen `2♣` Stayman — opener with this
+    /// club holding *passes* to defend `2♣` doubled instead of answering Stayman.
+    /// `convert_over_major` decides whether good clubs outrank a `2♥`/`2♠` major
+    /// fit (`true`) or yield to it (`false`).
+    ///
+    /// **Default `Some((4, 4, true))`:** 4+ clubs with 4+ club HCP (an ace or two
+    /// honors sitting over the overcaller), converting even with a major fit. A/B'd
+    /// a clear win at every gate tested (`landy-ab`, 2M, Landy off both arms):
+    /// **+5.35/+7.28 IMPs/divergent (none/both) on plain DD, +5.32/+7.09 under
+    /// perfect defense** — the conversion is a pure penalty decision, so the two
+    /// scorers agree. `None` restores the prior flaw (opener could never convert).
+    /// See [`set_penalty_pass`].
+    static PENALTY_PASS: Cell<Option<(usize, u8, bool)>> =
+        const { Cell::new(Some((4, 4, true))) };
+}
+
+/// Set opener's penalty-pass of the stolen-Stayman Double over a `(2♣)` overcall,
+/// gated on `(min_club_len, min_club_hcp, convert_over_major)` (for books built
+/// *after* this call; thread-local, read once at construction). `None` restores
+/// the historic behaviour where opener can never convert. A looser gate captures
+/// more total IMPs (every gate down to `(4, 0, true)` and even 3-card clubs stays
+/// net positive on DD) at lower per-conversion quality; the default trades a
+/// little frequency for a genuine "good clubs" holding. The A/B knob is
+/// `landy-ab --ns-penalty-pass LEN:HCP[:major]`.
+pub fn set_penalty_pass(spec: Option<(usize, u8, bool)>) {
+    PENALTY_PASS.with(|cell| cell.set(spec));
+}
+
+/// Opener's currently selected penalty-pass gate over `(2♣)`
+fn penalty_pass() -> Option<(usize, u8, bool)> {
+    PENALTY_PASS.with(Cell::get)
 }
 
 thread_local! {
@@ -1182,6 +1218,32 @@ pub fn competition() -> Competitive {
                 logits
             })),
         );
+
+        // Opener's penalty-pass of that Double: after [1NT, (2♣), X, (P)] opener
+        // with good clubs sits to defend 2♣ doubled instead of answering the
+        // stolen Stayman. Authored at the same [1NT, 2♣] node as the responder
+        // classifier (depth 2), so `resolve_at` reaches it *before* the depth-1
+        // systems-on rebase; the disjoint suffix guard ([X, P] vs the responder's
+        // empty suffix) keeps the two from colliding. `stayman_answers()` rides
+        // along as the always-mass catch-all, so a hand failing the club gate just
+        // answers Stayman exactly as the rebase would (no silent pass).
+        if let Some((min_len, min_hcp, over_major)) = penalty_pass() {
+            let pass_logit = if over_major { 1.5 } else { 0.75 };
+            let answers = stayman_answers().rule(
+                Call::Pass,
+                pass_logit,
+                len(Suit::Clubs, min_len..) & suit_hcp(Suit::Clubs, min_hcp..),
+            );
+            fallback_all_seats(
+                &mut book,
+                &[one_nt, two_clubs],
+                3,
+                Arc::new(guard(|_: &Context<'_>, suffix: &[Call]| {
+                    suffix == [Call::Double, Call::Pass]
+                })),
+                Fallback::classify(answers),
+            );
+        }
 
         // Lebensohl proper applies only over (2♦/2♥/2♠) — the overcalls that
         // actually steal room. (2♣) is the systems-on rebase above.

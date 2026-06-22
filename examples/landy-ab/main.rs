@@ -38,7 +38,7 @@ use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
 use pons::bidding::american::{
     DoubleShape, PassedHandDefense, set_always_pass_defense, set_landy, set_landy_hcp,
-    set_natural_defense, set_natural_double_shape, set_passed_hand_defense,
+    set_natural_defense, set_natural_double_shape, set_passed_hand_defense, set_penalty_pass,
     set_unusual_notrump_defense,
 };
 use pons::bidding::context::relative;
@@ -110,6 +110,21 @@ struct Args {
     #[arg(long, default_value = "off")]
     ew_always_pass: String,
 
+    /// Opener's penalty-pass over a `(2♣)` overcall for the *measured* (NS) pair:
+    /// `off` (default), `LEN:HCP`, or `LEN:HCP:major`. After `1NT-(2♣)-X-(P)` opener
+    /// with `LEN+` clubs and `HCP+` club HCP passes to defend `2♣` doubled instead
+    /// of answering the stolen Stayman; the `:major` suffix makes good clubs outrank
+    /// a `2♥`/`2♠` major fit (else opener keeps the major). Run both NS and EW `on`
+    /// (natural) and set this NS-only to isolate the conversion's value.
+    #[arg(long, default_value = "off")]
+    ns_penalty_pass: String,
+
+    /// Opener's penalty-pass for the *baseline* (EW) pair, same format. Set this
+    /// (with `--ns-natural on --ew-always-pass on`) to re-measure the value of NS's
+    /// natural `2♣` overcall once the EW opener can punish it (the `2♣` row drops).
+    #[arg(long, default_value = "off")]
+    ew_penalty_pass: String,
+
     /// Only count deals that can plausibly reach a Landy overcall of 1NT (a cheap
     /// shape pre-filter), so the DD budget lands on boards that can actually
     /// diverge. `--count` is then the number of such filtered boards.
@@ -147,6 +162,26 @@ fn parse_range(spec: &str) -> Option<(u8, u8)> {
         ),
         None => (spec.parse().expect("range LO is a number"), 37),
     })
+}
+
+/// Parse a `--*-penalty-pass` spec: `off` → `None`; `"4:4"` → `Some((4, 4, false))`;
+/// `"4:4:major"` → `Some((4, 4, true))` (good clubs outrank a major fit).
+fn parse_penalty_pass(spec: &str, flag: &str) -> Option<(usize, u8, bool)> {
+    if spec == "off" {
+        return None;
+    }
+    let mut parts = spec.split(':');
+    let len = parts.next().and_then(|s| s.parse().ok());
+    let hcp = parts.next().and_then(|s| s.parse().ok());
+    let over_major = match parts.next() {
+        None => false,
+        Some("major") => true,
+        Some(other) => panic!("unknown {flag} regime {other:?} (use `major` or omit)"),
+    };
+    match (len, hcp) {
+        (Some(len), Some(hcp)) => Some((len, hcp, over_major)),
+        _ => panic!("bad {flag} {spec:?} (use off, LEN:HCP, or LEN:HCP:major)"),
+    }
 }
 
 /// Parse an `on`/`off` flag into a bool, panicking on anything else.
@@ -402,6 +437,8 @@ fn main() {
         "dont" => Some(PassedHandDefense::Dont),
         other => panic!("unknown --ns-passed-dbl {other:?} (use off, landy, or dont)"),
     };
+    let ns_penalty_pass = parse_penalty_pass(&args.ns_penalty_pass, "--ns-penalty-pass");
+    let ew_penalty_pass = parse_penalty_pass(&args.ew_penalty_pass, "--ew-penalty-pass");
     set_landy(None);
     set_unusual_notrump_defense(None);
     set_landy_hcp(false);
@@ -409,6 +446,7 @@ fn main() {
     set_natural_double_shape(DoubleShape::Balanced);
     set_always_pass_defense(ew_always_pass);
     set_passed_hand_defense(None);
+    set_penalty_pass(ew_penalty_pass);
     let baseline = american().against(Family::NATURAL);
     set_landy(majors);
     set_unusual_notrump_defense(minors);
@@ -417,6 +455,7 @@ fn main() {
     set_natural_double_shape(double_shape);
     set_always_pass_defense(false);
     set_passed_hand_defense(passed_style);
+    set_penalty_pass(ns_penalty_pass);
     let measured = american().against(Family::NATURAL);
 
     // Each board at both tables (Landy NS at A, EW at B), dealer rotating.
@@ -552,8 +591,12 @@ fn main() {
     } else {
         "off".to_string()
     };
+    let pp_label = |pp: Option<(usize, u8, bool)>| match pp {
+        None => "off".to_string(),
+        Some((len, hcp, major)) => format!("{len}:{hcp}{}", if major { ":major" } else { "" }),
+    };
     let arms = format!(
-        "2♣ majors {}, 2NT minors {} [{}], natural NS {}/EW {}, X-shape {}, passed-def {}",
+        "2♣ majors {}, 2NT minors {} [{}], natural NS {}/EW {}, X-shape {}, passed-def {}, pen-pass NS {}/EW {}",
         label(majors),
         label(minors),
         args.strength,
@@ -565,6 +608,8 @@ fn main() {
             Some(PassedHandDefense::NaturalLandyDouble) => "landy",
             Some(PassedHandDefense::Dont) => "dont",
         },
+        pp_label(ns_penalty_pass),
+        pp_label(ew_penalty_pass),
     );
     println!(
         "=== Landy-vs-default A/B ({arms}): {} boards, vulnerability {}, scoring {} ===",

@@ -159,7 +159,10 @@ pub fn notrump_responses() -> Rules {
 }
 
 /// Opener's answer to Stayman: a four-card major, else 2♦
-fn stayman_answers() -> Rules {
+///
+/// `pub(super)` so the competitive book can reuse it as the always-mass catch-all
+/// when authoring opener's penalty-pass over a `(2♣)` overcall (systems on).
+pub(super) fn stayman_answers() -> Rules {
     Rules::new()
         .rule(Bid::new(2, Strain::Hearts), 1.0, len(Suit::Hearts, 4..))
         .rule(
@@ -1173,5 +1176,33 @@ mod tests {
             best_legal(&over_dbl, "AQ3.KJ54.KQ4.92"),
             bid(2, Strain::Hearts)
         );
+    }
+
+    /// Opener converts the stolen-Stayman Double to penalty with good clubs, and
+    /// *only* in the contested context — uncontested forcing Stayman never passes.
+    #[test]
+    fn penalty_pass_over_two_clubs() {
+        use crate::bidding::american::set_penalty_pass;
+
+        // 16 HCP, 5332 with AK-fifth of clubs (5 clubs, 7 club HCP), no 4-card major.
+        let opener = "A2.K3.Q42.AK432";
+        let over_dbl = [
+            bid(1, Strain::Notrump),
+            bid(2, Strain::Clubs),
+            Call::Double,
+            P,
+        ];
+        let uncontested_stayman = [bid(1, Strain::Notrump), P, bid(2, Strain::Clubs), P];
+
+        // With the penalty pass enabled, opener sits to defend 2♣ doubled.
+        set_penalty_pass(Some((4, 4, true)));
+        assert_eq!(best(&over_dbl, opener), Call::Pass);
+        // Context-specific: the same hand still answers forcing Stayman (2♦) in the
+        // *uncontested* auction — the conversion must not leak onto that shared node.
+        assert_eq!(best(&uncontested_stayman, opener), bid(2, Strain::Diamonds));
+
+        // With it off (the default), opener can never convert: answers Stayman 2♦.
+        set_penalty_pass(None);
+        assert_eq!(best(&over_dbl, opener), bid(2, Strain::Diamonds));
     }
 }

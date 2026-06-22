@@ -90,6 +90,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Opener can now convert the systems-on Double of a `(2♣)` overcall to penalty
+  with good clubs.** Over our `1NT`, a `(2♣)` overcall is *systems on* and
+  responder's Double is the stolen `2♣` Stayman — but opener was forced to *answer*
+  it (`2♥/2♠/2♦`) and could never sit, so `1NT–(2♣)–X–(P)` left a big penalty on the
+  table when opener held length and strength in clubs behind the overcaller (our
+  23+ combined HCP routinely sets a vulnerable `2♣` doubled multiple tricks). Opener
+  now **passes** that Double — defending `2♣` doubled — when holding the
+  `set_penalty_pass` gate, authored as a context-specific fallback at the
+  `[1NT, 2♣]` node (so it is reached before the systems-on rebase and never leaks
+  onto the shared *uncontested* forcing Stayman, which still never passes).
+  **Default `(4, 4, true)`:** 4+ clubs with 4+ club HCP (an ace or two honors),
+  converting even when responder's Double promised a 4-card major (good clubs beat
+  the fit). A/B'd a clear win at every gate (`examples/landy-ab --ns-penalty-pass
+  4:4:major`, contested seat-swap, Landy off both arms, 2M boards, 594 divergent):
+  **+5.35 IMPs/divergent non-vul, +7.28 both vul on plain double-dummy; +5.32 /
+  +7.09 under perfect-defense** scoring — the two scorers agree because converting
+  is a pure penalty decision (we defend a reached `2♣x`), not an obstruction or
+  overbid the measures treat differently. Bigger vulnerable, as expected (a doubled
+  set of a vulnerable overcaller scores more). The whole-game effect is tiny
+  (+0.002 IMPs/raw deal — the auction is rare, ~0.03% of deals) but strongly and
+  robustly positive per conversion, and every gate from the default down to
+  `(4, 0, true)` (any 4 clubs) — and even 3-card clubs — stays net positive on DD,
+  so the gate trades frequency for a defensible "good clubs" holding rather than
+  guarding a losing region. `set_penalty_pass(None)` restores the prior behavior;
+  `set_penalty_pass(Some((len, hcp, over_major)))` retunes the gate.
+  `examples/landy-ab` gained `--ns-penalty-pass` / `--ew-penalty-pass
+  LEN:HCP[:major]`. **Side effect on the opponents' overcall:** re-measuring the
+  natural `2♣` overcall of our `1NT` once the opener can punish it (`--ew-always-pass
+  on --ew-penalty-pass 4:4:major`, the `2♣`-action row), its value drops from
+  **+0.944 → +0.552 IMPs/action-board non-vul (−42%)** and **+1.183 → +0.662 both
+  vul (−44%)** — the conversion claws back roughly two-fifths of what a natural `2♣`
+  overcall used to gain.
+  *(Live-search note: the conversion is a terminal Pass with no partner bid to
+  decode, so `american_search` prices it directly from the book — no inference work
+  needed.)*
+
 - **A passed hand now reassigns its dead penalty double of their 1NT to both
   majors (new default behavior).** A passed hand cannot hold the 15+ HCP a penalty double of
   their 1NT needs, so over `[P,P,P,1NT]` (RHO opens 1NT in fourth seat) the
