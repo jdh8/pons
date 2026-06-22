@@ -90,8 +90,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **A passed hand can now reassign its dead penalty double of their 1NT to both
-  majors (opt-in).** A passed hand cannot hold the 15+ HCP a penalty double of
+- **A passed hand now reassigns its dead penalty double of their 1NT to both
+  majors (new default behavior).** A passed hand cannot hold the 15+ HCP a penalty double of
   their 1NT needs, so over `[P,P,P,1NT]` (RHO opens 1NT in fourth seat) the
   natural double is dead weight. `set_passed_hand_defense(Some(
   PassedHandDefense::NaturalLandyDouble))` keeps every natural overcall but
@@ -113,10 +113,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   defense additionally punishes the baseline's single-suit overcall when it
   overbids into a doubled misfit. The whole-game effect is tiny (+0.0004–0.0005
   IMPs/raw deal — the auction is rare) but strictly positive at both
-  vulnerabilities and both scorings. **Off by default**; `examples/landy-ab`
-  gained `--ns-passed-dbl` and a `--score plain|pd` knob (the latter re-scores any
-  A/B under perfect-defense doubling, to catch a plain-DD positive that is really
-  an under-punished overbid).
+  vulnerabilities and both scorings. **On by default** (now that it clears both
+  the plain-DD and perfect-defense bars); `set_passed_hand_defense(None)` restores
+  the historic dead double. `examples/landy-ab` gained `--ns-passed-dbl` and a
+  `--score plain|pd` knob (the latter re-scores any A/B under perfect-defense
+  doubling, to catch a plain-DD positive that is really an under-punished overbid).
+  *(Live-search note: the inference reader does not yet decode the passed-hand
+  double, so `american_search` under-narrows that rare leaf — safe, just not yet
+  exploited; the production `american` bidder reads it straight from the book.)*
 
 - **Full DONT is available as a second passed-hand 1NT defense (opt-in, *not*
   default).** `set_passed_hand_defense(Some(PassedHandDefense::Dont))` gives a
