@@ -797,6 +797,29 @@ fn landy_advances(lo: u8) -> Rules {
         )
 }
 
+/// Advancer's response to a *doubled* Landy `2♣` (`[1NT, 2♣, X]`)
+///
+/// The opponents' Double is the stolen `2♣` Stayman, and their opener can sit for
+/// `2♣` doubled with good clubs (the [`set_penalty_pass`] conversion) — a disaster
+/// for us, since the Landy overcaller is both-majors / short-club, so passing the
+/// Double leaves us declaring `2♣` doubled in a misfit.  So we **ignore the Double**
+/// and advance exactly as if it were a pass ([`landy_advances`]) — *except* a hand
+/// with a genuine club stack and no 4-card major fit passes to actually *play* `2♣`
+/// doubled (the doubler walked into our clubs).
+///
+/// [`set_penalty_pass`]: super::set_penalty_pass
+fn landy_advances_over_double(lo: u8) -> Rules {
+    landy_advances(lo).rule(
+        Call::Pass,
+        // Outranks the weak 2♦/2♥/2♠ signoffs (≤1.0); below the 2NT ask (1.2) and
+        // the major invite/game arms, so only a weak club one-suiter sits for 2♣x.
+        1.05,
+        // ponytail: 6+ clubs with no 4-card major = "playable clubs". Tunable —
+        // A/B the length/major-fit gate if the conversion exposes a better spot.
+        len(Suit::Clubs, 6..) & len(Suit::Hearts, ..=3) & len(Suit::Spades, ..=3),
+    )
+}
+
 /// Overcaller's rebid after the `2♦` relay (`[1NT, 2♣, P, 2♦, P]`): name the
 /// longer major, so the equal-majors advancer plays the right strain
 fn landy_2d_rebid() -> Rules {
@@ -1498,6 +1521,43 @@ pub fn defensive() -> Defensive {
                 notrump,
                 landy_2c,
                 Call::Pass,
+                call(2, Strain::Notrump),
+                Call::Pass,
+            ],
+            3,
+            landy_2nt_rebid(lo, hi),
+        );
+
+        // [1NT, 2♣, X] — opponents doubled (stolen Stayman); advancer ignores it and
+        // advances normally, but passes to play 2♣ doubled with a real club stack.
+        // The 2♦-relay / 2NT-ask continuations mirror the undoubled ones above, with
+        // the Double standing in for the opponent's pass (same overcaller-rebid seat).
+        insert_all_seats(
+            &mut d,
+            &[notrump, landy_2c, Call::Double],
+            3,
+            landy_advances_over_double(lo),
+        );
+        // [1NT, 2♣, X, 2♦, P] — overcaller corrects the relay to the longer major.
+        insert_all_seats(
+            &mut d,
+            &[
+                notrump,
+                landy_2c,
+                Call::Double,
+                call(2, Strain::Diamonds),
+                Call::Pass,
+            ],
+            3,
+            landy_2d_rebid(),
+        );
+        // [1NT, 2♣, X, 2NT, P] — overcaller answers the game-forcing ask.
+        insert_all_seats(
+            &mut d,
+            &[
+                notrump,
+                landy_2c,
+                Call::Double,
                 call(2, Strain::Notrump),
                 Call::Pass,
             ],

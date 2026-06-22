@@ -90,6 +90,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The Landy advancer now has responses to a doubled `2♣` (`[1NT, 2♣, X]`).**
+  When we overcall their `1NT` with Landy `2♣` (both majors, short clubs) and the
+  opponents double — the stolen `2♣` Stayman — their opener can sit for `2♣`
+  doubled with good clubs (the `set_penalty_pass` conversion shipped just above).
+  Previously the advancer had no node there and **passed the floor**, leaving us
+  declaring `2♣` doubled in a both-majors / short-club misfit. The advancer now
+  **ignores the Double and advances exactly as over a pass** (`landy_advances`:
+  pick a major, `2♦` relay, `2NT` ask, invite/game) — *except* a hand with a real
+  club stack and no 4-card major (6+ clubs, ≤3 in each major) **passes to play
+  `2♣` doubled** (the doubler walked into our clubs). The `2♦`-relay and `2NT`-ask
+  rebid nodes are mirrored with the Double standing in for the opponent's pass.
+  Effect on the (opt-in, off-by-default) Landy defense, measured in the shipped
+  `set_penalty_pass(4:4:major)` world (`examples/landy-ab --ns-penalty-pass
+  4:4:major --ew-penalty-pass 4:4:major`, 40k filtered, ~4.1k divergent): the
+  doubled-`2♣` leak the penalty-pass revamp had opened against Landy is closed —
+  the Landy-vs-natural figure goes from **−0.946 → −0.156 IMPs/divergent** and the
+  `2♣`-action row from **−1.098 → −0.182 IMPs/action-board**. Landy stays mildly
+  DD-negative (the known obstruction-blindness wall, see the `1NT` defense notes)
+  so it remains opt-in/off, but the misfit disaster is gone. Live-search note: the
+  escape is a normal advancer bid the inference reader already decodes; the rare
+  `Pass`-to-defend is terminal with no partner bid to decode.
+
 - **Opener can now convert the systems-on Double of a `(2♣)` overcall to penalty
   with good clubs.** Over our `1NT`, a `(2♣)` overcall is *systems on* and
   responder's Double is the stolen `2♣` Stayman — but opener was forced to *answer*
