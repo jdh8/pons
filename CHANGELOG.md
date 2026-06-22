@@ -90,6 +90,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **A passed hand can now reassign its dead penalty double of their 1NT to both
+  majors (opt-in).** A passed hand cannot hold the 15+ HCP a penalty double of
+  their 1NT needs, so over `[P,P,P,1NT]` (RHO opens 1NT in fourth seat) the
+  natural double is dead weight. `set_passed_hand_defense(Some(
+  PassedHandDefense::NaturalLandyDouble))` keeps every natural overcall but
+  reassigns that freed double to show both majors (≥5-4, `points(6..)`), advanced
+  via the existing Landy machinery (the advancer — also a passed hand — signs off
+  in a two-level major; the invite/game/2NT-ask arms are unreachable below
+  opening strength). Gated on `passed_hand()`, so the direct-seat penalty double
+  is byte-identical. A/B'd vs leaving the double dead (`examples/landy-ab
+  --ns-passed-dbl on --ns-majors "" --ns-minors ""`, contested seat-swap, 200k
+  filtered, ~2.1k divergent): **+1.17 IMPs/divergent non-vul, +1.33 both vul on
+  plain double-dummy; +1.43 / +1.42 under perfect-defense scoring** (`--score
+  pd`). Unusually for a conventional 1NT defense — Landy, DONT, and Meckwell all
+  *lost* on double-dummy — this one *wins*, and wins *more* under perfect defense,
+  not less: a passed hand's penalty double (the one DD-visible weapon that made
+  natural beat every convention) is impossible, so reassigning it costs nothing
+  and adds a pure two-suited fit-find, which is DD-visible; perfect defense
+  additionally punishes the baseline's single-suit overcall when it overbids into
+  a doubled misfit. The whole-game effect is tiny (+0.0006 IMPs/raw deal — the
+  auction is rare) but strictly positive at both vulnerabilities and both
+  scorings. **Off by default**; `examples/landy-ab` gained `--ns-passed-dbl` and a
+  `--score plain|pd` knob (the latter re-scores any A/B under perfect-defense
+  doubling, to catch a plain-DD positive that is really an under-punished overbid).
+
 - **An always-pass defense to their 1NT as a true do-nothing baseline.**
   `set_always_pass_defense(true)` authors only `Pass` at the `[1NT]` node (a finite
   logit for every hand shadows the instinct floor), so our side never competes

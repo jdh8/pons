@@ -33,16 +33,17 @@ use clap::Parser;
 use contract_bridge::auction::{Auction, Call};
 use contract_bridge::deck::full_deal;
 use contract_bridge::eval::hcp as holding_hcp;
-use contract_bridge::{AbsoluteVulnerability, Bid, FullDeal, Hand, Seat, Strain, Suit};
+use contract_bridge::{AbsoluteVulnerability, Bid, Contract, FullDeal, Hand, Seat, Strain, Suit};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
 use pons::bidding::american::{
-    DoubleShape, set_always_pass_defense, set_landy, set_landy_hcp, set_natural_defense,
-    set_natural_double_shape, set_unusual_notrump_defense,
+    DoubleShape, PassedHandDefense, set_always_pass_defense, set_landy, set_landy_hcp,
+    set_natural_defense, set_natural_double_shape, set_passed_hand_defense,
+    set_unusual_notrump_defense,
 };
 use pons::bidding::context::relative;
 use pons::bidding::{Family, Stance, System};
-use pons::scoring::{final_contract, imps, ns_score_contract};
+use pons::scoring::{final_contract, imps, ns_score_bid, ns_score_contract};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
 
@@ -90,6 +91,15 @@ struct Args {
     #[arg(long, default_value = "balanced")]
     ns_double_shape: String,
 
+    /// Passed-hand defense for the *measured* pair: `on` or `off` (default). `on`
+    /// reassigns a passed hand's dead penalty double of their 1NT to both majors
+    /// (≥5-4), advanced like Landy 2♣ (`PassedHandDefense::NaturalLandyDouble`).
+    /// Isolate it with `--ns-majors "" --ns-minors ""` (both natural arms on): the
+    /// only difference is then the freed double in the rare `[P,P,P,1NT]` seat, so
+    /// read `IMPs/raw-deal`, not `IMPs/divergent`. Baseline always keeps it off.
+    #[arg(long, default_value = "off")]
+    ns_passed_dbl: String,
+
     /// Silly always-pass defense for the *baseline* pair: `on` or `off` (default).
     /// `on` makes the baseline never act over their 1NT — the truest "do nothing"
     /// baseline (distinct from `--ew-natural off`, which drops to the floor). Pair
@@ -107,6 +117,14 @@ struct Args {
     /// RNG seed (fixed by default, so a floor sweep compares on identical boards)
     #[arg(long, default_value = "20260622")]
     seed: u64,
+
+    /// How to score the reached contracts: `plain` (default, `ns_score_contract`,
+    /// the actual penalty as bid) or `pd` (`ns_score_bid`, perfect-defense
+    /// doubling — a contract that fails double-dummy is scored doubled). A weak
+    /// competitive overbid that plain DD lets off is doubled under `pd`, so re-run
+    /// any plain-DD positive under `pd` to catch the under-punishment artifact.
+    #[arg(long, default_value = "plain")]
+    score: String,
 }
 
 /// Total HCP of a hand
@@ -229,6 +247,7 @@ fn could_reach_landy(
     minors: bool,
     natural: bool,
     extended: Option<DoubleShape>,
+    passed_dbl: bool,
 ) -> bool {
     Seat::ALL.iter().any(|&opener| {
         if !is_balanced_hcp(deal[opener], 14, 18) {
@@ -241,6 +260,12 @@ fn could_reach_landy(
                 || (minors && two_suiter_5_5(deal[d], Suit::Clubs, Suit::Diamonds))
                 || (natural && defender_has_natural_action(deal[d]))
                 || extended.is_some_and(|s| defender_has_extended_double(deal[d], s))
+                // The passed-hand both-majors double needs the 5-4 majors shape
+                // (the same shape as Landy 2♣). ponytail: shape-only superset — low
+                // yield because divergence also needs the rare [P,P,P,1NT] rotation,
+                // which a seat-agnostic shape filter can't see; IMPs/raw-deal is the
+                // honest effect size here.
+                || (passed_dbl && two_suiter_5_4(deal[d], Suit::Hearts, Suit::Spades))
         })
     })
 }
@@ -350,12 +375,15 @@ fn main() {
     let ns_natural = parse_on_off(&args.ns_natural, "--ns-natural");
     let ew_natural = parse_on_off(&args.ew_natural, "--ew-natural");
     let ew_always_pass = parse_on_off(&args.ew_always_pass, "--ew-always-pass");
+    let ns_passed_dbl = parse_on_off(&args.ns_passed_dbl, "--ns-passed-dbl");
+    let passed_style = ns_passed_dbl.then_some(PassedHandDefense::NaturalLandyDouble);
     set_landy(None);
     set_unusual_notrump_defense(None);
     set_landy_hcp(false);
     set_natural_defense(ew_natural);
     set_natural_double_shape(DoubleShape::Balanced);
     set_always_pass_defense(ew_always_pass);
+    set_passed_hand_defense(None);
     let baseline = american().against(Family::NATURAL);
     set_landy(majors);
     set_unusual_notrump_defense(minors);
@@ -363,6 +391,7 @@ fn main() {
     set_natural_defense(ns_natural);
     set_natural_double_shape(double_shape);
     set_always_pass_defense(false);
+    set_passed_hand_defense(passed_style);
     let measured = american().against(Family::NATURAL);
 
     // Each board at both tables (Landy NS at A, EW at B), dealer rotating.
@@ -391,6 +420,7 @@ fn main() {
                 minors.is_some(),
                 natural_diverges,
                 extended,
+                ns_passed_dbl,
             )
         {
             continue;
@@ -445,10 +475,24 @@ fn main() {
     // doubler, so each row is that shape's marginal gain over the balanced baseline.
     let mut by_shape: std::collections::BTreeMap<String, (i64, i64)> =
         std::collections::BTreeMap::new();
+    let pd = match args.score.as_str() {
+        "plain" => false,
+        "pd" => true,
+        other => panic!("unknown --score {other:?} (use plain or pd)"),
+    };
+    // Plain DD prices the contract's actual penalty; PD doubles any contract that
+    // fails double-dummy (perfect-defense), which punishes a weak overbid.
+    let score = |c: Option<(_, Seat)>, table: &_, vul| {
+        if pd {
+            ns_score_bid(c.map(|(ct, s): (Contract, _)| (ct.bid, s)), table, vul)
+        } else {
+            ns_score_contract(c, table, vul)
+        }
+    };
     for (&i, table) in divergent.iter().zip(tables.iter()) {
         let (contract_a, contract_b) = contracts[i];
-        let swing = ns_score_contract(contract_a, table, args.vulnerability)
-            - ns_score_contract(contract_b, table, args.vulnerability);
+        let swing = score(contract_a, table, args.vulnerability)
+            - score(contract_b, table, args.vulnerability);
         let board_imps = imps(swing);
         points += swing;
         total_imps += board_imps;
@@ -484,17 +528,18 @@ fn main() {
         "off".to_string()
     };
     let arms = format!(
-        "2♣ majors {}, 2NT minors {} [{}], natural NS {}/EW {}, X-shape {}",
+        "2♣ majors {}, 2NT minors {} [{}], natural NS {}/EW {}, X-shape {}, passed-dbl {}",
         label(majors),
         label(minors),
         args.strength,
         if ns_natural { "on" } else { "off" },
         ew_label,
         args.ns_double_shape,
+        if ns_passed_dbl { "on" } else { "off" },
     );
     println!(
-        "=== Landy-vs-default A/B ({arms}): {} boards, vulnerability {} ===",
-        args.count, args.vulnerability,
+        "=== Landy-vs-default A/B ({arms}): {} boards, vulnerability {}, scoring {} ===",
+        args.count, args.vulnerability, args.score,
     );
     if args.filter {
         println!(
