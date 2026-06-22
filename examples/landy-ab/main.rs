@@ -91,12 +91,14 @@ struct Args {
     #[arg(long, default_value = "balanced")]
     ns_double_shape: String,
 
-    /// Passed-hand defense for the *measured* pair: `on` or `off` (default). `on`
-    /// reassigns a passed hand's dead penalty double of their 1NT to both majors
-    /// (≥5-4), advanced like Landy 2♣ (`PassedHandDefense::NaturalLandyDouble`).
-    /// Isolate it with `--ns-majors "" --ns-minors ""` (both natural arms on): the
-    /// only difference is then the freed double in the rare `[P,P,P,1NT]` seat, so
-    /// read `IMPs/raw-deal`, not `IMPs/divergent`. Baseline always keeps it off.
+    /// Passed-hand defense for the *measured* pair: `off` (default), `landy` (alias
+    /// `on`), or `dont`. `landy` reassigns a passed hand's dead penalty double of
+    /// their 1NT to both majors (≥5-4); `dont` is full DONT (X = one-suiter,
+    /// 2♣/2♦/2♥ = two-suiters). Both gated on `passed_hand()` and exclude six-card
+    /// (preemptable) shapes. Isolate with `--ns-majors "" --ns-minors ""` (both
+    /// natural arms on): the only difference is then the passed-hand bids in the
+    /// rare `[P,P,P,1NT]` seat, so read `IMPs/raw-deal`, not `IMPs/divergent`.
+    /// Baseline always keeps it off.
     #[arg(long, default_value = "off")]
     ns_passed_dbl: String,
 
@@ -208,6 +210,18 @@ fn two_suiter_5_5(hand: Hand, a: Suit, b: Suit) -> bool {
     hand[a].len() >= 5 && hand[b].len() >= 5
 }
 
+/// A passed-hand DONT two-suiter shape: a 5-4 (or 5-5) two-suiter with no six-card
+/// suit (the shapes the DONT `2♣`/`2♦`/`2♥` bids show — six-card suits open a
+/// preempt in first seat and never reach `[P,P,P,1NT]`).  DONT one-suiters reach
+/// the same suit and declarer as the natural overcall, so they never diverge; only
+/// these two-suiters move the contract, so the filter need only catch them.
+fn has_passed_two_suiter(hand: Hand) -> bool {
+    let mut lengths = Suit::ASC.map(|s| hand[s].len());
+    lengths.sort_unstable();
+    let [_, _, second, longest] = lengths;
+    longest == 5 && second >= 4
+}
+
 /// Could this defender make a *natural* call over their 1NT — a one-suiter overcall
 /// (a 5+ card suit with overcall-ish strength) or a penalty double (strong balanced)?
 /// Generous bands around the authored `points(8..=14)` / `15+ balanced`, so the
@@ -247,7 +261,7 @@ fn could_reach_landy(
     minors: bool,
     natural: bool,
     extended: Option<DoubleShape>,
-    passed_dbl: bool,
+    passed_style: Option<PassedHandDefense>,
 ) -> bool {
     Seat::ALL.iter().any(|&opener| {
         if !is_balanced_hcp(deal[opener], 14, 18) {
@@ -260,12 +274,19 @@ fn could_reach_landy(
                 || (minors && two_suiter_5_5(deal[d], Suit::Clubs, Suit::Diamonds))
                 || (natural && defender_has_natural_action(deal[d]))
                 || extended.is_some_and(|s| defender_has_extended_double(deal[d], s))
-                // The passed-hand both-majors double needs the 5-4 majors shape
-                // (the same shape as Landy 2♣). ponytail: shape-only superset — low
-                // yield because divergence also needs the rare [P,P,P,1NT] rotation,
-                // which a seat-agnostic shape filter can't see; IMPs/raw-deal is the
-                // honest effect size here.
-                || (passed_dbl && two_suiter_5_4(deal[d], Suit::Hearts, Suit::Spades))
+                // The passed-hand defense needs a two-suiter: just the majors for
+                // NaturalLandyDouble (its only conventional bid), any 5-4 two-suiter
+                // for DONT. ponytail: shape-only superset — low yield because
+                // divergence also needs the rare [P,P,P,1NT] rotation, which a
+                // seat-agnostic shape filter can't see; IMPs/raw-deal is the honest
+                // effect size here.
+                || match passed_style {
+                    Some(PassedHandDefense::NaturalLandyDouble) => {
+                        two_suiter_5_4(deal[d], Suit::Hearts, Suit::Spades)
+                    }
+                    Some(PassedHandDefense::Dont) => has_passed_two_suiter(deal[d]),
+                    None => false,
+                }
         })
     })
 }
@@ -375,8 +396,12 @@ fn main() {
     let ns_natural = parse_on_off(&args.ns_natural, "--ns-natural");
     let ew_natural = parse_on_off(&args.ew_natural, "--ew-natural");
     let ew_always_pass = parse_on_off(&args.ew_always_pass, "--ew-always-pass");
-    let ns_passed_dbl = parse_on_off(&args.ns_passed_dbl, "--ns-passed-dbl");
-    let passed_style = ns_passed_dbl.then_some(PassedHandDefense::NaturalLandyDouble);
+    let passed_style = match args.ns_passed_dbl.as_str() {
+        "off" => None,
+        "on" | "landy" => Some(PassedHandDefense::NaturalLandyDouble),
+        "dont" => Some(PassedHandDefense::Dont),
+        other => panic!("unknown --ns-passed-dbl {other:?} (use off, landy, or dont)"),
+    };
     set_landy(None);
     set_unusual_notrump_defense(None);
     set_landy_hcp(false);
@@ -420,7 +445,7 @@ fn main() {
                 minors.is_some(),
                 natural_diverges,
                 extended,
-                ns_passed_dbl,
+                passed_style,
             )
         {
             continue;
@@ -528,14 +553,18 @@ fn main() {
         "off".to_string()
     };
     let arms = format!(
-        "2♣ majors {}, 2NT minors {} [{}], natural NS {}/EW {}, X-shape {}, passed-dbl {}",
+        "2♣ majors {}, 2NT minors {} [{}], natural NS {}/EW {}, X-shape {}, passed-def {}",
         label(majors),
         label(minors),
         args.strength,
         if ns_natural { "on" } else { "off" },
         ew_label,
         args.ns_double_shape,
-        if ns_passed_dbl { "on" } else { "off" },
+        match passed_style {
+            None => "off",
+            Some(PassedHandDefense::NaturalLandyDouble) => "landy",
+            Some(PassedHandDefense::Dont) => "dont",
+        },
     );
     println!(
         "=== Landy-vs-default A/B ({arms}): {} boards, vulnerability {}, scoring {} ===",
