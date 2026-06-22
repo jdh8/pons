@@ -116,6 +116,32 @@ pub(crate) fn landy_range() -> Option<(u8, u8)> {
 }
 
 thread_local! {
+    /// The `(min minor length, max length in each major)` gate for the doubled-Landy
+    /// minor escapes (`Pass` = clubs, `2♦` = diamonds).  **Default `(6, 2)`**.  See
+    /// [`set_doubled_landy_escape`].
+    static DOUBLED_LANDY_ESCAPE: Cell<(usize, usize)> = const { Cell::new((6, 2)) };
+}
+
+/// Tune the doubled-Landy minor-escape gate for books built *after* this call
+/// (thread-local, read once at book-construction time)
+///
+/// After `[1NT, 2♣, X]` the advancer may run to a long minor — `Pass` to play `2♣`
+/// doubled with clubs, `2♦` to play diamonds — but only with `min_minor`+ in that
+/// minor and at most `max_major` in *each* major (a longer major has an 8-card fit
+/// opposite the overcaller's 5-carder worth more than a doubled minor).  **The
+/// default `(6, 2)`** is the A/B-tuned shipped gate; the knob is
+/// `examples/landy-ab --ns-doubled-escape MIN:MAJ`.  Only reachable when Landy is
+/// on ([`set_landy`]), so the convention stays opt-in.
+pub fn set_doubled_landy_escape(gate: (usize, usize)) {
+    DOUBLED_LANDY_ESCAPE.with(|cell| cell.set(gate));
+}
+
+/// The configured doubled-Landy minor-escape gate
+fn doubled_landy_escape() -> (usize, usize) {
+    DOUBLED_LANDY_ESCAPE.with(Cell::get)
+}
+
+thread_local! {
     /// The both-minors `2NT` overcall of their 1NT: `None` = off (the floor's
     /// natural — and near-useless — 2NT); `Some((lo, hi))` = both minors (5-5) on
     /// `points(lo..=hi)`.  **On by default** at `8..=13`; see
@@ -829,9 +855,10 @@ fn landy_advances_over_double(lo: u8) -> Rules {
     let equal_majors = described("equal majors", |h: Hand, _: &Context<'_>| {
         h[Suit::Hearts].len() == h[Suit::Spades].len()
     });
-    // Both majors ≤2: no 8-card fit opposite the overcaller's 5-carder, so a long
-    // minor outranks a major signoff. ponytail: tunable length/major-fit gate.
-    let short_majors = len(Suit::Hearts, ..=2) & len(Suit::Spades, ..=2);
+    // A long minor with both majors short (no 8-card fit opposite the overcaller's
+    // 5-carder) outranks a major signoff. Gate A/B-tuned via set_doubled_landy_escape.
+    let (min_minor, max_major) = doubled_landy_escape();
+    let short_majors = len(Suit::Hearts, ..=max_major) & len(Suit::Spades, ..=max_major);
 
     Rules::new()
         // Strong arms — identical to the undoubled advance (no room gained above 2NT).
@@ -860,13 +887,13 @@ fn landy_advances_over_double(lo: u8) -> Rules {
         .rule(
             Call::Pass,
             1.05,
-            len(Suit::Clubs, 6..) & short_majors.clone(),
+            len(Suit::Clubs, min_minor..) & short_majors.clone(),
         )
         // Long diamond one-suiter, no major fit: natural 2♦, to play.
         .rule(
             Bid::new(2, Strain::Diamonds),
             1.0,
-            len(Suit::Diamonds, 6..) & short_majors & points(..game),
+            len(Suit::Diamonds, min_minor..) & short_majors & points(..game),
         )
         // Equal majors: Redouble asks the overcaller to name the longer one.
         .rule(Call::Redouble, 0.95, equal_majors & points(..invite))

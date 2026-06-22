@@ -37,9 +37,9 @@ use contract_bridge::{AbsoluteVulnerability, Bid, Contract, FullDeal, Hand, Seat
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
 use pons::bidding::american::{
-    DoubleShape, PassedHandDefense, set_always_pass_defense, set_landy, set_landy_hcp,
-    set_natural_defense, set_natural_double_shape, set_passed_hand_defense, set_penalty_pass,
-    set_unusual_notrump_defense,
+    DoubleShape, PassedHandDefense, set_always_pass_defense, set_doubled_landy_escape, set_landy,
+    set_landy_hcp, set_natural_defense, set_natural_double_shape, set_passed_hand_defense,
+    set_penalty_pass, set_unusual_notrump_defense,
 };
 use pons::bidding::context::relative;
 use pons::bidding::{Family, Stance, System};
@@ -124,6 +124,14 @@ struct Args {
     /// natural `2♣` overcall once the EW opener can punish it (the `2♣` row drops).
     #[arg(long, default_value = "off")]
     ew_penalty_pass: String,
+
+    /// Doubled-Landy minor-escape gate for the *measured* (NS) pair: `MIN:MAJ`
+    /// (default `6:2`). After `[1NT, 2♣, X]` the advancer runs to a long minor —
+    /// `Pass` to play `2♣` doubled with clubs, `2♦` to play diamonds — with `MIN`+
+    /// in that minor and ≤`MAJ` in each major. Only fires when Landy is on. Sweep to
+    /// tune the escape vs. relaying/signing off into a major.
+    #[arg(long, default_value = "6:2")]
+    ns_doubled_escape: String,
 
     /// Only count deals that can plausibly reach a Landy overcall of 1NT (a cheap
     /// shape pre-filter), so the DD budget lands on boards that can actually
@@ -439,6 +447,16 @@ fn main() {
     };
     let ns_penalty_pass = parse_penalty_pass(&args.ns_penalty_pass, "--ns-penalty-pass");
     let ew_penalty_pass = parse_penalty_pass(&args.ew_penalty_pass, "--ew-penalty-pass");
+    let ns_doubled_escape = {
+        let (min, maj) = args
+            .ns_doubled_escape
+            .split_once(':')
+            .expect("--ns-doubled-escape is MIN:MAJ");
+        (
+            min.parse::<usize>().expect("MIN is a number"),
+            maj.parse::<usize>().expect("MAJ is a number"),
+        )
+    };
     set_landy(None);
     set_unusual_notrump_defense(None);
     set_landy_hcp(false);
@@ -456,6 +474,7 @@ fn main() {
     set_always_pass_defense(false);
     set_passed_hand_defense(passed_style);
     set_penalty_pass(ns_penalty_pass);
+    set_doubled_landy_escape(ns_doubled_escape);
     let measured = american().against(Family::NATURAL);
 
     // Each board at both tables (Landy NS at A, EW at B), dealer rotating.

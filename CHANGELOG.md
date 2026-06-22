@@ -101,11 +101,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Pass** = a long club one-suiter (play `2♣` doubled, the doubler walked in);
   - **`2♦`** = a long diamond one-suiter, natural and to play (the freed bid);
   - **`2♥`/`2♠`** = the longer major (weak signoff); strong arms (`4M`, `2NT` ask,
-    `3M`) are unchanged. The minor escapes (Pass / `2♦`) require *both majors ≤2*,
-    since a 3-card major has an 8-card fit opposite the overcaller's 5-carder that
-    beats a doubled minor. Overcaller's rebids: name the longer major over the
-    Redouble relay; pass (or pull a singleton diamond to a major) over the natural
-    `2♦`; answer the game ask over `2NT`.
+    `3M`) are unchanged. The minor escapes (Pass / `2♦`) require *6+ in the minor and
+    both majors ≤2* — since the overcaller already promised 9+ cards in the majors a
+    long-minor/short-major advancer is the rare hand with no major fit, and a 3-card
+    major would have an 8-card fit beating a doubled minor. Overcaller's rebids: name
+    the longer major over the Redouble relay; pass (or pull a singleton diamond to a
+    major) over the natural `2♦`; answer the game ask over `2NT`. The `(6, 2)` gate is
+    a new A/B knob, `set_doubled_landy_escape((min_minor, max_major))` /
+    `examples/landy-ab --ns-doubled-escape MIN:MAJ`.
   Effect on the (opt-in, off-by-default) Landy defense, measured in the shipped
   `set_penalty_pass(4:4:major)` world (`examples/landy-ab --ns-penalty-pass
   4:4:major --ew-penalty-pass 4:4:major`, 40k filtered, ~4.1k divergent): the
@@ -115,8 +118,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   refinement (a clean paired +0.018/divergent on identical boards), `2♣`-action
   row **−1.098 → −0.162 IMPs/action-board**. Landy stays mildly DD-negative (the
   known obstruction-blindness wall, see the `1NT` defense notes) so it remains
-  opt-in/off, but the misfit disaster is gone. Live-search note: the escapes are
-  normal advancer bids; the rare `Pass`-to-defend is terminal with no bid to decode.
+  opt-in/off, but the misfit disaster is gone. The gate was A/B-swept (100k filtered,
+  same-seed paired) over `MIN ∈ {5,6,7} × MAJ ∈ {1,2}`: `6:2` is the best of a tight
+  field (it beats the `7:2`/`5:1`/`6:1`/`7:1` cluster by only ≈0.0006 IMPs/board —
+  noise, as expected when the escape is this rare), and the lone clear signal is that
+  `5:2` is distinctly worst (a 5-card minor with 2-2 majors over-escapes into bad
+  doubled spots). Live-search note: the escapes are normal advancer bids; the rare
+  `Pass`-to-defend is terminal with no bid to decode.
 
 - **Opener can now convert the systems-on Double of a `(2♣)` overcall to penalty
   with good clubs.** Over our `1NT`, a `(2♣)` overcall is *systems on* and
