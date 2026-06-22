@@ -72,6 +72,9 @@ impl<N: System, E: System> Table<N, E> {
     ///
     /// An auction the system does not cover — or covers only with illegal
     /// calls — resolves to a pass, so the bidding always terminates.
+    // ponytail: the `partial_cmp` expect cannot fire — the preceding
+    // `is_finite` filter leaves only non-NaN logits to compare.
+    #[allow(clippy::missing_panics_doc)]
     #[must_use]
     pub fn next_call(&self, hand: Hand, auction: &Auction) -> Call {
         let Some(logits) = self.classify(hand, auction) else {

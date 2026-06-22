@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Lint hygiene: the crate is now clean under `clippy`, `rustdoc -D warnings`,
+  and a `clippy::pedantic` run of `src/`.** No public API change. The one
+  behaviour-relevant fix is the Fifths-companion average in `constraint.rs`,
+  which now uses overflow-safe `f64::midpoint` instead of `(a + b) / 2.0`.
+  Several public defense/EV builders (`defense_to_suit`, `defense_to_weak_two`,
+  `advance_double`, `ev_all`) gain `# Panics` docs naming the precondition they
+  assume (a suit — not notrump — opening; a legal prior auction). The `pedantic`
+  families that are noise on a numerics-heavy engine (integer casts, long match
+  tables, similar suit names) are `#![allow]`ed crate-wide rather than rewritten;
+  no `clippy::pedantic = "warn"` is added to the repo, so the default CI lint set
+  is unchanged.
+
 - **The `examples/` tree is reorganized so user-facing demos stand out from dev
   tooling.** Bare names are now the runnable demos (`american`, `practice-bidding`,
   `render-book`, `average-ns-par`); every development/research harness carries a

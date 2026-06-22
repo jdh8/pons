@@ -587,7 +587,7 @@ impl<R: RangeBounds<f64> + Clone + Send + Sync> Constraint for Fifths<R> {
                 FifthsCompanion::Hcp => f64::from(raw_hcp(hand)),
                 FifthsCompanion::Bumrap => eval::BUMRAP.eval(hand),
             };
-            (eval::FIFTHS.eval(hand) + companion) / 2.0
+            f64::midpoint(eval::FIFTHS.eval(hand), companion)
         } else {
             f64::from(raw_hcp(hand))
         };

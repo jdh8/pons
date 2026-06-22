@@ -645,7 +645,8 @@ fn main() {
     let mut buckets: HashMap<String, (usize, i64)> = HashMap::new();
     // Boards to dump for `--show-bucket`: (position into `tables`, board index,
     // board IMPs, the divergent trigger).
-    let mut show: Vec<(usize, usize, i64, (usize, Call, bool))> = Vec::new();
+    type ShowRow = (usize, usize, i64, (usize, Call, bool));
+    let mut show: Vec<ShowRow> = Vec::new();
     for (pos, (&i, table)) in divergent.iter().zip(tables.iter()).enumerate() {
         let (contract_a, contract_b) = contracts[i];
         let swing = ns_score_contract(contract_a, table, args.vulnerability)
@@ -694,10 +695,11 @@ fn main() {
                 || "(none)".to_string(),
                 |(_, call, at_node)| format!("{} {call}", if at_node { "resp" } else { "late" }),
             );
-            if !args.show_bucket.is_empty() && label == args.show_bucket {
-                if let Some(trig) = trigger {
-                    show.push((pos, i, board_imps, trig));
-                }
+            if !args.show_bucket.is_empty()
+                && label == args.show_bucket
+                && let Some(trig) = trigger
+            {
+                show.push((pos, i, board_imps, trig));
             }
             let entry = buckets.entry(label).or_insert((0, 0));
             entry.0 += 1;

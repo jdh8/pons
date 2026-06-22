@@ -416,6 +416,10 @@ fn responsive_overcall_enabled() -> bool {
 /// - **Unusual 2NT** (8+ HCP, 5-5 in the two lowest unbid suits): over 1♣
 ///   shows diamonds and hearts; over 1♦ shows clubs and hearts; over a major
 ///   shows both minors.
+///
+/// # Panics
+///
+/// Panics if `their_opening` is a notrump bid; pass a suit opening.
 #[must_use]
 pub fn defense_to_suit(their_opening: Bid) -> Rules {
     let theirs = their_opening.strain;
@@ -501,6 +505,10 @@ pub fn defense_to_suit(their_opening: Bid) -> Rules {
 /// Overcall levels are derived from `their_opening`, so the suits higher than
 /// theirs sit at the opening level and the lower ones one rung up — over 2♥, a
 /// spade overcall is 2♠ but a club overcall is 3♣.
+///
+/// # Panics
+///
+/// Panics if `their_opening` is a notrump bid; pass a suit opening.
 #[must_use]
 pub fn defense_to_weak_two(their_opening: Bid) -> Rules {
     let theirs = their_opening.strain;
@@ -1066,6 +1074,10 @@ fn landy_2nt_rebid(lo: u8, hi: u8) -> Rules {
 /// Suit and notrump levels are derived from `their_opening`, so the one builder
 /// answers over a one-bid (advances at the one and two levels) and over a weak
 /// two (advances at the two and three levels) alike.
+///
+/// # Panics
+///
+/// Panics if `their_opening` is a notrump bid; pass a suit opening.
 #[must_use]
 pub fn advance_double(their_opening: Bid) -> Rules {
     let theirs = their_opening.strain;

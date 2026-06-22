@@ -74,7 +74,7 @@ impl<A: System, B: System> System for OrElse<A, B> {
     fn classify(&self, hand: Hand, vul: RelativeVulnerability, auction: &[Call]) -> Option<Logits> {
         self.first
             .classify(hand, vul, auction)
-            .filter(|logits| logits.has_mass())
+            .filter(Logits::has_mass)
             .or_else(|| self.second.classify(hand, vul, auction))
     }
 }

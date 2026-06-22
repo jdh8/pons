@@ -81,6 +81,11 @@ pub fn ev(
 /// An entry is [`f32::NAN`] when its call is illegal in the prior auction, and
 /// every entry is `NAN` when no layout could be sampled (a tight or infeasible
 /// auction); callers should treat `NAN` as no signal, not an error.
+///
+/// # Panics
+///
+/// Panics if `context`'s prior auction is not a legal sequence of calls (it
+/// always is when the context comes from a real table).
 #[must_use]
 #[allow(clippy::cast_precision_loss)] // averaging i64 points into an f32 EV
 #[allow(clippy::too_many_arguments)] // each argument is a distinct decision fact

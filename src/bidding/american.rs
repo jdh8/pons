@@ -151,6 +151,11 @@ fn insert_uncontested(book: &mut Trie, our_calls: &[Call], rules: impl Classifie
 }
 
 /// Attach a guarded fallback at `suffix` under every leading-pass prefix
+// ponytail: `guard`/`fallback` stay by-value — callers pass a freshly built
+// `Arc::new(ConcreteGuard)`, which unsize-coerces to `Arc<dyn Guard>` only on
+// the move; a `&Arc<dyn Guard>` param would force a `let` binding at all ~20
+// call sites for no real gain.
+#[allow(clippy::needless_pass_by_value)]
 fn fallback_all_seats(
     book: &mut Trie,
     suffix: &[Call],

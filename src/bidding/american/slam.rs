@@ -67,13 +67,13 @@ fn insert_arc_all_seats(
     book: &mut Trie,
     suffix: &[Call],
     max_passes: usize,
-    f: Arc<dyn Classifier>,
+    f: &Arc<dyn Classifier>,
 ) {
     for n in 0..=max_passes {
         let key: Vec<Call> = core::iter::repeat_n(Call::Pass, n)
             .chain(suffix.iter().copied())
             .collect();
-        book.insert_arc(&key, Arc::clone(&f));
+        book.insert_arc(&key, Arc::clone(f));
     }
 }
 
@@ -443,10 +443,10 @@ pub(super) fn install_rkcb(book: &mut Trie, our_calls: &[Call], trump: Suit) {
     let suffix_5h = uncontested(&extend(&[ans_5h]));
     let suffix_5s = uncontested(&extend(&[ans_5s]));
 
-    insert_arc_all_seats(book, &suffix_5c, 3, Arc::clone(&after_5c));
-    insert_arc_all_seats(book, &suffix_5d, 3, Arc::clone(&after_5d));
-    insert_arc_all_seats(book, &suffix_5h, 3, Arc::clone(&after_5h));
-    insert_arc_all_seats(book, &suffix_5s, 3, Arc::clone(&after_5s));
+    insert_arc_all_seats(book, &suffix_5c, 3, &after_5c);
+    insert_arc_all_seats(book, &suffix_5d, 3, &after_5d);
+    insert_arc_all_seats(book, &suffix_5h, 3, &after_5h);
+    insert_arc_all_seats(book, &suffix_5s, 3, &after_5s);
 
     // ponytail: no grand-slam king ask for minors — plain 4NT has no room for it
     // (5NT misreads as the ask; 6♣/6♦ king answers collide with the trump slam).
@@ -462,7 +462,7 @@ pub(super) fn install_rkcb(book: &mut Trie, our_calls: &[Call], trump: Suit) {
 
     for &ans in &[ans_5c, ans_5d, ans_5h, ans_5s] {
         let king_path = uncontested(&extend(&[ans, c_5nt]));
-        insert_arc_all_seats(book, &king_path, 3, Arc::clone(&shared_king_answers));
+        insert_arc_all_seats(book, &king_path, 3, &shared_king_answers);
     }
 
     // -----------------------------------------------------------------------
@@ -480,17 +480,17 @@ pub(super) fn install_rkcb(book: &mut Trie, our_calls: &[Call], trump: Suit) {
     for &ans in &[ans_5c, ans_5d, ans_5h, ans_5s] {
         // after 6♣
         let suffix_6c = uncontested(&extend(&[ans, c_5nt, kans_6c]));
-        insert_arc_all_seats(book, &suffix_6c, 3, Arc::clone(&shared_after_6c));
+        insert_arc_all_seats(book, &suffix_6c, 3, &shared_after_6c);
 
         // after 6♦
         let suffix_6d = uncontested(&extend(&[ans, c_5nt, kans_6d]));
-        insert_arc_all_seats(book, &suffix_6d, 3, Arc::clone(&shared_after_6d));
+        insert_arc_all_seats(book, &suffix_6d, 3, &shared_after_6d);
 
         // after 6♥ (only when trump == Spades)
         if trump == Suit::Spades {
             let suffix_6h = uncontested(&extend(&[ans, c_5nt, kans_6h]));
             let after_6h = Arc::new(asker_after_6h(trump)) as Arc<dyn Classifier>;
-            insert_arc_all_seats(book, &suffix_6h, 3, after_6h);
+            insert_arc_all_seats(book, &suffix_6h, 3, &after_6h);
         }
     }
 }

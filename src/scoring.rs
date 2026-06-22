@@ -11,7 +11,7 @@
 //! Two scorers because there are two questions. **Scoring a reached contract**
 //! (a duplicate A/B result) honors the penalty the auction actually produced —
 //! that is [`ns_score_contract`], plain double-dummy. **Evaluating a call**
-//! (the EV rollout in [`crate::bidding::ev`], a contract-choice probe) assumes
+//! (the EV rollout in [`crate::bidding::ev()`], a contract-choice probe) assumes
 //! perfect-defense doubling: a contract that fails double-dummy is scored
 //! *doubled*, a making one *undoubled*, regardless of the auction — because the
 //! cardplay already assumes optimal defense, so the doubling must too, or a
@@ -39,7 +39,7 @@ pub fn final_contract(auction: &Auction, dealer: Seat) -> Option<(Contract, Seat
     let mut last_bid: Option<Bid> = None;
     let mut penalty = Penalty::Undoubled;
 
-    for &call in auction.iter() {
+    for &call in auction {
         match call {
             Call::Bid(bid) => {
                 last_bid = Some(bid);
@@ -115,7 +115,7 @@ pub fn ns_score_contract(
 /// while a making contract is never doubled (that only helps declarer).  The
 /// rule is symmetric — it doubles either side's failing contract — so it sharpens
 /// both our overbids and our defense of theirs.  Used by the EV rollout in
-/// [`crate::bidding::ev`] and contract-choice probes.
+/// [`crate::bidding::ev()`] and contract-choice probes.
 ///
 /// [`stats::average_ns_par`][crate::stats::average_ns_par] makes the same
 /// assumption for par scoring (there as `min(undoubled, doubled)` on the
@@ -147,6 +147,9 @@ const IMP_BOUNDS: [i64; 24] = [
 ///
 /// The standard WBF scale: ±20 points is the first IMP, ±4000 caps at 24.
 /// The sign of the difference is preserved.
+// ponytail: the `try_from` cannot fail — `magnitude` counts entries of a
+// fixed 24-element array, so it is always in `0..=24` and fits an `i64`.
+#[allow(clippy::missing_panics_doc)]
 #[must_use]
 pub fn imps(diff: i64) -> i64 {
     let magnitude = IMP_BOUNDS

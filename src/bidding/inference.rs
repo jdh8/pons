@@ -510,7 +510,7 @@ impl Inferences {
                                 .is_some_and(|s| lane_suits[opener_lane] & (1u8 << s as u8) != 0);
                             match (bid.level.get(), bid.strain) {
                                 (2, Strain::Notrump) => {
-                                    players[who].narrow_points(Range::new(8, 9))
+                                    players[who].narrow_points(Range::new(8, 9));
                                 }
                                 (3, Strain::Notrump) => {
                                     players[who].narrow_points(Range::at_least(9, POINTS_CAP));

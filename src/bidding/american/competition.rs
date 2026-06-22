@@ -349,7 +349,7 @@ thread_local! {
 /// raise it. A non-zero floor makes the two symmetric: it adds the floor to the
 /// natural (an HCP floor *or* a total-points floor — being a level lower than the
 /// relay, the 2X floor can be lower or playing-strength oriented), and registers
-/// opener's [`lebensohl_signoff_raise`] over a natural *major* sign-off so a
+/// opener's `lebensohl_signoff_raise` over a natural *major* sign-off so a
 /// maximum with a fit stretches to game. Pass `(hcp, 0)` for an HCP floor,
 /// `(0, points)` for a points floor, `(0, 0)` to disable. Off by default.
 pub fn set_natural_floor(hcp_floor: u8, points_floor: u8) {
@@ -424,8 +424,8 @@ fn over_their_overcall(opening: Suit) -> Rules {
 
     let other_major = match o {
         Suit::Hearts => Suit::Spades,
-        Suit::Spades => Suit::Hearts,
-        _ => Suit::Hearts, // for minors, used only in negative double
+        // Spades → Hearts; for minors, Hearts is used only in the negative double
+        _ => Suit::Hearts,
     };
 
     let mut rules = Rules::new();

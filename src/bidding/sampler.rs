@@ -54,6 +54,9 @@ const MAX_ATTEMPTS_PER_LAYOUT: usize = 256;
 /// of `n * 256` draws ran out first, which happens only when the shown ranges
 /// are tight or jointly infeasible given `hand`; a caller should read a short
 /// result as a weak or absent signal, not an error.
+// ponytail: the `build_partial` expect cannot fire — one hand placed in an
+// otherwise empty builder is always a valid partial deal.
+#[allow(clippy::missing_panics_doc)]
 #[must_use]
 pub fn sample_layouts(
     hand: Hand,
