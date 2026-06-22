@@ -40,6 +40,7 @@ use pons::bidding::american::{set_responsive_overcall, set_responsive_takeout};
 use pons::bidding::context::relative;
 use pons::bidding::{Family, Stance, System};
 use pons::scoring::{final_contract, imps, ns_score_contract};
+use rayon::prelude::*;
 
 /// Contested responsive-double A/B under perfect-defense scoring
 #[derive(Parser)]
@@ -175,32 +176,48 @@ fn main() {
     configure(&args.conv, true);
     let conv = american().against(Family::NATURAL);
 
-    // Each board at both tables (conv NS at A, EW at B), dealer rotating.
-    // With `--filter`, deal until `count` boards pass the cheap shape filter.
-    let mut deals: Vec<FullDeal> = Vec::with_capacity(args.count);
-    let mut contracts = Vec::with_capacity(args.count);
-    let mut auctions: Vec<(Auction, Auction)> = Vec::with_capacity(args.count);
+    // Phase 1 (sequential, cheap): deal + the shape-only filter until `count`
+    // boards pass. The RNG stays single-threaded so a seed reproduces a run.
+    let mut passing: Vec<FullDeal> = Vec::with_capacity(args.count);
     let mut scanned = 0usize;
-    while deals.len() < args.count {
+    while passing.len() < args.count {
         let deal = full_deal(&mut rng);
         scanned += 1;
         if args.filter && !could_reach_overcalled_raise(&deal) {
             continue;
         }
-        let dealer = Seat::ALL[deals.len() % 4];
-        let table_a = bid_out(&conv, &baseline, true, dealer, args.vulnerability, &deal);
-        let table_b = bid_out(&conv, &baseline, false, dealer, args.vulnerability, &deal);
-        deals.push(deal);
-        contracts.push((
-            final_contract(&table_a, dealer),
-            final_contract(&table_b, dealer),
-        ));
-        auctions.push((table_a, table_b));
-        if deals.len().is_multiple_of(1000) {
-            eprint!("\rbid {}/{} (scanned {scanned})", deals.len(), args.count);
-        }
+        passing.push(deal);
     }
-    eprintln!();
+    eprintln!("scanned {scanned} for {} boards; bidding...", passing.len());
+
+    // Phase 2 (parallel): bidding is pure (the books read their thread-locals at
+    // construction), so fan the two-table auctions across Rayon's work-stealing
+    // pool — auction lengths vary, so dynamic balancing beats static chunks. The
+    // DD solver stays on the main thread below; it parallelizes itself.
+    let vul = args.vulnerability;
+    let results: Vec<_> = passing
+        .par_iter()
+        .enumerate()
+        .map(|(i, &deal)| {
+            let dealer = Seat::ALL[i % 4];
+            let table_a = bid_out(&conv, &baseline, true, dealer, vul, &deal);
+            let table_b = bid_out(&conv, &baseline, false, dealer, vul, &deal);
+            let contracts = (
+                final_contract(&table_a, dealer),
+                final_contract(&table_b, dealer),
+            );
+            (deal, contracts, (table_a, table_b))
+        })
+        .collect();
+
+    let mut deals: Vec<FullDeal> = Vec::with_capacity(results.len());
+    let mut contracts = Vec::with_capacity(results.len());
+    let mut auctions: Vec<(Auction, Auction)> = Vec::with_capacity(results.len());
+    for (deal, c, a) in results {
+        deals.push(deal);
+        contracts.push(c);
+        auctions.push(a);
+    }
 
     // Only boards whose tables diverge can swing; solve those once and credit
     // the swing to the convention team (NS at A, EW at B).

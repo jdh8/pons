@@ -48,6 +48,7 @@ use pons::bidding::{Family, Stance, System};
 use pons::scoring::{final_contract, imps, ns_score_contract};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
+use rayon::prelude::*;
 use std::collections::HashMap;
 
 /// Contested Lebensohl A/B
@@ -568,58 +569,60 @@ fn main() {
     set_natural_floor(ns_h, ns_p);
     let lebensohl = american().against(Family::NATURAL);
 
-    // Each board at both tables (Lebensohl NS at A, EW at B), dealer rotating.
-    // With `--filter-dh`, deal until `count` boards pass the cheap shape filter.
-    let mut deals: Vec<FullDeal> = Vec::with_capacity(args.count);
-    let mut contracts = Vec::with_capacity(args.count);
-    let mut auctions: Vec<(Auction, Auction)> = Vec::with_capacity(args.count);
+    // Phase 1 (sequential, cheap): deal + the shape-only filter until `count`
+    // boards pass. The RNG stays single-threaded so a seed reproduces a run.
+    let mut passing: Vec<FullDeal> = Vec::with_capacity(args.count);
     let mut scanned = 0usize;
-    while deals.len() < args.count {
+    while passing.len() < args.count {
         let deal = full_deal(&mut rng);
         scanned += 1;
         if args.filter_dh && !could_reach_1nt_dh(&deal) {
             continue;
         }
-        let dealer = Seat::ALL[deals.len() % 4];
-        let table_a = bid_out(
-            &lebensohl,
-            &baseline,
-            true,
-            dealer,
-            args.vulnerability,
-            &deal,
-            args.pd_relay,
-            args.pd_natural,
-            args.pd_3nt,
-            args.pd_layouts,
-            args.log_relay,
-            args.seed,
-        );
-        let table_b = bid_out(
-            &lebensohl,
-            &baseline,
-            false,
-            dealer,
-            args.vulnerability,
-            &deal,
-            args.pd_relay,
-            args.pd_natural,
-            args.pd_3nt,
-            args.pd_layouts,
-            args.log_relay,
-            args.seed,
-        );
-        deals.push(deal);
-        contracts.push((
-            final_contract(&table_a, dealer),
-            final_contract(&table_b, dealer),
-        ));
-        auctions.push((table_a, table_b));
-        if deals.len().is_multiple_of(1000) {
-            eprint!("\rbid {}/{} (scanned {scanned})", deals.len(), args.count);
-        }
+        passing.push(deal);
     }
-    eprintln!();
+    eprintln!("scanned {scanned} for {} boards; bidding...", passing.len());
+
+    // Phase 2 (parallel): bidding is pure (the books read their thread-locals at
+    // construction), so fan the two-table auctions across Rayon's work-stealing
+    // pool — auction lengths vary, so dynamic balancing beats static chunks. The
+    // DD solver stays on the main thread below; it parallelizes itself.
+    let vul = args.vulnerability;
+    let pd_relay = args.pd_relay;
+    let pd_natural = args.pd_natural;
+    let pd_3nt = args.pd_3nt;
+    let pd_layouts = args.pd_layouts;
+    let log_relay = args.log_relay;
+    let seed = args.seed;
+    let results: Vec<_> = passing
+        .par_iter()
+        .enumerate()
+        .map(|(i, &deal)| {
+            let dealer = Seat::ALL[i % 4];
+            let table_a = bid_out(
+                &lebensohl, &baseline, true, dealer, vul, &deal, pd_relay, pd_natural, pd_3nt,
+                pd_layouts, log_relay, seed,
+            );
+            let table_b = bid_out(
+                &lebensohl, &baseline, false, dealer, vul, &deal, pd_relay, pd_natural, pd_3nt,
+                pd_layouts, log_relay, seed,
+            );
+            let contracts = (
+                final_contract(&table_a, dealer),
+                final_contract(&table_b, dealer),
+            );
+            (deal, contracts, (table_a, table_b))
+        })
+        .collect();
+
+    let mut deals: Vec<FullDeal> = Vec::with_capacity(results.len());
+    let mut contracts = Vec::with_capacity(results.len());
+    let mut auctions: Vec<(Auction, Auction)> = Vec::with_capacity(results.len());
+    for (deal, c, a) in results {
+        deals.push(deal);
+        contracts.push(c);
+        auctions.push(a);
+    }
 
     // Only boards whose tables diverge can swing; solve those once and credit
     // the swing to the Lebensohl team (NS at A, EW at B).

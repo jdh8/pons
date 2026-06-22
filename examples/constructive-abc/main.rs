@@ -41,6 +41,7 @@ use pons::bidding::search_floor::SearchFloor;
 use pons::bidding::{Family, Stance, System};
 use pons::instinct;
 use pons::scoring::{final_contract, imps, ns_score_contract};
+use rayon::prelude::*;
 
 /// Constructive-only floor A/B/C: instinct vs SearchFloor vs NeuralFloorSearch
 #[derive(Parser)]
@@ -132,20 +133,22 @@ fn main() {
     ];
 
     // Bid every board with all three arms over the same deal.
-    let mut deals: Vec<FullDeal> = Vec::with_capacity(args.count);
-    let mut contracts = Vec::with_capacity(args.count);
-    for index in 0..args.count {
-        let dealer = Seat::ALL[index % 4];
-        let deal = full_deal(&mut rng);
-        let board: [_; 3] = std::array::from_fn(|arm| {
-            let auction = bid_uncontested(&stances[arm], dealer, args.vulnerability, &deal);
-            final_contract(&auction, dealer)
-        });
-        deals.push(deal);
-        contracts.push(board);
-        eprint!("\rbid {}/{}", index + 1, args.count);
-    }
-    eprintln!();
+    // Deal sequentially (cheap), then bid in parallel — bidding is pure (the
+    // books read their thread-locals at construction), so boards are independent
+    // and par_iter preserves order. The DD solver stays on the main thread below.
+    let deals: Vec<FullDeal> = (0..args.count).map(|_| full_deal(&mut rng)).collect();
+    let vul = args.vulnerability;
+    let contracts: Vec<[_; 3]> = deals
+        .par_iter()
+        .enumerate()
+        .map(|(index, deal)| {
+            let dealer = Seat::ALL[index % 4];
+            std::array::from_fn(|arm| {
+                let auction = bid_uncontested(&stances[arm], dealer, vul, deal);
+                final_contract(&auction, dealer)
+            })
+        })
+        .collect();
 
     // Only boards whose three arms diverge can swing; solve those once and reuse
     // the table for every pairing.

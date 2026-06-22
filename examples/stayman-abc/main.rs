@@ -27,6 +27,7 @@ use pons::bidding::{Family, Stance, System};
 use pons::scoring::{final_contract, imps, ns_score_contract};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
+use rayon::prelude::*;
 use std::fs;
 
 #[derive(Parser)]
@@ -133,7 +134,7 @@ fn main() {
     let boards = boards(args.seed, args.count);
 
     let contracts: Vec<Option<(Contract, Seat)>> = boards
-        .iter()
+        .par_iter()
         .map(|(dealer, deal)| {
             final_contract(
                 &bid_uncontested(&sys, *dealer, args.vulnerability, deal),

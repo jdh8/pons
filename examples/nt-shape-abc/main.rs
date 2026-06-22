@@ -28,6 +28,7 @@ use pons::bidding::american::american_classic;
 use pons::bidding::context::relative;
 use pons::bidding::{Family, Stance, System};
 use pons::scoring::{final_contract, imps, ns_score_contract};
+use rayon::prelude::*;
 
 /// 1NT-shape A/B: classic balanced 1NT vs the wide redesign
 #[derive(Parser)]
@@ -103,20 +104,21 @@ fn main() {
     ];
 
     // Both arms bid the same deal; the only difference is the opening table.
-    let mut deals: Vec<FullDeal> = Vec::with_capacity(args.count);
-    let mut contracts = Vec::with_capacity(args.count);
-    for index in 0..args.count {
-        let dealer = Seat::ALL[index % 4];
-        let deal = full_deal(&mut rng);
-        let board: [_; 2] = std::array::from_fn(|arm| {
-            let auction = bid_uncontested(&stances[arm], dealer, args.vulnerability, &deal);
-            final_contract(&auction, dealer)
-        });
-        deals.push(deal);
-        contracts.push(board);
-        eprint!("\rbid {}/{}", index + 1, args.count);
-    }
-    eprintln!();
+    // Deal sequentially (cheap), then bid in parallel — bidding is pure (the
+    // books read their thread-locals at construction), so boards are independent
+    // and par_iter preserves order. The DD solver stays on the main thread below.
+    let deals: Vec<FullDeal> = (0..args.count).map(|_| full_deal(&mut rng)).collect();
+    let contracts: Vec<[_; 2]> = deals
+        .par_iter()
+        .enumerate()
+        .map(|(index, deal)| {
+            let dealer = Seat::ALL[index % 4];
+            std::array::from_fn(|arm| {
+                let auction = bid_uncontested(&stances[arm], dealer, args.vulnerability, deal);
+                final_contract(&auction, dealer)
+            })
+        })
+        .collect();
 
     // Only boards whose arms diverge can swing; solve those once.
     let divergent: Vec<usize> = (0..args.count)

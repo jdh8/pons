@@ -27,6 +27,7 @@ use pons::bidding::context::relative;
 use pons::bidding::set_nt_invite_inference;
 use pons::bidding::{Family, Stance, System};
 use pons::scoring::{final_contract, imps, ns_score_contract};
+use rayon::prelude::*;
 
 /// 1NT invite-acceptance A/B: blind opener vs reads-the-raise opener
 #[derive(Parser)]
@@ -100,14 +101,16 @@ fn main() {
         .map(|i| (Seat::ALL[i % 4], full_deal(&mut rng)))
         .collect();
 
-    // The flag is read at runtime, so bid each arm in its own pass.
+    // The flag is thread-local, so each par_iter worker sets it for its own
+    // thread. The two passes stay sequential so the flag is stable within each.
+    let vul = args.vulnerability;
     let contracts = |on: bool| {
-        set_nt_invite_inference(on);
         boards
-            .iter()
+            .par_iter()
             .map(|(dealer, deal)| {
+                set_nt_invite_inference(on);
                 final_contract(
-                    &bid_uncontested(&sys, *dealer, args.vulnerability, deal),
+                    &bid_uncontested(&sys, *dealer, vul, deal),
                     *dealer,
                 )
             })
