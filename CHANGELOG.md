@@ -118,6 +118,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`examples/probe-bba-1nt` — read BBA's actual 1NT defense from real hands.**
+  A small probe that feeds crafted archetype hands to the live EPBot engine
+  (system 0, the card `bba-match` uses) and prints its direct-seat call over a
+  `(1NT)` opening. It exists because the `.so` **ignores the `vendor/bba/*.bbsa`
+  cards** (strace: it opens no data file — those drive `BBA.exe`, not the FFI), so
+  the compiled-in system can disagree with the config. Concretely it revealed BBA
+  defends our `1NT` with **Multi-Landy** (`2♣` = both majors, `2♦` = a one-suited
+  major, `2♥`/`2♠` = that major + a minor, `2NT` = both minors, balanced hands
+  pass) — even though `21GF.bbsa` labels the card `Cappelletti=1`. The
+  `create → set_system → new_hand → set_bid → get_bid` recipe generalizes to
+  verifying any BBA convention from real hands.
+
+- **`examples/bba-match` gains a `--filter-1nt` flag and a per-subset 1NT
+  report.** To answer "how does our `1NT` (opening and continuations) stack up
+  against BBA?", the harness now isolates the `1NT` territory of the duplicate.
+  It splits the divergent boards into two subsets — **our `1NT` openings** (we
+  open `1NT`) and **our defense vs their `1NT`** (they open, we compete) — and
+  reports IMPs/board for each, broken down by our first call (Stayman / transfer
+  / Lebensohl / penalty `X` / …) so a leak localizes to a single continuation.
+  Bucketing keys on table A, where our pair always sits North/South. The optional
+  `--filter-1nt` pre-filter keeps only deals with a balanced 15-17 HCP hand
+  somewhere (a `1NT`-opener candidate), raising the yield of `1NT` boards;
+  `--count` then counts kept boards. Default off — runs without the flag are
+  unchanged, and the report is purely additive.
+
 - **A natural runout when our `1NT` is doubled (`[1NT, (X)]`), on by default.**
   The instinct floor had no agreement here, so responder fell to the catch-all
   **Pass** — sitting a hand that may be broke for an effectively-penalty double,

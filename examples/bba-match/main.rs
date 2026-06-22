@@ -33,6 +33,7 @@
 use clap::Parser;
 use contract_bridge::auction::{Auction, Call, RelativeVulnerability};
 use contract_bridge::deck::full_deal;
+use contract_bridge::eval::hcp as holding_hcp;
 use contract_bridge::{AbsoluteVulnerability, Bid, FullDeal, Hand, Level, Seat, Strain, Suit};
 use ddss::{NonEmptyStrainFlags, Solver};
 use libloading::Library;
@@ -41,6 +42,7 @@ use pons::bidding::array::{Array, Logits};
 use pons::bidding::context::relative;
 use pons::bidding::{Family, System};
 use pons::scoring::{final_contract, imps, ns_score_contract};
+use std::collections::BTreeMap;
 use std::ffi::{CString, c_char, c_int, c_void};
 
 const DEFAULT_LIB: &str = "vendor/bba/Native-libraries/linux/x64/libEPBot.so";
@@ -82,6 +84,13 @@ struct Args {
     /// one toggle in a BBA-vs-BBA A/B.
     #[arg(long = "their-conv", value_parser = parse_override, value_name = "NAME=0|1")]
     their_conv: Vec<(CString, c_int)>,
+
+    /// Only keep deals with a balanced 15-17 HCP hand somewhere (a 1NT-opener
+    /// candidate), to raise the yield of 1NT boards.  Cheap shape gate, no
+    /// bidding; `--count` then means *kept* boards.  Pairs with the per-subset
+    /// 1NT report printed after the headline.
+    #[arg(long, default_value_t = false)]
+    filter_1nt: bool,
 }
 
 /// Parse a `NAME=0|1` convention override for `--our-conv` / `--their-conv`
@@ -396,6 +405,62 @@ fn show_auction(auction: &Auction) -> String {
         .join(" ")
 }
 
+// ---------------------------------------------------------------------------
+// Isolating the 1NT subset (openings and our defense), for --filter_1nt
+// ---------------------------------------------------------------------------
+
+/// Total HCP of a hand (the `examples/common` pattern; bba-match owns its helpers)
+fn hand_hcp(hand: Hand) -> u8 {
+    Suit::ASC.iter().map(|&s| holding_hcp::<u8>(hand[s])).sum()
+}
+
+/// Balanced (no singleton/void, at most one doubleton) with 15-17 HCP — a strict
+/// 1NT-opener gate for the cheap pre-filter.
+fn is_1nt_opener(hand: Hand) -> bool {
+    let len = Suit::ASC.map(|s| hand[s].len());
+    let balanced = len.iter().all(|&l| l >= 2) && len.iter().filter(|&&l| l == 2).count() <= 1;
+    balanced && (15..=17).contains(&hand_hcp(hand))
+}
+
+/// If this auction's *opening* call is 1NT, its index and whether the opener is
+/// North/South.  The opening requirement (all prior calls passes) excludes a
+/// `1♣-P-1NT` rebid — we want 1NT *openings* only.
+fn opening_1nt(auction: &[Call], dealer: Seat) -> Option<(usize, bool)> {
+    let one_nt = Call::Bid(Bid::new(1, Strain::Notrump));
+    let index = auction.iter().position(|&call| call == one_nt)?;
+    if auction[..index].iter().any(|&call| call != Call::Pass) {
+        return None;
+    }
+    let opener_ns = matches!(seat_to_act(dealer, index), Seat::North | Seat::South);
+    Some((index, opener_ns))
+}
+
+/// Our first call after the 1NT opening.  At table A our pair sits North/South,
+/// so this is our action whether we opened (responder) or defended (overcaller),
+/// skipping any opposing call in between.  Captures `Pass` too.
+fn first_ns_call_after(auction: &[Call], dealer: Seat, nt_index: usize) -> Option<Call> {
+    auction[nt_index + 1..]
+        .iter()
+        .enumerate()
+        .find_map(|(off, &call)| {
+            matches!(
+                seat_to_act(dealer, nt_index + 1 + off),
+                Seat::North | Seat::South
+            )
+            .then_some(call)
+        })
+}
+
+/// Short bucket label for a responder/defender call (`P`, `2♣`, `X`, …)
+fn action_label(call: Call) -> String {
+    match call {
+        Call::Pass => "P".into(),
+        Call::Double => "X".into(),
+        Call::Redouble => "XX".into(),
+        Call::Bid(bid) => bid.to_string(),
+    }
+}
+
 /// Sample mean and the half-width of its 95% confidence interval
 ///
 /// The mean is the headline IMPs/board; the half-width is `1.96 · SE` from the
@@ -470,21 +535,29 @@ fn main() -> anyhow::Result<()> {
     );
     let mut rng = rand::rng();
 
-    // Bid every board at both tables, dealer rotating per board.
-    let boards: Vec<Board> = (0..args.count)
-        .map(|index| {
-            let dealer = Seat::ALL[index % 4];
-            let deal = full_deal(&mut rng);
-            let table_a = bid_out(ours, &bba, true, dealer, args.vulnerability, &deal);
-            let table_b = bid_out(ours, &bba, false, dealer, args.vulnerability, &deal);
-            Board {
-                deal,
-                dealer,
-                table_a,
-                table_b,
-            }
-        })
-        .collect();
+    // Bid every board at both tables, dealer rotating per board.  Sequential by
+    // design: each EPBot decision creates/destroys a native bot through the FFI,
+    // which we do not assume is thread-safe (only the DD solver parallelizes).
+    // With --filter_1nt, keep dealing until `count` deals carry a 1NT-opener
+    // candidate; `scanned` records how many were drawn to get there.
+    let mut boards: Vec<Board> = Vec::with_capacity(args.count);
+    let mut scanned = 0usize;
+    while boards.len() < args.count {
+        let deal = full_deal(&mut rng);
+        scanned += 1;
+        if args.filter_1nt && !Seat::ALL.iter().any(|&seat| is_1nt_opener(deal[seat])) {
+            continue;
+        }
+        let dealer = Seat::ALL[boards.len() % 4];
+        let table_a = bid_out(ours, &bba, true, dealer, args.vulnerability, &deal);
+        let table_b = bid_out(ours, &bba, false, dealer, args.vulnerability, &deal);
+        boards.push(Board {
+            deal,
+            dealer,
+            table_a,
+            table_b,
+        });
+    }
 
     // Only boards whose tables reach different contracts can swing; solve those
     // double dummy and credit the swing to our pair (NS at A, EW at B).
@@ -536,6 +609,61 @@ fn main() -> anyhow::Result<()> {
         mean - half_width,
         mean + half_width,
     );
+
+    // Isolate the 1NT subset, keyed on table A (where our pair sits NS): boards
+    // whose opening call is 1NT, split by who opened (NS = our opening, EW = our
+    // defense), and bucketed by our first call so a leak localizes to a single
+    // continuation.  Divergence is still measured at both tables; this only
+    // attributes the swing to the convention that ran at our table.
+    let mut open = (0i64, 0i64);
+    let mut open_by: BTreeMap<String, (i64, i64)> = BTreeMap::new();
+    let mut defend = (0i64, 0i64);
+    let mut defend_by: BTreeMap<String, (i64, i64)> = BTreeMap::new();
+    for &(index, _points, imp) in &swings {
+        let board = &boards[index];
+        let Some((nt_index, opener_ns)) = opening_1nt(&board.table_a, board.dealer) else {
+            continue;
+        };
+        let key = first_ns_call_after(&board.table_a, board.dealer, nt_index)
+            .map_or_else(|| "(none)".into(), action_label);
+        let (sum, by) = if opener_ns {
+            (&mut open, &mut open_by)
+        } else {
+            (&mut defend, &mut defend_by)
+        };
+        sum.0 += 1;
+        sum.1 += imp;
+        let entry = by.entry(key).or_default();
+        entry.0 += 1;
+        entry.1 += imp;
+    }
+    let report = |title: &str, sum: (i64, i64), by: &BTreeMap<String, (i64, i64)>| {
+        println!(
+            "\n=== {title} === ({} divergent boards, {:+} IMPs, {:+.3} IMPs/board)",
+            sum.0,
+            sum.1,
+            sum.1 as f64 / sum.0.max(1) as f64,
+        );
+        for (action, &(boards_n, imps_won)) in by {
+            println!(
+                "  {action:<5} {boards_n:>5} boards  {imps_won:+6} IMPs  ({:+.3} IMPs/board)",
+                imps_won as f64 / boards_n.max(1) as f64,
+            );
+        }
+    };
+    report("OUR 1NT openings (we open 1NT)", open, &open_by);
+    report(
+        "OUR defense vs their 1NT (they open 1NT)",
+        defend,
+        &defend_by,
+    );
+    if args.filter_1nt {
+        println!(
+            "\n(pre-filtered to deals with a 15-17 balanced hand: kept {} of {scanned}, {:.1}%)",
+            boards.len(),
+            100.0 * boards.len() as f64 / scanned.max(1) as f64,
+        );
+    }
 
     // The boards we lost by the most: where their side out-bid ours.  Sort by
     // IMP swing ascending (most negative first), break ties by points.
