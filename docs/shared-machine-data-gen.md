@@ -1,6 +1,6 @@
 # Running heavy data generation on a shared machine
 
-The AI-bidder data-generation jobs (`search-dump`, `grand-probe`, and other
+The AI-bidder data-generation jobs (`dump-search`, `probe-grand`, and other
 `--features search` examples) are **CPU-saturating**: the double-dummy solver
 ([`ddss`](https://crates.io/crates/ddss)) calls `SetMaxThreads(0)` — "use every
 core" — with no caller-side thread knob, so each batch solve spins one worker per
@@ -16,7 +16,7 @@ scheduling class (plus the idle I/O class) and set **no CPU quota**:
 
 ```sh
 scripts/idle-run.sh cargo run --release --features search \
-  --example search-dump -- --boards 10000 --seed 1 --progress
+  --example dump-search -- --boards 10000 --seed 1 --progress
 # expands to:  nice -n10  chrt --idle 0  ionice -c3  <command>
 ```
 
@@ -77,7 +77,7 @@ once (e.g. four A/B variants in the background with `&`) is **N× self-
 oversubscription**: your own equal-priority threads thrash against each other, and
 `SCHED_IDLE` does *not* arbitrate this — it only deprioritizes you against
 *normal*-priority users, not against your other idle tasks. Measured: four
-concurrent 500k `landy-ab` runs drove load to ~126 on 32 cores and produced *zero*
+concurrent 500k `ab-landy` runs drove load to ~126 on 32 cores and produced *zero*
 output in ~20 min — slower wall-clock than running them one after another, where a
 single run saturates the cores cleanly. **Chain multi-config sweeps sequentially**
 (`for … do …; done` or `&&`); only genuinely single-threaded jobs are safe to

@@ -2,13 +2,14 @@
 //!
 //! A duplicate A/B match of our deterministic [`american`] floor against
 //! **BBA's own 2/1 Game Force card**, driven natively through EPBot's C ABI
-//! (`libEPBot.so`, no Wine — see the S.0 spike in `examples/bba-oracle`).  The
+//! (`libEPBot.so`, no Wine — first proven by the since-removed S.0 `bba-oracle`
+//! spike).  The
 //! two systems play the *same* 2/1 system, so every divergence is a pure
 //! quality gap between our authored DSL and a mature engine, not a difference
 //! of methods.  This turns "did we improve?" into "how far are we from BBA?",
 //! calibrating the M1/M3 learned-floor gains.
 //!
-//! The harness mirrors `examples/instinct-floor`: each board is bid twice
+//! The harness mirrors `examples/ab-instinct-floor`: each board is bid twice
 //! (our pair North/South at table A, East/West at table B), boards whose two
 //! tables reach different contracts are scored double dummy with `ddss`, and
 //! the swing is credited to our pair.  A negative IMPs/board means BBA's 2/1

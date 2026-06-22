@@ -1,0 +1,109 @@
+//! Meckstroth-adjunct A/B: baseline opener rebids vs the `3m = INV` jumps.
+//!
+//! After `1M – 1NT` (or `1♥ – 1♠`) opener's medium shapely hands (5-5 / 6-5,
+//! ≈15–17 points) have no descriptive rebid in the baseline — they underbid as
+//! a natural two-level minor.  The **Meckstroth adjunct** adds an invitational
+//! `3♣`/`3♦` jump (5+ of the minor) so responder can accept game with a fit or a
+//! maximum.  Both arms run the same 2/1 system; the only difference is the
+//! [`set_meckstroth_adjunct`] toggle, read once at book-construction time.
+//!
+//! Opponents are silenced (East/West always pass), so every auction is
+//! constructive start to finish — this measures the *constructive* value of the
+//! adjunct.  Each board is bid twice over the same deal, once per arm; boards
+//! whose arms reach different contracts are solved double dummy once and scored.
+//! A positive IMPs/board favors the adjunct.
+//!
+//! ```text
+//! cargo run --release --example ab-meckstroth -- --count 5000
+//! ```
+
+use clap::Parser;
+use contract_bridge::deck::full_deal;
+use contract_bridge::{AbsoluteVulnerability, FullDeal, Seat};
+use ddss::{NonEmptyStrainFlags, Solver};
+use pons::american;
+use pons::bidding::Family;
+use pons::bidding::american::set_meckstroth_adjunct;
+use pons::scoring::{final_contract, imps, ns_score_contract};
+use rayon::prelude::*;
+
+#[path = "../common/mod.rs"]
+#[allow(dead_code)]
+mod common;
+use common::bid_uncontested;
+
+/// Meckstroth-adjunct A/B: baseline rebids vs the `3m = INV` jumps
+#[derive(Parser)]
+struct Args {
+    /// Number of boards in the match (dealer rotates per board)
+    #[arg(short, long, default_value = "5000")]
+    count: usize,
+
+    /// Vulnerability: none, ns, ew, both
+    #[arg(short, long, default_value = "none")]
+    vulnerability: AbsoluteVulnerability,
+}
+
+#[allow(clippy::cast_precision_loss)]
+fn main() {
+    let args = Args::parse();
+    let mut rng = rand::rng();
+    // arm 0 = baseline (no adjunct), arm 1 = adjunct (the shipped default).
+    // The toggle is read at book-construction time, so build each arm under its
+    // own setting; the baked tries are independent thereafter.
+    set_meckstroth_adjunct(false);
+    let baseline = american().against(Family::NATURAL);
+    set_meckstroth_adjunct(true);
+    let adjunct = american().against(Family::NATURAL);
+    let stances = [baseline, adjunct];
+
+    // Both arms bid the same deal; the only difference is opener's rebid table.
+    // Deal sequentially (cheap), then bid in parallel — bidding is pure (the
+    // books read their thread-locals at construction), so boards are independent
+    // and par_iter preserves order. The DD solver stays on the main thread below.
+    let deals: Vec<FullDeal> = (0..args.count).map(|_| full_deal(&mut rng)).collect();
+    let vul = args.vulnerability;
+    let contracts: Vec<[_; 2]> = deals
+        .par_iter()
+        .enumerate()
+        .map(|(index, deal)| {
+            let dealer = Seat::ALL[index % 4];
+            std::array::from_fn(|arm| {
+                let auction = bid_uncontested(&stances[arm], dealer, vul, deal);
+                final_contract(&auction, dealer)
+            })
+        })
+        .collect();
+
+    // Only boards whose arms diverge can swing; solve those once.
+    let divergent: Vec<usize> = (0..args.count)
+        .filter(|&i| contracts[i][0] != contracts[i][1])
+        .collect();
+    let solve_deals: Vec<FullDeal> = divergent.iter().map(|&i| deals[i]).collect();
+    let tables = Solver::lock().solve_deals(&solve_deals, NonEmptyStrainFlags::ALL);
+
+    let mut points = 0i64;
+    let mut total_imps = 0i64;
+    for (&i, table) in divergent.iter().zip(tables.iter()) {
+        let base = ns_score_contract(contracts[i][0], table, args.vulnerability);
+        let adj = ns_score_contract(contracts[i][1], table, args.vulnerability);
+        points += adj - base;
+        total_imps += imps(adj - base);
+    }
+
+    println!(
+        "=== Meckstroth-adjunct A/B: {} boards, vulnerability {} ===",
+        args.count, args.vulnerability,
+    );
+    println!("(opponents silenced — constructive value only)");
+    println!(
+        "Divergent boards: {} of {} ({:.1}%)",
+        divergent.len(),
+        args.count,
+        100.0 * divergent.len() as f64 / args.count.max(1) as f64,
+    );
+    println!(
+        "Adjunct (3m = INV): {points:+} points, {total_imps:+} IMPs ({:+.3} IMPs/board)",
+        total_imps as f64 / args.count.max(1) as f64,
+    );
+}

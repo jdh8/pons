@@ -18,9 +18,8 @@ Three questions, and the short answers:
    live engine computes a bid that tracks the hand monotonically and labels it
    literally **"calculated bid"**.
 
-Reproduce: `python3 scripts/bba_floor_stats.py` (static) and
-`cargo run --release --example bba-floor-probe` (live engine). Both are
-throwaway study artifacts.
+Reproduce (static side): `python3 scripts/bba_floor_stats.py`. The live-engine
+side ran a throwaway `bba-floor-probe` example, since removed.
 
 ---
 
@@ -231,7 +230,7 @@ reason about but binary (book hit → book; miss → instinct, nothing in betwee
 ## Artifacts
 
 - `scripts/bba_floor_stats.py` — MB.TXT static classifier (throwaway).
-- `examples/bba-floor-probe/` — live-engine off-book probe (throwaway).
+- `bba-floor-probe` — live-engine off-book probe (throwaway, since removed).
 - Inputs (read-only): `vendor/bba/MB.TXT`, `vendor/bba/Comments.txt`,
   `vendor/bba/Native-libraries/linux/x64/libEPBot.so`.
 - FFI/ABI reused from `examples/bba-match` + the removed `bba-wj-reference`

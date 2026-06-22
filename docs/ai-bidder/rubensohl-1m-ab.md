@@ -74,12 +74,9 @@ would need a single-dummy measure to show.
 # single-toggle BBA-vs-BBA A/B (our side ON, their side OFF), DD-scored
 cargo run --release --example bba-match -- --count 20000 --our-system 0 \
   --our-conv "Rubensohl after 1m=1" --their-conv "Rubensohl after 1m=0"
-
-# any named convention works; bba-conv-probe shows the ABI ground-truth
-# (240/258 round-trip vs 21GF.bbsa) plus the on/off bid divergence
-cargo run --example bba-conv-probe
 ```
 
 The convention-override lever lives in `bba-match` itself: `--our-conv` /
 `--their-conv` take `NAME=0|1` (repeatable), so any named toggle can be flipped on
-either side and IMP'd. `bba-conv-probe` stays as the ABI reference.
+either side and IMP'd. The named-convention ABI was ground-truthed (240/258
+round-trip vs 21GF.bbsa) by a throwaway `bba-conv-probe` spike, since removed.

@@ -2,7 +2,7 @@
 #
 # run.sh — spread pons double-dummy data-gen across machines (the fleet).
 #
-# The dumps (search-dump / teacher-dump) are deterministic given (git SHA, seed)
+# The dumps (dump-search / dump-teacher) are deterministic given (git SHA, seed)
 # and their .f32/.tags rows are independent and concatenable.  So distribution is
 # just: partition the seed space, run a shard per seed on whatever host is free,
 # pull the files back, concatenate (merge.sh).  No daemon, no queue — GNU
@@ -20,7 +20,7 @@
 #   --shards N      number of shards = number of distinct seeds (required)
 #   --per P         boards per shard (default 200; tune so a shard is ~10-20 min)
 #   --base-seed S   first seed; shard i uses seed S+i (default 1)
-#   --example E     search-dump (default) or teacher-dump
+#   --example E     dump-search (default) or dump-teacher
 #   --hosts FILE    sshloginfile (default scripts/fleet/hosts; see hosts.example)
 #   --out DIR       local collect dir (default data/fleet-<runid>)
 #   --provision     on each host: git fetch && checkout <SHA> && cargo build
@@ -42,7 +42,7 @@ here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # --- defaults ---------------------------------------------------------------
 HOSTS_FILE="$here/hosts"
-EXAMPLE="search-dump"
+EXAMPLE="dump-search"
 PER=200
 SHARDS=""
 BASE_SEED=1

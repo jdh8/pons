@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The `examples/` tree is reorganized so user-facing demos stand out from dev
+  tooling.** Bare names are now the runnable demos (`american`, `practice-bidding`,
+  `render-book`, `average-ns-par`); every development/research harness carries a
+  **category prefix** — `ab-` (A/B match), `dump-` (training-data generator),
+  `eval-` (hand-evaluator calibration), `probe-` (diagnostic), `bba-` (BBA/EPBot
+  benchmark). So `landy-ab`→`ab-landy`, `stayman-abc`→`ab-stayman`,
+  `teacher-dump`→`dump-teacher`, `search-dump`→`dump-search`, `check-nltc`→`eval-nltc`,
+  `grand-probe`→`probe-grand`, etc. Update any `cargo run --example <name>` invocation
+  to the new name (the README and `scripts/` are already updated). The ~310 lines of
+  helper code copy-pasted across the A/B harnesses (`next_call`, `bid_out`,
+  `bid_uncontested`, `seat_to_act`, `hand_hcp`) now live once in
+  `examples/common/mod.rs`, pulled in via `#[path]` (no `main.rs`, so Cargo never
+  builds it as a standalone example). Three obsolete BBA spikes — `bba-floor-probe`
+  (self-marked throwaway), `bba-conv-probe`, and `bba-oracle` — are removed; their
+  work is folded into `bba-match`.
+
 - **The natural penalty double of their 1NT now fires on *any* 15+ hand, not only
   balanced ones.** The authored double was gated `hcp(15..) & balanced()`, so a
   strong *shapely* hand — which qualifies for neither the balanced double nor the

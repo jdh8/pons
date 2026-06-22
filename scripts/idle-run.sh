@@ -19,7 +19,7 @@
 #
 # Example (regenerate the AI-bidder search-data set, ~16 h on an idle box):
 #   scripts/idle-run.sh cargo run --release --features search \
-#     --example search-dump -- --boards 10000 --seed 1 --progress
+#     --example dump-search -- --boards 10000 --seed 1 --progress
 #
 # To survive an SSH disconnect, run it inside tmux/screen, or:
 #   setsid nohup scripts/idle-run.sh <command> >run.log 2>&1 < /dev/null &

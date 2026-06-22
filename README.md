@@ -73,19 +73,30 @@ let par = stats::average_ns_par(
 
 ## Examples
 
-The [`examples/`](examples/) directory has runnable programs:
+The [`examples/`](examples/) directory has runnable programs; run any with
+`cargo run --example <name>`. **Bare names are user-facing; dev/research tooling
+is grouped by prefix** — `ab-` (A/B match), `dump-` (data generator), `eval-`
+(evaluator calibration), `probe-` (diagnostic).
 
-- `check-nltc` and `check-zar` — validate hand-evaluation methods against double-dummy results.
+User-facing:
+
+- `american` — bid out random boards with the 2/1 game-forcing system.
+- `practice-bidding` — bid one seat on random deals and get feedback.
+- `render-book` — print every authored bidding node as readable prose.
 - `average-ns-par` — Monte-Carlo NS par score for a partial deal.
-- `defend-2sx-or-3nt` — compare expected NS score from defending 2♠× vs declaring 3NT.
 
-Run any of them with `cargo run --example <name>`.
+Dev / research harnesses (a sampler of each family):
+
+- `ab-*` — A/B duplicate matches pitting a convention or floor against a baseline
+  (`ab-landy`, `ab-lebensohl`, `ab-defend-2sx-or-3nt`, …).
+- `eval-nltc`, `eval-zar`, `eval-calibrate` — validate hand-evaluation methods against double-dummy results.
+- `dump-*`, `probe-*` — AI-bidder data generation and diagnostics (most need `--features search`).
 
 ### Benchmarking against BBA/EPBot
 
-A few examples (`bba-match`, `polish-club-reference`, `bba-wj-reference`)
-benchmark pons's bidding against [BBA/EPBot][bba], Edward Piwowar's mature
-reference engine, driven natively through its C ABI. EPBot is bundled as the
+The `bba-match` example benchmarks pons's bidding against [BBA/EPBot][bba],
+Edward Piwowar's mature reference engine, driven natively through its C ABI.
+EPBot is bundled as the
 [`vendor/bba`][bba] git submodule — free for non-commercial use *and*
 redistribution per its author — so fetch it once and the default library path
 resolves:

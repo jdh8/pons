@@ -72,55 +72,55 @@ harness = false
 # would fail to resolve `american_neural`. Every other example is still
 # auto-discovered.
 [[example]]
-name = "neural-floor"
-path = "examples/neural-floor/main.rs"
+name = "ab-neural-floor"
+path = "examples/ab-neural-floor/main.rs"
 required-features = ["neural-floor"]
 
 # The live-search A/B example (AI-bidder M2.3) imports `search`-gated items
 # (`american_search`), so it builds only with that feature.
 [[example]]
-name = "search-floor"
-path = "examples/search-floor/main.rs"
+name = "ab-search-floor"
+path = "examples/ab-search-floor/main.rs"
 required-features = ["search"]
 
 # The leaf-pricing A/B example (AI-bidder M7.0) measures `american_search_book`
 # (DD on authored leaves too) against `american_search` (DD off-book only), so it
 # builds only with the `search` feature.
 [[example]]
-name = "search-book"
-path = "examples/search-book/main.rs"
+name = "ab-search-book"
+path = "examples/ab-search-book/main.rs"
 required-features = ["search"]
 
 # The search-target dump (AI-bidder M3.1) bids out boards with the live-search
 # floor (`american_search_with`) to record distillation targets, so it too
 # builds only with the `search` feature.
 [[example]]
-name = "search-dump"
-path = "examples/search-dump/main.rs"
+name = "dump-search"
+path = "examples/dump-search/main.rs"
 required-features = ["search"]
 
 # The constructive-only floor A/B/C asks whether the search floors should also
 # own the unbooked constructive nodes; it uses `SearchFloor` and
 # `american_constructive_floor`, so it builds only with the `search` feature.
 [[example]]
-name = "constructive-abc"
-path = "examples/constructive-abc/main.rs"
+name = "ab-constructive"
+path = "examples/ab-constructive/main.rs"
 required-features = ["search"]
 
 # The grand-slam probe (AI-bidder M3.1 diagnostic) replays the live-search
 # bidder (`search_floor::SearchFloor`, `american_search_with`), so it builds
 # only with the `search` feature.
 [[example]]
-name = "grand-probe"
-path = "examples/grand-probe/main.rs"
+name = "probe-grand"
+path = "examples/probe-grand/main.rs"
 required-features = ["search"]
 
 # The constraint-extraction probe (AI-bidder M4) samples actor hands and runs
 # the distilled net (`american_neural_search`/`_v2`/`_neural`) to summarise each
 # call's hand conditions, so it builds only with the `search` feature.
 [[example]]
-name = "extract-constraints"
-path = "examples/extract-constraints/main.rs"
+name = "probe-extract-constraints"
+path = "examples/probe-extract-constraints/main.rs"
 required-features = ["search"]
 
 [profile.dev.package."*"]
