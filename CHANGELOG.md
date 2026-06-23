@@ -93,6 +93,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   neural/search floors inherit it via the safety shell's forced-rail delegation.
   `set_settle_floor(false)` recovers the old always-advance floor (the A/B baseline,
   `examples/ab-settle-floor`).
+- **`examples/ab-settle-floor` now reports both scorers — perfect-defense
+  (`ns_score_pd`) and plain double-dummy (`ns_score_contract`) — side by side.** A
+  perfect-defense score prices any contract that fails double-dummy as *doubled*, which
+  is honest only when the `X`/`XX` is real on the table; for a change that suppresses
+  bidding it over-credits by synthetically doubling the contracts we *didn't* reach. So
+  the A/B prints both: the plain-DD column carries only the penalty that actually sat on
+  the table and is the honest verdict, while the gap between the two exposes how much of
+  a result is the synthetic double. Rechecked this way, the settle floor stands —
+  **+0.178 IMPs/board vul none ([+0.168, +0.187]) and +0.294 vul both ([+0.282,
+  +0.306])** on plain double-dummy over 200 000 boards (vs. the perfect-defense
+  +0.264/+0.372), so roughly two-thirds of its gain is real defense of partner's
+  genuinely doubled contracts.
 - **The penalty double of an opponent's 1NT is gated by a configurable shape
   (`DoubleShape`), defaulting to `Any`: every 15+ hand doubles, regardless of shape.**
   The scheme is clean — 15+ doubles, 8–14 with a five-card suit overcalls — and since

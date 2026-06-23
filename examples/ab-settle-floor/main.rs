@@ -32,7 +32,7 @@ use pons::Accumulator;
 use pons::american;
 use pons::bidding::instinct::set_settle_floor;
 use pons::bidding::{Family, Stance};
-use pons::scoring::{final_contract, imps, ns_score_pd};
+use pons::scoring::{final_contract, imps, ns_score_contract, ns_score_pd};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
 use rayon::prelude::*;
@@ -139,38 +139,39 @@ fn main() {
 
     // Per-board IMP swing to the settle team (0 on non-divergent boards), scored
     // under perfect defense with the actual penalty carried (`ns_score_pd`).
-    let mut swings = vec![0i64; args.count];
+    // Scored two ways from the same DD table: `ns_score_pd` (perfect defense, prices
+    // a failing contract as doubled) and `ns_score_contract` (plain DD, the actual
+    // table penalty only).  The settle floor defends contracts partner *really*
+    // doubled, so its X is on the table and plain DD counts it too — but where it
+    // passes instead of advancing, PD synthetically doubles the road-not-taken.
+    // Reporting both shows how much of the win is the real defense vs that synthetic X.
+    let mut swings_pd = vec![0i64; args.count];
+    let mut swings_dd = vec![0i64; args.count];
     let mut shown = 0;
     for (&index, table) in divergent.iter().zip(tables.iter()) {
         let (contract_a, contract_b) = contracts[index];
-        let points = ns_score_pd(contract_a, table, args.vulnerability)
+        let points_pd = ns_score_pd(contract_a, table, args.vulnerability)
             - ns_score_pd(contract_b, table, args.vulnerability);
-        swings[index] = imps(points);
+        let points_dd = ns_score_contract(contract_a, table, args.vulnerability)
+            - ns_score_contract(contract_b, table, args.vulnerability);
+        swings_pd[index] = imps(points_pd);
+        swings_dd[index] = imps(points_dd);
 
         if shown < args.show {
             shown += 1;
             let board = &boards[index];
             let calls: Vec<Call> = board.table_a.iter().copied().collect();
             println!(
-                "[{shown}] dealer {:?}  A {calls:?} -> {contract_a:?}  vs  B -> {contract_b:?}  (swing {:+})",
+                "[{shown}] dealer {:?}  A {calls:?} -> {contract_a:?}  vs  B -> {contract_b:?}  (PD {:+}, DD {:+})",
                 board.dealer,
-                imps(points),
+                imps(points_pd),
+                imps(points_dd),
             );
         }
     }
 
-    let total: i64 = swings.iter().sum();
-    let mut acc = Accumulator::new();
-    for &swing in &swings {
-        acc.push(swing as f64);
-    }
-    let stats = acc.sample();
-    let mean = stats.mean();
-    let se = stats.sd() / (args.count.max(1) as f64).sqrt();
-    let (lo, hi) = (mean - 1.96 * se, mean + 1.96 * se);
-
     println!(
-        "\n=== Settle-floor A/B: {} boards, vulnerability {} (scored ns_score_pd) ===",
+        "\n=== Settle-floor A/B: {} boards, vulnerability {} ===",
         args.count, args.vulnerability,
     );
     println!(
@@ -179,20 +180,25 @@ fn main() {
         args.count,
         100.0 * divergent.len() as f64 / args.count.max(1) as f64,
     );
-    println!(
-        "Settle team: {total:+} IMPs, {mean:+.3} IMPs/board ({:+.3} IMPs/divergent)",
-        total as f64 / divergent.len().max(1) as f64,
-    );
-    println!(
-        "  95% CI: [{lo:+.3}, {hi:+.3}]  (SE {se:.3}, n = {})",
-        args.count
-    );
-    let verdict = if (lo..=hi).contains(&0.0) {
-        "parity — CI contains 0"
-    } else if mean > 0.0 {
-        "CI excludes 0, settle floor ahead"
-    } else {
-        "CI excludes 0, settle floor behind — inspect divergent boards"
-    };
-    println!("  {verdict}");
+    for (label, swings) in [("ns_score_pd  (PD)", &swings_pd), ("ns_score_cnt (DD)", &swings_dd)] {
+        let total: i64 = swings.iter().sum();
+        let mut acc = Accumulator::new();
+        for &swing in swings.iter() {
+            acc.push(swing as f64);
+        }
+        let stats = acc.sample();
+        let mean = stats.mean();
+        let se = stats.sd() / (args.count.max(1) as f64).sqrt();
+        let (lo, hi) = (mean - 1.96 * se, mean + 1.96 * se);
+        let verdict = if (lo..=hi).contains(&0.0) {
+            "parity"
+        } else if mean > 0.0 {
+            "settle ahead"
+        } else {
+            "settle behind"
+        };
+        println!(
+            "{label}: {total:+} IMPs, {mean:+.3}/board  95% CI [{lo:+.3}, {hi:+.3}]  ({verdict})",
+        );
+    }
 }
