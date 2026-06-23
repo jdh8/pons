@@ -38,6 +38,7 @@ use contract_bridge::{AbsoluteVulnerability, Bid, FullDeal, Hand, Level, Seat, S
 use ddss::{NonEmptyStrainFlags, Solver};
 use libloading::Library;
 use pons::american;
+use pons::bidding::american::DoubleShape;
 use pons::bidding::array::{Array, Logits};
 use pons::bidding::context::relative;
 use pons::bidding::{Family, System};
@@ -141,6 +142,32 @@ struct Args {
     /// 15-17).  Seed-pair an on/off run (standard mode) to re-A/B the change.
     #[arg(long, default_value_t = false)]
     nt_fifths: bool,
+
+    /// Shape gate for our natural penalty double of their 1NT: balanced (default)
+    /// | semi | any.  Tunes our defense against BBA (`--isolate-defense`).
+    #[arg(long, default_value = "balanced")]
+    ns_double_shape: String,
+
+    /// HCP floor for our natural penalty double of their 1NT (default 15).
+    #[arg(long, default_value_t = 15)]
+    ns_double_floor: u8,
+
+    /// Inclusive `points` range LO:HI for our natural two-level suit overcall of
+    /// their 1NT (default 8:14).  Raising HI lets a strong one-suiter overcall
+    /// instead of falling through to the penalty double.
+    #[arg(long, default_value = "8:14")]
+    ns_overcall: String,
+
+    /// Logit weight of our natural penalty double of their 1NT (default 1.3, above
+    /// the 1.0 suit overcall).  Set below 1.0 so suit overcalls take precedence —
+    /// a strong one-suiter overcalls instead of doubling (realistic suit-vs-X).
+    #[arg(long, default_value_t = 1.3)]
+    ns_double_weight: f32,
+
+    /// Extend our 1NT defense to the balancing seat (1NT) P P ? (default off);
+    /// on replaces the instinct floor's undisciplined balancing doubles.
+    #[arg(long, default_value_t = false)]
+    ns_balancing: bool,
 }
 
 /// Parse a `NAME=0|1` convention override for `--our-conv` / `--their-conv`
@@ -590,6 +617,24 @@ fn main() -> anyhow::Result<()> {
     // so the duplicate's other table can't reintroduce a we-open-1NT swing.
     pons::bidding::american::set_open_one_notrump(!args.no_our_1nt);
     pons::bidding::american::set_one_notrump_fifths(args.nt_fifths);
+    // Defense tuning knobs (read at book construction, baked into `our_floor`).
+    pons::bidding::american::set_natural_double_shape(match args.ns_double_shape.as_str() {
+        "any" => DoubleShape::Any,
+        "semi" => DoubleShape::SemiBalanced,
+        "balanced" => DoubleShape::Balanced,
+        other => anyhow::bail!("--ns-double-shape must be any|semi|balanced, got {other:?}"),
+    });
+    pons::bidding::american::set_natural_double_floor(args.ns_double_floor);
+    pons::bidding::american::set_natural_double_weight(args.ns_double_weight);
+    pons::bidding::american::set_notrump_balancing(args.ns_balancing);
+    let (oc_lo, oc_hi) = args
+        .ns_overcall
+        .split_once(':')
+        .and_then(|(lo, hi)| Some((lo.parse::<u8>().ok()?, hi.parse::<u8>().ok()?)))
+        .ok_or_else(|| {
+            anyhow::anyhow!("--ns-overcall must be LO:HI, got {:?}", args.ns_overcall)
+        })?;
+    pons::bidding::american::set_natural_overcall_points(oc_lo, oc_hi);
     let our_floor = american().against(Family::NATURAL);
     let our_oracle = match args.our_system {
         Some(system) => Some(BbaOracle::load(&path, system, args.our_conv.clone())?),

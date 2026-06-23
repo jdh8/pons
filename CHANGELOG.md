@@ -9,6 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The penalty double of an opponent's 1NT is now balanced-only (`DoubleShape::Balanced`),
+  not all-shape.** A 15+ hand with a one-suiter no longer penalty-doubles their 1NT —
+  poor bridge (bid the suit) and double-dummy-dominated. Against the all-BBA reference
+  (`bba-match --isolate-defense`) the shapely doubles are the biggest defensive leak
+  (the X bucket runs −2 to −4 IMPs/board, worse vulnerable), and BBA never doubles a
+  shapely hand. The former `Any` default's A/B win was a double-vs-*Pass* comparison:
+  the shapely hands had no overcall outlet, so the baseline merely passed them; against
+  the realistic alternative the shapely double is dominated by overcalling (non-vul) and
+  by passing (vulnerable). The table-valuable *balanced* penalty double is kept.
+  `american::set_natural_double_shape(DoubleShape::Any)` restores the old behaviour.
+- **New 1NT-defense A/B knobs** (defaults unchanged besides the shape flip above):
+  `set_natural_double_floor` (HCP floor, default 15), `set_natural_double_weight`
+  (logit weight, default 1.3 — drop below the 1.0 overcall to make suit overcalls
+  outrank the double), `set_natural_overcall_points` (overcall `points` range, default
+  8–14), and `set_notrump_balancing` (extend the defense to the balancing seat
+  `(1NT) P P ?`, default off — an A/B showed it loses to the instinct floor's
+  passivity on DD). Surfaced in `bba-match` as `--ns-double-shape`/`--ns-double-floor`/
+  `--ns-double-weight`/`--ns-overcall`/`--ns-balancing`. These exist because the DD
+  isolate-defense measure cannot honestly tune the defense's *competitive* parameters —
+  every such lever slides toward "compete less" (the obstruction wall); they are the
+  dials for a future single-dummy re-measure.
+
 - **The strong 1NT opening now gauges plain HCP 15-17 instead of Andrews' fifths.**
   The shipped `fifths(15.0..18.0)` gate sat at centre 16.5 — half a point above the
   natural "15-17 HCP" band — so it under-opened 1NT on honor-heavy 15-counts. A

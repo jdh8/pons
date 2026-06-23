@@ -200,6 +200,10 @@ thread_local! {
     /// four natural two-level overcalls + the owning `Pass` catch-all) is authored;
     /// **on by default**.  See [`set_natural_defense`].
     static NATURAL_DEFENSE: Cell<bool> = const { Cell::new(true) };
+    /// Whether to also author the same defense in the *balancing* seat
+    /// `(1NT) P P ?`; **off by default** (opt-in A/B). Off leaves the balancing
+    /// seat to the instinct floor — the source of the toxic balancing doubles.
+    static NOTRUMP_BALANCING: Cell<bool> = const { Cell::new(false) };
 }
 
 /// Toggle the natural one-suiter defense to an opponent's 1NT for books built
@@ -221,37 +225,64 @@ fn natural_defense_enabled() -> bool {
     NATURAL_DEFENSE.with(Cell::get)
 }
 
+/// Extend the natural 1NT defense to the *balancing* seat `(1NT) P P ?` for books
+/// built *after* this call (thread-local; **off by default**). On, the balancing
+/// seat reuses `defense_to_notrump` instead of falling to the instinct floor's
+/// undisciplined balancing doubles. An A/B knob (`bba-match --ns-balancing`).
+pub fn set_notrump_balancing(on: bool) {
+    NOTRUMP_BALANCING.with(|cell| cell.set(on));
+}
+
+fn notrump_balancing_enabled() -> bool {
+    NOTRUMP_BALANCING.with(Cell::get)
+}
+
 /// Which shapes qualify for the natural penalty double of their 1NT (the 15+ HCP
 /// floor is fixed; this only widens the *shape* gate). See [`set_natural_double_shape`].
 #[derive(Clone, Copy, PartialEq, Eq, Default, Debug)]
 pub enum DoubleShape {
-    /// 4333/4432/5332 only — the historic gate before the all-shape A/B.
+    /// 4333/4432/5332 only — **the default**.  A penalty double of a 1NT holding a
+    /// one-suiter is poor bridge (bid the suit) and double-dummy-dominated: against
+    /// the all-BBA reference the shapely doubles are the biggest defensive leak
+    /// (`bba-match --isolate-defense`), and BBA never doubles a shapely hand.  The
+    /// table-valuable *balanced* penalty double is kept.
+    #[default]
     Balanced,
     /// Balanced plus the semi-balanced single-long-suit hands 5422/6322/7222.
     SemiBalanced,
-    /// Any shape (the 15+ HCP floor alone gates the double) — **the default**.
-    /// A/B'd a clear win over `Balanced`: every shape bucket gains, more the longer
-    /// the suit (a 15+ one-suiter that used to *pass* over their 1NT is the worst
-    /// case a penalty double fixes).
-    #[default]
+    /// Any shape (the 15+ HCP floor alone gates the double).  Was the default until
+    /// re-measured: its earlier A/B win was a double-vs-*Pass* comparison (the
+    /// shapely hands had no overcall outlet, so the baseline passed them); against
+    /// the realistic alternative the shapely double is dominated by both overcalling
+    /// (non-vul) and passing (vulnerable).
     Any,
 }
 
 thread_local! {
-    /// Which shapes earn the natural penalty double of their 1NT; **[`Any`]
+    /// Which shapes earn the natural penalty double of their 1NT; **[`Balanced`]
     /// by default**. See [`set_natural_double_shape`].
     ///
-    /// [`Any`]: DoubleShape::Any
-    static NATURAL_DOUBLE_SHAPE: Cell<DoubleShape> = const { Cell::new(DoubleShape::Any) };
+    /// [`Balanced`]: DoubleShape::Balanced
+    static NATURAL_DOUBLE_SHAPE: Cell<DoubleShape> = const { Cell::new(DoubleShape::Balanced) };
+    /// HCP floor for the natural penalty double of their 1NT; **15 by default**.
+    static NATURAL_DOUBLE_FLOOR: Cell<u8> = const { Cell::new(15) };
+    /// Logit weight of the natural penalty double; **1.3 by default** (above the
+    /// 1.0 suit overcall, so a strong one-suiter doubles). Drop below 1.0 to make
+    /// suit overcalls outrank the double — the realistic "strong suit vs X" test.
+    static NATURAL_DOUBLE_WEIGHT: Cell<f32> = const { Cell::new(1.3) };
+    /// Inclusive `points` range for the natural two-level suit overcall of their
+    /// 1NT; **(8, 14) by default**. Lifting the ceiling lets a strong one-suiter
+    /// overcall its suit instead of falling through to the penalty double.
+    static NATURAL_OVERCALL_POINTS: Cell<(u8, u8)> = const { Cell::new((8, 14)) };
 }
 
 /// Widen (or narrow) the shape gate of the natural penalty double for books built
 /// *after* this call (thread-local, read once at book-construction time)
 ///
-/// [`DoubleShape::Any`] (the **default**) doubles every 15+ hand regardless of shape.
-/// [`DoubleShape::SemiBalanced`] doubles balanced plus 5422/6322/7222, and
-/// [`DoubleShape::Balanced`] restores the historic 15+ balanced-only double. The HCP
-/// floor (15+) is unchanged. An A/B knob
+/// [`DoubleShape::Balanced`] (the **default**) doubles only 15+ balanced hands.
+/// [`DoubleShape::SemiBalanced`] adds 5422/6322/7222, and [`DoubleShape::Any`]
+/// doubles every 15+ hand regardless of shape (the former default). The HCP floor
+/// (15+) is unchanged. An A/B knob
 /// (`examples/landy-ab --ns-double-shape balanced|semibal|any`).
 pub fn set_natural_double_shape(shape: DoubleShape) {
     NATURAL_DOUBLE_SHAPE.with(|cell| cell.set(shape));
@@ -260,6 +291,39 @@ pub fn set_natural_double_shape(shape: DoubleShape) {
 /// The shape gate currently authored for the natural penalty double
 fn natural_double_shape() -> DoubleShape {
     NATURAL_DOUBLE_SHAPE.with(Cell::get)
+}
+
+/// Set the HCP floor of the natural penalty double of their 1NT (default 15) for
+/// books built *after* this call. An A/B knob (`bba-match --ns-double-floor`).
+pub fn set_natural_double_floor(floor: u8) {
+    NATURAL_DOUBLE_FLOOR.with(|cell| cell.set(floor));
+}
+
+fn natural_double_floor() -> u8 {
+    NATURAL_DOUBLE_FLOOR.with(Cell::get)
+}
+
+/// Set the logit weight of the natural penalty double of their 1NT (default 1.3)
+/// for books built *after* this call. Below the 1.0 suit-overcall weight, a strong
+/// one-suiter overcalls instead of doubling. An A/B knob (`bba-match --ns-double-weight`).
+pub fn set_natural_double_weight(weight: f32) {
+    NATURAL_DOUBLE_WEIGHT.with(|cell| cell.set(weight));
+}
+
+fn natural_double_weight() -> f32 {
+    NATURAL_DOUBLE_WEIGHT.with(Cell::get)
+}
+
+/// Set the inclusive `points` range of the natural two-level suit overcall of
+/// their 1NT (default 8–14) for books built *after* this call. Raising the
+/// ceiling routes a strong shapely one-suiter into a suit overcall rather than
+/// the penalty double. An A/B knob (`bba-match --ns-overcall LO:HI`).
+pub fn set_natural_overcall_points(lo: u8, hi: u8) {
+    NATURAL_OVERCALL_POINTS.with(|cell| cell.set((lo, hi)));
+}
+
+fn natural_overcall_points() -> (u8, u8) {
+    NATURAL_OVERCALL_POINTS.with(Cell::get)
 }
 
 /// Semi-balanced shape for the penalty double: balanced, or one of 5422/6322/7222
@@ -623,12 +687,17 @@ pub fn defense_to_notrump() -> Rules {
         // The penalty double's HCP floor is fixed at 15; the shape gate widens with
         // `set_natural_double_shape`. Each arm reissues `.rule()` so the differing
         // constraint types unify to `Rules` (same trick as the `use_hcp` branches).
+        let floor = natural_double_floor();
+        let w = natural_double_weight();
         rules = match natural_double_shape() {
-            DoubleShape::Balanced => rules.rule(Call::Double, 1.3, hcp(15..) & balanced()),
-            DoubleShape::SemiBalanced => rules.rule(Call::Double, 1.3, hcp(15..) & semi_balanced()),
-            DoubleShape::Any => rules.rule(Call::Double, 1.3, hcp(15..)),
+            DoubleShape::Balanced => rules.rule(Call::Double, w, hcp(floor..) & balanced()),
+            DoubleShape::SemiBalanced => {
+                rules.rule(Call::Double, w, hcp(floor..) & semi_balanced())
+            }
+            DoubleShape::Any => rules.rule(Call::Double, w, hcp(floor..)),
         };
         rules = rules.rule(Call::Pass, 0.0, hcp(0..));
+        let (oc_lo, oc_hi) = natural_overcall_points();
         for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
             // Landy reuses 2♣ for both majors, so the natural club overcall is gone.
             if landy.is_some() && suit == Suit::Clubs {
@@ -637,7 +706,7 @@ pub fn defense_to_notrump() -> Rules {
             rules = rules.rule(
                 Bid::new(2, Strain::from(suit)),
                 1.0,
-                len(suit, 5..) & points(8..=14),
+                len(suit, 5..) & points(oc_lo..=oc_hi),
             );
         }
     }
@@ -1615,6 +1684,17 @@ pub fn defensive() -> Defensive {
 
     let notrump = call(1, Strain::Notrump);
     insert_all_seats(&mut d, &[notrump], 3, defense_to_notrump());
+    // Balancing seat (1NT) P P ?: reuse the same defense so we no longer fall to
+    // the instinct floor's undisciplined balancing doubles.  First cut reuses the
+    // direct ranges; a lighter balancing-specific range is a later refinement.
+    if notrump_balancing_enabled() {
+        insert_all_seats(
+            &mut d,
+            &[notrump, Call::Pass, Call::Pass],
+            3,
+            defense_to_notrump(),
+        );
+    }
 
     // Advancing partner's Landy 2♣ (both majors) over their 1NT, when on.
     if let Some((lo, hi)) = landy_range() {
