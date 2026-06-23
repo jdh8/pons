@@ -24,17 +24,21 @@
 //! conventional calls (in particular no strength-showing cue-bids) belong
 //! here until both sides of the convention are authored.
 //!
-//! # The forced advance
+//! # Advancing partner's double
 //!
-//! The one situation instinct must *not* treat as optional is partner's live
-//! takeout double: the auction ends `… (bid) X (Pass)` with their suit bid at
-//! the three level or below doubled by partner.  There, the pass rules are
-//! replaced by an advance ladder — penalty pass only with a genuine trump
-//! stack, a major-suit game jump or 3NT with values, the longest unbid suit
-//! at the cheapest level, and a notrump escape so that *some* action is
-//! always available.  The interpretation of the double is deliberately
-//! mechanical: a classifier may know its system, and instinct's system is
-//! plain standard.
+//! Partner's live takeout double — the auction ends `… (bid) X (Pass)` with
+//! their suit bid at the three level or below doubled by partner — calls for an
+//! advance, but a takeout double is *not 100% forcing*.  Pass means *play the
+//! top bid*: with length behind their doubled suit the better action is to
+//! **defend** (pass plays their doubled contract), so the floor passes; only a
+//! hand that cannot beat their contract advances — a penalty pass on a trump
+//! stack, a major-suit game jump or 3NT with values, the longest unbid suit at
+//! the cheapest level, and a notrump escape so *some* action is always
+//! available.  A four-level new suit is a *free bid* (you could defend instead),
+//! so it shows values.  The interpretation of the double is deliberately
+//! mechanical: a classifier may know its system, and instinct's system is plain
+//! standard.  (The defend-or-advance reading is the "settle floor", default on;
+//! [`set_settle_floor`] recovers the old always-advance behavior.)
 //!
 //! # Observability
 //!
@@ -108,6 +112,11 @@ std::thread_local! {
     /// `1NT-(2NT)-X` — the Unusual-vs-Unusual penalty chase. Default on (it only
     /// fires after our own UvU `X`, so it is dormant unless [`set_uvu`] is on).
     static UVU_ENCIRCLE: Cell<bool> = const { Cell::new(true) };
+
+    /// Whether the "settle" view of Pass is in force (**default on** — see
+    /// [`set_settle_floor`]): partner's takeout double is not 100% forcing, so a
+    /// hand may pass to *play the top bid* (defend) instead of always advancing
+    static SETTLE_FLOOR: Cell<bool> = const { Cell::new(true) };
 }
 
 /// Responder runs from a doubled 1NT below this many HCP; with more, 1NT-X
@@ -146,6 +155,25 @@ pub fn set_one_nt_runout(enabled: bool) {
 /// The doubled-1NT runout is enabled (see [`set_one_nt_runout`])
 fn one_nt_runout_enabled() -> Cons<impl Constraint + Clone> {
     pred(|_: Hand, _: &Context<'_>| ONE_NT_RUNOUT.with(Cell::get))
+}
+
+/// Enable or disable the "settle" view of Pass on the current thread
+///
+/// **On by default** (A/B'd a clear win — +0.26 IMPs/board vul none, +0.37 vul
+/// both, on `ab-settle-floor`'s perfect-defense measure).  The floor treats Pass
+/// as *playing the top bid*: partner's takeout double is not 100% forcing, so a
+/// hand with a good penalty (length behind their doubled suit) defends instead of
+/// advancing, and a four-level advance becomes a *free bid* requiring values.
+/// Disable to recover the old always-advance floor.  For A/B measurement (see the
+/// `ab-settle-floor` example); read at classification time, per-thread.
+#[doc(hidden)]
+pub fn set_settle_floor(enabled: bool) {
+    SETTLE_FLOOR.with(|flag| flag.set(enabled));
+}
+
+/// The "settle" view of Pass is enabled (see [`set_settle_floor`])
+fn settle_floor() -> Cons<impl Constraint + Clone> {
+    pred(|_: Hand, _: &Context<'_>| SETTLE_FLOOR.with(Cell::get))
 }
 
 /// Set the HCP floor at which responder redoubles a doubled 1NT to play
@@ -436,7 +464,7 @@ fn opp_escaped_our_business_xx() -> Cons<impl Constraint + Clone> {
 }
 
 /// We doubled their escape for penalty; partner leaves it in rather than read it
-/// as the takeout the `forced_advance` default would advance (see
+/// as the takeout the `advancing_a_double` default would advance (see
 /// [`our_doubled_one_nt_escape`])
 fn leave_in_escape_penalty() -> Cons<impl Constraint + Clone> {
     pred(|_: Hand, context: &Context<'_>| {
@@ -502,7 +530,7 @@ fn leave_in_uvu_penalty() -> Cons<impl Constraint + Clone> {
 /// the doubled contract is their suit bid at the three level or below —
 /// doubles of notrump or of game-level contracts read as penalty, not as a
 /// request to act.
-fn forced_advance_now(context: &Context<'_>) -> bool {
+fn advancing_a_double_now(context: &Context<'_>) -> bool {
     let auction = context.auction();
     let n = auction.len();
     n >= 2
@@ -513,9 +541,56 @@ fn forced_advance_now(context: &Context<'_>) -> bool {
             .is_some_and(|bid| bid.strain.suit().is_some() && bid.level.get() <= 3)
 }
 
-/// [`forced_advance_now`] as a hand-ignoring [`Constraint`] for the ladder
-fn forced_advance() -> Cons<impl Constraint + Clone> {
-    pred(|_: Hand, context: &Context<'_>| forced_advance_now(context))
+/// [`advancing_a_double_now`] as a hand-ignoring [`Constraint`] for the ladder
+fn advancing_a_double() -> Cons<impl Constraint + Clone> {
+    pred(|_: Hand, context: &Context<'_>| advancing_a_double_now(context))
+}
+
+/// We already hold an eight-card fit in some suit: our length there plus the
+/// minimum partner has shown ([`Inferences`]) reaches eight.
+///
+/// Reads the shown *minimum* (length partner cannot lack), so it fires only on a
+/// fit the calls have promised.  Used by the free-bid gate to stop inventing a
+/// new suit once a trump suit is already found.
+fn has_fit(hand: Hand, context: &Context<'_>) -> bool {
+    let inferences = Inferences::read(context);
+    let partner = inferences.partner();
+    Suit::ASC
+        .iter()
+        .any(|&suit| hand[suit].len() + usize::from(partner.length(suit).min) >= 8)
+}
+
+/// The free-bid gate on an advance of partner's double into a new suit at `level` (see
+/// [`set_settle_floor`])
+///
+/// A no-op unless the settle floor is on, and only ever gates the **four level**:
+/// a new suit there is a *free bid* — partner's takeout double does not force us to
+/// the four level, so voluntarily climbing must show values (~11+ points) and not
+/// invent a suit once we already [`has_fit`].  Without them the hand stays lower (a
+/// three-level take-out, the notrump escape) or defends (see [`doubled_suit_length`]).
+/// One- to three-level advances are untouched: the leak was the captive `4♣x`, not
+/// the cheap take-out a bust owes partner's double.
+fn free_bid_gate(level: u8) -> Cons<impl Constraint + Clone> {
+    pred(move |hand: Hand, context: &Context<'_>| {
+        level < 4
+            || !SETTLE_FLOOR.with(Cell::get)
+            || (point_count(hand) >= 11 && !has_fit(hand, context))
+    })
+}
+
+/// Four-plus cards in the doubled suit: a *good penalty* behind their suit
+///
+/// The milder sibling of [`doubled_suit_stack`] — length without the two top
+/// honors.  Opposite partner's takeout double (partner is short their suit, with
+/// values), sitting with four trumps behind declarer beats taking out: pass and
+/// play their doubled contract.  Drives the settle floor's defend pass.
+fn doubled_suit_length() -> Cons<impl Constraint + Clone> {
+    pred(|hand: Hand, context: &Context<'_>| {
+        context
+            .last_bid()
+            .and_then(|bid| bid.strain.suit())
+            .is_some_and(|suit| hand[suit].len() >= 4)
+    })
 }
 
 /// A trump stack in the doubled suit: four-plus cards with two top honors
@@ -751,7 +826,7 @@ fn auction_forces_game() -> Cons<impl Constraint + Clone> {
 /// A game force forbids passing below game — *unless* we are penalizing the
 /// opponents, where passing their doubled contract out is the whole point.
 /// There the forced-to-game rules step aside and let the natural defense —
-/// including the [forced advance][forced_advance] of partner's penalty double —
+/// including the [advance][advancing_a_double] of partner's penalty double —
 /// govern.
 fn not_penalizing() -> Cons<impl Constraint + Clone> {
     pred(|_: Hand, context: &Context<'_>| !Interpretation::read(context).penalizing)
@@ -808,7 +883,7 @@ const TRANSFERS: [(u8, Bid, Bid); 6] = [
 /// they are judgement the net is trusted with, measured on the harness.
 #[cfg(feature = "neural-floor")]
 pub(crate) fn forced(context: &Context<'_>) -> bool {
-    forced_advance_now(context)
+    advancing_a_double_now(context)
         || Interpretation::read(context).forced_to_game
         || TRANSFERS
             .iter()
@@ -939,18 +1014,30 @@ fn rubens_completes(target: Suit) -> Cons<impl Constraint + Clone> {
 pub fn instinct() -> Rules {
     let mut rules = Rules::new()
         // Forced: a trump stack sits for partner's takeout double.
-        .rule(Call::Pass, 1.5, forced_advance() & doubled_suit_stack())
+        .rule(Call::Pass, 1.5, advancing_a_double() & doubled_suit_stack())
+        // Settle floor (opt-in): a takeout double is not 100% forcing.  With four
+        // cards behind their doubled suit, *defend* — pass plays their doubled
+        // contract.  Above the advance ladder (new suit ~1.0, raises 1.2) and the
+        // 0.3 notrump escape, below the trump stack 1.5 and the game jumps 1.45.
+        .rule(
+            Call::Pass,
+            1.35,
+            settle_floor() & advancing_a_double() & doubled_suit_length(),
+        )
         // Forced: 3NT to play with game values and their suits stopped.
         .rule(
             Bid::new(3, Strain::Notrump),
             1.3,
-            forced_advance()
+            advancing_a_double()
                 & hcp(13..)
                 & stopper_in_their_suits()
                 & level_available(3, Strain::Notrump),
         )
-        // Unforced default; the -5 entry below is the absolute last resort.
-        .rule(Call::Pass, 0.0, !forced_advance())
+        // Default unforced pass.  Under the settle floor it is also available in a
+        // advance of partner's double (pass plays the top bid) — it still loses to every advance
+        // rule, so a bust with no penalty advances as before.
+        .rule(Call::Pass, 0.0, !advancing_a_double() | settle_floor())
+        // The absolute last resort, keeping logits finite when all else is illegal.
         .rule(Call::Pass, -5.0, hcp(0..));
 
     // Forced: jump to a major-suit game with four-plus cards and values —
@@ -960,7 +1047,7 @@ pub fn instinct() -> Rules {
         rules = rules.rule(
             Bid::new(4, strain),
             1.45,
-            forced_advance()
+            advancing_a_double()
                 & len(major, 4..)
                 & points(11..)
                 & level_available(4, strain)
@@ -977,24 +1064,28 @@ pub fn instinct() -> Rules {
         };
 
         // Forced: a new suit at the cheapest level; longer suits and majors
-        // are preferred.  Bidding their suit would be a cue-bid — excluded.
+        // are preferred.  Bidding their suit would be a cue-bid — excluded.  The
+        // settle floor's `free_bid_gate` (off by default) makes the four-level new
+        // suit a free bid — values and no existing fit.
         for level in 1u8..=4 {
             rules = rules
                 .rule(
                     Bid::new(level, strain),
                     1.0 + major_bonus,
-                    forced_advance()
+                    advancing_a_double()
                         & min_level_is(level, strain)
                         & len(suit, 4..)
-                        & !they_bid(strain),
+                        & !they_bid(strain)
+                        & free_bid_gate(level),
                 )
                 .rule(
                     Bid::new(level, strain),
                     1.1 + major_bonus,
-                    forced_advance()
+                    advancing_a_double()
                         & min_level_is(level, strain)
                         & len(suit, 5..)
-                        & !they_bid(strain),
+                        & !they_bid(strain)
+                        & free_bid_gate(level),
                 );
         }
 
@@ -1265,8 +1356,8 @@ pub fn instinct() -> Rules {
         );
 
     // Partner leaves in our penalty double of their escape: it is penalty by
-    // agreement, not the takeout the `forced_advance` default would advance.
-    // Outranks every forced-advance action (<=1.5).
+    // agreement, not the takeout the `advancing_a_double` default would advance.
+    // Outranks every advance action (<=1.5).
     rules = rules.rule(
         Call::Pass,
         1.55,
@@ -1295,7 +1386,7 @@ pub fn instinct() -> Rules {
         rules = rules.rule(
             Bid::new(level, Strain::Notrump),
             0.3,
-            forced_advance() & min_level_is(level, Strain::Notrump),
+            advancing_a_double() & min_level_is(level, Strain::Notrump),
         );
     }
 
@@ -1544,14 +1635,15 @@ mod tests {
     }
 
     #[test]
-    fn forced_advance_never_passes() {
-        // Partner doubled their 3♣ for takeout; a worthless hand still bids
-        // its five-card suit instead of converting to penalties.
+    fn advancing_a_double_advances_a_bust_but_defends_with_length() {
+        // Partner doubled their 3♣ for takeout, RHO passed.
         let auction = [call(3, Strain::Clubs), Call::Double, Call::Pass];
+        // A worthless hand with a five-card suit outside theirs still advances —
+        // it cannot beat 3♣ doubled, so it bids rather than pass into it.
         assert_eq!(best(&auction, "96432.J85.9742.2"), call(3, Strain::Spades));
-        // A yarborough whose only length is in their suit escapes to the
-        // cheapest notrump.
-        assert_eq!(best(&auction, "964.J85.974.9632"), call(3, Strain::Notrump));
+        // But four cards sitting behind their suit defend: pass plays 3♣ doubled,
+        // a better penalty than escaping (the settle floor, default on).
+        assert_eq!(best(&auction, "964.J85.974.9632"), Call::Pass);
     }
 
     #[test]
@@ -1562,10 +1654,10 @@ mod tests {
     }
 
     #[test]
-    fn forced_advance_bids_game_with_values() {
+    fn advancing_a_double_bids_game_with_values() {
         let auction = [call(2, Strain::Spades), Call::Double, Call::Pass];
-        // 13 HCP with their suit stopped: 3NT to play.
-        assert_eq!(best(&auction, "KJ92.A53.KQ42.96"), call(3, Strain::Notrump));
+        // 13 HCP with their suit stopped and no length behind it: 3NT to play.
+        assert_eq!(best(&auction, "AQ3.K65.J64.QJ96"), call(3, Strain::Notrump));
         // 11 HCP with four hearts: jump to the major-suit game.
         assert_eq!(best(&auction, "92.AQ53.KQ42.962"), call(4, Strain::Hearts));
     }
@@ -1607,6 +1699,30 @@ mod tests {
         let context = Context::new(RelativeVulnerability::NONE, &auction);
         let logits = instinct().classify(hand, &context);
         assert_eq!(*logits.0.get(Call::Double), f32::NEG_INFINITY);
+    }
+
+    #[test]
+    fn settle_floor_defends_with_length_behind_their_suit() {
+        // Their 3♠, partner doubles (takeout), RHO passes → advancing a double.
+        let auction = [call(3, Strain::Spades), Call::Double, Call::Pass];
+        // 6 HCP, five clubs but four cards sitting behind their spades.
+        let weak_with_defense = "9543.74.K2.QJ876";
+
+        // Off (default): the floor over-advances to the captive 4♣.
+        set_settle_floor(false);
+        assert_eq!(best(&auction, weak_with_defense), call(4, Strain::Clubs));
+
+        // On: the four-level new suit is a free bid we lack the values for, and we
+        // hold four behind their suit, so we defend — pass plays 3♠ doubled.
+        set_settle_floor(true);
+        assert_eq!(best(&auction, weak_with_defense), Call::Pass);
+
+        // On, with real values: the free bid is earned — we still advance to 4♣
+        // (a hand short in their suit cannot defend anyway).
+        let strong = "2.853.K42.AKQ876";
+        assert_eq!(best(&auction, strong), call(4, Strain::Clubs));
+
+        set_settle_floor(true); // restore the default (on) for the rest of the suite
     }
 
     #[test]

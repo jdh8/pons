@@ -428,10 +428,12 @@ mod tests {
     // exercises the net + search + mask.
 
     #[test]
-    fn forced_advance_never_passes() {
+    fn advancing_a_double_delegates_to_instinct() {
+        // The shell short-circuits to instinct, reproducing its calls — advance a
+        // bust with an outside suit, defend with length behind their suit.
         let auction = [call(3, Strain::Clubs), Call::Double, Call::Pass];
         assert_eq!(best(&auction, "96432.J85.9742.2"), call(3, Strain::Spades));
-        assert_eq!(best(&auction, "964.J85.974.9632"), call(3, Strain::Notrump));
+        assert_eq!(best(&auction, "964.J85.974.9632"), Call::Pass);
     }
 
     #[test]

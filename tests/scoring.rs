@@ -3,7 +3,7 @@
 use contract_bridge::auction::{Auction, Call};
 use contract_bridge::{AbsoluteVulnerability, Bid, Contract, Penalty, Seat, Strain};
 use ddss::{TrickCountRow, TrickCountTable};
-use pons::scoring::{final_contract, imps, ns_score_bid, ns_score_contract};
+use pons::scoring::{final_contract, imps, ns_score_bid, ns_score_contract, ns_score_pd};
 
 const fn bid(level: u8, strain: Strain) -> Call {
     Call::Bid(Bid::new(level, strain))
@@ -154,6 +154,71 @@ fn test_ns_score_bid_perfect_defense_doubling() {
 
     // Pass-out scores 0.
     assert_eq!(ns_score_bid(None, &makes, AbsoluteVulnerability::ALL), 0);
+}
+
+#[test]
+fn test_ns_score_pd_carries_table_double() {
+    let two_hearts_x = Contract::new(2, Strain::Hearts, Penalty::Doubled);
+    let bare = Bid::new(2, Strain::Hearts);
+
+    // Making (8 tricks): the table double is locked in — `ns_score_pd` scores it
+    // *doubled* (keeping the bonus), where the call-evaluator `ns_score_bid`
+    // strips a making contract to undoubled.
+    let makes = TrickCountTable([TrickCountRow::new(8, 8, 8, 8); 5]);
+    let pd_makes = ns_score_pd(
+        Some((two_hearts_x, Seat::South)),
+        &makes,
+        AbsoluteVulnerability::NONE,
+    );
+    assert_eq!(
+        pd_makes,
+        ns_score_contract(
+            Some((two_hearts_x, Seat::South)),
+            &makes,
+            AbsoluteVulnerability::NONE
+        ),
+    );
+    assert!(
+        pd_makes
+            > ns_score_bid(
+                Some((bare, Seat::South)),
+                &makes,
+                AbsoluteVulnerability::NONE
+            )
+    );
+
+    // Failing (7 tricks, down 1): an *undoubled* contract is floored to doubled by
+    // perfect defense, matching `ns_score_bid`.
+    let fails = TrickCountTable([TrickCountRow::new(7, 7, 7, 7); 5]);
+    let two_hearts = Contract::new(2, Strain::Hearts, Penalty::Undoubled);
+    assert_eq!(
+        ns_score_pd(
+            Some((two_hearts, Seat::South)),
+            &fails,
+            AbsoluteVulnerability::NONE
+        ),
+        ns_score_bid(
+            Some((bare, Seat::South)),
+            &fails,
+            AbsoluteVulnerability::NONE
+        ),
+    );
+    // An already-doubled failing contract is unchanged (still just doubled).
+    assert_eq!(
+        ns_score_pd(
+            Some((two_hearts_x, Seat::South)),
+            &fails,
+            AbsoluteVulnerability::NONE
+        ),
+        ns_score_contract(
+            Some((two_hearts_x, Seat::South)),
+            &fails,
+            AbsoluteVulnerability::NONE
+        ),
+    );
+
+    // Pass-out scores 0.
+    assert_eq!(ns_score_pd(None, &makes, AbsoluteVulnerability::ALL), 0);
 }
 
 #[test]

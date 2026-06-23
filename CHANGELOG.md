@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`scoring::ns_score_pd` — a perfect-defense scorer that carries the table
+  `X`/`XX`.** Like `ns_score_bid` it doubles a contract that fails double-dummy
+  (opponents always hold the red card), but a double or redouble already on the table
+  is locked in and kept even when the contract *makes* — `X`/`XX` cannot be taken
+  back. This is the correct scorer once a side may **defend by passing** (the settle
+  floor above), which puts real doubled contracts on the table; the new
+  `examples/ab-settle-floor` A/B uses it. `instinct::set_settle_floor` is its A/B
+  knob (default on).
 - **`american_neural_v3()` — a distilled neural floor that bids from *disclosable*
   information only.** Duplicate-bridge ethics require full disclosure: a call is
   explained to opponents by the partnership's *agreement*, never by the bidder's
@@ -65,6 +73,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The instinct floor now treats "Pass = play the top bid": advancing partner's
+  takeout double is no longer 100% forcing.** Previously the floor *had* to advance a
+  live takeout double — penalty-passing only on a genuine trump stack — which climbed
+  to captive doubled contracts (`4♣x`, −800…) on a bust. The "settle floor"
+  (`instinct::set_settle_floor`, **default on**) recasts Pass as playing the contract
+  on the table: with four-plus cards behind their doubled suit a hand **defends**
+  (pass plays their doubled contract — the better penalty), and a four-level advance
+  becomes a *free bid* requiring values (~11+) since you could have defended. A hand
+  that cannot beat their contract still advances exactly as before, so the
+  anti-blunder rail (never pass a takeout double on a worthless hand into their
+  contract) is preserved. The `forced_advance` predicate is renamed
+  `advancing_a_double` to reflect that it is now a *context*, not a mandate. **Impact:**
+  a clear win on the perfect-defense duplicate measure — **+0.264 IMPs/board vul none
+  (95% CI [+0.251, +0.276]) and +0.372 vul both ([+0.357, +0.387])** over 200 000
+  boards (9.35% divergent), larger vulnerable where defending doubled contracts and
+  dodging doubled overbids both pay more. The change is contained to takeout-double
+  advances, so constructive and other competitive auctions are untouched; the gated
+  neural/search floors inherit it via the safety shell's forced-rail delegation.
+  `set_settle_floor(false)` recovers the old always-advance floor (the A/B baseline,
+  `examples/ab-settle-floor`).
 - **The penalty double of an opponent's 1NT is gated by a configurable shape
   (`DoubleShape`), defaulting to `Any`: every 15+ hand doubles, regardless of shape.**
   The scheme is clean — 15+ doubles, 8–14 with a five-card suit overcalls — and since

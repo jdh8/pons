@@ -188,12 +188,13 @@ mod tests {
     // its tested calls exactly; the legality rail exercises the net + mask.
 
     #[test]
-    fn forced_advance_never_passes() {
+    fn advancing_a_double_delegates_to_instinct() {
         // Partner doubled their 3♣ for takeout; the shell delegates to instinct,
-        // which never converts a hand that can act into a penalty pass.
+        // reproducing its calls — advance a bust with an outside suit, defend with
+        // four cards behind their suit (the settle floor, default on).
         let auction = [call(3, Strain::Clubs), Call::Double, Call::Pass];
         assert_eq!(best(&auction, "96432.J85.9742.2"), call(3, Strain::Spades));
-        assert_eq!(best(&auction, "964.J85.974.9632"), call(3, Strain::Notrump));
+        assert_eq!(best(&auction, "964.J85.974.9632"), Call::Pass);
     }
 
     #[test]
@@ -267,9 +268,9 @@ mod tests {
     // forced situations delegate to instinct, and the legality mask still holds.
 
     #[test]
-    fn v2_forced_advance_never_passes() {
+    fn v2_advancing_a_double_advances_a_bust() {
         // Partner doubled their 3♣ for takeout; the v2 shell delegates to instinct
-        // exactly as v1 does, so a hand that can act never penalty-passes.
+        // exactly as v1 does — here, advancing a bust with an outside suit.
         let auction = [call(3, Strain::Clubs), Call::Double, Call::Pass];
         assert_eq!(
             best_v2(&auction, "96432.J85.9742.2"),
@@ -299,9 +300,9 @@ mod tests {
     // the *same* rails: forced situations delegate to instinct, the mask still holds.
 
     #[test]
-    fn search_forced_advance_never_passes() {
+    fn search_advancing_a_double_advances_a_bust() {
         // Partner doubled their 3♣ for takeout; the search shell delegates to
-        // instinct exactly as v1 does, so a hand that can act never penalty-passes.
+        // instinct exactly as v1 does — here, advancing a bust with an outside suit.
         let auction = [call(3, Strain::Clubs), Call::Double, Call::Pass];
         let hand: Hand = "96432.J85.9742.2".parse().unwrap();
         let context = Context::new(RelativeVulnerability::NONE, &auction);
@@ -337,9 +338,9 @@ mod tests {
     // the *same* rails: forced situations delegate to instinct, the mask holds.
 
     #[test]
-    fn v3_forced_advance_never_passes() {
+    fn v3_advancing_a_double_advances_a_bust() {
         // Partner doubled their 3♣ for takeout; the v3 shell delegates to instinct
-        // exactly as v1 does, so a hand that can act never penalty-passes.
+        // exactly as v1 does — here, advancing a bust with an outside suit.
         let auction = [call(3, Strain::Clubs), Call::Double, Call::Pass];
         let hand: Hand = "96432.J85.9742.2".parse().unwrap();
         let context = Context::new(RelativeVulnerability::NONE, &auction);

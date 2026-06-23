@@ -18,6 +18,11 @@
 //! failing sacrifice prices far too cheaply.  That is [`ns_score_bid`], which
 //! takes a [`Bid`] (not a [`Contract`]) precisely because it derives the
 //! penalty itself.
+//!
+//! A third scorer, [`ns_score_pd`], bridges the two: it scores a *settled*
+//! contract under perfect defense but **carries the actual `X`/`XX`** (which
+//! cannot be taken back), so it is the right scorer for an A/B where a side may
+//! *defend* by passing — putting real doubled contracts on the table.
 
 use contract_bridge::auction::{Auction, Call};
 use contract_bridge::{AbsoluteVulnerability, Bid, Contract, Penalty, Seat};
@@ -135,6 +140,43 @@ pub fn ns_score_bid(
         Penalty::Undoubled
     };
     ns_score_with(bid, declarer, penalty, table, vul)
+}
+
+/// Perfect-defense NS score of a *settled* contract, **carrying its actual
+/// double/redouble**: like [`ns_score_bid`] it doubles a contract that fails
+/// double-dummy, but a double or redouble already on the table is locked in and
+/// kept even when the contract makes.
+///
+/// This is the scorer for "pass = play the top bid": when an auction settles, the
+/// contract on the table is played with whatever penalty it actually carries —
+/// `X`/`XX` cannot be taken back, so a doubled contract that *makes* keeps its
+/// bonus.  Perfect defense only ever *adds* a double (to a failing **undoubled**
+/// contract), never removes one — the penalty is therefore the more severe of the
+/// table penalty and the fails-double-dummy floor.  Use this (not
+/// [`ns_score_bid`]) to score a duplicate A/B once a side may *defend* by passing,
+/// which puts real doubled contracts on the table.
+///
+/// [`Penalty`] is not `Ord`, so the floor is spelled out: a failing undoubled
+/// contract becomes [`Penalty::Doubled`]; an already doubled/redoubled one keeps
+/// its (more severe) penalty; a making contract keeps the table penalty verbatim.
+#[must_use]
+pub fn ns_score_pd(
+    result: Option<(Contract, Seat)>,
+    table: &TrickCountTable,
+    vul: AbsoluteVulnerability,
+) -> i64 {
+    let Some((contract, declarer)) = result else {
+        return 0;
+    };
+    let penalty = if fails_dd(contract.bid, declarer, table) {
+        match contract.penalty {
+            Penalty::Undoubled => Penalty::Doubled,
+            doubled => doubled,
+        }
+    } else {
+        contract.penalty
+    };
+    ns_score_with(contract.bid, declarer, penalty, table, vul)
 }
 
 /// Upper bounds (exclusive) of the point difference for 0, 1, 2, … IMPs
