@@ -1805,6 +1805,7 @@ pub fn defensive() -> Defensive {
     // partners passed, so every advance is a two-level pass-or-correct signoff.
     let p = Call::Pass;
     let x = Call::Double;
+    let xx = Call::Redouble;
     match passed_hand_defense() {
         Some(PassedHandDefense::NaturalLandyDouble) => {
             // [P,P,P,1NT,X,P] — advancer picks a major / relays 2♦ (reuse Landy).
@@ -1814,9 +1815,23 @@ pub fn defensive() -> Defensive {
                 &[p, p, p, notrump, x, p, call(2, Strain::Diamonds), p],
                 landy_2d_rebid(),
             );
+            // [P,P,P,1NT,X,XX] — the 1NT side redoubled.  The double is both-majors
+            // TAKEOUT, not penalty, so advancer must still run (sitting is the
+            // 1NTxx disaster) — same major pick / 2♦ relay as over a pass; the
+            // redouble buys no useful extra step for a both-majors hand.
+            d.insert(&[p, p, p, notrump, x, xx], landy_advances(PASSED_LANDY_LO));
+            // [P,P,P,1NT,X,XX,2♦,P] — doubler corrects to the longer major.
+            d.insert(
+                &[p, p, p, notrump, x, xx, call(2, Strain::Diamonds), p],
+                landy_2d_rebid(),
+            );
             // ponytail: no 2NT-ask rebid — the advancer is partner, who also
             // passed in [P,P,P,…], so it is capped below the game-force threshold
             // and the 2NT ask is unreachable.  Add it if that ever changes.
+            // ponytail: the *direct*-seat 15+ penalty double redoubled
+            // ([1NT,X,XX]) is left floored — running from a penalty double is
+            // hand-dependent single-dummy judgment, not the unambiguous run a
+            // takeout double demands.  Author it only with a single-dummy measure.
         }
         Some(PassedHandDefense::Dont) => {
             let c2 = call(2, Strain::Clubs);

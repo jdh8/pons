@@ -1928,6 +1928,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **A passed hand's both-majors double of an opponent's 1NT now escapes the
+  opponents' redouble instead of sitting in `1NTxx`.** The passed-hand
+  `NaturalLandyDouble` is a *takeout* double (both majors, ≥5-4), advanced like
+  Landy `2♣` — but only the `[P,P,P,1NT,X,P]` advance (they pass our double) was
+  authored. When the 1NT side **redoubled** (`[P,P,P,1NT,X,XX]`) the advance fell
+  to the floor, which passed, leaving us in `1NTxx` for a routine −760/−1000. The
+  redoubled node now mirrors the pass case: the advancer runs to the longer major
+  (or `2♦` relay → doubler names the major), since a takeout double must never be
+  left in. Measured against BBA on isolated defense-to-1NT
+  (`bba-match --isolate-defense --our-floor neural-v3`): on the identical
+  2000-board seed the eight `1NTxx` catastrophes drop to **zero** and our defense
+  recovers from **−0.034 → −0.003 IMPs/board** (the entire +63-IMP gain is the
+  penalty-double bucket, −95 → −32); an independent seed scores **+0.043**.
+  `american_neural_v3` inherits the node for free — it is a floored leaf. The
+  *direct*-seat 15+ penalty double redoubled is left to the floor: running from a
+  penalty (not takeout) double is single-dummy judgment, not the unambiguous run
+  a takeout double demands.
 - **`examples/grand-probe` now declares `required-features = ["search"]`** so
   `cargo build --examples` (no features) no longer fails resolving the
   `search`-gated `search_floor`/`american_search_with` imports it uses.
