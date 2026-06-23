@@ -36,6 +36,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `ab-neural-floor` example gains a v3 cost-of-restriction section. The off-crate
   `trainer/` accepts feature version 3 unchanged (it sizes the model from the dump
   sidecar).
+- **First-class GIB double-dummy files: a `gib` tool and a shared codec.** A GIB
+  line is `<West-first PBN>:<20 hex DD digits>` — the double-dummy table cached as
+  free I/O, so a database produced once is reused without ever re-solving. The
+  table codec now lives upstream (`ddss::TrickCountTable::gib`/`from_gib`, ddss
+  0.1.3) next to the existing `hex()`; the new `pons::gib` module adds the
+  line-level `parse_line`/`format_line`; and the new `gib` example wraps them in
+  three subcommands: `read` (pretty-print deal + DD grid), `generate` (deal random
+  boards, solve once, write GIB — the previously-missing encode path), and
+  `verify` (re-solve and confirm every cached tail, exit non-zero on any mismatch).
+  `generate` is deterministic in its `--seed`, so each machine can produce a shard
+  independently and the shards just concatenate (`cat shard-*.txt > all.txt`) — a
+  GIB database needs no online fleet, only `cat`. `eval-calibrate` drops its
+  private `decode_table` for the shared `from_gib`.
+- **The teacher dump captures the cached DD table as a value target, and the
+  trainer learns it.** With `--deals`, `dump-teacher` now appends the board's
+  double-dummy table — re-oriented to the acting seat (`gib::relativized_tricks`,
+  20 floats normalised by 13) — to each row (random boards have no free DD and
+  omit it; sidecar records `dd_len`). The off-crate `trainer/` grows an optional
+  value head (`H → 20`) off the shared trunk that regresses this table by MSE
+  alongside the policy cross-entropy (`--dd-weight`, default 1), giving a
+  policy-plus-value net in one pass. The value head is **train-only**: it is not
+  exported, so the policy weights and the M1.2 parity fixture stay byte-identical.
+  **Impact:** the double-dummy signal that was already sitting unused in the GIB
+  file becomes a free auxiliary target that shapes the shared representation; on a
+  1000-deal v3 dump the held-out DD MSE falls steadily during training with no
+  change to the exported policy.
 
 ### Changed
 

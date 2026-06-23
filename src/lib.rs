@@ -15,6 +15,8 @@
 
 /// Bidding in contract bridge
 pub mod bidding;
+/// GIB hand-record format (deal + cached double-dummy table)
+pub mod gib;
 pub mod scoring;
 /// Statistics
 pub mod stats;

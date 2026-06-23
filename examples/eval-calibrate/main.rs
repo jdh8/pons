@@ -22,6 +22,7 @@
 
 use contract_bridge::eval::{self, HandEvaluator};
 use contract_bridge::{Seat, Strain, Suit};
+use ddss::TrickCountTable;
 use nalgebra as na;
 
 const DEFAULT_PATH: &str = "../ddss-sys/vendor/hands/sol100000.txt";
@@ -37,36 +38,8 @@ const EVALUATORS: [&dyn HandEvaluator<f64>; 7] = [
     &eval::cccc,
 ];
 
-// GIB decode tables (see module docs / parse_GIB): strain slots then declarers.
-const GIB_STRAINS: [Strain; 5] = [
-    Strain::Notrump,
-    Strain::Spades,
-    Strain::Hearts,
-    Strain::Diamonds,
-    Strain::Clubs,
-];
-const GIB_SEATS: [Seat; 4] = [Seat::East, Seat::North, Seat::West, Seat::South];
-
 const PAIRS: [(Seat, Seat); 2] = [(Seat::North, Seat::South), (Seat::East, Seat::West)];
-const NT: usize = Strain::Notrump as usize;
 const MIN_FIT: usize = 8; // suit context conditions on an 8+-card trump fit
-
-/// `tbl[strain as usize][seat as usize]` = double-dummy tricks for that declarer.
-fn decode_table(hex: &[u8]) -> [[u8; 4]; 5] {
-    let mut tbl = [[0u8; 4]; 5];
-    for (s, &strain) in GIB_STRAINS.iter().enumerate() {
-        for (h, &seat) in GIB_SEATS.iter().enumerate() {
-            let raw = (hex[4 * s + h] as char).to_digit(16).unwrap() as u8;
-            let tricks = if matches!(seat, Seat::East | Seat::West) {
-                13 - raw
-            } else {
-                raw
-            };
-            tbl[strain as usize][seat as usize] = tricks;
-        }
-    }
-    tbl
-}
 
 /// Regression summary from the moment matrix `m = Σ vᵥᵀ`, `v = [1, s, d, y]`
 /// where `s = eᴺ + eˢ`, `d = |eᴺ − eˢ|`.
@@ -169,12 +142,13 @@ fn main() {
     for line in text.lines().filter(|l| l.len() == 88) {
         let deal: contract_bridge::FullDeal =
             format!("W:{}", &line[0..67]).parse().expect("parse deal");
-        let tbl = decode_table(&line.as_bytes()[68..88]);
+        let table = TrickCountTable::from_gib(&line.as_bytes()[68..]);
 
         for (a, b) in PAIRS {
             let (ha, hb) = (deal[a], deal[b]);
             // NT target: best of the two declarers
-            let y_nt = tbl[NT][a as usize].max(tbl[NT][b as usize]);
+            let nt = table[Strain::Notrump];
+            let y_nt = nt.get(a).get().max(nt.get(b).get());
             // longest combined suit = the trump fit
             let (mut best, mut best_len) = (Suit::Clubs, 0);
             for suit in Suit::ASC {
@@ -183,7 +157,8 @@ fn main() {
                     (best, best_len) = (suit, len);
                 }
             }
-            let y_suit = tbl[best as usize][a as usize].max(tbl[best as usize][b as usize]);
+            let suit = table[Strain::from(best)];
+            let y_suit = suit.get(a).get().max(suit.get(b).get());
 
             // (context, tricks, included?)
             let contexts = [(0, y_nt, true), (1, y_suit, best_len >= MIN_FIT)];

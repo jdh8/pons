@@ -391,9 +391,9 @@ dependencies = [
 
 [[package]]
 name = "ddss"
-version = "0.1.2"
+version = "0.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e9e94152be8832c5779b15edc9437ccd464bddc64d9ec71fa47e663ee2990565"
+checksum = "2f4417c79ed525c7bfa7118086f616fa8ce4d82755a9c376f7c0a515b860242e"
 dependencies = [
  "arrayvec",
  "bitflags",

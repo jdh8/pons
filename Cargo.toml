@@ -35,7 +35,7 @@ search = ["neural-floor"]
 [dependencies]
 bitflags = "2"
 contract-bridge = { version = "0.1.3", features = ["rand"] }
-ddss = "0.1.2"
+ddss = "0.1.3"
 # Already compiled transitively via contract-bridge's `rand` feature; named here
 # directly so the constrained sampler (AI-bidder M2.1) can take the caller's RNG.
 rand = "0.10"

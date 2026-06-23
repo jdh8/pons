@@ -28,6 +28,10 @@ pub struct Meta {
     pub feature_version: u32,
     pub features_len: usize,
     pub softmax_len: usize,
+    /// Trailing double-dummy regression target per row (20 when the dump was
+    /// fed a GIB file, 0 otherwise). `#[serde(default)]` keeps pre-DD dumps loadable.
+    #[serde(default)]
+    pub dd_len: usize,
     pub row_len: usize,
     pub seed: u64,
     pub rows: u64,
@@ -44,11 +48,16 @@ pub struct Dataset {
     pub features: Vec<f32>,
     /// `rows * SOFTMAX_LEN` floats, row-major (teacher softmax target).
     pub targets: Vec<f32>,
+    /// `rows * dd_len` floats, row-major (per-row double-dummy regression
+    /// target; empty when `dd_len == 0`).
+    pub dd: Vec<f32>,
     /// One tag per row: `1` = contested phase, `0` = constructive.
     pub tags: Vec<u8>,
     pub rows: usize,
     /// Feature-vector length for this dump, read from the sidecar (160 for v1).
     pub features_len: usize,
+    /// Double-dummy target width per row (20, or 0 when absent).
+    pub dd_len: usize,
     pub meta: Meta,
 }
 
@@ -81,10 +90,11 @@ impl Dataset {
                 meta.softmax_len
             );
         }
-        let row_len = features_len + SOFTMAX_LEN;
+        let dd_len = meta.dd_len;
+        let row_len = features_len + SOFTMAX_LEN + dd_len;
         if meta.row_len != row_len {
             bail!(
-                "row_len mismatch: dump {} but features_len {features_len} + softmax_len {SOFTMAX_LEN} = {row_len}",
+                "row_len mismatch: dump {} but features_len {features_len} + softmax_len {SOFTMAX_LEN} + dd_len {dd_len} = {row_len}",
                 meta.row_len
             );
         }
@@ -107,12 +117,14 @@ impl Dataset {
 
         let mut features = Vec::with_capacity(rows * features_len);
         let mut targets = Vec::with_capacity(rows * SOFTMAX_LEN);
+        let mut dd = Vec::with_capacity(rows * dd_len);
         for row in bytes.chunks_exact(row_bytes) {
             let mut floats = row
                 .chunks_exact(4)
                 .map(|b| f32::from_le_bytes([b[0], b[1], b[2], b[3]]));
             features.extend((&mut floats).take(features_len));
-            targets.extend(floats);
+            targets.extend((&mut floats).take(SOFTMAX_LEN));
+            dd.extend(floats);
         }
 
         let tags = load_tags(&tags_path, rows)?;
@@ -120,9 +132,11 @@ impl Dataset {
         Ok(Self {
             features,
             targets,
+            dd,
             tags,
             rows,
             features_len,
+            dd_len,
             meta,
         })
     }

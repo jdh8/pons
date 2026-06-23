@@ -15,12 +15,15 @@
 //!   makes distillation transfer the teacher's near-misses and mixtures.
 //!
 //! Output is a flat little-endian `f32` file — one row of `features_len + 38`
-//! floats — plus a JSON sidecar pinning the feature version, teacher, seed, and
-//! counts (a distilled model is meaningless without its exact feature
-//! extractor; they version together), and a sibling `.tags` file of one `u8`
-//! per row (`1` = contested-phase decision, `0` = constructive) so the trainer
-//! can report held-out agreement split by phase. The Rust/candle trainer reads
-//! the `.f32` with a trivial loader.
+//! floats, plus 20 more when `--deals` supplies a GIB file: that board's cached
+//! double-dummy table, re-oriented to the acting seat
+//! ([`gib::relativized_tricks`]), as a free regression target alongside the
+//! policy. Plus a JSON sidecar pinning the feature version, teacher, seed,
+//! counts, and `dd_len` (a distilled model is meaningless without its exact
+//! feature extractor; they version together), and a sibling `.tags` file of one
+//! `u8` per row (`1` = contested-phase decision, `0` = constructive) so the
+//! trainer can report held-out agreement split by phase. The Rust/candle trainer
+//! reads the `.f32` with a trivial loader.
 //!
 //! ```text
 //! cargo run --release --example dump-teacher -- --boards 100000 --seed 1
@@ -35,6 +38,7 @@ use clap::Parser;
 use contract_bridge::auction::{Auction, Call};
 use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Seat};
+use ddss::TrickCountTable;
 use pons::american;
 use pons::bidding::context::{Context, relative};
 use pons::bidding::features::{
@@ -42,6 +46,7 @@ use pons::bidding::features::{
     FEATURES_VERSION_V3, features, features_v2, features_v3,
 };
 use pons::bidding::{Family, Phase, System};
+use pons::gib;
 use rand::rngs::StdRng;
 use rand::{RngExt, SeedableRng};
 use std::collections::BTreeMap;
@@ -65,8 +70,9 @@ struct Args {
     features_version: u32,
     /// Optional GIB deal file (e.g. sol100000.txt): bid out every deal in it
     /// instead of random boards. Each line is `<PBN, West-first>:<20 hex DD>`;
-    /// only the PBN prefix is used. Dealer and vulnerability are still drawn
-    /// from the seeded RNG per board.
+    /// the cached DD table becomes a 20-float per-row regression target (random
+    /// boards have no free DD, so they omit it). Dealer and vulnerability are
+    /// still drawn from the seeded RNG per board.
     #[arg(long)]
     deals: Option<String>,
     /// Output path stem; writes `<out>.f32` and `<out>.json`
@@ -93,7 +99,9 @@ fn main() -> std::io::Result<()> {
             std::process::exit(2);
         }
     };
-    let row_len = features_len + SOFTMAX_LEN;
+    // DD label only exists when deals come from a GIB file (cached, no solving).
+    let dd_len = if args.deals.is_some() { 20 } else { 0 };
+    let row_len = features_len + SOFTMAX_LEN + dd_len;
     let pair = american();
     // Both sides play the same system; a Stance routes by auction phase, so one
     // suffices for whichever seat is to act (vulnerability passed in relative).
@@ -112,9 +120,10 @@ fn main() -> std::io::Result<()> {
     let mut call_hist: BTreeMap<String, u64> = BTreeMap::new();
     let mut row = vec![0f32; row_len];
 
-    // Deal source: every deal in `--deals` (the 100K GIB file), else random
-    // boards. Dealer/vulnerability are drawn from the seeded RNG either way.
-    let file_deals: Vec<FullDeal> = match &args.deals {
+    // Deal source: every deal + cached DD table in `--deals` (the 100K GIB
+    // file), else random boards (no DD). Dealer/vulnerability come from the
+    // seeded RNG either way.
+    let file_deals: Vec<(FullDeal, TrickCountTable)> = match &args.deals {
         Some(path) => load_deals(path)?,
         None => Vec::new(),
     };
@@ -126,11 +135,11 @@ fn main() -> std::io::Result<()> {
     let mut file_iter = file_deals.iter().copied();
 
     for _ in 0..n_boards {
-        // File deals when `--deals` is set (n_boards == file_deals.len()), else a
-        // fresh random board. Dealer/vulnerability come from the seeded RNG either way.
-        let deal = match file_iter.next() {
-            Some(deal) => deal,
-            None => full_deal(&mut rng),
+        // File deals (with their DD table) when `--deals` is set, else a fresh
+        // random board with no table.
+        let (deal, table) = match file_iter.next() {
+            Some((deal, table)) => (deal, Some(table)),
+            None => (full_deal(&mut rng), None),
         };
         let dealer = rng.random_range(0..4usize);
         let vul = VULS[rng.random_range(0..4usize)];
@@ -159,7 +168,7 @@ fn main() -> std::io::Result<()> {
                 continue;
             };
 
-            // Record the row: features ++ softmax.
+            // Record the row: features ++ softmax (++ DD label when present).
             let context = Context::new(rel, &auction);
             let feats = match feature_version {
                 FEATURES_VERSION_V2 => features_v2(hand, &context),
@@ -167,7 +176,11 @@ fn main() -> std::io::Result<()> {
                 _ => features(hand, &context),
             };
             row[..features_len].copy_from_slice(&feats);
-            row[features_len..].copy_from_slice(&softmax[..]);
+            row[features_len..features_len + SOFTMAX_LEN].copy_from_slice(&softmax[..]);
+            if let Some(table) = &table {
+                row[features_len + SOFTMAX_LEN..]
+                    .copy_from_slice(&gib::relativized_tricks(table, seat));
+            }
             for value in &row {
                 writer.write_all(&value.to_le_bytes())?;
             }
@@ -192,10 +205,15 @@ fn main() -> std::io::Result<()> {
         "feature_version": feature_version,
         "features_len": features_len,
         "softmax_len": SOFTMAX_LEN,
+        "dd_len": dd_len,
         "row_len": row_len,
         "row_bytes": row_len * 4,
         "dtype": "f32-le",
-        "layout": format!("row = [{features_len} features][{SOFTMAX_LEN} teacher_softmax]"),
+        "layout": if dd_len > 0 {
+            format!("row = [{features_len} features][{SOFTMAX_LEN} teacher_softmax][{dd_len} dd_tricks]")
+        } else {
+            format!("row = [{features_len} features][{SOFTMAX_LEN} teacher_softmax]")
+        },
         "tags": "sibling .tags file: one u8 per row, 1 = contested phase, 0 = constructive",
         "teacher": "american()",
         "deals": args.deals.as_deref().unwrap_or("random"),
@@ -241,23 +259,12 @@ fn argmax_legal(logits: &pons::bidding::array::Logits) -> Call {
         .map_or(Call::Pass, |(call, _)| call)
 }
 
-/// Load every deal from a GIB solution file (e.g. `sol100000.txt`).
-///
-/// Each line is `<67-char PBN, West-first>:<20 hex DD digits>`; we use only the
-/// PBN prefix (the double-dummy digits are irrelevant when cloning `american()`)
-/// and prepend `W:` so it parses as a dealer-tagged PBN deal — exactly as
-/// `examples/eval-calibrate` does.
-fn load_deals(path: &str) -> std::io::Result<Vec<FullDeal>> {
+/// Load every deal and its cached double-dummy table from a GIB solution file
+/// (e.g. `sol100000.txt`); see [`pons::gib::parse_line`].
+fn load_deals(path: &str) -> std::io::Result<Vec<(FullDeal, TrickCountTable)>> {
     let text = std::fs::read_to_string(path)?;
-    let deals: Vec<FullDeal> = text
-        .lines()
-        .filter(|line| line.len() == 88)
-        .map(|line| {
-            format!("W:{}", &line[0..67])
-                .parse()
-                .expect("GIB line is a valid PBN deal")
-        })
-        .collect();
+    let deals: Vec<(FullDeal, TrickCountTable)> =
+        text.lines().filter_map(gib::parse_line).collect();
     eprintln!("teacher-dump: loaded {} deals from {path}", deals.len());
     Ok(deals)
 }

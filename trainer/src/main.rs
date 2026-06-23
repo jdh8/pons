@@ -50,6 +50,10 @@ struct Args {
     /// Number of (features, logits) rows to dump as the M1.2 parity fixture
     #[arg(long, default_value_t = 8)]
     fixture: usize,
+    /// Weight on the value-head DD-regression loss (only when the dump carries a
+    /// DD target); the policy cross-entropy always has weight 1.
+    #[arg(long, default_value_t = 1.0)]
+    dd_weight: f64,
 }
 
 /// Held-out metrics, split by the constructive/contested tag.
@@ -60,6 +64,8 @@ struct Eval {
     contested: f32,
     n_constructive: usize,
     n_contested: usize,
+    /// Value-head DD mean-squared error, if the head is present.
+    dd_mse: Option<f32>,
 }
 
 fn main() -> Result<()> {
@@ -90,9 +96,18 @@ fn main() -> Result<()> {
     let yval = slice(&ds.targets, ntrain, nval, SOFTMAX_LEN)?;
     let val_tags = &ds.tags[ntrain..];
 
+    // Optional DD regression target (present iff the dump was fed a GIB file).
+    let dd_dim = ds.dd_len;
+    let ddtrain = (dd_dim > 0)
+        .then(|| slice(&ds.dd, 0, ntrain, dd_dim))
+        .transpose()?;
+    let ddval = (dd_dim > 0)
+        .then(|| slice(&ds.dd, ntrain, nval, dd_dim))
+        .transpose()?;
+
     let varmap = VarMap::new();
     let vb = VarBuilder::from_varmap(&varmap, DType::F32, &device);
-    let model = Mlp::new(features_len, args.hidden, SOFTMAX_LEN, vb)?;
+    let model = Mlp::new(features_len, args.hidden, SOFTMAX_LEN, dd_dim, vb)?;
     let mut opt = AdamW::new(
         varmap.all_vars(),
         ParamsAdamW {
@@ -108,19 +123,28 @@ fn main() -> Result<()> {
             let len = args.batch.min(ntrain - start);
             let xb = xtrain.narrow(0, start, len)?;
             let yb = ytrain.narrow(0, start, len)?;
-            let logits = model.forward(&xb)?;
+            let (logits, value) = model.forward(&xb)?;
             let logp = candle_nn::ops::log_softmax(&logits, D::Minus1)?;
             // Soft-target cross-entropy: -mean_b Σ_c teacher · log_softmax(student).
-            let loss = yb.mul(&logp)?.sum(D::Minus1)?.mean(0)?.neg()?;
+            let mut loss = yb.mul(&logp)?.sum(D::Minus1)?.mean(0)?.neg()?;
+            // Auxiliary value head: MSE to the cached DD table.
+            if let (Some(value), Some(ddtrain)) = (value, &ddtrain) {
+                let ddb = ddtrain.narrow(0, start, len)?;
+                let mse = value.sub(&ddb)?.sqr()?.mean_all()?;
+                loss = (loss + (mse * args.dd_weight)?)?;
+            }
             opt.backward_step(&loss)?;
             running += loss.to_scalar::<f32>()?;
             steps += 1;
             start += len;
         }
         if epoch == 1 || epoch % 10 == 0 || epoch == args.epochs {
-            let e = evaluate(&model, &xval, &yval, val_tags)?;
+            let e = evaluate(&model, &xval, &yval, ddval.as_ref(), val_tags)?;
+            let dd = e
+                .dd_mse
+                .map_or(String::new(), |m| format!("  val_dd_mse {m:.4}"));
             eprintln!(
-                "epoch {epoch:>4}: train_ce {:.4}  val_ce {:.4}  top1 {:.1}%  \
+                "epoch {epoch:>4}: train_loss {:.4}  val_ce {:.4}  top1 {:.1}%{dd}  \
                  (constructive {:.1}% / {}, contested {:.1}% / {})",
                 running / steps as f32,
                 e.loss,
@@ -133,7 +157,7 @@ fn main() -> Result<()> {
         }
     }
 
-    let final_eval = evaluate(&model, &xval, &yval, val_tags)?;
+    let final_eval = evaluate(&model, &xval, &yval, ddval.as_ref(), val_tags)?;
     export(
         &args,
         &varmap,
@@ -149,8 +173,8 @@ fn main() -> Result<()> {
 
 /// Forward over the whole validation set; report soft-CE and top-1 agreement
 /// with the teacher, split by the constructive/contested tag.
-fn evaluate(model: &Mlp, x: &Tensor, y: &Tensor, tags: &[u8]) -> Result<Eval> {
-    let logits = model.forward(x)?;
+fn evaluate(model: &Mlp, x: &Tensor, y: &Tensor, dd: Option<&Tensor>, tags: &[u8]) -> Result<Eval> {
+    let (logits, value) = model.forward(x)?;
     let logp = candle_nn::ops::log_softmax(&logits, D::Minus1)?;
     let loss = y
         .mul(&logp)?
@@ -158,6 +182,10 @@ fn evaluate(model: &Mlp, x: &Tensor, y: &Tensor, tags: &[u8]) -> Result<Eval> {
         .mean(0)?
         .neg()?
         .to_scalar::<f32>()?;
+    let dd_mse = match (value, dd) {
+        (Some(value), Some(dd)) => Some(value.sub(dd)?.sqr()?.mean_all()?.to_scalar::<f32>()?),
+        _ => None,
+    };
     let pred = logits.argmax(D::Minus1)?.to_vec1::<u32>()?;
     let gold = y.argmax(D::Minus1)?.to_vec1::<u32>()?;
 
@@ -181,6 +209,7 @@ fn evaluate(model: &Mlp, x: &Tensor, y: &Tensor, tags: &[u8]) -> Result<Eval> {
         contested: frac(hit1, n1),
         n_constructive: n0,
         n_contested: n1,
+        dd_mse,
     })
 }
 
@@ -251,6 +280,9 @@ fn export(
         "val_top1_overall": eval.overall,
         "val_top1_constructive": eval.constructive,
         "val_top1_contested": eval.contested,
+        "dd_len": ds.dd_len,
+        "dd_weight": args.dd_weight,
+        "val_dd_mse": eval.dd_mse,
     });
     std::fs::write(format!("{stem}.json"), format!("{sidecar:#}\n"))?;
 
@@ -263,7 +295,7 @@ fn export(
             "feature_version": ds.meta.feature_version,
             "rows": k,
             "features": xf.to_vec2::<f32>()?,
-            "logits": model.forward(&xf)?.to_vec2::<f32>()?,
+            "logits": model.forward(&xf)?.0.to_vec2::<f32>()?,
         });
         std::fs::write(format!("{stem}.fixture.json"), format!("{fixture:#}\n"))?;
     }
