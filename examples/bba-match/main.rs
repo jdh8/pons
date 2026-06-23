@@ -112,6 +112,14 @@ struct Args {
     /// the boards UvU does not touch are identical and cancel); unset = random
     #[arg(long)]
     seed: Option<u64>,
+
+    /// Read a `(2♦)` overcall of our 1NT as a Multi (an unknown major) and use our
+    /// Multi counter-defense.  BBA's 2/1 card overcalls 1NT with Multi-Landy, whose
+    /// 2♦ *is* a Multi, so this is the live test — pair with
+    /// `--their-conv "Multi-Landy=1"` to be sure BBA bids it.  Seed-pair an on/off
+    /// run to isolate it (the boards it does not touch cancel).
+    #[arg(long, default_value_t = false)]
+    defense_2d_multi: bool,
 }
 
 /// Parse a `NAME=0|1` convention override for `--our-conv` / `--their-conv`
@@ -540,6 +548,9 @@ fn main() -> anyhow::Result<()> {
         pons::bidding::american::set_uvu_cue_floor(args.uvu_cue_floor);
         pons::bidding::instinct::set_uvu_encircle(true);
     }
+    // Book-construction TLS (responder structure over our overcalled 1NT), baked
+    // into `our_floor` below — like `set_uvu`, no per-worker reset needed.
+    pons::bidding::american::set_defense_to_2d_multi(args.defense_2d_multi);
     let our_floor = american().against(Family::NATURAL);
     let our_oracle = match args.our_system {
         Some(system) => Some(BbaOracle::load(&path, system, args.our_conv.clone())?),

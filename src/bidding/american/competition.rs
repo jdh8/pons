@@ -435,6 +435,32 @@ fn natural_floor_pts() -> u8 {
     NATURAL_FLOOR.with(Cell::get).1
 }
 
+thread_local! {
+    /// Whether responder reads a `(2♦)` overcall of our `1NT` as a **Multi** (an
+    /// unknown single-suited major) and answers with the Multi counter-defense
+    /// ([`multi_responder`]) instead of the natural-diamond Transfer/Lebensohl
+    /// package. Off by default — opt-in pending the A/B. It overrides only the
+    /// `(2♦)` responder node; the shared `2NT` relay machinery is unchanged. See
+    /// `docs/ai-bidder/bba-multi-2d.md`.
+    static DEFENSE_2D_MULTI: Cell<bool> = const { Cell::new(false) };
+}
+
+/// Read a `(2♦)` overcall of our `1NT` as a **Multi** (an unknown single-suited
+/// major) and answer with the Multi counter-defense, for books built *after*
+/// this call (thread-local, read once at book-construction time)
+///
+/// Distilled from BBA's Multi-Landy counter (`docs/ai-bidder/bba-multi-2d.md`):
+/// double = values, everything else natural. Off by default; faithful for the A/B
+/// against BBA, whose `2♦` over our `1NT` is always a Multi.
+pub fn set_defense_to_2d_multi(on: bool) {
+    DEFENSE_2D_MULTI.with(|cell| cell.set(on));
+}
+
+/// Whether the `(2♦)`-as-Multi counter-defense is engaged
+fn defense_2d_multi() -> bool {
+    DEFENSE_2D_MULTI.with(Cell::get)
+}
+
 /// The single unbid major when `over` is itself a major (the other major)
 ///
 /// `None` when `over` is a minor (then both majors are unbid) — the stopper-split
@@ -687,6 +713,53 @@ pub(super) fn lebensohl_responder(over: Suit) -> Rules {
     rules = rules.rule(Bid::new(2, Strain::Notrump), 1.4, points(..=9) & long_suit);
 
     // Pass — weak, nothing constructive to say.
+    rules.rule(Call::Pass, 0.0, hcp(0..))
+}
+
+/// Responder's counter-defense after `1NT − (2♦)` when the `2♦` is read as a
+/// **Multi** (an unknown single-suited major), engaged by
+/// [`set_defense_to_2d_multi`]
+///
+/// Distilled from BBA's Multi-Landy counter (`docs/ai-bidder/bba-multi-2d.md`):
+/// **double = values / takeout** of the unknown major (BBA's 41% workhorse), and
+/// everything else **natural**. Unlike the natural-diamond treatments, both
+/// majors are biddable naturally at the 2 level and `2♦` steals no major room, so
+/// there is no Stayman cue — the diamond bid that would be the cue is just natural
+/// diamonds. The `2NT` relay and its `3♣` completion are the shared Lebensohl
+/// machinery (registered for `(2♦)` regardless of this toggle), so weak
+/// club/diamond one-suiters keep their sign-off.
+fn multi_responder() -> Rules {
+    let over = Suit::Diamonds; // the call we sit over; their real suit is a major
+    let mut rules = Rules::new();
+
+    // X = values / takeout of the unknown major — BBA's backbone (41%). Floored
+    // at 8 (a touch above BBA's loose ~5) for doubled-contract discipline.
+    rules = rules.rule(Call::Double, 1.55, points(8..));
+
+    // Natural forcing 3-level single-suiter (incl. natural 3♦ — diamonds is not
+    // their suit, so no cue).
+    for s in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
+        let strain = Strain::from(s);
+        rules = rules.rule(Bid::new(3, strain), 1.8, len(s, 5..) & points(10..));
+    }
+
+    // Direct 3NT to play (default toggles → plain game values).
+    rules = author_direct_3nt(rules, 1.7, over);
+
+    // Natural weak 2-level major — both majors clear the `2♦` overcall.
+    for s in [Suit::Hearts, Suit::Spades] {
+        let strain = Strain::from(s);
+        rules = rules.rule(
+            Bid::new(2, strain),
+            1.5,
+            len(s, 5..) & points(..=9) & hcp(natural_floor_hcp()..) & points(natural_floor_pts()..),
+        );
+    }
+
+    // 2NT = Lebensohl relay to 3♣ (weak long minor / suit below the majors).
+    let long_suit = lebensohl_relay_shape(over);
+    rules = rules.rule(Bid::new(2, Strain::Notrump), 1.4, points(..=9) & long_suit);
+
     rules.rule(Call::Pass, 0.0, hcp(0..))
 }
 
@@ -1428,6 +1501,7 @@ pub fn competition() -> Competitive {
 
             // Responder's first action: the uncovered suffix is exactly their overcall.
             let responder = match style {
+                _ if over == Suit::Diamonds && defense_2d_multi() => multi_responder(),
                 LebensohlStyle::Transfer if over == Suit::Diamonds => {
                     transfer_stayman_2d_responder()
                 }

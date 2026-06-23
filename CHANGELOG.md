@@ -118,6 +118,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Multi counter-defense over our `1NT − (2♦)` (opt-in, `set_defense_to_2d_multi`).**
+  BBA's 2/1 card defends a 1NT opening with Multi-Landy, whose `2♦` is a *Multi* —
+  an unknown single-suited major (confirmed by the probe below). Our default `(2♦)`
+  handling (the Transfer/Smolen package) instead reads it as **natural diamonds**,
+  which is wrong-sided against a hand that actually holds a major. The new
+  `set_defense_to_2d_multi` knob (**default off**) swaps responder's `(2♦)` action
+  in `competition.rs` for a Multi-aware set distilled from BBA's own counter
+  (`docs/ai-bidder/bba-multi-2d.md`): **`X` = values / takeout** of the unknown
+  major (BBA's 41 %-of-the-time workhorse), natural weak `2♥`/`2♠`, forcing natural
+  3-level suits (including a natural `3♦` — diamonds is not their suit, so no
+  Stayman cue), the shared `2NT` Lebensohl relay, `3NT` to play, else Pass. Wired
+  into `examples/bba-match` as `--defense-2d-multi` (pair with
+  `--their-conv "Multi-Landy=1"`, so BBA actually bids the Multi). Kept **opt-in**:
+  the obstruction-wall prior says competitive/defensive conventions usually do not
+  clear plain DD, and much of the Multi-awareness is DD-blind right-siding; a
+  large-N A/B is the gate for any promotion. A `tests/american_competition.rs` unit
+  test pins the behavior (a values hand doubles only with the toggle on).
+
+- **`examples/probe-bba-constraints` — distill any BBA convention into the DSL.**
+  Sample-and-probe against the real EPBot engine (the union of `probe-bba-1nt`'s FFI
+  recipe and `probe-extract-constraints`'s renderer): deal random actor hands, drive
+  BBA for a fixed `(seat, auction)`, bucket each hand by the call it returns, and
+  render each bucket as a candidate DSL `sketch:`. Three `--mode`s read the
+  Multi-Landy `2♦` structure — `multi` (the overcaller), `advance` (the
+  pass-or-correct relay that resolves the major), `counter` (BBA's own defense to
+  the Multi, vulnerability-split). Multi-Landy is forced on all seats so BBA both
+  bids and interprets the `2♦` as a Multi. The distilled constraints are written up
+  in `docs/ai-bidder/bba-multi-2d.md`.
+
 - **Unusual vs Unusual over our `1NT − (2NT)` (default on).** When an opponent
   overcalls our 1NT with a both-minors `2NT` (e.g. BBA's Multi-Landy), responder
   previously had no authored call and the auction fell to the instinct floor

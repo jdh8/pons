@@ -171,3 +171,34 @@ fn test_answer_negative_double_bids_other_major() {
         call(2, Strain::Spades),
     );
 }
+
+// ---------------------------------------------------------------------------
+// Section 5: the (2♦)-as-Multi counter-defense toggle (set_defense_to_2d_multi)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_multi_2d_double_is_values() {
+    // 1NT – (2♦) – ?: 9 HCP, no five-card suit, four diamonds. Default (off) reads
+    // 2♦ as natural diamonds, so the takeout double (≤3 diamonds) cannot fire and
+    // responder does not double. With the Multi counter-defense on, 2♦ shows an
+    // unknown major and this values hand takes the workhorse double. The toggle is
+    // read at book construction, so set it before building each stance.
+    let auction = &[call(1, Strain::Notrump), call(2, Strain::Diamonds)];
+    let hand = "KJ4.Q73.J762.Q53";
+
+    pons::bidding::american::set_defense_to_2d_multi(false);
+    let off = best_call(&stance(), auction, hand);
+
+    pons::bidding::american::set_defense_to_2d_multi(true);
+    let on = best_call(&stance(), auction, hand);
+
+    // Restore the default so the toggle never leaks to another test on this thread.
+    pons::bidding::american::set_defense_to_2d_multi(false);
+
+    assert_eq!(
+        on,
+        Call::Double,
+        "Multi counter-defense doubles with values"
+    );
+    assert_ne!(off, Call::Double, "the natural-diamond default does not");
+}
