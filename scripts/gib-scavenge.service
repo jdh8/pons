@@ -1,0 +1,47 @@
+# Background DD-database scavenger: run the one-shot `gib generate` under the
+# idle scheduling class, restarting with a fresh random seed after each shard, so
+# it produces a continuous stream of disjoint, `cat`-mergeable GIB files while
+# yielding instantly to any other user (see docs/shared-machine-data-gen.md).
+#
+# Install (per-user, zero privilege):
+#   cargo build --release --example gib              # build the binary the unit runs
+#   mkdir -p ~/.config/systemd/user
+#   cp scripts/gib-scavenge.service ~/.config/systemd/user/
+#   systemctl --user daemon-reload
+#   systemctl --user enable --now gib-scavenge
+#   loginctl enable-linger "$USER"                   # keep running while logged out
+#
+# Shards land in ~/gib-shards/shard-<seed>.txt — merge any time, order-independent:
+#   cat ~/gib-shards/shard-*.txt > all.txt
+# Status / live log:
+#   systemctl --user status gib-scavenge ; journalctl --user -u gib-scavenge -f
+# Stop / uninstall:
+#   systemctl --user disable --now gib-scavenge
+#
+# System-wide instead of per-user: drop in /etc/systemd/system/, replace %h with an
+# absolute path, add `User=` + `WantedBy=multi-user.target`, and `systemctl enable`.
+
+[Unit]
+Description=Scavenge idle CPU to grow a GIB double-dummy database
+After=network.target
+# Perpetual scavenger: never give up after rapid restarts.
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+# Each (re)start picks a fresh 64-bit seed -> a new disjoint shard named by seed
+# (still reproducible from it). solve_deals already uses every core for ONE shard,
+# so keep this a SINGLE instance — parallel scavengers thrash (see the docs).
+ExecStartPre=/bin/mkdir -p %h/gib-shards
+ExecStart=/bin/sh -c 'S=$(od -An -tu8 -N8 /dev/urandom | tr -d " "); exec %h/src/pons/target/release/examples/gib generate --count 100000 --seed "$S" --out %h/gib-shards/shard-$S.txt'
+# Idle class: runs only on otherwise-free cores and yields the instant a normal-
+# priority task wakes. Same policy as scripts/idle-run.sh, expressed natively.
+Nice=10
+CPUSchedulingPolicy=idle
+IOSchedulingClass=idle
+# After a shard completes (or on crash / reboot) start the next one.
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

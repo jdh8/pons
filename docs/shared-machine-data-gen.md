@@ -131,6 +131,25 @@ cheaply on a single machine. Seed-shardable `.f32` dumps (`dump-search`, …) me
 the same way — concatenate the per-seed `.f32`/`.tags` in seed order, keeping the
 sidecars' feature/layout/SHA in agreement.
 
+### Continuous scavenging (systemd)
+
+To keep a fleet box growing the database whenever it's idle, supervise the
+one-shot `generate` with [`scripts/gib-scavenge.service`](../scripts/gib-scavenge.service)
+instead of writing a daemon: it runs `gib generate` in the `SCHED_IDLE` class and,
+via `Restart=always`, starts the next shard with a fresh random 64-bit seed each
+time. Shards are named `shard-<seed>.txt` (so they stay reproducible) and land in
+`~/gib-shards`; `cat` them whenever you want a merged database.
+
+```sh
+cargo build --release --example gib
+cp scripts/gib-scavenge.service ~/.config/systemd/user/
+systemctl --user daemon-reload && systemctl --user enable --now gib-scavenge
+loginctl enable-linger "$USER"          # keep running across logout/reboot
+```
+
+The unit is single-instance by design — one shard already saturates every core,
+so don't run several (the parallel-thrash caveat above applies to scavengers too).
+
 ## Etiquette
 
 Check who is on first (`w` / `who`), prefer nights/weekends for full-throttle
