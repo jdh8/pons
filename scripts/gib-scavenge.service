@@ -29,11 +29,11 @@ StartLimitIntervalSec=0
 
 [Service]
 Type=simple
-# Each (re)start picks a fresh 64-bit seed -> a new disjoint shard named by seed
-# (still reproducible from it). solve_deals already uses every core for ONE shard,
-# so keep this a SINGLE instance — parallel scavengers thrash (see the docs).
-ExecStartPre=/bin/mkdir -p %h/gib-shards
-ExecStart=/bin/sh -c 'S=$(od -An -tu8 -N8 /dev/urandom | tr -d " "); exec %h/src/pons/target/release/examples/gib generate --count 100000 --seed "$S" --out %h/gib-shards/shard-$S.txt'
+# The loop, the random per-shard seed, and the low-disk pause live in the script;
+# solve_deals already uses every core for ONE shard, so keep this a SINGLE
+# instance — parallel scavengers thrash (see the docs). Override the pause
+# threshold or output dir with e.g. Environment=GIB_MIN_FREE_KIB=10485760.
+ExecStart=%h/src/pons/scripts/gib-scavenge.sh
 # Idle class: runs only on otherwise-free cores and yields the instant a normal-
 # priority task wakes. Same policy as scripts/idle-run.sh, expressed natively.
 Nice=10

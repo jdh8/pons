@@ -149,6 +149,11 @@ loginctl enable-linger "$USER"          # keep running across logout/reboot
 
 The unit is single-instance by design — one shard already saturates every core,
 so don't run several (the parallel-thrash caveat above applies to scavengers too).
+It also **pauses itself when the disk gets low** (`GIB_MIN_FREE_KIB`, default
+~20 GiB free) so a forgotten scavenger can't fill a shared `/home`; it deletes
+nothing and resumes once you merge and remove old shards. Each pass is a fresh
+~8.9 MB file, so it grows without bound until either you clean up or the guard
+trips — `cat … > all.txt && rm ~/gib-shards/shard-*.txt` is the whole lifecycle.
 
 ## Etiquette
 
