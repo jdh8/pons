@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.10.0] — Unreleased
 
+### Added
+
+- **`american_neural_v3()` — a distilled neural floor that bids from *disclosable*
+  information only.** Duplicate-bridge ethics require full disclosure: a call is
+  explained to opponents by the partnership's *agreement*, never by the bidder's
+  specific cards. So the new `features::features_v3` extractor (88 floats) drops
+  every card-specific value the v1 vector carried (the 13 per-suit rank bits, the
+  top-honor and stopper flags) and keeps only what a bidder could lawfully
+  disclose: per-suit length and HCP (suit quality), global HCP and shape
+  (`points − HCP`), and the public-auction / inferred-range / vulnerability
+  context shared byte-for-byte with v1. `neural::classify_v3` and the
+  `NeuralFloorV3` safety shell (same forced-rail delegation + legality mask as the
+  other learned floors) wire it in. Gated behind `neural-floor`; `american()` and
+  the v1/v2/search floors are untouched. The net was distilled from `american()`
+  over the 100 000-deal GIB database (`ddss-sys/vendor/hands/sol100000.txt`).
+  **Impact:** the ethical restriction is essentially free. Held-out top-1
+  agreement with `american()` is **95.3%** (above v1's 93.8% — the disclosable
+  summary is a sufficient statistic, and dropping card-detail noise generalises
+  better). Against BBA's 2/1 over 1000 boards it scores **−1.94 IMPs/board**,
+  indistinguishable from the full-information `american()` floor (−2.10); a direct
+  DD duplicate vs `american()` costs only **−0.057 IMPs/board** (diverges on 9% of
+  boards) while still beating bare books by +0.81.
+- **Tooling for the v3 net:** `dump-teacher` gains `--features-version 3` and a
+  `--deals <file>` source that bids out every deal in a GIB solution file (e.g.
+  `sol100000.txt`) instead of random boards; `bba-match` gains
+  `--our-floor {american|neural-v3}` to seat the new net against BBA; and the
+  `ab-neural-floor` example gains a v3 cost-of-restriction section. The off-crate
+  `trainer/` accepts feature version 3 unchanged (it sizes the model from the dump
+  sidecar).
+
 ### Changed
 
 - **The penalty double of an opponent's 1NT is now balanced-only (`DoubleShape::Balanced`),

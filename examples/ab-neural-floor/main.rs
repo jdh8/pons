@@ -40,7 +40,10 @@ use pons::bidding::american::bare_american;
 use pons::bidding::context::relative;
 use pons::bidding::{Family, Stance, System};
 use pons::scoring::{final_contract, imps, ns_score_contract};
-use pons::{Accumulator, american, american_neural, american_neural_search, american_neural_v2};
+use pons::{
+    Accumulator, american, american_neural, american_neural_search, american_neural_v2,
+    american_neural_v3,
+};
 
 /// Measure the distilled neural floor: A/B duplicate matches with intervals
 #[derive(Parser)]
@@ -253,12 +256,14 @@ fn main() {
     let neural = american_neural().against(Family::NATURAL);
     let neural_v2 = american_neural_v2().against(Family::NATURAL);
     let neural_search = american_neural_search().against(Family::NATURAL);
+    let neural_v3 = american_neural_v3().against(Family::NATURAL);
     let deterministic = american().against(Family::NATURAL);
     let bare = bare_american().against(Family::NATURAL);
 
     println!(
-        "AI-bidder M1.4 / M5.1 / M3.2: distilled neural floors (v1, tag-augmented v2, \
-         and the search-target net) vs the deterministic floor and bare books\n\
+        "AI-bidder M1.4 / M5.1 / M3.2 / v3: distilled neural floors (v1, tag-augmented v2, \
+         the search-target net, and the restrictive disclosable-only v3) vs the \
+         deterministic floor and bare books\n\
          ({} boards per match; thousands needed for a tight interval)",
         args.count,
     );
@@ -379,6 +384,37 @@ fn main() {
     report(
         "search-target net vs bare books",
         &search_vs_bare,
+        args.count,
+        args.vulnerability,
+        0.5,
+    );
+
+    // ── v3: the restrictive *disclosable-only* net ──────────────────────────
+    // The cost-of-restriction headline: v3 sees only what a bidder could lawfully
+    // disclose (HCP, shape, suit length/quality — no specific cards), so it cannot
+    // fully clone `american()`.  Target 0 = parity; a CI *below* 0 is EXPECTED and
+    // is the price of dropping undisclosable card detail — not a regression.
+    let v3_vs_det = duplicate_match(
+        &neural_v3,
+        &deterministic,
+        args.count,
+        args.vulnerability,
+        &mut rng,
+    );
+    report(
+        "v3 (disclosable-only) net vs deterministic floor — the disclosure cost",
+        &v3_vs_det,
+        args.count,
+        args.vulnerability,
+        0.0,
+    );
+
+    // Does the disclosable-only net still beat passing out off-book?  If it keeps
+    // most of the floor's worth, this stays near +0.5 vs bare books.
+    let v3_vs_bare = duplicate_match(&neural_v3, &bare, args.count, args.vulnerability, &mut rng);
+    report(
+        "v3 (disclosable-only) net vs bare books",
+        &v3_vs_bare,
         args.count,
         args.vulnerability,
         0.5,

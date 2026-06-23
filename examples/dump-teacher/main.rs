@@ -1,8 +1,8 @@
 //! Teacher dump (AI-bidder M0.4)
 //!
-//! Bids out random boards with the assembled `american()` system (the
-//! *teacher*) and records, at every decision point, a training row of
-//! `(features, teacher_softmax)`:
+//! Bids out boards — random, or every deal in a GIB file via `--deals` — with
+//! the assembled `american()` system (the *teacher*) and records, at every
+//! decision point, a training row of `(features, teacher_softmax)`:
 //!
 //! - **features** — the feature vector for the hand to act: the 160-float
 //!   v1 vector ([`features`][pons::bidding::features::features]) by default, or
@@ -34,11 +34,12 @@
 use clap::Parser;
 use contract_bridge::auction::{Auction, Call};
 use contract_bridge::deck::full_deal;
-use contract_bridge::{AbsoluteVulnerability, Seat};
+use contract_bridge::{AbsoluteVulnerability, FullDeal, Seat};
 use pons::american;
 use pons::bidding::context::{Context, relative};
 use pons::bidding::features::{
-    FEATURES_LEN, FEATURES_LEN_V2, FEATURES_VERSION, FEATURES_VERSION_V2, features, features_v2,
+    FEATURES_LEN, FEATURES_LEN_V2, FEATURES_LEN_V3, FEATURES_VERSION, FEATURES_VERSION_V2,
+    FEATURES_VERSION_V3, features, features_v2, features_v3,
 };
 use pons::bidding::{Family, Phase, System};
 use rand::rngs::StdRng;
@@ -52,15 +53,22 @@ const SOFTMAX_LEN: usize = 38;
 #[derive(Parser)]
 #[command(about = "Dump (features, teacher_softmax) training rows from american()")]
 struct Args {
-    /// Number of random boards to bid out
+    /// Number of random boards to bid out (ignored when `--deals` is given)
     #[arg(long, default_value_t = 5000)]
     boards: usize,
     /// RNG seed (for reproducibility)
     #[arg(long, default_value_t = 0)]
     seed: u64,
-    /// Feature extractor version: 1 = the 160-float vector, 2 = + the tag block
+    /// Feature extractor version: 1 = the 160-float vector, 2 = + the tag block,
+    /// 3 = the restrictive disclosable-only vector (88 floats)
     #[arg(long, default_value_t = 1)]
     features_version: u32,
+    /// Optional GIB deal file (e.g. sol100000.txt): bid out every deal in it
+    /// instead of random boards. Each line is `<PBN, West-first>:<20 hex DD>`;
+    /// only the PBN prefix is used. Dealer and vulnerability are still drawn
+    /// from the seeded RNG per board.
+    #[arg(long)]
+    deals: Option<String>,
     /// Output path stem; writes `<out>.f32` and `<out>.json`
     #[arg(long, default_value = "target/teacher-data")]
     out: String,
@@ -79,8 +87,9 @@ fn main() -> std::io::Result<()> {
     let (feature_version, features_len) = match args.features_version {
         1 => (FEATURES_VERSION, FEATURES_LEN),
         2 => (FEATURES_VERSION_V2, FEATURES_LEN_V2),
+        3 => (FEATURES_VERSION_V3, FEATURES_LEN_V3),
         other => {
-            eprintln!("teacher-dump: unknown --features-version {other}; use 1 or 2");
+            eprintln!("teacher-dump: unknown --features-version {other}; use 1, 2 or 3");
             std::process::exit(2);
         }
     };
@@ -103,8 +112,26 @@ fn main() -> std::io::Result<()> {
     let mut call_hist: BTreeMap<String, u64> = BTreeMap::new();
     let mut row = vec![0f32; row_len];
 
-    for _ in 0..args.boards {
-        let deal = full_deal(&mut rng);
+    // Deal source: every deal in `--deals` (the 100K GIB file), else random
+    // boards. Dealer/vulnerability are drawn from the seeded RNG either way.
+    let file_deals: Vec<FullDeal> = match &args.deals {
+        Some(path) => load_deals(path)?,
+        None => Vec::new(),
+    };
+    let n_boards = if args.deals.is_some() {
+        file_deals.len()
+    } else {
+        args.boards
+    };
+    let mut file_iter = file_deals.iter().copied();
+
+    for _ in 0..n_boards {
+        // File deals when `--deals` is set (n_boards == file_deals.len()), else a
+        // fresh random board. Dealer/vulnerability come from the seeded RNG either way.
+        let deal = match file_iter.next() {
+            Some(deal) => deal,
+            None => full_deal(&mut rng),
+        };
         let dealer = rng.random_range(0..4usize);
         let vul = VULS[rng.random_range(0..4usize)];
 
@@ -134,10 +161,10 @@ fn main() -> std::io::Result<()> {
 
             // Record the row: features ++ softmax.
             let context = Context::new(rel, &auction);
-            let feats = if feature_version == FEATURES_VERSION_V2 {
-                features_v2(hand, &context)
-            } else {
-                features(hand, &context)
+            let feats = match feature_version {
+                FEATURES_VERSION_V2 => features_v2(hand, &context),
+                FEATURES_VERSION_V3 => features_v3(hand, &context),
+                _ => features(hand, &context),
             };
             row[..features_len].copy_from_slice(&feats);
             row[features_len..].copy_from_slice(&softmax[..]);
@@ -171,9 +198,10 @@ fn main() -> std::io::Result<()> {
         "layout": format!("row = [{features_len} features][{SOFTMAX_LEN} teacher_softmax]"),
         "tags": "sibling .tags file: one u8 per row, 1 = contested phase, 0 = constructive",
         "teacher": "american()",
+        "deals": args.deals.as_deref().unwrap_or("random"),
         "git_sha": git_sha,
         "seed": args.seed,
-        "boards": args.boards,
+        "boards": n_boards,
         "rows": rows,
         "contested_rows": contested,
         "forced_pass_decisions": forced_pass,
@@ -189,9 +217,8 @@ fn main() -> std::io::Result<()> {
     };
     eprintln!(
         "teacher-dump: {rows} rows (feature v{feature_version}, {features_len} features) \
-         from {} boards → {f32_path} ({:.1} MB), \
+         from {n_boards} boards → {f32_path} ({:.1} MB), \
          {contested} contested ({:.0}%), {forced_pass} forced passes.",
-        args.boards,
         (rows as usize * row_len * 4) as f64 / 1e6,
         pct(contested),
     );
@@ -212,6 +239,27 @@ fn argmax_legal(logits: &pons::bidding::array::Logits) -> Call {
         .filter(|(_, l)| l.is_finite())
         .max_by(|a, b| a.1.partial_cmp(b.1).expect("logits are never NaN"))
         .map_or(Call::Pass, |(call, _)| call)
+}
+
+/// Load every deal from a GIB solution file (e.g. `sol100000.txt`).
+///
+/// Each line is `<67-char PBN, West-first>:<20 hex DD digits>`; we use only the
+/// PBN prefix (the double-dummy digits are irrelevant when cloning `american()`)
+/// and prepend `W:` so it parses as a dealer-tagged PBN deal — exactly as
+/// `examples/eval-calibrate` does.
+fn load_deals(path: &str) -> std::io::Result<Vec<FullDeal>> {
+    let text = std::fs::read_to_string(path)?;
+    let deals: Vec<FullDeal> = text
+        .lines()
+        .filter(|line| line.len() == 88)
+        .map(|line| {
+            format!("W:{}", &line[0..67])
+                .parse()
+                .expect("GIB line is a valid PBN deal")
+        })
+        .collect();
+    eprintln!("teacher-dump: loaded {} deals from {path}", deals.len());
+    Ok(deals)
 }
 
 /// Best-effort current commit, for the metadata sidecar; `"unknown"` on failure.

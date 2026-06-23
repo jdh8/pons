@@ -12,7 +12,7 @@
 //! that the arg-max (the chosen call) matches exactly.
 
 use super::array::Logits;
-use super::features::{FEATURES_LEN, FEATURES_LEN_V2};
+use super::features::{FEATURES_LEN, FEATURES_LEN_V2, FEATURES_LEN_V3};
 use std::sync::LazyLock;
 
 /// Shape shared by every distilled floor: hidden width and output (call) width.
@@ -170,6 +170,38 @@ pub fn classify_search(features: &[f32]) -> Logits {
     forward(WEIGHTS_SEARCH_V1.as_slice(), features, IN_V1)
 }
 
+// ── version 3: the restrictive disclosable-only distilled floor (AI-bidder v3) ─
+// Same forward pass and 38-output shape as v1; only the input width (88) and the
+// trained weights differ. Distilled from `american()` over the 100K GIB deals,
+// but the net sees only the *disclosable* hand summary — no card-specific
+// values (see `features::features_v3`). Measures how well the system clones from
+// what a bidder could lawfully disclose.
+
+/// Input width of `american_v3` (= [`FEATURES_LEN_V3`]).
+const IN_V3: usize = FEATURES_LEN_V3;
+
+/// Embedded v3 weights: same layer order as v1, narrower first layer (88 inputs).
+static RAW_V3: &[u8] = include_bytes!("weights/american_v3.f32");
+const _: () = assert!(
+    RAW_V3.len() == total(IN_V3) * 4,
+    "v3 weights artifact size mismatch"
+);
+
+/// v3 weights decoded to `f32` once, on first use.
+static WEIGHTS_V3: LazyLock<Vec<f32>> = LazyLock::new(|| decode(RAW_V3));
+
+/// Evaluate the v3 restrictive-disclosable distilled floor: 88 features → 38
+/// logits, in `Call`-index order. Deterministic — fixed weights, no RNG.
+///
+/// # Panics
+///
+/// Panics if `features.len()` is not the pinned v3 [`FEATURES_LEN_V3`] (88).
+#[must_use]
+pub fn classify_v3(features: &[f32]) -> Logits {
+    assert_eq!(features.len(), IN_V3, "expected {IN_V3} features");
+    forward(WEIGHTS_V3.as_slice(), features, IN_V3)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -241,5 +273,12 @@ mod tests {
             include_str!("weights/american_v1_search.fixture.json"),
             |x| classify_search(x).iter().map(|(_, l)| *l).collect(),
         );
+    }
+
+    #[test]
+    fn matches_candle_fixture_v3() {
+        check_fixture(include_str!("weights/american_v3.fixture.json"), |x| {
+            classify_v3(x).iter().map(|(_, l)| *l).collect()
+        });
     }
 }

@@ -16,9 +16,10 @@ use std::path::Path;
 pub const SOFTMAX_LEN: usize = 38;
 /// Feature-spec versions this trainer understands
 /// (`pons::bidding::features`): v1 is the 160-float vector, v2 adds the tag
-/// block. The actual `features_len` is read from the dump sidecar and the model
-/// input is sized from it, so a v1 dump and a v2 dump both train unchanged.
-pub const SUPPORTED_FEATURE_VERSIONS: [u32; 2] = [1, 2];
+/// block, v3 is the restrictive disclosable-only vector (88 floats). The actual
+/// `features_len` is read from the dump sidecar and the model input is sized
+/// from it, so every supported version trains unchanged.
+pub const SUPPORTED_FEATURE_VERSIONS: [u32; 3] = [1, 2, 3];
 
 /// Fields of the teacher-dump JSON sidecar that we care about (serde ignores
 /// the rest).

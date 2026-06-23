@@ -77,6 +77,12 @@ struct Args {
     #[arg(long)]
     our_system: Option<c_int>,
 
+    /// Which of our authored systems to seat: `american` (default) or
+    /// `neural-v3` (the restrictive disclosable distilled floor; requires the
+    /// `neural-floor` feature).  Ignored when `--our-system` selects an EPBot card.
+    #[arg(long, default_value = "american")]
+    our_floor: String,
+
     /// Force a named BBA convention on/off on *our* side (repeatable), e.g.
     /// `--our-conv "Rubensohl after 1m=1"`.  Only meaningful with `--our-system`.
     #[arg(long = "our-conv", value_parser = parse_override, value_name = "NAME=0|1")]
@@ -635,7 +641,19 @@ fn main() -> anyhow::Result<()> {
             anyhow::anyhow!("--ns-overcall must be LO:HI, got {:?}", args.ns_overcall)
         })?;
     pons::bidding::american::set_natural_overcall_points(oc_lo, oc_hi);
-    let our_floor = american().against(Family::NATURAL);
+    let our_floor = match args.our_floor.as_str() {
+        "american" => american().against(Family::NATURAL),
+        #[cfg(feature = "neural-floor")]
+        "neural-v3" => pons::american_neural_v3().against(Family::NATURAL),
+        other => anyhow::bail!(
+            "--our-floor must be american{}, got {other:?}",
+            if cfg!(feature = "neural-floor") {
+                " or neural-v3"
+            } else {
+                " (neural-v3 needs --features neural-floor)"
+            }
+        ),
+    };
     let our_oracle = match args.our_system {
         Some(system) => Some(BbaOracle::load(&path, system, args.our_conv.clone())?),
         None => None,
@@ -650,7 +668,7 @@ fn main() -> anyhow::Result<()> {
             system_label(system),
             label_overrides(&args.our_conv)
         ),
-        None => "our american floor".into(),
+        None => format!("our {} floor", args.our_floor),
     };
     let their_label = format!(
         "BBA {}{}",

@@ -264,6 +264,25 @@ pub fn american_neural_v2() -> Pair {
     with_floor(bare_american(), super::neural_floor::NeuralFloorV2)
 }
 
+/// The 2/1 pair with the **restrictive disclosable** distilled neural floor (AI-bidder v3)
+///
+/// Exactly [`american_neural`] but for the floor's feature extractor: the net is
+/// fed only the *disclosable* hand summary
+/// ([`features_v3`][crate::bidding::features::features_v3]) — HCP, shape, and
+/// per-suit length and quality, never specific cards — wrapped in the
+/// [`NeuralFloorV3`][crate::bidding::neural_floor::NeuralFloorV3] safety shell
+/// with the same forced-rail delegation.  It learned to clone [`american`] from
+/// what a bidder could lawfully disclose to opponents (full disclosure being core
+/// duplicate ethics), so it never keys on undisclosable card detail.  An added
+/// option, never a replacement: [`american`] stays the baseline.  Bind it against
+/// the opponents' [`Family`] with [`Pair::against`] and seat it the same way.
+/// Gated behind the `neural-floor` feature.
+#[cfg(feature = "neural-floor")]
+#[must_use]
+pub fn american_neural_v3() -> Pair {
+    with_floor(bare_american(), super::neural_floor::NeuralFloorV3)
+}
+
 /// The 2/1 pair with the **search-target** distilled neural floor (AI-bidder M3.2)
 ///
 /// Exactly [`american_neural`] in shape — v1 features, the
