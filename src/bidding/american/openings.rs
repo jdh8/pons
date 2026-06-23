@@ -2,12 +2,36 @@
 
 use super::insert_uncontested;
 use crate::bidding::constraint::{
-    Cons, Constraint, balanced, described, fifths, len, nth_seat, points,
+    Cons, Constraint, balanced, described, fifths, hcp, len, nth_seat, points,
 };
 use crate::bidding::context::Context;
 use crate::bidding::{Rules, Trie};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Hand, Strain, Suit};
+use std::cell::Cell;
+
+thread_local! {
+    /// Whether our side opens a strong balanced 15-17 with 1NT.  Default `true`.
+    static OPEN_ONE_NOTRUMP: Cell<bool> = const { Cell::new(true) };
+    /// Restore the fifths gauge (`fifths(14.5..17.5)`, centre-matched to plain HCP
+    /// 15-17) for the 1NT opening.  Default `false` — the opening gauges plain HCP.
+    static ONE_NOTRUMP_FIFTHS: Cell<bool> = const { Cell::new(false) };
+}
+
+/// Suppress (`false`) or restore (`true`, the default) our own 1NT opening.
+///
+/// With it off, a strong balanced 15-17 opens a minor instead of 1NT, so a
+/// diagnostic can isolate our *defense* to an opponent's 1NT without our own 1NT
+/// openings polluting the duplicate (see `bba-match --no-our-1nt`).
+pub fn set_open_one_notrump(on: bool) {
+    OPEN_ONE_NOTRUMP.with(|cell| cell.set(on));
+}
+
+/// Restore the legacy fifths strength gauge for the 1NT opening (`true`); the
+/// default (`false`) gauges plain HCP 15-17, which opens 1NT a touch more often.
+pub fn set_one_notrump_fifths(on: bool) {
+    ONE_NOTRUMP_FIFTHS.with(|cell| cell.set(on));
+}
 
 /// Which hand shapes the strong 1NT opening admits ([`openings_with`])
 ///
@@ -79,13 +103,32 @@ pub fn openings() -> Rules {
 pub fn openings_with(shape: NotrumpShape) -> Rules {
     let mut rules = Rules::new()
         // Strong, artificial 2♣ — top priority.
-        .rule(Bid::new(2, Strain::Clubs), 3.0, points(22..))
-        // Strong notrumps.
-        .rule(
-            Bid::new(1, Strain::Notrump),
-            2.0,
-            fifths(15.0..18.0) & notrump_shape(shape),
-        )
+        .rule(Bid::new(2, Strain::Clubs), 3.0, points(22..));
+    // Strong 1NT — gated so a diagnostic can suppress our own 1NT opening
+    // (`set_open_one_notrump`); the 15-17 balanced hands then open a minor.
+    if OPEN_ONE_NOTRUMP.with(Cell::get) {
+        // Strength gauged by plain HCP 15-17 by default; `set_one_notrump_fifths`
+        // restores the legacy Andrews' fifths gauge.  Each arm reissues `.rule()`
+        // so the differing constraint types unify to `Rules`.
+        rules = if ONE_NOTRUMP_FIFTHS.with(Cell::get) {
+            // 14.5..17.5 (centre 16), not 15..18 (centre 16.5): fifths sums to 40
+            // over the deck like HCP, so an unbiased "15-17 HCP" gate shares the
+            // plain-HCP band's centre — the old 15..18 was half a point too high.
+            rules.rule(
+                Bid::new(1, Strain::Notrump),
+                2.0,
+                fifths(14.5..17.5) & notrump_shape(shape),
+            )
+        } else {
+            rules.rule(
+                Bid::new(1, Strain::Notrump),
+                2.0,
+                hcp(15..=17) & notrump_shape(shape),
+            )
+        };
+    }
+    rules = rules
+        // Strong 2NT.
         .rule(
             Bid::new(2, Strain::Notrump),
             2.0,
@@ -207,5 +250,21 @@ mod tests {
         assert_eq!(opens(&wide6322, five422_major), one_s);
         assert_eq!(opens(&wide6322, six322_minor), one_nt);
         assert_eq!(opens(&wide6322, six322_major), one_s);
+    }
+
+    #[test]
+    fn suppress_one_notrump_opens_a_minor() {
+        let one_nt = Call::Bid(Bid::new(1, Strain::Notrump));
+        let one_c = Call::Bid(Bid::new(1, Strain::Clubs));
+        let balanced16 = "AQ32.K53.QJ4.A92"; // 4333, 16 HCP — a textbook 1NT opener
+
+        // Default: opens 1NT.
+        assert_eq!(opens(&openings(), balanced16), one_nt);
+
+        // Suppressed: the same hand opens its minor — never 1NT, never Pass.
+        set_open_one_notrump(false);
+        let call = opens(&openings(), balanced16);
+        set_open_one_notrump(true);
+        assert_eq!(call, one_c);
     }
 }

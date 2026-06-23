@@ -9,6 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The strong 1NT opening now gauges plain HCP 15-17 instead of Andrews' fifths.**
+  The shipped `fifths(15.0..18.0)` gate sat at centre 16.5 — half a point above the
+  natural "15-17 HCP" band — so it under-opened 1NT on honor-heavy 15-counts. A
+  seed-paired A/B against BBA's 2/1 (`bba-match --filter-1nt`, 20k boards) gives
+  plain `hcp(15..=17)` **+0.138 (none) / +0.169 (both) IMPs/board** over the old
+  gate, opening ~27% more 1NTs. About half that edge is range bias: a centre-matched
+  `fifths(14.5..17.5)` closes the gap to +0.067 / +0.094, so plain HCP wins on its
+  own merit too. New `american::set_one_notrump_fifths(true)` restores the
+  corrected fifths gauge; `set_open_one_notrump(false)` suppresses the 1NT opening
+  outright (a diagnostic hook — those hands then open a minor).
+
+- **`bba-match` gains 1NT-defense isolation tooling.** `--isolate-defense` keeps only
+  boards where BBA opens 1NT and our pair defends, scoring each against an all-BBA
+  reference table (same BBA opener and responses, only the defender differs) — a
+  clean double-dummy measure of our defense, free of the other-table constructive
+  confound that `--no-our-1nt` leaves. The we-defend report now splits the swing by
+  auction shape (our DIRECT action over 1NT vs the CONTinuation after they respond)
+  and dumps the worst we-defend auctions. Finding: with the opener held constant our
+  defense is ~neutral on DD (−0.09 none / −0.39 both IMPs/board); the leaks are the
+  penalty double and over-competition that gets doubled — the obstruction wall, which
+  DD cannot price.
+
 - **Lint hygiene: the crate is now clean under `clippy`, `rustdoc -D warnings`,
   and a `clippy::pedantic` run of `src/`.** No public API change. The one
   behaviour-relevant fix is the Fifths-companion average in `constraint.rs`,

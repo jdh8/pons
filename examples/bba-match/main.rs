@@ -120,6 +120,27 @@ struct Args {
     /// run to isolate it (the boards it does not touch cancel).
     #[arg(long, default_value_t = false)]
     defense_2d_multi: bool,
+
+    /// Suppress our *own* 1NT opening (those 15-17 balanced hands open a minor),
+    /// so every 1NT in the match is BBA's and our pair is purely the defender.
+    /// Removes the confound where the same deal has us opening 1NT at the other
+    /// table — the "OUR defense vs their 1NT" report then measures defense alone.
+    #[arg(long, default_value_t = false)]
+    no_our_1nt: bool,
+
+    /// Cleanly isolate our DEFENSE to BBA's 1NT.  Keep only boards where BBA (E/W)
+    /// opens 1NT and our pair (N/S) defends, and score table A (our defense)
+    /// against an ALL-BBA reference table — same BBA opener and responses, only
+    /// the defender differs (ours vs BBA).  The swing is then pure defense quality,
+    /// free of the other-table constructive confound that `--no-our-1nt` leaves.
+    /// `--count` means kept (we-defend) boards.
+    #[arg(long, default_value_t = false)]
+    isolate_defense: bool,
+
+    /// Restore the legacy fifths gauge for our 1NT opening (default = plain HCP
+    /// 15-17).  Seed-pair an on/off run (standard mode) to re-A/B the change.
+    #[arg(long, default_value_t = false)]
+    nt_fifths: bool,
 }
 
 /// Parse a `NAME=0|1` convention override for `--our-conv` / `--their-conv`
@@ -480,6 +501,20 @@ fn first_ns_call_after(auction: &[Call], dealer: Seat, nt_index: usize) -> Optio
         })
 }
 
+/// The 1NT opener's partner's (responder's) first call after the opening — i.e.
+/// what the opponents responded once we did *not* overcall.  Their partner sits
+/// two seats after the opener (`+2` is partner in the N,E,S,W rotation).  `None`
+/// if the responder never gets to call.
+fn responder_call_after(auction: &[Call], dealer: Seat, nt_index: usize) -> Option<Call> {
+    let responder = seat_to_act(dealer, nt_index + 2);
+    auction[nt_index + 1..]
+        .iter()
+        .enumerate()
+        .find_map(|(off, &call)| {
+            (seat_to_act(dealer, nt_index + 1 + off) == responder).then_some(call)
+        })
+}
+
 /// Short bucket label for a responder/defender call (`P`, `2♣`, `X`, …)
 fn action_label(call: Call) -> String {
     match call {
@@ -551,6 +586,10 @@ fn main() -> anyhow::Result<()> {
     // Book-construction TLS (responder structure over our overcalled 1NT), baked
     // into `our_floor` below — like `set_uvu`, no per-worker reset needed.
     pons::bidding::american::set_defense_to_2d_multi(args.defense_2d_multi);
+    // Read at book construction (the opening table): suppress our own 1NT opening
+    // so the duplicate's other table can't reintroduce a we-open-1NT swing.
+    pons::bidding::american::set_open_one_notrump(!args.no_our_1nt);
+    pons::bidding::american::set_one_notrump_fifths(args.nt_fifths);
     let our_floor = american().against(Family::NATURAL);
     let our_oracle = match args.our_system {
         Some(system) => Some(BbaOracle::load(&path, system, args.our_conv.clone())?),
@@ -591,7 +630,17 @@ fn main() -> anyhow::Result<()> {
         }
         let dealer = Seat::ALL[boards.len() % 4];
         let table_a = bid_out(ours, &bba, true, dealer, args.vulnerability, &deal);
-        let table_b = bid_out(ours, &bba, false, dealer, args.vulnerability, &deal);
+        let table_b = if args.isolate_defense {
+            // Keep only boards where BBA (E/W) opened 1NT and our N/S defended,
+            // and compare against an all-BBA table: same BBA opener + responses,
+            // only the defender differs.  The swing is then pure defense quality.
+            if !matches!(opening_1nt(&table_a, dealer), Some((_, false))) {
+                continue;
+            }
+            bid_out(&bba, &bba, true, dealer, args.vulnerability, &deal)
+        } else {
+            bid_out(ours, &bba, false, dealer, args.vulnerability, &deal)
+        };
         boards.push(Board {
             deal,
             dealer,
@@ -650,6 +699,12 @@ fn main() -> anyhow::Result<()> {
         mean - half_width,
         mean + half_width,
     );
+    if args.isolate_defense {
+        println!(
+            "(defense isolation: every board is BBA-opens-1NT / we-defend; \
+             table B is an ALL-BBA reference, so the swing is our defense vs BBA's)"
+        );
+    }
 
     // Isolate the 1NT subset, keyed on table A (where our pair sits NS): boards
     // whose opening call is 1NT, split by who opened (NS = our opening, EW = our
@@ -660,6 +715,11 @@ fn main() -> anyhow::Result<()> {
     let mut open_by: BTreeMap<String, (i64, i64)> = BTreeMap::new();
     let mut defend = (0i64, 0i64);
     let mut defend_by: BTreeMap<String, (i64, i64)> = BTreeMap::new();
+    // Same we-defend boards, re-bucketed to test the hypothesis that the leak is
+    // in our defense to their *responses*, not our direct overcall/double: DIRECT
+    // (we acted over 1NT), CONT <call> (we passed, they responded with <call>), or
+    // QUIET (we passed, they passed).
+    let mut defend_shape_by: BTreeMap<String, (i64, i64)> = BTreeMap::new();
     // Focus subset: we open 1NT and the overcall is exactly 2NT — the auctions
     // the UvU counter-measures act on, bucketed by our response.
     let two_nt = Call::Bid(Bid::new(2, Strain::Notrump));
@@ -670,8 +730,8 @@ fn main() -> anyhow::Result<()> {
         let Some((nt_index, opener_ns)) = opening_1nt(&board.table_a, board.dealer) else {
             continue;
         };
-        let key = first_ns_call_after(&board.table_a, board.dealer, nt_index)
-            .map_or_else(|| "(none)".into(), action_label);
+        let our_direct = first_ns_call_after(&board.table_a, board.dealer, nt_index);
+        let key = our_direct.map_or_else(|| "(none)".into(), action_label);
         let is_uvu = opener_ns && board.table_a.get(nt_index + 1) == Some(&two_nt);
         let (sum, by) = if opener_ns {
             (&mut open, &mut open_by)
@@ -683,6 +743,20 @@ fn main() -> anyhow::Result<()> {
         let entry = by.entry(key.clone()).or_default();
         entry.0 += 1;
         entry.1 += imp;
+        // Hypothesis probe (we-defend only): did the swing come from our DIRECT
+        // action over their 1NT, or from the CONTinuation after they responded?
+        if !opener_ns {
+            let shape = match our_direct {
+                Some(call) if call != Call::Pass => "DIRECT (we bid over 1NT)".to_string(),
+                _ => match responder_call_after(&board.table_a, board.dealer, nt_index) {
+                    Some(call) if call != Call::Pass => format!("CONT {}", action_label(call)),
+                    _ => "QUIET (we passed, they passed)".to_string(),
+                },
+            };
+            let entry = defend_shape_by.entry(shape).or_default();
+            entry.0 += 1;
+            entry.1 += imp;
+        }
         if is_uvu {
             uvu.0 += 1;
             uvu.1 += imp;
@@ -711,6 +785,11 @@ fn main() -> anyhow::Result<()> {
         defend,
         &defend_by,
     );
+    report(
+        "OUR defense vs their 1NT, by auction shape (DIRECT vs CONTinuation)",
+        defend,
+        &defend_shape_by,
+    );
     report("OUR 1NT-(2NT) responses (focus)", uvu, &uvu_by);
     if args.filter_1nt {
         println!(
@@ -721,30 +800,56 @@ fn main() -> anyhow::Result<()> {
     }
 
     // The boards we lost by the most: where their side out-bid ours.  Sort by
-    // IMP swing ascending (most negative first), break ties by points.
+    // IMP swing ascending (most negative first), break ties by points.  One
+    // renderer, used for the global ranking and the we-defend-1NT subset (the
+    // latter cuts past the `--no-our-1nt` artifact boards so the defense auctions
+    // are readable).
+    let dump = |title: &str, rows: &[(usize, i64, i64)]| {
+        println!("\n=== {title} ===");
+        for &(index, points, imp) in rows {
+            let board = &boards[index];
+            let (contract_a, contract_b) = contracts[index];
+            println!(
+                "\n[board {index}] dealer {:?}, swing {points:+} pts / {imp:+} IMPs",
+                board.dealer
+            );
+            println!("  {}", board.deal.display(Seat::North));
+            println!(
+                "  ours NS @ A: {}  -> {}",
+                show_auction(&board.table_a),
+                contract_a.map_or("passed out".into(), |(c, s)| format!("{c} by {s:?}")),
+            );
+            println!(
+                "  ours EW @ B: {}  -> {}",
+                show_auction(&board.table_b),
+                contract_b.map_or("passed out".into(), |(c, s)| format!("{c} by {s:?}")),
+            );
+        }
+    };
     swings.sort_by(|a, b| a.2.cmp(&b.2).then_with(|| a.1.cmp(&b.1)));
-    println!(
-        "\n=== Worst {} divergent boards for us (their edge) ===",
-        args.top.min(swings.len()),
+    let worst: Vec<_> = swings.iter().take(args.top).copied().collect();
+    dump(
+        &format!("Worst {} divergent boards for us (their edge)", worst.len()),
+        &worst,
     );
-    for &(index, points, imp) in swings.iter().take(args.top) {
-        let board = &boards[index];
-        let (contract_a, contract_b) = contracts[index];
-        println!(
-            "\n[board {index}] dealer {:?}, swing {points:+} pts / {imp:+} IMPs",
-            board.dealer,
-        );
-        println!("  {}", board.deal.display(Seat::North));
-        println!(
-            "  ours NS @ A: {}  -> {}",
-            show_auction(&board.table_a),
-            contract_a.map_or("passed out".into(), |(c, s)| format!("{c} by {s:?}")),
-        );
-        println!(
-            "  ours EW @ B: {}  -> {}",
-            show_auction(&board.table_b),
-            contract_b.map_or("passed out".into(), |(c, s)| format!("{c} by {s:?}")),
-        );
-    }
+    // Same ranking, restricted to boards where BBA opened 1NT and we defended.
+    let worst_defend: Vec<_> = swings
+        .iter()
+        .filter(|&&(index, ..)| {
+            matches!(
+                opening_1nt(&boards[index].table_a, boards[index].dealer),
+                Some((_, false))
+            )
+        })
+        .take(args.top)
+        .copied()
+        .collect();
+    dump(
+        &format!(
+            "Worst {} we-defend-1NT boards (BBA opens 1NT, we defend)",
+            worst_defend.len()
+        ),
+        &worst_defend,
+    );
     Ok(())
 }

@@ -95,7 +95,9 @@ pub use defense::{
 };
 pub(crate) use defense::{landy_range, leaping_michaels_enabled, unusual_notrump_range};
 pub use notrump::notrump_responses;
-pub use openings::{NotrumpShape, openings, openings_with};
+pub use openings::{
+    NotrumpShape, openings, openings_with, set_one_notrump_fifths, set_open_one_notrump,
+};
 pub use rebids::set_meckstroth_adjunct;
 pub use responses::{major_responses, minor_responses};
 
