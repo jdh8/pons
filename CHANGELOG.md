@@ -2008,6 +2008,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   of the auction it owns, keeping system interpretation out of the mechanical
   `Context`.
 
+### Removed
+
+- **`scripts/fleet/` — the distributed-dump ssh harness.** Superseded by the
+  `gib` tool: the expensive double-dummy work is now produced as a portable GIB
+  file, and GIB files from distinct seeds concatenate with `cat`, so spreading
+  the work across machines no longer needs an orchestrator (run a per-seed
+  `gib generate` shard on each box and merge). The remaining seed-shard-and-merge
+  workflow is documented in `docs/shared-machine-data-gen.md`; `scripts/idle-run.sh`
+  (the SCHED_IDLE scavenger) stays.
+
 ## [0.9.0] — 2026-06-13
 
 ### Added

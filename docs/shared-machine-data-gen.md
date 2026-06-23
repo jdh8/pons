@@ -110,24 +110,26 @@ systemd-run --user --scope -p CPUQuota=600% -p CPUWeight=10 -p MemoryMax=12G \
 
 ## Spreading across machines
 
-The same seed-shardability that makes checkpoints work makes the job
-**distributable** — different seeds are disjoint and their `.f32`/`.tags` rows
-concatenate into one dataset. `scripts/fleet/` does this over plain ssh: one
-shard per seed, dispatched with GNU `parallel --sshloginfile` (each remote run
-still wrapped in `idle-run.sh`), pulled back with `rsync`, then `cat`-merged.
+Seed-shardability also makes the job **distributable** — distinct seeds are
+disjoint and their outputs concatenate, so no daemon, queue, or coordinator is
+needed. Run one shard per machine with a distinct `--seed` and merge; a faster
+box just takes a larger count.
+
+The cached double-dummy database is the cleanest case. `gib generate` writes a
+portable GIB file (`<West-first PBN>:<20 hex DD>` per deal) — plain text whose
+deals are reproducible from `--seed` — so merging is literally `cat`:
 
 ```sh
-cp scripts/fleet/hosts.example scripts/fleet/hosts   # edit: one worker per line
-git push                                                # workers must be able to fetch the SHA
-scripts/fleet/run.sh --provision --shards 200 --per 50 # build on each host, then run
-scripts/fleet/merge.sh data/fleet-<runid>             # → merged.{f32,tags,json}
+gib generate --count 50000 --seed 1 --out shard-1.txt   # one per machine, distinct seeds
+cat shard-*.txt > all.txt                               # order-independent, no dedup needed
+gib verify all.txt                                       # optional: re-solve and confirm
 ```
 
-It pins the coordinator's git SHA, refuses to run any host not on it (skew
-silently corrupts the dataset), and `--resume`s incomplete shards on re-run.
-`-j1` means one all-core solver per host, so a faster box just finishes its shard
-and grabs the next — heterogeneous speed self-balances when shards ≫ hosts. See
-the script headers for the full knob list.
+Wrap a long `generate` in `idle-run.sh` on a shared box. `dump-teacher --deals
+all.txt` then reads that cached DD for free, so the training-row dump runs
+cheaply on a single machine. Seed-shardable `.f32` dumps (`dump-search`, …) merge
+the same way — concatenate the per-seed `.f32`/`.tags` in seed order, keeping the
+sidecars' feature/layout/SHA in agreement.
 
 ## Etiquette
 
