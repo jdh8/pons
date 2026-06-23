@@ -9,6 +9,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`bba-match --advertise-natural` — tell BBA our 1NT defense is natural, so the
+  defense measure is honest.** BBA's 2/1 card assumes the defenders play
+  *Multi-Landy* (its `2♣` = both majors, `2♦` = a Multi), so when our pair makes a
+  *natural* two-level overcall BBA mis-reads it and mis-defends. The flag disables
+  BBA's 1NT-defense conventions (`Multi-Landy`/`Cappelletti`/`Landy`) on the
+  opponent bot **at our table only** — the all-BBA reference keeps BBA's genuine
+  Multi-Landy — so it reads our overcalls naturally. Seat-isolated re-measure of
+  the shipped defense (`--isolate-defense`, 20 000 boards, seed-paired): advertising
+  natural moves the swing from **−0.005 → −0.181 IMPs/board (none)** and **−0.285 →
+  −0.484 (both)** — the ~0.18 IMPs/board the old measure showed was a BBA-confusion
+  artifact (it read our natural `2♣` as a both-majors two-suiter and gifted +1.50
+  IMPs/board on that bucket). The honest finding: our natural *overcalls* are sound
+  (`2♣/2♦/2♥/2♠` net **+81 IMPs**, `2♦` a clear **+475**); the entire deficit is the
+  penalty double of 1NT (**−1.43 IMPs/board**, redoubled or run into a doubled
+  partial) and the floor's undisciplined *continuation* doubling (a correct Pass,
+  then a doubling war into `3NTx` down) — the obstruction wall, the single-dummy
+  pressure a double-dummy harness scores as a dead loss.
+- **`bba-match --ns-double-shape` now defaults to `any`** (was `balanced`), matching
+  the shipped `american()` so a no-flag run measures the real default. Re-running the
+  X-only-*balanced* restriction honestly (advertise-natural, 20 000, seed-paired) is
+  **within noise** of `any` — **−0.188 vs −0.181 (none), −0.474 vs −0.484 (both)** —
+  confirming b73dd6a's `Any`: restricting the penalty double to balanced hands only
+  *relocates* the loss (the shapely 15+ hands move from the Pass bucket to the X
+  bucket; the totals match), it does not fix it.
+- **`bba-match --no-settle-floor` — A/B the settle floor's effect on defense.**
+  Toggles `instinct::set_settle_floor` (the 9badc15 "pass = play the top bid"
+  change, default on) so a seed-paired run isolates the floor update. With natural
+  advertised, the update *helps* defense **+0.048 IMPs/board (none)** and **+0.055
+  (both)** over 20 000 boards — small but the same direction at both vulnerabilities
+  (CIs nearly disjoint), on top of the takeout-double-continuation gain measured in
+  `ab-settle-floor`.
 - **`scoring::ns_score_pd` — a perfect-defense scorer that carries the table
   `X`/`XX`.** Like `ns_score_bid` it doubles a contract that fails double-dummy
   (opponents always hold the red card), but a double or redouble already on the table

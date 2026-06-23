@@ -149,9 +149,10 @@ struct Args {
     #[arg(long, default_value_t = false)]
     nt_fifths: bool,
 
-    /// Shape gate for our natural penalty double of their 1NT: balanced (default)
-    /// | semi | any.  Tunes our defense against BBA (`--isolate-defense`).
-    #[arg(long, default_value = "balanced")]
+    /// Shape gate for our natural penalty double of their 1NT: any (default, matches
+    /// the shipped `american()`) | semi | balanced.  Tunes our defense against BBA
+    /// (`--isolate-defense`); pass `balanced` to A/B the X-only-balanced restriction.
+    #[arg(long, default_value = "any")]
     ns_double_shape: String,
 
     /// HCP floor for our natural penalty double of their 1NT (default 15).
@@ -174,6 +175,21 @@ struct Args {
     /// on replaces the instinct floor's undisciplined balancing doubles.
     #[arg(long, default_value_t = false)]
     ns_balancing: bool,
+
+    /// Advertise that our defense to BBA's 1NT is natural.  At *our* table only
+    /// (where we defend) the opponent bot's 1NT-defense conventions are disabled
+    /// (`Multi-Landy`/`Cappelletti`/`Landy` off, atop `--their-conv`), so BBA reads
+    /// our two-level overcalls as natural rather than as its own Multi-Landy.  The
+    /// all-BBA reference table keeps BBA's genuine Multi-Landy.  Use with
+    /// `--isolate-defense`.
+    #[arg(long, default_value_t = false)]
+    advertise_natural: bool,
+
+    /// Disable the settle floor ("pass = play the top bid" over a takeout double,
+    /// default on) to A/B the floor change's effect on defense.  Seed-pair an
+    /// on/off run.
+    #[arg(long, default_value_t = false)]
+    no_settle_floor: bool,
 }
 
 /// Parse a `NAME=0|1` convention override for `--our-conv` / `--their-conv`
@@ -605,6 +621,19 @@ fn main() -> anyhow::Result<()> {
             std::process::exit(1);
         }
     };
+    // When advertising natural, the opponent bot at *our* table reads our 1NT
+    // overcalls naturally: disable its 1NT-defense conventions on top of
+    // `--their-conv`.  Used only where `ours` defends; the all-BBA reference keeps
+    // the plain `bba` (BBA's genuine Multi-Landy).
+    let bba_vs_natural = if args.advertise_natural {
+        let mut conv = args.their_conv.clone();
+        for name in ["Multi-Landy", "Cappelletti", "Landy"] {
+            conv.push((CString::new(name).expect("a literal name has no NUL"), 0));
+        }
+        Some(BbaOracle::load(&path, args.system, conv)?)
+    } else {
+        None
+    };
     // Our side: the authored floor by default, or a second EPBot card when
     // `--our-system` is given (the BBA-vs-BBA experiment).  Both live to the end
     // of `main`, so `ours` can borrow whichever is selected.
@@ -619,6 +648,10 @@ fn main() -> anyhow::Result<()> {
     // Book-construction TLS (responder structure over our overcalled 1NT), baked
     // into `our_floor` below — like `set_uvu`, no per-worker reset needed.
     pons::bidding::american::set_defense_to_2d_multi(args.defense_2d_multi);
+    // Classify-time TLS, set once on this (sequential) main thread: the settle
+    // floor governs partner's takeout-double continuations, including the
+    // competitive seam after our defense to 1NT.  Off = the pre-9badc15 floor.
+    pons::bidding::instinct::set_settle_floor(!args.no_settle_floor);
     // Read at book construction (the opening table): suppress our own 1NT opening
     // so the duplicate's other table can't reintroduce a we-open-1NT swing.
     pons::bidding::american::set_open_one_notrump(!args.no_our_1nt);
@@ -662,6 +695,12 @@ fn main() -> anyhow::Result<()> {
         Some(oracle) => oracle,
         None => &our_floor,
     };
+    // The opponent our pair faces: the natural-advertised bot if `--advertise-natural`,
+    // else plain `bba`.  The all-BBA reference table always uses plain `bba`.
+    let opponent: &dyn System = match &bba_vs_natural {
+        Some(oracle) => oracle,
+        None => &bba,
+    };
     let our_label = match args.our_system {
         Some(system) => format!(
             "BBA {}{}",
@@ -692,7 +731,7 @@ fn main() -> anyhow::Result<()> {
             continue;
         }
         let dealer = Seat::ALL[boards.len() % 4];
-        let table_a = bid_out(ours, &bba, true, dealer, args.vulnerability, &deal);
+        let table_a = bid_out(ours, opponent, true, dealer, args.vulnerability, &deal);
         let table_b = if args.isolate_defense {
             // Keep only boards where BBA (E/W) opened 1NT and our N/S defended,
             // and compare against an all-BBA table: same BBA opener + responses,
@@ -702,7 +741,7 @@ fn main() -> anyhow::Result<()> {
             }
             bid_out(&bba, &bba, true, dealer, args.vulnerability, &deal)
         } else {
-            bid_out(ours, &bba, false, dealer, args.vulnerability, &deal)
+            bid_out(ours, opponent, false, dealer, args.vulnerability, &deal)
         };
         boards.push(Board {
             deal,
@@ -767,6 +806,15 @@ fn main() -> anyhow::Result<()> {
             "(defense isolation: every board is BBA-opens-1NT / we-defend; \
              table B is an ALL-BBA reference, so the swing is our defense vs BBA's)"
         );
+    }
+    if args.advertise_natural {
+        println!(
+            "(advertise-natural: at our table BBA reads our overcalls as natural \
+             — Multi-Landy/Cappelletti/Landy off; the reference keeps BBA's own)"
+        );
+    }
+    if args.no_settle_floor {
+        println!("(settle floor OFF: pre-9badc15 takeout-double continuations)");
     }
 
     // Isolate the 1NT subset, keyed on table A (where our pair sits NS): boards
