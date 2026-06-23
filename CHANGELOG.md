@@ -65,16 +65,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **The penalty double of an opponent's 1NT is now balanced-only (`DoubleShape::Balanced`),
-  not all-shape.** A 15+ hand with a one-suiter no longer penalty-doubles their 1NT —
-  poor bridge (bid the suit) and double-dummy-dominated. Against the all-BBA reference
-  (`bba-match --isolate-defense`) the shapely doubles are the biggest defensive leak
-  (the X bucket runs −2 to −4 IMPs/board, worse vulnerable), and BBA never doubles a
-  shapely hand. The former `Any` default's A/B win was a double-vs-*Pass* comparison:
-  the shapely hands had no overcall outlet, so the baseline merely passed them; against
-  the realistic alternative the shapely double is dominated by overcalling (non-vul) and
-  by passing (vulnerable). The table-valuable *balanced* penalty double is kept.
-  `american::set_natural_double_shape(DoubleShape::Any)` restores the old behaviour.
+- **The penalty double of an opponent's 1NT is gated by a configurable shape
+  (`DoubleShape`), defaulting to `Any`: every 15+ hand doubles, regardless of shape.**
+  The scheme is clean — 15+ doubles, 8–14 with a five-card suit overcalls — and since
+  the overcall range stops at 14 (and the double's weight 1.3 outranks the overcall's
+  1.0), a 15+ hand has no overcall to make, so it doubles on any shape. A `Balanced`
+  (4333/4432/5332) gate was briefly the default after `bba-match --isolate-defense`
+  suggested the shapely doubles leaked, but a deeper seat-isolated re-measure put that
+  difference within noise (the leak was the *redoubled* doubler's reopened continuation,
+  not the shape), so the cleaner `Any` scheme is restored as the default.
+  `american::set_natural_double_shape` selects `Balanced` / `SemiBalanced` / `Any`;
+  the HCP floor (15+) is unchanged.
 - **New 1NT-defense A/B knobs** (defaults unchanged besides the shape flip above):
   `set_natural_double_floor` (HCP floor, default 15), `set_natural_double_weight`
   (logit weight, default 1.3 — drop below the 1.0 overcall to make suit overcalls
