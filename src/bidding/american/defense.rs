@@ -251,7 +251,7 @@ pub enum DoubleShape {
     /// Any shape — the 15+ HCP floor alone gates the double (**the default**).  The
     /// scheme is clean: 15+ doubles, 8-14 with a five-card suit overcalls — and a 15+
     /// hand has *no* overcall to make (the range stops at 14), so it doubles on any
-    /// shape.  DD is neutral between this and [`Balanced`] (within noise on
+    /// shape.  DD is neutral between this and [`Self::Balanced`] (within noise on
     /// `bba-match --isolate-defense`); the clean scheme takes the tie.
     #[default]
     Any,
