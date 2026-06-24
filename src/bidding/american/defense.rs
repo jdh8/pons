@@ -435,7 +435,7 @@ pub fn set_woolsey_double_floor(floor: u8) {
 }
 
 /// The configured Woolsey takeout-`X` `points` floor
-fn woolsey_double_floor() -> u8 {
+pub(crate) fn woolsey_double_floor() -> u8 {
     WOOLSEY_DOUBLE_FLOOR.with(Cell::get)
 }
 

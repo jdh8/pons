@@ -308,6 +308,9 @@ impl Inferences {
         // The Woolsey Multi family: 2♦ (a single 6+ major — its diamond reading
         // suppressed) and the 2♥/2♠ Muiderberg, recorded post-walk.
         let multi = multi_reading(auction);
+        // The Woolsey takeout double of their 1NT: the doubler's points are recorded
+        // post-walk and the advancer's 2♣ minor relay is suppressed.
+        let woolsey_x = woolsey_x_reading(auction);
 
         for (index, &call) in auction.iter().enumerate() {
             let lane = index % 4;
@@ -356,7 +359,8 @@ impl Inferences {
                             || rubens_suppress.contains(&Some(index))
                             || leaping_michaels.is_some_and(|(i, _, _)| i == index)
                             || landy.is_some_and(|l| l.suppresses(index))
-                            || multi.is_some_and(|m| m.suppresses(index));
+                            || multi.is_some_and(|m| m.suppresses(index))
+                            || woolsey_x.is_some_and(|w| w.suppresses(index));
 
                         if !suppress {
                             let jump = bid
@@ -624,6 +628,16 @@ impl Inferences {
                 }
             }
             let floor = crate::bidding::american::woolsey_points().0;
+            players[who].narrow_points(Range::at_least(floor, POINTS_CAP));
+        }
+
+        // A Woolsey takeout double of their 1NT (4-card major + 5-6 card minor).  The
+        // shape is a double disjunction the per-suit framework cannot pin, so only the
+        // points floor is recorded — enough to stop the floor sampling the doubler as a
+        // random weak hand (a double of 1NT is otherwise read as nothing).
+        if let Some(woolsey_x) = woolsey_x {
+            let who = relative_of(len, woolsey_x.double_index) as usize;
+            let floor = crate::bidding::american::woolsey_double_floor();
             players[who].narrow_points(Range::at_least(floor, POINTS_CAP));
         }
 
@@ -990,6 +1004,76 @@ fn multi_reading(auction: &[Call]) -> Option<MultiReading> {
     Some(MultiReading {
         advance_suppress,
         ..reading
+    })
+}
+
+/// Our Woolsey takeout **double** of their 1NT and the advancer's `2♣` minor relay
+///
+/// The double shows a 4-card major plus a 5-6 card minor with the
+/// [`woolsey_double_floor`][crate::bidding::american::woolsey_double_floor] points
+/// floor.  The shape is a *double* disjunction (either major, either minor) the
+/// per-suit framework cannot pin, so only the points floor is recorded post-walk —
+/// but that alone matters: a double of 1NT names no suit, so the generic walk reads
+/// it as *nothing* (the takeout-of-a-suit branch needs a suit opening), leaving the
+/// floor to sample the doubler as a random hand.
+///
+/// The advancer's `2♣` over the double is a "name your minor" relay, not own clubs,
+/// so its natural reading is suppressed.  Our own `2♥`/`2♠` advances are natural
+/// majors and `2NT` is the notrump game-ask, so neither needs suppression.
+#[derive(Clone, Copy)]
+struct WoolseyXReading {
+    double_index: usize,
+    relay_suppress: Option<usize>,
+}
+
+impl WoolseyXReading {
+    fn suppresses(&self, index: usize) -> bool {
+        self.relay_suppress == Some(index)
+    }
+}
+
+fn woolsey_x_reading(auction: &[Call]) -> Option<WoolseyXReading> {
+    if !crate::bidding::american::woolsey_enabled() {
+        return None;
+    }
+    let opening_index = auction.iter().position(|&c| c != Call::Pass)?;
+    if auction[opening_index] != Call::Bid(Bid::new(1, Strain::Notrump)) {
+        return None;
+    }
+    let opener_parity = opening_index % 2;
+
+    // The double must be the defending side's FIRST action over their 1NT.
+    let double_index = auction
+        .iter()
+        .enumerate()
+        .skip(opening_index + 1)
+        .find_map(|(index, &call)| match call {
+            Call::Pass => None,
+            Call::Double if index % 2 != opener_parity => Some(Some(index)),
+            // The opener's side acted, or a defender did something else (an overcall)
+            // — not our takeout double.
+            _ => Some(None),
+        })
+        .flatten()?;
+
+    // The advancer's first bid; suppress it only if it is the 2♣ minor relay.  Jump
+    // over every opponent call so a contested relay is covered too (the 2♣ relay is
+    // only legal as the immediate response, so the first such call is always it).
+    let relay_suppress = auction
+        .iter()
+        .enumerate()
+        .skip(double_index + 1)
+        .find_map(|(index, &call)| match call {
+            Call::Bid(bid) if index % 2 != opener_parity => {
+                Some((bid == Bid::new(2, Strain::Clubs)).then_some(index))
+            }
+            _ => None,
+        })
+        .flatten();
+
+    Some(WoolseyXReading {
+        double_index,
+        relay_suppress,
     })
 }
 
@@ -1380,6 +1464,55 @@ mod tests {
         assert_eq!(off.partner().length(Suit::Diamonds), Range::new(5, 13));
 
         // Restore the shipped default (unusual 2NT ships on).
+        set_unusual_notrump_defense(Some((8, 13)));
+    }
+
+    #[test]
+    fn woolsey_double_and_advances_read() {
+        use crate::bidding::american::{
+            set_landy, set_unusual_notrump_defense, set_woolsey, set_woolsey_double_floor,
+            set_woolsey_points,
+        };
+        set_landy(None);
+        set_unusual_notrump_defense(None);
+        set_woolsey(true);
+        set_woolsey_points(10, 19);
+        set_woolsey_double_floor(12);
+
+        // (1NT)–X–(P): the takeout double names no suit, so nothing is misread — but
+        // the doubler's strength (12+) is recorded, where a bare double of 1NT would
+        // otherwise read as nothing.
+        let x = read(&[bid(1, Strain::Notrump), Call::Double, Call::Pass]);
+        assert_eq!(x.partner().points, Range::new(12, 37));
+
+        // (1NT)–X–(P)–2♣–(P): the advancer's 2♣ is a "name your minor" relay, not own
+        // clubs, so its natural ≥4 reading is suppressed (read from the advancer seat).
+        let relay = read(&[
+            bid(1, Strain::Notrump),
+            Call::Double,
+            Call::Pass,
+            bid(2, Strain::Clubs),
+            Call::Pass,
+        ]);
+        assert_eq!(relay.partner().length(Suit::Clubs), Range::FULL_LENGTH);
+
+        // (1NT)–2♥–(P)–2NT–(P): the Muiderberg minor-ask 2NT is a relay in a
+        // COMPETITIVE auction (our side already overcalled), so it is never read as a
+        // natural notrump invite — the advancer's points stay unconstrained.
+        let ask = read(&[
+            bid(1, Strain::Notrump),
+            bid(2, Strain::Hearts),
+            Call::Pass,
+            bid(2, Strain::Notrump),
+            Call::Pass,
+        ]);
+        assert_eq!(ask.partner().points, Range::new(0, 37));
+
+        // Off: the double reads as nothing again — the convention must not leak.
+        set_woolsey(false);
+        let off = read(&[bid(1, Strain::Notrump), Call::Double, Call::Pass]);
+        assert_eq!(off.partner().points, Range::new(0, 37));
+
         set_unusual_notrump_defense(Some((8, 13)));
     }
 

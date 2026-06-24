@@ -37,10 +37,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   IMPs/divergent nv) but perfect-defense doubling (`--score pd`) is **−0.46**, and a
   floor-sweep is monotonic (the DD-positive setting is the one that stops
   competing). On `bba-match --isolate-defense` (vs BBA self-play, the realistic
-  measure): our Woolsey **−0.29 IMPs/board**, statistically indistinguishable from
-  doing nothing (always-pass −0.30) and worse than our natural defense (−0.20);
-  range tuning does not move it (the deficit is the overcall decisions + our floors
-  passing where BBA competes, not the continuations). Kept opt-in for that reason.
+  measure): our Woolsey started at **−0.29 IMPs/board**, statistically
+  indistinguishable from doing nothing (always-pass −0.30) and worse than our
+  natural defense (−0.20). **Floor readings then closed the artificial-bid leaks**
+  (see below), lifting it to **−0.237**; the residual deficit is the overcall
+  decisions + our floors passing where BBA competes (the `Pass` bucket, −1.04),
+  which range tuning does not move. Still worse than natural, so kept opt-in.
+- **Floor readings for every Woolsey artificial call** (`Inferences::read`), so the
+  deterministic `instinct()` floor never misreads the convention once the opponents
+  intervene and the auction leaves the authored book. Without them the floor read
+  our artificial `2♣`/`2♦` as *natural* clubs/diamonds and raised the phantom suit
+  into doubled disasters (`1NT 2♣ 3NT 4♣x` −1500). Added: `multi_reading` (the
+  `2♦` Multi suppresses its diamond reading + caps both minors; the `2♥`/`2♠`
+  Muiderberg pins major = 5, other major ≤ 3); `landy_reading` now fires for
+  Woolsey's both-majors `2♣`; the advancer's preference (`2♥`/`2♠` over `2♣`/`2♦`,
+  a pick among partner's majors — *not* own length, inverse over the Multi) and the
+  `X`-advance `2♣` minor relay are suppressed, the suppression living for the whole
+  read (covering doubled / contested runouts); and the takeout `X` records its
+  `set_woolsey_double_floor` points floor (its 4-major-+-5-6-minor *shape* is a
+  double disjunction the per-suit framework cannot pin, but the points floor alone
+  stops the floor sampling the doubler as a random hand). The floor's syntactic
+  competitive raises were also gated on `partner_shown_len` (the reading) instead of
+  the literal bid suit, so it trusts the decode. This drove the `2♣`/`2♦` buckets
+  from −2.46/−2.05 to −0.95/−0.93 IMPs/board vs BBA.
 - **`probe-bba-constraints` — BBA's 1NT defense fully distilled (it's Woolsey
   "Multi-Landy").** New `--mode`s read the rest of the structure from real EPBot
   hands: `muider-h`/`muider-s` (the advances over the `2♥`/`2♠` Muiderberg) and

@@ -97,7 +97,8 @@ pub use defense::{
     set_unusual_notrump_defense, set_woolsey, set_woolsey_double_floor, set_woolsey_points,
 };
 pub(crate) use defense::{
-    landy_range, leaping_michaels_enabled, unusual_notrump_range, woolsey_enabled, woolsey_points,
+    landy_range, leaping_michaels_enabled, unusual_notrump_range, woolsey_double_floor,
+    woolsey_enabled, woolsey_points,
 };
 pub use notrump::notrump_responses;
 pub use openings::{
