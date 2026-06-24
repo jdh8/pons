@@ -41,7 +41,7 @@ use pons::bidding::american::{
     set_direct_landy_double, set_direct_landy_double_floor, set_direct_landy_penalty_pass,
     set_doubled_landy_escape, set_landy, set_landy_hcp, set_natural_defense,
     set_natural_double_shape, set_passed_hand_defense, set_penalty_pass,
-    set_unusual_notrump_defense,
+    set_unusual_notrump_defense, set_woolsey, set_woolsey_double_floor, set_woolsey_points,
 };
 use pons::scoring::{final_contract, imps, ns_score_bid, ns_score_contract};
 use rand::SeedableRng;
@@ -167,6 +167,27 @@ struct Args {
     /// tune the escape vs. relaying/signing off into a major.
     #[arg(long, default_value = "6:2")]
     ns_doubled_escape: String,
+
+    /// Replace the *measured* (NS) pair's 1NT defense with our Woolsey "Multi-Landy":
+    /// `on` or `off` (default). X = 4-card major + longer minor, 2♣ = both majors,
+    /// 2♦ = Multi (single 6+ major), 2♥/2♠ = Muiderberg. Owns every direct call, so
+    /// it forces the measured natural / Landy / both-majors-X arms off. Baseline keeps
+    /// its natural defense (`--ew-natural on`) for the head-to-head.
+    #[arg(long, default_value = "off")]
+    ns_woolsey: String,
+
+    /// Woolsey suit-overcall (2♣/2♦/2♥/2♠) points band for the *measured* pair:
+    /// `LO` (open-topped) or `LO:HI` (default `10:19`). Only matters with `--ns-woolsey`.
+    /// The perfect-defense (`--score pd`) floor-sweep is monotonic: lower floors
+    /// compete more and lose more, so the value is single-dummy obstruction (invisible
+    /// to DD). 10 keeps a competing convention; 13 is the DD break-even.
+    #[arg(long, default_value = "10:19")]
+    ns_woolsey_range: String,
+
+    /// `points` floor for the *measured* pair's Woolsey takeout X (default 12). Only
+    /// matters with `--ns-woolsey`; the X advancer's game-ask threshold tracks it.
+    #[arg(long, default_value = "12")]
+    ns_woolsey_x_floor: u8,
 
     /// Only count deals that can plausibly reach a Landy overcall of 1NT (a cheap
     /// shape pre-filter), so the DD budget lands on boards that can actually
@@ -429,6 +450,8 @@ fn main() {
         "4-4" => Some(true),
         other => panic!("unknown --ns-landy-x {other:?} (use off, 5-4, or 4-4)"),
     };
+    let ns_woolsey = parse_on_off(&args.ns_woolsey, "--ns-woolsey");
+    let woolsey_range = parse_range(&args.ns_woolsey_range).unwrap_or((9, 19));
     let ns_penalty_pass = parse_penalty_pass(&args.ns_penalty_pass, "--ns-penalty-pass");
     let ew_penalty_pass = parse_penalty_pass(&args.ew_penalty_pass, "--ew-penalty-pass");
     let ns_doubled_escape = {
@@ -452,6 +475,7 @@ fn main() {
     set_direct_landy_double(None);
     set_direct_landy_double_floor(15);
     set_direct_landy_penalty_pass(false);
+    set_woolsey(false);
     set_penalty_pass(ew_penalty_pass);
     let baseline = american().against(Family::NATURAL);
     set_landy(majors);
@@ -476,6 +500,18 @@ fn main() {
         set_landy(None);
         set_unusual_notrump_defense(Some((8, 14)));
     }
+    // Woolsey owns every direct call over their 1NT, so force the other measured
+    // arms off — else their advance wiring would overwrite the Woolsey continuations.
+    set_woolsey(ns_woolsey);
+    set_woolsey_points(woolsey_range.0, woolsey_range.1);
+    set_woolsey_double_floor(args.ns_woolsey_x_floor);
+    if ns_woolsey {
+        set_natural_defense(false);
+        set_landy(None);
+        set_direct_dont(false);
+        set_direct_landy_double(None);
+        set_passed_hand_defense(None);
+    }
     let measured = american().against(Family::NATURAL);
 
     // Each board at both tables (Landy NS at A, EW at B), dealer rotating.
@@ -484,7 +520,11 @@ fn main() {
     // The both-majors X (--ns-landy-x) replaces the baseline's penalty-X, so every
     // hand the two arms call differently over their 1NT diverges; the broad
     // `defender_has_natural_action` superset (5+ suit, or 14+ balanced) catches them.
+    // Woolsey replaces the measured pair's whole defense, so every hand it acts on
+    // (all hold a 5+ suit, the `defender_has_natural_action` superset) diverges from
+    // the baseline's natural defense.
     let natural_diverges = ns_landy_x.is_some()
+        || ns_woolsey
         || if ew_always_pass {
             ns_natural
         } else {

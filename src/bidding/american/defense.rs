@@ -368,6 +368,117 @@ fn direct_landy_penalty_pass() -> bool {
     DIRECT_LANDY_PENALTY_PASS.with(Cell::get)
 }
 
+thread_local! {
+    /// Whether our **Woolsey "Multi-Landy"** defense to their 1NT is authored at
+    /// every seat, replacing the natural / Landy / penalty-X arms; **off by
+    /// default** (opt-in A/B).  On, the direct seat over (1NT) is:
+    ///
+    /// - `X` = a 4-card major **+ a longer (5-6) minor** (takeout, never penalty),
+    /// - `2♣` = both majors (5-4 / 5-5), advanced via the Landy machinery,
+    /// - `2♦` = Multi, a single **6+ major**,
+    /// - `2♥` / `2♠` = Muiderberg, **exactly 5** in the major **+ a 4+ minor**,
+    /// - `Pass` everything else, including strong balanced (no penalty double).
+    ///
+    /// Distilled from BBA's compiled card (`docs/ai-bidder/bba-1nt-defense.md`);
+    /// the strength bands are ours, not BBA's ([`set_woolsey_points`] /
+    /// [`set_woolsey_double_floor`]).  See [`set_woolsey`].
+    static WOOLSEY: Cell<bool> = const { Cell::new(false) };
+    /// Inclusive `points` band for the Woolsey suit overcalls (`2♣`/`2♦`/`2♥`/`2♠`);
+    /// **(10, 19) by default** — our own floor, one above BBA's 9.  A perfect-defense
+    /// DD floor-sweep is monotonic (lower floor → competes more → loses more on
+    /// honest scoring), so the value is single-dummy obstruction the DD harness can't
+    /// see; 10 keeps a competing convention without the lightest, costliest overcalls.
+    static WOOLSEY_POINTS: Cell<(u8, u8)> = const { Cell::new((10, 19)) };
+    /// `points` floor for the Woolsey takeout `X` (4-card major + longer minor);
+    /// **12 by default** — the X is the most constructive Woolsey action, so it
+    /// floors above the preemptive suit overcalls.  See [`set_woolsey_double_floor`].
+    static WOOLSEY_DOUBLE_FLOOR: Cell<u8> = const { Cell::new(12) };
+}
+
+/// Author the Woolsey "Multi-Landy" defense to their 1NT for books built *after*
+/// this call (thread-local, read once at book-construction time)
+///
+/// **Off by default.**  On, the `[1NT]` node is the full Woolsey structure at every
+/// seat — `X` = 4-card major + longer minor, `2♣` = both majors, `2♦` = Multi,
+/// `2♥`/`2♠` = Muiderberg, `Pass` everything else — replacing the natural / Landy /
+/// both-majors-X arms and superseding the passed-hand defense; the both-minors `2NT`
+/// ([`set_unusual_notrump_defense`]) overlay stays compatible (it is outside the
+/// Woolsey defense).  The A/B knob for `examples/ab-landy --ns-woolsey`.
+pub fn set_woolsey(on: bool) {
+    WOOLSEY.with(|cell| cell.set(on));
+}
+
+/// Whether the Woolsey defense is currently authored
+fn woolsey_enabled() -> bool {
+    WOOLSEY.with(Cell::get)
+}
+
+/// Set the inclusive `points` band for the Woolsey suit overcalls (`2♣`/`2♦`/`2♥`/
+/// `2♠`, default 10–19) for books built *after* this call.  No effect unless
+/// [`set_woolsey`] is on.  The A/B knob for `examples/ab-landy --ns-woolsey-range`.
+pub fn set_woolsey_points(lo: u8, hi: u8) {
+    WOOLSEY_POINTS.with(|cell| cell.set((lo, hi)));
+}
+
+/// The configured Woolsey suit-overcall `points` band
+fn woolsey_points() -> (u8, u8) {
+    WOOLSEY_POINTS.with(Cell::get)
+}
+
+/// Set the `points` floor for the Woolsey takeout `X` (default 12) for books built
+/// *after* this call.  No effect unless [`set_woolsey`] is on.  The A/B knob for
+/// `examples/ab-landy --ns-woolsey-x-floor`.
+pub fn set_woolsey_double_floor(floor: u8) {
+    WOOLSEY_DOUBLE_FLOOR.with(|cell| cell.set(floor));
+}
+
+/// The configured Woolsey takeout-`X` `points` floor
+fn woolsey_double_floor() -> u8 {
+    WOOLSEY_DOUBLE_FLOOR.with(Cell::get)
+}
+
+/// Woolsey **Multi** `2♦`: a single 6+ card major, strictly the longer major (so a
+/// 6-4 or 6-5 shows the 6-card suit; 6-6 and any both-5 hand are not Multi)
+fn woolsey_multi() -> Cons<impl Constraint + Clone> {
+    described("a single 6+ major", |h: Hand, _: &Context<'_>| {
+        let (hh, ss) = (h[Suit::Hearts].len(), h[Suit::Spades].len());
+        (hh >= 6 && hh > ss) || (ss >= 6 && ss > hh)
+    })
+}
+
+/// Woolsey **Muiderberg** `2M`: exactly 5 in `major`, at most 3 in the other major,
+/// and a 4+ card minor — so 5-5 majors (no 4-card minor) and a bare 5332 both fall
+/// through to Pass, exactly as in BBA's read
+fn woolsey_muiderberg(major: Suit) -> Cons<impl Constraint + Clone> {
+    let other = if major == Suit::Hearts {
+        Suit::Spades
+    } else {
+        Suit::Hearts
+    };
+    described(
+        "exactly-5 major + a 4+ minor (Muiderberg)",
+        move |h: Hand, _: &Context<'_>| {
+            h[major].len() == 5
+                && h[other].len() <= 3
+                && h[Suit::Clubs].len().max(h[Suit::Diamonds].len()) >= 4
+        },
+    )
+}
+
+/// Woolsey takeout `X`: exactly 4 in one major, at most 3 in the other, and a
+/// longer (5-6) minor (a 7+ minor one-suiter passes — no natural minor overcall)
+fn woolsey_double_shape() -> Cons<impl Constraint + Clone> {
+    described(
+        "4-card major + a longer (5-6) minor",
+        |h: Hand, _: &Context<'_>| {
+            let (hh, ss) = (h[Suit::Hearts].len(), h[Suit::Spades].len());
+            let four_major = (hh == 4 && ss <= 3) || (ss == 4 && hh <= 3);
+            let minor = h[Suit::Clubs].len().max(h[Suit::Diamonds].len());
+            four_major && (5..=6).contains(&minor)
+        },
+    )
+}
+
 /// The advancer's action over partner's both-majors `X` (RHO passing, `[1NT, X, P]`)
 ///
 /// The Landy advance ([`landy_advances`]) plus — when [`set_direct_landy_penalty_pass`]
@@ -845,12 +956,41 @@ pub fn defense_to_notrump() -> Rules {
     let mut rules = Rules::new();
 
     let landy = landy_range();
-    // Direct-seat DONT replaces the natural penalty-X + overcalls outright (and the
-    // Landy 2♣ overlay below): conventional one-suiter `X`, two-suiters `2♣`/`2♦`/`2♥`,
-    // natural `2♠`, owning `Pass`.  `2NT` = both minors is added by the Unusual overlay.
-    // Un-gated by passed_hand(), so it covers every seat — the passed-hand arm is then
-    // suppressed.  A 15+ balanced hand has no DONT bid and Passes (no penalty double).
-    if direct_dont_enabled() {
+    // Woolsey "Multi-Landy" replaces every natural / Landy / both-majors-X arm with
+    // its own five-call structure (X / 2♣ / 2♦ / 2♥ / 2♠) and owns Pass, covering
+    // every seat (the passed-hand arm is then suppressed).  Disjoint shapes, so a
+    // uniform 1.9 weight never ties; a hand matching nothing conventional Passes —
+    // including strong balanced (no penalty double, exactly as BBA).
+    if woolsey_enabled() {
+        let (lo, hi) = woolsey_points();
+        rules = rules
+            .rule(
+                Call::Double,
+                1.9,
+                woolsey_double_shape() & points(woolsey_double_floor()..),
+            )
+            .rule(
+                Bid::new(2, Strain::Clubs),
+                1.9,
+                passed_two_suiter(Suit::Hearts, Suit::Spades) & points(lo..=hi),
+            )
+            .rule(
+                Bid::new(2, Strain::Diamonds),
+                1.9,
+                woolsey_multi() & points(lo..=hi),
+            )
+            .rule(
+                Bid::new(2, Strain::Hearts),
+                1.9,
+                woolsey_muiderberg(Suit::Hearts) & points(lo..=hi),
+            )
+            .rule(
+                Bid::new(2, Strain::Spades),
+                1.9,
+                woolsey_muiderberg(Suit::Spades) & points(lo..=hi),
+            )
+            .rule(Call::Pass, 0.0, hcp(0..));
+    } else if direct_dont_enabled() {
         let lo = natural_overcall_points().0;
         let ff = direct_dont_four_four();
         let one_min = direct_dont_one_suiter_min();
@@ -938,8 +1078,8 @@ pub fn defense_to_notrump() -> Rules {
     let use_hcp = landy_use_hcp();
     // DONT repurposes 2♣ as a two-suiter, and the direct both-majors X already
     // shows both majors, so the Landy 2♣ overlay is incompatible with either.
-    if let Some((lo, hi)) =
-        landy.filter(|_| !direct_dont_enabled() && direct_landy_double().is_none())
+    if let Some((lo, hi)) = landy
+        .filter(|_| !direct_dont_enabled() && direct_landy_double().is_none() && !woolsey_enabled())
     {
         // 2♣ = both majors, at least 5-4.
         let shape = five_four(Suit::Hearts, Suit::Spades);
@@ -961,7 +1101,7 @@ pub fn defense_to_notrump() -> Rules {
     // DONT covers every seat (its arm above is un-gated by passed_hand()), so the
     // passed-hand-specific defense is superseded when it is on.
     match passed_hand_defense()
-        .filter(|_| !direct_dont_enabled() && direct_landy_double().is_none())
+        .filter(|_| !direct_dont_enabled() && direct_landy_double().is_none() && !woolsey_enabled())
     {
         // A passed hand can't penalize their 1NT (the 15+ double is impossible),
         // so the double is free: reassign it to both majors (≥5-4), advanced like
@@ -1464,6 +1604,87 @@ fn landy_2nt_rebid(lo: u8, hi: u8) -> Rules {
         // 5-4 (the source omits a min-5-4 slot, so 3♣ folds min+medium together).
         .rule(Bid::new(3, Strain::Clubs), 1.2, points(lo..max))
         .rule(Bid::new(3, Strain::Diamonds), 1.2, points(max..))
+}
+
+// ---------------------------------------------------------------------------
+// Woolsey "Multi-Landy" continuations.  The both-majors 2♣ reuses the Landy
+// advances above; the Muiderberg 2♥/2♠ are left to the instinct floor, which
+// advances them correctly as natural 5-card major overcalls (it never sees the
+// 4+ minor, the one detail lost).  Only the Multi 2♦ and the takeout X need
+// authored advances — the floor would misread both (2♦ as natural diamonds, the
+// X as penalty) and that mismatch is the dangerous case.
+// ---------------------------------------------------------------------------
+
+/// Advancer over the Woolsey **Multi** `2♦` (`[1NT, 2♦, P]`): pass-or-correct in
+/// two strengths, plus a game-forcing ask.  Thresholds track the overcall floor
+/// `lo` ([`landy_advances`] uses the same `20-lo` / `22-lo` rule).
+fn multi_advances(lo: u8) -> Rules {
+    let invite = 20u8.saturating_sub(lo);
+    let game = 22u8.saturating_sub(lo);
+    Rules::new()
+        // Game-force: ask the overcaller to name its 6-card major (it jumps to 4M).
+        .rule(Bid::new(2, Strain::Notrump), 1.0, points(game..))
+        // Invitational pass-or-correct: lands a level higher (2♠ or 3♥).
+        .rule(Bid::new(2, Strain::Spades), 0.95, points(invite..game))
+        // Weak pass-or-correct: overcaller passes with hearts, corrects 2♠ with spades.
+        .rule(Bid::new(2, Strain::Hearts), 0.9, points(..invite))
+}
+
+/// Overcaller over the weak `2♥` pass-or-correct (`[1NT, 2♦, P, 2♥, P]`): pass
+/// with the heart Multi, correct to `2♠` with the spade Multi
+fn multi_2h_rebid() -> Rules {
+    Rules::new()
+        .rule(Bid::new(2, Strain::Spades), 1.0, len(Suit::Spades, 6..))
+        .rule(Call::Pass, 0.0, hcp(0..))
+}
+
+/// Overcaller over the invitational `2♠` pass-or-correct (`[1NT, 2♦, P, 2♠, P]`):
+/// pass with the spade Multi, bid `3♥` with the heart Multi
+// ponytail: the invitational hand lands in 3♥ on a heart Multi even opposite a
+// minimum — accepted over authoring a 2NT relay + advancer placement node.
+fn multi_2s_rebid() -> Rules {
+    Rules::new()
+        .rule(Bid::new(3, Strain::Hearts), 1.0, len(Suit::Hearts, 6..))
+        .rule(Call::Pass, 0.0, hcp(0..))
+}
+
+/// Overcaller over the game-forcing `2NT` ask (`[1NT, 2♦, P, 2NT, P]`): jump to
+/// game in the 6-card major
+fn multi_2nt_rebid() -> Rules {
+    Rules::new()
+        .rule(Bid::new(4, Strain::Hearts), 1.0, len(Suit::Hearts, 6..))
+        .rule(Bid::new(4, Strain::Spades), 1.0, len(Suit::Spades, 6..))
+}
+
+/// Advancer over the Woolsey takeout `X` (`[1NT, X, P]`): bid a 5+ major of your
+/// own (to play), ask with a game-going hand, else relay `2♣` to the doubler's
+/// long minor.  The catch-all `2♣` owns a finite logit so the floor never runs.
+fn woolsey_x_advance(lo: u8) -> Rules {
+    let game = 22u8.saturating_sub(lo);
+    Rules::new()
+        // Our own good major outranks the doubler's (its major may be the other one).
+        .rule(Bid::new(2, Strain::Spades), 1.11, len(Suit::Spades, 5..))
+        .rule(Bid::new(2, Strain::Hearts), 1.1, len(Suit::Hearts, 5..))
+        // Game-going: ask the doubler to name its 4-card major.
+        .rule(Bid::new(2, Strain::Notrump), 1.0, points(game..))
+        // Weak / no major of our own: name your minor, I pass or correct.
+        .rule(Bid::new(2, Strain::Clubs), 0.9, hcp(0..))
+}
+
+/// Doubler over the `2♣` minor relay (`[1NT, X, P, 2♣, P]`): pass with the club
+/// minor, correct to `2♦` with the diamond minor (advancer denied a major)
+fn woolsey_x_minor_rebid() -> Rules {
+    Rules::new()
+        .rule(Bid::new(2, Strain::Diamonds), 1.0, len(Suit::Diamonds, 5..))
+        .rule(Call::Pass, 0.0, hcp(0..))
+}
+
+/// Doubler over the `2NT` game-ask (`[1NT, X, P, 2NT, P]`): name the 4-card major
+/// (the `X` always holds exactly one), leaving the advancer to place the game
+fn woolsey_x_2nt_rebid() -> Rules {
+    Rules::new()
+        .rule(Bid::new(3, Strain::Hearts), 1.0, len(Suit::Hearts, 4..))
+        .rule(Bid::new(3, Strain::Spades), 1.0, len(Suit::Spades, 4..))
 }
 
 // ---------------------------------------------------------------------------
@@ -2039,8 +2260,9 @@ pub fn defensive() -> Defensive {
         );
     }
 
-    // Advancing partner's Landy 2♣ (both majors) over their 1NT, when on.
-    if let Some((lo, hi)) = landy_range() {
+    // Advancing partner's Landy 2♣ (both majors) over their 1NT, when on.  Woolsey's
+    // 2♣ is the identical both-majors call, so it reuses this same advance wiring.
+    if let Some((lo, hi)) = landy_range().or_else(|| woolsey_enabled().then(woolsey_points)) {
         let landy_2c = call(2, Strain::Clubs);
 
         // [1NT, 2♣, P] — advancer picks a major / asks via the 2♦ / 2NT routes.
@@ -2118,6 +2340,68 @@ pub fn defensive() -> Defensive {
             ],
             3,
             landy_2nt_rebid(lo, hi),
+        );
+    }
+
+    // Woolsey Multi 2♦ + takeout-X continuations, when on.  The both-majors 2♣
+    // reuses the Landy advance wiring above; the Muiderberg 2♥/2♠ are advanced by
+    // the instinct floor (natural 5-card major overcalls).
+    if woolsey_enabled() {
+        let lo = woolsey_points().0;
+        let x = Call::Double;
+        let multi = call(2, Strain::Diamonds);
+        let nt2 = call(2, Strain::Notrump);
+        // [1NT, 2♦, P] — advancer pass-or-corrects (2♥ weak / 2♠ inv) or asks (2NT).
+        insert_all_seats(&mut d, &[notrump, multi, Call::Pass], 3, multi_advances(lo));
+        insert_all_seats(
+            &mut d,
+            &[
+                notrump,
+                multi,
+                Call::Pass,
+                call(2, Strain::Hearts),
+                Call::Pass,
+            ],
+            3,
+            multi_2h_rebid(),
+        );
+        insert_all_seats(
+            &mut d,
+            &[
+                notrump,
+                multi,
+                Call::Pass,
+                call(2, Strain::Spades),
+                Call::Pass,
+            ],
+            3,
+            multi_2s_rebid(),
+        );
+        insert_all_seats(
+            &mut d,
+            &[notrump, multi, Call::Pass, nt2, Call::Pass],
+            3,
+            multi_2nt_rebid(),
+        );
+        // [1NT, X, P] — advancer relays to the minor / bids own major / asks 2NT.
+        let xfloor = woolsey_double_floor();
+        insert_all_seats(
+            &mut d,
+            &[notrump, x, Call::Pass],
+            3,
+            woolsey_x_advance(xfloor),
+        );
+        insert_all_seats(
+            &mut d,
+            &[notrump, x, Call::Pass, call(2, Strain::Clubs), Call::Pass],
+            3,
+            woolsey_x_minor_rebid(),
+        );
+        insert_all_seats(
+            &mut d,
+            &[notrump, x, Call::Pass, nt2, Call::Pass],
+            3,
+            woolsey_x_2nt_rebid(),
         );
     }
 
@@ -2284,7 +2568,8 @@ mod tests {
     use crate::bidding::american::{
         LebensohlStyle, PassedHandDefense, american, set_advance_sohl_style,
         set_always_pass_defense, set_direct_dont, set_direct_landy_double, set_leaping_michaels,
-        set_passed_hand_defense,
+        set_passed_hand_defense, set_unusual_notrump_defense, set_woolsey,
+        set_woolsey_double_floor, set_woolsey_points,
     };
     use contract_bridge::auction::{Call, RelativeVulnerability};
     use contract_bridge::{Bid, Hand, Strain};
@@ -2429,6 +2714,84 @@ mod tests {
         set_always_pass_defense(false);
         assert_eq!(c, Call::Pass);
         assert!(!floored, "the always-pass must come from the book node");
+    }
+
+    /// Best call with Woolsey forced on (default ranges) and the conflicting
+    /// overlays reset, independent of any other test on this thread.  Resets the
+    /// toggle afterward so it cannot leak into a non-Woolsey test.
+    fn woolsey(auction: &[Call], hand: &str) -> (Call, bool) {
+        set_always_pass_defense(false);
+        set_unusual_notrump_defense(None);
+        set_woolsey_points(9, 19);
+        set_woolsey_double_floor(11);
+        set_woolsey(true);
+        let result = best_call(auction, hand);
+        set_woolsey(false);
+        result
+    }
+
+    #[test]
+    fn woolsey_direct_seat_routes_every_shape() {
+        let over_1nt = [call(1, Strain::Notrump)];
+        // 2♦ Multi: a single 6-card heart suit (other major short).
+        let (multi, floored) = woolsey(&over_1nt, "32.KQJ987.A32.32");
+        assert_eq!(multi, call(2, Strain::Diamonds));
+        assert!(
+            !floored,
+            "the Woolsey overcall must come from the book node"
+        );
+        // 2♣ both majors: 5-4.
+        assert_eq!(
+            woolsey(&over_1nt, "AJ987.KQ32.32.32").0,
+            call(2, Strain::Clubs)
+        );
+        // 2♥ Muiderberg: exactly 5 hearts + a 4-card minor, short spades.
+        assert_eq!(
+            woolsey(&over_1nt, "32.AQJ98.K987.2").0,
+            call(2, Strain::Hearts)
+        );
+        // X: a 4-card major + a longer (5-card) minor, 11+.
+        assert_eq!(woolsey(&over_1nt, "AKQ8.32.KJ987.32").0, Call::Double);
+    }
+
+    #[test]
+    fn woolsey_has_no_penalty_double() {
+        let over_1nt = [call(1, Strain::Notrump)];
+        // A flat 22-count has no Woolsey bid — it passes, exactly as in BBA's read
+        // (there is no penalty double in this structure).
+        let (strong, floored) = woolsey(&over_1nt, "AQ32.KQ3.KQ3.AQ2");
+        assert_eq!(strong, Call::Pass);
+        assert!(!floored, "the settling Pass must come from the book node");
+        // A bare 5332 with a five-card major (no 4-card minor) also passes.
+        assert_eq!(woolsey(&over_1nt, "AKJ32.K32.Q32.32").0, Call::Pass);
+    }
+
+    #[test]
+    fn woolsey_multi_advance_pass_or_corrects() {
+        // [1NT, 2♦, P] — a weak advancer bids the 2♥ pass-or-correct.
+        let auction = [
+            call(1, Strain::Notrump),
+            call(2, Strain::Diamonds),
+            Call::Pass,
+        ];
+        let (c, floored) = woolsey(&auction, "32.K32.J32.J5432");
+        assert_eq!(c, call(2, Strain::Hearts));
+        assert!(!floored, "the Multi advance must come from the book node");
+    }
+
+    #[test]
+    fn woolsey_x_advance_never_sits_for_penalty() {
+        // [1NT, X, P] — the X is takeout, so a weak no-major advancer relays 2♣
+        // (names the doubler's minor), never passing to defend a phantom 1NTx.
+        let auction = [call(1, Strain::Notrump), Call::Double, Call::Pass];
+        let (relay, floored) = woolsey(&auction, "432.432.432.5432");
+        assert_eq!(relay, call(2, Strain::Clubs));
+        assert!(!floored, "the X advance must come from the book node");
+        // With a good 5-card major of its own, the advancer bids it to play.
+        assert_eq!(
+            woolsey(&auction, "KQ982.32.432.432").0,
+            call(2, Strain::Spades)
+        );
     }
 
     #[test]

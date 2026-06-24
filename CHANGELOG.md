@@ -9,6 +9,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Our own Woolsey "Multi-Landy" defense to their 1NT — opt-in, default off
+  (`set_woolsey`).** Authors BBA's distilled structure at every seat, with our own
+  (tunable) strength bands: `X` = a 4-card major + a longer (5-6) minor (takeout,
+  *not* penalty), `2♣` = both majors (5-4 / 5-5, advanced via the existing Landy
+  machinery), `2♦` = Multi (a single 6+ major), `2♥`/`2♠` = Muiderberg (exactly 5
+  in the major + a 4+ minor), and an owning `Pass` for everything else — including
+  strong balanced, so there is no penalty double. The shapes are disjoint, so they
+  reproduce BBA's pass cases for free (a flat 22-count, a bare 5332 major, a 4-4 or
+  six-card-minor one-suiter all pass). Authored continuations: the Multi `2♦`
+  pass-or-correct (`2♥` weak / `2♠` invitational / `2NT` game-ask) and the takeout
+  `X` advance (relay `2♣` to the long minor / bid your own 5+ major / `2NT` ask) —
+  the two calls the instinct floor would misread; the Muiderberg `2♥`/`2♠` are left
+  to the floor, which advances them correctly as natural 5-card major overcalls.
+  Two tuning knobs: `set_woolsey_points(lo, hi)` (suit overcalls, **default
+  10–19**) and `set_woolsey_double_floor(floor)` (the `X`, **default 12**) — our
+  own floors, one above BBA's 9. `american()`'s default defense is **unchanged**
+  (natural penalty-X + overcalls); Woolsey acts only on an explicit opt-in.
+  Harness: `ab-landy --ns-woolsey on [--ns-woolsey-range LO:HI --ns-woolsey-x-floor
+  N]`. **Measured DD-negative under honest scoring** — like every preempt-flavoured
+  convention here, the DD harness is blind to its obstruction value: plain-DD is
+  ≈neutral (+0.07/+0.10 IMPs/divergent nv/bv) but perfect-defense doubling
+  (`--score pd`) is **−0.56**, and a floor-sweep is monotonic (9 → −0.59, 11 →
+  −0.40, 13 → −0.10, 15 → +0.26 IMPs/divergent), i.e. the DD-positive setting is
+  the one that stops competing. Kept opt-in for exactly that reason.
 - **`probe-bba-constraints` — BBA's 1NT defense fully distilled (it's Woolsey
   "Multi-Landy").** New `--mode`s read the rest of the structure from real EPBot
   hands: `muider-h`/`muider-s` (the advances over the `2♥`/`2♠` Muiderberg) and
