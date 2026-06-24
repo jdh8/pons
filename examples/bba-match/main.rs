@@ -212,6 +212,14 @@ struct Args {
     #[arg(long, default_value_t = 12)]
     ns_woolsey_x_floor: u8,
 
+    /// Our side NEVER competes over BBA's 1NT (default off): authors only Pass at
+    /// every seat, the truest "do nothing" baseline.  With `--isolate-defense` the
+    /// swing is BBA reaching its contract uncontested (our table) vs BBA disrupting
+    /// BBA (the reference) — i.e. the full cost of not competing.  Overrides every
+    /// other defense knob (Pass is authored before them).
+    #[arg(long, default_value_t = false)]
+    ns_always_pass: bool,
+
     /// Advertise that our defense to BBA's 1NT is natural.  At *our* table only
     /// (where we defend) the opponent bot's 1NT-defense conventions are disabled
     /// (`Multi-Landy`/`Cappelletti`/`Landy` off, atop `--their-conv`), so BBA reads
@@ -740,6 +748,8 @@ fn main() -> anyhow::Result<()> {
         pons::bidding::american::set_landy(None);
         pons::bidding::american::set_direct_dont(false);
     }
+    // Always-pass owns the [1NT] node before every other arm (truest do-nothing).
+    pons::bidding::american::set_always_pass_defense(args.ns_always_pass);
     let our_floor = match args.our_floor.as_str() {
         "american" => american().against(Family::NATURAL),
         #[cfg(feature = "neural-floor")]
