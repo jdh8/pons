@@ -237,6 +237,67 @@ fn notrump_balancing_enabled() -> bool {
     NOTRUMP_BALANCING.with(Cell::get)
 }
 
+thread_local! {
+    /// Whether the **direct-seat DONT** defense replaces the natural penalty-X +
+    /// overcalls over their 1NT; **off by default** (opt-in A/B).  On,
+    /// `defense_to_notrump` authors the conventional DONT structure at every seat
+    /// (one-suiter `X`, two-suiter `2♣`/`2♦`/`2♥`, natural `2♠`) and the
+    /// passed-hand arm is suppressed (DONT already covers the passed seat).  See
+    /// [`set_direct_dont`].
+    static DIRECT_DONT: Cell<bool> = const { Cell::new(false) };
+}
+
+/// Replace the natural 1NT defense with conventional DONT at every seat, for books
+/// built *after* this call (thread-local; **off by default**).
+///
+/// On: `X` = a one-suiter (♣/♦/♥, 5+, no second four-card suit — spade one-suiters
+/// bid the natural `2♠`), `2♣` = clubs + a higher major, `2♦` = diamonds + a major,
+/// `2♥` = both majors, `2♠` = natural spades, plus an owning `Pass` catch-all.
+/// Pair with [`set_unusual_notrump_defense`] to add `2NT` = both minors.  Mutually
+/// exclusive with the natural penalty-X arm ([`set_natural_defense`]); when on, the
+/// passed-hand defense ([`set_passed_hand_defense`]) is also superseded.
+pub fn set_direct_dont(on: bool) {
+    DIRECT_DONT.with(|cell| cell.set(on));
+}
+
+/// Whether the direct-seat DONT defense is currently authored
+fn direct_dont_enabled() -> bool {
+    DIRECT_DONT.with(Cell::get)
+}
+
+thread_local! {
+    /// Minimum length to insist on a DONT one-suiter (the `X` for ♣/♦/♥, the
+    /// natural `2♠` for spades); **5 by default**.  Set to 6 to bid only with a
+    /// six-card suit, passing five-card one-suiters (the X bucket is the DD loser,
+    /// so insisting only with real shape trades action for safety — toward the
+    /// always-pass optimum).  An A/B knob, no effect unless DONT is on.
+    static DIRECT_DONT_ONE_SUITER_MIN: Cell<u8> = const { Cell::new(5) };
+    /// Whether DONT two-suiters (`2♣`/`2♦`/`2♥`) accept a flat 4-4 (else 5-4+);
+    /// **off by default**.  On, a 4-4 two-suiter competes (looser, plausibly fine
+    /// non-vul, riskier vul).  An A/B knob, no effect unless DONT is on.
+    static DIRECT_DONT_FOUR_FOUR: Cell<bool> = const { Cell::new(false) };
+}
+
+/// Minimum one-suiter length for the DONT `X`/`2♠` (default 5; set 6 to pass
+/// five-card one-suiters).  See [`set_direct_dont`].
+pub fn set_direct_dont_one_suiter_min(min: u8) {
+    DIRECT_DONT_ONE_SUITER_MIN.with(|cell| cell.set(min));
+}
+
+fn direct_dont_one_suiter_min() -> usize {
+    DIRECT_DONT_ONE_SUITER_MIN.with(Cell::get) as usize
+}
+
+/// Whether DONT two-suiters accept a flat 4-4 (default false = 5-4+).  See
+/// [`set_direct_dont`].
+pub fn set_direct_dont_four_four(on: bool) {
+    DIRECT_DONT_FOUR_FOUR.with(|cell| cell.set(on));
+}
+
+fn direct_dont_four_four() -> bool {
+    DIRECT_DONT_FOUR_FOUR.with(Cell::get)
+}
+
 /// Which shapes qualify for the natural penalty double of their 1NT (the 15+ HCP
 /// floor is fixed; this only widens the *shape* gate). See [`set_natural_double_shape`].
 #[derive(Clone, Copy, PartialEq, Eq, Default, Debug)]
@@ -679,10 +740,46 @@ pub fn defense_to_notrump() -> Rules {
     let mut rules = Rules::new();
 
     let landy = landy_range();
-    // The natural penalty double + suit overcalls + owning `Pass` catch-all are
-    // the toggleable arm: with all three arms off the node carries no finite logit
-    // and the position falls to the instinct floor (the A/B baseline).
-    if natural_defense_enabled() {
+    // Direct-seat DONT replaces the natural penalty-X + overcalls outright (and the
+    // Landy 2♣ overlay below): conventional one-suiter `X`, two-suiters `2♣`/`2♦`/`2♥`,
+    // natural `2♠`, owning `Pass`.  `2NT` = both minors is added by the Unusual overlay.
+    // Un-gated by passed_hand(), so it covers every seat — the passed-hand arm is then
+    // suppressed.  A 15+ balanced hand has no DONT bid and Passes (no penalty double).
+    if direct_dont_enabled() {
+        let lo = natural_overcall_points().0;
+        let ff = direct_dont_four_four();
+        let one_min = direct_dont_one_suiter_min();
+        rules = rules
+            .rule(
+                Bid::new(2, Strain::Clubs),
+                2.0,
+                dont_minor_major(Suit::Clubs, ff) & points(lo..),
+            )
+            .rule(
+                Bid::new(2, Strain::Diamonds),
+                2.0,
+                dont_minor_major(Suit::Diamonds, ff) & points(lo..),
+            )
+            .rule(
+                Bid::new(2, Strain::Hearts),
+                2.0,
+                dont_both_majors(ff) & points(lo..),
+            )
+            // 2♠ natural sits below the two-suiters (1.0 < 2.0), so a 5-4 spade
+            // two-suiter shows the two-suiter and only a pure spade one-suiter lands
+            // here — the one-suiter `X` excludes spades for exactly this handoff.
+            .rule(
+                Bid::new(2, Strain::Spades),
+                1.0,
+                len(Suit::Spades, one_min..) & points(lo..),
+            )
+            .rule(
+                Call::Double,
+                1.9,
+                dont_one_suiter_direct(one_min) & points(lo..),
+            )
+            .rule(Call::Pass, 0.0, hcp(0..));
+    } else if natural_defense_enabled() {
         // The penalty double's HCP floor is fixed at 15; the shape gate widens with
         // `set_natural_double_shape`. Each arm reissues `.rule()` so the differing
         // constraint types unify to `Rules` (same trick as the `use_hcp` branches).
@@ -711,7 +808,8 @@ pub fn defense_to_notrump() -> Rules {
     }
 
     let use_hcp = landy_use_hcp();
-    if let Some((lo, hi)) = landy {
+    // DONT repurposes 2♣ as a two-suiter, so the Landy 2♣ overlay is incompatible.
+    if let Some((lo, hi)) = landy.filter(|_| !direct_dont_enabled()) {
         // 2♣ = both majors, at least 5-4.
         let shape = five_four(Suit::Hearts, Suit::Spades);
         rules = if use_hcp {
@@ -729,7 +827,9 @@ pub fn defense_to_notrump() -> Rules {
             rules.rule(Bid::new(2, Strain::Notrump), 1.8, shape & points(lo..=hi))
         };
     }
-    match passed_hand_defense() {
+    // DONT covers every seat (its arm above is un-gated by passed_hand()), so the
+    // passed-hand-specific defense is superseded when it is on.
+    match passed_hand_defense().filter(|_| !direct_dont_enabled()) {
         // A passed hand can't penalize their 1NT (the 15+ double is impossible),
         // so the double is free: reassign it to both majors (≥5-4), advanced like
         // Landy 2♣.  Gated on passed_hand() — the direct-seat penalty double above
@@ -831,6 +931,61 @@ fn no_six(h: Hand) -> bool {
     [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades]
         .iter()
         .all(|&s| h[s].len() <= 5)
+}
+
+// Direct-seat DONT shapes.  Unlike the passed-hand twins these carry no six-card
+// cap (an unpassed hand may hold a long suit), and they carve clubs+diamonds onto
+// the `2NT` both-minors overlay so `2♣`/`2♦` mean a minor + a *major*.
+
+/// Direct-seat DONT `X`: a one-suiter (a `min`+ suit, no second four-card suit)
+/// whose long suit is a minor or hearts.  A spade one-suiter bids the natural `2♠`,
+/// so spades are excluded here — `second < 4` makes every non-long suit short,
+/// hence `h[♠] < 4` rejects exactly the case where spades *are* the long suit.
+/// `min` (5 or 6) is [`set_direct_dont_one_suiter_min`].
+fn dont_one_suiter_direct(min: usize) -> Cons<impl Constraint + Clone> {
+    described(
+        "a one-suiter in ♣/♦/♥ (no second four-card suit)",
+        move |h: Hand, _: &Context<'_>| {
+            let mut lengths =
+                [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades].map(|s| h[s].len());
+            lengths.sort_unstable();
+            let [_, _, second, longest] = lengths;
+            longest >= min && second < 4 && h[Suit::Spades].len() < 4
+        },
+    )
+}
+
+/// Direct-seat DONT `2♣`/`2♦`: a minor + a *major*, 5-4 either way (or a flat 4-4
+/// when `allow_44`).  The higher suit is ♥/♠ only — a minor + the other minor is
+/// shown as `2NT` (both minors), not here.  `allow_44` is
+/// [`set_direct_dont_four_four`].
+fn dont_minor_major(minor: Suit, allow_44: bool) -> Cons<impl Constraint + Clone> {
+    described(
+        "a minor + a higher major",
+        move |h: Hand, _: &Context<'_>| {
+            let m = h[minor].len();
+            let hi = h[Suit::Hearts].len().max(h[Suit::Spades].len());
+            if allow_44 {
+                m >= 4 && hi >= 4
+            } else {
+                (m >= 5 && hi >= 4) || (m >= 4 && hi >= 5)
+            }
+        },
+    )
+}
+
+/// Direct-seat DONT `2♥`: both majors, 5-4 either way (or a flat 4-4 when
+/// `allow_44`).
+fn dont_both_majors(allow_44: bool) -> Cons<impl Constraint + Clone> {
+    described("both majors", move |h: Hand, _: &Context<'_>| {
+        let hh = h[Suit::Hearts].len();
+        let ss = h[Suit::Spades].len();
+        if allow_44 {
+            hh >= 4 && ss >= 4
+        } else {
+            (hh >= 5 && ss >= 4) || (hh >= 4 && ss >= 5)
+        }
+    })
 }
 
 /// Advancer's responses to partner's Landy `2♣` (both majors), per
@@ -1805,7 +1960,8 @@ pub fn defensive() -> Defensive {
     let p = Call::Pass;
     let x = Call::Double;
     let xx = Call::Redouble;
-    match passed_hand_defense() {
+    // DONT supersedes the passed-hand defense (it covers every seat below).
+    match passed_hand_defense().filter(|_| !direct_dont_enabled()) {
         Some(PassedHandDefense::NaturalLandyDouble) => {
             // [P,P,P,1NT,X,P] — advancer picks a major / relays 2♦ (reuse Landy).
             d.insert(&[p, p, p, notrump, x, p], landy_advances(PASSED_LANDY_LO));
@@ -1850,6 +2006,35 @@ pub fn defensive() -> Defensive {
         }
         None => {}
     }
+
+    // Direct-seat DONT advances: the same pass-or-correct relays, but keyed at
+    // *every* seat via insert_all_seats (the X/2♣/2♦/2♥ are now direct-seat
+    // conventional calls).  Binding [1NT,X,P] etc. is correct here — with DONT on
+    // the direct `X` is a one-suiter wanting the 2♣ relay, not a penalty, so this
+    // is exactly the case the passed-hand note above warned against doing when off.
+    if direct_dont_enabled() {
+        let c2 = call(2, Strain::Clubs);
+        let d2 = call(2, Strain::Diamonds);
+        let h2 = call(2, Strain::Hearts);
+        insert_all_seats(&mut d, &[notrump, x, p], 3, passed_dont_x_advance());
+        insert_all_seats(&mut d, &[notrump, x, p, c2, p], 3, passed_dont_x_rebid());
+        insert_all_seats(&mut d, &[notrump, c2, p], 3, passed_dont_2c_advance());
+        insert_all_seats(&mut d, &[notrump, c2, p, d2, p], 3, passed_dont_2c_rebid());
+        insert_all_seats(&mut d, &[notrump, d2, p], 3, passed_dont_2d_advance());
+        insert_all_seats(&mut d, &[notrump, d2, p, h2, p], 3, passed_dont_2d_rebid());
+        insert_all_seats(&mut d, &[notrump, h2, p], 3, passed_dont_2h_advance());
+        // Their redouble of our one-suiter X: never sit in 1NTxx — relay 2♣ just as
+        // over a pass, then the doubler names the suit (mirrors the passed-hand
+        // NaturalLandyDouble redouble escape).
+        insert_all_seats(&mut d, &[notrump, x, xx], 3, passed_dont_x_advance());
+        insert_all_seats(&mut d, &[notrump, x, xx, c2, p], 3, passed_dont_x_rebid());
+        // Their double of our artificial 2♣ relay (after our X, passed or redoubled):
+        // the relay is NOT a club fit, so the doubler must still name the real
+        // one-suiter (2♦/2♥/2♠, or pass with genuine clubs) — else we sit in a
+        // doubled misfit 2♣x, the dominant DONT-X loss in the honest measure.
+        insert_all_seats(&mut d, &[notrump, x, p, c2, x], 3, passed_dont_x_rebid());
+        insert_all_seats(&mut d, &[notrump, x, xx, c2, x], 3, passed_dont_x_rebid());
+    }
     d
 }
 
@@ -1858,7 +2043,7 @@ mod tests {
     use crate::bidding::Family;
     use crate::bidding::american::{
         LebensohlStyle, PassedHandDefense, american, set_advance_sohl_style,
-        set_always_pass_defense, set_leaping_michaels, set_passed_hand_defense,
+        set_always_pass_defense, set_direct_dont, set_leaping_michaels, set_passed_hand_defense,
     };
     use contract_bridge::auction::{Call, RelativeVulnerability};
     use contract_bridge::{Bid, Hand, Strain};
@@ -2239,6 +2424,91 @@ mod tests {
             let (off, _) = passed(None, &over_1nt, hand);
             assert_eq!(on, off, "DONT changed the direct-seat call for {hand}");
         }
+    }
+
+    /// Best call with direct-seat DONT forced on, restored after so it never leaks
+    /// into a sibling test on this thread.
+    fn direct_dont(auction: &[Call], hand: &str) -> (Call, bool) {
+        let prev = super::direct_dont_enabled();
+        set_direct_dont(true);
+        let result = best_call(auction, hand);
+        set_direct_dont(prev);
+        result
+    }
+
+    #[test]
+    fn direct_dont_replaces_the_penalty_double() {
+        // Direct seat over (1NT) with DONT on: the conventional structure, not the
+        // natural penalty-X + overcalls.
+        let over_1nt = [call(1, Strain::Notrump)];
+
+        // Clubs + a higher major (5♣-4♠) → 2♣  (♣+♦ would be 2NT, not authored here).
+        let (c, floored) = direct_dont(&over_1nt, "KJ32.32.4.AQ876");
+        assert_eq!(c, call(2, Strain::Clubs));
+        assert!(!floored, "DONT 2♣ must come from the book node");
+
+        // Diamonds + a major (5♦-4♥) → 2♦.
+        let (c, _) = direct_dont(&over_1nt, "32.KJ32.AQ876.4");
+        assert_eq!(c, call(2, Strain::Diamonds));
+
+        // Both majors (5♠-4♥) → 2♥.
+        let (c, _) = direct_dont(&over_1nt, "AJ932.K842.32.32");
+        assert_eq!(c, call(2, Strain::Hearts));
+
+        // A spade one-suiter bids the natural 2♠ directly (not the X relay).
+        let (c, _) = direct_dont(&over_1nt, "AKJ87.432.32.432");
+        assert_eq!(c, call(2, Strain::Spades));
+
+        // A non-spade (heart) one-suiter → X, the one-suiter relay double.
+        let (c, _) = direct_dont(&over_1nt, "432.AKJ87.32.432");
+        assert_eq!(c, Call::Double);
+
+        // 15+ balanced has no DONT bid → Pass; the penalty double is gone.
+        let (c, _) = direct_dont(&over_1nt, "AKQ2.KQ2.KJ2.432");
+        assert_eq!(c, Call::Pass);
+    }
+
+    #[test]
+    fn direct_dont_one_suiter_double_relays_then_names() {
+        // [1NT,X,P]: with DONT on the direct-seat X is a one-suiter, so the advancer
+        // relays 2♣ (a book node now keyed at the direct seat, not floored)...
+        let nt = call(1, Strain::Notrump);
+        let p = Call::Pass;
+        let prev = super::direct_dont_enabled();
+        set_direct_dont(true);
+        let (relay, floored) = best_call(&[nt, Call::Double, p], "Q32.Q32.Q432.432");
+        // ...and the doubler with a long heart suit names it.
+        let after_relay = [nt, Call::Double, p, call(2, Strain::Clubs), p];
+        let (name, _) = best_call(&after_relay, "432.AKJ87.32.432");
+        // And if they redouble the one-suiter X, the advancer still relays 2♣ —
+        // never sits in 1NTxx.
+        let (escape, esc_floored) =
+            best_call(&[nt, Call::Double, Call::Redouble], "Q32.Q32.Q432.432");
+        // And if they double our artificial 2♣ relay, the doubler still names the
+        // real suit (2♥ here) rather than sitting in the 2♣x misfit.
+        let relay_doubled = [
+            nt,
+            Call::Double,
+            Call::Redouble,
+            call(2, Strain::Clubs),
+            Call::Double,
+        ];
+        let (named, nd_floored) = best_call(&relay_doubled, "432.AKJ87.32.432");
+        set_direct_dont(prev);
+        assert_eq!(relay, call(2, Strain::Clubs));
+        assert!(!floored, "the direct-seat relay must come from the book");
+        assert_eq!(name, call(2, Strain::Hearts));
+        assert_eq!(escape, call(2, Strain::Clubs), "must escape 1NTxx, not sit");
+        assert!(!esc_floored, "the redouble escape must come from the book");
+        assert_eq!(
+            named,
+            call(2, Strain::Hearts),
+            "must escape 2♣x to the real suit"
+        );
+        assert!(
+            !nd_floored,
+            "the doubled-relay escape must come from the book"
+        );
     }
 
     #[test]

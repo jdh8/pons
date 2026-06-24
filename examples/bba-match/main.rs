@@ -176,6 +176,24 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_balancing: bool,
 
+    /// Replace our natural 1NT defense with conventional DONT (default off):
+    /// one-suiter X, 2♣ = clubs + a higher major, 2♦ = diamonds + a major, 2♥ =
+    /// both majors, 2♠ natural, 2NT = both minors.  Mutually exclusive with the
+    /// natural penalty-X; pair with `--isolate-defense --advertise-natural` to A/B
+    /// DONT against the natural defense's −0.18/−0.48 IMPs/board baseline.
+    #[arg(long, default_value_t = false)]
+    ns_dont: bool,
+
+    /// DONT one-suiter minimum length for the `X`/`2♠` (default 5; set 6 to insist
+    /// only with a six-card suit, passing five-card one-suiters). Only with `--ns-dont`.
+    #[arg(long, default_value_t = 5)]
+    ns_dont_one_suiter_min: u8,
+
+    /// Let DONT two-suiters (`2♣`/`2♦`/`2♥`) accept a flat 4-4 (default off = 5-4+).
+    /// Only with `--ns-dont`.
+    #[arg(long, default_value_t = false)]
+    ns_dont_four_four: bool,
+
     /// Advertise that our defense to BBA's 1NT is natural.  At *our* table only
     /// (where we defend) the opponent bot's 1NT-defense conventions are disabled
     /// (`Multi-Landy`/`Cappelletti`/`Landy` off, atop `--their-conv`), so BBA reads
@@ -674,6 +692,16 @@ fn main() -> anyhow::Result<()> {
             anyhow::anyhow!("--ns-overcall must be LO:HI, got {:?}", args.ns_overcall)
         })?;
     pons::bidding::american::set_natural_overcall_points(oc_lo, oc_hi);
+    // DONT replaces the natural penalty-X + overcalls; it owns 2♣ as a two-suiter
+    // (so Landy must be off) and pairs with Unusual 2NT to give both-minor hands a
+    // home (else clubs+diamonds, carved off 2♣, would have nowhere to go).
+    pons::bidding::american::set_direct_dont(args.ns_dont);
+    if args.ns_dont {
+        pons::bidding::american::set_landy(None);
+        pons::bidding::american::set_unusual_notrump_defense(Some((8, 14)));
+        pons::bidding::american::set_direct_dont_one_suiter_min(args.ns_dont_one_suiter_min);
+        pons::bidding::american::set_direct_dont_four_four(args.ns_dont_four_four);
+    }
     let our_floor = match args.our_floor.as_str() {
         "american" => american().against(Family::NATURAL),
         #[cfg(feature = "neural-floor")]

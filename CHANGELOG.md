@@ -9,6 +9,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Conventional DONT defense to their 1NT — opt-in, default off
+  (`set_direct_dont`).** Replaces the natural penalty-X + overcalls at every seat
+  with DONT: `X` = a one-suiter (♣/♦/♥; spade one-suiters bid `2♠` directly), `2♣`
+  = clubs + a higher major, `2♦` = diamonds + a major, `2♥` = both majors, `2♠` =
+  natural spades, `2NT` = both minors (the Unusual overlay), plus an owning `Pass`.
+  Two tuning knobs: `set_direct_dont_one_suiter_min` (5 = classic; **6** = insist
+  only on a six-card suit, passing five-card one-suiters) and
+  `set_direct_dont_four_four` (let the two-suiters accept a flat 4-4).
+  `american()`'s default defense is **unchanged** (natural penalty-X + overcalls)
+  — DONT acts only on an explicit opt-in. Reuses the passed-hand DONT shape
+  predicates and advance relays. Harness: `bba-match --ns-dont`
+  [`--ns-dont-one-suiter-min N`/`--ns-dont-four-four`] and `ab-landy --ns-dont`.
+  Two escapes (bug fixes, active only when DONT is on) keep the artificial `X` out
+  of doubled misfits: a redoubled one-suiter `X` relays out of `1NTxx` rather than
+  sitting, and — the dominant fix — over a **doubled `2♣` relay** the doubler now
+  names its real suit (`[1NT,X,(XX),2♣,X]`) instead of being floored into `2♣x` on
+  a hand that need not hold clubs (the relay is artificial). The escape is worth
+  **+0.083 IMPs/board** on the honest measure.
+- **The honest DONT verdict — it reaches DD parity-to-win, but stays opt-in.**
+  Seat-isolated `bba-match --isolate-defense --advertise-natural` (20 000 boards,
+  seed-paired) vs natural's **−0.187 (none) / −0.480 (both)**: full DONT *loses*
+  (−0.327 none) — the conceding one-suiter-`X` relay is the leak — but the
+  **six-card one-suiter min + the doubled-relay escape** lift it to **−0.196 (none,
+  tied) / −0.408 (both, +0.072 ahead)**, the first artificial 1NT defense to
+  match-or-beat natural on this harness (DONT/Landy/Meckwell were all DD-lost
+  before). The conventional `X` bucket (−1.23/bd none, −2.03 both) is better than
+  the penalty double's (−1.42 / −2.76), and vulnerability — where doubled
+  contracts bite — favors the conventional `X`. The spread across all variants is
+  narrow (the obstruction wall — DD under-prices defensive pressure), so the real
+  DONT-vs-natural verdict is single-dummy; **DONT stays opt-in, natural remains the
+  default.** (Aside, same harness: natural with the penalty-X dropped entirely —
+  15+ balanced just passes — scores −0.174 none, statistically tied with natural,
+  confirming the X is DD-dominated but its value single-dummy.)
 - **`bba-match --advertise-natural` — tell BBA our 1NT defense is natural, so the
   defense measure is honest.** BBA's 2/1 card assumes the defenders play
   *Multi-Landy* (its `2♣` = both majors, `2♦` = a Multi), so when our pair makes a

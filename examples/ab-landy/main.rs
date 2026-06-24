@@ -37,9 +37,10 @@ use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
 use pons::bidding::Family;
 use pons::bidding::american::{
-    DoubleShape, PassedHandDefense, set_always_pass_defense, set_doubled_landy_escape, set_landy,
-    set_landy_hcp, set_natural_defense, set_natural_double_shape, set_passed_hand_defense,
-    set_penalty_pass, set_unusual_notrump_defense,
+    DoubleShape, PassedHandDefense, set_always_pass_defense, set_direct_dont,
+    set_doubled_landy_escape, set_landy, set_landy_hcp, set_natural_defense,
+    set_natural_double_shape, set_passed_hand_defense, set_penalty_pass,
+    set_unusual_notrump_defense,
 };
 use pons::scoring::{final_contract, imps, ns_score_bid, ns_score_contract};
 use rand::SeedableRng;
@@ -105,6 +106,14 @@ struct Args {
     /// Baseline always keeps it off.
     #[arg(long, default_value = "off")]
     ns_passed_dbl: String,
+
+    /// Replace the *measured* pair's natural 1NT defense with conventional DONT:
+    /// `on` or `off` (default). One-suiter X, 2♣ = clubs + a higher major, 2♦ =
+    /// diamonds + a major, 2♥ = both majors, 2♠ natural, 2NT = both minors. Forces
+    /// `--ns-majors`/`--ns-minors` off (DONT owns 2♣/2NT). Pair with `--ew-natural
+    /// on` for the head-to-head, or `--ew-always-pass on` for absolute worth.
+    #[arg(long, default_value = "off")]
+    ns_dont: String,
 
     /// Silly always-pass defense for the *baseline* pair: `on` or `off` (default).
     /// `on` makes the baseline never act over their 1NT — the truest "do nothing"
@@ -383,6 +392,7 @@ fn main() {
         other => panic!("unknown --strength {other:?} (use points or hcp)"),
     };
     let ns_natural = parse_on_off(&args.ns_natural, "--ns-natural");
+    let ns_dont = parse_on_off(&args.ns_dont, "--ns-dont");
     let ew_natural = parse_on_off(&args.ew_natural, "--ew-natural");
     let ew_always_pass = parse_on_off(&args.ew_always_pass, "--ew-always-pass");
     let passed_style = match args.ns_passed_dbl.as_str() {
@@ -410,6 +420,7 @@ fn main() {
     set_natural_double_shape(DoubleShape::Balanced);
     set_always_pass_defense(ew_always_pass);
     set_passed_hand_defense(None);
+    set_direct_dont(false);
     set_penalty_pass(ew_penalty_pass);
     let baseline = american().against(Family::NATURAL);
     set_landy(majors);
@@ -421,6 +432,13 @@ fn main() {
     set_passed_hand_defense(passed_style);
     set_penalty_pass(ns_penalty_pass);
     set_doubled_landy_escape(ns_doubled_escape);
+    // DONT owns 2♣ (two-suiter) and 2NT (both minors), so override the natural
+    // Landy/Unusual overlays when it is on.
+    set_direct_dont(ns_dont);
+    if ns_dont {
+        set_landy(None);
+        set_unusual_notrump_defense(Some((8, 14)));
+    }
     let measured = american().against(Family::NATURAL);
 
     // Each board at both tables (Landy NS at A, EW at B), dealer rotating.
