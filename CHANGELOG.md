@@ -17,22 +17,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   in the major + a 4+ minor), and an owning `Pass` for everything else — including
   strong balanced, so there is no penalty double. The shapes are disjoint, so they
   reproduce BBA's pass cases for free (a flat 22-count, a bare 5332 major, a 4-4 or
-  six-card-minor one-suiter all pass). Authored continuations: the Multi `2♦`
-  pass-or-correct (`2♥` weak / `2♠` invitational / `2NT` game-ask) and the takeout
-  `X` advance (relay `2♣` to the long minor / bid your own 5+ major / `2NT` ask) —
-  the two calls the instinct floor would misread; the Muiderberg `2♥`/`2♠` are left
-  to the floor, which advances them correctly as natural 5-card major overcalls.
-  Two tuning knobs: `set_woolsey_points(lo, hi)` (suit overcalls, **default
+  six-card-minor one-suiter all pass). **Continuations authored in full** (so the
+  structure never bleeds to the instinct floor): the Multi `2♦` (BBA's two-strength
+  pass-or-correct with the `2♠` → `2NT` heart-relay, plus a game-force `2NT` ask),
+  the Muiderberg `2♥`/`2♠` (invitational/game raises + the `2NT` minor-ask answered
+  `3♣`/`3♦`), and the takeout `X` (relay `2♣` to the long minor / own 5+ major /
+  `2NT` ask). Every artificial call has a doubled / redoubled escape so the
+  opponents can never trap us in a doubled artificial contract (the `X`
+  doubled/redoubled run alone moved that bucket from −2.0 to −0.19 IMPs/board vs
+  BBA). Two tuning knobs: `set_woolsey_points(lo, hi)` (suit overcalls, **default
   10–19**) and `set_woolsey_double_floor(floor)` (the `X`, **default 12**) — our
   own floors, one above BBA's 9. `american()`'s default defense is **unchanged**
   (natural penalty-X + overcalls); Woolsey acts only on an explicit opt-in.
   Harness: `ab-landy --ns-woolsey on [--ns-woolsey-range LO:HI --ns-woolsey-x-floor
-  N]`. **Measured DD-negative under honest scoring** — like every preempt-flavoured
-  convention here, the DD harness is blind to its obstruction value: plain-DD is
-  ≈neutral (+0.07/+0.10 IMPs/divergent nv/bv) but perfect-defense doubling
-  (`--score pd`) is **−0.56**, and a floor-sweep is monotonic (9 → −0.59, 11 →
-  −0.40, 13 → −0.10, 15 → +0.26 IMPs/divergent), i.e. the DD-positive setting is
-  the one that stops competing. Kept opt-in for exactly that reason.
+  N]` and `bba-match --isolate-defense --ns-woolsey`. **Measured DD-negative under
+  honest scoring, and worse than the natural defense vs BBA** — like every
+  preempt-flavoured convention here, the DD harness is blind to its obstruction
+  value. On `ab-landy` (vs our natural defense): plain-DD ≈neutral (+0.22
+  IMPs/divergent nv) but perfect-defense doubling (`--score pd`) is **−0.46**, and a
+  floor-sweep is monotonic (the DD-positive setting is the one that stops
+  competing). On `bba-match --isolate-defense` (vs BBA self-play, the realistic
+  measure): our Woolsey **−0.29 IMPs/board**, statistically indistinguishable from
+  doing nothing (always-pass −0.30) and worse than our natural defense (−0.20);
+  range tuning does not move it (the deficit is the overcall decisions + our floors
+  passing where BBA competes, not the continuations). Kept opt-in for that reason.
 - **`probe-bba-constraints` — BBA's 1NT defense fully distilled (it's Woolsey
   "Multi-Landy").** New `--mode`s read the rest of the structure from real EPBot
   hands: `muider-h`/`muider-s` (the advances over the `2♥`/`2♠` Muiderberg) and

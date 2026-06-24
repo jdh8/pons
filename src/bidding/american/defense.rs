@@ -1607,45 +1607,55 @@ fn landy_2nt_rebid(lo: u8, hi: u8) -> Rules {
 }
 
 // ---------------------------------------------------------------------------
-// Woolsey "Multi-Landy" continuations.  The both-majors 2♣ reuses the Landy
-// advances above; the Muiderberg 2♥/2♠ are left to the instinct floor, which
-// advances them correctly as natural 5-card major overcalls (it never sees the
-// 4+ minor, the one detail lost).  Only the Multi 2♦ and the takeout X need
-// authored advances — the floor would misread both (2♦ as natural diamonds, the
-// X as penalty) and that mismatch is the dangerous case.
+// Woolsey "Multi-Landy" continuations.  Authored in full so the structure never
+// bleeds to the instinct floor: the Multi 2♦ (BBA's two-strength pass-or-correct
+// with the 2♠ → 2NT heart-relay, plus a game-force ask), the Muiderberg 2♥/2♠
+// (raises + the 2NT minor-ask), and the takeout X (relay to the minor / own major
+// / ask).  The both-majors 2♣ reuses the Landy advances above.  Every artificial
+// call also has a doubled / redoubled escape (wired in `defensive`) so the
+// opponents can never trap us in a doubled artificial contract.
 // ---------------------------------------------------------------------------
 
-/// Advancer over the Woolsey **Multi** `2♦` (`[1NT, 2♦, P]`): pass-or-correct in
-/// two strengths, plus a game-forcing ask.  Thresholds track the overcall floor
-/// `lo` ([`landy_advances`] uses the same `20-lo` / `22-lo` rule).
+/// Advancer over the Woolsey **Multi** `2♦` (`[1NT, 2♦, P]` or `[1NT, 2♦, X]`):
+/// a major pass-or-correct in two strengths, plus a game-forcing ask.  Holds no
+/// `Pass`, so over a double it always corrects rather than sitting in `2♦x` (the
+/// overcaller has a major, never diamonds).  Thresholds track the overcall floor
+/// `lo` (the `20-lo` / `22-lo` rule, as [`landy_advances`]).
 fn multi_advances(lo: u8) -> Rules {
     let invite = 20u8.saturating_sub(lo);
     let game = 22u8.saturating_sub(lo);
     Rules::new()
         // Game-force: ask the overcaller to name its 6-card major (it jumps to 4M).
         .rule(Bid::new(2, Strain::Notrump), 1.0, points(game..))
-        // Invitational pass-or-correct: lands a level higher (2♠ or 3♥).
+        // Constructive pass-or-correct: overcaller passes spades / 2NT-relays hearts.
         .rule(Bid::new(2, Strain::Spades), 0.95, points(invite..game))
-        // Weak pass-or-correct: overcaller passes with hearts, corrects 2♠ with spades.
+        // Weak pass-or-correct: overcaller passes hearts / corrects 2♠ / jumps with 7+.
         .rule(Bid::new(2, Strain::Hearts), 0.9, points(..invite))
 }
 
 /// Overcaller over the weak `2♥` pass-or-correct (`[1NT, 2♦, P, 2♥, P]`): pass
-/// with the heart Multi, correct to `2♠` with the spade Multi
+/// with six hearts, correct to `2♠` with six spades, jump to `3♥`/`3♠` with seven
 fn multi_2h_rebid() -> Rules {
     Rules::new()
-        .rule(Bid::new(2, Strain::Spades), 1.0, len(Suit::Spades, 6..))
+        .rule(Bid::new(3, Strain::Hearts), 1.1, len(Suit::Hearts, 7..))
+        .rule(Bid::new(3, Strain::Spades), 1.1, len(Suit::Spades, 7..))
+        .rule(Bid::new(2, Strain::Spades), 1.0, len(Suit::Spades, 6..=6))
         .rule(Call::Pass, 0.0, hcp(0..))
 }
 
-/// Overcaller over the invitational `2♠` pass-or-correct (`[1NT, 2♦, P, 2♠, P]`):
-/// pass with the spade Multi, bid `3♥` with the heart Multi
-// ponytail: the invitational hand lands in 3♥ on a heart Multi even opposite a
-// minimum — accepted over authoring a 2NT relay + advancer placement node.
+/// Overcaller over the constructive `2♠` pass-or-correct (`[1NT, 2♦, P, 2♠, P]`):
+/// pass with spades, bid `2NT` (a heart relay) with hearts so the stronger
+/// advancer places the heart contract (BBA's mechanism)
 fn multi_2s_rebid() -> Rules {
     Rules::new()
-        .rule(Bid::new(3, Strain::Hearts), 1.0, len(Suit::Hearts, 6..))
+        .rule(Bid::new(2, Strain::Notrump), 1.0, len(Suit::Hearts, 6..))
         .rule(Call::Pass, 0.0, hcp(0..))
+}
+
+/// Advancer over the `2NT` heart relay (`[1NT, 2♦, P, 2♠, P, 2NT, P]`): place the
+/// now-known heart contract at `3♥` (the `2♠` was the invitational pass-or-correct)
+fn multi_2s_2nt_advance() -> Rules {
+    Rules::new().rule(Bid::new(3, Strain::Hearts), 1.0, hcp(0..))
 }
 
 /// Overcaller over the game-forcing `2NT` ask (`[1NT, 2♦, P, 2NT, P]`): jump to
@@ -1654,6 +1664,61 @@ fn multi_2nt_rebid() -> Rules {
     Rules::new()
         .rule(Bid::new(4, Strain::Hearts), 1.0, len(Suit::Hearts, 6..))
         .rule(Bid::new(4, Strain::Spades), 1.0, len(Suit::Spades, 6..))
+}
+
+/// Advancer over a **Muiderberg** `2M` (`[1NT, 2M, P]`): raise the known 5-card
+/// major with support (`4M` game / `3M` invitational, or a `3M` preempt with
+/// four-card support), or with no fit ask the 4+ minor via `2NT` (overcaller
+/// answers `3♣`/`3♦`); a weak no-fit hand passes and plays `2M`.  `major` is the
+/// overcaller's suit; thresholds track the overcall floor `lo`.
+fn muiderberg_advances(major: Suit, lo: u8) -> Rules {
+    let invite = 20u8.saturating_sub(lo);
+    let game = 22u8.saturating_sub(lo);
+    let strain = Strain::from(major);
+    Rules::new()
+        .rule(Bid::new(4, strain), 1.2, len(major, 3..) & points(game..))
+        .rule(
+            Bid::new(3, strain),
+            1.1,
+            (len(major, 4..) & points(..game)) | (len(major, 3..) & points(invite..game)),
+        )
+        // No major fit, invitational+: ask the 4+ minor (then place 3NT / minor game).
+        .rule(
+            Bid::new(2, Strain::Notrump),
+            1.0,
+            len(major, ..=2) & points(invite..),
+        )
+        .rule(Call::Pass, 0.0, hcp(0..))
+}
+
+/// Advancer over a **doubled** Muiderberg `2M` (`[1NT, 2M, X]`): with a fit sit
+/// for `2Mx` (a known 8+ card trump fit) or raise; with no fit escape via the
+/// `2NT` minor-ask rather than be trapped in a doubled 5-1 misfit
+fn muiderberg_advances_doubled(major: Suit, lo: u8) -> Rules {
+    let invite = 20u8.saturating_sub(lo);
+    let game = 22u8.saturating_sub(lo);
+    let strain = Strain::from(major);
+    Rules::new()
+        .rule(Bid::new(4, strain), 1.2, len(major, 3..) & points(game..))
+        .rule(
+            Bid::new(3, strain),
+            1.1,
+            (len(major, 4..) & points(..game)) | (len(major, 3..) & points(invite..game)),
+        )
+        // No fit → escape to the 4+ minor (any strength); a fit sits 2Mx.
+        .rule(Bid::new(2, Strain::Notrump), 0.5, len(major, ..=2))
+        .rule(Call::Pass, 0.0, len(major, 3..))
+}
+
+/// Overcaller answering the Muiderberg `2NT` minor-ask (`[1NT, 2M, …, 2NT, P]`):
+/// name the 4+ minor — `3♦` with diamonds (longer or equal), else `3♣`
+fn muiderberg_2nt_rebid() -> Rules {
+    let diamonds_longer = described("♦ at least as long as ♣", |h: Hand, _: &Context<'_>| {
+        h[Suit::Diamonds].len() >= h[Suit::Clubs].len()
+    });
+    Rules::new()
+        .rule(Bid::new(3, Strain::Diamonds), 1.0, diamonds_longer)
+        .rule(Bid::new(3, Strain::Clubs), 0.9, hcp(0..))
 }
 
 /// Advancer over the Woolsey takeout `X` (`[1NT, X, P]`): bid a 5+ major of your
@@ -2343,66 +2408,99 @@ pub fn defensive() -> Defensive {
         );
     }
 
-    // Woolsey Multi 2♦ + takeout-X continuations, when on.  The both-majors 2♣
-    // reuses the Landy advance wiring above; the Muiderberg 2♥/2♠ are advanced by
-    // the instinct floor (natural 5-card major overcalls).
+    // Woolsey "Multi-Landy" continuations, when on — authored in full (the
+    // both-majors 2♣ reuses the Landy advance wiring above).  Every artificial call
+    // carries its doubled / redoubled escape so the opponents can never trap us in a
+    // doubled artificial contract.
     if woolsey_enabled() {
         let lo = woolsey_points().0;
         let x = Call::Double;
         let multi = call(2, Strain::Diamonds);
+        let hearts = call(2, Strain::Hearts);
+        let spades = call(2, Strain::Spades);
+        let clubs = call(2, Strain::Clubs);
         let nt2 = call(2, Strain::Notrump);
-        // [1NT, 2♦, P] — advancer pass-or-corrects (2♥ weak / 2♠ inv) or asks (2NT).
-        insert_all_seats(&mut d, &[notrump, multi, Call::Pass], 3, multi_advances(lo));
-        insert_all_seats(
-            &mut d,
-            &[
-                notrump,
-                multi,
-                Call::Pass,
-                call(2, Strain::Hearts),
-                Call::Pass,
-            ],
-            3,
-            multi_2h_rebid(),
-        );
-        insert_all_seats(
-            &mut d,
-            &[
-                notrump,
-                multi,
-                Call::Pass,
-                call(2, Strain::Spades),
-                Call::Pass,
-            ],
-            3,
-            multi_2s_rebid(),
-        );
-        insert_all_seats(
-            &mut d,
-            &[notrump, multi, Call::Pass, nt2, Call::Pass],
-            3,
-            multi_2nt_rebid(),
-        );
-        // [1NT, X, P] — advancer relays to the minor / bids own major / asks 2NT.
+
+        // Multi 2♦.  The advance is the same over a pass or a double (it never sits
+        // 2♦x — the overcaller has a major, not diamonds), so wire both RHO actions.
+        for rho in [Call::Pass, x] {
+            insert_all_seats(&mut d, &[notrump, multi, rho], 3, multi_advances(lo));
+            // Weak 2♥ p/c → pass / correct 2♠ / jump 3M with seven.
+            insert_all_seats(
+                &mut d,
+                &[notrump, multi, rho, hearts, Call::Pass],
+                3,
+                multi_2h_rebid(),
+            );
+            // Constructive 2♠ p/c → pass spades / 2NT heart-relay → advancer places 3♥.
+            insert_all_seats(
+                &mut d,
+                &[notrump, multi, rho, spades, Call::Pass],
+                3,
+                multi_2s_rebid(),
+            );
+            insert_all_seats(
+                &mut d,
+                &[notrump, multi, rho, spades, Call::Pass, nt2, Call::Pass],
+                3,
+                multi_2s_2nt_advance(),
+            );
+            // Game-force 2NT ask → overcaller jumps to game in its major.
+            insert_all_seats(
+                &mut d,
+                &[notrump, multi, rho, nt2, Call::Pass],
+                3,
+                multi_2nt_rebid(),
+            );
+        }
+
+        // Muiderberg 2♥/2♠ — raises + the 2NT minor-ask (a doubled escape with no fit).
+        for (major, mbid) in [(Suit::Hearts, hearts), (Suit::Spades, spades)] {
+            insert_all_seats(
+                &mut d,
+                &[notrump, mbid, Call::Pass],
+                3,
+                muiderberg_advances(major, lo),
+            );
+            insert_all_seats(
+                &mut d,
+                &[notrump, mbid, x],
+                3,
+                muiderberg_advances_doubled(major, lo),
+            );
+            // The 2NT minor-ask reaches the overcaller over either RHO action.
+            for rho in [Call::Pass, x] {
+                insert_all_seats(
+                    &mut d,
+                    &[notrump, mbid, rho, nt2, Call::Pass],
+                    3,
+                    muiderberg_2nt_rebid(),
+                );
+            }
+        }
+
+        // Takeout X — advancer relays to the minor / bids its own major / asks 2NT.
+        // A redouble forces us to run (never sit 1NTxx): the same advance applies.
         let xfloor = woolsey_double_floor();
-        insert_all_seats(
-            &mut d,
-            &[notrump, x, Call::Pass],
-            3,
-            woolsey_x_advance(xfloor),
-        );
-        insert_all_seats(
-            &mut d,
-            &[notrump, x, Call::Pass, call(2, Strain::Clubs), Call::Pass],
-            3,
-            woolsey_x_minor_rebid(),
-        );
-        insert_all_seats(
-            &mut d,
-            &[notrump, x, Call::Pass, nt2, Call::Pass],
-            3,
-            woolsey_x_2nt_rebid(),
-        );
+        for adv in [Call::Pass, Call::Redouble] {
+            insert_all_seats(&mut d, &[notrump, x, adv], 3, woolsey_x_advance(xfloor));
+            // The doubler names its 5-6 minor whether the 2♣ relay is passed or doubled.
+            for after in [Call::Pass, x] {
+                insert_all_seats(
+                    &mut d,
+                    &[notrump, x, adv, clubs, after],
+                    3,
+                    woolsey_x_minor_rebid(),
+                );
+            }
+            // The 2NT game-ask → the doubler names its 4-card major.
+            insert_all_seats(
+                &mut d,
+                &[notrump, x, adv, nt2, Call::Pass],
+                3,
+                woolsey_x_2nt_rebid(),
+            );
+        }
     }
 
     // Advancing partner's both-minors 2NT over their 1NT, when on.
@@ -2792,6 +2890,62 @@ mod tests {
             woolsey(&auction, "KQ982.32.432.432").0,
             call(2, Strain::Spades)
         );
+    }
+
+    #[test]
+    fn woolsey_muiderberg_advance_raises_and_asks() {
+        // [1NT, 2♥, P] — a known 5-card heart suit.  With support + game values the
+        // advancer raises to 4♥; with no fit it asks the minor via 2NT (a book node).
+        let auction = [
+            call(1, Strain::Notrump),
+            call(2, Strain::Hearts),
+            Call::Pass,
+        ];
+        let (raise, floored) = woolsey(&auction, "32.K54.AK32.AQ32");
+        assert_eq!(raise, call(4, Strain::Hearts));
+        assert!(
+            !floored,
+            "the Muiderberg advance must come from the book node"
+        );
+        // No heart fit (singleton), invitational+ → 2NT minor-ask, never a floored guess.
+        assert_eq!(
+            woolsey(&auction, "KQJ2.2.K432.Q432").0,
+            call(2, Strain::Notrump)
+        );
+    }
+
+    #[test]
+    fn woolsey_muiderberg_doubled_escapes_a_misfit() {
+        // [1NT, 2♥, X] — a weak hand short in hearts escapes the doubled misfit via
+        // the 2NT minor-ask rather than sitting in a doubled 5-1 fit.
+        let auction = [
+            call(1, Strain::Notrump),
+            call(2, Strain::Hearts),
+            Call::Double,
+        ];
+        let (escape, floored) = woolsey(&auction, "Q432.2.J432.J432");
+        assert_eq!(escape, call(2, Strain::Notrump));
+        assert!(!floored, "the doubled escape must come from the book node");
+        // With a genuine fit it sits for 2♥x (a known 8-card trump fit).
+        assert_eq!(woolsey(&auction, "Q43.K52.J432.432").0, Call::Pass);
+    }
+
+    #[test]
+    fn woolsey_muiderberg_2nt_names_the_minor() {
+        // [1NT, 2♥, P, 2NT, P] — the overcaller answers the minor-ask: 3♦ with
+        // diamonds, 3♣ with clubs (it always holds a 4+ minor).
+        let asked = [
+            call(1, Strain::Notrump),
+            call(2, Strain::Hearts),
+            Call::Pass,
+            call(2, Strain::Notrump),
+            Call::Pass,
+        ];
+        assert_eq!(
+            woolsey(&asked, "2.AKJ32.Q432.32").0,
+            call(3, Strain::Diamonds)
+        );
+        assert_eq!(woolsey(&asked, "2.AKJ32.32.Q432").0, call(3, Strain::Clubs));
     }
 
     #[test]
