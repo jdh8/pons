@@ -780,23 +780,23 @@ fn leaping_michaels_reading(auction: &[Call]) -> Option<(usize, Suit, Option<Sui
 ///
 /// `overcall_index` is our `2♣` (both majors) or `2NT` (both minors) over their
 /// 1NT; `majors` distinguishes the two; `floor` is the configured points floor;
-/// `relay_index` is the advancer's artificial `2♦` relay over `2♣`, if present
-/// (a real diamond suit whose natural reading must be suppressed).
+/// `advance_suppress` is the advancer's response over `2♣` whose natural reading
+/// must be suppressed (the `2♦` relay or a `2♥`/`2♠` preference — none is own length).
 #[derive(Clone, Copy)]
 struct LandyReading {
     overcall_index: usize,
     majors: bool,
     floor: u8,
-    relay_index: Option<usize>,
+    advance_suppress: Option<usize>,
 }
 
 impl LandyReading {
-    /// Whether the call at `index` is an artificial Landy bid in a *real* suit
-    /// whose natural single-suit reading must be suppressed: our `2♣` (clubs) or
-    /// the advancer's `2♦` relay (diamonds).  The `2NT` overcall is not a suit, so
-    /// it never needs suppression.
+    /// Whether the call at `index` is an artificial Landy bid whose natural
+    /// single-suit reading must be suppressed: our `2♣` (clubs), or the advancer's
+    /// `2♦` relay / `2♥`/`2♠` preference (a pick among partner's two majors, not own
+    /// length).  The `2NT` overcall is not a suit, so it never needs suppression.
     fn suppresses(&self, index: usize) -> bool {
-        (self.majors && self.overcall_index == index) || self.relay_index == Some(index)
+        (self.majors && self.overcall_index == index) || self.advance_suppress == Some(index)
     }
 }
 
@@ -845,8 +845,12 @@ fn landy_reading(auction: &[Call]) -> Option<LandyReading> {
         })
         .flatten()?;
 
-    // The advancer's artificial 2♦ relay, the defending side's next action over 2♣.
-    let relay_index = majors
+    // The advancer's response over 2♣ (when the opponents passed): the 2♦ relay OR a
+    // 2♥/2♠ preference among partner's majors.  NONE of these is own length — the 2♦
+    // is a relay, the 2♥/2♠ merely picks one of partner's two suits (often a
+    // doubleton) — so all are suppressed.  A double of 2♣ breaks the find (it is not
+    // a `Call::Bid`), so this fires only for the undoubled advance.
+    let advance_suppress = majors
         .then(|| {
             auction
                 .iter()
@@ -854,9 +858,15 @@ fn landy_reading(auction: &[Call]) -> Option<LandyReading> {
                 .skip(overcall_index + 1)
                 .find_map(|(index, &call)| match call {
                     Call::Pass => None,
-                    Call::Bid(bid) if index % 2 != opener_parity => {
-                        Some((bid == Bid::new(2, Strain::Diamonds)).then_some(index))
-                    }
+                    Call::Bid(bid) if index % 2 != opener_parity => Some(
+                        matches!(
+                            bid,
+                            b if b == Bid::new(2, Strain::Diamonds)
+                                || b == Bid::new(2, Strain::Hearts)
+                                || b == Bid::new(2, Strain::Spades)
+                        )
+                        .then_some(index),
+                    ),
                     _ => Some(None),
                 })
                 .flatten()
@@ -867,7 +877,7 @@ fn landy_reading(auction: &[Call]) -> Option<LandyReading> {
         overcall_index,
         majors,
         floor,
-        relay_index,
+        advance_suppress,
     })
 }
 
@@ -887,13 +897,19 @@ enum MultiKind {
 struct MultiReading {
     overcall_index: usize,
     kind: MultiKind,
+    /// The advancer's `2♥`/`2♠` pass-or-correct over the Multi `2♦` (a preference
+    /// among partner's unknown major — not own length), suppressed if present.
+    advance_suppress: Option<usize>,
 }
 
 impl MultiReading {
-    /// Only the `2♦` Multi names a suit it does not hold (diamonds); the Muiderberg
-    /// `2♥`/`2♠` name a real 5-card major, so its natural reading is kept.
+    /// Whether the call at `index` is artificial: the `2♦` Multi naming diamonds it
+    /// does not hold, or the advancer's `2♥`/`2♠` pass-or-correct (a preference, not
+    /// own length).  The Muiderberg `2♥`/`2♠` overcall names a real 5-card major, so
+    /// its natural reading is kept.
     fn suppresses(&self, index: usize) -> bool {
-        matches!(self.kind, MultiKind::Major) && self.overcall_index == index
+        (matches!(self.kind, MultiKind::Major) && self.overcall_index == index)
+            || self.advance_suppress == Some(index)
     }
 }
 
@@ -918,7 +934,7 @@ fn multi_reading(auction: &[Call]) -> Option<MultiReading> {
     let opener_parity = opening_index % 2;
 
     // The defending side's FIRST action — a 2♦/2♥/2♠ Multi-family overcall.
-    auction
+    let reading = auction
         .iter()
         .enumerate()
         .skip(opening_index + 1)
@@ -937,12 +953,43 @@ fn multi_reading(auction: &[Call]) -> Option<MultiReading> {
                 Some(kind.map(|kind| MultiReading {
                     overcall_index: index,
                     kind,
+                    advance_suppress: None,
                 }))
             }
             // The opener's side acted (a response), or a defender did something else.
             _ => Some(None),
         })
-        .flatten()
+        .flatten()?;
+
+    // Over the Multi 2♦, the advancer's 2♥/2♠ pass-or-correct picks one of partner's
+    // unknown majors — a preference, not own length — so suppress it too (the same
+    // undoubled-only find as `landy_reading`'s advance).
+    let advance_suppress = matches!(reading.kind, MultiKind::Major)
+        .then(|| {
+            auction
+                .iter()
+                .enumerate()
+                .skip(reading.overcall_index + 1)
+                .find_map(|(index, &call)| match call {
+                    Call::Pass => None,
+                    Call::Bid(bid) if index % 2 != opener_parity => Some(
+                        matches!(
+                            bid,
+                            b if b == Bid::new(2, Strain::Hearts)
+                                || b == Bid::new(2, Strain::Spades)
+                        )
+                        .then_some(index),
+                    ),
+                    _ => Some(None),
+                })
+                .flatten()
+        })
+        .flatten();
+
+    Some(MultiReading {
+        advance_suppress,
+        ..reading
+    })
 }
 
 /// The suit(s) a Leaping Michaels jump `lm` (clubs or diamonds) shows over their
@@ -1300,6 +1347,26 @@ mod tests {
         let muiderberg = read(&[bid(1, Strain::Notrump), bid(2, Strain::Hearts), Call::Pass]);
         assert_eq!(muiderberg.partner().length(Suit::Hearts), Range::new(5, 5));
         assert_eq!(muiderberg.partner().length(Suit::Spades), Range::new(0, 3));
+
+        // The advancer's 2♥/2♠ over 2♣ (both majors) or 2♦ (Multi) is a PREFERENCE
+        // among partner's two majors — not own length — so its natural ≥4 reading is
+        // suppressed throughout (here, read from the advancer's seat as partner).
+        let pref_2c = read(&[
+            bid(1, Strain::Notrump),
+            bid(2, Strain::Clubs),
+            Call::Pass,
+            bid(2, Strain::Hearts),
+            Call::Pass,
+        ]);
+        assert_eq!(pref_2c.partner().length(Suit::Hearts), Range::FULL_LENGTH);
+        let pref_2d = read(&[
+            bid(1, Strain::Notrump),
+            bid(2, Strain::Diamonds),
+            Call::Pass,
+            bid(2, Strain::Spades),
+            Call::Pass,
+        ]);
+        assert_eq!(pref_2d.partner().length(Suit::Spades), Range::FULL_LENGTH);
 
         // Off: the Multi 2♦ reads as a natural diamond one-suiter again (≥5) — the
         // convention must not leak when disabled.
