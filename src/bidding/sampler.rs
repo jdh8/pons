@@ -103,12 +103,12 @@ pub fn sample_layouts(
 ///
 /// A hand is kept iff it (a) falls within `inferences` — the old range reading,
 /// which covers every call — *and* (b) at every **authored** node a non-actor
-/// player bid, `policy` re-run on the candidate ranks the made call within a
-/// margin of its best legal call.  Replay only tightens where the book actually
-/// authored a rule; at an unauthored node ([`System::authored_at`] false) it
-/// abstains and the range reading alone handles that call (e.g. a competitive
-/// raise or rebid with no authored node).  `vul` is relative to `seat` (the
-/// actor): partner shares it, the opponents see it side-swapped.
+/// player bid ([`System::authored_at`]), `policy` re-run on the candidate ranks
+/// the made call within a margin of its best legal call.  Replay only tightens
+/// where a rule answers; a bid the keyless floor handled (a competitive
+/// raise/rebid with no authored node) is left to the range reading alone.  `vul`
+/// is relative to `seat` (the actor): partner shares it, the opponents see it
+/// side-swapped.
 ///
 /// Short-result semantics match [`sample_layouts`], but with a far larger draw
 /// budget: replay is tight, and looking harder is cheap next to the double-dummy
@@ -240,9 +240,9 @@ fn rules_accept(
 }
 
 /// Whether `policy`, classifying `hand` at `prefix`, ranks the `made` call
-/// within [`MARGIN`] of its best legal call.  A pass carries no replay signal, an
-/// unauthored node (no rule to replay) abstains so the range reader handles the
-/// call, and an off-book node has no opinion; all three accept.
+/// within [`MARGIN`] of its best legal call.  A pass carries no replay signal, a
+/// call no rule authors (nothing to replay) abstains so the range reader handles
+/// it, and an off-book node has no opinion; all three accept.
 fn made_plausibly(
     hand: Hand,
     policy: &dyn System,
@@ -250,7 +250,7 @@ fn made_plausibly(
     prefix: &[Call],
     made: Call,
 ) -> bool {
-    if matches!(made, Call::Pass) || !policy.authored_at(prefix) {
+    if matches!(made, Call::Pass) || !policy.authored_at(vul, prefix) {
         return true;
     }
     let Some(logits) = policy.classify(hand, vul, prefix) else {

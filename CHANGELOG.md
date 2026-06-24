@@ -17,12 +17,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   policy would rank that call within a margin of its best legal call. A bid's
   meaning is thus frozen at its node and survives later competition for free, and
   artificial calls suppress themselves — no `*_reading` decoder per convention.
-  Replay only enforces at **authored** nodes (a rule was written for this exact
-  position, new `System::authored_at`); at an unauthored node — a borrowed
-  shallower ancestor or the floor, where a `-∞` is mere absence of an opinion, not
-  a real "don't bid that" — it abstains and the range reading handles the call
-  (e.g. a competitive raise/rebid past the two authored opening plies). So replay
-  *tightens* the old range reading at authored nodes rather than replacing it. New
+  Replay only enforces at **authored** nodes (new `System::authored_at`):
+  resolution follows the book's `Rebase` fallbacks to the canonical node, so
+  authored responses, raises, Stayman, transfers, and 2/1 all count, while a bid
+  only the keyless floor answers — a competitive raise/rebid with no authored node,
+  where a `-∞` is mere absence of an opinion, not a real "don't bid that" —
+  abstains and is left to the range reading. So replay *tightens* the old range
+  reading wherever a rule answers, rather than replacing it. New
   `sample_layouts_replay` (public, sibling to `sample_layouts`); the `ev_all`
   search rollout uses it behind the flag. Replay is tighter than the loose ranges,
   so it draws from a far larger budget — up to `REPLAY_DRAW_CAP` (50M deals, ~10-20

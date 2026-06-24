@@ -87,19 +87,21 @@ pub trait System {
         auction: &[Call],
     ) -> Option<array::Logits>;
 
-    /// Whether this system has an *authored* node at `auction`
+    /// Whether `auction` resolves to an *authored* node rather than the floor
     ///
-    /// An authored node is a rule deliberately written for this exact position,
-    /// as opposed to a borrowed shallower ancestor or the floor.  The distinction
-    /// matters to consumers that read meaning off the classifier: a `-∞` for a
-    /// call is a real "this system does not bid that here" only at an authored
-    /// node; at an unauthored one it is mere absence of an opinion (the
-    /// [replay sampler][crate::bidding::sampler::sample_layouts_replay] abstains
-    /// there and defers to the range reader).  Defaults to `true` — assume
-    /// authored, preserving behaviour for flat systems; structured ones like
-    /// [`Stance`] override it.
-    fn authored_at(&self, auction: &[Call]) -> bool {
-        let _ = auction;
+    /// True unless resolution (following `Rebase` fallbacks) falls all the way to
+    /// the keyless floor — the depth-0 root fallback that answers a position no
+    /// rule covers.  At an authored node a `-∞` logit for a call is a real "this
+    /// hand does not bid that here"; at the floor it is mere absence of an opinion.
+    /// The [replay sampler][crate::bidding::sampler::sample_layouts_replay]
+    /// enforces its reading only at authored nodes and abstains at the floor,
+    /// deferring to the range reader (so a competitive raise/rebid the floor
+    /// handles is read the old way).  Defaults to `true` (assume authored),
+    /// preserving behaviour for flat systems; structured ones like [`Stance`]
+    /// override it.  `vul` is needed only because resolution's fallback guards
+    /// consult the context.
+    fn authored_at(&self, vul: RelativeVulnerability, auction: &[Call]) -> bool {
+        let _ = (vul, auction);
         true
     }
 
@@ -138,8 +140,8 @@ impl<S: System + ?Sized> System for &S {
         (**self).classify(hand, vul, auction)
     }
 
-    fn authored_at(&self, auction: &[Call]) -> bool {
-        (**self).authored_at(auction)
+    fn authored_at(&self, vul: RelativeVulnerability, auction: &[Call]) -> bool {
+        (**self).authored_at(vul, auction)
     }
 }
 
@@ -164,7 +166,17 @@ impl System for Trie {
             .map(|(logits, _)| logits)
     }
 
-    fn authored_at(&self, auction: &[Call]) -> bool {
-        self.get(auction).is_some()
+    fn authored_at(&self, vul: RelativeVulnerability, auction: &[Call]) -> bool {
+        // Resolve as the bidder would (following `Rebase` fallbacks to the
+        // canonical node).  Authored rules — primary nodes *and* guarded fallbacks
+        // (responses, raises, Stayman, transfers, 2/1) — resolve either with
+        // `fallback: None` or at depth ≥ 1; only the keyless floor answers at the
+        // depth-0 root fallback.  A literal `get` would miss the fallback-authored
+        // continuations entirely, abstaining far more than intended.
+        let context = Context::new(vul, auction).with_prefixes(self.common_prefixes(auction));
+        matches!(
+            self.resolve(&context, auction),
+            Some((_, prov)) if prov.fallback.is_none() || prov.depth > 0
+        )
     }
 }

@@ -417,10 +417,9 @@ impl System for Stance {
         resolve(self.trie_for(auction), hand, vul, auction)
     }
 
-    fn authored_at(&self, auction: &[Call]) -> bool {
-        // An exact node in the phase-routed trie: a rule written for this
-        // position, not a borrowed shallower ancestor or the floor.
-        self.trie_for(auction).get(auction).is_some()
+    fn authored_at(&self, vul: RelativeVulnerability, auction: &[Call]) -> bool {
+        // Delegate to the phase-routed trie's rebasing-aware check.
+        self.trie_for(auction).authored_at(vul, auction)
     }
 }
 
