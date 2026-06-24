@@ -59,6 +59,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   partial) and the floor's undisciplined *continuation* doubling (a correct Pass,
   then a doubling war into `3NTx` down) — the obstruction wall, the single-dummy
   pressure a double-dummy harness scores as a dead loss.
+- **Direct-seat both-majors double of their 1NT — opt-in, default off
+  (`set_direct_landy_double`).** Replaces the 15+ penalty double at every seat with
+  a Landy-style takeout double: `X` = both majors (`Some(false)` = at least 5-4,
+  `Some(true)` = a flat 4-4 accepted), the four natural `2♣/♦/♥/♠` overcalls kept,
+  the advancer answering through the existing Landy machinery (`2♦` relay / `2NT`
+  game-ask / direct major). `None` (the default) keeps the natural penalty-X
+  defense; `american()` is **unchanged**. Reuses `landy_advances`/`landy_2d_rebid`/
+  `landy_2nt_rebid` — no new responder code. Harness: `ab-landy --ns-landy-x
+  off|5-4|4-4`. **Runout fix (essential):** the advancer's `2♦` is the *artificial*
+  equal-majors relay ("pick a major"), so a double of it must not be passed into a
+  short-diamond `2♦x` misfit — the doubled relay (and the artificial `2NT` ask) now
+  route to the same `Pass`-less rebid tables in both the passed and redoubled
+  branches, so the doubler always pulls to the longer major; their redouble of the
+  `X` likewise forces the advancer to run. (Without the fix, sitting in `2♦x` was
+  the *entire* deficit — it flipped the 5-4 plain-DD result from −0.047 to +0.510.)
+- **The honest verdict — the 5-4 double is a DD win, but it is the penalty-X's
+  known blind spot, so it stays opt-in.** `ab-landy --filter` vs the natural default
+  (200 000 boards, seed-fixed): the **5-4** double scores **+0.510 IMPs/divergent
+  (plain-DD) / +0.426 (PD)** — both positive, and PD *below* plain (so a genuine DD
+  result, not a synthetic-doubling artifact). But the per-shape split shows the win
+  is *abandoning the penalty double*, not the convention: the both-majors `X` action
+  itself **loses** (−0.254 IMPs/action-board, the 5422/5431 two-suiters −0.70/−0.78,
+  the obstruction wall), while the whole +IMPs come from the **balanced 15+** rows
+  (4333/4432/5332 at +3.0/+3.8/+2.9) — exactly the hands that no longer penalty-X.
+  This corroborates the established finding (the 1NT penalty double is a −1.43
+  IMPs/board DD leak whose value is *single-dummy*), so dropping it for a both-majors
+  `X` is the same DD-blind trade as preempts — **kept opt-in, natural stays default.**
+  **5-4 ≫ 4-4:** the flat **4-4** scores **+0.050 (plain) but −0.823 (PD)** — the
+  textbook overbid artifact (it reaches failing contracts that only escape when the
+  opponents don't double), so the looser shape is a real loss; insist on 5-4.
 - **`bba-match --ns-double-shape` now defaults to `any`** (was `balanced`), matching
   the shipped `american()` so a no-flag run measures the real default. Re-running the
   X-only-*balanced* restriction honestly (advertise-natural, 20 000, seed-paired) is

@@ -38,8 +38,8 @@ use pons::american;
 use pons::bidding::Family;
 use pons::bidding::american::{
     DoubleShape, PassedHandDefense, set_always_pass_defense, set_direct_dont,
-    set_doubled_landy_escape, set_landy, set_landy_hcp, set_natural_defense,
-    set_natural_double_shape, set_passed_hand_defense, set_penalty_pass,
+    set_direct_landy_double, set_doubled_landy_escape, set_landy, set_landy_hcp,
+    set_natural_defense, set_natural_double_shape, set_passed_hand_defense, set_penalty_pass,
     set_unusual_notrump_defense,
 };
 use pons::scoring::{final_contract, imps, ns_score_bid, ns_score_contract};
@@ -106,6 +106,14 @@ struct Args {
     /// Baseline always keeps it off.
     #[arg(long, default_value = "off")]
     ns_passed_dbl: String,
+
+    /// Replace the *measured* pair's natural penalty-X over their 1NT with a
+    /// both-majors takeout double (X = both majors, at every seat): `off` (default),
+    /// `5-4` (≥5-4 in the majors), or `4-4` (a flat 4-4 accepted). Natural 2♣/♦/♥/♠
+    /// overcalls are kept; the penalty double is dropped. Baseline keeps the natural
+    /// penalty-X (`--ew-natural on`). Probes "replace the X with Landy" + 5-4 vs 4-4.
+    #[arg(long, default_value = "off")]
+    ns_landy_x: String,
 
     /// Replace the *measured* pair's natural 1NT defense with conventional DONT:
     /// `on` or `off` (default). One-suiter X, 2♣ = clubs + a higher major, 2♦ =
@@ -401,6 +409,12 @@ fn main() {
         "dont" => Some(PassedHandDefense::Dont),
         other => panic!("unknown --ns-passed-dbl {other:?} (use off, landy, or dont)"),
     };
+    let ns_landy_x = match args.ns_landy_x.as_str() {
+        "off" => None,
+        "5-4" => Some(false),
+        "4-4" => Some(true),
+        other => panic!("unknown --ns-landy-x {other:?} (use off, 5-4, or 4-4)"),
+    };
     let ns_penalty_pass = parse_penalty_pass(&args.ns_penalty_pass, "--ns-penalty-pass");
     let ew_penalty_pass = parse_penalty_pass(&args.ew_penalty_pass, "--ew-penalty-pass");
     let ns_doubled_escape = {
@@ -421,6 +435,7 @@ fn main() {
     set_always_pass_defense(ew_always_pass);
     set_passed_hand_defense(None);
     set_direct_dont(false);
+    set_direct_landy_double(None);
     set_penalty_pass(ew_penalty_pass);
     let baseline = american().against(Family::NATURAL);
     set_landy(majors);
@@ -430,6 +445,7 @@ fn main() {
     set_natural_double_shape(double_shape);
     set_always_pass_defense(false);
     set_passed_hand_defense(passed_style);
+    set_direct_landy_double(ns_landy_x);
     set_penalty_pass(ns_penalty_pass);
     set_doubled_landy_escape(ns_doubled_escape);
     // DONT owns 2♣ (two-suiter) and 2NT (both minors), so override the natural
@@ -444,11 +460,15 @@ fn main() {
     // Each board at both tables (Landy NS at A, EW at B), dealer rotating.
     // The baseline never acts when always-pass is on, so NS's natural action
     // diverges whenever it is enabled (no need to also differ from EW).
-    let natural_diverges = if ew_always_pass {
-        ns_natural
-    } else {
-        ns_natural != ew_natural
-    };
+    // The both-majors X (--ns-landy-x) replaces the baseline's penalty-X, so every
+    // hand the two arms call differently over their 1NT diverges; the broad
+    // `defender_has_natural_action` superset (5+ suit, or 14+ balanced) catches them.
+    let natural_diverges = ns_landy_x.is_some()
+        || if ew_always_pass {
+            ns_natural
+        } else {
+            ns_natural != ew_natural
+        };
     // The measured pair widens the double's shape gate above the baseline's
     // `Balanced`, so non-balanced 15+ hands are a fresh divergence source.
     let extended = (double_shape != DoubleShape::Balanced).then_some(double_shape);
@@ -583,13 +603,14 @@ fn main() {
         Some((len, hcp, major)) => format!("{len}:{hcp}{}", if major { ":major" } else { "" }),
     };
     let arms = format!(
-        "2♣ majors {}, 2NT minors {} [{}], natural NS {}/EW {}, X-shape {}, passed-def {}, pen-pass NS {}/EW {}",
+        "2♣ majors {}, 2NT minors {} [{}], natural NS {}/EW {}, X-shape {}, landy-X {}, passed-def {}, pen-pass NS {}/EW {}",
         label(majors),
         label(minors),
         args.strength,
         if ns_natural { "on" } else { "off" },
         ew_label,
         args.ns_double_shape,
+        args.ns_landy_x,
         match passed_style {
             None => "off",
             Some(PassedHandDefense::NaturalLandyDouble) => "landy",

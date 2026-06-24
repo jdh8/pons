@@ -180,7 +180,10 @@ fn main() {
         args.count,
         100.0 * divergent.len() as f64 / args.count.max(1) as f64,
     );
-    for (label, swings) in [("ns_score_pd  (PD)", &swings_pd), ("ns_score_cnt (DD)", &swings_dd)] {
+    for (label, swings) in [
+        ("ns_score_pd  (PD)", &swings_pd),
+        ("ns_score_cnt (DD)", &swings_dd),
+    ] {
         let total: i64 = swings.iter().sum();
         let mut acc = Accumulator::new();
         for &swing in swings.iter() {

@@ -298,6 +298,47 @@ fn direct_dont_four_four() -> bool {
     DIRECT_DONT_FOUR_FOUR.with(Cell::get)
 }
 
+thread_local! {
+    /// Whether the direct-seat **double** of their 1NT shows both majors (takeout)
+    /// instead of the 15+ penalty double.  `None` = off (the **default**, natural
+    /// penalty-X defense); `Some(four_four)` = on, with `false` = at least 5-4 in the
+    /// majors and `true` = a flat 4-4 accepted.  See [`set_direct_landy_double`].
+    static DIRECT_LANDY_DOUBLE: Cell<Option<bool>> = const { Cell::new(None) };
+}
+
+/// Replace the direct-seat 15+ penalty double of their 1NT with a both-majors
+/// takeout double, for books built *after* this call (thread-local, read once at
+/// book-construction time)
+///
+/// `None` (the **default**) keeps the natural penalty-X defense.  `Some(false)`
+/// makes `X` show at least 5-4 in the majors at every seat; `Some(true)` accepts a
+/// flat 4-4.  The penalty double is dropped entirely (a 15+ balanced hand passes or
+/// overcalls), the four natural two-level suit overcalls are kept, and the advancer
+/// answers through the Landy machinery ([`landy_advances`]).  Mutually exclusive
+/// with the natural penalty-X arm and the Landy `2♣` overlay; when on, the
+/// passed-hand defense ([`set_passed_hand_defense`]) is superseded (this covers the
+/// passed seat too).  The A/B knob for `examples/ab-landy --ns-landy-x`.
+pub fn set_direct_landy_double(shape: Option<bool>) {
+    DIRECT_LANDY_DOUBLE.with(|cell| cell.set(shape));
+}
+
+/// The configured direct-seat both-majors double shape, or `None` when off
+fn direct_landy_double() -> Option<bool> {
+    DIRECT_LANDY_DOUBLE.with(Cell::get)
+}
+
+/// Both majors: at least 5-4 either way, or a flat 4-4 when `four_four`.
+fn both_majors_shape(four_four: bool) -> Cons<impl Constraint + Clone> {
+    described("both majors", move |h: Hand, _: &Context<'_>| {
+        let (hh, ss) = (h[Suit::Hearts].len(), h[Suit::Spades].len());
+        if four_four {
+            hh >= 4 && ss >= 4
+        } else {
+            (hh >= 5 && ss >= 4) || (hh >= 4 && ss >= 5)
+        }
+    })
+}
+
 /// Which shapes qualify for the natural penalty double of their 1NT (the 15+ HCP
 /// floor is fixed; this only widens the *shape* gate). See [`set_natural_double_shape`].
 #[derive(Clone, Copy, PartialEq, Eq, Default, Debug)]
@@ -779,6 +820,27 @@ pub fn defense_to_notrump() -> Rules {
                 dont_one_suiter_direct(one_min) & points(lo..),
             )
             .rule(Call::Pass, 0.0, hcp(0..));
+    } else if let Some(four_four) = direct_landy_double() {
+        // X = both majors (takeout), replacing the 15+ penalty double; the four
+        // natural two-level overcalls are kept.  Weight 1.9 beats the natural 2♥/2♠
+        // overcall (1.0) so a both-majors hand doubles rather than picking one major,
+        // open-topped so strong both-majors hands double too.  A 15+ balanced hand
+        // has no penalty double now — it passes or overcalls a five-card suit.
+        let (oc_lo, oc_hi) = natural_overcall_points();
+        rules = rules
+            .rule(
+                Call::Double,
+                1.9,
+                both_majors_shape(four_four) & points(oc_lo..),
+            )
+            .rule(Call::Pass, 0.0, hcp(0..));
+        for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
+            rules = rules.rule(
+                Bid::new(2, Strain::from(suit)),
+                1.0,
+                len(suit, 5..) & points(oc_lo..=oc_hi),
+            );
+        }
     } else if natural_defense_enabled() {
         // The penalty double's HCP floor is fixed at 15; the shape gate widens with
         // `set_natural_double_shape`. Each arm reissues `.rule()` so the differing
@@ -808,8 +870,11 @@ pub fn defense_to_notrump() -> Rules {
     }
 
     let use_hcp = landy_use_hcp();
-    // DONT repurposes 2♣ as a two-suiter, so the Landy 2♣ overlay is incompatible.
-    if let Some((lo, hi)) = landy.filter(|_| !direct_dont_enabled()) {
+    // DONT repurposes 2♣ as a two-suiter, and the direct both-majors X already
+    // shows both majors, so the Landy 2♣ overlay is incompatible with either.
+    if let Some((lo, hi)) =
+        landy.filter(|_| !direct_dont_enabled() && direct_landy_double().is_none())
+    {
         // 2♣ = both majors, at least 5-4.
         let shape = five_four(Suit::Hearts, Suit::Spades);
         rules = if use_hcp {
@@ -829,7 +894,9 @@ pub fn defense_to_notrump() -> Rules {
     }
     // DONT covers every seat (its arm above is un-gated by passed_hand()), so the
     // passed-hand-specific defense is superseded when it is on.
-    match passed_hand_defense().filter(|_| !direct_dont_enabled()) {
+    match passed_hand_defense()
+        .filter(|_| !direct_dont_enabled() && direct_landy_double().is_none())
+    {
         // A passed hand can't penalize their 1NT (the 15+ double is impossible),
         // so the double is free: reassign it to both majors (≥5-4), advanced like
         // Landy 2♣.  Gated on passed_hand() — the direct-seat penalty double above
@@ -1960,8 +2027,11 @@ pub fn defensive() -> Defensive {
     let p = Call::Pass;
     let x = Call::Double;
     let xx = Call::Redouble;
-    // DONT supersedes the passed-hand defense (it covers every seat below).
-    match passed_hand_defense().filter(|_| !direct_dont_enabled()) {
+    // DONT and the direct both-majors X both supersede the passed-hand defense
+    // (each covers every seat below).
+    match passed_hand_defense()
+        .filter(|_| !direct_dont_enabled() && direct_landy_double().is_none())
+    {
         Some(PassedHandDefense::NaturalLandyDouble) => {
             // [P,P,P,1NT,X,P] — advancer picks a major / relays 2♦ (reuse Landy).
             d.insert(&[p, p, p, notrump, x, p], landy_advances(PASSED_LANDY_LO));
@@ -2035,6 +2105,46 @@ pub fn defensive() -> Defensive {
         insert_all_seats(&mut d, &[notrump, x, p, c2, x], 3, passed_dont_x_rebid());
         insert_all_seats(&mut d, &[notrump, x, xx, c2, x], 3, passed_dont_x_rebid());
     }
+
+    // Direct-seat both-majors X advances: the X is a Landy-style both-majors takeout
+    // double at every seat, so the advancer answers exactly as over a Landy 2♣ (pick
+    // a major / 2♦ relay / 2NT game-ask), keyed at [1NT,X,…] via insert_all_seats.
+    // Binding [1NT,X,P] is correct here — the direct X is both-majors, not penalty.
+    if direct_landy_double().is_some() {
+        let (lo, hi) = (natural_overcall_points().0, 37u8);
+        let d2 = call(2, Strain::Diamonds);
+        let nt2 = call(2, Strain::Notrump);
+        // [1NT,X,P] — advancer picks a major / relays 2♦ / asks 2NT.
+        insert_all_seats(&mut d, &[notrump, x, p], 3, landy_advances(lo));
+        // [1NT,X,P,2♦,*] — the 2♦ relay is artificial (equal-majors "pick a major"),
+        // so the doubler names the longer major whether the relay is passed OR
+        // doubled — never left to sit in a short-diamond 2♦x misfit (the DONT bug).
+        insert_all_seats(&mut d, &[notrump, x, p, d2, p], 3, landy_2d_rebid());
+        insert_all_seats(&mut d, &[notrump, x, p, d2, x], 3, landy_2d_rebid());
+        // [1NT,X,P,2NT,*] — the game-ask is artificial too; the doubler answers it
+        // regardless of a double (landy_2nt_rebid has no Pass, so it always pulls).
+        insert_all_seats(&mut d, &[notrump, x, p, nt2, p], 3, landy_2nt_rebid(lo, hi));
+        insert_all_seats(&mut d, &[notrump, x, p, nt2, x], 3, landy_2nt_rebid(lo, hi));
+        // [1NT,X,XX] — their redouble: never sit in 1NTxx, run as over a pass
+        // (landy_advances has no Pass rule, so the advancer is forced to pull).
+        insert_all_seats(&mut d, &[notrump, x, xx], 3, landy_advances(lo));
+        // …and the same artificial 2♦ relay / 2NT ask, passed or doubled, in the
+        // redoubled branch — the doubler still names the major, never sits in 2♦x.
+        insert_all_seats(&mut d, &[notrump, x, xx, d2, p], 3, landy_2d_rebid());
+        insert_all_seats(&mut d, &[notrump, x, xx, d2, x], 3, landy_2d_rebid());
+        insert_all_seats(
+            &mut d,
+            &[notrump, x, xx, nt2, p],
+            3,
+            landy_2nt_rebid(lo, hi),
+        );
+        insert_all_seats(
+            &mut d,
+            &[notrump, x, xx, nt2, x],
+            3,
+            landy_2nt_rebid(lo, hi),
+        );
+    }
     d
 }
 
@@ -2043,7 +2153,8 @@ mod tests {
     use crate::bidding::Family;
     use crate::bidding::american::{
         LebensohlStyle, PassedHandDefense, american, set_advance_sohl_style,
-        set_always_pass_defense, set_direct_dont, set_leaping_michaels, set_passed_hand_defense,
+        set_always_pass_defense, set_direct_dont, set_direct_landy_double, set_leaping_michaels,
+        set_passed_hand_defense,
     };
     use contract_bridge::auction::{Call, RelativeVulnerability};
     use contract_bridge::{Bid, Hand, Strain};
@@ -2509,6 +2620,47 @@ mod tests {
             !nd_floored,
             "the doubled-relay escape must come from the book"
         );
+    }
+
+    #[test]
+    fn direct_landy_double_shows_both_majors_and_runs_clean() {
+        let nt = call(1, Strain::Notrump);
+        let p = Call::Pass;
+        let x = Call::Double;
+        let xx = Call::Redouble;
+        let d2 = call(2, Strain::Diamonds);
+        let prev = super::direct_landy_double();
+        set_direct_landy_double(Some(false)); // 5-4
+
+        // Both majors 5-4 → X (the both-majors takeout double), from the book.
+        let (dbl, floored) = best_call(&[nt], "AJ32.KQ876.32.32");
+        // 15+ balanced has no penalty double now → Pass.
+        let (pass, _) = best_call(&[nt], "AKQ2.KQ2.KJ2.432");
+        // Advancer, equal majors and weak → 2♦ relay ("pick a major").
+        let (relay, relay_floored) = best_call(&[nt, x, p], "Q32.Q43.J432.432");
+        // They double the artificial relay → doubler still names the longer major
+        // (5-4 hearts → 2♥), never sits in the short-diamond 2♦x misfit.
+        let (named, named_floored) = best_call(&[nt, x, p, d2, x], "AJ32.KQ876.32.32");
+        // They redouble our X → advancer is forced to run (2♦ relay), not sit in 1NTxx.
+        let (escape, esc_floored) = best_call(&[nt, x, xx], "Q32.Q43.J432.432");
+
+        set_direct_landy_double(prev);
+        assert_eq!(dbl, Call::Double);
+        assert!(!floored, "the both-majors X must come from the book node");
+        assert_eq!(pass, Call::Pass, "no penalty double when it is replaced");
+        assert_eq!(relay, d2, "weak equal majors relays 2♦");
+        assert!(!relay_floored, "the relay must come from the book");
+        assert_eq!(
+            named,
+            call(2, Strain::Hearts),
+            "must pull from the doubled 2♦ relay"
+        );
+        assert!(
+            !named_floored,
+            "the doubled-relay escape must come from the book"
+        );
+        assert_eq!(escape, d2, "must run from 1NTxx, not sit");
+        assert!(!esc_floored, "the redouble escape must come from the book");
     }
 
     #[test]
