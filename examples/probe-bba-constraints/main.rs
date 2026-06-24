@@ -4,15 +4,20 @@
 //! and summarise every bucket in DSL vocabulary (HCP / suit length / balanced).
 //!
 //! BBA's compiled 2/1 card answers a 1NT opening with **Multi-Landy**, whose
-//! `2♦` is the *Multi*: an unknown single-suited major.  Three `--mode`s read
-//! the three seats of that structure.  The `.so` ignores `vendor/bba/*.bbsa`, so
-//! this real-hand probe is the only reliable read (see `probe-bba-1nt`); we force
-//! `Multi-Landy=1` (and `Cappelletti=0`) on all seats so BBA both *bids* and
-//! *interprets* the 2♦ as a Multi:
+//! `2♦` is the *Multi* (an unknown single-suited major) and whose `2♥`/`2♠` are
+//! *Muiderberg* (5+ major, 4+ minor).  Several `--mode`s read the seats of that
+//! structure.  The `.so` ignores `vendor/bba/*.bbsa`, so this real-hand probe is
+//! the only reliable read (see `probe-bba-1nt`); we force `Multi-Landy=1` (and
+//! `Cappelletti=0`) on all seats so BBA both *bids* and *interprets* the calls:
 //!
 //! ```text
-//! cargo run --release --example probe-bba-constraints -- --mode multi    # the 2♦ overcaller
-//! cargo run --release --example probe-bba-constraints -- --mode advance  # the advancer relay
+//! cargo run --release --example probe-bba-constraints -- --mode multi    # direct call over (1NT): X/2♣/2♦/2♥/2♠
+//! cargo run --release --example probe-bba-constraints -- --mode advance  # advancer over the 2♦ Multi
+//! cargo run --release --example probe-bba-constraints -- --mode muider-h # advancer over the 2♥ Muiderberg
+//! cargo run --release --example probe-bba-constraints -- --mode muider-s # advancer over the 2♠ Muiderberg
+//! cargo run --release --example probe-bba-constraints -- --mode rebid-d  # 2♦-overcaller's rebid (Multi → which major)
+//! cargo run --release --example probe-bba-constraints -- --mode rebid-h  # 2♥-overcaller's rebid after the 2NT ask
+//! cargo run --release --example probe-bba-constraints -- --mode rebid-s  # 2♠-overcaller's rebid after the 2NT ask
 //! cargo run --release --example probe-bba-constraints -- --mode counter --vul none,both  # our-side counter-defense
 //! ```
 //!
@@ -39,6 +44,9 @@ const DEFAULT_LIB: &str = "vendor/bba/Native-libraries/linux/x64/libEPBot.so";
 const PASS: c_int = 0;
 const ONE_NT: c_int = 9; // 5 + 0*5 + 4
 const TWO_D: c_int = 11; // 5 + 1*5 + 1
+const TWO_H: c_int = 12; // 5 + 1*5 + 2
+const TWO_S: c_int = 13; // 5 + 1*5 + 3
+const TWO_NT: c_int = 14; // 5 + 1*5 + 4
 
 type CreateFn = unsafe extern "C" fn() -> *mut c_void;
 type DestroyFn = unsafe extern "C" fn(*mut c_void);
@@ -213,24 +221,72 @@ fn main() -> Result<()> {
         bail!("--trim must be in [0.0, 0.5)");
     }
 
-    // (actor seat, replayed prefix, heading) — dealer is canonicalized to seat 0.
-    let (actor, prefix, what): (c_int, &[c_int], &str) = match args.mode.as_str() {
+    // (actor seat, replayed prefix, self-consistency filter, heading) — dealer is
+    // canonicalized to seat 0.  `filter` is the direct-seat call a probe hand must
+    // make over (1NT) to be kept; `None` accepts every hand (the advancer's hand is
+    // unconstrained, so its modes need no filter).  The `rebid-*` modes read the
+    // overcaller's own seat, so they keep only hands BBA would actually overcall.
+    let (actor, prefix, filter, what): (c_int, &[c_int], Option<c_int>, &str) = match args
+        .mode
+        .as_str()
+    {
         "multi" => (
             1,
             &[ONE_NT],
+            None,
             "BBA's direct call over (1NT) — the 2♦ bucket is the Multi",
         ),
         "advance" => (
             3,
             &[ONE_NT, TWO_D, PASS],
+            None,
             "BBA advancer over 1NT-(2♦)-P — the pass-or-correct relay",
         ),
         "counter" => (
             2,
             &[ONE_NT, TWO_D],
+            None,
             "BBA responder's counter-defense over 1NT-(2♦)",
         ),
-        other => bail!("--mode must be multi|advance|counter, got {other:?}"),
+        "muider-h" => (
+            3,
+            &[ONE_NT, TWO_H, PASS],
+            None,
+            "BBA advancer over 1NT-(2♥)-P — the Muiderberg advance (2NT/3♣/3♦ asks)",
+        ),
+        "muider-s" => (
+            3,
+            &[ONE_NT, TWO_S, PASS],
+            None,
+            "BBA advancer over 1NT-(2♠)-P — the Muiderberg advance (2NT/3♣/3♦ asks)",
+        ),
+        "rebid-d" => (
+            1,
+            &[ONE_NT, TWO_D, PASS, TWO_H, PASS],
+            Some(TWO_D),
+            "BBA 2♦-overcaller's rebid over 1NT-(2♦)-P-2♥-P — Pass=hearts, 2♠=spades",
+        ),
+        "rebid-d2s" => (
+            1,
+            &[ONE_NT, TWO_D, PASS, TWO_S, PASS],
+            Some(TWO_D),
+            "BBA 2♦-overcaller's rebid over 1NT-(2♦)-P-2♠-P — what the 2♠ advance forces",
+        ),
+        "rebid-h" => (
+            1,
+            &[ONE_NT, TWO_H, PASS, TWO_NT, PASS],
+            Some(TWO_H),
+            "BBA 2♥-overcaller's rebid over 1NT-(2♥)-P-2NT-P — what the 2NT ask wants",
+        ),
+        "rebid-s" => (
+            1,
+            &[ONE_NT, TWO_S, PASS, TWO_NT, PASS],
+            Some(TWO_S),
+            "BBA 2♠-overcaller's rebid over 1NT-(2♠)-P-2NT-P — what the 2NT ask wants",
+        ),
+        other => bail!(
+            "--mode must be multi|advance|counter|muider-h|muider-s|rebid-d|rebid-h|rebid-s, got {other:?}"
+        ),
     };
 
     let overrides = parse_conv(&args.conv)?;
@@ -252,7 +308,7 @@ fn main() -> Result<()> {
 
     for token in args.vul.split(',').map(str::trim) {
         let vul = vul_code(token, actor)?;
-        let buckets = run(&bba, actor, prefix, vul, args.samples, args.seed);
+        let buckets = run(&bba, actor, prefix, filter, vul, args.samples, args.seed);
         render_vul(&mut report, token, &buckets, &args);
     }
 
@@ -270,6 +326,7 @@ fn run(
     bba: &Bba,
     actor: c_int,
     prefix: &[c_int],
+    filter: Option<c_int>,
     vul: c_int,
     samples: usize,
     seed: u64,
@@ -282,6 +339,15 @@ fn run(
     let mut buckets: BTreeMap<c_int, Bucket> = BTreeMap::new();
     for deal in fill_deals(&mut rng, empty).take(samples) {
         let hand = deal[Seat::North];
+        // ponytail: rebid modes read the overcaller's OWN seat, so a uniform random
+        // hand is wrong — most never make the overcall.  Keep only hands whose direct
+        // call over (1NT) is the studied overcall; otherwise the rebid is from a hand
+        // that never bid it.  No upgrade path needed (rejection is exact here).
+        if let Some(want) = filter
+            && bba.call(actor, &[ONE_NT], hand, vul) != want
+        {
+            continue;
+        }
         let code = bba.call(actor, prefix, hand, vul);
         if decode(code).is_none() {
             continue; // EPBot error/illegal code — drop it
@@ -341,6 +407,32 @@ fn render_vul(report: &mut String, vul: &str, buckets: &BTreeMap<c_int, Bucket>,
                 clauses.push(format!("len({suit:?}, {lo}..)"));
             }
         }
+
+        // Per-hand longest major / minor (columns are pushed in lockstep, so index
+        // `k` is the same hand across all four).  These read the "6+ major" (Multi)
+        // and "5-4 majors" answers directly, where the per-suit columns smear.
+        let mut major: Vec<u8> = (0..n)
+            .map(|k| bucket.len[2][k].max(bucket.len[3][k]))
+            .collect();
+        let mut minor: Vec<u8> = (0..n)
+            .map(|k| bucket.len[0][k].max(bucket.len[1][k]))
+            .collect();
+        major.sort_unstable();
+        minor.sort_unstable();
+        let _ = writeln!(
+            report,
+            "- longest major: {}–{} (median {})",
+            pct(&major, 0.10),
+            pct(&major, 0.90),
+            pct(&major, 0.5)
+        );
+        let _ = writeln!(
+            report,
+            "- longest minor: {}–{} (median {})",
+            pct(&minor, 0.10),
+            pct(&minor, 0.90),
+            pct(&minor, 0.5)
+        );
 
         let bal = bucket.balanced as f64 / n as f64;
         let _ = writeln!(report, "- balanced: {:.0}%", 100.0 * bal);

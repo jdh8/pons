@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`probe-bba-constraints` — BBA's 1NT defense fully distilled (it's Woolsey
+  "Multi-Landy").** New `--mode`s read the rest of the structure from real EPBot
+  hands: `muider-h`/`muider-s` (the advances over the `2♥`/`2♠` Muiderberg) and
+  `rebid-d`/`rebid-d2s`/`rebid-h`/`rebid-s` (the overcaller's rebid, which
+  disambiguates each relay/ask), plus a longest-major / longest-minor read-out so
+  the Multi and the 5-4 majors read at a glance. Findings in
+  [`docs/ai-bidder/bba-1nt-defense.md`](docs/ai-bidder/bba-1nt-defense.md): **`X`
+  is Woolsey — a 4-card major + a longer minor, 12–19 HCP, *not* penalty** (a flat
+  22-count passes); **`2♣`** = ≥ 5-4 majors; **`2♦`** = a 6+ single major (Multi);
+  **`2♥`/`2♠`** = Muiderberg (exactly 5 in the major + a 4+ minor); the Muiderberg
+  **`2NT` advance is an artificial minor-ask** (overcaller answers `3♣`/`3♦`), and a
+  *direct* `3♣`/`3♦` advance is vestigial. No library change — analysis tooling only.
 - **Conventional DONT defense to their 1NT — opt-in, default off
   (`set_direct_dont`).** Replaces the natural penalty-X + overcalls at every seat
   with DONT: `X` = a one-suiter (♣/♦/♥; spade one-suiters bid `2♠` directly), `2♣`
