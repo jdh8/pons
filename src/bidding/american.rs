@@ -96,7 +96,9 @@ pub use defense::{
     set_passed_hand_defense, set_responsive_overcall, set_responsive_takeout,
     set_unusual_notrump_defense, set_woolsey, set_woolsey_double_floor, set_woolsey_points,
 };
-pub(crate) use defense::{landy_range, leaping_michaels_enabled, unusual_notrump_range};
+pub(crate) use defense::{
+    landy_range, leaping_michaels_enabled, unusual_notrump_range, woolsey_enabled, woolsey_points,
+};
 pub use notrump::notrump_responses;
 pub use openings::{
     NotrumpShape, openings, openings_with, set_one_notrump_fifths, set_open_one_notrump,

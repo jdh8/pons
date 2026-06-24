@@ -1091,11 +1091,17 @@ pub fn instinct() -> Rules {
 
         // Raise partner's suit with three-card support; each level up asks
         // for more strength, so competitive raises terminate by themselves.
+        // `partner_shown_len(suit, 3..)` makes the raise trust the *reading*, not the
+        // bid suit: an artificial overcall (Woolsey 2♣ = both majors, 2♦ = a major)
+        // shows its named minor short, so the floor never raises the phantom suit
+        // into a doubled disaster.  A natural overcall is shown 5+, so it is
+        // unaffected.  See `inference::multi_reading`.
         for (level, threshold) in [(2u8, 6u8), (3, 10), (4, 13)] {
             rules = rules.rule(
                 Bid::new(level, strain),
                 1.2,
                 partner_suit_is(suit)
+                    & partner_shown_len(suit, 3..)
                     & min_level_is(level, strain)
                     & support(3..)
                     & points(threshold..),
@@ -1109,7 +1115,11 @@ pub fn instinct() -> Rules {
         rules = rules.rule(
             Bid::new(4, strain),
             1.3,
-            partner_suit_is(suit) & support(5..) & hcp(..6) & level_available(4, strain),
+            partner_suit_is(suit)
+                & partner_shown_len(suit, 3..)
+                & support(5..)
+                & hcp(..6)
+                & level_available(4, strain),
         );
 
         // Overcall a five-card suit if we have not bid; the strength floor

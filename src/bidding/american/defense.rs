@@ -408,8 +408,9 @@ pub fn set_woolsey(on: bool) {
     WOOLSEY.with(|cell| cell.set(on));
 }
 
-/// Whether the Woolsey defense is currently authored
-fn woolsey_enabled() -> bool {
+/// Whether the Woolsey defense is currently authored (read by the inference engine
+/// to decode our artificial 2♣/2♦/2♥/2♠ overcalls; see `inference::multi_reading`)
+pub(crate) fn woolsey_enabled() -> bool {
     WOOLSEY.with(Cell::get)
 }
 
@@ -420,8 +421,9 @@ pub fn set_woolsey_points(lo: u8, hi: u8) {
     WOOLSEY_POINTS.with(|cell| cell.set((lo, hi)));
 }
 
-/// The configured Woolsey suit-overcall `points` band
-fn woolsey_points() -> (u8, u8) {
+/// The configured Woolsey suit-overcall `points` band (also the points floor the
+/// inference engine reads for our 2♣/2♦/2♥/2♠ overcalls)
+pub(crate) fn woolsey_points() -> (u8, u8) {
     WOOLSEY_POINTS.with(Cell::get)
 }
 
@@ -442,7 +444,12 @@ fn woolsey_double_floor() -> u8 {
 fn woolsey_multi() -> Cons<impl Constraint + Clone> {
     described("a single 6+ major", |h: Hand, _: &Context<'_>| {
         let (hh, ss) = (h[Suit::Hearts].len(), h[Suit::Spades].len());
-        (hh >= 6 && hh > ss) || (ss >= 6 && ss > hh)
+        let (cc, dd) = (h[Suit::Clubs].len(), h[Suit::Diamonds].len());
+        // A *true* one-suiter (BBA's "nothing else long"): a 6+ major with the other
+        // major and both minors all ≤ 4.  The minor cap makes `multi_reading`'s
+        // "diamonds ≤ 4" suppression sound — a 6-5 major-minor hand is not a Multi
+        // (it passes instead).
+        ((hh >= 6 && ss <= 4) || (ss >= 6 && hh <= 4)) && cc <= 4 && dd <= 4
     })
 }
 

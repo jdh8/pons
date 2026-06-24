@@ -302,8 +302,12 @@ impl Inferences {
 
         // A Landy 2♣ (both majors) over their 1NT, and the advancer's 2♦ relay,
         // are artificial bids in real suits — suppress their natural reading and
-        // record the two-suiter post-walk (cf. Leaping Michaels).
+        // record the two-suiter post-walk (cf. Leaping Michaels).  Woolsey reuses
+        // this for its 2♣ (Woolsey = Landy 2♣ + the Multi family below).
         let landy = landy_reading(auction);
+        // The Woolsey Multi family: 2♦ (a single 6+ major — its diamond reading
+        // suppressed) and the 2♥/2♠ Muiderberg, recorded post-walk.
+        let multi = multi_reading(auction);
 
         for (index, &call) in auction.iter().enumerate() {
             let lane = index % 4;
@@ -351,7 +355,8 @@ impl Inferences {
                             || nt_structure_artificial(auction, index, opening_index)
                             || rubens_suppress.contains(&Some(index))
                             || leaping_michaels.is_some_and(|(i, _, _)| i == index)
-                            || landy.is_some_and(|l| l.suppresses(index));
+                            || landy.is_some_and(|l| l.suppresses(index))
+                            || multi.is_some_and(|m| m.suppresses(index));
 
                         if !suppress {
                             let jump = bid
@@ -591,6 +596,37 @@ impl Inferences {
             players[who].narrow_points(Range::at_least(landy.floor, POINTS_CAP));
         }
 
+        // A Woolsey Multi-family overcall.  The "6+ major" (2♦) and "4+ minor"
+        // (2♥/2♠) are disjunctions the per-suit framework cannot pin to one suit, so
+        // they are captured by the *residual*: capping the other three suits forces
+        // the sampler to deal the length into the long suit (the same loose handling
+        // Landy uses for its 5-4).
+        if let Some(multi) = multi {
+            let who = relative_of(len, multi.overcall_index) as usize;
+            match multi.kind {
+                // 2♦ Multi: a true one-suiter, so both minors ≤ 4 (the natural ≥5
+                // diamond reading was suppressed above; clubs narrows from full).
+                MultiKind::Major => {
+                    players[who].narrow_length(Suit::Clubs, Range::new(0, 4));
+                    players[who].narrow_length(Suit::Diamonds, Range::new(0, 4));
+                }
+                // 2♥/2♠ Muiderberg: exactly 5 in the major, ≤ 3 in the other major
+                // (refining the natural ≥5 reading); the 4+ minor falls out of the
+                // residual.
+                MultiKind::Muiderberg(major) => {
+                    let other = if major == Suit::Hearts {
+                        Suit::Spades
+                    } else {
+                        Suit::Hearts
+                    };
+                    players[who].narrow_length(major, Range::new(5, 5));
+                    players[who].narrow_length(other, Range::new(0, 3));
+                }
+            }
+            let floor = crate::bidding::american::woolsey_points().0;
+            players[who].narrow_points(Range::at_least(floor, POINTS_CAP));
+        }
+
         Self { players }
     }
 }
@@ -771,7 +807,11 @@ impl LandyReading {
 /// followed by the defending side's first action being that bid, so a natural bid
 /// is never mistaken for the convention.  Mirrors [`leaping_michaels_reading`].
 fn landy_reading(auction: &[Call]) -> Option<LandyReading> {
-    let majors_floor = crate::bidding::american::landy_range();
+    // Woolsey's 2♣ is the identical both-majors call, so it reads through here too
+    // (Woolsey = Landy 2♣ + the Multi family in `multi_reading`).
+    let majors_floor = crate::bidding::american::landy_range().or_else(|| {
+        crate::bidding::american::woolsey_enabled().then(crate::bidding::american::woolsey_points)
+    });
     let minors_floor = crate::bidding::american::unusual_notrump_range();
     if majors_floor.is_none() && minors_floor.is_none() {
         return None;
@@ -829,6 +869,80 @@ fn landy_reading(auction: &[Call]) -> Option<LandyReading> {
         floor,
         relay_index,
     })
+}
+
+/// Which Woolsey **Multi-family** overcall the defending side made over their 1NT
+#[derive(Clone, Copy)]
+enum MultiKind {
+    /// `2♦` Multi — a single 6+ major (unknown which), nothing else long.  Names a
+    /// diamond suit it does not hold, so its natural reading must be suppressed.
+    Major,
+    /// `2♥`/`2♠` Muiderberg — exactly 5 in the named major, ≤ 3 in the other major
+    /// (and a 4+ minor, captured by the residual).  A real major: no suppression.
+    Muiderberg(Suit),
+}
+
+/// A Woolsey Multi-family overcall and which call it was
+#[derive(Clone, Copy)]
+struct MultiReading {
+    overcall_index: usize,
+    kind: MultiKind,
+}
+
+impl MultiReading {
+    /// Only the `2♦` Multi names a suit it does not hold (diamonds); the Muiderberg
+    /// `2♥`/`2♠` name a real 5-card major, so its natural reading is kept.
+    fn suppresses(&self, index: usize) -> bool {
+        matches!(self.kind, MultiKind::Major) && self.overcall_index == index
+    }
+}
+
+/// Read a Woolsey **Multi-family** overcall of their 1NT: the `2♦` Multi (a single
+/// 6+ major) or the `2♥`/`2♠` Muiderberg (exactly 5 in the major + a 4+ minor)
+///
+/// Gated on [`woolsey_enabled`][crate::bidding::american::woolsey_enabled] and the
+/// auction being `1NT` then the defending side's first action being that bid.  The
+/// both-majors `2♣` is read by [`landy_reading`] (Woolsey = Landy 2♣ + this family).
+///
+/// ponytail: kept separate from `landy_reading` so this Multi reading is reusable
+/// for a future Multi `2♦` *opening* (an unknown-major weak two) — same shape, no
+/// 1NT prefix.
+fn multi_reading(auction: &[Call]) -> Option<MultiReading> {
+    if !crate::bidding::american::woolsey_enabled() {
+        return None;
+    }
+    let opening_index = auction.iter().position(|&c| c != Call::Pass)?;
+    if auction[opening_index] != Call::Bid(Bid::new(1, Strain::Notrump)) {
+        return None;
+    }
+    let opener_parity = opening_index % 2;
+
+    // The defending side's FIRST action — a 2♦/2♥/2♠ Multi-family overcall.
+    auction
+        .iter()
+        .enumerate()
+        .skip(opening_index + 1)
+        .find_map(|(index, &call)| match call {
+            Call::Pass => None,
+            Call::Bid(bid) if index % 2 != opener_parity => {
+                let kind = if bid == Bid::new(2, Strain::Diamonds) {
+                    Some(MultiKind::Major)
+                } else if bid == Bid::new(2, Strain::Hearts) {
+                    Some(MultiKind::Muiderberg(Suit::Hearts))
+                } else if bid == Bid::new(2, Strain::Spades) {
+                    Some(MultiKind::Muiderberg(Suit::Spades))
+                } else {
+                    None
+                };
+                Some(kind.map(|kind| MultiReading {
+                    overcall_index: index,
+                    kind,
+                }))
+            }
+            // The opener's side acted (a response), or a defender did something else.
+            _ => Some(None),
+        })
+        .flatten()
 }
 
 /// The suit(s) a Leaping Michaels jump `lm` (clubs or diamonds) shows over their
@@ -1148,6 +1262,56 @@ mod tests {
 
         // Restore the shipped defaults so sibling tests on this thread are unaffected
         // (unusual 2NT ships on; Landy 2♣ ships off).
+        set_unusual_notrump_defense(Some((8, 13)));
+    }
+
+    #[test]
+    fn woolsey_conditions_partner() {
+        use crate::bidding::american::{
+            set_landy, set_unusual_notrump_defense, set_woolsey, set_woolsey_points,
+        };
+        // Landy off, Woolsey on: the 2♣ must read through the Woolsey path.
+        set_landy(None);
+        set_unusual_notrump_defense(None);
+        set_woolsey(true);
+        set_woolsey_points(10, 19);
+
+        // (1NT)–2♣–(P): Woolsey's 2♣ is both majors, exactly like Landy — partner
+        // shows ≥4-4 in the majors (10+), never a natural club suit.
+        let two_c = read(&[bid(1, Strain::Notrump), bid(2, Strain::Clubs), Call::Pass]);
+        assert_eq!(two_c.partner().length(Suit::Hearts), Range::new(4, 13));
+        assert_eq!(two_c.partner().length(Suit::Spades), Range::new(4, 13));
+        assert_eq!(two_c.partner().length(Suit::Clubs), Range::FULL_LENGTH);
+        assert_eq!(two_c.partner().points, Range::new(10, 37));
+
+        // (1NT)–2♦–(P): the Multi names diamonds it does NOT hold, so the natural
+        // ≥5 reading is suppressed and BOTH minors narrow to ≤4 — the floor can no
+        // longer "raise diamonds" into a doubled 5♦ (the 6+ major falls out of the
+        // residual the per-suit framework cannot pin).
+        let multi = read(&[
+            bid(1, Strain::Notrump),
+            bid(2, Strain::Diamonds),
+            Call::Pass,
+        ]);
+        assert_eq!(multi.partner().length(Suit::Diamonds), Range::new(0, 4));
+        assert_eq!(multi.partner().length(Suit::Clubs), Range::new(0, 4));
+
+        // (1NT)–2♥–(P): Muiderberg — exactly 5 hearts, ≤3 spades.
+        let muiderberg = read(&[bid(1, Strain::Notrump), bid(2, Strain::Hearts), Call::Pass]);
+        assert_eq!(muiderberg.partner().length(Suit::Hearts), Range::new(5, 5));
+        assert_eq!(muiderberg.partner().length(Suit::Spades), Range::new(0, 3));
+
+        // Off: the Multi 2♦ reads as a natural diamond one-suiter again (≥5) — the
+        // convention must not leak when disabled.
+        set_woolsey(false);
+        let off = read(&[
+            bid(1, Strain::Notrump),
+            bid(2, Strain::Diamonds),
+            Call::Pass,
+        ]);
+        assert_eq!(off.partner().length(Suit::Diamonds), Range::new(5, 13));
+
+        // Restore the shipped default (unusual 2NT ships on).
         set_unusual_notrump_defense(Some((8, 13)));
     }
 
