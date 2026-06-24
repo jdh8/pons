@@ -90,6 +90,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   names its real suit (`[1NT,X,(XX),2♣,X]`) instead of being floored into `2♣x` on
   a hand that need not hold clubs (the relay is artificial). The escape is worth
   **+0.083 IMPs/board** on the honest measure.
+- **Floor readings for the DONT artificial calls** (`Inferences::read`,
+  `dont_reading`), so the deterministic `instinct()` floor never misreads DONT once
+  the auction leaves the authored book — the same fix the Woolsey calls got. The
+  generic walk read the `2♥` two-suiter as a *single* 5+ heart suit, the `2♣`/`2♦`
+  as a *natural* 5+ minor (they can be only four), the one-suiter `X` as *nothing*
+  (a random hand), and each advancer relay (`2♣` over `X`; `2♦`/`2♥`/`2♠` over
+  `2♣`/`2♦`/`2♥`) as own length. Now: `2♥` pins both majors ≥ 4 (a Landy
+  two-suiter); `2♣`/`2♦` re-pin the real minor ≥ 4 (the unknown major falls to the
+  residual, surfacing naturally if later named); the `X` records the overcall
+  points floor + `spades ≤ 3` (the one sound per-suit fact of a ♣/♦/♥ one-suiter);
+  and every relay's natural reading is suppressed for the whole read (covering
+  contested runouts via the shared `advancer_artificial` jump). The natural `2♠`
+  keeps its genuine spade reading. Seat-isolated `bba-match --isolate-defense
+  --advertise-natural --ns-dont --ns-dont-one-suiter-min 6` (10 000 boards, seed 42,
+  paired): the defense bucket improves **−0.492 → −0.428 IMPs/board** with no bucket
+  regressing — the wins are the two worst-misread calls, `2♥` (−0.003 → **+0.301**)
+  and `X` (−0.983 → **−0.659**).
 - **The honest DONT verdict — it reaches DD parity-to-win, but stays opt-in.**
   Seat-isolated `bba-match --isolate-defense --advertise-natural` (20 000 boards,
   seed-paired) vs natural's **−0.187 (none) / −0.480 (both)**: full DONT *loses*

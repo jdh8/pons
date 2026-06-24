@@ -261,7 +261,7 @@ pub fn set_direct_dont(on: bool) {
 }
 
 /// Whether the direct-seat DONT defense is currently authored
-fn direct_dont_enabled() -> bool {
+pub(crate) fn direct_dont_enabled() -> bool {
     DIRECT_DONT.with(Cell::get)
 }
 
@@ -605,7 +605,7 @@ pub fn set_natural_overcall_points(lo: u8, hi: u8) {
     NATURAL_OVERCALL_POINTS.with(|cell| cell.set((lo, hi)));
 }
 
-fn natural_overcall_points() -> (u8, u8) {
+pub(crate) fn natural_overcall_points() -> (u8, u8) {
     NATURAL_OVERCALL_POINTS.with(Cell::get)
 }
 

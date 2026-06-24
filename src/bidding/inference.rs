@@ -311,6 +311,9 @@ impl Inferences {
         // The Woolsey takeout double of their 1NT: the doubler's points are recorded
         // post-walk and the advancer's 2♣ minor relay is suppressed.
         let woolsey_x = woolsey_x_reading(auction);
+        // The DONT defense of their 1NT: the artificial X/2♣/2♦/2♥ and the advancer's
+        // relay are suppressed; what each genuinely shows is recorded post-walk.
+        let dont = dont_reading(auction);
 
         for (index, &call) in auction.iter().enumerate() {
             let lane = index % 4;
@@ -360,7 +363,8 @@ impl Inferences {
                             || leaping_michaels.is_some_and(|(i, _, _)| i == index)
                             || landy.is_some_and(|l| l.suppresses(index))
                             || multi.is_some_and(|m| m.suppresses(index))
-                            || woolsey_x.is_some_and(|w| w.suppresses(index));
+                            || woolsey_x.is_some_and(|w| w.suppresses(index))
+                            || dont.is_some_and(|d| d.suppresses(index));
 
                         if !suppress {
                             let jump = bid
@@ -639,6 +643,34 @@ impl Inferences {
             let who = relative_of(len, woolsey_x.double_index) as usize;
             let floor = crate::bidding::american::woolsey_double_floor();
             players[who].narrow_points(Range::at_least(floor, POINTS_CAP));
+        }
+
+        // A DONT overcall of their 1NT.  The X one-suiter and the 2♣/2♦ minor are
+        // disjunctions (the long suit / the unknown major) the per-suit framework
+        // cannot pin, so only the sound per-suit fact is recorded; the residual carries
+        // the rest.  The 2♥ both-majors pins both like Landy.  In each case the points
+        // floor stops the floor sampling the overcaller as a random hand.
+        if let Some(dont) = dont {
+            let who = relative_of(len, dont.overcall_index) as usize;
+            match dont.kind {
+                // One-suiter in ♣/♦/♥ (spades excluded); the long suit falls out of the
+                // residual, only spades ≤ 3 is certain.
+                DontKind::OneSuiter => players[who].narrow_length(Suit::Spades, Range::new(0, 3)),
+                // 2♣/2♦: a real ≥ 4 minor (the natural ≥ 5 reading was suppressed); the
+                // unknown major surfaces naturally if later named, else the residual.
+                DontKind::ClubsMajor => {
+                    players[who].narrow_length(Suit::Clubs, Range::at_least(4, LENGTH_CAP));
+                }
+                DontKind::DiamondsMajor => {
+                    players[who].narrow_length(Suit::Diamonds, Range::at_least(4, LENGTH_CAP));
+                }
+                // 2♥: both majors, ≥ 4-4 (the natural ≥ 5 heart reading was suppressed).
+                DontKind::BothMajors => {
+                    players[who].narrow_length(Suit::Hearts, Range::at_least(4, LENGTH_CAP));
+                    players[who].narrow_length(Suit::Spades, Range::at_least(4, LENGTH_CAP));
+                }
+            }
+            players[who].narrow_points(Range::at_least(dont.floor, POINTS_CAP));
         }
 
         Self { players }
@@ -1074,6 +1106,116 @@ fn woolsey_x_reading(auction: &[Call]) -> Option<WoolseyXReading> {
     Some(WoolseyXReading {
         double_index,
         relay_suppress,
+    })
+}
+
+/// Which DONT defense call the defending side made over their 1NT
+#[derive(Clone, Copy)]
+enum DontKind {
+    /// `X` — a one-suiter in ♣/♦/♥ (a spade one-suiter bids the natural `2♠`), so
+    /// spades are short.  The long suit is a triple disjunction the per-suit
+    /// framework cannot pin; only `spades ≤ 3` is a sound per-suit fact.
+    OneSuiter,
+    /// `2♣` — clubs (real, ≥ 4) + an unknown higher major.  Names a real club suit,
+    /// but the natural ≥ 5 reading is unsound (the 4-major-5-club hand has 4 clubs).
+    ClubsMajor,
+    /// `2♦` — diamonds (real, ≥ 4) + an unknown major.  As `ClubsMajor` for diamonds.
+    DiamondsMajor,
+    /// `2♥` — both majors, ≥ 5-4.  Exactly a Landy two-suiter on the `2♥` bid.
+    BothMajors,
+}
+
+/// A DONT overcall of their 1NT (`X`/`2♣`/`2♦`/`2♥`) and the advancer's relay
+///
+/// DONT's calls name suits the hand may not hold (`X` names none; `2♣`/`2♦`/`2♥` can
+/// be only 4 cards in the named suit) or are relays, so the generic walk misreads
+/// them — leaving the floor to raise a phantom suit or sample a random hand.  The
+/// natural `2♠` is a genuine spade suit and needs no reading.  Mirrors
+/// [`landy_reading`] / [`multi_reading`] / [`woolsey_x_reading`].
+#[derive(Clone, Copy)]
+struct DontReading {
+    overcall_index: usize,
+    kind: DontKind,
+    floor: u8,
+    /// The advancer's relay — `2♣` over the `X`, or the `2♦`/`2♥`/`2♠` pass-or-correct
+    /// over `2♣`/`2♦`/`2♥` (a preference among partner's suits, not own length).
+    advance_suppress: Option<usize>,
+}
+
+impl DontReading {
+    /// Whether the call at `index` is artificial.  The `X` (a double) names no suit,
+    /// so only the `2♣`/`2♦`/`2♥` overcalls suppress their own natural reading; the
+    /// advancer's relay is always suppressed.
+    fn suppresses(&self, index: usize) -> bool {
+        (!matches!(self.kind, DontKind::OneSuiter) && self.overcall_index == index)
+            || self.advance_suppress == Some(index)
+    }
+}
+
+/// Read a DONT overcall of their 1NT, gated on
+/// [`direct_dont_enabled`][crate::bidding::american::direct_dont_enabled] and the
+/// auction being `1NT` then the defending side's first action being a DONT call
+fn dont_reading(auction: &[Call]) -> Option<DontReading> {
+    if !crate::bidding::american::direct_dont_enabled() {
+        return None;
+    }
+    let opening_index = auction.iter().position(|&c| c != Call::Pass)?;
+    if auction[opening_index] != Call::Bid(Bid::new(1, Strain::Notrump)) {
+        return None;
+    }
+    let opener_parity = opening_index % 2;
+    let floor = crate::bidding::american::natural_overcall_points().0;
+
+    // The defending side's FIRST action — a DONT `X`/`2♣`/`2♦`/`2♥` (the natural `2♠`
+    // and anything else fall through to the generic reading).
+    let (overcall_index, kind) = auction
+        .iter()
+        .enumerate()
+        .skip(opening_index + 1)
+        .find_map(|(index, &call)| match call {
+            Call::Pass => None,
+            Call::Double if index % 2 != opener_parity => Some(Some((index, DontKind::OneSuiter))),
+            Call::Bid(bid) if index % 2 != opener_parity => {
+                let kind = if bid == Bid::new(2, Strain::Clubs) {
+                    Some(DontKind::ClubsMajor)
+                } else if bid == Bid::new(2, Strain::Diamonds) {
+                    Some(DontKind::DiamondsMajor)
+                } else if bid == Bid::new(2, Strain::Hearts) {
+                    Some(DontKind::BothMajors)
+                } else {
+                    None
+                };
+                Some(kind.map(|kind| (index, kind)))
+            }
+            // The opener's side acted (a response), or a defender did something else.
+            _ => Some(None),
+        })
+        .flatten()?;
+
+    // The advancer's relay: `2♣` over the `X` (it names a minor, not own clubs), or the
+    // `2♦`/`2♥`/`2♠` preference over a two-suiter (one of partner's suits, not own
+    // length).  Both scans jump over every opponent call so a contested relay is
+    // covered (the relay is only legal as the immediate response).
+    let advance_suppress = match kind {
+        DontKind::OneSuiter => auction
+            .iter()
+            .enumerate()
+            .skip(overcall_index + 1)
+            .find_map(|(index, &call)| match call {
+                Call::Bid(bid) if index % 2 != opener_parity => {
+                    Some((bid == Bid::new(2, Strain::Clubs)).then_some(index))
+                }
+                _ => None,
+            })
+            .flatten(),
+        _ => advancer_artificial(auction, overcall_index, opener_parity),
+    };
+
+    Some(DontReading {
+        overcall_index,
+        kind,
+        floor,
+        advance_suppress,
     })
 }
 
@@ -1514,6 +1656,59 @@ mod tests {
         assert_eq!(off.partner().points, Range::new(0, 37));
 
         set_unusual_notrump_defense(Some((8, 13)));
+    }
+
+    #[test]
+    fn dont_overcalls_and_advances_read() {
+        use crate::bidding::american::{set_direct_dont, set_landy, set_unusual_notrump_defense};
+        set_landy(None);
+        set_unusual_notrump_defense(None);
+        set_direct_dont(true);
+
+        // (1NT)–X–(P): a one-suiter in ♣/♦/♥ — spades short (≤3, the one sound fact),
+        // strength recorded (the default 8+ overcall floor) where a bare double of 1NT
+        // would otherwise read as nothing.
+        let x = read(&[bid(1, Strain::Notrump), Call::Double, Call::Pass]);
+        assert_eq!(x.partner().length(Suit::Spades), Range::new(0, 3));
+        assert_eq!(x.partner().points, Range::new(8, 37));
+
+        // (1NT)–X–(P)–2♣–(P): the advancer's 2♣ is a "name your suit" relay, not own
+        // clubs, so its natural ≥4 reading is suppressed (read from the advancer seat).
+        let relay = read(&[
+            bid(1, Strain::Notrump),
+            Call::Double,
+            Call::Pass,
+            bid(2, Strain::Clubs),
+            Call::Pass,
+        ]);
+        assert_eq!(relay.partner().length(Suit::Clubs), Range::FULL_LENGTH);
+
+        // (1NT)–2♣–(P): a real ≥4 club suit + an unknown major.  The natural ≥5 reading
+        // is suppressed (a 4-club / 5-major DONT hand makes this call), re-pinned to ≥4.
+        let two_c = read(&[bid(1, Strain::Notrump), bid(2, Strain::Clubs), Call::Pass]);
+        assert_eq!(two_c.partner().length(Suit::Clubs), Range::new(4, 13));
+        assert_eq!(two_c.partner().points, Range::new(8, 37));
+
+        // (1NT)–2♣–(P)–2♦–(P): the advancer's 2♦ is a "name your higher suit" relay,
+        // not own diamonds — suppressed.
+        let pref = read(&[
+            bid(1, Strain::Notrump),
+            bid(2, Strain::Clubs),
+            Call::Pass,
+            bid(2, Strain::Diamonds),
+            Call::Pass,
+        ]);
+        assert_eq!(pref.partner().length(Suit::Diamonds), Range::FULL_LENGTH);
+
+        // (1NT)–2♥–(P): both majors, ≥4-4 — exactly a Landy two-suiter on the 2♥ bid.
+        let two_h = read(&[bid(1, Strain::Notrump), bid(2, Strain::Hearts), Call::Pass]);
+        assert_eq!(two_h.partner().length(Suit::Hearts), Range::new(4, 13));
+        assert_eq!(two_h.partner().length(Suit::Spades), Range::new(4, 13));
+
+        // Off: the 2♣ reads as a natural club one-suiter again (≥5) — no leak.
+        set_direct_dont(false);
+        let off = read(&[bid(1, Strain::Notrump), bid(2, Strain::Clubs), Call::Pass]);
+        assert_eq!(off.partner().length(Suit::Clubs), Range::new(5, 13));
     }
 
     #[test]
