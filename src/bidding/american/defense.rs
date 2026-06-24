@@ -1650,19 +1650,14 @@ fn multi_2h_rebid() -> Rules {
         .rule(Call::Pass, 0.0, hcp(0..))
 }
 
-/// Overcaller over the constructive `2♠` pass-or-correct (`[1NT, 2♦, P, 2♠, P]`):
-/// pass with spades, bid `2NT` (a heart relay) with hearts so the stronger
-/// advancer places the heart contract (BBA's mechanism)
+/// Overcaller over the constructive `2♠` pass-or-correct (`[1NT, 2♦, P, 2♠, *]`):
+/// pass with spades, bid `3♥` with hearts.  Bidding the major directly (rather than
+/// a 2NT heart-relay) keeps the rebid identical whether the `2♠` was passed or
+/// doubled — over a double we must not be left to the floor.
 fn multi_2s_rebid() -> Rules {
     Rules::new()
-        .rule(Bid::new(2, Strain::Notrump), 1.0, len(Suit::Hearts, 6..))
+        .rule(Bid::new(3, Strain::Hearts), 1.0, len(Suit::Hearts, 6..))
         .rule(Call::Pass, 0.0, hcp(0..))
-}
-
-/// Advancer over the `2NT` heart relay (`[1NT, 2♦, P, 2♠, P, 2NT, P]`): place the
-/// now-known heart contract at `3♥` (the `2♠` was the invitational pass-or-correct)
-fn multi_2s_2nt_advance() -> Rules {
-    Rules::new().rule(Bid::new(3, Strain::Hearts), 1.0, hcp(0..))
 }
 
 /// Overcaller over the game-forcing `2NT` ask (`[1NT, 2♦, P, 2NT, P]`): jump to
@@ -2429,36 +2424,35 @@ pub fn defensive() -> Defensive {
         let nt2 = call(2, Strain::Notrump);
 
         // Multi 2♦.  The advance is the same over a pass or a double (it never sits
-        // 2♦x — the overcaller has a major, not diamonds), so wire both RHO actions.
+        // 2♦x — the overcaller has a major, not diamonds).  `rho` is the opponents'
+        // call over our 2♦; `after` is their call over our pass-or-correct — the
+        // overcaller names its major regardless of a double, so we are never left to
+        // the floor in a doubled 2♥x/2♠x (the dominant 2♦ leak vs BBA).
         for rho in [Call::Pass, x] {
             insert_all_seats(&mut d, &[notrump, multi, rho], 3, multi_advances(lo));
-            // Weak 2♥ p/c → pass / correct 2♠ / jump 3M with seven.
-            insert_all_seats(
-                &mut d,
-                &[notrump, multi, rho, hearts, Call::Pass],
-                3,
-                multi_2h_rebid(),
-            );
-            // Constructive 2♠ p/c → pass spades / 2NT heart-relay → advancer places 3♥.
-            insert_all_seats(
-                &mut d,
-                &[notrump, multi, rho, spades, Call::Pass],
-                3,
-                multi_2s_rebid(),
-            );
-            insert_all_seats(
-                &mut d,
-                &[notrump, multi, rho, spades, Call::Pass, nt2, Call::Pass],
-                3,
-                multi_2s_2nt_advance(),
-            );
-            // Game-force 2NT ask → overcaller jumps to game in its major.
-            insert_all_seats(
-                &mut d,
-                &[notrump, multi, rho, nt2, Call::Pass],
-                3,
-                multi_2nt_rebid(),
-            );
+            for after in [Call::Pass, x] {
+                // Weak 2♥ p/c → pass / correct 2♠ / jump 3M with seven.
+                insert_all_seats(
+                    &mut d,
+                    &[notrump, multi, rho, hearts, after],
+                    3,
+                    multi_2h_rebid(),
+                );
+                // Constructive 2♠ p/c → pass spades / 3♥ with hearts.
+                insert_all_seats(
+                    &mut d,
+                    &[notrump, multi, rho, spades, after],
+                    3,
+                    multi_2s_rebid(),
+                );
+                // Game-force 2NT ask → overcaller jumps to game in its major.
+                insert_all_seats(
+                    &mut d,
+                    &[notrump, multi, rho, nt2, after],
+                    3,
+                    multi_2nt_rebid(),
+                );
+            }
         }
 
         // Muiderberg 2♥/2♠ — raises + the 2NT minor-ask (a doubled escape with no fit).
