@@ -194,6 +194,24 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_dont_four_four: bool,
 
+    /// Replace our 1NT defense with our own Woolsey "Multi-Landy" (default off):
+    /// X = 4-card major + longer minor, 2♣ = both majors, 2♦ = Multi, 2♥/2♠ =
+    /// Muiderberg.  Structurally BBA's own defense, so run WITHOUT `--advertise-natural`:
+    /// BBA reads our conventional bids correctly via its Multi-Landy model, and the
+    /// all-BBA reference table is BBA defending with the same convention — the swing is
+    /// then our Woolsey (BBA structure, our ranges) vs BBA's own.  Excludes `--ns-dont`.
+    #[arg(long, default_value_t = false)]
+    ns_woolsey: bool,
+
+    /// Woolsey suit-overcall (2♣/2♦/2♥/2♠) points band LO:HI (default 10:19). Only
+    /// with `--ns-woolsey`.
+    #[arg(long, default_value = "10:19")]
+    ns_woolsey_range: String,
+
+    /// `points` floor for our Woolsey takeout X (default 12). Only with `--ns-woolsey`.
+    #[arg(long, default_value_t = 12)]
+    ns_woolsey_x_floor: u8,
+
     /// Advertise that our defense to BBA's 1NT is natural.  At *our* table only
     /// (where we defend) the opponent bot's 1NT-defense conventions are disabled
     /// (`Multi-Landy`/`Cappelletti`/`Landy` off, atop `--their-conv`), so BBA reads
@@ -701,6 +719,26 @@ fn main() -> anyhow::Result<()> {
         pons::bidding::american::set_unusual_notrump_defense(Some((8, 14)));
         pons::bidding::american::set_direct_dont_one_suiter_min(args.ns_dont_one_suiter_min);
         pons::bidding::american::set_direct_dont_four_four(args.ns_dont_four_four);
+    }
+    // Woolsey owns every direct call over their 1NT, so force the natural/DONT/Landy
+    // arms off — else their advance wiring would overwrite the Woolsey continuations.
+    pons::bidding::american::set_woolsey(args.ns_woolsey);
+    if args.ns_woolsey {
+        let (wlo, whi) = args
+            .ns_woolsey_range
+            .split_once(':')
+            .and_then(|(lo, hi)| Some((lo.parse::<u8>().ok()?, hi.parse::<u8>().ok()?)))
+            .ok_or_else(|| {
+                anyhow::anyhow!(
+                    "--ns-woolsey-range must be LO:HI, got {:?}",
+                    args.ns_woolsey_range
+                )
+            })?;
+        pons::bidding::american::set_woolsey_points(wlo, whi);
+        pons::bidding::american::set_woolsey_double_floor(args.ns_woolsey_x_floor);
+        pons::bidding::american::set_natural_defense(false);
+        pons::bidding::american::set_landy(None);
+        pons::bidding::american::set_direct_dont(false);
     }
     let our_floor = match args.our_floor.as_str() {
         "american" => american().against(Family::NATURAL),
