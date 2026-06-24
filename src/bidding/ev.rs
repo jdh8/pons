@@ -32,8 +32,8 @@
 
 use super::System;
 use super::context::Context;
-use super::inference::Inferences;
-use super::sampler::sample_layouts;
+use super::inference::{Inferences, rule_accept_enabled};
+use super::sampler::{sample_layouts, sample_layouts_replay};
 use super::table::Table;
 use crate::scoring::{final_contract, ns_score_bid};
 use contract_bridge::auction::{Auction, Call};
@@ -103,8 +103,26 @@ pub fn ev_all(
         return Vec::new();
     }
 
-    let inferences = Inferences::read(context);
-    let deals = sample_layouts(hand, seat, &inferences, rng, n);
+    let deals = if rule_accept_enabled() {
+        // Read each prior bid by replaying the rule that authored it, frozen at
+        // its node — no per-convention range readers.
+        let mut deals =
+            sample_layouts_replay(hand, seat, policy, context.vul(), context.auction(), rng, n);
+        if deals.len() < n {
+            // Replay starves on deep, contested auctions (every committal call is
+            // an argmax hurdle).  Top up with the loose range reader so the
+            // rollout keeps a usable layout count rather than going dark.
+            // ponytail: pays the full replay budget first; add a probe-budget
+            // early-abort if the wasted draws on starved auctions bite.
+            let inferences = Inferences::read(context);
+            let more = sample_layouts(hand, seat, &inferences, rng, n - deals.len());
+            deals.extend(more);
+        }
+        deals
+    } else {
+        let inferences = Inferences::read(context);
+        sample_layouts(hand, seat, &inferences, rng, n)
+    };
     if deals.is_empty() {
         return vec![f32::NAN; calls.len()];
     }

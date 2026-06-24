@@ -28,8 +28,10 @@
 //! loop forever.  A smarter importance sampler can replace the rejection loop
 //! later if EV throughput demands it; the signature would not change.
 
+use super::System;
 use super::constraint::point_count;
-use super::inference::{Inference, Inferences};
+use super::inference::{Inference, Inferences, Relative, relative_of};
+use contract_bridge::auction::{Auction, Call, RelativeVulnerability};
 use contract_bridge::deck::fill_deals;
 use contract_bridge::{Builder, FullDeal, Hand, Seat, Suit};
 use rand::Rng;
@@ -41,6 +43,33 @@ use rand::Rng;
 /// terminate auctions whose ranges no hand can satisfy; for the loose ranges
 /// [`Inferences`] actually produces it is rarely approached.
 const MAX_ATTEMPTS_PER_LAYOUT: usize = 256;
+
+/// Total random deals the *replay* sampler will draw for one request — a generous
+/// ceiling (~10-20 s, in tempo for a human bid), since a deal is a ~0.3 µs shuffle
+/// and the accept test a few classifies, both far below the double-dummy solve
+/// each *accepted* layout then pays.  Look as hard as it takes rather than fall
+/// back to the unfaithful ranges.
+///
+/// This is only a backstop: [`REPLAY_DRY_LIMIT`] governs termination in practice,
+/// so a feasible auction stops when it fills and an infeasible one bails early.
+const REPLAY_DRAW_CAP: usize = 50_000_000;
+
+/// Consecutive rejected draws after which the replay sampler gives up on the
+/// current request — the auction is *feasibility*-limited, not budget-limited
+/// (e.g. a penalty double needs the doubler to hold 15+, impossible when the
+/// actor is strong), so more draws will not help and the caller tops up with the
+/// ranges.  Resets on every accept, so it never cuts short an auction yielding
+/// more than roughly `1 / REPLAY_DRY_LIMIT`.
+const REPLAY_DRY_LIMIT: usize = 1 << 20;
+
+/// How far below its best legal call the policy may rank a player's actual call
+/// and still accept the hand, in nats (the replay sampler's relaxation knob).
+///
+/// Strict argmax (`0.0`) over-tightens — every committal call becomes an
+/// independent hurdle and the rejection loop starves.  This margin accepts
+/// near-ties, the population the loose range readers approximated.  Tuned for
+/// sampler yield; see the plan.
+const MARGIN: f32 = 3.0;
 
 /// Deal up to `n` full layouts consistent with what an auction has shown
 ///
@@ -54,9 +83,6 @@ const MAX_ATTEMPTS_PER_LAYOUT: usize = 256;
 /// of `n * 256` draws ran out first, which happens only when the shown ranges
 /// are tight or jointly infeasible given `hand`; a caller should read a short
 /// result as a weak or absent signal, not an error.
-// ponytail: the `build_partial` expect cannot fire — one hand placed in an
-// otherwise empty builder is always a valid partial deal.
-#[allow(clippy::missing_panics_doc)]
 #[must_use]
 pub fn sample_layouts(
     hand: Hand,
@@ -64,6 +90,64 @@ pub fn sample_layouts(
     inferences: &Inferences,
     rng: &mut impl Rng,
     n: usize,
+) -> Vec<FullDeal> {
+    let budget = n.saturating_mul(MAX_ATTEMPTS_PER_LAYOUT);
+    sample_with(hand, seat, rng, n, budget, usize::MAX, |deal| {
+        within_ranges(deal, seat, inferences)
+    })
+}
+
+/// Deal up to `n` layouts, accepting each by *replaying the rule* rather than the
+/// [`Inferences`] ranges (gated by
+/// [`set_rule_accept`][super::inference::set_rule_accept]).
+///
+/// For every non-actor player and every non-pass call they made, `policy` is
+/// re-run on the candidate hand at the node *before* that call; the hand is kept
+/// only if the policy ranks the made call within a margin of its best legal call.
+/// `vul` is relative to `seat` (the actor): partner shares it, the opponents see
+/// it side-swapped.  An off-book node (the policy has no opinion) accepts, matching
+/// the range reader's sound-over-tight stance.
+///
+/// Short-result semantics match [`sample_layouts`], but with a far larger draw
+/// budget: replay is tight, and looking harder is cheap next to the double-dummy
+/// solve each accepted layout pays.
+#[must_use]
+pub fn sample_layouts_replay(
+    hand: Hand,
+    seat: Seat,
+    policy: &dyn System,
+    vul: RelativeVulnerability,
+    auction: &[Call],
+    rng: &mut impl Rng,
+    n: usize,
+) -> Vec<FullDeal> {
+    sample_with(
+        hand,
+        seat,
+        rng,
+        n,
+        REPLAY_DRAW_CAP,
+        REPLAY_DRY_LIMIT,
+        |deal| rules_accept(deal, seat, policy, vul, auction),
+    )
+}
+
+/// Rejection-sample up to `n` layouts whose other three hands pass `accept`,
+/// drawing at most `budget` random deals and giving up early after `dry_limit`
+/// consecutive rejects (pass `usize::MAX` to disable the early-out).
+///
+/// The actor's thirteen cards are pinned, so each draw deals only the other
+/// thirty-nine.
+// ponytail: the `build_partial` expect cannot fire — one hand placed in an
+// otherwise empty builder is always a valid partial deal.
+fn sample_with(
+    hand: Hand,
+    seat: Seat,
+    rng: &mut impl Rng,
+    n: usize,
+    budget: usize,
+    dry_limit: usize,
+    accept: impl Fn(&FullDeal) -> bool,
 ) -> Vec<FullDeal> {
     let mut out = Vec::with_capacity(n);
     if n == 0 {
@@ -76,11 +160,17 @@ pub fn sample_layouts(
         .build_partial()
         .expect("one thirteen-card hand is a valid partial deal");
 
-    let budget = n.saturating_mul(MAX_ATTEMPTS_PER_LAYOUT);
+    let mut dry = 0usize;
     for deal in fill_deals(rng, partial).take(budget) {
-        if within_ranges(&deal, seat, inferences) {
+        if accept(&deal) {
             out.push(deal);
             if out.len() == n {
+                break;
+            }
+            dry = 0;
+        } else {
+            dry += 1;
+            if dry >= dry_limit {
                 break;
             }
         }
@@ -111,6 +201,80 @@ fn hand_within(hand: Hand, shown: &Inference) -> bool {
         shown.length(suit).contains(length)
     });
     lengths_fit && shown.points.contains(point_count(hand))
+}
+
+/// Whether LHO, partner, and RHO in `deal` could each have made their actual
+/// calls under `policy` (the rule-replay accept test; see
+/// [`sample_layouts_replay`]).
+fn rules_accept(
+    deal: &FullDeal,
+    seat: Seat,
+    policy: &dyn System,
+    vul: RelativeVulnerability,
+    auction: &[Call],
+) -> bool {
+    let len = auction.len();
+    let theirs = swap_sides(vul);
+    [
+        (seat.lho(), Relative::Lho, theirs),
+        (seat.partner(), Relative::Partner, vul),
+        (seat.rho(), Relative::Rho, theirs),
+    ]
+    .into_iter()
+    .all(|(other, who, pvul)| {
+        let hand = deal[other];
+        // This player's own call indices, deepest first — the tightest node
+        // rejects fastest, short-circuiting the rest.
+        (0..len)
+            .rev()
+            .filter(|&i| relative_of(len, i) == who)
+            .all(|i| made_plausibly(hand, policy, pvul, &auction[..i], auction[i]))
+    })
+}
+
+/// Whether `policy`, classifying `hand` at `prefix`, ranks the `made` call
+/// within [`MARGIN`] of its best legal call.  A pass carries no replay signal
+/// and an off-book node has no opinion; both accept.
+fn made_plausibly(
+    hand: Hand,
+    policy: &dyn System,
+    vul: RelativeVulnerability,
+    prefix: &[Call],
+    made: Call,
+) -> bool {
+    if matches!(made, Call::Pass) {
+        return true;
+    }
+    let Some(logits) = policy.classify(hand, vul, prefix) else {
+        return true;
+    };
+    // Best over *legal* calls only — a fallback book may offer a call now illegal
+    // at this node, which must not inflate the argmax the made call is judged
+    // against (the made call is legal by construction).
+    let mut played = Auction::new();
+    played
+        .try_extend(prefix.iter().copied())
+        .expect("a prior table auction is legal");
+    let best = logits
+        .0
+        .iter()
+        .filter(|(call, _)| played.can_push(*call).is_ok())
+        .fold(f32::NEG_INFINITY, |best, (_, &logit)| best.max(logit));
+    *logits.0.get(made) >= best - MARGIN
+}
+
+/// Vulnerability seen from the opposing side: swap the WE and THEY bits.
+fn swap_sides(vul: RelativeVulnerability) -> RelativeVulnerability {
+    let mut out = RelativeVulnerability::NONE;
+    out.set(
+        RelativeVulnerability::WE,
+        vul.contains(RelativeVulnerability::THEY),
+    );
+    out.set(
+        RelativeVulnerability::THEY,
+        vul.contains(RelativeVulnerability::WE),
+    );
+    out
 }
 
 #[cfg(test)]
@@ -255,5 +419,39 @@ mod tests {
         let inf = inferences(&[bid(1, Strain::Hearts)]);
         let mut rng = StdRng::seed_from_u64(0);
         assert!(sample_layouts(short_heart_actor(), actor, &inf, &mut rng, 0).is_empty());
+    }
+
+    /// Rule-replay acceptance reproduces each bidder's shape from the policy,
+    /// frozen at its node and surviving intervention: partner opened 1♥ (5+
+    /// hearts) and RHO overcalled 2♣ (5+ clubs), so every accepted layout honors
+    /// both — read by the rule, not a hand-written range.
+    #[test]
+    fn replay_honors_both_sides_under_competition() {
+        let policy = crate::american().against(crate::bidding::Family::NATURAL);
+        let actor = Seat::North;
+        // len 2, North to act: index 0 is partner's 1♥, index 1 is RHO's 2♣.
+        let auction = [bid(1, Strain::Hearts), bid(2, Strain::Clubs)];
+        let mut rng = StdRng::seed_from_u64(3);
+        let layouts = sample_layouts_replay(
+            short_heart_actor(),
+            actor,
+            &policy,
+            RelativeVulnerability::NONE,
+            &auction,
+            &mut rng,
+            16,
+        );
+
+        assert!(!layouts.is_empty(), "the auction is feasible");
+        for deal in &layouts {
+            assert!(
+                deal[actor.partner()][Suit::Hearts].len() >= 5,
+                "partner's 1H opening promises 5+ hearts"
+            );
+            assert!(
+                deal[actor.rho()][Suit::Clubs].len() >= 5,
+                "RHO's 2C overcall promises 5+ clubs"
+            );
+        }
     }
 }

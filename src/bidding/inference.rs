@@ -67,6 +67,31 @@ fn nt_invite_inference() -> bool {
     NT_INVITE_INFERENCE.with(Cell::get)
 }
 
+std::thread_local! {
+    /// Whether the layout sampler accepts a candidate hand by *replaying the
+    /// rule* — re-running the policy at each prior decision node and keeping the
+    /// hand only if the policy would have made the call the player actually made
+    /// — instead of projecting the auction into the hand-written [`Inferences`]
+    /// ranges.  Off by default; the `ab-landy` example A/Bs the two.  See
+    /// [`sample_layouts_replay`][super::sampler::sample_layouts_replay].
+    static RULE_ACCEPT: Cell<bool> = const { Cell::new(false) };
+}
+
+/// Toggle rule-replay layout acceptance (default off).
+///
+/// On, the sampler reads each bid by the rule that authored it — the meaning is
+/// frozen at the node, surviving later competition — rather than by the
+/// per-convention range readers.  Measured on `ab-landy`; see the plan.
+pub fn set_rule_accept(on: bool) {
+    RULE_ACCEPT.with(|cell| cell.set(on));
+}
+
+/// Whether rule-replay layout acceptance is enabled (default off).
+#[must_use]
+pub fn rule_accept_enabled() -> bool {
+    RULE_ACCEPT.with(Cell::get)
+}
+
 /// An inclusive `[min, max]` range of a shown quantity — a length or points
 ///
 /// A plain `Copy` pair rather than [`core::ops::RangeInclusive`], so it can be
@@ -194,7 +219,7 @@ pub enum Relative {
 /// Mirrors [`Context`]'s parity: the call before the actor's (`len - index ==
 /// 1`) is RHO, two before is partner, three before is LHO, four before is the
 /// actor again.
-const fn relative_of(len: usize, index: usize) -> Relative {
+pub(crate) const fn relative_of(len: usize, index: usize) -> Relative {
     match (len - index) % 4 {
         0 => Relative::Me,
         1 => Relative::Rho,

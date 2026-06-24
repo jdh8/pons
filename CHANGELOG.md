@@ -9,6 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Rule-replay layout acceptance for the search sampler — opt-in, default off
+  (`set_rule_accept`).** Instead of projecting the auction into the hand-written
+  per-convention `Inferences` ranges, the sampler now *reads each bid by the rule
+  that authored it*: for every prior call a player made, the policy is re-run on a
+  candidate hand at the node before that call, and the hand is kept only if the
+  policy would rank that call within a margin of its best legal call. A bid's
+  meaning is thus frozen at its node and survives later competition for free, and
+  artificial calls suppress themselves — no `*_reading` decoder per convention. New
+  `sample_layouts_replay` (public, sibling to `sample_layouts`); the `ev_all`
+  search rollout uses it behind the flag. Replay is tighter than the loose ranges,
+  so it draws from a far larger budget — up to `REPLAY_DRAW_CAP` (50M deals, ~10-20
+  s, in tempo for a human bid) — because generating a deal is ~0.3 µs, negligible
+  beside the double-dummy solve each *accepted* layout pays. A `REPLAY_DRY_LIMIT`
+  consecutive-reject early-out distinguishes a *budget*-limited auction (keep
+  drawing) from a *feasibility*-limited one (e.g. a penalty double needs the
+  doubler to hold 15+, impossible when the actor is strong — bail within tempo);
+  only then does `ev_all` top up with the range reader. `probe-replay-yield`
+  measures the replay-vs-range fill (the no-DD pre-check). Distilled from the observation
+  that the sampler is already a rejection filter and a `Constraint`/`System` is
+  already a hand predicate. **Default off; not yet measured on a DD A/B.**
 - **Our own Woolsey "Multi-Landy" defense to their 1NT — opt-in, default off
   (`set_woolsey`).** Authors BBA's distilled structure at every seat, with our own
   (tunable) strength bands: `X` = a 4-card major + a longer (5-6) minor (takeout,
