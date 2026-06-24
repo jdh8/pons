@@ -38,8 +38,9 @@ use pons::american;
 use pons::bidding::Family;
 use pons::bidding::american::{
     DoubleShape, PassedHandDefense, set_always_pass_defense, set_direct_dont,
-    set_direct_landy_double, set_doubled_landy_escape, set_landy, set_landy_hcp,
-    set_natural_defense, set_natural_double_shape, set_passed_hand_defense, set_penalty_pass,
+    set_direct_landy_double, set_direct_landy_double_floor, set_direct_landy_penalty_pass,
+    set_doubled_landy_escape, set_landy, set_landy_hcp, set_natural_defense,
+    set_natural_double_shape, set_passed_hand_defense, set_penalty_pass,
     set_unusual_notrump_defense,
 };
 use pons::scoring::{final_contract, imps, ns_score_bid, ns_score_contract};
@@ -114,6 +115,19 @@ struct Args {
     /// penalty-X (`--ew-natural on`). Probes "replace the X with Landy" + 5-4 vs 4-4.
     #[arg(long, default_value = "off")]
     ns_landy_x: String,
+
+    /// `points` floor for the *measured* pair's both-majors X (default 15, the
+    /// shipped value — overcalls take 8–14, the X is reserved for the 15+ hands too
+    /// strong to overcall). Lower it to compete lighter, raise it to compete less.
+    /// Only matters with `--ns-landy-x`; the advancer's invite/game thresholds track it.
+    #[arg(long, default_value = "15")]
+    ns_landy_x_floor: u8,
+
+    /// Let the *measured* pair's advancer pass the both-majors X for penalty (defend
+    /// 1NTx) with no major fit and enough defense: `off` (default) or `on`. Pairs with
+    /// a higher `--ns-landy-x-floor` (stronger X → the penalty pass needs less).
+    #[arg(long, default_value = "off")]
+    ns_landy_x_penalty: String,
 
     /// Replace the *measured* pair's natural 1NT defense with conventional DONT:
     /// `on` or `off` (default). One-suiter X, 2♣ = clubs + a higher major, 2♦ =
@@ -436,6 +450,8 @@ fn main() {
     set_passed_hand_defense(None);
     set_direct_dont(false);
     set_direct_landy_double(None);
+    set_direct_landy_double_floor(15);
+    set_direct_landy_penalty_pass(false);
     set_penalty_pass(ew_penalty_pass);
     let baseline = american().against(Family::NATURAL);
     set_landy(majors);
@@ -446,6 +462,11 @@ fn main() {
     set_always_pass_defense(false);
     set_passed_hand_defense(passed_style);
     set_direct_landy_double(ns_landy_x);
+    set_direct_landy_double_floor(args.ns_landy_x_floor);
+    set_direct_landy_penalty_pass(parse_on_off(
+        &args.ns_landy_x_penalty,
+        "--ns-landy-x-penalty",
+    ));
     set_penalty_pass(ns_penalty_pass);
     set_doubled_landy_escape(ns_doubled_escape);
     // DONT owns 2♣ (two-suiter) and 2NT (both minors), so override the natural
@@ -625,7 +646,7 @@ fn main() {
         Some((len, hcp, major)) => format!("{len}:{hcp}{}", if major { ":major" } else { "" }),
     };
     let arms = format!(
-        "2♣ majors {}, 2NT minors {} [{}], natural NS {}/EW {}, X-shape {}, landy-X {}, passed-def {}, pen-pass NS {}/EW {}",
+        "2♣ majors {}, 2NT minors {} [{}], natural NS {}/EW {}, X-shape {}, landy-X {}@{}+, passed-def {}, pen-pass NS {}/EW {}",
         label(majors),
         label(minors),
         args.strength,
@@ -633,6 +654,7 @@ fn main() {
         ew_label,
         args.ns_double_shape,
         args.ns_landy_x,
+        args.ns_landy_x_floor,
         match passed_style {
             None => "off",
             Some(PassedHandDefense::NaturalLandyDouble) => "landy",

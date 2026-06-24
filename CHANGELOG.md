@@ -98,6 +98,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   **5-4 ≫ 4-4:** the flat **4-4** scores **+0.050 (plain) but −0.823 (PD)** — the
   textbook overbid artifact (it reaches failing contracts that only escape when the
   opponents don't double), so the looser shape is a real loss; insist on 5-4.
+- **Strength floor `set_direct_landy_double_floor` (default 15) + penalty-pass
+  `set_direct_landy_penalty_pass` (default off).** Two strength refinements to the
+  both-majors `X`. The **floor** partitions the both-majors hands: 8–14 overcall a
+  major naturally (the "direct bid"), 15+ make the `X` (too strong to overcall). The
+  A/B floor sweep (`ab-landy --ns-landy-x-floor`, 100k filtered) improves monotonically
+  with strength — vs natural +0.0050→+0.0061/raw, vs always-pass −0.0070→−0.0052/raw
+  across floors 8→16 — and peaks near 15–16 (competing less means fewer thin doubles
+  the obstruction wall punishes). **15 is the shipped default**: it captures the peak
+  with no orphaned point-count (floor 16+ strands the 15-counts into a pass, which
+  flatters the DD number for the wrong reason). The **penalty-pass** lets the advancer
+  convert the takeout `X` to penalty (`Pass` to defend `1NTx`) with no major fit and
+  enough defense (threshold tracks the floor); the `[1NT,X,P]` node now carries a gated
+  `Pass`, where it had been forcing. A/B-neutral on DD (the penalty you collect when
+  they sit is single-dummy, invisible here), so it ships **off** but available — sound
+  bridge for the strong-`X` style. `ab-landy --ns-landy-x-floor N --ns-landy-x-penalty
+  on|off`.
 - **`bba-match --ns-double-shape` now defaults to `any`** (was `balanced`), matching
   the shipped `american()` so a no-flag run measures the real default. Re-running the
   X-only-*balanced* restriction honestly (advertise-natural, 20 000, seed-paired) is

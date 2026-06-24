@@ -304,6 +304,20 @@ thread_local! {
     /// penalty-X defense); `Some(four_four)` = on, with `false` = at least 5-4 in the
     /// majors and `true` = a flat 4-4 accepted.  See [`set_direct_landy_double`].
     static DIRECT_LANDY_DOUBLE: Cell<Option<bool>> = const { Cell::new(None) };
+    /// The `points` floor for the direct-seat both-majors double; **15 by default**
+    /// — the clean partition just above the natural-overcall ceiling (14), so an
+    /// intermediate both-majors hand overcalls a major (8–14) and the `X` is reserved
+    /// for the strong hands too good to overcall (15+).  Competing less (fewer thin
+    /// doubles to be punished) and carrying more defense when we act both helped on the
+    /// A/B sweep, which peaked near 15–16; 15 captures it with no orphaned point-count.
+    /// The advancer's invite/game thresholds track it.  See [`set_direct_landy_double_floor`].
+    static DIRECT_LANDY_DOUBLE_FLOOR: Cell<u8> = const { Cell::new(15) };
+    /// Whether the advancer may **pass the both-majors `X` for penalty** (defend
+    /// `1NTx`) at `[1NT, X, P]`; **off by default**.  On, a hand with no major fit
+    /// (both majors ≤2) and enough defense converts the takeout double to penalties
+    /// rather than running to a 5-2 major; the threshold tracks the X floor (a
+    /// stronger X needs less from the advancer).  See [`set_direct_landy_penalty_pass`].
+    static DIRECT_LANDY_PENALTY_PASS: Cell<bool> = const { Cell::new(false) };
 }
 
 /// Replace the direct-seat 15+ penalty double of their 1NT with a both-majors
@@ -325,6 +339,56 @@ pub fn set_direct_landy_double(shape: Option<bool>) {
 /// The configured direct-seat both-majors double shape, or `None` when off
 fn direct_landy_double() -> Option<bool> {
     DIRECT_LANDY_DOUBLE.with(Cell::get)
+}
+
+/// Set the `points` floor for the direct-seat both-majors double (default 8), for
+/// books built *after* this call.  A higher floor reserves the `X` for stronger
+/// hands (lighter both-majors hands overcall a major naturally) — competing less
+/// and penalizing more.  The advancer's invite/game thresholds track it.  No effect
+/// unless [`set_direct_landy_double`] is on.  The A/B knob for `examples/ab-landy
+/// --ns-landy-x-floor`.
+pub fn set_direct_landy_double_floor(floor: u8) {
+    DIRECT_LANDY_DOUBLE_FLOOR.with(|cell| cell.set(floor));
+}
+
+/// The configured both-majors double `points` floor
+fn direct_landy_double_floor() -> u8 {
+    DIRECT_LANDY_DOUBLE_FLOOR.with(Cell::get)
+}
+
+/// Allow the advancer to pass the both-majors `X` for penalty (defend `1NTx`) when it
+/// has no major fit and enough defense, for books built *after* this call (default
+/// off).  No effect unless [`set_direct_landy_double`] is on.  The A/B knob for
+/// `examples/ab-landy --ns-landy-x-penalty`.
+pub fn set_direct_landy_penalty_pass(on: bool) {
+    DIRECT_LANDY_PENALTY_PASS.with(|cell| cell.set(on));
+}
+
+fn direct_landy_penalty_pass() -> bool {
+    DIRECT_LANDY_PENALTY_PASS.with(Cell::get)
+}
+
+/// The advancer's action over partner's both-majors `X` (RHO passing, `[1NT, X, P]`)
+///
+/// The Landy advance ([`landy_advances`]) plus — when [`set_direct_landy_penalty_pass`]
+/// is on — a **penalty pass**: with no major fit (both majors ≤2) and enough defense
+/// (`points(22 - lo ..)`, so a stronger `X` asks less), pass and defend `1NTx` rather
+/// than run to a 5-2 major.  Weight 1.25 beats the `2NT` game-ask (1.2) and the weak
+/// signoffs for exactly these no-fit hands.  After the advancer's pass it is the
+/// *opener's* turn, so a following opener pass ends the auction in `1NTx` (declared by
+/// them, defended by us) — no doubler node is needed.
+fn both_majors_x_advance(lo: u8) -> Rules {
+    let base = landy_advances(lo);
+    if direct_landy_penalty_pass() {
+        let penalty = 22u8.saturating_sub(lo);
+        base.rule(
+            Call::Pass,
+            1.25,
+            len(Suit::Hearts, ..=2) & len(Suit::Spades, ..=2) & points(penalty..),
+        )
+    } else {
+        base
+    }
 }
 
 /// Both majors: at least 5-4 either way, or a flat 4-4 when `four_four`.
@@ -823,15 +887,17 @@ pub fn defense_to_notrump() -> Rules {
     } else if let Some(four_four) = direct_landy_double() {
         // X = both majors (takeout), replacing the 15+ penalty double; the four
         // natural two-level overcalls are kept.  Weight 1.9 beats the natural 2♥/2♠
-        // overcall (1.0) so a both-majors hand doubles rather than picking one major,
-        // open-topped so strong both-majors hands double too.  A 15+ balanced hand
-        // has no penalty double now — it passes or overcalls a five-card suit.
+        // overcall (1.0) so a both-majors hand doubles rather than picking one major.
+        // The floor (default 8, open-topped) is `set_direct_landy_double_floor`: raise
+        // it to reserve the X for stronger hands, so a lighter both-majors hand fails
+        // the X gate and overcalls its longer major instead.  A 15+ balanced hand has
+        // no penalty double now — it passes or overcalls a five-card suit.
         let (oc_lo, oc_hi) = natural_overcall_points();
         rules = rules
             .rule(
                 Call::Double,
                 1.9,
-                both_majors_shape(four_four) & points(oc_lo..),
+                both_majors_shape(four_four) & points(direct_landy_double_floor()..),
             )
             .rule(Call::Pass, 0.0, hcp(0..));
         for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
@@ -2167,11 +2233,14 @@ pub fn defensive() -> Defensive {
     // a major / 2♦ relay / 2NT game-ask), keyed at [1NT,X,…] via insert_all_seats.
     // Binding [1NT,X,P] is correct here — the direct X is both-majors, not penalty.
     if direct_landy_double().is_some() {
-        let (lo, hi) = (natural_overcall_points().0, 37u8);
+        // The advancer's invite/game thresholds track the X floor (a stronger X asks
+        // less of the advancer), so read it here too.
+        let (lo, hi) = (direct_landy_double_floor(), 37u8);
         let d2 = call(2, Strain::Diamonds);
         let nt2 = call(2, Strain::Notrump);
-        // [1NT,X,P] — advancer picks a major / relays 2♦ / asks 2NT.
-        insert_all_seats(&mut d, &[notrump, x, p], 3, landy_advances(lo));
+        // [1NT,X,P] — advancer picks a major / relays 2♦ / asks 2NT, or (with the
+        // penalty-pass knob on) passes to defend 1NTx with no fit and enough defense.
+        insert_all_seats(&mut d, &[notrump, x, p], 3, both_majors_x_advance(lo));
         // [1NT,X,P,2♦,*] — the 2♦ relay is artificial (equal-majors "pick a major"),
         // so the doubler names the longer major whether the relay is passed OR
         // doubled — never left to sit in a short-diamond 2♦x misfit (the DONT bug).
@@ -2691,7 +2760,9 @@ mod tests {
         let xx = Call::Redouble;
         let d2 = call(2, Strain::Diamonds);
         let prev = super::direct_landy_double();
+        let prev_floor = super::direct_landy_double_floor();
         set_direct_landy_double(Some(false)); // 5-4
+        super::set_direct_landy_double_floor(8); // low floor so these 10-14 hands fire the X
 
         // Both majors 5-4 → X (the both-majors takeout double), from the book.
         let (dbl, floored) = best_call(&[nt], "AJ32.KQ876.32.32");
@@ -2716,6 +2787,7 @@ mod tests {
         let (settle, settle_floored) = best_call(&sit_auction, "AJ32.KQ876.32.32");
 
         set_direct_landy_double(prev);
+        super::set_direct_landy_double_floor(prev_floor);
         assert_eq!(ask, Call::Pass, "equal majors over XX → Pass = ask back");
         assert!(!ask_floored, "the ask-Pass must come from the book");
         assert_eq!(
@@ -2748,6 +2820,44 @@ mod tests {
         assert!(
             !named_floored,
             "the doubled-relay escape must come from the book"
+        );
+    }
+
+    #[test]
+    fn direct_landy_penalty_pass_defends_1ntx() {
+        let nt = call(1, Strain::Notrump);
+        let p = Call::Pass;
+        let x = Call::Double;
+        let prev = super::direct_landy_double();
+        let prev_pen = super::direct_landy_penalty_pass();
+        let prev_floor = super::direct_landy_double_floor();
+        set_direct_landy_double(Some(false)); // 5-4
+        super::set_direct_landy_double_floor(8); // floor 8 → penalty needs 22-8 = 14+
+
+        // No major fit (2-2) + defensive values: with the knob OFF the advancer is
+        // forced to bid (no Pass rule); with it ON it passes to defend 1NTx.
+        let defensive = "AQ.KQ.QJ876.K432"; // 14 HCP, 2♠-2♥
+        super::set_direct_landy_penalty_pass(false);
+        let (forced, _) = best_call(&[nt, x, p], defensive);
+        super::set_direct_landy_penalty_pass(true);
+        let (penalty, pen_floored) = best_call(&[nt, x, p], defensive);
+        // A hand WITH a major fit still bids even with the knob on (not a penalty pass).
+        let (with_fit, _) = best_call(&[nt, x, p], "QJ32.K.QJ876.K43"); // 4 spades
+
+        set_direct_landy_double(prev);
+        super::set_direct_landy_penalty_pass(prev_pen);
+        super::set_direct_landy_double_floor(prev_floor);
+        assert_ne!(forced, Call::Pass, "knob off: advancer is forced to bid");
+        assert_eq!(
+            penalty,
+            Call::Pass,
+            "knob on, no fit + values → pass for penalty"
+        );
+        assert!(!pen_floored, "the penalty pass must come from the book");
+        assert_ne!(
+            with_fit,
+            Call::Pass,
+            "a major fit still bids, never penalty-passes"
         );
     }
 
