@@ -416,6 +416,12 @@ impl System for Stance {
     fn classify(&self, hand: Hand, vul: RelativeVulnerability, auction: &[Call]) -> Option<Logits> {
         resolve(self.trie_for(auction), hand, vul, auction)
     }
+
+    fn authored_at(&self, auction: &[Call]) -> bool {
+        // An exact node in the phase-routed trie: a rule written for this
+        // position, not a borrowed shallower ancestor or the floor.
+        self.trie_for(auction).get(auction).is_some()
+    }
 }
 
 #[cfg(test)]

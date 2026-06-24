@@ -103,24 +103,30 @@ pub fn ev_all(
         return Vec::new();
     }
 
+    let inferences = Inferences::read(context);
     let deals = if rule_accept_enabled() {
-        // Read each prior bid by replaying the rule that authored it, frozen at
-        // its node — no per-convention range readers.
-        let mut deals =
-            sample_layouts_replay(hand, seat, policy, context.vul(), context.auction(), rng, n);
+        // Read each authored prior bid by replaying the rule that authored it
+        // (frozen at its node); unauthored nodes fall back to the range reading.
+        let mut deals = sample_layouts_replay(
+            hand,
+            seat,
+            policy,
+            context.vul(),
+            context.auction(),
+            &inferences,
+            rng,
+            n,
+        );
         if deals.len() < n {
-            // Replay starves on deep, contested auctions (every committal call is
-            // an argmax hurdle).  Top up with the loose range reader so the
-            // rollout keeps a usable layout count rather than going dark.
+            // Replay can still starve on a tight authored auction.  Top up with
+            // the range reader alone so the rollout keeps a usable layout count.
             // ponytail: pays the full replay budget first; add a probe-budget
             // early-abort if the wasted draws on starved auctions bite.
-            let inferences = Inferences::read(context);
             let more = sample_layouts(hand, seat, &inferences, rng, n - deals.len());
             deals.extend(more);
         }
         deals
     } else {
-        let inferences = Inferences::read(context);
         sample_layouts(hand, seat, &inferences, rng, n)
     };
     if deals.is_empty() {

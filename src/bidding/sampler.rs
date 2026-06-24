@@ -97,27 +97,32 @@ pub fn sample_layouts(
     })
 }
 
-/// Deal up to `n` layouts, accepting each by *replaying the rule* rather than the
+/// Deal up to `n` layouts, accepting each by *replaying the rule* on top of the
 /// [`Inferences`] ranges (gated by
 /// [`set_rule_accept`][super::inference::set_rule_accept]).
 ///
-/// For every non-actor player and every non-pass call they made, `policy` is
-/// re-run on the candidate hand at the node *before* that call; the hand is kept
-/// only if the policy ranks the made call within a margin of its best legal call.
-/// `vul` is relative to `seat` (the actor): partner shares it, the opponents see
-/// it side-swapped.  An off-book node (the policy has no opinion) accepts, matching
-/// the range reader's sound-over-tight stance.
+/// A hand is kept iff it (a) falls within `inferences` — the old range reading,
+/// which covers every call — *and* (b) at every **authored** node a non-actor
+/// player bid, `policy` re-run on the candidate ranks the made call within a
+/// margin of its best legal call.  Replay only tightens where the book actually
+/// authored a rule; at an unauthored node ([`System::authored_at`] false) it
+/// abstains and the range reading alone handles that call (e.g. a competitive
+/// raise or rebid with no authored node).  `vul` is relative to `seat` (the
+/// actor): partner shares it, the opponents see it side-swapped.
 ///
 /// Short-result semantics match [`sample_layouts`], but with a far larger draw
 /// budget: replay is tight, and looking harder is cheap next to the double-dummy
 /// solve each accepted layout pays.
 #[must_use]
+// Each argument is a distinct fact of the decision, as in [`ev_all`].
+#[allow(clippy::too_many_arguments)]
 pub fn sample_layouts_replay(
     hand: Hand,
     seat: Seat,
     policy: &dyn System,
     vul: RelativeVulnerability,
     auction: &[Call],
+    inferences: &Inferences,
     rng: &mut impl Rng,
     n: usize,
 ) -> Vec<FullDeal> {
@@ -128,7 +133,9 @@ pub fn sample_layouts_replay(
         n,
         REPLAY_DRAW_CAP,
         REPLAY_DRY_LIMIT,
-        |deal| rules_accept(deal, seat, policy, vul, auction),
+        |deal| {
+            within_ranges(deal, seat, inferences) && rules_accept(deal, seat, policy, vul, auction)
+        },
     )
 }
 
@@ -233,8 +240,9 @@ fn rules_accept(
 }
 
 /// Whether `policy`, classifying `hand` at `prefix`, ranks the `made` call
-/// within [`MARGIN`] of its best legal call.  A pass carries no replay signal
-/// and an off-book node has no opinion; both accept.
+/// within [`MARGIN`] of its best legal call.  A pass carries no replay signal, an
+/// unauthored node (no rule to replay) abstains so the range reader handles the
+/// call, and an off-book node has no opinion; all three accept.
 fn made_plausibly(
     hand: Hand,
     policy: &dyn System,
@@ -242,7 +250,7 @@ fn made_plausibly(
     prefix: &[Call],
     made: Call,
 ) -> bool {
-    if matches!(made, Call::Pass) {
+    if matches!(made, Call::Pass) || !policy.authored_at(prefix) {
         return true;
     }
     let Some(logits) = policy.classify(hand, vul, prefix) else {
@@ -431,6 +439,7 @@ mod tests {
         let actor = Seat::North;
         // len 2, North to act: index 0 is partner's 1♥, index 1 is RHO's 2♣.
         let auction = [bid(1, Strain::Hearts), bid(2, Strain::Clubs)];
+        let inf = inferences(&auction);
         let mut rng = StdRng::seed_from_u64(3);
         let layouts = sample_layouts_replay(
             short_heart_actor(),
@@ -438,6 +447,7 @@ mod tests {
             &policy,
             RelativeVulnerability::NONE,
             &auction,
+            &inf,
             &mut rng,
             16,
         );

@@ -70,7 +70,9 @@ fn main() {
         for _ in 0..seeds {
             let hand = full_deal(&mut rng)[actor];
             let r = sample_layouts(hand, actor, &inferences, &mut rng, n).len();
-            let p = sample_layouts_replay(hand, actor, &policy, vul, auction, &mut rng, n).len();
+            let p =
+                sample_layouts_replay(hand, actor, &policy, vul, auction, &inferences, &mut rng, n)
+                    .len();
             range_sum += r;
             replay_sum += p;
         }

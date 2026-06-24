@@ -87,6 +87,22 @@ pub trait System {
         auction: &[Call],
     ) -> Option<array::Logits>;
 
+    /// Whether this system has an *authored* node at `auction`
+    ///
+    /// An authored node is a rule deliberately written for this exact position,
+    /// as opposed to a borrowed shallower ancestor or the floor.  The distinction
+    /// matters to consumers that read meaning off the classifier: a `-∞` for a
+    /// call is a real "this system does not bid that here" only at an authored
+    /// node; at an unauthored one it is mere absence of an opinion (the
+    /// [replay sampler][crate::bidding::sampler::sample_layouts_replay] abstains
+    /// there and defers to the range reader).  Defaults to `true` — assume
+    /// authored, preserving behaviour for flat systems; structured ones like
+    /// [`Stance`] override it.
+    fn authored_at(&self, auction: &[Call]) -> bool {
+        let _ = auction;
+        true
+    }
+
     /// Compose a table where `self`'s partnership is the dealer's side
     ///
     /// `a.vs(b)` dispatches by parity: `a` answers at even auction lengths,
@@ -121,6 +137,10 @@ impl<S: System + ?Sized> System for &S {
     ) -> Option<array::Logits> {
         (**self).classify(hand, vul, auction)
     }
+
+    fn authored_at(&self, auction: &[Call]) -> bool {
+        (**self).authored_at(auction)
+    }
 }
 
 /// A bare trie is a hand-built *table* model: all four players bid from this
@@ -142,5 +162,9 @@ impl System for Trie {
         let context = Context::new(vul, auction).with_prefixes(self.common_prefixes(auction));
         self.classify_floored(hand, &context, auction)
             .map(|(logits, _)| logits)
+    }
+
+    fn authored_at(&self, auction: &[Call]) -> bool {
+        self.get(auction).is_some()
     }
 }
