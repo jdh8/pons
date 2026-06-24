@@ -845,32 +845,14 @@ fn landy_reading(auction: &[Call]) -> Option<LandyReading> {
         })
         .flatten()?;
 
-    // The advancer's response over 2♣ (when the opponents passed): the 2♦ relay OR a
-    // 2♥/2♠ preference among partner's majors.  NONE of these is own length — the 2♦
-    // is a relay, the 2♥/2♠ merely picks one of partner's two suits (often a
-    // doubleton) — so all are suppressed.  A double of 2♣ breaks the find (it is not
-    // a `Call::Bid`), so this fires only for the undoubled advance.
+    // The advancer's response over 2♣ — the 2♦ relay, a 2♥/2♠ preference among
+    // partner's majors, or the same as a *runout* when the opponents double the 2♣.
+    // None is own length (the 2♦ is a relay, the 2♥/2♠ merely picks one of partner's
+    // two suits, often a doubleton), so all are suppressed.  An opponents' double is
+    // skipped (so the runout case is covered too); an opponents' *suit* bid stops the
+    // scan (they competed — our later calls are off-meaning).
     let advance_suppress = majors
-        .then(|| {
-            auction
-                .iter()
-                .enumerate()
-                .skip(overcall_index + 1)
-                .find_map(|(index, &call)| match call {
-                    Call::Pass => None,
-                    Call::Bid(bid) if index % 2 != opener_parity => Some(
-                        matches!(
-                            bid,
-                            b if b == Bid::new(2, Strain::Diamonds)
-                                || b == Bid::new(2, Strain::Hearts)
-                                || b == Bid::new(2, Strain::Spades)
-                        )
-                        .then_some(index),
-                    ),
-                    _ => Some(None),
-                })
-                .flatten()
-        })
+        .then(|| advancer_artificial(auction, overcall_index, opener_parity))
         .flatten();
 
     Some(LandyReading {
@@ -879,6 +861,43 @@ fn landy_reading(auction: &[Call]) -> Option<LandyReading> {
         floor,
         advance_suppress,
     })
+}
+
+/// The index of the advancer's first `2♦`/`2♥`/`2♠` response over a both-majors /
+/// Multi overcall at `overcall_index` — a relay or a preference among partner's
+/// suits, never own length, so its natural reading is suppressed
+///
+/// The scan jumps over *every* opponent call (pass, double, or a competing suit
+/// bid), so a quiet advance and a doubled / contested runout are all covered: a
+/// `2♦`/`2♥`/`2♠` is only legal as the *immediate* response (once the auction climbs
+/// past `2♠` it can never recur), so the first such call we find is always the
+/// preference, whatever the opponents did.  Suppression is sound regardless — it only
+/// ever *removes* a possibly-false length, never asserts one.  The suppression then
+/// lives for the whole `Inferences::read`.  `None` if our first response was instead
+/// an ask (`2NT`) or a genuine raise.
+fn advancer_artificial(
+    auction: &[Call],
+    overcall_index: usize,
+    opener_parity: usize,
+) -> Option<usize> {
+    auction
+        .iter()
+        .enumerate()
+        .skip(overcall_index + 1)
+        // Stop at our first *bid* (decide there); jump over everything the opponents do.
+        .find_map(|(index, &call)| match call {
+            Call::Bid(bid) if index % 2 != opener_parity => Some(
+                matches!(
+                    bid,
+                    b if b == Bid::new(2, Strain::Diamonds)
+                        || b == Bid::new(2, Strain::Hearts)
+                        || b == Bid::new(2, Strain::Spades)
+                )
+                .then_some(index),
+            ),
+            _ => None,
+        })
+        .flatten()
 }
 
 /// Which Woolsey **Multi-family** overcall the defending side made over their 1NT
@@ -962,28 +981,10 @@ fn multi_reading(auction: &[Call]) -> Option<MultiReading> {
         .flatten()?;
 
     // Over the Multi 2♦, the advancer's 2♥/2♠ pass-or-correct picks one of partner's
-    // unknown majors — a preference, not own length — so suppress it too (the same
-    // undoubled-only find as `landy_reading`'s advance).
+    // unknown majors — a preference, not own length — so suppress it too (including a
+    // doubled runout; the shared helper handles both).
     let advance_suppress = matches!(reading.kind, MultiKind::Major)
-        .then(|| {
-            auction
-                .iter()
-                .enumerate()
-                .skip(reading.overcall_index + 1)
-                .find_map(|(index, &call)| match call {
-                    Call::Pass => None,
-                    Call::Bid(bid) if index % 2 != opener_parity => Some(
-                        matches!(
-                            bid,
-                            b if b == Bid::new(2, Strain::Hearts)
-                                || b == Bid::new(2, Strain::Spades)
-                        )
-                        .then_some(index),
-                    ),
-                    _ => Some(None),
-                })
-                .flatten()
-        })
+        .then(|| advancer_artificial(auction, reading.overcall_index, opener_parity))
         .flatten();
 
     Some(MultiReading {
