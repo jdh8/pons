@@ -67,22 +67,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   game-ask / direct major). `None` (the default) keeps the natural penalty-X
   defense; `american()` is **unchanged**. Reuses `landy_advances`/`landy_2d_rebid`/
   `landy_2nt_rebid` — no new responder code. Harness: `ab-landy --ns-landy-x
-  off|5-4|4-4`. **Runout fix (essential):** the advancer's `2♦` is the *artificial*
-  equal-majors relay ("pick a major"), so a double of it must not be passed into a
-  short-diamond `2♦x` misfit — the doubled relay (and the artificial `2NT` ask) now
-  route to the same `Pass`-less rebid tables in both the passed and redoubled
-  branches, so the doubler always pulls to the longer major; their redouble of the
-  `X` likewise forces the advancer to run. (Without the fix, sitting in `2♦x` was
-  the *entire* deficit — it flipped the 5-4 plain-DD result from −0.047 to +0.510.)
+  off|5-4|4-4`. **Runout (the bulk of the value):** worst-board forensics showed the
+  dominant loss was a doubled major *run into a phantom `3♦`* — the advancer's
+  artificial `2♦` relay made the floor think our side held diamonds, so after we
+  named our major and they doubled it the floor bolted to `3♦x` (every −17/−18 board
+  was this `… 2♦ X 2M X … 3♦`). Fixed in two layers: (a) over a **redoubled** `X`
+  (`[1NT,X,XX]`) the advancer now runs *cleanly* — **`Pass` = ask back** (the
+  redouble forces partner to bid, so the doubler names its five-card major), **a bid
+  = to play** the natural suit (`2♣` sits at the two level over the redoubled `1NT`,
+  giving a club one-suiter a home) — no artificial relay, no phantom diamond; (b)
+  everywhere a named major is then doubled, an authored `Pass` node makes us **sit in
+  our real major fit** instead of running. Progression on the 5-4 plain-DD result vs
+  natural: relay-then-run −0.047 → sit-Pass +0.621 → clean runout **+0.705**.
 - **The honest verdict — the 5-4 double is a DD win, but it is the penalty-X's
   known blind spot, so it stays opt-in.** `ab-landy --filter` vs the natural default
-  (200 000 boards, seed-fixed): the **5-4** double scores **+0.510 IMPs/divergent
-  (plain-DD) / +0.426 (PD)** — both positive, and PD *below* plain (so a genuine DD
+  (200 000 boards, seed-fixed): the **5-4** double scores **+0.705 IMPs/divergent
+  (plain-DD) / +0.624 (PD)** — both positive, and PD *below* plain (so a genuine DD
   result, not a synthetic-doubling artifact). But the per-shape split shows the win
   is *abandoning the penalty double*, not the convention: the both-majors `X` action
-  itself **loses** (−0.254 IMPs/action-board, the 5422/5431 two-suiters −0.70/−0.78,
-  the obstruction wall), while the whole +IMPs come from the **balanced 15+** rows
-  (4333/4432/5332 at +3.0/+3.8/+2.9) — exactly the hands that no longer penalty-X.
+  itself **loses** (the 5422/5431 two-suiters negative, the obstruction wall), while
+  the whole +IMPs come from the **balanced 15+** rows — exactly the hands that no
+  longer penalty-X. Measured against the **always-pass** baseline (do nothing over
+  their 1NT) the 5-4 double **loses −0.176 (plain) / −0.375 (PD)** — *but so does the
+  natural defense* (−0.293 / −0.457), and by *more*: on DD the best 1NT defense is to
+  pass (the obstruction wall — DD under-prices lead-direction and competing for the
+  partscore), and among defenses that *do* compete the both-majors `X` beats natural.
   This corroborates the established finding (the 1NT penalty double is a −1.43
   IMPs/board DD leak whose value is *single-dummy*), so dropping it for a both-majors
   `X` is the same DD-blind trade as preempts — **kept opt-in, natural stays default.**

@@ -535,7 +535,7 @@ fn main() {
 
     let mut points = 0i64;
     let mut total_imps = 0i64;
-    let mut worst: Vec<(i64, usize)> = Vec::new();
+    let mut worst: Vec<(i64, usize, usize)> = Vec::new();
     // Per-defensive-action tally: label -> (boards, IMPs). The natural action that
     // drives a board's divergence appears at exactly one table (the one where the
     // natural pair are the *defenders* of the 1NT).
@@ -560,14 +560,14 @@ fn main() {
             ns_score_contract(c, table, vul)
         }
     };
-    for (&i, table) in divergent.iter().zip(tables.iter()) {
+    for (pos, (&i, table)) in divergent.iter().zip(tables.iter()).enumerate() {
         let (contract_a, contract_b) = contracts[i];
         let swing = score(contract_a, table, args.vulnerability)
             - score(contract_b, table, args.vulnerability);
         let board_imps = imps(swing);
         points += swing;
         total_imps += board_imps;
-        worst.push((board_imps, i));
+        worst.push((board_imps, i, pos));
         let dealer = Seat::ALL[i % 4];
         let actor = natural_action_over_1nt(&auctions[i].0, dealer, true)
             .or_else(|| natural_action_over_1nt(&auctions[i].1, dealer, false));
@@ -583,12 +583,34 @@ fn main() {
     }
     worst.sort_by_key(|w| w.0);
     eprintln!("=== Worst 15 divergent boards for Landy ===");
-    for &(imp, i) in worst.iter().take(15) {
+    for &(imp, i, pos) in worst.iter().take(15) {
         let dealer = Seat::ALL[i % 4];
         eprintln!(
             "[{imp:+} IMP] dealer {dealer:?}  {}\n  A (Landy NS): {} -> {:?}\n  B (Landy EW): {} -> {:?}",
             deals[i], auctions[i].0, contracts[i].0, auctions[i].1, contracts[i].1,
         );
+        // Counterfactual for a both-majors X board: would naming the *longer major*
+        // have beaten what the X-then-advance sequence reached?  Print the doubler's
+        // major lengths and the DD tricks for the longer major, by the doubler and by
+        // partner — compare against the contract printed above.
+        let actor = natural_action_over_1nt(&auctions[i].0, dealer, true)
+            .or_else(|| natural_action_over_1nt(&auctions[i].1, dealer, false));
+        if let Some((seat, Call::Double)) = actor {
+            let hand = deals[i][seat];
+            let (h, s) = (hand[Suit::Hearts].len(), hand[Suit::Spades].len());
+            let (m, lab) = if h >= s {
+                (Strain::Hearts, "♥")
+            } else {
+                (Strain::Spades, "♠")
+            };
+            let partner = Seat::ALL[(seat as usize + 2) % 4];
+            let table = &tables[pos];
+            eprintln!(
+                "    doubler {seat:?} {h}♥-{s}♠ → longer {lab}: DD {} by {seat:?} / {} by {partner:?}",
+                u8::from(table[m].get(seat)),
+                u8::from(table[m].get(partner)),
+            );
+        }
     }
 
     let ew_label = if ew_always_pass {

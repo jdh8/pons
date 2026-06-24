@@ -1246,6 +1246,62 @@ fn landy_2d_rebid() -> Rules {
         .rule(Bid::new(2, Strain::Spades), 1.0, spades_longer)
 }
 
+/// A Pass-only node: settle, play the contract on the table.  Authoring this where
+/// the instinct floor would otherwise run keeps a finite logit on `Pass`, so the
+/// floor's over-competition is shadowed (see `project_floor_shadowed_by_book_nodes`).
+fn sit() -> Rules {
+    Rules::new().rule(Call::Pass, 0.0, hcp(0..))
+}
+
+/// Advancer's runout after partner's both-majors `X` is **redoubled** (`[1NT, X, XX]`)
+///
+/// The redouble forces our side to act (sitting plays `1NTxx`), but it also frees a
+/// clean structure: over the redoubled one-level `1NT` our `2♣` sits at the two level,
+/// so the advancer has a *natural* rung for every suit.  **`Pass` = "ask back"** — no
+/// suit of our own and no major preference, so the doubler names its longer (five-card)
+/// major over the opponents' pass; **a bid (`2♣`/`2♦`/`2♥`/`2♠`, or `4♥`/`4♠`) = to
+/// play** the natural suit.  No artificial `2♦` relay — that phantom diamond was what
+/// let the floor run a doubled major into `3♦x` (the dominant DD leak); here the only
+/// `2♦` is real diamonds, so a double of it is sat, not run from.
+fn both_majors_x_runout(lo: u8) -> Rules {
+    let game = 22u8.saturating_sub(lo);
+    let hearts_longer = described("♥ longer than ♠", |h: Hand, _: &Context<'_>| {
+        h[Suit::Hearts].len() > h[Suit::Spades].len()
+    });
+    let spades_longer = described("♠ longer than ♥", |h: Hand, _: &Context<'_>| {
+        h[Suit::Spades].len() > h[Suit::Hearts].len()
+    });
+    let short_majors = len(Suit::Hearts, ..=2) & len(Suit::Spades, ..=2);
+    Rules::new()
+        // To-play game with a big fit in the preferred major.
+        .rule(
+            Bid::new(4, Strain::Hearts),
+            1.4,
+            len(Suit::Hearts, 4..) & points(game..) & hearts_longer.clone(),
+        )
+        .rule(
+            Bid::new(4, Strain::Spades),
+            1.4,
+            len(Suit::Spades, 4..) & points(game..) & spades_longer.clone(),
+        )
+        // Own long minor with no major fit → to play the minor.
+        .rule(
+            Bid::new(2, Strain::Clubs),
+            1.1,
+            len(Suit::Clubs, 5..) & short_majors.clone(),
+        )
+        .rule(
+            Bid::new(2, Strain::Diamonds),
+            1.1,
+            len(Suit::Diamonds, 5..) & short_majors,
+        )
+        // Major preference → to play.
+        .rule(Bid::new(2, Strain::Spades), 1.0, spades_longer)
+        .rule(Bid::new(2, Strain::Hearts), 1.0, hearts_longer)
+        // Equal majors / nothing to say → ask: the doubler names its five-card major.
+        .rule(Call::Pass, 0.5, hcp(0..))
+}
+
 // ---------------------------------------------------------------------------
 // Passed-hand DONT advances.  Both partners passed in [P,P,P,1NT,...], so the
 // advancer is capped below opening too: every response is a pass-or-correct
@@ -2125,25 +2181,30 @@ pub fn defensive() -> Defensive {
         // regardless of a double (landy_2nt_rebid has no Pass, so it always pulls).
         insert_all_seats(&mut d, &[notrump, x, p, nt2, p], 3, landy_2nt_rebid(lo, hi));
         insert_all_seats(&mut d, &[notrump, x, p, nt2, x], 3, landy_2nt_rebid(lo, hi));
-        // [1NT,X,XX] — their redouble: never sit in 1NTxx, run as over a pass
-        // (landy_advances has no Pass rule, so the advancer is forced to pull).
-        insert_all_seats(&mut d, &[notrump, x, xx], 3, landy_advances(lo));
-        // …and the same artificial 2♦ relay / 2NT ask, passed or doubled, in the
-        // redoubled branch — the doubler still names the major, never sits in 2♦x.
-        insert_all_seats(&mut d, &[notrump, x, xx, d2, p], 3, landy_2d_rebid());
-        insert_all_seats(&mut d, &[notrump, x, xx, d2, x], 3, landy_2d_rebid());
-        insert_all_seats(
-            &mut d,
-            &[notrump, x, xx, nt2, p],
-            3,
-            landy_2nt_rebid(lo, hi),
-        );
-        insert_all_seats(
-            &mut d,
-            &[notrump, x, xx, nt2, x],
-            3,
-            landy_2nt_rebid(lo, hi),
-        );
+        // [1NT,X,XX] — their redouble.  A *clean* runout (no artificial 2♦ relay):
+        // Pass = ask back (doubler names its five-card major), a bid = to play the
+        // natural suit (2♣ now sits at the two level over the redoubled 1NT, so a
+        // club one-suiter has a home).  Killing the relay kills the phantom-3♦ run.
+        insert_all_seats(&mut d, &[notrump, x, xx], 3, both_majors_x_runout(lo));
+        // [1NT,X,XX,P,P] — advancer asked; the doubler names its longer major.
+        insert_all_seats(&mut d, &[notrump, x, xx, p, p], 3, landy_2d_rebid());
+        // …then the advancer SITS for that major whether it is passed or doubled —
+        // play 2Mx (our real fit), never run.
+        for m in [call(2, Strain::Hearts), call(2, Strain::Spades)] {
+            insert_all_seats(&mut d, &[notrump, x, xx, p, p, m, p], 3, sit());
+            insert_all_seats(&mut d, &[notrump, x, xx, p, p, m, x], 3, sit());
+        }
+        // The undoubled branch keeps the 2♦ relay (Pass there defends 1NT, so it
+        // cannot be the ask).  Once the doubler names its major over the (possibly
+        // doubled) relay, SIT when the opponents double it: `[1NT,X,P,2♦,{X|P},2M,X,P,P]`
+        // round-trips to the doubler, who plays 2Mx instead of running to the phantom
+        // 3♦.  (The dominant DD leak was this `… 2♦ X 2M X … 3♦` run from a making
+        // doubled major; the redoubled branch above now avoids the relay entirely.)
+        for relay in [x, p] {
+            for m in [call(2, Strain::Hearts), call(2, Strain::Spades)] {
+                insert_all_seats(&mut d, &[notrump, x, p, d2, relay, m, x, p, p], 3, sit());
+            }
+        }
     }
     d
 }
@@ -2641,10 +2702,39 @@ mod tests {
         // They double the artificial relay → doubler still names the longer major
         // (5-4 hearts → 2♥), never sits in the short-diamond 2♦x misfit.
         let (named, named_floored) = best_call(&[nt, x, p, d2, x], "AJ32.KQ876.32.32");
-        // They redouble our X → advancer is forced to run (2♦ relay), not sit in 1NTxx.
-        let (escape, esc_floored) = best_call(&[nt, x, xx], "Q32.Q43.J432.432");
+        // They redouble our X.  Clean runout: equal majors / no suit → Pass = ask back
+        // (the doubler will name its major), never the phantom 2♦ relay.
+        let (ask, ask_floored) = best_call(&[nt, x, xx], "Q32.Q43.J432.432");
+        // …and a long-club, short-major advancer escapes to its own 2♣ (to play) —
+        // the club rung the two-level 2♣ over the redoubled 1NT gives us.
+        let (clubs, _) = best_call(&[nt, x, xx], "32.43.432.AKQ876");
+        // After the ask, the doubler names its five-card major.
+        let (named_xx, named_xx_floored) = best_call(&[nt, x, xx, p, p], "AJ32.KQ876.32.32");
+        // After we name our major (via the undoubled relay) and they double it, SIT —
+        // play 2♥x (our 5-4+ fit), never run to 3♦.  `[1NT,X,P,2♦,X,2♥,X,P,P]`.
+        let sit_auction = [nt, x, p, d2, x, call(2, Strain::Hearts), x, p, p];
+        let (settle, settle_floored) = best_call(&sit_auction, "AJ32.KQ876.32.32");
 
         set_direct_landy_double(prev);
+        assert_eq!(ask, Call::Pass, "equal majors over XX → Pass = ask back");
+        assert!(!ask_floored, "the ask-Pass must come from the book");
+        assert_eq!(
+            clubs,
+            call(2, Strain::Clubs),
+            "long clubs over XX → 2♣ to play"
+        );
+        assert_eq!(
+            named_xx,
+            call(2, Strain::Hearts),
+            "doubler names its major after the ask"
+        );
+        assert!(!named_xx_floored, "the named major must come from the book");
+        assert_eq!(
+            settle,
+            Call::Pass,
+            "must sit in our doubled major, not run to 3♦"
+        );
+        assert!(!settle_floored, "the settle-Pass must come from the book");
         assert_eq!(dbl, Call::Double);
         assert!(!floored, "the both-majors X must come from the book node");
         assert_eq!(pass, Call::Pass, "no penalty double when it is replaced");
@@ -2659,8 +2749,6 @@ mod tests {
             !named_floored,
             "the doubled-relay escape must come from the book"
         );
-        assert_eq!(escape, d2, "must run from 1NTxx, not sit");
-        assert!(!esc_floored, "the redouble escape must come from the book");
     }
 
     #[test]
