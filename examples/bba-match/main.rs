@@ -203,9 +203,9 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_woolsey: bool,
 
-    /// Woolsey suit-overcall (2♣/2♦/2♥/2♠) points band LO:HI (default 10:19). Only
+    /// Woolsey suit-overcall (2♣/2♦/2♥/2♠) points band LO:HI (default 8:19). Only
     /// with `--ns-woolsey`.
-    #[arg(long, default_value = "10:19")]
+    #[arg(long, default_value = "8:19")]
     ns_woolsey_range: String,
 
     /// `points` floor for our Woolsey takeout X (default 12). Only with `--ns-woolsey`.

@@ -386,11 +386,13 @@ thread_local! {
     /// [`set_woolsey_double_floor`]).  See [`set_woolsey`].
     static WOOLSEY: Cell<bool> = const { Cell::new(false) };
     /// Inclusive `points` band for the Woolsey suit overcalls (`2♣`/`2♦`/`2♥`/`2♠`);
-    /// **(10, 19) by default** — our own floor, one above BBA's 9.  A perfect-defense
-    /// DD floor-sweep is monotonic (lower floor → competes more → loses more on
-    /// honest scoring), so the value is single-dummy obstruction the DD harness can't
-    /// see; 10 keeps a competing convention without the lightest, costliest overcalls.
-    static WOOLSEY_POINTS: Cell<(u8, u8)> = const { Cell::new((10, 19)) };
+    /// **(8, 19) by default** — level with the natural overcall floor.  A 2026-06-26
+    /// re-probe (continuations now fully authored) found honest plain-DD self-play
+    /// *peaks at 8* and flattens below it (6/7 add no value), and the BBA head-to-head
+    /// agrees; perfect-defense (PD) still mildly prefers 10, but PD over-deters by
+    /// assuming a perfect doubler.  The conventions only rearrange *which* call shows a
+    /// hand — the strength floor tracks natural's 8.  See `docs/` re-probe note.
+    static WOOLSEY_POINTS: Cell<(u8, u8)> = const { Cell::new((8, 19)) };
     /// `points` floor for the Woolsey takeout `X` (4-card major + longer minor);
     /// **12 by default** — the X is the most constructive Woolsey action, so it
     /// floors above the preemptive suit overcalls.  See [`set_woolsey_double_floor`].
@@ -417,7 +419,7 @@ pub(crate) fn woolsey_enabled() -> bool {
 }
 
 /// Set the inclusive `points` band for the Woolsey suit overcalls (`2♣`/`2♦`/`2♥`/
-/// `2♠`, default 10–19) for books built *after* this call.  No effect unless
+/// `2♠`, default 8–19) for books built *after* this call.  No effect unless
 /// [`set_woolsey`] is on.  The A/B knob for `examples/ab-landy --ns-woolsey-range`.
 pub fn set_woolsey_points(lo: u8, hi: u8) {
     WOOLSEY_POINTS.with(|cell| cell.set((lo, hi)));

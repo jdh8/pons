@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The Woolsey suit-overcall floor drops from 10 to 8** (`WOOLSEY_POINTS`
+  default `(8, 19)`; `examples/ab-landy`/`bba-match --ns-woolsey-range` default
+  `8:19`), level with the natural-overcall floor. A re-probe (now that the
+  continuations are fully authored, M6.2) swept the floor 6–13 three ways:
+  honest plain-DD self-play vs our natural defense **peaks at 8** (+0.459
+  IMPs/divergent) and flattens below it (6/7 add nothing), and the BBA
+  isolate-defense head-to-head agrees (best at 8, −0.207 IMPs/board). The old
+  "lower floor always loses more" verdict was an artifact of *unauthored*
+  follow-ups, not the light overcalls themselves. Perfect-defense (PD) still
+  mildly prefers 10, but PD over-deters by assuming a flawless doubler; the two
+  honest measures, plus the principle that the conventions only rearrange *which*
+  call shows a hand (same hands, same opponents), put the floor at natural's 8.
+  The takeout-`X` floor is unchanged at 12 — lowering *it* hurts plain-DD, since
+  the double is the constructive action, not a preempt. Woolsey stays **opt-in**
+  (`set_woolsey` default off), so the default system is unchanged.
 - **The opaque DONT / Woolsey / Multi 1NT-defense shapes are re-authored as
   transparent `or`/`and` constraints, and DONT now defends a traditional 4-4
   (AI-bidder M6.2d).** The seven shapes that hid behind the `described(label,

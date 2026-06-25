@@ -178,11 +178,12 @@ struct Args {
     ns_woolsey: String,
 
     /// Woolsey suit-overcall (2♣/2♦/2♥/2♠) points band for the *measured* pair:
-    /// `LO` (open-topped) or `LO:HI` (default `10:19`). Only matters with `--ns-woolsey`.
-    /// The perfect-defense (`--score pd`) floor-sweep is monotonic: lower floors
-    /// compete more and lose more, so the value is single-dummy obstruction (invisible
-    /// to DD). 10 keeps a competing convention; 13 is the DD break-even.
-    #[arg(long, default_value = "10:19")]
+    /// `LO` (open-topped) or `LO:HI` (default `8:19`). Only matters with `--ns-woolsey`.
+    /// Honest plain-DD self-play peaks at floor 8 (level with natural) and flattens
+    /// below it; perfect-defense (`--score pd`) mildly prefers 10 but over-deters by
+    /// assuming a perfect doubler. The conventions only rearrange which call shows a
+    /// hand, so the floor tracks natural's 8.
+    #[arg(long, default_value = "8:19")]
     ns_woolsey_range: String,
 
     /// `points` floor for the *measured* pair's Woolsey takeout X (default 12). Only
