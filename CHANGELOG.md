@@ -35,7 +35,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   only then does `ev_all` top up with the range reader. `probe-replay-yield`
   measures the replay-vs-range fill (the no-DD pre-check). Distilled from the observation
   that the sampler is already a rejection filter and a `Constraint`/`System` is
-  already a hand predicate. **Default off; not yet measured on a DD A/B.**
+  already a hand predicate. **Measured** on a paired search-floor A/B over 300
+  filtered 1NT-defense boards (`ab-search-floor --filter --rule-accept`): replay
+  moved the search floor **+0.24 IMPs/board** vs the deterministic floor (−0.94 →
+  −0.70), changing 46% of decisions, but the 95% CI [−0.35, +0.83] still straddles
+  zero. Neutral-to-positive with healthy yield — **kept default off** pending a
+  larger run, matching the opt-in precedent for not-yet-conclusive measures.
 - **Our own Woolsey "Multi-Landy" defense to their 1NT — opt-in, default off
   (`set_woolsey`).** Authors BBA's distilled structure at every seat, with our own
   (tunable) strength bands: `X` = a 4-card major + a longer (5-6) minor (takeout,

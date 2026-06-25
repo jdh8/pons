@@ -40,7 +40,8 @@
 use clap::Parser;
 use contract_bridge::auction::{Auction, Call};
 use contract_bridge::deck::full_deal;
-use contract_bridge::{AbsoluteVulnerability, Contract, FullDeal, Hand, Seat};
+use contract_bridge::eval::hcp as holding_hcp;
+use contract_bridge::{AbsoluteVulnerability, Contract, FullDeal, Hand, Seat, Suit};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::bidding::context::relative;
 use pons::bidding::{Family, Stance, System};
@@ -81,6 +82,63 @@ struct Args {
     /// Print a progress line to stderr every ~10% of boards while bidding
     #[arg(short, long)]
     progress: bool,
+
+    /// Enable rule-replay layout acceptance for the search floor's sampler.
+    ///
+    /// Affects `ev_all` (the search floor) only; the deterministic and net
+    /// opponents are untouched, so the A/B is this run vs the flag-off run.
+    #[arg(long)]
+    rule_accept: bool,
+
+    /// Keep only deals that can reach a 1NT opening our side defends (a cheap
+    /// shape pre-filter), so the slow DD search lands on boards where the 1NT
+    /// defense can diverge. `--count` is then the number of such boards.
+    #[arg(long)]
+    filter: bool,
+
+    /// Write the per-board "vs deterministic" swings (one integer per line) here.
+    ///
+    /// With a fixed `--seed` the boards are identical across runs, so dumping the
+    /// swings from a flag-off and a flag-on run lets a paired diff isolate the
+    /// rule-accept effect (board luck and unchanged boards cancel).
+    #[arg(long)]
+    swings_out: Option<String>,
+
+    /// Skip the second (vs distilled net) match. Halves the runtime when only the
+    /// vs-deterministic numbers are wanted (e.g. a paired `--swings-out` A/B).
+    #[arg(long)]
+    skip_net: bool,
+}
+
+/// Total HCP of a hand
+fn hand_hcp(hand: Hand) -> u8 {
+    Suit::ASC.iter().map(|&s| holding_hcp::<u8>(hand[s])).sum()
+}
+
+/// Cheap shape pre-filter: could this deal reach a 1NT opening our side defends?
+///
+/// A superset — some seat is a balanced 14-18 opener candidate and an opponent
+/// (its LHO or RHO) holds defensive action (a 5+ suit with overcall strength, or
+/// a 14+ hand for the penalty double). Concentrates the DD budget on boards where
+/// the search floor's 1NT defense can actually diverge.
+fn could_defend_1nt(deal: &FullDeal) -> bool {
+    Seat::ALL.iter().any(|&opener| {
+        let h = deal[opener];
+        let lengths = Suit::ASC.map(|s| h[s].len());
+        let balanced =
+            lengths.iter().all(|&l| l >= 2) && lengths.iter().filter(|&&l| l == 2).count() <= 1;
+        if !(balanced && (14..=18).contains(&hand_hcp(h))) {
+            return false;
+        }
+        let lho = Seat::ALL[(opener as usize + 1) % 4];
+        let rho = Seat::ALL[(opener as usize + 3) % 4];
+        [lho, rho].iter().any(|&d| {
+            let hd = deal[d];
+            let longest = Suit::ASC.iter().map(|&s| hd[s].len()).max().unwrap_or(0);
+            let hcp = hand_hcp(hd);
+            (longest >= 5 && (6..=16).contains(&hcp)) || hcp >= 14
+        })
+    })
 }
 
 /// The seat acting after `len` calls from `dealer`
@@ -144,13 +202,22 @@ struct BoardDeal {
 }
 
 /// Deal `count` boards, dealer rotating per board, from the caller's RNG
-fn make_boards(count: usize, rng: &mut impl rand::Rng) -> Vec<BoardDeal> {
-    (0..count)
-        .map(|index| BoardDeal {
-            dealer: Seat::ALL[index % 4],
-            deal: full_deal(rng),
-        })
-        .collect()
+///
+/// With `filter` on, skips deals that can't reach a 1NT defense, so `count` is
+/// the number of *kept* boards (dealer rotates over the kept index).
+fn make_boards(count: usize, filter: bool, rng: &mut impl rand::Rng) -> Vec<BoardDeal> {
+    let mut boards = Vec::with_capacity(count);
+    while boards.len() < count {
+        let deal = full_deal(rng);
+        if filter && !could_defend_1nt(&deal) {
+            continue;
+        }
+        boards.push(BoardDeal {
+            dealer: Seat::ALL[boards.len() % 4],
+            deal,
+        });
+    }
+    boards
 }
 
 /// One played board: the deal and both tables' auctions
@@ -339,15 +406,19 @@ fn dump_boards(title: &str, result: &MatchResult, indices: &[usize]) {
 fn main() {
     let args = Args::parse();
 
+    // The flag is a thread-local read inside `ev_all`; this example bids on the
+    // main thread (the sequential `duplicate_match` loop), so one call here covers
+    // every decision. The DD solver below is separate and untouched by it.
+    pons::bidding::inference::set_rule_accept(args.rule_accept);
+
     let search = american_search().against(Family::NATURAL);
     let deterministic = american().against(Family::NATURAL);
-    let neural = american_neural().against(Family::NATURAL);
 
     // Deal the boards once so both matches play identical deals (and a `--seed`
     // makes them reproducible across runs).
     let boards = match args.seed {
-        Some(seed) => make_boards(args.count, &mut StdRng::seed_from_u64(seed)),
-        None => make_boards(args.count, &mut rand::rng()),
+        Some(seed) => make_boards(args.count, args.filter, &mut StdRng::seed_from_u64(seed)),
+        None => make_boards(args.count, args.filter, &mut rand::rng()),
     };
 
     println!(
@@ -374,19 +445,32 @@ fn main() {
     );
     dump_extremes("the deterministic floor", &vs_deterministic, args.worst);
 
-    let vs_neural = duplicate_match(
-        &search,
-        &neural,
-        &boards,
-        args.vulnerability,
-        "vs net",
-        args.progress,
-    );
-    report(
-        "Search floor vs distilled net",
-        "the raw net prior",
-        &vs_neural,
-        args.vulnerability,
-    );
-    dump_extremes("the raw net prior", &vs_neural, args.worst);
+    // Dump the vs-deterministic per-board swings for a paired off-vs-on diff.
+    if let Some(path) = &args.swings_out {
+        let lines: String = vs_deterministic
+            .swings
+            .iter()
+            .map(|s| format!("{s}\n"))
+            .collect();
+        std::fs::write(path, lines).expect("write swings file");
+    }
+
+    if !args.skip_net {
+        let neural = american_neural().against(Family::NATURAL);
+        let vs_neural = duplicate_match(
+            &search,
+            &neural,
+            &boards,
+            args.vulnerability,
+            "vs net",
+            args.progress,
+        );
+        report(
+            "Search floor vs distilled net",
+            "the raw net prior",
+            &vs_neural,
+            args.vulnerability,
+        );
+        dump_extremes("the raw net prior", &vs_neural, args.worst);
+    }
 }
