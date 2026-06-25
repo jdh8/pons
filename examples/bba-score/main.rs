@@ -45,6 +45,11 @@ struct Args {
     /// Number of worst (most-lost) divergent boards to dump
     #[arg(short, long, default_value = "15")]
     top: usize,
+
+    /// Filter the we-defend worst-board dump to boards whose first NS call after
+    /// their 1NT matches this label (e.g. `X` for penalty-double boards only).
+    #[arg(long)]
+    action: Option<String>,
 }
 
 /// Render an auction with leading passes kept, calls space-joined
@@ -292,18 +297,26 @@ fn main() -> anyhow::Result<()> {
     let worst_defend: Vec<_> = swings
         .iter()
         .filter(|&&(index, ..)| {
-            matches!(
-                opening_1nt(&boards[index].table_a, boards[index].dealer),
-                Some((_, false))
-            )
+            let board = &boards[index];
+            let Some((nt_index, false)) = opening_1nt(&board.table_a, board.dealer) else {
+                return false;
+            };
+            // Optional: keep only boards whose first NS call after 1NT matches.
+            args.action.as_deref().is_none_or(|want| {
+                first_ns_call_after(&board.table_a, board.dealer, nt_index)
+                    .is_some_and(|call| action_label(call) == want)
+            })
         })
         .take(args.top)
         .copied()
         .collect();
     dump_rows(
         &format!(
-            "Worst {} we-defend-1NT boards (BBA opens 1NT, we defend)",
-            worst_defend.len()
+            "Worst {} we-defend-1NT boards (BBA opens 1NT, we defend){}",
+            worst_defend.len(),
+            args.action
+                .as_deref()
+                .map_or_else(String::new, |a| format!(", first NS call = {a}")),
         ),
         &worst_defend,
     );

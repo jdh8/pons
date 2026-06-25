@@ -149,6 +149,15 @@ std::thread_local! {
     /// [`Penalty`]: LatchStyle::Penalty
     /// [`Optional`]: LatchStyle::Optional
     static LATCH_STYLE: Cell<LatchStyle> = const { Cell::new(LatchStyle::Penalty) };
+
+    /// Whether to suppress the doubler's *constructive pulls* of its own penalty
+    /// double of their 1NT (**on by default** — DD-measured a clear penalty-X-bucket
+    /// win; see [`set_penalty_no_pull`]).  While [`penalty_latched`], the natural
+    /// suit and notrump overcall rules still fire for the doubler (a double is not a
+    /// bid), so a 15+ balanced doubler "competes" to 2NT/3NT/a major opposite a
+    /// likely-broke partner — the dominant defense leak.  On, those pulls step aside
+    /// and the doubler defends (Pass) or latch-doubles their escape.
+    static PENALTY_NO_PULL: Cell<bool> = const { Cell::new(true) };
 }
 
 /// Responder runs from a doubled 1NT below this many HCP; with more, 1NT-X
@@ -934,6 +943,34 @@ fn penalty_latched_c() -> Cons<impl Constraint + Clone> {
     pred(|_: Hand, context: &Context<'_>| penalty_latched(context))
 }
 
+/// Suppress the doubler's constructive pulls of its own penalty double of their
+/// 1NT (**on by default**)
+///
+/// Independent of the latch's double-handling: this only stops the *bids* (the
+/// natural suit / notrump overcalls), so the doubler defends or latch-doubles
+/// instead of "competing" to 2NT/3NT/a major opposite a likely-broke partner.
+/// A no-op unless the latch is on (the penalty stance it keys off, see
+/// [`penalty_latched`]).  Read at classification time, per-thread.
+///
+/// DD-measured against BBA's 2/1 on the isolated 1NT-defense match (8000 we-defend
+/// boards/seed): the penalty-X bucket goes −2.312 → −1.013 IMPs/X-board vulnerable
+/// (paired +0.058 IMPs/board overall, 95% CI [+0.030, +0.085]) and is neutral
+/// non-vulnerable (+0.007, CI straddles 0); the swing is isolated to the X bucket.
+/// Disable for the off arm of the A/B.
+#[doc(hidden)]
+pub fn set_penalty_no_pull(enabled: bool) {
+    PENALTY_NO_PULL.with(|flag| flag.set(enabled));
+}
+
+/// The doubler may make a constructive overcall: either the no-pull knob is off,
+/// or we are not in the penalty stance ([`penalty_latched`]).  Gates the
+/// overcall-shaped rules that fire off [`we_have_not_bid`] (a double is not a bid).
+fn may_pull_penalty() -> Cons<impl Constraint + Clone> {
+    pred(|_: Hand, context: &Context<'_>| {
+        !(PENALTY_NO_PULL.with(Cell::get) && penalty_latched(context))
+    })
+}
+
 /// The penalty latch is *not* in force (the takeout-double default applies)
 fn not_penalty_latched() -> Cons<impl Constraint + Clone> {
     pred(|_: Hand, context: &Context<'_>| !penalty_latched(context))
@@ -1257,6 +1294,7 @@ pub fn instinct() -> Rules {
                 Bid::new(level, strain),
                 1.0 + major_bonus,
                 we_have_not_bid()
+                    & may_pull_penalty()
                     & min_level_is(level, strain)
                     & len(suit, 5..)
                     & points(floor..=16)
@@ -1546,6 +1584,7 @@ pub fn instinct() -> Rules {
             Bid::new(level, Strain::Notrump),
             1.05,
             we_have_not_bid()
+                & may_pull_penalty()
                 & min_level_is(level, Strain::Notrump)
                 & balanced()
                 & hcp(15..=18)

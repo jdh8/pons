@@ -203,6 +203,12 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_penalty_latch: bool,
 
+    /// Restore the doubler's constructive pulls of its own penalty X of BBA's 1NT
+    /// (default off = pulls suppressed): with this set, a latched doubler may again
+    /// "compete" to 2NT/3NT/a major over the opponents' escape instead of defending.
+    #[arg(long, default_value_t = false)]
+    ns_allow_pull: bool,
+
     /// Our side NEVER competes over BBA's 1NT (default off): authors only Pass at
     /// every seat, the truest "do nothing" baseline.  Overrides every other defense knob.
     #[arg(long, default_value_t = false)]
@@ -581,6 +587,7 @@ fn main() -> anyhow::Result<()> {
     pons::bidding::american::set_defense_to_2d_multi(args.defense_2d_multi);
     pons::bidding::instinct::set_settle_floor(!args.no_settle_floor);
     pons::bidding::instinct::set_penalty_latch(!args.no_ns_penalty_latch);
+    pons::bidding::instinct::set_penalty_no_pull(!args.ns_allow_pull);
     pons::bidding::american::set_open_one_notrump(!args.no_our_1nt);
     pons::bidding::american::set_one_notrump_fifths(args.nt_fifths);
     pons::bidding::american::set_natural_double_shape(match args.ns_double_shape.as_str() {

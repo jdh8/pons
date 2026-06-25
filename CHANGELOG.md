@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **After our natural penalty double of their 1NT, the doubler stops pulling its
+  own double** (`set_penalty_no_pull`, **on by default**). A double is not a bid,
+  so the keyless instinct floor's overcall-shaped rules (the 15–18 balanced
+  notrump overcall and the five-card suit overcall) still fired for the doubler
+  over the opponents' escape — a 15+ balanced hand "competed" to 2NT/3NT/a major
+  opposite a likely-broke partner (they opened a strong 1NT, so our 15 is offset
+  and partner is usually busted), the single worst defense leak. Now, while the
+  penalty latch holds (`penalty_latched` — we doubled their 1NT and have bid no
+  contract since), those two overcall rules step aside and the doubler defends
+  (Pass) or latch-doubles the runout instead. DD-measured against BBA's 2/1 on
+  the isolated 1NT-defense match (8000 we-defend boards/seed): the penalty-X
+  bucket goes −2.312 → −1.013 IMPs/X-board vulnerable (paired **+0.058 IMPs/board
+  overall, 95 % CI [+0.030, +0.085]**), neutral non-vulnerable (+0.007, CI
+  straddles 0); the swing is isolated to the X bucket. `bba-gen --ns-allow-pull`
+  restores the old pulling behaviour for the off arm of the A/B. `bba-score`
+  gains `--action <label>` to filter the worst-board dump to a single defensive
+  call (e.g. `--action X` for penalty-double boards).
 - **The `bba-match` BBA-reference example splits into `bba-gen` + `bba-score`,
   exchanging a JSON board dump.** `bba-gen` does only the single-threaded EPBot
   bidding — it owns every `set_*` / convention knob that shapes the auctions
