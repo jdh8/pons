@@ -23,6 +23,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The penalty-double latch no longer un-latches when our side bids.** After our
+  natural penalty double of their 1NT, the "once penalty, always penalty" stance
+  ([`set_penalty_latch`], default on) now holds for the *rest of the auction* — a
+  contract bid of our own (e.g. the advancer running to a suit) used to abandon
+  the stance, turning later doubles back into takeout; now they stay penalty. The
+  floor (`penalty_latched`) and the matching inference reading
+  (`penalty_latch_double_reading`) are updated in lockstep.
 - **A passed hand's both-majors `X` of their 1NT is now opt-in (default `None`,
   the historic dead double).** The reassignment of a passed hand's otherwise-dead
   penalty double to both majors was promoted to default-on on a *self-play* DD

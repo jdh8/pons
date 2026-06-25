@@ -908,9 +908,10 @@ pub fn set_penalty_latch(enabled: bool) {
 /// of their 1NT earlier this auction and have bid no contract since
 ///
 /// Hand-independent — it follows from the calls alone.  Same-side only (the
-/// opponents' penalty doubles do not latch us), and a constructive bid of our own
-/// since the double unlatches it (we left the penalty stance to declare).  Gated
-/// on [`set_penalty_latch`], so it is dormant by default.
+/// opponents' penalty doubles do not latch us).  Once we penalty-double their 1NT
+/// the penalty stance holds for the rest of the auction — "once penalty, always
+/// penalty" — even after our side bids a suit of its own.  Gated on
+/// [`set_penalty_latch`], so it is dormant by default.
 fn penalty_latched(context: &Context<'_>) -> bool {
     if !PENALTY_LATCH.with(Cell::get) {
         return false;
@@ -919,14 +920,8 @@ fn penalty_latched(context: &Context<'_>) -> bool {
     let Some(double_index) = super::inference::penalty_x_reading(auction) else {
         return false;
     };
-    // The doubler shares the player-to-act's parity (our side), and we have made
-    // no contract bid since — a real bid abandons the penalty stance.
+    // The doubler shares the player-to-act's parity (our side).
     double_index % 2 == auction.len() % 2
-        && !auction
-            .iter()
-            .enumerate()
-            .skip(double_index + 1)
-            .any(|(i, call)| i % 2 == double_index % 2 && matches!(call, Call::Bid(_)))
 }
 
 /// Whether the penalty-double latch is enabled (see [`set_penalty_latch`])

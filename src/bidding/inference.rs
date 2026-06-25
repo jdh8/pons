@@ -1258,8 +1258,9 @@ fn responder_overcall_double_reading(auction: &[Call], len: usize) -> Option<usi
 /// short, the phantom-suit leak the [`penalty_x_reading`] doc names.  Empty unless
 /// the latch is on, so it agrees with the floor on when a later double is penalty.
 ///
-/// A contract bid of our own since the X abandons the penalty stance (mirrors
-/// `penalty_latched`), so doubles after such a bid are *not* latched.
+/// Once we penalty-double their 1NT the penalty stance holds for the rest of the
+/// auction (mirrors `penalty_latched`) — a bid of our own does *not* un-latch it,
+/// it only updates the suit a later penalty double refers to.
 fn penalty_latch_double_reading(auction: &[Call]) -> Vec<(usize, Suit)> {
     if !crate::bidding::instinct::penalty_latch_enabled() {
         return Vec::new();
@@ -1270,18 +1271,15 @@ fn penalty_latch_double_reading(auction: &[Call]) -> Vec<(usize, Suit)> {
     let our_parity = x_index % 2;
     let mut out = Vec::new();
     let mut last_suit_bid: Option<(Suit, usize)> = None; // (suit, the bidder's parity)
-    let mut latched = true;
     for (index, &call) in auction.iter().enumerate().skip(x_index + 1) {
         match call {
-            // Our own contract bid leaves the penalty stance: nothing after is latched.
+            // Our own bid does not un-latch the penalty stance; it just updates the
+            // suit a later penalty double would refer to.
             Call::Bid(bid) => {
-                if index % 2 == our_parity {
-                    latched = false;
-                }
                 last_suit_bid = bid.strain.suit().map(|suit| (suit, index % 2));
             }
             // Our double of their suit runout is penalty: four-plus in that suit.
-            Call::Double if latched && index % 2 == our_parity => {
+            Call::Double if index % 2 == our_parity => {
                 if let Some((suit, bidder_parity)) = last_suit_bid
                     && bidder_parity != our_parity
                 {
