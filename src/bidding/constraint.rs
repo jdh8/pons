@@ -30,7 +30,7 @@
 //! ```
 
 use super::context::Context;
-use super::inference::Inferences;
+use super::inference::{Inference, Inferences, Range};
 use contract_bridge::eval::{self, HandEvaluator, SimpleEvaluator};
 use contract_bridge::{Hand, Holding, Level, Rank, Strain, Suit};
 use core::cell::Cell;
@@ -57,6 +57,21 @@ pub trait Constraint: Send + Sync {
     /// of the authored constraint, not of any one hand or [`Context`].
     fn describe(&self) -> Description {
         Description::Opaque
+    }
+
+    /// Project the constraint into the forward [`Inference`] envelope it implies
+    ///
+    /// The third fold, beside [`eval`][Self::eval] and [`describe`][Self::describe]:
+    /// where `eval` scores one hand and `describe` names the meaning, `project`
+    /// turns the constraint into the per-suit length and point ranges that every
+    /// hand it accepts must fall within — the bidder's *forward* reading of an
+    /// authored call, the dual of evaluating a known hand.  Sound by
+    /// construction: a finite `eval(hand, context)` implies `hand` lies within
+    /// `project(context)`.  The default asserts nothing
+    /// ([`Inference::unknown`]), so an opaque predicate stays sound but loose
+    /// until a length- or points-bearing primitive overrides it.
+    fn project(&self, _context: &Context<'_>) -> Inference {
+        Inference::unknown()
     }
 }
 
@@ -88,6 +103,10 @@ impl<T: Constraint> Constraint for Cons<T> {
     fn describe(&self) -> Description {
         self.0.describe()
     }
+
+    fn project(&self, context: &Context<'_>) -> Inference {
+        self.0.project(context)
+    }
 }
 
 /// Sum of two constraints, the logical AND for crisp constraints
@@ -102,6 +121,10 @@ impl<A: Constraint, B: Constraint> Constraint for And<A, B> {
     fn describe(&self) -> Description {
         self.0.describe().and(self.1.describe())
     }
+
+    fn project(&self, context: &Context<'_>) -> Inference {
+        self.0.project(context).intersect(&self.1.project(context))
+    }
 }
 
 /// Maximum of two constraints, the logical OR for crisp constraints
@@ -115,6 +138,10 @@ impl<A: Constraint, B: Constraint> Constraint for Or<A, B> {
 
     fn describe(&self) -> Description {
         self.0.describe().or(self.1.describe())
+    }
+
+    fn project(&self, context: &Context<'_>) -> Inference {
+        self.0.project(context).union(&self.1.project(context))
     }
 }
 
@@ -478,6 +505,31 @@ fn raw_hcp(hand: Hand) -> u8 {
     SimpleEvaluator(eval::hcp::<u8>).eval(hand)
 }
 
+/// Project a numeric range bound into an inference [`Range`], clamped to `cap`
+///
+/// The forward dual of [`describe_int_range`]: where that names a bound in
+/// prose, this turns it into the `[min, max]` an [`Inference`] records, sharing
+/// the same [`ToU64`] so `len` (a `usize` range) and `points`/`hcp` (`u8`)
+/// project through one path.  An unbounded end becomes `cap`, the quantity's
+/// natural ceiling.
+fn bound_range<T: ToU64>(range: &impl RangeBounds<T>, cap: u8) -> Range {
+    let cap = u64::from(cap);
+    let min = match range.start_bound() {
+        Bound::Included(&x) => x.to_u64(),
+        Bound::Excluded(&x) => x.to_u64() + 1,
+        Bound::Unbounded => 0,
+    };
+    let max = match range.end_bound() {
+        Bound::Included(&x) => x.to_u64(),
+        Bound::Excluded(&x) => x.to_u64().saturating_sub(1),
+        Bound::Unbounded => cap,
+    };
+    // `min(cap)` keeps both ends within the quantity's ceiling, so the casts
+    // back to the `u8` an `Inference` stores never truncate.
+    let clamp = |x: u64| u8::try_from(x.min(cap)).unwrap_or_else(|_| unreachable!());
+    Range::new(clamp(min), clamp(max))
+}
+
 /// Raw high card points in a range (the [`hcp`] constraint)
 #[derive(Clone)]
 struct Hcp<R>(R);
@@ -489,6 +541,17 @@ impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for Hcp<R> {
 
     fn describe(&self) -> Description {
         describe_int_range(&self.0, "HCP")
+    }
+
+    fn project(&self, _: &Context<'_>) -> Inference {
+        // ponytail: floor only — points = raw HCP + upgrade ≥ raw HCP, so an
+        // HCP *ceiling* is unsound on the upgraded-points scale an `Inference`
+        // records; the floor is exact.  Upgrade path: a balanced-only HCP axis
+        // if a reader ever needs the ceiling back.
+        let floor = bound_range(&self.0, Range::FULL_POINTS.max).min;
+        let mut inference = Inference::unknown();
+        inference.points = Range::new(floor, Range::FULL_POINTS.max);
+        inference
     }
 }
 
@@ -563,6 +626,16 @@ impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for Points<R> {
     fn describe(&self) -> Description {
         describe_int_range(&self.0, "points")
     }
+
+    fn project(&self, _: &Context<'_>) -> Inference {
+        // Floor only, matching every hand-written reader (`at_least(floor,
+        // CAP)`): sound whether or not the fuzzy-strength upgrade is on, since
+        // the upgraded point count is never below the band's floor.
+        let floor = bound_range(&self.0, Range::FULL_POINTS.max).min;
+        let mut inference = Inference::unknown();
+        inference.points = Range::new(floor, Range::FULL_POINTS.max);
+        inference
+    }
 }
 
 /// Upgraded points — HCP plus [`upgrade`] — in the given range
@@ -632,6 +705,14 @@ impl<R: RangeBounds<usize> + Clone + Send + Sync> Constraint for Len<R> {
 
     fn describe(&self) -> Description {
         describe_int_range(&self.range, &self.suit.to_string())
+    }
+
+    fn project(&self, _: &Context<'_>) -> Inference {
+        // Length is exact — the same `hand[suit].len()` `eval` checks — so both
+        // bounds project soundly.
+        let mut inference = Inference::unknown();
+        inference.lengths[self.suit as usize] = bound_range(&self.range, Range::FULL_LENGTH.max);
+        inference
     }
 }
 

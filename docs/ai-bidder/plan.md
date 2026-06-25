@@ -407,6 +407,32 @@ A/B vs baseline, and the BBA gap (S.1's −2.6) on the relevant auctions.
   verify the floor rule fires and isn't shadowed
   (`project_floor_shadowed_by_book_nodes`); contested is where the learned floors
   already live (`project_floors_contested_only`).
+- 🟡 **M6.4 Rule projection — read a call's meaning off its rule.** Full design:
+  [`rule-projection.md`](rule-projection.md). The seven `*_reading` decoders in
+  `inference.rs` (M6.1's `transfer_major_reading` among them) re-derive, by hand
+  and per-convention, what an authored call's `Constraint` already states. Add a
+  third fold on the DSL — `Constraint::project(context) -> Inference`, the forward
+  dual of `eval` — and a single generic pass that, walking `context.prefixes()`,
+  projects the rule of each artificial prior call (artificial = its projection
+  floors a suit it did not name), replacing the per-convention decoders. *Deps:*
+  M4 (the DSL), M6.1 (the reader it generalizes).
+  - ✅ **M6.4a `Constraint::project` fold + soundness property test.** Shipped
+    2026-06-25. `len` keeps both bounds, `points`/`hcp` floor-only (sound in both
+    fuzzy modes), `&`→intersect, `|`→union, opaque/`!`→no-info, default no-info
+    (non-breaking). Invariant `eval` finite ⟹ hand ∈ `project`, tested over ~32k
+    hands. `Inference::intersect`/`union`, `Range::union` added. The data
+    substrate; no consumer wired yet.
+  - ⬜ **M6.4b Retire the readers — BLOCKED on keyless trie access.** Projection
+    needs the trie, but the two real consumers read keyless: the search-floor
+    sampler (`search_floor.rs:241`) and `features` build `Context::new` with no
+    prefixes, so only the book's own constraint-eval reads can project. Retiring
+    the readers therefore means first giving those paths trie access (a `System`
+    `CommonPrefixes` accessor + prefixing those call sites), then the generic pass
+    + re-authoring the opaque `described()` defense shapes (Stage 4). *Payoff is
+    architectural, not IMPs* (single source of truth; lets rule-replay stand
+    alone); gate neutral-or-better on `ab-search-floor`. **Deferred** as a
+    multi-day, A/B-gated cleanup — see the doc for the staged path and per-reader
+    verdict.
 
 Exit M6: the deterministic floor explores slam and handles the key competitive
 conventions, narrowing the BBA gap in exactly the deep/contested auctions where

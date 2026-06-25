@@ -9,6 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`Constraint::project` — a rule's forward shown-range envelope.** A third fold
+  on the constraint DSL beside `eval` (score a hand) and `describe` (name the
+  meaning): `project(context) -> Inference` turns a constraint into the per-suit
+  length and point ranges every hand it accepts must fall within — the *forward*
+  dual of evaluating a known hand. Length/points primitives project their band
+  (`len` keeps both bounds, exact; `points`/`hcp` are floor-only, sound whether or
+  not the fuzzy-strength upgrade is on and matching the hand-written readers'
+  `at_least(floor, cap)`); `&` intersects, `|` takes the loosest span (soundness
+  over tightness, so a Landy-style `(5♥4♠)|(4♥5♠)` projects the sound 4-4 floor);
+  negation and opaque `pred`/`described` predicates project no information. The
+  default is no-info, so every existing constraint compiles unchanged. Sound by
+  construction — a finite `eval(hand, context)` implies the hand lies within
+  `project(context)` — verified by a property test over the disjoint-suit
+  disjunctions and the opaque escape hatch. New `Inference::intersect`/`union` and
+  `Range::union` support the fold. This is the data substrate for reading an
+  authored call's meaning straight off its rule; the forward reader and sampler
+  keep their keyless `*_reading` decoders for now, as those run without a trie to
+  project from.
 - **Rule-replay layout acceptance for the search sampler — opt-in, default off
   (`set_rule_accept`).** Instead of projecting the auction into the hand-written
   per-convention `Inferences` ranges, the sampler now *reads each bid by the rule

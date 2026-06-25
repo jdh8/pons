@@ -401,4 +401,52 @@ mod tests {
         assert_eq!(a.agreed, b.agreed);
         assert_eq!(a.disagreements, b.disagreements);
     }
+
+    /// The projection soundness invariant: every hand a constraint accepts must
+    /// fall within the forward `Inference` envelope `project` reports.  A
+    /// violation is a witness hand inside `eval` but outside `project` — exactly
+    /// the bug that would let the forward reader under-constrain a player and
+    /// raise a phantom suit.  Spans primitives, conjunction, the disjoint-suit
+    /// disjunctions of Landy/Multi, a negative-inference shape, and the opaque
+    /// escape hatch (which must stay sound by projecting no info).
+    #[test]
+    fn projection_contains_every_accepted_hand() {
+        use crate::bidding::constraint::{Constraint, point_count};
+        use crate::bidding::inference::Inference;
+
+        fn within(envelope: &Inference, hand: Hand) -> bool {
+            Suit::ASC.into_iter().all(|suit| {
+                let length = u8::try_from(hand[suit].len()).expect("holding fits u8");
+                envelope.length(suit).contains(length)
+            }) && envelope.points.contains(point_count(hand))
+        }
+
+        let ctx = empty_context();
+        let battery: [Box<dyn Constraint>; 8] = [
+            Box::new(len(Suit::Hearts, 5..)),
+            Box::new(points(8..=16)),
+            Box::new(hcp(15..=17)),
+            Box::new(len(Suit::Hearts, 5..) & points(8..)),
+            Box::new(
+                (len(Suit::Hearts, 5..) & len(Suit::Spades, 4..))
+                    | (len(Suit::Hearts, 4..) & len(Suit::Spades, 5..)),
+            ),
+            Box::new(len(Suit::Clubs, 5..) | len(Suit::Diamonds, 5..)),
+            Box::new(len(Suit::Spades, ..4) & points(8..)),
+            Box::new(described("opaque", |_: Hand, _: &Context<'_>| true)),
+        ];
+
+        let mut rng = rng();
+        for constraint in &battery {
+            let envelope = constraint.project(&ctx);
+            for hand in random_hands(&mut rng).take(N) {
+                if constraint.eval(hand, &ctx) > f32::NEG_INFINITY {
+                    assert!(
+                        within(&envelope, hand),
+                        "projection unsound: {hand} accepted but outside {envelope:?}"
+                    );
+                }
+            }
+        }
+    }
 }

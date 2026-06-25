@@ -154,6 +154,20 @@ impl Range {
             }
         }
     }
+
+    /// The disjunction of two ranges — the loosest bounds spanning both
+    ///
+    /// A hand satisfying *either* of two alternatives (an `Or` projection of a
+    /// [`Constraint`][super::constraint::Constraint]) has its quantity in one
+    /// range or the other, so the sound envelope is their span.  The dual of
+    /// [`intersect`][Self::intersect], which keeps the tighter bounds.
+    #[must_use]
+    pub fn union(self, other: Self) -> Self {
+        Self {
+            min: self.min.min(other.min),
+            max: self.max.max(other.max),
+        }
+    }
 }
 
 /// What the calls have shown about one player, hand-independently
@@ -193,6 +207,36 @@ impl Inference {
     /// Narrow the shown points by intersecting in `range`
     fn narrow_points(&mut self, range: Range) {
         self.points = self.points.intersect(range);
+    }
+
+    /// Pointwise intersection — the `&` projection (both sets of bounds hold)
+    ///
+    /// The forward dual of a constraint conjunction: a hand accepted by `a & b`
+    /// lies within both envelopes, so each quantity takes the tighter bounds
+    /// ([`Range::intersect`]).
+    #[must_use]
+    pub fn intersect(&self, other: &Self) -> Self {
+        let mut out = *self;
+        for suit in Suit::ASC {
+            out.narrow_length(suit, other.length(suit));
+        }
+        out.narrow_points(other.points);
+        out
+    }
+
+    /// Pointwise union — the `|` projection (either set of bounds may hold)
+    ///
+    /// The forward dual of a constraint disjunction: a hand accepted by `a | b`
+    /// lies within one envelope or the other, so each quantity spans both
+    /// ([`Range::union`]) — soundness over tightness.
+    #[must_use]
+    pub fn union(&self, other: &Self) -> Self {
+        let mut out = *self;
+        for suit in Suit::ASC {
+            out.lengths[suit as usize] = out.length(suit).union(other.length(suit));
+        }
+        out.points = out.points.union(other.points);
+        out
     }
 }
 
