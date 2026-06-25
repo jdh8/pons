@@ -158,6 +158,12 @@ std::thread_local! {
     /// likely-broke partner — the dominant defense leak.  On, those pulls step aside
     /// and the doubler defends (Pass) or latch-doubles their escape.
     static PENALTY_NO_PULL: Cell<bool> = const { Cell::new(true) };
+
+    /// Whether a weak advancer runs from their *redoubled* penalty double
+    /// (`[1NT, X, XX]`, **on by default** — see [`set_advancer_xx_runout`]).  Their
+    /// XX is business (BBA and our own system both: "we make 1NT redoubled"), so a
+    /// broke advancer escapes to its long suit rather than sit for the doom.
+    static ADVANCER_XX_RUNOUT: Cell<bool> = const { Cell::new(true) };
 }
 
 /// Responder runs from a doubled 1NT below this many HCP; with more, 1NT-X
@@ -992,6 +998,42 @@ fn latch_penalty_c() -> Cons<impl Constraint + Clone> {
     pred(|_: Hand, _: &Context<'_>| LATCH_STYLE.with(Cell::get) == LatchStyle::Penalty)
 }
 
+/// Enable or disable the advancer's runout from their redoubled penalty double
+///
+/// **On by default.**  After our natural penalty double of their 1NT, their
+/// business redouble (`[1NT, X, XX]`) marks their side with the values, so a weak
+/// advancer escapes to its long suit rather than sit for a making `1NTxx`.  The
+/// mirror of the [responder runout][`set_one_nt_runout`] on the defensive side.
+/// Disable for the off arm of the A/B; read at classification time, per-thread.
+#[doc(hidden)]
+pub fn set_advancer_xx_runout(enabled: bool) {
+    ADVANCER_XX_RUNOUT.with(|flag| flag.set(enabled));
+}
+
+/// Their redoubled penalty double is back to a weak advancer (`[1NT, X, XX]`) and
+/// the runout is enabled — the defensive mirror of [`responder_one_nt_runout_now`]
+///
+/// Keyed off [`penalty_x_reading`][super::inference::penalty_x_reading]: our side
+/// penalty-doubled their 1NT, their next call was the redouble, and it is now the
+/// doubler's partner (the advancer) to act for the first time.
+fn advancer_xx_runout_now(context: &Context<'_>) -> bool {
+    if !ADVANCER_XX_RUNOUT.with(Cell::get) {
+        return false;
+    }
+    let auction = context.auction();
+    let Some(x_index) = super::inference::penalty_x_reading(auction) else {
+        return false;
+    };
+    auction.len() == x_index + 2
+        && auction.last() == Some(&Call::Redouble)
+        && x_index % 2 == auction.len() % 2
+}
+
+/// [`advancer_xx_runout_now`] as a hand-ignoring [`Constraint`] for the ladder
+fn advancer_xx_runout() -> Cons<impl Constraint + Clone> {
+    pred(|_: Hand, context: &Context<'_>| advancer_xx_runout_now(context))
+}
+
 /// We opened the strong notrump of `nt_level` and partner just transferred with
 /// the call `from` — the cue to complete the transfer
 fn partner_transferred_now(context: &Context<'_>, from: Bid, nt_level: u8) -> bool {
@@ -1330,6 +1372,33 @@ pub fn instinct() -> Rules {
                     & responder_one_nt_runout()
                     & len(suit, 6..)
                     & hcp(..RUNOUT_MAX_HCP),
+            );
+    }
+
+    // Advancer's runout from their redoubled penalty double (`[1NT, X, XX]`,
+    // default on; `set_advancer_xx_runout`).  Their XX is business, so a weak
+    // advancer escapes to its longest five-plus-card suit instead of sitting for a
+    // making `1NTxx` — the defensive mirror of the responder runout above.  A
+    // values advancer (>= `RUNOUT_MAX_HCP`) passes to defend `1NTxx` instead.
+    // ponytail: five-plus suits only; a 4-4 bust still sits — add the both-minors
+    // escape (cf. the `2NT` rule below) if the A/B asks for it.
+    for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
+        let strain = Strain::from(suit);
+        let major_bonus = if matches!(suit, Suit::Hearts | Suit::Spades) {
+            0.05
+        } else {
+            0.0
+        };
+        rules = rules
+            .rule(
+                Bid::new(2, strain),
+                1.0 + major_bonus,
+                advancer_xx_runout() & len(suit, 5..) & hcp(..RUNOUT_MAX_HCP),
+            )
+            .rule(
+                Bid::new(2, strain),
+                1.1 + major_bonus,
+                advancer_xx_runout() & len(suit, 6..) & hcp(..RUNOUT_MAX_HCP),
             );
     }
 
@@ -1903,6 +1972,22 @@ mod tests {
         // Latched (the default), partner's double is penalty — leave it in (defend 2♦x).
         set_penalty_latch(true);
         assert_eq!(best(&auction, "AQ74.AQ5.82.A632"), Call::Pass);
+    }
+
+    #[test]
+    fn advancer_runs_from_redoubled_penalty_double() {
+        // (1NT) X (XX): their business redouble, back to the broke advancer.
+        let auction = [call(1, Strain::Notrump), Call::Double, Call::Redouble];
+        // Weak with a five-card major: escape to it rather than sit for 1NTxx.
+        assert_eq!(best(&auction, "J9763.852.764.43"), call(2, Strain::Spades));
+        // Weak with a six-card minor: run to it.
+        assert_eq!(best(&auction, "82.43.765.QJ8765"), call(2, Strain::Clubs));
+        // Values (9 HCP): sit and defend 1NTxx — our side beats it.
+        assert_eq!(best(&auction, "KQ7.K83.J642.643"), Call::Pass);
+        // Off-switch: the runout disabled, the broke hand sits.
+        set_advancer_xx_runout(false);
+        assert_eq!(best(&auction, "J9763.852.764.43"), Call::Pass);
+        set_advancer_xx_runout(true);
     }
 
     #[test]

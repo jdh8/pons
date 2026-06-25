@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.10.0] — Unreleased
 
+### Added
+
+- **A weak advancer now runs from their redoubled penalty double (`[1NT, X, XX]`).**
+  After our natural penalty double of their 1NT, their redouble is business in
+  every system we face (BBA and our own: "we make 1NT redoubled"), so a broke
+  advancer escapes to its longest five-plus-card suit rather than sit for a making
+  `1NTxx`; a values advancer (≥ 8 HCP) passes to defend and beat it. The defensive
+  mirror of the existing responder runout, default on, with an off-switch
+  (`set_advancer_xx_runout` / `bba-gen --no-ns-xx-runout`) for the A/B. (Five-plus
+  suits only for now — a 4-4 bust still sits.)
+
 ### Removed
 
 - **The passed-hand 1NT-defense subsystem is deleted.** After the passed-hand
