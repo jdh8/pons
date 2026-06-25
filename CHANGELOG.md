@@ -53,7 +53,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   6k 1NT-filtered) −2.716 → −2.329 IMPs/X-board; the whole-system delta is noise
   (the latch fires only in penalty-X auctions, ~1% of deals). Disable with
   `set_penalty_latch(false)` (the off arm of the A/B). The `ab-landy` and `bba-match`
-  examples gain `--ns-penalty-latch` to sweep it.
+  examples gain `--ns-penalty-latch` to sweep it. The latched second double's *style*
+  is now an opt-in A/B knob, `instinct::set_latch_style(LatchStyle::Penalty|Optional)`
+  (default `Penalty`): `Optional` makes `(1NT)−X−(2Y)−X` a 2-3-card cooperative
+  double (partner stands on a fit, runs when short) instead of a trump-stack penalty
+  (partner sits) — the defensive mirror of `DoubleStyle`. A/B'd (`ab-landy
+  --ns-latch-style`, two seeds 100k+300k): unlike the we-open side, optional is a
+  **wash** on defense — Δ(opt−pen) was +179 IMPs at 100k but −34 at 300k under `Any`
+  double-shape, and a faint +163/+60 under `Balanced`. The disciplined penalty stack
+  is already near-optimal opposite an any-shape penalty doubler, so `Penalty` stays
+  the default.
 
 - **Floor reading for the natural penalty double of their 1NT.** A double of an
   opponent's 1NT names no suit, so the inference walk's takeout branch (which needs
