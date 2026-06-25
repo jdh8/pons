@@ -778,6 +778,75 @@ impl Inferences {
     }
 }
 
+/// Project the authored rule of every artificial prior call into [`Inferences`]
+///
+/// The generic dual of the per-convention `*_reading` decoders (M6.2b): walk the
+/// authored nodes the context's trie carries ([`Context::prefixes`]) and, at each,
+/// project the rule of the call actually made.  When that projection floors a suit
+/// the call did not name, the call is *artificial* — a transfer, a two-suiter, a
+/// Landy 2♣ — and its projected shape is recorded against the bidder's relative
+/// seat, exactly as the hand-written readers do, but read straight off the rule.
+///
+/// A keyless context (no prefixes) or an all-natural auction leaves every seat at
+/// [`Inference::unknown`], so this is a sound, loose *overlay* — never the natural
+/// reading itself (openings, raises, rebids stay in [`Inferences::read`]).
+///
+// ponytail: `#[cfg(test)]` because the only caller today is the M6.2b equivalence
+// harness — the mechanism is validated but not wired.  M6.2c gives the keyless
+// sampler/features paths trie access and calls it for real; drop the gate then.
+#[cfg(test)]
+#[must_use]
+pub(crate) fn authored_reading(context: &Context<'_>) -> Inferences {
+    let auction = context.auction();
+    let len = auction.len();
+    let mut players = [Inference::unknown(); 4];
+
+    let Some(prefixes) = context.prefixes() else {
+        return Inferences { players };
+    };
+
+    for (prefix, classifier) in prefixes.clone() {
+        let index = prefix.len();
+        let (Some(&made), Some(rules)) = (auction.get(index), classifier.as_rules()) else {
+            continue;
+        };
+
+        // The logit of a call is the max over its rules, so a hand could satisfy
+        // any one of them — the sound forward envelope is their union.
+        let projection = rules
+            .rules()
+            .iter()
+            .filter(|rule| rule.call() == made)
+            .map(|rule| rule.project(context))
+            .reduce(|acc, p| acc.union(&p));
+
+        if let Some(projection) = projection.filter(|p| artificial(p, made)) {
+            let who = relative_of(len, index) as usize;
+            players[who] = players[who].intersect(&projection);
+        }
+    }
+
+    Inferences { players }
+}
+
+/// Whether a call's projection floors a suit other than the one it names
+///
+/// The artificial-call detector, falling out of the projection itself: a natural
+/// bid floors its own strain (1♠ → 5+♠) or no suit (1NT → points only); an
+/// artificial one floors a suit it did not name (Jacoby 2♦ → 5+♥, Landy 2♣ → 4-4
+/// majors).  A min-length floor of four-plus on a non-named suit is the witness —
+/// above any natural by-product, below every convention's real shape.
+#[cfg(test)]
+fn artificial(projection: &Inference, made: Call) -> bool {
+    let named = match made {
+        Call::Bid(bid) => bid.strain.suit(),
+        _ => None,
+    };
+    Suit::ASC
+        .into_iter()
+        .any(|suit| Some(suit) != named && projection.length(suit).min >= 4)
+}
+
 /// Whether the call at `index` is an artificial relay/puppet/splinter in the
 /// Puppet-Stayman or minor-suit-transfer structures over our 1NT opening — so it
 /// must not be read as a natural long suit

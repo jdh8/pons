@@ -449,4 +449,101 @@ mod tests {
             }
         }
     }
+
+    /// M6.2b equivalence anchor: the generic `authored_reading` projection pass
+    /// reproduces the hand-written declarative `*_reading` decoders, signature
+    /// suit ranges and points, straight off the rule.
+    ///
+    /// The readers re-derive a convention's meaning by hand off the auction shape;
+    /// the projection pass reads it off the authored rule's own `len`/`points`
+    /// constraint, the single source of truth.  Three declarative anchors:
+    /// `transfer_major_reading` (the cleanest, uncontested), `leaping_michaels`,
+    /// and `landy` core — each on a *prefixed* context via `Stance`, the trie
+    /// access M6.2c will wire into the keyless sampler/features paths for real.
+    /// Opaque (`described()`) conventions project no info and need M6.2d, so they
+    /// are out of this harness.
+    #[test]
+    fn projection_reproduces_the_declarative_readers() {
+        use crate::american;
+        use crate::bidding::Family;
+        use crate::bidding::american::{set_landy, set_leaping_michaels};
+        use crate::bidding::inference::{Inferences, Range, Relative, authored_reading};
+        use contract_bridge::auction::{Call, RelativeVulnerability};
+        use contract_bridge::{Bid, Level, Strain};
+
+        let bid = |level, strain| {
+            Call::Bid(Bid {
+                level: Level::new(level),
+                strain,
+            })
+        };
+        let full = Range::new(0, 37);
+
+        // Project and read on the same prefixed context; assert the projection pass
+        // pins the reader's exact ranges on the convention's signature seat.
+        let agree = |auction: &[Call], who: Relative, suits: &[(Suit, Range)], points: Range| {
+            let stance = american().against(Family::NATURAL);
+            let ctx = stance.prefixed_context(RelativeVulnerability::NONE, auction);
+            let reader = *Inferences::read(&ctx).get(who);
+            let projected = *authored_reading(&ctx).get(who);
+            for &(suit, want) in suits {
+                assert_eq!(
+                    reader.length(suit),
+                    want,
+                    "reader oracle drifted on {suit:?}"
+                );
+                assert_eq!(
+                    projected.length(suit),
+                    want,
+                    "projection diverged from reader on {suit:?}"
+                );
+            }
+            assert_eq!(reader.points, points, "reader points oracle drifted");
+            assert_eq!(projected.points, points, "projection points diverged");
+        };
+
+        // Jacoby transfer to hearts (on by default): [1NT, P, 2♦, P, 2♥, P], the
+        // responder is Me at length 6; the 2♦ rule is `len(♥,5..) & …`.
+        agree(
+            &[
+                bid(1, Strain::Notrump),
+                Call::Pass,
+                bid(2, Strain::Diamonds),
+                Call::Pass,
+                bid(2, Strain::Hearts),
+                Call::Pass,
+            ],
+            Relative::Me,
+            &[(Suit::Hearts, Range::new(5, 13))],
+            full,
+        );
+
+        // Leaping Michaels: (2♥)–4♣–(P) = clubs + the other major (spades), 14+;
+        // partner at length 3.  `len(♣,5..) & len(♠,5..) & points(14..)`.
+        set_leaping_michaels(true);
+        agree(
+            &[bid(2, Strain::Hearts), bid(4, Strain::Clubs), Call::Pass],
+            Relative::Partner,
+            &[
+                (Suit::Clubs, Range::new(5, 13)),
+                (Suit::Spades, Range::new(5, 13)),
+            ],
+            Range::new(14, 37),
+        );
+        set_leaping_michaels(false);
+
+        // Landy: (1NT)–2♣–(P) = both majors, at least 4-4, 8+; partner at length 3.
+        // `((len(♥,5..)&len(♠,4..)) | (len(♥,4..)&len(♠,5..))) & points(8..)`.
+        set_landy(Some((8, 15)));
+        agree(
+            &[bid(1, Strain::Notrump), bid(2, Strain::Clubs), Call::Pass],
+            Relative::Partner,
+            &[
+                (Suit::Hearts, Range::new(4, 13)),
+                (Suit::Spades, Range::new(4, 13)),
+            ],
+            Range::new(8, 37),
+        );
+        set_landy(None);
+    }
 }

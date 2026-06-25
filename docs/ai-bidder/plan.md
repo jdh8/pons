@@ -408,16 +408,31 @@ A/B vs baseline, and the BBA gap (S.1's −2.6) on the relevant auctions.
     (non-breaking). Invariant `eval` finite ⟹ hand ∈ `project`, tested over ~32k
     hands. `Inference::intersect`/`union`, `Range::union` added. The data
     substrate; no consumer wired yet.
-  - ⬜ **M6.2b Retire the readers — NEXT, BLOCKED on keyless trie access.**
-    Projection needs the trie, but the two real consumers read keyless: the
-    search-floor sampler (`search_floor.rs:241`) and `features` build
+  - ✅ **M6.2b Validate the projection pass reproduces the readers.** Shipped
+    2026-06-25. `Rule::project` (the reading-side fold, mirrors `Rule::describe`) +
+    the generic `authored_reading` pass (`#[cfg(test)]`-only: walk
+    `context.prefixes()`, project each artificial call's rule, narrow the bidder's
+    seat) + an equivalence test proving the pass reproduces the three declarative
+    readers — `transfer_major`, `leaping_michaels`, `landy` core — *exactly*
+    (signature suit lengths and points) on prefixed contexts built from the real
+    book via a `#[cfg(test)] Stance::prefixed_context` seam. No production wiring,
+    no deletions, no behavior change — the mechanism is proven before the
+    cross-cutting refactor.
+  - ⬜ **M6.2c Wire + retire the declarative readers — BLOCKED on keyless trie
+    access.** Projection needs the trie, but the two real consumers read keyless:
+    the search-floor sampler (`search_floor.rs:241`) and `features` build
     `Context::new` with no prefixes, so only the book's own constraint-eval reads
-    can project. Retiring the readers therefore means first giving those paths trie
-    access (a `System` `CommonPrefixes` accessor + prefixing those call sites),
-    then the generic pass + re-authoring the opaque `described()` defense shapes
-    (Stage 4). *Payoff is architectural, not IMPs* (single source of truth; lets
-    rule-replay stand alone); gate neutral-or-better on `ab-search-floor`. The
-    priority M6 cleanup — see the doc for the staged path and per-reader verdict.
+    can project. So make `Stance::prefixed_context` real (a `System`
+    `CommonPrefixes` accessor), prefix those call sites, switch `Inferences::read`
+    onto the pass, and **delete** the three clean declarative readers. *Payoff is
+    architectural, not IMPs* (single source of truth; lets rule-replay stand
+    alone); gate neutral-or-better on `ab-search-floor` + `ab-landy`.
+  - ⬜ **M6.2d Stage 4 — re-author the opaque conventions.** DONT/Woolsey/Multi are
+    authored with the opaque `described()` escape hatch, so they project no info and
+    the detector cannot see them; re-author each as `len` conjuncts
+    (`verify::compare`-guarded against the original closure), then retire the rest.
+    Keep the relay-suppression logic as small `ponytail:` stubs (not a single-rule
+    projection). See the doc's per-reader verdict.
 - 🟡 **M6.3 Competitive conventions on the floor.** Already the active line for
   ~25 commits — the deliverable is the 1NT-defense + competitive-double structure
   that shipped, not the old "Rubens advances" sketch. *Landed:*

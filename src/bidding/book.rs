@@ -412,6 +412,26 @@ impl Stance {
     }
 }
 
+impl Stance {
+    /// The prefixed [`Context`] this stance classifies an auction under
+    ///
+    /// The same trie-routed, prefix-bearing context the [`System`] impl builds
+    /// (cf. [`classify_with_provenance`][Self::classify_with_provenance]).  A
+    /// test-only seam for the projection equivalence harness (M6.2b): it hands the
+    /// otherwise-keyless reading paths the trie access that M6.2c will wire into
+    /// the sampler and features for real.
+    #[cfg(test)]
+    #[must_use]
+    pub(crate) fn prefixed_context<'a>(
+        &'a self,
+        vul: RelativeVulnerability,
+        auction: &'a [Call],
+    ) -> Context<'a> {
+        let trie = self.trie_for(auction);
+        Context::new(vul, auction).with_prefixes(trie.common_prefixes(auction))
+    }
+}
+
 impl System for Stance {
     fn classify(&self, hand: Hand, vul: RelativeVulnerability, auction: &[Call]) -> Option<Logits> {
         resolve(self.trie_for(auction), hand, vul, auction)

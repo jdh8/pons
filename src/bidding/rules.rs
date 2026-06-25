@@ -13,6 +13,7 @@ use super::Map;
 use super::array::Logits;
 use super::constraint::{Constraint, Description};
 use super::context::Context;
+use super::inference::Inference;
 use super::trie::Classifier;
 use contract_bridge::Hand;
 use contract_bridge::auction::Call;
@@ -69,6 +70,19 @@ impl Rule {
     #[must_use]
     pub fn describe(&self) -> Description {
         self.when.describe()
+    }
+
+    /// The forward [`Inference`] envelope this rule's constraint implies
+    ///
+    /// The reading-side dual of [`eval`][Self::eval]: where `eval` scores a
+    /// known hand, `project` reports the per-suit length and point ranges every
+    /// hand the rule accepts must fall within — what a *partner* who saw only
+    /// the call may assert.  Mirrors [`describe`][Self::describe] (both delegate
+    /// to the constraint fold); sound by construction (see
+    /// [`Constraint::project`]).
+    #[must_use]
+    pub fn project(&self, context: &Context<'_>) -> Inference {
+        self.when.project(context)
     }
 }
 

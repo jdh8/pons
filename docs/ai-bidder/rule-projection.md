@@ -1,9 +1,25 @@
 # Rule projection — reading an authored call straight off its rule
 
-> Status (2026-06-25): **Stage 1 shipped** (`Constraint::project`). Stages 2–4
-> (retiring the hand-written `*_reading` decoders) **deferred** — blocked on a
-> keyless-trie-access refactor for an IMP-neutral payoff. This doc is the full
-> design so the effort is resumable.
+> Status (2026-06-25): **Stage 1 shipped** (`Constraint::project`). **Stage 2
+> validated** (M6.2b): `Rule::project` + the generic `authored_reading` pass exist,
+> `#[cfg(test)]`-only, and an equivalence test proves the pass reproduces the three
+> declarative readers (`transfer_major`, `leaping_michaels`, `landy` core) exactly —
+> signature suit lengths *and* points — on prefixed contexts. **Stages 3–4** (the
+> keyless-trie-access wiring, then retiring the readers + re-authoring the opaque
+> conventions) **deferred** — an IMP-neutral architectural refactor. This doc is the
+> full design so the effort is resumable.
+>
+> **Milestone map** (the records split, 2026-06-25):
+> - **M6.2b — validate** (done): `Rule::project`, the offline generic pass, the
+>   equivalence harness. No production wiring, no deletions, no behavior change.
+> - **M6.2c — wire + retire declarative**: a `Stance` `CommonPrefixes` accessor
+>   (the `#[cfg(test)] Stance::prefixed_context` seam, made real), prefix the
+>   keyless sampler/features call sites, switch `Inferences::read` onto the pass,
+>   delete the three clean declarative readers. A/B-gate `ab-search-floor` +
+>   `ab-landy` neutral-or-better.
+> - **M6.2d — Stage 4**: re-author the opaque `described()` conventions
+>   (DONT/Woolsey/Multi) as `len` conjuncts (`verify::compare`-guarded), retire the
+>   rest; keep relay-suppression as `ponytail:` stubs.
 
 ## The idea
 

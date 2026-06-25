@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Rule projection now reads an artificial call's meaning straight off its rule
+  (AI-bidder M6.2b — validation).** `Rule::project` joins `eval`/`describe` as the
+  reading-side fold, and a generic `authored_reading` pass walks the auction's
+  authored trie nodes and, at each *artificial* call (one whose projection floors a
+  suit it did not name — a transfer, a two-suiter, a Landy 2♣), records that
+  projected shape against the bidder's seat. This is the single mechanism meant to
+  replace the seven hand-written `*_reading` decoders. A new equivalence test proves
+  the pass reproduces, exactly (signature suit lengths *and* points), the three
+  declarative readers — `transfer_major_reading`, `leaping_michaels`, and `landy`
+  core — on prefixed contexts built from the real book. **No behavior change:** the
+  pass is `#[cfg(test)]`-only (no production caller yet); wiring it into the keyless
+  sampler/features paths and retiring the readers is M6.2c. See
+  `docs/ai-bidder/rule-projection.md`.
+
 - **Responder's double of an overcall of our 1NT is now optional by default, and
   opener cooperates with it.** `DoubleStyle`'s default flips `Takeout → Optional`:
   over `[1NT,(2X)]`, responder's double shows 2-3 cards and values in their suit —
