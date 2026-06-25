@@ -87,14 +87,14 @@ pub use competition::{
     set_trap_pass, set_uvu, set_uvu_cue_floor, set_uvu_natural_floor, set_uvu_x_floor,
 };
 pub use defense::{
-    DoubleShape, PassedHandDefense, advance_double, defense_to_suit, defense_to_weak_two,
-    set_advance_sohl_style, set_always_pass_defense, set_direct_dont, set_direct_dont_four_four,
+    DoubleShape, advance_double, defense_to_suit, defense_to_weak_two, set_advance_sohl_style,
+    set_always_pass_defense, set_direct_dont, set_direct_dont_four_four,
     set_direct_dont_one_suiter_min, set_direct_landy_double, set_direct_landy_double_floor,
     set_direct_landy_penalty_pass, set_doubled_landy_escape, set_landy, set_landy_hcp,
     set_leaping_michaels, set_natural_defense, set_natural_double_floor, set_natural_double_shape,
     set_natural_double_weight, set_natural_overcall_points, set_notrump_balancing,
-    set_passed_hand_defense, set_responsive_overcall, set_responsive_takeout,
-    set_unusual_notrump_defense, set_woolsey, set_woolsey_double_floor, set_woolsey_points,
+    set_responsive_overcall, set_responsive_takeout, set_unusual_notrump_defense, set_woolsey,
+    set_woolsey_double_floor, set_woolsey_points,
 };
 pub(crate) use defense::{
     direct_dont_enabled, direct_landy_double, landy_range, natural_defense_enabled,

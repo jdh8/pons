@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.10.0] — Unreleased
 
+### Removed
+
+- **The passed-hand 1NT-defense subsystem is deleted.** After the passed-hand
+  both-majors double was made opt-in (default off, losing to BBA), the machinery
+  was dead by default, so it is removed entirely for a blank slate: the
+  `PassedHandDefense` enum, `set_passed_hand_defense` and the thread-local it
+  drove, both 1NT-defense book match arms (the reassigned double, the full passed
+  DONT, their Landy/DONT advances and doubled-`2♦`-relay completions), the
+  passed-hand shape helpers, the `bba-score` `X (PH Landy)` / `X (pen)` bucket
+  split (our direct `X` over their 1NT now buckets as a single `X`), and the
+  `bba-gen --ns-passed-landy` / `ab-landy --ns-passed-dbl` flags. Direct Landy
+  (`landy_advances` / `landy_2d_rebid`), the direct-seat DONT defense, the natural
+  penalty double, and `inference::penalty_x_reading` are untouched.
+
 ### Changed
 
 - **A passed hand's both-majors `X` of their 1NT is now opt-in (default `None`,

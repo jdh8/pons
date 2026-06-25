@@ -100,23 +100,6 @@ fn first_ns_call_after(auction: &[Call], dealer: Seat, nt_index: usize) -> Optio
         })
 }
 
-/// Whether our defensive double of their 1NT is a *passed* hand's both-majors `X`
-/// (PH Landy) rather than the direct-seat 15+ penalty `X` — two completely
-/// different conventions that share the `X` call.  The doubler is a passed hand
-/// iff its lane precedes the opener's (it had to pass before the opening);
-/// mirrors `inference::penalty_x_reading`.  Call only when the first NS call after
-/// the 1NT is a double.
-fn double_is_passed_hand(auction: &[Call], dealer: Seat, nt_index: usize) -> bool {
-    auction[nt_index + 1..]
-        .iter()
-        .enumerate()
-        .find_map(|(off, &call)| {
-            let index = nt_index + 1 + off;
-            matches!(seat_to_act(dealer, index), Seat::North | Seat::South).then_some((index, call))
-        })
-        .is_some_and(|(index, call)| call == Call::Double && index % 4 < nt_index)
-}
-
 /// The 1NT opener's partner's (responder's) first call after the opening — i.e.
 /// what the opponents responded once we did *not* overcall.  Their partner sits
 /// two seats after the opener.  `None` if the responder never gets to call.
@@ -216,19 +199,7 @@ fn main() -> anyhow::Result<()> {
             continue;
         };
         let our_direct = first_ns_call_after(&board.table_a, board.dealer, nt_index);
-        let key = match our_direct {
-            // Defending, our first call is a double: split the two completely
-            // different conventions sharing the `X` call — the direct 15+ penalty
-            // double vs a passed hand's both-majors takeout (PH Landy).
-            Some(Call::Double) if !opener_ns => {
-                if double_is_passed_hand(&board.table_a, board.dealer, nt_index) {
-                    "X (PH Landy)".to_string()
-                } else {
-                    "X (pen)".to_string()
-                }
-            }
-            other => other.map_or_else(|| "(none)".into(), action_label),
-        };
+        let key = our_direct.map_or_else(|| "(none)".into(), action_label);
         let is_uvu = opener_ns && board.table_a.get(nt_index + 1) == Some(&two_nt);
         let (sum, by) = if opener_ns {
             (&mut open, &mut open_by)

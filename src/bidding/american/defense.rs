@@ -8,7 +8,7 @@
 //! double, a natural 2NT overcall, and natural suit overcalls).
 
 use super::super::constraint::{
-    Cons, Constraint, and, balanced, described, hcp, len, min_level_is, or, passed_hand, points,
+    Cons, Constraint, and, balanced, described, hcp, len, min_level_is, or, points,
     short_in_their_suits, stopper_in_their_suits, top_honors,
 };
 use super::super::context::Context;
@@ -255,8 +255,7 @@ thread_local! {
 /// bid the natural `2♠`), `2♣` = clubs + a higher major, `2♦` = diamonds + a major,
 /// `2♥` = both majors, `2♠` = natural spades, plus an owning `Pass` catch-all.
 /// Pair with [`set_unusual_notrump_defense`] to add `2NT` = both minors.  Mutually
-/// exclusive with the natural penalty-X arm ([`set_natural_defense`]); when on, the
-/// passed-hand defense ([`set_passed_hand_defense`]) is also superseded.
+/// exclusive with the natural penalty-X arm ([`set_natural_defense`]).
 pub fn set_direct_dont(on: bool) {
     DIRECT_DONT.with(|cell| cell.set(on));
 }
@@ -331,8 +330,7 @@ thread_local! {
 /// flat 4-4.  The penalty double is dropped entirely (a 15+ balanced hand passes or
 /// overcalls), the four natural two-level suit overcalls are kept, and the advancer
 /// answers through the Landy machinery ([`landy_advances`]).  Mutually exclusive
-/// with the natural penalty-X arm and the Landy `2♣` overlay; when on, the
-/// passed-hand defense ([`set_passed_hand_defense`]) is superseded (this covers the
+/// with the natural penalty-X arm and the Landy `2♣` overlay (this covers the
 /// passed seat too).  The A/B knob for `examples/ab-landy --ns-landy-x`.
 pub fn set_direct_landy_double(shape: Option<bool>) {
     DIRECT_LANDY_DOUBLE.with(|cell| cell.set(shape));
@@ -602,68 +600,6 @@ fn semi_balanced() -> Cons<impl Constraint + Clone> {
             lengths.sort_unstable();
             matches!(lengths, [2, 2, 4, 5] | [2, 2, 3, 6] | [2, 2, 2, 7])
         })
-}
-
-/// The lower point bound for a passed hand's both-majors action over their 1NT
-/// (the [`PassedHandDefense::NaturalLandyDouble`] double).  Both the overcall
-/// gate and the [`landy_advances`] invite/game thresholds read it; a passed
-/// hand (and its likewise-passed advancer) is capped below opening, so the
-/// invite/game arms are unreachable and the pair always signs off at the two
-/// level — exactly right for two passed hands competing for a partscore.
-const PASSED_LANDY_LO: u8 = 6;
-
-/// Which conventional defense a *passed* hand uses over their 1NT, reassigning
-/// the otherwise-dead penalty double (a passed hand cannot hold the 15+ a
-/// penalty double needs).  See [`set_passed_hand_defense`].
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum PassedHandDefense {
-    /// Keep every natural overcall; the freed double shows both majors (≥5-4),
-    /// advanced via the Landy machinery.  Opt-in: against BBA the doubled
-    /// passed-partscores cost more than the convention gains, so the default is
-    /// `None` (the historic dead double).
-    NaturalLandyDouble,
-    /// Full DONT: `X` = a one-suiter (relay `2♣`, then correct), `2♣` = clubs +
-    /// a higher suit, `2♦` = diamonds + a major, `2♥` = both majors.  A passed
-    /// hand cannot *preempt* a two-suiter (our only preempts are one-suited weak
-    /// twos / three-level openings), so DONT's two-suiter coverage targets
-    /// exactly the shapes that had no first-seat voice.  Six-card suits are
-    /// excluded — they would have opened a weak two / preempt in first seat.
-    Dont,
-}
-
-thread_local! {
-    /// The passed-hand 1NT defense.  The **default** is `None` (the historic dead
-    /// double): on a paired BBA A/B the passed-hand both-majors double's doubled
-    /// partscores lose more than it gains, and its earlier self-play "win" was vs
-    /// an always-pass baseline (an obstruction-blind DD artifact).
-    /// [`NaturalLandyDouble`](PassedHandDefense::NaturalLandyDouble) (both majors)
-    /// is the opt-in.  See [`set_passed_hand_defense`].
-    static PASSED_HAND_DEFENSE: Cell<Option<PassedHandDefense>> =
-        const { Cell::new(None) };
-}
-
-/// Configure the passed-hand defense to an opponent's 1NT for books built *after*
-/// this call (thread-local, read once at book-construction time)
-///
-/// A passed hand cannot hold the 15+ HCP of a penalty double, so over their 1NT
-/// its natural double is dead weight.  The **default** is `None` (that dead
-/// double): vs BBA the reassignment loses on doubled passed-partscores.
-/// `Some(`[`NaturalLandyDouble`]`)` is the opt-in that keeps every natural
-/// overcall but reassigns the freed double to both majors (≥5-4, `points(6..)`,
-/// no six-card major), advanced like Landy `2♣`;
-/// `Some(`[`Dont`]`)` is the fuller DONT.  Gated on [`passed_hand`], so
-/// the direct-seat penalty double is untouched and the unpassed defense stays
-/// byte-identical.  The A/B knob for `examples/landy-ab --ns-passed-dbl`.
-///
-/// [`NaturalLandyDouble`]: PassedHandDefense::NaturalLandyDouble
-/// [`Dont`]: PassedHandDefense::Dont
-pub fn set_passed_hand_defense(style: Option<PassedHandDefense>) {
-    PASSED_HAND_DEFENSE.with(|cell| cell.set(style));
-}
-
-/// The configured passed-hand defense, or `None` when off
-fn passed_hand_defense() -> Option<PassedHandDefense> {
-    PASSED_HAND_DEFENSE.with(Cell::get)
 }
 
 thread_local! {
@@ -1095,112 +1031,7 @@ pub fn defense_to_notrump() -> Rules {
             rules.rule(Bid::new(2, Strain::Notrump), 1.8, shape & points(lo..=hi))
         };
     }
-    // DONT covers every seat (its arm above is un-gated by passed_hand()), so the
-    // passed-hand-specific defense is superseded when it is on.
-    match passed_hand_defense()
-        .filter(|_| !direct_dont_enabled() && direct_landy_double().is_none() && !woolsey_enabled())
-    {
-        // A passed hand can't penalize their 1NT (the 15+ double is impossible),
-        // so the double is free: reassign it to both majors (≥5-4), advanced like
-        // Landy 2♣.  Gated on passed_hand() — the direct-seat penalty double above
-        // (gated on the unreachable hcp(15..)) is untouched, and weight 1.9 beats
-        // the natural 2♥/2♠ overcall so a both-majors hand shows the two-suiter.
-        // A six-card major is excluded (passed_two_suiter): it would have opened a
-        // weak two in first seat, so it bids the natural 2♥/2♠ overcall instead.
-        Some(PassedHandDefense::NaturalLandyDouble) => {
-            rules = rules.rule(
-                Call::Double,
-                1.9,
-                passed_two_suiter(Suit::Hearts, Suit::Spades)
-                    & points(PASSED_LANDY_LO..)
-                    & passed_hand(),
-            );
-        }
-        // Full DONT for a passed hand: two-suiters shown directly, one-suiters via
-        // the freed double.  Overlaid at higher weight than the natural overcalls
-        // and gated on passed_hand(), so the unpassed natural defense is untouched
-        // and a passed hand routes through DONT (the natural overcalls remain only
-        // as a never-reached fallback).  Six-card suits open a preempt in first
-        // seat, so every shape here is capped below six (passed_dont_* helpers).
-        Some(PassedHandDefense::Dont) => {
-            let lo = PASSED_LANDY_LO;
-            rules = rules
-                .rule(
-                    Call::Bid(Bid::new(2, Strain::Clubs)),
-                    2.0,
-                    passed_dont_clubs() & points(lo..) & passed_hand(),
-                )
-                .rule(
-                    Call::Bid(Bid::new(2, Strain::Diamonds)),
-                    2.0,
-                    passed_dont_diamonds() & points(lo..) & passed_hand(),
-                )
-                .rule(
-                    Call::Bid(Bid::new(2, Strain::Hearts)),
-                    2.0,
-                    passed_two_suiter(Suit::Hearts, Suit::Spades) & points(lo..) & passed_hand(),
-                )
-                .rule(
-                    Call::Double,
-                    1.9,
-                    passed_dont_one_suiter() & points(lo..) & passed_hand(),
-                );
-        }
-        None => {}
-    }
     rules
-}
-
-/// DONT `2♣` shape: clubs plus a strictly-higher suit (♦/♥/♠), at least 5-4
-/// either way, with no six-card suit (a six-card suit preempts in first seat).
-fn passed_dont_clubs() -> Cons<impl Constraint + Clone> {
-    described(
-        "clubs + a higher suit (5-4, none six-plus)",
-        |h: Hand, _: &Context<'_>| {
-            let c = h[Suit::Clubs].len();
-            let hi = [Suit::Diamonds, Suit::Hearts, Suit::Spades]
-                .iter()
-                .map(|&s| h[s].len())
-                .max()
-                .unwrap_or(0);
-            no_six(h) && ((c >= 5 && hi >= 4) || (c >= 4 && hi >= 5))
-        },
-    )
-}
-
-/// DONT `2♦` shape: diamonds plus a major (♥/♠), at least 5-4 either way, no
-/// six-card suit.  (Diamonds + clubs is shown as `2♣`, clubs being the anchor.)
-fn passed_dont_diamonds() -> Cons<impl Constraint + Clone> {
-    described(
-        "diamonds + a major (5-4, none six-plus)",
-        |h: Hand, _: &Context<'_>| {
-            let d = h[Suit::Diamonds].len();
-            let hi = h[Suit::Hearts].len().max(h[Suit::Spades].len());
-            no_six(h) && ((d >= 5 && hi >= 4) || (d >= 4 && hi >= 5))
-        },
-    )
-}
-
-/// DONT `X` shape: a genuine one-suiter — a five-or-six-card suit with no second
-/// four-card suit (two-suiters are shown directly by `2♣`/`2♦`/`2♥`).
-fn passed_dont_one_suiter() -> Cons<impl Constraint + Clone> {
-    described(
-        "a one-suiter (5-6 cards, no second four-card suit)",
-        |h: Hand, _: &Context<'_>| {
-            let mut lengths =
-                [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades].map(|s| h[s].len());
-            lengths.sort_unstable();
-            let [_, _, second, longest] = lengths;
-            (5..=6).contains(&longest) && second < 4
-        },
-    )
-}
-
-/// No suit is six cards or longer (the passed-hand non-preempt shape gate).
-fn no_six(h: Hand) -> bool {
-    [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades]
-        .iter()
-        .all(|&s| h[s].len() <= 5)
 }
 
 // Direct-seat DONT shapes.  Unlike the passed-hand twins these carry no six-card
@@ -2603,65 +2434,9 @@ pub fn defensive() -> Defensive {
         );
     }
 
-    // Advancing a passed hand's conventional defense to their 1NT, when on.  The
-    // conventional bids are only made by a passed hand, which is only the
-    // [P,P,P,1NT] seat, so these are keyed at that single auction — NOT
-    // insert_all_seats, which would also bind [1NT,X,P] etc., the (floored)
-    // advances of direct-seat defensive actions, to the wrong meaning.  Both
-    // partners passed, so every advance is a two-level pass-or-correct signoff.
     let p = Call::Pass;
     let x = Call::Double;
     let xx = Call::Redouble;
-    // DONT and the direct both-majors X both supersede the passed-hand defense
-    // (each covers every seat below).
-    match passed_hand_defense()
-        .filter(|_| !direct_dont_enabled() && direct_landy_double().is_none())
-    {
-        Some(PassedHandDefense::NaturalLandyDouble) => {
-            let d2 = call(2, Strain::Diamonds);
-            // [P,P,P,1NT,X,P] — advancer picks a major / relays 2♦ (reuse Landy).
-            d.insert(&[p, p, p, notrump, x, p], landy_advances(PASSED_LANDY_LO));
-            // [P,P,P,1NT,X,P,2♦,*] — the 2♦ relay is artificial (equal-majors "pick
-            // a major"), so the doubler names its longer major whether RHO passes OR
-            // doubles it — never left to sit in a short-diamond 2♦x misfit.
-            d.insert(&[p, p, p, notrump, x, p, d2, p], landy_2d_rebid());
-            d.insert(&[p, p, p, notrump, x, p, d2, x], landy_2d_rebid());
-            // [P,P,P,1NT,X,XX] — the 1NT side redoubled.  The double is both-majors
-            // TAKEOUT, not penalty, so advancer must still run (sitting is the
-            // 1NTxx disaster) — same major pick / 2♦ relay as over a pass; the
-            // redouble buys no useful extra step for a both-majors hand.
-            d.insert(&[p, p, p, notrump, x, xx], landy_advances(PASSED_LANDY_LO));
-            // [P,P,P,1NT,X,XX,2♦,*] — doubler corrects to the longer major, again
-            // whether the artificial relay is passed or doubled (the stranded-2♦x
-            // bug otherwise: West doubles the relay and the doubler sits for it).
-            d.insert(&[p, p, p, notrump, x, xx, d2, p], landy_2d_rebid());
-            d.insert(&[p, p, p, notrump, x, xx, d2, x], landy_2d_rebid());
-            // ponytail: no 2NT-ask rebid — the advancer is partner, who also
-            // passed in [P,P,P,…], so it is capped below the game-force threshold
-            // and the 2NT ask is unreachable.  Add it if that ever changes.
-            // ponytail: the *direct*-seat 15+ penalty double redoubled
-            // ([1NT,X,XX]) is left floored — running from a penalty double is
-            // hand-dependent single-dummy judgment, not the unambiguous run a
-            // takeout double demands.  Author it only with a single-dummy measure.
-        }
-        Some(PassedHandDefense::Dont) => {
-            let c2 = call(2, Strain::Clubs);
-            let d2 = call(2, Strain::Diamonds);
-            let h2 = call(2, Strain::Hearts);
-            // X = one-suiter: relay 2♣, then doubler names the suit.
-            d.insert(&[p, p, p, notrump, x, p], passed_dont_x_advance());
-            d.insert(&[p, p, p, notrump, x, p, c2, p], passed_dont_x_rebid());
-            // 2♣ = clubs + a higher suit: pass-or-relay 2♦, then doubler names it.
-            d.insert(&[p, p, p, notrump, c2, p], passed_dont_2c_advance());
-            d.insert(&[p, p, p, notrump, c2, p, d2, p], passed_dont_2c_rebid());
-            // 2♦ = diamonds + a major: pass-or-relay 2♥, then doubler names it.
-            d.insert(&[p, p, p, notrump, d2, p], passed_dont_2d_advance());
-            d.insert(&[p, p, p, notrump, d2, p, h2, p], passed_dont_2d_rebid());
-            // 2♥ = both majors: pass-or-correct to 2♠.
-            d.insert(&[p, p, p, notrump, h2, p], passed_dont_2h_advance());
-        }
-        None => {}
-    }
 
     // Direct-seat DONT advances: the same pass-or-correct relays, but keyed at
     // *every* seat via insert_all_seats (the X/2♣/2♦/2♥ are now direct-seat
@@ -2746,9 +2521,8 @@ pub fn defensive() -> Defensive {
 mod tests {
     use crate::bidding::Family;
     use crate::bidding::american::{
-        LebensohlStyle, PassedHandDefense, american, set_advance_sohl_style,
-        set_always_pass_defense, set_direct_dont, set_direct_landy_double, set_leaping_michaels,
-        set_passed_hand_defense, set_unusual_notrump_defense, set_woolsey,
+        LebensohlStyle, american, set_advance_sohl_style, set_always_pass_defense, set_direct_dont,
+        set_direct_landy_double, set_leaping_michaels, set_unusual_notrump_defense, set_woolsey,
         set_woolsey_double_floor, set_woolsey_points,
     };
     use contract_bridge::auction::{Call, RelativeVulnerability};
@@ -3132,166 +2906,6 @@ mod tests {
         let over_2h = [call(2, Strain::Hearts)];
         let (c, _) = leaping(false, &over_2h, "AKQ65.4.32.KQJ76");
         assert_ne!(c, call(4, Strain::Clubs));
-    }
-
-    /// Best call with the passed-hand defense forced to `style`, restored to the
-    /// prior value after so it never leaks into a sibling test on this thread.
-    fn passed(style: Option<PassedHandDefense>, auction: &[Call], hand: &str) -> (Call, bool) {
-        let prev = super::passed_hand_defense();
-        set_passed_hand_defense(style);
-        let result = best_call(auction, hand);
-        set_passed_hand_defense(prev);
-        result
-    }
-
-    #[test]
-    fn passed_hand_doubles_both_majors_over_their_1nt() {
-        // [P,P,P,1NT]: a passed hand (8 HCP, 5-4 majors, so it can't penalize)
-        // doubles to show both majors when NaturalLandyDouble is on — a book node,
-        // and over the natural 2♠ overcall it would otherwise have to pick one major.
-        let over_1nt = [Call::Pass, Call::Pass, Call::Pass, call(1, Strain::Notrump)];
-        let (c, floored) = passed(
-            Some(PassedHandDefense::NaturalLandyDouble),
-            &over_1nt,
-            "AJ932.K842.32.32",
-        );
-        assert_eq!(c, Call::Double);
-        assert!(
-            !floored,
-            "the both-majors double must come from the book node"
-        );
-
-        // Toggle off: the same hand has no both-majors double, so it falls back to
-        // the natural single-suit overcall (2♠, its five-card major).
-        let (off, _) = passed(None, &over_1nt, "AJ932.K842.32.32");
-        assert_eq!(off, call(2, Strain::Spades));
-    }
-
-    #[test]
-    fn passed_hand_double_advance_picks_a_major() {
-        // [P,P,P,1NT,X,P]: partner showed both majors; a weak advancer with longer
-        // spades signs off in 2♠ (a book node, via the reused Landy advances).
-        let auction = [
-            Call::Pass,
-            Call::Pass,
-            Call::Pass,
-            call(1, Strain::Notrump),
-            Call::Double,
-            Call::Pass,
-        ];
-        let (c, floored) = passed(
-            Some(PassedHandDefense::NaturalLandyDouble),
-            &auction,
-            "K8432.32.432.432",
-        );
-        assert_eq!(c, call(2, Strain::Spades));
-        assert!(
-            !floored,
-            "the major preference must come from the book node"
-        );
-    }
-
-    #[test]
-    fn passed_hand_doubled_relay_completes_to_a_major() {
-        // [P,P,P,1NT,X,XX,2♦,X]: partner's both-majors X was redoubled, the advancer
-        // relayed 2♦ (equal majors, "you pick"), and RHO doubled the artificial
-        // relay.  The doubler must still name its longer major from the book — never
-        // sit in a short-diamond 2♦x (the stranded-relay leak this rule fixes).
-        let auction = [
-            Call::Pass,
-            Call::Pass,
-            Call::Pass,
-            call(1, Strain::Notrump),
-            Call::Double,
-            Call::Redouble,
-            call(2, Strain::Diamonds),
-            Call::Double,
-        ];
-        let (c, floored) = passed(
-            Some(PassedHandDefense::NaturalLandyDouble),
-            &auction,
-            "K842.AJ932.32.32",
-        );
-        assert_eq!(c, call(2, Strain::Hearts));
-        assert!(
-            !floored,
-            "the major completion over a doubled relay must come from the book node"
-        );
-    }
-
-    #[test]
-    fn direct_seat_penalty_double_is_unchanged() {
-        // With the passed-hand defense on, the direct-seat (not passed) double is
-        // still the 15+ penalty double — the passed_hand() gate keeps the two
-        // contexts apart, so the unpassed defense is byte-identical.
-        let over_1nt = [call(1, Strain::Notrump)];
-        let (c, _) = passed(
-            Some(PassedHandDefense::NaturalLandyDouble),
-            &over_1nt,
-            "AKQ2.KQ2.KJ2.432",
-        );
-        assert_eq!(c, Call::Double);
-    }
-
-    #[test]
-    fn passed_hand_dont_shows_two_suiters_and_one_suiters() {
-        // [P,P,P,1NT]: a passed hand routes through DONT — two-suiters shown
-        // directly (none six-plus, those would have preempted), one-suiters via X.
-        let over_1nt = [Call::Pass, Call::Pass, Call::Pass, call(1, Strain::Notrump)];
-        let dont = Some(PassedHandDefense::Dont);
-
-        // Clubs + a higher suit (5♣-4♠) → 2♣.
-        let (c, floored) = passed(dont, &over_1nt, "KJ32.32.4.AQ876");
-        assert_eq!(c, call(2, Strain::Clubs));
-        assert!(!floored, "DONT 2♣ must come from the book node");
-
-        // Diamonds + a major (5♦-4♥) → 2♦.
-        let (c, _) = passed(dont, &over_1nt, "32.KJ32.AQ876.4");
-        assert_eq!(c, call(2, Strain::Diamonds));
-
-        // Both majors (5♠-4♥) → 2♥.
-        let (c, _) = passed(dont, &over_1nt, "AJ932.K842.32.32");
-        assert_eq!(c, call(2, Strain::Hearts));
-
-        // A one-suiter (5 spades, no second four-card suit) → X (the relay double).
-        let (c, _) = passed(dont, &over_1nt, "AKJ87.432.32.432");
-        assert_eq!(c, Call::Double);
-    }
-
-    #[test]
-    fn passed_hand_dont_advances_are_pass_or_correct() {
-        let dont = Some(PassedHandDefense::Dont);
-        let nt = call(1, Strain::Notrump);
-        let p = Call::Pass;
-
-        // Over partner's both-majors 2♥, a weak advancer with longer spades corrects.
-        let after_2h = [p, p, p, nt, call(2, Strain::Hearts), p];
-        let (c, floored) = passed(dont, &after_2h, "K8432.32.432.432");
-        assert_eq!(c, call(2, Strain::Spades));
-        assert!(!floored, "the 2♠ correction must come from the book node");
-
-        // Over partner's one-suiter double, a weak advancer relays 2♣...
-        let after_x = [p, p, p, nt, Call::Double, p];
-        let (relay, _) = passed(dont, &after_x, "Q32.Q32.Q432.432");
-        assert_eq!(relay, call(2, Strain::Clubs));
-
-        // ...and the doubler with long spades names them.
-        let after_relay = [p, p, p, nt, Call::Double, p, call(2, Strain::Clubs), p];
-        let (name, _) = passed(dont, &after_relay, "AKJ87.432.32.432");
-        assert_eq!(name, call(2, Strain::Spades));
-    }
-
-    #[test]
-    fn dont_leaves_the_direct_seat_defense_unchanged() {
-        // DONT is gated on passed_hand(): every direct-seat (unpassed) call is
-        // identical with DONT on and off — a 15+ penalty double, a natural overcall,
-        // whatever the unpassed defense already did.  The byte-identical guarantee.
-        let over_1nt = [call(1, Strain::Notrump)];
-        for hand in ["AKQ2.KQ2.KJ2.432", "KJ32.32.4.AQ876", "AJ932.K842.32.32"] {
-            let (on, _) = passed(Some(PassedHandDefense::Dont), &over_1nt, hand);
-            let (off, _) = passed(None, &over_1nt, hand);
-            assert_eq!(on, off, "DONT changed the direct-seat call for {hand}");
-        }
     }
 
     /// Best call with direct-seat DONT forced on, restored after so it never leaks
