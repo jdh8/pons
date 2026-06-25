@@ -212,6 +212,14 @@ struct Args {
     #[arg(long, default_value_t = 12)]
     ns_woolsey_x_floor: u8,
 
+    /// Disable the penalty-double latch (default on): after our natural penalty X of
+    /// BBA's 1NT, our later doubles read as penalty (double the runout on a stack,
+    /// leave partner's double in) instead of takeout — "once penalty, always
+    /// penalty". Fires only for our side (we made the X), so pair with
+    /// `--advertise-natural`. Pass `--no-ns-penalty-latch` for the A/B off arm.
+    #[arg(long, default_value_t = false)]
+    no_ns_penalty_latch: bool,
+
     /// Our side NEVER competes over BBA's 1NT (default off): authors only Pass at
     /// every seat, the truest "do nothing" baseline.  With `--isolate-defense` the
     /// swing is BBA reaching its contract uncontested (our table) vs BBA disrupting
@@ -696,6 +704,10 @@ fn main() -> anyhow::Result<()> {
     // floor governs partner's takeout-double continuations, including the
     // competitive seam after our defense to 1NT.  Off = the pre-9badc15 floor.
     pons::bidding::instinct::set_settle_floor(!args.no_settle_floor);
+    // Classify-time TLS, set once on this sequential main thread (the latch is
+    // live-read).  Fires only after our natural penalty X of their 1NT, so it
+    // governs only our defensive continuations — BBA bids through its own engine.
+    pons::bidding::instinct::set_penalty_latch(!args.no_ns_penalty_latch);
     // Read at book construction (the opening table): suppress our own 1NT opening
     // so the duplicate's other table can't reintroduce a we-open-1NT swing.
     pons::bidding::american::set_open_one_notrump(!args.no_our_1nt);

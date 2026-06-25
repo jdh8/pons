@@ -386,6 +386,9 @@ impl Inferences {
         // Our natural penalty double of their 1NT (15+): a double names no suit, so the
         // generic walk reads it as nothing — the points floor is recorded post-walk.
         let penalty_x = penalty_x_reading(auction);
+        // The latch's subsequent penalty doubles: each promises four-plus in the suit
+        // it doubles, recorded post-walk so the sampler does not read them as takeout.
+        let penalty_latch_doubles = penalty_latch_double_reading(auction);
 
         for (index, &call) in auction.iter().enumerate() {
             let lane = index % 4;
@@ -753,6 +756,13 @@ impl Inferences {
             let who = relative_of(len, double_index) as usize;
             let floor = crate::bidding::american::natural_double_floor();
             players[who].narrow_points(Range::at_least(floor, POINTS_CAP));
+        }
+
+        // The latch's later penalty doubles: four-plus in the doubled suit (the
+        // floor makes them only on a trump stack), so partner reads them as penalty.
+        for (double_index, suit) in penalty_latch_doubles {
+            let who = relative_of(len, double_index) as usize;
+            players[who].narrow_length(suit, Range::at_least(4, LENGTH_CAP));
         }
 
         Self { players }
@@ -1204,7 +1214,7 @@ fn woolsey_x_reading(auction: &[Call]) -> Option<WoolseyXReading> {
 /// *passed* doubler cannot hold 15+, so their double is the both-majors passed-hand
 /// call, not penalty; an unpassed doubler is identified by lane (a seat that passed
 /// before the opening occupies a lane below `opening_index`).
-fn penalty_x_reading(auction: &[Call]) -> Option<usize> {
+pub(super) fn penalty_x_reading(auction: &[Call]) -> Option<usize> {
     use crate::bidding::american as a;
     if !a::natural_defense_enabled()
         || a::direct_dont_enabled()
@@ -1236,6 +1246,52 @@ fn penalty_x_reading(auction: &[Call]) -> Option<usize> {
     // Seats that passed before the opening fill lanes `0..opening_index` (all the calls
     // there are passes), so an unpassed doubler's lane is at or beyond `opening_index`.
     (double_index % 4 >= opening_index).then_some(double_index)
+}
+
+/// Our side's *subsequent* penalty doubles after the natural penalty X of their
+/// 1NT — the latch's later doubles — each paired with the suit it doubles
+///
+/// The penalty latch ([`set_penalty_latch`][crate::bidding::instinct::set_penalty_latch])
+/// makes these via the trump-stack rule, so each promises four-plus cards in the
+/// doubled suit.  Recording that length stops the sampler reading the double as
+/// takeout — without it the advancer pulls a penalty double thinking partner is
+/// short, the phantom-suit leak the [`penalty_x_reading`] doc names.  Empty unless
+/// the latch is on, so it agrees with the floor on when a later double is penalty.
+///
+/// A contract bid of our own since the X abandons the penalty stance (mirrors
+/// `penalty_latched`), so doubles after such a bid are *not* latched.
+fn penalty_latch_double_reading(auction: &[Call]) -> Vec<(usize, Suit)> {
+    if !crate::bidding::instinct::penalty_latch_enabled() {
+        return Vec::new();
+    }
+    let Some(x_index) = penalty_x_reading(auction) else {
+        return Vec::new();
+    };
+    let our_parity = x_index % 2;
+    let mut out = Vec::new();
+    let mut last_suit_bid: Option<(Suit, usize)> = None; // (suit, the bidder's parity)
+    let mut latched = true;
+    for (index, &call) in auction.iter().enumerate().skip(x_index + 1) {
+        match call {
+            // Our own contract bid leaves the penalty stance: nothing after is latched.
+            Call::Bid(bid) => {
+                if index % 2 == our_parity {
+                    latched = false;
+                }
+                last_suit_bid = bid.strain.suit().map(|suit| (suit, index % 2));
+            }
+            // Our double of their suit runout is penalty: four-plus in that suit.
+            Call::Double if latched && index % 2 == our_parity => {
+                if let Some((suit, bidder_parity)) = last_suit_bid
+                    && bidder_parity != our_parity
+                {
+                    out.push((index, suit));
+                }
+            }
+            _ => {}
+        }
+    }
+    out
 }
 
 /// Which DONT defense call the defending side made over their 1NT

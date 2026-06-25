@@ -9,6 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The penalty-double latch ("once penalty, always penalty"), default on.** New
+  `instinct::set_penalty_latch` (thread-local, **on by default**) models the human
+  rule that once a side makes a penalty double, its later doubles are penalty too —
+  never takeout. After our side's natural penalty double of their 1NT (the one
+  penalty double the floor classifies today, via `penalty_x_reading`) the floor
+  reads our later doubles as penalty: it doubles their runout for penalty on a
+  trump stack instead of for takeout on shortness, and partner leaves our double in
+  rather than advancing it — the mirror of the existing 1NT-runout encircle. Same-
+  side only (the opponents' penalty doubles do not latch us), and a constructive bid
+  of ours since the double unlatches it. The latch ships with a matching
+  `Inferences::read` decoding (`penalty_latch_double_reading`): each later penalty
+  double is read as four-plus cards in the doubled suit (the floor makes them only on
+  a trump stack), so a sampling bidder reads them as penalty rather than takeout and
+  does not pull — the floor action and its meaning stay in lock-step. A no-op unless
+  the natural defense is on. DD-measured a win in the penalty-X bucket with no
+  regression elsewhere — self-play (natural vs always-pass, 100k filtered) improves
+  the X bucket −0.621 → −0.464 IMPs/action-board, and vs BBA (`--advertise-natural`,
+  6k 1NT-filtered) −2.716 → −2.329 IMPs/X-board; the whole-system delta is noise
+  (the latch fires only in penalty-X auctions, ~1% of deals). Disable with
+  `set_penalty_latch(false)` (the off arm of the A/B). The `ab-landy` and `bba-match`
+  examples gain `--ns-penalty-latch` to sweep it.
+
 - **Floor reading for the natural penalty double of their 1NT.** A double of an
   opponent's 1NT names no suit, so the inference walk's takeout branch (which needs
   a *suit* opening) read it as nothing — leaving the floor to sample the doubler as

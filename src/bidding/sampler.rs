@@ -328,6 +328,27 @@ mod tests {
         assert!(passed.rho().points.min < 15);
     }
 
+    /// The latch's subsequent penalty double reads as four-plus in the doubled
+    /// suit, so partner reads it as penalty (and leaves it in) instead of takeout.
+    #[test]
+    fn reads_latched_penalty_double_of_the_runout() {
+        use crate::bidding::instinct::set_penalty_latch;
+        // (1NT) X (2♦) X (P): our penalty X, their runout, partner's penalty double.
+        let auction = [
+            bid(1, Strain::Notrump),
+            Call::Double,
+            bid(2, Strain::Diamonds),
+            Call::Double,
+            Call::Pass,
+        ];
+        // Off: the later double reads as nothing — no length shown.
+        set_penalty_latch(false);
+        assert_eq!(inferences(&auction).partner().length(Suit::Diamonds).min, 0);
+        // On (the default): the latch's double promises four-plus diamonds (the stack).
+        set_penalty_latch(true);
+        assert_eq!(inferences(&auction).partner().length(Suit::Diamonds).min, 4);
+    }
+
     /// A fixed hand short in hearts, so an RHO who must hold 5+ hearts is easy
     /// to satisfy and the sampler reaches its requested count quickly.
     fn short_heart_actor() -> Hand {

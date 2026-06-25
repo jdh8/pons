@@ -117,6 +117,12 @@ std::thread_local! {
     /// [`set_settle_floor`]): partner's takeout double is not 100% forcing, so a
     /// hand may pass to *play the top bid* (defend) instead of always advancing
     static SETTLE_FLOOR: Cell<bool> = const { Cell::new(true) };
+
+    /// Whether the "once penalty, always penalty" latch is in force (**on by
+    /// default** — DD-measured a penalty-X-bucket win with no regression, see
+    /// [`set_penalty_latch`]): after our natural penalty double of their 1NT, our
+    /// later doubles read as penalty (sit / leave in) rather than the takeout default
+    static PENALTY_LATCH: Cell<bool> = const { Cell::new(true) };
 }
 
 /// Responder runs from a doubled 1NT below this many HCP; with more, 1NT-X
@@ -832,6 +838,68 @@ fn not_penalizing() -> Cons<impl Constraint + Clone> {
     pred(|_: Hand, context: &Context<'_>| !Interpretation::read(context).penalizing)
 }
 
+/// Enable or disable the penalty-double latch on the current thread
+///
+/// **On by default** (DD-measured a clear penalty-X-bucket win with no regression:
+/// self-play X bucket −0.621 → −0.464 IMPs/action-board, vs BBA −2.716 → −2.329
+/// IMPs/X-board).  The human "once penalty, always penalty" rule: after our side's
+/// natural penalty double of their 1NT ([`penalty_x_reading`]), our later doubles
+/// read as **penalty** — we double their runout on a trump stack rather than for
+/// takeout on shortness, and partner leaves our double in rather than advancing it.
+/// Keyed off the one penalty double the floor classifies today, so it is a no-op
+/// unless the natural defense is on.  Disable for the off arm of the A/B.  Read at
+/// classification time, per-thread.
+///
+/// [`penalty_x_reading`]: super::inference::penalty_x_reading
+#[doc(hidden)]
+pub fn set_penalty_latch(enabled: bool) {
+    PENALTY_LATCH.with(|flag| flag.set(enabled));
+}
+
+/// Our side has latched into a penalty stance: we made the natural penalty double
+/// of their 1NT earlier this auction and have bid no contract since
+///
+/// Hand-independent — it follows from the calls alone.  Same-side only (the
+/// opponents' penalty doubles do not latch us), and a constructive bid of our own
+/// since the double unlatches it (we left the penalty stance to declare).  Gated
+/// on [`set_penalty_latch`], so it is dormant by default.
+fn penalty_latched(context: &Context<'_>) -> bool {
+    if !PENALTY_LATCH.with(Cell::get) {
+        return false;
+    }
+    let auction = context.auction();
+    let Some(double_index) = super::inference::penalty_x_reading(auction) else {
+        return false;
+    };
+    // The doubler shares the player-to-act's parity (our side), and we have made
+    // no contract bid since — a real bid abandons the penalty stance.
+    double_index % 2 == auction.len() % 2
+        && !auction
+            .iter()
+            .enumerate()
+            .skip(double_index + 1)
+            .any(|(i, call)| i % 2 == double_index % 2 && matches!(call, Call::Bid(_)))
+}
+
+/// Whether the penalty-double latch is enabled (see [`set_penalty_latch`])
+///
+/// Exposed for the inference walk's matching reading
+/// ([`penalty_latch_double_reading`][super::inference]), which must agree with the
+/// floor on when a later double is penalty rather than takeout.
+pub(super) fn penalty_latch_enabled() -> bool {
+    PENALTY_LATCH.with(Cell::get)
+}
+
+/// [`penalty_latched`] as a hand-ignoring [`Constraint`] for the ladder
+fn penalty_latched_c() -> Cons<impl Constraint + Clone> {
+    pred(|_: Hand, context: &Context<'_>| penalty_latched(context))
+}
+
+/// The penalty latch is *not* in force (the takeout-double default applies)
+fn not_penalty_latched() -> Cons<impl Constraint + Clone> {
+    pred(|_: Hand, context: &Context<'_>| !penalty_latched(context))
+}
+
 /// We opened the strong notrump of `nt_level` and partner just transferred with
 /// the call `from` — the cue to complete the transfer
 fn partner_transferred_now(context: &Context<'_>, from: Bid, nt_level: u8) -> bool {
@@ -1374,6 +1442,12 @@ pub fn instinct() -> Rules {
         one_nt_runout_enabled() & leave_in_escape_penalty(),
     );
 
+    // Penalty latch: once our side has penalty-doubled their 1NT, leave in any
+    // later double of ours rather than advance it — "once penalty, always
+    // penalty".  Outranks every advance action (<=1.5); the mirror of the runout
+    // leave-in above, gated on its own A/B knob ([`set_penalty_latch`]).
+    rules = rules.rule(Call::Pass, 1.55, penalty_latched_c() & advancing_a_double());
+
     // UvU encircling: the opponents ran from our 1NT-(2NT)-X.  Double their
     // escape with a trump stack — and keep doubling as they keep running — by
     // agreement; partner leaves in.  Mirrors the doubled-1NT escape chase above,
@@ -1591,14 +1665,26 @@ pub fn instinct() -> Rules {
     }
 
     // Takeout double of their low suit bid: shape with opening values, or
-    // any strong hand planning to bid again.
+    // any strong hand planning to bid again.  The penalty latch steps these
+    // aside — once we own the auction for penalty, a double is not takeout.
     rules
         .rule(
             Call::Double,
             0.9,
-            their_live_bid_at_most(3) & short_in_their_suits() & hcp(12..),
+            their_live_bid_at_most(3) & short_in_their_suits() & hcp(12..) & not_penalty_latched(),
         )
-        .rule(Call::Double, 0.8, their_live_bid_at_most(3) & points(17..))
+        .rule(
+            Call::Double,
+            0.8,
+            their_live_bid_at_most(3) & points(17..) & not_penalty_latched(),
+        )
+        // Penalty latch: double their runout for penalty on a trump stack instead
+        // of takeout on shortness.  Weight matches the runout penalty doubles.
+        .rule(
+            Call::Double,
+            1.6,
+            their_live_bid_at_most(3) & penalty_latched_c() & doubled_suit_stack(),
+        )
 }
 
 #[cfg(test)]
@@ -1661,6 +1747,47 @@ mod tests {
         // KQ92 behind the 2♠ bidder sits for partner's takeout double.
         let auction = [call(2, Strain::Spades), Call::Double, Call::Pass];
         assert_eq!(best(&auction, "KQ92.A532.J42.96"), Call::Pass);
+    }
+
+    #[test]
+    fn penalty_latch_doubles_the_runout_for_penalty() {
+        // (1NT) X — our penalty double — (2♦) runout; we hold a diamond stack.
+        let auction = [
+            call(1, Strain::Notrump),
+            Call::Double,
+            call(2, Strain::Diamonds),
+        ];
+        // A pure diamond stack (9 HCP, all in their suit): combined with partner's
+        // shown 15+ this is below game, so the floor neither bids nor advances.
+        // Latch off — defend by passing, no penalty double offered.
+        set_penalty_latch(false);
+        assert_eq!(best(&auction, "T98.964.AKQ7.853"), Call::Pass);
+        // Latch on (the default): "once penalty, always penalty" — double for penalty.
+        set_penalty_latch(true);
+        assert_eq!(best(&auction, "T98.964.AKQ7.853"), Call::Double);
+        // The latch keys off the 1NT penalty double only: a plain takeout auction
+        // is untouched — short in clubs with opening values still doubles 2♣ takeout.
+        let takeout = [call(2, Strain::Clubs)];
+        assert_eq!(best(&takeout, "AQ95.KJ73.K842.6"), Call::Double);
+    }
+
+    #[test]
+    fn penalty_latch_leaves_partner_s_double_in() {
+        // (1NT) X (2♦) X (Pass): partner doubled the runout for penalty, back to us.
+        let auction = [
+            call(1, Strain::Notrump),
+            Call::Double,
+            call(2, Strain::Diamonds),
+            Call::Double,
+            Call::Pass,
+        ];
+        // A flat 16-count with no diamond stopper: latch off, the takeout-advance
+        // jumps to a dubious 4♠ on a four-card suit.
+        set_penalty_latch(false);
+        assert_eq!(best(&auction, "AQ74.AQ5.82.A632"), call(4, Strain::Spades));
+        // Latched (the default), partner's double is penalty — leave it in (defend 2♦x).
+        set_penalty_latch(true);
+        assert_eq!(best(&auction, "AQ74.AQ5.82.A632"), Call::Pass);
     }
 
     #[test]

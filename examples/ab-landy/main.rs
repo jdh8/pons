@@ -43,6 +43,7 @@ use pons::bidding::american::{
     set_natural_double_shape, set_passed_hand_defense, set_penalty_pass,
     set_unusual_notrump_defense, set_woolsey, set_woolsey_double_floor, set_woolsey_points,
 };
+use pons::bidding::instinct::set_penalty_latch;
 use pons::scoring::{final_contract, imps, ns_score_bid, ns_score_contract};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -188,6 +189,15 @@ struct Args {
     /// matters with `--ns-woolsey`; the X advancer's game-ask threshold tracks it.
     #[arg(long, default_value = "12")]
     ns_woolsey_x_floor: u8,
+
+    /// The penalty-double latch for the *measured* pair: `on` (default) or `off`.
+    /// "Once penalty, always penalty" — after the natural penalty X of their 1NT,
+    /// our later doubles read as penalty (double the runout on a stack, leave
+    /// partner's double in) instead of takeout. Fires only for the side that made
+    /// the penalty X (the measured pair), so it self-isolates against the baseline.
+    /// Pass `off` for the A/B off arm.
+    #[arg(long, default_value = "on")]
+    ns_penalty_latch: String,
 
     /// Only count deals that can plausibly reach a Landy overcall of 1NT (a cheap
     /// shape pre-filter), so the DD budget lands on boards that can actually
@@ -451,6 +461,7 @@ fn main() {
         other => panic!("unknown --ns-landy-x {other:?} (use off, 5-4, or 4-4)"),
     };
     let ns_woolsey = parse_on_off(&args.ns_woolsey, "--ns-woolsey");
+    let ns_penalty_latch = parse_on_off(&args.ns_penalty_latch, "--ns-penalty-latch");
     let woolsey_range = parse_range(&args.ns_woolsey_range).unwrap_or((9, 19));
     let ns_penalty_pass = parse_penalty_pass(&args.ns_penalty_pass, "--ns-penalty-pass");
     let ew_penalty_pass = parse_penalty_pass(&args.ew_penalty_pass, "--ew-penalty-pass");
@@ -566,6 +577,10 @@ fn main() {
         .par_iter()
         .enumerate()
         .map(|(i, &deal)| {
+            // The latch is a live-read instinct flag, so set it per worker thread
+            // (Rayon workers do not inherit the main thread's thread-locals). It
+            // fires only for the side that made the penalty X — the measured pair.
+            set_penalty_latch(ns_penalty_latch);
             let dealer = Seat::ALL[i % 4];
             let table_a = bid_out(&measured, &baseline, true, dealer, vul, &deal);
             let table_b = bid_out(&measured, &baseline, false, dealer, vul, &deal);
@@ -686,7 +701,7 @@ fn main() {
         Some((len, hcp, major)) => format!("{len}:{hcp}{}", if major { ":major" } else { "" }),
     };
     let arms = format!(
-        "2♣ majors {}, 2NT minors {} [{}], natural NS {}/EW {}, X-shape {}, landy-X {}@{}+, passed-def {}, pen-pass NS {}/EW {}",
+        "2♣ majors {}, 2NT minors {} [{}], natural NS {}/EW {}, X-shape {}, landy-X {}@{}+, passed-def {}, pen-pass NS {}/EW {}, pen-latch {}",
         label(majors),
         label(minors),
         args.strength,
@@ -702,6 +717,7 @@ fn main() {
         },
         pp_label(ns_penalty_pass),
         pp_label(ew_penalty_pass),
+        if ns_penalty_latch { "on" } else { "off" },
     );
     println!(
         "=== Landy-vs-default A/B ({arms}): {} boards, vulnerability {}, scoring {} ===",
