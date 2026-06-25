@@ -2613,23 +2613,24 @@ pub fn defensive() -> Defensive {
         .filter(|_| !direct_dont_enabled() && direct_landy_double().is_none())
     {
         Some(PassedHandDefense::NaturalLandyDouble) => {
+            let d2 = call(2, Strain::Diamonds);
             // [P,P,P,1NT,X,P] — advancer picks a major / relays 2♦ (reuse Landy).
             d.insert(&[p, p, p, notrump, x, p], landy_advances(PASSED_LANDY_LO));
-            // [P,P,P,1NT,X,P,2♦,P] — doubler corrects to the longer major.
-            d.insert(
-                &[p, p, p, notrump, x, p, call(2, Strain::Diamonds), p],
-                landy_2d_rebid(),
-            );
+            // [P,P,P,1NT,X,P,2♦,*] — the 2♦ relay is artificial (equal-majors "pick
+            // a major"), so the doubler names its longer major whether RHO passes OR
+            // doubles it — never left to sit in a short-diamond 2♦x misfit.
+            d.insert(&[p, p, p, notrump, x, p, d2, p], landy_2d_rebid());
+            d.insert(&[p, p, p, notrump, x, p, d2, x], landy_2d_rebid());
             // [P,P,P,1NT,X,XX] — the 1NT side redoubled.  The double is both-majors
             // TAKEOUT, not penalty, so advancer must still run (sitting is the
             // 1NTxx disaster) — same major pick / 2♦ relay as over a pass; the
             // redouble buys no useful extra step for a both-majors hand.
             d.insert(&[p, p, p, notrump, x, xx], landy_advances(PASSED_LANDY_LO));
-            // [P,P,P,1NT,X,XX,2♦,P] — doubler corrects to the longer major.
-            d.insert(
-                &[p, p, p, notrump, x, xx, call(2, Strain::Diamonds), p],
-                landy_2d_rebid(),
-            );
+            // [P,P,P,1NT,X,XX,2♦,*] — doubler corrects to the longer major, again
+            // whether the artificial relay is passed or doubled (the stranded-2♦x
+            // bug otherwise: West doubles the relay and the doubler sits for it).
+            d.insert(&[p, p, p, notrump, x, xx, d2, p], landy_2d_rebid());
+            d.insert(&[p, p, p, notrump, x, xx, d2, x], landy_2d_rebid());
             // ponytail: no 2NT-ask rebid — the advancer is partner, who also
             // passed in [P,P,P,…], so it is capped below the game-force threshold
             // and the 2NT ask is unreachable.  Add it if that ever changes.
@@ -3182,6 +3183,34 @@ mod tests {
         assert!(
             !floored,
             "the major preference must come from the book node"
+        );
+    }
+
+    #[test]
+    fn passed_hand_doubled_relay_completes_to_a_major() {
+        // [P,P,P,1NT,X,XX,2♦,X]: partner's both-majors X was redoubled, the advancer
+        // relayed 2♦ (equal majors, "you pick"), and RHO doubled the artificial
+        // relay.  The doubler must still name its longer major from the book — never
+        // sit in a short-diamond 2♦x (the stranded-relay leak this rule fixes).
+        let auction = [
+            Call::Pass,
+            Call::Pass,
+            Call::Pass,
+            call(1, Strain::Notrump),
+            Call::Double,
+            Call::Redouble,
+            call(2, Strain::Diamonds),
+            Call::Double,
+        ];
+        let (c, floored) = passed(
+            Some(PassedHandDefense::NaturalLandyDouble),
+            &auction,
+            "K842.AJ932.32.32",
+        );
+        assert_eq!(c, call(2, Strain::Hearts));
+        assert!(
+            !floored,
+            "the major completion over a doubled relay must come from the book node"
         );
     }
 

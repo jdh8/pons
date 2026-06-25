@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **A passed hand's both-majors `X` of their 1NT no longer strands a doubled `2♦`
+  relay.** After `[P,P,P,1NT,X,(XX),2♦]` the `2♦` is the artificial equal-majors
+  relay ("you pick a major"), but only the *passed*-relay continuation
+  (`…2♦,P → name the major`) was authored; when the opponents *doubled* the relay
+  the doubler had no rule and sat, declaring `2♦x` on a 4-2 misfit. The doubler
+  now corrects to its longer major whether the relay is passed or doubled (the
+  `…2♦,X` twins, matching the direct-seat both-majors branch). Isolated DD effect
+  vs BBA's 2/1 (the six affected boards/seed): the penalty/both-majors `X` bucket
+  improves −1.588 → −1.448 IMPs/X-board non-vulnerable and −1.013 → −0.903
+  vulnerable, no regression elsewhere.
 - **After our natural penalty double of their 1NT, the doubler stops pulling its
   own double** (`set_penalty_no_pull`, **on by default**). A double is not a bid,
   so the keyless instinct floor's overcall-shaped rules (the 15–18 balanced
