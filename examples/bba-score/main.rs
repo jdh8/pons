@@ -275,7 +275,7 @@ fn main() -> anyhow::Result<()> {
                 "\n[board {index}] dealer {:?}, swing {points:+} pts / {imp:+} IMPs",
                 board.dealer
             );
-            println!("  {}", board.deal.display(Seat::North));
+            println!("  {}", board.deal.display(Seat::West));
             println!(
                 "  ours NS @ A: {}  -> {}",
                 show_auction(&board.table_a),
