@@ -2022,11 +2022,13 @@ mod tests {
     }
 
     #[test]
-    fn transfer_invite_reaches_the_floor_and_finds_the_six_two_fit() {
+    fn transfer_invite_reaches_the_floor_over_a_possible_five_two() {
         // 1NT–2♦–2♥–3♥: partner transferred to hearts and raised, an off-book
-        // invitation with a six-card suit.  The auction is floor territory, and a
-        // maximum 1NT accepts to 4♥ — the known six-two fit (our doubleton
-        // opposite partner's shown six) outranks 3NT, the inference M6.1 added.
+        // invitation.  The projection reads the 2♦ transfer's five-card floor (M6.1's
+        // core), but M6.2c dropped the old reader's six-card upgrade off the 3♥ raise
+        // (soundness over tightness — projecting a natural-suit raise is out of the
+        // overlay's artificial-only scope).  With only a five-card major shown and our
+        // own doubleton, the floor prefers 3NT over a possible 5-2 game.
         let invite = [
             call(1, Strain::Notrump),
             Call::Pass,
@@ -2042,7 +2044,7 @@ mod tests {
             from_floor,
             "the transfer invite is off-book, the floor decides"
         );
-        assert_eq!(bid, call(4, Strain::Hearts));
+        assert_eq!(bid, call(3, Strain::Notrump));
     }
 
     #[test]

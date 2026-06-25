@@ -364,16 +364,17 @@ impl Inferences {
         // skips them, and capture a cue-raise's strength to apply afterwards.
         let (rubens_suppress, rubens_cue) = rubens_reading(auction);
 
-        // A Leaping Michaels jump (4♣/4♦ over their weak two) shows two suits, so
-        // its natural single-suit reading is suppressed and the pair recorded
-        // post-walk (cf. the Rubens cue).
-        let leaping_michaels = leaping_michaels_reading(auction);
-
-        // A Landy 2♣ (both majors) over their 1NT, and the advancer's 2♦ relay,
-        // are artificial bids in real suits — suppress their natural reading and
-        // record the two-suiter post-walk (cf. Leaping Michaels).  Woolsey reuses
-        // this for its 2♣ (Woolsey = Landy 2♣ + the Multi family below).
-        let landy = landy_reading(auction);
+        // The three declarative conventions — Jacoby transfers over our notrump,
+        // Leaping Michaels, and Landy's 2♣ — are read straight off their authored
+        // rule's projection rather than re-derived by hand (M6.2c).  `overlay`
+        // records each artificial call's projected shape (applied post-walk);
+        // `suppressed` is a bitset of the indices whose natural single-suit reading
+        // the walk must skip.
+        let (overlay, suppressed) = project_authored(context);
+        // The one suppression the projection cannot see: the advancer's 2♦ relay /
+        // 2♥-2♠ preference over a Landy/Woolsey both-majors 2♣ names no length of its
+        // own, so its rule projects nothing — suppress it by hand (the doc's stub).
+        let landy_relay = landy_advance_suppress(auction);
         // The Woolsey Multi family: 2♦ (a single 6+ major — its diamond reading
         // suppressed) and the 2♥/2♠ Muiderberg, recorded post-walk.
         let multi = multi_reading(auction);
@@ -438,8 +439,8 @@ impl Inferences {
                             || stayman_artificial
                             || nt_structure_artificial(auction, index, opening_index)
                             || rubens_suppress.contains(&Some(index))
-                            || leaping_michaels.is_some_and(|(i, _, _)| i == index)
-                            || landy.is_some_and(|l| l.suppresses(index))
+                            || (index < 64 && suppressed >> index & 1 != 0)
+                            || landy_relay == Some(index)
                             || multi.is_some_and(|m| m.suppresses(index))
                             || woolsey_x.is_some_and(|w| w.suppresses(index))
                             || dont.is_some_and(|d| d.suppresses(index));
@@ -635,51 +636,15 @@ impl Inferences {
             players[who].narrow_points(Range::at_least(10, POINTS_CAP));
         }
 
-        // A completed Jacoby major transfer over our own strong notrump shows
-        // responder's suit; a follow-up jump to game or raise of the transferred
-        // suit upgrades it to a six-card suit (and pins invitational strength).
-        // The generic walk suppresses the artificial transfer and its
-        // completion, so derive this here (soundness over tightness, as with the
-        // Rubens advances above).
-        if let Some((responder_index, major, min_length, points)) =
-            transfer_major_reading(auction, opening_index)
-        {
-            let who = relative_of(len, responder_index) as usize;
-            players[who].narrow_length(major, Range::at_least(min_length, LENGTH_CAP));
-            if let Some(points) = points {
-                players[who].narrow_points(points);
-            }
-        }
-
-        // A Leaping Michaels overcall of a weak two shows a 5-5 two-suiter with
-        // game-forcing values (point_count ≥ 14, matching the overcall gate).
-        // Over 2♦, 4♣'s major is unknown, so only clubs is pinned.  The jump's
-        // natural single-suit reading was suppressed above so this records the
-        // pair — the signal the search sampler needs to condition partner.
-        if let Some((overcall_index, primary, secondary)) = leaping_michaels {
-            let who = relative_of(len, overcall_index) as usize;
-            players[who].narrow_length(primary, Range::at_least(5, LENGTH_CAP));
-            if let Some(secondary) = secondary {
-                players[who].narrow_length(secondary, Range::at_least(5, LENGTH_CAP));
-            }
-            players[who].narrow_points(Range::at_least(14, POINTS_CAP));
-        }
-
-        // A Landy overcall of their 1NT shows at least 5-4 in a pair of suits
-        // (majors over 2♣, minors over 2NT) with the configured points floor.  The
-        // 2♣'s natural club reading (and the 2♦ relay's diamond reading) were
-        // suppressed above, so record the pair here for the search sampler.
-        if let Some(landy) = landy {
-            let who = relative_of(len, landy.overcall_index) as usize;
-            // 2♣ shows at least 5-4 in the majors; 2NT at least 5-5 in the minors.
-            let (a, b, min_len) = if landy.majors {
-                (Suit::Hearts, Suit::Spades, 4)
-            } else {
-                (Suit::Clubs, Suit::Diamonds, 5)
-            };
-            players[who].narrow_length(a, Range::at_least(min_len, LENGTH_CAP));
-            players[who].narrow_length(b, Range::at_least(min_len, LENGTH_CAP));
-            players[who].narrow_points(Range::at_least(landy.floor, POINTS_CAP));
+        // The three declarative conventions (Jacoby transfers over our notrump,
+        // Leaping Michaels, Landy's 2♣) are recorded from their authored rule's
+        // projection — the `overlay` computed above — not a hand-written decoder
+        // (M6.2c).  Sound but looser than the old readers: it pins the 2♦ transfer's
+        // five-card floor, not the six-card jump upgrade the reader inferred from a
+        // later call.  The opaque conventions below still record by hand until M6.2d
+        // re-authors them as `len` conjuncts.
+        for (seat, projected) in overlay.iter().enumerate() {
+            players[seat] = players[seat].intersect(projected);
         }
 
         // A Woolsey Multi-family overcall.  The "6+ major" (2♦) and "4+ minor"
@@ -791,18 +756,35 @@ impl Inferences {
 /// [`Inference::unknown`], so this is a sound, loose *overlay* — never the natural
 /// reading itself (openings, raises, rebids stay in [`Inferences::read`]).
 ///
-// ponytail: `#[cfg(test)]` because the only caller today is the M6.2b equivalence
-// harness — the mechanism is validated but not wired.  M6.2c gives the keyless
-// sampler/features paths trie access and calls it for real; drop the gate then.
+/// The projection in isolation: [`Inferences::read`] folds [`project_authored`]
+/// directly, so this thin wrapper now serves only the M6.2b equivalence test.
 #[cfg(test)]
 #[must_use]
 pub(crate) fn authored_reading(context: &Context<'_>) -> Inferences {
+    Inferences {
+        players: project_authored(context).0,
+    }
+}
+
+/// Project every artificial prior call into a per-seat overlay, plus a bitset of the
+/// artificial calls' auction positions
+///
+/// The shared walk behind both halves of the retired declarative readers, folded
+/// into [`Inferences::read`] (M6.2c): the overlay *records* each artificial call's
+/// projected shape against the bidder's seat, and the bitset marks which calls to
+/// *suppress* from the natural single-suit reading.  A call is artificial when its
+/// projection floors a suit it did not name (see [`artificial`]).
+///
+/// The bitset indexes by auction position; a position past 64 (never reached by a
+/// real auction) is simply left unmarked, falling back to the natural reading.
+fn project_authored(context: &Context<'_>) -> ([Inference; 4], u64) {
     let auction = context.auction();
     let len = auction.len();
     let mut players = [Inference::unknown(); 4];
+    let mut suppressed = 0u64;
 
     let Some(prefixes) = context.prefixes() else {
-        return Inferences { players };
+        return (players, suppressed);
     };
 
     for (prefix, classifier) in prefixes.clone() {
@@ -823,10 +805,13 @@ pub(crate) fn authored_reading(context: &Context<'_>) -> Inferences {
         if let Some(projection) = projection.filter(|p| artificial(p, made)) {
             let who = relative_of(len, index) as usize;
             players[who] = players[who].intersect(&projection);
+            if index < 64 {
+                suppressed |= 1 << index;
+            }
         }
     }
 
-    Inferences { players }
+    (players, suppressed)
 }
 
 /// Whether a call's projection floors a suit other than the one it names
@@ -836,7 +821,6 @@ pub(crate) fn authored_reading(context: &Context<'_>) -> Inferences {
 /// artificial one floors a suit it did not name (Jacoby 2♦ → 5+♥, Landy 2♣ → 4-4
 /// majors).  A min-length floor of four-plus on a non-named suit is the witness —
 /// above any natural by-product, below every convention's real shape.
-#[cfg(test)]
 fn artificial(projection: &Inference, made: Call) -> bool {
     let named = match made {
         Call::Bid(bid) => bid.strain.suit(),
@@ -946,90 +930,23 @@ fn rubens_reading(auction: &[Call]) -> ([Option<usize>; 2], Option<(usize, Suit)
     ([Some(advance_index), completion], None)
 }
 
-/// What a Leaping Michaels jump shows about the overcaller
+/// The advancer's `2♦` relay / `2♥`-`2♠` preference over a Landy/Woolsey both-majors
+/// `2♣`, whose natural single-suit reading is suppressed
 ///
-/// Returns `(overcall_index, primary, secondary)`: the overcaller holds five-plus
-/// in `primary` (and in `secondary` when known), game-forcing values.  Over a
-/// major the jump is a minor + the *other* major (both known); over `2♦` the `4♦`
-/// cue shows both majors, while `4♣` shows clubs + an *unknown* major, so only
-/// clubs is pinned (`secondary` is `None`).  The jump's natural single-suit
-/// reading is suppressed in the walk so the pair is recorded post-walk — mirrors
-/// [`rubens_reading`].
+/// The one suppression the projection pass cannot supply: a relay names no length of
+/// its own, so its authored rule projects nothing and the artificial detector (which
+/// drives the rest of the suppression now, M6.2c) misses it.  The `2♣` overcall
+/// itself, and every other retired convention's shape, are read straight off their
+/// projected rule; this is the lone hand stub the doc keeps.
 ///
-/// Returns `None` unless Leaping Michaels is enabled *and* the auction is a weak
-/// two followed by the defending side's first action being a `4♣`/`4♦` jump, so a
-/// natural four-level bid is never mistaken for the convention.
-fn leaping_michaels_reading(auction: &[Call]) -> Option<(usize, Suit, Option<Suit>)> {
-    if !crate::bidding::american::leaping_michaels_enabled() {
-        return None;
-    }
-    let opening_index = auction.iter().position(|&c| c != Call::Pass)?;
-    let Call::Bid(opening) = auction[opening_index] else {
-        return None;
-    };
-    let theirs = opening.strain.suit()?;
-    // A weak two (2♦/2♥/2♠); 2♣ is the strong artificial opening, not a weak two.
-    if opening.level.get() != 2 || theirs == Suit::Clubs {
-        return None;
-    }
-    // The overcall is the defending side's *first* action: a jump to 4♣ or 4♦.
-    let opener_parity = opening_index % 2;
-    for (index, &call) in auction.iter().enumerate().skip(opening_index + 1) {
-        match call {
-            Call::Pass => {}
-            Call::Bid(bid) if index % 2 != opener_parity => {
-                let lm = bid.strain.suit()?;
-                if bid.level.get() != 4 || !matches!(lm, Suit::Clubs | Suit::Diamonds) {
-                    return None;
-                }
-                let (primary, secondary) = leaping_michaels_suits(theirs, lm);
-                return Some((index, primary, secondary));
-            }
-            // The defending side did something else first — not a Leaping Michaels.
-            _ => return None,
-        }
-    }
-    None
-}
-
-/// What a Landy two-suiter shows about the overcaller
-///
-/// `overcall_index` is our `2♣` (both majors) or `2NT` (both minors) over their
-/// 1NT; `majors` distinguishes the two; `floor` is the configured points floor;
-/// `advance_suppress` is the advancer's response over `2♣` whose natural reading
-/// must be suppressed (the `2♦` relay or a `2♥`/`2♠` preference — none is own length).
-#[derive(Clone, Copy)]
-struct LandyReading {
-    overcall_index: usize,
-    majors: bool,
-    floor: u8,
-    advance_suppress: Option<usize>,
-}
-
-impl LandyReading {
-    /// Whether the call at `index` is an artificial Landy bid whose natural
-    /// single-suit reading must be suppressed: our `2♣` (clubs), or the advancer's
-    /// `2♦` relay / `2♥`/`2♠` preference (a pick among partner's two majors, not own
-    /// length).  The `2NT` overcall is not a suit, so it never needs suppression.
-    fn suppresses(&self, index: usize) -> bool {
-        (self.majors && self.overcall_index == index) || self.advance_suppress == Some(index)
-    }
-}
-
-/// Read a two-suiter overcall of their 1NT: a Landy `2♣` (both majors, gated by
-/// [`set_landy`]) or a both-minors `2NT` (gated by [`set_unusual_notrump_defense`])
-///
-/// Returns `None` unless the relevant toggle is on *and* the auction is `1NT`
-/// followed by the defending side's first action being that bid, so a natural bid
-/// is never mistaken for the convention.  Mirrors [`leaping_michaels_reading`].
-fn landy_reading(auction: &[Call]) -> Option<LandyReading> {
-    // Woolsey's 2♣ is the identical both-majors call, so it reads through here too
-    // (Woolsey = Landy 2♣ + the Multi family in `multi_reading`).
-    let majors_floor = crate::bidding::american::landy_range().or_else(|| {
-        crate::bidding::american::woolsey_enabled().then(crate::bidding::american::woolsey_points)
-    });
-    let minors_floor = crate::bidding::american::unusual_notrump_range();
-    if majors_floor.is_none() && minors_floor.is_none() {
+/// `None` unless Landy or Woolsey is on *and* the defending side's first action over
+/// their `1NT` was the both-majors `2♣`, so a natural `2♣` is never mistaken for it.
+// ponytail: a relay projects no info, so suppress it by hand; the upgrade path is to
+// author the relay's rule with the negated lengths so the detector catches it too.
+fn landy_advance_suppress(auction: &[Call]) -> Option<usize> {
+    let on = crate::bidding::american::landy_range().is_some()
+        || crate::bidding::american::woolsey_enabled();
+    if !on {
         return None;
     }
     let opening_index = auction.iter().position(|&c| c != Call::Pass)?;
@@ -1038,45 +955,22 @@ fn landy_reading(auction: &[Call]) -> Option<LandyReading> {
     }
     let opener_parity = opening_index % 2;
 
-    // The overcall is the defending side's *first* action: an enabled 2♣ or 2NT.
-    let (overcall_index, majors, floor) = auction
+    // The both-majors 2♣ must be the defending side's first action.
+    let overcall_index = auction
         .iter()
         .enumerate()
         .skip(opening_index + 1)
         .find_map(|(index, &call)| match call {
             Call::Pass => None,
             Call::Bid(bid) if index % 2 != opener_parity => {
-                let hit = if bid == Bid::new(2, Strain::Clubs) {
-                    majors_floor.map(|(lo, _)| (index, true, lo))
-                } else if bid == Bid::new(2, Strain::Notrump) {
-                    minors_floor.map(|(lo, _)| (index, false, lo))
-                } else {
-                    None
-                };
-                Some(hit)
+                Some((bid == Bid::new(2, Strain::Clubs)).then_some(index))
             }
-            // The opener's side acted (a response), or a defender did something
-            // else (e.g. a penalty double) — not a two-suiter overcall.
+            // The opener answered, or a defender did something else — not a 2♣ Landy.
             _ => Some(None),
         })
         .flatten()?;
 
-    // The advancer's response over 2♣ — the 2♦ relay, a 2♥/2♠ preference among
-    // partner's majors, or the same as a *runout* when the opponents double the 2♣.
-    // None is own length (the 2♦ is a relay, the 2♥/2♠ merely picks one of partner's
-    // two suits, often a doubleton), so all are suppressed.  An opponents' double is
-    // skipped (so the runout case is covered too); an opponents' *suit* bid stops the
-    // scan (they competed — our later calls are off-meaning).
-    let advance_suppress = majors
-        .then(|| advancer_artificial(auction, overcall_index, opener_parity))
-        .flatten();
-
-    Some(LandyReading {
-        overcall_index,
-        majors,
-        floor,
-        advance_suppress,
-    })
+    advancer_artificial(auction, overcall_index, opener_parity)
 }
 
 /// The index of the advancer's first `2♦`/`2♥`/`2♠` response over a both-majors /
@@ -1153,11 +1047,11 @@ impl MultiReading {
 ///
 /// Gated on [`woolsey_enabled`][crate::bidding::american::woolsey_enabled] and the
 /// auction being `1NT` then the defending side's first action being that bid.  The
-/// both-majors `2♣` is read by [`landy_reading`] (Woolsey = Landy 2♣ + this family).
+/// both-majors `2♣` is read off its authored rule by the projection pass folded
+/// into [`Inferences::read`] (Woolsey = Landy 2♣ + this family).
 ///
-/// ponytail: kept separate from `landy_reading` so this Multi reading is reusable
-/// for a future Multi `2♦` *opening* (an unknown-major weak two) — same shape, no
-/// 1NT prefix.
+/// ponytail: kept separate so this Multi reading is reusable for a future Multi `2♦`
+/// *opening* (an unknown-major weak two) — same shape, no 1NT prefix.
 fn multi_reading(auction: &[Call]) -> Option<MultiReading> {
     if !crate::bidding::american::woolsey_enabled() {
         return None;
@@ -1418,7 +1312,7 @@ enum DontKind {
 /// be only 4 cards in the named suit) or are relays, so the generic walk misreads
 /// them — leaving the floor to raise a phantom suit or sample a random hand.  The
 /// natural `2♠` is a genuine spade suit and needs no reading.  Mirrors
-/// [`landy_reading`] / [`multi_reading`] / [`woolsey_x_reading`].
+/// [`multi_reading`] / [`woolsey_x_reading`].
 #[derive(Clone, Copy)]
 struct DontReading {
     overcall_index: usize,
@@ -1504,111 +1398,6 @@ fn dont_reading(auction: &[Call]) -> Option<DontReading> {
         floor,
         advance_suppress,
     })
-}
-
-/// The suit(s) a Leaping Michaels jump `lm` (clubs or diamonds) shows over their
-/// weak two `theirs`, as `(primary, secondary)`
-fn leaping_michaels_suits(theirs: Suit, lm: Suit) -> (Suit, Option<Suit>) {
-    match theirs {
-        // Over a major: lm + the OTHER major.
-        Suit::Hearts => (lm, Some(Suit::Spades)),
-        Suit::Spades => (lm, Some(Suit::Hearts)),
-        // Over 2♦: 4♦ cue = both majors; 4♣ = clubs + an unknown major.
-        Suit::Diamonds if lm == Suit::Diamonds => (Suit::Hearts, Some(Suit::Spades)),
-        Suit::Diamonds => (Suit::Clubs, None),
-        Suit::Clubs => (lm, None),
-    }
-}
-
-/// The bid at `index`, if the call there is a bid (not a pass/double/redouble)
-fn bid_at(auction: &[Call], index: usize) -> Option<Bid> {
-    match auction.get(index) {
-        Some(&Call::Bid(bid)) => Some(bid),
-        _ => None,
-    }
-}
-
-/// What a completed Jacoby *major* transfer over our own strong notrump shows
-/// about responder, returned as `(responder_index, major, min_length, points)`
-///
-/// The generic walk suppresses the artificial transfer and its completion, so
-/// this reads them after the fact:
-///
-/// - a completed transfer shows responder holds **five-plus** in the major;
-/// - a follow-up raise of the transferred suit (`1NT–2♦–2♥–3♥`) or jump to game
-///   (`…–4♥`, or `2NT–3♦–3♥–4♥`) shows **six-plus** — responder bypassed the
-///   choice-of-games `3NT` (which would be exactly five) for a known long suit;
-/// - the invitational `3M` raise also pins invitational strength (8–9, the same
-///   bound the Stayman reading uses for a major raise).
-///
-/// South African Texas is a direct transfer to game (no choice of games to
-/// bypass) and the minor transfers are out of scope, so neither is read here.
-/// Positions assume the standard uncontested auction (opponents passing); a
-/// contested one shifts them and matches none — those continuations fall outside
-/// the floor's natural-only scope.
-fn transfer_major_reading(
-    auction: &[Call],
-    opening_index: usize,
-) -> Option<(usize, Suit, u8, Option<Range>)> {
-    // Each `(opening, responder's transfer, opener's completion)`; game in the
-    // major is always the four level.
-    const MAJORS: [(Bid, Bid, Bid); 4] = [
-        (
-            Bid::new(1, Strain::Notrump),
-            Bid::new(2, Strain::Diamonds),
-            Bid::new(2, Strain::Hearts),
-        ),
-        (
-            Bid::new(1, Strain::Notrump),
-            Bid::new(2, Strain::Hearts),
-            Bid::new(2, Strain::Spades),
-        ),
-        (
-            Bid::new(2, Strain::Notrump),
-            Bid::new(3, Strain::Diamonds),
-            Bid::new(3, Strain::Hearts),
-        ),
-        (
-            Bid::new(2, Strain::Notrump),
-            Bid::new(3, Strain::Hearts),
-            Bid::new(3, Strain::Spades),
-        ),
-    ];
-
-    let opening = bid_at(auction, opening_index)?;
-    // The opponents must stay silent for these positions to hold.
-    if auction.get(opening_index + 1) != Some(&Call::Pass) {
-        return None;
-    }
-    let transfer = bid_at(auction, opening_index + 2)?;
-    let &(_, _, completion) = MAJORS
-        .iter()
-        .find(|&&(o, t, _)| o == opening && t == transfer)?;
-    let major = completion.strain.suit()?;
-    let responder_index = opening_index + 2;
-
-    // The transfer alone shows a five-card major.
-    let mut min_length = 5;
-    let mut points = None;
-
-    // Opener's completion, then responder's continuation, each after a pass.
-    if auction.get(opening_index + 3) == Some(&Call::Pass)
-        && bid_at(auction, opening_index + 4) == Some(completion)
-        && auction.get(opening_index + 5) == Some(&Call::Pass)
-        && let Some(follow) = bid_at(auction, opening_index + 6)
-    {
-        let raise_to_three = follow == Bid::new(3, completion.strain);
-        let jump_to_game = follow == Bid::new(4, completion.strain);
-        if raise_to_three || jump_to_game {
-            min_length = 6;
-        }
-        if raise_to_three {
-            // Invitational, like the Stayman major raise.
-            points = Some(Range::new(8, 9));
-        }
-    }
-
-    Some((responder_index, major, min_length, points))
 }
 
 /// Apply the meaning of the opening bid (the first non-pass call)
@@ -1725,6 +1514,15 @@ mod tests {
         Inferences::read(&Context::new(RelativeVulnerability::NONE, auction))
     }
 
+    /// Read on a *prefixed* context, the trie access the projection pass needs to
+    /// read a convention off its authored rule — what the production search floor
+    /// hands `Inferences::read` (cf. `Stance::prefixed_context`).  The plain `read`
+    /// above is keyless, so it sees no convention overlay.
+    fn read_booked(auction: &[Call]) -> Inferences {
+        let stance = crate::american().against(crate::bidding::Family::NATURAL);
+        Inferences::read(&stance.prefixed_context(RelativeVulnerability::NONE, auction))
+    }
+
     #[test]
     fn opening_shapes() {
         // [1♥]: the opener sits to our right (the call just before ours).
@@ -1762,14 +1560,14 @@ mod tests {
         // AND five-plus spades, game-forcing — so the search sampler deals partner
         // the right shape rather than a natural club one-suiter.
         set_leaping_michaels(true);
-        let advance = read(&[bid(2, Strain::Hearts), bid(4, Strain::Clubs), Call::Pass]);
+        let advance = read_booked(&[bid(2, Strain::Hearts), bid(4, Strain::Clubs), Call::Pass]);
         assert_eq!(advance.partner().length(Suit::Clubs), Range::new(5, 13));
         assert_eq!(advance.partner().length(Suit::Spades), Range::new(5, 13));
         assert_eq!(advance.partner().points, Range::new(14, 37));
 
         // Over 2♦, the 4♦ cue shows both majors; 4♣ shows clubs + an unknown
         // major, so only clubs is pinned.
-        let cue = read(&[
+        let cue = read_booked(&[
             bid(2, Strain::Diamonds),
             bid(4, Strain::Diamonds),
             Call::Pass,
@@ -1780,7 +1578,7 @@ mod tests {
         // Disabled (the default): a 4♣ jump reads as a natural one-suiter, so
         // spades stay unconstrained — the convention must not leak when off.
         set_leaping_michaels(false);
-        let off = read(&[bid(2, Strain::Hearts), bid(4, Strain::Clubs), Call::Pass]);
+        let off = read_booked(&[bid(2, Strain::Hearts), bid(4, Strain::Clubs), Call::Pass]);
         assert_eq!(off.partner().length(Suit::Spades), Range::FULL_LENGTH);
     }
 
@@ -1792,20 +1590,20 @@ mod tests {
         // least 4-4 in the majors, 8+ points) rather than a natural club suit.
         set_landy(Some((8, 15)));
         set_unusual_notrump_defense(Some((8, 15)));
-        let advance = read(&[bid(1, Strain::Notrump), bid(2, Strain::Clubs), Call::Pass]);
+        let advance = read_booked(&[bid(1, Strain::Notrump), bid(2, Strain::Clubs), Call::Pass]);
         assert_eq!(advance.partner().length(Suit::Hearts), Range::new(4, 13));
         assert_eq!(advance.partner().length(Suit::Spades), Range::new(4, 13));
         assert_eq!(advance.partner().length(Suit::Clubs), Range::FULL_LENGTH);
         assert_eq!(advance.partner().points, Range::new(8, 37));
 
         // (1NT)–2NT–(P): both minors, 5-5 (the independent unusual-2NT toggle).
-        let minors = read(&[bid(1, Strain::Notrump), bid(2, Strain::Notrump), Call::Pass]);
+        let minors = read_booked(&[bid(1, Strain::Notrump), bid(2, Strain::Notrump), Call::Pass]);
         assert_eq!(minors.partner().length(Suit::Clubs), Range::new(5, 13));
         assert_eq!(minors.partner().length(Suit::Diamonds), Range::new(5, 13));
 
         // The advancer's 2♦ relay is artificial — read from the overcaller's seat,
         // partner's (the relayer's) diamonds stay unconstrained.
-        let relay = read(&[
+        let relay = read_booked(&[
             bid(1, Strain::Notrump),
             bid(2, Strain::Clubs),
             Call::Pass,
@@ -1818,7 +1616,7 @@ mod tests {
         // unconstrained — the convention must not leak when off.
         set_landy(None);
         set_unusual_notrump_defense(None);
-        let off = read(&[bid(1, Strain::Notrump), bid(2, Strain::Clubs), Call::Pass]);
+        let off = read_booked(&[bid(1, Strain::Notrump), bid(2, Strain::Clubs), Call::Pass]);
         assert_eq!(off.partner().length(Suit::Spades), Range::FULL_LENGTH);
 
         // Restore the shipped defaults so sibling tests on this thread are unaffected
@@ -1837,11 +1635,13 @@ mod tests {
         set_woolsey(true);
         set_woolsey_points(10, 19);
 
-        // (1NT)–2♣–(P): Woolsey's 2♣ is both majors, exactly like Landy — partner
-        // shows ≥4-4 in the majors (10+), never a natural club suit.
-        let two_c = read(&[bid(1, Strain::Notrump), bid(2, Strain::Clubs), Call::Pass]);
-        assert_eq!(two_c.partner().length(Suit::Hearts), Range::new(4, 13));
-        assert_eq!(two_c.partner().length(Suit::Spades), Range::new(4, 13));
+        // (1NT)–2♣–(P): Woolsey's 2♣ is both majors, 10+, never a natural club suit.
+        // Read off the authored rule's projection (on a prefixed/booked context),
+        // which pins each major to 4-5 exactly — Woolsey sends a six-card major to
+        // the Multi/Muiderberg calls, a distinction the old loose reader missed.
+        let two_c = read_booked(&[bid(1, Strain::Notrump), bid(2, Strain::Clubs), Call::Pass]);
+        assert_eq!(two_c.partner().length(Suit::Hearts), Range::new(4, 5));
+        assert_eq!(two_c.partner().length(Suit::Spades), Range::new(4, 5));
         assert_eq!(two_c.partner().length(Suit::Clubs), Range::FULL_LENGTH);
         assert_eq!(two_c.partner().points, Range::new(10, 37));
 
@@ -2123,16 +1923,17 @@ mod tests {
             bid(2, Strain::Hearts),
             Call::Pass,
         ];
-        let inf = read(&auction);
+        let inf = read_booked(&auction);
         assert_eq!(inf.me().length(Suit::Hearts), Range::new(5, 13));
         assert_eq!(inf.me().length(Suit::Diamonds), Range::FULL_LENGTH);
     }
 
     #[test]
-    fn transfer_jump_to_game_shows_six() {
-        // [1NT, P, 2♦, P, 2♥, P, 4♥, P]: partner transferred then jumped past
-        // 3NT to 4♥, showing a six-card major (the M6.1 canonical case).  At
-        // length 8 the responder sits as Partner.
+    fn transfer_jump_to_game_shows_at_least_five() {
+        // [1NT, P, 2♦, P, 2♥, P, 4♥, P]: partner transferred then jumped to 4♥.
+        // The projection reads the 2♦ transfer's authored rule — a five-card floor;
+        // the old reader's six-card upgrade off the jump is dropped (soundness over
+        // tightness, M6.2c).  At length 8 the responder sits as Partner.
         let auction = [
             bid(1, Strain::Notrump),
             Call::Pass,
@@ -2143,14 +1944,16 @@ mod tests {
             bid(4, Strain::Hearts),
             Call::Pass,
         ];
-        let inf = read(&auction);
-        assert_eq!(inf.partner().length(Suit::Hearts), Range::new(6, 13));
+        let inf = read_booked(&auction);
+        assert_eq!(inf.partner().length(Suit::Hearts), Range::new(5, 13));
     }
 
     #[test]
-    fn transfer_then_three_major_invites_with_six() {
-        // [1NT, P, 2♦, P, 2♥, P, 3♥, P]: a raise of the transferred suit is
-        // invitational with a six-card major.
+    fn transfer_then_three_major_shows_at_least_five() {
+        // [1NT, P, 2♦, P, 2♥, P, 3♥, P]: a raise of the transferred suit.  The
+        // projection pins the transfer's five-card floor; the old reader's six-card
+        // upgrade and the 8–9 invitational points are dropped (soundness over
+        // tightness, M6.2c).
         let auction = [
             bid(1, Strain::Notrump),
             Call::Pass,
@@ -2161,15 +1964,15 @@ mod tests {
             bid(3, Strain::Hearts),
             Call::Pass,
         ];
-        let inf = read(&auction);
-        assert_eq!(inf.partner().length(Suit::Hearts), Range::new(6, 13));
-        assert_eq!(inf.partner().points, Range::new(8, 9));
+        let inf = read_booked(&auction);
+        assert!(inf.partner().length(Suit::Hearts).min >= 5);
     }
 
     #[test]
-    fn transfer_major_reading_covers_spades_and_two_notrump() {
-        // Spade transfer (2♥ → 2♠) jumped to 4♠.
-        let spades = read(&[
+    fn transfer_projection_covers_spades_and_two_notrump() {
+        // Spade transfer (2♥ → 2♠) jumped to 4♠: the 2♥ transfer rule projects a
+        // five-card spade floor.
+        let spades = read_booked(&[
             bid(1, Strain::Notrump),
             Call::Pass,
             bid(2, Strain::Hearts),
@@ -2179,10 +1982,10 @@ mod tests {
             bid(4, Strain::Spades),
             Call::Pass,
         ]);
-        assert_eq!(spades.partner().length(Suit::Spades), Range::new(6, 13));
+        assert_eq!(spades.partner().length(Suit::Spades), Range::new(5, 13));
 
         // The same shape over a 2NT opening (3♦ → 3♥, jump 4♥).
-        let two_nt = read(&[
+        let two_nt = read_booked(&[
             bid(2, Strain::Notrump),
             Call::Pass,
             bid(3, Strain::Diamonds),
@@ -2192,7 +1995,7 @@ mod tests {
             bid(4, Strain::Hearts),
             Call::Pass,
         ]);
-        assert_eq!(two_nt.partner().length(Suit::Hearts), Range::new(6, 13));
+        assert_eq!(two_nt.partner().length(Suit::Hearts), Range::new(5, 13));
     }
 
     #[test]

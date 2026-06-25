@@ -1,22 +1,29 @@
 # Rule projection — reading an authored call straight off its rule
 
-> Status (2026-06-25): **Stage 1 shipped** (`Constraint::project`). **Stage 2
-> validated** (M6.2b): `Rule::project` + the generic `authored_reading` pass exist,
-> `#[cfg(test)]`-only, and an equivalence test proves the pass reproduces the three
-> declarative readers (`transfer_major`, `leaping_michaels`, `landy` core) exactly —
-> signature suit lengths *and* points — on prefixed contexts. **Stages 3–4** (the
-> keyless-trie-access wiring, then retiring the readers + re-authoring the opaque
-> conventions) **deferred** — an IMP-neutral architectural refactor. This doc is the
-> full design so the effort is resumable.
+> Status (2026-06-25): **Stages 1–3 shipped.** Stage 1 (`Constraint::project`),
+> Stage 2 (M6.2b: `Rule::project` + the generic projection pass + the equivalence
+> test), and **Stage 3 (M6.2c): the pass is wired into production and the three
+> declarative readers are deleted** — the authored rule is the single source of
+> truth, no longer mirrored by hand. **Stage 4 (M6.2d)** — re-authoring the opaque
+> `described()` conventions so they project too — remains. This doc is the full
+> design so the effort is resumable.
 >
 > **Milestone map** (the records split, 2026-06-25):
 > - **M6.2b — validate** (done): `Rule::project`, the offline generic pass, the
 >   equivalence harness. No production wiring, no deletions, no behavior change.
-> - **M6.2c — wire + retire declarative**: a `Stance` `CommonPrefixes` accessor
->   (the `#[cfg(test)] Stance::prefixed_context` seam, made real), prefix the
->   keyless sampler/features call sites, switch `Inferences::read` onto the pass,
->   delete the three clean declarative readers. A/B-gate `ab-search-floor` +
->   `ab-landy` neutral-or-better.
+> - **M6.2c — wire + retire declarative** (done): the keyless leak was a *single*
+>   site — `SearchBook::classify` (`search_floor.rs:241`); the floors already get
+>   the book's prefixed context and the other keyless `Inferences::read` callers are
+>   `#[cfg(test)]`. So `Stance::prefixed_context` is made real, `SearchBook` prefixes
+>   itself, and `Inferences::read` folds in `project_authored` — the artificial
+>   detector drives both the suppression and the recording. `transfer_major_reading`,
+>   `leaping_michaels_reading`, `landy_reading` (and `LandyReading`) are **deleted**;
+>   only the Landy advancer-relay survives as the `landy_advance_suppress` stub. Two
+>   sound reading shifts fall out: a completed transfer pins its five-card floor (the
+>   old six-card jump upgrade drops — a natural-suit raise is outside the projection's
+>   artificial-only scope), and Woolsey's `2♣` reads its true 4-5 majors. `ab-landy`
+>   reproduces its DD-negative value (the reading is byte-identical per the M6.2b
+>   test); `ab-search-floor` shows no gross regression.
 > - **M6.2d — Stage 4**: re-author the opaque `described()` conventions
 >   (DONT/Woolsey/Multi) as `len` conjuncts (`verify::compare`-guarded), retire the
 >   rest; keep relay-suppression as `ponytail:` stubs.
@@ -154,35 +161,36 @@ Re-author each as `len` conjunctions that expose the sound fact (Muiderberg
 the DONT X `… & len(♠,..=3)`), each guarded by `verify::compare` against the
 original closure's accept-set so `eval` behaviour is unchanged.
 
-## Why it is deferred — the keyless-trie blocker
+## The keyless-trie blocker — RESOLVED in M6.2c
 
-Projection needs the trie. The readers are **keyless by design** because two of
-the three real consumers read *without* one:
+Projection needs the trie, and the readers were **keyless by design**. The fear
+was that *two* real consumers read without a trie — the search sampler and
+`features` — so retirement would be a cross-cutting "give every keyless path trie
+access" change. **Wiring it for real showed the leak is a single site.** The floors
+([`SearchFloor`](../../src/bidding/search_floor.rs), `NeuralFloor`) are
+`Classifier`s that *receive* a context: through the normal book path they already
+get the prefixed one ([`book.rs:56`](../../src/bidding/book.rs#L56) attaches
+prefixes before `classify_floored` threads it to the floor). The only production
+keyless construction that feeds `Inferences::read`/`features` is
+[`SearchBook::classify`](../../src/bidding/search_floor.rs#L241), which re-derived a
+fresh `Context::new`; every other keyless `Inferences::read` caller is
+`#[cfg(test)]`. So the wire is one line — `SearchBook` builds
+`self.stance.prefixed_context(...)` instead — no `System`-trait accessor needed.
 
-- the **search floor's sampler** builds its context as `Context::new(vul,
-  auction)` — **no prefixes** ([`search_floor.rs:241`](../../src/bidding/search_floor.rs#L241)) —
-  then `ev_all → Inferences::read` runs with no trie to project from;
-- **features** (neural) likewise build keyless contexts;
-- only the book's own classification prefixes the context
-  ([`book.rs:56`](../../src/bidding/book.rs#L56)), so only the floor's re-entrant
-  constraint-eval reads (`partner_shown_len`, `has_fit`) can project.
+What shipped:
 
-So retiring the readers regresses the sampler and features (and the keyless
-convention unit tests go red with nothing to replace them). **Full retirement is
-therefore "give the keyless sampler + features paths trie access," not "add a
-fold."** That requires:
+1. `Stance::prefixed_context` made real (was `#[cfg(test)]`);
+2. `SearchBook::classify` prefixes its search context;
+3. `Inferences::read` folds in `project_authored` — one prefix walk yields both the
+   per-seat recording overlay and a bitset of artificial indices to suppress;
+4. `transfer_major_reading`, `leaping_michaels_reading`, `landy_reading` deleted;
+   only `landy_advance_suppress` (the advancer relay, which projects nothing) stays.
 
-1. a `System` accessor exposing the phase-routed trie's `CommonPrefixes` for an
-   auction (default `None`; `Stance` overrides via `trie_for`);
-2. prefixing the contexts at `search_floor.rs:241`/`:411` and the `features`
-   call sites from the active book;
-3. then the generic pass + the re-authoring above.
-
-Payoff is **architectural** (one mechanism replaces seven readers; single source
-of truth; lets rule-replay stand alone) — **not IMPs** (it is a refactor; gate
-is neutral-or-better). Cross-cutting, with real risk to the search floor's
-sampling. Banked Stage 1; deferred the rest pending a decision that the
-architectural cleanup is worth a multi-day, A/B-gated change.
+Payoff is **architectural** (one mechanism replaces the declarative readers; single
+source of truth; lets rule-replay stand alone) — **not IMPs**. The two sound reading
+shifts (transfer five-card floor, Woolsey `2♣` 4-5) are documented in the unit tests
+and the changelog; `ab-landy` reproduces its value, `ab-search-floor` no gross
+regression.
 
 ## Verification (when resumed)
 

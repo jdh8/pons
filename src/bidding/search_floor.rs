@@ -238,7 +238,11 @@ impl SearchBook {
 
 impl System for SearchBook {
     fn classify(&self, hand: Hand, vul: RelativeVulnerability, auction: &[Call]) -> Option<Logits> {
-        let context = Context::new(vul, auction);
+        // Prefix the context with the stance's trie so `features` and the EV
+        // sampler's `Inferences::read` project artificial prior calls off their
+        // authored rules (M6.2c).  `forced` ignores prefixes, so the rails are
+        // unaffected.
+        let context = self.stance.prefixed_context(vul, auction);
         if forced(&context) {
             // Rails: the wrapped stance's deterministic answer, never the search.
             return self.stance.classify(hand, vul, auction);

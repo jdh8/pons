@@ -418,15 +418,25 @@ A/B vs baseline, and the BBA gap (S.1's −2.6) on the relevant auctions.
     book via a `#[cfg(test)] Stance::prefixed_context` seam. No production wiring,
     no deletions, no behavior change — the mechanism is proven before the
     cross-cutting refactor.
-  - ⬜ **M6.2c Wire + retire the declarative readers — BLOCKED on keyless trie
-    access.** Projection needs the trie, but the two real consumers read keyless:
-    the search-floor sampler (`search_floor.rs:241`) and `features` build
-    `Context::new` with no prefixes, so only the book's own constraint-eval reads
-    can project. So make `Stance::prefixed_context` real (a `System`
-    `CommonPrefixes` accessor), prefix those call sites, switch `Inferences::read`
-    onto the pass, and **delete** the three clean declarative readers. *Payoff is
-    architectural, not IMPs* (single source of truth; lets rule-replay stand
-    alone); gate neutral-or-better on `ab-search-floor` + `ab-landy`.
+  - ✅ **M6.2c Wire + retire the declarative readers — SHIPPED 2026-06-25.** The
+    keyless leak turned out to be a *single* production site: `SearchBook::classify`
+    (`search_floor.rs:241`) re-derived `Context::new` with no prefixes, feeding both
+    `features` and the EV sampler's `Inferences::read`; the floors are `Classifier`s
+    that already receive the book's prefixed context, and the other keyless
+    `Inferences::read` callers are all `#[cfg(test)]`. So `Stance::prefixed_context`
+    is made real, `SearchBook` prefixes itself with it, and `Inferences::read` folds
+    `project_authored` in — the `project` artificial-detector drives *both*
+    suppression and recording, so `transfer_major_reading`,
+    `leaping_michaels_reading`, and `landy_reading` are **deleted** (only the Landy
+    advancer-relay survives as a `landy_advance_suppress` stub). *Payoff is
+    architectural* (single source of truth; lets rule-replay stand alone). Two sound
+    reading changes fall out: a completed transfer pins its *five*-card floor (the
+    old reader's six-card jump upgrade drops — a natural-suit raise is outside the
+    projection's artificial-only scope), and Woolsey's `2♣` reads its true **4-5**
+    majors. `instinct()` bids by rule and is unchanged; only search bidders read the
+    projection. Gate: `ab-landy` reproduces its DD-negative value (reading proven
+    byte-identical by the M6.2b equivalence test); `ab-search-floor` no gross
+    regression.
   - ⬜ **M6.2d Stage 4 — re-author the opaque conventions.** DONT/Woolsey/Multi are
     authored with the opaque `described()` escape hatch, so they project no info and
     the detector cannot see them; re-author each as `len` conjuncts

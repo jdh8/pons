@@ -416,11 +416,11 @@ impl Stance {
     /// The prefixed [`Context`] this stance classifies an auction under
     ///
     /// The same trie-routed, prefix-bearing context the [`System`] impl builds
-    /// (cf. [`classify_with_provenance`][Self::classify_with_provenance]).  A
-    /// test-only seam for the projection equivalence harness (M6.2b): it hands the
-    /// otherwise-keyless reading paths the trie access that M6.2c will wire into
-    /// the sampler and features for real.
-    #[cfg(test)]
+    /// (cf. [`classify_with_provenance`][Self::classify_with_provenance]).  It
+    /// hands the otherwise-keyless reading paths the trie access the projection
+    /// pass needs: [`SearchBook`][super::search_floor::SearchBook] prefixes its
+    /// search context with it (M6.2c) so [`Inferences::read`][super::inference::Inferences::read]
+    /// can project each artificial prior call straight off its authored rule.
     #[must_use]
     pub(crate) fn prefixed_context<'a>(
         &'a self,

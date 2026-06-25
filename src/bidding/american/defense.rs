@@ -80,8 +80,8 @@ pub fn set_leaping_michaels(on: bool) {
 
 /// Whether Leaping Michaels is currently enabled
 ///
-/// Crate-visible so the inference reader can condition partner's hand on the
-/// two-suiter when the search bidder samples (see `inference::leaping_michaels_reading`).
+/// Crate-visible so the inference projection pass can condition partner's hand on
+/// the two-suiter when the search bidder samples (see `inference::authored_reading`).
 pub(crate) fn leaping_michaels_enabled() -> bool {
     LEAPING_MICHAELS.with(Cell::get)
 }
@@ -109,8 +109,9 @@ pub fn set_landy(range: Option<(u8, u8)>) {
 
 /// The configured Landy range, or `None` when Landy is off
 ///
-/// Crate-visible so the inference reader can condition partner on the two-suiter
-/// (see `inference::landy_reading`).
+/// Crate-visible so the inference projection pass and the Landy relay stub can
+/// condition partner on the two-suiter (see `inference::authored_reading` and
+/// `inference::landy_advance_suppress`).
 pub(crate) fn landy_range() -> Option<(u8, u8)> {
     LANDY.with(Cell::get)
 }

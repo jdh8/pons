@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.10.0] — Unreleased
 
+### Changed
+
+- **The three declarative `*_reading` decoders are retired — an artificial call's
+  meaning is now read straight off its authored rule (AI-bidder M6.2c).** The
+  generic `authored_reading` projection pass is wired into production:
+  `SearchBook::classify` now prefixes its search context (the one keyless leak that
+  fed `features` and the EV sampler's `Inferences::read`), and `Inferences::read`
+  folds the projection in — the same `project` artificial-detector (a call whose
+  projection floors a suit it did not name) drives *both* the suppression of an
+  artificial call from the natural reading *and* the recording of its shape. With
+  that, `transfer_major_reading`, `leaping_michaels_reading`, and `landy_reading`
+  (and `LandyReading`) are **deleted**: the authored rule is the single source of
+  truth, no longer mirrored by hand. Only the Landy/Woolsey advancer's `2♦` relay
+  keeps a small `landy_advance_suppress` stub (a relay names no length, so its rule
+  projects nothing for the detector to catch). **Impact on bidders:** the
+  projection is sound but in two spots reads differently from the old hand decoders
+  — it pins a completed transfer's *five*-card floor but drops the old reader's
+  *six*-card upgrade off a follow-up jump/raise (a natural-suit raise is outside the
+  projection's artificial-only scope; soundness over tightness), and it reads
+  Woolsey's `2♣` majors as the rule's true **4-5** rather than the old loose 4+
+  (Woolsey sends a six-card major to its Multi/Muiderberg calls). The deterministic
+  `instinct()` ladder bids by rule and is unchanged; only search-based bidders read
+  partner's projected shape. Architectural payoff, IMP-neutral by design. See
+  `docs/ai-bidder/rule-projection.md`.
+
 ### Added
 
 - **Rule projection now reads an artificial call's meaning straight off its rule
