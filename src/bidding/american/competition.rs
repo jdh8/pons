@@ -106,40 +106,29 @@ fn lebensohl_style() -> LebensohlStyle {
 ///
 /// All variants are *authored* in the book (a finite logit), so the instinct
 /// floor's own takeout double — whose `hcp(12..)` threshold is too strong here —
-/// is shadowed and we control the strength. Opener has **no** authored
-/// continuation after the double: the floor pulls (game jump / 3NT with a
-/// stopper / longest unbid suit) or passes with a trump stack, which is correct
-/// for both the penalty and takeout meanings. Gated behind [`set_double_style`]
-/// for A/B measurement; [`DoubleStyle::Takeout`] (≤3/8+) is the default.
+/// is shadowed and we control the strength. For the penalty styles opener's
+/// continuation is also authored — [`opener_leaves_in_penalty_double`] sits for
+/// the double rather than letting the floor read `[…,X,P]` as a takeout advance
+/// and pull it. Gated behind [`set_double_style`]; [`DoubleStyle::Penalty`]
+/// (4+/9+) is the default.
 ///
-/// A/B verdict (200k, vs `Penalty` 4+/9+) — **measure-dependent**:
-/// - **Plain DD** (the current A/B scorer, [`crate::scoring::ns_score_contract`]):
-///   isolating just the double (both pairs Transfer, NS varies the style) the
-///   penalty double is monotone-bad — every *extra* penalty double loses
-///   (`PenaltyLight` 4+/7 `−0.002`, `4+/8` `−0.001`/`−0.002`) and every *removed*
-///   one gains (`4+/11` and `5+/9` `+0.002`/`+0.003`). Takeout beats penalty:
-///   `Takeout` ≤3/8 `+0.004`/`+0.005`, ≤3/7 `+0.004`/`+0.005`, `Optional` 2-3/8
-///   `+0.003`/`+0.004`; at a 9-HCP floor the takeout doubles themselves start
-///   losing (≤3/9 `+0.002`/`+0.003`). ≤3/8 has the cleanest per-board double, so
-///   it is the default.
-/// - **Perfect-defense** (`ns_score_bid`): the *flip* — PD auto-doubles the
-///   failing takeout/optional overbids, so vs `Penalty` 4+/9 every alternative
-///   *lost* (`Takeout` ≤3/7 `−0.089`/`−0.092`, `Optional` 2-3/8 `−0.039`,
-///   `PenaltyLight` 4+/7 `−0.035`).
-///
-/// The two measures disagree on penalty-vs-takeout (PD punishes the takeout
-/// overbid the opponents under-double in plain DD); the measure-robust part is
-/// only that the *marginal* penalty double (4-card, 8-10 HCP) is a net loser.
-/// Plain DD is the shipped A/B scorer, so `Takeout` ≤3/8 is the default; `Penalty`
-/// and the rest are kept opt-in for a single-dummy re-measure.
+/// A/B verdict (`ab-lebensohl`, NS vs EW with both pairs Transfer, 200k,
+/// ~1500 divergent): penalty-vs-takeout **was** measure-dependent — plain DD
+/// favored takeout, perfect-defense favored penalty — but that disagreement was an
+/// **artifact of opener pulling responder's penalty double** (no authored
+/// continuation). With [`opener_leaves_in_penalty_double`] on (the default), penalty
+/// flips from **−1.207 → +0.328 IMPs/divergent** vs takeout on plain DD — a sign
+/// flip — so both measures now favor penalty, and it is the default. The old
+/// "takeout ≤3/8 is the best plain-DD double" verdict held only while the penalty
+/// double was being pulled. `Takeout`/`Optional` stay selectable for A/B.
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
 pub enum DoubleStyle {
-    /// Default: classic takeout, `len(over, ..=3) & hcp(8..)` — the best plain-DD
-    /// double (≤3/8 has the cleanest per-board gain; see [`DoubleStyle`]).
-    #[default]
+    /// Classic takeout, `len(over, ..=3) & hcp(8..)` (former default; best plain-DD
+    /// double only while penalty doubles were pulled — see [`DoubleStyle`]).
     Takeout,
-    /// Penalty: length and values in their suit, `len(over, 4..) & hcp(9..)`
-    /// (former default; PD-best, plain-DD-worst).
+    /// Default: penalty — length and values in their suit, `len(over, 4..) &
+    /// hcp(9..)`; opener sits (see [`set_penalty_double_leave_in`]).
+    #[default]
     Penalty,
     /// Penalty at a lower floor: `len(over, 4..) & hcp(7..)`
     PenaltyLight,
@@ -149,7 +138,7 @@ pub enum DoubleStyle {
 
 thread_local! {
     /// The meaning of responder's double of the overcall (see [`DoubleStyle`]).
-    static DOUBLE_STYLE: Cell<DoubleStyle> = const { Cell::new(DoubleStyle::Takeout) };
+    static DOUBLE_STYLE: Cell<DoubleStyle> = const { Cell::new(DoubleStyle::Penalty) };
 }
 
 /// Select responder's double meaning for books built *after* this call
@@ -198,23 +187,20 @@ fn penalty_double_leave_in() -> bool {
     PENALTY_DOUBLE_LEAVE_IN.with(Cell::get)
 }
 
-/// Opener's reply to responder's **penalty** double of their `over` overcall of our
-/// 1NT (`[1NT,(2X),X,(P)]`): sit and defend, since responder promised length and
-/// values in their suit — unless we hold a clearly independent game
+/// Opener's reply to responder's **penalty** double of their overcall of our 1NT
+/// (`[1NT,(2X),X,(P)]`): always sit and defend, since responder promised length and
+/// values in their suit
+///
+/// A 3NT escape (opener-max with their suit stopped) was A/B'd a clear *loss* vs
+/// always sitting (+0.328 vs +0.507 IMPs/divergent on `ab-lebensohl`): defending the
+/// doubled overcall beats a fragile notrump game, especially when opener also holds
+/// length in their suit — so opener never pulls.
 ///
 /// The book dual of the penalty latch's leave-in: without an authored node here the
 /// floor reads `[…,X,P]` as a takeout advance and *pulls* the penalty double (opener
 /// is usually short in their suit, so its own length-gated leave-in never fires).
-fn opener_leaves_in_penalty_double(over: Suit) -> Rules {
-    Rules::new()
-        // A cold notrump game outranks the penalty: opener-max with their suit stopped.
-        .rule(
-            Bid::new(3, Strain::Notrump),
-            1.55,
-            hcp(17..) & stopper_in(over),
-        )
-        // Otherwise sit: responder's penalty double has the trumps — defend.
-        .rule(Call::Pass, 1.5, hcp(0..))
+fn opener_leaves_in_penalty_double() -> Rules {
+    Rules::new().rule(Call::Pass, 1.5, hcp(0..))
 }
 
 thread_local! {
@@ -1584,7 +1570,7 @@ pub fn competition() -> Competitive {
                     Arc::new(guard(move |_: &Context<'_>, suffix: &[Call]| {
                         suffix == [overcall, Call::Double, Call::Pass]
                     })),
-                    Fallback::classify(opener_leaves_in_penalty_double(over)),
+                    Fallback::classify(opener_leaves_in_penalty_double()),
                 );
             }
 
@@ -2352,14 +2338,20 @@ mod tests {
         // HCP in their suit) traps: pass and wait for opener's reopening takeout
         // double, then convert. A merely *adequate* stopper (♥A964, 4 HCP) is a
         // source of tricks and still declares 3NT. (Trap pass on by default.)
+        // The trap is a takeout-style mechanism — under the default Penalty style
+        // this 4-card-heart hand doubles for penalty directly — so it is pinned to
+        // Takeout here; the 3NT line (1.7) outranks any double, so it is style-free.
         let auction = [call(1, Strain::Notrump), call(2, Strain::Hearts)];
-        let (trap, _) = bid_transfer(&auction, "K32.AQ86.KJ5.J32");
+        let (trap, _) = bid_transfer_dbl(super::DoubleStyle::Takeout, &auction, "K32.AQ86.KJ5.J32");
         assert_eq!(
             trap,
             Call::Pass,
             "a too-good stopper (6 HCP in hearts) traps"
         );
-        let (bid, _) = bid_transfer(&auction, "K32.A964.KJ5.Q32");
+        // Also pinned to Takeout: under Penalty default this 4-card-heart hand
+        // prefers the penalty double (1.55) to the relay's direct 3NT (1.5) — four
+        // trumps behind declarer beat one fragile stopper, which is sound.
+        let (bid, _) = bid_transfer_dbl(super::DoubleStyle::Takeout, &auction, "K32.A964.KJ5.Q32");
         assert_eq!(
             bid,
             call(3, Strain::Notrump),
@@ -2419,6 +2411,6 @@ mod tests {
         );
         // Restore the defaults for other tests sharing this thread.
         set_penalty_double_leave_in(true);
-        set_double_style(DoubleStyle::Takeout);
+        set_double_style(DoubleStyle::Penalty);
     }
 }
