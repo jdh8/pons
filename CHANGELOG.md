@@ -35,7 +35,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   straddles 0); the swing is isolated to the X bucket. `bba-gen --ns-allow-pull`
   restores the old pulling behaviour for the off arm of the A/B. `bba-score`
   gains `--action <label>` to filter the worst-board dump to a single defensive
-  call (e.g. `--action X` for penalty-double boards).
+  call (e.g. `--action X` for penalty-double boards) and splits the defensive `X`
+  bucket into `X (pen)` (the direct 15+ penalty double) and `X (PH Landy)` (a
+  passed hand's both-majors takeout) — completely different conventions whose
+  separate DD results the combined bucket hid.
 - **The `bba-match` BBA-reference example splits into `bba-gen` + `bba-score`,
   exchanging a JSON board dump.** `bba-gen` does only the single-threaded EPBot
   bidding — it owns every `set_*` / convention knob that shapes the auctions
