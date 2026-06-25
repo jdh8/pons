@@ -16,7 +16,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `1NTxx`; a values advancer (≥ 8 HCP) passes to defend and beat it. The defensive
   mirror of the existing responder runout, default on, with an off-switch
   (`set_advancer_xx_runout` / `bba-gen --no-ns-xx-runout`) for the A/B. (Five-plus
-  suits only for now — a 4-4 bust still sits.)
+  suits only for now — a 4-4 bust still sits.) Paired A/B vs BBA's 2/1 (isolated
+  1NT-defense match, 16000 we-defend both-vulnerable boards/seed): the penalty-X
+  (`X`) bucket goes −174 → −67 IMPs (−0.328 → −0.125 IMPs/X-board), **+107 IMPs**
+  recovered and isolated by construction to the boards where it fires. Restricting
+  to the *immediate* `[1NT,X,XX]` is deliberate: extending the run to the balancing
+  redouble (`[1NT,X,P,P,XX]`) regresses to −202 (−135 vs immediate), because there
+  the advancer already passed its first turn — it chose to defend, and the
+  redouble's announced max does not undo that.
 
 ### Removed
 
