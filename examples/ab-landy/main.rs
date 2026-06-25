@@ -43,7 +43,7 @@ use pons::bidding::american::{
     set_natural_double_shape, set_passed_hand_defense, set_penalty_pass,
     set_unusual_notrump_defense, set_woolsey, set_woolsey_double_floor, set_woolsey_points,
 };
-use pons::bidding::instinct::set_penalty_latch;
+use pons::bidding::instinct::{LatchStyle, set_latch_style, set_penalty_latch};
 use pons::scoring::{final_contract, imps, ns_score_bid, ns_score_contract};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -198,6 +198,13 @@ struct Args {
     /// Pass `off` for the A/B off arm.
     #[arg(long, default_value = "on")]
     ns_penalty_latch: String,
+
+    /// What the measured pair's *latched* later double means: `penalty` (the
+    /// default — stack + partner sits) or `optional` (2-3 cards + partner
+    /// cooperates). The defensive mirror of `1NT−(2X)−X`'s `DoubleStyle`. Only
+    /// matters with `--ns-penalty-latch on`; pass `optional` for the A/B comparison.
+    #[arg(long, default_value = "penalty")]
+    ns_latch_style: String,
 
     /// Only count deals that can plausibly reach a Landy overcall of 1NT (a cheap
     /// shape pre-filter), so the DD budget lands on boards that can actually
@@ -462,6 +469,11 @@ fn main() {
     };
     let ns_woolsey = parse_on_off(&args.ns_woolsey, "--ns-woolsey");
     let ns_penalty_latch = parse_on_off(&args.ns_penalty_latch, "--ns-penalty-latch");
+    let ns_latch_style = match args.ns_latch_style.as_str() {
+        "penalty" => LatchStyle::Penalty,
+        "optional" => LatchStyle::Optional,
+        other => panic!("unknown --ns-latch-style {other:?} (use penalty or optional)"),
+    };
     let woolsey_range = parse_range(&args.ns_woolsey_range).unwrap_or((9, 19));
     let ns_penalty_pass = parse_penalty_pass(&args.ns_penalty_pass, "--ns-penalty-pass");
     let ew_penalty_pass = parse_penalty_pass(&args.ew_penalty_pass, "--ew-penalty-pass");
@@ -581,6 +593,7 @@ fn main() {
             // (Rayon workers do not inherit the main thread's thread-locals). It
             // fires only for the side that made the penalty X — the measured pair.
             set_penalty_latch(ns_penalty_latch);
+            set_latch_style(ns_latch_style);
             let dealer = Seat::ALL[i % 4];
             let table_a = bid_out(&measured, &baseline, true, dealer, vul, &deal);
             let table_b = bid_out(&measured, &baseline, false, dealer, vul, &deal);
@@ -701,7 +714,7 @@ fn main() {
         Some((len, hcp, major)) => format!("{len}:{hcp}{}", if major { ":major" } else { "" }),
     };
     let arms = format!(
-        "2♣ majors {}, 2NT minors {} [{}], natural NS {}/EW {}, X-shape {}, landy-X {}@{}+, passed-def {}, pen-pass NS {}/EW {}, pen-latch {}",
+        "2♣ majors {}, 2NT minors {} [{}], natural NS {}/EW {}, X-shape {}, landy-X {}@{}+, passed-def {}, pen-pass NS {}/EW {}, pen-latch {} ({})",
         label(majors),
         label(minors),
         args.strength,
@@ -718,6 +731,7 @@ fn main() {
         pp_label(ns_penalty_pass),
         pp_label(ew_penalty_pass),
         if ns_penalty_latch { "on" } else { "off" },
+        args.ns_latch_style,
     );
     println!(
         "=== Landy-vs-default A/B ({arms}): {} boards, vulnerability {}, scoring {} ===",

@@ -82,6 +82,25 @@ pub enum Unusual2nt {
     Direct,
 }
 
+/// What a *latched* later double means after our natural penalty double of their
+/// 1NT — the `(1NT)−X−(2Y)−X` second double (A/B knob, see [`set_latch_style`])
+///
+/// The mirror of [`DoubleStyle`][super::american::DoubleStyle] on the defensive
+/// side: the same penalty-vs-optional question the we-open `1NT−(2X)−X` faced.
+#[doc(hidden)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
+pub enum LatchStyle {
+    /// Pure penalty: the latched double needs a trump stack (4+ with two top
+    /// honors) and partner *sits*.  The default — the human "once penalty, always
+    /// penalty" rule.
+    #[default]
+    Penalty,
+    /// Cooperative / optional: the latched double shows only 2-3 cards in their
+    /// suit with values, and partner *cooperates* (sit on a fit, run when short)
+    /// via the general advance-a-double machinery instead of being forced to sit.
+    Optional,
+}
+
 std::thread_local! {
     /// Whether the floor consults the auction interpretation for known fits
     static INFERENCE_AWARE: Cell<bool> = const { Cell::new(true) };
@@ -123,6 +142,13 @@ std::thread_local! {
     /// [`set_penalty_latch`]): after our natural penalty double of their 1NT, our
     /// later doubles read as penalty (sit / leave in) rather than the takeout default
     static PENALTY_LATCH: Cell<bool> = const { Cell::new(true) };
+
+    /// What a latched later double means: [`Penalty`] (stack + sit, **the
+    /// default**) or [`Optional`] (2-3 + cooperate). See [`set_latch_style`].
+    ///
+    /// [`Penalty`]: LatchStyle::Penalty
+    /// [`Optional`]: LatchStyle::Optional
+    static LATCH_STYLE: Cell<LatchStyle> = const { Cell::new(LatchStyle::Penalty) };
 }
 
 /// Responder runs from a doubled 1NT below this many HCP; with more, 1NT-X
@@ -599,6 +625,19 @@ fn doubled_suit_length() -> Cons<impl Constraint + Clone> {
     })
 }
 
+/// The doubled suit's length is within `range` — the cooperative-double gate
+///
+/// The 2-3-card holding behind their suit that makes the latched double *optional*
+/// (see [`LatchStyle::Optional`]): some length and values, but partner decides.
+fn doubled_suit_len(range: core::ops::RangeInclusive<usize>) -> Cons<impl Constraint + Clone> {
+    pred(move |hand: Hand, context: &Context<'_>| {
+        context
+            .last_bid()
+            .and_then(|bid| bid.strain.suit())
+            .is_some_and(|suit| range.contains(&hand[suit].len()))
+    })
+}
+
 /// A trump stack in the doubled suit: four-plus cards with two top honors
 ///
 /// The one holding that converts partner's takeout double into penalties.
@@ -898,6 +937,27 @@ fn penalty_latched_c() -> Cons<impl Constraint + Clone> {
 /// The penalty latch is *not* in force (the takeout-double default applies)
 fn not_penalty_latched() -> Cons<impl Constraint + Clone> {
     pred(|_: Hand, context: &Context<'_>| !penalty_latched(context))
+}
+
+/// Select what a latched later double means for the current thread (live-read)
+///
+/// [`LatchStyle::Penalty`] (the **default**) is the stack-and-sit penalty double;
+/// [`LatchStyle::Optional`] is the 2-3-card cooperative double.  A live-read
+/// instinct flag (like [`set_penalty_latch`]), so the A/B harness sets it per
+/// worker thread.
+#[doc(hidden)]
+pub fn set_latch_style(style: LatchStyle) {
+    LATCH_STYLE.with(|cell| cell.set(style));
+}
+
+/// The latched double is the cooperative *optional* style (see [`LatchStyle`])
+fn latch_optional_c() -> Cons<impl Constraint + Clone> {
+    pred(|_: Hand, _: &Context<'_>| LATCH_STYLE.with(Cell::get) == LatchStyle::Optional)
+}
+
+/// The latched double is the pure *penalty* style (the default; see [`LatchStyle`])
+fn latch_penalty_c() -> Cons<impl Constraint + Clone> {
+    pred(|_: Hand, _: &Context<'_>| LATCH_STYLE.with(Cell::get) == LatchStyle::Penalty)
 }
 
 /// We opened the strong notrump of `nt_level` and partner just transferred with
@@ -1445,8 +1505,14 @@ pub fn instinct() -> Rules {
     // Penalty latch: once our side has penalty-doubled their 1NT, leave in any
     // later double of ours rather than advance it — "once penalty, always
     // penalty".  Outranks every advance action (<=1.5); the mirror of the runout
-    // leave-in above, gated on its own A/B knob ([`set_penalty_latch`]).
-    rules = rules.rule(Call::Pass, 1.55, penalty_latched_c() & advancing_a_double());
+    // leave-in above, gated on its own A/B knob ([`set_penalty_latch`]).  The
+    // optional latch style suppresses this forced sit: partner instead cooperates
+    // (sit on a fit, run when short) via the general advance-a-double machinery.
+    rules = rules.rule(
+        Call::Pass,
+        1.55,
+        penalty_latched_c() & latch_penalty_c() & advancing_a_double(),
+    );
 
     // UvU encircling: the opponents ran from our 1NT-(2NT)-X.  Double their
     // escape with a trump stack — and keep doubling as they keep running — by
@@ -1683,7 +1749,22 @@ pub fn instinct() -> Rules {
         .rule(
             Call::Double,
             1.6,
-            their_live_bid_at_most(3) & penalty_latched_c() & doubled_suit_stack(),
+            their_live_bid_at_most(3)
+                & penalty_latched_c()
+                & latch_penalty_c()
+                & doubled_suit_stack(),
+        )
+        // Optional latch: double their runout cooperatively on 2-3 cards and
+        // values — partner decides (sit on a fit, run when short).  The defensive
+        // mirror of the we-open optional double; same weight as the penalty stack.
+        .rule(
+            Call::Double,
+            1.6,
+            their_live_bid_at_most(3)
+                & penalty_latched_c()
+                & latch_optional_c()
+                & doubled_suit_len(2..=3)
+                & hcp(6..),
         )
 }
 
@@ -1788,6 +1869,42 @@ mod tests {
         // Latched (the default), partner's double is penalty — leave it in (defend 2♦x).
         set_penalty_latch(true);
         assert_eq!(best(&auction, "AQ74.AQ5.82.A632"), Call::Pass);
+    }
+
+    #[test]
+    fn optional_latch_doubles_short_and_partner_cooperates() {
+        // (1NT) X (2♦): our latched double of their runout.
+        let runout = [
+            call(1, Strain::Notrump),
+            Call::Double,
+            call(2, Strain::Diamonds),
+        ];
+        // Three small diamonds (no stack), 13 HCP, no four-card suit worth bidding:
+        // the PENALTY latch needs a stack, so it does not double…
+        let cooperative = "KQ5.KQ5.642.QJ93";
+        set_latch_style(LatchStyle::Penalty);
+        assert_ne!(best(&runout, cooperative), Call::Double);
+        // …but the OPTIONAL latch doubles on the 2-3 holding and values.
+        set_latch_style(LatchStyle::Optional);
+        assert_eq!(best(&runout, cooperative), Call::Double);
+
+        // (1NT) X (2♦) X (Pass): partner's latched double, back to the 15+ doubler.
+        let advance = [
+            call(1, Strain::Notrump),
+            Call::Double,
+            call(2, Strain::Diamonds),
+            Call::Double,
+            Call::Pass,
+        ];
+        // Penalty: forced sit — leave the penalty double in (defend 2♦x).
+        set_latch_style(LatchStyle::Penalty);
+        assert_eq!(best(&advance, "AQ74.AQ5.82.A632"), Call::Pass);
+        // Optional: cooperate (not forced to sit) — short in their suit with a
+        // four-card major and values, run to the major game.
+        set_latch_style(LatchStyle::Optional);
+        assert_eq!(best(&advance, "AQ74.AQ5.82.A632"), call(4, Strain::Spades));
+
+        set_latch_style(LatchStyle::default());
     }
 
     #[test]
