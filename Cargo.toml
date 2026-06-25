@@ -123,5 +123,18 @@ name = "probe-extract-constraints"
 path = "examples/probe-extract-constraints/main.rs"
 required-features = ["search"]
 
+# The BBA reference anchor (AI-bidder Side-track S.1), split into a single-thread
+# EPBot *generator* and a parallel-DD *scorer* that exchange a JSON board `Dump`.
+# Both (de)serialize it via serde, so they build only with the `serde` feature.
+[[example]]
+name = "bba-gen"
+path = "examples/bba-gen/main.rs"
+required-features = ["serde"]
+
+[[example]]
+name = "bba-score"
+path = "examples/bba-score/main.rs"
+required-features = ["serde"]
+
 [profile.dev.package."*"]
 opt-level = 2

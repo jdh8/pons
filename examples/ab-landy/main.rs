@@ -33,7 +33,6 @@ use clap::Parser;
 use contract_bridge::auction::{Auction, Call};
 use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, Bid, Contract, FullDeal, Hand, Seat, Strain, Suit};
-use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
 use pons::bidding::Family;
 use pons::bidding::american::{
@@ -44,7 +43,7 @@ use pons::bidding::american::{
     set_unusual_notrump_defense, set_woolsey, set_woolsey_double_floor, set_woolsey_points,
 };
 use pons::bidding::instinct::{LatchStyle, set_latch_style, set_penalty_latch};
-use pons::scoring::{final_contract, imps, ns_score_bid, ns_score_contract};
+use pons::scoring::{final_contract, ns_score_bid, ns_score_contract};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
 use rayon::prelude::*;
@@ -615,16 +614,27 @@ fn main() {
         auctions.push(a);
     }
 
-    // Only boards whose tables diverge can swing; solve those once and credit the
-    // swing to the Landy team (NS at A, EW at B).
-    let divergent: Vec<usize> = (0..args.count)
-        .filter(|&i| contracts[i].0 != contracts[i].1)
-        .collect();
-    let solve_deals: Vec<FullDeal> = divergent.iter().map(|&i| deals[i]).collect();
-    let tables = Solver::lock().solve_deals(&solve_deals, NonEmptyStrainFlags::ALL);
-
-    let mut points = 0i64;
-    let mut total_imps = 0i64;
+    let pd = match args.score.as_str() {
+        "plain" => false,
+        "pd" => true,
+        other => panic!("unknown --score {other:?} (use plain or pd)"),
+    };
+    // Plain DD prices the contract's actual penalty; PD doubles any contract that
+    // fails double-dummy (perfect-defense), which punishes a weak overbid.
+    let score = |c: Option<(Contract, Seat)>, table: &_, vul| {
+        if pd {
+            ns_score_bid(c.map(|(ct, s)| (ct.bid, s)), table, vul)
+        } else {
+            ns_score_contract(c, table, vul)
+        }
+    };
+    // Only boards whose tables diverge can swing; solve + score those once (the
+    // shared A/B core), then credit each swing to the Landy team's natural action.
+    let scored = common::score_boards(&contracts, &deals, args.vulnerability, score);
+    let points = scored.total_points;
+    let total_imps = scored.total_imps;
+    let divergent = &scored.divergent;
+    let tables = &scored.tables;
     let mut worst: Vec<(i64, usize, usize)> = Vec::new();
     // Per-defensive-action tally: label -> (boards, IMPs). The natural action that
     // drives a board's divergence appears at exactly one table (the one where the
@@ -636,27 +646,8 @@ fn main() {
     // doubler, so each row is that shape's marginal gain over the balanced baseline.
     let mut by_shape: std::collections::BTreeMap<String, (i64, i64)> =
         std::collections::BTreeMap::new();
-    let pd = match args.score.as_str() {
-        "plain" => false,
-        "pd" => true,
-        other => panic!("unknown --score {other:?} (use plain or pd)"),
-    };
-    // Plain DD prices the contract's actual penalty; PD doubles any contract that
-    // fails double-dummy (perfect-defense), which punishes a weak overbid.
-    let score = |c: Option<(_, Seat)>, table: &_, vul| {
-        if pd {
-            ns_score_bid(c.map(|(ct, s): (Contract, _)| (ct.bid, s)), table, vul)
-        } else {
-            ns_score_contract(c, table, vul)
-        }
-    };
-    for (pos, (&i, table)) in divergent.iter().zip(tables.iter()).enumerate() {
-        let (contract_a, contract_b) = contracts[i];
-        let swing = score(contract_a, table, args.vulnerability)
-            - score(contract_b, table, args.vulnerability);
-        let board_imps = imps(swing);
-        points += swing;
-        total_imps += board_imps;
+    for (pos, &i) in divergent.iter().enumerate() {
+        let board_imps = scored.board_imps[i];
         worst.push((board_imps, i, pos));
         let dealer = Seat::ALL[i % 4];
         let actor = natural_action_over_1nt(&auctions[i].0, dealer, true)

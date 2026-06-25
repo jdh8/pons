@@ -1,72 +1,72 @@
-//! AI-bidder **Side-track S.1** — the external eval anchor.
+//! AI-bidder **Side-track S.1** — the external eval anchor, *generation* half.
 //!
-//! A duplicate A/B match of our deterministic [`american`] floor against
+//! Bids a duplicate A/B match of our deterministic [`american`] floor against
 //! **BBA's own 2/1 Game Force card**, driven natively through EPBot's C ABI
-//! (`libEPBot.so`, no Wine — first proven by the since-removed S.0 `bba-oracle`
-//! spike).  The
-//! two systems play the *same* 2/1 system, so every divergence is a pure
-//! quality gap between our authored DSL and a mature engine, not a difference
-//! of methods.  This turns "did we improve?" into "how far are we from BBA?",
-//! calibrating the M1/M3 learned-floor gains.
-//!
-//! The harness mirrors `examples/ab-instinct-floor`: each board is bid twice
-//! (our pair North/South at table A, East/West at table B), boards whose two
-//! tables reach different contracts are scored double dummy with `ddss`, and
-//! the swing is credited to our pair.  A negative IMPs/board means BBA's 2/1
-//! out-bids ours; the divergence dump lists the boards we lost by the most —
-//! concrete under-/over-bidding auctions to author against.
-//!
-//! EPBot ships in the `vendor/bba` git submodule (BBA is free for non-commercial
-//! use and redistribution); `git submodule update --init vendor/bba` resolves the
-//! default library path, or point `BBA_LIB` elsewhere:
+//! (`libEPBot.so`, no Wine).  Each board is bid twice — our pair North/South at
+//! table A, East/West at table B — and the two auctions are written out as a
+//! `Dump` of [`Board`]s.  **No double-dummy, no scoring**: the EPBot bidding is
+//! single-threaded by design (a fresh native bot per decision, FFI thread-safety
+//! not assumed), so this half is CPU-light and latency-bound — run it on one
+//! thread alongside a saturating self-play sweep, and hand the boards to
+//! [`bba-score`](../bba-score/main.rs) for the parallel DD scoring.  Caching the
+//! boards also lets a tuning loop re-score them many ways (plain vs PD) without
+//! paying the slow FFI bidding again.
 //!
 //! ```text
-//! cargo run --release --example bba-match -- --count 1000
-//! BBA_LIB=/path/to/libEPBot.so cargo run --release --example bba-match
+//! # pipe the whole match through in one line (today's one-shot behaviour)
+//! cargo run --release --features serde --example bba-gen -- --count 1000 \
+//!   | cargo run --release --features serde --example bba-score
+//! # or cache the boards, then score them several ways
+//! cargo run --release --features serde --example bba-gen -- --count 6000 \
+//!   --isolate-defense -o boards.json
+//! cargo run --release --features serde --example bba-score -- boards.json --score pd
 //! ```
 //!
-//! `--our-system <index>` swaps our side for a *second* EPBot card, turning the
-//! harness into a BBA-vs-BBA experiment (e.g. `--our-system 2` is WJ / Polish
-//! Club, `--system 0` 2/1).  Left unset, our side stays the [`american`] floor —
-//! the original S.1 anchor, unchanged.
+//! EPBot ships in the `vendor/bba` git submodule; `git submodule update --init
+//! vendor/bba` resolves the default library path, or point `BBA_LIB` elsewhere.
+//! `--our-system <index>` swaps our side for a *second* EPBot card (BBA-vs-BBA).
 
 use clap::Parser;
 use contract_bridge::auction::{Auction, Call, RelativeVulnerability};
 use contract_bridge::deck::full_deal;
 use contract_bridge::eval::hcp as holding_hcp;
 use contract_bridge::{AbsoluteVulnerability, Bid, FullDeal, Hand, Level, Seat, Strain, Suit};
-use ddss::{NonEmptyStrainFlags, Solver};
 use libloading::Library;
 use pons::american;
 use pons::bidding::american::DoubleShape;
 use pons::bidding::array::{Array, Logits};
 use pons::bidding::context::relative;
 use pons::bidding::{Family, System};
-use pons::scoring::{final_contract, imps, ns_score_contract};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
-use std::collections::BTreeMap;
 use std::ffi::{CString, c_char, c_int, c_void};
+
+#[path = "../common/mod.rs"]
+#[allow(dead_code)]
+mod common;
+use common::{Board, Dump};
 
 const DEFAULT_LIB: &str = "vendor/bba/Native-libraries/linux/x64/libEPBot.so";
 
 /// System index 0 = "2/1GF - 2/1 Game Force" (verified via `epbot_system_name`)
 const SYSTEM_2_OVER_1: c_int = 0;
 
-/// Measure our 2/1 floor against BBA's 2/1: an A/B duplicate match
+/// Bid our 2/1 floor against BBA's 2/1 and write the boards (the generation half
+/// of the A/B duplicate match; `bba-score` scores them)
 #[derive(Parser)]
 struct Args {
     /// Number of boards in the match (dealer rotates per board)
     #[arg(short, long, default_value = "200")]
     count: usize,
 
-    /// Vulnerability: none, ns, ew, both
+    /// Write the bid boards as JSON here; default is stdout (pipe into
+    /// `bba-score`, or save to re-score many ways without re-bidding)
+    #[arg(short, long)]
+    output: Option<String>,
+
+    /// Vulnerability the boards are bid at: none, ns, ew, both
     #[arg(short, long, default_value = "none")]
     vulnerability: AbsoluteVulnerability,
-
-    /// Number of worst (most-lost) divergent boards to dump
-    #[arg(short, long, default_value = "15")]
-    top: usize,
 
     /// EPBot system index for *their* side (0 = 2/1 Game Force, 2 = WJ)
     #[arg(short, long, default_value_t = SYSTEM_2_OVER_1)]
@@ -96,8 +96,7 @@ struct Args {
 
     /// Only keep deals with a balanced 15-17 HCP hand somewhere (a 1NT-opener
     /// candidate), to raise the yield of 1NT boards.  Cheap shape gate, no
-    /// bidding; `--count` then means *kept* boards.  Pairs with the per-subset
-    /// 1NT report printed after the headline.
+    /// bidding; `--count` then means *kept* boards.
     #[arg(long, default_value_t = false)]
     filter_1nt: bool,
 
@@ -123,35 +122,30 @@ struct Args {
     /// Read a `(2♦)` overcall of our 1NT as a Multi (an unknown major) and use our
     /// Multi counter-defense.  BBA's 2/1 card overcalls 1NT with Multi-Landy, whose
     /// 2♦ *is* a Multi, so this is the live test — pair with
-    /// `--their-conv "Multi-Landy=1"` to be sure BBA bids it.  Seed-pair an on/off
-    /// run to isolate it (the boards it does not touch cancel).
+    /// `--their-conv "Multi-Landy=1"` to be sure BBA bids it.
     #[arg(long, default_value_t = false)]
     defense_2d_multi: bool,
 
     /// Suppress our *own* 1NT opening (those 15-17 balanced hands open a minor),
     /// so every 1NT in the match is BBA's and our pair is purely the defender.
-    /// Removes the confound where the same deal has us opening 1NT at the other
-    /// table — the "OUR defense vs their 1NT" report then measures defense alone.
     #[arg(long, default_value_t = false)]
     no_our_1nt: bool,
 
     /// Cleanly isolate our DEFENSE to BBA's 1NT.  Keep only boards where BBA (E/W)
-    /// opens 1NT and our pair (N/S) defends, and score table A (our defense)
-    /// against an ALL-BBA reference table — same BBA opener and responses, only
-    /// the defender differs (ours vs BBA).  The swing is then pure defense quality,
-    /// free of the other-table constructive confound that `--no-our-1nt` leaves.
-    /// `--count` means kept (we-defend) boards.
+    /// opens 1NT and our pair (N/S) defends, and bid table B as an ALL-BBA
+    /// reference — same BBA opener and responses, only the defender differs (ours
+    /// vs BBA).  The swing is then pure defense quality.  `--count` means kept
+    /// (we-defend) boards.
     #[arg(long, default_value_t = false)]
     isolate_defense: bool,
 
     /// Restore the legacy fifths gauge for our 1NT opening (default = plain HCP
-    /// 15-17).  Seed-pair an on/off run (standard mode) to re-A/B the change.
+    /// 15-17).
     #[arg(long, default_value_t = false)]
     nt_fifths: bool,
 
     /// Shape gate for our natural penalty double of their 1NT: any (default, matches
-    /// the shipped `american()`) | semi | balanced.  Tunes our defense against BBA
-    /// (`--isolate-defense`); pass `balanced` to A/B the X-only-balanced restriction.
+    /// the shipped `american()`) | semi | balanced.
     #[arg(long, default_value = "any")]
     ns_double_shape: String,
 
@@ -160,32 +154,27 @@ struct Args {
     ns_double_floor: u8,
 
     /// Inclusive `points` range LO:HI for our natural two-level suit overcall of
-    /// their 1NT (default 8:14).  Raising HI lets a strong one-suiter overcall
-    /// instead of falling through to the penalty double.
+    /// their 1NT (default 8:14).
     #[arg(long, default_value = "8:14")]
     ns_overcall: String,
 
     /// Logit weight of our natural penalty double of their 1NT (default 1.3, above
-    /// the 1.0 suit overcall).  Set below 1.0 so suit overcalls take precedence —
-    /// a strong one-suiter overcalls instead of doubling (realistic suit-vs-X).
+    /// the 1.0 suit overcall).
     #[arg(long, default_value_t = 1.3)]
     ns_double_weight: f32,
 
-    /// Extend our 1NT defense to the balancing seat (1NT) P P ? (default off);
-    /// on replaces the instinct floor's undisciplined balancing doubles.
+    /// Extend our 1NT defense to the balancing seat (1NT) P P ? (default off).
     #[arg(long, default_value_t = false)]
     ns_balancing: bool,
 
     /// Replace our natural 1NT defense with conventional DONT (default off):
     /// one-suiter X, 2♣ = clubs + a higher major, 2♦ = diamonds + a major, 2♥ =
-    /// both majors, 2♠ natural, 2NT = both minors.  Mutually exclusive with the
-    /// natural penalty-X; pair with `--isolate-defense --advertise-natural` to A/B
-    /// DONT against the natural defense's −0.18/−0.48 IMPs/board baseline.
+    /// both majors, 2♠ natural, 2NT = both minors.
     #[arg(long, default_value_t = false)]
     ns_dont: bool,
 
     /// DONT one-suiter minimum length for the `X`/`2♠` (default 5; set 6 to insist
-    /// only with a six-card suit, passing five-card one-suiters). Only with `--ns-dont`.
+    /// only with a six-card suit). Only with `--ns-dont`.
     #[arg(long, default_value_t = 5)]
     ns_dont_one_suiter_min: u8,
 
@@ -196,10 +185,7 @@ struct Args {
 
     /// Replace our 1NT defense with our own Woolsey "Multi-Landy" (default off):
     /// X = 4-card major + longer minor, 2♣ = both majors, 2♦ = Multi, 2♥/2♠ =
-    /// Muiderberg.  Structurally BBA's own defense, so run WITHOUT `--advertise-natural`:
-    /// BBA reads our conventional bids correctly via its Multi-Landy model, and the
-    /// all-BBA reference table is BBA defending with the same convention — the swing is
-    /// then our Woolsey (BBA structure, our ranges) vs BBA's own.  Excludes `--ns-dont`.
+    /// Muiderberg.  Run WITHOUT `--advertise-natural` (BBA reads it via Multi-Landy).
     #[arg(long, default_value_t = false)]
     ns_woolsey: bool,
 
@@ -213,33 +199,24 @@ struct Args {
     ns_woolsey_x_floor: u8,
 
     /// Disable the penalty-double latch (default on): after our natural penalty X of
-    /// BBA's 1NT, our later doubles read as penalty (double the runout on a stack,
-    /// leave partner's double in) instead of takeout — "once penalty, always
-    /// penalty". Fires only for our side (we made the X), so pair with
-    /// `--advertise-natural`. Pass `--no-ns-penalty-latch` for the A/B off arm.
+    /// BBA's 1NT, our later doubles read as penalty instead of takeout.
     #[arg(long, default_value_t = false)]
     no_ns_penalty_latch: bool,
 
     /// Our side NEVER competes over BBA's 1NT (default off): authors only Pass at
-    /// every seat, the truest "do nothing" baseline.  With `--isolate-defense` the
-    /// swing is BBA reaching its contract uncontested (our table) vs BBA disrupting
-    /// BBA (the reference) — i.e. the full cost of not competing.  Overrides every
-    /// other defense knob (Pass is authored before them).
+    /// every seat, the truest "do nothing" baseline.  Overrides every other defense knob.
     #[arg(long, default_value_t = false)]
     ns_always_pass: bool,
 
-    /// Advertise that our defense to BBA's 1NT is natural.  At *our* table only
-    /// (where we defend) the opponent bot's 1NT-defense conventions are disabled
-    /// (`Multi-Landy`/`Cappelletti`/`Landy` off, atop `--their-conv`), so BBA reads
-    /// our two-level overcalls as natural rather than as its own Multi-Landy.  The
-    /// all-BBA reference table keeps BBA's genuine Multi-Landy.  Use with
-    /// `--isolate-defense`.
+    /// Advertise that our defense to BBA's 1NT is natural.  At *our* table only the
+    /// opponent bot's 1NT-defense conventions are disabled (`Multi-Landy`/
+    /// `Cappelletti`/`Landy` off), so BBA reads our two-level overcalls as natural.
+    /// The all-BBA reference table keeps BBA's genuine Multi-Landy.
     #[arg(long, default_value_t = false)]
     advertise_natural: bool,
 
     /// Disable the settle floor ("pass = play the top bid" over a takeout double,
-    /// default on) to A/B the floor change's effect on defense.  Seed-pair an
-    /// on/off run.
+    /// default on) to A/B the floor change's effect on defense.
     #[arg(long, default_value_t = false)]
     no_settle_floor: bool,
 }
@@ -292,20 +269,14 @@ type NewHandFn =
 type SetBidFn = unsafe extern "C" fn(*mut c_void, c_int, c_int, *const c_char);
 type GetBidFn = unsafe extern "C" fn(*mut c_void) -> c_int;
 // `epbot_set_conventions(bot, seat, name, on)` — per-seat convention toggle.
-// Addressing (seat + name, NOT index) recovered from objdump and validated
-// against `21GF.bbsa` (240/258 boolean toggles round-trip via get_conventions);
-// `get_bid` genuinely consults the flag.  Lets `--our-conv`/`--their-conv`
-// isolate one named convention in a BBA-vs-BBA A/B.
 type SetConvFn = unsafe extern "C" fn(*mut c_void, c_int, *const c_char, c_int) -> c_int;
 
 /// EPBot 2/1 bidder behind pons's [`System`] trait.
 ///
 /// Each [`System::classify`] call drives a *fresh* bot: it configures all four
 /// seats to the chosen system, deals the actor's hand, replays the auction so
-/// far with `set_bid` (one call per seat, rotating from a canonical dealer at
-/// position 0), and reads the actor's call with `get_bid`.  A fresh bot per
-/// decision keeps `classify` a pure, stateless function of its arguments —
-/// exactly what the [`System`] contract wants.
+/// far with `set_bid`, and reads the actor's call with `get_bid`.  A fresh bot
+/// per decision keeps `classify` a pure, stateless function of its arguments.
 ///
 /// Cached raw function pointers (copied out of the [`Library`]) avoid a `dlsym`
 /// per call; `_lib` is held so the pointers stay valid for the oracle's life.
@@ -320,9 +291,7 @@ struct BbaOracle {
     set_conv: SetConvFn,
     system: c_int,
     /// Named conventions forced to a value on all four seats of every fresh bot,
-    /// applied after `set_system` (which loads the system's defaults).  This is
-    /// the single-toggle lever for the BBA-vs-BBA A/B: load both sides at the
-    /// same `system` and override one convention on one side only.
+    /// applied after `set_system` (which loads the system's defaults).
     overrides: Vec<(CString, c_int)>,
 }
 
@@ -354,10 +323,9 @@ impl BbaOracle {
 impl System for BbaOracle {
     fn classify(&self, hand: Hand, vul: RelativeVulnerability, auction: &[Call]) -> Option<Logits> {
         // Canonicalize the dealer to position 0: the actor is the seat that has
-        // bid `auction.len()` times after the dealer.  The relative seat
-        // (1st/2nd/3rd/4th to speak, passed-hand status) is preserved by the
-        // replayed calls, and the favorable/unfavorable vulnerability by the
-        // mapping below, so the bid is identical to the true seating.
+        // bid `auction.len()` times after the dealer.  The relative seat and the
+        // favorable/unfavorable vulnerability are preserved by the replayed calls
+        // and the mapping below, so the bid is identical to the true seating.
         let actor = (auction.len() % 4) as c_int;
         let suits = hand_to_suits(hand);
         let empty = c"".as_ptr();
@@ -402,10 +370,9 @@ impl System for BbaOracle {
 /// The four holdings in EPBot's C,D,H,S order, newline-joined
 ///
 /// [`Holding`][contract_bridge::Holding]'s `Display` renders ranks high-to-low
-/// using `T` for the ten — exactly EPBot's canonical form (verified by reading
-/// the hand back with `epbot_get_cards`).  EPBot counts characters as cards, so
-/// every hand must be exactly 13; `full_deal` guarantees that.  A void suit is
-/// an empty segment, which EPBot reads as zero cards.
+/// using `T` for the ten — exactly EPBot's canonical form.  EPBot counts
+/// characters as cards, so every hand must be exactly 13; `full_deal` guarantees
+/// that.  A void suit is an empty segment, which EPBot reads as zero cards.
 fn hand_to_suits(hand: Hand) -> CString {
     use core::fmt::Write;
     let mut suits = String::with_capacity(20);
@@ -425,9 +392,7 @@ fn hand_to_suits(hand: Hand) -> CString {
 ///
 /// EPBot seats even (0, 2) are North/South and odd (1, 3) East/West; its
 /// vulnerability bits are 1 = N/S, 2 = E/W.  With the dealer canonicalized to
-/// position 0, the actor's side is N/S iff `actor` is even.  `none` maps to 0
-/// and `both` to 3 regardless of direction; the N/S-vs-E/W direction (the only
-/// unverified bit) matters solely for the half-vulnerable runs.
+/// position 0, the actor's side is N/S iff `actor` is even.
 fn epbot_vulnerability(vul: RelativeVulnerability, actor: c_int) -> c_int {
     let we = vul.contains(RelativeVulnerability::WE);
     let they = vul.contains(RelativeVulnerability::THEY);
@@ -547,26 +512,17 @@ fn bid_out(
     auction
 }
 
-/// Render an auction with leading passes kept, calls space-joined
-fn show_auction(auction: &Auction) -> String {
-    auction
-        .iter()
-        .map(ToString::to_string)
-        .collect::<Vec<_>>()
-        .join(" ")
-}
-
 // ---------------------------------------------------------------------------
-// Isolating the 1NT subset (openings and our defense), for --filter_1nt
+// The 1NT pre-filters that shape which boards are generated
 // ---------------------------------------------------------------------------
 
-/// Total HCP of a hand (the `examples/common` pattern; bba-match owns its helpers)
+/// Total HCP of a hand
 fn hand_hcp(hand: Hand) -> u8 {
     Suit::ASC.iter().map(|&s| holding_hcp::<u8>(hand[s])).sum()
 }
 
 /// Balanced (no singleton/void, at most one doubleton) with 15-17 HCP — a strict
-/// 1NT-opener gate for the cheap pre-filter.
+/// 1NT-opener gate for the cheap `--filter-1nt` pre-filter.
 fn is_1nt_opener(hand: Hand) -> bool {
     let len = Suit::ASC.map(|s| hand[s].len());
     let balanced = len.iter().all(|&l| l >= 2) && len.iter().filter(|&&l| l == 2).count() <= 1;
@@ -575,7 +531,8 @@ fn is_1nt_opener(hand: Hand) -> bool {
 
 /// If this auction's *opening* call is 1NT, its index and whether the opener is
 /// North/South.  The opening requirement (all prior calls passes) excludes a
-/// `1♣-P-1NT` rebid — we want 1NT *openings* only.
+/// `1♣-P-1NT` rebid — we want 1NT *openings* only.  Used by `--isolate-defense`
+/// to keep only BBA-opens-1NT / we-defend boards.
 fn opening_1nt(auction: &[Call], dealer: Seat) -> Option<(usize, bool)> {
     let one_nt = Call::Bid(Bid::new(1, Strain::Notrump));
     let index = auction.iter().position(|&call| call == one_nt)?;
@@ -586,80 +543,7 @@ fn opening_1nt(auction: &[Call], dealer: Seat) -> Option<(usize, bool)> {
     Some((index, opener_ns))
 }
 
-/// Our first call after the 1NT opening.  At table A our pair sits North/South,
-/// so this is our action whether we opened (responder) or defended (overcaller),
-/// skipping any opposing call in between.  Captures `Pass` too.
-fn first_ns_call_after(auction: &[Call], dealer: Seat, nt_index: usize) -> Option<Call> {
-    auction[nt_index + 1..]
-        .iter()
-        .enumerate()
-        .find_map(|(off, &call)| {
-            matches!(
-                seat_to_act(dealer, nt_index + 1 + off),
-                Seat::North | Seat::South
-            )
-            .then_some(call)
-        })
-}
-
-/// The 1NT opener's partner's (responder's) first call after the opening — i.e.
-/// what the opponents responded once we did *not* overcall.  Their partner sits
-/// two seats after the opener (`+2` is partner in the N,E,S,W rotation).  `None`
-/// if the responder never gets to call.
-fn responder_call_after(auction: &[Call], dealer: Seat, nt_index: usize) -> Option<Call> {
-    let responder = seat_to_act(dealer, nt_index + 2);
-    auction[nt_index + 1..]
-        .iter()
-        .enumerate()
-        .find_map(|(off, &call)| {
-            (seat_to_act(dealer, nt_index + 1 + off) == responder).then_some(call)
-        })
-}
-
-/// Short bucket label for a responder/defender call (`P`, `2♣`, `X`, …)
-fn action_label(call: Call) -> String {
-    match call {
-        Call::Pass => "P".into(),
-        Call::Double => "X".into(),
-        Call::Redouble => "XX".into(),
-        Call::Bid(bid) => bid.to_string(),
-    }
-}
-
-/// Sample mean and the half-width of its 95% confidence interval
-///
-/// The mean is the headline IMPs/board; the half-width is `1.96 · SE` from the
-/// per-board sample standard deviation, so a CI that excludes 0 is a result
-/// distinguishable from noise.
-#[allow(clippy::cast_precision_loss)]
-fn mean_with_ci(values: &[i64]) -> (f64, f64) {
-    let n = values.len();
-    if n < 2 {
-        return (0.0, 0.0);
-    }
-    let mean = values.iter().sum::<i64>() as f64 / n as f64;
-    let variance = values
-        .iter()
-        .map(|&v| {
-            let d = v as f64 - mean;
-            d * d
-        })
-        .sum::<f64>()
-        / (n - 1) as f64;
-    (mean, 1.96 * (variance / n as f64).sqrt())
-}
-
-/// One board: the deal, the dealer, and both tables' auctions
-struct Board {
-    deal: FullDeal,
-    dealer: Seat,
-    /// Our pair North/South
-    table_a: Auction,
-    /// Our pair East/West
-    table_b: Auction,
-}
-
-#[allow(clippy::cast_precision_loss, clippy::too_many_lines)]
+#[allow(clippy::too_many_lines)]
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
     let path = std::env::var("BBA_LIB").unwrap_or_else(|_| DEFAULT_LIB.into());
@@ -687,32 +571,18 @@ fn main() -> anyhow::Result<()> {
         None
     };
     // Our side: the authored floor by default, or a second EPBot card when
-    // `--our-system` is given (the BBA-vs-BBA experiment).  Both live to the end
-    // of `main`, so `ours` can borrow whichever is selected.
+    // `--our-system` is given (the BBA-vs-BBA experiment).
     if args.uvu {
-        // Read at book construction (responder structure) and, for the encircling
-        // chase, at classify time — fine here, the match is sequential (FFI).
         pons::bidding::american::set_uvu(true);
         pons::bidding::american::set_uvu_x_floor(args.uvu_x_floor);
         pons::bidding::american::set_uvu_cue_floor(args.uvu_cue_floor);
         pons::bidding::instinct::set_uvu_encircle(true);
     }
-    // Book-construction TLS (responder structure over our overcalled 1NT), baked
-    // into `our_floor` below — like `set_uvu`, no per-worker reset needed.
     pons::bidding::american::set_defense_to_2d_multi(args.defense_2d_multi);
-    // Classify-time TLS, set once on this (sequential) main thread: the settle
-    // floor governs partner's takeout-double continuations, including the
-    // competitive seam after our defense to 1NT.  Off = the pre-9badc15 floor.
     pons::bidding::instinct::set_settle_floor(!args.no_settle_floor);
-    // Classify-time TLS, set once on this sequential main thread (the latch is
-    // live-read).  Fires only after our natural penalty X of their 1NT, so it
-    // governs only our defensive continuations — BBA bids through its own engine.
     pons::bidding::instinct::set_penalty_latch(!args.no_ns_penalty_latch);
-    // Read at book construction (the opening table): suppress our own 1NT opening
-    // so the duplicate's other table can't reintroduce a we-open-1NT swing.
     pons::bidding::american::set_open_one_notrump(!args.no_our_1nt);
     pons::bidding::american::set_one_notrump_fifths(args.nt_fifths);
-    // Defense tuning knobs (read at book construction, baked into `our_floor`).
     pons::bidding::american::set_natural_double_shape(match args.ns_double_shape.as_str() {
         "any" => DoubleShape::Any,
         "semi" => DoubleShape::SemiBalanced,
@@ -730,9 +600,6 @@ fn main() -> anyhow::Result<()> {
             anyhow::anyhow!("--ns-overcall must be LO:HI, got {:?}", args.ns_overcall)
         })?;
     pons::bidding::american::set_natural_overcall_points(oc_lo, oc_hi);
-    // DONT replaces the natural penalty-X + overcalls; it owns 2♣ as a two-suiter
-    // (so Landy must be off) and pairs with Unusual 2NT to give both-minor hands a
-    // home (else clubs+diamonds, carved off 2♣, would have nowhere to go).
     pons::bidding::american::set_direct_dont(args.ns_dont);
     if args.ns_dont {
         pons::bidding::american::set_landy(None);
@@ -740,8 +607,6 @@ fn main() -> anyhow::Result<()> {
         pons::bidding::american::set_direct_dont_one_suiter_min(args.ns_dont_one_suiter_min);
         pons::bidding::american::set_direct_dont_four_four(args.ns_dont_four_four);
     }
-    // Woolsey owns every direct call over their 1NT, so force the natural/DONT/Landy
-    // arms off — else their advance wiring would overwrite the Woolsey continuations.
     pons::bidding::american::set_woolsey(args.ns_woolsey);
     if args.ns_woolsey {
         let (wlo, whi) = args
@@ -760,7 +625,6 @@ fn main() -> anyhow::Result<()> {
         pons::bidding::american::set_landy(None);
         pons::bidding::american::set_direct_dont(false);
     }
-    // Always-pass owns the [1NT] node before every other arm (truest do-nothing).
     pons::bidding::american::set_always_pass_defense(args.ns_always_pass);
     let our_floor = match args.our_floor.as_str() {
         "american" => american().against(Family::NATURAL),
@@ -783,8 +647,6 @@ fn main() -> anyhow::Result<()> {
         Some(oracle) => oracle,
         None => &our_floor,
     };
-    // The opponent our pair faces: the natural-advertised bot if `--advertise-natural`,
-    // else plain `bba`.  The all-BBA reference table always uses plain `bba`.
     let opponent: &dyn System = match &bba_vs_natural {
         Some(oracle) => oracle,
         None => &bba,
@@ -807,9 +669,8 @@ fn main() -> anyhow::Result<()> {
 
     // Bid every board at both tables, dealer rotating per board.  Sequential by
     // design: each EPBot decision creates/destroys a native bot through the FFI,
-    // which we do not assume is thread-safe (only the DD solver parallelizes).
-    // With --filter_1nt, keep dealing until `count` deals carry a 1NT-opener
-    // candidate; `scanned` records how many were drawn to get there.
+    // which we do not assume is thread-safe.  With --filter-1nt, keep dealing
+    // until `count` deals carry a 1NT-opener candidate.
     let mut boards: Vec<Board> = Vec::with_capacity(args.count);
     let mut scanned = 0usize;
     while boards.len() < args.count {
@@ -839,216 +700,28 @@ fn main() -> anyhow::Result<()> {
         });
     }
 
-    // Only boards whose tables reach different contracts can swing; solve those
-    // double dummy and credit the swing to our pair (NS at A, EW at B).
-    let contracts: Vec<_> = boards
-        .iter()
-        .map(|board| {
-            (
-                final_contract(&board.table_a, board.dealer),
-                final_contract(&board.table_b, board.dealer),
-            )
-        })
-        .collect();
-    let divergent: Vec<usize> = (0..boards.len())
-        .filter(|&index| contracts[index].0 != contracts[index].1)
-        .collect();
-    let deals: Vec<FullDeal> = divergent.iter().map(|&index| boards[index].deal).collect();
-    let tables = Solver::lock().solve_deals(&deals, NonEmptyStrainFlags::ALL);
-
-    let mut total_points = 0i64;
-    // Per-board IMP swing over *all* boards (0 for non-divergent), for the mean
-    // and its confidence interval.
-    let mut board_imps = vec![0i64; boards.len()];
-    // Per divergent board: (board index, point swing, IMP swing) for the dump.
-    let mut swings: Vec<(usize, i64, i64)> = Vec::with_capacity(divergent.len());
-    for (&index, table) in divergent.iter().zip(tables.iter()) {
-        let (contract_a, contract_b) = contracts[index];
-        let swing = ns_score_contract(contract_a, table, args.vulnerability)
-            - ns_score_contract(contract_b, table, args.vulnerability);
-        total_points += swing;
-        board_imps[index] = imps(swing);
-        swings.push((index, swing, imps(swing)));
-    }
-    let total_imps: i64 = board_imps.iter().sum();
-
-    let (mean, half_width) = mean_with_ci(&board_imps);
-    println!(
-        "=== {} (us) vs {} (them): {} boards, vulnerability {} ===",
-        our_label, their_label, args.count, args.vulnerability,
-    );
-    println!(
-        "Divergent boards: {} of {} ({:.0}%)",
-        divergent.len(),
-        args.count,
-        100.0 * divergent.len() as f64 / args.count.max(1) as f64,
-    );
-    println!(
-        "Our pair: {total_points:+} points, {total_imps:+} IMPs\n\
-         IMPs/board: {mean:+.3}  (95% CI [{:+.3}, {:+.3}])",
-        mean - half_width,
-        mean + half_width,
-    );
-    if args.isolate_defense {
-        println!(
-            "(defense isolation: every board is BBA-opens-1NT / we-defend; \
-             table B is an ALL-BBA reference, so the swing is our defense vs BBA's)"
-        );
-    }
-    if args.advertise_natural {
-        println!(
-            "(advertise-natural: at our table BBA reads our overcalls as natural \
-             — Multi-Landy/Cappelletti/Landy off; the reference keeps BBA's own)"
-        );
-    }
-    if args.no_settle_floor {
-        println!("(settle floor OFF: pre-9badc15 takeout-double continuations)");
-    }
-
-    // Isolate the 1NT subset, keyed on table A (where our pair sits NS): boards
-    // whose opening call is 1NT, split by who opened (NS = our opening, EW = our
-    // defense), and bucketed by our first call so a leak localizes to a single
-    // continuation.  Divergence is still measured at both tables; this only
-    // attributes the swing to the convention that ran at our table.
-    let mut open = (0i64, 0i64);
-    let mut open_by: BTreeMap<String, (i64, i64)> = BTreeMap::new();
-    let mut defend = (0i64, 0i64);
-    let mut defend_by: BTreeMap<String, (i64, i64)> = BTreeMap::new();
-    // Same we-defend boards, re-bucketed to test the hypothesis that the leak is
-    // in our defense to their *responses*, not our direct overcall/double: DIRECT
-    // (we acted over 1NT), CONT <call> (we passed, they responded with <call>), or
-    // QUIET (we passed, they passed).
-    let mut defend_shape_by: BTreeMap<String, (i64, i64)> = BTreeMap::new();
-    // Focus subset: we open 1NT and the overcall is exactly 2NT — the auctions
-    // the UvU counter-measures act on, bucketed by our response.
-    let two_nt = Call::Bid(Bid::new(2, Strain::Notrump));
-    let mut uvu = (0i64, 0i64);
-    let mut uvu_by: BTreeMap<String, (i64, i64)> = BTreeMap::new();
-    for &(index, _points, imp) in &swings {
-        let board = &boards[index];
-        let Some((nt_index, opener_ns)) = opening_1nt(&board.table_a, board.dealer) else {
-            continue;
-        };
-        let our_direct = first_ns_call_after(&board.table_a, board.dealer, nt_index);
-        let key = our_direct.map_or_else(|| "(none)".into(), action_label);
-        let is_uvu = opener_ns && board.table_a.get(nt_index + 1) == Some(&two_nt);
-        let (sum, by) = if opener_ns {
-            (&mut open, &mut open_by)
-        } else {
-            (&mut defend, &mut defend_by)
-        };
-        sum.0 += 1;
-        sum.1 += imp;
-        let entry = by.entry(key.clone()).or_default();
-        entry.0 += 1;
-        entry.1 += imp;
-        // Hypothesis probe (we-defend only): did the swing come from our DIRECT
-        // action over their 1NT, or from the CONTinuation after they responded?
-        if !opener_ns {
-            let shape = match our_direct {
-                Some(call) if call != Call::Pass => "DIRECT (we bid over 1NT)".to_string(),
-                _ => match responder_call_after(&board.table_a, board.dealer, nt_index) {
-                    Some(call) if call != Call::Pass => format!("CONT {}", action_label(call)),
-                    _ => "QUIET (we passed, they passed)".to_string(),
-                },
-            };
-            let entry = defend_shape_by.entry(shape).or_default();
-            entry.0 += 1;
-            entry.1 += imp;
-        }
-        if is_uvu {
-            uvu.0 += 1;
-            uvu.1 += imp;
-            let entry = uvu_by.entry(key).or_default();
-            entry.0 += 1;
-            entry.1 += imp;
-        }
-    }
-    let report = |title: &str, sum: (i64, i64), by: &BTreeMap<String, (i64, i64)>| {
-        println!(
-            "\n=== {title} === ({} divergent boards, {:+} IMPs, {:+.3} IMPs/board)",
-            sum.0,
-            sum.1,
-            sum.1 as f64 / sum.0.max(1) as f64,
-        );
-        for (action, &(boards_n, imps_won)) in by {
-            println!(
-                "  {action:<5} {boards_n:>5} boards  {imps_won:+6} IMPs  ({:+.3} IMPs/board)",
-                imps_won as f64 / boards_n.max(1) as f64,
-            );
-        }
+    let dump = Dump {
+        our_label,
+        their_label,
+        vulnerability: args.vulnerability,
+        boards,
     };
-    report("OUR 1NT openings (we open 1NT)", open, &open_by);
-    report(
-        "OUR defense vs their 1NT (they open 1NT)",
-        defend,
-        &defend_by,
-    );
-    report(
-        "OUR defense vs their 1NT, by auction shape (DIRECT vs CONTinuation)",
-        defend,
-        &defend_shape_by,
-    );
-    report("OUR 1NT-(2NT) responses (focus)", uvu, &uvu_by);
-    if args.filter_1nt {
-        println!(
-            "\n(pre-filtered to deals with a 15-17 balanced hand: kept {} of {scanned}, {:.1}%)",
-            boards.len(),
-            100.0 * boards.len() as f64 / scanned.max(1) as f64,
-        );
-    }
-
-    // The boards we lost by the most: where their side out-bid ours.  Sort by
-    // IMP swing ascending (most negative first), break ties by points.  One
-    // renderer, used for the global ranking and the we-defend-1NT subset (the
-    // latter cuts past the `--no-our-1nt` artifact boards so the defense auctions
-    // are readable).
-    let dump = |title: &str, rows: &[(usize, i64, i64)]| {
-        println!("\n=== {title} ===");
-        for &(index, points, imp) in rows {
-            let board = &boards[index];
-            let (contract_a, contract_b) = contracts[index];
-            println!(
-                "\n[board {index}] dealer {:?}, swing {points:+} pts / {imp:+} IMPs",
-                board.dealer
-            );
-            println!("  {}", board.deal.display(Seat::North));
-            println!(
-                "  ours NS @ A: {}  -> {}",
-                show_auction(&board.table_a),
-                contract_a.map_or("passed out".into(), |(c, s)| format!("{c} by {s:?}")),
-            );
-            println!(
-                "  ours EW @ B: {}  -> {}",
-                show_auction(&board.table_b),
-                contract_b.map_or("passed out".into(), |(c, s)| format!("{c} by {s:?}")),
-            );
+    match args.output.as_deref() {
+        Some(path) => {
+            serde_json::to_writer(std::io::BufWriter::new(std::fs::File::create(path)?), &dump)?
         }
-    };
-    swings.sort_by(|a, b| a.2.cmp(&b.2).then_with(|| a.1.cmp(&b.1)));
-    let worst: Vec<_> = swings.iter().take(args.top).copied().collect();
-    dump(
-        &format!("Worst {} divergent boards for us (their edge)", worst.len()),
-        &worst,
-    );
-    // Same ranking, restricted to boards where BBA opened 1NT and we defended.
-    let worst_defend: Vec<_> = swings
-        .iter()
-        .filter(|&&(index, ..)| {
-            matches!(
-                opening_1nt(&boards[index].table_a, boards[index].dealer),
-                Some((_, false))
-            )
-        })
-        .take(args.top)
-        .copied()
-        .collect();
-    dump(
-        &format!(
-            "Worst {} we-defend-1NT boards (BBA opens 1NT, we defend)",
-            worst_defend.len()
-        ),
-        &worst_defend,
+        None => serde_json::to_writer(std::io::stdout().lock(), &dump)?,
+    }
+    eprintln!(
+        "bba-gen: {} (us) vs {} (them), vulnerability {} — wrote {} boards ({scanned} scanned){}",
+        dump.our_label,
+        dump.their_label,
+        dump.vulnerability,
+        dump.boards.len(),
+        match args.output.as_deref() {
+            Some(path) => format!(" to {path}"),
+            None => " to stdout".into(),
+        },
     );
     Ok(())
 }

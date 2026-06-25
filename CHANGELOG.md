@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The `bba-match` BBA-reference example splits into `bba-gen` + `bba-score`,
+  exchanging a JSON board dump.** `bba-gen` does only the single-threaded EPBot
+  bidding — it owns every `set_*` / convention knob that shapes the auctions
+  (`--isolate-defense`, `--ns-woolsey-range`, `--advertise-natural`, …) — and
+  writes the bid boards to `-o <path>` or stdout. `bba-score` reads them (a path
+  or stdin), solves the divergent boards double dummy, and prints the IMPs/board
+  report; it never loads `libEPBot.so`. Both build only with `--features serde`.
+  Piping `bba-gen … | bba-score` reproduces the old one-shot match byte for byte;
+  saving a board file instead lets a tuning loop re-score the *same* bids many
+  ways (`bba-score --score plain|pd`, or `-v` to re-price at another
+  vulnerability) **without re-bidding** — the bidding is ~0.9 s but the
+  double-dummy scoring is ~70 s of CPU, so caching the bids is the real win, and
+  the single-threaded `bba-gen` can now run beside a core-saturating self-play
+  sweep. The shared scoring core (divergent → DD solve → IMPs + 95 % CI) is
+  factored into a `score_boards` helper in `examples/common/`, reused by
+  `ab-landy`. (`bba-score` additionally hides empty report buckets and takes the
+  scoring vulnerability at score time; the per-convention numbers are unchanged.)
 - **The Woolsey suit-overcall floor drops from 10 to 8** (`WOOLSEY_POINTS`
   default `(8, 19)`; `examples/ab-landy`/`bba-match --ns-woolsey-range` default
   `8:19`), level with the natural-overcall floor. A re-probe (now that the
