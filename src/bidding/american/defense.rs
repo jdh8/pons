@@ -618,7 +618,9 @@ const PASSED_LANDY_LO: u8 = 6;
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum PassedHandDefense {
     /// Keep every natural overcall; the freed double shows both majors (≥5-4),
-    /// advanced via the Landy machinery.  **The default passed-hand defense.**
+    /// advanced via the Landy machinery.  Opt-in: against BBA the doubled
+    /// passed-partscores cost more than the convention gains, so the default is
+    /// `None` (the historic dead double).
     NaturalLandyDouble,
     /// Full DONT: `X` = a one-suiter (relay `2♣`, then correct), `2♣` = clubs +
     /// a higher suit, `2♦` = diamonds + a major, `2♥` = both majors.  A passed
@@ -630,23 +632,26 @@ pub enum PassedHandDefense {
 }
 
 thread_local! {
-    /// The passed-hand 1NT defense.  The **default** is
-    /// [`NaturalLandyDouble`](PassedHandDefense::NaturalLandyDouble): a passed
-    /// hand's dead penalty double of their 1NT shows both majors.  `None` restores
-    /// the historic dead double.  See [`set_passed_hand_defense`].
+    /// The passed-hand 1NT defense.  The **default** is `None` (the historic dead
+    /// double): on a paired BBA A/B the passed-hand both-majors double's doubled
+    /// partscores lose more than it gains, and its earlier self-play "win" was vs
+    /// an always-pass baseline (an obstruction-blind DD artifact).
+    /// [`NaturalLandyDouble`](PassedHandDefense::NaturalLandyDouble) (both majors)
+    /// is the opt-in.  See [`set_passed_hand_defense`].
     static PASSED_HAND_DEFENSE: Cell<Option<PassedHandDefense>> =
-        const { Cell::new(Some(PassedHandDefense::NaturalLandyDouble)) };
+        const { Cell::new(None) };
 }
 
 /// Configure the passed-hand defense to an opponent's 1NT for books built *after*
 /// this call (thread-local, read once at book-construction time)
 ///
 /// A passed hand cannot hold the 15+ HCP of a penalty double, so over their 1NT
-/// its natural double is dead weight.  The **default**,
-/// `Some(`[`NaturalLandyDouble`]`)`, keeps every natural overcall but reassigns
-/// the freed double to both majors (≥5-4, `points(6..)`, no six-card major),
-/// advanced like Landy `2♣`.  `None` restores the historic dead double;
-/// `Some(`[`Dont`]`)` is the fuller (opt-in) DONT.  Gated on [`passed_hand`], so
+/// its natural double is dead weight.  The **default** is `None` (that dead
+/// double): vs BBA the reassignment loses on doubled passed-partscores.
+/// `Some(`[`NaturalLandyDouble`]`)` is the opt-in that keeps every natural
+/// overcall but reassigns the freed double to both majors (≥5-4, `points(6..)`,
+/// no six-card major), advanced like Landy `2♣`;
+/// `Some(`[`Dont`]`)` is the fuller DONT.  Gated on [`passed_hand`], so
 /// the direct-seat penalty double is untouched and the unpassed defense stays
 /// byte-identical.  The A/B knob for `examples/landy-ab --ns-passed-dbl`.
 ///

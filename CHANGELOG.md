@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **A passed hand's both-majors `X` of their 1NT is now opt-in (default `None`,
+  the historic dead double).** The reassignment of a passed hand's otherwise-dead
+  penalty double to both majors was promoted to default-on on a *self-play* DD
+  win — but that A/B measured it against an *always-pass* baseline, which only
+  proves DD rewards competing a partscore it cannot see defended (the
+  obstruction-blind artifact). Re-measured against BBA's 2/1 on the isolated
+  1NT-defense match (paired, 4000 we-defend boards/seed, both-vulnerable), the
+  passed-hand `X` bucket is a net loss — doubled passed-partscores (`1NTxx`,
+  `2♥xx`, `2♦xx` on misfits) outweigh the gains — and disabling it recovers
+  **+43 IMPs / 4000 boards**, isolated by construction to the ~20 boards where it
+  fired. `set_passed_hand_defense(Some(NaturalLandyDouble))` (or `bba-gen
+  --ns-passed-landy`) restores it; the convention, its Landy advances, and the
+  doubled-relay completion are all retained as the opt-in. The direct-seat 15+
+  penalty double is untouched.
 - **A passed hand's both-majors `X` of their 1NT no longer strands a doubled `2♦`
   relay.** After `[P,P,P,1NT,X,(XX),2♦]` the `2♦` is the artificial equal-majors
   relay ("you pick a major"), but only the *passed*-relay continuation
