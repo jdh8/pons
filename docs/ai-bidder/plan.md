@@ -389,9 +389,59 @@ A/B vs baseline, and the BBA gap (S.1's −2.6) on the relevant auctions.
   `stayman-abc` harness, baseline vs M6.1, opponents silenced, 200k boards):
   **+1.94 IMPs/divergent vul none, +2.25 vul both** (306 divergent, +0.003
   IMPs/board); whole inference floor still +0.05 IMPs/board (`inference-floor`,
-  20k). Length-only on the `4M` jump (slam machinery is M6.2); the derived 6+ also
+  20k). Length-only on the `4M` jump (slam machinery is M6.4); the derived 6+ also
   makes the sampler sound on transfer auctions.
-- ⬜ **M6.2 Slam machinery on the floor.** Slam bidding is inherently conventional
+- 🟡 **M6.2 Rule projection — read a call's meaning off its rule.** Full design:
+  [`rule-projection.md`](rule-projection.md). The seven `*_reading` decoders in
+  `inference.rs` (M6.1's `transfer_major_reading` among them) re-derive, by hand
+  and per-convention, what an authored call's `Constraint` already states. Add a
+  third fold on the DSL — `Constraint::project(context) -> Inference`, the forward
+  dual of `eval` — and a single generic pass that, walking `context.prefixes()`,
+  projects the rule of each artificial prior call (artificial = its projection
+  floors a suit it did not name), replacing the per-convention decoders. Promoted
+  ahead of more conventions so the retire-readers cleanup lands *before* M6.3
+  piles on more hand-written readers. *Deps:* M4 (the DSL), M6.1 (the reader it
+  generalizes).
+  - ✅ **M6.2a `Constraint::project` fold + soundness property test.** Shipped
+    2026-06-25. `len` keeps both bounds, `points`/`hcp` floor-only (sound in both
+    fuzzy modes), `&`→intersect, `|`→union, opaque/`!`→no-info, default no-info
+    (non-breaking). Invariant `eval` finite ⟹ hand ∈ `project`, tested over ~32k
+    hands. `Inference::intersect`/`union`, `Range::union` added. The data
+    substrate; no consumer wired yet.
+  - ⬜ **M6.2b Retire the readers — NEXT, BLOCKED on keyless trie access.**
+    Projection needs the trie, but the two real consumers read keyless: the
+    search-floor sampler (`search_floor.rs:241`) and `features` build
+    `Context::new` with no prefixes, so only the book's own constraint-eval reads
+    can project. Retiring the readers therefore means first giving those paths trie
+    access (a `System` `CommonPrefixes` accessor + prefixing those call sites),
+    then the generic pass + re-authoring the opaque `described()` defense shapes
+    (Stage 4). *Payoff is architectural, not IMPs* (single source of truth; lets
+    rule-replay stand alone); gate neutral-or-better on `ab-search-floor`. The
+    priority M6 cleanup — see the doc for the staged path and per-reader verdict.
+- 🟡 **M6.3 Competitive conventions on the floor.** Already the active line for
+  ~25 commits — the deliverable is the 1NT-defense + competitive-double structure
+  that shipped, not the old "Rubens advances" sketch. *Landed:*
+  - **Natural penalty-X + natural overcalls** (`set_natural_defense`, default-on)
+    — the DD-positive baseline — with its floor reading.
+  - **Conventional defenses, opt-in** because they are DD-negative (the obstruction
+    wall): Woolsey "Multi-Landy" (`set_woolsey`) and direct-seat DONT
+    (`set_direct_dont`), each with a suppress-and-narrow floor reading
+    (`dont_reading`, Woolsey takeout-X reading).
+  - **Passed-hand both-majors X** of their 1NT (DD-positive, promoted default-on).
+  - **`[1NT,(X)]` runout** (default-on) + Phase 2 (encircling penalty-X of the
+    escape, direct minor escape via `set_unusual_2nt`).
+  - **Double styles:** responder's X of a 1NT overcall now Optional by default
+    (bf6e5cd) + the optional-latch knob; the defensive `(1NT)-X-(2Y)-X` latch
+    (`set_latch_style`, opt-in, DD-wash); the penalty-double latch (default-on).
+  - **Transfer-Lebensohl / Rubinsohl** threads over interference.
+  *Measure:* contested IMPs/board vs baseline + vs BBA, **but** the DD harness is
+  blind to obstruction (`project_preemption-dd-negative`,
+  `project_bba-1nt-comparison`), so most conventional defenses are kept opt-in and
+  the real gap is single-dummy; constructive competition still wins on DD. *Deps:*
+  none. *Note:* verify the floor rule fires and isn't shadowed
+  (`project_floor_shadowed_by_book_nodes`); contested is where the learned floors
+  already live (`project_floors_contested_only`).
+- ⬜ **M6.4 Slam machinery on the floor.** Slam bidding is inherently conventional
   and arises in the deep auctions the floor owns. Add a *self-consistent* keycard
   layer so **instinct decodes instinct** on both sides, reusing the
   `american::slam` 1430 ladder. *Deliverable:* the floor asks/answers keycards
@@ -400,39 +450,6 @@ A/B vs baseline, and the BBA gap (S.1's −2.6) on the relevant auctions.
   slam auctions. *Deps:* M6.1 (the fit/extras inferences). *Wrinkle:* a floor
   convention read by an *on-book* partner — gate to all-off-book continuations
   first, leave the floor-meets-book seam for later.
-- ⬜ **M6.3 Competitive conventions on the floor.** *Deliverable:* start with
-  Rubens advances (they build on the existing Rubens overcall structure); add a
-  Lebensohl variant (Rubinsohl over interference) once the first measures.
-  *Measure:* contested IMPs/board vs baseline + vs BBA. *Deps:* none. *Note:*
-  verify the floor rule fires and isn't shadowed
-  (`project_floor_shadowed_by_book_nodes`); contested is where the learned floors
-  already live (`project_floors_contested_only`).
-- 🟡 **M6.4 Rule projection — read a call's meaning off its rule.** Full design:
-  [`rule-projection.md`](rule-projection.md). The seven `*_reading` decoders in
-  `inference.rs` (M6.1's `transfer_major_reading` among them) re-derive, by hand
-  and per-convention, what an authored call's `Constraint` already states. Add a
-  third fold on the DSL — `Constraint::project(context) -> Inference`, the forward
-  dual of `eval` — and a single generic pass that, walking `context.prefixes()`,
-  projects the rule of each artificial prior call (artificial = its projection
-  floors a suit it did not name), replacing the per-convention decoders. *Deps:*
-  M4 (the DSL), M6.1 (the reader it generalizes).
-  - ✅ **M6.4a `Constraint::project` fold + soundness property test.** Shipped
-    2026-06-25. `len` keeps both bounds, `points`/`hcp` floor-only (sound in both
-    fuzzy modes), `&`→intersect, `|`→union, opaque/`!`→no-info, default no-info
-    (non-breaking). Invariant `eval` finite ⟹ hand ∈ `project`, tested over ~32k
-    hands. `Inference::intersect`/`union`, `Range::union` added. The data
-    substrate; no consumer wired yet.
-  - ⬜ **M6.4b Retire the readers — BLOCKED on keyless trie access.** Projection
-    needs the trie, but the two real consumers read keyless: the search-floor
-    sampler (`search_floor.rs:241`) and `features` build `Context::new` with no
-    prefixes, so only the book's own constraint-eval reads can project. Retiring
-    the readers therefore means first giving those paths trie access (a `System`
-    `CommonPrefixes` accessor + prefixing those call sites), then the generic pass
-    + re-authoring the opaque `described()` defense shapes (Stage 4). *Payoff is
-    architectural, not IMPs* (single source of truth; lets rule-replay stand
-    alone); gate neutral-or-better on `ab-search-floor`. **Deferred** as a
-    multi-day, A/B-gated cleanup — see the doc for the staged path and per-reader
-    verdict.
 
 Exit M6: the deterministic floor explores slam and handles the key competitive
 conventions, narrowing the BBA gap in exactly the deep/contested auctions where
