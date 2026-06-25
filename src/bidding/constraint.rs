@@ -710,9 +710,7 @@ impl<R: RangeBounds<usize> + Clone + Send + Sync> Constraint for Len<R> {
     fn project(&self, _: &Context<'_>) -> Inference {
         // Length is exact — the same `hand[suit].len()` `eval` checks — so both
         // bounds project soundly.
-        let mut inference = Inference::unknown();
-        inference.lengths[self.suit as usize] = bound_range(&self.range, Range::FULL_LENGTH.max);
-        inference
+        len_projection(self.suit, &self.range)
     }
 }
 
@@ -722,6 +720,114 @@ pub fn len(
     range: impl RangeBounds<usize> + Clone + Send + Sync,
 ) -> Cons<impl Constraint + Clone> {
     Cons(Len { suit, range })
+}
+
+/// The projection of a single `len(suit, range)` — `suit` floored to `range`,
+/// every other suit full.  Shared by [`AllLen`] (intersected) and [`AnyLen`]
+/// (unioned), and by [`Len::project`]'s sibling logic.
+fn len_projection<R: RangeBounds<usize>>(suit: Suit, range: &R) -> Inference {
+    let mut inference = Inference::unknown();
+    inference.lengths[suit as usize] = bound_range(range, Range::FULL_LENGTH.max);
+    inference
+}
+
+/// Length of *every* suit in `suits` within `range` (the [`and`] combinator)
+#[derive(Clone)]
+struct AllLen<const N: usize, R> {
+    suits: [Suit; N],
+    range: R,
+}
+
+impl<const N: usize, R: RangeBounds<usize> + Clone + Send + Sync> Constraint for AllLen<N, R> {
+    fn eval(&self, hand: Hand, _: &Context<'_>) -> f32 {
+        crisp(
+            self.suits
+                .iter()
+                .all(|&suit| self.range.contains(&hand[suit].len())),
+        )
+    }
+
+    fn describe(&self) -> Description {
+        self.suits
+            .iter()
+            .map(|suit| describe_int_range(&self.range, &suit.to_string()))
+            .reduce(|a, b| a.and(b))
+            .unwrap_or(Description::Opaque)
+    }
+
+    fn project(&self, _: &Context<'_>) -> Inference {
+        // Every named suit is floored to `range` (the same exact `len` check), so
+        // the projection intersects each suit's bound — sound *and* tight.
+        self.suits
+            .iter()
+            .map(|&suit| len_projection(suit, &self.range))
+            .reduce(|acc, inf| acc.intersect(&inf))
+            .unwrap_or_else(Inference::unknown)
+    }
+}
+
+/// Every suit in `suits` falls in `range` — the suit-set conjunction
+///
+/// `and([♥, ♠], 4..)` is both majors at least four (the flat 4-4 two-suiter);
+/// `and([♥, ♠], 4..) & or([♥, ♠], 5..)` is the 5-4-either-way Landy shape.  The
+/// many-suit generalization of [`len`], and the tight dual of [`or`]: its
+/// projection floors every named suit, where [`or`]'s washes out.
+#[must_use]
+pub fn and<const N: usize>(
+    suits: [Suit; N],
+    range: impl RangeBounds<usize> + Clone + Send + Sync,
+) -> Cons<impl Constraint + Clone> {
+    Cons(AllLen { suits, range })
+}
+
+/// Length of *some* suit in `suits` within `range` (the [`or`] combinator)
+#[derive(Clone)]
+struct AnyLen<const N: usize, R> {
+    suits: [Suit; N],
+    range: R,
+}
+
+impl<const N: usize, R: RangeBounds<usize> + Clone + Send + Sync> Constraint for AnyLen<N, R> {
+    fn eval(&self, hand: Hand, _: &Context<'_>) -> f32 {
+        crisp(
+            self.suits
+                .iter()
+                .any(|&suit| self.range.contains(&hand[suit].len())),
+        )
+    }
+
+    fn describe(&self) -> Description {
+        self.suits
+            .iter()
+            .map(|suit| describe_int_range(&self.range, &suit.to_string()))
+            .reduce(|a, b| a.or(b))
+            .unwrap_or(Description::Opaque)
+    }
+
+    fn project(&self, _: &Context<'_>) -> Inference {
+        // At least one named suit lies in `range`, but not which — the sound
+        // envelope is the union of the arms, which widens every suit back to full
+        // unless exactly one suit is named (then it floors exactly, like `len`).
+        self.suits
+            .iter()
+            .map(|&suit| len_projection(suit, &self.range))
+            .reduce(|acc, inf| acc.union(&inf))
+            .unwrap_or_else(Inference::unknown)
+    }
+}
+
+/// At least one suit in `suits` falls in `range` — the suit-set disjunction
+///
+/// `or([♥, ♠], 6..)` is a six-plus card major, unknown which (a Multi one-suiter);
+/// `or([♣, ♦], 4..)` is a four-plus minor (the Muiderberg side suit).  The dual of
+/// [`and`]: its projection is the union of the arms — sound but loose, since a
+/// one-of-N suit cannot floor any single suit.
+#[must_use]
+pub fn or<const N: usize>(
+    suits: [Suit; N],
+    range: impl RangeBounds<usize> + Clone + Send + Sync,
+) -> Cons<impl Constraint + Clone> {
+    Cons(AnyLen { suits, range })
 }
 
 /// High card points held *in one suit* in a range (the [`suit_hcp`] constraint)

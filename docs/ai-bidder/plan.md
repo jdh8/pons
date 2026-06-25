@@ -437,12 +437,24 @@ A/B vs baseline, and the BBA gap (S.1's −2.6) on the relevant auctions.
     projection. Gate: `ab-landy` reproduces its DD-negative value (reading proven
     byte-identical by the M6.2b equivalence test); `ab-search-floor` no gross
     regression.
-  - ⬜ **M6.2d Stage 4 — re-author the opaque conventions.** DONT/Woolsey/Multi are
-    authored with the opaque `described()` escape hatch, so they project no info and
-    the detector cannot see them; re-author each as `len` conjuncts
-    (`verify::compare`-guarded against the original closure), then retire the rest.
-    Keep the relay-suppression logic as small `ponytail:` stubs (not a single-rule
-    projection). See the doc's per-reader verdict.
+  - ✅ **M6.2d Stage 4 — re-author the opaque conventions. SHIPPED 2026-06-25.**
+    DONT/Woolsey/Multi were authored with the opaque `described()` escape hatch, so
+    they projected no info and the detector could not see them. Instead of bare `len`
+    conjuncts, added higher-order **`or`/`and` suit-set length combinators**
+    (`constraint.rs`: `and` floors every named suit — tight; `or` unions the arms —
+    loose) so each convention states its lengths declaratively *and* projects off its
+    own rule. Re-authored all seven shapes with them, each guarded by `verify::compare`
+    (8k hands) against its intended spec. Per the user, switched to the **simpler /
+    traditional shapes** (a measured behavior change, not a wash): **DONT default → 4-4**
+    (`set_direct_dont_four_four` flips on; Landy stays 5-4, Michaels 5-5), and Multi
+    `2♦` drops its longer-major / no-6-6 guard. Muiderberg keeps its exactly-5 +
+    other-major caps — the Woolsey structure needs disjoint shapes (uniform 1.9 weights
+    never tie). Recordings in `inference.rs` unchanged (floors already match); the
+    both-majors family now also auto-detects via projection (idempotent). **A/B**
+    (`ab-landy` 60k, none-vul, vs natural): DONT 4-4 −0.362/div plain, −1.397 PD
+    (obstruction wall, single-dummy value); Woolsey +0.414/div plain, +0.065 PD. Both
+    stay opt-in. The relay-suppression stubs (`landy_advance_suppress`, the
+    `multi`/`woolsey_x`/`dont` suppressions) survive as designed.
 - 🟡 **M6.3 Competitive conventions on the floor.** Already the active line for
   ~25 commits — the deliverable is the 1NT-defense + competitive-double structure
   that shipped, not the old "Rubens advances" sketch. *Landed:*

@@ -8,7 +8,7 @@
 //! double, a natural 2NT overcall, and natural suit overcalls).
 
 use super::super::constraint::{
-    Cons, Constraint, balanced, described, hcp, len, min_level_is, passed_hand, points,
+    Cons, Constraint, and, balanced, described, hcp, len, min_level_is, or, passed_hand, points,
     short_in_their_suits, stopper_in_their_suits, top_honors,
 };
 use super::super::context::Context;
@@ -274,9 +274,10 @@ thread_local! {
     /// always-pass optimum).  An A/B knob, no effect unless DONT is on.
     static DIRECT_DONT_ONE_SUITER_MIN: Cell<u8> = const { Cell::new(5) };
     /// Whether DONT two-suiters (`2♣`/`2♦`/`2♥`) accept a flat 4-4 (else 5-4+);
-    /// **off by default**.  On, a 4-4 two-suiter competes (looser, plausibly fine
-    /// non-vul, riskier vul).  An A/B knob, no effect unless DONT is on.
-    static DIRECT_DONT_FOUR_FOUR: Cell<bool> = const { Cell::new(false) };
+    /// **on by default** — DONT is traditionally a 4-4 method (M6.2d).  Off, only
+    /// 5-4+ two-suiters compete (tighter, fewer auctions).  An A/B knob, no effect
+    /// unless DONT is on.
+    static DIRECT_DONT_FOUR_FOUR: Cell<bool> = const { Cell::new(true) };
 }
 
 /// Minimum one-suiter length for the DONT `X`/`2♠` (default 5; set 6 to pass
@@ -289,8 +290,8 @@ fn direct_dont_one_suiter_min() -> usize {
     DIRECT_DONT_ONE_SUITER_MIN.with(Cell::get) as usize
 }
 
-/// Whether DONT two-suiters accept a flat 4-4 (default false = 5-4+).  See
-/// [`set_direct_dont`].
+/// Whether DONT two-suiters accept a flat 4-4 (default true = traditional 4-4; false =
+/// 5-4+).  See [`set_direct_dont`].
 pub fn set_direct_dont_four_four(on: bool) {
     DIRECT_DONT_FOUR_FOUR.with(|cell| cell.set(on));
 }
@@ -440,51 +441,36 @@ pub(crate) fn woolsey_double_floor() -> u8 {
     WOOLSEY_DOUBLE_FLOOR.with(Cell::get)
 }
 
-/// Woolsey **Multi** `2♦`: a single 6+ card major, strictly the longer major (so a
-/// 6-4 or 6-5 shows the 6-card suit; 6-6 and any both-5 hand are not Multi)
+/// Woolsey **Multi** `2♦`: a single 6+ card major (unknown which), nothing else long —
+/// both minors at most four.  M6.2d simplified the shape and states it with `or`/`and`
+/// so it projects straight off the rule: the strictly-longer-major and no-6-6 guards
+/// are dropped, so a 6-5 or 6-6 major hand now qualifies as Multi.
 fn woolsey_multi() -> Cons<impl Constraint + Clone> {
-    described("a single 6+ major", |h: Hand, _: &Context<'_>| {
-        let (hh, ss) = (h[Suit::Hearts].len(), h[Suit::Spades].len());
-        let (cc, dd) = (h[Suit::Clubs].len(), h[Suit::Diamonds].len());
-        // A *true* one-suiter (BBA's "nothing else long"): a 6+ major with the other
-        // major and both minors all ≤ 4.  The minor cap makes `multi_reading`'s
-        // "diamonds ≤ 4" suppression sound — a 6-5 major-minor hand is not a Multi
-        // (it passes instead).
-        ((hh >= 6 && ss <= 4) || (ss >= 6 && hh <= 4)) && cc <= 4 && dd <= 4
-    })
+    or([Suit::Hearts, Suit::Spades], 6..) & and([Suit::Clubs, Suit::Diamonds], ..=4)
 }
 
-/// Woolsey **Muiderberg** `2M`: exactly 5 in `major`, at most 3 in the other major,
-/// and a 4+ card minor — so 5-5 majors (no 4-card minor) and a bare 5332 both fall
-/// through to Pass, exactly as in BBA's read
+/// Woolsey **Muiderberg** `2M`: exactly 5 in `major`, at most 3 in the other major, and
+/// a 4+ card minor.  M6.2d states the minor side with `or` so it projects; the shape is
+/// otherwise unchanged — `5..=5` keeps it disjoint from the 6+ Multi `2♦`, and the
+/// other-major ≤3 cap keeps it disjoint from the 2♣ both-majors (the Woolsey structure
+/// relies on disjoint shapes so its uniform 1.9 weights never tie).
 fn woolsey_muiderberg(major: Suit) -> Cons<impl Constraint + Clone> {
     let other = if major == Suit::Hearts {
         Suit::Spades
     } else {
         Suit::Hearts
     };
-    described(
-        "exactly-5 major + a 4+ minor (Muiderberg)",
-        move |h: Hand, _: &Context<'_>| {
-            h[major].len() == 5
-                && h[other].len() <= 3
-                && h[Suit::Clubs].len().max(h[Suit::Diamonds].len()) >= 4
-        },
-    )
+    len(major, 5..=5) & len(other, ..=3) & or([Suit::Clubs, Suit::Diamonds], 4..)
 }
 
-/// Woolsey takeout `X`: exactly 4 in one major, at most 3 in the other, and a
-/// longer (5-6) minor (a 7+ minor one-suiter passes — no natural minor overcall)
+/// Woolsey takeout `X`: exactly 4 in one major, at most 3 in the other, and a longer
+/// (5-6) minor (a 7+ minor one-suiter passes — no natural minor overcall).  A 4-card
+/// major can co-exist with at most a 5-card minor here, so the `or([♣,♦],5..=6)` needs
+/// no upper cap on the second minor — the major half bars a 7+ minor anyway.
 fn woolsey_double_shape() -> Cons<impl Constraint + Clone> {
-    described(
-        "4-card major + a longer (5-6) minor",
-        |h: Hand, _: &Context<'_>| {
-            let (hh, ss) = (h[Suit::Hearts].len(), h[Suit::Spades].len());
-            let four_major = (hh == 4 && ss <= 3) || (ss == 4 && hh <= 3);
-            let minor = h[Suit::Clubs].len().max(h[Suit::Diamonds].len());
-            four_major && (5..=6).contains(&minor)
-        },
-    )
+    ((len(Suit::Hearts, 4..=4) & len(Suit::Spades, ..=3))
+        | (len(Suit::Spades, 4..=4) & len(Suit::Hearts, ..=3)))
+        & or([Suit::Clubs, Suit::Diamonds], 5..=6)
 }
 
 /// The advancer's action over partner's both-majors `X` (RHO passing, `[1NT, X, P]`)
@@ -510,16 +496,12 @@ fn both_majors_x_advance(lo: u8) -> Rules {
     }
 }
 
-/// Both majors: at least 5-4 either way, or a flat 4-4 when `four_four`.
+/// Both majors: at least 5-4 either way, or a flat 4-4 when `four_four`.  Both majors
+/// four-plus, with the longer at least `4` (flat 4-4) or `5` (5-4) — the `and` floors
+/// both, the `or` demands the length.
 fn both_majors_shape(four_four: bool) -> Cons<impl Constraint + Clone> {
-    described("both majors", move |h: Hand, _: &Context<'_>| {
-        let (hh, ss) = (h[Suit::Hearts].len(), h[Suit::Spades].len());
-        if four_four {
-            hh >= 4 && ss >= 4
-        } else {
-            (hh >= 5 && ss >= 4) || (hh >= 4 && ss >= 5)
-        }
-    })
+    let longer = if four_four { 4 } else { 5 };
+    and([Suit::Hearts, Suit::Spades], 4..) & or([Suit::Hearts, Suit::Spades], longer..)
 }
 
 /// Which shapes qualify for the natural penalty double of their 1NT (the 15+ HCP
@@ -1218,22 +1200,15 @@ fn no_six(h: Hand) -> bool {
 // cap (an unpassed hand may hold a long suit), and they carve clubs+diamonds onto
 // the `2NT` both-minors overlay so `2♣`/`2♦` mean a minor + a *major*.
 
-/// Direct-seat DONT `X`: a one-suiter (a `min`+ suit, no second four-card suit)
-/// whose long suit is a minor or hearts.  A spade one-suiter bids the natural `2♠`,
-/// so spades are excluded here — `second < 4` makes every non-long suit short,
-/// hence `h[♠] < 4` rejects exactly the case where spades *are* the long suit.
-/// `min` (5 or 6) is [`set_direct_dont_one_suiter_min`].
+/// Direct-seat DONT `X`: a one-suiter (a `min`+ suit, no second four-card suit) whose
+/// long suit is a minor or hearts.  A spade one-suiter bids the natural `2♠`, so the
+/// spade-long arm is omitted; each arm caps the other three suits at three, so exactly
+/// one suit is long.  `min` (5 or 6) is [`set_direct_dont_one_suiter_min`].
 fn dont_one_suiter_direct(min: usize) -> Cons<impl Constraint + Clone> {
-    described(
-        "a one-suiter in ♣/♦/♥ (no second four-card suit)",
-        move |h: Hand, _: &Context<'_>| {
-            let mut lengths =
-                [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades].map(|s| h[s].len());
-            lengths.sort_unstable();
-            let [_, _, second, longest] = lengths;
-            longest >= min && second < 4 && h[Suit::Spades].len() < 4
-        },
-    )
+    use Suit::{Clubs, Diamonds, Hearts, Spades};
+    (len(Clubs, min..) & and([Diamonds, Hearts, Spades], ..=3))
+        | (len(Diamonds, min..) & and([Clubs, Hearts, Spades], ..=3))
+        | (len(Hearts, min..) & and([Clubs, Diamonds, Spades], ..=3))
 }
 
 /// Direct-seat DONT `2♣`/`2♦`: a minor + a *major*, 5-4 either way (or a flat 4-4
@@ -1241,32 +1216,129 @@ fn dont_one_suiter_direct(min: usize) -> Cons<impl Constraint + Clone> {
 /// shown as `2NT` (both minors), not here.  `allow_44` is
 /// [`set_direct_dont_four_four`].
 fn dont_minor_major(minor: Suit, allow_44: bool) -> Cons<impl Constraint + Clone> {
-    described(
-        "a minor + a higher major",
-        move |h: Hand, _: &Context<'_>| {
-            let m = h[minor].len();
-            let hi = h[Suit::Hearts].len().max(h[Suit::Spades].len());
-            if allow_44 {
-                m >= 4 && hi >= 4
-            } else {
-                (m >= 5 && hi >= 4) || (m >= 4 && hi >= 5)
-            }
-        },
-    )
+    let longer = if allow_44 { 4 } else { 5 };
+    // The minor (4+) plus a higher major (4+), one of the two at least `longer` — 5-4
+    // either way, or a flat 4-4 when `allow_44` (then the third clause is redundant).
+    len(minor, 4..)
+        & or([Suit::Hearts, Suit::Spades], 4..)
+        & (len(minor, longer..) | or([Suit::Hearts, Suit::Spades], longer..))
 }
 
-/// Direct-seat DONT `2♥`: both majors, 5-4 either way (or a flat 4-4 when
-/// `allow_44`).
+/// Direct-seat DONT `2♥`: both majors, 5-4 either way (or a flat 4-4 when `allow_44`).
+/// A separate function from [`both_majors_shape`] (direct-Landy `X`) — identical shape
+/// today, but on an independent flag, so the two conventions may diverge.
 fn dont_both_majors(allow_44: bool) -> Cons<impl Constraint + Clone> {
-    described("both majors", move |h: Hand, _: &Context<'_>| {
-        let hh = h[Suit::Hearts].len();
-        let ss = h[Suit::Spades].len();
-        if allow_44 {
-            hh >= 4 && ss >= 4
-        } else {
-            (hh >= 5 && ss >= 4) || (hh >= 4 && ss >= 5)
+    let longer = if allow_44 { 4 } else { 5 };
+    and([Suit::Hearts, Suit::Spades], 4..) & or([Suit::Hearts, Suit::Spades], longer..)
+}
+
+/// M6.2d guard: every re-authored `or`/`and` defense shape accepts exactly the hands
+/// its intended spec does, on every sampled hand — the proof the combinator forms say
+/// what they should (and the only check that the simplified shapes match their gloss).
+#[cfg(test)]
+mod shape_guards {
+    use super::*;
+    use crate::bidding::verify::{accepts, compare, empty_context};
+    use contract_bridge::Hand;
+    use rand::SeedableRng;
+    use rand::rngs::StdRng;
+
+    const N: usize = 8000;
+
+    /// Sample `N` hands; assert `candidate` agrees with the intended `reference`
+    /// boolean on all of them and that the reference is not vacuously empty.
+    fn check(label: &str, candidate: impl Constraint, reference: impl Fn(Hand) -> bool) {
+        let ctx = empty_context();
+        let mut rng = StdRng::seed_from_u64(20_260_625);
+        let report = compare(reference, |h| accepts(&candidate, h, &ctx), &mut rng, N);
+        assert!(
+            report.agrees(),
+            "{label}: {} of {} hands disagree, e.g. {:?}",
+            report.disagreements.len(),
+            report.tested,
+            report.disagreements.first(),
+        );
+        assert!(
+            report.reference_accepts > 0,
+            "{label}: reference accepts nothing — a vacuous guard",
+        );
+    }
+
+    #[test]
+    fn reauthored_shapes_match_intended_spec() {
+        use Suit::{Clubs, Diamonds, Hearts, Spades};
+        let ln = |h: Hand, s: Suit| h[s].len();
+
+        // Multi 2♦ (simplified): a 6+ major, both minors ≤4 (now incl. 6-5 / 6-6).
+        check("woolsey_multi", woolsey_multi(), |h| {
+            (ln(h, Hearts) >= 6 || ln(h, Spades) >= 6) && ln(h, Clubs) <= 4 && ln(h, Diamonds) <= 4
+        });
+
+        // Muiderberg 2♥/2♠: exactly 5 in the major, ≤3 the other, a 4+ minor.  The
+        // `== 5` pins disjointness from the 6+ Multi; the other-major ≤3 from 2♣.
+        for major in [Hearts, Spades] {
+            let other = if major == Hearts { Spades } else { Hearts };
+            check("woolsey_muiderberg", woolsey_muiderberg(major), move |h| {
+                ln(h, major) == 5
+                    && ln(h, other) <= 3
+                    && (ln(h, Clubs) >= 4 || ln(h, Diamonds) >= 4)
+            });
         }
-    })
+
+        // Woolsey X (unchanged): 4 in one major, ≤3 the other, a 5-6 minor.
+        check("woolsey_double_shape", woolsey_double_shape(), |h| {
+            let four_major = (ln(h, Hearts) == 4 && ln(h, Spades) <= 3)
+                || (ln(h, Spades) == 4 && ln(h, Hearts) <= 3);
+            four_major && ((5..=6).contains(&ln(h, Clubs)) || (5..=6).contains(&ln(h, Diamonds)))
+        });
+
+        // both_majors_shape: 5-4 (false) / flat 4-4 (true).
+        check("both_majors_shape(false)", both_majors_shape(false), |h| {
+            (ln(h, Hearts) >= 5 && ln(h, Spades) >= 4) || (ln(h, Hearts) >= 4 && ln(h, Spades) >= 5)
+        });
+        check("both_majors_shape(true)", both_majors_shape(true), |h| {
+            ln(h, Hearts) >= 4 && ln(h, Spades) >= 4
+        });
+
+        // DONT one-suiter X: one of ♣/♦/♥ at least `min`, the other three ≤3.
+        for min in [5usize, 6] {
+            check(
+                "dont_one_suiter_direct",
+                dont_one_suiter_direct(min),
+                move |h| {
+                    let one = |long: Suit| {
+                        ln(h, long) >= min
+                            && [Clubs, Diamonds, Hearts, Spades]
+                                .iter()
+                                .all(|&s| s == long || ln(h, s) <= 3)
+                    };
+                    one(Clubs) || one(Diamonds) || one(Hearts)
+                },
+            );
+        }
+
+        // DONT minor+major: the minor 4+, a major 4+, one of them at least `longer`.
+        for (minor, a44) in [
+            (Clubs, true),
+            (Clubs, false),
+            (Diamonds, true),
+            (Diamonds, false),
+        ] {
+            let longer = if a44 { 4 } else { 5 };
+            check("dont_minor_major", dont_minor_major(minor, a44), move |h| {
+                let hi = ln(h, Hearts).max(ln(h, Spades));
+                ln(h, minor) >= 4 && hi >= 4 && (ln(h, minor) >= longer || hi >= longer)
+            });
+        }
+
+        // DONT 2♥ both majors: flat 4-4 (true) / 5-4 (false).
+        check("dont_both_majors(true)", dont_both_majors(true), |h| {
+            ln(h, Hearts) >= 4 && ln(h, Spades) >= 4
+        });
+        check("dont_both_majors(false)", dont_both_majors(false), |h| {
+            (ln(h, Hearts) >= 5 && ln(h, Spades) >= 4) || (ln(h, Hearts) >= 4 && ln(h, Spades) >= 5)
+        });
+    }
 }
 
 /// Advancer's responses to partner's Landy `2♣` (both majors), per

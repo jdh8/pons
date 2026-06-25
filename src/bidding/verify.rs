@@ -217,7 +217,7 @@ pub fn compare_against_rules(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::bidding::constraint::{described, hcp, len, points};
+    use crate::bidding::constraint::{and, described, hcp, len, or, points};
     use contract_bridge::Suit;
     use rand::SeedableRng;
     use rand::rngs::StdRng;
@@ -422,7 +422,7 @@ mod tests {
         }
 
         let ctx = empty_context();
-        let battery: [Box<dyn Constraint>; 8] = [
+        let battery: [Box<dyn Constraint>; 11] = [
             Box::new(len(Suit::Hearts, 5..)),
             Box::new(points(8..=16)),
             Box::new(hcp(15..=17)),
@@ -434,6 +434,15 @@ mod tests {
             Box::new(len(Suit::Clubs, 5..) | len(Suit::Diamonds, 5..)),
             Box::new(len(Suit::Spades, ..4) & points(8..)),
             Box::new(described("opaque", |_: Hand, _: &Context<'_>| true)),
+            // The `and`/`or` suit-set combinators (M6.2d): `and` floors every named
+            // suit (tight), `or` unions the arms (loose — must stay sound).
+            Box::new(and([Suit::Hearts, Suit::Spades], 4..)),
+            Box::new(
+                and([Suit::Hearts, Suit::Spades], 4..) & or([Suit::Hearts, Suit::Spades], 5..),
+            ),
+            Box::new(
+                or([Suit::Hearts, Suit::Spades], 6..) & and([Suit::Clubs, Suit::Diamonds], ..=4),
+            ),
         ];
 
         let mut rng = rng();

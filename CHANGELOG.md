@@ -9,6 +9,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The opaque DONT / Woolsey / Multi 1NT-defense shapes are re-authored as
+  transparent `or`/`and` constraints, and DONT now defends a traditional 4-4
+  (AI-bidder M6.2d).** The seven shapes that hid behind the `described(label,
+  closure)` escape hatch — DONT's one-suiter / minor-major / both-majors, Woolsey's
+  Multi / Muiderberg / takeout-double, and the direct-Landy both-majors `X` —
+  projected *nothing* (an opaque closure is invisible to `project`). They are now
+  stated with the new `or`/`and` suit-set combinators (DONT both majors =
+  `and([♥,♠],4..)`, Landy = `and([♥,♠],4..) & or([♥,♠],5..)`, Multi =
+  `or([♥,♠],6..) & and([♣,♦],..=4)`), so each reads like its bridge spec *and*
+  projects its real shape off its own rule. Two deliberate **behavior changes** come
+  with the move to traditional shapes: **DONT two-suiters now accept a flat 4-4 by
+  default** (`set_direct_dont_four_four` flips on — DONT is traditionally a 4-4
+  method; set it off for the old 5-4+), and **Woolsey's Multi `2♦` drops its
+  strictly-longer-major / no-6-6 guard**, so a 6-5 or 6-6 major hand competes with
+  `2♦` instead of passing. Muiderberg keeps its exactly-5 + other-major-≤3 caps (the
+  Woolsey structure relies on disjoint shapes so its uniform 1.9 weights never tie).
+  Both conventions stay **opt-in** (`set_direct_dont` / `set_woolsey` default off), so
+  the default system is unchanged. **A/B** (`ab-landy`, 60k filtered, none-vul,
+  self-play vs the natural defense): DONT 4-4 is DD-negative — −0.362 IMPs/divergent
+  plain, −1.397 PD (4-4 competes on far more hands; the obstruction value is
+  single-dummy, invisible to the perfect-defense DD harness — the recurring
+  obstruction-wall result). Woolsey with the wider Multi is modestly DD-positive on
+  both scorings — +0.414/divergent plain, +0.065 PD. Each new shape is verified
+  behavior-faithful to its intended spec by a `verify::compare` guard (8k sampled
+  hands per shape). See `docs/ai-bidder/rule-projection.md`.
+
 - **The three declarative `*_reading` decoders are retired — an artificial call's
   meaning is now read straight off its authored rule (AI-bidder M6.2c).** The
   generic `authored_reading` projection pass is wired into production:
@@ -33,6 +59,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `docs/ai-bidder/rule-projection.md`.
 
 ### Added
+
+- **`or` / `and` suit-set length combinators in the constraint DSL (AI-bidder
+  M6.2d).** `and(suits, range)` requires *every* listed suit in `range` — projecting
+  each suit's floor (tight); `or(suits, range)` requires *some* listed suit in
+  `range` — projecting the sound union of the arms (loose, washing to no-info for two
+  or more suits). They generalize `len` from one suit to a set, so a two-suiter
+  states its own lengths declaratively — `and([♥,♠],4..)` = 4-4, `… & or([♥,♠],5..)` =
+  5-4, `and([♥,♠],5..)` = 5-5 — and the shape is both readable and projectable. Folds
+  into `eval` (crisp `all`/`any`), `describe`, and `project`; the projection soundness
+  property test covers both.
 
 - **Rule projection now reads an artificial call's meaning straight off its rule
   (AI-bidder M6.2b — validation).** `Rule::project` joins `eval`/`describe` as the

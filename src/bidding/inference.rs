@@ -641,8 +641,12 @@ impl Inferences {
         // projection — the `overlay` computed above — not a hand-written decoder
         // (M6.2c).  Sound but looser than the old readers: it pins the 2♦ transfer's
         // five-card floor, not the six-card jump upgrade the reader inferred from a
-        // later call.  The opaque conventions below still record by hand until M6.2d
-        // re-authors them as `len` conjuncts.
+        // later call.  The DONT/Woolsey/Multi conventions below are now transparent
+        // `or`/`and` shapes too (M6.2d), so the both-majors family (DONT `2♥`, the
+        // direct-Landy `X`) also surfaces in `overlay` here — redundant with, and
+        // identical to, the per-suit floors recorded by hand below (an idempotent
+        // intersect).  The hand recordings stay: they carry the one-suiter/disjunction
+        // floors the `or`-union washes out, which the projection cannot pin.
         for (seat, projected) in overlay.iter().enumerate() {
             players[seat] = players[seat].intersect(projected);
         }
