@@ -106,39 +106,43 @@ fn lebensohl_style() -> LebensohlStyle {
 ///
 /// All variants are *authored* in the book (a finite logit), so the instinct
 /// floor's own takeout double — whose `hcp(12..)` threshold is too strong here —
-/// is shadowed and we control the strength. For the penalty styles opener's
-/// continuation is also authored — [`opener_leaves_in_penalty_double`] sits for
-/// the double rather than letting the floor read `[…,X,P]` as a takeout advance
-/// and pull it. Gated behind [`set_double_style`]; [`DoubleStyle::Penalty`]
-/// (4+/9+) is the default.
+/// is shadowed and we control the strength. Opener's continuation is authored to
+/// match the style: penalty → [`opener_leaves_in_penalty_double`] sits; optional →
+/// [`opener_cooperates_optional`] stands on a fit and runs with a doubleton.
+/// Gated behind [`set_double_style`]; [`DoubleStyle::Optional`] (2-3/8+) is the
+/// default.
 ///
 /// A/B verdict (`ab-lebensohl`, NS vs EW with both pairs Transfer, 200k,
-/// ~1500 divergent): penalty-vs-takeout **was** measure-dependent — plain DD
-/// favored takeout, perfect-defense favored penalty — but that disagreement was an
-/// **artifact of opener pulling responder's penalty double** (no authored
-/// continuation). With [`opener_leaves_in_penalty_double`] on (the default), penalty
-/// flips from **−1.207 → +0.328 IMPs/divergent** vs takeout on plain DD — a sign
-/// flip — so both measures now favor penalty, and it is the default. The old
-/// "takeout ≤3/8 is the best plain-DD double" verdict held only while the penalty
-/// double was being pulled. `Takeout`/`Optional` stay selectable for A/B.
+/// ~1500 divergent), once **both** the doubler's partner *and* the takeout
+/// baseline are handled fairly: **Optional > Penalty > Takeout**. Optional beats
+/// penalty by **+1.59** and takeout by **+2.14 IMPs/divergent**; penalty beats
+/// takeout by **+0.51**. The earlier penalty-vs-takeout disagreement (plain DD
+/// favored takeout, perfect-defense favored penalty) was an **artifact of opener
+/// pulling responder's penalty double** — once opener sits, both measures favor
+/// penalty over takeout; once opener also *cooperates* with a 2-3-card optional
+/// double (stand on a fit, run with a doubleton) optional wins outright. The
+/// ranking is robust to the responder's-double reading. `Takeout`/`Penalty` stay
+/// selectable for A/B.
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
 pub enum DoubleStyle {
     /// Classic takeout, `len(over, ..=3) & hcp(8..)` (former default; best plain-DD
     /// double only while penalty doubles were pulled — see [`DoubleStyle`]).
     Takeout,
-    /// Default: penalty — length and values in their suit, `len(over, 4..) &
-    /// hcp(9..)`; opener sits (see [`set_penalty_double_leave_in`]).
-    #[default]
+    /// Penalty — length and values in their suit, `len(over, 4..) & hcp(9..)`;
+    /// opener sits (see [`set_penalty_double_leave_in`]).
     Penalty,
     /// Penalty at a lower floor: `len(over, 4..) & hcp(7..)`
     PenaltyLight,
-    /// Cooperative / optional takeout, never short: `len(over, 2..=3) & hcp(8..)`
+    /// Default: cooperative / optional takeout, never short: `len(over, 2..=3) &
+    /// hcp(8..)`; opener stands on a fit and runs with a doubleton (see
+    /// [`opener_cooperates_optional`]).
+    #[default]
     Optional,
 }
 
 thread_local! {
     /// The meaning of responder's double of the overcall (see [`DoubleStyle`]).
-    static DOUBLE_STYLE: Cell<DoubleStyle> = const { Cell::new(DoubleStyle::Penalty) };
+    static DOUBLE_STYLE: Cell<DoubleStyle> = const { Cell::new(DoubleStyle::Optional) };
 }
 
 /// Select responder's double meaning for books built *after* this call
@@ -150,15 +154,6 @@ pub fn set_double_style(style: DoubleStyle) {
 /// The currently selected double meaning
 fn double_style() -> DoubleStyle {
     DOUBLE_STYLE.with(Cell::get)
-}
-
-/// Whether the active [`DoubleStyle`] makes responder's double of the overcall
-/// **penalty** (length + values in their suit), so opener should sit for it
-fn double_style_is_penalty() -> bool {
-    matches!(
-        double_style(),
-        DoubleStyle::Penalty | DoubleStyle::PenaltyLight
-    )
 }
 
 thread_local! {
@@ -201,6 +196,35 @@ fn penalty_double_leave_in() -> bool {
 /// is usually short in their suit, so its own length-gated leave-in never fires).
 fn opener_leaves_in_penalty_double() -> Rules {
     Rules::new().rule(Call::Pass, 1.5, hcp(0..))
+}
+
+/// Opener's reply to responder's **optional** (cooperative) double of their `over`
+/// overcall of our 1NT (`[1NT,(2X),X,(P)]`): responder showed only 2-3 cards in
+/// their suit, so opener *decides* — stand (defend) with a three-card-plus fit, but
+/// **run with a doubleton** to a real five-card suit, escaping a thin defense
+///
+/// The floor would stand only with four-plus behind their suit and pull everything
+/// else, so it runs the three-card fits opener should defend — the optional dual of
+/// the penalty-double leak.  Without a five-card suit a short opener has nowhere to
+/// run, so it sits (the catch-all `Pass`).
+fn opener_cooperates_optional(over: Suit) -> Rules {
+    // Stand by default: a fit defends, and a short hand with no suit has no better.
+    let mut rules = Rules::new().rule(Call::Pass, 1.5, hcp(0..));
+    // Run with a doubleton-or-less to a real five-card suit (cheapest legal level).
+    for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
+        if suit == over {
+            continue;
+        }
+        let strain = Strain::from(suit);
+        for level in 2..=3 {
+            rules = rules.rule(
+                Bid::new(level, strain),
+                1.6,
+                min_level_is(level, strain) & len(over, ..=2) & len(suit, 5..),
+            );
+        }
+    }
+    rules
 }
 
 thread_local! {
@@ -1558,11 +1582,19 @@ pub fn competition() -> Competitive {
                 Fallback::classify(responder),
             );
 
-            // Opener leaves in responder's PENALTY double of the overcall: suffix is
-            // [overcall, X, P].  Only when the style makes the double penalty (else
-            // the floor's takeout advance is correct) and the knob is on.  Without
-            // this node opener PULLS the penalty double — the documented leak.
-            if penalty_double_leave_in() && double_style_is_penalty() {
+            // Opener's reply to responder's double of the overcall: suffix is
+            // [overcall, X, P].  The penalty styles SIT (else the floor reads it as
+            // a takeout advance and pulls — the documented leak); the optional style
+            // cooperates (stand on a fit, run with a doubleton); takeout keeps the
+            // floor's advance.  Gated on the leave-in knob.
+            let opener_reply = match double_style() {
+                DoubleStyle::Penalty | DoubleStyle::PenaltyLight => {
+                    Some(opener_leaves_in_penalty_double())
+                }
+                DoubleStyle::Optional => Some(opener_cooperates_optional(over)),
+                DoubleStyle::Takeout => None,
+            };
+            if let (true, Some(reply)) = (penalty_double_leave_in(), opener_reply) {
                 fallback_all_seats(
                     &mut book,
                     &[one_nt],
@@ -1570,7 +1602,7 @@ pub fn competition() -> Competitive {
                     Arc::new(guard(move |_: &Context<'_>, suffix: &[Call]| {
                         suffix == [overcall, Call::Double, Call::Pass]
                     })),
-                    Fallback::classify(opener_leaves_in_penalty_double()),
+                    Fallback::classify(reply),
                 );
             }
 
@@ -2228,8 +2260,9 @@ mod tests {
     fn transfer_lebensohl_keeps_the_penalty_double() {
         // Length and values in their suit, no game bid of our own: with the
         // `Penalty` style on, double from the book — Rubensohl v1 lost this by
-        // shadowing the floor. (The default is now `Takeout`, which would route
-        // this 4-card-diamond hand elsewhere; see [`takeout_authored_double`].)
+        // shadowing the floor. (The default is now `Optional` (2-3 cards), which
+        // would route this 4-card-diamond hand elsewhere; see
+        // [`takeout_authored_double`].)
         let auction = [call(1, Strain::Notrump), call(2, Strain::Diamonds)];
         let (c, floored) =
             bid_transfer_dbl(super::DoubleStyle::Penalty, &auction, "K2.K43.J932.Q432");
@@ -2250,8 +2283,8 @@ mod tests {
 
     #[test]
     fn takeout_authored_double() {
-        // Takeout (the default): short in their suit (2♦) with values doubles
-        // from the book — a hand the `Penalty` style (4+ ♦) would never double.
+        // Takeout: short in their suit (2♦) with values doubles from the book —
+        // a hand the `Penalty` style (4+ ♦) would never double.
         let auction = [call(1, Strain::Notrump), call(2, Strain::Diamonds)];
         let (c, floored) =
             bid_transfer_dbl(super::DoubleStyle::Takeout, &auction, "K432.K432.32.Q43");
@@ -2412,5 +2445,35 @@ mod tests {
         // Restore the defaults for other tests sharing this thread.
         set_penalty_double_leave_in(true);
         set_double_style(DoubleStyle::Penalty);
+    }
+
+    #[test]
+    fn opener_cooperates_with_responder_optional_double() {
+        use super::{DoubleStyle, set_double_style, set_penalty_double_leave_in};
+        // [1NT,(2♥),X,(P)] — responder's OPTIONAL double (2-3 hearts + values).
+        let auction = [
+            call(1, Strain::Notrump),
+            call(2, Strain::Hearts),
+            Call::Double,
+            Call::Pass,
+        ];
+        super::set_lebensohl_style(super::LebensohlStyle::Plain);
+        set_double_style(DoubleStyle::Optional);
+        set_penalty_double_leave_in(true);
+        // Three-card fit (♥Q93): stand and defend the doubled overcall.
+        let (fit, floored) = best_call(&auction, "AK5.Q93.KJ54.Q5");
+        assert_eq!(fit, Call::Pass, "a three-card fit stands");
+        assert!(!floored, "the cooperation must be an authored node");
+        // Doubleton in their suit + a five-card suit (♣AKQ76): run with xx.
+        let (run, _) = best_call(&auction, "A52.93.KJ5.AKQ76");
+        assert_eq!(
+            run,
+            call(3, Strain::Clubs),
+            "a doubleton runs to the five-card suit"
+        );
+        // Doubleton but no five-card suit: nowhere to run, so stand.
+        let (stuck, _) = best_call(&auction, "A52.93.KJ54.AKQ6");
+        assert_eq!(stuck, Call::Pass, "a doubleton with no suit stands");
+        set_double_style(DoubleStyle::Penalty); // restore the default
     }
 }

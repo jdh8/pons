@@ -9,24 +9,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Responder's double of an overcall of our 1NT is now penalty by default, and
-  opener leaves it in.** `DoubleStyle`'s default flips `Takeout → Penalty`: over
-  `[1NT,(2X)]`, responder's double shows length and values in their suit. The
-  documented "takeout is the best plain-DD double, penalty is monotone-bad" verdict
-  turned out to be an **artifact of opener pulling responder's penalty double** —
-  opener had no authored continuation, so the floor read `[…,X,P]` as a takeout
-  advance and pulled it (opener is usually short in their suit, so its own length-
-  gated leave-in never fired). The book now authors opener to **always sit** (defend
-  the doubled overcall) via `set_penalty_double_leave_in` (default on, the book dual
-  of the penalty latch). With opener sitting, penalty-vs-takeout flips from
-  **−1.207 → +0.328 IMPs/divergent** on `ab-lebensohl` (NS penalty vs EW takeout,
-  both Transfer Lebensohl, 200k, ~1500 divergent) — a sign flip — so penalty now
-  beats takeout on plain-DD too, matching the perfect-defense measure that already
-  favored it. A 3NT escape for an opener-max with a stopper was A/B'd a *loss* vs
-  always sitting (+0.328 vs **+0.507**) — defending the doubled partscore beats a
-  fragile game, especially on a stack — so opener never pulls. `Takeout`/`Optional`
-  stay selectable via `set_double_style`; `ab-lebensohl` gains
-  `--ns-penalty-leave-in on|off`.
+- **Responder's double of an overcall of our 1NT is now optional by default, and
+  opener cooperates with it.** `DoubleStyle`'s default flips `Takeout → Optional`:
+  over `[1NT,(2X)]`, responder's double shows 2-3 cards and values in their suit —
+  cooperative, not pure penalty and not short-suit takeout. The documented "takeout
+  is the best plain-DD double" verdict turned out to be an **artifact of opener
+  mishandling responder's double** — opener had no authored continuation, so the
+  floor read `[…,X,P]` as a takeout advance and either pulled a penalty double or
+  ran a 3-card optional fit. Two book duals fix it: `set_penalty_double_leave_in`
+  (default on) makes opener **sit** for a penalty double, and
+  `opener_cooperates_optional` makes opener **stand on a fit and run only with a
+  doubleton** for an optional double. Once both the doubler's partner *and* the
+  takeout baseline are handled fairly, the ranking is **Optional > Penalty >
+  Takeout** on `ab-lebensohl` (NS vs EW, both Transfer Lebensohl, 200k, ~1500
+  divergent): optional beats penalty by **+1.59** and takeout by **+2.14
+  IMPs/divergent**, penalty beats takeout by **+0.51** — robust to the responder's-
+  double reading. (Waypoints along the way: with opener merely *sitting*, penalty-
+  vs-takeout already flipped **−1.207 → +0.328**, a sign flip; a 3NT escape for an
+  opener-max with a stopper A/B'd a *loss* vs sitting, so opener never pulls a
+  penalty double — defending the doubled partscore beats a fragile game on a stack.)
+  `Takeout`/`Penalty`/`PenaltyLight` stay selectable via `set_double_style`;
+  `ab-lebensohl` gains `--ns-penalty-leave-in on|off`. Responder's double now also
+  carries an 8+ HCP floor reading (`responder_overcall_double_reading`) for the
+  sampler/search bidders.
 
 - **The penalty-double latch ("once penalty, always penalty"), default on.** New
   `instinct::set_penalty_latch` (thread-local, **on by default**) models the human

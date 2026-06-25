@@ -389,6 +389,9 @@ impl Inferences {
         // The latch's subsequent penalty doubles: each promises four-plus in the suit
         // it doubles, recorded post-walk so the sampler does not read them as takeout.
         let penalty_latch_doubles = penalty_latch_double_reading(auction);
+        // Responder's double of an overcall of our 1NT shows 8+ (every DoubleStyle),
+        // recorded post-walk so opener does not undercount the partnership's strength.
+        let overcall_double = responder_overcall_double_reading(auction, len);
 
         for (index, &call) in auction.iter().enumerate() {
             let lane = index % 4;
@@ -763,6 +766,12 @@ impl Inferences {
         for (double_index, suit) in penalty_latch_doubles {
             let who = relative_of(len, double_index) as usize;
             players[who].narrow_length(suit, Range::at_least(4, LENGTH_CAP));
+        }
+
+        // Responder's double of an overcall of our 1NT: 8+ values (every DoubleStyle).
+        if let Some(double_index) = overcall_double {
+            let who = relative_of(len, double_index) as usize;
+            players[who].narrow_points(Range::at_least(8, POINTS_CAP));
         }
 
         Self { players }
@@ -1246,6 +1255,30 @@ pub(super) fn penalty_x_reading(auction: &[Call]) -> Option<usize> {
     // Seats that passed before the opening fill lanes `0..opening_index` (all the calls
     // there are passes), so an unpassed doubler's lane is at or beyond `opening_index`.
     (double_index % 4 >= opening_index).then_some(double_index)
+}
+
+/// The index of responder's double of an opponent's overcall of *our* 1NT
+/// (`[1NT,(2X),X]`), or `None`
+///
+/// Every [`DoubleStyle`][crate::bidding::american::DoubleStyle] makes this double
+/// show **8+ values** (takeout ≤3/8, penalty 4+/9, optional 2-3/8), so the post-walk
+/// records that points floor — without it the double reads as nothing and opener
+/// undercounts the partnership's strength.  Fires only for our own 1NT (the opener
+/// shares the actor's parity); their responder's double of our overcall is their
+/// convention, not ours.
+fn responder_overcall_double_reading(auction: &[Call], len: usize) -> Option<usize> {
+    let opening_index = auction.iter().position(|&c| c != Call::Pass)?;
+    if auction[opening_index] != Call::Bid(Bid::new(1, Strain::Notrump))
+        || opening_index % 2 != len % 2
+    {
+        return None;
+    }
+    // The opponent's suit overcall, then our responder's immediate double of it.
+    match auction.get(opening_index + 1) {
+        Some(Call::Bid(bid)) if bid.strain.is_suit() => {}
+        _ => return None,
+    }
+    (auction.get(opening_index + 2) == Some(&Call::Double)).then_some(opening_index + 2)
 }
 
 /// Our side's *subsequent* penalty doubles after the natural penalty X of their

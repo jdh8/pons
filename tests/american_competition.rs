@@ -178,15 +178,16 @@ fn test_answer_negative_double_bids_other_major() {
 
 #[test]
 fn test_multi_2d_double_is_values() {
-    // 1NT – (2♦) – ?: 9 HCP, no five-card suit, only three diamonds. Default (off)
-    // reads 2♦ as natural diamonds; the penalty double needs four of them, so it
-    // cannot fire and responder does not double. With the Multi counter-defense on,
-    // 2♦ shows an unknown major and this values hand takes the workhorse double. The
-    // toggle is read at book construction, so set it before building each stance.
-    // (Three diamonds, not four: under the default Penalty style a four-diamond hand
-    // would penalty-double in *both* arms, erasing the contrast.)
+    // 1NT – (2♦) – ?: 9 HCP, no five-card suit, four diamonds. Default (off) reads
+    // 2♦ as natural diamonds; the default Optional double needs 2-3 of them, so a
+    // four-diamond hand cannot fire and responder does not double. With the Multi
+    // counter-defense on, 2♦ shows an unknown major and this values hand takes the
+    // workhorse double. The toggle is read at book construction, so set it before
+    // building each stance. (Four diamonds, not three: under the default Optional
+    // style — 2-3 cards — a three-diamond hand would optional-double in *both* arms,
+    // erasing the contrast.)
     let auction = &[call(1, Strain::Notrump), call(2, Strain::Diamonds)];
-    let hand = "KJ4.Q732.J76.Q53";
+    let hand = "KJ4.Q73.J762.Q53";
 
     pons::bidding::american::set_defense_to_2d_multi(false);
     let off = best_call(&stance(), auction, hand);
