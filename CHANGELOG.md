@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Opener leaves in responder's penalty double of an overcall of our 1NT
+  (`set_penalty_double_leave_in`, default on).** When `DoubleStyle` is
+  `Penalty`/`PenaltyLight`, responder's double of `[1NT,(2X)]` shows length and
+  values in their suit — but opener had no authored continuation, so the floor read
+  `[…,X,P]` as a takeout advance and *pulled* it (opener is usually short in their
+  suit, so its own length-gated leave-in never fired). The book now authors opener
+  to **sit** (defend the doubled overcall) unless it holds an independent notrump
+  game. This is the book dual of the penalty latch's leave-in. A no-op for the
+  default `Takeout` style, so the shipped system is unchanged. It overturns the
+  documented "takeout is the best plain-DD double, penalty is monotone-bad" verdict
+  as an artifact of the missing continuation: on `ab-lebensohl` (NS penalty vs EW
+  takeout, both Transfer Lebensohl, 200k, ~1500 divergent) the leave-in flips
+  penalty-vs-takeout from **−1.207 → +0.328 IMPs/divergent** (a +1.535 swing, a sign
+  flip), so penalty now *beats* takeout on plain-DD too — matching the perfect-
+  defense measure, which already favored penalty. `ab-lebensohl` gains
+  `--ns-penalty-leave-in on|off`.
+
 - **The penalty-double latch ("once penalty, always penalty"), default on.** New
   `instinct::set_penalty_latch` (thread-local, **on by default**) models the human
   rule that once a side makes a penalty double, its later doubles are penalty too —

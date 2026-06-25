@@ -39,7 +39,7 @@ use ddss::{NonEmptyStrainFlags, Solver, TrickCountTable};
 use pons::american;
 use pons::bidding::american::{
     DoubleStyle, LebensohlStyle, set_direct_3nt_stopper, set_double_override, set_double_style,
-    set_lebensohl_style, set_natural_floor, set_trap_pass,
+    set_lebensohl_style, set_natural_floor, set_penalty_double_leave_in, set_trap_pass,
 };
 use pons::bidding::constraint::point_count;
 use pons::bidding::context::{Context, relative};
@@ -81,6 +81,14 @@ struct Args {
     /// Responder's double meaning, baseline (EW) pair (see `--ns-dbl`).
     #[arg(long, default_value = "takeout")]
     ew_dbl: String,
+
+    /// Opener leaves in responder's PENALTY double of a natural overcall of our 1NT
+    /// (`on`, default) — sit rather than let the floor pull it. Only bites when the
+    /// measured (NS) `--ns-dbl` is penalty/penalty-light. `off` = the old floor
+    /// behavior (opener advances the double as takeout). The A/B knob for the
+    /// "opener pulls responder's penalty double" leak.
+    #[arg(long, default_value = "on")]
+    ns_penalty_leave_in: String,
 
     /// Does the measured (NS) pair's direct `3NT` over the overcall need its own
     /// stopper (`on`, the default) or may it be bid on game values alone, trusting
@@ -565,6 +573,7 @@ fn main() {
     apply_double(&args.ns_dbl);
     set_direct_3nt_stopper(args.ns_3nt_stopper != "off");
     set_trap_pass(args.ns_trap == "on");
+    set_penalty_double_leave_in(args.ns_penalty_leave_in != "off");
     let (ns_h, ns_p) = floor_from(&args.ns_floor);
     set_natural_floor(ns_h, ns_p);
     let lebensohl = american().against(Family::NATURAL);

@@ -163,6 +163,60 @@ fn double_style() -> DoubleStyle {
     DOUBLE_STYLE.with(Cell::get)
 }
 
+/// Whether the active [`DoubleStyle`] makes responder's double of the overcall
+/// **penalty** (length + values in their suit), so opener should sit for it
+fn double_style_is_penalty() -> bool {
+    matches!(
+        double_style(),
+        DoubleStyle::Penalty | DoubleStyle::PenaltyLight
+    )
+}
+
+thread_local! {
+    /// Whether opener leaves in responder's penalty double of a natural overcall of
+    /// our 1NT (`[1NT,(2X),X,(P)]`) instead of letting the floor read `[…,X,P]` as a
+    /// takeout advance and pull it. **On by default**; a no-op unless the active
+    /// [`DoubleStyle`] is penalty. Read once at book construction. See
+    /// [`set_penalty_double_leave_in`] — the A/B knob for the "opener pulls
+    /// responder's penalty double" leak (the book dual of the penalty latch).
+    static PENALTY_DOUBLE_LEAVE_IN: Cell<bool> = const { Cell::new(true) };
+}
+
+/// Toggle opener leaving in responder's penalty double of a natural overcall of our
+/// 1NT, for books built *after* this call (thread-local; **on by default**)
+///
+/// Only matters when the active [`DoubleStyle`] is `Penalty`/`PenaltyLight`: opener
+/// sits for `[1NT,(2X),X,(P)]` (defending the doubled overcall) rather than pulling
+/// it, since responder's penalty double promised the trumps.  Off restores the bare
+/// floor (which reads the double as takeout and advances).
+pub fn set_penalty_double_leave_in(on: bool) {
+    PENALTY_DOUBLE_LEAVE_IN.with(|cell| cell.set(on));
+}
+
+/// Whether opener's penalty-double leave-in is authored
+fn penalty_double_leave_in() -> bool {
+    PENALTY_DOUBLE_LEAVE_IN.with(Cell::get)
+}
+
+/// Opener's reply to responder's **penalty** double of their `over` overcall of our
+/// 1NT (`[1NT,(2X),X,(P)]`): sit and defend, since responder promised length and
+/// values in their suit — unless we hold a clearly independent game
+///
+/// The book dual of the penalty latch's leave-in: without an authored node here the
+/// floor reads `[…,X,P]` as a takeout advance and *pulls* the penalty double (opener
+/// is usually short in their suit, so its own length-gated leave-in never fires).
+fn opener_leaves_in_penalty_double(over: Suit) -> Rules {
+    Rules::new()
+        // A cold notrump game outranks the penalty: opener-max with their suit stopped.
+        .rule(
+            Bid::new(3, Strain::Notrump),
+            1.55,
+            hcp(17..) & stopper_in(over),
+        )
+        // Otherwise sit: responder's penalty double has the trumps — defend.
+        .rule(Call::Pass, 1.5, hcp(0..))
+}
+
 thread_local! {
     /// Whether the competitive book carries the Unusual-vs-Unusual structure over
     /// our `1NT` when an opponent overcalls a both-minors `2NT` (Section 5d).
@@ -1518,6 +1572,22 @@ pub fn competition() -> Competitive {
                 Fallback::classify(responder),
             );
 
+            // Opener leaves in responder's PENALTY double of the overcall: suffix is
+            // [overcall, X, P].  Only when the style makes the double penalty (else
+            // the floor's takeout advance is correct) and the knob is on.  Without
+            // this node opener PULLS the penalty double — the documented leak.
+            if penalty_double_leave_in() && double_style_is_penalty() {
+                fallback_all_seats(
+                    &mut book,
+                    &[one_nt],
+                    3,
+                    Arc::new(guard(move |_: &Context<'_>, suffix: &[Call]| {
+                        suffix == [overcall, Call::Double, Call::Pass]
+                    })),
+                    Fallback::classify(opener_leaves_in_penalty_double(over)),
+                );
+            }
+
             // Opener completes the 2NT relay with 3♣: suffix is [overcall, 2NT, P].
             fallback_all_seats(
                 &mut book,
@@ -2313,5 +2383,42 @@ mod tests {
 
         let (c, _) = bid_transfer(&auction, "A432.543.AKQ.432");
         assert_eq!(c, call(5, Strain::Clubs), "no stopper → 5♣");
+    }
+
+    #[test]
+    fn opener_leaves_in_responder_penalty_double_when_penalty_style() {
+        use super::{DoubleStyle, set_double_style, set_penalty_double_leave_in};
+        // [1NT,(2♥),X,(P)] — responder penalty-doubled their heart overcall.
+        let auction = [
+            call(1, Strain::Notrump),
+            call(2, Strain::Hearts),
+            Call::Double,
+            Call::Pass,
+        ];
+        super::set_lebensohl_style(super::LebensohlStyle::Plain);
+        // Penalty style + leave-in on: opener SITS, and it is an authored node.
+        set_double_style(DoubleStyle::Penalty);
+        set_penalty_double_leave_in(true);
+        let (c_on, floored_on) = best_call(&auction, "AQ5.J42.KQ3.K842"); // flat 15, no ♥ stop
+        assert_eq!(c_on, Call::Pass, "penalty double left in");
+        assert!(
+            !floored_on,
+            "the leave-in must be a book node, not the floor"
+        );
+        // Leave-in off: the floor reads the double as takeout and pulls — not a Pass.
+        set_penalty_double_leave_in(false);
+        let (c_off, floored_off) = best_call(&auction, "AQ5.J42.KQ3.K842");
+        assert!(
+            floored_off,
+            "off → the node is gone, opener falls to the floor"
+        );
+        assert_ne!(
+            c_off,
+            Call::Pass,
+            "the floor advances the double instead of sitting"
+        );
+        // Restore the defaults for other tests sharing this thread.
+        set_penalty_double_leave_in(true);
+        set_double_style(DoubleStyle::Takeout);
     }
 }
