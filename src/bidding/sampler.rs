@@ -308,6 +308,26 @@ mod tests {
         Inferences::read(&Context::new(RelativeVulnerability::NONE, auction))
     }
 
+    /// The natural penalty double of their 1NT shows 15+, and a passed doubler's
+    /// double (both majors) is left unnarrowed — the floor must read the two apart.
+    #[test]
+    fn reads_natural_penalty_double_of_their_notrump() {
+        // (1NT) X by an unpassed seat — RHO of the side to act (the 1NT responder).
+        let direct = inferences(&[bid(1, Strain::Notrump), Call::Double]);
+        assert_eq!(direct.rho().points.min, 15);
+
+        // A passed hand doubling: dealer passes, RHO opens 1NT, two passes, then the
+        // dealer (now a passed hand) doubles — both majors, not a 15+ penalty double.
+        let passed = inferences(&[
+            Call::Pass,
+            bid(1, Strain::Notrump),
+            Call::Pass,
+            Call::Pass,
+            Call::Double,
+        ]);
+        assert!(passed.rho().points.min < 15);
+    }
+
     /// A fixed hand short in hearts, so an RHO who must hold 5+ hearts is easy
     /// to satisfy and the sampler reaches its requested count quickly.
     fn short_heart_actor() -> Hand {

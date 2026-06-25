@@ -221,7 +221,7 @@ pub fn set_natural_defense(on: bool) {
 }
 
 /// Whether the natural one-suiter defense is currently authored
-fn natural_defense_enabled() -> bool {
+pub(crate) fn natural_defense_enabled() -> bool {
     NATURAL_DEFENSE.with(Cell::get)
 }
 
@@ -337,7 +337,7 @@ pub fn set_direct_landy_double(shape: Option<bool>) {
 }
 
 /// The configured direct-seat both-majors double shape, or `None` when off
-fn direct_landy_double() -> Option<bool> {
+pub(crate) fn direct_landy_double() -> Option<bool> {
     DIRECT_LANDY_DOUBLE.with(Cell::get)
 }
 
@@ -582,7 +582,7 @@ pub fn set_natural_double_floor(floor: u8) {
     NATURAL_DOUBLE_FLOOR.with(|cell| cell.set(floor));
 }
 
-fn natural_double_floor() -> u8 {
+pub(crate) fn natural_double_floor() -> u8 {
     NATURAL_DOUBLE_FLOOR.with(Cell::get)
 }
 

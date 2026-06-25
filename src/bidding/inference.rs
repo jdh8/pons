@@ -383,6 +383,9 @@ impl Inferences {
         // The DONT defense of their 1NT: the artificial X/2♣/2♦/2♥ and the advancer's
         // relay are suppressed; what each genuinely shows is recorded post-walk.
         let dont = dont_reading(auction);
+        // Our natural penalty double of their 1NT (15+): a double names no suit, so the
+        // generic walk reads it as nothing — the points floor is recorded post-walk.
+        let penalty_x = penalty_x_reading(auction);
 
         for (index, &call) in auction.iter().enumerate() {
             let lane = index % 4;
@@ -740,6 +743,16 @@ impl Inferences {
                 }
             }
             players[who].narrow_points(Range::at_least(dont.floor, POINTS_CAP));
+        }
+
+        // Our natural penalty double of their 1NT.  The shape gate only widens *which*
+        // 15+ hands double, so only the points floor is a sound per-call fact; recording
+        // it stops the floor sampling the doubler as a random weak hand and the advancer
+        // pulling a phantom suit (cf. the Woolsey double, which records points alone too).
+        if let Some(double_index) = penalty_x {
+            let who = relative_of(len, double_index) as usize;
+            let floor = crate::bidding::american::natural_double_floor();
+            players[who].narrow_points(Range::at_least(floor, POINTS_CAP));
         }
 
         Self { players }
@@ -1176,6 +1189,53 @@ fn woolsey_x_reading(auction: &[Call]) -> Option<WoolseyXReading> {
         double_index,
         relay_suppress,
     })
+}
+
+/// The index of our natural **penalty** double of their 1NT (15+ HCP), or `None`
+///
+/// A double of 1NT names no suit, so the generic walk's takeout branch (which needs
+/// a suit opening) reads it as nothing.  Returns the doubler's index so the post-walk
+/// pass records the [`natural_double_floor`][crate::bidding::american::natural_double_floor]
+/// points floor.  Mirrors [`woolsey_x_reading`].
+///
+/// Fires only when a double of their 1NT actually *means* the natural penalty double:
+/// the natural defense is on and no convention has repurposed the double (DONT = a
+/// one-suiter, direct Landy / Woolsey = both majors — each has its own reading).  A
+/// *passed* doubler cannot hold 15+, so their double is the both-majors passed-hand
+/// call, not penalty; an unpassed doubler is identified by lane (a seat that passed
+/// before the opening occupies a lane below `opening_index`).
+fn penalty_x_reading(auction: &[Call]) -> Option<usize> {
+    use crate::bidding::american as a;
+    if !a::natural_defense_enabled()
+        || a::direct_dont_enabled()
+        || a::direct_landy_double().is_some()
+        || a::woolsey_enabled()
+    {
+        return None;
+    }
+    let opening_index = auction.iter().position(|&c| c != Call::Pass)?;
+    if auction[opening_index] != Call::Bid(Bid::new(1, Strain::Notrump)) {
+        return None;
+    }
+    let opener_parity = opening_index % 2;
+
+    // The double must be the defending side's FIRST action over their 1NT.
+    let double_index = auction
+        .iter()
+        .enumerate()
+        .skip(opening_index + 1)
+        .find_map(|(index, &call)| match call {
+            Call::Pass => None,
+            Call::Double if index % 2 != opener_parity => Some(Some(index)),
+            // The opener's side acted, or a defender overcalled — not the penalty double.
+            _ => Some(None),
+        })
+        .flatten()?;
+
+    // A passed doubler's double is the both-majors passed-hand call, never 15+ penalty.
+    // Seats that passed before the opening fill lanes `0..opening_index` (all the calls
+    // there are passes), so an unpassed doubler's lane is at or beyond `opening_index`.
+    (double_index % 4 >= opening_index).then_some(double_index)
 }
 
 /// Which DONT defense call the defending side made over their 1NT
@@ -1719,10 +1779,11 @@ mod tests {
         ]);
         assert_eq!(ask.partner().points, Range::new(0, 37));
 
-        // Off: the double reads as nothing again — the convention must not leak.
+        // Off: the Woolsey 12+ reading must not leak — the double now falls through to
+        // the default-on natural penalty reading (15+), not Woolsey's 12+.
         set_woolsey(false);
         let off = read(&[bid(1, Strain::Notrump), Call::Double, Call::Pass]);
-        assert_eq!(off.partner().points, Range::new(0, 37));
+        assert_eq!(off.partner().points, Range::new(15, 37));
 
         set_unusual_notrump_defense(Some((8, 13)));
     }

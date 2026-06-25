@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Floor reading for the natural penalty double of their 1NT.** A double of an
+  opponent's 1NT names no suit, so the inference walk's takeout branch (which needs
+  a *suit* opening) read it as nothing — leaving the floor to sample the doubler as
+  a random weak hand and the advancer to pull a phantom suit. The floor now reads
+  the direct-seat penalty double as the `set_natural_double_floor` points floor
+  (15+ by default), mirroring the Woolsey/DONT double readings. It fires only when
+  a double of their 1NT actually *means* penalty: the natural defense is on and no
+  convention has repurposed the double (DONT, direct Landy, Woolsey each keep their
+  own reading), and the doubler is not a passed hand (whose double is the
+  both-majors passed-hand call). DD-measured neutral-to-slightly-positive with no
+  regression — the natural-penalty-X bucket improves vs BBA (defense-isolated, 10k
+  boards: −1.241 → −1.209 IMPs/X-board) and in self-play (+0.479 → +0.491); a
+  consistency fix banked like the other 1NT-defense readers, not an IMPs win.
+
 - **`Constraint::project` — a rule's forward shown-range envelope.** A third fold
   on the constraint DSL beside `eval` (score a hand) and `describe` (name the
   meaning): `project(context) -> Inference` turns a constraint into the per-suit
