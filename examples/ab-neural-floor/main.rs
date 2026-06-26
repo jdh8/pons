@@ -38,7 +38,7 @@ use contract_bridge::{AbsoluteVulnerability, FullDeal, Hand, Seat};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::bidding::american::bare_american;
 use pons::bidding::context::relative;
-use pons::bidding::{Family, Stance, System};
+use pons::bidding::{Stance, System, Tag};
 use pons::scoring::{final_contract, imps, ns_score_contract};
 use pons::{
     Accumulator, american, american_neural, american_neural_search, american_neural_v2,
@@ -253,12 +253,12 @@ fn main() {
     let args = Args::parse();
     let mut rng = rand::rng();
 
-    let neural = american_neural().against(Family::NATURAL);
-    let neural_v2 = american_neural_v2().against(Family::NATURAL);
-    let neural_search = american_neural_search().against(Family::NATURAL);
-    let neural_v3 = american_neural_v3().against(Family::NATURAL);
-    let deterministic = american().against(Family::NATURAL);
-    let bare = bare_american().against(Family::NATURAL);
+    let neural = american_neural().against(Tag::NATURAL);
+    let neural_v2 = american_neural_v2().against(Tag::NATURAL);
+    let neural_search = american_neural_search().against(Tag::NATURAL);
+    let neural_v3 = american_neural_v3().against(Tag::NATURAL);
+    let deterministic = american().against(Tag::NATURAL);
+    let bare = bare_american().against(Tag::NATURAL);
 
     println!(
         "AI-bidder M1.4 / M5.1 / M3.2 / v3: distilled neural floors (v1, tag-augmented v2, \

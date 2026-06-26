@@ -23,7 +23,7 @@ use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, Contract, FullDeal, Hand, Seat, Suit, eval};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
-use pons::bidding::Family;
+use pons::bidding::Tag;
 use pons::scoring::{final_contract, imps, ns_score_contract};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -125,7 +125,7 @@ fn decode(line: &str) -> Option<(Contract, Seat)> {
 
 fn main() {
     let args = Args::parse();
-    let sys = american().against(Family::NATURAL);
+    let sys = american().against(Tag::NATURAL);
     let boards = boards(args.seed, args.count);
 
     let contracts: Vec<Option<(Contract, Seat)>> = boards

@@ -17,24 +17,71 @@ use super::{call, insert_uncontested, slam};
 use crate::bidding::constraint::{
     Cons, Constraint, balanced, described, hcp, len, points, stopper_in,
 };
-use crate::bidding::{Context, Rules, Trie};
+use crate::bidding::{Context, Rules, Tag, Trie};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Hand, Rank, Strain, Suit};
+use std::cell::Cell;
+
+// ---------------------------------------------------------------------------
+// 1NT minor-suit response scheme (our-system variant tag)
+// ---------------------------------------------------------------------------
+
+/// The **Puppet** 1NT minor scheme — the shipped default
+///
+/// `2♠` = clubs or a balanced invite, `2NT` = diamonds (transfer), `3♣` = Puppet
+/// Stayman.  Our-system [`Tag`] minting the convention variant (see the `Tag`
+/// newtype doc); pass it to [`set_notrump_minors`].
+pub const PUPPET: Tag = Tag("puppet");
+
+/// The **European** 1NT minor scheme — opt-in, BBA's Atlantic style
+///
+/// `2♠` = clubs (transfer), `2NT` = a balanced invite / size ask, `3♣` = diamonds
+/// (transfer); no Puppet Stayman.  The standard Polish Club / WJ and common
+/// continental response set.  Select with [`set_notrump_minors`].
+pub const EUROPEAN: Tag = Tag("european");
+
+thread_local! {
+    /// The active 1NT minor-suit response variant, read once at book-construction
+    /// time (and by the inference engine, to decode our `2♠`/`2NT`/`3♣`).
+    /// [`PUPPET`] by default; flipped to [`EUROPEAN`] by [`set_notrump_minors`].
+    static NOTRUMP_MINORS: Cell<Tag> = const { Cell::new(PUPPET) };
+}
+
+/// Select the 1NT minor-suit response scheme for books built *after* this call
+///
+/// Thread-local, read at book-construction time (the [`set_woolsey`]-style knob).
+/// Pass [`PUPPET`] (default) or [`EUROPEAN`]; both variants are authored, and only
+/// the selected one's `2♠`/`2NT`/`3♣` rules are gated into the trie.
+///
+/// [`set_woolsey`]: super::set_woolsey
+pub fn set_notrump_minors(variant: Tag) {
+    NOTRUMP_MINORS.with(|cell| cell.set(variant));
+}
+
+/// The active 1NT minor scheme, defaulting to [`PUPPET`]
+///
+/// Read both at book construction (to gate `2♠`/`2NT`/`3♣` and their
+/// continuations) and by the inference engine (to read the artificial calls).
+pub(crate) fn notrump_minors() -> Tag {
+    NOTRUMP_MINORS.with(Cell::get)
+}
 
 // ---------------------------------------------------------------------------
 // 1NT response structure
 // ---------------------------------------------------------------------------
 
-/// Responses to our 1NT opening: Stayman, Jacoby transfers, Puppet Stayman, the
-/// minor-suit transfers, and notrump raises
+/// Responses to our 1NT opening: Stayman, Jacoby transfers, the minor-suit
+/// scheme, and notrump raises
 ///
 /// Stayman (2♣) needs invitational+ values and a four-card major; Jacoby
-/// transfers (2♦/2♥) a five-card major, any strength.  Puppet Stayman (3♣) is a
-/// game-forcing balanced hand with a three-card major, hunting opener's five-card
-/// major.  The minor transfers cover diamonds (2NT: 6+♦ or 5♦4♣) and clubs (2♠:
-/// 6+♣, or — relocated from the old natural 2NT — a balanced invitational eight).
-/// The quantitative 4NT invites slam opposite a balanced 16–17 with no four-card
-/// major.
+/// transfers (2♦/2♥) a five-card major, any strength.  The quantitative 4NT
+/// invites slam opposite a balanced 16–17 with no four-card major.
+///
+/// The minor-suit responses (`2♠`/`2NT`/`3♣`) come in two variants, both authored
+/// here behind their [`Tag`] and gated to the active one (`set_notrump_minors`,
+/// default [`PUPPET`]): `puppet_minors` (`2♠` = clubs-or-invite, `2NT` = diamonds,
+/// `3♣` = Puppet Stayman) and `european_minors` (`2♠` = clubs, `2NT` = balanced
+/// invite, `3♣` = diamonds).
 #[must_use]
 pub fn notrump_responses() -> Rules {
     Rules::new()
@@ -92,44 +139,11 @@ pub fn notrump_responses() -> Rules {
             2.6,
             len(Suit::Spades, 6..) & len(Suit::Hearts, ..5) & hcp(15..=18),
         )
-        // Puppet Stayman: game-forcing, balanced, with a three-card major.  Ranks
-        // *above* Stayman so a 4-3 hand — holding both a four- and a three-card
-        // major — takes the Puppet route, which catches opener's five-card major
-        // in the three-card suit (plain Stayman would miss it).  `balanced()`
-        // keeps Puppet off shapely hands, leaving them to the 2♠/2NT transfers;
-        // a balanced no-four-card-major hand almost always has a three-card major
-        // (2-2 majors need two doubletons), so this routes most balanced game
-        // forces through 3♣ — the no-fit case just relays back to 3NT.
-        .rule(
-            Bid::new(3, Strain::Clubs),
-            1.6,
-            balanced()
-                & hcp(9..=15)
-                & (len(Suit::Hearts, 3..=3) | len(Suit::Spades, 3..=3))
-                & len(Suit::Hearts, ..5)
-                & len(Suit::Spades, ..5),
-        )
         // Stayman: a four-card major and at least invitational values.
         .rule(
             Bid::new(2, Strain::Clubs),
             1.5,
             (len(Suit::Hearts, 4..=4) | len(Suit::Spades, 4..=4)) & hcp(8..),
-        )
-        // Two-way 2♠: a six-card club one-suiter (weak signoff, or game-going via
-        // a later splinter) OR a balanced invitational eight with no four-card
-        // major.  The bare-8 invite relocated here when 2NT became the diamond
-        // transfer; min→2NT and max→3NT reproduce the old natural-2NT outcomes.
-        .rule(
-            Bid::new(2, Strain::Spades),
-            1.3,
-            len(Suit::Clubs, 6..)
-                | (hcp(8..=8) & balanced() & len(Suit::Hearts, ..4) & len(Suit::Spades, ..4)),
-        )
-        // 2NT: transfer to diamonds — six diamonds, or a 5♦-4♣ minor two-suiter.
-        .rule(
-            Bid::new(2, Strain::Notrump),
-            1.3,
-            len(Suit::Diamonds, 6..) | (len(Suit::Diamonds, 5..) & len(Suit::Clubs, 4..)),
         )
         // Quantitative 4NT slam invite (balanced, no four-card major).
         .rule(
@@ -155,6 +169,70 @@ pub fn notrump_responses() -> Rules {
             Call::Pass,
             0.0,
             hcp(..8) & len(Suit::Hearts, ..5) & len(Suit::Spades, ..5),
+        )
+        // Minor-suit responses (2♠/2NT/3♣): both schemes are authored here, each
+        // behind its tag, and only the active one is gated in.  Default Puppet.
+        .chain(puppet_minors().only(PUPPET))
+        .chain(european_minors().only(EUROPEAN))
+        .gated(|tag| tag == notrump_minors())
+}
+
+/// Puppet minor-suit responses to 1NT (the default scheme)
+///
+/// `2♠` = a six-card club one-suiter (weak signoff, or game-going via a later
+/// splinter) OR a balanced invitational eight with no four-card major (the bare-8
+/// invite relocated here when 2NT became the diamond transfer; min→2NT and max→3NT
+/// reproduce the old natural-2NT outcomes).  `2NT` = transfer to diamonds (6+♦, or
+/// a 5♦-4♣ minor two-suiter).  `3♣` = Puppet Stayman: game-forcing, balanced, with
+/// a three-card major — ranked *above* Stayman so a 4-3 hand takes the Puppet route
+/// to catch opener's five-card major in the three-card suit; `balanced()` keeps it
+/// off shapely hands, and a balanced no-four-card-major hand almost always has a
+/// three-card major, so this routes most balanced game forces through 3♣ (the
+/// no-fit case relays back to 3NT).
+fn puppet_minors() -> Rules {
+    Rules::new()
+        .rule(
+            Bid::new(2, Strain::Spades),
+            1.3,
+            len(Suit::Clubs, 6..)
+                | (hcp(8..=8) & balanced() & len(Suit::Hearts, ..4) & len(Suit::Spades, ..4)),
+        )
+        .rule(
+            Bid::new(2, Strain::Notrump),
+            1.3,
+            len(Suit::Diamonds, 6..) | (len(Suit::Diamonds, 5..) & len(Suit::Clubs, 4..)),
+        )
+        .rule(
+            Bid::new(3, Strain::Clubs),
+            1.6,
+            balanced()
+                & hcp(9..=15)
+                & (len(Suit::Hearts, 3..=3) | len(Suit::Spades, 3..=3))
+                & len(Suit::Hearts, ..5)
+                & len(Suit::Spades, ..5),
+        )
+}
+
+/// European minor-suit responses to 1NT (opt-in via [`set_notrump_minors`])
+///
+/// `2♠` = transfer to clubs (a six-card one-suiter, weak-to-game).  `2NT` = a
+/// balanced invitational eight with no four-card major — the size ask, opener
+/// accepting game with a maximum.  `3♣` = transfer to diamonds (6+♦, or a 5♦-4♣
+/// two-suiter folded in — there is no room below 3♦ to show the clubs).  There is
+/// no Puppet Stayman: a game-forcing balanced hand with only a three-card major
+/// bids 3NT (the standard continental treatment).
+fn european_minors() -> Rules {
+    Rules::new()
+        .rule(Bid::new(2, Strain::Spades), 1.3, len(Suit::Clubs, 6..))
+        .rule(
+            Bid::new(2, Strain::Notrump),
+            1.3,
+            hcp(8..=8) & balanced() & len(Suit::Hearts, ..4) & len(Suit::Spades, ..4),
+        )
+        .rule(
+            Bid::new(3, Strain::Clubs),
+            1.3,
+            len(Suit::Diamonds, 6..) | (len(Suit::Diamonds, 5..) & len(Suit::Clubs, 4..)),
         )
 }
 
@@ -627,6 +705,60 @@ fn pick_game_over_club_splinter(short: Suit) -> Rules {
 }
 
 // ---------------------------------------------------------------------------
+// European minor scheme (1NT–2♠ clubs, 1NT–2NT invite, 1NT–3♣ diamonds)
+// ---------------------------------------------------------------------------
+//
+// ponytail: opener always completes the 2♠/3♣ transfers — no super-accept — and
+// the 5♦4♣ two-suiter is folded into the 3♣ diamond transfer (no room below 3♦ to
+// show the clubs).  Refine only if an A/B asks for it.
+
+/// Opener completes the European club transfer: `3♣` (the 2♠ bidder has clubs)
+fn european_two_spade_answer() -> Rules {
+    Rules::new().rule(Bid::new(3, Strain::Clubs), 0.0, hcp(0..))
+}
+
+/// Responder's rebid after opener completes the European club transfer (`…2♠–3♣`)
+///
+/// A weak six-card club one-suiter passes the partscore; a game-going hand
+/// splinters in its singleton, or bids 3NT with no shortness.  Reuses the two-way
+/// 2♠ club machinery minus its balanced-invite arm — that hand is the European 2NT.
+fn european_two_spade_rebid() -> Rules {
+    Rules::new()
+        .rule(Call::Pass, 0.0, len(Suit::Clubs, 6..) & hcp(..8))
+        .rule(
+            Bid::new(3, Strain::Diamonds),
+            1.0,
+            club_splinter(Suit::Diamonds, 8),
+        )
+        .rule(
+            Bid::new(3, Strain::Hearts),
+            1.0,
+            club_splinter(Suit::Hearts, 8),
+        )
+        .rule(
+            Bid::new(3, Strain::Spades),
+            1.0,
+            club_splinter(Suit::Spades, 8),
+        )
+        .rule(Bid::new(3, Strain::Notrump), 0.9, club_no_shortness(8))
+}
+
+/// Opener's reply to the European 2NT invite: `3NT` with a maximum, else pass
+///
+/// The 2NT bidder is a balanced eight; opposite a 17 (`25` combined) opener accepts
+/// game, otherwise passes and plays 2NT — reproducing the natural-2NT outcome.
+fn european_two_nt_answer() -> Rules {
+    Rules::new()
+        .rule(Bid::new(3, Strain::Notrump), 1.0, hcp(17..))
+        .rule(Call::Pass, 0.0, hcp(..17))
+}
+
+/// Opener completes the European diamond transfer: `3♦`
+fn european_three_club_answer() -> Rules {
+    Rules::new().rule(Bid::new(3, Strain::Diamonds), 0.0, hcp(0..))
+}
+
+// ---------------------------------------------------------------------------
 // 2NT-strength response structure (2NT opening and 2♣–2x–2NT rebid)
 // ---------------------------------------------------------------------------
 
@@ -746,6 +878,10 @@ pub(super) fn register_one_nt(book: &mut Trie) {
     let three_h = call(3, Strain::Hearts);
     let three_s = call(3, Strain::Spades);
 
+    // The 2♠/2NT/3♣ continuations diverge by minor scheme; the response node
+    // itself self-gates inside `notrump_responses`.
+    let puppet = notrump_minors() == PUPPET;
+
     insert_uncontested(book, &[one_nt], notrump_responses());
     // Stayman answers and transfer completions.
     insert_uncontested(book, &[one_nt, two_c], stayman_answers());
@@ -829,36 +965,42 @@ pub(super) fn register_one_nt(book: &mut Trie) {
         quantitative_answer(17),
     );
 
-    // --- Puppet Stayman (1NT–3♣) ----------------------------------------------
-    //
-    // Opener shows a five-card major (3♥/3♠) or denies with 3♦; responder raises
-    // a 5-3 fit, or — Smolen-style after 3♦ — bids the shorter major to find a
-    // 4-4 with opener declaring.
+    // --- 3♣ response (Puppet Stayman, or European diamond transfer) -----------
     let three_c = call(3, Strain::Clubs);
     let three_d = call(3, Strain::Diamonds);
-    insert_uncontested(book, &[one_nt, three_c], puppet_answers());
-    insert_uncontested(
-        book,
-        &[one_nt, three_c, three_h],
-        puppet_major_rebid(Suit::Hearts),
-    );
-    insert_uncontested(
-        book,
-        &[one_nt, three_c, three_s],
-        puppet_major_rebid(Suit::Spades),
-    );
-    insert_uncontested(book, &[one_nt, three_c, three_d], puppet_deny_rebid());
-    // Responder's shorter-major bid named four cards in the *other* major.
-    insert_uncontested(
-        book,
-        &[one_nt, three_c, three_d, three_h],
-        puppet_smolen_completion(Suit::Spades),
-    );
-    insert_uncontested(
-        book,
-        &[one_nt, three_c, three_d, three_s],
-        puppet_smolen_completion(Suit::Hearts),
-    );
+    if puppet {
+        // Puppet Stayman: opener shows a five-card major (3♥/3♠) or denies with
+        // 3♦; responder raises a 5-3 fit, or — Smolen-style after 3♦ — bids the
+        // shorter major to find a 4-4 with opener declaring.
+        insert_uncontested(book, &[one_nt, three_c], puppet_answers());
+        insert_uncontested(
+            book,
+            &[one_nt, three_c, three_h],
+            puppet_major_rebid(Suit::Hearts),
+        );
+        insert_uncontested(
+            book,
+            &[one_nt, three_c, three_s],
+            puppet_major_rebid(Suit::Spades),
+        );
+        insert_uncontested(book, &[one_nt, three_c, three_d], puppet_deny_rebid());
+        // Responder's shorter-major bid named four cards in the *other* major.
+        insert_uncontested(
+            book,
+            &[one_nt, three_c, three_d, three_h],
+            puppet_smolen_completion(Suit::Spades),
+        );
+        insert_uncontested(
+            book,
+            &[one_nt, three_c, three_d, three_s],
+            puppet_smolen_completion(Suit::Hearts),
+        );
+    } else {
+        // European: 3♣ is a transfer to diamonds — opener completes 3♦, responder
+        // bids 3NT with game values or passes the diamond partscore.
+        insert_uncontested(book, &[one_nt, three_c], european_three_club_answer());
+        insert_uncontested(book, &[one_nt, three_c, three_d], diamond_transfer_game(8));
+    }
 
     // --- Both-majors 3♦ (1NT–3♦) ----------------------------------------------
     //
@@ -892,30 +1034,50 @@ pub(super) fn register_one_nt(book: &mut Trie) {
     slam::install_rkcb(book, &[one_nt, four_h], Suit::Hearts);
     slam::install_rkcb(book, &[one_nt, four_s], Suit::Spades);
 
-    // --- Diamond transfer (1NT–2NT) -------------------------------------------
-    insert_uncontested(book, &[one_nt, two_nt], diamond_transfer_answer());
-    insert_uncontested(book, &[one_nt, two_nt, three_d], diamond_transfer_game(8));
-    insert_uncontested(
-        book,
-        &[one_nt, two_nt, three_c],
-        diamond_transfer_correct(8),
-    );
-    // Weak retreat to 3♦ over opener's pass-or-correct 3♣ — opener must pass.
-    insert_uncontested(book, &[one_nt, two_nt, three_c, three_d], pass_out());
+    // --- 2NT response (diamond transfer, or European balanced invite) ---------
+    if puppet {
+        // Transfer to diamonds: opener completes 3♦ with a fit, else pass-or-correct
+        // 3♣; a weak retreat to 3♦ over that 3♣ must be passed.
+        insert_uncontested(book, &[one_nt, two_nt], diamond_transfer_answer());
+        insert_uncontested(book, &[one_nt, two_nt, three_d], diamond_transfer_game(8));
+        insert_uncontested(
+            book,
+            &[one_nt, two_nt, three_c],
+            diamond_transfer_correct(8),
+        );
+        insert_uncontested(book, &[one_nt, two_nt, three_c, three_d], pass_out());
+    } else {
+        // European: 2NT is a balanced invite — opener accepts game (3NT) or passes.
+        insert_uncontested(book, &[one_nt, two_nt], european_two_nt_answer());
+    }
 
-    // --- Two-way 2♠ (clubs or balanced invite) --------------------------------
-    insert_uncontested(book, &[one_nt, two_s], two_spade_answer());
-    insert_uncontested(book, &[one_nt, two_s, two_nt], two_spade_over_min());
-    insert_uncontested(book, &[one_nt, two_s, three_c], two_spade_over_max());
-    // Weak-club correction to 3♣ over opener's minimum 2NT — opener must pass.
-    insert_uncontested(book, &[one_nt, two_s, two_nt, three_c], pass_out());
-    // Opener picks 3NT/5♣ over the game-going club splinter (3♦/3♥/3♠), after
-    // either the minimum (2NT) or maximum (3♣) reply.
-    for opener_reply in [two_nt, three_c] {
+    // --- 2♠ response (two-way clubs/invite, or European club transfer) --------
+    if puppet {
+        insert_uncontested(book, &[one_nt, two_s], two_spade_answer());
+        insert_uncontested(book, &[one_nt, two_s, two_nt], two_spade_over_min());
+        insert_uncontested(book, &[one_nt, two_s, three_c], two_spade_over_max());
+        // Weak-club correction to 3♣ over opener's minimum 2NT — opener must pass.
+        insert_uncontested(book, &[one_nt, two_s, two_nt, three_c], pass_out());
+        // Opener picks 3NT/5♣ over the game-going club splinter (3♦/3♥/3♠), after
+        // either the minimum (2NT) or maximum (3♣) reply.
+        for opener_reply in [two_nt, three_c] {
+            for short in [Suit::Diamonds, Suit::Hearts, Suit::Spades] {
+                insert_uncontested(
+                    book,
+                    &[one_nt, two_s, opener_reply, call(3, Strain::from(short))],
+                    pick_game_over_club_splinter(short),
+                );
+            }
+        }
+    } else {
+        // European: 2♠ is a transfer to clubs — opener completes 3♣, responder
+        // passes (weak) or splinters (game); opener picks the game over a splinter.
+        insert_uncontested(book, &[one_nt, two_s], european_two_spade_answer());
+        insert_uncontested(book, &[one_nt, two_s, three_c], european_two_spade_rebid());
         for short in [Suit::Diamonds, Suit::Hearts, Suit::Spades] {
             insert_uncontested(
                 book,
-                &[one_nt, two_s, opener_reply, call(3, Strain::from(short))],
+                &[one_nt, two_s, three_c, call(3, Strain::from(short))],
                 pick_game_over_club_splinter(short),
             );
         }
@@ -1033,7 +1195,7 @@ pub(super) fn register_two_nt_and_rebids(book: &mut Trie) {
 #[cfg(test)]
 mod tests {
     use crate::american;
-    use crate::bidding::{Family, System};
+    use crate::bidding::{System, Tag};
     use contract_bridge::auction::{Call, RelativeVulnerability};
     use contract_bridge::{Bid, Strain};
 
@@ -1047,7 +1209,7 @@ mod tests {
     fn best(auction: &[Call], hand: &str) -> Call {
         let hand = hand.parse().expect("valid test hand");
         let logits = american()
-            .against(Family::NATURAL)
+            .against(Tag::NATURAL)
             .classify(hand, RelativeVulnerability::NONE, auction)
             .expect("a decision");
         (&logits.0)
@@ -1121,7 +1283,7 @@ mod tests {
         let best_legal = |auction: &[Call], hand: &str| -> Call {
             let hand = hand.parse().expect("valid test hand");
             let logits = american()
-                .against(Family::NATURAL)
+                .against(Tag::NATURAL)
                 .classify(hand, RelativeVulnerability::NONE, auction)
                 .expect("a decision");
             let mut played = Auction::new();

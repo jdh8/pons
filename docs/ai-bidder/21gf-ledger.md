@@ -251,7 +251,7 @@ single-dummy re-measure where takeout's competitive value might genuinely pay.
 path (`2NT`→`3M` sign-off, responder pass/4M) and a sound `2NT` strength
 inference; reused the uncontested `major_responses` for every non-Jordan call;
 gated by `set_jordan`. A/B'd vs the system-on baseline (`jordan-ab`, contested
-seat-swap duplicate, `Family::NATURAL` opponents take out double our major).
+seat-swap duplicate, `Tag::NATURAL` opponents take out double our major).
 Result: **vs floor: −1.0/−1.5 div** [`PD`, 500k] (the `2NT`-constructive half alone
 −4.2/−4.4). Two causes, both inherent
 to the harness: (1) the preemptive `3M`'s obstruction value is invisible to the

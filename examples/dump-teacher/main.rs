@@ -45,7 +45,7 @@ use pons::bidding::features::{
     FEATURES_LEN, FEATURES_LEN_V2, FEATURES_LEN_V3, FEATURES_VERSION, FEATURES_VERSION_V2,
     FEATURES_VERSION_V3, features, features_v2, features_v3,
 };
-use pons::bidding::{Family, Phase, System};
+use pons::bidding::{Phase, System, Tag};
 use pons::gib;
 use rand::rngs::StdRng;
 use rand::{RngExt, SeedableRng};
@@ -105,7 +105,7 @@ fn main() -> std::io::Result<()> {
     let pair = american();
     // Both sides play the same system; a Stance routes by auction phase, so one
     // suffices for whichever seat is to act (vulnerability passed in relative).
-    let stance = pair.against(Family::NATURAL);
+    let stance = pair.against(Tag::NATURAL);
     let mut rng = StdRng::seed_from_u64(args.seed);
 
     let f32_path = format!("{}.f32", args.out);

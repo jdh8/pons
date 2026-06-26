@@ -8,7 +8,7 @@ use contract_bridge::{Bid, Hand, Strain};
 use pons::american;
 use pons::bidding::american::set_meckstroth_adjunct;
 use pons::bidding::array::Logits;
-use pons::bidding::{Family, Stance, System};
+use pons::bidding::{Stance, System, Tag};
 
 const fn call(level: u8, strain: Strain) -> Call {
     Call::Bid(Bid::new(level, strain))
@@ -16,7 +16,7 @@ const fn call(level: u8, strain: Strain) -> Call {
 
 /// The 2/1 pair bound against natural opponents
 fn stance() -> Stance {
-    american().against(Family::NATURAL)
+    american().against(Tag::NATURAL)
 }
 
 /// The single highest-logit call the system assigns the hand for the auction
@@ -197,7 +197,7 @@ fn baseline_opener_rebids_natural_two_clubs_without_adjunct() {
     // the adjunct fills).  The toggle is read at construction time, so build the
     // baseline arm with it off, then restore the default.
     set_meckstroth_adjunct(false);
-    let base = american().against(Family::NATURAL);
+    let base = american().against(Tag::NATURAL);
     set_meckstroth_adjunct(true);
     assert_eq!(
         best_call(&base, &after_1s_1nt(), "AK853.Q2.4.AQ976"),

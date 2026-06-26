@@ -23,7 +23,7 @@ use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Seat};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
-use pons::bidding::Family;
+use pons::bidding::Tag;
 use pons::bidding::american::american_classic;
 use pons::scoring::{final_contract, imps, ns_score_contract};
 use rayon::prelude::*;
@@ -52,8 +52,8 @@ fn main() {
     // arm 0 = baseline (classic balanced 1NT), arm 1 = redesign (wide 1NT, the
     // shipped default).
     let stances = [
-        american_classic().against(Family::NATURAL),
-        american().against(Family::NATURAL),
+        american_classic().against(Tag::NATURAL),
+        american().against(Tag::NATURAL),
     ];
 
     // Both arms bid the same deal; the only difference is the opening table.

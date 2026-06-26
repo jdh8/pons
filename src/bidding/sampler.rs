@@ -476,7 +476,7 @@ mod tests {
     /// both — read by the rule, not a hand-written range.
     #[test]
     fn replay_honors_both_sides_under_competition() {
-        let policy = crate::american().against(crate::bidding::Family::NATURAL);
+        let policy = crate::american().against(crate::bidding::Tag::NATURAL);
         let actor = Seat::North;
         // len 2, North to act: index 0 is partner's 1♥, index 1 is RHO's 2♣.
         let auction = [bid(1, Strain::Hearts), bid(2, Strain::Clubs)];

@@ -1899,11 +1899,11 @@ mod tests {
     /// the second tuple field tells a test the node is off-book (floor territory),
     /// guarding against a floor rule that is silently shadowed by a book node.
     fn american_floored(auction: &[Call], hand: &str) -> (Call, bool) {
-        use crate::bidding::Family;
+        use crate::bidding::Tag;
         use crate::bidding::american::american;
         let hand: Hand = hand.parse().expect("valid test hand");
         let (logits, provenance) = american()
-            .against(Family::NATURAL)
+            .against(Tag::NATURAL)
             .classify_with_provenance(hand, RelativeVulnerability::NONE, auction)
             .expect("a legal auction classifies");
         let call = (&logits.0)

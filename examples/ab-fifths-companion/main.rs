@@ -26,7 +26,7 @@ use pons::bidding::constraint::{
     FifthsCompanion, set_fifths_companion, set_fuzzy_fifths, set_fuzzy_points,
 };
 use pons::bidding::context::relative;
-use pons::bidding::{Family, Stance, System};
+use pons::bidding::{Stance, System, Tag};
 use pons::scoring::{final_contract, imps, ns_score_contract};
 
 /// A/B the Fifths companion gauge: an HCP-vs-BUM-RAP duplicate match
@@ -115,7 +115,7 @@ struct Board {
 fn main() {
     let args = Args::parse();
     let mut rng = rand::rng();
-    let stance = american().against(Family::NATURAL);
+    let stance = american().against(Tag::NATURAL);
 
     // Bid every board at both tables, dealer rotating per board.
     let boards: Vec<Board> = (0..args.count)

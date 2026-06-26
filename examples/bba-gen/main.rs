@@ -36,7 +36,7 @@ use pons::american;
 use pons::bidding::american::DoubleShape;
 use pons::bidding::array::{Array, Logits};
 use pons::bidding::context::relative;
-use pons::bidding::{Family, System};
+use pons::bidding::{System, Tag};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
 use std::ffi::{CString, c_char, c_int, c_void};
@@ -641,9 +641,9 @@ fn main() -> anyhow::Result<()> {
     }
     pons::bidding::american::set_always_pass_defense(args.ns_always_pass);
     let our_floor = match args.our_floor.as_str() {
-        "american" => american().against(Family::NATURAL),
+        "american" => american().against(Tag::NATURAL),
         #[cfg(feature = "neural-floor")]
-        "neural-v3" => pons::american_neural_v3().against(Family::NATURAL),
+        "neural-v3" => pons::american_neural_v3().against(Tag::NATURAL),
         other => anyhow::bail!(
             "--our-floor must be american{}, got {other:?}",
             if cfg!(feature = "neural-floor") {

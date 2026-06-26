@@ -69,7 +69,7 @@ use pons::bidding::array::Logits;
 use pons::bidding::context::{Context, relative};
 use pons::bidding::features::{FEATURES_LEN, FEATURES_VERSION, features};
 use pons::bidding::search_floor::SearchFloor;
-use pons::bidding::{Family, Phase, System};
+use pons::bidding::{Phase, System, Tag};
 use pons::{american, american_neural, american_search_with};
 use rand::rngs::StdRng;
 use rand::{RngExt, SeedableRng};
@@ -179,11 +179,11 @@ fn main() -> std::io::Result<()> {
         shortlist: args.shortlist,
         temperature: args.temperature,
     })
-    .against(Family::NATURAL);
+    .against(Tag::NATURAL);
     // The references for the M3.1 measure: the deterministic teacher and the raw
     // net prior the search starts from.  Both are cheap (no search).
-    let teacher = american().against(Family::NATURAL);
-    let net = american_neural().against(Family::NATURAL);
+    let teacher = american().against(Tag::NATURAL);
+    let net = american_neural().against(Tag::NATURAL);
     let mut rng = StdRng::seed_from_u64(args.seed);
 
     let f32_path = format!("{}.f32", args.out);

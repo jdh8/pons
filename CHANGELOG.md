@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **A second 1NT minor-suit response scheme, "European", selectable per book.**
+  Alongside the default "Puppet" scheme (`2♠` = clubs-or-invite, `2NT` = diamond
+  transfer, `3♣` = Puppet Stayman), the opt-in European scheme plays `2♠` = clubs
+  (transfer), `2NT` = a balanced invitational eight (the size ask, opener accepting
+  game with a maximum), and `3♣` = diamonds (transfer), with no Puppet Stayman — so
+  a game-forcing balanced hand with only a three-card major bids 3NT and a 4-3 game
+  force takes Stayman. This is the standard Polish Club / WJ and common continental
+  treatment (and BBA's "Atlantic" style). Select it with
+  `set_notrump_minors(EUROPEAN)` (default `PUPPET`, the prior behavior): both
+  schemes' `2♠`/`2NT`/`3♣` rules and continuations are authored and gated by tag at
+  book-construction time, and the floor reads the European calls (2NT = balanced
+  invite not a transfer; 2♠ clubs / 3♣ diamonds artificial). Covered by the new
+  `tests/american_european_minors.rs`; the Puppet default is unchanged.
+
 - **A weak advancer now runs from their redoubled penalty double (`[1NT, X, XX]`).**
   After our natural penalty double of their 1NT, their redouble is business in
   every system we face (BBA and our own: "we make 1NT redoubled"), so a broke
@@ -24,6 +38,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   redouble (`[1NT,X,P,P,XX]`) regresses to −202 (−135 vs immediate), because there
   the advancer already passed its first turn — it chose to defend, and the
   redouble's announced max does not undo that.
+
+### Changed
+
+- **`Family` is renamed to `Tag` and is now a per-rule gate, not only a
+  whole-system label.** The opponent-visible system label (`Tag::NATURAL` /
+  `STRONG_CLUB` / `WEAK_NOTRUMP`, still selected via `Pair::against`) keeps its
+  role; the `Pair::family` field is renamed `Pair::tag`. A `Rule` may now carry an
+  optional `Tag` — `Rules::only(tag)` stamps a whole block, `Rules::gated(active)`
+  drops the rules whose tag is inactive at trie insertion — so one book can author
+  several convention variants and ship only the selected one. This is the mechanism
+  behind the Puppet/European 1NT split. No behavior change for existing systems:
+  every rule is untagged (always live) by default, and `against` keeps its prior
+  default/override selection.
 
 ### Removed
 
@@ -2475,7 +2502,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **The in-development second system and the `nltc` / `nltc_at_most` DSL
   constraints.** The project refocuses on a single mature 2/1 (`american`)
   system, on top of which other systems can later be built. The second authored
-  system (`polish_club()` / `bare_polish_club()`, the `Family::POLISH_CLUB`
+  system (`polish_club()` / `bare_polish_club()`, the `Tag::POLISH_CLUB`
   constant), its `polish-club-reference` and `bba-wj-reference` examples, and the
   `export-corpus --system` selector are dropped — `export-corpus` now always
   walks the 2/1 books. The two NLTC *constraint* primitives `nltc(range)` and
@@ -2741,7 +2768,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   single routing point that assumes a standard pass — forcing/strong-pass
   openings stay out of scope (use a bare `Trie`).
 - `bidding::book`: `Pair` and `Stance` — a pair's authored system and its
-  bound form. A `Pair` assembles the three books with a `Family` identity (an
+  bound form. A `Pair` assembles the three books with a `Tag` identity (an
   open `&'static str` newtype with stock constants such as `NATURAL` and
   `STRONG_CLUB`; downstream systems mint their own) plus optional
   per-opponent-family overrides (`competitive_vs`, `defensive_vs`), because

@@ -34,7 +34,7 @@ use contract_bridge::{Bid, Builder, Hand, Level, Seat, Strain, Suit};
 use pons::bidding::array::Logits;
 use pons::bidding::context::Context;
 use pons::bidding::inference::{Inferences, Range};
-use pons::bidding::{Family, System};
+use pons::bidding::{System, Tag};
 use pons::{Pair, american_neural, american_neural_search, american_neural_v2};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -95,7 +95,7 @@ fn main() -> Result<()> {
 
     let auction = parse_auction(&args.auction)?;
     let vul = parse_vul(&args.vul)?;
-    let stance = pick_net(&args.net)?.against(Family::NATURAL);
+    let stance = pick_net(&args.net)?.against(Tag::NATURAL);
 
     let context = Context::new(vul, &auction);
     let inferences = Inferences::read(&context);

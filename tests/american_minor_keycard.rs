@@ -7,7 +7,7 @@ use contract_bridge::auction::{Call, RelativeVulnerability};
 use contract_bridge::{Bid, Hand, Strain};
 use pons::american;
 use pons::bidding::array::Logits;
-use pons::bidding::{Family, Stance, System};
+use pons::bidding::{Stance, System, Tag};
 
 const fn call(level: u8, strain: Strain) -> Call {
     Call::Bid(Bid::new(level, strain))
@@ -16,7 +16,7 @@ const fn call(level: u8, strain: Strain) -> Call {
 const P: Call = Call::Pass;
 
 fn stance() -> Stance {
-    american().against(Family::NATURAL)
+    american().against(Tag::NATURAL)
 }
 
 /// The single highest-logit call the system assigns the hand for the auction

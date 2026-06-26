@@ -17,8 +17,8 @@
 //! they deref to it, so [`insert`][Trie::insert],
 //! [`fallback_at`][Trie::fallback_at], and friends are available directly.
 //! What the newtype adds is a *gated* [`System`] implementation that answers
-//! only for its phase.  A [`Pair`] assembles the three books with a [`Family`]
-//! identity; binding it against the opponents' family with [`Pair::against`]
+//! only for its phase.  A [`Pair`] assembles the three books with a [`Tag`]
+//! identity; binding it against the opponents' tag with [`Pair::against`]
 //! yields a [`Stance`], the system that actually classifies.
 //!
 //! # Key disjointness
@@ -186,22 +186,22 @@ impl Phase {
     }
 }
 
-/// An opponent-visible system family
+/// An opponent-visible system tag
 ///
 /// Defensive agreements target what the opponents' calls *mean*, so a [`Pair`]
-/// declares the family it plays and selects its competitive and defensive
-/// books against the opponents' family — once, at table assembly
-/// ([`Pair::against`]).  A family is one convention card: a system that varies
-/// by seat or vulnerability is still one family, because the variation is
+/// declares the tag it plays and selects its competitive and defensive
+/// books against the opponents' tag — once, at table assembly
+/// ([`Pair::against`]).  A tag is one convention card: a system that varies
+/// by seat or vulnerability is still one tag, because the variation is
 /// visible to both sides (the seat through the auction keys, the vulnerability
 /// through the [`Context`]).
 ///
-/// The newtype is open — downstream systems mint their own families as
-/// constants, such as `const MOSCITO: Family = Family("moscito");`.
+/// The newtype is open — downstream systems mint their own tags as
+/// constants, such as `const MOSCITO: Tag = Tag("moscito");`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct Family(pub &'static str);
+pub struct Tag(pub &'static str);
 
-impl Family {
+impl Tag {
     /// Natural systems: mostly natural openings with a strong notrump,
     /// such as Standard American, 2/1, and Acol
     pub const NATURAL: Self = Self("natural");
@@ -211,7 +211,7 @@ impl Family {
     pub const WEAK_NOTRUMP: Self = Self("weak-notrump");
 }
 
-impl Default for Family {
+impl Default for Tag {
     fn default() -> Self {
         Self::NATURAL
     }
@@ -264,8 +264,8 @@ impl System for Competitive {
 /// A pair writes a [`Constructive`] book (strictly uncontested), a
 /// [`Competitive`] book (we open, they intervene), and a [`Defensive`] book
 /// (they open), and may override the latter two against specific opposing
-/// families.  A pair is *authoring material*, not yet a [`System`]: bind it
-/// against the opponents' [`Family`] with [`against`][Self::against] — once,
+/// tags.  A pair is *authoring material*, not yet a [`System`]: bind it
+/// against the opponents' [`Tag`] with [`against`][Self::against] — once,
 /// at table assembly — to get a [`Stance`] that classifies.
 ///
 /// The books occupy disjoint keys by construction: a constructive key has all
@@ -273,29 +273,29 @@ impl System for Competitive {
 /// non-pass call.
 #[derive(Clone, Debug, Default)]
 pub struct Pair {
-    /// The family this pair plays, which the opponents defend against
-    pub family: Family,
+    /// The tag this pair plays, which the opponents defend against
+    pub tag: Tag,
     /// The book for the strictly uncontested auctions
     pub constructive: Constructive,
     /// The default book for when we open and they intervene
     pub competitive: Competitive,
     /// The default book for when they open
     pub defensive: Defensive,
-    competitive_vs: Vec<(Family, Competitive)>,
-    defensive_vs: Vec<(Family, Defensive)>,
+    competitive_vs: Vec<(Tag, Competitive)>,
+    defensive_vs: Vec<(Tag, Defensive)>,
 }
 
 impl Pair {
-    /// Assemble a pair from its family and its three default books
+    /// Assemble a pair from its tag and its three default books
     #[must_use]
     pub const fn new(
-        family: Family,
+        tag: Tag,
         constructive: Constructive,
         competitive: Competitive,
         defensive: Defensive,
     ) -> Self {
         Self {
-            family,
+            tag,
             constructive,
             competitive,
             defensive,
@@ -304,27 +304,27 @@ impl Pair {
         }
     }
 
-    /// Override the competitive book against one opposing family
+    /// Override the competitive book against one opposing tag
     ///
     /// The first matching override wins; opponents with no override get the
     /// default book.
     #[must_use]
-    pub fn competitive_vs(mut self, them: Family, book: Competitive) -> Self {
+    pub fn competitive_vs(mut self, them: Tag, book: Competitive) -> Self {
         self.competitive_vs.push((them, book));
         self
     }
 
-    /// Override the defensive book against one opposing family
+    /// Override the defensive book against one opposing tag
     ///
     /// The first matching override wins; opponents with no override get the
     /// default book.
     #[must_use]
-    pub fn defensive_vs(mut self, them: Family, book: Defensive) -> Self {
+    pub fn defensive_vs(mut self, them: Tag, book: Defensive) -> Self {
         self.defensive_vs.push((them, book));
         self
     }
 
-    /// Bind this pair against an opposing family
+    /// Bind this pair against an opposing tag
     ///
     /// Selects the competitive and defensive books for `them` and merges a
     /// clone of the constructive trie into the bound competitive trie
@@ -338,7 +338,7 @@ impl Pair {
     /// classify the same exact auction; by the key disjointness above, such a
     /// collision is an authoring bug.
     #[must_use]
-    pub fn against(&self, them: Family) -> Stance {
+    pub fn against(&self, them: Tag) -> Stance {
         let competitive = self
             .competitive_vs
             .iter()
@@ -365,7 +365,7 @@ impl Pair {
     }
 }
 
-/// A pair's system bound against one opposing family
+/// A pair's system bound against one opposing tag
 ///
 /// Built by [`Pair::against`].  As a [`System`] it routes each query by
 /// [`Phase`]: the constructive trie answers the strictly uncontested auctions,

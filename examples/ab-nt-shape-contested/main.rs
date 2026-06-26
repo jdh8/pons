@@ -32,7 +32,7 @@ use contract_bridge::{AbsoluteVulnerability, FullDeal, Seat};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
 use pons::bidding::american::{american_classic, american_wide_6322};
-use pons::bidding::{Family, Pair};
+use pons::bidding::{Pair, Tag};
 use pons::scoring::{final_contract, imps, ns_score_contract};
 use rayon::prelude::*;
 
@@ -75,8 +75,8 @@ fn system(name: &str) -> Pair {
 fn main() {
     let args = Args::parse();
     let mut rng = rand::rng();
-    let redesign = system(&args.redesign).against(Family::NATURAL);
-    let baseline = system(&args.baseline).against(Family::NATURAL);
+    let redesign = system(&args.redesign).against(Tag::NATURAL);
+    let baseline = system(&args.baseline).against(Tag::NATURAL);
 
     // Each board at both tables (redesign NS at A, EW at B), dealer rotating.
     // Deal sequentially (cheap), then bid in parallel — bidding is pure (the

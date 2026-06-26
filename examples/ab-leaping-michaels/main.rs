@@ -30,7 +30,7 @@ use contract_bridge::{AbsoluteVulnerability, FullDeal, Hand, Seat, Suit};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
 use pons::bidding::american::set_leaping_michaels;
-use pons::bidding::{Family, Stance};
+use pons::bidding::{Stance, Tag};
 use pons::scoring::{final_contract, imps, ns_score_contract};
 use rayon::prelude::*;
 
@@ -113,7 +113,7 @@ fn build_search() -> Stance {
         shortlist: 8,
         temperature: 100.0,
     })
-    .against(Family::NATURAL)
+    .against(Tag::NATURAL)
 }
 
 /// Without the `search` feature the search bidder is unavailable.
@@ -137,12 +137,12 @@ fn main() {
     let mut rng = rand::rng();
 
     set_leaping_michaels(on_from(&args.ew));
-    let baseline = american().against(Family::NATURAL);
+    let baseline = american().against(Tag::NATURAL);
     set_leaping_michaels(on_from(&args.ns));
     let lm = if args.search {
         build_search()
     } else {
-        american().against(Family::NATURAL)
+        american().against(Tag::NATURAL)
     };
 
     // Phase 1 (sequential, cheap): deal + the shape-only filter until `count`

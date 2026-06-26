@@ -1885,7 +1885,7 @@ pub fn competition() -> Competitive {
 
 #[cfg(test)]
 mod tests {
-    use crate::bidding::Family;
+    use crate::bidding::Tag;
     use crate::bidding::american::american;
     use contract_bridge::auction::{Call, RelativeVulnerability};
     use contract_bridge::{Bid, Hand, Strain};
@@ -1899,7 +1899,7 @@ mod tests {
     fn best_call(auction: &[Call], hand: &str) -> (Call, bool) {
         let hand: Hand = hand.parse().expect("valid test hand");
         let (logits, prov) = american()
-            .against(Family::NATURAL)
+            .against(Tag::NATURAL)
             .classify_with_provenance(hand, RelativeVulnerability::NONE, auction)
             .expect("a legal auction classifies");
         let best = (&logits.0)

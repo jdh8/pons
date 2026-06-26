@@ -6,7 +6,7 @@
 //! bidding over interference in a [`Competitive`] book (a negative-double
 //! package as a guarded fallback and "system on over their double" as a
 //! rebase), a small [`Defensive`] book of overcalls, and the three assembled
-//! into a [`Pair`] that is bound against the opponents' [`Family`] with
+//! into a [`Pair`] that is bound against the opponents' [`Tag`] with
 //! [`Pair::against`].
 
 use contract_bridge::auction::{Call, RelativeVulnerability};
@@ -14,7 +14,7 @@ use contract_bridge::{Bid, Hand, Strain, Suit};
 use pons::bidding::array::Logits;
 use pons::bidding::constraint::{balanced, hcp, len, nth_seat, support};
 use pons::bidding::fallback::{Fallback, FirstIs, OvercallAtMost, ReplaceNext};
-use pons::bidding::{Competitive, Constructive, Defensive, Family, Pair, Rules, Stance, System};
+use pons::bidding::{Competitive, Constructive, Defensive, Pair, Rules, Stance, System, Tag};
 
 const fn call(level: u8, strain: Strain) -> Call {
     Call::Bid(Bid::new(level, strain))
@@ -117,12 +117,12 @@ fn demo_system() -> Pair {
     let mut defensive = Defensive::new();
     defensive.insert(&[call(1, Strain::Clubs)], overcalls());
 
-    Pair::new(Family::NATURAL, constructive, competitive, defensive)
+    Pair::new(Tag::NATURAL, constructive, competitive, defensive)
 }
 
 /// The demo pair bound against natural opponents — bind once, then classify
 fn demo_stance() -> Stance {
-    demo_system().against(Family::NATURAL)
+    demo_system().against(Tag::NATURAL)
 }
 
 fn best_call(system: &impl System, auction: &[Call], hand: &str) -> Call {

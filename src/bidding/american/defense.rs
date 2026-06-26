@@ -2523,7 +2523,7 @@ pub fn defensive() -> Defensive {
 
 #[cfg(test)]
 mod tests {
-    use crate::bidding::Family;
+    use crate::bidding::Tag;
     use crate::bidding::american::{
         LebensohlStyle, american, set_advance_sohl_style, set_always_pass_defense, set_direct_dont,
         set_direct_landy_double, set_leaping_michaels, set_unusual_notrump_defense, set_woolsey,
@@ -2541,7 +2541,7 @@ mod tests {
     fn best_call(auction: &[Call], hand: &str) -> (Call, bool) {
         let hand: Hand = hand.parse().expect("valid test hand");
         let (logits, prov) = american()
-            .against(Family::NATURAL)
+            .against(Tag::NATURAL)
             .classify_with_provenance(hand, RelativeVulnerability::NONE, auction)
             .expect("a legal auction classifies");
         let best = (&logits.0)

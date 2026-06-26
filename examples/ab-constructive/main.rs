@@ -33,7 +33,7 @@ use clap::Parser;
 use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Seat};
 use ddss::{NonEmptyStrainFlags, Solver};
-use pons::bidding::Family;
+use pons::bidding::Tag;
 use pons::bidding::american::american_constructive_floor;
 use pons::bidding::neural_floor::NeuralFloorSearch;
 use pons::bidding::search_floor::SearchFloor;
@@ -75,14 +75,14 @@ fn main() {
     // so the contested books they each leave bare are never reached.
     let names = ["instinct", "search", "neural"];
     let stances = [
-        american_constructive_floor(instinct()).against(Family::NATURAL),
+        american_constructive_floor(instinct()).against(Tag::NATURAL),
         american_constructive_floor(SearchFloor {
             layouts: args.layouts,
             shortlist: args.shortlist,
             ..SearchFloor::default()
         })
-        .against(Family::NATURAL),
-        american_constructive_floor(NeuralFloorSearch).against(Family::NATURAL),
+        .against(Tag::NATURAL),
+        american_constructive_floor(NeuralFloorSearch).against(Tag::NATURAL),
     ];
 
     // Bid every board with all three arms over the same deal.

@@ -10,6 +10,7 @@
 //! after softmax, while equal weights yield a genuine mixed strategy.
 
 use super::Map;
+use super::Tag;
 use super::array::Logits;
 use super::constraint::{Constraint, Description};
 use super::context::Context;
@@ -27,6 +28,7 @@ pub struct Rule {
     weight: f32,
     when: Arc<dyn Constraint>,
     label: &'static str,
+    tag: Option<Tag>,
 }
 
 impl Rule {
@@ -50,6 +52,17 @@ impl Rule {
     #[must_use]
     pub const fn label(&self) -> &'static str {
         self.label
+    }
+
+    /// The [`Tag`] gating this rule, or [`None`] if it is unconditional
+    ///
+    /// Set per block with [`Rules::only`].  An untagged rule is always live; a
+    /// tagged one survives [`Rules::gated`] only when its tag is active.  This
+    /// is how one book holds two convention variants (e.g. Puppet vs European
+    /// 1NT responses) and authors only the selected one into the trie.
+    #[must_use]
+    pub const fn tag(&self) -> Option<Tag> {
+        self.tag
     }
 
     /// The logit this rule contributes for a hand
@@ -92,6 +105,7 @@ impl fmt::Debug for Rule {
             .field("call", &self.call)
             .field("weight", &self.weight)
             .field("label", &self.label)
+            .field("tag", &self.tag)
             .finish_non_exhaustive()
     }
 }
@@ -122,6 +136,7 @@ impl Rules {
             weight,
             when: Arc::new(when),
             label: "",
+            tag: None,
         });
         self
     }
@@ -142,6 +157,39 @@ impl Rules {
             .last_mut()
             .expect("note() requires a preceding rule()")
             .label = label;
+        self
+    }
+
+    /// Gate every rule in this block behind `tag` (block-level [`note`][Self::note])
+    ///
+    /// Builds a tagged variant: `european_minors().only(Tag::EUROPEAN)` marks the
+    /// whole block so that [`gated`][Self::gated] keeps it only when European is
+    /// the active variant.  Chain two tagged blocks into one [`Rules`] (with
+    /// [`chain`][Self::chain]) to hold both variants at a single auction key.
+    #[must_use]
+    pub fn only(mut self, tag: Tag) -> Self {
+        for rule in &mut self.rules {
+            rule.tag = Some(tag);
+        }
+        self
+    }
+
+    /// Append another block's rules after this one's
+    #[must_use]
+    pub fn chain(mut self, other: Rules) -> Self {
+        self.rules.extend(other.rules);
+        self
+    }
+
+    /// Drop rules whose [`tag`][Rule::tag] is set but not `active`
+    ///
+    /// Untagged rules (`tag: None`) always survive; a tagged rule lives only when
+    /// `active(tag)` holds.  Called before trie insertion so a book that authored
+    /// two convention variants ships only the selected one — the build-time gate
+    /// that keeps `classify()` free of any variant check.
+    #[must_use]
+    pub fn gated(mut self, active: impl Fn(Tag) -> bool) -> Self {
+        self.rules.retain(|rule| rule.tag.is_none_or(&active));
         self
     }
 
@@ -251,6 +299,41 @@ mod tests {
         let recovered = erased.as_rules().expect("Rules downcasts to itself");
         assert_eq!(recovered.rules().len(), 2);
         assert_eq!(recovered.rules()[0].label(), "15-17 BAL");
+    }
+
+    #[test]
+    fn test_only_tags_block_and_gated_filters() {
+        const PUPPET: Tag = Tag("puppet");
+        const EUROPEAN: Tag = Tag("european");
+
+        // Shared (untagged) rule, then one tagged block per variant chained in.
+        let rules = Rules::new()
+            .rule(Call::Pass, 0.0, hcp(..8))
+            .chain(
+                Rules::new()
+                    .rule(Bid::new(3, Strain::Clubs), 1.0, hcp(9..))
+                    .only(PUPPET),
+            )
+            .chain(
+                Rules::new()
+                    .rule(Bid::new(3, Strain::Clubs), 1.0, hcp(9..))
+                    .only(EUROPEAN),
+            );
+
+        assert_eq!(rules.rules()[0].tag(), None);
+        assert_eq!(rules.rules()[1].tag(), Some(PUPPET));
+        assert_eq!(rules.rules()[2].tag(), Some(EUROPEAN));
+
+        // Gating to Puppet keeps the untagged rule and the Puppet block only.
+        let puppet = rules.clone().gated(|tag| tag == PUPPET);
+        assert_eq!(puppet.rules().len(), 2);
+        assert_eq!(puppet.rules()[0].tag(), None);
+        assert_eq!(puppet.rules()[1].tag(), Some(PUPPET));
+
+        // Gating to European keeps the untagged rule and the European block.
+        let european = rules.gated(|tag| tag == EUROPEAN);
+        assert_eq!(european.rules().len(), 2);
+        assert_eq!(european.rules()[1].tag(), Some(EUROPEAN));
     }
 
     #[test]

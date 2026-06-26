@@ -29,7 +29,7 @@ use contract_bridge::auction::{Auction, Call};
 use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, Bid, Hand, Level, Seat, Strain};
 use ddss::{NonEmptyStrainFlags, Solver};
-use pons::bidding::Family;
+use pons::bidding::Tag;
 use pons::bidding::array::Logits;
 use pons::bidding::context::{Context, relative};
 use pons::bidding::ev::ev_all;
@@ -104,8 +104,8 @@ fn main() {
         shortlist: args.nav_shortlist,
         temperature: 100.0,
     })
-    .against(Family::NATURAL);
-    let policy = american_neural().against(Family::NATURAL);
+    .against(Tag::NATURAL);
+    let policy = american_neural().against(Tag::NATURAL);
     let mut rng = StdRng::seed_from_u64(args.seed);
     let seven_nt = nt(7, Strain::Notrump);
 

@@ -6,7 +6,7 @@ use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, Bid, Hand, Level, Seat, Strain};
 use pons::bidding::array::Logits;
 use pons::bidding::trie::classifier;
-use pons::bidding::{Competitive, Constructive, Defensive, Family, Pair, System, Table};
+use pons::bidding::{Competitive, Constructive, Defensive, Pair, System, Table, Tag};
 
 const fn bid(level: u8, strain: Strain) -> Call {
     Call::Bid(Bid {
@@ -183,7 +183,7 @@ fn test_of_pairs_binds_and_plays() {
     constructive.insert(&[], classifier(|_, _| single(ONE_CLUB, 1.0)));
 
     let ns = Pair::new(
-        Family::NATURAL,
+        Tag::NATURAL,
         constructive,
         Competitive::new(),
         Defensive::new(),

@@ -514,15 +514,28 @@ impl Inferences {
                             && responder_first
                         {
                             // Responder's notrump action over our 1NT opening.
-                            // 2NT is now the diamond transfer (5+ diamonds), not a
-                            // points raise; 3NT still forces game (9+).  Stayman,
-                            // the major transfers, and the two-way 2♠ are
-                            // artificial and stay silent.  This is what lets opener
-                            // (or the sampler behind the search floor) judge
-                            // responder.
+                            // 3NT forces game (9+) in both minor schemes; the 2NT
+                            // meaning is scheme-dependent — Puppet's 2NT is the
+                            // diamond transfer (5+ diamonds), European's is a
+                            // balanced invitational ~8 (the size ask).  Stayman, the
+                            // major transfers, and the artificial minor calls
+                            // (Puppet 2♠/3♣, European 2♠ clubs / 3♣ diamonds) stay
+                            // silent here — `project_authored` narrows the single
+                            // suits.  This is what lets opener (or the sampler behind
+                            // the search floor) judge responder.
                             match bid.level.get() {
-                                2 => players[who]
-                                    .narrow_length(Suit::Diamonds, Range::at_least(5, LENGTH_CAP)),
+                                2 => {
+                                    if crate::bidding::american::notrump_minors()
+                                        == crate::bidding::american::EUROPEAN
+                                    {
+                                        players[who].narrow_points(Range::new(8, 9));
+                                    } else {
+                                        players[who].narrow_length(
+                                            Suit::Diamonds,
+                                            Range::at_least(5, LENGTH_CAP),
+                                        );
+                                    }
+                                }
                                 3 => players[who].narrow_points(Range::at_least(9, POINTS_CAP)),
                                 _ => {}
                             }
@@ -836,16 +849,35 @@ fn artificial(projection: &Inference, made: Call) -> bool {
 }
 
 /// Whether the call at `index` is an artificial relay/puppet/splinter in the
-/// Puppet-Stayman or minor-suit-transfer structures over our 1NT opening — so it
-/// must not be read as a natural long suit
+/// minor-suit-response structure over our 1NT opening — so it must not be read as a
+/// natural long suit
 ///
-/// Once responder enters a new structure (a 3♣ Puppet, 2NT diamond transfer, or
-/// 2♠ relay as their first call), every later three-level suit bid by our side is
-/// an artificial relay or splinter — except opener's genuine five-card major show
-/// over Puppet (`1NT–3♣–3♥/3♠`).  Positions assume the standard uncontested
-/// auction; a contested one shifts them and matches none.
+/// Once responder enters a structure as their first call, every later three-level
+/// suit bid by our side is an artificial relay or splinter.  Which first calls
+/// enter, and the lone exception, depend on the active minor scheme
+/// ([`notrump_minors`][crate::bidding::american::notrump_minors]):
+///
+/// - **Puppet:** 3♣ Puppet, 2NT diamond transfer, or 2♠ two-way relay — except
+///   opener's genuine five-card major show over Puppet (`1NT–3♣–3♥/3♠`).
+/// - **European:** 2♠ (clubs) or 3♣ (diamonds) transfer — every continuation
+///   (opener's completion, responder's splinter) is a relay, no exception; the
+///   natural 2NT invite enters nothing.
+///
+/// Positions assume the standard uncontested auction; a contested one shifts them
+/// and matches none.
 fn nt_structure_artificial(auction: &[Call], index: usize, opening_index: usize) -> bool {
     let resp_first = auction.get(opening_index + 2);
+
+    if crate::bidding::american::notrump_minors() == crate::bidding::american::EUROPEAN {
+        // European: 2♠ (clubs) and 3♣ (diamonds) are transfers; every suit bid in
+        // their continuations is a relay, never a natural suit.
+        return matches!(
+            resp_first,
+            Some(&Call::Bid(b))
+                if b == Bid::new(2, Strain::Spades) || b == Bid::new(3, Strain::Clubs)
+        );
+    }
+
     let entered = matches!(
         resp_first,
         Some(&Call::Bid(b))
@@ -1521,7 +1553,7 @@ mod tests {
     /// hands `Inferences::read` (cf. `Stance::prefixed_context`).  The plain `read`
     /// above is keyless, so it sees no convention overlay.
     fn read_booked(auction: &[Call]) -> Inferences {
-        let stance = crate::american().against(crate::bidding::Family::NATURAL);
+        let stance = crate::american().against(crate::bidding::Tag::NATURAL);
         Inferences::read(&stance.prefixed_context(RelativeVulnerability::NONE, auction))
     }
 

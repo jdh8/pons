@@ -43,7 +43,7 @@ use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, Contract, FullDeal, Hand, Seat};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::bidding::context::relative;
-use pons::bidding::{Family, System};
+use pons::bidding::{System, Tag};
 use pons::scoring::{final_contract, imps, ns_score_contract};
 use pons::{Accumulator, american, american_search, american_search_book};
 use rand::SeedableRng;
@@ -346,9 +346,9 @@ fn dump_boards(title: &str, result: &MatchResult, indices: &[usize]) {
 fn main() {
     let args = Args::parse();
 
-    let book = american_search_book(Family::NATURAL);
-    let baseline = american_search().against(Family::NATURAL);
-    let deterministic = american().against(Family::NATURAL);
+    let book = american_search_book(Tag::NATURAL);
+    let baseline = american_search().against(Tag::NATURAL);
+    let deterministic = american().against(Tag::NATURAL);
 
     // Deal the boards once so both matches play identical deals.
     let boards = match args.seed {
