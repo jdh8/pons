@@ -107,8 +107,8 @@ fn lebensohl_style() -> LebensohlStyle {
 /// All variants are *authored* in the book (a finite logit), so the instinct
 /// floor's own takeout double — whose `hcp(12..)` threshold is too strong here —
 /// is shadowed and we control the strength. Opener's continuation is authored to
-/// match the style: penalty → [`opener_leaves_in_penalty_double`] sits; optional →
-/// [`opener_cooperates_optional`] stands on a fit and runs with a doubleton.
+/// match the style: penalty → `opener_leaves_in_penalty_double` sits; optional →
+/// `opener_cooperates_optional` stands on a fit and runs with a doubleton.
 /// Gated behind [`set_double_style`]; [`DoubleStyle::Optional`] (2-3/8+) is the
 /// default.
 ///
@@ -135,7 +135,7 @@ pub enum DoubleStyle {
     PenaltyLight,
     /// Default: cooperative / optional takeout, never short: `len(over, 2..=3) &
     /// hcp(8..)`; opener stands on a fit and runs with a doubleton (see
-    /// [`opener_cooperates_optional`]).
+    /// `opener_cooperates_optional`).
     #[default]
     Optional,
 }

@@ -329,7 +329,7 @@ thread_local! {
 /// makes `X` show at least 5-4 in the majors at every seat; `Some(true)` accepts a
 /// flat 4-4.  The penalty double is dropped entirely (a 15+ balanced hand passes or
 /// overcalls), the four natural two-level suit overcalls are kept, and the advancer
-/// answers through the Landy machinery ([`landy_advances`]).  Mutually exclusive
+/// answers through the Landy machinery (`landy_advances`).  Mutually exclusive
 /// with the natural penalty-X arm and the Landy `2♣` overlay (this covers the
 /// passed seat too).  The A/B knob for `examples/ab-landy --ns-landy-x`.
 pub fn set_direct_landy_double(shape: Option<bool>) {
