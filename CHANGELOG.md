@@ -61,6 +61,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   routes a 6-card major to the Multi `2♦` and is load-bearing for the bundle's
   disjoint shapes.)
 
+- **The inference floor now reads an alerted call as its convention, driving
+  per-call defense switching (`set_alert_reading`, default on).** `project_authored`
+  decided "artificial" purely structurally — a call floors a suit it does not name
+  (Jacoby `2♦` → 5+♥) — which misses the *strength*-showing artificials that floor no
+  foreign suit: the strong `2♣` opening (22+, no shape), its `2♦` waiting / `2♥`
+  double negative, and Puppet `3♣`. Those were misread as a natural suit, so partner
+  (and the keyless floor behind it) thought opener held that suit. The reader now
+  also treats a call as artificial when its authoring rule carries an `Alert`, on top
+  of the structural test — a union that only adds coverage, never dropping a read the
+  structural test already made — so the floor suppresses the phantom-suit read and
+  projects the convention instead, for our own *and* the opponents' alerted calls.
+  Constructive A/B (`ab-alert-reading`, paired self-play, opponents silenced, honest
+  plain-DD, 24000 boards/seed): **+2.08 IMPs/divergent vul none, +1.59 vul both**,
+  consistently positive with no sign flip, on the ~0.4% of boards a strength-showing
+  artificial swings the contract. Toggle off with `set_alert_reading(false)` to
+  recover the structural-only reading.
+
 - **The system identity (`Family`) and a new per-call `Alert` are now two distinct
   types.** The opponent-visible system label keeps its name, role, and API —
   `Family::NATURAL` / `STRONG_CLUB` / `WEAK_NOTRUMP`, the `Pair::family` field,

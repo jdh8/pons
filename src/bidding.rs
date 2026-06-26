@@ -50,7 +50,9 @@ pub use compose::{OrElse, Versus};
 pub use context::Context;
 pub use ev::{ev, ev_all};
 pub use features::{FEATURES_LEN, FEATURES_VERSION, features};
-pub use inference::{Inference, Inferences, Range, Relative, set_nt_invite_inference};
+pub use inference::{
+    Inference, Inferences, Range, Relative, set_alert_reading, set_nt_invite_inference,
+};
 pub use instinct::instinct;
 pub use map::Map;
 pub use rules::{Alert, Rules};

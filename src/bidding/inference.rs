@@ -68,6 +68,31 @@ fn nt_invite_inference() -> bool {
 }
 
 std::thread_local! {
+    /// Whether [`project_authored`] treats a call as artificial because its
+    /// authoring rule carries an [`Alert`][crate::bidding::Alert], on top of the
+    /// structural [`artificial`] test.  On by default; turning it off recovers the
+    /// pre-alert behaviour where a strength-showing artificial that floors no
+    /// foreign suit — the strong 2♣ opening, its 2♦ waiting / 2♥ double negative,
+    /// Puppet 3♣ — was misread as a natural suit.  The `ab-alert-reading` example
+    /// A/Bs the two.
+    static ALERT_READING: Cell<bool> = const { Cell::new(true) };
+}
+
+/// Toggle reading an alerted call as artificial (default on).
+///
+/// This is the per-call defense switch: with it on, the floor recognises every
+/// alerted convention — including the strength-showing artificials the structural
+/// detector misses — and reads it as the convention rather than as a natural suit,
+/// so a player switches its treatment the moment an opponent's alerted call lands.
+pub fn set_alert_reading(on: bool) {
+    ALERT_READING.with(|cell| cell.set(on));
+}
+
+fn alert_reading() -> bool {
+    ALERT_READING.with(Cell::get)
+}
+
+std::thread_local! {
     /// Whether the layout sampler accepts a candidate hand by *replaying the
     /// rule* — re-running the policy at each prior decision node and keeping the
     /// hand only if the policy would have made the call the player actually made
@@ -819,7 +844,19 @@ fn project_authored(context: &Context<'_>) -> ([Inference; 4], u64) {
             .map(|rule| rule.project(context))
             .reduce(|acc, p| acc.union(&p));
 
-        if let Some(projection) = projection.filter(|p| artificial(p, made)) {
+        // A call is artificial when its authoring rule *alerts* it (the explicit,
+        // exhaustive signal — it catches strength-showing artificials like the
+        // strong 2♣ opening and Puppet 3♣ that floor no foreign suit), or — as a
+        // fallback for any artificial call not yet alerted — when its projection
+        // floors a suit it did not name (see [`artificial`]).  The union only adds
+        // coverage; it never drops a read the structural test already made.
+        let alerted = alert_reading()
+            && rules
+                .rules()
+                .iter()
+                .any(|rule| rule.call() == made && rule.alert().is_some());
+
+        if let Some(projection) = projection.filter(|p| alerted || artificial(p, made)) {
             let who = relative_of(len, index) as usize;
             players[who] = players[who].intersect(&projection);
             if index < 64 {
