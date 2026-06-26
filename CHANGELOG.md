@@ -9,6 +9,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Competition over the 2♣ Stayman, on both sides.** Two auction families that
+  previously fell through to the instinct floor are now authored:
+  - *Our Stayman is contested.* After `1NT-(P)-2♣-(X)` opener answers in the
+    expert *pass-denies-stopper* coded scheme — a major or `2♦` promises a club
+    stopper, **Pass denies one**, `XX` is business clubs — and when opener passes,
+    responder's `XX` is a **forcing re-ask** (direct XX is business, balancing XX
+    is SOS) that opener must answer (the artificial `2♦` denies both majors).
+    After a `(2♦/2♥/2♠)` overcall opener bids a 4-card major naturally if it
+    outranks their suit, doubles for cards (or the major they could not bid),
+    else passes. **Default on** — a paired double-dummy A/B vs BBA over 256 000
+    boards scored **+3.5 IMPs/board it fires on** (CI excludes 0). The off-switch
+    `set_competition_over_stayman(false)` (`bba-gen --no-ns-comp-over-stayman`)
+    isolates it for A/B.
+  - *Defending their Stayman.* A new **opt-in** defense to `(1NT)-P-(2♣)`:
+    `X` = lead-directing clubs (the bid suit, not takeout), `2♦/2♥/2♠` natural,
+    `3♣` = a natural club preempt; no Michaels cue (their 2♣ is artificial).
+    Matches BBA and the published experts. **Off by default** — enable with
+    `set_stayman_defense(true)` (`bba-gen --ns-defense-to-their-stayman`). Its
+    value is mostly lead-directing (invisible to the double-dummy harness), and a
+    96 000-board isolate-defense A/B confirmed it is a DD wash leaning negative
+    (−0.0013 IMPs/board, CI straddles 0), so it stays opt-in. A speculative
+    Unusual 2NT (both minors) was tried and measured **−4.9 IMPs/board it fires
+    on**, so it was dropped.
+
 - **`bba-gen` board generation can now use every core, via processes.** EPBot's
   FFI is thread-unsafe, so the bidding half has always been single-threaded. The
   new `scripts/bba-gen-parallel.sh` sidesteps that by sharding across **processes**

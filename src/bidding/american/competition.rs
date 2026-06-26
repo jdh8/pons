@@ -53,6 +53,9 @@ const UVU_CUE: Alert = Alert("comp:uvu-cue");
 /// Unusual-vs-Unusual splinter — `4♣`/`4♦` as a FG+ 5-5-majors splinter into the
 /// short minor.
 const UVU_SPLINTER: Alert = Alert("comp:uvu-splinter");
+/// Stayman re-ask — responder's `XX` after the opponents doubled our 2♣ Stayman
+/// and opener passed to deny a club stopper: re-asks the major (forcing).
+const STAYMAN_REDOUBLE: Alert = Alert("comp:stayman-redouble");
 
 /// Which Lebensohl package the competitive book carries over our overcalled
 /// `1NT` (Section 5)
@@ -485,6 +488,30 @@ pub fn set_delayed_cue(on: bool) {
 /// Whether the stopper-split cue is enabled
 pub(super) fn delayed_cue() -> bool {
     DELAYED_CUE.with(Cell::get)
+}
+
+thread_local! {
+    /// Whether opener authors continuations after the opponents contest our 2♣
+    /// Stayman (`1NT-(P)-2♣-(X)` and `-(2♦/2♥/2♠)`); **on by default**, with an
+    /// off-switch for A/B measurement.  See [`set_competition_over_stayman`].
+    static COMPETITION_OVER_STAYMAN: Cell<bool> = const { Cell::new(true) };
+}
+
+/// Author opener's replies after the opponents double or overcall our 2♣ Stayman,
+/// for books built *after* this call (thread-local; **on by default**).
+///
+/// Over a `(X)` (lead-directing clubs) opener answers in the *pass-denies-stopper*
+/// coded scheme: a major or `2♦` promises a club stopper, Pass denies one, `XX` is
+/// business clubs; responder's `XX` after opener's pass re-asks Stayman (forcing).
+/// Over a `(2♦/2♥/2♠)` overcall opener bids a 4-card major naturally if it
+/// outranks their suit, doubles for cards, else passes.
+pub fn set_competition_over_stayman(on: bool) {
+    COMPETITION_OVER_STAYMAN.with(|cell| cell.set(on));
+}
+
+/// Whether competition over our 2♣ Stayman is currently authored
+fn competition_over_stayman() -> bool {
+    COMPETITION_OVER_STAYMAN.with(Cell::get)
 }
 
 thread_local! {
@@ -1463,6 +1490,80 @@ pub(super) fn uvu_rebid_over_3h() -> Rules {
         .rule(Bid::new(3, Strain::Notrump), 0.5, hcp(0..))
 }
 
+/// Opener's coded reply after the opponents double our 2♣ Stayman
+/// (`1NT-(P)-2♣-(X)`)
+///
+/// The `(X)` is lead-directing clubs, so the *pass-denies-stopper* scheme spends
+/// the free pass on a club-stopper signal: a 4-card major (`2♥`/`2♠`) or `2♦`
+/// (no major) promises a club stopper; **Pass denies one** (it may still hide a
+/// major, shown after responder re-asks); `XX` is business clubs (offer to play
+/// 2♣ doubled-redoubled).  Direct XX is business — distinct from responder's
+/// SOS/re-ask XX below.
+fn stayman_doubled_opener() -> Rules {
+    Rules::new()
+        .rule(
+            Call::Redouble,
+            1.0,
+            len(Suit::Clubs, 5..) & suit_hcp(Suit::Clubs, 5..),
+        )
+        .rule(
+            Bid::new(2, Strain::Hearts),
+            1.0,
+            len(Suit::Hearts, 4..) & stopper_in(Suit::Clubs),
+        )
+        .rule(
+            Bid::new(2, Strain::Spades),
+            1.0,
+            len(Suit::Spades, 4..) & len(Suit::Hearts, ..4) & stopper_in(Suit::Clubs),
+        )
+        .rule(
+            Bid::new(2, Strain::Diamonds),
+            0.5,
+            len(Suit::Hearts, ..4) & len(Suit::Spades, ..4) & stopper_in(Suit::Clubs),
+        )
+        .rule(Call::Pass, 0.25, !stopper_in(Suit::Clubs))
+}
+
+/// Responder's re-ask after opener passed our doubled Stayman to deny a club
+/// stopper (`1NT-(P)-2♣-(X)-P-(P)`)
+///
+/// Balancing XX is SOS, not business: `XX` re-asks Stayman (forcing — responder
+/// still holds the 4-card major), and opener must answer (`stayman_answers`, no
+/// Pass).  An owning Pass is the always-mass catch-all.
+fn stayman_redouble_reask() -> Rules {
+    Rules::new()
+        .rule(
+            Call::Redouble,
+            1.0,
+            len(Suit::Hearts, 4..) | len(Suit::Spades, 4..),
+        )
+        .alert(STAYMAN_REDOUBLE)
+        .rule(Call::Pass, 0.1, hcp(0..))
+}
+
+/// Opener's natural reply after the opponents overcall our 2♣ Stayman at the
+/// 2-level (`1NT-(P)-2♣-(2♦/2♥/2♠)`)
+///
+/// Show the 4-card major if it outranks their suit; else `X` shows length in
+/// their suit (cards/penalty — and, when they overcalled the very major opener
+/// holds, the major opener could not bid); else Pass.  Responder stays captain.
+fn stayman_overcalled_opener(over: Suit) -> Rules {
+    let mut rules = Rules::new();
+    if (Suit::Hearts as u8) > (over as u8) {
+        rules = rules.rule(Bid::new(2, Strain::Hearts), 1.0, len(Suit::Hearts, 4..));
+    }
+    if (Suit::Spades as u8) > (over as u8) {
+        rules = rules.rule(
+            Bid::new(2, Strain::Spades),
+            1.0,
+            len(Suit::Spades, 4..) & len(Suit::Hearts, ..4),
+        );
+    }
+    rules
+        .rule(Call::Double, 0.6, len(over, 4..))
+        .rule(Call::Pass, 0.2, hcp(0..))
+}
+
 /// The competitive package over our openings: cue-bid raises, preemptive raises,
 /// negative doubles for all four openings, support doubles/redoubles, and
 /// opener's answers to negative doubles of minor overcalls
@@ -1898,6 +1999,82 @@ pub fn competition() -> Competitive {
         }
     }
 
+    // Competition over our own 2♣ Stayman (`set_competition_over_stayman`,
+    // default on): opener's replies after the opponents double `1NT-(P)-2♣-(X)`
+    // or overcall it `-(2♦/2♥/2♠)`.  Keyed at the `[1NT, P, 2♣]` node — a distinct
+    // trie path from the systems-on `[1NT, (2♣)]` block (their 2♣ at depth 1).
+    if competition_over_stayman() {
+        let stayman = [call(1, Strain::Notrump), Call::Pass, call(2, Strain::Clubs)];
+
+        // A.1 — our Stayman doubled.  Opener's coded reply (suffix `[X]`).
+        fallback_all_seats(
+            &mut book,
+            &stayman,
+            3,
+            Arc::new(guard(|_: &Context<'_>, s: &[Call]| s == [Call::Double])),
+            Fallback::classify(stayman_doubled_opener()),
+        );
+        // After opener's *stopper-bid* (suffix `[X, <bid>, …]`) responder's rebids
+        // are identical to the uncontested tree: rebase by stripping the X to a
+        // Pass, re-keying onto `[1NT, P, 2♣, P, <bid>, …]`.
+        fallback_all_seats(
+            &mut book,
+            &stayman,
+            3,
+            Arc::new(guard(|_: &Context<'_>, s: &[Call]| {
+                s.first() == Some(&Call::Double) && matches!(s.get(1), Some(Call::Bid(_)))
+            })),
+            Fallback::rebase(rewriter(move |auction: &[Call], depth: usize| {
+                if auction.get(depth) != Some(&Call::Double) {
+                    return None;
+                }
+                let mut rewritten = auction.to_vec();
+                rewritten[depth] = Call::Pass; // strip the X → systems on
+                Some(rewritten)
+            })),
+        );
+        // Opener passed to deny a stopper; responder re-asks (suffix `[X, P, P]`).
+        fallback_all_seats(
+            &mut book,
+            &stayman,
+            3,
+            Arc::new(guard(|_: &Context<'_>, s: &[Call]| {
+                s == [Call::Double, Call::Pass, Call::Pass]
+            })),
+            Fallback::classify(stayman_redouble_reask()),
+        );
+        // Opener's forced re-answer to the re-ask (suffix `[X, P, P, XX, P]`):
+        // reuse `stayman_answers()` — no Pass rule (opener cannot sit), and its 2♦
+        // is exactly the artificial "no major" denial.
+        fallback_all_seats(
+            &mut book,
+            &stayman,
+            3,
+            Arc::new(guard(|_: &Context<'_>, s: &[Call]| {
+                s == [
+                    Call::Double,
+                    Call::Pass,
+                    Call::Pass,
+                    Call::Redouble,
+                    Call::Pass,
+                ]
+            })),
+            Fallback::classify(stayman_answers()),
+        );
+
+        // A.2 — our Stayman overcalled at the 2-level.  Opener's natural reply.
+        for over in [Suit::Diamonds, Suit::Hearts, Suit::Spades] {
+            let overcall = call(2, Strain::from(over));
+            fallback_all_seats(
+                &mut book,
+                &stayman,
+                3,
+                Arc::new(guard(move |_: &Context<'_>, s: &[Call]| s == [overcall])),
+                Fallback::classify(stayman_overcalled_opener(over)),
+            );
+        }
+    }
+
     // Section 5d: Unusual vs Unusual over a both-minors (2NT) overcall of our 1NT
     // (`set_uvu`, default off). Responder's `X` is penalty; `3♣`/`3♦` are
     // INV+ cues (Stayman/5+♠, 5+♥); `4♣`/`4♦` are FG+ 5-5-majors splinters; the
@@ -2012,6 +2189,121 @@ mod tests {
         super::set_uvu_x_floor(9);
         super::set_uvu_cue_floor(8);
         best_call(auction, hand)
+    }
+
+    // --- Competition over our 2♣ Stayman (Side A) + defense to theirs (Side B) ---
+
+    #[test]
+    fn stayman_doubled_opener_bids_major_with_stopper() {
+        // 1NT-(P)-2♣-(X): 4 hearts + a club stopper → 2♥ (the major + stopper).
+        let auction = [
+            call(1, Strain::Notrump),
+            Call::Pass,
+            call(2, Strain::Clubs),
+            Call::Double,
+        ];
+        let (c, floored) = best_call(&auction, "A32.KQ32.A32.K32");
+        assert_eq!(c, call(2, Strain::Hearts));
+        assert!(!floored, "the coded answer must come from the book");
+    }
+
+    #[test]
+    fn stayman_doubled_opener_passes_without_stopper() {
+        // 1NT-(P)-2♣-(X): 4 hearts but NO club stopper → Pass (denies the stopper;
+        // the major waits for responder's re-ask).
+        let auction = [
+            call(1, Strain::Notrump),
+            Call::Pass,
+            call(2, Strain::Clubs),
+            Call::Double,
+        ];
+        let (c, floored) = best_call(&auction, "AQ2.KQ32.AQ32.32");
+        assert_eq!(c, Call::Pass);
+        assert!(!floored, "the stopper-denying pass must come from the book");
+    }
+
+    #[test]
+    fn stayman_doubled_opener_redoubles_with_clubs() {
+        // 1NT-(P)-2♣-(X): five good clubs → XX (business, play 2♣XX).
+        let auction = [
+            call(1, Strain::Notrump),
+            Call::Pass,
+            call(2, Strain::Clubs),
+            Call::Double,
+        ];
+        let (c, _) = best_call(&auction, "A2.K32.A32.KQ876");
+        assert_eq!(c, Call::Redouble);
+    }
+
+    #[test]
+    fn stayman_doubled_reask_is_forcing() {
+        // 1NT-(P)-2♣-(X)-P-(P): responder re-asks with XX (4 spades).
+        let reask = [
+            call(1, Strain::Notrump),
+            Call::Pass,
+            call(2, Strain::Clubs),
+            Call::Double,
+            Call::Pass,
+            Call::Pass,
+        ];
+        let (c, floored) = best_call(&reask, "KQ32.A32.A32.432");
+        assert_eq!(c, Call::Redouble);
+        assert!(!floored, "the re-ask must come from the book");
+        // …-XX-(P): opener is forced to answer (no Pass), 4 spades → 2♠.
+        let answer = [
+            call(1, Strain::Notrump),
+            Call::Pass,
+            call(2, Strain::Clubs),
+            Call::Double,
+            Call::Pass,
+            Call::Pass,
+            Call::Redouble,
+            Call::Pass,
+        ];
+        let (c, floored) = best_call(&answer, "AQ32.K32.KQ2.432");
+        assert_eq!(c, call(2, Strain::Spades));
+        assert!(!floored, "the forced re-answer must come from the book");
+    }
+
+    #[test]
+    fn stayman_overcalled_opener_bids_major() {
+        // 1NT-(P)-2♣-(2♦): 4 hearts → 2♥ (natural, outranks diamonds).
+        let auction = [
+            call(1, Strain::Notrump),
+            Call::Pass,
+            call(2, Strain::Clubs),
+            call(2, Strain::Diamonds),
+        ];
+        let (c, floored) = best_call(&auction, "A32.KQ32.K32.A32");
+        assert_eq!(c, call(2, Strain::Hearts));
+        assert!(!floored, "the natural major must come from the book");
+    }
+
+    #[test]
+    fn stayman_overcalled_opener_doubles_their_suit() {
+        // 1NT-(P)-2♣-(2♦): no biddable major, length in diamonds → X (cards).
+        let auction = [
+            call(1, Strain::Notrump),
+            Call::Pass,
+            call(2, Strain::Clubs),
+            call(2, Strain::Diamonds),
+        ];
+        let (c, _) = best_call(&auction, "K32.K32.AQ32.A32");
+        assert_eq!(c, Call::Double);
+    }
+
+    #[test]
+    fn defense_to_their_stayman_doubles_clubs() {
+        // (1NT)-P-(2♣ Stayman): our 4th-hand X = lead-directing clubs (5+ good).
+        crate::bidding::american::set_stayman_defense(true);
+        let auction = [call(1, Strain::Notrump), Call::Pass, call(2, Strain::Clubs)];
+        let (c, floored) = best_call(&auction, "A2.K32.A32.KQ876");
+        crate::bidding::american::set_stayman_defense(false); // restore default
+        assert_eq!(c, Call::Double);
+        assert!(
+            !floored,
+            "the lead-directing X must come from the defense book"
+        );
     }
 
     #[test]

@@ -150,6 +150,17 @@ struct Args {
     #[arg(long, default_value_t = false)]
     nt_fifths: bool,
 
+    /// Disable our continuations after the opponents contest our 2♣ Stayman
+    /// (`1NT-(P)-2♣-(X)`/`-(2♦/2♥/2♠)`); on by default.  Off-switch for the A/B.
+    #[arg(long, default_value_t = false)]
+    no_ns_comp_over_stayman: bool,
+
+    /// Author our defense to the opponents' 2♣ Stayman (`(1NT)-P-(2♣)`): X =
+    /// lead-directing clubs, natural overcalls, natural 3♣ preempt (default off;
+    /// opt-in A/B).
+    #[arg(long, default_value_t = false)]
+    ns_defense_to_their_stayman: bool,
+
     /// Shape gate for our natural penalty double of their 1NT: balanced (default,
     /// matches the shipped `american()`) | semi | any.
     #[arg(long, default_value = "balanced")]
@@ -656,6 +667,8 @@ fn main() -> anyhow::Result<()> {
             anyhow::anyhow!("--ns-overcall must be LO:HI, got {:?}", args.ns_overcall)
         })?;
     pons::bidding::american::set_natural_overcall_points(oc_lo, oc_hi);
+    pons::bidding::american::set_competition_over_stayman(!args.no_ns_comp_over_stayman);
+    pons::bidding::american::set_stayman_defense(args.ns_defense_to_their_stayman);
     pons::bidding::american::set_direct_dont(args.ns_dont);
     if args.ns_dont {
         pons::bidding::american::set_landy(None);

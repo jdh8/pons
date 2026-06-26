@@ -81,10 +81,11 @@ mod strong_two;
 mod weak_twos;
 
 pub use competition::{
-    DoubleStyle, LebensohlStyle, competition, set_defense_to_2d_multi, set_delayed_cue,
-    set_direct_3nt_stopper, set_double_override, set_double_style, set_lebensohl,
-    set_lebensohl_style, set_natural_floor, set_penalty_double_leave_in, set_penalty_pass,
-    set_trap_pass, set_uvu, set_uvu_cue_floor, set_uvu_natural_floor, set_uvu_x_floor,
+    DoubleStyle, LebensohlStyle, competition, set_competition_over_stayman,
+    set_defense_to_2d_multi, set_delayed_cue, set_direct_3nt_stopper, set_double_override,
+    set_double_style, set_lebensohl, set_lebensohl_style, set_natural_floor,
+    set_penalty_double_leave_in, set_penalty_pass, set_trap_pass, set_uvu, set_uvu_cue_floor,
+    set_uvu_natural_floor, set_uvu_x_floor,
 };
 pub use defense::{
     DoubleShape, advance_double, defense_to_suit, defense_to_weak_two, set_advance_sohl_style,
@@ -93,8 +94,8 @@ pub use defense::{
     set_direct_landy_penalty_pass, set_doubled_landy_escape, set_landy, set_landy_hcp,
     set_leaping_michaels, set_natural_defense, set_natural_double_floor, set_natural_double_shape,
     set_natural_double_weight, set_natural_overcall_points, set_notrump_balancing,
-    set_responsive_overcall, set_responsive_takeout, set_unusual_notrump_defense, set_woolsey,
-    set_woolsey_double_floor, set_woolsey_points,
+    set_responsive_overcall, set_responsive_takeout, set_stayman_defense,
+    set_unusual_notrump_defense, set_woolsey, set_woolsey_double_floor, set_woolsey_points,
 };
 pub(crate) use defense::{
     direct_dont_enabled, direct_landy_double, landy_range, natural_defense_enabled,

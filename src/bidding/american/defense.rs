@@ -9,7 +9,7 @@
 
 use super::super::constraint::{
     Cons, Constraint, and, balanced, described, hcp, len, min_level_is, or, points,
-    short_in_their_suits, stopper_in_their_suits, top_honors,
+    short_in_their_suits, stopper_in_their_suits, suit_hcp, top_honors,
 };
 use super::super::context::Context;
 use super::super::{Alert, Defensive, Rules};
@@ -273,6 +273,29 @@ pub fn set_direct_dont(on: bool) {
 /// Whether the direct-seat DONT defense is currently authored
 pub(crate) fn direct_dont_enabled() -> bool {
     DIRECT_DONT.with(Cell::get)
+}
+
+thread_local! {
+    /// Whether we author a defense to the opponents' 2♣ Stayman
+    /// (`(1NT)-P-(2♣)-?`); **off by default** (opt-in A/B).  See
+    /// [`set_stayman_defense`].
+    static STAYMAN_DEFENSE: Cell<bool> = const { Cell::new(false) };
+}
+
+/// Author our defense to the opponents' 2♣ Stayman (`(1NT)-P-(2♣)`), for books
+/// built *after* this call (thread-local; **off by default**).
+///
+/// `X` = lead-directing clubs (5+ with values), `2♦/2♥/2♠` natural, `3♣` = a
+/// natural club preempt; the floor passes everything else (~80%).  No Michaels
+/// cue — their 2♣ is artificial, so a cue would be natural and 3♣ already
+/// preempts.
+pub fn set_stayman_defense(on: bool) {
+    STAYMAN_DEFENSE.with(|cell| cell.set(on));
+}
+
+/// Whether the defense to their 2♣ Stayman is currently authored
+fn stayman_defense_enabled() -> bool {
+    STAYMAN_DEFENSE.with(Cell::get)
 }
 
 thread_local! {
@@ -920,6 +943,9 @@ const MUIDERBERG_2H: Alert = Alert("1ntd:muiderberg-2h");
 const DONT_2H: Alert = Alert("1ntd:dont-2h");
 const MUIDERBERG_2S: Alert = Alert("1ntd:muiderberg-2s");
 const UNUSUAL_2NT: Alert = Alert("1ntd:unusual-2nt");
+/// Lead-directing double of the opponents' 2♣ Stayman — shows clubs (the bid
+/// suit), not takeout.
+const STAYMAN_DEFENSE_X: Alert = Alert("staydef:x-clubs");
 
 // Each artificial block is a one-rule `Rules` lifting today's cascade verbatim
 // (weight, shape, strength).  All twelve are chained unconditionally and then
@@ -945,6 +971,45 @@ fn landy_x() -> Rules {
         1.9,
         both_majors_shape(four_four) & points(direct_landy_double_floor()..),
     )
+}
+
+/// Defense to the opponents' 2♣ Stayman (`(1NT)-P-(2♣)`)
+///
+/// `X` = lead-directing clubs (5+ with values, the bid suit — not takeout);
+/// `2♦/2♥/2♠` natural; `3♣` = a natural club preempt.  No Michaels cue (their 2♣
+/// is artificial, so a cue would be natural, and `3♣` already preempts); an
+/// Unusual 2NT (both minors) was tried and measured DD-negative (−4.9 IMPs/fired),
+/// so it was dropped.  An owning Pass catches the ~80% that act on nothing,
+/// keeping the floor's undisciplined balancing calls out.
+fn defense_to_their_stayman() -> Rules {
+    Rules::new()
+        .rule(
+            Call::Double,
+            1.9,
+            len(Suit::Clubs, 5..) & suit_hcp(Suit::Clubs, 5..) & points(8..),
+        )
+        .alert(STAYMAN_DEFENSE_X)
+        .rule(
+            Bid::new(2, Strain::Diamonds),
+            1.8,
+            len(Suit::Diamonds, 6..) & points(8..),
+        )
+        .rule(
+            Bid::new(2, Strain::Hearts),
+            1.8,
+            len(Suit::Hearts, 5..) & points(8..),
+        )
+        .rule(
+            Bid::new(2, Strain::Spades),
+            1.8,
+            len(Suit::Spades, 5..) & points(8..),
+        )
+        .rule(
+            Bid::new(3, Strain::Clubs),
+            1.5,
+            len(Suit::Clubs, 6..) & points(..11),
+        )
+        .rule(Call::Pass, 0.5, hcp(0..))
 }
 
 /// DONT `X`: a one-suiter (♣/♦/♥), `points(natural-overcall-floor..)`.
@@ -2386,6 +2451,17 @@ pub fn defensive() -> Defensive {
             &[notrump, Call::Pass, Call::Pass],
             3,
             defense_to_notrump(),
+        );
+    }
+
+    // Defense to the opponents' 2♣ Stayman: (1NT) P (2♣) ?  Opt-in (default off).
+    // X = lead-directing clubs, natural overcalls, Unusual 2NT, natural 3♣ preempt.
+    if stayman_defense_enabled() {
+        insert_all_seats(
+            &mut d,
+            &[notrump, Call::Pass, call(2, Strain::Clubs)],
+            3,
+            defense_to_their_stayman(),
         );
     }
 
