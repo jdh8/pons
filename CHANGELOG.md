@@ -75,8 +75,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Constructive A/B (`ab-alert-reading`, paired self-play, opponents silenced, honest
   plain-DD, 24000 boards/seed): **+2.08 IMPs/divergent vul none, +1.59 vul both**,
   consistently positive with no sign flip, on the ~0.4% of boards a strength-showing
-  artificial swings the contract. Toggle off with `set_alert_reading(false)` to
-  recover the structural-only reading.
+  artificial swings the contract. Contested A/B vs BBA's 2/1
+  (`bba-gen --no-alert-reading` + `bba-score`, paired, `--advertise-natural`, 20000
+  boards/seed): **+181 IMPs vul none, +216 IMPs vul both** recovered — same sign, no
+  regression. Toggle off with `set_alert_reading(false)` to recover the
+  structural-only reading.
 
 - **The system identity (`Family`) and a new per-call `Alert` are now two distinct
   types.** The opponent-visible system label keeps its name, role, and API —

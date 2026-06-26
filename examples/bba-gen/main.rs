@@ -231,6 +231,11 @@ struct Args {
     /// default on) to A/B the floor change's effect on defense.
     #[arg(long, default_value_t = false)]
     no_settle_floor: bool,
+
+    /// Disable reading per-call alerts as artificial (default on) to A/B the
+    /// alert-reading defense switch — how our floor reads alerted artificial calls.
+    #[arg(long, default_value_t = false)]
+    no_alert_reading: bool,
 }
 
 /// Parse a `NAME=0|1` convention override for `--our-conv` / `--their-conv`
@@ -592,6 +597,7 @@ fn main() -> anyhow::Result<()> {
     }
     pons::bidding::american::set_defense_to_2d_multi(args.defense_2d_multi);
     pons::bidding::instinct::set_settle_floor(!args.no_settle_floor);
+    pons::bidding::set_alert_reading(!args.no_alert_reading);
     pons::bidding::instinct::set_penalty_latch(!args.no_ns_penalty_latch);
     pons::bidding::instinct::set_penalty_no_pull(!args.ns_allow_pull);
     pons::bidding::instinct::set_advancer_xx_runout(!args.no_ns_xx_runout);
