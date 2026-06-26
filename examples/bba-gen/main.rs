@@ -215,6 +215,12 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_xx_runout: bool,
 
+    /// Disable the *doubler's* runout once BBA's redoubled penalty X runs back around
+    /// (default on): after `[1NT, X, XX, P, P]`, a 15+ doubler with a five-plus suit
+    /// escapes to it instead of defending `1NTxx`.
+    #[arg(long, default_value_t = false)]
+    no_ns_doubler_run: bool,
+
     /// Our side NEVER competes over BBA's 1NT (default off): authors only Pass at
     /// every seat, the truest "do nothing" baseline.  Overrides every other defense knob.
     #[arg(long, default_value_t = false)]
@@ -601,6 +607,7 @@ fn main() -> anyhow::Result<()> {
     pons::bidding::instinct::set_penalty_latch(!args.no_ns_penalty_latch);
     pons::bidding::instinct::set_penalty_no_pull(!args.ns_allow_pull);
     pons::bidding::instinct::set_advancer_xx_runout(!args.no_ns_xx_runout);
+    pons::bidding::instinct::set_doubler_xx_runout(!args.no_ns_doubler_run);
     pons::bidding::american::set_open_one_notrump(!args.no_our_1nt);
     pons::bidding::american::set_one_notrump_fifths(args.nt_fifths);
     pons::bidding::american::set_natural_double_shape(match args.ns_double_shape.as_str() {

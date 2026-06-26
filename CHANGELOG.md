@@ -48,6 +48,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the advancer already passed its first turn — it chose to defend, and the
   redouble's announced max does not undo that.
 
+- **The *doubler* now runs once that redouble travels back around
+  (`[1NT, X, XX, P, P]`).** The companion to the advancer runout above, two calls
+  later: after their business redouble of our 15+ penalty double, the advancer and
+  opener pass it back to the doubler, who — holding a five-plus-card suit — escapes
+  to it rather than defend a (usually-making) `1NTxx`; a 4-3-3-3/4-4-3-2 doubler with
+  nowhere to run still sits. There is **no HCP cap** (the penalty double already
+  promised 15+), only the five-plus-suit gate. Default on, with an off-switch
+  (`set_doubler_xx_runout(false)` / `bba-gen --no-ns-doubler-run`), read once at book
+  construction so a duplicate A/B bakes the rule into the on book alone. The auction
+  is **rare** — a 15+ *balanced* doubler seldom holds a five-card suit (only 5-3-3-2),
+  and the redouble has to come all the way back — but it is **measured positive
+  wherever it fires**:
+  - vs BBA's 2/1 (isolate-defense, 200000 boards, vulnerable, paired same-seed delta
+    via the new `ab-dump-diff`): the any-shape double fires on 212 boards (0.11%) for
+    **+0.0067 IMPs/board [95% CI ±0.0018, excludes 0]**, +6.3 IMPs per fired board.
+  - DD self-play (5,000,000 boards/cell, natural defense on both arms, only the runout
+    differing): **+8.6 to +10.2 IMPs per divergent board** across both double shapes
+    (any: 979/5M; balanced: 275/5M) and both vulnerabilities — the win is escaping a
+    redoubled 1NT that beats us where we sit, a little larger when vulnerable.
+  It fires on only 0.005–0.11% of boards, so the per-board effect is small
+  (≈+0.0005 to +0.0067 IMPs/board) — directionally-correct insurance against the rare
+  redoubled-1NT disaster, shipped on like the advancer runout it mirrors. The new
+  `ab-dump-diff` example scores the paired delta of two same-seed `bba-gen` dumps,
+  double-dummy-solving only the handful of boards a rare feature actually touched.
+
 ### Changed
 
 - **Defense to their 1NT is now composed from per-call alerts instead of a

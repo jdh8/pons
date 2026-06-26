@@ -41,7 +41,9 @@ use pons::bidding::american::{
     set_landy, set_landy_hcp, set_natural_defense, set_natural_double_shape, set_penalty_pass,
     set_unusual_notrump_defense, set_woolsey, set_woolsey_double_floor, set_woolsey_points,
 };
-use pons::bidding::instinct::{LatchStyle, set_latch_style, set_penalty_latch};
+use pons::bidding::instinct::{
+    LatchStyle, set_doubler_xx_runout, set_latch_style, set_penalty_latch,
+};
 use pons::scoring::{final_contract, ns_score_bid, ns_score_contract};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -95,6 +97,18 @@ struct Args {
     /// `--ns-majors ""` to isolate the double-shape change.
     #[arg(long, default_value = "balanced")]
     ns_double_shape: String,
+
+    /// Shape gate of the *baseline* pair's penalty double: `balanced` (default),
+    /// `semibal`, or `any`. Match it to `--ns-double-shape` to hold the double shape
+    /// equal across the two arms and isolate another feature (e.g. `--ns-doubler-run`).
+    #[arg(long, default_value = "balanced")]
+    ew_double_shape: String,
+
+    /// The *measured* pair's doubler runout once the redouble runs back around
+    /// (`[1NT, X, XX, P, P]`): `on` or `off` (default). On, a 15+ doubler with a
+    /// five-plus suit escapes the redoubled `1NTxx`; the baseline always sits.
+    #[arg(long, default_value = "off")]
+    ns_doubler_run: String,
 
     /// Replace the *measured* pair's natural penalty-X over their 1NT with a
     /// both-majors takeout double (X = both majors, at every seat): `off` (default),
@@ -403,6 +417,7 @@ fn main() {
     let majors = parse_range(&args.ns_majors);
     let minors = parse_range(&args.ns_minors);
     let double_shape = parse_double_shape(&args.ns_double_shape);
+    let ew_double_shape = parse_double_shape(&args.ew_double_shape);
     let mut rng = StdRng::seed_from_u64(args.seed);
 
     // Baseline = the bare floor (both two-suiters off); measured = the configured
@@ -414,6 +429,7 @@ fn main() {
         other => panic!("unknown --strength {other:?} (use points or hcp)"),
     };
     let ns_natural = parse_on_off(&args.ns_natural, "--ns-natural");
+    let ns_doubler_run = parse_on_off(&args.ns_doubler_run, "--ns-doubler-run");
     let ns_dont = parse_on_off(&args.ns_dont, "--ns-dont");
     let ew_natural = parse_on_off(&args.ew_natural, "--ew-natural");
     let ew_always_pass = parse_on_off(&args.ew_always_pass, "--ew-always-pass");
@@ -447,7 +463,7 @@ fn main() {
     set_unusual_notrump_defense(None);
     set_landy_hcp(false);
     set_natural_defense(ew_natural);
-    set_natural_double_shape(DoubleShape::Balanced);
+    set_natural_double_shape(ew_double_shape);
     set_always_pass_defense(ew_always_pass);
     set_direct_dont(false);
     set_direct_landy_double(None);
@@ -455,6 +471,7 @@ fn main() {
     set_direct_landy_penalty_pass(false);
     set_woolsey(false);
     set_penalty_pass(ew_penalty_pass);
+    set_doubler_xx_runout(false);
     let baseline = american().against(Family::NATURAL);
     set_landy(majors);
     set_unusual_notrump_defense(minors);
@@ -470,6 +487,7 @@ fn main() {
     ));
     set_penalty_pass(ns_penalty_pass);
     set_doubled_landy_escape(ns_doubled_escape);
+    set_doubler_xx_runout(ns_doubler_run);
     // DONT owns 2♣ (two-suiter) and 2NT (both minors), so override the natural
     // Landy/Unusual overlays when it is on.
     set_direct_dont(ns_dont);

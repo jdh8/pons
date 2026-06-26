@@ -164,6 +164,11 @@ std::thread_local! {
     /// XX is business (BBA and our own system both: "we make 1NT redoubled"), so a
     /// broke advancer escapes to its long suit rather than sit for the doom.
     static ADVANCER_XX_RUNOUT: Cell<bool> = const { Cell::new(true) };
+
+    /// Whether the *doubler* runs after `[1NT, X, XX, P, P]` comes back around
+    /// (**on by default** — see [`set_doubler_xx_runout`]).  Construction-gated:
+    /// read once in [`instinct`] so the escape rule lands only in the on book.
+    static DOUBLER_XX_RUNOUT: Cell<bool> = const { Cell::new(true) };
 }
 
 /// Responder runs from a doubled 1NT below this many HCP; with more, 1NT-X
@@ -1034,6 +1039,45 @@ fn advancer_xx_runout() -> Cons<impl Constraint + Clone> {
     pred(|_: Hand, context: &Context<'_>| advancer_xx_runout_now(context))
 }
 
+/// Enable or disable the *doubler's* runout from their redoubled penalty double
+///
+/// **On by default.**  After `[1NT, X, XX]` the opponents' business redouble runs
+/// back around — advancer passes, opener passes (`[1NT, X, XX, P, P]`) — to the 15+
+/// doubler.  On, a doubler holding a five-plus-card suit escapes to it rather than
+/// defend a likely-making `1NTxx`; off, it sits.  Read once at book construction
+/// (the escape rule is added only when on) so a duplicate A/B isolates cleanly.
+#[doc(hidden)]
+pub fn set_doubler_xx_runout(enabled: bool) {
+    DOUBLER_XX_RUNOUT.with(|flag| flag.set(enabled));
+}
+
+/// Whether the doubler's runout rule is authored into the current book
+fn doubler_xx_runout_enabled() -> bool {
+    DOUBLER_XX_RUNOUT.with(Cell::get)
+}
+
+/// Their redoubled penalty double has run back to the doubler (`[1NT, X, XX, P, P]`)
+///
+/// Keyed off [`penalty_x_reading`][super::inference::penalty_x_reading] like
+/// [`advancer_xx_runout_now`], but two calls later: the business redouble, then the
+/// advancer's and opener's passes, leaving the doubler to act for the first time
+/// since the double.  Pure on the auction (the flag gates the rule at construction).
+fn doubler_xx_runout_now(context: &Context<'_>) -> bool {
+    let auction = context.auction();
+    let Some(x_index) = super::inference::penalty_x_reading(auction) else {
+        return false;
+    };
+    auction.len() == x_index + 4
+        && auction[x_index + 1] == Call::Redouble
+        && auction[x_index + 2] == Call::Pass
+        && auction[x_index + 3] == Call::Pass
+}
+
+/// [`doubler_xx_runout_now`] as a hand-ignoring [`Constraint`] for the ladder
+fn doubler_xx_runout() -> Cons<impl Constraint + Clone> {
+    pred(|_: Hand, context: &Context<'_>| doubler_xx_runout_now(context))
+}
+
 /// We opened the strong notrump of `nt_level` and partner just transferred with
 /// the call `from` — the cue to complete the transfer
 fn partner_transferred_now(context: &Context<'_>, from: Bid, nt_level: u8) -> bool {
@@ -1400,6 +1444,34 @@ pub fn instinct() -> Rules {
                 1.1 + major_bonus,
                 advancer_xx_runout() & len(suit, 6..) & hcp(..RUNOUT_MAX_HCP),
             );
+    }
+
+    // Doubler's runout once the redouble runs back around (`[1NT, X, XX, P, P]`,
+    // on by default; `set_doubler_xx_runout`).  Unlike the advancer, the doubler is
+    // the 15+ penalty hand, so there is *no* HCP cap — a doubler holding a five-plus
+    // suit (a 5332 under the default balanced gate) escapes the redoubled `1NTxx`
+    // rather than defend it; a 4-3-3-3/4-4-3-2 bust has nowhere to run and sits.
+    // Construction-gated so the off arm of a duplicate A/B never carries the rule.
+    if doubler_xx_runout_enabled() {
+        for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
+            let strain = Strain::from(suit);
+            let major_bonus = if matches!(suit, Suit::Hearts | Suit::Spades) {
+                0.05
+            } else {
+                0.0
+            };
+            rules = rules
+                .rule(
+                    Bid::new(2, strain),
+                    1.0 + major_bonus,
+                    doubler_xx_runout() & len(suit, 5..),
+                )
+                .rule(
+                    Bid::new(2, strain),
+                    1.1 + major_bonus,
+                    doubler_xx_runout() & len(suit, 6..),
+                );
+        }
     }
 
     // Runout, the values end: responder redoubles to play 1NT-XX rather than
@@ -1988,6 +2060,28 @@ mod tests {
         set_advancer_xx_runout(false);
         assert_eq!(best(&auction, "J9763.852.764.43"), Call::Pass);
         set_advancer_xx_runout(true);
+    }
+
+    #[test]
+    fn doubler_runs_from_redoubled_penalty_double() {
+        // (1NT) X (XX) P P: the redouble ran back to the 15+ doubler.
+        let auction = [
+            call(1, Strain::Notrump),
+            Call::Double,
+            Call::Redouble,
+            Call::Pass,
+            Call::Pass,
+        ];
+        // On by default: a 15+ 5332 escapes to its five-card suit rather than defend
+        // the redouble.
+        assert_eq!(best(&auction, "AQ765.KQ4.A82.K3"), call(2, Strain::Spades));
+        assert_eq!(best(&auction, "AQ4.K82.K3.AQ765"), call(2, Strain::Clubs));
+        // No five-card suit (4-4-3-2): nowhere to run, so sit.
+        assert_eq!(best(&auction, "AQ74.KQ32.A82.K3"), Call::Pass);
+        // Off-switch: the strong doubler sits and defends 1NTxx.
+        set_doubler_xx_runout(false);
+        assert_eq!(best(&auction, "AQ765.KQ4.A82.K3"), Call::Pass);
+        set_doubler_xx_runout(true);
     }
 
     #[test]
