@@ -43,6 +43,7 @@ const DEFAULT_LIB: &str = "vendor/bba/Native-libraries/linux/x64/libEPBot.so";
 // EPBot bid codes: Pass = 0, X = 1; a bid is 5 + (level-1)*5 + strain (♣..NT).
 const PASS: c_int = 0;
 const ONE_NT: c_int = 9; // 5 + 0*5 + 4
+const TWO_C: c_int = 10; // 5 + 1*5 + 0
 const TWO_D: c_int = 11; // 5 + 1*5 + 1
 const TWO_H: c_int = 12; // 5 + 1*5 + 2
 const TWO_S: c_int = 13; // 5 + 1*5 + 3
@@ -284,8 +285,28 @@ fn main() -> Result<()> {
             Some(TWO_S),
             "BBA 2♠-overcaller's rebid over 1NT-(2♠)-P-2NT-P — what the 2NT ask wants",
         ),
+        // Defense to the opponents' 1NT *response* (Stayman / Jacoby transfers),
+        // 4th seat at [1NT, P, 2x].  No filter — the 4th-seat hand is unconstrained.
+        "stayman" => (
+            3,
+            &[ONE_NT, PASS, TWO_C],
+            None,
+            "BBA 4th-seat over 1NT-P-(2♣ Stayman) — X=clubs, natural, no 2NT",
+        ),
+        "xfer-h" => (
+            3,
+            &[ONE_NT, PASS, TWO_D],
+            None,
+            "BBA 4th-seat over 1NT-P-(2♦ →♥) — X=diamonds, 2♥ cue=spades+minor",
+        ),
+        "xfer-s" => (
+            3,
+            &[ONE_NT, PASS, TWO_H],
+            None,
+            "BBA 4th-seat over 1NT-P-(2♥ →♠) — X=hearts, 2♠ cue=hearts+minor",
+        ),
         other => bail!(
-            "--mode must be multi|advance|counter|muider-h|muider-s|rebid-d|rebid-h|rebid-s, got {other:?}"
+            "--mode must be multi|advance|counter|muider-h|muider-s|rebid-d|rebid-h|rebid-s|stayman|xfer-h|xfer-s, got {other:?}"
         ),
     };
 
