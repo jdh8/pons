@@ -86,6 +86,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Landy's and Woolsey's both-majors `2♣` now share one strength band.** The two
+  conventions bid the identical both-majors `2♣`, so rather than carry two
+  independent `points` ranges, `set_landy(Some((lo, hi)))` now feeds the same band
+  that Woolsey's `2♣`/`2♦`/`2♥`/`2♠` read (`set_woolsey_points`), and `landy_2c`
+  overcalls on `woolsey_points()` — one knob instead of two. No behavior change to
+  either convention's default. Honest measurement (BBA reading our Landy via the new
+  `--advertise-landy`, 16 000 paired boards) shows the band is nearly inert anyway:
+  the `:19` cap binds on **1 board in 16 000**, the floor barely moves the IMPs
+  (`8+`↔`12+` is −0.003 IMPs/board, CI straddles 0), and Landy trails our natural
+  defense at every band (≈−0.17 IMPs per board it fires). The self-play preference
+  for a light floor (`6+` best) was the artifact of an opponent that cannot punish a
+  light `2♣`; once BBA reads it, the gradient flattens and mildly favors *sound*.
+
 - **Defense to their 1NT is now composed from per-call alerts instead of a
   per-system `if`/`else if` cascade.** A defensive "system" is a bundle of per-call
   conventions — "Woolsey" is really `X` = Woolsey + `2♣` = Landy + `2♦` = Multi +

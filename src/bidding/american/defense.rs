@@ -100,11 +100,21 @@ thread_local! {
 /// (15+ balanced) and natural two-level suit overcalls.  `Some((lo, hi))` turns
 /// Landy on: `2♣` shows at least 5-4 in the majors and `2NT` at least 5-4 in the
 /// minors, both on `points(lo..=hi)`, at the cost of the natural `2♣` club
-/// overcall.  The range is the A/B sweep knob (`examples/landy-ab --ns-range`);
+/// overcall.  The range is the A/B sweep knob (`examples/ab-landy --ns-majors`);
 /// the advancer's invite/game thresholds and the overcaller's min/med/max
-/// rebid track it, so a lighter overcall asks more of the advancer.
+/// rebid track it, so a lighter overcall asks more of the advancer.  It also
+/// *is* the shared two-suiter band — see [`set_woolsey_points`] — so Landy's and
+/// Woolsey's identical both-majors `2♣` always overcall at the same strength.
 pub fn set_landy(range: Option<(u8, u8)>) {
     LANDY.with(|cell| cell.set(range));
+    // Coupled with Woolsey: the both-majors `2♣` is the identical call in both
+    // conventions, so they share one strength band — the [`woolsey_points`] cell.
+    // A Landy range feeds that band, so the two can never carry divergent strengths.
+    // (Measured: the `:19` cap binds on ~0 hands and the floor barely moves the IMPs,
+    // so one knob loses nothing; see `examples/ab-landy` / `bba-gen --ns-landy`.)
+    if let Some((lo, hi)) = range {
+        set_woolsey_points(lo, hi);
+    }
 }
 
 /// The configured Landy range, or `None` when Landy is off
@@ -948,10 +958,11 @@ fn dont_x() -> Rules {
     )
 }
 
-/// Landy `2♣`: both majors, at least 5-4, on the Landy range (raw HCP or upgraded
-/// points per [`set_landy_hcp`]).
+/// Landy `2♣`: both majors, at least 5-4, on the shared two-suiter band
+/// ([`woolsey_points`], coupled with Woolsey's identical `2♣`; see [`set_landy`]),
+/// gauged as raw HCP or upgraded points per [`set_landy_hcp`].
 fn landy_2c() -> Rules {
-    let (lo, hi) = landy_range().unwrap_or((0, 37));
+    let (lo, hi) = woolsey_points();
     let shape = five_four(Suit::Hearts, Suit::Spades);
     if landy_use_hcp() {
         Rules::new().rule(Bid::new(2, Strain::Clubs), 1.9, shape & hcp(lo..=hi))
@@ -2379,8 +2390,10 @@ pub fn defensive() -> Defensive {
     }
 
     // Advancing partner's Landy 2♣ (both majors) over their 1NT, when on.  Woolsey's
-    // 2♣ is the identical both-majors call, so it reuses this same advance wiring.
-    if let Some((lo, hi)) = landy_range().or_else(|| woolsey_enabled().then(woolsey_points)) {
+    // 2♣ is the identical both-majors call on the same shared band, so it reuses this
+    // same advance wiring.
+    if landy_range().is_some() || woolsey_enabled() {
+        let (lo, hi) = woolsey_points();
         let landy_2c = call(2, Strain::Clubs);
 
         // [1NT, 2♣, P] — advancer picks a major / asks via the 2♦ / 2NT routes.
@@ -2686,6 +2699,28 @@ mod tests {
             .map(|(call, _)| call)
             .expect("array is never empty");
         (best, prov.depth == 0 && prov.fallback.is_some())
+    }
+
+    /// Coupling: a Landy range feeds the one shared two-suiter band, so Landy's and
+    /// Woolsey's identical both-majors `2♣` can never carry divergent strengths.
+    #[test]
+    fn landy_range_feeds_the_shared_woolsey_band() {
+        super::set_landy(Some((9, 16)));
+        assert_eq!(
+            super::woolsey_points(),
+            (9, 16),
+            "a Landy range sets the shared band"
+        );
+        // Turning Landy off must not clobber an explicit Woolsey band.
+        set_woolsey_points(7, 18);
+        super::set_landy(None);
+        assert_eq!(
+            super::woolsey_points(),
+            (7, 18),
+            "set_landy(None) leaves the band alone"
+        );
+        // Restore the default for any sibling test sharing this thread.
+        set_woolsey_points(8, 19);
     }
 
     /// Per-call exclusivity: in every named 1NT-defense config the `[1NT]` node
