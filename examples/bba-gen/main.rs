@@ -12,6 +12,12 @@
 //! boards also lets a tuning loop re-score them many ways (plain vs PD) without
 //! paying the slow FFI bidding again.
 //!
+//! To use every core anyway, parallelize across **processes** (not threads — the
+//! FFI is thread-unsafe): `scripts/bba-gen-parallel.sh` runs one shard per core
+//! with a distinct `--seed`, and `bba-score` merges the shard files back into one
+//! match.  Each process gets its own address space, `.so`, and thread-locals, so
+//! there is no shared state to race on.
+//!
 //! ```text
 //! # pipe the whole match through in one line (today's one-shot behaviour)
 //! cargo run --release --features serde --example bba-gen -- --count 1000 \

@@ -12,7 +12,11 @@
 //! cargo run --release --features serde --example bba-gen -- --count 1000 \
 //!   | cargo run --release --features serde --example bba-score
 //! cargo run --release --features serde --example bba-score -- boards.json --score pd
+//! cargo run --release --features serde --example bba-score -- shards/shard-*.json --score pd
 //! ```
+//!
+//! The last form merges the shard files [`bba-gen`](../bba-gen/main.rs) writes
+//! when generation is sharded across processes (`scripts/bba-gen-parallel.sh`).
 
 use clap::Parser;
 use contract_bridge::auction::{Auction, Call};
@@ -29,8 +33,10 @@ use common::{Dump, mean_with_ci, score_boards, seat_to_act};
 /// A/B duplicate match)
 #[derive(Parser)]
 struct Args {
-    /// Board dump from `bba-gen` (default: stdin)
-    input: Option<String>,
+    /// Board dump(s) from `bba-gen` (default: stdin).  Several shard files merge
+    /// into one match — their boards concatenate; the labels and vulnerability
+    /// must agree (they do when the shards share `bba-gen` flags).
+    inputs: Vec<String>,
 
     /// Score with plain DD (`plain`, the contract's bid penalty) or
     /// perfect-defense (`pd`, double any contract that fails double dummy)
@@ -116,10 +122,29 @@ fn responder_call_after(auction: &[Call], dealer: Seat, nt_index: usize) -> Opti
 #[allow(clippy::cast_precision_loss, clippy::too_many_lines)]
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
-    let dump: Dump = match args.input.as_deref() {
-        Some(path) => serde_json::from_reader(std::io::BufReader::new(std::fs::File::open(path)?))?,
-        None => serde_json::from_reader(std::io::stdin().lock())?,
+    // No file: one dump from stdin.  One or more files: read each and merge their
+    // boards into a single match (the shards `bba-gen` writes when sharded across
+    // processes).  The labels and vulnerability must agree across shards — they do
+    // when the shards were generated with the same flags, and a mismatch would
+    // silently average two different experiments, so we reject it.
+    let mut dump: Dump = if args.inputs.is_empty() {
+        serde_json::from_reader(std::io::stdin().lock())?
+    } else {
+        serde_json::from_reader(std::io::BufReader::new(std::fs::File::open(
+            &args.inputs[0],
+        )?))?
     };
+    for path in args.inputs.iter().skip(1) {
+        let shard: Dump =
+            serde_json::from_reader(std::io::BufReader::new(std::fs::File::open(path)?))?;
+        anyhow::ensure!(
+            shard.our_label == dump.our_label
+                && shard.their_label == dump.their_label
+                && shard.vulnerability == dump.vulnerability,
+            "shard {path:?} has mismatched labels/vulnerability — won't merge different experiments",
+        );
+        dump.boards.extend(shard.boards);
+    }
     let boards = &dump.boards;
     let count = boards.len();
     // The boards were bid at `dump.vulnerability`; `--vulnerability` re-prices the

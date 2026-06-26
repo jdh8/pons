@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`bba-gen` board generation can now use every core, via processes.** EPBot's
+  FFI is thread-unsafe, so the bidding half has always been single-threaded. The
+  new `scripts/bba-gen-parallel.sh` sidesteps that by sharding across **processes**
+  instead of threads — one `bba-gen --seed i` per core, each with its own address
+  space, `.so`, and thread-locals (no shared state to race on). `bba-score` now
+  accepts **multiple dump files** and concatenates their boards (rejecting shards
+  whose labels or vulnerability disagree), so the shards merge back into one match:
+  `scripts/bba-gen-parallel.sh out 1000 --isolate-defense` then `bba-score
+  out/shard-*.json --score pd`. Single-file and stdin invocations are unchanged.
+
 - **`bba-gen` can now measure our Landy honestly against BBA.** A new `--ns-landy
   LO:HI` overlays Landy on our natural 1NT defense (`2♣` = both majors, `2NT` = both
   minors), and `--advertise-landy` discloses it by setting BBA's opponent model to
