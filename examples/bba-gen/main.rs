@@ -144,9 +144,9 @@ struct Args {
     #[arg(long, default_value_t = false)]
     nt_fifths: bool,
 
-    /// Shape gate for our natural penalty double of their 1NT: any (default, matches
-    /// the shipped `american()`) | semi | balanced.
-    #[arg(long, default_value = "any")]
+    /// Shape gate for our natural penalty double of their 1NT: balanced (default,
+    /// matches the shipped `american()`) | semi | any.
+    #[arg(long, default_value = "balanced")]
     ns_double_shape: String,
 
     /// HCP floor for our natural penalty double of their 1NT (default 15).

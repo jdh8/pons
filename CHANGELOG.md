@@ -41,6 +41,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The natural penalty double of their 1NT defaults to `Balanced` shape again
+  (was `Any`).** The 15+ HCP floor is unchanged; only a *flat* 15+ hand now
+  doubles, where before any 15+ shape did ([`set_natural_double_shape`] /
+  `--ns-double-shape`). A flat hand has no escape for the opener to punish and
+  genuinely wants to defend `1NT` doubled; a shapely 15+ hand would rather declare
+  its own suit, and the opponents simply run from the double into a making
+  contract. The `Any` default rested on a cosmetic tiebreak of a within-noise
+  `bba-match --isolate-defense` edge ("a 15+ hand has no overcall outlet, so just
+  double"); the axis had never been cleanly isolated in self-play. It now has:
+  isolated plain-DD self-play (`ab-landy --ns-double-shape any --ns-majors ""
+  --ns-minors ""`, 100k filtered, 16.9k divergent) prefers `Balanced` by **−0.70
+  IMPs/divergent** (−0.92 under perfect-defense doubling). Against BBA the edge is
+  a wash that the change does not cost: the head-to-head over 138 divergent
+  isolate-defense boards is +0.33 IMPs/divergent for `Any` with a CI straddling 0.
+  `Balanced` strictly dominates — it wins self-play and ties BBA.
 - **The penalty-double latch no longer un-latches when our side bids.** After our
   natural penalty double of their 1NT, the "once penalty, always penalty" stance
   ([`set_penalty_latch`], default on) now holds for the *rest of the auction* — a

@@ -508,28 +508,33 @@ fn both_majors_shape(four_four: bool) -> Cons<impl Constraint + Clone> {
 /// floor is fixed; this only widens the *shape* gate). See [`set_natural_double_shape`].
 #[derive(Clone, Copy, PartialEq, Eq, Default, Debug)]
 pub enum DoubleShape {
-    /// 4333/4432/5332 only.  The 15+ penalty double restricted to balanced hands.
-    /// Once the default, on a within-noise `bba-match --isolate-defense` edge, since
-    /// reconsidered: a 15+ hand has no overcall outlet (the overcall caps at 14), so
-    /// on the clean scheme it doubles regardless of shape.
+    /// 4333/4432/5332 only — the 15+ penalty double restricted to balanced hands
+    /// (**the default**).  A flat hand has no escape for the opener to punish, so it
+    /// is the shape that actually wants to defend `1NT` doubled; a shapely 15+ hand
+    /// would rather declare its own suit, and the opponents run from the double into
+    /// a making contract.  Isolated plain-DD self-play prefers this to [`Self::Any`]
+    /// by −0.70 IMPs/divergent (−0.92 under perfect-defense doubling, ~17k divergent
+    /// boards); the `bba-match --isolate-defense` edge that once favored `Any` is a
+    /// within-noise wash (+0.33/divergent over 138 boards, CI straddles 0).
+    #[default]
     Balanced,
     /// Balanced plus the semi-balanced single-long-suit hands 5422/6322/7222.
     SemiBalanced,
-    /// Any shape — the 15+ HCP floor alone gates the double (**the default**).  The
-    /// scheme is clean: 15+ doubles, 8-14 with a five-card suit overcalls — and a 15+
-    /// hand has *no* overcall to make (the range stops at 14), so it doubles on any
-    /// shape.  DD is neutral between this and [`Self::Balanced`] (within noise on
-    /// `bba-match --isolate-defense`); the clean scheme takes the tie.
-    #[default]
+    /// Any shape — the 15+ HCP floor alone gates the double.  The scheme reads clean
+    /// (15+ doubles, 8-14 with a five-card suit overcalls, and a 15+ hand has no
+    /// overcall outlet since the range stops at 14), but self-play punishes doubling
+    /// a shapely 15+ hand: the opponents escape the penalty double into a making
+    /// contract.  See [`Self::Balanced`] for the A/B.
     Any,
 }
 
 thread_local! {
-    /// Which shapes earn the natural penalty double of their 1NT; **[`Any`]
-    /// by default** (15+ HCP alone gates it). See [`set_natural_double_shape`].
+    /// Which shapes earn the natural penalty double of their 1NT; **[`Balanced`]
+    /// by default** (a flat 15+; shapely hands would rather declare). See
+    /// [`set_natural_double_shape`].
     ///
-    /// [`Any`]: DoubleShape::Any
-    static NATURAL_DOUBLE_SHAPE: Cell<DoubleShape> = const { Cell::new(DoubleShape::Any) };
+    /// [`Balanced`]: DoubleShape::Balanced
+    static NATURAL_DOUBLE_SHAPE: Cell<DoubleShape> = const { Cell::new(DoubleShape::Balanced) };
     /// HCP floor for the natural penalty double of their 1NT; **15 by default**.
     static NATURAL_DOUBLE_FLOOR: Cell<u8> = const { Cell::new(15) };
     /// Logit weight of the natural penalty double; **1.3 by default** (above the
@@ -545,11 +550,10 @@ thread_local! {
 /// Widen (or narrow) the shape gate of the natural penalty double for books built
 /// *after* this call (thread-local, read once at book-construction time)
 ///
-/// [`DoubleShape::Any`] (the **default**) doubles every 15+ hand regardless of
-/// shape. [`DoubleShape::Balanced`] doubles only 15+ balanced hands, and
-/// [`DoubleShape::SemiBalanced`] adds 5422/6322/7222. The HCP floor (15+) is
-/// unchanged. An A/B knob
-/// (`examples/landy-ab --ns-double-shape balanced|semibal|any`).
+/// [`DoubleShape::Balanced`] (the **default**) doubles only 15+ balanced hands.
+/// [`DoubleShape::SemiBalanced`] adds 5422/6322/7222, and [`DoubleShape::Any`]
+/// doubles every 15+ hand regardless of shape. The HCP floor (15+) is unchanged.
+/// An A/B knob (`examples/ab-landy --ns-double-shape balanced|semibal|any`).
 pub fn set_natural_double_shape(shape: DoubleShape) {
     NATURAL_DOUBLE_SHAPE.with(|cell| cell.set(shape));
 }
