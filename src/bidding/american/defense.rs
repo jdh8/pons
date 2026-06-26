@@ -12,7 +12,7 @@ use super::super::constraint::{
     short_in_their_suits, stopper_in_their_suits, top_honors,
 };
 use super::super::context::Context;
-use super::super::{Defensive, Rules};
+use super::super::{Defensive, Rules, Tag};
 use super::competition::{
     LebensohlStyle, clubs_transfer_completion, complete_lebensohl_relay, cue_stayman_answer,
     cue_stayman_answer_no_stopper, delayed_cue, lebensohl_relay_rebid, lebensohl_responder,
@@ -876,166 +876,302 @@ fn passed_two_suiter(a: Suit, b: Suit) -> Cons<impl Constraint + Clone> {
     five_four(a, b) & len(a, ..=5) & len(b, ..=5)
 }
 
-/// Our action over their 1NT opening
-///
-/// Default: a penalty double (15+ balanced) and natural two-level suit overcalls
-/// (five-card suit, 8–14).  Two independent two-suiter add-ons:
-/// [`set_landy`] turns `2♣` into both majors (≥5-4), replacing the natural `2♣`
-/// club overcall; [`set_unusual_notrump_defense`] turns `2NT` into both minors
-/// (≥5-4), a purely additive repurposing of an otherwise-useless natural `2NT`.
-pub fn defense_to_notrump() -> Rules {
-    // The always-pass baseline: a finite logit on `Pass` for every hand
-    // shadows the floor here, so our side never competes over their 1NT.
+// ---------------------------------------------------------------------------
+// Defense to their 1NT — per-call *alert* tags
+// ---------------------------------------------------------------------------
+//
+// A defensive "system" (Natural, Woolsey, DONT, …) is a *bundle* of per-call
+// conventions: only the call carries a convention, not the system.  "Woolsey"
+// is `X` = Woolsey + `2♣` = Landy + `2♦` = Multi + `2♥`/`2♠` = Muiderberg.  So
+// each artificial `(call, convention)` is authored once as a tagged block, all
+// of them are chained at the `[1NT]` node, and [`Rules::gated`] ships only the
+// active system's calls at book-construction time (the same build-time gate the
+// European 1NT minors use; see `notrump::notrump_responses`).
+//
+// **A tag is an alert: only artificial calls carry one.**  An untagged call is
+// *natural* and *floor-safe* — dropping its book node is at worst suboptimal,
+// because the instinct floor bids it sensibly and reads it right.  An artificial
+// call must be pinned by a book node (and an `Inferences::read` decoding), or the
+// floor misreads the convention and raises a phantom suit into a doubled minus.
+// So the penalty `X`, the four natural suit overcalls, and `Pass` stay untagged
+// (authored where they are a measured DD win, via [`chain_natural_base`]); the
+// conventions are the alerts.  (Forward: rename `Tag` → `Alert` and enforce the
+// alert on every artificial call system-wide.)
+
+const WOOLSEY_X: Tag = Tag("1ntd:woolsey-x");
+const LANDY_X: Tag = Tag("1ntd:landy-x");
+const DONT_X: Tag = Tag("1ntd:dont-x");
+const LANDY_2C: Tag = Tag("1ntd:landy-2c");
+const WOOLSEY_2C: Tag = Tag("1ntd:woolsey-2c");
+const DONT_2C: Tag = Tag("1ntd:dont-2c");
+const MULTI_2D: Tag = Tag("1ntd:multi-2d");
+const DONT_2D: Tag = Tag("1ntd:dont-2d");
+const MUIDERBERG_2H: Tag = Tag("1ntd:muiderberg-2h");
+const DONT_2H: Tag = Tag("1ntd:dont-2h");
+const MUIDERBERG_2S: Tag = Tag("1ntd:muiderberg-2s");
+const UNUSUAL_2NT: Tag = Tag("1ntd:unusual-2nt");
+
+// Each artificial block is a one-rule `Rules` lifting today's cascade verbatim
+// (weight, shape, strength).  All twelve are chained unconditionally and then
+// gated, so each reads its tuning knobs defensively (an `unwrap_or` placeholder
+// band on a gated-out block never reaches the trie).
+
+/// Woolsey takeout `X`: a 4-card major + a longer (5-6) minor, `points(floor..)`.
+fn woolsey_x() -> Rules {
+    Rules::new().rule(
+        Call::Double,
+        1.9,
+        woolsey_double_shape() & points(woolsey_double_floor()..),
+    )
+}
+
+/// Direct-Landy `X`: both majors (5-4, or flat 4-4 when configured), replacing the
+/// 15+ penalty double; weight 1.9 beats the natural 2♥/2♠ so a both-majors hand
+/// doubles rather than picking one major.
+fn landy_x() -> Rules {
+    let four_four = direct_landy_double().unwrap_or(false);
+    Rules::new().rule(
+        Call::Double,
+        1.9,
+        both_majors_shape(four_four) & points(direct_landy_double_floor()..),
+    )
+}
+
+/// DONT `X`: a one-suiter (♣/♦/♥), `points(natural-overcall-floor..)`.
+fn dont_x() -> Rules {
+    let lo = natural_overcall_points().0;
+    let one_min = direct_dont_one_suiter_min();
+    Rules::new().rule(
+        Call::Double,
+        1.9,
+        dont_one_suiter_direct(one_min) & points(lo..),
+    )
+}
+
+/// Landy `2♣`: both majors, at least 5-4, on the Landy range (raw HCP or upgraded
+/// points per [`set_landy_hcp`]).
+fn landy_2c() -> Rules {
+    let (lo, hi) = landy_range().unwrap_or((0, 37));
+    let shape = five_four(Suit::Hearts, Suit::Spades);
+    if landy_use_hcp() {
+        Rules::new().rule(Bid::new(2, Strain::Clubs), 1.9, shape & hcp(lo..=hi))
+    } else {
+        Rules::new().rule(Bid::new(2, Strain::Clubs), 1.9, shape & points(lo..=hi))
+    }
+}
+
+/// Woolsey `2♣` (Landy, inside the bundle): both majors, but neither major 6+
+/// (`passed_two_suiter` caps each major at five, routing a 6-card major to the
+/// Multi `2♦` and keeping the bundle's uniform 1.9 weights disjoint).  A distinct
+/// block from [`landy_2c`] — same convention, load-bearing shape difference.
+fn woolsey_2c() -> Rules {
+    let (lo, hi) = woolsey_points();
+    Rules::new().rule(
+        Bid::new(2, Strain::Clubs),
+        1.9,
+        passed_two_suiter(Suit::Hearts, Suit::Spades) & points(lo..=hi),
+    )
+}
+
+/// DONT `2♣`: clubs + a higher major, 5-4 (or 4-4 when configured).
+fn dont_2c() -> Rules {
+    let lo = natural_overcall_points().0;
+    let ff = direct_dont_four_four();
+    Rules::new().rule(
+        Bid::new(2, Strain::Clubs),
+        2.0,
+        dont_minor_major(Suit::Clubs, ff) & points(lo..),
+    )
+}
+
+/// Woolsey Multi `2♦`: a single 6+ major.
+fn multi_2d() -> Rules {
+    let (lo, hi) = woolsey_points();
+    Rules::new().rule(
+        Bid::new(2, Strain::Diamonds),
+        1.9,
+        woolsey_multi() & points(lo..=hi),
+    )
+}
+
+/// DONT `2♦`: diamonds + a higher major, 5-4 (or 4-4 when configured).
+fn dont_2d() -> Rules {
+    let lo = natural_overcall_points().0;
+    let ff = direct_dont_four_four();
+    Rules::new().rule(
+        Bid::new(2, Strain::Diamonds),
+        2.0,
+        dont_minor_major(Suit::Diamonds, ff) & points(lo..),
+    )
+}
+
+/// Woolsey Muiderberg `2♥`/`2♠`: exactly 5 in `major` + a 4+ minor.
+fn muiderberg(major: Suit) -> Rules {
+    let (lo, hi) = woolsey_points();
+    Rules::new().rule(
+        Bid::new(2, Strain::from(major)),
+        1.9,
+        woolsey_muiderberg(major) & points(lo..=hi),
+    )
+}
+
+/// DONT `2♥`: both majors, 5-4 (or 4-4 when configured).
+fn dont_2h() -> Rules {
+    let lo = natural_overcall_points().0;
+    let ff = direct_dont_four_four();
+    Rules::new().rule(
+        Bid::new(2, Strain::Hearts),
+        2.0,
+        dont_both_majors(ff) & points(lo..),
+    )
+}
+
+/// Unusual `2NT`: both minors, 5-5, on its own range (raw HCP or points per
+/// [`set_landy_hcp`]).  Additive — compatible with every system.
+fn unusual_2nt() -> Rules {
+    let (lo, hi) = unusual_notrump_range().unwrap_or((0, 37));
+    let shape = len(Suit::Clubs, 5..) & len(Suit::Diamonds, 5..);
+    if landy_use_hcp() {
+        Rules::new().rule(Bid::new(2, Strain::Notrump), 1.8, shape & hcp(lo..=hi))
+    } else {
+        Rules::new().rule(Bid::new(2, Strain::Notrump), 1.8, shape & points(lo..=hi))
+    }
+}
+
+/// The four natural two-level suit overcalls (five-card suit, `points(8..=14)`),
+/// optionally skipping `2♣` when the Landy `2♣` overlay owns that slot.
+fn chain_natural_overcalls(mut rules: Rules, skip_clubs: bool) -> Rules {
+    let (oc_lo, oc_hi) = natural_overcall_points();
+    for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
+        if suit == Suit::Clubs && skip_clubs {
+            continue;
+        }
+        rules = rules.rule(
+            Bid::new(2, Strain::from(suit)),
+            1.0,
+            len(suit, 5..) & points(oc_lo..=oc_hi),
+        );
+    }
+    rules
+}
+
+/// Chain the untagged, floor-safe natural calls the active system uses: the owning
+/// `Pass`, and — at the slots no artificial alert owns — the penalty `X` and the
+/// natural suit overcalls.  Mirrors the pre-tag cascade's natural arms exactly; the
+/// conventions are chained and gated separately in [`defense_to_notrump`].  A slot
+/// no live system owns is simply not authored and falls to the instinct floor (the
+/// natural-off baseline arm).
+fn chain_natural_base(rules: Rules) -> Rules {
+    // The always-pass baseline: a finite logit on `Pass` for every hand shadows the
+    // floor here, so our side never competes (no overlays).
     if always_pass_defense_enabled() {
-        return Rules::new().rule(Call::Pass, 0.0, hcp(0..));
+        return rules.rule(Call::Pass, 0.0, hcp(0..));
     }
 
-    let mut rules = Rules::new();
-
-    let landy = landy_range();
-    // Woolsey "Multi-Landy" replaces every natural / Landy / both-majors-X arm with
-    // its own five-call structure (X / 2♣ / 2♦ / 2♥ / 2♠) and owns Pass, covering
-    // every seat (the passed-hand arm is then suppressed).  Disjoint shapes, so a
-    // uniform 1.9 weight never ties; a hand matching nothing conventional Passes —
-    // including strong balanced (no penalty double, exactly as BBA).
+    // Cascade precedence: Woolsey > DONT > direct-Landy-X > natural penalty-X.
     if woolsey_enabled() {
-        let (lo, hi) = woolsey_points();
-        rules = rules
-            .rule(
-                Call::Double,
-                1.9,
-                woolsey_double_shape() & points(woolsey_double_floor()..),
-            )
-            .rule(
-                Bid::new(2, Strain::Clubs),
-                1.9,
-                passed_two_suiter(Suit::Hearts, Suit::Spades) & points(lo..=hi),
-            )
-            .rule(
-                Bid::new(2, Strain::Diamonds),
-                1.9,
-                woolsey_multi() & points(lo..=hi),
-            )
-            .rule(
-                Bid::new(2, Strain::Hearts),
-                1.9,
-                woolsey_muiderberg(Suit::Hearts) & points(lo..=hi),
-            )
-            .rule(
-                Bid::new(2, Strain::Spades),
-                1.9,
-                woolsey_muiderberg(Suit::Spades) & points(lo..=hi),
-            )
-            .rule(Call::Pass, 0.0, hcp(0..));
+        // Woolsey owns X and every overcall; `Pass` is the only natural call.
+        rules.rule(Call::Pass, 0.0, hcp(0..))
     } else if direct_dont_enabled() {
+        // DONT keeps the natural `2♠` one-suiter (open-top, length-gated so the
+        // one-suiter `X` can exclude spades) below its two-suiters, plus `Pass`.
         let lo = natural_overcall_points().0;
-        let ff = direct_dont_four_four();
         let one_min = direct_dont_one_suiter_min();
-        rules = rules
-            .rule(
-                Bid::new(2, Strain::Clubs),
-                2.0,
-                dont_minor_major(Suit::Clubs, ff) & points(lo..),
-            )
-            .rule(
-                Bid::new(2, Strain::Diamonds),
-                2.0,
-                dont_minor_major(Suit::Diamonds, ff) & points(lo..),
-            )
-            .rule(
-                Bid::new(2, Strain::Hearts),
-                2.0,
-                dont_both_majors(ff) & points(lo..),
-            )
-            // 2♠ natural sits below the two-suiters (1.0 < 2.0), so a 5-4 spade
-            // two-suiter shows the two-suiter and only a pure spade one-suiter lands
-            // here — the one-suiter `X` excludes spades for exactly this handoff.
+        rules
             .rule(
                 Bid::new(2, Strain::Spades),
                 1.0,
                 len(Suit::Spades, one_min..) & points(lo..),
             )
-            .rule(
-                Call::Double,
-                1.9,
-                dont_one_suiter_direct(one_min) & points(lo..),
-            )
-            .rule(Call::Pass, 0.0, hcp(0..));
-    } else if let Some(four_four) = direct_landy_double() {
-        // X = both majors (takeout), replacing the 15+ penalty double; the four
-        // natural two-level overcalls are kept.  Weight 1.9 beats the natural 2♥/2♠
-        // overcall (1.0) so a both-majors hand doubles rather than picking one major.
-        // The floor (default 8, open-topped) is `set_direct_landy_double_floor`: raise
-        // it to reserve the X for stronger hands, so a lighter both-majors hand fails
-        // the X gate and overcalls its longer major instead.  A 15+ balanced hand has
-        // no penalty double now — it passes or overcalls a five-card suit.
-        let (oc_lo, oc_hi) = natural_overcall_points();
-        rules = rules
-            .rule(
-                Call::Double,
-                1.9,
-                both_majors_shape(four_four) & points(direct_landy_double_floor()..),
-            )
-            .rule(Call::Pass, 0.0, hcp(0..));
-        for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
-            rules = rules.rule(
-                Bid::new(2, Strain::from(suit)),
-                1.0,
-                len(suit, 5..) & points(oc_lo..=oc_hi),
-            );
-        }
+            .rule(Call::Pass, 0.0, hcp(0..))
+    } else if direct_landy_double().is_some() {
+        // The both-majors `X` is the alert; the four natural overcalls and `Pass`
+        // are the floor-safe base (a 15+ balanced hand now passes or overcalls).
+        chain_natural_overcalls(rules.rule(Call::Pass, 0.0, hcp(0..)), false)
     } else if natural_defense_enabled() {
-        // The penalty double's HCP floor is fixed at 15; the shape gate widens with
-        // `set_natural_double_shape`. Each arm reissues `.rule()` so the differing
-        // constraint types unify to `Rules` (same trick as the `use_hcp` branches).
+        // Penalty `X` (HCP floor fixed; shape gate per `set_natural_double_shape` —
+        // each arm reissues `.rule()` so the differing constraint types unify), the
+        // owning `Pass`, and the natural overcalls (ceding `2♣` to a Landy overlay).
         let floor = natural_double_floor();
         let w = natural_double_weight();
-        rules = match natural_double_shape() {
+        let rules = match natural_double_shape() {
             DoubleShape::Balanced => rules.rule(Call::Double, w, hcp(floor..) & balanced()),
             DoubleShape::SemiBalanced => {
                 rules.rule(Call::Double, w, hcp(floor..) & semi_balanced())
             }
             DoubleShape::Any => rules.rule(Call::Double, w, hcp(floor..)),
         };
-        rules = rules.rule(Call::Pass, 0.0, hcp(0..));
-        let (oc_lo, oc_hi) = natural_overcall_points();
-        for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
-            // Landy reuses 2♣ for both majors, so the natural club overcall is gone.
-            if landy.is_some() && suit == Suit::Clubs {
-                continue;
-            }
-            rules = rules.rule(
-                Bid::new(2, Strain::from(suit)),
-                1.0,
-                len(suit, 5..) & points(oc_lo..=oc_hi),
-            );
-        }
+        chain_natural_overcalls(
+            rules.rule(Call::Pass, 0.0, hcp(0..)),
+            landy_range().is_some(),
+        )
+    } else {
+        // Natural off and no system: author nothing, fall to the instinct floor.
+        rules
     }
+}
 
-    let use_hcp = landy_use_hcp();
-    // DONT repurposes 2♣ as a two-suiter, and the direct both-majors X already
-    // shows both majors, so the Landy 2♣ overlay is incompatible with either.
-    if let Some((lo, hi)) = landy
-        .filter(|_| !direct_dont_enabled() && direct_landy_double().is_none() && !woolsey_enabled())
+/// The artificial alerts live at the `[1NT]` node for the configured system,
+/// mirroring the cascade precedence (Woolsey > DONT > direct-Landy-X > natural)
+/// plus the two independent overlays.  Read once at book-construction time.
+fn active_alerts() -> Vec<Tag> {
+    let mut alerts = Vec::new();
+    if always_pass_defense_enabled() {
+        return alerts;
+    }
+    if woolsey_enabled() {
+        alerts.extend([
+            WOOLSEY_X,
+            WOOLSEY_2C,
+            MULTI_2D,
+            MUIDERBERG_2H,
+            MUIDERBERG_2S,
+        ]);
+    } else if direct_dont_enabled() {
+        alerts.extend([DONT_X, DONT_2C, DONT_2D, DONT_2H]);
+    } else if direct_landy_double().is_some() {
+        alerts.push(LANDY_X);
+    }
+    // The natural penalty-X family adds no alert of its own; the Landy `2♣` overlay
+    // is its one convention, incompatible with DONT / direct-Landy-X / Woolsey
+    // (each repurposes or replaces the `2♣` slot).
+    if landy_range().is_some()
+        && !direct_dont_enabled()
+        && direct_landy_double().is_none()
+        && !woolsey_enabled()
     {
-        // 2♣ = both majors, at least 5-4.
-        let shape = five_four(Suit::Hearts, Suit::Spades);
-        rules = if use_hcp {
-            rules.rule(Bid::new(2, Strain::Clubs), 1.9, shape & hcp(lo..=hi))
-        } else {
-            rules.rule(Bid::new(2, Strain::Clubs), 1.9, shape & points(lo..=hi))
-        };
+        alerts.push(LANDY_2C);
     }
-    if let Some((lo, hi)) = unusual_notrump_range() {
-        // 2NT = both minors, 5-5 or better (committing to the three level).
-        let shape = len(Suit::Clubs, 5..) & len(Suit::Diamonds, 5..);
-        rules = if use_hcp {
-            rules.rule(Bid::new(2, Strain::Notrump), 1.8, shape & hcp(lo..=hi))
-        } else {
-            rules.rule(Bid::new(2, Strain::Notrump), 1.8, shape & points(lo..=hi))
-        };
+    // Unusual `2NT` is additive — every non-always-pass system.
+    if unusual_notrump_range().is_some() {
+        alerts.push(UNUSUAL_2NT);
     }
-    rules
+    alerts
+}
+
+/// Our defense to the opponents' 1NT opening, composed from per-call alert tags
+///
+/// The untagged natural base ([`chain_natural_base`]) and every artificial alert
+/// are chained at the `[1NT]` node; [`Rules::gated`] then ships only the active
+/// system's alerts (untagged natural rules always survive).  [`active_alerts`]
+/// guarantees at most one convention per call, and the natural base skips any slot
+/// an alert owns, so no two rules collide at a node.
+pub fn defense_to_notrump() -> Rules {
+    let alerts = active_alerts();
+    chain_natural_base(Rules::new())
+        .chain(woolsey_x().only(WOOLSEY_X))
+        .chain(landy_x().only(LANDY_X))
+        .chain(dont_x().only(DONT_X))
+        .chain(landy_2c().only(LANDY_2C))
+        .chain(woolsey_2c().only(WOOLSEY_2C))
+        .chain(dont_2c().only(DONT_2C))
+        .chain(multi_2d().only(MULTI_2D))
+        .chain(dont_2d().only(DONT_2D))
+        .chain(muiderberg(Suit::Hearts).only(MUIDERBERG_2H))
+        .chain(dont_2h().only(DONT_2H))
+        .chain(muiderberg(Suit::Spades).only(MUIDERBERG_2S))
+        .chain(unusual_2nt().only(UNUSUAL_2NT))
+        .gated(move |t| alerts.contains(&t))
 }
 
 // Direct-seat DONT shapes.  Unlike the passed-hand twins these carry no six-card
@@ -2550,6 +2686,60 @@ mod tests {
             .map(|(call, _)| call)
             .expect("array is never empty");
         (best, prov.depth == 0 && prov.fallback.is_some())
+    }
+
+    /// Per-call exclusivity: in every named 1NT-defense config the `[1NT]` node
+    /// authors at most one rule per call.  This is the invariant the alert-tag gate
+    /// must preserve — two rules on one call would let a hand fire the wrong
+    /// convention and a reading mis-decode it (e.g. a natural overcall leaking onto
+    /// a slot an artificial alert owns).  Pass is always authored (these configs all
+    /// own the auction).
+    #[test]
+    fn defense_to_notrump_authors_one_rule_per_call() {
+        fn reset() {
+            super::set_woolsey(false);
+            super::set_direct_dont(false);
+            super::set_direct_landy_double(None);
+            super::set_landy(None);
+            super::set_natural_defense(true);
+            super::set_always_pass_defense(false);
+            super::set_unusual_notrump_defense(Some((8, 13)));
+        }
+
+        let configs: [(&str, fn()); 6] = [
+            ("natural+unusual2nt", || {}),
+            ("natural+landy", || super::set_landy(Some((8, 15)))),
+            ("woolsey", || super::set_woolsey(true)),
+            ("dont", || super::set_direct_dont(true)),
+            ("direct-landy-x", || {
+                super::set_direct_landy_double(Some(false))
+            }),
+            ("always-pass", || super::set_always_pass_defense(true)),
+        ];
+
+        for (label, setup) in configs {
+            reset();
+            setup();
+            let calls: Vec<Call> = super::defense_to_notrump()
+                .rules()
+                .iter()
+                .map(|r| r.call())
+                .collect();
+            reset();
+            assert!(
+                calls.contains(&Call::Pass),
+                "{label}: the owning Pass is missing",
+            );
+            for i in 0..calls.len() {
+                for j in (i + 1)..calls.len() {
+                    assert!(
+                        calls[i] != calls[j],
+                        "{label}: call {:?} authored by two rules at the [1NT] node",
+                        calls[i],
+                    );
+                }
+            }
+        }
     }
 
     /// Best call with the advance-of-double sohl forced to `style` (independent of

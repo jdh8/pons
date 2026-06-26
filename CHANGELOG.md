@@ -41,6 +41,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Defense to their 1NT is now composed from per-call *alert* tags instead of a
+  per-system `if`/`else if` cascade.** A defensive "system" is a bundle of per-call
+  conventions — "Woolsey" is really `X` = Woolsey + `2♣` = Landy + `2♦` = Multi +
+  `2♥`/`2♠` = Muiderberg — so each artificial call is now authored once as a
+  `Tag`-stamped block, all are chained at the `[1NT]` node, and `Rules::gated` ships
+  only the active system's calls at book-construction time (the same build-time gate
+  as the Puppet/European 1NT split). The guiding invariant: **a tag is an alert, so
+  only artificial calls carry one** — the penalty `X`, the four natural suit
+  overcalls, and `Pass` stay untagged and floor-safe (dropping their node is at
+  worst suboptimal; the instinct floor bids them sensibly), while every convention
+  is pinned by its tag. Purely internal: all public setters (`set_woolsey`,
+  `set_direct_dont`, `set_direct_landy_double`, `set_landy`,
+  `set_unusual_notrump_defense`, the tuning knobs) and every defended auction are
+  unchanged — a new test asserts the `[1NT]` node authors at most one rule per call
+  in each named config, and the existing routing/inference suites pin parity. (The
+  diverged building blocks — Woolsey's `2♣` is `passed_two_suiter`, the standalone
+  Landy `2♣` is `five_four` — are kept as distinct tags, since the ≤5-major cap
+  routes a 6-card major to the Multi `2♦` and is load-bearing for the bundle's
+  disjoint shapes.)
+
 - **`Family` is renamed to `Tag` and is now a per-rule gate, not only a
   whole-system label.** The opponent-visible system label (`Tag::NATURAL` /
   `STRONG_CLUB` / `WEAK_NOTRUMP`, still selected via `Pair::against`) keeps its
