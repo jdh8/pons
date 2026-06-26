@@ -12,7 +12,7 @@ use super::super::constraint::{
     short_in_their_suits, stopper_in_their_suits, top_honors,
 };
 use super::super::context::Context;
-use super::super::{Defensive, Rules, Tag};
+use super::super::{Alert, Defensive, Rules};
 use super::competition::{
     LebensohlStyle, clubs_transfer_completion, complete_lebensohl_relay, cue_stayman_answer,
     cue_stayman_answer_no_stopper, delayed_cue, lebensohl_relay_rebid, lebensohl_responder,
@@ -877,39 +877,39 @@ fn passed_two_suiter(a: Suit, b: Suit) -> Cons<impl Constraint + Clone> {
 }
 
 // ---------------------------------------------------------------------------
-// Defense to their 1NT — per-call *alert* tags
+// Defense to their 1NT — per-call alerts
 // ---------------------------------------------------------------------------
 //
 // A defensive "system" (Natural, Woolsey, DONT, …) is a *bundle* of per-call
 // conventions: only the call carries a convention, not the system.  "Woolsey"
 // is `X` = Woolsey + `2♣` = Landy + `2♦` = Multi + `2♥`/`2♠` = Muiderberg.  So
-// each artificial `(call, convention)` is authored once as a tagged block, all
+// each artificial `(call, convention)` is authored once as an alerted block, all
 // of them are chained at the `[1NT]` node, and [`Rules::gated`] ships only the
 // active system's calls at book-construction time (the same build-time gate the
 // European 1NT minors use; see `notrump::notrump_responses`).
 //
-// **A tag is an alert: only artificial calls carry one.**  An untagged call is
-// *natural* and *floor-safe* — dropping its book node is at worst suboptimal,
-// because the instinct floor bids it sensibly and reads it right.  An artificial
-// call must be pinned by a book node (and an `Inferences::read` decoding), or the
-// floor misreads the convention and raises a phantom suit into a doubled minus.
-// So the penalty `X`, the four natural suit overcalls, and `Pass` stay untagged
-// (authored where they are a measured DD win, via [`chain_natural_base`]); the
-// conventions are the alerts.  (Forward: rename `Tag` → `Alert` and enforce the
-// alert on every artificial call system-wide.)
+// **An [`Alert`] marks an artificial call: only artificial calls carry one.**  An
+// unalerted call is *natural* and *floor-safe* — dropping its book node is at worst
+// suboptimal, because the instinct floor bids it sensibly and reads it right.  An
+// artificial call must be pinned by a book node (and an `Inferences::read`
+// decoding), or the floor misreads the convention and raises a phantom suit into a
+// doubled minus.  So the penalty `X`, the four natural suit overcalls, and `Pass`
+// stay unalerted (authored where they are a measured DD win, via
+// [`chain_natural_base`]); the conventions are the alerts — the same per-call
+// [`Alert`] now carried by every artificial call system-wide (see [`Rules::alert`]).
 
-const WOOLSEY_X: Tag = Tag("1ntd:woolsey-x");
-const LANDY_X: Tag = Tag("1ntd:landy-x");
-const DONT_X: Tag = Tag("1ntd:dont-x");
-const LANDY_2C: Tag = Tag("1ntd:landy-2c");
-const WOOLSEY_2C: Tag = Tag("1ntd:woolsey-2c");
-const DONT_2C: Tag = Tag("1ntd:dont-2c");
-const MULTI_2D: Tag = Tag("1ntd:multi-2d");
-const DONT_2D: Tag = Tag("1ntd:dont-2d");
-const MUIDERBERG_2H: Tag = Tag("1ntd:muiderberg-2h");
-const DONT_2H: Tag = Tag("1ntd:dont-2h");
-const MUIDERBERG_2S: Tag = Tag("1ntd:muiderberg-2s");
-const UNUSUAL_2NT: Tag = Tag("1ntd:unusual-2nt");
+const WOOLSEY_X: Alert = Alert("1ntd:woolsey-x");
+const LANDY_X: Alert = Alert("1ntd:landy-x");
+const DONT_X: Alert = Alert("1ntd:dont-x");
+const LANDY_2C: Alert = Alert("1ntd:landy-2c");
+const WOOLSEY_2C: Alert = Alert("1ntd:woolsey-2c");
+const DONT_2C: Alert = Alert("1ntd:dont-2c");
+const MULTI_2D: Alert = Alert("1ntd:multi-2d");
+const DONT_2D: Alert = Alert("1ntd:dont-2d");
+const MUIDERBERG_2H: Alert = Alert("1ntd:muiderberg-2h");
+const DONT_2H: Alert = Alert("1ntd:dont-2h");
+const MUIDERBERG_2S: Alert = Alert("1ntd:muiderberg-2s");
+const UNUSUAL_2NT: Alert = Alert("1ntd:unusual-2nt");
 
 // Each artificial block is a one-rule `Rules` lifting today's cascade verbatim
 // (weight, shape, strength).  All twelve are chained unconditionally and then
@@ -1114,7 +1114,7 @@ fn chain_natural_base(rules: Rules) -> Rules {
 /// The artificial alerts live at the `[1NT]` node for the configured system,
 /// mirroring the cascade precedence (Woolsey > DONT > direct-Landy-X > natural)
 /// plus the two independent overlays.  Read once at book-construction time.
-fn active_alerts() -> Vec<Tag> {
+fn active_alerts() -> Vec<Alert> {
     let mut alerts = Vec::new();
     if always_pass_defense_enabled() {
         return alerts;
@@ -1159,18 +1159,18 @@ fn active_alerts() -> Vec<Tag> {
 pub fn defense_to_notrump() -> Rules {
     let alerts = active_alerts();
     chain_natural_base(Rules::new())
-        .chain(woolsey_x().only(WOOLSEY_X))
-        .chain(landy_x().only(LANDY_X))
-        .chain(dont_x().only(DONT_X))
-        .chain(landy_2c().only(LANDY_2C))
-        .chain(woolsey_2c().only(WOOLSEY_2C))
-        .chain(dont_2c().only(DONT_2C))
-        .chain(multi_2d().only(MULTI_2D))
-        .chain(dont_2d().only(DONT_2D))
-        .chain(muiderberg(Suit::Hearts).only(MUIDERBERG_2H))
-        .chain(dont_2h().only(DONT_2H))
-        .chain(muiderberg(Suit::Spades).only(MUIDERBERG_2S))
-        .chain(unusual_2nt().only(UNUSUAL_2NT))
+        .chain(woolsey_x().alert(WOOLSEY_X))
+        .chain(landy_x().alert(LANDY_X))
+        .chain(dont_x().alert(DONT_X))
+        .chain(landy_2c().alert(LANDY_2C))
+        .chain(woolsey_2c().alert(WOOLSEY_2C))
+        .chain(dont_2c().alert(DONT_2C))
+        .chain(multi_2d().alert(MULTI_2D))
+        .chain(dont_2d().alert(DONT_2D))
+        .chain(muiderberg(Suit::Hearts).alert(MUIDERBERG_2H))
+        .chain(dont_2h().alert(DONT_2H))
+        .chain(muiderberg(Suit::Spades).alert(MUIDERBERG_2S))
+        .chain(unusual_2nt().alert(UNUSUAL_2NT))
         .gated(move |t| alerts.contains(&t))
 }
 
@@ -2659,7 +2659,7 @@ pub fn defensive() -> Defensive {
 
 #[cfg(test)]
 mod tests {
-    use crate::bidding::Tag;
+    use crate::bidding::Family;
     use crate::bidding::american::{
         LebensohlStyle, american, set_advance_sohl_style, set_always_pass_defense, set_direct_dont,
         set_direct_landy_double, set_leaping_michaels, set_unusual_notrump_defense, set_woolsey,
@@ -2677,7 +2677,7 @@ mod tests {
     fn best_call(auction: &[Call], hand: &str) -> (Call, bool) {
         let hand: Hand = hand.parse().expect("valid test hand");
         let (logits, prov) = american()
-            .against(Tag::NATURAL)
+            .against(Family::NATURAL)
             .classify_with_provenance(hand, RelativeVulnerability::NONE, auction)
             .expect("a legal auction classifies");
         let best = (&logits.0)

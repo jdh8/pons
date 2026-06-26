@@ -36,7 +36,7 @@ use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Hand, Seat, Suit};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
-use pons::bidding::Tag;
+use pons::bidding::Family;
 use pons::bidding::american::{LebensohlStyle, set_advance_sohl_style, set_delayed_cue};
 use pons::scoring::{final_contract, imps, ns_score_contract};
 use rayon::prelude::*;
@@ -124,10 +124,10 @@ fn main() {
 
     set_delayed_cue(false);
     set_advance_sohl_style(style_from(&args.ew));
-    let baseline = american().against(Tag::NATURAL);
+    let baseline = american().against(Family::NATURAL);
     set_delayed_cue(args.delayed_cue);
     set_advance_sohl_style(style_from(&args.ns));
-    let sohl = american().against(Tag::NATURAL);
+    let sohl = american().against(Family::NATURAL);
     set_delayed_cue(false);
 
     // Phase 1 (sequential, cheap): deal + the shape-only filter until `count`

@@ -45,7 +45,7 @@ pub use american::{
 #[cfg(feature = "search")]
 pub use american::{american_search, american_search_with};
 pub use array::Array;
-pub use book::{Competitive, Constructive, Defensive, Pair, Phase, Stance, Tag};
+pub use book::{Competitive, Constructive, Defensive, Family, Pair, Phase, Stance};
 pub use compose::{OrElse, Versus};
 pub use context::Context;
 pub use ev::{ev, ev_all};
@@ -53,7 +53,7 @@ pub use features::{FEATURES_LEN, FEATURES_VERSION, features};
 pub use inference::{Inference, Inferences, Range, Relative, set_nt_invite_inference};
 pub use instinct::instinct;
 pub use map::Map;
-pub use rules::Rules;
+pub use rules::{Alert, Rules};
 pub use sampler::sample_layouts;
 #[cfg(feature = "search")]
 pub use search_floor::{SearchBook, SearchFloor, american_search_book};

@@ -185,7 +185,7 @@ fn dealer_of(seat: Seat, prior_len: usize) -> Seat {
 mod tests {
     use super::*;
     use crate::american;
-    use crate::bidding::Tag;
+    use crate::bidding::Family;
     use contract_bridge::auction::RelativeVulnerability;
     use contract_bridge::{Bid, Level, Strain};
     use rand::SeedableRng;
@@ -207,7 +207,7 @@ mod tests {
 
     /// The deterministic continuation policy used throughout these tests.
     fn deterministic() -> impl System {
-        american().against(Tag::NATURAL)
+        american().against(Family::NATURAL)
     }
 
     /// Sanity: the evaluator prefers the obviously-right call.  As dealer with a

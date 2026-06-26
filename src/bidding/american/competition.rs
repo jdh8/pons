@@ -12,13 +12,47 @@ use super::super::constraint::{
 use super::super::context::Context;
 use super::super::fallback::{Fallback, FirstIs, OvercallAtMost, ReplaceNext, guard, rewriter};
 use super::super::trie::{Classifier, classifier};
-use super::super::{Competitive, Rules};
+use super::super::{Alert, Competitive, Rules};
 use super::notrump::{notrump_responses, smolen_at_three, smolen_completion, stayman_answers};
 use super::{call, fallback_all_seats};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Hand, Strain, Suit};
 use std::cell::Cell;
 use std::sync::Arc;
+
+// Per-call alerts for the competitive book's artificial calls.  An [`Alert`] marks
+// a call as *conventional*: the inference reader decodes it as the convention
+// rather than as a natural suit.  Natural raises, natural suit rebids, natural
+// notrump, penalty passes, and the catch-all `Pass` stay unalerted.
+
+/// Cue-bid raise — a cue of the opponents' suit as a limit-plus raise of partner's
+/// opening (not natural).
+const CUE_RAISE: Alert = Alert("comp:cue-raise");
+/// Negative double — responder's takeout double showing the unbid suit(s) after
+/// partner opens and RHO overcalls.
+const NEGATIVE_DOUBLE: Alert = Alert("comp:negative-double");
+/// Support double / redouble — opener's `X`/`XX` showing exactly three-card support.
+const SUPPORT_DOUBLE: Alert = Alert("comp:support-double");
+/// Lebensohl `2NT` — the weak relay to `3♣` over their overcall of our `1NT`.
+const LEBENSOHL_RELAY: Alert = Alert("comp:lebensohl-relay");
+/// Lebensohl cue — a cue of their suit as game-forcing Stayman.
+const LEBENSOHL_CUE: Alert = Alert("comp:lebensohl-cue");
+/// Transfer-Lebensohl 3-level transfer — bids the next suit up *through* the
+/// adverse suit (INV+).
+const LEBENSOHL_TRANSFER: Alert = Alert("comp:lebensohl-transfer");
+/// Stayman over `(2♦)` — `3♣` as game-forcing Stayman (with Smolen after the
+/// `3♦` denial).
+const STAYMAN: Alert = Alert("comp:stayman");
+/// Smolen — showing a 5-card major right-sided after the Stayman denial.
+const SMOLEN: Alert = Alert("comp:smolen");
+/// Leaping Michaels — `4♣`/`4♦` jumps naming a 5-5 game-forcing two-suiter.
+const LEAPING_MICHAELS: Alert = Alert("comp:leaping-michaels");
+/// Unusual-vs-Unusual cue — `3♣`/`3♦` cues finding a major fit over their
+/// both-minors `2NT`.
+const UVU_CUE: Alert = Alert("comp:uvu-cue");
+/// Unusual-vs-Unusual splinter — `4♣`/`4♦` as a FG+ 5-5-majors splinter into the
+/// short minor.
+const UVU_SPLINTER: Alert = Alert("comp:uvu-splinter");
 
 /// Which Lebensohl package the competitive book carries over our overcalled
 /// `1NT` (Section 5)
@@ -589,14 +623,16 @@ fn over_their_overcall(opening: Suit) -> Rules {
         }
         let t_strain = Strain::from(t);
         for lvl in 2u8..=3 {
-            rules = rules.rule(
-                Bid::new(lvl, t_strain),
-                2.0,
-                they_bid(t_strain)
-                    & min_level_is(lvl, t_strain)
-                    & support(raise_min..)
-                    & points(10..),
-            );
+            rules = rules
+                .rule(
+                    Bid::new(lvl, t_strain),
+                    2.0,
+                    they_bid(t_strain)
+                        & min_level_is(lvl, t_strain)
+                        & support(raise_min..)
+                        & points(10..),
+                )
+                .alert(CUE_RAISE);
         }
     }
 
@@ -624,14 +660,18 @@ fn over_their_overcall(opening: Suit) -> Rules {
     // Negative double
     rules = if is_major {
         // Other major, 4+ cards, 8+ HCP
-        rules.rule(Call::Double, 1.0, len(other_major, 4..) & hcp(8..))
+        rules
+            .rule(Call::Double, 1.0, len(other_major, 4..) & hcp(8..))
+            .alert(NEGATIVE_DOUBLE)
     } else {
         // Both majors 4+, 8+ HCP
-        rules.rule(
-            Call::Double,
-            1.0,
-            len(Suit::Hearts, 4..) & len(Suit::Spades, 4..) & hcp(8..),
-        )
+        rules
+            .rule(
+                Call::Double,
+                1.0,
+                len(Suit::Hearts, 4..) & len(Suit::Spades, 4..) & hcp(8..),
+            )
+            .alert(NEGATIVE_DOUBLE)
     };
 
     // Weak jump shifts: for each suit x ≠ o, levels 2 and 3
@@ -665,6 +705,7 @@ fn support_rules(major: Suit) -> Rules {
     let m = Strain::from(major);
     Rules::new()
         .rule(Call::Double, 1.5, support(3..=3))
+        .alert(SUPPORT_DOUBLE)
         .rule(Bid::new(2, m), 1.4, support(4..))
         .rule(Call::Pass, 0.0, hcp(0..))
 }
@@ -734,12 +775,16 @@ pub(super) fn lebensohl_responder(over: Suit) -> Rules {
     // bid naturally, a bare 4-card major cues, else 3NT.
     let cue = Bid::new(3, Strain::from(over));
     rules = match unbid_major(over) {
-        Some(major) => rules.rule(cue, 1.75, len(major, 4..) & points(10..)),
-        None => rules.rule(
-            cue,
-            1.75,
-            (len(Suit::Hearts, 4..) | len(Suit::Spades, 4..)) & points(10..),
-        ),
+        Some(major) => rules
+            .rule(cue, 1.75, len(major, 4..) & points(10..))
+            .alert(LEBENSOHL_CUE),
+        None => rules
+            .rule(
+                cue,
+                1.75,
+                (len(Suit::Hearts, 4..) | len(Suit::Spades, 4..)) & points(10..),
+            )
+            .alert(LEBENSOHL_CUE),
     };
 
     // Direct 3NT to play: game values with their suit stopped (toggles: drop the
@@ -774,7 +819,9 @@ pub(super) fn lebensohl_responder(over: Suit) -> Rules {
     // balanced weak hands pass. See [`lebensohl_relay_shape`] for the 6+/good-5
     // shape and the PD-distilled 6-HCP floor on the 5-card arm.
     let long_suit = lebensohl_relay_shape(over);
-    rules = rules.rule(Bid::new(2, Strain::Notrump), 1.4, points(..=9) & long_suit);
+    rules = rules
+        .rule(Bid::new(2, Strain::Notrump), 1.4, points(..=9) & long_suit)
+        .alert(LEBENSOHL_RELAY);
 
     // Pass — weak, nothing constructive to say.
     rules.rule(Call::Pass, 0.0, hcp(0..))
@@ -822,7 +869,9 @@ fn multi_responder() -> Rules {
 
     // 2NT = Lebensohl relay to 3♣ (weak long minor / suit below the majors).
     let long_suit = lebensohl_relay_shape(over);
-    rules = rules.rule(Bid::new(2, Strain::Notrump), 1.4, points(..=9) & long_suit);
+    rules = rules
+        .rule(Bid::new(2, Strain::Notrump), 1.4, points(..=9) & long_suit)
+        .alert(LEBENSOHL_RELAY);
 
     rules.rule(Call::Pass, 0.0, hcp(0..))
 }
@@ -852,11 +901,13 @@ pub(super) fn lebensohl_relay_rebid(over: Suit) -> Rules {
     // game-forcing, exactly a 4-card unbid major (denies 5). Answered by
     // [`cue_stayman_answer`] (the stopper is guaranteed, so 3NT is safe).
     if let (true, Some(major)) = (delayed_cue(), unbid_major(over)) {
-        rules = rules.rule(
-            Bid::new(3, Strain::from(over)),
-            1.5,
-            points(10..) & stopper_in(over) & len(major, 4..) & len(major, ..5),
-        );
+        rules = rules
+            .rule(
+                Bid::new(3, Strain::from(over)),
+                1.5,
+                points(10..) & stopper_in(over) & len(major, 4..) & len(major, ..5),
+            )
+            .alert(LEBENSOHL_CUE);
     }
     rules.rule(Call::Pass, 0.0, hcp(0..))
 }
@@ -936,27 +987,33 @@ pub(super) fn transfer_lebensohl_responder(over: Suit) -> Rules {
             let cue = Bid::new(3, strain);
             let split = delayed_cue() && unbid_major(over).is_some();
             rules = match (over, split) {
-                (Suit::Hearts, true) => rules.rule(
-                    cue,
-                    1.7,
-                    len(Suit::Spades, 4..) & points(10..) & !stopper_in(over),
-                ),
-                (Suit::Spades, true) => rules.rule(
-                    cue,
-                    1.7,
-                    len(Suit::Hearts, 4..) & points(10..) & !stopper_in(over),
-                ),
-                (Suit::Hearts, false) => {
-                    rules.rule(cue, 1.7, len(Suit::Spades, 4..) & points(10..))
-                }
-                (Suit::Spades, false) => {
-                    rules.rule(cue, 1.7, len(Suit::Hearts, 4..) & points(10..))
-                }
-                _ => rules.rule(
-                    cue,
-                    1.7,
-                    (len(Suit::Hearts, 4..) | len(Suit::Spades, 4..)) & points(10..),
-                ),
+                (Suit::Hearts, true) => rules
+                    .rule(
+                        cue,
+                        1.7,
+                        len(Suit::Spades, 4..) & points(10..) & !stopper_in(over),
+                    )
+                    .alert(LEBENSOHL_CUE),
+                (Suit::Spades, true) => rules
+                    .rule(
+                        cue,
+                        1.7,
+                        len(Suit::Hearts, 4..) & points(10..) & !stopper_in(over),
+                    )
+                    .alert(LEBENSOHL_CUE),
+                (Suit::Hearts, false) => rules
+                    .rule(cue, 1.7, len(Suit::Spades, 4..) & points(10..))
+                    .alert(LEBENSOHL_CUE),
+                (Suit::Spades, false) => rules
+                    .rule(cue, 1.7, len(Suit::Hearts, 4..) & points(10..))
+                    .alert(LEBENSOHL_CUE),
+                _ => rules
+                    .rule(
+                        cue,
+                        1.7,
+                        (len(Suit::Hearts, 4..) | len(Suit::Spades, 4..)) & points(10..),
+                    )
+                    .alert(LEBENSOHL_CUE),
             };
         } else if let Some(target) = transfer_target(bid_suit, over) {
             // Transfer: show 5+ in the target, invitational or better. A major
@@ -968,7 +1025,9 @@ pub(super) fn transfer_lebensohl_responder(over: Suit) -> Rules {
             } else {
                 1.45
             };
-            rules = rules.rule(Bid::new(3, strain), weight, len(target, 5..) & points(9..));
+            rules = rules
+                .rule(Bid::new(3, strain), weight, len(target, 5..) & points(9..))
+                .alert(LEBENSOHL_TRANSFER);
         } else if over != Suit::Clubs {
             // Top step (no suit above to transfer into): a *forced* game-force
             // transfer to clubs, 6+♣. Its completion lands at game, so 3♣ can
@@ -976,11 +1035,13 @@ pub(super) fn transfer_lebensohl_responder(over: Suit) -> Rules {
             // 2NT→3♣ relay is the *weak* one). Weight below 3NT's 1.5 so a 6♣
             // hand *with* a stopper picks 3NT; only no-stopper hands transfer.
             // (Over (2♣) clubs is their suit — there is no top-step transfer.)
-            rules = rules.rule(
-                Bid::new(3, strain),
-                1.45,
-                len(Suit::Clubs, 6..) & points(10..),
-            );
+            rules = rules
+                .rule(
+                    Bid::new(3, strain),
+                    1.45,
+                    len(Suit::Clubs, 6..) & points(10..),
+                )
+                .alert(LEBENSOHL_TRANSFER);
         }
     }
 
@@ -994,11 +1055,13 @@ pub(super) fn transfer_lebensohl_responder(over: Suit) -> Rules {
     // see [`lebensohl_relay_rebid`]) — outweighing direct 3NT (1.5) so the 4-4
     // major fit is still found. Denies a 5-card major (Smolen / Leaping Michaels).
     if let (true, Some(major)) = (delayed_cue(), unbid_major(over)) {
-        rules = rules.rule(
-            Bid::new(2, Strain::Notrump),
-            1.6,
-            points(10..) & stopper_in(over) & len(major, 4..) & len(major, ..5),
-        );
+        rules = rules
+            .rule(
+                Bid::new(2, Strain::Notrump),
+                1.6,
+                points(10..) & stopper_in(over) & len(major, 4..) & len(major, ..5),
+            )
+            .alert(LEBENSOHL_RELAY);
     }
 
     // Responder's double of their overcall (penalty by default; see
@@ -1027,7 +1090,9 @@ pub(super) fn transfer_lebensohl_responder(over: Suit) -> Rules {
     // same shape as plain Lebensohl (see [`lebensohl_relay_shape`] — 6+ suit, or
     // a 5-carder with the PD-distilled 6-HCP floor, never their suit).
     let long_suit = lebensohl_relay_shape(over);
-    rules = rules.rule(Bid::new(2, Strain::Notrump), 1.35, points(..=8) & long_suit);
+    rules = rules
+        .rule(Bid::new(2, Strain::Notrump), 1.35, points(..=8) & long_suit)
+        .alert(LEBENSOHL_RELAY);
 
     // Pass — weak, nothing constructive to say.
     rules.rule(Call::Pass, 0.0, hcp(0..))
@@ -1128,11 +1193,13 @@ pub(super) fn transfer_stayman_2d_responder() -> Rules {
     // 3♣ = Stayman: game-forcing with *exactly* a 4-card major. A single 5-card
     // major transfers instead; a 5-4 GF hand has its 4-card major here and so comes
     // to Stayman (for Smolen) — hence weight above the transfers, which it also fits.
-    rules = rules.rule(
-        Bid::new(3, Strain::Clubs),
-        1.85,
-        (len(Suit::Hearts, 4..=4) | len(Suit::Spades, 4..=4)) & points(10..),
-    );
+    rules = rules
+        .rule(
+            Bid::new(3, Strain::Clubs),
+            1.85,
+            (len(Suit::Hearts, 4..=4) | len(Suit::Spades, 4..=4)) & points(10..),
+        )
+        .alert(STAYMAN);
 
     // Direct Jacoby transfers above their suit (INV+, auto-driven to game).
     rules = rules
@@ -1141,20 +1208,24 @@ pub(super) fn transfer_stayman_2d_responder() -> Rules {
             1.8,
             len(Suit::Hearts, 5..) & points(9..),
         )
+        .alert(LEBENSOHL_TRANSFER)
         .rule(
             Bid::new(3, Strain::Hearts),
             1.8,
             len(Suit::Spades, 5..) & points(9..),
-        );
+        )
+        .alert(LEBENSOHL_TRANSFER);
 
     // 3♠→clubs: a *forced* game-force with 6+ clubs (its completion is 4♣, so 3♣
     // can never be the contract). Weight below 3NT's, so a 6-club hand *with* a
     // diamond stopper picks 3NT; only the no-stopper hands transfer.
-    rules = rules.rule(
-        Bid::new(3, Strain::Spades),
-        1.45,
-        len(Suit::Clubs, 6..) & points(10..),
-    );
+    rules = rules
+        .rule(
+            Bid::new(3, Strain::Spades),
+            1.45,
+            len(Suit::Clubs, 6..) & points(10..),
+        )
+        .alert(LEBENSOHL_TRANSFER);
 
     // Leaping Michaels: 5-5 game-forcing two-suiters.
     rules = rules
@@ -1163,13 +1234,15 @@ pub(super) fn transfer_stayman_2d_responder() -> Rules {
             2.0,
             len(Suit::Hearts, 5..) & len(Suit::Spades, 5..) & points(10..),
         )
+        .alert(LEAPING_MICHAELS)
         .rule(
             Bid::new(4, Strain::Clubs),
             2.0,
             len(Suit::Clubs, 5..)
                 & (len(Suit::Hearts, 5..) | len(Suit::Spades, 5..))
                 & points(10..),
-        );
+        )
+        .alert(LEAPING_MICHAELS);
 
     // Weak / to-play outlets — identical to `transfer_lebensohl_responder(Diamonds)`.
     rules = rules.rule(
@@ -1193,7 +1266,9 @@ pub(super) fn transfer_stayman_2d_responder() -> Rules {
     // Relay shape: 6+ suit, or a 5-carder with the PD-distilled 6-HCP floor,
     // never their diamonds (see [`lebensohl_relay_shape`]).
     let long_suit = lebensohl_relay_shape(Suit::Diamonds);
-    rules = rules.rule(Bid::new(2, Strain::Notrump), 1.35, points(..=8) & long_suit);
+    rules = rules
+        .rule(Bid::new(2, Strain::Notrump), 1.35, points(..=8) & long_suit)
+        .alert(LEBENSOHL_RELAY);
 
     rules.rule(Call::Pass, 0.0, hcp(0..))
 }
@@ -1293,11 +1368,13 @@ pub(super) fn uvu_responder() -> Rules {
             2.0,
             both_majors_55.clone() & len(Suit::Clubs, ..=1) & points(10..),
         )
+        .alert(UVU_SPLINTER)
         .rule(
             Bid::new(4, Strain::Diamonds),
             2.0,
             both_majors_55 & len(Suit::Diamonds, ..=1) & points(10..),
-        );
+        )
+        .alert(UVU_SPLINTER);
 
     // 3♣ = INV+ Stayman (a 4-card major) or 5+♠ (not 5-5); 3♦ = INV+ 5+♥ (≤3♠, so
     // 5♥4♠ prefers 3♣ to hunt the spade fit, and 5-5 is excluded).
@@ -1310,11 +1387,13 @@ pub(super) fn uvu_responder() -> Rules {
                 | (len(Suit::Hearts, 4..=4) & len(Suit::Spades, ..=3)))
                 & points(cue_floor..),
         )
+        .alert(UVU_CUE)
         .rule(
             Bid::new(3, Strain::Diamonds),
             1.8,
             len(Suit::Hearts, 5..) & len(Suit::Spades, ..=3) & points(cue_floor..),
-        );
+        )
+        .alert(UVU_CUE);
 
     // 3NT to play: game values, both minors stopped, no major to pursue.
     rules = rules.rule(
@@ -1367,7 +1446,9 @@ pub(super) fn uvu_responder() -> Rules {
 pub(super) fn uvu_smolen() -> Rules {
     Rules::new()
         .rule(Bid::new(3, Strain::Hearts), 1.5, len(Suit::Spades, 5..))
+        .alert(SMOLEN)
         .rule(Bid::new(3, Strain::Spades), 1.5, len(Suit::Hearts, 5..))
+        .alert(SMOLEN)
         .rule(Bid::new(3, Strain::Notrump), 0.5, hcp(0..))
 }
 
@@ -1448,6 +1529,7 @@ pub fn competition() -> Competitive {
                     let m = Strain::from(major);
                     Rules::new()
                         .rule(Call::Redouble, 1.5, support(3..=3))
+                        .alert(SUPPORT_DOUBLE)
                         .rule(Bid::new(2, m), 1.4, support(4..))
                         .rule(Call::Pass, 0.0, hcp(0..))
                 }),
@@ -1885,7 +1967,7 @@ pub fn competition() -> Competitive {
 
 #[cfg(test)]
 mod tests {
-    use crate::bidding::Tag;
+    use crate::bidding::Family;
     use crate::bidding::american::american;
     use contract_bridge::auction::{Call, RelativeVulnerability};
     use contract_bridge::{Bid, Hand, Strain};
@@ -1899,7 +1981,7 @@ mod tests {
     fn best_call(auction: &[Call], hand: &str) -> (Call, bool) {
         let hand: Hand = hand.parse().expect("valid test hand");
         let (logits, prov) = american()
-            .against(Tag::NATURAL)
+            .against(Family::NATURAL)
             .classify_with_provenance(hand, RelativeVulnerability::NONE, auction)
             .expect("a legal auction classifies");
         let best = (&logits.0)

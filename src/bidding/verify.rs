@@ -474,7 +474,7 @@ mod tests {
     #[test]
     fn projection_reproduces_the_declarative_readers() {
         use crate::american;
-        use crate::bidding::Tag;
+        use crate::bidding::Family;
         use crate::bidding::american::{set_landy, set_leaping_michaels};
         use crate::bidding::inference::{Inferences, Range, Relative, authored_reading};
         use contract_bridge::auction::{Call, RelativeVulnerability};
@@ -491,7 +491,7 @@ mod tests {
         // Project and read on the same prefixed context; assert the projection pass
         // pins the reader's exact ranges on the convention's signature seat.
         let agree = |auction: &[Call], who: Relative, suits: &[(Suit, Range)], points: Range| {
-            let stance = american().against(Tag::NATURAL);
+            let stance = american().against(Family::NATURAL);
             let ctx = stance.prefixed_context(RelativeVulnerability::NONE, auction);
             let reader = *Inferences::read(&ctx).get(who);
             let projected = *authored_reading(&ctx).get(who);

@@ -55,7 +55,7 @@ use super::ev::ev_all;
 use super::instinct::{forced, instinct};
 use super::neural_floor::mask_illegal;
 use super::trie::Classifier;
-use super::{Rules, Stance, System, Tag, features, neural};
+use super::{Family, Rules, Stance, System, features, neural};
 use contract_bridge::auction::{AbsoluteVulnerability, Call, RelativeVulnerability};
 use contract_bridge::{Hand, Seat};
 use rand::SeedableRng;
@@ -73,7 +73,8 @@ static LADDER: LazyLock<Rules> = LazyLock::new(instinct);
 /// continuations" — so each round's targets are scored by the previous round's
 /// policy.  Round 1 used the teacher-distilled `american_neural`; this is the
 /// round-2 continuation.  Built once and shared across decisions.
-static POLICY: LazyLock<Stance> = LazyLock::new(|| american_neural_search().against(Tag::NATURAL));
+static POLICY: LazyLock<Stance> =
+    LazyLock::new(|| american_neural_search().against(Family::NATURAL));
 
 /// How far above the un-evaluated prior tail the EV band sits, in nats
 ///
@@ -270,12 +271,12 @@ impl System for SearchBook {
 /// The 2/1 pair as a leaf-pricing [`SearchBook`], bound against `them` — M7.0
 ///
 /// Builds the M7 treatment arm: [`american_search`] (the live-search floor under
-/// the bare authored books) bound against the opposing [`Tag`], then wrapped
+/// the bare authored books) bound against the opposing [`Family`], then wrapped
 /// so every non-forced book leaf is DD-priced too.  The named handle the
 /// `search-book` A/B uses; see [`SearchBook`] for the lifecycle of this name.
 /// Gated behind the `search` feature.
 #[must_use]
-pub fn american_search_book(them: Tag) -> SearchBook {
+pub fn american_search_book(them: Family) -> SearchBook {
     SearchBook::new(american_search().against(them))
 }
 
@@ -534,7 +535,7 @@ mod tests {
 
     /// A fast book-search bidder over the bound 2/1 stance.
     fn book() -> (Stance, SearchBook) {
-        let stance = american_search().against(Tag::NATURAL);
+        let stance = american_search().against(Family::NATURAL);
         let knobs = SearchFloor {
             layouts: 8,
             shortlist: 3,

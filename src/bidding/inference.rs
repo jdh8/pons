@@ -1553,7 +1553,7 @@ mod tests {
     /// hands `Inferences::read` (cf. `Stance::prefixed_context`).  The plain `read`
     /// above is keyless, so it sees no convention overlay.
     fn read_booked(auction: &[Call]) -> Inferences {
-        let stance = crate::american().against(crate::bidding::Tag::NATURAL);
+        let stance = crate::american().against(crate::bidding::Family::NATURAL);
         Inferences::read(&stance.prefixed_context(RelativeVulnerability::NONE, auction))
     }
 

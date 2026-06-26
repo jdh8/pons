@@ -16,7 +16,7 @@
 //! [`american`][super] on *forcing by omission*.
 
 use super::super::constraint::{balanced, fifths, hcp, len, points, support, top_honors};
-use super::super::{Rules, Trie};
+use super::super::{Alert, Rules, Trie};
 use super::{call, insert_uncontested};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Strain, Suit};
@@ -24,6 +24,10 @@ use contract_bridge::{Bid, Strain, Suit};
 // ---------------------------------------------------------------------------
 // Response tables
 // ---------------------------------------------------------------------------
+
+/// The two artificial responses to 2♣ (the natural positives are not alerted)
+const WAITING: Alert = Alert("strong-2c:waiting");
+const DOUBLE_NEGATIVE: Alert = Alert("strong-2c:negative");
 
 /// Responses to the 2♣ opening (at `&[2♣]`)
 ///
@@ -35,6 +39,7 @@ fn responses() -> Rules {
     Rules::new()
         // 2♥: double negative — 0–3 HCP.
         .rule(Bid::new(2, Strain::Hearts), 2.0, hcp(0..=3))
+        .alert(DOUBLE_NEGATIVE)
         // 2♠: natural positive — five spades to two of the top three honors.
         .rule(
             Bid::new(2, Strain::Spades),
@@ -57,6 +62,7 @@ fn responses() -> Rules {
         .rule(Bid::new(2, Strain::Notrump), 1.3, hcp(8..) & balanced())
         // 2♦: waiting catch-all — 4+ HCP (not strong enough for a positive).
         .rule(Bid::new(2, Strain::Diamonds), 0.5, hcp(4..))
+        .alert(WAITING)
 }
 
 /// Opener's rebid after `2♣–(P)–2♦–(P)` (at `&[2♣, 2♦]`)
@@ -189,6 +195,7 @@ fn resp_after_negative_suit(raise: Bid) -> Rules {
 fn opener_after_hearts_raise() -> Rules {
     Rules::new()
         .rule(Bid::new(4, Strain::Notrump), 1.0, hcp(28..))
+        .alert(super::slam::RKCB)
         .rule(Bid::new(4, Strain::Hearts), 0.5, hcp(0..))
 }
 
@@ -198,6 +205,7 @@ fn opener_after_hearts_raise() -> Rules {
 fn opener_after_spades_raise() -> Rules {
     Rules::new()
         .rule(Bid::new(4, Strain::Notrump), 1.0, hcp(28..))
+        .alert(super::slam::RKCB)
         .rule(Bid::new(4, Strain::Spades), 0.5, hcp(0..))
 }
 
@@ -211,6 +219,7 @@ fn opener_after_spades_raise() -> Rules {
 fn opener_after_clubs_raise() -> Rules {
     Rules::new()
         .rule(Bid::new(4, Strain::Notrump), 1.0, hcp(28..))
+        .alert(super::slam::RKCB)
         .rule(Bid::new(5, Strain::Clubs), 0.5, hcp(0..))
 }
 
@@ -220,6 +229,7 @@ fn opener_after_clubs_raise() -> Rules {
 fn opener_after_diamonds_raise() -> Rules {
     Rules::new()
         .rule(Bid::new(4, Strain::Notrump), 1.0, hcp(28..))
+        .alert(super::slam::RKCB)
         .rule(Bid::new(5, Strain::Diamonds), 0.5, hcp(0..))
 }
 

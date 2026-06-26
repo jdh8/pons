@@ -5,10 +5,13 @@ use crate::bidding::constraint::{
     Cons, Constraint, balanced, described, fifths, hcp, len, nth_seat, points,
 };
 use crate::bidding::context::Context;
-use crate::bidding::{Rules, Trie};
+use crate::bidding::{Alert, Rules, Trie};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Hand, Strain, Suit};
 use std::cell::Cell;
+
+/// The strong, artificial `2♣` opening (22+) — the only artificial opening
+const STRONG_2C: Alert = Alert("strong-2c");
 
 thread_local! {
     /// Whether our side opens a strong balanced 15-17 with 1NT.  Default `true`.
@@ -103,7 +106,8 @@ pub fn openings() -> Rules {
 pub fn openings_with(shape: NotrumpShape) -> Rules {
     let mut rules = Rules::new()
         // Strong, artificial 2♣ — top priority.
-        .rule(Bid::new(2, Strain::Clubs), 3.0, points(22..));
+        .rule(Bid::new(2, Strain::Clubs), 3.0, points(22..))
+        .alert(STRONG_2C);
     // Strong 1NT — gated so a diagnostic can suppress our own 1NT opening
     // (`set_open_one_notrump`); the 15-17 balanced hands then open a minor.
     if OPEN_ONE_NOTRUMP.with(Cell::get) {

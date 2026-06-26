@@ -22,7 +22,7 @@ use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Seat};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
-use pons::bidding::Tag;
+use pons::bidding::Family;
 use pons::bidding::american::set_meckstroth_adjunct;
 use pons::scoring::{final_contract, imps, ns_score_contract};
 use rayon::prelude::*;
@@ -52,9 +52,9 @@ fn main() {
     // The toggle is read at book-construction time, so build each arm under its
     // own setting; the baked tries are independent thereafter.
     set_meckstroth_adjunct(false);
-    let baseline = american().against(Tag::NATURAL);
+    let baseline = american().against(Family::NATURAL);
     set_meckstroth_adjunct(true);
-    let adjunct = american().against(Tag::NATURAL);
+    let adjunct = american().against(Family::NATURAL);
     let stances = [baseline, adjunct];
 
     // Both arms bid the same deal; the only difference is opener's rebid table.

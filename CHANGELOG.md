@@ -18,8 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   force takes Stayman. This is the standard Polish Club / WJ and common continental
   treatment (and BBA's "Atlantic" style). Select it with
   `set_notrump_minors(EUROPEAN)` (default `PUPPET`, the prior behavior): both
-  schemes' `2♠`/`2NT`/`3♣` rules and continuations are authored and gated by tag at
-  book-construction time, and the floor reads the European calls (2NT = balanced
+  schemes' `2♠`/`2NT`/`3♣` rules and continuations are authored and gated by alert
+  at book-construction time, and the floor reads the European calls (2NT = balanced
   invite not a transfer; 2♠ clubs / 3♣ diamonds artificial). Covered by the new
   `tests/american_european_minors.rs`; the Puppet default is unchanged.
 
@@ -41,36 +41,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **Defense to their 1NT is now composed from per-call *alert* tags instead of a
+- **Defense to their 1NT is now composed from per-call alerts instead of a
   per-system `if`/`else if` cascade.** A defensive "system" is a bundle of per-call
   conventions — "Woolsey" is really `X` = Woolsey + `2♣` = Landy + `2♦` = Multi +
-  `2♥`/`2♠` = Muiderberg — so each artificial call is now authored once as a
-  `Tag`-stamped block, all are chained at the `[1NT]` node, and `Rules::gated` ships
+  `2♥`/`2♠` = Muiderberg — so each artificial call is now authored once as an
+  `Alert`-stamped block, all are chained at the `[1NT]` node, and `Rules::gated` ships
   only the active system's calls at book-construction time (the same build-time gate
-  as the Puppet/European 1NT split). The guiding invariant: **a tag is an alert, so
-  only artificial calls carry one** — the penalty `X`, the four natural suit
-  overcalls, and `Pass` stay untagged and floor-safe (dropping their node is at
-  worst suboptimal; the instinct floor bids them sensibly), while every convention
-  is pinned by its tag. Purely internal: all public setters (`set_woolsey`,
-  `set_direct_dont`, `set_direct_landy_double`, `set_landy`,
+  as the Puppet/European 1NT split). The guiding invariant: **an alert marks an
+  artificial call, so only artificial calls carry one** — the penalty `X`, the four
+  natural suit overcalls, and `Pass` stay unalerted and floor-safe (dropping their
+  node is at worst suboptimal; the instinct floor bids them sensibly), while every
+  convention is pinned by its alert. Purely internal: all public setters
+  (`set_woolsey`, `set_direct_dont`, `set_direct_landy_double`, `set_landy`,
   `set_unusual_notrump_defense`, the tuning knobs) and every defended auction are
   unchanged — a new test asserts the `[1NT]` node authors at most one rule per call
   in each named config, and the existing routing/inference suites pin parity. (The
   diverged building blocks — Woolsey's `2♣` is `passed_two_suiter`, the standalone
-  Landy `2♣` is `five_four` — are kept as distinct tags, since the ≤5-major cap
+  Landy `2♣` is `five_four` — are kept as distinct alerts, since the ≤5-major cap
   routes a 6-card major to the Multi `2♦` and is load-bearing for the bundle's
   disjoint shapes.)
 
-- **`Family` is renamed to `Tag` and is now a per-rule gate, not only a
-  whole-system label.** The opponent-visible system label (`Tag::NATURAL` /
-  `STRONG_CLUB` / `WEAK_NOTRUMP`, still selected via `Pair::against`) keeps its
-  role; the `Pair::family` field is renamed `Pair::tag`. A `Rule` may now carry an
-  optional `Tag` — `Rules::only(tag)` stamps a whole block, `Rules::gated(active)`
-  drops the rules whose tag is inactive at trie insertion — so one book can author
-  several convention variants and ship only the selected one. This is the mechanism
-  behind the Puppet/European 1NT split. No behavior change for existing systems:
-  every rule is untagged (always live) by default, and `against` keeps its prior
-  default/override selection.
+- **The system identity (`Family`) and a new per-call `Alert` are now two distinct
+  types.** The opponent-visible system label keeps its name, role, and API —
+  `Family::NATURAL` / `STRONG_CLUB` / `WEAK_NOTRUMP`, the `Pair::family` field,
+  selected via `Pair::against` and the `competitive_vs` / `defensive_vs` overrides —
+  the convention card opponents pick a *base* defense against. Split out from it, a
+  `Rule` may carry an optional `Alert` (an open `&'static str` newtype): the per-call
+  dual that names the artificial convention a call shows. `Rules::alert(a)` stamps
+  the most recently added rule (mirroring `Rules::note`), and `Rules::gated(active)`
+  drops the rules whose alert is inactive at trie insertion — so one book authors
+  several convention variants and ships only the selected one (the Puppet/European
+  1NT split, the Woolsey/DONT defense selection). The two never mix: `Family` keys
+  `Pair`/`against`, `Alert` keys `Rule`/`gated`.
+
+- **Every artificial constructive call now carries an `Alert`.** The strong `2♣`
+  opening and its `2♦` waiting / `2♥` double-negative responses; Stayman, Jacoby
+  transfers, South African Texas, both-majors `3♦`, Smolen, and the Puppet/European
+  minor schemes over 1NT; splinters, weak jump shifts, inverted minors, and the 2/1
+  game force; Jacoby `2NT` and opener's shortness rebids; and the RKCB keycard
+  responses — each is stamped with the convention it shows. Pure disclosure metadata
+  on its own (the 1NT-response gate is widened so always-on alerts survive variant
+  gating); the behavior it unlocks is the alert-reading change below. The
+  competitive book (negative/support doubles, cue-bids, Lebensohl) and the scattered
+  `4NT` keycard *ask* are a follow-up.
 
 ### Removed
 

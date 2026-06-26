@@ -12,7 +12,7 @@ use contract_bridge::{Bid, Hand, Strain};
 use pons::american;
 use pons::american::{EUROPEAN, set_notrump_minors};
 use pons::bidding::array::Logits;
-use pons::bidding::{Stance, System, Tag};
+use pons::bidding::{Family, Stance, System};
 
 const fn call(level: u8, strain: Strain) -> Call {
     Call::Bid(Bid::new(level, strain))
@@ -24,7 +24,7 @@ const fn call(level: u8, strain: Strain) -> Call {
 /// set here on every call — each test thread builds a European book.
 fn stance() -> Stance {
     set_notrump_minors(EUROPEAN);
-    american().against(Tag::NATURAL)
+    american().against(Family::NATURAL)
 }
 
 /// The single highest-logit call the system assigns the hand for the auction

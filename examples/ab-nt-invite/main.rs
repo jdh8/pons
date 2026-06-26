@@ -22,7 +22,7 @@ use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Seat};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
-use pons::bidding::Tag;
+use pons::bidding::Family;
 use pons::bidding::set_nt_invite_inference;
 use pons::scoring::{final_contract, imps, ns_score_contract};
 use rayon::prelude::*;
@@ -48,7 +48,7 @@ struct Args {
 fn main() {
     let args = Args::parse();
     let mut rng = rand::rng();
-    let sys = american().against(Tag::NATURAL);
+    let sys = american().against(Family::NATURAL);
 
     let boards: Vec<(Seat, FullDeal)> = (0..args.count)
         .map(|i| (Seat::ALL[i % 4], full_deal(&mut rng)))

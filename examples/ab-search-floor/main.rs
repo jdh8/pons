@@ -44,7 +44,7 @@ use contract_bridge::eval::hcp as holding_hcp;
 use contract_bridge::{AbsoluteVulnerability, Contract, FullDeal, Hand, Seat, Suit};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::bidding::context::relative;
-use pons::bidding::{Stance, System, Tag};
+use pons::bidding::{Family, Stance, System};
 use pons::scoring::{final_contract, imps, ns_score_contract};
 use pons::{Accumulator, american, american_neural, american_search};
 use rand::SeedableRng;
@@ -411,8 +411,8 @@ fn main() {
     // every decision. The DD solver below is separate and untouched by it.
     pons::bidding::inference::set_rule_accept(args.rule_accept);
 
-    let search = american_search().against(Tag::NATURAL);
-    let deterministic = american().against(Tag::NATURAL);
+    let search = american_search().against(Family::NATURAL);
+    let deterministic = american().against(Family::NATURAL);
 
     // Deal the boards once so both matches play identical deals (and a `--seed`
     // makes them reproducible across runs).
@@ -456,7 +456,7 @@ fn main() {
     }
 
     if !args.skip_net {
-        let neural = american_neural().against(Tag::NATURAL);
+        let neural = american_neural().against(Family::NATURAL);
         let vs_neural = duplicate_match(
             &search,
             &neural,

@@ -48,11 +48,14 @@
 //! grand-slam exploration in a minor is not supported.  Kickback (4♣/4♦), the
 //! usual remedy, is out of scope.
 
-use crate::bidding::{Rules, Trie};
+use crate::bidding::{Alert, Rules, Trie};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Rank, Strain, Suit};
 use core::ops::RangeBounds;
 use std::sync::Arc;
+
+/// Roman Keycard Blackwood — the artificial keycard ask, answers, and king ask
+pub(super) const RKCB: Alert = Alert("rkcb");
 
 use super::{insert_uncontested, uncontested};
 use crate::bidding::constraint::{described, hcp};
@@ -177,24 +180,28 @@ fn rkcb_answers(trump: Suit) -> Rules {
             1.0,
             keycards(trump, 1..=1) | keycards(trump, 4..=4),
         )
+        .alert(RKCB)
         // 5♦ = 0 or 3 keycards ("30")
         .rule(
             Bid::new(5, Strain::Diamonds),
             1.0,
             keycards(trump, 0..=0) | keycards(trump, 3..=3),
         )
+        .alert(RKCB)
         // 5♥ = 2 keycards without the trump queen
         .rule(
             Bid::new(5, Strain::Hearts),
             1.0,
             keycards(trump, 2..=2) & !has_trump_queen(trump),
         )
+        .alert(RKCB)
         // 5♠ = 2 keycards with the trump queen
         .rule(
             Bid::new(5, Strain::Spades),
             1.0,
             keycards(trump, 2..=2) & has_trump_queen(trump),
         )
+        .alert(RKCB)
 }
 
 /// Asker's continuation after a 5♣ response
@@ -206,6 +213,7 @@ fn asker_after_5c(trump: Suit) -> Rules {
     Rules::new()
         // 5NT: asker has 4 keycards + partner's 1 = all five → king ask
         .rule(Bid::new(5, Strain::Notrump), 1.4, keycards(trump, 4..=4))
+        .alert(RKCB)
         // 6T: asker has 3 keycards, assumes partner has 4 → interested in slam
         .rule(Bid::new(6, t), 1.0, keycards(trump, 3..=3))
         // 5T: signoff (asker doesn't want slam)
@@ -254,6 +262,7 @@ fn asker_after_5s(trump: Suit) -> Rules {
             1.4,
             keycards(trump, 3..) & kings_outside(trump, 2..),
         )
+        .alert(RKCB)
         // 6T: asker has 2+ keycards → slam
         .rule(Bid::new(6, t), 1.0, keycards(trump, 2..))
         // 5T: signoff (dead for spades, catches hearts where 5♥ is illegal)
@@ -327,11 +336,13 @@ fn no_room_six(trump: Suit) -> Rules {
 fn king_answers(trump: Suit) -> Rules {
     let mut rules = Rules::new()
         .rule(Bid::new(6, Strain::Clubs), 1.0, kings_outside(trump, 0..=0))
+        .alert(RKCB)
         .rule(
             Bid::new(6, Strain::Diamonds),
             1.0,
             kings_outside(trump, 1..=1),
-        );
+        )
+        .alert(RKCB);
 
     match trump {
         Suit::Spades => {
@@ -341,6 +352,7 @@ fn king_answers(trump: Suit) -> Rules {
                     1.0,
                     kings_outside(trump, 2..=2),
                 )
+                .alert(RKCB)
                 // 3 outside kings → 6♠ signoff (counting stops below 7)
                 .rule(Bid::new(6, Strain::Spades), 0.5, hcp(0..));
         }

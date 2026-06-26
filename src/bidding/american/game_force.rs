@@ -131,6 +131,7 @@ fn opener_third(major: Suit) -> Rules {
     let major_strain = Strain::from(major);
     Rules::new()
         .rule(call(4, Strain::Notrump), 1.0, points(15..))
+        .alert(super::slam::RKCB)
         .rule(call(4, major_strain), 0.5, hcp(0..))
 }
 

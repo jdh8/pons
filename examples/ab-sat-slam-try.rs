@@ -40,7 +40,7 @@ use contract_bridge::{
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
 use pons::bidding::context::relative;
-use pons::bidding::{Stance, System, Tag};
+use pons::bidding::{Family, Stance, System};
 use pons::scoring::{final_contract, imps, ns_score_contract};
 
 /// Revised SAT: the `4♥/4♠` non-forcing-slam-try gadget vs the current bidder
@@ -205,7 +205,7 @@ fn main() {
 
     let args = Args::parse();
     let mut rng = rand::rng();
-    let stance = american().against(Tag::NATURAL);
+    let stance = american().against(Family::NATURAL);
 
     // Collect slam-try configurations (only the N/S partnership, so North/South
     // scoring stays sign-consistent), each with the deal for the batch solve.

@@ -35,7 +35,7 @@ use pons::bidding::instinct::{
     Unusual2nt, set_one_nt_runout, set_one_nt_runout_universal, set_penalize_escape_stack,
     set_penalize_escape_values, set_runout_xx_min, set_unusual_2nt,
 };
-use pons::bidding::{Stance, Tag};
+use pons::bidding::{Family, Stance};
 use pons::scoring::{final_contract, imps, ns_score_contract};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -154,7 +154,7 @@ struct Board {
 #[allow(clippy::cast_precision_loss)]
 fn main() {
     let args = Args::parse();
-    let stance = american().against(Tag::NATURAL);
+    let stance = american().against(Family::NATURAL);
 
     // Deal sequentially (seeded, reproducible); bid both tables in parallel.
     let mut rng = StdRng::seed_from_u64(args.seed);

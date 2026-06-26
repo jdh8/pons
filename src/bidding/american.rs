@@ -63,7 +63,7 @@
 use super::fallback::{Always, Fallback, Guard};
 use super::instinct::instinct;
 use super::trie::Classifier;
-use super::{Constructive, Pair, Tag, Trie};
+use super::{Constructive, Family, Pair, Trie};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Strain};
 use std::sync::Arc;
@@ -188,17 +188,17 @@ fn fallback_all_seats(
 
 /// Build the basic 2/1 game-forcing system as one side's [`Pair`]
 ///
-/// Bind it against the opponents' [`Tag`] for a playable system, and seat
+/// Bind it against the opponents' [`Family`] for a playable system, and seat
 /// two pairs with [`Table::of_pairs`][super::Table::of_pairs] for a full
 /// table.
 ///
 /// ```
 /// use pons::american;
-/// use pons::bidding::{Tag, System};
+/// use pons::bidding::{Family, System};
 /// use contract_bridge::auction::{Call, RelativeVulnerability};
 /// use contract_bridge::{Bid, Strain};
 ///
-/// let stance = american().against(Tag::NATURAL);
+/// let stance = american().against(Family::NATURAL);
 /// let hand = "AQ32.K53.QJ4.A92".parse().unwrap(); // 16 HCP, balanced
 /// let logits = stance
 ///     .classify(hand, RelativeVulnerability::NONE, &[])
@@ -246,7 +246,7 @@ pub fn american_wide_6322() -> Pair {
 /// [`NeuralFloor`][crate::bidding::neural_floor::NeuralFloor] safety shell — the learned
 /// net in the judgement middle, the forced rails preserved by delegation.  An
 /// added option, never a replacement; [`american`] stays the baseline.  Bind
-/// it against the opponents' [`Tag`] with [`Pair::against`] and seat it the
+/// it against the opponents' [`Family`] with [`Pair::against`] and seat it the
 /// same way.  Gated behind the `neural-floor` feature.
 #[cfg(feature = "neural-floor")]
 #[must_use]
@@ -263,7 +263,7 @@ pub fn american_neural() -> Pair {
 /// the learned net in the judgement middle, the forced rails preserved by
 /// delegation.  An added option, never a replacement: [`american`] stays the
 /// baseline and [`american_neural`] the v1 learned floor.  Bind it against the
-/// opponents' [`Tag`] with [`Pair::against`] and seat it the same way.  Gated
+/// opponents' [`Family`] with [`Pair::against`] and seat it the same way.  Gated
 /// behind the `neural-floor` feature.
 #[cfg(feature = "neural-floor")]
 #[must_use]
@@ -282,7 +282,7 @@ pub fn american_neural_v2() -> Pair {
 /// what a bidder could lawfully disclose to opponents (full disclosure being core
 /// duplicate ethics), so it never keys on undisclosable card detail.  An added
 /// option, never a replacement: [`american`] stays the baseline.  Bind it against
-/// the opponents' [`Tag`] with [`Pair::against`] and seat it the same way.
+/// the opponents' [`Family`] with [`Pair::against`] and seat it the same way.
 /// Gated behind the `neural-floor` feature.
 #[cfg(feature = "neural-floor")]
 #[must_use]
@@ -300,7 +300,7 @@ pub fn american_neural_v3() -> Pair {
 /// [`american_search`] itself.  The fast net that learned the search's
 /// judgement.  An added option, never a replacement: [`american`] stays the
 /// baseline and [`american_neural`] the teacher-distilled floor.  Bind it
-/// against the opponents' [`Tag`] with [`Pair::against`] and seat it the same
+/// against the opponents' [`Family`] with [`Pair::against`] and seat it the same
 /// way.  Gated behind the `neural-floor` feature.
 #[cfg(feature = "neural-floor")]
 #[must_use]
@@ -316,7 +316,7 @@ pub fn american_neural_search() -> Pair {
 /// at each non-forced decision shortlists the distilled net's top calls and
 /// scores them by cardplay EV before bidding the best — the policy *thinks*
 /// before it bids.  Strong but slow; an added gated option, never a replacement.
-/// Bind it against the opponents' [`Tag`] with [`Pair::against`] and seat it
+/// Bind it against the opponents' [`Family`] with [`Pair::against`] and seat it
 /// the same way.  Gated behind the `search` feature (which implies
 /// `neural-floor`).
 #[cfg(feature = "search")]
@@ -424,7 +424,7 @@ fn bare_american_with(shape: NotrumpShape) -> Pair {
     weak_twos::register(&mut c);
 
     Pair::new(
-        Tag::NATURAL,
+        Family::NATURAL,
         c,
         competition::competition(),
         defense::defensive(),

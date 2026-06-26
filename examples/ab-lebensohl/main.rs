@@ -44,7 +44,7 @@ use pons::bidding::american::{
 use pons::bidding::constraint::point_count;
 use pons::bidding::context::{Context, relative};
 use pons::bidding::ev::ev_all;
-use pons::bidding::{Stance, System, Tag};
+use pons::bidding::{Family, Stance, System};
 use pons::scoring::{final_contract, imps, ns_score_contract};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -568,7 +568,7 @@ fn main() {
     set_trap_pass(args.ew_trap == "on");
     let (ew_h, ew_p) = floor_from(&args.ew_floor);
     set_natural_floor(ew_h, ew_p);
-    let baseline = american().against(Tag::NATURAL);
+    let baseline = american().against(Family::NATURAL);
     set_lebensohl_style(style_from(&args.ns));
     apply_double(&args.ns_dbl);
     set_direct_3nt_stopper(args.ns_3nt_stopper != "off");
@@ -576,7 +576,7 @@ fn main() {
     set_penalty_double_leave_in(args.ns_penalty_leave_in != "off");
     let (ns_h, ns_p) = floor_from(&args.ns_floor);
     set_natural_floor(ns_h, ns_p);
-    let lebensohl = american().against(Tag::NATURAL);
+    let lebensohl = american().against(Family::NATURAL);
 
     // Phase 1 (sequential, cheap): deal + the shape-only filter until `count`
     // boards pass. The RNG stays single-threaded so a seed reproduces a run.

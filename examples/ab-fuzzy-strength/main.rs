@@ -28,7 +28,7 @@ use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
 use pons::bidding::constraint::{set_fuzzy_fifths, set_fuzzy_points};
 use pons::bidding::context::relative;
-use pons::bidding::{Stance, System, Tag};
+use pons::bidding::{Family, Stance, System};
 use pons::scoring::{final_contract, imps, ns_score_contract};
 
 /// Which half of the fuzzy-strength policy the fuzzy team enables
@@ -139,7 +139,7 @@ struct Board {
 fn main() {
     let args = Args::parse();
     let mut rng = rand::rng();
-    let stance = american().against(Tag::NATURAL);
+    let stance = american().against(Family::NATURAL);
 
     // Bid every board at both tables, dealer rotating per board.
     let boards: Vec<Board> = (0..args.count)

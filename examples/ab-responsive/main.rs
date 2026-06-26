@@ -35,7 +35,7 @@ use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Seat, Suit};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
-use pons::bidding::Tag;
+use pons::bidding::Family;
 use pons::bidding::american::{set_responsive_overcall, set_responsive_takeout};
 use pons::scoring::{final_contract, imps, ns_score_contract};
 use rayon::prelude::*;
@@ -117,9 +117,9 @@ fn main() {
     let mut rng = rand::rng();
 
     configure(&args.conv, false);
-    let baseline = american().against(Tag::NATURAL);
+    let baseline = american().against(Family::NATURAL);
     configure(&args.conv, true);
-    let conv = american().against(Tag::NATURAL);
+    let conv = american().against(Family::NATURAL);
 
     // Phase 1 (sequential, cheap): deal + the shape-only filter until `count`
     // boards pass. The RNG stays single-threaded so a seed reproduces a run.

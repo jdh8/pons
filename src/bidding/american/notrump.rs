@@ -17,7 +17,7 @@ use super::{call, insert_uncontested, slam};
 use crate::bidding::constraint::{
     Cons, Constraint, balanced, described, hcp, len, points, stopper_in,
 };
-use crate::bidding::{Context, Rules, Tag, Trie};
+use crate::bidding::{Alert, Context, Rules, Trie};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Hand, Rank, Strain, Suit};
 use std::cell::Cell;
@@ -29,22 +29,31 @@ use std::cell::Cell;
 /// The **Puppet** 1NT minor scheme — the shipped default
 ///
 /// `2♠` = clubs or a balanced invite, `2NT` = diamonds (transfer), `3♣` = Puppet
-/// Stayman.  Our-system [`Tag`] minting the convention variant (see the `Tag`
-/// newtype doc); pass it to [`set_notrump_minors`].
-pub const PUPPET: Tag = Tag("puppet");
+/// Stayman.  The variant-selecting [`Alert`] minting the convention (see the
+/// `Alert` newtype doc); pass it to [`set_notrump_minors`].
+pub const PUPPET: Alert = Alert("puppet");
 
 /// The **European** 1NT minor scheme — opt-in, BBA's Atlantic style
 ///
 /// `2♠` = clubs (transfer), `2NT` = a balanced invite / size ask, `3♣` = diamonds
 /// (transfer); no Puppet Stayman.  The standard Polish Club / WJ and common
 /// continental response set.  Select with [`set_notrump_minors`].
-pub const EUROPEAN: Tag = Tag("european");
+pub const EUROPEAN: Alert = Alert("european");
+
+// Always-on artificial 1NT responses (present under either minor scheme).  These
+// are alerts, not gates: the gate drops only the *dormant* minor scheme, so these
+// survive (see `notrump_responses`).
+const STAYMAN: Alert = Alert("stayman");
+const JACOBY: Alert = Alert("jacoby-transfer");
+const BOTH_MAJORS: Alert = Alert("both-majors");
+const TEXAS: Alert = Alert("texas");
+const SMOLEN: Alert = Alert("smolen");
 
 thread_local! {
     /// The active 1NT minor-suit response variant, read once at book-construction
     /// time (and by the inference engine, to decode our `2♠`/`2NT`/`3♣`).
     /// [`PUPPET`] by default; flipped to [`EUROPEAN`] by [`set_notrump_minors`].
-    static NOTRUMP_MINORS: Cell<Tag> = const { Cell::new(PUPPET) };
+    static NOTRUMP_MINORS: Cell<Alert> = const { Cell::new(PUPPET) };
 }
 
 /// Select the 1NT minor-suit response scheme for books built *after* this call
@@ -54,7 +63,7 @@ thread_local! {
 /// the selected one's `2♠`/`2NT`/`3♣` rules are gated into the trie.
 ///
 /// [`set_woolsey`]: super::set_woolsey
-pub fn set_notrump_minors(variant: Tag) {
+pub fn set_notrump_minors(variant: Alert) {
     NOTRUMP_MINORS.with(|cell| cell.set(variant));
 }
 
@@ -62,7 +71,7 @@ pub fn set_notrump_minors(variant: Tag) {
 ///
 /// Read both at book construction (to gate `2♠`/`2NT`/`3♣` and their
 /// continuations) and by the inference engine (to read the artificial calls).
-pub(crate) fn notrump_minors() -> Tag {
+pub(crate) fn notrump_minors() -> Alert {
     NOTRUMP_MINORS.with(Cell::get)
 }
 
@@ -78,7 +87,7 @@ pub(crate) fn notrump_minors() -> Tag {
 /// invites slam opposite a balanced 16–17 with no four-card major.
 ///
 /// The minor-suit responses (`2♠`/`2NT`/`3♣`) come in two variants, both authored
-/// here behind their [`Tag`] and gated to the active one (`set_notrump_minors`,
+/// here behind their [`Alert`] and gated to the active one (`set_notrump_minors`,
 /// default [`PUPPET`]): `puppet_minors` (`2♠` = clubs-or-invite, `2NT` = diamonds,
 /// `3♣` = Puppet Stayman) and `european_minors` (`2♠` = clubs, `2NT` = balanced
 /// invite, `3♣` = diamonds).
@@ -94,11 +103,13 @@ pub fn notrump_responses() -> Rules {
             2.0,
             len(Suit::Hearts, 5..) & (len(Suit::Spades, ..4) | hcp(..9)),
         )
+        .alert(JACOBY)
         .rule(
             Bid::new(2, Strain::Hearts),
             2.0,
             len(Suit::Spades, 5..) & (len(Suit::Hearts, ..4) | hcp(..9)),
         )
+        .alert(JACOBY)
         // Both-majors 3♦: 5+/5+ in the majors, invitational+.  Outranks the
         // transfers (2.0) so a 5-5 INV+ hand shows both suits in one bid rather
         // than transferring and rebidding; weaker 5-5s (below the `points` floor)
@@ -109,6 +120,7 @@ pub fn notrump_responses() -> Rules {
             2.1,
             len(Suit::Hearts, 5..) & len(Suit::Spades, 5..) & points(8..),
         )
+        .alert(BOTH_MAJORS)
         // South African Texas at the four level — a 6-card major.  `4♣/4♦`
         // transfer to the major as the everyday *preemptive* to-play route:
         // jumping straight to game robs the opponents of the two-level a slow
@@ -124,27 +136,32 @@ pub fn notrump_responses() -> Rules {
             2.5,
             len(Suit::Hearts, 6..) & len(Suit::Spades, ..5) & hcp(9..=14),
         )
+        .alert(TEXAS)
         .rule(
             Bid::new(4, Strain::Diamonds),
             2.5,
             len(Suit::Spades, 6..) & len(Suit::Hearts, ..5) & hcp(9..=14),
         )
+        .alert(TEXAS)
         .rule(
             Bid::new(4, Strain::Hearts),
             2.6,
             len(Suit::Hearts, 6..) & len(Suit::Spades, ..5) & hcp(15..=18),
         )
+        .alert(TEXAS)
         .rule(
             Bid::new(4, Strain::Spades),
             2.6,
             len(Suit::Spades, 6..) & len(Suit::Hearts, ..5) & hcp(15..=18),
         )
+        .alert(TEXAS)
         // Stayman: a four-card major and at least invitational values.
         .rule(
             Bid::new(2, Strain::Clubs),
             1.5,
             (len(Suit::Hearts, 4..=4) | len(Suit::Spades, 4..=4)) & hcp(8..),
         )
+        .alert(STAYMAN)
         // Quantitative 4NT slam invite (balanced, no four-card major).
         .rule(
             Bid::new(4, Strain::Notrump),
@@ -171,10 +188,21 @@ pub fn notrump_responses() -> Rules {
             hcp(..8) & len(Suit::Hearts, ..5) & len(Suit::Spades, ..5),
         )
         // Minor-suit responses (2♠/2NT/3♣): both schemes are authored here, each
-        // behind its tag, and only the active one is gated in.  Default Puppet.
-        .chain(puppet_minors().only(PUPPET))
-        .chain(european_minors().only(EUROPEAN))
-        .gated(|tag| tag == notrump_minors())
+        // alerted with its variant, and only the active one is gated in.  The gate
+        // drops just the dormant minor scheme; every always-on alert (Stayman,
+        // Jacoby, …) survives.  Default Puppet.
+        .chain(puppet_minors())
+        .chain(european_minors())
+        .gated(move |alert| alert != dormant_minors())
+}
+
+/// The minor scheme *not* selected — the one [`notrump_responses`] gates out
+fn dormant_minors() -> Alert {
+    if notrump_minors() == PUPPET {
+        EUROPEAN
+    } else {
+        PUPPET
+    }
 }
 
 /// Puppet minor-suit responses to 1NT (the default scheme)
@@ -197,11 +225,13 @@ fn puppet_minors() -> Rules {
             len(Suit::Clubs, 6..)
                 | (hcp(8..=8) & balanced() & len(Suit::Hearts, ..4) & len(Suit::Spades, ..4)),
         )
+        .alert(PUPPET)
         .rule(
             Bid::new(2, Strain::Notrump),
             1.3,
             len(Suit::Diamonds, 6..) | (len(Suit::Diamonds, 5..) & len(Suit::Clubs, 4..)),
         )
+        .alert(PUPPET)
         .rule(
             Bid::new(3, Strain::Clubs),
             1.6,
@@ -211,6 +241,7 @@ fn puppet_minors() -> Rules {
                 & len(Suit::Hearts, ..5)
                 & len(Suit::Spades, ..5),
         )
+        .alert(PUPPET)
 }
 
 /// European minor-suit responses to 1NT (opt-in via [`set_notrump_minors`])
@@ -224,16 +255,19 @@ fn puppet_minors() -> Rules {
 fn european_minors() -> Rules {
     Rules::new()
         .rule(Bid::new(2, Strain::Spades), 1.3, len(Suit::Clubs, 6..))
+        .alert(EUROPEAN)
         .rule(
             Bid::new(2, Strain::Notrump),
             1.3,
             hcp(8..=8) & balanced() & len(Suit::Hearts, ..4) & len(Suit::Spades, ..4),
         )
+        .alert(EUROPEAN)
         .rule(
             Bid::new(3, Strain::Clubs),
             1.3,
             len(Suit::Diamonds, 6..) | (len(Suit::Diamonds, 5..) & len(Suit::Clubs, 4..)),
         )
+        .alert(EUROPEAN)
 }
 
 /// Opener's answer to Stayman: a four-card major, else 2♦
@@ -276,6 +310,7 @@ fn complete_texas(into: Suit) -> Rules {
 fn slam_try_answer() -> Rules {
     Rules::new()
         .rule(Bid::new(4, Strain::Notrump), 1.0, hcp(17..))
+        .alert(slam::RKCB)
         .rule(Call::Pass, 0.0, hcp(..17))
 }
 
@@ -383,11 +418,13 @@ fn stayman_no_major_rebid() -> Rules {
             1.4,
             len(Suit::Hearts, 4..=4) & len(Suit::Spades, 5..) & hcp(9..),
         )
+        .alert(SMOLEN)
         .rule(
             Bid::new(3, Strain::Spades),
             1.4,
             len(Suit::Spades, 4..=4) & len(Suit::Hearts, 5..) & hcp(9..),
         )
+        .alert(SMOLEN)
         .rule(Bid::new(4, Strain::Notrump), 1.2, hcp(16..=17))
         .rule(Bid::new(3, Strain::Notrump), 1.0, hcp(9..))
         .rule(Bid::new(2, Strain::Notrump), 1.0, hcp(8..=8))
@@ -412,11 +449,13 @@ pub(super) fn smolen_at_three() -> Rules {
             1.4,
             len(Suit::Hearts, 4..=4) & len(Suit::Spades, 5..),
         )
+        .alert(SMOLEN)
         .rule(
             Bid::new(3, Strain::Spades),
             1.4,
             len(Suit::Spades, 4..=4) & len(Suit::Hearts, 5..),
         )
+        .alert(SMOLEN)
         .rule(Bid::new(3, Strain::Notrump), 1.0, hcp(0..))
 }
 
@@ -1195,7 +1234,7 @@ pub(super) fn register_two_nt_and_rebids(book: &mut Trie) {
 #[cfg(test)]
 mod tests {
     use crate::american;
-    use crate::bidding::{System, Tag};
+    use crate::bidding::{Family, System};
     use contract_bridge::auction::{Call, RelativeVulnerability};
     use contract_bridge::{Bid, Strain};
 
@@ -1209,7 +1248,7 @@ mod tests {
     fn best(auction: &[Call], hand: &str) -> Call {
         let hand = hand.parse().expect("valid test hand");
         let logits = american()
-            .against(Tag::NATURAL)
+            .against(Family::NATURAL)
             .classify(hand, RelativeVulnerability::NONE, auction)
             .expect("a decision");
         (&logits.0)
@@ -1283,7 +1322,7 @@ mod tests {
         let best_legal = |auction: &[Call], hand: &str| -> Call {
             let hand = hand.parse().expect("valid test hand");
             let logits = american()
-                .against(Tag::NATURAL)
+                .against(Family::NATURAL)
                 .classify(hand, RelativeVulnerability::NONE, auction)
                 .expect("a decision");
             let mut played = Auction::new();

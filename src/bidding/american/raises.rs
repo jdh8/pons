@@ -2,9 +2,12 @@
 
 use super::{call, insert_uncontested, slam};
 use crate::bidding::constraint::{fifths, hcp, len, points, top_honors};
-use crate::bidding::{Rules, Trie};
+use crate::bidding::{Alert, Rules, Trie};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Strain, Suit};
+
+/// Shortness — opener's `3`-of-a-side-suit singleton/void show after Jacoby 2NT
+const SHORTNESS: Alert = Alert("shortness");
 
 /// Opener's rebid after `1M – (P) – 2NT – (P)`: describe shape and strength
 ///
@@ -42,7 +45,9 @@ fn jacoby_rebids(major: Suit) -> Rules {
 
     // 3-of-x for each side suit: singleton or void (shortness).
     for &side in &side_suits {
-        rules = rules.rule(Bid::new(3, Strain::from(side)), 2.0, len(side, ..=1));
+        rules = rules
+            .rule(Bid::new(3, Strain::from(side)), 2.0, len(side, ..=1))
+            .alert(SHORTNESS);
     }
 
     // No-shortness conjunct: none of the three side suits is short.
@@ -76,11 +81,13 @@ fn responder_after_jacoby(major: Suit, opener_bid: Call) -> Rules {
         // Opener showed a minimum; slam needs extra values.
         Rules::new()
             .rule(four_nt, 1.0, points(18..))
+            .alert(slam::RKCB)
             .rule(Call::Pass, 0.0, hcp(0..))
     } else {
         // Opener showed something descriptive; slam is in range with 16+.
         Rules::new()
             .rule(four_nt, 1.0, points(16..))
+            .alert(slam::RKCB)
             .rule(four_major, 0.5, hcp(0..))
     }
 }

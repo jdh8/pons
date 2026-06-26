@@ -1,10 +1,22 @@
 //! Responses to one-level suit openings in the 2/1 game-forcing system
 
+use super::super::Alert;
 use super::super::Rules;
 use super::super::Trie;
 use super::super::constraint::{balanced, hcp, len, points, stopper_in, support};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Strain, Suit};
+
+/// Jacoby 2NT — the game-forcing major raise with four-card support
+const JACOBY_2NT: Alert = Alert("jacoby-2nt");
+/// Splinter — a double jump in a new suit showing a singleton or void
+const SPLINTER: Alert = Alert("splinter");
+/// Weak jump shift — a single jump showing a weak six-card suit
+const WEAK_JUMP_SHIFT: Alert = Alert("weak-jump-shift");
+/// Inverted minor raise — forcing `2m`, preemptive `3m`
+const INVERTED_MINOR: Alert = Alert("inverted-minor");
+/// 2/1 game force — a new suit at the two level, game forcing
+const GAME_FORCE: Alert = Alert("game-force");
 
 /// Responses to our `1♥`/`1♠` opening
 ///
@@ -23,6 +35,7 @@ pub fn major_responses(major: Suit) -> Rules {
             3.0,
             support(4..) & points(13..),
         )
+        .alert(JACOBY_2NT)
         // Limit raise: four-card support, 10–12 points.
         .rule(Bid::new(3, trump), 2.0, support(4..) & points(10..=12))
         // Weak jump to game: lots of trumps, few points.
@@ -52,11 +65,13 @@ pub fn major_responses(major: Suit) -> Rules {
 
     for &x in splinter_suits {
         let (level, strain) = splinter_bid(major, x);
-        rules = rules.rule(
-            Bid::new(level, strain),
-            2.8,
-            support(4..) & points(10..=13) & len(x, ..=1),
-        );
+        rules = rules
+            .rule(
+                Bid::new(level, strain),
+                2.8,
+                support(4..) & points(10..=13) & len(x, ..=1),
+            )
+            .alert(SPLINTER);
     }
 
     // Weak jump shifts: single jump in a new suit — 6-card suit, 2–5 HCP.
@@ -68,18 +83,22 @@ pub fn major_responses(major: Suit) -> Rules {
 
     for &x in wjs_suits {
         let (level, strain) = wjs_bid(major, x);
-        rules = rules.rule(Bid::new(level, strain), 1.0, len(x, 6..) & points(2..=5));
+        rules = rules
+            .rule(Bid::new(level, strain), 1.0, len(x, 6..) & points(2..=5))
+            .alert(WEAK_JUMP_SHIFT);
     }
 
     // 2/1 game-forcing new suits: cheaper suits, ranked up the line.
     let mut weight = 1.1;
     for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts] {
         if Strain::from(suit) < trump {
-            rules = rules.rule(
-                Bid::new(2, Strain::from(suit)),
-                weight,
-                len(suit, 4..) & points(13..) & !support(4..),
-            );
+            rules = rules
+                .rule(
+                    Bid::new(2, Strain::from(suit)),
+                    weight,
+                    len(suit, 4..) & points(13..) & !support(4..),
+                )
+                .alert(GAME_FORCE);
             weight -= 0.05;
         }
     }
@@ -163,26 +182,35 @@ pub fn minor_responses(minor: Suit) -> Rules {
             1.25,
             support(5..) & points(10..) & len(Suit::Hearts, ..4) & len(Suit::Spades, ..4),
         )
+        .alert(INVERTED_MINOR)
         // Weak preemptive raise.
         .rule(Bid::new(3, trump), 1.1, support(5..) & points(..=9))
+        .alert(INVERTED_MINOR)
         .rule(Call::Pass, 0.0, hcp(..6));
 
     // Weak jump shifts: 2♥ and 2♠ over either minor.
     for x in [Suit::Hearts, Suit::Spades] {
-        rules = rules.rule(
-            Bid::new(2, Strain::from(x)),
-            1.0,
-            len(x, 6..) & points(2..=5),
-        );
+        rules = rules
+            .rule(
+                Bid::new(2, Strain::from(x)),
+                1.0,
+                len(x, 6..) & points(2..=5),
+            )
+            .alert(WEAK_JUMP_SHIFT);
     }
 
     // 2/1 game force: 1♦–2♣ (clubs are cheaper than diamonds).
     if minor == Suit::Diamonds {
-        rules = rules.rule(
-            Bid::new(2, Strain::Clubs),
-            1.3,
-            len(Suit::Clubs, 4..) & points(13..) & len(Suit::Hearts, ..4) & len(Suit::Spades, ..4),
-        );
+        rules = rules
+            .rule(
+                Bid::new(2, Strain::Clubs),
+                1.3,
+                len(Suit::Clubs, 4..)
+                    & points(13..)
+                    & len(Suit::Hearts, ..4)
+                    & len(Suit::Spades, ..4),
+            )
+            .alert(GAME_FORCE);
     }
     rules
 }
@@ -224,6 +252,7 @@ pub(super) fn register(book: &mut Trie) {
 
             let after_splinter = Rules::new()
                 .rule(Bid::new(4, Strain::Notrump), 1.0, points(16..))
+                .alert(super::slam::RKCB)
                 .rule(Bid::new(4, m_strain), 0.5, hcp(0..));
 
             super::insert_uncontested(book, our_calls, after_splinter);
@@ -272,6 +301,7 @@ pub(super) fn register(book: &mut Trie) {
         // registers the answers below this node.
         let after_3nt = Rules::new()
             .rule(Bid::new(4, Strain::Notrump), 1.0, points(14..))
+            .alert(super::slam::RKCB)
             .rule(Call::Pass, 0.5, hcp(0..));
         let our_calls_3nt = &[
             super::call(1, m_strain),

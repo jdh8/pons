@@ -29,7 +29,7 @@ use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
 use pons::bidding::american::bare_american;
 use pons::bidding::context::relative;
-use pons::bidding::{Stance, Tag};
+use pons::bidding::{Family, Stance};
 use pons::scoring::{final_contract, imps, ns_score_contract};
 use std::collections::HashMap;
 
@@ -175,8 +175,8 @@ struct Board {
 fn main() {
     let args = Args::parse();
     let mut rng = rand::rng();
-    let floored = american().against(Tag::NATURAL);
-    let bare = bare_american().against(Tag::NATURAL);
+    let floored = american().against(Family::NATURAL);
+    let bare = bare_american().against(Family::NATURAL);
     let mut telemetry = Telemetry::default();
 
     // Bid every board at both tables, dealer rotating per board.

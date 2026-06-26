@@ -10,7 +10,6 @@
 //! after softmax, while equal weights yield a genuine mixed strategy.
 
 use super::Map;
-use super::Tag;
 use super::array::Logits;
 use super::constraint::{Constraint, Description};
 use super::context::Context;
@@ -21,6 +20,20 @@ use contract_bridge::auction::Call;
 use core::fmt;
 use std::sync::Arc;
 
+/// A per-call alert: the name of the artificial convention a rule's call shows
+///
+/// In real bridge an artificial call is *alerted* so the opponents read it as the
+/// convention rather than as natural — the per-call dual of a whole-system
+/// [`Family`][super::Family].  Here an alert does two jobs: it is the build-time
+/// **gate** (`[`Rules::alert`]` stamps a block, [`Rules::gated`] ships only the
+/// active variant), and it marks a call as artificial so the inference reader
+/// suppresses the natural single-suit reading and projects the convention instead.
+///
+/// The newtype is open — each convention mints its own alert as a constant, such
+/// as `const STAYMAN: Alert = Alert("stayman");`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct Alert(pub &'static str);
+
 /// A single bidding rule: a call justified by a constraint
 #[derive(Clone)]
 pub struct Rule {
@@ -28,7 +41,7 @@ pub struct Rule {
     weight: f32,
     when: Arc<dyn Constraint>,
     label: &'static str,
-    tag: Option<Tag>,
+    alert: Option<Alert>,
 }
 
 impl Rule {
@@ -54,15 +67,15 @@ impl Rule {
         self.label
     }
 
-    /// The [`Tag`] gating this rule, or [`None`] if it is unconditional
+    /// The [`Alert`] this rule carries, or [`None`] if its call is natural
     ///
-    /// Set per block with [`Rules::only`].  An untagged rule is always live; a
-    /// tagged one survives [`Rules::gated`] only when its tag is active.  This
+    /// Set per block with [`Rules::alert`].  An unalerted rule is always live; an
+    /// alerted one survives [`Rules::gated`] only when its alert is active.  This
     /// is how one book holds two convention variants (e.g. Puppet vs European
     /// 1NT responses) and authors only the selected one into the trie.
     #[must_use]
-    pub const fn tag(&self) -> Option<Tag> {
-        self.tag
+    pub const fn alert(&self) -> Option<Alert> {
+        self.alert
     }
 
     /// The logit this rule contributes for a hand
@@ -105,7 +118,7 @@ impl fmt::Debug for Rule {
             .field("call", &self.call)
             .field("weight", &self.weight)
             .field("label", &self.label)
-            .field("tag", &self.tag)
+            .field("alert", &self.alert)
             .finish_non_exhaustive()
     }
 }
@@ -136,7 +149,7 @@ impl Rules {
             weight,
             when: Arc::new(when),
             label: "",
-            tag: None,
+            alert: None,
         });
         self
     }
@@ -160,17 +173,24 @@ impl Rules {
         self
     }
 
-    /// Gate every rule in this block behind `tag` (block-level [`note`][Self::note])
+    /// Alert the most recently added rule as the artificial convention `alert`
     ///
-    /// Builds a tagged variant: `european_minors().only(Tag::EUROPEAN)` marks the
-    /// whole block so that [`gated`][Self::gated] keeps it only when European is
-    /// the active variant.  Chain two tagged blocks into one [`Rules`] (with
-    /// [`chain`][Self::chain]) to hold both variants at a single auction key.
+    /// Chains after [`rule`][Self::rule], mirroring [`note`][Self::note]:
+    /// `….rule(call, w, when).alert(STAYMAN)`.  Marks the call artificial — the
+    /// inference reader reads it as the convention rather than as a natural suit —
+    /// and where the convention is a build-time variant (Puppet vs European), the
+    /// alert doubles as the gate so [`gated`][Self::gated] keeps the rule only when
+    /// the variant is active.
+    ///
+    /// # Panics
+    ///
+    /// Panics if no rule has been added yet.
     #[must_use]
-    pub fn only(mut self, tag: Tag) -> Self {
-        for rule in &mut self.rules {
-            rule.tag = Some(tag);
-        }
+    pub fn alert(mut self, alert: Alert) -> Self {
+        self.rules
+            .last_mut()
+            .expect("alert() requires a preceding rule()")
+            .alert = Some(alert);
         self
     }
 
@@ -181,15 +201,15 @@ impl Rules {
         self
     }
 
-    /// Drop rules whose [`tag`][Rule::tag] is set but not `active`
+    /// Drop rules whose [`alert`][Rule::alert] is set but not `active`
     ///
-    /// Untagged rules (`tag: None`) always survive; a tagged rule lives only when
-    /// `active(tag)` holds.  Called before trie insertion so a book that authored
-    /// two convention variants ships only the selected one — the build-time gate
-    /// that keeps `classify()` free of any variant check.
+    /// Unalerted rules (`alert: None`) always survive; an alerted rule lives only
+    /// when `active(alert)` holds.  Called before trie insertion so a book that
+    /// authored two convention variants ships only the selected one — the
+    /// build-time gate that keeps `classify()` free of any variant check.
     #[must_use]
-    pub fn gated(mut self, active: impl Fn(Tag) -> bool) -> Self {
-        self.rules.retain(|rule| rule.tag.is_none_or(&active));
+    pub fn gated(mut self, active: impl Fn(Alert) -> bool) -> Self {
+        self.rules.retain(|rule| rule.alert.is_none_or(&active));
         self
     }
 
@@ -302,38 +322,38 @@ mod tests {
     }
 
     #[test]
-    fn test_only_tags_block_and_gated_filters() {
-        const PUPPET: Tag = Tag("puppet");
-        const EUROPEAN: Tag = Tag("european");
+    fn test_alert_marks_block_and_gated_filters() {
+        const PUPPET: Alert = Alert("puppet");
+        const EUROPEAN: Alert = Alert("european");
 
-        // Shared (untagged) rule, then one tagged block per variant chained in.
+        // Shared (unalerted) rule, then one alerted block per variant chained in.
         let rules = Rules::new()
             .rule(Call::Pass, 0.0, hcp(..8))
             .chain(
                 Rules::new()
                     .rule(Bid::new(3, Strain::Clubs), 1.0, hcp(9..))
-                    .only(PUPPET),
+                    .alert(PUPPET),
             )
             .chain(
                 Rules::new()
                     .rule(Bid::new(3, Strain::Clubs), 1.0, hcp(9..))
-                    .only(EUROPEAN),
+                    .alert(EUROPEAN),
             );
 
-        assert_eq!(rules.rules()[0].tag(), None);
-        assert_eq!(rules.rules()[1].tag(), Some(PUPPET));
-        assert_eq!(rules.rules()[2].tag(), Some(EUROPEAN));
+        assert_eq!(rules.rules()[0].alert(), None);
+        assert_eq!(rules.rules()[1].alert(), Some(PUPPET));
+        assert_eq!(rules.rules()[2].alert(), Some(EUROPEAN));
 
-        // Gating to Puppet keeps the untagged rule and the Puppet block only.
-        let puppet = rules.clone().gated(|tag| tag == PUPPET);
+        // Gating to Puppet keeps the unalerted rule and the Puppet block only.
+        let puppet = rules.clone().gated(|alert| alert == PUPPET);
         assert_eq!(puppet.rules().len(), 2);
-        assert_eq!(puppet.rules()[0].tag(), None);
-        assert_eq!(puppet.rules()[1].tag(), Some(PUPPET));
+        assert_eq!(puppet.rules()[0].alert(), None);
+        assert_eq!(puppet.rules()[1].alert(), Some(PUPPET));
 
-        // Gating to European keeps the untagged rule and the European block.
-        let european = rules.gated(|tag| tag == EUROPEAN);
+        // Gating to European keeps the unalerted rule and the European block.
+        let european = rules.gated(|alert| alert == EUROPEAN);
         assert_eq!(european.rules().len(), 2);
-        assert_eq!(european.rules()[1].tag(), Some(EUROPEAN));
+        assert_eq!(european.rules()[1].alert(), Some(EUROPEAN));
     }
 
     #[test]
