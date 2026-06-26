@@ -183,6 +183,13 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_dont_four_four: bool,
 
+    /// Overlay Landy on our natural 1NT defense (default off): `2♣` = both majors
+    /// (≥5-4), `2NT` = both minors, on the given `points` band `LO:HI`, replacing the
+    /// natural `2♣` club overcall (penalty X + natural `2♦`/`2♥`/`2♠` stay).  Pair with
+    /// `--advertise-landy` so BBA reads our `2♣` as both majors and the rest natural.
+    #[arg(long)]
+    ns_landy: Option<String>,
+
     /// Replace our 1NT defense with our own Woolsey "Multi-Landy" (default off):
     /// X = 4-card major + longer minor, 2♣ = both majors, 2♦ = Multi, 2♥/2♠ =
     /// Muiderberg.  Run WITHOUT `--advertise-natural` (BBA reads it via Multi-Landy).
@@ -232,6 +239,14 @@ struct Args {
     /// The all-BBA reference table keeps BBA's genuine Multi-Landy.
     #[arg(long, default_value_t = false)]
     advertise_natural: bool,
+
+    /// Advertise that our defense to BBA's 1NT is **Landy** (pairs with `--ns-landy`).
+    /// At *our* table the opponent bot keeps `Landy` on and `Multi-Landy`/`Cappelletti`
+    /// off, so BBA reads our `2♣` as both majors and our `2♦`/`2♥`/`2♠` as natural — the
+    /// honest disclosure of the Landy overlay (vs `--advertise-natural`, which would
+    /// misread `2♣` as clubs).  Mutually exclusive with `--advertise-natural`.
+    #[arg(long, default_value_t = false)]
+    advertise_landy: bool,
 
     /// Disable the settle floor ("pass = play the top bid" over a takeout double,
     /// default on) to A/B the floor change's effect on defense.
@@ -584,10 +599,18 @@ fn main() -> anyhow::Result<()> {
     // overcalls naturally: disable its 1NT-defense conventions on top of
     // `--their-conv`.  Used only where `ours` defends; the all-BBA reference keeps
     // the plain `bba` (BBA's genuine Multi-Landy).
-    let bba_vs_natural = if args.advertise_natural {
+    anyhow::ensure!(
+        !(args.advertise_natural && args.advertise_landy),
+        "--advertise-natural and --advertise-landy are mutually exclusive"
+    );
+    let bba_vs_natural = if args.advertise_natural || args.advertise_landy {
         let mut conv = args.their_conv.clone();
+        // Disclose our defense by setting how the opponent bot reads us: drop every
+        // 1NT-defense convention, then (for Landy) re-enable just `Landy` so our `2♣`
+        // reads as both majors and the rest natural.
         for name in ["Multi-Landy", "Cappelletti", "Landy"] {
-            conv.push((CString::new(name).expect("a literal name has no NUL"), 0));
+            let on = (name == "Landy" && args.advertise_landy) as c_int;
+            conv.push((CString::new(name).expect("a literal name has no NUL"), on));
         }
         Some(BbaOracle::load(&path, args.system, conv)?)
     } else {
@@ -633,6 +656,13 @@ fn main() -> anyhow::Result<()> {
         pons::bidding::american::set_unusual_notrump_defense(Some((8, 14)));
         pons::bidding::american::set_direct_dont_one_suiter_min(args.ns_dont_one_suiter_min);
         pons::bidding::american::set_direct_dont_four_four(args.ns_dont_four_four);
+    }
+    if let Some(spec) = &args.ns_landy {
+        let (lo, hi) = spec
+            .split_once(':')
+            .and_then(|(lo, hi)| Some((lo.parse::<u8>().ok()?, hi.parse::<u8>().ok()?)))
+            .ok_or_else(|| anyhow::anyhow!("--ns-landy must be LO:HI, got {spec:?}"))?;
+        pons::bidding::american::set_landy(Some((lo, hi)));
     }
     pons::bidding::american::set_woolsey(args.ns_woolsey);
     if args.ns_woolsey {

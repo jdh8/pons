@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`bba-gen` can now measure our Landy honestly against BBA.** A new `--ns-landy
+  LO:HI` overlays Landy on our natural 1NT defense (`2♣` = both majors, `2NT` = both
+  minors), and `--advertise-landy` discloses it by setting BBA's opponent model to
+  read our `2♣` as both majors and `2♦`/`2♥`/`2♠` as natural — the honest mirror of
+  the overlay (vs `--advertise-natural`, which would misread `2♣` as clubs). This
+  matters because the prior self-play harness has **no counter-defense to Landy**: the
+  opposing side can neither penalty-double a light both-majors `2♣` nor compete in its
+  now-implied minor fit, so it flatters the convention. Validated on 1 000 paired
+  boards: BBA changes its auction on ~46% of the boards we bid Landy `2♣` (doubling or
+  competing on the disclosure), where the self-play opponent never does.
+
 - **A `doubled` probe mode for `probe-bba-1nt`.** Mirrors the existing `responder`
   mode but with BBA *opening* the 1NT and receiving a penalty double, reading BBA's
   runout style across a strength/shape battery. Finding: BBA plays **systems on** —
