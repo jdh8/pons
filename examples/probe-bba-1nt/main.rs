@@ -11,7 +11,12 @@
 //! ```text
 //! cargo run --release --example probe-bba-1nt            # BBA's defense over (1NT)
 //! cargo run --release --example probe-bba-1nt responder  # BBA's Unusual-vs-Unusual: 1NT-(2NT)
+//! cargo run --release --example probe-bba-1nt doubled    # BBA's runout after 1NT-(X)
 //! ```
+//!
+//! The `doubled` mode is the mirror of `responder`: BBA *opens* 1NT and gets a
+//! penalty double, so it reads BBA's runout style — natural scramble (weak hands
+//! flee to a suit), systems-on (Stayman / transfers ignore the X), or sit/redouble.
 //!
 //! The `responder` mode reads BBA's *opening-side* call after `1NT-(2NT)`, where
 //! that `2NT` is BBA's own Multi-Landy both-minors overcall — i.e. how BBA plays
@@ -321,6 +326,53 @@ fn main() -> anyhow::Result<()> {
         probe("both minors  ", "83", "4", "KQJ97", "KQ976");
         probe("♥ length 5   ", "K5", "KQJ97", "A84", "932");
         probe("♥ stack QJT9x", "K53", "QJT97", "A8", "932");
+        return Ok(());
+    }
+
+    if std::env::args().nth(1).as_deref() == Some("doubled") {
+        // Mirror of `responder`: BBA *opens* 1NT (position 0), LHO drops a penalty
+        // double (position 1), BBA's responder (position 2) acts.  Reads the runout
+        // style across the strength/shape spectrum.  prefix [9, 1] = 1NT, X.
+        let probe = |label: &str, s, h, d, c| {
+            let hand = suits(s, h, d, c);
+            // SAFETY: fresh bot; responder (position 2) holds `hand`; replay 1NT, X.
+            let call = |vul: c_int| unsafe {
+                let bot = create();
+                for seat in 0..4 {
+                    set_system(bot, seat, 0);
+                }
+                new_hand(bot, 2, hand.as_ptr(), 0, vul, 0, 0);
+                set_bid(bot, 0, 9, c"".as_ptr()); // opener's 1NT (position 0)
+                set_bid(bot, 1, 1, c"".as_ptr()); // (X) penalty double (position 1)
+                let code = get_bid(bot);
+                destroy(bot);
+                decode(code)
+            };
+            // The doubled side is N/S (us, position 2 even): vul bit 1 = us-vul.
+            println!(
+                "  {label} ♠{s:6} ♥{h:6} ♦{d:6} ♣{c:6}  ->  NV {:<5}  us-vul {:<5}  both {}",
+                call(0),
+                call(1),
+                call(3),
+            );
+        };
+        // (label, ♠, ♥, ♦, ♣) — responder hands spanning weak one-/two-suiters
+        // (would scramble), weak flat (sit or SOS?), invitational (transfer/Stayman
+        // if systems-on?), and game-forcing (redouble business / bid game?).
+        println!("BBA (system 0) responder runout after 1NT-(X):\n");
+        probe("weak 6♣      ", "843", "84", "73", "QJT965");
+        probe("weak 6♦      ", "843", "84", "QJT965", "73");
+        probe("weak 5♥      ", "843", "QJT95", "732", "84");
+        probe("weak 5♠      ", "QJT95", "843", "732", "84");
+        probe("weak 5-5 min ", "8", "43", "QJT95", "QT984");
+        probe("weak 5-5 maj ", "QJT95", "QT984", "8", "43");
+        probe("weak flat 4333", "8743", "972", "863", "J52");
+        probe("weak 4-4 min ", "832", "84", "9743", "QT85");
+        probe("inv 5♥       ", "K3", "KQT95", "J32", "842");
+        probe("inv 4-4 maj  ", "KJ87", "Q986", "K3", "842");
+        probe("inv flat 8   ", "KJ7", "Q72", "J96", "Q832");
+        probe("GF 5♠        ", "KQJ95", "A4", "K32", "842");
+        probe("GF flat 13   ", "KQ5", "KJ7", "Q986", "A83");
         return Ok(());
     }
 

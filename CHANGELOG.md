@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **A `doubled` probe mode for `probe-bba-1nt`.** Mirrors the existing `responder`
+  mode but with BBA *opening* the 1NT and receiving a penalty double, reading BBA's
+  runout style across a strength/shape battery. Finding: BBA plays **systems on** —
+  transfers (`2♦`→♥, `2♥`→♠), minor transfers (`2♠`→♣), and Stayman (`2♣`) run on
+  top of the double exactly as uncontested; weak balanced hands `Pass` to defend the
+  doubled 1NT, and strong balanced hands `XX` (business/values). It is *not* a
+  natural scramble. Vulnerability did not change any call in the sample. Run with
+  `cargo run --release --example probe-bba-1nt doubled`.
+
 - **A second 1NT minor-suit response scheme, "European", selectable per book.**
   Alongside the default "Puppet" scheme (`2♠` = clubs-or-invite, `2NT` = diamond
   transfer, `3♣` = Puppet Stayman), the opt-in European scheme plays `2♠` = clubs
