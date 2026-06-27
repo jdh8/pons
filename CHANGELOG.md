@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.10.0] — Unreleased
 
+### Fixed
+
+- **Contested Transfer-Lebensohl transfers are now decoded under second-round
+  intervention.** After our `1NT` and a natural 2-level overcall, responder's
+  3-level transfer (`1NT-(2♠)-3♦`→♥) was only decoded by opener when RHO passed —
+  opener's completion node is keyed on the quiet `[overcall, 3Y, Pass]` suffix. When
+  the overcaller's partner bid again over the transfer (e.g. `(3♠)`), opener fell to
+  the instinct floor, which read the transfer as a *natural* long suit and raised the
+  phantom suit into a doubled contract (the BBA-match tail had `1NT-(2♠)-3♦-(3♠)-5♦x`
+  catastrophes). `Inferences::read` now carries a structural
+  `transfer_lebensohl_reading` that decodes the transfer from the auction shape alone
+  (independent of the book prefixes the projection needs), so opener reads the real
+  suit even when the completion node does not fire. Geometry mirrors the responder
+  table: up-the-line over `(2♥/2♠/2♣)`, direct Jacoby over `(2♦)`. Rare, so no
+  measurable move in the umbrella BBA-match number; it removes doubled-disaster
+  outliers.
+
 ### Added
 
 - **Competition over our 2NT diamond transfer, both sides — authored and

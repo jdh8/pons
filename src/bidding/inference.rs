@@ -418,6 +418,11 @@ impl Inferences {
         // Responder's double of an overcall of our 1NT shows 8+ (every DoubleStyle),
         // recorded post-walk so opener does not undercount the partnership's strength.
         let overcall_double = responder_overcall_double_reading(auction, len);
+        // Responder's contested Transfer-Lebensohl 3-level transfer (`1NT-(2X)-3Y`):
+        // its target is recorded post-walk and the natural `3Y` reading suppressed,
+        // so a second-round overcall/double that skips the completion node does not
+        // leave opener reading the transfer as a natural suit (board 881510's 5♦x).
+        let transfer_leb = crate::bidding::american::transfer_lebensohl_reading(auction);
 
         for (index, &call) in auction.iter().enumerate() {
             let lane = index % 4;
@@ -466,6 +471,7 @@ impl Inferences {
                             || rubens_suppress.contains(&Some(index))
                             || (index < 64 && suppressed >> index & 1 != 0)
                             || landy_relay == Some(index)
+                            || transfer_leb.is_some_and(|(i, _)| i == index)
                             || multi.is_some_and(|m| m.suppresses(index))
                             || woolsey_x.is_some_and(|w| w.suppresses(index))
                             || dont.is_some_and(|d| d.suppresses(index));
@@ -687,6 +693,14 @@ impl Inferences {
         // floors the `or`-union washes out, which the projection cannot pin.
         for (seat, projected) in overlay.iter().enumerate() {
             players[seat] = players[seat].intersect(projected);
+        }
+
+        // Responder's contested Transfer-Lebensohl transfer shows 5+ in the target
+        // (the natural `3Y` reading was suppressed above), so opener completes to the
+        // real suit even when a second-round overcall skipped the completion node.
+        if let Some((resp_index, target)) = transfer_leb {
+            let who = relative_of(len, resp_index) as usize;
+            players[who].narrow_length(target, Range::at_least(5, LENGTH_CAP));
         }
 
         // A Woolsey Multi-family overcall.  The "6+ major" (2♦) and "4+ minor"
@@ -2085,6 +2099,58 @@ mod tests {
         ];
         let inf = read(&auction);
         assert!(inf.partner().length(Suit::Hearts).min < 6);
+    }
+
+    #[test]
+    fn contested_transfer_lebensohl_reads_the_target_under_intervention() {
+        // Board 881510: [1NT, (2♠), 3♦, (3♠)] — responder's 3♦ is a Transfer-
+        // Lebensohl transfer to hearts (up the line through their spade suit).  RHO's
+        // (3♠) skips opener's completion node, so without the structural reader opener
+        // (Me, to act) reads 3♦ as natural diamonds and raises the phantom suit to
+        // 5♦x.  The keyless `read` is exactly that floor path.
+        let auction = [
+            bid(1, Strain::Notrump),
+            bid(2, Strain::Spades),
+            bid(3, Strain::Diamonds),
+            bid(3, Strain::Spades),
+        ];
+        let inf = read(&auction);
+        assert!(
+            inf.partner().length(Suit::Hearts).min >= 5,
+            "transfer target pinned"
+        );
+        assert!(
+            inf.partner().length(Suit::Diamonds).min < 5,
+            "phantom suit not read"
+        );
+    }
+
+    #[test]
+    fn contested_transfer_lebensohl_direct_jacoby_over_2d() {
+        // Over (2♦) the transfers are direct Jacoby: 3♦→♥.  [1NT, (2♦), 3♦, (X)].
+        let auction = [
+            bid(1, Strain::Notrump),
+            bid(2, Strain::Diamonds),
+            bid(3, Strain::Diamonds),
+            Call::Double,
+        ];
+        let inf = read(&auction);
+        assert!(inf.partner().length(Suit::Hearts).min >= 5);
+    }
+
+    #[test]
+    fn contested_transfer_lebensohl_cue_is_not_a_transfer() {
+        // The cue of their suit is Stayman, not a transfer: [1NT, (2♠), 3♠, (P)]
+        // must not be decoded as a transfer to hearts (the reader returns None; the
+        // generic walk's natural-spades read is pre-existing and out of scope here).
+        let auction = [
+            bid(1, Strain::Notrump),
+            bid(2, Strain::Spades),
+            bid(3, Strain::Spades),
+            Call::Pass,
+        ];
+        let inf = read(&auction);
+        assert!(inf.partner().length(Suit::Hearts).min < 5);
     }
 
     #[test]

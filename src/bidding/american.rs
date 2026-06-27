@@ -80,6 +80,7 @@ mod slam;
 mod strong_two;
 mod weak_twos;
 
+pub(crate) use competition::transfer_lebensohl_reading;
 pub use competition::{
     DoubleStyle, LebensohlStyle, competition, set_competition_over_diamond_transfer,
     set_competition_over_minor_transfer, set_competition_over_stayman,
