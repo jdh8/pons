@@ -188,6 +188,18 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_minor_transfer_defense: bool,
 
+    /// Turn OFF our continuations after the opponents contest our 2NT diamond
+    /// transfer (`1NT-(P)-2NT-(X)`/`-(overcall)`); default on (the A/B off-switch —
+    /// measured a plain-DD wash +0.24/fired, +3.40 PD).
+    #[arg(long, default_value_t = false)]
+    no_ns_comp_over_diamond_transfer: bool,
+
+    /// Author our defense to the opponents' 2NT diamond transfer
+    /// (`(1NT)-P-(2NT)`): X = lead-directing diamonds, 3♦ cue = both majors,
+    /// natural overcalls (default off; opt-in A/B).
+    #[arg(long, default_value_t = false)]
+    ns_diamond_transfer_defense: bool,
+
     /// Stayman-defense natural-overcall `MIN_LEN:POINTS_FLOOR` (default 6:12); the
     /// A/B search knob for the 2♦/2♥/2♠ length + strength (no effect unless
     /// `--ns-defense-to-their-stayman`).
@@ -709,6 +721,10 @@ fn main() -> anyhow::Result<()> {
         !args.no_ns_comp_over_minor_transfer,
     );
     pons::bidding::american::set_minor_transfer_defense(args.ns_minor_transfer_defense);
+    pons::bidding::american::set_competition_over_diamond_transfer(
+        !args.no_ns_comp_over_diamond_transfer,
+    );
+    pons::bidding::american::set_diamond_transfer_defense(args.ns_diamond_transfer_defense);
     {
         let (lo, hi) = args
             .ns_staydef_overcall

@@ -586,6 +586,46 @@ fn competition_over_minor_transfer() -> bool {
 }
 
 thread_local! {
+    /// Whether opener authors continuations after the opponents contest our 2NT
+    /// diamond transfer (`1NT-(P)-2NT-(X)` and `-(overcall)`); **on by default**,
+    /// with an off-switch for A/B measurement.  See
+    /// [`set_competition_over_diamond_transfer`].
+    static COMPETITION_OVER_DIAMOND_TRANSFER: Cell<bool> = const { Cell::new(true) };
+}
+
+/// Author opener's replies after the opponents double or overcall our 2NT diamond
+/// transfer (6+♦, or 5♦-4♣), for books built *after* this call (thread-local;
+/// **on by default**).
+///
+/// Only the PUPPET scheme (the default) plays 2NT as the diamond transfer, so the
+/// block no-ops under EUROPEAN (where 2NT is the balanced size-ask).  Their `(X)`
+/// is lead-directing diamonds; the double frees `Pass` to be the catch-all
+/// "no fit" call, which lets opener's `3♣` shed its uncontested
+/// relay-denies-a-fit meaning and become **natural** (4+♣, finding responder's
+/// 5♦-4♣ club fit): `3♦` = accept with a diamond fit (3+♦), `3♣` = no fit but
+/// 4+♣, `XX` = maximum values without a fit (penalty-oriented), `Pass` = minimum
+/// catch-all.  After a fit-showing `3♦`/`3♣` responder's rebids match the
+/// uncontested tree (strip the `X` to a Pass); after `Pass`/`XX` (no fit)
+/// responder always holds 5+♦ and signs off in `3♦`.  An overcall is handled
+/// naturally: `3♣` leaves room to complete `3♦` with a fit (else `X` = penalty,
+/// Pass = minimum); a higher overcall keeps `3NT` (max + stopper) / `X` (their
+/// suit) / Pass.  **On by default** (off-switch `bba-gen
+/// --no-ns-comp-over-diamond-transfer`): a paired A/B vs BBA over 1 000 000
+/// `--filter-1nt` boards (410 fired, 0.04 %) measured a plain-DD **wash** (+0.24
+/// IMPs/board it fires on, CI straddling 0) and a clear perfect-defense gain (+3.40
+/// PD).  Unlike the 2♠ minor (which won on *both* scorers), the honest-DD signal is
+/// a wash — but it never *loses* on plain DD, and the PD gain is real value the day
+/// the opponents punish the floor's `X`-then-pull-to-`3NT` overreach, so it ships on.
+pub fn set_competition_over_diamond_transfer(on: bool) {
+    COMPETITION_OVER_DIAMOND_TRANSFER.with(|cell| cell.set(on));
+}
+
+/// Whether competition over our 2NT diamond transfer is currently authored
+fn competition_over_diamond_transfer() -> bool {
+    COMPETITION_OVER_DIAMOND_TRANSFER.with(Cell::get)
+}
+
+thread_local! {
     /// The weak natural `2♦/2♥/2♠` escape's strength floor as
     /// `(hcp_floor, points_floor)` — one is `0`; `(0, 0)` = no floor (see
     /// [`set_natural_floor`]). Defaults to a **`5`-HCP** floor (with opener's
@@ -1759,6 +1799,68 @@ fn minor_overcalled_low(over: Suit) -> Rules {
         .rule(Call::Pass, 0.2, hcp(0..))
 }
 
+/// Opener's reply after the opponents double our 2NT diamond transfer
+/// (`1NT-(P)-2NT-(X)`)
+///
+/// `Pass` now carries the "no diamond fit" message (the uncontested job of `3♣`),
+/// so opener's `3♣` is freed to be natural 4+♣ (finding responder's 5♦-4♣ fit):
+/// `3♦` = accept with 3+♦, `3♣` = no fit but 4+♣, `XX` = maximum values (no fit,
+/// penalty-oriented), `Pass` = minimum catch-all.
+fn diamond_doubled_opener() -> Rules {
+    Rules::new()
+        // Accept the transfer with a diamond fit — primary.
+        .rule(Bid::new(3, Strain::Diamonds), 1.0, len(Suit::Diamonds, 3..))
+        // No fit but real clubs: natural, lands responder's 5♦-4♣ in the club fit.
+        .rule(
+            Bid::new(3, Strain::Clubs),
+            0.7,
+            len(Suit::Diamonds, ..3) & len(Suit::Clubs, 4..),
+        )
+        // Maximum without a fit: redouble shows values (penalty-oriented).
+        .rule(Call::Redouble, 0.6, hcp(17..))
+        // Catch-all: minimum, no fit, no clubs.
+        .rule(Call::Pass, 0.25, hcp(0..))
+}
+
+/// Responder's signoff after opener denied a diamond fit over our doubled 2NT
+/// (`1NT-(P)-2NT-(X)-P-(P)` minimum, or `…-XX-(P)` maximum)
+///
+/// Responder always holds 5+♦ from the transfer, so pull to `3♦` rather than
+/// languish in a doubled 2NT; Pass is a near-dead catch-all.
+//
+// ponytail: a strong responder bidding game over opener's XX is the rare soft
+// spot left to the floor — refine only if an A/B says this branch leaks.
+fn diamond_no_fit_rebid() -> Rules {
+    Rules::new()
+        .rule(Bid::new(3, Strain::Diamonds), 0.8, len(Suit::Diamonds, 5..))
+        .rule(Call::Pass, 0.1, hcp(0..))
+}
+
+/// Opener's reply after the opponents overcall our 2NT diamond transfer at `3♣`
+/// (the one overcall that leaves the `3♦` completion legal)
+fn diamond_overcalled_low() -> Rules {
+    Rules::new()
+        .rule(Bid::new(3, Strain::Diamonds), 1.0, len(Suit::Diamonds, 3..))
+        .rule(Call::Double, 0.6, len(Suit::Clubs, 4..))
+        .rule(Call::Pass, 0.2, hcp(0..))
+}
+
+/// Opener's reply after the opponents overcall our 2NT diamond transfer above `3♣`
+/// (`3♦` cue / `3♥` / `3♠` — the `3♦` completion is gone)
+///
+/// `3NT` = maximum with a stopper in their suit (to play), `X` = length in their
+/// suit (penalty), else Pass and leave responder captain.
+fn diamond_overcalled_high(over: Suit) -> Rules {
+    Rules::new()
+        .rule(
+            Bid::new(3, Strain::Notrump),
+            1.0,
+            hcp(17..) & stopper_in(over),
+        )
+        .rule(Call::Double, 0.6, len(over, 4..))
+        .rule(Call::Pass, 0.2, hcp(0..))
+}
+
 /// The competitive package over our openings: cue-bid raises, preemptive raises,
 /// negative doubles for all four openings, support doubles/redoubles, and
 /// opener's answers to negative doubles of minor overcalls
@@ -2433,6 +2535,86 @@ pub fn competition() -> Competitive {
         }
     }
 
+    // Competition over our own 2NT diamond transfer (`set_competition_over_
+    // diamond_transfer`, default off): opener's replies after the opponents double
+    // `1NT-(P)-2NT-(X)` or overcall it.  Keyed at `[1NT, P, 2NT]`.  Only the PUPPET
+    // scheme plays 2NT as the diamond transfer, so the block no-ops under EUROPEAN.
+    if competition_over_diamond_transfer() && notrump_minors() == PUPPET {
+        let two_nt = [
+            call(1, Strain::Notrump),
+            Call::Pass,
+            call(2, Strain::Notrump),
+        ];
+
+        // Our 2NT doubled.  Opener's 3♦-fit / 3♣-clubs / XX-values / Pass reply.
+        fallback_all_seats(
+            &mut book,
+            &two_nt,
+            3,
+            Arc::new(guard(|_: &Context<'_>, s: &[Call]| s == [Call::Double])),
+            Fallback::classify(diamond_doubled_opener()),
+        );
+        // After opener's fit-showing bid (`3♦`/`3♣`) responder's rebids match the
+        // uncontested tree: strip the `X` to a Pass.
+        fallback_all_seats(
+            &mut book,
+            &two_nt,
+            3,
+            Arc::new(guard(|_: &Context<'_>, s: &[Call]| {
+                s.first() == Some(&Call::Double) && matches!(s.get(1), Some(Call::Bid(_)))
+            })),
+            Fallback::rebase(rewriter(move |auction: &[Call], depth: usize| {
+                if auction.get(depth) != Some(&Call::Double) {
+                    return None;
+                }
+                let mut rewritten = auction.to_vec();
+                rewritten[depth] = Call::Pass; // strip the X → systems on
+                Some(rewritten)
+            })),
+        );
+        // Opener denied a fit (Pass = min, suffix `[X, P, P]`; or XX = max values,
+        // suffix `[X, XX, P]`).  Responder signs off in 3♦ (always 5+♦).
+        for deny in [
+            [Call::Double, Call::Pass, Call::Pass],
+            [Call::Double, Call::Redouble, Call::Pass],
+        ] {
+            fallback_all_seats(
+                &mut book,
+                &two_nt,
+                3,
+                Arc::new(guard(move |_: &Context<'_>, s: &[Call]| s == deny)),
+                Fallback::classify(diamond_no_fit_rebid()),
+            );
+        }
+
+        // Our 2NT overcalled.  `3♣` leaves the `3♦` completion legal; a higher
+        // overcall (`3♦` cue / `3♥` / `3♠`) keeps `3NT`/`X`/Pass natural.
+        let overcalls: [(Call, Rules); 4] = [
+            (call(3, Strain::Clubs), diamond_overcalled_low()),
+            (
+                call(3, Strain::Diamonds),
+                diamond_overcalled_high(Suit::Diamonds),
+            ),
+            (
+                call(3, Strain::Hearts),
+                diamond_overcalled_high(Suit::Hearts),
+            ),
+            (
+                call(3, Strain::Spades),
+                diamond_overcalled_high(Suit::Spades),
+            ),
+        ];
+        for (over, rules) in overcalls {
+            fallback_all_seats(
+                &mut book,
+                &two_nt,
+                3,
+                Arc::new(guard(move |_: &Context<'_>, s: &[Call]| s == [over])),
+                Fallback::classify(rules),
+            );
+        }
+    }
+
     // Section 5d: Unusual vs Unusual over a both-minors (2NT) overcall of our 1NT
     // (`set_uvu`, default off). Responder's `X` is penalty; `3♣`/`3♦` are
     // INV+ cues (Stayman/5+♠, 5+♥); `4♣`/`4♦` are FG+ 5-5-majors splinters; the
@@ -2571,6 +2753,16 @@ mod tests {
         result
     }
 
+    /// As [`best_call`], with our 2NT diamond-transfer competition (Side A) forced
+    /// on (it is also the default, but pin it so a thread that another test left off
+    /// still sees it); restores the on default afterward.
+    fn bid_diamond(auction: &[Call], hand: &str) -> (Call, bool) {
+        super::set_competition_over_diamond_transfer(true);
+        let result = best_call(auction, hand);
+        super::set_competition_over_diamond_transfer(true);
+        result
+    }
+
     // --- Competition over our 2♠ minor transfer (Side A) ---
 
     #[test]
@@ -2669,6 +2861,110 @@ mod tests {
         ];
         let (c, _) = bid_minor(&auction, "K32.K32.AQ32.A32");
         assert_eq!(c, Call::Double);
+    }
+
+    // --- Competition over our 2NT diamond transfer (Side A) ---
+
+    #[test]
+    fn diamond_doubled_opener_completes_with_a_fit() {
+        // 1NT-(P)-2NT-(X): three diamonds → 3♦ (accept the transfer).
+        let auction = [
+            call(1, Strain::Notrump),
+            Call::Pass,
+            call(2, Strain::Notrump),
+            Call::Double,
+        ];
+        let (c, floored) = bid_diamond(&auction, "Axx.Kxx.Qxx.AKxx");
+        assert_eq!(c, call(3, Strain::Diamonds));
+        assert!(!floored, "the contested completion must come from the book");
+    }
+
+    #[test]
+    fn diamond_doubled_opener_bids_natural_clubs() {
+        // 1NT-(P)-2NT-(X): doubleton ♦ but 4 clubs → 3♣ (natural, Pass is the
+        // catch-all, so 3♣ promises real clubs).
+        let auction = [
+            call(1, Strain::Notrump),
+            Call::Pass,
+            call(2, Strain::Notrump),
+            Call::Double,
+        ];
+        let (c, floored) = bid_diamond(&auction, "AQx.Kxx.xx.AQxx");
+        assert_eq!(c, call(3, Strain::Clubs));
+        assert!(!floored, "the natural 3♣ must come from the book");
+    }
+
+    #[test]
+    fn diamond_doubled_opener_redoubles_max_no_fit() {
+        // 1NT-(P)-2NT-(X): maximum (18), no ♦ fit, no 4-card club → XX (values).
+        let auction = [
+            call(1, Strain::Notrump),
+            Call::Pass,
+            call(2, Strain::Notrump),
+            Call::Double,
+        ];
+        let (c, floored) = bid_diamond(&auction, "AKxx.AQxx.Jx.Axx");
+        assert_eq!(c, Call::Redouble);
+        assert!(!floored, "the values redouble must come from the book");
+    }
+
+    #[test]
+    fn diamond_no_fit_responder_signs_off_in_diamonds() {
+        // 1NT-(P)-2NT-(X)-P-(P): opener denied a fit; responder pulls to 3♦.
+        let auction = [
+            call(1, Strain::Notrump),
+            Call::Pass,
+            call(2, Strain::Notrump),
+            Call::Double,
+            Call::Pass,
+            Call::Pass,
+        ];
+        let (c, floored) = bid_diamond(&auction, "xx.xx.KJxxxx.xxx");
+        assert_eq!(c, call(3, Strain::Diamonds));
+        assert!(!floored, "the signoff must come from the book");
+    }
+
+    #[test]
+    fn diamond_overcalled_low_still_completes() {
+        // 1NT-(P)-2NT-(3♣): 3♦ still legal, three diamonds → complete to 3♦.
+        let auction = [
+            call(1, Strain::Notrump),
+            Call::Pass,
+            call(2, Strain::Notrump),
+            call(3, Strain::Clubs),
+        ];
+        let (c, floored) = bid_diamond(&auction, "Axx.Kxx.Qxx.AKxx");
+        assert_eq!(c, call(3, Strain::Diamonds));
+        assert!(!floored, "the completion over 3♣ must come from the book");
+    }
+
+    #[test]
+    fn diamond_overcalled_high_three_notrump_with_stopper() {
+        // 1NT-(P)-2NT-(3♥): no 3♦ left; maximum (18) + heart stopper → 3NT.
+        let auction = [
+            call(1, Strain::Notrump),
+            Call::Pass,
+            call(2, Strain::Notrump),
+            call(3, Strain::Hearts),
+        ];
+        let (c, floored) = bid_diamond(&auction, "AQx.KJx.Qx.AKxxx");
+        assert_eq!(c, call(3, Strain::Notrump));
+        assert!(!floored, "the 3NT must come from the book");
+    }
+
+    #[test]
+    fn diamond_competition_disabled_falls_to_floor() {
+        // Off-switch: with the toggle off, 1NT-(P)-2NT-(X) has no Side-A node.
+        let auction = [
+            call(1, Strain::Notrump),
+            Call::Pass,
+            call(2, Strain::Notrump),
+            Call::Double,
+        ];
+        super::set_competition_over_diamond_transfer(false);
+        let (_, floored) = best_call(&auction, "Axx.Kxx.Qxx.AKxx");
+        super::set_competition_over_diamond_transfer(true); // restore the on default
+        assert!(floored, "with the toggle off opener falls to the floor");
     }
 
     // --- Competition over our 2♣ Stayman (Side A) + defense to theirs (Side B) ---
@@ -2966,6 +3262,41 @@ mod tests {
         crate::bidding::american::set_minor_transfer_defense(false); // restore default
         assert_eq!(c, call(3, Strain::Clubs));
         assert!(!floored, "the top-and-bottom cue must come from the book");
+    }
+
+    // --- Defense to their 2NT diamond transfer (Side B) ---
+
+    #[test]
+    fn defense_to_their_diamond_transfer_doubles_diamonds() {
+        // (1NT)-P-(2NT →♦): our 4th-hand X = lead-directing diamonds (the shown suit).
+        crate::bidding::american::set_diamond_transfer_defense(true);
+        let auction = [
+            call(1, Strain::Notrump),
+            Call::Pass,
+            call(2, Strain::Notrump),
+        ];
+        let (c, floored) = best_call(&auction, "A32.32.KQJ54.432");
+        crate::bidding::american::set_diamond_transfer_defense(false); // restore default
+        assert_eq!(c, Call::Double);
+        assert!(
+            !floored,
+            "the lead-directing X must come from the defense book"
+        );
+    }
+
+    #[test]
+    fn defense_to_their_diamond_transfer_cues_both_majors() {
+        // (1NT)-P-(2NT →♦): 5 spades + 5 hearts → 3♦ cue (both majors), beating the X.
+        crate::bidding::american::set_diamond_transfer_defense(true);
+        let auction = [
+            call(1, Strain::Notrump),
+            Call::Pass,
+            call(2, Strain::Notrump),
+        ];
+        let (c, floored) = best_call(&auction, "KQ1054.KJ1054.3.32");
+        crate::bidding::american::set_diamond_transfer_defense(false); // restore default
+        assert_eq!(c, call(3, Strain::Diamonds));
+        assert!(!floored, "the both-majors cue must come from the book");
     }
 
     #[test]

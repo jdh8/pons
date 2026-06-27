@@ -379,6 +379,34 @@ fn minor_transfer_defense_enabled() -> bool {
 }
 
 thread_local! {
+    /// Whether we author a defense to the opponents' 2NT diamond transfer
+    /// (`(1NT)-P-(2NT)-?`); **off by default** (opt-in A/B).  See
+    /// [`set_diamond_transfer_defense`].
+    static DIAMOND_TRANSFER_DEFENSE: Cell<bool> = const { Cell::new(false) };
+}
+
+/// Author our defense to the opponents' 2NT diamond transfer (`(1NT)-P-(2NT)`),
+/// for books built *after* this call (thread-local; **off by default**).
+///
+/// `X` = lead-directing diamonds (the shown suit — not takeout); `3♦` (a cue of
+/// their diamond anchor) = both majors (5-5, Michaels), weighted **above** the `X`
+/// so a genuine two-suiter shows rather than lead-directs; natural `3♣`/`3♥`/`3♠`
+/// six-card one-suiters (`points(14..)`); the floor passes everything else.
+/// Opt-in like the Stayman/transfer defenses: the value is mostly lead-directing
+/// (invisible to the double-dummy harness).  A paired A/B vs BBA over 1 000 000
+/// `--filter-1nt` boards (387 fired, 0.04 %) measured a clear **loss** on both
+/// scorers (−1.91 IMPs/board it fires on plain, −2.32 PD), the light-sacrifice cost
+/// of doubling/cueing into a strong-1NT auction — so it ships off.
+pub fn set_diamond_transfer_defense(on: bool) {
+    DIAMOND_TRANSFER_DEFENSE.with(|cell| cell.set(on));
+}
+
+/// Whether the defense to their 2NT diamond transfer is currently authored
+fn diamond_transfer_defense_enabled() -> bool {
+    DIAMOND_TRANSFER_DEFENSE.with(Cell::get)
+}
+
+thread_local! {
     /// Minimum length to insist on a DONT one-suiter (the `X` for ♣/♦/♥, the
     /// natural `2♠` for spades); **5 by default**.  Set to 6 to bid only with a
     /// six-card suit, passing five-card one-suiters (the X bucket is the DD loser,
@@ -1040,6 +1068,11 @@ const MINOR_TRANSFER_DEFENSE_2NT: Alert = Alert("minorxferdef:2nt-reds");
 /// Cue of their shown-clubs anchor (`3♣`) — the top-and-bottom two-suiter
 /// (spades + diamonds, 5-5).
 const MINOR_TRANSFER_DEFENSE_CUE: Alert = Alert("minorxferdef:cue-top-bottom");
+/// Lead-directing double of the opponents' 2NT diamond transfer — shows diamonds
+/// (the shown suit), not takeout.
+const DIAMOND_TRANSFER_DEFENSE_X: Alert = Alert("diaxferdef:x-diamonds");
+/// Cue of their shown-diamonds anchor (`3♦`) — both majors (5-5, Michaels).
+const DIAMOND_TRANSFER_DEFENSE_CUE: Alert = Alert("diaxferdef:cue-majors");
 
 // Each artificial block is a one-rule `Rules` lifting today's cascade verbatim
 // (weight, shape, strength).  All twelve are chained unconditionally and then
@@ -1215,6 +1248,49 @@ fn defense_to_their_minor_transfer() -> Rules {
             Bid::new(3, Strain::Hearts),
             1.8,
             len(Suit::Hearts, 6..) & points(14..),
+        )
+        .rule(Call::Pass, 0.5, hcp(0..))
+}
+
+/// Our defense to the opponents' 2NT diamond transfer (`(1NT)-P-(2NT)-?`)
+///
+/// Their 2NT shows diamonds, so: `X` = lead-directing diamonds (5+ with values,
+/// not takeout); `3♦` (cueing their diamond anchor) = both majors (5-5, Michaels),
+/// weighted **above** the `X` so a genuine two-suiter shows rather than
+/// lead-directs; natural `3♣`/`3♥`/`3♠` six-card one-suiters (`points(14..)`).  An
+/// owning Pass catches the rest.  Modeled on [`defense_to_their_minor_transfer`].
+fn defense_to_their_diamond_transfer() -> Rules {
+    Rules::new()
+        // X = lead-directing diamonds (the shown suit), 5+ with values.
+        .rule(
+            Call::Double,
+            1.9,
+            len(Suit::Diamonds, 5..) & suit_hcp(Suit::Diamonds, 5..) & points(8..),
+        )
+        .alert(DIAMOND_TRANSFER_DEFENSE_X)
+        // 3♦ cue of their diamond anchor = both majors (5-5); weight 2.0 beats the
+        // X so a 5♥-5♠ two-suiter shows rather than lead-directs.
+        .rule(
+            Bid::new(3, Strain::Diamonds),
+            2.0,
+            len(Suit::Hearts, 5..) & len(Suit::Spades, 5..) & points(8..),
+        )
+        .alert(DIAMOND_TRANSFER_DEFENSE_CUE)
+        // Natural six-card one-suiter overcalls in the unbid suits.
+        .rule(
+            Bid::new(3, Strain::Clubs),
+            1.8,
+            len(Suit::Clubs, 6..) & points(14..),
+        )
+        .rule(
+            Bid::new(3, Strain::Hearts),
+            1.8,
+            len(Suit::Hearts, 6..) & points(14..),
+        )
+        .rule(
+            Bid::new(3, Strain::Spades),
+            1.8,
+            len(Suit::Spades, 6..) & points(14..),
         )
         .rule(Call::Pass, 0.5, hcp(0..))
 }
@@ -2695,6 +2771,18 @@ pub fn defensive() -> Defensive {
             &[notrump, Call::Pass, call(2, Strain::Spades)],
             3,
             defense_to_their_minor_transfer(),
+        );
+    }
+
+    // Defense to the opponents' 2NT diamond transfer: (1NT) P (2NT) ?  Opt-in
+    // (default off).  X = lead-directing diamonds, 3♦ cue = both majors, natural
+    // 3♣/3♥/3♠ overcalls.
+    if diamond_transfer_defense_enabled() {
+        insert_all_seats(
+            &mut d,
+            &[notrump, Call::Pass, call(2, Strain::Notrump)],
+            3,
+            defense_to_their_diamond_transfer(),
         );
     }
 

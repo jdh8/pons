@@ -9,6 +9,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Competition over our 2NT diamond transfer, both sides — authored and
+  A/B-measured vs BBA (both opt-in).** The PUPPET 2NT diamond transfer (6+♦, or 5♦-4♣) and its
+  fourth-hand contest previously fell through to the instinct floor; both sides are
+  now authored behind toggles, modeled on the 2♠ minor / contested-Stayman
+  machinery. No-ops under the EUROPEAN scheme (where 2NT is the balanced size-ask).
+  - *Our 2NT is contested* (`set_competition_over_diamond_transfer`, **on by default**,
+    off-switch `bba-gen --no-ns-comp-over-diamond-transfer`). Their `(X)` is lead-directing
+    diamonds; the double frees `Pass` to be the catch-all "no fit" call, which lets
+    opener's `3♣` shed its uncontested relay-denies-a-fit meaning and become
+    **natural** 4+♣ (landing responder's 5♦-4♣ in the club fit): `3♦` = accept with
+    3+♦, `3♣` = no fit but 4+♣, `XX` = maximum values (no fit, penalty-oriented),
+    `Pass` = minimum catch-all. After a fit-showing `3♦`/`3♣` responder's rebids
+    match the uncontested tree (strip the `X`); after `Pass`/`XX` responder always
+    holds 5+♦ and signs off in `3♦`. A `(3♣)` overcall keeps the `3♦` completion
+    legal (else `X` = clubs, Pass = minimum); a higher overcall keeps `3NT` (max +
+    stopper) / `X` (their suit) / Pass.
+  - *They bid a 2NT diamond transfer* (`set_diamond_transfer_defense`, `bba-gen
+    --ns-diamond-transfer-defense`; default off). `X` = lead-directing diamonds (the
+    shown suit, not takeout); `3♦` (cueing their diamond anchor) = both majors (5-5,
+    Michaels), weighted above the `X`; natural `3♣`/`3♥`/`3♠` six-card one-suiters.
+  - A paired A/B vs BBA over 1 000 000 `--filter-1nt` boards (≈400 fired/side, 0.04 %):
+    Side A is a plain-DD **wash** (+0.24 IMPs/fired, CI straddling 0) with a clear PD gain
+    (+3.40) — it never loses on honest DD and the PD gain is real value when opponents
+    punish the floor's `X`-then-pull-to-`3NT` overreach, so it ships **on**. Side B is a
+    clear **loss** on both scorers (−1.91 plain, −2.32 PD), the light-sacrifice cost of
+    doubling/cueing into a strong-1NT auction, so it stays **opt-in**.
+
 - **Competition over our two-way 2♠ minor response, both sides — authored and
   A/B-measured vs BBA over 640 000 boards.** The PUPPET 2♠ (6+ clubs *or* a balanced
   size-ask) and its fourth-hand contest previously fell through to the instinct
