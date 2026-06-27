@@ -95,7 +95,8 @@ pub use defense::{
     set_leaping_michaels, set_natural_defense, set_natural_double_floor, set_natural_double_shape,
     set_natural_double_weight, set_natural_overcall_points, set_notrump_balancing,
     set_responsive_overcall, set_responsive_takeout, set_stayman_defense,
-    set_unusual_notrump_defense, set_woolsey, set_woolsey_double_floor, set_woolsey_points,
+    set_stayman_defense_overcall, set_unusual_notrump_defense, set_woolsey,
+    set_woolsey_double_floor, set_woolsey_points,
 };
 pub(crate) use defense::{
     direct_dont_enabled, direct_landy_double, landy_range, natural_defense_enabled,

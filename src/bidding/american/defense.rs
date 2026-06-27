@@ -280,17 +280,42 @@ thread_local! {
     /// (`(1NT)-P-(2♣)-?`); **off by default** (opt-in A/B).  See
     /// [`set_stayman_defense`].
     static STAYMAN_DEFENSE: Cell<bool> = const { Cell::new(false) };
+    /// `(min suit length, points floor)` for the natural `2♦/2♥/2♠` overcalls in
+    /// the Stayman defense (the `3♣` jump tracks the same points floor at a fixed
+    /// 6-card length).  **Default `(6, 14)`** — the A/B-searched setting (see
+    /// [`set_stayman_defense_overcall`]).
+    static STAYMAN_DEF_OVERCALL: Cell<(usize, u8)> = const { Cell::new((6, 14)) };
 }
 
 /// Author our defense to the opponents' 2♣ Stayman (`(1NT)-P-(2♣)`), for books
 /// built *after* this call (thread-local; **off by default**).
 ///
-/// `X` = lead-directing clubs (5+ with values), `2♦/2♥/2♠` natural, `3♣` = a
-/// natural club preempt; the floor passes everything else (~80%).  No Michaels
-/// cue — their 2♣ is artificial, so a cue would be natural and 3♣ already
-/// preempts.
+/// `X` = lead-directing clubs (5+ with values), `2♦/2♥/2♠` = a natural 6-card
+/// suit (`points(14..)`), `3♣` = a strong natural club one-suiter; the floor
+/// passes everything else (~80%).  No Michaels cue — their 2♣ is artificial, so
+/// a cue would be natural.  The overcall length and strength were A/B-searched
+/// (see [`set_stayman_defense_overcall`]).
 pub fn set_stayman_defense(on: bool) {
     STAYMAN_DEFENSE.with(|cell| cell.set(on));
+}
+
+/// Tune the natural `2♦/2♥/2♠` overcall `(min length, points floor)` in the
+/// Stayman defense, for books built *after* this call (the `3♣` jump tracks the
+/// same points floor).  **Default `(6, 14)`**, the A/B-searched setting: a paired
+/// PD sweep (`bba-gen --ns-staydef-overcall LEN:FLOOR`, 1M boards/setting) found
+/// length-6 beats length-5 (the 5-card overcalls' plain-DD edge is the
+/// light-sacrifice artifact PD prices away) and the points floor is best near 14
+/// — below it the overcalls are perfect-defense-negative, at it they turn
+/// DD-harmless; tighter still gains only within-noise DD while deleting the sound
+/// overcalls that carry the convention's (DD-invisible) competitive value.  No
+/// effect unless [`set_stayman_defense`] is on.
+pub fn set_stayman_defense_overcall(min_len: usize, points_floor: u8) {
+    STAYMAN_DEF_OVERCALL.with(|cell| cell.set((min_len, points_floor)));
+}
+
+/// The configured Stayman-defense overcall `(min length, points floor)`
+fn stayman_defense_overcall() -> (usize, u8) {
+    STAYMAN_DEF_OVERCALL.with(Cell::get)
 }
 
 /// Whether the defense to their 2♣ Stayman is currently authored
@@ -976,12 +1001,25 @@ fn landy_x() -> Rules {
 /// Defense to the opponents' 2♣ Stayman (`(1NT)-P-(2♣)`)
 ///
 /// `X` = lead-directing clubs (5+ with values, the bid suit — not takeout);
-/// `2♦/2♥/2♠` natural; `3♣` = a natural club preempt.  No Michaels cue (their 2♣
-/// is artificial, so a cue would be natural, and `3♣` already preempts); an
-/// Unusual 2NT (both minors) was tried and measured DD-negative (−4.9 IMPs/fired),
-/// so it was dropped.  An owning Pass catches the ~80% that act on nothing,
-/// keeping the floor's undisciplined balancing calls out.
+/// `2♦/2♥/2♠` = a natural **6-card** suit; `3♣` = a **strong** natural club
+/// one-suiter (declare, not preempt).  No Michaels cue (their 2♣ is artificial,
+/// so a cue would be natural); an Unusual 2NT (both minors) was tried and
+/// measured DD-negative (−4.9 IMPs/fired), so it was dropped.  An owning Pass
+/// catches the ~80% that act on nothing, keeping the floor's undisciplined
+/// balancing calls out.
+///
+/// The overcall length and points floor were **A/B-searched**, not copied from
+/// BBA: a paired perfect-defense (PD) sweep ([`set_stayman_defense_overcall`])
+/// settled on a six-card suit at `points(14..)`.  Over a *strong* 1NT the bidding
+/// side holds the points, so a natural overcall into their auction is PD-negative
+/// when light — the sweep is monotone in the floor (the 8–13 overcalls lose, 14
+/// turns DD-harmless) and prefers length-6 over length-5 (the 5-card overcalls'
+/// plain-DD edge is the light-sacrifice artifact PD prices away).  Routing the
+/// weak long-club hand to `Pass` instead of a `3♣` preempt drops a DD-negative
+/// obstruction bid; the strong `3♣` (tracking the same floor) is weighted above
+/// the `X` so a real club hand declares rather than lead-directs.
 fn defense_to_their_stayman() -> Rules {
+    let (min_len, floor) = stayman_defense_overcall();
     Rules::new()
         .rule(
             Call::Double,
@@ -992,22 +1030,22 @@ fn defense_to_their_stayman() -> Rules {
         .rule(
             Bid::new(2, Strain::Diamonds),
             1.8,
-            len(Suit::Diamonds, 6..) & points(8..),
+            len(Suit::Diamonds, min_len..) & points(floor..),
         )
         .rule(
             Bid::new(2, Strain::Hearts),
             1.8,
-            len(Suit::Hearts, 5..) & points(8..),
+            len(Suit::Hearts, min_len..) & points(floor..),
         )
         .rule(
             Bid::new(2, Strain::Spades),
             1.8,
-            len(Suit::Spades, 5..) & points(8..),
+            len(Suit::Spades, min_len..) & points(floor..),
         )
         .rule(
             Bid::new(3, Strain::Clubs),
-            1.5,
-            len(Suit::Clubs, 6..) & points(..11),
+            2.0,
+            len(Suit::Clubs, 6..) & points(floor..),
         )
         .rule(Call::Pass, 0.5, hcp(0..))
 }

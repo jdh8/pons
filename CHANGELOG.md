@@ -23,15 +23,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     `set_competition_over_stayman(false)` (`bba-gen --no-ns-comp-over-stayman`)
     isolates it for A/B.
   - *Defending their Stayman.* A new **opt-in** defense to `(1NT)-P-(2♣)`:
-    `X` = lead-directing clubs (the bid suit, not takeout), `2♦/2♥/2♠` natural,
-    `3♣` = a natural club preempt; no Michaels cue (their 2♣ is artificial).
-    Matches BBA and the published experts. **Off by default** — enable with
-    `set_stayman_defense(true)` (`bba-gen --ns-defense-to-their-stayman`). Its
-    value is mostly lead-directing (invisible to the double-dummy harness), and a
-    96 000-board isolate-defense A/B confirmed it is a DD wash leaning negative
-    (−0.0013 IMPs/board, CI straddles 0), so it stays opt-in. A speculative
-    Unusual 2NT (both minors) was tried and measured **−4.9 IMPs/board it fires
-    on**, so it was dropped.
+    `X` = lead-directing clubs (the bid suit, not takeout); `2♦/2♥/2♠` = a natural
+    **6-card** suit, `points(14..)`; `3♣` = a **strong** natural club one-suiter
+    (declare, not preempt); no Michaels cue (their 2♣ is artificial). The overcall
+    length and strength were **A/B-searched** (`set_stayman_defense_overcall` /
+    `bba-gen --ns-staydef-overcall LEN:FLOOR`), not copied from BBA: a paired
+    perfect-defense (PD) sweep over 1 M boards/setting is monotone in the floor —
+    over a *strong* 1NT the bidding side holds the points, so a light natural
+    overcall into their auction is PD-negative; the 8–13 floors lose, **14** is
+    where the overcalls turn DD-harmless, and tightening further only deletes the
+    sound overcalls that carry the (DD-invisible) competitive value. The sweep also
+    prefers **length-6 over length-5** (the 5-card overcalls' plain-DD edge is the
+    light-sacrifice artifact PD prices away). The original loose placeholders
+    (5-card / `points(8..)`, weak `3♣` preempt) are gone. **Off by default** —
+    enable with `set_stayman_defense(true)` (`bba-gen --ns-defense-to-their-stayman`).
+    Its value is mostly lead-directing (invisible to the double-dummy harness), so
+    the whole convention stays a DD wash vs not bidding and remains opt-in. A
+    speculative Unusual 2NT (both minors) was tried and measured **−4.9 IMPs/board
+    it fires on**, so it was dropped.
+
+- **`ab-dump-diff` gains `--score plain|pd`.** The paired delta can now re-price
+  with perfect-defense doubling (`ns_score_pd`) instead of only honest double-dummy.
+  For a *competitive* feature, a plain-DD edge that the PD pass erases is the
+  light-sacrifice / doubling artifact, so reporting both numbers is the honest read.
 
 - **`bba-gen` board generation can now use every core, via processes.** EPBot's
   FFI is thread-unsafe, so the bidding half has always been single-threaded. The

@@ -20,7 +20,7 @@
 
 use clap::Parser;
 use contract_bridge::AbsoluteVulnerability;
-use pons::scoring::{final_contract, ns_score_contract};
+use pons::scoring::{final_contract, ns_score_contract, ns_score_pd};
 
 #[path = "../common/mod.rs"]
 #[allow(dead_code)]
@@ -39,6 +39,12 @@ struct Args {
     /// Show this many of the biggest swings (each way)
     #[arg(long, default_value_t = 8)]
     show: usize,
+    /// Scorer: `plain` = honest double-dummy (was the only mode); `pd` =
+    /// perfect-defense doubling, which prices a failing contract as doubled.
+    /// For a *competitive* feature, a `plain` win that `pd` erases is the
+    /// light-sacrifice / doubling artifact (see `reference_pd-vs-plain-dd-bracket`).
+    #[arg(long, default_value = "plain")]
+    score: String,
 }
 
 fn main() {
@@ -70,7 +76,12 @@ fn main() {
         })
         .collect();
 
-    let scored = score_boards(&contracts, &deals, vul, ns_score_contract);
+    let scorer = match args.score.as_str() {
+        "plain" => ns_score_contract,
+        "pd" => ns_score_pd,
+        other => panic!("--score must be plain|pd, got {other:?}"),
+    };
+    let scored = score_boards(&contracts, &deals, vul, scorer);
     let (mean, ci) = mean_with_ci(&scored.board_imps);
     let n = on.boards.len();
     let d = scored.divergent.len();

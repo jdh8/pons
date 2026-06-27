@@ -156,10 +156,15 @@ struct Args {
     no_ns_comp_over_stayman: bool,
 
     /// Author our defense to the opponents' 2♣ Stayman (`(1NT)-P-(2♣)`): X =
-    /// lead-directing clubs, natural overcalls, natural 3♣ preempt (default off;
-    /// opt-in A/B).
+    /// lead-directing clubs, natural overcalls, strong 3♣ (default off; opt-in A/B).
     #[arg(long, default_value_t = false)]
     ns_defense_to_their_stayman: bool,
+
+    /// Stayman-defense natural-overcall `MIN_LEN:POINTS_FLOOR` (default 6:12); the
+    /// A/B search knob for the 2♦/2♥/2♠ length + strength (no effect unless
+    /// `--ns-defense-to-their-stayman`).
+    #[arg(long, default_value = "6:12")]
+    ns_staydef_overcall: String,
 
     /// Shape gate for our natural penalty double of their 1NT: balanced (default,
     /// matches the shipped `american()`) | semi | any.
@@ -669,6 +674,19 @@ fn main() -> anyhow::Result<()> {
     pons::bidding::american::set_natural_overcall_points(oc_lo, oc_hi);
     pons::bidding::american::set_competition_over_stayman(!args.no_ns_comp_over_stayman);
     pons::bidding::american::set_stayman_defense(args.ns_defense_to_their_stayman);
+    {
+        let (lo, hi) = args
+            .ns_staydef_overcall
+            .split_once(':')
+            .and_then(|(l, f)| Some((l.parse::<usize>().ok()?, f.parse::<u8>().ok()?)))
+            .ok_or_else(|| {
+                anyhow::anyhow!(
+                    "--ns-staydef-overcall must be LEN:FLOOR, got {:?}",
+                    args.ns_staydef_overcall
+                )
+            })?;
+        pons::bidding::american::set_stayman_defense_overcall(lo, hi);
+    }
     pons::bidding::american::set_direct_dont(args.ns_dont);
     if args.ns_dont {
         pons::bidding::american::set_landy(None);
