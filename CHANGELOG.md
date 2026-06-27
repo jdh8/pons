@@ -42,6 +42,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`artificial_calls_are_alerted`, ignored) from 172 to 156. No measurement: the
   behavior change is deferred to the final increment that drops `artificial()`.
 
+- **The unusual 2NT overcall is now alerted** (`Alert("unusual-2nt")`). Second
+  increment of the `artificial()` retirement: the `[1♦] 2NT` / `[1♠] 2NT`
+  two-lowest-unbid-suits overcall (the suit-defense unusual notrump, distinct
+  from the already-alerted defense to a 1NT opening) now carries its own alert.
+  Same disclosure-only **decode no-op** as the Michaels increment; shrinks the
+  worklist from 156 to 140.
+
 - **Competition over our 2NT diamond transfer, both sides — authored and
   A/B-measured vs BBA (both opt-in).** The PUPPET 2NT diamond transfer (6+♦, or 5♦-4♣) and its
   fourth-hand contest previously fell through to the instinct floor; both sides are

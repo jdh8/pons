@@ -901,21 +901,27 @@ pub fn defense_to_suit(their_opening: Bid) -> Rules {
 
     // Unusual 2NT: 5-5 in the two lowest unbid suits, 8+ HCP.
     match t {
-        Suit::Clubs => rules.rule(
-            Bid::new(2, Strain::Notrump),
-            1.9,
-            len(Suit::Diamonds, 5..) & len(Suit::Hearts, 5..) & points(8..),
-        ),
-        Suit::Diamonds => rules.rule(
-            Bid::new(2, Strain::Notrump),
-            1.9,
-            len(Suit::Clubs, 5..) & len(Suit::Hearts, 5..) & points(8..),
-        ),
-        Suit::Hearts | Suit::Spades => rules.rule(
-            Bid::new(2, Strain::Notrump),
-            1.9,
-            len(Suit::Clubs, 5..) & len(Suit::Diamonds, 5..) & points(8..),
-        ),
+        Suit::Clubs => rules
+            .rule(
+                Bid::new(2, Strain::Notrump),
+                1.9,
+                len(Suit::Diamonds, 5..) & len(Suit::Hearts, 5..) & points(8..),
+            )
+            .alert(UNUSUAL),
+        Suit::Diamonds => rules
+            .rule(
+                Bid::new(2, Strain::Notrump),
+                1.9,
+                len(Suit::Clubs, 5..) & len(Suit::Hearts, 5..) & points(8..),
+            )
+            .alert(UNUSUAL),
+        Suit::Hearts | Suit::Spades => rules
+            .rule(
+                Bid::new(2, Strain::Notrump),
+                1.9,
+                len(Suit::Clubs, 5..) & len(Suit::Diamonds, 5..) & points(8..),
+            )
+            .alert(UNUSUAL),
     }
 }
 
@@ -1047,6 +1053,9 @@ fn passed_two_suiter(a: Suit, b: Suit) -> Cons<impl Constraint + Clone> {
 
 /// Michaels cue-bid — 2 of their suit, 5-5, 8+ HCP (a two-suiter)
 const MICHAELS: Alert = Alert("michaels");
+
+/// Unusual 2NT over a suit opening — 5-5 in the two lowest unbid suits
+const UNUSUAL: Alert = Alert("unusual-2nt");
 
 const WOOLSEY_X: Alert = Alert("1ntd:woolsey-x");
 const LANDY_X: Alert = Alert("1ntd:landy-x");
