@@ -983,11 +983,13 @@ pub fn defense_to_weak_two(their_opening: Bid) -> Rules {
                     Suit::Hearts
                 };
                 for minor in [Suit::Clubs, Suit::Diamonds] {
-                    rules = rules.rule(
-                        Bid::new(4, Strain::from(minor)),
-                        2.0,
-                        len(minor, 5..) & len(other, 5..) & gf.clone(),
-                    );
+                    rules = rules
+                        .rule(
+                            Bid::new(4, Strain::from(minor)),
+                            2.0,
+                            len(minor, 5..) & len(other, 5..) & gf.clone(),
+                        )
+                        .alert(LEAPING);
                 }
             }
             // Over 2♦: 4♣ = clubs + a major; 4♦ (cue) = both majors.  Advancer's
@@ -1002,11 +1004,13 @@ pub fn defense_to_weak_two(their_opening: Bid) -> Rules {
                             & (len(Suit::Hearts, 5..) | len(Suit::Spades, 5..))
                             & gf.clone(),
                     )
+                    .alert(LEAPING)
                     .rule(
                         Bid::new(4, Strain::Diamonds),
                         2.0,
                         len(Suit::Hearts, 5..) & len(Suit::Spades, 5..) & gf.clone(),
-                    );
+                    )
+                    .alert(LEAPING);
             }
             Suit::Clubs => {} // no weak 2♣ in our system
         }
@@ -1056,6 +1060,10 @@ const MICHAELS: Alert = Alert("michaels");
 
 /// Unusual 2NT over a suit opening — 5-5 in the two lowest unbid suits
 const UNUSUAL: Alert = Alert("unusual-2nt");
+
+/// Leaping Michaels — a 4♣/4♦ jump over their weak two, a 5-5 game-forcing
+/// two-suiter (distinct from the responder-side `comp:leaping-michaels`)
+const LEAPING: Alert = Alert("leaping-michaels");
 
 const WOOLSEY_X: Alert = Alert("1ntd:woolsey-x");
 const LANDY_X: Alert = Alert("1ntd:landy-x");

@@ -49,6 +49,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Same disclosure-only **decode no-op** as the Michaels increment; shrinks the
   worklist from 156 to 140.
 
+- **The Leaping Michaels overcall is now alerted** (`Alert("leaping-michaels")`).
+  Third increment of the `artificial()` retirement: the 4♣/4♦ jumps over a weak
+  two (`[2♥] 4♣`/`4♦`, `[2♦] 4♦`, …) — the 5-5 game-forcing two-suiter authored
+  in `defense_to_weak_two` behind `leaping_michaels_enabled()` — now carry an
+  alert (distinct from the responder-side `comp:leaping-michaels`). Same
+  disclosure-only **decode no-op**; shrinks the worklist from 140 to 120.
+
 - **Competition over our 2NT diamond transfer, both sides — authored and
   A/B-measured vs BBA (both opt-in).** The PUPPET 2NT diamond transfer (6+♦, or 5♦-4♣) and its
   fourth-hand contest previously fell through to the instinct floor; both sides are
