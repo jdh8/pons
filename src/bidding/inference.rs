@@ -103,27 +103,30 @@ std::thread_local! {
 
     /// Whether the projection pass decodes calls authored by *guarded fallbacks*
     /// (every contested convention — transfers, Leaping Michaels, the Lebensohl
-    /// cue), not just exact-node classifiers.  Off by default; on, [`project_authored`]
-    /// re-resolves each prior call's authoring classifier through the trie's
-    /// node-then-fallback chain so an alerted call survives later competition
-    /// without a per-convention hand reader.  The `ab-fallback-projection` A/B knob.
-    static FALLBACK_PROJECTION: Cell<bool> = const { Cell::new(false) };
+    /// cue), not just exact-node classifiers.  **On by default** (BBA A/B: plain
+    /// +0.0006/board, +1.03/fired; PD +0.0014, +2.38/fired — both CIs exclude 0).
+    /// On, [`project_authored`] re-resolves each prior call's authoring classifier
+    /// through the trie's node-then-fallback chain so an alerted call survives later
+    /// competition without a per-convention hand reader.  Off restores the
+    /// exact-node-only projection (the A/B off arm).
+    static FALLBACK_PROJECTION: Cell<bool> = const { Cell::new(true) };
 }
 
-/// Toggle decoding fallback-authored conventions in the projection (default off)
+/// Toggle decoding fallback-authored conventions in the projection (**default on**)
 ///
 /// Off, [`project_authored`] sees only exact-node classifiers (via
 /// [`common_prefixes`][super::Trie::common_prefixes]), so a contested convention
 /// authored by a guarded fallback misreads under second-round intervention unless a
 /// hand-written reader covers it.  On, it re-resolves each call's *authoring*
-/// classifier (node or fallback) and projects its alerted rule — the general
-/// replacement for the per-convention readers.  Read at classification time,
-/// per-thread; A/B'd on the BBA match.
+/// classifier (node or fallback) and projects its alerted rule — the general decode
+/// for non-natural calls that subsumes the single-suit per-convention readers (the
+/// OR-disjunction two-suiters and doubles still need their hand readers).  Read at
+/// classification time, per-thread; A/B'd on the BBA match.
 pub fn set_fallback_projection(on: bool) {
     FALLBACK_PROJECTION.with(|cell| cell.set(on));
 }
 
-/// Whether fallback-authored projection is enabled (default off)
+/// Whether fallback-authored projection is enabled (default on)
 #[must_use]
 pub fn fallback_projection_enabled() -> bool {
     FALLBACK_PROJECTION.with(Cell::get)
@@ -445,11 +448,6 @@ impl Inferences {
         // Responder's double of an overcall of our 1NT shows 8+ (every DoubleStyle),
         // recorded post-walk so opener does not undercount the partnership's strength.
         let overcall_double = responder_overcall_double_reading(auction, len);
-        // Responder's contested Transfer-Lebensohl 3-level transfer (`1NT-(2X)-3Y`):
-        // its target is recorded post-walk and the natural `3Y` reading suppressed,
-        // so a second-round overcall/double that skips the completion node does not
-        // leave opener reading the transfer as a natural suit (board 881510's 5♦x).
-        let transfer_leb = crate::bidding::american::transfer_lebensohl_reading(auction);
 
         for (index, &call) in auction.iter().enumerate() {
             let lane = index % 4;
@@ -498,7 +496,6 @@ impl Inferences {
                             || rubens_suppress.contains(&Some(index))
                             || (index < 64 && suppressed >> index & 1 != 0)
                             || landy_relay == Some(index)
-                            || transfer_leb.is_some_and(|(i, _)| i == index)
                             || multi.is_some_and(|m| m.suppresses(index))
                             || woolsey_x.is_some_and(|w| w.suppresses(index))
                             || dont.is_some_and(|d| d.suppresses(index));
@@ -720,14 +717,6 @@ impl Inferences {
         // floors the `or`-union washes out, which the projection cannot pin.
         for (seat, projected) in overlay.iter().enumerate() {
             players[seat] = players[seat].intersect(projected);
-        }
-
-        // Responder's contested Transfer-Lebensohl transfer shows 5+ in the target
-        // (the natural `3Y` reading was suppressed above), so opener completes to the
-        // real suit even when a second-round overcall skipped the completion node.
-        if let Some((resp_index, target)) = transfer_leb {
-            let who = relative_of(len, resp_index) as usize;
-            players[who].narrow_length(target, Range::at_least(5, LENGTH_CAP));
         }
 
         // A Woolsey Multi-family overcall.  The "6+ major" (2♦) and "4+ minor"
@@ -2150,16 +2139,17 @@ mod tests {
     fn contested_transfer_lebensohl_reads_the_target_under_intervention() {
         // Board 881510: [1NT, (2♠), 3♦, (3♠)] — responder's 3♦ is a Transfer-
         // Lebensohl transfer to hearts (up the line through their spade suit).  RHO's
-        // (3♠) skips opener's completion node, so without the structural reader opener
-        // (Me, to act) reads 3♦ as natural diamonds and raises the phantom suit to
-        // 5♦x.  The keyless `read` is exactly that floor path.
+        // (3♠) skips opener's completion node; the default-on fallback projection
+        // re-resolves 3♦'s authoring rule and pins hearts, so opener does not read it
+        // as natural diamonds and raise the phantom suit to 5♦x.  Needs the prefixed
+        // `read_booked` (the projection reads the rule off the book).
         let auction = [
             bid(1, Strain::Notrump),
             bid(2, Strain::Spades),
             bid(3, Strain::Diamonds),
             bid(3, Strain::Spades),
         ];
-        let inf = read(&auction);
+        let inf = read_booked(&auction);
         assert!(
             inf.partner().length(Suit::Hearts).min >= 5,
             "transfer target pinned"
@@ -2174,19 +2164,18 @@ mod tests {
     fn fallback_projection_decodes_contested_leaping_michaels() {
         // [1NT, (2♦), 4♦, (P)]: Leaping Michaels = both majors 5-5, authored as a
         // *guarded fallback* in the (2♦) Transfer block — invisible to the exact-node
-        // projection. With the flag on, the authoring-classifier resolution decodes it.
+        // projection, and with no hand reader.  The default-on fallback projection
+        // re-resolves its authoring rule and pins both majors (no reader involved).
         let auction = [
             bid(1, Strain::Notrump),
             bid(2, Strain::Diamonds),
             bid(4, Strain::Diamonds),
             Call::Pass,
         ];
-        set_fallback_projection(true);
-        let on = read_booked(&auction);
-        set_fallback_projection(false);
+        let inf = read_booked(&auction);
         assert!(
-            on.partner().length(Suit::Hearts).min >= 5
-                && on.partner().length(Suit::Spades).min >= 5,
+            inf.partner().length(Suit::Hearts).min >= 5
+                && inf.partner().length(Suit::Spades).min >= 5,
             "fallback projection pins both majors for contested Leaping Michaels"
         );
     }
@@ -2200,23 +2189,24 @@ mod tests {
             bid(3, Strain::Diamonds),
             Call::Double,
         ];
-        let inf = read(&auction);
+        let inf = read_booked(&auction);
         assert!(inf.partner().length(Suit::Hearts).min >= 5);
     }
 
     #[test]
     fn contested_transfer_lebensohl_cue_is_not_a_transfer() {
-        // The cue of their suit is Stayman, not a transfer: [1NT, (2♠), 3♠, (P)]
-        // must not be decoded as a transfer to hearts (the reader returns None; the
-        // generic walk's natural-spades read is pre-existing and out of scope here).
+        // The cue of their suit is Stayman (a 4-card unbid major), not a 5+ transfer:
+        // [1NT, (2♠), 3♠, (P)] projects hearts as only 4-card interest, and the
+        // natural-spades reading of the cue is suppressed (not a long spade suit).
         let auction = [
             bid(1, Strain::Notrump),
             bid(2, Strain::Spades),
             bid(3, Strain::Spades),
             Call::Pass,
         ];
-        let inf = read(&auction);
+        let inf = read_booked(&auction);
         assert!(inf.partner().length(Suit::Hearts).min < 5);
+        assert!(inf.partner().length(Suit::Spades).min < 5);
     }
 
     #[test]

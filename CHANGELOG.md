@@ -9,20 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **Contested Transfer-Lebensohl transfers are now decoded under second-round
-  intervention.** After our `1NT` and a natural 2-level overcall, responder's
-  3-level transfer (`1NT-(2♠)-3♦`→♥) was only decoded by opener when RHO passed —
-  opener's completion node is keyed on the quiet `[overcall, 3Y, Pass]` suffix. When
-  the overcaller's partner bid again over the transfer (e.g. `(3♠)`), opener fell to
-  the instinct floor, which read the transfer as a *natural* long suit and raised the
-  phantom suit into a doubled contract (the BBA-match tail had `1NT-(2♠)-3♦-(3♠)-5♦x`
-  catastrophes). `Inferences::read` now carries a structural
-  `transfer_lebensohl_reading` that decodes the transfer from the auction shape alone
-  (independent of the book prefixes the projection needs), so opener reads the real
-  suit even when the completion node does not fire. Geometry mirrors the responder
-  table: up-the-line over `(2♥/2♠/2♣)`, direct Jacoby over `(2♦)`. Rare, so no
-  measurable move in the umbrella BBA-match number; it removes doubled-disaster
-  outliers.
+- **Fallback-authored conventions are now decoded under second-round
+  intervention** (`set_fallback_projection`, **on by default**). The floor's
+  projection (`project_authored`) read meaning off a prior call only when it was
+  authored at an *exact* trie node (via `common_prefixes`). But every contested
+  convention — Transfer-Lebensohl transfers, Leaping Michaels, the Lebensohl cue —
+  is authored as a *guarded fallback*, which `common_prefixes` walks straight past.
+  So once the opponents bid again over an artificial call (e.g. `1NT-(2♠)-3♦`→♥
+  followed by `(3♠)`), the floor lost the convention's meaning, read the call as a
+  *natural* long suit, and raised the phantom suit into a doubled contract (the
+  BBA-match tail had `1NT-(2♠)-3♦-(3♠)-5♦x` catastrophes). `project_authored` now
+  re-resolves each prior call's *authoring* classifier through the same
+  node-then-fallback chain that bid it (`Trie::authoring_classifier`), so any
+  alerted convention is decoded the same way it was made. This is the general
+  replacement for the per-convention hand readers; the structural
+  `transfer_lebensohl_reading` band-aid is retired in favor of it. BBA A/B (paired,
+  1.6M `--filter-1nt`, on vs `--no-ns-fallback-projection`): plain **+0.0014
+  IMPs/board** (+2.0/fired), PD **+0.0022** (+3.2/fired), both 95% CIs exclude 0;
+  small per-board because rare (0.07% fired). The OR-disjunction two-suiters (DONT,
+  Woolsey, Multi) and doubles still need their hand readers — their union projects
+  no single suit.
 
 ### Added
 

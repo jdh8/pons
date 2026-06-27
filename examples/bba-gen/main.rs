@@ -137,12 +137,12 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_our_1nt: bool,
 
-    /// Decode fallback-authored conventions (contested transfers, Leaping Michaels,
-    /// the Lebensohl cue) in the floor's projection, not just exact-node calls
-    /// (default off; the general A/B knob for non-natural calls misread under
-    /// second-round competition).
+    /// Turn OFF decoding fallback-authored conventions (contested transfers, Leaping
+    /// Michaels, the Lebensohl cue) in the floor's projection, leaving only
+    /// exact-node calls; on by default (the A/B off-switch — measured plain +0.0006,
+    /// PD +0.0014 IMPs/board, both CIs exclude 0).
     #[arg(long, default_value_t = false)]
-    ns_fallback_projection: bool,
+    no_ns_fallback_projection: bool,
 
     /// Cleanly isolate our DEFENSE to BBA's 1NT.  Keep only boards where BBA (E/W)
     /// opens 1NT and our pair (N/S) defends, and bid table B as an ALL-BBA
@@ -700,7 +700,7 @@ fn main() -> anyhow::Result<()> {
     pons::bidding::instinct::set_penalty_no_pull(!args.ns_allow_pull);
     pons::bidding::instinct::set_advancer_xx_runout(!args.no_ns_xx_runout);
     pons::bidding::instinct::set_doubler_xx_runout(!args.no_ns_doubler_run);
-    pons::bidding::set_fallback_projection(args.ns_fallback_projection);
+    pons::bidding::set_fallback_projection(!args.no_ns_fallback_projection);
     pons::bidding::american::set_open_one_notrump(!args.no_our_1nt);
     pons::bidding::american::set_one_notrump_fifths(args.nt_fifths);
     pons::bidding::american::set_natural_double_shape(match args.ns_double_shape.as_str() {

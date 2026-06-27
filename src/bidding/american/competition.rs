@@ -1261,62 +1261,6 @@ pub(super) fn transfer_completion(target: Suit, over: Suit) -> Rules {
     rules.rule(Call::Pass, 0.0, hcp(0..))
 }
 
-/// Decode responder's contested Transfer-Lebensohl transfer for the floor reader
-///
-/// `[1NT, (2X), 3Y, …]`: responder's 3-level `3Y` over a natural 2-level overcall
-/// is a transfer (the cue = Stayman is excluded). Returns `(index, target)` — the
-/// auction position of the transfer and the suit it shows — so [`Inferences::read`]
-/// suppresses the natural `3Y`-as-its-own-suit reading and overlays 5+ in `target`.
-///
-/// Without it, once RHO bids over the transfer the completion node
-/// ([`transfer_completion`], guarded on `[overcall, 3Y, Pass]`) no longer matches
-/// and opener falls to the instinct floor, which reads `3Y` as a natural long suit
-/// — raising the phantom suit into a doubled contract (board 881510:
-/// `1NT-(2♠)-3♦`→♥ was misread as diamonds and opener raised to `5♦x`).
-///
-/// Geometry mirrors [`transfer_lebensohl_responder`]: over `(2♥/2♠/2♣)` transfers
-/// run up the line through their suit ([`transfer_target`], the top step the forced
-/// club transfer); over `(2♦)` they are direct Jacoby (`3♦`→♥, `3♥`→♠, `3♠`→♣, with
-/// `3♣` = Stayman). Only meaningful under [`LebensohlStyle::Transfer`] (the default).
-pub(crate) fn transfer_lebensohl_reading(auction: &[Call]) -> Option<(usize, Suit)> {
-    if lebensohl_style() != LebensohlStyle::Transfer {
-        return None;
-    }
-    let opening_index = auction.iter().position(|&c| c != Call::Pass)?;
-    if auction[opening_index] != Call::Bid(Bid::new(1, Strain::Notrump)) {
-        return None;
-    }
-    // A natural 2-level suit overcall directly over the 1NT, then responder's call.
-    let over = match auction.get(opening_index + 1) {
-        Some(&Call::Bid(b)) if b.level.get() == 2 => b.strain.suit()?,
-        _ => return None,
-    };
-    let resp_index = opening_index + 2;
-    let y = match auction.get(resp_index) {
-        Some(&Call::Bid(b)) if b.level.get() == 3 => b.strain.suit()?,
-        _ => return None,
-    };
-    let target = if over == Suit::Diamonds {
-        // Direct Jacoby over (2♦): 3♦→♥, 3♥→♠, 3♠→♣; 3♣ is Stayman, not a transfer.
-        match y {
-            Suit::Diamonds => Suit::Hearts,
-            Suit::Hearts => Suit::Spades,
-            Suit::Spades => Suit::Clubs,
-            Suit::Clubs => return None,
-        }
-    } else {
-        if y == over {
-            return None; // the cue of their suit is Stayman, not a transfer
-        }
-        match transfer_target(y, over) {
-            Some(t) => t,
-            None if over != Suit::Clubs => Suit::Clubs, // top step = forced club transfer
-            None => return None,                        // over (2♣): no top step
-        }
-    };
-    Some((resp_index, target))
-}
-
 /// Opener's reply to responder's Transfer-Lebensohl cue (Stayman, game-forcing)
 ///
 /// Shows a 4-card unbid major at its cheapest legal level, else `3NT`.
