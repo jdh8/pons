@@ -2,6 +2,8 @@
 
 **Status:** in progress. The retirement-invariant test is landed (ignored); the
 alert sweep is the worklist below. Bite off one increment at a time.
+**Done so far:** #1 Michaels (`aa237be`), #2 Unusual 2NT (`955fada`), #3 Leaping
+Michaels (`842da31`). Worklist 172 → **120**. Remaining: #4–#7, then the drop.
 
 ## Goal
 
@@ -76,9 +78,9 @@ constants where one already exists.
 
 | # | Convention | Sample auctions | Source | Alert | Gating |
 |---|---|---|---|---|---|
-| 1 | Michaels cue-bid | `[1♦] 2♦`, `[1♠] 2♠`, `[1♣] 2♣` | [defense.rs](../../src/bidding/american/defense.rs) overcall/cue block | new `MICHAELS` | none |
-| 2 | Unusual 2NT | `[1♦] 2NT`, `[1♠] 2NT` | [defense.rs](../../src/bidding/american/defense.rs) `set_unusual_notrump_defense` block | new `UNUSUAL_NT` | check the unusual-NT gated overlay |
-| 3 | Leaping Michaels | `[2♥] 4♣/4♦`, `[2♦] 4♦` | [defense.rs:2435](../../src/bidding/american/defense.rs#L2435) `leaping_michaels_advances`, [2485](../../src/bidding/american/defense.rs#L2485) | new `LEAPING_MICHAELS` | `leaping_michaels_enabled()` block |
+| ✅1 | Michaels cue-bid | `[1♦] 2♦`, `[1♠] 2♠`, `[1♣] 2♣` | [defense.rs](../../src/bidding/american/defense.rs) overcall/cue block | `MICHAELS` (`aa237be`) | none |
+| ✅2 | Unusual 2NT | `[1♦] 2NT`, `[1♠] 2NT` | ungated tail of `defense_to_suit` (NOT the 1NT-defense `unusual_2nt()` — already alerted) | `UNUSUAL` `"unusual-2nt"` (`955fada`) — named `UNUSUAL` to dodge the `set_unusual_notrump_defense` thread-local | none (outside the `active_alerts()` gate) |
+| ✅3 | Leaping Michaels | `[2♥] 4♣/4♦`, `[2♦] 4♦` | `defense_to_weak_two` LM block (overcalls). The `leaping_michaels_advances` continuations project no foreign suit → not in the worklist | `LEAPING` `"leaping-michaels"` (`842da31`) — named `LEAPING` to dodge the `leaping_michaels_enabled` thread-local | `leaping_michaels_enabled()` only; outside `active_alerts()` |
 | 4 | Responsive double | `[1♦ X 2♦] X`, `[1♦ X 3♦] X` | [defense.rs](../../src/bidding/american/defense.rs) `set_responsive_takeout`/`_overcall` blocks | new `RESPONSIVE_X` | `responsive_*()` toggles |
 | 5 | Trap pass | `[1♦ X P] P` | [competition.rs](../../src/bidding/american/competition.rs) `set_trap_pass` block (~429) | new `TRAP_PASS` | `trap_pass()` toggle |
 | 6 | Transfers over 2NT (opening + 2♣ rebid) | `[2NT P] 3♦/3♥`, `[2♣ P 2♥ P 2NT P] 3♦/3♥` | [notrump.rs:843](../../src/bidding/american/notrump.rs#L843) 2NT-strength structure; [responses.rs:287](../../src/bidding/american/responses.rs#L287) `after_2nt` | reuse `JACOBY`/new `TEXAS`-style | shared by opening & rebid — alert once at the structure |
