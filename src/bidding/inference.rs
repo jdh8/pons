@@ -2350,6 +2350,70 @@ mod tests {
         );
     }
 
+    /// Retirement invariant for [`artificial`]: every call the structural
+    /// detector would read as artificial is *also* alerted by its authoring rule.
+    ///
+    /// `artificial(project(rule), call) ⟹ rule.alert().is_some()`, walked over
+    /// every authored rule in the shipped `american()` book (all three phase
+    /// tries).  Once this holds with zero counterexamples, `|| artificial(p,
+    /// made)` can be dropped from the decode gate and the detector deleted: alerts
+    /// alone carry the "decode this call" signal (alert-by-disclosed-meaning, the
+    /// move modern bridge made retiring "X is self-alerting").  The panic message
+    /// lists the exact worklist — each counterexample is a conventional call
+    /// missing its `.alert(...)`.
+    ///
+    /// Ignored while the alert sweep is in progress (172 shape-bearing calls
+    /// across Michaels / unusual-NT / Leaping-Michaels / 2NT-transfers / Puppet
+    /// relays / trap-pass / responsive doubles).  Un-ignore — and drop `||
+    /// artificial(p, made)` from the decode gate — once it is green.
+    #[test]
+    #[ignore = "retirement worklist: run with --ignored to list the calls still needing .alert()"]
+    fn artificial_calls_are_alerted() {
+        use crate::bidding::american::american;
+
+        let pair = american();
+        let tries = [
+            ("constructive", &pair.constructive.0),
+            ("competitive", &pair.competitive.0),
+            ("defensive", &pair.defensive.0),
+        ];
+
+        let mut worklist: Vec<String> = Vec::new();
+        for (phase, trie) in tries {
+            for (auction, classifier) in trie {
+                let auction: &[Call] = &auction;
+                let Some(rules) = classifier.as_rules() else {
+                    continue;
+                };
+                let context = Context::new(RelativeVulnerability::NONE, auction)
+                    .with_prefixes(trie.common_prefixes(auction));
+                for rule in rules.rules() {
+                    let made = rule.call();
+                    if super::artificial(&rule.project(&context), made) && rule.alert().is_none() {
+                        worklist.push(format!(
+                            "{phase}: [{}] {made}  (label: {:?})",
+                            auction
+                                .iter()
+                                .map(ToString::to_string)
+                                .collect::<Vec<_>>()
+                                .join(" "),
+                            rule.label(),
+                        ));
+                    }
+                }
+            }
+        }
+
+        worklist.sort();
+        worklist.dedup();
+        assert!(
+            worklist.is_empty(),
+            "{} artificial calls lack an alert (the retirement worklist):\n{}",
+            worklist.len(),
+            worklist.join("\n"),
+        );
+    }
+
     proptest! {
         /// Soundness: a hand that opens the book's choice falls within the
         /// opening inference.  Tests rule 1 (the opening table) over random hands.

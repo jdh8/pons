@@ -32,6 +32,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The Michaels cue-bid is now alerted** (`Alert("michaels")`). First increment
+  of retiring the structural `artificial()` decode heuristic in favor of
+  alert-by-disclosed-meaning: a call is read as conventional because its authoring
+  rule carries an `.alert(...)`, not because its projection happens to floor a
+  foreign suit. Disclosure-only and a **decode no-op** — while `artificial()`
+  remains in the gate it already kept these calls, so the floor reads them
+  identically; only the alert output changes. Shrinks the retirement worklist
+  (`artificial_calls_are_alerted`, ignored) from 172 to 156. No measurement: the
+  behavior change is deferred to the final increment that drops `artificial()`.
+
 - **Competition over our 2NT diamond transfer, both sides — authored and
   A/B-measured vs BBA (both opt-in).** The PUPPET 2NT diamond transfer (6+♦, or 5♦-4♣) and its
   fourth-hand contest previously fell through to the instinct floor; both sides are

@@ -870,27 +870,33 @@ pub fn defense_to_suit(their_opening: Bid) -> Rules {
     // Michaels cue-bid: 2 of their suit, 5-5, 8+ HCP.
     rules = match t {
         // t minor → both majors
-        Suit::Clubs | Suit::Diamonds => rules.rule(
-            Bid::new(2, theirs),
-            2.0,
-            len(Suit::Hearts, 5..) & len(Suit::Spades, 5..) & points(8..),
-        ),
+        Suit::Clubs | Suit::Diamonds => rules
+            .rule(
+                Bid::new(2, theirs),
+                2.0,
+                len(Suit::Hearts, 5..) & len(Suit::Spades, 5..) & points(8..),
+            )
+            .alert(MICHAELS),
         // t = ♥ → spades + a minor
-        Suit::Hearts => rules.rule(
-            Bid::new(2, theirs),
-            2.0,
-            len(Suit::Spades, 5..)
-                & (len(Suit::Clubs, 5..) | len(Suit::Diamonds, 5..))
-                & points(8..),
-        ),
+        Suit::Hearts => rules
+            .rule(
+                Bid::new(2, theirs),
+                2.0,
+                len(Suit::Spades, 5..)
+                    & (len(Suit::Clubs, 5..) | len(Suit::Diamonds, 5..))
+                    & points(8..),
+            )
+            .alert(MICHAELS),
         // t = ♠ → hearts + a minor
-        Suit::Spades => rules.rule(
-            Bid::new(2, theirs),
-            2.0,
-            len(Suit::Hearts, 5..)
-                & (len(Suit::Clubs, 5..) | len(Suit::Diamonds, 5..))
-                & points(8..),
-        ),
+        Suit::Spades => rules
+            .rule(
+                Bid::new(2, theirs),
+                2.0,
+                len(Suit::Hearts, 5..)
+                    & (len(Suit::Clubs, 5..) | len(Suit::Diamonds, 5..))
+                    & points(8..),
+            )
+            .alert(MICHAELS),
     };
 
     // Unusual 2NT: 5-5 in the two lowest unbid suits, 8+ HCP.
@@ -1038,6 +1044,9 @@ fn passed_two_suiter(a: Suit, b: Suit) -> Cons<impl Constraint + Clone> {
 // stay unalerted (authored where they are a measured DD win, via
 // [`chain_natural_base`]); the conventions are the alerts — the same per-call
 // [`Alert`] now carried by every artificial call system-wide (see [`Rules::alert`]).
+
+/// Michaels cue-bid — 2 of their suit, 5-5, 8+ HCP (a two-suiter)
+const MICHAELS: Alert = Alert("michaels");
 
 const WOOLSEY_X: Alert = Alert("1ntd:woolsey-x");
 const LANDY_X: Alert = Alert("1ntd:landy-x");
