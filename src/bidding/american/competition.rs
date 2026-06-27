@@ -14,8 +14,8 @@ use super::super::fallback::{Fallback, FirstIs, OvercallAtMost, ReplaceNext, gua
 use super::super::trie::{Classifier, classifier};
 use super::super::{Alert, Competitive, Rules};
 use super::notrump::{
-    complete_transfer, notrump_responses, smolen_at_three, smolen_completion, stayman_answers,
-    transfer_super_accept,
+    PUPPET, complete_transfer, notrump_minors, notrump_responses, smolen_at_three,
+    smolen_completion, stayman_answers, transfer_super_accept,
 };
 use super::{call, fallback_all_seats};
 use contract_bridge::auction::Call;
@@ -546,6 +546,43 @@ pub fn set_competition_over_transfer(on: bool) {
 /// Whether competition over our Jacoby transfer is currently authored
 fn competition_over_transfer() -> bool {
     COMPETITION_OVER_TRANSFER.with(Cell::get)
+}
+
+thread_local! {
+    /// Whether opener authors continuations after the opponents contest our two-way
+    /// 2♠ minor response (`1NT-(P)-2♠-(X)` and `-(overcall)`); **on by default**,
+    /// with an off-switch for A/B measurement.  See
+    /// [`set_competition_over_minor_transfer`].
+    static COMPETITION_OVER_MINOR_TRANSFER: Cell<bool> = const { Cell::new(true) };
+}
+
+/// Author opener's replies after the opponents double or overcall our two-way 2♠
+/// (clubs-or-balanced-invite) response, for books built *after* this call
+/// (thread-local; **on by default**).
+///
+/// Only the PUPPET 2♠ (the default — a club one-suiter *or* the balanced
+/// invite that asks opener's size) has a min/max answer to protect, so the block
+/// no-ops under the EUROPEAN pure-transfer scheme.  Their `(X)` of 2♠ is
+/// lead-directing spades, so opener re-encodes its size-ask answer *and* a spade
+/// stopper across four calls: `2NT` = minimum **with** a stopper, `3♣` = maximum
+/// **with** one, `Pass` = minimum **no** stopper, `XX` = maximum **no** stopper.
+/// After a stopper-showing bid responder's rebids match the uncontested tree
+/// (strip the `X` to a Pass); after a no-stopper reply responder signs off in `3♣`
+/// with clubs.  A `(2NT)`/`(3♣)` overcall (which steals the size-ask steps) keeps
+/// the signal alive — `3NT` = maximum + stopper, `X` = maximum no stopper, Pass =
+/// minimum; any higher overcall is systems-off (a `X` showing their suit, else
+/// Pass).  Like the contested 2♣ Stayman this is a **constructive** win: a paired
+/// A/B vs BBA over 640 000 boards measured **+4.80 IMPs/board it fires on** on plain
+/// double-dummy (+5.63 under perfect-defense — *higher*, so it is a sound
+/// contract-finding gain, not a doubling artifact), CI excluding 0, so it ships on.
+/// Rare (it fired on 0.03 %): BBA seldom contests our 2♠.
+pub fn set_competition_over_minor_transfer(on: bool) {
+    COMPETITION_OVER_MINOR_TRANSFER.with(|cell| cell.set(on));
+}
+
+/// Whether competition over our two-way 2♠ minor response is currently authored
+fn competition_over_minor_transfer() -> bool {
+    COMPETITION_OVER_MINOR_TRANSFER.with(Cell::get)
 }
 
 thread_local! {
@@ -1654,6 +1691,74 @@ fn transfer_overcalled_opener(major: Suit, over_suit: Suit, over_level: u8) -> R
         .rule(Call::Pass, 0.2, hcp(0..))
 }
 
+/// Opener's coded reply after the opponents double our two-way 2♠
+/// (`1NT-(P)-2♠-(X)`)
+///
+/// Their `X` is lead-directing spades, so opener answers the size-ask *and* shows
+/// a spade stopper in one call: `2NT`/`3♣` keep their uncontested min/max meaning
+/// and promise a stopper (responder then plays the rebased systems-on tree), while
+/// `Pass`/`XX` deny a stopper for the minimum/maximum respectively (responder signs
+/// off in clubs below).
+fn minor_doubled_opener() -> Rules {
+    Rules::new()
+        // Maximum + spade stopper: the uncontested `3♣` max answer.
+        .rule(
+            Bid::new(3, Strain::Clubs),
+            1.0,
+            hcp(17..) & stopper_in(Suit::Spades),
+        )
+        // Minimum + spade stopper: the uncontested `2NT` min answer.
+        .rule(Bid::new(2, Strain::Notrump), 0.9, stopper_in(Suit::Spades))
+        // Maximum, no stopper: `XX`.
+        .rule(Call::Redouble, 0.8, hcp(17..))
+        // Minimum, no stopper: `Pass`.
+        .rule(Call::Pass, 0.25, hcp(0..))
+}
+
+/// Responder's placement after opener denied a spade stopper over our doubled 2♠
+/// (`1NT-(P)-2♠-(X)-P-(P)` minimum, or `…-XX-(P)` maximum)
+///
+/// Opener has shown min/max but no stopper, so notrump is off; the six-card club
+/// hand signs off in `3♣`.  Pass is the catch-all — the balanced-invite hand has no
+/// safe spot and defends the doubled 2♠ (rare; the convention is opt-in).
+//
+// ponytail: the invite hand passing 2♠-doubled is the known soft spot; refine only
+// if an A/B says the no-stopper branch leaks.
+fn minor_no_stopper_rebid() -> Rules {
+    Rules::new()
+        .rule(Bid::new(3, Strain::Clubs), 0.8, len(Suit::Clubs, 6..))
+        .rule(Call::Pass, 0.1, hcp(0..))
+}
+
+/// Opener's reply after the opponents overcall our two-way 2♠ at `2NT` or `3♣` —
+/// the bids that steal opener's size-ask steps (`1NT-(P)-2♠-(2NT/3♣)`)
+///
+/// Keep the min/max + stopper signal alive in the room that remains: `3NT` =
+/// maximum with a spade stopper (to play), `X` = maximum without one (penalty /
+/// values), `Pass` = minimum.
+fn minor_overcalled_high() -> Rules {
+    Rules::new()
+        .rule(
+            Bid::new(3, Strain::Notrump),
+            1.0,
+            hcp(17..) & stopper_in(Suit::Spades),
+        )
+        .rule(Call::Double, 0.7, hcp(17..))
+        .rule(Call::Pass, 0.2, hcp(0..))
+}
+
+/// Opener's systems-off reply after the opponents overcall our two-way 2♠ above
+/// `3♣` (`1NT-(P)-2♠-(3♦/3♥/3♠)`)
+///
+/// Their suit is too high to keep the size-ask, so opener falls back to natural
+/// competition: `X` shows length in their suit (cards), else Pass and leave
+/// responder captain.
+fn minor_overcalled_low(over: Suit) -> Rules {
+    Rules::new()
+        .rule(Call::Double, 0.6, len(over, 4..))
+        .rule(Call::Pass, 0.2, hcp(0..))
+}
+
 /// The competitive package over our openings: cue-bid raises, preemptive raises,
 /// negative doubles for all four openings, support doubles/redoubles, and
 /// opener's answers to negative doubles of minor overcalls
@@ -2250,6 +2355,84 @@ pub fn competition() -> Competitive {
         }
     }
 
+    // Competition over our own two-way 2♠ minor response (`set_competition_over_
+    // minor_transfer`, default off): opener's replies after the opponents double
+    // `1NT-(P)-2♠-(X)` or overcall it.  Keyed at `[1NT, P, 2♠]`.  Only the PUPPET
+    // 2♠ (clubs *or* the balanced size-ask) has a min/max answer to protect, so the
+    // block no-ops under the EUROPEAN pure-transfer scheme.
+    if competition_over_minor_transfer() && notrump_minors() == PUPPET {
+        let two_spade = [
+            call(1, Strain::Notrump),
+            Call::Pass,
+            call(2, Strain::Spades),
+        ];
+
+        // A.1 — our 2♠ doubled.  Opener's coded min/max + stopper reply (suffix `[X]`).
+        fallback_all_seats(
+            &mut book,
+            &two_spade,
+            3,
+            Arc::new(guard(|_: &Context<'_>, s: &[Call]| s == [Call::Double])),
+            Fallback::classify(minor_doubled_opener()),
+        );
+        // After opener's stopper-bid (`2NT`/`3♣`, suffix `[X, <bid>, …]`) responder's
+        // rebids match the uncontested tree: strip the `X` to a Pass, re-keying onto
+        // `[1NT, P, 2♠, P, 2NT/3♣, …]` (the `two_spade_over_min`/`max` machinery).
+        fallback_all_seats(
+            &mut book,
+            &two_spade,
+            3,
+            Arc::new(guard(|_: &Context<'_>, s: &[Call]| {
+                s.first() == Some(&Call::Double) && matches!(s.get(1), Some(Call::Bid(_)))
+            })),
+            Fallback::rebase(rewriter(move |auction: &[Call], depth: usize| {
+                if auction.get(depth) != Some(&Call::Double) {
+                    return None;
+                }
+                let mut rewritten = auction.to_vec();
+                rewritten[depth] = Call::Pass; // strip the X → systems on
+                Some(rewritten)
+            })),
+        );
+        // Opener denied a stopper (Pass = min, suffix `[X, P, P]`; or XX = max, suffix
+        // `[X, XX, P]`).  Responder signs off in clubs.
+        for deny in [
+            [Call::Double, Call::Pass, Call::Pass],
+            [Call::Double, Call::Redouble, Call::Pass],
+        ] {
+            fallback_all_seats(
+                &mut book,
+                &two_spade,
+                3,
+                Arc::new(guard(move |_: &Context<'_>, s: &[Call]| s == deny)),
+                Fallback::classify(minor_no_stopper_rebid()),
+            );
+        }
+
+        // A.2 — our 2♠ overcalled.  `2NT`/`3♣` steal the size-ask steps, so opener
+        // keeps the min/max + stopper signal (`minor_overcalled_high`); a higher
+        // overcall (`3♦/3♥/3♠`) is systems-off (`minor_overcalled_low`).
+        let overcalls: [(Call, Rules); 5] = [
+            (call(2, Strain::Notrump), minor_overcalled_high()),
+            (call(3, Strain::Clubs), minor_overcalled_high()),
+            (
+                call(3, Strain::Diamonds),
+                minor_overcalled_low(Suit::Diamonds),
+            ),
+            (call(3, Strain::Hearts), minor_overcalled_low(Suit::Hearts)),
+            (call(3, Strain::Spades), minor_overcalled_low(Suit::Spades)),
+        ];
+        for (over, rules) in overcalls {
+            fallback_all_seats(
+                &mut book,
+                &two_spade,
+                3,
+                Arc::new(guard(move |_: &Context<'_>, s: &[Call]| s == [over])),
+                Fallback::classify(rules),
+            );
+        }
+    }
+
     // Section 5d: Unusual vs Unusual over a both-minors (2NT) overcall of our 1NT
     // (`set_uvu`, default off). Responder's `X` is penalty; `3♣`/`3♦` are
     // INV+ cues (Stayman/5+♠, 5+♥); `4♣`/`4♦` are FG+ 5-5-majors splinters; the
@@ -2376,6 +2559,116 @@ mod tests {
         super::set_competition_over_transfer(false);
         crate::bidding::american::set_transfer_super_accept(false);
         result
+    }
+
+    /// As [`best_call`], with our 2♠ minor-transfer competition (Side A) forced on
+    /// (it is also the default, but pin it so a thread that another test left off
+    /// still sees it); restores the on default afterward.
+    fn bid_minor(auction: &[Call], hand: &str) -> (Call, bool) {
+        super::set_competition_over_minor_transfer(true);
+        let result = best_call(auction, hand);
+        super::set_competition_over_minor_transfer(true);
+        result
+    }
+
+    // --- Competition over our 2♠ minor transfer (Side A) ---
+
+    #[test]
+    fn minor_doubled_opener_shows_min_with_stopper() {
+        // 1NT-(P)-2♠-(X): minimum + spade stopper → 2NT.
+        let auction = [
+            call(1, Strain::Notrump),
+            Call::Pass,
+            call(2, Strain::Spades),
+            Call::Double,
+        ];
+        let (c, floored) = bid_minor(&auction, "KJ2.A32.K432.Q32");
+        assert_eq!(c, call(2, Strain::Notrump));
+        assert!(!floored, "the coded answer must come from the book");
+    }
+
+    #[test]
+    fn minor_doubled_opener_jumps_max_with_stopper() {
+        // 1NT-(P)-2♠-(X): maximum (17) + spade stopper → 3♣.
+        let auction = [
+            call(1, Strain::Notrump),
+            Call::Pass,
+            call(2, Strain::Spades),
+            Call::Double,
+        ];
+        let (c, floored) = bid_minor(&auction, "KQ2.AQ2.KJ32.A32");
+        assert_eq!(c, call(3, Strain::Clubs));
+        assert!(!floored, "the coded max answer must come from the book");
+    }
+
+    #[test]
+    fn minor_doubled_opener_passes_min_no_stopper() {
+        // 1NT-(P)-2♠-(X): minimum, NO spade stopper → Pass.
+        let auction = [
+            call(1, Strain::Notrump),
+            Call::Pass,
+            call(2, Strain::Spades),
+            Call::Double,
+        ];
+        let (c, floored) = bid_minor(&auction, "432.AQ2.KQ32.K32");
+        assert_eq!(c, Call::Pass);
+        assert!(!floored, "the no-stopper pass must come from the book");
+    }
+
+    #[test]
+    fn minor_doubled_opener_redoubles_max_no_stopper() {
+        // 1NT-(P)-2♠-(X): maximum (17), NO spade stopper → XX.
+        let auction = [
+            call(1, Strain::Notrump),
+            Call::Pass,
+            call(2, Strain::Spades),
+            Call::Double,
+        ];
+        let (c, _) = bid_minor(&auction, "432.AKQ.AQJ2.K32");
+        assert_eq!(c, Call::Redouble);
+    }
+
+    #[test]
+    fn minor_no_stopper_responder_signs_off_in_clubs() {
+        // 1NT-(P)-2♠-(X)-P-(P): opener denied a stopper; 6 clubs → 3♣ sign-off.
+        let auction = [
+            call(1, Strain::Notrump),
+            Call::Pass,
+            call(2, Strain::Spades),
+            Call::Double,
+            Call::Pass,
+            Call::Pass,
+        ];
+        let (c, floored) = bid_minor(&auction, "32.43.32.KJ98765");
+        assert_eq!(c, call(3, Strain::Clubs));
+        assert!(!floored, "the club sign-off must come from the book");
+    }
+
+    #[test]
+    fn minor_overcalled_high_bids_game_with_stopper() {
+        // 1NT-(P)-2♠-(2NT): maximum + spade stopper → 3NT (to play).
+        let auction = [
+            call(1, Strain::Notrump),
+            Call::Pass,
+            call(2, Strain::Spades),
+            call(2, Strain::Notrump),
+        ];
+        let (c, floored) = bid_minor(&auction, "KQ2.AQ2.KJ32.A32");
+        assert_eq!(c, call(3, Strain::Notrump));
+        assert!(!floored, "the coded game must come from the book");
+    }
+
+    #[test]
+    fn minor_overcalled_low_is_systems_off() {
+        // 1NT-(P)-2♠-(3♦): systems-off, length in their suit → X (cards).
+        let auction = [
+            call(1, Strain::Notrump),
+            Call::Pass,
+            call(2, Strain::Spades),
+            call(3, Strain::Diamonds),
+        ];
+        let (c, _) = bid_minor(&auction, "K32.K32.AQ32.A32");
+        assert_eq!(c, Call::Double);
     }
 
     // --- Competition over our 2♣ Stayman (Side A) + defense to theirs (Side B) ---
@@ -2638,6 +2931,56 @@ mod tests {
         crate::bidding::american::set_transfer_defense(false); // restore default
         assert_eq!(c, call(2, Strain::Hearts));
         assert!(!floored, "the Michaels cue must come from the defense book");
+    }
+
+    // --- Defense to their 2♠ minor transfer (Side B) ---
+
+    #[test]
+    fn defense_to_their_minor_transfer_doubles_spades() {
+        // (1NT)-P-(2♠ minor): our 4th-hand X = lead-directing spades (the bid suit).
+        crate::bidding::american::set_minor_transfer_defense(true);
+        let auction = [
+            call(1, Strain::Notrump),
+            Call::Pass,
+            call(2, Strain::Spades),
+        ];
+        let (c, floored) = best_call(&auction, "KQJ54.A32.432.32");
+        crate::bidding::american::set_minor_transfer_defense(false); // restore default
+        assert_eq!(c, Call::Double);
+        assert!(
+            !floored,
+            "the lead-directing X must come from the defense book"
+        );
+    }
+
+    #[test]
+    fn defense_to_their_minor_transfer_cues_top_and_bottom() {
+        // (1NT)-P-(2♠): 5 spades + 5 diamonds → 3♣ cue (top-and-bottom), beating the X.
+        crate::bidding::american::set_minor_transfer_defense(true);
+        let auction = [
+            call(1, Strain::Notrump),
+            Call::Pass,
+            call(2, Strain::Spades),
+        ];
+        let (c, floored) = best_call(&auction, "KQ1054.3.KJ1054.32");
+        crate::bidding::american::set_minor_transfer_defense(false); // restore default
+        assert_eq!(c, call(3, Strain::Clubs));
+        assert!(!floored, "the top-and-bottom cue must come from the book");
+    }
+
+    #[test]
+    fn defense_to_their_minor_transfer_two_notrump_is_reds() {
+        // (1NT)-P-(2♠): 5 diamonds + 5 hearts → 2NT (the two lowest unbid suits).
+        crate::bidding::american::set_minor_transfer_defense(true);
+        let auction = [
+            call(1, Strain::Notrump),
+            Call::Pass,
+            call(2, Strain::Spades),
+        ];
+        let (c, floored) = best_call(&auction, "3.KQ1054.KJ1054.32");
+        crate::bidding::american::set_minor_transfer_defense(false); // restore default
+        assert_eq!(c, call(2, Strain::Notrump));
+        assert!(!floored, "the red two-suiter must come from the book");
     }
 
     #[test]

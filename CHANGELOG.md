@@ -9,6 +9,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Competition over our two-way 2♠ minor response, both sides — authored and
+  A/B-measured vs BBA over 640 000 boards.** The PUPPET 2♠ (6+ clubs *or* a balanced
+  size-ask) and its fourth-hand contest previously fell through to the instinct
+  floor; both sides are now authored, modeled on the contested-Stayman /
+  Jacoby-transfer machinery. Both contests are **rare** — BBA seldom contests our
+  2♠, and seldom bids a 2♠ minor transfer of its own — so the per-board impact is
+  tiny, but the per-fired signal is clear and the two sides split:
+  - *Our 2♠ is contested* — **on by default** (`set_competition_over_minor_transfer`,
+    off-switch `bba-gen --no-ns-comp-over-minor-transfer`). Because the opponents'
+    `X` of 2♠ is lead-directing spades, opener re-encodes its size-ask answer **and**
+    a spade stopper across four calls: `2NT` = minimum with a stopper, `3♣` = maximum
+    with a stopper (after either, responder's rebids match the uncontested tree),
+    `Pass` = minimum no stopper, `XX` = maximum no stopper (after either, responder
+    signs off in `3♣` with clubs). A `(2NT)`/`(3♣)` overcall — the bids that steal
+    the size-ask steps — keeps the signal alive (`3NT` = maximum + stopper, `X` =
+    maximum no stopper, Pass = minimum); any higher overcall is systems-off (`X`
+    shows their suit, else Pass). No-ops under the EUROPEAN pure-transfer 2♠ (no
+    min/max answer to protect). Like the contested 2♣ Stayman this is a
+    **constructive** win: it fired on 0.03 % of boards for **+4.80 IMPs/board it
+    fires on** on plain double-dummy (**+5.63 under perfect-defense** — *higher*, so
+    a sound contract-finding gain, not a doubling artifact), CI excluding 0.
+  - *Their 2♠ is the contest* — **opt-in (default off)** (`set_minor_transfer_defense`,
+    `bba-gen --ns-minor-transfer-defense`). Our fourth-hand defense: `X` =
+    lead-directing spades (the bid suit, not takeout); `2NT` = the two lowest unbid
+    suits (diamonds + hearts, 5-5); `3♣`, cueing their clubs anchor, = the
+    top-and-bottom two-suiter (spades + diamonds, 5-5) weighted above the `X` so a
+    genuine two-suiter shows rather than lead-directs; natural `3♦`/`3♥` six-card
+    one-suiters at `points(14..)`. Measured a **wash leaning slightly negative**
+    (50 fired, −1.74 IMPs/fired plain, −2.00 PD; per-board CI straddles 0) — the
+    value is mostly lead-directing, invisible to the double-dummy harness — so it
+    ships off, like the Stayman/transfer defenses.
+
 - **Jacoby-transfer competition and super-accepts, both sides — authored, opt-in
   (default off).** Three transfer auction families that previously fell through to
   the instinct floor are now authored behind toggles. A paired double-dummy A/B vs

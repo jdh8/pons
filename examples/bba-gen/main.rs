@@ -176,6 +176,18 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_transfer_defense: bool,
 
+    /// Turn OFF our continuations after the opponents contest our two-way 2♠ minor
+    /// response (`1NT-(P)-2♠-(X)`/`-(overcall)`); default on (the A/B off-switch —
+    /// measured +4.80 IMPs/fired plain, +5.63 PD).
+    #[arg(long, default_value_t = false)]
+    no_ns_comp_over_minor_transfer: bool,
+
+    /// Author our defense to the opponents' two-way 2♠ minor response
+    /// (`(1NT)-P-(2♠)`): X = lead-directing spades, 2NT/3♣ two-suiters, natural
+    /// overcalls (default off; opt-in A/B).
+    #[arg(long, default_value_t = false)]
+    ns_minor_transfer_defense: bool,
+
     /// Stayman-defense natural-overcall `MIN_LEN:POINTS_FLOOR` (default 6:12); the
     /// A/B search knob for the 2♦/2♥/2♠ length + strength (no effect unless
     /// `--ns-defense-to-their-stayman`).
@@ -693,6 +705,10 @@ fn main() -> anyhow::Result<()> {
     pons::bidding::american::set_competition_over_transfer(args.ns_comp_over_transfer);
     pons::bidding::american::set_transfer_super_accept(args.ns_transfer_super_accept);
     pons::bidding::american::set_transfer_defense(args.ns_transfer_defense);
+    pons::bidding::american::set_competition_over_minor_transfer(
+        !args.no_ns_comp_over_minor_transfer,
+    );
+    pons::bidding::american::set_minor_transfer_defense(args.ns_minor_transfer_defense);
     {
         let (lo, hi) = args
             .ns_staydef_overcall

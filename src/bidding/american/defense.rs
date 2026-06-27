@@ -352,6 +352,33 @@ fn transfer_defense_enabled() -> bool {
 }
 
 thread_local! {
+    /// Whether we author a defense to the opponents' two-way 2♠ minor response
+    /// (`(1NT)-P-(2♠)-?` — their clubs-or-size-ask); **off by default** (opt-in
+    /// A/B).  See [`set_minor_transfer_defense`].
+    static MINOR_TRANSFER_DEFENSE: Cell<bool> = const { Cell::new(false) };
+}
+
+/// Author our defense to the opponents' two-way 2♠ minor response
+/// (`(1NT)-P-(2♠)`), for books built *after* this call (thread-local; **off by
+/// default**).
+///
+/// `X` = lead-directing spades (the bid suit — not takeout); `2NT` = the two lowest
+/// unbid suits (diamonds + hearts, 5-5); `3♣` (a cue of their shown-clubs anchor) =
+/// the top-and-bottom two-suiter (spades + diamonds, 5-5), weighted above the `X` so
+/// the two-suiter shows rather than lead-directs; natural `3♦`/`3♥` one-suiters; the
+/// floor passes everything else.  Opt-in like the Stayman/transfer defenses: the
+/// value is mostly lead-directing (invisible to the double-dummy harness), so it
+/// ships off for A/B measurement.
+pub fn set_minor_transfer_defense(on: bool) {
+    MINOR_TRANSFER_DEFENSE.with(|cell| cell.set(on));
+}
+
+/// Whether the defense to their two-way 2♠ minor response is currently authored
+fn minor_transfer_defense_enabled() -> bool {
+    MINOR_TRANSFER_DEFENSE.with(Cell::get)
+}
+
+thread_local! {
     /// Minimum length to insist on a DONT one-suiter (the `X` for ♣/♦/♥, the
     /// natural `2♠` for spades); **5 by default**.  Set to 6 to bid only with a
     /// six-card suit, passing five-card one-suiters (the X bucket is the DD loser,
@@ -1005,6 +1032,14 @@ const TRANSFER_DEFENSE_X: Alert = Alert("xferdef:x-bidsuit");
 /// Cue of the suit the opponents showed via transfer — the other major + a minor
 /// (Michaels).
 const TRANSFER_DEFENSE_CUE: Alert = Alert("xferdef:cue-michaels");
+/// Lead-directing double of the opponents' two-way 2♠ minor response — shows
+/// spades (the bid suit), not takeout.
+const MINOR_TRANSFER_DEFENSE_X: Alert = Alert("minorxferdef:x-spades");
+/// `2NT` over their 2♠ — the two lowest unbid suits (diamonds + hearts, 5-5).
+const MINOR_TRANSFER_DEFENSE_2NT: Alert = Alert("minorxferdef:2nt-reds");
+/// Cue of their shown-clubs anchor (`3♣`) — the top-and-bottom two-suiter
+/// (spades + diamonds, 5-5).
+const MINOR_TRANSFER_DEFENSE_CUE: Alert = Alert("minorxferdef:cue-top-bottom");
 
 // Each artificial block is a one-rule `Rules` lifting today's cascade verbatim
 // (weight, shape, strength).  All twelve are chained unconditionally and then
@@ -1133,6 +1168,55 @@ fn defense_to_their_transfer(bid: Suit, shown_major: Suit) -> Rules {
         );
     }
     rules.rule(Call::Pass, 0.5, hcp(0..))
+}
+
+/// Defense to the opponents' two-way 2♠ minor response (`(1NT)-P-(2♠)`)
+///
+/// Their 2♠ names spades (the bid) but means clubs (the anchor), so: `X` =
+/// lead-directing spades (5+ with values, not takeout); `2NT` = the two lowest unbid
+/// suits (diamonds + hearts, 5-5); `3♣` (cueing their clubs anchor) = the
+/// top-and-bottom two-suiter (spades + diamonds, 5-5), weighted **above** the `X` so
+/// a genuine two-suiter shows rather than lead-directs; natural `3♦`/`3♥` six-card
+/// one-suiters (`points(14..)`, the A/B-searched Stayman-defense floor — light
+/// overcalls into a strong-1NT auction are PD-negative).  An owning Pass catches the
+/// ~80% that act on nothing.  Modeled on [`defense_to_their_transfer`].
+fn defense_to_their_minor_transfer() -> Rules {
+    Rules::new()
+        // X = lead-directing spades (the bid suit), 5+ with values.
+        .rule(
+            Call::Double,
+            1.9,
+            len(Suit::Spades, 5..) & suit_hcp(Suit::Spades, 5..) & points(8..),
+        )
+        .alert(MINOR_TRANSFER_DEFENSE_X)
+        // 2NT = the two lowest unbid suits (diamonds + hearts, 5-5) — naturally
+        // disjoint from the spade-showing X.
+        .rule(
+            Bid::new(2, Strain::Notrump),
+            1.7,
+            len(Suit::Diamonds, 5..) & len(Suit::Hearts, 5..) & points(8..),
+        )
+        .alert(MINOR_TRANSFER_DEFENSE_2NT)
+        // 3♣ cue of their clubs anchor = top-and-bottom (spades + diamonds, 5-5);
+        // weight 2.0 beats the X so the two-suiter wins for a 5♠5♦ hand.
+        .rule(
+            Bid::new(3, Strain::Clubs),
+            2.0,
+            len(Suit::Spades, 5..) & len(Suit::Diamonds, 5..) & points(8..),
+        )
+        .alert(MINOR_TRANSFER_DEFENSE_CUE)
+        // Natural six-card one-suiter overcalls in the unbid red suits.
+        .rule(
+            Bid::new(3, Strain::Diamonds),
+            1.8,
+            len(Suit::Diamonds, 6..) & points(14..),
+        )
+        .rule(
+            Bid::new(3, Strain::Hearts),
+            1.8,
+            len(Suit::Hearts, 6..) & points(14..),
+        )
+        .rule(Call::Pass, 0.5, hcp(0..))
 }
 
 /// DONT `X`: a one-suiter (♣/♦/♥), `points(natural-overcall-floor..)`.
@@ -2600,6 +2684,18 @@ pub fn defensive() -> Defensive {
                 defense_to_their_transfer(resp, shown),
             );
         }
+    }
+
+    // Defense to the opponents' two-way 2♠ minor response: (1NT) P (2♠) ?  Opt-in
+    // (default off).  X = lead-directing spades, 2NT = the red two-suiter, 3♣ cue =
+    // top-and-bottom, natural 3♦/3♥ overcalls.
+    if minor_transfer_defense_enabled() {
+        insert_all_seats(
+            &mut d,
+            &[notrump, Call::Pass, call(2, Strain::Spades)],
+            3,
+            defense_to_their_minor_transfer(),
+        );
     }
 
     // Advancing partner's Landy 2♣ (both majors) over their 1NT, when on.  Woolsey's
