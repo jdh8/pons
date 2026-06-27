@@ -100,6 +100,33 @@ std::thread_local! {
     /// ranges.  Off by default; the `ab-landy` example A/Bs the two.  See
     /// [`sample_layouts_replay`][super::sampler::sample_layouts_replay].
     static RULE_ACCEPT: Cell<bool> = const { Cell::new(false) };
+
+    /// Whether the projection pass decodes calls authored by *guarded fallbacks*
+    /// (every contested convention — transfers, Leaping Michaels, the Lebensohl
+    /// cue), not just exact-node classifiers.  Off by default; on, [`project_authored`]
+    /// re-resolves each prior call's authoring classifier through the trie's
+    /// node-then-fallback chain so an alerted call survives later competition
+    /// without a per-convention hand reader.  The `ab-fallback-projection` A/B knob.
+    static FALLBACK_PROJECTION: Cell<bool> = const { Cell::new(false) };
+}
+
+/// Toggle decoding fallback-authored conventions in the projection (default off)
+///
+/// Off, [`project_authored`] sees only exact-node classifiers (via
+/// [`common_prefixes`][super::Trie::common_prefixes]), so a contested convention
+/// authored by a guarded fallback misreads under second-round intervention unless a
+/// hand-written reader covers it.  On, it re-resolves each call's *authoring*
+/// classifier (node or fallback) and projects its alerted rule — the general
+/// replacement for the per-convention readers.  Read at classification time,
+/// per-thread; A/B'd on the BBA match.
+pub fn set_fallback_projection(on: bool) {
+    FALLBACK_PROJECTION.with(|cell| cell.set(on));
+}
+
+/// Whether fallback-authored projection is enabled (default off)
+#[must_use]
+pub fn fallback_projection_enabled() -> bool {
+    FALLBACK_PROJECTION.with(Cell::get)
 }
 
 /// Toggle rule-replay layout acceptance (default off).
@@ -843,10 +870,10 @@ fn project_authored(context: &Context<'_>) -> ([Inference; 4], u64) {
         return (players, suppressed);
     };
 
-    for (prefix, classifier) in prefixes.clone() {
-        let index = prefix.len();
+    // Project the call made at `index`, authored by `classifier`, into the overlay.
+    let mut project_call = |index: usize, classifier: &dyn super::trie::Classifier| {
         let (Some(&made), Some(rules)) = (auction.get(index), classifier.as_rules()) else {
-            continue;
+            return;
         };
 
         // The logit of a call is the max over its rules, so a hand could satisfy
@@ -876,6 +903,24 @@ fn project_authored(context: &Context<'_>) -> ([Inference; 4], u64) {
             if index < 64 {
                 suppressed |= 1 << index;
             }
+        }
+    };
+
+    if fallback_projection_enabled() {
+        // Decode every prior call by the classifier that *authored* it — node or
+        // guarded fallback — so contested conventions (transfers, Leaping Michaels,
+        // the Lebensohl cue) survive later competition without a per-convention reader.
+        let trie = prefixes.root();
+        for index in 0..len {
+            if let Some(classifier) = trie.authoring_classifier(context, &auction[..index]) {
+                project_call(index, classifier);
+            }
+        }
+    } else {
+        // Exact-node classifiers only — the shipped default; fallback-authored
+        // conventions are read by the hand-written readers in [`Inferences::read`].
+        for (prefix, classifier) in prefixes.clone() {
+            project_call(prefix.len(), classifier);
         }
     }
 
@@ -2122,6 +2167,27 @@ mod tests {
         assert!(
             inf.partner().length(Suit::Diamonds).min < 5,
             "phantom suit not read"
+        );
+    }
+
+    #[test]
+    fn fallback_projection_decodes_contested_leaping_michaels() {
+        // [1NT, (2♦), 4♦, (P)]: Leaping Michaels = both majors 5-5, authored as a
+        // *guarded fallback* in the (2♦) Transfer block — invisible to the exact-node
+        // projection. With the flag on, the authoring-classifier resolution decodes it.
+        let auction = [
+            bid(1, Strain::Notrump),
+            bid(2, Strain::Diamonds),
+            bid(4, Strain::Diamonds),
+            Call::Pass,
+        ];
+        set_fallback_projection(true);
+        let on = read_booked(&auction);
+        set_fallback_projection(false);
+        assert!(
+            on.partner().length(Suit::Hearts).min >= 5
+                && on.partner().length(Suit::Spades).min >= 5,
+            "fallback projection pins both majors for contested Leaping Michaels"
         );
     }
 

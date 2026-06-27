@@ -363,6 +363,23 @@ impl Trie {
         None
     }
 
+    /// The classifier that authored the call made at the end of `prefix` — the
+    /// decision resolved at `prefix`, including guarded fallbacks
+    ///
+    /// Unlike [`common_prefixes`][Self::common_prefixes], which yields only
+    /// exact-node classifiers, this walks the same node-then-fallback chain
+    /// [`classify_floored`][Self::classify_floored] uses, so a call authored by a
+    /// guarded fallback (every contested convention — transfers, Leaping Michaels,
+    /// the Lebensohl cue) is decoded the same way it was bid.  Used by the
+    /// projection pass to read fallback-authored conventions off their rule.
+    pub(crate) fn authoring_classifier(
+        &self,
+        context: &Context<'_>,
+        prefix: &[Call],
+    ) -> Option<&dyn Classifier> {
+        self.resolve_at(context, prefix, 0, false).map(|(c, _)| c)
+    }
+
     /// Depth first iteration over all nodes with a [`Classifier`]
     #[must_use]
     pub fn iter(&'_ self) -> Suffixes<'_> {
@@ -478,6 +495,7 @@ impl FusedIterator for Suffixes<'_> {}
 /// Common prefix iterator for a given auction
 #[derive(Clone)]
 pub struct CommonPrefixes<'trie, 'q> {
+    root: &'trie Trie,
     trie: &'trie Trie,
     query: &'q [Call],
     depth: usize,
@@ -489,11 +507,19 @@ impl<'trie, 'q> CommonPrefixes<'trie, 'q> {
     #[must_use]
     pub fn new(trie: &'trie Trie, query: &'q [Call]) -> Self {
         Self {
+            root: trie,
             trie,
             query,
             depth: 0,
             value: trie.classify.as_deref(),
         }
+    }
+
+    /// The root trie these prefixes were taken from (unchanged by iteration), so
+    /// the projection pass can re-resolve each call's *authoring* classifier —
+    /// including guarded fallbacks, which the exact-node walk here skips
+    pub(crate) const fn root(&self) -> &'trie Trie {
+        self.root
     }
 }
 
