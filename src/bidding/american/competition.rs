@@ -13,7 +13,10 @@ use super::super::context::Context;
 use super::super::fallback::{Fallback, FirstIs, OvercallAtMost, ReplaceNext, guard, rewriter};
 use super::super::trie::{Classifier, classifier};
 use super::super::{Alert, Competitive, Rules};
-use super::notrump::{notrump_responses, smolen_at_three, smolen_completion, stayman_answers};
+use super::notrump::{
+    complete_transfer, notrump_responses, smolen_at_three, smolen_completion, stayman_answers,
+    transfer_super_accept,
+};
 use super::{call, fallback_all_seats};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Hand, Strain, Suit};
@@ -56,6 +59,9 @@ const UVU_SPLINTER: Alert = Alert("comp:uvu-splinter");
 /// Stayman re-ask — responder's `XX` after the opponents doubled our 2♣ Stayman
 /// and opener passed to deny a club stopper: re-asks the major (forcing).
 const STAYMAN_REDOUBLE: Alert = Alert("comp:stayman-redouble");
+/// Transfer re-ask — responder's `XX` after the opponents doubled our Jacoby
+/// transfer and opener passed to decline: forces opener to complete (forcing).
+const TRANSFER_REDOUBLE: Alert = Alert("comp:transfer-redouble");
 
 /// Which Lebensohl package the competitive book carries over our overcalled
 /// `1NT` (Section 5)
@@ -512,6 +518,34 @@ pub fn set_competition_over_stayman(on: bool) {
 /// Whether competition over our 2♣ Stayman is currently authored
 fn competition_over_stayman() -> bool {
     COMPETITION_OVER_STAYMAN.with(Cell::get)
+}
+
+thread_local! {
+    /// Whether opener authors continuations after the opponents contest our Jacoby
+    /// transfer (`1NT-(P)-2♦/2♥-(X)` and `-(overcall)`); **off by default** (opt-in
+    /// A/B).  See [`set_competition_over_transfer`].
+    static COMPETITION_OVER_TRANSFER: Cell<bool> = const { Cell::new(false) };
+}
+
+/// Author opener's replies after the opponents double or overcall our Jacoby
+/// transfer, for books built *after* this call (thread-local; **off by default**).
+///
+/// Over a `(X)` opener completes the transfer with three-card support, jump
+/// super-accepts with four and a maximum, passes with a doubleton (declining —
+/// responder's `XX` then re-asks, forcing), or redoubles with the doubled
+/// transfer suit as its own.  Over an overcall opener super-accepts the major
+/// with a fit, doubles for cards, else passes.  Opt-in: unlike the contested 2♣
+/// Stayman (which won +3.5 IMPs/fired), a paired A/B vs BBA over 640 000 boards
+/// found these continuations a DD **loss** (plain −0.94, PD −0.33 IMPs/board it
+/// fires on) — the super-accept and forcing re-ask drive us into failing
+/// contracts the floor's lower bids avoid — so it stays off by default.
+pub fn set_competition_over_transfer(on: bool) {
+    COMPETITION_OVER_TRANSFER.with(|cell| cell.set(on));
+}
+
+/// Whether competition over our Jacoby transfer is currently authored
+fn competition_over_transfer() -> bool {
+    COMPETITION_OVER_TRANSFER.with(Cell::get)
 }
 
 thread_local! {
@@ -1564,6 +1598,62 @@ fn stayman_overcalled_opener(over: Suit) -> Rules {
         .rule(Call::Pass, 0.2, hcp(0..))
 }
 
+/// Opener's reply after the opponents double our Jacoby transfer
+/// (`1NT-(P)-2♦/2♥-(X)`)
+///
+/// The transfer is still a command, but the `(X)` buys opener a meaningful pass:
+/// **complete** (bid `major`) with three-card support, **jump super-accept**
+/// (`3-major`) with four and a maximum, **Pass** with a doubleton (declines —
+/// responder re-asks below), or `XX` when the doubled transfer suit (`bid`) is
+/// opener's own and it wants to defend.
+fn transfer_doubled_opener(major: Suit, bid: Suit) -> Rules {
+    let strain = Strain::from(major);
+    let mut rules = Rules::new();
+    if transfer_super_accept() {
+        rules = rules.rule(Bid::new(3, strain), 1.5, len(major, 4..) & hcp(17..));
+    }
+    rules
+        .rule(Bid::new(2, strain), 1.0, len(major, 3..))
+        .rule(Call::Redouble, 0.6, len(bid, 5..) & suit_hcp(bid, 5..))
+        .rule(Call::Pass, 0.25, len(major, ..3))
+}
+
+/// Responder's re-ask after opener passed our doubled transfer
+/// (`1NT-(P)-2♦/2♥-(X)-P-(P)`)
+///
+/// Opener's pass declined the transfer; responder still holds the five-card
+/// major, so `XX` insists opener complete (forcing — opener answers with
+/// [`complete_transfer`], no Pass).  An owning Pass is the catch-all.
+fn transfer_pass_reask(major: Suit) -> Rules {
+    Rules::new()
+        .rule(Call::Redouble, 1.0, len(major, 5..))
+        .alert(TRANSFER_REDOUBLE)
+        .rule(Call::Pass, 0.1, hcp(0..))
+}
+
+/// Opener's reply after the opponents overcall our Jacoby transfer
+/// (`1NT-(P)-2♦/2♥-(overcall)`)
+///
+/// Super-accept the `major` at the cheapest level above their `over_suit` with
+/// four-card support; else `X` shows length in their suit (cards); else Pass.
+/// Responder stays captain.
+fn transfer_overcalled_opener(major: Suit, over_suit: Suit, over_level: u8) -> Rules {
+    let strain = Strain::from(major);
+    let lvl = if strain > Strain::from(over_suit) {
+        over_level
+    } else {
+        over_level + 1
+    };
+    Rules::new()
+        .rule(
+            Bid::new(lvl, strain),
+            1.0,
+            min_level_is(lvl, strain) & len(major, 4..),
+        )
+        .rule(Call::Double, 0.6, len(over_suit, 4..))
+        .rule(Call::Pass, 0.2, hcp(0..))
+}
+
 /// The competitive package over our openings: cue-bid raises, preemptive raises,
 /// negative doubles for all four openings, support doubles/redoubles, and
 /// opener's answers to negative doubles of minor overcalls
@@ -2075,6 +2165,91 @@ pub fn competition() -> Competitive {
         }
     }
 
+    // Competition over our own Jacoby transfers (`set_competition_over_transfer`,
+    // default on): opener's replies after the opponents double `1NT-(P)-2♦/2♥-(X)`
+    // or overcall it.  Keyed at the `[1NT, P, 2♦]` / `[1NT, P, 2♥]` nodes — distinct
+    // trie paths from the Transfer-Lebensohl `[1NT, (2♦/2♥)]` block (theirs at depth 1).
+    if competition_over_transfer() {
+        for (resp, major) in [(Suit::Diamonds, Suit::Hearts), (Suit::Hearts, Suit::Spades)] {
+            let transfer = [
+                call(1, Strain::Notrump),
+                Call::Pass,
+                call(2, Strain::from(resp)),
+            ];
+
+            // Our transfer doubled.  Opener's reply (suffix `[X]`).
+            fallback_all_seats(
+                &mut book,
+                &transfer,
+                3,
+                Arc::new(guard(|_: &Context<'_>, s: &[Call]| s == [Call::Double])),
+                Fallback::classify(transfer_doubled_opener(major, resp)),
+            );
+            // After opener completes/super-accepts (suffix `[X, <bid>, …]`)
+            // responder's rebids match the uncontested tree: strip the X to a Pass,
+            // re-keying onto `[1NT, P, 2♦/2♥, P, <bid>, …]`.
+            fallback_all_seats(
+                &mut book,
+                &transfer,
+                3,
+                Arc::new(guard(|_: &Context<'_>, s: &[Call]| {
+                    s.first() == Some(&Call::Double) && matches!(s.get(1), Some(Call::Bid(_)))
+                })),
+                Fallback::rebase(rewriter(move |auction: &[Call], depth: usize| {
+                    if auction.get(depth) != Some(&Call::Double) {
+                        return None;
+                    }
+                    let mut rewritten = auction.to_vec();
+                    rewritten[depth] = Call::Pass; // strip the X → systems on
+                    Some(rewritten)
+                })),
+            );
+            // Opener passed to decline; responder re-asks (suffix `[X, P, P]`).
+            fallback_all_seats(
+                &mut book,
+                &transfer,
+                3,
+                Arc::new(guard(|_: &Context<'_>, s: &[Call]| {
+                    s == [Call::Double, Call::Pass, Call::Pass]
+                })),
+                Fallback::classify(transfer_pass_reask(major)),
+            );
+            // Opener's forced completion after the re-ask (suffix `[X, P, P, XX, P]`):
+            // reuse `complete_transfer` — no Pass rule, so opener cannot sit.
+            fallback_all_seats(
+                &mut book,
+                &transfer,
+                3,
+                Arc::new(guard(|_: &Context<'_>, s: &[Call]| {
+                    s == [
+                        Call::Double,
+                        Call::Pass,
+                        Call::Pass,
+                        Call::Redouble,
+                        Call::Pass,
+                    ]
+                })),
+                Fallback::classify(complete_transfer(major)),
+            );
+
+            // Our transfer overcalled.  Opener's natural reply (suffix `[overcall]`).
+            let overcalls: &[(Suit, u8)] = match resp {
+                Suit::Diamonds => &[(Suit::Spades, 2), (Suit::Clubs, 3), (Suit::Diamonds, 3)],
+                _ => &[(Suit::Clubs, 3), (Suit::Diamonds, 3)],
+            };
+            for &(over_suit, over_level) in overcalls {
+                let overcall = call(over_level, Strain::from(over_suit));
+                fallback_all_seats(
+                    &mut book,
+                    &transfer,
+                    3,
+                    Arc::new(guard(move |_: &Context<'_>, s: &[Call]| s == [overcall])),
+                    Fallback::classify(transfer_overcalled_opener(major, over_suit, over_level)),
+                );
+            }
+        }
+    }
+
     // Section 5d: Unusual vs Unusual over a both-minors (2NT) overcall of our 1NT
     // (`set_uvu`, default off). Responder's `X` is penalty; `3♣`/`3♦` are
     // INV+ cues (Stayman/5+♠, 5+♥); `4♣`/`4♦` are FG+ 5-5-majors splinters; the
@@ -2191,6 +2366,18 @@ mod tests {
         best_call(auction, hand)
     }
 
+    /// As [`best_call`], with our Jacoby-transfer competition + jump super-accept
+    /// enabled (both opt-in/default-off after the DD-negative A/B); restores the
+    /// defaults so a thread reused by a later test sees them off again.
+    fn bid_xfer(auction: &[Call], hand: &str) -> (Call, bool) {
+        super::set_competition_over_transfer(true);
+        crate::bidding::american::set_transfer_super_accept(true);
+        let result = best_call(auction, hand);
+        super::set_competition_over_transfer(false);
+        crate::bidding::american::set_transfer_super_accept(false);
+        result
+    }
+
     // --- Competition over our 2♣ Stayman (Side A) + defense to theirs (Side B) ---
 
     #[test]
@@ -2304,6 +2491,153 @@ mod tests {
             !floored,
             "the lead-directing X must come from the defense book"
         );
+    }
+
+    // --- Competition over our Jacoby transfers (Side A) + defense to theirs (B) ---
+
+    #[test]
+    fn transfer_super_accept_uncontested() {
+        // 1NT-P-2♦-P: four hearts + a maximum → 3♥ (jump super-accept).
+        let auction = [
+            call(1, Strain::Notrump),
+            Call::Pass,
+            call(2, Strain::Diamonds),
+            Call::Pass,
+        ];
+        let (c, floored) = bid_xfer(&auction, "A2.KQ32.KQ32.K32");
+        assert_eq!(c, call(3, Strain::Hearts));
+        assert!(!floored, "the super-accept must come from the book");
+    }
+
+    #[test]
+    fn transfer_doubled_opener_completes_with_support() {
+        // 1NT-(P)-2♦-(X): three hearts, not a maximum → 2♥ (complete the transfer).
+        let auction = [
+            call(1, Strain::Notrump),
+            Call::Pass,
+            call(2, Strain::Diamonds),
+            Call::Double,
+        ];
+        let (c, floored) = bid_xfer(&auction, "KQ2.K32.KQ32.Q32");
+        assert_eq!(c, call(2, Strain::Hearts));
+        assert!(!floored, "the completion must come from the book");
+    }
+
+    #[test]
+    fn transfer_doubled_opener_super_accepts() {
+        // 1NT-(P)-2♦-(X): four hearts + a maximum → 3♥ (the double does not suppress it).
+        let auction = [
+            call(1, Strain::Notrump),
+            Call::Pass,
+            call(2, Strain::Diamonds),
+            Call::Double,
+        ];
+        let (c, _) = bid_xfer(&auction, "A2.KQ32.KQ32.K32");
+        assert_eq!(c, call(3, Strain::Hearts));
+    }
+
+    #[test]
+    fn transfer_doubled_opener_passes_with_doubleton() {
+        // 1NT-(P)-2♦-(X): only a doubleton heart → Pass (declines; responder re-asks).
+        let auction = [
+            call(1, Strain::Notrump),
+            Call::Pass,
+            call(2, Strain::Diamonds),
+            Call::Double,
+        ];
+        let (c, floored) = bid_xfer(&auction, "KQ32.K2.KQ32.Q32");
+        assert_eq!(c, Call::Pass);
+        assert!(!floored, "the declining pass must come from the book");
+    }
+
+    #[test]
+    fn transfer_doubled_opener_redoubles_with_the_transfer_suit() {
+        // 1NT-(P)-2♦-(X): the doubled diamonds are opener's own (5 to AKQ) → XX.
+        let auction = [
+            call(1, Strain::Notrump),
+            Call::Pass,
+            call(2, Strain::Diamonds),
+            Call::Double,
+        ];
+        let (c, _) = bid_xfer(&auction, "Q43.K2.AKQ32.Q32");
+        assert_eq!(c, Call::Redouble);
+    }
+
+    #[test]
+    fn transfer_doubled_reask_is_forcing() {
+        // 1NT-(P)-2♦-(X)-P-(P): responder re-asks with XX (still holds five hearts).
+        let reask = [
+            call(1, Strain::Notrump),
+            Call::Pass,
+            call(2, Strain::Diamonds),
+            Call::Double,
+            Call::Pass,
+            Call::Pass,
+        ];
+        let (c, floored) = bid_xfer(&reask, "K2.QJ432.K32.432");
+        assert_eq!(c, Call::Redouble);
+        assert!(!floored, "the re-ask must come from the book");
+        // …-XX-(P): opener is forced to complete (no Pass) → 2♥.
+        let answer = [
+            call(1, Strain::Notrump),
+            Call::Pass,
+            call(2, Strain::Diamonds),
+            Call::Double,
+            Call::Pass,
+            Call::Pass,
+            Call::Redouble,
+            Call::Pass,
+        ];
+        let (c, floored) = bid_xfer(&answer, "AQ32.K32.KQ2.432");
+        assert_eq!(c, call(2, Strain::Hearts));
+        assert!(!floored, "the forced completion must come from the book");
+    }
+
+    #[test]
+    fn transfer_overcalled_opener_super_accepts() {
+        // 1NT-(P)-2♦-(2♠): four-card heart fit → 3♥ (cheapest level above their 2♠).
+        let auction = [
+            call(1, Strain::Notrump),
+            Call::Pass,
+            call(2, Strain::Diamonds),
+            call(2, Strain::Spades),
+        ];
+        let (c, floored) = bid_xfer(&auction, "K2.KQ32.AQ32.K32");
+        assert_eq!(c, call(3, Strain::Hearts));
+        assert!(!floored, "the natural super-accept must come from the book");
+    }
+
+    #[test]
+    fn defense_to_their_transfer_doubles_the_bid_suit() {
+        // (1NT)-P-(2♦ →♥): our 4th-hand X = lead-directing diamonds (the bid suit).
+        crate::bidding::american::set_transfer_defense(true);
+        let auction = [
+            call(1, Strain::Notrump),
+            Call::Pass,
+            call(2, Strain::Diamonds),
+        ];
+        let (c, floored) = best_call(&auction, "K2.A32.KQ1054.432");
+        crate::bidding::american::set_transfer_defense(false); // restore default
+        assert_eq!(c, Call::Double);
+        assert!(
+            !floored,
+            "the lead-directing X must come from the defense book"
+        );
+    }
+
+    #[test]
+    fn defense_to_their_transfer_cues_michaels() {
+        // (1NT)-P-(2♦ →♥): 5 spades + 5 diamonds → 2♥ cue (the other major + a minor).
+        crate::bidding::american::set_transfer_defense(true);
+        let auction = [
+            call(1, Strain::Notrump),
+            Call::Pass,
+            call(2, Strain::Diamonds),
+        ];
+        let (c, floored) = best_call(&auction, "AQ1054.3.KJ1054.32");
+        crate::bidding::american::set_transfer_defense(false); // restore default
+        assert_eq!(c, call(2, Strain::Hearts));
+        assert!(!floored, "the Michaels cue must come from the defense book");
     }
 
     #[test]

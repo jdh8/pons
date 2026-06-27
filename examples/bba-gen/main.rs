@@ -160,6 +160,22 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_defense_to_their_stayman: bool,
 
+    /// Author our continuations after the opponents contest our Jacoby transfer
+    /// (`1NT-(P)-2♦/2♥-(X)`/`-(overcall)`); default off (opt-in A/B — DD-negative).
+    #[arg(long, default_value_t = false)]
+    ns_comp_over_transfer: bool,
+
+    /// Author opener's jump super-accept of a Jacoby transfer (four-card support +
+    /// a maximum); default off (opt-in A/B — DD wash).
+    #[arg(long, default_value_t = false)]
+    ns_transfer_super_accept: bool,
+
+    /// Author our defense to the opponents' Jacoby transfers (`(1NT)-P-(2♦/2♥)`):
+    /// X = lead-directing the bid suit, Michaels cue, natural overcalls (default
+    /// off; opt-in A/B).
+    #[arg(long, default_value_t = false)]
+    ns_transfer_defense: bool,
+
     /// Stayman-defense natural-overcall `MIN_LEN:POINTS_FLOOR` (default 6:12); the
     /// A/B search knob for the 2♦/2♥/2♠ length + strength (no effect unless
     /// `--ns-defense-to-their-stayman`).
@@ -674,6 +690,9 @@ fn main() -> anyhow::Result<()> {
     pons::bidding::american::set_natural_overcall_points(oc_lo, oc_hi);
     pons::bidding::american::set_competition_over_stayman(!args.no_ns_comp_over_stayman);
     pons::bidding::american::set_stayman_defense(args.ns_defense_to_their_stayman);
+    pons::bidding::american::set_competition_over_transfer(args.ns_comp_over_transfer);
+    pons::bidding::american::set_transfer_super_accept(args.ns_transfer_super_accept);
+    pons::bidding::american::set_transfer_defense(args.ns_transfer_defense);
     {
         let (lo, hi) = args
             .ns_staydef_overcall

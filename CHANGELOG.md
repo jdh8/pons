@@ -9,6 +9,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Jacoby-transfer competition and super-accepts, both sides — authored, opt-in
+  (default off).** Three transfer auction families that previously fell through to
+  the instinct floor are now authored behind toggles. A paired double-dummy A/B vs
+  BBA over 640 000 boards (the `ab-dump-diff` paired scorer, where the shared BBA
+  reference cancels) measured each, and **none earns its way on by default** — so,
+  unlike the contested 2♣ Stayman, all three ship opt-in:
+  - *Uncontested super-accept.* With four-card support for responder's major and a
+    maximum, opener jumps to the three-level (`1NT-2♦-3♥` / `1NT-2♥-3♠`) instead of
+    merely completing the transfer. Measured a **DD wash leaning negative** (−0.055
+    IMPs/board it fires on) — opposite a transfer that may hold nothing, committing
+    to the three-level overbids. Enable with `set_transfer_super_accept(true)`
+    (`bba-gen --ns-transfer-super-accept`).
+  - *Our transfer is contested.* After `1NT-(P)-2♦/2♥-(X)` opener **completes** with
+    three-card support, **jump super-accepts** with four and a maximum, **Pass**
+    declines with a doubleton (responder's `XX` is then a **forcing re-ask** opener
+    must answer), or `XX` shows the doubled transfer suit as its own; after a 2-/3-
+    level overcall opener super-accepts the major with a fit, doubles for cards, else
+    passes. Unlike the contested 2♣ Stayman (which won +3.5 IMPs/fired), these
+    continuations measured a **DD loss** (plain −0.94, PD −0.33 IMPs/board it fires
+    on; plain-DD CI excludes 0) — the super-accept and forcing re-ask drive us into
+    failing contracts the floor's lower bids avoid. Enable with
+    `set_competition_over_transfer(true)` (`bba-gen --ns-comp-over-transfer`).
+  - *Defending their transfer.* Over `(1NT)-P-(2♦/2♥)`: `X` = lead-directing the bid
+    (transfer) suit (not takeout); a cue of the suit they showed = the other major +
+    a minor (Michaels 5-5); natural one-suiter overcalls (six-card, `points(14..)`,
+    the Stayman-defense floor); the transfer suit's own 3-level bid is a strong
+    declare above the `X`. Distilled from BBA (`probe-bba-constraints --mode
+    xfer-h`/`xfer-s`: `X` = the bid suit, natural overcalls, ~80% Pass). Like the
+    Stayman defense its value is mostly lead-directing (invisible to the harness),
+    and the A/B confirms a **PD wash** (+0.006 IMPs/board it fires on, CI straddles
+    0; the plain-DD loss is the light-sacrifice artifact PD prices away). Enable with
+    `set_transfer_defense(true)` (`bba-gen --ns-transfer-defense`).
+
 - **Competition over the 2♣ Stayman, on both sides.** Two auction families that
   previously fell through to the instinct floor are now authored:
   - *Our Stayman is contested.* After `1NT-(P)-2♣-(X)` opener answers in the

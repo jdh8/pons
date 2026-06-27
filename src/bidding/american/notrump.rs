@@ -289,9 +289,48 @@ pub(super) fn stayman_answers() -> Rules {
         )
 }
 
+thread_local! {
+    /// Whether opener jump super-accepts a Jacoby transfer with four-card support
+    /// and a maximum; **off by default** (opt-in A/B).  See
+    /// [`set_transfer_super_accept`].
+    static TRANSFER_SUPER_ACCEPT: Cell<bool> = const { Cell::new(false) };
+}
+
+/// Author opener's jump super-accept of a Jacoby transfer for books built *after*
+/// this call (thread-local; **off by default**).
+///
+/// With four-card support for responder's major and a maximum (17), opener jumps
+/// to the three-level instead of merely completing the transfer, so the
+/// nine-card fit and the extra values are shown in one call.  Opt-in: a paired
+/// double-dummy A/B vs BBA over 640 000 boards found the jump a DD wash leaning
+/// negative (−0.055 IMPs/board it fires on) — opposite a transfer that may hold
+/// nothing, committing to the three-level overbids — so it stays off by default.
+pub fn set_transfer_super_accept(on: bool) {
+    TRANSFER_SUPER_ACCEPT.with(|cell| cell.set(on));
+}
+
+/// Whether the jump super-accept is currently authored
+pub(super) fn transfer_super_accept() -> bool {
+    TRANSFER_SUPER_ACCEPT.with(Cell::get)
+}
+
 /// Complete a Jacoby transfer by bidding the anchor suit
-fn complete_transfer(into: Suit) -> Rules {
-    Rules::new().rule(Bid::new(2, Strain::from(into)), 1.0, hcp(0..))
+///
+/// With four-card support and a maximum opener instead jumps to the three-level
+/// (the super-accept, gated by [`set_transfer_super_accept`]); otherwise it
+/// simply names the anchor suit.
+// ponytail: a plain jump super-accept; fit-/shortness-showing super-accepts are
+// the upgrade path if the A/B asks for them.
+pub(super) fn complete_transfer(into: Suit) -> Rules {
+    let mut rules = Rules::new();
+    if transfer_super_accept() {
+        rules = rules.rule(
+            Bid::new(3, Strain::from(into)),
+            1.5,
+            len(into, 4..) & hcp(17..),
+        );
+    }
+    rules.rule(Bid::new(2, Strain::from(into)), 1.0, hcp(0..))
 }
 
 /// Complete a four-level Texas transfer by bidding game in the anchor major

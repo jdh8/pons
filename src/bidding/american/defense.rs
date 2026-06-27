@@ -324,6 +324,34 @@ fn stayman_defense_enabled() -> bool {
 }
 
 thread_local! {
+    /// Whether we author a defense to the opponents' Jacoby transfers
+    /// (`(1NT)-P-(2♦/2♥)-?`); **off by default** (opt-in A/B).  See
+    /// [`set_transfer_defense`].
+    static TRANSFER_DEFENSE: Cell<bool> = const { Cell::new(false) };
+}
+
+/// Author our defense to the opponents' Jacoby transfers (`(1NT)-P-(2♦/2♥)`), for
+/// books built *after* this call (thread-local; **off by default**).
+///
+/// `X` = lead-directing the bid (transfer) suit — not takeout; a cue of the suit
+/// they showed = the other major + a minor (Michaels 5-5); natural one-suiter
+/// overcalls (six-card, `points(14..)`, the A/B-searched Stayman-defense floor);
+/// the floor passes everything else.  Matches BBA's distilled defense (probe
+/// modes `xfer-h`/`xfer-s`).  Opt-in: like the Stayman defense its value is
+/// mostly lead-directing (invisible to the double-dummy harness), and a paired
+/// A/B vs BBA over 640 000 boards confirms a PD wash (+0.006 IMPs/board it fires
+/// on, CI straddles 0); the plain-DD loss is the light-sacrifice artifact PD
+/// prices away.
+pub fn set_transfer_defense(on: bool) {
+    TRANSFER_DEFENSE.with(|cell| cell.set(on));
+}
+
+/// Whether the defense to their Jacoby transfers is currently authored
+fn transfer_defense_enabled() -> bool {
+    TRANSFER_DEFENSE.with(Cell::get)
+}
+
+thread_local! {
     /// Minimum length to insist on a DONT one-suiter (the `X` for ♣/♦/♥, the
     /// natural `2♠` for spades); **5 by default**.  Set to 6 to bid only with a
     /// six-card suit, passing five-card one-suiters (the X bucket is the DD loser,
@@ -971,6 +999,12 @@ const UNUSUAL_2NT: Alert = Alert("1ntd:unusual-2nt");
 /// Lead-directing double of the opponents' 2♣ Stayman — shows clubs (the bid
 /// suit), not takeout.
 const STAYMAN_DEFENSE_X: Alert = Alert("staydef:x-clubs");
+/// Lead-directing double of the opponents' Jacoby transfer — shows the bid
+/// (transfer) suit, not takeout.
+const TRANSFER_DEFENSE_X: Alert = Alert("xferdef:x-bidsuit");
+/// Cue of the suit the opponents showed via transfer — the other major + a minor
+/// (Michaels).
+const TRANSFER_DEFENSE_CUE: Alert = Alert("xferdef:cue-michaels");
 
 // Each artificial block is a one-rule `Rules` lifting today's cascade verbatim
 // (weight, shape, strength).  All twelve are chained unconditionally and then
@@ -1048,6 +1082,57 @@ fn defense_to_their_stayman() -> Rules {
             len(Suit::Clubs, 6..) & points(floor..),
         )
         .rule(Call::Pass, 0.5, hcp(0..))
+}
+
+/// Defense to the opponents' Jacoby transfer (`(1NT)-P-(2♦→♥)` / `(2♥→♠)`)
+///
+/// `X` = lead-directing the `bid` (transfer) suit (5+ with values, not takeout);
+/// a cue of the `shown_major` (the suit they transferred into) = the **other**
+/// major + a minor (Michaels 5-5); natural one-suiter overcalls in every suit but
+/// the one they showed (six-card, `points(14..)`, the A/B-searched Stayman-defense
+/// floor — light overcalls into a strong-1NT auction are PD-negative), with the
+/// transfer suit's own 3-level overcall weighted above the `X` so a real suit
+/// declares rather than lead-directs.  An owning Pass catches the ~80% that act
+/// on nothing.  Distilled from BBA (probe modes `xfer-h`/`xfer-s`).
+fn defense_to_their_transfer(bid: Suit, shown_major: Suit) -> Rules {
+    let (min_len, floor) = (6usize, 14u8);
+    let other_major = if shown_major == Suit::Spades {
+        Suit::Hearts
+    } else {
+        Suit::Spades
+    };
+    let mut rules = Rules::new()
+        .rule(
+            Call::Double,
+            1.9,
+            len(bid, 5..) & suit_hcp(bid, 5..) & points(8..),
+        )
+        .alert(TRANSFER_DEFENSE_X)
+        .rule(
+            Bid::new(2, Strain::from(shown_major)),
+            1.7,
+            len(other_major, 5..)
+                & (len(Suit::Clubs, 5..) | len(Suit::Diamonds, 5..))
+                & points(8..),
+        )
+        .alert(TRANSFER_DEFENSE_CUE);
+    // Natural one-suiter overcalls in every suit but the one they showed, each at
+    // its cheapest legal level above their transfer; the transfer suit's own
+    // overcall is the *strong* 3-level declare (weight 2.0) above the lead-direct X.
+    for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
+        if suit == shown_major {
+            continue;
+        }
+        let strain = Strain::from(suit);
+        let level = if strain > Strain::from(bid) { 2 } else { 3 };
+        let weight = if suit == bid { 2.0 } else { 1.8 };
+        rules = rules.rule(
+            Bid::new(level, strain),
+            weight,
+            len(suit, min_len..) & points(floor..),
+        );
+    }
+    rules.rule(Call::Pass, 0.5, hcp(0..))
 }
 
 /// DONT `X`: a one-suiter (♣/♦/♥), `points(natural-overcall-floor..)`.
@@ -2501,6 +2586,20 @@ pub fn defensive() -> Defensive {
             3,
             defense_to_their_stayman(),
         );
+    }
+
+    // Defense to the opponents' Jacoby transfers: (1NT) P (2♦→♥) / (2♥→♠) ?
+    // Opt-in (default off).  X = lead-directing the bid suit, cue = Michaels (the
+    // other major + a minor), natural overcalls.
+    if transfer_defense_enabled() {
+        for (resp, shown) in [(Suit::Diamonds, Suit::Hearts), (Suit::Hearts, Suit::Spades)] {
+            insert_all_seats(
+                &mut d,
+                &[notrump, Call::Pass, call(2, Strain::from(resp))],
+                3,
+                defense_to_their_transfer(resp, shown),
+            );
+        }
     }
 
     // Advancing partner's Landy 2♣ (both majors) over their 1NT, when on.  Woolsey's
