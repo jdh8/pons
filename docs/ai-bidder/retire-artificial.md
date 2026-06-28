@@ -3,7 +3,9 @@
 **Status:** in progress. The retirement-invariant test is landed (ignored); the
 alert sweep is the worklist below. Bite off one increment at a time.
 **Done so far:** #1 Michaels (`aa237be`), #2 Unusual 2NT (`955fada`), #3 Leaping
-Michaels (`842da31`). Worklist 172 → **120**. Remaining: #4–#7, then the drop.
+Michaels (`842da31`), #4 responsive doubles + **the Pass/Double half of the drop**
+(`artificial()` is now bid-only; #5's trap pass naturalized — see below). Worklist
+172 → 120 → **68** (all remaining are bids). Remaining: #6–#7, then the bid drop.
 
 ## Goal
 
@@ -25,6 +27,11 @@ if let Some(projection) = projection.filter(|p| alerted || artificial(p, made)) 
 
 - `artificial(p, made)`: the projection floors a suit ≠ `made`'s strain (Jacoby
   2♦→♥, Landy 2♣→44 majors). The structural witness.
+- **Bid-only (done).** `artificial()` now returns `false` for Pass/Double: the
+  witness is inverted for no-suit calls — a trap pass / penalty double floors the
+  *opponents'* suit precisely because it wants to **defend** the contract on the
+  table, which is natural. So Pass/Double are alert-only today; the remaining
+  `|| artificial(p, made)` speaks for **bids** only.
 - Retirement = delete `|| artificial(p, made)`, then delete `fn artificial` + its
   doc. Alerts alone then carry the signal.
 
@@ -43,11 +50,17 @@ the prior handoff's assumptions:
    "always false for a double". False: our **trap-pass** (`[1♦ X P] P`, floors
    4+ in their suit) and **responsive doubles** (`[1♦ X 2♦] X`) carry shape
    projections. 32 doubles + 20 passes are in the list.
-2. **The natural/conventional taxonomy resolves itself.** The counterexample set
-   is *exactly* the shape-bearing calls. A genuinely natural penalty-X / pass
-   projects no foreign suit → never in the list. So **alert every hit** is
-   correct; no per-call judgement needed. (A natural penalty double that the
-   handoff worried about is, by construction, not a counterexample.)
+2. **No-suit calls need per-category judgement, not blind alerting.** *(Corrects
+   the prior "alert every hit".)* The "floors a suit it did not name" witness is
+   **inverted** for Pass/Double: a call that names no suit floors the *opponents'*
+   suit precisely when it wants to **defend** the contract on the table — a trap
+   pass, a penalty double — which is natural, not artificial. So the counterexample
+   set is **not** the artificial set; it mixes the genuinely artificial doubles
+   (responsive/takeout — they ask partner to pick a suit) with natural defend-it
+   calls. The fix: `artificial()` is **bid-only**; the artificial doubles carry an
+   alert (#4), the defend-it passes naturalize (the settle floor reads "pass = play
+   the top bid"), and penalty doubles stay on their post-walk readers
+   (`penalty_x_reading` / `penalty_latch_double_reading`, independent of the gate).
 3. **Adding alerts is a decode no-op until the drop.** While `artificial()` stays
    in the gate, the `|| artificial(...)` already keeps every one of these calls,
    so `.alert(...)` changes only alert *disclosure*, not the read. The behavior
@@ -81,8 +94,8 @@ constants where one already exists.
 | ✅1 | Michaels cue-bid | `[1♦] 2♦`, `[1♠] 2♠`, `[1♣] 2♣` | [defense.rs](../../src/bidding/american/defense.rs) overcall/cue block | `MICHAELS` (`aa237be`) | none |
 | ✅2 | Unusual 2NT | `[1♦] 2NT`, `[1♠] 2NT` | ungated tail of `defense_to_suit` (NOT the 1NT-defense `unusual_2nt()` — already alerted) | `UNUSUAL` `"unusual-2nt"` (`955fada`) — named `UNUSUAL` to dodge the `set_unusual_notrump_defense` thread-local | none (outside the `active_alerts()` gate) |
 | ✅3 | Leaping Michaels | `[2♥] 4♣/4♦`, `[2♦] 4♦` | `defense_to_weak_two` LM block (overcalls). The `leaping_michaels_advances` continuations project no foreign suit → not in the worklist | `LEAPING` `"leaping-michaels"` (`842da31`) — named `LEAPING` to dodge the `leaping_michaels_enabled` thread-local | `leaping_michaels_enabled()` only; outside `active_alerts()` |
-| 4 | Responsive double | `[1♦ X 2♦] X`, `[1♦ X 3♦] X` | [defense.rs](../../src/bidding/american/defense.rs) `set_responsive_takeout`/`_overcall` blocks | new `RESPONSIVE_X` | `responsive_*()` toggles |
-| 5 | Trap pass | `[1♦ X P] P` | [competition.rs](../../src/bidding/american/competition.rs) `set_trap_pass` block (~429) | new `TRAP_PASS` | `trap_pass()` toggle |
+| ✅4 | Responsive double (takeout family) | `[1♦ X 2♦] X`, `[1♦ X 3♦] X` | [defense.rs](../../src/bidding/american/defense.rs) `responsive_doubles` / `responsive_overcall_doubles` | `RESPONSIVE` `"responsive-double"` — asks partner to pick a suit (artificial) | `responsive_*_enabled()` toggles |
+| ~~5~~ | ~~Trap pass~~ → **natural, not alerted** | `[1♦ X P] P` | naturalized by bid-only `artificial()`; the settle floor reads "pass = play the top bid" — the trap pass *defends* the doubled contract, so it is not artificial. (The resp-3NT trap in `competition.rs set_trap_pass` was never a counterexample: it floors HCP, not length.) | — (no alert) | — |
 | 6 | Transfers over 2NT (opening + 2♣ rebid) | `[2NT P] 3♦/3♥`, `[2♣ P 2♥ P 2NT P] 3♦/3♥` | [notrump.rs:843](../../src/bidding/american/notrump.rs#L843) 2NT-strength structure; [responses.rs:287](../../src/bidding/american/responses.rs#L287) `after_2nt` | reuse `JACOBY`/new `TEXAS`-style | shared by opening & rebid — alert once at the structure |
 | 7 | Puppet / two-way-relay continuations | `[1NT P 2♠ P 2NT P] 3♠`, `[1NT P 2♠ P 3♣ P] 3♦`, `[1NT P 3♣ P 3♦ P] 3♥` | [notrump.rs:220](../../src/bidding/american/notrump.rs#L220) `puppet_minors` + continuations / Smolen-style major shows | reuse `PUPPET`/`SMOLEN`/new per-relay | **[notrump.rs:196](../../src/bidding/american/notrump.rs#L196) gated** — add slug to active set |
 
@@ -93,11 +106,17 @@ alerting them aligns the gate with that suppression and lets both retire togethe
 
 ## The drop (final increment, the only one measured)
 
-Pre-req: the invariant test is green (zero counterexamples).
+**The Pass/Double half already dropped** (this increment): `artificial()` is
+bid-only, so passes/doubles are alert-only today. The one behavior change it
+carried is the **trap pass naturalizing** — verify in the measurement below
+(watch `[1♦ X P] P` and `1NT-(2M)-P-(P)` reopening boards). What remains is the
+**bid-only** drop after #6–#7.
+
+Pre-req: the invariant test is green (zero counterexamples — all remaining are bids).
 
 1. Un-`#[ignore]` `artificial_calls_are_alerted`.
 2. Delete `|| artificial(p, made)` from the gate; delete `fn artificial` + its
-   doc comment. `make` no longer needs the `Suit::ASC` scan.
+   doc comment (now a bid-only `Suit::ASC` scan).
 3. The `alerted` term no longer needs the `alert_reading()` toggle as a *gate*
    for these calls (they're authored-alerted now) — but keep `alert_reading()` as
    the master switch unless a separate decision retires it.

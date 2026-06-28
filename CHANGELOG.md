@@ -56,6 +56,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   alert (distinct from the responder-side `comp:leaping-michaels`). Same
   disclosure-only **decode no-op**; shrinks the worklist from 140 to 120.
 
+- **Responsive doubles are now alerted, and `artificial()` is bid-only — the
+  Pass/Double half of the `artificial()` retirement, with a policy correction.**
+  The structural witness `artificial()` flags any call whose projection floors a
+  suit it did not name; for a pass or double — which name no suit — that flagged the
+  natural *defend-it* calls, because a trap pass or penalty double floors the
+  *opponents'* suit precisely when it wants to defend the contract on the table. The
+  artificial call there is the **takeout double** (it asks partner to pick a suit),
+  not the pass that sits for it.
+  - The responsive double (`[1♦ X 2♦] X` / `[1♦ X 3♦] X`, both the takeout-double and
+    overcall variants) now carries `Alert("responsive-double")` — honest disclosure
+    that it is artificial (a takeout call asking partner to pick a suit). An exact
+    **no-op for inference**: the floor's read is identical before and after (the
+    structural `artificial()` and the alert pass the same projection gate).
+  - `artificial()` is now **bid-only** (returns `false` for Pass/Double). Passes and
+    doubles are decoded by alert alone — the artificial doubles by their alert
+    (responsive here), the defend-it passes by the settle floor ("pass = play the top
+    bid"), the penalty doubles by their existing post-walk readers
+    (`penalty_x_reading` / `penalty_latch_double_reading`). This **naturalizes the
+    trap pass** (`[1♦ X P] P`) — the one real behavior change, deferred to the
+    final-drop measurement (watch those boards and the `1NT-(2M)-P-(P)` reopening).
+  - Shrinks the worklist from 120 to **68**; all remaining counterexamples are bids
+    (#6 transfers over 2NT, #7 puppet / two-way relay).
+
 - **Competition over our 2NT diamond transfer, both sides — authored and
   A/B-measured vs BBA (both opt-in).** The PUPPET 2NT diamond transfer (6+♦, or 5♦-4♣) and its
   fourth-hand contest previously fell through to the instinct floor; both sides are

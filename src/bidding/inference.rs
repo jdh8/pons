@@ -916,18 +916,26 @@ fn project_authored(context: &Context<'_>) -> ([Inference; 4], u64) {
     (players, suppressed)
 }
 
-/// Whether a call's projection floors a suit other than the one it names
+/// Whether a *bid's* projection floors a suit other than the one it names
 ///
 /// The artificial-call detector, falling out of the projection itself: a natural
 /// bid floors its own strain (1♠ → 5+♠) or no suit (1NT → points only); an
 /// artificial one floors a suit it did not name (Jacoby 2♦ → 5+♥, Landy 2♣ → 4-4
 /// majors).  A min-length floor of four-plus on a non-named suit is the witness —
 /// above any natural by-product, below every convention's real shape.
+///
+/// **Bid-only.**  A pass or double names no suit, so the witness is inverted for
+/// them: a trap pass or penalty double floors the *opponents'* suit because it
+/// wants to defend the contract on the table — natural, not artificial.  Those are
+/// read by the settle floor and the post-walk penalty readers; the genuinely
+/// artificial doubles (takeout/responsive — they ask partner to pick a suit) carry
+/// an explicit [`Alert`][crate::bidding::Alert] instead.  So a non-bid is never
+/// structurally artificial; only its alert speaks.
 fn artificial(projection: &Inference, made: Call) -> bool {
-    let named = match made {
-        Call::Bid(bid) => bid.strain.suit(),
-        _ => None,
+    let Call::Bid(bid) = made else {
+        return false;
     };
+    let named = bid.strain.suit();
     Suit::ASC
         .into_iter()
         .any(|suit| Some(suit) != named && projection.length(suit).min >= 4)
@@ -1813,6 +1821,27 @@ mod tests {
 
         // Restore the shipped default (unusual 2NT ships on).
         set_unusual_notrump_defense(Some((8, 13)));
+    }
+
+    #[test]
+    fn artificial_is_bid_only() {
+        // A projection that floors a suit it would not name — the witness a transfer
+        // or two-suiter trips (5+ hearts).
+        let mut floors_hearts = Inference::unknown();
+        floors_hearts.narrow_length(Suit::Hearts, Range::at_least(5, LENGTH_CAP));
+
+        // A *bid* that did not name hearts is artificial (Jacoby 2♦ → 5+♥); a bid
+        // naming its own suit is natural (1♥ → 5+♥).
+        assert!(artificial(&floors_hearts, bid(2, Strain::Diamonds)));
+        assert!(!artificial(&floors_hearts, bid(1, Strain::Hearts)));
+
+        // Bid-only: a pass or double names no suit, so the structural witness never
+        // fires for them even when the projection floors a suit.  A trap pass /
+        // penalty double floors the opponents' suit because it wants to defend (it is
+        // natural); the artificial doubles (takeout/responsive) are decoded by their
+        // alert instead.  This is the inversion that #5 corrected.
+        assert!(!artificial(&floors_hearts, Call::Pass));
+        assert!(!artificial(&floors_hearts, Call::Double));
     }
 
     #[test]

@@ -1065,6 +1065,11 @@ const UNUSUAL: Alert = Alert("unusual-2nt");
 /// two-suiter (distinct from the responder-side `comp:leaping-michaels`)
 const LEAPING: Alert = Alert("leaping-michaels");
 
+/// Responsive double — partner doubled/overcalled, they raised, advancer's double
+/// shows the two unbid suits (4-4, 8+).  A takeout call (asks partner to pick a
+/// suit), not a desire to defend, so it is alerted rather than read structurally.
+const RESPONSIVE: Alert = Alert("responsive-double");
+
 const WOOLSEY_X: Alert = Alert("1ntd:woolsey-x");
 const LANDY_X: Alert = Alert("1ntd:landy-x");
 const DONT_X: Alert = Alert("1ntd:dont-x");
@@ -2553,18 +2558,22 @@ fn responsive_doubles(t: Suit, _raise_lvl: u8) -> Rules {
     // Responsive double shows the two unbid suits of the same rank (minor or major).
     let mut rules = if matches!(t, Suit::Hearts | Suit::Spades) {
         // t major → both minors
-        Rules::new().rule(
-            Call::Double,
-            1.5,
-            len(Suit::Clubs, 4..) & len(Suit::Diamonds, 4..) & points(8..),
-        )
+        Rules::new()
+            .rule(
+                Call::Double,
+                1.5,
+                len(Suit::Clubs, 4..) & len(Suit::Diamonds, 4..) & points(8..),
+            )
+            .alert(RESPONSIVE)
     } else {
         // t minor → both majors
-        Rules::new().rule(
-            Call::Double,
-            1.5,
-            len(Suit::Hearts, 4..) & len(Suit::Spades, 4..) & points(8..),
-        )
+        Rules::new()
+            .rule(
+                Call::Double,
+                1.5,
+                len(Suit::Hearts, 4..) & len(Suit::Spades, 4..) & points(8..),
+            )
+            .alert(RESPONSIVE)
     };
 
     rules = rules.rule(Call::Pass, 0.0, hcp(0..));
@@ -2605,7 +2614,9 @@ fn responsive_overcall_doubles(open: Suit, overcall: Suit, _raise_lvl: u8) -> Ru
         .filter(|&s| s != open && s != overcall);
     let s1 = unbid.next().expect("two suits remain unbid");
     let s2 = unbid.next().expect("two suits remain unbid");
-    Rules::new().rule(Call::Double, 1.5, len(s1, 4..) & len(s2, 4..) & points(8..))
+    Rules::new()
+        .rule(Call::Double, 1.5, len(s1, 4..) & len(s2, 4..) & points(8..))
+        .alert(RESPONSIVE)
 }
 
 // ---------------------------------------------------------------------------
