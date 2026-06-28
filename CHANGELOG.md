@@ -238,6 +238,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   For a *competitive* feature, a plain-DD edge that the PD pass erases is the
   light-sacrifice / doubling artifact, so reporting both numbers is the honest read.
 
+- **`bba-gen` can now isolate our 1NT *opening* against BBA, defense held
+  constant** (`--isolate-opening <off|bba|pons>`, the mirror of
+  `--isolate-defense`). It keeps only boards where *our* pair (N/S) opens 1NT and
+  bids the two tables so the **defender is identical in both arms** — so the swing
+  is the opening (and its constructive continuations) alone, with the
+  opening-vs-defense confound the umbrella `--filter-1nt` duplicate carries removed.
+  `bba` holds the defender to BBA's Multi-Landy (table B is the all-BBA reference);
+  `pons` holds it to our natural defense (table A is all-pons, table B is
+  BBA-opens / we-defend). The comparison is *our 1NT auction* vs *whatever BBA does
+  with the same N/S cards* (BBA may not open those hands 1NT at all). Result
+  (320 000 boards each, `--filter-1nt`, vulnerability none): our 1NT opening
+  **trails BBA's robustly** — defender BBA: plain **−0.442** IMPs/board (95% CI
+  [−0.455, −0.428]), PD **−0.525** ([−0.540, −0.510]); defender pons: plain
+  **−0.123** ([−0.138, −0.107]), PD **−0.572** ([−0.591, −0.552]). All four CIs
+  exclude 0. The deficit is concentrated in the constructive continuations — Stayman
+  `2♣` (≈−1.7/board), Jacoby transfers `2♦`/`2♥` (≈−1.4), and direct `3NT` (≈−2.7) —
+  while Puppet/minor `3♣` is mildly *positive* (+0.2). So it is the 1NT-system
+  machinery, not the 15-17-balanced opening decision itself, that lags BBA.
+
 - **`bba-gen` board generation can now use every core, via processes.** EPBot's
   FFI is thread-unsafe, so the bidding half has always been single-threaded. The
   new `scripts/bba-gen-parallel.sh` sidesteps that by sharding across **processes**

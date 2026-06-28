@@ -152,6 +152,15 @@ struct Args {
     #[arg(long, default_value_t = false)]
     isolate_defense: bool,
 
+    /// Cleanly isolate our 1NT OPENING (mirror of `--isolate-defense`).  Keep only
+    /// boards where our pair (N/S) opens 1NT, and hold the DEFENDER constant across
+    /// both arms so the swing is pure opening quality (ours vs BBA).  `bba` = BBA
+    /// defends both arms (table B is the all-BBA reference); `pons` = our defense
+    /// both arms (table A all-pons, table B BBA-opens / we-defend); `off` = disabled.
+    /// `--count` means kept (we-open) boards.
+    #[arg(long, default_value = "off", value_name = "off|bba|pons")]
+    isolate_opening: String,
+
     /// Restore the legacy fifths gauge for our 1NT opening (default = plain HCP
     /// 15-17).
     #[arg(long, default_value_t = false)]
@@ -817,6 +826,16 @@ fn main() -> anyhow::Result<()> {
         system_label(args.system),
         label_overrides(&args.their_conv)
     );
+    let isolate_opening = args.isolate_opening.as_str();
+    anyhow::ensure!(
+        matches!(isolate_opening, "off" | "bba" | "pons"),
+        "--isolate-opening must be off, bba, or pons"
+    );
+    anyhow::ensure!(
+        !(args.isolate_defense && isolate_opening != "off"),
+        "--isolate-defense and --isolate-opening are mutually exclusive"
+    );
+
     let seed = args.seed.unwrap_or_else(rand::random);
     let mut rng = StdRng::seed_from_u64(seed);
 
@@ -833,17 +852,33 @@ fn main() -> anyhow::Result<()> {
             continue;
         }
         let dealer = Seat::ALL[boards.len() % 4];
-        let table_a = bid_out(ours, opponent, true, dealer, args.vulnerability, &deal);
-        let table_b = if args.isolate_defense {
-            // Keep only boards where BBA (E/W) opened 1NT and our N/S defended,
-            // and compare against an all-BBA table: same BBA opener + responses,
-            // only the defender differs.  The swing is then pure defense quality.
-            if !matches!(opening_1nt(&table_a, dealer), Some((_, false))) {
-                continue;
-            }
-            bid_out(&bba, &bba, true, dealer, args.vulnerability, &deal)
+        // For `--isolate-opening pons` the defender is ours at *both* tables, so our
+        // N/S opens against our own defense at table A; otherwise BBA defends.
+        let defender_a: &dyn System = if isolate_opening == "pons" {
+            ours
         } else {
-            bid_out(ours, opponent, false, dealer, args.vulnerability, &deal)
+            opponent
+        };
+        let table_a = bid_out(ours, defender_a, true, dealer, args.vulnerability, &deal);
+        // Opening-isolation modes keep only boards where our N/S actually opened 1NT.
+        if isolate_opening != "off" && !matches!(opening_1nt(&table_a, dealer), Some((_, true))) {
+            continue;
+        }
+        let table_b = match isolate_opening {
+            // BBA opens 1NT at table B; the defender matches table A (BBA / pons), so
+            // the only thing that varies is the opener.  The swing is pure opening.
+            "bba" => bid_out(&bba, &bba, true, dealer, args.vulnerability, &deal),
+            "pons" => bid_out(&bba, ours, true, dealer, args.vulnerability, &deal),
+            _ if args.isolate_defense => {
+                // Keep only boards where BBA (E/W) opened 1NT and our N/S defended,
+                // and compare against an all-BBA table: same BBA opener + responses,
+                // only the defender differs.  The swing is then pure defense quality.
+                if !matches!(opening_1nt(&table_a, dealer), Some((_, false))) {
+                    continue;
+                }
+                bid_out(&bba, &bba, true, dealer, args.vulnerability, &deal)
+            }
+            _ => bid_out(ours, opponent, false, dealer, args.vulnerability, &deal),
         };
         boards.push(Board {
             deal,
