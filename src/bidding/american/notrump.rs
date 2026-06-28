@@ -48,6 +48,8 @@ const JACOBY: Alert = Alert("jacoby-transfer");
 const BOTH_MAJORS: Alert = Alert("both-majors");
 const TEXAS: Alert = Alert("texas");
 const SMOLEN: Alert = Alert("smolen");
+const SPLINTER: Alert = Alert("splinter");
+const SLAM_TRY: Alert = Alert("slam-try");
 
 thread_local! {
     /// The active 1NT minor-suit response variant, read once at book-construction
@@ -391,6 +393,7 @@ fn stayman_major_rebid(major: Suit) -> Rules {
             1.4,
             len(major, 4..) & hcp(9..) & (balanced() | hcp(16..)),
         )
+        .alert(SLAM_TRY)
         // Fit: sign off in the major game.
         .rule(Bid::new(4, strain), 1.3, len(major, 4..) & hcp(9..))
         // Fit: invitational raise.
@@ -570,11 +573,13 @@ fn puppet_deny_rebid() -> Rules {
             1.0,
             len(Suit::Spades, 4..=4) & len(Suit::Hearts, 3..=3),
         )
+        .alert(SMOLEN)
         .rule(
             Bid::new(3, Strain::Spades),
             1.0,
             len(Suit::Hearts, 4..=4) & len(Suit::Spades, 3..=3),
         )
+        .alert(SMOLEN)
         .rule(Bid::new(3, Strain::Notrump), 0.5, hcp(0..))
 }
 
@@ -730,18 +735,22 @@ fn two_spade_over_min() -> Rules {
             1.0,
             club_splinter(Suit::Diamonds, 8),
         )
+        .alert(SPLINTER)
         .rule(
             Bid::new(3, Strain::Hearts),
             1.0,
             club_splinter(Suit::Hearts, 8),
         )
+        .alert(SPLINTER)
         .rule(
             Bid::new(3, Strain::Spades),
             1.0,
             club_splinter(Suit::Spades, 8),
         )
+        .alert(SPLINTER)
         // Game-going clubs without a singleton: 3NT.
         .rule(Bid::new(3, Strain::Notrump), 0.9, club_no_shortness(8))
+        .alert(PUPPET)
 }
 
 /// Responder's action after opener's maximum `3♣` over the two-way 2♠
@@ -755,16 +764,19 @@ fn two_spade_over_max() -> Rules {
             1.0,
             club_splinter(Suit::Diamonds, 8),
         )
+        .alert(SPLINTER)
         .rule(
             Bid::new(3, Strain::Hearts),
             1.0,
             club_splinter(Suit::Hearts, 8),
         )
+        .alert(SPLINTER)
         .rule(
             Bid::new(3, Strain::Spades),
             1.0,
             club_splinter(Suit::Spades, 8),
         )
+        .alert(SPLINTER)
         // Balanced invite (opener maximum → accept game) or game clubs without a
         // singleton: 3NT.
         .rule(
@@ -848,7 +860,9 @@ fn two_notrump_responses() -> Rules {
     Rules::new()
         // 3-level Jacoby transfers.
         .rule(Bid::new(3, Strain::Diamonds), 2.0, len(Suit::Hearts, 5..))
+        .alert(JACOBY)
         .rule(Bid::new(3, Strain::Hearts), 2.0, len(Suit::Spades, 5..))
+        .alert(JACOBY)
         // 3-level Stayman: a four-card major and at least some values.
         .rule(
             Bid::new(3, Strain::Clubs),
