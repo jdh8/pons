@@ -209,3 +209,118 @@ fn smolen_works_at_the_two_notrump_level() {
         call(3, Strain::Hearts),
     );
 }
+
+// --- Stayman treatments (garbage, opener's max-showing answers) --------------
+//
+// All three toggles are thread-local and read at book-construction time, so each
+// test sets them, builds the stance, then restores the library defaults before
+// asserting (the book is already captured) so a reused worker thread cannot leak
+// into a `stance()` test that expects the defaults. Defaults: garbage on,
+// both-majors off, five-card-max on.
+
+fn stance_with(garbage: bool, both_majors: bool, five_card_max: bool) -> Stance {
+    pons::bidding::american::set_garbage_stayman(garbage);
+    pons::bidding::american::set_stayman_both_majors(both_majors);
+    pons::bidding::american::set_stayman_5card_max(five_card_max);
+    let system = american().against(Family::NATURAL);
+    pons::bidding::american::set_garbage_stayman(true);
+    pons::bidding::american::set_stayman_both_majors(false);
+    pons::bidding::american::set_stayman_5card_max(true);
+    system
+}
+
+#[test]
+fn garbage_weak_both_majors_staymans() {
+    let system = stance_with(true, false, false);
+    // 6 HCP, 4-4-4-1 (short clubs): too weak for constructive Stayman, but with
+    // garbage on it bids 2♣ to escape 1NT.
+    assert_eq!(
+        best_call(&system, &[call(1, Strain::Notrump), P], "Qxxx.Jxxx.Kxxx.x"),
+        call(2, Strain::Clubs),
+    );
+}
+
+#[test]
+fn garbage_responder_passes_opener_answer() {
+    let system = stance_with(true, false, false);
+    // Same weak hand: over opener's 2♥ it sits in the 4-4 fit (drop-dead).
+    let auction = after_stayman(&[call(2, Strain::Hearts)]);
+    assert_eq!(best_call(&system, &auction, "Qxxx.Jxxx.Kxxx.x"), P);
+}
+
+#[test]
+fn garbage_off_the_weak_hand_passes_one_nt() {
+    let system = stance_with(false, false, false);
+    // With garbage off, the weak hand has no Stayman and passes 1NT.
+    assert_eq!(
+        best_call(&system, &[call(1, Strain::Notrump), P], "Qxxx.Jxxx.Kxxx.x"),
+        P,
+    );
+}
+
+#[test]
+fn both_majors_minimum_opener_bids_2nt() {
+    let system = stance_with(false, true, false);
+    // 15 HCP, 4-4-3-2 both majors, minimum: 2NT.
+    let auction = after_stayman(&[]);
+    assert_eq!(
+        best_call(&system, &auction, "AKxx.KQxx.Kxx.xx"),
+        call(2, Strain::Notrump),
+    );
+}
+
+#[test]
+fn both_majors_maximum_opener_bids_3c() {
+    let system = stance_with(false, true, false);
+    // 16 HCP, 4-4-2-3 both majors, maximum: 3♣.
+    let auction = after_stayman(&[]);
+    assert_eq!(
+        best_call(&system, &auction, "AKxx.AQxx.xx.Kxx"),
+        call(3, Strain::Clubs),
+    );
+}
+
+#[test]
+fn both_majors_off_opener_bids_2h_up_the_line() {
+    let system = stance_with(false, false, false);
+    // Toggles off: the both-majors hand answers 2♥ up-the-line, as today.
+    let auction = after_stayman(&[]);
+    assert_eq!(
+        best_call(&system, &auction, "AKxx.KQxx.Kxx.xx"),
+        call(2, Strain::Hearts),
+    );
+}
+
+#[test]
+fn five_card_max_opener_jumps_3h() {
+    let system = stance_with(false, false, true);
+    // 16 HCP, 3-5-3-2 (five hearts), maximum: jump to 3♥.
+    let auction = after_stayman(&[]);
+    assert_eq!(
+        best_call(&system, &auction, "AQx.AKxxx.Kxx.xx"),
+        call(3, Strain::Hearts),
+    );
+}
+
+#[test]
+fn five_card_minimum_opener_bids_2h() {
+    let system = stance_with(false, false, true);
+    // 15 HCP, 3-5-3-2 (five hearts), minimum: natural 2♥ (no jump).
+    let auction = after_stayman(&[]);
+    assert_eq!(
+        best_call(&system, &auction, "AQx.AKxxx.Qxx.xx"),
+        call(2, Strain::Hearts),
+    );
+}
+
+#[test]
+fn both_majors_responder_places_game_over_2nt() {
+    let system = stance_with(false, true, false);
+    // Opener showed both majors, minimum (2NT); responder with four spades and
+    // game values bids 4♠.
+    let auction = after_stayman(&[call(2, Strain::Notrump)]);
+    assert_eq!(
+        best_call(&system, &auction, "AQxx.xxx.Kxxx.Qx"),
+        call(4, Strain::Spades),
+    );
+}

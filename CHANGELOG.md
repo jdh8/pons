@@ -32,6 +32,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Three Stayman (1NT-2♣) treatments, measured with an 8-arm (2³) factorial
+  A/B vs BBA (204 800 boards/arm, vul none, paired same-deal `ab-dump-diff`).**
+  Each is a rarely firing subset of the 1NT-2♣ subtree; all three are
+  individually DD-positive on *both* plain and perfect-defense (so not a doubling
+  artifact), but they are **substitutes** — each one's per-fired value roughly
+  halves when another is on (they fight over the same both-major hands). Two ship
+  **on by default**; the third stays opt-in because garbage dominates it.
+  - **Garbage (drop-dead) Stayman** (`set_garbage_stayman`, **default on**;
+    off-switch `bba-gen --no-ns-garbage-stayman`): a *weak* responder (below the
+    constructive 8-HCP floor) with short clubs and a four-card major bids 2♣ to
+    escape a likely-doomed 1NT, passing opener's 2♦/2♥/2♠. Two tiers, looser the
+    weaker responder is — a broke 1NT rates to be a disaster, so any ~7-card fit
+    is an improvement: the 0-4 tier accepts a thin 2♦ landing (3+ diamonds), the
+    5-7 tier insists on 4+ diamonds. Responder's pass is the floor default (no
+    authoring). The inference engine no longer assumes 2♣ shows 8+ when this is
+    on, so the floor doesn't misjudge a weak escaper. **+0.51 IMPs/fired plain
+    (+0.0009/board, 95% CI ±0.0005, excl 0), +0.70 PD**; fires 0.17% of boards.
+  - **Opener shows a maximum five-card major** (`set_stayman_5card_max`,
+    **default on**; off-switch `bba-gen --no-ns-stayman-5card-max`): over 1NT-2♣
+    holding a five-card major and a maximum, jump `3♥`/`3♠` (our balanced 1NT
+    *can* hold a five-card major — a 5332 is balanced and outranks the
+    one-of-a-major opening on weight), showing the 5-3/5-4 fit plus extras so
+    responder drives game/slam; a minimum bids `2♥`/`2♠` naturally. The jump names
+    and shows its own suit, so it stays natural (unalerted). The cleanest of the
+    three: **+3.45 IMPs/fired plain (+0.0007/board, 95% CI ±0.0004, excl 0),
+    +3.33 PD**, holding up at +1.47/+0.90 even with garbage on; fires 0.02%.
+  - **Opener shows min/max with both four-card majors** (`set_stayman_both_majors`,
+    **default off**, opt-in `bba-gen --ns-stayman-both-majors`): over 1NT-2♣
+    holding both majors, `2NT` = minimum (15), `3♣` = maximum (16-17), instead of
+    bidding 2♥ up-the-line; responder then places the known 4-4 fit. Both are
+    alerted (artificial) and auto-decoded by `project_authored`. A plain win alone
+    (+1.16 IMPs/fired) but **dominated by garbage**: its marginal value once
+    garbage is on is +0.0002/board plain and ~0 PD (the weak escaper it would
+    carry up to 2NT/3♣ is exactly the hand garbage already handles), so it stays
+    opt-in.
 - **`examples/probe-nt-invite-eval` — does any hand evaluator beat raw HCP at the
   1NT-response invite/force boundary, per responder shape?** A double-dummy screen
   that deals boundary-band responders (7–10 HCP) opposite a 15–17 balanced opener,

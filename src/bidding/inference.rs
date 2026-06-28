@@ -640,8 +640,12 @@ impl Inferences {
                     if stayman && is_opening_side && !side_acted[defending_parity] {
                         let responder_lane = (opener_lane + 2) % 4;
                         if index == opening_index + 2 {
-                            // Responder's 2♣ Stayman shows invitational+ values.
-                            players[who].narrow_points(Range::at_least(8, POINTS_CAP));
+                            // Responder's 2♣ Stayman shows invitational+ values —
+                            // unless garbage Stayman is on, where a weak hand may
+                            // bid 2♣ to escape, so the floor must not assume 8+.
+                            if !crate::bidding::american::garbage_stayman() {
+                                players[who].narrow_points(Range::at_least(8, POINTS_CAP));
+                            }
                         } else if index == opening_index + 4 && lane == opener_lane {
                             // Opener's answer names or denies a four-card major.
                             match bid.strain {

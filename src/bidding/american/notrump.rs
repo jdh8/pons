@@ -197,7 +197,53 @@ pub fn notrump_responses() -> Rules {
         // Jacoby, …) survives.  Default Puppet.
         .chain(puppet_minors())
         .chain(european_minors())
+        // Garbage Stayman (opt-in): a weak 2♣ to escape 1NT.  Same STAYMAN alert,
+        // so it survives the minor-scheme gate (which only drops dormant minors).
+        .chain(garbage_stayman_rule())
         .gated(move |alert| alert != dormant_minors())
+}
+
+/// Garbage (drop-dead) Stayman: a weak 2♣ intending to pass opener's answer
+///
+/// Two tiers, looser the weaker responder is (a broke 1NT rates to be a
+/// disaster, so any ~7-card fit is an improvement): both tiers want a four-card
+/// major, both majors playable (3+ for a ≥7-card fit on any major answer), and
+/// short clubs; the broke tier accepts a thinner 2♦ landing (3+ diamonds), the
+/// weak tier insists on 4+.  HCP bands are disjoint from the constructive 2♣
+/// (`hcp(8..)`), so no hand matches two 2♣ rules.  Empty when off.
+// ponytail: the 0-4/5-7 split and the 3-vs-4 diamond floor are tunable knobs —
+// the A/B can tighten or loosen them.
+fn garbage_stayman_rule() -> Rules {
+    if !garbage_stayman() {
+        return Rules::new();
+    }
+    Rules::new()
+        // Broke (0-4): escape at almost any cost; accept a thin 2♦ landing.
+        .rule(
+            Bid::new(2, Strain::Clubs),
+            1.5,
+            (len(Suit::Hearts, 4..) | len(Suit::Spades, 4..))
+                & len(Suit::Hearts, 3..)
+                & len(Suit::Spades, 3..)
+                & len(Suit::Clubs, ..3)
+                & len(Suit::Diamonds, 3..)
+                & hcp(..5)
+                & !flat_4333(),
+        )
+        .alert(STAYMAN)
+        // Weak (5-7): insist on a safe 2♦ landing (4+ diamonds).
+        .rule(
+            Bid::new(2, Strain::Clubs),
+            1.5,
+            (len(Suit::Hearts, 4..) | len(Suit::Spades, 4..))
+                & len(Suit::Hearts, 3..)
+                & len(Suit::Spades, 3..)
+                & len(Suit::Clubs, ..3)
+                & len(Suit::Diamonds, 4..)
+                & hcp(5..8)
+                & !flat_4333(),
+        )
+        .alert(STAYMAN)
 }
 
 /// The minor scheme *not* selected — the one [`notrump_responses`] gates out
@@ -304,6 +350,95 @@ pub(super) fn stayman_answers() -> Rules {
         )
 }
 
+/// Opener's Stayman answer at the *uncontested* `[1NT, 2♣]` node
+///
+/// Wraps [`stayman_answers`] with the opt-in max-showing overlays so the shared
+/// `stayman_answers` (reused by the competitive book) stays untouched.  With both
+/// toggles off this is byte-identical to `stayman_answers`.  A balanced 1NT with
+/// a five-card major has ≤3 in the other major, so "both four-card majors" and
+/// "five-card major" never overlap; the natural answers (weight 1.0) catch every
+/// remaining case (single major, no major, a *minimum* five-card major).
+fn stayman_answers_uncontested() -> Rules {
+    let mut rules = Rules::new();
+    if stayman_both_majors() {
+        rules = rules
+            // Both four-card majors, minimum (15): 2NT.
+            .rule(
+                Bid::new(2, Strain::Notrump),
+                1.1,
+                len(Suit::Hearts, 4..) & len(Suit::Spades, 4..) & hcp(..16),
+            )
+            .alert(BOTH_MAJORS)
+            // Both four-card majors, maximum (16-17): 3♣.
+            .rule(
+                Bid::new(3, Strain::Clubs),
+                1.1,
+                len(Suit::Hearts, 4..) & len(Suit::Spades, 4..) & hcp(16..),
+            )
+            .alert(BOTH_MAJORS);
+    }
+    if stayman_5card_max() {
+        // Five-card major, maximum (16-17): jump.  Natural (names and shows its
+        // own suit), so unalerted — alerting would make alert-reading suppress it.
+        rules = rules
+            .rule(
+                Bid::new(3, Strain::Hearts),
+                1.1,
+                len(Suit::Hearts, 5..) & hcp(16..),
+            )
+            .rule(
+                Bid::new(3, Strain::Spades),
+                1.1,
+                len(Suit::Spades, 5..) & hcp(16..),
+            );
+    }
+    rules.chain(stayman_answers())
+}
+
+/// Responder's placement over opener's min-both-majors `2NT`
+///
+/// Opener has both four-card majors and a minimum, so responder (captain) places
+/// the contract in the known 4-4 fit: game with values, else an invitational
+/// partscore opener passes.
+fn both_majors_min_rebid() -> Rules {
+    Rules::new()
+        .rule(
+            Bid::new(4, Strain::Spades),
+            1.3,
+            len(Suit::Spades, 4..) & hcp(10..),
+        )
+        .rule(
+            Bid::new(4, Strain::Hearts),
+            1.3,
+            len(Suit::Hearts, 4..) & len(Suit::Spades, ..4) & hcp(10..),
+        )
+        .rule(Bid::new(3, Strain::Spades), 1.2, len(Suit::Spades, 4..))
+        .rule(Bid::new(3, Strain::Hearts), 1.2, len(Suit::Hearts, 4..))
+        .rule(Bid::new(3, Strain::Notrump), 1.0, hcp(0..))
+}
+
+/// Responder's placement over opener's max-both-majors `3♣` (game forced)
+fn both_majors_max_rebid() -> Rules {
+    Rules::new()
+        .rule(Bid::new(4, Strain::Spades), 1.3, len(Suit::Spades, 4..))
+        .rule(
+            Bid::new(4, Strain::Hearts),
+            1.3,
+            len(Suit::Hearts, 4..) & len(Suit::Spades, ..4),
+        )
+        .rule(Bid::new(3, Strain::Notrump), 1.0, hcp(0..))
+}
+
+/// Responder's placement over opener's max five-card-major jump (`3♥`/`3♠`)
+///
+/// With three-card support (an eight-card fit) opposite a maximum, bid game; else
+/// sign off in `3NT`.
+fn five_card_max_rebid(major: Suit) -> Rules {
+    Rules::new()
+        .rule(Bid::new(4, Strain::from(major)), 1.3, len(major, 3..))
+        .rule(Bid::new(3, Strain::Notrump), 1.0, hcp(0..))
+}
+
 thread_local! {
     /// Whether opener jump super-accepts a Jacoby transfer with four-card support
     /// and a maximum; **off by default** (opt-in A/B).  See
@@ -327,6 +462,66 @@ pub fn set_transfer_super_accept(on: bool) {
 /// Whether the jump super-accept is currently authored
 pub(super) fn transfer_super_accept() -> bool {
     TRANSFER_SUPER_ACCEPT.with(Cell::get)
+}
+
+thread_local! {
+    /// Garbage (drop-dead) Stayman: a *weak* hand bids 2♣ to escape 1NT into a
+    /// major (or diamond) partscore, intending to pass opener's answer.  **On by
+    /// default** — a paired DD A/B vs BBA (205k boards, vul none) measured +0.51
+    /// IMPs/fired plain (+0.0009/board, 95% CI excl 0) and +0.70 PD.  See
+    /// [`set_garbage_stayman`].
+    static GARBAGE_STAYMAN: Cell<bool> = const { Cell::new(true) };
+    /// Opener shows min/max over 1NT-2♣ with *both* four-card majors: `2NT` = min
+    /// (15), `3♣` = max (16-17), instead of bidding 2♥ up-the-line.  **Off by
+    /// default** (opt-in): a plain win alone (+1.16/fired) but largely dominated
+    /// by [garbage][set_garbage_stayman] — its marginal value once garbage is on
+    /// is ~0 (PD erased).  See [`set_stayman_both_majors`].
+    static STAYMAN_BOTH_MAJORS: Cell<bool> = const { Cell::new(false) };
+    /// Opener jumps `3♥`/`3♠` over 1NT-2♣ holding a *five-card* major and a
+    /// maximum (16-17), showing the 5-3/5-4 fit plus extras.  **On by default** —
+    /// the cleanest of the three: +3.45 IMPs/fired plain (+0.0007/board, 95% CI
+    /// excl 0) and +3.33 PD, holding up at +1.47/+0.90 even with garbage on.  See
+    /// [`set_stayman_5card_max`].
+    static STAYMAN_5CARD_MAX: Cell<bool> = const { Cell::new(true) };
+}
+
+/// Author garbage (drop-dead) Stayman for books built *after* this call
+/// (thread-local; **on by default**).
+///
+/// A weak responder with short clubs and a four-card major bids 2♣ to escape a
+/// likely-doomed 1NT, passing opener's 2♦/2♥/2♠.  Looser the weaker responder
+/// is: broke hands accept a thinner 2♦ landing, since any ~7-card fit beats a
+/// broke 1NT.
+pub fn set_garbage_stayman(on: bool) {
+    GARBAGE_STAYMAN.with(|cell| cell.set(on));
+}
+
+/// Author opener's min/max scheme over 1NT-2♣ with both four-card majors for
+/// books built *after* this call (thread-local; **off by default**, opt-in).
+pub fn set_stayman_both_majors(on: bool) {
+    STAYMAN_BOTH_MAJORS.with(|cell| cell.set(on));
+}
+
+/// Author opener's max five-card-major jump over 1NT-2♣ for books built *after*
+/// this call (thread-local; **on by default**).
+pub fn set_stayman_5card_max(on: bool) {
+    STAYMAN_5CARD_MAX.with(|cell| cell.set(on));
+}
+
+/// Whether garbage Stayman is currently authored (read by the inference engine
+/// too, to widen the 2♣ point range it reads)
+pub(crate) fn garbage_stayman() -> bool {
+    GARBAGE_STAYMAN.with(Cell::get)
+}
+
+/// Whether opener's both-majors min/max scheme is currently authored
+fn stayman_both_majors() -> bool {
+    STAYMAN_BOTH_MAJORS.with(Cell::get)
+}
+
+/// Whether opener's max five-card-major jump is currently authored
+fn stayman_5card_max() -> bool {
+    STAYMAN_5CARD_MAX.with(Cell::get)
 }
 
 /// Complete a Jacoby transfer by bidding the anchor suit
@@ -989,8 +1184,9 @@ pub(super) fn register_one_nt(book: &mut Trie) {
     let puppet = notrump_minors() == PUPPET;
 
     insert_uncontested(book, &[one_nt], notrump_responses());
-    // Stayman answers and transfer completions.
-    insert_uncontested(book, &[one_nt, two_c], stayman_answers());
+    // Stayman answers and transfer completions.  The uncontested wrapper folds in
+    // the opt-in max-showing overlays (both-majors min/max, max five-card jump).
+    insert_uncontested(book, &[one_nt, two_c], stayman_answers_uncontested());
     insert_uncontested(book, &[one_nt, two_d], complete_transfer(Suit::Hearts));
     insert_uncontested(book, &[one_nt, two_h], complete_transfer(Suit::Spades));
     // Quantitative 4NT answer.
@@ -1070,6 +1266,32 @@ pub(super) fn register_one_nt(book: &mut Trie) {
         &[one_nt, two_c, two_d, four_nt],
         quantitative_answer(17),
     );
+
+    // --- Opt-in max-showing overlays (both-majors min/max, max five-card jump) -
+    //
+    // Responder's placement over opener's artificial 2NT/3♣ (both four-card
+    // majors) and natural 3♥/3♠ jump (max five-card major).  Opener has limited
+    // itself, so its follow-up is the floor's pass.
+    if stayman_both_majors() {
+        insert_uncontested(book, &[one_nt, two_c, two_nt], both_majors_min_rebid());
+        insert_uncontested(
+            book,
+            &[one_nt, two_c, call(3, Strain::Clubs)],
+            both_majors_max_rebid(),
+        );
+    }
+    if stayman_5card_max() {
+        insert_uncontested(
+            book,
+            &[one_nt, two_c, three_h],
+            five_card_max_rebid(Suit::Hearts),
+        );
+        insert_uncontested(
+            book,
+            &[one_nt, two_c, three_s],
+            five_card_max_rebid(Suit::Spades),
+        );
+    }
 
     // --- 3♣ response (Puppet Stayman, or European diamond transfer) -----------
     let three_c = call(3, Strain::Clubs);

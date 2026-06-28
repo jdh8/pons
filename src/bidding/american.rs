@@ -106,10 +106,11 @@ pub(crate) use defense::{
     natural_double_floor, natural_overcall_points, woolsey_double_floor, woolsey_enabled,
     woolsey_points,
 };
-pub(crate) use notrump::notrump_minors;
 pub use notrump::{
-    EUROPEAN, PUPPET, notrump_responses, set_notrump_minors, set_transfer_super_accept,
+    EUROPEAN, PUPPET, notrump_responses, set_garbage_stayman, set_notrump_minors,
+    set_stayman_5card_max, set_stayman_both_majors, set_transfer_super_accept,
 };
+pub(crate) use notrump::{garbage_stayman, notrump_minors};
 pub use openings::{
     NotrumpShape, openings, openings_with, set_one_notrump_fifths, set_open_one_notrump,
 };
