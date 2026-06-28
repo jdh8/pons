@@ -114,7 +114,7 @@ std::thread_local! {
 
 /// Toggle decoding fallback-authored conventions in the projection (**default on**)
 ///
-/// Off, [`project_authored`] sees only exact-node classifiers (via
+/// Off, `project_authored` sees only exact-node classifiers (via
 /// [`common_prefixes`][super::Trie::common_prefixes]), so a contested convention
 /// authored by a guarded fallback misreads under second-round intervention unless a
 /// hand-written reader covers it.  On, it re-resolves each call's *authoring*
