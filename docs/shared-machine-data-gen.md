@@ -83,6 +83,46 @@ single run saturates the cores cleanly. **Chain multi-config sweeps sequentially
 (`for … do …; done` or `&&`); only genuinely single-threaded jobs are safe to
 idle-run in parallel.
 
+## Seed hygiene: fresh hands per experiment
+
+Reusing the same small seeds (`--seed 0..31`, the old `bba-gen-parallel.sh`
+default) across many experiments **oversamples the same deal slice**. Each
+`StdRng::seed_from_u64(seed)` is an independent stream, so `--seed 5 --count C`
+gives the *same* C deals every run; replay it for every A/B and your results stop
+being fresh draws from the deal space — they converge on whatever those fixed
+streams happen to contain, and a treatment can look good (or bad) just by fitting
+that slice. **Poll new hands for each experiment.**
+
+The rule:
+
+- **Each experiment uses a fresh `SEED_BASE`** (default: `date +%s`). Shard *i*
+  draws `--seed (SEED_BASE + i)`. `bba-gen-parallel.sh` does this automatically
+  and echoes the base it chose.
+- **One base per experiment, shared across its arms.** A paired `ab-dump-diff`
+  (or any A/B) is only valid if the arms it compares saw *identical* deals — so
+  set the base once and reuse it for every arm of the same experiment:
+
+  ```sh
+  export SEED_BASE=$(date +%s)            # one base for the whole experiment
+  for arm in base +feat; do
+      scripts/idle-run.sh scripts/bba-gen-parallel.sh out/$arm 6400 $arm_flags
+  done
+  ab-dump-diff out/+feat/merged.json out/base/merged.json --score pd
+  ```
+
+  Do **not** let each arm pick its own `date +%s` (calling the script per-arm
+  without exporting `SEED_BASE` does exactly that) — the arms would then bid
+  *different* deals and the pairing is meaningless.
+- **The next experiment gets a new base** — a fresh `date +%s` → fresh hands.
+  Bases must differ by ≥ `nproc` to keep their shard ranges disjoint; since a real
+  experiment takes minutes, a per-experiment `date +%s` guarantees this. For
+  genuinely back-to-back runs, bump the base by hand (`SEED_BASE=$(( $(date +%s) + 1000 ))`).
+- **Record the echoed `SEED_BASE` + the git SHA** to reproduce a run; that pair
+  (plus count and flags) regenerates the exact dataset.
+
+The `gib-scavenge` unit already follows the spirit of this — it starts each shard
+with a fresh random 64-bit seed (`shard-<seed>.txt`), never a fixed small one.
+
 ## When to add a hard cap
 
 If the box is **reliably busy** (not our usual case), priority isn't enough — add
