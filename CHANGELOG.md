@@ -79,6 +79,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Shrinks the worklist from 120 to **68**; all remaining counterexamples are bids
     (#6 transfers over 2NT, #7 puppet / two-way relay).
 
+- **`artificial()` retired — alerts now carry the decode signal exhaustively.**
+  Final increments of the retirement. The last 68 counterexamples were swept:
+  - *#6 — transfers over a 2NT-strength notrump* (`[2NT] 3♦/3♥`, and the same after
+    a `2♣–2x–2NT` rebid) now carry `Alert("jacoby-transfer")`. The 3♣ Stayman beside
+    them is an OR-disjunction the structural witness never flagged, so it is left
+    natural — alerting **exactly** the structural set keeps the drop a true no-op.
+  - *#7 — puppet / two-way-relay continuations*: the club splinters under the 2♠
+    two-way relay (`[1NT 2♠ 2NT] 3♦/3♥/3♠`, `[1NT 2♠ 3♣] 3♦/3♥/3♠`) carry
+    `Alert("splinter")`, the slamless 6-card-club `3NT` carries `Alert("puppet")`,
+    the Stayman 3-other-major artificial slam try (`[1NT 2♣ 2♥] 3♠`, `[1NT 2♣ 2♠]
+    3♥`) carries `Alert("slam-try")`, and the Puppet-Stayman 4-4 hunt
+    (`[1NT 3♣ 3♦] 3♥/3♠`) carries `Alert("smolen")`.
+  - **The drop:** with the worklist at zero, `|| artificial(p, made)` is removed
+    from the decode gate (`project_authored`) — alerts alone decide whether a call
+    is read as conventional. This is a **provable bit-identical no-op** under the
+    default `set_alert_reading(true)`, not merely a statistical wash: the gate
+    projects the *union* of a node's rules for a call, and whenever that union
+    floors a non-named suit (the structural witness) **every** matching rule floors
+    it too, so every matching rule is alerted (the now-permanent
+    `artificial_calls_are_alerted` test proves the book has no unalerted
+    artificial bid), making the `alerted` term already true. Old gate
+    (`alerted || artificial`) and new gate (`alerted`) therefore fire on exactly
+    the same calls — no BBA measurement needed, the invariant test is the proof.
+    The `artificial` detector survives `#[cfg(test)]`-only as that invariant guard,
+    so a future artificial bid added without an `.alert(...)` fails the test rather
+    than silently losing its decoding. (With `set_alert_reading(false)` these calls
+    now go undecoded, where the structural fallback formerly caught them regardless;
+    `alert_reading` stays the master switch.)
+
 - **Competition over our 2NT diamond transfer, both sides — authored and
   A/B-measured vs BBA (both opt-in).** The PUPPET 2NT diamond transfer (6+♦, or 5♦-4♣) and its
   fourth-hand contest previously fell through to the instinct floor; both sides are

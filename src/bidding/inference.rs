@@ -874,19 +874,19 @@ fn project_authored(context: &Context<'_>) -> ([Inference; 4], u64) {
             .map(|rule| rule.project(context))
             .reduce(|acc, p| acc.union(&p));
 
-        // A call is artificial when its authoring rule *alerts* it (the explicit,
-        // exhaustive signal — it catches strength-showing artificials like the
-        // strong 2♣ opening and Puppet 3♣ that floor no foreign suit), or — as a
-        // fallback for any artificial call not yet alerted — when its projection
-        // floors a suit it did not name (see [`artificial`]).  The union only adds
-        // coverage; it never drops a read the structural test already made.
+        // A call is artificial — decode it — when its authoring rule *alerts* it.
+        // The alert is now the complete, exhaustive signal: every artificial call
+        // in the book carries one (guarded by the `artificial_calls_are_alerted`
+        // invariant test), so the old structural `artificial(p, made)` fallback
+        // has been retired (alert-by-disclosed-meaning, the move modern bridge
+        // made retiring "X is self-alerting").
         let alerted = alert_reading()
             && rules
                 .rules()
                 .iter()
                 .any(|rule| rule.call() == made && rule.alert().is_some());
 
-        if let Some(projection) = projection.filter(|p| alerted || artificial(p, made)) {
+        if let Some(projection) = projection.filter(|_| alerted) {
             let who = relative_of(len, index) as usize;
             players[who] = players[who].intersect(&projection);
             if index < 64 {
@@ -918,11 +918,11 @@ fn project_authored(context: &Context<'_>) -> ([Inference; 4], u64) {
 
 /// Whether a *bid's* projection floors a suit other than the one it names
 ///
-/// The artificial-call detector, falling out of the projection itself: a natural
-/// bid floors its own strain (1♠ → 5+♠) or no suit (1NT → points only); an
-/// artificial one floors a suit it did not name (Jacoby 2♦ → 5+♥, Landy 2♣ → 4-4
-/// majors).  A min-length floor of four-plus on a non-named suit is the witness —
-/// above any natural by-product, below every convention's real shape.
+/// The structural artificial-call detector, falling out of the projection itself:
+/// a natural bid floors its own strain (1♠ → 5+♠) or no suit (1NT → points only);
+/// an artificial one floors a suit it did not name (Jacoby 2♦ → 5+♥, Landy 2♣ →
+/// 4-4 majors).  A min-length floor of four-plus on a non-named suit is the witness
+/// — above any natural by-product, below every convention's real shape.
 ///
 /// **Bid-only.**  A pass or double names no suit, so the witness is inverted for
 /// them: a trap pass or penalty double floors the *opponents'* suit because it
@@ -931,6 +931,12 @@ fn project_authored(context: &Context<'_>) -> ([Inference; 4], u64) {
 /// artificial doubles (takeout/responsive — they ask partner to pick a suit) carry
 /// an explicit [`Alert`][crate::bidding::Alert] instead.  So a non-bid is never
 /// structurally artificial; only its alert speaks.
+///
+/// **Retired from the decode gate** — alerts now carry the signal exhaustively.
+/// This survives test-only, as the `artificial_calls_are_alerted` invariant guard:
+/// any future artificial bid added without an `.alert(...)` must fail that test
+/// rather than silently lose its decoding.
+#[cfg(test)]
 fn artificial(projection: &Inference, made: Call) -> bool {
     let Call::Bid(bid) = made else {
         return false;
@@ -2384,19 +2390,16 @@ mod tests {
     ///
     /// `artificial(project(rule), call) ⟹ rule.alert().is_some()`, walked over
     /// every authored rule in the shipped `american()` book (all three phase
-    /// tries).  Once this holds with zero counterexamples, `|| artificial(p,
-    /// made)` can be dropped from the decode gate and the detector deleted: alerts
-    /// alone carry the "decode this call" signal (alert-by-disclosed-meaning, the
-    /// move modern bridge made retiring "X is self-alerting").  The panic message
-    /// lists the exact worklist — each counterexample is a conventional call
-    /// missing its `.alert(...)`.
+    /// tries).  This now holds with zero counterexamples, so `|| artificial(p,
+    /// made)` has been dropped from the decode gate: alerts alone carry the "decode
+    /// this call" signal (alert-by-disclosed-meaning, the move modern bridge made
+    /// retiring "X is self-alerting").
     ///
-    /// Ignored while the alert sweep is in progress (172 shape-bearing calls
-    /// across Michaels / unusual-NT / Leaping-Michaels / 2NT-transfers / Puppet
-    /// relays / trap-pass / responsive doubles).  Un-ignore — and drop `||
-    /// artificial(p, made)` from the decode gate — once it is green.
+    /// Kept as a **permanent regression guard**: a future artificial bid added
+    /// without an `.alert(...)` makes this fail (the panic lists the exact call),
+    /// rather than silently losing its decoding now that the structural fallback is
+    /// gone.
     #[test]
-    #[ignore = "retirement worklist: run with --ignored to list the calls still needing .alert()"]
     fn artificial_calls_are_alerted() {
         use crate::bidding::american::american;
 

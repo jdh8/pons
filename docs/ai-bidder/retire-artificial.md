@@ -1,11 +1,27 @@
 # Retire `artificial()` — complete alert coverage, then drop the heuristic
 
-**Status:** in progress. The retirement-invariant test is landed (ignored); the
-alert sweep is the worklist below. Bite off one increment at a time.
-**Done so far:** #1 Michaels (`aa237be`), #2 Unusual 2NT (`955fada`), #3 Leaping
-Michaels (`842da31`), #4 responsive doubles + **the Pass/Double half of the drop**
-(`artificial()` is now bid-only; #5's trap pass naturalized — see below). Worklist
-172 → 120 → **68** (all remaining are bids). Remaining: #6–#7, then the bid drop.
+**Status: DONE.** The structural `artificial()` decode fallback has been dropped
+from the gate; alerts carry the "decode this call" signal exhaustively. The
+retirement-invariant test (`artificial_calls_are_alerted`) is now un-ignored and
+green — a **permanent regression guard** that fails if a future artificial bid is
+added without an `.alert(...)`.
+
+**History:** #1 Michaels (`aa237be`), #2 Unusual 2NT (`955fada`), #3 Leaping
+Michaels (`842da31`), #4 responsive doubles + the Pass/Double half (`artificial()`
+went bid-only; #5's trap pass naturalized). #6 transfers over 2NT
+(`Alert("jacoby-transfer")`) + #7 puppet/relay continuations
+(`splinter`/`puppet`/`slam-try`/`smolen`) swept the last 68, then the bid drop.
+Worklist 172 → 120 → 68 → **0**.
+
+**The drop was a provable identity, not a measured wash.** The gate projects the
+*union* of a node's rules for a call; whenever that union floors a non-named suit
+(the structural witness), every matching rule floors it too → every matching rule
+is alerted (invariant green) → the `alerted` term is already true. So
+`alerted || artificial` and `alerted` fire on exactly the same calls under the
+default `alert_reading() = on`. No BBA run needed. (With `alert_reading` off these
+calls go undecoded, where the fallback formerly caught them; `alert_reading` stays
+the master switch.) The `artificial` fn survives `#[cfg(test)]`-only as the
+invariant guard's witness.
 
 ## Goal
 
@@ -96,8 +112,8 @@ constants where one already exists.
 | ✅3 | Leaping Michaels | `[2♥] 4♣/4♦`, `[2♦] 4♦` | `defense_to_weak_two` LM block (overcalls). The `leaping_michaels_advances` continuations project no foreign suit → not in the worklist | `LEAPING` `"leaping-michaels"` (`842da31`) — named `LEAPING` to dodge the `leaping_michaels_enabled` thread-local | `leaping_michaels_enabled()` only; outside `active_alerts()` |
 | ✅4 | Responsive double (takeout family) | `[1♦ X 2♦] X`, `[1♦ X 3♦] X` | [defense.rs](../../src/bidding/american/defense.rs) `responsive_doubles` / `responsive_overcall_doubles` | `RESPONSIVE` `"responsive-double"` — asks partner to pick a suit (artificial) | `responsive_*_enabled()` toggles |
 | ~~5~~ | ~~Trap pass~~ → **natural, not alerted** | `[1♦ X P] P` | naturalized by bid-only `artificial()`; the settle floor reads "pass = play the top bid" — the trap pass *defends* the doubled contract, so it is not artificial. (The resp-3NT trap in `competition.rs set_trap_pass` was never a counterexample: it floors HCP, not length.) | — (no alert) | — |
-| 6 | Transfers over 2NT (opening + 2♣ rebid) | `[2NT P] 3♦/3♥`, `[2♣ P 2♥ P 2NT P] 3♦/3♥` | [notrump.rs:843](../../src/bidding/american/notrump.rs#L843) 2NT-strength structure; [responses.rs:287](../../src/bidding/american/responses.rs#L287) `after_2nt` | reuse `JACOBY`/new `TEXAS`-style | shared by opening & rebid — alert once at the structure |
-| 7 | Puppet / two-way-relay continuations | `[1NT P 2♠ P 2NT P] 3♠`, `[1NT P 2♠ P 3♣ P] 3♦`, `[1NT P 3♣ P 3♦ P] 3♥` | [notrump.rs:220](../../src/bidding/american/notrump.rs#L220) `puppet_minors` + continuations / Smolen-style major shows | reuse `PUPPET`/`SMOLEN`/new per-relay | **[notrump.rs:196](../../src/bidding/american/notrump.rs#L196) gated** — add slug to active set |
+| ✅6 | Transfers over 2NT (opening + 2♣ rebid) | `[2NT P] 3♦/3♥`, `[2♣ P 2♥ P 2NT P] 3♦/3♥` | `two_notrump_responses` (the 3♦/3♥ transfers only — 3♣ Stayman is an OR-disjunction the witness never flags) | reused `JACOBY` (`"jacoby-transfer"`) | none — outside the `.gated()` block |
+| ✅7 | Puppet / two-way-relay continuations | `[1NT 2♠ 2NT] 3♦/3♥/3♠/3NT`, `[1NT 2♠ 3♣] 3♦/3♥/3♠`, `[1NT 2♣ 2M] 3OM`, `[1NT 3♣ 3♦] 3♥/3♠` | `two_spade_over_min`/`_max` club splinters → `SPLINTER`; slamless 6♣ `3NT` → `PUPPET`; `stayman_major_rebid` 3OM slam try → `SLAM_TRY`; `puppet_deny_rebid` 4-4 hunt → `SMOLEN` | new `SPLINTER`/`SLAM_TRY`, reused `PUPPET`/`SMOLEN` | none — the continuation nodes are plain `insert_uncontested`, not the `.gated()` response node |
 
 The table is a map; the **test is the source of truth**. After each increment,
 re-run the driver — the count drops by that convention's positions. Some hits
