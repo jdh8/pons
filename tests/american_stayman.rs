@@ -216,7 +216,7 @@ fn smolen_works_at_the_two_notrump_level() {
 // test sets them, builds the stance, then restores the library defaults before
 // asserting (the book is already captured) so a reused worker thread cannot leak
 // into a `stance()` test that expects the defaults. Defaults: garbage on,
-// both-majors off, five-card-max on.
+// both-majors on, five-card-max on.
 
 fn stance_with(garbage: bool, both_majors: bool, five_card_max: bool) -> Stance {
     pons::bidding::american::set_garbage_stayman(garbage);
@@ -224,9 +224,49 @@ fn stance_with(garbage: bool, both_majors: bool, five_card_max: bool) -> Stance 
     pons::bidding::american::set_stayman_5card_max(five_card_max);
     let system = american().against(Family::NATURAL);
     pons::bidding::american::set_garbage_stayman(true);
-    pons::bidding::american::set_stayman_both_majors(false);
+    pons::bidding::american::set_stayman_both_majors(true);
     pons::bidding::american::set_stayman_5card_max(true);
     system
+}
+
+// --- Max-only both-majors relay (2NT = 16-17, 3♣/3♦ name responder's major) --
+
+#[test]
+fn both_majors_responder_relays_hearts_via_3c() {
+    let system = stance_with(false, true, false);
+    // Opener showed both majors, maximum (2NT); responder with four hearts names
+    // them via 3♣ so opener declares (right-siding).
+    let auction = after_stayman(&[call(2, Strain::Notrump)]);
+    assert_eq!(
+        best_call(&system, &auction, "xx.KQxx.Kxxx.Qxx"),
+        call(3, Strain::Clubs),
+    );
+}
+
+#[test]
+fn both_majors_opener_completes_relay_to_hearts() {
+    let system = stance_with(false, true, false);
+    // Responder relayed 3♣ (hearts); opener completes 3♥ so opener declares.
+    let auction = after_stayman(&[call(2, Strain::Notrump), call(3, Strain::Clubs)]);
+    assert_eq!(
+        best_call(&system, &auction, "AKxx.AQxx.xx.Kxx"),
+        call(3, Strain::Hearts),
+    );
+}
+
+#[test]
+fn both_majors_responder_raises_completion_to_game() {
+    let system = stance_with(false, true, false);
+    // Over opener's 3♥ completion, responder with game values raises to 4♥.
+    let auction = after_stayman(&[
+        call(2, Strain::Notrump),
+        call(3, Strain::Clubs),
+        call(3, Strain::Hearts),
+    ]);
+    assert_eq!(
+        best_call(&system, &auction, "xx.KQxx.Kxxx.Qxx"),
+        call(4, Strain::Hearts),
+    );
 }
 
 #[test]
@@ -259,24 +299,24 @@ fn garbage_off_the_weak_hand_passes_one_nt() {
 }
 
 #[test]
-fn both_majors_minimum_opener_bids_2nt() {
+fn both_majors_minimum_opener_bids_2h() {
     let system = stance_with(false, true, false);
-    // 15 HCP, 4-4-3-2 both majors, minimum: 2NT.
+    // 15 HCP, 4-4-3-2 both majors, minimum: 2♥ up-the-line (no jump).
     let auction = after_stayman(&[]);
     assert_eq!(
         best_call(&system, &auction, "AKxx.KQxx.Kxx.xx"),
-        call(2, Strain::Notrump),
+        call(2, Strain::Hearts),
     );
 }
 
 #[test]
-fn both_majors_maximum_opener_bids_3c() {
+fn both_majors_maximum_opener_bids_2nt() {
     let system = stance_with(false, true, false);
-    // 16 HCP, 4-4-2-3 both majors, maximum: 3♣.
+    // 16 HCP, 4-4-2-3 both majors, maximum: jump to 2NT.
     let auction = after_stayman(&[]);
     assert_eq!(
         best_call(&system, &auction, "AKxx.AQxx.xx.Kxx"),
-        call(3, Strain::Clubs),
+        call(2, Strain::Notrump),
     );
 }
 
@@ -314,13 +354,13 @@ fn five_card_minimum_opener_bids_2h() {
 }
 
 #[test]
-fn both_majors_responder_places_game_over_2nt() {
+fn both_majors_responder_relays_spades_via_3d() {
     let system = stance_with(false, true, false);
-    // Opener showed both majors, minimum (2NT); responder with four spades and
-    // game values bids 4♠.
+    // Opener showed both majors, maximum (2NT); responder with four spades names
+    // them via 3♦ so opener declares.
     let auction = after_stayman(&[call(2, Strain::Notrump)]);
     assert_eq!(
         best_call(&system, &auction, "AQxx.xxx.Kxxx.Qx"),
-        call(4, Strain::Spades),
+        call(3, Strain::Diamonds),
     );
 }

@@ -361,20 +361,14 @@ pub(super) fn stayman_answers() -> Rules {
 fn stayman_answers_uncontested() -> Rules {
     let mut rules = Rules::new();
     if stayman_both_majors() {
+        // Both four-card majors with a *maximum* (16-17, the invite-accepting
+        // range): jump to 2NT.  Responder then names their own major (3♣ = hearts,
+        // 3♦ = spades) so opener — the strong, concealed hand — declares it
+        // (right-siding).  A minimum (15) bids 2♥ naturally, so 2NT only ever costs
+        // a step on the maximum.
+        let both = len(Suit::Hearts, 4..) & len(Suit::Spades, 4..);
         rules = rules
-            // Both four-card majors, minimum (15): 2NT.
-            .rule(
-                Bid::new(2, Strain::Notrump),
-                1.1,
-                len(Suit::Hearts, 4..) & len(Suit::Spades, 4..) & hcp(..16),
-            )
-            .alert(BOTH_MAJORS)
-            // Both four-card majors, maximum (16-17): 3♣.
-            .rule(
-                Bid::new(3, Strain::Clubs),
-                1.1,
-                len(Suit::Hearts, 4..) & len(Suit::Spades, 4..) & hcp(16..),
-            )
+            .rule(Bid::new(2, Strain::Notrump), 1.1, both & hcp(16..))
             .alert(BOTH_MAJORS);
     }
     if stayman_5card_max() {
@@ -395,38 +389,38 @@ fn stayman_answers_uncontested() -> Rules {
     rules.chain(stayman_answers())
 }
 
-/// Responder's placement over opener's min-both-majors `2NT`
+/// Responder's relay over opener's max-both-majors `2NT`
 ///
-/// Opener has both four-card majors and a minimum, so responder (captain) places
-/// the contract in the known 4-4 fit: game with values, else an invitational
-/// partscore opener passes.
-fn both_majors_min_rebid() -> Rules {
+/// Opener has both four-card majors and a maximum, so responder names *their* own
+/// four-card major — `3♣` = hearts, `3♦` = spades — asking opener to bid it so the
+/// strong concealed hand declares (right-siding).  Both are alerted (artificial);
+/// the `3NT` catch-all covers the shape that cannot occur (responder bid Stayman,
+/// so always holds a major).  With both majors, `3♦` wins, placing spades.
+fn both_majors_max_responder() -> Rules {
     Rules::new()
-        .rule(
-            Bid::new(4, Strain::Spades),
-            1.3,
-            len(Suit::Spades, 4..) & hcp(10..),
-        )
-        .rule(
-            Bid::new(4, Strain::Hearts),
-            1.3,
-            len(Suit::Hearts, 4..) & len(Suit::Spades, ..4) & hcp(10..),
-        )
-        .rule(Bid::new(3, Strain::Spades), 1.2, len(Suit::Spades, 4..))
-        .rule(Bid::new(3, Strain::Hearts), 1.2, len(Suit::Hearts, 4..))
+        .rule(Bid::new(3, Strain::Diamonds), 1.3, len(Suit::Spades, 4..))
+        .alert(BOTH_MAJORS)
+        .rule(Bid::new(3, Strain::Clubs), 1.2, len(Suit::Hearts, 4..))
+        .alert(BOTH_MAJORS)
         .rule(Bid::new(3, Strain::Notrump), 1.0, hcp(0..))
 }
 
-/// Responder's placement over opener's max-both-majors `3♣` (game forced)
-fn both_majors_max_rebid() -> Rules {
+/// Opener's forced completion of the both-majors relay (right-siding)
+///
+/// Responder named a major via `3♣`/`3♦`; opener simply bids it so opener declares.
+/// Alerted — it completes the relay and shows nothing beyond the `2NT` already did.
+fn both_majors_relay_complete(major: Suit) -> Rules {
     Rules::new()
-        .rule(Bid::new(4, Strain::Spades), 1.3, len(Suit::Spades, 4..))
-        .rule(
-            Bid::new(4, Strain::Hearts),
-            1.3,
-            len(Suit::Hearts, 4..) & len(Suit::Spades, ..4),
-        )
-        .rule(Bid::new(3, Strain::Notrump), 1.0, hcp(0..))
+        .rule(Bid::new(3, Strain::from(major)), 1.0, hcp(0..))
+        .alert(BOTH_MAJORS)
+}
+
+/// Responder places game over opener's right-siding completion
+///
+/// The 4-4 fit and opener's maximum (17) are known; bid game with invitational+
+/// values, else pass opener's three-level completion (the floor's settle).
+fn both_majors_relay_placement(major: Suit) -> Rules {
+    Rules::new().rule(Bid::new(4, Strain::from(major)), 1.3, hcp(8..))
 }
 
 /// Responder's placement over opener's max five-card-major jump (`3♥`/`3♠`)
@@ -471,12 +465,16 @@ thread_local! {
     /// IMPs/fired plain (+0.0009/board, 95% CI excl 0) and +0.70 PD.  See
     /// [`set_garbage_stayman`].
     static GARBAGE_STAYMAN: Cell<bool> = const { Cell::new(true) };
-    /// Opener shows min/max over 1NT-2♣ with *both* four-card majors: `2NT` = min
-    /// (15), `3♣` = max (16-17), instead of bidding 2♥ up-the-line.  **Off by
-    /// default** (opt-in): a plain win alone (+1.16/fired) but largely dominated
-    /// by [garbage][set_garbage_stayman] — its marginal value once garbage is on
-    /// is ~0 (PD erased).  See [`set_stayman_both_majors`].
-    static STAYMAN_BOTH_MAJORS: Cell<bool> = const { Cell::new(false) };
+    /// Opener jumps to `2NT` over 1NT-2♣ holding *both* four-card majors and a
+    /// *maximum* (16-17); a minimum (15) bids 2♥ naturally.  Responder then names own
+    /// major (`3♣` = hearts, `3♦` = spades) and opener completes (`3♥`/`3♠`), so the
+    /// strong concealed hand declares the known 4-4 fit (right-siding) instead of
+    /// responder declaring after a direct raise.  **On by default** — a paired DD
+    /// A/B vs BBA (320k boards/arm, vul none) measured +2.18 IMPs/fired plain
+    /// (+0.0035/board, 95% CI excl 0) and +2.29 PD *with garbage on*, +2.68/+2.87
+    /// with garbage off — a win in every regime, unlike the earlier strength-step
+    /// scheme it replaces.  See [`set_stayman_both_majors`].
+    static STAYMAN_BOTH_MAJORS: Cell<bool> = const { Cell::new(true) };
     /// Opener jumps `3♥`/`3♠` over 1NT-2♣ holding a *five-card* major and a
     /// maximum (16-17), showing the 5-3/5-4 fit plus extras.  **On by default** —
     /// the cleanest of the three: +3.45 IMPs/fired plain (+0.0007/board, 95% CI
@@ -496,8 +494,8 @@ pub fn set_garbage_stayman(on: bool) {
     GARBAGE_STAYMAN.with(|cell| cell.set(on));
 }
 
-/// Author opener's min/max scheme over 1NT-2♣ with both four-card majors for
-/// books built *after* this call (thread-local; **off by default**, opt-in).
+/// Author opener's max-only right-siding relay over 1NT-2♣ with both four-card
+/// majors for books built *after* this call (thread-local; **on by default**).
 pub fn set_stayman_both_majors(on: bool) {
     STAYMAN_BOTH_MAJORS.with(|cell| cell.set(on));
 }
@@ -514,7 +512,7 @@ pub(crate) fn garbage_stayman() -> bool {
     GARBAGE_STAYMAN.with(Cell::get)
 }
 
-/// Whether opener's both-majors min/max scheme is currently authored
+/// Whether opener's both-majors max-only relay is currently authored
 fn stayman_both_majors() -> bool {
     STAYMAN_BOTH_MAJORS.with(Cell::get)
 }
@@ -1273,11 +1271,31 @@ pub(super) fn register_one_nt(book: &mut Trie) {
     // majors) and natural 3♥/3♠ jump (max five-card major).  Opener has limited
     // itself, so its follow-up is the floor's pass.
     if stayman_both_majors() {
-        insert_uncontested(book, &[one_nt, two_c, two_nt], both_majors_min_rebid());
+        // Max-only, right-siding relay: opener's 2NT shows both four-card majors
+        // with a maximum (17); responder names their major (3♣ = hearts, 3♦ =
+        // spades); opener completes (3♥/3♠) so the strong hand declares; responder
+        // places game.  A minimum opener bids 2♥ naturally (no node needed).
+        // ponytail: slam below game left to the floor; author a node if it underbids.
+        insert_uncontested(book, &[one_nt, two_c, two_nt], both_majors_max_responder());
         insert_uncontested(
             book,
-            &[one_nt, two_c, call(3, Strain::Clubs)],
-            both_majors_max_rebid(),
+            &[one_nt, two_c, two_nt, call(3, Strain::Clubs)],
+            both_majors_relay_complete(Suit::Hearts),
+        );
+        insert_uncontested(
+            book,
+            &[one_nt, two_c, two_nt, call(3, Strain::Diamonds)],
+            both_majors_relay_complete(Suit::Spades),
+        );
+        insert_uncontested(
+            book,
+            &[one_nt, two_c, two_nt, call(3, Strain::Clubs), three_h],
+            both_majors_relay_placement(Suit::Hearts),
+        );
+        insert_uncontested(
+            book,
+            &[one_nt, two_c, two_nt, call(3, Strain::Diamonds), three_s],
+            both_majors_relay_placement(Suit::Spades),
         );
     }
     if stayman_5card_max() {

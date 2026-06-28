@@ -201,10 +201,11 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_garbage_stayman: bool,
 
-    /// Author opener's min/max scheme over 1NT-2♣ with both four-card majors
-    /// (2NT = min, 3♣ = max); default off (opt-in A/B — dominated by garbage).
+    /// Disable opener's max-only right-siding relay over 1NT-2♣ with both four-card
+    /// majors (2NT = 16-17; responder names a major via 3♣/3♦, opener completes and
+    /// declares); on by default.  Off-switch for the A/B.
     #[arg(long, default_value_t = false)]
-    ns_stayman_both_majors: bool,
+    no_ns_stayman_both_majors: bool,
 
     /// Disable opener's max five-card-major jump over 1NT-2♣ (3♥/3♠); on by
     /// default.  Off-switch for the A/B.
@@ -769,7 +770,7 @@ fn main() -> anyhow::Result<()> {
     pons::bidding::american::set_competition_over_transfer(args.ns_comp_over_transfer);
     pons::bidding::american::set_transfer_super_accept(args.ns_transfer_super_accept);
     pons::bidding::american::set_garbage_stayman(!args.no_ns_garbage_stayman);
-    pons::bidding::american::set_stayman_both_majors(args.ns_stayman_both_majors);
+    pons::bidding::american::set_stayman_both_majors(!args.no_ns_stayman_both_majors);
     pons::bidding::american::set_stayman_5card_max(!args.no_ns_stayman_5card_max);
     pons::bidding::american::set_transfer_defense(args.ns_transfer_defense);
     pons::bidding::american::set_competition_over_minor_transfer(

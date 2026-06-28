@@ -32,13 +32,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Three Stayman (1NT-2♣) treatments, measured with an 8-arm (2³) factorial
-  A/B vs BBA (204 800 boards/arm, vul none, paired same-deal `ab-dump-diff`).**
-  Each is a rarely firing subset of the 1NT-2♣ subtree; all three are
-  individually DD-positive on *both* plain and perfect-defense (so not a doubling
-  artifact), but they are **substitutes** — each one's per-fired value roughly
-  halves when another is on (they fight over the same both-major hands). Two ship
-  **on by default**; the third stays opt-in because garbage dominates it.
+- **Three Stayman (1NT-2♣) treatments, measured with paired same-deal A/B vs BBA
+  (vul none).** Each is a rarely firing subset of the 1NT-2♣ subtree; all three
+  are individually DD-positive on *both* plain and perfect-defense (so not a
+  doubling artifact), and they are partial **substitutes** — a treatment's
+  per-fired value softens (but stays clearly positive) when another is on, as they
+  fight over the same both-major hands. **All three ship on by default.**
   - **Garbage (drop-dead) Stayman** (`set_garbage_stayman`, **default on**;
     off-switch `bba-gen --no-ns-garbage-stayman`): a *weak* responder (below the
     constructive 8-HCP floor) with short clubs and a four-card major bids 2♣ to
@@ -58,15 +57,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     and shows its own suit, so it stays natural (unalerted). The cleanest of the
     three: **+3.45 IMPs/fired plain (+0.0007/board, 95% CI ±0.0004, excl 0),
     +3.33 PD**, holding up at +1.47/+0.90 even with garbage on; fires 0.02%.
-  - **Opener shows min/max with both four-card majors** (`set_stayman_both_majors`,
-    **default off**, opt-in `bba-gen --ns-stayman-both-majors`): over 1NT-2♣
-    holding both majors, `2NT` = minimum (15), `3♣` = maximum (16-17), instead of
-    bidding 2♥ up-the-line; responder then places the known 4-4 fit. Both are
-    alerted (artificial) and auto-decoded by `project_authored`. A plain win alone
-    (+1.16 IMPs/fired) but **dominated by garbage**: its marginal value once
-    garbage is on is +0.0002/board plain and ~0 PD (the weak escaper it would
-    carry up to 2NT/3♣ is exactly the hand garbage already handles), so it stays
-    opt-in.
+  - **Opener shows both four-card majors with a max-only right-siding relay**
+    (`set_stayman_both_majors`, **default on**; off-switch
+    `bba-gen --no-ns-stayman-both-majors`): over 1NT-2♣ holding both majors and a
+    *maximum* (16-17), jump to `2NT`; a minimum (15) bids `2♥` naturally.
+    Responder then names *their own* major — `3♣` = hearts, `3♦` = spades — and
+    opener completes (`3♥`/`3♠`), so the strong concealed hand declares the known
+    4-4 fit (right-siding) instead of responder declaring after a direct raise.
+    Responder raises the completion to game with invitational+ values, else passes
+    the partscore. The `2NT`, the `3♣`/`3♦` relays, and the `3♥`/`3♠` completions
+    are alerted (artificial) and auto-decoded by `project_authored`. The
+    right-siding is the win the earlier strength-step scheme lacked — it is
+    **DD-positive in every regime**: **+2.18 IMPs/fired plain (+0.0035/board, 95%
+    CI ±0.0007, excl 0), +2.29 PD with garbage on** and +2.68/+2.87 with garbage
+    off (320 000 boards/arm). Replaces the earlier strength-step scheme (`2NT`/`3♣`/`3♦`
+    = 15/16/17), which lost to garbage (−0.37/−0.91) because responder declared.
+    Known gap: with no `4NT`-quant over the `2NT` relay, a big responding hand
+    signs off in game where the natural `2♥` auction could reach a quantitative
+    slam (the `-11 IMP` tail) — a future add.
+- **Tried and dropped: looser ("335") garbage Stayman.** A broke (0-4) hand with
+  no four-card major but five diamonds and `3=3` majors escaping `1NT` via `2♣`
+  (sound drop-dead — a 4-3 major or long-diamond fit on every answer, no pull
+  needed). Measured net-negative for the same reason as above: the weak `2♣` is
+  **doubled and passed out** (`1NT P 2♣ X P P P`, a short-club `2♣x`), **−0.495
+  IMPs/fired plain, −0.631 PD** (320 000 boards, vul none). The loss is the
+  `(2♣)-X` tail, not the escape; with no near-term runout to author, the variant
+  was removed rather than kept as a dead knob. A runout over `(2♣)-X` is the
+  prerequisite to revisit it.
 - **`examples/probe-nt-invite-eval` — does any hand evaluator beat raw HCP at the
   1NT-response invite/force boundary, per responder shape?** A double-dummy screen
   that deals boundary-band responders (7–10 HCP) opposite a 15–17 balanced opener,
