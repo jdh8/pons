@@ -157,11 +157,13 @@ pub fn notrump_responses() -> Rules {
             len(Suit::Spades, 6..) & len(Suit::Hearts, ..5) & hcp(15..=18),
         )
         .alert(TEXAS)
-        // Stayman: a four-card major and at least invitational values.
+        // Stayman: a four-card major and at least invitational values — but never
+        // on a flat 4-3-3-3, which plays better in 3NT than in the 4-4 major fit
+        // (no ruffing value), so it invites/forces in notrump directly.
         .rule(
             Bid::new(2, Strain::Clubs),
             1.5,
-            (len(Suit::Hearts, 4..=4) | len(Suit::Spades, 4..=4)) & hcp(8..),
+            (len(Suit::Hearts, 4..=4) | len(Suit::Spades, 4..=4)) & hcp(8..) & !flat_4333(),
         )
         .alert(STAYMAN)
         // Quantitative 4NT slam invite (balanced, no four-card major).
@@ -221,11 +223,16 @@ fn dormant_minors() -> Alert {
 /// no-fit case relays back to 3NT).
 fn puppet_minors() -> Rules {
     Rules::new()
+        // 2♠ = six-card clubs, or the bare-8 balanced invite.  The invite now also
+        // takes a flat 4-3-3-3 with a four-card major (it no longer Staymans): the
+        // gate is "no four-card major, or flat 4333".
         .rule(
             Bid::new(2, Strain::Spades),
             1.3,
             len(Suit::Clubs, 6..)
-                | (hcp(8..=8) & balanced() & len(Suit::Hearts, ..4) & len(Suit::Spades, ..4)),
+                | (hcp(8..=8)
+                    & balanced()
+                    & ((len(Suit::Hearts, ..4) & len(Suit::Spades, ..4)) | flat_4333())),
         )
         .alert(PUPPET)
         .rule(
@@ -241,7 +248,9 @@ fn puppet_minors() -> Rules {
                 & hcp(9..=15)
                 & (len(Suit::Hearts, 3..=3) | len(Suit::Spades, 3..=3))
                 & len(Suit::Hearts, ..5)
-                & len(Suit::Spades, ..5),
+                & len(Suit::Spades, ..5)
+                // A flat 4-3-3-3 plays 3NT, not the 5-3 major fit — bid notrump.
+                & !flat_4333(),
         )
         .alert(PUPPET)
 }
@@ -261,7 +270,11 @@ fn european_minors() -> Rules {
         .rule(
             Bid::new(2, Strain::Notrump),
             1.3,
-            hcp(8..=8) & balanced() & len(Suit::Hearts, ..4) & len(Suit::Spades, ..4),
+            // The bare-8 size ask, also home to a flat 4-3-3-3 with a four-card
+            // major (no Stayman with 4333).
+            hcp(8..=8)
+                & balanced()
+                & ((len(Suit::Hearts, ..4) & len(Suit::Spades, ..4)) | flat_4333()),
         )
         .alert(EUROPEAN)
         .rule(
@@ -863,11 +876,12 @@ fn two_notrump_responses() -> Rules {
         .alert(JACOBY)
         .rule(Bid::new(3, Strain::Hearts), 2.0, len(Suit::Spades, 5..))
         .alert(JACOBY)
-        // 3-level Stayman: a four-card major and at least some values.
+        // 3-level Stayman: a four-card major and at least some values, but never a
+        // flat 4-3-3-3 (it bids notrump directly, as over a 1NT opening).
         .rule(
             Bid::new(3, Strain::Clubs),
             1.5,
-            (len(Suit::Hearts, 4..=4) | len(Suit::Spades, 4..=4)) & hcp(5..),
+            (len(Suit::Hearts, 4..=4) | len(Suit::Spades, 4..=4)) & hcp(5..) & !flat_4333(),
         )
         // Quantitative 4NT slam invite (balanced, no four-card major).
         .rule(

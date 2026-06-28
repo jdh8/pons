@@ -205,3 +205,47 @@ fn test_multi_2d_double_is_values() {
     );
     assert_ne!(off, Call::Double, "the natural-diamond default does not");
 }
+
+#[test]
+fn competitive_4333_knob_gates_the_cue_stayman() {
+    // 1NT-(2♥): a flat 4-3-3-3 with four spades and game values cues 3♥ (Stayman)
+    // to dig out the 4-4 spade fit.  The competitive-4333 knob governs whether that
+    // flat hand still cues, or is diverted to 3NT (the constructive 4333 rule).  The
+    // toggle is read at book construction, so set it before building each stance,
+    // then restore the default so it never leaks to another test on this thread.
+    use pons::bidding::american::{Competitive4333, set_competitive_4333};
+    let auction = &[call(1, Strain::Notrump), call(2, Strain::Hearts)];
+    let cue = call(3, Strain::Hearts);
+    // Flat 4333, four spades, game values.  The no-stopper hand cannot bid 3NT
+    // (their hearts unguarded), so its cue is unambiguous; the stopper hand can.
+    let no_stopper = "KQJ5.432.KQ3.Q43"; // 13 HCP, ♥432 unguarded
+    let with_stopper = "KQJ5.K32.Q43.J43"; // 12 HCP, ♥K32 a stopper
+
+    set_competitive_4333(Competitive4333::Allow);
+    assert_eq!(
+        best_call(&stance(), auction, no_stopper),
+        cue,
+        "Allow: a flat 4333 cues as usual"
+    );
+
+    set_competitive_4333(Competitive4333::Suppress);
+    assert_ne!(
+        best_call(&stance(), auction, no_stopper),
+        cue,
+        "Suppress: a flat 4333 never cues"
+    );
+
+    set_competitive_4333(Competitive4333::SuppressWithStopper);
+    assert_ne!(
+        best_call(&stance(), auction, with_stopper),
+        cue,
+        "SuppressWithStopper: a flat 4333 *with* a stopper is diverted to 3NT"
+    );
+    assert_eq!(
+        best_call(&stance(), auction, no_stopper),
+        cue,
+        "SuppressWithStopper: a stopperless flat 4333 still cues to find the fit"
+    );
+
+    set_competitive_4333(Competitive4333::Suppress); // restore the default
+}

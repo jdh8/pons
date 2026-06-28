@@ -171,6 +171,16 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_comp_over_stayman: bool,
 
+    /// How a flat 4-3-3-3 cue-Staymans when the opponents overcall our 1NT:
+    /// `suppress` (default — never cue, the A/B winner), `allow` (the old
+    /// baseline), or `suppress-stopper` (suppress only with a stopper).
+    #[arg(
+        long,
+        default_value = "suppress",
+        value_name = "suppress|allow|suppress-stopper"
+    )]
+    ns_competitive_4333: String,
+
     /// Author our defense to the opponents' 2♣ Stayman (`(1NT)-P-(2♣)`): X =
     /// lead-directing clubs, natural overcalls, strong 3♣ (default off; opt-in A/B).
     #[arg(long, default_value_t = false)]
@@ -730,6 +740,16 @@ fn main() -> anyhow::Result<()> {
         })?;
     pons::bidding::american::set_natural_overcall_points(oc_lo, oc_hi);
     pons::bidding::american::set_competition_over_stayman(!args.no_ns_comp_over_stayman);
+    pons::bidding::american::set_competitive_4333(match args.ns_competitive_4333.as_str() {
+        "allow" => pons::bidding::american::Competitive4333::Allow,
+        "suppress" => pons::bidding::american::Competitive4333::Suppress,
+        "suppress-stopper" => pons::bidding::american::Competitive4333::SuppressWithStopper,
+        other => {
+            anyhow::bail!(
+                "--ns-competitive-4333 must be allow|suppress|suppress-stopper, got {other:?}"
+            )
+        }
+    });
     pons::bidding::american::set_stayman_defense(args.ns_defense_to_their_stayman);
     pons::bidding::american::set_competition_over_transfer(args.ns_comp_over_transfer);
     pons::bidding::american::set_transfer_super_accept(args.ns_transfer_super_accept);

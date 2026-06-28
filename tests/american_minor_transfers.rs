@@ -45,11 +45,24 @@ fn after_1nt(tail: &[Call]) -> Vec<Call> {
 // --- Choosing 2♣ vs 3♣ ------------------------------------------------------
 
 #[test]
-fn four_three_game_force_puppets() {
+fn flat_four_three_three_three_game_force_bids_3nt() {
     let system = stance();
-    // 4♠-3♥, balanced, 11 HCP: a 4-3 game force takes the Puppet route (3♣).
+    // Flat 4-3-3-3 (four spades), 11 HCP: no Puppet, no Stayman — a flat hand has
+    // no ruffing value, so it plays 3NT rather than hunt a major fit.
     assert_eq!(
         best_call(&system, &after_1nt(&[]), "KJ54.Q32.K43.Q92"),
+        call(3, Strain::Notrump),
+    );
+}
+
+#[test]
+fn balanced_three_card_major_game_force_still_puppets() {
+    let system = stance();
+    // 4♠-3♥-4♦-2♣ (a club doubleton), 11 HCP: a *non-flat* balanced game force
+    // still Puppets (3♣, outranking Stayman) — only the flat 4-3-3-3 is diverted
+    // to 3NT.
+    assert_eq!(
+        best_call(&system, &after_1nt(&[]), "KJ54.Q32.K432.Q9"),
         call(3, Strain::Clubs),
     );
 }
@@ -65,22 +78,24 @@ fn four_four_game_force_uses_stayman() {
 }
 
 #[test]
-fn invitational_four_three_stays_with_stayman() {
+fn invitational_flat_four_three_three_three_invites_naturally() {
     let system = stance();
-    // A bare 8 with a 4-card major: invitational, so Stayman — Puppet is GF only.
+    // A flat 4-3-3-3, bare 8: no Stayman (it plays 3NT, not the 4-4 fit), so it
+    // invites with the natural 2♠ size ask instead.
     assert_eq!(
         best_call(&system, &after_1nt(&[]), "KJ54.Q32.J43.J92"),
-        call(2, Strain::Clubs),
+        call(2, Strain::Spades),
     );
 }
 
 #[test]
-fn three_three_balanced_game_force_puppets() {
+fn flat_minor_four_three_three_three_game_force_bids_3nt() {
     let system = stance();
-    // 3-3 in the majors, balanced 11: Puppet to hunt opener's five-card major.
+    // 3-3 majors, four clubs, balanced 11: a flat 4-3-3-3 — no Puppet to hunt a
+    // five-card major, it just plays 3NT.
     assert_eq!(
         best_call(&system, &after_1nt(&[]), "K32.Q43.KJ4.Q932"),
-        call(3, Strain::Clubs),
+        call(3, Strain::Notrump),
     );
 }
 

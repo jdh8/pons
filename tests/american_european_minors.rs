@@ -181,9 +181,21 @@ fn game_force_three_card_major_bids_3nt() {
 #[test]
 fn game_force_four_three_takes_stayman() {
     let system = stance();
-    // 4♠-3♥ game force: with no Puppet, the 4-3 hand uses plain Stayman (2♣).
+    // 4♠-3♥-4♦-2♣ game force (non-flat): with no Puppet, the 4-3 hand uses plain
+    // Stayman (2♣).  A flat 4-3-3-3 would instead bid 3NT (see below).
+    assert_eq!(
+        best_call(&system, &after_1nt(&[]), "KJ54.Q32.K432.Q9"),
+        call(2, Strain::Clubs),
+    );
+}
+
+#[test]
+fn flat_four_three_three_three_game_force_bids_3nt() {
+    let system = stance();
+    // Flat 4-3-3-3 (four spades) game force: no Stayman with a flat hand — it plays
+    // 3NT, not the 4-4 fit (European has no Puppet either, so it simply bids 3NT).
     assert_eq!(
         best_call(&system, &after_1nt(&[]), "KJ54.Q32.K43.Q92"),
-        call(2, Strain::Clubs),
+        call(3, Strain::Notrump),
     );
 }

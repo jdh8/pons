@@ -1034,7 +1034,7 @@ pub fn top_honors(
 /// Whether a holding stops the suit for notrump purposes
 ///
 /// The crisp textbook definition: A, Kx, Qxx, or Jxxx.
-const fn has_stopper(holding: Holding) -> bool {
+pub(crate) const fn has_stopper(holding: Holding) -> bool {
     holding.contains(Rank::A)
         || (holding.contains(Rank::K) && holding.len() >= 2)
         || (holding.contains(Rank::Q) && holding.len() >= 3)

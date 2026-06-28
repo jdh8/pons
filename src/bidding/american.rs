@@ -81,12 +81,13 @@ mod strong_two;
 mod weak_twos;
 
 pub use competition::{
-    DoubleStyle, LebensohlStyle, competition, set_competition_over_diamond_transfer,
-    set_competition_over_minor_transfer, set_competition_over_stayman,
-    set_competition_over_transfer, set_defense_to_2d_multi, set_delayed_cue,
-    set_direct_3nt_stopper, set_double_override, set_double_style, set_lebensohl,
-    set_lebensohl_style, set_natural_floor, set_penalty_double_leave_in, set_penalty_pass,
-    set_trap_pass, set_uvu, set_uvu_cue_floor, set_uvu_natural_floor, set_uvu_x_floor,
+    Competitive4333, DoubleStyle, LebensohlStyle, competition,
+    set_competition_over_diamond_transfer, set_competition_over_minor_transfer,
+    set_competition_over_stayman, set_competition_over_transfer, set_competitive_4333,
+    set_defense_to_2d_multi, set_delayed_cue, set_direct_3nt_stopper, set_double_override,
+    set_double_style, set_lebensohl, set_lebensohl_style, set_natural_floor,
+    set_penalty_double_leave_in, set_penalty_pass, set_trap_pass, set_uvu, set_uvu_cue_floor,
+    set_uvu_natural_floor, set_uvu_x_floor,
 };
 pub use defense::{
     DoubleShape, advance_double, defense_to_suit, defense_to_weak_two, set_advance_sohl_style,

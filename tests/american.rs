@@ -163,11 +163,11 @@ fn test_notrump_responses_and_completions() {
     let p = Call::Pass;
     let one_nt = call(1, Strain::Notrump);
 
-    // Stayman with a four-card major and invitational (8) values: a 4-3 game
-    // force would Puppet with 3♣, but invitational hands stay with plain 2♣.
+    // Flat 4-3-3-3 with a four-card major, invitational (8): no Stayman (it plays
+    // 3NT, not the 4-4 fit), so it invites naturally with the 2♠ size ask.
     assert_eq!(
         best_call(&system, &[one_nt, p], "KJ54.Q32.J43.J92"),
-        call(2, Strain::Clubs)
+        call(2, Strain::Spades)
     );
     // Transfer to spades on a five-card suit.
     assert_eq!(
@@ -327,11 +327,11 @@ fn test_notrump_ladder() {
     let system = stance();
     let after_1nt = &[call(1, Strain::Notrump), Call::Pass][..];
 
-    // 11 HCP balanced with a three-card major: Puppet (3♣) to hunt opener's
-    // five-card major before settling for notrump game.
+    // 11 HCP, flat 4-3-3-3 (four clubs): no Puppet — a flat hand plays 3NT, not
+    // the 5-3 major fit it might dig up.
     assert_eq!(
         best_call(&system, after_1nt, "K32.Q43.KJ4.Q932"),
-        call(3, Strain::Clubs)
+        call(3, Strain::Notrump)
     );
     // Five hearts -> transfer (2♦).
     assert_eq!(

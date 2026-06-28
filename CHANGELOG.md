@@ -32,6 +32,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`set_competitive_4333(Competitive4333)` toggles the flat-4333 rule in
+  competition** (`Allow` / `Suppress` / `SuppressWithStopper`; default `Suppress`).
+  Gates whether a flat 4-3-3-3 still cue-Staymans when our 1NT is overcalled, or
+  diverts to 3NT — the competitive arm of the constructive 4333 change (see
+  *Changed*), with `--ns-competitive-4333` wired into `bba-gen` for the A/B.
+  `SuppressWithStopper` (suppress only with a stopper in their suit) and `Allow` (the
+  old behaviour) stay selectable for re-measurement.
+
 - **The Michaels cue-bid is now alerted** (`Alert("michaels")`). First increment
   of retiring the structural `artificial()` decode heuristic in favor of
   alert-by-disclosed-meaning: a call is read as conventional because its authoring
@@ -343,6 +351,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   double-dummy-solving only the handful of boards a rare feature actually touched.
 
 ### Changed
+
+- **Responder no longer uses any form of Stayman with a flat 4-3-3-3.** Per
+  [Pavlicek's statistics](https://www.rpbridge.net/8j05.htm), a `(4333)` hand plays
+  better in 3NT than in a major-suit game even with a 4-4 (or 5-3) fit — flat, it
+  has no ruffing value, so the trump suit buys no extra trick. A flat 4-3-3-3
+  responder now bids notrump directly instead of `2♣` Stayman, `3♣` Puppet Stayman,
+  or 3-level Stayman over a `2NT` opening: it invites with the natural `2♠` (Puppet)
+  / `2NT` (European) size-ask at a bare 8, forces `3NT` at game values, and bids the
+  quantitative `4NT` at 16–17. Only the flat shape is diverted (gated by the
+  existing `notrump::flat_4333`) — a `4-4-3-2` or a non-flat 4-3 still
+  Staymans/Puppets. Seeded before/after A/B (`examples/ab-stayman`, opponents
+  silenced, double-dummy, 200k boards × 3 seeds × {none, both}): the ~0.14% of
+  boards it diverts net **positive on raw score every run** (+2.2k…+7.2k points per
+  200k) and net positive at IMPs — the matchpoint-frequency signature of the 4333
+  curse. **In competition** (our 1NT overcalled) the same diversion now applies to
+  the Transfer-Lebensohl cue-Stayman and the `3♣`-over-`(2♦)` Stayman, settled by a
+  paired BBA A/B as the new `set_competitive_4333` default (`Suppress`): 960k boards
+  vul none, PD **+3.8 IMPs/fired** (95% CI excludes 0), plain a wash-to-win.
+  *Advancing* partner's takeout double is left untouched — there partner is short in
+  their suit, so the 4-4 fit keeps a ruffing value and the curse does not apply.
 
 - **Landy's and Woolsey's both-majors `2♣` now share one strength band.** The two
   conventions bid the identical both-majors `2♣`, so rather than carry two

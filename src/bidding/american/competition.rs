@@ -7,7 +7,8 @@
 //! minor overcall.
 
 use super::super::constraint::{
-    Cons, Constraint, hcp, len, min_level_is, points, stopper_in, suit_hcp, support, they_bid,
+    Cons, Constraint, described, has_stopper, hcp, len, min_level_is, points, stopper_in, suit_hcp,
+    support, they_bid,
 };
 use super::super::context::Context;
 use super::super::fallback::{Fallback, FirstIs, OvercallAtMost, ReplaceNext, guard, rewriter};
@@ -1083,6 +1084,76 @@ pub(super) fn lebensohl_signoff_raise(signoff: Suit, resp_floor: u8) -> Rules {
 // Section 5b: Transfer Lebensohl (Rubensohl) — Larry Cohen's version
 // ---------------------------------------------------------------------------
 
+/// How responder treats a flat 4-3-3-3 when our 1NT opening is overcalled.
+///
+/// The constructive 4333 rule (a flat hand plays 3NT, not the major fit, for want
+/// of a ruffing value — see `notrump::flat_4333`) was unclear in competition: a
+/// stopperless flat 4333 might *need* the 4-4 fit to escape a 3NT it cannot make.
+/// A paired BBA A/B settled it — full [`Suppress`][Competitive4333::Suppress] of
+/// the Transfer-Lebensohl cue-Stayman and the `3♣`-over-`(2♦)` Stayman beat both
+/// `Allow` and the stopper-only middle on plain *and* PD double-dummy (960k boards
+/// vul none, 63 fired: PD **+3.8 IMPs/fired**, +0.0002/board with the 95% CI
+/// excluding 0; plain a wash-to-win at +1.3/fired).  Even the stopperless flat 4333
+/// does better staying low than digging out a no-ruffing-value fit that gets
+/// doubled.  **Default [`Suppress`][Competitive4333::Suppress]**; the other modes
+/// stay for re-measurement (e.g. at vul both).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Competitive4333 {
+    /// Cue-Stayman unchanged on a flat 4333 — the old behaviour / A/B baseline.
+    Allow,
+    /// Never cue-Stayman on a flat 4333; play 3NT (or a natural call) instead.
+    Suppress,
+    /// Suppress only a flat 4333 *with* a stopper in their suit (3NT is safe); a
+    /// stopperless 4333 may still cue to dig out the 4-4 fit.
+    SuppressWithStopper,
+}
+
+thread_local! {
+    static COMPETITIVE_4333: Cell<Competitive4333> =
+        const { Cell::new(Competitive4333::Suppress) };
+}
+
+/// Set how a flat 4-3-3-3 cue-Staymans when our 1NT is overcalled, for books
+/// built *after* this call (thread-local; default [`Competitive4333::Suppress`]).
+pub fn set_competitive_4333(mode: Competitive4333) {
+    COMPETITIVE_4333.with(|cell| cell.set(mode));
+}
+
+/// The active [`Competitive4333`] mode
+fn competitive_4333() -> Competitive4333 {
+    COMPETITIVE_4333.with(Cell::get)
+}
+
+/// Gate ANDed into each competitive cue-Stayman rule: satisfied unless the active
+/// [`Competitive4333`] mode diverts this flat 4-3-3-3 to 3NT.  Four suits all 3
+/// or 4 cards long sum to 13 only as a 4-3-3-3, so that test *is* "flat 4333".
+///
+/// `gate` is true only in the 1NT-overcall context, where partner is a *balanced*
+/// 1NT opener and a flat 4333 has no ruffing value anywhere.  When advancing a
+/// takeout double (`gate = false`) partner is *short* in their suit, so the 4-4
+/// fit keeps its ruffing value and the cue is never diverted — the curse does not
+/// apply, and that A/B was never run.
+fn competitive_4333_ok(over: Suit, gate: bool) -> Cons<impl Constraint + Clone> {
+    let mode = if gate {
+        competitive_4333()
+    } else {
+        Competitive4333::Allow
+    };
+    described(
+        "not a flat 4-3-3-3 diverted to 3NT",
+        move |hand: Hand, _: &Context<'_>| {
+            let flat = Suit::ASC
+                .into_iter()
+                .all(|suit| (3..=4).contains(&hand[suit].len()));
+            !match mode {
+                Competitive4333::Allow => false,
+                Competitive4333::Suppress => flat,
+                Competitive4333::SuppressWithStopper => flat && has_stopper(hand[over]),
+            }
+        },
+    )
+}
+
 /// The suit a 3-level Transfer-Lebensohl bid in `bid_suit` shows, given the
 /// opponents' 2-level overcall in `over`
 ///
@@ -1110,7 +1181,7 @@ pub(super) fn transfer_target(bid_suit: Suit, over: Suit) -> Option<Suit> {
 /// natural 2-level call, a 3-level transfer to a suit above theirs is INV+ — so
 /// opener is driven to game (see [`transfer_completion`]) and a game is never
 /// stranded in a partscore (the Rubensohl-v1 failure).
-pub(super) fn transfer_lebensohl_responder(over: Suit) -> Rules {
+pub(super) fn transfer_lebensohl_responder(over: Suit, gate_4333: bool) -> Rules {
     let mut rules = Rules::new();
 
     // 3-level transfers (INV+, 5+ in the target) and the cue (Stayman, GF).
@@ -1129,27 +1200,47 @@ pub(super) fn transfer_lebensohl_responder(over: Suit) -> Rules {
                     .rule(
                         cue,
                         1.7,
-                        len(Suit::Spades, 4..) & points(10..) & !stopper_in(over),
+                        len(Suit::Spades, 4..)
+                            & points(10..)
+                            & !stopper_in(over)
+                            & competitive_4333_ok(over, gate_4333),
                     )
                     .alert(LEBENSOHL_CUE),
                 (Suit::Spades, true) => rules
                     .rule(
                         cue,
                         1.7,
-                        len(Suit::Hearts, 4..) & points(10..) & !stopper_in(over),
+                        len(Suit::Hearts, 4..)
+                            & points(10..)
+                            & !stopper_in(over)
+                            & competitive_4333_ok(over, gate_4333),
                     )
                     .alert(LEBENSOHL_CUE),
                 (Suit::Hearts, false) => rules
-                    .rule(cue, 1.7, len(Suit::Spades, 4..) & points(10..))
+                    .rule(
+                        cue,
+                        1.7,
+                        len(Suit::Spades, 4..)
+                            & points(10..)
+                            & competitive_4333_ok(over, gate_4333),
+                    )
                     .alert(LEBENSOHL_CUE),
                 (Suit::Spades, false) => rules
-                    .rule(cue, 1.7, len(Suit::Hearts, 4..) & points(10..))
+                    .rule(
+                        cue,
+                        1.7,
+                        len(Suit::Hearts, 4..)
+                            & points(10..)
+                            & competitive_4333_ok(over, gate_4333),
+                    )
                     .alert(LEBENSOHL_CUE),
                 _ => rules
                     .rule(
                         cue,
                         1.7,
-                        (len(Suit::Hearts, 4..) | len(Suit::Spades, 4..)) & points(10..),
+                        (len(Suit::Hearts, 4..) | len(Suit::Spades, 4..))
+                            & points(10..)
+                            & competitive_4333_ok(over, gate_4333),
                     )
                     .alert(LEBENSOHL_CUE),
             };
@@ -1325,7 +1416,7 @@ pub(super) fn cue_stayman_answer_no_stopper(over: Suit) -> Rules {
 /// `points(10..)` (≈ 8 HCP after the 5-5 upgrade) already forces game. The weak
 /// outlets (natural 2-level, `2NT` relay, penalty double, direct `3NT`) match
 /// `Transfer` so the A/B isolates the constructive change.
-pub(super) fn transfer_stayman_2d_responder() -> Rules {
+pub(super) fn transfer_stayman_2d_responder(gate_4333: bool) -> Rules {
     let mut rules = Rules::new();
 
     // 3♣ = Stayman: game-forcing with *exactly* a 4-card major. A single 5-card
@@ -1335,7 +1426,9 @@ pub(super) fn transfer_stayman_2d_responder() -> Rules {
         .rule(
             Bid::new(3, Strain::Clubs),
             1.85,
-            (len(Suit::Hearts, 4..=4) | len(Suit::Spades, 4..=4)) & points(10..),
+            (len(Suit::Hearts, 4..=4) | len(Suit::Spades, 4..=4))
+                & points(10..)
+                & competitive_4333_ok(Suit::Diamonds, gate_4333),
         )
         .alert(STAYMAN);
 
@@ -2047,9 +2140,10 @@ pub fn competition() -> Competitive {
             let responder = match style {
                 _ if over == Suit::Diamonds && defense_2d_multi() => multi_responder(),
                 LebensohlStyle::Transfer if over == Suit::Diamonds => {
-                    transfer_stayman_2d_responder()
+                    // gate_4333 = true: our 1NT overcalled, partner is balanced.
+                    transfer_stayman_2d_responder(true)
                 }
-                LebensohlStyle::Transfer => transfer_lebensohl_responder(over),
+                LebensohlStyle::Transfer => transfer_lebensohl_responder(over, true),
                 _ => lebensohl_responder(over),
             };
             fallback_all_seats(

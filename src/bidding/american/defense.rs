@@ -2276,8 +2276,11 @@ fn insert_advance_of_double(d: &mut Defensive, suit: Suit, opening: Bid, style: 
     // Advancer's first action shadows the floor (the builders end in a 0.0 Pass,
     // which covers the weak and penalty-pass hands).
     let advancer = match style {
-        LebensohlStyle::Transfer if suit == Suit::Diamonds => transfer_stayman_2d_responder(),
-        LebensohlStyle::Transfer => transfer_lebensohl_responder(suit),
+        // gate_4333 = false: advancing partner's takeout double — partner is short
+        // in their suit, so the 4-4 fit keeps its ruffing value (the 4333 curse does
+        // not apply here, and that A/B was never run).
+        LebensohlStyle::Transfer if suit == Suit::Diamonds => transfer_stayman_2d_responder(false),
+        LebensohlStyle::Transfer => transfer_lebensohl_responder(suit, false),
         _ => lebensohl_responder(suit),
     };
     insert_all_seats(d, &dbl_p, 3, advancer);
