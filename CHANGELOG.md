@@ -32,6 +32,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`examples/probe-nt-invite-eval` — does any hand evaluator beat raw HCP at the
+  1NT-response invite/force boundary, per responder shape?** A double-dummy screen
+  that deals boundary-band responders (7–10 HCP) opposite a 15–17 balanced opener,
+  splits them into the two shape classes that actually route differently —
+  **Stayman** (a four-card major, via `2♣`) and **no-4-major** (the `2♠`-invite vs
+  `3♣`-Puppet hand; a balanced hand with no four-card major always has a three-card
+  major) — and scores each action (pass `1NT` / invite / force) by DD, with the
+  misfit→notrump branch modelled. Each candidate evaluator (`points`, `fifths`,
+  `bumrap`, `cccc`, `controls`) is **rank-calibrated** to HCP's exact action
+  frequencies, so the IMP delta is a pure ranking test, not an aggression change.
+  Result (50 000 deals/class, both vulnerabilities): **raw HCP wins per shape
+  class** — every other evaluator is a wash or significantly worse. Suit/control
+  evaluators are markedly worse (`controls` −0.43 to −0.75 IMPs/board, `cccc` −0.06
+  to −0.23); `fifths`/`bumrap` are mildly-to-significantly worse (`fifths` −0.01 to
+  −0.04); `points` is a wash (it equals HCP on the balanced bulk, ≈0 on the shapely
+  Stayman hands). The faint "fifths helps the notrump hands" hint at small samples
+  **flipped to negative** at scale, refuting a shape-dependent evaluator. This
+  *confirms and extends* the existing note in `notrump.rs` ("deciding the 9 by Fifths
+  was measured worse"): HCP is best per-class, so the aggregate test was not masking
+  a hidden shape effect. No system change — the boundary stays on raw HCP.
+
 - **`set_competitive_4333(Competitive4333)` toggles the flat-4333 rule in
   competition** (`Allow` / `Suppress` / `SuppressWithStopper`; default `Suppress`).
   Gates whether a flat 4-3-3-3 still cue-Staymans when our 1NT is overcalled, or
