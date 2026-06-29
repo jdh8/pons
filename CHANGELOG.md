@@ -61,9 +61,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     (`set_stayman_both_majors`, **default on**; off-switch
     `bba-gen --no-ns-stayman-both-majors`): over 1NT-2♣ holding both majors and a
     *maximum* (16-17), jump to `2NT`; a minimum (15) bids `2♥` naturally.
-    Responder then names *their own* major — `3♣` = hearts, `3♦` = spades — and
+    Responder then names *their own longer* major — `3♣` = hearts, `3♦` = spades
+    (hearts on a 4-4 tie, the lower major leaving room to escape a double) — and
     opener completes (`3♥`/`3♠`), so the strong concealed hand declares the known
-    4-4 fit (right-siding) instead of responder declaring after a direct raise.
+    fit (right-siding) instead of responder declaring after a direct raise. Responder always holds a four-card major
+    (they bid Stayman), so the two relays tile every hand and need no catch-all.
     Responder raises the completion to game with invitational+ values, else passes
     the partscore. The `2NT`, the `3♣`/`3♦` relays, and the `3♥`/`3♠` completions
     are alerted (artificial) and auto-decoded by `project_authored`. The

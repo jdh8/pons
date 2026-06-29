@@ -437,17 +437,29 @@ fn stayman_answers_uncontested() -> Rules {
 /// Responder's relay over opener's max-both-majors `2NT`
 ///
 /// Opener has both four-card majors and a maximum, so responder names *their* own
-/// four-card major — `3♣` = hearts, `3♦` = spades — asking opener to bid it so the
-/// strong concealed hand declares (right-siding).  Both are alerted (artificial);
-/// the `3NT` catch-all covers the shape that cannot occur (responder bid Stayman,
-/// so always holds a major).  With both majors, `3♦` wins, placing spades.
+/// longer major — `3♣` = hearts, `3♦` = spades — asking opener to bid it so the
+/// strong concealed hand declares (right-siding).  Both are alerted (artificial).
+/// Responder bid Stayman, so always holds a four-card major; the two rules tile
+/// every hand, so no catch-all is needed.  A 4-4 tie goes to hearts (the lower
+/// major), keeping the most room to escape if an opponent doubles the relay.
 fn both_majors_max_responder() -> Rules {
     Rules::new()
-        .rule(Bid::new(3, Strain::Diamonds), 1.3, len(Suit::Spades, 4..))
+        .rule(
+            Bid::new(3, Strain::Diamonds),
+            1.0,
+            described("spades > hearts", |hand: Hand, _: &Context<'_>| {
+                hand[Suit::Spades].len() > hand[Suit::Hearts].len()
+            }),
+        )
         .alert(BOTH_MAJORS)
-        .rule(Bid::new(3, Strain::Clubs), 1.2, len(Suit::Hearts, 4..))
+        .rule(
+            Bid::new(3, Strain::Clubs),
+            1.0,
+            described("hearts ≥ spades", |hand: Hand, _: &Context<'_>| {
+                hand[Suit::Hearts].len() >= hand[Suit::Spades].len()
+            }),
+        )
         .alert(BOTH_MAJORS)
-        .rule(Bid::new(3, Strain::Notrump), 1.0, hcp(0..))
 }
 
 /// Opener's forced completion of the both-majors relay (right-siding)
