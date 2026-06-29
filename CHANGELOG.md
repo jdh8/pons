@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Auctions now display pass as `-` instead of `P`** so `X` (double) and `XX`
+  (redouble) stand out when scanning a bidding sequence. This rides on
+  `contract-bridge` 0.1.4 — the new `auction::display_calls` slice adapter and
+  `Auction`'s `Display`/serde now emit `-`; the `render-book` and `bba-score`
+  example renderers route through it. A lone `Call` and per-call serde arrays
+  (e.g. the `dump-corpus` `["1H","P"]`) still use `P`. Older auction strings/JSON
+  written with `P` still parse.
 - **South African Texas game floor lowered and re-gauged on `point_count + trump
   length`** (`set_texas_game_floor`, **default 14**, was a raw-HCP floor of 9). A
   6-card-major responder opposite our 1NT now blasts game (`4♣/4♦`) when its point

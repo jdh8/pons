@@ -58,13 +58,9 @@ struct Args {
     action: Option<String>,
 }
 
-/// Render an auction with leading passes kept, calls space-joined
+/// Render an auction with leading passes kept, calls space-joined (pass as `-`)
 fn show_auction(auction: &Auction) -> String {
-    auction
-        .iter()
-        .map(ToString::to_string)
-        .collect::<Vec<_>>()
-        .join(" ")
+    auction.to_string()
 }
 
 /// Short bucket label for a responder/defender call (`P`, `2♣`, `X`, …)

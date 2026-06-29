@@ -48,11 +48,7 @@ fn main() {
             let auction_str = if auction.is_empty() {
                 "—  (opening)".to_string()
             } else {
-                auction
-                    .iter()
-                    .map(|call| format!("{call}"))
-                    .collect::<Vec<_>>()
-                    .join(" ")
+                contract_bridge::auction::display_calls(&auction).to_string()
             };
             println!("\n{auction_str}");
 
