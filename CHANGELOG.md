@@ -36,6 +36,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the direct `4♥/4♠` slam try (15-18) and every other 1NT response are unchanged.
   No competition nodes were needed — the blast is a single jump to game, so there
   is no transfer-completion auction for the opponents to contest.
+- **Tightened dependency lower bounds to their real minimums** so a
+  minimal-version build resolves and compiles: `bitflags` `2` → `2.2.1`, `serde`
+  `1` → `1.0.225` (the `serde_core` facade split, needed by transitive
+  `serde_with`), and the dev-deps `anyhow` `1` → `1.0.98`, `clap` `4` → `4.5`,
+  `serde_json` `1` → `1.0.100`. The bare-major bounds were below what the code
+  actually needs; `cargo +nightly update -Z direct-minimal-versions` previously
+  failed to resolve (or built deps that no longer compile, e.g. `anyhow` 1.0.0).
+  A new `minimal-versions` CI job now guards this. *Impact:* none for normal
+  builds (the committed lockfile already pins newer versions); downstream
+  consumers using minimal-version selection are no longer broken.
 
 ### Added
 

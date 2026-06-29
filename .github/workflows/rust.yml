@@ -40,6 +40,23 @@ jobs:
         RUSTDOCFLAGS: -D warnings
       run: cargo doc --no-deps --all-features
 
+  # Guards against under-declared dependency floors: pins every direct
+  # dependency to its lowest allowed version and checks the build still
+  # compiles. Catches the "uses a newer API than the `= "1"` bound admits"
+  # class of bug. Nightly-only (the `-Z` flag).
+  minimal-versions:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v6
+      with:
+        submodules: true
+    - name: Install nightly
+      run: rustup toolchain install nightly --profile minimal && rustup default nightly
+    - name: Pin direct deps to their minimal versions
+      run: cargo update -Z direct-minimal-versions
+    - name: Check (all features, all targets)
+      run: cargo check --all-features --all-targets
+
   test:
     strategy:
       fail-fast: false
