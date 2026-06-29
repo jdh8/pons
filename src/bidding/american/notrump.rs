@@ -150,18 +150,20 @@ pub fn notrump_responses() -> Rules {
         // maximum — see [`slam_try_answer`]).  All four outrank the 2.0 Jacoby
         // transfers so the 6-card hand takes the four-level route; the `len(other
         // major, ..5)` guard keeps a 5-5+ two-suiter on the both-majors 3♦, and
-        // the `hcp` split routes game-no-slam to the transfer and slam-invitational
-        // (15–18) to the direct slam try.
+        // the strength gate ([`texas_strength_gate`]) routes game-no-slam to the
+        // blast (`point_count + length ≥ 14`, lowered from the inherited raw-HCP 9
+        // to capture the invitational 7-8 hands — see [`set_texas_game_floor`]) and
+        // slam-invitational (15–18) to the direct slam try.
         .rule(
             Bid::new(4, Strain::Clubs),
             2.5,
-            len(Suit::Hearts, 6..) & len(Suit::Spades, ..5) & hcp(9..=14),
+            len(Suit::Hearts, 6..) & len(Suit::Spades, ..5) & texas_strength_gate(Suit::Hearts),
         )
         .alert(TEXAS)
         .rule(
             Bid::new(4, Strain::Diamonds),
             2.5,
-            len(Suit::Spades, 6..) & len(Suit::Hearts, ..5) & hcp(9..=14),
+            len(Suit::Spades, 6..) & len(Suit::Hearts, ..5) & texas_strength_gate(Suit::Spades),
         )
         .alert(TEXAS)
         .rule(
@@ -584,6 +586,32 @@ thread_local! {
     /// rather than passing a doomed diamond partscore.  **On by default.**  See
     /// [`set_crawling_stayman`].
     static CRAWLING_STAYMAN: Cell<bool> = const { Cell::new(true) };
+    /// The `point_count + trump length` floor at which a 6-card-major responder
+    /// blasts game via South African Texas (`4♣/4♦`) instead of transferring at
+    /// the two level.  **Default 14** (a 6-bagger needs 8 points, a 7-bagger 7).
+    ///
+    /// The book inherited a *raw-HCP* floor of **9** verbatim from the old
+    /// transfer-then-game route (only the 15-18 slam edge was ever measured).  A
+    /// double-dummy screen (`probe-jacoby-invite-eval`) found that 7-8 HCP 6-card
+    /// hands score far better in `4M` than the partscore they stop in, that opener
+    /// should *never decline* (so an invite degenerates to a blast), and that the
+    /// `3M` invite-landing is a *worse* contract than `2M` at every strength (these
+    /// one-suiters make 8 or 10 tricks, rarely 9) — so the choice is binary,
+    /// pass-`2M` or blast-`4M`, with no invitational band.  At this *fit-rich*
+    /// boundary distribution is a real trick (the 6th trump, ruffs), so the screen
+    /// (experiments F/G) ranked `point_count + length` > CCCC > points > raw HCP
+    /// for the blast decision — unlike the no-fit invite line
+    /// (`probe-nt-invite-eval`) and the slam edge (`probe-texas-slam-eval`) where
+    /// honors dominate and HCP won.
+    ///
+    /// Paired A/Bs vs BBA (1.024M boards/arm, `--filter-1nt`): `point_count+len≥14`
+    /// over the old HCP-9 baseline measured **plain +0.0102/board vul none, +0.0171
+    /// both; PD +0.0082 / +0.0141**, and over a raw-HCP≥7 floor (the same
+    /// aggressiveness) **plain +0.0013 / +0.0018; PD +0.0014 / +0.0019** — every
+    /// regime a win, all 95% CI excl 0.  `14` matches the HCP≥7 blast rate while
+    /// promoting shapely sixes (a 6-4 makes the cut at a bare 6) and demoting
+    /// wasted-honor sevens.  See [`set_texas_game_floor`].
+    static TEXAS_GAME_FLOOR: Cell<u8> = const { Cell::new(14) };
 }
 
 /// Author garbage (drop-dead) Stayman for books built *after* this call
@@ -659,6 +687,38 @@ pub fn set_crawling_stayman(on: bool) {
 /// too, to widen the 2♣ point range it reads)
 pub(crate) fn crawling_stayman() -> bool {
     CRAWLING_STAYMAN.with(Cell::get)
+}
+
+/// Set the South African Texas game-blast floor on `point_count + trump length`
+/// (`4♣/4♦`) for books built *after* this call (thread-local; **default 14**).
+///
+/// Below this floor a 6-card-major hand transfers at the two level (and passes
+/// the partscore); at or above it, it jumps to game.  No explicit upper cap: the
+/// slam-try `4♥/4♠` (weight 2.6) outranks the game blast (2.5) for the 15-18
+/// band, so a slam-interested hand takes the direct slam try regardless.
+pub fn set_texas_game_floor(floor: u8) {
+    TEXAS_GAME_FLOOR.with(|cell| cell.set(floor));
+}
+
+/// The current South African Texas game-blast floor (`point_count + trump length`)
+fn texas_game_floor() -> usize {
+    usize::from(TEXAS_GAME_FLOOR.with(Cell::get))
+}
+
+/// The South African Texas game-blast strength gate for `major`:
+/// `point_count + trump length ≥ T` (default `T = 14`).
+///
+/// Point count plus the full suit length, so a longer trump suit needs fewer
+/// points: a 6-bagger blasts at 8 points, a 7-bagger at 7, an 8-bagger at 6.
+/// (This is the Stayman [`fit_value`] less its 4-4-fit baseline, which is
+/// meaningless for a one-suiter — here the whole suit is the trump length.)  The
+/// `len` guards (`6+` in `major`, `≤4` in the other) live with the rule; this is
+/// just the strength term.
+fn texas_strength_gate(major: Suit) -> Cons<impl Constraint + Clone> {
+    let floor = texas_game_floor();
+    described("six-card-major game blast", move |hand: Hand, _| {
+        usize::from(point_count(hand)) + hand[major].len() >= floor
+    })
 }
 
 /// Complete a Jacoby transfer by bidding the anchor suit
@@ -2160,7 +2220,8 @@ mod tests {
         let one_nt = [bid(1, Strain::Notrump), P];
         // 5♠4♥, a bare 8 (♠KQ + ♥Q + ♦J).
         let s5h4 = "KQ864.Q1043.J2.32";
-        // 6♠4♥, a bare 8 — must keep transferring even with the reroute on.
+        // 6♠4♥, a bare 8 — a six-card major, so it blasts game via Texas (4♦), not
+        // caught by the 5-4 Stayman reroute (which is scoped to five-card majors).
         let s6h4 = "KQ8642.QJ43.32.2";
         // 5♥4♠, a bare 8.
         let h5s4 = "Q1043.KQ864.J2.32";
@@ -2169,10 +2230,10 @@ mod tests {
 
         set_invitational_5card_majors(true);
 
-        // Routing: 5♠4♥/8 now Staymans; 6♠4♥/8 still takes the spade transfer (2♥);
-        // 5♥4♠/8 still takes the heart transfer (2♦).
+        // Routing: 5♠4♥/8 now Staymans; 6♠4♥/8 blasts game via Texas (4♦, a six-card
+        // major); 5♥4♠/8 still takes the heart transfer (2♦).
         assert_eq!(best(&one_nt, s5h4), bid(2, Strain::Clubs));
-        assert_eq!(best(&one_nt, s6h4), bid(2, Strain::Hearts));
+        assert_eq!(best(&one_nt, s6h4), bid(4, Strain::Diamonds));
         assert_eq!(best(&one_nt, h5s4), bid(2, Strain::Diamonds));
 
         // A: 1NT–2♣–2♦–2♠, non-forcing (opener denied a major).

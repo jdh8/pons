@@ -224,6 +224,13 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_crawling_stayman: bool,
 
+    /// point_count + trump length floor at which a 6-card-major responder blasts
+    /// game via South African Texas (4♣/4♦) instead of transferring at the two
+    /// level; default 14 (a 6-bagger needs 8 points, lowered from the inherited
+    /// raw-HCP 9).
+    #[arg(long, default_value_t = 14)]
+    ns_texas_game_floor: u8,
+
     /// Author our defense to the opponents' Jacoby transfers (`(1NT)-P-(2♦/2♥)`):
     /// X = lead-directing the bid suit, Michaels cue, natural overcalls (default
     /// off; opt-in A/B).
@@ -786,6 +793,7 @@ fn main() -> anyhow::Result<()> {
     pons::bidding::american::set_stayman_5card_max(!args.no_ns_stayman_5card_max);
     pons::bidding::american::set_invitational_5card_majors(!args.no_ns_invitational_5card_majors);
     pons::bidding::american::set_crawling_stayman(!args.no_ns_crawling_stayman);
+    pons::bidding::american::set_texas_game_floor(args.ns_texas_game_floor);
     pons::bidding::american::set_transfer_defense(args.ns_transfer_defense);
     pons::bidding::american::set_competition_over_minor_transfer(
         !args.no_ns_comp_over_minor_transfer,

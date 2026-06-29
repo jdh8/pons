@@ -7,6 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.10.0] — Unreleased
 
+### Changed
+
+- **South African Texas game floor lowered and re-gauged on `point_count + trump
+  length`** (`set_texas_game_floor`, **default 14**, was a raw-HCP floor of 9). A
+  6-card-major responder opposite our 1NT now blasts game (`4♣/4♦`) when its point
+  count plus suit length reaches 14 (a 6-bagger at 8 points, a 7-bagger at 7)
+  instead of needing ~9 HCP and otherwise transferring to a partscore. *Why:* the
+  old 9-HCP floor was inherited
+  verbatim from the pre-Texas transfer-then-game route and never measured at its
+  lower edge, leaving the invitational 7-8 HCP one-suiters stranded in 2M. A
+  double-dummy screen (`examples/probe-jacoby-invite-eval`) established three
+  things: (1) opposite a known 6-2+ fit opener should **never decline** an invite
+  (a 6-card suit is too much playing strength), so the "transfer then invite"
+  structure degenerates to a blast; (2) the would-be `3M` invite landing is a
+  *worse* contract than `2M` at every strength — these one-suiters make 8 or 10
+  tricks, rarely 9 — so the decision is binary, pass-`2M` or blast-`4M`, with no
+  invitational band; and (3) at this *fit-rich* boundary distribution is a real
+  trick (the 6th trump, ruffs), so a fit-adjusted gauge ranks the game hands
+  better than raw HCP — `fit_value` > CCCC > points > HCP — unlike the no-fit
+  invite line and the slam edge where honors dominate. Paired A/Bs vs BBA (1.024M
+  boards/arm, `--filter-1nt`): `fit_value≥10` over the old HCP-9 baseline measured
+  **plain +0.0102 IMPs/board vul none, +0.0171 both; PD +0.0082 / +0.0141**
+  (+2.4…+5.0 IMPs/fired), and over an interim raw-HCP≥7 floor of the same
+  aggressiveness **plain +0.0013 / +0.0018; PD +0.0014 / +0.0019** — every regime
+  a win, all 95% CIs exclude 0. *Impact:* a bare-7 6-card major (and a shapely
+  6-count, e.g. 6-4) now reaches game where it previously sold out to a partscore;
+  the direct `4♥/4♠` slam try (15-18) and every other 1NT response are unchanged.
+  No competition nodes were needed — the blast is a single jump to game, so there
+  is no transfer-completion auction for the opponents to contest.
+
+### Added
+
+- **`probe-jacoby-invite-eval` diagnostic example** — the double-dummy screen
+  behind the Texas floor change above. Buckets 6-card-major responders opposite a
+  15-17 1NT and reports: the responder pass/invite/blast cut by HCP (R/R2), the
+  opener accept-vs-decline sweep (O, which degenerates to "always accept"), and
+  the floor-evaluator comparison (F/G — `fit_value` > CCCC > points > raw HCP at
+  the 2M/4M boundary, +0.11/+0.18 IMPs/board over HCP at a matched blast rate).
+
 ### Fixed
 
 - **Fallback-authored conventions are now decoded under second-round
