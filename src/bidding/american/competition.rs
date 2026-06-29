@@ -2453,6 +2453,40 @@ pub fn competition() -> Competitive {
             Fallback::classify(stayman_answers()),
         );
 
+        // A.1c — opener's 2-level answer (2♦/2♥/2♠) doubled.  The double of the
+        // artificial answer steals no room (responder's escapes all sit above 2♦),
+        // so responder's rebids are systems-on: strip the X to a Pass and re-key onto
+        // the uncontested `[1NT, P, 2♣, P, <answer>, …]` tree.  This is the escape the
+        // invitational-5-4 reroute needs — a 5♠4♥ that Staymaned bids its 2♠ instead
+        // of sitting for a doubled 2♦ — and it also lets a 4-4 hand run to 2NT rather
+        // than passing the double out.  Suffix `[P, <2-bid>, X, …]`.
+        fallback_all_seats(
+            &mut book,
+            &stayman,
+            3,
+            Arc::new(guard(|_: &Context<'_>, s: &[Call]| {
+                s.first() == Some(&Call::Pass)
+                    && matches!(
+                        s.get(1),
+                        Some(Call::Bid(b))
+                            if b.level.get() == 2
+                                && matches!(
+                                    b.strain,
+                                    Strain::Diamonds | Strain::Hearts | Strain::Spades
+                                )
+                    )
+                    && s.get(2) == Some(&Call::Double)
+            })),
+            Fallback::rebase(rewriter(move |auction: &[Call], depth: usize| {
+                if auction.get(depth + 2) != Some(&Call::Double) {
+                    return None;
+                }
+                let mut rewritten = auction.to_vec();
+                rewritten[depth + 2] = Call::Pass; // strip the X → systems on
+                Some(rewritten)
+            })),
+        );
+
         // A.2 — our Stayman overcalled at the 2-level.  Opener's natural reply.
         for over in [Suit::Diamonds, Suit::Hearts, Suit::Spades] {
             let overcall = call(2, Strain::from(over));

@@ -75,6 +75,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     Known gap: with no `4NT`-quant over the `2NT` relay, a big responding hand
     signs off in game where the natural `2♥` auction could reach a quantitative
     slam (the `-11 IMP` tail) — a future add.
+- **Invitational 5-4 in the majors after 1NT** (`set_invitational_5card_majors`,
+  **on by default**; off-switch `bba-gen --no-ns-invitational-5card-majors`): a
+  deliberate, asymmetric structure for the one purely-invitational both-majors band
+  (a bare 8, since we force every 9 to game and 5-5 already has the `3♦` relay).
+  Previously every invitational 5-4 transferred to its five-card major and buried
+  the four-card one (the transfer-completion rebid was not even authored — the
+  floor invited). Paired same-deal A/B vs BBA (1.28M boards/arm, `--filter-1nt`,
+  vul none, 0.53% fired): **plain +0.375 IMPs/fired (+0.0020/board, 95% CI ±0.0004)
+  and PD +0.134/fired (+0.0007/board, 95% CI ±0.0005)**, both excluding 0 (a 640k
+  pilot agreed: +0.0022 / +0.0008).
+  Reaching that took a companion fix to a contested gap the reroute exposed (below):
+  a first cut without it was plain +0.0013 but a PD wash (−0.0001), because ~21 of
+  the fired boards walked a 5♠4♥ hand into a **doubled artificial 2♦ it passed out**
+  — the same doubled-passout pattern that sank "335" garbage Stayman, below.
+  Gated:
+  - **5♠4♥** keeps off the spade transfer (a 6+♠ suit and the weaker 5♠4♥ still
+    transfer) and bids Stayman, rebidding `2♠` over opener's `2♦` (non-forcing,
+    opener passes the partscore or accepts game) or over `2♥` (forcing,
+    invitational through slam — opener picks ♥/♠ and the level). With 5♠4♥ now
+    routed to `2♠`, the existing `1NT-2♣-2♥-3♠` slam try is capped to **deny five
+    spades**.
+  - **5♥4♠** transfers to hearts and, after the completion, rebids `2NT` (showing
+    the four spades) or an artificial `2♠` (a single-suited heart invite denying
+    them) — a Muppet-style swap (2NT shows the side suit, the cheaper relay denies
+    it) brought down to the two-level over 1NT. Both rebids are alerted and
+    auto-decoded by `project_authored`. Game-forcing 5-4 still uses Smolen.
+  - **Doubled-2♦ escape** (general — in `competition.rs`, gated by
+    `competition_over_stayman`, so flag-independent and present for the baseline
+    too). When an opponent doubles opener's *artificial* Stayman answer
+    (`1NT-2♣-(2♦/2♥/2♠)-(X)`), responder's rebids are now systems-on: strip the `X`
+    to a Pass and re-key onto the uncontested tree, so the 5♠4♥ runs to its real
+    `2♠` and a 4-4 invite to `2NT` instead of passing the artificial bid out
+    doubled. Alert-reading decodes the 2♦ for *inference*; it does not make the
+    keyless floor *escape*, which is why the authored rebase was needed.
 - **Tried and dropped: looser ("335") garbage Stayman.** A broke (0-4) hand with
   no four-card major but five diamonds and `3=3` majors escaping `1NT` via `2♣`
   (sound drop-dead — a 4-3 major or long-diamond fit on every answer, no pull

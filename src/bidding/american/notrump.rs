@@ -50,6 +50,11 @@ const TEXAS: Alert = Alert("texas");
 const SMOLEN: Alert = Alert("smolen");
 const SPLINTER: Alert = Alert("splinter");
 const SLAM_TRY: Alert = Alert("slam-try");
+/// Responder's invitational 5-4-majors rebid after a heart transfer (auctions C/D):
+/// `2♠` = single-suited heart invite (denies four spades), `2NT` = five hearts +
+/// four spades.  Both are artificial — `2♠` isn't spades, `2NT` pins the 4-card
+/// side suit — so the reader decodes them rather than reading natural.
+const INV_5CARD: Alert = Alert("inv-5card-major");
 
 thread_local! {
     /// The active 1NT minor-suit response variant, read once at book-construction
@@ -95,23 +100,37 @@ pub(crate) fn notrump_minors() -> Alert {
 /// invite, `3♣` = diamonds).
 #[must_use]
 pub fn notrump_responses() -> Rules {
-    Rules::new()
-        // Jacoby transfers — any strength, except a game-forcing 5-4 in the
-        // majors (the `hcp(..9)` arm denies it): that hand keeps off the transfer
-        // and takes the 2♣ Stayman/Smolen route, which right-sides game to the
-        // strong notrump.  A plain 5-3 still transfers.
+    // Jacoby transfers — any strength, except a game-forcing 5-4 in the majors
+    // (the `hcp(..9)` arm denies it): that hand keeps off the transfer and takes
+    // the 2♣ Stayman/Smolen route, which right-sides game to the strong notrump.
+    // A plain 5-3 still transfers.  2♦ (to hearts) is UNCHANGED by the reroute — a
+    // 5♥4♠ invite keeps transferring and shows the spades with a later 2NT/2♠.
+    let head = Rules::new()
         .rule(
             Bid::new(2, Strain::Diamonds),
             2.0,
             len(Suit::Hearts, 5..) & (len(Suit::Spades, ..4) | hcp(..9)),
         )
-        .alert(JACOBY)
-        .rule(
+        .alert(JACOBY);
+    // 2♥ (to spades): the invitational-5-4 reroute (gated) keeps a 5♠4♥ hand of
+    // invitational+ values OFF the transfer so it Staymans; a six-card spade suit
+    // (`len(♠,6..)`) and a weaker 5♠4♥ (`hcp(..8)`) still transfer.  Off the flag,
+    // the classic any-strength-but-GF-5-4 gate.
+    let head = if invitational_5card_majors() {
+        head.rule(
+            Bid::new(2, Strain::Hearts),
+            2.0,
+            len(Suit::Spades, 5..) & (len(Suit::Hearts, ..4) | hcp(..8) | len(Suit::Spades, 6..)),
+        )
+    } else {
+        head.rule(
             Bid::new(2, Strain::Hearts),
             2.0,
             len(Suit::Spades, 5..) & (len(Suit::Hearts, ..4) | hcp(..9)),
         )
-        .alert(JACOBY)
+    }
+    .alert(JACOBY);
+    head
         // Both-majors 3♦: 5+/5+ in the majors, invitational+.  Outranks the
         // transfers (2.0) so a 5-5 INV+ hand shows both suits in one bid rather
         // than transferring and rebidding; weaker 5-5s (below the `points` floor)
@@ -481,6 +500,16 @@ thread_local! {
     /// excl 0) and +3.33 PD, holding up at +1.47/+0.90 even with garbage on.  See
     /// [`set_stayman_5card_max`].
     static STAYMAN_5CARD_MAX: Cell<bool> = const { Cell::new(true) };
+    /// The invitational 5-4-majors structure: 5♠4♥ invites via Stayman (a 2♠ rebid
+    /// over opener's 2♦/2♥), 5♥4♠ via the heart transfer (`2NT` shows the spades,
+    /// `2♠` denies them).  **On by default** — a paired A/B vs BBA (1.28M boards/arm,
+    /// `--filter-1nt`, vul none) measured **+0.375 IMPs/fired plain (+0.0020/board,
+    /// 95% CI ±0.0004) and +0.134 PD (+0.0007/board, 95% CI ±0.0005)**, both excl 0.
+    /// The win needed the doubled-2♦ escape (`1NT-2♣-2♦-(X)` systems-on rebase in
+    /// `competition.rs`): without it the reroute walked 5♠4♥ into a doubled artificial
+    /// 2♦ it passed out, and PD was a wash (−0.0001).  Flipped per
+    /// [`set_invitational_5card_majors`].
+    static INVITATIONAL_5CARD_MAJORS: Cell<bool> = const { Cell::new(true) };
 }
 
 /// Author garbage (drop-dead) Stayman for books built *after* this call
@@ -520,6 +549,25 @@ fn stayman_both_majors() -> bool {
 /// Whether opener's max five-card-major jump is currently authored
 fn stayman_5card_max() -> bool {
     STAYMAN_5CARD_MAX.with(Cell::get)
+}
+
+/// Author the invitational 5-4-majors structure for books built *after* this call
+/// (thread-local; **off by default**).
+///
+/// 5♠4♥ at invitational+ values keeps off the spade transfer and bids Stayman,
+/// inviting with a 2♠ rebid over opener's 2♦ (non-forcing) or 2♥ (forcing); 5♥4♠
+/// transfers to hearts and rebids `2NT` (showing the four spades) or `2♠` (an
+/// artificial relay denying them).  A Muppet-style swap brought down to the
+/// two-level over 1NT — see CHANGELOG.
+pub fn set_invitational_5card_majors(on: bool) {
+    INVITATIONAL_5CARD_MAJORS.with(|cell| cell.set(on));
+}
+
+/// Whether the invitational 5-4-majors structure is currently authored (read at
+/// book construction to gate the reroute, the Stayman 2♠ rebids, and the
+/// heart-transfer invitational node)
+fn invitational_5card_majors() -> bool {
+    INVITATIONAL_5CARD_MAJORS.with(Cell::get)
 }
 
 /// Complete a Jacoby transfer by bidding the anchor suit
@@ -592,18 +640,51 @@ fn control_in(suit: Suit) -> Cons<impl Constraint + Clone> {
 fn stayman_major_rebid(major: Suit) -> Rules {
     let other = Strain::from(other_major(major));
     let strain = Strain::from(major);
-    Rules::new()
-        // Fit: artificial slam try / choice of game (balanced, or 16+).
+    // Invitational-5-4 reroute: when on and opener showed *hearts*, a 5♠4♥ hand has
+    // its own forcing `2♠` rebid (it Staymaned rather than transferring), so the
+    // heart raises and the `3♠` slam-try are capped at four spades — routing that
+    // hand to 2♠ and sharpening `3♠` into a balanced slam try that *denies* five
+    // spades.  Off the flag (or over a 2♠ answer, where 5♥4♠ transfers and never
+    // reaches here) the cap `len(♠,..14)` is a no-op.
+    let reroute = invitational_5card_majors() && major == Suit::Hearts;
+    let spade_cap = if reroute {
+        len(Suit::Spades, ..5)
+    } else {
+        len(Suit::Spades, ..14)
+    };
+    let mut rules = Rules::new();
+    if reroute {
+        // Forcing 5♠4♥, invitational through slam — opener picks ♥ (4-4) or ♠ (5-3)
+        // and the level (see `answer_inv_5card_both`).  Responder's four hearts is
+        // implied (it Staymaned, opener showed hearts), so `2♠` stays natural-spades
+        // — flooring only its own strain keeps it unalerted (the artificial-alert
+        // invariant); the spade-capped raises split off the ≤4-spade hands.
+        rules = rules.rule(
+            Bid::new(2, Strain::Spades),
+            1.3,
+            len(Suit::Spades, 5..) & hcp(8..),
+        );
+    }
+    rules
+        // Fit: artificial slam try / choice of game (balanced, or 16+); denies 5♠.
         .rule(
             Bid::new(3, other),
             1.4,
-            len(major, 4..) & hcp(9..) & (balanced() | hcp(16..)),
+            len(major, 4..) & hcp(9..) & (balanced() | hcp(16..)) & spade_cap.clone(),
         )
         .alert(SLAM_TRY)
         // Fit: sign off in the major game.
-        .rule(Bid::new(4, strain), 1.3, len(major, 4..) & hcp(9..))
+        .rule(
+            Bid::new(4, strain),
+            1.3,
+            len(major, 4..) & hcp(9..) & spade_cap.clone(),
+        )
         // Fit: invitational raise.
-        .rule(Bid::new(3, strain), 1.2, len(major, 4..) & hcp(8..=8))
+        .rule(
+            Bid::new(3, strain),
+            1.2,
+            len(major, 4..) & hcp(8..=8) & spade_cap.clone(),
+        )
         // No fit: quantitative 4NT (as if the 2♣ detour never happened).
         .rule(
             Bid::new(4, Strain::Notrump),
@@ -660,7 +741,7 @@ fn stayman_slam_try_answer(major: Suit) -> Rules {
 /// so the strong notrump hand declares.  Lacking 5–4, revert to notrump as if the
 /// 2♣ detour never happened — invite `2NT`, game `3NT`, quantitative `4NT`.
 fn stayman_no_major_rebid() -> Rules {
-    Rules::new()
+    let rules = Rules::new()
         .rule(
             Bid::new(3, Strain::Hearts),
             1.4,
@@ -675,7 +756,21 @@ fn stayman_no_major_rebid() -> Rules {
         .alert(SMOLEN)
         .rule(Bid::new(4, Strain::Notrump), 1.2, hcp(16..=17))
         .rule(Bid::new(3, Strain::Notrump), 1.0, hcp(9..))
-        .rule(Bid::new(2, Strain::Notrump), 1.0, hcp(8..=8))
+        .rule(Bid::new(2, Strain::Notrump), 1.0, hcp(8..=8));
+    if invitational_5card_majors() {
+        // 5♠4♥, non-forcing invitational: opener denied hearts, so name the
+        // five-card spade suit (natural, outranks the 2NT fallback).  Opener passes
+        // a minimum or raises to game (see `answer_inv_5card_spades`).  A 5♠4♥
+        // game-force jumped Smolen `3♥` above.  Responder's four hearts is implied
+        // (it Staymaned), so `2♠` floors only spades and stays unalerted natural.
+        rules.rule(
+            Bid::new(2, Strain::Spades),
+            1.1,
+            len(Suit::Spades, 5..) & hcp(8..=8),
+        )
+    } else {
+        rules
+    }
 }
 
 /// Opener completes Smolen by bidding game in responder's shown five-card major
@@ -727,6 +822,154 @@ fn accept_major_invitation(major: Suit) -> Rules {
     Rules::new()
         .rule(Bid::new(3, Strain::Notrump), 1.1, hcp(17..) & flat_4333())
         .rule(Bid::new(4, Strain::from(major)), 1.0, hcp(17..))
+        .rule(Call::Pass, 0.0, hcp(0..))
+}
+
+/// Opener's reply to the non-forcing `2♠` invite (`1NT–2♣–2♦–2♠`, auction A)
+///
+/// Responder is a bare-8 5♠4♥; opener denied both majors (so 2-3 spades).  With a
+/// maximum (17) accept game — `4♠` on three-card support, else `3NT`; a minimum
+/// passes the 5-2/5-3 spade partscore.
+fn answer_inv_5card_spades() -> Rules {
+    Rules::new()
+        .rule(
+            Bid::new(4, Strain::Spades),
+            1.2,
+            hcp(17..) & len(Suit::Spades, 3..),
+        )
+        .rule(
+            Bid::new(3, Strain::Notrump),
+            1.1,
+            hcp(17..) & len(Suit::Spades, ..3),
+        )
+        .rule(Call::Pass, 0.0, hcp(0..))
+}
+
+/// Opener's reply to the forcing `2♠` (`1NT–2♣–2♥–2♠`, auction B)
+///
+/// Responder is 5♠4♥, invitational through slam; opener has four hearts (so a 4-4
+/// heart fit at least) and may hold three spades (a 5-3 spade fit).  Prefer the
+/// spade fit when held.  A maximum (17) jumps to game; a minimum (15-16) signs the
+/// invite back at the three level for responder to pass (8) or raise (9+).  Slam
+/// past game is left to the floor's keycard/search.
+// ponytail: a flat min/max split; control-showing replies are the upgrade path.
+fn answer_inv_5card_both() -> Rules {
+    Rules::new()
+        .rule(
+            Bid::new(4, Strain::Spades),
+            1.3,
+            hcp(17..) & len(Suit::Spades, 3..),
+        )
+        .rule(
+            Bid::new(4, Strain::Hearts),
+            1.2,
+            hcp(17..) & len(Suit::Spades, ..3),
+        )
+        .rule(
+            Bid::new(3, Strain::Spades),
+            1.1,
+            hcp(..17) & len(Suit::Spades, 3..),
+        )
+        .rule(
+            Bid::new(3, Strain::Hearts),
+            1.0,
+            hcp(..17) & len(Suit::Spades, ..3),
+        )
+}
+
+/// Responder passes or raises opener's three-level invite-back (auction B min)
+///
+/// Opener declined to `3♥`/`3♠` (a minimum); responder passes the bare 8 or accepts
+/// game with 9+.
+// ponytail: 9+ always bids game — slam tries past 4M are left to the floor.
+fn inv_5card_raise(strain: Strain) -> Rules {
+    Rules::new()
+        .rule(Bid::new(4, strain), 1.0, hcp(9..))
+        .rule(Call::Pass, 0.0, hcp(0..))
+}
+
+/// Responder's invitational 5-4 rebid after the heart transfer completes
+/// (`1NT–2♦–2♥`, auctions C/D)
+///
+/// Both rebids are exactly-8 invitational with five hearts (shown by the
+/// transfer).  `2NT` adds a four-card spade suit (auction D); `2♠` is an artificial
+/// relay denying it (auction C, a single-suited heart invite).  Weaker and
+/// game-forcing hands match no rule and fall through to the floor's natural
+/// transfer continuations.
+fn transfer_heart_invite_rebid() -> Rules {
+    Rules::new()
+        .rule(
+            Bid::new(2, Strain::Notrump),
+            1.2,
+            len(Suit::Hearts, 5..) & len(Suit::Spades, 4..=4) & hcp(8..=8),
+        )
+        .alert(INV_5CARD)
+        .rule(
+            Bid::new(2, Strain::Spades),
+            1.2,
+            len(Suit::Hearts, 5..) & len(Suit::Spades, ..4) & hcp(8..=8),
+        )
+        .alert(INV_5CARD)
+}
+
+/// Opener's reply to the artificial single-suited-heart invite (`…2♥–2♠`, C)
+///
+/// Responder is a bare-8 with five hearts and no four-card spade suit.  A maximum
+/// (17) accepts game — `4♥` on three-card support, else `3NT`; a minimum signs off
+/// in `3♥` (5-3 fit) or `2NT` (no fit), which responder passes.
+fn answer_transfer_heart_single() -> Rules {
+    Rules::new()
+        .rule(
+            Bid::new(4, Strain::Hearts),
+            1.4,
+            hcp(17..) & len(Suit::Hearts, 3..),
+        )
+        .rule(
+            Bid::new(3, Strain::Notrump),
+            1.3,
+            hcp(17..) & len(Suit::Hearts, ..3),
+        )
+        .rule(
+            Bid::new(3, Strain::Hearts),
+            1.1,
+            hcp(..17) & len(Suit::Hearts, 3..),
+        )
+        .rule(Bid::new(2, Strain::Notrump), 0.0, hcp(0..))
+}
+
+/// Opener's reply to the `2NT` invite showing five hearts and four spades
+/// (`…2♥–2NT`, D)
+///
+/// Prefer the 5-3 heart fit, then the 4-4 spade fit, then notrump.  A maximum (17)
+/// bids game; a minimum signs off at the three level (or passes `2NT`), which
+/// responder — a bare 8 — passes.
+fn answer_transfer_heart_spade() -> Rules {
+    Rules::new()
+        .rule(
+            Bid::new(4, Strain::Hearts),
+            1.6,
+            hcp(17..) & len(Suit::Hearts, 3..),
+        )
+        .rule(
+            Bid::new(4, Strain::Spades),
+            1.5,
+            hcp(17..) & len(Suit::Hearts, ..3) & len(Suit::Spades, 4..),
+        )
+        .rule(
+            Bid::new(3, Strain::Notrump),
+            1.4,
+            hcp(17..) & len(Suit::Hearts, ..3) & len(Suit::Spades, ..4),
+        )
+        .rule(
+            Bid::new(3, Strain::Hearts),
+            1.2,
+            hcp(..17) & len(Suit::Hearts, 3..),
+        )
+        .rule(
+            Bid::new(3, Strain::Spades),
+            1.1,
+            hcp(..17) & len(Suit::Hearts, ..3) & len(Suit::Spades, 4..),
+        )
         .rule(Call::Pass, 0.0, hcp(0..))
 }
 
@@ -1265,6 +1508,52 @@ pub(super) fn register_one_nt(book: &mut Trie) {
         quantitative_answer(17),
     );
 
+    // --- Invitational 5-4 majors (gated; see `set_invitational_5card_majors`) ---
+    //
+    // 5♠4♥ Staymans and rebids `2♠` over opener's 2♦ (non-forcing) or 2♥ (forcing,
+    // through slam); 5♥4♠ transfers to hearts and rebids `2NT` (showing the spades)
+    // or an artificial `2♠` (denying them).  Opener's accept/decline is authored —
+    // the floor cannot decline an invitation — and the remaining tail (responder
+    // passing a chosen partscore) falls to the floor.
+    if invitational_5card_majors() {
+        // A: opener over the non-forcing 2♠ (1NT–2♣–2♦–2♠).
+        insert_uncontested(
+            book,
+            &[one_nt, two_c, two_d, two_s],
+            answer_inv_5card_spades(),
+        );
+        // B: opener over the forcing 2♠ (1NT–2♣–2♥–2♠), then responder's pass/raise
+        // of a minimum's three-level invite-back.
+        insert_uncontested(
+            book,
+            &[one_nt, two_c, two_h, two_s],
+            answer_inv_5card_both(),
+        );
+        insert_uncontested(
+            book,
+            &[one_nt, two_c, two_h, two_s, three_h],
+            inv_5card_raise(Strain::Hearts),
+        );
+        insert_uncontested(
+            book,
+            &[one_nt, two_c, two_h, two_s, three_s],
+            inv_5card_raise(Strain::Spades),
+        );
+        // C/D: responder's invitational rebid after the heart transfer, and opener's
+        // two replies (the single-suited `2♠` relay, and the 5♥4♠-showing `2NT`).
+        insert_uncontested(book, &[one_nt, two_d, two_h], transfer_heart_invite_rebid());
+        insert_uncontested(
+            book,
+            &[one_nt, two_d, two_h, two_s],
+            answer_transfer_heart_single(),
+        );
+        insert_uncontested(
+            book,
+            &[one_nt, two_d, two_h, two_nt],
+            answer_transfer_heart_spade(),
+        );
+    }
+
     // --- Opt-in max-showing overlays (both-majors min/max, max five-card jump) -
     //
     // Responder's placement over opener's artificial 2NT/3♣ (both four-card
@@ -1712,5 +2001,119 @@ mod tests {
         // With it off (the default), opener can never convert: answers Stayman 2♦.
         set_penalty_pass(None);
         assert_eq!(best(&over_dbl, opener), bid(2, Strain::Diamonds));
+    }
+
+    /// The gated invitational 5-4-majors structure, end to end: 5♠4♥ Staymans and
+    /// rebids 2♠; 5♥4♠ transfers and rebids 2NT (with spades) or 2♠ (without).
+    #[test]
+    fn invitational_five_four_majors() {
+        use crate::bidding::american::set_invitational_5card_majors;
+
+        let one_nt = [bid(1, Strain::Notrump), P];
+        // 5♠4♥, a bare 8 (♠KQ + ♥Q + ♦J).
+        let s5h4 = "KQ864.Q1043.J2.32";
+        // 6♠4♥, a bare 8 — must keep transferring even with the reroute on.
+        let s6h4 = "KQ8642.QJ43.32.2";
+        // 5♥4♠, a bare 8.
+        let h5s4 = "Q1043.KQ864.J2.32";
+        // 5 hearts, no four-card spade suit, a bare 8 (the single-suited invite).
+        let h5 = "Q3.KQ864.J32.432";
+
+        set_invitational_5card_majors(true);
+
+        // Routing: 5♠4♥/8 now Staymans; 6♠4♥/8 still takes the spade transfer (2♥);
+        // 5♥4♠/8 still takes the heart transfer (2♦).
+        assert_eq!(best(&one_nt, s5h4), bid(2, Strain::Clubs));
+        assert_eq!(best(&one_nt, s6h4), bid(2, Strain::Hearts));
+        assert_eq!(best(&one_nt, h5s4), bid(2, Strain::Diamonds));
+
+        // A: 1NT–2♣–2♦–2♠, non-forcing (opener denied a major).
+        let stayman_no_major = [
+            bid(1, Strain::Notrump),
+            P,
+            bid(2, Strain::Clubs),
+            P,
+            bid(2, Strain::Diamonds),
+            P,
+        ];
+        assert_eq!(best(&stayman_no_major, s5h4), bid(2, Strain::Spades));
+
+        // B: 1NT–2♣–2♥–2♠, forcing (opener showed hearts); opener with a maximum and
+        // three spades accepts in 4♠.
+        let stayman_hearts = [
+            bid(1, Strain::Notrump),
+            P,
+            bid(2, Strain::Clubs),
+            P,
+            bid(2, Strain::Hearts),
+            P,
+        ];
+        assert_eq!(best(&stayman_hearts, s5h4), bid(2, Strain::Spades));
+        let over_two_s = [
+            bid(1, Strain::Notrump),
+            P,
+            bid(2, Strain::Clubs),
+            P,
+            bid(2, Strain::Hearts),
+            P,
+            bid(2, Strain::Spades),
+            P,
+        ];
+        assert_eq!(
+            best(&over_two_s, "AK4.KQ32.A65.J32"),
+            bid(4, Strain::Spades)
+        );
+
+        // C/D: after the heart transfer completes, 5♥4♠ rebids 2NT; single-suited
+        // five hearts rebids the artificial 2♠.
+        let after_transfer = [
+            bid(1, Strain::Notrump),
+            P,
+            bid(2, Strain::Diamonds),
+            P,
+            bid(2, Strain::Hearts),
+            P,
+        ];
+        assert_eq!(best(&after_transfer, h5s4), bid(2, Strain::Notrump));
+        assert_eq!(best(&after_transfer, h5), bid(2, Strain::Spades));
+
+        // D opener: a maximum with three hearts accepts the 5♥4♠ invite in 4♥.
+        let over_two_nt = [
+            bid(1, Strain::Notrump),
+            P,
+            bid(2, Strain::Diamonds),
+            P,
+            bid(2, Strain::Hearts),
+            P,
+            bid(2, Strain::Notrump),
+            P,
+        ];
+        assert_eq!(
+            best(&over_two_nt, "AK2.A104.KQ32.J2"),
+            bid(4, Strain::Hearts)
+        );
+
+        // Doubled-2♦ escape: when an opponent doubles opener's artificial 2♦, the
+        // 5♠4♥ runs to its real 2♠ (systems on) instead of passing it out doubled.
+        let two_d_doubled = [
+            bid(1, Strain::Notrump),
+            P,
+            bid(2, Strain::Clubs),
+            P,
+            bid(2, Strain::Diamonds),
+            Call::Double,
+        ];
+        assert_eq!(best(&two_d_doubled, s5h4), bid(2, Strain::Spades));
+
+        // With the structure off, the same 5♠4♥/8 takes the spade transfer instead.
+        set_invitational_5card_majors(false);
+        assert_eq!(best(&one_nt, s5h4), bid(2, Strain::Hearts));
+        // The doubled-2♦ escape is general (competition-over-Stayman, not the flag):
+        // a 4-4 invite runs to 2NT rather than passing the artificial 2♦ doubled.
+        assert_eq!(
+            best(&two_d_doubled, "KQ32.Q943.J32.43"),
+            bid(2, Strain::Notrump)
+        );
+        set_invitational_5card_majors(true); // restore the default
     }
 }

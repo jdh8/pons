@@ -212,6 +212,12 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_stayman_5card_max: bool,
 
+    /// Disable the invitational 5-4-majors structure after 1NT (5♠4♥ Staymans and
+    /// rebids 2♠; 5♥4♠ transfers to hearts and rebids 2NT/2♠); on by default.
+    /// Off-switch for the A/B.
+    #[arg(long, default_value_t = false)]
+    no_ns_invitational_5card_majors: bool,
+
     /// Author our defense to the opponents' Jacoby transfers (`(1NT)-P-(2♦/2♥)`):
     /// X = lead-directing the bid suit, Michaels cue, natural overcalls (default
     /// off; opt-in A/B).
@@ -772,6 +778,7 @@ fn main() -> anyhow::Result<()> {
     pons::bidding::american::set_garbage_stayman(!args.no_ns_garbage_stayman);
     pons::bidding::american::set_stayman_both_majors(!args.no_ns_stayman_both_majors);
     pons::bidding::american::set_stayman_5card_max(!args.no_ns_stayman_5card_max);
+    pons::bidding::american::set_invitational_5card_majors(!args.no_ns_invitational_5card_majors);
     pons::bidding::american::set_transfer_defense(args.ns_transfer_defense);
     pons::bidding::american::set_competition_over_minor_transfer(
         !args.no_ns_comp_over_minor_transfer,
