@@ -233,9 +233,9 @@ struct Args {
 
     /// point_count + trump length floor at which a 6-card-major responder *invites*
     /// game (transfer, then jump to 3M) instead of resting in the two-level
-    /// partscore; default 14 == the blast floor, so the invitational band is empty
-    /// (off).  Set below the blast floor (e.g. 13) to enable the invite.
-    #[arg(long, default_value_t = 14)]
+    /// partscore; default 13 (on).  Raise to the blast floor (14) to empty the
+    /// invitational band and turn the invite off.
+    #[arg(long, default_value_t = 13)]
     ns_sixcard_invite_floor: u8,
 
     /// point_count + trump length at which opener accepts the six-card-major invite

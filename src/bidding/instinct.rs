@@ -2236,12 +2236,15 @@ mod tests {
 
     #[test]
     fn transfer_invite_reaches_the_floor_over_a_possible_five_two() {
-        // 1NT–2♦–2♥–3♥: partner transferred to hearts and raised, an off-book
-        // invitation.  The projection reads the 2♦ transfer's five-card floor (M6.1's
-        // core), but M6.2c dropped the old reader's six-card upgrade off the 3♥ raise
-        // (soundness over tightness — projecting a natural-suit raise is out of the
-        // overlay's artificial-only scope).  With only a five-card major shown and our
-        // own doubleton, the floor prefers 3NT over a possible 5-2 game.
+        // 1NT–2♦–2♥–3♥: partner transferred to hearts and raised.  With the six-card
+        // invite on (the default) this node is authored — so turn it off to exercise
+        // the floor path this test guards: the projection reads the 2♦ transfer's
+        // five-card floor (M6.1's core), but M6.2c dropped the old reader's six-card
+        // upgrade off the 3♥ raise (soundness over tightness — projecting a
+        // natural-suit raise is out of the overlay's artificial-only scope).  With
+        // only a five-card major shown and our own doubleton, the floor prefers 3NT
+        // over a possible 5-2 game.
+        crate::bidding::american::set_sixcard_invite_floor(14);
         let invite = [
             call(1, Strain::Notrump),
             Call::Pass,
@@ -2258,6 +2261,7 @@ mod tests {
             "the transfer invite is off-book, the floor decides"
         );
         assert_eq!(bid, call(3, Strain::Notrump));
+        crate::bidding::american::set_sixcard_invite_floor(13); // restore default
     }
 
     #[test]

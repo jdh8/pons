@@ -40,25 +40,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Six-card-major game invite** (`set_sixcard_invite_floor` /
-  `set_sixcard_accept_floor`, **opt-in, default off**). With a 6-card major just
-  *below* the Texas blast floor, responder transfers (`2♦`/`2♥`) and jumps to `3M`
-  — a natural game invite — and opener accepts `4M` on `point_count + trump length
-  ≥ 18` (a flat 15 with a doubleton declines, a 15 with three-card support or any
-  16+ accepts) or passes `3M`. The invitational band is `[invite floor, 14)`;
-  setting `set_sixcard_invite_floor(13)` opens it (the default 14 equals the blast
-  floor, leaving it empty). *Why opt-in:* this is the invitational band the Texas
-  change above deliberately left out, re-examined under realistic defense. A paired
-  A/B vs BBA (1.536M boards/arm, `--filter-1nt`, floor 13, accept floor 18; 1607
-  fired, 0.10%) measured **plain +0.619 IMPs/fired vul none, +1.820 both** (95% CIs
-  exclude 0) — but **PD −0.211 / +0.561**: perfect-defense doubling *erases* the
-  plain win at vul none. That is the 3-level tax made visible — the invite commits
-  to `3M` (its decline branch *is* `3M`, and the accepted games are thin), which
-  doubled at non-vul scoring costs more than the extra games found are worth, so
-  raising the accept floor cannot rescue it. It survives only vul-both, where game
-  bonuses pay the tax. Failing the "win every regime" bar the default-on features
-  meet, it ships off — available behind the knob, with the new
-  `examples/probe-jacoby-invite-eval` experiment I (`INVITE head-to-head`) showing
-  why double-dummy alone (+0.09 IMP/bd over a blast) couldn't decide it.
+  `set_sixcard_accept_floor`, **default on**). With a 6-card major just *below* the
+  Texas blast floor, responder transfers (`2♦`/`2♥`) and jumps to `3M` — a natural
+  game invite — and opener accepts `4M` on `point_count + trump length ≥ 18` (a flat
+  15 with a doubleton declines, a 15 with three-card support or any 16+ accepts) or
+  passes `3M`. The invitational band is `[13, 14)`; raise
+  `set_sixcard_invite_floor` to the blast floor (14) to empty the band and turn the
+  invite off. This is the invitational band the Texas change above deliberately left
+  out, restored as standard major-suit bidding. A paired A/B vs BBA (1.536M
+  boards/arm, `--filter-1nt`, floor 13, accept floor 18; 1607 fired, 0.10%) measured
+  **plain +0.619 IMPs/fired vul none, +1.820 both** (95% CIs exclude 0) and **PD
+  −0.211 / +0.561**: perfect-defense doubling trims the vul-none edge (the 3-level
+  tax — the decline branch rests in `3M`), but a 6-card-fit `3M` partscore is not
+  realistically doubled into a penalty at IMPs, so the PD-none figure overstates the
+  downside. Double-dummy can't price the invite's real edge anyway — the `3M` brake
+  on the thin games real defenders beat (`examples/probe-jacoby-invite-eval`
+  experiment I shows DD sees only +0.09 IMP/bd over a blast) — so the conventional
+  invite is kept on.
 - **`probe-jacoby-invite-eval` diagnostic example** — the double-dummy screen
   behind the Texas floor change above. Buckets 6-card-major responders opposite a
   15-17 1NT and reports: the responder pass/invite/blast cut by HCP (R/R2), the
