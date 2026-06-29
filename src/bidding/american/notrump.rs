@@ -1275,6 +1275,53 @@ fn answer_transfer_heart_spade() -> Rules {
         .rule(Call::Pass, 0.0, hcp(0..))
 }
 
+/// Responder's invitational single-suited 5-spade rebid after the spade transfer
+/// completes (`1NT–2♥–2♠`)
+///
+/// `2NT` shows five spades (the transfer), no four-card heart suit, and exactly-8
+/// invitational values.  Unlike the heart side — where `2NT` is taken by the 5♥4♠
+/// invite, forcing the single-suiter through an artificial `2♠` relay — here a 5♠4♥
+/// hand Staymans, so `2NT` is free.  It pins the five-card spade suit, so it carries
+/// the same `INV_5CARD` alert as its heart cousins (the alert reader decodes it);
+/// six-card and game-forcing hands match no rule and fall to the floor.
+fn transfer_spade_invite_rebid() -> Rules {
+    Rules::new()
+        .rule(
+            Bid::new(2, Strain::Notrump),
+            1.2,
+            len(Suit::Spades, 5..) & len(Suit::Hearts, ..4) & hcp(8..=8),
+        )
+        .alert(INV_5CARD)
+}
+
+/// Opener's reply to the single-suited-spade invite (`…2♠–2NT`)
+///
+/// Responder is a bare-8 with five spades and no four-card heart suit.  A maximum
+/// (17) accepts game — `4♠` on three-card support, else `3NT`; a minimum signs off
+/// in `3♠` (5-3 fit) or passes `2NT` (no fit), which responder passes.  The 5-3 fit
+/// out-scores 3NT even opposite a flat 4-3-3-3 maximum — responder's 5-3-3-2 always
+/// brings a ruffing doubleton — so there is no flat-4333→3NT carve here (cf.
+/// `accept_major_invitation`'s 4-4 case); see `examples/probe-fivecard-invite-eval`.
+fn answer_transfer_spade_single() -> Rules {
+    Rules::new()
+        .rule(
+            Bid::new(4, Strain::Spades),
+            1.4,
+            hcp(17..) & len(Suit::Spades, 3..),
+        )
+        .rule(
+            Bid::new(3, Strain::Notrump),
+            1.3,
+            hcp(17..) & len(Suit::Spades, ..3),
+        )
+        .rule(
+            Bid::new(3, Strain::Spades),
+            1.1,
+            hcp(..17) & len(Suit::Spades, 3..),
+        )
+        .rule(Call::Pass, 0.0, hcp(0..))
+}
+
 // ---------------------------------------------------------------------------
 // Puppet Stayman (1NT–3♣)
 // ---------------------------------------------------------------------------
@@ -1866,6 +1913,13 @@ pub(super) fn register_one_nt(book: &mut Trie) {
             &[one_nt, two_d, two_h, two_nt],
             answer_transfer_heart_spade(),
         );
+        // E: opener's reply to the single-suited spade invite (`1NT–2♥–2♠–2NT`); the
+        // responder rebid itself is inserted below, chained with the six-card invite.
+        insert_uncontested(
+            book,
+            &[one_nt, two_h, two_s, two_nt],
+            answer_transfer_spade_single(),
+        );
     }
 
     // --- Six-card-major game invite (gated; see `set_sixcard_invite_floor`) -----
@@ -1883,14 +1937,20 @@ pub(super) fn register_one_nt(book: &mut Trie) {
         heart_rebid = heart_rebid.chain(sixcard_invite_rebid(Suit::Hearts));
         insert_uncontested(book, &[one_nt, two_d, two_h], heart_rebid);
     }
+    // The spade-transfer rebid node carries the single-suited 5♠ invite (`2NT` — the
+    // spade mirror of the heart `2♠` relay; `2NT` is free here because 5♠4♥ Staymans)
+    // and the six-card spade invite (`3♠`), disjoint by strength — exactly like the
+    // heart node above.
+    if invitational_5card_majors() || sixcard_invite_active() {
+        let mut spade_rebid = Rules::new();
+        if invitational_5card_majors() {
+            spade_rebid = spade_rebid.chain(transfer_spade_invite_rebid());
+        }
+        spade_rebid = spade_rebid.chain(sixcard_invite_rebid(Suit::Spades));
+        insert_uncontested(book, &[one_nt, two_h, two_s], spade_rebid);
+    }
     if sixcard_invite_active() {
-        // The spade-transfer node has no 5-4 structure (those hands Stayman), so it
-        // is the invite alone.  Opener's accept/decline for both majors.
-        insert_uncontested(
-            book,
-            &[one_nt, two_h, two_s],
-            sixcard_invite_rebid(Suit::Spades),
-        );
+        // Opener's accept/decline of the six-card invite for both majors.
         insert_uncontested(
             book,
             &[one_nt, two_d, two_h, three_h],
@@ -2538,6 +2598,60 @@ mod tests {
             bid(2, Strain::Notrump)
         );
         set_invitational_5card_majors(true); // restore the default
+    }
+
+    /// The single-suited 5-spade invite: `1NT–2♥–2♠–2NT` (the spade mirror of the
+    /// heart `2♠` relay — `2NT` is free here since 5♠4♥ Staymans), with opener's
+    /// strength-and-fit placement (4♠ / 3NT / 3♠ / pass-2NT).
+    #[test]
+    fn single_suited_spade_invite() {
+        // 5 spades, no four-card heart, a bare 8 (♠KQ + ♥Q + ♦J): single-suited invite.
+        let s5 = "KQ864.Q3.J32.432";
+        let one_nt = [bid(1, Strain::Notrump), P];
+
+        // Transfers to spades (2♥), then rebids the 2NT invite over 2♠.
+        assert_eq!(best(&one_nt, s5), bid(2, Strain::Hearts));
+        let after_transfer = [
+            bid(1, Strain::Notrump),
+            P,
+            bid(2, Strain::Hearts),
+            P,
+            bid(2, Strain::Spades),
+            P,
+        ];
+        assert_eq!(best(&after_transfer, s5), bid(2, Strain::Notrump));
+        // A weak five-spade hand transfers and passes — it never invites with 2NT.
+        assert_ne!(
+            best(&after_transfer, "Q9864.32.J32.432"),
+            bid(2, Strain::Notrump)
+        );
+
+        // Opener over 1NT–2♥–2♠–2NT, by strength and spade support:
+        let over_invite = [
+            bid(1, Strain::Notrump),
+            P,
+            bid(2, Strain::Hearts),
+            P,
+            bid(2, Strain::Spades),
+            P,
+            bid(2, Strain::Notrump),
+            P,
+        ];
+        // max (17) + three spades → 4♠; max + doubleton → 3NT.
+        assert_eq!(
+            best(&over_invite, "AK3.K32.KQ32.Q32"),
+            bid(4, Strain::Spades)
+        );
+        assert_eq!(
+            best(&over_invite, "KQ.AK42.KQ32.432"),
+            bid(3, Strain::Notrump)
+        );
+        // min (16) + three spades → 3♠; min + doubleton → pass (rest in 2NT).
+        assert_eq!(
+            best(&over_invite, "AK3.Q32.KQ32.Q32"),
+            bid(3, Strain::Spades)
+        );
+        assert_eq!(best(&over_invite, "KQ.Q432.KQ32.A32"), P);
     }
 
     /// Crawling Stayman: 4-4 majors *short in diamonds* (4414/4405) Stayman and,

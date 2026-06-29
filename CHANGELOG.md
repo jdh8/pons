@@ -64,6 +64,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   floor-evaluator comparison (F/G — `fit_value` > CCCC > points > raw HCP at
   the 2M/4M boundary, +0.11/+0.18 IMPs/board over HCP at a matched blast rate), and
   the realistic-invite-vs-binary head-to-head (I).
+- **Single-suited 5-card-major invite completed for spades** (rides
+  `set_invitational_5card_majors`, **default on**). A responder with *exactly* five
+  spades, no four-card heart suit, and a bare-8 invitation now transfers (`2♥`) and
+  rebids `2NT` (`1NT–2♥–2♠–2NT`) — the spade mirror of the heart single-suiter's `2♠`
+  relay, using the free `2NT` step (5♠4♥ Staymans, so `2NT` is not needed for the 5-4
+  invite). Opener places the contract by strength and fit: a maximum bids `4♠` with
+  three-card support or `3NT` with a doubleton; a minimum rests in `3♠` (the 5-3 fit) or
+  passes `2NT`. This fills the one gap in the 5-card-major invite structure — 5♥
+  single-suited, 5♥4♠, and 5♠4♥ were already authored; the 5♠ single-suiter alone fell
+  to the floor. A double-dummy screen (`examples/probe-fivecard-invite-eval`) confirmed
+  the opener table and, notably, that the 5-3 fit out-scores `3NT` even opposite a flat
+  4-3-3-3 maximum (**+1.4/+1.6 IMPs** on those boards, 95% CIs exclude 0) — responder's
+  5-3-3-2 always brings a ruffing doubleton — so, unlike the 4-4 Stayman acceptance,
+  there is **no** flat-4333→`3NT` carve (the existing heart single-suiter, correctly, has
+  none either). A paired A/B vs BBA (two binaries, HEAD with vs without the node, same
+  seed, 4.096M boards/arm, `--filter-1nt`; 11880 fired, 0.29%) measured **plain +0.0006
+  IMPs/board vul none, +0.0021 both** (95% CIs exclude 0; +0.221 / +0.734 per fired) and
+  **PD −0.0002 / +0.0007**: the tiny PD-none dip is the standard constructive game-invite
+  artifact (perfect-defense doubling the thin invited games — the same shape as the
+  six-card invite, but milder, since the rest is a 1NT-level or `3♠` partscore), and a
+  24-26-HCP game is not realistically doubled at IMPs, so the convention stays on.
+  *Impact:* a bare-8 five-spade one-suiter now invites precisely instead of guessing
+  between a floored 2NT and an over-bid 3NT; `set_invitational_5card_majors(false)` turns
+  the whole 5-card structure off. The bid is alerted (`INV_5CARD`); every other 1NT
+  response is unchanged.
+- **`probe-fivecard-invite-eval` diagnostic example** — the double-dummy screen behind
+  the spade single-suiter's opener table. Buckets exactly-5 single-suited major
+  responders opposite a 15-17 1NT and reports opener's rebid by strength / support /
+  shape (O — settling the flat-4333 question above) and the responder invite band by
+  HCP (R).
 
 ### Fixed
 
