@@ -84,14 +84,17 @@ fn evals(hand: Hand, major: Suit, assured: usize) -> [f64; 4] {
 /// Responder-side evaluators for the *floor* (blast-4M vs pass-2M) decision: raw
 /// HCP, distribution `point_count`, a fit-adjusted `points + (trump len − 5)`
 /// (responder shows 6, so every card past a 5-bagger is a length trick), and
-/// Kaplan–Rubens CCCC (honor placement + shape, tuned for suit play).
-const RESP_EVAL_NAMES: [&str; 4] = ["HCP", "points", "fit_value", "CCCC"];
+/// Kaplan–Rubens CCCC (honor placement + shape, tuned for suit play).  The two
+/// `+len` columns add the same trump-length term so the gauge (`point_count` vs
+/// CCCC) is the only difference.
+const RESP_EVAL_NAMES: [&str; 4] = ["HCP", "pts+len", "CCCC", "CCCC+len"];
 
 fn resp_evals(hand: Hand, major: Suit) -> [f64; 4] {
     let hcp = f64::from(raw_hcp(hand));
     let pts = f64::from(point_count(hand));
+    let cccc = eval::cccc(hand);
     let excess = hand[major].len().saturating_sub(5) as f64;
-    [hcp, pts, pts + excess, eval::cccc(hand)]
+    [hcp, pts + excess, cccc, cccc + excess]
 }
 
 /// Rank-calibrate to a fixed count: the top `n_hi` values → action 1, rest 0.
@@ -412,7 +415,86 @@ fn main() {
         }
     }
 
+    // --- I: INVITE head-to-head.  The decisive test the others skip — does a
+    // *realistic* invite (responder bids 3M; opener accepts iff its
+    // `point_count + trumps-beyond-2` ≥ T*, else rests in 3M) beat the BINARY
+    // system's best (pass-2M or blast-4M) over a tight band?  Baseline = pass-2M
+    // (= 0).  blast = imps(4M − 2M).  invite = imps((accept?4M:3M) − 2M), T swept
+    // for the peak.  The invite pays the real 3M-down-1 tax (its rest is 3M, the
+    // binary's is 2M) yet routes the level decision to opener's known fit.  A band
+    // where invite > max(0, blast) with CI clearance is a home for 3M.
     println!(
-        "\n(O: IMP/bd is accept-rule vs always-pass-3M; oracle is the per-board ceiling.\n F: IMP/bd vs the HCP-calibrated control; * = 95% CI excludes 0, HCP row ≈ noise floor.\n G: best-threshold floor per evaluator; peak fit_value/CCCC over peak HCP = realisable gain.)"
+        "\n=== I. INVITE head-to-head (baseline pass-2M=0; opener accepts iff point_count+trump ≥ T*) ==="
+    );
+    let bands: [(&str, &dyn Fn(u8) -> bool); 8] = [
+        ("h=5", &|h| h == 5),
+        ("h=6", &|h| h == 6),
+        ("h=7", &|h| h == 7),
+        ("h=8", &|h| h == 8),
+        ("h=9", &|h| h == 9),
+        ("h=10", &|h| h == 10),
+        ("6-7", &|h| (6..=7).contains(&h)),
+        ("7-8", &|h| (7..=8).contains(&h)),
+    ];
+    for (vi, (vname, _)) in vuls.iter().enumerate() {
+        println!("  vul {vname}:");
+        println!(
+            "    {:<6} {:>6}  {:>16}  {:>26}  {:>6}",
+            "band", "n", "blast4M (IMP±CI)", "invite@T* (IMP±CI, T, acc%)", "winner"
+        );
+        for (bname, pred) in &bands {
+            let idx: Vec<usize> = (0..n).filter(|&d| pred(resp_hcp[d])).collect();
+            if idx.is_empty() {
+                continue;
+            }
+            let s = |d: usize| &scores[d][vi];
+            let blast_col: Vec<i64> = idx.iter().map(|&d| imps(s(d)[2] - s(d)[0])).collect();
+            let (bm, bc) = mean_ci(&blast_col);
+            // Sweep opener's fit_value (point_count + trumps beyond 2) for the peak.
+            let ovals: Vec<f64> = idx.iter().map(|&d| opener_evals[d][3]).collect();
+            let lo = ovals.iter().cloned().fold(f64::INFINITY, f64::min);
+            let hi = ovals.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+            let mut best = (f64::NEG_INFINITY, 0.0f64, 0.0f64, 0.0f64); // mean,T,ci,acc%
+            let mut t = lo;
+            while t <= hi + 0.001 {
+                let col: Vec<i64> = idx
+                    .iter()
+                    .map(|&d| {
+                        let contract = if opener_evals[d][3] >= t {
+                            s(d)[2]
+                        } else {
+                            s(d)[1]
+                        };
+                        imps(contract - s(d)[0])
+                    })
+                    .collect();
+                let acc = idx.iter().filter(|&&d| opener_evals[d][3] >= t).count() as f64
+                    / idx.len() as f64;
+                let (m, c) = mean_ci(&col);
+                if m > best.0 {
+                    best = (m, t, c, acc * 100.0);
+                }
+                t += 0.5;
+            }
+            let winner = if best.0 >= bm.max(0.0) {
+                "invite"
+            } else if bm >= 0.0 {
+                "blast"
+            } else {
+                "pass"
+            };
+            println!(
+                "    {bname:<6} {:>6}  {bm:>+8.3}±{bc:<7.3}  {:>+8.3}±{:<6.3} T={:<4.1} {:>5.1}  {winner}",
+                idx.len(),
+                best.0,
+                best.2,
+                best.1,
+                best.3
+            );
+        }
+    }
+
+    println!(
+        "\n(O: IMP/bd is accept-rule vs always-pass-3M; oracle is the per-board ceiling.\n F: IMP/bd vs the HCP-calibrated control; * = 95% CI excludes 0, HCP row ≈ noise floor.\n G: best-threshold floor per evaluator; peak fit_value/CCCC over peak HCP = realisable gain.\n I: realistic invite vs binary pass-2M(=0)/blast-4M; invite-wins band with CI clearance = a home for 3M.)"
     );
 }

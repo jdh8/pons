@@ -612,6 +612,37 @@ thread_local! {
     /// promoting shapely sixes (a 6-4 makes the cut at a bare 6) and demoting
     /// wasted-honor sevens.  See [`set_texas_game_floor`].
     static TEXAS_GAME_FLOOR: Cell<u8> = const { Cell::new(14) };
+    /// The `point_count + trump length` floor at which a six-card-major responder
+    /// *invites* game — transfer at the two level, then jump to `3M` — instead of
+    /// resting in the passed two-level partscore.  **Default 14**, which equals
+    /// [`TEXAS_GAME_FLOOR`] and so leaves the invitational band `[floor, 14)`
+    /// empty: the invite is *off* by default.  Lower it (e.g. 13) to route the
+    /// just-below-blast hands through a `3M` invite; opener then accepts on
+    /// [`SIXCARD_ACCEPT_FLOOR`].
+    ///
+    /// Off by default because realistic defense doesn't robustly reward it.  The
+    /// `probe-jacoby-invite-eval` head-to-head (experiment I) found a *realistic*
+    /// invite (opener deciding on `point_count + trump length`) beats a plain blast
+    /// by only ≈+0.09 IMP/bd at the one band it helps (responder ~6 HCP) and is
+    /// *identical* to blasting at 7+ HCP (the optimal opener threshold accepts every
+    /// hand) — so double-dummy can't see its only real edge, the `3M` brake on the
+    /// games real defenders beat.  A paired A/B vs BBA (1.536M boards/arm,
+    /// `--filter-1nt`, floor 13 over the default-off 14, accept floor 18; 1607 fired,
+    /// 0.10%) settled it: **plain +0.619 IMPs/fired vul none, +1.820 both (CI excl
+    /// 0); but PD −0.211 / +0.561** — perfect-defense doubling *erases* the plain
+    /// win at vul none.  That is the 3-level tax under real defense: the invite's
+    /// decline branch rests in `3M` (and the accepted games are thin), which doubled
+    /// at non-vul scoring costs more than the extra games are worth, so raising the
+    /// accept floor can't rescue it.  It survives only vul-both, where game bonuses
+    /// pay the tax.  Failing the "win every regime" bar, it stays opt-in.
+    static SIXCARD_INVITE_FLOOR: Cell<u8> = const { Cell::new(14) };
+    /// Opener's accept floor for the six-card-major invite (`…3M → 4M`) on
+    /// `point_count + trump length`; below it opener passes `3M`.  **Default 18**:
+    /// a flat 15 with a doubleton in the major (15 + 2) declines, a 15 with
+    /// three-card support (15 + 3) or any 16+ accepts — the ≈15% decline the
+    /// probe's opener sweep found optimal.  Consulted only when the invite is on
+    /// ([`SIXCARD_INVITE_FLOOR`] < [`TEXAS_GAME_FLOOR`]).
+    static SIXCARD_ACCEPT_FLOOR: Cell<u8> = const { Cell::new(18) };
 }
 
 /// Author garbage (drop-dead) Stayman for books built *after* this call
@@ -721,6 +752,39 @@ fn texas_strength_gate(major: Suit) -> Cons<impl Constraint + Clone> {
     })
 }
 
+/// Set the six-card-major game-*invite* floor on `point_count + trump length` for
+/// books built *after* this call (thread-local; **default 14 = off**).
+///
+/// At or above [`set_texas_game_floor`]'s value the band is empty (no invite); set
+/// it below (e.g. 13) to route the just-below-blast hands through a `3M` invite
+/// instead of a passed two-level partscore.
+pub fn set_sixcard_invite_floor(floor: u8) {
+    SIXCARD_INVITE_FLOOR.with(|cell| cell.set(floor));
+}
+
+/// Set opener's accept floor for the six-card-major invite (`…3M → 4M`) on
+/// `point_count + trump length` for books built *after* this call (thread-local;
+/// **default 18**).
+pub fn set_sixcard_accept_floor(floor: u8) {
+    SIXCARD_ACCEPT_FLOOR.with(|cell| cell.set(floor));
+}
+
+/// The current six-card-major game-invite floor (`point_count + trump length`)
+fn sixcard_invite_floor() -> usize {
+    usize::from(SIXCARD_INVITE_FLOOR.with(Cell::get))
+}
+
+/// Opener's current accept floor for the six-card-major invite
+fn sixcard_accept_floor() -> usize {
+    usize::from(SIXCARD_ACCEPT_FLOOR.with(Cell::get))
+}
+
+/// Whether the six-card-major invite is authored: its floor sits below the Texas
+/// game-blast floor, so the invitational band `[invite, blast)` is non-empty.
+fn sixcard_invite_active() -> bool {
+    sixcard_invite_floor() < texas_game_floor()
+}
+
 /// Complete a Jacoby transfer by bidding the anchor suit
 ///
 /// With four-card support and a maximum opener instead jumps to the three-level
@@ -746,6 +810,52 @@ pub(super) fn complete_transfer(into: Suit) -> Rules {
 /// opener simply names the game and declares.
 fn complete_texas(into: Suit) -> Rules {
     Rules::new().rule(Bid::new(4, Strain::from(into)), 1.0, hcp(0..))
+}
+
+/// Responder's invitational jump after a Jacoby transfer completes, holding a
+/// six-card major just below the Texas game-blast floor (`1NT–2♦–2♥–3♥` /
+/// `1NT–2♥–2♠–3♠`)
+///
+/// A natural invitational raise of responder's own suit: 6+ in `major`, ≤4 in the
+/// other, and `point_count + length` at or above the invite floor.  No upper
+/// bound is needed — the blast hands (`≥ 14`) jumped straight to `4♣/4♦` and never
+/// transferred, so only the `[invite, 14)` band reaches here.  Opener then accepts
+/// game or passes `3M` ([`accept_sixcard_invitation`]).  Empty unless the invite
+/// is on ([`set_sixcard_invite_floor`]).  Natural — floors only its own strain, so
+/// it stays unalerted (the artificial-alert invariant).
+fn sixcard_invite_rebid(major: Suit) -> Rules {
+    if !sixcard_invite_active() {
+        return Rules::new();
+    }
+    let floor = sixcard_invite_floor();
+    Rules::new().rule(
+        Bid::new(3, Strain::from(major)),
+        1.3,
+        len(major, 6..)
+            & len(other_major(major), ..5)
+            & described("six-card invitational value", move |hand: Hand, _| {
+                usize::from(point_count(hand)) + hand[major].len() >= floor
+            }),
+    )
+}
+
+/// Opener's accept/decline of the six-card-major game invite (`…3M`)
+///
+/// Accept (`4M`) when `point_count + trump length` reaches
+/// [`set_sixcard_accept_floor`]'s value (default 18); otherwise pass `3M`.
+/// Authored because the keyless floor reads a three-level raise as forcing and so
+/// could not decline.
+fn accept_sixcard_invitation(major: Suit) -> Rules {
+    let floor = sixcard_accept_floor();
+    Rules::new()
+        .rule(
+            Bid::new(4, Strain::from(major)),
+            1.0,
+            described("accept six-card invite", move |hand: Hand, _| {
+                usize::from(point_count(hand)) + hand[major].len() >= floor
+            }),
+        )
+        .rule(Call::Pass, 0.0, hcp(0..))
 }
 
 /// Opener's answer to a direct four-of-a-major slam try (`1NT–4♥/4♠`)
@@ -1747,9 +1857,10 @@ pub(super) fn register_one_nt(book: &mut Trie) {
             &[one_nt, two_c, two_h, two_s, three_s],
             inv_5card_raise(Strain::Spades),
         );
-        // C/D: responder's invitational rebid after the heart transfer, and opener's
-        // two replies (the single-suited `2♠` relay, and the 5♥4♠-showing `2NT`).
-        insert_uncontested(book, &[one_nt, two_d, two_h], transfer_heart_invite_rebid());
+        // C/D: opener's two replies to responder's invitational heart-transfer
+        // rebid (the single-suited `2♠` relay, and the 5♥4♠-showing `2NT`).  The
+        // responder rebid itself is inserted below, chained with the six-card
+        // invite (both share the `1NT–2♦–2♥` node).
         insert_uncontested(
             book,
             &[one_nt, two_d, two_h, two_s],
@@ -1759,6 +1870,41 @@ pub(super) fn register_one_nt(book: &mut Trie) {
             book,
             &[one_nt, two_d, two_h, two_nt],
             answer_transfer_heart_spade(),
+        );
+    }
+
+    // --- Six-card-major game invite (gated; see `set_sixcard_invite_floor`) -----
+    //
+    // Just below the Texas blast floor, responder transfers and jumps to `3M` (a
+    // natural invite); opener accepts game or passes `3M` on `point_count + trump
+    // length`.  The heart responder node coexists with the 5-4 structure's `2♠`/`2NT`
+    // relays — disjoint by HCP (an 8-count 6-bagger has `point_count + length ≥ 14`
+    // and blasts `4♣`, never transferring), so the node chains both features.
+    if invitational_5card_majors() || sixcard_invite_active() {
+        let mut heart_rebid = Rules::new();
+        if invitational_5card_majors() {
+            heart_rebid = heart_rebid.chain(transfer_heart_invite_rebid());
+        }
+        heart_rebid = heart_rebid.chain(sixcard_invite_rebid(Suit::Hearts));
+        insert_uncontested(book, &[one_nt, two_d, two_h], heart_rebid);
+    }
+    if sixcard_invite_active() {
+        // The spade-transfer node has no 5-4 structure (those hands Stayman), so it
+        // is the invite alone.  Opener's accept/decline for both majors.
+        insert_uncontested(
+            book,
+            &[one_nt, two_h, two_s],
+            sixcard_invite_rebid(Suit::Spades),
+        );
+        insert_uncontested(
+            book,
+            &[one_nt, two_d, two_h, three_h],
+            accept_sixcard_invitation(Suit::Hearts),
+        );
+        insert_uncontested(
+            book,
+            &[one_nt, two_h, two_s, three_s],
+            accept_sixcard_invitation(Suit::Spades),
         );
     }
 
@@ -2111,6 +2257,79 @@ mod tests {
             best(&over_answer, "KQ3.AK3.AQ54.J92"),
             bid(6, Strain::Hearts)
         );
+    }
+
+    /// The opt-in six-card-major game invite: just below the Texas blast floor,
+    /// responder transfers and jumps to `3M`; opener accepts game or passes `3M`
+    /// on `point_count + trump length`.
+    #[test]
+    fn sixcard_major_invite() {
+        use crate::bidding::american::{set_sixcard_invite_floor, set_texas_game_floor};
+
+        let one_nt = [bid(1, Strain::Notrump), P];
+        // 6 hearts, ♥KQ + ♠J = 6 HCP, 6-3-2-2: point_count 7 (+1 unbalanced),
+        // point_count + length = 13 — one below the blast floor (14), so it invites.
+        let inv = "J43.KQ8765.32.32";
+        // 6 hearts, ♥KQ only = 5 HCP, point_count 6, sum 12 — too weak to invite.
+        let weak = "543.KQ8765.32.32";
+
+        // Off by default (floor 14 == blast floor): the invite hand transfers and
+        // the floor handles the rebid — no authored 3♥ invite.
+        set_sixcard_invite_floor(14);
+        let after_transfer = [
+            bid(1, Strain::Notrump),
+            P,
+            bid(2, Strain::Diamonds),
+            P,
+            bid(2, Strain::Hearts),
+            P,
+        ];
+        assert_ne!(best(&after_transfer, inv), bid(3, Strain::Hearts));
+
+        // On (floor 13): the invite hand transfers (2♦) then jumps to 3♥; the weak
+        // hand stays out of the invite.
+        set_sixcard_invite_floor(13);
+        assert_eq!(best(&one_nt, inv), bid(2, Strain::Diamonds));
+        assert_eq!(best(&after_transfer, inv), bid(3, Strain::Hearts));
+        assert_ne!(best(&after_transfer, weak), bid(3, Strain::Hearts));
+
+        // Opener over 1NT–2♦–2♥–3♥: accept (4♥) on point_count + trump length ≥ 18,
+        // else pass.  16 with a doubleton (16+2) accepts; a flat 15 with a doubleton
+        // (15+2 = 17) passes; a 15 with three-card support (15+3) accepts.
+        let over_invite = [
+            bid(1, Strain::Notrump),
+            P,
+            bid(2, Strain::Diamonds),
+            P,
+            bid(2, Strain::Hearts),
+            P,
+            bid(3, Strain::Hearts),
+            P,
+        ];
+        assert_eq!(
+            best(&over_invite, "AK5.32.AQ74.K963"),
+            bid(4, Strain::Hearts)
+        ); // 16, ♥xx
+        assert_eq!(best(&over_invite, "AK5.32.AQ74.Q963"), P); // 15, ♥xx
+        assert_eq!(
+            best(&over_invite, "AK5.432.AQ7.Q963"),
+            bid(4, Strain::Hearts)
+        ); // 15, ♥xxx
+
+        // Spade side: 6 spades, ♠KQ + ♥J = 6 HCP transfers (2♥) then jumps to 3♠.
+        let spade_inv = "KQ8765.J43.32.32";
+        assert_eq!(best(&one_nt, spade_inv), bid(2, Strain::Hearts));
+        let after_spade = [
+            bid(1, Strain::Notrump),
+            P,
+            bid(2, Strain::Hearts),
+            P,
+            bid(2, Strain::Spades),
+            P,
+        ];
+        assert_eq!(best(&after_spade, spade_inv), bid(3, Strain::Spades));
+
+        set_sixcard_invite_floor(14); // restore the default (off)
     }
 
     /// Over a natural (2♣) overcall of our 1NT we play *systems on*, not

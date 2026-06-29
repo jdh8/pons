@@ -108,8 +108,9 @@ pub(crate) use defense::{
 };
 pub use notrump::{
     EUROPEAN, PUPPET, notrump_responses, set_crawling_stayman, set_garbage_stayman,
-    set_invitational_5card_majors, set_notrump_minors, set_stayman_5card_max,
-    set_stayman_both_majors, set_texas_game_floor, set_transfer_super_accept,
+    set_invitational_5card_majors, set_notrump_minors, set_sixcard_accept_floor,
+    set_sixcard_invite_floor, set_stayman_5card_max, set_stayman_both_majors, set_texas_game_floor,
+    set_transfer_super_accept,
 };
 pub(crate) use notrump::{crawling_stayman, garbage_stayman, notrump_minors};
 pub use openings::{

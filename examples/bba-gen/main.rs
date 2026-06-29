@@ -231,6 +231,18 @@ struct Args {
     #[arg(long, default_value_t = 14)]
     ns_texas_game_floor: u8,
 
+    /// point_count + trump length floor at which a 6-card-major responder *invites*
+    /// game (transfer, then jump to 3M) instead of resting in the two-level
+    /// partscore; default 14 == the blast floor, so the invitational band is empty
+    /// (off).  Set below the blast floor (e.g. 13) to enable the invite.
+    #[arg(long, default_value_t = 14)]
+    ns_sixcard_invite_floor: u8,
+
+    /// point_count + trump length at which opener accepts the six-card-major invite
+    /// (…3M → 4M), else passes 3M; default 18.
+    #[arg(long, default_value_t = 18)]
+    ns_sixcard_accept_floor: u8,
+
     /// Author our defense to the opponents' Jacoby transfers (`(1NT)-P-(2♦/2♥)`):
     /// X = lead-directing the bid suit, Michaels cue, natural overcalls (default
     /// off; opt-in A/B).
@@ -794,6 +806,8 @@ fn main() -> anyhow::Result<()> {
     pons::bidding::american::set_invitational_5card_majors(!args.no_ns_invitational_5card_majors);
     pons::bidding::american::set_crawling_stayman(!args.no_ns_crawling_stayman);
     pons::bidding::american::set_texas_game_floor(args.ns_texas_game_floor);
+    pons::bidding::american::set_sixcard_invite_floor(args.ns_sixcard_invite_floor);
+    pons::bidding::american::set_sixcard_accept_floor(args.ns_sixcard_accept_floor);
     pons::bidding::american::set_transfer_defense(args.ns_transfer_defense);
     pons::bidding::american::set_competition_over_minor_transfer(
         !args.no_ns_comp_over_minor_transfer,
