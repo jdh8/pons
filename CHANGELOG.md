@@ -66,8 +66,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     opener completes (`3♥`/`3♠`), so the strong concealed hand declares the known
     fit (right-siding) instead of responder declaring after a direct raise. Responder always holds a four-card major
     (they bid Stayman), so the two relays tile every hand and need no catch-all.
-    Responder raises the completion to game with invitational+ values, else passes
-    the partscore. The `2NT`, the `3♣`/`3♦` relays, and the `3♥`/`3♠` completions
+    Responder then places game: because opener's maximum and the major fit are
+    both known, the invite is pre-accepted, so game goes when
+    `point_count + extra trumps + a fit in the other major ≥ 8` — shape counts now
+    the trump suit is agreed, a fifth trump (the 9-card fit) adds a point, and four
+    in the unnamed major is a *knowable* second 4-4 fit (opener showed both) worth
+    another — else responder passes the partscore. The `2NT`, the `3♣`/`3♦`
+    relays, and the `3♥`/`3♠` completions
     are alerted (artificial) and auto-decoded by `project_authored`. The
     right-siding is the win the earlier strength-step scheme lacked — it is
     **DD-positive in every regime**: **+2.18 IMPs/fired plain (+0.0035/board, 95%

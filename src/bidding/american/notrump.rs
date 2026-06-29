@@ -15,7 +15,7 @@
 
 use super::{call, insert_uncontested, slam};
 use crate::bidding::constraint::{
-    Cons, Constraint, balanced, described, hcp, len, points, stopper_in,
+    Cons, Constraint, balanced, described, hcp, len, point_count, points, stopper_in,
 };
 use crate::bidding::{Alert, Context, Rules, Trie};
 use contract_bridge::auction::Call;
@@ -474,10 +474,29 @@ fn both_majors_relay_complete(major: Suit) -> Rules {
 
 /// Responder places game over opener's right-siding completion
 ///
-/// The 4-4 fit and opener's maximum (17) are known; bid game with invitational+
-/// values, else pass opener's three-level completion (the floor's settle).
+/// Opener's maximum (16-17) and the major fit are both known, so the invite is
+/// pre-accepted: bid game when the agreed fit is worth it, else pass the
+/// three-level completion (the floor's settle).  The fit is gauged as
+/// `points + extra trumps + a fit in the other major`: shape counts now the
+/// trump suit is agreed, a fifth trump (the 9-card fit) adds a point, and — since
+/// opener showed *both* four-card majors — four in the unnamed major is a known
+/// second 4-4 fit worth another.  A flat single 4-4 still needs a full eight; a
+/// 5-4 or a double fit reaches game a king lighter.  A bare `points(6..)` on the
+/// fifth trump alone overbid the 5-3-3-2 nothing hands this gate now passes.
 fn both_majors_relay_placement(major: Suit) -> Rules {
-    Rules::new().rule(Bid::new(4, Strain::from(major)), 1.3, hcp(8..))
+    let other = match major {
+        Suit::Spades => Suit::Hearts,
+        _ => Suit::Spades,
+    };
+    Rules::new().rule(
+        Bid::new(4, Strain::from(major)),
+        1.3,
+        described("game values for the agreed major", move |hand: Hand, _| {
+            let extra_trumps = hand[major].len().saturating_sub(4);
+            let double_fit = usize::from(hand[other].len() >= 4);
+            usize::from(point_count(hand)) + extra_trumps + double_fit >= 8
+        }),
+    )
 }
 
 /// Responder's placement over opener's max five-card-major jump (`3♥`/`3♠`)
@@ -2305,5 +2324,34 @@ mod tests {
         set_crawling_stayman(false);
         assert_eq!(best(&one_nt, h4414), P);
         set_crawling_stayman(true); // restore the default
+    }
+
+    #[test]
+    fn both_majors_relay_game_placement() {
+        // 1NT–2♣–2NT (max, both majors) –3♣ (responder names hearts) –3♥: responder
+        // places game on `point_count + extra trumps + a fit in the other major`.
+        let relay = [
+            bid(1, Strain::Notrump),
+            P,
+            bid(2, Strain::Clubs),
+            P,
+            bid(2, Strain::Notrump),
+            P,
+            bid(3, Strain::Clubs),
+            P,
+            bid(3, Strain::Hearts),
+            P,
+        ];
+
+        // Double 4-4 fit: a flat 7 reaches game (7 + 0 + 1 = 8) — the second major
+        // fit is knowable because opener showed both majors.
+        assert_eq!(best(&relay, "KQ54.J932.654.J2"), bid(4, Strain::Hearts));
+        // Single 8-card fit, 8 HCP: the pre-accepted invite bids game (8 + 0 + 0).
+        assert_eq!(best(&relay, "K32.A654.J432.32"), bid(4, Strain::Hearts));
+        // Single 9-card fit, a 5-3-3-2 6-count: 6 + 1 + 0 = 7 — passes. This is the
+        // hand a bare `points(6..)` on the fifth trump overbid into game.
+        assert_eq!(best(&relay, "Q32.KJ954.762.32"), P);
+        // Single 8-card fit, only 7 HCP: 7 + 0 + 0 = 7 — passes the partscore.
+        assert_eq!(best(&relay, "K32.QJ54.J432.32"), P);
     }
 }
