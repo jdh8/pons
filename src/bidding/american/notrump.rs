@@ -492,11 +492,21 @@ fn both_majors_relay_placement(major: Suit) -> Rules {
         Bid::new(4, Strain::from(major)),
         1.3,
         described("game values for the agreed major", move |hand: Hand, _| {
-            let extra_trumps = hand[major].len().saturating_sub(4);
             let double_fit = usize::from(hand[other].len() >= 4);
-            usize::from(point_count(hand)) + extra_trumps + double_fit >= 8
+            fit_value(hand, major) + double_fit >= 8
         }),
     )
+}
+
+/// Responder's trump-length-adjusted value for a known `major` fit
+///
+/// Point count plus one per trump beyond the eighth — the ninth and tenth
+/// trump are worth a point apiece now the suit is agreed.  No double-fit term:
+/// at a plain Stayman answer opener showed only the one major, so a second fit
+/// is unknowable.  ([`both_majors_relay_placement`] adds it back where opener
+/// *did* show both majors.)
+fn fit_value(hand: Hand, major: Suit) -> usize {
+    usize::from(point_count(hand)) + hand[major].len().saturating_sub(4)
 }
 
 /// Responder's placement over opener's max five-card-major jump (`3♥`/`3♠`)
@@ -713,11 +723,12 @@ fn control_in(suit: Suit) -> Cons<impl Constraint + Clone> {
 
 /// Responder's rebid after opener answers Stayman with a major (`2♥`/`2♠`)
 ///
-/// With a fit (four cards in opener's `major`): an invitational raise (`3M`),
-/// game (`4M`), or — balanced, or slam-interested — the *other* major (`3OM`) as
-/// an artificial slam try / choice of game.  Without a fit, the auction reverts
-/// to notrump exactly as over a bare 1NT — invite `2NT`, game `3NT`, and the
-/// quantitative `4NT` (16–17) — "ignore the 2♣ detour".
+/// With a fit (four cards in opener's `major`): an invitational raise (`3M`) on
+/// a flat eight, game (`4M`) on any upgrade past it (a ninth trump or working
+/// shape — see [`fit_value`]), or — balanced, or slam-interested — the *other*
+/// major (`3OM`) as an artificial slam try / choice of game.  Without a fit, the
+/// auction reverts to notrump exactly as over a bare 1NT — invite `2NT`, game
+/// `3NT`, and the quantitative `4NT` (16–17) — "ignore the 2♣ detour".
 fn stayman_major_rebid(major: Suit) -> Rules {
     let other = Strain::from(other_major(major));
     let strain = Strain::from(major);
@@ -754,17 +765,26 @@ fn stayman_major_rebid(major: Suit) -> Rules {
             len(major, 4..) & hcp(9..) & (balanced() | hcp(16..)) & spade_cap.clone(),
         )
         .alert(SLAM_TRY)
-        // Fit: sign off in the major game.
+        // Fit: sign off in the major game — any upgrade past a flat eight (a ninth
+        // trump, or working shape) commits to game opposite the 15-17 opener.
         .rule(
             Bid::new(4, strain),
             1.3,
-            len(major, 4..) & hcp(9..) & spade_cap.clone(),
+            len(major, 4..)
+                & described("game value for the fit", move |hand: Hand, _| {
+                    fit_value(hand, major) >= 9
+                })
+                & spade_cap.clone(),
         )
-        // Fit: invitational raise.
+        // Fit: invitational raise — a flat eight, four-card fit, no upgrade.
         .rule(
             Bid::new(3, strain),
             1.2,
-            len(major, 4..) & hcp(8..=8) & spade_cap.clone(),
+            len(major, 4..)
+                & described("invitational value for the fit", move |hand: Hand, _| {
+                    fit_value(hand, major) == 8
+                })
+                & spade_cap.clone(),
         )
         // No fit: quantitative 4NT (as if the 2♣ detour never happened).
         .rule(
@@ -2353,5 +2373,27 @@ mod tests {
         assert_eq!(best(&relay, "Q32.KJ954.762.32"), P);
         // Single 8-card fit, only 7 HCP: 7 + 0 + 0 = 7 — passes the partscore.
         assert_eq!(best(&relay, "K32.QJ54.J432.32"), P);
+    }
+
+    #[test]
+    fn stayman_fit_raise_by_value() {
+        // 1NT–2♣–2♥ (opener's four-card major): responder raises on `fit_value`,
+        // not raw HCP — any upgrade past a flat eight reaches game.
+        let stayman = [
+            bid(1, Strain::Notrump),
+            P,
+            bid(2, Strain::Clubs),
+            P,
+            bid(2, Strain::Hearts),
+            P,
+        ];
+
+        // Flat 4-3-3-3 eight, four-card fit, no upgrade: invitational raise (value 8).
+        assert_eq!(best(&stayman, "K32.Q654.K32.432"), bid(3, Strain::Hearts));
+        // 4-4-4-1 eight with a working singleton: the shape upgrades to value 9, so
+        // the same eight now bids game instead of merely inviting.
+        assert_eq!(best(&stayman, "Q543.K654.K432.2"), bid(4, Strain::Hearts));
+        // Flat 4-3-3-3 seven: value 7, below the invite — passes the partscore.
+        assert_eq!(best(&stayman, "K32.Q654.Q32.432"), P);
     }
 }

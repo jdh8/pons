@@ -486,6 +486,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Responder raises opener's Stayman major on adjusted points, not raw HCP.**
+  After `1NT-2♣-2M` with a fit, the invite-versus-game choice now runs through a
+  shared `notrump::fit_value` — point count plus a point for each trump past the
+  eighth (the ninth and tenth trump, worth a trick apiece once the suit is
+  agreed). A flat eight (4-3-3-3, no ruffing value) still only invites (`3M`);
+  *any upgrade past it* now bids game (`4M`) opposite the 15-17 opener — a
+  working singleton or void (`point_count` already lifts a 4-4-4-1 eight to nine)
+  or a fifth trump. Previously both raised on raw `hcp` alone, so the shapely
+  eight under-bid the flat one. `fit_value` also backs the both-majors relay
+  placement (which adds the *knowable* second-major fit on top). Paired same-deal
+  A/B vs BBA (128k boards/arm, `--filter-1nt`, vul none, 0.09% fired):
+  **plain +1.874 IMPs/fired (+0.0016/board, 95% CI ±0.0008) and PD +1.523/fired
+  (+0.0013/board, 95% CI ±0.0009)**, both excluding 0.
 - **Responder no longer uses any form of Stayman with a flat 4-3-3-3.** Per
   [Pavlicek's statistics](https://www.rpbridge.net/8j05.htm), a `(4333)` hand plays
   better in 3NT than in a major-suit game even with a 4-4 (or 5-3) fit — flat, it
