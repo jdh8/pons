@@ -219,6 +219,8 @@ pub fn notrump_responses() -> Rules {
         // Garbage Stayman (opt-in): a weak 2♣ to escape 1NT.  Same STAYMAN alert,
         // so it survives the minor-scheme gate (which only drops dormant minors).
         .chain(garbage_stayman_rule())
+        // Crawling Stayman (superset of garbage): 4-4 majors short in diamonds.
+        .chain(crawling_stayman_rule())
         .gated(move |alert| alert != dormant_minors())
 }
 
@@ -261,6 +263,30 @@ fn garbage_stayman_rule() -> Rules {
                 & len(Suit::Diamonds, 4..)
                 & hcp(5..8)
                 & !flat_4333(),
+        )
+        .alert(STAYMAN)
+}
+
+/// Crawling Stayman: a weak 2♣ on 4-4 majors *short in diamonds* (4414/4405)
+///
+/// The shapes garbage Stayman cannot escape — with ≤1 diamond, passing opener's
+/// 2♦ would land in a singleton/void.  Crawling bids 2♣ anyway and crawls 2♦ to
+/// 2♥ (see [`stayman_no_major_rebid`]).  4-4 majors with ≤1 diamond forces ≥4
+/// clubs, so the 2♥ pass-or-correct (and opener's 3♣ flee) always finds a fit.
+/// Weak only (`hcp(..8)`), disjoint from constructive 2♣ and the garbage tiers
+/// (which need 3+ diamonds).  Same STAYMAN alert.  Empty when off.
+fn crawling_stayman_rule() -> Rules {
+    if !crawling_stayman() {
+        return Rules::new();
+    }
+    Rules::new()
+        .rule(
+            Bid::new(2, Strain::Clubs),
+            1.5,
+            len(Suit::Hearts, 4..=4)
+                & len(Suit::Spades, 4..=4)
+                & len(Suit::Diamonds, ..=1)
+                & hcp(..8),
         )
         .alert(STAYMAN)
 }
@@ -510,6 +536,13 @@ thread_local! {
     /// 2♦ it passed out, and PD was a wash (−0.0001).  Flipped per
     /// [`set_invitational_5card_majors`].
     static INVITATIONAL_5CARD_MAJORS: Cell<bool> = const { Cell::new(true) };
+    /// Crawling Stayman: the superset of garbage Stayman for 4-4 majors *short in
+    /// diamonds* (4414/4405).  Garbage needs a safe 2♦ landing (3+ diamonds), so it
+    /// cannot escape with a singleton/void diamond; crawling bids 2♣ anyway and, if
+    /// opener denies a major (2♦), *crawls* to 2♥ — both majors, pass-or-correct —
+    /// rather than passing a doomed diamond partscore.  **On by default.**  See
+    /// [`set_crawling_stayman`].
+    static CRAWLING_STAYMAN: Cell<bool> = const { Cell::new(true) };
 }
 
 /// Author garbage (drop-dead) Stayman for books built *after* this call
@@ -568,6 +601,23 @@ pub fn set_invitational_5card_majors(on: bool) {
 /// heart-transfer invitational node)
 fn invitational_5card_majors() -> bool {
     INVITATIONAL_5CARD_MAJORS.with(Cell::get)
+}
+
+/// Author Crawling Stayman for books built *after* this call (thread-local; **on
+/// by default**).
+///
+/// A weak 4-4-majors hand short in diamonds (4414/4405) bids 2♣ and, over opener's
+/// 2♦ denial, crawls to 2♥ (pass-or-correct between the majors).  The strict
+/// superset of garbage Stayman, which cannot escape such hands (it passes 2♦, a
+/// singleton/void diamond "fit").
+pub fn set_crawling_stayman(on: bool) {
+    CRAWLING_STAYMAN.with(|cell| cell.set(on));
+}
+
+/// Whether Crawling Stayman is currently authored (read by the inference engine
+/// too, to widen the 2♣ point range it reads)
+pub(crate) fn crawling_stayman() -> bool {
+    CRAWLING_STAYMAN.with(Cell::get)
 }
 
 /// Complete a Jacoby transfer by bidding the anchor suit
@@ -757,6 +807,21 @@ fn stayman_no_major_rebid() -> Rules {
         .rule(Bid::new(4, Strain::Notrump), 1.2, hcp(16..=17))
         .rule(Bid::new(3, Strain::Notrump), 1.0, hcp(9..))
         .rule(Bid::new(2, Strain::Notrump), 1.0, hcp(8..=8));
+    let rules = if crawling_stayman() {
+        // Crawling Stayman: 4-4 majors short in diamonds (a bare 2♥, weak) — both
+        // majors, pass-or-correct (see `answer_crawling_stayman`).  Gated by the
+        // diamond shortness (≤1) that brought it here: garbage hands have 3+
+        // diamonds and pass 2♦ instead.  Responder's four spades is implied by the
+        // crawling 2♣, so 2♥ floors only hearts and stays unalerted natural (like
+        // the 2♠ sibling).  Disjoint from every rule above (all need hcp ≥8).
+        rules.rule(
+            Bid::new(2, Strain::Hearts),
+            1.4,
+            len(Suit::Hearts, 4..) & len(Suit::Diamonds, ..=1) & hcp(..8),
+        )
+    } else {
+        rules
+    };
     if invitational_5card_majors() {
         // 5♠4♥, non-forcing invitational: opener denied hearts, so name the
         // five-card spade suit (natural, outranks the 2NT fallback).  Opener passes
@@ -823,6 +888,27 @@ fn accept_major_invitation(major: Suit) -> Rules {
         .rule(Bid::new(3, Strain::Notrump), 1.1, hcp(17..) & flat_4333())
         .rule(Bid::new(4, Strain::from(major)), 1.0, hcp(17..))
         .rule(Call::Pass, 0.0, hcp(0..))
+}
+
+/// Opener's reply to the crawl (`1NT–2♣–2♦–2♥`): drop-dead pass-or-correct
+///
+/// Opener denied both majors (≤3 each).  Pass the 4-3 heart fit; with only two
+/// hearts correct to 2♠ (then ≥3 spades).  Short in *both* majors — only a
+/// 5-card-minor 1NT can be 2-2 — flee to 3♣: responder is club-heavy (4414/4405),
+/// so it is an 8-9 card fit, far better than a 4-2 major.
+fn answer_crawling_stayman() -> Rules {
+    Rules::new()
+        .rule(
+            Bid::new(3, Strain::Clubs),
+            1.0,
+            len(Suit::Hearts, ..3) & len(Suit::Spades, ..3),
+        )
+        .rule(
+            Bid::new(2, Strain::Spades),
+            1.0,
+            len(Suit::Hearts, ..3) & len(Suit::Spades, 3..),
+        )
+        .rule(Call::Pass, 0.0, len(Suit::Hearts, 3..))
 }
 
 /// Opener's reply to the non-forcing `2♠` invite (`1NT–2♣–2♦–2♠`, auction A)
@@ -1508,6 +1594,17 @@ pub(super) fn register_one_nt(book: &mut Trie) {
         quantitative_answer(17),
     );
 
+    // Crawling Stayman: opener's pass-or-correct reply to the 2♥ crawl
+    // (`1NT–2♣–2♦–2♥`).  The doubled tail `1NT–2♣–2♦–(X)–2♥` is systems-on via the
+    // rebase in `competition.rs`.
+    if crawling_stayman() {
+        insert_uncontested(
+            book,
+            &[one_nt, two_c, two_d, two_h],
+            answer_crawling_stayman(),
+        );
+    }
+
     // --- Invitational 5-4 majors (gated; see `set_invitational_5card_majors`) ---
     //
     // 5♠4♥ Staymans and rebids `2♠` over opener's 2♦ (non-forcing) or 2♥ (forcing,
@@ -2115,5 +2212,86 @@ mod tests {
             bid(2, Strain::Notrump)
         );
         set_invitational_5card_majors(true); // restore the default
+    }
+
+    /// Crawling Stayman: 4-4 majors *short in diamonds* (4414/4405) Stayman and,
+    /// over opener's 2♦ denial, crawl to 2♥ — opener passes (heart fit), corrects
+    /// to 2♠ (spade fit), or flees to 3♣ (no major fit, a 5-card-minor 1NT).
+    #[test]
+    fn crawling_stayman_escape() {
+        use crate::bidding::american::set_crawling_stayman;
+
+        let one_nt = [bid(1, Strain::Notrump), P];
+        // 4414, a weak 5-count (♠QJ + ♥Q): garbage cannot escape it (one diamond).
+        let h4414 = "QJ32.Q1043.4.T543";
+        // 4405, a weak 5-count, void diamonds.
+        let h4405 = "QJ32.Q1043..T9432";
+
+        set_crawling_stayman(true);
+
+        // Both short-diamond 4-4 hands bid 2♣ (crawling), unlike garbage Stayman.
+        assert_eq!(best(&one_nt, h4414), bid(2, Strain::Clubs));
+        assert_eq!(best(&one_nt, h4405), bid(2, Strain::Clubs));
+
+        // Over opener's 2♦ denial, crawl to 2♥ (both majors, pass-or-correct).
+        let two_d = [
+            bid(1, Strain::Notrump),
+            P,
+            bid(2, Strain::Clubs),
+            P,
+            bid(2, Strain::Diamonds),
+            P,
+        ];
+        assert_eq!(best(&two_d, h4414), bid(2, Strain::Hearts));
+        assert_eq!(best(&two_d, h4405), bid(2, Strain::Hearts));
+
+        // Opener's reply to the crawl (1NT–2♣–2♦–2♥): three hearts pass the 4-3
+        // fit; two hearts/three spades correct to 2♠; short in both majors with a
+        // five-card minor flee to 3♣ (an 8-9 card club fit — responder is short
+        // diamonds, hence long clubs).
+        let crawl = [
+            bid(1, Strain::Notrump),
+            P,
+            bid(2, Strain::Clubs),
+            P,
+            bid(2, Strain::Diamonds),
+            P,
+            bid(2, Strain::Hearts),
+            P,
+        ];
+        assert_eq!(best(&crawl, "A32.K43.KQ32.A52"), P); // 3-3 majors → pass 2♥
+        assert_eq!(best(&crawl, "K43.A2.KQ32.A432"), bid(2, Strain::Spades)); // 3-2 → 2♠
+        assert_eq!(best(&crawl, "K2.A2.KJ43.AJ432"), bid(3, Strain::Clubs)); // 2-2-4-5 → 3♣
+
+        // Doubled tail (1NT–2♣–2♦–(X)–2♥) is systems-on via the competition rebase:
+        // responder still crawls to 2♥, and opener still corrects (2♠ shown here).
+        let two_d_doubled = [
+            bid(1, Strain::Notrump),
+            P,
+            bid(2, Strain::Clubs),
+            P,
+            bid(2, Strain::Diamonds),
+            Call::Double,
+        ];
+        assert_eq!(best(&two_d_doubled, h4414), bid(2, Strain::Hearts));
+        let crawl_doubled = [
+            bid(1, Strain::Notrump),
+            P,
+            bid(2, Strain::Clubs),
+            P,
+            bid(2, Strain::Diamonds),
+            Call::Double,
+            bid(2, Strain::Hearts),
+            P,
+        ];
+        assert_eq!(
+            best(&crawl_doubled, "K43.A2.KQ32.A432"),
+            bid(2, Strain::Spades)
+        );
+
+        // With crawling off, the weak short-diamond 4-4 has no escape and passes.
+        set_crawling_stayman(false);
+        assert_eq!(best(&one_nt, h4414), P);
+        set_crawling_stayman(true); // restore the default
     }
 }

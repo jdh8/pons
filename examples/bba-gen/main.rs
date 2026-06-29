@@ -218,6 +218,12 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_invitational_5card_majors: bool,
 
+    /// Disable Crawling Stayman (superset of garbage: 4-4 majors short in diamonds
+    /// — 4414/4405 — bid 2♣ and crawl opener's 2♦ to 2♥, pass-or-correct); on by
+    /// default. Off-switch for the A/B.
+    #[arg(long, default_value_t = false)]
+    no_ns_crawling_stayman: bool,
+
     /// Author our defense to the opponents' Jacoby transfers (`(1NT)-P-(2♦/2♥)`):
     /// X = lead-directing the bid suit, Michaels cue, natural overcalls (default
     /// off; opt-in A/B).
@@ -779,6 +785,7 @@ fn main() -> anyhow::Result<()> {
     pons::bidding::american::set_stayman_both_majors(!args.no_ns_stayman_both_majors);
     pons::bidding::american::set_stayman_5card_max(!args.no_ns_stayman_5card_max);
     pons::bidding::american::set_invitational_5card_majors(!args.no_ns_invitational_5card_majors);
+    pons::bidding::american::set_crawling_stayman(!args.no_ns_crawling_stayman);
     pons::bidding::american::set_transfer_defense(args.ns_transfer_defense);
     pons::bidding::american::set_competition_over_minor_transfer(
         !args.no_ns_comp_over_minor_transfer,

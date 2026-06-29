@@ -109,6 +109,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     `2♠` and a 4-4 invite to `2NT` instead of passing the artificial bid out
     doubled. Alert-reading decodes the 2♦ for *inference*; it does not make the
     keyless floor *escape*, which is why the authored rebase was needed.
+- **Crawling Stayman** (`set_crawling_stayman`, **on by default**; off-switch
+  `bba-gen --no-ns-crawling-stayman`): the strict superset of garbage Stayman for
+  the 4-4-majors hands garbage *cannot* escape — those short in diamonds
+  (`4=4=1=4` / `4=4=0=5`). Garbage needs a safe `2♦` landing (3+ diamonds), so a
+  singleton/void diamond would sit doubled in a misfit; crawling bids `2♣` anyway
+  and, over opener's `2♦` denial, *crawls* to `2♥` — both majors, pass-or-correct.
+  Opener passes with three hearts (a 4-3 fit), corrects to `2♠` with only two
+  (then ≥3 spades), or — short in *both* majors, which only a five-card-minor 1NT
+  can be (the 5422-minor open) — flees to `3♣`, an 8-9 card club fit since a
+  short-diamond 4-4 is necessarily club-heavy. The `2♣` is the existing STAYMAN
+  alert; the `2♥` crawl floors only hearts (responder's spades is implied by the
+  crawling `2♣`, like the invitational `2♠` sibling) so it stays unalerted
+  natural. The doubled tail `1NT-2♣-2♦-(X)-2♥` is handled for free by the
+  systems-on rebase above (the `X` is stripped and the auction re-keyed onto the
+  uncontested crawl). The inference engine no longer assumes `2♣` shows 8+ when
+  this is on. Paired same-deal A/B vs BBA (1.6M boards/arm, `--filter-1nt`, vul
+  none, on vs `--no-ns-crawling-stayman`, 0.10% fired): **plain +1.539 IMPs/fired
+  (+0.0015/board, 95% CI ±0.0002) and PD +2.055/fired (+0.0021/board, 95% CI
+  ±0.0003)**, both excluding 0 — and PD *exceeds* plain, so the win is not a
+  doubling artifact.
 - **Tried and dropped: looser ("335") garbage Stayman.** A broke (0-4) hand with
   no four-card major but five diamonds and `3=3` majors escaping `1NT` via `2♣`
   (sound drop-dead — a 4-3 major or long-diamond fit on every answer, no pull
