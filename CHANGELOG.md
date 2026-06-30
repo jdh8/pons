@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **A Texas + responder-RKCB slam drive for six-card majors**
+  (`set_texas_slam_drive`, **on by default**). The direct `1NT–4♥/4♠` was a
+  *non-forcing* slam try — opener moved only with a maximum, else passed the major
+  game — which stranded the strong responder: a 16+ six-card-major hand opposite a
+  *minimum* 1NT (the majority) held a cold slam the opener vetoed by passing, while
+  the reference bidder reached it via a Texas transfer and keycards. Now the direct
+  `4♥/4♠` is capped at the bare-15 invitational cusp, and a 16+ hand instead
+  South-African-Texas-transfers (`4♣/4♦`) and, over opener's completion, drives its
+  own RKCB (`4NT`); the 1430 ladder places the slam regardless of opener's minimum.
+  A double-dummy survey localised this as the mirror of the Jacoby leak (the direct
+  `4♥/4♠` continuation cost ≈−6 IMPs/board, all stranded slams). A paired on/off
+  A/B (320 000 boards, shared seed, vs the BBA reference) measured **plain +0.0024
+  IMPs/board (95% CI ±0.0006), PD +0.0024 — +5.87 IMPs/fired in both regimes** (131
+  fired, 0.04%), every CI excluding 0. Disable with `set_texas_slam_drive(false)`
+  (or `bba-gen --no-ns-texas-slam-drive`).
 - **A slam try after a Jacoby transfer** (`set_transfer_slam_try`, **on by
   default**). Once a transfer completes (`1NT–2♦–2♥` / `1NT–2♥–2♠`), a
   single-suited five-card major with 16+ HCP bids the *other* major (`3♠` / `3♥`,

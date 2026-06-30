@@ -100,6 +100,10 @@ pub(crate) fn notrump_minors() -> Alert {
 /// invite, `3♣` = diamonds).
 #[must_use]
 pub fn notrump_responses() -> Rules {
+    // Direct `4♥/4♠` is the opener-decides slam try; with the Texas slam-drive
+    // reroute on it caps at the 15–16 invitational band (17+ Texas-transfers and
+    // drives its own RKCB instead — see [`set_texas_slam_drive`]).
+    let direct_4m_max: u8 = if texas_slam_drive() { 15 } else { 18 };
     // Jacoby transfers — any strength, except a game-forcing 5-4 in the majors
     // (the `hcp(..9)` arm denies it): that hand keeps off the transfer and takes
     // the 2♣ Stayman/Smolen route, which right-sides game to the strong notrump.
@@ -169,13 +173,13 @@ pub fn notrump_responses() -> Rules {
         .rule(
             Bid::new(4, Strain::Hearts),
             2.6,
-            len(Suit::Hearts, 6..) & len(Suit::Spades, ..5) & hcp(15..=18),
+            len(Suit::Hearts, 6..) & len(Suit::Spades, ..5) & hcp(15..=direct_4m_max),
         )
         .alert(TEXAS)
         .rule(
             Bid::new(4, Strain::Spades),
             2.6,
-            len(Suit::Spades, 6..) & len(Suit::Hearts, ..5) & hcp(15..=18),
+            len(Suit::Spades, 6..) & len(Suit::Hearts, ..5) & hcp(15..=direct_4m_max),
         )
         .alert(TEXAS)
         // Stayman: a four-card major and at least invitational values — but never
@@ -573,6 +577,51 @@ pub fn set_transfer_slam_try(on: bool) {
 /// Whether the post-transfer slam try is currently authored
 fn transfer_slam_try() -> bool {
     TRANSFER_SLAM_TRY.with(Cell::get)
+}
+
+thread_local! {
+    /// Route slam-driving six-card-major hands through Texas + responder RKCB
+    /// instead of the opener-decides direct `1NT–4♥/4♠`; **on by default**.
+    /// See [`set_texas_slam_drive`].
+    static TEXAS_SLAM_DRIVE: Cell<bool> = const { Cell::new(true) };
+}
+
+/// Route slam-driving six-card-major hands through a Texas transfer + responder
+/// RKCB for books built *after* this call (thread-local; **on by default**).
+///
+/// The direct `1NT–4♥/4♠` is a *non-forcing* slam try — opener moves only with a
+/// maximum, else passes the major game.  That strands the strong responder: a
+/// 16+ six-card-major hand opposite a *minimum* 1NT (the majority) has a cold slam
+/// the opener vetoes by passing.  When on, the direct `4♥/4♠` is capped at the bare
+/// 15 invitational cusp (opener-decides is right there), and a 16+ hand instead
+/// Texas-transfers (`4♣/4♦`) and, over opener's completion, drives its own RKCB
+/// (`4NT`) — reaching the slam regardless of opener's minimum, exactly as the
+/// reference bidder does.  A paired on/off A/B (320k boards, shared seed, vs the
+/// BBA reference) measured **plain +0.0024 IMPs/board (95% CI ±0.0006), PD +0.0024
+/// — +5.87 IMPs/fired in both regimes** (131 fired, 0.04%), every CI excluding 0.
+pub fn set_texas_slam_drive(on: bool) {
+    TEXAS_SLAM_DRIVE.with(|cell| cell.set(on));
+}
+
+/// Whether the Texas slam-drive reroute is currently authored
+fn texas_slam_drive() -> bool {
+    TEXAS_SLAM_DRIVE.with(Cell::get)
+}
+
+/// Responder's RKCB drive over opener's Texas completion (`1NT–4♣–4♥–4NT` /
+/// `1NT–4♦–4♠–4NT`)
+///
+/// A 17+ six-card-major hand transferred at the four level and now keycards: `4NT`
+/// is RKCB, the [`slam`] 1430 ladder (installed alongside) places the slam.  Weaker
+/// (game-only) transfers match no rule and pass opener's `4M`.  Empty unless the
+/// reroute is on ([`set_texas_slam_drive`]).
+fn texas_slam_drive_rebid() -> Rules {
+    if !texas_slam_drive() {
+        return Rules::new();
+    }
+    Rules::new()
+        .rule(Bid::new(4, Strain::Notrump), 1.4, hcp(16..))
+        .alert(slam::RKCB)
 }
 
 thread_local! {
@@ -2161,6 +2210,15 @@ pub(super) fn register_one_nt(book: &mut Trie) {
     insert_uncontested(book, &[one_nt, four_s], slam_try_answer());
     slam::install_rkcb(book, &[one_nt, four_h], Suit::Hearts);
     slam::install_rkcb(book, &[one_nt, four_s], Suit::Spades);
+    // Texas slam-drive (gated): over opener's completion, a 17+ hand drives RKCB
+    // (`4NT`); the 1430 ladder rooted here places the slam, so the strong responder
+    // reaches it regardless of opener's minimum.
+    if texas_slam_drive() {
+        insert_uncontested(book, &[one_nt, four_c, four_h], texas_slam_drive_rebid());
+        insert_uncontested(book, &[one_nt, four_d, four_s], texas_slam_drive_rebid());
+        slam::install_rkcb(book, &[one_nt, four_c, four_h], Suit::Hearts);
+        slam::install_rkcb(book, &[one_nt, four_d, four_s], Suit::Spades);
+    }
 
     // --- 2NT response (diamond transfer, or European balanced invite) ---------
     if puppet {
@@ -2347,55 +2405,62 @@ mod tests {
             .expect("the logits array is never empty")
     }
 
-    /// The revised South African Texas: 4♣/4♦ to-play transfers and the 4♥/4♠
-    /// non-forcing slam try wired into RKCB, end to end through `american()`.
+    /// The revised South African Texas with the slam-drive reroute (default on):
+    /// a 16+ six-card major Texas-transfers (4♣/4♦) and drives its own RKCB, while
+    /// the bare-15 cusp keeps the opener-decides direct 4♥; end to end through
+    /// `american()`.
     #[test]
     fn south_african_texas_slam_try() {
         let one_nt = [bid(1, Strain::Notrump), P];
 
-        // Responder, 6 hearts: a 16-count makes the direct 4♥ slam try; a 10-count
-        // takes the 4♣ to-play transfer.
-        assert_eq!(best(&one_nt, "42.AKJ872.KQ4.K2"), bid(4, Strain::Hearts));
+        // Responder, 6 hearts: a 16-count (slam) and a 10-count (game) both take the
+        // 4♣ Texas transfer; only the bare-15 invitational cusp keeps the direct 4♥.
+        assert_eq!(best(&one_nt, "42.AKJ872.KQ4.K2"), bid(4, Strain::Clubs));
         assert_eq!(best(&one_nt, "42.AKJ872.Q43.32"), bid(4, Strain::Clubs));
+        assert_eq!(best(&one_nt, "42.AKJ872.KQ4.Q2"), bid(4, Strain::Hearts));
 
-        // Opener over the slam try (1NT–P–4♥–P): a maximum (17) launches RKCB, a
-        // minimum (15) signs off by passing the major game.
+        // Opener over the bare-15 direct invite (1NT–P–4♥–P): a maximum (17) launches
+        // RKCB, a minimum (15) signs off by passing the major game.
         let over_try = [bid(1, Strain::Notrump), P, bid(4, Strain::Hearts), P];
         assert_eq!(best(&over_try, "KQ3.K53.AQ54.K92"), bid(4, Strain::Notrump));
         assert_eq!(best(&over_try, "KQ3.K53.KQ54.Q92"), P);
 
-        // Opener completes the 4♣ to-play transfer (1NT–P–4♣–P) → 4♥.
+        // Opener completes the 4♣ transfer (1NT–P–4♣–P) → 4♥.
         let over_transfer = [bid(1, Strain::Notrump), P, bid(4, Strain::Clubs), P];
         assert_eq!(
             best(&over_transfer, "KQ3.K53.KQ54.Q92"),
             bid(4, Strain::Hearts)
         );
 
-        // RKCB is wired: responder answers keycards over 4NT (A♥+K♥ = 2, no ♥Q → 5♥),
-        // then the asker with 3 keycards places the small slam.
-        let over_ask = [
+        // Responder's drive over the completion (1NT–P–4♣–P–4♥–P): the 16-count
+        // keycards (4NT), the 10-count passes the game.
+        let over_completion = [
             bid(1, Strain::Notrump),
             P,
-            bid(4, Strain::Hearts),
-            P,
-            bid(4, Strain::Notrump),
-            P,
-        ];
-        assert_eq!(best(&over_ask, "42.AKJ872.KQ4.K2"), bid(5, Strain::Hearts));
-        let over_answer = [
-            bid(1, Strain::Notrump),
+            bid(4, Strain::Clubs),
             P,
             bid(4, Strain::Hearts),
-            P,
-            bid(4, Strain::Notrump),
-            P,
-            bid(5, Strain::Hearts),
             P,
         ];
         assert_eq!(
-            best(&over_answer, "KQ3.AK3.AQ54.J92"),
-            bid(6, Strain::Hearts)
+            best(&over_completion, "42.AKJ872.KQ4.K2"),
+            bid(4, Strain::Notrump)
         );
+        assert_eq!(best(&over_completion, "42.AKJ872.Q43.32"), P);
+
+        // RKCB is wired on the drive: opener answers keycards over responder's 4NT
+        // (♥K + ♦A = 2 keycards, no ♥Q → 5♥), proving the ladder is rooted here.
+        let over_ask = [
+            bid(1, Strain::Notrump),
+            P,
+            bid(4, Strain::Clubs),
+            P,
+            bid(4, Strain::Hearts),
+            P,
+            bid(4, Strain::Notrump),
+            P,
+        ];
+        assert_eq!(best(&over_ask, "KQ3.K53.AQ54.K92"), bid(5, Strain::Hearts));
     }
 
     /// The opt-in six-card-major game invite: just below the Texas blast floor,
