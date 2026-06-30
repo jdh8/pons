@@ -284,6 +284,35 @@ fn main() -> anyhow::Result<()> {
     );
     report("OUR 1NT-(2NT) responses (focus)", uvu, &uvu_by);
 
+    // Uncontested continuations: we open 1NT, LHO passes, bucket by responder's
+    // call (`1NT P <response>`).  Unlike `open_by` above, this filters out boards
+    // where the opponents overcalled, and the denominator is ALL such boards (not
+    // just divergent), so each line is the honest IMP/board for that continuation.
+    let mut cont_by: BTreeMap<String, (i64, i64)> = BTreeMap::new();
+    let mut cont = (0i64, 0i64);
+    for index in 0..boards.len() {
+        let board = &boards[index];
+        let Some((nt_index, true)) = opening_1nt(&board.table_a, board.dealer) else {
+            continue;
+        };
+        if board.table_a.get(nt_index + 1) != Some(&Call::Pass) {
+            continue; // contested — LHO acted over our 1NT
+        }
+        let resp = responder_call_after(&board.table_a, board.dealer, nt_index);
+        let key = resp.map_or_else(|| "(none)".into(), action_label);
+        let imp = scored.board_imps[index];
+        cont.0 += 1;
+        cont.1 += imp;
+        let entry = cont_by.entry(key).or_default();
+        entry.0 += 1;
+        entry.1 += imp;
+    }
+    report(
+        "OUR uncontested continuations (1NT P <response>)",
+        cont,
+        &cont_by,
+    );
+
     // The boards we lost by the most: where their side out-bid ours.  Sort by IMP
     // swing ascending (most negative first), break ties by points.  One renderer,
     // used for the global ranking and the we-defend-1NT subset.
@@ -310,6 +339,31 @@ fn main() -> anyhow::Result<()> {
         }
     };
     swings.sort_by(|a, b| a.2.cmp(&b.2).then_with(|| a.1.cmp(&b.1)));
+    // Worst boards where we OPEN 1NT, LHO passes, and responder's call matches
+    // `--action` (e.g. the 2♦/2♥ Jacoby transfers).  Mirrors the defend dump below.
+    if let Some(want) = args.action.as_deref() {
+        let worst_open: Vec<_> = swings
+            .iter()
+            .filter(|&&(index, ..)| {
+                let board = &boards[index];
+                let Some((nt_index, true)) = opening_1nt(&board.table_a, board.dealer) else {
+                    return false;
+                };
+                board.table_a.get(nt_index + 1) == Some(&Call::Pass)
+                    && responder_call_after(&board.table_a, board.dealer, nt_index)
+                        .is_some_and(|call| action_label(call) == want)
+            })
+            .take(args.top)
+            .copied()
+            .collect();
+        dump_rows(
+            &format!(
+                "Worst {} we-OPEN-1NT boards (1NT P {want})",
+                worst_open.len(),
+            ),
+            &worst_open,
+        );
+    }
     let worst: Vec<_> = swings.iter().take(args.top).copied().collect();
     dump_rows(
         &format!("Worst {} divergent boards for us (their edge)", worst.len()),
