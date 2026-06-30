@@ -547,6 +547,35 @@ pub(super) fn transfer_super_accept() -> bool {
 }
 
 thread_local! {
+    /// Responder's single-suited slam try after a Jacoby transfer completes;
+    /// **on by default**.  See [`set_transfer_slam_try`].
+    static TRANSFER_SLAM_TRY: Cell<bool> = const { Cell::new(true) };
+}
+
+/// Author responder's post-transfer single-suited slam try for books built
+/// *after* this call (thread-local; **on by default**).
+///
+/// After a Jacoby transfer completes (`1NT–2♦–2♥` / `1NT–2♥–2♠`), a single-suited
+/// five-card major with slam-invitational values (16+ HCP, opposite the 15–17
+/// opener) bids the *other* major (`3♠` / `3♥`) as an artificial slam try agreeing
+/// the transfer major; opener launches RKCB with a maximum (`4NT`) or signs off in
+/// the major game (`4M`), and the [`slam`] 1430 ladder places the slam.  Mirrors
+/// the Stayman `3OM` slam try, which the transfer path lacked — so a strong
+/// balanced five-card-major responder used to rest in `3NT` while a major slam was
+/// cold (the dominant double-dummy leak in our 1NT opening vs BBA).  A paired
+/// on/off A/B (320k boards, shared seed, vs the BBA reference) measured **plain
+/// +0.0012 IMPs/board (95% CI ±0.0004), PD +0.0012 — +1.42 IMPs/fired in both
+/// regimes** (275 fired, 0.09%), every CI excluding 0.
+pub fn set_transfer_slam_try(on: bool) {
+    TRANSFER_SLAM_TRY.with(|cell| cell.set(on));
+}
+
+/// Whether the post-transfer slam try is currently authored
+fn transfer_slam_try() -> bool {
+    TRANSFER_SLAM_TRY.with(Cell::get)
+}
+
+thread_local! {
     /// Garbage (drop-dead) Stayman: a *weak* hand bids 2♣ to escape 1NT into a
     /// major (or diamond) partscore, intending to pass opener's answer.  **On by
     /// default** — a paired DD A/B vs BBA (205k boards, vul none) measured +0.51
@@ -999,6 +1028,42 @@ fn stayman_slam_try_answer(major: Suit) -> Rules {
     }
     // Minimum, or a maximum without a cheap control: sign off in game.
     rules.rule(Bid::new(4, Strain::from(major)), 1.0, hcp(0..))
+}
+
+/// Responder's artificial slam try after a Jacoby transfer completes
+/// (`1NT–2♦–2♥–3♠` / `1NT–2♥–2♠–3♥`)
+///
+/// A single-suited five-card major with 16+ HCP agrees the transfer major and bids
+/// the *other* major to ask for controls — opener cues with a maximum, else signs
+/// off in game ([`stayman_slam_try_answer`]).  Denies a four-card other major (a
+/// 5-4 hand shows its second suit instead).  Artificial — the bid is *not* that
+/// major — so it carries the [`SLAM_TRY`] alert (the artificial-alert invariant).
+/// Empty unless the slam try is on ([`set_transfer_slam_try`]).
+fn transfer_slam_try_rebid(major: Suit) -> Rules {
+    if !transfer_slam_try() {
+        return Rules::new();
+    }
+    Rules::new()
+        .rule(
+            Bid::new(3, Strain::from(other_major(major))),
+            1.4,
+            len(major, 5..) & len(other_major(major), ..4) & hcp(16..),
+        )
+        .alert(SLAM_TRY)
+}
+
+/// Opener's answer to the post-transfer slam try (`…3♠` / `…3♥`)
+///
+/// Mirrors the direct four-major slam try ([`slam_try_answer`]): a **maximum** (17)
+/// launches RKCB (`4NT`) and the [`slam`] 1430 ladder places the slam — installed
+/// alongside this node — while a **minimum** signs off in the agreed major game
+/// (`4M`, *not* pass: responder's `3OM` is artificial, so passing would strand a
+/// 3-level part-contract in the wrong strain).
+fn transfer_slam_try_answer(major: Suit) -> Rules {
+    Rules::new()
+        .rule(Bid::new(4, Strain::Notrump), 1.0, hcp(17..))
+        .alert(slam::RKCB)
+        .rule(Bid::new(4, Strain::from(major)), 0.0, hcp(..17))
 }
 
 /// Responder's rebid after opener denies a major (`1NT–2♣–2♦`)
@@ -1929,25 +1994,44 @@ pub(super) fn register_one_nt(book: &mut Trie) {
     // length`.  The heart responder node coexists with the 5-4 structure's `2♠`/`2NT`
     // relays — disjoint by HCP (an 8-count 6-bagger has `point_count + length ≥ 14`
     // and blasts `4♣`, never transferring), so the node chains both features.
-    if invitational_5card_majors() || sixcard_invite_active() {
+    if invitational_5card_majors() || sixcard_invite_active() || transfer_slam_try() {
         let mut heart_rebid = Rules::new();
         if invitational_5card_majors() {
             heart_rebid = heart_rebid.chain(transfer_heart_invite_rebid());
         }
         heart_rebid = heart_rebid.chain(sixcard_invite_rebid(Suit::Hearts));
+        heart_rebid = heart_rebid.chain(transfer_slam_try_rebid(Suit::Hearts));
         insert_uncontested(book, &[one_nt, two_d, two_h], heart_rebid);
     }
     // The spade-transfer rebid node carries the single-suited 5♠ invite (`2NT` — the
     // spade mirror of the heart `2♠` relay; `2NT` is free here because 5♠4♥ Staymans)
     // and the six-card spade invite (`3♠`), disjoint by strength — exactly like the
     // heart node above.
-    if invitational_5card_majors() || sixcard_invite_active() {
+    if invitational_5card_majors() || sixcard_invite_active() || transfer_slam_try() {
         let mut spade_rebid = Rules::new();
         if invitational_5card_majors() {
             spade_rebid = spade_rebid.chain(transfer_spade_invite_rebid());
         }
         spade_rebid = spade_rebid.chain(sixcard_invite_rebid(Suit::Spades));
+        spade_rebid = spade_rebid.chain(transfer_slam_try_rebid(Suit::Spades));
         insert_uncontested(book, &[one_nt, two_h, two_s], spade_rebid);
+    }
+    // Opener's RKCB-or-sign-off over the post-transfer slam try (`3♠` agrees hearts,
+    // `3♥` agrees spades), plus the keycard ladder rooted at each — the same proven
+    // machinery as the direct four-major slam try, so the auction never dangles.
+    if transfer_slam_try() {
+        insert_uncontested(
+            book,
+            &[one_nt, two_d, two_h, three_s],
+            transfer_slam_try_answer(Suit::Hearts),
+        );
+        insert_uncontested(
+            book,
+            &[one_nt, two_h, two_s, three_h],
+            transfer_slam_try_answer(Suit::Spades),
+        );
+        slam::install_rkcb(book, &[one_nt, two_d, two_h, three_s], Suit::Hearts);
+        slam::install_rkcb(book, &[one_nt, two_h, two_s, three_h], Suit::Spades);
     }
     if sixcard_invite_active() {
         // Opener's accept/decline of the six-card invite for both majors.

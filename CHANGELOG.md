@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.10.0] — Unreleased
 
+### Added
+
+- **A slam try after a Jacoby transfer** (`set_transfer_slam_try`, **on by
+  default**). Once a transfer completes (`1NT–2♦–2♥` / `1NT–2♥–2♠`), a
+  single-suited five-card major with 16+ HCP bids the *other* major (`3♠` / `3♥`,
+  artificial) to agree the transfer suit and try for slam; opener launches RKCB
+  with a maximum (`4NT`) or signs off in the major game, and the existing 1430
+  ladder places the contract. *Why:* the transfer path had **no** slam machinery —
+  a strong balanced five-card-major responder transferred and then rested in `3NT`
+  while a major slam was cold. A double-dummy survey localised the bulk of our
+  1NT-opening deficit vs BBA to exactly this: of the 50 worst `1NT–2♦/2♥` boards we
+  played `3NT` on 43 while BBA reached a slam on 34. A paired on/off A/B (320 000
+  boards, shared seed, vs the BBA reference) measured **plain +0.0012 IMPs/board
+  (95% CI ±0.0004), PD +0.0012 — +1.42 IMPs/fired in both regimes** (275 fired,
+  0.09%), every CI excluding 0. Mirrors the Stayman `3OM` slam try, which already
+  existed. Disable with `set_transfer_slam_try(false)` (or `bba-gen
+  --no-ns-transfer-slam-try`).
+
 ### Changed
 
 - **A strong-1NT responder now forces game with 9 HCP in an undisturbed auction**

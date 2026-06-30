@@ -196,6 +196,11 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_transfer_super_accept: bool,
 
+    /// Disable responder's post-transfer single-suited slam try (`1NT–2♦–2♥–3♠` /
+    /// `1NT–2♥–2♠–3♥`, a 5-card-major RKCB slam try); on by default.
+    #[arg(long, default_value_t = false)]
+    no_ns_transfer_slam_try: bool,
+
     /// Disable garbage (drop-dead) Stayman: a weak 2♣ to escape 1NT, passing
     /// opener's 2♦/2♥/2♠; on by default.  Off-switch for the A/B.
     #[arg(long, default_value_t = false)]
@@ -856,6 +861,7 @@ fn main() -> anyhow::Result<()> {
     pons::bidding::american::set_stayman_defense(args.ns_defense_to_their_stayman);
     pons::bidding::american::set_competition_over_transfer(args.ns_comp_over_transfer);
     pons::bidding::american::set_transfer_super_accept(args.ns_transfer_super_accept);
+    pons::bidding::american::set_transfer_slam_try(!args.no_ns_transfer_slam_try);
     pons::bidding::american::set_garbage_stayman(!args.no_ns_garbage_stayman);
     pons::bidding::american::set_stayman_both_majors(!args.no_ns_stayman_both_majors);
     pons::bidding::american::set_stayman_5card_max(!args.no_ns_stayman_5card_max);
