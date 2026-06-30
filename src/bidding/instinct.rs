@@ -169,6 +169,32 @@ std::thread_local! {
     /// (**on by default** — see [`set_doubler_xx_runout`]).  Construction-gated:
     /// read once in [`instinct`] so the escape rule lands only in the on book.
     static DOUBLER_XX_RUNOUT: Cell<bool> = const { Cell::new(true) };
+
+    /// HCP floor at which a strong-1NT responder forces game off the floor *in an
+    /// undisturbed auction* (A/B knob; see [`set_nt_responder_game_floor`]).  The
+    /// authored direct-3NT game force is already 9, but a 9-count *five-card-major*
+    /// hand can't bid it (it must transfer) and matches no authored game-forcing
+    /// transfer rebid, so it lands here; default **9** (an A/B win: plain +0.0048
+    /// IMPs/board vs BBA, PD wash).  Only undisturbed: forcing a thin 9 over a suit
+    /// overcall measured a DD loss (the enemy lead/shape beats the thin 3NT), and
+    /// over a double the business XX governs ([`SUPPRESS_NT_GF_OVER_DOUBLE`]).
+    static NT_RESPONDER_GAME_FLOOR: Cell<u8> = const { Cell::new(9) };
+
+    /// Whether to suppress the strong-1NT responder's natural-3NT game force at
+    /// responder's first turn over a *double* of our 1NT (**on by default**; see
+    /// [`set_suppress_nt_game_force_over_double`]).  The business redouble is
+    /// unlimited — over the double we defend `1NT` redoubled (or escape a long
+    /// suit) rather than pull to 3NT.  Isolated A/B win +5.6 IMPs/fired in both
+    /// plain and PD (rare, ~0.03%).
+    static SUPPRESS_NT_GF_OVER_DOUBLE: Cell<bool> = const { Cell::new(true) };
+
+    /// Whether opener corrects partner's choice-of-games `3NT` to `4M` holding a
+    /// *known* eight-card major fit (A/B knob; see [`set_correct_3nt_to_major`]).
+    /// The 5-3 ruffing-doubleton edge is single-dummy lore; double-dummy lets
+    /// `3NT` cash the ninth trick on finesses and squeezes that `4M` cannot turn
+    /// into a tenth, so the correction measures **−0.037 IMPs/board** (CI excl.
+    /// 0) against the floor.  Opt-in, default **off**.
+    static CORRECT_3NT_TO_MAJOR: Cell<bool> = const { Cell::new(false) };
 }
 
 /// Responder runs from a doubled 1NT below this many HCP; with more, 1NT-X
@@ -236,6 +262,48 @@ fn settle_floor() -> Cons<impl Constraint + Clone> {
 #[doc(hidden)]
 pub fn set_runout_xx_min(floor: u8) {
     RUNOUT_XX_MIN.with(|cell| cell.set(floor));
+}
+
+/// Set the HCP floor at which a strong-1NT responder forces game off the floor
+///
+/// For A/B measurement.  Default 10; lowering to 9 closes the post-transfer seam
+/// where a 9-count five-card-major hand transfers, finds no authored game-forcing
+/// rebid, and stalls below the floor's trigger.  The authored direct-3NT force is
+/// already 9, so 9 here is symmetric.
+#[doc(hidden)]
+pub fn set_nt_responder_game_floor(floor: u8) {
+    NT_RESPONDER_GAME_FLOOR.with(|cell| cell.set(floor));
+}
+
+/// The current strong-1NT responder game-force floor (see
+/// [`set_nt_responder_game_floor`])
+fn nt_responder_game_floor() -> u8 {
+    NT_RESPONDER_GAME_FLOOR.with(Cell::get)
+}
+
+/// Suppress (or not) the strong-1NT responder's 3NT game force over a double of
+/// our 1NT — see [`SUPPRESS_NT_GF_OVER_DOUBLE`].  For A/B measurement.
+#[doc(hidden)]
+pub fn set_suppress_nt_game_force_over_double(suppress: bool) {
+    SUPPRESS_NT_GF_OVER_DOUBLE.with(|cell| cell.set(suppress));
+}
+
+/// Author whether opener corrects partner's choice-of-games `3NT` to `4M` with a
+/// known eight-card major fit (see [`CORRECT_3NT_TO_MAJOR`]).  For A/B measurement.
+#[doc(hidden)]
+pub fn set_correct_3nt_to_major(correct: bool) {
+    CORRECT_3NT_TO_MAJOR.with(|cell| cell.set(correct));
+}
+
+/// Whether the strong-1NT responder's 3NT game force is allowed in the current
+/// auction.  It steps aside only at responder's first turn over a double of our
+/// 1NT (when [`SUPPRESS_NT_GF_OVER_DOUBLE`] is set) — the business-XX / escape
+/// runout governs instead.  Over a suit overcall it bids as usual (no XX there,
+/// the opponents are not penalizing).
+fn nt_game_force_3nt_allowed() -> Cons<impl Constraint + Clone> {
+    pred(|_: Hand, context: &Context<'_>| {
+        !(SUPPRESS_NT_GF_OVER_DOUBLE.with(Cell::get) && responder_one_nt_runout_now(context))
+    })
 }
 
 /// Responder holds redouble values: raw HCP at or above the [`RUNOUT_XX_MIN`]
@@ -765,11 +833,28 @@ fn partner_last_call(auction: &[Call]) -> Option<Bid> {
 
 /// The current contract is below game: no bid, or a partscore-level suit bid
 fn below_game() -> Cons<impl Constraint + Clone> {
+    pred(|_: Hand, context: &Context<'_>| below_game_now(context))
+}
+
+/// Partner's last call was a choice-of-games `3NT` we may correct to `4M`, and
+/// the correction is enabled (see [`CORRECT_3NT_TO_MAJOR`])
+///
+/// Pair with a known eight-card major fit: a responder who transferred (showing
+/// five) then bid `3NT` offers the choice, and opposite three-card support the
+/// 5-3 fit out-scores notrump (`answer_transfer_spade_single`).  Keyed only on
+/// the `3NT`, so it fires in contested auctions too (`1NT–(2♦)–…–3NT`).
+fn correct_3nt_to_major_now() -> Cons<impl Constraint + Clone> {
     pred(|_: Hand, context: &Context<'_>| {
-        context.last_bid().is_none_or(|bid| {
-            let level = bid.level.get();
-            level <= 2 || (level == 3 && bid.strain != Strain::Notrump)
-        })
+        CORRECT_3NT_TO_MAJOR.with(Cell::get)
+            && context.last_bid() == Some(Bid::new(3, Strain::Notrump))
+    })
+}
+
+/// The current contract is below game (the predicate body of [`below_game`])
+fn below_game_now(context: &Context<'_>) -> bool {
+    context.last_bid().is_none_or(|bid| {
+        let level = bid.level.get();
+        level <= 2 || (level == 3 && bid.strain != Strain::Notrump)
     })
 }
 
@@ -895,6 +980,11 @@ fn auction_forces_game() -> Cons<impl Constraint + Clone> {
 /// govern.
 fn not_penalizing() -> Cons<impl Constraint + Clone> {
     pred(|_: Hand, context: &Context<'_>| !Interpretation::read(context).penalizing)
+}
+
+/// The opponents have made nothing but passes (see [`Context::undisturbed`])
+fn undisturbed() -> Cons<impl Constraint + Clone> {
+    pred(|_: Hand, context: &Context<'_>| context.undisturbed())
 }
 
 /// Enable or disable the penalty-double latch on the current thread
@@ -1752,7 +1842,8 @@ pub fn instinct() -> Rules {
     // opponents.  The 3NT stopper guard is vacuous uncontested (no suit of theirs
     // to stop), so it changes only competitive auctions: never a notrump game bid
     // into an unstopped enemy suit.
-    let game_values = ((partner_strong_notrump(1) & hcp(10..))
+    let game_values = ((partner_strong_notrump(1)
+        & (hcp(10..) | (hcp(nt_responder_game_floor()..) & undisturbed())))
         | (partner_strong_notrump(2) & hcp(5..))
         | auction_forces_game()
         | combined_points(25))
@@ -1763,6 +1854,7 @@ pub fn instinct() -> Rules {
         game_values.clone()
             & below_game()
             & stopper_in_their_suits()
+            & nt_game_force_3nt_allowed()
             & level_available(3, Strain::Notrump),
     );
     for minor in [Suit::Clubs, Suit::Diamonds] {
@@ -1807,6 +1899,18 @@ pub fn instinct() -> Rules {
             1.50,
             game_values.clone()
                 & below_game()
+                & inference_aware()
+                & known_major_fit.clone()
+                & level_available(4, strain),
+        );
+        // Correct partner's choice-of-games 3NT to a known eight-card major fit.
+        // Game is already agreed, so this is a pure strain choice — no strength
+        // gate; opposite responder's transferred five the 5-3 fit out-scores
+        // notrump (`answer_transfer_spade_single`).
+        rules = rules.rule(
+            Bid::new(4, strain),
+            1.50,
+            correct_3nt_to_major_now()
                 & inference_aware()
                 & known_major_fit.clone()
                 & level_available(4, strain),
@@ -2282,6 +2386,65 @@ mod tests {
         let (bid, from_floor) = american_floored(&game, "AKQ2.J5.AQ52.K42");
         assert!(from_floor, "the 4♥ jump is off-book, the floor decides");
         assert_eq!(bid, Call::Pass);
+    }
+
+    #[test]
+    fn nine_count_five_card_major_forces_game_after_a_transfer() {
+        // 1NT–2♥–2♠: a 9-count with a single five-card spade suit transferred (it
+        // cannot bid the direct 3NT, which denies a five-card major) and now forces
+        // game off the floor — the authored rebid table stops at the exactly-8
+        // invite, so the floor (default 9) carries the 9.
+        let auction = [
+            call(1, Strain::Notrump),
+            Call::Pass,
+            call(2, Strain::Hearts),
+            Call::Pass,
+            call(2, Strain::Spades),
+            Call::Pass,
+        ];
+        let (bid, from_floor) = american_floored(&auction, "AK543.82.Q76.542");
+        assert!(from_floor, "the game force is off-book, the floor decides");
+        assert_eq!(bid, call(3, Strain::Notrump));
+    }
+
+    #[test]
+    fn opener_corrects_choice_of_games_3nt_to_the_known_major_fit() {
+        // 1NT–2♥–2♠–3NT: responder transferred (showing five spades) then offered
+        // the choice with 3NT.  Opposite three-card support the 5-3 fit out-scores
+        // notrump single-dummy, so opener corrects to 4♠; with a doubleton it
+        // passes 3NT.  The correction is opt-in (double-dummy-negative), so the
+        // guard enables it explicitly.
+        set_correct_3nt_to_major(true);
+        let auction = [
+            call(1, Strain::Notrump),
+            Call::Pass,
+            call(2, Strain::Hearts),
+            Call::Pass,
+            call(2, Strain::Spades),
+            Call::Pass,
+            call(3, Strain::Notrump),
+            Call::Pass,
+        ];
+        let (three, _) = american_floored(&auction, "AQ4.K83.KJ72.Q83");
+        assert_eq!(
+            three,
+            call(4, Strain::Spades),
+            "3-card support corrects to 4♠"
+        );
+        let (two, _) = american_floored(&auction, "AQ.K842.KJ73.Q82");
+        assert_eq!(two, Call::Pass, "a doubleton leaves it in 3NT");
+        set_correct_3nt_to_major(false);
+    }
+
+    #[test]
+    fn strong_balanced_redoubles_a_double_of_our_1nt_not_3nt() {
+        // 1NT–(X): a strong balanced responder defends the unlimited business
+        // redouble rather than pulling to 3NT (the floor suppresses the game-force
+        // 3NT over a double of our 1NT).
+        let auction = [call(1, Strain::Notrump), Call::Double];
+        let (bid, from_floor) = american_floored(&auction, "KQ4.KJ43.AQ62.Q5");
+        assert!(from_floor, "the response is off-book, the floor decides");
+        assert_eq!(bid, Call::Redouble);
     }
 
     #[test]

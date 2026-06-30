@@ -392,6 +392,25 @@ struct Args {
     /// alert-reading defense switch — how our floor reads alerted artificial calls.
     #[arg(long, default_value_t = false)]
     no_alert_reading: bool,
+
+    /// HCP floor at which a strong-1NT responder forces game off the floor in an
+    /// undisturbed auction (default 9, closing the post-transfer seam where a
+    /// 9-count five-card-major game force transfers then stalls). Set 10 to restore
+    /// the old floor for the A/B.
+    #[arg(long, default_value_t = 9)]
+    ns_nt_responder_game_floor: u8,
+
+    /// Re-enable responder's 3NT game force over a double of our 1NT (off by
+    /// default — we defend the unlimited business XX / escape a long suit instead).
+    /// Off-switch for the A/B.
+    #[arg(long, default_value_t = false)]
+    no_ns_suppress_nt_gf_over_double: bool,
+
+    /// Opener corrects partner's choice-of-games 3NT to 4M with a known
+    /// eight-card major fit.  Single-dummy-sound but double-dummy-negative
+    /// (−0.037 IMPs/board), so opt-in and off by default.
+    #[arg(long, default_value_t = false)]
+    ns_correct_3nt_to_major: bool,
 }
 
 /// Parse a `NAME=0|1` convention override for `--our-conv` / `--their-conv`
@@ -761,6 +780,11 @@ fn main() -> anyhow::Result<()> {
     }
     pons::bidding::american::set_defense_to_2d_multi(args.defense_2d_multi);
     pons::bidding::instinct::set_settle_floor(!args.no_settle_floor);
+    pons::bidding::instinct::set_nt_responder_game_floor(args.ns_nt_responder_game_floor);
+    pons::bidding::instinct::set_suppress_nt_game_force_over_double(
+        !args.no_ns_suppress_nt_gf_over_double,
+    );
+    pons::bidding::instinct::set_correct_3nt_to_major(args.ns_correct_3nt_to_major);
     pons::bidding::set_alert_reading(!args.no_alert_reading);
     pons::bidding::instinct::set_penalty_latch(!args.no_ns_penalty_latch);
     pons::bidding::instinct::set_penalty_no_pull(!args.ns_allow_pull);

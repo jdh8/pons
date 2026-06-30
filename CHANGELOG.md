@@ -9,6 +9,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **A strong-1NT responder now forces game with 9 HCP in an undisturbed auction**
+  (`set_nt_responder_game_floor`, **default 9**, was 10). *Why:* the authored
+  direct-3NT response already forces on `hcp(9..)`, but a 9-count holding a
+  *single five-card major* cannot bid it — it must Jacoby-transfer, and after the
+  transfer completes (`1NT–2♦–2♥` / `1NT–2♥–2♠`) the authored rebid table only
+  covers the exactly-8 invite, so the game force fell to the instinct floor, whose
+  trigger was 10. The 9-count therefore stalled in a partscore and missed game.
+  Lowering the floor to 9 closes the seam; gated on an *undisturbed* auction
+  because a double-dummy A/B (`bba-gen --filter-1nt`, 204.8k boards/arm vs BBA)
+  showed forcing a thin 9 over a suit *overcall* loses (the enemy lead/shape beats
+  the thin 3NT). The undisturbed change measured **plain +0.0048 IMPs/board (95%
+  CI ±0.0020), PD wash**.
+- **Responder no longer pulls to 3NT over a double of our 1NT** — the unlimited
+  business redouble (`1NT–(X)–XX`, "we make it") or a long-suit escape governs
+  instead (`set_suppress_nt_game_force_over_double`, **on by default**). *Why:* the
+  floor's natural-3NT game force was firing over a penalty double of our 1NT for
+  every strong balanced hand, bypassing the redouble; a paired A/B isolated this
+  case at **+5.6 IMPs/fired in both plain and PD** (rare, ~0.03%) — XX is strictly
+  superior. Over a suit *overcall* responder still bids game as usual (no redouble
+  available, the opponents are not penalizing).
+- **Opener can correct a choice-of-games `3NT` to `4M` with a known eight-card
+  major fit** (`set_correct_3nt_to_major`, **opt-in, off by default**). After a
+  transfer responder's five-card major is already shown, so a follow-up `3NT`
+  (in any continuation, contested or not) is a choice of games that opener could
+  pass or correct to the 5-3 fit. *Why off:* the ruffing-doubleton edge is
+  single-dummy lore — a double-dummy A/B (204.8k boards/arm vs BBA) measured the
+  correction at **−0.037 IMPs/board in both plain and PD** (CI excludes 0),
+  because perfect play cashes the ninth trick in `3NT` on finesses and squeezes
+  that `4M` cannot turn into a tenth. Kept as a knob for single-dummy play.
 - **Auctions now display pass as `-` instead of `P`** so `X` (double) and `XX`
   (redouble) stand out when scanning a bidding sequence. This rides on
   `contract-bridge` 0.1.4 — the new `auction::display_calls` slice adapter and
