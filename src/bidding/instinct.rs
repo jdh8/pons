@@ -50,15 +50,23 @@
 
 use super::Rules;
 use super::constraint::{
-    Cons, Constraint, balanced, hcp, len, min_level_is, partner_shown_len, partner_suit_is,
-    point_count, points, pred, short_in_their_suits, stopper_in_their_suits, support, they_bid,
+    Cons, Constraint, balanced, described, hcp, len, min_level_is, partner_shown_len,
+    partner_suit_is, point_count, points, pred, short_in_their_suits, stopper_in_their_suits,
+    support, they_bid,
 };
 use super::context::Context;
 use super::inference::Inferences;
+use super::rules::Alert;
 use contract_bridge::auction::Call;
 use contract_bridge::eval::hcp as holding_hcp;
 use contract_bridge::{Bid, Hand, Penalty, Rank, Strain, Suit};
 use core::cell::Cell;
+
+/// The per-call alert for responder's gambling 3NT over a double of our 1NT: a
+/// long minor run, *not* a natural balanced 3NT.  Marks the call artificial so
+/// the inference reader suppresses the natural notrump reading — without it the
+/// sampler would deal responder balanced and mis-score the gamble.
+const GAMBLING_3NT: Alert = Alert("1ntx:gambling-3nt");
 
 /// What responder's `2NT` shows in the doubled-1NT runout (A/B knob)
 ///
@@ -195,6 +203,45 @@ std::thread_local! {
     /// into a tenth, so the correction measures **−0.037 IMPs/board** (CI excl.
     /// 0) against the floor.  Opt-in, default **off**.
     static CORRECT_3NT_TO_MAJOR: Cell<bool> = const { Cell::new(false) };
+
+    /// Whether responder's 3NT over a *double* of our 1NT is the **gambling**
+    /// long-minor game — six-plus clubs or diamonds, semi-solid, optionally an
+    /// outside ace — instead of the suppressed game-force / business-XX baseline.
+    /// Off by default (opt-in A/B knob; see [`set_gambling_3nt_over_double`]).  The
+    /// minor length floor is fixed at six (it must be a build-time `len` to project
+    /// the suit for the reader); the quality and ace gates are runtime knobs.
+    static GAMBLING_3NT_OVER_DOUBLE: Cell<bool> = const { Cell::new(false) };
+
+    /// Top-honor floor (count of A/K/Q) the gambling 3NT's long minor must hold —
+    /// the "semi-solid" gate.  `0` disables it (length only).  Default `2`.
+    static GAMBLING_3NT_TOP_HONORS: Cell<u8> = const { Cell::new(2) };
+
+    /// Whether the gambling 3NT requires the *suit* ace — the ace of the long
+    /// minor itself, so the suit runs from the top and buffs total tricks.  On by
+    /// default when the package is armed.
+    static GAMBLING_3NT_REQUIRE_ACE: Cell<bool> = const { Cell::new(true) };
+
+    /// Whether responder's 4M over a *double* of our 1NT is loosened to a
+    /// **preemptive** long-major game — six-plus major plus a modest HCP floor —
+    /// instead of needing full game values.  Off by default (opt-in A/B knob; see
+    /// [`set_preempt_4m_over_double`]).  The undisturbed / over-an-overcall 4M is
+    /// unchanged: this only adds a rule in the doubled-1NT runout.
+    static PREEMPT_4M_OVER_DOUBLE: Cell<bool> = const { Cell::new(false) };
+
+    /// The HCP floor for the preemptive 4M long-major game (see
+    /// [`PREEMPT_4M_OVER_DOUBLE`]).  Default `5` — a source of tricks, not a bust.
+    static PREEMPT_4M_FLOOR: Cell<u8> = const { Cell::new(5) };
+
+    /// Top-honor floor (count of A/K/Q) the preemptive 4M's long major must hold —
+    /// the same "semi-solid" gate the gambling 3NT uses, so 4M is a *quality* long
+    /// major, not any six-bagger (`0` = length only).  Default `2`: a ragged six-card
+    /// major jumping to game fails double-dummy exactly as a ragged minor 3NT does.
+    static PREEMPT_4M_TOP_HONORS: Cell<u8> = const { Cell::new(2) };
+
+    /// Whether the preemptive 4M requires the *trump* ace — the ace of the long
+    /// major, a sure trump trick and control that buffs total tricks.  On by default
+    /// when the package is armed.
+    static PREEMPT_4M_REQUIRE_ACE: Cell<bool> = const { Cell::new(true) };
 }
 
 /// Responder runs from a doubled 1NT below this many HCP; with more, 1NT-X
@@ -315,6 +362,120 @@ fn responder_has_xx_values() -> Cons<impl Constraint + Clone> {
             .map(|&suit| holding_hcp::<u8>(hand[suit]))
             .sum();
         hcp >= RUNOUT_XX_MIN.with(Cell::get)
+    })
+}
+
+/// Author whether responder's 3NT over a double of our 1NT is the gambling
+/// long-minor game (see [`GAMBLING_3NT_OVER_DOUBLE`]).  For A/B measurement.
+#[doc(hidden)]
+pub fn set_gambling_3nt_over_double(on: bool) {
+    GAMBLING_3NT_OVER_DOUBLE.with(|cell| cell.set(on));
+}
+
+/// Set the gambling 3NT's "semi-solid" top-honor floor (see
+/// [`GAMBLING_3NT_TOP_HONORS`]; `0` = length only).  For A/B measurement.
+#[doc(hidden)]
+pub fn set_gambling_3nt_top_honors(floor: u8) {
+    GAMBLING_3NT_TOP_HONORS.with(|cell| cell.set(floor));
+}
+
+/// Author whether the gambling 3NT requires an outside ace (see
+/// [`GAMBLING_3NT_REQUIRE_ACE`]).  For A/B measurement.
+#[doc(hidden)]
+pub fn set_gambling_3nt_require_ace(on: bool) {
+    GAMBLING_3NT_REQUIRE_ACE.with(|cell| cell.set(on));
+}
+
+/// Author whether responder's 4M over a double of our 1NT is the preemptive
+/// long-major game (see [`PREEMPT_4M_OVER_DOUBLE`]).  For A/B measurement.
+#[doc(hidden)]
+pub fn set_preempt_4m_over_double(on: bool) {
+    PREEMPT_4M_OVER_DOUBLE.with(|cell| cell.set(on));
+}
+
+/// Set the HCP floor for the preemptive 4M long-major game (see
+/// [`PREEMPT_4M_FLOOR`]).  For A/B measurement.
+#[doc(hidden)]
+pub fn set_preempt_4m_floor(floor: u8) {
+    PREEMPT_4M_FLOOR.with(|cell| cell.set(floor));
+}
+
+/// Set the preemptive 4M's "semi-solid" top-honor floor (see
+/// [`PREEMPT_4M_TOP_HONORS`]; `0` = length only).  For A/B measurement.
+#[doc(hidden)]
+pub fn set_preempt_4m_top_honors(floor: u8) {
+    PREEMPT_4M_TOP_HONORS.with(|cell| cell.set(floor));
+}
+
+/// Author whether the preemptive 4M requires the trump ace (see
+/// [`PREEMPT_4M_REQUIRE_ACE`]).  For A/B measurement.
+#[doc(hidden)]
+pub fn set_preempt_4m_require_ace(on: bool) {
+    PREEMPT_4M_REQUIRE_ACE.with(|cell| cell.set(on));
+}
+
+/// The gambling long-minor 3NT is armed (see [`set_gambling_3nt_over_double`])
+fn gambling_3nt_authored() -> Cons<impl Constraint + Clone> {
+    pred(|_: Hand, _: &Context<'_>| GAMBLING_3NT_OVER_DOUBLE.with(Cell::get))
+}
+
+/// The gambling 3NT's long minor is semi-solid: it holds at least
+/// [`GAMBLING_3NT_TOP_HONORS`] of the top three honors (A/K/Q).  An eval-time
+/// knob (not the build-time [`top_honors`][super::constraint::top_honors]) so the
+/// A/B can flip length-only vs semi-solid per board without rebuilding.
+fn gambling_3nt_semisolid(minor: Suit) -> Cons<impl Constraint + Clone> {
+    described("a semi-solid suit", move |hand: Hand, _: &Context<'_>| {
+        let top = [Rank::A, Rank::K, Rank::Q]
+            .into_iter()
+            .filter(|&rank| hand[minor].contains(rank))
+            .count() as u8;
+        top >= GAMBLING_3NT_TOP_HONORS.with(Cell::get)
+    })
+}
+
+/// The gambling 3NT's long minor is headed by its own ace — the suit ace cashes
+/// and buffs total tricks (the running suit loses no top trick to a missing ace).
+/// Vacuously satisfied when the ace requirement is off.
+fn gambling_3nt_suit_ace(minor: Suit) -> Cons<impl Constraint + Clone> {
+    described("the suit ace", move |hand: Hand, _: &Context<'_>| {
+        !GAMBLING_3NT_REQUIRE_ACE.with(Cell::get) || hand[minor].contains(Rank::A)
+    })
+}
+
+/// The preemptive long-major 4M is armed (see [`set_preempt_4m_over_double`])
+fn preempt_4m_authored() -> Cons<impl Constraint + Clone> {
+    pred(|_: Hand, _: &Context<'_>| PREEMPT_4M_OVER_DOUBLE.with(Cell::get))
+}
+
+/// Responder holds at least the preemptive-4M HCP floor (see [`PREEMPT_4M_FLOOR`])
+fn preempt_4m_values() -> Cons<impl Constraint + Clone> {
+    described("a modest opening", |hand: Hand, _: &Context<'_>| {
+        let hcp: u8 = Suit::ASC
+            .iter()
+            .map(|&suit| holding_hcp::<u8>(hand[suit]))
+            .sum();
+        hcp >= PREEMPT_4M_FLOOR.with(Cell::get)
+    })
+}
+
+/// The preemptive 4M's long major is semi-solid: it holds at least
+/// [`PREEMPT_4M_TOP_HONORS`] of the top three honors (A/K/Q).  The major's mirror
+/// of [`gambling_3nt_semisolid`].
+fn preempt_4m_semisolid(major: Suit) -> Cons<impl Constraint + Clone> {
+    described("a semi-solid major", move |hand: Hand, _: &Context<'_>| {
+        let top = [Rank::A, Rank::K, Rank::Q]
+            .into_iter()
+            .filter(|&rank| hand[major].contains(rank))
+            .count() as u8;
+        top >= PREEMPT_4M_TOP_HONORS.with(Cell::get)
+    })
+}
+
+/// The preemptive 4M's long major is headed by the trump ace — a sure trump trick
+/// and control that buffs total tricks.  Vacuously satisfied when off.
+fn preempt_4m_trump_ace(major: Suit) -> Cons<impl Constraint + Clone> {
+    described("the trump ace", move |hand: Hand, _: &Context<'_>| {
+        !PREEMPT_4M_REQUIRE_ACE.with(Cell::get) || hand[major].contains(Rank::A)
     })
 }
 
@@ -1857,6 +2018,29 @@ pub fn instinct() -> Rules {
             & nt_game_force_3nt_allowed()
             & level_available(3, Strain::Notrump),
     );
+    // Gambling 3NT over a double of our 1NT (opt-in; `set_gambling_3nt_over_double`).
+    // A long (6+) minor, semi-solid, with an outside ace by default — responder runs
+    // its suit opposite the 15–17 opener rather than defend the redouble or escape.
+    // Split per minor so the build-time `len(minor, 6..)` floors the *named* suit in
+    // the projection; `.alert(GAMBLING_3NT)` marks the call artificial so the reader
+    // suppresses the natural balanced-3NT reading and the sampler stops dealing
+    // responder flat.  Weight 1.45 outranks the business XX (1.2) and the escapes
+    // (≤1.1); a balanced strong hand holds no 6-card minor and still redoubles.
+    for minor in [Suit::Clubs, Suit::Diamonds] {
+        rules = rules
+            .rule(
+                Bid::new(3, Strain::Notrump),
+                1.45,
+                one_nt_runout_enabled()
+                    & responder_one_nt_runout()
+                    & gambling_3nt_authored()
+                    & len(minor, 6..)
+                    & gambling_3nt_semisolid(minor)
+                    & gambling_3nt_suit_ace(minor)
+                    & level_available(3, Strain::Notrump),
+            )
+            .alert(GAMBLING_3NT);
+    }
     for minor in [Suit::Clubs, Suit::Diamonds] {
         let strain = Strain::from(minor);
         // 3NT is the milestone of choice; reach for the minor game only when
@@ -1893,6 +2077,25 @@ pub fn instinct() -> Rules {
             Bid::new(4, strain),
             1.45,
             game_values.clone() & below_game() & len(major, 6..) & level_available(4, strain),
+        );
+        // Preemptive 4M over a double of our 1NT (opt-in; `set_preempt_4m_over_double`).
+        // The major's mirror of the gambling 3NT: a *quality* long (6+) major —
+        // semi-solid and headed by the trump ace (a sure trump trick that buffs total
+        // tricks) — on a modest hand, partly preemptive and partly to make opposite the
+        // strong notrump.  Natural (the bid major reads as 6+), so unalerted; the
+        // game-values arm above still governs undisturbed and over an overcall.
+        rules = rules.rule(
+            Bid::new(4, strain),
+            1.45,
+            one_nt_runout_enabled()
+                & responder_one_nt_runout()
+                & preempt_4m_authored()
+                & len(major, 6..)
+                & preempt_4m_semisolid(major)
+                & preempt_4m_trump_ace(major)
+                & preempt_4m_values()
+                & below_game()
+                & level_available(4, strain),
         );
         rules = rules.rule(
             Bid::new(4, strain),
@@ -2685,6 +2888,72 @@ mod tests {
         // A shapely bust at the same boundary still runs, never redoubles.
         assert_eq!(best(&doubled, "3.QJ763.97642.83"), call(2, Strain::Hearts));
         set_runout_xx_min(7);
+        set_one_nt_runout(true);
+    }
+
+    #[test]
+    fn gambling_3nt_over_double_routes_long_minors() {
+        set_one_nt_runout(true);
+        set_gambling_3nt_over_double(true);
+        set_gambling_3nt_top_honors(2);
+        set_gambling_3nt_require_ace(true);
+        let doubled = [call(1, Strain::Notrump), Call::Double];
+
+        // A six-card minor headed by its own ace (semi-solid, suit ace) runs to the
+        // gambling 3NT — opposite the 15–17 opener the suit cashes — not XX, not an
+        // escape.
+        assert_eq!(best(&doubled, "32.43.654.AKJ987"), call(3, Strain::Notrump));
+        assert_eq!(best(&doubled, "32.43.AKJ987.654"), call(3, Strain::Notrump));
+
+        // A strong balanced hand holds no six-card minor, so the gamble can never
+        // steal it: it still defends the business redouble.
+        assert_eq!(best(&doubled, "KQ4.KJ43.AQ62.Q5"), Call::Redouble);
+
+        // The suit-ace gate (default on): a semi-solid six-bagger missing its own ace
+        // cannot gamble — it escapes.  Drop the requirement and it gambles.
+        assert_eq!(best(&doubled, "32.43.654.KQJ987"), call(2, Strain::Clubs));
+        set_gambling_3nt_require_ace(false);
+        assert_eq!(best(&doubled, "32.43.654.KQJ987"), call(3, Strain::Notrump));
+        set_gambling_3nt_require_ace(true);
+
+        // The semi-solid gate: an ace-headed but ragged six-bagger (one top honor)
+        // escapes; length-only (top-honors 0) lets it gamble instead.
+        assert_eq!(best(&doubled, "32.43.654.AJ9876"), call(2, Strain::Clubs));
+        set_gambling_3nt_top_honors(0);
+        assert_eq!(best(&doubled, "32.43.654.AJ9876"), call(3, Strain::Notrump));
+
+        set_gambling_3nt_top_honors(2);
+        set_gambling_3nt_over_double(false);
+        set_one_nt_runout(true);
+    }
+
+    #[test]
+    fn preempt_4m_over_double_jumps_the_long_major() {
+        set_one_nt_runout(true);
+        set_preempt_4m_over_double(true);
+        set_preempt_4m_top_honors(2);
+        set_preempt_4m_require_ace(true);
+        let doubled = [call(1, Strain::Notrump), Call::Double];
+
+        // A semi-solid six-card major headed by the trump ace jumps to its game.
+        assert_eq!(best(&doubled, "432.AKJ987.65.32"), call(4, Strain::Hearts));
+        assert_eq!(best(&doubled, "AKJ987.432.65.32"), call(4, Strain::Spades));
+
+        // The trump-ace gate (default on): a KQ-headed six-bagger lacking the trump
+        // ace does not preempt to game (a 6-count escapes); drop it and it jumps.
+        assert_eq!(best(&doubled, "432.KQJ987.65.32"), call(2, Strain::Hearts));
+        set_preempt_4m_require_ace(false);
+        assert_eq!(best(&doubled, "432.KQJ987.65.32"), call(4, Strain::Hearts));
+        set_preempt_4m_require_ace(true);
+
+        // The semi-solid gate: an ace-headed but ragged six-bagger escapes;
+        // length-only (top-honors 0) lets it preempt.
+        assert_eq!(best(&doubled, "432.AJ9876.65.32"), call(2, Strain::Hearts));
+        set_preempt_4m_top_honors(0);
+        assert_eq!(best(&doubled, "432.AJ9876.65.32"), call(4, Strain::Hearts));
+
+        set_preempt_4m_top_honors(2);
+        set_preempt_4m_over_double(false);
         set_one_nt_runout(true);
     }
 

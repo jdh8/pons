@@ -85,6 +85,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Gambling games over a double of our 1NT** (`set_gambling_3nt_over_double` /
+  `set_preempt_4m_over_double`, **both opt-in, off by default**). Over a penalty
+  double of our 1NT, responder may bid the direct games as long-suit hands rather
+  than balanced game forces. A gambling game is a six-plus suit that is **semi-solid
+  and headed by its own ace** — the suit ace cashes and buffs total tricks — opposite
+  the strong notrump: a long **minor** bids `3NT` (run the suit), a long **major**
+  bids `4♥`/`4♠` (the trump ace is a sure trick). The strong *balanced* hands these
+  carve out of `3NT` still defend the business redouble (XX); the `3NT` is alerted so
+  the inference reader decodes the long-minor run, not a balanced 3NT. Knobs:
+  `set_gambling_3nt_top_honors` / `set_preempt_4m_top_honors` (the semi-solid floor,
+  default 2 of A/K/Q; `0` = length only), `set_gambling_3nt_require_ace` /
+  `set_preempt_4m_require_ace` (the suit/trump ace, default on), `set_preempt_4m_floor`
+  (the 4M HCP floor, default 5). The undisturbed and over-an-overcall `3NT`/`4M` are
+  unchanged; the same `--ns-gambling-3nt` / `--ns-preempt-4m` family is exposed on
+  `bba-gen` for a vs-BBA cross-check.
+
+  *Why off:* this is the gambling-3NT-over-(X) nuance deferred when the suppress
+  default shipped. A self-play seat-swap A/B (`examples/ab-one-nt-runout --compare …
+  --filter-1nt`, 2M boards/arm, one fresh seed, scored both plain DD and
+  perfect-defense, reported per divergent board) verified the structure but found the
+  net double-dummy-negative:
+  - **XX catches all strong balanced** — confirmed by `--coverage`: of 3160 strong
+    (7+ HCP) balanced responders, **100% redoubled, 0 gambled** (a long minor is
+    structurally impossible in a balanced hand).
+  - **Suit quality, not raw length, is load-bearing** — a length-only `3NT` is a
+    disaster (−4.4 plain / −9.9 PD), but the semi-solid gate flips it to a clear win
+    over length-only (`gambling-semisolid` **+4.6 plain / +10.3 PD**).
+  - **The crucial ace is the *suit/trump* ace, not an outside ace** — requiring it
+    (`gambling-ace`, semi-solid + suit ace vs semi-solid alone) measured
+    **+2.9 plain / +7.6 PD** (it rejects the KQ-headed-no-ace gambles); the
+    outside-ace variant diverged on only 4/2M boards (the wrong card).
+  - **Net, even done right, the gamble does not beat the redouble** — `3NT` alone vs
+    suppress was −0.6 plain / −4.0 PD, the quality `4M` −0.5 plain / −5.3 PD, the
+    whole package −0.6 plain / −4.4 PD. Opposite a 15–17 opener, `1NT` redoubled is
+    such a strong spot (it usually makes for a big score) that giving it up to gamble
+    a game rarely gains, and double-dummy is **blind to the obstruction value** the
+    "partly preemptive" framing rests on. The self-play A/B faces our own *penalty*
+    double (the worst case — the gamble surrenders a making `1NTxx`); against a
+    *conventional* takeout / two-suiter double (the opponents are not penalizing and
+    will not defend `1NT`, e.g. BBA's Woolsey) there is no redouble to give up and the
+    jump denies them their two-suiter auction — the regime where the gamble is
+    expected to pay. Authored as opt-in knobs for single-dummy / matchpoint play and
+    competition against a conventional double, with the gates the A/B validated.
 - **Six-card-major game invite** (`set_sixcard_invite_floor` /
   `set_sixcard_accept_floor`, **default on**). With a 6-card major just *below* the
   Texas blast floor, responder transfers (`2♦`/`2♥`) and jumps to `3M` — a natural

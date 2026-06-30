@@ -406,6 +406,32 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_suppress_nt_gf_over_double: bool,
 
+    /// Author responder's gambling 3NT over a double of our 1NT — a long (6+)
+    /// minor, semi-solid, with an outside ace.  Opt-in A/B knob, off by default.
+    #[arg(long, default_value_t = false)]
+    ns_gambling_3nt: bool,
+
+    /// Semi-solid top-honor floor for the gambling 3NT's minor (`0` = length only).
+    #[arg(long, default_value_t = 2)]
+    ns_gambling_3nt_top_honors: u8,
+
+    /// Drop the outside-ace requirement on the gambling 3NT (A/B the ace gate).
+    #[arg(long, default_value_t = false)]
+    no_ns_gambling_3nt_ace: bool,
+
+    /// Author responder's preemptive 4M over a double of our 1NT — a quality long
+    /// (6+) major (semi-solid, trump ace) plus a modest hand.  Opt-in, off by default.
+    #[arg(long, default_value_t = false)]
+    ns_preempt_4m: bool,
+
+    /// Semi-solid top-honor floor for the preemptive 4M's major (`0` = length only).
+    #[arg(long, default_value_t = 2)]
+    ns_preempt_4m_top_honors: u8,
+
+    /// Drop the trump-ace requirement on the preemptive 4M (A/B the ace gate).
+    #[arg(long, default_value_t = false)]
+    no_ns_preempt_4m_ace: bool,
+
     /// Opener corrects partner's choice-of-games 3NT to 4M with a known
     /// eight-card major fit.  Single-dummy-sound but double-dummy-negative
     /// (−0.037 IMPs/board), so opt-in and off by default.
@@ -784,6 +810,12 @@ fn main() -> anyhow::Result<()> {
     pons::bidding::instinct::set_suppress_nt_game_force_over_double(
         !args.no_ns_suppress_nt_gf_over_double,
     );
+    pons::bidding::instinct::set_gambling_3nt_over_double(args.ns_gambling_3nt);
+    pons::bidding::instinct::set_gambling_3nt_top_honors(args.ns_gambling_3nt_top_honors);
+    pons::bidding::instinct::set_gambling_3nt_require_ace(!args.no_ns_gambling_3nt_ace);
+    pons::bidding::instinct::set_preempt_4m_over_double(args.ns_preempt_4m);
+    pons::bidding::instinct::set_preempt_4m_top_honors(args.ns_preempt_4m_top_honors);
+    pons::bidding::instinct::set_preempt_4m_require_ace(!args.no_ns_preempt_4m_ace);
     pons::bidding::instinct::set_correct_3nt_to_major(args.ns_correct_3nt_to_major);
     pons::bidding::set_alert_reading(!args.no_alert_reading);
     pons::bidding::instinct::set_penalty_latch(!args.no_ns_penalty_latch);

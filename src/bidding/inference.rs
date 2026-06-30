@@ -1693,6 +1693,25 @@ mod tests {
     }
 
     #[test]
+    fn gambling_3nt_over_double_reads_unbalanced() {
+        use crate::bidding::instinct::set_gambling_3nt_over_double;
+        // [1NT,(X),3NT,P]: opener reads partner's gambling 3NT.  The floor alerts the
+        // call as the long-minor gamble, so the natural balanced-3NT reading is
+        // suppressed and a six-card minor stays within range — the search sampler must
+        // be free to deal responder its running suit, not pin it to a flat hand.
+        set_gambling_3nt_over_double(true);
+        let read = read_booked(&[
+            bid(1, Strain::Notrump),
+            Call::Double,
+            bid(3, Strain::Notrump),
+            Call::Pass,
+        ]);
+        assert!(read.partner().length(Suit::Clubs).contains(6));
+        assert!(read.partner().length(Suit::Diamonds).contains(6));
+        set_gambling_3nt_over_double(false);
+    }
+
+    #[test]
     fn leaping_michaels_conditions_partner() {
         use crate::bidding::american::set_leaping_michaels;
 
