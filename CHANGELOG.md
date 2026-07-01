@@ -9,6 +9,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **A game-forcing structure after the spade transfer** (`set_transfer_gf_majors`,
+  **on by default**). After `1NT–2♥–2♠`, responder's game-forcing hands previously
+  fell to the floor's natural raise, with no way to show a two-suiter, a minor side
+  suit, or a splinter. Against BBA (960k boards, seed-fresh) the structure gains
+  **+0.0014 IMPs/board plain and +0.0016 par-doubled** (both 95% CI ±0.0003,
+  +1.70/+1.90 per fired board). When on:
+  - `3♥` is a natural **5-5 majors slam try** — the slam end of the both-majors hands,
+    rerouted off the direct `1NT–3♦` jump (now capped at `point_count ≤ 16`, a clean
+    invitational-through-minimum-game-force range). Opener agrees spades and launches
+    RKCB with a maximum, or signs off in `4♠`.
+  - `3♣`/`3♦` show **five spades and a four-card minor**. By default they are shown on
+    any game force (Arm A); with `set_minor_min_to_3nt` on (Arm B) they are reserved
+    for slam tries, minimum game-forces instead resting in the floor's choice-of-games
+    `3NT`. Opener places game on the five-three spade fit — `4♠` with support (its
+    ruffing value beats an un-pulled `3NT`), else `3NT`.
+  - `4♣`/`4♦`/`4♥` are **splinters** — a six-card-spade slam try short in the bid suit
+    (a void or a low singleton; a singleton ace or king is a working honor, not a
+    splinter). These are carved off the direct Texas `4♦` and `4♠` slam routes onto the
+    transfer, so `set_texas_slam_drive` keeps the no-splinter hands unchanged.
+  - `4NT` is the single-suiter's **quantitative slam invite** (a balanced 16+
+    five-spade hand), relocated off the now-repurposed `3♥`; opener accepts to `6♠`/
+    `6NT` or passes.
+
+  The direct choice-of-games `3NT` (and opener's `set_correct_3nt_to_major` pull to the
+  eight-card fit) is unchanged. Hearts mirror the structure in a later change. Disable
+  with `set_transfer_gf_majors(false)` (or `bba-gen --no-ns-transfer-gf-majors`).
+  `set_minor_min_to_3nt` (Arm B) stays **off** — the A/B refuted it: showing the minor
+  beat lumping minimums into `3NT`.
 - **A Texas + responder-RKCB slam drive for six-card majors**
   (`set_texas_slam_drive`, **on by default**). The direct `1NT–4♥/4♠` was a
   *non-forcing* slam try — opener moved only with a maximum, else passed the major

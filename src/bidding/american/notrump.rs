@@ -19,7 +19,7 @@ use crate::bidding::constraint::{
 };
 use crate::bidding::{Alert, Context, Rules, Trie};
 use contract_bridge::auction::Call;
-use contract_bridge::{Bid, Hand, Rank, Strain, Suit};
+use contract_bridge::{Bid, Hand, Holding, Rank, Strain, Suit};
 use std::cell::Cell;
 
 // ---------------------------------------------------------------------------
@@ -124,13 +124,18 @@ pub fn notrump_responses() -> Rules {
         head.rule(
             Bid::new(2, Strain::Hearts),
             2.0,
-            len(Suit::Spades, 5..) & (len(Suit::Hearts, ..4) | hcp(..8) | len(Suit::Spades, 6..)),
+            len(Suit::Spades, 5..)
+                & (len(Suit::Hearts, ..4) | hcp(..8) | len(Suit::Spades, 6..) | slam_55_reroute()),
         )
     } else {
         head.rule(
             Bid::new(2, Strain::Hearts),
             2.0,
-            len(Suit::Spades, 5..) & (len(Suit::Hearts, ..4) | hcp(..9)),
+            len(Suit::Spades, 5..)
+                & (len(Suit::Hearts, ..4)
+                    | hcp(..9)
+                    | slam_55_reroute()
+                    | spade_splinter_reroute()),
         )
     }
     .alert(JACOBY);
@@ -143,7 +148,15 @@ pub fn notrump_responses() -> Rules {
         .rule(
             Bid::new(3, Strain::Diamonds),
             2.1,
-            len(Suit::Hearts, 5..) & len(Suit::Spades, 5..) & points(8..),
+            len(Suit::Hearts, 5..)
+                & len(Suit::Spades, 5..)
+                & points(8..)
+                & described(
+                    "both-majors 3♦ capped at minimum game force when the slam reroute is on",
+                    |hand: Hand, _: &Context<'_>| {
+                        !transfer_gf_majors() || usize::from(point_count(hand)) <= 16
+                    },
+                ),
         )
         .alert(BOTH_MAJORS)
         // South African Texas at the four level — a 6-card major.  `4♣/4♦`
@@ -167,7 +180,10 @@ pub fn notrump_responses() -> Rules {
         .rule(
             Bid::new(4, Strain::Diamonds),
             2.5,
-            len(Suit::Spades, 6..) & len(Suit::Hearts, ..5) & texas_strength_gate(Suit::Spades),
+            len(Suit::Spades, 6..)
+                & len(Suit::Hearts, ..5)
+                & texas_strength_gate(Suit::Spades)
+                & not_spade_splinter_slam(),
         )
         .alert(TEXAS)
         .rule(
@@ -179,7 +195,10 @@ pub fn notrump_responses() -> Rules {
         .rule(
             Bid::new(4, Strain::Spades),
             2.6,
-            len(Suit::Spades, 6..) & len(Suit::Hearts, ..5) & hcp(15..=direct_4m_max),
+            len(Suit::Spades, 6..)
+                & len(Suit::Hearts, ..5)
+                & hcp(15..=direct_4m_max)
+                & not_spade_splinter_slam(),
         )
         .alert(TEXAS)
         // Stayman: a four-card major and at least invitational values — but never
@@ -606,6 +625,49 @@ pub fn set_texas_slam_drive(on: bool) {
 /// Whether the Texas slam-drive reroute is currently authored
 fn texas_slam_drive() -> bool {
     TEXAS_SLAM_DRIVE.with(Cell::get)
+}
+
+thread_local! {
+    /// Responder's game-forcing structure after the spade transfer completes
+    /// (`1NT–2♥–2♠`): the natural `3♥` 5-5 slam try, minor side-suits (`3♣`/`3♦`),
+    /// and the single-suiter's quantitative `4NT`; **on by default** (A/B vs BBA:
+    /// plain +0.0014, PD +0.0016 IMPs/board, both CI ±0.0003, +1.70/+1.90 per fired).
+    /// See [`set_transfer_gf_majors`].
+    static TRANSFER_GF_MAJORS: Cell<bool> = const { Cell::new(true) };
+    /// Within the GF structure, route a minimum five-card-spade game-force holding a
+    /// four-card minor into the choice-of-games `3NT` (the floor) rather than showing
+    /// the minor, so `3♣`/`3♦` are reserved for slam tries; **off by default**.  See
+    /// [`set_minor_min_to_3nt`].
+    static MINOR_MIN_TO_3NT: Cell<bool> = const { Cell::new(false) };
+}
+
+/// Author responder's game-forcing structure after the spade transfer for books
+/// built *after* this call (thread-local; **on by default**).
+///
+/// After `1NT–2♥–2♠`, responder's game-forcing hands otherwise fall to the floor's
+/// natural raise.  When on: a natural `3♥` shows 5-5 majors with slam interest
+/// (rerouted off the capped both-majors `3♦`), `3♣`/`3♦` show a five-spade hand with
+/// a four-card minor, and `4NT` is the single-suiter's quantitative slam invite
+/// (relocated off the repurposed `3♥`).  Pass `false` to fall back to the floor.
+pub fn set_transfer_gf_majors(on: bool) {
+    TRANSFER_GF_MAJORS.with(|cell| cell.set(on));
+}
+
+/// Whether the post-transfer game-forcing structure is currently authored
+fn transfer_gf_majors() -> bool {
+    TRANSFER_GF_MAJORS.with(Cell::get)
+}
+
+/// Route minimum five-card-spade game-forces with a four-card minor into the
+/// choice-of-games `3NT` instead of showing the minor (thread-local; **off by
+/// default**; the E1 A/B arm).  No-op unless [`set_transfer_gf_majors`] is on.
+pub fn set_minor_min_to_3nt(on: bool) {
+    MINOR_MIN_TO_3NT.with(|cell| cell.set(on));
+}
+
+/// Whether minimum five-card-spade game-forces with a minor bid `3NT` (Arm B)
+fn minor_min_to_3nt() -> bool {
+    MINOR_MIN_TO_3NT.with(Cell::get)
 }
 
 /// Responder's RKCB drive over opener's Texas completion (`1NT–4♣–4♥–4NT` /
@@ -1092,6 +1154,11 @@ fn transfer_slam_try_rebid(major: Suit) -> Rules {
     if !transfer_slam_try() {
         return Rules::new();
     }
+    // The GF-majors structure repurposes the spade `3♥` as a natural 5-5 slam try
+    // and relocates the single-suiter to a quantitative `4NT`, so yield it there.
+    if major == Suit::Spades && transfer_gf_majors() {
+        return Rules::new();
+    }
     Rules::new()
         .rule(
             Bid::new(3, Strain::from(other_major(major))),
@@ -1099,6 +1166,190 @@ fn transfer_slam_try_rebid(major: Suit) -> Rules {
             len(major, 5..) & len(other_major(major), ..4) & hcp(16..),
         )
         .alert(SLAM_TRY)
+}
+
+/// Responder's game-forcing rebid after the spade transfer completes
+/// (`1NT–2♥–2♠`), under the GF-majors structure
+///
+/// `3♥` is a natural 5-5 slam try — the slam end of the both-majors hands, rerouted
+/// off the capped `1NT–3♦` (the `points(17..)` floor tiles against the `3♦` cap of
+/// `points(..=16)`).  `4NT` is the single-suiter's quantitative slam invite (16+,
+/// denying a fourth heart — the hand the old artificial `3♥` slam try showed, now
+/// relocated here).  `3♥` floors only its own strain (the transfer pins the five
+/// spades), so it stays unalerted; `4NT` is conventional and carries [`SLAM_TRY`].
+/// `3♣`/`3♦` show five spades and a four-card minor — game-forcing (Arm A), or with
+/// [`minor_min_to_3nt`] on slam-only (Arm B), the minimums then resting in the
+/// floor's choice-of-games `3NT`.  All three natural calls floor only their own
+/// strains, so they stay unalerted; `4NT` is conventional and carries [`SLAM_TRY`].
+/// Empty off the gate.
+fn transfer_spade_gf_rebid() -> Rules {
+    if !transfer_gf_majors() {
+        return Rules::new();
+    }
+    // Arm A shows the minor on any game force; Arm B reserves it for slam tries,
+    // routing minimum game-forces to the floor's `3NT` (the `minor_min_to_3nt` A/B).
+    let minor_floor: u8 = if minor_min_to_3nt() { 17 } else { 10 };
+    Rules::new()
+        // The transfer already pins responder's five spades (`transfer_major_reading`),
+        // so these natural rebids restate only their *own* second strain — flooring no
+        // un-named suit keeps them off the alert list (the `artificial` invariant).
+        .rule(
+            Bid::new(3, Strain::Hearts),
+            1.5,
+            len(Suit::Hearts, 5..) & points(17..),
+        )
+        .rule(
+            Bid::new(3, Strain::Clubs),
+            1.45,
+            len(Suit::Clubs, 4..) & len(Suit::Hearts, ..4) & points(minor_floor..),
+        )
+        .rule(
+            Bid::new(3, Strain::Diamonds),
+            1.45,
+            len(Suit::Diamonds, 4..) & len(Suit::Hearts, ..4) & points(minor_floor..),
+        )
+        .rule(
+            Bid::new(4, Strain::Notrump),
+            1.4,
+            len(Suit::Spades, 5..)
+                & len(Suit::Hearts, ..4)
+                & len(Suit::Clubs, ..4)
+                & len(Suit::Diamonds, ..4)
+                & hcp(16..),
+        )
+        .alert(SLAM_TRY)
+        // Six-card-spade slam tries with a side-suit splinter — carved off the direct
+        // Texas `4♦` / `4♠` (see `is_spade_splinter_slam`).  Artificial (the bid names
+        // the *short* suit, not a strain to play), so each carries [`SPLINTER`].
+        .rule(
+            Bid::new(4, Strain::Clubs),
+            1.55,
+            len(Suit::Spades, 6..) & splinter_short(Suit::Clubs) & points(16..),
+        )
+        .alert(SPLINTER)
+        .rule(
+            Bid::new(4, Strain::Diamonds),
+            1.55,
+            len(Suit::Spades, 6..) & splinter_short(Suit::Diamonds) & points(16..),
+        )
+        .alert(SPLINTER)
+        .rule(
+            Bid::new(4, Strain::Hearts),
+            1.55,
+            len(Suit::Spades, 6..) & splinter_short(Suit::Hearts) & points(16..),
+        )
+        .alert(SPLINTER)
+}
+
+/// Opener's answer to responder's quantitative `4NT` (`1NT–2♥–2♠–4NT`)
+///
+/// Responder is a balanced 16+ single-suited five-spade hand inviting slam.  A
+/// maximum (17) accepts — `6♠` on three-card support (the known eight-card fit),
+/// else `6NT`; a minimum declines by passing `4NT`.  ponytail: blasts the small slam
+/// rather than RKCB — the invite is balanced and quantitative, so a keycard detour
+/// buys little.
+fn gf_quant_answer() -> Rules {
+    Rules::new()
+        .rule(
+            Bid::new(6, Strain::Spades),
+            1.3,
+            hcp(17..) & len(Suit::Spades, 3..),
+        )
+        .rule(Bid::new(6, Strain::Notrump), 1.2, hcp(17..))
+        .rule(Call::Pass, 0.0, hcp(..17))
+}
+
+/// Opener's answer to responder's five-spade-plus-minor game force (`…3♣` / `…3♦`)
+///
+/// The five-three spade fit is the anchor, and the minor is game-forcing but
+/// *undifferentiated* (minimum through slam in Arm A), so opener places game rather
+/// than keycarding: `4♠` on three-card support — the 5-3 fit's ruffing value
+/// out-scores an un-pulled `3NT` — else `3NT`.  ponytail: no RKCB over the minor. A
+/// paired A/B caught opener blasting slam on its own maximum opposite a possible bare
+/// minimum, doubled into the artificial five-level keycard response; the minor's own
+/// slam is left to the (near-impossible) rare hand this treatment already discounts.
+fn gf_minor_answer() -> Rules {
+    Rules::new()
+        .rule(Bid::new(4, Strain::Spades), 1.1, len(Suit::Spades, 3..))
+        .rule(Bid::new(3, Strain::Notrump), 1.0, len(Suit::Spades, ..3))
+}
+
+/// Opener's answer to responder's six-card-spade splinter (`…4♣` / `…4♦` / `…4♥`)
+///
+/// Spades are agreed (responder showed six) and the shortness is known, so this is
+/// game-forcing: a maximum (17) cooperates by launching RKCB in spades (`4NT`), a
+/// minimum signs off in the spade game (`4♠`).  ponytail: the shortness-versus-values
+/// judgment (are opener's honors opposite the splinter wasted?) is left to raw
+/// strength — a finer wasted-value gate is the upgrade path if the A/B wants it.
+fn gf_splinter_answer() -> Rules {
+    Rules::new()
+        .rule(Bid::new(4, Strain::Notrump), 1.0, hcp(17..))
+        .alert(slam::RKCB)
+        .rule(Bid::new(4, Strain::Spades), 0.0, hcp(..17))
+}
+
+/// A 5-5 majors hand strong enough to drive slam (`point_count ≥ 17`)
+///
+/// Capped off the both-majors `3♦` (`points(..=16)`) when the GF-majors structure
+/// is on, such a hand instead transfers and rebids the natural `3♥` slam try, so
+/// this widens the spade-transfer guard to admit it.  Always false off the gate, so
+/// the baseline transfer guard is unchanged.
+fn slam_55_reroute() -> Cons<impl Constraint + Clone> {
+    described(
+        "5-5 slam reroute to the spade transfer",
+        |hand: Hand, _: &Context<'_>| {
+            transfer_gf_majors()
+                && hand[Suit::Hearts].len() >= 5
+                && usize::from(point_count(hand)) >= 17
+        },
+    )
+}
+
+/// A void or low singleton — the shortness a splinter shows
+///
+/// A singleton ace or king is a *working* honor, not shortness to advertise, so it
+/// is excluded (the same wasted-honor principle as [`upgrade`]'s `blocks_upgrade`).
+fn is_splinter_holding(holding: Holding) -> bool {
+    holding.is_empty()
+        || (holding.len() == 1 && !holding.contains(Rank::A) && !holding.contains(Rank::K))
+}
+
+/// Void or a low singleton in `suit`, as a constraint (see [`is_splinter_holding`])
+fn splinter_short(suit: Suit) -> Cons<impl Constraint + Clone> {
+    described(
+        "void or a low singleton",
+        move |hand: Hand, _: &Context<'_>| is_splinter_holding(hand[suit]),
+    )
+}
+
+/// A six-card-spade slam hand (16+ points) with a describable side-suit splinter
+///
+/// Under the GF-majors gate this hand is carved off the direct Texas `4♦` and direct
+/// `4♠` slam try onto the transfer, where it splinters at the four level
+/// (`4♣`/`4♦`/`4♥`).  Always false off the gate, so those direct rules are unchanged.
+fn is_spade_splinter_slam(hand: Hand) -> bool {
+    transfer_gf_majors()
+        && hand[Suit::Spades].len() >= 6
+        && usize::from(point_count(hand)) >= 16
+        && [Suit::Clubs, Suit::Diamonds, Suit::Hearts]
+            .into_iter()
+            .any(|suit| is_splinter_holding(hand[suit]))
+}
+
+/// The splinter reroute as a positive constraint (widens the spade-transfer guard)
+fn spade_splinter_reroute() -> Cons<impl Constraint + Clone> {
+    described(
+        "6♠ splinter reroute to the transfer",
+        |hand: Hand, _: &Context<'_>| is_spade_splinter_slam(hand),
+    )
+}
+
+/// The splinter reroute negated (carves the direct Texas `4♦` and direct `4♠`)
+fn not_spade_splinter_slam() -> Cons<impl Constraint + Clone> {
+    described(
+        "not a describable 6♠ splinter slam",
+        |hand: Hand, _: &Context<'_>| !is_spade_splinter_slam(hand),
+    )
 }
 
 /// Opener's answer to the post-transfer slam try (`…3♠` / `…3♥`)
@@ -2056,13 +2307,18 @@ pub(super) fn register_one_nt(book: &mut Trie) {
     // spade mirror of the heart `2♠` relay; `2NT` is free here because 5♠4♥ Staymans)
     // and the six-card spade invite (`3♠`), disjoint by strength — exactly like the
     // heart node above.
-    if invitational_5card_majors() || sixcard_invite_active() || transfer_slam_try() {
+    if invitational_5card_majors()
+        || sixcard_invite_active()
+        || transfer_slam_try()
+        || transfer_gf_majors()
+    {
         let mut spade_rebid = Rules::new();
         if invitational_5card_majors() {
             spade_rebid = spade_rebid.chain(transfer_spade_invite_rebid());
         }
         spade_rebid = spade_rebid.chain(sixcard_invite_rebid(Suit::Spades));
         spade_rebid = spade_rebid.chain(transfer_slam_try_rebid(Suit::Spades));
+        spade_rebid = spade_rebid.chain(transfer_spade_gf_rebid());
         insert_uncontested(book, &[one_nt, two_h, two_s], spade_rebid);
     }
     // Opener's RKCB-or-sign-off over the post-transfer slam try (`3♠` agrees hearts,
@@ -2074,13 +2330,43 @@ pub(super) fn register_one_nt(book: &mut Trie) {
             &[one_nt, two_d, two_h, three_s],
             transfer_slam_try_answer(Suit::Hearts),
         );
+        slam::install_rkcb(book, &[one_nt, two_d, two_h, three_s], Suit::Hearts);
+    }
+    // The spade-agreeing `3♥` node serves both the single-suited slam try and the
+    // GF-majors natural 5-5 slam try — opener's max RKCBs spades, a minimum signs off
+    // in `4♠` — so it installs under either gate.  The GF structure also relocates the
+    // single-suiter to a quantitative `4NT` (opener accepts `6♠`/`6NT`, or passes).
+    if transfer_slam_try() || transfer_gf_majors() {
         insert_uncontested(
             book,
             &[one_nt, two_h, two_s, three_h],
             transfer_slam_try_answer(Suit::Spades),
         );
-        slam::install_rkcb(book, &[one_nt, two_d, two_h, three_s], Suit::Hearts);
         slam::install_rkcb(book, &[one_nt, two_h, two_s, three_h], Suit::Spades);
+    }
+    if transfer_gf_majors() {
+        insert_uncontested(
+            book,
+            &[one_nt, two_h, two_s, call(4, Strain::Notrump)],
+            gf_quant_answer(),
+        );
+        // Five-spade-plus-minor (`3♣`/`3♦`): opener anchors the five-three spade fit,
+        // RKCB in spades over a maximum (the keycard ladder rooted at each).
+        for minor in [Strain::Clubs, Strain::Diamonds] {
+            let three_m = call(3, minor);
+            insert_uncontested(book, &[one_nt, two_h, two_s, three_m], gf_minor_answer());
+        }
+        // Six-card-spade splinters (`4♣`/`4♦`/`4♥`): spades agreed, opener RKCBs over a
+        // maximum or signs off in `4♠`, the keycard ladder rooted at each.
+        for short in [Strain::Clubs, Strain::Diamonds, Strain::Hearts] {
+            let four_short = call(4, short);
+            insert_uncontested(
+                book,
+                &[one_nt, two_h, two_s, four_short],
+                gf_splinter_answer(),
+            );
+            slam::install_rkcb(book, &[one_nt, two_h, two_s, four_short], Suit::Spades);
+        }
     }
     if sixcard_invite_active() {
         // Opener's accept/decline of the six-card invite for both majors.
@@ -2461,6 +2747,199 @@ mod tests {
             P,
         ];
         assert_eq!(best(&over_ask, "KQ3.K53.AQ54.K92"), bid(5, Strain::Hearts));
+    }
+
+    /// The opt-in GF-majors structure after the spade transfer: a 5-5 slam try
+    /// reroutes off the capped both-majors `3♦` onto a natural `3♥`, and the
+    /// single-suiter relocates from the old artificial `3♥` to a quantitative `4NT`.
+    #[test]
+    fn transfer_gf_majors_five_five_and_quantitative() {
+        use crate::bidding::american::set_transfer_gf_majors;
+
+        let one_nt = [bid(1, Strain::Notrump), P];
+        let after = [
+            bid(1, Strain::Notrump),
+            P,
+            bid(2, Strain::Hearts),
+            P,
+            bid(2, Strain::Spades),
+            P,
+        ];
+        // 5♠5♥, ♠AKQ + ♥AK = 16 HCP, clean 5-5-2-1 → point_count 18 (slam).
+        let slam_55 = "AKQ52.AK432.32.4";
+        // 5♠5♥, ♠KQ + ♥KQ = 10 HCP → point_count 12 (minimum game force).
+        let min_55 = "KQ542.KQ432.32.4";
+        // Balanced single-suited 5♠, 18 HCP, ≤3 hearts (the old single-suited try).
+        let single = "AKQ52.A32.K32.Q2";
+
+        // --- Baseline (gate off): unchanged ------------------------------
+        set_transfer_gf_majors(false);
+        // The slam 5-5 shows both suits with the direct 3♦ jump.
+        assert_eq!(best(&one_nt, slam_55), bid(3, Strain::Diamonds));
+        // The single-suiter bids the artificial 3♥ slam try after transferring.
+        assert_eq!(best(&after, single), bid(3, Strain::Hearts));
+
+        // --- Gate on -----------------------------------------------------
+        set_transfer_gf_majors(true);
+        // The slam 5-5 is capped off 3♦ and transfers instead...
+        assert_eq!(best(&one_nt, slam_55), bid(2, Strain::Hearts));
+        // ...then rebids a natural 3♥ (5-5 slam try).
+        assert_eq!(best(&after, slam_55), bid(3, Strain::Hearts));
+        // The minimum 5-5 keeps the direct 3♦ — the cap still admits it.
+        assert_eq!(best(&one_nt, min_55), bid(3, Strain::Diamonds));
+        // The single-suiter relocates to a quantitative 4NT (no longer 3♥).
+        assert_eq!(best(&after, single), bid(4, Strain::Notrump));
+
+        // Opener's reply to the quantitative 4NT: a maximum accepts (6♠ on the
+        // known eight-card fit), a minimum declines.
+        let over_quant = [
+            bid(1, Strain::Notrump),
+            P,
+            bid(2, Strain::Hearts),
+            P,
+            bid(2, Strain::Spades),
+            P,
+            bid(4, Strain::Notrump),
+            P,
+        ];
+        assert_eq!(
+            best(&over_quant, "AQ4.KQ3.KQJ2.Q32"),
+            bid(6, Strain::Spades)
+        );
+        assert_eq!(best(&over_quant, "AQ4.K83.KJ72.Q83"), P);
+
+        // Opener's reply to the 5-5 slam try (spade-agreed, like the single-suited
+        // try): a maximum launches RKCB, a minimum signs off in 4♠.
+        let over_55 = [
+            bid(1, Strain::Notrump),
+            P,
+            bid(2, Strain::Hearts),
+            P,
+            bid(2, Strain::Spades),
+            P,
+            bid(3, Strain::Hearts),
+            P,
+        ];
+        assert_eq!(best(&over_55, "AQ4.KQ3.KQJ2.Q32"), bid(4, Strain::Notrump));
+        assert_eq!(best(&over_55, "AQ43.K83.KJ7.Q83"), bid(4, Strain::Spades));
+
+        set_transfer_gf_majors(true); // restore the default
+    }
+
+    /// The GF-majors minor side-suits: `3♣`/`3♦` show five spades and a four-card
+    /// minor.  Arm A shows them on any game force; Arm B (`set_minor_min_to_3nt`)
+    /// reserves them for slam tries, the minimums resting in the floor's `3NT`.
+    #[test]
+    fn transfer_gf_majors_minor_side_suits() {
+        use crate::bidding::american::{set_minor_min_to_3nt, set_transfer_gf_majors};
+
+        let after = [
+            bid(1, Strain::Notrump),
+            P,
+            bid(2, Strain::Hearts),
+            P,
+            bid(2, Strain::Spades),
+            P,
+        ];
+        // 5♠4♣, ♠KJ + ♣AK = 11 HCP, 5-2-2-4 → point_count 12 (minimum game force).
+        let min_club = "KJ542.32.32.AK32";
+        // 5♠4♦, the diamond mirror.
+        let min_diamond = "KJ542.32.AK32.32";
+        // 5♠4♣, ♠AKQ + ♣AKQ = 18 HCP → point_count 19 (slam).
+        let slam_club = "AKQ52.32.32.AKQ2";
+
+        set_transfer_gf_majors(true);
+
+        // --- Arm A (default): the minor shows on any game force ------------
+        set_minor_min_to_3nt(false);
+        assert_eq!(best(&after, min_club), bid(3, Strain::Clubs));
+        assert_eq!(best(&after, min_diamond), bid(3, Strain::Diamonds));
+
+        // --- Arm B: minimums lump into the floor's 3NT, slam shows the minor
+        set_minor_min_to_3nt(true);
+        assert_eq!(best(&after, min_club), bid(3, Strain::Notrump));
+        assert_eq!(best(&after, slam_club), bid(3, Strain::Clubs));
+        set_minor_min_to_3nt(false);
+
+        // Opener's reply to the minor places game on the 5-3 spade fit: with support
+        // 4♠ (the ruffing value beats an un-pulled 3NT), without support 3NT. No RKCB
+        // — the minor is undifferentiated min-through-slam, so opener never blasts.
+        let over_minor = [
+            bid(1, Strain::Notrump),
+            P,
+            bid(2, Strain::Hearts),
+            P,
+            bid(2, Strain::Spades),
+            P,
+            bid(3, Strain::Clubs),
+            P,
+        ];
+        assert_eq!(
+            best(&over_minor, "AQ4.KQ3.KQJ2.Q32"),
+            bid(4, Strain::Spades)
+        );
+        assert_eq!(
+            best(&over_minor, "A4.KQ32.KQJ2.Q32"),
+            bid(3, Strain::Notrump)
+        );
+
+        set_transfer_gf_majors(true); // restore the default
+    }
+
+    /// The GF-majors spade splinters: a 6+♠ slam hand with a side-suit splinter is
+    /// carved off the direct Texas `4♦`, transfers, and splinters at the four level.
+    /// A singleton ace or king is a working honor, not a splinter.
+    #[test]
+    fn transfer_gf_majors_spade_splinters() {
+        use crate::bidding::american::set_transfer_gf_majors;
+
+        let one_nt = [bid(1, Strain::Notrump), P];
+        let after = [
+            bid(1, Strain::Notrump),
+            P,
+            bid(2, Strain::Hearts),
+            P,
+            bid(2, Strain::Spades),
+            P,
+        ];
+        // 6♠, ♠AKQ + ♥AK + ♦Q = 18 HCP, 6-3-3-1 with a low singleton club (splinter).
+        let splinter = "AKQ432.AK2.Q43.2";
+        // The same shape but a singleton ♣A — a working honor, not a splinter.
+        let stiff_ace = "AKQ432.AK2.Q43.A";
+
+        // --- Baseline (gate off): the 16+ six-spader Texas-transfers (4♦) ---
+        set_transfer_gf_majors(false);
+        assert_eq!(best(&one_nt, splinter), bid(4, Strain::Diamonds));
+
+        // --- Gate on: carved off Texas, it transfers and splinters ---------
+        set_transfer_gf_majors(true);
+        assert_eq!(best(&one_nt, splinter), bid(2, Strain::Hearts));
+        assert_eq!(best(&after, splinter), bid(4, Strain::Clubs));
+        // The stiff ace is no splinter — it keeps the Texas route even on the gate.
+        assert_eq!(best(&one_nt, stiff_ace), bid(4, Strain::Diamonds));
+
+        // Opener's reply to the splinter: a maximum RKCBs spades, a minimum signs
+        // off in 4♠.
+        let over_splinter = [
+            bid(1, Strain::Notrump),
+            P,
+            bid(2, Strain::Hearts),
+            P,
+            bid(2, Strain::Spades),
+            P,
+            bid(4, Strain::Clubs),
+            P,
+        ];
+        assert_eq!(
+            best(&over_splinter, "AQ3.KJ32.KQ32.Q3"),
+            bid(4, Strain::Notrump)
+        );
+        assert_eq!(
+            best(&over_splinter, "KQ3.KJ32.KJ32.Q3"),
+            bid(4, Strain::Spades)
+        );
+
+        set_transfer_gf_majors(true); // restore the default
     }
 
     /// The opt-in six-card-major game invite: just below the Texas blast floor,
