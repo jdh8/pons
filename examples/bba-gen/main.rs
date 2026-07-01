@@ -251,6 +251,12 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_crawling_stayman: bool,
 
+    /// Disable responder's continuation after opener's 3OM-slam-try cue
+    /// (`1NT-2♣-2M-3OM-4x`): on, responder keycards or signs off in the major game
+    /// instead of passing the cue out below game; on by default. Off-switch for the A/B.
+    #[arg(long, default_value_t = false)]
+    no_ns_stayman_cue_continuation: bool,
+
     /// point_count + trump length floor at which a 6-card-major responder blasts
     /// game via South African Texas (4♣/4♦) instead of transferring at the two
     /// level; default 14 (a 6-bagger needs 8 points, lowered from the inherited
@@ -893,6 +899,7 @@ fn main() -> anyhow::Result<()> {
     pons::bidding::american::set_stayman_5card_max(!args.no_ns_stayman_5card_max);
     pons::bidding::american::set_invitational_5card_majors(!args.no_ns_invitational_5card_majors);
     pons::bidding::american::set_crawling_stayman(!args.no_ns_crawling_stayman);
+    pons::bidding::american::set_stayman_cue_continuation(!args.no_ns_stayman_cue_continuation);
     pons::bidding::american::set_texas_game_floor(args.ns_texas_game_floor);
     pons::bidding::american::set_sixcard_invite_floor(args.ns_sixcard_invite_floor);
     pons::bidding::american::set_sixcard_accept_floor(args.ns_sixcard_accept_floor);

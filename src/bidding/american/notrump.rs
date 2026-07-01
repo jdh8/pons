@@ -758,6 +758,14 @@ thread_local! {
     /// rather than passing a doomed diamond partscore.  **On by default.**  See
     /// [`set_crawling_stayman`].
     static CRAWLING_STAYMAN: Cell<bool> = const { Cell::new(true) };
+    /// Responder's continuation after opener cue-bids in cooperation with the `3OM`
+    /// slam try (`1NT-2♣-2M-3OM-4x`).  Opener's [`stayman_slam_try_answer`] cues a
+    /// control below the trump major with a maximum; without a responder node the
+    /// floor *passed the cue* — often below game.  On, responder keycards (`4NT`
+    /// RKCB) with slam values or signs off in the major game.  **On by default** —
+    /// the cue dead-end was the dominant Stayman leak vs BBA (≈20% of the tail-loss
+    /// IMPs, `bba-gen --isolate-opening bba`).  See [`set_stayman_cue_continuation`].
+    static STAYMAN_CUE_CONTINUATION: Cell<bool> = const { Cell::new(true) };
     /// The `point_count + trump length` floor at which a 6-card-major responder
     /// blasts game via South African Texas (`4♣/4♦`) instead of transferring at
     /// the two level.  **Default 14** (a 6-bagger needs 8 points, a 7-bagger 7).
@@ -885,6 +893,21 @@ pub fn set_crawling_stayman(on: bool) {
 /// too, to widen the 2♣ point range it reads)
 pub(crate) fn crawling_stayman() -> bool {
     CRAWLING_STAYMAN.with(Cell::get)
+}
+
+/// Author responder's continuation over opener's `3OM`-slam-try cue for books built
+/// *after* this call (thread-local; **on by default**).
+///
+/// Over opener's cue (a control below the trump major, showing a maximum) responder
+/// keycards with slam values or signs off in the major game — closing the dead-end
+/// where the cue was otherwise passed out below game.  See [`stayman_cue_rebid`].
+pub fn set_stayman_cue_continuation(on: bool) {
+    STAYMAN_CUE_CONTINUATION.with(|cell| cell.set(on));
+}
+
+/// Whether responder's `3OM`-cue continuation is currently authored
+fn stayman_cue_continuation() -> bool {
+    STAYMAN_CUE_CONTINUATION.with(Cell::get)
 }
 
 /// Set the South African Texas game-blast floor on `point_count + trump length`
@@ -1171,6 +1194,24 @@ fn stayman_slam_try_answer(major: Suit) -> Rules {
     }
     // Minimum, or a maximum without a cheap control: sign off in game.
     rules.rule(Bid::new(4, Strain::from(major)), 1.0, hcp(0..))
+}
+
+/// Responder's rebid after opener cooperates with the `3OM` slam try by cue-bidding
+///
+/// Opener's cue (a control ranking below the trump `major`) showed a **maximum**
+/// (17) plus slam interest — see [`stayman_slam_try_answer`].  Responder's `3OM` was
+/// a wide choice-of-game *or* slam try, so responder resolves it here: a slam-worthy
+/// hand keycards (`4NT` RKCB, the [`slam`] 1430 ladder placing the contract),
+/// everything else signs off in the major game.  Without this node opener's cue was
+/// passed out — often *below* game — the dominant Stayman leak this fixes.  Gated by
+/// [`set_stayman_cue_continuation`] (on by default).
+fn stayman_cue_rebid(major: Suit) -> Rules {
+    Rules::new()
+        // Slam values opposite a known maximum plus the shown control: keycard.
+        .rule(Bid::new(4, Strain::Notrump), 1.2, hcp(14..))
+        .alert(slam::RKCB)
+        // Otherwise the 3OM was only choosing the game: sign off in the major.
+        .rule(Bid::new(4, Strain::from(major)), 1.0, hcp(0..))
 }
 
 /// Responder's artificial slam try after a Jacoby transfer completes
@@ -2309,6 +2350,32 @@ pub(super) fn register_one_nt(book: &mut Trie) {
         &[one_nt, two_c, two_s, three_h],
         stayman_slam_try_answer(Suit::Spades),
     );
+    // Responder's continuation after opener cue-bids in cooperation with the 3OM
+    // slam try: over each control opener could cue (a suit below the trump major),
+    // responder keycards (`4NT`) or signs off in the major game, with the 1430
+    // ladder rooted at the keycard bid.  Without this the cue was passed out —
+    // frequently below game (the dominant Stayman leak vs BBA).
+    if stayman_cue_continuation() {
+        for (answer, three_om, major) in [
+            (two_h, three_s, Suit::Hearts),
+            (two_s, three_h, Suit::Spades),
+        ] {
+            for cue_suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts] {
+                if Strain::from(cue_suit) >= Strain::from(major) {
+                    continue; // only controls ranking below the trump major are cued
+                }
+                let path = [
+                    one_nt,
+                    two_c,
+                    answer,
+                    three_om,
+                    call(4, Strain::from(cue_suit)),
+                ];
+                insert_uncontested(book, &path, stayman_cue_rebid(major));
+                slam::install_rkcb(book, &path, major);
+            }
+        }
+    }
     // Responder's rebid after opener denies a major (Smolen, else revert to NT),
     // and opener's Smolen completion (game in responder's five-card major).
     insert_uncontested(book, &[one_nt, two_c, two_d], stayman_no_major_rebid());

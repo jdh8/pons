@@ -112,6 +112,29 @@ fn opener_answers_3om_by_shape_and_strength() {
     );
 }
 
+// --- Responder's continuation after opener's cue ----------------------------
+
+#[test]
+fn responder_keycards_or_signs_off_over_openers_cue() {
+    let system = stance();
+    // 1NT–2♣–2♥–3♠(slam try)–4♣(opener cues a max club control).
+    let auction = after_stayman(&[
+        call(2, Strain::Hearts),
+        call(3, Strain::Spades),
+        call(4, Strain::Clubs),
+    ]);
+    // Slam values opposite the shown maximum: launch RKCB, don't pass the cue.
+    assert_eq!(
+        best_call(&system, &auction, "Axx.KQxx.Axxx.Kx"),
+        call(4, Strain::Notrump),
+    );
+    // Plain choice-of-game values: sign off in the major game (never below it).
+    assert_eq!(
+        best_call(&system, &auction, "Kxx.Qxxx.Kxx.Qxx"),
+        call(4, Strain::Hearts),
+    );
+}
+
 // --- Smolen -----------------------------------------------------------------
 
 #[test]

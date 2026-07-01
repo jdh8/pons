@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Responder's continuation after opener's Stayman slam-try cue**
+  (`set_stayman_cue_continuation`, **on by default**). After `1NT–2♣–2M–3OM`,
+  opener cue-bids a control (`4♣`/`4♦`/`4♥`) to accept the slam try with a maximum —
+  but responder had no authored rebid, so the floor *passed the cue out*, frequently
+  **below the major game**. This was the single dominant leak in our Stayman auction
+  against BBA (an `--isolate-opening bba` study found the uncontested `2♣` continuation
+  losing ≈0.24 IMPs/board, ~20% of the tail-loss IMPs concentrated in this passed-out
+  cue). When on, responder resolves the (choice-of-game *or* slam) `3OM` bid: a
+  slam-worthy hand launches **RKCB** (`4NT`, the 1430 ladder placing the contract),
+  everything else **signs off in the major game**. A paired A/B vs BBA (384k
+  boards/arm, `--isolate-opening bba`, seed-fresh) measured **+0.0193 IMPs/board plain
+  and +0.0216 perfect-defense** (both 95% CI ±0.0015; +8.73/+9.74 per fired board,
+  850 fired = 0.22%), both CIs excluding 0 — one of the largest per-fired gains in the
+  Stayman structure, since it converts a below-game passout into a game or slam.
 - **A game-forcing structure after the spade transfer** (`set_transfer_gf_majors`,
   **on by default**). After `1NT–2♥–2♠`, responder's game-forcing hands previously
   fell to the floor's natural raise, with no way to show a two-suiter, a minor side
