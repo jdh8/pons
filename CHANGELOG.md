@@ -32,9 +32,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     five-spade hand), relocated off the now-repurposed `3♥`; opener accepts to `6♠`/
     `6NT` or passes.
 
-  The direct choice-of-games `3NT` (and opener's `set_correct_3nt_to_major` pull to the
-  eight-card fit) is unchanged. Disable with `set_transfer_gf_majors(false)` (or
-  `bba-gen --no-ns-transfer-gf-majors`). `set_minor_min_to_3nt` (Arm B) stays **off** —
+  The choice-of-games `3NT` is now an authored balanced-hand node and opener corrects
+  it to the eight-card fit by default — see **Changed**. Disable with
+  `set_transfer_gf_majors(false)` (or `bba-gen --no-ns-transfer-gf-majors`). `set_minor_min_to_3nt` (Arm B) stays **off** —
   the A/B refuted it: showing the minor beat lumping minimums into `3NT`.
 - **The game-forcing structure mirrored onto the heart transfer**
   (`set_transfer_gf_hearts`, **on by default**). After `1NT–2♦–2♥`, responder shows a
@@ -81,6 +81,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Opener now corrects a choice-of-games `3NT` to `4M`, gated on the ruff**
+  (`set_correct_3nt_to_major`, flipped **on by default**). After a Jacoby transfer,
+  responder's balanced game force offers a choice of games with `3NT` (now an authored
+  node on both majors — exactly five in the transferred major, denies a four-card side
+  suit, below the 16+ `4NT` quant), so opposite three-card support opener holds an
+  eight-card fit. The pull was previously **off** (**−0.037 IMPs/board**): keyed on the
+  bare `3NT`, it fired in *any* auction — walking into penalty doubles in contested
+  sequences and pulling flat 4-3-3-3 hands with no ruffing value. Two gates fix it —
+  `undisturbed` (a `3NT` reads as *balanced* only undisturbed; contested it walks into a
+  double) and a **ruffing doubleton** (a flat 4-3-3-3 opener has no ruff, so `3NT` keeps
+  its ninth trick against `4M`'s tenth). Gated, against BBA (1.6M boards/arm, two seeds)
+  it wins **+0.0062 IMPs/board plain and +0.0068 par-doubled** (both 95% CI ±0.0005,
+  +2.0/+2.2 per fired, 0.31% fired). Disable with `set_correct_3nt_to_major(false)` (or
+  `bba-gen --no-ns-correct-3nt-to-major`).
 - **A strong-1NT responder now forces game with 9 HCP in an undisturbed auction**
   (`set_nt_responder_game_floor`, **default 9**, was 10). *Why:* the authored
   direct-3NT response already forces on `hcp(9..)`, but a 9-count holding a

@@ -197,12 +197,14 @@ std::thread_local! {
     static SUPPRESS_NT_GF_OVER_DOUBLE: Cell<bool> = const { Cell::new(true) };
 
     /// Whether opener corrects partner's choice-of-games `3NT` to `4M` holding a
-    /// *known* eight-card major fit (A/B knob; see [`set_correct_3nt_to_major`]).
-    /// The 5-3 ruffing-doubleton edge is single-dummy lore; double-dummy lets
-    /// `3NT` cash the ninth trick on finesses and squeezes that `4M` cannot turn
-    /// into a tenth, so the correction measures **−0.037 IMPs/board** (CI excl.
-    /// 0) against the floor.  Opt-in, default **off**.
-    static CORRECT_3NT_TO_MAJOR: Cell<bool> = const { Cell::new(false) };
+    /// *known* eight-card major fit — **undisturbed and with a ruffing doubleton**
+    /// (see [`set_correct_3nt_to_major`]).  The 5-3 ruffing edge is single-dummy lore
+    /// that double-dummy shares only when the trump-short hand can ruff: a flat
+    /// 4-3-3-3 has no ruff (`3NT` keeps its ninth trick against `4M`'s tenth), and a
+    /// contested pull walks into a penalty double.  Ungated the correction lost
+    /// −0.037 IMPs/board; gated on both (`undisturbed`, `has_ruffing_shortness`) it
+    /// wins **+0.0062 plain / +0.0068 PD** (CI ±0.0005, two seeds).  Default **on**.
+    static CORRECT_3NT_TO_MAJOR: Cell<bool> = const { Cell::new(true) };
 
     /// Whether responder's 3NT over a *double* of our 1NT is the **gambling**
     /// long-minor game — six-plus clubs or diamonds, semi-solid, optionally an
@@ -336,7 +338,8 @@ pub fn set_suppress_nt_game_force_over_double(suppress: bool) {
 }
 
 /// Author whether opener corrects partner's choice-of-games `3NT` to `4M` with a
-/// known eight-card major fit (see [`CORRECT_3NT_TO_MAJOR`]).  For A/B measurement.
+/// known eight-card major fit, undisturbed and holding a ruffing doubleton (see
+/// [`CORRECT_3NT_TO_MAJOR`]).  Default on; disable for the off arm of an A/B.
 #[doc(hidden)]
 pub fn set_correct_3nt_to_major(correct: bool) {
     CORRECT_3NT_TO_MAJOR.with(|cell| cell.set(correct));
@@ -1009,6 +1012,15 @@ fn correct_3nt_to_major_now() -> Cons<impl Constraint + Clone> {
         CORRECT_3NT_TO_MAJOR.with(Cell::get)
             && context.last_bid() == Some(Bid::new(3, Strain::Notrump))
     })
+}
+
+/// A ruffing doubleton — any suit of two cards or fewer.  For the balanced 1NT
+/// opener this is exactly *not* a flat 4-3-3-3, the one shape with no ruffing
+/// value: the 3NT→4M correction gains its extra trick only when the trump-short
+/// hand can ruff, so opposite responder's balanced transferred five it stands
+/// down on the flat hand and leaves the better game (3NT) in place.
+fn has_ruffing_shortness() -> Cons<impl Constraint + Clone> {
+    pred(|hand: Hand, _: &Context<'_>| Suit::ASC.iter().any(|&suit| hand[suit].len() <= 2))
 }
 
 /// The current contract is below game (the predicate body of [`below_game`])
@@ -2106,16 +2118,21 @@ pub fn instinct() -> Rules {
                 & known_major_fit.clone()
                 & level_available(4, strain),
         );
-        // Correct partner's choice-of-games 3NT to a known eight-card major fit.
-        // Game is already agreed, so this is a pure strain choice — no strength
-        // gate; opposite responder's transferred five the 5-3 fit out-scores
-        // notrump (`answer_transfer_spade_single`).
+        // Correct partner's choice-of-games 3NT to a known eight-card major fit —
+        // but only undisturbed and with a ruffing doubleton.  Game is already
+        // agreed, so this is a pure strain choice (no strength gate); opposite
+        // responder's *balanced* transferred five the 5-3 fit out-scores notrump
+        // only when the trump-short hand can ruff, so a flat 4-3-3-3 opener leaves
+        // it in 3NT (`has_ruffing_shortness`).  `undisturbed` keeps it off contested
+        // auctions, where the pull to the four level walks into a penalty double.
         rules = rules.rule(
             Bid::new(4, strain),
             1.50,
             correct_3nt_to_major_now()
+                & undisturbed()
                 & inference_aware()
                 & known_major_fit.clone()
+                & has_ruffing_shortness()
                 & level_available(4, strain),
         );
         // Slam is a milestone too: with a known major fit and the combined
@@ -2614,9 +2631,9 @@ mod tests {
     fn opener_corrects_choice_of_games_3nt_to_the_known_major_fit() {
         // 1NT–2♥–2♠–3NT: responder transferred (showing five spades) then offered
         // the choice with 3NT.  Opposite three-card support the 5-3 fit out-scores
-        // notrump single-dummy, so opener corrects to 4♠; with a doubleton it
-        // passes 3NT.  The correction is opt-in (double-dummy-negative), so the
-        // guard enables it explicitly.
+        // notrump single-dummy *only with a ruffing doubleton*, so opener corrects
+        // to 4♠ on a doubleton, but a flat 4-3-3-3 (no ruff) leaves the better game
+        // in 3NT.  Default on; the guard sets it explicitly to stay isolated.
         set_correct_3nt_to_major(true);
         let auction = [
             call(1, Strain::Notrump),
@@ -2628,15 +2645,24 @@ mod tests {
             call(3, Strain::Notrump),
             Call::Pass,
         ];
-        let (three, _) = american_floored(&auction, "AQ4.K83.KJ72.Q83");
+        // Three-card support with a ruffing doubleton (3-2-4-4): correct to 4♠.
+        let (fit, _) = american_floored(&auction, "AQ4.K8.KJ72.Q832");
         assert_eq!(
-            three,
+            fit,
             call(4, Strain::Spades),
-            "3-card support corrects to 4♠"
+            "3-card support with a doubleton corrects to 4♠"
         );
+        // Three-card support but a flat 4-3-3-3 (no ruffing value): stay in 3NT.
+        let (flat, _) = american_floored(&auction, "AQ4.K83.KJ72.Q83");
+        assert_eq!(
+            flat,
+            Call::Pass,
+            "flat 4333 has no ruff — 3NT is the better game"
+        );
+        // Only a doubleton spade — no eight-card fit — also stays in 3NT.
         let (two, _) = american_floored(&auction, "AQ.K842.KJ73.Q82");
-        assert_eq!(two, Call::Pass, "a doubleton leaves it in 3NT");
-        set_correct_3nt_to_major(false);
+        assert_eq!(two, Call::Pass, "no eight-card fit leaves it in 3NT");
+        set_correct_3nt_to_major(true); // restore the default
     }
 
     #[test]

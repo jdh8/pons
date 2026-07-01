@@ -459,11 +459,11 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_preempt_4m_ace: bool,
 
-    /// Opener corrects partner's choice-of-games 3NT to 4M with a known
-    /// eight-card major fit.  Single-dummy-sound but double-dummy-negative
-    /// (−0.037 IMPs/board), so opt-in and off by default.
+    /// Suppress opener correcting partner's choice-of-games 3NT to 4M with a known
+    /// eight-card major fit.  Gated on undisturbed + a ruffing doubleton it wins
+    /// +0.0062 IMPs/board plain / +0.0068 PD (two seeds), so it is on by default.
     #[arg(long, default_value_t = false)]
-    ns_correct_3nt_to_major: bool,
+    no_ns_correct_3nt_to_major: bool,
 }
 
 /// Parse a `NAME=0|1` convention override for `--our-conv` / `--their-conv`
@@ -843,7 +843,7 @@ fn main() -> anyhow::Result<()> {
     pons::bidding::instinct::set_preempt_4m_over_double(args.ns_preempt_4m);
     pons::bidding::instinct::set_preempt_4m_top_honors(args.ns_preempt_4m_top_honors);
     pons::bidding::instinct::set_preempt_4m_require_ace(!args.no_ns_preempt_4m_ace);
-    pons::bidding::instinct::set_correct_3nt_to_major(args.ns_correct_3nt_to_major);
+    pons::bidding::instinct::set_correct_3nt_to_major(!args.no_ns_correct_3nt_to_major);
     pons::bidding::set_alert_reading(!args.no_alert_reading);
     pons::bidding::instinct::set_penalty_latch(!args.no_ns_penalty_latch);
     pons::bidding::instinct::set_penalty_no_pull(!args.ns_allow_pull);

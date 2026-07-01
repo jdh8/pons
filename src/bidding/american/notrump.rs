@@ -1243,6 +1243,22 @@ fn transfer_spade_gf_rebid() -> Rules {
             1.45,
             len(Suit::Diamonds, 4..) & len(Suit::Hearts, ..4) & points(minor_floor..),
         )
+        // Choice of games: exactly five spades (the transfer pins the floor; `..6`
+        // rules out a six-card one-suiter), balanced, game values but short of the
+        // 16+ slam quant.  Natural (all upper bounds — floors no un-named suit, so
+        // unalerted), and being a recognised undisturbed node it lets opener read
+        // 3NT as *balanced* rather than guessing — the read only holds undisturbed,
+        // which is why opener's correction gates on it (`has_ruffing_shortness`).
+        .rule(
+            Bid::new(3, Strain::Notrump),
+            1.4,
+            len(Suit::Spades, ..6)
+                & len(Suit::Hearts, ..4)
+                & len(Suit::Clubs, ..4)
+                & len(Suit::Diamonds, ..4)
+                & points(10..)
+                & hcp(..16),
+        )
         .rule(
             Bid::new(4, Strain::Notrump),
             1.4,
@@ -1309,6 +1325,20 @@ fn transfer_heart_gf_rebid() -> Rules {
             Bid::new(3, Strain::Diamonds),
             1.45,
             len(Suit::Diamonds, 4..) & len(Suit::Spades, ..4) & points(minor_floor..),
+        )
+        // Choice of games: exactly five hearts (`..6` rules out a six-card one-suiter),
+        // balanced, game values short of the 16+ slam quant.  Natural (upper bounds
+        // only — unalerted), the undisturbed node that lets opener read 3NT as
+        // *balanced* for the ruff-gated correction.
+        .rule(
+            Bid::new(3, Strain::Notrump),
+            1.4,
+            len(Suit::Hearts, ..6)
+                & len(Suit::Spades, ..4)
+                & len(Suit::Clubs, ..4)
+                & len(Suit::Diamonds, ..4)
+                & points(10..)
+                & hcp(..16),
         )
         // Six-card-heart slam tries with a side-suit splinter — the spade shortness at
         // the cheap `3♠`, the minors at the four level.  Artificial, so each is alerted.
@@ -3034,6 +3064,31 @@ mod tests {
         );
 
         set_transfer_gf_majors(true); // restore the default
+    }
+
+    /// Choice of games: a balanced exactly-five-spade game force offers `3NT` (the
+    /// transfer pinned the five spades).  The 5-4, 5-5 and six-card hands take their
+    /// own slots, so a bare `3NT` reads as *balanced* — the inference opener's
+    /// ruff-gated correction relies on.
+    #[test]
+    fn transfer_gf_majors_choice_of_games_3nt() {
+        use crate::bidding::american::set_transfer_gf_majors;
+
+        let after = [
+            bid(1, Strain::Notrump),
+            P,
+            bid(2, Strain::Hearts),
+            P,
+            bid(2, Strain::Spades),
+            P,
+        ];
+        set_transfer_gf_majors(true);
+        // 5-3-3-2, 12 HCP, no four-card minor, no second five-card suit → 3NT.
+        assert_eq!(best(&after, "AQ654.K72.Q83.J4"), bid(3, Strain::Notrump));
+        // A six-card suit is not balanced — it keeps its natural spade route.
+        assert_ne!(best(&after, "AQ6543.K72.Q8.J4"), bid(3, Strain::Notrump));
+        // A four-card minor shows the minor (3♣), not the balanced 3NT.
+        assert_eq!(best(&after, "AQ654.K7.Q8.J432"), bid(3, Strain::Clubs));
     }
 
     /// The GF-majors spade splinters: a 6+♠ slam hand with a side-suit splinter is
