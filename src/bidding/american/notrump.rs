@@ -589,7 +589,7 @@ thread_local! {
 /// five-card major with slam-invitational values (16+ HCP, opposite the 15–17
 /// opener) bids the *other* major (`3♠` / `3♥`) as an artificial slam try agreeing
 /// the transfer major; opener launches RKCB with a maximum (`4NT`) or signs off in
-/// the major game (`4M`), and the [`slam`] 1430 ladder places the slam.  Mirrors
+/// the major game (`4M`), and the `slam` 1430 ladder places the slam.  Mirrors
 /// the Stayman `3OM` slam try, which the transfer path lacked — so a strong
 /// balanced five-card-major responder used to rest in `3NT` while a major slam was
 /// cold (the dominant double-dummy leak in our 1NT opening vs BBA).  A paired
