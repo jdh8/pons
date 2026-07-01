@@ -207,6 +207,12 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_minor_min_to_3nt: bool,
 
+    /// Disable the GF structure's heart-transfer mirror (`1NT–2♦–2♥`: `3♣`/`3♦` minors,
+    /// `3♠`/`4♣`/`4♦` splinters, quantitative `4NT`); on by default (with the master
+    /// GF-majors structure).
+    #[arg(long, default_value_t = false)]
+    no_ns_transfer_gf_hearts: bool,
+
     /// Disable responder's post-transfer single-suited slam try (`1NT–2♦–2♥–3♠` /
     /// `1NT–2♥–2♠–3♥`, a 5-card-major RKCB slam try); on by default.
     #[arg(long, default_value_t = false)]
@@ -881,6 +887,7 @@ fn main() -> anyhow::Result<()> {
     pons::bidding::american::set_texas_slam_drive(!args.no_ns_texas_slam_drive);
     pons::bidding::american::set_transfer_gf_majors(!args.no_ns_transfer_gf_majors);
     pons::bidding::american::set_minor_min_to_3nt(args.ns_minor_min_to_3nt);
+    pons::bidding::american::set_transfer_gf_hearts(!args.no_ns_transfer_gf_hearts);
     pons::bidding::american::set_garbage_stayman(!args.no_ns_garbage_stayman);
     pons::bidding::american::set_stayman_both_majors(!args.no_ns_stayman_both_majors);
     pons::bidding::american::set_stayman_5card_max(!args.no_ns_stayman_5card_max);

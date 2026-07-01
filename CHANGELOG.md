@@ -33,10 +33,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     `6NT` or passes.
 
   The direct choice-of-games `3NT` (and opener's `set_correct_3nt_to_major` pull to the
-  eight-card fit) is unchanged. Hearts mirror the structure in a later change. Disable
-  with `set_transfer_gf_majors(false)` (or `bba-gen --no-ns-transfer-gf-majors`).
-  `set_minor_min_to_3nt` (Arm B) stays **off** — the A/B refuted it: showing the minor
-  beat lumping minimums into `3NT`.
+  eight-card fit) is unchanged. Disable with `set_transfer_gf_majors(false)` (or
+  `bba-gen --no-ns-transfer-gf-majors`). `set_minor_min_to_3nt` (Arm B) stays **off** —
+  the A/B refuted it: showing the minor beat lumping minimums into `3NT`.
+- **The game-forcing structure mirrored onto the heart transfer**
+  (`set_transfer_gf_hearts`, **on by default**). After `1NT–2♦–2♥`, responder shows a
+  five-heart-plus-minor game force (`3♣`/`3♦`), a six-heart splinter (`3♠` short in
+  spades — cheap, below `4♥` — or `4♣`/`4♦` short in a minor), or a single-suited
+  quantitative slam invite (`4NT`, relocated off the `3♠` slam try, just as spades
+  relocated off `3♥`). The node is tighter than spades — `2♠` and `2NT` are the
+  single-suited/`5♥4♠` invites — so the 5-5 majors slam try keeps its single home on the
+  spade transfer rather than duplicating a heart slot. Against BBA (960k boards, two
+  seeds) the mirror gains **+0.0015/+0.0017 IMPs/board plain and +0.0016/+0.0018
+  par-doubled** (all 95% CI ±0.0003, +1.83/+2.08 per fired). No effect unless
+  `set_transfer_gf_majors` is also on; disable with `set_transfer_gf_hearts(false)` (or
+  `bba-gen --no-ns-transfer-gf-hearts`).
 - **A Texas + responder-RKCB slam drive for six-card majors**
   (`set_texas_slam_drive`, **on by default**). The direct `1NT–4♥/4♠` was a
   *non-forcing* slam try — opener moved only with a maximum, else passed the major
