@@ -20,8 +20,8 @@
 //! - `points`     — `point_count` (HCP + shape upgrade), no trump term.
 //! - `hcp+trump`  — raw HCP + 1 per trump beyond 6 (pure excess-trump buff).
 //! - `fit_value`  — `point_count` + 1 per trump beyond 6 (the full proposal; the
-//!                  Texas mirror of `notrump.rs::fit_value`, which counts from 4
-//!                  for the 4-4 Stayman fit — here responder shows 6, opener ≥2).
+//!   Texas mirror of `notrump.rs::fit_value`, which counts from 4 for the 4-4
+//!   Stayman fit — here responder shows 6, opener ≥2).
 //!
 //! ```text
 //! cargo run --release --example probe-texas-slam-eval -- 200000 0

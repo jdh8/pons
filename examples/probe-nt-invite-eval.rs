@@ -78,8 +78,11 @@ fn ev_controls(h: Hand) -> f64 {
     f64::from(controls(h))
 }
 
+/// A named hand evaluator: `(label, fn)`.
+type Eval = (&'static str, fn(Hand) -> f64);
+
 /// HCP first — its calibrated arm must score ~0 vs the control (the sanity check).
-const EVALS: &[(&str, fn(Hand) -> f64)] = &[
+const EVALS: &[Eval] = &[
     ("HCP", ev_hcp),
     ("points", ev_points),
     ("fifths", ev_fifths),

@@ -290,8 +290,7 @@ fn main() -> anyhow::Result<()> {
     // just divergent), so each line is the honest IMP/board for that continuation.
     let mut cont_by: BTreeMap<String, (i64, i64)> = BTreeMap::new();
     let mut cont = (0i64, 0i64);
-    for index in 0..boards.len() {
-        let board = &boards[index];
+    for (index, board) in boards.iter().enumerate() {
         let Some((nt_index, true)) = opening_1nt(&board.table_a, board.dealer) else {
             continue;
         };
