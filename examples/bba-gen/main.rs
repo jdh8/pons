@@ -402,6 +402,12 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_rubens: bool,
 
+    /// Disable recording the one-level Rubens transfers' meaning (default on):
+    /// the transfers revert to suppress-only, the overcaller blind to the shown
+    /// support/length and strength — the reading-attribution A/B arm.
+    #[arg(long, default_value_t = false)]
+    no_ns_rubens_reading: bool,
+
     /// Our side NEVER competes over BBA's 1NT (default off): authors only Pass at
     /// every seat, the truest "do nothing" baseline.  Overrides every other defense knob.
     #[arg(long, default_value_t = false)]
@@ -862,6 +868,7 @@ fn main() -> anyhow::Result<()> {
     pons::bidding::instinct::set_advancer_xx_runout(!args.no_ns_xx_runout);
     pons::bidding::instinct::set_doubler_xx_runout(!args.no_ns_doubler_run);
     pons::bidding::instinct::set_rubens_advances(!args.no_ns_rubens);
+    pons::bidding::set_rubens_transfer_reading(!args.no_ns_rubens_reading);
     pons::bidding::set_fallback_projection(!args.no_ns_fallback_projection);
     pons::bidding::american::set_open_one_notrump(!args.no_our_1nt);
     pons::bidding::american::set_one_notrump_fifths(args.nt_fifths);

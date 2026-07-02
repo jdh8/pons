@@ -68,6 +68,29 @@ fn nt_invite_inference() -> bool {
 }
 
 std::thread_local! {
+    /// Whether a one-level Rubens transfer records its meaning (see
+    /// [`set_rubens_transfer_reading`]).  On by default; off recovers the
+    /// suppress-only reading, where the transfers showed nothing.
+    static RUBENS_TRANSFER_READING: Cell<bool> = const { Cell::new(true) };
+}
+
+/// Toggle recording the one-level Rubens transfers' meaning (default on).
+///
+/// The two-level cue-raise always recorded its limit-plus raise; the one-level
+/// transfers were suppress-only, leaving the overcaller — and the sampler
+/// behind the search floor — blind to the shown support, length, and strength.
+/// On, the transfer into partner's suit records three-plus cards in the
+/// overcall suit, a new-suit transfer records five-plus in its target, both
+/// ten-plus points.  For A/B measurement (`bba-gen --no-ns-rubens-reading`).
+pub fn set_rubens_transfer_reading(on: bool) {
+    RUBENS_TRANSFER_READING.with(|cell| cell.set(on));
+}
+
+fn rubens_transfer_reading() -> bool {
+    RUBENS_TRANSFER_READING.with(Cell::get)
+}
+
+std::thread_local! {
     /// Whether [`project_authored`] treats a call as artificial because its
     /// authoring rule carries an [`Alert`][crate::bidding::Alert], on top of the
     /// structural [`artificial`] test.  On by default; turning it off recovers the
@@ -417,7 +440,7 @@ impl Inferences {
 
         // Rubens advances name relay suits; identify them so the natural reading
         // skips them, and capture a cue-raise's strength to apply afterwards.
-        let (rubens_suppress, rubens_cue) = rubens_reading(auction);
+        let (rubens_suppress, rubens_cue, rubens_transfer) = rubens_reading(auction);
 
         // The three declarative conventions — Jacoby transfers over our notrump,
         // Leaping Michaels, and Landy's 2♣ — are read straight off their authored
@@ -709,6 +732,21 @@ impl Inferences {
             let who = relative_of(len, cue_index) as usize;
             players[who].narrow_length(overcall_suit, Range::at_least(3, LENGTH_CAP));
             players[who].narrow_points(Range::at_least(10, POINTS_CAP));
+        }
+
+        // A one-level Rubens transfer records its meaning likewise (see
+        // [`set_rubens_transfer_reading`]) — but only for the advancer's own
+        // side: the transfer semantics are *our* agreement, and an opponent's
+        // in-band advance may be a genuine suit (asserting length in the suit
+        // above would poison the sampler).  Suppression above stays side-blind:
+        // it only loses information, never asserts any.
+        if let Some((transfer_index, suit, min_len)) = rubens_transfer {
+            let who = relative_of(len, transfer_index);
+            if matches!(who, Relative::Me | Relative::Partner) {
+                let who = who as usize;
+                players[who].narrow_length(suit, Range::at_least(min_len, LENGTH_CAP));
+                players[who].narrow_points(Range::at_least(10, POINTS_CAP));
+            }
         }
 
         // The three declarative conventions (Jacoby transfers over our notrump,
@@ -1022,22 +1060,34 @@ const fn cheapest_level(highest: Option<Bid>, strain: Strain) -> u8 {
     }
 }
 
-/// The Rubens-artificial calls of an advance, and a cue-raise's strength reading
+/// The Rubens-artificial calls of an advance, and the advance's strength reading
 ///
 /// In a [Rubens advance][super::instinct::overcall_shape] of a simple overcall,
 /// some calls *name* a suit they do not *hold*: the advancer's transfer (a relay
 /// to the next suit up) or cue-raise, and the overcaller's forced completion.
-/// Returns `(suppress, cue)` — `suppress` lists those indices, whose bid suit
-/// must not be read as natural length; `cue` is `(index, Y)` of a two-level
-/// cue-raise, read separately as a limit-plus raise (three-plus cards in
-/// partner's overcall `Y`, ten-plus points).
+/// Returns `(suppress, cue, transfer)` — `suppress` lists those indices, whose
+/// bid suit must not be read as natural length; `cue` is `(index, Y)` of a
+/// two-level cue-raise, read separately as a limit-plus raise (three-plus cards
+/// in partner's overcall `Y`, ten-plus points); `transfer` is
+/// `(index, suit, min-len)` of a one-level transfer's meaning — the transfer
+/// into partner's suit is the same limit-plus raise (`(index, Y, 3)`), a
+/// new-suit transfer shows its own five-card target (`(index, target, 5)`),
+/// both ten-plus points ([`set_rubens_transfer_reading`], recorded post-walk
+/// for the advancer's *own side only* — an opponent's in-band advance may be
+/// natural).
 ///
-/// A new-suit transfer's target is the *advancer's* own suit and the completion
-/// is a forced relay, so neither is read as length (soundness over tightness, as
-/// with transfers over our own notrump).  The cue-raise's *strength*, by
-/// contrast, is what lets the overcaller reach game, so it is recorded.
-fn rubens_reading(auction: &[Call]) -> ([Option<usize>; 2], Option<(usize, Suit)>) {
-    let none = ([None, None], None);
+/// The shown values are what let the overcaller judge game — and the completion
+/// is a forced relay, still never read as length (soundness over tightness, as
+/// with transfers over our own notrump).
+#[allow(clippy::type_complexity)]
+fn rubens_reading(
+    auction: &[Call],
+) -> (
+    [Option<usize>; 2],
+    Option<(usize, Suit)>,
+    Option<(usize, Suit, u8)>,
+) {
+    let none = ([None, None], None, None);
     // The bidder's knob governs the reading too: with Rubens advances off, an
     // advance in the band is a genuine suit and must be read naturally.
     if !super::instinct::rubens_advances_enabled() {
@@ -1058,7 +1108,7 @@ fn rubens_reading(auction: &[Call]) -> ([Option<usize>; 2], Option<(usize, Suit)
     if level == 2 {
         // Two-level overcall: the cue-raise (2X) is the lone artificial call.
         return if advance == Bid::new(2, Strain::from(x)) {
-            ([Some(advance_index), None], Some((advance_index, y)))
+            ([Some(advance_index), None], Some((advance_index, y)), None)
         } else {
             none
         };
@@ -1070,11 +1120,20 @@ fn rubens_reading(auction: &[Call]) -> ([Option<usize>; 2], Option<(usize, Suit)
     if advance.level.get() != 2 || (source as u8) < (x as u8) || (source as u8) >= (y as u8) {
         return none;
     }
-    let target = Strain::from(Suit::ASC[(source as u8 + 1) as usize]);
+    let target_suit = Suit::ASC[(source as u8 + 1) as usize];
+    let target = Strain::from(target_suit);
     let completion = (auction.get(advance_index + 1) == Some(&Call::Pass)
         && auction.get(advance_index + 2) == Some(&Call::Bid(Bid::new(2, target))))
     .then_some(advance_index + 2);
-    ([Some(advance_index), completion], None)
+    // The transfer's meaning, fixed the moment it is made (the completion is
+    // not required): into partner's suit = the limit-plus raise, a new suit =
+    // the advancer's own five-card target.
+    let transfer = rubens_transfer_reading().then_some(if target_suit == y {
+        (advance_index, y, 3)
+    } else {
+        (advance_index, target_suit, 5)
+    });
+    ([Some(advance_index), completion], None, transfer)
 }
 
 /// The advancer's `2♦` relay / `2♥`-`2♠` preference over a Landy/Woolsey both-majors
@@ -2417,6 +2476,90 @@ mod tests {
         ]);
         assert!(inf.partner().length(Suit::Clubs).min >= 4);
         crate::bidding::instinct::set_rubens_advances(true);
+    }
+
+    #[test]
+    fn rubens_limit_raise_transfer_records_support() {
+        // (1♣) 1♠ (P) 2♥ (P): partner's transfer into our spades is the
+        // limit-plus raise — the overcaller reads three-plus spades and
+        // ten-plus points, while the named hearts stay unread (a relay).
+        let inf = read(&[
+            bid(1, Strain::Clubs),
+            bid(1, Strain::Spades),
+            Call::Pass,
+            bid(2, Strain::Hearts),
+            Call::Pass,
+        ]);
+        assert!(inf.partner().length(Suit::Spades).min >= 3);
+        assert!(inf.partner().points.min >= 10);
+        assert_eq!(inf.partner().length(Suit::Hearts), Range::FULL_LENGTH);
+    }
+
+    #[test]
+    fn rubens_new_suit_transfer_records_the_target() {
+        // (1♣) 1♠ (P) 2♣ (P): the new-suit transfer shows the advancer's own
+        // five-card diamond suit and ten-plus points; clubs stay unread.
+        let inf = read(&[
+            bid(1, Strain::Clubs),
+            bid(1, Strain::Spades),
+            Call::Pass,
+            bid(2, Strain::Clubs),
+            Call::Pass,
+        ]);
+        assert!(inf.partner().length(Suit::Diamonds).min >= 5);
+        assert!(inf.partner().points.min >= 10);
+        assert_eq!(inf.partner().length(Suit::Clubs), Range::FULL_LENGTH);
+    }
+
+    #[test]
+    fn rubens_transfer_records_despite_intervention() {
+        // (1♣) 1♠ (P) 2♥ (X): opener doubles the transfer — the completion
+        // never comes, but the shown limit raise is exactly what the
+        // overcaller needs for the competitive decision.
+        let inf = read(&[
+            bid(1, Strain::Clubs),
+            bid(1, Strain::Spades),
+            Call::Pass,
+            bid(2, Strain::Hearts),
+            Call::Double,
+        ]);
+        assert!(inf.partner().length(Suit::Spades).min >= 3);
+        assert!(inf.partner().points.min >= 10);
+    }
+
+    #[test]
+    fn rubens_transfer_is_not_read_for_the_opponents() {
+        // Same auction read from the opening side (the advancer is now our
+        // LHO): the opponents' agreement is not assumed — an in-band advance
+        // from the other side may be a genuine suit, so nothing is recorded.
+        let inf = read(&[
+            bid(1, Strain::Clubs),
+            bid(1, Strain::Spades),
+            Call::Pass,
+            bid(2, Strain::Hearts),
+            Call::Pass,
+            Call::Pass,
+        ]);
+        assert_eq!(inf.lho().length(Suit::Spades), Range::FULL_LENGTH);
+        assert_eq!(inf.lho().points, Range::FULL_POINTS);
+    }
+
+    #[test]
+    fn rubens_transfer_reading_knob_recovers_suppress_only() {
+        // Stage-2 knob off: the transfer is still suppressed (not natural
+        // hearts) but records nothing — the pre-fix shape.
+        set_rubens_transfer_reading(false);
+        let inf = read(&[
+            bid(1, Strain::Clubs),
+            bid(1, Strain::Spades),
+            Call::Pass,
+            bid(2, Strain::Hearts),
+            Call::Pass,
+        ]);
+        assert_eq!(inf.partner().length(Suit::Spades), Range::FULL_LENGTH);
+        assert_eq!(inf.partner().length(Suit::Hearts), Range::FULL_LENGTH);
+        assert_eq!(inf.partner().points, Range::FULL_POINTS);
+        set_rubens_transfer_reading(true);
     }
 
     #[test]

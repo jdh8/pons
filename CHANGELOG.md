@@ -22,6 +22,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   bid") and the A/B would have measured Rubens against a pass. The `Inferences`
   reading shares the knob: off, an advance in the band reads as a genuine suit.
   A/B results: ⟨pending⟩.
+- **One-level Rubens transfers now record their meaning**
+  (`set_rubens_transfer_reading`, **on by default**; `bba-gen
+  --no-ns-rubens-reading`). The transfers were suppress-only — after
+  `(1♣) 1♠ (P) 2♥` the overcaller read *nothing* from the limit-plus raise,
+  so game acceptance, the constrained sampler, and the neural features (whose
+  `Inferences` block shifts values on these auctions — no layout change, no
+  `FEATURES_VERSION` bump) were all blind to it; only the two-level cue-raise
+  recorded. Now the transfer into partner's suit records three-plus cards in
+  the overcall suit, a new-suit transfer records five-plus in its target, both
+  ten-plus points, at the transfer index — the completion is *not* required,
+  since the shown values matter most when fourth hand intervenes over the
+  transfer. Recorded for the advancer's own side only: an opponent's in-band
+  advance may be a genuine suit (BBA's advances are natural), and asserting
+  length in the suit above would poison the sampler. A/B results: ⟨pending⟩.
 - **Responder's continuation after opener's Stayman slam-try cue**
   (`set_stayman_cue_continuation`, **on by default**). After `1NT–2♣–2M–3OM`,
   opener cue-bids a control (`4♣`/`4♦`/`4♥`) to accept the slam try with a maximum —
