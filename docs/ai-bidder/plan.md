@@ -690,13 +690,15 @@ rule-based, ~100%-reproducible engine; we drive it as a black box (native
   by ≈ 2.6, the gap concentrated in competitive/contested auctions (the thinnest
   part of the books). 371 tests green; `libloading` stays a dev-dependency, default
   build untouched.
-- ⬜ **S.2 (optional) Imitation teacher for M3.** BBA's calls as an extra,
-  cheap/deterministic target alongside the M2.3 search teacher. *Caveat:* imitating
-  BBA is capped at BBA — it cannot *exceed* a human system the way the double-dummy
-  search teacher can, so this is a sanity/regularizer signal, **not** the path to
-  "beat the floor." *Deps:* S.0, M3.1.
+- ❌ **S.2 (optional) Imitation teacher for M3 — DROPPED.** Would have added BBA's
+  calls as an extra, cheap/deterministic target alongside the M2.3 search teacher.
+  Obsolete: M3 is closed (M3.1–M3.3 ✅, champion picked), so there is no training run
+  left to feed. And by its own caveat imitating BBA is capped at BBA — a regularizer
+  toward a fixed human ceiling, never the path to "beat the floor" — while the
+  double-dummy search teacher already won M3 (+0.178/+1.716 vs the deterministic floor).
+  *Deps:* S.0, M3.1.
 
-Slots in: S.1 → eval harness (now) · S.2 → M3 (optional).
+Slots in: S.1 → eval harness (now). S.2 dropped (M3 closed).
 
 ---
 
