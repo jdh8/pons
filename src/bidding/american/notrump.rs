@@ -900,7 +900,7 @@ pub(crate) fn crawling_stayman() -> bool {
 ///
 /// Over opener's cue (a control below the trump major, showing a maximum) responder
 /// keycards with slam values or signs off in the major game — closing the dead-end
-/// where the cue was otherwise passed out below game.  See [`stayman_cue_rebid`].
+/// where the cue was otherwise passed out below game.  See `stayman_cue_rebid`.
 pub fn set_stayman_cue_continuation(on: bool) {
     STAYMAN_CUE_CONTINUATION.with(|cell| cell.set(on));
 }
