@@ -1038,6 +1038,11 @@ const fn cheapest_level(highest: Option<Bid>, strain: Strain) -> u8 {
 /// contrast, is what lets the overcaller reach game, so it is recorded.
 fn rubens_reading(auction: &[Call]) -> ([Option<usize>; 2], Option<(usize, Suit)>) {
     let none = ([None, None], None);
+    // The bidder's knob governs the reading too: with Rubens advances off, an
+    // advance in the band is a genuine suit and must be read naturally.
+    if !super::instinct::rubens_advances_enabled() {
+        return none;
+    }
     let Some((x, y, overcall_index, level)) = super::instinct::overcall_shape(auction) else {
         return none;
     };
@@ -2396,6 +2401,22 @@ mod tests {
             Call::Pass,
         ]);
         assert_eq!(inf.partner().length(Suit::Clubs), Range::FULL_LENGTH);
+    }
+
+    #[test]
+    fn rubens_reading_respects_the_knob() {
+        // With Rubens advances off (`set_rubens_advances`), the same 2♣ is a
+        // genuine club suit — the suppression lifts and it reads naturally.
+        crate::bidding::instinct::set_rubens_advances(false);
+        let inf = read(&[
+            bid(1, Strain::Clubs),
+            bid(1, Strain::Spades),
+            Call::Pass,
+            bid(2, Strain::Clubs),
+            Call::Pass,
+        ]);
+        assert!(inf.partner().length(Suit::Clubs).min >= 4);
+        crate::bidding::instinct::set_rubens_advances(true);
     }
 
     #[test]

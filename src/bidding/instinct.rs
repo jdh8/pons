@@ -178,6 +178,13 @@ std::thread_local! {
     /// read once in [`instinct`] so the escape rule lands only in the on book.
     static DOUBLER_XX_RUNOUT: Cell<bool> = const { Cell::new(true) };
 
+    /// Whether advances of partner's simple overcall are Rubens transfers /
+    /// the cue-raise (**on by default** — today's behavior; see
+    /// [`set_rubens_advances`]).  Off recovers a natural-advances baseline for
+    /// A/B: raises stay the natural ladder and a knob-off natural new-suit
+    /// advance covers the hands the transfers covered.
+    static RUBENS_ADVANCES: Cell<bool> = const { Cell::new(true) };
+
     /// HCP floor at which a strong-1NT responder forces game off the floor *in an
     /// undisturbed auction* (A/B knob; see [`set_nt_responder_game_floor`]).  The
     /// authored direct-3NT game force is already 9, but a 9-count *five-card-major*
@@ -301,6 +308,31 @@ pub fn set_settle_floor(enabled: bool) {
 /// The "settle" view of Pass is enabled (see [`set_settle_floor`])
 fn settle_floor() -> Cons<impl Constraint + Clone> {
     pred(|_: Hand, _: &Context<'_>| SETTLE_FLOOR.with(Cell::get))
+}
+
+/// Enable or disable Rubens advances of partner's simple overcall
+///
+/// **On by default** (today's behavior): over a one-level overcall the calls
+/// from the cue up to just below partner's suit are transfers, and over a
+/// two-level overcall the cue is the limit-plus raise.  Disable to recover a
+/// natural-advances baseline — raises stay the natural ladder (the limit
+/// distinction is lost, the honest natural price) and a natural two-level
+/// new-suit advance replaces the new-suit transfer.  For A/B measurement (see
+/// `bba-gen --no-ns-rubens`); read at classification time, per-thread.  The
+/// [`Inferences`] reading shares the knob: off, an advance in the band is a
+/// genuine suit.
+///
+/// [`Inferences`]: super::inference::Inferences
+#[doc(hidden)]
+pub fn set_rubens_advances(enabled: bool) {
+    RUBENS_ADVANCES.with(|flag| flag.set(enabled));
+}
+
+/// Rubens advances are enabled (see [`set_rubens_advances`]); shared with the
+/// [`Inferences`](super::inference::Inferences) reading so the bidder and the
+/// reader flip together
+pub(super) fn rubens_advances_enabled() -> bool {
+    RUBENS_ADVANCES.with(Cell::get)
 }
 
 /// Set the HCP floor at which responder redoubles a doubled 1NT to play
@@ -1454,12 +1486,13 @@ fn advance_of_overcall(context: &Context<'_>) -> Option<(Suit, Suit, u8)> {
 /// limit-plus raise) over a new-suit transfer (advancer's own five-card suit).
 fn rubens_transfer(source: Suit, into_partner: bool) -> Cons<impl Constraint + Clone> {
     pred(move |_: Hand, context: &Context<'_>| {
-        advance_of_overcall(context).is_some_and(|(x, y, level)| {
-            level == 1
-                && (x as u8) <= (source as u8)
-                && (source as u8) < (y as u8)
-                && (source as u8 + 1 == y as u8) == into_partner
-        })
+        rubens_advances_enabled()
+            && advance_of_overcall(context).is_some_and(|(x, y, level)| {
+                level == 1
+                    && (x as u8) <= (source as u8)
+                    && (source as u8) < (y as u8)
+                    && (source as u8 + 1 == y as u8) == into_partner
+            })
     })
 }
 
@@ -1467,7 +1500,9 @@ fn rubens_transfer(source: Suit, into_partner: bool) -> Cons<impl Constraint + C
 /// a limit-plus raise, the cue being the opponents' suit `X`
 fn rubens_cue_raise(cue: Suit) -> Cons<impl Constraint + Clone> {
     pred(move |_: Hand, context: &Context<'_>| {
-        advance_of_overcall(context).is_some_and(|(x, _, level)| level == 2 && x as u8 == cue as u8)
+        rubens_advances_enabled()
+            && advance_of_overcall(context)
+                .is_some_and(|(x, _, level)| level == 2 && x as u8 == cue as u8)
     })
 }
 
@@ -1478,6 +1513,9 @@ fn rubens_cue_raise(cue: Suit) -> Cons<impl Constraint + Clone> {
 /// Mechanical (hand-independent), like completing a transfer over our own
 /// notrump — see [`TRANSFERS`].
 fn rubens_completion(context: &Context<'_>) -> Option<Suit> {
+    if !rubens_advances_enabled() {
+        return None;
+    }
     let auction = context.auction();
     let len = auction.len();
     let (x, y, overcall_index, level) = overcall_shape(auction)?;
@@ -1501,6 +1539,24 @@ fn rubens_completion(context: &Context<'_>) -> Option<Suit> {
 /// [`rubens_completion`] as a [`Constraint`]: complete into `target`
 fn rubens_completes(target: Suit) -> Cons<impl Constraint + Clone> {
     pred(move |_: Hand, context: &Context<'_>| rubens_completion(context) == Some(target))
+}
+
+/// `2 target` is a *natural* new-suit advance of partner's one-level overcall,
+/// live only while Rubens advances are off ([`set_rubens_advances`])
+///
+/// The knob-off baseline: the natural five-card-suit overcall rule is anchored
+/// on [`we_have_not_bid`], dead for the advancer, so without this the band
+/// hands (own five-card suit between their suit and partner's) would have *no*
+/// call and the A/B would measure Rubens against a pass, not against natural
+/// advances.  Covers exactly the hand class of the new-suit
+/// [`rubens_transfer`], at the same weight.
+fn natural_new_suit_advance(target: Suit) -> Cons<impl Constraint + Clone> {
+    pred(move |_: Hand, context: &Context<'_>| {
+        !rubens_advances_enabled()
+            && advance_of_overcall(context).is_some_and(|(x, y, level)| {
+                level == 1 && (x as u8) < (target as u8) && (target as u8) < (y as u8)
+            })
+    })
 }
 
 /// Build the instinct ladder: a sane natural action for any auction
@@ -2228,6 +2284,19 @@ pub fn instinct() -> Rules {
             rubens_completes(target),
         );
     }
+    // Knob-off natural new-suit advance — the fair baseline for the Rubens A/B
+    // (see `natural_new_suit_advance`); dormant while the transfers are on.
+    for target in [Suit::Diamonds, Suit::Hearts] {
+        let target_strain = Strain::from(target);
+        rules = rules.rule(
+            Bid::new(2, target_strain),
+            1.35,
+            natural_new_suit_advance(target)
+                & len(target, 5..)
+                & points(10..)
+                & min_level_is(2, target_strain),
+        );
+    }
 
     // Takeout double of their low suit bid: shape with opening values, or
     // any strong hand planning to bid again.  The penalty latch steps these
@@ -2878,6 +2947,31 @@ mod tests {
         // with support raises spades naturally rather than transferring.
         let auction = [call(1, Strain::Clubs), call(2, Strain::Spades), Call::Pass];
         assert_eq!(best(&auction, "K54.K32.K43.Q432"), call(3, Strain::Spades));
+    }
+
+    #[test]
+    fn rubens_disabled_reverts_to_natural_advances() {
+        // Knob off (`set_rubens_advances`): the same hands advance naturally.
+        set_rubens_advances(false);
+        let auction = [call(1, Strain::Clubs), call(1, Strain::Spades), Call::Pass];
+        // The limit raise is a direct natural raise, not the 2♥ transfer.
+        assert_eq!(best(&auction, "K54.K32.K43.Q432"), call(2, Strain::Spades));
+        // A five-card-diamond good 9 bids its suit naturally (the knob-off
+        // fallback rule), not the 2♣ transfer.
+        assert_eq!(
+            best(&auction, "2.K32.KQT54.J432"),
+            call(2, Strain::Diamonds)
+        );
+        // No mechanical completion: partner's 2♣ is a genuine club suit.
+        let after = [
+            call(1, Strain::Clubs),
+            call(1, Strain::Spades),
+            Call::Pass,
+            call(2, Strain::Clubs),
+            Call::Pass,
+        ];
+        assert_ne!(best(&after, "AKJ52.K3.952.J32"), call(2, Strain::Diamonds));
+        set_rubens_advances(true);
     }
 
     #[test]

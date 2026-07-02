@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Rubens advances become a knob** (`set_rubens_advances`, **on by default** —
+  unchanged behavior; `bba-gen --no-ns-rubens`). The transfer advances of
+  partner's simple overcall shipped unconditionally, so the convention itself was
+  never A/B-measurable — only the book→floor migration was (neutral). Off
+  recovers a *natural-advances baseline*: the limit-plus raise reverts to the
+  natural raise ladder (the limit distinction is the honest natural price), and a
+  knob-off **natural two-level new-suit advance** is authored covering exactly
+  the new-suit transfer's hand class (five-plus cards between their suit and
+  partner's, ten-plus upgraded points) — without it the floor had *no* call for
+  those hands (the natural five-card-suit rule is anchored on "our side has not
+  bid") and the A/B would have measured Rubens against a pass. The `Inferences`
+  reading shares the knob: off, an advance in the band reads as a genuine suit.
+  A/B results: ⟨pending⟩.
 - **Responder's continuation after opener's Stayman slam-try cue**
   (`set_stayman_cue_continuation`, **on by default**). After `1NT–2♣–2M–3OM`,
   opener cue-bids a control (`4♣`/`4♦`/`4♥`) to accept the slam try with a maximum —
