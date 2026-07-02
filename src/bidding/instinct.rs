@@ -1455,6 +1455,13 @@ pub(crate) fn overcall_shape(auction: &[Call]) -> Option<(Suit, Suit, usize, u8)
     if overcall_index % 2 == opening_side {
         return None;
     }
+    // ... and the side's FIRST action: a double before the bid makes this an
+    // advance-of-double structure, not an overcall advance — the doubler's
+    // later cue of the opening is a strong raise, never a Rubens transfer
+    // (A/B'd: transfer-detecting these tails died in unauthored passouts).
+    if auction[open_index + 1..overcall_index].contains(&Call::Double) {
+        return None;
+    }
     let Call::Bid(overcall) = auction[overcall_index] else {
         return None;
     };
@@ -1520,11 +1527,13 @@ fn rubens_completion(context: &Context<'_>) -> Option<Suit> {
     let len = auction.len();
     let (x, y, overcall_index, level) = overcall_shape(auction)?;
     // Only a one-level overcall carries the transfer ladder; the sequence is
-    // overcall, (pass), transfer, (pass), us.
+    // overcall, (pass), transfer, (pass or opener's lead-directing double), us.
+    // Completing through the double matters: without it the relay dies and the
+    // advancer plays the phantom suit doubled (A/B'd −14 IMPs a board).
     if level != 1
         || overcall_index + 4 != len
         || auction[overcall_index + 1] != Call::Pass
-        || auction[len - 1] != Call::Pass
+        || !matches!(auction[len - 1], Call::Pass | Call::Double)
     {
         return None;
     }
@@ -1539,6 +1548,37 @@ fn rubens_completion(context: &Context<'_>) -> Option<Suit> {
 /// [`rubens_completion`] as a [`Constraint`]: complete into `target`
 fn rubens_completes(target: Suit) -> Cons<impl Constraint + Clone> {
     pred(move |_: Hand, context: &Context<'_>| rubens_completion(context) == Some(target))
+}
+
+/// Partner answered our simple two-level overcall with the Rubens cue-raise,
+/// opener passing or doubling — we must place the contract
+///
+/// The cue names the *opponents'* suit, so passing it out plays their suit at
+/// the two level (A/B'd the dominant Rubens leak: a quarter of the divergent
+/// boards died in this passout).  Returns `(X = their suit, Y = our suit)`.
+fn rubens_cue_answer(context: &Context<'_>) -> Option<(Suit, Suit)> {
+    if !rubens_advances_enabled() {
+        return None;
+    }
+    let auction = context.auction();
+    let len = auction.len();
+    let (x, y, overcall_index, level) = overcall_shape(auction)?;
+    // The sequence is overcall, (pass), cue, (pass or double), us.
+    if level != 2
+        || overcall_index + 4 != len
+        || auction[overcall_index + 1] != Call::Pass
+        || !matches!(auction[len - 1], Call::Pass | Call::Double)
+    {
+        return None;
+    }
+    (auction[overcall_index + 2] == Call::Bid(Bid::new(2, Strain::from(x)))).then_some((x, y))
+}
+
+/// [`rubens_cue_answer`] as a [`Constraint`]: our overcall suit is `y`
+fn rubens_cue_answers(y: Suit) -> Cons<impl Constraint + Clone> {
+    pred(move |_: Hand, context: &Context<'_>| {
+        rubens_cue_answer(context).is_some_and(|(_, own)| own == y)
+    })
 }
 
 /// `2 target` is a *natural* new-suit advance of partner's one-level overcall,
@@ -2284,6 +2324,25 @@ pub fn instinct() -> Rules {
             rubens_completes(target),
         );
     }
+    // Answer partner's two-level cue-raise — the cue must never play their
+    // suit.  Retreat to our overcall suit as the guaranteed action; with a
+    // maximum (14+, opposite the cue's 10+) place the game instead: `4♥` on
+    // the heart fit, `3NT` over a minor with their suit stopped.
+    for y in [Suit::Clubs, Suit::Diamonds, Suit::Hearts] {
+        rules = rules.rule(Bid::new(3, Strain::from(y)), 1.5, rubens_cue_answers(y));
+    }
+    rules = rules.rule(
+        Bid::new(4, Strain::from(Suit::Hearts)),
+        1.55,
+        rubens_cue_answers(Suit::Hearts) & points(14..),
+    );
+    for y in [Suit::Clubs, Suit::Diamonds] {
+        rules = rules.rule(
+            Bid::new(3, Strain::Notrump),
+            1.55,
+            rubens_cue_answers(y) & points(14..) & stopper_in_their_suits(),
+        );
+    }
     // Knob-off natural new-suit advance — the fair baseline for the Rubens A/B
     // (see `natural_new_suit_advance`); dormant while the transfers are on.
     for target in [Suit::Diamonds, Suit::Hearts] {
@@ -2947,6 +3006,80 @@ mod tests {
         // with support raises spades naturally rather than transferring.
         let auction = [call(1, Strain::Clubs), call(2, Strain::Spades), Call::Pass];
         assert_eq!(best(&auction, "K54.K32.K43.Q432"), call(3, Strain::Spades));
+    }
+
+    #[test]
+    fn rubens_completes_through_the_double() {
+        // (1♣) 1♠ (P) 2♣ (X): opener lead-directs against the transfer; the
+        // completion still fires — otherwise the relay dies and partner plays
+        // the phantom suit doubled.
+        let auction = [
+            call(1, Strain::Clubs),
+            call(1, Strain::Spades),
+            Call::Pass,
+            call(2, Strain::Clubs),
+            Call::Double,
+        ];
+        assert_eq!(
+            best(&auction, "AKJ52.K3.952.J32"),
+            call(2, Strain::Diamonds)
+        );
+    }
+
+    #[test]
+    fn rubens_cue_answer_places_the_contract() {
+        // (1♠) 2♣ (P) 2♠ (P): partner's cue-raise must never play their suit.
+        let auction = [
+            call(1, Strain::Spades),
+            call(2, Strain::Clubs),
+            Call::Pass,
+            call(2, Strain::Spades),
+            Call::Pass,
+        ];
+        // A minimum retreats to our suit.
+        assert_eq!(best(&auction, "32.K32.Q32.AQJT54"), call(3, Strain::Clubs));
+        // A maximum with their suit stopped places the notrump game.
+        assert_eq!(best(&auction, "A2.K32.Q2.AKQJ54"), call(3, Strain::Notrump));
+        // (1♠) 2♥ (P) 2♠ (P): a maximum with hearts places the major game.
+        let hearts = [
+            call(1, Strain::Spades),
+            call(2, Strain::Hearts),
+            Call::Pass,
+            call(2, Strain::Spades),
+            Call::Pass,
+        ];
+        assert_eq!(best(&hearts, "2.AKQJ54.K32.Q32"), call(4, Strain::Hearts));
+        assert_eq!(best(&hearts, "Q2.AQJT54.432.32"), call(3, Strain::Hearts));
+    }
+
+    #[test]
+    fn rubens_cue_answer_fires_through_the_system() {
+        // The same node reached through `american()`: the floor rule must not
+        // be shadowed by a book node (`project_floor_shadowed_by_book_nodes`),
+        // or the cue keeps passing out at the real table.
+        let auction = [
+            call(1, Strain::Spades),
+            call(2, Strain::Clubs),
+            Call::Pass,
+            call(2, Strain::Spades),
+            Call::Pass,
+        ];
+        let (call_made, floored) = american_floored(&auction, "32.K32.Q32.AQJT54");
+        assert!(floored, "the overcaller's cue answer is floor territory");
+        assert_eq!(call_made, call(3, Strain::Clubs));
+    }
+
+    #[test]
+    fn rubens_skips_advances_of_a_double() {
+        // (1♥) X (P) 1♠: the side's first action was a double, so 1♠ advances
+        // the double — the doubler's later cue is not a Rubens structure.
+        let auction = [
+            call(1, Strain::Hearts),
+            Call::Double,
+            Call::Pass,
+            call(1, Strain::Spades),
+        ];
+        assert_eq!(overcall_shape(&auction), None);
     }
 
     #[test]

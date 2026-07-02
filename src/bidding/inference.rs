@@ -1122,8 +1122,12 @@ fn rubens_reading(
     }
     let target_suit = Suit::ASC[(source as u8 + 1) as usize];
     let target = Strain::from(target_suit);
-    let completion = (auction.get(advance_index + 1) == Some(&Call::Pass)
-        && auction.get(advance_index + 2) == Some(&Call::Bid(Bid::new(2, target))))
+    // The overcaller completes through opener's lead-directing double too, so
+    // the completion stays a relay (never a holding) in both shapes.
+    let completion = (matches!(
+        auction.get(advance_index + 1),
+        Some(Call::Pass | Call::Double)
+    ) && auction.get(advance_index + 2) == Some(&Call::Bid(Bid::new(2, target))))
     .then_some(advance_index + 2);
     // The transfer's meaning, fixed the moment it is made (the completion is
     // not required): into partner's suit = the limit-plus raise, a new suit =
