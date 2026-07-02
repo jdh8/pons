@@ -9,6 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Longer-major transfer discipline** (`set_transfer_longer_major`, **on by
+  default**; `bba-gen --no-ns-transfer-longer`). The Jacoby transfer now
+  names the **longer** major — a 6♠5♥ hand transfers to spades whatever its
+  strength, where the legacy guards let it *tie* into the heart transfer
+  (weak) or fired the both-majors 3♦ (invitational+), losing the sixth spade
+  either way (the M6.4 A/B caught a weak 6♠5♥ transferring to hearts and
+  scrambling into a phantom 4♠).  With **equal** lengths (5-5, 6-6) the route
+  splits by strength: weak transfers to *hearts* for safety, invitational and
+  minimum game force show both suits at once via the both-majors `3♦` (now
+  restricted to equal lengths), and a slam try (17+) transfers to *spades*
+  for the natural game-forcing `1NT–2♥–2♠–3♥` structure.  The 2NT-strength
+  table (2NT opening and `2♣–2x–2NT`) follows the same discipline — longer
+  major, hearts on every tie (it has no both-majors bid or slam reroute).
+  The 5♠4♥/5♥4♠ Stayman reroutes and the splinter reroute are untouched.
+  Paired A/B (204.8k 1NT-filtered boards, 47 fired): plain −0.0000 ± 0.0003,
+  perfect-defense +0.0000 ± 0.0003 — a double-dummy wash; the discipline
+  ships on structural grounds (the deterministic route replaces an arbitrary
+  weight tie, and partner can now infer the transferred suit is the longest).
 - **M6.4 — slam machinery on the floor: RKCB 1430** (`set_floor_rkcb`, **on by
   default**; `bba-gen --no-ns-floor-rkcb`). With a known eight-card **major**
   fit (three-plus our side) and combined small-slam values (33) the instinct

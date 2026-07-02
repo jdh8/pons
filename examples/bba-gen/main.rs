@@ -414,6 +414,12 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_floor_rkcb: bool,
 
+    /// Disable the longer-major transfer discipline (default on): the Jacoby
+    /// transfer guards revert to the legacy tie (a 6♠5♥ hand could transfer to
+    /// hearts; 3♦ fired on any 5-5+) — the A/B baseline arm.
+    #[arg(long, default_value_t = false)]
+    no_ns_transfer_longer: bool,
+
     /// Disable the control-bid reading of high new-suit bids (default on,
     /// M6.4): a four-plus-level new suit reverts to the pre-M6.4 reading
     /// (double jumps skipped) and the return-to-trump signoff never fires.
@@ -883,6 +889,7 @@ fn main() -> anyhow::Result<()> {
     pons::bidding::set_rubens_transfer_reading(!args.no_ns_rubens_reading);
     pons::bidding::instinct::set_floor_rkcb(!args.no_ns_floor_rkcb);
     pons::bidding::set_control_bid_reading(!args.no_ns_control_bid_reading);
+    pons::bidding::american::set_transfer_longer_major(!args.no_ns_transfer_longer);
     pons::bidding::set_fallback_projection(!args.no_ns_fallback_projection);
     pons::bidding::american::set_open_one_notrump(!args.no_our_1nt);
     pons::bidding::american::set_one_notrump_fifths(args.nt_fifths);

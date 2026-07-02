@@ -105,31 +105,67 @@ pub fn notrump_responses() -> Rules {
     // drives its own RKCB instead — see [`set_texas_slam_drive`]).
     let direct_4m_max: u8 = if texas_slam_drive() { 15 } else { 18 };
     // Jacoby transfers — any strength, except a game-forcing 5-4 in the majors
-    // (the `hcp(..9)` arm denies it): that hand keeps off the transfer and takes
+    // (its weak-only arm denies it): that hand keeps off the transfer and takes
     // the 2♣ Stayman/Smolen route, which right-sides game to the strong notrump.
-    // A plain 5-3 still transfers.  2♦ (to hearts) is UNCHANGED by the reroute — a
-    // 5♥4♠ invite keeps transferring and shows the spades with a later 2NT/2♠.
-    let head = Rules::new()
-        .rule(
+    // A plain 5-3 still transfers.  Under the longer-major discipline (default;
+    // see [`set_transfer_longer_major`]) a two-suiter (both majors 5+) always
+    // transfers to the LONGER major, and equal lengths split by strength: weak
+    // → hearts (safety), invitational / minimum game force → the both-majors
+    // 3♦, slam try → spades (the `1NT–2♥–2♠–3♥` structure).  2♦ (to hearts) is
+    // UNCHANGED by the invitational-5-4 reroute — a 5♥4♠ invite keeps
+    // transferring and shows the spades with a later 2NT/2♠.
+    let prefer_longer = transfer_longer_major();
+    let head = if prefer_longer {
+        Rules::new().rule(
+            Bid::new(2, Strain::Diamonds),
+            2.0,
+            len(Suit::Hearts, 5..)
+                & (len(Suit::Spades, ..4)
+                    | (len(Suit::Spades, 4..=4) & hcp(..9))
+                    | (len(Suit::Spades, 5..) & longer_major(Suit::Hearts, Suit::Spades))
+                    | (equal_majors() & points(..8))
+                    | major_splinter_reroute(Suit::Hearts)),
+        )
+    } else {
+        Rules::new().rule(
             Bid::new(2, Strain::Diamonds),
             2.0,
             len(Suit::Hearts, 5..)
                 & (len(Suit::Spades, ..4) | hcp(..9) | major_splinter_reroute(Suit::Hearts)),
         )
-        .alert(JACOBY);
+    }
+    .alert(JACOBY);
     // 2♥ (to spades): the invitational-5-4 reroute (gated) keeps a 5♠4♥ hand of
     // invitational+ values OFF the transfer so it Staymans; a six-card spade suit
     // (`len(♠,6..)`) and a weaker 5♠4♥ (`hcp(..8)`) still transfer.  Off the flag,
     // the classic any-strength-but-GF-5-4 gate.
-    let head = if invitational_5card_majors() {
-        head.rule(
+    let head = match (prefer_longer, invitational_5card_majors()) {
+        (true, true) => head.rule(
+            Bid::new(2, Strain::Hearts),
+            2.0,
+            len(Suit::Spades, 5..)
+                & (len(Suit::Hearts, ..4)
+                    | (len(Suit::Hearts, 4..=4) & (hcp(..8) | len(Suit::Spades, 6..)))
+                    | (len(Suit::Hearts, 5..) & longer_major(Suit::Spades, Suit::Hearts))
+                    | (equal_majors() & slam_55_reroute())),
+        ),
+        (true, false) => head.rule(
+            Bid::new(2, Strain::Hearts),
+            2.0,
+            len(Suit::Spades, 5..)
+                & (len(Suit::Hearts, ..4)
+                    | (len(Suit::Hearts, 4..=4) & hcp(..9))
+                    | (len(Suit::Hearts, 5..) & longer_major(Suit::Spades, Suit::Hearts))
+                    | (equal_majors() & slam_55_reroute())
+                    | major_splinter_reroute(Suit::Spades)),
+        ),
+        (false, true) => head.rule(
             Bid::new(2, Strain::Hearts),
             2.0,
             len(Suit::Spades, 5..)
                 & (len(Suit::Hearts, ..4) | hcp(..8) | len(Suit::Spades, 6..) | slam_55_reroute()),
-        )
-    } else {
-        head.rule(
+        ),
+        (false, false) => head.rule(
             Bid::new(2, Strain::Hearts),
             2.0,
             len(Suit::Spades, 5..)
@@ -137,7 +173,7 @@ pub fn notrump_responses() -> Rules {
                     | hcp(..9)
                     | slam_55_reroute()
                     | major_splinter_reroute(Suit::Spades)),
-        )
+        ),
     }
     .alert(JACOBY);
     head
@@ -146,12 +182,20 @@ pub fn notrump_responses() -> Rules {
         // than transferring and rebidding; weaker 5-5s (below the `points` floor)
         // still take the transfer route.  `points` (not `hcp`) so the 5-5 shape
         // upgrade counts — these are the unbalanced hands the gauge was built for.
+        // Under the longer-major discipline the bid is *equal lengths only*: a
+        // 6-5 hand names its longer suit first via the transfer instead.
         .rule(
             Bid::new(3, Strain::Diamonds),
             2.1,
             len(Suit::Hearts, 5..)
                 & len(Suit::Spades, 5..)
                 & points(8..)
+                & described(
+                    "equal lengths only under the longer-major discipline",
+                    move |hand: Hand, _: &Context<'_>| {
+                        !prefer_longer || hand[Suit::Hearts].len() == hand[Suit::Spades].len()
+                    },
+                )
                 & described(
                     "both-majors 3♦ capped at minimum game force when the slam reroute is on",
                     |hand: Hand, _: &Context<'_>| {
@@ -758,6 +802,14 @@ thread_local! {
     /// rather than passing a doomed diamond partscore.  **On by default.**  See
     /// [`set_crawling_stayman`].
     static CRAWLING_STAYMAN: Cell<bool> = const { Cell::new(true) };
+    /// The Jacoby transfer names the **longer** major, and equal-length
+    /// two-suiters split by strength: weak prefers the heart transfer (safety),
+    /// invitational and minimum game force show both at once via the
+    /// both-majors 3♦, and slam tries prefer the spade transfer for the
+    /// `1NT–2♥–2♠–3♥` structure.  **On by default**; off restores the legacy
+    /// guards (a 6♠5♥ hand could tie into the heart transfer, and 3♦ fired on
+    /// any 5-5+).  See [`set_transfer_longer_major`].
+    static TRANSFER_LONGER_MAJOR: Cell<bool> = const { Cell::new(true) };
     /// Responder's continuation after opener cue-bids in cooperation with the `3OM`
     /// slam try (`1NT-2♣-2M-3OM-4x`).  Opener's [`stayman_slam_try_answer`] cues a
     /// control below the trump major with a maximum; without a responder node the
@@ -876,6 +928,27 @@ pub fn set_invitational_5card_majors(on: bool) {
 /// heart-transfer invitational node)
 fn invitational_5card_majors() -> bool {
     INVITATIONAL_5CARD_MAJORS.with(Cell::get)
+}
+
+/// Author the longer-major transfer discipline for books built *after* this
+/// call (thread-local; **on by default**).
+///
+/// The Jacoby transfer names the longer major (a 6♠5♥ hand transfers to
+/// spades, whatever its strength).  With **equal** lengths (5-5, 6-6) the
+/// route splits by strength: weak transfers to *hearts* (the safe partscore —
+/// nothing shows the spades below it anyway), invitational and minimum game
+/// force bid the both-majors `3♦` (which this discipline also restricts to
+/// equal lengths — a 6-5 hand prefers naming its longer suit first), and a
+/// slam try (17+) transfers to *spades* for the `1NT–2♥–2♠–3♥` natural
+/// game-force structure.  Off restores the legacy guards for the A/B.
+pub fn set_transfer_longer_major(on: bool) {
+    TRANSFER_LONGER_MAJOR.with(|cell| cell.set(on));
+}
+
+/// Whether the longer-major transfer discipline is currently authored (read at
+/// book construction)
+fn transfer_longer_major() -> bool {
+    TRANSFER_LONGER_MAJOR.with(Cell::get)
 }
 
 /// Author Crawling Stayman for books built *after* this call (thread-local; **on
@@ -1458,6 +1531,22 @@ fn gf_splinter_answer(major: Suit) -> Rules {
         .rule(Bid::new(4, Strain::Notrump), 1.0, hcp(17..))
         .alert(slam::RKCB)
         .rule(Bid::new(4, Strain::from(major)), 0.0, hcp(..17))
+}
+
+/// The `longer` major strictly outnumbers `shorter` — the transfer names the
+/// longer major (see [`set_transfer_longer_major`])
+fn longer_major(longer: Suit, shorter: Suit) -> Cons<impl Constraint + Clone> {
+    described(
+        format!("{longer} longer than {shorter}"),
+        move |hand: Hand, _: &Context<'_>| hand[longer].len() > hand[shorter].len(),
+    )
+}
+
+/// Both majors of exactly equal length (the 5-5/6-6 two-suiters)
+fn equal_majors() -> Cons<impl Constraint + Clone> {
+    described("equal-length majors", |hand: Hand, _: &Context<'_>| {
+        hand[Suit::Hearts].len() == hand[Suit::Spades].len()
+    })
 }
 
 /// A 5-5 majors hand strong enough to drive slam (`point_count ≥ 17`)
@@ -2199,11 +2288,38 @@ fn european_three_club_answer() -> Rules {
 /// Used after both the direct 2NT opening (20–21 balanced) and opener's 2NT
 /// rebid after 2♣ (22–24 balanced).
 fn two_notrump_responses() -> Rules {
+    // The longer-major discipline (see [`set_transfer_longer_major`]): a
+    // two-suiter transfers to the longer major, equal lengths to hearts —
+    // there is no both-majors bid or slam reroute at this level, so hearts
+    // takes every tie.  Off, the old guards tie at 2.0 and the pick between
+    // the transfers is arbitrary (a weak 6♠5♥ could transfer to hearts and
+    // scramble — the M6.4 A/B caught exactly that board).
+    let prefer_longer = transfer_longer_major();
     Rules::new()
         // 3-level Jacoby transfers.
-        .rule(Bid::new(3, Strain::Diamonds), 2.0, len(Suit::Hearts, 5..))
+        .rule(
+            Bid::new(3, Strain::Diamonds),
+            2.0,
+            len(Suit::Hearts, 5..)
+                & described(
+                    "hearts not outnumbered (longer-major discipline)",
+                    move |hand: Hand, _: &Context<'_>| {
+                        !prefer_longer || hand[Suit::Hearts].len() >= hand[Suit::Spades].len()
+                    },
+                ),
+        )
         .alert(JACOBY)
-        .rule(Bid::new(3, Strain::Hearts), 2.0, len(Suit::Spades, 5..))
+        .rule(
+            Bid::new(3, Strain::Hearts),
+            2.0,
+            len(Suit::Spades, 5..)
+                & described(
+                    "spades longer (longer-major discipline)",
+                    move |hand: Hand, _: &Context<'_>| {
+                        !prefer_longer || hand[Suit::Spades].len() > hand[Suit::Hearts].len()
+                    },
+                ),
+        )
         .alert(JACOBY)
         // 3-level Stayman: a four-card major and at least some values, but never a
         // flat 4-3-3-3 (it bids notrump directly, as over a 1NT opening).
@@ -2936,6 +3052,49 @@ mod tests {
             .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("logits are never NaN"))
             .map(|(call, _)| call)
             .expect("the logits array is never empty")
+    }
+
+    /// The longer-major transfer discipline (default on): a two-suiter
+    /// transfers to its longer major, and equal lengths split by strength —
+    /// weak to hearts, invitational/minimum-game-force to the both-majors 3♦,
+    /// slam tries to spades for the `1NT–2♥–2♠–3♥` structure.
+    #[test]
+    fn transfers_prefer_the_longer_major() {
+        let one_nt = [bid(1, Strain::Notrump), P];
+
+        // 6♠5♥ transfers to spades whatever the strength (the legacy guards
+        // tied on the weak hand, and 3♦ grabbed the strong one, losing the
+        // sixth spade).
+        assert_eq!(best(&one_nt, "QJ9642.98763.4.3"), bid(2, Strain::Hearts));
+        assert_eq!(best(&one_nt, "KJ9642.AKJ63.J.3"), bid(2, Strain::Hearts));
+        // 6♥5♠ transfers to hearts.
+        assert_eq!(best(&one_nt, "98763.QJ9642.4.3"), bid(2, Strain::Diamonds));
+
+        // Equal 5-5: weak prefers hearts for safety...
+        assert_eq!(best(&one_nt, "J9863.J9642.4.3"), bid(2, Strain::Diamonds));
+        // ...invitational / minimum game force shows both at once via 3♦...
+        assert_eq!(best(&one_nt, "KJ863.KJ642.4.3"), bid(3, Strain::Diamonds));
+        // ...and a slam try transfers to spades, then bids the natural
+        // game-forcing 3♥ — the 5-5 slam-try structure.
+        assert_eq!(best(&one_nt, "AKJ63.AKJ42.4.3"), bid(2, Strain::Hearts));
+        let over_completion = [
+            bid(1, Strain::Notrump),
+            P,
+            bid(2, Strain::Hearts),
+            P,
+            bid(2, Strain::Spades),
+            P,
+        ];
+        assert_eq!(
+            best(&over_completion, "AKJ63.AKJ42.4.3"),
+            bid(3, Strain::Hearts)
+        );
+
+        // The 2NT-strength table follows the same discipline: longer major,
+        // hearts on every tie (no both-majors bid at this level).
+        let two_nt = [bid(2, Strain::Notrump), P];
+        assert_eq!(best(&two_nt, "QJ9642.98763.4.3"), bid(3, Strain::Hearts));
+        assert_eq!(best(&two_nt, "J9863.J9642.4.3"), bid(3, Strain::Diamonds));
     }
 
     /// The revised South African Texas with the slam-drive reroute (default on):
