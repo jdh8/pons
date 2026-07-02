@@ -281,10 +281,18 @@ pub fn notrump_responses() -> Rules {
             1.0,
             hcp(9..) & len(Suit::Hearts, ..5) & len(Suit::Spades, ..5),
         )
+        // Pass 0-7, and also the flat 4-3-3-3 *eight*: a shape with no ruff and no
+        // long suit is its high cards and nothing more, so it plays a level too high
+        // opposite a 15-17.  A double-dummy probe (`examples/probe-uninvite-4333`,
+        // 16M deals) prices passing over the `2♠` size-ask invite at +0.64 IMPs/board
+        // for the whole class, rising to +1.08 for the pure-quack (no ace, no ten)
+        // eight — even the ace-holding eights gain.  The *nine* still forces (3NT):
+        // the same probe found blanket-inviting it loses −0.33.
         .rule(
             Call::Pass,
             0.0,
-            hcp(..8) & len(Suit::Hearts, ..5) & len(Suit::Spades, ..5),
+            (hcp(..8) & len(Suit::Hearts, ..5) & len(Suit::Spades, ..5))
+                | (hcp(8..=8) & flat_4333()),
         )
         // Minor-suit responses (2♠/2NT/3♣): both schemes are authored here, each
         // alerted with its variant, and only the active one is gated in.  The gate
@@ -390,16 +398,18 @@ fn dormant_minors() -> Alert {
 /// no-fit case relays back to 3NT).
 fn puppet_minors() -> Rules {
     Rules::new()
-        // 2♠ = six-card clubs, or the bare-8 balanced invite.  The invite now also
-        // takes a flat 4-3-3-3 with a four-card major (it no longer Staymans): the
-        // gate is "no four-card major, or flat 4333".
+        // 2♠ = six-card clubs, or the bare-8 balanced invite with no four-card major.
+        // A flat 4-3-3-3 is excluded (it passes — see `notrump_responses`): the shape
+        // plays a level too high, so it does not invite even with a four-card major.
         .rule(
             Bid::new(2, Strain::Spades),
             1.3,
             len(Suit::Clubs, 6..)
                 | (hcp(8..=8)
                     & balanced()
-                    & ((len(Suit::Hearts, ..4) & len(Suit::Spades, ..4)) | flat_4333())),
+                    & len(Suit::Hearts, ..4)
+                    & len(Suit::Spades, ..4)
+                    & !flat_4333()),
         )
         .alert(PUPPET)
         .rule(
@@ -437,11 +447,13 @@ fn european_minors() -> Rules {
         .rule(
             Bid::new(2, Strain::Notrump),
             1.3,
-            // The bare-8 size ask, also home to a flat 4-3-3-3 with a four-card
-            // major (no Stayman with 4333).
+            // The bare-8 size ask, no four-card major.  A flat 4-3-3-3 is excluded
+            // (it passes — the shape plays a level too high; see `notrump_responses`).
             hcp(8..=8)
                 & balanced()
-                & ((len(Suit::Hearts, ..4) & len(Suit::Spades, ..4)) | flat_4333()),
+                & len(Suit::Hearts, ..4)
+                & len(Suit::Spades, ..4)
+                & !flat_4333(),
         )
         .alert(EUROPEAN)
         .rule(

@@ -237,6 +237,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **A flat 4-3-3-3 eight now passes `1NT` instead of inviting.** The invitational
+  eight-count with a `(4333)` shape used to bid the `2♠` size ask (Puppet scheme) or
+  `2NT` (European) like any other balanced eight; it now passes. A flat 4-3-3-3 has
+  no ruff and no long suit — its tricks *are* its high cards — so it plays a level too
+  high opposite a 15-17: `2NT` fails opposite a minimum where `1NT` would have held,
+  and `3NT` opposite a maximum still lacks a trick source. A double-dummy probe
+  (`examples/probe-uninvite-4333`, 16M deals, uncontested) prices passing over the
+  invite at **+0.638 IMPs/board** for the whole class (95% CI ±0.043, 21165 boards),
+  rising monotonically as card quality drops — **+0.720** with no ace, **+0.990** with
+  no ten, **+1.083** for the pure-quack no-ace-no-ten eight — because a flat hand's
+  tricks are exactly the cards HCP over-credits (the quacks) and under-credits (aces,
+  tens that cash). Even the ace-holding eights gain (≈+0.585), so no card-quality gate
+  is needed. The game-forcing **nine** is unchanged: the same probe found blanket-
+  inviting the flat nine *loses* −0.334 IMPs/board (forcing `3NT` is right in
+  aggregate); only the quack tail (no ten) leans toward inviting (+0.28), too small and
+  gate-heavy to act on. The analytic invite the probe prices was validated to equal the
+  system's own auction on all 21165 eights before the switch (0/21165 mismatch).
 - **Opener now corrects a choice-of-games `3NT` to `4M`, gated on the ruff**
   (`set_correct_3nt_to_major`, flipped **on by default**). After a Jacoby transfer,
   responder's balanced game force offers a choice of games with `3NT` (now an authored

@@ -163,12 +163,12 @@ fn test_notrump_responses_and_completions() {
     let p = Call::Pass;
     let one_nt = call(1, Strain::Notrump);
 
-    // Flat 4-3-3-3 with a four-card major, invitational (8): no Stayman (it plays
-    // 3NT, not the 4-4 fit), so it invites naturally with the 2♠ size ask.
-    assert_eq!(
-        best_call(&system, &[one_nt, p], "KJ54.Q32.J43.J92"),
-        call(2, Strain::Spades)
-    );
+    // Flat 4-3-3-3 with a four-card major, invitational (8): it neither Staymans
+    // (no ruff — plays 3NT, not the 4-4 fit) nor invites.  The flat shape is its
+    // high cards and nothing more, so it plays a level too high opposite a 15-17;
+    // a double-dummy probe scores passing over the 2♠ invite at +0.64 IMPs/board
+    // (`examples/probe-uninvite-4333`).  So it passes 1NT.
+    assert_eq!(best_call(&system, &[one_nt, p], "KJ54.Q32.J43.J92"), p);
     // Transfer to spades on a five-card suit.
     assert_eq!(
         best_call(&system, &[one_nt, p], "KJ542.Q32.K43.92"),

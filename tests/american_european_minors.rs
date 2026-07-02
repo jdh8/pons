@@ -101,10 +101,11 @@ fn game_going_clubs_splinter_over_the_completion() {
 #[test]
 fn two_nt_is_a_balanced_invite() {
     let system = stance();
-    // Balanced 8, no four-card major: the European size ask, 2NT (the Puppet
-    // default would route this hand through the two-way 2♠ instead).
+    // Balanced 8, no four-card major, *not* a flat 4-3-3-3 (a 4-4 in the minors):
+    // the European size ask, 2NT (the Puppet default would route this hand through
+    // the two-way 2♠ instead).  A flat 4-3-3-3 eight would pass 1NT, not invite.
     assert_eq!(
-        best_call(&system, &after_1nt(&[]), "Kxx.Qxx.Qxx.Jxxx"),
+        best_call(&system, &after_1nt(&[]), "Kx.Qxx.Jxxx.Qxxx"),
         call(2, Strain::Notrump),
     );
 }

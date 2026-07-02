@@ -78,13 +78,15 @@ fn four_four_game_force_uses_stayman() {
 }
 
 #[test]
-fn invitational_flat_four_three_three_three_invites_naturally() {
+fn flat_four_three_three_three_eight_passes() {
     let system = stance();
-    // A flat 4-3-3-3, bare 8: no Stayman (it plays 3NT, not the 4-4 fit), so it
-    // invites with the natural 2♠ size ask instead.
+    // A flat 4-3-3-3, bare 8: it neither Staymans (no ruff — plays 3NT, not the 4-4
+    // fit) nor invites.  The flat shape is its high cards and nothing more, so it
+    // plays a level too high opposite a 15-17; a double-dummy probe scores passing
+    // over the 2♠ size ask at +0.64 IMPs/board (`examples/probe-uninvite-4333`).
     assert_eq!(
         best_call(&system, &after_1nt(&[]), "KJ54.Q32.J43.J92"),
-        call(2, Strain::Spades),
+        Call::Pass,
     );
 }
 
