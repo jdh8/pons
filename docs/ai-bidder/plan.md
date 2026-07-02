@@ -391,73 +391,36 @@ A/B vs baseline, and the BBA gap (S.1's −2.6) on the relevant auctions.
   IMPs/board); whole inference floor still +0.05 IMPs/board (`inference-floor`,
   20k). Length-only on the `4M` jump (slam machinery is M6.4); the derived 6+ also
   makes the sampler sound on transfer auctions.
-- 🟡 **M6.2 Rule projection — read a call's meaning off its rule.** Full design:
-  [`rule-projection.md`](rule-projection.md). The seven `*_reading` decoders in
-  `inference.rs` (M6.1's `transfer_major_reading` among them) re-derive, by hand
-  and per-convention, what an authored call's `Constraint` already states. Add a
-  third fold on the DSL — `Constraint::project(context) -> Inference`, the forward
-  dual of `eval` — and a single generic pass that, walking `context.prefixes()`,
-  projects the rule of each artificial prior call (artificial = its projection
-  floors a suit it did not name), replacing the per-convention decoders. Promoted
-  ahead of more conventions so the retire-readers cleanup lands *before* M6.3
-  piles on more hand-written readers. *Deps:* M4 (the DSL), M6.1 (the reader it
-  generalizes).
-  - ✅ **M6.2a `Constraint::project` fold + soundness property test.** Shipped
-    2026-06-25. `len` keeps both bounds, `points`/`hcp` floor-only (sound in both
-    fuzzy modes), `&`→intersect, `|`→union, opaque/`!`→no-info, default no-info
-    (non-breaking). Invariant `eval` finite ⟹ hand ∈ `project`, tested over ~32k
-    hands. `Inference::intersect`/`union`, `Range::union` added. The data
-    substrate; no consumer wired yet.
-  - ✅ **M6.2b Validate the projection pass reproduces the readers.** Shipped
-    2026-06-25. `Rule::project` (the reading-side fold, mirrors `Rule::describe`) +
-    the generic `authored_reading` pass (`#[cfg(test)]`-only: walk
-    `context.prefixes()`, project each artificial call's rule, narrow the bidder's
-    seat) + an equivalence test proving the pass reproduces the three declarative
-    readers — `transfer_major`, `leaping_michaels`, `landy` core — *exactly*
-    (signature suit lengths and points) on prefixed contexts built from the real
-    book via a `#[cfg(test)] Stance::prefixed_context` seam. No production wiring,
-    no deletions, no behavior change — the mechanism is proven before the
-    cross-cutting refactor.
-  - ✅ **M6.2c Wire + retire the declarative readers — SHIPPED 2026-06-25.** The
-    keyless leak turned out to be a *single* production site: `SearchBook::classify`
-    (`search_floor.rs:241`) re-derived `Context::new` with no prefixes, feeding both
-    `features` and the EV sampler's `Inferences::read`; the floors are `Classifier`s
-    that already receive the book's prefixed context, and the other keyless
-    `Inferences::read` callers are all `#[cfg(test)]`. So `Stance::prefixed_context`
-    is made real, `SearchBook` prefixes itself with it, and `Inferences::read` folds
-    `project_authored` in — the `project` artificial-detector drives *both*
-    suppression and recording, so `transfer_major_reading`,
-    `leaping_michaels_reading`, and `landy_reading` are **deleted** (only the Landy
-    advancer-relay survives as a `landy_advance_suppress` stub). *Payoff is
-    architectural* (single source of truth; lets rule-replay stand alone). Two sound
-    reading changes fall out: a completed transfer pins its *five*-card floor (the
-    old reader's six-card jump upgrade drops — a natural-suit raise is outside the
-    projection's artificial-only scope), and Woolsey's `2♣` reads its true **4-5**
-    majors. `instinct()` bids by rule and is unchanged; only search bidders read the
-    projection. Gate: `ab-landy` reproduces its DD-negative value (reading proven
-    byte-identical by the M6.2b equivalence test); `ab-search-floor` no gross
-    regression.
-  - ✅ **M6.2d Stage 4 — re-author the opaque conventions. SHIPPED 2026-06-25.**
-    DONT/Woolsey/Multi were authored with the opaque `described()` escape hatch, so
-    they projected no info and the detector could not see them. Instead of bare `len`
-    conjuncts, added higher-order **`or`/`and` suit-set length combinators**
-    (`constraint.rs`: `and` floors every named suit — tight; `or` unions the arms —
-    loose) so each convention states its lengths declaratively *and* projects off its
-    own rule. Re-authored all seven shapes with them, each guarded by `verify::compare`
-    (8k hands) against its intended spec. Per the user, switched to the **simpler /
-    traditional shapes** (a measured behavior change, not a wash): **DONT default → 4-4**
-    (`set_direct_dont_four_four` flips on; Landy stays 5-4, Michaels 5-5), and Multi
-    `2♦` drops its longer-major / no-6-6 guard. Muiderberg keeps its exactly-5 +
-    other-major caps — the Woolsey structure needs disjoint shapes (uniform 1.9 weights
-    never tie). Recordings in `inference.rs` unchanged (floors already match); the
-    both-majors family now also auto-detects via projection (idempotent). **A/B**
-    (`ab-landy` 60k, none-vul, vs natural): DONT 4-4 −0.362/div plain, −1.397 PD
-    (obstruction wall, single-dummy value); Woolsey +0.414/div plain, +0.065 PD. Both
-    stay opt-in. The relay-suppression stubs (`landy_advance_suppress`, the
-    `multi`/`woolsey_x`/`dont` suppressions) survive as designed.
-- 🟡 **M6.3 Competitive conventions on the floor.** Already the active line for
-  ~25 commits — the deliverable is the 1NT-defense + competitive-double structure
-  that shipped, not the old "Rubens advances" sketch. *Landed:*
+- ✅ **M6.2 Rule projection — read a call's meaning off its rule — COMPLETE.**
+  Design: [`rule-projection.md`](rule-projection.md). Replaces the seven
+  per-convention `*_reading` decoders with one generic pass: `Constraint::project`
+  (the forward dual of `eval`) walks `context.prefixes()` and projects each
+  artificial prior call's rule (artificial = its projection floors a suit it did
+  not name), driving both suppression and recording. *Deps:* M4 (the DSL), M6.1.
+  - ✅ **M6.2a** `Constraint::project` fold + soundness property test (`eval`
+    finite ⟹ hand ∈ `project`, ~32k hands; `points`/`hcp` floor-only, non-breaking
+    default no-info). Shipped 2026-06-25.
+  - ✅ **M6.2b** `Rule::project` + a `#[cfg(test)]` `authored_reading` pass proven
+    to reproduce the three declarative readers (`transfer_major`,
+    `leaping_michaels`, `landy`) *exactly* before the refactor. 2026-06-25.
+  - ✅ **M6.2c** Wired + the readers **deleted** — the one production site was
+    `SearchBook::classify` (search_floor.rs); `instinct()` bids by rule and is
+    unchanged, only search bidders read the projection (d789851). Two sound reads
+    fall out: a completed transfer pins its 5-card floor; Woolsey `2♣` reads its
+    true 4-5 majors. Landy advancer-relay survives as a suppress stub.
+  - ✅ **M6.2d** `or`/`and` suit-set length combinators (`and` tight, `or` loose)
+    so the opaque DONT/Woolsey/Multi shapes project off their own rule; each shape
+    guarded by `verify::compare`. Switched to the traditional shapes (DONT default
+    → 4-4). Both defenses stay opt-in — the obstruction wall (e3c3464).
+  - ✅ **Follow-on — single source of truth reached.** Fallback projection went
+    default-on (e60859d), decoding contested conventions via the authoring
+    classifier and retiring `transfer_lebensohl_reading`; the **retire-artificial**
+    worklist then alerted every artificial call and dropped `artificial()` from the
+    decode gate entirely (eb6130e, 172→0). `project_rule-projection`,
+    `project_retire-artificial`.
+- ✅ **M6.3 Competitive conventions on the floor — COMPLETE 2026-07-02.** The
+  deliverable is the 1NT-defense + competitive-double structure that shipped, not
+  the old "Rubens advances" sketch. *Landed:*
   - **Natural penalty-X + natural overcalls** (`set_natural_defense`, default-on)
     — the DD-positive baseline — with its floor reading.
   - **Conventional defenses, opt-in** because they are DD-negative (the obstruction
@@ -471,26 +434,13 @@ A/B vs baseline, and the BBA gap (S.1's −2.6) on the relevant auctions.
     (bf6e5cd) + the optional-latch knob; the defensive `(1NT)-X-(2Y)-X` latch
     (`set_latch_style`, opt-in, DD-wash); the penalty-double latch (default-on).
   - **Transfer-Lebensohl / Rubinsohl** threads over interference.
-  - **Rubens advances, knobbed + measured + tails authored** (the old sketch's
-    unfinished *measure*, done 2026-07-02). `set_rubens_advances` (default-on;
-    `--no-ns-rubens`) with a knob-off natural new-suit advance so the off arm is
-    a fair baseline (the advancer otherwise had *no* call — `we_have_not_bid` is
-    side-level). Round 1 (204.8k bd, 2217 fired) lost plain −0.0111/PD −0.0240,
-    concentrated in unauthored tails: 26% of divergent boards *passed out the
-    two-level cue-raise in their suit*, opener's X silenced the completion
-    (phantom suit doubled), and double-then-bid structures were misdetected.
-    Tails authored (cue answer signoff/game, completion through the X,
-    `overcall_shape` requires the side's first action): round 2 (fresh seeds,
-    1378 fired) **plain +0.0012 ± 0.0016 (wash), PD −0.0029 ± 0.0019**. Round 3
-    added the **both-sides continuations** (into-partner completion graded
-    2Y/3Y/game, raiser drives with 14+, new-suit completion = the
-    would-pass-a-natural-NF-2T hands with fit-raise breaks, transferee
-    invite/game rebids): **plain +0.0016 ± 0.0015 (win, CI excludes 0), PD
-    −0.0009 ± 0.0017 (wash)** at 1144 fired — the USP structure beats natural
-    once completely authored; **default-on stands**. The one-level transfers
-    also now *record* their meaning (`set_rubens_transfer_reading`, default-on,
-    own-side only): +0.0005 ± 0.0004 plain, +2.55/fired — closing the
-    suppress-only asymmetry with the cue-raise.
+  - **Rubens advances** (`set_rubens_advances`, default-on; `--no-ns-rubens`
+    falls back to a natural new-suit advance so the off arm is a fair baseline)
+    — the old sketch's unfinished *measure*, done 2026-07-02. Bare structure
+    lost on unauthored tails; authored tails + both-sides continuations flipped
+    it to plain +0.0016 (CI excludes 0), PD wash — **default-on stands**.
+    One-level transfers also record their meaning (`set_rubens_transfer_reading`,
+    default-on, own-side only). Round-by-round: `project_rubens-advances-m63`.
   *Measure:* contested IMPs/board vs baseline + vs BBA, **but** the DD harness is
   blind to obstruction (`project_preemption-dd-negative`,
   `project_bba-1nt-comparison`), so most conventional defenses are kept opt-in and
