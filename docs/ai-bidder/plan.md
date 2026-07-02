@@ -532,7 +532,29 @@ the books are thinnest — by deriving and generalizing, not by enumeration.
 
 ---
 
-## Milestone 7 — Search at every leaf (rules propose, DD disposes)
+## Milestone 7 — Search at every leaf (rules propose, DD disposes) — DEMOTED
+
+> **Demoted 2026-07-02 — no longer a standing milestone.** The core bet (DD-price
+> every authored leaf) split into one dead branch, one that M6 already absorbed,
+> and one narrow branch whose window is closing:
+>
+> - **M7.0 (price every leaf, competitive included) — dead.** Regressed −2.96
+>   IMPs/board (all three worst boards a redoubled `7♣xx` grand). Not a decode bug:
+>   it is the **obstruction wall** — DD/perfect-defense is structurally blind to
+>   obstruction and rewards sacrifice real defense punishes ([[project_m70-search-every-leaf]],
+>   [[project_m31-7nt-sacrifice-instability]], [[project_preemption-dd-negative]]).
+>   More decoding narrows ranges but cannot lift a scoring-harness limitation.
+> - **M7.1 (decode sweep) — folded into M6.** This was the valuable piece; M6 is
+>   already doing it for its own sake (`leaping_michaels_reading`,
+>   `transfer_major_reading`, `set_alert_reading`, fallback-projection, M6.4
+>   control-bid reading). No separate M7 container needed.
+> - **M7.2 (constructive-only leaves) — the only live question, and shrinking.** Never
+>   falsified, but M6's hand-authored slam machinery (M6.4 RKCB, minor keycard,
+>   `set_transfer_slam_try`, `set_texas_slam_drive`, Stayman slam-deficit fixes) is
+>   already reaching the slams DD-search hoped to discover. Downgraded to an
+>   *optional single A/B* (below), not a milestone.
+>
+> Kept below as the historical record so the dead branches are not re-attempted.
 
 Full design: [`05-search-at-every-leaf.md`](05-search-at-every-leaf.md). Today an
 authored leaf is the final word: `Trie::classify_floored` returns a book node's
@@ -547,8 +569,8 @@ existing `shortlist → ev_all → blend` seam. All §0 safety invariants are
 inherited verbatim; `instinct()` and `american()` are untouched; the new bidder is
 opt-in behind `search`.
 
-- 🚧 **M7.0 Search-aware classification path** (wiring shipped, commit 496260b;
-  the as-is measure **regresses** — see the result below, blocked on M7.1). Add a
+- ❌ **M7.0 Search-aware classification path — DEAD** (wiring shipped, commit 496260b;
+  the as-is measure **regresses**, structurally not just for want of M7.1). Add a
   path so a resolved *book*
   leaf with mass (and not forced) feeds its logits as the search prior instead of
   being terminal, reusing `shortlist`/`ev_all`/`blend` unchanged. Candidate set =
@@ -599,7 +621,8 @@ opt-in behind `search`.
   the design's explicit fallback (no usable decode → keep authored logits, skip the
   search), or first test M7.2 constructive-only leaves where there is no competitive
   escalation. The bidder stays gated/opt-in; `american()`/`instinct()` unchanged.
-- ⬜ **M7.1 `Inferences::read` completeness sweep.** The soundness gate: DD EV is
+- 🔁 **M7.1 `Inferences::read` completeness sweep — FOLDED INTO M6** (see banner; the
+  decode work happens under M6 for its own sake). The soundness gate: DD EV is
   only as good as the decode, since the sampler conditions on `Inferences::read`
   ranges. An undecoded convention widens partner's range (sound but biased EV —
   never a crash, `inference.rs` is superset-by-construction), so quietly-weak EV is
@@ -609,23 +632,28 @@ opt-in behind `search`.
   → keep the authored logits, skip the search here." *Measure:* a sampler-soundness
   check per convention; A/B per decode. *Deps:* none, but **gates M7.0/M7.2
   quality** (not correctness).
-- ⬜ **M7.2 Extend to constructive leaves.** Wrap constructive book nodes too — the
+- ⬜ **M7.2 Extend to constructive leaves — OPTIONAL SINGLE A/B, not a milestone.** The
+  only branch never falsified, but M6's hand-authored slam machinery is closing its
+  window (see banner); run one constructive-only, slam-boundary-scoped A/B before
+  investing further. Wrap constructive book nodes too — the
   literal "every leaf." Re-test the `project_floors_contested_only` boundary: DD-
   pricing the *authored candidates* is a different experiment from putting the raw
   *net* on constructive (which lost 0.8 IMPs/board), so it must clear its own A/B
   before shipping. *Measure:* constructive A/B (`constructive-abc` template); expect
   gains in reach (games/slams), not in light competition — the DD harness is blind
   to obstruction (`project_preemption-dd-negative`). *Deps:* M7.0, M7.1.
-- ⬜ **M7.3 (optional) Continuation policy = full system.** The rollout finishes
+- ❌ **M7.3 Continuation policy = full system — PARKED** (only relevant if M7.0/M7.2
+  ship measurable EV, which M7.0 will not). The rollout finishes
   with the bare distilled net (`POLICY`), not book+floor, so a *book* leaf is
   priced assuming the *net* continues — a fidelity mismatch. If M7.0/M7.2 leave
   measurable EV bias, swap the rollout continuation to the book+floor system.
   *Measure:* IMPs/board delta vs the bare-net continuation. *Deps:* M7.0.
 
-Exit M7: every authored leaf where judgement matters is priced by double-dummy
-cardplay, not a fixed weight — the system reaches the contracts the specific cards
-are *for*, while the authored constraints still carry the meaning partner relies
-on.
+Exit M7 (original goal, now demoted): every authored leaf where judgement matters is
+priced by double-dummy cardplay, not a fixed weight. Superseded — DD is blind to
+obstruction, so competitive leaves cannot be DD-priced soundly, and M6 reaches the
+constructive slams by authored convention instead. Decode work (ex-M7.1) continues
+under M6; the leaf-pricing thesis survives only as the optional M7.2 A/B.
 
 ---
 
@@ -681,13 +709,13 @@ M0  ──► M1 ──────────────► (working learned 
   │              │      │
   │              │      ├─► M3 ──► (distill it → fast default floor > teacher)  ← the real goal
   │              │      │
-  │              │      └─► M7 ──► (search wraps authored leaves: rules propose, DD disposes)
+  │              │      └─► M7 ──► DEMOTED (DD blind to obstruction; only optional M7.2 A/B left)
   │
   └─► M4 ─────────────────► (faster 2/1 authoring)
             │
             └─► (with M5.2) ─► M5 ─► (meaning-driven 2/1 policy)  ← the dream
 
-M6 (deeper deterministic floor) ─► feeds M7's decode sweep (Inferences::read)
+M6 (deeper deterministic floor) ─► absorbed ex-M7.1 decode sweep (Inferences::read)
 
 S (BBA/EPBot) ─► external eval anchor (now) · teacher → M3 (optional)
 ```
