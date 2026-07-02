@@ -1581,6 +1581,104 @@ fn rubens_cue_answers(y: Suit) -> Cons<impl Constraint + Clone> {
     })
 }
 
+/// Partner's transfer lands in our own overcall suit `y` — the limit-plus
+/// raise — and we are on completion duty ([`rubens_completion`])
+///
+/// The seat that grades the overcall against the shown ten-plus: complete
+/// `2Y` with a minimum, super-accept `3Y` in between, break to game with a
+/// maximum — the separation Rubens buys over a flat natural raise is cashed
+/// here or nowhere.
+fn rubens_into_partner(y: Suit) -> Cons<impl Constraint + Clone> {
+    pred(move |_: Hand, context: &Context<'_>| {
+        rubens_completion(context) == Some(y)
+            && overcall_shape(context.auction()).is_some_and(|(_, own, _, _)| own == y)
+    })
+}
+
+/// Partner mechanically completed our transfer into its own suit `y` — the
+/// limit-plus raise rests at `2Y` unless we hold extras
+///
+/// The auction is `(1X) Y (P) 2S (P|X) 2Y (P|X)` back to us: the completion
+/// limited partner to no super-accept, so only extras beyond our shown
+/// ten-plus move again.
+fn rubens_raiser_rebid(context: &Context<'_>) -> Option<Suit> {
+    if !rubens_advances_enabled() {
+        return None;
+    }
+    let auction = context.auction();
+    let len = auction.len();
+    let (x, y, overcall_index, level) = overcall_shape(auction)?;
+    if level != 1 || overcall_index + 6 != len || auction[overcall_index + 1] != Call::Pass {
+        return None;
+    }
+    // Our transfer into partner's suit…
+    let Call::Bid(transfer) = auction[overcall_index + 2] else {
+        return None;
+    };
+    let source = transfer.strain.suit()?;
+    if transfer.level.get() != 2 || (source as u8) < (x as u8) || source as u8 + 1 != y as u8 {
+        return None;
+    }
+    // …mechanically completed (opener may have doubled either turn).
+    (matches!(auction[overcall_index + 3], Call::Pass | Call::Double)
+        && auction[overcall_index + 4] == Call::Bid(Bid::new(2, Strain::from(y)))
+        && matches!(auction[len - 1], Call::Pass | Call::Double))
+    .then_some(y)
+}
+
+/// [`rubens_raiser_rebid`] as a [`Constraint`]: partner's suit is `y`
+fn rubens_raiser_rebids(y: Suit) -> Cons<impl Constraint + Clone> {
+    pred(move |_: Hand, context: &Context<'_>| rubens_raiser_rebid(context) == Some(y))
+}
+
+/// Partner mechanically completed our *new-suit* transfer into `target` — the
+/// wide-yet-unlimited hand clarifies now
+///
+/// The auction is `(1X) Y (P) 2S (P|X) 2(S+1) (P|X)` back to us with
+/// `S+1 ≠ Y`: the transfer showed the suit cheaply without settling forcing
+/// questions, so a mild hand passes the completion and extras move again.
+fn rubens_transferee_rebid(context: &Context<'_>) -> Option<Suit> {
+    if !rubens_advances_enabled() {
+        return None;
+    }
+    let auction = context.auction();
+    let len = auction.len();
+    let (x, y, overcall_index, level) = overcall_shape(auction)?;
+    if level != 1 || overcall_index + 6 != len || auction[overcall_index + 1] != Call::Pass {
+        return None;
+    }
+    let Call::Bid(transfer) = auction[overcall_index + 2] else {
+        return None;
+    };
+    let source = transfer.strain.suit()?;
+    let target = Suit::ASC[(source as u8 + 1) as usize];
+    if transfer.level.get() != 2 || (source as u8) < (x as u8) || target == y {
+        return None;
+    }
+    (matches!(auction[overcall_index + 3], Call::Pass | Call::Double)
+        && auction[overcall_index + 4] == Call::Bid(Bid::new(2, Strain::from(target)))
+        && matches!(auction[len - 1], Call::Pass | Call::Double))
+    .then_some(target)
+}
+
+/// [`rubens_transferee_rebid`] as a [`Constraint`]: our shown suit is `target`
+fn rubens_transferee_rebids(target: Suit) -> Cons<impl Constraint + Clone> {
+    pred(move |_: Hand, context: &Context<'_>| rubens_transferee_rebid(context) == Some(target))
+}
+
+/// Partner's transfer names a *new* suit `target` and we are on completion
+/// duty ([`rubens_completion`])
+///
+/// The mechanical completion covers exactly the hands that would have passed a
+/// natural non-forcing `2 target`; a hand good enough to bid over that makes
+/// the same descriptive bid here instead of completing.
+fn rubens_new_suit_completion(target: Suit) -> Cons<impl Constraint + Clone> {
+    pred(move |_: Hand, context: &Context<'_>| {
+        rubens_completion(context) == Some(target)
+            && overcall_shape(context.auction()).is_some_and(|(_, own, _, _)| own != target)
+    })
+}
+
 /// `2 target` is a *natural* new-suit advance of partner's one-level overcall,
 /// live only while Rubens advances are off ([`set_rubens_advances`])
 ///
@@ -2324,6 +2422,95 @@ pub fn instinct() -> Rules {
             rubens_completes(target),
         );
     }
+    // Grade the into-partner completion: the transfer showed a limit-plus
+    // raise (10+ with support), so the completion `2Y` denies extras, a 13–14
+    // hand super-accepts `3Y` (an invite the raiser carries on with 13+, via
+    // the raise ladder), and a 15+ maximum places the game outright — the
+    // acceptance that cashes the transfer's separation over a flat natural
+    // raise (cf. the 1NT invite-acceptance win).  The minor maximum is `3NT`
+    // behind a stopper; only diamonds can be an into-partner target at the one
+    // level (nothing transfers into clubs).
+    // ponytail: help-suit trials, a minor super-accept, and rebids after a
+    // NEW-SUIT transfer are the named ceiling — author them if the A/B still trails.
+    for y in [Suit::Hearts, Suit::Spades] {
+        rules = rules
+            .rule(
+                Bid::new(4, Strain::from(y)),
+                1.6,
+                rubens_into_partner(y) & points(15..),
+            )
+            .rule(
+                Bid::new(3, Strain::from(y)),
+                1.58,
+                rubens_into_partner(y) & points(13..15),
+            );
+    }
+    rules = rules.rule(
+        Bid::new(3, Strain::Notrump),
+        1.6,
+        rubens_into_partner(Suit::Diamonds) & points(15..) & stopper_in_their_suits(),
+    );
+    // The overcaller breaks a NEW-SUIT completion, too, exactly when it would
+    // have bid over a natural non-forcing `2 target`: the fit raise with
+    // values, graded like the into-partner break (invite 13–14, game 15+; the
+    // diamond maximum is `3NT` behind a stopper).
+    for target in [Suit::Diamonds, Suit::Hearts] {
+        rules = rules.rule(
+            Bid::new(3, Strain::from(target)),
+            1.58,
+            rubens_new_suit_completion(target) & len(target, 3..) & points(13..15),
+        );
+    }
+    rules = rules
+        .rule(
+            Bid::new(4, Strain::from(Suit::Hearts)),
+            1.6,
+            rubens_new_suit_completion(Suit::Hearts) & len(Suit::Hearts, 3..) & points(15..),
+        )
+        .rule(
+            Bid::new(3, Strain::Notrump),
+            1.6,
+            rubens_new_suit_completion(Suit::Diamonds) & points(15..) & stopper_in_their_suits(),
+        );
+
+    // The raiser's rebid over the minimum completion: extras beyond the shown
+    // ten drive to game opposite even a minimum overcall.
+    for y in [Suit::Hearts, Suit::Spades] {
+        rules = rules.rule(
+            Bid::new(4, Strain::from(y)),
+            1.5,
+            rubens_raiser_rebids(y) & points(14..),
+        );
+    }
+    rules = rules.rule(
+        Bid::new(3, Strain::Notrump),
+        1.5,
+        rubens_raiser_rebids(Suit::Diamonds) & points(14..) & stopper_in_their_suits(),
+    );
+    // The new-suit transferee's rebid: the transfer was wide yet unlimited —
+    // it subsumes both the non-forcing and the forcing natural treatments,
+    // because the rest/continue split happens *after* the cheap completion.  A
+    // mild hand has already rested; 12–13 re-raises the suit as the invite;
+    // 14+ clarifies to game — the six-card major, or `3NT` behind a stopper.
+    rules = rules.rule(
+        Bid::new(4, Strain::from(Suit::Hearts)),
+        1.52,
+        rubens_transferee_rebids(Suit::Hearts) & len(Suit::Hearts, 6..) & points(14..),
+    );
+    for target in [Suit::Diamonds, Suit::Hearts] {
+        rules = rules
+            .rule(
+                Bid::new(3, Strain::Notrump),
+                1.5,
+                rubens_transferee_rebids(target) & points(14..) & stopper_in_their_suits(),
+            )
+            .rule(
+                Bid::new(3, Strain::from(target)),
+                1.5,
+                rubens_transferee_rebids(target) & len(target, 6..) & points(12..14),
+            );
+    }
+
     // Answer partner's two-level cue-raise — the cue must never play their
     // suit.  Retreat to our overcall suit as the guaranteed action; with a
     // maximum (14+, opposite the cue's 10+) place the game instead: `4♥` on
@@ -3024,6 +3211,105 @@ mod tests {
             best(&auction, "AKJ52.K3.952.J32"),
             call(2, Strain::Diamonds)
         );
+    }
+
+    #[test]
+    fn rubens_max_breaks_the_completion_to_game() {
+        // (1♣) 1♠ (P) 2♥ (P): partner's transfer into our spades showed 10+
+        // with support, so a maximum places the game instead of completing.
+        let auction = [
+            call(1, Strain::Clubs),
+            call(1, Strain::Spades),
+            Call::Pass,
+            call(2, Strain::Hearts),
+            Call::Pass,
+        ];
+        assert_eq!(best(&auction, "AKJ52.K3.K52.J32"), call(4, Strain::Spades));
+        // In between, the overcaller super-accepts — the invite `3♠`.
+        assert_eq!(best(&auction, "AKJ52.K3.Q52.432"), call(3, Strain::Spades));
+        // A minimum still completes mechanically.
+        assert_eq!(best(&auction, "AKJ52.K3.952.J32"), call(2, Strain::Spades));
+        // (1♣) 1♦ (P) 2♣ (P): the diamond break is 3NT behind a club stopper…
+        let minor = [
+            call(1, Strain::Clubs),
+            call(1, Strain::Diamonds),
+            Call::Pass,
+            call(2, Strain::Clubs),
+            Call::Pass,
+        ];
+        assert_eq!(best(&minor, "A32.K32.AQJ54.K2"), call(3, Strain::Notrump));
+        // …and completes without one, whatever the strength.
+        assert_eq!(best(&minor, "AQ2.K32.AQJ54.32"), call(2, Strain::Diamonds));
+    }
+
+    #[test]
+    fn rubens_new_suit_break_bids_what_it_would_over_natural() {
+        // (1♣) 1♠ (P) 2♦ (P): partner shows hearts.  The completion covers the
+        // would-pass-a-natural-2♥ hands; with a fit and values the overcaller
+        // bids what it would have bid over that natural 2♥.
+        let auction = [
+            call(1, Strain::Clubs),
+            call(1, Strain::Spades),
+            Call::Pass,
+            call(2, Strain::Diamonds),
+            Call::Pass,
+        ];
+        // Fit + 13: the invite raise.
+        assert_eq!(best(&auction, "AKJ52.Q32.K52.32"), call(3, Strain::Hearts));
+        // Fit + maximum: the game.
+        assert_eq!(best(&auction, "AKJ52.Q32.K52.A2"), call(4, Strain::Hearts));
+        // No fit, minimum: the mechanical completion.
+        assert_eq!(best(&auction, "AKJ52.32.Q952.J2"), call(2, Strain::Hearts));
+    }
+
+    #[test]
+    fn rubens_transferee_clarifies_with_extras() {
+        // (1♣) 1♠ (P) 2♦ (P) 2♥ (P): the heart transfer was wide yet
+        // unlimited — a six-card maximum now bids the game.
+        let hearts = [
+            call(1, Strain::Clubs),
+            call(1, Strain::Spades),
+            Call::Pass,
+            call(2, Strain::Diamonds),
+            Call::Pass,
+            call(2, Strain::Hearts),
+            Call::Pass,
+        ];
+        assert_eq!(best(&hearts, "2.AKQT54.K32.A32"), call(4, Strain::Hearts));
+        // 12–13 re-raises the suit: the invite the natural NF 2♥ never had.
+        assert_eq!(best(&hearts, "2.AKJT54.Q32.Q32"), call(3, Strain::Hearts));
+        // (1♣) 1♠ (P) 2♣ (P) 2♦ (P): the diamond hand's game is 3NT behind a
+        // club stopper.
+        let diamonds = [
+            call(1, Strain::Clubs),
+            call(1, Strain::Spades),
+            Call::Pass,
+            call(2, Strain::Clubs),
+            Call::Pass,
+            call(2, Strain::Diamonds),
+            Call::Pass,
+        ];
+        assert_eq!(
+            best(&diamonds, "2.K32.AKQT54.A32"),
+            call(3, Strain::Notrump)
+        );
+    }
+
+    #[test]
+    fn rubens_raiser_moves_with_extras_over_the_completion() {
+        // (1♣) 1♠ (P) 2♥ (P) 2♠ (P): the mechanical completion denied extras,
+        // so the raiser drives to game with 14+ and rests below it otherwise.
+        let auction = [
+            call(1, Strain::Clubs),
+            call(1, Strain::Spades),
+            Call::Pass,
+            call(2, Strain::Hearts),
+            Call::Pass,
+            call(2, Strain::Spades),
+            Call::Pass,
+        ];
+        assert_eq!(best(&auction, "K54.A32.KQ32.Q43"), call(4, Strain::Spades));
+        assert_ne!(best(&auction, "K54.K32.K43.Q432"), call(4, Strain::Spades));
     }
 
     #[test]
