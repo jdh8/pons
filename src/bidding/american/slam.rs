@@ -11,8 +11,8 @@
 //! |--------|-------------|
 //! | 5♣     | 1 or 4 ("14") |
 //! | 5♦     | 0 or 3 ("30") |
-//! | 5♥     | 2, without the trump queen |
-//! | 5♠     | 2, with the trump queen    |
+//! | 5♥     | 2 or 5, without the trump queen |
+//! | 5♠     | 2 or 5, with the trump queen    |
 //!
 //! # Ambiguity policy
 //!
@@ -189,18 +189,18 @@ fn rkcb_answers(trump: Suit) -> Rules {
             keycards(trump, 0..=0) | keycards(trump, 3..=3),
         )
         .alert(RKCB)
-        // 5♥ = 2 keycards without the trump queen
+        // 5♥ = 2 or 5 keycards without the trump queen
         .rule(
             Bid::new(5, Strain::Hearts),
             1.0,
-            keycards(trump, 2..=2) & !has_trump_queen(trump),
+            (keycards(trump, 2..=2) | keycards(trump, 5..=5)) & !has_trump_queen(trump),
         )
         .alert(RKCB)
-        // 5♠ = 2 keycards with the trump queen
+        // 5♠ = 2 or 5 keycards with the trump queen
         .rule(
             Bid::new(5, Strain::Spades),
             1.0,
-            keycards(trump, 2..=2) & has_trump_queen(trump),
+            (keycards(trump, 2..=2) | keycards(trump, 5..=5)) & has_trump_queen(trump),
         )
         .alert(RKCB)
 }
@@ -598,6 +598,20 @@ mod tests {
             best(&trie, ANS_AUCTION, "A8732.A53.842.92"),
             Call::Bid(Bid::new(5, Strain::Hearts)),
             "2 keycards, no trump Q → 5♥"
+        );
+
+        // AK732.A53.A42.A2 — 4 aces + trump K = 5 keycards, no Q → 5♥ (same step as 2)
+        assert_eq!(
+            best(&trie, ANS_AUCTION, "AK732.A53.A42.A2"),
+            Call::Bid(Bid::new(5, Strain::Hearts)),
+            "5 keycards, no trump Q → 5♥"
+        );
+
+        // AKQ32.A53.A42.A2 — 4 aces + trump K + trump Q = 5 keycards with Q → 5♠
+        assert_eq!(
+            best(&trie, ANS_AUCTION, "AKQ32.A53.A42.A2"),
+            Call::Bid(Bid::new(5, Strain::Spades)),
+            "5 keycards, with trump Q → 5♠"
         );
     }
 

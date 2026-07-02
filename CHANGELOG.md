@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.10.0] — Unreleased
 
+### Fixed
+
+- **RKCB 1430 five-keycard answer.** The queen-distinguished responses now
+  show **2 or 5** keycards on the same step (`5♥` without the trump queen,
+  `5♠` with it), matching standard 1430. The answer table previously matched
+  exactly 2, so a responder holding all five keycards (four aces + the trump
+  king) fell through to the floor instead of giving the keycard answer. The
+  ambiguity is harmless to the asker — partner can hold 5 only when the asker
+  has 0, who would not be asking — so the asker's continuations are unchanged.
+  The fix covers minor trumps too (the answer table is shared).
+
 ### Added
 
 - **Longer-major transfer discipline** (`set_transfer_longer_major`, **on by
