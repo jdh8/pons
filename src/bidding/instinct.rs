@@ -1651,8 +1651,12 @@ fn rubens_transferee_rebid(context: &Context<'_>) -> Option<Suit> {
         return None;
     };
     let source = transfer.strain.suit()?;
+    // Band first: `source < y` also keeps the `source + 1` index in range.
+    if transfer.level.get() != 2 || (source as u8) < (x as u8) || (source as u8) >= (y as u8) {
+        return None;
+    }
     let target = Suit::ASC[(source as u8 + 1) as usize];
-    if transfer.level.get() != 2 || (source as u8) < (x as u8) || target == y {
+    if target == y {
         return None;
     }
     (matches!(auction[overcall_index + 3], Call::Pass | Call::Double)
@@ -3260,6 +3264,23 @@ mod tests {
         assert_eq!(best(&auction, "AKJ52.Q32.K52.A2"), call(4, Strain::Hearts));
         // No fit, minimum: the mechanical completion.
         assert_eq!(best(&auction, "AKJ52.32.Q952.J2"), call(2, Strain::Hearts));
+    }
+
+    #[test]
+    fn rubens_transferee_rebid_survives_an_out_of_band_two_spades() {
+        // (1♣) 1♦ (P) 2♠ (P) 3♣ (P): the 2♠ sits above partner's suit — no
+        // transfer.  The detector must reject it by the band, not index past
+        // the spade suit (this exact shape panicked a 204k-board run).
+        let auction = [
+            call(1, Strain::Clubs),
+            call(1, Strain::Diamonds),
+            Call::Pass,
+            call(2, Strain::Spades),
+            Call::Pass,
+            call(3, Strain::Clubs),
+            Call::Pass,
+        ];
+        let _ = best(&auction, "K54.A32.KQ32.Q43");
     }
 
     #[test]
