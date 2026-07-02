@@ -149,6 +149,25 @@ pub fn minor_responses(minor: Suit) -> Rules {
     let trump = Strain::from(minor);
     let mut rules = Rules::new()
         // Four-card majors up the line (hearts before spades).
+        //
+        // KNOWN ISSUE — up the line over-applies beyond 4-4: the 1♥ rule
+        // fires on *any* four-plus hearts, so a hand with LONGER spades
+        // (5♠4♥, 6♠5♥) still responds 1♥, where standard longest-first style
+        // responds 1♠ planning to show the hearts next.  Two consequences:
+        // partner cannot infer "spades are not longer than hearts" from a 1♥
+        // response (only the converse holds — 1♠ denies four hearts), and
+        // the M6.4 control-bid classifier (`classify_high_bid` in
+        // `inference.rs`) therefore reads a later jump into the suit *above*
+        // the response (`1♣–1♥–2♣–4♠`) as natural to play, never as a
+        // control bid — the first M6.4 A/B round assumed longest-first here
+        // and lost 6 IMPs per fired board pulling those genuine spade
+        // slams-to-play into the "agreed" minor.  Fixing this means
+        // longest-first among 5+ suits (respond 1♠ on 5♠4♥/6♠5♥, up the line
+        // only for 4-4) with the rebid structure taught to match, and then
+        // tightening the classifier's bypass rule — change and measure the
+        // three together, not piecemeal.  Cf. the longer-major transfer
+        // discipline (`set_transfer_longer_major`), which fixed the same
+        // disease in the 1NT/2NT transfer tables.
         .rule(
             Bid::new(1, Strain::Hearts),
             1.5,
