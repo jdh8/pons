@@ -281,3 +281,54 @@ fn five_four_smolens_over_the_stayman_denial() {
         call(3, Strain::Hearts),
     );
 }
+
+// --- Source-of-tricks eight 3NT force (opt-in, OFF by default) ---------------
+//
+// `set_long_minor_force` is a thread-local, build-time knob left OFF by default
+// because forcing 3NT loses to the transfer's suit game (see the numbers in
+// `examples/ab-long-minor-force`).  Set it, build the stance, then restore the
+// default before asserting so a reused worker thread cannot leak.
+
+fn stance_forcing_long_minors() -> Stance {
+    pons::bidding::american::set_long_minor_force(true);
+    let system = american().against(Family::NATURAL);
+    pons::bidding::american::set_long_minor_force(false);
+    system
+}
+
+#[test]
+fn long_minor_eight_transfers_by_default() {
+    let system = stance();
+    // 8 HCP, seven clubs: by default (force off) it shows the suit via the 2♠
+    // Puppet transfer — which drives to the making 5♣ game — not a 3NT gamble.
+    assert_eq!(
+        best_call(&system, &after_1nt(&[]), "Kxx.xx.x.KQxxxxx"),
+        call(2, Strain::Spades),
+    );
+}
+
+#[test]
+fn long_minor_eight_forces_3nt_when_opted_in() {
+    let system = stance_forcing_long_minors();
+    // Armed: seven clubs (a source by length) and a six-card minor with two top
+    // honors both jump to 3NT, outranking the 2♠ transfer.
+    assert_eq!(
+        best_call(&system, &after_1nt(&[]), "Kxx.xx.x.KQxxxxx"),
+        call(3, Strain::Notrump),
+    );
+    assert_eq!(
+        best_call(&system, &after_1nt(&[]), "Qxx.xxx.x.AQxxxx"),
+        call(3, Strain::Notrump),
+    );
+}
+
+#[test]
+fn six_card_minor_one_honor_eight_stays_a_transfer() {
+    let system = stance_forcing_long_minors();
+    // Even armed, a six-card minor with only one top honor is not a source of
+    // tricks, so the honor gate keeps it on the 2♠ transfer.
+    assert_eq!(
+        best_call(&system, &after_1nt(&[]), "KJx.xxx.x.Axxxxx"),
+        call(2, Strain::Spades),
+    );
+}

@@ -20,6 +20,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Source-of-tricks-eight 3NT force** (`set_long_minor_force`, **off by
+  default — a measured loss, kept only as an A/B instrument**). Bridge theory
+  says an 8-count with no four- or five-card major and a running long minor
+  (7+ cards, or a six-card minor with two top honors) should gamble 3NT on the
+  source of tricks, and an analytic screen agreed — pricing 3NT against a
+  *notrump* invite/pass looked worth +0.2 to +0.5 IMPs/board. But these hands
+  do not stop in notrump, they **transfer**, and the transfer reaches the suit
+  game: a live A/B against the real routing (`examples/ab-long-minor-force`,
+  8M deals, plain DD, vul none) measured **−7.12 IMPs/fired** — club source
+  −7.07 (the `2♠` transfer drives to a *making 5♣* that 3NT throws away),
+  diamond source a wash (the `2NT` transfer already reaches 3NT). So no eight
+  shape forces; the knob ships off. (Contrast the flat-4-3-3-3 eight, which has
+  no long suit and genuinely does stop in notrump — its pass demotion stands.)
 - **Longer-major transfer discipline** (`set_transfer_longer_major`, **on by
   default**; `bba-gen --no-ns-transfer-longer`). The Jacoby transfer now
   names the **longer** major — a 6♠5♥ hand transfers to spades whatever its
