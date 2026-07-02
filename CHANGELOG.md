@@ -27,10 +27,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   *passed out the two-level cue-raise to play the opponents' suit*, opener's
   lead-directing double silenced the mechanical completion (leaving advancer in
   the phantom suit doubled, −14 a board), and takeout-double structures were
-  misdetected as overcall advances. With the tails authored (see **Fixed**), the
-  re-run (204.8k boards, fresh seeds, 1378 fired) measures **plain +0.0012
-  ± 0.0016 (wash), perfect-defense −0.0029 ± 0.0019** — the catastrophic
-  passouts are gone and the residual is diffuse competitive nuance.
+  misdetected as overcall advances. With the tails authored the re-run (204.8k
+  boards, fresh seeds, 1378 fired) recovered to **plain +0.0012 ± 0.0016
+  (wash), perfect-defense −0.0029 ± 0.0019**; with the **both-sides
+  continuations** below the third run (204.8k boards, fresh seeds, 1144 fired)
+  reaches **plain +0.0016 ± 0.0015 (a small win, CI excluding zero),
+  perfect-defense −0.0009 ± 0.0017 (wash)** — the useful-space structure beats
+  natural advances once completely authored, and stays **on by default**.
 - **The Rubens tails are authored** (part of the knob work above, on whenever
   Rubens advances are on): the overcaller *answers* the two-level cue-raise —
   retreat to three of the overcall suit as the guaranteed action, or place the
@@ -39,6 +42,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (bidder and reading suppression both), and `overcall_shape` requires the
   overcall to be the side's **first action**, so a double-then-bid auction is an
   advance-of-double structure, never a Rubens one.
+- **Both Rubens partners continue with extras** (the useful-space cash-in): the
+  into-partner completion is *graded* — `2Y` denies extras, `3Y` super-accepts
+  at 13–14, a 15+ maximum places the game — and the raiser drives on with 14+
+  over the minimum completion. The new-suit completion covers exactly the hands
+  that would have *passed* a natural non-forcing `2 target`; with a three-card
+  fit and values the overcaller bids what it would have bid over that natural
+  call (invite raise 13–14, game 15+), and the transferee clarifies its
+  wide-yet-unlimited transfer over the completion — 12–13 re-raises as the
+  invite the natural non-forcing treatment never had, 14+ bids the six-card
+  major game or `3NT` behind a stopper. This is what let the transfer subsume
+  both sides of the natural forcing/non-forcing debate on the A/B.
 - **One-level Rubens transfers now record their meaning**
   (`set_rubens_transfer_reading`, **on by default**; `bba-gen
   --no-ns-rubens-reading`). The transfers were suppress-only — after
