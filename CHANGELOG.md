@@ -21,7 +21,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   those hands (the natural five-card-suit rule is anchored on "our side has not
   bid") and the A/B would have measured Rubens against a pass. The `Inferences`
   reading shares the knob: off, an advance in the band reads as a genuine suit.
-  A/B results: ⟨pending⟩.
+  **The first A/B found real leaks** (204.8k boards vs BBA, paired, 2217 fired:
+  plain −0.0111 ± 0.0022, perfect-defense −0.0240 ± 0.0030 IMPs/board),
+  concentrated in three unauthored tails — a quarter of the divergent boards
+  *passed out the two-level cue-raise to play the opponents' suit*, opener's
+  lead-directing double silenced the mechanical completion (leaving advancer in
+  the phantom suit doubled, −14 a board), and takeout-double structures were
+  misdetected as overcall advances. With the tails authored (see **Fixed**), the
+  re-run (204.8k boards, fresh seeds, 1378 fired) measures **plain +0.0012
+  ± 0.0016 (wash), perfect-defense −0.0029 ± 0.0019** — the catastrophic
+  passouts are gone and the residual is diffuse competitive nuance.
+- **The Rubens tails are authored** (part of the knob work above, on whenever
+  Rubens advances are on): the overcaller *answers* the two-level cue-raise —
+  retreat to three of the overcall suit as the guaranteed action, or place the
+  game with a maximum (`4♥` on the heart fit, `3NT` over a minor with their
+  suit stopped) — the mechanical completion fires *through* opener's double
+  (bidder and reading suppression both), and `overcall_shape` requires the
+  overcall to be the side's **first action**, so a double-then-bid auction is an
+  advance-of-double structure, never a Rubens one.
 - **One-level Rubens transfers now record their meaning**
   (`set_rubens_transfer_reading`, **on by default**; `bba-gen
   --no-ns-rubens-reading`). The transfers were suppress-only — after
@@ -35,7 +52,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   since the shown values matter most when fourth hand intervenes over the
   transfer. Recorded for the advancer's own side only: an opponent's in-band
   advance may be a genuine suit (BBA's advances are natural), and asserting
-  length in the suit above would poison the sampler. A/B results: ⟨pending⟩.
+  length in the suit above would poison the sampler. A/B (204.8k boards vs BBA,
+  paired, Rubens on in both arms, 42 fired — the reading only changes the
+  overcaller's *decision*): **plain +0.0005 ± 0.0004 IMPs/board (+2.55 per
+  fired), perfect-defense +0.0003 ± 0.0005** — a small real win; it converts
+  cue/transfer passouts into bid games.
 - **Responder's continuation after opener's Stayman slam-try cue**
   (`set_stayman_cue_continuation`, **on by default**). After `1NT–2♣–2M–3OM`,
   opener cue-bids a control (`4♣`/`4♦`/`4♥`) to accept the slam try with a maximum —

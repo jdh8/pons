@@ -471,6 +471,20 @@ A/B vs baseline, and the BBA gap (S.1's −2.6) on the relevant auctions.
     (bf6e5cd) + the optional-latch knob; the defensive `(1NT)-X-(2Y)-X` latch
     (`set_latch_style`, opt-in, DD-wash); the penalty-double latch (default-on).
   - **Transfer-Lebensohl / Rubinsohl** threads over interference.
+  - **Rubens advances, knobbed + measured + tails authored** (the old sketch's
+    unfinished *measure*, done 2026-07-02). `set_rubens_advances` (default-on;
+    `--no-ns-rubens`) with a knob-off natural new-suit advance so the off arm is
+    a fair baseline (the advancer otherwise had *no* call — `we_have_not_bid` is
+    side-level). Round 1 (204.8k bd, 2217 fired) lost plain −0.0111/PD −0.0240,
+    concentrated in unauthored tails: 26% of divergent boards *passed out the
+    two-level cue-raise in their suit*, opener's X silenced the completion
+    (phantom suit doubled), and double-then-bid structures were misdetected.
+    Tails authored (cue answer signoff/game, completion through the X,
+    `overcall_shape` requires the side's first action): round 2 (fresh seeds,
+    1378 fired) **plain +0.0012 ± 0.0016 (wash), PD −0.0029 ± 0.0019**. The
+    one-level transfers also now *record* their meaning
+    (`set_rubens_transfer_reading`, default-on, own-side only): +0.0005 ± 0.0004
+    plain, +2.55/fired — closing the suppress-only asymmetry with the cue-raise.
   *Measure:* contested IMPs/board vs baseline + vs BBA, **but** the DD harness is
   blind to obstruction (`project_preemption-dd-negative`,
   `project_bba-1nt-comparison`), so most conventional defenses are kept opt-in and

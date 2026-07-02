@@ -143,7 +143,7 @@ primitives that carry the meaning — no per-prefix context or relative-vul jugg
 | `transfer_major_reading`  | declarative `len & …`                    | **RETIRE** (cleanest; uncontested/constructive — the validation anchor) |
 | `leaping_michaels_reading`| declarative `len & len & points`         | **RETIRE** |
 | `landy_reading`           | `(len&len)\|(len&len)`, both-minors `len&len` | **RETIRE core**; keep advancer-relay suppression |
-| `rubens_reading`          | overcall declarative; cue/transfer relays| **PARTIAL** — stop double-reading the overcall; keep cue strength + relay suppression |
+| `rubens_reading`          | overcall declarative; cue/transfer relays| **PARTIAL** — stop double-reading the overcall; keep cue strength + relay suppression. *(M6.3: the one-level transfers now record their meaning too — `set_rubens_transfer_reading`, own side only.)* |
 | `multi_reading`           | Multi/Muiderberg = opaque `described()`  | **RE-AUTHOR** as `len` conjuncts (both shapes incl. the ≤4-minor negative are expressible) → retire |
 | `woolsey_x_reading`       | opaque `described()` double-disjunction  | **KEEP thin** — projects to points-floor only either way; retire the suit half (asserts nothing), keep the `2♣`-relay suppression |
 | `dont_reading`            | opaque `described()`                     | **MIXED** — re-author both-majors / minor-major / the X's `len(♠,..=3)` negative inference as explicit conjuncts → retire core; keep relay suppression |
