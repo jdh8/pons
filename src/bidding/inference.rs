@@ -155,6 +155,32 @@ pub fn fallback_projection_enabled() -> bool {
     FALLBACK_PROJECTION.with(Cell::get)
 }
 
+std::thread_local! {
+    /// Whether the reading classifies high (four-plus level) new-suit bids as
+    /// control bids vs to-play (**on by default**, M6.4).  The deterministic
+    /// rule, distilled from Bridge World Standard: such a bid is *natural* iff
+    /// the suit could still be the bidder's longest — the bidder has shown no
+    /// other suit yet, or is rebidding a suit they themselves showed.
+    /// Otherwise it is a control bid agreeing the partnership's most recently
+    /// shown suit, and the phantom suit is suppressed rather than floored.
+    static CONTROL_BID_READING: Cell<bool> = const { Cell::new(true) };
+}
+
+/// Toggle the control-bid reading of high new-suit bids (**default on**, M6.4)
+///
+/// Off, a four-plus-level new suit falls back to the pre-M6.4 reading (double
+/// jumps skipped, notrump-structure bids blanket-suppressed) — the A/B off arm.
+pub fn set_control_bid_reading(on: bool) {
+    CONTROL_BID_READING.with(|cell| cell.set(on));
+}
+
+/// Whether the control-bid reading is enabled (default on); shared with the
+/// instinct floor so the reader and the signoff rules flip together
+#[must_use]
+pub(super) fn control_bid_reading() -> bool {
+    CONTROL_BID_READING.with(Cell::get)
+}
+
 /// Toggle rule-replay layout acceptance (default off).
 ///
 /// On, the sampler reads each bid by the rule that authored it — the meaning is
@@ -355,6 +381,13 @@ pub(crate) const fn relative_of(len: usize, index: usize) -> Relative {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Inferences {
     players: [Inference; 4],
+    /// The last call the M6.4 classifier read as a control bid: its auction
+    /// index and the suit it agrees.  The exact witness for the instinct
+    /// signoff — "the named suit is unread" cannot tell a control bid from an
+    /// unread to-play bid.  Not part of the shown-range payload
+    /// (serialization skips it).
+    #[cfg_attr(feature = "serde", serde(skip))]
+    control_bid: Option<(u8, Suit)>,
 }
 
 impl Inferences {
@@ -409,12 +442,19 @@ impl Inferences {
         let auction = context.auction();
         let len = auction.len();
         let mut players = [Inference::unknown(); 4];
+        let mut control_bid = None;
 
         let Some(opening_index) = auction.iter().position(|&c| c != Call::Pass) else {
-            return Self { players };
+            return Self {
+                players,
+                control_bid,
+            };
         };
         let Call::Bid(opening_bid) = auction[opening_index] else {
-            return Self { players };
+            return Self {
+                players,
+                control_bid,
+            };
         };
         let opener_lane = opening_index % 4;
         // SAFETY: at most three passes precede the opening, so the cast is safe.
@@ -472,6 +512,11 @@ impl Inferences {
         // recorded post-walk so opener does not undercount the partnership's strength.
         let overcall_double = responder_overcall_double_reading(auction, len);
 
+        // Which calls the walk has suppressed so far (any reason: projection,
+        // convention readers, the notrump-structure blanket, control bids) —
+        // the control-bid classifier scans it for the agreed suit (M6.4).
+        let mut suppressed_so_far = 0u64;
+
         for (index, &call) in auction.iter().enumerate() {
             let lane = index % 4;
             let who = relative_of(len, index) as usize;
@@ -513,8 +558,8 @@ impl Inferences {
                             && bid.level.get() == 3
                             && matches!(bid.strain, Strain::Hearts | Strain::Spades)
                             && lane_suits[(lane + 2) % 4] & (1u8 << suit as u8) == 0;
-                        let suppress = (is_opening_side && opening_artificial && !over_one_notrump)
-                            || stayman_artificial
+                        let nt_blanket = is_opening_side && opening_artificial && !over_one_notrump;
+                        let chain = stayman_artificial
                             || nt_structure_artificial(auction, index, opening_index)
                             || rubens_suppress.contains(&Some(index))
                             || (index < 64 && suppressed >> index & 1 != 0)
@@ -522,6 +567,65 @@ impl Inferences {
                             || multi.is_some_and(|m| m.suppresses(index))
                             || woolsey_x.is_some_and(|w| w.suppresses(index))
                             || dont.is_some_and(|d| d.suppresses(index));
+
+                        // M6.4: a four-plus-level suit bid in the slam zone is
+                        // classified control-bid vs to-play before the natural
+                        // walk (see [`classify_high_bid`]).  It may punch
+                        // through the notrump-structure blanket (the
+                        // post-transfer 4♠ control) — but only when the
+                        // projection is present to have claimed the genuinely
+                        // artificial calls (Texas transfers) first.
+                        let slam = if control_bid_reading()
+                            && index != opening_index
+                            && is_opening_side
+                            && !side_acted[defending_parity]
+                            && (4..=5).contains(&bid.level.get())
+                            && !chain
+                            && (!nt_blanket || context.prefixes().is_some())
+                        {
+                            classify_high_bid(
+                                auction,
+                                index,
+                                bid,
+                                len,
+                                opening_index,
+                                &players,
+                                &overlay,
+                                suppressed_so_far,
+                            )
+                        } else {
+                            HighBid::Unclaimed
+                        };
+
+                        let suppress = match slam {
+                            // To play (or an unreadable splinter): no record —
+                            // flooring a six here rerouted combined-33 hands
+                            // from the winning 6NT power-blast into thin 6-2
+                            // suit slams (round 4 of the A/B).
+                            HighBid::ToPlay => true,
+                            HighBid::Control { trump, shower } => {
+                                // A control bid: the bid suit is a control, not
+                                // length — it agrees `trump`.  Agreeing one's
+                                // own shown suit past game promises a sixth
+                                // card; agreeing partner's promises support.
+                                // Either way the slam try shows opening values
+                                // and up (a sound floor; the real hand is
+                                // stronger).
+                                let floor = if shower == who { 6 } else { 3 };
+                                players[who]
+                                    .narrow_length(trump, Range::at_least(floor, LENGTH_CAP));
+                                players[who].narrow_points(Range::at_least(13, POINTS_CAP));
+                                #[allow(clippy::cast_possible_truncation)]
+                                {
+                                    control_bid = Some((index as u8, trump));
+                                }
+                                true
+                            }
+                            HighBid::Unclaimed => nt_blanket || chain,
+                        };
+                        if suppress && index < 64 {
+                            suppressed_so_far |= 1 << index;
+                        }
 
                         if !suppress {
                             let jump = bid
@@ -856,7 +960,17 @@ impl Inferences {
             players[who].narrow_points(Range::at_least(8, POINTS_CAP));
         }
 
-        Self { players }
+        Self {
+            players,
+            control_bid,
+        }
+    }
+
+    /// The last call the M6.4 classifier read as a control bid: its auction
+    /// index and the agreed suit (see [`classify_high_bid`])
+    #[must_use]
+    pub(super) fn control_bid(&self) -> Option<(u8, Suit)> {
+        self.control_bid
     }
 }
 
@@ -880,7 +994,156 @@ impl Inferences {
 pub(crate) fn authored_reading(context: &Context<'_>) -> Inferences {
     Inferences {
         players: project_authored(context).0,
+        control_bid: None,
     }
+}
+
+/// How a four-plus-level suit bid in the slam zone reads (M6.4)
+enum HighBid {
+    /// To play (or an unreadable splinter) — suppressed from the natural
+    /// walk, nothing recorded: the honest envelope is wide (a preempt, a
+    /// two-suiter picture jump, a fast-arrival sign-off), and flooring a six
+    /// here measurably rerouted 33-count hands into thin suit slams
+    ToPlay,
+    /// A control bid agreeing `trump`, most recently shown by seat `shower`
+    Control { trump: Suit, shower: usize },
+    /// Not the classifier's call — fall through to the generic walk
+    Unclaimed,
+}
+
+/// Classify an unalerted suit bid at the four level or higher: control bid or
+/// to play (M6.4)
+///
+/// The deterministic rule, calibrated to what this system actually bids: the
+/// bid is a **control bid** iff the bidder *bypassed* the suit — it was
+/// biddable more cheaply (same level, lower strain) at their first
+/// suit-showing call and they chose another suit (`1♦–1♠–2♦–4♥`: 1♥ was
+/// available under 1♠, so hearts are short and 4♥ agrees diamonds — the
+/// partnership's most recently shown suit, BWS's priority).  A suit *above*
+/// the first-shown one was never denied: both the book and the floor bid the
+/// cheaper suit first holding a longer higher one (a 1♥ response or a heart
+/// transfer on 6♠5♥ is real traffic — the first A/B bled six IMPs a fired
+/// board pulling those natural 4♠s to the "agreed" minor), so it reads to
+/// play: suppressed, but with nothing floored.
+///
+/// "Shown" folds the walk's floors so far with the projection overlay, so a
+/// transferred suit counts for its transferee.  (The overlay is the
+/// full-auction fold, so an artificial call *after* `index` could in principle
+/// leak into the test; slam-zone auctions all but never continue artificially
+/// after an unalerted four-level bid, and the leak can only re-label a control
+/// bid — it never floors a phantom suit.)
+#[allow(clippy::too_many_arguments)]
+fn classify_high_bid(
+    auction: &[Call],
+    index: usize,
+    bid: Bid,
+    len: usize,
+    opening_index: usize,
+    players: &[Inference; 4],
+    overlay: &[Inference; 4],
+    suppressed_so_far: u64,
+) -> HighBid {
+    let Some(suit) = bid.strain.suit() else {
+        return HighBid::Unclaimed;
+    };
+    let who = relative_of(len, index) as usize;
+    let partner = (who + 2) % 4;
+    let shown =
+        |seat: usize, s: Suit| players[seat].length(s).min >= 4 || overlay[seat].length(s).min >= 4;
+
+    // Rebids of one's own suit and raises of partner's stay with the generic
+    // walk (six-plus / support) — both are to play.
+    if shown(who, suit) || shown(partner, suit) {
+        return HighBid::Unclaimed;
+    }
+
+    if !Suit::ASC.into_iter().any(|s| s != suit && shown(who, s)) {
+        // The bidder has shown nothing: the suit can be their longest — to
+        // play (which covers the possible splinter below game in partner's
+        // major, `1♥–4♣`, since nothing is recorded either way).
+        return HighBid::ToPlay;
+    }
+
+    // The bidder's first suit-showing call: its shown suit `r` and level — a
+    // natural bid's own suit, or an artificial call's *projected* one (the
+    // transfer's major, not its named diamond; the fold of the seat's floors
+    // stands in for the per-call projection, a recency approximation).  Track
+    // the highest bid standing before it for the bypass legality test.
+    let mut first_shown: Option<(Suit, u8)> = None;
+    let mut highest_before: Option<Bid> = None;
+    for (j, &call) in auction.iter().enumerate().take(index).skip(opening_index) {
+        let Call::Bid(prior) = call else {
+            continue;
+        };
+        if j % 4 == index % 4 {
+            let shown_suit = if j < 64 && suppressed_so_far >> j & 1 != 0 {
+                Suit::ASC
+                    .into_iter()
+                    .filter(|&s| overlay[who].length(s).min >= 4)
+                    .max_by_key(|&s| (overlay[who].length(s).min, s as u8))
+            } else {
+                prior.strain.suit()
+            };
+            if let Some(r) = shown_suit {
+                first_shown = Some((r, prior.level.get()));
+                break;
+            }
+        }
+        if highest_before.is_none_or(|h| outranks(prior, h)) {
+            highest_before = Some(prior);
+        }
+    }
+    let Some((r, r_level)) = first_shown else {
+        return HighBid::Unclaimed;
+    };
+
+    // Bypassed: the bid suit sat below the first-shown suit at the same level
+    // and the bidder skipped it — it cannot be long, so this is a control bid.
+    // Otherwise the suit was never denied and reads to play.
+    let bypassed = (suit as u8) < (r as u8)
+        && highest_before.is_none_or(|h| outranks(Bid::new(r_level, bid.strain), h));
+    if !bypassed {
+        return HighBid::ToPlay;
+    }
+
+    // The agreed suit: the partnership's most recently shown one.
+    for j in (opening_index..index).rev() {
+        if j % 2 != index % 2 {
+            continue; // the opponents' calls agree nothing for us
+        }
+        let Call::Bid(prior) = auction[j] else {
+            continue;
+        };
+        let seat = relative_of(len, j) as usize;
+        if j < 64 && suppressed_so_far >> j & 1 != 0 {
+            let candidate = Suit::ASC
+                .into_iter()
+                .filter(|&s| {
+                    s != suit
+                        && (overlay[seat].length(s).min >= 4 || players[seat].length(s).min >= 4)
+                })
+                .max_by_key(|&s| {
+                    (
+                        overlay[seat].length(s).min.max(players[seat].length(s).min),
+                        s as u8,
+                    )
+                });
+            if let Some(trump) = candidate {
+                return HighBid::Control {
+                    trump,
+                    shower: seat,
+                };
+            }
+        } else if let Some(s) = prior.strain.suit()
+            && s != suit
+        {
+            return HighBid::Control {
+                trump: s,
+                shower: seat,
+            };
+        }
+    }
+    HighBid::Unclaimed
 }
 
 /// Project every artificial prior call into a per-seat overlay, plus a bitset of the
@@ -1758,6 +2021,102 @@ mod tests {
         let one_club = read(&[bid(1, Strain::Clubs)]);
         assert_eq!(one_club.rho().length(Suit::Clubs), Range::new(3, 13));
         assert_eq!(one_club.rho().length(Suit::Hearts), Range::new(0, 4));
+    }
+
+    /// The M6.4 deterministic rule on its canonical auctions: a
+    /// four-plus-level new suit is a control bid iff the bidder *bypassed*
+    /// it (available below their first-shown suit at the same level);
+    /// everything else stays to play — suppressed, nothing floored.
+    #[test]
+    fn high_bid_control_vs_natural() {
+        // 1♦–1♠–2♦–4♥: responder bid spades first, so hearts cannot be their
+        // longest — a control bid agreeing diamonds.  Hearts stays unfloored;
+        // diamond support and slam-try values are recorded instead.
+        let control = read(&[
+            bid(1, Strain::Diamonds),
+            Call::Pass,
+            bid(1, Strain::Spades),
+            Call::Pass,
+            bid(2, Strain::Diamonds),
+            Call::Pass,
+            bid(4, Strain::Hearts),
+            Call::Pass,
+        ]);
+        assert_eq!(control.partner().length(Suit::Hearts).min, 0);
+        assert!(control.partner().length(Suit::Diamonds).min >= 3);
+        assert!(control.partner().points.min >= 13);
+
+        // 1♦–1♠–2♦–4♠: rebidding one's own suit is natural — six-plus spades.
+        let rebid = read(&[
+            bid(1, Strain::Diamonds),
+            Call::Pass,
+            bid(1, Strain::Spades),
+            Call::Pass,
+            bid(2, Strain::Diamonds),
+            Call::Pass,
+            bid(4, Strain::Spades),
+            Call::Pass,
+        ]);
+        assert!(rebid.partner().length(Suit::Spades).min >= 6);
+
+        // 1♦–4♥: the bidder has shown nothing, so hearts can be their
+        // longest — to play, no control machinery (and no phantom floor:
+        // the honest envelope of an unread jump stays wide).
+        let preempt = read(&[
+            bid(1, Strain::Diamonds),
+            Call::Pass,
+            bid(4, Strain::Hearts),
+            Call::Pass,
+        ]);
+        assert!(preempt.control_bid().is_none());
+
+        // 1♣–1♥–2♣–4♠: spades sit *above* the first-shown hearts, so they were
+        // never denied — this system's response and transfer styles bid the
+        // cheaper suit first holding a longer higher one (the first M6.4 A/B
+        // bled six IMPs a fired board pulling these to the "agreed" minor).
+        // To play, not a control bid.
+        let above = read(&[
+            bid(1, Strain::Clubs),
+            Call::Pass,
+            bid(1, Strain::Hearts),
+            Call::Pass,
+            bid(2, Strain::Clubs),
+            Call::Pass,
+            bid(4, Strain::Spades),
+            Call::Pass,
+        ]);
+        assert!(above.control_bid().is_none());
+
+        // 1NT–2♦–2♥–4♠: same shape through a transfer (the overlay attributes
+        // the hearts to the bidder) — spades were never denied, so to play.
+        let post_transfer = read_booked(&[
+            bid(1, Strain::Notrump),
+            Call::Pass,
+            bid(2, Strain::Diamonds),
+            Call::Pass,
+            bid(2, Strain::Hearts),
+            Call::Pass,
+            bid(4, Strain::Spades),
+            Call::Pass,
+        ]);
+        assert!(post_transfer.control_bid().is_none());
+        assert!(post_transfer.partner().length(Suit::Hearts).min >= 5);
+
+        // 1NT–2♥–2♠–4♥ — the mirror: hearts sit *below* the transferred
+        // spades and the cheaper heart transfer was bypassed, so 4♥ cannot be
+        // long — a control bid agreeing spades, promising a sixth.
+        let mirror = read_booked(&[
+            bid(1, Strain::Notrump),
+            Call::Pass,
+            bid(2, Strain::Hearts),
+            Call::Pass,
+            bid(2, Strain::Spades),
+            Call::Pass,
+            bid(4, Strain::Hearts),
+            Call::Pass,
+        ]);
+        assert_eq!(mirror.partner().length(Suit::Hearts).min, 0);
+        assert!(mirror.partner().length(Suit::Spades).min >= 6);
     }
 
     #[test]

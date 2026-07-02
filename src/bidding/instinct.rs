@@ -335,6 +335,36 @@ pub(super) fn rubens_advances_enabled() -> bool {
     RUBENS_ADVANCES.with(Cell::get)
 }
 
+/// The floor's 4NT keycard ask and its 1430 answers are artificial (M6.4);
+/// the alert suppresses their natural reading — without it partner would read
+/// a 5♦ answer as a diamond suit and the sampler would deal the phantom.
+const RKCB_FLOOR: Alert = Alert("floor:rkcb");
+
+std::thread_local! {
+    /// Whether the floor asks and answers RKCB 1430 once a fit and small-slam
+    /// values are known (**on by default**, M6.4).  See [`set_floor_rkcb`].
+    static FLOOR_RKCB: Cell<bool> = const { Cell::new(true) };
+}
+
+/// Enable or disable the floor's RKCB 1430 (M6.4)
+///
+/// **On by default**: with a known eight-card fit and combined small-slam
+/// values the floor asks 4NT before committing — the milestone 6-of-the-fit
+/// only fires directly at the grand-zone 37 or when the ask has no room.  The
+/// answers reuse the book's 1430 ladder ([`american`](super::american)'s
+/// keycard counting), so instinct decodes instinct on both sides.  Disable to
+/// recover the direct-milestone floor (the A/B off arm, `bba-gen
+/// --no-ns-floor-rkcb`); read at classification time, per-thread.
+#[doc(hidden)]
+pub fn set_floor_rkcb(enabled: bool) {
+    FLOOR_RKCB.with(|flag| flag.set(enabled));
+}
+
+/// The floor RKCB is enabled (see [`set_floor_rkcb`])
+fn floor_rkcb_now() -> bool {
+    FLOOR_RKCB.with(Cell::get)
+}
+
 /// Set the HCP floor at which responder redoubles a doubled 1NT to play
 ///
 /// For A/B measurement (see `ab-one-nt-runout --xx-min`).  XX shows values and
@@ -1066,6 +1096,210 @@ fn below_game_now(context: &Context<'_>) -> bool {
 /// The current contract is below slam: nothing above the five level yet
 fn below_slam() -> Cons<impl Constraint + Clone> {
     pred(|_: Hand, context: &Context<'_>| context.last_bid().is_none_or(|bid| bid.level.get() <= 5))
+}
+
+// ---------------------------------------------------------------------------
+// M6.4: slam machinery on the floor — RKCB 1430 and control-bid signoffs
+// ---------------------------------------------------------------------------
+
+/// The agreed keycard trump: the **major** maximizing our actual length plus
+/// partner's shown floor, provided the total reaches an eight-card fit and we
+/// hold three-plus ourselves — BWS's "an agreed suit makes 4NT keycard",
+/// derived instead of installed.  Ties prefer spades.
+///
+/// Majors with a real (3+) holding only: at combined 33 the milestone 6NT
+/// power-blast out-scores minor and thin 6-2 suit slams on double-dummy
+/// (round 4 of the A/B lost 14 IMPs a board rerouting those), so the floor
+/// only asks where the suit slam is the right strain anyway.
+fn keycard_trump(hand: Hand, context: &Context<'_>) -> Option<Suit> {
+    let inferences = Inferences::read(context);
+    let partner = inferences.partner();
+    #[allow(clippy::cast_possible_truncation)]
+    [Suit::Hearts, Suit::Spades]
+        .into_iter()
+        .map(|suit| (hand[suit].len() as u8 + partner.length(suit).min, suit))
+        .filter(|&(total, suit)| total >= 8 && hand[suit].len() >= 3)
+        .max_by_key(|&(total, suit)| (total, suit as u8))
+        .map(|(_, suit)| suit)
+}
+
+/// The trump the 4NT *answerer* counts against: the known fit if our hand
+/// sees one, else the partnership's genuinely shown five-plus suit (either
+/// seat's — BWS's "the only shown suit") — the asker knew the fit from their
+/// side (a sixth card opposite our shown doubleton, or a fit for the six our
+/// own rebid showed) even when we cannot count to eight
+fn answer_trump(hand: Hand, context: &Context<'_>) -> Option<Suit> {
+    keycard_trump(hand, context).or_else(|| {
+        let inferences = Inferences::read(context);
+        let shown = |suit: Suit| {
+            inferences
+                .partner()
+                .length(suit)
+                .min
+                .max(inferences.me().length(suit).min)
+        };
+        [Suit::Hearts, Suit::Spades]
+            .into_iter()
+            .filter(|&suit| shown(suit) >= 5)
+            .max_by_key(|&suit| (shown(suit), suit as u8))
+    })
+}
+
+/// Partner's off-book 4NT asks keycards: undisturbed, not an opening, not
+/// over our own notrump bid (that 4NT is quantitative — BWS reads keycard
+/// only with an agreed suit), and a fit is known from our seat.  Returns the
+/// agreed trump the 1430 answer counts against.
+fn keycard_asked(hand: Hand, context: &Context<'_>) -> Option<Suit> {
+    if !floor_rkcb_now() || !context.undisturbed() {
+        return None;
+    }
+    let auction = context.auction();
+    let n = auction.len();
+    if partner_last_call(auction) != Some(Bid::new(4, Strain::Notrump)) {
+        return None;
+    }
+    let (opening_index, _) = opening_bid(auction)?;
+    if opening_index == n - 2 {
+        return None;
+    }
+    if n >= 4 && matches!(auction[n - 4], Call::Bid(bid) if bid.strain == Strain::Notrump) {
+        return None;
+    }
+    answer_trump(hand, context)
+}
+
+/// A 1430 answer to partner's 4NT: our keycard count is one of `counts`, and
+/// — for the queen-splitting five-of-a-major answers — our trump-queen
+/// holding matches
+fn keycard_answer(counts: &'static [usize], queen: Option<bool>) -> Cons<impl Constraint + Clone> {
+    use super::american::slam::count_keycards;
+    described(
+        "the matching 1430 keycard answer",
+        move |hand: Hand, context: &Context<'_>| {
+            keycard_asked(hand, context).is_some_and(|trump| {
+                counts.contains(&count_keycards(hand, trump))
+                    && queen.is_none_or(|wanted| hand[trump].contains(Rank::Q) == wanted)
+            })
+        },
+    )
+}
+
+/// We asked 4NT two calls ago and partner answered 1430: decode the answer,
+/// returning the trump and the partnership's combined keycard count
+///
+/// The ambiguous 5♣/5♦ answers resolve arithmetically first (five keycards
+/// exist, so a high reading inconsistent with our own count means the low
+/// one) and optimistically otherwise — the book's policy.
+fn keycard_answered(hand: Hand, context: &Context<'_>) -> Option<(Suit, usize)> {
+    use super::american::slam::count_keycards;
+    if !floor_rkcb_now() || !context.undisturbed() {
+        return None;
+    }
+    let auction = context.auction();
+    let n = auction.len();
+    if n < 4 || auction[n - 4] != Call::Bid(Bid::new(4, Strain::Notrump)) {
+        return None;
+    }
+    let Some(&Call::Bid(answer)) = auction.get(n - 2) else {
+        return None;
+    };
+    if answer.level.get() != 5 {
+        return None;
+    }
+    let answer_suit = answer.strain.suit()?;
+    let trump = keycard_trump(hand, context)?;
+    let mine = count_keycards(hand, trump);
+    let (low, high) = match answer_suit {
+        Suit::Clubs => (1, 4),
+        Suit::Diamonds => (0, 3),
+        Suit::Hearts | Suit::Spades => (2, 2),
+    };
+    let partners = if mine + high > 5 { low } else { high };
+    Some((trump, mine + partners))
+}
+
+/// The combined keycard count after partner's 1430 answer is within `range`,
+/// with `trump` the agreed suit
+fn keycard_total(
+    trump: Suit,
+    range: impl core::ops::RangeBounds<usize> + Clone + Send + Sync + 'static,
+) -> Cons<impl Constraint + Clone> {
+    pred(move |hand: Hand, context: &Context<'_>| {
+        keycard_answered(hand, context)
+            .is_some_and(|(t, total)| t == trump && range.contains(&total))
+    })
+}
+
+/// Partner's 1430 answer was five of the agreed trump itself, so passing
+/// plays it — the cramped-minor signoff
+fn answer_is_five_of(trump: Suit) -> Cons<impl Constraint + Clone> {
+    pred(move |_: Hand, context: &Context<'_>| {
+        context.last_bid() == Some(Bid::new(5, Strain::from(trump)))
+    })
+}
+
+/// We answered partner's 4NT keycard ask and partner has since placed the
+/// contract — respect the placement (the asker holds the count); never
+/// milestone past it
+///
+/// The exception: holding **two or more** keycards ourselves, the milestone
+/// drive stays live — the asker may have taken an ambiguous answer's low
+/// reading, and the book's asker tables sign off pessimistically (after a 5♥
+/// answer with two own keycards the total is four, one missing, yet they
+/// stop); the answerer corrects with a maximum, the standard agreement.
+/// Rounds 2–3 of the A/B lost 11 IMPs a board suppressing exactly those
+/// corrections.  With at most one keycard the total genuinely cannot be
+/// slam-safe, so the placement stands.
+fn respect_keycard_signoff() -> Cons<impl Constraint + Clone> {
+    use super::american::slam::count_keycards;
+    pred(|hand: Hand, context: &Context<'_>| {
+        if !floor_rkcb_now() || !context.undisturbed() {
+            return false;
+        }
+        let auction = context.auction();
+        let n = auction.len();
+        if n < 6 || auction[n - 6] != Call::Bid(Bid::new(4, Strain::Notrump)) {
+            return false;
+        }
+        let (Call::Bid(answer), Call::Bid(signoff)) = (auction[n - 4], auction[n - 2]) else {
+            return false;
+        };
+        if answer.level.get() != 5 || !answer.strain.is_suit() {
+            return false;
+        }
+        let Some(trump) = signoff.strain.suit() else {
+            return false;
+        };
+        count_keycards(hand, trump) <= 1
+    })
+}
+
+/// Partner's last call reads as a control bid agreeing `trump` — the M6.4
+/// classifier's own witness carried on [`Inferences`] (a to-play four-level
+/// bid is also unread, so "the named suit floors nothing" cannot tell them
+/// apart).  A slam try agreeing a suit is never a place to play: it must not
+/// be passed out.
+///
+/// [`Inferences`]: super::inference::Inferences
+fn partner_control_bid(trump: Suit) -> Cons<impl Constraint + Clone> {
+    pred(move |_: Hand, context: &Context<'_>| {
+        if !super::inference::control_bid_reading() || !context.undisturbed() {
+            return false;
+        }
+        let n = context.auction().len();
+        n >= 2
+            && Inferences::read(context)
+                .control_bid()
+                .is_some_and(|(index, agreed)| usize::from(index) == n - 2 && agreed == trump)
+    })
+}
+
+/// A known eight-card fit in `suit`: our actual length meets partner's shown
+/// floor (the milestone rules' disjunction, generalized to any suit)
+fn known_eight_card_fit(suit: Suit) -> Cons<impl Constraint + Clone> {
+    (len(suit, 5..) & partner_shown_len(suit, 3..))
+        | (len(suit, 3..) & partner_shown_len(suit, 5..))
+        | (len(suit, 2..) & partner_shown_len(suit, 6..))
 }
 
 /// Our side holds at least `threshold` combined points: our exact count plus the
@@ -2378,6 +2612,130 @@ pub fn instinct() -> Rules {
                 & level_available(7, Strain::Notrump),
         );
 
+    // ------------------------------------------------------------------
+    // M6.4: slam machinery on the floor — RKCB 1430 (instinct decoding
+    // instinct on both sides) and control-bid signoffs.
+    // ------------------------------------------------------------------
+    // The ask: with a known eight-card fit and combined small-slam values,
+    // ask for keycards before committing — outweighing the direct milestone
+    // slams (1.65), because RKCB's point is staying *out* of the
+    // two-keycards-missing slam.  Not over partner's notrump bid (partner
+    // would read that 4NT quantitative), mirroring the answerer's gate; the
+    // grand-zone 37 keeps bidding sevens directly (1.75 outweighs the ask).
+    // The ask must also be *decodable*: the trump has to be a suit someone
+    // genuinely showed five-plus of, or partner cannot derive it and the ask
+    // gets passed out (an 8-count fit against a four-card Puppet answer is
+    // known only to us — round 2 lost 11 IMPs a board on exactly that).
+    rules = rules
+        .rule(
+            Bid::new(4, Strain::Notrump),
+            1.68,
+            pred(|hand: Hand, context: &Context<'_>| {
+                floor_rkcb_now()
+                    && context.undisturbed()
+                    && keycard_trump(hand, context).is_some_and(|trump| {
+                        let inferences = Inferences::read(context);
+                        inferences
+                            .me()
+                            .length(trump)
+                            .min
+                            .max(inferences.partner().length(trump).min)
+                            >= 5
+                    })
+                    && partner_last_call(context.auction())
+                        .is_none_or(|bid| bid.strain != Strain::Notrump)
+            }) & inference_aware()
+                & combined_points(33)
+                & not_penalizing()
+                & below_slam()
+                & level_available(4, Strain::Notrump),
+        )
+        .alert(RKCB_FLOOR)
+        // The 1430 answers — forcing, so they outweigh every milestone.  5♣
+        // also covers all five keycards (a 2♣ rock answering its raiser's
+        // ask; the book ladder's {1,4} left that hand with *no* answer and
+        // round 3 passed the 4NT out).
+        .rule(
+            Bid::new(5, Strain::Clubs),
+            1.9,
+            keycard_answer(&[1, 4, 5], None),
+        )
+        .alert(RKCB_FLOOR)
+        .rule(
+            Bid::new(5, Strain::Diamonds),
+            1.9,
+            keycard_answer(&[0, 3], None),
+        )
+        .alert(RKCB_FLOOR)
+        .rule(
+            Bid::new(5, Strain::Hearts),
+            1.9,
+            keycard_answer(&[2], Some(false)),
+        )
+        .alert(RKCB_FLOOR)
+        .rule(
+            Bid::new(5, Strain::Spades),
+            1.9,
+            keycard_answer(&[2], Some(true)),
+        )
+        .alert(RKCB_FLOOR)
+        // After our answer the asker holds the count: respect the placement.
+        .rule(Call::Pass, 1.88, respect_keycard_signoff());
+    // The asker's continuations, per possible trump.
+    for trump in Suit::ASC {
+        let strain = Strain::from(trump);
+        rules = rules
+            // All five keycards and grand-zone strength: bid seven.
+            .rule(
+                Bid::new(7, strain),
+                1.86,
+                keycard_total(trump, 5..) & combined_points(37) & level_available(7, strain),
+            )
+            // At most one keycard missing: small slam.
+            .rule(
+                Bid::new(6, strain),
+                1.84,
+                keycard_total(trump, 4..) & level_available(6, strain),
+            )
+            // Two missing: sign off at five while it is still available...
+            .rule(
+                Bid::new(5, strain),
+                1.82,
+                keycard_total(trump, ..=3) & level_available(5, strain),
+            )
+            // ...pass when partner's answer already is five of the trump...
+            .rule(
+                Call::Pass,
+                1.80,
+                keycard_total(trump, ..=3) & answer_is_five_of(trump),
+            )
+            // ...and with no room below slam (a cramped minor, or a 5♠ answer
+            // over hearts) accept six rather than strand the phantom answer —
+            // the book's `no_room_six` policy.
+            .rule(
+                Bid::new(6, strain),
+                0.3,
+                keycard_total(trump, ..) & level_available(6, strain),
+            );
+    }
+    // Never pass out partner's control bid — it agrees a suit and forces.
+    // Return to the agreed suit at the cheapest level; with slam-zone values
+    // the ask above (or the direct milestones) outweighs this signoff, and
+    // the control bidder keeps captaining over it.
+    for trump in Suit::ASC {
+        let strain = Strain::from(trump);
+        for level in 4..=6 {
+            rules = rules.rule(
+                Bid::new(level, strain),
+                1.55,
+                partner_control_bid(trump)
+                    & inference_aware()
+                    & known_eight_card_fit(trump)
+                    & min_level_is(level, strain),
+            );
+        }
+    }
+
     // Rubens advances of partner's simple overcall.  Over a one-level overcall
     // the calls from the cue up to just below a two-level raise are transfers to
     // the next suit: a new-suit transfer shows a five-card suit and 10+ upgraded
@@ -2905,6 +3263,164 @@ mod tests {
         );
         assert_eq!(bid, call(3, Strain::Notrump));
         crate::bidding::american::set_sixcard_invite_floor(13); // restore default
+    }
+
+    // -----------------------------------------------------------------------
+    // M6.4: floor RKCB + control-bid signoffs
+    // -----------------------------------------------------------------------
+
+    /// With a known fit and combined small-slam values the floor asks 4NT
+    /// (M6.4) instead of blasting the direct milestone 6♠.
+    #[test]
+    fn floor_asks_keycards_with_slam_values_and_a_known_fit() {
+        // 1♠–3♠: the jump raise shows three spades and 10+, so a 23-point
+        // opener counts combined 33 with a decodable trump (its own shown
+        // five-card spades).
+        let auction = [
+            call(1, Strain::Spades),
+            Call::Pass,
+            call(3, Strain::Spades),
+            Call::Pass,
+        ];
+        assert_eq!(
+            best(&auction, "AKQJ7.AKQ.A32.32"),
+            call(4, Strain::Notrump),
+            "slam values + known fit → ask keycards, not 6♠ direct"
+        );
+    }
+
+    /// The 1430 answers to partner's off-book 4NT, counted against the
+    /// derived trump (spades, raised)
+    #[test]
+    fn floor_answers_keycards_1430() {
+        let auction = [
+            call(1, Strain::Spades),
+            Call::Pass,
+            call(3, Strain::Spades),
+            Call::Pass,
+            call(4, Strain::Notrump),
+            Call::Pass,
+        ];
+        // 1 keycard (trump K) → 5♣
+        assert_eq!(
+            best(&auction, "KQ732.K53.Q42.92"),
+            call(5, Strain::Clubs),
+            "1 keycard → 5♣"
+        );
+        // 0 keycards (the heart K is not one) → 5♦
+        assert_eq!(
+            best(&auction, "QJ732.K53.Q42.Q2"),
+            call(5, Strain::Diamonds),
+            "0 keycards → 5♦"
+        );
+        // 2 aces + trump K = 3 keycards → 5♦
+        assert_eq!(
+            best(&auction, "AK732.A53.842.92"),
+            call(5, Strain::Diamonds),
+            "3 keycards → 5♦"
+        );
+        // 2 keycards with the trump queen → 5♠
+        assert_eq!(
+            best(&auction, "AQ732.A53.842.92"),
+            call(5, Strain::Spades),
+            "2 keycards + trump Q → 5♠"
+        );
+        // 2 keycards without the queen → 5♥
+        assert_eq!(
+            best(&auction, "A8732.A53.842.92"),
+            call(5, Strain::Hearts),
+            "2 keycards, no trump Q → 5♥"
+        );
+        // All five keycards (four aces + trump K) → 5♣, the hole the book
+        // ladder's {1,4} left open (round 3 passed a 4NT out on it)
+        assert_eq!(
+            best(&auction, "AK732.A53.A42.A2"),
+            call(5, Strain::Clubs),
+            "5 keycards → 5♣"
+        );
+    }
+
+    /// The asker decodes the answer: two keycards missing signs off at five,
+    /// one missing bids the small slam
+    #[test]
+    fn floor_asker_continues_after_the_answer() {
+        let auction = [
+            call(1, Strain::Spades),
+            Call::Pass,
+            call(3, Strain::Spades),
+            Call::Pass,
+            call(4, Strain::Notrump),
+            Call::Pass,
+            call(5, Strain::Diamonds),
+            Call::Pass,
+        ];
+        // 3 keycards: 5♦ arithmetically means 0 with us — two missing → 5♠.
+        assert_eq!(
+            best(&auction, "AQ752.A76.72.A93"),
+            call(5, Strain::Spades),
+            "two keycards missing → sign off"
+        );
+        // 4 keycards: 5♦ means 0 — one missing → 6♠.
+        assert_eq!(
+            best(&auction, "AK752.A76.72.A93"),
+            call(6, Strain::Spades),
+            "one keycard missing → small slam"
+        );
+    }
+
+    /// The answerer respects the asker's placement — holding at most one
+    /// keycard the total cannot be slam-safe, so no milestone past it (with
+    /// two-plus the correction stays live: the asker may have read an
+    /// ambiguous answer low, or a book table signed off pessimistically)
+    #[test]
+    fn floor_answerer_respects_the_signoff() {
+        let auction = [
+            call(1, Strain::Spades),
+            Call::Pass,
+            call(3, Strain::Spades),
+            Call::Pass,
+            call(4, Strain::Notrump),
+            Call::Pass,
+            call(5, Strain::Clubs),
+            Call::Pass,
+            call(5, Strain::Spades),
+            Call::Pass,
+        ];
+        // One keycard (the trump K), yet milestone-worthy values (33+
+        // combined would bid 6♠): the asker held the count — pass.
+        assert_eq!(
+            best(&auction, "KQ543.KQJ.KQJ4.K"),
+            Call::Pass,
+            "the answerer never overrides the asker's signoff short a keycard"
+        );
+    }
+
+    /// Partner's post-transfer 4♠ is a control bid agreeing hearts (the M6.4
+    /// reading): opener returns to the agreed suit instead of passing out the
+    /// phantom spade contract
+    #[test]
+    fn control_bid_is_never_passed_out() {
+        // 1♦–1♠–2♦–4♥: responder bypassed the cheaper 1♥, so 4♥ cannot be
+        // long — a control bid agreeing diamonds (the M6.4 reading) — and the
+        // floor returns to the agreed suit instead of passing out the phantom
+        // heart contract.
+        let auction = [
+            call(1, Strain::Diamonds),
+            Call::Pass,
+            call(1, Strain::Spades),
+            Call::Pass,
+            call(2, Strain::Diamonds),
+            Call::Pass,
+            call(4, Strain::Hearts),
+            Call::Pass,
+        ];
+        let (bid, from_floor) = american_floored(&auction, "A4.K85.KQJ62.Q75");
+        assert!(from_floor, "the 4♥ jump is off-book");
+        assert_eq!(
+            bid,
+            call(5, Strain::Diamonds),
+            "return to the agreed suit over partner's control bid"
+        );
     }
 
     #[test]

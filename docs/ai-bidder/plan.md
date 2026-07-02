@@ -498,15 +498,83 @@ A/B vs baseline, and the BBA gap (S.1's −2.6) on the relevant auctions.
   none. *Note:* verify the floor rule fires and isn't shadowed
   (`project_floor_shadowed_by_book_nodes`); contested is where the learned floors
   already live (`project_floors_contested_only`).
-- ⬜ **M6.4 Slam machinery on the floor.** Slam bidding is inherently conventional
-  and arises in the deep auctions the floor owns. Add a *self-consistent* keycard
-  layer so **instinct decodes instinct** on both sides, reusing the
-  `american::slam` 1430 ladder. *Deliverable:* the floor asks/answers keycards
-  once a fit + extras are known; **control cue-bids are a follow-on, only if RKCB
-  measures a gain.** *Measure:* slam-rich IMPs/board vs baseline; BBA gap on deep
-  slam auctions. *Deps:* M6.1 (the fit/extras inferences). *Wrinkle:* a floor
-  convention read by an *on-book* partner — gate to all-off-book continuations
-  first, leave the floor-meets-book seam for later.
+- ✅ **M6.4 Slam machinery on the floor — SHIPPED 2026-07-02 (five A/B rounds).** Slam
+  bidding is inherently conventional and arises in the deep auctions the floor
+  owns. The RKCB precondition was declared met (the book's 1430 reuse kept
+  measuring wins: minor keycard +6.80, Jacoby slam try +1.42, Texas drive
+  +5.87 per fired), so both halves shipped together, each behind a default-on
+  knob:
+  - **Floor RKCB 1430** (`set_floor_rkcb`, `--no-ns-floor-rkcb`): at combined
+    33 with a known eight-card fit the floor asks `4NT` (outweighing the direct
+    milestone 6), partner answers the shared 1430 ladder
+    (`american::slam::count_keycards`), and the asker signs off at five /
+    bids six / bids seven-at-37 by the combined count — **instinct decodes
+    instinct**, no trie node installed. Trump is *derived* (max of our length
+    + partner's shown floor reaching eight; the answerer falls back to
+    partner's shown 5+ suit), BWS's "agreed suit makes 4NT keycard" — a 4NT
+    raise of our own notrump stays quantitative on both sides of the seam.
+    Ask/answers alerted `floor:rkcb` (projection suppresses the phantom
+    suits); the answerer always respects the asker's placement. No floor 5NT
+    king ask (grand rides the 37 milestone) — the named ceiling.
+  - **Control-bid reading** (`set_control_bid_reading`,
+    `--no-ns-control-bid-reading`): the deterministic rule, calibrated by the
+    A/B to what the system *actually bids* — an undisturbed four-plus-level
+    new suit is a **control bid iff the bidder bypassed it** (biddable more
+    cheaply at their first suit-showing call: `1♦–1♠–2♦–4♥` agrees diamonds;
+    `1NT–2♥–2♠–4♥` through the transfer overlay agrees spades — suppress the
+    phantom, record support 3+/own 6+ and 13+ points).  A suit *above* the
+    first-shown one was **never denied → natural 6+**: the book responds 1♥ /
+    transfers to hearts holding 6♠5♥ (probed), so `1♣–1♥–2♣–4♠` and the
+    post-transfer `1NT–2♦–2♥–4♠` are to-play — round 1 read them as controls
+    ("shown another suit ⟹ can't be longest") and bled −6.1/fired pulling
+    natural 4♠s.  Silent bidder → natural (`1♦–4♥` floored 6+) except below
+    partner's major game (`1♥–4♣` splinter-possible, unread); undeniable
+    minors unread.  Plus the **never-pass-a-cue signoff** (return to trump at
+    the cheapest level) — the Rubens round-1 lesson applied up front.
+  *Measure:* 204.8k boards vs BBA per round, paired `ab-dump-diff`, both knobs
+  off as the baseline arm.  **Round 1 (naive longest-suit rule +
+  fit-only answerer trump, `SEED_BASE=1782987009`): plain −0.0030 ± 0.0009,
+  −6.1/fired (100 fired)** — two leaks: natural 4♠s-above-the-first-suit
+  pulled to the "agreed" minor, and 4NT asks *passed out* when the answerer
+  could not derive the trump (opener's unsupported rebid suit) — fixed by the
+  bypass rule + widening the answerer's fallback to either seat's shown 5+
+  suit.  **Round 2 (`1782987977`): plain −0.0002 ± 0.0003 (wash), −1.35/fired
+  (26 fired), PD identical** — the residue was two more leaks, both fixed:
+  the ask must be *decodable* (trump = a shown-5+ suit, else partner passes
+  out the 4NT — an 8-fit against a four-card Puppet answer is known only to
+  the asker), and the respect-signoff pass steps aside when our ambiguous
+  5♣/5♦ answer held the **high** count (answerer corrects with a maximum —
+  suppressing that correction cost 11 IMPs a board).  **Round 3
+  (`1782988401`): plain −0.0003 ± 0.0002, −1.71/fired (31 fired)** — two
+  final holes, both at the book-ask/floor-answer seam: the {1,4}/{0,3}/{2}
+  ladder (the book's too!) has **no answer for five keycards** (a 2♣ rock
+  passed out its raiser's 4NT) → the floor's 5♣ now covers {1,4,5}; and the
+  respect-signoff kept suppressing *winning* corrections over the book's
+  pessimistic signoffs (after a 5♥ answer with two own keycards the total is
+  four, one missing, yet the book stops) → respect narrowed to **our own
+  count ≤1** (the only case the total provably cannot be slam-safe),
+  subsuming round 2's high-ambiguous carve.  **Round 4 (`1782988848`): plain
+  −0.0003 ± 0.0003, −2.40/fired (25 fired)** — the convergent finding: every
+  remaining loss was the machinery rerouting combined-33 hands *away from the
+  milestone 6NT power-blast* (minor-trump asks driving 6♦ where 6NT makes;
+  the natural-6+ recording feeding the milestone's 6-2 arm into thin 6♥
+  slams; a correct 5♦-signoff where 6NT still made on power — DD monetizes
+  honors at 33+, keycard discipline pays only on real major fits).  Round-5
+  cuts: `keycard_trump` restricted to **majors with 3+ our side**; the
+  to-play reading **records nothing** (pre-M6.4 envelope — flooring the six
+  is what created new 6-2 reroutes); the control-bid witness moved onto
+  `Inferences::control_bid` (exact — "named suit unread" can no longer tell
+  control from to-play).  **Round 5 (`1782989478`): 4 fired / 204.8k, delta
+  exactly 0.0000 plain and PD** — the four divergences are all
+  `2NT–3♥–3♠–4NT–…–6♠` checking keycards into a real six-card fit where the
+  baseline blasts an equal-value 6NT.  **Wash with the safety net kept →
+  default-on stands** (plain-wash policy).  *Meta-lesson:* on plain DD at
+  33-plus combined, the 6NT power-blast is near-optimal — keycard discipline
+  buys almost nothing the milestones don't already have; the durable value of
+  M6.4 is the *reading* (control bids never passed out, keycard answers never
+  read as phantom suits) at the off-book seams.  *Wrinkle stands:* the
+  floor-meets-book seam (a booked partner reading a floor 4NT) is guarded
+  only by the trump-derivation and quantitative gates; full gating deferred.
 
 Exit M6: the deterministic floor explores slam and handles the key competitive
 conventions, narrowing the BBA gap in exactly the deep/contested auctions where

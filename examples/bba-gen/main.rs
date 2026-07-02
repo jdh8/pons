@@ -408,6 +408,18 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_rubens_reading: bool,
 
+    /// Disable the floor's RKCB 1430 (default on, M6.4): the floor reverts to
+    /// the direct milestone slams (6/7 of the fit at 33/37 combined) with no
+    /// keycard ask — the pre-M6.4 baseline for the A/B.
+    #[arg(long, default_value_t = false)]
+    no_ns_floor_rkcb: bool,
+
+    /// Disable the control-bid reading of high new-suit bids (default on,
+    /// M6.4): a four-plus-level new suit reverts to the pre-M6.4 reading
+    /// (double jumps skipped) and the return-to-trump signoff never fires.
+    #[arg(long, default_value_t = false)]
+    no_ns_control_bid_reading: bool,
+
     /// Our side NEVER competes over BBA's 1NT (default off): authors only Pass at
     /// every seat, the truest "do nothing" baseline.  Overrides every other defense knob.
     #[arg(long, default_value_t = false)]
@@ -869,6 +881,8 @@ fn main() -> anyhow::Result<()> {
     pons::bidding::instinct::set_doubler_xx_runout(!args.no_ns_doubler_run);
     pons::bidding::instinct::set_rubens_advances(!args.no_ns_rubens);
     pons::bidding::set_rubens_transfer_reading(!args.no_ns_rubens_reading);
+    pons::bidding::instinct::set_floor_rkcb(!args.no_ns_floor_rkcb);
+    pons::bidding::set_control_bid_reading(!args.no_ns_control_bid_reading);
     pons::bidding::set_fallback_projection(!args.no_ns_fallback_projection);
     pons::bidding::american::set_open_one_notrump(!args.no_our_1nt);
     pons::bidding::american::set_one_notrump_fifths(args.nt_fifths);

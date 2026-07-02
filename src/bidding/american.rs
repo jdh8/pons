@@ -76,7 +76,7 @@ mod openings;
 mod raises;
 mod rebids;
 mod responses;
-mod slam;
+pub(in crate::bidding) mod slam;
 mod strong_two;
 mod weak_twos;
 

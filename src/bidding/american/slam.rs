@@ -87,8 +87,9 @@ fn insert_arc_all_seats(
 /// Count keycards: the four aces plus the trump king
 ///
 /// Returns the number of keycards held by this hand: one point for each ace
-/// in any suit, plus one point if the hand holds the king of trumps.
-fn count_keycards(hand: Hand, trump: Suit) -> usize {
+/// in any suit, plus one point if the hand holds the king of trumps.  Shared
+/// with the instinct floor's RKCB (M6.4) so both ladders count identically.
+pub(in crate::bidding) fn count_keycards(hand: Hand, trump: Suit) -> usize {
     let aces = Suit::ASC
         .into_iter()
         .filter(|&s| hand[s].contains(Rank::A))

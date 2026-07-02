@@ -9,6 +9,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **M6.4 — slam machinery on the floor: RKCB 1430** (`set_floor_rkcb`, **on by
+  default**; `bba-gen --no-ns-floor-rkcb`). With a known eight-card **major**
+  fit (three-plus our side) and combined small-slam values (33) the instinct
+  floor now *asks* `4NT` before committing, instead of blasting the direct
+  milestone six: partner answers the book's 1430 ladder (the keycard counting
+  is shared with `american::slam`; the floor's 5♣ also covers **all five**
+  keycards, a hole the book's `{1,4}` ladder leaves open and a 2♣ rock hits),
+  and the asker signs off at five with two keycards missing, bids six missing
+  at most one, or seven holding all five in the grand zone — so **instinct
+  decodes instinct on both sides**, with no book node installed. The agreed
+  trump is *derived*, not installed: the major maximizing our length plus
+  partner's shown floor, with the answerer falling back to the partnership's
+  genuinely shown five-plus major — Bridge World Standard's "an agreed suit
+  makes 4NT keycard" (else it stays quantitative: a 4NT raise of our own
+  notrump is never answered with keycards) — and the ask only fires when that
+  trump is *decodable* (a shown-5+ suit, or partner would pass the ask out).
+  The ask and answers carry a `floor:rkcb` alert, so the projection
+  suppresses their phantom suits from the reading; the answerer respects the
+  asker's placement when holding at most one keycard (with two-plus the
+  combined-33 correction stays live — the asker may have read an ambiguous
+  answer low, and the book's own tables sign off pessimistically).  Five A/B
+  rounds against the no-RKCB floor (204.8k boards each, paired) drove the
+  scoping: minor and thin 6-2 asks *lost* to the milestone 6NT power-blast
+  (double-dummy monetizes honors at 33-plus), majors-with-a-real-holding
+  ended a clean wash with the safety net kept — final round 4 fired /
+  204.8k, delta exactly zero, plain and perfect-defense alike.
+- **M6.4 — control bids vs to-play, a deterministic reading**
+  (`set_control_bid_reading`, **on by default**; `bba-gen
+  --no-ns-control-bid-reading`). A four-plus-level new-suit bid in an
+  undisturbed auction is a **control bid iff the bidder *bypassed* the suit** —
+  it was biddable more cheaply (same level, lower strain) at their first
+  suit-showing call and they chose another suit: `1♦–1♠–2♦–4♥` had 1♥
+  available under 1♠, so hearts are short and 4♥ agrees diamonds (support and
+  slam-try values recorded, the phantom hearts suppressed) — likewise
+  `1NT–2♥–2♠–4♥` through the transfer overlay. Everything else — a bidder who
+  has shown nothing (`1♦–4♥`), a suit *above* the first-shown one
+  (`1♣–1♥–2♣–4♠`, the post-transfer `1NT–2♦–2♥–4♠`) — reads **to play:
+  suppressed, with nothing floored**.  Two A/B rounds fixed each half: the
+  naive "shown another suit ⟹ can't be longest" rule bled −6.1 IMPs per fired
+  board pulling natural 4♠s to the "agreed" minor (this system's response and
+  transfer styles bid the cheaper suit first holding a longer higher one —
+  probed: it responds 1♥ to 1♣ on 6♠5♥), and flooring the to-play bid at six
+  rerouted combined-33 hands from the winning 6NT power-blast into thin 6-2
+  suit slams — so the bypass rule decides *control*, and to-play stays
+  unfloored.  The classification itself now rides on
+  `Inferences::control_bid` (an unread to-play bid and a control bid are
+  otherwise indistinguishable), and the floor gains the matching **signoff**:
+  partner's control bid is never passed out — instinct returns to the agreed
+  suit at the cheapest level, and with slam-zone values the RKCB ask takes
+  over, closing the loop the Rubens A/B taught (unauthored continuations pass
+  out artificial calls).
 - **Rubens advances become a knob** (`set_rubens_advances`, **on by default** —
   unchanged behavior; `bba-gen --no-ns-rubens`). The transfer advances of
   partner's simple overcall shipped unconditionally, so the convention itself was
