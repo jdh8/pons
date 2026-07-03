@@ -32,7 +32,8 @@
 //!
 //! Rows (our defense over their 1NT): always-pass · natural (penalty-X +
 //! natural overcalls, the shipped default) · DONT (6+ one-suiter min, the
-//! parity config) · Woolsey Multi-Landy.
+//! parity config) · Woolsey Multi-Landy · Meckwell (two-way X = single 6+ minor
+//! or both majors, 2♣/2♦ = minor + a major, 2♥/2♠ natural, default probe config).
 //! Columns (their counters): shipped defaults · penalty responder-doubles ·
 //! soft (takeout doubles, no trap pass, no penalty conversion) · sit (the
 //! doubled-1NT runout disabled).
@@ -51,7 +52,8 @@ use pons::american;
 use pons::bidding::Family;
 use pons::bidding::american::{
     DoubleStyle, set_always_pass_defense, set_direct_dont, set_direct_dont_one_suiter_min,
-    set_direct_landy_double, set_double_style, set_landy, set_natural_defense, set_penalty_pass,
+    set_direct_landy_double, set_double_style, set_landy, set_meckwell,
+    set_meckwell_minor_major_44, set_meckwell_x_four_four, set_natural_defense, set_penalty_pass,
     set_trap_pass, set_unusual_notrump_defense, set_woolsey,
 };
 use pons::bidding::context::relative;
@@ -69,9 +71,9 @@ use std::collections::{BTreeMap, HashMap};
 mod common;
 use common::{Reached, bid_out, hand_hcp, mean_with_ci, seat_to_act};
 
-const ROWS: usize = 4;
+const ROWS: usize = 5;
 const COLS: usize = 4;
-const ROW_LABELS: [&str; ROWS] = ["always-pass", "natural", "DONT(6+)", "Woolsey"];
+const ROW_LABELS: [&str; ROWS] = ["always-pass", "natural", "DONT(6+)", "Woolsey", "Meckwell"];
 const COL_LABELS: [&str; COLS] = ["default", "penalty-X", "soft", "sit"];
 
 /// GTO-within-a-menu 1NT-defense tournament: defense × counter payoff matrix +
@@ -117,6 +119,9 @@ fn reset_knobs() {
     set_always_pass_defense(false);
     set_direct_dont(false);
     set_direct_dont_one_suiter_min(5);
+    set_meckwell(false);
+    set_meckwell_minor_major_44(false);
+    set_meckwell_x_four_four(true);
     set_woolsey(false);
     set_landy(None);
     set_unusual_notrump_defense(Some((8, 13)));
@@ -153,6 +158,17 @@ fn build_books() -> (Vec<Stance>, Vec<Stance>) {
             set_woolsey(true);
             set_natural_defense(false);
             set_unusual_notrump_defense(None);
+        }),
+        build(&|| {
+            // Meckwell: two-way X (single 6+ minor OR both majors), 2♣/2♦ = minor +
+            // a major, 2♥/2♠ natural, 2NT = both minors.  Default probe config (5-4
+            // minor+major, 4-4 X); Meckwell owns the double + 2♥, so drop natural.
+            set_meckwell(true);
+            set_natural_defense(false);
+            set_landy(None);
+            set_unusual_notrump_defense(Some((8, 14)));
+            set_meckwell_minor_major_44(false);
+            set_meckwell_x_four_four(true);
         }),
     ];
     let cols = vec![

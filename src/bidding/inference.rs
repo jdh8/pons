@@ -502,6 +502,10 @@ impl Inferences {
         // The DONT defense of their 1NT: the artificial X/2♣/2♦/2♥ and the advancer's
         // relay are suppressed; what each genuinely shows is recorded post-walk.
         let dont = dont_reading(auction);
+        // The Meckwell defense of their 1NT: the two-way X (single minor OR both
+        // majors) records points only; the 2♣/2♦ minor + major and the advancer's
+        // relay are suppressed like DONT's.
+        let meckwell = meckwell_reading(auction);
         // Our natural penalty double of their 1NT (15+): a double names no suit, so the
         // generic walk reads it as nothing — the points floor is recorded post-walk.
         let penalty_x = penalty_x_reading(auction);
@@ -566,7 +570,8 @@ impl Inferences {
                             || landy_relay == Some(index)
                             || multi.is_some_and(|m| m.suppresses(index))
                             || woolsey_x.is_some_and(|w| w.suppresses(index))
-                            || dont.is_some_and(|d| d.suppresses(index));
+                            || dont.is_some_and(|d| d.suppresses(index))
+                            || meckwell.is_some_and(|m| m.suppresses(index));
 
                         // M6.4: a four-plus-level suit bid in the slam zone is
                         // classified control-bid vs to-play before the natural
@@ -935,6 +940,26 @@ impl Inferences {
                 }
             }
             players[who].narrow_points(Range::at_least(dont.floor, POINTS_CAP));
+        }
+
+        // A Meckwell overcall of their 1NT.  The two-way X (single 6+ minor OR both
+        // majors) is a disjunction that shares no sound per-suit fact — the one-suiter
+        // arm holds short majors, the both-majors arm long majors — so only the points
+        // floor is recorded (as the Woolsey / penalty double).  The 2♣/2♦ pin the real
+        // ≥4 minor (the natural ≥5 reading was suppressed); the unknown major surfaces
+        // from the residual.  Natural 2♥/2♠ and the 2NT both-minors are read elsewhere.
+        if let Some(meckwell) = meckwell {
+            let who = relative_of(len, meckwell.overcall_index) as usize;
+            match meckwell.kind {
+                MeckwellKind::TwoWayDouble => {}
+                MeckwellKind::ClubsMajor => {
+                    players[who].narrow_length(Suit::Clubs, Range::at_least(4, LENGTH_CAP));
+                }
+                MeckwellKind::DiamondsMajor => {
+                    players[who].narrow_length(Suit::Diamonds, Range::at_least(4, LENGTH_CAP));
+                }
+            }
+            players[who].narrow_points(Range::at_least(meckwell.floor, POINTS_CAP));
         }
 
         // Our natural penalty double of their 1NT.  The shape gate only widens *which*
@@ -1684,6 +1709,7 @@ pub(super) fn penalty_x_reading(auction: &[Call]) -> Option<usize> {
     use crate::bidding::american as a;
     if !a::natural_defense_enabled()
         || a::direct_dont_enabled()
+        || a::meckwell_enabled()
         || a::direct_landy_double().is_some()
         || a::woolsey_enabled()
     {
@@ -1885,6 +1911,110 @@ fn dont_reading(auction: &[Call]) -> Option<DontReading> {
     };
 
     Some(DontReading {
+        overcall_index,
+        kind,
+        floor,
+        advance_suppress,
+    })
+}
+
+/// Which Meckwell defense call the defending side made over their 1NT
+#[derive(Clone, Copy)]
+enum MeckwellKind {
+    /// `X` — a single 6+ minor OR both majors.  A double naming no suit, and a
+    /// disjunction (short majors OR long majors) the per-suit framework cannot pin, so
+    /// only the points floor is a sound fact (as the Woolsey / penalty double).
+    TwoWayDouble,
+    /// `2♣` — clubs (real, ≥ 4) + an unknown major.  As DONT's `ClubsMajor`.
+    ClubsMajor,
+    /// `2♦` — diamonds (real, ≥ 4) + an unknown major.  As DONT's `DiamondsMajor`.
+    DiamondsMajor,
+}
+
+/// A Meckwell overcall of their 1NT (`X`/`2♣`/`2♦`) and the advancer's relay
+///
+/// Meckwell's natural `2♥`/`2♠` single-suiters name real suits (read by the generic
+/// walk) and the `2NT` both-minors is the Unusual overlay, so only the two-way `X` and
+/// the `2♣`/`2♦` minor + major are decoded here.  Mirrors [`dont_reading`].
+#[derive(Clone, Copy)]
+struct MeckwellReading {
+    overcall_index: usize,
+    kind: MeckwellKind,
+    floor: u8,
+    /// The advancer's relay — `2♣` over the `X`, or the `2♦`/`2♥`/`2♠` pass-or-correct
+    /// over `2♣`/`2♦` (a preference among partner's suits, not own length).
+    advance_suppress: Option<usize>,
+}
+
+impl MeckwellReading {
+    /// The `X` (a double) names no suit, so only the `2♣`/`2♦` overcalls suppress
+    /// their own natural reading; the advancer's relay is always suppressed.
+    fn suppresses(&self, index: usize) -> bool {
+        (!matches!(self.kind, MeckwellKind::TwoWayDouble) && self.overcall_index == index)
+            || self.advance_suppress == Some(index)
+    }
+}
+
+/// Read a Meckwell overcall of their 1NT, gated on
+/// [`meckwell_enabled`][crate::bidding::american::meckwell_enabled] and the auction
+/// being `1NT` then the defending side's first action being a Meckwell call
+fn meckwell_reading(auction: &[Call]) -> Option<MeckwellReading> {
+    if !crate::bidding::american::meckwell_enabled() {
+        return None;
+    }
+    let opening_index = auction.iter().position(|&c| c != Call::Pass)?;
+    if auction[opening_index] != Call::Bid(Bid::new(1, Strain::Notrump)) {
+        return None;
+    }
+    let opener_parity = opening_index % 2;
+    let floor = crate::bidding::american::natural_overcall_points().0;
+
+    // The defending side's FIRST action — a Meckwell `X`/`2♣`/`2♦` (natural `2♥`/`2♠`
+    // and anything else fall through to the generic reading).
+    let (overcall_index, kind) = auction
+        .iter()
+        .enumerate()
+        .skip(opening_index + 1)
+        .find_map(|(index, &call)| match call {
+            Call::Pass => None,
+            Call::Double if index % 2 != opener_parity => {
+                Some(Some((index, MeckwellKind::TwoWayDouble)))
+            }
+            Call::Bid(bid) if index % 2 != opener_parity => {
+                let kind = if bid == Bid::new(2, Strain::Clubs) {
+                    Some(MeckwellKind::ClubsMajor)
+                } else if bid == Bid::new(2, Strain::Diamonds) {
+                    Some(MeckwellKind::DiamondsMajor)
+                } else {
+                    None
+                };
+                Some(kind.map(|kind| (index, kind)))
+            }
+            // The opener's side acted (a response), or a defender did something else.
+            _ => Some(None),
+        })
+        .flatten()?;
+
+    // The advancer's relay: `2♣` over the `X` (names a minor, not own clubs), or the
+    // `2♦`/`2♥`/`2♠` preference over a two-suiter.  Both scans jump over every opponent
+    // call so a contested relay is covered (the relay is only legal as the immediate
+    // response).
+    let advance_suppress = match kind {
+        MeckwellKind::TwoWayDouble => auction
+            .iter()
+            .enumerate()
+            .skip(overcall_index + 1)
+            .find_map(|(index, &call)| match call {
+                Call::Bid(bid) if index % 2 != opener_parity => {
+                    Some((bid == Bid::new(2, Strain::Clubs)).then_some(index))
+                }
+                _ => None,
+            })
+            .flatten(),
+        _ => advancer_artificial(auction, overcall_index, opener_parity),
+    };
+
+    Some(MeckwellReading {
         overcall_index,
         kind,
         floor,
@@ -2480,6 +2610,63 @@ mod tests {
         set_direct_dont(false);
         let off = read(&[bid(1, Strain::Notrump), bid(2, Strain::Clubs), Call::Pass]);
         assert_eq!(off.partner().length(Suit::Clubs), Range::new(5, 13));
+    }
+
+    #[test]
+    fn meckwell_overcalls_and_advances_read() {
+        use crate::bidding::american::{set_landy, set_meckwell, set_unusual_notrump_defense};
+        set_landy(None);
+        set_unusual_notrump_defense(None);
+        set_meckwell(true);
+
+        // (1NT)–X–(P): the two-way double (single 6+ minor OR both majors) shares no
+        // sound per-suit fact, so ONLY the points floor is recorded — no length is
+        // narrowed (unlike DONT's X, which pins spades ≤ 3).
+        let x = read(&[bid(1, Strain::Notrump), Call::Double, Call::Pass]);
+        assert_eq!(x.partner().points, Range::new(8, 37));
+        assert_eq!(x.partner().length(Suit::Spades), Range::FULL_LENGTH);
+        assert_eq!(x.partner().length(Suit::Hearts), Range::FULL_LENGTH);
+
+        // (1NT)–X–(P)–2♣–(P): the advancer's 2♣ is a "name your suit" relay, not own
+        // clubs, so its natural ≥ 4 reading is suppressed.
+        let relay = read(&[
+            bid(1, Strain::Notrump),
+            Call::Double,
+            Call::Pass,
+            bid(2, Strain::Clubs),
+            Call::Pass,
+        ]);
+        assert_eq!(relay.partner().length(Suit::Clubs), Range::FULL_LENGTH);
+
+        // (1NT)–2♣–(P): a real ≥ 4 club suit + an unknown major.  The natural ≥ 5
+        // reading is suppressed (a 4-club / 5-major hand makes this call), re-pinned ≥ 4.
+        let two_c = read(&[bid(1, Strain::Notrump), bid(2, Strain::Clubs), Call::Pass]);
+        assert_eq!(two_c.partner().length(Suit::Clubs), Range::new(4, 13));
+        assert_eq!(two_c.partner().points, Range::new(8, 37));
+
+        // (1NT)–2♦–(P): diamonds + a major, real ≥ 4.
+        let two_d = read(&[
+            bid(1, Strain::Notrump),
+            bid(2, Strain::Diamonds),
+            Call::Pass,
+        ]);
+        assert_eq!(two_d.partner().length(Suit::Diamonds), Range::new(4, 13));
+
+        // (1NT)–2♥–(P): NATURAL hearts (Meckwell's 2♥ is a single-suiter, not DONT's
+        // both-majors), so spades are not floored — the DONT-vs-Meckwell fork.
+        let two_h = read(&[bid(1, Strain::Notrump), bid(2, Strain::Hearts), Call::Pass]);
+        assert_eq!(
+            two_h.partner().length(Suit::Spades).min,
+            0,
+            "natural 2♥ shows no spades",
+        );
+
+        // Off: the 2♣ reads as a natural club one-suiter again (≥ 5) — no leak.
+        set_meckwell(false);
+        let off = read(&[bid(1, Strain::Notrump), bid(2, Strain::Clubs), Call::Pass]);
+        assert_eq!(off.partner().length(Suit::Clubs), Range::new(5, 13));
+
+        set_unusual_notrump_defense(Some((8, 13)));
     }
 
     #[test]

@@ -20,6 +20,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Meckwell defense to their 1NT, opt-in (`set_meckwell`, default off,
+  off-state byte-identical).** DONT's cousin, added *alongside* the shipped
+  classic DONT (`set_direct_dont`), not replacing it: the double is a two-way
+  **single 6+ minor OR both majors**, `2♣`/`2♦` = a minor + a major (5-4 either
+  way), `2♥`/`2♠` = a natural 5+ single-suited major, `2NT` = both minors (the
+  Unusual overlay). Both sides authored — the two-way `X` gets a `2♣`
+  pass-or-correct relay (the doubler names its minor, or shows both majors as
+  `2♥` and the advancer corrects to `2♠`), with doubled/redoubled escapes so we
+  never sit in `1NTxx` or a doubled misfit relay; the `2♣`/`2♦` reuse DONT's
+  pass-or-correct advances. The two-way `X` reads as a **points floor only**
+  (the long-minor and both-majors arms share no sound per-suit fact, exactly
+  like the Woolsey double); `2♣`/`2♦` pin the real 4+ minor. Two **probe** knobs
+  expose the tunable shape boundaries for measurement:
+  `set_meckwell_minor_major_44` (the `2♣`/`2♦` 5-4-vs-4-4 boundary, default 5-4)
+  and `set_meckwell_x_four_four` (the both-majors `X`, default 4-4). Wired into
+  `bba-gen` (`--ns-meckwell` + the two probe flags) and added as a fifth row of
+  the `ab-nt-defense-matrix` GTO tournament (plain-DD / perfect-defense / sd-lead
+  brackets + Nash mixture). **Measured a decisive loss and ships off by default,
+  like DONT and Woolsey** (`ab-nt-defense-matrix`, 60k boards, vul none, seed
+  1783107051): the Meckwell row scores **plain-DD −0.277/−0.238/−0.185/−0.033,
+  perfect-defense −0.522/−0.483/−0.389/−0.362, sd-lead −0.068/−0.070/−0.020/+0.123
+  IMPs/board** (default / penalty-X / soft / sit counters) and takes **0%
+  equilibrium support in all three brackets** (plain and sd-lead pick Woolsey,
+  PD picks natural). The dominant leak is the broad two-way `X`: it fires on
+  6588 boards (11%) at **−2.28 IMPs/board** plain-DD, versus Woolsey's narrow
+  4-major-plus-minor `X` (1318 boards, −0.29) and DONT's one-suiter `X` (3016
+  boards, −0.19) — the two-way double at an 8+ floor over a *strong* 1NT is a
+  heavier, far more frequent sacrifice, and its points-only reading leaves the
+  contested continuations shape-blind (the loss collapses to −0.06 when the
+  opponents cannot run). Kept as an opt-in probe target (raise the `X` floor or
+  pass `--ns-meckwell-x-five-four` to shrink the two-way `X` bucket) rather than
+  a shipped default.
+
 - **Major-opening continuations, default on** — four knobs complete the
   constructive tree after `1♥`/`1♠`, the families that previously fell to the
   instinct floor (which cannot hold an invitational dialogue: it moves only

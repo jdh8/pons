@@ -276,6 +276,62 @@ pub(crate) fn direct_dont_enabled() -> bool {
 }
 
 thread_local! {
+    /// Whether the direct-seat **Meckwell** defense replaces the natural defense of
+    /// their 1NT; **off by default** (opt-in A/B).  Meckwell is DONT's cousin: the
+    /// `X` is a two-way "single 6+ minor OR both majors" double, `2♣`/`2♦` are a
+    /// minor + a major, `2♥`/`2♠` are natural single-suiters, and `2NT` is both
+    /// minors (reusing [`set_unusual_notrump_defense`], on by default).  See
+    /// [`set_meckwell`].
+    static MECKWELL: Cell<bool> = const { Cell::new(false) };
+    /// Whether Meckwell's `2♣`/`2♦` (minor + a major) accept a flat 4-4 (else 5-4+);
+    /// **off by default** (5-4).  A **probe** knob — the 5-4-vs-4-4 boundary is
+    /// measured, not fixed by theory.  No effect unless Meckwell is on.
+    static MECKWELL_MINOR_MAJOR_44: Cell<bool> = const { Cell::new(false) };
+    /// Whether Meckwell's both-majors `X` accepts a flat 4-4 (else 5-4+); **on by
+    /// default** (4-4, the standard weak Meckwell takeout double).  A **probe** knob.
+    /// No effect unless Meckwell is on.
+    static MECKWELL_X_FOUR_FOUR: Cell<bool> = const { Cell::new(true) };
+}
+
+/// Replace the natural 1NT defense with Meckwell at every seat, for books built
+/// *after* this call (thread-local; **off by default**).
+///
+/// On: `X` = a single 6+ minor OR both majors (4-4+); `2♣` = clubs + a major, `2♦`
+/// = diamonds + a major (5-4+ either way); `2♥`/`2♠` = a natural 5+ single-suited
+/// major; `2NT` = both minors (pair with [`set_unusual_notrump_defense`], on by
+/// default); an owning `Pass` catch-all.  Mutually exclusive with the natural
+/// penalty-X arm and the DONT / direct-Landy / Woolsey conventions (each repurposes
+/// the double).
+pub fn set_meckwell(on: bool) {
+    MECKWELL.with(|cell| cell.set(on));
+}
+
+/// Whether the direct-seat Meckwell defense is currently authored
+pub(crate) fn meckwell_enabled() -> bool {
+    MECKWELL.with(Cell::get)
+}
+
+/// Whether Meckwell's `2♣`/`2♦` accept a flat 4-4 (default `false` = 5-4+).  A
+/// **probe** knob.  See [`set_meckwell`].
+pub fn set_meckwell_minor_major_44(on: bool) {
+    MECKWELL_MINOR_MAJOR_44.with(|cell| cell.set(on));
+}
+
+fn meckwell_minor_major_44() -> bool {
+    MECKWELL_MINOR_MAJOR_44.with(Cell::get)
+}
+
+/// Whether Meckwell's both-majors `X` accepts a flat 4-4 (default `true` = 4-4).  A
+/// **probe** knob.  See [`set_meckwell`].
+pub fn set_meckwell_x_four_four(on: bool) {
+    MECKWELL_X_FOUR_FOUR.with(|cell| cell.set(on));
+}
+
+fn meckwell_x_four_four() -> bool {
+    MECKWELL_X_FOUR_FOUR.with(Cell::get)
+}
+
+thread_local! {
     /// Whether we author a defense to the opponents' 2♣ Stayman
     /// (`(1NT)-P-(2♣)-?`); **off by default** (opt-in A/B).  See
     /// [`set_stayman_defense`].
@@ -1082,6 +1138,12 @@ const MUIDERBERG_2H: Alert = Alert("1ntd:muiderberg-2h");
 const DONT_2H: Alert = Alert("1ntd:dont-2h");
 const MUIDERBERG_2S: Alert = Alert("1ntd:muiderberg-2s");
 const UNUSUAL_2NT: Alert = Alert("1ntd:unusual-2nt");
+/// Meckwell two-way `X` — a single 6+ minor OR both majors.
+const MECKWELL_X: Alert = Alert("1ntd:meckwell-x");
+/// Meckwell `2♣` — clubs + a major (5-4+).
+const MECKWELL_2C: Alert = Alert("1ntd:meckwell-2c");
+/// Meckwell `2♦` — diamonds + a major (5-4+).
+const MECKWELL_2D: Alert = Alert("1ntd:meckwell-2d");
 /// Lead-directing double of the opponents' 2♣ Stayman — shows clubs (the bid
 /// suit), not takeout.
 const STAYMAN_DEFENSE_X: Alert = Alert("staydef:x-clubs");
@@ -1416,6 +1478,40 @@ fn dont_2h() -> Rules {
     )
 }
 
+/// Meckwell two-way `X`: a single 6+ minor OR both majors,
+/// `points(natural-overcall-floor..)`.  The both-majors shape is the probe knob
+/// [`set_meckwell_x_four_four`]; the single-minor length is a fixed 6.
+fn meckwell_x() -> Rules {
+    let lo = natural_overcall_points().0;
+    Rules::new().rule(
+        Call::Double,
+        1.9,
+        meckwell_double_shape(6, meckwell_x_four_four()) & points(lo..),
+    )
+}
+
+/// Meckwell `2♣`: clubs + a major, 5-4 either way (or flat 4-4 per the probe knob
+/// [`set_meckwell_minor_major_44`]).  Shares [`dont_minor_major`]'s shape on the
+/// Meckwell knob so the two conventions can diverge.
+fn meckwell_2c() -> Rules {
+    let lo = natural_overcall_points().0;
+    Rules::new().rule(
+        Bid::new(2, Strain::Clubs),
+        2.0,
+        dont_minor_major(Suit::Clubs, meckwell_minor_major_44()) & points(lo..),
+    )
+}
+
+/// Meckwell `2♦`: diamonds + a major, 5-4 either way (or flat 4-4 per the probe knob).
+fn meckwell_2d() -> Rules {
+    let lo = natural_overcall_points().0;
+    Rules::new().rule(
+        Bid::new(2, Strain::Diamonds),
+        2.0,
+        dont_minor_major(Suit::Diamonds, meckwell_minor_major_44()) & points(lo..),
+    )
+}
+
 /// Unusual `2NT`: both minors, 5-5, on its own range (raw HCP or points per
 /// [`set_landy_hcp`]).  Additive — compatible with every system.
 fn unusual_2nt() -> Rules {
@@ -1474,6 +1570,23 @@ fn chain_natural_base(rules: Rules) -> Rules {
                 len(Suit::Spades, one_min..) & points(lo..),
             )
             .rule(Call::Pass, 0.0, hcp(0..))
+    } else if meckwell_enabled() {
+        // Meckwell keeps the natural 5+ single-suited majors (2♥/2♠, disjoint from its
+        // two-suiters) below the alerts, plus Pass.  The two-way X / minor+major 2♣/2♦
+        // / both-minors 2NT are the artificial calls.
+        let lo = natural_overcall_points().0;
+        rules
+            .rule(
+                Bid::new(2, Strain::Hearts),
+                1.0,
+                meckwell_natural_major(Suit::Hearts) & points(lo..),
+            )
+            .rule(
+                Bid::new(2, Strain::Spades),
+                1.0,
+                meckwell_natural_major(Suit::Spades) & points(lo..),
+            )
+            .rule(Call::Pass, 0.0, hcp(0..))
     } else if direct_landy_double().is_some() {
         // The both-majors `X` is the alert; the four natural overcalls and `Pass`
         // are the floor-safe base (a 15+ balanced hand now passes or overcalls).
@@ -1519,14 +1632,17 @@ fn active_alerts() -> Vec<Alert> {
         ]);
     } else if direct_dont_enabled() {
         alerts.extend([DONT_X, DONT_2C, DONT_2D, DONT_2H]);
+    } else if meckwell_enabled() {
+        alerts.extend([MECKWELL_X, MECKWELL_2C, MECKWELL_2D]);
     } else if direct_landy_double().is_some() {
         alerts.push(LANDY_X);
     }
     // The natural penalty-X family adds no alert of its own; the Landy `2♣` overlay
-    // is its one convention, incompatible with DONT / direct-Landy-X / Woolsey
-    // (each repurposes or replaces the `2♣` slot).
+    // is its one convention, incompatible with DONT / Meckwell / direct-Landy-X /
+    // Woolsey (each repurposes or replaces the `2♣` slot).
     if landy_range().is_some()
         && !direct_dont_enabled()
+        && !meckwell_enabled()
         && direct_landy_double().is_none()
         && !woolsey_enabled()
     {
@@ -1560,6 +1676,9 @@ pub fn defense_to_notrump() -> Rules {
         .chain(muiderberg(Suit::Hearts).alert(MUIDERBERG_2H))
         .chain(dont_2h().alert(DONT_2H))
         .chain(muiderberg(Suit::Spades).alert(MUIDERBERG_2S))
+        .chain(meckwell_x().alert(MECKWELL_X))
+        .chain(meckwell_2c().alert(MECKWELL_2C))
+        .chain(meckwell_2d().alert(MECKWELL_2D))
         .chain(unusual_2nt().alert(UNUSUAL_2NT))
         .gated(move |t| alerts.contains(&t))
 }
@@ -1598,6 +1717,31 @@ fn dont_minor_major(minor: Suit, allow_44: bool) -> Cons<impl Constraint + Clone
 fn dont_both_majors(allow_44: bool) -> Cons<impl Constraint + Clone> {
     let longer = if allow_44 { 4 } else { 5 };
     and([Suit::Hearts, Suit::Spades], 4..) & or([Suit::Hearts, Suit::Spades], longer..)
+}
+
+/// Meckwell two-way `X`: a single `min`+ minor (♣ or ♦, the other three suits ≤3) OR
+/// both majors (5-4, or flat 4-4 when `four_four`).  The signature two-way double —
+/// the two arms are disjoint (the one-suiter caps its majors ≤3, the both-majors
+/// floors them ≥4), so the reading can tell a single-minor from a both-majors hand by
+/// the majors alone.  `min` is a fixed 6 (the DONT one-suiter parity length).
+fn meckwell_double_shape(min: usize, four_four: bool) -> Cons<impl Constraint + Clone> {
+    use Suit::{Clubs, Diamonds, Hearts, Spades};
+    (len(Clubs, min..) & and([Diamonds, Hearts, Spades], ..=3))
+        | (len(Diamonds, min..) & and([Clubs, Hearts, Spades], ..=3))
+        | both_majors_shape(four_four)
+}
+
+/// Meckwell natural `2♥`/`2♠`: a 5+ single-suited major — the other major ≤3 (both
+/// majors go through the `X`) and both minors ≤3 (a minor + this major goes through
+/// `2♣`/`2♦`).  A pure one-suiter, disjoint from every Meckwell artificial call so a
+/// 6-4 hand shows its two-suiter (`2♣`/`2♦`/`X`) rather than tying the natural rung.
+fn meckwell_natural_major(major: Suit) -> Cons<impl Constraint + Clone> {
+    let other = if major == Suit::Hearts {
+        Suit::Spades
+    } else {
+        Suit::Hearts
+    };
+    len(major, 5..) & len(other, ..=3) & and([Suit::Clubs, Suit::Diamonds], ..=3)
 }
 
 /// M6.2d guard: every re-authored `or`/`and` defense shape accepts exactly the hands
@@ -1706,6 +1850,44 @@ mod shape_guards {
         check("dont_both_majors(false)", dont_both_majors(false), |h| {
             (ln(h, Hearts) >= 5 && ln(h, Spades) >= 4) || (ln(h, Hearts) >= 4 && ln(h, Spades) >= 5)
         });
+
+        // Meckwell two-way X: a 6+ minor (other three ≤3) OR both majors (4-4 / 5-4).
+        for a44 in [true, false] {
+            let longer = if a44 { 4 } else { 5 };
+            check(
+                "meckwell_double_shape",
+                meckwell_double_shape(6, a44),
+                move |h| {
+                    let one_minor = (ln(h, Clubs) >= 6
+                        && ln(h, Diamonds) <= 3
+                        && ln(h, Hearts) <= 3
+                        && ln(h, Spades) <= 3)
+                        || (ln(h, Diamonds) >= 6
+                            && ln(h, Clubs) <= 3
+                            && ln(h, Hearts) <= 3
+                            && ln(h, Spades) <= 3);
+                    let both_majors = ln(h, Hearts) >= 4
+                        && ln(h, Spades) >= 4
+                        && (ln(h, Hearts) >= longer || ln(h, Spades) >= longer);
+                    one_minor || both_majors
+                },
+            );
+        }
+
+        // Meckwell natural 2M: 5+ in the major, ≤3 the other major, both minors ≤3.
+        for major in [Hearts, Spades] {
+            let other = if major == Hearts { Spades } else { Hearts };
+            check(
+                "meckwell_natural_major",
+                meckwell_natural_major(major),
+                move |h| {
+                    ln(h, major) >= 5
+                        && ln(h, other) <= 3
+                        && ln(h, Clubs) <= 3
+                        && ln(h, Diamonds) <= 3
+                },
+            );
+        }
     }
 }
 
@@ -2020,6 +2202,29 @@ fn passed_dont_2h_advance() -> Rules {
     });
     Rules::new()
         .rule(Bid::new(2, Strain::Spades), 1.0, spades_longer)
+        .rule(Call::Pass, 0.0, hcp(0..))
+}
+
+/// Advancing Meckwell's two-way `X` (`[…,1NT,X,P]`): relay `2♣` (pass-or-correct) —
+/// the doubler then names its minor or shows both majors.  A single relay resolves the
+/// two-way double's ambiguity; the advancer's own suits wait for the doubler's answer.
+fn meckwell_x_advance() -> Rules {
+    Rules::new().rule(Bid::new(2, Strain::Clubs), 1.0, hcp(0..))
+}
+
+/// The Meckwell doubler naming its hand after the `2♣` relay (`[…,1NT,X,P,2♣,P]`):
+/// pass with a club one-suiter, `2♦` with a diamond one-suiter (real diamonds, short
+/// majors), or `2♥` with both majors (4+ hearts — the advancer then passes or corrects
+/// to `2♠` via [`passed_dont_2h_advance`]).  Names real suits throughout, so nothing
+/// here is artificial (the both-majors hand under-describes as hearts, always sound).
+fn meckwell_x_rebid() -> Rules {
+    Rules::new()
+        .rule(
+            Bid::new(2, Strain::Diamonds),
+            1.0,
+            len(Suit::Diamonds, 5..) & len(Suit::Hearts, ..=3) & len(Suit::Spades, ..=3),
+        )
+        .rule(Bid::new(2, Strain::Hearts), 1.0, len(Suit::Hearts, 4..))
         .rule(Call::Pass, 0.0, hcp(0..))
 }
 
@@ -3057,6 +3262,46 @@ pub fn defensive() -> Defensive {
         insert_all_seats(&mut d, &[notrump, x, xx, c2, x], 3, passed_dont_x_rebid());
     }
 
+    // Direct-seat Meckwell advances: the X is a two-way "single 6+ minor OR both
+    // majors" double.  Advancer relays 2♣ (pass-or-correct); the doubler passes with
+    // clubs, names 2♦ with diamonds, or bids 2♥ (4+ hearts ⇒ both majors here) and the
+    // advancer passes / corrects to 2♠.  The minor+major 2♣/2♦ reuse the DONT
+    // pass-or-correct advances (same "name your higher suit" relay).  Every artificial
+    // leg has a doubled/redoubled escape so we never sit in 1NTxx or a doubled misfit.
+    if meckwell_enabled() {
+        let c2 = call(2, Strain::Clubs);
+        let d2 = call(2, Strain::Diamonds);
+        let h2 = call(2, Strain::Hearts);
+        // X = two-way: relay 2♣, doubler names its minor / shows both majors (2♥).
+        insert_all_seats(&mut d, &[notrump, x, p], 3, meckwell_x_advance());
+        insert_all_seats(&mut d, &[notrump, x, p, c2, p], 3, meckwell_x_rebid());
+        insert_all_seats(
+            &mut d,
+            &[notrump, x, p, c2, p, h2, p],
+            3,
+            passed_dont_2h_advance(),
+        );
+        // 2♣/2♦ minor+major: reuse the DONT pass-or-correct advances.
+        insert_all_seats(&mut d, &[notrump, c2, p], 3, passed_dont_2c_advance());
+        insert_all_seats(&mut d, &[notrump, c2, p, d2, p], 3, passed_dont_2c_rebid());
+        insert_all_seats(&mut d, &[notrump, d2, p], 3, passed_dont_2d_advance());
+        insert_all_seats(&mut d, &[notrump, d2, p, h2, p], 3, passed_dont_2d_rebid());
+        // Their redouble of our X: relay 2♣ anyway (never sit 1NTxx), doubler names.
+        insert_all_seats(&mut d, &[notrump, x, xx], 3, meckwell_x_advance());
+        insert_all_seats(&mut d, &[notrump, x, xx, c2, p], 3, meckwell_x_rebid());
+        // Their double of our artificial 2♣ relay: the doubler still names the real
+        // suit (pass only with genuine clubs), else runs — never a doubled misfit 2♣x.
+        insert_all_seats(&mut d, &[notrump, x, p, c2, x], 3, meckwell_x_rebid());
+        insert_all_seats(&mut d, &[notrump, x, xx, c2, x], 3, meckwell_x_rebid());
+        // Their double of the doubler's both-majors 2♥ show: advancer still picks a major.
+        insert_all_seats(
+            &mut d,
+            &[notrump, x, p, c2, p, h2, x],
+            3,
+            passed_dont_2h_advance(),
+        );
+    }
+
     // Direct-seat both-majors X advances: the X is a Landy-style both-majors takeout
     // double at every seat, so the advancer answers exactly as over a Landy 2♣ (pick
     // a major / 2♦ relay / 2NT game-ask), keyed at [1NT,X,…] via insert_all_seats.
@@ -3112,8 +3357,8 @@ mod tests {
     use crate::bidding::Family;
     use crate::bidding::american::{
         LebensohlStyle, american, set_advance_sohl_style, set_always_pass_defense, set_direct_dont,
-        set_direct_landy_double, set_leaping_michaels, set_unusual_notrump_defense, set_woolsey,
-        set_woolsey_double_floor, set_woolsey_points,
+        set_direct_landy_double, set_leaping_michaels, set_meckwell, set_unusual_notrump_defense,
+        set_woolsey, set_woolsey_double_floor, set_woolsey_points,
     };
     use contract_bridge::auction::{Call, RelativeVulnerability};
     use contract_bridge::{Bid, Hand, Strain};
@@ -3171,6 +3416,7 @@ mod tests {
         fn reset() {
             super::set_woolsey(false);
             super::set_direct_dont(false);
+            super::set_meckwell(false);
             super::set_direct_landy_double(None);
             super::set_landy(None);
             super::set_natural_defense(true);
@@ -3178,11 +3424,12 @@ mod tests {
             super::set_unusual_notrump_defense(Some((8, 13)));
         }
 
-        let configs: [(&str, fn()); 6] = [
+        let configs: [(&str, fn()); 7] = [
             ("natural+unusual2nt", || {}),
             ("natural+landy", || super::set_landy(Some((8, 15)))),
             ("woolsey", || super::set_woolsey(true)),
             ("dont", || super::set_direct_dont(true)),
+            ("meckwell", || super::set_meckwell(true)),
             ("direct-landy-x", || {
                 super::set_direct_landy_double(Some(false))
             }),
@@ -3652,6 +3899,107 @@ mod tests {
             named,
             call(2, Strain::Hearts),
             "must escape 2♣x to the real suit"
+        );
+        assert!(
+            !nd_floored,
+            "the doubled-relay escape must come from the book"
+        );
+    }
+
+    /// Best call with Meckwell forced on, restored after so it never leaks to a
+    /// sibling test on this thread.
+    fn meckwell(auction: &[Call], hand: &str) -> (Call, bool) {
+        let prev = super::meckwell_enabled();
+        set_meckwell(true);
+        let result = best_call(auction, hand);
+        set_meckwell(prev);
+        result
+    }
+
+    #[test]
+    fn meckwell_overcalls_replace_the_penalty_double() {
+        let over_1nt = [call(1, Strain::Notrump)];
+
+        // A single 6+ minor (long clubs, short elsewhere) → the two-way X, from the book.
+        let (c, floored) = meckwell(&over_1nt, "32.32.432.AKQ876");
+        assert_eq!(c, Call::Double);
+        assert!(!floored, "Meckwell X must come from the book node");
+
+        // Both majors (5-4) → the two-way X too (default four-four accepts it).
+        let (c, _) = meckwell(&over_1nt, "AJ32.KQ876.32.32");
+        assert_eq!(c, Call::Double);
+
+        // Clubs + a major (5♣-4♠) → 2♣.
+        let (c, floored) = meckwell(&over_1nt, "KJ32.32.4.AQ876");
+        assert_eq!(c, call(2, Strain::Clubs));
+        assert!(!floored, "Meckwell 2♣ must come from the book node");
+
+        // Diamonds + a major (5♦-4♥) → 2♦.
+        let (c, _) = meckwell(&over_1nt, "32.KJ32.AQ876.4");
+        assert_eq!(c, call(2, Strain::Diamonds));
+
+        // A natural single-suited 6-card heart hand → 2♥ (not the both-majors X).
+        let (c, floored) = meckwell(&over_1nt, "32.AKJ876.432.32");
+        assert_eq!(c, call(2, Strain::Hearts));
+        assert!(!floored, "natural 2♥ must come from the book node");
+
+        // A natural single-suited spade hand → 2♠.
+        let (c, _) = meckwell(&over_1nt, "AKJ876.32.432.32");
+        assert_eq!(c, call(2, Strain::Spades));
+
+        // Both minors (5-5) → 2NT (the Unusual overlay, on by default).
+        let (c, _) = meckwell(&over_1nt, "3.3.AJ876.KQ876");
+        assert_eq!(c, call(2, Strain::Notrump));
+
+        // 15+ balanced has no Meckwell bid → Pass; the penalty double is gone.
+        let (c, _) = meckwell(&over_1nt, "AKQ2.KQ2.KJ2.432");
+        assert_eq!(c, Call::Pass);
+    }
+
+    #[test]
+    fn meckwell_two_way_double_relays_then_names() {
+        let nt = call(1, Strain::Notrump);
+        let p = Call::Pass;
+        let c2 = call(2, Strain::Clubs);
+        let prev = super::meckwell_enabled();
+        set_meckwell(true);
+
+        // [1NT,X,P]: advancer relays 2♣ (pass-or-correct), from the book.
+        let (relay, relay_floored) = best_call(&[nt, Call::Double, p], "Q32.Q32.Q432.432");
+        // [1NT,X,P,2♣,P]: a diamond one-suiter doubler names 2♦ (real diamonds).
+        let (diamonds, _) = best_call(&[nt, Call::Double, p, c2, p], "32.32.AKQ876.432");
+        // …a both-majors doubler bids 2♥ (4+ hearts here ⇒ both majors).
+        let (majors, majors_floored) = best_call(&[nt, Call::Double, p, c2, p], "AJ32.KQ87.32.32");
+        // …a club one-suiter doubler passes (plays 2♣).
+        let (clubs, _) = best_call(&[nt, Call::Double, p, c2, p], "32.32.432.AKQ876");
+        // [1NT,X,XX]: their redouble — the advancer still relays 2♣, never sits 1NTxx.
+        let (escape, esc_floored) =
+            best_call(&[nt, Call::Double, Call::Redouble], "Q32.Q32.Q432.432");
+        // [1NT,X,P,2♣,X]: they double our relay — the diamond doubler still names 2♦,
+        // never sits in the doubled 2♣x misfit.
+        let (named, nd_floored) =
+            best_call(&[nt, Call::Double, p, c2, Call::Double], "32.32.AKQ876.432");
+        set_meckwell(prev);
+
+        assert_eq!(relay, c2, "advancer relays 2♣ over the two-way X");
+        assert!(!relay_floored, "the relay must come from the book");
+        assert_eq!(
+            diamonds,
+            call(2, Strain::Diamonds),
+            "diamond one-suiter names 2♦"
+        );
+        assert_eq!(majors, call(2, Strain::Hearts), "both majors shown as 2♥");
+        assert!(
+            !majors_floored,
+            "the both-majors show must come from the book"
+        );
+        assert_eq!(clubs, Call::Pass, "club one-suiter passes to play 2♣");
+        assert_eq!(escape, c2, "must escape 1NTxx with the relay, not sit");
+        assert!(!esc_floored, "the redouble escape must come from the book");
+        assert_eq!(
+            named,
+            call(2, Strain::Diamonds),
+            "must escape 2♣x to real diamonds"
         );
         assert!(
             !nd_floored,

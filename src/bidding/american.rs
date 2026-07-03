@@ -95,17 +95,18 @@ pub use defense::{
     set_always_pass_defense, set_diamond_transfer_defense, set_direct_dont,
     set_direct_dont_four_four, set_direct_dont_one_suiter_min, set_direct_landy_double,
     set_direct_landy_double_floor, set_direct_landy_penalty_pass, set_doubled_landy_escape,
-    set_landy, set_landy_hcp, set_leaping_michaels, set_minor_transfer_defense,
-    set_natural_defense, set_natural_double_floor, set_natural_double_shape,
-    set_natural_double_weight, set_natural_overcall_points, set_notrump_balancing,
-    set_responsive_overcall, set_responsive_takeout, set_stayman_defense,
-    set_stayman_defense_overcall, set_transfer_defense, set_unusual_notrump_defense, set_woolsey,
-    set_woolsey_double_floor, set_woolsey_points,
+    set_landy, set_landy_hcp, set_leaping_michaels, set_meckwell, set_meckwell_minor_major_44,
+    set_meckwell_x_four_four, set_minor_transfer_defense, set_natural_defense,
+    set_natural_double_floor, set_natural_double_shape, set_natural_double_weight,
+    set_natural_overcall_points, set_notrump_balancing, set_responsive_overcall,
+    set_responsive_takeout, set_stayman_defense, set_stayman_defense_overcall,
+    set_transfer_defense, set_unusual_notrump_defense, set_woolsey, set_woolsey_double_floor,
+    set_woolsey_points,
 };
 pub(crate) use defense::{
-    direct_dont_enabled, direct_landy_double, landy_range, natural_defense_enabled,
-    natural_double_floor, natural_overcall_points, woolsey_double_floor, woolsey_enabled,
-    woolsey_points,
+    direct_dont_enabled, direct_landy_double, landy_range, meckwell_enabled,
+    natural_defense_enabled, natural_double_floor, natural_overcall_points, woolsey_double_floor,
+    woolsey_enabled, woolsey_points,
 };
 pub use notrump::{
     EUROPEAN, PUPPET, notrump_responses, set_crawling_stayman, set_garbage_stayman,

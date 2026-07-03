@@ -395,6 +395,24 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_dont_four_four: bool,
 
+    /// Replace our natural 1NT defense with Meckwell (default off): two-way X =
+    /// single 6+ minor OR both majors, 2♣ = clubs + a major, 2♦ = diamonds + a major,
+    /// 2♥/2♠ = natural single-suiters, 2NT = both minors.  Run WITHOUT
+    /// `--advertise-natural` (BBA reads it via its DONT convention).
+    #[arg(long, default_value_t = false)]
+    ns_meckwell: bool,
+
+    /// Probe: let Meckwell's `2♣`/`2♦` accept a flat 4-4 (default off = 5-4+). Only
+    /// with `--ns-meckwell`.
+    #[arg(long, default_value_t = false)]
+    ns_meckwell_minor_major_44: bool,
+
+    /// Probe: let Meckwell's both-majors `X` accept a flat 4-4 (default on = 4-4; set
+    /// false-ish by passing `--ns-meckwell-x-five-four` for 5-4+). Only with
+    /// `--ns-meckwell`.
+    #[arg(long, default_value_t = false)]
+    ns_meckwell_x_five_four: bool,
+
     /// Overlay Landy on our natural 1NT defense (default off): `2♣` = both majors
     /// (≥5-4), `2NT` = both minors, on the given `points` band `LO:HI`, replacing the
     /// natural `2♣` club overcall (penalty X + natural `2♦`/`2♥`/`2♠` stay).  Pair with
@@ -1017,6 +1035,15 @@ fn main() -> anyhow::Result<()> {
         pons::bidding::american::set_unusual_notrump_defense(Some((8, 14)));
         pons::bidding::american::set_direct_dont_one_suiter_min(args.ns_dont_one_suiter_min);
         pons::bidding::american::set_direct_dont_four_four(args.ns_dont_four_four);
+    }
+    pons::bidding::american::set_meckwell(args.ns_meckwell);
+    if args.ns_meckwell {
+        pons::bidding::american::set_natural_defense(false);
+        pons::bidding::american::set_landy(None);
+        pons::bidding::american::set_direct_dont(false);
+        pons::bidding::american::set_unusual_notrump_defense(Some((8, 14)));
+        pons::bidding::american::set_meckwell_minor_major_44(args.ns_meckwell_minor_major_44);
+        pons::bidding::american::set_meckwell_x_four_four(!args.ns_meckwell_x_five_four);
     }
     if let Some(spec) = &args.ns_landy {
         let (lo, hi) = spec
