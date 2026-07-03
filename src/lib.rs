@@ -18,6 +18,8 @@ pub mod bidding;
 /// GIB hand-record format (deal + cached double-dummy table)
 pub mod gib;
 pub mod scoring;
+/// Single-dummy trick estimation by Monte-Carlo double-dummy
+pub mod single_dummy;
 /// Statistics
 pub mod stats;
 
@@ -31,4 +33,5 @@ pub use bidding::{
 };
 #[cfg(feature = "search")]
 pub use bidding::{american_search, american_search_book, american_search_with};
+pub use single_dummy::single_dummy;
 pub use stats::{Accumulator, Statistics};

@@ -20,6 +20,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Single-dummy solver** (`pons::single_dummy`, `examples/single-dummy`). Given
+  a declarer's hand and dummy — the 26 cards a declarer actually sees — estimate
+  how a strain will play by Monte-Carlo double-dummy: deal the two hidden defender
+  hands uniformly `n` times, solve each layout double-dummy, and fold the results
+  into a `stats::HistogramTable`. Two new readers on `HistogramTable`,
+  `expected_tricks(seat, strain)` and `make_probability(seat, bid)`, turn the trick
+  histogram into the mean trick count and the fraction of layouts a contract makes.
+  It reuses the existing sampler primitives (`Builder` + `fill_deals`) and the
+  double-dummy solver, so it needs no new dependency or feature flag. This is the
+  standard DD-averaging estimator (as used by GIB); a true imperfect-information
+  single-dummy search is out of scope.
+
 - **GTO 1NT-defense tournament** (`examples/ab-nt-defense-matrix`, study:
   `docs/ai-bidder/gto-1nt-defense.md`). "What is the best defense to their
   strong 1NT?" is a *game*, not an A/B — the answer depends on the opening

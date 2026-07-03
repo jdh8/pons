@@ -1,6 +1,6 @@
 use super::bidding::Array;
 use contract_bridge::auction::Call;
-use contract_bridge::{AbsoluteVulnerability, Contract, Penalty, Seat, Strain};
+use contract_bridge::{AbsoluteVulnerability, Bid, Contract, Penalty, Seat, Strain};
 use core::fmt;
 use core::num::NonZero;
 use core::ops::{Index, IndexMut};
@@ -182,6 +182,39 @@ impl HistogramTable {
     #[must_use]
     pub fn count(self) -> Option<NonZero<usize>> {
         self.0[0].count()
+    }
+
+    /// Mean tricks `seat` takes as declarer in `strain`, over all solved deals
+    ///
+    /// The single-dummy read-out: the expected trick count for a strain given the
+    /// sampled hidden hands.  Returns [`f64::NAN`] when the histogram is empty.
+    #[must_use]
+    #[allow(clippy::cast_precision_loss)]
+    pub fn expected_tricks(self, seat: Seat, strain: Strain) -> f64 {
+        let hist = self[seat][strain];
+        let total: usize = hist.iter().sum();
+        if total == 0 {
+            return f64::NAN;
+        }
+        let weighted: usize = hist.iter().enumerate().map(|(t, &count)| t * count).sum();
+        weighted as f64 / total as f64
+    }
+
+    /// Probability that `bid`, declared by `seat`, makes double-dummy
+    ///
+    /// The fraction of solved deals in which `seat` takes at least `6 + level`
+    /// tricks in `bid`'s strain.  Returns [`f64::NAN`] when the histogram is empty.
+    #[must_use]
+    #[allow(clippy::cast_precision_loss)]
+    pub fn make_probability(self, seat: Seat, bid: Bid) -> f64 {
+        let hist = self[seat][bid.strain];
+        let total: usize = hist.iter().sum();
+        if total == 0 {
+            return f64::NAN;
+        }
+        let needed = 6 + usize::from(bid.level.get());
+        let made: usize = hist[needed..].iter().sum();
+        made as f64 / total as f64
     }
 }
 
