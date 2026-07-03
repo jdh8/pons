@@ -1,6 +1,9 @@
 # The best (GTO) defense to a strong 1NT — a matrix-game tournament
 
-**Status: measured 2026-07-03** (results below). Harness:
+**Status: measured 2026-07-03** on all three brackets — plain DD, perfect
+defense, and the **sd-lead** single-dummy-lead scorer added later the same day
+(results below; the sd-lead headline: Woolsey is the equilibrium at *both*
+vulnerabilities). Harness:
 [`examples/ab-nt-defense-matrix`](../../examples/ab-nt-defense-matrix/main.rs).
 
 ## Why "best defense" is a game, not an A/B
@@ -27,7 +30,7 @@ side the equilibrium is exact and computable:
 
 ## The measure, and its known bias
 
-Both scorers assume perfect double-dummy cardplay, bracketed per
+The two DD scorers assume perfect double-dummy cardplay, bracketed per
 `reference_pd-vs-plain-dd-bracket`:
 
 - **plain** (`ns_score_contract`) — the reached contract with its actual penalty;
@@ -37,13 +40,44 @@ Both scorers assume perfect double-dummy cardplay, bracketed per
 **The obstruction wall applies** (`project_preemption-dd-negative`,
 [`1nt-defense-dont.md`](1nt-defense-dont.md)): perfect cardplay prices
 obstruction, pressure, and "they sit and die" at exactly zero, and prior work
-showed always-pass beats every defense on this measure. So the *expected*
+showed always-pass beats every defense on this measure. So the *expected* DD
 equilibrium is pass-heavy, and the informative outputs are the relative
 structure: which defenses come closest, under which counters, in which buckets.
-This is **GTO of the DD game**. The upgrade path is a single-dummy scorer —
-feasible today (`ddss::Board::try_new` solves mid-play positions;
-`sample_layouts` provides auction-consistent worlds) — and this tournament
-harness re-runs on it unchanged.
+This is **GTO of the DD game**.
+
+### The sd-lead bracket (added 2026-07-03)
+
+Where DD scoring is most wrong at the 1NT level is *known and measured*:
+real declarers beat double-dummy below game and lose to it at slams, because
+the DD defender always finds the killing **opening lead** while a real one
+leads blind, and the lead matters most at low levels.  Pavlicek's actual-vs-DD
+study ([rpbridge.net/8j45.htm](https://www.rpbridge.net/8j45.htm)): 1NT makes
+**67.72% at the table vs 60.51% double-dummy** (+7.2pp), 3NT 69.84% vs 65.56%,
+while slams flip to 66.34% vs 68.30%.  DD is systematically *pessimistic about
+1NT* and *optimistic about slams* — and a tournament whose datum is "their 1NT,
+played out" inherits the 1NT half of that bias in full: the datum is priced too
+well for the defenders, so every active defense is handicapped against it.
+
+The third scorer, **sd-lead** (`single_dummy_leads`), models exactly that seam
+and nothing else: the opening leader chooses a card *single-dummy* — maximizing
+mean defensive tricks over `n = 16` layouts consistent with the auction **as
+the leader's own book reads it** (`Stance::infer`: trie-routed, alert-decoding,
+so a Woolsey 2♥ samples as Muiderberg, not hearts) — and the play thereafter is
+double-dummy on the actual deal.  One batched trick-one `Target::Legal` solve
+per world prices all thirteen candidate leads; the actual deal rides in the
+same batch and converts the chosen lead into declarer tricks.  Under this
+scorer, *disclosure finally has a price*: an overcall directs partner's lead,
+a penalty double sharpens the sampling posterior, and a silent pass leaves the
+lead blind.  Cells are therefore compared at **auction** granularity (the same
+contract reached through a different auction can get a different lead), so
+sd-lead swings exist where plain/pd swings are structurally zero.
+
+Its ceiling, stated: everything after trick one's first card is still perfect
+on both sides, so declarer misguesses (the slam-level bias) and defensive
+signalling are not modelled, and within each sampled world the play is still
+double-dummy (strategy fusion).  Sanity anchor from the run itself: the datum
+declarer takes **+0.31 tricks** more under sd-lead than plain DD (8.16 vs
+7.85 over the sd-scored boards) — right in line with Pavlicek's +7.2pp at 1NT.
 
 ## The menus
 
@@ -99,12 +133,27 @@ plain DD:
 perfect defense: natural **+0.028±0.033** / +0.120 / +0.255 / +0.057 across the
 columns; DONT −0.10..−0.32; Woolsey −0.05..−0.08.
 
+sd-lead (blind opening lead, DD after; 16 worlds/lead):
+
+| | default | penalty-X | soft | sit |
+|---|---|---|---|---|
+| natural | +0.068±0.025 | +0.077±0.024 | +0.131±0.024 | +0.100±0.025 |
+| DONT(6+) | +0.066±0.027 | +0.064±0.027 | +0.167±0.026 | +0.075±0.026 |
+| Woolsey | **+0.135±0.018** | +0.141±0.017 | +0.131±0.017 | +0.155±0.018 |
+
+**Every active cell turns positive** the moment the opening lead is blind.
+(Auction-level divergence is what sd-lead scores: 40.1% of boards for natural,
+42.4% DONT, 18.9% Woolsey — larger than contract divergence because the same
+contract reached through interference still gets a different lead.)
+
 ### Self-play matrix, vul both
 
 plain DD under default counters: natural −0.148, DONT −0.324, **Woolsey −0.010**
 (the only defense at parity); perfect defense: natural −0.070, DONT −0.528,
-Woolsey −0.168. Every defense is at-or-below zero — vulnerable partscore
-competition is what double-dummy punishes.
+Woolsey −0.168. Every defense is at-or-below zero on the DD brackets —
+vulnerable partscore competition is what double-dummy punishes.  **sd-lead:
+natural −0.016, DONT −0.116, Woolsey +0.072±0.023** — Woolsey stays positive
+even at unfavourable pricing, in every counter column (+0.07..+0.09).
 
 ### Equilibria (fictitious play, exploitability gap 0.0000 throughout)
 
@@ -112,8 +161,21 @@ competition is what double-dummy punishes.
 |---|---|---|---|---|
 | NV, plain | **pure Woolsey** | pure default | +0.0702 | Woolsey 200/200 |
 | NV, pd | **pure natural** | pure default | +0.0285 | natural 196/200 |
+| NV, sd-lead | **Woolsey 0.96 · DONT 0.04** | soft 0.66 · default 0.34 | +0.1324 | Woolsey 200/200, DONT 32% |
 | both, plain | pure always-pass | pure default | 0 | pass 88%, Woolsey 12% |
 | both, pd | pure always-pass | pure default | 0 | pass 100% |
+| both, sd-lead | **pure Woolsey** (0.99) | soft 0.68 · default 0.32 | +0.0713 | Woolsey 200/200 |
+
+**The sd-lead headline: the vulnerability split vanishes.** On the DD brackets
+"vulnerable → always-pass" looked like a law; price the opening lead honestly
+and Woolsey is the equilibrium at *both* vulnerabilities, with always-pass at
+**0/200 bootstrap support** in both scenarios.  The obstruction wall at the 1NT
+level was, to first order, the blind-lead bias — the datum ("their 1NT, we
+pass") was the cell most flattered by giving the defense a double-dummy lead.
+A second structural shift: their counter equilibrium moves off pure-default to
+a **default/soft mixture** — blind leads pay declarers on *both* sides, so the
+doubled contracts their penalty machinery collects are no longer sure things,
+and never-punishing becomes co-optimal.
 
 Two structural findings beyond the headline:
 
@@ -158,30 +220,42 @@ IMPs/board vs the all-BBA reference (table B: BBA's own Multi-Landy defends), so
 
 ## Interpretation
 
-1. **"The best defense to 1NT" has no vulnerability-free answer.** Within this
-   menu, under DD scoring: NV → Woolsey (plain) / natural (pd); vulnerable →
-   pass. The plain/pd bracket disagrees at NV exactly where the doubling model
-   matters (Woolsey's wide 8–19 overcalls are pd-fragile, natural's penalty-X
-   package is pd-robust), so the honest NV answer is "Woolsey-or-natural,
-   bracketed", not a single card.
+1. **On the DD brackets alone, "the best defense to 1NT" had no
+   vulnerability-free answer** (NV → Woolsey plain / natural pd; vulnerable →
+   pass), and the plain/pd disagreement at NV sat exactly where the doubling
+   model matters (Woolsey's wide 8–19 overcalls are pd-fragile, natural's
+   penalty-X package is pd-robust).  **The sd-lead bracket resolves the split:
+   Woolsey, both vulnerabilities.** The DD verdicts were leaning on a measured,
+   directional bias (the double-dummy opening lead), the sd-lead scorer removes
+   exactly that bias and nothing else, and the answer stabilizes on the defense
+   that was already winning the least-biased DD cell.  Confidence order for the
+   NV headline is therefore sd-lead > plain > pd; for the vulnerable verdict
+   the brackets genuinely disagree (pd's perfect doubling still says pass), so
+   "Woolsey, both vuls" carries an sd-lead-trusting asterisk.
 2. **The equilibrium lens changed the shipped-defaults question.** The
    defender's side of the shipped system (natural default-on) is the pd-bracket
    equilibrium; the opener's side (Optional doubles, trap, conversion, runout)
-   is the exact counter-equilibrium in all eight scenario×scorer cells. Both
-   shipped defaults survive an adversarial opponent — a stronger statement than
-   any single A/B made before.
-3. **What GTO-of-the-DD-game cannot say:** all of this prices obstruction at
-   zero. The BBA rung shows what happens the moment the opposing side is
-   *imperfect* (real, but merely mature): active defense gains ~0.3 IMPs/board
-   even double-dummy. A single-dummy scorer (mid-play `solve_board` over
-   `sample_layouts` worlds) would move every active cell up further; this
-   harness re-runs on it unchanged, and the NV Woolsey-vs-natural bracket is
-   the first question worth re-asking there.
+   is the exact counter-equilibrium in all eight DD scenario×scorer cells.
+   Under sd-lead the opener's side softens to a default/soft mixture — the
+   first measured crack in the "always punish" counter package, worth its own
+   follow-up.  Defaults stay untouched for now: Woolsey remains opt-in
+   (`set_woolsey`) at least until its continuation gap vs BBA (−0.23/board on
+   the identical card) is closed — shipping the card before the continuations
+   would ship the weakest version of the winning defense.
+3. **What even sd-lead cannot say:** after trick one's first card, play is
+   still perfect on both sides — declarer misguesses (the slam-level DD bias),
+   defensive signalling, and within-world strategy fusion remain unpriced, and
+   obstruction is still worth zero against perfect later play.  The BBA rung
+   (active defense gains ~0.3 IMPs/board even on plain DD against a real,
+   merely mature opponent) marks how much more is on the table.  The next
+   scorer rung would be a blind *declarer line* (same MC-DD machinery from
+   declarer's seat at trick two); the harness re-runs on it unchanged.
 
 ## Reproduce
 
 ```text
-# the matrix + equilibrium (one run per vulnerability; seed printed)
+# the matrix + equilibrium, all three brackets (one run per vulnerability;
+# --sd-worlds 0 to skip the sd-lead bracket, 16 is the default)
 cargo run --release --example ab-nt-defense-matrix -- --count 60000 -v none
 cargo run --release --example ab-nt-defense-matrix -- --count 60000 -v both
 

@@ -32,6 +32,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   standard DD-averaging estimator (as used by GIB); a true imperfect-information
   single-dummy search is out of scope.
 
+- **Single-dummy opening-lead scorer** (`single_dummy_leads`,
+  `single_dummy_lead_tricks`, `LeadQuestion` in `pons::single_dummy`;
+  `Stance::infer` in `pons::bidding`). Prices the one information seam
+  double-dummy scoring is known (Pavlicek, actual-vs-DD) to get most wrong at
+  the 1NT level: the DD defender always finds the killing opening lead, so DD
+  underrates 1NT declarers by ~7pp of make rate. The scorer has the opening
+  leader choose a *blind* lead — maximizing mean defensive tricks over layouts
+  sampled consistent with the auction as the leader's own book reads it
+  (`Stance::infer` attaches the trie so alerted conventions decode correctly:
+  a Woolsey 2♥ samples as Muiderberg, not hearts) — then plays the actual deal
+  double-dummy from that card. One trick-one `Target::Legal` solve per sampled
+  world prices all 13 candidate leads at once, and the batch API pools
+  thousands of positions into single `solve_boards` calls (~5× faster than
+  per-position solving, which straggles on slow boards). Validated in-run:
+  datum 1NT declarers gain +0.30 tricks over plain DD, matching Pavlicek's
+  gap.
+
+- **sd-lead bracket in the GTO 1NT-defense tournament**
+  (`ab-nt-defense-matrix --sd-worlds`, default 16; the study doc has the full
+  results). Re-scoring the tournament with the blind-lead scorer **dissolves
+  the vulnerability split**: Woolsey Multi-Landy is the equilibrium defense at
+  *both* vulnerabilities (+0.132 IMPs/board NV, +0.071 vul-both, bootstrap
+  200/200; always-passing drops to 0/200 support everywhere) — the
+  "vulnerable → pass" law of the DD brackets was, to first order, the
+  blind-lead bias flattering the pass-out datum. Every active defense cell
+  turns positive at NV. Their counter-equilibrium also shifts from the pure
+  shipped-default package to a default/soft mixture: with blind leads paying
+  declarers on both sides, doubled contracts are no longer sure things and
+  never-punishing becomes co-optimal. Cells are compared at auction (not
+  contract) granularity under this scorer, since the same contract reached
+  through a different auction gets a different lead. Defaults untouched —
+  Woolsey stays opt-in until its continuation gap vs BBA is closed.
+
 - **GTO 1NT-defense tournament** (`examples/ab-nt-defense-matrix`, study:
   `docs/ai-bidder/gto-1nt-defense.md`). "What is the best defense to their
   strong 1NT?" is a *game*, not an A/B — the answer depends on the opening

@@ -41,6 +41,7 @@
 use super::System;
 use super::array::Logits;
 use super::context::Context;
+use super::inference::Inferences;
 use super::trie::{Provenance, Trie};
 use contract_bridge::Hand;
 use contract_bridge::auction::{Call, RelativeVulnerability};
@@ -431,6 +432,21 @@ impl Stance {
     ) -> Context<'a> {
         let trie = self.trie_for(auction);
         Context::new(vul, auction).with_prefixes(trie.common_prefixes(auction))
+    }
+
+    /// Read what an auction has shown, exactly as this stance would at the table
+    ///
+    /// Builds the same trie-routed, prefix-bearing [`Context`] classification
+    /// uses, then reads it with [`Inferences::read`] — so alerted conventional
+    /// calls decode off their authoring rules instead of misreading as natural
+    /// suits.  `vul` is relative to the player to act after `auction` (the
+    /// reader); the returned ranges are relative to that same player.  This is
+    /// the entry point for harnesses that need an auction's shown ranges
+    /// outside a live classification (e.g. sampling layouts for an opening
+    /// lead).
+    #[must_use]
+    pub fn infer(&self, vul: RelativeVulnerability, auction: &[Call]) -> Inferences {
+        Inferences::read(&self.prefixed_context(vul, auction))
     }
 }
 

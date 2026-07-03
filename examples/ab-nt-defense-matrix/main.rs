@@ -12,10 +12,23 @@
 //! the menu, under this scoring model*.
 //!
 //! **The obstruction wall applies** (`project_preemption-dd-negative`): both
-//! scorers assume perfect double-dummy cardplay, which prices obstruction and
+//! DD scorers assume perfect double-dummy cardplay, which prices obstruction and
 //! "they sit and die" at zero, so a pass-heavy equilibrium is expected.  Per
 //! `reference_pd-vs-plain-dd-bracket` every matrix is reported on **both**
 //! plain DD (`ns_score_contract`) and perfect-defense (`ns_score_pd`) scoring.
+//!
+//! A third bracket, **sd-lead**, prices the one information seam DD scoring is
+//! known to get most wrong at the 1NT level (Pavlicek: 1NT makes 67.7% at the
+//! table vs 60.5% double-dummy — the DD defender always finds the killing
+//! lead): the opening leader chooses their lead *single-dummy* via
+//! [`single_dummy_lead_tricks`] — maximizing mean defensive tricks over worlds
+//! sampled consistent with the auction as the leader's own book reads it — and
+//! play thereafter is double-dummy on the actual deal.  Under this scorer an
+//! auction's *disclosure* finally has a price: an overcall directs partner's
+//! lead, and a silent pass leaves it blind.  Cells are compared at auction
+//! granularity here (the same contract reached through a different auction can
+//! get a different lead), so sd-lead swings exist where plain/pd swings are
+//! structurally zero.
 //!
 //! Rows (our defense over their 1NT): always-pass · natural (penalty-X +
 //! natural overcalls, the shipped default) · DONT (6+ one-suiter min, the
@@ -32,22 +45,24 @@
 use clap::Parser;
 use contract_bridge::auction::{Auction, Call};
 use contract_bridge::deck::full_deal;
-use contract_bridge::{AbsoluteVulnerability, Bid, FullDeal, Hand, Seat, Strain, Suit};
+use contract_bridge::{AbsoluteVulnerability, Bid, Contract, FullDeal, Hand, Seat, Strain, Suit};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
 use pons::bidding::Family;
-use pons::bidding::Stance;
 use pons::bidding::american::{
     DoubleStyle, set_always_pass_defense, set_direct_dont, set_direct_dont_one_suiter_min,
     set_direct_landy_double, set_double_style, set_landy, set_natural_defense, set_penalty_pass,
     set_trap_pass, set_unusual_notrump_defense, set_woolsey,
 };
+use pons::bidding::context::relative;
 use pons::bidding::instinct::{set_one_nt_runout, set_one_nt_runout_universal};
+use pons::bidding::{Inferences, Stance};
 use pons::scoring::{final_contract, imps, ns_score_contract, ns_score_pd};
+use pons::single_dummy::{LeadQuestion, single_dummy_leads};
 use rand::rngs::StdRng;
 use rand::{RngExt, SeedableRng};
 use rayon::prelude::*;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 
 #[path = "../common/mod.rs"]
 #[allow(dead_code)]
@@ -87,6 +102,11 @@ struct Args {
     /// How many worst anchor-cell (natural × default) boards to dump
     #[arg(long, default_value = "10")]
     worst: usize,
+
+    /// Sampled worlds per single-dummy lead choice (0 disables the sd-lead
+    /// bracket)
+    #[arg(long, default_value = "16")]
+    sd_worlds: usize,
 }
 
 /// Reset every defense knob (row axis) and counter knob (column axis) to the
@@ -207,6 +227,30 @@ fn action_label(call: Option<Call>) -> String {
     }
 }
 
+/// Whose book reads an auction for the opening lead: the leader's own side's —
+/// a row book when NS defends (they declare), a column book when EW does.  Two
+/// cells share an sd-lead score only when both the calls *and* the reader
+/// agree: the same call sequence can carry different alerted meanings in
+/// different rows (a natural 2♥ vs a Muiderberg 2♥ direct opposite leads).
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Reader {
+    Row(usize),
+    Col(usize),
+    /// Passed out — no lead, the sd-lead score is 0 regardless of books
+    PassOut,
+}
+
+/// The reader of `auction`'s opening lead when bid in cell (`row`, `col`)
+fn reader_of(auction: &Auction, dealer: Seat, row: usize, col: usize) -> Reader {
+    match final_contract(auction, dealer) {
+        None => Reader::PassOut,
+        Some((_, declarer)) => match declarer.lho() {
+            Seat::North | Seat::South => Reader::Row(row),
+            Seat::East | Seat::West => Reader::Col(col),
+        },
+    }
+}
+
 /// One kept board: the deal, its cell contracts, and what each row's defense did
 struct BoardOut {
     deal: FullDeal,
@@ -216,10 +260,11 @@ struct BoardOut {
     /// Each row's first defensive action over the 1NT (column-independent —
     /// the counters only act *after* the interference), read at column 0
     actions: [Option<Call>; ROWS],
-    /// The (always-pass, default) datum auction, for the worst-board dump
-    datum_auction: Auction,
-    /// The (natural, default) anchor auction, for the worst-board dump
-    anchor_auction: Auction,
+    /// Distinct (auction, lead reader) pairs; `[0]` is the (always-pass,
+    /// default) datum.  The sd-lead scorer prices each entry once.
+    auctions: Vec<(Auction, Reader)>,
+    /// Per-cell index into `auctions`; 0 marks "identical to the datum"
+    cell_auction: [[u8; COLS]; ROWS],
 }
 
 /// Bid one candidate deal through every cell; `None` if EW never opened 1NT
@@ -238,7 +283,9 @@ fn bid_board(
     let datum = final_contract(&datum_auction, dealer);
     let mut contracts = [[datum; COLS]; ROWS];
     let mut actions = [None; ROWS];
-    let mut anchor_auction = Auction::new();
+    let datum_reader = reader_of(&datum_auction, dealer, 0, 0);
+    let mut auctions: Vec<(Auction, Reader)> = vec![(datum_auction, datum_reader)];
+    let mut cell_auction = [[0u8; COLS]; ROWS];
     for row in 1..ROWS {
         for col in 0..COLS {
             set_column_flags(col);
@@ -246,8 +293,20 @@ fn bid_board(
             contracts[row][col] = final_contract(&auction, dealer);
             if col == 0 {
                 actions[row] = ns_action_over_1nt(&auction, dealer);
-                if row == 1 {
-                    anchor_auction = auction;
+            }
+            if auction[..] != auctions[0].0[..] {
+                let reader = reader_of(&auction, dealer, row, col);
+                let index = auctions
+                    .iter()
+                    .position(|(a, r)| *r == reader && a[..] == auction[..])
+                    .unwrap_or_else(|| {
+                        auctions.push((auction, reader));
+                        auctions.len() - 1
+                    });
+                // SAFETY: at most 13 cells, so the index fits in a byte.
+                #[allow(clippy::cast_possible_truncation)]
+                {
+                    cell_auction[row][col] = index as u8;
                 }
             }
         }
@@ -257,9 +316,57 @@ fn bid_board(
         dealer,
         contracts,
         actions,
-        datum_auction,
-        anchor_auction,
+        auctions,
+        cell_auction,
     })
+}
+
+/// The (contract, declarer, leader-view inferences) of one auction — the
+/// inputs of its sd-lead question; `None` for a pass-out (sd score 0).
+fn lead_inputs(
+    auction: &Auction,
+    reader: Reader,
+    rows: &[Stance],
+    cols: &[Stance],
+    dealer: Seat,
+    vul: AbsoluteVulnerability,
+) -> Option<(Contract, Seat, Inferences)> {
+    let (contract, declarer) = final_contract(auction, dealer)?;
+    let leader = declarer.lho();
+    let stance = match reader {
+        Reader::Row(row) => &rows[row],
+        Reader::Col(col) => &cols[col],
+        Reader::PassOut => unreachable!("a contract implies a lead reader"),
+    };
+    // Align the read prefix so the leader is the player to act: the last
+    // non-pass call sits within the final four calls, so exactly one of these
+    // prefix lengths keeps every non-pass call and puts the leader on lead.
+    let cut = (auction.len().saturating_sub(3)..=auction.len())
+        .find(|&len| seat_to_act(dealer, len) == leader)
+        .expect("one of four consecutive lengths reaches every seat");
+    Some((
+        contract,
+        declarer,
+        stance.infer(relative(vul, leader), &auction[..cut]),
+    ))
+}
+
+/// Signed-for-NS score of a contract given declarer's (single-dummy) tricks
+fn ns_score_tricks(
+    contract: Contract,
+    declarer: Seat,
+    tricks: u8,
+    vul: AbsoluteVulnerability,
+) -> i64 {
+    let declarer_vul = vul.contains(match declarer {
+        Seat::North | Seat::South => AbsoluteVulnerability::NS,
+        Seat::East | Seat::West => AbsoluteVulnerability::EW,
+    });
+    let score = i64::from(contract.score(tricks, declarer_vul));
+    match declarer {
+        Seat::North | Seat::South => score,
+        Seat::East | Seat::West => -score,
+    }
 }
 
 /// Solve the zero-sum matrix game (row maximizes, column minimizes) by
@@ -417,6 +524,97 @@ fn main() {
         }
     }
 
+    // The sd-lead bracket: price every distinct (auction, reader) of every
+    // auction-divergent board, then swing each cell against the datum's
+    // sd-lead score.  The questions are collected first and answered in big
+    // pooled batches, so ddss's thread pool stays saturated instead of
+    // stalling on one slow board per tiny batch.
+    let mut sdl: Vec<Vec<Vec<i64>>> = vec![vec![vec![0; n]; COLS]; ROWS];
+    let mut sd_divergent = [[0usize; COLS]; ROWS];
+    let sd_on = args.sd_worlds > 0;
+    if sd_on {
+        let mut sd_rng = StdRng::seed_from_u64(seed.wrapping_add(2));
+        // Pass-outs keep score 0 and ask no question.
+        let mut sd_scores: Vec<Vec<i64>> = boards
+            .iter()
+            .map(|board| vec![0; board.auctions.len()])
+            .collect();
+        let mut pending: Vec<(usize, usize, Contract, Seat)> = Vec::new();
+        let mut questions: Vec<LeadQuestion> = Vec::new();
+        for (b, board) in boards.iter().enumerate() {
+            if board.auctions.len() < 2 {
+                continue;
+            }
+            for (index, (auction, reader)) in board.auctions.iter().enumerate() {
+                if let Some((contract, declarer, inferences)) =
+                    lead_inputs(auction, *reader, &rows, &cols, board.dealer, vul)
+                {
+                    pending.push((b, index, contract, declarer));
+                    questions.push(LeadQuestion {
+                        deal: board.deal,
+                        strain: contract.bid.strain,
+                        declarer,
+                        inferences,
+                    });
+                }
+            }
+        }
+        eprintln!("sd-lead: {} lead questions...", questions.len());
+
+        // Pavlicek sanity: datum declarer tricks, sd-lead vs plain DD.
+        let table_of: HashMap<usize, usize> = need_solve
+            .iter()
+            .enumerate()
+            .map(|(i, &b)| (b, i))
+            .collect();
+        let (mut sanity_boards, mut sd_tricks_sum, mut dd_tricks_sum) = (0u64, 0u64, 0u64);
+        const CHUNK: usize = 4096;
+        for (chunk_index, (asked, chunk)) in pending
+            .chunks(CHUNK)
+            .zip(questions.chunks(CHUNK))
+            .enumerate()
+        {
+            let answers = single_dummy_leads(chunk, &mut sd_rng, args.sd_worlds);
+            for (&(b, index, contract, declarer), &(_, tricks)) in asked.iter().zip(&answers) {
+                let tricks = u8::from(tricks);
+                sd_scores[b][index] = ns_score_tricks(contract, declarer, tricks, vul);
+                if index == 0
+                    && let Some(&t) = table_of.get(&b)
+                {
+                    sd_tricks_sum += u64::from(tricks);
+                    dd_tricks_sum +=
+                        u64::from(u8::from(tables[t][contract.bid.strain].get(declarer)));
+                    sanity_boards += 1;
+                }
+            }
+            eprintln!(
+                "sd-lead: {}/{} questions answered",
+                (chunk_index * CHUNK + asked.len()),
+                pending.len()
+            );
+        }
+        for (b, board) in boards.iter().enumerate() {
+            for row in 0..ROWS {
+                for col in 0..COLS {
+                    let index = board.cell_auction[row][col] as usize;
+                    if index != 0 {
+                        sdl[row][col][b] = imps(sd_scores[b][index] - sd_scores[b][0]);
+                        sd_divergent[row][col] += 1;
+                    }
+                }
+            }
+        }
+        #[allow(clippy::cast_precision_loss)]
+        if sanity_boards > 0 {
+            eprintln!(
+                "sd-lead sanity: datum declarer tricks {:.3} sd vs {:.3} plain DD over {sanity_boards} boards \
+                 (expect sd higher — the blind lead pays declarer)",
+                sd_tricks_sum as f64 / sanity_boards as f64,
+                dd_tricks_sum as f64 / sanity_boards as f64,
+            );
+        }
+    }
+
     println!(
         "=== 1NT-defense matrix: {n} boards (EW opens a strong 1NT), vul {vul}, seed {seed} ===",
     );
@@ -441,18 +639,27 @@ fn main() {
     };
     print_matrix("plain DD (ns_score_contract)", &plain);
     print_matrix("perfect defense (ns_score_pd)", &pd);
-    println!("--- divergence from datum (% of boards) ---");
-    print!("{:<13}", "");
-    for label in COL_LABELS {
-        print!("{label:>16}");
+    if sd_on {
+        print_matrix("sd-lead (blind opening lead, DD after)", &sdl);
     }
-    println!();
-    for (row, cells) in divergent.iter().enumerate() {
-        print!("{:<13}", ROW_LABELS[row]);
-        for &count in cells {
-            print!("{:>15.1}%", 100.0 * count as f64 / n.max(1) as f64);
+    let print_divergence = |name: &str, counts: &[[usize; COLS]; ROWS]| {
+        println!("--- {name} (% of boards) ---");
+        print!("{:<13}", "");
+        for label in COL_LABELS {
+            print!("{label:>16}");
         }
         println!();
+        for (row, cells) in counts.iter().enumerate() {
+            print!("{:<13}", ROW_LABELS[row]);
+            for &count in cells {
+                print!("{:>15.1}%", 100.0 * count as f64 / n.max(1) as f64);
+            }
+            println!();
+        }
+    };
+    print_divergence("divergence from datum (contract)", &divergent);
+    if sd_on {
+        print_divergence("divergence from datum (auction, sd-scored)", &sd_divergent);
     }
 
     // The equilibrium of the empirical matrix, per scorer.
@@ -466,7 +673,11 @@ fn main() {
             })
             .collect()
     };
-    for (name, swings) in [("plain", &plain), ("pd", &pd)] {
+    let mut scorers: Vec<(&str, &Vec<Vec<Vec<i64>>>)> = vec![("plain", &plain), ("pd", &pd)];
+    if sd_on {
+        scorers.push(("sd-lead", &sdl));
+    }
+    for &(name, swings) in &scorers {
         let m = mean_matrix(swings);
         let (x, y, value, gap) = fictitious_play(&m, args.fp_iters);
         println!("--- equilibrium ({name}) ---");
@@ -479,7 +690,7 @@ fn main() {
     // resampling, or does it flip inside the noise?
     if args.bootstrap > 0 {
         let mut boot_rng = StdRng::seed_from_u64(seed.wrapping_add(1));
-        for (name, swings) in [("plain", &plain), ("pd", &pd)] {
+        for &(name, swings) in &scorers {
             let mut row_support = [0usize; ROWS];
             let mut col_support = [0usize; COLS];
             let mut values: Vec<f64> = Vec::with_capacity(args.bootstrap);
@@ -555,13 +766,14 @@ fn main() {
     );
     for &(swing, b) in worst.iter().take(args.worst) {
         let board = &boards[b];
+        let anchor = &board.auctions[board.cell_auction[1][0] as usize].0;
         eprintln!(
             "[{swing:+} IMP] dealer {:?}  {}\n  datum:  {} -> {:?}\n  natural: {} -> {:?}",
             board.dealer,
             board.deal,
-            board.datum_auction,
+            board.auctions[0].0,
             board.contracts[0][0],
-            board.anchor_auction,
+            anchor,
             board.contracts[1][0],
         );
     }
