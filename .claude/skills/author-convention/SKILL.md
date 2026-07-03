@@ -15,6 +15,16 @@ before touching `src/bidding`. Ship decisions come from
 [docs/measurement.md](../../../docs/measurement.md) via the `measure-ab` skill.
 Do the steps in order; skipping one has always cost more than doing it.
 
+**Tuning or fixing a convention that already exists** (finding its best
+strength/length range, or chasing down which of its calls leaks IMPs) is a
+different loop from authoring a new one — read
+[docs/convention-tuning.md](../../../docs/convention-tuning.md) instead of this
+checklist. In short: *classify the range before you sweep it* (DD can only tune
+a constructive contract-boundary; a competitive overcall/preempt floor hits the
+obstruction wall and needs sd-lead), and *bucket by call before blaming the
+wall* (a bad bucket is usually a fixable continuation, not a single-dummy loss).
+Come back here only if the fix means authoring new nodes — then steps 3–11 apply.
+
 ## Checklist
 
 1. **Theory first.** Search authoritative sources for the convention's standard

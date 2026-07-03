@@ -18,6 +18,7 @@ played a long time and read a lot. For 5-card major systems, see my
 | --- | --- |
 | Any change to `src/bidding` | [docs/bidding-architecture.md](docs/bidding-architecture.md) — the book/floor/inference layer cake and its invariants |
 | Measuring or shipping a bidding change | [docs/measurement.md](docs/measurement.md) — the A/B playbook. **No bidding change ships without it.** |
+| Tuning an existing convention's range, or fixing which call leaks | [docs/convention-tuning.md](docs/convention-tuning.md) — sweep vs forensic; classify constructive/competitive first |
 | Neural/AI bidder work | `.claude/skills/ai-bidder` + [docs/ai-bidder/](docs/ai-bidder/) (`README.md` then `plan.md`) |
 | Long data-gen runs | [docs/shared-machine-data-gen.md](docs/shared-machine-data-gen.md) — this box is shared |
 | Raw bidding-theory notes | [docs/bidding-theorems.md](docs/bidding-theorems.md) |

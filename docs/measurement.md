@@ -5,6 +5,12 @@ Every rule in this document was paid for with a wrong conclusion. Double-dummy
 be an artifact, and a change that "measures −0.6" can be a good idea half-built.
 Follow the checklist; the [biases](#known-biases) section explains each rule.
 
+This doc answers *does this change ship?* Two sibling docs answer the adjacent
+questions: [convention-tuning.md](convention-tuning.md) (*what is a convention's
+best range, and which of its calls leaks?* — sweeping and per-call forensics)
+and [ai-bidder/gto-1nt-defense.md](ai-bidder/gto-1nt-defense.md) (*which whole
+method is best?* — the matrix-game tournament).
+
 Mechanics that churn (exact CLI flags, shard counts) are documented where they
 live: `<example> --help`, the header of
 [`scripts/bba-gen-parallel.sh`](../scripts/bba-gen-parallel.sh), and
