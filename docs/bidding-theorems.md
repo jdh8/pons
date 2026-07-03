@@ -34,3 +34,17 @@ AI-bidder corpus) when it earns its keep.
   `1♠` rebid recovers the concealed 4-4 spade fits more cheaply than
   re-siding the response, and longest-first pays a level on the heart fits.
   Hearts-first stays the default; the knob remains opt-in.
+- **An authored node must not be more conservative than the floor it
+  shadows** — and the floor is more aggressive than the textbook.  Over
+  `1M–3M` (limit raise, 9-card fit known) the instinct floor's raise-partner
+  ladder accepts at **13+** points, and A/Bs of textbook accepts at 14 (then
+  15) lost −4.6/−5.2 IMPs per divergent board vulnerable: *every* divergent
+  board was the authored table stopping in 3M where the floor's game made
+  (2026-07-04, `probe-limit-raise`).  DD prices a known nine-card fit at 23
+  combined as a clear game.  Two lessons: (1) before authoring a node, probe
+  what the floor actually does there (`probe-classify` prints the winning
+  rule and logits) — the milestone rules are not the whole floor, the
+  raise-partner ladder also fires; (2) game acceptance with a big fit is a
+  point *cheaper* than hand-evaluation folklore says.  Untested residual: a
+  12-point accept would *out*-bid the floor — measure before believing
+  either way.

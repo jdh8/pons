@@ -20,6 +20,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Major-opening continuations, default on** — four knobs complete the
+  constructive tree after `1♥`/`1♠`, the families that previously fell to the
+  instinct floor (which cannot hold an invitational dialogue: it moves only
+  at combined 25 counting partner's shown *minimum*). Package measured
+  (`ab-major-continuations`, silenced opponents, 200k boards per cell,
+  NV/both-vul, replicated on a second seed base): **plain DD +0.058..+0.061
+  (NV) / +0.089..+0.092 (vul) IMPs/board, perfect-defense +0.067/+0.100** —
+  a win on both scorers at both vulnerabilities, ~4.2% divergence,
+  +1.4/+2.2 IMPs per divergent board.
+  - `set_major_game_tries` (off: `--no-ns-major-game-tries`): after
+    `1M – 2M`, opener's long-suit game tries (`len 4+`, 16–18, natural and
+    unalerted so the free 4+ reading stays sound), the `3M` general re-raise
+    try, direct `4M` at 19+, and a `4NT` keycard ask at 22+; responder
+    accepts a suit try with a maximum, shortness, or two top honors in the
+    try suit; opener may still push on with 18+ over a decline. RKCB
+    installed at `[1M, 2M]`. Alone: plain **+0.042/+0.065** NV/vul, PD
+    +0.053/+0.081 — the biggest single gap closed.
+  - `set_limit_raise_acceptance` (off: `--no-ns-limit-raise-acceptance`):
+    after `1M – 3M`, opener accepts with 13+, asks keycards with 19+, else
+    passes; RKCB installed at `[1M, 3M]`. The accept threshold is a measured
+    story: the textbook 14 (and a 15 retry) **lost** −4.6/−5.2 IMPs per
+    divergent board — every divergent board was the table *under-bidding*
+    the floor, whose raise-partner ladder already accepts at 13+ and whose
+    aggression DD endorses (a known nine-card fit at 23 combined is a clear
+    game). At floor-parity 13 the node's whole added value is the keycard
+    ask: **+4.4/+5.2 IMPs/divergent** (78 boards/200k, CI excludes 0, both
+    scorers). Traced with the new `probe-limit-raise` example.
+  - `set_major_rebid_tails` (off: `--no-ns-major-rebid-tails`): both-sides
+    continuations under `1♥ – 1♠` for opener's `2♠`/`3♠` raises (invite,
+    sign-off, keycards; RKCB installed below both), the `2♥` rebid
+    (preference / `3♥` invite / `2NT` invite with acceptances), and the
+    `2♣`/`2♦` rebids (jump `3♥` preference on three hearts, minor raise,
+    `2NT` invite, weak `2♠` rebid, simple preference, `3NT`), with opener's
+    acceptance tables; `1♥–1♠–2m–2♥/2♠` deliberately stay with the floor.
+    Alone: plain **+0.016/+0.023**, PD +0.014/+0.020.
+  - `set_fourth_suit_forcing` (off: `--no-ns-fourth-suit-forcing`; rides the
+    tails knob — inert without it): at `1♥ – 1♠ – 2♣`, responder's `2♦`
+    (alerted `fourth-suit-forcing`, points-only constraint so the projection
+    claims no diamonds) is an artificial game force; opener answers
+    naturally (three-card spade raise first, then extra hearts, a diamond
+    stopper, a real second club suit), and responder places the game. The
+    `1♥–1♠–2♦` fourth suit (`3♣`, a level higher) is out of scope. Marginal
+    on top of the tails: **+0.002** on both scorers at both vulnerabilities.
+  Out of scope this round, documented in the module docs: weak-jump-shift
+  continuations (obstruction-wall class), a 12-point limit-raise accept
+  (out-bidding the floor), alerted 3-card help-suit tries, counter-tries,
+  and FSF after the `2♦` rebid. Seeds 1783099705 + 1783101472, uncommitted
+  tree at `b7ae839`+.
+
 - **XYZ two-way checkback + the up-the-line minor completion, default on**
   (`set_xyz`, `set_up_the_line`; off-switches `--no-ns-xyz` /
   `--no-ns-up-the-line` in `bba-gen`). XYZ (`src/bidding/american/xyz.rs`)

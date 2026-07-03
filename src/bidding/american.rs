@@ -119,7 +119,8 @@ pub(crate) use notrump::{crawling_stayman, garbage_stayman, notrump_minors};
 pub use openings::{
     NotrumpShape, openings, openings_with, set_one_notrump_fifths, set_open_one_notrump,
 };
-pub use rebids::set_meckstroth_adjunct;
+pub use raises::{set_limit_raise_acceptance, set_major_game_tries};
+pub use rebids::{set_fourth_suit_forcing, set_major_rebid_tails, set_meckstroth_adjunct};
 pub(crate) use responses::longer_major_response;
 pub use responses::{major_responses, minor_responses, set_longer_major_response, set_up_the_line};
 pub use xyz::set_xyz;

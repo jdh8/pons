@@ -277,6 +277,30 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_xyz: bool,
 
+    /// Author opener's major game tries after a single raise (`1M – 2M`): a
+    /// long-suit try, the general re-raise, or a keycard-asking maximum
+    /// (shipped default-on; see `set_major_game_tries`).
+    #[arg(long, default_value_t = false)]
+    no_ns_major_game_tries: bool,
+
+    /// Disable opener's limit-raise acceptance ladder after `1M – 3M`
+    /// (shipped default-on; see `set_limit_raise_acceptance`).
+    #[arg(long, default_value_t = false)]
+    no_ns_limit_raise_acceptance: bool,
+
+    /// Disable the major-rebid-tails adjunct — the full continuations after
+    /// `1♥ – 1♠` below opener's `2♠`/`3♠` raise, `2♥` rebid, and `2♣`/`2♦`
+    /// minor rebid (shipped default-on; see `set_major_rebid_tails`).
+    #[arg(long, default_value_t = false)]
+    no_ns_major_rebid_tails: bool,
+
+    /// Disable fourth-suit-forcing — at `1♥ – 1♠ – 2♣`, responder's `2♦`
+    /// reverts to the natural-tail reading (shipped default-on; rides the
+    /// tails adjunct, so `--no-ns-major-rebid-tails` also silences it — see
+    /// `set_fourth_suit_forcing`).
+    #[arg(long, default_value_t = false)]
+    no_ns_fourth_suit_forcing: bool,
+
     /// point_count + trump length floor at which a 6-card-major responder blasts
     /// game via South African Texas (4♣/4♦) instead of transferring at the two
     /// level; default 14 (a 6-bagger needs 8 points, lowered from the inherited
@@ -958,6 +982,10 @@ fn main() -> anyhow::Result<()> {
     pons::bidding::american::set_longer_major_response(args.ns_longer_major_response);
     pons::bidding::american::set_up_the_line(!args.no_ns_up_the_line);
     pons::bidding::american::set_xyz(!args.no_ns_xyz);
+    pons::bidding::american::set_major_game_tries(!args.no_ns_major_game_tries);
+    pons::bidding::american::set_limit_raise_acceptance(!args.no_ns_limit_raise_acceptance);
+    pons::bidding::american::set_major_rebid_tails(!args.no_ns_major_rebid_tails);
+    pons::bidding::american::set_fourth_suit_forcing(!args.no_ns_fourth_suit_forcing);
     pons::bidding::american::set_texas_game_floor(args.ns_texas_game_floor);
     pons::bidding::american::set_sixcard_invite_floor(args.ns_sixcard_invite_floor);
     pons::bidding::american::set_sixcard_accept_floor(args.ns_sixcard_accept_floor);
