@@ -257,6 +257,26 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_stayman_cue_continuation: bool,
 
+    /// Longer-major discipline for minor-opening responses: 1♠ on longer
+    /// spades or 5-5, 1♥ up the line only on 4-4 (with the M6.4 classifier
+    /// reading to match); off by default (measured a null — see
+    /// `set_longer_major_response`).
+    #[arg(long, default_value_t = false)]
+    ns_longer_major_response: bool,
+
+    /// Disable the up-the-line completion of the natural minor tree (the
+    /// 1♣-1♦ response, opener's 1♠ rebid over 1m-1♥, opener's natural 2♣
+    /// after 1♣-1♦); on by default, shipped jointly with XYZ. Off-switch for
+    /// the A/B.
+    #[arg(long, default_value_t = false)]
+    no_ns_up_the_line: bool,
+
+    /// Disable the XYZ two-way checkback after three one-level bids (2♣
+    /// puppets 2♦ for sign-off or invite, 2♦ game-forces); on by default.
+    /// Off-switch for the A/B.
+    #[arg(long, default_value_t = false)]
+    no_ns_xyz: bool,
+
     /// point_count + trump length floor at which a 6-card-major responder blasts
     /// game via South African Texas (4♣/4♦) instead of transferring at the two
     /// level; default 14 (a 6-bagger needs 8 points, lowered from the inherited
@@ -935,6 +955,9 @@ fn main() -> anyhow::Result<()> {
     pons::bidding::american::set_invitational_5card_majors(!args.no_ns_invitational_5card_majors);
     pons::bidding::american::set_crawling_stayman(!args.no_ns_crawling_stayman);
     pons::bidding::american::set_stayman_cue_continuation(!args.no_ns_stayman_cue_continuation);
+    pons::bidding::american::set_longer_major_response(args.ns_longer_major_response);
+    pons::bidding::american::set_up_the_line(!args.no_ns_up_the_line);
+    pons::bidding::american::set_xyz(!args.no_ns_xyz);
     pons::bidding::american::set_texas_game_floor(args.ns_texas_game_floor);
     pons::bidding::american::set_sixcard_invite_floor(args.ns_sixcard_invite_floor);
     pons::bidding::american::set_sixcard_accept_floor(args.ns_sixcard_accept_floor);

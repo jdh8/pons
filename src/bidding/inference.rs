@@ -1097,11 +1097,32 @@ fn classify_high_bid(
         return HighBid::Unclaimed;
     };
 
+    // The longer-major response discipline (`set_longer_major_response`)
+    // swaps two verdicts when the bidder's first call was a one-level major
+    // response to partner's minor opening: a 1♥ response denies longer
+    // spades, so a later spade bid *is* a bypass (control) even though it
+    // sits above the response; and a 1♠ response may conceal equal-length
+    // five-plus hearts (5-5 responds 1♠), so the skipped 1♥ no longer proves
+    // shortness (to play).
+    let response_to_partners_minor = r_level == 1
+        && relative_of(len, opening_index) as usize == partner
+        && matches!(auction[opening_index], Call::Bid(opening)
+            if opening.level.get() == 1
+                && matches!(opening.strain.suit(), Some(Suit::Clubs | Suit::Diamonds)));
+    let discipline =
+        response_to_partners_minor && crate::bidding::american::longer_major_response();
+
     // Bypassed: the bid suit sat below the first-shown suit at the same level
     // and the bidder skipped it — it cannot be long, so this is a control bid.
     // Otherwise the suit was never denied and reads to play.
-    let bypassed = (suit as u8) < (r as u8)
-        && highest_before.is_none_or(|h| outranks(Bid::new(r_level, bid.strain), h));
+    let bypassed = match (discipline, r, suit) {
+        (true, Suit::Hearts, Suit::Spades) => true,
+        (true, Suit::Spades, Suit::Hearts) => false,
+        _ => {
+            (suit as u8) < (r as u8)
+                && highest_before.is_none_or(|h| outranks(Bid::new(r_level, bid.strain), h))
+        }
+    };
     if !bypassed {
         return HighBid::ToPlay;
     }
@@ -2117,6 +2138,61 @@ mod tests {
         ]);
         assert_eq!(mirror.partner().length(Suit::Hearts).min, 0);
         assert!(mirror.partner().length(Suit::Spades).min >= 6);
+    }
+
+    /// The longer-major response discipline swaps the M6.4 verdicts on the
+    /// two major-response auctions: a 1♥ response denies longer spades (so
+    /// the spade jump becomes a control bid), and a 1♠ response may conceal
+    /// equal-length five-plus hearts (so the heart jump reads to play).
+    #[test]
+    fn high_bid_under_longer_major_response() {
+        use crate::bidding::american::set_longer_major_response;
+
+        // 1♣–1♥–2♣–4♠, discipline on: 1♥ denied longer spades, so 4♠ is a
+        // bypass — a control bid agreeing clubs, spades left unfloored.
+        set_longer_major_response(true);
+        let control = read(&[
+            bid(1, Strain::Clubs),
+            Call::Pass,
+            bid(1, Strain::Hearts),
+            Call::Pass,
+            bid(2, Strain::Clubs),
+            Call::Pass,
+            bid(4, Strain::Spades),
+            Call::Pass,
+        ]);
+        // The mirror 1♣–1♠–2♣–4♥: a 1♠ response no longer proves short
+        // hearts (5-5 responds 1♠), so the heart jump reads to play.
+        let to_play = read(&[
+            bid(1, Strain::Clubs),
+            Call::Pass,
+            bid(1, Strain::Spades),
+            Call::Pass,
+            bid(2, Strain::Clubs),
+            Call::Pass,
+            bid(4, Strain::Hearts),
+            Call::Pass,
+        ]);
+        set_longer_major_response(false);
+
+        assert_eq!(control.partner().length(Suit::Spades).min, 0);
+        assert!(control.partner().length(Suit::Clubs).min >= 3);
+        assert!(control.partner().points.min >= 13);
+        assert!(to_play.control_bid().is_none());
+
+        // Off (the default): the original verdicts stand — the spade jump
+        // above the response is to play, the heart bypass is a control bid.
+        let above = read(&[
+            bid(1, Strain::Clubs),
+            Call::Pass,
+            bid(1, Strain::Hearts),
+            Call::Pass,
+            bid(2, Strain::Clubs),
+            Call::Pass,
+            bid(4, Strain::Spades),
+            Call::Pass,
+        ]);
+        assert!(above.control_bid().is_none());
     }
 
     #[test]

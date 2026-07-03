@@ -78,7 +78,7 @@ is not grounds to change a ship decision (cf. DoubleStyle, Jordan/Truscott).
 | # | Toggle | pons status | decision | A/B | commit |
 |---|--------|-------------|----------|-----|--------|
 | 57 | Forcing 1NT | shipped | keep | — | — |
-| 125 | Two-Way NMF / XYZ | gap (floored) | add, 2NT→3♣ variant (Batch 3) | — | — |
+| 125 | Two-Way NMF / XYZ | **shipped** (`set_xyz`, default on, with `set_up_the_line`) | keep; 2NT→3♣ variant unexplored | plain +0.038/+0.056 per bd NV/vul, PD +0.029/+0.041 (`ab-minor-continuations`) | — |
 | 58 | Fourth suit forcing | gap (floored) | add (Batch 3) | — | — |
 | 124 | Two-way game tries | gap | add (Batch 3) | — | — |
 | 52 | Drury | gap | add (Batch 3) | — | — |

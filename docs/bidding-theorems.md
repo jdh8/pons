@@ -25,4 +25,12 @@ AI-bidder corpus) when it earns its keep.
   Promoting longest-first into the minor-opening responses must move three
   things together: the response rule, the rebid structure it implies, and the
   classifier's bypass rule — piecemeal changes desynchronize bidder and
-  reader.
+  reader.  Built as that trio in `set_longer_major_response` (response pair in
+  `minor_responses`, opener's `1♠` rebid under `set_up_the_line`, and the
+  discipline-gated bypass swap in `classify_high_bid`) and measured by
+  `ab-minor-continuations` (2026-07): a **null** — plain-DD wash alone, and a
+  small consistent *negative* marginal (−0.003..−0.005 IMPs/board) on top of
+  the shipped xyz + up-the-line package.  The lesson: opener's up-the-line
+  `1♠` rebid recovers the concealed 4-4 spade fits more cheaply than
+  re-siding the response, and longest-first pays a level on the heart fits.
+  Hearts-first stays the default; the knob remains opt-in.

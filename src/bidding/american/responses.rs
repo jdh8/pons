@@ -3,9 +3,91 @@
 use super::super::Alert;
 use super::super::Rules;
 use super::super::Trie;
-use super::super::constraint::{balanced, hcp, len, points, stopper_in, support};
+use super::super::constraint::{
+    Cons, Constraint, balanced, described, hcp, len, points, stopper_in, support,
+};
+use crate::bidding::context::Context;
 use contract_bridge::auction::Call;
-use contract_bridge::{Bid, Strain, Suit};
+use contract_bridge::{Bid, Hand, Strain, Suit};
+use std::cell::Cell;
+
+std::thread_local! {
+    /// Whether minor-opening responses pick the **longer major** (equal
+    /// lengths: 4-4 up the line to `1♥`, 5-5+ higher-first to `1♠`) instead of
+    /// unconditional hearts-first.  Default `false` — measured a null
+    /// (`ab-minor-continuations`, 2M boards: plain-DD wash, PD −0.12/−0.22
+    /// per divergent NV/vul; and −0.003..−0.005 IMPs/board *marginal* on top
+    /// of the shipped xyz + up-the-line package).
+    static LONGER_MAJOR_RESPONSE: Cell<bool> = const { Cell::new(false) };
+    /// Whether the natural minor-opening tree is completed **up the line**:
+    /// the `1♣ – 1♦` response, opener's `1♠` rebid over `1m – 1♥`, and
+    /// opener's natural `2♣` rebid after `1♣ – 1♦`.  Default `true`, shipped
+    /// **jointly with XYZ** (`ab-minor-continuations`, 300k boards, with
+    /// `set_xyz`: plain +0.0382/+0.0559 IMPs/board NV/vul, PD
+    /// +0.0289/+0.0407).  Alone it is a measured **loss** (plain
+    /// −0.91/−1.28 per divergent) — the 1♦ response reroutes hands into
+    /// auctions only the XYZ round continues; don't enable it with XYZ off.
+    static UP_THE_LINE: Cell<bool> = const { Cell::new(true) };
+}
+
+/// Author the longer-major response discipline for books built *after* this
+/// call (default `false`)
+///
+/// On: a response to `1♣`/`1♦` names the longer major — `1♠` on 5♠4♥ or any
+/// 5-5+, `1♥` up the line only on 4-4 — so partner can infer "spades are not
+/// longer than hearts" from `1♥`.  The M6.4 control-bid classifier reads the
+/// same discipline at classify time (`classify_high_bid` in `inference.rs`):
+/// the response rule, the rebid structure, and the classifier move together
+/// (see `docs/bidding-theorems.md`).  Off (the default): the historic
+/// unconditional hearts-first pair — measured no worse than longest-first
+/// once `set_up_the_line`'s 1♠ rebid recovers the concealed spade fits, and
+/// longest-first costs a level on the heart fits.
+pub fn set_longer_major_response(on: bool) {
+    LONGER_MAJOR_RESPONSE.with(|cell| cell.set(on));
+}
+
+/// Whether the longer-major response discipline is active (also read by the
+/// inference engine at classify time)
+pub(crate) fn longer_major_response() -> bool {
+    LONGER_MAJOR_RESPONSE.with(Cell::get)
+}
+
+/// Author the up-the-line completion of the natural minor tree for books
+/// built *after* this call (default `true`; off-switch `--no-ns-up-the-line`
+/// in `bba-gen`)
+///
+/// On: responder bids `1♦` over `1♣` on four-plus diamonds without a
+/// four-card major (off, those hands squeeze into the notrump ladder or fall
+/// to the floor), opener rebids `1♠` over `1m – 1♥` on four spades (off, the
+/// 4-4 spade fit is lost to a 1NT rebid), and opener rebids a natural `2♣`
+/// after `1♣ – 1♦` on six-plus clubs (off, a misdescribed 1NT catch-all).
+///
+/// Shipped **jointly with [`set_xyz`][super::set_xyz]**: the 1♦ response only
+/// pays once responder's second round has the XYZ machinery (alone it
+/// measured plain −0.91/−1.28 per divergent).
+pub fn set_up_the_line(on: bool) {
+    UP_THE_LINE.with(|cell| cell.set(on));
+}
+
+/// Whether the up-the-line completion is currently authored
+pub(crate) fn up_the_line() -> bool {
+    UP_THE_LINE.with(Cell::get)
+}
+
+/// Spades take the first response: strictly longer, or equal length five-plus
+///
+/// The longer-major discipline's selector — 5-5 responds `1♠` planning to
+/// show hearts next; 4-4 responds `1♥` up the line.
+fn spades_first() -> Cons<impl Constraint + Clone> {
+    described(
+        "spades longer than hearts, or equal five-plus",
+        |hand: Hand, _: &Context<'_>| {
+            let spades = hand[Suit::Spades].len();
+            let hearts = hand[Suit::Hearts].len();
+            spades > hearts || (spades == hearts && spades >= 5)
+        },
+    )
+}
 
 /// Jacoby 2NT — the game-forcing major raise with four-card support
 const JACOBY_2NT: Alert = Alert("jacoby-2nt");
@@ -147,37 +229,63 @@ fn wjs_bid(major: Suit, x: Suit) -> (u8, Strain) {
 #[must_use]
 pub fn minor_responses(minor: Suit) -> Rules {
     let trump = Strain::from(minor);
-    let mut rules = Rules::new()
-        // Four-card majors up the line (hearts before spades).
-        //
-        // KNOWN ISSUE — up the line over-applies beyond 4-4: the 1♥ rule
-        // fires on *any* four-plus hearts, so a hand with LONGER spades
-        // (5♠4♥, 6♠5♥) still responds 1♥, where standard longest-first style
-        // responds 1♠ planning to show the hearts next.  Two consequences:
-        // partner cannot infer "spades are not longer than hearts" from a 1♥
-        // response (only the converse holds — 1♠ denies four hearts), and
-        // the M6.4 control-bid classifier (`classify_high_bid` in
-        // `inference.rs`) therefore reads a later jump into the suit *above*
-        // the response (`1♣–1♥–2♣–4♠`) as natural to play, never as a
-        // control bid — the first M6.4 A/B round assumed longest-first here
-        // and lost 6 IMPs per fired board pulling those genuine spade
-        // slams-to-play into the "agreed" minor.  Fixing this means
-        // longest-first among 5+ suits (respond 1♠ on 5♠4♥/6♠5♥, up the line
-        // only for 4-4) with the rebid structure taught to match, and then
-        // tightening the classifier's bypass rule — change and measure the
-        // three together, not piecemeal.  Cf. the longer-major transfer
-        // discipline (`set_transfer_longer_major`), which fixed the same
-        // disease in the 1NT/2NT transfer tables.
-        .rule(
-            Bid::new(1, Strain::Hearts),
-            1.5,
-            len(Suit::Hearts, 4..) & points(6..),
-        )
-        .rule(
-            Bid::new(1, Strain::Spades),
-            1.4,
-            len(Suit::Spades, 4..) & points(6..) & len(Suit::Hearts, ..4),
-        )
+    let mut rules = Rules::new();
+    // Major selection between 4+ majors, per the longer-major knob.
+    rules = if longer_major_response() {
+        // Longer-major discipline (`set_longer_major_response`): the response
+        // names the longer major — 1♠ on 5♠4♥/6♠5♥ or any 5-5+, 1♥ up the
+        // line only on 4-4 — so 1♥ denies longer spades and the M6.4
+        // control-bid classifier can read `1♣–1♥–2♣–4♠` as a control bid.
+        rules
+            .rule(
+                Bid::new(1, Strain::Spades),
+                1.5,
+                len(Suit::Spades, 4..) & points(6..) & spades_first(),
+            )
+            .rule(
+                Bid::new(1, Strain::Hearts),
+                1.4,
+                len(Suit::Hearts, 4..) & points(6..) & !spades_first(),
+            )
+    } else {
+        // Default pair — unconditional hearts-first: any four-plus hearts
+        // responds 1♥ even with longer spades (5♠4♥, 6♠5♥), so partner can
+        // only infer "1♠ denies four hearts", never the converse, and the
+        // M6.4 classifier must read a later jump into the suit *above* the
+        // response as natural to play (the first M6.4 A/B round assumed
+        // longest-first here and lost 6 IMPs per fired board).  The
+        // longest-first arm above was measured as the prescribed trio
+        // (response + rebids + classifier) and came back a null — hearts-first
+        // stays the default; see `set_longer_major_response` and
+        // `docs/bidding-theorems.md`.
+        rules
+            .rule(
+                Bid::new(1, Strain::Hearts),
+                1.5,
+                len(Suit::Hearts, 4..) & points(6..),
+            )
+            .rule(
+                Bid::new(1, Strain::Spades),
+                1.4,
+                len(Suit::Spades, 4..) & points(6..) & len(Suit::Hearts, ..4),
+            )
+    };
+    // Up-the-line completion (`set_up_the_line`): a natural 1♦ over 1♣ on
+    // four-plus diamonds without a four-card major.  Weight 1.2 sits below
+    // the majors (1.5/1.4) and the inverted raise (1.25), above the notrump
+    // ladder (1.0) — so diamond hands stop mislabeling themselves as
+    // balanced notrump responses or falling to the floor.
+    if minor == Suit::Clubs && up_the_line() {
+        rules = rules.rule(
+            Bid::new(1, Strain::Diamonds),
+            1.2,
+            len(Suit::Diamonds, 4..)
+                & points(6..)
+                & len(Suit::Hearts, ..4)
+                & len(Suit::Spades, ..4),
+        );
+    }
+    rules = rules
         // Notrump ladder without a four-card major (3NT open-ended for game-plus).
         .rule(
             Bid::new(3, Strain::Notrump),

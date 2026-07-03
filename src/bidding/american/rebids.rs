@@ -119,10 +119,12 @@ fn rebid_after_forcing_notrump(major: Suit) -> Rules {
 /// Opener's rebid raising responder's new major after a minor opening
 ///
 /// Used at `1m – 1M`.  Forcing on opener; a 1NT rebid is the guaranteed-legal
-/// fallback.
+/// fallback.  Under the up-the-line completion (`set_up_the_line`) opener
+/// also shows four spades over a `1♥` response — without it the 4-4 spade
+/// fit is lost to the 1NT rebid.
 fn rebid_raise_major(responder_major: Suit, opener_minor: Suit) -> Rules {
     let m = Strain::from(responder_major);
-    Rules::new()
+    let mut rules = Rules::new()
         .rule(Bid::new(4, m), 2.6, support(4..) & points(19..))
         .rule(Bid::new(3, m), 2.2, support(4..) & points(16..=18))
         .rule(Bid::new(2, m), 1.8, support(4..) & points(12..=15))
@@ -130,7 +132,14 @@ fn rebid_raise_major(responder_major: Suit, opener_minor: Suit) -> Rules {
             Bid::new(2, Strain::Notrump),
             1.2,
             fifths(18.0..20.0) & balanced(),
-        )
+        );
+    // Up the line: four spades over a 1♥ response, ahead of the minor rebid
+    // and the notrump fallbacks (a heart raise with four-card support still
+    // wins on weight).
+    if responder_major == Suit::Hearts && super::responses::up_the_line() {
+        rules = rules.rule(Bid::new(1, Strain::Spades), 0.95, len(Suit::Spades, 4..));
+    }
+    rules
         .rule(
             Bid::new(2, Strain::from(opener_minor)),
             0.9,
@@ -145,8 +154,12 @@ fn rebid_raise_major(responder_major: Suit, opener_minor: Suit) -> Rules {
 }
 
 /// Opener's rebid after `1♣ – 1♦`
+///
+/// Under the up-the-line completion (`set_up_the_line`) a six-plus club suit
+/// rebids a natural `2♣` — without it those hands land in the misdescribed
+/// 1NT catch-all.
 fn rebid_one_club_one_diamond() -> Rules {
-    Rules::new()
+    let mut rules = Rules::new()
         .rule(Bid::new(1, Strain::Hearts), 1.3, len(Suit::Hearts, 4..))
         .rule(
             Bid::new(1, Strain::Spades),
@@ -167,7 +180,11 @@ fn rebid_one_club_one_diamond() -> Rules {
             Bid::new(2, Strain::Notrump),
             1.1,
             fifths(18.0..20.0) & balanced(),
-        )
+        );
+    if super::responses::up_the_line() {
+        rules = rules.rule(Bid::new(2, Strain::Clubs), 0.9, len(Suit::Clubs, 6..));
+    }
+    rules
         .rule(
             Bid::new(1, Strain::Notrump),
             0.5,

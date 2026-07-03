@@ -79,6 +79,7 @@ mod responses;
 pub(in crate::bidding) mod slam;
 mod strong_two;
 mod weak_twos;
+mod xyz;
 
 pub use competition::{
     Competitive4333, DoubleStyle, LebensohlStyle, competition,
@@ -119,7 +120,9 @@ pub use openings::{
     NotrumpShape, openings, openings_with, set_one_notrump_fifths, set_open_one_notrump,
 };
 pub use rebids::set_meckstroth_adjunct;
-pub use responses::{major_responses, minor_responses};
+pub(crate) use responses::longer_major_response;
+pub use responses::{major_responses, minor_responses, set_longer_major_response, set_up_the_line};
+pub use xyz::set_xyz;
 
 /// A bid as a [`Call`], for trie keys
 const fn call(level: u8, strain: Strain) -> Call {
@@ -430,6 +433,7 @@ fn bare_american_with(shape: NotrumpShape) -> Pair {
     responses::register(&mut c);
     notrump::register(&mut c);
     rebids::register(&mut c);
+    xyz::register(&mut c);
     game_force::register(&mut c);
     raises::register(&mut c);
     strong_two::register(&mut c);

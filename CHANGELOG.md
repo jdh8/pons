@@ -20,6 +20,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **XYZ two-way checkback + the up-the-line minor completion, default on**
+  (`set_xyz`, `set_up_the_line`; off-switches `--no-ns-xyz` /
+  `--no-ns-up-the-line` in `bba-gen`). XYZ (`src/bidding/american/xyz.rs`)
+  covers the ten uncontested `1x – 1y – 1z` auctions: responder's `2♣`
+  (alerted `xyz-relay`) puppets opener to `2♦` (alerted `xyz-completion`) for
+  a weak diamond sign-off or any invitation, `2♦` (alerted `xyz-game-force`)
+  is an artificial game force answered naturally (three-card support first),
+  direct two-level rebids are weak, and the invite round carries opener's
+  accept/decline tables — both sides authored, readings free via
+  alert-projection. The up-the-line completion fills the natural gaps the
+  structure needs: the `1♣ – 1♦` response (previously squeezed into the
+  notrump ladder or floored), opener's `1♠` rebid over `1m – 1♥` (the 4-4
+  spade fit was lost to a 1NT rebid), and opener's natural `2♣` after
+  `1♣ – 1♦` on six clubs. Measured jointly (`ab-minor-continuations`, 300k
+  boards, both scorers, NV/vul): **+0.038/+0.056 IMPs/board plain DD,
+  +0.029/+0.041 perfect-defense**, +0.55/+0.80 per divergent board (6.96%
+  divergence) — a win on both ends of the bracket. XYZ alone is
+  +0.016/+0.025 plain per board; **up-the-line alone is a loss** (plain
+  −0.91/−1.28 per divergent — the 1♦ response reroutes hands into auctions
+  only the XYZ round continues), hence the joint ship. The known XYZ cost
+  (the natural `2♣` sign-off orphan) is priced into the measurement.
+
+- **Longer-major response discipline (opt-in, default off)**
+  (`set_longer_major_response`; `--ns-longer-major-response` in `bba-gen`).
+  Responses to `1♣`/`1♦` name the longer major — `1♠` on 5♠4♥/6♠5♥ or any
+  5-5, `1♥` up the line only on 4-4 — built as the trio the theorems doc
+  prescribes: the response pair, opener's rebid structure, and the M6.4
+  control-bid classifier's bypass rule (`classify_high_bid` now swaps its
+  two major-response verdicts under the discipline, gated at classify time).
+  Measured a **null**: alone it is a plain-DD wash with a perfect-defense
+  loss at vulnerable (−0.12/−0.22 per divergent NV/vul, 2M boards, 0.46%
+  fired), and its marginal on top of the shipped xyz + up-the-line package
+  is −0.003..−0.005 IMPs/board on both scorers — opener's up-the-line `1♠`
+  rebid already recovers the concealed 4-4 spade fits, and longest-first
+  costs a level on the heart fits. Hearts-first stays the default; the knob
+  and its classifier reading remain for re-measurement.
+
 - **Contributor docs and session skills.** Two new documents distill the
   working knowledge of the bidding campaign: `docs/bidding-architecture.md`
   (the book/floor/inference layer cake and the invariants that keep it sound —
