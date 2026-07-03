@@ -291,6 +291,12 @@ thread_local! {
     /// default** (4-4, the standard weak Meckwell takeout double).  A **probe** knob.
     /// No effect unless Meckwell is on.
     static MECKWELL_X_FOUR_FOUR: Cell<bool> = const { Cell::new(true) };
+    /// `points` floor for Meckwell's two-way `X`; **0 by default = inherit the natural
+    /// overcall floor (8)**, byte-identical.  Raise it (e.g. 12, the Woolsey `X` floor)
+    /// so only strong hands make the broad two-way double and 8-11 both-majors /
+    /// single-minor hands pass — fewer sacrificial doubles over a strong 1NT.  A
+    /// **probe** knob (the tournament's dominant Meckwell loss is the low-floor `X`).
+    static MECKWELL_X_FLOOR: Cell<u8> = const { Cell::new(0) };
 }
 
 /// Replace the natural 1NT defense with Meckwell at every seat, for books built
@@ -329,6 +335,22 @@ pub fn set_meckwell_x_four_four(on: bool) {
 
 fn meckwell_x_four_four() -> bool {
     MECKWELL_X_FOUR_FOUR.with(Cell::get)
+}
+
+/// Set the `points` floor for Meckwell's two-way `X` (default 0 = inherit the natural
+/// overcall floor of 8; set e.g. 12 for a Woolsey-strength double).  A **probe** knob.
+/// See [`set_meckwell`].
+pub fn set_meckwell_x_floor(floor: u8) {
+    MECKWELL_X_FLOOR.with(|cell| cell.set(floor));
+}
+
+/// The configured Meckwell `X` floor, resolving the 0 sentinel to the natural
+/// overcall floor.
+fn meckwell_x_floor() -> u8 {
+    match MECKWELL_X_FLOOR.with(Cell::get) {
+        0 => natural_overcall_points().0,
+        floor => floor,
+    }
 }
 
 thread_local! {
@@ -474,6 +496,12 @@ thread_local! {
     /// 5-4+ two-suiters compete (tighter, fewer auctions).  An A/B knob, no effect
     /// unless DONT is on.
     static DIRECT_DONT_FOUR_FOUR: Cell<bool> = const { Cell::new(true) };
+    /// `points` floor for the DONT one-suiter `X`; **0 by default = inherit the natural
+    /// overcall floor (8)**, byte-identical.  Raise it so only strong one-suiters
+    /// double and 8-11 hands pass (the `X` bucket is the DD loser — trade action for
+    /// safety, as [`DIRECT_DONT_ONE_SUITER_MIN`] does for length).  A/B knob, no effect
+    /// unless DONT is on.
+    static DIRECT_DONT_X_FLOOR: Cell<u8> = const { Cell::new(0) };
 }
 
 /// Minimum one-suiter length for the DONT `X`/`2♠` (default 5; set 6 to pass
@@ -490,6 +518,21 @@ fn direct_dont_one_suiter_min() -> usize {
 /// 5-4+).  See [`set_direct_dont`].
 pub fn set_direct_dont_four_four(on: bool) {
     DIRECT_DONT_FOUR_FOUR.with(|cell| cell.set(on));
+}
+
+/// Set the `points` floor for the DONT one-suiter `X` (default 0 = inherit the natural
+/// overcall floor of 8; raise it to double only with strong one-suiters).  See
+/// [`set_direct_dont`].
+pub fn set_direct_dont_x_floor(floor: u8) {
+    DIRECT_DONT_X_FLOOR.with(|cell| cell.set(floor));
+}
+
+/// The configured DONT `X` floor, resolving the 0 sentinel to the natural overcall floor.
+fn direct_dont_x_floor() -> u8 {
+    match DIRECT_DONT_X_FLOOR.with(Cell::get) {
+        0 => natural_overcall_points().0,
+        floor => floor,
+    }
 }
 
 fn direct_dont_four_four() -> bool {
@@ -1388,9 +1431,9 @@ fn defense_to_their_diamond_transfer() -> Rules {
         .rule(Call::Pass, 0.5, hcp(0..))
 }
 
-/// DONT `X`: a one-suiter (♣/♦/♥), `points(natural-overcall-floor..)`.
+/// DONT `X`: a one-suiter (♣/♦/♥), `points(direct-dont-x-floor..)`.
 fn dont_x() -> Rules {
-    let lo = natural_overcall_points().0;
+    let lo = direct_dont_x_floor();
     let one_min = direct_dont_one_suiter_min();
     Rules::new().rule(
         Call::Double,
@@ -1479,10 +1522,11 @@ fn dont_2h() -> Rules {
 }
 
 /// Meckwell two-way `X`: a single 6+ minor OR both majors,
-/// `points(natural-overcall-floor..)`.  The both-majors shape is the probe knob
-/// [`set_meckwell_x_four_four`]; the single-minor length is a fixed 6.
+/// `points(meckwell-x-floor..)`.  The both-majors shape is the probe knob
+/// [`set_meckwell_x_four_four`], the floor is [`set_meckwell_x_floor`]; the
+/// single-minor length is a fixed 6.
 fn meckwell_x() -> Rules {
-    let lo = natural_overcall_points().0;
+    let lo = meckwell_x_floor();
     Rules::new().rule(
         Call::Double,
         1.9,

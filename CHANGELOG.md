@@ -49,9 +49,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   boards, −0.19) — the two-way double at an 8+ floor over a *strong* 1NT is a
   heavier, far more frequent sacrifice, and its points-only reading leaves the
   contested continuations shape-blind (the loss collapses to −0.06 when the
-  opponents cannot run). Kept as an opt-in probe target (raise the `X` floor or
-  pass `--ns-meckwell-x-five-four` to shrink the two-way `X` bucket) rather than
-  a shipped default.
+  opponents cannot run). Kept as an opt-in probe target rather than a shipped
+  default.
+
+- **Stronger-`X` sweep for Meckwell and DONT** — new opt-in floor knobs
+  `set_meckwell_x_floor` and `set_direct_dont_x_floor` (both default `0` =
+  inherit the natural overcall floor of 8, **off-state byte-identical**), so the
+  broad two-way Meckwell double and the DONT one-suiter double can require strong
+  hands only. Measured (`ab-nt-defense-matrix` 8-row, 60k boards, vul none, seed
+  1783114165): raising **Meckwell's** two-way `X` floor is a large monotone gain
+  — default-column plain-DD/PD/sd-lead **−0.262/−0.498/−0.070 (X≥8) →
+  −0.056/−0.153/+0.052 (X≥12) → −0.021/−0.065/+0.064 (X≥15)**, the `X` bucket
+  shrinking 6588→2064→526 boards; at X≥15 Meckwell is a plain-DD near-wash and
+  *sd-lead positive*, **but still takes 0% Nash support** (Woolsey stays
+  +0.077 plain / +0.15 sd — the narrow, lead-directing defense wins, and a
+  0.9%-frequency `X` is "Meckwell that mostly passes"). Raising **DONT's**
+  one-suiter `X` floor is the *wrong* trade: plain/PD improve (PD −0.290→−0.211)
+  but sd-lead **drops +0.107→+0.079**, and DONT(6+) at floor 8 holds 10% of the
+  sd-lead equilibrium and 88% bootstrap support while the X≥12 variant gets 0% —
+  DONT's one-suiter `X` earns its keep by *directing the opening lead*, which a
+  higher floor deletes. Both floors ship at their measured-best default (Meckwell
+  inherits 8 as textbook, tunable up; DONT stays at 8).
 
 - **Major-opening continuations, default on** — four knobs complete the
   constructive tree after `1♥`/`1♠`, the families that previously fell to the
