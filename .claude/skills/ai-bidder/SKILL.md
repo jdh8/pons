@@ -42,8 +42,9 @@ relevant to the task. `plan.md` is the milestone map and the source of truth for
    test suite is the rails and must stay green. The net is trusted for judgement,
    never for the forced rails.
 3. **Measure on the existing harness.** Every milestone's win condition is
-   IMPs/board on the A/B duplicate match (`examples/instinct-floor` is the
-   template), *not* training loss. Report board counts; treat sub-0.1 IMPs/board
+   IMPs/board on the A/B duplicate match (`examples/ab-instinct-floor` is the
+   template), *not* training loss. Follow `docs/measurement.md` (protocol,
+   scorers, decision table). Report board counts; treat sub-0.1 IMPs/board
    as noise unless the sample is large.
 4. **Keep the baseline.** `instinct()` stays as default and comparison anchor; a
    neural floor is an added option (e.g. `american_neural()`), never a

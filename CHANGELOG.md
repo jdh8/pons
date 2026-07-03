@@ -20,6 +20,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Contributor docs and session skills.** Two new documents distill the
+  working knowledge of the bidding campaign: `docs/bidding-architecture.md`
+  (the book/floor/inference layer cake and the invariants that keep it sound —
+  shadowing, the floor partition, alerts and readings, the Constraint DSL,
+  samplers, knob conventions) and `docs/measurement.md` (the A/B playbook:
+  the scorers, the plain-DD/perfect-defense decision table, the catalog of
+  measurement biases, and the ship rules). `CLAUDE.md` was rewritten as the
+  repo operating manual indexing them, and two checked-in skills
+  (`.claude/skills/author-convention`, `.claude/skills/measure-ab`) encode the
+  end-to-end procedures for authoring and measuring a convention. No code
+  changes. The README gained a pointer to the docs, and its BBA benchmarking
+  section — which still referenced the retired `bba-match` example — now
+  documents the current `bba-gen` / `bba-score` pair, the `serde` feature they
+  require, and the `scripts/bba-gen-parallel.sh` sharding wrapper.
+
 - **Single-dummy solver** (`pons::single_dummy`, `examples/single-dummy`). Given
   a declarer's hand and dummy — the 26 cards a declarer actually sees — estimate
   how a strain will play by Monte-Carlo double-dummy: deal the two hidden defender

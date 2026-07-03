@@ -94,8 +94,10 @@ Dev / research harnesses (a sampler of each family):
 
 ### Benchmarking against BBA/EPBot
 
-The `bba-match` example benchmarks pons's bidding against [BBA/EPBot][bba],
-Edward Piwowar's mature reference engine, driven natively through its C ABI.
+The `bba-gen` / `bba-score` example pair benchmarks pons's bidding against
+[BBA/EPBot][bba], Edward Piwowar's mature reference engine, driven natively
+through its C ABI: `bba-gen` bids the boards and writes a JSON dump,
+`bba-score` reads dumps and reports IMPs (plain or perfect-defense scoring).
 EPBot is bundled as the
 [`vendor/bba`][bba] git submodule — free for non-commercial use *and*
 redistribution per its author — so fetch it once and the default library path
@@ -103,8 +105,12 @@ resolves:
 
 ```sh
 git submodule update --init vendor/bba
-cargo run --release --example bba-match -- --count 1000
+cargo run --release --features serde --example bba-gen -- --count 1000 -o bba.json
+cargo run --release --features serde --example bba-score -- bba.json
 ```
+
+EPBot is single-threaded; [`scripts/bba-gen-parallel.sh`](scripts/bba-gen-parallel.sh)
+shards a large run across processes with disjoint seeds.
 
 Set `BBA_LIB` to override the library path. Published comparison numbers credit
 EPBot as the reference engine.
@@ -118,6 +124,16 @@ in `contract-bridge` and
 in `ddss` (with a [parallel
 copy](https://github.com/jdh8/dds-bridge/tree/main/examples/notrump-tricks)
 in `dds-bridge`).
+
+## Research and contributor notes
+
+Design docs live in [`docs/`](docs/): the bidding-module architecture and its
+invariants ([`bidding-architecture.md`](docs/bidding-architecture.md)), the
+A/B measurement playbook ([`measurement.md`](docs/measurement.md)), the
+AI-bidder design effort ([`ai-bidder/`](docs/ai-bidder/)), raw bidding-theory
+notes ([`bidding-theorems.md`](docs/bidding-theorems.md)), and how to run
+heavy data generation on a shared machine
+([`shared-machine-data-gen.md`](docs/shared-machine-data-gen.md)).
 
 [`Call`]: https://docs.rs/contract-bridge/latest/contract_bridge/auction/enum.Call.html
 [`Auction`]: https://docs.rs/contract-bridge/latest/contract_bridge/auction/struct.Auction.html
