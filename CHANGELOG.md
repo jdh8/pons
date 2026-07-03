@@ -20,6 +20,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **GTO 1NT-defense tournament** (`examples/ab-nt-defense-matrix`, study:
+  `docs/ai-bidder/gto-1nt-defense.md`). "What is the best defense to their
+  strong 1NT?" is a *game*, not an A/B — the answer depends on the opening
+  side's counters — so this harness plays the full payoff matrix (4 defenses ×
+  4 counter-strategies, every cell on identical boards, one DD solve pricing
+  all 16 cells against an always-pass datum) and solves the zero-sum matrix
+  game by fictitious play, with a bootstrap over boards certifying the
+  equilibrium support. Measured at 60k boards per vulnerability, plus the same
+  defense menu vs BBA (`--isolate-defense`, 204.8k boards/arm). Headlines:
+  **Woolsey Multi-Landy is the nonvulnerable plain-DD equilibrium defense
+  (+0.070 IMPs/board over always-passing — the first defense here to beat
+  doing nothing on plain DD)**, natural is the perfect-defense-bracket
+  equilibrium (+0.029), and vulnerable both revert to always-pass; the
+  **counter-side equilibrium is the shipped default package** (Optional
+  doubles + trap-pass + penalty conversion + the doubled-1NT runout) in all
+  eight scenario×scorer cells — disabling the runout alone flips our
+  penalty-X bucket from −0.45 to +2.04 IMPs/action-board. Vs BBA, *defending
+  beats passing at every vulnerability on plain DD* (always-pass trails BBA's
+  own Multi-Landy by 0.30–0.41 IMPs/board), locating the obstruction wall
+  partly in self-play's too-strong counters; our own Woolsey trails BBA's by
+  0.23 IMPs/board on the same card — a continuation-quality gap and the
+  sharpest improvement target the tournament surfaced. No library changes;
+  defaults untouched.
 - **Source-of-tricks-eight 3NT force** (`set_long_minor_force`, **off by
   default — a measured loss, kept only as an A/B instrument**). Bridge theory
   says an 8-count with no four- or five-card major and a running long minor
