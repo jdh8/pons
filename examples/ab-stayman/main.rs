@@ -22,7 +22,7 @@ use contract_bridge::{AbsoluteVulnerability, Contract, FullDeal, Seat};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
 use pons::bidding::Family;
-use pons::scoring::{final_contract, imps, ns_score_contract};
+use pons::scoring::{final_contract, imps, ns_score_contract, ns_score_pd};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
 use rayon::prelude::*;
@@ -50,6 +50,9 @@ struct Args {
     /// Baseline contracts file (written by `bid`, read by `score`)
     #[arg(long, default_value = "/tmp/stayman-baseline.txt")]
     file: String,
+    /// Turn on the Stayman-then-minor slam try (runtime toggle A/B)
+    #[arg(long)]
+    treatment: bool,
 }
 
 /// The same deterministic board sequence in both phases
@@ -84,6 +87,7 @@ fn decode(line: &str) -> Option<(Contract, Seat)> {
 #[allow(clippy::cast_precision_loss)]
 fn main() {
     let args = Args::parse();
+    pons::bidding::american::set_stayman_minor_slam_try(args.treatment);
     let sys = american().against(Family::NATURAL);
     let boards = boards(args.seed, args.count);
 
@@ -124,11 +128,15 @@ fn main() {
 
     let mut points = 0i64;
     let mut total_imps = 0i64;
+    let mut pd_imps = 0i64;
     for (&i, table) in divergent.iter().zip(tables.iter()) {
         let base = ns_score_contract(baseline[i], table, args.vulnerability);
         let new = ns_score_contract(contracts[i], table, args.vulnerability);
         points += new - base;
         total_imps += imps(new - base);
+        let base_pd = ns_score_pd(baseline[i], table, args.vulnerability);
+        let new_pd = ns_score_pd(contracts[i], table, args.vulnerability);
+        pd_imps += imps(new_pd - base_pd);
     }
 
     println!(
@@ -142,8 +150,13 @@ fn main() {
         100.0 * divergent.len() as f64 / args.count.max(1) as f64,
     );
     println!(
-        "New Stayman authoring: {points:+} points, {total_imps:+} IMPs ({:+.4} IMPs/board, {:+.3} IMPs/divergent)",
+        "New Stayman authoring: {points:+} points, {total_imps:+} IMPs ({:+.4} IMPs/board, {:+.3} IMPs/divergent) [plain DD]",
         total_imps as f64 / args.count.max(1) as f64,
         total_imps as f64 / divergent.len().max(1) as f64,
+    );
+    println!(
+        "                       {pd_imps:+} IMPs ({:+.4} IMPs/board, {:+.3} IMPs/divergent) [perfect defense]",
+        pd_imps as f64 / args.count.max(1) as f64,
+        pd_imps as f64 / divergent.len().max(1) as f64,
     );
 }

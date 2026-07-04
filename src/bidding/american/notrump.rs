@@ -864,10 +864,11 @@ thread_local! {
     /// jump-free `3♣`/`3♦` shows a *natural* 5+ minor with slam values (14+) and no
     /// fit for opener's major — the 5-4 two-suiter whose four-card major (the reason
     /// for the 2♣ detour) missed.  Opener cooperates by raising the minor with a
-    /// fit + maximum (else `3NT`), and responder keycards.  **Off by default** — a
-    /// new convention, byte-identical until its A/B lands.  See
+    /// fit + maximum (else `3NT`), and responder keycards.  **On by default** —
+    /// the A/B landed +3.29/+4.02 IMPs/fired (none/both, plain DD; PD identical,
+    /// no doubling artifact) across 151 fired boards, zero losses.  See
     /// [`set_stayman_minor_slam_try`].
-    static STAYMAN_MINOR_SLAM_TRY: Cell<bool> = const { Cell::new(false) };
+    static STAYMAN_MINOR_SLAM_TRY: Cell<bool> = const { Cell::new(true) };
     /// The `point_count + trump length` floor at which a 6-card-major responder
     /// blasts game via South African Texas (`4♣/4♦`) instead of transferring at
     /// the two level.  **Default 14** (a 6-bagger needs 8 points, a 7-bagger 7).
@@ -1067,7 +1068,7 @@ fn stayman_cue_continuation() -> bool {
 }
 
 /// Author the Stayman-then-minor slam try for books built *after* this call
-/// (thread-local; **off by default**).
+/// (thread-local; **on by default** — pass `false` to disable).
 ///
 /// Over opener's Stayman answer, a natural `3♣`/`3♦` shows a 5+ minor with slam
 /// values and no major fit; opener raises the minor with a fit + maximum (else
