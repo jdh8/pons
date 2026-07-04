@@ -20,6 +20,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Stayman-then-minor slam try, opt-in (`set_stayman_minor_slam_try`,
+  default off, off-state byte-identical).** After a Stayman answer
+  (`1NT–2♣–2♥/2♠/2♦`), responder's natural `3♣`/`3♦` shows a 5+ card minor
+  with slam values (14+) and no fit for opener's major — the 5-4 two-suiter
+  whose four-card major (the reason for the 2♣ detour) missed. Opener
+  cooperates by raising the minor with a four-card fit and a maximum (else
+  signs off in `3NT`), and responder keycards (1430 RKCB in the minor). Unlike
+  the deliberately RKCB-free transfer-then-minor path (`gf_minor_answer`), both
+  hands are known non-minimum before the four-level, so the five-level keycard
+  response is safe. Targets the measured Stayman slam deficit (missed minor
+  slams). Pending its A/B — opt-in until measured.
 - **Meckwell defense to their 1NT, opt-in (`set_meckwell`, default off,
   off-state byte-identical).** DONT's cousin, added *alongside* the shipped
   classic DONT (`set_direct_dont`), not replacing it: the double is a two-way

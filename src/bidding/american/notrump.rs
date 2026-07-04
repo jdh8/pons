@@ -860,6 +860,14 @@ thread_local! {
     /// the cue dead-end was the dominant Stayman leak vs BBA (≈20% of the tail-loss
     /// IMPs, `bba-gen --isolate-opening bba`).  See [`set_stayman_cue_continuation`].
     static STAYMAN_CUE_CONTINUATION: Cell<bool> = const { Cell::new(true) };
+    /// Stayman-then-minor slam try: over opener's Stayman answer, responder's
+    /// jump-free `3♣`/`3♦` shows a *natural* 5+ minor with slam values (14+) and no
+    /// fit for opener's major — the 5-4 two-suiter whose four-card major (the reason
+    /// for the 2♣ detour) missed.  Opener cooperates by raising the minor with a
+    /// fit + maximum (else `3NT`), and responder keycards.  **Off by default** — a
+    /// new convention, byte-identical until its A/B lands.  See
+    /// [`set_stayman_minor_slam_try`].
+    static STAYMAN_MINOR_SLAM_TRY: Cell<bool> = const { Cell::new(false) };
     /// The `point_count + trump length` floor at which a 6-card-major responder
     /// blasts game via South African Texas (`4♣/4♦`) instead of transferring at
     /// the two level.  **Default 14** (a 6-bagger needs 8 points, a 7-bagger 7).
@@ -1056,6 +1064,21 @@ pub fn set_stayman_cue_continuation(on: bool) {
 /// Whether responder's `3OM`-cue continuation is currently authored
 fn stayman_cue_continuation() -> bool {
     STAYMAN_CUE_CONTINUATION.with(Cell::get)
+}
+
+/// Author the Stayman-then-minor slam try for books built *after* this call
+/// (thread-local; **off by default**).
+///
+/// Over opener's Stayman answer, a natural `3♣`/`3♦` shows a 5+ minor with slam
+/// values and no major fit; opener raises the minor with a fit + maximum (else
+/// `3NT`), and responder keycards over the raise.
+pub fn set_stayman_minor_slam_try(on: bool) {
+    STAYMAN_MINOR_SLAM_TRY.with(|cell| cell.set(on));
+}
+
+/// Whether the Stayman-then-minor slam try is currently authored
+fn stayman_minor_slam_try() -> bool {
+    STAYMAN_MINOR_SLAM_TRY.with(Cell::get)
 }
 
 /// Set the South African Texas game-blast floor on `point_count + trump length`
@@ -1265,7 +1288,7 @@ fn stayman_major_rebid(major: Suit) -> Rules {
             len(Suit::Spades, 5..) & hcp(8..),
         );
     }
-    rules
+    let rules = rules
         // Fit: artificial slam try / choice of game (balanced, or 16+); denies 5♠.
         .rule(
             Bid::new(3, other),
@@ -1310,7 +1333,28 @@ fn stayman_major_rebid(major: Suit) -> Rules {
             Bid::new(2, Strain::Notrump),
             1.0,
             len(major, ..4) & hcp(8..=8),
-        )
+        );
+    // Stayman-then-minor slam try: a natural 5+ minor with slam values (14+) and no
+    // fit for opener's major (capped at three, else responder raises or takes the
+    // 3OM slam try).  Weight 1.25 outranks the no-fit `3NT`/`4NT` reverts so the
+    // two-suiter shows its second suit instead of guessing notrump.  Empty off the
+    // gate; the minor is real, so each rule floors only its own strain and stays
+    // unalerted (the artificial-alert invariant).
+    if stayman_minor_slam_try() {
+        rules
+            .rule(
+                Bid::new(3, Strain::Clubs),
+                1.25,
+                len(Suit::Clubs, 5..) & hcp(14..) & len(major, ..4),
+            )
+            .rule(
+                Bid::new(3, Strain::Diamonds),
+                1.25,
+                len(Suit::Diamonds, 5..) & hcp(14..) & len(major, ..4),
+            )
+    } else {
+        rules
+    }
 }
 
 /// A flat 4-3-3-3 — the one balanced shape with no doubleton
@@ -1360,6 +1404,40 @@ fn stayman_cue_rebid(major: Suit) -> Rules {
         .alert(slam::RKCB)
         // Otherwise the 3OM was only choosing the game: sign off in the major.
         .rule(Bid::new(4, Strain::from(major)), 1.0, hcp(0..))
+}
+
+/// Opener's reply to responder's Stayman-then-minor slam try (`…3♣` / `…3♦`)
+///
+/// Responder showed a natural 5+ `minor` with slam values (14+) and no major fit.
+/// With four-card support *and* a maximum (16-17) opener cooperates by raising to
+/// `4m`, setting trump for responder's keycard ask; otherwise — no fit, or a
+/// minimum — opener signs off in `3NT`, the game responder's values guarantee.
+/// The `3NT` catch-all keeps the table total (the finite-fallback invariant).
+fn stayman_minor_answer(minor: Suit) -> Rules {
+    Rules::new()
+        // Fit + maximum: raise the minor, inviting the keycard ask.
+        .rule(
+            Bid::new(4, Strain::from(minor)),
+            1.3,
+            len(minor, 4..) & hcp(16..),
+        )
+        // No fit, or a minimum: place game in notrump.
+        .rule(Bid::new(3, Strain::Notrump), 1.0, hcp(0..))
+}
+
+/// Responder's keycard ask after opener raises the Stayman-then-minor slam try
+/// (`…3m–4m`)
+///
+/// Opener confirmed a four-card fit and a maximum, so responder — who opened the
+/// slam try with 14+ — keycards (`4NT` RKCB, the [`slam`] 1430 ladder placing the
+/// minor slam or signing off in `5m` when a keycard is missing).  Both hands are
+/// known non-minimum before the ask, so — unlike the transfer-then-minor path
+/// ([`gf_minor_answer`]) — the five-level response is safe.  Artificial, so the
+/// `4NT` carries the [`slam::RKCB`] alert.
+fn stayman_minor_slam_rkcb() -> Rules {
+    Rules::new()
+        .rule(Bid::new(4, Strain::Notrump), 1.0, hcp(0..))
+        .alert(slam::RKCB)
 }
 
 /// Responder's artificial slam try after a Jacoby transfer completes
@@ -1746,7 +1824,7 @@ fn stayman_no_major_rebid() -> Rules {
     } else {
         rules
     };
-    if invitational_5card_majors() {
+    let rules = if invitational_5card_majors() {
         // 5♠4♥, non-forcing invitational: opener denied hearts, so name the
         // five-card spade suit (natural, outranks the 2NT fallback).  Opener passes
         // a minimum or raises to game (see `answer_inv_5card_spades`).  A 5♠4♥
@@ -1757,6 +1835,26 @@ fn stayman_no_major_rebid() -> Rules {
             1.1,
             len(Suit::Spades, 5..) & hcp(8..=8),
         )
+    } else {
+        rules
+    };
+    // Stayman-then-minor slam try, opener having denied a major: a natural 5+ minor
+    // with slam values (14+).  No major cap — the 2♦ answer already denied the fit.
+    // Weight 1.25 outranks the `3NT`/`4NT` reverts; the minor is real, so it floors
+    // only its own strain and stays unalerted.  Empty off the gate.  (Smolen owns
+    // `3♥`/`3♠`, so `3♣`/`3♦` are free here.)
+    if stayman_minor_slam_try() {
+        rules
+            .rule(
+                Bid::new(3, Strain::Clubs),
+                1.25,
+                len(Suit::Clubs, 5..) & hcp(14..),
+            )
+            .rule(
+                Bid::new(3, Strain::Diamonds),
+                1.25,
+                len(Suit::Diamonds, 5..) & hcp(14..),
+            )
     } else {
         rules
     }
@@ -2501,6 +2599,8 @@ pub(super) fn register_one_nt(book: &mut Trie) {
     let two_d = call(2, Strain::Diamonds);
     let two_h = call(2, Strain::Hearts);
     let two_s = call(2, Strain::Spades);
+    let three_c = call(3, Strain::Clubs);
+    let three_d = call(3, Strain::Diamonds);
     let three_h = call(3, Strain::Hearts);
     let three_s = call(3, Strain::Spades);
 
@@ -2564,6 +2664,24 @@ pub(super) fn register_one_nt(book: &mut Trie) {
                 ];
                 insert_uncontested(book, &path, stayman_cue_rebid(major));
                 slam::install_rkcb(book, &path, major);
+            }
+        }
+    }
+    // Stayman-then-minor slam try: opener's reply to responder's natural 3m (5+
+    // minor, slam values, no major fit) over each Stayman answer, and — when opener
+    // raises with a fit + maximum — responder's minor keycard ask (the 1430 ladder
+    // rooted at 4NT).  Responder's 3m rules self-gate inside the rebid tables above.
+    if stayman_minor_slam_try() {
+        for answer in [two_h, two_s, two_d] {
+            for (three_m, minor) in [(three_c, Suit::Clubs), (three_d, Suit::Diamonds)] {
+                insert_uncontested(
+                    book,
+                    &[one_nt, two_c, answer, three_m],
+                    stayman_minor_answer(minor),
+                );
+                let path = [one_nt, two_c, answer, three_m, call(4, Strain::from(minor))];
+                insert_uncontested(book, &path, stayman_minor_slam_rkcb());
+                slam::install_rkcb(book, &path, minor);
             }
         }
     }
@@ -3992,6 +4110,59 @@ mod tests {
         set_crawling_stayman(false);
         assert_eq!(best(&one_nt, h4414), P);
         set_crawling_stayman(true); // restore the default
+    }
+
+    #[test]
+    fn stayman_minor_slam_try() {
+        use crate::bidding::american::set_stayman_minor_slam_try;
+        set_stayman_minor_slam_try(true);
+
+        // Responder: 4♠ 5♣, ≤3 hearts, 14 HCP — a slam-oriented two-suiter that
+        // Staymaned, found no heart fit, and shows its longer minor.
+        let after_2h = [
+            bid(1, Strain::Notrump),
+            P,
+            bid(2, Strain::Clubs),
+            P,
+            bid(2, Strain::Hearts),
+            P,
+        ];
+        assert_eq!(best(&after_2h, "AJ54.32.32.AKQ32"), bid(3, Strain::Clubs));
+
+        // Opener over the 3♣ slam try.
+        let after_3c = [
+            bid(1, Strain::Notrump),
+            P,
+            bid(2, Strain::Clubs),
+            P,
+            bid(2, Strain::Hearts),
+            P,
+            bid(3, Strain::Clubs),
+            P,
+        ];
+        // Fit (4♣) + maximum (16): cooperate by raising the minor.
+        assert_eq!(best(&after_3c, "A2.AQJ2.K32.Q543"), bid(4, Strain::Clubs));
+        // No club fit (3♣): sign off in 3NT even with a maximum.
+        assert_eq!(best(&after_3c, "A2.AQJ2.K432.Q54"), bid(3, Strain::Notrump));
+
+        // Responder keycards over opener's minor raise (1430 RKCB).
+        let after_4c = [
+            bid(1, Strain::Notrump),
+            P,
+            bid(2, Strain::Clubs),
+            P,
+            bid(2, Strain::Hearts),
+            P,
+            bid(3, Strain::Clubs),
+            P,
+            bid(4, Strain::Clubs),
+            P,
+        ];
+        assert_eq!(best(&after_4c, "AJ54.32.32.AKQ32"), bid(4, Strain::Notrump));
+
+        // Off the gate the sequence is unauthored — responder does not bid 3♣.
+        set_stayman_minor_slam_try(false);
+        assert_ne!(best(&after_2h, "AJ54.32.32.AKQ32"), bid(3, Strain::Clubs));
     }
 
     #[test]
