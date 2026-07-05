@@ -5,8 +5,7 @@
   --spade: #1a1a1a;
   --heart: #c0392b;
   --diamond: #e07b00; /* warm orange — bidding theory calls ♦ a red suit; never blue */
-  --club: #1a57b4;    /* medium blue — between the first dark try (#1a3a8f)
-                         and gin-rummy's bright poker blue (#1a74d9) */
+  --club: #1a74d9;    /* gin-rummy's bright poker blue */
   --felt: #2c7a63;
   --paper: #fdfdf7;
   --ink: #222;

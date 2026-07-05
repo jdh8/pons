@@ -66,7 +66,7 @@ Three tabs:
 
 Suit colors are CSS variables in `style.css` (`--club`, `--diamond`, …) —
 diamonds are orange on purpose ("red suit" is a bidding-theory term), and the
-dark-blue clubs are one line to retune.
+blue clubs are one line to retune.
 
 ## Deploy
 
