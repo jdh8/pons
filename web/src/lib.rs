@@ -19,6 +19,7 @@ use contract_bridge::deck::{fill_deals, full_deal};
 use contract_bridge::eval::{self, HandEvaluator as _, SimpleEvaluator};
 use contract_bridge::{AbsoluteVulnerability, Bid, Builder, FullDeal, Hand, Seat, Strain};
 use pons::bidding::american::bare_american;
+use pons::bidding::fallback::Fallback;
 use pons::bidding::{Stance, Table};
 use pons::scoring::final_contract;
 use pons_dds::{Solver, TrickCountTable, solve_deal_on};
@@ -523,6 +524,10 @@ struct NodeJson {
     book: &'static str,
     auction: String,
     rules: Vec<RuleJson>,
+    /// Prose for a rule-less entry — a systems-on rebase's summary, or a
+    /// computed (non-`Rules`) table's placeholder
+    #[serde(skip_serializing_if = "Option::is_none")]
+    note: Option<String>,
 }
 
 /// One rule of a node: the call, its weight, and the constraint's own prose
@@ -571,21 +576,68 @@ pub fn book() -> String {
                 } else {
                     display_calls(&auction).to_string()
                 },
-                rules: rules
-                    .rules()
-                    .iter()
-                    .map(|rule| RuleJson {
-                        call: rule.call().to_string(),
-                        weight: rule.weight(),
-                        text: rule.describe().to_string(),
-                        label: rule.label(),
-                    })
-                    .collect(),
+                rules: rule_json(rules),
+                note: None,
+            });
+        }
+
+        // Guarded fallbacks — the competitive book's whole substance.  The
+        // heading folds the guard's description into the auction string (so
+        // the text filter sees it); a rebase or computed table renders as a
+        // `note`.  Seat variants share one `Arc`: first-seen dedup keeps the
+        // canonical pass-less key (`Trie::fallbacks` visits it first).
+        for (auction, guard, fallback) in trie.fallbacks() {
+            let id = match fallback {
+                Fallback::Classify(c) => std::sync::Arc::as_ptr(c).cast::<()>() as usize,
+                Fallback::Rebase(r) => std::sync::Arc::as_ptr(r).cast::<()>() as usize,
+            };
+            if !seen.insert(id) {
+                continue;
+            }
+
+            let condition = guard
+                .describe()
+                .unwrap_or_else(|| "(unlabeled guard)".to_string());
+            let heading = format!("{} {condition}", display_calls(&auction));
+            let (rules, note) = match fallback {
+                Fallback::Classify(classifier) => match classifier.as_rules() {
+                    Some(rules) => (rule_json(rules), None),
+                    None => (Vec::new(), Some("(computed table)".to_string())),
+                },
+                Fallback::Rebase(rewrite) => (
+                    Vec::new(),
+                    Some(format!(
+                        "→ {}",
+                        rewrite
+                            .describe()
+                            .unwrap_or_else(|| "(opaque rewrite)".to_string())
+                    )),
+                ),
+            };
+            nodes.push(NodeJson {
+                book,
+                auction: heading.trim().to_string(),
+                rules,
+                note,
             });
         }
     }
 
     serde_json::to_string(&nodes).expect("book serialization")
+}
+
+/// The readable form of a node's rules (shared by exact and guarded entries)
+fn rule_json(rules: &pons::bidding::Rules) -> Vec<RuleJson> {
+    rules
+        .rules()
+        .iter()
+        .map(|rule| RuleJson {
+            call: rule.call().to_string(),
+            weight: rule.weight(),
+            text: rule.describe().to_string(),
+            label: rule.label(),
+        })
+        .collect()
 }
 
 #[cfg(test)]
@@ -722,9 +774,41 @@ mod tests {
         );
         for node in nodes {
             assert!(
-                !node["rules"].as_array().expect("rules").is_empty(),
-                "every node has rules",
+                !node["rules"].as_array().expect("rules").is_empty()
+                    || node["note"].is_string(),
+                "every node has rules or a note: {node}",
             );
         }
+    }
+
+    /// The competitive book renders: guarded fallbacks surface as entries with
+    /// the guard's condition folded into the auction heading.
+    #[test]
+    fn book_renders_the_competitive_fallbacks() {
+        let nodes: serde_json::Value = serde_json::from_str(&book()).expect("book is valid JSON");
+        let competitive: Vec<&serde_json::Value> = nodes
+            .as_array()
+            .expect("book is an array")
+            .iter()
+            .filter(|node| node["book"] == "competitive")
+            .collect();
+        assert!(
+            competitive.len() > 30,
+            "expected >30 competitive entries, got {}",
+            competitive.len()
+        );
+        assert!(
+            competitive
+                .iter()
+                .any(|node| node["auction"].as_str().expect("auction").contains("≤2♠")),
+            "the direct-seat overcall package renders with its ceiling"
+        );
+        assert!(
+            competitive.iter().any(|node| matches!(
+                node["note"].as_str(),
+                Some(note) if note.contains("systems on")
+            )),
+            "a systems-on rebase renders as a note"
+        );
     }
 }

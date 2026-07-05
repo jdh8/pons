@@ -380,6 +380,40 @@ impl Trie {
         self.resolve_at(context, prefix, 0, false).map(|(c, _)| c)
     }
 
+    /// Every guarded [`Fallback`] in the trie, with the auction of its node
+    ///
+    /// Depth-first; within a node, declaration order (= resolution
+    /// precedence).  The Pass child of each node is visited **last**, so seat
+    /// variants — one shared entry installed under leading-pass prefixes —
+    /// surface their canonical pass-less key first for the renderers'
+    /// first-seen pointer dedup.
+    #[must_use]
+    pub fn fallbacks(&self) -> Vec<(Box<[Call]>, &dyn Guard, &Fallback)> {
+        fn collect<'a>(
+            node: &'a Trie,
+            prefix: &mut Vec<Call>,
+            out: &mut Vec<(Box<[Call]>, &'a dyn Guard, &'a Fallback)>,
+        ) {
+            for (guard, fallback) in &node.fallbacks {
+                out.push((prefix.as_slice().into(), guard.as_ref(), fallback));
+            }
+            let pass_last = node
+                .children
+                .iter()
+                .filter(|&(call, _)| call != Call::Pass)
+                .chain(node.children.iter().filter(|&(call, _)| call == Call::Pass));
+            for (call, child) in pass_last {
+                prefix.push(call);
+                collect(child, prefix, out);
+                prefix.pop();
+            }
+        }
+
+        let mut out = Vec::new();
+        collect(self, &mut Vec::new(), &mut out);
+        out
+    }
+
     /// Depth first iteration over all nodes with a [`Classifier`]
     #[must_use]
     pub fn iter(&'_ self) -> Suffixes<'_> {
@@ -613,6 +647,45 @@ mod tests {
         assert_eq!(
             provenance.fallback, None,
             "the exact node wins, not the floor"
+        );
+    }
+
+    /// [`Trie::fallbacks`] yields every entry, in declaration order within a
+    /// node, and visits the Pass child last — a seat-fanned entry (one `Arc`
+    /// shared under leading-pass prefixes) surfaces its pass-less key first,
+    /// so the renderers' first-seen dedup keeps the canonical heading.
+    #[test]
+    fn fallbacks_enumerate_pass_less_key_first() {
+        use crate::bidding::fallback::{Guard, SuffixIs};
+        use std::sync::Arc;
+
+        let opening = [Call::Bid(Bid::new(1, Strain::Spades))];
+        let seat_two: Vec<Call> = core::iter::once(Call::Pass)
+            .chain(opening.iter().copied())
+            .collect();
+
+        let rules = || Fallback::classify(Rules::new().rule(Call::Pass, 0.0, hcp(0..)));
+        let shared: Arc<dyn Guard> = Arc::new(SuffixIs(vec![Call::Double]));
+
+        let mut trie = Trie::new();
+        // Declaration order within the [1♠] node: first the double guard,
+        // then an Always entry.
+        trie.fallback_arc_at(&opening, Arc::clone(&shared), rules());
+        trie.fallback_at(&opening, Always, rules());
+        // The seat-fanned variant of the first entry, under a leading pass.
+        trie.fallback_arc_at(&seat_two, Arc::clone(&shared), rules());
+
+        let all = trie.fallbacks();
+        let keys: Vec<&[Call]> = all.iter().map(|(key, ..)| &**key).collect();
+        assert_eq!(
+            keys,
+            [&opening[..], &opening[..], &seat_two[..]],
+            "pass-less key first, declaration order within the node"
+        );
+        assert_eq!(
+            all[0].1.describe().as_deref(),
+            Some("X"),
+            "the guard rides along"
         );
     }
 }

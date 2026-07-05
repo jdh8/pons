@@ -11,7 +11,10 @@ use super::super::constraint::{
     stopper_in_their_suits, suit_hcp, support, they_bid,
 };
 use super::super::context::Context;
-use super::super::fallback::{Fallback, FirstIs, OvercallAtMost, ReplaceNext, guard, rewriter};
+use super::super::fallback::{
+    Fallback, FirstIs, OvercallAtMost, ReplaceNext, SuffixIs, described_guard, described_rewrite,
+    guard, rewriter,
+};
 use super::super::trie::{Classifier, classifier};
 use super::super::{Alert, Competitive, Rules};
 use super::notrump::{
@@ -2123,9 +2126,7 @@ pub fn competition() -> Competitive {
                 &mut book,
                 &suffix,
                 3,
-                Arc::new(guard(|_: &Context<'_>, suffix: &[Call]| {
-                    suffix == [Call::Double]
-                })),
+                Arc::new(SuffixIs(vec![Call::Double])),
                 Fallback::classify({
                     let m = Strain::from(major);
                     Rules::new()
@@ -2145,14 +2146,17 @@ pub fn competition() -> Competitive {
             &mut book,
             &[call(1, Strain::from(major))],
             3,
-            Arc::new(guard(|_: &Context<'_>, suffix: &[Call]| {
-                matches!(
-                    suffix,
-                    [Call::Bid(b), Call::Double, Call::Pass]
-                        if b.level.get() == 2
-                            && (b.strain == Strain::Clubs || b.strain == Strain::Diamonds)
-                )
-            })),
+            Arc::new(described_guard(
+                "2♣/2♦ X -",
+                guard(|_: &Context<'_>, suffix: &[Call]| {
+                    matches!(
+                        suffix,
+                        [Call::Bid(b), Call::Double, Call::Pass]
+                            if b.level.get() == 2
+                                && (b.strain == Strain::Clubs || b.strain == Strain::Diamonds)
+                    )
+                }),
+            )),
             Fallback::classify(answer_neg_double_of_minor(major)),
         );
     }
@@ -2174,16 +2178,19 @@ pub fn competition() -> Competitive {
                 &mut book,
                 &[call(1, trump)],
                 3,
-                Arc::new(guard(move |_: &Context<'_>, suffix: &[Call]| {
-                    matches!(
-                        suffix,
-                        [Call::Bid(ovc), Call::Bid(cue), Call::Pass]
-                            if cue.strain == ovc.strain
-                                && cue > ovc
-                                && *ovc <= Bid::new(2, Strain::Spades)
-                                && ovc.strain != trump
-                    )
-                })),
+                Arc::new(described_guard(
+                    "(overcall ≤2♠) cue -",
+                    guard(move |_: &Context<'_>, suffix: &[Call]| {
+                        matches!(
+                            suffix,
+                            [Call::Bid(ovc), Call::Bid(cue), Call::Pass]
+                                if cue.strain == ovc.strain
+                                    && cue > ovc
+                                    && *ovc <= Bid::new(2, Strain::Spades)
+                                    && ovc.strain != trump
+                        )
+                    }),
+                )),
                 Fallback::classify(answer_cue_raise(major)),
             );
         }
@@ -2201,16 +2208,19 @@ pub fn competition() -> Competitive {
                 &mut book,
                 &[call(1, trump)],
                 3,
-                Arc::new(guard(move |_: &Context<'_>, suffix: &[Call]| {
-                    matches!(
-                        suffix,
-                        [Call::Bid(ovc), Call::Bid(cue), Call::Pass]
-                            if cue.strain == ovc.strain
-                                && cue > ovc
-                                && *cue <= Bid::new(3, Strain::Spades)
-                                && ovc.strain != trump
-                    )
-                })),
+                Arc::new(described_guard(
+                    "(overcall) (cue ≤3♠) -",
+                    guard(move |_: &Context<'_>, suffix: &[Call]| {
+                        matches!(
+                            suffix,
+                            [Call::Bid(ovc), Call::Bid(cue), Call::Pass]
+                                if cue.strain == ovc.strain
+                                    && cue > ovc
+                                    && *cue <= Bid::new(3, Strain::Spades)
+                                    && ovc.strain != trump
+                        )
+                    }),
+                )),
                 Fallback::classify(answer_cue_minor_raise(minor)),
             );
         }
@@ -2239,17 +2249,20 @@ pub fn competition() -> Competitive {
             &[one_nt],
             3,
             Arc::new(FirstIs(two_clubs)),
-            Fallback::rebase(rewriter(move |auction: &[Call], depth: usize| {
-                if auction.get(depth) != Some(&two_clubs) {
-                    return None;
-                }
-                let mut rewritten = auction.to_vec();
-                rewritten[depth] = Call::Pass; // (2♣) steals no room → systems on
-                if auction.get(depth + 1) == Some(&Call::Double) {
-                    rewritten[depth + 1] = two_clubs; // stolen 2♣ Stayman = Double
-                }
-                Some(rewritten)
-            })),
+            Fallback::rebase(described_rewrite(
+                "systems on: their 2♣ is treated as a pass; X asks as the stolen 2♣ Stayman",
+                rewriter(move |auction: &[Call], depth: usize| {
+                    if auction.get(depth) != Some(&two_clubs) {
+                        return None;
+                    }
+                    let mut rewritten = auction.to_vec();
+                    rewritten[depth] = Call::Pass; // (2♣) steals no room → systems on
+                    if auction.get(depth + 1) == Some(&Call::Double) {
+                        rewritten[depth + 1] = two_clubs; // stolen 2♣ Stayman = Double
+                    }
+                    Some(rewritten)
+                }),
+            )),
         );
 
         // The rebase routes every *continuation*, but responder must be handed a
@@ -2264,7 +2277,7 @@ pub fn competition() -> Competitive {
             &mut book,
             &[one_nt, two_clubs],
             3,
-            Arc::new(guard(|_: &Context<'_>, suffix: &[Call]| suffix.is_empty())),
+            Arc::new(SuffixIs(vec![])),
             Fallback::classify(classifier(move |hand: Hand, context: &Context<'_>| {
                 let mut logits = responses.classify(hand, context);
                 let stayman = *logits.0.get(two_clubs);
@@ -2293,9 +2306,7 @@ pub fn competition() -> Competitive {
                 &mut book,
                 &[one_nt, two_clubs],
                 3,
-                Arc::new(guard(|_: &Context<'_>, suffix: &[Call]| {
-                    suffix == [Call::Double, Call::Pass]
-                })),
+                Arc::new(SuffixIs(vec![Call::Double, Call::Pass])),
                 Fallback::classify(answers),
             );
         }
@@ -2319,9 +2330,7 @@ pub fn competition() -> Competitive {
                 &mut book,
                 &[one_nt],
                 3,
-                Arc::new(guard(move |_: &Context<'_>, suffix: &[Call]| {
-                    suffix == [overcall]
-                })),
+                Arc::new(SuffixIs(vec![overcall])),
                 Fallback::classify(responder),
             );
 
@@ -2342,9 +2351,7 @@ pub fn competition() -> Competitive {
                     &mut book,
                     &[one_nt],
                     3,
-                    Arc::new(guard(move |_: &Context<'_>, suffix: &[Call]| {
-                        suffix == [overcall, Call::Double, Call::Pass]
-                    })),
+                    Arc::new(SuffixIs(vec![overcall, Call::Double, Call::Pass])),
                     Fallback::classify(reply),
                 );
             }
@@ -2354,9 +2361,7 @@ pub fn competition() -> Competitive {
                 &mut book,
                 &[one_nt],
                 3,
-                Arc::new(guard(move |_: &Context<'_>, suffix: &[Call]| {
-                    suffix == [overcall, two_nt, Call::Pass]
-                })),
+                Arc::new(SuffixIs(vec![overcall, two_nt, Call::Pass])),
                 Fallback::classify(complete_lebensohl_relay()),
             );
 
@@ -2366,9 +2371,13 @@ pub fn competition() -> Competitive {
                 &mut book,
                 &[one_nt],
                 3,
-                Arc::new(guard(move |_: &Context<'_>, suffix: &[Call]| {
-                    suffix == [overcall, two_nt, Call::Pass, three_clubs, Call::Pass]
-                })),
+                Arc::new(SuffixIs(vec![
+                    overcall,
+                    two_nt,
+                    Call::Pass,
+                    three_clubs,
+                    Call::Pass,
+                ])),
                 Fallback::classify(lebensohl_relay_rebid(over)),
             );
 
@@ -2386,18 +2395,15 @@ pub fn competition() -> Competitive {
                     &mut book,
                     &[one_nt],
                     3,
-                    Arc::new(guard(move |_: &Context<'_>, suffix: &[Call]| {
-                        suffix
-                            == [
-                                overcall,
-                                two_nt,
-                                Call::Pass,
-                                three_clubs,
-                                Call::Pass,
-                                three_m,
-                                Call::Pass,
-                            ]
-                    })),
+                    Arc::new(SuffixIs(vec![
+                        overcall,
+                        two_nt,
+                        Call::Pass,
+                        three_clubs,
+                        Call::Pass,
+                        three_m,
+                        Call::Pass,
+                    ])),
                     Fallback::classify(lebensohl_signoff_raise(signoff, 6)),
                 );
             }
@@ -2419,9 +2425,7 @@ pub fn competition() -> Competitive {
                         &mut book,
                         &[one_nt],
                         3,
-                        Arc::new(guard(move |_: &Context<'_>, suffix: &[Call]| {
-                            suffix == [overcall, two_m, Call::Pass]
-                        })),
+                        Arc::new(SuffixIs(vec![overcall, two_m, Call::Pass])),
                         Fallback::classify(lebensohl_signoff_raise(signoff, natural_floor_hcp())),
                     );
                 }
@@ -2436,9 +2440,7 @@ pub fn competition() -> Competitive {
                     &mut book,
                     &[one_nt],
                     3,
-                    Arc::new(guard(move |_: &Context<'_>, suffix: &[Call]| {
-                        suffix == [overcall, cue, Call::Pass]
-                    })),
+                    Arc::new(SuffixIs(vec![overcall, cue, Call::Pass])),
                     Fallback::classify(cue_stayman_answer(over)),
                 );
             }
@@ -2463,9 +2465,7 @@ pub fn competition() -> Competitive {
                         &mut book,
                         &[one_nt],
                         3,
-                        Arc::new(guard(move |_: &Context<'_>, suffix: &[Call]| {
-                            suffix == [overcall, resp, Call::Pass]
-                        })),
+                        Arc::new(SuffixIs(vec![overcall, resp, Call::Pass])),
                         Fallback::classify(reply),
                     );
                 }
@@ -2481,18 +2481,15 @@ pub fn competition() -> Competitive {
                     &mut book,
                     &[one_nt],
                     3,
-                    Arc::new(guard(move |_: &Context<'_>, suffix: &[Call]| {
-                        suffix
-                            == [
-                                overcall,
-                                two_nt,
-                                Call::Pass,
-                                three_clubs,
-                                Call::Pass,
-                                cue,
-                                Call::Pass,
-                            ]
-                    })),
+                    Arc::new(SuffixIs(vec![
+                        overcall,
+                        two_nt,
+                        Call::Pass,
+                        three_clubs,
+                        Call::Pass,
+                        cue,
+                        Call::Pass,
+                    ])),
                     Fallback::classify(cue_stayman_answer(over)),
                 );
             }
@@ -2549,9 +2546,7 @@ pub fn competition() -> Competitive {
                         &mut book,
                         &[one_nt],
                         3,
-                        Arc::new(guard(move |_: &Context<'_>, s: &[Call]| {
-                            s == suffix.as_slice()
-                        })),
+                        Arc::new(SuffixIs(suffix)),
                         Fallback::classify(rules),
                     );
                 }
@@ -2571,7 +2566,7 @@ pub fn competition() -> Competitive {
             &mut book,
             &stayman,
             3,
-            Arc::new(guard(|_: &Context<'_>, s: &[Call]| s == [Call::Double])),
+            Arc::new(SuffixIs(vec![Call::Double])),
             Fallback::classify(stayman_doubled_opener()),
         );
         // After opener's *stopper-bid* (suffix `[X, <bid>, …]`) responder's rebids
@@ -2581,26 +2576,30 @@ pub fn competition() -> Competitive {
             &mut book,
             &stayman,
             3,
-            Arc::new(guard(|_: &Context<'_>, s: &[Call]| {
-                s.first() == Some(&Call::Double) && matches!(s.get(1), Some(Call::Bid(_)))
-            })),
-            Fallback::rebase(rewriter(move |auction: &[Call], depth: usize| {
-                if auction.get(depth) != Some(&Call::Double) {
-                    return None;
-                }
-                let mut rewritten = auction.to_vec();
-                rewritten[depth] = Call::Pass; // strip the X → systems on
-                Some(rewritten)
-            })),
+            Arc::new(described_guard(
+                "X (bid) …",
+                guard(|_: &Context<'_>, s: &[Call]| {
+                    s.first() == Some(&Call::Double) && matches!(s.get(1), Some(Call::Bid(_)))
+                }),
+            )),
+            Fallback::rebase(described_rewrite(
+                "systems on: their X is stripped to a pass",
+                rewriter(move |auction: &[Call], depth: usize| {
+                    if auction.get(depth) != Some(&Call::Double) {
+                        return None;
+                    }
+                    let mut rewritten = auction.to_vec();
+                    rewritten[depth] = Call::Pass; // strip the X → systems on
+                    Some(rewritten)
+                }),
+            )),
         );
         // Opener passed to deny a stopper; responder re-asks (suffix `[X, P, P]`).
         fallback_all_seats(
             &mut book,
             &stayman,
             3,
-            Arc::new(guard(|_: &Context<'_>, s: &[Call]| {
-                s == [Call::Double, Call::Pass, Call::Pass]
-            })),
+            Arc::new(SuffixIs(vec![Call::Double, Call::Pass, Call::Pass])),
             Fallback::classify(stayman_redouble_reask()),
         );
         // Opener's forced re-answer to the re-ask (suffix `[X, P, P, XX, P]`):
@@ -2610,15 +2609,13 @@ pub fn competition() -> Competitive {
             &mut book,
             &stayman,
             3,
-            Arc::new(guard(|_: &Context<'_>, s: &[Call]| {
-                s == [
-                    Call::Double,
-                    Call::Pass,
-                    Call::Pass,
-                    Call::Redouble,
-                    Call::Pass,
-                ]
-            })),
+            Arc::new(SuffixIs(vec![
+                Call::Double,
+                Call::Pass,
+                Call::Pass,
+                Call::Redouble,
+                Call::Pass,
+            ])),
             Fallback::classify(stayman_answers()),
         );
 
@@ -2633,27 +2630,33 @@ pub fn competition() -> Competitive {
             &mut book,
             &stayman,
             3,
-            Arc::new(guard(|_: &Context<'_>, s: &[Call]| {
-                s.first() == Some(&Call::Pass)
-                    && matches!(
-                        s.get(1),
-                        Some(Call::Bid(b))
-                            if b.level.get() == 2
-                                && matches!(
-                                    b.strain,
-                                    Strain::Diamonds | Strain::Hearts | Strain::Spades
-                                )
-                    )
-                    && s.get(2) == Some(&Call::Double)
-            })),
-            Fallback::rebase(rewriter(move |auction: &[Call], depth: usize| {
-                if auction.get(depth + 2) != Some(&Call::Double) {
-                    return None;
-                }
-                let mut rewritten = auction.to_vec();
-                rewritten[depth + 2] = Call::Pass; // strip the X → systems on
-                Some(rewritten)
-            })),
+            Arc::new(described_guard(
+                "- 2♦/2♥/2♠ X …",
+                guard(|_: &Context<'_>, s: &[Call]| {
+                    s.first() == Some(&Call::Pass)
+                        && matches!(
+                            s.get(1),
+                            Some(Call::Bid(b))
+                                if b.level.get() == 2
+                                    && matches!(
+                                        b.strain,
+                                        Strain::Diamonds | Strain::Hearts | Strain::Spades
+                                    )
+                        )
+                        && s.get(2) == Some(&Call::Double)
+                }),
+            )),
+            Fallback::rebase(described_rewrite(
+                "systems on: their X is stripped to a pass",
+                rewriter(move |auction: &[Call], depth: usize| {
+                    if auction.get(depth + 2) != Some(&Call::Double) {
+                        return None;
+                    }
+                    let mut rewritten = auction.to_vec();
+                    rewritten[depth + 2] = Call::Pass; // strip the X → systems on
+                    Some(rewritten)
+                }),
+            )),
         );
 
         // A.2 — our Stayman overcalled at the 2-level.  Opener's natural reply.
@@ -2663,7 +2666,7 @@ pub fn competition() -> Competitive {
                 &mut book,
                 &stayman,
                 3,
-                Arc::new(guard(move |_: &Context<'_>, s: &[Call]| s == [overcall])),
+                Arc::new(SuffixIs(vec![overcall])),
                 Fallback::classify(stayman_overcalled_opener(over)),
             );
         }
@@ -2686,7 +2689,7 @@ pub fn competition() -> Competitive {
                 &mut book,
                 &transfer,
                 3,
-                Arc::new(guard(|_: &Context<'_>, s: &[Call]| s == [Call::Double])),
+                Arc::new(SuffixIs(vec![Call::Double])),
                 Fallback::classify(transfer_doubled_opener(major, resp)),
             );
             // After opener completes/super-accepts (suffix `[X, <bid>, …]`)
@@ -2696,26 +2699,30 @@ pub fn competition() -> Competitive {
                 &mut book,
                 &transfer,
                 3,
-                Arc::new(guard(|_: &Context<'_>, s: &[Call]| {
-                    s.first() == Some(&Call::Double) && matches!(s.get(1), Some(Call::Bid(_)))
-                })),
-                Fallback::rebase(rewriter(move |auction: &[Call], depth: usize| {
-                    if auction.get(depth) != Some(&Call::Double) {
-                        return None;
-                    }
-                    let mut rewritten = auction.to_vec();
-                    rewritten[depth] = Call::Pass; // strip the X → systems on
-                    Some(rewritten)
-                })),
+                Arc::new(described_guard(
+                    "X (bid) …",
+                    guard(|_: &Context<'_>, s: &[Call]| {
+                        s.first() == Some(&Call::Double) && matches!(s.get(1), Some(Call::Bid(_)))
+                    }),
+                )),
+                Fallback::rebase(described_rewrite(
+                    "systems on: their X is stripped to a pass",
+                    rewriter(move |auction: &[Call], depth: usize| {
+                        if auction.get(depth) != Some(&Call::Double) {
+                            return None;
+                        }
+                        let mut rewritten = auction.to_vec();
+                        rewritten[depth] = Call::Pass; // strip the X → systems on
+                        Some(rewritten)
+                    }),
+                )),
             );
             // Opener passed to decline; responder re-asks (suffix `[X, P, P]`).
             fallback_all_seats(
                 &mut book,
                 &transfer,
                 3,
-                Arc::new(guard(|_: &Context<'_>, s: &[Call]| {
-                    s == [Call::Double, Call::Pass, Call::Pass]
-                })),
+                Arc::new(SuffixIs(vec![Call::Double, Call::Pass, Call::Pass])),
                 Fallback::classify(transfer_pass_reask(major)),
             );
             // Opener's forced completion after the re-ask (suffix `[X, P, P, XX, P]`):
@@ -2724,15 +2731,13 @@ pub fn competition() -> Competitive {
                 &mut book,
                 &transfer,
                 3,
-                Arc::new(guard(|_: &Context<'_>, s: &[Call]| {
-                    s == [
-                        Call::Double,
-                        Call::Pass,
-                        Call::Pass,
-                        Call::Redouble,
-                        Call::Pass,
-                    ]
-                })),
+                Arc::new(SuffixIs(vec![
+                    Call::Double,
+                    Call::Pass,
+                    Call::Pass,
+                    Call::Redouble,
+                    Call::Pass,
+                ])),
                 Fallback::classify(complete_transfer(major)),
             );
 
@@ -2747,7 +2752,7 @@ pub fn competition() -> Competitive {
                     &mut book,
                     &transfer,
                     3,
-                    Arc::new(guard(move |_: &Context<'_>, s: &[Call]| s == [overcall])),
+                    Arc::new(SuffixIs(vec![overcall])),
                     Fallback::classify(transfer_overcalled_opener(major, over_suit, over_level)),
                 );
             }
@@ -2771,7 +2776,7 @@ pub fn competition() -> Competitive {
             &mut book,
             &two_spade,
             3,
-            Arc::new(guard(|_: &Context<'_>, s: &[Call]| s == [Call::Double])),
+            Arc::new(SuffixIs(vec![Call::Double])),
             Fallback::classify(minor_doubled_opener()),
         );
         // After opener's stopper-bid (`2NT`/`3♣`, suffix `[X, <bid>, …]`) responder's
@@ -2781,17 +2786,23 @@ pub fn competition() -> Competitive {
             &mut book,
             &two_spade,
             3,
-            Arc::new(guard(|_: &Context<'_>, s: &[Call]| {
-                s.first() == Some(&Call::Double) && matches!(s.get(1), Some(Call::Bid(_)))
-            })),
-            Fallback::rebase(rewriter(move |auction: &[Call], depth: usize| {
-                if auction.get(depth) != Some(&Call::Double) {
-                    return None;
-                }
-                let mut rewritten = auction.to_vec();
-                rewritten[depth] = Call::Pass; // strip the X → systems on
-                Some(rewritten)
-            })),
+            Arc::new(described_guard(
+                "X (bid) …",
+                guard(|_: &Context<'_>, s: &[Call]| {
+                    s.first() == Some(&Call::Double) && matches!(s.get(1), Some(Call::Bid(_)))
+                }),
+            )),
+            Fallback::rebase(described_rewrite(
+                "systems on: their X is stripped to a pass",
+                rewriter(move |auction: &[Call], depth: usize| {
+                    if auction.get(depth) != Some(&Call::Double) {
+                        return None;
+                    }
+                    let mut rewritten = auction.to_vec();
+                    rewritten[depth] = Call::Pass; // strip the X → systems on
+                    Some(rewritten)
+                }),
+            )),
         );
         // Opener denied a stopper (Pass = min, suffix `[X, P, P]`; or XX = max, suffix
         // `[X, XX, P]`).  Responder signs off in clubs.
@@ -2803,7 +2814,7 @@ pub fn competition() -> Competitive {
                 &mut book,
                 &two_spade,
                 3,
-                Arc::new(guard(move |_: &Context<'_>, s: &[Call]| s == deny)),
+                Arc::new(SuffixIs(deny.to_vec())),
                 Fallback::classify(minor_no_stopper_rebid()),
             );
         }
@@ -2826,7 +2837,7 @@ pub fn competition() -> Competitive {
                 &mut book,
                 &two_spade,
                 3,
-                Arc::new(guard(move |_: &Context<'_>, s: &[Call]| s == [over])),
+                Arc::new(SuffixIs(vec![over])),
                 Fallback::classify(rules),
             );
         }
@@ -2848,7 +2859,7 @@ pub fn competition() -> Competitive {
             &mut book,
             &two_nt,
             3,
-            Arc::new(guard(|_: &Context<'_>, s: &[Call]| s == [Call::Double])),
+            Arc::new(SuffixIs(vec![Call::Double])),
             Fallback::classify(diamond_doubled_opener()),
         );
         // After opener's fit-showing bid (`3♦`/`3♣`) responder's rebids match the
@@ -2857,17 +2868,23 @@ pub fn competition() -> Competitive {
             &mut book,
             &two_nt,
             3,
-            Arc::new(guard(|_: &Context<'_>, s: &[Call]| {
-                s.first() == Some(&Call::Double) && matches!(s.get(1), Some(Call::Bid(_)))
-            })),
-            Fallback::rebase(rewriter(move |auction: &[Call], depth: usize| {
-                if auction.get(depth) != Some(&Call::Double) {
-                    return None;
-                }
-                let mut rewritten = auction.to_vec();
-                rewritten[depth] = Call::Pass; // strip the X → systems on
-                Some(rewritten)
-            })),
+            Arc::new(described_guard(
+                "X (bid) …",
+                guard(|_: &Context<'_>, s: &[Call]| {
+                    s.first() == Some(&Call::Double) && matches!(s.get(1), Some(Call::Bid(_)))
+                }),
+            )),
+            Fallback::rebase(described_rewrite(
+                "systems on: their X is stripped to a pass",
+                rewriter(move |auction: &[Call], depth: usize| {
+                    if auction.get(depth) != Some(&Call::Double) {
+                        return None;
+                    }
+                    let mut rewritten = auction.to_vec();
+                    rewritten[depth] = Call::Pass; // strip the X → systems on
+                    Some(rewritten)
+                }),
+            )),
         );
         // Opener denied a fit (Pass = min, suffix `[X, P, P]`; or XX = max values,
         // suffix `[X, XX, P]`).  Responder signs off in 3♦ (always 5+♦).
@@ -2879,7 +2896,7 @@ pub fn competition() -> Competitive {
                 &mut book,
                 &two_nt,
                 3,
-                Arc::new(guard(move |_: &Context<'_>, s: &[Call]| s == deny)),
+                Arc::new(SuffixIs(deny.to_vec())),
                 Fallback::classify(diamond_no_fit_rebid()),
             );
         }
@@ -2906,7 +2923,7 @@ pub fn competition() -> Competitive {
                 &mut book,
                 &two_nt,
                 3,
-                Arc::new(guard(move |_: &Context<'_>, s: &[Call]| s == [over])),
+                Arc::new(SuffixIs(vec![over])),
                 Fallback::classify(rules),
             );
         }
@@ -2934,9 +2951,7 @@ pub fn competition() -> Competitive {
             &mut book,
             &[one_nt],
             3,
-            Arc::new(guard(move |_: &Context<'_>, suffix: &[Call]| {
-                suffix == [overcall]
-            })),
+            Arc::new(SuffixIs(vec![overcall])),
             Fallback::classify(uvu_responder()),
         );
 
@@ -2968,9 +2983,7 @@ pub fn competition() -> Competitive {
                 &mut book,
                 &[one_nt],
                 3,
-                Arc::new(guard(move |_: &Context<'_>, s: &[Call]| {
-                    s == suffix.as_slice()
-                })),
+                Arc::new(SuffixIs(suffix)),
                 Fallback::classify(rules),
             );
         }
@@ -4228,5 +4241,52 @@ mod tests {
         let (stuck, _) = best_call(&auction, "A52.93.KJ54.AKQ6");
         assert_eq!(stuck, Call::Pass, "a doubleton with no suit stands");
         set_double_style(DoubleStyle::Penalty); // restore the default
+    }
+
+    /// Renderability invariant: every guarded fallback in the competitive book
+    /// describes itself — the guard names its condition and a rebase names its
+    /// rewrite — so `render-book` and the web book show the whole book.  A new
+    /// bare `guard(closure)` fails here; wrap it in `described_guard`.
+    #[test]
+    fn competitive_fallbacks_are_renderable() {
+        use crate::bidding::fallback::Fallback;
+
+        let book = super::competition();
+        let all = book.0.fallbacks();
+        assert!(
+            all.len() > 30,
+            "the competitive book has {} guarded entries — the walk is broken",
+            all.len()
+        );
+
+        for (auction, guard, fallback) in &all {
+            let key = contract_bridge::auction::display_calls(auction).to_string();
+            assert!(
+                guard.describe().is_some(),
+                "unlabeled guard at [{key}] — wrap it in described_guard"
+            );
+            if let Fallback::Rebase(rewrite) = fallback {
+                assert!(
+                    rewrite.describe().is_some(),
+                    "opaque rebase at [{key}] — wrap it in described_rewrite"
+                );
+            }
+        }
+
+        // One concrete probe: the [1♠] direct-seat package renders with its
+        // overcall ceiling and carries the negative double.
+        let (_, guard, fallback) = all
+            .iter()
+            .find(|(auction, ..)| auction.as_ref() == [Call::Bid(Bid::new(1, Strain::Spades))])
+            .expect("a guarded entry at [1♠]");
+        assert_eq!(guard.describe().as_deref(), Some("(overcall ≤2♠)"));
+        let Fallback::Classify(classifier) = fallback else {
+            panic!("the direct-seat package is a classifier");
+        };
+        let rules = classifier.as_rules().expect("an authored Rules table");
+        assert!(
+            rules.rules().iter().any(|rule| rule.call() == Call::Double),
+            "the negative double renders"
+        );
     }
 }

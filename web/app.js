@@ -302,13 +302,15 @@ function loadBook() {
       `<span class="ruletext">${escapeHTML(r.text)}</span>` +
       (r.label ? `<span class="tag">${escapeHTML(r.label)}</span>` : '') +
       '</div>',
-    ).join('');
+    ).join('') +
+      (node.note ? `<div class="rule"><span class="ruletext">${escapeHTML(node.note)}</span></div>` : '');
     el.innerHTML =
       `<div class="node-head"><span class="badge ${node.book}">${node.book}</span>` +
       `<span class="node-auction">${colorizeCalls(node.auction)}</span></div>${rules}`;
     frag.appendChild(el);
     const haystack =
-      (node.auction + ' ' + node.rules.map((r) => `${r.call} ${r.text}`).join(' ')).toLowerCase();
+      (node.auction + ' ' + node.rules.map((r) => `${r.call} ${r.text}`).join(' ') +
+        (node.note ? ' ' + node.note : '')).toLowerCase();
     return { el, haystack };
   });
   id('b-results').appendChild(frag);

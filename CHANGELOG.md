@@ -51,6 +51,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The competitive book renders.** The book pretty-printer (`render-book`) and
+  the web book tab printed only exact trie nodes, so the competitive book —
+  ~3,000 lines of guarded-fallback machinery (cue-raises, negative doubles,
+  support doubles, Lebensohl/Transfer-Lebensohl, UvU, the contested
+  Stayman/transfer packages) — rendered as an **empty section**. Guards and
+  rebases now describe themselves (`Guard::describe`/`Rewrite::describe`, the
+  new exact-suffix `SuffixIs` guard, `described_guard`/`described_rewrite`
+  label wrappers) and both renderers walk the new `Trie::fallbacks()`
+  enumeration: the competitive section goes from 0 to ~100 sections (e.g.
+  `1♠ (overcall ≤2♠)` with the cue-raise and negative-double rules,
+  `1♠ X … → systems on`). Render-only — the classification behavior and the
+  existing nodes' render output are byte-identical; the invariant test
+  `competitive_fallbacks_are_renderable` pins every future guard to stay
+  self-describing. Campaign plan for the coverage gaps this exposed:
+  [docs/competitive-book.md](docs/competitive-book.md).
+
 - **Web UI (`web/`): the human-facing examples in the browser.** A standalone
   wasm crate (mirroring the gin-rummy-engine site: static
   `index.html`/`app.js`/`style.css` + `wasm-pack`, no server, no framework)
