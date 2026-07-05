@@ -26,10 +26,10 @@ jobs:
     steps:
     # The web crate builds pons with `default-features = false`, so no C++
     # toolchain for ddss and no vendor/bba submodule — a plain checkout works.
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
     # Creates the Pages site if the repo doesn't have one yet — deploy-pages
     # otherwise 404s until someone flips Settings → Pages by hand.
-    - uses: actions/configure-pages@v5
+    - uses: actions/configure-pages@v6
       with:
         enablement: true
     - name: Install wasm-pack
@@ -42,8 +42,8 @@ jobs:
         cd web
         mkdir _site
         cp -r index.html app.js style.css pkg _site/
-    - uses: actions/upload-pages-artifact@v3
+    - uses: actions/upload-pages-artifact@v5
       with:
         path: web/_site
     - id: deployment
-      uses: actions/deploy-pages@v4
+      uses: actions/deploy-pages@v5
