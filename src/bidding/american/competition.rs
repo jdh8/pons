@@ -455,6 +455,28 @@ fn trap_pass() -> bool {
     TRAP_PASS.with(Cell::get)
 }
 
+thread_local! {
+    /// Whether opener's answer to partner's cue-raise (`1M – (ovc) – cue – P`)
+    /// is authored. Default on — without it the cue-raise falls through to the
+    /// keyless floor, which cannot act on a bid whose *named* suit (the cue)
+    /// differs from its *shown* suit (the major), so opener passes and the
+    /// cuebid is left in as the contract.
+    static CUE_RAISE_ANSWER: Cell<bool> = const { Cell::new(true) };
+}
+
+/// Author opener's answer to partner's cue-raise for books built *after* this
+/// call (thread-local)
+///
+/// **Default on** (`--no-ns-cue-raise-answer` in `bba-gen` for the off arm).
+pub fn set_cue_raise_answer(on: bool) {
+    CUE_RAISE_ANSWER.with(|cell| cell.set(on));
+}
+
+/// Whether opener's answer to a cue-raise is currently authored
+fn cue_raise_answer() -> bool {
+    CUE_RAISE_ANSWER.with(Cell::get)
+}
+
 /// Author responder's direct `3NT` over the overcall at `weight`, honoring the
 /// stopper ([`direct_3nt_stopper`]) and trap-pass ([`trap_pass`]) toggles. The
 /// trap denies a too-good stopper (`suit_hcp(over, ..=4)`). The `&`-chained
@@ -868,6 +890,36 @@ fn answer_neg_double_of_minor(opening_major: Suit) -> Rules {
     Rules::new()
         .rule(Bid::new(2, other_strain), 1.0, len(other, 3..))
         .rule(Bid::new(2, m), 0.5, len(opening_major, 5..))
+}
+
+/// Opener's answer after `1M – (ovc) – cue – P` (partner cue-raised to a
+/// limit-plus raise of the opening major): accept to game or decline
+///
+/// The contested twin of [`opener_after_limit_raise`][super::raises], minus the
+/// keycard ask — offering `4NT` RKCB here would strand it, because the contested
+/// node has no authored keycard *responses* (the uncontested tree installs them
+/// via `slam::install_rkcb`; this one does not). So a strong opener blasts `4M`
+/// game rather than pass out a 4NT nobody answers; slam exploration is a later
+/// opt-in.
+///
+/// The one difference from the uncontested `1M – 3M` version is the **decline**:
+/// there partner already *bid* the major, so opener passes to play it; after a
+/// cuebid partner named the *opponents'* suit, so opener must actively **sign off
+/// in 3M** — passing would leave the cuebid in as the contract (the very bug this
+/// table fixes). The point-gate does the work: a minimum opener fails
+/// `points(13..)` and takes the 3M catch-all.
+fn answer_cue_raise(major: Suit) -> Rules {
+    let trump = Strain::from(major);
+    Rules::new()
+        // 4M: accept → game.
+        .rule(Bid::new(4, trump), 1.0, points(13..))
+        // 3M: decline → sign off in the major (catch-all).
+        //
+        // ponytail: decline assumes 3M is legal, which holds for every cue below
+        // 3M — all cues over 1♠, and cues over 1♥ except a 3♠ cue. A 3♠ cue over
+        // 1♥ with a minimum opener has 3♥ illegal and falls back through to the
+        // floor (Pass); rare, revisit if the A/B surfaces it.
+        .rule(Bid::new(3, trump), 0.0, hcp(0..))
 }
 
 // ---------------------------------------------------------------------------
@@ -2045,6 +2097,38 @@ pub fn competition() -> Competitive {
             })),
             Fallback::classify(answer_neg_double_of_minor(major)),
         );
+    }
+
+    // Section 4b: opener answers partner's cue-raise of the opening major. Suffix
+    // is [1M]; the guard checks the calls after it are [ovc, cue, P] where the cue
+    // bids the overcaller's suit (higher than the overcall) and the overcall is at
+    // most 2♠ (matching the cue-raise's authored ceiling in `over_their_overcall`).
+    // The `ovc.strain != trump` clause excludes the opponents cue-bidding *our*
+    // major (e.g. a Michaels `1♠-(2♠)`): there responder's `3♠` is a natural raise,
+    // not a cue-raise, and this table must not hijack it.  Majors only. Without
+    // this the cue-raise falls through to the keyless floor — whose raise ladder
+    // needs partner's *named* and *shown* suit to agree, which a cue decouples — so
+    // opener passes and the cuebid is left in as the contract.
+    if cue_raise_answer() {
+        for major in [Suit::Hearts, Suit::Spades] {
+            let trump = Strain::from(major);
+            fallback_all_seats(
+                &mut book,
+                &[call(1, trump)],
+                3,
+                Arc::new(guard(move |_: &Context<'_>, suffix: &[Call]| {
+                    matches!(
+                        suffix,
+                        [Call::Bid(ovc), Call::Bid(cue), Call::Pass]
+                            if cue.strain == ovc.strain
+                                && cue > ovc
+                                && *ovc <= Bid::new(2, Strain::Spades)
+                                && ovc.strain != trump
+                    )
+                })),
+                Fallback::classify(answer_cue_raise(major)),
+            );
+        }
     }
 
     // Section 5: Lebensohl after our 1NT is overcalled at the 2 level. Purely
@@ -3322,6 +3406,45 @@ mod tests {
         let (c, floored) = bid_xfer(&auction, "K2.KQ32.AQ32.K32");
         assert_eq!(c, call(3, Strain::Hearts));
         assert!(!floored, "the natural super-accept must come from the book");
+    }
+
+    #[test]
+    fn opener_answers_cue_raise_instead_of_passing() {
+        // 1♠ – (2♣) – 3♣ (cue-raise = limit-plus spade raise) – P: opener must not
+        // leave the cuebid in. The screenshot deal's East (♠QT743 ♥KQ7 ♦832 ♣A9,
+        // 11 HCP — a minimum) declines by signing off in 3♠, from the book.
+        let auction = [
+            call(1, Strain::Spades),
+            call(2, Strain::Clubs),
+            call(3, Strain::Clubs),
+            Call::Pass,
+        ];
+        let (c, floored) = best_call(&auction, "QT743.KQ7.832.A9");
+        assert_eq!(c, call(3, Strain::Spades));
+        assert!(
+            !floored,
+            "opener's answer must come from the cue-raise book"
+        );
+    }
+
+    #[test]
+    fn michaels_cue_of_our_major_is_not_a_cue_raise() {
+        // 1♠ – (2♠ Michaels, a cue of OUR spades) – 3♠ (responder's NATURAL raise)
+        // – P: the cue-raise answer table must not hijack this. A strong opener
+        // (this hand tripped the old over-broad guard into a passed-out 4NT) must
+        // NOT bid 4NT here.
+        let auction = [
+            call(1, Strain::Spades),
+            call(2, Strain::Spades),
+            call(3, Strain::Spades),
+            Call::Pass,
+        ];
+        let (c, _) = best_call(&auction, "AKQT98.Q.AQT73.Q");
+        assert_ne!(
+            c,
+            call(4, Strain::Notrump),
+            "a natural spade raise must not be answered as a cue-raise"
+        );
     }
 
     #[test]

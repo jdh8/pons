@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Opener's answer to partner's cue-raise.** After `1M – (ovc) – cue – P`,
+  opener had no authored rebid, so the auction fell through to the keyless
+  instinct floor — whose raise ladder needs partner's *named* suit (the cue) and
+  *shown* suit (the major) to agree. A cue-raise decouples them (named = the
+  opponents' suit, shown = the major), so no rule fired and opener **passed the
+  cuebid out**, declaring e.g. 3♣ on a four-card fit. Now opener accepts to game
+  (`4M`, 13+ points) or declines by signing off in `3M` — never Pass. Majors
+  only; the trigger excludes the opponents cue-bidding our *own* major (a
+  Michaels `1♠-(2♠)`, where responder's `3♠` is a natural raise, not a
+  cue-raise). No keycard ask — offering `4NT` here would strand it (the
+  contested node has no authored RKCB responses), so a strong opener blasts
+  game. Measured vs BBA 2/1 (409.6k boards/arm, both vulnerabilities): plain DD
+  **+0.029 / +0.037** IMPs/board NV/vul, perfect-defense **+0.042 / +0.048**
+  (all four CIs exclude 0; +8.6…+14.5 IMPs/fired, 0.34 % fired). Default-on
+  (`--no-ns-cue-raise-answer` / `set_cue_raise_answer(false)` for the off arm).
+
 - **RKCB 1430 five-keycard answer.** The queen-distinguished responses now
   show **2 or 5** keycards on the same step (`5♥` without the trump queen,
   `5♠` with it), matching standard 1430. The answer table previously matched
