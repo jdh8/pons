@@ -91,6 +91,12 @@ const CACHALOT_TAKEOUT: Alert = Alert("comp:cachalot-takeout");
 /// Cachalot completion — opener's 1-level completion of the transfer shows
 /// **exactly three** trumps (forcing one round; the raise shows four).
 const CACHALOT_THREE: Alert = Alert("comp:cachalot-three");
+/// Jordan/Truscott `2NT` over their takeout double — a limit-plus raise of
+/// the opening (4+ support for a major, 5+ for a minor), not natural.
+const JORDAN: Alert = Alert("comp:jordan");
+/// Value redouble over their takeout double — 10+ without the Jordan fit
+/// (redoubles are natural-by-default; the alert buys the points-floor decode).
+const VALUE_REDOUBLE: Alert = Alert("comp:value-redouble");
 
 /// Which Lebensohl package the competitive book carries over our overcalled
 /// `1NT` (Section 5)
@@ -697,6 +703,28 @@ pub fn set_high_overcall_responses(on: bool) {
 /// Whether the 3-level-overcall package is engaged
 fn high_overcall_responses() -> bool {
     HIGH_OVERCALL_RESPONSES.with(Cell::get)
+}
+
+thread_local! {
+    /// Whether responder's structure over their takeout double of our 1-suit
+    /// opening is authored: Jordan/Truscott `2NT`, the value redouble, the
+    /// preemptive jump-raise flip, and weak non-forcing 2-level suits — with
+    /// the shipped systems-on rebase surviving below it as the catch-all for
+    /// every deeper continuation. Default off while the A/B runs.
+    static JORDAN_TRUSCOTT: Cell<bool> = const { Cell::new(false) };
+}
+
+/// Author responder's structure over their takeout double for books built
+/// *after* this call (thread-local)
+///
+/// Default off (`--ns-jordan-truscott` in `bba-gen` for the on arm).
+pub fn set_jordan_truscott(on: bool) {
+    JORDAN_TRUSCOTT.with(|cell| cell.set(on));
+}
+
+/// Whether the over-their-double package is engaged
+fn jordan_truscott() -> bool {
+    JORDAN_TRUSCOTT.with(Cell::get)
 }
 
 /// Author responder's direct `3NT` over the overcall at `weight`, honoring the
@@ -1481,6 +1509,96 @@ fn cachalot_takeout_answer(opening: Suit, over: Suit) -> Rules {
         .rule(Bid::new(1, Strain::Notrump), 1.0, stopper_in(over))
         .rule(Bid::new(2, o), 0.9, len(opening, 5..))
         .rule(Bid::new(2, o), 0.2, hcp(0..))
+}
+
+// ---------------------------------------------------------------------------
+// Section 11: over their takeout double (`set_jordan_truscott`)
+// ---------------------------------------------------------------------------
+
+/// Responder's first call after our 1-suit opening and their takeout double
+///
+/// Over a double the meanings genuinely change, so the whole first call is
+/// re-authored (total table); every *deeper* continuation still rides the
+/// shipped systems-on rebase below this node. Jordan/Truscott `2NT` = limit+
+/// raise (4+ support majors, 5+ minors); `XX` = 10+ without that fit; the
+/// jump raise **flips preemptive**; 1-level suits stay forcing-as-uncontested
+/// (their continuations rebase onto the uncontested tree); 2-level new suits
+/// are weak and non-forcing (2/1 is off over the double); `1NT` natural 6–9.
+fn doubled_opening_responder(opening: Suit) -> Rules {
+    let o = opening;
+    let o_strain = Strain::from(o);
+    let is_major = matches!(o, Suit::Hearts | Suit::Spades);
+    let jordan_min: usize = if is_major { 4 } else { 5 };
+    let raise_min: usize = if is_major { 3 } else { 5 };
+    let xx_max: usize = if is_major { 3 } else { 4 };
+
+    let mut rules = Rules::new()
+        .rule(
+            Bid::new(2, Strain::Notrump),
+            2.0,
+            len(o, jordan_min..) & points(10..),
+        )
+        .alert(JORDAN)
+        .rule(Call::Redouble, 1.6, hcp(10..) & len(o, ..=xx_max))
+        .alert(VALUE_REDOUBLE)
+        .rule(
+            Bid::new(3, o_strain),
+            1.5,
+            len(o, jordan_min..) & points(..=9),
+        )
+        .rule(
+            Bid::new(2, o_strain),
+            1.4,
+            len(o, raise_min..) & points(6..=9),
+        );
+    for x in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
+        if x == o {
+            continue;
+        }
+        let xs = Strain::from(x);
+        rules = rules
+            .rule(
+                Bid::new(1, xs),
+                1.3,
+                min_level_is(1, xs) & len(x, 4..) & points(6..),
+            )
+            .rule(
+                Bid::new(2, xs),
+                1.2,
+                min_level_is(2, xs) & len(x, 5..) & points(6..=9),
+            );
+    }
+    rules
+        .rule(Bid::new(1, Strain::Notrump), 1.1, hcp(6..=9))
+        .rule(Call::Pass, 0.0, hcp(0..))
+}
+
+/// Opener's answer to the flipped preemptive jump raise (`1x – (X) – 3x`)
+///
+/// The rebase would misread it as the uncontested limit raise, so this node
+/// shadows it: game only with genuine extras, else pass the preempt out.
+fn answer_preemptive_raise(opening: Suit) -> Rules {
+    let o_strain = Strain::from(opening);
+    let game = if matches!(opening, Suit::Hearts | Suit::Spades) {
+        Rules::new().rule(Bid::new(4, o_strain), 0.9, points(17..))
+    } else {
+        Rules::new().rule(Bid::new(5, o_strain), 0.9, points(19..))
+    };
+    game.rule(Call::Pass, 0.0, hcp(0..))
+}
+
+/// Opener's answer to a weak non-forcing 2-level new suit (`1x – (X) – 2y`)
+///
+/// The rebase would misread it as a 2/1 game force, so this node shadows it:
+/// raise with a fit and real extras, else pass.
+fn answer_weak_new_suit(x: Suit) -> Rules {
+    Rules::new()
+        .rule(
+            Bid::new(3, Strain::from(x)),
+            0.9,
+            len(x, 4..) & points(15..),
+        )
+        .rule(Call::Pass, 0.3, hcp(0..))
 }
 
 // ---------------------------------------------------------------------------
@@ -3036,6 +3154,57 @@ pub fn competition() -> Competitive {
                 Arc::new(SuffixIs(vec![om_cue, Call::Pass])),
                 Fallback::classify(answer_cue_raise(major)),
             );
+        }
+    }
+
+    // Section 11: over their takeout double (`set_jordan_truscott`, default
+    // off). Responder's first call at the deeper [1x, X] key — it wins over
+    // the [1x] FirstIs(X) systems-on rebase structurally, and the rebase
+    // survives untouched below it for every deeper suffix these exact-suffix
+    // guards don't claim. Opener nodes shadow exactly the three rebase
+    // misreads: Jordan-onto-Jacoby-2NT, preemptive-3x-onto-limit-raise, and
+    // weak-2y-onto-2/1.
+    if jordan_truscott() {
+        for opening in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
+            let o_strain = Strain::from(opening);
+            let key = [call(1, o_strain), Call::Double];
+
+            fallback_all_seats(
+                &mut book,
+                &key,
+                3,
+                Arc::new(SuffixIs(vec![])),
+                Fallback::classify(doubled_opening_responder(opening)),
+            );
+            fallback_all_seats(
+                &mut book,
+                &key,
+                3,
+                Arc::new(SuffixIs(vec![call(2, Strain::Notrump), Call::Pass])),
+                Fallback::classify(match opening {
+                    Suit::Hearts | Suit::Spades => answer_cue_raise(opening),
+                    minor => answer_cue_minor_raise(minor),
+                }),
+            );
+            fallback_all_seats(
+                &mut book,
+                &key,
+                3,
+                Arc::new(SuffixIs(vec![call(3, o_strain), Call::Pass])),
+                Fallback::classify(answer_preemptive_raise(opening)),
+            );
+            for x in [Suit::Clubs, Suit::Diamonds, Suit::Hearts] {
+                if Strain::from(x) >= o_strain {
+                    continue;
+                }
+                fallback_all_seats(
+                    &mut book,
+                    &key,
+                    3,
+                    Arc::new(SuffixIs(vec![call(2, Strain::from(x)), Call::Pass])),
+                    Fallback::classify(answer_weak_new_suit(x)),
+                );
+            }
         }
     }
 
@@ -5473,6 +5642,45 @@ mod tests {
         let (major, _) = best_call(&answer, "AQ542.KJ54.96.32");
         assert_eq!(major, call(3, Strain::Hearts), "four hearts answer 3♥");
         super::set_high_overcall_responses(false);
+    }
+
+    #[test]
+    fn jordan_truscott_over_their_double() {
+        super::set_jordan_truscott(true);
+        let auction = [call(1, Strain::Spades), Call::Double];
+        // Jordan 2NT: 4 trumps, limit+.
+        let (jordan, floored) = best_call(&auction, "Q542.A5.K964.Q32");
+        assert_eq!(jordan, call(2, Strain::Notrump), "Jordan/Truscott");
+        assert!(!floored, "an authored node, not the floor");
+        // Value redouble: 10+ without the fit.
+        let (xx, _) = best_call(&auction, "K2.A54.K964.Q532");
+        assert_eq!(xx, Call::Redouble, "the value redouble");
+        // The jump raise flips preemptive.
+        let (preempt, _) = best_call(&auction, "Q542.9.96432.Q32");
+        assert_eq!(preempt, call(3, Strain::Spades), "preemptive jump raise");
+        // A weak 2-level new suit is non-forcing — opener passes a minimum.
+        let weak = [
+            call(1, Strain::Spades),
+            Call::Double,
+            call(2, Strain::Clubs),
+            Call::Pass,
+        ];
+        let (pass, weak_floored) = best_call(&weak, "AQ542.K54.96.432");
+        assert_eq!(pass, Call::Pass, "the weak new suit is dropped");
+        assert!(!weak_floored, "an authored node, not the floor");
+        // Opener answers Jordan with the cue-raise ladder (not Jacoby 2NT,
+        // which the systems-on rebase would have reached).
+        let answer = [
+            call(1, Strain::Spades),
+            Call::Double,
+            call(2, Strain::Notrump),
+            Call::Pass,
+        ];
+        let (accept, _) = best_call(&answer, "AKQ54.K54.96.A32");
+        assert_eq!(accept, call(4, Strain::Spades), "a maximum accepts");
+        let (decline, _) = best_call(&answer, "AQ542.954.96.A32");
+        assert_eq!(decline, call(3, Strain::Spades), "a minimum declines");
+        super::set_jordan_truscott(false);
     }
 
     /// Renderability invariant: every guarded fallback in the competitive book

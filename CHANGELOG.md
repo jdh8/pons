@@ -51,6 +51,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Over their takeout double** (`set_jordan_truscott`, **default off**
+  pending the A/B; `--ns-jordan-truscott`). Responder's first call over
+  `1x-(X)` is re-authored at the deeper `[1x, X]` key — the shipped
+  systems-on rebase survives below it for every deeper continuation:
+  Jordan/Truscott `2NT` = limit+ raise (4+ majors / 5+ minors, alerted and
+  projection-decoded), value `XX` = 10+ without the fit, the jump raise
+  **flips preemptive**, 1-level suits stay forcing-as-uncontested, 2-level
+  new suits go weak non-forcing (2/1 is off over the double), `1NT` natural
+  6–9. Opener nodes shadow exactly the three rebase misreads: Jordan landing
+  on Jacoby 2NT (reuses the shipped cue-raise answers), the preemptive `3x`
+  landing on a limit raise, and the weak `2y` landing on a 2/1.
+
 - **Extended overcall responses** — four knobs, all **default off** pending
   their A/Bs (P3 of [docs/competitive-book.md](docs/competitive-book.md)):
   - `set_major_support_double` (`--ns-major-support-double`): opener's support

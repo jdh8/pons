@@ -341,6 +341,12 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_high_overcall: bool,
 
+    /// Author responder's structure over their takeout double of our 1-suit
+    /// opening: Jordan/Truscott 2NT, value XX, preemptive jump-raise flip,
+    /// weak NF 2-level suits (default off; see `set_jordan_truscott`).
+    #[arg(long, default_value_t = false)]
+    ns_jordan_truscott: bool,
+
     /// Disable the major-rebid-tails adjunct — the full continuations after
     /// `1♥ – 1♠` below opener's `2♠`/`3♠` raise, `2♥` rebid, and `2♣`/`2♦`
     /// minor rebid (shipped default-on; see `set_major_rebid_tails`).
@@ -1073,6 +1079,7 @@ fn main() -> anyhow::Result<()> {
         },
     );
     pons::bidding::american::set_high_overcall_responses(args.ns_high_overcall);
+    pons::bidding::american::set_jordan_truscott(args.ns_jordan_truscott);
     pons::bidding::american::set_major_rebid_tails(!args.no_ns_major_rebid_tails);
     pons::bidding::american::set_fourth_suit_forcing(!args.no_ns_fourth_suit_forcing);
     pons::bidding::american::set_texas_game_floor(args.ns_texas_game_floor);

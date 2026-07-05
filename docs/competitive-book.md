@@ -154,5 +154,5 @@ wall). Measure as three arms: `BothMajors`+free-bids / `Modern`+free-bids /
 | P3d neg-X shape | `set_negative_double_shape` | **authored** (BothMajors, `--ns-negative-double-shape`) | pending A/B |
 | P3d′ Cachalot arm | `NegativeDoubleShape::Cachalot` | **authored** (incl. opener completions) | pending A/B |
 | P3a 3-level overcalls | `set_high_overcall_responses` | **authored** (off, `--ns-high-overcall`) | pending A/B |
-| P4 Jordan/Truscott over (X) | `set_jordan_truscott` | designed | — |
+| P4 Jordan/Truscott over (X) | `set_jordan_truscott` | **authored** (off, `--ns-jordan-truscott`) | pending A/B |
 | alert invariant over fallbacks | — | follow-up | — |
