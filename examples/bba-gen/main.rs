@@ -298,6 +298,13 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_cue_minor_raise_answer: bool,
 
+    /// Author responder's structure over their two-suiters over our 1M — UvU
+    /// over their both-minors `(2NT)` and a raise structure over their
+    /// Michaels cue of our own major — and read those calls as two-suiters
+    /// (default off while measuring; see `set_uvu_over_majors`).
+    #[arg(long, default_value_t = false)]
+    ns_uvu_over_majors: bool,
+
     /// Disable the major-rebid-tails adjunct — the full continuations after
     /// `1♥ – 1♠` below opener's `2♠`/`3♠` raise, `2♥` rebid, and `2♣`/`2♦`
     /// minor rebid (shipped default-on; see `set_major_rebid_tails`).
@@ -1014,6 +1021,7 @@ fn main() -> anyhow::Result<()> {
     pons::bidding::american::set_limit_raise_acceptance(!args.no_ns_limit_raise_acceptance);
     pons::bidding::american::set_cue_raise_answer(!args.no_ns_cue_raise_answer);
     pons::bidding::american::set_cue_minor_raise_answer(!args.no_ns_cue_minor_raise_answer);
+    pons::bidding::american::set_uvu_over_majors(args.ns_uvu_over_majors);
     pons::bidding::american::set_major_rebid_tails(!args.no_ns_major_rebid_tails);
     pons::bidding::american::set_fourth_suit_forcing(!args.no_ns_fourth_suit_forcing);
     pons::bidding::american::set_texas_game_floor(args.ns_texas_game_floor);

@@ -506,6 +506,10 @@ impl Inferences {
         // majors) records points only; the 2♣/2♦ minor + major and the advancer's
         // relay are suppressed like DONT's.
         let meckwell = meckwell_reading(auction);
+        // Their two-suiter over our 1M: the Michaels cue of our own major is
+        // suppressed (it is not a natural suit in our major); what each call
+        // genuinely shows is recorded post-walk.
+        let two_suiter = two_suiter_reading(auction);
         // Our natural penalty double of their 1NT (15+): a double names no suit, so the
         // generic walk reads it as nothing — the points floor is recorded post-walk.
         let penalty_x = penalty_x_reading(auction);
@@ -571,7 +575,8 @@ impl Inferences {
                             || multi.is_some_and(|m| m.suppresses(index))
                             || woolsey_x.is_some_and(|w| w.suppresses(index))
                             || dont.is_some_and(|d| d.suppresses(index))
-                            || meckwell.is_some_and(|m| m.suppresses(index));
+                            || meckwell.is_some_and(|m| m.suppresses(index))
+                            || two_suiter.is_some_and(|t| t.suppresses(index));
 
                         // M6.4: a four-plus-level suit bid in the slam zone is
                         // classified control-bid vs to-play before the natural
@@ -960,6 +965,21 @@ impl Inferences {
                 }
             }
             players[who].narrow_points(Range::at_least(meckwell.floor, POINTS_CAP));
+        }
+
+        // Their two-suiter over our 1M.  A Michaels cue records the other major's
+        // 5-card floor (the unknown minor is a disjunction left to the residual);
+        // the both-minors (2NT) pins both.  No points floor — mini-maxi Michaels
+        // styles run too wide for a sound one.
+        if let Some(two_suiter) = two_suiter {
+            let who = relative_of(len, two_suiter.index) as usize;
+            match two_suiter.michaels_om {
+                Some(om) => players[who].narrow_length(om, Range::at_least(5, LENGTH_CAP)),
+                None => {
+                    players[who].narrow_length(Suit::Clubs, Range::at_least(5, LENGTH_CAP));
+                    players[who].narrow_length(Suit::Diamonds, Range::at_least(5, LENGTH_CAP));
+                }
+            }
         }
 
         // Our natural penalty double of their 1NT.  The shape gate only widens *which*
@@ -1620,6 +1640,70 @@ fn multi_reading(auction: &[Call]) -> Option<MultiReading> {
         advance_suppress,
         ..reading
     })
+}
+
+/// Their two-suiter over our 1♥/1♠ opening
+/// ([`set_uvu_over_majors`][crate::bidding::american::set_uvu_over_majors])
+///
+/// The defenders' *direct* action over our major opening, read as the
+/// NATURAL-family two-suiters: a `2M` cue of our own major is Michaels (5+ in
+/// the other major plus 5+ in an unknown minor), a `(2NT)` jump is unusual
+/// (both minors).  Without this reading the natural walk takes the Michaels
+/// cue as a genuine 5-card suit *in our own major* — the sampler then deals
+/// the cue-bidder length in the one suit the convention all but denies.  The
+/// unknown Michaels minor is a disjunction the per-suit ranges cannot pin, so
+/// only the other-major floor is recorded; no points floor either (mini-maxi
+/// Michaels styles run too wide for a sound one).
+#[derive(Clone, Copy)]
+struct TwoSuiterReading {
+    /// Index of their two-suited call
+    index: usize,
+    /// The other major shown by a Michaels cue of our opened major, or
+    /// [`None`] for the both-minors `(2NT)` (which needs no suppression — a
+    /// notrump bid never enters the walk's natural suit reading)
+    michaels_om: Option<Suit>,
+}
+
+impl TwoSuiterReading {
+    const fn suppresses(self, index: usize) -> bool {
+        self.michaels_om.is_some() && index == self.index
+    }
+}
+
+fn two_suiter_reading(auction: &[Call]) -> Option<TwoSuiterReading> {
+    if !crate::bidding::american::uvu_over_majors() {
+        return None;
+    }
+    let opening_index = auction.iter().position(|&c| c != Call::Pass)?;
+    let Call::Bid(opening) = auction[opening_index] else {
+        return None;
+    };
+    if opening.level.get() != 1 || !matches!(opening.strain, Strain::Hearts | Strain::Spades) {
+        return None;
+    }
+    let Some(&Call::Bid(direct)) = auction.get(opening_index + 1) else {
+        return None;
+    };
+
+    let index = opening_index + 1;
+    if direct == Bid::new(2, opening.strain) {
+        let om = if opening.strain == Strain::Hearts {
+            Suit::Spades
+        } else {
+            Suit::Hearts
+        };
+        Some(TwoSuiterReading {
+            index,
+            michaels_om: Some(om),
+        })
+    } else if direct == Bid::new(2, Strain::Notrump) {
+        Some(TwoSuiterReading {
+            index,
+            michaels_om: None,
+        })
+    } else {
+        None
+    }
 }
 
 /// Our Woolsey takeout **double** of their 1NT and the advancer's `2♣` minor relay
@@ -3168,6 +3252,72 @@ mod tests {
         ]);
         assert_eq!(inf.lho().length(Suit::Spades), Range::FULL_LENGTH);
         assert_eq!(inf.lho().points, Range::FULL_POINTS);
+    }
+
+    #[test]
+    fn michaels_cue_over_our_major_reads_the_other_major() {
+        use crate::bidding::american::set_uvu_over_majors;
+
+        // [1♥, (2♥)]: their direct cue of our opened major is Michaels — 5+
+        // spades, and NOT a natural heart suit (the walk's misread suppressed).
+        set_uvu_over_majors(true);
+        let inf = read(&[bid(1, Strain::Hearts), bid(2, Strain::Hearts)]);
+        assert!(inf.rho().length(Suit::Spades).min >= 5, "the shown major");
+        assert_eq!(
+            inf.rho().length(Suit::Hearts),
+            Range::FULL_LENGTH,
+            "the cue is not natural hearts"
+        );
+
+        // Knob off: the pre-package natural reading is preserved verbatim.
+        set_uvu_over_majors(false);
+        let inf = read(&[bid(1, Strain::Hearts), bid(2, Strain::Hearts)]);
+        assert!(inf.rho().length(Suit::Hearts).min >= 5);
+        assert_eq!(inf.rho().length(Suit::Spades), Range::FULL_LENGTH);
+    }
+
+    #[test]
+    fn unusual_2nt_over_our_major_reads_both_minors() {
+        use crate::bidding::american::set_uvu_over_majors;
+
+        set_uvu_over_majors(true);
+        let inf = read(&[bid(1, Strain::Spades), bid(2, Strain::Notrump)]);
+        assert!(inf.rho().length(Suit::Clubs).min >= 5);
+        assert!(inf.rho().length(Suit::Diamonds).min >= 5);
+        set_uvu_over_majors(false);
+
+        // Knob off: nothing recorded for their 2NT.
+        let inf = read(&[bid(1, Strain::Spades), bid(2, Strain::Notrump)]);
+        assert_eq!(inf.rho().length(Suit::Clubs), Range::FULL_LENGTH);
+        assert_eq!(inf.rho().length(Suit::Diamonds), Range::FULL_LENGTH);
+    }
+
+    #[test]
+    fn uvu_major_cue_projects_the_raise() {
+        use crate::bidding::american::set_uvu_over_majors;
+
+        // [1♥, (2NT), 3♣, (P)] from opener's seat: partner's cheap cue is the
+        // alerted limit-plus raise — decoded off its authored rule's
+        // projection (3+ hearts, 10+), not as natural clubs.
+        set_uvu_over_majors(true);
+        let inf = read_booked(&[
+            bid(1, Strain::Hearts),
+            bid(2, Strain::Notrump),
+            bid(3, Strain::Clubs),
+            Call::Pass,
+        ]);
+        let cue_bidder = inf.partner();
+        assert!(
+            cue_bidder.length(Suit::Hearts).min >= 3,
+            "the projected fit"
+        );
+        assert!(cue_bidder.points.min >= 10, "the projected strength");
+        assert_eq!(
+            cue_bidder.length(Suit::Clubs),
+            Range::FULL_LENGTH,
+            "not natural clubs"
+        );
+        set_uvu_over_majors(false);
     }
 
     #[test]

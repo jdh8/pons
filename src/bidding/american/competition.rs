@@ -66,6 +66,13 @@ const STAYMAN_REDOUBLE: Alert = Alert("comp:stayman-redouble");
 /// Transfer re-ask — responder's `XX` after the opponents doubled our Jacoby
 /// transfer and opener passed to decline: forces opener to complete (forcing).
 const TRANSFER_REDOUBLE: Alert = Alert("comp:transfer-redouble");
+/// Unusual-vs-unusual over our 1M — the cheaper cue of the two-suiter's suits
+/// (`3♣` over their both-minors `(2NT)`, the other-major cue over their
+/// Michaels) as a limit-plus raise of our major.
+const UVU_MAJOR_RAISE: Alert = Alert("comp:uvu-major-raise");
+/// The second cue over their both-minors `(2NT)` — `3♦` as a game force with
+/// 5+ cards in the other major.
+const UVU_MAJOR_FOURTH: Alert = Alert("comp:uvu-major-fourth");
 
 /// Which Lebensohl package the competitive book carries over our overcalled
 /// `1NT` (Section 5)
@@ -500,6 +507,32 @@ pub fn set_cue_minor_raise_answer(on: bool) {
 /// Whether opener's answer to a minor-opening cue-raise is currently authored
 fn cue_minor_raise_answer() -> bool {
     CUE_MINOR_RAISE_ANSWER.with(Cell::get)
+}
+
+thread_local! {
+    /// Whether responder's structure over the opponents' two-suiters over our
+    /// 1♥/1♠ opening — their both-minors `(2NT)` and their Michaels cue of our
+    /// own major — is authored, and whether the inference walk reads those
+    /// calls as two-suiters instead of natural overcalls. Default off while
+    /// the A/B runs.
+    static UVU_OVER_MAJORS: Cell<bool> = const { Cell::new(false) };
+}
+
+/// Author responder's structure over their two-suiters over our 1M for books
+/// built *after* this call, and read their direct cue / `(2NT)` as a
+/// two-suiter (thread-local)
+///
+/// The book half is read at construction; the inference half at classify time
+/// — parallel harnesses must set this inside their worker closures too.
+/// Default off (`--ns-uvu-over-majors` in `bba-gen` for the on arm).
+pub fn set_uvu_over_majors(on: bool) {
+    UVU_OVER_MAJORS.with(|cell| cell.set(on));
+}
+
+/// Whether the two-suiters-over-our-1M package is engaged (book construction
+/// *and* the [`inference`][super::super::inference] walk's two-suiter reading)
+pub(crate) fn uvu_over_majors() -> bool {
+    UVU_OVER_MAJORS.with(Cell::get)
 }
 
 /// Author responder's direct `3NT` over the overcall at `weight`, honoring the
@@ -981,6 +1014,114 @@ fn answer_cue_minor_raise(minor: Suit) -> Rules {
         .rule(Bid::new(3, trump), 0.5, min_level_is(3, trump))
         // 4m: decline when 3m sits below the cue (club opening, 3-level cue).
         .rule(Bid::new(4, trump), 0.5, min_level_is(4, trump))
+}
+
+// ---------------------------------------------------------------------------
+// Section 6: their two-suiters over our 1M (`set_uvu_over_majors`)
+// ---------------------------------------------------------------------------
+
+/// Responder after our 1M and their both-minors `(2NT)` — unusual vs unusual
+///
+/// The two cues split by strength and direction: `3♣` (their lower suit) is
+/// the limit-plus raise of our major, `3♦` a game force with 5+ in the other
+/// major. `3NT` is to play with both minors stopped; `X` shows values and a
+/// minor we can punish (the shape [`uvu_responder`] measured over our
+/// overcalled 1NT); the direct raises stay natural — `3M` competitive, `4M`
+/// preemptive. Written with `len` rather than `support` so the alerted cues
+/// project (the opening major is known here).
+fn uvu_major_responder(major: Suit) -> Rules {
+    let m = Strain::from(major);
+    let om = unbid_major(major).expect("a major opening has an unbid major");
+
+    Rules::new()
+        .rule(
+            Bid::new(3, Strain::Clubs),
+            2.0,
+            len(major, 3..) & points(10..),
+        )
+        .alert(UVU_MAJOR_RAISE)
+        .rule(
+            Bid::new(3, Strain::Diamonds),
+            1.9,
+            len(om, 5..) & points(13..),
+        )
+        .alert(UVU_MAJOR_FOURTH)
+        .rule(
+            Bid::new(3, Strain::Notrump),
+            1.5,
+            points(13..) & stopper_in(Suit::Clubs) & stopper_in(Suit::Diamonds),
+        )
+        .rule(
+            Call::Double,
+            1.4,
+            hcp(10..)
+                & (len(Suit::Clubs, 4..)
+                    | suit_hcp(Suit::Clubs, 4..)
+                    | len(Suit::Diamonds, 4..)
+                    | suit_hcp(Suit::Diamonds, 4..)),
+        )
+        .rule(Bid::new(3, m), 1.3, len(major, 3..) & points(6..=9))
+        .rule(Bid::new(4, m), 1.25, len(major, 4..) & points(..=9))
+        .rule(Call::Pass, 0.0, hcp(0..))
+}
+
+/// Responder after our 1M and their Michaels cue of our own major (`1♥-(2♥)`
+/// / `1♠-(2♠)` — 5+ in the other major and 5+ in an unknown minor)
+///
+/// The cue of their *known* suit (`2♠` over `1♥-(2♥)`, `3♥` over `1♠-(2♠)`)
+/// is the limit-plus raise; `X` shows values (their runout has nowhere quiet
+/// to land); the direct raises keep their natural meaning — the guard in
+/// Section 4b always excluded their cue of our own major precisely because
+/// `3M` here is a raise, not a cue-raise. `3♣`/`3♦` are natural weak escapes
+/// (their minor is unknown, so both are biddable).
+fn michaels_cue_responder(major: Suit) -> Rules {
+    let m = Strain::from(major);
+    let om_cue = if major == Suit::Hearts {
+        Bid::new(2, Strain::Spades)
+    } else {
+        Bid::new(3, Strain::Hearts)
+    };
+
+    Rules::new()
+        .rule(om_cue, 2.0, len(major, 3..) & points(10..))
+        .alert(UVU_MAJOR_RAISE)
+        .rule(Call::Double, 1.6, hcp(10..))
+        .rule(Bid::new(3, m), 1.3, len(major, 3..) & points(6..=9))
+        .rule(Bid::new(4, m), 1.25, len(major, 4..) & points(..=9))
+        .rule(
+            Bid::new(3, Strain::Clubs),
+            1.1,
+            len(Suit::Clubs, 6..) & points(2..=9),
+        )
+        .rule(
+            Bid::new(3, Strain::Diamonds),
+            1.1,
+            len(Suit::Diamonds, 6..) & points(2..=9),
+        )
+        .rule(Call::Pass, 0.0, hcp(0..))
+}
+
+/// Opener's answer after `1M – (2NT) – 3♦ – (P)` — partner's game force with
+/// 5+ in the other major
+///
+/// Raise the shown major to game with 3+, else `3NT` with both minors
+/// stopped, else rebid a 6-card opening major; the low-weight `3NT` is the
+/// finite catch-all (the node is forced — partner's `3♦` is unbounded).
+/// A slow forcing `3OM` probe is a deferral; opposite 13+ the blast is sound.
+fn uvu_fourth_suit_answer(major: Suit) -> Rules {
+    let m = Strain::from(major);
+    let om = unbid_major(major).expect("a major opening has an unbid major");
+    let om_strain = Strain::from(om);
+
+    Rules::new()
+        .rule(Bid::new(4, om_strain), 1.5, len(om, 3..))
+        .rule(
+            Bid::new(3, Strain::Notrump),
+            1.2,
+            stopper_in(Suit::Clubs) & stopper_in(Suit::Diamonds),
+        )
+        .rule(Bid::new(4, m), 1.0, len(major, 6..))
+        .rule(Bid::new(3, Strain::Notrump), 0.2, hcp(0..))
 }
 
 // ---------------------------------------------------------------------------
@@ -2222,6 +2363,68 @@ pub fn competition() -> Competitive {
                     }),
                 )),
                 Fallback::classify(answer_cue_minor_raise(minor)),
+            );
+        }
+    }
+
+    // Section 6: their two-suiters over our 1M (`set_uvu_over_majors`, default
+    // off): unusual-vs-unusual over their both-minors (2NT), and a raise
+    // structure over their Michaels cue of our own major. Keyed at the deeper
+    // [1M, <their call>] nodes — their cue and their 2NT are single concrete
+    // calls — so these shadow the [1M] direct-seat package (whose negative
+    // double misfires over a Michaels cue) with no declaration-order race.
+    if uvu_over_majors() {
+        for major in [Suit::Hearts, Suit::Spades] {
+            let trump = Strain::from(major);
+            let open = call(1, trump);
+            let unusual = call(2, Strain::Notrump);
+            let michaels = call(2, trump);
+            let om_cue = if major == Suit::Hearts {
+                call(2, Strain::Spades)
+            } else {
+                call(3, Strain::Hearts)
+            };
+
+            // Their (2NT): responder, then opener's answers to the two cues.
+            // The limit-plus 3♣ cue reuses the shipped cue-raise answer table.
+            fallback_all_seats(
+                &mut book,
+                &[open, unusual],
+                3,
+                Arc::new(SuffixIs(vec![])),
+                Fallback::classify(uvu_major_responder(major)),
+            );
+            fallback_all_seats(
+                &mut book,
+                &[open, unusual],
+                3,
+                Arc::new(SuffixIs(vec![call(3, Strain::Clubs), Call::Pass])),
+                Fallback::classify(answer_cue_raise(major)),
+            );
+            fallback_all_seats(
+                &mut book,
+                &[open, unusual],
+                3,
+                Arc::new(SuffixIs(vec![call(3, Strain::Diamonds), Call::Pass])),
+                Fallback::classify(uvu_fourth_suit_answer(major)),
+            );
+
+            // Their Michaels cue of our major: responder, then opener's answer
+            // to the other-major cue (again the shipped cue-raise table — its
+            // accept/decline shape is cue-agnostic).
+            fallback_all_seats(
+                &mut book,
+                &[open, michaels],
+                3,
+                Arc::new(SuffixIs(vec![])),
+                Fallback::classify(michaels_cue_responder(major)),
+            );
+            fallback_all_seats(
+                &mut book,
+                &[open, michaels],
+                3,
+                Arc::new(SuffixIs(vec![om_cue, Call::Pass])),
+                Fallback::classify(answer_cue_raise(major)),
             );
         }
     }
@@ -4241,6 +4444,71 @@ mod tests {
         let (stuck, _) = best_call(&auction, "A52.93.KJ54.AKQ6");
         assert_eq!(stuck, Call::Pass, "a doubleton with no suit stands");
         set_double_style(DoubleStyle::Penalty); // restore the default
+    }
+
+    #[test]
+    fn uvu_major_cues_split_raise_and_fourth_suit() {
+        super::set_uvu_over_majors(true);
+        // [1♥, (2NT both minors)]: 12-count with 3 hearts → 3♣ = limit+ raise.
+        let auction = [call(1, Strain::Hearts), call(2, Strain::Notrump)];
+        let (raise, floored) = best_call(&auction, "K52.QJ5.A964.Q32");
+        assert_eq!(raise, call(3, Strain::Clubs), "the cheap cue raises");
+        assert!(!floored, "an authored node, not the floor");
+        // 14-count, 5 spades, 2 hearts → 3♦ = game force in the other major.
+        let (fourth, _) = best_call(&auction, "AQJ54.K5.965.A43");
+        assert_eq!(fourth, call(3, Strain::Diamonds), "the second cue forces");
+        super::set_uvu_over_majors(false);
+    }
+
+    #[test]
+    fn michaels_cue_of_our_major_gets_a_structure() {
+        super::set_uvu_over_majors(true);
+        // [1♠, (2♠ Michaels)]: a limit raise cues their known major (3♥)...
+        let auction = [call(1, Strain::Spades), call(2, Strain::Spades)];
+        let (cue, floored) = best_call(&auction, "KQ5.A54.96432.Q2");
+        assert_eq!(cue, call(3, Strain::Hearts), "the known-suit cue raises");
+        assert!(!floored, "an authored node, not the floor");
+        // ...while a competitive 7-count raises 3♠ naturally — the raise
+        // keeps its meaning over their cue of our own suit.
+        let (raise, _) = best_call(&auction, "Q542.95.9643.KQ3");
+        assert_eq!(raise, call(3, Strain::Spades), "the natural raise survives");
+        super::set_uvu_over_majors(false);
+    }
+
+    #[test]
+    fn opener_answers_the_uvu_major_cue() {
+        super::set_uvu_over_majors(true);
+        // [1♥, (2NT), 3♣ = limit+ raise, (P)]: a minimum declines in 3♥, a
+        // maximum accepts to game — the shipped cue-raise answer, rewired.
+        let auction = [
+            call(1, Strain::Hearts),
+            call(2, Strain::Notrump),
+            call(3, Strain::Clubs),
+            Call::Pass,
+        ];
+        let (decline, floored) = best_call(&auction, "965.AQJ54.K54.32");
+        assert_eq!(decline, call(3, Strain::Hearts), "a minimum signs off");
+        assert!(!floored, "an authored node, not the floor");
+        let (accept, _) = best_call(&auction, "65.AKQ54.KJ54.A2");
+        assert_eq!(accept, call(4, Strain::Hearts), "a maximum accepts");
+        super::set_uvu_over_majors(false);
+    }
+
+    #[test]
+    fn opener_answers_the_uvu_fourth_suit_force() {
+        super::set_uvu_over_majors(true);
+        // [1♥, (2NT), 3♦ = GF 5+ spades, (P)]: three-card support raises the
+        // shown major to game.
+        let auction = [
+            call(1, Strain::Hearts),
+            call(2, Strain::Notrump),
+            call(3, Strain::Diamonds),
+            Call::Pass,
+        ];
+        let (game, floored) = best_call(&auction, "K65.AQJ54.K54.32");
+        assert_eq!(game, call(4, Strain::Spades), "raise the game force");
+        assert!(!floored, "an authored node, not the floor");
+        super::set_uvu_over_majors(false);
     }
 
     /// Renderability invariant: every guarded fallback in the competitive book

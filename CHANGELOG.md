@@ -51,6 +51,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Their two-suiters over our 1M** (`set_uvu_over_majors`, **default off**
+  pending the A/B; `--ns-uvu-over-majors` in `bba-gen` for the on arm).
+  Responder structure over their both-minors `(2NT)` — unusual vs unusual:
+  `3♣` = limit+ raise, `3♦` = GF 5+ other major (both alerted and
+  projection-decoded), `3NT` with both minors stopped, `X` = values + a
+  punishable minor — and over their Michaels cue of our own major: the
+  known-suit cue (`2♠`/`3♥`) = limit+ raise, `X` = values, direct raises stay
+  natural. Opener answers reuse the shipped cue-raise table; the `3♦` force
+  gets a raise/3NT/rebid answer node. The inference walk gains the two-suiter
+  reading: their direct cue of our opened major no longer reads as a natural
+  5-card suit *in our major* (the sampler had been dealing the cue-bidder
+  length in the one suit Michaels all but denies), and the `(2NT)` records
+  both minors 5-5. Off-state byte-identical.
+
 - **The competitive book renders.** The book pretty-printer (`render-book`) and
   the web book tab printed only exact trie nodes, so the competitive book —
   ~3,000 lines of guarded-fallback machinery (cue-raises, negative doubles,

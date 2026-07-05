@@ -146,7 +146,7 @@ wall). Measure as three arms: `BothMajors`+free-bids / `Modern`+free-bids /
 | Package | Knob | Status | Verdict (plain / PD, IMPs) |
 | --- | --- | --- | --- |
 | WS0 renderer | — | **shipped** | render-only, node output byte-identical |
-| P1 two-suiters over 1M | `set_uvu_over_majors` | designed | — |
+| P1 two-suiters over 1M | `set_uvu_over_majors` | **authored** (off, `--ns-uvu-over-majors`) | pending A/B |
 | P2a weak twos contested | `set_weak_two_competition` | designed | — |
 | P2b strong 2♣ contested | `set_strong_two_competition` | designed | — |
 | P3c major support double | `set_major_support_double` | designed | — |
