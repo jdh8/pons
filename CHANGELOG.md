@@ -25,6 +25,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (all four CIs exclude 0; +8.6…+14.5 IMPs/fired, 0.34 % fired). Default-on
   (`--no-ns-cue-raise-answer` / `set_cue_raise_answer(false)` for the off arm).
 
+- **Opener's answer to a *minor*-opening cue-raise.** The same passed-out-cue
+  bug for `1m – (ovc) – cue – P`. The minor answer differs because minor game
+  (`5m`) is remote: opener accepts to **3NT** (14+ points *and* a stopper in
+  their suit, so we are not run in the overcall suit) or signs off in our minor.
+  The sign-off level floats — `3m` when it is still available, else `4m` when a
+  three-level cue leaves `3m` below it (e.g. a club opening) — and, since the
+  engine does not mask illegal calls, each rung is legality-anchored with
+  `min_level_is` so exactly one fires. A separate knob so the A/B isolated it
+  over the shipped major answer. Measured vs BBA 2/1 (614.4k boards/arm, both
+  vulnerabilities): plain DD **+0.014 / +0.019** IMPs/board NV/vul,
+  perfect-defense **+0.022 / +0.026** (all four CIs exclude 0; +6.3…+11.8
+  IMPs/fired, 0.22 % fired). Default-on (`--no-ns-cue-minor-raise-answer` /
+  `set_cue_minor_raise_answer(false)` for the off arm). The 3NT accept always
+  prefers notrump to `5m`; splitting the two on fit length is a future probe.
+
 - **RKCB 1430 five-keycard answer.** The queen-distinguished responses now
   show **2 or 5** keycards on the same step (`5♥` without the trump queen,
   `5♠` with it), matching standard 1430. The answer table previously matched

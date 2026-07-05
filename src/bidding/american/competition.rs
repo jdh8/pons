@@ -7,8 +7,8 @@
 //! minor overcall.
 
 use super::super::constraint::{
-    Cons, Constraint, described, has_stopper, hcp, len, min_level_is, points, stopper_in, suit_hcp,
-    support, they_bid,
+    Cons, Constraint, described, has_stopper, hcp, len, min_level_is, points, stopper_in,
+    stopper_in_their_suits, suit_hcp, support, they_bid,
 };
 use super::super::context::Context;
 use super::super::fallback::{Fallback, FirstIs, OvercallAtMost, ReplaceNext, guard, rewriter};
@@ -477,6 +477,28 @@ fn cue_raise_answer() -> bool {
     CUE_RAISE_ANSWER.with(Cell::get)
 }
 
+thread_local! {
+    /// Whether opener's answer to a *minor*-opening cue-raise
+    /// (`1m – (ovc) – cue – P`) is authored. The minor twin of
+    /// [`CUE_RAISE_ANSWER`]; separate knob so the A/B can isolate the minor
+    /// contribution over the already-shipped major answer. Default on.
+    static CUE_MINOR_RAISE_ANSWER: Cell<bool> = const { Cell::new(true) };
+}
+
+/// Author opener's answer to a minor-opening cue-raise for books built *after*
+/// this call (thread-local)
+///
+/// **Default on** (`--no-ns-cue-minor-raise-answer` in `bba-gen` for the off
+/// arm). Independent of [`set_cue_raise_answer`], which governs the majors.
+pub fn set_cue_minor_raise_answer(on: bool) {
+    CUE_MINOR_RAISE_ANSWER.with(|cell| cell.set(on));
+}
+
+/// Whether opener's answer to a minor-opening cue-raise is currently authored
+fn cue_minor_raise_answer() -> bool {
+    CUE_MINOR_RAISE_ANSWER.with(Cell::get)
+}
+
 /// Author responder's direct `3NT` over the overcall at `weight`, honoring the
 /// stopper ([`direct_3nt_stopper`]) and trap-pass ([`trap_pass`]) toggles. The
 /// trap denies a too-good stopper (`suit_hcp(over, ..=4)`). The `&`-chained
@@ -920,6 +942,42 @@ fn answer_cue_raise(major: Suit) -> Rules {
         // 1♥ with a minimum opener has 3♥ illegal and falls back through to the
         // floor (Pass); rare, revisit if the A/B surfaces it.
         .rule(Bid::new(3, trump), 0.0, hcp(0..))
+}
+
+/// Opener's answer after `1m – (ovc) – cue – P` (partner cue-raised to a
+/// limit-plus raise of the opening minor): bid the best game or sign off
+///
+/// The minor twin of [`answer_cue_raise`]. Two differences from the major
+/// version, both because minor game (`5m`) is remote:
+///
+/// * **Accept is `3NT`, not `5m`** — gated on values *and* a stopper in their
+///   suit (`stopper_in_their_suits`), so we don't get run in the overcall suit.
+///   `3NT` outranks any in-scope cue (`≤ 3♠`), so it is always legal.
+/// * **Decline is our minor, but its level floats.** After a 1-level overcall
+///   the cue is at the 2 level and `3m` signs off; after a 2-level overcall the
+///   cue is at the 3 level and `3m` sits *below* it for a club opening, so `4m`
+///   is the only sign-off. The engine does **not** mask illegal calls, so each
+///   decline rung is legality-anchored with `min_level_is`: exactly one of `3m`
+///   / `4m` is the cheapest our-minor bid in any given auction, and only that
+///   one fires.
+fn answer_cue_minor_raise(minor: Suit) -> Rules {
+    let trump = Strain::from(minor);
+    Rules::new()
+        // 3NT: accept to the best game — needs values and their suit stopped.
+        //
+        // ponytail: always 3NT, never 5m. A single stopper is thin against a
+        // 6-card overcall suit, and a 10-card minor fit sometimes plays 5m when
+        // 3NT gets run. The A/B win is net of that tail; splitting 3NT-vs-5m on
+        // fit length is the upgrade path if a re-measure wants the last IMPs.
+        .rule(
+            Bid::new(3, Strain::Notrump),
+            1.0,
+            points(14..) & stopper_in_their_suits(),
+        )
+        // 3m: decline when our minor is still available at the 3 level.
+        .rule(Bid::new(3, trump), 0.5, min_level_is(3, trump))
+        // 4m: decline when 3m sits below the cue (club opening, 3-level cue).
+        .rule(Bid::new(4, trump), 0.5, min_level_is(4, trump))
 }
 
 // ---------------------------------------------------------------------------
@@ -2127,6 +2185,33 @@ pub fn competition() -> Competitive {
                     )
                 })),
                 Fallback::classify(answer_cue_raise(major)),
+            );
+        }
+    }
+
+    // Section 4c: the minor twin of 4b. A minor-opening cue-raise passes out the
+    // same way. The cue may sit as high as `3♠` (a 2-level overcall forces the
+    // cue to the 3 level), so the ceiling is `cue <= 3♠` rather than `ovc <= 2♠`.
+    // `ovc.strain != trump` again excludes a cue of our own minor (e.g. Michaels
+    // `1♣-(2♣)` showing the majors — responder's `3♣` there is a raise).
+    if cue_minor_raise_answer() {
+        for minor in [Suit::Clubs, Suit::Diamonds] {
+            let trump = Strain::from(minor);
+            fallback_all_seats(
+                &mut book,
+                &[call(1, trump)],
+                3,
+                Arc::new(guard(move |_: &Context<'_>, suffix: &[Call]| {
+                    matches!(
+                        suffix,
+                        [Call::Bid(ovc), Call::Bid(cue), Call::Pass]
+                            if cue.strain == ovc.strain
+                                && cue > ovc
+                                && *cue <= Bid::new(3, Strain::Spades)
+                                && ovc.strain != trump
+                    )
+                })),
+                Fallback::classify(answer_cue_minor_raise(minor)),
             );
         }
     }
@@ -3445,6 +3530,41 @@ mod tests {
             call(4, Strain::Notrump),
             "a natural spade raise must not be answered as a cue-raise"
         );
+    }
+
+    #[test]
+    fn opener_answers_minor_cue_raise() {
+        // 1♦ – (2♣) – 3♣ (cue-raise = limit-plus diamond raise) – P.
+        // Minimum, no club stopper (12 HCP, ♣Q doubleton) → sign off 3♦.
+        let auction = [
+            call(1, Strain::Diamonds),
+            call(2, Strain::Clubs),
+            call(3, Strain::Clubs),
+            Call::Pass,
+        ];
+        let (c, floored) = best_call(&auction, "K43.Q43.AJ632.Q5");
+        assert_eq!(c, call(3, Strain::Diamonds));
+        assert!(!floored, "the minor sign-off must come from the book");
+        // Values + a club stopper (17 HCP, ♣Kx) → accept the best game, 3NT.
+        let (c, floored) = best_call(&auction, "A54.Q43.AKJ32.K5");
+        assert_eq!(c, call(3, Strain::Notrump));
+        assert!(!floored, "the 3NT accept must come from the book");
+    }
+
+    #[test]
+    fn minor_cue_raise_decline_jumps_when_3m_is_below_the_cue() {
+        // 1♣ – (2♦) – 3♦ (cue-raise = limit-plus club raise) – P: 3♣ now sits
+        // *below* the cue and is illegal, so a minimum opener must decline in 4♣,
+        // not pass the cuebid out. Guards the 4m fallback rung.
+        let auction = [
+            call(1, Strain::Clubs),
+            call(2, Strain::Diamonds),
+            call(3, Strain::Diamonds),
+            Call::Pass,
+        ];
+        let (c, floored) = best_call(&auction, "A32.K43.43.KQ432");
+        assert_eq!(c, call(4, Strain::Clubs));
+        assert!(!floored, "the 4♣ decline must come from the book");
     }
 
     #[test]

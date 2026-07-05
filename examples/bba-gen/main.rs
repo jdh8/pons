@@ -293,6 +293,11 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_cue_raise_answer: bool,
 
+    /// Disable opener's answer to a *minor*-opening cue-raise
+    /// (`1m – (ovc) – cue – P`) (default-on; see `set_cue_minor_raise_answer`).
+    #[arg(long, default_value_t = false)]
+    no_ns_cue_minor_raise_answer: bool,
+
     /// Disable the major-rebid-tails adjunct — the full continuations after
     /// `1♥ – 1♠` below opener's `2♠`/`3♠` raise, `2♥` rebid, and `2♣`/`2♦`
     /// minor rebid (shipped default-on; see `set_major_rebid_tails`).
@@ -1008,6 +1013,7 @@ fn main() -> anyhow::Result<()> {
     pons::bidding::american::set_major_game_tries(!args.no_ns_major_game_tries);
     pons::bidding::american::set_limit_raise_acceptance(!args.no_ns_limit_raise_acceptance);
     pons::bidding::american::set_cue_raise_answer(!args.no_ns_cue_raise_answer);
+    pons::bidding::american::set_cue_minor_raise_answer(!args.no_ns_cue_minor_raise_answer);
     pons::bidding::american::set_major_rebid_tails(!args.no_ns_major_rebid_tails);
     pons::bidding::american::set_fourth_suit_forcing(!args.no_ns_fourth_suit_forcing);
     pons::bidding::american::set_texas_game_floor(args.ns_texas_game_floor);
