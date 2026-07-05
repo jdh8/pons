@@ -305,6 +305,18 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_uvu_over_majors: bool,
 
+    /// Author our contested weak twos — business XX + systems-on Ogust over
+    /// their double, Ogust-when-legal / values-X / preemptive raises over
+    /// their overcall (default off; see `set_weak_two_competition`).
+    #[arg(long, default_value_t = false)]
+    ns_weak_two_comp: bool,
+
+    /// Author our contested strong 2♣ — systems-on over their double, natural
+    /// GF / values-X / waiting-pass + forced reopening over their overcall
+    /// (default off; see `set_strong_two_competition`).
+    #[arg(long, default_value_t = false)]
+    ns_strong_two_comp: bool,
+
     /// Disable the major-rebid-tails adjunct — the full continuations after
     /// `1♥ – 1♠` below opener's `2♠`/`3♠` raise, `2♥` rebid, and `2♣`/`2♦`
     /// minor rebid (shipped default-on; see `set_major_rebid_tails`).
@@ -1022,6 +1034,8 @@ fn main() -> anyhow::Result<()> {
     pons::bidding::american::set_cue_raise_answer(!args.no_ns_cue_raise_answer);
     pons::bidding::american::set_cue_minor_raise_answer(!args.no_ns_cue_minor_raise_answer);
     pons::bidding::american::set_uvu_over_majors(args.ns_uvu_over_majors);
+    pons::bidding::american::set_weak_two_competition(args.ns_weak_two_comp);
+    pons::bidding::american::set_strong_two_competition(args.ns_strong_two_comp);
     pons::bidding::american::set_major_rebid_tails(!args.no_ns_major_rebid_tails);
     pons::bidding::american::set_fourth_suit_forcing(!args.no_ns_fourth_suit_forcing);
     pons::bidding::american::set_texas_game_floor(args.ns_texas_game_floor);

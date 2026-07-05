@@ -49,7 +49,7 @@ use contract_bridge::{Bid, Strain, Suit};
 /// - **Simple raise** (weight 1.2): three-plus-card support, preemptive.
 /// - **Pass** (weight 0.0): catch-all.
 #[must_use]
-fn responses(our: Suit) -> Rules {
+pub(super) fn responses(our: Suit) -> Rules {
     let trump = Strain::from(our);
     let mut rules = Rules::new()
         // Ogust 2NT: at least two-card support and opening values.

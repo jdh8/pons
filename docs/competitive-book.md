@@ -147,8 +147,8 @@ wall). Measure as three arms: `BothMajors`+free-bids / `Modern`+free-bids /
 | --- | --- | --- | --- |
 | WS0 renderer | — | **shipped** | render-only, node output byte-identical |
 | P1 two-suiters over 1M | `set_uvu_over_majors` | **authored** (off, `--ns-uvu-over-majors`) | pending A/B |
-| P2a weak twos contested | `set_weak_two_competition` | designed | — |
-| P2b strong 2♣ contested | `set_strong_two_competition` | designed | — |
+| P2a weak twos contested | `set_weak_two_competition` | **authored** (off, `--ns-weak-two-comp`) | pending A/B |
+| P2b strong 2♣ contested | `set_strong_two_competition` | **authored** (off, `--ns-strong-two-comp`) | pending A/B |
 | P3c major support double | `set_major_support_double` | designed | — |
 | P3b free bids | `set_free_bids` | designed | — |
 | P3d neg-X shape | `set_negative_double_shape` | designed | — |

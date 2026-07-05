@@ -51,6 +51,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Contested weak twos** (`set_weak_two_competition`, **default off** pending
+  the A/B; `--ns-weak-two-comp`). Over their takeout double the uncontested
+  responses ride (Ogust still asks, raises stay preemptive — RONF) plus a
+  business `XX` on 13+ without the Ogust fit, and every deeper continuation is
+  systems-on (their X stripped to a pass), so opener's five-rung Ogust ladder
+  and the forcing-new-suit replies survive intact. Over their overcall (≤3♠):
+  Ogust-when-legal, a penalty-leaning values `X` (11+, the settle floor
+  answers it), and any-strength preemptive raises; a targeted rebase routes
+  the contested Ogust to opener's undisturbed answers.
+
+- **Contested strong 2♣** (`set_strong_two_competition`, **default off**
+  pending the A/B; `--ns-strong-two-comp`). Over their double: systems on (the
+  X steals no room). Over their overcall: natural game-forcing new suits (the
+  uncontested positive shape, legality-anchored), `2NT`/`3NT` balanced
+  positives with their suit stopped, `X` = "cards" 6+ — shadowing the floor's
+  *takeout* reading of a double made in front of a 22+ opener, the live bug —
+  and a waiting Pass backed by opener's forced reopening (natural rebids,
+  notrump with a stopper, finite catch-all `X`): 22+ never sells out.
+
 - **Their two-suiters over our 1M** (`set_uvu_over_majors`, **default off**
   pending the A/B; `--ns-uvu-over-majors` in `bba-gen` for the on arm).
   Responder structure over their both-minors `(2NT)` — unusual vs unusual:

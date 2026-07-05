@@ -7,8 +7,8 @@
 //! minor overcall.
 
 use super::super::constraint::{
-    Cons, Constraint, described, has_stopper, hcp, len, min_level_is, points, stopper_in,
-    stopper_in_their_suits, suit_hcp, support, they_bid,
+    Cons, Constraint, balanced, described, has_stopper, hcp, len, min_level_is, points, stopper_in,
+    stopper_in_their_suits, suit_hcp, support, they_bid, top_honors,
 };
 use super::super::context::Context;
 use super::super::fallback::{
@@ -21,6 +21,7 @@ use super::notrump::{
     PUPPET, complete_transfer, notrump_minors, notrump_responses, smolen_at_three,
     smolen_completion, stayman_answers, transfer_super_accept,
 };
+use super::weak_twos;
 use super::{call, fallback_all_seats};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Hand, Strain, Suit};
@@ -73,6 +74,12 @@ const UVU_MAJOR_RAISE: Alert = Alert("comp:uvu-major-raise");
 /// The second cue over their both-minors `(2NT)` — `3♦` as a game force with
 /// 5+ cards in the other major.
 const UVU_MAJOR_FOURTH: Alert = Alert("comp:uvu-major-fourth");
+/// Business redouble of their takeout double of our weak two — 13+ values
+/// (redoubles are natural-by-default; the alert buys the points-floor decode).
+const WEAK_TWO_XX: Alert = Alert("comp:weak-two-xx");
+/// Ogust survives their overcall of our weak two — the contested `2NT` still
+/// asks (2+ card support, 14+), alerted so the fit and strength project.
+const CONTESTED_OGUST: Alert = Alert("comp:ogust");
 
 /// Which Lebensohl package the competitive book carries over our overcalled
 /// `1NT` (Section 5)
@@ -533,6 +540,47 @@ pub fn set_uvu_over_majors(on: bool) {
 /// *and* the [`inference`][super::super::inference] walk's two-suiter reading)
 pub(crate) fn uvu_over_majors() -> bool {
     UVU_OVER_MAJORS.with(Cell::get)
+}
+
+thread_local! {
+    /// Whether our contested weak twos are authored: responder over their
+    /// takeout double (business `XX`, systems-on Ogust) and over their
+    /// overcall (Ogust-when-legal, values `X`, preemptive raises). Default
+    /// off while the A/B runs.
+    static WEAK_TWO_COMPETITION: Cell<bool> = const { Cell::new(false) };
+
+    /// Whether our contested strong 2♣ is authored: systems-on over their
+    /// double, and over their overcall a natural-GF / values-`X` / waiting-
+    /// pass structure backed by opener's forced reopening. Default off while
+    /// the A/B runs. Without it responder's `X` falls to the floor's
+    /// *takeout* reading — with a 22+ opener behind it.
+    static STRONG_TWO_COMPETITION: Cell<bool> = const { Cell::new(false) };
+}
+
+/// Author our contested weak twos for books built *after* this call
+/// (thread-local)
+///
+/// Default off (`--ns-weak-two-comp` in `bba-gen` for the on arm).
+pub fn set_weak_two_competition(on: bool) {
+    WEAK_TWO_COMPETITION.with(|cell| cell.set(on));
+}
+
+/// Whether the contested weak-two package is engaged
+fn weak_two_competition() -> bool {
+    WEAK_TWO_COMPETITION.with(Cell::get)
+}
+
+/// Author our contested strong 2♣ for books built *after* this call
+/// (thread-local)
+///
+/// Default off (`--ns-strong-two-comp` in `bba-gen` for the on arm).
+pub fn set_strong_two_competition(on: bool) {
+    STRONG_TWO_COMPETITION.with(|cell| cell.set(on));
+}
+
+/// Whether the contested strong-2♣ package is engaged
+fn strong_two_competition() -> bool {
+    STRONG_TWO_COMPETITION.with(Cell::get)
 }
 
 /// Author responder's direct `3NT` over the overcall at `weight`, honoring the
@@ -1122,6 +1170,117 @@ fn uvu_fourth_suit_answer(major: Suit) -> Rules {
         )
         .rule(Bid::new(4, m), 1.0, len(major, 6..))
         .rule(Bid::new(3, Strain::Notrump), 0.2, hcp(0..))
+}
+
+// ---------------------------------------------------------------------------
+// Section 7: our contested weak twos (`set_weak_two_competition`)
+// ---------------------------------------------------------------------------
+
+/// Responder after our weak two in `our` and their takeout double
+///
+/// The uncontested responses ride unchanged — Ogust `2NT` still asks, raises
+/// stay preemptive (RONF), the forcing new suits survive — plus a business
+/// redouble: 13+ values without the 2-card fit Ogust wants (a fit-and-values
+/// hand still prefers the ask, whose weight sits above).
+fn weak_two_doubled_responder(our: Suit) -> Rules {
+    weak_twos::responses(our)
+        .rule(Call::Redouble, 1.8, hcp(13..))
+        .alert(WEAK_TWO_XX)
+}
+
+/// Responder after our weak two in `our` and their overcall (≤ 3♠)
+///
+/// Ogust survives when `2NT` is still available (their overcall ≤ 2♠); `X` is
+/// a penalty-leaning values double (the floor's settle machinery answers it —
+/// sit on a stack, pull with shape); the raises stay preemptive at *any*
+/// strength — blocking, not inviting (RONF).
+fn weak_two_overcalled_responder(our: Suit) -> Rules {
+    let trump = Strain::from(our);
+    Rules::new()
+        .rule(
+            Bid::new(2, Strain::Notrump),
+            2.0,
+            min_level_is(2, Strain::Notrump) & len(our, 2..) & points(14..),
+        )
+        .alert(CONTESTED_OGUST)
+        .rule(Call::Double, 1.6, hcp(11..))
+        .rule(
+            Bid::new(3, trump),
+            1.3,
+            min_level_is(3, trump) & len(our, 3..),
+        )
+        .rule(Bid::new(4, trump), 1.25, len(our, 4..))
+        .rule(Call::Pass, 0.0, hcp(0..))
+}
+
+// ---------------------------------------------------------------------------
+// Section 8: our contested strong 2♣ (`set_strong_two_competition`)
+// ---------------------------------------------------------------------------
+
+/// Responder after our strong 2♣ and their overcall
+///
+/// Natural game-forcing new suits keep the uncontested positive shape (5+
+/// suit to two top honors, 8+), legality-anchored so exactly one rung fires;
+/// `2NT`/`3NT` is the balanced positive with their suit stopped; `X` shows
+/// "cards" (6+ HCP, penalty-leaning opposite 22+ — shadowing the floor's
+/// *takeout* reading, the bug this table fixes); **Pass is waiting**, safe
+/// because opener's reopening node below never sells out.
+fn strong_two_overcalled_responder() -> Rules {
+    let mut rules = Rules::new()
+        .rule(
+            Bid::new(2, Strain::Notrump),
+            1.3,
+            min_level_is(2, Strain::Notrump) & hcp(8..) & balanced() & stopper_in_their_suits(),
+        )
+        .rule(
+            Bid::new(3, Strain::Notrump),
+            1.3,
+            min_level_is(3, Strain::Notrump) & hcp(8..) & balanced() & stopper_in_their_suits(),
+        )
+        .rule(Call::Double, 1.2, hcp(6..))
+        .rule(Call::Pass, 0.5, hcp(0..));
+    for x in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
+        let strain = Strain::from(x);
+        for level in 2..=3u8 {
+            rules = rules.rule(
+                Bid::new(level, strain),
+                1.5,
+                min_level_is(level, strain) & len(x, 5..) & top_honors(x, 2..) & points(8..),
+            );
+        }
+    }
+    rules
+}
+
+/// Opener's forced reopening after `2♣ – (overcall) – P – (P)`
+///
+/// A 22+ hand never sells out to an overcall: natural 5+ suit rebids
+/// (legality-anchored rungs), notrump with their suit stopped, and a "cards"
+/// double as the finite catch-all — partner decides whether to defend.
+fn strong_two_reopening() -> Rules {
+    let mut rules = Rules::new()
+        .rule(
+            Bid::new(2, Strain::Notrump),
+            1.2,
+            min_level_is(2, Strain::Notrump) & balanced() & stopper_in_their_suits(),
+        )
+        .rule(
+            Bid::new(3, Strain::Notrump),
+            1.2,
+            min_level_is(3, Strain::Notrump) & balanced() & stopper_in_their_suits(),
+        )
+        .rule(Call::Double, 0.4, hcp(0..));
+    for x in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
+        let strain = Strain::from(x);
+        for level in 2..=3u8 {
+            rules = rules.rule(
+                Bid::new(level, strain),
+                1.0,
+                min_level_is(level, strain) & len(x, 5..),
+            );
+        }
+    }
+    rules
 }
 
 // ---------------------------------------------------------------------------
@@ -2427,6 +2586,94 @@ pub fn competition() -> Competitive {
                 Fallback::classify(answer_cue_raise(major)),
             );
         }
+    }
+
+    // Section 7: our contested weak twos (`set_weak_two_competition`, default
+    // off). Their double: responder's first call at the deeper [2M, X] node
+    // (business XX riding on the uncontested responses), everything deeper
+    // systems-on. Their overcall (≤ 3♠): responder's direct action, and a
+    // targeted rebase so an Ogust 2NT bid over the overcall still gets
+    // opener's undisturbed five-rung answer.
+    if weak_two_competition() {
+        for our in [Suit::Diamonds, Suit::Hearts, Suit::Spades] {
+            let trump = Strain::from(our);
+            let open = call(2, trump);
+            let two_nt = call(2, Strain::Notrump);
+
+            fallback_all_seats(
+                &mut book,
+                &[open, Call::Double],
+                3,
+                Arc::new(SuffixIs(vec![])),
+                Fallback::classify(weak_two_doubled_responder(our)),
+            );
+            fallback_all_seats(
+                &mut book,
+                &[open],
+                3,
+                Arc::new(FirstIs(Call::Double)),
+                Fallback::rebase(ReplaceNext(Call::Pass)),
+            );
+
+            fallback_all_seats(
+                &mut book,
+                &[open],
+                3,
+                Arc::new(OvercallAtMost(Bid::new(3, Strain::Spades))),
+                Fallback::classify(weak_two_overcalled_responder(our)),
+            );
+            fallback_all_seats(
+                &mut book,
+                &[open],
+                3,
+                Arc::new(described_guard(
+                    "(overcall <2NT) 2NT …",
+                    guard(move |_: &Context<'_>, s: &[Call]| {
+                        matches!(s.first(), Some(&Call::Bid(b)) if b < Bid::new(2, Strain::Notrump))
+                            && s.get(1) == Some(&two_nt)
+                    }),
+                )),
+                Fallback::rebase(ReplaceNext(Call::Pass)),
+            );
+        }
+    }
+
+    // Section 8: our contested strong 2♣ (`set_strong_two_competition`,
+    // default off). Their double steals no room → systems on wholesale; their
+    // overcall gets responder's natural-GF / values-X / waiting-pass table,
+    // backed by opener's forced reopening in the pass-out seat.
+    if strong_two_competition() {
+        let open = call(2, Strain::Clubs);
+
+        fallback_all_seats(
+            &mut book,
+            &[open],
+            3,
+            Arc::new(FirstIs(Call::Double)),
+            Fallback::rebase(ReplaceNext(Call::Pass)),
+        );
+        fallback_all_seats(
+            &mut book,
+            &[open],
+            3,
+            Arc::new(described_guard(
+                "(overcall)",
+                guard(|_: &Context<'_>, s: &[Call]| matches!(s, [Call::Bid(_)])),
+            )),
+            Fallback::classify(strong_two_overcalled_responder()),
+        );
+        fallback_all_seats(
+            &mut book,
+            &[open],
+            3,
+            Arc::new(described_guard(
+                "(overcall) - -",
+                guard(|_: &Context<'_>, s: &[Call]| {
+                    matches!(s, [Call::Bid(_), Call::Pass, Call::Pass])
+                }),
+            )),
+            Fallback::classify(strong_two_reopening()),
+        );
     }
 
     // Section 5: Lebensohl after our 1NT is overcalled at the 2 level. Purely
@@ -4509,6 +4756,82 @@ mod tests {
         assert_eq!(game, call(4, Strain::Spades), "raise the game force");
         assert!(!floored, "an authored node, not the floor");
         super::set_uvu_over_majors(false);
+    }
+
+    #[test]
+    fn weak_two_doubled_gets_business_redouble_and_systems_on() {
+        super::set_weak_two_competition(true);
+        // [2♠, (X)]: 17-count with a singleton spade — no Ogust fit — redoubles.
+        let auction = [call(2, Strain::Spades), Call::Double];
+        let (xx, floored) = best_call(&auction, "A.K654.A964.KQ32");
+        assert_eq!(xx, Call::Redouble, "business redouble on values");
+        assert!(!floored, "an authored node, not the floor");
+        // A 3-card raise stays preemptive (RONF rides through unchanged).
+        let (raise, _) = best_call(&auction, "954.Q542.964.432");
+        assert_eq!(raise, call(3, Strain::Spades), "the raise stays preemptive");
+        // Deeper continuations are systems-on: opener answers Ogust through
+        // the rebase exactly as if undisturbed (min points, good suit → 3♦).
+        let ogust = [
+            call(2, Strain::Hearts),
+            Call::Double,
+            call(2, Strain::Notrump),
+            Call::Pass,
+        ];
+        let (answer, _) = best_call(&ogust, "54.KQ9654.96.432");
+        assert_eq!(answer, call(3, Strain::Diamonds), "Ogust survives their X");
+        super::set_weak_two_competition(false);
+    }
+
+    #[test]
+    fn weak_two_overcalled_double_is_values_and_ogust_survives() {
+        super::set_weak_two_competition(true);
+        // [2♥, (2♠)]: a 12-count doubles for penalty-leaning values.
+        let auction = [call(2, Strain::Hearts), call(2, Strain::Spades)];
+        let (double, floored) = best_call(&auction, "KJ54.Q5.A964.Q32");
+        assert_eq!(double, Call::Double, "values double");
+        assert!(!floored, "an authored node, not the floor");
+        // A 16-count with a doubleton heart still asks Ogust...
+        let (ask, _) = best_call(&auction, "AK54.Q5.A964.K32");
+        assert_eq!(ask, call(2, Strain::Notrump), "Ogust survives the overcall");
+        // ...and opener's five-rung answer arrives through the targeted rebase.
+        let answered = [
+            call(2, Strain::Hearts),
+            call(2, Strain::Spades),
+            call(2, Strain::Notrump),
+            Call::Pass,
+        ];
+        let (answer, _) = best_call(&answered, "54.KQ9654.96.432");
+        assert_eq!(answer, call(3, Strain::Diamonds), "min points, good suit");
+        super::set_weak_two_competition(false);
+    }
+
+    #[test]
+    fn strong_two_contested_stays_strong() {
+        super::set_strong_two_competition(true);
+        // [2♣, (X)]: systems on — a bust still gives the 2♥ double negative.
+        let doubled = [call(2, Strain::Clubs), Call::Double];
+        let (negative, floored) = best_call(&doubled, "9542.Q54.964.432");
+        assert_eq!(negative, call(2, Strain::Hearts), "systems on over their X");
+        assert!(!floored, "the rebase resolves to the authored tree");
+        // [2♣, (2♠)]: a positive with good hearts bids them naturally (3♥ —
+        // the 2-level is gone); a values hand without a suit doubles; a bust
+        // passes and waits.
+        let overcalled = [call(2, Strain::Clubs), call(2, Strain::Spades)];
+        let (positive, _) = best_call(&overcalled, "54.AQ542.964.Q32");
+        assert_eq!(positive, call(3, Strain::Hearts), "natural positive");
+        let (waiting, _) = best_call(&overcalled, "954.Q542.964.432");
+        assert_eq!(waiting, Call::Pass, "the waiting pass");
+        // ...backed by opener's forced reopening: 24 balanced with a spade
+        // stopper rebids 2NT rather than selling out.
+        let reopen = [
+            call(2, Strain::Clubs),
+            call(2, Strain::Spades),
+            Call::Pass,
+            Call::Pass,
+        ];
+        let (rebid, _) = best_call(&reopen, "AQ2.AKQ5.KQ54.A2");
+        assert_eq!(rebid, call(2, Strain::Notrump), "opener never sells out");
+        super::set_strong_two_competition(false);
     }
 
     /// Renderability invariant: every guarded fallback in the competitive book
