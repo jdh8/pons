@@ -2,9 +2,15 @@
 
 The human-facing [pons](..) examples in the browser: practice bidding one seat
 against the 2/1 bots, watch them bid a random board, or browse the authored
-books.  Everything runs client-side as WebAssembly; there is no server — and
-no double-dummy solver (that is native C++, and actual-layout verdicts are
-hindsight anyway).
+books.  Everything runs client-side as WebAssembly; there is no server.
+
+Double dummy runs in the browser too, via the pure-Rust
+[pons-dds](https://github.com/jdh8/pons-dds) (the native `pons/dd` feature
+wraps C++ and cannot target wasm) — but only **after** the auction: a full
+5×4 table once the hands are revealed, and on practice boards a fairness
+**oracle** that judges the reached contract over reshuffles of the two unseen
+opposing hands instead of the one true layout (an actual-layout verdict
+*during* practice would be hindsight).
 
 ## Build
 
@@ -50,8 +56,10 @@ Three tabs:
 - **Practice** — pick your seat, dealer, vulnerability, and a minimum HCP,
   then bid with the bidding box; the bots bid the other seats.  After each of
   your calls you see the bot's top-3 picks with probabilities; after the
-  auction, all four hands and the final contract.
-- **Demo** — deal a random board and watch `american()` bid all four seats.
+  auction, all four hands, the final contract, the oracle's verdict over 100
+  opponent reshuffles, and the full double-dummy table.
+- **Demo** — deal a random board and watch `american()` bid all four seats,
+  then see the double-dummy table and the contract's actual-layout verdict.
 - **Book** — the authored 2/1 books (constructive/competitive/defensive),
   every node's rules with weights and the constraints' own English
   descriptions, filterable.

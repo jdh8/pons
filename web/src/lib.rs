@@ -5,19 +5,23 @@
 //! [`book`] function exports the authored 2/1 books for the browser.  Every
 //! method returns a JSON [`Snapshot`] string; the JS side is a thin renderer.
 //!
-//! Bidding only by design: the double-dummy solver is native C++ (`pons/dd`
-//! feature, off here), and the user rejects actual-layout verdicts as
-//! hindsight anyway.
+//! Double dummy comes from the pure-Rust `pons-dds` (the native `pons/dd`
+//! feature wraps C++ and cannot target wasm), driven strictly on its
+//! single-threaded paths.  It is only consulted **after** the auction — a
+//! full [`dd_table`][WebTable::dd_table] once all four hands are revealed,
+//! and a fairness [`oracle`][WebTable::oracle] that reshuffles the unseen
+//! opposing hands instead of judging the one true layout in hindsight.
 
 use std::collections::{BTreeMap, HashSet};
 
 use contract_bridge::auction::{Auction, Call, display_calls};
-use contract_bridge::deck::full_deal;
+use contract_bridge::deck::{fill_deals, full_deal};
 use contract_bridge::eval::{self, HandEvaluator as _, SimpleEvaluator};
-use contract_bridge::{AbsoluteVulnerability, Bid, FullDeal, Hand, Seat, Strain};
+use contract_bridge::{AbsoluteVulnerability, Bid, Builder, FullDeal, Hand, Seat, Strain};
 use pons::bidding::american::bare_american;
 use pons::bidding::{Stance, Table};
 use pons::scoring::final_contract;
+use pons_dds::{Solver, TrickCountTable, solve_deal_on};
 use rand::SeedableRng as _;
 use rand::rngs::StdRng;
 use serde::Serialize;
@@ -85,6 +89,12 @@ struct Board {
     human: Option<Seat>,
     auction: Auction,
     feedback: Vec<Feedback>,
+    /// Cached double-dummy table, solved on first request after the reveal
+    dd: Option<TrickCountTable>,
+    /// Oracle statistics accumulated over opponent reshuffles
+    oracle: Oracle,
+    /// One reused solver for both DD jobs (warm allocation across chunks)
+    solver: Option<Solver>,
 }
 
 impl Board {
@@ -182,6 +192,96 @@ impl Board {
     }
 }
 
+/// Running oracle statistics: the final contract judged over reshuffles of
+/// the hands the bidding side never saw
+#[derive(Default)]
+struct Oracle {
+    n: u32,
+    makes: u32,
+    tricks_sum: u64,
+    tricks_min: u8,
+    tricks_max: u8,
+    score_sum: i64,
+}
+
+impl Oracle {
+    fn add(&mut self, tricks: u8, makes: bool, human_score: i64) {
+        if self.n == 0 {
+            self.tricks_min = tricks;
+            self.tricks_max = tricks;
+        }
+        self.n += 1;
+        self.makes += u32::from(makes);
+        self.tricks_sum += u64::from(tricks);
+        self.tricks_min = self.tricks_min.min(tricks);
+        self.tricks_max = self.tricks_max.max(tricks);
+        self.score_sum += human_score;
+    }
+
+    fn stats(&self) -> OracleJson {
+        let n = f64::from(self.n.max(1));
+        OracleJson {
+            n: self.n,
+            makes_pct: 100.0 * f64::from(self.makes) / n,
+            mean_tricks: self.tricks_sum as f64 / n,
+            tricks_min: self.tricks_min,
+            tricks_max: self.tricks_max,
+            mean_score: self.score_sum as f64 / n,
+        }
+    }
+}
+
+/// Oracle statistics as the UI renders them
+#[derive(Serialize)]
+struct OracleJson {
+    n: u32,
+    makes_pct: f64,
+    mean_tricks: f64,
+    tricks_min: u8,
+    tricks_max: u8,
+    /// Mean score signed from the human's side
+    mean_score: f64,
+}
+
+/// Double-dummy table as the UI renders it: rows by strain, columns in
+/// `seats` order (west first, matching the auction table)
+#[derive(Serialize)]
+struct DdJson {
+    seats: [char; 4],
+    rows: Vec<DdRow>,
+    verdict: Option<String>,
+}
+
+#[derive(Serialize)]
+struct DdRow {
+    strain: String,
+    /// Tricks per declarer, in `DdJson::seats` order
+    tricks: Vec<u8>,
+}
+
+/// Browser-sized transposition table (MiB): the native default of 160/256 is
+/// a lot to grow a wasm heap by; 64 stays past the sweet spot the solver docs
+/// name (16/32 is ~3.5× slower, correctness unaffected at any size).
+const TT_MB: (u32, u32) = (64, 128);
+
+/// The vulnerability bit of `seat`'s side
+const fn side(seat: Seat) -> AbsoluteVulnerability {
+    match seat {
+        Seat::North | Seat::South => AbsoluteVulnerability::NS,
+        Seat::East | Seat::West => AbsoluteVulnerability::EW,
+    }
+}
+
+/// Set a [`Builder`] seat by a runtime [`Seat`] value
+fn set_seat(builder: Builder, seat: Seat, hand: Hand) -> Builder {
+    match seat {
+        Seat::North => builder.north(hand),
+        Seat::East => builder.east(hand),
+        Seat::South => builder.south(hand),
+        Seat::West => builder.west(hand),
+    }
+}
+
 const fn vul_name(vul: AbsoluteVulnerability) -> &'static str {
     match vul.bits() {
         1 => "NS",
@@ -254,6 +354,112 @@ impl WebTable {
         self.snapshot()
     }
 
+    /// The full double-dummy table of the revealed deal, cached per board
+    ///
+    /// `"null"` until the auction has ended — the table reads all four
+    /// hands, so it exists only once they are on view anyway.  Rows are
+    /// strains ♣♦♥♠NT, columns west-first to match the auction table; the
+    /// verdict prices the reached contract on the actual layout.
+    pub fn dd_table(&mut self) -> String {
+        let Some(board) = &mut self.board else {
+            return "null".to_string();
+        };
+        if !board.auction.has_ended() {
+            return "null".to_string();
+        }
+
+        let solver = board
+            .solver
+            .get_or_insert_with(|| Solver::with_memory(Strain::Notrump, TT_MB.0, TT_MB.1));
+        if board.dd.is_none() {
+            board.dd = Some(solve_deal_on(solver, board.deal));
+        }
+        let table = board.dd.expect("just solved");
+
+        let verdict = final_contract(&board.auction, board.dealer).map(|(contract, declarer)| {
+            let tricks = table.get(contract.bid.strain, declarer);
+            let needed = 6 + contract.bid.level.get();
+            let outcome = if tricks >= needed {
+                "makes".to_string()
+            } else {
+                format!("down {}", needed - tricks)
+            };
+            format!(
+                "{contract} by {}: {tricks} tricks — {outcome}",
+                declarer.letter()
+            )
+        });
+
+        const SEAT_COLS: [Seat; 4] = [Seat::West, Seat::North, Seat::East, Seat::South];
+        let rows = Strain::ASC
+            .into_iter()
+            .map(|strain| DdRow {
+                strain: strain.to_string(),
+                tricks: SEAT_COLS
+                    .into_iter()
+                    .map(|seat| table.get(strain, seat))
+                    .collect(),
+            })
+            .collect();
+
+        let json = DdJson {
+            seats: SEAT_COLS.map(Seat::letter),
+            rows,
+            verdict,
+        };
+        serde_json::to_string(&json).expect("dd table serialization")
+    }
+
+    /// Run `samples` more oracle shuffles and return the running statistics
+    ///
+    /// The fairness judge for a practice board: the human side's two hands
+    /// stay fixed, the opponents' are reshuffled, and the reached contract
+    /// is priced double-dummy on each layout — what the contract is worth
+    /// on what the bidders could actually know, never the one true layout.
+    /// `"null"` unless a practice auction has ended in a contract.
+    pub fn oracle(&mut self, samples: u32) -> String {
+        let Some(board) = &mut self.board else {
+            return "null".to_string();
+        };
+        let Some(human) = board.human else {
+            return "null".to_string();
+        };
+        if !board.auction.has_ended() {
+            return "null".to_string();
+        }
+        let Some((contract, declarer)) = final_contract(&board.auction, board.dealer) else {
+            return "null".to_string();
+        };
+
+        let partner = human.partner();
+        let partial = set_seat(
+            set_seat(Builder::new(), human, board.deal[human]),
+            partner,
+            board.deal[partner],
+        )
+        .build_partial()
+        .expect("two disjoint 13-card hands form a valid partial deal");
+
+        let strain = contract.bid.strain;
+        let solver = board
+            .solver
+            .get_or_insert_with(|| Solver::with_memory(strain, TT_MB.0, TT_MB.1));
+        solver.set_strain(strain);
+
+        let needed = 6 + contract.bid.level.get();
+        let declarer_vul = board.vul.contains(side(declarer));
+        let human_declaring = side(human) == side(declarer);
+
+        for deal in fill_deals(&mut self.rng, partial).take(samples as usize) {
+            let tricks = solver.solve(deal)[declarer as usize];
+            let score = i64::from(contract.score(tricks, declarer_vul));
+            let human_score = if human_declaring { score } else { -score };
+            board.oracle.add(tricks, tricks >= needed, human_score);
+        }
+
+        serde_json::to_string(&board.oracle.stats()).expect("oracle serialization")
+    }
+
     /// The current position as JSON (`"null"` before the first deal)
     #[must_use]
     pub fn snapshot(&self) -> String {
@@ -301,6 +507,9 @@ impl WebTable {
             human,
             auction: Auction::new(),
             feedback: Vec::new(),
+            dd: None,
+            oracle: Oracle::default(),
+            solver: None,
         };
         board.advance();
         self.board = Some(board);
@@ -436,6 +645,70 @@ mod tests {
         assert_eq!(snap["hands"].as_object().expect("hands").len(), 4);
         assert!(snap["auction"].as_array().expect("auction").len() >= 4);
         assert!(snap["contract"].is_string());
+    }
+
+    #[test]
+    fn dd_table_solves_revealed_demo_board() {
+        let mut table = WebTable::new("42");
+        assert_eq!(table.dd_table(), "null", "no board yet");
+        let _ = table.deal_demo("N", "none");
+
+        let start = std::time::Instant::now();
+        let dd: serde_json::Value = serde_json::from_str(&table.dd_table()).expect("dd JSON");
+        eprintln!("dd_table (full 5x4, cold): {:?}", start.elapsed());
+
+        assert_eq!(dd["seats"], serde_json::json!(["W", "N", "E", "S"]));
+        let rows = dd["rows"].as_array().expect("rows");
+        assert_eq!(rows.len(), 5);
+        for row in rows {
+            let tricks = row["tricks"].as_array().expect("tricks");
+            assert_eq!(tricks.len(), 4);
+            assert!(tricks.iter().all(|t| t.as_u64().expect("u8") <= 13));
+        }
+        // Cached: the second call is the same JSON, instantly
+        let again: serde_json::Value =
+            serde_json::from_str(&table.dd_table()).expect("cached dd JSON");
+        assert_eq!(dd, again);
+    }
+
+    #[test]
+    fn oracle_accumulates_over_reshuffles() {
+        // Seeded so the practice board (human passing throughout) ends in a
+        // bot contract: seed 12345 ends in 2NT by N (see the test above).
+        let mut table = WebTable::new("12345");
+        let mut snap = parse(&table.deal_practice("S", "N", "none", 0));
+        for _ in 0..100 {
+            if snap["your_turn"] != true {
+                break;
+            }
+            snap = parse(&table.bid("P"));
+        }
+        assert_eq!(snap["ended"], true);
+        if !snap["contract"].is_string() || snap["contract"] == "Passed out" {
+            panic!("seed no longer yields a contract; pick a new seed");
+        }
+
+        let start = std::time::Instant::now();
+        let o: serde_json::Value = serde_json::from_str(&table.oracle(5)).expect("oracle JSON");
+        eprintln!("oracle (5 shuffles, 1 strain): {:?}", start.elapsed());
+
+        assert_eq!(o["n"], 5);
+        let o2: serde_json::Value = serde_json::from_str(&table.oracle(5)).expect("oracle JSON");
+        assert_eq!(o2["n"], 10, "stats accumulate across chunks");
+        let pct = o2["makes_pct"].as_f64().expect("pct");
+        assert!((0.0..=100.0).contains(&pct));
+        assert!(o2["tricks_min"].as_u64() <= o2["tricks_max"].as_u64());
+    }
+
+    #[test]
+    fn oracle_is_practice_only() {
+        let mut table = WebTable::new("42");
+        let _ = table.deal_demo("N", "none");
+        assert_eq!(
+            table.oracle(1),
+            "null",
+            "demo has no bidding side to be fair to"
+        );
     }
 
     #[test]

@@ -27,6 +27,11 @@ jobs:
     # The web crate builds pons with `default-features = false`, so no C++
     # toolchain for ddss and no vendor/bba submodule — a plain checkout works.
     - uses: actions/checkout@v6
+    # Creates the Pages site if the repo doesn't have one yet — deploy-pages
+    # otherwise 404s until someone flips Settings → Pages by hand.
+    - uses: actions/configure-pages@v5
+      with:
+        enablement: true
     - name: Install wasm-pack
       run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
     - name: Build wasm

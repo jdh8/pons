@@ -18,8 +18,12 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 # No default features: `dd` (the native C++ double-dummy solver) cannot build
-# for wasm32 — the web UI is bidding-only by design.
+# for wasm32.  Double dummy in the browser comes from the pure-Rust pons-dds
+# instead, driven strictly on its single-threaded paths (`Solver`,
+# `solve_deal_on`) — the rayon fan-out would need threads wasm doesn't have.
 pons = { path = "..", default-features = false }
+# 0.1.2 has the wasm fix (Instant::now in the bisection loop panics on wasm).
+pons-dds = "0.1.2"
 # Must match pons's contract-bridge version so Card/Hand/Auction types unify.
 contract-bridge = { version = "0.1.4", features = ["rand"] }
 rand = "0.10"
@@ -33,3 +37,8 @@ serde_json = "1"
 # from this feature alone, no extra cfg needed.
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 getrandom = { version = "0.4", features = ["wasm_js"] }
+
+# Same as the parent crate: an un-optimized double-dummy solver makes the
+# native test suite glacial.
+[profile.dev.package."*"]
+opt-level = 2

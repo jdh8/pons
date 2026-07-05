@@ -10,11 +10,16 @@ const HAND_ORDER = ['♠', '♥', '♦', '♣']; // spades first in hand panels
 const BOX_ORDER = ['♣', '♦', '♥', '♠', 'NT']; // bidding-box columns, low to high
 const DEMO_PACE_MS = 300; // pause between demo auction reveals
 
+const ORACLE_TOTAL = 100; // reshuffles per board
+const ORACLE_CHUNK = 2; // per JS task, so the page keeps painting between them
+
 let game;
 let current = null; // the snapshot on screen
 let boardCount = 0; // practice deals so far — drives the "Rotate" dealer
 let bookNodes = null; // [{el, haystack}] built once from book()
 let demoTimer = 0;
+let boardGen = 0; // bumped per deal; stale async DD/oracle loops check it
+let analysisGen = -1; // last boardGen whose DD + oracle were kicked off
 
 const id = (x) => document.getElementById(x);
 
@@ -46,6 +51,7 @@ function showTab(tab) {
 // --- dealing -----------------------------------------------------------------
 
 function dealPractice() {
+  boardGen++;
   const pick = id('p-dealer').value;
   const dealer = pick === 'rotate' ? SEATS[boardCount % 4] : pick;
   boardCount++;
@@ -54,14 +60,19 @@ function dealPractice() {
 }
 
 function dealDemo() {
+  boardGen++;
   clearInterval(demoTimer);
+  id('d-dd').classList.add('hidden');
   const s = JSON.parse(game.deal_demo(id('d-dealer').value, id('d-vul').value));
   // Deal-out feel: show the hands at once, then the auction one call at a time.
   let shown = 0;
   const tick = () => {
     const done = shown >= s.auction.length;
     render({ ...s, auction: s.auction.slice(0, shown), contract: done ? s.contract : null });
-    if (done) clearInterval(demoTimer);
+    if (done) {
+      clearInterval(demoTimer);
+      scheduleDD('d-dd');
+    }
     shown++;
   };
   tick();
@@ -114,7 +125,16 @@ function renderFeedback(s) {
 function renderReveal(s) {
   const box = id('p-reveal');
   box.classList.toggle('hidden', !s.ended);
-  if (!s.ended) return;
+  if (!s.ended) {
+    id('p-dd').classList.add('hidden');
+    id('p-oracle').classList.add('hidden');
+    return;
+  }
+  if (analysisGen !== boardGen) {
+    analysisGen = boardGen;
+    runOracle(s);
+    scheduleDD('p-dd');
+  }
   box.innerHTML =
     `<div class="contract-line"><span class="contract">${colorizeCalls(s.contract || '')}</span></div>` +
     compassHTML(s.hands);
@@ -123,6 +143,56 @@ function renderReveal(s) {
   next.textContent = 'Next board';
   next.onclick = dealPractice; // same settings; Rotate advances the dealer
   box.appendChild(next);
+}
+
+// --- double dummy + oracle -----------------------------------------------------
+
+// Solve after a paint so the "solving…" placeholder actually shows; the wasm
+// solve blocks the main thread for a few hundred ms.
+function scheduleDD(targetId) {
+  const gen = boardGen;
+  const box = id(targetId);
+  box.classList.remove('hidden');
+  box.innerHTML = '<div class="panel-title">Double dummy</div><div class="solving">solving…</div>';
+  setTimeout(() => {
+    if (gen !== boardGen) return;
+    const dd = JSON.parse(game.dd_table());
+    if (dd && gen === boardGen) box.innerHTML = ddHTML(dd);
+  }, 50);
+}
+
+function ddHTML(dd) {
+  const head = '<tr><th></th>' +
+    dd.seats.map((x) => `<th>${SEAT_NAMES[x]}</th>`).join('') + '</tr>';
+  const rows = dd.rows.map((r) =>
+    `<tr><th>${colorizeCalls(r.strain)}</th>` +
+    r.tricks.map((t) => `<td>${t}</td>`).join('') + '</tr>',
+  ).join('');
+  return '<div class="panel-title">Double dummy</div>' +
+    `<table class="dd">${head}${rows}</table>` +
+    (dd.verdict ? `<div class="verdict">${colorizeCalls(dd.verdict)}</div>` : '');
+}
+
+// The fairness judge: the reached contract priced over reshuffles of the two
+// hands the bidding side never saw.  Chunked so the page paints progress.
+function runOracle() {
+  const gen = boardGen;
+  const box = id('p-oracle');
+  box.classList.remove('hidden');
+  box.innerHTML = '<div class="panel-title">Oracle (opponents reshuffled)</div>' +
+    '<div class="o-body">shuffling…</div>';
+  const step = () => {
+    if (gen !== boardGen) return;
+    const o = JSON.parse(game.oracle(ORACLE_CHUNK));
+    if (!o) { box.classList.add('hidden'); return; } // passed out — nothing to judge
+    const sign = o.mean_score >= 0 ? '+' : '';
+    box.querySelector('.o-body').textContent =
+      `${o.n}/${ORACLE_TOTAL} shuffles: makes ${Math.round(o.makes_pct)}% · ` +
+      `tricks ${o.tricks_min}/${o.mean_tricks.toFixed(1)}/${o.tricks_max} · ` +
+      `mean score ${sign}${Math.round(o.mean_score)}`;
+    if (o.n < ORACLE_TOTAL) setTimeout(step, 0);
+  };
+  setTimeout(step, 50);
 }
 
 // --- HTML builders -----------------------------------------------------------

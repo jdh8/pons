@@ -157,6 +157,27 @@ table.auction td.dbl { color: var(--heart); font-weight: 800; }
 }
 .contract-line, #d-contract { text-align: center; }
 
+/* Double-dummy table and oracle panels (post-auction analysis). */
+.ddpanel { margin-top: 0.75rem; }
+.panel-title {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.65;
+  margin-bottom: 0.35rem;
+}
+.solving, .o-body { color: var(--ink); }
+.solving { opacity: 0.6; font-style: italic; }
+table.dd { border-collapse: collapse; margin: 0 auto; }
+table.dd th, table.dd td {
+  text-align: center;
+  padding: 0.15rem 0.7rem;
+  font-weight: 600;
+}
+table.dd th { font-size: 0.8rem; opacity: 0.75; }
+table.dd td { border-top: 1px solid rgba(0, 0, 0, 0.08); }
+.verdict { text-align: center; margin-top: 0.4rem; font-weight: 700; }
+
 /* Compass reveal: N top centre, W left, E right, S bottom centre. */
 .compass {
   display: grid;

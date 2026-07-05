@@ -9,5 +9,13 @@
 # for wasm builds only.  It must be non-empty — cargo ignores an empty array and
 # falls back to the build-level flags — so we pin `+reference-types`, which the
 # linked std already enables and wasm-bindgen's glue needs.
+# The stack-size link arg is for pons-dds: a double-dummy solve recurses ~50
+# plays deep with large frames and can want several MiB of stack, while wasm's
+# default shadow stack is 1 MiB — overflow there is silent memory corruption,
+# not a nice crash.  16 MiB matches the dedicated big-stack pool the native
+# solver uses.
 [target.wasm32-unknown-unknown]
-rustflags = ["-Ctarget-feature=+reference-types"]
+rustflags = [
+    "-Ctarget-feature=+reference-types",
+    "-Clink-arg=-zstack-size=16777216",
+]

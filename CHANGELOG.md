@@ -30,6 +30,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   wasm, filterable). Cards render suit-first (`♣Q`); suit colors are CSS
   variables with **orange diamonds** (a "red suit" must stay warm) and
   tentatively dark-blue clubs. Deployed by `.github/workflows/pages.yml`.
+- **Double dummy in the browser, via pure-Rust `pons-dds`.** The web crate
+  drives `pons-dds` strictly on its single-threaded paths (no rayon on wasm)
+  and only **after** the auction: a cached full 5×4 DD table once the hands
+  are revealed (demo, and practice reveal — ~0.1 s in wasm), plus a practice
+  **oracle** that judges the reached contract over 100 reshuffles of the two
+  unseen opposing hands (makes %, tricks min/mean/max, mean score from the
+  human's side) — fairness instead of actual-layout hindsight. Needed a
+  wasm fix in pons-dds (an always-on `Instant::now` in the bisection loop
+  panics on wasm) and a 16 MiB wasm shadow stack for the solver's deep
+  recursion.
 - **`dd` cargo feature (default on, default build byte-identical).** The
   native C++ double-dummy stack (`ddss`) is now optional: `gib`,
   `single_dummy`, `stats`, `bidding::ev`, and the DD scorers in `scoring` are
