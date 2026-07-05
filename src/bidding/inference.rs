@@ -3274,6 +3274,7 @@ mod tests {
         let inf = read(&[bid(1, Strain::Hearts), bid(2, Strain::Hearts)]);
         assert!(inf.rho().length(Suit::Hearts).min >= 5);
         assert_eq!(inf.rho().length(Suit::Spades), Range::FULL_LENGTH);
+        set_uvu_over_majors(true);
     }
 
     #[test]
@@ -3290,6 +3291,7 @@ mod tests {
         let inf = read(&[bid(1, Strain::Spades), bid(2, Strain::Notrump)]);
         assert_eq!(inf.rho().length(Suit::Clubs), Range::FULL_LENGTH);
         assert_eq!(inf.rho().length(Suit::Diamonds), Range::FULL_LENGTH);
+        set_uvu_over_majors(true);
     }
 
     #[test]
@@ -3317,7 +3319,6 @@ mod tests {
             Range::FULL_LENGTH,
             "not natural clubs"
         );
-        set_uvu_over_majors(false);
     }
 
     #[test]

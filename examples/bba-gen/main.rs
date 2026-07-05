@@ -298,12 +298,12 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_cue_minor_raise_answer: bool,
 
-    /// Author responder's structure over their two-suiters over our 1M — UvU
-    /// over their both-minors `(2NT)` and a raise structure over their
-    /// Michaels cue of our own major — and read those calls as two-suiters
-    /// (default off while measuring; see `set_uvu_over_majors`).
+    /// Disable responder's structure over their two-suiters over our 1M — UvU
+    /// over their both-minors `(2NT)`, the raise structure over their Michaels
+    /// cue, and the two-suiter inference reading (shipped default-on; see
+    /// `set_uvu_over_majors`).
     #[arg(long, default_value_t = false)]
-    ns_uvu_over_majors: bool,
+    no_ns_uvu_over_majors: bool,
 
     /// Author our contested weak twos — business XX + systems-on Ogust over
     /// their double, Ogust-when-legal / values-X / preemptive raises over
@@ -311,16 +311,16 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_weak_two_comp: bool,
 
-    /// Author our contested strong 2♣ — systems-on over their double, natural
-    /// GF / values-X / waiting-pass + forced reopening over their overcall
-    /// (default off; see `set_strong_two_competition`).
+    /// Disable our contested strong 2♣ — systems-on over their double,
+    /// natural GF / values-X / waiting-pass + forced reopening over their
+    /// overcall (shipped default-on; see `set_strong_two_competition`).
     #[arg(long, default_value_t = false)]
-    ns_strong_two_comp: bool,
+    no_ns_strong_two_comp: bool,
 
-    /// Extend opener's support double/redouble to `1♥ – (P) – 1♠` (default
-    /// off; see `set_major_support_double`).
+    /// Disable opener's support double/redouble on `1♥ – (P) – 1♠` (shipped
+    /// default-on; see `set_major_support_double`).
     #[arg(long, default_value_t = false)]
-    ns_major_support_double: bool,
+    no_ns_major_support_double: bool,
 
     /// Author responder's natural free bids over an overcall — 1-level new
     /// suit 5+ & 6+, 2-level non-jump 5+ & 10+, 1NT/2NT with a stopper
@@ -341,11 +341,11 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_high_overcall: bool,
 
-    /// Author responder's structure over their takeout double of our 1-suit
+    /// Disable responder's structure over their takeout double of our 1-suit
     /// opening: Jordan/Truscott 2NT, value XX, preemptive jump-raise flip,
-    /// weak NF 2-level suits (default off; see `set_jordan_truscott`).
+    /// weak NF 2-level suits (shipped default-on; see `set_jordan_truscott`).
     #[arg(long, default_value_t = false)]
-    ns_jordan_truscott: bool,
+    no_ns_jordan_truscott: bool,
 
     /// Disable the major-rebid-tails adjunct — the full continuations after
     /// `1♥ – 1♠` below opener's `2♠`/`3♠` raise, `2♥` rebid, and `2♣`/`2♦`
@@ -1063,10 +1063,10 @@ fn main() -> anyhow::Result<()> {
     pons::bidding::american::set_limit_raise_acceptance(!args.no_ns_limit_raise_acceptance);
     pons::bidding::american::set_cue_raise_answer(!args.no_ns_cue_raise_answer);
     pons::bidding::american::set_cue_minor_raise_answer(!args.no_ns_cue_minor_raise_answer);
-    pons::bidding::american::set_uvu_over_majors(args.ns_uvu_over_majors);
+    pons::bidding::american::set_uvu_over_majors(!args.no_ns_uvu_over_majors);
     pons::bidding::american::set_weak_two_competition(args.ns_weak_two_comp);
-    pons::bidding::american::set_strong_two_competition(args.ns_strong_two_comp);
-    pons::bidding::american::set_major_support_double(args.ns_major_support_double);
+    pons::bidding::american::set_strong_two_competition(!args.no_ns_strong_two_comp);
+    pons::bidding::american::set_major_support_double(!args.no_ns_major_support_double);
     pons::bidding::american::set_free_bids(args.ns_free_bids);
     pons::bidding::american::set_negative_double_shape(
         match args.ns_negative_double_shape.as_str() {
@@ -1079,7 +1079,7 @@ fn main() -> anyhow::Result<()> {
         },
     );
     pons::bidding::american::set_high_overcall_responses(args.ns_high_overcall);
-    pons::bidding::american::set_jordan_truscott(args.ns_jordan_truscott);
+    pons::bidding::american::set_jordan_truscott(!args.no_ns_jordan_truscott);
     pons::bidding::american::set_major_rebid_tails(!args.no_ns_major_rebid_tails);
     pons::bidding::american::set_fourth_suit_forcing(!args.no_ns_fourth_suit_forcing);
     pons::bidding::american::set_texas_game_floor(args.ns_texas_game_floor);

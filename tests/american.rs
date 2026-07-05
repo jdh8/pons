@@ -479,12 +479,15 @@ fn test_competition_book_needs_binding() {
         Call::Double,
     );
     // ...but its system-on rebase lands in the uncontested core, which only
-    // the stance bound by `Pair::against` contains.
+    // the stance bound by `Pair::against` contains. Responder's *first* call
+    // over the double is answered directly (the shipped Jordan/Truscott node),
+    // so probe one step deeper: opener's rebid after a forcing 1♠ still rides
+    // the rebase onto the uncontested tree.
     assert!(
         book.classify(
             "Q32.J53.A964.Q92".parse().unwrap(),
             RelativeVulnerability::NONE,
-            &[one_h, Call::Double]
+            &[one_h, Call::Double, call(1, Strain::Spades), Call::Pass]
         )
         .is_none()
     );

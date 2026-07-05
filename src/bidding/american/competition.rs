@@ -537,9 +537,11 @@ thread_local! {
     /// Whether responder's structure over the opponents' two-suiters over our
     /// 1♥/1♠ opening — their both-minors `(2NT)` and their Michaels cue of our
     /// own major — is authored, and whether the inference walk reads those
-    /// calls as two-suiters instead of natural overcalls. Default off while
-    /// the A/B runs.
-    static UVU_OVER_MAJORS: Cell<bool> = const { Cell::new(false) };
+    /// calls as two-suiters instead of natural overcalls. **Default on** —
+    /// measured vs BBA 2/1 (204.8k boards/arm/vul): plain DD +0.0019/+0.0018
+    /// IMPs/board NV/vul (both CIs exclude 0; +1.43/+1.58 IMPs/fired, ~0.12%
+    /// fired), perfect-defense the same sign.
+    static UVU_OVER_MAJORS: Cell<bool> = const { Cell::new(true) };
 }
 
 /// Author responder's structure over their two-suiters over our 1M for books
@@ -548,7 +550,7 @@ thread_local! {
 ///
 /// The book half is read at construction; the inference half at classify time
 /// — parallel harnesses must set this inside their worker closures too.
-/// Default off (`--ns-uvu-over-majors` in `bba-gen` for the on arm).
+/// **Default on** (`--no-ns-uvu-over-majors` in `bba-gen` for the off arm).
 pub fn set_uvu_over_majors(on: bool) {
     UVU_OVER_MAJORS.with(|cell| cell.set(on));
 }
@@ -568,10 +570,13 @@ thread_local! {
 
     /// Whether our contested strong 2♣ is authored: systems-on over their
     /// double, and over their overcall a natural-GF / values-`X` / waiting-
-    /// pass structure backed by opener's forced reopening. Default off while
-    /// the A/B runs. Without it responder's `X` falls to the floor's
-    /// *takeout* reading — with a 22+ opener behind it.
-    static STRONG_TWO_COMPETITION: Cell<bool> = const { Cell::new(false) };
+    /// pass structure backed by opener's forced reopening. Without it
+    /// responder's `X` falls to the floor's *takeout* reading — with a 22+
+    /// opener behind it. **Default on** — measured vs BBA 2/1 (204.8k
+    /// boards/arm/vul): plain DD +1.86/+2.79 IMPs/fired NV/vul,
+    /// perfect-defense +2.00/+2.93; all four cells' CIs exclude 0 (~0.05%
+    /// fired).
+    static STRONG_TWO_COMPETITION: Cell<bool> = const { Cell::new(true) };
 }
 
 /// Author our contested weak twos for books built *after* this call
@@ -590,7 +595,7 @@ fn weak_two_competition() -> bool {
 /// Author our contested strong 2♣ for books built *after* this call
 /// (thread-local)
 ///
-/// Default off (`--ns-strong-two-comp` in `bba-gen` for the on arm).
+/// **Default on** (`--no-ns-strong-two-comp` in `bba-gen` for the off arm).
 pub fn set_strong_two_competition(on: bool) {
     STRONG_TWO_COMPETITION.with(|cell| cell.set(on));
 }
@@ -603,15 +608,18 @@ fn strong_two_competition() -> bool {
 thread_local! {
     /// Whether opener's support double/redouble extends to the major-major
     /// auction `1♥ – (P) – 1♠ – (X / overcall below 2♠)`. The minor-opening
-    /// pairs are always on (shipped); this fifth pair is default off while
-    /// the A/B runs.
-    static MAJOR_SUPPORT_DOUBLE: Cell<bool> = const { Cell::new(false) };
+    /// pairs are always on (shipped). **Default on** — measured vs BBA 2/1
+    /// (204.8k boards/arm/vul): plain DD wash (−0.0004/+0.0004, CIs straddle
+    /// 0), perfect-defense +0.97/+1.69 IMPs/fired NV/vul (vul CI excludes 0)
+    /// — the plain-wash + PD-gain ship row (~0.10% fired).
+    static MAJOR_SUPPORT_DOUBLE: Cell<bool> = const { Cell::new(true) };
 }
 
 /// Extend support doubles to `1♥ – (P) – 1♠` for books built *after* this
 /// call (thread-local)
 ///
-/// Default off (`--ns-major-support-double` in `bba-gen` for the on arm).
+/// **Default on** (`--no-ns-major-support-double` in `bba-gen` for the off
+/// arm).
 pub fn set_major_support_double(on: bool) {
     MAJOR_SUPPORT_DOUBLE.with(|cell| cell.set(on));
 }
@@ -710,14 +718,17 @@ thread_local! {
     /// opening is authored: Jordan/Truscott `2NT`, the value redouble, the
     /// preemptive jump-raise flip, and weak non-forcing 2-level suits — with
     /// the shipped systems-on rebase surviving below it as the catch-all for
-    /// every deeper continuation. Default off while the A/B runs.
-    static JORDAN_TRUSCOTT: Cell<bool> = const { Cell::new(false) };
+    /// every deeper continuation. **Default on** — the campaign's largest
+    /// per-board win vs BBA 2/1 (204.8k boards/arm/vul): plain DD
+    /// +0.0041/+0.0067 IMPs/board NV/vul, perfect-defense +0.0049/+0.0065;
+    /// all four cells' CIs exclude 0 (+0.5…+0.8 IMPs/fired, ~0.8% fired).
+    static JORDAN_TRUSCOTT: Cell<bool> = const { Cell::new(true) };
 }
 
 /// Author responder's structure over their takeout double for books built
 /// *after* this call (thread-local)
 ///
-/// Default off (`--ns-jordan-truscott` in `bba-gen` for the on arm).
+/// **Default on** (`--no-ns-jordan-truscott` in `bba-gen` for the off arm).
 pub fn set_jordan_truscott(on: bool) {
     JORDAN_TRUSCOTT.with(|cell| cell.set(on));
 }
@@ -5421,7 +5432,7 @@ mod tests {
         // 14-count, 5 spades, 2 hearts → 3♦ = game force in the other major.
         let (fourth, _) = best_call(&auction, "AQJ54.K5.965.A43");
         assert_eq!(fourth, call(3, Strain::Diamonds), "the second cue forces");
-        super::set_uvu_over_majors(false);
+        super::set_uvu_over_majors(true);
     }
 
     #[test]
@@ -5436,7 +5447,7 @@ mod tests {
         // keeps its meaning over their cue of our own suit.
         let (raise, _) = best_call(&auction, "Q542.95.9643.KQ3");
         assert_eq!(raise, call(3, Strain::Spades), "the natural raise survives");
-        super::set_uvu_over_majors(false);
+        super::set_uvu_over_majors(true);
     }
 
     #[test]
@@ -5455,7 +5466,7 @@ mod tests {
         assert!(!floored, "an authored node, not the floor");
         let (accept, _) = best_call(&auction, "65.AKQ54.KJ54.A2");
         assert_eq!(accept, call(4, Strain::Hearts), "a maximum accepts");
-        super::set_uvu_over_majors(false);
+        super::set_uvu_over_majors(true);
     }
 
     #[test]
@@ -5472,7 +5483,7 @@ mod tests {
         let (game, floored) = best_call(&auction, "K65.AQJ54.K54.32");
         assert_eq!(game, call(4, Strain::Spades), "raise the game force");
         assert!(!floored, "an authored node, not the floor");
-        super::set_uvu_over_majors(false);
+        super::set_uvu_over_majors(true);
     }
 
     #[test]
@@ -5548,7 +5559,7 @@ mod tests {
         ];
         let (rebid, _) = best_call(&reopen, "AQ2.AKQ5.KQ54.A2");
         assert_eq!(rebid, call(2, Strain::Notrump), "opener never sells out");
-        super::set_strong_two_competition(false);
+        super::set_strong_two_competition(true);
     }
 
     #[test]
@@ -5564,7 +5575,7 @@ mod tests {
         let (support, floored) = best_call(&auction, "K32.AQ542.A95.32");
         assert_eq!(support, Call::Double, "exactly three = support double");
         assert!(!floored, "an authored node, not the floor");
-        super::set_major_support_double(false);
+        super::set_major_support_double(true);
     }
 
     #[test]
@@ -5680,7 +5691,7 @@ mod tests {
         assert_eq!(accept, call(4, Strain::Spades), "a maximum accepts");
         let (decline, _) = best_call(&answer, "AQ542.954.96.A32");
         assert_eq!(decline, call(3, Strain::Spades), "a minimum declines");
-        super::set_jordan_truscott(false);
+        super::set_jordan_truscott(true);
     }
 
     /// Renderability invariant: every guarded fallback in the competitive book

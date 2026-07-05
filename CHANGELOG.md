@@ -51,8 +51,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Over their takeout double** (`set_jordan_truscott`, **default off**
-  pending the A/B; `--ns-jordan-truscott`). Responder's first call over
+- **Over their takeout double** (`set_jordan_truscott`, **default on** —
+  measured vs BBA 2/1, 204.8k boards/arm/vul, SEED_BASE 1783286386, sha
+  bc949dc: plain DD **+0.0041/+0.0067** IMPs/board NV/vul, perfect-defense
+  **+0.0049/+0.0065**, all four CIs exclude 0; +0.5…+0.8 IMPs/fired at ~0.8%
+  fired — the campaign's largest per-board win. `--no-ns-jordan-truscott` for
+  the off arm). Responder's first call over
   `1x-(X)` is re-authored at the deeper `[1x, X]` key — the shipped
   systems-on rebase survives below it for every deeper continuation:
   Jordan/Truscott `2NT` = limit+ raise (4+ majors / 5+ minors, alerted and
@@ -63,32 +67,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   on Jacoby 2NT (reuses the shipped cue-raise answers), the preemptive `3x`
   landing on a limit raise, and the weak `2y` landing on a 2/1.
 
-- **Extended overcall responses** — four knobs, all **default off** pending
-  their A/Bs (P3 of [docs/competitive-book.md](docs/competitive-book.md)):
-  - `set_major_support_double` (`--ns-major-support-double`): opener's support
+- **Extended overcall responses** — four knobs, measured separately (P3 of
+  [docs/competitive-book.md](docs/competitive-book.md), 204.8k boards/arm/vul
+  each, sha bc949dc):
+  - `set_major_support_double` — **default on** (plain-DD wash, CIs straddle
+    0; perfect-defense +0.97/**+1.69** IMPs/fired NV/vul, vul CI > 0 — the
+    plain-wash + PD-gain ship row; ~0.10% fired;
+    `--no-ns-major-support-double` for the off arm): opener's support
     double/redouble extends to `1♥-(P)-1♠` (exactly three spades), reusing the
     shipped minor-opening tables verbatim.
-  - `set_free_bids` (`--ns-free-bids`): responder's natural free bids over an
-    overcall — 1-level new suit 5+ & 6+, 2-level non-jump 5+ & 10+, `1NT`
-    6–10 / `2NT` 11–12 with a stopper. Before this a 5-card suit with 8–11
-    HCP had no call at all.
-  - `set_negative_double_shape` (`--ns-negative-double-shape
-    both-majors|modern|cachalot`): the negative-double school over our minor
-    openings. `BothMajors` is the shipped rule (byte-identical default);
-    `Modern` = BWS/Cohen (over `(1♦)` 4-4+ at 6+, over `(1♥)` **exactly** four
-    spades, over `(1♠)` 4+ hearts at 8+); `Cachalot` = transfer Walsh in
-    competition (X = 4+ adjacent major, `1♥` = 4+ spades, `1♠` = residual
-    takeout hand), with opener's rotated answers authored — the 1-level
-    completion shows **exactly three** trumps, forcing. Both non-default
-    shapes imply the free bids.
-  - `set_high_overcall_responses` (`--ns-high-overcall`): responder over
-    their jump/3-level overcalls (`2NT < bid ≤ 3♠`), where the book previously
-    stopped at 2♠ — negative X through 3♠ (10+), forcing 3-level new suits,
-    `3NT` with a stopper, raises — plus opener's forced answer to the
+  - `set_free_bids` (**stays opt-in**, `--ns-free-bids`: plain +0.29 NV but
+    **−0.30 vul** IMPs/fired, PD −0.31/−0.88, CIs exclude 0 — the 6-count
+    floor on the 1-level free bids and the free 1NT is what perfect defense
+    punishes at vul; sweep the floors to 8+ before re-measuring): responder's
+    natural free bids over an overcall — 1-level new suit 5+ & 6+, 2-level
+    non-jump 5+ & 10+, `1NT` 6–10 / `2NT` 11–12 with a stopper.
+  - `set_negative_double_shape` (**`BothMajors` stays the default**,
+    `--ns-negative-double-shape both-majors|modern|cachalot`): the
+    negative-double school over our minor openings. `Modern` = BWS/Cohen
+    (over `(1♦)` 4-4+ at 6+, over `(1♥)` **exactly** four spades, over `(1♠)`
+    4+ hearts at 8+); `Cachalot` = transfer Walsh in competition (X = 4+
+    adjacent major, `1♥` = 4+ spades, `1♠` = residual takeout hand), with
+    opener's rotated answers authored — the 1-level completion shows
+    **exactly three** trumps, forcing. Both imply the free bids, and both
+    inherit the free-bid floor leak vs off (PD −0.22…−0.71/fired). The clean
+    inner signals: **Modern beats bare free-bids** (+0.95/+1.36 IMPs/fired
+    plain, CIs > 0 both vuls; PD same sign) and **Cachalot ties Modern**
+    head-to-head (NV wash both scorers; vul PD −0.41). Re-measure both after
+    the free-bid floor fix; Cachalot's right-siding wants an sd-lead bracket.
+  - `set_high_overcall_responses` (**stays opt-in**, `--ns-high-overcall`:
+    plain −0.63/−0.35, PD −0.24/−0.33 IMPs/fired, all CIs straddle 0; the
+    worst-board bucket is the minor-opening 3-level negative double's
+    one-major `or`-shape at 10+ — try 12+ or 4-4 and re-measure): responder
+    over their jump/3-level overcalls (`2NT < bid ≤ 3♠`), where the book
+    previously stopped at 2♠ — negative X through 3♠, forcing 3-level new
+    suits, `3NT` with a stopper, raises — plus opener's forced answer to the
     3-level double.
 
-- **Contested weak twos** (`set_weak_two_competition`, **default off** pending
-  the A/B; `--ns-weak-two-comp`). Over their takeout double the uncontested
+- **Contested weak twos** (`set_weak_two_competition`, **stays opt-in** —
+  measured vs BBA 2/1, 204.8k boards/arm/vul, SEED_BASE 1783284838: plain DD
+  wash (−0.0012/−0.0015, CIs straddle 0) but perfect-defense
+  **−0.0097/−0.0116** IMPs/board NV/vul (CIs < 0; −1.5/−1.9 IMPs/fired at
+  ~0.6% fired). Worst-board buckets: the values-X over their overcall (no
+  trump gate) and the contested Ogust (too eager at 14+) are authorable
+  leaks to fix before a re-measure; the preemptive raises over (X) are the
+  obstruction wall — park for sd-lead. `--ns-weak-two-comp` for the on arm).
+  Over their takeout double the uncontested
   responses ride (Ogust still asks, raises stay preemptive — RONF) plus a
   business `XX` on 13+ without the Ogust fit, and every deeper continuation is
   systems-on (their X stripped to a pass), so opener's five-rung Ogust ladder
@@ -97,8 +121,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   answers it), and any-strength preemptive raises; a targeted rebase routes
   the contested Ogust to opener's undisturbed answers.
 
-- **Contested strong 2♣** (`set_strong_two_competition`, **default off**
-  pending the A/B; `--ns-strong-two-comp`). Over their double: systems on (the
+- **Contested strong 2♣** (`set_strong_two_competition`, **default on** —
+  measured vs BBA 2/1, 204.8k boards/arm/vul, SEED_BASE 1783285250, sha
+  bc949dc: plain DD **+1.86/+2.79** IMPs/fired NV/vul, perfect-defense
+  **+2.00/+2.93**, all four CIs exclude 0 at ~0.05% fired.
+  `--no-ns-strong-two-comp` for the off arm). Over their double: systems on (the
   X steals no room). Over their overcall: natural game-forcing new suits (the
   uncontested positive shape, legality-anchored), `2NT`/`3NT` balanced
   positives with their suit stopped, `X` = "cards" 6+ — shadowing the floor's
@@ -106,8 +133,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and a waiting Pass backed by opener's forced reopening (natural rebids,
   notrump with a stopper, finite catch-all `X`): 22+ never sells out.
 
-- **Their two-suiters over our 1M** (`set_uvu_over_majors`, **default off**
-  pending the A/B; `--ns-uvu-over-majors` in `bba-gen` for the on arm).
+- **Their two-suiters over our 1M** (`set_uvu_over_majors`, **default on** —
+  measured vs BBA 2/1, 204.8k boards/arm/vul, SEED_BASE 1783284454, sha
+  bc949dc: plain DD **+0.0019/+0.0018** IMPs/board NV/vul (CIs exclude 0;
+  +1.43/+1.58 IMPs/fired, ~0.12% fired), perfect-defense +0.0009/+0.0006 the
+  same sign. `--no-ns-uvu-over-majors` in `bba-gen` for the off arm).
   Responder structure over their both-minors `(2NT)` — unusual vs unusual:
   `3♣` = limit+ raise, `3♦` = GF 5+ other major (both alerted and
   projection-decoded), `3NT` with both minors stopped, `X` = values + a

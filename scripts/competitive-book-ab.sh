@@ -11,6 +11,12 @@
 # experiment's SEED_BASE persists in $R/<exp>.seed, so a restart regenerates
 # nothing and stays seed-aligned. Do NOT touch the codebase while this runs
 # (bba-gen-parallel re-invokes cargo build; it must stay a no-op).
+#
+# NOTE: the 2026-07 campaign ran at sha bc949dc with the pre-flip polarity
+# below (--ns-* = on arm). The four winners have since shipped default-on
+# (uvu-over-majors, strong-two-comp, major-support-double, jordan-truscott:
+# now --no-ns-* for the OFF arm) — rerunning this script as-is would compare
+# arms of the remaining opt-in knobs only. Adjust flags before reusing.
 set -eu
 cd "$(dirname "$0")/.."
 

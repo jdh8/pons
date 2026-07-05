@@ -161,13 +161,13 @@ wall). Measure as three arms: `BothMajors`+free-bids / `Modern`+free-bids /
 | Package | Knob | Status | Verdict (plain / PD, IMPs) |
 | --- | --- | --- | --- |
 | WS0 renderer | — | **shipped** | render-only, node output byte-identical |
-| P1 two-suiters over 1M | `set_uvu_over_majors` | **authored** (off, `--ns-uvu-over-majors`) | pending A/B |
-| P2a weak twos contested | `set_weak_two_competition` | **authored** (off, `--ns-weak-two-comp`) | pending A/B |
-| P2b strong 2♣ contested | `set_strong_two_competition` | **authored** (off, `--ns-strong-two-comp`) | pending A/B |
-| P3c major support double | `set_major_support_double` | **authored** (off, `--ns-major-support-double`) | pending A/B |
-| P3b free bids | `set_free_bids` | **authored** (off, `--ns-free-bids`) | pending A/B |
-| P3d neg-X shape | `set_negative_double_shape` | **authored** (BothMajors, `--ns-negative-double-shape`) | pending A/B |
-| P3d′ Cachalot arm | `NegativeDoubleShape::Cachalot` | **authored** (incl. opener completions) | pending A/B |
-| P3a 3-level overcalls | `set_high_overcall_responses` | **authored** (off, `--ns-high-overcall`) | pending A/B |
-| P4 Jordan/Truscott over (X) | `set_jordan_truscott` | **authored** (off, `--ns-jordan-truscott`) | pending A/B |
+| P1 two-suiters over 1M | `set_uvu_over_majors` | **SHIPPED default-on** | plain **+0.0019/+0.0018** IMPs/bd NV/vul (CI>0), +1.43/+1.58 IMPs/fired, 0.13/0.11% fired; PD +0.0009/+0.0006 (same sign, CI touches 0). 204.8k bd/arm/vul, SEED_BASE 1783284454, sha bc949dc |
+| P2a weak twos contested | `set_weak_two_competition` | **measured — stays opt-in**; forensic follow-up before re-measure | plain −0.0012/−0.0015 (wash, CI⊇0); PD **−0.0097/−0.0116** (CI<0), −1.50/−1.94 IMPs/fired, 0.64/0.60% fired. Worst-board buckets: values-X over their overcall (no trump gate — leak), contested Ogust (too eager at 14+ — leak), preemptive raises over (X) (obstruction wall — park for sd-lead). 204.8k bd/arm/vul, SEED_BASE 1783284838, sha bc949dc |
+| P2b strong 2♣ contested | `set_strong_two_competition` | **SHIPPED default-on** | plain **+0.0009/+0.0013** IMPs/bd NV/vul, +1.86/+2.79 IMPs/fired; PD **+0.0010/+0.0014**, +2.00/+2.93 IMPs/fired; all four cells CI>0; 0.05% fired. 204.8k bd/arm/vul, SEED_BASE 1783285250, sha bc949dc |
+| P3c major support double | `set_major_support_double` | **SHIPPED default-on** (plain-wash + PD-gain row) | plain −0.0004/+0.0004 (wash, CIs⊇0); PD +0.0009/**+0.0016** (vul CI>0), +0.97/+1.69 IMPs/fired; 0.10% fired. 204.8k bd/arm/vul, SEED_BASE 1783285623, sha bc949dc |
+| P3b free bids | `set_free_bids` | **measured — stays opt-in**; floor sweep is the re-measure | vs off: plain +0.29 NV (CI>0) / **−0.30 vul (CI<0)**; PD −0.31/−0.88 (CI<0 both). ~2.0% fired. Worst-board bucket: 1-level free bids + the free 1NT at the 6-count floor get PD-punished vul — sweep floors to 8+ before re-measuring. SEED_BASE 1783286814, sha bc949dc |
+| P3d neg-X shape | `set_negative_double_shape` | **measured — BothMajors stays the default** | Modern vs off: plain +0.47 NV (CI>0) / +0.08 vul (~0); PD **−0.22/−0.63 (CI<0)** — the free-bid floor leak dominates. But **Modern vs free: plain +0.95/+1.36 (CI>0 both vuls)**, PD +0.13/+0.40 — the tighter doubles genuinely win; re-measure Modern after the free-bid floor fix. |
+| P3d′ Cachalot arm | `NegativeDoubleShape::Cachalot` | **measured — stays opt-in**; ≈ Modern head-to-head | Cachalot vs Modern: NV wash both scorers (±0.04/fired); vul plain −0.26 (~0), PD −0.41 (CI<0). Cachalot vs off ≈ Modern vs off. An engine plays it perfectly and it still only ties Modern on these brackets — revisit with sd-lead (right-siding) after the floor fix. |
+| P3a 3-level overcalls | `set_high_overcall_responses` | **measured — stays opt-in**; leak named, re-measure candidate | plain −0.0012/−0.0007, PD −0.0005/−0.0006 (all CIs⊇0), −0.6…−0.2 IMPs/fired, 0.19% fired. Worst-board bucket: the minor-opening 3-level neg X (one-major `or` shape at 10+) is too light — try 12+ or 4-4 both majors and re-measure. 204.8k bd/arm/vul, SEED_BASE 1783286003, sha bc949dc |
+| P4 Jordan/Truscott over (X) | `set_jordan_truscott` | **SHIPPED default-on**; the campaign's largest per-board win | plain **+0.0041/+0.0067** IMPs/bd NV/vul, +0.51/+0.83 IMPs/fired; PD **+0.0049/+0.0065**, +0.62/+0.80 IMPs/fired; all four cells CI>0; 0.79/0.81% fired. 204.8k bd/arm/vul, SEED_BASE 1783286386, sha bc949dc |
 | alert invariant over fallbacks | — | follow-up | — |
