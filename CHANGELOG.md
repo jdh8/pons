@@ -51,6 +51,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Extended overcall responses** — four knobs, all **default off** pending
+  their A/Bs (P3 of [docs/competitive-book.md](docs/competitive-book.md)):
+  - `set_major_support_double` (`--ns-major-support-double`): opener's support
+    double/redouble extends to `1♥-(P)-1♠` (exactly three spades), reusing the
+    shipped minor-opening tables verbatim.
+  - `set_free_bids` (`--ns-free-bids`): responder's natural free bids over an
+    overcall — 1-level new suit 5+ & 6+, 2-level non-jump 5+ & 10+, `1NT`
+    6–10 / `2NT` 11–12 with a stopper. Before this a 5-card suit with 8–11
+    HCP had no call at all.
+  - `set_negative_double_shape` (`--ns-negative-double-shape
+    both-majors|modern|cachalot`): the negative-double school over our minor
+    openings. `BothMajors` is the shipped rule (byte-identical default);
+    `Modern` = BWS/Cohen (over `(1♦)` 4-4+ at 6+, over `(1♥)` **exactly** four
+    spades, over `(1♠)` 4+ hearts at 8+); `Cachalot` = transfer Walsh in
+    competition (X = 4+ adjacent major, `1♥` = 4+ spades, `1♠` = residual
+    takeout hand), with opener's rotated answers authored — the 1-level
+    completion shows **exactly three** trumps, forcing. Both non-default
+    shapes imply the free bids.
+  - `set_high_overcall_responses` (`--ns-high-overcall`): responder over
+    their jump/3-level overcalls (`2NT < bid ≤ 3♠`), where the book previously
+    stopped at 2♠ — negative X through 3♠ (10+), forcing 3-level new suits,
+    `3NT` with a stopper, raises — plus opener's forced answer to the
+    3-level double.
+
 - **Contested weak twos** (`set_weak_two_competition`, **default off** pending
   the A/B; `--ns-weak-two-comp`). Over their takeout double the uncontested
   responses ride (Ogust still asks, raises stay preemptive — RONF) plus a

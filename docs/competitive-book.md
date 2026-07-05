@@ -149,10 +149,10 @@ wall). Measure as three arms: `BothMajors`+free-bids / `Modern`+free-bids /
 | P1 two-suiters over 1M | `set_uvu_over_majors` | **authored** (off, `--ns-uvu-over-majors`) | pending A/B |
 | P2a weak twos contested | `set_weak_two_competition` | **authored** (off, `--ns-weak-two-comp`) | pending A/B |
 | P2b strong 2♣ contested | `set_strong_two_competition` | **authored** (off, `--ns-strong-two-comp`) | pending A/B |
-| P3c major support double | `set_major_support_double` | designed | — |
-| P3b free bids | `set_free_bids` | designed | — |
-| P3d neg-X shape | `set_negative_double_shape` | designed | — |
-| P3d′ Cachalot arm | `NegativeDoubleShape::Cachalot` | designed | — |
-| P3a 3-level overcalls | `set_high_overcall_responses` | designed | — |
+| P3c major support double | `set_major_support_double` | **authored** (off, `--ns-major-support-double`) | pending A/B |
+| P3b free bids | `set_free_bids` | **authored** (off, `--ns-free-bids`) | pending A/B |
+| P3d neg-X shape | `set_negative_double_shape` | **authored** (BothMajors, `--ns-negative-double-shape`) | pending A/B |
+| P3d′ Cachalot arm | `NegativeDoubleShape::Cachalot` | **authored** (incl. opener completions) | pending A/B |
+| P3a 3-level overcalls | `set_high_overcall_responses` | **authored** (off, `--ns-high-overcall`) | pending A/B |
 | P4 Jordan/Truscott over (X) | `set_jordan_truscott` | designed | — |
 | alert invariant over fallbacks | — | follow-up | — |

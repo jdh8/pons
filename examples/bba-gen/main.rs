@@ -317,6 +317,30 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_strong_two_comp: bool,
 
+    /// Extend opener's support double/redouble to `1♥ – (P) – 1♠` (default
+    /// off; see `set_major_support_double`).
+    #[arg(long, default_value_t = false)]
+    ns_major_support_double: bool,
+
+    /// Author responder's natural free bids over an overcall — 1-level new
+    /// suit 5+ & 6+, 2-level non-jump 5+ & 10+, 1NT/2NT with a stopper
+    /// (default off; implied by --ns-negative-double-shape modern|cachalot;
+    /// see `set_free_bids`).
+    #[arg(long, default_value_t = false)]
+    ns_free_bids: bool,
+
+    /// The negative-double school over our minor openings:
+    /// both-majors (shipped default) | modern | cachalot
+    /// (see `set_negative_double_shape`; modern/cachalot imply the free bids).
+    #[arg(long, default_value = "both-majors")]
+    ns_negative_double_shape: String,
+
+    /// Author responder's structure over their jump / 3-level overcalls
+    /// (2NT < bid ≤ 3♠): negative X through 3♠, forcing new suits, 3NT with a
+    /// stopper (default off; see `set_high_overcall_responses`).
+    #[arg(long, default_value_t = false)]
+    ns_high_overcall: bool,
+
     /// Disable the major-rebid-tails adjunct — the full continuations after
     /// `1♥ – 1♠` below opener's `2♠`/`3♠` raise, `2♥` rebid, and `2♣`/`2♦`
     /// minor rebid (shipped default-on; see `set_major_rebid_tails`).
@@ -1036,6 +1060,19 @@ fn main() -> anyhow::Result<()> {
     pons::bidding::american::set_uvu_over_majors(args.ns_uvu_over_majors);
     pons::bidding::american::set_weak_two_competition(args.ns_weak_two_comp);
     pons::bidding::american::set_strong_two_competition(args.ns_strong_two_comp);
+    pons::bidding::american::set_major_support_double(args.ns_major_support_double);
+    pons::bidding::american::set_free_bids(args.ns_free_bids);
+    pons::bidding::american::set_negative_double_shape(
+        match args.ns_negative_double_shape.as_str() {
+            "both-majors" => pons::bidding::american::NegativeDoubleShape::BothMajors,
+            "modern" => pons::bidding::american::NegativeDoubleShape::Modern,
+            "cachalot" => pons::bidding::american::NegativeDoubleShape::Cachalot,
+            other => anyhow::bail!(
+                "--ns-negative-double-shape must be both-majors|modern|cachalot, got {other:?}"
+            ),
+        },
+    );
+    pons::bidding::american::set_high_overcall_responses(args.ns_high_overcall);
     pons::bidding::american::set_major_rebid_tails(!args.no_ns_major_rebid_tails);
     pons::bidding::american::set_fourth_suit_forcing(!args.no_ns_fourth_suit_forcing);
     pons::bidding::american::set_texas_game_floor(args.ns_texas_game_floor);

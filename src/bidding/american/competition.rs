@@ -80,6 +80,17 @@ const WEAK_TWO_XX: Alert = Alert("comp:weak-two-xx");
 /// Ogust survives their overcall of our weak two — the contested `2NT` still
 /// asks (2+ card support, 14+), alerted so the fit and strength project.
 const CONTESTED_OGUST: Alert = Alert("comp:ogust");
+/// Cachalot rotated double — 4+ cards in the *adjacent* major (hearts over
+/// `(1♦)`, spades over `(1♥)`), not a classic unbid-majors negative double.
+const CACHALOT_X: Alert = Alert("comp:cachalot-x");
+/// Cachalot transfer — `1♥` over `(1♦)` showing 4+ **spades**.
+const CACHALOT_TRANSFER: Alert = Alert("comp:cachalot-transfer");
+/// Cachalot residual — `1♠` over `(1♦)`/`(1♥)` as the takeout hand, ≤3 in
+/// each major the rotation could have shown.
+const CACHALOT_TAKEOUT: Alert = Alert("comp:cachalot-takeout");
+/// Cachalot completion — opener's 1-level completion of the transfer shows
+/// **exactly three** trumps (forcing one round; the raise shows four).
+const CACHALOT_THREE: Alert = Alert("comp:cachalot-three");
 
 /// Which Lebensohl package the competitive book carries over our overcalled
 /// `1NT` (Section 5)
@@ -583,6 +594,111 @@ fn strong_two_competition() -> bool {
     STRONG_TWO_COMPETITION.with(Cell::get)
 }
 
+thread_local! {
+    /// Whether opener's support double/redouble extends to the major-major
+    /// auction `1♥ – (P) – 1♠ – (X / overcall below 2♠)`. The minor-opening
+    /// pairs are always on (shipped); this fifth pair is default off while
+    /// the A/B runs.
+    static MAJOR_SUPPORT_DOUBLE: Cell<bool> = const { Cell::new(false) };
+}
+
+/// Extend support doubles to `1♥ – (P) – 1♠` for books built *after* this
+/// call (thread-local)
+///
+/// Default off (`--ns-major-support-double` in `bba-gen` for the on arm).
+pub fn set_major_support_double(on: bool) {
+    MAJOR_SUPPORT_DOUBLE.with(|cell| cell.set(on));
+}
+
+/// Whether the major-major support double is engaged
+fn major_support_double() -> bool {
+    MAJOR_SUPPORT_DOUBLE.with(Cell::get)
+}
+
+/// The negative-double school over our **minor** openings
+/// ([`set_negative_double_shape`]; the major-opening double — 4+ in the other
+/// major, 8+ — is common to all three)
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum NegativeDoubleShape {
+    /// Both majors 4-4+ at 8+ regardless of the overcall — the shipped rule
+    BothMajors,
+    /// Modern standard (BWS/Cohen): over `(1♦)` both majors 4-4+ at 6+; over
+    /// `(1♥)` **exactly** four spades at 6+ (with 5+ bid the free `1♠`); over
+    /// `(1♠)` 4+ hearts at 8+; over a 2-level minor both majors at 8+.
+    /// Implies the free bids (the exactly-4 double is unsound without the
+    /// 5-card outlet).
+    Modern,
+    /// Cachalot — transfer Walsh in competition (Lebel–Soulet lineage): over
+    /// `(1♦)`/`(1♥)` the 1-level calls rotate — `X` = 4+ in the adjacent
+    /// major, `1♥` = 4+ spades, `1♠` = the residual takeout hand (≤3 in each
+    /// shown-able major). Opener's 1-level completion shows **exactly three**
+    /// trumps, forcing; the raise shows four. Natural from `(1♠)` up (the
+    /// Modern rules apply there). Implies the free bids.
+    Cachalot,
+}
+
+thread_local! {
+    /// Which negative-double school the minor openings play. Default
+    /// `BothMajors` — the shipped rule, byte-identical.
+    static NEGATIVE_DOUBLE_SHAPE: Cell<NegativeDoubleShape> =
+        const { Cell::new(NegativeDoubleShape::BothMajors) };
+
+    /// Whether responder's natural free bids over an overcall are authored
+    /// (1-level new suit 5+ & 6+, 2-level non-jump 5+ & 10+, 1NT 6–10 / 2NT
+    /// 11–12 with a stopper). Default off while the A/B runs; implied by the
+    /// `Modern`/`Cachalot` negative-double shapes.
+    static FREE_BIDS: Cell<bool> = const { Cell::new(false) };
+}
+
+/// Choose the negative-double school for books built *after* this call
+/// (thread-local)
+///
+/// Default [`NegativeDoubleShape::BothMajors`]
+/// (`--ns-negative-double-shape` in `bba-gen`).
+pub fn set_negative_double_shape(shape: NegativeDoubleShape) {
+    NEGATIVE_DOUBLE_SHAPE.with(|cell| cell.set(shape));
+}
+
+/// The negative-double school in effect
+fn negative_double_shape() -> NegativeDoubleShape {
+    NEGATIVE_DOUBLE_SHAPE.with(Cell::get)
+}
+
+/// Author responder's natural free bids over an overcall for books built
+/// *after* this call (thread-local)
+///
+/// Default off (`--ns-free-bids` in `bba-gen` for the on arm).
+pub fn set_free_bids(on: bool) {
+    FREE_BIDS.with(|cell| cell.set(on));
+}
+
+/// Whether the free bids are authored — directly, or implied by a
+/// negative-double shape whose tighter double needs the natural outlet
+fn free_bids_engaged() -> bool {
+    FREE_BIDS.with(Cell::get) || negative_double_shape() != NegativeDoubleShape::BothMajors
+}
+
+thread_local! {
+    /// Whether responder's structure over their jump / 3-level overcalls
+    /// (`2NT < bid ≤ 3♠`) is authored — the shipped direct-seat package stops
+    /// at `OvercallAtMost(2♠)` and everything higher falls to the floor.
+    /// Default off while the A/B runs.
+    static HIGH_OVERCALL_RESPONSES: Cell<bool> = const { Cell::new(false) };
+}
+
+/// Author responder's structure over their 3-level overcalls for books built
+/// *after* this call (thread-local)
+///
+/// Default off (`--ns-high-overcall` in `bba-gen` for the on arm).
+pub fn set_high_overcall_responses(on: bool) {
+    HIGH_OVERCALL_RESPONSES.with(|cell| cell.set(on));
+}
+
+/// Whether the 3-level-overcall package is engaged
+fn high_overcall_responses() -> bool {
+    HIGH_OVERCALL_RESPONSES.with(Cell::get)
+}
+
 /// Author responder's direct `3NT` over the overcall at `weight`, honoring the
 /// stopper ([`direct_3nt_stopper`]) and trap-pass ([`trap_pass`]) toggles. The
 /// trap denies a too-good stopper (`suit_hcp(over, ..=4)`). The `&`-chained
@@ -924,22 +1040,178 @@ fn over_their_overcall(opening: Suit) -> Rules {
         min_level_is(2, o_strain) & support(raise_min..) & points(6..=9),
     );
 
-    // Negative double
+    // Negative double. The major-opening double is common to every school;
+    // the minor-opening shape follows [`NegativeDoubleShape`]. The dynamic
+    // "which overcall" conditions are legality-anchored: `min_level_is(1, ♥)`
+    // holds exactly over a (1♦) overcall, `they_bid(♥) & min_level_is(1, ♠)`
+    // exactly over (1♥).
+    let shape = negative_double_shape();
     rules = if is_major {
         // Other major, 4+ cards, 8+ HCP
         rules
             .rule(Call::Double, 1.0, len(other_major, 4..) & hcp(8..))
             .alert(NEGATIVE_DOUBLE)
     } else {
-        // Both majors 4+, 8+ HCP
-        rules
-            .rule(
-                Call::Double,
-                1.0,
-                len(Suit::Hearts, 4..) & len(Suit::Spades, 4..) & hcp(8..),
-            )
-            .alert(NEGATIVE_DOUBLE)
+        match shape {
+            // Both majors 4+, 8+ HCP — the shipped rule.
+            NegativeDoubleShape::BothMajors => rules
+                .rule(
+                    Call::Double,
+                    1.0,
+                    len(Suit::Hearts, 4..) & len(Suit::Spades, 4..) & hcp(8..),
+                )
+                .alert(NEGATIVE_DOUBLE),
+            NegativeDoubleShape::Modern => rules
+                // Over (1♦): both majors, floor 6.
+                .rule(
+                    Call::Double,
+                    1.0,
+                    min_level_is(1, Strain::Hearts)
+                        & len(Suit::Hearts, 4..)
+                        & len(Suit::Spades, 4..)
+                        & hcp(6..),
+                )
+                .alert(NEGATIVE_DOUBLE)
+                // Over (1♥): exactly four spades (five-plus bids the free 1♠).
+                .rule(
+                    Call::Double,
+                    1.0,
+                    they_bid(Strain::Hearts)
+                        & min_level_is(1, Strain::Spades)
+                        & len(Suit::Spades, 4..=4)
+                        & hcp(6..),
+                )
+                .alert(NEGATIVE_DOUBLE)
+                // Over (1♠)/(2♠): 4+ hearts, floor 8 (the reply starts at the
+                // 2 level).
+                .rule(
+                    Call::Double,
+                    1.0,
+                    they_bid(Strain::Spades) & len(Suit::Hearts, 4..) & hcp(8..),
+                )
+                .alert(NEGATIVE_DOUBLE)
+                // Over a 2-level minor: both majors, floor 8.
+                .rule(
+                    Call::Double,
+                    1.0,
+                    (they_bid(Strain::Clubs) | they_bid(Strain::Diamonds))
+                        & !min_level_is(1, Strain::Hearts)
+                        & len(Suit::Hearts, 4..)
+                        & len(Suit::Spades, 4..)
+                        & hcp(8..),
+                )
+                .alert(NEGATIVE_DOUBLE),
+            NegativeDoubleShape::Cachalot => rules
+                // Over (1♦): X transfers — 4+ hearts (may hold spades too).
+                .rule(
+                    Call::Double,
+                    1.0,
+                    min_level_is(1, Strain::Hearts) & len(Suit::Hearts, 4..) & hcp(6..),
+                )
+                .alert(CACHALOT_X)
+                // Over (1♥): X transfers — 4+ spades.
+                .rule(
+                    Call::Double,
+                    1.0,
+                    they_bid(Strain::Hearts)
+                        & min_level_is(1, Strain::Spades)
+                        & len(Suit::Spades, 4..)
+                        & hcp(6..),
+                )
+                .alert(CACHALOT_X)
+                // Natural from (1♠) up: the Modern rules apply.
+                .rule(
+                    Call::Double,
+                    1.0,
+                    they_bid(Strain::Spades) & len(Suit::Hearts, 4..) & hcp(8..),
+                )
+                .alert(NEGATIVE_DOUBLE)
+                .rule(
+                    Call::Double,
+                    1.0,
+                    (they_bid(Strain::Clubs) | they_bid(Strain::Diamonds))
+                        & !min_level_is(1, Strain::Hearts)
+                        & len(Suit::Hearts, 4..)
+                        & len(Suit::Spades, 4..)
+                        & hcp(8..),
+                )
+                .alert(NEGATIVE_DOUBLE),
+        }
     };
+
+    // Cachalot's rotated 1-level calls over (1♦)/(1♥): 1♥ shows spades, 1♠
+    // is the residual takeout hand. Only minor openings rotate.
+    if !is_major && shape == NegativeDoubleShape::Cachalot {
+        rules = rules
+            // Over (1♦): 1♥ = 4+ spades without 4 hearts (4+ hearts doubles).
+            .rule(
+                Bid::new(1, Strain::Hearts),
+                1.45,
+                min_level_is(1, Strain::Hearts)
+                    & len(Suit::Spades, 4..)
+                    & len(Suit::Hearts, ..=3)
+                    & hcp(6..),
+            )
+            .alert(CACHALOT_TRANSFER)
+            // Over (1♦): 1♠ = the takeout hand, ≤3 in both majors. Sits below
+            // the notrump rules so a stopper hand prefers 1NT/2NT.
+            .rule(
+                Bid::new(1, Strain::Spades),
+                0.85,
+                min_level_is(1, Strain::Hearts)
+                    & len(Suit::Hearts, ..=3)
+                    & len(Suit::Spades, ..=3)
+                    & hcp(8..),
+            )
+            .alert(CACHALOT_TAKEOUT)
+            // Over (1♥): 1♠ = the takeout hand, ≤3 spades (4+ doubles).
+            .rule(
+                Bid::new(1, Strain::Spades),
+                0.85,
+                they_bid(Strain::Hearts)
+                    & min_level_is(1, Strain::Spades)
+                    & len(Suit::Spades, ..=3)
+                    & hcp(8..),
+            )
+            .alert(CACHALOT_TAKEOUT);
+    }
+
+    // Natural free bids (`set_free_bids`; implied by the Modern/Cachalot
+    // shapes, whose tighter doubles need the natural outlet). A free bid of
+    // their suit is the cue above; the 1-level majors stay out of the
+    // Cachalot rotation's way (a 5-card major routes through its transfer).
+    if free_bids_engaged() {
+        let cachalot = !is_major && shape == NegativeDoubleShape::Cachalot;
+        for x in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
+            if x == o {
+                continue;
+            }
+            let xs = Strain::from(x);
+            if !(cachalot && matches!(x, Suit::Hearts | Suit::Spades)) {
+                rules = rules.rule(
+                    Bid::new(1, xs),
+                    1.45,
+                    min_level_is(1, xs) & len(x, 5..) & points(6..) & !they_bid(xs),
+                );
+            }
+            rules = rules.rule(
+                Bid::new(2, xs),
+                1.45,
+                min_level_is(2, xs) & len(x, 5..) & points(10..) & !they_bid(xs),
+            );
+        }
+        rules = rules
+            .rule(
+                Bid::new(1, Strain::Notrump),
+                0.9,
+                min_level_is(1, Strain::Notrump) & hcp(6..=10) & stopper_in_their_suits(),
+            )
+            .rule(
+                Bid::new(2, Strain::Notrump),
+                0.95,
+                min_level_is(2, Strain::Notrump) & hcp(11..=12) & stopper_in_their_suits(),
+            );
+    }
 
     // Weak jump shifts: for each suit x ≠ o, levels 2 and 3
     for x in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
@@ -1170,6 +1442,176 @@ fn uvu_fourth_suit_answer(major: Suit) -> Rules {
         )
         .rule(Bid::new(4, m), 1.0, len(major, 6..))
         .rule(Bid::new(3, Strain::Notrump), 0.2, hcp(0..))
+}
+
+/// Opener's answer to a Cachalot rotation showing 4+ in `shown` after our
+/// minor opening and their `over` overcall
+///
+/// The memo's ladder: raise to two with four trumps; **complete at the one
+/// level with exactly three** (forcing one round — the convention's payoff);
+/// name the fourth suit naturally; `1NT` with their suit stopped (it does not
+/// deny three trumps — the completion simply outweighs it); rebid a 5-card
+/// opening minor; the low-weight `1NT` is the finite catch-all (the rotation
+/// is forcing).
+fn cachalot_answer(opening: Suit, over: Suit, shown: Suit) -> Rules {
+    let m = Strain::from(shown);
+    let mut rules = Rules::new()
+        .rule(Bid::new(2, m), 1.3, len(shown, 4..))
+        .rule(Bid::new(1, m), 1.2, len(shown, 3..=3))
+        .alert(CACHALOT_THREE);
+    if shown == Suit::Hearts {
+        // The fourth suit at the one level (spades, when hearts were shown
+        // over their (1♦)).
+        rules = rules.rule(Bid::new(1, Strain::Spades), 1.1, len(Suit::Spades, 4..));
+    }
+    rules
+        .rule(Bid::new(1, Strain::Notrump), 1.0, stopper_in(over))
+        .rule(Bid::new(2, Strain::from(opening)), 0.9, len(opening, 5..))
+        .rule(Bid::new(1, Strain::Notrump), 0.2, hcp(0..))
+}
+
+/// Opener's answer to the Cachalot takeout `1♠` — as over a Sputnik double
+///
+/// Partner denied four cards in every rotation major, so there is no fit to
+/// hunt: `1NT` with their suit stopped, a natural 5-card rebid, else the
+/// cheapest rebid of the opening minor as the finite catch-all.
+fn cachalot_takeout_answer(opening: Suit, over: Suit) -> Rules {
+    let o = Strain::from(opening);
+    Rules::new()
+        .rule(Bid::new(1, Strain::Notrump), 1.0, stopper_in(over))
+        .rule(Bid::new(2, o), 0.9, len(opening, 5..))
+        .rule(Bid::new(2, o), 0.2, hcp(0..))
+}
+
+// ---------------------------------------------------------------------------
+// Section 10: their jump / 3-level overcalls (`set_high_overcall_responses`)
+// ---------------------------------------------------------------------------
+
+/// Responder after our opening `o` and their suit overcall in `2NT < bid ≤ 3♠`
+///
+/// The 4-level cue is deliberately dropped (a game-forcing raise doubles
+/// first or blasts game), which keeps the Section-4b/4c cue-raise guards
+/// untouched. Their `2NT` is excluded by the guard — in the NATURAL family a
+/// `(2NT)` jump over our opening is a two-suiter, never natural.
+fn over_their_high_overcall(opening: Suit) -> Rules {
+    let o = opening;
+    let o_strain = Strain::from(o);
+    let is_major = matches!(o, Suit::Hearts | Suit::Spades);
+    let raise_min: usize = if is_major { 3 } else { 5 };
+
+    let mut rules = Rules::new().rule(
+        Bid::new(3, Strain::Notrump),
+        1.7,
+        points(13..) & stopper_in_their_suits(),
+    );
+
+    // Forcing 3-level new suits — strength does the forcing.
+    for x in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
+        if x == o {
+            continue;
+        }
+        let xs = Strain::from(x);
+        rules = rules.rule(
+            Bid::new(3, xs),
+            1.45,
+            min_level_is(3, xs) & !they_bid(xs) & len(x, 5..) & points(13..),
+        );
+    }
+
+    // The negative double, strength scaled to the level.
+    rules = if is_major {
+        let om = unbid_major(o).expect("a major opening has an unbid major");
+        let om_strain = Strain::from(om);
+        rules
+            .rule(
+                Call::Double,
+                1.0,
+                len(om, 4..) & hcp(10..) & !they_bid(om_strain),
+            )
+            .alert(NEGATIVE_DOUBLE)
+    } else {
+        rules
+            .rule(
+                Call::Double,
+                1.0,
+                (len(Suit::Hearts, 4..) | len(Suit::Spades, 4..)) & hcp(10..),
+            )
+            .alert(NEGATIVE_DOUBLE)
+    };
+
+    // Raises: competitive at the 3 level, game with real extras (majors) or
+    // preemptive on shape (minors).
+    rules = rules.rule(
+        Bid::new(3, o_strain),
+        1.3,
+        min_level_is(3, o_strain) & len(o, raise_min..) & points(6..),
+    );
+    rules = if is_major {
+        rules.rule(Bid::new(4, o_strain), 1.25, len(o, 4..) & points(11..))
+    } else {
+        rules.rule(Bid::new(4, o_strain), 1.25, len(o, 5..) & points(..=9))
+    };
+
+    rules.rule(Call::Pass, 0.0, hcp(0..))
+}
+
+/// Opener's forced answer to partner's negative double of a 3-level overcall
+///
+/// Bid an unbid major at the cheapest legal level with four; `3NT` with their
+/// suit stopped; rebid a 6-card opening suit; else the 3-card major
+/// tolerance, with a low-weight `3NT` as the finite catch-all (the double is
+/// forcing — `3NT` is always legal under the ≤3♠ guard).
+fn answer_high_neg_double(opening: Suit) -> Rules {
+    let o_strain = Strain::from(opening);
+    let mut rules = Rules::new();
+
+    for m in [Suit::Hearts, Suit::Spades] {
+        if m == opening {
+            continue;
+        }
+        let ms = Strain::from(m);
+        rules = rules
+            .rule(
+                Bid::new(3, ms),
+                1.2,
+                min_level_is(3, ms) & len(m, 4..) & !they_bid(ms),
+            )
+            .rule(
+                Bid::new(4, ms),
+                1.1,
+                min_level_is(4, ms) & len(m, 4..) & !they_bid(ms),
+            );
+    }
+    rules = rules
+        .rule(Bid::new(3, Strain::Notrump), 1.0, stopper_in_their_suits())
+        .rule(
+            Bid::new(3, o_strain),
+            0.9,
+            min_level_is(3, o_strain) & len(opening, 6..),
+        )
+        .rule(
+            Bid::new(4, o_strain),
+            0.85,
+            min_level_is(4, o_strain) & len(opening, 6..),
+        );
+    for m in [Suit::Hearts, Suit::Spades] {
+        if m == opening {
+            continue;
+        }
+        let ms = Strain::from(m);
+        rules = rules
+            .rule(
+                Bid::new(3, ms),
+                0.3,
+                min_level_is(3, ms) & len(m, 3..) & !they_bid(ms),
+            )
+            .rule(
+                Bid::new(4, ms),
+                0.25,
+                min_level_is(4, ms) & len(m, 3..) & !they_bid(ms),
+            );
+    }
+    rules.rule(Bid::new(3, Strain::Notrump), 0.15, hcp(0..))
 }
 
 // ---------------------------------------------------------------------------
@@ -2398,45 +2840,54 @@ pub fn competition() -> Competitive {
         );
     }
 
-    // Section 3: support doubles and redoubles for each (minor, major) pair.
-    for minor in [Suit::Clubs, Suit::Diamonds] {
-        for major in [Suit::Hearts, Suit::Spades] {
-            let suffix = [
-                call(1, Strain::from(minor)),
-                Call::Pass,
-                call(1, Strain::from(major)),
-            ];
-            let just_below = if major == Suit::Hearts {
-                Bid::new(2, Strain::Diamonds)
-            } else {
-                Bid::new(2, Strain::Hearts)
-            };
+    // Section 3: support doubles and redoubles for each (opening, major)
+    // pair. The four minor-major pairs always; `1♥ – (P) – 1♠` behind
+    // `set_major_support_double` (default off pending the A/B).
+    let mut support_pairs = vec![
+        (Suit::Clubs, Suit::Hearts),
+        (Suit::Clubs, Suit::Spades),
+        (Suit::Diamonds, Suit::Hearts),
+        (Suit::Diamonds, Suit::Spades),
+    ];
+    if major_support_double() {
+        support_pairs.push((Suit::Hearts, Suit::Spades));
+    }
+    for (opening, major) in support_pairs {
+        let suffix = [
+            call(1, Strain::from(opening)),
+            Call::Pass,
+            call(1, Strain::from(major)),
+        ];
+        let just_below = if major == Suit::Hearts {
+            Bid::new(2, Strain::Diamonds)
+        } else {
+            Bid::new(2, Strain::Hearts)
+        };
 
-            // Support double: they overcall at most `just_below`
-            fallback_all_seats(
-                &mut book,
-                &suffix,
-                3,
-                Arc::new(OvercallAtMost(just_below)),
-                Fallback::classify(support_rules(major)),
-            );
+        // Support double: they overcall at most `just_below`
+        fallback_all_seats(
+            &mut book,
+            &suffix,
+            3,
+            Arc::new(OvercallAtMost(just_below)),
+            Fallback::classify(support_rules(major)),
+        );
 
-            // Support redouble: they doubled
-            fallback_all_seats(
-                &mut book,
-                &suffix,
-                3,
-                Arc::new(SuffixIs(vec![Call::Double])),
-                Fallback::classify({
-                    let m = Strain::from(major);
-                    Rules::new()
-                        .rule(Call::Redouble, 1.5, support(3..=3))
-                        .alert(SUPPORT_DOUBLE)
-                        .rule(Bid::new(2, m), 1.4, support(4..))
-                        .rule(Call::Pass, 0.0, hcp(0..))
-                }),
-            );
-        }
+        // Support redouble: they doubled
+        fallback_all_seats(
+            &mut book,
+            &suffix,
+            3,
+            Arc::new(SuffixIs(vec![Call::Double])),
+            Fallback::classify({
+                let m = Strain::from(major);
+                Rules::new()
+                    .rule(Call::Redouble, 1.5, support(3..=3))
+                    .alert(SUPPORT_DOUBLE)
+                    .rule(Bid::new(2, m), 1.4, support(4..))
+                    .rule(Call::Pass, 0.0, hcp(0..))
+            }),
+        );
     }
 
     // Section 4: opener answers partner's negative double of a two-level minor.
@@ -2584,6 +3035,103 @@ pub fn competition() -> Competitive {
                 3,
                 Arc::new(SuffixIs(vec![om_cue, Call::Pass])),
                 Fallback::classify(answer_cue_raise(major)),
+            );
+        }
+    }
+
+    // Section 10: their jump / 3-level suit overcalls
+    // (`set_high_overcall_responses`, default off). A second guarded entry at
+    // [1x] — its bid range (2NT, 3♠] is disjoint from the shipped
+    // OvercallAtMost(2♠) entry, so declaration order is irrelevant. Their
+    // (2NT) and their 3-level cue of our own suit are excluded (the first is
+    // a two-suiter, the second is rare enough for the floor).
+    if high_overcall_responses() {
+        for opening in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
+            let o_strain = Strain::from(opening);
+            let open = call(1, o_strain);
+            fallback_all_seats(
+                &mut book,
+                &[open],
+                3,
+                Arc::new(described_guard(
+                    "(2NT < overcall ≤3♠)",
+                    guard(move |_: &Context<'_>, s: &[Call]| {
+                        matches!(s, [Call::Bid(b)]
+                            if *b > Bid::new(2, Strain::Notrump)
+                                && *b <= Bid::new(3, Strain::Spades)
+                                && b.strain.is_suit()
+                                && b.strain != o_strain)
+                    }),
+                )),
+                Fallback::classify(over_their_high_overcall(opening)),
+            );
+            fallback_all_seats(
+                &mut book,
+                &[open],
+                3,
+                Arc::new(described_guard(
+                    "(2NT < overcall ≤3♠) X -",
+                    guard(move |_: &Context<'_>, s: &[Call]| {
+                        matches!(s, [Call::Bid(b), Call::Double, Call::Pass]
+                            if *b > Bid::new(2, Strain::Notrump)
+                                && *b <= Bid::new(3, Strain::Spades)
+                                && b.strain.is_suit()
+                                && b.strain != o_strain)
+                    }),
+                )),
+                Fallback::classify(answer_high_neg_double(opening)),
+            );
+        }
+    }
+
+    // Section 9: opener's Cachalot answers (`NegativeDoubleShape::Cachalot`
+    // only). The rotated calls are forcing; each gets its completion table at
+    // the deeper [1m, <their 1-level overcall>] key.
+    if negative_double_shape() == NegativeDoubleShape::Cachalot {
+        let one_heart = call(1, Strain::Hearts);
+        let one_spade = call(1, Strain::Spades);
+
+        // (1♦) over 1♣: X shows hearts, 1♥ shows spades, 1♠ is the takeout.
+        let clubs = call(1, Strain::Clubs);
+        let d_ovc = call(1, Strain::Diamonds);
+        fallback_all_seats(
+            &mut book,
+            &[clubs, d_ovc],
+            3,
+            Arc::new(SuffixIs(vec![Call::Double, Call::Pass])),
+            Fallback::classify(cachalot_answer(Suit::Clubs, Suit::Diamonds, Suit::Hearts)),
+        );
+        fallback_all_seats(
+            &mut book,
+            &[clubs, d_ovc],
+            3,
+            Arc::new(SuffixIs(vec![one_heart, Call::Pass])),
+            Fallback::classify(cachalot_answer(Suit::Clubs, Suit::Diamonds, Suit::Spades)),
+        );
+        fallback_all_seats(
+            &mut book,
+            &[clubs, d_ovc],
+            3,
+            Arc::new(SuffixIs(vec![one_spade, Call::Pass])),
+            Fallback::classify(cachalot_takeout_answer(Suit::Clubs, Suit::Diamonds)),
+        );
+
+        // (1♥) over 1♣/1♦: X shows spades, 1♠ is the takeout.
+        for opening in [Suit::Clubs, Suit::Diamonds] {
+            let open = call(1, Strain::from(opening));
+            fallback_all_seats(
+                &mut book,
+                &[open, one_heart],
+                3,
+                Arc::new(SuffixIs(vec![Call::Double, Call::Pass])),
+                Fallback::classify(cachalot_answer(opening, Suit::Hearts, Suit::Spades)),
+            );
+            fallback_all_seats(
+                &mut book,
+                &[open, one_heart],
+                3,
+                Arc::new(SuffixIs(vec![one_spade, Call::Pass])),
+                Fallback::classify(cachalot_takeout_answer(opening, Suit::Hearts)),
             );
         }
     }
@@ -4832,6 +5380,99 @@ mod tests {
         let (rebid, _) = best_call(&reopen, "AQ2.AKQ5.KQ54.A2");
         assert_eq!(rebid, call(2, Strain::Notrump), "opener never sells out");
         super::set_strong_two_competition(false);
+    }
+
+    #[test]
+    fn major_support_double_shows_three_spades() {
+        super::set_major_support_double(true);
+        // [1♥, (P), 1♠, (2♣)]: opener with exactly three spades doubles.
+        let auction = [
+            call(1, Strain::Hearts),
+            Call::Pass,
+            call(1, Strain::Spades),
+            call(2, Strain::Clubs),
+        ];
+        let (support, floored) = best_call(&auction, "K32.AQ542.A95.32");
+        assert_eq!(support, Call::Double, "exactly three = support double");
+        assert!(!floored, "an authored node, not the floor");
+        super::set_major_support_double(false);
+    }
+
+    #[test]
+    fn modern_negative_double_is_exactly_four_over_one_heart() {
+        super::set_negative_double_shape(super::NegativeDoubleShape::Modern);
+        // [1♦, (1♥)]: five spades bid the free 1♠; exactly four double.
+        let auction = [call(1, Strain::Diamonds), call(1, Strain::Hearts)];
+        let (free, floored) = best_call(&auction, "AQ542.95.964.Q32");
+        assert_eq!(free, call(1, Strain::Spades), "five spades bid the suit");
+        assert!(!floored, "an authored node, not the floor");
+        let (neg, _) = best_call(&auction, "AQ54.95.9642.Q32");
+        assert_eq!(neg, Call::Double, "exactly four doubles");
+        super::set_negative_double_shape(super::NegativeDoubleShape::BothMajors);
+    }
+
+    #[test]
+    fn free_bids_fill_the_natural_gaps() {
+        super::set_free_bids(true);
+        // [1♠, (2♦)]: an 11-count with five hearts bids the 2/1-ish 2♥.
+        let auction = [call(1, Strain::Spades), call(2, Strain::Diamonds)];
+        let (two_hearts, floored) = best_call(&auction, "K5.AQ542.964.Q32");
+        assert_eq!(two_hearts, call(2, Strain::Hearts), "the 2-level free bid");
+        assert!(!floored, "an authored node, not the floor");
+        // [1♥, (1♠)]: a balanced 10 with a spade stopper bids 1NT.
+        let one_nt_auction = [call(1, Strain::Hearts), call(1, Strain::Spades)];
+        let (one_nt, _) = best_call(&one_nt_auction, "K52.95.KJ64.QJ32");
+        assert_eq!(one_nt, call(1, Strain::Notrump), "the natural 1NT");
+        super::set_free_bids(false);
+    }
+
+    #[test]
+    fn cachalot_rotates_the_one_level() {
+        super::set_negative_double_shape(super::NegativeDoubleShape::Cachalot);
+        let auction = [call(1, Strain::Clubs), call(1, Strain::Diamonds)];
+        // X = 4+ hearts; 1♥ = 4+ spades; 1♠ = the residual takeout hand.
+        let (x, floored) = best_call(&auction, "K52.QJ54.964.Q32");
+        assert_eq!(x, Call::Double, "X shows the adjacent major");
+        assert!(!floored, "an authored node, not the floor");
+        let (transfer, _) = best_call(&auction, "QJ54.K52.964.Q32");
+        assert_eq!(transfer, call(1, Strain::Hearts), "1♥ shows spades");
+        let (takeout, _) = best_call(&auction, "K52.Q54.964.QJ32");
+        assert_eq!(takeout, call(1, Strain::Spades), "1♠ is the takeout hand");
+        // Opener completes the heart transfer with exactly three, raises four.
+        let complete = [
+            call(1, Strain::Clubs),
+            call(1, Strain::Diamonds),
+            Call::Double,
+            Call::Pass,
+        ];
+        let (three, _) = best_call(&complete, "AQ54.K52.96.QJ32");
+        assert_eq!(three, call(1, Strain::Hearts), "exactly three completes");
+        let (four, _) = best_call(&complete, "AQ5.K542.96.QJ32");
+        assert_eq!(four, call(2, Strain::Hearts), "four raises");
+        super::set_negative_double_shape(super::NegativeDoubleShape::BothMajors);
+    }
+
+    #[test]
+    fn high_overcalls_get_a_structure() {
+        super::set_high_overcall_responses(true);
+        // [1♠, (3♦)]: 4 hearts + 12 HCP make the 3-level negative double; a
+        // diamond stopper + 16 bids 3NT instead.
+        let auction = [call(1, Strain::Spades), call(3, Strain::Diamonds)];
+        let (neg, floored) = best_call(&auction, "K5.KQ54.965.A432");
+        assert_eq!(neg, Call::Double, "the 3-level negative double");
+        assert!(!floored, "an authored node, not the floor");
+        let (game, _) = best_call(&auction, "K5.KQ54.A65.A432");
+        assert_eq!(game, call(3, Strain::Notrump), "3NT with a stopper");
+        // Opener answers the forcing double with the unbid major.
+        let answer = [
+            call(1, Strain::Spades),
+            call(3, Strain::Diamonds),
+            Call::Double,
+            Call::Pass,
+        ];
+        let (major, _) = best_call(&answer, "AQ542.KJ54.96.32");
+        assert_eq!(major, call(3, Strain::Hearts), "four hearts answer 3♥");
+        super::set_high_overcall_responses(false);
     }
 
     /// Renderability invariant: every guarded fallback in the competitive book
