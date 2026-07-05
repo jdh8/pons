@@ -129,6 +129,21 @@ Don't author the SEF "4 w/8+ OR 5 w/7–10" disjunction (the OR-projection
 wall). Measure as three arms: `BothMajors`+free-bids / `Modern`+free-bids /
 `Cachalot`.
 
+## Known deferrals / oddities spotted while authoring
+
+- **`1♥-(1♠)-X` shows 4+ spades** in the shipped `over_their_overcall` rule —
+  `other_major` is spades even when spades *is* the overcall, so the "negative
+  double" there is really a trump-stack values double. Pre-existing; the
+  Modern/Cachalot arms don't touch major openings. Revisit if the P3 forensics
+  flag it.
+- Modern's opener answer to the minor-opening negative double rides the floor
+  (projection gives it the shown major); only Cachalot's answers are authored.
+- P4's XX/Jordan **contested tails** (advancer bids over them) rebase into a
+  dead end and land on the floor with the projected floors — authored
+  continuations are a follow-up if the buckets drag.
+- Balancing-seat two-suiter reading (`[1M, P, P, 2M/2NT]`) is not recorded —
+  the P1 reading is direct-seat only, matching the authored nodes.
+
 ## Measurement discipline per package
 
 - P1 cues, P3 (all), P4 Jordan/XX: constructive contract-finding — DD-visible,
