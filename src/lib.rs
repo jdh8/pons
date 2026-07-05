@@ -16,11 +16,14 @@
 /// Bidding in contract bridge
 pub mod bidding;
 /// GIB hand-record format (deal + cached double-dummy table)
+#[cfg(feature = "dd")]
 pub mod gib;
 pub mod scoring;
 /// Single-dummy trick estimation by Monte-Carlo double-dummy
+#[cfg(feature = "dd")]
 pub mod single_dummy;
 /// Statistics
+#[cfg(feature = "dd")]
 pub mod stats;
 
 pub use bidding::{
@@ -33,5 +36,7 @@ pub use bidding::{
 };
 #[cfg(feature = "search")]
 pub use bidding::{american_search, american_search_book, american_search_with};
+#[cfg(feature = "dd")]
 pub use single_dummy::{LeadQuestion, single_dummy, single_dummy_lead_tricks, single_dummy_leads};
+#[cfg(feature = "dd")]
 pub use stats::{Accumulator, Statistics};

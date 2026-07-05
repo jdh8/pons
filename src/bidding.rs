@@ -8,6 +8,7 @@ pub mod compose;
 pub mod constraint;
 pub mod context;
 /// Call-EV evaluator: a candidate call's cardplay-grounded worth by rollout
+#[cfg(feature = "dd")]
 pub mod ev;
 pub mod fallback;
 /// Versioned feature extractor for the AI instinct bidder
@@ -48,6 +49,7 @@ pub use array::Array;
 pub use book::{Competitive, Constructive, Defensive, Family, Pair, Phase, Stance};
 pub use compose::{OrElse, Versus};
 pub use context::Context;
+#[cfg(feature = "dd")]
 pub use ev::{ev, ev_all};
 pub use features::{FEATURES_LEN, FEATURES_VERSION, features};
 pub use inference::{

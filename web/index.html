@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>pons — bridge bidding</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>pons</h1>
+    <nav>
+      <button data-tab="practice">Practice</button>
+      <button data-tab="demo">Demo</button>
+      <button data-tab="book">Book</button>
+    </nav>
+  </header>
+  <main>
+    <section id="practice">
+      <div class="controls">
+        <label>Seat <select id="p-seat">
+          <option>N</option><option>E</option><option selected>S</option><option>W</option>
+        </select></label>
+        <label>Dealer <select id="p-dealer">
+          <option value="rotate" selected>Rotate</option>
+          <option>N</option><option>E</option><option>S</option><option>W</option>
+        </select></label>
+        <label>Vul <select id="p-vul">
+          <option value="none" selected>None</option><option value="ns">NS</option>
+          <option value="ew">EW</option><option value="both">Both</option>
+        </select></label>
+        <label>Min HCP <input id="p-hcp" type="number" min="0" max="37" value="0"></label>
+        <button id="p-deal" class="primary">Deal</button>
+      </div>
+      <div id="p-info" class="boardinfo"></div>
+      <div class="table-area">
+        <div id="p-hand" class="panel hand-panel"><p class="hint">Pick your options and press Deal.</p></div>
+        <div id="p-auction" class="panel auction-panel"></div>
+      </div>
+      <div id="p-bidbox" class="bidbox"></div>
+      <div id="p-feedback" class="panel feedback hidden"></div>
+      <div id="p-reveal" class="revealbox hidden"></div>
+    </section>
+    <section id="demo" class="hidden">
+      <div class="controls">
+        <label>Dealer <select id="d-dealer">
+          <option selected>N</option><option>E</option><option>S</option><option>W</option>
+        </select></label>
+        <label>Vul <select id="d-vul">
+          <option value="none" selected>None</option><option value="ns">NS</option>
+          <option value="ew">EW</option><option value="both">Both</option>
+        </select></label>
+        <button id="d-deal" class="primary">Deal</button>
+      </div>
+      <div id="d-info" class="boardinfo"></div>
+      <div id="d-hands"></div>
+      <div class="table-area">
+        <div id="d-auction" class="panel auction-panel hidden"></div>
+      </div>
+      <div id="d-contract"></div>
+    </section>
+    <section id="book" class="hidden">
+      <div class="controls">
+        <input id="b-filter" type="search" placeholder="Filter by auction or rule text…">
+        <span id="b-count" class="count"></span>
+      </div>
+      <div id="b-results"></div>
+    </section>
+  </main>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

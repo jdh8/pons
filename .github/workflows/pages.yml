@@ -1,0 +1,44 @@
+name: Pages
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+# Deploy the wasm front end in web/ to GitHub Pages.  Least-privilege token
+# plus the id-token needed by deploy-pages.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One live deployment at a time; let a running one finish rather than cancel.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+    # The web crate builds pons with `default-features = false`, so no C++
+    # toolchain for ddss and no vendor/bba submodule — a plain checkout works.
+    - uses: actions/checkout@v6
+    - name: Install wasm-pack
+      run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+    - name: Build wasm
+      run: wasm-pack build --release --target web
+      working-directory: web
+    - name: Stage static site
+      run: |
+        cd web
+        mkdir _site
+        cp -r index.html app.js style.css pkg _site/
+    - uses: actions/upload-pages-artifact@v3
+      with:
+        path: web/_site
+    - id: deployment
+      uses: actions/deploy-pages@v4

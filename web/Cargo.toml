@@ -1,0 +1,35 @@
+[package]
+name = "pons-web"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.93"
+publish = false
+license = "Apache-2.0"
+description = "Browser front end for pons: practice bidding, watch the bots, browse the book"
+
+# Standalone crate: an empty `[workspace]` makes this its own workspace root so
+# the parent `pons` package never adopts it, keeping the library's build and
+# publish untouched.
+[workspace]
+
+[lib]
+# cdylib for the wasm artifact; rlib so `cargo test` can build a native harness.
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+# No default features: `dd` (the native C++ double-dummy solver) cannot build
+# for wasm32 — the web UI is bidding-only by design.
+pons = { path = "..", default-features = false }
+# Must match pons's contract-bridge version so Card/Hand/Auction types unify.
+contract-bridge = { version = "0.1.4", features = ["rand"] }
+rand = "0.10"
+wasm-bindgen = "0.2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Wasm only: getrandom (a transitive dep via rand 0.10) refuses to *compile*
+# for wasm32-unknown-unknown unless a backend is selected — even though we never
+# call it (the RNG is seeded from JS).  getrandom 0.4 picks its browser backend
+# from this feature alone, no extra cfg needed.
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+getrandom = { version = "0.4", features = ["wasm_js"] }

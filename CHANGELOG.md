@@ -20,6 +20,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Web UI (`web/`): the human-facing examples in the browser.** A standalone
+  wasm crate (mirroring the gin-rummy-engine site: static
+  `index.html`/`app.js`/`style.css` + `wasm-pack`, no server, no framework)
+  with three tabs — **Practice** (bid one seat with a bidding box against the
+  `american()` bots, per-call top-3 feedback with probabilities, full reveal
+  after the auction), **Demo** (watch the bots bid a random board), and
+  **Book** (the authored 2/1 books rendered from `Rule::describe()`, live in
+  wasm, filterable). Cards render suit-first (`♣Q`); suit colors are CSS
+  variables with **orange diamonds** (a "red suit" must stay warm) and
+  tentatively dark-blue clubs. Deployed by `.github/workflows/pages.yml`.
+- **`dd` cargo feature (default on, default build byte-identical).** The
+  native C++ double-dummy stack (`ddss`) is now optional: `gib`,
+  `single_dummy`, `stats`, `bidding::ev`, and the DD scorers in `scoring` are
+  gated behind `dd`, and `search` implies it. `default-features = false`
+  leaves the pure-Rust bidding stack, which is what the web crate compiles to
+  wasm.
+
+### Changed
+
+- **`practice-bidding` no longer prints the actual-layout DD verdict or par**
+  — both are hindsight: they judge the luck of the one true layout, not the
+  bidding. The reshuffled-opponent simulation (makes %, mean score over
+  reshuffles of the two unseen hands) stays, as it judges the contract on what
+  the bidder could actually know; `--simulations 0` still disables it.
+
 - **Stayman-then-minor slam try, default on (`set_stayman_minor_slam_try`).**
   After a Stayman answer
   (`1NT–2♣–2♥/2♠/2♦`), responder's natural `3♣`/`3♦` shows a 5+ card minor

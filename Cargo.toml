@@ -21,7 +21,12 @@ exclude = ["trainer", "vendor"]
 all-features = true
 
 [features]
-serde = ["dep:serde", "contract-bridge/serde", "ddss/serde", "bitflags/serde"]
+default = ["dd"]
+# Native double-dummy solver (ddss wraps C++ DDS). Default-on; disable for
+# targets without a C++ toolchain — the pure-Rust bidding stack (used by the
+# `web/` wasm crate) builds with `default-features = false`.
+dd = ["dep:ddss"]
+serde = ["dep:serde", "contract-bridge/serde", "ddss?/serde", "bitflags/serde"]
 # Distilled neural floor (AI-bidder M1.2): embeds the trained weights and a
 # hand-rolled forward pass. Off by default so the standard build stays lean and
 # dependency-free — the weights are `include_bytes!`d, no ML runtime is pulled in.
@@ -30,12 +35,12 @@ neural-floor = []
 # decision it shortlists the net's top calls, scores them by cardplay EV over
 # sampled layouts (the M2.2 evaluator), and bids the best. Slow and off by
 # default; implies `neural-floor` for the prior net and the forced-rails shell.
-search = ["neural-floor"]
+search = ["neural-floor", "dd"]
 
 [dependencies]
 bitflags = "2.2.1"
 contract-bridge = { version = "0.1.4", features = ["rand"] }
-ddss = "0.1.3"
+ddss = { version = "0.1.3", optional = true }
 # Already compiled transitively via contract-bridge's `rand` feature; named here
 # directly so the constrained sampler (AI-bidder M2.1) can take the caller's RNG.
 rand = "0.10"

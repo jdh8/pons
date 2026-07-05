@@ -24,8 +24,11 @@
 //! cannot be taken back), so it is the right scorer for an A/B where a side may
 //! *defend* by passing — putting real doubled contracts on the table.
 
+#[cfg(feature = "dd")]
+use contract_bridge::AbsoluteVulnerability;
 use contract_bridge::auction::{Auction, Call};
-use contract_bridge::{AbsoluteVulnerability, Bid, Contract, Penalty, Seat};
+use contract_bridge::{Bid, Contract, Penalty, Seat};
+#[cfg(feature = "dd")]
 use ddss::TrickCountTable;
 
 /// The seat acting at `index` calls after `dealer`
@@ -63,6 +66,7 @@ pub fn final_contract(auction: &Auction, dealer: Seat) -> Option<(Contract, Seat
 
 /// Signed-for-NS double-dummy score of `bid` played by `declarer` with the given
 /// `penalty`; the shared tail of both public scorers.
+#[cfg(feature = "dd")]
 fn ns_score_with(
     bid: Bid,
     declarer: Seat,
@@ -84,6 +88,7 @@ fn ns_score_with(
 
 /// Whether `bid` fails double-dummy when played by `declarer` (tricks short of
 /// the book-plus-level needed)
+#[cfg(feature = "dd")]
 fn fails_dd(bid: Bid, declarer: Seat, table: &TrickCountTable) -> bool {
     let tricks = u8::from(table[bid.strain].get(declarer));
     u32::from(tricks) < 6 + u32::from(bid.level.get())
@@ -97,6 +102,7 @@ fn fails_dd(bid: Bid, declarer: Seat, table: &TrickCountTable) -> bool {
 /// (re)doubled in the simulation, so it is priced exactly as it stands, with no
 /// synthetic doubling.  Takes the [`Option`] straight from [`final_contract`].
 /// To evaluate a *call* against perfect defense instead, use [`ns_score_bid`].
+#[cfg(feature = "dd")]
 #[must_use]
 pub fn ns_score_contract(
     result: Option<(Contract, Seat)>,
@@ -125,6 +131,7 @@ pub fn ns_score_contract(
 /// [`stats::average_ns_par`][crate::stats::average_ns_par] makes the same
 /// assumption for par scoring (there as `min(undoubled, doubled)` on the
 /// expected score); this is its per-deal analogue.
+#[cfg(feature = "dd")]
 #[must_use]
 pub fn ns_score_bid(
     result: Option<(Bid, Seat)>,
@@ -159,6 +166,7 @@ pub fn ns_score_bid(
 /// [`Penalty`] is not `Ord`, so the floor is spelled out: a failing undoubled
 /// contract becomes [`Penalty::Doubled`]; an already doubled/redoubled one keeps
 /// its (more severe) penalty; a making contract keeps the table penalty verbatim.
+#[cfg(feature = "dd")]
 #[must_use]
 pub fn ns_score_pd(
     result: Option<(Contract, Seat)>,

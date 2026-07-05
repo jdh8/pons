@@ -2,8 +2,9 @@
 //!
 //! A human bids one seat; pons bots bid the other seats (or just partner in
 //! `--bots 1` mode).  After the auction ends the tool reveals all four hands,
-//! shows the auction grid, and gives a double-dummy verdict on the final
-//! contract plus par information.
+//! shows the auction grid, and judges the final contract by reshuffling the
+//! unseen hands — no actual-layout double-dummy verdict, which would be pure
+//! hindsight.
 //!
 //! ```text
 //! cargo run --example practice-bidding -- --seat south --count 5
@@ -21,9 +22,7 @@ use contract_bridge::auction::{Auction, Call};
 use contract_bridge::deck::{fill_deals, full_deal};
 use contract_bridge::eval::{self, HandEvaluator as _, SimpleEvaluator};
 use contract_bridge::{AbsoluteVulnerability, Builder, Contract, FullDeal, Seat, Strain, Suit};
-use ddss::{
-    NonEmptyStrainFlags, Solver, StrainFlags, TrickCountTable, Vulnerability, calculate_par,
-};
+use ddss::{NonEmptyStrainFlags, Solver, StrainFlags, TrickCountTable};
 use pons::american;
 #[cfg(feature = "neural-floor")]
 use pons::american_neural_search;
@@ -46,7 +45,7 @@ fn parse_bots(s: &str) -> Result<u8, String> {
 ///
 /// Deals random hands, bids three seats with the 2/1 system, and lets you
 /// bid one seat.  After the auction you see all four hands, the auction grid,
-/// and a double-dummy verdict.
+/// and a reshuffled-opponent simulation of the final contract.
 #[derive(Parser)]
 struct Args {
     /// Number of bots: 1 (partner only, opponents silent) or 3 (all three)
@@ -85,7 +84,7 @@ struct Args {
     #[arg(long, default_value = "10000")]
     max_attempts: usize,
 
-    /// Reshuffled-opponent simulations for the verdict (0 disables simulation)
+    /// Reshuffled-opponent simulations of the final contract (0 disables)
     #[arg(long, default_value = "1000")]
     simulations: usize,
 
@@ -156,18 +155,6 @@ fn strain_flags(strain: Strain) -> NonEmptyStrainFlags {
     NonEmptyStrainFlags::new(flag).expect("single-strain flag is never empty")
 }
 
-/// Convert `AbsoluteVulnerability` to `ddss::Vulnerability` for `calculate_par`
-fn to_ddss_vul(vul: AbsoluteVulnerability) -> Vulnerability {
-    let mut v = Vulnerability::empty();
-    if vul.contains(AbsoluteVulnerability::NS) {
-        v |= Vulnerability::NS;
-    }
-    if vul.contains(AbsoluteVulnerability::EW) {
-        v |= Vulnerability::EW;
-    }
-    v
-}
-
 // ---------------------------------------------------------------------------
 // Display helpers
 // ---------------------------------------------------------------------------
@@ -219,51 +206,16 @@ impl BuilderExt for Builder {
 }
 
 // ---------------------------------------------------------------------------
-// Per-board double-dummy verdict
+// Per-board contract judgment: reshuffle the unseen hands, never peek at the
+// actual layout — an actual-layout DD verdict (or par) is pure hindsight.
 // ---------------------------------------------------------------------------
 
 fn print_verdict(
     result: Option<(Contract, Seat)>,
     deal: &FullDeal,
     args: &Args,
-    dealer: Seat,
     rng: &mut impl rand::Rng,
 ) {
-    // Actual layout — always solve all strains (needed for par even on pass-out)
-    let actual_tables = Solver::lock().solve_deals(&[*deal], NonEmptyStrainFlags::ALL);
-    let actual_table = &actual_tables[0];
-
-    if let Some((contract, declarer)) = result {
-        let tricks = u8::from(actual_table[contract.bid.strain].get(declarer));
-        let score = human_side_score(
-            contract,
-            declarer,
-            actual_table,
-            args.vulnerability,
-            args.seat,
-        );
-        println!(
-            "DD verdict: {tricks} tricks for {}, score {} from your side",
-            declarer.letter(),
-            score,
-        );
-    }
-
-    // Par score (always print), signed from the human's side like the verdict
-    let par = calculate_par(*actual_table, to_ddss_vul(args.vulnerability), dealer);
-    let human_is_ns = matches!(args.seat, Seat::North | Seat::South);
-    let par_score = i64::from(par.score) * if human_is_ns { 1 } else { -1 };
-    if par.contracts.is_empty() {
-        println!("Par from your side: 0 (passed out)");
-    } else {
-        let par_desc: Vec<String> = par
-            .contracts
-            .iter()
-            .map(|pc| format!("{}{}", pc.contract, pc.declarer.letter()))
-            .collect();
-        println!("Par from your side: {par_score} ({})", par_desc.join(" / "));
-    }
-
     // Reshuffled-opponent simulations (only when a contract was reached)
     if args.simulations > 0
         && let Some((contract, declarer)) = result
@@ -522,7 +474,7 @@ fn main() {
             None => println!("Contract: Passed out"),
         }
 
-        print_verdict(result, &deal, &args, dealer, &mut rng);
+        print_verdict(result, &deal, &args, &mut rng);
         println!();
     }
 
