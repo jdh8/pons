@@ -110,9 +110,15 @@ Jacoby 2NT; `[3o, P]`; weak `[2x, P]`).
 
 ## Negative doubles at the 1-level (theory verdict, 2026-07-06)
 
-- **Sputnik (Roth–Stone 1957/58):** X = 7+ HCP, denies a biddable (5-card)
-  major at the 1-level. Over (1♦) 4-4 majors exactly; over (1♥) exactly 4♠;
-  over (1♠) 4+ ♥.
+- **Sputnik (Roth–Stone 1957/58):** X is the **residual** — 7+ HCP *denying* a
+  4-card major biddable at the 1-level; the free 1-level major shows a natural
+  4+ (not Modern's 5+, since the double no longer carries the exactly-four
+  hand). Over (1♦) → X = ≤3 in *both* majors (4+ in either bids 1♥/1♠); over
+  (1♥) → X = ≤3 spades (4+ bids 1♠); over (1♠) → 4+ ♥ (nothing to deny). This
+  is the inverse of a major-*showing* double: the free bid carries the major,
+  the double is what's left over. `NegativeDoubleShape::Sputnik`, authored +
+  measured 2026-07-06 (`--ns-negative-double-shape sputnik`): **ties Modern,
+  stays opt-in** — same free-bid floor blocker (see the ledger row).
 - **Modern (BWS 2017 / Cohen; what BBA plays, untoggleably):** floor 6,
   unbounded. (1♦) → 4+/4+ majors; (1♥) → **exactly** 4♠ (1♠ = 5+); (1♠) → 4+
   ♥; `1♥-(1♠)-X` ≈ 4-4 minors. Through 3♠ or higher. Weak 5-card major →
@@ -126,8 +132,11 @@ Jacoby 2NT; `[3o, P]`; weak `[2x, P]`).
   bracket decides**; no BBA analogue to distill.
 
 Don't author the SEF "4 w/8+ OR 5 w/7–10" disjunction (the OR-projection
-wall). Measure as three arms: `BothMajors`+free-bids / `Modern`+free-bids /
-`Cachalot`.
+wall). Measure as four arms: `BothMajors`+free-bids / `Modern`+free-bids /
+`Cachalot` / `Sputnik` (`scripts/sputnik-negx-ab.sh`). Sputnik shares the
+free-bid layer, so it inherits the 6-count free-bid floor leak that sank
+Modern on PD — the arm tests whether the residual double distributes that leak
+better than Modern's exactly-four shape.
 
 ## Known deferrals / oddities spotted while authoring
 
@@ -137,7 +146,11 @@ wall). Measure as three arms: `BothMajors`+free-bids / `Modern`+free-bids /
   Modern/Cachalot arms don't touch major openings. Revisit if the P3 forensics
   flag it.
 - Modern's opener answer to the minor-opening negative double rides the floor
-  (projection gives it the shown major); only Cachalot's answers are authored.
+  safely *because Modern's double shows the major* — the floor's classic
+  "negative double = the unbid major" instinct is correct for it. Cachalot's
+  and Sputnik's answers are authored: Sputnik's double **denies** the major, so
+  the same floor instinct is exactly inverted and (measured) jumped the phantom
+  denied suit to a doubled 4♠ until `cachalot_takeout_answer` was wired in.
 - P4's XX/Jordan **contested tails** (advancer bids over them) rebase into a
   dead end and land on the floor with the projected floors — authored
   continuations are a follow-up if the buckets drag.
@@ -168,6 +181,7 @@ wall). Measure as three arms: `BothMajors`+free-bids / `Modern`+free-bids /
 | P3b free bids | `set_free_bids` | **measured — stays opt-in**; floor sweep is the re-measure | vs off: plain +0.29 NV (CI>0) / **−0.30 vul (CI<0)**; PD −0.31/−0.88 (CI<0 both). ~2.0% fired. Worst-board bucket: 1-level free bids + the free 1NT at the 6-count floor get PD-punished vul — sweep floors to 8+ before re-measuring. SEED_BASE 1783286814, sha bc949dc |
 | P3d neg-X shape | `set_negative_double_shape` | **measured — BothMajors stays the default** | Modern vs off: plain +0.47 NV (CI>0) / +0.08 vul (~0); PD **−0.22/−0.63 (CI<0)** — the free-bid floor leak dominates. But **Modern vs free: plain +0.95/+1.36 (CI>0 both vuls)**, PD +0.13/+0.40 — the tighter doubles genuinely win; re-measure Modern after the free-bid floor fix. |
 | P3d′ Cachalot arm | `NegativeDoubleShape::Cachalot` | **measured — stays opt-in**; ≈ Modern head-to-head | Cachalot vs Modern: NV wash both scorers (±0.04/fired); vul plain −0.26 (~0), PD −0.41 (CI<0). Cachalot vs off ≈ Modern vs off. An engine plays it perfectly and it still only ties Modern on these brackets — revisit with sd-lead (right-siding) after the floor fix. |
+| P3d″ Sputnik arm | `NegativeDoubleShape::Sputnik` | **measured — stays opt-in**; ≈ Modern head-to-head (same floor blocker) | Residual double (7+ denying a 1-level-biddable major) + 4+ free major + `cachalot_takeout_answer` for opener. **Sputnik vs Modern: all four cells wash** (+0.001/+0.001 NV, −0.001/−0.003 vul, CIs⊇0). Sputnik vs off: NV plain **+0.012 (CI>0)**, vul plain −0.003 (~0), PD −0.003/**−0.021 (vul CI<0)** — the shared free-bid floor leak, not the shape. Sputnik vs free: plain **+0.005/+0.004 (CI>0)**, PD wash. **v1 was a clear loss** (−0.017 vul-PD vs Modern) from an unauthored opener answer letting the floor jump the phantom *denied* major to a doubled 4♠ — traced, wired `cachalot_takeout_answer`, re-measured to wash. Re-measure with the family after the floor fix. 204.8k bd/arm/vul, SEED_BASE 1783290254, sha ad79b3e, `scripts/sputnik-negx-ab.sh`. |
 | P3a 3-level overcalls | `set_high_overcall_responses` | **measured — stays opt-in**; leak named, re-measure candidate | plain −0.0012/−0.0007, PD −0.0005/−0.0006 (all CIs⊇0), −0.6…−0.2 IMPs/fired, 0.19% fired. Worst-board bucket: the minor-opening 3-level neg X (one-major `or` shape at 10+) is too light — try 12+ or 4-4 both majors and re-measure. 204.8k bd/arm/vul, SEED_BASE 1783286003, sha bc949dc |
 | P4 Jordan/Truscott over (X) | `set_jordan_truscott` | **SHIPPED default-on**; the campaign's largest per-board win | plain **+0.0041/+0.0067** IMPs/bd NV/vul, +0.51/+0.83 IMPs/fired; PD **+0.0049/+0.0065**, +0.62/+0.80 IMPs/fired; all four cells CI>0; 0.79/0.81% fired. 204.8k bd/arm/vul, SEED_BASE 1783286386, sha bc949dc |
 | alert invariant over fallbacks | — | follow-up | — |

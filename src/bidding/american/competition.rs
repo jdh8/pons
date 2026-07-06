@@ -649,6 +649,15 @@ pub enum NegativeDoubleShape {
     /// trumps, forcing; the raise shows four. Natural from `(1♠)` up (the
     /// Modern rules apply there). Implies the free bids.
     Cachalot,
+    /// Sputnik (Roth–Stone original): the double is the **residual** — it
+    /// *denies* a 4-card major biddable at the 1-level, showing 7+ with the
+    /// biddable majors held to ≤3; the free 1-level major shows a natural 4+
+    /// (not Modern's 5+, since the double no longer carries the exactly-four
+    /// hand). Over `(1♦)`: `X` = ≤3 in both majors, `1♥`/`1♠` = 4+ natural;
+    /// over `(1♥)`: `X` = ≤3 spades, `1♠` = 4+. From `(1♠)` up and over a
+    /// 2-level minor the Modern rules apply (no 1-level major to deny). Implies
+    /// the free bids.
+    Sputnik,
 }
 
 thread_local! {
@@ -1175,6 +1184,47 @@ fn over_their_overcall(opening: Suit) -> Rules {
                         & hcp(8..),
                 )
                 .alert(NEGATIVE_DOUBLE),
+            NegativeDoubleShape::Sputnik => rules
+                // Over (1♦): the residual — ≤3 in both majors, 7+ (4+ in
+                // either bids the natural free 1-level suit below).
+                .rule(
+                    Call::Double,
+                    1.0,
+                    min_level_is(1, Strain::Hearts)
+                        & len(Suit::Hearts, ..=3)
+                        & len(Suit::Spades, ..=3)
+                        & hcp(7..),
+                )
+                .alert(NEGATIVE_DOUBLE)
+                // Over (1♥): the residual — ≤3 spades, 7+ (4+ bids the free 1♠).
+                .rule(
+                    Call::Double,
+                    1.0,
+                    they_bid(Strain::Hearts)
+                        & min_level_is(1, Strain::Spades)
+                        & len(Suit::Spades, ..=3)
+                        & hcp(7..),
+                )
+                .alert(NEGATIVE_DOUBLE)
+                // From (1♠) up: 4+ hearts, floor 8 — no 1-level major to deny
+                // (the Modern rule).
+                .rule(
+                    Call::Double,
+                    1.0,
+                    they_bid(Strain::Spades) & len(Suit::Hearts, 4..) & hcp(8..),
+                )
+                .alert(NEGATIVE_DOUBLE)
+                // Over a 2-level minor: both majors, floor 8 (the Modern rule).
+                .rule(
+                    Call::Double,
+                    1.0,
+                    (they_bid(Strain::Clubs) | they_bid(Strain::Diamonds))
+                        & !min_level_is(1, Strain::Hearts)
+                        & len(Suit::Hearts, 4..)
+                        & len(Suit::Spades, 4..)
+                        & hcp(8..),
+                )
+                .alert(NEGATIVE_DOUBLE),
         }
     };
 
@@ -1215,18 +1265,42 @@ fn over_their_overcall(opening: Suit) -> Rules {
             .alert(CACHALOT_TAKEOUT);
     }
 
+    // Sputnik's natural 1-level majors show 4+ (not the shared block's 5+) —
+    // the free bid its residual double leans on. Only minor openings; the
+    // `min_level_is` guards keep them to (1♦) [1♥/1♠] and (1♥) [1♠].
+    if !is_major && shape == NegativeDoubleShape::Sputnik {
+        rules = rules
+            .rule(
+                Bid::new(1, Strain::Hearts),
+                1.45,
+                min_level_is(1, Strain::Hearts) & len(Suit::Hearts, 4..) & points(6..),
+            )
+            .rule(
+                Bid::new(1, Strain::Spades),
+                1.45,
+                min_level_is(1, Strain::Spades) & len(Suit::Spades, 4..) & points(6..),
+            );
+    }
+
     // Natural free bids (`set_free_bids`; implied by the Modern/Cachalot
     // shapes, whose tighter doubles need the natural outlet). A free bid of
     // their suit is the cue above; the 1-level majors stay out of the
     // Cachalot rotation's way (a 5-card major routes through its transfer).
     if free_bids_engaged() {
-        let cachalot = !is_major && shape == NegativeDoubleShape::Cachalot;
+        // Cachalot and Sputnik both author their own 1-level majors above, so
+        // skip the shared 5+ rule for them (Cachalot rotates, Sputnik lowers to
+        // 4+).
+        let rotate = !is_major
+            && matches!(
+                shape,
+                NegativeDoubleShape::Cachalot | NegativeDoubleShape::Sputnik
+            );
         for x in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
             if x == o {
                 continue;
             }
             let xs = Strain::from(x);
-            if !(cachalot && matches!(x, Suit::Hearts | Suit::Spades)) {
+            if !(rotate && matches!(x, Suit::Hearts | Suit::Spades)) {
                 rules = rules.rule(
                     Bid::new(1, xs),
                     1.45,
@@ -3311,6 +3385,36 @@ pub fn competition() -> Competitive {
                 &[open, one_heart],
                 3,
                 Arc::new(SuffixIs(vec![one_spade, Call::Pass])),
+                Fallback::classify(cachalot_takeout_answer(opening, Suit::Hearts)),
+            );
+        }
+    }
+
+    // Section 9b: opener's answers to the Sputnik residual double
+    // (`NegativeDoubleShape::Sputnik`). The double *denies* a biddable major,
+    // so — unlike a classic negative double — opener must NOT raise a major:
+    // the floor's "negative double = the unbid major" instinct is exactly
+    // inverted here and would jump the phantom denied suit into a doubled game
+    // (the measured leak). `cachalot_takeout_answer` bids NT/opening-minor
+    // naturally instead. Over (1♠)/a 2-minor Sputnik's double is Modern's
+    // major-showing one, which the floor reads correctly — left to it.
+    if negative_double_shape() == NegativeDoubleShape::Sputnik {
+        let one_heart = call(1, Strain::Hearts);
+        // (1♦) over 1♣: X = ≤3 in both majors — no fit to hunt.
+        fallback_all_seats(
+            &mut book,
+            &[call(1, Strain::Clubs), call(1, Strain::Diamonds)],
+            3,
+            Arc::new(SuffixIs(vec![Call::Double, Call::Pass])),
+            Fallback::classify(cachalot_takeout_answer(Suit::Clubs, Suit::Diamonds)),
+        );
+        // (1♥) over 1♣/1♦: X = ≤3 spades.
+        for opening in [Suit::Clubs, Suit::Diamonds] {
+            fallback_all_seats(
+                &mut book,
+                &[call(1, Strain::from(opening)), one_heart],
+                3,
+                Arc::new(SuffixIs(vec![Call::Double, Call::Pass])),
                 Fallback::classify(cachalot_takeout_answer(opening, Suit::Hearts)),
             );
         }
@@ -5629,6 +5733,24 @@ mod tests {
         assert_eq!(three, call(1, Strain::Hearts), "exactly three completes");
         let (four, _) = best_call(&complete, "AQ5.K542.96.QJ32");
         assert_eq!(four, call(2, Strain::Hearts), "four raises");
+        super::set_negative_double_shape(super::NegativeDoubleShape::BothMajors);
+    }
+
+    #[test]
+    fn sputnik_negative_double_is_the_residual() {
+        super::set_negative_double_shape(super::NegativeDoubleShape::Sputnik);
+        // [1♣, (1♦)]: a 4-card major is bid naturally at the 1-level...
+        let auction = [call(1, Strain::Clubs), call(1, Strain::Diamonds)];
+        let (spades, floored) = best_call(&auction, "KJ54.952.964.Q32");
+        assert_eq!(spades, call(1, Strain::Spades), "four spades bid the suit");
+        assert!(!floored, "an authored node, not the floor");
+        // ...while X denies a biddable major — the residual, ≤3 in each.
+        let (neg, _) = best_call(&auction, "K52.Q54.J964.Q32");
+        assert_eq!(
+            neg,
+            Call::Double,
+            "≤3 in both majors is the residual double"
+        );
         super::set_negative_double_shape(super::NegativeDoubleShape::BothMajors);
     }
 

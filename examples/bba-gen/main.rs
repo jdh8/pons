@@ -330,8 +330,8 @@ struct Args {
     ns_free_bids: bool,
 
     /// The negative-double school over our minor openings:
-    /// both-majors (shipped default) | modern | cachalot
-    /// (see `set_negative_double_shape`; modern/cachalot imply the free bids).
+    /// both-majors (shipped default) | modern | cachalot | sputnik
+    /// (see `set_negative_double_shape`; all but both-majors imply the free bids).
     #[arg(long, default_value = "both-majors")]
     ns_negative_double_shape: String,
 
@@ -1073,8 +1073,9 @@ fn main() -> anyhow::Result<()> {
             "both-majors" => pons::bidding::american::NegativeDoubleShape::BothMajors,
             "modern" => pons::bidding::american::NegativeDoubleShape::Modern,
             "cachalot" => pons::bidding::american::NegativeDoubleShape::Cachalot,
+            "sputnik" => pons::bidding::american::NegativeDoubleShape::Sputnik,
             other => anyhow::bail!(
-                "--ns-negative-double-shape must be both-majors|modern|cachalot, got {other:?}"
+                "--ns-negative-double-shape must be both-majors|modern|cachalot|sputnik, got {other:?}"
             ),
         },
     );

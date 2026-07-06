@@ -83,18 +83,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     natural free bids over an overcall — 1-level new suit 5+ & 6+, 2-level
     non-jump 5+ & 10+, `1NT` 6–10 / `2NT` 11–12 with a stopper.
   - `set_negative_double_shape` (**`BothMajors` stays the default**,
-    `--ns-negative-double-shape both-majors|modern|cachalot`): the
+    `--ns-negative-double-shape both-majors|modern|cachalot|sputnik`): the
     negative-double school over our minor openings. `Modern` = BWS/Cohen
     (over `(1♦)` 4-4+ at 6+, over `(1♥)` **exactly** four spades, over `(1♠)`
     4+ hearts at 8+); `Cachalot` = transfer Walsh in competition (X = 4+
     adjacent major, `1♥` = 4+ spades, `1♠` = residual takeout hand), with
     opener's rotated answers authored — the 1-level completion shows
-    **exactly three** trumps, forcing. Both imply the free bids, and both
-    inherit the free-bid floor leak vs off (PD −0.22…−0.71/fired). The clean
-    inner signals: **Modern beats bare free-bids** (+0.95/+1.36 IMPs/fired
-    plain, CIs > 0 both vuls; PD same sign) and **Cachalot ties Modern**
-    head-to-head (NV wash both scorers; vul PD −0.41). Re-measure both after
-    the free-bid floor fix; Cachalot's right-siding wants an sd-lead bracket.
+    **exactly three** trumps, forcing; `Sputnik` = Roth–Stone's **residual**
+    double, 7+ *denying* a 1-level-biddable major (over `(1♦)` ≤3 in both
+    majors, over `(1♥)` ≤3 spades), with the natural free 1-level major
+    lowered to 4+ and opener answering via `cachalot_takeout_answer` (NT /
+    minor rebid — the double is the *inverse* of a major-showing one, so
+    opener must **not** raise the denied suit). All three imply the free bids
+    and inherit the free-bid floor leak vs off. The clean inner signals:
+    **Modern beats bare free-bids** (+0.95/+1.36 IMPs/fired plain, CIs > 0
+    both vuls; PD same sign), **Cachalot ties Modern** (NV wash; vul PD −0.41),
+    and **Sputnik ties Modern too** — all four cells wash, CIs straddle 0
+    (204.8k boards/arm/vul, SEED_BASE 1783290254, sha ad79b3e). Sputnik was a
+    clear loss until opener's answers were authored: an unauthored opener let
+    the floor read the residual double with its classic major-*showing*
+    instinct and jump the phantom **denied** suit to a doubled 4♠ (−0.017
+    vul-PD vs Modern — the entire shape gap; fixed, then wash). Sputnik beats
+    bare free-bids on plain DD (+0.005/+0.004 NV/vul, CIs > 0) and wins
+    NV-plain vs off (+0.012, CI > 0) but loses vul-PD (−0.021, CI < 0) — the
+    shared floor leak, not the shape. Re-measure all three after the free-bid
+    floor fix; Cachalot's/Sputnik's right-siding wants an sd-lead bracket.
   - `set_high_overcall_responses` (**stays opt-in**, `--ns-high-overcall`:
     plain −0.63/−0.35, PD −0.24/−0.33 IMPs/fired, all CIs straddle 0; the
     worst-board bucket is the minor-opening 3-level negative double's
