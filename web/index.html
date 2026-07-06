@@ -13,6 +13,7 @@
       <button data-tab="practice">Practice</button>
       <button data-tab="demo">Demo</button>
       <button data-tab="book">Book</button>
+      <button data-tab="edit">Edit</button>
     </nav>
   </header>
   <main>
@@ -68,6 +69,18 @@
         <span id="b-count" class="count"></span>
       </div>
       <div id="b-results"></div>
+    </section>
+    <section id="edit" class="hidden">
+      <div class="controls">
+        <input id="e-pbn" type="text" spellcheck="false" placeholder="N:AKQ.… (PBN deal) — type here or click cards below">
+        <button id="e-copy">Copy PBN</button>
+        <button id="e-random" class="primary">Random</button>
+        <button id="e-clear">Clear</button>
+        <button id="e-bid" class="primary">Bid it out in Demo →</button>
+      </div>
+      <div id="e-status" class="boardinfo"></div>
+      <div id="e-grid" class="editgrid"></div>
+      <div id="e-board"></div>
     </section>
   </main>
   <script type="module" src="app.js"></script>

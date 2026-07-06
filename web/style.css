@@ -78,6 +78,7 @@ button.primary {
   cursor: pointer;
 }
 button.primary:hover { background: #ffd83a; }
+button.primary:disabled { opacity: 0.4; cursor: default; background: var(--gold); }
 
 .boardinfo { opacity: 0.85; font-size: 0.9rem; min-height: 1.2rem; }
 .hint { opacity: 0.6; font-style: italic; margin: 0; }
@@ -227,6 +228,45 @@ table.dd td { border-top: 1px solid rgba(0, 0, 0, 0.08); }
   padding: 0.05rem 0.4rem;
   white-space: nowrap;
 }
+
+/* Deal editor: PBN field ⇄ card palette. Cells tint by owner seat. */
+#e-pbn { flex: 1; min-width: 16rem; font-family: ui-monospace, monospace; }
+.controls #e-copy, .controls #e-clear {
+  font: inherit;
+  font-size: 0.9rem;
+  padding: 0.3rem 0.8rem;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+.controls #e-copy:hover, .controls #e-clear:hover { background: rgba(255, 255, 255, 0.12); }
+
+.editgrid { display: flex; flex-direction: column; gap: 0.35rem; }
+.editrow { display: grid; grid-template-columns: 1.5rem repeat(13, 1fr); gap: 0.3rem; align-items: center; }
+.editsuit { font-size: 1.2rem; font-weight: 700; text-align: center; }
+.editcell {
+  font: inherit;
+  font-weight: 700;
+  padding: 0.3rem 0;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  border-radius: 5px;
+  background: var(--paper);
+  color: var(--ink);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1;
+}
+.editcell small { font-size: 0.65rem; font-weight: 700; opacity: 0.85; min-height: 0.8rem; }
+.editcell:hover { transform: translateY(-1px); }
+/* One tint per seat — the "piece colour" of the board editor. */
+.editcell.seat-n { background: #cfe8d6; border-color: #1e7a45; }
+.editcell.seat-e { background: #f6d9b0; border-color: #b06000; }
+.editcell.seat-s { background: #cfe0f5; border-color: #1a74d9; }
+.editcell.seat-w { background: #f3cfd4; border-color: #8f2f3a; }
 
 @media (max-width: 40rem) {
   .table-area { flex-direction: column; align-items: stretch; }

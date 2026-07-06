@@ -326,6 +326,19 @@ impl WebTable {
         self.deal_with(deal, dealer, vul, None)
     }
 
+    /// Bid out a caller-specified deal (from the editor) in demo mode
+    ///
+    /// `pbn` is the [PBN] deal string the editor emits (`"N:… … … …"`);
+    /// returns `"null"` if it does not parse to a full 52-card deal.
+    ///
+    /// [PBN]: https://www.tistis.nl/pbn/
+    pub fn deal_pbn(&mut self, pbn: &str, dealer: &str, vul: &str) -> String {
+        match pbn.parse::<FullDeal>() {
+            Ok(deal) => self.deal_with(deal, dealer, vul, None),
+            Err(_) => "null".to_string(),
+        }
+    }
+
     /// The human's call by display code (`"1♥"`, `"P"`, `"X"`, `"XX"`)
     ///
     /// An unparseable or illegal call — or a call out of turn — returns the
@@ -700,6 +713,31 @@ mod tests {
     }
 
     #[test]
+    fn deal_pbn_bids_out_a_specified_deal() {
+        let mut table = WebTable::new("1");
+        // A full deal round-trips through the editor's canonical "N:…" form.
+        let pbn = "N:AKT86.4.AJ962.K3 Q9432.KQJ8..AQT8 7.AT3.QT753.J764 J5.97652.K84.952";
+        let snap = parse(&table.deal_pbn(pbn, "N", "none"));
+        assert_eq!(snap["mode"], "demo");
+        assert_eq!(snap["ended"], true, "bots bid the specified deal out");
+        assert_eq!(snap["hands"].as_object().expect("hands").len(), 4);
+        // The North hand is the one we asked for, not a random deal.
+        assert_eq!(snap["hands"]["N"]["spades"], "AKT86");
+        assert_eq!(snap["hands"]["E"]["diamonds"], "", "East's diamond void");
+
+        assert_eq!(table.deal_pbn("garbage", "N", "none"), "null");
+        assert_eq!(
+            table.deal_pbn(
+                "N:AK.4.AJ962.K3 Q9432.KQJ8..AQT8 7.AT3.QT753.J764 J5.97652.K84.952",
+                "N",
+                "none"
+            ),
+            "null",
+            "a non-full deal is rejected",
+        );
+    }
+
+    #[test]
     fn dd_table_solves_revealed_demo_board() {
         let mut table = WebTable::new("42");
         assert_eq!(table.dd_table(), "null", "no board yet");
@@ -774,8 +812,7 @@ mod tests {
         );
         for node in nodes {
             assert!(
-                !node["rules"].as_array().expect("rules").is_empty()
-                    || node["note"].is_string(),
+                !node["rules"].as_array().expect("rules").is_empty() || node["note"].is_string(),
                 "every node has rules or a note: {node}",
             );
         }

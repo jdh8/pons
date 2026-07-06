@@ -71,6 +71,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Web UI: a deal editor (`web/`, "Edit" tab).** A PBN text field two-way-synced
+  with a 4×13 card palette (the lichess analysis-board idiom) — type or paste a
+  PBN deal to fill the board, or click cards to cycle each through
+  N→E→S→W→unassigned, and the field rewrites to canonical `N:…` PBN live
+  (copyable). **"Bid it out in Demo →"** hands a completed deal to the Demo tab,
+  where the 2/1 bots bid it and the double-dummy table scores the result — the
+  first way to run the bots on a *chosen* deal rather than a random one. New wasm
+  entry point `WebTable::deal_pbn` (parses the editor's PBN to a `FullDeal`, bids
+  it out, or returns `null` on a non-full deal); the editor and PBN round-trip are
+  pure client-side JS, no wasm involvement for editing.
+
 - **Over their takeout double** (`set_jordan_truscott`, **default on** —
   measured vs BBA 2/1, 204.8k boards/arm/vul, SEED_BASE 1783286386, sha
   bc949dc: plain DD **+0.0041/+0.0067** IMPs/board NV/vul, perfect-defense

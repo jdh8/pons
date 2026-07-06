@@ -34,11 +34,12 @@ async function main() {
   id('p-deal').onclick = dealPractice;
   id('d-deal').onclick = dealDemo;
   id('b-filter').oninput = filterBook;
+  initEdit();
   showTab(location.hash.slice(1));
 }
 
 function showTab(tab) {
-  if (!['practice', 'demo', 'book'].includes(tab)) tab = 'practice';
+  if (!['practice', 'demo', 'book', 'edit'].includes(tab)) tab = 'practice';
   for (const sec of document.querySelectorAll('main > section')) {
     sec.classList.toggle('hidden', sec.id !== tab);
   }
@@ -60,11 +61,17 @@ function dealPractice() {
 }
 
 function dealDemo() {
+  runDemo(game.deal_demo(id('d-dealer').value, id('d-vul').value));
+}
+
+// Animate a demo snapshot: hands at once, then the auction one call at a time.
+// Shared by the random Deal button and the editor's "Bid it out" hand-off.
+function runDemo(snapshotJSON) {
   boardGen++;
   clearInterval(demoTimer);
   id('d-dd').classList.add('hidden');
-  const s = JSON.parse(game.deal_demo(id('d-dealer').value, id('d-vul').value));
-  // Deal-out feel: show the hands at once, then the auction one call at a time.
+  const s = JSON.parse(snapshotJSON);
+  if (!s) return; // deal_pbn rejected a non-full deal — nothing to animate
   let shown = 0;
   const tick = () => {
     const done = shown >= s.auction.length;
@@ -331,6 +338,123 @@ function filterBook() {
 
 function fmtWeight(w) {
   return Number.isInteger(w) ? w.toFixed(1) : String(w);
+}
+
+// --- deal editor ---------------------------------------------------------------
+//
+// A PBN text field that two-way-syncs with a 4×13 card palette (the lichess
+// analysis-board idiom).  The whole tab is client-side: PBN is a trivial
+// string, so no wasm round-trip.  State is one card→seat map; both the palette
+// and the compass render from it.
+
+const RANKS = ['A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4', '3', '2'];
+const HCP = { A: 4, K: 3, Q: 2, J: 1 };
+const SEAT_CYCLE = [null, 'N', 'E', 'S', 'W']; // click order; null = unassigned
+
+let editAssign = {}; // "♠A" → "N" | "E" | "S" | "W"
+
+function initEdit() {
+  id('e-pbn').oninput = () => { editAssign = fromPBN(id('e-pbn').value); paintEdit(); };
+  id('e-random').onclick = () => { editAssign = randomDeal(); syncFromBoard(); };
+  id('e-clear').onclick = () => { editAssign = {}; syncFromBoard(); };
+  id('e-copy').onclick = () => navigator.clipboard?.writeText(id('e-pbn').value);
+  id('e-bid').onclick = () => {
+    location.hash = 'demo'; // hand the edited deal to the Demo tab and bid it out
+    runDemo(game.deal_pbn(toPBN(editAssign), id('d-dealer').value, id('d-vul').value));
+  };
+  id('e-grid').onclick = (ev) => {
+    const card = ev.target.closest('button')?.dataset.card;
+    if (!card) return;
+    const next = SEAT_CYCLE[(SEAT_CYCLE.indexOf(editAssign[card] ?? null) + 1) % SEAT_CYCLE.length];
+    if (next) editAssign[card] = next; else delete editAssign[card];
+    syncFromBoard();
+  };
+  editAssign = randomDeal();
+  syncFromBoard();
+}
+
+// Board edit → repaint everything and push the canonical PBN into the field.
+function syncFromBoard() {
+  paintEdit();
+  id('e-pbn').value = toPBN(editAssign);
+}
+
+// Repaint from state only — never touches the text field, so typing is stable.
+function paintEdit() {
+  id('e-grid').innerHTML = editGridHTML();
+  id('e-board').innerHTML = compassHTML(editHands());
+  const n = { N: 0, E: 0, S: 0, W: 0 };
+  for (const seat of Object.values(editAssign)) n[seat]++;
+  const total = n.N + n.E + n.S + n.W;
+  const full = total === 52 && SEATS.every((s) => n[s] === 13);
+  id('e-status').textContent = full
+    ? 'Full deal ✓ — click a card to cycle N→E→S→W→out, or bid it out'
+    : `N ${n.N} · E ${n.E} · S ${n.S} · W ${n.W} — ${total}/52 placed`;
+  id('e-bid').disabled = !full; // bots can only bid a complete deal
+}
+
+// PBN deal: "N:<N> <E> <S> <W>", each hand "spades.hearts.diamonds.clubs",
+// ranks high→low.  We always emit from North (canonical); parsing honours a
+// leading seat.
+function toPBN(assign) {
+  const holding = (seat) => HAND_ORDER.map((g) =>
+    RANKS.filter((r) => assign[g + r] === seat).join('')).join('.');
+  return 'N:' + SEATS.map(holding).join(' ');
+}
+
+// Tolerant parse: optional "<seat>:" prefix, whitespace-split hands clockwise,
+// unknown chars (voids '-', 'x' spots) ignored; a repeated card just re-homes.
+function fromPBN(text) {
+  let s = text.trim();
+  let start = 0;
+  const m = s.match(/^([NESW])\s*:\s*/i);
+  if (m) { start = SEATS.indexOf(m[1].toUpperCase()); s = s.slice(m[0].length); }
+  const assign = {};
+  s.split(/\s+/).filter(Boolean).forEach((hand, i) => {
+    const seat = SEATS[(start + i) % 4];
+    hand.split('.').forEach((holding, si) => {
+      const g = HAND_ORDER[si];
+      if (!g) return;
+      for (const ch of holding.toUpperCase()) if (RANKS.includes(ch)) assign[g + ch] = seat;
+    });
+  });
+  return assign;
+}
+
+function randomDeal() {
+  const deck = HAND_ORDER.flatMap((g) => RANKS.map((r) => g + r));
+  for (let i = deck.length - 1; i > 0; i--) { // Fisher–Yates; Math.random is fine (UI only)
+    const j = Math.floor(Math.random() * (i + 1));
+    [deck[i], deck[j]] = [deck[j], deck[i]];
+  }
+  return Object.fromEntries(deck.map((c, i) => [c, SEATS[Math.floor(i / 13)]]));
+}
+
+// One HandJson-shaped object per seat, so compassHTML/handHTML render as-is.
+function editHands() {
+  const hands = {};
+  for (const seat of SEATS) {
+    const h = { hcp: 0 };
+    for (const g of HAND_ORDER) {
+      const ranks = RANKS.filter((r) => editAssign[g + r] === seat);
+      h[SUIT_KEYS[g]] = ranks.join('');
+      for (const r of ranks) h.hcp += HCP[r] || 0;
+    }
+    hands[seat] = h;
+  }
+  return hands;
+}
+
+// 4 suit rows × 13 rank cells; each cell tinted by its owner seat (legend in CSS).
+function editGridHTML() {
+  return HAND_ORDER.map((g) =>
+    `<div class="editrow"><span class="${SUIT_CLASS[g]} editsuit">${g}</span>` +
+    RANKS.map((r) => {
+      const seat = editAssign[g + r];
+      return `<button class="editcell${seat ? ' seat-' + seat.toLowerCase() : ''}" ` +
+        `data-card="${g}${r}">${r}<small>${seat || ''}</small></button>`;
+    }).join('') + '</div>',
+  ).join('');
 }
 
 main();
