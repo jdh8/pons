@@ -1268,6 +1268,8 @@ fn main() -> anyhow::Result<()> {
         our_label,
         their_label,
         vulnerability: args.vulnerability,
+        seed: Some(seed),
+        gen_args: std::env::args().skip(1).collect(),
         boards,
     };
     match args.output.as_deref() {

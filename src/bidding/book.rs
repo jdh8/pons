@@ -413,6 +413,52 @@ impl Stance {
         let context = Context::new(vul, auction).with_prefixes(trie.common_prefixes(auction));
         trie.classify_floored(hand, &context, auction)
     }
+
+    /// Explain one decision: where the answer came from, and which rule made it
+    ///
+    /// Resolves exactly as [`classify_with_provenance`][Self::classify_with_provenance]
+    /// (same routing, same mass fall-through), returning the [`Provenance`]
+    /// plus — when the winning classifier is a [`Rules`][super::rules::Rules]
+    /// ladder — the rule that produced `call`'s best logit.  The rule half is
+    /// [`None`] when the winner is not rule-backed (a learned floor) or gives
+    /// `call` no finite logit (the call did not come from this table).  This
+    /// is the attribution hook for divergence forensics: the first differing
+    /// call of a divergent board names the exact book node or floor rule that
+    /// chose it.
+    #[must_use]
+    pub fn explain_call(
+        &self,
+        hand: Hand,
+        vul: RelativeVulnerability,
+        auction: &[Call],
+        call: Call,
+    ) -> Option<(Provenance, Option<ExplainedRule>)> {
+        let trie = self.trie_for(auction);
+        let context = Context::new(vul, auction).with_prefixes(trie.common_prefixes(auction));
+        let (classifier, _, provenance) = trie.resolve_floored(hand, &context, auction)?;
+        let rule = classifier.as_rules().and_then(|rules| {
+            let &(index, _) = rules.explain(hand, &context).get(call)?;
+            let rule = &rules.rules()[index];
+            Some(ExplainedRule {
+                index,
+                label: rule.label(),
+                description: rule.describe().to_string(),
+            })
+        });
+        Some((provenance, rule))
+    }
+}
+
+/// The winning rule behind one call — [`Stance::explain_call`]'s attribution
+#[derive(Clone, Debug)]
+pub struct ExplainedRule {
+    /// Index of the rule in its [`Rules`][super::rules::Rules] table, in
+    /// declaration order — stable within one build of the books
+    pub index: usize,
+    /// The authored [`note`][super::rules::Rules::note] label, `""` when unset
+    pub label: &'static str,
+    /// The rule's constraint rendered as prose ([`Rule::describe`][super::rules::Rule::describe])
+    pub description: String,
 }
 
 impl Stance {
@@ -521,5 +567,49 @@ mod tests {
             Phase::of(&[ONE_HEART, P, TWO_HEARTS, TWO_SPADES, P]),
             Phase::Defensive
         );
+    }
+
+    /// `explain_call` attributes a book call to its exact node and a floor
+    /// call to the instinct fallback, each with a renderable rule.
+    #[test]
+    fn explain_call_names_book_and_floor_rules() {
+        use crate::bidding::american::american;
+        use contract_bridge::Hand;
+        use contract_bridge::auction::RelativeVulnerability;
+
+        let stance = american().against(super::Family::NATURAL);
+
+        // A book decision: the routine 1♠ opening resolves at the exact root
+        // node (no fallback taken) and names the rule that produced it.
+        let opener: Hand = "AKJ84.K52.Q4.982".parse().expect("valid test hand");
+        let (provenance, rule) = stance
+            .explain_call(opener, RelativeVulnerability::NONE, &[], ONE_SPADE)
+            .expect("an opening classifies");
+        assert_eq!(provenance.fallback, None);
+        let rule = rule.expect("the opening table is a Rules ladder");
+        assert!(!rule.description.is_empty());
+
+        // A floor decision: opener's competitive long-suit rebid comes from the
+        // instinct floor (depth 0 + fallback), mirroring the provenance the
+        // instinct tests assert, and its winning rule still renders.
+        let auction = [
+            bid(1, Strain::Diamonds),
+            ONE_HEART,
+            P,
+            TWO_HEARTS, // they raise; opener holds a self-sufficient 7-card suit
+        ];
+        let one_suiter: Hand = "765.A.AKJT984.63".parse().expect("valid test hand");
+        let (provenance, rule) = stance
+            .explain_call(
+                one_suiter,
+                RelativeVulnerability::NONE,
+                &auction,
+                bid(3, Strain::Diamonds),
+            )
+            .expect("a legal auction classifies");
+        assert_eq!(provenance.depth, 0);
+        assert!(provenance.fallback.is_some());
+        let rule = rule.expect("the instinct floor is a Rules ladder");
+        assert!(!rule.description.is_empty());
     }
 }

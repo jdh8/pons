@@ -46,7 +46,7 @@ pub use american::{
 #[cfg(feature = "search")]
 pub use american::{american_search, american_search_with};
 pub use array::Array;
-pub use book::{Competitive, Constructive, Defensive, Family, Pair, Phase, Stance};
+pub use book::{Competitive, Constructive, Defensive, ExplainedRule, Family, Pair, Phase, Stance};
 pub use compose::{OrElse, Versus};
 pub use context::Context;
 #[cfg(feature = "dd")]

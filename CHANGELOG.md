@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.10.0] — Unreleased
 
+### Added
+
+- **The BBA gap campaign: anchor + decomposition tooling**
+  ([docs/bba-gap-campaign.md](docs/bba-gap-campaign.md), the standing plan for
+  closing the pons↔BBA gap, floor-first). The gap (−2.59 → −1.997 IMPs/board
+  at last measure, then a long unmeasured win streak) had never been
+  *attributed* — no seeded anchor was persisted and the only buckets were
+  1NT-centric. This ships Pillar A:
+  - `bba-gen` dumps now record their **seed and full command line**
+    (`Dump.seed`/`Dump.gen_args`, serde-defaulted so old dumps still parse) —
+    every dump is self-describing and regenerable forever.
+  - **`Stance::explain_call`** (with the new `ExplainedRule`): resolve one
+    decision exactly as classification does and name the winning rule —
+    provenance (exact node / guarded fallback / instinct floor) plus the
+    rule's index, label, and rendered constraint. The underlying
+    `Trie::resolve_floored` is the same mass fall-through
+    `classify_floored` uses, so attribution can never disagree with play.
+  - **`examples/bba-decompose`**: turns anchor shard dumps into a ranked
+    IMP-loss bucket report (`report.md` + machine-readable `boards.jsonl`).
+    Buckets key on *phase / provenance / auction family* with a
+    direction-of-loss triage, dual-scored (plain + PD, flagged when they
+    disagree), per-bucket CIs, IMP histogram, right-siding divergences
+    counted and excluded, and top-N worst boards per losing bucket with the
+    winning rule named per board. Attribution is **derived by replay** (our
+    side is deterministic), guarded by a printed replay-verification rate
+    that must be 100% — a 40-board smoke test verified 411/411 our-side
+    calls reproduced. A `--dd-cache` keyed on deals makes re-anchoring take
+    minutes (the warm-cache rerun of the smoke test: 0.09 s).
+  - **`scripts/anchor.sh`**: the orchestrator — both vulnerability arms at a
+    persistent series `SEED_BASE` (the documented exception to
+    fresh-seed-per-experiment), 16×6,400 boards/arm by default, then
+    decompose. Runbook in the campaign doc; ship decisions stay per-fix
+    fresh-seed A/Bs.
+
 ### Fixed
 
 - **Opener's/overcaller's competitive long-suit rebid.** Once our side had bid,

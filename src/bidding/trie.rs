@@ -289,15 +289,28 @@ impl Trie {
         context: &Context<'_>,
         auction: &[Call],
     ) -> Option<(super::array::Logits, Provenance)> {
+        self.resolve_floored(hand, context, auction)
+            .map(|(_, logits, provenance)| (logits, provenance))
+    }
+
+    /// [`classify_floored`][Self::classify_floored], also yielding the winning
+    /// classifier itself — the attribution hook (which node or floor rule
+    /// answered), used by [`Stance::explain_call`][super::book::Stance::explain_call]
+    pub(crate) fn resolve_floored(
+        &self,
+        hand: Hand,
+        context: &Context<'_>,
+        auction: &[Call],
+    ) -> Option<(&dyn Classifier, super::array::Logits, Provenance)> {
         if let Some((classifier, provenance)) = self.resolve(context, auction) {
             let logits = classifier.classify(hand, context);
             if logits.has_mass() {
-                return Some((logits, provenance));
+                return Some((classifier, logits, provenance));
             }
         }
         // The exact node rejected this hand — consult the fallback chain.
         let (classifier, provenance) = self.resolve_at(context, auction, 0, true)?;
-        Some((classifier.classify(hand, context), provenance))
+        Some((classifier, classifier.classify(hand, context), provenance))
     }
 
     fn resolve_at(

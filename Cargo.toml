@@ -152,5 +152,13 @@ name = "ab-dump-bucket"
 path = "examples/ab-dump-bucket/main.rs"
 required-features = ["serde"]
 
+# The anchor decomposition (gap campaign, docs/bba-gap-campaign.md): replays a
+# bba-gen dump through the live books to attribute every divergent board
+# (phase × provenance × family × direction) and rank the IMP-loss buckets.
+[[example]]
+name = "bba-decompose"
+path = "examples/bba-decompose/main.rs"
+required-features = ["serde"]
+
 [profile.dev.package."*"]
 opt-level = 2

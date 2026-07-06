@@ -113,6 +113,16 @@ pub struct Dump {
     pub our_label: String,
     pub their_label: String,
     pub vulnerability: AbsoluteVulnerability,
+    /// The deal seed this shard was generated from, so the exact board stream
+    /// is reproducible forever.  `None` in dumps written before the anchor
+    /// campaign (serde-defaulted for backwards compatibility).
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub seed: Option<u64>,
+    /// The generating command line (`argv[1..]`), so a scorer can rebuild the
+    /// exact book configuration instead of guessing knob state.  Empty in
+    /// older dumps.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub gen_args: Vec<String>,
     pub boards: Vec<Board>,
 }
 
