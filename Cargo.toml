@@ -147,5 +147,10 @@ name = "ab-dump-diff"
 path = "examples/ab-dump-diff/main.rs"
 required-features = ["serde"]
 
+[[example]]
+name = "ab-dump-bucket"
+path = "examples/ab-dump-bucket/main.rs"
+required-features = ["serde"]
+
 [profile.dev.package."*"]
 opt-level = 2

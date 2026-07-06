@@ -346,6 +346,13 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_high_overcall: bool,
 
+    /// Disable the competitive long-suit rebid — opener's/overcaller's rebid of a
+    /// 6+ suit in competition (2-level any, 3-level needs 7 cards or a good six)
+    /// instead of a forced takeout double (shipped default-on; see
+    /// `set_competitive_rebid`).
+    #[arg(long, default_value_t = false)]
+    no_ns_competitive_rebid: bool,
+
     /// Disable responder's structure over their takeout double of our 1-suit
     /// opening: Jordan/Truscott 2NT, value XX, preemptive jump-raise flip,
     /// weak NF 2-level suits (shipped default-on; see `set_jordan_truscott`).
@@ -1086,6 +1093,7 @@ fn main() -> anyhow::Result<()> {
         },
     );
     pons::bidding::american::set_high_overcall_responses(args.ns_high_overcall);
+    pons::bidding::instinct::set_competitive_rebid(!args.no_ns_competitive_rebid);
     pons::bidding::american::set_jordan_truscott(!args.no_ns_jordan_truscott);
     pons::bidding::american::set_major_rebid_tails(!args.no_ns_major_rebid_tails);
     pons::bidding::american::set_fourth_suit_forcing(!args.no_ns_fourth_suit_forcing);

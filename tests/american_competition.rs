@@ -249,3 +249,48 @@ fn competitive_4333_knob_gates_the_cue_stayman() {
 
     set_competitive_4333(Competitive4333::Suppress); // restore the default
 }
+
+// ---------------------------------------------------------------------------
+// Section: opener's competitive long-suit rebid (`set_competitive_rebid`)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn competitive_rebid_reaches_the_missed_game() {
+    // Dealer West, 1♦ (1♥) P (2♥): West holds a self-sufficient AKJT984 and by
+    // default can only make a takeout double it does not have the shape for.
+    // With the competitive rebid on, West shows the suit — and the *existing*
+    // raise ladder then carries East (14 opposite a shown 6+) to the cold
+    // diamond game (5♦ makes 11 tricks double-dummy). Both sides through the
+    // real stance: the fix is opener's rebid alone, responder was never broken.
+    use pons::bidding::instinct::set_competitive_rebid;
+    set_competitive_rebid(true);
+    let system = stance();
+
+    let after_raise = [
+        call(1, Strain::Diamonds),
+        call(1, Strain::Hearts),
+        Call::Pass,
+        call(2, Strain::Hearts),
+    ];
+    assert_eq!(
+        best_call(&system, &after_raise, "765.A.AKJT984.63"),
+        call(3, Strain::Diamonds),
+        "opener rebids the seven-card suit instead of doubling"
+    );
+
+    let after_rebid = [
+        call(1, Strain::Diamonds),
+        call(1, Strain::Hearts),
+        Call::Pass,
+        call(2, Strain::Hearts),
+        call(3, Strain::Diamonds),
+        Call::Pass,
+    ];
+    assert_eq!(
+        best_call(&system, &after_rebid, "AKQ.T95.Q73.QJ95"),
+        call(5, Strain::Diamonds),
+        "responder raises the shown suit to the diamond game"
+    );
+
+    set_competitive_rebid(false); // restore the default
+}

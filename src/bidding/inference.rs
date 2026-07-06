@@ -2824,6 +2824,26 @@ mod tests {
     }
 
     #[test]
+    fn competitive_opener_rebid_shows_sixth_card() {
+        // [1♦, 1♥, P, 2♥, 3♦, P]: partner opened 1♦ and, over the opponents'
+        // heart auction, rebid 3♦ (the opt-in `set_competitive_rebid` floor).
+        // The natural length reading applies in competition too — only the
+        // *strength* reading is suppressed when opponents act — so partner is
+        // still read with six-plus diamonds, keeping the sampler and any further
+        // interference sound.  Knob-independent: `read` interprets the auction.
+        let auction = [
+            bid(1, Strain::Diamonds),
+            bid(1, Strain::Hearts),
+            Call::Pass,
+            bid(2, Strain::Hearts),
+            bid(3, Strain::Diamonds),
+            Call::Pass,
+        ];
+        let inf = read(&auction);
+        assert_eq!(inf.partner().length(Suit::Diamonds), Range::new(6, 13));
+    }
+
+    #[test]
     fn overcall_shows_five_cards() {
         // [1♦, 1♠]: their 1♦ opening, our partner's... no — at len 2, index 1
         // (1♠) is RHO.  Their 1♦ is two before → Partner? recompute below.

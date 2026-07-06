@@ -26,10 +26,15 @@ struct Args {
     /// Vulnerability: none, ns, ew, both
     #[arg(long, default_value = "both")]
     vulnerability: AbsoluteVulnerability,
+
+    /// Disable the (shipped default-on) competitive long-suit rebid floor
+    #[arg(long, default_value_t = false)]
+    no_competitive_rebid: bool,
 }
 
 fn main() {
     let args = Args::parse();
+    pons::bidding::instinct::set_competitive_rebid(!args.no_competitive_rebid);
     let hand: Hand = args.hand.parse().expect("valid hand");
     let mut auction = Auction::new();
     for token in args.auction.split_whitespace() {

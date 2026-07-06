@@ -9,6 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Opener's/overcaller's competitive long-suit rebid.** Once our side had bid,
+  the keyless instinct floor could only *raise partner* or make a *takeout
+  double* in competition — so a self-sufficient one-suiter (e.g. `1♦ (1♥) P
+  (2♥)` holding `AKJT984`) was stuck doubling, misdescribing a takeout it does
+  not have and missing games the auction is cold for. Now a suit we *personally*
+  bid and hold six-plus in is rebid at the cheapest legal level, outranking that
+  double; the existing raise ladder carries responder to game. Seat-scoped
+  (partner's transfer cannot license a phantom rebid of a suit we never bid) and
+  level-capped (never a unilateral game jump over their three-level bid). The
+  two-level rebid is unconditional; the more committal three-level rebid demands
+  a real source of tricks — **seven cards, or a good six (two of the top three
+  honors)**. This split is measured, not assumed: the blanket three-level rebid
+  was a *vulnerable loss* (opener 3-level PD −0.016 IMPs/board), and the quality
+  gate flips it to a clear win (+0.007) while neutralising the overcaller
+  three-level to a wash. Measured vs BBA 2/1 (102.4k boards/arm, both
+  vulnerabilities, SEED_BASE 1783316036): plain DD **+0.047 / +0.037**
+  IMPs/board NV/vul, perfect-defense **+0.040 / +0.023** (all four cells' CIs
+  exclude 0; +0.67…+1.37 IMPs/fired, 3.4 % fired). Default-on
+  (`--no-ns-competitive-rebid` / `set_competitive_rebid(false)` for the off arm).
+
 - **Opener's answer to partner's cue-raise.** After `1M – (ovc) – cue – P`,
   opener had no authored rebid, so the auction fell through to the keyless
   instinct floor — whose raise ladder needs partner's *named* suit (the cue) and

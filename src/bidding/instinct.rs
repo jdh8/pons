@@ -52,7 +52,7 @@ use super::Rules;
 use super::constraint::{
     Cons, Constraint, balanced, described, hcp, len, min_level_is, partner_shown_len,
     partner_suit_is, point_count, points, pred, short_in_their_suits, stopper_in_their_suits,
-    support, they_bid,
+    support, they_bid, top_honors,
 };
 use super::context::Context;
 use super::inference::Inferences;
@@ -251,6 +251,11 @@ std::thread_local! {
     /// major, a sure trump trick and control that buffs total tricks.  On by default
     /// when the package is armed.
     static PREEMPT_4M_REQUIRE_ACE: Cell<bool> = const { Cell::new(true) };
+
+    /// A hand that already bid a suit rebids it in competition rather than being
+    /// forced to a takeout double (**shipped default-on**; see
+    /// [`set_competitive_rebid`]).
+    static COMPETITIVE_REBID: Cell<bool> = const { Cell::new(true) };
 }
 
 /// Responder runs from a doubled 1NT below this many HCP; with more, 1NT-X
@@ -308,6 +313,30 @@ pub fn set_settle_floor(enabled: bool) {
 /// The "settle" view of Pass is enabled (see [`set_settle_floor`])
 fn settle_floor() -> Cons<impl Constraint + Clone> {
     pred(|_: Hand, _: &Context<'_>| SETTLE_FLOOR.with(Cell::get))
+}
+
+/// Enable opener's/overcaller's competitive rebid of a long suit (**shipped default-on**)
+///
+/// Once our side has bid, the deterministic floor's only competitive actions are
+/// raising partner and the takeout double — so a self-sufficient one-suiter
+/// (e.g. `1♦ (1♥) P (2♥)` holding `AKJT984`) can only double, misdescribing a
+/// takeout shape it does not have.  With this on, a suit we already bid and hold
+/// six-plus in is rebid at the cheapest legal level, outranking that double; the
+/// existing raise ladder then carries responder to game.  The two-level rebid is
+/// unconditional; the more committal three-level rebid demands a real source of
+/// tricks (seven cards, or a good six — two of the top three honors).
+///
+/// A/B (SEED_BASE 1783316036, 102.4k bd/arm/vul): plain **+0.047/+0.037** IMPs/bd
+/// NV/vul, PD **+0.040/+0.023**, all four cells' CIs exclude 0.  Disable with
+/// `bba-gen --no-ns-competitive-rebid`.  Read at book construction.
+#[doc(hidden)]
+pub fn set_competitive_rebid(enabled: bool) {
+    COMPETITIVE_REBID.with(|flag| flag.set(enabled));
+}
+
+/// The competitive long-suit rebid is enabled (see [`set_competitive_rebid`])
+fn competitive_rebid_enabled() -> bool {
+    COMPETITIVE_REBID.with(Cell::get)
 }
 
 /// Enable or disable Rubens advances of partner's simple overcall
@@ -982,6 +1011,26 @@ fn we_have_not_bid() -> Cons<impl Constraint + Clone> {
             .map(Strain::from)
             .chain([Strain::Notrump])
             .any(|strain| context.we_bid(strain))
+    })
+}
+
+/// The player to act has *personally* bid `suit` — the anchor for rebidding our
+/// own long suit in competition (see [`set_competitive_rebid`]).
+///
+/// Seat-scoped, not side-scoped (`context.we_bid` is the union of both seats):
+/// partner's artificial bid — a Jacoby transfer names our short major — must not
+/// license a phantom natural "rebid" of a suit we never held.  Our own past
+/// turns sit at the indices congruent to the acting seat, `(len - index) % 4 == 0`
+/// (the same arithmetic `Context` uses for partner at `== 2`).
+fn i_bid_suit(suit: Suit) -> Cons<impl Constraint + Clone> {
+    let strain = Strain::from(suit);
+    pred(move |_: Hand, context: &Context<'_>| {
+        let auction = context.auction();
+        let len = auction.len();
+        auction.iter().enumerate().any(|(index, &call)| {
+            (len - index).is_multiple_of(4)
+                && matches!(call, Call::Bid(bid) if bid.strain == strain)
+        })
     })
 }
 
@@ -2906,6 +2955,52 @@ pub fn instinct() -> Rules {
         );
     }
 
+    // Competitive long-suit rebid (opt-in; see `set_competitive_rebid`).  Once
+    // `we_have_not_bid` is false the floor competes only by raising partner or
+    // doubling, so a hand with a suit of its own — the opener's rebiddable
+    // six-bagger, an overcaller's — is stuck doubling.  Rebid that suit at the
+    // cheapest legal level, outranking the 0.9 takeout double below, and the
+    // existing raise ladder carries responder to game.  The natural reading
+    // already reads a repeated suit as 6+ (`inference.rs`).
+    //
+    // Capped at the three level: over their three-level bid the cheapest rebid of
+    // a lower-ranking suit is game (4♣ over 3♦, 4♥ over 3♠), and this rule carries
+    // no strength — a minimum must not blast game unilaterally.
+    //
+    // The A/B split the two live levels sharply: the 2-level rebid (balancing
+    // seat, low overcaller rebids) is a clean win at both vulnerabilities on both
+    // scorers, so it stays unconditional; the blanket 3-level rebid lost —
+    // marginal non-vul, clearly negative vulnerable under perfect defense — so it
+    // now demands a genuine source of tricks: seven cards, or a good six (two of
+    // the top three honors).  A ragged six-bagger competing to the three level
+    // stays home (double or pass).
+    if competitive_rebid_enabled() {
+        for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
+            let strain = Strain::from(suit);
+            rules = rules.rule(
+                Bid::new(2, strain),
+                1.0,
+                their_live_bid_at_most(3)
+                    & i_bid_suit(suit)
+                    & min_level_is(2, strain)
+                    & len(suit, 6..)
+                    & !they_bid(strain)
+                    & not_penalty_latched(),
+            );
+            rules = rules.rule(
+                Bid::new(3, strain),
+                1.0,
+                their_live_bid_at_most(3)
+                    & i_bid_suit(suit)
+                    & min_level_is(3, strain)
+                    & len(suit, 6..)
+                    & (len(suit, 7..) | top_honors(suit, 2..))
+                    & !they_bid(strain)
+                    & not_penalty_latched(),
+            );
+        }
+    }
+
     // Takeout double of their low suit bid: shape with opening values, or
     // any strong hand planning to bid again.  The penalty latch steps these
     // aside — once we own the auction for penalty, a double is not takeout.
@@ -3004,6 +3099,105 @@ mod tests {
         // KQ92 behind the 2♠ bidder sits for partner's takeout double.
         let auction = [call(2, Strain::Spades), Call::Double, Call::Pass];
         assert_eq!(best(&auction, "KQ92.A532.J42.96"), Call::Pass);
+    }
+
+    #[test]
+    fn competitive_rebid_shows_the_long_suit() {
+        // 1♦ (1♥) P (2♥): opener holds a self-sufficient seven-card diamond suit
+        // and a stiff in their hearts.  The floor's only competitive actions once
+        // it has bid are raise-partner and takeout-double — and partner passed.
+        let raised = [
+            call(1, Strain::Diamonds),
+            call(1, Strain::Hearts),
+            Call::Pass,
+            call(2, Strain::Hearts),
+        ];
+        let one_suiter = "765.A.AKJT984.63";
+
+        // Off (default): the floor can only double, misdescribing a takeout shape.
+        set_competitive_rebid(false);
+        assert_eq!(best(&raised, one_suiter), Call::Double);
+
+        // On: rebid the suit instead — and it is the floor that produces it, not a
+        // book node shadowing the position.
+        set_competitive_rebid(true);
+        assert_eq!(best(&raised, one_suiter), call(3, Strain::Diamonds));
+        assert_eq!(
+            american_floored(&raised, one_suiter),
+            (call(3, Strain::Diamonds), true)
+        );
+
+        // Balancing seat (they did not raise): the cheapest rebid is 2♦.
+        let balancing = [
+            call(1, Strain::Diamonds),
+            call(1, Strain::Hearts),
+            Call::Pass,
+            Call::Pass,
+        ];
+        assert_eq!(best(&balancing, one_suiter), call(2, Strain::Diamonds));
+
+        // General across suits: opener's six-card major over their overcall + raise.
+        let major = [
+            call(1, Strain::Spades),
+            call(2, Strain::Hearts),
+            Call::Pass,
+            call(3, Strain::Hearts),
+        ];
+        assert_eq!(best(&major, "AKJ982.K5.A54.63"), call(3, Strain::Spades));
+
+        // A five-card suit is not enough: the takeout double stands.
+        assert_eq!(best(&raised, "765.A.AKJT9.6432"), Call::Double);
+
+        // 3-level quality gate (over their raise, cheapest rebid is 3♦): a good
+        // six (two of the top three honors) or seven cards rebids; a ragged six
+        // does not.  The seven-card `one_suiter` above already covers the length
+        // path.
+        assert_eq!(best(&raised, "765.A.AKJ864.632"), call(3, Strain::Diamonds));
+        assert_ne!(best(&raised, "KQ5.A.T98764.632"), call(3, Strain::Diamonds));
+        // …but that same ragged six still competes at the cheaper two level.
+        assert_eq!(
+            best(&balancing, "KQ5.A.T98764.632"),
+            call(2, Strain::Diamonds)
+        );
+
+        // Capped at the three level: over their three-level bid the cheapest
+        // diamond rebid is game (4♦), and a minimum must not blast it — the rule
+        // stays home rather than jump.
+        let over_three = [
+            call(1, Strain::Diamonds),
+            call(3, Strain::Hearts),
+            Call::Pass,
+            Call::Pass,
+        ];
+        assert_ne!(
+            best(&over_three, "K5.54.AQJ982.J43"),
+            call(4, Strain::Diamonds)
+        );
+
+        // Seat-scoped: partner's Jacoby transfer names our short major, but we
+        // never bid it — no phantom natural rebid of the transfer strain.
+        let transfer = [
+            call(1, Strain::Notrump),
+            Call::Pass,
+            call(2, Strain::Hearts),
+            call(3, Strain::Clubs),
+        ];
+        assert_ne!(best(&transfer, "K5.AQJ982.A5.K43"), call(3, Strain::Hearts));
+
+        // The overcaller's rebid path fires too — we personally bid the suit.
+        let overcall = [
+            call(1, Strain::Hearts),
+            call(2, Strain::Diamonds),
+            call(2, Strain::Hearts),
+            Call::Pass,
+            Call::Pass,
+        ];
+        assert_eq!(
+            best(&overcall, "K5.A54.AKJT98.63"),
+            call(3, Strain::Diamonds)
+        );
+
+        set_competitive_rebid(false);
     }
 
     #[test]
