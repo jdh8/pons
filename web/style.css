@@ -247,12 +247,15 @@ table.dd td { border-top: 1px solid rgba(0, 0, 0, 0.08); }
 .editrow { display: grid; grid-template-columns: 1.5rem repeat(13, 1fr); gap: 0.3rem; align-items: center; }
 /* Paper chip so the four-colour ♣/♦ glyphs don't vanish into the green felt. */
 .editsuit {
-  font-size: 1.2rem;
+  width: 1.5rem;
+  height: 1.5rem;
+  line-height: 1.5rem;
+  margin: 0 auto;
+  font-size: 1rem;
   font-weight: 700;
   text-align: center;
   background: var(--paper);
-  border-radius: 5px;
-  padding: 0.3rem 0;
+  border-radius: 50%;
 }
 .editcell {
   font: inherit;
