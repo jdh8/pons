@@ -329,6 +329,11 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_free_bids: bool,
 
+    /// Minimum points/HCP for the 1-level free bids (default 6; sweep to 8+ to
+    /// trim the free-bid family's vulnerable-PD leak; see `set_free_bid_floor`).
+    #[arg(long, default_value_t = 6)]
+    ns_free_bid_floor: u8,
+
     /// The negative-double school over our minor openings:
     /// both-majors (shipped default) | modern | cachalot | sputnik
     /// (see `set_negative_double_shape`; all but both-majors imply the free bids).
@@ -1068,6 +1073,7 @@ fn main() -> anyhow::Result<()> {
     pons::bidding::american::set_strong_two_competition(!args.no_ns_strong_two_comp);
     pons::bidding::american::set_major_support_double(!args.no_ns_major_support_double);
     pons::bidding::american::set_free_bids(args.ns_free_bids);
+    pons::bidding::american::set_free_bid_floor(args.ns_free_bid_floor);
     pons::bidding::american::set_negative_double_shape(
         match args.ns_negative_double_shape.as_str() {
             "both-majors" => pons::bidding::american::NegativeDoubleShape::BothMajors,

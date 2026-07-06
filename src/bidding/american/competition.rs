@@ -671,6 +671,11 @@ thread_local! {
     /// 11–12 with a stopper). Default off while the A/B runs; implied by the
     /// `Modern`/`Cachalot` negative-double shapes.
     static FREE_BIDS: Cell<bool> = const { Cell::new(false) };
+
+    /// Minimum points/HCP for the 1-level free bids (new-suit 5+ and 1NT, plus
+    /// the Sputnik natural 4+ majors). Default 6 — the shipped floor. The vul-PD
+    /// leak of the whole free-bid family lives here; sweep to 8+ and re-measure.
+    static FREE_BID_FLOOR: Cell<u8> = const { Cell::new(6) };
 }
 
 /// Choose the negative-double school for books built *after* this call
@@ -699,6 +704,19 @@ pub fn set_free_bids(on: bool) {
 /// negative-double shape whose tighter double needs the natural outlet
 fn free_bids_engaged() -> bool {
     FREE_BIDS.with(Cell::get) || negative_double_shape() != NegativeDoubleShape::BothMajors
+}
+
+/// Set the minimum points/HCP for the 1-level free bids (thread-local)
+///
+/// Default 6 (`--ns-free-bid-floor` in `bba-gen`). Raising it trims the
+/// vulnerable-PD leak the free-bid family inherits.
+pub fn set_free_bid_floor(min: u8) {
+    FREE_BID_FLOOR.with(|cell| cell.set(min));
+}
+
+/// The minimum points/HCP for the 1-level free bids
+fn free_bid_floor() -> u8 {
+    FREE_BID_FLOOR.with(Cell::get)
 }
 
 thread_local! {
@@ -1273,12 +1291,16 @@ fn over_their_overcall(opening: Suit) -> Rules {
             .rule(
                 Bid::new(1, Strain::Hearts),
                 1.45,
-                min_level_is(1, Strain::Hearts) & len(Suit::Hearts, 4..) & points(6..),
+                min_level_is(1, Strain::Hearts)
+                    & len(Suit::Hearts, 4..)
+                    & points(free_bid_floor()..),
             )
             .rule(
                 Bid::new(1, Strain::Spades),
                 1.45,
-                min_level_is(1, Strain::Spades) & len(Suit::Spades, 4..) & points(6..),
+                min_level_is(1, Strain::Spades)
+                    & len(Suit::Spades, 4..)
+                    & points(free_bid_floor()..),
             );
     }
 
@@ -1304,7 +1326,7 @@ fn over_their_overcall(opening: Suit) -> Rules {
                 rules = rules.rule(
                     Bid::new(1, xs),
                     1.45,
-                    min_level_is(1, xs) & len(x, 5..) & points(6..) & !they_bid(xs),
+                    min_level_is(1, xs) & len(x, 5..) & points(free_bid_floor()..) & !they_bid(xs),
                 );
             }
             rules = rules.rule(
@@ -1317,7 +1339,9 @@ fn over_their_overcall(opening: Suit) -> Rules {
             .rule(
                 Bid::new(1, Strain::Notrump),
                 0.9,
-                min_level_is(1, Strain::Notrump) & hcp(6..=10) & stopper_in_their_suits(),
+                min_level_is(1, Strain::Notrump)
+                    & hcp(free_bid_floor()..=10)
+                    & stopper_in_their_suits(),
             )
             .rule(
                 Bid::new(2, Strain::Notrump),
@@ -5707,6 +5731,31 @@ mod tests {
         let one_nt_auction = [call(1, Strain::Hearts), call(1, Strain::Spades)];
         let (one_nt, _) = best_call(&one_nt_auction, "K52.95.KJ64.QJ32");
         assert_eq!(one_nt, call(1, Strain::Notrump), "the natural 1NT");
+        super::set_free_bids(false);
+    }
+
+    #[test]
+    fn free_bid_floor_gates_the_marginal_hand() {
+        super::set_free_bids(true);
+        // [1♣, (1♦)]: a 6-ish balanced hand with five hearts. At the default
+        // floor of 6 it makes the 1♥ free bid; raise the floor to 8 and it no
+        // longer qualifies (falls through to the floor's pass).
+        let auction = [call(1, Strain::Clubs), call(1, Strain::Diamonds)];
+        let hand = "T32.KJ542.94.Q32";
+        let (bid_at_6, _) = best_call(&auction, hand);
+        assert_eq!(
+            bid_at_6,
+            call(1, Strain::Hearts),
+            "the 1♥ free bid at floor 6"
+        );
+        super::set_free_bid_floor(8);
+        let (bid_at_8, _) = best_call(&auction, hand);
+        assert_ne!(
+            bid_at_8,
+            call(1, Strain::Hearts),
+            "floor 8 rejects the 6-count"
+        );
+        super::set_free_bid_floor(6);
         super::set_free_bids(false);
     }
 

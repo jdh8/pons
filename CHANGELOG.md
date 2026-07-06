@@ -77,11 +77,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     double/redouble extends to `1♥-(P)-1♠` (exactly three spades), reusing the
     shipped minor-opening tables verbatim.
   - `set_free_bids` (**stays opt-in**, `--ns-free-bids`: plain +0.29 NV but
-    **−0.30 vul** IMPs/fired, PD −0.31/−0.88, CIs exclude 0 — the 6-count
-    floor on the 1-level free bids and the free 1NT is what perfect defense
-    punishes at vul; sweep the floors to 8+ before re-measuring): responder's
+    **−0.30 vul** IMPs/fired, PD −0.31/−0.88, CIs exclude 0): responder's
     natural free bids over an overcall — 1-level new suit 5+ & 6+, 2-level
     non-jump 5+ & 10+, `1NT` 6–10 / `2NT` 11–12 with a stopper.
+  - `set_free_bid_floor` (**stays opt-in / default 6, byte-identical**,
+    `--ns-free-bid-floor`): the minimum points/HCP for the 1-level free bids
+    (new-suit 5+, `1NT`, and the Sputnik natural 4+ majors). Added to test the
+    standing "the vul-PD leak is the 6-count floor — sweep to 8+" hypothesis;
+    **refuted.** Sweeping 6→7→8 vs off leaves every loss intact (`free8` vs
+    off still −0.0128 vul-plain / −0.0212 vul-PD / −0.0066 NV-PD, all CIs < 0)
+    while *discarding* free6's NV-plain win (+0.0028 → +0.0001 ~0). `free8` vs
+    `free6` shows the removed 6–7 counts were net-**positive** (NV-plain
+    −0.0026, vul-plain −0.0019, CIs < 0) and bought **nothing** at vul-PD
+    (+0.0012, CI straddles 0); `modern8` vs `modern6` is the same bad trade.
+    The vul weakness is **structural and plain-DD-visible**, not a
+    floor-height artifact — free-bidding these shapes into a live auction is
+    punished vulnerable whatever the strength. Kept as a tuning handle for a
+    future *shape/suit-quality* gate (204.8k boards/arm/vul, SEED_BASE
+    1783315917, sha c5a0b44).
   - `set_negative_double_shape` (**`BothMajors` stays the default**,
     `--ns-negative-double-shape both-majors|modern|cachalot|sputnik`): the
     negative-double school over our minor openings. `Modern` = BWS/Cohen
@@ -106,8 +119,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     vul-PD vs Modern — the entire shape gap; fixed, then wash). Sputnik beats
     bare free-bids on plain DD (+0.005/+0.004 NV/vul, CIs > 0) and wins
     NV-plain vs off (+0.012, CI > 0) but loses vul-PD (−0.021, CI < 0) — the
-    shared floor leak, not the shape. Re-measure all three after the free-bid
-    floor fix; Cachalot's/Sputnik's right-siding wants an sd-lead bracket.
+    shared free-bid leak, not the shape. The `set_free_bid_floor` sweep
+    (below) proves that leak is **structural, not the floor height**:
+    `modern8` vs off still loses vul-PD −0.0183 (CI < 0). The family's
+    default-on unblock is a shape/suit-quality gate on *which* free bids to
+    make, not a strength floor; Cachalot's/Sputnik's right-siding wants an
+    sd-lead bracket.
   - `set_high_overcall_responses` (**stays opt-in**, `--ns-high-overcall`:
     plain −0.63/−0.35, PD −0.24/−0.33 IMPs/fired, all CIs straddle 0; the
     worst-board bucket is the minor-opening 3-level negative double's
