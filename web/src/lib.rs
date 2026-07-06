@@ -3,7 +3,7 @@
 //! One exported [`WebTable`] drives both interactive modes — practice (a human
 //! bids one seat against three bots) and demo (bots bid all four) — and a free
 //! [`book`] function exports the authored 2/1 books for the browser.  Every
-//! method returns a JSON [`Snapshot`] string; the JS side is a thin renderer.
+//! method returns a JSON `Snapshot` string; the JS side is a thin renderer.
 //!
 //! Double dummy comes from the pure-Rust `pons-dds` (the native `pons/dd`
 //! feature wraps C++ and cannot target wasm), driven strictly on its
@@ -653,6 +653,137 @@ fn rule_json(rules: &pons::bidding::Rules) -> Vec<RuleJson> {
         .collect()
 }
 
+/// Flip a boolean bidding knob for the **next** deal (the Settings tab)
+///
+/// Every option is a module-level thread-local `set_*` flag read when a deal
+/// rebuilds `american()` in `deal_with`; wasm is
+/// single-threaded, so the thread-local is effectively a global.  Unknown keys
+/// are a no-op.  `lebensohl` is special-cased to drive the style enum directly
+/// so its "on" state stays the default [`Transfer`][pons::bidding::american::LebensohlStyle]
+/// rather than the `set_lebensohl` wrapper's lossy `Plain`.
+#[wasm_bindgen]
+pub fn set_option(key: &str, on: bool) {
+    use pons::bidding::american::LebensohlStyle;
+    use pons::bidding::{american, constraint, inference, instinct};
+
+    if key == "lebensohl" {
+        american::set_lebensohl_style(if on {
+            LebensohlStyle::Transfer
+        } else {
+            LebensohlStyle::Off
+        });
+        return;
+    }
+
+    // One arm per boolean setter; keeps the string→function map in one place.
+    macro_rules! options {
+        ($key:expr, $on:expr; $($name:literal => $f:path),+ $(,)?) => {
+            match $key { $($name => $f($on),)+ _ => {} }
+        };
+    }
+    options!(key, on;
+        // Openings
+        "open_one_notrump" => american::set_open_one_notrump,
+        "one_notrump_fifths" => american::set_one_notrump_fifths,
+        // Notrump
+        "transfer_super_accept" => american::set_transfer_super_accept,
+        "transfer_slam_try" => american::set_transfer_slam_try,
+        "texas_slam_drive" => american::set_texas_slam_drive,
+        "transfer_gf_majors" => american::set_transfer_gf_majors,
+        "minor_min_to_3nt" => american::set_minor_min_to_3nt,
+        "transfer_gf_hearts" => american::set_transfer_gf_hearts,
+        "garbage_stayman" => american::set_garbage_stayman,
+        "stayman_both_majors" => american::set_stayman_both_majors,
+        "stayman_5card_max" => american::set_stayman_5card_max,
+        "long_minor_force" => american::set_long_minor_force,
+        "invitational_5card_majors" => american::set_invitational_5card_majors,
+        "transfer_longer_major" => american::set_transfer_longer_major,
+        "crawling_stayman" => american::set_crawling_stayman,
+        "stayman_cue_continuation" => american::set_stayman_cue_continuation,
+        "stayman_minor_slam_try" => american::set_stayman_minor_slam_try,
+        // Competition (lebensohl handled above)
+        "penalty_double_leave_in" => american::set_penalty_double_leave_in,
+        "uvu" => american::set_uvu,
+        "direct_3nt_stopper" => american::set_direct_3nt_stopper,
+        "trap_pass" => american::set_trap_pass,
+        "cue_raise_answer" => american::set_cue_raise_answer,
+        "cue_minor_raise_answer" => american::set_cue_minor_raise_answer,
+        "uvu_over_majors" => american::set_uvu_over_majors,
+        "weak_two_competition" => american::set_weak_two_competition,
+        "strong_two_competition" => american::set_strong_two_competition,
+        "major_support_double" => american::set_major_support_double,
+        "free_bids" => american::set_free_bids,
+        "high_overcall_responses" => american::set_high_overcall_responses,
+        "jordan_truscott" => american::set_jordan_truscott,
+        "delayed_cue" => american::set_delayed_cue,
+        "competition_over_stayman" => american::set_competition_over_stayman,
+        "competition_over_transfer" => american::set_competition_over_transfer,
+        "competition_over_minor_transfer" => american::set_competition_over_minor_transfer,
+        "competition_over_diamond_transfer" => american::set_competition_over_diamond_transfer,
+        "defense_to_2d_multi" => american::set_defense_to_2d_multi,
+        "leaping_michaels" => american::set_leaping_michaels,
+        "responsive_takeout" => american::set_responsive_takeout,
+        "responsive_overcall" => american::set_responsive_overcall,
+        // Defense to their 1NT (competing alternatives — pick one family)
+        "landy_hcp" => american::set_landy_hcp,
+        "natural_defense" => american::set_natural_defense,
+        "notrump_balancing" => american::set_notrump_balancing,
+        "direct_dont" => american::set_direct_dont,
+        "meckwell" => american::set_meckwell,
+        "meckwell_minor_major_44" => american::set_meckwell_minor_major_44,
+        "meckwell_x_four_four" => american::set_meckwell_x_four_four,
+        "stayman_defense" => american::set_stayman_defense,
+        "transfer_defense" => american::set_transfer_defense,
+        "minor_transfer_defense" => american::set_minor_transfer_defense,
+        "diamond_transfer_defense" => american::set_diamond_transfer_defense,
+        "direct_dont_four_four" => american::set_direct_dont_four_four,
+        "woolsey" => american::set_woolsey,
+        "always_pass_defense" => american::set_always_pass_defense,
+        // Rebids & responses
+        "longer_major_response" => american::set_longer_major_response,
+        "up_the_line" => american::set_up_the_line,
+        "meckstroth_adjunct" => american::set_meckstroth_adjunct,
+        "major_rebid_tails" => american::set_major_rebid_tails,
+        "fourth_suit_forcing" => american::set_fourth_suit_forcing,
+        "xyz" => american::set_xyz,
+        // Raises
+        "major_game_tries" => american::set_major_game_tries,
+        "limit_raise_acceptance" => american::set_limit_raise_acceptance,
+        // Floor (instinct)
+        "inference_aware" => instinct::set_inference_aware,
+        "one_nt_runout" => instinct::set_one_nt_runout,
+        "settle_floor" => instinct::set_settle_floor,
+        "competitive_rebid" => instinct::set_competitive_rebid,
+        "rubens_advances" => instinct::set_rubens_advances,
+        "floor_rkcb" => instinct::set_floor_rkcb,
+        "suppress_nt_game_force_over_double" => instinct::set_suppress_nt_game_force_over_double,
+        "correct_3nt_to_major" => instinct::set_correct_3nt_to_major,
+        "gambling_3nt_over_double" => instinct::set_gambling_3nt_over_double,
+        "gambling_3nt_require_ace" => instinct::set_gambling_3nt_require_ace,
+        "preempt_4m_over_double" => instinct::set_preempt_4m_over_double,
+        "preempt_4m_require_ace" => instinct::set_preempt_4m_require_ace,
+        "one_nt_runout_universal" => instinct::set_one_nt_runout_universal,
+        "penalize_escape_stack" => instinct::set_penalize_escape_stack,
+        "penalize_escape_values" => instinct::set_penalize_escape_values,
+        "uvu_encircle" => instinct::set_uvu_encircle,
+        "penalty_latch" => instinct::set_penalty_latch,
+        "penalty_no_pull" => instinct::set_penalty_no_pull,
+        "advancer_xx_runout" => instinct::set_advancer_xx_runout,
+        "doubler_xx_runout" => instinct::set_doubler_xx_runout,
+        // Inference (auction reading)
+        "nt_invite_inference" => inference::set_nt_invite_inference,
+        "rubens_transfer_reading" => inference::set_rubens_transfer_reading,
+        "alert_reading" => inference::set_alert_reading,
+        "fallback_projection" => inference::set_fallback_projection,
+        "control_bid_reading" => inference::set_control_bid_reading,
+        "rule_accept" => inference::set_rule_accept,
+        // Fuzzing (hand evaluation)
+        "fuzzy_strength" => constraint::set_fuzzy_strength,
+        "fuzzy_points" => constraint::set_fuzzy_points,
+        "fuzzy_fifths" => constraint::set_fuzzy_fifths,
+    );
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -697,6 +828,31 @@ mod tests {
         let before = table.deal_practice("S", "S", "ns", 0);
         assert_eq!(table.bid("8♣"), before, "unparseable call is a no-op");
         assert_eq!(table.bid("XX"), before, "illegal call is a no-op");
+    }
+
+    #[test]
+    fn set_option_reroutes_the_bidding() {
+        // North is a balanced 15 — opens 1NT by default, a suit with 1NT off.
+        const PBN: &str = "N:AK72.K65.K43.Q82 QJT.AQJ.AQJ.AKJT 986.T987.T98.976 543.432.7652.543";
+        let mut table = WebTable::new("1");
+
+        let on = parse(&table.deal_pbn(PBN, "N", "none"));
+        assert!(
+            on["auction"][0]
+                .as_str()
+                .expect("opening call")
+                .contains('N'),
+            "default opens 1NT",
+        );
+
+        set_option("open_one_notrump", false);
+        let off = parse(&table.deal_pbn(PBN, "N", "none"));
+        assert_ne!(
+            on["auction"][0], off["auction"][0],
+            "toggling the knob changes North's opening",
+        );
+
+        set_option("open_one_notrump", true); // restore for a reused test thread
     }
 
     #[test]

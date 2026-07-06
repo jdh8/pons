@@ -14,6 +14,7 @@
       <button data-tab="demo">Demo</button>
       <button data-tab="book">Book</button>
       <button data-tab="edit">Edit</button>
+      <button data-tab="settings">Settings</button>
     </nav>
   </header>
   <main>
@@ -81,6 +82,15 @@
       <div id="e-status" class="boardinfo"></div>
       <div id="e-grid" class="editgrid"></div>
       <div id="e-board"></div>
+    </section>
+    <section id="settings" class="hidden">
+      <div class="boardinfo">Toggle conventions, then Deal in Practice or Demo — changes apply to the next deal.</div>
+      <div id="s-curated" class="panel optlist"></div>
+      <details class="moreopts">
+        <summary>More… (full system)</summary>
+        <div id="s-more"></div>
+      </details>
+      <button id="s-reset">Reset to defaults</button>
     </section>
   </main>
   <script type="module" src="app.js"></script>

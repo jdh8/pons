@@ -1,6 +1,6 @@
 // Thin static UI over the pons wasm bidder: the engine holds the deal and the
 // auction; JS rebuilds the DOM from each JSON snapshot (gin-rummy pattern).
-import init, { WebTable, book } from './pkg/pons_web.js';
+import init, { WebTable, book, set_option } from './pkg/pons_web.js';
 
 const SEATS = ['N', 'E', 'S', 'W'];
 const SEAT_NAMES = { N: 'North', E: 'East', S: 'South', W: 'West' };
@@ -26,6 +26,7 @@ const id = (x) => document.getElementById(x);
 async function main() {
   await init();
   game = new WebTable(String(Math.floor(Math.random() * 2 ** 53)));
+  for (const [key, value] of Object.entries(stored)) set_option(key, value);
   buildBiddingBox();
   for (const b of document.querySelectorAll('nav button')) {
     b.onclick = () => { location.hash = b.dataset.tab; };
@@ -39,7 +40,7 @@ async function main() {
 }
 
 function showTab(tab) {
-  if (!['practice', 'demo', 'book', 'edit'].includes(tab)) tab = 'practice';
+  if (!['practice', 'demo', 'book', 'edit', 'settings'].includes(tab)) tab = 'practice';
   for (const sec of document.querySelectorAll('main > section')) {
     sec.classList.toggle('hidden', sec.id !== tab);
   }
@@ -47,6 +48,7 @@ function showTab(tab) {
     b.classList.toggle('active', b.dataset.tab === tab);
   }
   if (tab === 'book' && !bookNodes) loadBook();
+  if (tab === 'settings' && !settingsBuilt) renderSettings();
 }
 
 // --- dealing -----------------------------------------------------------------
@@ -455,6 +457,134 @@ function editGridHTML() {
         `data-card="${g}${r}">${r}<small>${seat || ''}</small></button>`;
     }).join('') + '</div>',
   ).join('');
+}
+
+// --- settings -------------------------------------------------------------------
+//
+// Each toggle calls wasm set_option(key, on), which flips a thread-local bidding
+// flag read when the *next* deal rebuilds american().  Defaults mirror the Rust
+// Cell::new(...), so only *deviations* from default need to survive a reload —
+// those are the ones persisted to localStorage and replayed onto the wasm state
+// at startup (see STORAGE_KEY below).  Curated = common conventions; "More…" =
+// the full boolean system, one group per source module.
+
+const STORAGE_KEY = 'pons-settings';
+let stored = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; // {key: value}, defaults omitted
+
+// [key, label, default] — the everyday view.
+const CURATED = [
+  ['open_one_notrump', 'Open 1NT (15–17)', true],
+  ['garbage_stayman', 'Garbage Stayman', true],
+  ['fourth_suit_forcing', 'Fourth suit forcing', true],
+  ['xyz', 'XYZ (two-way checkback)', true],
+  ['major_game_tries', 'Major-suit game tries', true],
+  ['meckstroth_adjunct', 'Meckstroth adjunct', true],
+  ['jordan_truscott', 'Jordan / Truscott 2NT', true],
+  ['leaping_michaels', 'Leaping Michaels', true],
+  ['responsive_takeout', 'Responsive doubles', true],
+  ['lebensohl', 'Lebensohl (over 1NT interference)', true],
+  ['trap_pass', 'Trap pass', true],
+  ['fuzzy_strength', 'Fuzzy hand strength', true],
+];
+
+// [group, [[key, default], …]] — the full system; labels humanized from the key.
+const MORE = [
+  ['Openings', [
+    ['one_notrump_fifths', false],
+  ]],
+  ['Notrump', [
+    ['transfer_super_accept', false], ['transfer_slam_try', true], ['texas_slam_drive', true],
+    ['transfer_gf_majors', true], ['minor_min_to_3nt', false], ['transfer_gf_hearts', true],
+    ['stayman_both_majors', true], ['stayman_5card_max', true], ['long_minor_force', false],
+    ['invitational_5card_majors', false], ['transfer_longer_major', true], ['crawling_stayman', true],
+    ['stayman_cue_continuation', true], ['stayman_minor_slam_try', true],
+  ]],
+  ['Competition', [
+    ['penalty_double_leave_in', true], ['uvu', true], ['direct_3nt_stopper', true],
+    ['cue_raise_answer', true], ['cue_minor_raise_answer', true], ['uvu_over_majors', true],
+    ['weak_two_competition', false], ['strong_two_competition', true], ['major_support_double', true],
+    ['free_bids', false], ['high_overcall_responses', false], ['delayed_cue', false],
+    ['competition_over_stayman', true], ['competition_over_transfer', false],
+    ['competition_over_minor_transfer', true], ['competition_over_diamond_transfer', true],
+    ['defense_to_2d_multi', false], ['responsive_overcall', false],
+  ]],
+  ['Defense to their 1NT (competing families — pick one)', [
+    ['natural_defense', true, 'defense_family'], ['direct_dont', false, 'defense_family'],
+    ['meckwell', false, 'defense_family'], ['woolsey', false, 'defense_family'],
+    ['always_pass_defense', false, 'defense_family'],
+    ['notrump_balancing', false], ['landy_hcp', false],
+    ['direct_dont_four_four', true], ['meckwell_minor_major_44', false], ['meckwell_x_four_four', true],
+    ['stayman_defense', false], ['transfer_defense', false], ['minor_transfer_defense', false],
+    ['diamond_transfer_defense', false],
+  ]],
+  ['Rebids & responses', [
+    ['longer_major_response', false], ['up_the_line', true], ['major_rebid_tails', true],
+    ['limit_raise_acceptance', true],
+  ]],
+  ['Floor (instinct)', [
+    ['inference_aware', true], ['one_nt_runout', true], ['one_nt_runout_universal', true],
+    ['settle_floor', true], ['competitive_rebid', true], ['rubens_advances', true],
+    ['floor_rkcb', true], ['suppress_nt_game_force_over_double', true], ['correct_3nt_to_major', true],
+    ['gambling_3nt_over_double', false], ['gambling_3nt_require_ace', true],
+    ['preempt_4m_over_double', false], ['preempt_4m_require_ace', true], ['penalize_escape_stack', true],
+    ['penalize_escape_values', true], ['uvu_encircle', true], ['penalty_latch', true],
+    ['penalty_no_pull', true], ['advancer_xx_runout', true], ['doubler_xx_runout', true],
+  ]],
+  ['Inference (auction reading)', [
+    ['nt_invite_inference', true], ['rubens_transfer_reading', true], ['alert_reading', true],
+    ['fallback_projection', true], ['control_bid_reading', true], ['rule_accept', false],
+  ]],
+  ['Fuzzing (hand evaluation)', [
+    ['fuzzy_points', true], ['fuzzy_fifths', true],
+  ]],
+];
+
+const ACRONYMS = { nt: 'NT', xyz: 'XYZ', rkcb: 'RKCB', dont: 'DONT', uvu: 'UvU', hcp: 'HCP', gf: 'GF', '3nt': '3NT', '4m': '4M', '2d': '2♦' };
+const humanize = (key) => key.split('_')
+  .map((w, i) => ACRONYMS[w] || (i === 0 ? w[0].toUpperCase() + w.slice(1) : w)).join(' ');
+
+const optRow = (key, label, def, radioName) =>
+  `<label class="opt"><input type="${radioName ? 'radio' : 'checkbox'}"` +
+  `${radioName ? ` name="${radioName}"` : ''} data-key="${key}" data-def="${def}"` +
+  `${(key in stored ? stored[key] : def) ? ' checked' : ''}> ${escapeHTML(label)}</label>`;
+
+let settingsBuilt = false;
+
+function renderSettings() {
+  settingsBuilt = true;
+  id('s-curated').innerHTML = '<div class="panel-title">Common conventions</div>' +
+    CURATED.map(([k, l, d]) => optRow(k, l, d)).join('');
+  id('s-more').innerHTML = MORE.map(([group, opts]) =>
+    `<div class="panel"><div class="panel-title">${escapeHTML(group)}</div><div class="optlist">` +
+    opts.map(([k, d, radioName]) => optRow(k, humanize(k), d, radioName)).join('') + '</div></div>',
+  ).join('');
+  id('settings').addEventListener('change', (ev) => {
+    const el = ev.target.closest('input[type=checkbox], input[type=radio]');
+    if (!el) return;
+    if (el.type === 'radio') {
+      for (const r of id('settings').querySelectorAll(`input[name="${el.name}"]`)) setOption(r, r === el);
+    } else {
+      setOption(el, el.checked);
+    }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
+  });
+  id('s-reset').onclick = () => {
+    if (!confirm('Reset all convention settings to defaults?')) return;
+    for (const cb of id('settings').querySelectorAll('input[type=checkbox], input[type=radio]')) {
+      const def = cb.dataset.def === 'true';
+      cb.checked = def;
+      setOption(cb, def);
+    }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
+  };
+}
+
+// Applies one option to the wasm bidder and updates the in-memory delta store
+// (default-valued entries are dropped so localStorage only holds overrides).
+function setOption(input, value) {
+  set_option(input.dataset.key, value);
+  if (value === (input.dataset.def === 'true')) delete stored[input.dataset.key];
+  else stored[input.dataset.key] = value;
 }
 
 main();

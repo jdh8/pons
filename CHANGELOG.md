@@ -71,6 +71,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Web UI: a settings tab (`web/`, "Settings" tab).** Toggle bidding
+  conventions like a calculator's basic vs. scientific mode: a dozen curated
+  on/off treatments a casual player recognizes (open 1NT, garbage Stayman,
+  fourth-suit-forcing, XYZ, Lebensohl, responsive doubles, …), with a native
+  **"More…"** expander revealing the full boolean system — 91 `set_*` knobs
+  grouped by area (openings, notrump, competition, defense to 1NT, floor,
+  inference, fuzzing) — plus **Reset to defaults** (behind a confirmation
+  prompt, since it discards every override in one click). The five mutually
+  exclusive defense-to-1NT families (natural, DONT, Meckwell, Woolsey, always
+  pass) are a radio group instead of independent checkboxes, so exactly one
+  is ever active — previously nothing stopped checking more than one, and the
+  Rust side's fixed priority order would silently drop all but the winner.
+  Every toggle persists to `localStorage` (only the deltas from default,
+  replayed onto the wasm bidder at page load) so choices survive a reload.
+  New wasm entry point `set_option(key, on)` dispatches each key to its
+  `pons::bidding::…::set_*` flag; because a deal rebuilds `american()` and
+  wasm is single-threaded, a toggle is picked up from the next Practice/Demo
+  board. `lebensohl` is special-cased to preserve the default `Transfer`
+  style rather than the wrapper's lossy `Plain`. The default system is
+  byte-identical — every box starts at its shipped default, so an untouched
+  Settings tab changes nothing.
+
 - **Web UI: a deal editor (`web/`, "Edit" tab).** A PBN text field two-way-synced
   with a 4×13 card palette (the lichess analysis-board idiom) — type or paste a
   PBN deal to fill the board, or click cards to cycle each through

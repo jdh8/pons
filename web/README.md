@@ -51,7 +51,7 @@ python3 -m http.server 8137
 # open http://localhost:8137/
 ```
 
-Three tabs:
+Five tabs:
 
 - **Practice** — pick your seat, dealer, vulnerability, and a minimum HCP,
   then bid with the bidding box; the bots bid the other seats.  After each of
@@ -63,6 +63,13 @@ Three tabs:
 - **Book** — the authored 2/1 books (constructive/competitive/defensive),
   every node's rules with weights and the constraints' own English
   descriptions, filterable.
+- **Edit** — a PBN field two-way-synced with a card palette; build a deal by
+  hand, then "Bid it out in Demo".
+- **Settings** — toggle bidding conventions (like a calculator's basic vs.
+  scientific mode): a dozen common on/off treatments, with "More…" revealing
+  the full boolean system grouped by area.  Each toggle flips a thread-local
+  `set_*` knob read when the **next** deal rebuilds `american()`, so changes
+  apply from the next Practice/Demo board on.
 
 Suit colors are CSS variables in `style.css` (`--club`, `--diamond`, …) —
 diamonds are orange on purpose ("red suit" is a bidding-theory term), and the
