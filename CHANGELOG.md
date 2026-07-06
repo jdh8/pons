@@ -40,6 +40,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     fresh-seed-per-experiment), 16×6,400 boards/arm by default, then
     decompose. Runbook in the campaign doc; ship decisions stay per-fix
     fresh-seed A/Bs.
+  - **First anchor run (2026-07-06, `SEED_BASE=1783375064`, 204.8k boards,
+    replay-verified 100%):** vul none **−1.675** / vul both **−2.310**
+    IMPs/board plain DD (pooled **−1.99**; perfect defense **−2.40**). The
+    decomposition overturns the going-in anecdote: the gap is
+    **book-dominated** (`book` −248k IMPs vs the whole `instinct()` floor
+    ~−160k), and by phase **Defensive (−171k) > Constructive (−155k) >
+    Competitive (−82k)** — *not* concentrated in competitive auctions. The
+    single worst bucket is our **defensive book's first-round overcall /
+    takeout-double / two-suiter structure** (−98k; PD −136k). This re-ranks
+    the campaign (defensive book first, balancing deprioritized).
 
 ### Fixed
 

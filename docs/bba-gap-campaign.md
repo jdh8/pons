@@ -2,8 +2,10 @@
 
 The standing plan for the campaign metric: `american()` vs BBA's 2/1 card,
 IMPs/board.  History: **−2.59** (S.1 anchor, 2000 boards, 2026-06-15) →
-**−1.997** after M6.1 alone (4000 boards) → unknown today, after the M6.2–M6.4,
-competitive-book, and Stayman/continuation win streaks.  This doc holds the
+**−1.997** after M6.1 alone (4000 boards) → **first seeded, decomposed anchor**
+(2026-07-06, sha `62cf5c5`, `SEED_BASE=1783375064`, 204.8k boards,
+replay-verified 100%): **vul none −1.675 / vul both −2.310**, pooled **−1.99
+plain / −2.40 PD** (findings and re-ranking below).  This doc holds the
 campaign structure, the anchor protocol, and the runbook; ship rules stay in
 [measurement.md](measurement.md), per-treatment history in
 [ai-bidder/21gf-ledger.md](ai-bidder/21gf-ledger.md) and
@@ -13,7 +15,9 @@ Three facts drive the design (researched 2026-07-07):
 
 1. **The gap was never attributed.** Until now no seeded anchor was persisted
    and no general decomposition existed — "the gap concentrates in competitive
-   auctions" was anecdote.  Pillar A fixes this.
+   auctions" was anecdote.  Pillar A fixed this, and **the first anchor
+   overturned the anecdote**: the gap is *book-dominated* and concentrated in
+   *defensive* first-round bidding, not competitive (see the findings below).
 2. **The learned champion is stale but ship-grade.** `american_neural_search()`
    (M3.3 round 2) beats the deterministic floor on both scorers in self-play,
    but was trained before M6.3/M6.4 and has never been measured on the real
@@ -23,7 +27,7 @@ Three facts drive the design (researched 2026-07-07):
    already flipped the Woolsey verdict but isn't in the generic pipelines.
    Pillar C wires it.
 
-## Pillar A — anchor and decompose (SHIPPED; run it first)
+## Pillar A — anchor and decompose (SHIPPED; first anchor run 2026-07-06)
 
 **Tooling** (landed 2026-07-07): `bba-gen` dumps now record `seed` +
 `gen_args`; `Stance::explain_call` (book.rs) attributes any call to its
@@ -37,6 +41,50 @@ longitudinal paired experiment; every ~3rd re-anchor, run a fresh-seed
 confirmation).  Headline pooled CI ≈ ±0.023 IMPs/board; a 0.3%-fired bucket
 still resolves.  **Ship decisions stay per-fix fresh-seed A/Bs** — the anchor
 tracks and attributes, it never ships.
+
+### First anchor findings and re-ranking (2026-07-06, sha `62cf5c5`)
+
+204.8k boards, `SEED_BASE=1783375064`, both arms replay-verified 100%.
+Report: `ab-results/anchor/2026-07-06-62cf5c5/report.md` (committed).
+
+**The headline finding overturns the going-in assumptions.**  The gap is
+**book-dominated, not floor-dominated**, and concentrated in **defensive**,
+not competitive, auctions:
+
+- **By provenance:** `book` −248k IMPs vs the *entire* `instinct()` floor
+  ~−160k spread over dozens of rules.  The single largest floor rule is
+  `floor#3` (the opaque *pass*) at −38k; no other floor rule exceeds −17k.
+- **By phase:** Defensive −171k **>** Constructive −155k **>** Competitive −82k.
+  "Concentrates in competitive" was wrong.
+- **By family:** round-1 −213k, round-2 −110k, opening −68k, balancing −11k,
+  deep −6k.  Balancing is the 2nd-*smallest* family — the B2 "balancing is
+  highest expected value" guess is **falsified**; deprioritize it.
+- **By direction** (net): overbid −129k, missed-game −89k, sold-out −77k,
+  wrong-strain −45k, missed-slam −40k, missed-grand −6k, doubling −6k; we
+  *gain* +248k on 44.8k boards, so the −408k net is a two-sided distribution.
+
+**Ranked losing buckets (work these top-down):**
+
+| # | bucket | boards | plain IMPs | /div | PD IMPs |
+| --- | --- | --- | --- | --- | --- |
+| 1 | Defensive / book / round-1 | 40416 | −98478 | −2.44 | −136494 |
+| 2 | Constructive / book / opening | 29232 | −68344 | −2.34 | −67152 |
+| 3 | Constructive / book / round-2 | 18363 | −39557 | −2.15 | −40090 |
+| 4 | Constructive / book / round-1 | 12600 | −33912 | −2.69 | −38198 |
+| 5 | Competitive / fallback@2 / round-1 | 5448 | −18141 | −3.33 | −21416 |
+| 6 | Competitive / fallback@1 / round-1 | 5707 | −17673 | −3.10 | −19352 |
+| 7 | Defensive / floor#3 / round-2 | 4135 | −13247 | −3.20 | −14691 |
+| 8 | Defensive / floor#3 / round-1 | 3419 | −11581 | −3.39 | −10317 |
+
+**#1 is the real prize and it is a *book* item, not a floor item.**  Our
+defensive first-round structure — overcalls, takeout doubles, two-suiters
+over their opening — bleeds −98k, and PD is *worse* (−136k), so it is genuine
+overreach, not a doubling artifact (the worst boards are our own 3♥x / 4♣x /
+2♥x going down).  The biggest *floor* lever is `floor#3` pass discipline in
+defense (buckets 7–8, ~−25k combined: our floor passes where BBA acts).  This
+re-ranks the campaign: **Pillar D defensive book first (bucket 1), then
+constructive openings/rebids (2–4); Pillar B2 balancing drops to backlog and
+its floor effort points at `floor#3` pass discipline instead.**
 
 ### First-anchor runbook (any machine with the BBA submodule)
 
@@ -100,17 +148,27 @@ only if Pillar A shows floor buckets dominating the remaining gap.
 
 ### B2. Deterministic `instinct()` improvements
 
-The anchor's three worst themes map onto three named ceilings.  Author
-parametrically on the ladder (suit loops + context predicates, never a node
-per sequence), one `set_*` knob + `bba-gen` flag each, measured per the M6.4
-protocol (~204.8k boards/round vs BBA, both vuls, both scorers,
-`ab-instinct-floor` telemetry to confirm the rule fires unshadowed):
+**Re-prioritized by the first anchor.**  The floor is a *minority* of the gap
+(~−160k vs the book's −248k), so B2 is second in line behind the defensive
+book (Pillar D).  The three themes below were pre-anchor guesses; the anchor's
+actual largest floor lever is **`floor#3` pass discipline in defense** (a new
+item 0, ~−25k: our floor passes where BBA acts — reopens, doubles, competes),
+and balancing-*seat* value is small (−11k family), so old item 1 drops to
+backlog.  Author parametrically on the ladder (suit loops + context
+predicates, never a node per sequence), one `set_*` knob + `bba-gen` flag
+each, measured per the M6.4 protocol (~204.8k boards/round vs BBA, both vuls,
+both scorers, `ab-instinct-floor` telemetry to confirm the rule fires
+unshadowed):
 
-1. **Balancing/reopening block** (highest expected value; `defense.rs` notes
-   the "toxic balancing doubles"): a `pass_out_seat()` predicate, reopening
-   ranges ~3 points lighter than direct seat, borrowed-king X on shortness,
-   balancing 1NT band, and an explicit *sit* rule (trump stack/misfit →
-   defend).  PD is the honest scorer.
+0. **`floor#3` pass discipline in Defensive round-1/round-2** (the anchor's
+   top floor lever): trace buckets 7–8 — where our floor passes and BBA
+   reopens/doubles/competes for gain — and tighten the pass predicate.  PD is
+   the honest scorer.
+1. **Balancing/reopening block** (backlog — small per the anchor; `defense.rs`
+   notes the "toxic balancing doubles"): a `pass_out_seat()` predicate,
+   reopening ranges ~3 points lighter than direct seat, borrowed-king X on
+   shortness, balancing 1NT band, and an explicit *sit* rule (trump
+   stack/misfit → defend).  PD is the honest scorer.
 2. **Help-suit trials over Rubens advances** (instinct.rs `ponytail:` at the
    Rubens block): parametric try-bid + accept/sign-off — DD-visible
    constructive value in the competitive-advances theme.
@@ -179,9 +237,10 @@ the `author-convention` + `measure-ab` skills, unchanged.
 ## Sequencing
 
 ```text
-next session (other machine):  run the first anchor (runbook above);
-                               commit lean artifacts + ledger headline
-then, data-driven:             worst buckets → B2/D fixes, ship per fix
+DONE 2026-07-06:               first anchor run + committed (findings above)
+next, data-driven:             bucket 1 (Defensive/book/round-1) → trace →
+                               fix defensive book → ship A/B → re-anchor (~5m)
+then:                          constructive openings/rebids (buckets 2–4)
 in parallel (idle box):        B1 wiring + round-3 dump (27-30 h) → gates
 when a bucket hits the wall:   build Pillar C, drain the sd queue
 ```

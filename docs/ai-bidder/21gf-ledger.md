@@ -9,11 +9,28 @@ Target spec for "author pons's 2/1 about as deep as BBA". One row per relevant
 `conflict` (pons plays it differently) · `override` (user chose ≠ 21GF) ·
 `out` (out of scope).
 
-**Campaign metric:** `examples/bba-match` IMPs/board vs BBA 2/1. Original baseline
-**−2.59** (2000 boards); fresh re-measure **−1.997** (4000 boards, CI
-[−2.16, −1.83], 81% divergent) — gap already narrowed by recent M6.1 work. Trend
-it up as batches land. Worst-board themes: competitive doubles/advances +
-balancing/reopening, and slam accuracy (missed grands).
+**Campaign metric:** IMPs/board vs BBA 2/1, plain DD (perfect defense beside).
+History: **−2.59** (2000 bd, vul none, S.1) → **−1.997** (4000 bd) → first
+**seeded, decomposed anchor** (2026-07-06, sha `62cf5c5`,
+`SEED_BASE=1783375064`, 204.8k bd via `scripts/anchor.sh`, replay-verified
+**100%**): **vul none −1.675 / vul both −2.310**, pooled **−1.99 plain /
+−2.40 PD**. Vul-none improved −2.59→−1.67 across the M6.x + competitive-book
+streak; the pooled figure newly folds in the harder both-vul arm.
+
+**What the first anchor overturns (read before picking work):** the gap is
+**book-dominated, not floor-dominated** — `book` −248k IMPs vs the entire
+`instinct()` floor ~−160k spread over dozens of rules (largest single floor
+rule is `floor#3`, the opaque *pass*, at −38k). By phase it is **Defensive
+−171k > Constructive −155k > Competitive −82k** — the "gap concentrates in
+competitive auctions" anecdote is **wrong**. Ranked buckets: (1)
+**Defensive / book / round-1 −98k** — our overcall / takeout-double /
+two-suiter structure vs their opening (PD −136k, i.e. *worse* under good
+defense → real overreach, not a doubling artifact; worst boards are our own
+3♥x / 4♣x / 2♥x); (2) **Constructive / book / opening −68k**; (3)
+**Constructive / book / round-2 −40k** and (4) **round-1 −34k** (splinter /
+raise structure missing slams). Balancing is only −11k (2nd-smallest family)
+— **deprioritized**, contra the going-in guess. Full report (committed):
+`ab-results/anchor/2026-07-06-62cf5c5/report.md`.
 
 **Scoring basis:** A/B duplicate results are scored **plain double-dummy**
 (`scoring::ns_score_contract`, the contract's *actual* auction penalty) as of commit
