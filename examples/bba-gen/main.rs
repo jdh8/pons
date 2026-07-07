@@ -456,6 +456,11 @@ struct Args {
     #[arg(long, default_value = "on")]
     ns_overcall_discipline: String,
 
+    /// Let a passed hand overcall the disciplined 2-level lighter (9+ not 11+);
+    /// off by default (A/B candidate atop the shipped discipline).
+    #[arg(long, default_value_t = false)]
+    ns_passed_hand_overcall: bool,
+
     /// Extend our 1NT defense to the balancing seat (1NT) P P ? (default off).
     #[arg(long, default_value_t = false)]
     ns_balancing: bool,
@@ -1055,6 +1060,7 @@ fn main() -> anyhow::Result<()> {
         "off" => false,
         other => anyhow::bail!("--ns-overcall-discipline must be on|off, got {other:?}"),
     });
+    pons::bidding::american::set_passed_hand_overcall(args.ns_passed_hand_overcall);
     pons::bidding::american::set_notrump_balancing(args.ns_balancing);
     let (oc_lo, oc_hi) = args
         .ns_overcall

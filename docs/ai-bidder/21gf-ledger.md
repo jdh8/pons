@@ -41,9 +41,12 @@ CHANGELOG `Fixed`) shrank it **−98478 → −67707 plain (−31 %), −136494 
 PD (−33 %)**, with 11.7k fewer boards firing — it now ties
 `Constructive / book / opening` (−67689) for #1. Pooled gap **−1.9925 → −1.9778
 plain, −2.396 → −2.347 PD** (both arms improved, PD-heavy as expected). Report:
-`ab-results/anchor/2026-07-07-57b933b/report.md`. Next: the residual
-Defensive/round-1 (two-suiter structure + the passed-hand 2-level overcall
-carve-out, floor 11→9 when a passed hand — queued A/B) vs Constructive/opening.
+`ab-results/anchor/2026-07-07-57b933b/report.md`. The passed-hand 2-level
+overcall carve-out (floor 11→9 when a passed hand; `set_passed_hand_overcall`)
+**measured a DD/PD wash** [1783407558, ~0.1 % fired, all CIs straddle 0] — a
+lead-directing idea DD/PD are blind to, so it stays **opt-in, an sd-lead
+re-measure candidate**. Next: the residual Defensive/round-1 (two-suiter
+structure) vs Constructive/opening (now tied for #1).
 
 **Scoring basis:** A/B duplicate results are scored **plain double-dummy**
 (`scoring::ns_score_contract`, the contract's *actual* auction penalty) as of commit

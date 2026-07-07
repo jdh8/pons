@@ -8,7 +8,7 @@
 //! double, a natural 2NT overcall, and natural suit overcalls).
 
 use super::super::constraint::{
-    Cons, Constraint, and, balanced, described, hcp, len, min_level_is, or, points,
+    Cons, Constraint, and, balanced, described, hcp, len, min_level_is, or, passed_hand, points,
     short_in_their_suits, stopper_in_their_suits, suit_hcp, top_honors, unbid_support,
 };
 use super::super::context::Context;
@@ -837,6 +837,10 @@ thread_local! {
     /// flat `points(8..=16)`; **true by default** (the shipped fix). See
     /// [`set_overcall_discipline`].
     static OVERCALL_DISCIPLINE: Cell<bool> = const { Cell::new(true) };
+    /// Whether a **passed hand** may take the disciplined 2-level overcall a shade
+    /// lighter (9+ instead of the opening 11+); **false by default** (an unproven
+    /// refinement — A/B candidate). See [`set_passed_hand_overcall`].
+    static PASSED_HAND_OVERCALL: Cell<bool> = const { Cell::new(false) };
 }
 
 /// Add a support gate to the 12+ takeout double for books built *after* this call
@@ -865,6 +869,25 @@ fn takeout_support() -> TakeoutSupport {
 /// at both levels.  An A/B knob (`bba-gen --ns-overcall-discipline on|off`).
 pub fn set_overcall_discipline(on: bool) {
     OVERCALL_DISCIPLINE.with(|cell| cell.set(on));
+}
+
+/// Let a passed hand overcall the disciplined 2-level a shade lighter (9+) for
+/// books built *after* this call (thread-local, read once at book-construction
+/// time)
+///
+/// `false` (the **default**) applies the opening-values 11+ floor to every seat.
+/// `true` relaxes it to 9+ for a passed hand only: it cannot hold opening values
+/// anyway, so the 11+ floor would all but forbid the safe, useful light overcall
+/// (partner is a limited captain).  Only affects the disciplined 2-level overcall
+/// ([`set_overcall_discipline`] on); the 1-level floor is untouched.  An A/B knob
+/// (`bba-gen --ns-passed-hand-overcall`).
+pub fn set_passed_hand_overcall(on: bool) {
+    PASSED_HAND_OVERCALL.with(|cell| cell.set(on));
+}
+
+/// Whether a passed hand's lighter 2-level overcall is currently authored
+fn passed_hand_overcall() -> bool {
+    PASSED_HAND_OVERCALL.with(Cell::get)
 }
 
 /// Whether the disciplined overcall bands are currently authored
@@ -1046,18 +1069,32 @@ pub fn defense_to_suit(their_opening: Bid) -> Rules {
         if strain != theirs {
             let level = if strain > theirs { 1 } else { 2 };
             let weight = if level == 1 { 1.4 } else { 1.0 };
+            // A passed hand may take the disciplined 2-level overcall lighter (9+):
+            // it cannot hold opening values, so the 11+ floor would all but forbid
+            // the safe light overcall.  Off by default; see `set_passed_hand_overcall`.
+            let relax_passed = overcall_discipline() && level == 2 && passed_hand_overcall();
             let band = if !overcall_discipline() {
                 8..=16
             } else if level == 1 {
                 8..=17
+            } else if relax_passed {
+                9..=17
             } else {
                 11..=17
             };
-            rules = rules.rule(
-                Bid::new(level, strain),
-                weight,
-                len(suit, 5..) & points(band),
-            );
+            rules = if relax_passed {
+                rules.rule(
+                    Bid::new(level, strain),
+                    weight,
+                    len(suit, 5..) & points(band) & (points(11..) | passed_hand()),
+                )
+            } else {
+                rules.rule(
+                    Bid::new(level, strain),
+                    weight,
+                    len(suit, 5..) & points(band),
+                )
+            };
         }
     }
 

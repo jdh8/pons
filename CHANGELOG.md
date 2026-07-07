@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`set_passed_hand_overcall`** (opt-in, default off — byte-identical). Relaxes
+  the disciplined two-level overcall floor 11→9 for a *passed hand*: it cannot
+  hold opening values, so the 11+ floor all but forbids the safe, useful light
+  overcall (lead-directing, partner a limited captain); the one-level floor and
+  unpassed hands are untouched. Measured vs BBA 2/1 (102.4k bd/arm, both vuls,
+  SEED_BASE 1783407558) as a **DD/PD wash** at ~0.1 % fired (|Δ| ≤ 0.001
+  IMPs/board, all four CIs straddle 0) — the expected result for a lead-directing
+  idea the current scorers are blind to (DD/PD ignore lead-direction and
+  obstruction). Kept opt-in as a **single-dummy-lead re-measure candidate**
+  (`bba-gen --ns-passed-hand-overcall`).
+
 - **The BBA gap campaign: anchor + decomposition tooling**
   ([docs/bba-gap-campaign.md](docs/bba-gap-campaign.md), the standing plan for
   closing the pons↔BBA gap, floor-first). The gap (−2.59 → −1.997 IMPs/board
