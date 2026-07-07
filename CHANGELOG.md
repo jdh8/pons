@@ -9,6 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Systems-on over their double of our splinter** (`set_splinter_doubled`,
+  **shipped default-on**; off-switch `bba-gen --no-ns-splinter-doubled`). A
+  splinter (`1M – (P) – double-jump`) is game-forcing, but a double reroutes
+  opener's rebid from the constructive book (where the splinter continuation is
+  authored) to the competitive book, where it was **unauthored** and fell to
+  the floor — which *passed*, leaving the game force doubled at the four level
+  (opener holding a four-ace monster passing `4♣x` while the field bids `7♠`).
+  A `FirstIs(Double)` rebase now strips the double off the whole subtree, so
+  opener — and responder's keycard answers — resolve on the undisturbed
+  splinter tree (`4M` sign-off floor, RKCB with slam values). The anchor's #4
+  bucket (`Constructive / book / round-1`) tail: all three of its worst boards
+  were doubled splinters passed out. Measured vs BBA 2/1 (204.8k bd/arm/vul,
+  both vuls, SEED_BASE 1783439089): **plain-DD win both vuls** (+0.0059 NV /
+  +0.0079 vul, CIs [+0.0047,+0.0071] / [+0.0063,+0.0095]) and **perfect-defense
+  confirms** (+0.0059 / +0.0079, plain ≈ PD — no doubling artifact, we are
+  *removing* our own doubled contracts). Rare but decisive: +15.4/+17.6
+  IMPs/fired at 0.04% fired.
+
 - **Second-suit agreement in 2/1 auctions** (`set_second_suit_agreement`,
   **shipped default-on**; off-switch `bba-gen --no-ns-second-suit-agreement`).
   After `1M – 2r – 2x – 3x` — responder raises opener's second suit `x` to the

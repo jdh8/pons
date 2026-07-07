@@ -190,7 +190,7 @@ pub fn major_responses(major: Suit) -> Rules {
 /// The splinter bid for major `m` with void/singleton in `x`
 ///
 /// A splinter is the lowest double-jump bid in a new suit.
-fn splinter_bid(major: Suit, x: Suit) -> (u8, Strain) {
+pub(super) fn splinter_bid(major: Suit, x: Suit) -> (u8, Strain) {
     // 1♥ splinters: 3♠ (one above 2♠), 4♣, 4♦
     // 1♠ splinters: 4♣, 4♦, 4♥
     let major_strain = Strain::from(major);

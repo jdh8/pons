@@ -376,6 +376,12 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_jordan_truscott: bool,
 
+    /// Disable systems-on over their double of our splinter — revert to letting
+    /// opener's rebid fall to the floor, which passes the doubled game force
+    /// (shipped default-on; see `set_splinter_doubled`).
+    #[arg(long, default_value_t = false)]
+    no_ns_splinter_doubled: bool,
+
     /// Disable the major-rebid-tails adjunct — the full continuations after
     /// `1♥ – 1♠` below opener's `2♠`/`3♠` raise, `2♥` rebid, and `2♣`/`2♦`
     /// minor rebid (shipped default-on; see `set_major_rebid_tails`).
@@ -1142,6 +1148,7 @@ fn main() -> anyhow::Result<()> {
     pons::bidding::american::set_second_suit_agreement(!args.no_ns_second_suit_agreement);
     pons::bidding::instinct::set_competitive_rebid(!args.no_ns_competitive_rebid);
     pons::bidding::american::set_jordan_truscott(!args.no_ns_jordan_truscott);
+    pons::bidding::american::set_splinter_doubled(!args.no_ns_splinter_doubled);
     pons::bidding::american::set_major_rebid_tails(!args.no_ns_major_rebid_tails);
     pons::bidding::american::set_fourth_suit_forcing(!args.no_ns_fourth_suit_forcing);
     pons::bidding::american::set_texas_game_floor(args.ns_texas_game_floor);

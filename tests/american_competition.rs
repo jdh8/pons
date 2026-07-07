@@ -299,3 +299,45 @@ fn competitive_rebid_reaches_the_missed_game() {
 
     set_competitive_rebid(false); // restore the default
 }
+
+// ---------------------------------------------------------------------------
+// Section 12b: systems-on over their double of our splinter
+// ---------------------------------------------------------------------------
+
+#[test]
+fn doubled_splinter_runs_systems_on() {
+    use pons::bidding::american::set_splinter_doubled;
+    // Anchor board 2448 (Constructive/book/round-1 bucket #4 tail): opener holds
+    // 16 HCP with four aces and five spades. 1♠ – (P) – 4♣ (splinter) – (X): with
+    // the knob off the double reroutes opener to the competitive book, where it
+    // fell to the floor and *passed* the doubled game force. Systems-on (the
+    // shipped default) rebases the double back onto the undisturbed splinter tree,
+    // so opener keycards toward the slam the field bids — identical to the call it
+    // makes when the splinter is not doubled.
+    let auction = [
+        call(1, Strain::Spades),
+        Call::Pass,
+        call(4, Strain::Clubs),
+        Call::Double,
+    ];
+    let hand = "A9543.AT75.A2.A4";
+
+    set_splinter_doubled(false);
+    let off = best_call(&stance(), &auction, hand);
+
+    set_splinter_doubled(true);
+    let on = best_call(&stance(), &auction, hand);
+
+    set_splinter_doubled(true); // restore the shipped default (on)
+
+    assert_eq!(
+        off,
+        Call::Pass,
+        "the off arm leaves the doubled splinter in"
+    );
+    assert_eq!(
+        on,
+        call(4, Strain::Notrump),
+        "systems-on drives Keycard Blackwood, never passing the game force"
+    );
+}

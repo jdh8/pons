@@ -63,6 +63,21 @@ perfect-doubler bracket erases → **shipped default-on**. The opening inference
 floor drops 12→10 to stay sound. Residual bucket-2 levers (strain/weak-2)
 un-worked.
 
+**Bucket #4 `Constructive / book / round-1` → doubled-splinter systems-on
+(2026-07-07, `set_splinter_doubled` default-on, `scripts/splinter-doubled-ab.sh`,
+SEED_BASE 1783439089):** all three of the bucket's worst boards (−22/−23 IMPs)
+were **splinters doubled and passed out** — a splinter is game-forcing, but the
+double reroutes opener from the constructive book into the competitive book,
+where — unauthored — it fell to the floor's *pass* (a four-ace 16-count passing
+`4♣x` while the field bids `7♠`). A `FirstIs(Double)` rebase keyed at
+`[1M, P, splinter]` strips the double off the whole subtree, so opener and
+responder's keycard answers resolve on the undisturbed splinter tree. **A/B:
+plain +0.0059 NV / +0.0079 vul (CIs [+0.0047,+0.0071]/[+0.0063,+0.0095]), PD
++0.0059 / +0.0079 (plain ≈ PD — removing our own doubled contracts, no
+artifact), +15.4/+17.6 IMPs/fired at 0.04 % fired.** Rare fire, decisive per
+board → **shipped default-on**. Known tail: a *second* double (of the keycard
+response) still passes out (1 board in 79), the standard rebase-tail limitation.
+
 **Scoring basis:** A/B duplicate results are scored **plain double-dummy**
 (`scoring::ns_score_contract`, the contract's *actual* auction penalty) as of commit
 `a6f2206`. `par` and the `bidding::ev` call-evaluator keep perfect defense

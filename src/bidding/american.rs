@@ -89,9 +89,9 @@ pub use competition::{
     set_direct_3nt_stopper, set_double_override, set_double_style, set_free_bid_floor,
     set_free_bids, set_high_overcall_responses, set_jordan_truscott, set_lebensohl,
     set_lebensohl_style, set_major_support_double, set_natural_floor, set_negative_double_shape,
-    set_penalty_double_leave_in, set_penalty_pass, set_strong_two_competition, set_trap_pass,
-    set_uvu, set_uvu_cue_floor, set_uvu_natural_floor, set_uvu_over_majors, set_uvu_x_floor,
-    set_weak_two_competition,
+    set_penalty_double_leave_in, set_penalty_pass, set_splinter_doubled,
+    set_strong_two_competition, set_trap_pass, set_uvu, set_uvu_cue_floor, set_uvu_natural_floor,
+    set_uvu_over_majors, set_uvu_x_floor, set_weak_two_competition,
 };
 // The inference walk reads this knob at classify time (the two-suiter reading).
 pub(crate) use competition::uvu_over_majors;

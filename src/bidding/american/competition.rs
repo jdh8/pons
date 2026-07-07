@@ -765,6 +765,34 @@ fn jordan_truscott() -> bool {
     JORDAN_TRUSCOTT.with(Cell::get)
 }
 
+thread_local! {
+    /// Whether a double of our splinter runs systems-on (see
+    /// [`set_splinter_doubled`]).
+    static SPLINTER_DOUBLED: Cell<bool> = const { Cell::new(true) };
+}
+
+/// Play systems-on over their double of our splinter for books built *after*
+/// this call (thread-local)
+///
+/// A splinter (`1M – (P) – double-jump`) is game-forcing, but the double
+/// reroutes opener's rebid to the competitive book, where — unauthored — it
+/// fell to the floor and *passed*, leaving the game force doubled at the four
+/// level (the anchor's Constructive/book/round-1 bucket #4 tail: our monster
+/// opener passing a doubled `4♣` splinter while the field bids `7♠`). This
+/// rebases the double back onto the undisturbed splinter continuation (4M
+/// sign-off floor, RKCB with slam values). **Default on** — measured vs BBA
+/// 2/1 (204.8k bd/arm/vul, SEED_BASE 1783439089): plain DD +0.0059/+0.0079
+/// IMPs/board NV/vul, perfect-defense +0.0059/+0.0079, all four CIs exclude 0,
+/// +15.4/+17.6 IMPs/fired (0.04% fired). Off-switch `--no-ns-splinter-doubled`.
+pub fn set_splinter_doubled(on: bool) {
+    SPLINTER_DOUBLED.with(|cell| cell.set(on));
+}
+
+/// Whether the doubled-splinter systems-on rebase is engaged
+fn splinter_doubled() -> bool {
+    SPLINTER_DOUBLED.with(Cell::get)
+}
+
 /// Author responder's direct `3NT` over the overcall at `weight`, honoring the
 /// stopper ([`direct_3nt_stopper`]) and trap-pass ([`trap_pass`]) toggles. The
 /// trap denies a too-good stopper (`suit_hcp(over, ..=4)`). The `&`-chained
@@ -3065,6 +3093,34 @@ pub fn competition() -> Competitive {
             Arc::new(FirstIs(Call::Double)),
             Fallback::rebase(ReplaceNext(Call::Pass)),
         );
+    }
+
+    // Section 2b: systems-on over their double of our splinter. A splinter is
+    // game-forcing, but the double reroutes opener into this book, where —
+    // unauthored — it fell to the floor and passed out the doubled game force.
+    // The `FirstIs(Double)` rebase strips the double off the whole subtree, so
+    // opener (and responder's keycard answers) resolve on the undisturbed
+    // splinter continuation. See `set_splinter_doubled`.
+    if splinter_doubled() {
+        for major in [Suit::Hearts, Suit::Spades] {
+            let m_strain = Strain::from(major);
+            let splinter_suits: &[Suit] = if major == Suit::Hearts {
+                &[Suit::Spades, Suit::Clubs, Suit::Diamonds]
+            } else {
+                &[Suit::Clubs, Suit::Diamonds, Suit::Hearts]
+            };
+            for &x in splinter_suits {
+                let (level, strain) = super::responses::splinter_bid(major, x);
+                let suffix = [call(1, m_strain), Call::Pass, call(level, strain)];
+                fallback_all_seats(
+                    &mut book,
+                    &suffix,
+                    3,
+                    Arc::new(FirstIs(Call::Double)),
+                    Fallback::rebase(ReplaceNext(Call::Pass)),
+                );
+            }
+        }
     }
 
     // Section 3: support doubles and redoubles for each (opening, major)
