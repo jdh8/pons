@@ -351,6 +351,12 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_high_overcall: bool,
 
+    /// Disable opener's balanced `1NT` rebid after `1m – 1M` — revert a balanced
+    /// 12–14 with a five-card minor to the natural `2m` (shipped default-on; see
+    /// `set_balanced_1nt_rebid`).
+    #[arg(long, default_value_t = false)]
+    no_ns_balanced_1nt_rebid: bool,
+
     /// Disable the competitive long-suit rebid — opener's/overcaller's rebid of a
     /// 6+ suit in competition (2-level any, 3-level needs 7 cards or a good six)
     /// instead of a forced takeout double (shipped default-on; see
@@ -1126,6 +1132,7 @@ fn main() -> anyhow::Result<()> {
         },
     );
     pons::bidding::american::set_high_overcall_responses(args.ns_high_overcall);
+    pons::bidding::american::set_balanced_1nt_rebid(!args.no_ns_balanced_1nt_rebid);
     pons::bidding::instinct::set_competitive_rebid(!args.no_ns_competitive_rebid);
     pons::bidding::american::set_jordan_truscott(!args.no_ns_jordan_truscott);
     pons::bidding::american::set_major_rebid_tails(!args.no_ns_major_rebid_tails);

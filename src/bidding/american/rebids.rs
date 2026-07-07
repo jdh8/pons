@@ -33,6 +33,33 @@ fn meckstroth() -> bool {
     MECKSTROTH.with(Cell::get)
 }
 
+// ponytail: same construction-time toggle as the Meckstroth adjunct — read
+// during `register()`, so set it before building the `Pair`.
+std::thread_local! {
+    /// Whether opener rebids `1NT` (not `2m`) with a balanced 12–14 and a
+    /// five-card minor after `1m – 1M`.  On by default (shipped);
+    /// see [`set_balanced_1nt_rebid`].
+    static BALANCED_1NT_REBID: Cell<bool> = const { Cell::new(true) };
+}
+
+/// Prefer opener's `1NT` rebid over `2m` on a balanced 12–14 in books built
+/// *after* this call
+///
+/// After `1m – 1M`, a 5332 balanced minimum with the five-card minor otherwise
+/// rebids a natural `2m` (weight 0.9) that outranks the balanced `1NT` (0.5),
+/// misdescribing the hand and losing the `1NT`-based game placement BBA finds
+/// (the largest lever in the Constructive/book/round-2 anchor bucket).  Read at
+/// book-construction time; shipped default-on (+0.0093 plain / +0.0101 PD
+/// IMPs/board vs BBA, both vuls).
+pub fn set_balanced_1nt_rebid(on: bool) {
+    BALANCED_1NT_REBID.with(|cell| cell.set(on));
+}
+
+/// Whether the balanced-`1NT`-rebid preference is currently enabled
+fn balanced_1nt_rebid() -> bool {
+    BALANCED_1NT_REBID.with(Cell::get)
+}
+
 /// Whether a rebid is opener's invitational `3♣`/`3♦` jump (the Meckstroth `3m`)
 fn is_invitational_minor_jump(rebid: Call) -> bool {
     rebid == call(3, Strain::Clubs) || rebid == call(3, Strain::Diamonds)
@@ -135,6 +162,16 @@ fn rebid_raise_major(responder_major: Suit, opener_minor: Suit) -> Rules {
             1.2,
             fifths(18.0..20.0) & balanced(),
         );
+    // Balanced 12–14 with a five-card minor: rebid 1NT rather than the natural
+    // 2m below it (weight 0.92 — above the 2m rebid, below the up-the-line 1♠
+    // so a 4-4 spade fit is still found).  Shipped default-on.
+    if balanced_1nt_rebid() {
+        rules = rules.rule(
+            Bid::new(1, Strain::Notrump),
+            0.92,
+            fifths(12.0..15.0) & balanced(),
+        );
+    }
     // Up the line: four spades over a 1♥ response, ahead of the minor rebid
     // and the notrump fallbacks (a heart raise with four-card support still
     // wins on weight).
@@ -1148,5 +1185,36 @@ mod tests {
             fsf_rule.alert().is_some(),
             "fourth-suit-forcing must carry an alert"
         );
+    }
+
+    /// After `1♦ – 1♥`, a balanced 12–14 with a five-card diamond suit rebids
+    /// the natural `2♦` by default but `1NT` once `set_balanced_1nt_rebid` is
+    /// on — the only shape the knob moves (4333/4432 hold no five-card minor).
+    #[test]
+    fn balanced_1nt_rebid_knob_flips_2m_to_1nt() {
+        let one_d_one_h = &[
+            call(1, Strain::Diamonds),
+            Call::Pass,
+            call(1, Strain::Hearts),
+            Call::Pass,
+        ];
+        // ♠KQ4 ♥Q3 ♦AK762 ♣853 — 3=2=5=3, 14 HCP, no four-card heart support.
+        let hand = "KQ4.Q3.AK762.853";
+        let build = || {
+            let mut trie = Trie::new();
+            insert_uncontested(
+                &mut trie,
+                &[call(1, Strain::Diamonds), call(1, Strain::Hearts)],
+                rebid_raise_major(Suit::Hearts, Suit::Diamonds),
+            );
+            trie
+        };
+
+        set_balanced_1nt_rebid(false);
+        assert_eq!(best(&build(), one_d_one_h, hand), call(2, Strain::Diamonds));
+
+        set_balanced_1nt_rebid(true); // the shipped default
+        let on = build();
+        assert_eq!(best(&on, one_d_one_h, hand), call(1, Strain::Notrump));
     }
 }

@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Balanced `1NT` rebid after `1m – 1M`** (`set_balanced_1nt_rebid`, **shipped
+  default-on**; off-switch `bba-gen --no-ns-balanced-1nt-rebid`). A balanced
+  12–14 with a five-card minor now rebids `1NT` instead of the natural `2m`: the
+  `2m` rebid (weight 0.9) outranked the balanced-`1NT` rebid (0.5), so a 5332
+  minimum misdescribed itself as an unbalanced minor and lost BBA's `1NT`-based
+  game placement. Only the 5332-with-five-card-minor shape changes (4333/4432
+  hold no five-card minor); the boost sits at 0.92, above the `2m` rebid but
+  below the up-the-line `1♠` so a 4-4 spade fit is still found. Traced from the
+  anchor's #3 bucket `Constructive / book / round-2` as its single largest lever
+  (the `5+♦`/`5+♣` rules, ≈28 % of the bucket, ≈−2150 IMPs). Measured vs BBA 2/1
+  (204.8k bd/arm/vul, both vuls, SEED_BASE 1783421467): **plain-DD win both
+  vuls** (+0.0076 NV / +0.0109 vul) and **perfect-defense confirms**
+  (+0.0085 / +0.0117), all CI>0, PD ≥ plain (no doubling artifact) — a clean
+  constructive gain, ships default-on.
+
 - **Rule-of-20 light openings** (`set_rule_of_20`, **shipped default-on**;
   off-switch `bba-gen --no-ns-rule-of-20`). Opens a sound 10-11 count that
   satisfies the Rule of 20 (raw HCP + the two longest suits ≥ 20) with one of a
