@@ -1,3 +1,12 @@
+/* Subset of Source Han Sans JP for suits — served from the jdh8.github.io
+   origin (see /fonts/SUITS-README.md), shared by all card sites. */
+@font-face {
+  font-family: "Source Han Suits";
+  font-weight: 1 1000;
+  font-style: oblique -90deg 90deg;
+  src: url("/fonts/suits.woff2") format("woff2");
+}
+
 /* Kitchen-table bridge: flat felt, card-paper panels, gold action buttons.
    Same plainness as the gin-rummy UI — no gradients, no gloss. */
 
@@ -16,7 +25,7 @@
 
 body {
   margin: 0;
-  font: 15px/1.4 system-ui, sans-serif;
+  font: 15px/1.4 "Source Han Suits", system-ui, sans-serif;
   color: #f2f2f2;
   background: var(--felt);
   min-height: 100vh;
