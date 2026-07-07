@@ -419,7 +419,7 @@ mod tests {
         for deal in &layouts {
             let opener = deal[actor.rho()];
             assert!(opener[Suit::Hearts].len() >= 5);
-            assert!((12..=21).contains(&point_count(opener)));
+            assert!((10..=21).contains(&point_count(opener)));
         }
     }
 

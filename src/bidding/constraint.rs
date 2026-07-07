@@ -887,6 +887,38 @@ pub fn balanced() -> Cons<impl Constraint + Clone> {
     Cons(Balanced)
 }
 
+/// Rule-of-Twenty kernel: raw HCP plus the two longest suit lengths total ≥ 20
+fn is_rule_of_20(hand: Hand) -> bool {
+    let mut lengths = Suit::ASC.map(|suit| hand[suit].len());
+    lengths.sort_unstable();
+    usize::from(raw_hcp(hand)) + lengths[2] + lengths[3] >= 20
+}
+
+/// Rule of 20 shape (the [`rule_of_20`] constraint)
+#[derive(Clone)]
+struct RuleOf20;
+
+impl Constraint for RuleOf20 {
+    fn eval(&self, hand: Hand, _: &Context<'_>) -> f32 {
+        crisp(is_rule_of_20(hand))
+    }
+
+    fn describe(&self) -> Description {
+        Description::atom("Rule of 20")
+    }
+}
+
+/// Rule of 20: raw HCP plus the two longest suits total at least 20
+///
+/// The classic light-opening test for a borderline 10–11 count with enough
+/// shape to open one of a suit.  Gauges *raw* HCP, not upgraded [`points`]:
+/// the upgrade voids on a wasted short-suit honor, which would reject exactly
+/// the shapely hands this rule is meant to admit.
+#[must_use]
+pub fn rule_of_20() -> Cons<impl Constraint + Clone> {
+    Cons(RuleOf20)
+}
+
 /// Kaplan–Rubens CCCC floor (the [`cccc_at_least`] constraint)
 #[derive(Clone)]
 struct CcccAtLeast(f64);
@@ -1402,6 +1434,29 @@ mod tests {
     }
 
     #[test]
+    fn test_rule_of_20() {
+        let context = empty_context();
+        let opens = |text: &str| rule_of_20().eval(hand(text), &context);
+
+        // 11 HCP, 5-4: 11 + 9 = 20.  The wasted J9 that voids the points upgrade
+        // is irrelevant to the raw-HCP Rule of 20 — that is the whole point of
+        // gauging raw HCP here rather than upgraded `points`.
+        assert_pass(opens("AK986.J9.QJT6.64"));
+        // 11 HCP, 6-6: 11 + 12 = 23.
+        assert_pass(opens(".KQ7542.A.Q96542"));
+        // 10 HCP, 6-4: 10 + 10 = 20.
+        assert_pass(opens("KJ9876.5.KQJ4.32"));
+        // Raw HCP, so a 7-count 7-6 also clears (7 + 13); the opening rule's
+        // hcp(10..) floor, not this predicate, keeps such freaks out.
+        assert_pass(opens("A765432.K76543.."));
+
+        // Flat 11-count 4-3-3-3: 11 + 7 = 18.
+        assert_reject(opens("KQ32.K32.Q32.J32"));
+        // 11 HCP, 5-3-3-2: 11 + 8 = 19 — still a pass, not a Rule-of-20 opener.
+        assert_reject(opens("KQ876.K32.Q32.J2"));
+    }
+
+    #[test]
     fn test_unbid_support() {
         // RHO opened 1♥; the unbid suits are ♣ ♦ ♠.
         let auction = [Call::Bid(Bid::new(1, Strain::Hearts))];
@@ -1518,14 +1573,14 @@ mod tests {
 
     #[test]
     fn test_partner_shown_len_and_points() {
-        // Partner opened 1♦ (3+ diamonds, 12+), RHO passed; we act.
+        // Partner opened 1♦ (3+ diamonds, 10+ by Rule of 20), RHO passed; we act.
         let auction = [Call::Bid(Bid::new(1, Strain::Diamonds)), Call::Pass];
         let context = Context::new(RelativeVulnerability::NONE, &auction);
 
         assert_pass(partner_shown_len(Suit::Diamonds, 3..).eval(hand(BALANCED_15), &context));
         assert_reject(partner_shown_len(Suit::Diamonds, 4..).eval(hand(BALANCED_15), &context));
-        assert_pass(partner_shown_points(12..).eval(hand(BALANCED_15), &context));
-        assert_reject(partner_shown_points(13..).eval(hand(BALANCED_15), &context));
+        assert_pass(partner_shown_points(10..).eval(hand(BALANCED_15), &context));
+        assert_reject(partner_shown_points(11..).eval(hand(BALANCED_15), &context));
 
         // Nothing shown in an unbid suit: the minimum is zero.
         assert_reject(partner_shown_len(Suit::Spades, 1..).eval(hand(BALANCED_15), &context));

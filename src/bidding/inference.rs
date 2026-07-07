@@ -2108,11 +2108,18 @@ fn meckwell_reading(auction: &[Call]) -> Option<MeckwellReading> {
 
 /// Apply the meaning of the opening bid (the first non-pass call)
 fn apply_opening(inf: &mut Inference, bid: Bid, seat: u8) {
-    let majors_light = if seat >= 3 {
-        Range::new(9, 21)
+    // Rule-of-20 light openers (default on) drop the one-level suit point floor
+    // from 12 to 10 in any seat; third/fourth seat opens majors lighter still (9).
+    let light = crate::bidding::american::rule_of_20_enabled();
+    let major_floor = if seat >= 3 {
+        9
+    } else if light {
+        10
     } else {
-        Range::new(12, 21)
+        12
     };
+    let minor_floor = if light { 10 } else { 12 };
+    let majors_light = Range::new(major_floor, 21);
     match (bid.level.get(), bid.strain) {
         (1, Strain::Hearts) => {
             inf.narrow_length(Suit::Hearts, Range::at_least(5, LENGTH_CAP));
@@ -2126,13 +2133,13 @@ fn apply_opening(inf: &mut Inference, bid: Bid, seat: u8) {
             inf.narrow_length(Suit::Diamonds, Range::at_least(3, LENGTH_CAP));
             inf.narrow_length(Suit::Hearts, Range::new(0, 4));
             inf.narrow_length(Suit::Spades, Range::new(0, 4));
-            inf.narrow_points(Range::new(12, 21));
+            inf.narrow_points(Range::new(minor_floor, 21));
         }
         (1, Strain::Clubs) => {
             inf.narrow_length(Suit::Clubs, Range::at_least(3, LENGTH_CAP));
             inf.narrow_length(Suit::Hearts, Range::new(0, 4));
             inf.narrow_length(Suit::Spades, Range::new(0, 4));
-            inf.narrow_points(Range::new(12, 21));
+            inf.narrow_points(Range::new(minor_floor, 21));
         }
         (1, Strain::Notrump) => {
             balanced(inf);
@@ -2234,7 +2241,8 @@ mod tests {
         // [1♥]: the opener sits to our right (the call just before ours).
         let one_heart = read(&[bid(1, Strain::Hearts)]);
         assert_eq!(one_heart.rho().length(Suit::Hearts), Range::new(5, 13));
-        assert_eq!(one_heart.rho().points, Range::new(12, 21));
+        // Rule of 20 (default on) opens sound 10-11 counts, so the floor is 10.
+        assert_eq!(one_heart.rho().points, Range::new(10, 21));
 
         // A strong notrump is balanced; an artificial 2♣ says only "strong".
         let one_nt = read(&[bid(1, Strain::Notrump)]);
@@ -3070,11 +3078,11 @@ mod tests {
         // auction grows by one call.
         assert_eq!(
             read(&[bid(1, Strain::Hearts)]).rho().points,
-            Range::new(12, 21)
+            Range::new(10, 21)
         );
         assert_eq!(
             read(&[bid(1, Strain::Hearts), Call::Pass]).partner().points,
-            Range::new(12, 21)
+            Range::new(10, 21)
         );
     }
 
@@ -3106,7 +3114,8 @@ mod tests {
     #[test]
     fn cheapest_two_notrump_over_a_response_is_not_strong() {
         // [1♦, P, 2♣, P, 2NT, P]: 2NT is the *cheapest* notrump over a 2/1, a
-        // minimum — it must not be read as the 18–19 jump.  Opener stays 12–21.
+        // minimum — it must not be read as the 18–19 jump.  Opener stays at the
+        // opening floor (10–21 with Rule of 20 on).
         let inf = read(&[
             bid(1, Strain::Diamonds),
             Call::Pass,
@@ -3115,7 +3124,7 @@ mod tests {
             bid(2, Strain::Notrump),
             Call::Pass,
         ]);
-        assert_eq!(inf.partner().points, Range::new(12, 21));
+        assert_eq!(inf.partner().points, Range::new(10, 21));
     }
 
     #[test]
@@ -3149,7 +3158,8 @@ mod tests {
     #[test]
     fn competition_suppresses_the_limited_rebid_reading() {
         // [1♦, P, 1♥, 1♠, 1NT, P]: with the opponents in, opener's 1NT is not
-        // the quiet 12–16 rebid — leave the strength at the opening's 12–21.
+        // the quiet 12–16 rebid — leave the strength at the opening floor (10–21
+        // with Rule of 20 on).
         let inf = read(&[
             bid(1, Strain::Diamonds),
             Call::Pass,
@@ -3158,7 +3168,7 @@ mod tests {
             bid(1, Strain::Notrump),
             Call::Pass,
         ]);
-        assert_eq!(inf.partner().points, Range::new(12, 21));
+        assert_eq!(inf.partner().points, Range::new(10, 21));
     }
 
     #[test]

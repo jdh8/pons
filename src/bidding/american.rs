@@ -123,8 +123,10 @@ pub use notrump::{
     set_transfer_longer_major, set_transfer_slam_try, set_transfer_super_accept,
 };
 pub(crate) use notrump::{crawling_stayman, garbage_stayman, notrump_minors};
+pub(crate) use openings::rule_of_20_enabled;
 pub use openings::{
     NotrumpShape, openings, openings_with, set_one_notrump_fifths, set_open_one_notrump,
+    set_rule_of_20,
 };
 pub use raises::{set_limit_raise_acceptance, set_major_game_tries};
 pub use rebids::{set_fourth_suit_forcing, set_major_rebid_tails, set_meckstroth_adjunct};

@@ -48,6 +48,21 @@ lead-directing idea DD/PD are blind to, so it stays **opt-in, an sd-lead
 re-measure candidate**. Next: the residual Defensive/round-1 (two-suiter
 structure) vs Constructive/opening (now tied for #1).
 
+**Bucket #2 `Constructive / book / opening` → Rule-of-20 (2026-07-07,
+`set_rule_of_20` default-on, `scripts/rule-of-20-ab.sh`, SEED_BASE 1783410574):**
+a 1811-board classification (`scratchpad`, plain −3913 ≈ PD −3909, not a
+doubling artifact) overturned the "doubled artificial continuation" hypothesis
+(the 3 worst boards): **61 % of the loss is sound hands we pass and BBA opens**
+(79 % eleven-counts, 46 % Rule-of-20), 33 % strain/level (incl. under-opening
+strong hands `1♠`-vs-`2♣`), 6 % weak-2 discipline. Fix = open Rule-of-20 10-11
+counts (raw HCP + two longest ≥ 20), one of a suit. **A/B: plain +0.0061 NV /
++0.0087 vul (CI>0), pd −0.0056 / −0.0034 (the doubling-artifact flag), sd-lead
++0.0096 / +0.0135 (CI>0, > plain).** The new `ab-dump-sd` third bracket (blind
+opening lead, the realistic middle) rehabilitates the plain win the pd
+perfect-doubler bracket erases → **shipped default-on**. The opening inference
+floor drops 12→10 to stay sound. Residual bucket-2 levers (strain/weak-2)
+un-worked.
+
 **Scoring basis:** A/B duplicate results are scored **plain double-dummy**
 (`scoring::ns_score_contract`, the contract's *actual* auction penalty) as of commit
 `a6f2206`. `par` and the `bidding::ev` call-evaluator keep perfect defense

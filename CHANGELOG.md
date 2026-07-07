@@ -9,6 +9,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Rule-of-20 light openings** (`set_rule_of_20`, **shipped default-on**;
+  off-switch `bba-gen --no-ns-rule-of-20`). Opens a sound 10-11 count that
+  satisfies the Rule of 20 (raw HCP + the two longest suits ≥ 20) with one of a
+  suit — five-card major first, else the better minor — instead of passing. It
+  gauges *raw* HCP, not upgraded `points`, whose wasted-honor penalty rejects
+  exactly the shapely eleven-counts the rule admits (e.g. `AK986.J9.QJT6.64`,
+  a Rule-of-20 hand that `points` values at 11). Traced from the anchor's #2
+  bucket `Constructive / book / opening`: 61 % of its loss is sound hands we
+  passed and BBA opened — 79 % of them eleven-counts, 46 % Rule-of-20.
+  Measured vs BBA 2/1 (204.8k bd/arm/vul, both vuls, SEED_BASE 1783410574): a
+  **plain-DD win** (+0.0061 NV / +0.0087 vul, both CI>0) the perfect-defense
+  scorer erases (−0.0056 / −0.0034) — a doubling artifact by the decision
+  table, except the new **sd-lead** bracket (a realistic blind opening lead)
+  *confirms and amplifies* the plain win (+0.0096 / +0.0135, both CI>0). The pd
+  loss is the over-pessimistic perfect-doubler bracket; reality (nearer
+  plain/sd) is a clear gain, so it ships default-on. Opener's disclosed
+  one-level suit floor drops 12→10 to match (`apply_opening`).
+
+- **`ab-dump-sd`** — the third A/B scorer bracket (a Pillar C down-payment; see
+  [docs/bba-gap-campaign.md](docs/bba-gap-campaign.md)). Re-scores two aligned
+  `bba-gen` dumps with a *single-dummy opening lead*: the leader picks blind
+  over `--sd-worlds` (default 16) sampled worlds read from the auction, and play
+  is double-dummy thereafter — the realistic middle between plain DD (perfect
+  killing lead) and perfect defense. Reuses `single_dummy_leads`; compares at
+  auction granularity (a different auction to the same contract can draw a
+  different lead). `scripts/rule-of-20-ab.sh` orchestrates the paired run.
+
 - **`set_passed_hand_overcall`** (opt-in, default off — byte-identical). Relaxes
   the disciplined two-level overcall floor 11→9 for a *passed hand*: it cannot
   hold opening values, so the 11+ floor all but forbids the safe, useful light

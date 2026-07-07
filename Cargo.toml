@@ -148,6 +148,11 @@ path = "examples/ab-dump-diff/main.rs"
 required-features = ["serde"]
 
 [[example]]
+name = "ab-dump-sd"
+path = "examples/ab-dump-sd/main.rs"
+required-features = ["serde"]
+
+[[example]]
 name = "ab-dump-bucket"
 path = "examples/ab-dump-bucket/main.rs"
 required-features = ["serde"]
