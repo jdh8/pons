@@ -32,6 +32,19 @@ raise structure missing slams). Balancing is only −11k (2nd-smallest family)
 — **deprioritized**, contra the going-in guess. Full report (committed):
 `ab-results/anchor/2026-07-06-62cf5c5/report.md`.
 
+**Progress (2026-07-07, re-anchored `57b933b`, same seed → paired):** bucket (1)
+traced to the **12+ takeout double weight-shadowing the two-level overcall** —
+an off-shape one-suiter with a suit *lower* than theirs doubled (1.3 > 1.0),
+got pulled to the 3-level, and landed doubled. The off-shape-X support gate +
+2-level overcall discipline (shipped default-on; see the Defensive table and
+CHANGELOG `Fixed`) shrank it **−98478 → −67707 plain (−31 %), −136494 → −91569
+PD (−33 %)**, with 11.7k fewer boards firing — it now ties
+`Constructive / book / opening` (−67689) for #1. Pooled gap **−1.9925 → −1.9778
+plain, −2.396 → −2.347 PD** (both arms improved, PD-heavy as expected). Report:
+`ab-results/anchor/2026-07-07-57b933b/report.md`. Next: the residual
+Defensive/round-1 (two-suiter structure + the passed-hand 2-level overcall
+carve-out, floor 11→9 when a passed hand — queued A/B) vs Constructive/opening.
+
 **Scoring basis:** A/B duplicate results are scored **plain double-dummy**
 (`scoring::ns_score_contract`, the contract's *actual* auction penalty) as of commit
 `a6f2206`. `par` and the `bidding::ev` call-evaluator keep perfect defense
@@ -290,6 +303,7 @@ under a single-dummy / IMPs-vs-humans measure where preemption actually pays.
 | 126 | Unusual 1NT | gap | add (Batch 1) | — | — |
 | 79 | Leaping Michaels | **shipped, default ON** | keep on | `4♣/4♦` strong 5-5 two-suiters + authored advances. **vs floor: +1.010/+1.195 board, +3.906/+4.624 div** [a6f2206, 40k, 25.8% div]. Inference reader decodes the two-suiter so `american_search` prices the advance by DD (slam-capable). `set_leaping_michaels(false)` to disable. | (this commit) |
 | 123 | Two-suit takeout double | gap | add (Batch 1) | — | — |
+| — | **Off-shape X support gate + 2-level overcall discipline** | **shipped, default ON** | anchor bucket-1 fix (traced from `Defensive / book / round-1 −98k`) | **combined vs historical: +0.004/+0.019 board plain, +0.008/+0.026 PD** [1783402635, 102.4k/vul, ~3.6% fired] — no plain loss either vul, both-vul CI>0 on both scorers → default-on. Two additive levers on disjoint boards: `set_takeout_support(Strict)` (12+ X needs 3+ in every unbid suit, else overcall / wait for 17+; **strict alone +0.005/+0.012 plain, +0.004/+0.013 PD**) and `set_overcall_discipline(true)` (2-level overcall = opening 11–17, 1-level cap 17; **disc alone −0.001/+0.007 plain, +0.004/+0.013 PD**). `Off` + `false` reproduce the historical book. | (this commit) |
 | 129 | Unusual 4NT | verify | — | — | — |
 | 48 | Cue bid | partial | verify | — | — |
 | 106 | **Sohl after double** (advancer, weak twos) | **shipped, `Transfer` default ON** (true `Rubensohl` removed 2026-06-20) | `Transfer` default = Cohen + `(2♦)` Smolen (folded in) | **`Transfer` vs `off`: +0.016/+0.102 board, +0.164/+1.052 div** [a6f2206, ~9.8% div] — positive at both vulnerabilities (incl. the `(2♦)` Smolen package). `Transfer` stays default. | (this commit) (`set_advance_sohl_style`) |

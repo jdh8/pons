@@ -9,7 +9,7 @@
 
 use super::super::constraint::{
     Cons, Constraint, and, balanced, described, hcp, len, min_level_is, or, points,
-    short_in_their_suits, stopper_in_their_suits, suit_hcp, top_honors,
+    short_in_their_suits, stopper_in_their_suits, suit_hcp, top_honors, unbid_support,
 };
 use super::super::context::Context;
 use super::super::{Alert, Defensive, Rules};
@@ -803,6 +803,75 @@ fn natural_double_shape() -> DoubleShape {
     NATURAL_DOUBLE_SHAPE.with(Cell::get)
 }
 
+/// Support gate added to the 12+ takeout double of a suit / weak-two opening.
+///
+/// The 12+ tier of the takeout double only checks shortness in *their* suit(s),
+/// so an off-shape one-suiter short in an unbid suit doubles at 12 and — when its
+/// suit ranks below theirs — outranks the 2-level overcall (weight 1.3 > 1.0),
+/// gets pulled to the 3-level, and lands doubled.  This gate demands genuine
+/// support for the unbid suits on the 12+ tier, forcing off-shape hands down to
+/// an overcall or up to the 17+ any-shape tier (matching BBA's two-regime X:
+/// 12+ with 3-suit support, else 17+).  See [`set_takeout_support`].
+#[derive(Clone, Copy, PartialEq, Eq, Default, Debug)]
+pub enum TakeoutSupport {
+    /// No support requirement — the 12+ double gates on shortness in their suit
+    /// alone (reproduces the historical pre-fix book).
+    Off,
+    /// Tolerate one doubleton in an unbid suit (admits 4-4-3-2 / 5-3-3-2, rejects
+    /// one-suiters short in two unbid suits).
+    Lenient,
+    /// Demand 3+ cards in every unbid suit (a textbook shapely takeout double —
+    /// **the default**, the shipped fix).
+    #[default]
+    Strict,
+}
+
+thread_local! {
+    /// Support gate on the 12+ takeout double; **[`TakeoutSupport::Strict`] by
+    /// default** (the shipped fix — takeout-support A/B, see the 21gf-ledger).
+    /// [`TakeoutSupport::Off`] reproduces the historical book. See
+    /// [`set_takeout_support`].
+    static TAKEOUT_SUPPORT: Cell<TakeoutSupport> = const { Cell::new(TakeoutSupport::Strict) };
+    /// Whether the natural suit overcall of a one-suit opening uses disciplined
+    /// bands (1-level `points(8..=17)`, 2-level `points(11..=17)`) instead of the
+    /// flat `points(8..=16)`; **true by default** (the shipped fix). See
+    /// [`set_overcall_discipline`].
+    static OVERCALL_DISCIPLINE: Cell<bool> = const { Cell::new(true) };
+}
+
+/// Add a support gate to the 12+ takeout double for books built *after* this call
+/// (thread-local, read once at book-construction time)
+///
+/// [`TakeoutSupport::Strict`] (the **default**, the shipped fix) demands 3+ cards
+/// in every unbid suit so off-shape one-suiters overcall (or wait for 17+) instead
+/// of doubling and pulling to the 3-level.  [`TakeoutSupport::Off`] reproduces the
+/// historical book; [`TakeoutSupport::Lenient`] tolerates one doubleton.  An A/B
+/// knob (`bba-gen --ns-takeout-support off|lenient|strict`).
+pub fn set_takeout_support(gate: TakeoutSupport) {
+    TAKEOUT_SUPPORT.with(|cell| cell.set(gate));
+}
+
+/// The support gate currently authored for the 12+ takeout double
+fn takeout_support() -> TakeoutSupport {
+    TAKEOUT_SUPPORT.with(Cell::get)
+}
+
+/// Tighten the natural suit-overcall bands for books built *after* this call
+/// (thread-local, read once at book-construction time)
+///
+/// `true` (the **default**, the shipped fix) raises the 1-level cap to 17 and the
+/// 2-level band to `11..=17` (opening values before a below-their-suit 2-level
+/// overcall, the standard discipline).  `false` reproduces the flat `points(8..=16)`
+/// at both levels.  An A/B knob (`bba-gen --ns-overcall-discipline on|off`).
+pub fn set_overcall_discipline(on: bool) {
+    OVERCALL_DISCIPLINE.with(|cell| cell.set(on));
+}
+
+/// Whether the disciplined overcall bands are currently authored
+fn overcall_discipline() -> bool {
+    OVERCALL_DISCIPLINE.with(Cell::get)
+}
+
 /// Set the HCP floor of the natural penalty double of their 1NT (default 15) for
 /// books built *after* this call. An A/B knob (`bba-match --ns-double-floor`).
 pub fn set_natural_double_floor(floor: u8) {
@@ -942,26 +1011,52 @@ pub fn defense_to_suit(their_opening: Bid) -> Rules {
     let theirs = their_opening.strain;
     let t = theirs.suit().expect("their opening is always a suit bid");
 
-    let mut rules = Rules::new()
-        .rule(
-            Bid::new(1, Strain::Notrump),
-            1.5,
-            hcp(15..=18) & balanced() & stopper_in_their_suits(),
-        )
-        .rule(Call::Double, 1.3, hcp(12..) & short_in_their_suits())
+    let mut rules = Rules::new().rule(
+        Bid::new(1, Strain::Notrump),
+        1.5,
+        hcp(15..=18) & balanced() & stopper_in_their_suits(),
+    );
+
+    // 12+ takeout double, optionally gated on support for the unbid suits so an
+    // off-shape one-suiter overcalls (or waits for the 17+ tier) instead of
+    // doubling and pulling to the 3-level.  See [`set_takeout_support`].
+    rules = match takeout_support() {
+        TakeoutSupport::Off => rules.rule(Call::Double, 1.3, hcp(12..) & short_in_their_suits()),
+        TakeoutSupport::Lenient => rules.rule(
+            Call::Double,
+            1.3,
+            hcp(12..) & short_in_their_suits() & unbid_support(1),
+        ),
+        TakeoutSupport::Strict => rules.rule(
+            Call::Double,
+            1.3,
+            hcp(12..) & short_in_their_suits() & unbid_support(0),
+        ),
+    };
+
+    rules = rules
         .rule(Call::Double, 1.2, points(17..))
         .rule(Call::Pass, 0.0, hcp(0..));
 
-    // Natural overcalls: five-card suit, 8–16 points.
+    // Natural overcalls: five-card suit.  Disciplined bands by default — 1-level
+    // 8–17, 2-level 11–17 (opening values before a below-their-suit 2-level
+    // overcall); `set_overcall_discipline(false)` reverts to the flat 8–16.
     for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
         let strain = Strain::from(suit);
         if strain != theirs {
             let level = if strain > theirs { 1 } else { 2 };
             let weight = if level == 1 { 1.4 } else { 1.0 };
+            let band = if !overcall_discipline() {
+                8..=16
+            } else if level == 1 {
+                8..=17
+            } else {
+                11..=17
+            };
             rules = rules.rule(
                 Bid::new(level, strain),
                 weight,
-                len(suit, 5..) & points(8..=16),
+                len(suit, 5..) & points(band),
             );
         }
     }
@@ -1043,13 +1138,29 @@ pub fn defense_to_weak_two(their_opening: Bid) -> Rules {
     let theirs = their_opening.strain;
     let level = their_opening.level.get();
 
-    let mut rules = Rules::new()
-        .rule(
-            Bid::new(2, Strain::Notrump),
-            1.5,
-            hcp(15..=18) & balanced() & stopper_in_their_suits(),
-        )
-        .rule(Call::Double, 1.3, hcp(12..) & short_in_their_suits())
+    let mut rules = Rules::new().rule(
+        Bid::new(2, Strain::Notrump),
+        1.5,
+        hcp(15..=18) & balanced() & stopper_in_their_suits(),
+    );
+
+    // 12+ takeout double, optionally gated on unbid-suit support (see
+    // [`set_takeout_support`]); the 17+ tier catches off-shape strong hands.
+    rules = match takeout_support() {
+        TakeoutSupport::Off => rules.rule(Call::Double, 1.3, hcp(12..) & short_in_their_suits()),
+        TakeoutSupport::Lenient => rules.rule(
+            Call::Double,
+            1.3,
+            hcp(12..) & short_in_their_suits() & unbid_support(1),
+        ),
+        TakeoutSupport::Strict => rules.rule(
+            Call::Double,
+            1.3,
+            hcp(12..) & short_in_their_suits() & unbid_support(0),
+        ),
+    };
+
+    rules = rules
         .rule(Call::Double, 1.2, points(17..))
         .rule(Call::Pass, 0.0, hcp(0..));
 

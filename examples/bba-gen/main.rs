@@ -446,6 +446,16 @@ struct Args {
     #[arg(long, default_value_t = 1.3)]
     ns_double_weight: f32,
 
+    /// Support gate on our 12+ takeout double of a suit / weak-two opening:
+    /// off | lenient | strict (default, matches shipped `american()`).
+    #[arg(long, default_value = "strict")]
+    ns_takeout_support: String,
+
+    /// Discipline our natural suit-overcall bands (1-level 8–17, 2-level 11–17)
+    /// instead of the flat 8–16: on (default, matches shipped `american()`) | off.
+    #[arg(long, default_value = "on")]
+    ns_overcall_discipline: String,
+
     /// Extend our 1NT defense to the balancing seat (1NT) P P ? (default off).
     #[arg(long, default_value_t = false)]
     ns_balancing: bool,
@@ -1034,6 +1044,17 @@ fn main() -> anyhow::Result<()> {
     });
     pons::bidding::american::set_natural_double_floor(args.ns_double_floor);
     pons::bidding::american::set_natural_double_weight(args.ns_double_weight);
+    pons::bidding::american::set_takeout_support(match args.ns_takeout_support.as_str() {
+        "off" => pons::bidding::american::TakeoutSupport::Off,
+        "lenient" => pons::bidding::american::TakeoutSupport::Lenient,
+        "strict" => pons::bidding::american::TakeoutSupport::Strict,
+        other => anyhow::bail!("--ns-takeout-support must be off|lenient|strict, got {other:?}"),
+    });
+    pons::bidding::american::set_overcall_discipline(match args.ns_overcall_discipline.as_str() {
+        "on" => true,
+        "off" => false,
+        other => anyhow::bail!("--ns-overcall-discipline must be on|off, got {other:?}"),
+    });
     pons::bidding::american::set_notrump_balancing(args.ns_balancing);
     let (oc_lo, oc_hi) = args
         .ns_overcall

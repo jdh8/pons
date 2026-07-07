@@ -53,6 +53,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Off-shape takeout doubles and light 2-level overcalls over their one-suit
+  opening — anchor bucket-1 fix.** The first BBA-gap anchor's #1 IMP-loss bucket
+  was `Defensive / book / round-1` (−98k plain / −136k PD); tracing it, the
+  dominant leak was our **12+ takeout double**. It gated only on shortness in
+  *their* suit, so an off-shape one-suiter with a suit *lower* than theirs
+  doubled (weight 1.3, out-shadowing the 1.0 two-level overcall), got pulled to
+  the three-level, and landed doubled — worst boards our own 3♥×/4♣×/2♥×. Two
+  grounded, independent, additive fixes, both **default-on**:
+  - **Support gate on the 12+ double** (`set_takeout_support`, default `Strict`):
+    the 12+ tier now demands 3+ cards in *every unbid suit*, so an off-shape
+    one-suiter overcalls (or waits for the 17+ any-shape tier) instead of
+    doubling-and-pulling — matching BBA's two-regime X (12+ with three-suit
+    support, else 17+) and expert theory (Cohen/Lawrence: off-shape "double and
+    pull" wants 17–18+). `Off` reproduces the historical book; `Lenient`
+    tolerates one doubleton.
+  - **Two-level overcall discipline** (`set_overcall_discipline`, default on): a
+    below-their-suit two-level overcall now needs opening values
+    (`points(11..=17)` vs the flat 8–16) because partner can raise us to the
+    three-level; the one-level cap rises to 17. `false` reverts to the flat 8–16.
+  Measured vs BBA 2/1 (102.4k boards/arm, both vulnerabilities, SEED_BASE
+  1783402635, the two levers combined): plain DD **+0.004 / +0.019** IMPs/board
+  NV/vul (both-vul CI excludes 0, NV a positive wash), perfect-defense
+  **+0.008 / +0.026** (both-vul CI excludes 0). No plain-DD loss at either
+  vulnerability; the PD-heavy gains are the signature of "stop overreaching into
+  doubled minuses." The two levers touch disjoint boards (doubles vs overcalls)
+  and add up (~3.6 % fired combined). `set_takeout_support` /
+  `set_overcall_discipline` are the A/B / off-arm knobs (`bba-gen
+  --ns-takeout-support off|lenient|strict --ns-overcall-discipline on|off`).
+
 - **Opener's/overcaller's competitive long-suit rebid.** Once our side had bid,
   the keyless instinct floor could only *raise partner* or make a *takeout
   double* in competition — so a self-sufficient one-suiter (e.g. `1♦ (1♥) P

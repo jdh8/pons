@@ -54,3 +54,59 @@ bba-decompose: report written to ab-results/anchor/2026-07-06-62cf5c5/report.md
 bba-decompose: 158332 rows written to ab-results/anchor/2026-07-06-62cf5c5/boards.jsonl
 bba-decompose: DD cache ab-results/anchor/dd-cache.json now holds 81125 tables (81125 new)
 2026-07-06T22:25:01Z === anchor done: ab-results/anchor/2026-07-06-62cf5c5/report.md
+2026-07-07T06:41:02Z === anchor start, sha=57b933b, SEED_BASE=1783375064, 16x6400 bd/arm/vul -> ab-results/anchor/2026-07-07-57b933b
+2026-07-07T06:41:02Z generate ab-results/anchor/2026-07-07-57b933b/none
+    Finished `release` profile [optimized] target(s) in 0.05s
+bba-gen: our american floor (us) vs BBA 2/1 Game Force (them), vulnerability none — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-07-57b933b/none/shard-9.json
+bba-gen: our american floor (us) vs BBA 2/1 Game Force (them), vulnerability none — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-07-57b933b/none/shard-3.json
+bba-gen: our american floor (us) vs BBA 2/1 Game Force (them), vulnerability none — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-07-57b933b/none/shard-5.json
+bba-gen: our american floor (us) vs BBA 2/1 Game Force (them), vulnerability none — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-07-57b933b/none/shard-15.json
+bba-gen: our american floor (us) vs BBA 2/1 Game Force (them), vulnerability none — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-07-57b933b/none/shard-4.json
+bba-gen: our american floor (us) vs BBA 2/1 Game Force (them), vulnerability none — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-07-57b933b/none/shard-13.json
+bba-gen: our american floor (us) vs BBA 2/1 Game Force (them), vulnerability none — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-07-57b933b/none/shard-7.json
+bba-gen: our american floor (us) vs BBA 2/1 Game Force (them), vulnerability none — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-07-57b933b/none/shard-8.json
+bba-gen: our american floor (us) vs BBA 2/1 Game Force (them), vulnerability none — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-07-57b933b/none/shard-0.json
+bba-gen: our american floor (us) vs BBA 2/1 Game Force (them), vulnerability none — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-07-57b933b/none/shard-12.json
+bba-gen: our american floor (us) vs BBA 2/1 Game Force (them), vulnerability none — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-07-57b933b/none/shard-10.json
+bba-gen: our american floor (us) vs BBA 2/1 Game Force (them), vulnerability none — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-07-57b933b/none/shard-2.json
+bba-gen: our american floor (us) vs BBA 2/1 Game Force (them), vulnerability none — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-07-57b933b/none/shard-1.json
+bba-gen: our american floor (us) vs BBA 2/1 Game Force (them), vulnerability none — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-07-57b933b/none/shard-6.json
+bba-gen: our american floor (us) vs BBA 2/1 Game Force (them), vulnerability none — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-07-57b933b/none/shard-11.json
+bba-gen: our american floor (us) vs BBA 2/1 Game Force (them), vulnerability none — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-07-57b933b/none/shard-14.json
+bba-gen-parallel: SEED_BASE=1783375064, wrote 16 shards of 6400 boards to ab-results/anchor/2026-07-07-57b933b/none
+2026-07-07T06:41:57Z generate ab-results/anchor/2026-07-07-57b933b/both
+    Finished `release` profile [optimized] target(s) in 0.04s
+bba-gen: our american floor (us) vs BBA 2/1 Game Force (them), vulnerability both — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-07-57b933b/both/shard-7.json
+bba-gen: our american floor (us) vs BBA 2/1 Game Force (them), vulnerability both — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-07-57b933b/both/shard-12.json
+bba-gen: our american floor (us) vs BBA 2/1 Game Force (them), vulnerability both — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-07-57b933b/both/shard-6.json
+bba-gen: our american floor (us) vs BBA 2/1 Game Force (them), vulnerability both — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-07-57b933b/both/shard-8.json
+bba-gen: our american floor (us) vs BBA 2/1 Game Force (them), vulnerability both — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-07-57b933b/both/shard-4.json
+bba-gen: our american floor (us) vs BBA 2/1 Game Force (them), vulnerability both — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-07-57b933b/both/shard-2.json
+bba-gen: our american floor (us) vs BBA 2/1 Game Force (them), vulnerability both — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-07-57b933b/both/shard-1.json
+bba-gen: our american floor (us) vs BBA 2/1 Game Force (them), vulnerability both — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-07-57b933b/both/shard-15.json
+bba-gen: our american floor (us) vs BBA 2/1 Game Force (them), vulnerability both — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-07-57b933b/both/shard-10.json
+bba-gen: our american floor (us) vs BBA 2/1 Game Force (them), vulnerability both — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-07-57b933b/both/shard-0.json
+bba-gen: our american floor (us) vs BBA 2/1 Game Force (them), vulnerability both — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-07-57b933b/both/shard-11.json
+bba-gen: our american floor (us) vs BBA 2/1 Game Force (them), vulnerability both — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-07-57b933b/both/shard-13.json
+bba-gen: our american floor (us) vs BBA 2/1 Game Force (them), vulnerability both — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-07-57b933b/both/shard-3.json
+bba-gen: our american floor (us) vs BBA 2/1 Game Force (them), vulnerability both — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-07-57b933b/both/shard-5.json
+bba-gen: our american floor (us) vs BBA 2/1 Game Force (them), vulnerability both — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-07-57b933b/both/shard-9.json
+bba-gen: our american floor (us) vs BBA 2/1 Game Force (them), vulnerability both — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-07-57b933b/both/shard-14.json
+bba-gen-parallel: SEED_BASE=1783375064, wrote 16 shards of 6400 boards to ab-results/anchor/2026-07-07-57b933b/both
+2026-07-07T06:42:52Z decompose -> ab-results/anchor/2026-07-07-57b933b/report.md
+=== arm 0: our american floor (us) vs BBA 2/1 (them), vulnerability none, 102400 boards ===
+replay verification: 100.00% of 1076327 our-side calls (0 mismatched)
+auction-divergent: 94136 (92%), contract-divergent: 78895 (77%)
+plain DD: -1.6646 IMPs/board (95% CI [-1.6967, -1.6326]), -170458 IMPs total
+perfect defense: -1.9762 IMPs/board (95% CI [-2.0146, -1.9378])
+gen_args: --count 6400 --seed 1783375064 --output ab-results/anchor/2026-07-07-57b933b/none/shard-0.json -v none
+=== arm 1: our american floor (us) vs BBA 2/1 (them), vulnerability both, 102400 boards ===
+replay verification: 100.00% of 1065392 our-side calls (0 mismatched)
+auction-divergent: 93769 (92%), contract-divergent: 78311 (76%)
+plain DD: -2.2909 IMPs/board (95% CI [-2.3317, -2.2501]), -234587 IMPs total
+perfect defense: -2.7177 IMPs/board (95% CI [-2.7656, -2.6698])
+gen_args: --count 6400 --seed 1783375064 --output ab-results/anchor/2026-07-07-57b933b/both/shard-0.json -v both
+bba-decompose: report written to ab-results/anchor/2026-07-07-57b933b/report.md
+bba-decompose: 157206 rows written to ab-results/anchor/2026-07-07-57b933b/boards.jsonl
+bba-decompose: DD cache ab-results/anchor/dd-cache.json now holds 81722 tables (597 new)
+2026-07-07T06:43:42Z === anchor done: ab-results/anchor/2026-07-07-57b933b/report.md

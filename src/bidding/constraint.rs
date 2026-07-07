@@ -1129,6 +1129,48 @@ pub fn short_in_their_suits() -> Cons<impl Constraint + Clone> {
     Cons(ShortInTheirSuits)
 }
 
+/// Takeout support for the unbid suits (the [`unbid_support`] constraint)
+#[derive(Clone)]
+struct UnbidSupport {
+    max_short: usize,
+}
+
+impl Constraint for UnbidSupport {
+    fn eval(&self, hand: Hand, context: &Context<'_>) -> f32 {
+        let short = [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades]
+            .into_iter()
+            .filter(|&suit| context.their_suits().all(|theirs| theirs != suit))
+            .filter(|&suit| hand[suit].len() < 3)
+            .count();
+        crisp(short <= self.max_short)
+    }
+
+    fn describe(&self) -> Description {
+        Description::atom(if self.max_short == 0 {
+            "at least three cards in each unbid suit".to_owned()
+        } else {
+            format!(
+                "at most {} unbid suit(s) shorter than three cards",
+                self.max_short
+            )
+        })
+    }
+}
+
+/// Takeout support: at most `max_short` of the unbid suits hold fewer than three
+/// cards
+///
+/// The companion of [`short_in_their_suits`]: where that gates shortness in the
+/// opponents' suit(s), this gates *length* in the suits they have **not** bid —
+/// the support a takeout double promises partner.  `max_short == 0` demands 3+ in
+/// every unbid suit (a textbook shapely double); `max_short == 1` tolerates one
+/// doubleton (admitting 4-4-3-2 and 5-3-3-2 patterns while still rejecting a
+/// one-suiter short in two unbid suits, which belongs in the 17+ any-shape tier).
+#[must_use]
+pub fn unbid_support(max_short: usize) -> Cons<impl Constraint + Clone> {
+    Cons(UnbidSupport { max_short })
+}
+
 /// Which suit partner bid last (the [`partner_suit_is`] constraint)
 #[derive(Clone)]
 struct PartnerSuitIs(Suit);
@@ -1357,6 +1399,30 @@ mod tests {
         assert_eq!(upgrade(hand("KQ765.A876.532.K")), 0); // stiff K
         assert_eq!(upgrade(hand("KQ765.A8765.Q2.2")), 0); // Qx
         assert_eq!(upgrade(hand("KQ765.87654.AK.2")), 0); // AK tight
+    }
+
+    #[test]
+    fn test_unbid_support() {
+        // RHO opened 1♥; the unbid suits are ♣ ♦ ♠.
+        let auction = [Call::Bid(Bid::new(1, Strain::Hearts))];
+        let context = Context::new(RelativeVulnerability::NONE, &auction);
+
+        // 4-1-4-4 short in their suit: 3+ in every unbid suit → passes both gates.
+        let shapely = hand("AQ82.5.KJ64.Q975");
+        assert_pass(unbid_support(0).eval(shapely, &context));
+        assert_pass(unbid_support(1).eval(shapely, &context));
+
+        // 5-3-3-2 with the doubleton in an unbid suit (♠): exactly one unbid suit
+        // short → lenient admits, strict rejects.
+        let semi = hand("Q2.A54.K54.KJ876");
+        assert_reject(unbid_support(0).eval(semi, &context));
+        assert_pass(unbid_support(1).eval(semi, &context));
+
+        // 2-3-2-6 one-suiter (6 clubs), short in two unbid suits (♦ ♠): both gates
+        // reject — this hand belongs in the 17+ any-shape double tier.
+        let one_suiter = hand("K2.A54.Q2.KJ8763");
+        assert_reject(unbid_support(0).eval(one_suiter, &context));
+        assert_reject(unbid_support(1).eval(one_suiter, &context));
     }
 
     #[test]
