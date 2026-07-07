@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Second-suit agreement in 2/1 auctions** (`set_second_suit_agreement`,
+  **shipped default-on**; off-switch `bba-gen --no-ns-second-suit-agreement`).
+  After `1M – 2r – 2x – 3x` — responder raises opener's second suit `x` to the
+  three level — opener now has a third-call table (4NT RKCB on extras, else a
+  sign-off: four of an agreed major, or `3NT`/`5x` for a minor). Previously this
+  node had no table and fell to the game backstop, which reverted to game in the
+  *major* — playing a 5-2 major fit after the side had found a 4-4+ fit in `x`.
+  The last uncovered lever in the anchor's #3 bucket (`Constructive / book /
+  round-2`); the bucket is diffuse, so the remaining swing is small. Measured vs
+  BBA 2/1 (204.8k bd/arm/vul, both vuls, SEED_BASE 1783434297): **plain-DD win
+  both vuls** (+0.0012 NV / +0.0015 vul) and **perfect-defense confirms**
+  (+0.0014 / +0.0018), all CI>0, PD ≥ plain (no doubling artifact).
+
 - **Balanced `1NT` rebid after `1m – 1M`** (`set_balanced_1nt_rebid`, **shipped
   default-on**; off-switch `bba-gen --no-ns-balanced-1nt-rebid`). A balanced
   12–14 with a five-card minor now rebids `1NT` instead of the natural `2m`: the

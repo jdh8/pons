@@ -21,8 +21,30 @@ use crate::bidding::constraint::{
 };
 use crate::bidding::fallback::{Fallback, Undisturbed};
 use contract_bridge::auction::Call;
-use contract_bridge::{Bid, Strain, Suit};
+use contract_bridge::{Bid, Level, Strain, Suit};
+use std::cell::Cell;
 use std::sync::Arc;
+
+std::thread_local! {
+    /// Whether opener authors a third-call table after responder raises
+    /// opener's second suit (`1M – 2r – 2x – 3x`).  On by default — shipped
+    /// (+0.0012 plain / +0.0014 PD NV, +0.0015 / +0.0018 vul IMPs/board vs BBA);
+    /// see [`set_second_suit_agreement`].  When off, that node falls to the game
+    /// backstop, which reverts to game in the major over the agreed second fit.
+    static SECOND_SUIT_AGREEMENT: Cell<bool> = const { Cell::new(true) };
+}
+
+/// Toggle opener's third call after responder agrees the second suit
+///
+/// Read at book-construction time; `1M – 2r – 2x – 3x` gets an opener rebid
+/// (RKCB on extras, else sign off) instead of falling to the game backstop.
+pub fn set_second_suit_agreement(on: bool) {
+    SECOND_SUIT_AGREEMENT.with(|cell| cell.set(on));
+}
+
+fn second_suit_agreement() -> bool {
+    SECOND_SUIT_AGREEMENT.with(Cell::get)
+}
 
 // ---------------------------------------------------------------------------
 // Major 2/1 sequences
@@ -133,6 +155,29 @@ fn opener_third(major: Suit) -> Rules {
         .rule(call(4, Strain::Notrump), 1.0, points(15..))
         .alert(super::slam::RKCB)
         .rule(call(4, major_strain), 0.5, hcp(0..))
+}
+
+/// Opener's third call after responder raises opener's second suit
+///
+/// `1M–2r–2x–3x`: responder has agreed opener's second suit `x` as trump in a
+/// still-forcing auction (the two-suiter's second fit).  Opener asks with 4NT
+/// RKCB on extras, else signs off in game — four of an agreed major, or `3NT`
+/// (with `5x` as the deep fallback) when `x` is a minor.  Without this the node
+/// falls to [`game_backstop`], which reverts to `4M` after `x` was agreed.
+///
+/// No [`Pass`][Call::Pass] rule.
+fn opener_third_agree(agreed: Suit) -> Rules {
+    let strain = Strain::from(agreed);
+    let rules = Rules::new()
+        .rule(call(4, Strain::Notrump), 1.0, points(15..))
+        .alert(super::slam::RKCB);
+    if matches!(agreed, Suit::Hearts | Suit::Spades) {
+        rules.rule(call(4, strain), 0.5, hcp(0..))
+    } else {
+        rules
+            .rule(call(3, Strain::Notrump), 0.5, hcp(0..))
+            .rule(call(5, strain), 0.3, hcp(0..))
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -274,6 +319,26 @@ fn register_major(book: &mut Trie, major: Suit, resp: Suit) {
             ];
             super::insert_uncontested(book, third_calls, opener_third(major));
             super::slam::install_rkcb(book, third_calls, major);
+        }
+
+        // Round 3b: responder raised opener's second suit x to 3x (the
+        // two-suiter's second fit).  Only a 2-level new suit is reachable by a
+        // single raise; 3-level new suits skip straight to game.
+        if second_suit_agreement()
+            && let Call::Bid(r_bid) = r_call
+            && r_bid.level == Level::new(2)
+            && let Ok(x) = Suit::try_from(r_bid.strain)
+            && x != major
+            && x != resp
+        {
+            let agree_calls = &[
+                call(1, major_strain),
+                call(2, resp_strain),
+                r_call,
+                call(3, Strain::from(x)),
+            ];
+            super::insert_uncontested(book, agree_calls, opener_third_agree(x));
+            super::slam::install_rkcb(book, agree_calls, x);
         }
     }
 

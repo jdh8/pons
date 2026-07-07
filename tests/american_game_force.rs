@@ -170,10 +170,10 @@ fn opener_third_keycard_ask() {
 // --- Game backstop keeps the force alive ------------------------------------
 
 #[test]
-fn backstop_after_diamond_raise() {
-    // After 1♠–(P)–2♣–(P)–2♦–(P)–3♦–(P), opener has no explicit table.
-    // The game backstop fires.  Opener holds 5 spades and we bid spades, so
-    // the 4♠ rule (we_bid(Spades) & len(Spades,3..)) outweighs 3NT.
+fn second_suit_agreed_minimum_bids_3nt() {
+    // 1♠–(P)–2♣–(P)–2♦–(P)–3♦–(P): responder agreed opener's second suit.
+    // A minimum opener signs off at 3NT — NOT the game backstop's 4♠, which
+    // would revert to the 5-2 spade fit after the diamond fit was found.
     let auction = &[
         call(1, Strain::Spades),
         Call::Pass,
@@ -186,6 +186,25 @@ fn backstop_after_diamond_raise() {
     ];
     assert_eq!(
         best_call(&stance(), auction, "AQJ52.32.KQ54.92"),
-        call(4, Strain::Spades),
+        call(3, Strain::Notrump),
+    );
+}
+
+#[test]
+fn second_suit_agreed_extras_asks_rkcb() {
+    // Same node with extras (18 HCP): opener asks 4NT RKCB with diamonds set.
+    let auction = &[
+        call(1, Strain::Spades),
+        Call::Pass,
+        call(2, Strain::Clubs),
+        Call::Pass,
+        call(2, Strain::Diamonds),
+        Call::Pass,
+        call(3, Strain::Diamonds),
+        Call::Pass,
+    ];
+    assert_eq!(
+        best_call(&stance(), auction, "AKJ52.A2.AQ54.K2"),
+        call(4, Strain::Notrump),
     );
 }
