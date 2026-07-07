@@ -34,3 +34,6 @@
 
 # A/B campaign dumps and diffs: regenerable from seed + SHA (see the ledger).
 /ab-results/
+
+# Proptest failure-case seeds: regenerable by re-running the property tests.
+/proptest-regressions/
