@@ -9,6 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **5-3-3-2 takeout-double discipline** (`set_suppress_5332_takeout`,
+  **shipped default-on**; off-switch `bba-gen --no-ns-suppress-5332-takeout`).
+  A takeout double exists to find a 4-4 major fit, but a 5-3-3-2 has no 4-card
+  suit — so it can never hold a 4-card major, and `X` cannot find a fit it does
+  not have. With a five-card suit it is almost always better to overcall it (or
+  the five-card minor at the two level) than to double and let partner pick a
+  three-card major. Both the instinct floor's takeout rule and the book takeout
+  doubles (over a suit opening and over a weak two) now route a sub-14-HCP
+  5-3-3-2 to Pass/overcall instead of doubling; the strong `points(17..)`
+  doubles and the 15–18 balanced `1NT` overcall are untouched. Split out of the
+  anchor's balanced-takeout lever alongside flat-4333. Measured vs BBA 2/1
+  (409.6k bd/arm/vul, both vuls): **plain-DD win both vuls** (+0.0191 NV /
+  +0.0401 vul) and **perfect-defense confirms** larger (+0.0601 / +0.0773) —
+  plain-positive rules out a doubling artifact, PD amplifies because it punishes
+  the doubled overbids we now avoid. ~1.2% fired, +1.5/+3.4 IMPs/fired plain.
+  (The sibling **4-4-3-2** suppression is *not* shipped: a 4432 short in their
+  suit is a textbook takeout with a real 4-card major to find, and the
+  opener-split A/B traced its apparent gain to an over-broad instinct-floor
+  competitive-double trigger plus an unauthored `X`-response continuation, not
+  to the double being unsound — left opt-in as `set_suppress_4432_vs_major` /
+  `set_suppress_4432_vs_minor`, default off.)
+
 - **Flat-4333 takeout-double discipline** (`set_suppress_flat_4333_takeout`,
   **shipped default-on**; off-switch `bba-gen --no-ns-suppress-flat-4333-takeout`).
   A flat 4-3-3-3 has no ruffing value, so a takeout double on 12–14 HCP flat

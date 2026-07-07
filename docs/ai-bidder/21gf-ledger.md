@@ -48,6 +48,74 @@ lead-directing idea DD/PD are blind to, so it stays **opt-in, an sd-lead
 re-measure candidate**. Next: the residual Defensive/round-1 (two-suiter
 structure) vs Constructive/opening (now tied for #1).
 
+**Progress (2026-07-08, anchor `5f16e68` re-decompose of `Defensive / book /
+round-1`, now −142733 plain / −188939 PD):** decomposed the residual by our
+call. The literal **two-suiter structure is only 5.2 %** of the bucket (−7351
+plain / −7685 PD, 1897 calls) — small, genuine (plain≈PD), an 8-point Michaels/
+Unusual/Leaping overreach concentrated at both-vul; parked as a later opt-in.
+The mass is elsewhere: **Pass −23897** (PD *better* → we underbid; obstruction
+wall, DD-blind, skip) and **takeout X −22129 plain / −35207 PD** (PD worse →
+real overreach). Split the vanilla-X (`12+ HCP` rule, −14605/−22559): **4333
+−3507** (bucket #5 kills it, post-anchor), **balanced 4432/5332 ≤13 −3508 /
+−6426** (residual), flat-14+ −2146 (has values, leave), unbalanced −5444
+(correct doubles, DD-blind, leave). Refinement over bucket #5's thesis: every
+4432 that *doubles* has its doubleton in **their** suit (textbook takeout shape,
+not a shape-defect — over 1♦ the same 4-4-majors hand already passes for lack of
+club support); the 5332 doublers have a biddable 5-suit better overcalled. So
+the claim is "a **minimum 12–13 balanced** takeout double overbids vs BBA," not
+"no ruffing value" — PD-supported but a real measurement question. A pooled
+4432+5332 suppression measured a plain+PD win both vuls (SEED_BASE 1783449013,
+409.6k bd/arm/vul: plain +0.0284/+0.0698, PD +0.1082/+0.1449, all CIs>0) — but
+**theory review (jdh8) split the two shapes**, so the pooled number does not
+ship:
+
+- **5332 → always overcall the five-card suit** (theoretically settled, not a
+  measurement call): a 5332 holds *no* 4-card suit, hence no 4-card major, so
+  the takeout double cannot do its job (find a 4-4 fit). Bid the suit, minor
+  included. `set_suppress_5332_takeout`; A/B confirmatory only.
+- **4432 → keep the double** (theory-wrong to suppress): a 4432 short in the
+  opponents' suit is the *textbook* takeout — two 4-card suits (often a major),
+  the double genuinely finds 4-4 fits. A measured 4432 "win" most likely fingers
+  **partner's advance**, not the double → trace the advance rather than suppress.
+  `set_suppress_4432_takeout`, held **default off** pending diagnosis.
+
+3-arm split (base / s5332 / s4432, SEED_BASE 1783451581): **both halves win
+plain+PD both vuls** — s5332 +0.0191/+0.0401 plain, +0.0601/+0.0773 PD; s4432
++0.0086/+0.0282 plain, +0.0448/+0.0638 PD (all CIs>0). The 4432 win *contradicts*
+the textbook-double theory, so decomposed the 4432 loss by which two suits are
+the 4-carders (anchor `5f16e68`): **4-4 majors −80 plain (−0.96/div, ~wash) —
+the genuine textbook double is fine**; the loss lives in major+minor (−928) and
+4-4 minors (−260), which have no real 4-4-major shot and overreach fishing for a
+minor. So theory and measurement reconcile: it's not "suppress the textbook
+double," it's "the ≤1-major 4432 is the overbid."
+
+**Opener-split (2026-07-08, `ab-results/balanced-takeout-opener/`, SEED_BASE
+1783454269, 12.8k bd/arm/vul):** the 4432 anchor-split was by which suit *we*
+inferred the opponents held; this re-measures against the **true opener** with
+two per-opener knobs (`set_suppress_4432_vs_major` / `_vs_minor`). Result:
+
+- **vs a minor opening** — plain **wash both vuls** (+0.0030 NV [±0.0065] /
+  +0.0063 vul [±0.0078], CIs cross 0), PD-only (+0.0130 / +0.0163). The double
+  is textbook and gains nothing on plain — **keep it**.
+- **vs a major opening** — NV plain wash (+0.0077 [±0.0102]), vul plain
+  +0.0269 [±0.0128] (CI>0). But tracing the worst boards, the "win" is *not* the
+  takeout double: the worst recurring board is North doubling **2♥ deep in a
+  competitive auction** (`1♣(us) 1♥ P P 2♣ 2♥ X`) — the general instinct-floor
+  double (`instinct.rs`, `their_live_bid_at_most(3)`), *not* a takeout of their
+  opening — and the real leak is our floor's *response* (`X → partner leaps to a
+  bad 3NT` instead of pass-and-reopen-to-4♠). Iron-rule "over-broad trigger +
+  unauthored continuation," both firing. Suppressing the double papers over a
+  floor-continuation bug.
+
+**Shipping**: 5332 default-on (`set_suppress_5332_takeout`; theory-settled +
+measured, +0.0191/+0.0401 plain / +0.0601/+0.0773 PD, 409.6k bd/arm/vul). 4432
+**not shipped** — the double is sound; the measured over-a-major gain is a
+general competitive-double trigger + floor-response leak, not the takeout X.
+Knobs `set_suppress_4432_vs_major` / `_vs_minor` stay opt-in (default off,
+system byte-identical). The floor's `X → bad-3NT` competitive-double response is
+a diffuse instinct-floor continuation candidate for its own campaign, not a
+suppression.
+
 **Bucket #2 `Constructive / book / opening` → Rule-of-20 (2026-07-07,
 `set_rule_of_20` default-on, `scripts/rule-of-20-ab.sh`, SEED_BASE 1783410574):**
 a 1811-board classification (`scratchpad`, plain −3913 ≈ PD −3909, not a

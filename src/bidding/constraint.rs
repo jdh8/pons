@@ -1164,6 +1164,22 @@ pub fn short_in_their_suits() -> Cons<impl Constraint + Clone> {
 std::thread_local! {
     /// Whether [`takeout_double_shape_ok`] routes a weak flat 4-3-3-3 to Pass
     static SUPPRESS_FLAT_4333_TAKEOUT: Cell<bool> = const { Cell::new(true) };
+    /// Whether [`takeout_double_shape_ok`] routes a weak 5-3-3-2 (12–13 HCP) to
+    /// its natural overcall instead of a takeout double — bid the five-card suit.
+    /// **Shipped default-on** (a 5-3-3-2 holds no 4-card suit, so the double
+    /// cannot find a 4-4 fit — its whole purpose is moot).
+    static SUPPRESS_5332_TAKEOUT: Cell<bool> = const { Cell::new(true) };
+    /// Whether [`takeout_double_shape_ok`] routes a weak 4-4-3-2 (12–13 HCP) to
+    /// Pass **when the opponents opened a major**: they have announced a fit, so
+    /// our minimum double is outgunned and partner is forced to the two level
+    /// (anchor split: the worst 4-4-3-2 slice, −3.2 to −3.8 IMPs/div, and one
+    /// unbid 4-card major does not rescue it).
+    static SUPPRESS_4432_VS_MAJOR: Cell<bool> = const { Cell::new(false) };
+    /// Whether [`takeout_double_shape_ok`] routes a weak 4-4-3-2 (12–13 HCP) to
+    /// Pass **when the opponents opened a minor** — the classic "double the minor
+    /// with the majors", the mildest 4-4-3-2 slice (−1.39 IMPs/div; the 4-4-majors
+    /// subset a wash).  Likely kept; here for the opener-suit A/B.
+    static SUPPRESS_4432_VS_MINOR: Cell<bool> = const { Cell::new(false) };
 }
 
 /// Suppress our takeout double on a flat 4-3-3-3 weaker than a 1NT opening
@@ -1187,6 +1203,63 @@ fn suppress_flat_4333_takeout() -> bool {
     SUPPRESS_FLAT_4333_TAKEOUT.with(Cell::get)
 }
 
+/// Suppress our takeout double on a weak 5-3-3-2 — bid the five-card suit instead
+///
+/// **Shipped default-on.**  A 12–13 HCP 5-3-3-2 holds *no* 4-card suit, hence no
+/// 4-card major, so a takeout double cannot do its job — find a 4-4 fit; it just
+/// buries the unbid five-card suit.  With the knob on, [`takeout_double_shape_ok`]
+/// rejects the double so the hand routes to its natural overcall, matching BBA.
+/// A paired BBA A/B (409.6k bd/arm/vul, SEED_BASE 1783451581) scored the 5-3-3-2
+/// half a plain-DD **and** perfect-defense win at both vulnerabilities, every
+/// 95% CI excluding 0: plain +0.0191 (NV) / +0.0401 (vul), PD +0.0601 / +0.0773
+/// IMPs/board; ~1.2% fired.  Pass `false` to revert to doubling.  Read at
+/// classification time and per-thread, like its 4333 sibling.
+#[doc(hidden)]
+pub fn set_suppress_5332_takeout(on: bool) {
+    SUPPRESS_5332_TAKEOUT.with(|flag| flag.set(on));
+}
+
+/// Whether the weak-5332 takeout suppression is active
+fn suppress_5332_takeout() -> bool {
+    SUPPRESS_5332_TAKEOUT.with(Cell::get)
+}
+
+/// Suppress our weak 4-4-3-2 takeout double when the opponents opened a **major**
+///
+/// A 12–13 HCP 4-4-3-2 short in the opponents' suit is a takeout shape, but the
+/// anchor split (opener = the takeout-short suit) shows the loss lives over
+/// **major** openings — −3.2 to −3.8 IMPs/div whether or not we hold the one
+/// unbid 4-card major, because the opponents have announced a fit and our
+/// minimum double gets outgunned, partner forced to the two level.  With the
+/// knob on, [`takeout_double_shape_ok`] rejects the double so the hand routes to
+/// Pass.  **Default off** pending the opener-suit A/B; pass `true` to enable.
+/// Read at classification time and per-thread.
+#[doc(hidden)]
+pub fn set_suppress_4432_vs_major(on: bool) {
+    SUPPRESS_4432_VS_MAJOR.with(|flag| flag.set(on));
+}
+
+/// Whether the weak-4432-over-a-major takeout suppression is active
+fn suppress_4432_vs_major() -> bool {
+    SUPPRESS_4432_VS_MAJOR.with(Cell::get)
+}
+
+/// Suppress our weak 4-4-3-2 takeout double when the opponents opened a **minor**
+///
+/// The mildest 4-4-3-2 slice (−1.39 IMPs/div; the 4-4-majors subset a wash) — the
+/// classic takeout of a minor showing the majors, which is textbook and likely
+/// kept.  Provided for the opener-suit A/B; **default off**.  Read at
+/// classification time and per-thread.
+#[doc(hidden)]
+pub fn set_suppress_4432_vs_minor(on: bool) {
+    SUPPRESS_4432_VS_MINOR.with(|flag| flag.set(on));
+}
+
+/// Whether the weak-4432-over-a-minor takeout suppression is active
+fn suppress_4432_vs_minor() -> bool {
+    SUPPRESS_4432_VS_MINOR.with(Cell::get)
+}
+
 /// Gate ANDed into each takeout-double rule to suppress a weak flat 4-3-3-3
 ///
 /// A no-op unless [`set_suppress_flat_4333_takeout`] is on (the default): when
@@ -1198,17 +1271,36 @@ fn suppress_flat_4333_takeout() -> bool {
 /// construction, so the closure captures a `bool`.
 #[must_use]
 pub(crate) fn takeout_double_shape_ok() -> Cons<impl Constraint + Clone> {
-    let suppress = suppress_flat_4333_takeout();
+    let suppress_4333 = suppress_flat_4333_takeout();
+    let suppress_5332 = suppress_5332_takeout();
+    let suppress_4432_major = suppress_4432_vs_major();
+    let suppress_4432_minor = suppress_4432_vs_minor();
     described(
-        "not a weak flat 4-3-3-3 diverted to Pass",
-        move |hand: Hand, _: &Context<'_>| {
-            if !suppress {
-                return true;
+        "not a weak balanced hand diverted to Pass",
+        move |hand: Hand, context: &Context<'_>| {
+            let mut lens = [0usize; 4];
+            for (slot, suit) in Suit::ASC.into_iter().enumerate() {
+                lens[slot] = hand[suit].len();
             }
-            let flat = Suit::ASC
-                .into_iter()
-                .all(|suit| (3..=4).contains(&hand[suit].len()));
-            !(flat && raw_hcp(hand) < 15)
+            lens.sort_unstable_by(|a, b| b.cmp(a));
+            let hcp = raw_hcp(hand);
+            // Flat 4-3-3-3: no doubleton at all — suppressed 12–14 (its own knob).
+            let reject_4333 = suppress_4333 && lens == [4, 3, 3, 3] && hcp < 15;
+            // 5-3-3-2: bid the five-card suit instead of doubling — 12–13.
+            let reject_5332 = suppress_5332 && lens == [5, 3, 3, 2] && hcp < 14;
+            // 4-4-3-2, split by what the opponents opened (real auction context,
+            // not inferred): the loss lives over major openings — 12–13.
+            let their_major = context
+                .their_suits()
+                .any(|suit| Strain::from(suit).is_major());
+            let reject_4432 = lens == [4, 4, 3, 2]
+                && hcp < 14
+                && (if their_major {
+                    suppress_4432_major
+                } else {
+                    suppress_4432_minor
+                });
+            !(reject_4333 || reject_5332 || reject_4432)
         },
     )
 }

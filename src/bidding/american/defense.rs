@@ -3808,6 +3808,85 @@ mod tests {
         );
     }
 
+    /// `set_suppress_4432_vs_major` routes a weak 4-4-3-2 to Pass **when the
+    /// opponents opened a major** (the worst 4-4-3-2 slice; a minimum double is
+    /// outgunned once they own a fit).  Over their `1♥` a 12-HCP 4♠-2♥-3♦-4♣
+    /// doubles by default; the knob routes it to Pass.  The vs-minor knob leaves
+    /// it alone (opener is a major).  Reset so it cannot leak into a sibling.
+    #[test]
+    fn suppress_4432_vs_major_routes_to_pass() {
+        // 4♠-2♥-3♦-4♣, 12 HCP (KQ + AK), short in their hearts.
+        let over_1h = [call(1, Strain::Hearts)];
+        let hand = "KQxx.xx.xxx.AKxx";
+
+        let (off, _) = best_call(&over_1h, hand);
+        assert_eq!(off, Call::Double, "4432 vs a major doubles by default");
+
+        crate::bidding::constraint::set_suppress_4432_vs_minor(true);
+        let (minor, _) = best_call(&over_1h, hand);
+        crate::bidding::constraint::set_suppress_4432_vs_minor(false);
+        assert_eq!(
+            minor,
+            Call::Double,
+            "the vs-minor knob leaves a major opening"
+        );
+
+        crate::bidding::constraint::set_suppress_4432_vs_major(true);
+        let (on, _) = best_call(&over_1h, hand);
+        crate::bidding::constraint::set_suppress_4432_vs_major(false);
+        assert_ne!(on, Call::Double, "vs-major knob suppresses the 4432 double");
+    }
+
+    /// `set_suppress_4432_vs_minor` routes a weak 4-4-3-2 to Pass **when the
+    /// opponents opened a minor**, and the vs-major knob leaves it alone.
+    #[test]
+    fn suppress_4432_vs_minor_routes_to_pass() {
+        // 4♠-4♥-3♦-2♣, 12 HCP (AK + KQ), short in their clubs (minor opening).
+        let over_1c = [call(1, Strain::Clubs)];
+        let hand = "AKxx.KQxx.xxx.xx";
+
+        let (off, _) = best_call(&over_1c, hand);
+        assert_eq!(off, Call::Double, "4432 vs a minor doubles by default");
+
+        crate::bidding::constraint::set_suppress_4432_vs_major(true);
+        let (major, _) = best_call(&over_1c, hand);
+        crate::bidding::constraint::set_suppress_4432_vs_major(false);
+        assert_eq!(
+            major,
+            Call::Double,
+            "the vs-major knob leaves a minor opening"
+        );
+
+        crate::bidding::constraint::set_suppress_4432_vs_minor(true);
+        let (on, _) = best_call(&over_1c, hand);
+        crate::bidding::constraint::set_suppress_4432_vs_minor(false);
+        assert_ne!(on, Call::Double, "vs-minor knob suppresses the 4432 double");
+    }
+
+    /// `set_suppress_5332_takeout` (shipped default-on) routes a weak 5-3-3-2 off
+    /// the takeout double to its natural overcall — a 5-3-3-2 has no 4-card major
+    /// so the double cannot find a fit.  A 13-HCP 5♣ hand doubles their `1♦` with
+    /// the knob off; the default makes it bid the five-card suit instead.
+    #[test]
+    fn suppress_5332_takeout_bids_the_suit() {
+        // 5♣-3♠-3♥-2♦, 13 HCP, short in their diamonds.
+        let over_1d = [call(1, Strain::Diamonds)];
+        let hand = "AQx.KJx.xx.QT9xx";
+
+        crate::bidding::constraint::set_suppress_5332_takeout(false);
+        let (off, _) = best_call(&over_1d, hand);
+        assert_eq!(off, Call::Double, "5332 doubles with the knob off");
+
+        crate::bidding::constraint::set_suppress_5332_takeout(true);
+        let (on, _) = best_call(&over_1d, hand);
+        crate::bidding::constraint::set_suppress_5332_takeout(false);
+        assert_ne!(
+            on,
+            Call::Double,
+            "the default suppresses the 5332 takeout double"
+        );
+    }
+
     /// Best call with Woolsey forced on (default ranges) and the conflicting
     /// overlays reset, independent of any other test on this thread.  Resets the
     /// toggle afterward so it cannot leak into a non-Woolsey test.
