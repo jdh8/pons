@@ -5,7 +5,9 @@ IMPs/board.  History: **−2.59** (S.1 anchor, 2000 boards, 2026-06-15) →
 **−1.997** after M6.1 alone (4000 boards) → **first seeded, decomposed anchor**
 (2026-07-06, sha `62cf5c5`, `SEED_BASE=1783375064`, 204.8k boards,
 replay-verified 100%): **vul none −1.675 / vul both −2.310**, pooled **−1.99
-plain / −2.40 PD** (findings and re-ranking below).  This doc holds the
+plain / −2.40 PD** (findings and re-ranking below) → **re-anchored 2026-07-07,
+sha `5f16e68`, 409.6k boards** (buckets #2–#4 shipped): pooled **−1.99 plain /
+−2.36 PD** — the metric held, the fixes moved mostly PD.  This doc holds the
 campaign structure, the anchor protocol, and the runbook; ship rules stay in
 [measurement.md](measurement.md), per-treatment history in
 [ai-bidder/21gf-ledger.md](ai-bidder/21gf-ledger.md) and
@@ -63,25 +65,36 @@ not competitive, auctions:
   wrong-strain −45k, missed-slam −40k, missed-grand −6k, doubling −6k; we
   *gain* +248k on 44.8k boards, so the −408k net is a two-sided distribution.
 
-**Ranked losing buckets (work these top-down):**
+**Ranked losing buckets — latest anchor `5f16e68`, 409.6k boards (work these
+top-down):**
 
 | # | bucket | boards | plain IMPs | /div | PD IMPs |
 | --- | --- | --- | --- | --- | --- |
-| 1 | Defensive / book / round-1 | 40416 | −98478 | −2.44 | −136494 |
-| 2 | Constructive / book / opening | 29232 | −68344 | −2.34 | −67152 |
-| 3 | Constructive / book / round-2 | 18363 | −39557 | −2.15 | −40090 |
-| 4 | Constructive / book / round-1 | 12600 | −33912 | −2.69 | −38198 |
-| 5 | Competitive / fallback@2 / round-1 | 5448 | −18141 | −3.33 | −21416 |
-| 6 | Competitive / fallback@1 / round-1 | 5707 | −17673 | −3.10 | −19352 |
-| 7 | Defensive / floor#3 / round-2 | 4135 | −13247 | −3.20 | −14691 |
-| 8 | Defensive / floor#3 / round-1 | 3419 | −11581 | −3.39 | −10317 |
+| 1 | Defensive / book / round-1 | 59437 | −142733 | −2.40 | −188939 |
+| 2 | Constructive / book / opening | 47692 | −103480 | −2.17 | −106037 |
+| 3 | Constructive / book / round-2 | 43212 | −98201 | −2.27 | −98215 |
+| 4 | Constructive / book / round-1 | 29727 | −76291 | −2.57 | −86039 |
+| 5 | Competitive / fallback@1 / round-1 | 13846 | −44169 | −3.19 | −47594 |
+| 6 | Competitive / fallback@2 / round-1 | 12606 | −42221 | −3.35 | −48671 |
+| 7 | Defensive / floor#3 / round-2 | 9900 | −31665 | −3.20 | −34371 |
+| 8 | Defensive / floor#3 / round-1 | 8597 | −29193 | −3.40 | −26309 |
+
+Source: `ab-results/anchor/2026-07-07-5f16e68/report.md`.  This anchor doubled
+the board count to 409.6k (32 shards/vul), so the **raw IMP totals are ~2× the
+first anchor's — compare buckets on `/div`**, which held: defensive book is
+still #1 at −2.40/div, Constructive/opening *improved* −2.34→−2.17/div
+(Rule-of-20 light openings, bucket #2), the rest within noise.  Pooled held
+−1.99 plain / −2.36 PD.  **Per-fix "after fix" numbers live in the CHANGELOG
+A/Bs, not here** — the anchor tracks and re-ranks, it never measures a single
+fix (bucket #5, flat-4333, shipped after this anchor and lands in the next re-run).
 
 **#1 is the real prize and it is a *book* item, not a floor item.**  Our
 defensive first-round structure — overcalls, takeout doubles, two-suiters
-over their opening — bleeds −98k, and PD is *worse* (−136k), so it is genuine
-overreach, not a doubling artifact (the worst boards are our own 3♥x / 4♣x /
-2♥x going down).  The biggest *floor* lever is `floor#3` pass discipline in
-defense (buckets 7–8, ~−25k combined: our floor passes where BBA acts).  This
+over their opening — bleeds −2.40/div (−142733 raw at 409.6k bd), and PD is
+*worse* (−188939), so it is genuine overreach, not a doubling artifact (the
+worst boards are our own 3♥x / 4♣x / 2♥x going down).  The biggest *floor*
+lever is `floor#3` pass discipline in defense (buckets 7–8, ~−61k combined:
+our floor passes where BBA acts).  This
 re-ranks the campaign: **Pillar D defensive book first (bucket 1), then
 constructive openings/rebids (2–4); Pillar B2 balancing drops to backlog and
 its floor effort points at `floor#3` pass discipline instead.**
