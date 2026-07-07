@@ -391,7 +391,7 @@ impl WebTable {
         let table = board.dd.expect("just solved");
 
         let verdict = final_contract(&board.auction, board.dealer).map(|(contract, declarer)| {
-            let tricks = table.get(contract.bid.strain, declarer);
+            let tricks = table[contract.bid.strain].get(declarer).get();
             let needed = 6 + contract.bid.level.get();
             let outcome = if tricks >= needed {
                 "makes".to_string()
@@ -411,7 +411,7 @@ impl WebTable {
                 strain: strain.to_string(),
                 tricks: SEAT_COLS
                     .into_iter()
-                    .map(|seat| table.get(strain, seat))
+                    .map(|seat| table[strain].get(seat).get())
                     .collect(),
             })
             .collect();
@@ -465,7 +465,7 @@ impl WebTable {
         let human_declaring = side(human) == side(declarer);
 
         for deal in fill_deals(&mut self.rng, partial).take(samples as usize) {
-            let tricks = solver.solve(deal)[declarer as usize];
+            let tricks = solver.solve(deal).get(declarer).get();
             let score = i64::from(contract.score(tricks, declarer_vul));
             let human_score = if human_declaring { score } else { -score };
             board.oracle.add(tricks, tricks >= needed, human_score);

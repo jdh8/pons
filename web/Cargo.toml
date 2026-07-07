@@ -22,8 +22,9 @@ crate-type = ["cdylib", "rlib"]
 # instead, driven strictly on its single-threaded paths (`Solver`,
 # `solve_deal_on`) — the rayon fan-out would need threads wasm doesn't have.
 pons = { path = "..", default-features = false }
-# 0.1.2 has the wasm fix (Instant::now in the bisection loop panics on wasm).
-pons-dds = "0.1.2"
+# 0.1.2+ has the wasm fix (Instant::now in the bisection loop panics on wasm);
+# 0.2.0 packs the double-dummy result into validated trick-count newtypes.
+pons-dds = "0.2.0"
 # Must match pons's contract-bridge version so Card/Hand/Auction types unify.
 contract-bridge = { version = "0.1.4", features = ["rand"] }
 rand = "0.10"

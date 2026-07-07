@@ -199,6 +199,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     takeout-double / two-suiter structure** (−98k; PD −136k). This re-ranks
     the campaign (defensive book first, balancing deprioritized).
 
+### Changed
+
+- **Web UI: bumped `pons-dds` 0.1.2 → 0.2.0** — the browser double-dummy solver
+  (post-auction DD table and the practice-board fairness oracle). 0.2.0 packs the
+  solve result into validated trick-count newtypes (`TrickCount` / `TrickCountRow`
+  / `TrickCountTable`); the three `web/src/lib.rs` call sites moved to
+  `table[strain].get(seat).get()`. No user-visible behavior change; the root
+  `pons` crate (native `ddss`) is unaffected.
+
 ### Fixed
 
 - **Off-shape takeout doubles and light 2-level overcalls over their one-suit

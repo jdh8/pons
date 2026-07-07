@@ -148,9 +148,9 @@ dependencies = [
 
 [[package]]
 name = "pons-dds"
-version = "0.1.2"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2b5b4645ef1b7959a7f4c768ab48875d06b2b844b9dad654691021385fd31f0c"
+checksum = "5d87715e87c47f03d6f07f8288bab1c523d730e0a4d8883cd5924731654439a4"
 dependencies = [
  "arrayvec",
  "bitflags",
