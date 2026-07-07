@@ -52,7 +52,7 @@ use super::Rules;
 use super::constraint::{
     Cons, Constraint, balanced, described, hcp, len, min_level_is, partner_shown_len,
     partner_suit_is, point_count, points, pred, short_in_their_suits, stopper_in_their_suits,
-    support, they_bid, top_honors,
+    support, takeout_double_shape_ok, they_bid, top_honors,
 };
 use super::context::Context;
 use super::inference::Inferences;
@@ -3008,7 +3008,11 @@ pub fn instinct() -> Rules {
         .rule(
             Call::Double,
             0.9,
-            their_live_bid_at_most(3) & short_in_their_suits() & hcp(12..) & not_penalty_latched(),
+            their_live_bid_at_most(3)
+                & short_in_their_suits()
+                & hcp(12..)
+                & not_penalty_latched()
+                & takeout_double_shape_ok(),
         )
         .rule(
             Call::Double,

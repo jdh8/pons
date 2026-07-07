@@ -204,6 +204,7 @@ struct Row {
     direction: &'static str,
     our_call: String,
     bba_call: String,
+    hand: String,
 }
 
 fn load_arms(inputs: &[String]) -> anyhow::Result<Vec<Arm>> {
@@ -409,6 +410,7 @@ fn main() -> anyhow::Result<()> {
                 direction: direction(a, b, table, arm.vul, plain[i]),
                 our_call: call_label(our_call),
                 bba_call: call_label(bba_call),
+                hand: board.deal[seat].to_string(),
             });
         }
 
@@ -615,6 +617,7 @@ fn main() -> anyhow::Result<()> {
                     "direction": row.direction,
                     "our_call": row.our_call,
                     "bba_call": row.bba_call,
+                    "hand": row.hand,
                 }),
             )?;
             writeln!(out)?;

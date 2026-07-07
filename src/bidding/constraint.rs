@@ -1161,6 +1161,58 @@ pub fn short_in_their_suits() -> Cons<impl Constraint + Clone> {
     Cons(ShortInTheirSuits)
 }
 
+std::thread_local! {
+    /// Whether [`takeout_double_shape_ok`] routes a weak flat 4-3-3-3 to Pass
+    static SUPPRESS_FLAT_4333_TAKEOUT: Cell<bool> = const { Cell::new(true) };
+}
+
+/// Suppress our takeout double on a flat 4-3-3-3 weaker than a 1NT opening
+///
+/// **Shipped default-on**: a flat 4-3-3-3 has no ruffing value, so a takeout
+/// double on 12–14 HCP flat 4333 overbids.  [`takeout_double_shape_ok`] rejects
+/// those hands so they route to Pass instead.  A paired BBA A/B (409.6k bd/arm/
+/// vul, SEED_BASE 1783443667) scored it a plain-DD **and** perfect-defense win
+/// at both vulnerabilities, every 95% CI excluding 0: plain +0.0187 (NV) /
+/// +0.0385 (vul), PD +0.0566 / +0.0755 IMPs/board; ~1.2% fired.  Pass `false`
+/// to revert to doubling.  Read at classification time and per-thread — the flag
+/// is consulted for books built after this call; classify on the thread that set
+/// it.
+#[doc(hidden)]
+pub fn set_suppress_flat_4333_takeout(on: bool) {
+    SUPPRESS_FLAT_4333_TAKEOUT.with(|flag| flag.set(on));
+}
+
+/// Whether the weak-flat-4333 takeout suppression is active
+fn suppress_flat_4333_takeout() -> bool {
+    SUPPRESS_FLAT_4333_TAKEOUT.with(Cell::get)
+}
+
+/// Gate ANDed into each takeout-double rule to suppress a weak flat 4-3-3-3
+///
+/// A no-op unless [`set_suppress_flat_4333_takeout`] is on (the default): when
+/// off it is satisfied for every hand, reverting to the old double.  When on it
+/// is satisfied *unless* the hand is a flat 4-3-3-3 with fewer than 15 HCP (12–14),
+/// which a takeout double overbids for lack of ruffing value — those hands route
+/// to Pass instead.  Four suits all 3 or 4 cards long sum to 13 only as a
+/// 4-3-3-3, so that test *is* "flat 4333".  The flag is read once at
+/// construction, so the closure captures a `bool`.
+#[must_use]
+pub(crate) fn takeout_double_shape_ok() -> Cons<impl Constraint + Clone> {
+    let suppress = suppress_flat_4333_takeout();
+    described(
+        "not a weak flat 4-3-3-3 diverted to Pass",
+        move |hand: Hand, _: &Context<'_>| {
+            if !suppress {
+                return true;
+            }
+            let flat = Suit::ASC
+                .into_iter()
+                .all(|suit| (3..=4).contains(&hand[suit].len()));
+            !(flat && raw_hcp(hand) < 15)
+        },
+    )
+}
+
 /// Takeout support for the unbid suits (the [`unbid_support`] constraint)
 #[derive(Clone)]
 struct UnbidSupport {

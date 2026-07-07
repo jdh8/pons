@@ -351,6 +351,12 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_high_overcall: bool,
 
+    /// Re-enable our takeout double on a flat 4-3-3-3 weaker than a 1NT opening
+    /// (12–14 HCP flat 4333) — the default suppresses it and routes to Pass
+    /// (shipped default-on; see `set_suppress_flat_4333_takeout`).
+    #[arg(long, default_value_t = false)]
+    no_ns_suppress_flat_4333_takeout: bool,
+
     /// Disable opener's balanced `1NT` rebid after `1m – 1M` — revert a balanced
     /// 12–14 with a five-card minor to the natural `2m` (shipped default-on; see
     /// `set_balanced_1nt_rebid`).
@@ -1144,6 +1150,9 @@ fn main() -> anyhow::Result<()> {
         },
     );
     pons::bidding::american::set_high_overcall_responses(args.ns_high_overcall);
+    pons::bidding::constraint::set_suppress_flat_4333_takeout(
+        !args.no_ns_suppress_flat_4333_takeout,
+    );
     pons::bidding::american::set_balanced_1nt_rebid(!args.no_ns_balanced_1nt_rebid);
     pons::bidding::american::set_second_suit_agreement(!args.no_ns_second_suit_agreement);
     pons::bidding::instinct::set_competitive_rebid(!args.no_ns_competitive_rebid);

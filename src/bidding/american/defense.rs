@@ -9,7 +9,8 @@
 
 use super::super::constraint::{
     Cons, Constraint, and, balanced, described, hcp, len, min_level_is, or, passed_hand, points,
-    short_in_their_suits, stopper_in_their_suits, suit_hcp, top_honors, unbid_support,
+    short_in_their_suits, stopper_in_their_suits, suit_hcp, takeout_double_shape_ok, top_honors,
+    unbid_support,
 };
 use super::super::context::Context;
 use super::super::{Alert, Defensive, Rules};
@@ -1044,16 +1045,20 @@ pub fn defense_to_suit(their_opening: Bid) -> Rules {
     // off-shape one-suiter overcalls (or waits for the 17+ tier) instead of
     // doubling and pulling to the 3-level.  See [`set_takeout_support`].
     rules = match takeout_support() {
-        TakeoutSupport::Off => rules.rule(Call::Double, 1.3, hcp(12..) & short_in_their_suits()),
+        TakeoutSupport::Off => rules.rule(
+            Call::Double,
+            1.3,
+            hcp(12..) & short_in_their_suits() & takeout_double_shape_ok(),
+        ),
         TakeoutSupport::Lenient => rules.rule(
             Call::Double,
             1.3,
-            hcp(12..) & short_in_their_suits() & unbid_support(1),
+            hcp(12..) & short_in_their_suits() & unbid_support(1) & takeout_double_shape_ok(),
         ),
         TakeoutSupport::Strict => rules.rule(
             Call::Double,
             1.3,
-            hcp(12..) & short_in_their_suits() & unbid_support(0),
+            hcp(12..) & short_in_their_suits() & unbid_support(0) & takeout_double_shape_ok(),
         ),
     };
 
@@ -1184,16 +1189,20 @@ pub fn defense_to_weak_two(their_opening: Bid) -> Rules {
     // 12+ takeout double, optionally gated on unbid-suit support (see
     // [`set_takeout_support`]); the 17+ tier catches off-shape strong hands.
     rules = match takeout_support() {
-        TakeoutSupport::Off => rules.rule(Call::Double, 1.3, hcp(12..) & short_in_their_suits()),
+        TakeoutSupport::Off => rules.rule(
+            Call::Double,
+            1.3,
+            hcp(12..) & short_in_their_suits() & takeout_double_shape_ok(),
+        ),
         TakeoutSupport::Lenient => rules.rule(
             Call::Double,
             1.3,
-            hcp(12..) & short_in_their_suits() & unbid_support(1),
+            hcp(12..) & short_in_their_suits() & unbid_support(1) & takeout_double_shape_ok(),
         ),
         TakeoutSupport::Strict => rules.rule(
             Call::Double,
             1.3,
-            hcp(12..) & short_in_their_suits() & unbid_support(0),
+            hcp(12..) & short_in_their_suits() & unbid_support(0) & takeout_double_shape_ok(),
         ),
     };
 
@@ -3773,6 +3782,30 @@ mod tests {
         set_always_pass_defense(false);
         assert_eq!(c, Call::Pass);
         assert!(!floored, "the always-pass must come from the book node");
+    }
+
+    /// `set_suppress_flat_4333_takeout` routes a weak flat 4-3-3-3 to Pass: a
+    /// 13-HCP 4-3-3-3 doubles their `1♦` by default, but stops doubling once the
+    /// opt-in knob is on (no ruffing value in a flat hand).  Reset the knob so it
+    /// cannot leak into a sibling test on this thread.
+    #[test]
+    fn suppress_flat_4333_takeout_routes_to_pass() {
+        // 4♠-3♥-3♦-3♣, 13 HCP (AK + Q + Q + Q), short in their diamonds.
+        let over_1d = [call(1, Strain::Diamonds)];
+        let hand = "AKxx.Qxx.Qxx.Qxx";
+
+        crate::bidding::constraint::set_suppress_flat_4333_takeout(false);
+        let (off, _) = best_call(&over_1d, hand);
+        assert_eq!(off, Call::Double, "flat 4333 doubles by default (knob off)");
+
+        crate::bidding::constraint::set_suppress_flat_4333_takeout(true);
+        let (on, _) = best_call(&over_1d, hand);
+        crate::bidding::constraint::set_suppress_flat_4333_takeout(false);
+        assert_ne!(
+            on,
+            Call::Double,
+            "knob on suppresses the takeout double on a weak flat 4333",
+        );
     }
 
     /// Best call with Woolsey forced on (default ranges) and the conflicting

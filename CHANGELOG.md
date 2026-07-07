@@ -9,6 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Flat-4333 takeout-double discipline** (`set_suppress_flat_4333_takeout`,
+  **shipped default-on**; off-switch `bba-gen --no-ns-suppress-flat-4333-takeout`).
+  A flat 4-3-3-3 has no ruffing value, so a takeout double on 12–14 HCP flat
+  4333 overbids: partner advances into a flat 4-3/4-4 with nothing to ruff, and
+  when the opponents double our stretch we go for a number. Both the instinct
+  floor's takeout rule and the book takeout doubles (over a suit opening and
+  over a weak two) now route a sub-15-HCP flat 4333 to Pass instead; the strong
+  `points(17..)` doubles and the 15–18 balanced `1NT` overcall are untouched.
+  Surfaced as the largest own-side lever inside the anchor's competitive
+  round-1 buckets (bucket #5 neighbourhood): our takeout `X` on a
+  flat-4333-below-1NT hand ran −10.8k plain / −17.7k PD across the divergent
+  union, all 12–14 HCP (sound values, wrong shape). Measured vs BBA 2/1 (409.6k
+  bd/arm/vul, both vuls, SEED_BASE 1783443667): **plain-DD win both vuls**
+  (+0.0187 NV / +0.0385 vul, CIs [+0.0168,+0.0207] / [+0.0361,+0.0409]) and
+  **perfect-defense confirms** larger (+0.0566 / +0.0755) — plain-positive rules
+  out a doubling artifact, PD amplifies because it punishes the doubled
+  overbids we now avoid. ~1.2% fired, +1.5/+3.3 IMPs/fired plain.
+
 - **Systems-on over their double of our splinter** (`set_splinter_doubled`,
   **shipped default-on**; off-switch `bba-gen --no-ns-splinter-doubled`). A
   splinter (`1M – (P) – double-jump`) is game-forcing, but a double reroutes
