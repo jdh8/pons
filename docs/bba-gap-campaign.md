@@ -88,6 +88,20 @@ still #1 at −2.40/div, Constructive/opening *improved* −2.34→−2.17/div
 A/Bs, not here** — the anchor tracks and re-ranks, it never measures a single
 fix (bucket #5, flat-4333, shipped after this anchor and lands in the next re-run).
 
+**Re-anchor `4afc985` (2026-07-08, 409.6k boards, same seed):** the 5332 +
+flat-4333 takeout-discipline ships landed — bucket #1 shrank to −2.29/div
+(−188939→−167653 PD), pooled **−1.89 plain / −2.11 PD** (was −1.99 / −2.36).
+Ranking otherwise held; the top *un-worked* book bucket was #3
+`Constructive/book/round-2` (−98269 plain ≈ −97924 PD, never traced), now
+**worked**: opener's minimum natural rebid had no upper strength bound, so
+monsters underbid (`5+ ♦` alone −20k, 2578/2636 a flat `2♦`).  Fix = opener's
+extras ladder (jump-rebid / reverse / jump-shift) in the two minor-opening
+nodes, **shipped default-on** (+0.0203/+0.0332 plain, +0.0181/+0.0297 PD, all
+CIs>0; see the CHANGELOG and 21gf-ledger).  Source:
+`ab-results/anchor/2026-07-08-4afc985/report.md`.  Follow-ups: the two
+major-opening rebid nodes (Meckstroth `3m` collision) and the `5+ ♣`/`6+ ♠`/`6+
+♥` residual.
+
 **#1 is the real prize and it is a *book* item, not a floor item.**  Our
 defensive first-round structure — overcalls, takeout doubles, two-suiters
 over their opening — bleeds −2.40/div (−142733 raw at 409.6k bd), and PD is

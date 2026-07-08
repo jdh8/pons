@@ -60,6 +60,128 @@ fn balanced_1nt_rebid() -> bool {
     BALANCED_1NT_REBID.with(Cell::get)
 }
 
+// ponytail: same construction-time toggle idiom as the Meckstroth adjunct —
+// read during `register()`, set it before building the `Pair`.
+std::thread_local! {
+    /// Whether opener's rebid tables carry the **strength-showing ladder**
+    /// after a minor opening and a one-level response: a jump-rebid of opener's
+    /// suit, a reverse, and a jump-shift.  Shipped **on** (BBA-gap bucket #3).
+    static OPENER_EXTRAS_LADDER: Cell<bool> = const { Cell::new(true) };
+}
+
+/// Enable opener's strength-showing rebid ladder in books built after this call
+///
+/// After a one-level response, opener's only long-suit rebid is a minimum
+/// natural `2m`/`2M` with no upper bound (weight 0.9, `len(..5..)`), so a strong
+/// single- or two-suiter underbids and the auction dies below game — the
+/// largest un-worked lever in the Constructive/book/round-2 anchor bucket.  This
+/// adds three rungs above the minimum, disjoint from it by crisp point bands:
+///
+/// - **Jump-rebid** of opener's suit (`1♦ – 1♠ – 3♦`): a self-sufficient 6+
+///   suit, 16+ points, invitational.
+/// - **Reverse** into a higher new suit (`1♦ – 1♠ – 2♥`): 5+ first suit, 4+
+///   second, 17+ points, forcing.
+/// - **Jump-shift** into a new suit (`1♦ – 1♠ – 3♣`): 5-4, 18+ points,
+///   game-forcing.
+///
+/// Read at book-construction time; shipped default-on (+0.0203/+0.0332 plain,
+/// +0.0181/+0.0297 PD IMPs/board vs BBA, NV/vul, all CIs>0).  The matching
+/// [`Inferences`](crate::bidding::inference) reading gates on the same toggle,
+/// narrowing each rung's shape and strength.  Only the two minor-opening rebid
+/// nodes carry it so far; the major-opening nodes (a Meckstroth `3m` collision)
+/// are a follow-up.
+pub fn set_opener_extras_ladder(on: bool) {
+    OPENER_EXTRAS_LADDER.with(|cell| cell.set(on));
+}
+
+/// Whether opener's strength-showing rebid ladder is currently enabled
+///
+/// Read at book-construction time by `register`, and at classify time by the
+/// matching `Inferences` reading (mirrors `rule_of_20_enabled`).
+pub(crate) fn opener_extras_ladder() -> bool {
+    OPENER_EXTRAS_LADDER.with(Cell::get)
+}
+
+/// The cheapest level at which `strain` may be bid over `highest`
+fn cheapest_level_over(highest: Bid, strain: Strain) -> u8 {
+    if strain > highest.strain {
+        highest.level.get()
+    } else {
+        highest.level.get() + 1
+    }
+}
+
+/// Opener's reverse — a higher new suit showing a five-card first suit and extras
+const OPENER_REVERSE: Alert = Alert("opener-reverse");
+/// Opener's jump-shift — a new suit showing a big two-suiter, game-forcing
+const OPENER_JUMP_SHIFT: Alert = Alert("opener-jump-shift");
+
+/// Append opener's strength-showing ladder to a one-level-response rebid table
+///
+/// `opener` is opener's opened suit, `highest` responder's one-level call, and
+/// `responder` responder's suit when they bid one (a forcing `1NT` bids none).
+/// The weights sit above the minimum natural rebid (0.9) but below the
+/// support-raises (1.8+), so a hand with four-card support for responder still
+/// raises and only a genuine extras hand takes the ladder; the crisp point
+/// bands keep a minimum on the natural rebid.  All three rungs name a real
+/// suit — natural, unalerted, floor-safe — so the reading (`inference.rs`)
+/// narrows their shape and strength rather than an alert projecting it.
+fn with_extras_ladder(
+    mut rules: Rules,
+    opener: Suit,
+    highest: Bid,
+    responder: Option<Suit>,
+) -> Rules {
+    if !opener_extras_ladder() {
+        return rules;
+    }
+    let opener_strain = Strain::from(opener);
+    // Jump-rebid of opener's suit: a self-sufficient 6+ suit with extras.
+    let jump_rebid_level = cheapest_level_over(highest, opener_strain) + 1;
+    if jump_rebid_level <= 3 {
+        rules = rules.rule(
+            Bid::new(jump_rebid_level, opener_strain),
+            1.5,
+            len(opener, 6..) & points(16..),
+        );
+    }
+    for second in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
+        if second == opener || responder == Some(second) {
+            continue;
+        }
+        let second_strain = Strain::from(second);
+        let cheapest = cheapest_level_over(highest, second_strain);
+        // Reverse: a non-jump two-level new suit ranking above opener's,
+        // forcing partner past a return to opener's suit at the two level.
+        // Alerted: the rule floors opener's (unbid-here) first suit, so it is
+        // artificial by the house rule and decoded by rule projection.
+        if cheapest == 2 && second_strain > opener_strain {
+            rules = rules
+                .rule(
+                    Bid::new(2, second_strain),
+                    1.6,
+                    len(opener, 5..) & len(second, 4..) & points(17..),
+                )
+                .alert(OPENER_REVERSE);
+        }
+        // Jump-shift: a single jump in a new suit, game-forcing.  18+ rather
+        // than 19+ so a shapely two-suiter (a 5-5 with controls upgrades past
+        // the band) is not stranded in the minimum rebid.  Alerted for the same
+        // reason as the reverse (it floors opener's first suit).
+        let jump_shift_level = cheapest + 1;
+        if jump_shift_level <= 3 {
+            rules = rules
+                .rule(
+                    Bid::new(jump_shift_level, second_strain),
+                    1.7,
+                    len(opener, 5..) & len(second, 4..) & points(18..),
+                )
+                .alert(OPENER_JUMP_SHIFT);
+        }
+    }
+    rules
+}
+
 /// Whether a rebid is opener's invitational `3♣`/`3♦` jump (the Meckstroth `3m`)
 fn is_invitational_minor_jump(rebid: Call) -> bool {
     rebid == call(3, Strain::Clubs) || rebid == call(3, Strain::Diamonds)
@@ -178,6 +300,8 @@ fn rebid_raise_major(responder_major: Suit, opener_minor: Suit) -> Rules {
     if responder_major == Suit::Hearts && super::responses::up_the_line() {
         rules = rules.rule(Bid::new(1, Strain::Spades), 0.95, len(Suit::Spades, 4..));
     }
+    // Strength-showing ladder: jump-rebid, reverse, jump-shift (default off).
+    rules = with_extras_ladder(rules, opener_minor, Bid::new(1, m), Some(responder_major));
     rules
         .rule(
             Bid::new(2, Strain::from(opener_minor)),
@@ -223,6 +347,13 @@ fn rebid_one_club_one_diamond() -> Rules {
     if super::responses::up_the_line() {
         rules = rules.rule(Bid::new(2, Strain::Clubs), 0.9, len(Suit::Clubs, 6..));
     }
+    // Strength-showing ladder: jump-rebid, reverse, jump-shift (default off).
+    rules = with_extras_ladder(
+        rules,
+        Suit::Clubs,
+        Bid::new(1, Strain::Diamonds),
+        Some(Suit::Diamonds),
+    );
     rules
         .rule(
             Bid::new(1, Strain::Notrump),
@@ -864,6 +995,59 @@ mod tests {
         let mut trie = Trie::new();
         register_major_rebid_tails(&mut trie);
         trie
+    }
+
+    /// Build the full rebid Trie with the opener extras ladder on (the shipped
+    /// default).
+    fn ladder_trie() -> Trie {
+        set_opener_extras_ladder(true);
+        let mut trie = Trie::new();
+        register(&mut trie);
+        trie
+    }
+
+    /// The raw table auction `[1♦, P, 1♠, P]` (opener to rebid).
+    const AFTER_1D_1S: &[Call] = &[
+        Call::Bid(Bid::new(1, Strain::Diamonds)),
+        Call::Pass,
+        Call::Bid(Bid::new(1, Strain::Spades)),
+        Call::Pass,
+    ];
+
+    #[test]
+    fn opener_extras_ladder_shows_strength() {
+        let trie = ladder_trie();
+        let b = |hand| best(&trie, AFTER_1D_1S, hand);
+        // Self-sufficient 6+ diamonds, 16 HCP → jump-rebid 3♦.
+        assert_eq!(
+            b("653.K3.AKQT854.A"),
+            Call::Bid(Bid::new(3, Strain::Diamonds))
+        );
+        // 5♦ 4♥, 18 HCP → jump-shift 3♥ (game-forcing two-suiter).
+        assert_eq!(
+            b("T64.AJ86.AKQ95.A"),
+            Call::Bid(Bid::new(3, Strain::Hearts))
+        );
+        // 5-5 in the minors, 18 HCP → jump-shift 3♣.
+        assert_eq!(b("K.62.AQJ94.AKJ85"), Call::Bid(Bid::new(3, Strain::Clubs)));
+        // A dead minimum still takes the natural 2♦ rebid.
+        assert_eq!(
+            b("K54.Q3.KJ8542.32"),
+            Call::Bid(Bid::new(2, Strain::Diamonds))
+        );
+    }
+
+    #[test]
+    fn opener_extras_ladder_reverts_when_off() {
+        set_opener_extras_ladder(false);
+        let mut trie = Trie::new();
+        register(&mut trie);
+        set_opener_extras_ladder(true);
+        // Knob off: the 16-count monster reverts to the minimum 2♦ rebid.
+        assert_eq!(
+            best(&trie, AFTER_1D_1S, "653.K3.AKQT854.A"),
+            Call::Bid(Bid::new(2, Strain::Diamonds))
+        );
     }
 
     /// The highest-logit call the trie makes for a hand at an auction

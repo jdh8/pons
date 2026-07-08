@@ -9,6 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Opener's strength-showing rebid ladder after a minor opening (BBA-gap bucket
+  #3).** After `1m – 1M` / `1♣ – 1♦`, opener's only long-suit rebid was a
+  minimum natural `2m` with no upper bound (weight 0.9, `len(5..)`), so a strong
+  single- or two-suiter underbid and the auction died below game — the largest
+  un-worked lever in the `Constructive/book/round-2` anchor bucket (−98k IMPs,
+  plain ≈ PD). Added three rungs above the minimum, disjoint by crisp point
+  bands: a **jump-rebid** of opener's suit (6+, 16+, invitational), a **reverse**
+  into a higher new suit (5-4, 17+, forcing), and a **jump-shift** into a new
+  suit (5-4, 18+, game-forcing). The reverse and jump-shift are alerted
+  (`opener-reverse` / `opener-jump-shift`) and decoded by rule projection; the
+  jump-rebid is natural. Parametric across both minor-opening rebid nodes
+  (`set_opener_extras_ladder`, default on; `bba-gen --no-ns-opener-extras-ladder`
+  reverts). **A/B vs BBA (409.6k bd, SEED_BASE 1783544590, ~0.7% fired): plain
+  +0.0203 NV / +0.0332 vul, PD +0.0181 NV / +0.0297 vul, all CIs>0** — a plain-DD
+  win both vuls (plain ≥ PD, no doubling artifact), among the campaign's largest
+  single ships. The two major-opening rebid nodes (a Meckstroth `3m` collision)
+  are a follow-up.
+
 - **Web book search now takes ASCII shorthand for calls.** The filter matched
   the book's rendered glyphs literally, so `2c` found nothing (the node holds
   `2♣`) and pass/notrump were inconsistent. A deterministic normalizer maps

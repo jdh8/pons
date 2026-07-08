@@ -392,6 +392,13 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_balanced_1nt_rebid: bool,
 
+    /// Disable opener's strength-showing rebid ladder after a minor opening and a
+    /// one-level response — revert jump-rebid / reverse / jump-shift to the
+    /// minimum natural rebid (shipped default-on; see `set_opener_extras_ladder`).
+    /// BBA-gap bucket #3.
+    #[arg(long, default_value_t = false)]
+    no_ns_opener_extras_ladder: bool,
+
     /// Disable opener's third-call table after responder raises opener's second
     /// suit in a 2/1 auction (`1M – 2r – 2x – 3x`) — revert that node to the game
     /// backstop (shipped default-on; see `set_second_suit_agreement`).
@@ -1188,6 +1195,7 @@ fn main() -> anyhow::Result<()> {
     pons::bidding::american::set_rich_advance_double(args.ns_rich_advance);
     pons::bidding::american::set_advance_rubens(args.ns_advance_rubens);
     pons::bidding::american::set_balanced_1nt_rebid(!args.no_ns_balanced_1nt_rebid);
+    pons::bidding::american::set_opener_extras_ladder(!args.no_ns_opener_extras_ladder);
     pons::bidding::american::set_second_suit_agreement(!args.no_ns_second_suit_agreement);
     pons::bidding::instinct::set_competitive_rebid(!args.no_ns_competitive_rebid);
     pons::bidding::american::set_jordan_truscott(!args.no_ns_jordan_truscott);

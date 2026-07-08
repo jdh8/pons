@@ -16,6 +16,9 @@ History: **−2.59** (2000 bd, vul none, S.1) → **−1.997** (4000 bd) → fir
 **100%**): **vul none −1.675 / vul both −2.310**, pooled **−1.99 plain /
 −2.40 PD**. Vul-none improved −2.59→−1.67 across the M6.x + competitive-book
 streak; the pooled figure newly folds in the harder both-vul arm.
+Re-anchored `4afc985` (2026-07-08, 409.6k bd, same seed): pooled **−1.89 plain /
+−2.11 PD** after the bucket-#1 takeout-discipline and bucket-#3 opener-ladder
+ships (progress log below).
 
 **What the first anchor overturns (read before picking work):** the gap is
 **book-dominated, not floor-dominated** — `book` −248k IMPs vs the entire
@@ -145,6 +148,28 @@ plain +0.0059 NV / +0.0079 vul (CIs [+0.0047,+0.0071]/[+0.0063,+0.0095]), PD
 artifact), +15.4/+17.6 IMPs/fired at 0.04 % fired.** Rare fire, decisive per
 board → **shipped default-on**. Known tail: a *second* double (of the keycard
 response) still passes out (1 board in 79), the standard rebase-tail limitation.
+
+**Re-anchor (2026-07-08, `4afc985`, same seed → paired, 409.6k bd):** the
+bucket-#1 takeout-discipline ships (5332, flat-4333) landed on the metric —
+pooled **−1.99 → −1.89 plain, −2.36 → −2.11 PD** (replay-verified 100 %,
+`ab-results/anchor/2026-07-08-4afc985/`). Ranking held: (1) Defensive/book/round-1
+−2.29/div (was −2.40, PD −189k→−168k), (2) Constructive/book/opening −2.12, (3)
+**Constructive/book/round-2 −2.24 (unchanged, never traced)**, (4)
+Constructive/book/round-1 −2.49.
+
+**Bucket #3 `Constructive / book / round-2` → opener extras ladder (2026-07-08,
+`set_opener_extras_ladder` default-on, `scripts/opener-extras-ladder-ab.sh`,
+SEED_BASE 1783544590):** traced the −98k (plain ≈ PD, underbid-heavy: `other`
+−86k / missed-game −38k / missed-slam −23k) to opener's minimum natural suit
+rebid with **no upper strength bound** — the biggest sub-lever `5+ ♦` (−20k) is
+2578/2636 a flat `2♦` on hands up to grand-slam strength (`T64.AJ86.AKQ95.A`
+rebids `2♦`, misses a grand). Fix = a strength ladder above the minimum in the
+two **minor-opening** rebid nodes: jump-rebid (6+/16+), reverse (5-4/17+,
+alerted), jump-shift (5-4/18+, alerted). **A/B: plain +0.0203 NV / +0.0332 vul,
+PD +0.0181 / +0.0297 (all CIs>0, plain ≥ PD, ~0.7 % fired, +3–4.5 IMPs/fired)** —
+plain-DD win both vuls → **shipped default-on**. The two major-opening nodes
+(Meckstroth `3m` collision) and the `5+ ♣`/`6+ ♠`/`6+ ♥` residual are the
+follow-up.
 
 **Scoring basis:** A/B duplicate results are scored **plain double-dummy**
 (`scoring::ns_score_contract`, the contract's *actual* auction penalty) as of commit

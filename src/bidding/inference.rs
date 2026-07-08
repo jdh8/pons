@@ -637,6 +637,18 @@ impl Inferences {
                             suppressed_so_far |= 1 << index;
                         }
 
+                        // Opener's extras-ladder rebid: a minor opening, opener's
+                        // first rebid, opponents silent.  The jump-shift and
+                        // reverse rungs name a real 4-card second suit and show
+                        // extras — read below, not as a weak jump.
+                        let opener_ladder_rebid = crate::bidding::american::opener_extras_ladder()
+                            && !side_acted[defending_parity]
+                            && is_opening_side
+                            && lane == opener_lane
+                            && lane_bids[lane] == 1
+                            && opening_bid.level.get() == 1
+                            && matches!(opening_bid.strain, Strain::Clubs | Strain::Diamonds);
+
                         if !suppress {
                             let jump = bid
                                 .level
@@ -665,11 +677,14 @@ impl Inferences {
                                     players[who].narrow_points(Range::at_least(8, POINTS_CAP));
                                 }
                             } else if jump >= 1 {
-                                // A single jump in a new suit is a weak jump:
-                                // a six-card suit.  Skip splinters (double jumps).
+                                // A single jump in a new suit is a weak jump: a
+                                // six-card suit.  Skip splinters (double jumps).
+                                // Opener's extras-ladder jump-shift is instead a
+                                // strong 5-4, so the jumped suit is only 4+.
                                 if jump == 1 {
+                                    let floor = if opener_ladder_rebid { 4 } else { 6 };
                                     players[who]
-                                        .narrow_length(suit, Range::at_least(6, LENGTH_CAP));
+                                        .narrow_length(suit, Range::at_least(floor, LENGTH_CAP));
                                 }
                             } else {
                                 // A natural new suit at the cheapest level: four-plus.
@@ -767,6 +782,45 @@ impl Inferences {
                                     1 => players[who].narrow_points(Range::new(10, 12)),
                                     _ => {}
                                 }
+                            }
+                        }
+                    }
+
+                    // Opener's extras-ladder rebid shows extras and — for a
+                    // new-suit rung — a five-card opened suit.  Sound floors: the
+                    // jump-rebid is 16+, the reverse 17+, the jump-shift 18+.
+                    if crate::bidding::american::opener_extras_ladder()
+                        && !side_acted[defending_parity]
+                        && is_opening_side
+                        && lane == opener_lane
+                        && lane_bids[lane] == 1
+                        && opening_bid.level.get() == 1
+                        && matches!(opening_bid.strain, Strain::Clubs | Strain::Diamonds)
+                        && let (Some(bid_suit), Some(opened)) =
+                            (bid.strain.suit(), opening_bid.strain.suit())
+                    {
+                        let jump = bid
+                            .level
+                            .get()
+                            .saturating_sub(cheapest_level(highest, bid.strain));
+                        let responder_bid_it =
+                            lane_suits[(lane + 2) % 4] & (1 << bid_suit as u8) != 0;
+                        if bid_suit == opened {
+                            // Jump-rebid of opener's own suit.
+                            if jump >= 1 {
+                                players[who].narrow_points(Range::at_least(16, POINTS_CAP));
+                            }
+                        } else if !responder_bid_it {
+                            // Reverse (non-jump two-level, higher suit) or
+                            // jump-shift (single jump): a five-card opened suit.
+                            let reverse = jump == 0
+                                && bid.level.get() == 2
+                                && (bid.strain as u8) > (Strain::from(opened) as u8);
+                            let jump_shift = jump == 1;
+                            if reverse || jump_shift {
+                                players[who].narrow_length(opened, Range::at_least(5, LENGTH_CAP));
+                                let floor = if jump_shift { 18 } else { 17 };
+                                players[who].narrow_points(Range::at_least(floor, POINTS_CAP));
                             }
                         }
                     }
@@ -2264,6 +2318,35 @@ mod tests {
         let one_club = read(&[bid(1, Strain::Clubs)]);
         assert_eq!(one_club.rho().length(Suit::Clubs), Range::new(3, 13));
         assert_eq!(one_club.rho().length(Suit::Hearts), Range::new(0, 4));
+    }
+
+    #[test]
+    fn opener_extras_ladder_reads_extras() {
+        use crate::bidding::american::set_opener_extras_ladder;
+        let d = bid(1, Strain::Diamonds);
+        let s = bid(1, Strain::Spades);
+        let p = Call::Pass;
+        set_opener_extras_ladder(true);
+        // Opener (partner of the hero to act) after 1♦ – 1♠ – X.
+        // Jump-rebid 3♦: a self-sufficient six-plus diamonds, 16+.
+        let jr = read(&[d, p, s, p, bid(3, Strain::Diamonds), p]);
+        assert!(jr.partner().length(Suit::Diamonds).min >= 6);
+        assert!(jr.partner().points.min >= 16);
+        // Reverse 2♥: five-plus diamonds, four-plus hearts, 17+.
+        let rev = read(&[d, p, s, p, bid(2, Strain::Hearts), p]);
+        assert!(rev.partner().length(Suit::Diamonds).min >= 5);
+        assert!(rev.partner().length(Suit::Hearts).min >= 4);
+        assert!(rev.partner().points.min >= 17);
+        // Jump-shift 3♣: five-plus diamonds, 18+, and clubs read as the strong
+        // 4+ second suit — NOT the weak-jump six (the phantom-suit fix).
+        let js = read(&[d, p, s, p, bid(3, Strain::Clubs), p]);
+        assert!(js.partner().length(Suit::Diamonds).min >= 5);
+        assert!(js.partner().points.min >= 18);
+        assert_eq!(
+            js.partner().length(Suit::Clubs),
+            Range::at_least(4, LENGTH_CAP)
+        );
+        set_opener_extras_ladder(true);
     }
 
     /// The M6.4 deterministic rule on its canonical auctions: a
