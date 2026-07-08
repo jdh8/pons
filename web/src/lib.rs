@@ -817,7 +817,7 @@ static SETTINGS: &[Setting] = &[
     toggle(
         "puppet_stayman",
         NOTRUMP,
-        "Puppet Stayman",
+        "Puppet Stayman (3♣)",
         true,
         set_puppet_stayman,
     ),
