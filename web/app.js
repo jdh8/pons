@@ -36,6 +36,7 @@ async function main() {
   window.addEventListener('hashchange', () => showTab(location.hash.slice(1)));
   id('p-deal').onclick = dealPractice;
   id('d-deal').onclick = dealDemo;
+  id('d-edit').onclick = editDemo;
   id('b-filter').oninput = filterBook;
   initEdit();
   showTab(location.hash.slice(1));
@@ -66,6 +67,14 @@ function dealPractice() {
 
 function dealDemo() {
   runDemo(game.deal_demo(id('d-dealer').value, id('d-vul').value));
+}
+
+// Hand the deal now on screen to the Edit tab so it can be tweaked and re-bid.
+function editDemo() {
+  if (!current || current.mode === 'practice') return;
+  editAssign = assignFromHands(current.hands);
+  syncFromBoard(); // repaint palette/compass/PBN from the demoed deal
+  location.hash = 'edit';
 }
 
 // Animate a demo snapshot: hands at once, then the auction one call at a time.
@@ -111,6 +120,7 @@ function renderPractice(s) {
 }
 
 function renderDemo(s) {
+  id('d-edit').disabled = false;
   id('d-info').textContent = `Dealer ${SEAT_NAMES[s.dealer]} · Vul ${s.vul}`;
   id('d-hands').innerHTML = compassHTML(s.hands);
   const auc = id('d-auction');
@@ -446,6 +456,17 @@ function randomDeal() {
     [deck[i], deck[j]] = [deck[j], deck[i]];
   }
   return Object.fromEntries(deck.map((c, i) => [c, SEATS[Math.floor(i / 13)]]));
+}
+
+// Inverse of editHands(): a rendered hands object → the editAssign card→seat map.
+function assignFromHands(hands) {
+  const assign = {};
+  for (const seat of SEATS) {
+    const h = hands[seat];
+    if (!h) continue;
+    for (const g of HAND_ORDER) for (const r of (h[SUIT_KEYS[g]] || '')) assign[g + r] = seat;
+  }
+  return assign;
 }
 
 // One HandJson-shaped object per seat, so compassHTML/handHTML render as-is.

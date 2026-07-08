@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Web: edit the deal you just watched.** The Demo tab dealt a random board and
+  bid it out, but the only way into the deal editor was to build a hand from
+  scratch on the Edit tab — you couldn't grab the deal on screen to tweak it. A
+  new **"Edit this deal →"** button on the Demo tab (enabled once a board is
+  shown) loads the four visible hands into the Edit tab's card palette + PBN
+  field, where the existing **"Bid it out in Demo →"** re-bids the edited deal.
+  Pure client-side JS: a small `assignFromHands` inverse of the editor's
+  `editHands` seeds the `editAssign` map from the on-screen snapshot, so no wasm
+  round-trip and no engine change.
+
 - **Opener's strength-showing rebid ladder after a minor opening (BBA-gap bucket
   #3).** After `1m – 1M` / `1♣ – 1♦`, opener's only long-suit rebid was a
   minimum natural `2m` with no upper bound (weight 0.9, `len(5..)`), so a strong
