@@ -602,11 +602,58 @@ max; advancer raises/rests. Unit-verified across `(1♣)`/`(1♦)`/`(1♥)`.
 1783497765): **+0.0000 NV / +0.0001 both plain, +0.0002/+0.0003 PD**, fired 0.03%, all CIs
 span 0. This is the textbook signature: **right-siding is invisible to double-dummy** — the
 transfer changes *who declares*, not the trick count, so DD sees nothing (the ~+0.0001 is
-the rare contract-level change). No regression. The right-siding value lives under the
-**sd-lead single-dummy scorer** (`single_dummy_leads` — the lead now comes up to the
-concealed strong hand), which is the natural re-measure; see [[project_sd-lead-scorer]].
-Kept opt-in. **Parked:** a *full* transfer ladder from the *simple* cue up may suit
-**balancing** doubles — revisit later.
+the rare contract-level change). No regression. See [[project_sd-lead-scorer]].
+
+**sd-lead re-measure (2026-07-08, `ab-dump-sd`, 16 worlds, same dumps):** the middle
+bracket **can't find the right-siding value either.** Rubens increment (`rubens` vs `rich`):
+**−0.236 IMPs/fired NV [95% CI −1.12..+0.65], −0.240 vul [−1.50..+1.02]** (n=127/129 fired —
+too small to resolve). Whole rich advance (`rich` vs `base`, larger n=1154/1179): **−0.231
+NV [−0.51..+0.05], −0.219 vul [−0.55..+0.12]** — wash with a faint *negative* lean. The
+uniform ≈−0.23 across both layers and both vuls points the **opposite** way from the
+right-siding hypothesis: our alerted artificial cue/transfer *discloses* the advancer's
+shape+strength to the blind leader, and that concealment cost slightly outweighs the
+right-siding gain the transfer buys. No CI cleanly excludes 0 — verdict is **sd-wash**,
+matching the DD-wash. Both layers stay opt-in default-off; nothing ships. **Parked:** a
+*full* transfer ladder from the *simple* cue up may suit **balancing** doubles — revisit later.
+
+**INV+ cue restructure (2026-07-08, authoring only — knobs unchanged, still opt-in
+default-off).** The first cut capped the cue at a Stayman-ask (10–11) and blasted 4M with
+game values; jdh8 replaced it with the standard expert ladder (confirmed against
+[CSB's *Forcing bids after a takeout double*](https://csbnews.org/en/forcing-bids-after-a-takeout-double/)):
+**new-suit jumps MAJORS-ONLY** — a 2-level jump = CONSTRUCTIVE (8–10, 4+), a 3-level jump
+= INV (10–12, 5+); a jump in a minor abandons 3NT for a suit that needs eleven tricks and
+gets doubled. **1NT = 8–10 stop**, **2NT = 11–12 balanced stop**, **3NT = limited 13–17
+stop**; **4M jump always LIMITED** — two-way `points(11..=15)` (shapely-weak *or* min-FG,
+distribution-aware) with no Rubens transfer for that major, purely preemptive (0–10) when a
+transfer carries the strong hands, so slam tries always cue and `1♠–X–4♥` stays two-way
+(hearts can't transfer over 1♠). The **cue is now INV+, forcing one round** (not GF): the
+lowest-weighted action above a weak natural suit (`hcp(10..)`, weight 1.05), so every
+specific limited bid outranks it and only the shapeless invite-or-better hand lands there.
+Because the alerted cue projects only `hcp(10..)`, the floor can't tell invite from force —
+so advancer's clarification is **authored** (`advance_cue_rebid`): over the doubler's minimum
+answer a GF advancer (13+) raises the shown suit to game or bids 3NT, an INV advancer (10–12)
+passes. Wired for every non-game answer (`advance_cue_answers`) × RHO {pass, double}. The
+**penalty pass** is widened to `len(theirs, 5..)` alone (or 4 with two top honors) so a weak
+5-in-their-suit hand converts instead of being forced into a doubled minor. Tests
+`rich_advance_double_cues_and_forces`, `advance_cue_rebid_forces_or_invites`,
+`rich_advance_weak_shapely_blasts_game`. **Left to the floor** (flagged, not authored): the
+doubler bidding on with extras over advancer's INV rebid, and the cue-then-new-suit
+two-suiter GF.
+
+**The no-regression guard earned its keep — it caught a real DD regression.** The first
+restructure cut (`4M = hcp(12..=15)`) measured **DD-negative** vs the flat floor, plain≈PD
+(*not* a doubling artifact): the pure-MIN-FG 4M had deleted the flat floor's weak shapely
+game-blast (`len(4..) & points(11..)`), stranding weak long-major hands below a makeable
+game. Worst boards were advancer competing in a **minor** and doubled at the four-level
+(`4♣×`/`4♦×`) where the flat floor's `1NT` stayed safe. Fixed in three passes
+(`advance-double-v5/6/7`, 102.4k bd/arm/vul, plain NV/vul): **v5** −0.0040/−0.0062 →
+**v6** +two-way 4M −0.0024/−0.0031 → **v7** +majors-only jumps +wide penalty pass
+**−0.0011/−0.0010 = wash** (PD≈plain, CIs ~±0.0014 straddle 0). Rubens increment stays ~0
+(v7 −0.0006/−0.0006 plain). So the book carries the more bridge-correct INV+ cue + authored
+rebid at the *same* DD-wash the original had. **Lesson: even an opt-in, DD-invisible book
+needs the guard — a restructure can introduce genuinely-worse *reachable* contracts (doubled
+minor games), which are DD-visible and distinct from the invisible right-siding value.**
+Still opt-in default-off; the default system is byte-identical.
 
 ## Openings
 

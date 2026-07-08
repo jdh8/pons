@@ -12,16 +12,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Rich advance of a takeout double** (`set_rich_advance_double`, **opt-in,
   default-off**; `bba-gen --ns-rich-advance`). The flat advance floor gave the
   advancer of `(1t)–X–(P)` only a cheapest natural suit, `3NT`, and a penalty
-  pass — no cue, no way to invite or force. This adds an invitational cue of
-  opener's suit asking for a 4-card unbid major (game hands blast `4M`
-  directly), a `1NT`/`2NT`/`3NT` stopper ladder, weak shapely game jumps, a
-  forced 3-card response when broke, and the doubler's answer to the cue (with a
-  finite catch-all so the artificial cue is never passed out). Measured a clean
-  **DD-wash** vs the flat floor (−0.0001 NV / −0.0007 vul plain, PD≈plain, CIs
-  include 0, 409.6k bd/arm/vul) — sound and complete, but DD cannot see the
-  advance's competitive value, so it stays opt-in as the base for the jump-cue
-  Rubens layer. Distilled from BBA via `examples/probe-advance-double`. The
-  default system is byte-identical.
+  pass — no cue, no way to invite or force. This adds the standard expert
+  advancer ladder: a **majors-only** new-suit jump = constructive at the two
+  level (8–10, 4+) / invitational at the three level (10–12, 5+) — a jump in a
+  minor abandons `3NT` for a suit that needs eleven tricks and gets doubled; a
+  `1NT`/`2NT`/`3NT` stopper ladder (8–10 / 11–12 balanced / limited 13–17); an
+  always-limited two-way `4M` jump (shapely-weak *or* minimum game force,
+  11–15 points, or purely preemptive when a Rubens transfer carries the strong
+  hands, so slam tries always cue); an invitational-or-better cue of opener's
+  suit forcing one round (the residual for a shapeless 10+ hand, with
+  `advance_cue_rebid` letting a game-forcing advancer drive to game and an
+  invitational one stop); a penalty pass (5+ of their suit, or 4 with two top
+  honors); a forced 3-card response when broke; and the doubler's answer to the
+  cue (with a finite catch-all so the artificial cue is never passed out).
+  Measured a clean **DD-wash** vs the flat floor (−0.0011 NV / −0.0010 vul
+  plain, PD≈plain, CIs include 0, 102.4k bd/arm/vul) — sound and complete, but
+  DD cannot see the advance's competitive value, so it stays opt-in as the base
+  for the jump-cue Rubens layer. (An intermediate cut with a pure minimum-game-
+  force `4M` measured DD-negative — it stranded weak long-major hands below a
+  makeable game; the two-way `4M`, majors-only jumps, and widened penalty pass
+  restored the wash.) Distilled from BBA via `examples/probe-advance-double`.
+  The default system is byte-identical.
 
 - **Jump-cue Rubens transfers** on the advance of a takeout double
   (`set_advance_rubens`, **opt-in, default-off**; `bba-gen --ns-advance-rubens`;

@@ -507,6 +507,7 @@ const MORE = [
     ['competition_over_stayman', true], ['competition_over_transfer', false],
     ['competition_over_minor_transfer', true], ['competition_over_diamond_transfer', true],
     ['defense_to_2d_multi', false], ['responsive_overcall', false],
+    ['rich_advance_double', false], ['advance_rubens', false],
   ]],
   ['Defense to their 1NT (competing families — pick one)', [
     ['natural_defense', true, 'defense_family'], ['direct_dont', false, 'defense_family'],

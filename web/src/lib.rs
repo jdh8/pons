@@ -724,6 +724,8 @@ pub fn set_option(key: &str, on: bool) {
         "leaping_michaels" => american::set_leaping_michaels,
         "responsive_takeout" => american::set_responsive_takeout,
         "responsive_overcall" => american::set_responsive_overcall,
+        "rich_advance_double" => american::set_rich_advance_double,
+        "advance_rubens" => american::set_advance_rubens,
         // Defense to their 1NT (competing alternatives — pick one family)
         "landy_hcp" => american::set_landy_hcp,
         "natural_defense" => american::set_natural_defense,
