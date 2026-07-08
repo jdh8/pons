@@ -322,18 +322,32 @@ function loadBook() {
     const haystack =
       (node.auction + ' ' + node.rules.map((r) => `${r.call} ${r.text}`).join(' ') +
         (node.note ? ' ' + node.note : '')).toLowerCase();
-    return { el, haystack };
+    const seqHay = normSeq(node.auction + ' ' + node.rules.map((r) => r.call).join(' '));
+    return { el, haystack, seqHay };
   });
   id('b-results').appendChild(frag);
   filterBook();
 }
 
+// Fuzzy sequence normalizer for the book filter: ASCII shorthand ↔ book glyphs.
+//   P/- → pass, C D H S → ♣♦♥♠, N or NT → notrump. Spaces dropped so the query
+//   need not match the book's spacing. Deterministic (fixed map, no edit-distance).
+//   ponytail: X/XX already match the haystack verbatim — deliberately untouched.
+const SEQ_MAP = { '♣': 'c', '♦': 'd', '♥': 'h', '♠': 's', '-': 'p' };
+function normSeq(s) {
+  return s.toLowerCase()
+    .replace(/nt/g, 'n')                     // notrump: nt or lone n → n
+    .replace(/[♣♦♥♠-]/g, (g) => SEQ_MAP[g])  // suit glyphs + pass mark → letters
+    .replace(/\s+/g, '');                    // ignore spacing (contiguous match)
+}
+
 function filterBook() {
   if (!bookNodes) return;
   const q = id('b-filter').value.trim().toLowerCase();
+  const seq = normSeq(q);
   let n = 0;
-  for (const { el, haystack } of bookNodes) {
-    const show = !q || haystack.includes(q);
+  for (const { el, haystack, seqHay } of bookNodes) {
+    const show = !q || haystack.includes(q) || seqHay.includes(seq);
     el.classList.toggle('hidden', !show);
     if (show) n++;
   }

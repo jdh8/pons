@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Web book search now takes ASCII shorthand for calls.** The filter matched
+  the book's rendered glyphs literally, so `2c` found nothing (the node holds
+  `2♣`) and pass/notrump were inconsistent. A deterministic normalizer maps
+  `C D H S`→`♣♦♥♠`, `P`/`-`→pass, and `N`/`NT`→notrump on both the query and a
+  per-node sequence haystack, and ignores spacing (`1c2d` matches `1♣ 2♦`). The
+  existing prose (auction/rule-text) match is preserved, so search only gains
+  matches. `X`/`XX` were already easy to type and are untouched.
+
 - **Web Settings registry is now curated by measurement.** The tab exposes every
   convention that A/B's as a win or a wash and hides options that measure *worse*
   (kept in the engine as opt-in re-measure knobs). Added the shipped default-on
