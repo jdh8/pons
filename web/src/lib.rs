@@ -791,24 +791,13 @@ fn set_advance_sohl_toggle(on: bool) {
     });
 }
 
-/// Our 1NT minor-suit response scheme — maps onto `american::{PUPPET, EUROPEAN}`.
-static NOTRUMP_MINORS_VARIANTS: &[Variant] = &[
-    Variant {
-        value: "puppet",
-        label: "Puppet Stayman",
-    },
-    Variant {
-        value: "european",
-        label: "European (transfers)",
-    },
-];
-
-/// Select the 1NT minor scheme from its registry `value`.
-fn set_notrump_minors_choice(value: &str) {
-    american::set_notrump_minors(if value == "european" {
-        american::EUROPEAN
-    } else {
+/// Puppet Stayman as an on/off toggle: on = Puppet (the shipped default, 3♣ Puppet
+/// Stayman), off = European transfers (2♠ club transfer, 2NT natural, 3♣ diamond).
+fn set_puppet_stayman(on: bool) {
+    american::set_notrump_minors(if on {
         american::PUPPET
+    } else {
+        american::EUROPEAN
     });
 }
 
@@ -825,14 +814,13 @@ static SETTINGS: &[Setting] = &[
     ),
     toggle("rule_of_20", OPENINGS, "", true, american::set_rule_of_20),
     // Notrump
-    Setting::Choice {
-        key: "notrump_minors",
-        section: NOTRUMP,
-        label: "1NT minor responses",
-        variants: NOTRUMP_MINORS_VARIANTS,
-        default: "puppet",
-        set: set_notrump_minors_choice,
-    },
+    toggle(
+        "puppet_stayman",
+        NOTRUMP,
+        "Puppet Stayman",
+        true,
+        set_puppet_stayman,
+    ),
     toggle(
         "garbage_stayman",
         NOTRUMP,
