@@ -96,8 +96,8 @@ pub use competition::{
 // The inference walk reads this knob at classify time (the two-suiter reading).
 pub(crate) use competition::uvu_over_majors;
 pub use defense::{
-    DoubleShape, TakeoutSupport, advance_double, defense_to_suit, defense_to_weak_two,
-    set_advance_rubens, set_advance_sohl_style, set_always_pass_defense,
+    DoubleShape, NotrumpDefense, TakeoutSupport, advance_double, defense_to_suit,
+    defense_to_weak_two, set_advance_rubens, set_advance_sohl_style, set_always_pass_defense,
     set_diamond_transfer_defense, set_direct_dont, set_direct_dont_four_four,
     set_direct_dont_one_suiter_min, set_direct_dont_x_floor, set_direct_landy_double,
     set_direct_landy_double_floor, set_direct_landy_penalty_pass, set_doubled_landy_escape,
@@ -105,8 +105,8 @@ pub use defense::{
     set_meckwell_x_floor, set_meckwell_x_four_four, set_minor_transfer_defense,
     set_natural_defense, set_natural_double_floor, set_natural_double_shape,
     set_natural_double_weight, set_natural_overcall_points, set_notrump_balancing,
-    set_overcall_discipline, set_passed_hand_overcall, set_responsive_overcall,
-    set_responsive_takeout, set_rich_advance_double, set_stayman_defense,
+    set_notrump_defense, set_overcall_discipline, set_passed_hand_overcall,
+    set_responsive_overcall, set_responsive_takeout, set_rich_advance_double, set_stayman_defense,
     set_stayman_defense_overcall, set_takeout_support, set_transfer_defense,
     set_unusual_notrump_defense, set_woolsey, set_woolsey_double_floor, set_woolsey_points,
 };

@@ -290,10 +290,12 @@ table.dd td { border-top: 1px solid rgba(0, 0, 0, 0.08); }
 
 /* Settings tab: convention toggles — basic list, "More…" reveals the full system. */
 .optlist { display: flex; flex-direction: column; gap: 0.15rem; }
-#s-more { display: flex; flex-direction: column; gap: 0.8rem; }
+#s-options { display: flex; flex-direction: column; gap: 0.8rem; }
 label.opt { display: flex; align-items: center; gap: 0.5rem; font-size: 0.95rem; cursor: pointer; padding: 0.12rem 0; }
 label.opt input { width: 1rem; height: 1rem; cursor: pointer; }
-.moreopts summary { cursor: pointer; font-weight: 600; padding: 0.3rem 0; }
+/* A mutually-exclusive radio family (e.g. defense to their 1NT). */
+.choice { padding: 0.2rem 0; }
+.choice-label { font-weight: 600; font-size: 0.95rem; padding: 0.12rem 0; }
 #s-reset {
   align-self: flex-start;
   margin-top: 1rem;

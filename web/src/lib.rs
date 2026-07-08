@@ -20,7 +20,7 @@ use contract_bridge::eval::{self, HandEvaluator as _, SimpleEvaluator};
 use contract_bridge::{AbsoluteVulnerability, Bid, Builder, FullDeal, Hand, Seat, Strain};
 use pons::bidding::american::bare_american;
 use pons::bidding::fallback::Fallback;
-use pons::bidding::{Stance, Table};
+use pons::bidding::{Stance, Table, american, constraint, inference, instinct};
 use pons::scoring::final_contract;
 use pons_dds::{Solver, TrickCountTable, solve_deal_on};
 use rand::SeedableRng as _;
@@ -653,137 +653,794 @@ fn rule_json(rules: &pons::bidding::Rules) -> Vec<RuleJson> {
         .collect()
 }
 
-/// Flip a boolean bidding knob for the **next** deal (the Settings tab)
+/// The Settings-tab registry: one row per user-facing bidding knob
 ///
-/// Every option is a module-level thread-local `set_*` flag read when a deal
-/// rebuilds `american()` in `deal_with`; wasm is
-/// single-threaded, so the thread-local is effectively a global.  Unknown keys
-/// are a no-op.  `lebensohl` is special-cased to drive the style enum directly
-/// so its "on" state stays the default [`Transfer`][pons::bidding::american::LebensohlStyle]
-/// rather than the `set_lebensohl` wrapper's lossy `Plain`.
+/// This table is the **single source of truth** for the Settings tab.
+/// [`set_option`] / [`set_choice`] dispatch a call through it and
+/// [`describe_options`] serialises it for the JS renderer, so adding a convention
+/// to the UI needs only one row here (plus the engine `set_*` it points at) — the
+/// old hand-synced JS `CURATED` / `MORE` arrays are gone.  Each `set_*` is a
+/// module-level thread-local flag read when a deal rebuilds `american()` in
+/// `deal_with`; wasm is single-threaded, so the thread-local is effectively a global.
+enum Setting {
+    /// A boolean checkbox.
+    Toggle {
+        key: &'static str,
+        section: &'static str,
+        /// Display label, or `""` to humanise the key in JS.
+        label: &'static str,
+        default: bool,
+        set: fn(bool),
+    },
+    /// A mutually-exclusive family, rendered as radio buttons.  Exactly one variant
+    /// is active; the engine backs it with a single enum (e.g. [`NotrumpDefense`]).
+    ///
+    /// [`NotrumpDefense`]: pons::bidding::american::NotrumpDefense
+    Choice {
+        key: &'static str,
+        section: &'static str,
+        label: &'static str,
+        variants: &'static [Variant],
+        /// The `value` of the default variant.
+        default: &'static str,
+        set: fn(&str),
+    },
+}
+
+/// One radio option of a [`Setting::Choice`].
+#[derive(Serialize)]
+struct Variant {
+    value: &'static str,
+    label: &'static str,
+}
+
+impl Setting {
+    const fn key(&self) -> &'static str {
+        match self {
+            Setting::Toggle { key, .. } | Setting::Choice { key, .. } => key,
+        }
+    }
+}
+
+/// Terser constructor for the common [`Setting::Toggle`] row.
+const fn toggle(
+    key: &'static str,
+    section: &'static str,
+    label: &'static str,
+    default: bool,
+    set: fn(bool),
+) -> Setting {
+    Setting::Toggle {
+        key,
+        section,
+        label,
+        default,
+        set,
+    }
+}
+
+// Section names; the tab shows them in first-appearance order.
+const OPENINGS: &str = "Openings";
+const NOTRUMP: &str = "Notrump";
+const COMPETITION: &str = "Competition";
+const DEFENSE: &str = "Defense to their 1NT";
+const REBIDS: &str = "Rebids & responses";
+const FLOOR: &str = "Floor (instinct)";
+const INFERENCE: &str = "Inference (auction reading)";
+const FUZZING: &str = "Fuzzing (hand evaluation)";
+
+/// The `[1NT]` defense family — variants map onto `american::NotrumpDefense`.
+static NOTRUMP_DEFENSE_VARIANTS: &[Variant] = &[
+    Variant {
+        value: "natural",
+        label: "Natural",
+    },
+    Variant {
+        value: "direct_dont",
+        label: "DONT",
+    },
+    Variant {
+        value: "meckwell",
+        label: "Meckwell",
+    },
+    Variant {
+        value: "woolsey",
+        label: "Woolsey",
+    },
+    Variant {
+        value: "always_pass",
+        label: "Always pass",
+    },
+];
+
+/// Select the mutually-exclusive 1NT defense from its registry `value`.
+fn set_notrump_defense_choice(value: &str) {
+    use american::NotrumpDefense;
+    american::set_notrump_defense(match value {
+        "direct_dont" => NotrumpDefense::DirectDont,
+        "meckwell" => NotrumpDefense::Meckwell,
+        "woolsey" => NotrumpDefense::Woolsey,
+        "always_pass" => NotrumpDefense::AlwaysPass,
+        _ => NotrumpDefense::Natural,
+    });
+}
+
+/// Lebensohl as an on/off toggle: on = Transfer Lebensohl (the default package, not
+/// the `set_lebensohl` wrapper's lossy `Plain`), off = none.
+fn set_lebensohl_toggle(on: bool) {
+    use american::LebensohlStyle;
+    american::set_lebensohl_style(if on {
+        LebensohlStyle::Transfer
+    } else {
+        LebensohlStyle::Off
+    });
+}
+
+/// The registry.  Defaults mirror each engine `Cell::new(...)`; the
+/// `registry_defaults_match_the_engine` test guards the mirror.
+static SETTINGS: &[Setting] = &[
+    // Openings
+    toggle(
+        "open_one_notrump",
+        OPENINGS,
+        "Open 1NT (15–17)",
+        true,
+        american::set_open_one_notrump,
+    ),
+    toggle(
+        "one_notrump_fifths",
+        OPENINGS,
+        "",
+        false,
+        american::set_one_notrump_fifths,
+    ),
+    // Notrump
+    toggle(
+        "garbage_stayman",
+        NOTRUMP,
+        "Garbage Stayman",
+        true,
+        american::set_garbage_stayman,
+    ),
+    toggle(
+        "transfer_super_accept",
+        NOTRUMP,
+        "",
+        false,
+        american::set_transfer_super_accept,
+    ),
+    toggle(
+        "transfer_slam_try",
+        NOTRUMP,
+        "",
+        true,
+        american::set_transfer_slam_try,
+    ),
+    toggle(
+        "texas_slam_drive",
+        NOTRUMP,
+        "",
+        true,
+        american::set_texas_slam_drive,
+    ),
+    toggle(
+        "transfer_gf_majors",
+        NOTRUMP,
+        "",
+        true,
+        american::set_transfer_gf_majors,
+    ),
+    toggle(
+        "transfer_gf_hearts",
+        NOTRUMP,
+        "",
+        true,
+        american::set_transfer_gf_hearts,
+    ),
+    toggle(
+        "minor_min_to_3nt",
+        NOTRUMP,
+        "",
+        false,
+        american::set_minor_min_to_3nt,
+    ),
+    toggle(
+        "stayman_both_majors",
+        NOTRUMP,
+        "",
+        true,
+        american::set_stayman_both_majors,
+    ),
+    toggle(
+        "stayman_5card_max",
+        NOTRUMP,
+        "",
+        true,
+        american::set_stayman_5card_max,
+    ),
+    toggle(
+        "long_minor_force",
+        NOTRUMP,
+        "",
+        false,
+        american::set_long_minor_force,
+    ),
+    toggle(
+        "invitational_5card_majors",
+        NOTRUMP,
+        "",
+        false,
+        american::set_invitational_5card_majors,
+    ),
+    toggle(
+        "transfer_longer_major",
+        NOTRUMP,
+        "",
+        true,
+        american::set_transfer_longer_major,
+    ),
+    toggle(
+        "crawling_stayman",
+        NOTRUMP,
+        "",
+        true,
+        american::set_crawling_stayman,
+    ),
+    toggle(
+        "stayman_cue_continuation",
+        NOTRUMP,
+        "",
+        true,
+        american::set_stayman_cue_continuation,
+    ),
+    toggle(
+        "stayman_minor_slam_try",
+        NOTRUMP,
+        "",
+        true,
+        american::set_stayman_minor_slam_try,
+    ),
+    // Competition
+    Setting::Toggle {
+        key: "lebensohl",
+        section: COMPETITION,
+        label: "Lebensohl (over 1NT interference)",
+        default: true,
+        set: set_lebensohl_toggle,
+    },
+    toggle(
+        "trap_pass",
+        COMPETITION,
+        "Trap pass",
+        true,
+        american::set_trap_pass,
+    ),
+    toggle(
+        "penalty_double_leave_in",
+        COMPETITION,
+        "",
+        true,
+        american::set_penalty_double_leave_in,
+    ),
+    toggle("uvu", COMPETITION, "", true, american::set_uvu),
+    toggle(
+        "uvu_over_majors",
+        COMPETITION,
+        "",
+        true,
+        american::set_uvu_over_majors,
+    ),
+    toggle(
+        "direct_3nt_stopper",
+        COMPETITION,
+        "",
+        true,
+        american::set_direct_3nt_stopper,
+    ),
+    toggle(
+        "cue_raise_answer",
+        COMPETITION,
+        "",
+        true,
+        american::set_cue_raise_answer,
+    ),
+    toggle(
+        "cue_minor_raise_answer",
+        COMPETITION,
+        "",
+        true,
+        american::set_cue_minor_raise_answer,
+    ),
+    toggle(
+        "weak_two_competition",
+        COMPETITION,
+        "",
+        false,
+        american::set_weak_two_competition,
+    ),
+    toggle(
+        "strong_two_competition",
+        COMPETITION,
+        "",
+        true,
+        american::set_strong_two_competition,
+    ),
+    toggle(
+        "major_support_double",
+        COMPETITION,
+        "",
+        true,
+        american::set_major_support_double,
+    ),
+    toggle("free_bids", COMPETITION, "", false, american::set_free_bids),
+    toggle(
+        "high_overcall_responses",
+        COMPETITION,
+        "",
+        false,
+        american::set_high_overcall_responses,
+    ),
+    toggle(
+        "jordan_truscott",
+        COMPETITION,
+        "Jordan / Truscott 2NT",
+        true,
+        american::set_jordan_truscott,
+    ),
+    toggle(
+        "delayed_cue",
+        COMPETITION,
+        "",
+        false,
+        american::set_delayed_cue,
+    ),
+    toggle(
+        "competition_over_stayman",
+        COMPETITION,
+        "",
+        true,
+        american::set_competition_over_stayman,
+    ),
+    toggle(
+        "competition_over_transfer",
+        COMPETITION,
+        "",
+        false,
+        american::set_competition_over_transfer,
+    ),
+    toggle(
+        "competition_over_minor_transfer",
+        COMPETITION,
+        "",
+        true,
+        american::set_competition_over_minor_transfer,
+    ),
+    toggle(
+        "competition_over_diamond_transfer",
+        COMPETITION,
+        "",
+        true,
+        american::set_competition_over_diamond_transfer,
+    ),
+    toggle(
+        "defense_to_2d_multi",
+        COMPETITION,
+        "",
+        false,
+        american::set_defense_to_2d_multi,
+    ),
+    toggle(
+        "leaping_michaels",
+        COMPETITION,
+        "Leaping Michaels",
+        true,
+        american::set_leaping_michaels,
+    ),
+    toggle(
+        "responsive_takeout",
+        COMPETITION,
+        "Responsive doubles",
+        true,
+        american::set_responsive_takeout,
+    ),
+    toggle(
+        "responsive_overcall",
+        COMPETITION,
+        "",
+        false,
+        american::set_responsive_overcall,
+    ),
+    toggle(
+        "rich_advance_double",
+        COMPETITION,
+        "",
+        false,
+        american::set_rich_advance_double,
+    ),
+    toggle(
+        "advance_rubens",
+        COMPETITION,
+        "",
+        false,
+        american::set_advance_rubens,
+    ),
+    // Defense to their 1NT — the radio family is the enum-backed choice
+    Setting::Choice {
+        key: "notrump_defense",
+        section: DEFENSE,
+        label: "Defense system",
+        variants: NOTRUMP_DEFENSE_VARIANTS,
+        default: "natural",
+        set: set_notrump_defense_choice,
+    },
+    toggle(
+        "notrump_balancing",
+        DEFENSE,
+        "",
+        false,
+        american::set_notrump_balancing,
+    ),
+    toggle("landy_hcp", DEFENSE, "", false, american::set_landy_hcp),
+    toggle(
+        "direct_dont_four_four",
+        DEFENSE,
+        "",
+        true,
+        american::set_direct_dont_four_four,
+    ),
+    toggle(
+        "meckwell_minor_major_44",
+        DEFENSE,
+        "",
+        false,
+        american::set_meckwell_minor_major_44,
+    ),
+    toggle(
+        "meckwell_x_four_four",
+        DEFENSE,
+        "",
+        true,
+        american::set_meckwell_x_four_four,
+    ),
+    toggle(
+        "stayman_defense",
+        DEFENSE,
+        "",
+        false,
+        american::set_stayman_defense,
+    ),
+    toggle(
+        "transfer_defense",
+        DEFENSE,
+        "",
+        false,
+        american::set_transfer_defense,
+    ),
+    toggle(
+        "minor_transfer_defense",
+        DEFENSE,
+        "",
+        false,
+        american::set_minor_transfer_defense,
+    ),
+    toggle(
+        "diamond_transfer_defense",
+        DEFENSE,
+        "",
+        false,
+        american::set_diamond_transfer_defense,
+    ),
+    // Rebids & responses
+    toggle(
+        "fourth_suit_forcing",
+        REBIDS,
+        "Fourth suit forcing",
+        true,
+        american::set_fourth_suit_forcing,
+    ),
+    toggle(
+        "xyz",
+        REBIDS,
+        "XYZ (two-way checkback)",
+        true,
+        american::set_xyz,
+    ),
+    toggle(
+        "major_game_tries",
+        REBIDS,
+        "Major-suit game tries",
+        true,
+        american::set_major_game_tries,
+    ),
+    toggle(
+        "meckstroth_adjunct",
+        REBIDS,
+        "Meckstroth adjunct",
+        true,
+        american::set_meckstroth_adjunct,
+    ),
+    toggle(
+        "limit_raise_acceptance",
+        REBIDS,
+        "",
+        true,
+        american::set_limit_raise_acceptance,
+    ),
+    toggle(
+        "longer_major_response",
+        REBIDS,
+        "",
+        false,
+        american::set_longer_major_response,
+    ),
+    toggle("up_the_line", REBIDS, "", true, american::set_up_the_line),
+    toggle(
+        "major_rebid_tails",
+        REBIDS,
+        "",
+        true,
+        american::set_major_rebid_tails,
+    ),
+    // Floor (instinct)
+    toggle(
+        "inference_aware",
+        FLOOR,
+        "",
+        true,
+        instinct::set_inference_aware,
+    ),
+    toggle(
+        "one_nt_runout",
+        FLOOR,
+        "",
+        true,
+        instinct::set_one_nt_runout,
+    ),
+    toggle(
+        "one_nt_runout_universal",
+        FLOOR,
+        "",
+        true,
+        instinct::set_one_nt_runout_universal,
+    ),
+    toggle("settle_floor", FLOOR, "", true, instinct::set_settle_floor),
+    toggle(
+        "competitive_rebid",
+        FLOOR,
+        "",
+        true,
+        instinct::set_competitive_rebid,
+    ),
+    toggle(
+        "rubens_advances",
+        FLOOR,
+        "",
+        true,
+        instinct::set_rubens_advances,
+    ),
+    toggle("floor_rkcb", FLOOR, "", true, instinct::set_floor_rkcb),
+    toggle(
+        "suppress_nt_game_force_over_double",
+        FLOOR,
+        "",
+        true,
+        instinct::set_suppress_nt_game_force_over_double,
+    ),
+    toggle(
+        "correct_3nt_to_major",
+        FLOOR,
+        "",
+        true,
+        instinct::set_correct_3nt_to_major,
+    ),
+    toggle(
+        "gambling_3nt_over_double",
+        FLOOR,
+        "",
+        false,
+        instinct::set_gambling_3nt_over_double,
+    ),
+    toggle(
+        "gambling_3nt_require_ace",
+        FLOOR,
+        "",
+        true,
+        instinct::set_gambling_3nt_require_ace,
+    ),
+    toggle(
+        "preempt_4m_over_double",
+        FLOOR,
+        "",
+        false,
+        instinct::set_preempt_4m_over_double,
+    ),
+    toggle(
+        "preempt_4m_require_ace",
+        FLOOR,
+        "",
+        true,
+        instinct::set_preempt_4m_require_ace,
+    ),
+    toggle(
+        "penalize_escape_stack",
+        FLOOR,
+        "",
+        true,
+        instinct::set_penalize_escape_stack,
+    ),
+    toggle(
+        "penalize_escape_values",
+        FLOOR,
+        "",
+        true,
+        instinct::set_penalize_escape_values,
+    ),
+    toggle("uvu_encircle", FLOOR, "", true, instinct::set_uvu_encircle),
+    toggle(
+        "penalty_latch",
+        FLOOR,
+        "",
+        true,
+        instinct::set_penalty_latch,
+    ),
+    toggle(
+        "penalty_no_pull",
+        FLOOR,
+        "",
+        true,
+        instinct::set_penalty_no_pull,
+    ),
+    toggle(
+        "advancer_xx_runout",
+        FLOOR,
+        "",
+        true,
+        instinct::set_advancer_xx_runout,
+    ),
+    toggle(
+        "doubler_xx_runout",
+        FLOOR,
+        "",
+        true,
+        instinct::set_doubler_xx_runout,
+    ),
+    // Inference (auction reading)
+    toggle(
+        "nt_invite_inference",
+        INFERENCE,
+        "",
+        true,
+        inference::set_nt_invite_inference,
+    ),
+    toggle(
+        "rubens_transfer_reading",
+        INFERENCE,
+        "",
+        true,
+        inference::set_rubens_transfer_reading,
+    ),
+    toggle(
+        "alert_reading",
+        INFERENCE,
+        "",
+        true,
+        inference::set_alert_reading,
+    ),
+    toggle(
+        "fallback_projection",
+        INFERENCE,
+        "",
+        true,
+        inference::set_fallback_projection,
+    ),
+    toggle(
+        "control_bid_reading",
+        INFERENCE,
+        "",
+        true,
+        inference::set_control_bid_reading,
+    ),
+    toggle(
+        "rule_accept",
+        INFERENCE,
+        "",
+        false,
+        inference::set_rule_accept,
+    ),
+    // Fuzzing (hand evaluation)
+    toggle(
+        "fuzzy_strength",
+        FUZZING,
+        "Fuzzy hand strength",
+        true,
+        constraint::set_fuzzy_strength,
+    ),
+    toggle(
+        "fuzzy_points",
+        FUZZING,
+        "",
+        true,
+        constraint::set_fuzzy_points,
+    ),
+    toggle(
+        "fuzzy_fifths",
+        FUZZING,
+        "",
+        true,
+        constraint::set_fuzzy_fifths,
+    ),
+];
+
+/// Flip a boolean bidding knob for the **next** deal (the Settings tab).  Unknown
+/// keys are a no-op.
 #[wasm_bindgen]
 pub fn set_option(key: &str, on: bool) {
-    use pons::bidding::american::LebensohlStyle;
-    use pons::bidding::{american, constraint, inference, instinct};
-
-    if key == "lebensohl" {
-        american::set_lebensohl_style(if on {
-            LebensohlStyle::Transfer
-        } else {
-            LebensohlStyle::Off
-        });
-        return;
+    if let Some(Setting::Toggle { set, .. }) = SETTINGS.iter().find(|s| s.key() == key) {
+        set(on);
     }
+}
 
-    // One arm per boolean setter; keeps the string→function map in one place.
-    macro_rules! options {
-        ($key:expr, $on:expr; $($name:literal => $f:path),+ $(,)?) => {
-            match $key { $($name => $f($on),)+ _ => {} }
-        };
+/// Select a variant of a mutually-exclusive choice (a radio family, e.g. defense to
+/// their 1NT) for the **next** deal.  Unknown keys are a no-op.
+#[wasm_bindgen]
+pub fn set_choice(key: &str, value: &str) {
+    if let Some(Setting::Choice { set, .. }) = SETTINGS.iter().find(|s| s.key() == key) {
+        set(value);
     }
-    options!(key, on;
-        // Openings
-        "open_one_notrump" => american::set_open_one_notrump,
-        "one_notrump_fifths" => american::set_one_notrump_fifths,
-        // Notrump
-        "transfer_super_accept" => american::set_transfer_super_accept,
-        "transfer_slam_try" => american::set_transfer_slam_try,
-        "texas_slam_drive" => american::set_texas_slam_drive,
-        "transfer_gf_majors" => american::set_transfer_gf_majors,
-        "minor_min_to_3nt" => american::set_minor_min_to_3nt,
-        "transfer_gf_hearts" => american::set_transfer_gf_hearts,
-        "garbage_stayman" => american::set_garbage_stayman,
-        "stayman_both_majors" => american::set_stayman_both_majors,
-        "stayman_5card_max" => american::set_stayman_5card_max,
-        "long_minor_force" => american::set_long_minor_force,
-        "invitational_5card_majors" => american::set_invitational_5card_majors,
-        "transfer_longer_major" => american::set_transfer_longer_major,
-        "crawling_stayman" => american::set_crawling_stayman,
-        "stayman_cue_continuation" => american::set_stayman_cue_continuation,
-        "stayman_minor_slam_try" => american::set_stayman_minor_slam_try,
-        // Competition (lebensohl handled above)
-        "penalty_double_leave_in" => american::set_penalty_double_leave_in,
-        "uvu" => american::set_uvu,
-        "direct_3nt_stopper" => american::set_direct_3nt_stopper,
-        "trap_pass" => american::set_trap_pass,
-        "cue_raise_answer" => american::set_cue_raise_answer,
-        "cue_minor_raise_answer" => american::set_cue_minor_raise_answer,
-        "uvu_over_majors" => american::set_uvu_over_majors,
-        "weak_two_competition" => american::set_weak_two_competition,
-        "strong_two_competition" => american::set_strong_two_competition,
-        "major_support_double" => american::set_major_support_double,
-        "free_bids" => american::set_free_bids,
-        "high_overcall_responses" => american::set_high_overcall_responses,
-        "jordan_truscott" => american::set_jordan_truscott,
-        "delayed_cue" => american::set_delayed_cue,
-        "competition_over_stayman" => american::set_competition_over_stayman,
-        "competition_over_transfer" => american::set_competition_over_transfer,
-        "competition_over_minor_transfer" => american::set_competition_over_minor_transfer,
-        "competition_over_diamond_transfer" => american::set_competition_over_diamond_transfer,
-        "defense_to_2d_multi" => american::set_defense_to_2d_multi,
-        "leaping_michaels" => american::set_leaping_michaels,
-        "responsive_takeout" => american::set_responsive_takeout,
-        "responsive_overcall" => american::set_responsive_overcall,
-        "rich_advance_double" => american::set_rich_advance_double,
-        "advance_rubens" => american::set_advance_rubens,
-        // Defense to their 1NT (competing alternatives — pick one family)
-        "landy_hcp" => american::set_landy_hcp,
-        "natural_defense" => american::set_natural_defense,
-        "notrump_balancing" => american::set_notrump_balancing,
-        "direct_dont" => american::set_direct_dont,
-        "meckwell" => american::set_meckwell,
-        "meckwell_minor_major_44" => american::set_meckwell_minor_major_44,
-        "meckwell_x_four_four" => american::set_meckwell_x_four_four,
-        "stayman_defense" => american::set_stayman_defense,
-        "transfer_defense" => american::set_transfer_defense,
-        "minor_transfer_defense" => american::set_minor_transfer_defense,
-        "diamond_transfer_defense" => american::set_diamond_transfer_defense,
-        "direct_dont_four_four" => american::set_direct_dont_four_four,
-        "woolsey" => american::set_woolsey,
-        "always_pass_defense" => american::set_always_pass_defense,
-        // Rebids & responses
-        "longer_major_response" => american::set_longer_major_response,
-        "up_the_line" => american::set_up_the_line,
-        "meckstroth_adjunct" => american::set_meckstroth_adjunct,
-        "major_rebid_tails" => american::set_major_rebid_tails,
-        "fourth_suit_forcing" => american::set_fourth_suit_forcing,
-        "xyz" => american::set_xyz,
-        // Raises
-        "major_game_tries" => american::set_major_game_tries,
-        "limit_raise_acceptance" => american::set_limit_raise_acceptance,
-        // Floor (instinct)
-        "inference_aware" => instinct::set_inference_aware,
-        "one_nt_runout" => instinct::set_one_nt_runout,
-        "settle_floor" => instinct::set_settle_floor,
-        "competitive_rebid" => instinct::set_competitive_rebid,
-        "rubens_advances" => instinct::set_rubens_advances,
-        "floor_rkcb" => instinct::set_floor_rkcb,
-        "suppress_nt_game_force_over_double" => instinct::set_suppress_nt_game_force_over_double,
-        "correct_3nt_to_major" => instinct::set_correct_3nt_to_major,
-        "gambling_3nt_over_double" => instinct::set_gambling_3nt_over_double,
-        "gambling_3nt_require_ace" => instinct::set_gambling_3nt_require_ace,
-        "preempt_4m_over_double" => instinct::set_preempt_4m_over_double,
-        "preempt_4m_require_ace" => instinct::set_preempt_4m_require_ace,
-        "one_nt_runout_universal" => instinct::set_one_nt_runout_universal,
-        "penalize_escape_stack" => instinct::set_penalize_escape_stack,
-        "penalize_escape_values" => instinct::set_penalize_escape_values,
-        "uvu_encircle" => instinct::set_uvu_encircle,
-        "penalty_latch" => instinct::set_penalty_latch,
-        "penalty_no_pull" => instinct::set_penalty_no_pull,
-        "advancer_xx_runout" => instinct::set_advancer_xx_runout,
-        "doubler_xx_runout" => instinct::set_doubler_xx_runout,
-        // Inference (auction reading)
-        "nt_invite_inference" => inference::set_nt_invite_inference,
-        "rubens_transfer_reading" => inference::set_rubens_transfer_reading,
-        "alert_reading" => inference::set_alert_reading,
-        "fallback_projection" => inference::set_fallback_projection,
-        "control_bid_reading" => inference::set_control_bid_reading,
-        "rule_accept" => inference::set_rule_accept,
-        // Fuzzing (hand evaluation)
-        "fuzzy_strength" => constraint::set_fuzzy_strength,
-        "fuzzy_points" => constraint::set_fuzzy_points,
-        "fuzzy_fifths" => constraint::set_fuzzy_fifths,
-    );
+}
+
+/// The Settings registry as JSON, for the JS renderer to build the tab from
+///
+/// Each entry is `{key, section, kind, label, default, variants?}` — `kind` is
+/// `"toggle"` (boolean `default`) or `"choice"` (string `default` + a `variants`
+/// array).  An empty `label` means "humanise the key in JS".
+#[wasm_bindgen]
+pub fn describe_options() -> String {
+    #[derive(Serialize)]
+    struct OptionView {
+        key: &'static str,
+        section: &'static str,
+        kind: &'static str,
+        label: &'static str,
+        default: serde_json::Value,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        variants: Option<&'static [Variant]>,
+    }
+    let views: Vec<OptionView> = SETTINGS
+        .iter()
+        .map(|setting| match setting {
+            Setting::Toggle {
+                key,
+                section,
+                label,
+                default,
+                ..
+            } => OptionView {
+                key,
+                section,
+                kind: "toggle",
+                label,
+                default: (*default).into(),
+                variants: None,
+            },
+            Setting::Choice {
+                key,
+                section,
+                label,
+                variants,
+                default,
+                ..
+            } => OptionView {
+                key,
+                section,
+                kind: "choice",
+                label,
+                default: (*default).into(),
+                variants: Some(*variants),
+            },
+        })
+        .collect();
+    serde_json::to_string(&views).expect("settings registry serialises")
 }
 
 #[cfg(test)]
@@ -855,6 +1512,72 @@ mod tests {
         );
 
         set_option("open_one_notrump", true); // restore for a reused test thread
+    }
+
+    #[test]
+    fn registry_is_well_formed() {
+        use std::collections::HashSet;
+        // Unique keys — a dup would shadow in the linear find and confuse the UI.
+        let mut keys = HashSet::new();
+        for setting in SETTINGS {
+            assert!(
+                keys.insert(setting.key()),
+                "duplicate registry key: {}",
+                setting.key()
+            );
+        }
+        // describe_options round-trips and matches the table shape one-for-one.
+        let json = parse(&describe_options());
+        let entries = json.as_array().expect("registry is a JSON array");
+        assert_eq!(
+            entries.len(),
+            SETTINGS.len(),
+            "one JSON entry per registry row"
+        );
+        for entry in entries {
+            assert!(entry["key"].is_string() && entry["section"].is_string());
+            match entry["kind"].as_str().expect("kind is a string") {
+                "toggle" => assert!(entry["default"].is_boolean(), "toggle default is a bool"),
+                "choice" => {
+                    let default = entry["default"]
+                        .as_str()
+                        .expect("choice default is a string");
+                    let values: Vec<&str> = entry["variants"]
+                        .as_array()
+                        .expect("choice has variants")
+                        .iter()
+                        .map(|v| v["value"].as_str().expect("variant value"))
+                        .collect();
+                    assert!(
+                        values.contains(&default),
+                        "choice default {default} is a variant"
+                    );
+                }
+                other => panic!("unknown kind {other}"),
+            }
+        }
+    }
+
+    #[test]
+    fn set_choice_reroutes_the_defense() {
+        // North opens 1NT; East (19 HCP) acts over it — doubles under the natural
+        // defense, passes under always-pass.  Selecting the family through set_choice
+        // must change East's action.
+        const PBN: &str = "N:AK72.K65.K43.Q82 QJT.AQJ.AQJ.AKJT 986.T987.T98.976 543.432.7652.543";
+        let mut table = WebTable::new("1");
+
+        set_choice("notrump_defense", "natural");
+        let natural = parse(&table.deal_pbn(PBN, "N", "none"));
+
+        set_choice("notrump_defense", "always_pass");
+        let always_pass = parse(&table.deal_pbn(PBN, "N", "none"));
+
+        assert_ne!(
+            natural["auction"], always_pass["auction"],
+            "always-pass defense changes East's action over North's 1NT",
+        );
+
+        set_choice("notrump_defense", "natural"); // restore for a reused test thread
     }
 
     #[test]

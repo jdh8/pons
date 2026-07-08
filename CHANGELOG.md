@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Web Settings tab is now generated from a Rust registry.** The wasm crate
+  exports `describe_options()` (a JSON list of every user-facing knob: key,
+  section, default, and — for radio families — variants) and `set_choice(key,
+  value)`; the JS renders the whole tab from that list and no longer carries a
+  hand-maintained option catalogue or re-typed defaults. Adding a convention to
+  the UI now needs one row in the `SETTINGS` table (plus its engine `set_*`),
+  not edits across three layers. `set_option` and `describe_options` share the
+  one table, so a UI knob can never silently no-op against a missing setter.
+  No bidding behaviour changes.
+
 - **Rich advance of a takeout double** (`set_rich_advance_double`, **opt-in,
   default-off**; `bba-gen --ns-rich-advance`). The flat advance floor gave the
   advancer of `(1t)–X–(P)` only a cheapest natural suit, `3NT`, and a penalty
@@ -211,6 +221,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     the campaign (defensive book first, balancing deprioritized).
 
 ### Changed
+
+- **Defense to their 1NT is a single `NotrumpDefense` enum** (`Natural`,
+  `DirectDont`, `Meckwell`, `Woolsey`, `DirectLandy`, `AlwaysPass`, `Off`) in
+  one thread-local, selected by `set_notrump_defense(...)` and rendered as a
+  radio family in the web UI. It replaces five independent `Cell<bool>` flags
+  whose mutual exclusion was enforced only by a read-time precedence cascade —
+  the "two families authored at once" state is now unrepresentable, and
+  `chain_natural_base` / `active_alerts` are a `match` on the enum. The
+  per-system `set_woolsey` / `set_meckwell` / `set_direct_dont` /
+  `set_natural_defense` / `set_always_pass_defense` / `set_direct_landy_double`
+  setters remain as back-compat shims over the enum (like `set_lebensohl` over
+  `set_lebensohl_style`), so `bba-gen`, the A/B examples, and every test are
+  unchanged. The bidding is byte-identical for every single-system state (all
+  the UI can produce), so no re-measurement is needed.
 
 - **Web UI: bumped `pons-dds` 0.1.2 → 0.2.0** — the browser double-dummy solver
   (post-auction DD table and the practice-board fairness oracle). 0.2.0 packs the

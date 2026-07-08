@@ -207,34 +207,87 @@ fn landy_use_hcp() -> bool {
     LANDY_HCP.with(Cell::get)
 }
 
+/// Which mutually-exclusive defense our side plays over the opponents' 1NT opening
+///
+/// Exactly one system is active at a time.  Storing the choice in a single `Cell`
+/// makes the old "two families authored at once" state — previously possible with
+/// the independent `NATURAL_DEFENSE` / `DIRECT_DONT` / `MECKWELL` / `WOOLSEY` /
+/// `ALWAYS_PASS_DEFENSE` booleans and resolved only by a read-time precedence
+/// cascade — unrepresentable.  Read once at book-construction time.  The canonical
+/// setter is [`set_notrump_defense`]; the per-system `set_*` toggles below are
+/// back-compat shims over it (cf. [`set_lebensohl`][super::set_lebensohl]).
+#[derive(Clone, Copy, PartialEq, Eq, Default, Debug)]
+pub enum NotrumpDefense {
+    /// Natural one-suiter defense: penalty `X` + the four natural two-level overcalls
+    /// + the owning `Pass` catch-all.  The **default**.
+    #[default]
+    Natural,
+    /// Direct-seat DONT (one-suiter `X`, two-suiter `2♣`/`2♦`/`2♥`, natural `2♠`).
+    DirectDont,
+    /// Direct-seat Meckwell (two-way `X`, minor+major `2♣`/`2♦`, natural majors).
+    Meckwell,
+    /// Woolsey "Multi-Landy" (`X` = 4-card major + longer minor, `2♣` = both majors,
+    /// `2♦` = Multi, `2♥`/`2♠` = Muiderberg).
+    Woolsey,
+    /// Direct-seat both-majors takeout `X` (Landy-style); the 5-4-vs-4-4 shape flag
+    /// lives in `DIRECT_LANDY_FOUR_FOUR`.
+    DirectLandy,
+    /// Author only `Pass` for every hand — our side never competes.
+    AlwaysPass,
+    /// Author nothing; the `[1NT]` node falls through to the bare instinct floor
+    /// (what [`set_natural_defense`]`(false)` selects with no other system on).
+    Off,
+}
+
 thread_local! {
-    /// Whether the natural one-suiter defense to their 1NT (penalty double + the
-    /// four natural two-level overcalls + the owning `Pass` catch-all) is authored;
-    /// **on by default**.  See [`set_natural_defense`].
-    static NATURAL_DEFENSE: Cell<bool> = const { Cell::new(true) };
-    /// Whether to also author the same defense in the *balancing* seat
+    /// The mutually-exclusive 1NT defense in force; **[`Natural`](NotrumpDefense::Natural)
+    /// by default**.
+    static NOTRUMP_DEFENSE: Cell<NotrumpDefense> = const { Cell::new(NotrumpDefense::Natural) };
+    /// Whether the direct-Landy both-majors `X` accepts a flat 4-4 (else 5-4+) — the
+    /// payload of the former `DIRECT_LANDY_DOUBLE` `Option`.  No effect unless the
+    /// active system is [`NotrumpDefense::DirectLandy`].
+    static DIRECT_LANDY_FOUR_FOUR: Cell<bool> = const { Cell::new(false) };
+}
+
+/// Select the mutually-exclusive 1NT defense for books built *after* this call
+/// (thread-local, read once at book-construction time)
+pub fn set_notrump_defense(system: NotrumpDefense) {
+    NOTRUMP_DEFENSE.with(|cell| cell.set(system));
+}
+
+/// The mutually-exclusive 1NT defense currently selected
+pub(crate) fn notrump_defense() -> NotrumpDefense {
+    NOTRUMP_DEFENSE.with(Cell::get)
+}
+
+thread_local! {
+    /// Whether to also author the natural defense in the *balancing* seat
     /// `(1NT) P P ?`; **off by default** (opt-in A/B). Off leaves the balancing
     /// seat to the instinct floor — the source of the toxic balancing doubles.
     static NOTRUMP_BALANCING: Cell<bool> = const { Cell::new(false) };
 }
 
 /// Toggle the natural one-suiter defense to an opponent's 1NT for books built
-/// *after* this call (thread-local, read once at book-construction time)
+/// *after* this call (a back-compat shim over [`set_notrump_defense`])
 ///
-/// `true` (the **default**) authors the penalty double (15+ balanced), the four
-/// natural two-level suit overcalls (five-card suit, 8–14), and the owning `Pass`
-/// catch-all that lets the node keep a hand that qualifies for none of them.
-/// `false` drops all of those, so when the two-suiter overlays ([`set_landy`],
-/// [`set_unusual_notrump_defense`]) are also off the `[1NT]` node yields no finite
-/// logit and the position falls through to the bare instinct floor — the baseline
-/// arm of the standalone A/B (`examples/landy-ab --natural-measured`).
+/// `true` (the **default** system) selects [`NotrumpDefense::Natural`]: the penalty
+/// double (15+ balanced), the four natural two-level suit overcalls (five-card suit,
+/// 8–14), and the owning `Pass` catch-all.  `false` drops to
+/// [`NotrumpDefense::Off`] — the bare instinct floor, the baseline arm of
+/// `examples/landy-ab --natural-measured` — but *only when Natural is the active
+/// system*; if another convention is selected it is a no-op, matching the old
+/// independent-flag behaviour.
 pub fn set_natural_defense(on: bool) {
-    NATURAL_DEFENSE.with(|cell| cell.set(on));
+    if on {
+        set_notrump_defense(NotrumpDefense::Natural);
+    } else if notrump_defense() == NotrumpDefense::Natural {
+        set_notrump_defense(NotrumpDefense::Off);
+    }
 }
 
-/// Whether the natural one-suiter defense is currently authored
+/// Whether the natural one-suiter defense is currently the active system
 pub(crate) fn natural_defense_enabled() -> bool {
-    NATURAL_DEFENSE.with(Cell::get)
+    notrump_defense() == NotrumpDefense::Natural
 }
 
 /// Extend the natural 1NT defense to the *balancing* seat `(1NT) P P ?` for books
@@ -249,41 +302,30 @@ fn notrump_balancing_enabled() -> bool {
     NOTRUMP_BALANCING.with(Cell::get)
 }
 
-thread_local! {
-    /// Whether the **direct-seat DONT** defense replaces the natural penalty-X +
-    /// overcalls over their 1NT; **off by default** (opt-in A/B).  On,
-    /// `defense_to_notrump` authors the conventional DONT structure at every seat
-    /// (one-suiter `X`, two-suiter `2♣`/`2♦`/`2♥`, natural `2♠`) and the
-    /// passed-hand arm is suppressed (DONT already covers the passed seat).  See
-    /// [`set_direct_dont`].
-    static DIRECT_DONT: Cell<bool> = const { Cell::new(false) };
-}
-
 /// Replace the natural 1NT defense with conventional DONT at every seat, for books
-/// built *after* this call (thread-local; **off by default**).
+/// built *after* this call (a back-compat shim over [`set_notrump_defense`]
+/// selecting [`NotrumpDefense::DirectDont`]; **off by default**)
 ///
 /// On: `X` = a one-suiter (♣/♦/♥, 5+, no second four-card suit — spade one-suiters
 /// bid the natural `2♠`), `2♣` = clubs + a higher major, `2♦` = diamonds + a major,
 /// `2♥` = both majors, `2♠` = natural spades, plus an owning `Pass` catch-all.
-/// Pair with [`set_unusual_notrump_defense`] to add `2NT` = both minors.  Mutually
-/// exclusive with the natural penalty-X arm ([`set_natural_defense`]).
+/// Pair with [`set_unusual_notrump_defense`] to add `2NT` = both minors.  `false`
+/// reverts to [`NotrumpDefense::Natural`] when DONT is the active system (else a
+/// no-op).
 pub fn set_direct_dont(on: bool) {
-    DIRECT_DONT.with(|cell| cell.set(on));
+    if on {
+        set_notrump_defense(NotrumpDefense::DirectDont);
+    } else if notrump_defense() == NotrumpDefense::DirectDont {
+        set_notrump_defense(NotrumpDefense::Natural);
+    }
 }
 
-/// Whether the direct-seat DONT defense is currently authored
+/// Whether the direct-seat DONT defense is the active system
 pub(crate) fn direct_dont_enabled() -> bool {
-    DIRECT_DONT.with(Cell::get)
+    notrump_defense() == NotrumpDefense::DirectDont
 }
 
 thread_local! {
-    /// Whether the direct-seat **Meckwell** defense replaces the natural defense of
-    /// their 1NT; **off by default** (opt-in A/B).  Meckwell is DONT's cousin: the
-    /// `X` is a two-way "single 6+ minor OR both majors" double, `2♣`/`2♦` are a
-    /// minor + a major, `2♥`/`2♠` are natural single-suiters, and `2NT` is both
-    /// minors (reusing [`set_unusual_notrump_defense`], on by default).  See
-    /// [`set_meckwell`].
-    static MECKWELL: Cell<bool> = const { Cell::new(false) };
     /// Whether Meckwell's `2♣`/`2♦` (minor + a major) accept a flat 4-4 (else 5-4+);
     /// **off by default** (5-4).  A **probe** knob — the 5-4-vs-4-4 boundary is
     /// measured, not fixed by theory.  No effect unless Meckwell is on.
@@ -306,16 +348,20 @@ thread_local! {
 /// On: `X` = a single 6+ minor OR both majors (4-4+); `2♣` = clubs + a major, `2♦`
 /// = diamonds + a major (5-4+ either way); `2♥`/`2♠` = a natural 5+ single-suited
 /// major; `2NT` = both minors (pair with [`set_unusual_notrump_defense`], on by
-/// default); an owning `Pass` catch-all.  Mutually exclusive with the natural
-/// penalty-X arm and the DONT / direct-Landy / Woolsey conventions (each repurposes
-/// the double).
+/// default); an owning `Pass` catch-all.  A back-compat shim over
+/// [`set_notrump_defense`] selecting [`NotrumpDefense::Meckwell`]; `false` reverts to
+/// [`NotrumpDefense::Natural`] when Meckwell is the active system (else a no-op).
 pub fn set_meckwell(on: bool) {
-    MECKWELL.with(|cell| cell.set(on));
+    if on {
+        set_notrump_defense(NotrumpDefense::Meckwell);
+    } else if notrump_defense() == NotrumpDefense::Meckwell {
+        set_notrump_defense(NotrumpDefense::Natural);
+    }
 }
 
-/// Whether the direct-seat Meckwell defense is currently authored
+/// Whether the direct-seat Meckwell defense is the active system
 pub(crate) fn meckwell_enabled() -> bool {
-    MECKWELL.with(Cell::get)
+    notrump_defense() == NotrumpDefense::Meckwell
 }
 
 /// Whether Meckwell's `2♣`/`2♦` accept a flat 4-4 (default `false` = 5-4+).  A
@@ -541,11 +587,6 @@ fn direct_dont_four_four() -> bool {
 }
 
 thread_local! {
-    /// Whether the direct-seat **double** of their 1NT shows both majors (takeout)
-    /// instead of the 15+ penalty double.  `None` = off (the **default**, natural
-    /// penalty-X defense); `Some(four_four)` = on, with `false` = at least 5-4 in the
-    /// majors and `true` = a flat 4-4 accepted.  See [`set_direct_landy_double`].
-    static DIRECT_LANDY_DOUBLE: Cell<Option<bool>> = const { Cell::new(None) };
     /// The `points` floor for the direct-seat both-majors double; **15 by default**
     /// — the clean partition just above the natural-overcall ceiling (14), so an
     /// intermediate both-majors hand overcalls a major (8–14) and the `X` is reserved
@@ -573,13 +614,27 @@ thread_local! {
 /// answers through the Landy machinery (`landy_advances`).  Mutually exclusive
 /// with the natural penalty-X arm and the Landy `2♣` overlay (this covers the
 /// passed seat too).  The A/B knob for `examples/ab-landy --ns-landy-x`.
+///
+/// A back-compat shim over [`set_notrump_defense`]: `Some(four_four)` selects
+/// [`NotrumpDefense::DirectLandy`] and stores the shape flag; `None` reverts to
+/// [`NotrumpDefense::Natural`] when direct-Landy is the active system (else a no-op).
 pub fn set_direct_landy_double(shape: Option<bool>) {
-    DIRECT_LANDY_DOUBLE.with(|cell| cell.set(shape));
+    match shape {
+        Some(four_four) => {
+            set_notrump_defense(NotrumpDefense::DirectLandy);
+            DIRECT_LANDY_FOUR_FOUR.with(|cell| cell.set(four_four));
+        }
+        None if notrump_defense() == NotrumpDefense::DirectLandy => {
+            set_notrump_defense(NotrumpDefense::Natural);
+        }
+        None => {}
+    }
 }
 
 /// The configured direct-seat both-majors double shape, or `None` when off
 pub(crate) fn direct_landy_double() -> Option<bool> {
-    DIRECT_LANDY_DOUBLE.with(Cell::get)
+    (notrump_defense() == NotrumpDefense::DirectLandy)
+        .then(|| DIRECT_LANDY_FOUR_FOUR.with(Cell::get))
 }
 
 /// Set the `points` floor for the direct-seat both-majors double (default 8), for
@@ -610,20 +665,6 @@ fn direct_landy_penalty_pass() -> bool {
 }
 
 thread_local! {
-    /// Whether our **Woolsey "Multi-Landy"** defense to their 1NT is authored at
-    /// every seat, replacing the natural / Landy / penalty-X arms; **off by
-    /// default** (opt-in A/B).  On, the direct seat over (1NT) is:
-    ///
-    /// - `X` = a 4-card major **+ a longer (5-6) minor** (takeout, never penalty),
-    /// - `2♣` = both majors (5-4 / 5-5), advanced via the Landy machinery,
-    /// - `2♦` = Multi, a single **6+ major**,
-    /// - `2♥` / `2♠` = Muiderberg, **exactly 5** in the major **+ a 4+ minor**,
-    /// - `Pass` everything else, including strong balanced (no penalty double).
-    ///
-    /// Distilled from BBA's compiled card (`docs/ai-bidder/bba-1nt-defense.md`);
-    /// the strength bands are ours, not BBA's ([`set_woolsey_points`] /
-    /// [`set_woolsey_double_floor`]).  See [`set_woolsey`].
-    static WOOLSEY: Cell<bool> = const { Cell::new(false) };
     /// Inclusive `points` band for the Woolsey suit overcalls (`2♣`/`2♦`/`2♥`/`2♠`);
     /// **(8, 19) by default** — level with the natural overcall floor.  A 2026-06-26
     /// re-probe (continuations now fully authored) found honest plain-DD self-play
@@ -639,22 +680,31 @@ thread_local! {
 }
 
 /// Author the Woolsey "Multi-Landy" defense to their 1NT for books built *after*
-/// this call (thread-local, read once at book-construction time)
+/// this call (a back-compat shim over [`set_notrump_defense`] selecting
+/// [`NotrumpDefense::Woolsey`]; **off by default**)
 ///
-/// **Off by default.**  On, the `[1NT]` node is the full Woolsey structure at every
-/// seat — `X` = 4-card major + longer minor, `2♣` = both majors, `2♦` = Multi,
-/// `2♥`/`2♠` = Muiderberg, `Pass` everything else — replacing the natural / Landy /
-/// both-majors-X arms and superseding the passed-hand defense; the both-minors `2NT`
+/// On, the `[1NT]` node is the full Woolsey structure at every seat — `X` = 4-card
+/// major + longer minor, `2♣` = both majors, `2♦` = Multi, `2♥`/`2♠` = Muiderberg,
+/// `Pass` everything else — replacing the natural / Landy / both-majors-X arms and
+/// superseding the passed-hand defense; the both-minors `2NT`
 /// ([`set_unusual_notrump_defense`]) overlay stays compatible (it is outside the
-/// Woolsey defense).  The A/B knob for `examples/ab-landy --ns-woolsey`.
+/// Woolsey defense).  Distilled from BBA's compiled card
+/// (`docs/ai-bidder/bba-1nt-defense.md`); the strength bands are ours, not BBA's
+/// ([`set_woolsey_points`] / [`set_woolsey_double_floor`]).  The A/B knob for
+/// `examples/ab-landy --ns-woolsey`.  `false` reverts to [`NotrumpDefense::Natural`]
+/// when Woolsey is the active system (else a no-op).
 pub fn set_woolsey(on: bool) {
-    WOOLSEY.with(|cell| cell.set(on));
+    if on {
+        set_notrump_defense(NotrumpDefense::Woolsey);
+    } else if notrump_defense() == NotrumpDefense::Woolsey {
+        set_notrump_defense(NotrumpDefense::Natural);
+    }
 }
 
-/// Whether the Woolsey defense is currently authored (read by the inference engine
+/// Whether the Woolsey defense is the active system (read by the inference engine
 /// to decode our artificial 2♣/2♦/2♥/2♠ overcalls; see `inference::multi_reading`)
 pub(crate) fn woolsey_enabled() -> bool {
-    WOOLSEY.with(Cell::get)
+    notrump_defense() == NotrumpDefense::Woolsey
 }
 
 /// Set the inclusive `points` band for the Woolsey suit overcalls (`2♣`/`2♦`/`2♥`/
@@ -939,28 +989,23 @@ fn semi_balanced() -> Cons<impl Constraint + Clone> {
         })
 }
 
-thread_local! {
-    /// The always-pass defense to their 1NT — a finite logit on `Pass`
-    /// for every hand, which shadows the instinct floor at `[1NT]` so our side
-    /// never competes. **Off by default.** See [`set_always_pass_defense`].
-    static ALWAYS_PASS_DEFENSE: Cell<bool> = const { Cell::new(false) };
-}
-
 /// Toggle the always-pass defense to an opponent's 1NT for books built
-/// *after* this call (thread-local, read once at book-construction time)
+/// *after* this call (a back-compat shim over [`set_notrump_defense`] selecting
+/// [`NotrumpDefense::AlwaysPass`])
 ///
 /// When on, the `[1NT]` node authors only `Pass` (for every hand), so our side
 /// never acts over their 1NT — the truest "do nothing" baseline, distinct from
 /// [`set_natural_defense`]`(false)` which drops to the instinct floor (and the
 /// floor still competes a little). Overrides the natural and two-suiter arms.
-/// The A/B baseline knob for `examples/landy-ab --ew-always-pass`.
+/// The A/B baseline knob for `examples/landy-ab --ew-always-pass`.  `false`
+/// reverts to [`NotrumpDefense::Natural`] when always-pass is the active system
+/// (else a no-op).
 pub fn set_always_pass_defense(on: bool) {
-    ALWAYS_PASS_DEFENSE.with(|cell| cell.set(on));
-}
-
-/// Whether the always-pass defense is currently authored
-fn always_pass_defense_enabled() -> bool {
-    ALWAYS_PASS_DEFENSE.with(Cell::get)
+    if on {
+        set_notrump_defense(NotrumpDefense::AlwaysPass);
+    } else if notrump_defense() == NotrumpDefense::AlwaysPass {
+        set_notrump_defense(NotrumpDefense::Natural);
+    }
 }
 
 thread_local! {
@@ -1805,104 +1850,103 @@ fn chain_natural_overcalls(mut rules: Rules, skip_clubs: bool) -> Rules {
 /// no live system owns is simply not authored and falls to the instinct floor (the
 /// natural-off baseline arm).
 fn chain_natural_base(rules: Rules) -> Rules {
-    // The always-pass baseline: a finite logit on `Pass` for every hand shadows the
-    // floor here, so our side never competes (no overlays).
-    if always_pass_defense_enabled() {
-        return rules.rule(Call::Pass, 0.0, hcp(0..));
-    }
-
-    // Cascade precedence: Woolsey > DONT > direct-Landy-X > natural penalty-X.
-    if woolsey_enabled() {
-        // Woolsey owns X and every overcall; `Pass` is the only natural call.
-        rules.rule(Call::Pass, 0.0, hcp(0..))
-    } else if direct_dont_enabled() {
-        // DONT keeps the natural `2♠` one-suiter (open-top, length-gated so the
-        // one-suiter `X` can exclude spades) below its two-suiters, plus `Pass`.
-        let lo = natural_overcall_points().0;
-        let one_min = direct_dont_one_suiter_min();
-        rules
-            .rule(
-                Bid::new(2, Strain::Spades),
-                1.0,
-                len(Suit::Spades, one_min..) & points(lo..),
+    // One active system — the enum makes the old "two families at once" state (which
+    // the read-time cascade precedence Woolsey > DONT > Meckwell > direct-Landy >
+    // natural used to arbitrate) unrepresentable.
+    match notrump_defense() {
+        // Woolsey owns X and every overcall; `Pass` is the only natural call.  Always-
+        // pass is the same finite `Pass` logit — it shadows the floor so our side never
+        // competes.
+        NotrumpDefense::Woolsey | NotrumpDefense::AlwaysPass => {
+            rules.rule(Call::Pass, 0.0, hcp(0..))
+        }
+        NotrumpDefense::DirectDont => {
+            // DONT keeps the natural `2♠` one-suiter (open-top, length-gated so the
+            // one-suiter `X` can exclude spades) below its two-suiters, plus `Pass`.
+            let lo = natural_overcall_points().0;
+            let one_min = direct_dont_one_suiter_min();
+            rules
+                .rule(
+                    Bid::new(2, Strain::Spades),
+                    1.0,
+                    len(Suit::Spades, one_min..) & points(lo..),
+                )
+                .rule(Call::Pass, 0.0, hcp(0..))
+        }
+        NotrumpDefense::Meckwell => {
+            // Meckwell keeps the natural 5+ single-suited majors (2♥/2♠, disjoint from
+            // its two-suiters) below the alerts, plus Pass.  The two-way X / minor+major
+            // 2♣/2♦ / both-minors 2NT are the artificial calls.
+            let lo = natural_overcall_points().0;
+            rules
+                .rule(
+                    Bid::new(2, Strain::Hearts),
+                    1.0,
+                    meckwell_natural_major(Suit::Hearts) & points(lo..),
+                )
+                .rule(
+                    Bid::new(2, Strain::Spades),
+                    1.0,
+                    meckwell_natural_major(Suit::Spades) & points(lo..),
+                )
+                .rule(Call::Pass, 0.0, hcp(0..))
+        }
+        NotrumpDefense::DirectLandy => {
+            // The both-majors `X` is the alert; the four natural overcalls and `Pass`
+            // are the floor-safe base (a 15+ balanced hand now passes or overcalls).
+            chain_natural_overcalls(rules.rule(Call::Pass, 0.0, hcp(0..)), false)
+        }
+        NotrumpDefense::Natural => {
+            // Penalty `X` (HCP floor fixed; shape gate per `set_natural_double_shape` —
+            // each arm reissues `.rule()` so the differing constraint types unify), the
+            // owning `Pass`, and the natural overcalls (ceding `2♣` to a Landy overlay).
+            let floor = natural_double_floor();
+            let w = natural_double_weight();
+            let rules = match natural_double_shape() {
+                DoubleShape::Balanced => rules.rule(Call::Double, w, hcp(floor..) & balanced()),
+                DoubleShape::SemiBalanced => {
+                    rules.rule(Call::Double, w, hcp(floor..) & semi_balanced())
+                }
+                DoubleShape::Any => rules.rule(Call::Double, w, hcp(floor..)),
+            };
+            chain_natural_overcalls(
+                rules.rule(Call::Pass, 0.0, hcp(0..)),
+                landy_range().is_some(),
             )
-            .rule(Call::Pass, 0.0, hcp(0..))
-    } else if meckwell_enabled() {
-        // Meckwell keeps the natural 5+ single-suited majors (2♥/2♠, disjoint from its
-        // two-suiters) below the alerts, plus Pass.  The two-way X / minor+major 2♣/2♦
-        // / both-minors 2NT are the artificial calls.
-        let lo = natural_overcall_points().0;
-        rules
-            .rule(
-                Bid::new(2, Strain::Hearts),
-                1.0,
-                meckwell_natural_major(Suit::Hearts) & points(lo..),
-            )
-            .rule(
-                Bid::new(2, Strain::Spades),
-                1.0,
-                meckwell_natural_major(Suit::Spades) & points(lo..),
-            )
-            .rule(Call::Pass, 0.0, hcp(0..))
-    } else if direct_landy_double().is_some() {
-        // The both-majors `X` is the alert; the four natural overcalls and `Pass`
-        // are the floor-safe base (a 15+ balanced hand now passes or overcalls).
-        chain_natural_overcalls(rules.rule(Call::Pass, 0.0, hcp(0..)), false)
-    } else if natural_defense_enabled() {
-        // Penalty `X` (HCP floor fixed; shape gate per `set_natural_double_shape` —
-        // each arm reissues `.rule()` so the differing constraint types unify), the
-        // owning `Pass`, and the natural overcalls (ceding `2♣` to a Landy overlay).
-        let floor = natural_double_floor();
-        let w = natural_double_weight();
-        let rules = match natural_double_shape() {
-            DoubleShape::Balanced => rules.rule(Call::Double, w, hcp(floor..) & balanced()),
-            DoubleShape::SemiBalanced => {
-                rules.rule(Call::Double, w, hcp(floor..) & semi_balanced())
-            }
-            DoubleShape::Any => rules.rule(Call::Double, w, hcp(floor..)),
-        };
-        chain_natural_overcalls(
-            rules.rule(Call::Pass, 0.0, hcp(0..)),
-            landy_range().is_some(),
-        )
-    } else {
-        // Natural off and no system: author nothing, fall to the instinct floor.
-        rules
+        }
+        // No system: author nothing, fall to the instinct floor.
+        NotrumpDefense::Off => rules,
     }
 }
 
-/// The artificial alerts live at the `[1NT]` node for the configured system,
-/// mirroring the cascade precedence (Woolsey > DONT > direct-Landy-X > natural)
-/// plus the two independent overlays.  Read once at book-construction time.
+/// The artificial alerts live at the `[1NT]` node for the configured system, one
+/// per [`NotrumpDefense`] plus the two independent overlays.  Read once at
+/// book-construction time.
 fn active_alerts() -> Vec<Alert> {
     let mut alerts = Vec::new();
-    if always_pass_defense_enabled() {
-        return alerts;
+    let system = notrump_defense();
+    match system {
+        // Always-pass authors only `Pass` — no alerts, no overlays.
+        NotrumpDefense::AlwaysPass => return alerts,
+        NotrumpDefense::Woolsey => {
+            alerts.extend([
+                WOOLSEY_X,
+                WOOLSEY_2C,
+                MULTI_2D,
+                MUIDERBERG_2H,
+                MUIDERBERG_2S,
+            ]);
+        }
+        NotrumpDefense::DirectDont => alerts.extend([DONT_X, DONT_2C, DONT_2D, DONT_2H]),
+        NotrumpDefense::Meckwell => alerts.extend([MECKWELL_X, MECKWELL_2C, MECKWELL_2D]),
+        NotrumpDefense::DirectLandy => alerts.push(LANDY_X),
+        // The natural penalty-X family and the bare floor add no alert of their own.
+        NotrumpDefense::Natural | NotrumpDefense::Off => {}
     }
-    if woolsey_enabled() {
-        alerts.extend([
-            WOOLSEY_X,
-            WOOLSEY_2C,
-            MULTI_2D,
-            MUIDERBERG_2H,
-            MUIDERBERG_2S,
-        ]);
-    } else if direct_dont_enabled() {
-        alerts.extend([DONT_X, DONT_2C, DONT_2D, DONT_2H]);
-    } else if meckwell_enabled() {
-        alerts.extend([MECKWELL_X, MECKWELL_2C, MECKWELL_2D]);
-    } else if direct_landy_double().is_some() {
-        alerts.push(LANDY_X);
-    }
-    // The natural penalty-X family adds no alert of its own; the Landy `2♣` overlay
-    // is its one convention, incompatible with DONT / Meckwell / direct-Landy-X /
-    // Woolsey (each repurposes or replaces the `2♣` slot).
-    if landy_range().is_some()
-        && !direct_dont_enabled()
-        && !meckwell_enabled()
-        && direct_landy_double().is_none()
-        && !woolsey_enabled()
-    {
+    // The Landy `2♣` overlay is the natural family's one convention, incompatible with
+    // DONT / Meckwell / direct-Landy-X / Woolsey (each repurposes the `2♣` slot) — so
+    // it rides only on the non-convention arms.
+    if landy_range().is_some() && matches!(system, NotrumpDefense::Natural | NotrumpDefense::Off) {
         alerts.push(LANDY_2C);
     }
     // Unusual `2NT` is additive — every non-always-pass system.
