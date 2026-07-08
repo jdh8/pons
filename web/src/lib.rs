@@ -740,8 +740,8 @@ static NOTRUMP_DEFENSE_VARIANTS: &[Variant] = &[
         label: "DONT",
     },
     Variant {
-        value: "meckwell",
-        label: "Meckwell",
+        value: "direct_landy",
+        label: "Landy double",
     },
     Variant {
         value: "woolsey",
@@ -756,9 +756,13 @@ static NOTRUMP_DEFENSE_VARIANTS: &[Variant] = &[
 /// Select the mutually-exclusive 1NT defense from its registry `value`.
 fn set_notrump_defense_choice(value: &str) {
     use american::NotrumpDefense;
+    // DirectLandy carries a shape flag; select the measured-winning 5-4 form.
+    if value == "direct_landy" {
+        american::set_direct_landy_double(Some(false));
+        return;
+    }
     american::set_notrump_defense(match value {
         "direct_dont" => NotrumpDefense::DirectDont,
-        "meckwell" => NotrumpDefense::Meckwell,
         "woolsey" => NotrumpDefense::Woolsey,
         "always_pass" => NotrumpDefense::AlwaysPass,
         _ => NotrumpDefense::Natural,
@@ -776,8 +780,40 @@ fn set_lebensohl_toggle(on: bool) {
     });
 }
 
-/// The registry.  Defaults mirror each engine `Cell::new(...)`; the
-/// `registry_defaults_match_the_engine` test guards the mirror.
+/// Advancer's Lebensohl (after partner's takeout double is overcalled) as an on/off
+/// toggle: on = Transfer Lebensohl (the shipped default), off = none.
+fn set_advance_sohl_toggle(on: bool) {
+    use american::LebensohlStyle;
+    american::set_advance_sohl_style(if on {
+        LebensohlStyle::Transfer
+    } else {
+        LebensohlStyle::Off
+    });
+}
+
+/// Our 1NT minor-suit response scheme — maps onto `american::{PUPPET, EUROPEAN}`.
+static NOTRUMP_MINORS_VARIANTS: &[Variant] = &[
+    Variant {
+        value: "puppet",
+        label: "Puppet Stayman",
+    },
+    Variant {
+        value: "european",
+        label: "European (transfers)",
+    },
+];
+
+/// Select the 1NT minor scheme from its registry `value`.
+fn set_notrump_minors_choice(value: &str) {
+    american::set_notrump_minors(if value == "european" {
+        american::EUROPEAN
+    } else {
+        american::PUPPET
+    });
+}
+
+/// The registry.  Each `default` mirrors its engine `Cell::new(...)` — keep the two
+/// in sync by hand when a knob's default changes (there is no automatic guard).
 static SETTINGS: &[Setting] = &[
     // Openings
     toggle(
@@ -787,14 +823,16 @@ static SETTINGS: &[Setting] = &[
         true,
         american::set_open_one_notrump,
     ),
-    toggle(
-        "one_notrump_fifths",
-        OPENINGS,
-        "",
-        false,
-        american::set_one_notrump_fifths,
-    ),
+    toggle("rule_of_20", OPENINGS, "", true, american::set_rule_of_20),
     // Notrump
+    Setting::Choice {
+        key: "notrump_minors",
+        section: NOTRUMP,
+        label: "1NT minor responses",
+        variants: NOTRUMP_MINORS_VARIANTS,
+        default: "puppet",
+        set: set_notrump_minors_choice,
+    },
     toggle(
         "garbage_stayman",
         NOTRUMP,
@@ -838,13 +876,6 @@ static SETTINGS: &[Setting] = &[
         american::set_transfer_gf_hearts,
     ),
     toggle(
-        "minor_min_to_3nt",
-        NOTRUMP,
-        "",
-        false,
-        american::set_minor_min_to_3nt,
-    ),
-    toggle(
         "stayman_both_majors",
         NOTRUMP,
         "",
@@ -857,13 +888,6 @@ static SETTINGS: &[Setting] = &[
         "",
         true,
         american::set_stayman_5card_max,
-    ),
-    toggle(
-        "long_minor_force",
-        NOTRUMP,
-        "",
-        false,
-        american::set_long_minor_force,
     ),
     toggle(
         "invitational_5card_majors",
@@ -909,6 +933,48 @@ static SETTINGS: &[Setting] = &[
         set: set_lebensohl_toggle,
     },
     toggle(
+        "advance_lebensohl",
+        COMPETITION,
+        "Lebensohl advancing a double",
+        true,
+        set_advance_sohl_toggle,
+    ),
+    toggle(
+        "splinter_doubled",
+        COMPETITION,
+        "",
+        true,
+        american::set_splinter_doubled,
+    ),
+    toggle(
+        "overcall_discipline",
+        COMPETITION,
+        "",
+        true,
+        american::set_overcall_discipline,
+    ),
+    toggle(
+        "passed_hand_overcall",
+        COMPETITION,
+        "",
+        false,
+        american::set_passed_hand_overcall,
+    ),
+    toggle(
+        "suppress_5332_takeout",
+        COMPETITION,
+        "",
+        true,
+        constraint::set_suppress_5332_takeout,
+    ),
+    toggle(
+        "suppress_flat_4333_takeout",
+        COMPETITION,
+        "",
+        true,
+        constraint::set_suppress_flat_4333_takeout,
+    ),
+    toggle(
         "trap_pass",
         COMPETITION,
         "Trap pass",
@@ -952,13 +1018,6 @@ static SETTINGS: &[Setting] = &[
         american::set_cue_minor_raise_answer,
     ),
     toggle(
-        "weak_two_competition",
-        COMPETITION,
-        "",
-        false,
-        american::set_weak_two_competition,
-    ),
-    toggle(
         "strong_two_competition",
         COMPETITION,
         "",
@@ -972,7 +1031,6 @@ static SETTINGS: &[Setting] = &[
         true,
         american::set_major_support_double,
     ),
-    toggle("free_bids", COMPETITION, "", false, american::set_free_bids),
     toggle(
         "high_overcall_responses",
         COMPETITION,
@@ -1000,13 +1058,6 @@ static SETTINGS: &[Setting] = &[
         "",
         true,
         american::set_competition_over_stayman,
-    ),
-    toggle(
-        "competition_over_transfer",
-        COMPETITION,
-        "",
-        false,
-        american::set_competition_over_transfer,
     ),
     toggle(
         "competition_over_minor_transfer",
@@ -1044,13 +1095,6 @@ static SETTINGS: &[Setting] = &[
         american::set_responsive_takeout,
     ),
     toggle(
-        "responsive_overcall",
-        COMPETITION,
-        "",
-        false,
-        american::set_responsive_overcall,
-    ),
-    toggle(
         "rich_advance_double",
         COMPETITION,
         "",
@@ -1074,33 +1118,11 @@ static SETTINGS: &[Setting] = &[
         set: set_notrump_defense_choice,
     },
     toggle(
-        "notrump_balancing",
-        DEFENSE,
-        "",
-        false,
-        american::set_notrump_balancing,
-    ),
-    toggle("landy_hcp", DEFENSE, "", false, american::set_landy_hcp),
-    toggle(
         "direct_dont_four_four",
         DEFENSE,
         "",
         true,
         american::set_direct_dont_four_four,
-    ),
-    toggle(
-        "meckwell_minor_major_44",
-        DEFENSE,
-        "",
-        false,
-        american::set_meckwell_minor_major_44,
-    ),
-    toggle(
-        "meckwell_x_four_four",
-        DEFENSE,
-        "",
-        true,
-        american::set_meckwell_x_four_four,
     ),
     toggle(
         "stayman_defense",
@@ -1123,14 +1145,21 @@ static SETTINGS: &[Setting] = &[
         false,
         american::set_minor_transfer_defense,
     ),
-    toggle(
-        "diamond_transfer_defense",
-        DEFENSE,
-        "",
-        false,
-        american::set_diamond_transfer_defense,
-    ),
     // Rebids & responses
+    toggle(
+        "balanced_1nt_rebid",
+        REBIDS,
+        "",
+        true,
+        american::set_balanced_1nt_rebid,
+    ),
+    toggle(
+        "second_suit_agreement",
+        REBIDS,
+        "",
+        true,
+        american::set_second_suit_agreement,
+    ),
     toggle(
         "fourth_suit_forcing",
         REBIDS,
@@ -1232,34 +1261,6 @@ static SETTINGS: &[Setting] = &[
         "",
         true,
         instinct::set_correct_3nt_to_major,
-    ),
-    toggle(
-        "gambling_3nt_over_double",
-        FLOOR,
-        "",
-        false,
-        instinct::set_gambling_3nt_over_double,
-    ),
-    toggle(
-        "gambling_3nt_require_ace",
-        FLOOR,
-        "",
-        true,
-        instinct::set_gambling_3nt_require_ace,
-    ),
-    toggle(
-        "preempt_4m_over_double",
-        FLOOR,
-        "",
-        false,
-        instinct::set_preempt_4m_over_double,
-    ),
-    toggle(
-        "preempt_4m_require_ace",
-        FLOOR,
-        "",
-        true,
-        instinct::set_preempt_4m_require_ace,
     ),
     toggle(
         "penalize_escape_stack",

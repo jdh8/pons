@@ -82,43 +82,51 @@ blue clubs are one line to retune.
 The Settings tab is the `SETTINGS` registry in `src/lib.rs` — one row per knob,
 which `describe_options()` serialises for the JS renderer.  Adding a knob to the
 UI is **one registry row** (see the top of that file); adding an engine `set_*`
-alone does *not* surface it.  What the registry deliberately leaves out today:
+alone does *not* surface it.
 
-### Not exposed — one-line toggles (just add a registry row)
-
-Boolean conventions with a plain `set_*(bool)` the UI simply hasn't surfaced:
-
-- `set_balanced_1nt_rebid`, `set_splinter_doubled`, `set_second_suit_agreement`
-- the takeout-shape discipline family — `set_suppress_5332_takeout`,
-  `set_suppress_4432_vs_major`, `set_suppress_4432_vs_minor`,
-  `set_suppress_flat_4333_takeout`
-- opening / overcall discipline — `set_rule_of_20`, `set_overcall_discipline`,
-  `set_passed_hand_overcall`
-- `set_direct_landy_penalty_pass` (a direct-Landy sub-option)
-
-### Not exposed — mutually-exclusive families (need a `Setting::Choice` + engine enum)
-
-Each already has an engine enum and wants a radio family like `notrump_defense`;
-some are three-way where the UI currently reaches only a subset:
-
-- `set_double_style` — `DoubleStyle` (Takeout / Penalty / PenaltyLight / Optional)
-- `set_lebensohl_style` / `set_advance_sohl_style` — `LebensohlStyle`
-  (Off / Plain / Transfer); the UI's Lebensohl checkbox reaches only Off/Transfer,
-  never Plain
-- `set_competitive_4333` — `Competitive4333` (Allow / Suppress / SuppressWithStopper)
-- `set_negative_double_shape` — `NegativeDoubleShape` (BothMajors / Modern / Cachalot)
-- `set_natural_double_shape` — `DoubleShape` (Balanced / SemiBalanced / Any)
-- `set_takeout_support` — `TakeoutSupport`
-- `set_unusual_2nt` — `Unusual2nt` (FourFour / FiveFiveAdd / Direct)
-- `set_latch_style` — `LatchStyle` (Penalty / Optional)
-- `set_fifths_companion` — `FifthsCompanion` (Hcp / Bumrap)
-- `set_notrump_minors` — our 1NT-3♣ minor structure (`PUPPET` / `EUROPEAN`)
-
-`NotrumpDefense` (`src/bidding/american/defense.rs`) is the worked example of
-this shape: one `Cell<enum>`, a `set_*(enum)` setter, and a `Setting::Choice`
+The registry is **curated by measurement**: it offers every convention that A/B's
+as a win or a wash, and hides options that measure *worse* — the engine keeps
+those as opt-in re-measure knobs, but a player is never offered a setting that
+loses.  So an absent knob is usually a deliberate omission, not a gap.
+`NotrumpDefense` (`src/bidding/american/defense.rs`) is the worked example of a
+radio family: one `Cell<enum>`, a `set_*(enum)` setter, and a `Setting::Choice`
 whose `set` maps the registry `value` string onto a variant.
 
-### Not exposed — numeric tuning (needs number/range controls, mostly A/B knobs)
+### Hidden because the option measures worse
+
+Real conventions whose *enabled* setting lost an A/B (plain-DD negative, or a
+perfect-defense loss that erases a plain win); still in the engine as opt-in
+knobs, just not offered:
+
+- single toggles — `set_long_minor_force` (−7.12 IMPs/fired), `set_free_bids`,
+  `set_competition_over_transfer`, `set_diamond_transfer_defense`,
+  `set_responsive_overcall`, the gambling / preempt-over-double family,
+  `set_notrump_balancing`, `set_weak_two_competition`, `set_minor_min_to_3nt`
+- evaluator sweeps the default beats — `set_one_notrump_fifths`, `set_landy_hcp`
+- Meckwell defense + satellites (`set_meckwell`, `set_meckwell_x_four_four`,
+  `set_meckwell_minor_major_44`) — 0% Nash support, a decisive loss
+- the losing *variants* of the enum families below
+
+### Mutually-exclusive families — only the not-worse variants are offered
+
+Each family is one engine enum.  A variant becomes a radio option (or on/off
+toggle) only where it measures no worse than the default; where every alternative
+lost, the family stays a fixed default with no control:
+
+- **offered** — defense to their 1NT (`notrump_defense`: Natural / DONT /
+  Landy-double / Woolsey / Always-pass — the DirectLandy **5-4** form is a
+  measured win; the 4-4 form and Meckwell are omitted as losses); our 1NT minor
+  responses (`notrump_minors`: Puppet / European); advancer's Lebensohl (on/off
+  over `set_advance_sohl_style`)
+- **fixed — every alternative lost** — `set_double_style` (`Penalty` −1.59,
+  `Takeout` −2.14 IMPs/div), `set_competitive_4333`, `set_negative_double_shape`,
+  `set_natural_double_shape` (`Any` −0.70), `set_unusual_2nt` (the `FourFour`
+  relay lost to the `Direct` default), `set_takeout_support`, `set_latch_style`
+  (`Optional` is only a wash), `set_fifths_companion` (an internal evaluator
+  gauge).  Lebensohl's `Plain` middle is likewise omitted — `Transfer` dominates
+  it, so the `lebensohl` toggle is Off/Transfer only.
+
+### Not exposed — numeric tuning (needs a range control, and it's dev-path)
 
 The registry is boolean/enum only; floors, point bands, and range specs have no
 control type yet and are driven from the A/B examples, not the UI:
@@ -130,8 +138,9 @@ control type yet and are driven from the A/B examples, not the UI:
 - specs — `set_double_override`, `set_penalty_pass`, `set_doubled_landy_escape`,
   `set_stayman_defense_overcall`
 
-These are convention *tuning* dials (the A/B campaign's knobs), `docs/convention-tuning.md`
-territory rather than everyday user settings.
+These are convention *tuning* dials (the A/B campaign's knobs),
+`docs/convention-tuning.md` territory rather than everyday user settings;
+`<input type="range">` is the natural control if they ever move to the UI.
 
 ## Deploy
 

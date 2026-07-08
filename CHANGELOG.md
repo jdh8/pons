@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Web Settings registry is now curated by measurement.** The tab exposes every
+  convention that A/B's as a win or a wash and hides options that measure *worse*
+  (kept in the engine as opt-in re-measure knobs). Added the shipped default-on
+  winners it had been missing — `rule_of_20`, `balanced_1nt_rebid`,
+  `second_suit_agreement`, `splinter_doubled`, `overcall_discipline`,
+  `passed_hand_overcall`, `suppress_5332_takeout`, `suppress_flat_4333_takeout`,
+  advancer's Lebensohl — plus two new radio families (`notrump_minors`: Puppet /
+  European; the DirectLandy 5-4 win as a defense-to-1NT variant). Removed the
+  rows whose enabled state loses (`long_minor_force`, `free_bids`,
+  `competition_over_transfer`, `diamond_transfer_defense`, `responsive_overcall`,
+  the gambling/preempt-over-double family, `weak_two_competition`,
+  `notrump_balancing`, `minor_min_to_3nt`, the `one_notrump_fifths`/`landy_hcp`
+  evaluator sweeps, and Meckwell defense + satellites — a 0% Nash loss). No
+  bidding behaviour changes; the engine `set_*` knobs are all still present.
+
 - **Web Settings tab is now generated from a Rust registry.** The wasm crate
   exports `describe_options()` (a JSON list of every user-facing knob: key,
   section, default, and — for radio families — variants) and `set_choice(key,

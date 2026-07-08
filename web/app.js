@@ -474,7 +474,7 @@ const STORAGE_KEY = 'pons-settings';
 let stored = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; // {key: value}, defaults omitted
 let OPTIONS = []; // [{key, section, kind, label, default, variants?}] — filled after init()
 
-const ACRONYMS = { nt: 'NT', xyz: 'XYZ', rkcb: 'RKCB', dont: 'DONT', uvu: 'UvU', hcp: 'HCP', gf: 'GF', '3nt': '3NT', '4m': '4M', '2d': '2♦' };
+const ACRONYMS = { nt: 'NT', xyz: 'XYZ', rkcb: 'RKCB', dont: 'DONT', uvu: 'UvU', hcp: 'HCP', gf: 'GF', '1nt': '1NT', '3nt': '3NT', '4m': '4M', '2d': '2♦' };
 const humanize = (key) => key.split('_')
   .map((w, i) => ACRONYMS[w] || (i === 0 ? w[0].toUpperCase() + w.slice(1) : w)).join(' ');
 const labelOf = (opt) => opt.label || humanize(opt.key);
