@@ -67,8 +67,10 @@ diffpair() {
 
 log "=== advance-double A/B start, sha=$SHA, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul"
 for vul in none both; do
-    arm base "$vul"
-    arm rich "$vul" --ns-rich-advance
-    diffpair rich base "$vul"
+    arm base  "$vul"
+    arm rich  "$vul" --ns-rich-advance
+    arm rubens "$vul" --ns-rich-advance --ns-advance-rubens
+    diffpair rich   base "$vul"   # baseline (known wash)
+    diffpair rubens rich "$vul"   # the Rubens increment (right-siding is DD-invisible)
 done
 log "=== advance-double A/B done"

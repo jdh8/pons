@@ -23,6 +23,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Rubens layer. Distilled from BBA via `examples/probe-advance-double`. The
   default system is byte-identical.
 
+- **Jump-cue Rubens transfers** on the advance of a takeout double
+  (`set_advance_rubens`, **opt-in, default-off**; `bba-gen --ns-advance-rubens`;
+  no-op unless `set_rich_advance_double` is also on). A 5+ unbid major
+  (invitational-or-better) transfers via the rank below it, so the doubler
+  completes and *declares* — right-siding the strong hand. Measured a **dead-zero
+  DD increment** (+0.0000 NV / +0.0001 vul plain, CIs span 0) — expected, since
+  right-siding is invisible to double-dummy (same trick count whoever declares);
+  the value is an sd-lead (single-dummy) re-measure candidate. Default
+  byte-identical.
+
 - **5-3-3-2 takeout-double discipline** (`set_suppress_5332_takeout`,
   **shipped default-on**; off-switch `bba-gen --no-ns-suppress-5332-takeout`).
   A takeout double exists to find a 4-4 major fit, but a 5-3-3-2 has no 4-card

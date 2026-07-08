@@ -380,6 +380,12 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_rich_advance: bool,
 
+    /// Add the **jump-cue Rubens transfer** layer on top of the rich advance (a
+    /// transfer to a 5+ unbid major; no-op unless `--ns-rich-advance`; opt-in,
+    /// see `set_advance_rubens`).
+    #[arg(long, default_value_t = false)]
+    ns_advance_rubens: bool,
+
     /// Disable opener's balanced `1NT` rebid after `1m – 1M` — revert a balanced
     /// 12–14 with a five-card minor to the natural `2m` (shipped default-on; see
     /// `set_balanced_1nt_rebid`).
@@ -1180,6 +1186,7 @@ fn main() -> anyhow::Result<()> {
     pons::bidding::constraint::set_suppress_4432_vs_major(args.ns_suppress_4432_vs_major);
     pons::bidding::constraint::set_suppress_4432_vs_minor(args.ns_suppress_4432_vs_minor);
     pons::bidding::american::set_rich_advance_double(args.ns_rich_advance);
+    pons::bidding::american::set_advance_rubens(args.ns_advance_rubens);
     pons::bidding::american::set_balanced_1nt_rebid(!args.no_ns_balanced_1nt_rebid);
     pons::bidding::american::set_second_suit_agreement(!args.no_ns_second_suit_agreement);
     pons::bidding::instinct::set_competitive_rebid(!args.no_ns_competitive_rebid);

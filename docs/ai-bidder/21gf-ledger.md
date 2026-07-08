@@ -590,9 +590,23 @@ fit-finding). Sound + complete but **not a gap-closer**; kept **opt-in default-o
 
 **Decision (jdh8):** build the **jump-cue Rubens** layer anyway (system completeness over
 DD gap-closing — accept a likely DD-wash for competitive precision DD can't score).
-**Parked:** a *full* transfer ladder from the *simple* cue up may suit **balancing**
-doubles — revisit later. Phase 2 = jump-cue `3t+` = transfers, INV+ 5+ below 3NT, 6+ if it
-transfers to `4♣+` and won't play 3NT.
+
+**Phase 2 — flagship major-transfer (`set_advance_rubens`, opt-in, no-op unless rich is
+on; `--ns-advance-rubens`):** a 5+ unbid major (INV+) transfers via the rank below it
+(`3♦`→♥, `3♥`→♠), and the doubler **completes and declares** — right-siding the strong
+hand. Over `(1♠)` the sole unbid major (hearts) is below the jump-cue, so `3♥` is natural.
+Completion has a finite catch-all (never passes the transfer), super-accepts `4M` with a
+max; advancer raises/rests. Unit-verified across `(1♣)`/`(1♦)`/`(1♥)`.
+
+**Rubens increment measured DEAD ZERO** (`rubens` vs `rich`, 409.6k bd/arm/vul, SEED_BASE
+1783497765): **+0.0000 NV / +0.0001 both plain, +0.0002/+0.0003 PD**, fired 0.03%, all CIs
+span 0. This is the textbook signature: **right-siding is invisible to double-dummy** — the
+transfer changes *who declares*, not the trick count, so DD sees nothing (the ~+0.0001 is
+the rare contract-level change). No regression. The right-siding value lives under the
+**sd-lead single-dummy scorer** (`single_dummy_leads` — the lead now comes up to the
+concealed strong hand), which is the natural re-measure; see [[project_sd-lead-scorer]].
+Kept opt-in. **Parked:** a *full* transfer ladder from the *simple* cue up may suit
+**balancing** doubles — revisit later.
 
 ## Openings
 

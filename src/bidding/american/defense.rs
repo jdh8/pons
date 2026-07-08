@@ -974,6 +974,10 @@ thread_local! {
     /// (`[1t, X, P]`) is authored — the cue + notrump ladder that gives the
     /// advancer an invite/force channel; see [`set_rich_advance_double`].
     static RICH_ADVANCE_DOUBLE: Cell<bool> = const { Cell::new(false) };
+    /// Whether the **jump-cue Rubens transfer** layer sits on top of the rich
+    /// advance — a jump-cue transfer to a 5+ unbid major; see
+    /// [`set_advance_rubens`].  No effect unless [`RICH_ADVANCE_DOUBLE`] is on.
+    static ADVANCE_RUBENS: Cell<bool> = const { Cell::new(false) };
 }
 
 /// Toggle the responsive double after partner's **takeout double** and their
@@ -1026,6 +1030,26 @@ pub fn set_rich_advance_double(on: bool) {
 /// Whether the rich advance of a takeout double is currently authored
 fn rich_advance_double_enabled() -> bool {
     RICH_ADVANCE_DOUBLE.with(Cell::get)
+}
+
+/// Toggle the **jump-cue Rubens transfer** layer on top of the rich advance for
+/// books built *after* this call (thread-local, read at book-construction time)
+///
+/// **Off by default**, and a no-op unless [`set_rich_advance_double`] is also on.
+/// When on, the advancer's jump-cue (and, over `(1♠)`, a natural `3♥`) becomes a
+/// **transfer to a 5+ unbid major** (invitational-or-better) — the doubler
+/// completes and *declares*, right-siding the strong hand.  Right-siding is
+/// invisible to double-dummy (the trick count is the same whoever declares), so
+/// its value shows up under the single-dummy lead scorer, not the DD A/B; this
+/// knob (`bba-gen --ns-advance-rubens`) exists to confirm no DD *regression* and
+/// as an sd-lead re-measure candidate.  See `docs/ai-bidder/21gf-ledger.md`.
+pub fn set_advance_rubens(on: bool) {
+    ADVANCE_RUBENS.with(|cell| cell.set(on));
+}
+
+/// Whether the jump-cue Rubens transfer layer is currently authored
+fn advance_rubens_enabled() -> bool {
+    ADVANCE_RUBENS.with(Cell::get)
 }
 
 /// Whether the overcall responsive double is currently authored
@@ -1341,6 +1365,10 @@ const MICHAELS: Alert = Alert("michaels");
 /// Advancer's cue of opener's suit after partner's takeout double — general
 /// invitational (10–11) with a 4-card unbid major, asking partner to raise it
 const ADVANCE_CUE: Alert = Alert("advance-cue");
+
+/// Advancer's jump-cue Rubens transfer — invitational-or-better with a 5+ unbid
+/// major (the suit one rank above the bid), asking the doubler to declare it
+const ADVANCE_TRANSFER: Alert = Alert("advance-transfer");
 
 /// Unusual 2NT over a suit opening — 5-5 in the two lowest unbid suits
 const UNUSUAL: Alert = Alert("unusual-2nt");
@@ -2782,7 +2810,80 @@ fn advance_double_rich(their_opening: Bid) -> Rules {
             rules = rules.rule(Bid::new(4, strain), 0.9, len(suit, 5..) & hcp(6..=10));
         }
     }
+
+    // Jump-cue Rubens transfers: a 5+ unbid major (invitational-or-better) shows
+    // via a transfer one rank below it, so the doubler declares (right-siding).
+    // Weighted above the cue and the game-blast so a 5+ major routes here.
+    if advance_rubens_enabled() {
+        for (bid, target) in advance_major_transfers(theirs) {
+            rules = rules
+                .rule(bid, 1.6, hcp(10..) & len(target, 5..))
+                .alert(ADVANCE_TRANSFER);
+        }
+        // Over (1♠) the sole unbid major (hearts) sits below the jump-cue, so it
+        // is shown by a natural invitational 3♥ (advancer declares) instead.
+        if theirs == Strain::Spades {
+            rules = rules.rule(
+                Bid::new(3, Strain::Hearts),
+                1.6,
+                hcp(10..) & len(Suit::Hearts, 5..),
+            );
+        }
+    }
+
     rules
+}
+
+/// The advancer's jump-cue major transfers over a one-of-`theirs` opening:
+/// `(transfer bid, the 5+ unbid major it shows)`.  A transfer is the rank
+/// immediately below its target major, at the three level.  Over `(1♠)` the sole
+/// unbid major (hearts, `3♥`) is below the jump-cue (`3♠`), so it is shown by a
+/// natural `3♥` in [`advance_double_rich`] instead and is not returned here.
+fn advance_major_transfers(theirs: Strain) -> Vec<(Bid, Suit)> {
+    if theirs == Strain::Spades {
+        return Vec::new();
+    }
+    let mut out = Vec::new();
+    for target in [Suit::Hearts, Suit::Spades] {
+        if Strain::from(target) == theirs {
+            continue;
+        }
+        let below = match target {
+            Suit::Hearts => Suit::Diamonds,
+            Suit::Spades => Suit::Hearts,
+            _ => unreachable!("only hearts and spades are majors"),
+        };
+        out.push((Bid::new(3, Strain::from(below)), target));
+    }
+    out
+}
+
+/// Doubler's completion of the advancer's Rubens transfer
+/// (`[1t, X, P, transfer, {P,X}, ?]`, gated by [`set_advance_rubens`])
+///
+/// The transfer promised a 5+ `target` major; the doubler bids it (declaring —
+/// the right-siding point), jumping to game (`4M`) with a maximum and support.
+/// The completion is a finite catch-all so the artificial transfer is never
+/// passed out.  Both bids are natural (`target`), so neither is alerted.
+fn complete_advance_transfer(target: Suit) -> Rules {
+    let strain = Strain::from(target);
+    Rules::new()
+        // Super-accept: maximum with support jumps to game.
+        .rule(Bid::new(4, strain), 1.3, len(target, 4..) & points(15..))
+        // Complete the transfer (always) — never pass the artificial call.
+        .rule(Bid::new(3, strain), 1.0, hcp(0..))
+}
+
+/// Advancer's rebid after the doubler completed the transfer
+/// (`[1t, X, P, transfer, {P,X}, 3M, P, ?]`)
+///
+/// The transfer was invitational-or-better; opposite the doubler's minimum
+/// completion a game-forcing advancer (12+) raises to game, an invitational one
+/// (10–11) rests in the three-level partscore.
+fn advance_transfer_rebid(target: Suit) -> Rules {
+    Rules::new()
+        .rule(Bid::new(4, Strain::from(target)), 1.0, hcp(12..))
+        .rule(Call::Pass, 0.0, hcp(0..))
 }
 
 /// Doubler's answer to the advancer's cue (`[1t, X, P, cue, P, ?]`, gated by
@@ -3241,6 +3342,30 @@ pub fn defensive() -> Defensive {
                     3,
                     answer_advance_cue(opening),
                 );
+            }
+
+            // Rubens transfers: the doubler completes the transfer (declaring),
+            // and the advancer raises to game or rests over the completion.  Both
+            // RHO-pass and RHO-double branches, so the artificial transfer is
+            // never left in.
+            if advance_rubens_enabled() {
+                for (bid, target) in advance_major_transfers(theirs) {
+                    let completion = call(3, Strain::from(target));
+                    for rho in [Call::Pass, Call::Double] {
+                        let after_xfer = [
+                            Call::Bid(opening),
+                            Call::Double,
+                            Call::Pass,
+                            Call::Bid(bid),
+                            rho,
+                        ];
+                        insert_all_seats(&mut d, &after_xfer, 3, complete_advance_transfer(target));
+                        let mut rebid = after_xfer.to_vec();
+                        rebid.push(completion);
+                        rebid.push(Call::Pass);
+                        insert_all_seats(&mut d, &rebid, 3, advance_transfer_rebid(target));
+                    }
+                }
             }
         }
 
@@ -4108,6 +4233,48 @@ mod tests {
             call(2, Strain::Hearts),
             "the flat floor has no cue-bid advance"
         );
+    }
+
+    /// The Rubens layer: a 5+ unbid major transfers via the rank below it, and
+    /// the doubler completes by declaring that major — over every opening where
+    /// the transfer is a genuine jump-cue (`1♣`/`1♦`/`1♥`).
+    #[test]
+    fn rubens_transfer_completes_into_the_major() {
+        super::set_rich_advance_double(true);
+        super::set_advance_rubens(true);
+
+        // Advancer with 5 spades, 10 HCP: transfer via 3♥ (the rank below spades)
+        // over each opening; the doubler completes to spades and declares.
+        let advancer = "KQJ42.xx.KJx.xxx"; // 5 spades, 10 HCP
+        for open in [Strain::Clubs, Strain::Diamonds, Strain::Hearts] {
+            let start = [call(1, open), Call::Double, Call::Pass];
+            let (xfer, _) = best_call(&start, advancer);
+            assert_eq!(
+                xfer,
+                call(3, Strain::Hearts),
+                "5-spade INV+ transfers via 3♥ over (1{open:?})"
+            );
+            let after = [
+                call(1, open),
+                Call::Double,
+                Call::Pass,
+                call(3, Strain::Hearts),
+                Call::Pass,
+            ];
+            let (complete, floored) = best_call(&after, "AKx.xxx.Axxx.xxx");
+            assert_eq!(
+                complete,
+                call(3, Strain::Spades),
+                "doubler completes the transfer into spades over (1{open:?})"
+            );
+            assert!(
+                !floored,
+                "the completion must come from the book, not the floor"
+            );
+        }
+
+        super::set_advance_rubens(false);
+        super::set_rich_advance_double(false);
     }
 
     /// Best call with Woolsey forced on (default ranges) and the conflicting
