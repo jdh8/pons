@@ -825,6 +825,27 @@ impl Inferences {
                         }
                     }
 
+                    // Opener's major jump-rebid (set_opener_major_jump_rebid):
+                    // a 3M jump in opener's own opened major over 1♥-1♠ / 1M-1NT
+                    // shows 16+.  Natural, so the six-card length is read above
+                    // (the `i_bid_it` branch); add the strength floor here.
+                    if crate::bidding::american::opener_major_jump_rebid()
+                        && !side_acted[defending_parity]
+                        && is_opening_side
+                        && lane == opener_lane
+                        && lane_bids[lane] == 1
+                        && opening_bid.level.get() == 1
+                        && matches!(opening_bid.strain, Strain::Hearts | Strain::Spades)
+                        && bid.strain == opening_bid.strain
+                        && bid
+                            .level
+                            .get()
+                            .saturating_sub(cheapest_level(highest, bid.strain))
+                            >= 1
+                    {
+                        players[who].narrow_points(Range::at_least(16, POINTS_CAP));
+                    }
+
                     // Stayman: read opener's major answer and responder's
                     // strength (opponents silent) so the floor judges the fit and
                     // accepts or declines invitations.
@@ -2347,6 +2368,20 @@ mod tests {
             Range::at_least(4, LENGTH_CAP)
         );
         set_opener_extras_ladder(true);
+    }
+
+    #[test]
+    fn opener_major_jump_rebid_reads_extras() {
+        use crate::bidding::american::set_opener_major_jump_rebid;
+        let h = bid(1, Strain::Hearts);
+        let s = bid(1, Strain::Spades);
+        let p = Call::Pass;
+        set_opener_major_jump_rebid(true);
+        // Opener after 1♥ – 1♠ – 3♥: jump-rebid of a six-plus major, 16+.
+        let jr = read(&[h, p, s, p, bid(3, Strain::Hearts), p]);
+        assert!(jr.partner().length(Suit::Hearts).min >= 6);
+        assert!(jr.partner().points.min >= 16);
+        set_opener_major_jump_rebid(true);
     }
 
     /// The M6.4 deterministic rule on its canonical auctions: a

@@ -87,9 +87,9 @@ std::thread_local! {
 /// Read at book-construction time; shipped default-on (+0.0203/+0.0332 plain,
 /// +0.0181/+0.0297 PD IMPs/board vs BBA, NV/vul, all CIs>0).  The matching
 /// [`Inferences`](crate::bidding::inference) reading gates on the same toggle,
-/// narrowing each rung's shape and strength.  Only the two minor-opening rebid
-/// nodes carry it so far; the major-opening nodes (a Meckstroth `3m` collision)
-/// are a follow-up.
+/// narrowing each rung's shape and strength.  The two minor-opening rebid nodes
+/// carry the full ladder; the major-opening nodes carry the jump-rebid rung
+/// alone (see [`set_opener_major_jump_rebid`]).
 pub fn set_opener_extras_ladder(on: bool) {
     OPENER_EXTRAS_LADDER.with(|cell| cell.set(on));
 }
@@ -100,6 +100,64 @@ pub fn set_opener_extras_ladder(on: bool) {
 /// matching `Inferences` reading (mirrors `rule_of_20_enabled`).
 pub(crate) fn opener_extras_ladder() -> bool {
     OPENER_EXTRAS_LADDER.with(Cell::get)
+}
+
+// ponytail: same construction-time toggle idiom as the extras ladder above.
+std::thread_local! {
+    /// Whether opener's major-opening rebid nodes carry the jump-rebid rung of
+    /// a six-card major with extras (`1♥ – 1♠ – 3♥`, `1M – 1NT – 3M`) and
+    /// responder's continuation over it.  Shipped **on** (BBA-gap bucket #3
+    /// residual); see [`set_opener_major_jump_rebid`].
+    static OPENER_MAJOR_JUMP_REBID: Cell<bool> = const { Cell::new(true) };
+}
+
+/// Enable opener's major jump-rebid rung in books built after this call
+///
+/// The [extras ladder](set_opener_extras_ladder) covers only the two
+/// minor-opening rebid nodes; the major-opening nodes (`1♥ – 1♠` and the
+/// forcing-`1NT` rebid) still cap opener's own-major rebid at a minimum `2M`
+/// with no upper bound, so a 16+ hand with a strong six-card major underbids
+/// and misses the game BBA reaches (the `6+ ♥`/`6+ ♠` residual in the
+/// Constructive/book/round-2 anchor bucket — `3♥ → 4♥`, `2♥ → 3♥`, `3♠ → 4♠`).
+///
+/// This adds the single jump-rebid `3M` (6+ suit, 16+ points), disjoint from
+/// the `2M` minimum by a crisp point band, **plus responder's continuation**
+/// (`responder_after_major_jump_rebid`: raise `4M` on an 8-card fit, `3NT` with
+/// no fit, pass with a minimum).  It is the deferred major-opening half of the
+/// extras ladder, scoped to opener's *own* suit to avoid the Meckstroth `3m`
+/// collision on the jump-shift-into-a-minor rung.  Natural (names opener's own
+/// suit), so unalerted and floor-safe; the matching
+/// [`Inferences`](crate::bidding::inference) reading gates on the same toggle.
+///
+/// Read at book-construction time; shipped default-on (+0.0059/+0.0125 plain,
+/// +0.0046/+0.0104 PD IMPs/board vs BBA, NV/vul, all CIs>0).  The bare rung
+/// *without* the continuation measured a loss (−0.005/−0.009 plain: responder
+/// passed the invitational `3M` and stranded below game) — authoring both sides
+/// flipped it to a win.
+pub fn set_opener_major_jump_rebid(on: bool) {
+    OPENER_MAJOR_JUMP_REBID.with(|cell| cell.set(on));
+}
+
+/// Whether opener's major jump-rebid rung is currently enabled
+///
+/// Read at book-construction time by `register`, and at classify time by the
+/// matching `Inferences` reading.
+pub(crate) fn opener_major_jump_rebid() -> bool {
+    OPENER_MAJOR_JUMP_REBID.with(Cell::get)
+}
+
+/// Append opener's jump-rebid of a six-card major with extras
+///
+/// `major` is opener's opened suit and `highest` responder's call.  The jump
+/// `3M` sits above the `2M` minimum by weight, so only a 16+ hand takes it.
+/// Gated on [`set_opener_major_jump_rebid`].
+fn with_major_jump_rebid(rules: Rules, major: Suit, highest: Bid) -> Rules {
+    if !opener_major_jump_rebid() {
+        return rules;
+    }
+    let trump = Strain::from(major);
+    let level = cheapest_level_over(highest, trump) + 1;
+    rules.rule(Bid::new(level, trump), 1.5, len(major, 6..) & points(16..))
 }
 
 /// The cheapest level at which `strain` may be bid over `highest`
@@ -235,6 +293,8 @@ fn rebid_one_heart_one_spade() -> Rules {
         );
     // Meckstroth adjunct: invitational 3♣/3♦ jumps with a five-card minor.
     rules = with_invitational_minors(rules);
+    // Major jump-rebid: 1♥ – 1♠ – 3♥ on a six-card major with extras.
+    rules = with_major_jump_rebid(rules, Suit::Hearts, Bid::new(1, Strain::Spades));
     rules
         .rule(Bid::new(2, Strain::Clubs), 0.9, len(Suit::Clubs, 4..))
         .rule(Bid::new(2, Strain::Diamonds), 0.9, len(Suit::Diamonds, 4..))
@@ -258,6 +318,8 @@ fn rebid_after_forcing_notrump(major: Suit) -> Rules {
         .rule(Bid::new(2, trump), 1.0, len(major, 6..));
     // Meckstroth adjunct: invitational 3♣/3♦ jumps with a five-card minor.
     rules = with_invitational_minors(rules);
+    // Major jump-rebid: 1M – 1NT – 3M on a six-card major with extras.
+    rules = with_major_jump_rebid(rules, major, Bid::new(1, Strain::Notrump));
     for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts] {
         if Strain::from(suit) < trump {
             rules = rules.rule(Bid::new(2, Strain::from(suit)), 0.9, len(suit, 4..));
@@ -436,6 +498,27 @@ fn responder_after_invitational_minor(major: Suit) -> Rules {
         .rule(Call::Pass, 0.0, points(0..))
 }
 
+/// Responder's call over opener's invitational `3M` jump-rebid
+///
+/// Opener has shown 6+ of the major and 16+ points.  A forcing-1NT responder
+/// is usually short in the major (3+ support would have raised), so the
+/// notrump game is the common accept; a doubleton is already an eight-card fit
+/// opposite six, so the major-game raise needs only `len(major, 2..)`.  Used at
+/// `1M – 1NT – 3M` and `1♥ – 1♠ – 3♥`.
+///
+/// | Call | Wt  | Meaning |
+/// |------|-----|---------|
+/// | 4M   | 1.4 | Accept: major game on an 8+ card fit (2+ support, 8+ points) |
+/// | 3NT  | 1.2 | Accept: notrump game, no major fit (9+ points) |
+/// | Pass | 0.0 | Decline: minimum — play `3M` |
+fn responder_after_major_jump_rebid(major: Suit) -> Rules {
+    let trump = Strain::from(major);
+    Rules::new()
+        .rule(Bid::new(4, trump), 1.4, len(major, 2..) & points(8..))
+        .rule(Bid::new(3, Strain::Notrump), 1.2, points(9..))
+        .rule(Call::Pass, 0.0, points(0..))
+}
+
 /// Opener accepts or declines responder's 2NT notrump invite
 ///
 /// Accept with 14+ HCP (bid 3NT), decline with a pass.
@@ -535,6 +618,37 @@ fn register_invitational_minor_continuations(book: &mut Trie) {
             responder_after_invitational_minor(Suit::Hearts),
         );
     }
+}
+
+/// Register responder's call over opener's `3M` jump-rebid
+///
+/// Covers `1M – 1NT – 3M` and `1♥ – 1♠ – 3♥`.  A no-op when the rung is
+/// disabled — opener's tables then carry no `3M` jump to continue.
+fn register_major_jump_rebid_continuations(book: &mut Trie) {
+    if !opener_major_jump_rebid() {
+        return;
+    }
+    for major in [Suit::Hearts, Suit::Spades] {
+        insert_uncontested(
+            book,
+            &[
+                call(1, Strain::from(major)),
+                call(1, Strain::Notrump),
+                call(3, Strain::from(major)),
+            ],
+            responder_after_major_jump_rebid(major),
+        );
+    }
+    // 1♥ – 1♠ – 3♥: opener's major is hearts, responder has shown 4+ spades.
+    insert_uncontested(
+        book,
+        &[
+            call(1, Strain::Hearts),
+            call(1, Strain::Spades),
+            call(3, Strain::Hearts),
+        ],
+        responder_after_major_jump_rebid(Suit::Hearts),
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -932,6 +1046,7 @@ fn register_major_rebid_tails(book: &mut Trie) {
 /// Register opener's rebids after a one-level new suit and the forcing 1NT
 pub(super) fn register(book: &mut Trie) {
     register_forcing_notrump_continuations(book);
+    register_major_jump_rebid_continuations(book);
     insert_uncontested(
         book,
         &[call(1, Strain::Hearts), call(1, Strain::Spades)],
@@ -1047,6 +1162,106 @@ mod tests {
         assert_eq!(
             best(&trie, AFTER_1D_1S, "653.K3.AKQT854.A"),
             Call::Bid(Bid::new(2, Strain::Diamonds))
+        );
+    }
+
+    /// Build the full rebid Trie with opener's major jump-rebid rung on (the
+    /// shipped default).
+    fn major_jump_trie() -> Trie {
+        set_opener_major_jump_rebid(true);
+        let mut trie = Trie::new();
+        register(&mut trie);
+        trie
+    }
+
+    /// The raw table auction `[1♥, P, 1♠, P]` (opener to rebid).
+    const AFTER_1H_1S: &[Call] = &[
+        Call::Bid(Bid::new(1, Strain::Hearts)),
+        Call::Pass,
+        Call::Bid(Bid::new(1, Strain::Spades)),
+        Call::Pass,
+    ];
+
+    /// The raw table auction `[1♠, P, 1NT, P]` (opener rebids over forcing 1NT).
+    const AFTER_1S_1NT: &[Call] = &[
+        Call::Bid(Bid::new(1, Strain::Spades)),
+        Call::Pass,
+        Call::Bid(Bid::new(1, Strain::Notrump)),
+        Call::Pass,
+    ];
+
+    #[test]
+    fn opener_major_jump_rebid_shows_strength() {
+        let trie = major_jump_trie();
+        // 6+ hearts, 16 HCP, no spade fit → jump-rebid 3♥.
+        assert_eq!(
+            best(&trie, AFTER_1H_1S, "3.AKQJ72.KQ5.J54"),
+            Call::Bid(Bid::new(3, Strain::Hearts))
+        );
+        // A minimum 6-card heart hand still takes the natural 2♥.
+        assert_eq!(
+            best(&trie, AFTER_1H_1S, "A2.KQ9872.Q43.J5"),
+            Call::Bid(Bid::new(2, Strain::Hearts))
+        );
+        // The forcing-1NT node carries the same rung: 1♠ – 1NT – 3♠.
+        assert_eq!(
+            best(&trie, AFTER_1S_1NT, "AKQJ72.3.KQ5.J54"),
+            Call::Bid(Bid::new(3, Strain::Spades))
+        );
+    }
+
+    #[test]
+    fn opener_major_jump_rebid_reverts_when_off() {
+        // Knob off: the 16-count 6-heart hand reverts to the minimum 2♥ rebid.
+        set_opener_major_jump_rebid(false);
+        let mut trie = Trie::new();
+        register(&mut trie);
+        set_opener_major_jump_rebid(true);
+        assert_eq!(
+            best(&trie, AFTER_1H_1S, "3.AKQJ72.KQ5.J54"),
+            Call::Bid(Bid::new(2, Strain::Hearts))
+        );
+    }
+
+    /// `[1♥, P, 1♠, P, 3♥, P]` — responder to act over opener's jump-rebid.
+    const AFTER_1H_1S_3H: &[Call] = &[
+        Call::Bid(Bid::new(1, Strain::Hearts)),
+        Call::Pass,
+        Call::Bid(Bid::new(1, Strain::Spades)),
+        Call::Pass,
+        Call::Bid(Bid::new(3, Strain::Hearts)),
+        Call::Pass,
+    ];
+
+    /// `[1♠, P, 1NT, P, 3♠, P]` — responder to act over opener's jump-rebid.
+    const AFTER_1S_1NT_3S: &[Call] = &[
+        Call::Bid(Bid::new(1, Strain::Spades)),
+        Call::Pass,
+        Call::Bid(Bid::new(1, Strain::Notrump)),
+        Call::Pass,
+        Call::Bid(Bid::new(3, Strain::Spades)),
+        Call::Pass,
+    ];
+
+    #[test]
+    fn responder_accepts_major_jump_rebid() {
+        let trie = major_jump_trie();
+        // Fit (3 hearts) + values → raise to game 4♥.
+        assert_eq!(
+            best(&trie, AFTER_1H_1S_3H, "KQ85.K76.542.J43"),
+            Call::Bid(Bid::new(4, Strain::Hearts))
+        );
+        // No heart fit + values → notrump game 3NT.
+        assert_eq!(
+            best(&trie, AFTER_1H_1S_3H, "KQ85.6.KJ43.Q642"),
+            Call::Bid(Bid::new(3, Strain::Notrump))
+        );
+        // Minimum → pass the invitational jump, play 3♥.
+        assert_eq!(best(&trie, AFTER_1H_1S_3H, "Q985.42.J8532.K4"), Call::Pass);
+        // Forcing-1NT node: a doubleton spade fit (8 cards) + values → 4♠.
+        assert_eq!(
+            best(&trie, AFTER_1S_1NT_3S, "87.KQ86.KJ43.T92"),
+            Call::Bid(Bid::new(4, Strain::Spades))
         );
     }
 

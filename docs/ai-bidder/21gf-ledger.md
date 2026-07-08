@@ -171,6 +171,22 @@ plain-DD win both vuls → **shipped default-on**. The two major-opening nodes
 (Meckstroth `3m` collision) and the `5+ ♣`/`6+ ♠`/`6+ ♥` residual are the
 follow-up.
 
+**Bucket #3 residual → opener major jump-rebid (2026-07-08,
+`set_opener_major_jump_rebid` default-on, `scripts/opener-major-jump-rebid-ab.sh`,
+SEED_BASE 1783549337):** re-anchor `c864bad` left the `6+ ♥` (−3.8k) / `6+ ♠`
+(−5.7k) major single-suiter underbids (`3♥ → 4♥`, `2♥ → 3♥`, `3♠ → 4♠`, plain ≈
+PD) in the major-opening rebid nodes. Added the jump-rebid `3M` (6+/16+, natural)
+scoped to opener's own suit — no reverse/jump-shift, so no Meckstroth `3m`
+collision. **The bare rung LOST** (plain −0.0051 NV / −0.0091 vul, −1.2…−1.9
+IMPs/fired): responder passed the invitational `3M` and stranded below game
+(`1♥-1NT-3♥` passed while the slow `2♥-2NT-3NT-4♥` reached game). Authored
+responder's continuation (`responder_after_major_jump_rebid`: `4M` on an 8-card
+fit, `3NT` no fit, pass a minimum) → re-measure (reusing the byte-identical OFF
+arm): **plain +0.0059 NV / +0.0125 vul, PD +0.0046 / +0.0104 (all CIs>0, ~0.35 %
+fired, +1.8…+3.4 IMPs/fired)** — plain-DD win both vuls → **shipped default-on**.
+The iron-rule lesson (author both sides): a jump whose saved space is never
+spent measures as a loss even when the idea wins.
+
 **Scoring basis:** A/B duplicate results are scored **plain double-dummy**
 (`scoring::ns_score_contract`, the contract's *actual* auction penalty) as of commit
 `a6f2206`. `par` and the `bidding::ev` call-evaluator keep perfect defense

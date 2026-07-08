@@ -24,8 +24,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   reverts). **A/B vs BBA (409.6k bd, SEED_BASE 1783544590, ~0.7% fired): plain
   +0.0203 NV / +0.0332 vul, PD +0.0181 NV / +0.0297 vul, all CIs>0** — a plain-DD
   win both vuls (plain ≥ PD, no doubling artifact), among the campaign's largest
-  single ships. The two major-opening rebid nodes (a Meckstroth `3m` collision)
-  are a follow-up.
+  single ships. The two major-opening rebid nodes are shipped separately (next).
+
+- **Opener's major jump-rebid + responder's continuation (BBA-gap bucket #3
+  residual).** The extras ladder above left the major-opening rebid nodes
+  (`1♥ – 1♠` and the forcing-`1NT` rebid) capped at a minimum `2M` with no upper
+  bound, so a 16+ hand with a strong six-card major underbid — the `6+ ♥`/`6+ ♠`
+  residual in the same anchor bucket (`3♥ → 4♥`, `2♥ → 3♥`, `3♠ → 4♠`, plain ≈
+  PD). Added the single **jump-rebid `3M`** (6+, 16+; natural, so unalerted),
+  scoped to opener's own suit to avoid the Meckstroth `3m` collision, **plus
+  responder's continuation** (raise `4M` on an 8-card fit, `3NT` with no fit,
+  pass a minimum). Authoring the continuation was load-bearing: the bare rung
+  measured a **loss** (plain −0.0051 NV / −0.0091 vul — responder passed the
+  invitational `3M` and stranded below the game the slow auction reached), and
+  completing both sides flipped it to a win. `set_opener_major_jump_rebid`
+  (default on; `bba-gen --no-ns-opener-major-jump-rebid` reverts). **A/B vs BBA
+  (409.6k bd, SEED_BASE 1783549337, ~0.35% fired): plain +0.0059 NV / +0.0125
+  vul, PD +0.0046 NV / +0.0104 vul, all CIs>0** — a plain-DD win both vuls.
 
 - **Web book search now takes ASCII shorthand for calls.** The filter matched
   the book's rendered glyphs literally, so `2c` found nothing (the node holds

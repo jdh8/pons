@@ -102,6 +102,19 @@ CIs>0; see the CHANGELOG and 21gf-ledger).  Source:
 major-opening rebid nodes (Meckstroth `3m` collision) and the `5+ ♣`/`6+ ♠`/`6+
 ♥` residual.
 
+**Re-anchor `c864bad` (2026-07-08, 409.6k boards, same seed):** the minor extras
+ladder folded in — pooled **−1.84 plain / −2.07 PD** (was −1.89 / −2.11).
+Re-ranked and traced the residual: bucket #1 `Defensive/book/round-1` (PD *worse*
+by 31k → obstruction wall, Pillar-C territory); #2 `opening` (light-open frontier
++ already-refuted weak-twos); #4 `round-1` dominant leak (`1♥→1♠`, −9295) is
+`set_longer_major_response`, an *already-measured null* (compression pays a level
+on the heart fits). The one plain-workable, un-refuted lever was #3's own
+residual — the `6+ ♥`/`6+ ♠` major single-suiter underbids — **worked**:
+opener's major jump-rebid `3M` (6+/16+) + responder's continuation, **shipped
+default-on** (+0.0059/+0.0125 plain, +0.0046/+0.0104 PD, all CIs>0; the bare rung
+without the continuation LOST −0.005/−0.009 — see CHANGELOG and 21gf-ledger).
+Source: `ab-results/anchor/2026-07-08-c864bad/report.md`.
+
 **#1 is the real prize and it is a *book* item, not a floor item.**  Our
 defensive first-round structure — overcalls, takeout doubles, two-suiters
 over their opening — bleeds −2.40/div (−142733 raw at 409.6k bd), and PD is
