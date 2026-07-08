@@ -105,7 +105,7 @@ pub use defense::{
     set_minor_transfer_defense, set_natural_defense, set_natural_double_floor,
     set_natural_double_shape, set_natural_double_weight, set_natural_overcall_points,
     set_notrump_balancing, set_overcall_discipline, set_passed_hand_overcall,
-    set_responsive_overcall, set_responsive_takeout, set_stayman_defense,
+    set_responsive_overcall, set_responsive_takeout, set_rich_advance_double, set_stayman_defense,
     set_stayman_defense_overcall, set_takeout_support, set_transfer_defense,
     set_unusual_notrump_defense, set_woolsey, set_woolsey_double_floor, set_woolsey_points,
 };

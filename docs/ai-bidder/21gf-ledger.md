@@ -559,6 +559,41 @@ contract, which splits the results cleanly:
   other four remain predicted-only (lowest priority; SAT #119 has the most failing-slam
   exposure).
 
+**Rich advance of a takeout double (`[1t, X, P]`, 2026-07-08, `set_rich_advance_double`,
+opt-in default-off, `bba-gen --ns-rich-advance`):** the flat `advance_double` floor
+gave the advancer only a cheapest natural suit, a `3NT`, and a penalty pass — the whole
+10+ invitational-or-better band collapsed into "bid your cheapest suit," flat, with **no
+cue and no way to invite or force**. This is the leak behind the 4432-vs-major anchor
+finding (advancer leaps to a bad `3NT`; see [[project_5332-4432-takeout-discipline]]).
+A BBA distillation (`examples/probe-advance-double`, seat 3, 30k hands/opening) showed
+BBA's advance is uniform: **cue of opener's suit = 10–17, ~20%** (the fat workhorse) +
+a natural ladder split by level (cheapest = weak-wide, single-jump = 7–12 invite, NT
+ladder, weak shapely game jumps, penalty pass). Our floor had **no cue at all**.
+
+Authored `advance_double_rich`: per jdh8's design, a **cue asking for a 4-card unbid
+major** (the Stayman-ask), **2NT almost denies a major**, a `1NT`/`3NT` stopper ladder,
+weak shapely game jumps, and a **forced 3-card suit when broke**. Plus `answer_advance_cue`
+— the doubler's reply, with a finite `2NT` catch-all so the artificial cue is **never
+passed out**. Cue alerted (`ADVANCE_CUE`), rule-projected.
+
+**Measured a clean DD-wash** (four-version arc, each 409.6k bd/arm/vul, `--ns-rich-advance`):
+`v1` cue-no-answer −0.0020 (passed-out cues → us declaring their suit; the M6.3 trap).
+`v2` +doubler answer for *both* RHO-pass **and RHO-doubles-the-cue** (the second passed-out
+branch, ~152 disasters/arm, was the whole v1 loss) → −0.0005 wash. `v3` +advancer *drives
+to game* after the answer → −0.0015 **worse**: the drive overbid, because the rich builder
+had dropped the flat floor's "4-card major + game values → blast 4M" jump, so game hands
+diverted into the cue and landed short. `v4` restore the game-blast (12+, above the cue) +
+**cap the cue to invitational 10–11** (its floored rest is then correct) → **−0.0001 NV /
+−0.0007 both, PD≈plain, CIs include 0** — dead wash. The flat floor already blasts games
+well; the cue's invitational precision is real bridge but **DD-invisible** (competitive /
+fit-finding). Sound + complete but **not a gap-closer**; kept **opt-in default-off**.
+
+**Decision (jdh8):** build the **jump-cue Rubens** layer anyway (system completeness over
+DD gap-closing — accept a likely DD-wash for competitive precision DD can't score).
+**Parked:** a *full* transfer ladder from the *simple* cue up may suit **balancing**
+doubles — revisit later. Phase 2 = jump-cue `3t+` = transfers, INV+ 5+ below 3NT, 6+ if it
+transfers to `4♣+` and won't play 3NT.
+
 ## Openings
 
 | # | Toggle | pons status | decision | A/B | commit |

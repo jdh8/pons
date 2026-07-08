@@ -374,6 +374,12 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_suppress_4432_vs_minor: bool,
 
+    /// Author the **rich advance** of partner's takeout double of a one-opening
+    /// (`(1t)–X–(P)–?`): cue + notrump ladder giving the advancer an invite/force
+    /// channel (opt-in; see `set_rich_advance_double`).
+    #[arg(long, default_value_t = false)]
+    ns_rich_advance: bool,
+
     /// Disable opener's balanced `1NT` rebid after `1m – 1M` — revert a balanced
     /// 12–14 with a five-card minor to the natural `2m` (shipped default-on; see
     /// `set_balanced_1nt_rebid`).
@@ -1173,6 +1179,7 @@ fn main() -> anyhow::Result<()> {
     pons::bidding::constraint::set_suppress_5332_takeout(!args.no_ns_suppress_5332_takeout);
     pons::bidding::constraint::set_suppress_4432_vs_major(args.ns_suppress_4432_vs_major);
     pons::bidding::constraint::set_suppress_4432_vs_minor(args.ns_suppress_4432_vs_minor);
+    pons::bidding::american::set_rich_advance_double(args.ns_rich_advance);
     pons::bidding::american::set_balanced_1nt_rebid(!args.no_ns_balanced_1nt_rebid);
     pons::bidding::american::set_second_suit_agreement(!args.no_ns_second_suit_agreement);
     pons::bidding::instinct::set_competitive_rebid(!args.no_ns_competitive_rebid);

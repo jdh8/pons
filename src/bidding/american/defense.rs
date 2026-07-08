@@ -970,6 +970,10 @@ thread_local! {
     /// Whether the responsive double after partner's **overcall** + their raise
     /// (`[1t, overcall, raise]`) is authored; see [`set_responsive_overcall`].
     static RESPONSIVE_OVERCALL: Cell<bool> = const { Cell::new(false) };
+    /// Whether the *rich* advance of partner's takeout double of a one-opening
+    /// (`[1t, X, P]`) is authored — the cue + notrump ladder that gives the
+    /// advancer an invite/force channel; see [`set_rich_advance_double`].
+    static RICH_ADVANCE_DOUBLE: Cell<bool> = const { Cell::new(false) };
 }
 
 /// Toggle the responsive double after partner's **takeout double** and their
@@ -1002,6 +1006,26 @@ fn responsive_takeout_enabled() -> bool {
 /// `examples/responsive-ab --conv overcall`; see `docs/ai-bidder/21gf-ledger.md`.
 pub fn set_responsive_overcall(on: bool) {
     RESPONSIVE_OVERCALL.with(|cell| cell.set(on));
+}
+
+/// Toggle the **rich advance** of partner's takeout double of a one-of-a-suit
+/// opening (`(1t)–X–(P)–?`) for books built *after* this call (thread-local,
+/// read once at book-construction time)
+///
+/// **Off by default** (the flat [`advance_double`] ladder). When on, the
+/// advancer gets a rich ladder: a cue of opener's suit asking for a 4-card major
+/// (invitational 10–11 — the Stayman-ask; game hands blast 4M), a notrump
+/// ladder (`1NT` 7–10 / `2NT` 11–12 / `3NT` 13+), weak shapely game jumps, and a
+/// forced 3-card-suit response when broke — filling the invite/force gap the
+/// flat floor leaves. The A/B knob (`bba-gen --ns-rich-advance`); see
+/// `docs/ai-bidder/21gf-ledger.md`.
+pub fn set_rich_advance_double(on: bool) {
+    RICH_ADVANCE_DOUBLE.with(|cell| cell.set(on));
+}
+
+/// Whether the rich advance of a takeout double is currently authored
+fn rich_advance_double_enabled() -> bool {
+    RICH_ADVANCE_DOUBLE.with(Cell::get)
 }
 
 /// Whether the overcall responsive double is currently authored
@@ -1313,6 +1337,10 @@ fn passed_two_suiter(a: Suit, b: Suit) -> Cons<impl Constraint + Clone> {
 
 /// Michaels cue-bid — 2 of their suit, 5-5, 8+ HCP (a two-suiter)
 const MICHAELS: Alert = Alert("michaels");
+
+/// Advancer's cue of opener's suit after partner's takeout double — general
+/// invitational (10–11) with a 4-card unbid major, asking partner to raise it
+const ADVANCE_CUE: Alert = Alert("advance-cue");
 
 /// Unusual 2NT over a suit opening — 5-5 in the two lowest unbid suits
 const UNUSUAL: Alert = Alert("unusual-2nt");
@@ -2661,6 +2689,140 @@ pub fn advance_double(their_opening: Bid) -> Rules {
     rules
 }
 
+/// Rich advance of partner's takeout double of a one-of-a-suit `their_opening`
+/// (`(1t)–X–(P)–?`), gated by [`set_rich_advance_double`]
+///
+/// The flat [`advance_double`] ladder gives the advancer only a cheapest natural
+/// suit, a `3NT`, and a penalty pass — so the whole 10+ invitational-and-up
+/// band collapses into "bid your cheapest suit," flat, with no way to invite or
+/// force.  This adds the missing structure, matching BBA's uniform advance:
+///
+/// - **cue of opener's suit** (`2t`) — invitational (10–11) with a 4-card major
+///   (10+), no clear single call: a 4-card invite, or a game force asking for a
+///   major.  *Artificial* (`ADVANCE_CUE` alert); its `hcp(10..)` rule projects
+///   the values with no length in their suit.
+/// - **natural notrump ladder** — `1NT` 7–10, `2NT` 11–12 balanced, `3NT` 13+,
+///   each with a stopper in their suit.
+/// - **natural suit** at the cheapest level, 4+ (weak-to-medium to-play), with a
+///   **weak shapely game jump** (`4M`, 5+, 6–10) for a major.
+/// - **forced 3-card suit** when broke with no 4-card suit outside their suit —
+///   a takeout double cannot be passed for want of a bid.
+/// - **penalty pass** with a trump stack (4+ of their suit, two top honors).
+#[must_use]
+fn advance_double_rich(their_opening: Bid) -> Rules {
+    let theirs = their_opening.strain;
+    let t = theirs.suit().expect("their opening is always a suit bid");
+    let level = their_opening.level.get();
+    let cue = Bid::new(level + 1, theirs);
+
+    let mut rules = Rules::new()
+        // Penalty pass: a trump stack sits for the double.
+        .rule(Call::Pass, 1.6, len(t, 4..) & top_honors(t, 2..));
+
+    // Cue of opener's suit — *invitational* (10–11) with a 4-card *unbid* major,
+    // asking partner to raise it: the Stayman-ask that finds the 4-4 major game
+    // at the invitational boundary (partner accepts with a maximum, declines to
+    // the cheap major with a minimum).  Game-values hands with a 4-card major
+    // blast `4M` directly (below); the cue is only for the invite band, so it is
+    // capped at 11 and its floored continuation (advancer rests) is correct.
+    // One rule per unbid major (M6.2d: state each off its own conjunction, no
+    // OR-disjunction).  Artificial → `ADVANCE_CUE` alert.
+    for major in [Suit::Hearts, Suit::Spades] {
+        if Strain::from(major) == theirs {
+            continue;
+        }
+        rules = rules
+            .rule(cue, 1.4, hcp(10..=11) & len(major, 4..))
+            .alert(ADVANCE_CUE);
+    }
+
+    rules = rules
+        // 3NT to play: game values, a stopper, and (by the cue outranking it) no
+        // 4-card unbid major to look for.
+        .rule(
+            Bid::new(3, Strain::Notrump),
+            1.3,
+            hcp(13..) & stopper_in_their_suits(),
+        )
+        // 2NT: invitational (11–12) balanced with a stopper — almost denies a
+        // 4-card major, which would have cued.
+        .rule(
+            Bid::new(level + 1, Strain::Notrump),
+            1.15,
+            hcp(11..=12) & balanced() & stopper_in_their_suits(),
+        )
+        // Natural 1NT: 7–10 with a stopper.
+        .rule(
+            Bid::new(level, Strain::Notrump),
+            1.1,
+            hcp(7..=10) & stopper_in_their_suits(),
+        )
+        // Final fallback.
+        .rule(Call::Pass, 0.0, hcp(0..));
+
+    for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
+        let strain = Strain::from(suit);
+        if strain == theirs {
+            continue;
+        }
+        let bid_level = if strain > theirs { level } else { level + 1 };
+        // Natural advance at the cheapest legal level.
+        rules = rules.rule(Bid::new(bid_level, strain), 1.0, len(suit, 4..));
+        // Forced 3-card suit: a takeout double cannot be passed for want of a
+        // bid, so any hand with no 4-card suit and no notrump/cue home still
+        // introduces its cheapest 3-card suit (no HCP cap — the higher-weight
+        // cue, notrump, and 4-card-suit rules take every hand that has a better
+        // call, leaving only the genuinely stuck ones here).
+        rules = rules.rule(Bid::new(bid_level, strain), 0.3, len(suit, 3..));
+        // Major-suit game jumps: blast game with a 4-card major and game values
+        // (12+ — outranks the invitational cue so a game hand never diverts into
+        // the fit-search and lands short), or a weak shapely 5-card jump (6–10).
+        if matches!(suit, Suit::Hearts | Suit::Spades) {
+            rules = rules.rule(Bid::new(4, strain), 1.5, len(suit, 4..) & hcp(12..));
+            rules = rules.rule(Bid::new(4, strain), 0.9, len(suit, 5..) & hcp(6..=10));
+        }
+    }
+    rules
+}
+
+/// Doubler's answer to the advancer's cue (`[1t, X, P, cue, P, ?]`, gated by
+/// [`set_rich_advance_double`])
+///
+/// The cue ([`advance_double_rich`]) promised 10+ with a 4-card *unbid* major and
+/// asked partner to raise it.  The doubler shows the fit — the unbid major,
+/// cheapest with a minimum, `4M` with extras — or, holding no such major, places
+/// the contract in notrump.  A finite catch-all (`2NT`) guarantees a bid so the
+/// artificial cue is **never passed out**, which would strand us declaring the
+/// opponents' suit (the M6.3 "passed-out cue" trap).  Every bid here is natural,
+/// so none is alerted.
+fn answer_advance_cue(their_opening: Bid) -> Rules {
+    let theirs = their_opening.strain;
+    let level = their_opening.level.get();
+
+    let mut rules = Rules::new()
+        // Extras and a stopper, no major to raise: 3NT to play.
+        .rule(
+            Bid::new(3, Strain::Notrump),
+            1.2,
+            hcp(15..) & stopper_in_their_suits(),
+        )
+        // Always-legal non-pass catch-all: never leave the artificial cue in.
+        .rule(Bid::new(level + 1, Strain::Notrump), 0.2, hcp(0..));
+
+    for major in [Suit::Hearts, Suit::Spades] {
+        let m = Strain::from(major);
+        if m == theirs {
+            continue;
+        }
+        // The cheapest legal bid of the unbid major, above the cue at (level+1, theirs).
+        let cheap = if m > theirs { level + 1 } else { level + 2 };
+        // Show the 4-4 major fit: cheapest with a minimum, game with extras.
+        rules = rules.rule(Bid::new(cheap, m), 1.3, len(major, 4..));
+        rules = rules.rule(Bid::new(4, m), 1.5, len(major, 4..) & points(15..));
+    }
+    rules
+}
+
 /// Insert the advancer's actions after partner's takeout double of weak-two
 /// `opening` (in `suit`), honoring the selected [`set_advance_sohl_style`]
 ///
@@ -3050,12 +3212,37 @@ pub fn defensive() -> Defensive {
         insert_all_seats(&mut d, &[Call::Bid(opening)], 3, defense_to_suit(opening));
 
         // Advancing partner's takeout double: [1t, X, P] — advancer to act.
+        // Rich cue + notrump ladder when enabled, else the flat floor ladder.
+        let advances = if rich_advance_double_enabled() {
+            advance_double_rich(opening)
+        } else {
+            advance_double(opening)
+        };
         insert_all_seats(
             &mut d,
             &[Call::Bid(opening), Call::Double, Call::Pass],
             3,
-            advance_double(opening),
+            advances,
         );
+
+        // Doubler's answer to the advancer's cue: [1t, X, P, cue, ?] — the cue
+        // asked for a 4-card major; the doubler must show the fit or place the
+        // contract, **never pass the artificial cue** (that strands us declaring
+        // the opponents' suit).  RHO may pass *or double* the cue; the doubler's
+        // obligation to answer is the same either way, so wire both — leaving the
+        // `[cue, X]` branch to the floor lets it pass out `2t` doubled.  Only
+        // when the rich advance (and hence the cue) is authored.
+        if rich_advance_double_enabled() {
+            let cue = call(2, theirs);
+            for rho in [Call::Pass, Call::Double] {
+                insert_all_seats(
+                    &mut d,
+                    &[Call::Bid(opening), Call::Double, Call::Pass, cue, rho],
+                    3,
+                    answer_advance_cue(opening),
+                );
+            }
+        }
 
         // Advances of a natural overcall ([1t, overcall, Pass]) are left to the
         // instinct floor's Rubens transfers — the programmatic floor expresses
@@ -3884,6 +4071,42 @@ mod tests {
             on,
             Call::Double,
             "the default suppresses the 5332 takeout double"
+        );
+    }
+
+    /// The rich advance gives the advancer a cue (invite+) and a forced 3-card
+    /// response when broke — both absent from the flat floor.
+    #[test]
+    fn rich_advance_double_cues_and_forces() {
+        // (1♥) X (P) ? — advancer to act.
+        let auction = [call(1, Strain::Hearts), Call::Double, Call::Pass];
+
+        // 10 HCP with 4 spades (an unbid major): invitational cue to find the
+        // 4-4 spade fit (12+ would blast 4♠ directly instead).
+        let invite = "KJxx.xxx.KJx.Qxx";
+        // 0 HCP, 3-4-3-3: no 4-card suit outside hearts, no trump stack — must
+        // still bid (a takeout double cannot be passed for want of a call).
+        let broke = "xxx.xxxx.xxx.xxx";
+
+        super::set_rich_advance_double(true);
+        let (cued, _) = best_call(&auction, invite);
+        let (forced, _) = best_call(&auction, broke);
+        super::set_rich_advance_double(false);
+        let (flat_invite, _) = best_call(&auction, invite);
+
+        assert_eq!(
+            cued,
+            call(2, Strain::Hearts),
+            "12-count with no natural home cues opener's suit"
+        );
+        assert!(
+            matches!(forced, Call::Bid(_)),
+            "a broke advancer bids rather than passing partner's takeout (got {forced:?})"
+        );
+        assert_ne!(
+            flat_invite,
+            call(2, Strain::Hearts),
+            "the flat floor has no cue-bid advance"
         );
     }
 

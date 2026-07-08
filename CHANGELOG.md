@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Rich advance of a takeout double** (`set_rich_advance_double`, **opt-in,
+  default-off**; `bba-gen --ns-rich-advance`). The flat advance floor gave the
+  advancer of `(1t)–X–(P)` only a cheapest natural suit, `3NT`, and a penalty
+  pass — no cue, no way to invite or force. This adds an invitational cue of
+  opener's suit asking for a 4-card unbid major (game hands blast `4M`
+  directly), a `1NT`/`2NT`/`3NT` stopper ladder, weak shapely game jumps, a
+  forced 3-card response when broke, and the doubler's answer to the cue (with a
+  finite catch-all so the artificial cue is never passed out). Measured a clean
+  **DD-wash** vs the flat floor (−0.0001 NV / −0.0007 vul plain, PD≈plain, CIs
+  include 0, 409.6k bd/arm/vul) — sound and complete, but DD cannot see the
+  advance's competitive value, so it stays opt-in as the base for the jump-cue
+  Rubens layer. Distilled from BBA via `examples/probe-advance-double`. The
+  default system is byte-identical.
+
 - **5-3-3-2 takeout-double discipline** (`set_suppress_5332_takeout`,
   **shipped default-on**; off-switch `bba-gen --no-ns-suppress-5332-takeout`).
   A takeout double exists to find a 4-4 major fit, but a 5-3-3-2 has no 4-card
