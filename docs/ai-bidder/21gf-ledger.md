@@ -18,7 +18,11 @@ History: **−2.59** (2000 bd, vul none, S.1) → **−1.997** (4000 bd) → fir
 streak; the pooled figure newly folds in the harder both-vul arm.
 Re-anchored `4afc985` (2026-07-08, 409.6k bd, same seed): pooled **−1.89 plain /
 −2.11 PD** after the bucket-#1 takeout-discipline and bucket-#3 opener-ladder
-ships (progress log below).
+ships (progress log below).  Latest re-anchor `5f9d6c2` (2026-07-09, same seed):
+pooled **−1.758 plain / −1.864 PD** — the five-card-major takeout discipline
+(overcall an unbid 5-card major instead of doubling) folded in; def-r1 −127k
+plain / −147k PD.  Biggest un-worked prize now: Competitive `fallback@1/@2`
+round-1 (−78k plain, two-sided Pillar-D sub-campaign).
 
 **What the first anchor overturns (read before picking work):** the gap is
 **book-dominated, not floor-dominated** — `book` −248k IMPs vs the entire

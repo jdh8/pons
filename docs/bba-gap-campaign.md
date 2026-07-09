@@ -168,8 +168,38 @@ plain never loses (+0.0051/+0.0112 minor win, +0.0013/+0.0044 major wash).  The
 auction) strengthened the sd win over a no-reading run — keeping the floor off a
 phantom suit in the contested tails is real, sd-visible value.  This is
 the campaign's first def-r1 lever to clear the sd arbiter — the "obstruction
-wall, skip" verdict was wrong for the *capability-adding* slice.  The remaining
-def-r1 mass (takeout doubles −16k, we-pass-they-compete −29k) stays wall-bound.
+wall, skip" verdict was wrong for the *capability-adding* slice.  Of the
+remaining def-r1 takeout-double mass (−16k), the **five-card-major slice** was
+NOT wall-bound (below); the we-pass-they-compete −29k stays wall-bound.
+
+**Five-card-major takeout discipline — def-r1's second WIN (shipped default-on,
+`5f9d6c2`).**  Doubling with a biddable unbid five-card+ major buries the suit
+and risks partner responding in our short suit (the def-r1 overbid/wrong-strain
+leak).  `set_suppress_5card_major_takeout` (default on) rejects such hands in the
+book takeout-double shape gate so they route to the natural major overcall,
+extending the 5332/flat-4333 disciplines; the live leak is over a **weak two**,
+where the 12+ shapely double (weight 1.3) outguns the two-level overcall (1.0),
+and only the 12–16 range is redirected (17+ falls through to the separate
+`points(17..)` double).  A/B vs BBA (409.6k bd/arm/vul, both vuls): a **plain +
+PD + sd-lead WIN at both vulnerabilities, every CI > 0** — plain +0.0190 NV /
++0.0493 vul, PD +0.0892 / +0.1129, sd-lead +0.0124 / +0.0413 IMPs/bd.
+Plain-positive rules out a doubling artifact; sd (the competitive-range arbiter)
+confirms the right-siding.  The sibling 5-card-**minor** (textbook double) and
+17+ single-suiter (needs an authored strong overcall-then-jump) slices stay
+deferred.
+
+**Re-anchor `5f9d6c2` (2026-07-09, 409.6k boards, same seed):** the
+five-card-major discipline folded in — pooled **−1.758 plain / −1.864 PD** (was
+−1.827 / −2.056 at `308bbd1`), replay-verified 100%.  Def-r1 shrank to −127014
+plain / −146649 PD (was −134k / −164k; the discipline pulled its targeted
+PD-heavy slice).  Re-rank: the DD-workable **book** buckets stay mined to
+residuals (`opening` = refuted light-open wall; `round-2` = RKCB slam accuracy /
+M6.4; `round-1` = the null `1♥→1♠` + splinter-slam).  The biggest **un-worked**
+prize is now the two-sided **Competitive `fallback@1`/`fallback@2` round-1** pair
+(−41021 + −37151 plain / −35146 + −34548 PD): our opening + their interference
+where the floor's `0+ HCP` catch-all sells out — a Pillar-D classify + sd-lead
+sub-campaign, not a one-shot fix.  Report:
+`ab-results/anchor/2026-07-09-5f9d6c2/report.md`.
 
 **Gladiator over the major-opening 1NT overcall — completed, WASH (parked opt-in).**
 Over `1♥`/`1♠` the systems-on graft is only an sd win (plain/PD wash) — one
