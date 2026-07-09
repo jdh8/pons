@@ -398,6 +398,14 @@ fn systems_on_overcall_strip(auction: &[Call]) -> Option<Vec<Call>> {
     if opening.level.get() != 1 || !opening.strain.is_suit() {
         return None;
     }
+    // Over a MAJOR, Gladiator replaces the opening-1NT graft with a differently
+    // shaped structure (cue = Stayman, 2♣ = relay), so the strip identity no
+    // longer holds — leave those auctions to `gladiator_reading` / the walk.
+    if crate::bidding::american::nt_overcall_gladiator()
+        && matches!(opening.strain, Strain::Hearts | Strain::Spades)
+    {
+        return None;
+    }
     if auction.get(open + 1) != Some(&Call::Bid(Bid::new(1, Strain::Notrump))) {
         return None;
     }
@@ -559,6 +567,11 @@ impl Inferences {
         // Responder's double of an overcall of our 1NT shows 8+ (every DoubleStyle),
         // recorded post-walk so opener does not undercount the partnership's strength.
         let overcall_double = responder_overcall_double_reading(auction, len);
+        // Our Gladiator advance of a 1NT overcall of their major: the 2♣ relay (and
+        // its forced 2♦), the cue-Stayman, the 3M splinter, and the 4M both-minor
+        // Leaping Michaels are bids of a suit the caller lacks — suppressed here,
+        // real shape recorded post-walk.
+        let gladiator = gladiator_reading(auction);
 
         // Which calls the walk has suppressed so far (any reason: projection,
         // convention readers, the notrump-structure blanket, control bids) —
@@ -616,7 +629,8 @@ impl Inferences {
                             || woolsey_x.is_some_and(|w| w.suppresses(index))
                             || dont.is_some_and(|d| d.suppresses(index))
                             || meckwell.is_some_and(|m| m.suppresses(index))
-                            || two_suiter.is_some_and(|t| t.suppresses(index));
+                            || two_suiter.is_some_and(|t| t.suppresses(index))
+                            || gladiator.is_some_and(|g| g.suppresses(index));
 
                         // M6.4: a four-plus-level suit bid in the slam zone is
                         // classified control-bid vs to-play before the natural
@@ -1093,6 +1107,42 @@ impl Inferences {
                 None => {
                     players[who].narrow_length(Suit::Clubs, Range::at_least(5, LENGTH_CAP));
                     players[who].narrow_length(Suit::Diamonds, Range::at_least(5, LENGTH_CAP));
+                }
+            }
+        }
+
+        // Our Gladiator advance: record the real shape the suppressed call hid.
+        // Guarded to our own side (the advance is our agreement) — an opponent's
+        // in-band call must never be narrowed to the phantom suit.
+        if let Some(gladiator) = gladiator {
+            let who = relative_of(len, gladiator.index);
+            if matches!(who, Relative::Me | Relative::Partner) {
+                let who = who as usize;
+                match gladiator.advance {
+                    GladiatorAdvance::Relay => {}
+                    GladiatorAdvance::Cue { o } => {
+                        players[who].narrow_length(o, Range::at_least(4, LENGTH_CAP));
+                        players[who].narrow_points(Range::at_least(8, POINTS_CAP));
+                    }
+                    GladiatorAdvance::Splinter { o, m } => {
+                        players[who].narrow_length(o, Range::at_least(4, LENGTH_CAP));
+                        players[who].narrow_length(m, Range::new(0, 1));
+                        players[who].narrow_points(Range::at_least(10, POINTS_CAP));
+                    }
+                    GladiatorAdvance::BothMinors => {
+                        players[who].narrow_length(Suit::Clubs, Range::at_least(5, LENGTH_CAP));
+                        players[who].narrow_length(Suit::Diamonds, Range::at_least(5, LENGTH_CAP));
+                        players[who].narrow_points(Range::at_least(10, POINTS_CAP));
+                    }
+                    GladiatorAdvance::Minor { o, minor } => {
+                        players[who].narrow_length(o, Range::at_least(5, LENGTH_CAP));
+                        players[who].narrow_length(minor, Range::at_least(5, LENGTH_CAP));
+                        players[who].narrow_points(Range::at_least(10, POINTS_CAP));
+                    }
+                    GladiatorAdvance::ClubInv => {
+                        players[who].narrow_length(Suit::Clubs, Range::at_least(5, LENGTH_CAP));
+                        players[who].narrow_points(Range::at_least(8, POINTS_CAP));
+                    }
                 }
             }
         }
@@ -1819,6 +1869,118 @@ fn two_suiter_reading(auction: &[Call]) -> Option<TwoSuiterReading> {
     } else {
         None
     }
+}
+
+/// Our **Gladiator** advance of a 1NT overcall of their major
+/// ([`set_nt_overcall_gladiator`][crate::bidding::american::set_nt_overcall_gladiator])
+///
+/// The advancer's artificial calls under `[1M, 1NT, P, ?]` — the `2♣` relay (and
+/// its forced `2♦` completion), the cue of their major (Stayman for the unbid
+/// major), the `3M` splinter, and the `4M` both-minor Leaping Michaels — are bids
+/// of a suit the caller does *not* hold; the natural walk would floor a phantom
+/// suit.  Their indices are suppressed and the real shape recorded post-walk.  The
+/// natural advances (`2♦`/`2O`, the 3-level naturals, `4O`) read off the walk and
+/// never enter here.
+#[derive(Clone, Copy)]
+enum GladiatorAdvance {
+    /// `2♣` relay (weak / invitational) — no sound per-suit floor.
+    Relay,
+    /// Cue of their major = Stayman: 4+ in the unbid major `o`, INV+.
+    Cue { o: Suit },
+    /// `3M` splinter: 4+ `o`, 0–1 in their major `m`, GF.
+    Splinter { o: Suit, m: Suit },
+    /// `4M` Leaping Michaels: both minors 5+, GF.
+    BothMinors,
+    /// `4♣`/`4♦` Leaping Michaels: 5+ `o` + 5+ the named `minor`, GF.
+    Minor { o: Suit, minor: Suit },
+    /// `2NT`: 5+ clubs, INV (no phantom suit — narrow only).
+    ClubInv,
+}
+
+#[derive(Clone, Copy)]
+struct GladiatorReading {
+    /// Index of the advancer's Gladiator call
+    index: usize,
+    advance: GladiatorAdvance,
+    /// Bitset of indices whose natural suit reading the walk must skip
+    suppress: u64,
+}
+
+impl GladiatorReading {
+    const fn suppresses(self, index: usize) -> bool {
+        index < 64 && self.suppress >> index & 1 != 0
+    }
+}
+
+fn gladiator_reading(auction: &[Call]) -> Option<GladiatorReading> {
+    if !crate::bidding::american::nt_overcall_gladiator() {
+        return None;
+    }
+    let open = auction.iter().position(|&c| c != Call::Pass)?;
+    let Call::Bid(opening) = auction[open] else {
+        return None;
+    };
+    let m = opening.strain.suit()?;
+    if opening.level.get() != 1 || !matches!(m, Suit::Hearts | Suit::Spades) {
+        return None;
+    }
+    // Our 1NT overcall, partner passing through to the advancer.  If partner acted
+    // (the interference branch) leave it to the natural walk.
+    if auction.get(open + 1) != Some(&Call::Bid(Bid::new(1, Strain::Notrump)))
+        || auction.get(open + 2) != Some(&Call::Pass)
+    {
+        return None;
+    }
+    let index = open + 3;
+    let Some(&Call::Bid(bid)) = auction.get(index) else {
+        return None;
+    };
+    let o = if m == Suit::Hearts {
+        Suit::Spades
+    } else {
+        Suit::Hearts
+    };
+
+    // `index ≤ 6` (at most three leading passes), so the shifts never overflow.
+    let mut suppress = 0u64;
+    let advance = if bid == Bid::new(2, Strain::Clubs) {
+        suppress |= 1 << index;
+        // The overcaller's forced 2♦ completion (relay, P, 2♦) says nothing of
+        // diamonds — suppress it too.
+        if auction.get(index + 2) == Some(&Call::Bid(Bid::new(2, Strain::Diamonds))) {
+            suppress |= 1 << (index + 2);
+        }
+        GladiatorAdvance::Relay
+    } else if bid == Bid::new(2, opening.strain) {
+        suppress |= 1 << index;
+        GladiatorAdvance::Cue { o }
+    } else if bid == Bid::new(3, opening.strain) {
+        suppress |= 1 << index;
+        GladiatorAdvance::Splinter { o, m }
+    } else if bid == Bid::new(4, opening.strain) {
+        suppress |= 1 << index;
+        GladiatorAdvance::BothMinors
+    } else if bid == Bid::new(2, Strain::Notrump) {
+        GladiatorAdvance::ClubInv
+    } else if bid == Bid::new(4, Strain::Clubs) {
+        GladiatorAdvance::Minor {
+            o,
+            minor: Suit::Clubs,
+        }
+    } else if bid == Bid::new(4, Strain::Diamonds) {
+        GladiatorAdvance::Minor {
+            o,
+            minor: Suit::Diamonds,
+        }
+    } else {
+        return None;
+    };
+
+    Some(GladiatorReading {
+        index,
+        advance,
+        suppress,
+    })
 }
 
 /// Our Woolsey takeout **double** of their 1NT and the advancer's `2♣` minor relay
@@ -3067,6 +3229,45 @@ mod tests {
     }
 
     #[test]
+    fn gladiator_cue_is_not_read_as_their_major() {
+        // [1♠, 1NT, P, 2♠, P]: our 1NT overcall of their 1♠; the advancer's 2♠ is
+        // Gladiator Stayman for hearts (exactly 4, INV+) — NOT a natural spade
+        // suit.  The major-strip is suppressed for Gladiator, so `gladiator_reading`
+        // reads the cue.
+        crate::bidding::american::set_nt_overcall_gladiator(true);
+        let auction = [
+            bid(1, Strain::Spades),
+            bid(1, Strain::Notrump),
+            Call::Pass,
+            bid(2, Strain::Spades),
+            Call::Pass,
+        ];
+        let inf = read(&auction);
+        crate::bidding::american::set_nt_overcall_gladiator(false);
+        // Their major is never floored into the advancer's hand (the iron rule)...
+        assert_eq!(inf.partner().length(Suit::Spades), Range::FULL_LENGTH);
+        // ...and the cue pins the four-card heart holding it promised.
+        assert_eq!(inf.partner().length(Suit::Hearts), Range::new(4, 13));
+    }
+
+    #[test]
+    fn gladiator_relay_is_not_read_as_clubs() {
+        // [1♠, 1NT, P, 2♣, P]: the advancer's 2♣ is the Gladiator relay (weak /
+        // invitational, any suit), not a natural club suit.
+        crate::bidding::american::set_nt_overcall_gladiator(true);
+        let auction = [
+            bid(1, Strain::Spades),
+            bid(1, Strain::Notrump),
+            Call::Pass,
+            bid(2, Strain::Clubs),
+            Call::Pass,
+        ];
+        let inf = read(&auction);
+        crate::bidding::american::set_nt_overcall_gladiator(false);
+        assert_eq!(inf.partner().length(Suit::Clubs), Range::FULL_LENGTH);
+    }
+
+    #[test]
     fn completed_major_transfer_shows_five() {
         // [1NT, P, 2♦, P, 2♥, P]: partner transferred to hearts and we
         // completed; at length 6 the responder is us (Me).  The transfer shows a
@@ -3613,6 +3814,52 @@ mod tests {
         assert!(
             worklist.is_empty(),
             "{} artificial calls lack an alert (the retirement worklist):\n{}",
+            worklist.len(),
+            worklist.join("\n"),
+        );
+    }
+
+    /// The same alert invariant, but for the opt-in Gladiator book (off by default,
+    /// so the walk above never sees it).  A Gladiator artificial call added without
+    /// `.alert(...)` fails here.
+    #[test]
+    fn gladiator_artificial_calls_are_alerted() {
+        use crate::bidding::american::{american, set_nt_overcall_gladiator};
+
+        set_nt_overcall_gladiator(true);
+        let pair = american();
+        set_nt_overcall_gladiator(false);
+
+        let trie = &pair.defensive.0;
+        let mut worklist: Vec<String> = Vec::new();
+        for (auction, classifier) in trie {
+            let auction: &[Call] = &auction;
+            let Some(rules) = classifier.as_rules() else {
+                continue;
+            };
+            let context = Context::new(RelativeVulnerability::NONE, auction)
+                .with_prefixes(trie.common_prefixes(auction));
+            for rule in rules.rules() {
+                let made = rule.call();
+                if super::artificial(&rule.project(&context), made) && rule.alert().is_none() {
+                    worklist.push(format!(
+                        "[{}] {made}  (label: {:?})",
+                        auction
+                            .iter()
+                            .map(ToString::to_string)
+                            .collect::<Vec<_>>()
+                            .join(" "),
+                        rule.label(),
+                    ));
+                }
+            }
+        }
+
+        worklist.sort();
+        worklist.dedup();
+        assert!(
+            worklist.is_empty(),
+            "{} Gladiator artificial calls lack an alert:\n{}",
             worklist.len(),
             worklist.join("\n"),
         );

@@ -105,17 +105,17 @@ pub use defense::{
     set_meckwell_x_floor, set_meckwell_x_four_four, set_minor_transfer_defense,
     set_natural_defense, set_natural_double_floor, set_natural_double_shape,
     set_natural_double_weight, set_natural_overcall_points, set_notrump_balancing,
-    set_notrump_defense, set_nt_overcall_no_major, set_nt_overcall_systems_on,
-    set_overcall_discipline, set_passed_hand_overcall, set_responsive_overcall,
-    set_responsive_takeout, set_rich_advance_double, set_stayman_defense,
+    set_notrump_defense, set_nt_overcall_gladiator, set_nt_overcall_no_major,
+    set_nt_overcall_systems_on, set_overcall_discipline, set_passed_hand_overcall,
+    set_responsive_overcall, set_responsive_takeout, set_rich_advance_double, set_stayman_defense,
     set_stayman_defense_overcall, set_takeout_support, set_transfer_defense,
     set_two_level_minor_overcall_tight, set_unusual_notrump_defense, set_woolsey,
     set_woolsey_double_floor, set_woolsey_points,
 };
 pub(crate) use defense::{
     direct_dont_enabled, direct_landy_double, landy_range, meckwell_enabled,
-    natural_defense_enabled, natural_double_floor, natural_overcall_points, nt_overcall_systems_on,
-    woolsey_double_floor, woolsey_enabled, woolsey_points,
+    natural_defense_enabled, natural_double_floor, natural_overcall_points, nt_overcall_gladiator,
+    nt_overcall_systems_on, woolsey_double_floor, woolsey_enabled, woolsey_points,
 };
 pub use game_force::set_second_suit_agreement;
 pub use notrump::{

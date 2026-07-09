@@ -171,6 +171,25 @@ the campaign's first def-r1 lever to clear the sd arbiter — the "obstruction
 wall, skip" verdict was wrong for the *capability-adding* slice.  The remaining
 def-r1 mass (takeout doubles −16k, we-pass-they-compete −29k) stays wall-bound.
 
+**Gladiator over the major-opening 1NT overcall — REFUTED (parked opt-in).**
+Over `1♥`/`1♠` the systems-on graft is only an sd win (plain/PD wash) — one
+major is *theirs*, so symmetric both-major Stayman + two transfers misfire.
+Gladiator (`set_nt_overcall_gladiator`, Belladonna/Helms shape economy: `2♣`
+weak relay, cue-of-their-major = Stayman for the one unbid major, natural INV +
+splinter + Leaping Michaels) was the hypothesised fix.  A/B vs BBA (32×6400,
+minor/major split): **loss on all three scorers both vuls** (major NV
+plain/PD/sd −0.0075/−0.0120/−0.0102, vul −0.0135/−0.0152/−0.0178; minor split a
+0-fired wash).  sd is the arbiter and sd loses, so not a wall artifact —
+Gladiator is worse than the graft.  Forensic (classify by advancer's branch):
+the bleed is the `2♣` relay (−1.36/−2.08 IMP/fired) and the jump continuations
+(3-level naturals/splinter, `2NT` club-inv), which the floor passes short of
+game — their continuations are **unauthored**, while the graft, being the full
+opening-1NT tree, drives the same hands to 3NT/4M.  Only Gladiator's plain
+natural `2♦`/`2O` and pass-1NT branches win (+0.5…+0.9), and they are swamped.
+Refuted at *this* completeness level: the fix is a full continuation tree, but
+it must out-bid a graft that already wins over majors — not worth it now.  Kept
+byte-identical opt-in as a future-completion candidate.
+
 **#1 is the real prize and it is a *book* item, not a floor item.**  Our
 defensive first-round structure — overcalls, takeout doubles, two-suiters
 over their opening — bleeds −2.40/div (−142733 raw at 409.6k bd), and PD is

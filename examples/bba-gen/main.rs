@@ -552,6 +552,13 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_nt_overcall_systems_on: bool,
 
+    /// Gladiator advances after our 1NT overcall of their *major* (replaces the
+    /// opening-1NT graft over majors only): 2♣ weak relay, cue-of-major Stayman
+    /// for the unbid major, natural INV, splinter/Leaping-Michaels. Off by default
+    /// (A/B candidate — the major graft washes plain/PD, wins only on sd-lead).
+    #[arg(long, default_value_t = false)]
+    ns_nt_overcall_gladiator: bool,
+
     /// Extend our 1NT defense to the balancing seat (1NT) P P ? (default off).
     #[arg(long, default_value_t = false)]
     ns_balancing: bool,
@@ -1158,6 +1165,7 @@ fn main() -> anyhow::Result<()> {
     );
     pons::bidding::american::set_nt_overcall_no_major(args.ns_nt_overcall_no_major);
     pons::bidding::american::set_nt_overcall_systems_on(!args.no_ns_nt_overcall_systems_on);
+    pons::bidding::american::set_nt_overcall_gladiator(args.ns_nt_overcall_gladiator);
     pons::bidding::american::set_notrump_balancing(args.ns_balancing);
     let (oc_lo, oc_hi) = args
         .ns_overcall

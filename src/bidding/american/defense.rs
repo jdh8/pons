@@ -910,6 +910,14 @@ thread_local! {
     /// clean single-dummy-lead win over both minor and major openings). See
     /// [`set_nt_overcall_systems_on`].
     static NT_OVERCALL_SYSTEMS_ON: Cell<bool> = const { Cell::new(true) };
+    /// Whether the advancer runs **Gladiator** (not systems-on) after our 1NT
+    /// overcall of their **major**: a `2♣` weak relay, a cue-of-their-major
+    /// Stayman for the *one* unbid major, natural INV bids, and shape actions
+    /// (splinter, Leaping Michaels).  Replaces the opening-1NT graft for major
+    /// openings only (minors keep systems-on); **false by default** (an A/B
+    /// candidate — the major graft washes plain/PD, wins only on sd-lead). See
+    /// [`set_nt_overcall_gladiator`].
+    static NT_OVERCALL_GLADIATOR: Cell<bool> = const { Cell::new(false) };
 }
 
 /// Add a support gate to the 12+ takeout double for books built *after* this call
@@ -1011,6 +1019,26 @@ pub fn set_nt_overcall_systems_on(on: bool) {
 /// Whether systems-on advances of the 1NT overcall are authored
 pub(crate) fn nt_overcall_systems_on() -> bool {
     NT_OVERCALL_SYSTEMS_ON.with(Cell::get)
+}
+
+/// Run **Gladiator** advances after our 1NT overcall of their **major**, for
+/// books built *after* this call (thread-local, read at construction)
+///
+/// `false` (the **default**) keeps the systems-on opening-1NT graft over majors.
+/// `true` replaces that graft (for major openings only — minors stay systems-on)
+/// with Gladiator: `2♣` = weak relay (pass-or-correct to the best part-score),
+/// the cue of their major = Stayman for the single unbid major, natural `2♦`/`2M`
+/// = 5-card INV, `2NT` = NF INV clubs, plus splinter / Leaping-Michaels shape
+/// actions. Independent of [`set_nt_overcall_systems_on`] (it only governs
+/// the *major* branch — minors keep systems-on when that is set). Off flag:
+/// `bba-gen --ns-nt-overcall-gladiator`.
+pub fn set_nt_overcall_gladiator(on: bool) {
+    NT_OVERCALL_GLADIATOR.with(|cell| cell.set(on));
+}
+
+/// Whether Gladiator advances replace the major-opening systems-on graft
+pub(crate) fn nt_overcall_gladiator() -> bool {
+    NT_OVERCALL_GLADIATOR.with(Cell::get)
 }
 
 /// Whether the disciplined overcall bands are currently authored
@@ -1505,6 +1533,22 @@ const UNUSUAL: Alert = Alert("unusual-2nt");
 /// Leaping Michaels — a 4♣/4♦ jump over their weak two, a 5-5 game-forcing
 /// two-suiter (distinct from the responder-side `comp:leaping-michaels`)
 const LEAPING: Alert = Alert("leaping-michaels");
+
+/// Gladiator `2♣` relay over our 1NT overcall of their major — a weak takeout
+/// (any suit) or an invitational hand routed through the forced `2♦`.
+const GLADIATOR_RELAY: Alert = Alert("gladiator:relay");
+/// Gladiator's forced `2♦` completion of the `2♣` relay — pass-or-correct, says
+/// nothing about diamonds.
+const GLADIATOR_RELAY_PC: Alert = Alert("gladiator:relay-pc");
+/// Gladiator cue of their major — Stayman for the *one* unbid major (exactly 4,
+/// invitational-or-better).
+const GLADIATOR_STAYMAN: Alert = Alert("gladiator:stayman");
+/// Gladiator `2NT` — non-forcing invitational with 5+ clubs (clubs cannot be
+/// shown naturally below the cue, so they detour through `2NT`).
+const GLADIATOR_CLUB_INV: Alert = Alert("gladiator:club-inv");
+/// Gladiator splinter (`3` of their major) — a game-forcing raise of the unbid
+/// major with a singleton/void in their suit.
+const GLADIATOR_SPLINTER: Alert = Alert("gladiator:splinter");
 
 /// Responsive double — partner doubled/overcalled, they raised, advancer's double
 /// shows the two unbid suits (4-4, 8+).  A takeout call (asks partner to pick a
@@ -3307,7 +3351,174 @@ fn insert_advance_of_double(d: &mut Defensive, suit: Suit, opening: Bid, style: 
     }
 }
 
-/// Advancer's systems-on actions after `[1t, 1NT, P]` (our 1NT overcall = 15–18
+/// The other major (Gladiator applies only over a major opening)
+fn other_major(major: Suit) -> Suit {
+    debug_assert!(matches!(major, Suit::Hearts | Suit::Spades));
+    if major == Suit::Hearts {
+        Suit::Spades
+    } else {
+        Suit::Hearts
+    }
+}
+
+/// Advancer's **Gladiator** actions after `[1M, 1NT, P]` (our 15–18 1NT overcall
+/// of their major `M`); `O` is the one unbid major
+///
+/// `2♣` = weak relay (any suit) → forced `2♦`, pass-or-correct; cue of `M` =
+/// Stayman for `O` (exactly 4, INV+); `2♦`/`2O` = natural 5-card INV; `2NT` = NF
+/// INV clubs; `3♣`/`3♦`/`3O` = GF 5+; `3M` = splinter (0–1 M, 4 O, GF); `4O` = to
+/// play; `4♣`/`4♦`/`4M` = Leaping Michaels (5-5 GF two-suiters).  Points are
+/// advancer values opposite a strong NT: INV ≈ 8–9, GF ≈ 10+.
+fn gladiator_advances(their_major: Suit) -> Rules {
+    let o = other_major(their_major);
+    let m = Strain::from(their_major);
+    let os = Strain::from(o);
+    let inv = 8u8;
+    let game = 10u8;
+
+    Rules::new()
+        // Leaping Michaels: 5-5 game-forcing two-suiters (O + a minor, or both
+        // minors via the jump in their suit).
+        .rule(
+            Bid::new(4, Strain::Clubs),
+            1.5,
+            len(o, 5..) & len(Suit::Clubs, 5..) & points(game..),
+        )
+        .alert(LEAPING)
+        .rule(
+            Bid::new(4, Strain::Diamonds),
+            1.5,
+            len(o, 5..) & len(Suit::Diamonds, 5..) & points(game..),
+        )
+        .alert(LEAPING)
+        .rule(
+            Bid::new(4, m),
+            1.5,
+            len(Suit::Diamonds, 5..) & len(Suit::Clubs, 5..) & points(game..),
+        )
+        .alert(LEAPING)
+        // Splinter: game-forcing raise of O with a singleton/void in their major.
+        .rule(
+            Bid::new(3, m),
+            1.45,
+            len(o, 4..) & len(their_major, ..=1) & points(game..),
+        )
+        .alert(GLADIATOR_SPLINTER)
+        // To-play game with a long other major.
+        .rule(Bid::new(4, os), 1.35, len(o, 6..) & points(inv..))
+        // Cue = Stayman for the unbid major: exactly 4, invitational-or-better.
+        .rule(Bid::new(2, m), 1.4, len(o, 4..=4) & points(inv..))
+        .alert(GLADIATOR_STAYMAN)
+        // Game-forcing naturals: 3 of a real 5+ suit.
+        .rule(
+            Bid::new(3, Strain::Clubs),
+            1.3,
+            len(Suit::Clubs, 5..) & points(game..),
+        )
+        .rule(
+            Bid::new(3, Strain::Diamonds),
+            1.3,
+            len(Suit::Diamonds, 5..) & points(game..),
+        )
+        .rule(Bid::new(3, os), 1.3, len(o, 5..) & points(game..))
+        // Balanced game, to play.
+        .rule(
+            Bid::new(3, Strain::Notrump),
+            1.2,
+            balanced() & points(game..),
+        )
+        // 2NT = non-forcing invitational with 5+ clubs.
+        .rule(
+            Bid::new(2, Strain::Notrump),
+            1.1,
+            len(Suit::Clubs, 5..) & points(inv..game),
+        )
+        .alert(GLADIATOR_CLUB_INV)
+        // Natural invitational, exactly 5 (passable).
+        .rule(
+            Bid::new(2, Strain::Diamonds),
+            1.0,
+            len(Suit::Diamonds, 5..=5) & points(inv..game),
+        )
+        .rule(Bid::new(2, os), 1.0, len(o, 5..=5) & points(inv..game))
+        // 2♣ = Gladiator relay (weak takeout / invitational): the finite catch-all.
+        .rule(Bid::new(2, Strain::Clubs), 0.5, hcp(0..))
+        .alert(GLADIATOR_RELAY)
+}
+
+/// Overcaller's reply to the Gladiator cue (advancer showed exactly 4 `O`, INV+)
+///
+/// User-locked schema: cheapest `O` = MIN fit (15–16), jump `O` = MAX fit
+/// (17–18); `2NT` = MIN misfit, `3NT` = MAX misfit.  Jumping to game opposite a
+/// maximum fit is safe — the cue is INV+, so advancer is never broke.
+fn gladiator_cue_answer(their_major: Suit) -> Rules {
+    let o = other_major(their_major);
+    let m = Strain::from(their_major);
+    let os = Strain::from(o);
+    let cheap = if os > m { 2 } else { 3 };
+
+    Rules::new()
+        .rule(Bid::new(cheap, os), 1.4, len(o, 4..) & hcp(15..=16))
+        .rule(Bid::new(cheap + 1, os), 1.4, len(o, 4..) & hcp(17..=18))
+        .rule(
+            Bid::new(2, Strain::Notrump),
+            1.3,
+            len(o, ..=3) & hcp(15..=16),
+        )
+        .rule(
+            Bid::new(3, Strain::Notrump),
+            1.3,
+            len(o, ..=3) & hcp(17..=18),
+        )
+        // Finite catch-all (the overcall is a known 15–18, so the four above
+        // already partition it).
+        .rule(Bid::new(3, Strain::Notrump), 1.0, hcp(0..))
+}
+
+/// Overcaller's forced completion of the Gladiator `2♣` relay
+///
+/// ponytail: pure `2♦` puppet; the max-break rebids (`2♥`/`2♠` showing a
+/// maximum) are deferred — rare, and the advancer's own invitational
+/// continuations carry the strength.
+fn gladiator_relay_rebid() -> Rules {
+    Rules::new()
+        .rule(Bid::new(2, Strain::Diamonds), 1.0, hcp(0..))
+        .alert(GLADIATOR_RELAY_PC)
+}
+
+/// Advancer's continuation over the forced `2♦` (pass-or-correct)
+///
+/// Weak hands correct to their long suit (or pass `2♦`); invitational hands show
+/// a long suit or `2NT`; game values bid `3NT`.  ponytail: the finer cue-INV and
+/// choice-of-games sub-branches are left to the read-informed floor.
+fn gladiator_relay_continuation(their_major: Suit) -> Rules {
+    let o = other_major(their_major);
+    let os = Strain::from(o);
+    let inv = 8u8;
+    let game = 10u8;
+
+    Rules::new()
+        // Invitational-or-better with a long suit.
+        .rule(Bid::new(3, os), 1.2, len(o, 6..) & points(inv..))
+        .rule(
+            Bid::new(3, Strain::Diamonds),
+            1.1,
+            len(Suit::Diamonds, 6..) & points(inv..),
+        )
+        // Game values, to play.
+        .rule(Bid::new(3, Strain::Notrump), 1.2, points(game..))
+        // Balanced invitational.
+        .rule(
+            Bid::new(2, Strain::Notrump),
+            1.0,
+            balanced() & points(inv..game),
+        )
+        // Weak signoffs: correct to the long suit (or pass `2♦`).
+        .rule(Bid::new(3, Strain::Clubs), 0.9, len(Suit::Clubs, 6..))
+        .rule(Bid::new(2, os), 0.9, len(o, 5..))
+        .rule(Call::Pass, 0.5, hcp(0..))
+}
+
 /// Advancer's response to partner's Michaels cue-bid over their opening `t`
 fn michaels_advances(t: Suit) -> Rules {
     match t {
@@ -3619,14 +3830,40 @@ pub fn defensive() -> Defensive {
         // the transfer band for every (opening, overcall) pair in one place,
         // where a per-suit authored table cannot.
 
-        // Systems-on advances of our 1NT overcall ([1t, 1NT, P]): the advancer
-        // plays the full 1NT-opening structure (Stayman/transfers/Smolen), so
-        // `1♦–1NT` equals `1♣–1NT` equals an opening 1NT — transfers preserve
-        // right-siding.  Graft the pre-built response subtree under `[1t, 1NT]`
-        // in every seat the opening could have been made (mirrors the overcall's
-        // own leading-pass fan).  Over a major, one Stayman-found major is theirs
-        // — still systems-on, measured separately.
-        if let Some(nt) = &nt_overcall_book {
+        // Advances of our 1NT overcall ([1t, 1NT, P]).  Over a MINOR the advancer
+        // plays the full opening-1NT structure (Stayman/transfers/Smolen) grafted
+        // below `[1t, 1NT]` — `1♦–1NT` equals `1♣–1NT` equals an opening 1NT,
+        // transfers preserving right-siding.  Over a MAJOR one Stayman-found major
+        // is theirs; when `nt_overcall_gladiator()` is set we replace the graft
+        // with Gladiator — a weak `2♣` relay + a cue-Stayman for the one unbid
+        // major + shape actions — which fits that geometry.  Author/graft in every
+        // seat the opening could have been made (mirrors the overcall's fan).
+        if matches!(suit, Suit::Hearts | Suit::Spades) && nt_overcall_gladiator() {
+            let one_nt = call(1, Strain::Notrump);
+            let base = [Call::Bid(opening), one_nt, Call::Pass];
+            insert_all_seats(&mut d, &base, 3, gladiator_advances(suit));
+
+            // Overcaller answers the cue (Stayman for the one unbid major).
+            let cue = call(2, theirs);
+            let after_cue = [Call::Bid(opening), one_nt, Call::Pass, cue, Call::Pass];
+            insert_all_seats(&mut d, &after_cue, 3, gladiator_cue_answer(suit));
+
+            // 2♣ relay → forced 2♦ → advancer's pass-or-correct.
+            let relay = call(2, Strain::Clubs);
+            let forced = call(2, Strain::Diamonds);
+            let after_relay = [Call::Bid(opening), one_nt, Call::Pass, relay, Call::Pass];
+            insert_all_seats(&mut d, &after_relay, 3, gladiator_relay_rebid());
+            let after_forced = [
+                Call::Bid(opening),
+                one_nt,
+                Call::Pass,
+                relay,
+                Call::Pass,
+                forced,
+                Call::Pass,
+            ];
+            insert_all_seats(&mut d, &after_forced, 3, gladiator_relay_continuation(suit));
+        } else if let Some(nt) = &nt_overcall_book {
             let one_nt = call(1, Strain::Notrump);
             for n in 0..=3 {
                 let prefix: Vec<Call> = core::iter::repeat_n(Call::Pass, n)
@@ -4255,6 +4492,46 @@ mod tests {
             "a five-card spade suit transfers"
         );
         assert_eq!(answer, call(2, Strain::Hearts), "overcaller shows 4 hearts");
+    }
+
+    #[test]
+    fn gladiator_replaces_the_major_graft() {
+        // Over their (1♠), our 1NT overcall runs Gladiator (not systems-on): a
+        // hand with exactly 4 hearts + invitational values cues 2♠ (Stayman for
+        // the one unbid major); a weak hand takes the 2♣ relay; the overcaller
+        // jumps to 4♥ over the cue with a maximum heart fit.
+        super::set_nt_overcall_gladiator(true);
+        let s = || call(1, Strain::Spades);
+        let nt = || call(1, Strain::Notrump);
+        let (cue, floored) = best_call(
+            &[s(), nt(), Call::Pass],
+            "K84.KQ84.QJ32.42", // 11 HCP, exactly 4 hearts
+        );
+        let (relay, _) = best_call(
+            &[s(), nt(), Call::Pass],
+            "432.J84.J543.J32", // 3 HCP, weak — the relay
+        );
+        let (answer, _) = best_call(
+            &[s(), nt(), Call::Pass, call(2, Strain::Spades), Call::Pass],
+            "AQ.KQ84.AQ54.J32", // 18 HCP, 4 hearts, ♠ stopper — max fit
+        );
+        super::set_nt_overcall_gladiator(false);
+        assert_eq!(
+            cue,
+            call(2, Strain::Spades),
+            "advancer cues 2♠ = Stayman for hearts"
+        );
+        assert!(!floored, "the Gladiator cue is a book node, not the floor");
+        assert_eq!(
+            relay,
+            call(2, Strain::Clubs),
+            "a weak hand bids the 2♣ relay"
+        );
+        assert_eq!(
+            answer,
+            call(4, Strain::Hearts),
+            "overcaller jumps to 4♥ with a maximum fit"
+        );
     }
 
     /// Coupling: a Landy range feeds the one shared two-suiter band, so Landy's and
