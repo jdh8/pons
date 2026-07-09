@@ -3,32 +3,8 @@
 //! "ignore 2♣ ⇒ revert to notrump" rule (including the inference that lets the
 //! floor accept or decline an invitation).
 
-use contract_bridge::auction::{Call, RelativeVulnerability};
-use contract_bridge::{Bid, Hand, Strain};
-use pons::american;
-use pons::bidding::array::Logits;
-use pons::bidding::{Family, Stance, System};
-
-const fn call(level: u8, strain: Strain) -> Call {
-    Call::Bid(Bid::new(level, strain))
-}
-
-fn stance() -> Stance {
-    american().against(Family::NATURAL)
-}
-
-/// The single highest-logit call the system assigns the hand for the auction
-fn best_call(system: &impl System, auction: &[Call], hand: &str) -> Call {
-    let hand: Hand = hand.parse().expect("valid test hand");
-    let logits: Logits = system
-        .classify(hand, RelativeVulnerability::NONE, auction)
-        .expect("system covers this auction");
-    (&logits.0)
-        .into_iter()
-        .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("logits are never NaN"))
-        .map(|(call, _)| call)
-        .expect("array is never empty")
-}
+mod common;
+use common::*;
 
 const P: Call = Call::Pass;
 

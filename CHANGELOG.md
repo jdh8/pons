@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+- Dead public helpers, found by a repo-wide over-engineering audit and removed
+  with no behavior change (0.x: a minor API trim):
+  - `bidding::ev::ev` — a one-line wrapper over `ev_all(…, &[call], …)[0]` with
+    no callers; use `ev_all` (which shares the double-dummy solves across
+    candidates) directly.
+  - `bidding::verify::compare_against_rules` — a per-rule "porting oracle" whose
+    only consumer was its own test.
+  - `bidding::Pair::competitive_vs` — a competitive-book override builder that
+    was never called, so the override slot was always empty; `against()` now
+    reads `self.competitive` directly. The used twin `defensive_vs` is unchanged.
+
+### Changed
+
+- Internal: consolidated the copy-pasted `call`/`stance`/`best_call` prelude
+  shared by the `american_*` integration tests into `tests/common/mod.rs`
+  (−485 lines net across the test tree). No test behavior changed; the two files
+  with genuine variants (the legality-filtered `best_call` in
+  `american_defense`, the knob-setting `stance` in `american_european_minors`)
+  keep their local versions, which shadow the shared ones.
+
 ### Fixed
 
 - Web UI: the Demo tab's **"Edit this deal →"** button now uses the outlined

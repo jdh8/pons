@@ -11,7 +11,7 @@
 //! Two scorers because there are two questions. **Scoring a reached contract**
 //! (a duplicate A/B result) honors the penalty the auction actually produced —
 //! that is [`ns_score_contract`], plain double-dummy. **Evaluating a call**
-//! (the EV rollout in [`crate::bidding::ev()`], a contract-choice probe) assumes
+//! (the EV rollout in [`crate::bidding::ev_all()`], a contract-choice probe) assumes
 //! perfect-defense doubling: a contract that fails double-dummy is scored
 //! *doubled*, a making one *undoubled*, regardless of the auction — because the
 //! cardplay already assumes optimal defense, so the doubling must too, or a
@@ -126,7 +126,7 @@ pub fn ns_score_contract(
 /// while a making contract is never doubled (that only helps declarer).  The
 /// rule is symmetric — it doubles either side's failing contract — so it sharpens
 /// both our overbids and our defense of theirs.  Used by the EV rollout in
-/// [`crate::bidding::ev()`] and contract-choice probes.
+/// [`crate::bidding::ev_all()`] and contract-choice probes.
 ///
 /// [`stats::average_ns_par`][crate::stats::average_ns_par] makes the same
 /// assumption for par scoring (there as `min(undoubled, doubled)` on the

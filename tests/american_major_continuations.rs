@@ -11,19 +11,13 @@
 //! isolation, so a hand's hcp/hand-shape choices are checked against every
 //! node they pass through, not just the one under test.
 
-use contract_bridge::auction::{Call, RelativeVulnerability};
-use contract_bridge::{Bid, Hand, Strain};
-use pons::american;
+mod common;
+use common::*;
+
 use pons::bidding::american::{
     set_fourth_suit_forcing, set_limit_raise_acceptance, set_major_game_tries,
     set_major_rebid_tails,
 };
-use pons::bidding::array::Logits;
-use pons::bidding::{Family, Stance, System};
-
-const fn call(level: u8, strain: Strain) -> Call {
-    Call::Bid(Bid::new(level, strain))
-}
 
 const P: Call = Call::Pass;
 
@@ -39,19 +33,6 @@ fn stance_with(tries: bool, limit: bool, tails: bool, fsf: bool) -> Stance {
     set_major_rebid_tails(true);
     set_fourth_suit_forcing(true);
     stance
-}
-
-/// The single highest-logit call the system assigns the hand for the auction
-fn best_call(system: &impl System, auction: &[Call], hand: &str) -> Call {
-    let hand: Hand = hand.parse().expect("valid test hand");
-    let logits: Logits = system
-        .classify(hand, RelativeVulnerability::NONE, auction)
-        .expect("system covers this auction");
-    (&logits.0)
-        .into_iter()
-        .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("logits are never NaN"))
-        .map(|(call, _)| call)
-        .expect("array is never empty")
 }
 
 /// Append our call and the opponent's pass — the uncontested interleaving

@@ -5,16 +5,10 @@
 //! restores the defaults, so the rest of the suite keeps measuring the
 //! shipped system.
 
-use contract_bridge::auction::{Call, RelativeVulnerability};
-use contract_bridge::{Bid, Hand, Strain};
-use pons::american;
-use pons::bidding::american::{set_longer_major_response, set_up_the_line, set_xyz};
-use pons::bidding::array::Logits;
-use pons::bidding::{Family, Stance, System};
+mod common;
+use common::*;
 
-const fn call(level: u8, strain: Strain) -> Call {
-    Call::Bid(Bid::new(level, strain))
-}
+use pons::bidding::american::{set_longer_major_response, set_up_the_line, set_xyz};
 
 const P: Call = Call::Pass;
 
@@ -28,19 +22,6 @@ fn stance_with(longer_major: bool, up_the_line: bool, xyz: bool) -> Stance {
     set_up_the_line(false);
     set_xyz(false);
     stance
-}
-
-/// The single highest-logit call the system assigns the hand for the auction
-fn best_call(system: &impl System, auction: &[Call], hand: &str) -> Call {
-    let hand: Hand = hand.parse().expect("valid test hand");
-    let logits: Logits = system
-        .classify(hand, RelativeVulnerability::NONE, auction)
-        .expect("system covers this auction");
-    (&logits.0)
-        .into_iter()
-        .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("logits are never NaN"))
-        .map(|(call, _)| call)
-        .expect("array is never empty")
 }
 
 // --- Knob A: the longer-major response discipline ---------------------------

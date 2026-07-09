@@ -41,7 +41,6 @@
 //!   comparator surfaces with overwhelming probability.  Agreement here is strong
 //!   evidence, not a proof of equivalence.
 
-use super::Rules;
 use super::constraint::Constraint;
 use super::context::Context;
 use contract_bridge::auction::RelativeVulnerability;
@@ -184,36 +183,6 @@ pub fn empty_context() -> Context<'static> {
     Context::new(RelativeVulnerability::NONE, &[])
 }
 
-/// Compare a candidate constraint against every rule of a book node
-///
-/// The porting oracle: for each [`Rule`] in `reference`, treat its accept set as
-/// intent and compare `candidate` against it at `context`, returning one
-/// [`Report`] per rule in declaration order.  A faithful recompile of a node's
-/// gloss agrees with the rule it was read from; a mis-compile disagrees.
-///
-/// [`Rule`]: super::rules::Rule
-#[must_use]
-pub fn compare_against_rules(
-    candidate: &impl Constraint,
-    reference: &Rules,
-    context: &Context<'_>,
-    rng: &mut impl Rng,
-    n: usize,
-) -> Vec<Report> {
-    reference
-        .rules()
-        .iter()
-        .map(|rule| {
-            compare(
-                |hand| rule.eval(hand, context).is_finite(),
-                |hand| accepts(candidate, hand, context),
-                rng,
-                n,
-            )
-        })
-        .collect()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -353,33 +322,6 @@ mod tests {
         let failures = check_examples(&strong_notrump, &ctx, &examples);
         assert_eq!(failures.len(), 1, "exactly the 20-HCP mislabel fails");
         assert_eq!(failures[0], hand("AKQJ.AKQ.QJ4.T92"));
-    }
-
-    #[test]
-    fn compare_against_rules_isolates_the_matching_rule() {
-        use crate::bidding::Rules;
-        use crate::bidding::constraint::balanced;
-        use contract_bridge::auction::Call;
-        use contract_bridge::{Bid, Strain};
-
-        let ctx = empty_context();
-        let book = Rules::new()
-            .rule(Bid::new(1, Strain::Notrump), 1.0, hcp(15..=17) & balanced())
-            .rule(Call::Pass, 0.0, hcp(..15));
-
-        // A faithful recompile of the 1NT rule agrees with rule 0 and, being a
-        // different acceptance set, disagrees with the Pass rule — the per-rule
-        // reports localize the match.
-        let candidate = hcp(15..=17) & balanced();
-        let reports = compare_against_rules(&candidate, &book, &ctx, &mut rng(), N);
-        assert_eq!(reports.len(), 2);
-        assert!(reports[0].agrees(), "matches the 1NT rule it recompiles");
-        assert!(!reports[1].agrees(), "is not the Pass rule");
-
-        // A broken recompile (off-by-one band) no longer matches even rule 0.
-        let broken = hcp(15..=18) & balanced();
-        let reports = compare_against_rules(&broken, &book, &ctx, &mut rng(), N);
-        assert!(!reports[0].agrees(), "an off-by-one band is caught");
     }
 
     #[test]

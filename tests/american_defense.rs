@@ -1,21 +1,11 @@
 //! Integration tests for two-suited overcalls, their advances, and responsive doubles
 //! in the 2/1 defensive book
 
-use contract_bridge::auction::{Auction, Call, RelativeVulnerability};
-use contract_bridge::{Bid, Hand, Strain};
-use pons::american;
+mod common;
+use common::*;
+
+use contract_bridge::auction::Auction;
 use pons::bidding::american::set_responsive_overcall;
-use pons::bidding::array::Logits;
-use pons::bidding::{Family, Stance, System};
-
-const fn call(level: u8, strain: Strain) -> Call {
-    Call::Bid(Bid::new(level, strain))
-}
-
-/// The 2/1 pair bound against natural opponents
-fn stance() -> Stance {
-    american().against(Family::NATURAL)
-}
 
 /// The single highest-logit *legal* call the system assigns the hand
 ///

@@ -41,29 +41,6 @@ use contract_bridge::{AbsoluteVulnerability, Hand, Seat};
 use ddss::{NonEmptyStrainFlags, Solver};
 use rand::Rng;
 
-/// Cardplay-grounded value of one candidate `call`, in the actor's favour
-///
-/// A thin wrapper over [`ev_all`]; prefer that when scoring several candidates
-/// on the same decision, so the double-dummy solves are shared.  See the
-/// [module docs][self] for the rollout and the meaning of the returned number
-/// (average score in points, positive good for the actor; [`f32::NAN`] when no
-/// layout could be sampled — read it as *no signal*, per [`sample_layouts`]).
-#[must_use]
-// Each argument is a distinct fact of the decision; a struct would be ceremony.
-#[allow(clippy::too_many_arguments)]
-pub fn ev(
-    hand: Hand,
-    seat: Seat,
-    vul: AbsoluteVulnerability,
-    context: &Context<'_>,
-    call: Call,
-    policy: &impl System,
-    rng: &mut impl Rng,
-    n: usize,
-) -> f32 {
-    ev_all(hand, seat, vul, context, &[call], policy, rng, n)[0]
-}
-
 /// Cardplay-grounded value of each candidate `call`, in the actor's favour
 ///
 /// Returns one EV per entry of `calls`, aligned by index.  All candidates are

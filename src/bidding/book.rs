@@ -284,7 +284,6 @@ pub struct Pair {
     pub competitive: Competitive,
     /// The default book for when they open
     pub defensive: Defensive,
-    competitive_vs: Vec<(Family, Competitive)>,
     defensive_vs: Vec<(Family, Defensive)>,
 }
 
@@ -302,19 +301,8 @@ impl Pair {
             constructive,
             competitive,
             defensive,
-            competitive_vs: Vec::new(),
             defensive_vs: Vec::new(),
         }
-    }
-
-    /// Override the competitive book against one opposing tag
-    ///
-    /// The first matching override wins; opponents with no override get the
-    /// default book.
-    #[must_use]
-    pub fn competitive_vs(mut self, them: Family, book: Competitive) -> Self {
-        self.competitive_vs.push((them, book));
-        self
     }
 
     /// Override the defensive book against one opposing tag
@@ -342,11 +330,7 @@ impl Pair {
     /// collision is an authoring bug.
     #[must_use]
     pub fn against(&self, them: Family) -> Stance {
-        let competitive = self
-            .competitive_vs
-            .iter()
-            .find(|entry| entry.0 == them)
-            .map_or(&self.competitive, |entry| &entry.1);
+        let competitive = &self.competitive;
         let defensive = self
             .defensive_vs
             .iter()
