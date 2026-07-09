@@ -171,24 +171,28 @@ the campaign's first def-r1 lever to clear the sd arbiter — the "obstruction
 wall, skip" verdict was wrong for the *capability-adding* slice.  The remaining
 def-r1 mass (takeout doubles −16k, we-pass-they-compete −29k) stays wall-bound.
 
-**Gladiator over the major-opening 1NT overcall — REFUTED (parked opt-in).**
+**Gladiator over the major-opening 1NT overcall — completed, WASH (parked opt-in).**
 Over `1♥`/`1♠` the systems-on graft is only an sd win (plain/PD wash) — one
 major is *theirs*, so symmetric both-major Stayman + two transfers misfire.
-Gladiator (`set_nt_overcall_gladiator`, Belladonna/Helms shape economy: `2♣`
-weak relay, cue-of-their-major = Stayman for the one unbid major, natural INV +
-splinter + Leaping Michaels) was the hypothesised fix.  A/B vs BBA (32×6400,
-minor/major split): **loss on all three scorers both vuls** (major NV
-plain/PD/sd −0.0075/−0.0120/−0.0102, vul −0.0135/−0.0152/−0.0178; minor split a
-0-fired wash).  sd is the arbiter and sd loses, so not a wall artifact —
-Gladiator is worse than the graft.  Forensic (classify by advancer's branch):
-the bleed is the `2♣` relay (−1.36/−2.08 IMP/fired) and the jump continuations
-(3-level naturals/splinter, `2NT` club-inv), which the floor passes short of
-game — their continuations are **unauthored**, while the graft, being the full
-opening-1NT tree, drives the same hands to 3NT/4M.  Only Gladiator's plain
-natural `2♦`/`2O` and pass-1NT branches win (+0.5…+0.9), and they are swamped.
-Refuted at *this* completeness level: the fix is a full continuation tree, but
-it must out-bid a graft that already wins over majors — not worth it now.  Kept
-byte-identical opt-in as a future-completion candidate.
+Gladiator (`set_nt_overcall_gladiator`, Belladonna/Helms shape economy, aligned
+to the Crowborough write-up as an XYZ two-way relay: `2♣` = weak takeout **or**
+any invitational hand, cue-of-their-major = Stayman for the one unbid major,
+`2♦`/`2O` natural exactly-5 INV, `2NT` weak-6`♣` transfer, direct `3X`
+game-forcing, splinter + Leaping Michaels) was the hypothesised fix.  First
+measured a **loss on all three scorers both vuls** (major NV plain/PD/sd
+−0.0075/−0.0120/−0.0102, vul −0.0135/−0.0152/−0.0178), diagnosed by branch as
+the `2♣` relay + jump continuations dying **unauthored** below game while the
+graft's full opening-1NT tree drove the same hands to 3NT/4M.  **Completing both
+sides** (every overcaller answer + invitational relay rebids + the weak-club
+transfer) erased the loss: re-measured A/B vs BBA (32×6400, minor/major split)
+is a **wash on all three scorers both vuls** — major NV plain/PD/sd
++0.0006/−0.0004/+0.0004, vul +0.0005/+0.0027/−0.0015 (every CI straddles zero;
+minor split 0-fired).  The diagnosis held: unauthored continuations were the
+whole loss.  But completion only reaches **parity** — sd, the arbiter here, is
+flat, so there is no measured win to justify flipping the graft default.  Kept
+byte-identical opt-in as a faithful, complete alternative structure and a
+single-dummy re-measure candidate.  Lesson restated: a half-authored replacement
+loses to a fully-authored graft; a fully-authored one draws.
 
 **#1 is the real prize and it is a *book* item, not a floor item.**  Our
 defensive first-round structure — overcalls, takeout doubles, two-suiters

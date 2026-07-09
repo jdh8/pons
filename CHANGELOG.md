@@ -11,28 +11,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Gladiator advance of our major-opening 1NT overcall**
   (`set_nt_overcall_gladiator` / `bba-gen --ns-nt-overcall-gladiator`, default
-  off). Over `[1♥/1♠, 1NT, P]`, replaces the shipped opening-1NT graft with a
-  shape-based Gladiator structure (Belladonna/Helms): `2♣` weak relay, a
-  cue-of-their-major Stayman for the one unbid major, natural 5-card INV
-  (`2♦`/`2O`/`2NT`), GF naturals + splinter + Leaping Michaels — the whole point
-  being that over a major overcall *one* major is theirs, so the graft's
-  symmetric both-major Stayman + two transfers waste space. A/B vs BBA
-  (32×6400 bd/arm/vul, minor vs major split): **loss on all three scorers, both
-  vulnerabilities** — major NV plain −0.0075 [±0.0042] / PD −0.0120 [±0.0054] /
-  sd −0.0102 [±0.0043], major vul plain −0.0135 [±0.0057] / PD −0.0152 [±0.0069]
-  / sd −0.0178 [±0.0059]; the minor split is a clean 0-fired wash (knob is
-  major-only). sd is the arbiter for this competitive range and sd *loses*, so
-  this is not an obstruction-wall artifact — Gladiator is genuinely worse than
-  the graft it replaces. Worst-board forensic: the loss concentrates in the
-  `2♣` relay (−1.36/−2.08 IMP/fired) and the jump continuations (3-level
-  naturals/splinter −1.82/−2.70, `2NT` club-inv −2.5), all of which the floor
-  passes short of game because their continuations are unauthored; the
-  fully-authored opening-1NT graft drives the same hands to 3NT/4M. Gladiator's
-  own natural `2♦`/`2O` and pass-1NT branches win slightly (+0.5…+0.9) but are
-  swamped. **Not shipped** — the idea is refuted at *this* completeness level;
-  a full continuation tree (relay max-breaks, an answer to every jump) is the
-  fix path but must beat a graft that already wins. Kept opt-in as a
-  future-completion / single-dummy re-measure candidate.
+  off; exposed on the web Settings tab as "Gladiator (1NT-overcall advance)").
+  Over `[1♥/1♠, 1NT, P]`, replaces the shipped opening-1NT graft with a
+  shape-based, XYZ-style Gladiator structure (Belladonna/Helms, aligned to the
+  Crowborough write-up): `2♣` = a two-way relay (weak `♦`/other-major takeout
+  **or** any invitational hand, forced `2♦` rebid), `2♦`/`2O` = natural exactly-5
+  invitational, `2M` (cue) = Stayman for the one unbid major, `2NT` = weak 6+`♣`
+  transfer, direct `3♣`/`3♦`/`3O` = game-forcing naturals, `3M` splinter, `4♣`/`4♦`
+  Leaping Michaels — the point being that over a major overcall *one* major is
+  theirs, so the graft's symmetric both-major Stayman + two transfers waste
+  space. **Both sides now fully authored** — every overcaller answer (cue
+  min/max fit/misfit, direct-invite acceptances, weak-relay rebids), the
+  invitational relay rebids (`2NT` balanced / `3X` 6-card), and the weak-club
+  transfer completion — which erased the earlier incomplete-book loss. A/B vs
+  BBA (32×6400 bd/arm/vul, minor vs major split): **wash on all three scorers,
+  both vulnerabilities** — major NV plain +0.0006 [±0.0038] / PD −0.0004
+  [±0.0046] / sd +0.0004 [±0.0039], major vul plain +0.0005 [±0.0049] / PD
+  +0.0027 [±0.0058] / sd −0.0015 [±0.0050] (every CI straddles zero); the minor
+  split is a clean 0-fired wash (knob is major-only). sd is the arbiter for this
+  competitive range and sd is flat, so this is genuine parity with the graft,
+  not an obstruction-wall artifact. Completing the book moved Gladiator up from
+  the earlier refuted loss (major sd −0.0102 NV / −0.0178 vul at the incomplete
+  level) to parity, but neither the completion nor the XYZ restructure converts
+  the wash into a measured win. **Not shipped default-on** — no win to justify
+  flipping the shipped graft default; kept opt-in (default byte-identical) as a
+  faithful, complete alternative structure and single-dummy re-measure candidate.
 
 - **No-major 1NT overcall** (`set_nt_overcall_no_major` /
   `bba-gen --ns-nt-overcall-no-major`, default off). The BBA-gap def-r1 1NT

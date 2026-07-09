@@ -1543,9 +1543,10 @@ const GLADIATOR_RELAY_PC: Alert = Alert("gladiator:relay-pc");
 /// Gladiator cue of their major — Stayman for the *one* unbid major (exactly 4,
 /// invitational-or-better).
 const GLADIATOR_STAYMAN: Alert = Alert("gladiator:stayman");
-/// Gladiator `2NT` — non-forcing invitational with 5+ clubs (clubs cannot be
-/// shown naturally below the cue, so they detour through `2NT`).
-const GLADIATOR_CLUB_INV: Alert = Alert("gladiator:club-inv");
+/// Gladiator `2NT` — a weak transfer to clubs (6+♣): a weak long-club hand
+/// cannot sign off naturally below the cue, so it detours through `2NT` and the
+/// overcaller completes to `3♣` (invitational clubs go `2♣`→`2♦`→`3♣` instead).
+const GLADIATOR_CLUB_TRANSFER: Alert = Alert("gladiator:club-transfer");
 /// Gladiator splinter (`3` of their major) — a game-forcing raise of the unbid
 /// major with a singleton/void in their suit.
 const GLADIATOR_SPLINTER: Alert = Alert("gladiator:splinter");
@@ -3404,8 +3405,9 @@ fn gladiator_advances(their_major: Suit) -> Rules {
             len(o, 4..) & len(their_major, ..=1) & points(game..),
         )
         .alert(GLADIATOR_SPLINTER)
-        // To-play game with a long other major.
-        .rule(Bid::new(4, os), 1.35, len(o, 6..) & points(inv..))
+        // To-play game with a long other major (6-card O invites route through
+        // the relay, so this is a game-values jump).
+        .rule(Bid::new(4, os), 1.35, len(o, 6..) & points(game..))
         // Cue = Stayman for the unbid major: exactly 4, invitational-or-better.
         .rule(Bid::new(2, m), 1.4, len(o, 4..=4) & points(inv..))
         .alert(GLADIATOR_STAYMAN)
@@ -3427,23 +3429,31 @@ fn gladiator_advances(their_major: Suit) -> Rules {
             1.2,
             balanced() & points(game..),
         )
-        // 2NT = non-forcing invitational with 5+ clubs.
+        // 2NT = weak transfer to clubs (6+♣): a weak long-club hand signs off in
+        // 3♣ (invitational clubs go through the relay to 3♣ instead).
         .rule(
             Bid::new(2, Strain::Notrump),
-            1.1,
-            len(Suit::Clubs, 5..) & points(inv..game),
+            1.05,
+            len(Suit::Clubs, 6..) & points(..inv),
         )
-        .alert(GLADIATOR_CLUB_INV)
-        // Natural invitational, exactly 5 (passable).
+        .alert(GLADIATOR_CLUB_TRANSFER)
+        // Natural invitational, exactly 5 (6-card invites route through the relay).
         .rule(
             Bid::new(2, Strain::Diamonds),
             1.0,
             len(Suit::Diamonds, 5..=5) & points(inv..game),
         )
         .rule(Bid::new(2, os), 1.0, len(o, 5..=5) & points(inv..game))
-        // 2♣ = Gladiator relay (weak takeout / invitational): the finite catch-all.
-        .rule(Bid::new(2, Strain::Clubs), 0.5, hcp(0..))
+        // 2♣ = Gladiator relay (XYZ-style): a weak ♦/O takeout, or any
+        // invitational hand not shown directly — the forced 2♦ then sorts them.
+        // A flat/short weak hand passes 1NT (the Pass catch-all) instead.
+        .rule(
+            Bid::new(2, Strain::Clubs),
+            0.5,
+            (points(..inv) & (len(Suit::Diamonds, 5..) | len(o, 5..))) | points(inv..game),
+        )
         .alert(GLADIATOR_RELAY)
+        .rule(Call::Pass, 0.3, hcp(0..))
 }
 
 /// Overcaller's reply to the Gladiator cue (advancer showed exactly 4 `O`, INV+)
@@ -3486,11 +3496,10 @@ fn gladiator_relay_rebid() -> Rules {
         .alert(GLADIATOR_RELAY_PC)
 }
 
-/// Advancer's continuation over the forced `2♦` (pass-or-correct)
+/// Advancer's continuation over the forced `2♦` (the XYZ-style sort)
 ///
-/// Weak hands correct to their long suit (or pass `2♦`); invitational hands show
-/// a long suit or `2NT`; game values bid `3NT`.  ponytail: the finer cue-INV and
-/// choice-of-games sub-branches are left to the read-informed floor.
+/// Weak hands sign off (pass `2♦`, or `2O` with 5+ `O`); invitational hands show
+/// a 6-card suit at the 3-level (`3♣`/`3♦`/`3O`) or bid `2NT` (balanced).
 fn gladiator_relay_continuation(their_major: Suit) -> Rules {
     let o = other_major(their_major);
     let os = Strain::from(o);
@@ -3498,25 +3507,116 @@ fn gladiator_relay_continuation(their_major: Suit) -> Rules {
     let game = 10u8;
 
     Rules::new()
-        // Invitational-or-better with a long suit.
-        .rule(Bid::new(3, os), 1.2, len(o, 6..) & points(inv..))
+        // Invitational, a 6-card suit.
+        .rule(
+            Bid::new(3, Strain::Clubs),
+            0.95,
+            len(Suit::Clubs, 6..) & points(inv..game),
+        )
         .rule(
             Bid::new(3, Strain::Diamonds),
-            1.1,
-            len(Suit::Diamonds, 6..) & points(inv..),
+            0.95,
+            len(Suit::Diamonds, 6..) & points(inv..game),
         )
-        // Game values, to play.
-        .rule(Bid::new(3, Strain::Notrump), 1.2, points(game..))
-        // Balanced invitational.
-        .rule(
-            Bid::new(2, Strain::Notrump),
-            1.0,
-            balanced() & points(inv..game),
-        )
-        // Weak signoffs: correct to the long suit (or pass `2♦`).
-        .rule(Bid::new(3, Strain::Clubs), 0.9, len(Suit::Clubs, 6..))
-        .rule(Bid::new(2, os), 0.9, len(o, 5..))
+        .rule(Bid::new(3, os), 0.95, len(o, 6..) & points(inv..game))
+        // Weak takeout: 5+ `O` to `2O`.
+        .rule(Bid::new(2, os), 0.9, len(o, 5..) & points(..inv))
+        // Invitational, balanced (no 6-card suit).
+        .rule(Bid::new(2, Strain::Notrump), 0.85, points(inv..game))
+        // Weak, diamond tolerance (or nothing better) — pass the puppet.
         .rule(Call::Pass, 0.5, hcp(0..))
+}
+
+/// Overcaller's reply to a natural invitational `2♦` (advancer 5+♦, INV ≈ 8–9)
+///
+/// A maximum accepts to `3NT` (diamonds a running source); a minimum passes the
+/// diamond partscore.
+fn gladiator_inv_diamond_answer() -> Rules {
+    Rules::new()
+        .rule(Bid::new(3, Strain::Notrump), 1.3, hcp(17..))
+        .rule(Call::Pass, 1.0, hcp(0..))
+}
+
+/// Overcaller's reply to a natural invitational `2O` (advancer 5+ `O`, INV)
+///
+/// A three-card fit plus a maximum bids the `O` game; a maximum without a fit
+/// tries `3NT`; a minimum passes the partscore.
+fn gladiator_inv_major_answer(their_major: Suit) -> Rules {
+    let o = other_major(their_major);
+    let os = Strain::from(o);
+    Rules::new()
+        .rule(Bid::new(4, os), 1.4, len(o, 3..) & hcp(17..))
+        .rule(Bid::new(3, Strain::Notrump), 1.2, len(o, ..3) & hcp(17..))
+        .rule(Call::Pass, 1.0, hcp(0..))
+}
+
+/// Overcaller completes the `2NT` weak club transfer — forced `3♣`
+fn gladiator_club_transfer_rebid() -> Rules {
+    Rules::new().rule(Bid::new(3, Strain::Clubs), 1.0, hcp(0..))
+}
+
+/// Overcaller's reply to an invitational relay rebid (`2NT` balanced, or a
+/// 6-card `3♣`/`3♦`): max accepts `3NT`, min passes the partscore.
+fn gladiator_relay_inv_answer() -> Rules {
+    Rules::new()
+        .rule(Bid::new(3, Strain::Notrump), 1.3, hcp(17..))
+        .rule(Call::Pass, 1.0, hcp(0..))
+}
+
+/// Overcaller's reply to an invitational 6-card-`O` relay rebid (`3O`): a fit
+/// plus a max bids `4O`; a max without a fit tries `3NT`; a min passes.
+fn gladiator_relay_major_answer(their_major: Suit) -> Rules {
+    let o = other_major(their_major);
+    let os = Strain::from(o);
+    Rules::new()
+        .rule(Bid::new(4, os), 1.4, len(o, 3..) & hcp(17..))
+        .rule(Bid::new(3, Strain::Notrump), 1.2, len(o, ..3) & hcp(17..))
+        .rule(Call::Pass, 1.0, hcp(0..))
+}
+
+/// Overcaller's reply to a game-forcing `3O` or the `3M` splinter (advancer 4+
+/// `O`, GF)
+///
+/// A three-card fit bids the `O` game; otherwise `3NT`.  The splinter shares this
+/// — same raise, plus shortness in their major.
+fn gladiator_gf_major_answer(their_major: Suit) -> Rules {
+    let o = other_major(their_major);
+    let os = Strain::from(o);
+    Rules::new().rule(Bid::new(4, os), 1.4, len(o, 3..)).rule(
+        Bid::new(3, Strain::Notrump),
+        1.2,
+        hcp(0..),
+    )
+}
+
+/// Overcaller's reply to a game-forcing minor `3♣`/`3♦` — game-forced to `3NT`
+fn gladiator_gf_minor_answer() -> Rules {
+    Rules::new().rule(Bid::new(3, Strain::Notrump), 1.2, hcp(0..))
+}
+
+/// Advancer places the contract after the cue-answer showed a MIN fit (cheapest
+/// `O`, 15–16 + 4 `O`): game-forcing values raise to `4O`, invitational pass.
+fn gladiator_cue_min_fit(their_major: Suit) -> Rules {
+    let o = other_major(their_major);
+    let os = Strain::from(o);
+    Rules::new()
+        .rule(Bid::new(4, os), 1.3, points(10..))
+        .rule(Call::Pass, 1.0, hcp(0..))
+}
+
+/// Advancer after a MAX fit shown below game (jump `O` = `3O` over `1♥`): the max
+/// fit forces game, so raise to `4O` with everything.
+fn gladiator_cue_max_fit_raise(their_major: Suit) -> Rules {
+    let o = other_major(their_major);
+    let os = Strain::from(o);
+    Rules::new().rule(Bid::new(4, os), 1.3, hcp(0..))
+}
+
+/// Advancer after a MIN misfit (`2NT`, 15–16 + ≤3 `O`): GF → `3NT`, INV → pass
+fn gladiator_cue_min_misfit() -> Rules {
+    Rules::new()
+        .rule(Bid::new(3, Strain::Notrump), 1.3, points(10..))
+        .rule(Call::Pass, 1.0, hcp(0..))
 }
 
 /// Advancer's response to partner's Michaels cue-bid over their opening `t`
@@ -3841,28 +3941,122 @@ pub fn defensive() -> Defensive {
         if matches!(suit, Suit::Hearts | Suit::Spades) && nt_overcall_gladiator() {
             let one_nt = call(1, Strain::Notrump);
             let base = [Call::Bid(opening), one_nt, Call::Pass];
+            let p = Call::Pass;
+            // Suffix off `base` (leading passes added by `insert_all_seats`).
+            let seq = |tail: &[Call]| -> Vec<Call> {
+                base.iter().copied().chain(tail.iter().copied()).collect()
+            };
             insert_all_seats(&mut d, &base, 3, gladiator_advances(suit));
 
-            // Overcaller answers the cue (Stayman for the one unbid major).
-            let cue = call(2, theirs);
-            let after_cue = [Call::Bid(opening), one_nt, Call::Pass, cue, Call::Pass];
-            insert_all_seats(&mut d, &after_cue, 3, gladiator_cue_answer(suit));
+            let o = other_major(suit);
+            let os = Strain::from(o);
 
-            // 2♣ relay → forced 2♦ → advancer's pass-or-correct.
+            // Cue (Stayman for the one unbid major): overcaller answers, then
+            // advancer places the contract from what the answer showed.
+            let cue = call(2, theirs);
+            insert_all_seats(&mut d, &seq(&[cue, p]), 3, gladiator_cue_answer(suit));
+            let cheap = if os > theirs { 2 } else { 3 };
+            insert_all_seats(
+                &mut d,
+                &seq(&[cue, p, call(cheap, os), p]),
+                3,
+                gladiator_cue_min_fit(suit),
+            );
+            insert_all_seats(
+                &mut d,
+                &seq(&[cue, p, call(2, Strain::Notrump), p]),
+                3,
+                gladiator_cue_min_misfit(),
+            );
+            if cheap + 1 < 4 {
+                // Jump-O is below game (`3O` over `1♥`) — raise to game.  Over
+                // `1♠` the jump is `4♥` and the `3NT` misfit is already game, so
+                // advancer passes them via the floor.
+                insert_all_seats(
+                    &mut d,
+                    &seq(&[cue, p, call(cheap + 1, os), p]),
+                    3,
+                    gladiator_cue_max_fit_raise(suit),
+                );
+            }
+
+            // Natural invitational 2♦/2O and 2NT club-invite — overcaller accepts.
+            insert_all_seats(
+                &mut d,
+                &seq(&[call(2, Strain::Diamonds), p]),
+                3,
+                gladiator_inv_diamond_answer(),
+            );
+            insert_all_seats(
+                &mut d,
+                &seq(&[call(2, os), p]),
+                3,
+                gladiator_inv_major_answer(suit),
+            );
+            // 2NT = weak club transfer → overcaller completes 3♣ (advancer passes).
+            insert_all_seats(
+                &mut d,
+                &seq(&[call(2, Strain::Notrump), p]),
+                3,
+                gladiator_club_transfer_rebid(),
+            );
+
+            // Game-forcing naturals 3♣/3♦/3O and the 3M splinter — overcaller
+            // drives to game.
+            insert_all_seats(
+                &mut d,
+                &seq(&[call(3, Strain::Clubs), p]),
+                3,
+                gladiator_gf_minor_answer(),
+            );
+            insert_all_seats(
+                &mut d,
+                &seq(&[call(3, Strain::Diamonds), p]),
+                3,
+                gladiator_gf_minor_answer(),
+            );
+            insert_all_seats(
+                &mut d,
+                &seq(&[call(3, os), p]),
+                3,
+                gladiator_gf_major_answer(suit),
+            );
+            insert_all_seats(
+                &mut d,
+                &seq(&[call(3, theirs), p]),
+                3,
+                gladiator_gf_major_answer(suit),
+            );
+
+            // 2♣ relay → forced 2♦ → advancer's XYZ-style sort; overcaller then
+            // accepts or declines each invitational rebid.
             let relay = call(2, Strain::Clubs);
             let forced = call(2, Strain::Diamonds);
-            let after_relay = [Call::Bid(opening), one_nt, Call::Pass, relay, Call::Pass];
-            insert_all_seats(&mut d, &after_relay, 3, gladiator_relay_rebid());
-            let after_forced = [
-                Call::Bid(opening),
-                one_nt,
-                Call::Pass,
-                relay,
-                Call::Pass,
-                forced,
-                Call::Pass,
-            ];
-            insert_all_seats(&mut d, &after_forced, 3, gladiator_relay_continuation(suit));
+            insert_all_seats(&mut d, &seq(&[relay, p]), 3, gladiator_relay_rebid());
+            insert_all_seats(
+                &mut d,
+                &seq(&[relay, p, forced, p]),
+                3,
+                gladiator_relay_continuation(suit),
+            );
+            for inv in [
+                call(2, Strain::Notrump),
+                call(3, Strain::Clubs),
+                call(3, Strain::Diamonds),
+            ] {
+                insert_all_seats(
+                    &mut d,
+                    &seq(&[relay, p, forced, p, inv, p]),
+                    3,
+                    gladiator_relay_inv_answer(),
+                );
+            }
+            insert_all_seats(
+                &mut d,
+                &seq(&[relay, p, forced, p, call(3, os), p]),
+                3,
+                gladiator_relay_major_answer(suit),
+            );
         } else if let Some(nt) = &nt_overcall_book {
             let one_nt = call(1, Strain::Notrump);
             for n in 0..=3 {
@@ -4429,6 +4623,33 @@ mod tests {
     }
 
     #[test]
+    fn gladiator_club_three_way() {
+        // Clubs split three ways by strength: a weak 6+♣ hand transfers via 2NT
+        // (overcaller completes 3♣); an invitational 6+♣ hand goes 2♣→2♦→3♣; a
+        // game-forcing club hand bids 3♣ directly.  Locks the user's structure.
+        super::set_nt_overcall_gladiator(true);
+        let s = || call(1, Strain::Spades);
+        let nt = || call(1, Strain::Notrump);
+        let p = Call::Pass;
+        let c = |n| call(n, Strain::Clubs);
+        let d2 = call(2, Strain::Diamonds);
+        let (weak, _) = best_call(&[s(), nt(), p], "43.72.852.KJ9876"); // weak 6♣
+        let (complete, _) = best_call(
+            &[s(), nt(), p, call(2, Strain::Notrump), p],
+            "AQ4.KQ4.AK92.65", // overcaller completes the transfer
+        );
+        let (gf, _) = best_call(&[s(), nt(), p], "A3.K2.42.AKQ9876"); // GF clubs
+        let (relay, _) = best_call(&[s(), nt(), p], "43.72.K5.KQ9876"); // INV 6♣, 8 HCP
+        let (pull, _) = best_call(&[s(), nt(), p, c(2), p, d2, p], "43.72.K5.KQ9876");
+        super::set_nt_overcall_gladiator(false);
+        assert_eq!(weak, call(2, Strain::Notrump), "weak 6♣ transfers via 2NT");
+        assert_eq!(complete, c(3), "overcaller completes the club transfer");
+        assert_eq!(gf, c(3), "game-forcing clubs bid 3♣ directly");
+        assert_eq!(relay, c(2), "invitational 6♣ starts with the 2♣ relay");
+        assert_eq!(pull, c(3), "invitational 6♣ pulls to 3♣ over the forced 2♦");
+    }
+
+    #[test]
     fn nt_overcall_no_major_routes_five_card_major_to_the_suit() {
         // Over their (1♦): a 15-18 balanced hand with a five-card major overcalls
         // 1NT by default (burying the suit); the knob bars that so it overcalls
@@ -4509,7 +4730,11 @@ mod tests {
         );
         let (relay, _) = best_call(
             &[s(), nt(), Call::Pass],
-            "432.J84.J543.J32", // 3 HCP, weak — the relay
+            "432.J8.QJ543.J32", // 5 HCP, weak with 5♦ — the escape relay
+        );
+        let (flat, _) = best_call(
+            &[s(), nt(), Call::Pass],
+            "432.J84.J543.J32", // 3 HCP flat, no escape suit — passes 1NT
         );
         let (answer, _) = best_call(
             &[s(), nt(), Call::Pass, call(2, Strain::Spades), Call::Pass],
@@ -4525,13 +4750,53 @@ mod tests {
         assert_eq!(
             relay,
             call(2, Strain::Clubs),
-            "a weak hand bids the 2♣ relay"
+            "a weak hand with a 5-card escape suit bids the 2♣ relay"
+        );
+        assert_eq!(
+            flat,
+            Call::Pass,
+            "a flat weak hand passes 1NT, not the relay"
         );
         assert_eq!(
             answer,
             call(4, Strain::Hearts),
             "overcaller jumps to 4♥ with a maximum fit"
         );
+    }
+
+    #[test]
+    fn gladiator_continuations_reach_game() {
+        // The completed book must drive game-forcing advances to game rather than
+        // dying in the floor's partscore.  (1♠) 1NT, cue 2♠, min-fit answer 3♥:
+        // a game-forcing advancer raises to 4♥.  And a game-forcing natural 3♥
+        // (5+ hearts) is raised to 4♥ by the overcaller's heart fit.
+        super::set_nt_overcall_gladiator(true);
+        let s = || call(1, Strain::Spades);
+        let nt = || call(1, Strain::Notrump);
+        let h = |n| call(n, Strain::Hearts);
+        let (place, _) = best_call(
+            &[
+                s(),
+                nt(),
+                Call::Pass,
+                call(2, Strain::Spades),
+                Call::Pass,
+                h(3),
+                Call::Pass,
+            ],
+            "K84.KQ84.KJ32.42", // 12 HCP, 4 hearts, GF — over a min fit, bid game
+        );
+        let (raise, floored) = best_call(
+            &[s(), nt(), Call::Pass, h(3), Call::Pass],
+            "AQ2.KQ8.AQ54.K93", // 18 HCP, 3 hearts — raise the GF 3♥ to game
+        );
+        super::set_nt_overcall_gladiator(false);
+        assert_eq!(place, h(4), "GF advancer raises the min fit to 4♥");
+        assert!(
+            !floored,
+            "the overcaller's raise is a book node, not the floor"
+        );
+        assert_eq!(raise, h(4), "overcaller raises the game-forcing 3♥ to 4♥");
     }
 
     /// Coupling: a Landy range feeds the one shared two-suiter band, so Landy's and

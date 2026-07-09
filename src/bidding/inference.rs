@@ -1119,7 +1119,12 @@ impl Inferences {
             if matches!(who, Relative::Me | Relative::Partner) {
                 let who = who as usize;
                 match gladiator.advance {
-                    GladiatorAdvance::Relay => {}
+                    // The relay is weak-or-invitational (< game); only the point
+                    // cap is a sound per-call fact (the suit is revealed by the
+                    // XYZ-style rebid over 2♦, read naturally).
+                    GladiatorAdvance::Relay => {
+                        players[who].narrow_points(Range::new(0, 9));
+                    }
                     GladiatorAdvance::Cue { o } => {
                         players[who].narrow_length(o, Range::at_least(4, LENGTH_CAP));
                         players[who].narrow_points(Range::at_least(8, POINTS_CAP));
@@ -1139,9 +1144,10 @@ impl Inferences {
                         players[who].narrow_length(minor, Range::at_least(5, LENGTH_CAP));
                         players[who].narrow_points(Range::at_least(10, POINTS_CAP));
                     }
-                    GladiatorAdvance::ClubInv => {
-                        players[who].narrow_length(Suit::Clubs, Range::at_least(5, LENGTH_CAP));
-                        players[who].narrow_points(Range::at_least(8, POINTS_CAP));
+                    // 2NT = weak transfer to clubs: 6+ clubs, sub-invitational.
+                    GladiatorAdvance::ClubTransfer => {
+                        players[who].narrow_length(Suit::Clubs, Range::at_least(6, LENGTH_CAP));
+                        players[who].narrow_points(Range::new(0, 7));
                     }
                 }
             }
@@ -1893,8 +1899,8 @@ enum GladiatorAdvance {
     BothMinors,
     /// `4♣`/`4♦` Leaping Michaels: 5+ `o` + 5+ the named `minor`, GF.
     Minor { o: Suit, minor: Suit },
-    /// `2NT`: 5+ clubs, INV (no phantom suit — narrow only).
-    ClubInv,
+    /// `2NT`: a weak transfer to clubs (6+♣) — not a balanced notrump.
+    ClubTransfer,
 }
 
 #[derive(Clone, Copy)]
@@ -1961,7 +1967,12 @@ fn gladiator_reading(auction: &[Call]) -> Option<GladiatorReading> {
         suppress |= 1 << index;
         GladiatorAdvance::BothMinors
     } else if bid == Bid::new(2, Strain::Notrump) {
-        GladiatorAdvance::ClubInv
+        suppress |= 1 << index;
+        // The overcaller's forced 3♣ transfer completion says nothing of clubs.
+        if auction.get(index + 2) == Some(&Call::Bid(Bid::new(3, Strain::Clubs))) {
+            suppress |= 1 << (index + 2);
+        }
+        GladiatorAdvance::ClubTransfer
     } else if bid == Bid::new(4, Strain::Clubs) {
         GladiatorAdvance::Minor {
             o,

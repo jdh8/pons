@@ -1096,6 +1096,13 @@ static SETTINGS: &[Setting] = &[
         false,
         american::set_advance_rubens,
     ),
+    toggle(
+        "nt_overcall_gladiator",
+        COMPETITION,
+        "Gladiator (1NT-overcall advance)",
+        false,
+        american::set_nt_overcall_gladiator,
+    ),
     // Defense to their 1NT — the radio family is the enum-backed choice
     Setting::Choice {
         key: "notrump_defense",
