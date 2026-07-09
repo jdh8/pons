@@ -1092,7 +1092,7 @@ static SETTINGS: &[Setting] = &[
     toggle(
         "advance_rubens",
         COMPETITION,
-        "",
+        "Rubens advances",
         false,
         american::set_advance_rubens,
     ),
