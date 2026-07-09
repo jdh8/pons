@@ -55,7 +55,7 @@
           <option value="ew">EW</option><option value="both">Both</option>
         </select></label>
         <button id="d-deal" class="primary">Deal</button>
-        <button id="d-edit" disabled>Edit this deal →</button>
+        <button id="d-edit" class="secondary" disabled>Edit this deal →</button>
       </div>
       <div id="d-info" class="boardinfo"></div>
       <div id="d-hands"></div>
@@ -75,9 +75,9 @@
     <section id="edit" class="hidden">
       <div class="controls">
         <input id="e-pbn" type="text" spellcheck="false" placeholder="N:AKQ.… (PBN deal) — type here or click cards below">
-        <button id="e-copy">Copy PBN</button>
+        <button id="e-copy" class="secondary">Copy PBN</button>
         <button id="e-random" class="primary">Random</button>
-        <button id="e-clear">Clear</button>
+        <button id="e-clear" class="secondary">Clear</button>
         <button id="e-bid" class="primary">Bid it out in Demo →</button>
       </div>
       <div id="e-status" class="boardinfo"></div>
@@ -87,7 +87,7 @@
     <section id="settings" class="hidden">
       <div class="boardinfo">Toggle conventions, then Deal in Practice or Demo — changes apply to the next deal.</div>
       <div id="s-options"></div>
-      <button id="s-reset">Reset to defaults</button>
+      <button id="s-reset" class="secondary">Reset to defaults</button>
     </section>
   </main>
   <script type="module" src="app.js"></script>

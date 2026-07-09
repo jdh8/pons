@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- Web UI: the Demo tab's **"Edit this deal →"** button now uses the outlined
+  secondary style instead of unstyled browser-default chrome. Factored the
+  shared outlined-button recipe into a reusable `button.secondary` class
+  (parallel to `button.primary`); existing secondary buttons render unchanged.
+
 ## [0.10.0] — 2026-07-09
 
 ### Measured, parked (opt-in, default byte-identical)
