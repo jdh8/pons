@@ -115,6 +115,62 @@ default-on** (+0.0059/+0.0125 plain, +0.0046/+0.0104 PD, all CIs>0; the bare run
 without the continuation LOST −0.005/−0.009 — see CHANGELOG and 21gf-ledger).
 Source: `ab-results/anchor/2026-07-08-c864bad/report.md`.
 
+**Re-anchor `308bbd1` (2026-07-09, 409.6k boards, same seed):** the major
+jump-rebid folded in — pooled **−1.827 plain / −2.056 PD** (was −1.84 / −2.07).
+The re-rank showed the DD-workable *book* buckets mined to residuals (round-2 =
+mixed RKCB slam accuracy, M6.4 territory; round-1's top lever the already-null
+`1♥→1♠`), leaving ~57% of the gap (−233k) in the two "obstruction wall" buckets
+(#1 defensive round-1, #2 opening). **Pillar C was built and used to price them
+(sd-lead, 5000 bd/vul × 16 worlds, ours-vs-BBA via synthetic dumps into
+`ab-dump-sd`).  Verdict: BOTH are REAL losses, not DD artifacts** — def-r1 sd
+−1.82/−2.72 ≈ plain (−1.79/−2.67); opening sd −1.98/−2.58 *worse* than plain
+(−1.68/−2.42: a realistic blind lead can't beat BBA's thin light-open
+contracts).  This settles the #1 label in favour of overreach (below), not
+obstruction: sd-lead's payoff here is **diagnostic** (which walls are real →
+fix with plain DD, which sd validates as fair-or-optimistic), not
+value-unlocking.  The next DD-workable lever it surfaces is **overcall /
+competition structure** — within def-r1, our own positive calls
+(overcall/1NT/raise) are −90735 plain / −122908 PD (67% of the bucket, PD-worse
+⇒ real); the genuine-obstruction remainder (we pass, BBA competes) is only
+−29k.  See `project_sd-wall-diagnosis` and `ab-results/sd-wall/`.
+
+**First overcall slice (2-level minor overcall) — sd-wash REJECT.**  The `2♣`/`2♦`
+overcall (5+, 11+) bleeds ~−2/bd across every points/shape/vul band, so
+`set_two_level_minor_overcall_tight` raises its floor to 15 (losing 11–14
+minimums → Pass).  A/B vs BBA: plain +0.0015 NV / +0.0061 vul, PD +0.0075 /
++0.0131 — **but sd-lead washes both** (−0.0021 [±0.0031] NV, +0.0025 [±0.0040]
+vul).  For a competitive range sd is the arbiter, so the plain/PD gains are the
+obstruction-wall artifact; kept opt-in, default byte-identical.  The lesson: the
+anchor's *ours-vs-BBA* sd deficit on the overcall does not mean *suppressing* it
+helps — the actionable A/B sd (suppress-vs-keep) washed because our own pass-line
+is equally bad.  The recoverable def-r1 value, if any, is the CONSTRUCTIVE
+`1NT`-overcall slice (`1NT→X`, PD-worse −8958) or the takeout doubles (−16k,
+PD-worse), not overcall suppression.
+
+**1NT-overcall systems on — def-r1's first WIN (shipped default-on).**  The
+`[1t, 1NT, P]` advance was **unauthored** (the floor guessed), the one distinct
+mechanism the three washed call-swaps could not reach — because it *adds
+capability* rather than swapping a call.  `set_nt_overcall_systems_on` grafts the
+full opening-1NT response structure (Stayman, Jacoby/minor transfers, Smolen)
+verbatim below `[1t, 1NT]`, so `1♦–1NT` = `1♣–1NT` = an opening 1NT — 4-4 major
+fits found, right-sided through transfers.  Mechanism: one re-rooting
+`Trie::graft` shares the constructive `register_one_nt` subtree (the defensive
+book cannot rebase across to the constructive `1NT` node — the keys collide,
+they-open-`1NT` vs we-open-`1NT` — so the subtree is grafted, not rebased); the
+`Inferences` reading strips their opening (`(len−index)%4` is seat-invariant
+under the removal) so the floor reads the advancer's artificial calls.  A/B vs
+BBA (32×6400 bd/arm/vul, minor vs major split): **sd-lead — the arbiter for a
+competitive range — is a clean WIN in all four cells** (minor +0.0079 NV /
++0.0156 vul, major +0.0083 / +0.0133), and **sd exceeds plain everywhere** (the
+signature of right-siding value DD undercounts, the opposite of the wall-wash);
+plain never loses (+0.0051/+0.0112 minor win, +0.0013/+0.0044 major wash).  The
+`Inferences` reading (strip their opening, read the advance as an opening-1NT
+auction) strengthened the sd win over a no-reading run — keeping the floor off a
+phantom suit in the contested tails is real, sd-visible value.  This is
+the campaign's first def-r1 lever to clear the sd arbiter — the "obstruction
+wall, skip" verdict was wrong for the *capability-adding* slice.  The remaining
+def-r1 mass (takeout doubles −16k, we-pass-they-compete −29k) stays wall-bound.
+
 **#1 is the real prize and it is a *book* item, not a floor item.**  Our
 defensive first-round structure — overcalls, takeout doubles, two-suiters
 over their opening — bleeds −2.40/div (−142733 raw at 409.6k bd), and PD is

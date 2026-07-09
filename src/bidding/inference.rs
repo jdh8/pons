@@ -376,6 +376,36 @@ pub(crate) const fn relative_of(len: usize, index: usize) -> Relative {
     }
 }
 
+/// A systems-on advance of our 1NT overcall, with their opening stripped
+///
+/// When `set_nt_overcall_systems_on` is enabled the advancer plays the full
+/// opening-1NT structure grafted below `[their 1-of-a-suit, our 1NT]`, so the
+/// artificial Stayman/transfer calls need the *opening-1NT* reading, not the
+/// natural walk.  This returns the auction with their opening removed, which
+/// reads exactly like an opening 1NT: `(len - index) % 4` is invariant under
+/// removing one earlier call, so every later call keeps its relative seat (only
+/// their opening — their own natural suit — is lost, which the opponents' system
+/// discloses anyway).  [`None`] (the fast path) unless the graft is on and the
+/// shape is their 1-suit opening immediately overcalled `1NT`.
+fn systems_on_overcall_strip(auction: &[Call]) -> Option<Vec<Call>> {
+    if !crate::bidding::american::nt_overcall_systems_on() {
+        return None;
+    }
+    let open = auction.iter().position(|&c| c != Call::Pass)?;
+    let Call::Bid(opening) = auction[open] else {
+        return None;
+    };
+    if opening.level.get() != 1 || !opening.strain.is_suit() {
+        return None;
+    }
+    if auction.get(open + 1) != Some(&Call::Bid(Bid::new(1, Strain::Notrump))) {
+        return None;
+    }
+    let mut stripped = auction.to_vec();
+    stripped.remove(open);
+    Some(stripped)
+}
+
 /// All four players' shown shape and strength, relative to the side to act
 #[derive(Clone, Copy, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -439,6 +469,16 @@ impl Inferences {
     /// standard 2/1 meanings, relative to the side to act
     #[must_use]
     pub fn read(context: &Context<'_>) -> Self {
+        // A systems-on advance of our 1NT overcall reads as an opening-1NT
+        // auction with their opening stripped: the advancer plays the grafted
+        // 1NT structure, so the hand-coded notrump walk reads its artificial
+        // Stayman/transfer calls instead of the natural walk raising a phantom
+        // suit.  Re-read keyless (projection dropped — soundness over tightness;
+        // `read` ignores vul, and the stripped opening is 1NT so this recurses at
+        // most once).
+        if let Some(stripped) = systems_on_overcall_strip(context.auction()) {
+            return Self::read(&Context::new(context.vul(), &stripped));
+        }
         let auction = context.auction();
         let len = auction.len();
         let mut players = [Inference::unknown(); 4];
@@ -3007,6 +3047,23 @@ mod tests {
         ];
         let inf = read(&auction);
         assert_eq!(inf.partner().length(Suit::Hearts), Range::new(5, 13));
+    }
+
+    #[test]
+    fn systems_on_overcall_transfer_is_not_read_as_diamonds() {
+        // [1♦, 1NT, P, 2♦, P]: their 1♦, our 1NT overcall, the advancer's 2♦ is a
+        // Jacoby transfer (grafted opening-1NT structure), not natural diamonds.
+        // Stripping their opening reads it as [1NT, P, 2♦, P], so the floor never
+        // raises a phantom diamond suit into a doubled disaster (the iron rule).
+        let auction = [
+            bid(1, Strain::Diamonds),
+            bid(1, Strain::Notrump),
+            Call::Pass,
+            bid(2, Strain::Diamonds),
+            Call::Pass,
+        ];
+        let inf = read(&auction);
+        assert_eq!(inf.partner().length(Suit::Diamonds), Range::FULL_LENGTH);
     }
 
     #[test]

@@ -13,7 +13,7 @@ use super::super::constraint::{
     unbid_support,
 };
 use super::super::context::Context;
-use super::super::{Alert, Defensive, Rules};
+use super::super::{Alert, Defensive, Rules, Trie};
 use super::competition::{
     LebensohlStyle, clubs_transfer_completion, complete_lebensohl_relay, cue_stayman_answer,
     cue_stayman_answer_no_stopper, delayed_cue, lebensohl_relay_rebid, lebensohl_responder,
@@ -892,6 +892,24 @@ thread_local! {
     /// lighter (9+ instead of the opening 11+); **false by default** (an unproven
     /// refinement — A/B candidate). See [`set_passed_hand_overcall`].
     static PASSED_HAND_OVERCALL: Cell<bool> = const { Cell::new(false) };
+    /// Whether the 2-level **minor** overcall demands 15+ (a strong single-suiter)
+    /// instead of the disciplined 11+; **false by default** (an A/B candidate —
+    /// the anchor bleeds on these across every strength/shape/vul band, sd-lead
+    /// confirms the loss is real not obstruction). See
+    /// [`set_two_level_minor_overcall_tight`].
+    static TWO_LEVEL_MINOR_OVERCALL_TIGHT: Cell<bool> = const { Cell::new(false) };
+    /// Whether a hand with a five-card **major** is barred from the natural 1NT
+    /// overcall (it overcalls the major instead, to find the fit); **false by
+    /// default** (an A/B candidate — the anchor shows 5-card majors buried in the
+    /// 1NT overcall miss the major game). See [`set_nt_overcall_no_major`].
+    static NT_OVERCALL_NO_MAJOR: Cell<bool> = const { Cell::new(false) };
+    /// Whether the advancer runs **systems-on** after our natural 1NT overcall:
+    /// the whole opening-1NT response structure (Stayman, transfers, Smolen)
+    /// grafted below `[1t,1NT]`, so a 15–18 balanced overcall finds 4-4 major
+    /// fits and right-sides via transfers; **true by default** (measured a
+    /// clean single-dummy-lead win over both minor and major openings). See
+    /// [`set_nt_overcall_systems_on`].
+    static NT_OVERCALL_SYSTEMS_ON: Cell<bool> = const { Cell::new(true) };
 }
 
 /// Add a support gate to the 12+ takeout double for books built *after* this call
@@ -939,6 +957,60 @@ pub fn set_passed_hand_overcall(on: bool) {
 /// Whether a passed hand's lighter 2-level overcall is currently authored
 fn passed_hand_overcall() -> bool {
     PASSED_HAND_OVERCALL.with(Cell::get)
+}
+
+/// Demand 15+ for the 2-level **minor** overcall (`2♣`/`2♦` below their suit)
+/// for books built *after* this call (thread-local, read once at construction)
+///
+/// `false` (the **default**) keeps the disciplined 11+ 2-level band for minors.
+/// `true` raises it to `15..=17`, stranding the losing 11–14 single-suited minor
+/// overcalls into Pass (partner reopens). The anchor bleeds on the 2-level minor
+/// overcall across every points/shape/vul band and sd-lead confirms the loss is
+/// real (not obstruction the blind lead recovers); majors and the 1-level are
+/// untouched. An A/B knob (`bba-gen --ns-two-level-minor-overcall-tight`).
+pub fn set_two_level_minor_overcall_tight(on: bool) {
+    TWO_LEVEL_MINOR_OVERCALL_TIGHT.with(|cell| cell.set(on));
+}
+
+/// Whether the 2-level minor overcall demands 15+
+fn two_level_minor_overcall_tight() -> bool {
+    TWO_LEVEL_MINOR_OVERCALL_TIGHT.with(Cell::get)
+}
+
+/// Bar a five-card major from the natural 1NT overcall (overcall the major
+/// instead) for books built *after* this call (thread-local, read at construction)
+///
+/// `false` (the **default**) lets a 15–18 balanced hand with a five-card major
+/// overcall 1NT, burying the suit. `true` requires both majors ≤4 for the 1NT
+/// overcall, so a five-card major overcalls naturally (`1♥`/`1♠`) and partner can
+/// raise the fit — the anchor shows these buried majors miss the major game BBA
+/// reaches. An A/B knob (`bba-gen --ns-nt-overcall-no-major`).
+pub fn set_nt_overcall_no_major(on: bool) {
+    NT_OVERCALL_NO_MAJOR.with(|cell| cell.set(on));
+}
+
+/// Whether a five-card major is barred from the 1NT overcall
+fn nt_overcall_no_major() -> bool {
+    NT_OVERCALL_NO_MAJOR.with(Cell::get)
+}
+
+/// Run systems-on (cue-Stayman) advances after our natural 1NT overcall, for
+/// books built *after* this call (thread-local, read at construction)
+///
+/// `true` (the **default**) grafts the full opening-1NT response structure below
+/// `[1t,1NT]`, so `1♦–1NT` equals `1♣–1NT` equals an opening 1NT — Stayman,
+/// Jacoby/minor transfers, and Smolen, identical over both minors, with the same
+/// structure over a major (one Stayman-found major is theirs). Transfers preserve
+/// right-siding (the strong overcaller declares). `false` leaves the `[1t,1NT,P]`
+/// advance to the instinct floor's naturals. Off flag: `bba-gen
+/// --no-ns-nt-overcall-systems-on`.
+pub fn set_nt_overcall_systems_on(on: bool) {
+    NT_OVERCALL_SYSTEMS_ON.with(|cell| cell.set(on));
+}
+
+/// Whether systems-on advances of the 1NT overcall are authored
+pub(crate) fn nt_overcall_systems_on() -> bool {
+    NT_OVERCALL_SYSTEMS_ON.with(Cell::get)
 }
 
 /// Whether the disciplined overcall bands are currently authored
@@ -1128,11 +1200,17 @@ pub fn defense_to_suit(their_opening: Bid) -> Rules {
     let theirs = their_opening.strain;
     let t = theirs.suit().expect("their opening is always a suit bid");
 
-    let mut rules = Rules::new().rule(
-        Bid::new(1, Strain::Notrump),
-        1.5,
-        hcp(15..=18) & balanced() & stopper_in_their_suits(),
-    );
+    let one_nt = Bid::new(1, Strain::Notrump);
+    let nt_base = hcp(15..=18) & balanced() & stopper_in_their_suits();
+    let mut rules = if nt_overcall_no_major() {
+        Rules::new().rule(
+            one_nt,
+            1.5,
+            nt_base & len(Suit::Hearts, ..=4) & len(Suit::Spades, ..=4),
+        )
+    } else {
+        Rules::new().rule(one_nt, 1.5, nt_base)
+    };
 
     // 12+ takeout double, optionally gated on support for the unbid suits so an
     // off-shape one-suiter overcalls (or waits for the 17+ tier) instead of
@@ -1170,11 +1248,17 @@ pub fn defense_to_suit(their_opening: Bid) -> Rules {
             // A passed hand may take the disciplined 2-level overcall lighter (9+):
             // it cannot hold opening values, so the 11+ floor would all but forbid
             // the safe light overcall.  Off by default; see `set_passed_hand_overcall`.
-            let relax_passed = overcall_discipline() && level == 2 && passed_hand_overcall();
+            let tight_minor = level == 2
+                && matches!(suit, Suit::Clubs | Suit::Diamonds)
+                && two_level_minor_overcall_tight();
+            let relax_passed =
+                overcall_discipline() && level == 2 && passed_hand_overcall() && !tight_minor;
             let band = if !overcall_discipline() {
                 8..=16
             } else if level == 1 {
                 8..=17
+            } else if tight_minor {
+                15..=17
             } else if relax_passed {
                 9..=17
             } else {
@@ -3223,6 +3307,7 @@ fn insert_advance_of_double(d: &mut Defensive, suit: Suit, opening: Bid, style: 
     }
 }
 
+/// Advancer's systems-on actions after `[1t, 1NT, P]` (our 1NT overcall = 15–18
 /// Advancer's response to partner's Michaels cue-bid over their opening `t`
 fn michaels_advances(t: Suit) -> Rules {
     match t {
@@ -3448,6 +3533,16 @@ pub fn defensive() -> Defensive {
     let mut d = Defensive::new();
     let advance_sohl = advance_sohl_style();
 
+    // Systems-on advances of our 1NT overcall: the whole 1NT-opening response
+    // structure (Stayman, transfers, Smolen — reflecting the same knobs), built
+    // once and grafted below each `[their-suit, 1NT]` so the advancer plays it
+    // verbatim.  Off by default; see `set_nt_overcall_systems_on`.
+    let nt_overcall_book = nt_overcall_systems_on().then(|| {
+        let mut nt = Trie::new();
+        super::notrump::register_one_nt(&mut nt);
+        nt
+    });
+
     // Over each one-of-a-suit opening: overcalls, double, 1NT, Michaels, Unusual.
     for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
         let theirs = Strain::from(suit);
@@ -3523,6 +3618,27 @@ pub fn defensive() -> Defensive {
         // instinct floor's Rubens transfers — the programmatic floor expresses
         // the transfer band for every (opening, overcall) pair in one place,
         // where a per-suit authored table cannot.
+
+        // Systems-on advances of our 1NT overcall ([1t, 1NT, P]): the advancer
+        // plays the full 1NT-opening structure (Stayman/transfers/Smolen), so
+        // `1♦–1NT` equals `1♣–1NT` equals an opening 1NT — transfers preserve
+        // right-siding.  Graft the pre-built response subtree under `[1t, 1NT]`
+        // in every seat the opening could have been made (mirrors the overcall's
+        // own leading-pass fan).  Over a major, one Stayman-found major is theirs
+        // — still systems-on, measured separately.
+        if let Some(nt) = &nt_overcall_book {
+            let one_nt = call(1, Strain::Notrump);
+            for n in 0..=3 {
+                let prefix: Vec<Call> = core::iter::repeat_n(Call::Pass, n)
+                    .chain([Call::Bid(opening), one_nt])
+                    .collect();
+                let collisions = d.graft(&prefix, nt, &[one_nt]);
+                debug_assert!(
+                    collisions.is_empty(),
+                    "1NT-overcall systems-on graft collides at {prefix:?}: {collisions:?}"
+                );
+            }
+        }
 
         // Advances of Michaels: [1t, 2t, Pass] — advancer to act.
         let michaels_bid = call(2, theirs);
@@ -4044,6 +4160,101 @@ mod tests {
             .map(|(call, _)| call)
             .expect("array is never empty");
         (best, prov.depth == 0 && prov.fallback.is_some())
+    }
+
+    #[test]
+    fn two_level_minor_overcall_tight_gates_the_minimum() {
+        // Over their (1♠): a single-suited 5-card club minimum overcalls 2♣ by
+        // default; the tight knob makes it too weak, so it passes (partner
+        // reopens) — the book's finite Pass catch-all must shadow the floor's
+        // own overcall instinct, or the suppression is a no-op.
+        let over_1s = [call(1, Strain::Spades)];
+        let minimum = "J2.K2.Q432.AQ876"; // 12 HCP, 5 clubs, no takeout/two-suiter shape
+        let (default_call, floored) = best_call(&over_1s, minimum);
+        assert_eq!(default_call, call(2, Strain::Clubs), "default overcalls 2♣");
+        assert!(!floored, "the 2♣ overcall is a book node");
+
+        super::set_two_level_minor_overcall_tight(true);
+        let (tight_call, _) = best_call(&over_1s, minimum);
+        // A 17-count is not silenced by the knob — it competes (a takeout X first).
+        let (strong_call, _) = best_call(&over_1s, "A2.K2.Q432.AKJ87"); // 17 HCP
+        super::set_two_level_minor_overcall_tight(false);
+        assert_eq!(
+            tight_call,
+            Call::Pass,
+            "tight strands the minimum into Pass"
+        );
+        assert_ne!(
+            strong_call,
+            Call::Pass,
+            "a 17-count still competes, not silenced"
+        );
+    }
+
+    #[test]
+    fn nt_overcall_no_major_routes_five_card_major_to_the_suit() {
+        // Over their (1♦): a 15-18 balanced hand with a five-card major overcalls
+        // 1NT by default (burying the suit); the knob bars that so it overcalls
+        // the major naturally, letting partner find the fit.
+        let over_1d = [call(1, Strain::Diamonds)];
+        let five_heart = "32.KQJ82.KQ4.A32"; // 15 HCP, 5332, 5 hearts, ♦ stopper
+        let (default_call, _) = best_call(&over_1d, five_heart);
+        assert_eq!(
+            default_call,
+            call(1, Strain::Notrump),
+            "default buries the major in 1NT"
+        );
+
+        super::set_nt_overcall_no_major(true);
+        let (gated_call, _) = best_call(&over_1d, five_heart);
+        let (flat_call, _) = best_call(&over_1d, "A32.KQ4.KQ4.J432"); // 15 HCP 4333, no 5M
+        super::set_nt_overcall_no_major(false);
+        assert_eq!(
+            gated_call,
+            call(1, Strain::Hearts),
+            "5-card major overcalls the suit"
+        );
+        assert_eq!(
+            flat_call,
+            call(1, Strain::Notrump),
+            "no 5M still overcalls 1NT"
+        );
+    }
+
+    #[test]
+    fn nt_overcall_systems_on_grafts_the_1nt_structure() {
+        // Over their (1♦), our 1NT overcall runs systems on: the advancer plays
+        // the opening-1NT responses verbatim.  Game-going 4-4 majors bid 2♣
+        // Stayman (not a cue of their suit); a five-card spade suit transfers
+        // (2♥ → spades), preserving right-siding — the whole point; the
+        // overcaller answers Stayman with 4 hearts (2♥) from the grafted table.
+        super::set_nt_overcall_systems_on(true);
+        let d = || call(1, Strain::Diamonds);
+        let nt = || call(1, Strain::Notrump);
+        let (stayman, floored) = best_call(
+            &[d(), nt(), Call::Pass],
+            "A432.KQ84.32.QJ4", // 12 HCP, 4-4 majors
+        );
+        let (transfer, _) = best_call(
+            &[d(), nt(), Call::Pass],
+            "KQ432.K84.32.QJ4", // 10 HCP, 5 spades — Jacoby transfer, not Stayman
+        );
+        let (answer, _) = best_call(
+            &[d(), nt(), Call::Pass, call(2, Strain::Clubs), Call::Pass],
+            "Q3.KJ84.AQ54.KQ2", // 17 HCP, 4 hearts, ♦ stopper
+        );
+        super::set_nt_overcall_systems_on(false);
+        assert_eq!(stayman, call(2, Strain::Clubs), "advancer bids 2♣ Stayman");
+        assert!(
+            !floored,
+            "the grafted Stayman is a book node, not the floor"
+        );
+        assert_eq!(
+            transfer,
+            call(2, Strain::Hearts),
+            "a five-card spade suit transfers"
+        );
+        assert_eq!(answer, call(2, Strain::Hearts), "overcaller shows 4 hearts");
     }
 
     /// Coupling: a Landy range feeds the one shared two-suiter band, so Landy's and

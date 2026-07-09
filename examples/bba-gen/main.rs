@@ -533,6 +533,25 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_passed_hand_overcall: bool,
 
+    /// Demand 15+ for the 2-level minor overcall (2♣/2♦ below their suit) instead
+    /// of the disciplined 11+; off by default (A/B candidate — the anchor bleeds
+    /// on these across every band, sd-lead confirms the loss is real).
+    #[arg(long, default_value_t = false)]
+    ns_two_level_minor_overcall_tight: bool,
+
+    /// Bar a five-card major from the natural 1NT overcall (overcall the major
+    /// instead, to find the fit); off by default (A/B candidate — buried majors
+    /// miss the major game).
+    #[arg(long, default_value_t = false)]
+    ns_nt_overcall_no_major: bool,
+
+    /// Disable systems-on advances after our 1NT overcall: on, the advancer plays
+    /// the full opening-1NT structure (Stayman/transfers/Smolen) grafted below
+    /// `[1t,1NT]`, finding and right-siding major fits; on by default. Off-switch
+    /// for the A/B.
+    #[arg(long, default_value_t = false)]
+    no_ns_nt_overcall_systems_on: bool,
+
     /// Extend our 1NT defense to the balancing seat (1NT) P P ? (default off).
     #[arg(long, default_value_t = false)]
     ns_balancing: bool,
@@ -1134,6 +1153,11 @@ fn main() -> anyhow::Result<()> {
         other => anyhow::bail!("--ns-overcall-discipline must be on|off, got {other:?}"),
     });
     pons::bidding::american::set_passed_hand_overcall(args.ns_passed_hand_overcall);
+    pons::bidding::american::set_two_level_minor_overcall_tight(
+        args.ns_two_level_minor_overcall_tight,
+    );
+    pons::bidding::american::set_nt_overcall_no_major(args.ns_nt_overcall_no_major);
+    pons::bidding::american::set_nt_overcall_systems_on(!args.no_ns_nt_overcall_systems_on);
     pons::bidding::american::set_notrump_balancing(args.ns_balancing);
     let (oc_lo, oc_hi) = args
         .ns_overcall

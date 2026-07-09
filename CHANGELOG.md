@@ -7,7 +7,69 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.10.0] — Unreleased
 
+### Measured, parked (opt-in, default byte-identical)
+
+- **No-major 1NT overcall** (`set_nt_overcall_no_major` /
+  `bba-gen --ns-nt-overcall-no-major`, default off). The BBA-gap def-r1 1NT
+  overcall bleeds partly on 15–18 balanced hands with a five-card major that
+  bury the suit in 1NT (−5209 plain vs BBA, who overcalls the major and finds
+  the game). The knob bars a five-card major from the 1NT overcall so it
+  overcalls the major instead. A/B vs BBA: **wash on all three scorers, both
+  vulnerabilities** (plain +0.0003/+0.0006, PD −0.0002/+0.0002, sd
+  +0.0000/+0.0003). Overcalling `1♥`/`1♠` instead of `1NT` recovers ~none of the
+  deficit — our natural-overcall line is as bad as our 1NT line; BBA's edge is
+  its whole auction, not the call choice (the third def-r1 call-swap to wash).
+  **Not shipped**, kept opt-in.
+
+- **Tight 2-level minor overcall** (`set_two_level_minor_overcall_tight` /
+  `bba-gen --ns-two-level-minor-overcall-tight`, default off). The BBA-gap
+  `Defensive/book/round-1` bucket's largest slice is our own overcalls; sd-lead
+  pricing (Pillar C) showed the bucket loss is *real*, not a DD artifact, so the
+  `2♣`/`2♦` overcall (5+ suit, 11+) looked like a fixable leak — it bleeds ~−2
+  IMPs/board across every points/shape/vul band. The knob raises its floor to
+  15, stranding the losing 11–14 minimums into Pass. A/B vs BBA: plain +0.0015
+  NV / +0.0061 vul, PD +0.0075 / +0.0131 — but **sd-lead is a wash both vuls**
+  (−0.0021 [±0.0031] NV, +0.0025 [±0.0040] vul). For a competitive range sd is
+  the arbiter, so the plain/PD gains are the obstruction-wall artifact (DD
+  rewards "compete less" while blind to the overcall's lead value): suppressing
+  the overcall is sd-neutral because *our* pass-line is equally bad. **Not
+  shipped** — the deficit is in our whole handling of these boards, not the
+  overcall action. Kept opt-in as a single-dummy re-measure candidate.
+
 ### Added
+
+- **Systems on over our 1NT overcall (BBA-gap def-r1 — first wall break).**
+  Their one-of-a-suit opening, our natural 1NT overcall (15–18 balanced), and the
+  advance was **unauthored** — floored crudely, the last un-refuted slice of the
+  `Defensive/book/round-1` deficit after three call-swap fixes all washed on
+  sd-lead (the swaps only trade one bad call for another; BBA's edge is the whole
+  auction). The fix *adds capability* instead: the advancer now plays the full
+  opening-1NT structure (2♣ Stayman, Jacoby/minor transfers, Smolen), grafted
+  verbatim below `[1t, 1NT]`, so `1♦–1NT` equals `1♣–1NT` equals an opening 1NT —
+  4-4 major fits found, right-sided through transfers (the strong overcaller
+  declares). One re-rooting `Trie::graft` shares the constructive `register_one_nt`
+  subtree (classifiers by `Arc`); the reading strips their opening so the floor
+  reads the advancer's artificial calls (no phantom-suit disaster). Same
+  structure over a major (one Stayman-found major is theirs), measured
+  separately. A/B vs BBA (32×6400 bd/arm/vul, minor vs major split, three
+  scorers, shipped binary) — **sd-lead (the arbiter for a competitive range) is a
+  clean WIN in all four cells**, and sd exceeds plain everywhere (the signature of
+  genuine right-siding value DD undercounts, the opposite of an obstruction-wall
+  wash):
+
+  | opening | plain | PD | **sd** |
+  | --- | --- | --- | --- |
+  | minor, NV | +0.0051 | +0.0055 | **+0.0079** |
+  | minor, vul | +0.0112 | +0.0116 | **+0.0156** |
+  | major, NV | +0.0013 | −0.0003 | **+0.0083** |
+  | major, vul | +0.0044 | +0.0018 | **+0.0133** |
+
+  Plain never loses (minor win, major wash); ~784–834 fired/vul (minor), ~475–527
+  (major). The `Inferences` reading strengthened the sd win over a first no-reading
+  run (major sd +0.0039/+0.0100 → +0.0083/+0.0133) — reading the advancer's
+  transfers keeps the floor off a phantom suit in the contested tails, which a
+  realistic lead rewards. **Shipped default-on** (`set_nt_overcall_systems_on`,
+  off: `bba-gen --no-ns-nt-overcall-systems-on`).
 
 - **Web: edit the deal you just watched.** The Demo tab dealt a random board and
   bid it out, but the only way into the deal editor was to build a hand from

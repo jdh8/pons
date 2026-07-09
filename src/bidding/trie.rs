@@ -220,6 +220,35 @@ impl Trie {
         collisions
     }
 
+    /// Graft the subtree rooted at `src_prefix` in `src` under `dst_prefix`
+    ///
+    /// Copies `src`'s node at `src_prefix` (classifiers shared through their
+    /// [`Arc`]s) into the node at `dst_prefix`, creating the destination path
+    /// if absent.  This re-roots an authored subtree at another key — e.g.
+    /// grafting the uncontested `1NT`-opening responses under a `1NT`-overcall
+    /// prefix so the advancer plays them (systems on).  Returns the colliding
+    /// keys (relative to `dst_prefix`); a vacant destination yields none, so a
+    /// non-empty result is an authoring bug.  A no-op when `src` lacks
+    /// `src_prefix`.
+    pub fn graft(
+        &mut self,
+        dst_prefix: &[Call],
+        src: &Self,
+        src_prefix: &[Call],
+    ) -> Vec<Box<[Call]>> {
+        let Some(sub) = src.subtrie(src_prefix) else {
+            return Vec::new();
+        };
+        let sub = sub.clone();
+        let mut node = self;
+        for &call in dst_prefix {
+            node = node.children.entry(call).get_or_insert_with(Box::default);
+        }
+        let mut collisions = Vec::new();
+        node.merge_at(sub, &mut Vec::new(), &mut collisions);
+        collisions
+    }
+
     fn merge_at(&mut self, other: Self, path: &mut Vec<Call>, collisions: &mut Vec<Box<[Call]>>) {
         if let Some(classifier) = other.classify {
             if self.classify.is_some() {
