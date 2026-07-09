@@ -54,6 +54,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   also adopted by `probe-limit-raise`. These harnesses keep their own inline
   divergence solve (they score one table pair twice, so `score_boards`, which
   re-solves per scorer, does not fit).
+- Web (internal): the `SETTINGS` registry is now one line per setting
+  (−457 lines). rustfmt was exploding every `toggle(...)` row that exceeded the
+  width into a seven-line block; a `#[rustfmt::skip]` on the static keeps each
+  row on one line. Keys stay explicit literals (still greppable against the
+  `set_*` they point at) and the `toggle` constructor is unchanged — only the
+  row layout shrank. Registry contents byte-identical (verified by a
+  whitespace-and-trailing-comma-normalised token diff; `registry_is_well_formed`
+  passes).
 - Internal: extracted the shared plumbing of the 18 `scripts/*-ab.sh` A/B
   runners (the build, `log`/`arm`/`diffpair`/`sddiff`/`seed_for`, seed
   persistence) into a sourced `scripts/ab-lib.sh` (−685 lines net). Each runner
