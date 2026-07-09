@@ -1180,6 +1180,12 @@ std::thread_local! {
     /// with the majors", the mildest 4-4-3-2 slice (−1.39 IMPs/div; the 4-4-majors
     /// subset a wash).  Likely kept; here for the opener-suit A/B.
     static SUPPRESS_4432_VS_MINOR: Cell<bool> = const { Cell::new(false) };
+    /// Whether [`takeout_double_shape_ok`] routes a hand with an unbid five-card
+    /// **major** to its natural overcall instead of a takeout double — show the
+    /// major directly rather than doubling and risking partner bidding our short
+    /// suit.  **Shipped default-on** (only the 12–16 HCP shapely double is
+    /// redirected; 17+ hands fall through to the separate `points(17..)` rule).
+    static SUPPRESS_5CARD_MAJOR_TAKEOUT: Cell<bool> = const { Cell::new(true) };
 }
 
 /// Suppress our takeout double on a flat 4-3-3-3 weaker than a 1NT opening
@@ -1260,6 +1266,32 @@ fn suppress_4432_vs_minor() -> bool {
     SUPPRESS_4432_VS_MINOR.with(Cell::get)
 }
 
+/// Suppress our takeout double when we hold an unbid five-card major — overcall it
+///
+/// With a five-card (or longer) major we can name the suit directly, so a takeout
+/// double only risks partner responding in our short suit.  Over a one-level
+/// opening the natural major overcall already outranks the double; the leak is
+/// over a **weak two**, where the 12+ shapely double (weight 1.3) outguns the
+/// two-level major overcall (weight 1.0).  With the knob on (the default),
+/// [`takeout_double_shape_ok`] rejects the double so the hand routes to its
+/// natural overcall — only the 12–16 HCP range is redirected, since a 17+ hand
+/// falls through to the separate `points(17..)` double (too strong for a simple
+/// overcall).  **Shipped default-on**: a paired BBA A/B (409.6k bd/arm/vul,
+/// SEED_BASE 1783631820) scored a plain-DD **and** perfect-defense **and**
+/// single-dummy-lead win at both vulnerabilities, every 95% CI excluding 0: plain
+/// +0.0190 (NV) / +0.0493 (vul), PD +0.0892 / +0.1129, sd-lead +0.0124 / +0.0413
+/// IMPs/board; ~2% fired.  Pass `false` to revert to doubling.  Read at
+/// classification time and per-thread.
+#[doc(hidden)]
+pub fn set_suppress_5card_major_takeout(on: bool) {
+    SUPPRESS_5CARD_MAJOR_TAKEOUT.with(|flag| flag.set(on));
+}
+
+/// Whether the unbid-five-card-major takeout suppression is active
+fn suppress_5card_major_takeout() -> bool {
+    SUPPRESS_5CARD_MAJOR_TAKEOUT.with(Cell::get)
+}
+
 /// Gate ANDed into each takeout-double rule to suppress a weak flat 4-3-3-3
 ///
 /// A no-op unless [`set_suppress_flat_4333_takeout`] is on (the default): when
@@ -1275,6 +1307,7 @@ pub(crate) fn takeout_double_shape_ok() -> Cons<impl Constraint + Clone> {
     let suppress_5332 = suppress_5332_takeout();
     let suppress_4432_major = suppress_4432_vs_major();
     let suppress_4432_minor = suppress_4432_vs_minor();
+    let suppress_5card_major = suppress_5card_major_takeout();
     described(
         "not a weak balanced hand diverted to Pass",
         move |hand: Hand, context: &Context<'_>| {
@@ -1284,6 +1317,14 @@ pub(crate) fn takeout_double_shape_ok() -> Cons<impl Constraint + Clone> {
             }
             lens.sort_unstable_by(|a, b| b.cmp(a));
             let hcp = raw_hcp(hand);
+            // Unbid five-card major: overcall it rather than double (doubling
+            // buries the major and risks partner bidding our short suit).
+            let reject_5card_major = suppress_5card_major
+                && Suit::ASC.into_iter().any(|suit| {
+                    Strain::from(suit).is_major()
+                        && hand[suit].len() >= 5
+                        && !context.their_suits().any(|their| their == suit)
+                });
             // Flat 4-3-3-3: no doubleton at all — suppressed 12–14 (its own knob).
             let reject_4333 = suppress_4333 && lens == [4, 3, 3, 3] && hcp < 15;
             // 5-3-3-2: bid the five-card suit instead of doubling — 12–13.
@@ -1300,7 +1341,7 @@ pub(crate) fn takeout_double_shape_ok() -> Cons<impl Constraint + Clone> {
                 } else {
                     suppress_4432_minor
                 });
-            !(reject_4333 || reject_5332 || reject_4432)
+            !(reject_4333 || reject_5332 || reject_4432 || reject_5card_major)
         },
     )
 }

@@ -839,6 +839,7 @@ static SETTINGS: &[Setting] = &[
     toggle("passed_hand_overcall", COMPETITION, "", false, american::set_passed_hand_overcall),
     toggle("suppress_5332_takeout", COMPETITION, "", true, constraint::set_suppress_5332_takeout),
     toggle("suppress_flat_4333_takeout", COMPETITION, "", true, constraint::set_suppress_flat_4333_takeout),
+    toggle("suppress_5card_major_takeout", COMPETITION, "", true, constraint::set_suppress_5card_major_takeout),
     toggle("trap_pass", COMPETITION, "Trap pass", true, american::set_trap_pass),
     toggle("penalty_double_leave_in", COMPETITION, "", true, american::set_penalty_double_leave_in),
     toggle("uvu", COMPETITION, "", true, american::set_uvu),

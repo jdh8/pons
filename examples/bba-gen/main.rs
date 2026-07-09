@@ -373,6 +373,13 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_suppress_4432_vs_minor: bool,
 
+    /// Re-enable our takeout double on a hand with an unbid five-card **major** —
+    /// the default routes it to a natural overcall of the major (show the suit
+    /// rather than double into partner's short suit; shipped default-on; see
+    /// `set_suppress_5card_major_takeout`).
+    #[arg(long, default_value_t = false)]
+    no_ns_suppress_5card_major_takeout: bool,
+
     /// Author the **rich advance** of partner's takeout double of a one-opening
     /// (`(1t)–X–(P)–?`): cue + notrump ladder giving the advancer an invite/force
     /// channel (opt-in; see `set_rich_advance_double`).
@@ -1220,6 +1227,9 @@ fn main() -> anyhow::Result<()> {
     pons::bidding::constraint::set_suppress_5332_takeout(!args.no_ns_suppress_5332_takeout);
     pons::bidding::constraint::set_suppress_4432_vs_major(args.ns_suppress_4432_vs_major);
     pons::bidding::constraint::set_suppress_4432_vs_minor(args.ns_suppress_4432_vs_minor);
+    pons::bidding::constraint::set_suppress_5card_major_takeout(
+        !args.no_ns_suppress_5card_major_takeout,
+    );
     pons::bidding::american::set_rich_advance_double(args.ns_rich_advance);
     pons::bidding::american::set_advance_rubens(args.ns_advance_rubens);
     pons::bidding::american::set_balanced_1nt_rebid(!args.no_ns_balanced_1nt_rebid);

@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Five-card-major takeout-double discipline** (`set_suppress_5card_major_takeout`,
+  **shipped default-on**; off-switch `bba-gen --no-ns-suppress-5card-major-takeout`).
+  With an unbid five-card (or longer) major, overcall it rather than make a takeout
+  double — the double buries the major and risks partner responding in our short
+  suit. Over a one-level opening the natural major overcall already outranks the
+  double; the leak the anchor surfaced is over a **weak two**, where the 12+ shapely
+  double (weight 1.3) outguns the two-level major overcall (weight 1.0), so a sound
+  5-card-major hand doubled instead of bidding its suit. The book takeout-double
+  shape gate now rejects a hand with an unbid five-card major so it routes to its
+  natural overcall — only the 12–16 HCP range is redirected, since a 17+ hand falls
+  through to the separate `points(17..)` double (too strong for a simple overcall).
+  Split out of the anchor's def-r1 takeout-double residual alongside 5332/flat-4333.
+  Measured vs BBA 2/1 (409.6k bd/arm/vul, both vuls, SEED_BASE 1783631820): a
+  **plain-DD, perfect-defense, and single-dummy-lead win at both vulnerabilities**,
+  every 95% CI excluding 0 — plain +0.0190 (NV) / +0.0493 (vul), PD +0.0892 /
+  +0.1129, sd-lead +0.0124 / +0.0413 IMPs/board; ~2% fired, +0.9/+2.6 IMPs/fired
+  plain. Plain-positive rules out a doubling artifact; sd-lead (the arbiter for a
+  competitive range) confirms the right-siding value. (The sibling 5-card-**minor**
+  and 17+ single-suiter slices are *not* shipped: doubling a minor to find a major
+  fit is textbook, and a 17+ hand is too strong for a simple overcall — redirecting
+  it drops to Pass. Left for a later cut that authors the strong sequence.)
+
 ### Removed
 
 - Dead public helpers, found by a repo-wide over-engineering audit and removed

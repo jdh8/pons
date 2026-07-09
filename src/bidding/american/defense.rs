@@ -5102,6 +5102,30 @@ mod tests {
         );
     }
 
+    /// `set_suppress_5card_major_takeout` routes a hand with an unbid five-card
+    /// major off the takeout double to its natural overcall.  Over a weak two the
+    /// 12+ shapely double outguns the two-level major overcall; the knob prefers
+    /// the overcall — show the major rather than double into partner's short suit.
+    #[test]
+    fn suppress_5card_major_takeout_overcalls() {
+        // 5♠-3♥-2♦-3♣, 15 HCP, short in their diamonds — over a weak 2♦.
+        let over_2d = [call(2, Strain::Diamonds)];
+        let hand = "AKQ62.J94.32.KJ6";
+
+        crate::bidding::constraint::set_suppress_5card_major_takeout(false);
+        let (off, _) = best_call(&over_2d, hand);
+        assert_eq!(off, Call::Double, "5-card major doubles with the knob off");
+
+        crate::bidding::constraint::set_suppress_5card_major_takeout(true);
+        let (on, _) = best_call(&over_2d, hand);
+        crate::bidding::constraint::set_suppress_5card_major_takeout(false);
+        assert_eq!(
+            on,
+            call(2, Strain::Spades),
+            "the knob overcalls the five-card major instead of doubling"
+        );
+    }
+
     /// The rich advance gives the advancer a cue (invite+) and a forced 3-card
     /// response when broke — both absent from the flat floor.
     #[test]
