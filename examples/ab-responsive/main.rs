@@ -33,17 +33,16 @@ use clap::Parser;
 use contract_bridge::auction::Auction;
 use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Seat, Suit};
-use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
 use pons::bidding::Family;
 use pons::bidding::american::{set_responsive_overcall, set_responsive_takeout};
-use pons::scoring::{final_contract, imps, ns_score_contract};
+use pons::scoring::{final_contract, ns_score_contract};
 use rayon::prelude::*;
 
 #[path = "../common/mod.rs"]
 #[allow(dead_code)]
 mod common;
-use common::{bid_out, hand_hcp};
+use common::{bid_out, hand_hcp, score_boards};
 
 /// Contested responsive-double A/B under perfect-defense scoring
 #[derive(Parser)]
@@ -166,23 +165,13 @@ fn main() {
 
     // Only boards whose tables diverge can swing; solve those once and credit
     // the swing to the convention team (NS at A, EW at B).
-    let divergent: Vec<usize> = (0..args.count)
-        .filter(|&i| contracts[i].0 != contracts[i].1)
+    let scored = score_boards(&contracts, &deals, args.vulnerability, ns_score_contract);
+    let (points, total_imps) = (scored.total_points, scored.total_imps);
+    let mut worst: Vec<(i64, usize)> = scored
+        .divergent
+        .iter()
+        .map(|&i| (scored.board_imps[i], i))
         .collect();
-    let solve_deals: Vec<FullDeal> = divergent.iter().map(|&i| deals[i]).collect();
-    let tables = Solver::lock().solve_deals(&solve_deals, NonEmptyStrainFlags::ALL);
-
-    let mut points = 0i64;
-    let mut total_imps = 0i64;
-    let mut worst: Vec<(i64, usize)> = Vec::new();
-    for (&i, table) in divergent.iter().zip(tables.iter()) {
-        let (contract_a, contract_b) = contracts[i];
-        let swing = ns_score_contract(contract_a, table, args.vulnerability)
-            - ns_score_contract(contract_b, table, args.vulnerability);
-        points += swing;
-        total_imps += imps(swing);
-        worst.push((imps(swing), i));
-    }
     worst.sort_by_key(|w| w.0);
     eprintln!(
         "=== Worst 15 divergent boards for the {} responsive double ===",
@@ -209,15 +198,15 @@ fn main() {
     }
     println!(
         "Divergent boards: {} of {} ({:.1}%)",
-        divergent.len(),
+        scored.divergent.len(),
         args.count,
-        100.0 * divergent.len() as f64 / args.count.max(1) as f64,
+        100.0 * scored.divergent.len() as f64 / args.count.max(1) as f64,
     );
     println!(
         "{} responsive double vs floor: {points:+} points, {total_imps:+} IMPs ({:+.3} IMPs/filtered-board, {:+.3} IMPs/divergent)",
         args.conv,
         total_imps as f64 / args.count.max(1) as f64,
-        total_imps as f64 / divergent.len().max(1) as f64,
+        total_imps as f64 / scored.divergent.len().max(1) as f64,
     );
     // The filter-independent real-world rate (per *raw* deal dealt): the headline
     // effect size, unlike IMPs/filtered-board, does not move with the filter's tightness.

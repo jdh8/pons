@@ -29,17 +29,16 @@
 use clap::Parser;
 use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Seat};
-use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
 use pons::bidding::american::{american_classic, american_wide_6322};
 use pons::bidding::{Family, Pair};
-use pons::scoring::{final_contract, imps, ns_score_contract};
+use pons::scoring::{final_contract, ns_score_contract};
 use rayon::prelude::*;
 
 #[path = "../common/mod.rs"]
 #[allow(dead_code)]
 mod common;
-use common::bid_out;
+use common::{bid_out, score_boards};
 
 /// Contested 1NT-shape A/B between two opening-shape policies
 #[derive(Parser)]
@@ -100,21 +99,8 @@ fn main() {
 
     // Only boards whose tables diverge can swing; solve those once and credit
     // the swing to the redesign team (NS at A, EW at B).
-    let divergent: Vec<usize> = (0..args.count)
-        .filter(|&i| contracts[i].0 != contracts[i].1)
-        .collect();
-    let solve_deals: Vec<FullDeal> = divergent.iter().map(|&i| deals[i]).collect();
-    let tables = Solver::lock().solve_deals(&solve_deals, NonEmptyStrainFlags::ALL);
-
-    let mut points = 0i64;
-    let mut total_imps = 0i64;
-    for (&i, table) in divergent.iter().zip(tables.iter()) {
-        let (contract_a, contract_b) = contracts[i];
-        let swing = ns_score_contract(contract_a, table, args.vulnerability)
-            - ns_score_contract(contract_b, table, args.vulnerability);
-        points += swing;
-        total_imps += imps(swing);
-    }
+    let scored = score_boards(&contracts, &deals, args.vulnerability, ns_score_contract);
+    let (points, total_imps) = (scored.total_points, scored.total_imps);
 
     println!(
         "=== Contested 1NT-shape A/B: {} vs {}, {} boards, vulnerability {} ===",
@@ -123,9 +109,9 @@ fn main() {
     println!("(opponents bid — competitive value included; shape change only)");
     println!(
         "Divergent boards: {} of {} ({:.1}%)",
-        divergent.len(),
+        scored.divergent.len(),
         args.count,
-        100.0 * divergent.len() as f64 / args.count.max(1) as f64,
+        100.0 * scored.divergent.len() as f64 / args.count.max(1) as f64,
     );
     println!(
         "{} (vs {}): {points:+} points, {total_imps:+} IMPs ({:+.3} IMPs/board)",

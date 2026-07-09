@@ -33,6 +33,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   re-declaring byte-identical copies (−130 lines net). Behavior-preserving; the
   genuine `next_call` variants (telemetry, `ev_all`-defending `next_call_ns`)
   and the unrelated `BoardDeal`/`BoardOut` carriers were left untouched.
+- Internal: 8 `ab-*` harnesses now call the existing `common::score_boards`
+  (the shared "solve the divergent boards, score both tables, sum the swing"
+  core) instead of re-implementing that loop inline (−99 lines net). Provably
+  identical arithmetic (same `!=`-divergent set, same solve order,
+  `total_imps = Σ imps(swing)`); `worst`-board lists are rebuilt from
+  `scored.board_imps`. The two harnesses with entangled per-call bucketing
+  (`ab-uvu`, `ab-lebensohl`) keep their inline loops.
 
 ### Fixed
 

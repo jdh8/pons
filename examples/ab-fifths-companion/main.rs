@@ -20,19 +20,18 @@ use clap::Parser;
 use contract_bridge::auction::{Auction, Call};
 use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Hand, Seat};
-use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
 use pons::bidding::constraint::{
     FifthsCompanion, set_fifths_companion, set_fuzzy_fifths, set_fuzzy_points,
 };
 use pons::bidding::context::relative;
 use pons::bidding::{Family, Stance, System};
-use pons::scoring::{final_contract, imps, ns_score_contract};
+use pons::scoring::{final_contract, ns_score_contract};
 
 #[path = "../common/mod.rs"]
 #[allow(dead_code)]
 mod common;
-use common::{Board, seat_to_act};
+use common::{Board, score_boards, seat_to_act};
 
 /// A/B the Fifths companion gauge: an HCP-vs-BUM-RAP duplicate match
 #[derive(Parser)]
@@ -135,21 +134,9 @@ fn main() {
             )
         })
         .collect();
-    let divergent: Vec<usize> = (0..boards.len())
-        .filter(|&index| contracts[index].0 != contracts[index].1)
-        .collect();
-    let deals: Vec<FullDeal> = divergent.iter().map(|&index| boards[index].deal).collect();
-    let tables = Solver::lock().solve_deals(&deals, NonEmptyStrainFlags::ALL);
-
-    let mut total_points = 0i64;
-    let mut total_imps = 0i64;
-    for (&index, table) in divergent.iter().zip(tables.iter()) {
-        let (contract_a, contract_b) = contracts[index];
-        let swing = ns_score_contract(contract_a, table, args.vulnerability)
-            - ns_score_contract(contract_b, table, args.vulnerability);
-        total_points += swing;
-        total_imps += imps(swing);
-    }
+    let deals: Vec<FullDeal> = boards.iter().map(|board| board.deal).collect();
+    let scored = score_boards(&contracts, &deals, args.vulnerability, ns_score_contract);
+    let (total_points, total_imps) = (scored.total_points, scored.total_imps);
 
     println!(
         "=== Fifths companion A/B match (HCP vs BUM-RAP): {} boards, vulnerability {} ===",
@@ -157,9 +144,9 @@ fn main() {
     );
     println!(
         "Divergent boards: {} of {} ({:.0}%)",
-        divergent.len(),
+        scored.divergent.len(),
         args.count,
-        100.0 * divergent.len() as f64 / args.count.max(1) as f64,
+        100.0 * scored.divergent.len() as f64 / args.count.max(1) as f64,
     );
     println!(
         "HCP team: {total_points:+} points, {total_imps:+} IMPs ({:+.2} IMPs/board)",
