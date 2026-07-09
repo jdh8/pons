@@ -46,6 +46,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (−38 lines). The JSON is semantically unchanged — every consumer (the JS
   renderer, the round-trip test) reads fields by name; only the internal-tag key
   order shifts (`kind` first), which is immaterial to `JSON.parse`.
+- Internal: extracted the two byte-identical blocks the major/minor-continuation
+  harnesses shared into `examples/common`: `report_brackets` (the measurement
+  playbook's plain-DD/perfect-defense dual bracket — one solve, two scorers) and
+  `seeded_deals` (the `base + i` per-board seed loop, the seed-hygiene invariant
+  every A/B arm relies on). Verbatim moves, no behavior change; `seeded_deals`
+  also adopted by `probe-limit-raise`. These harnesses keep their own inline
+  divergence solve (they score one table pair twice, so `score_boards`, which
+  re-solves per scorer, does not fit).
 
 ### Fixed
 

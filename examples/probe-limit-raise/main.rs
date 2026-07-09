@@ -8,21 +8,18 @@
 
 use clap::Parser;
 use contract_bridge::auction::display_calls;
-use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, Bid, FullDeal, Seat, Strain};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
 use pons::bidding::Family;
 use pons::bidding::american::set_limit_raise_acceptance;
 use pons::scoring::{final_contract, imps, ns_score_contract};
-use rand::SeedableRng;
-use rand::rngs::StdRng;
 use rayon::prelude::*;
 
 #[path = "../common/mod.rs"]
 #[allow(dead_code)]
 mod common;
-use common::{bid_uncontested, mean_with_ci};
+use common::{bid_uncontested, mean_with_ci, seeded_deals};
 
 /// Trace the divergent boards of the limit-raise acceptance A/B
 #[derive(Parser)]
@@ -55,12 +52,7 @@ fn main() {
     set_limit_raise_acceptance(false);
     let stances = [baseline, treatment];
 
-    let deals: Vec<FullDeal> = (0..args.count)
-        .map(|i| {
-            let mut rng = StdRng::seed_from_u64(args.seed.wrapping_add(i as u64));
-            full_deal(&mut rng)
-        })
-        .collect();
+    let deals = seeded_deals(args.seed, args.count);
     let auctions: Vec<[_; 2]> = deals
         .par_iter()
         .enumerate()

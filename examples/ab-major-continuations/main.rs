@@ -20,7 +20,6 @@
 //! ```
 
 use clap::Parser;
-use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Seat};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
@@ -29,15 +28,13 @@ use pons::bidding::american::{
     set_fourth_suit_forcing, set_limit_raise_acceptance, set_major_game_tries,
     set_major_rebid_tails,
 };
-use pons::scoring::{final_contract, imps, ns_score_contract, ns_score_pd};
-use rand::SeedableRng;
-use rand::rngs::StdRng;
+use pons::scoring::final_contract;
 use rayon::prelude::*;
 
 #[path = "../common/mod.rs"]
 #[allow(dead_code)]
 mod common;
-use common::{bid_uncontested, mean_with_ci};
+use common::{bid_uncontested, report_brackets, seeded_deals};
 
 /// Major-opening continuation A/B: baseline vs the selected treatments
 #[derive(Parser)]
@@ -108,12 +105,7 @@ fn main() {
     // Deals are seeded per board (base + index) so any arm of the experiment
     // replays the identical deal set; bidding is pure and parallelizes, the
     // DD solver stays on the main thread below.
-    let deals: Vec<FullDeal> = (0..args.count)
-        .map(|i| {
-            let mut rng = StdRng::seed_from_u64(base.wrapping_add(i as u64));
-            full_deal(&mut rng)
-        })
-        .collect();
+    let deals = seeded_deals(base, args.count);
     let contracts: Vec<[_; 2]> = deals
         .par_iter()
         .enumerate()
@@ -160,23 +152,5 @@ fn main() {
         100.0 * divergent.len() as f64 / args.count.max(1) as f64,
     );
 
-    for (label, scorer) in [
-        ("plain DD", ns_score_contract as fn(_, _, _) -> i64),
-        ("perfect defense", ns_score_pd),
-    ] {
-        let mut per_board = vec![0i64; args.count];
-        for (&i, table) in divergent.iter().zip(tables.iter()) {
-            let off = scorer(contracts[i][0], table, vul);
-            let on = scorer(contracts[i][1], table, vul);
-            per_board[i] = imps(on - off);
-        }
-        let fired: Vec<i64> = divergent.iter().map(|&i| per_board[i]).collect();
-        let (per_board_mean, per_board_ci) = mean_with_ci(&per_board);
-        let (fired_mean, fired_ci) = mean_with_ci(&fired);
-        println!(
-            "{label:>15}: {:+} IMPs — {per_board_mean:+.4} ± {per_board_ci:.4} IMPs/board, \
-             {fired_mean:+.3} ± {fired_ci:.3} IMPs/divergent",
-            fired.iter().sum::<i64>(),
-        );
-    }
+    report_brackets(args.count, &divergent, &tables, &contracts, vul);
 }

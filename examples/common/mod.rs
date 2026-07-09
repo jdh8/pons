@@ -7,12 +7,15 @@
 //! uses only the subset it needs, hence the `#[allow(dead_code)]` on the `mod`.
 
 use contract_bridge::auction::{Auction, Call};
+use contract_bridge::deck::full_deal;
 use contract_bridge::eval::hcp as holding_hcp;
 use contract_bridge::{AbsoluteVulnerability, Contract, FullDeal, Hand, Seat, Suit};
 use ddss::{NonEmptyStrainFlags, Solver, TrickCountTable};
 use pons::bidding::context::relative;
 use pons::bidding::{Stance, System};
-use pons::scoring::imps;
+use pons::scoring::{imps, ns_score_contract, ns_score_pd};
+use rand::SeedableRng;
+use rand::rngs::StdRng;
 
 /// Total HCP of a hand
 pub fn hand_hcp(hand: Hand) -> u8 {
@@ -22,6 +25,16 @@ pub fn hand_hcp(hand: Hand) -> u8 {
 /// The seat acting after `len` calls from `dealer`
 pub const fn seat_to_act(dealer: Seat, len: usize) -> Seat {
     Seat::ALL[(dealer as usize + len) % 4]
+}
+
+/// `count` deals, board `i` seeded `base + i`, so every arm of an experiment
+/// replays the identical stream (the seed-hygiene invariant the A/B scripts
+/// rely on — one `SEED_BASE` shared across arms).  Bidding is pure and
+/// parallelizes downstream; only the deal generation is centralized here.
+pub fn seeded_deals(base: u64, count: usize) -> Vec<FullDeal> {
+    (0..count)
+        .map(|i| full_deal(&mut StdRng::seed_from_u64(base.wrapping_add(i as u64))))
+        .collect()
 }
 
 /// The highest-logit *legal* call, defaulting to a pass
@@ -204,5 +217,42 @@ pub fn score_boards(
         total_points,
         total_imps,
         tables,
+    }
+}
+
+/// Print the measurement playbook's dual bracket for a divergent-only solved
+/// A/B: the swing scored **both** ways — plain DD (`ns_score_contract`, the
+/// contract's actual penalty) and perfect defense (`ns_score_pd`, a failing
+/// contract priced as doubled).  `contracts[i]` is `[off, on]`, and `tables`
+/// are the solved divergent boards, parallel to `divergent`.  Each line reports
+/// total IMPs, IMPs/board (over all `count`) and IMPs/divergent, with 95% CIs.
+///
+/// Unlike [`score_boards`], this scores twice from one solve — the harness
+/// solves the divergent set once and reads both brackets off the same tables.
+pub fn report_brackets(
+    count: usize,
+    divergent: &[usize],
+    tables: &[TrickCountTable],
+    contracts: &[[Option<(Contract, Seat)>; 2]],
+    vul: AbsoluteVulnerability,
+) {
+    for (label, scorer) in [
+        ("plain DD", ns_score_contract as fn(_, _, _) -> i64),
+        ("perfect defense", ns_score_pd),
+    ] {
+        let mut per_board = vec![0i64; count];
+        for (&i, table) in divergent.iter().zip(tables.iter()) {
+            let off = scorer(contracts[i][0], table, vul);
+            let on = scorer(contracts[i][1], table, vul);
+            per_board[i] = imps(on - off);
+        }
+        let fired: Vec<i64> = divergent.iter().map(|&i| per_board[i]).collect();
+        let (per_board_mean, per_board_ci) = mean_with_ci(&per_board);
+        let (fired_mean, fired_ci) = mean_with_ci(&fired);
+        println!(
+            "{label:>15}: {:+} IMPs — {per_board_mean:+.4} ± {per_board_ci:.4} IMPs/board, \
+             {fired_mean:+.3} ± {fired_ci:.3} IMPs/divergent",
+            fired.iter().sum::<i64>(),
+        );
     }
 }
