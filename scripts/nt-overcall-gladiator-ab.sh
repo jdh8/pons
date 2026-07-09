@@ -14,34 +14,15 @@
 #   PER_SHARD=6400 SPLIT=<split_by_opening.py> setsid nohup scripts/idle-run.sh \
 #       scripts/nt-overcall-gladiator-ab.sh ab-results/nt-overcall-gladiator \
 #       >ab-results/nt-overcall-gladiator.log 2>&1 &
-set -eu
-cd "$(dirname "$0")/.."
-
 R=${1:?usage: nt-overcall-gladiator-ab.sh RESULTS_DIR}
 SPLIT=${SPLIT:?set SPLIT to the split_by_opening.py path}
-mkdir -p "$R"
-SHA=$(git rev-parse --short HEAD)
-DIFF=target/release/examples/ab-dump-diff
-SD=target/release/examples/ab-dump-sd
-PER_SHARD=${PER_SHARD:-6400}
-SHARDS=$(nproc)
+BUILD_EXTRA='--example ab-dump-sd'
+. "$(dirname "$0")/ab-lib.sh"
+SEED_BASE=$(seed_for)
 
-cargo build --release --features serde --example bba-gen --example ab-dump-diff --example ab-dump-sd
-
-log() { echo "$(date -u +%FT%TZ) $*" | tee -a "$R/log" >&2; }
-if [ ! -s "$R/seed" ]; then date +%s >"$R/seed"; fi
-SEED_BASE=$(cat "$R/seed")
-
-arm() {
-    name=$1; vul=$2; shift 2
-    dir="$R/$name-$vul"
-    [ -d "$dir" ] && { log "skip $dir (exists)"; return 0; }
-    log "generate $dir (SEED_BASE=$SEED_BASE, flags: $*)"
-    SEED_BASE=$SEED_BASE scripts/bba-gen-parallel.sh "$dir" "$PER_SHARD" -v "$vul" "$@" \
-        >>"$R/log" 2>&1
-}
-
-# diffpair ON_DIR OFF_DIR TAG — plain + pd, 8 solvers wide
+# Shards are split by opening strain, so the diff runs over dir/tag pairs (not
+# the name-based $R/$name-$vul convention): override ab-lib's diffpair/sddiff.
+# diffpair ON_DIR OFF_DIR TAG VUL — plain + pd, 8 solvers wide
 diffpair() {
     on=$1; off=$2; tag=$3; vul=$4
     for score in plain pd; do

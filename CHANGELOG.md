@@ -54,9 +54,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   also adopted by `probe-limit-raise`. These harnesses keep their own inline
   divergence solve (they score one table pair twice, so `score_boards`, which
   re-solves per scorer, does not fit).
+- Internal: extracted the shared plumbing of the 18 `scripts/*-ab.sh` A/B
+  runners (the build, `log`/`arm`/`diffpair`/`sddiff`/`seed_for`, seed
+  persistence) into a sourced `scripts/ab-lib.sh` (−685 lines net). Each runner
+  keeps its provenance header and experiment body and parameterises via
+  `PER_SHARD`/`SHOW`/`BUILD_EXTRA`; the two split-by-opening runners keep their
+  dir-based `diffpair`/`sddiff` as explicit local overrides. Verified
+  behavior-preserving (`sh -n` all, invocation lines byte-identical vs prior,
+  stubbed end-to-end smoke of the sourcing/seed/path contract).
 
 ### Fixed
 
+- `scripts/competitive-book-ab.sh` measured the four shipped-default-on knobs
+  (`uvu-over-majors`, `strong-two-comp`, `major-support-double`,
+  `jordan-truscott`) with stale polarity: since they now default on, the old
+  `--ns-*`-on-the-ON-arm arms were no-ops against an identical OFF arm. The OFF
+  arm now drops each with `--no-ns-*`, so the diff is a real on-vs-off again;
+  the two still-opt-in knobs (`weak-two-comp`, `high-overcall`) keep `--ns-*` on
+  the ON arm.
 - Web UI: the Demo tab's **"Edit this deal →"** button now uses the outlined
   secondary style instead of unstyled browser-default chrome. Factored the
   shared outlined-button recipe into a reusable `button.secondary` class

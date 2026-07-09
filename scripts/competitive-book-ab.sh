@@ -12,97 +12,38 @@
 # nothing and stays seed-aligned. Do NOT touch the codebase while this runs
 # (bba-gen-parallel re-invokes cargo build; it must stay a no-op).
 #
-# NOTE: the 2026-07 campaign ran at sha bc949dc with the pre-flip polarity
-# below (--ns-* = on arm). The four winners have since shipped default-on
-# (uvu-over-majors, strong-two-comp, major-support-double, jordan-truscott:
-# now --no-ns-* for the OFF arm) — rerunning this script as-is would compare
-# arms of the remaining opt-in knobs only. Adjust flags before reusing.
-set -eu
-cd "$(dirname "$0")/.."
-
+# Polarity: the four winners shipped default-on (uvu-over-majors, strong-two-
+# comp, major-support-double, jordan-truscott), so their experiments measure the
+# knob by removing it on the OFF arm (--no-ns-*); the diff is still on-vs-off.
+# The two opt-in knobs (weak-two-comp, high-overcall) add --ns-* on the ON arm.
+# Re-check a knob's default in bba-gen before adding an experiment.
 R=${1:?usage: competitive-book-ab.sh RESULTS_DIR}
-mkdir -p "$R"
-SHA=$(git rev-parse --short HEAD)
-DIFF=target/release/examples/ab-dump-diff
-PER_SHARD=6400
-SHARDS=$(nproc)
-
-cargo build --release --features serde --example bba-gen --example ab-dump-diff
-
-log() { echo "$(date -u +%FT%TZ) $*" >>"$R/log"; }
-
-# arm NAME VUL [bba-gen flags...] — generate one arm unless already present.
-arm() {
-    name=$1
-    vul=$2
-    shift 2
-    dir="$R/$name-$vul"
-    if [ -d "$dir" ]; then
-        log "skip $dir (exists)"
-        return 0
-    fi
-    log "generate $dir (SEED_BASE=$SEED_BASE, flags: $*)"
-    SEED_BASE=$SEED_BASE scripts/bba-gen-parallel.sh "$dir" "$PER_SHARD" -v "$vul" "$@" \
-        >>"$R/log" 2>&1
-}
-
-# diffpair ON OFF VUL — per-shard paired diff, both scorers, 8 solvers wide.
-diffpair() {
-    on=$1
-    off=$2
-    vul=$3
-    for score in plain pd; do
-        out="$R/diff.$on.vs.$off.$vul.$score.txt"
-        if [ -s "$out" ]; then
-            log "skip $out (exists)"
-            continue
-        fi
-        log "diff $on vs $off ($vul, $score)"
-        i=0
-        while [ "$i" -lt "$SHARDS" ]; do
-            "$DIFF" "$R/$on-$vul/shard-$i.json" "$R/$off-$vul/shard-$i.json" \
-                --score "$score" --show 3 >"$out.shard-$i" 2>&1 &
-            [ $(((i + 1) % 8)) -eq 0 ] && wait
-            i=$((i + 1))
-        done
-        wait
-        cat "$out".shard-* >"$out"
-        rm -f "$out".shard-*
-    done
-}
-
-# seed_for EXP — a persistent per-experiment SEED_BASE (fresh on first use).
-seed_for() {
-    f="$R/$1.seed"
-    if [ ! -s "$f" ]; then
-        date +%s >"$f"
-        sleep 1 # the next experiment's base differs even on a fast pass
-    fi
-    cat "$f"
-}
+SHOW=3
+. "$(dirname "$0")/ab-lib.sh"
 
 log "campaign start, sha=$SHA, shards=$SHARDS x $PER_SHARD boards/arm/vul"
 
 # --- simple two-arm experiments -------------------------------------------
-# exp name, knob flag
+# run_two_arm EXP ON_FLAGS OFF_FLAGS — arms $EXP-on / $EXP-off + their diff.
+#   opt-in knob:  ON_FLAGS=--ns-knob    OFF_FLAGS=''            (on arm adds it)
+#   shipped knob: ON_FLAGS=''           OFF_FLAGS=--no-ns-knob  (off arm drops it)
 run_two_arm() {
-    exp=$1
-    flag=$2
+    exp=$1; on_flags=$2; off_flags=$3
     SEED_BASE=$(seed_for "$exp")
     log "=== $exp SEED_BASE=$SEED_BASE sha=$SHA"
     for vul in none both; do
-        arm "$exp-off" "$vul"
-        arm "$exp-on" "$vul" "$flag"
+        arm "$exp-off" "$vul" $off_flags
+        arm "$exp-on"  "$vul" $on_flags
         diffpair "$exp-on" "$exp-off" "$vul"
     done
 }
 
-run_two_arm p1-uvu-majors --ns-uvu-over-majors
-run_two_arm p2a-weak-two --ns-weak-two-comp
-run_two_arm p2b-strong-two --ns-strong-two-comp
-run_two_arm p3c-support-x --ns-major-support-double
-run_two_arm p3a-high-ovc --ns-high-overcall
-run_two_arm p4-jordan --ns-jordan-truscott
+run_two_arm p1-uvu-majors  ''                 --no-ns-uvu-over-majors     # shipped
+run_two_arm p2a-weak-two   --ns-weak-two-comp ''                          # opt-in
+run_two_arm p2b-strong-two ''                 --no-ns-strong-two-comp     # shipped
+run_two_arm p3c-support-x  ''                 --no-ns-major-support-double # shipped
+run_two_arm p3a-high-ovc   --ns-high-overcall ''                          # opt-in
+run_two_arm p4-jordan      ''                 --no-ns-jordan-truscott     # shipped
 
 # --- the four-arm negative-double experiment ------------------------------
 exp=p3bd-negx
