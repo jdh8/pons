@@ -40,7 +40,7 @@ use rayon::prelude::*;
 #[path = "../common/mod.rs"]
 #[allow(dead_code)]
 mod common;
-use common::{next_call, seat_to_act};
+use common::{Board, next_call, seat_to_act};
 
 /// Measure the settle floor: an A/B duplicate match
 #[derive(Parser)]
@@ -87,16 +87,6 @@ fn bid_out(
         ));
     }
     auction
-}
-
-/// One board: the deal and both tables' auctions
-struct Board {
-    deal: FullDeal,
-    dealer: Seat,
-    /// Table A: settle pair sits North/South
-    table_a: Auction,
-    /// Table B: settle pair sits East/West
-    table_b: Auction,
 }
 
 #[allow(clippy::cast_precision_loss)]

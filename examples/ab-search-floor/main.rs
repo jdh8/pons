@@ -40,7 +40,6 @@
 use clap::Parser;
 use contract_bridge::auction::{Auction, Call};
 use contract_bridge::deck::full_deal;
-use contract_bridge::eval::hcp as holding_hcp;
 use contract_bridge::{AbsoluteVulnerability, Contract, FullDeal, Hand, Seat, Suit};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::bidding::context::relative;
@@ -49,6 +48,11 @@ use pons::scoring::{final_contract, imps, ns_score_contract};
 use pons::{Accumulator, american, american_neural, american_search};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
+
+#[path = "../common/mod.rs"]
+#[allow(dead_code)]
+mod common;
+use common::{hand_hcp, seat_to_act};
 
 /// Measure the live-search floor: A/B duplicate matches with intervals
 #[derive(Parser)]
@@ -110,11 +114,6 @@ struct Args {
     skip_net: bool,
 }
 
-/// Total HCP of a hand
-fn hand_hcp(hand: Hand) -> u8 {
-    Suit::ASC.iter().map(|&s| holding_hcp::<u8>(hand[s])).sum()
-}
-
 /// Cheap shape pre-filter: could this deal reach a 1NT opening our side defends?
 ///
 /// A superset — some seat is a balanced 14-18 opener candidate and an opponent
@@ -139,11 +138,6 @@ fn could_defend_1nt(deal: &FullDeal) -> bool {
             (longest >= 5 && (6..=16).contains(&hcp)) || hcp >= 14
         })
     })
-}
-
-/// The seat acting after `len` calls from `dealer`
-const fn seat_to_act(dealer: Seat, len: usize) -> Seat {
-    Seat::ALL[(dealer as usize + len) % 4]
 }
 
 /// The highest-logit *legal* call, defaulting to a pass

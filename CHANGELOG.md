@@ -28,6 +28,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   with genuine variants (the legality-filtered `best_call` in
   `american_defense`, the knob-setting `stance` in `american_european_minors`)
   keep their local versions, which shadow the shared ones.
+- Internal: 12 `ab-*`/`bba-gen` measurement harnesses now import
+  `seat_to_act`/`hand_hcp`/`Board` from `examples/common` instead of
+  re-declaring byte-identical copies (−130 lines net). Behavior-preserving; the
+  genuine `next_call` variants (telemetry, `ev_all`-defending `next_call_ns`)
+  and the unrelated `BoardDeal`/`BoardOut` carriers were left untouched.
 
 ### Fixed
 

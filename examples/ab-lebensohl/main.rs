@@ -51,6 +51,11 @@ use rand::rngs::StdRng;
 use rayon::prelude::*;
 use std::collections::HashMap;
 
+#[path = "../common/mod.rs"]
+#[allow(dead_code)]
+mod common;
+use common::{hand_hcp, seat_to_act};
+
 /// Contested Lebensohl A/B
 #[derive(Parser)]
 struct Args {
@@ -316,11 +321,6 @@ fn contains_top_step(auction: &[Call]) -> bool {
     })
 }
 
-/// Total HCP of a hand
-fn hand_hcp(hand: Hand) -> u8 {
-    Suit::ASC.iter().map(|&s| holding_hcp::<u8>(hand[s])).sum()
-}
-
 /// The double-dummy "makes" grid for `side` (its two seats): the most tricks
 /// either seat takes as declarer in each strain — i.e. what that side can make.
 fn dd_makes(table: &TrickCountTable, side: [Seat; 2]) -> String {
@@ -448,11 +448,6 @@ fn apply_double(spec: &str) {
 fn parse_len(s: &str, spec: &str) -> usize {
     s.parse()
         .unwrap_or_else(|_| panic!("bad length in double spec {spec:?}"))
-}
-
-/// The seat acting after `len` calls from `dealer`
-const fn seat_to_act(dealer: Seat, len: usize) -> Seat {
-    Seat::ALL[(dealer as usize + len) % 4]
 }
 
 /// The highest-logit *legal* call, defaulting to a pass

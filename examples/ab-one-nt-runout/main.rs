@@ -38,7 +38,6 @@
 use clap::{Parser, ValueEnum};
 use contract_bridge::auction::{Auction, Call};
 use contract_bridge::deck::full_deal;
-use contract_bridge::eval::hcp as holding_hcp;
 use contract_bridge::{AbsoluteVulnerability, Bid, FullDeal, Hand, Seat, Strain, Suit};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
@@ -57,7 +56,7 @@ use rayon::prelude::*;
 #[path = "../common/mod.rs"]
 #[allow(dead_code)]
 mod common;
-use common::{next_call, seat_to_act};
+use common::{Board, hand_hcp, next_call, seat_to_act};
 
 /// Which runout feature the two tables differ on
 #[derive(Clone, Copy, PartialEq, Eq, Debug, ValueEnum)]
@@ -226,21 +225,6 @@ fn bid_out(
         ));
     }
     auction
-}
-
-/// One board: the deal and both tables' auctions
-struct Board {
-    deal: FullDeal,
-    dealer: Seat,
-    /// Table A: feature pair sits North/South
-    table_a: Auction,
-    /// Table B: feature pair sits East/West
-    table_b: Auction,
-}
-
-/// Raw HCP of a hand
-fn hand_hcp(hand: Hand) -> u8 {
-    Suit::ASC.iter().map(|&s| holding_hcp::<u8>(hand[s])).sum()
 }
 
 /// Balanced shape: no void or singleton, at most one doubleton (4333/4432/5332)

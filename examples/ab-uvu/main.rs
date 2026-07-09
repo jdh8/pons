@@ -41,7 +41,7 @@ use std::collections::BTreeMap;
 #[path = "../common/mod.rs"]
 #[allow(dead_code)]
 mod common;
-use common::{next_call, seat_to_act};
+use common::{Board, next_call, seat_to_act};
 
 /// Measure the UvU structure over 1NT-(2NT both minors): an A/B duplicate match
 #[derive(Parser)]
@@ -166,14 +166,6 @@ fn bid_out(
         auction.push(next_call(stance, deal[seat], dealer, vul, &auction));
     }
     auction
-}
-
-/// One board: the deal and both tables' auctions
-struct Board {
-    deal: FullDeal,
-    dealer: Seat,
-    table_a: Auction,
-    table_b: Auction,
 }
 
 #[allow(clippy::cast_precision_loss)]

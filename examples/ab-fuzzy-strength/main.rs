@@ -31,6 +31,11 @@ use pons::bidding::context::relative;
 use pons::bidding::{Family, Stance, System};
 use pons::scoring::{final_contract, imps, ns_score_contract};
 
+#[path = "../common/mod.rs"]
+#[allow(dead_code)]
+mod common;
+use common::{Board, seat_to_act};
+
 /// Which half of the fuzzy-strength policy the fuzzy team enables
 #[derive(Clone, Copy, ValueEnum)]
 enum Policy {
@@ -69,11 +74,6 @@ struct Args {
     /// evaluates raw HCP)
     #[arg(short, long, default_value = "both")]
     policy: Policy,
-}
-
-/// The seat acting after `len` calls from `dealer`
-const fn seat_to_act(dealer: Seat, len: usize) -> Seat {
-    Seat::ALL[(dealer as usize + len) % 4]
 }
 
 /// The highest-logit *legal* call, defaulting to a pass
@@ -123,16 +123,6 @@ fn bid_out(
         auction.push(next_call(stance, deal[seat], dealer, vul, &auction));
     }
     auction
-}
-
-/// One board: the deal and both tables' auctions
-struct Board {
-    deal: FullDeal,
-    dealer: Seat,
-    /// Table A: fuzzy pair sits North/South
-    table_a: Auction,
-    /// Table B: fuzzy pair sits East/West
-    table_b: Auction,
 }
 
 #[allow(clippy::cast_precision_loss)]

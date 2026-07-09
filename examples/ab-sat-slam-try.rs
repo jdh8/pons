@@ -39,9 +39,13 @@ use contract_bridge::{
 };
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
-use pons::bidding::context::relative;
-use pons::bidding::{Family, Stance, System};
+use pons::bidding::{Family, Stance};
 use pons::scoring::{final_contract, imps, ns_score_contract};
+
+#[path = "common/mod.rs"]
+#[allow(dead_code)]
+mod common;
+use common::{next_call, seat_to_act};
 
 /// Revised SAT: the `4♥/4♠` non-forcing-slam-try gadget vs the current bidder
 #[derive(Parser)]
@@ -133,34 +137,6 @@ fn gadget_contract(opener: Hand, responder: Hand, major: Suit) -> Contract {
 }
 
 // --- baseline bidder (opponents silent), lifted from `nt-shape-abc` -----------
-
-const fn seat_to_act(dealer: Seat, len: usize) -> Seat {
-    Seat::ALL[(dealer as usize + len) % 4]
-}
-
-fn next_call(
-    stance: &Stance,
-    hand: Hand,
-    dealer: Seat,
-    vul: AbsoluteVulnerability,
-    auction: &Auction,
-) -> Call {
-    let seat = seat_to_act(dealer, auction.len());
-    let Some(logits) = stance.classify(hand, relative(vul, seat), auction) else {
-        return Call::Pass;
-    };
-    let mut scored: Vec<(Call, f32)> = logits
-        .iter()
-        .map(|(call, &logit)| (call, logit))
-        .filter(|&(_, logit)| logit.is_finite())
-        .collect();
-    scored.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("logits are never NaN"));
-    scored
-        .into_iter()
-        .map(|(call, _)| call)
-        .find(|&call| auction.can_push(call).is_ok())
-        .unwrap_or(Call::Pass)
-}
 
 fn bid_uncontested(
     stance: &Stance,

@@ -35,7 +35,6 @@
 use clap::Parser;
 use contract_bridge::auction::{Auction, Call, RelativeVulnerability};
 use contract_bridge::deck::full_deal;
-use contract_bridge::eval::hcp as holding_hcp;
 use contract_bridge::{AbsoluteVulnerability, Bid, FullDeal, Hand, Level, Seat, Strain, Suit};
 use libloading::Library;
 use pons::american;
@@ -50,7 +49,7 @@ use std::ffi::{CString, c_char, c_int, c_void};
 #[path = "../common/mod.rs"]
 #[allow(dead_code)]
 mod common;
-use common::{Board, Dump};
+use common::{Board, Dump, hand_hcp, seat_to_act};
 
 const DEFAULT_LIB: &str = "vendor/bba/Native-libraries/linux/x64/libEPBot.so";
 
@@ -991,11 +990,6 @@ fn one_hot(call: Call) -> Logits {
 // Driving the match (mirrors examples/instinct-floor)
 // ---------------------------------------------------------------------------
 
-/// The seat acting after `len` calls from `dealer`
-const fn seat_to_act(dealer: Seat, len: usize) -> Seat {
-    Seat::ALL[(dealer as usize + len) % 4]
-}
-
 /// The highest-logit *legal* call, defaulting to a pass
 fn next_call(
     system: &dyn System,
@@ -1042,11 +1036,6 @@ fn bid_out(
 // ---------------------------------------------------------------------------
 // The 1NT pre-filters that shape which boards are generated
 // ---------------------------------------------------------------------------
-
-/// Total HCP of a hand
-fn hand_hcp(hand: Hand) -> u8 {
-    Suit::ASC.iter().map(|&s| holding_hcp::<u8>(hand[s])).sum()
-}
 
 /// Balanced (no singleton/void, at most one doubleton) with 15-17 HCP — a strict
 /// 1NT-opener gate for the cheap `--filter-1nt` pre-filter.
