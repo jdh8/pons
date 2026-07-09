@@ -40,6 +40,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `total_imps = Σ imps(swing)`); `worst`-board lists are rebuilt from
   `scored.board_imps`. The two harnesses with entangled per-call bucketing
   (`ab-uvu`, `ab-lebensohl`) keep their inline loops.
+- Web (internal): `describe_options()` now serialises the `SETTINGS` registry
+  directly via `#[derive(Serialize)] #[serde(tag = "kind")]` on `Setting`
+  instead of copying every field into a hand-written `OptionView` shadow struct
+  (−38 lines). The JSON is semantically unchanged — every consumer (the JS
+  renderer, the round-trip test) reads fields by name; only the internal-tag key
+  order shifts (`kind` first), which is immaterial to `JSON.parse`.
 
 ### Fixed
 

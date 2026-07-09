@@ -662,6 +662,8 @@ fn rule_json(rules: &pons::bidding::Rules) -> Vec<RuleJson> {
 /// old hand-synced JS `CURATED` / `MORE` arrays are gone.  Each `set_*` is a
 /// module-level thread-local flag read when a deal rebuilds `american()` in
 /// `deal_with`; wasm is single-threaded, so the thread-local is effectively a global.
+#[derive(Serialize)]
+#[serde(tag = "kind", rename_all = "lowercase")]
 enum Setting {
     /// A boolean checkbox.
     Toggle {
@@ -670,6 +672,7 @@ enum Setting {
         /// Display label, or `""` to humanise the key in JS.
         label: &'static str,
         default: bool,
+        #[serde(skip)]
         set: fn(bool),
     },
     /// A mutually-exclusive family, rendered as radio buttons.  Exactly one variant
@@ -683,6 +686,7 @@ enum Setting {
         variants: &'static [Variant],
         /// The `value` of the default variant.
         default: &'static str,
+        #[serde(skip)]
         set: fn(&str),
     },
 }
@@ -1387,56 +1391,14 @@ pub fn set_choice(key: &str, value: &str) {
 
 /// The Settings registry as JSON, for the JS renderer to build the tab from
 ///
-/// Each entry is `{key, section, kind, label, default, variants?}` — `kind` is
-/// `"toggle"` (boolean `default`) or `"choice"` (string `default` + a `variants`
-/// array).  An empty `label` means "humanise the key in JS".
+/// Each entry carries `{kind, key, section, label, default, variants?}` — `kind`
+/// is the internal tag, `"toggle"` (boolean `default`) or `"choice"` (string
+/// `default` + a `variants` array).  An empty `label` means "humanise the key in
+/// JS".  The renderer and the round-trip test read fields by name, so key order
+/// is immaterial.
 #[wasm_bindgen]
 pub fn describe_options() -> String {
-    #[derive(Serialize)]
-    struct OptionView {
-        key: &'static str,
-        section: &'static str,
-        kind: &'static str,
-        label: &'static str,
-        default: serde_json::Value,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        variants: Option<&'static [Variant]>,
-    }
-    let views: Vec<OptionView> = SETTINGS
-        .iter()
-        .map(|setting| match setting {
-            Setting::Toggle {
-                key,
-                section,
-                label,
-                default,
-                ..
-            } => OptionView {
-                key,
-                section,
-                kind: "toggle",
-                label,
-                default: (*default).into(),
-                variants: None,
-            },
-            Setting::Choice {
-                key,
-                section,
-                label,
-                variants,
-                default,
-                ..
-            } => OptionView {
-                key,
-                section,
-                kind: "choice",
-                label,
-                default: (*default).into(),
-                variants: Some(*variants),
-            },
-        })
-        .collect();
-    serde_json::to_string(&views).expect("settings registry serialises")
+    serde_json::to_string(SETTINGS).expect("settings registry serialises")
 }
 
 #[cfg(test)]
