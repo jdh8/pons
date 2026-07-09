@@ -97,6 +97,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Web UI Book tab: the **1NT-overcall systems-on advances** now render under
+  **every** opening (`(1♣) 1NT`, `(1♦) 1NT`, `(1♥) 1NT`, `(1♠) 1NT`), not just
+  spades. The graft re-roots one shared response book below all four openings, so
+  the book export's classifier-pointer dedup collapsed the four into one — the
+  advancer's Stayman/transfer structure appeared only under `(1♠) 1NT` and looked
+  missing for the other three. The dedup now keys on `(book, seat-invariant
+  auction, pointer)`, which still collapses leading-pass seat variants but keeps
+  the distinct grafted advances. Display-only; no bidding change.
 - `scripts/competitive-book-ab.sh` measured the four shipped-default-on knobs
   (`uvu-over-majors`, `strong-two-comp`, `major-support-double`,
   `jordan-truscott`) with stale polarity: since they now default on, the old

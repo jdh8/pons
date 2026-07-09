@@ -567,7 +567,7 @@ pub fn book() -> String {
         ("defensive", &pair.defensive.0),
     ];
 
-    let mut seen: HashSet<usize> = HashSet::new();
+    let mut seen: HashSet<(&str, String, usize)> = HashSet::new();
     let mut nodes: Vec<NodeJson> = Vec::new();
 
     for (book, trie) in books {
@@ -575,20 +575,23 @@ pub fn book() -> String {
             let Some(rules) = classifier.as_rules() else {
                 continue;
             };
-            // Dedupe by the authored-rules object: shared seat variants of one
-            // table classify through the same `Arc` (see `render-book`).
+            // Dedupe by (book, seat-invariant auction, authored-rules object).
+            // Seat variants of one table share an `Arc` under 0–3 leading passes,
+            // but the 1NT-overcall graft re-roots that *same* `Arc` below every
+            // opening (`(1♣) 1NT`, `(1♦) 1NT`, …); keying on the pointer alone (as
+            // `render-book` does) would collapse those distinct advances into one.
             let id = core::ptr::from_ref(classifier) as *const () as usize;
-            if !seen.insert(id) {
+            let heading = match strip_leading_passes(&auction) {
+                [] => "(opening)".to_string(),
+                canon => display_calls(canon).to_string(),
+            };
+            if !seen.insert((book, heading.clone(), id)) {
                 continue;
             }
 
             nodes.push(NodeJson {
                 book,
-                auction: if auction.is_empty() {
-                    "(opening)".to_string()
-                } else {
-                    display_calls(&auction).to_string()
-                },
+                auction: heading,
                 rules: rule_json(rules),
                 note: None,
             });
@@ -604,14 +607,19 @@ pub fn book() -> String {
                 Fallback::Classify(c) => std::sync::Arc::as_ptr(c).cast::<()>() as usize,
                 Fallback::Rebase(r) => std::sync::Arc::as_ptr(r).cast::<()>() as usize,
             };
-            if !seen.insert(id) {
-                continue;
-            }
-
             let condition = guard
                 .describe()
                 .unwrap_or_else(|| "(unlabeled guard)".to_string());
-            let heading = format!("{} {condition}", display_calls(&auction));
+            let heading = format!(
+                "{} {condition}",
+                display_calls(strip_leading_passes(&auction))
+            )
+            .trim()
+            .to_string();
+            if !seen.insert((book, heading.clone(), id)) {
+                continue;
+            }
+
             let (rules, note) = match fallback {
                 Fallback::Classify(classifier) => match classifier.as_rules() {
                     Some(rules) => (rule_json(rules), None),
@@ -629,7 +637,7 @@ pub fn book() -> String {
             };
             nodes.push(NodeJson {
                 book,
-                auction: heading.trim().to_string(),
+                auction: heading,
                 rules,
                 note,
             });
@@ -637,6 +645,17 @@ pub fn book() -> String {
     }
 
     serde_json::to_string(&nodes).expect("book serialization")
+}
+
+/// The auction with leading passes dropped — the seat-invariant dedup key
+///
+/// Seat variants of one table are installed under 0–3 leading passes; stripping
+/// them collapses those variants while keeping genuinely distinct auctions apart,
+/// notably the 1NT-overcall systems-on graft re-rooted below each opening
+/// (`(1♦) 1NT` vs `(1♠) 1NT` share the grafted `Arc` but differ here).
+fn strip_leading_passes(auction: &[Call]) -> &[Call] {
+    let lead = auction.iter().take_while(|&&c| c == Call::Pass).count();
+    &auction[lead..]
 }
 
 /// The readable form of a node's rules (shared by exact and guarded entries)
@@ -1197,6 +1216,27 @@ mod tests {
             assert!(
                 !node["rules"].as_array().expect("rules").is_empty() || node["note"].is_string(),
                 "every node has rules or a note: {node}",
+            );
+        }
+    }
+
+    /// The 1NT-overcall systems-on graft renders under **every** opening — not
+    /// just the one that wins the pointer dedup.  Each `(1x) 1NT` re-roots the
+    /// same grafted `Arc`s, so a book display keyed on the pointer alone showed
+    /// only spades; the seat-invariant-auction key restores all four.
+    #[test]
+    fn book_renders_1nt_overcall_advances_per_opening() {
+        let nodes: serde_json::Value = serde_json::from_str(&book()).expect("book is valid JSON");
+        let nodes = nodes.as_array().expect("book is an array");
+        for opening in ["1♣", "1♦", "1♥", "1♠"] {
+            // The advancer's response menu after their opening, our 1NT overcall,
+            // RHO pass: "1x 1NT -" (Pass renders as "-").
+            let heading = format!("{opening} 1NT -");
+            assert!(
+                nodes
+                    .iter()
+                    .any(|node| { node["book"] == "defensive" && node["auction"] == heading }),
+                "systems-on advance node {heading:?} must render",
             );
         }
     }
