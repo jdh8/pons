@@ -1272,7 +1272,9 @@ fn over_their_overcall(opening: Suit) -> Rules {
                 .rule(
                     Call::Double,
                     1.0,
-                    min_level_is(1, Strain::Hearts) & len(Suit::Hearts, 4..) & hcp(6..),
+                    min_level_is(1, Strain::Hearts)
+                        & len(Suit::Hearts, 4..)
+                        & points(free_bid_floor()..),
                 )
                 .alert(CACHALOT_X)
                 // Over (1♥): X transfers — 4+ spades.
@@ -1282,7 +1284,7 @@ fn over_their_overcall(opening: Suit) -> Rules {
                     they_bid(Strain::Hearts)
                         & min_level_is(1, Strain::Spades)
                         & len(Suit::Spades, 4..)
-                        & hcp(6..),
+                        & points(free_bid_floor()..),
                 )
                 .alert(CACHALOT_X)
                 // Natural from (1♠) up: the Modern rules apply.
@@ -1360,7 +1362,11 @@ fn over_their_overcall(opening: Suit) -> Rules {
     }
 
     // Cachalot's rotated 1-level calls over (1♦)/(1♥): 1♥ shows spades, 1♠
-    // is the residual takeout hand. Only minor openings rotate.
+    // is the residual takeout hand. Only minor openings rotate. Cachalot is
+    // rotated Sputnik, so the floors match Sputnik's — the major-showing
+    // calls take the free-bid `points` floor (hcp(6..) orphaned the light
+    // shapely hands Modern frees, the Stage-A named leak) and the residual
+    // takeout matches the residual double's hcp(7..).
     if !is_major && shape == NegativeDoubleShape::Cachalot {
         rules = rules
             // Over (1♦): 1♥ = 4+ spades without 4 hearts (4+ hearts doubles).
@@ -1370,7 +1376,7 @@ fn over_their_overcall(opening: Suit) -> Rules {
                 min_level_is(1, Strain::Hearts)
                     & len(Suit::Spades, 4..)
                     & len(Suit::Hearts, ..=3)
-                    & hcp(6..),
+                    & points(free_bid_floor()..),
             )
             .alert(CACHALOT_TRANSFER)
             // Over (1♦): 1♠ = the takeout hand, ≤3 in both majors. Sits below
@@ -1381,7 +1387,7 @@ fn over_their_overcall(opening: Suit) -> Rules {
                 min_level_is(1, Strain::Hearts)
                     & len(Suit::Hearts, ..=3)
                     & len(Suit::Spades, ..=3)
-                    & hcp(8..),
+                    & hcp(7..),
             )
             .alert(CACHALOT_TAKEOUT)
             // Over (1♥): 1♠ = the takeout hand, ≤3 spades (4+ doubles).
@@ -1391,7 +1397,7 @@ fn over_their_overcall(opening: Suit) -> Rules {
                 they_bid(Strain::Hearts)
                     & min_level_is(1, Strain::Spades)
                     & len(Suit::Spades, ..=3)
-                    & hcp(8..),
+                    & hcp(7..),
             )
             .alert(CACHALOT_TAKEOUT);
     }
