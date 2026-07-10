@@ -9,6 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Opener's balanced-18-19 notrump actions in a contested `1X (1Y) …`
+  auction** (`set_reopening_notrump`, `bba-gen --no-ns-reopening-notrump`;
+  **shipped default-on**). The instinct floor had exactly one reopening action —
+  a takeout double — so a suit opener's balanced 18-19 (15-17 opens 1NT, 20-21
+  opens 2NT, so its balanced hands are bimodal) was invisible: after `1X (1Y) P
+  (P)` it doubled instead of bidding a natural reopening 1NT, and after `1X (1Y)
+  1NT P` it *passed* a 6-10 response holding up to 22, missing game on both
+  arms. Author all three (both sides): reopening **1NT** with their suit
+  stopped (outranks the takeout double), **3NT** over responder's free 1NT
+  (which already promised the stopper), and responder's **raise** of the
+  reopening 1NT to game. A constructive capability-add — plain DD the arbiter —
+  measured a clean win both vulnerabilities: plain +0.0018/+0.0027 IMPs/board
+  (+2.29/+2.94 per fired NV/vul), PD agreeing (+2.19/+2.89). Natural notrump
+  calls, floor-safe, no alert. Re-sweeping the free-1NT floor with these
+  continuations sound **confirms 6 is still optimal** (floor 6→8 loses on plain
+  DD −0.63/−0.36 and on the sd-lead arbiter −0.77/−0.67 IMPs/fired; the small
+  PD positive is the doubling artifact) — so the earlier `1X (1Y) 1NT` = 6-10
+  verdict was not an artifact of the missing reopening.
+
 - **Natural invitational 2NT jump over a 1-level overcall** (`1X (1Y) 2NT`,
   11–12 balanced with a stopper), shipped **default-on** inside the free-bid
   block. Over a 1-level overcall the ordinary 2NT rule (a minimum overcall's

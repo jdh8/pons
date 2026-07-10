@@ -445,6 +445,12 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_competitive_rebid: bool,
 
+    /// Disable opener's balanced-18-19 notrump actions in a `1X (1Y) …` auction
+    /// the floor otherwise passes out: reopening 1NT, 3NT over responder's free
+    /// 1NT, and responder's raise (default-on; see `set_reopening_notrump`).
+    #[arg(long, default_value_t = false)]
+    no_ns_reopening_notrump: bool,
+
     /// Disable responder's structure over their takeout double of our 1-suit
     /// opening: Jordan/Truscott 2NT, value XX, preemptive jump-raise flip,
     /// weak NF 2-level suits (shipped default-on; see `set_jordan_truscott`).
@@ -1267,6 +1273,7 @@ fn main() -> anyhow::Result<()> {
     pons::bidding::american::set_opener_major_jump_rebid(!args.no_ns_opener_major_jump_rebid);
     pons::bidding::american::set_second_suit_agreement(!args.no_ns_second_suit_agreement);
     pons::bidding::instinct::set_competitive_rebid(!args.no_ns_competitive_rebid);
+    pons::bidding::instinct::set_reopening_notrump(!args.no_ns_reopening_notrump);
     pons::bidding::american::set_jordan_truscott(!args.no_ns_jordan_truscott);
     pons::bidding::american::set_splinter_doubled(!args.no_ns_splinter_doubled);
     pons::bidding::american::set_major_rebid_tails(!args.no_ns_major_rebid_tails);

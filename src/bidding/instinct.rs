@@ -256,6 +256,11 @@ std::thread_local! {
     /// forced to a takeout double (**shipped default-on**; see
     /// [`set_competitive_rebid`]).
     static COMPETITIVE_REBID: Cell<bool> = const { Cell::new(true) };
+
+    /// Opener's balanced-18-19 notrump actions in a `1X (1Y) …` auction the
+    /// floor otherwise passes out — reopening 1NT, 3NT over responder's free
+    /// 1NT, and responder's raise (**default-on**; see [`set_reopening_notrump`]).
+    static REOPENING_NOTRUMP: Cell<bool> = const { Cell::new(true) };
 }
 
 /// Responder runs from a doubled 1NT below this many HCP; with more, 1NT-X
@@ -337,6 +342,22 @@ pub fn set_competitive_rebid(enabled: bool) {
 /// The competitive long-suit rebid is enabled (see [`set_competitive_rebid`])
 fn competitive_rebid_enabled() -> bool {
     COMPETITIVE_REBID.with(Cell::get)
+}
+
+/// Author opener's balanced-18-19 notrump actions in a `1X (1Y) …` auction the
+/// floor otherwise passes out: the reopening 1NT (`1X (1Y) P (P)` back to
+/// opener with their suit stopped), 3NT over responder's free 1NT, and
+/// responder's raise of the reopening 1NT.  Default on; the off state restores
+/// the lone-takeout-double floor for the A/B (`bba-gen --no-ns-reopening-notrump`).
+/// Read at book construction.
+#[doc(hidden)]
+pub fn set_reopening_notrump(enabled: bool) {
+    REOPENING_NOTRUMP.with(|flag| flag.set(enabled));
+}
+
+/// Opener's contested notrump actions are enabled (see [`set_reopening_notrump`])
+fn reopening_notrump_enabled() -> bool {
+    REOPENING_NOTRUMP.with(Cell::get)
 }
 
 /// Enable or disable Rubens advances of partner's simple overcall
@@ -733,6 +754,68 @@ fn opener_balancing_runout_now(context: &Context<'_>) -> bool {
 /// [`opener_balancing_runout_now`] as a hand-ignoring [`Constraint`]
 fn opener_balancing_runout() -> Cons<impl Constraint + Clone> {
     pred(|_: Hand, context: &Context<'_>| opener_balancing_runout_now(context))
+}
+
+/// We opened one of a suit, LHO overcalled a suit, partner passed, and it is
+/// back to us (RHO passed or raised) — opener's reopening seat.  Partner may be
+/// sitting on a trap pass or values short of a free bid, so opener protects.
+fn opener_reopening_now(context: &Context<'_>) -> bool {
+    let auction = context.auction();
+    let Some((index, opening)) = opening_bid(auction) else {
+        return false;
+    };
+    opening.strain.suit().is_some()
+        && auction.len() == index + 4
+        && matches!(auction.get(index + 1), Some(&Call::Bid(bid)) if bid.strain.suit().is_some())
+        && auction[index + 2] == Call::Pass
+}
+
+/// [`opener_reopening_now`] as a hand-ignoring [`Constraint`]
+fn opener_reopening() -> Cons<impl Constraint + Clone> {
+    pred(|_: Hand, context: &Context<'_>| opener_reopening_now(context))
+}
+
+/// Responder bid a natural 1NT over the overcall (`1X (1Y) 1NT`) and it is back
+/// to opener.  A balanced 15-17 would have opened 1NT, so a suit opener's
+/// balanced hands are bimodal (12-14 / 18-19); only the top range wants game
+/// opposite the 6-10 response.
+fn opener_over_free_1nt_now(context: &Context<'_>) -> bool {
+    let auction = context.auction();
+    let Some((index, opening)) = opening_bid(auction) else {
+        return false;
+    };
+    opening.strain.suit().is_some()
+        && auction.len() == index + 4
+        && matches!(auction.get(index + 1), Some(&Call::Bid(bid)) if bid.strain.suit().is_some())
+        && auction.get(index + 2) == Some(&Call::Bid(Bid::new(1, Strain::Notrump)))
+        && auction[index + 3] == Call::Pass
+}
+
+/// [`opener_over_free_1nt_now`] as a hand-ignoring [`Constraint`]
+fn opener_over_free_1nt() -> Cons<impl Constraint + Clone> {
+    pred(|_: Hand, context: &Context<'_>| opener_over_free_1nt_now(context))
+}
+
+/// Opener reopened with a natural 1NT (`1X (1Y) P (P) 1NT`, our 18-19 balanced)
+/// and it is back to responder — the seat to raise to game with the values that
+/// could not make a free bid the first time.
+fn responder_over_reopening_1nt_now(context: &Context<'_>) -> bool {
+    let auction = context.auction();
+    let Some((index, opening)) = opening_bid(auction) else {
+        return false;
+    };
+    opening.strain.suit().is_some()
+        && auction.len() == index + 6
+        && matches!(auction.get(index + 1), Some(&Call::Bid(bid)) if bid.strain.suit().is_some())
+        && auction[index + 2] == Call::Pass
+        && auction[index + 3] == Call::Pass
+        && auction.get(index + 4) == Some(&Call::Bid(Bid::new(1, Strain::Notrump)))
+        && auction[index + 5] == Call::Pass
+}
+
+/// [`responder_over_reopening_1nt_now`] as a hand-ignoring [`Constraint`]
+fn responder_over_reopening_1nt() -> Cons<impl Constraint + Clone> {
+    pred(|_: Hand, context: &Context<'_>| responder_over_reopening_1nt_now(context))
 }
 
 /// Opener SOS-redoubled (the balancing redouble) and it is back to responder:
@@ -3001,6 +3084,41 @@ pub fn instinct() -> Rules {
         }
     }
 
+    // Opener's notrump actions in a contested auction the floor otherwise
+    // passes out (author both sides).  A suit opener who is balanced is bimodal
+    // — 15-17 opens 1NT, 20-21 opens 2NT — so the balanced 18-19 surfaces here
+    // wanting game and, until now, could only make a lone takeout double.
+    //
+    //  * Reopening 1NT (`1X (1Y) P (P)`): partner passed the overcall, back to
+    //    us — natural, their suit stopped, the invite-to-game a takeout double
+    //    of a balanced hand cannot make.  Outranks the 0.9 double below.
+    //  * 3NT over responder's free 1NT (`1X (1Y) 1NT P`): responder already
+    //    promised 6-10 with a stopper, so a balanced 18-19 raises to game.
+    //  * Responder raises the reopening 1NT to game with the trapped values.
+    if reopening_notrump_enabled() {
+        rules = rules
+            .rule(
+                Bid::new(1, Strain::Notrump),
+                0.95,
+                opener_reopening()
+                    & min_level_is(1, Strain::Notrump)
+                    & balanced()
+                    & stopper_in_their_suits()
+                    & hcp(18..=19)
+                    & not_penalty_latched(),
+            )
+            .rule(
+                Bid::new(3, Strain::Notrump),
+                1.0,
+                opener_over_free_1nt() & balanced() & hcp(18..=19) & not_penalty_latched(),
+            )
+            .rule(
+                Bid::new(3, Strain::Notrump),
+                1.0,
+                responder_over_reopening_1nt() & hcp(6..),
+            );
+    }
+
     // Takeout double of their low suit bid: shape with opening values, or
     // any strong hand planning to bid again.  The penalty latch steps these
     // aside — once we own the auction for penalty, a double is not takeout.
@@ -3096,6 +3214,50 @@ mod tests {
         // But four cards sitting behind their suit defend: pass plays 3♣ doubled,
         // a better penalty than escaping (the settle floor, default on).
         assert_eq!(best(&auction, "964.J85.974.9632"), Call::Pass);
+    }
+
+    #[test]
+    fn opener_reopens_and_raises_a_free_notrump() {
+        // A suit opener's balanced 18-19 (15-17 opens 1NT) was invisible in a
+        // contested auction — it could only make a lone takeout double.
+        let bal18_stop = "AQ5.AQ9.KQ4.J932"; // 18, balanced, diamonds stopped
+        let bal18_open = "AQ5.AQ9.932.KQJ2"; // 18, balanced, diamonds wide open
+        let flat13 = "KJ32.KJ2.Q42.QJ2"; //    13, balanced minimum
+
+        // Reopening seat 1♣ (1♦) P P: with the stopper, reopen a natural 1NT
+        // (the game invite a takeout double of a balanced hand cannot make);
+        // without a stopper, still double; a minimum still passes.
+        let reopen = [
+            call(1, Strain::Clubs),
+            call(1, Strain::Diamonds),
+            Call::Pass,
+            Call::Pass,
+        ];
+        assert_eq!(best(&reopen, bal18_stop), call(1, Strain::Notrump));
+        assert_eq!(best(&reopen, bal18_open), Call::Double);
+        assert_eq!(best(&reopen, flat13), Call::Pass);
+
+        // Responder trapped 7 opposite the reopening 1NT — raise to game.
+        let raised = [
+            call(1, Strain::Clubs),
+            call(1, Strain::Diamonds),
+            Call::Pass,
+            Call::Pass,
+            call(1, Strain::Notrump),
+            Call::Pass,
+        ];
+        assert_eq!(best(&raised, "K84.T765.KJ7.T65"), call(3, Strain::Notrump));
+
+        // Over responder's free 1NT (which already promised 6-10 and a stopper),
+        // opener's balanced 18-19 raises to 3NT; a minimum passes.
+        let free_1nt = [
+            call(1, Strain::Clubs),
+            call(1, Strain::Diamonds),
+            call(1, Strain::Notrump),
+            Call::Pass,
+        ];
+        assert_eq!(best(&free_1nt, bal18_stop), call(3, Strain::Notrump));
+        assert_eq!(best(&free_1nt, flat13), Call::Pass);
     }
 
     #[test]
