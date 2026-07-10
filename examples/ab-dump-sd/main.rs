@@ -24,7 +24,8 @@ use contract_bridge::auction::Auction;
 use contract_bridge::{AbsoluteVulnerability, Contract, Seat};
 use pons::american;
 use pons::bidding::american::{
-    NegativeDoubleShape, set_free_bids, set_negative_double_shape, set_rule_of_20,
+    FreeBidStyle, NegativeDoubleShape, set_free_bid_style, set_free_bids,
+    set_negative_double_shape, set_rule_of_20,
 };
 use pons::bidding::context::relative;
 use pons::bidding::{Family, Inferences, Stance};
@@ -66,6 +67,10 @@ struct Args {
     /// (`set_negative_double_shape`; all but both-majors imply the free bids)
     #[arg(long, default_value = "modern")]
     on_ns_negative_double_shape: String,
+    /// Read the ON arm's auctions under this 2-level free-bid style:
+    /// forcing (shipped default) | negative | transfer (`set_free_bid_style`)
+    #[arg(long, default_value = "forcing")]
+    on_ns_free_bid_style: String,
     /// Show this many of the biggest swings (each way)
     #[arg(long, default_value_t = 8)]
     show: usize,
@@ -140,13 +145,21 @@ fn main() {
         "sputnik" => NegativeDoubleShape::Sputnik,
         other => panic!("unknown negative-double shape {other}"),
     };
+    let style = |name: &str| match name {
+        "forcing" => FreeBidStyle::Forcing,
+        "negative" => FreeBidStyle::Negative,
+        "transfer" => FreeBidStyle::Transfer,
+        other => panic!("unknown free-bid style {other}"),
+    };
     set_rule_of_20(args.on_rule_of_20);
     set_free_bids(args.on_ns_free_bids);
     set_negative_double_shape(shape(&args.on_ns_negative_double_shape));
+    set_free_bid_style(style(&args.on_ns_free_bid_style));
     let stance_on = american().against(Family::NATURAL);
     set_rule_of_20(false);
     set_free_bids(false);
     set_negative_double_shape(NegativeDoubleShape::Modern);
+    set_free_bid_style(FreeBidStyle::Forcing);
     let stance_off = american().against(Family::NATURAL);
 
     // Build every blind-lead question on the boards whose auctions differ; a

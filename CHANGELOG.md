@@ -9,6 +9,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`FreeBidStyle` — the 2-level free-bid axis of the school tournament**
+  (`set_free_bid_style`, `bba-gen --ns-free-bid-style
+  forcing|negative|transfer`, sd disclosure `ab-dump-sd
+  --on-ns-free-bid-style`; default `Forcing` = the shipped Fix 1 treatment,
+  byte-identical). `Negative` plays classic negative free bids: 2-level new
+  suits become non-forcing 5–11 with a six-card suit or a strong five-carder,
+  answered with a Pass-carrying table; every stronger long-suit hand starts
+  with a widened negative double (shapeless 12+ — the documented
+  OR-projection cost) and clarifies with a new suit next round, forcing to
+  game, both sides authored. `Transfer` plays Cachalot-style 2-level
+  transfers: when exactly two unbid suits sit at the two level the slots
+  swap (each shows the other suit, alerted), opener completes and declares —
+  the wrap slot completes a level higher — and responder clarifies
+  (pass = weak, raise = invitational, cue = game force); lone or three-way
+  slots stay natural-forcing. Both arms measured against `Forcing` in the
+  Stage-B A/B before any default change.
+
+- **School tournament Stage A verdict — Modern stays the default.** With the
+  books completed (see below), Cachalot vs Modern loses on **all six cells**
+  (plain/PD/sd × both vulnerabilities, every CI<0; e.g. vul plain −0.0080,
+  vul sd −0.0071 IMPs/board) — the right-siding thesis fails on its own
+  sd-lead bracket, and the rotated double's `hcp(6..)` floor orphans light
+  shapely hands Modern frees at the 1-level. Sputnik vs Modern is a wash
+  everywhere except a real but sub-gate NV sd win (+0.0039, CI>0; vul all
+  wash). Both stay opt-in; the earlier "ties Modern" verdicts were
+  both-incomplete-book comparisons.
+
 - **Cachalot and Sputnik books completed for fair measurement** (default book
   byte-identical — both changes sit behind the opt-in
   `NegativeDoubleShape::Cachalot`/`Sputnik` arms). Cachalot's natural 2-level

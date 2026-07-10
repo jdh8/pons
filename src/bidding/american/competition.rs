@@ -89,6 +89,10 @@ const CACHALOT_TRANSFER: Alert = Alert("comp:cachalot-transfer");
 /// Cachalot residual — `1♠` over `(1♦)`/`(1♥)` as the takeout hand, ≤3 in
 /// each major the rotation could have shown.
 const CACHALOT_TAKEOUT: Alert = Alert("comp:cachalot-takeout");
+/// 2-level free-bid transfer (`FreeBidStyle::Transfer`) — a non-jump 2-level
+/// new suit over their overcall showing the *other* unbid suit when exactly
+/// two unbid suits sit at the two level; opener completes and declares.
+const FREE_TRANSFER: Alert = Alert("comp:free-transfer");
 /// Cachalot completion — opener's 1-level completion of the transfer shows
 /// **exactly three** trumps (forcing one round; the raise shows four).
 const CACHALOT_THREE: Alert = Alert("comp:cachalot-three");
@@ -661,6 +665,27 @@ pub enum NegativeDoubleShape {
     Sputnik,
 }
 
+/// The meaning of responder's non-jump 2-level new suit over their overcall
+/// (`set_free_bid_style`)
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FreeBidStyle {
+    /// Forcing one round — the shipped default (the Fix 1 ruling: 1-level
+    /// frees unconditionally forcing, 2-level forcing one round), answered by
+    /// the Section-4d `answer_free_bid`.
+    Forcing,
+    /// Classic negative free bids: 2-level new suits are **non-forcing**,
+    /// 5–11 points with a six-card suit or a strong five-carder (two of the
+    /// top three honors); every stronger long-suit hand starts with the
+    /// widened negative double, and double-then-new-suit is forcing to game.
+    Negative,
+    /// Cachalot-style 2-level transfers: when exactly two unbid suits sit at
+    /// the two level the slots swap — each shows the other suit — and opener
+    /// completes (declaring the concealed hand); the wrap slot completes a
+    /// level higher. A lone (or three-way, over 1NT) 2-level slot stays
+    /// natural-forcing.
+    Transfer,
+}
+
 thread_local! {
     /// Which negative-double school the minor openings play. Default
     /// `Modern` — **shipped default-on 2026-07-10** with the forcing free-bid
@@ -688,6 +713,25 @@ thread_local! {
     /// leak as plain-DD-visible and strength-independent — a suit-quality
     /// gate, not a floor. Default off while the A/B runs.
     static FREE_BID_QUALITY: Cell<bool> = const { Cell::new(false) };
+
+    /// The 2-level free-bid style — forcing (shipped default), classic
+    /// negative free bids, or Cachalot-style transfers. The 1-level free
+    /// bids stay forcing in every style.
+    static FREE_BID_STYLE: Cell<FreeBidStyle> = const { Cell::new(FreeBidStyle::Forcing) };
+}
+
+/// Choose the 2-level free-bid style for books built *after* this call
+/// (thread-local)
+///
+/// Default [`FreeBidStyle::Forcing`] (`--ns-free-bid-style` in `bba-gen` for
+/// the other arms).
+pub fn set_free_bid_style(style: FreeBidStyle) {
+    FREE_BID_STYLE.with(|cell| cell.set(style));
+}
+
+/// The 2-level free-bid style in effect
+fn free_bid_style() -> FreeBidStyle {
+    FREE_BID_STYLE.with(Cell::get)
 }
 
 /// Choose the negative-double school for books built *after* this call
@@ -1302,6 +1346,19 @@ fn over_their_overcall(opening: Suit) -> Rules {
         }
     };
 
+    // Classic NFB widens the double: the 2-level new suits are capped at 11,
+    // so every stronger long-suit hand starts here and clarifies with the
+    // forcing-to-game new suit next round (Section 4d″). The second `X` rule
+    // ORs into the projection — the points floor survives (every school's
+    // double floors at or below 12) but the suit floors collapse to zero:
+    // the named OR-projection wall, priced by the Stage-B A/B. Weight below
+    // the cue (2.0) and the free bids (1.45) so a biddable hand still bids.
+    if free_bid_style() == FreeBidStyle::Negative {
+        rules = rules
+            .rule(Call::Double, 0.9, points(12..))
+            .alert(NEGATIVE_DOUBLE);
+    }
+
     // Cachalot's rotated 1-level calls over (1♦)/(1♥): 1♥ shows spades, 1♠
     // is the residual takeout hand. Only minor openings rotate.
     if !is_major && shape == NegativeDoubleShape::Cachalot {
@@ -1391,11 +1448,83 @@ fn over_their_overcall(opening: Suit) -> Rules {
                     rules.rule(Bid::new(1, xs), 1.45, one_level)
                 };
             }
-            rules = rules.rule(
-                Bid::new(2, xs),
-                1.45,
-                min_level_is(2, xs) & len(x, 5..) & points(10..) & !they_bid(xs),
-            );
+            match free_bid_style() {
+                // Forcing one round (the shipped default), answered by 4d.
+                FreeBidStyle::Forcing => {
+                    rules = rules.rule(
+                        Bid::new(2, xs),
+                        1.45,
+                        min_level_is(2, xs) & len(x, 5..) & points(10..) & !they_bid(xs),
+                    );
+                }
+                // Classic negative free bid: non-forcing 5–11 with a
+                // six-carder or a strong five-carder — stronger long-suit
+                // hands start with the widened double below.
+                FreeBidStyle::Negative => {
+                    rules = rules.rule(
+                        Bid::new(2, xs),
+                        1.45,
+                        min_level_is(2, xs)
+                            & (len(x, 6..) | (len(x, 5..) & top_honors(x, 2..)))
+                            & points(5..=11)
+                            & !they_bid(xs),
+                    );
+                }
+                // The transfer rotation is authored per suit *pair* after
+                // this loop — it needs both slots in one constraint.
+                FreeBidStyle::Transfer => {}
+            }
+        }
+        // Cachalot-style 2-level transfers: when exactly two unbid suits sit
+        // at the two level the slots swap, so opener completes and declares
+        // the concealed hand; the wrap (higher) slot completes a level
+        // higher. A lone slot — or all three over a (1NT) overcall — stays
+        // natural-forcing. Unlimited at 6+: the weak hand passes the
+        // completion, strength clarifies a round later.
+        if free_bid_style() == FreeBidStyle::Transfer {
+            let others: Vec<Suit> = [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades]
+                .into_iter()
+                .filter(|&x| x != o)
+                .collect();
+            let slot = |s: Suit| {
+                let ss = Strain::from(s);
+                min_level_is(2, ss) & !they_bid(ss)
+            };
+            for i in 0..3 {
+                for j in (i + 1)..3 {
+                    let (x, y) = (others[i], others[j]);
+                    let w = others[3 - i - j];
+                    // The lower slot shows the higher suit (true transfer)…
+                    rules = rules
+                        .rule(
+                            Bid::new(2, Strain::from(x)),
+                            1.45,
+                            slot(x) & slot(y) & !slot(w) & len(y, 5..) & points(6..),
+                        )
+                        .alert(FREE_TRANSFER)
+                        // …and the higher slot wraps around to show the lower.
+                        .rule(
+                            Bid::new(2, Strain::from(y)),
+                            1.45,
+                            slot(x) & slot(y) & !slot(w) & len(x, 5..) & points(6..),
+                        )
+                        .alert(FREE_TRANSFER);
+                }
+            }
+            for i in 0..3 {
+                let x = others[i];
+                let (y, z) = (others[(i + 1) % 3], others[(i + 2) % 3]);
+                // No swap partner (or two of them): natural and forcing, as
+                // in the default style.
+                rules = rules.rule(
+                    Bid::new(2, Strain::from(x)),
+                    1.45,
+                    slot(x)
+                        & ((slot(y) & slot(z)) | (!slot(y) & !slot(z)))
+                        & len(x, 5..)
+                        & points(10..),
+                );
+            }
         }
         let one_notrump = min_level_is(1, Strain::Notrump)
             & hcp(free_bid_floor()..=10)
@@ -1513,6 +1642,128 @@ fn answer_free_bid(opening: Suit) -> Rules {
         );
     }
     rules
+}
+
+/// Opener's answer to a *negative* (non-forcing) free bid — 5–11 with a
+/// six-carder or a strong five-carder (`FreeBidStyle::Negative`)
+///
+/// `Pass` is the treatment's whole point: the catch-all drops the capped
+/// hand at the two level (mirroring `answer_weak_new_suit`). Raising to
+/// three needs a fit and real extras; `2NT` shows a stopper-backed maximum.
+fn answer_negative_free_bid(opening: Suit) -> Rules {
+    let mut rules = Rules::new();
+    for y in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
+        if y == opening {
+            continue;
+        }
+        let ys = Strain::from(y);
+        rules = rules.rule(
+            Bid::new(3, ys),
+            0.9,
+            partner_suit_is(y) & min_level_is(3, ys) & len(y, 3..) & points(15..),
+        );
+    }
+    rules
+        .rule(
+            Bid::new(2, Strain::Notrump),
+            0.8,
+            min_level_is(2, Strain::Notrump) & stopper_in_their_suits() & hcp(13..=14),
+        )
+        .rule(Call::Pass, 0.3, hcp(0..))
+}
+
+/// The negative doubler's rebid after opener answers (`FreeBidStyle::
+/// Negative`): a new suit is the strong hand the capped free bid could not
+/// carry — **forcing to game**
+///
+/// Also claims the *ordinary* doubler's second turn (this node cannot tell
+/// the two apart): raise opener's answer with a real fit, `2NT` with a
+/// stopper and 10–12, else the `Pass` catch-all drops the minimum answers.
+fn negative_doubler_rebid(opening: Suit) -> Rules {
+    let o = opening;
+    let mut rules = Rules::new();
+    // The FG clarification: the long suit the double concealed.
+    for z in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
+        if z == o {
+            continue;
+        }
+        let zs = Strain::from(z);
+        for lvl in 2u8..=3 {
+            rules = rules.rule(
+                Bid::new(lvl, zs),
+                1.3,
+                min_level_is(lvl, zs)
+                    & !partner_suit_is(z)
+                    & !they_bid(zs)
+                    & len(z, 5..)
+                    & points(12..),
+            );
+        }
+    }
+    // Raise opener's answer with four trumps and invitational values.
+    for y in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
+        let ys = Strain::from(y);
+        for lvl in 2u8..=3 {
+            rules = rules.rule(
+                Bid::new(lvl, ys),
+                1.0,
+                partner_suit_is(y) & min_level_is(lvl, ys) & support(4..) & points(8..),
+            );
+        }
+    }
+    rules
+        .rule(
+            Bid::new(2, Strain::Notrump),
+            0.9,
+            min_level_is(2, Strain::Notrump) & stopper_in_their_suits() & hcp(10..=12),
+        )
+        .rule(Call::Pass, 0.2, hcp(0..))
+}
+
+/// Opener's completion of a 2-level free-bid transfer (`FreeBidStyle::
+/// Transfer`) — `shown` is responder's real suit, `comp_lvl` where the
+/// completion sits (3 on the wrap slot)
+///
+/// The duty completion is non-forcing and puts opener on play (the
+/// right-siding payoff); four trumps with extras super-accept. No notrump
+/// option — declining the transfer into notrump re-sides the hand the
+/// treatment exists to conceal.
+fn free_transfer_completion(shown: Suit, comp_lvl: u8) -> Rules {
+    let m = Strain::from(shown);
+    Rules::new()
+        .rule(
+            Bid::new(comp_lvl + 1, m),
+            1.3,
+            len(shown, 4..) & points(15..),
+        )
+        .rule(Bid::new(comp_lvl, m), 1.2, hcp(0..))
+}
+
+/// Responder's clarification after opener completes the 2-level transfer:
+/// `Pass` = the weak hand (the NFB equivalent), raise = invitational, the
+/// cue of their suit = game force
+fn free_transfer_clarify(shown: Suit, comp_lvl: u8, cue: Bid) -> Rules {
+    let m = Strain::from(shown);
+    Rules::new()
+        .rule(cue, 1.1, points(13..))
+        .rule(Bid::new(comp_lvl + 1, m), 1.0, points(10..=12))
+        .rule(Call::Pass, 0.3, hcp(0..))
+}
+
+/// How many unbid suits sit at the two level over their `ovc` after our
+/// `o_strain` opening — the `FreeBidStyle::Transfer` swap fires on exactly
+/// two (the same cheapest-level arithmetic as the Section-4d guard)
+fn two_level_slots(o_strain: Strain, ovc: Bid) -> usize {
+    [
+        Strain::Clubs,
+        Strain::Diamonds,
+        Strain::Hearts,
+        Strain::Spades,
+    ]
+    .into_iter()
+    .filter(|&s| s != o_strain && s != ovc.strain)
+    .filter(|&s| ovc.level.get() + u8::from(s < ovc.strain) == 2)
+    .count()
 }
 
 // ---------------------------------------------------------------------------
@@ -3389,9 +3640,15 @@ pub fn competition() -> Competitive {
     // openings, so those stay with the Section-9 completions (whose deeper
     // keys shadow this entry anyway — the `rotated` conjunct is
     // defense-in-depth and honest rendering); its natural 2-level frees get
-    // the forcing answers like every other school's.
+    // the forcing answers like every other school's. The 2-level free-bid
+    // *style* carves this node further: `Negative` sends the level-2 frees
+    // to 4d′ (non-forcing answers, with Pass), `Transfer` sends the swapped
+    // slots to the Section-4f completions (a lone or three-way slot stays
+    // natural-forcing and keeps the 4d answers).
     if free_bids_engaged() {
         let cachalot = negative_double_shape() == NegativeDoubleShape::Cachalot;
+        let negative = free_bid_style() == FreeBidStyle::Negative;
+        let transfer = free_bid_style() == FreeBidStyle::Transfer;
         for opening in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
             let o_strain = Strain::from(opening);
             let rotated = cachalot && matches!(opening, Suit::Clubs | Suit::Diamonds);
@@ -3417,11 +3674,141 @@ pub fn competition() -> Competitive {
                                     && free.level.get()
                                         == ovc.level.get() + u8::from(free.strain < ovc.strain)
                                     && !(rotated && free.level.get() == 1)
+                                    && !(negative && free.level.get() == 2)
+                                    && !(transfer
+                                        && free.level.get() == 2
+                                        && two_level_slots(o_strain, *ovc) == 2)
                         )
                     }),
                 )),
                 Fallback::classify(answer_free_bid(opening)),
             );
+
+            // Section 4d′ (`FreeBidStyle::Negative`): the capped, non-forcing
+            // level-2 frees get answers WITH a Pass catch-all.
+            if negative {
+                fallback_all_seats(
+                    &mut book,
+                    &[call(1, o_strain)],
+                    3,
+                    Arc::new(described_guard(
+                        "(overcall ≤2♠) negative free-suit -",
+                        guard(move |_: &Context<'_>, suffix: &[Call]| {
+                            matches!(
+                                suffix,
+                                [Call::Bid(ovc), Call::Bid(free), Call::Pass]
+                                    if *ovc <= Bid::new(2, Strain::Spades)
+                                        && ovc.strain != o_strain
+                                        && free.strain != Strain::Notrump
+                                        && free.strain != ovc.strain
+                                        && free.strain != o_strain
+                                        && free.level.get() == 2
+                                        && free.level.get()
+                                            == ovc.level.get()
+                                                + u8::from(free.strain < ovc.strain)
+                            )
+                        }),
+                    )),
+                    Fallback::classify(answer_negative_free_bid(opening)),
+                );
+
+                // Section 4d″: the doubler's rebid over opener's answer — a
+                // new suit is the strong hand the capped free bid could not
+                // carry, forcing to game. This node also claims the ordinary
+                // doubler's second turn (previously floored — bucket
+                // X-then-Pass vs X-then-suit in the forensics).
+                fallback_all_seats(
+                    &mut book,
+                    &[call(1, o_strain)],
+                    3,
+                    Arc::new(described_guard(
+                        "(overcall ≤2♠) X - answer -",
+                        guard(move |_: &Context<'_>, suffix: &[Call]| {
+                            matches!(
+                                suffix,
+                                [Call::Bid(ovc), Call::Double, Call::Pass, Call::Bid(_), Call::Pass]
+                                    if *ovc <= Bid::new(2, Strain::Spades)
+                                        && ovc.strain != o_strain
+                            )
+                        }),
+                    )),
+                    Fallback::classify(negative_doubler_rebid(opening)),
+                );
+
+                // Section 4d‴: opener answers the game-forcing rebid with the
+                // ordinary forcing-answer table; the guard's `< 3 of the
+                // opening suit` scope keeps that table's catch-all legal.
+                fallback_all_seats(
+                    &mut book,
+                    &[call(1, o_strain)],
+                    3,
+                    Arc::new(described_guard(
+                        "(overcall ≤2♠) X - answer - FG-suit -",
+                        guard(move |_: &Context<'_>, suffix: &[Call]| {
+                            matches!(
+                                suffix,
+                                [Call::Bid(ovc), Call::Double, Call::Pass, Call::Bid(ans), Call::Pass, Call::Bid(new), Call::Pass]
+                                    if *ovc <= Bid::new(2, Strain::Spades)
+                                        && ovc.strain != o_strain
+                                        && new.strain != Strain::Notrump
+                                        && new.strain != ovc.strain
+                                        && new.strain != o_strain
+                                        && new.strain != ans.strain
+                                        && *new < Bid::new(3, o_strain)
+                            )
+                        }),
+                    )),
+                    Fallback::classify(answer_free_bid(opening)),
+                );
+            }
+        }
+    }
+
+    // Section 4f (`FreeBidStyle::Transfer`): opener completes the 2-level
+    // free-bid transfer and responder clarifies. The swap contexts are a
+    // closed enumeration — (opening, their overcall, lower slot → shown,
+    // wrap slot → shown, completing a level higher on the wrap):
+    if free_bids_engaged() && free_bid_style() == FreeBidStyle::Transfer {
+        #[allow(clippy::type_complexity)]
+        #[rustfmt::skip]
+        let swaps: [(Strain, u8, Strain, [(Strain, Suit); 2]); 7] = [
+            (Strain::Clubs, 1, Strain::Spades, [(Strain::Diamonds, Suit::Hearts), (Strain::Hearts, Suit::Diamonds)]),
+            (Strain::Clubs, 2, Strain::Diamonds, [(Strain::Hearts, Suit::Spades), (Strain::Spades, Suit::Hearts)]),
+            (Strain::Diamonds, 1, Strain::Spades, [(Strain::Clubs, Suit::Hearts), (Strain::Hearts, Suit::Clubs)]),
+            (Strain::Diamonds, 2, Strain::Clubs, [(Strain::Hearts, Suit::Spades), (Strain::Spades, Suit::Hearts)]),
+            (Strain::Hearts, 1, Strain::Spades, [(Strain::Clubs, Suit::Diamonds), (Strain::Diamonds, Suit::Clubs)]),
+            (Strain::Hearts, 2, Strain::Clubs, [(Strain::Diamonds, Suit::Spades), (Strain::Spades, Suit::Diamonds)]),
+            (Strain::Spades, 2, Strain::Clubs, [(Strain::Diamonds, Suit::Hearts), (Strain::Hearts, Suit::Diamonds)]),
+        ];
+        for (o_strain, ovc_level, ovc_strain, slots) in swaps {
+            for (slot, shown) in slots {
+                let shown_strain = Strain::from(shown);
+                let comp_lvl = if shown_strain > slot { 2 } else { 3 };
+                let cue_lvl = comp_lvl + u8::from(ovc_strain < shown_strain);
+                fallback_all_seats(
+                    &mut book,
+                    &[call(1, o_strain), call(ovc_level, ovc_strain)],
+                    3,
+                    Arc::new(SuffixIs(vec![call(2, slot), Call::Pass])),
+                    Fallback::classify(free_transfer_completion(shown, comp_lvl)),
+                );
+                fallback_all_seats(
+                    &mut book,
+                    &[call(1, o_strain), call(ovc_level, ovc_strain)],
+                    3,
+                    Arc::new(SuffixIs(vec![
+                        call(2, slot),
+                        Call::Pass,
+                        call(comp_lvl, shown_strain),
+                        Call::Pass,
+                    ])),
+                    Fallback::classify(free_transfer_clarify(
+                        shown,
+                        comp_lvl,
+                        Bid::new(cue_lvl, ovc_strain),
+                    )),
+                );
+            }
         }
     }
 
@@ -6076,6 +6463,123 @@ mod tests {
         let (four, _) = best_call(&answer, "K5.Q542.K94.AJ63");
         assert_eq!(four, call(2, Strain::Hearts), "four trumps raise");
         super::set_negative_double_shape(super::NegativeDoubleShape::Modern);
+    }
+
+    #[test]
+    fn negative_free_bid_is_weak_and_capped() {
+        super::set_free_bid_style(super::FreeBidStyle::Negative);
+        let auction = [call(1, Strain::Clubs), call(1, Strain::Spades)];
+        // 8 points with a six-card suit: the classic NFB.
+        let (weak, floored) = best_call(&auction, "52.Q4.KJ8642.T53");
+        assert_eq!(weak, call(2, Strain::Diamonds), "the negative free bid");
+        assert!(!floored, "an authored node, not the floor");
+        // The same suit with game values starts with the widened double.
+        let (strong, _) = best_call(&auction, "52.A4.AKJ642.Q53");
+        assert_eq!(strong, Call::Double, "12+ doubles first");
+        // Opener drops the capped free bid with a minimum (the Pass answer).
+        let answer = [
+            call(1, Strain::Clubs),
+            call(1, Strain::Spades),
+            call(2, Strain::Diamonds),
+            Call::Pass,
+        ];
+        let (drop, drop_floored) = best_call(&answer, "A5.Q52.Q64.KJ632");
+        assert_eq!(drop, Call::Pass, "the NFB is non-forcing");
+        assert!(!drop_floored, "an authored node, not the floor");
+        super::set_free_bid_style(super::FreeBidStyle::Forcing);
+    }
+
+    #[test]
+    fn negative_double_then_suit_is_game_forcing() {
+        super::set_free_bid_style(super::FreeBidStyle::Negative);
+        // The doubler clarifies with the concealed long suit — forcing to
+        // game — and opener answers it with the forcing-answer table.
+        let rebid = [
+            call(1, Strain::Clubs),
+            call(1, Strain::Spades),
+            Call::Double,
+            Call::Pass,
+            call(2, Strain::Clubs),
+            Call::Pass,
+        ];
+        let (fg, floored) = best_call(&rebid, "52.A4.AKJ642.Q53");
+        assert_eq!(fg, call(2, Strain::Diamonds), "X then the suit is FG");
+        assert!(!floored, "an authored node, not the floor");
+        let answer = [
+            call(1, Strain::Clubs),
+            call(1, Strain::Spades),
+            Call::Double,
+            Call::Pass,
+            call(2, Strain::Clubs),
+            Call::Pass,
+            call(2, Strain::Diamonds),
+            Call::Pass,
+        ];
+        let (raise, raise_floored) = best_call(&answer, "A5.K52.Q64.KJ632");
+        assert_eq!(
+            raise,
+            call(3, Strain::Diamonds),
+            "opener answers the FG suit"
+        );
+        assert!(!raise_floored, "an authored node, not the floor");
+        super::set_free_bid_style(super::FreeBidStyle::Forcing);
+    }
+
+    #[test]
+    fn free_bid_transfers_swap_the_two_level() {
+        super::set_free_bid_style(super::FreeBidStyle::Transfer);
+        // [1♣, (1♠)]: both red suits sit at the two level, so the slots swap
+        // — 2♦ shows hearts, 2♥ shows diamonds (the wrap).
+        let auction = [call(1, Strain::Clubs), call(1, Strain::Spades)];
+        let (hearts, floored) = best_call(&auction, "52.KJ864.Q42.T53");
+        assert_eq!(hearts, call(2, Strain::Diamonds), "2♦ transfers to hearts");
+        assert!(!floored, "an authored node, not the floor");
+        let (diamonds, _) = best_call(&auction, "52.Q42.KJ864.T53");
+        assert_eq!(diamonds, call(2, Strain::Hearts), "2♥ wraps to diamonds");
+        // Opener completes (2♥ on the true transfer, 3♦ on the wrap)…
+        let complete = [
+            call(1, Strain::Clubs),
+            call(1, Strain::Spades),
+            call(2, Strain::Diamonds),
+            Call::Pass,
+        ];
+        let (comp, comp_floored) = best_call(&complete, "A53.Q52.64.AJ632");
+        assert_eq!(
+            comp,
+            call(2, Strain::Hearts),
+            "opener completes and declares"
+        );
+        assert!(!comp_floored, "an authored node, not the floor");
+        let wrap = [
+            call(1, Strain::Clubs),
+            call(1, Strain::Spades),
+            call(2, Strain::Hearts),
+            Call::Pass,
+        ];
+        let (wrap_comp, _) = best_call(&wrap, "A53.Q52.64.AJ632");
+        assert_eq!(
+            wrap_comp,
+            call(3, Strain::Diamonds),
+            "the wrap completes a level higher"
+        );
+        // …and the weak transferor passes the completion out.
+        let clarify = [
+            call(1, Strain::Clubs),
+            call(1, Strain::Spades),
+            call(2, Strain::Diamonds),
+            Call::Pass,
+            call(2, Strain::Hearts),
+            Call::Pass,
+        ];
+        let (weak, weak_floored) = best_call(&clarify, "52.KJ864.Q42.T53");
+        assert_eq!(weak, Call::Pass, "the weak hand passes the completion");
+        assert!(!weak_floored, "an authored node, not the floor");
+        // A lone two-level slot stays natural and forcing: over (1♥) only
+        // diamonds sit at the two level.
+        let lone = [call(1, Strain::Clubs), call(1, Strain::Hearts)];
+        let (natural, _) = best_call(&lone, "K52.4.AQJ86.T532");
+        assert_eq!(natural, call(2, Strain::Diamonds), "a lone slot is natural");
+        super::set_free_bid_style(super::FreeBidStyle::Forcing);
     }
 
     #[test]

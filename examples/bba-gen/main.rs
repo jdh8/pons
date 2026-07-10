@@ -351,6 +351,14 @@ struct Args {
     #[arg(long, default_value = "modern")]
     ns_negative_double_shape: String,
 
+    /// Responder's non-jump 2-level new suit over their overcall:
+    /// forcing (shipped default — forcing one round) | negative (classic NFB:
+    /// non-forcing 5-11 with a 6+ suit or strong 5-carder; stronger long-suit
+    /// hands double then bid, forcing to game) | transfer (2-level slots swap
+    /// and opener completes; see `set_free_bid_style`).
+    #[arg(long, default_value = "forcing")]
+    ns_free_bid_style: String,
+
     /// Author responder's structure over their jump / 3-level overcalls
     /// (2NT < bid ≤ 3♠): negative X through 3♠, forcing new suits, 3NT with a
     /// stopper (default off; see `set_high_overcall_responses`).
@@ -1228,6 +1236,14 @@ fn main() -> anyhow::Result<()> {
             ),
         },
     );
+    pons::bidding::american::set_free_bid_style(match args.ns_free_bid_style.as_str() {
+        "forcing" => pons::bidding::american::FreeBidStyle::Forcing,
+        "negative" => pons::bidding::american::FreeBidStyle::Negative,
+        "transfer" => pons::bidding::american::FreeBidStyle::Transfer,
+        other => {
+            anyhow::bail!("--ns-free-bid-style must be forcing|negative|transfer, got {other:?}")
+        }
+    });
     pons::bidding::american::set_high_overcall_responses(args.ns_high_overcall);
     pons::bidding::constraint::set_suppress_flat_4333_takeout(
         !args.no_ns_suppress_flat_4333_takeout,
