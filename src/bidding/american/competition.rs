@@ -754,6 +754,26 @@ fn negative_double_shape() -> NegativeDoubleShape {
     NEGATIVE_DOUBLE_SHAPE.with(Cell::get)
 }
 
+thread_local! {
+    /// Whether opener's contested-X answer is authored (Cachalot only). Default
+    /// on; the off state restores the floored continuation for the A/B.
+    static CACHALOT_CONTESTED_X: Cell<bool> = const { Cell::new(true) };
+}
+
+/// Author opener's raise of a Cachalot `X` transfer when LHO competes over it
+/// (thread-local, Cachalot only)
+///
+/// Default on — `--no-ns-cachalot-contested-x` in `bba-gen` restores the old
+/// floored continuation.
+pub fn set_cachalot_contested_x(on: bool) {
+    CACHALOT_CONTESTED_X.with(|cell| cell.set(on));
+}
+
+/// Whether opener's contested-X answer is engaged
+fn cachalot_contested_x() -> bool {
+    CACHALOT_CONTESTED_X.with(Cell::get)
+}
+
 /// Author responder's natural free bids over an overcall for books built
 /// *after* this call (thread-local)
 ///
@@ -2051,6 +2071,44 @@ fn cachalot_takeout_answer(opening: Suit, over: Suit) -> Rules {
         .rule(Bid::new(1, Strain::Notrump), 1.0, stopper_in(over))
         .rule(Bid::new(2, o), 0.9, len(opening, 5..))
         .rule(Bid::new(2, o), 0.2, hcp(0..))
+}
+
+/// Opener's answer to a Cachalot `X` transfer once LHO has competed — hearts
+/// over `(1♦)`, spades over `(1♥)`.
+///
+/// The pass-out completion is authored separately (and stays right-sided). This
+/// is the *contested* branch, which the floor otherwise misjudges (the measured
+/// `X·wrapped` leak): a rebase to the natural auction can't help because the
+/// natural continuation is itself floored, so opener's raise is authored
+/// directly here.  Opener knows partner holds 4+ `shown`, so it raises the fit
+/// at the level the competition forces — `last_bid` fixes the cheapest legal
+/// naming of the major, four-card support jumps a level — else passes to defend.
+/// The gain is reaching the major games Modern's natural response finds and the
+/// bare double misses.
+fn cachalot_x_contested_answer(shown: Suit) -> impl Classifier {
+    let m = Strain::from(shown);
+    classifier(move |hand, context| {
+        let mut rules = Rules::new();
+        if let Some(bid) = context.last_bid() {
+            // The cheapest legal level to name our major above their last bid;
+            // when they bid our major the `+1` raises past it, still gated on
+            // real support by `len` below.
+            let level = if m > bid.strain {
+                bid.level.get()
+            } else {
+                bid.level.get() + 1
+            };
+            if level < 7 {
+                rules = rules.rule(Bid::new(level + 1, m), 1.3, len(shown, 4..));
+            }
+            if level <= 7 {
+                rules = rules.rule(Bid::new(level, m), 1.2, len(shown, 3..));
+            }
+        }
+        rules
+            .rule(Call::Pass, 0.2, hcp(0..))
+            .classify(hand, context)
+    })
 }
 
 // ---------------------------------------------------------------------------
@@ -4055,6 +4113,40 @@ pub fn competition() -> Competitive {
                 Arc::new(SuffixIs(vec![one_spade, Call::Pass])),
                 Fallback::classify(cachalot_takeout_answer(opening, Suit::Hearts)),
             );
+        }
+
+        // Contested X: LHO competed over the transfer, so the pass-out
+        // completions above don't fire and opener would fall to the floor (the
+        // measured X·wrapped leak).  Author opener's raise of the shown major —
+        // hearts over (1♦), spades over (1♥).  The guard admits exactly opener's
+        // immediate answer, [X, <their non-pass intervention>]: the [X, P]
+        // pass-out is shadowed above, and deeper continuations fall to the floor
+        // as before.
+        if cachalot_contested_x() {
+            let x_intervention = || {
+                described_guard(
+                    "X (their intervention) -",
+                    guard(
+                        |_: &Context<'_>, s: &[Call]| matches!(s, [Call::Double, c] if !matches!(c, Call::Pass)),
+                    ),
+                )
+            };
+            fallback_all_seats(
+                &mut book,
+                &[clubs, d_ovc],
+                3,
+                Arc::new(x_intervention()),
+                Fallback::classify(cachalot_x_contested_answer(Suit::Hearts)),
+            );
+            for opening in [Suit::Clubs, Suit::Diamonds] {
+                fallback_all_seats(
+                    &mut book,
+                    &[call(1, Strain::from(opening)), one_heart],
+                    3,
+                    Arc::new(x_intervention()),
+                    Fallback::classify(cachalot_x_contested_answer(Suit::Spades)),
+                );
+            }
         }
     }
 
@@ -6426,6 +6518,193 @@ mod tests {
         assert_eq!(three, call(1, Strain::Hearts), "exactly three completes");
         let (four, _) = best_call(&complete, "AQ5.K542.96.QJ32");
         assert_eq!(four, call(2, Strain::Hearts), "four raises");
+        super::set_negative_double_shape(super::NegativeDoubleShape::BothMajors);
+    }
+
+    #[test]
+    fn cachalot_probe_spades3() {
+        use contract_bridge::Strain::*;
+        super::set_negative_double_shape(super::NegativeDoubleShape::Cachalot);
+        let h = "A2.KJ54.KQ543.A2"; // opener-ish, 4 spades
+        let cases = vec![
+            (
+                "1D(1H)X (1S)",
+                vec![
+                    call(1, Diamonds),
+                    call(1, Hearts),
+                    Call::Double,
+                    call(1, Spades),
+                ],
+            ),
+            (
+                "1D(1H)X (1NT)",
+                vec![
+                    call(1, Diamonds),
+                    call(1, Hearts),
+                    Call::Double,
+                    call(1, Notrump),
+                ],
+            ),
+            (
+                "1D(1H)X (2C)",
+                vec![
+                    call(1, Diamonds),
+                    call(1, Hearts),
+                    Call::Double,
+                    call(2, Clubs),
+                ],
+            ),
+            (
+                "1C(1H)X (2C)",
+                vec![
+                    call(1, Clubs),
+                    call(1, Hearts),
+                    Call::Double,
+                    call(2, Clubs),
+                ],
+            ),
+            (
+                "nat 1D(1H)1S(2C)",
+                vec![
+                    call(1, Diamonds),
+                    call(1, Hearts),
+                    call(1, Spades),
+                    call(2, Clubs),
+                ],
+            ),
+            (
+                "1C(1D)X (2C) [hearts fam]",
+                vec![
+                    call(1, Clubs),
+                    call(1, Diamonds),
+                    Call::Double,
+                    call(2, Clubs),
+                ],
+            ),
+            (
+                "nat 1C(1D)1H(2C)",
+                vec![
+                    call(1, Clubs),
+                    call(1, Diamonds),
+                    call(1, Hearts),
+                    call(2, Clubs),
+                ],
+            ),
+        ];
+        for (t, a) in cases {
+            eprintln!("{t:28}: {:?}", best_call(&a, h));
+        }
+        super::set_negative_double_shape(super::NegativeDoubleShape::BothMajors);
+    }
+
+    #[test]
+    fn cachalot_probe_spades2() {
+        super::set_negative_double_shape(super::NegativeDoubleShape::Cachalot);
+        // spades-family PASS-OUT: does the authored completion even fire over (1♥)?
+        let passout = [
+            call(1, Strain::Diamonds),
+            call(1, Strain::Hearts),
+            Call::Double,
+            Call::Pass,
+        ];
+        eprintln!(
+            "1D(1H)X P  opener 4sp: {:?}",
+            best_call(&passout, "AQ54.K2.KQ543.A2")
+        );
+        eprintln!(
+            "1D(1H)X P  opener 3sp: {:?}",
+            best_call(&passout, "AQ5.K42.KQ543.A2")
+        );
+        // and the (1D) hearts pass-out for contrast:
+        let ph = [
+            call(1, Strain::Clubs),
+            call(1, Strain::Diamonds),
+            Call::Double,
+            Call::Pass,
+        ];
+        eprintln!(
+            "1C(1D)X P  opener 4he: {:?}",
+            best_call(&ph, "A2.KQ54.A3.KJ654")
+        );
+        super::set_negative_double_shape(super::NegativeDoubleShape::BothMajors);
+    }
+
+    #[test]
+    fn cachalot_probe_spades() {
+        super::set_negative_double_shape(super::NegativeDoubleShape::Cachalot);
+        // Is 1♦(1♥)X even the spade transfer? And does reveal fire?
+        let respond = [call(1, Strain::Diamonds), call(1, Strain::Hearts)];
+        eprintln!(
+            "responder 4=spades: {:?}",
+            best_call(&respond, "KJ54.952.A64.Q32")
+        );
+        for (a, tag) in [
+            (
+                vec![
+                    call(1, Strain::Diamonds),
+                    call(1, Strain::Hearts),
+                    Call::Double,
+                    call(2, Strain::Clubs),
+                ],
+                "X 2C",
+            ),
+            (
+                vec![
+                    call(1, Strain::Diamonds),
+                    call(1, Strain::Hearts),
+                    call(1, Strain::Spades),
+                    call(2, Strain::Clubs),
+                ],
+                "1S 2C",
+            ),
+            (
+                vec![
+                    call(1, Strain::Clubs),
+                    call(1, Strain::Hearts),
+                    Call::Double,
+                    call(2, Strain::Clubs),
+                ],
+                "1C:X 2C",
+            ),
+        ] {
+            eprintln!("{tag}: {:?}", best_call(&a, "A2.KJ54.KQ543.A2"));
+        }
+        super::set_negative_double_shape(super::NegativeDoubleShape::BothMajors);
+    }
+
+    #[test]
+    fn cachalot_x_contested_answer_raises_the_shown_major() {
+        // Under competition the pass-out completion doesn't fire; opener's
+        // authored contested answer raises the major the X showed at the level
+        // the intervention forces — a fit the floor would otherwise leave for a
+        // bare double. Hearts over (1♦), spades over (1♥).
+        super::set_negative_double_shape(super::NegativeDoubleShape::Cachalot);
+        // [1♣, (1♦), X(=4+♥), (2♦)]: opener with four hearts jumps to 3♥.
+        let x_hearts = [
+            call(1, Strain::Clubs),
+            call(1, Strain::Diamonds),
+            Call::Double,
+            call(2, Strain::Diamonds),
+        ];
+        let (raise, _) = best_call(&x_hearts, "A2.KQ42.A3.KJ654");
+        assert_eq!(raise, call(3, Strain::Hearts), "four-card support jumps");
+        // Three-card support makes the simple raise to 2♥ (2♥ is above 2♦).
+        let (simple, _) = best_call(&x_hearts, "A32.KQ4.A63.KJ54");
+        assert_eq!(simple, call(2, Strain::Hearts), "three-card simple raise");
+        // No support ⇒ opener passes to defend, not a phantom bid.
+        let (defend, _) = best_call(&x_hearts, "AQ32.J.KQ632.A54");
+        assert_eq!(defend, Call::Pass, "no fit defends");
+
+        // [1♦, (1♥), X(=4+♠), (2♣)]: over (1♥) the X shows spades — opener raises.
+        let x_spades = [
+            call(1, Strain::Diamonds),
+            call(1, Strain::Hearts),
+            Call::Double,
+            call(2, Strain::Clubs),
+        ];
+        let (raise, _) = best_call(&x_spades, "KQ54.A2.KJ543.A2");
+        assert_eq!(raise, call(3, Strain::Spades), "over (1♥) four spades jump");
+
         super::set_negative_double_shape(super::NegativeDoubleShape::BothMajors);
     }
 

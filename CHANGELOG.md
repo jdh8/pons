@@ -9,6 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Opener answers a Cachalot `X` transfer under competition instead of falling
+  to the floor** (`set_cachalot_contested_x`, `bba-gen
+  --no-ns-cachalot-contested-x`; **shipped default-on**, Cachalot only). The
+  Cachalot school's `X` is a transfer — 4+ hearts over `(1♦)`, 4+ spades over
+  `(1♥)` — and only its *pass-out* completion (`[X, P]`) was authored; when LHO
+  competed over the `X`, opener fell to the instinct floor, which reads a bare
+  double and leaves the fit for a values double. A forensic decomposition of
+  Cachalot's −0.0073/−0.0024 IMPs/board gap to Modern (new example
+  `ab-dump-cachalot`) localized the leak to exactly this `X·wrapped` bucket
+  (−0.0027/−0.0028 vs the authored pass-out's ≈wash). A rebase to the natural
+  auction can't fix it — that continuation is *also* floored, so the rebase
+  returns nothing and the floor re-reads the original double — so opener's raise
+  of the shown major is now authored directly, at the level the intervention
+  forces (four-card support jumps), else Pass to defend. Isolated ON-vs-OFF
+  (same sha/seed): a clean **NV win on all three scorers** (plain +0.0022, PD
+  +0.0022, sd-lead +0.0019 IMPs/board, each 95% CI > 0) and a **vulnerable wash**
+  (plain +0.0008, PD +0.0010, sd −0.0000, all CI ⊇ 0); no scorer negative
+  anywhere. Recovers most of Cachalot's NV gap to Modern; Cachalot stays opt-in
+  (it still trails Modern vulnerable), but the leak was partly an authoring gap,
+  not purely the rotation.
+
 - **A minimum takeout doubler no longer over-raises partner's *forced* advance
   into a doubled game** (`set_rein_advance_raise`, `bba-gen
   --no-ns-rein-advance-raise`; **shipped default-on**). The instinct floor's

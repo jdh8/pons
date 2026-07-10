@@ -457,6 +457,12 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_rein_advance_raise: bool,
 
+    /// Disable opener's authored raise of a Cachalot X transfer when LHO
+    /// competes over it (default-on; Cachalot only; see
+    /// `set_cachalot_contested_x`).
+    #[arg(long, default_value_t = false)]
+    no_ns_cachalot_contested_x: bool,
+
     /// Disable responder's structure over their takeout double of our 1-suit
     /// opening: Jordan/Truscott 2NT, value XX, preemptive jump-raise flip,
     /// weak NF 2-level suits (shipped default-on; see `set_jordan_truscott`).
@@ -1274,6 +1280,7 @@ fn main() -> anyhow::Result<()> {
     );
     pons::bidding::american::set_rich_advance_double(args.ns_rich_advance);
     pons::bidding::american::set_advance_rubens(args.ns_advance_rubens);
+    pons::bidding::american::set_cachalot_contested_x(!args.no_ns_cachalot_contested_x);
     pons::bidding::american::set_balanced_1nt_rebid(!args.no_ns_balanced_1nt_rebid);
     pons::bidding::american::set_opener_extras_ladder(!args.no_ns_opener_extras_ladder);
     pons::bidding::american::set_opener_major_jump_rebid(!args.no_ns_opener_major_jump_rebid);
