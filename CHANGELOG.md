@@ -9,6 +9,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Natural invitational 2NT jump over a 1-level overcall** (`1X (1Y) 2NT`,
+  11–12 balanced with a stopper), shipped **default-on** inside the free-bid
+  block. Over a 1-level overcall the ordinary 2NT rule (a minimum overcall's
+  `min_level_is(2, …)`) never fires, so 11–12 balanced hands with a stopper
+  had no natural notrump invite above the capped 1NT — they fell to a cue or
+  the floor. The jump fills that hole. Measured a clean win on every scorer,
+  both vulnerabilities (rare auction, so read per-fired): plain +1.82/+1.39,
+  PD +1.46/+1.31, sd-lead +1.92/+2.39 IMPs/fired (NV/vul; ≈+0.003 IMPs/board).
+  A constructive capability-add — no call swaps, no obstruction. The
+  companion inference reading is unchanged: like the already-shipped
+  competitive 1NT it is natural and floor-safe, and this is exactly the
+  disclosure the sd arbiter scored positive.
+
+- **`set_free_1nt_floor` — the free 1NT's own HCP floor**, decoupled from the
+  shared 1-level free-*suit* floor (`bba-gen --ns-free-1nt-floor`, sd
+  disclosure `ab-dump-sd --on-ns-free-1nt-floor`; default 6, byte-identical).
+  The coupling was a knob artifact: a forcing suit bid finds a fit cheaply and
+  is safe light, a limited non-forcing 1NT that partner can pass is not — so
+  each deserves its own floor. Sweeping the isolated floor (on top of the 2NT
+  jump) **confirms 6 is optimal**: 6→7 is a dead wash (±0.001/board every
+  cell), 6→8 loses NV (−0.0047 plain / −0.0061 PD, −2.1…−2.8 IMPs/fired) and
+  washes vul — the decoupling did not rescue a higher floor, matching the
+  earlier family-wide 6→8 refutation. The default stays 6; the knob remains
+  opt-in for re-measurement.
+
 - **`FreeBidStyle` — the 2-level free-bid axis of the school tournament**
   (`set_free_bid_style`, `bba-gen --ns-free-bid-style
   forcing|negative|transfer`, sd disclosure `ab-dump-sd

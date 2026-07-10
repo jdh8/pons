@@ -24,7 +24,7 @@ use contract_bridge::auction::Auction;
 use contract_bridge::{AbsoluteVulnerability, Contract, Seat};
 use pons::american;
 use pons::bidding::american::{
-    FreeBidStyle, NegativeDoubleShape, set_free_bid_style, set_free_bids,
+    FreeBidStyle, NegativeDoubleShape, set_free_1nt_floor, set_free_bid_style, set_free_bids,
     set_negative_double_shape, set_rule_of_20,
 };
 use pons::bidding::context::relative;
@@ -71,6 +71,10 @@ struct Args {
     /// forcing (shipped default) | negative | transfer (`set_free_bid_style`)
     #[arg(long, default_value = "forcing")]
     on_ns_free_bid_style: String,
+    /// Read the ON arm's auctions with this free-1NT floor (`set_free_1nt_floor`;
+    /// discloses a tightened `1X (1Y) 1NT` band to the blind leader)
+    #[arg(long, default_value_t = 6)]
+    on_ns_free_1nt_floor: u8,
     /// Show this many of the biggest swings (each way)
     #[arg(long, default_value_t = 8)]
     show: usize,
@@ -155,11 +159,13 @@ fn main() {
     set_free_bids(args.on_ns_free_bids);
     set_negative_double_shape(shape(&args.on_ns_negative_double_shape));
     set_free_bid_style(style(&args.on_ns_free_bid_style));
+    set_free_1nt_floor(args.on_ns_free_1nt_floor);
     let stance_on = american().against(Family::NATURAL);
     set_rule_of_20(false);
     set_free_bids(false);
     set_negative_double_shape(NegativeDoubleShape::Modern);
     set_free_bid_style(FreeBidStyle::Forcing);
+    set_free_1nt_floor(6);
     let stance_off = american().against(Family::NATURAL);
 
     // Build every blind-lead question on the boards whose auctions differ; a

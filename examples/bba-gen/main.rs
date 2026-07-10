@@ -338,6 +338,11 @@ struct Args {
     #[arg(long, default_value_t = 6)]
     ns_free_bid_floor: u8,
 
+    /// Minimum HCP for the free 1NT (`1X (1Y) 1NT`), decoupled from the suit
+    /// floor above (default 6; see `set_free_1nt_floor`).
+    #[arg(long, default_value_t = 6)]
+    ns_free_1nt_floor: u8,
+
     /// Gate the vulnerable free bids on quality: a vulnerable 1-level new suit
     /// needs two of the top three honors, and the free 1NT is not authored
     /// vulnerable (default off; see `set_free_bid_quality`).
@@ -1224,6 +1229,7 @@ fn main() -> anyhow::Result<()> {
     pons::bidding::american::set_major_support_double(!args.no_ns_major_support_double);
     pons::bidding::american::set_free_bids(args.ns_free_bids);
     pons::bidding::american::set_free_bid_floor(args.ns_free_bid_floor);
+    pons::bidding::american::set_free_1nt_floor(args.ns_free_1nt_floor);
     pons::bidding::american::set_free_bid_quality(args.ns_free_bid_quality);
     pons::bidding::american::set_negative_double_shape(
         match args.ns_negative_double_shape.as_str() {

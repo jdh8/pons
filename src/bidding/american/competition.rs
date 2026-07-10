@@ -702,10 +702,16 @@ thread_local! {
     /// the default system plays free bids.
     static FREE_BIDS: Cell<bool> = const { Cell::new(false) };
 
-    /// Minimum points/HCP for the 1-level free bids (new-suit 5+ and 1NT, plus
+    /// Minimum points/HCP for the 1-level free *suit* bids (new-suit 5+, plus
     /// the Sputnik natural 4+ majors). Default 6 — the shipped floor. The vul-PD
     /// leak of the whole free-bid family lives here; sweep to 8+ and re-measure.
+    /// The free 1NT has its own floor (`FREE_1NT_FLOOR`): a forcing suit bid
+    /// finds a fit cheaply and is safe light, a limited non-forcing 1NT is not.
     static FREE_BID_FLOOR: Cell<u8> = const { Cell::new(6) };
+
+    /// Minimum HCP for the free 1NT (`1X (1Y) 1NT`), decoupled from the suit
+    /// floor above. Default 6 — byte-identical to the historical shared value.
+    static FREE_1NT_FLOOR: Cell<u8> = const { Cell::new(6) };
 
     /// Whether the vulnerable free bids demand quality: a vulnerable 1-level
     /// new suit needs two of the top three honors, and the free 1NT is not
@@ -773,6 +779,21 @@ pub fn set_free_bid_floor(min: u8) {
 /// The minimum points/HCP for the 1-level free bids
 fn free_bid_floor() -> u8 {
     FREE_BID_FLOOR.with(Cell::get)
+}
+
+/// Set the minimum HCP for the free 1NT (`1X (1Y) 1NT`), decoupled from the
+/// suit floor (thread-local)
+///
+/// Default 6 (`--ns-free-1nt-floor` in `bba-gen`). The free 1NT is a limited,
+/// non-forcing commitment to notrump values; raising this trims light 1NTs
+/// without touching the forcing 1-level suit bids.
+pub fn set_free_1nt_floor(min: u8) {
+    FREE_1NT_FLOOR.with(|cell| cell.set(min));
+}
+
+/// The minimum HCP for the free 1NT
+fn free_1nt_floor() -> u8 {
+    FREE_1NT_FLOOR.with(Cell::get)
 }
 
 /// Gate the vulnerable free bids on suit quality for books built *after* this
@@ -1533,7 +1554,7 @@ fn over_their_overcall(opening: Suit) -> Rules {
             }
         }
         let one_notrump = min_level_is(1, Strain::Notrump)
-            & hcp(free_bid_floor()..=10)
+            & hcp(free_1nt_floor()..=10)
             & stopper_in_their_suits();
         rules = if free_bid_quality() {
             rules.rule(
@@ -1548,6 +1569,15 @@ fn over_their_overcall(opening: Suit) -> Rules {
             Bid::new(2, Strain::Notrump),
             0.95,
             min_level_is(2, Strain::Notrump) & hcp(11..=12) & stopper_in_their_suits(),
+        );
+        // The natural invitational 2NT *jump* over a 1-level overcall: 11–12
+        // with a stopper, the invite the ordinary 2NT rule (min-level, i.e. a
+        // 2-level overcall) leaves stranded. `min_level_is(1, Notrump)` means
+        // 1NT is still the cheapest notrump, so this 2NT is a jump.
+        rules = rules.rule(
+            Bid::new(2, Strain::Notrump),
+            0.95,
+            min_level_is(1, Strain::Notrump) & hcp(11..=12) & stopper_in_their_suits(),
         );
     }
 
@@ -6695,5 +6725,52 @@ mod tests {
             rules.rules().iter().any(|rule| rule.call() == Call::Double),
             "the negative double renders"
         );
+    }
+
+    // --- Free 1NT floor + the natural 2NT jump over a 1-level overcall ---
+
+    /// `1♣ (1♦) 1NT`: a balanced 7-count with a diamond stopper takes the free
+    /// 1NT at the default floor of 6.
+    #[test]
+    fn free_1nt_fires_at_default_floor() {
+        super::set_free_1nt_floor(6);
+        let auction = [call(1, Strain::Clubs), call(1, Strain::Diamonds)];
+        let (c, floored) = best_call(&auction, "Q54.J54.KJ32.543");
+        assert_eq!(c, call(1, Strain::Notrump));
+        assert!(!floored, "the free 1NT is a book node");
+    }
+
+    /// Raising the isolated 1NT floor to 8 drops the 7-count from 1NT — and,
+    /// being decoupled, leaves the forcing 1-level suit bids untouched.
+    #[test]
+    fn free_1nt_dropped_above_raised_floor() {
+        let auction = [call(1, Strain::Clubs), call(1, Strain::Diamonds)];
+        super::set_free_1nt_floor(8);
+        let (c, _) = best_call(&auction, "Q54.J54.KJ32.543");
+        super::set_free_1nt_floor(6);
+        assert_ne!(
+            c,
+            call(1, Strain::Notrump),
+            "7 HCP is below the raised floor"
+        );
+    }
+
+    /// `1♣ (1♦) 2NT`: a balanced 12-count with a diamond stopper — too strong
+    /// for the capped 1NT, no fit to cue — invites at 2NT (default-on).
+    #[test]
+    fn free_2nt_jump_fires_by_default() {
+        let auction = [call(1, Strain::Clubs), call(1, Strain::Diamonds)];
+        let (c, floored) = best_call(&auction, "K54.K54.KJ32.Q54");
+        assert_eq!(c, call(2, Strain::Notrump));
+        assert!(!floored, "the 2NT jump is a book node");
+    }
+
+    /// The ladder boundary: a balanced 10-count with a stopper is still 1NT,
+    /// not the 2NT jump (which starts at 11).
+    #[test]
+    fn free_1nt_caps_below_the_jump() {
+        let auction = [call(1, Strain::Clubs), call(1, Strain::Diamonds)];
+        let (c, _) = best_call(&auction, "K54.Q54.KJ32.J54");
+        assert_eq!(c, call(1, Strain::Notrump), "10 HCP caps at 1NT");
     }
 }
