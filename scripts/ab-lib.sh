@@ -59,16 +59,18 @@ diffpair() {
     done
 }
 
-# sddiff ON OFF VUL — sd-lead paired delta over all shards, 16 worlds
+# sddiff ON OFF VUL [ab-dump-sd flags...] — sd-lead paired delta over all
+# shards, 16 worlds; extra flags (e.g. --on-ns-negative-double-shape) disclose
+# the ON arm's knobs to the blind leader.
 sddiff() {
-    on=$1; off=$2; vul=$3
+    on=$1; off=$2; vul=$3; shift 3
     out="$R/sd.$on.vs.$off.$vul.txt"
     [ -s "$out" ] && { log "skip $out (exists)"; return 0; }
-    log "sd-diff $on vs $off ($vul, 16 worlds)"
+    log "sd-diff $on vs $off ($vul, 16 worlds$*)"
     i=0
     while [ "$i" -lt "$SHARDS" ]; do
         "$SD" "$R/$on-$vul/shard-$i.json" "$R/$off-$vul/shard-$i.json" \
-            -v "$vul" --sd-worlds 16 --show 0 >"$out.shard-$i" 2>&1 &
+            -v "$vul" --sd-worlds 16 --show 0 "$@" >"$out.shard-$i" 2>&1 &
         [ $(((i + 1) % 8)) -eq 0 ] && wait
         i=$((i + 1))
     done

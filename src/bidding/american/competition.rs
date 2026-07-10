@@ -1449,17 +1449,27 @@ fn answer_free_bid(opening: Suit) -> Rules {
     let mut rules = Rules::new();
 
     // Raise partner's freely bid suit with 3-card support (the free bid
-    // promises five). `min_level_is` picks the cheapest legal raise.
+    // promises five). `min_level_is` picks the cheapest legal raise. A raise
+    // to *two* answers a 1-level free bid (the only auction whose cheapest
+    // raise sits there), and Sputnik's natural 1-level majors promise only
+    // four — raising on three would be a Moysian at the two level, so that
+    // rung demands four; 2-level frees promise five in every school.
+    let two_level_support: usize = if negative_double_shape() == NegativeDoubleShape::Sputnik {
+        4
+    } else {
+        3
+    };
     for y in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
         if y == o {
             continue;
         }
         let y_strain = Strain::from(y);
         for lvl in 2u8..=3 {
+            let min_support = if lvl == 2 { two_level_support } else { 3 };
             rules = rules.rule(
                 Bid::new(lvl, y_strain),
                 1.5,
-                partner_suit_is(y) & min_level_is(lvl, y_strain) & support(3..),
+                partner_suit_is(y) & min_level_is(lvl, y_strain) & support(min_support..),
             );
         }
     }
@@ -3375,18 +3385,26 @@ pub fn competition() -> Competitive {
     // in `over_their_overcall`: overcall ≤2♠ and not a cue of our suit (4b/4c
     // own the cue-raises), the free bid a cheapest-level new suit that is
     // neither their suit nor ours nor notrump (the free 1NT/2NT are
-    // non-forcing). Cachalot rotates its 1-level majors into transfers, so its
-    // answers stay with `cachalot_takeout_answer`; Sputnik's natural 4-card
-    // 1-level majors read one card light here — acceptable for the opt-in arm.
-    if free_bids_engaged() && negative_double_shape() != NegativeDoubleShape::Cachalot {
+    // non-forcing). Cachalot rotates the 1-level calls over its minor
+    // openings, so those stay with the Section-9 completions (whose deeper
+    // keys shadow this entry anyway — the `rotated` conjunct is
+    // defense-in-depth and honest rendering); its natural 2-level frees get
+    // the forcing answers like every other school's.
+    if free_bids_engaged() {
+        let cachalot = negative_double_shape() == NegativeDoubleShape::Cachalot;
         for opening in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
             let o_strain = Strain::from(opening);
+            let rotated = cachalot && matches!(opening, Suit::Clubs | Suit::Diamonds);
             fallback_all_seats(
                 &mut book,
                 &[call(1, o_strain)],
                 3,
                 Arc::new(described_guard(
-                    "(overcall ≤2♠) free-suit -",
+                    if rotated {
+                        "(overcall ≤2♠) 2-level free-suit -"
+                    } else {
+                        "(overcall ≤2♠) free-suit -"
+                    },
                     guard(move |_: &Context<'_>, suffix: &[Call]| {
                         matches!(
                             suffix,
@@ -3398,6 +3416,7 @@ pub fn competition() -> Competitive {
                                     && free.strain != o_strain
                                     && free.level.get()
                                         == ovc.level.get() + u8::from(free.strain < ovc.strain)
+                                    && !(rotated && free.level.get() == 1)
                         )
                     }),
                 )),
@@ -6003,6 +6022,60 @@ mod tests {
             "≤3 in both majors is the residual double"
         );
         super::set_negative_double_shape(super::NegativeDoubleShape::BothMajors);
+    }
+
+    #[test]
+    fn cachalot_natural_free_bids_get_the_forcing_answers() {
+        super::set_negative_double_shape(super::NegativeDoubleShape::Cachalot);
+        // A natural 2-level free bid reaches Section 4d's forcing answers:
+        // opener raises partner's freely bid diamonds with three.
+        let answer = [
+            call(1, Strain::Clubs),
+            call(1, Strain::Spades),
+            call(2, Strain::Diamonds),
+            Call::Pass,
+        ];
+        let (raise, floored) = best_call(&answer, "A5.K52.Q64.KJ632");
+        assert_eq!(raise, call(3, Strain::Diamonds), "the free bid is raised");
+        assert!(!floored, "an authored node, not the floor");
+        // The rotated 1-level call stays with its Section-9 completion —
+        // 1♥ over (1♦) shows spades; exactly three completes 1♠.
+        let complete = [
+            call(1, Strain::Clubs),
+            call(1, Strain::Diamonds),
+            call(1, Strain::Hearts),
+            Call::Pass,
+        ];
+        let (three, _) = best_call(&complete, "AQ5.K52.964.QJ32");
+        assert_eq!(
+            three,
+            call(1, Strain::Spades),
+            "the rotation completes, not answer_free_bid"
+        );
+        super::set_negative_double_shape(super::NegativeDoubleShape::Modern);
+    }
+
+    #[test]
+    fn sputnik_free_major_raise_needs_four() {
+        super::set_negative_double_shape(super::NegativeDoubleShape::Sputnik);
+        // Sputnik's natural 1-level major promises only four, so opener's
+        // two-level raise demands four trumps — three would be a Moysian.
+        let answer = [
+            call(1, Strain::Clubs),
+            call(1, Strain::Diamonds),
+            call(1, Strain::Hearts),
+            Call::Pass,
+        ];
+        let (three, floored) = best_call(&answer, "K52.Q52.K94.AJ63");
+        assert_eq!(
+            three,
+            call(1, Strain::Notrump),
+            "three trumps bid 1NT, not the Moysian raise"
+        );
+        assert!(!floored, "an authored node, not the floor");
+        let (four, _) = best_call(&answer, "K5.Q542.K94.AJ63");
+        assert_eq!(four, call(2, Strain::Hearts), "four trumps raise");
+        super::set_negative_double_shape(super::NegativeDoubleShape::Modern);
     }
 
     #[test]

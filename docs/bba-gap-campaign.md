@@ -224,6 +224,23 @@ byte-identical opt-in as a faithful, complete alternative structure and a
 single-dummy re-measure candidate.  Lesson restated: a half-authored replacement
 loses to a fully-authored graft; a fully-authored one draws.
 
+**Re-anchor `50ad20b` (2026-07-10, 409.6k boards, same seed):** Fix 1 of the
+fallback@1/@2 sub-campaign folded in (Modern negative doubles + forcing free
+bids + `answer_free_bid`, default-on) — pooled **−1.732 plain / −1.891 PD**
+(was −1.758 / −1.864 at `5f9d6c2`), replay-verified 100%.  Plain moved +0.026
+(NV +0.039 / vul +0.013, matching the fresh-seed A/B); PD −0.027 is the
+already-adjudicated vul-PD artifact the sd arbiter overruled.  The target pair
+**Competitive `fallback@1`/`fallback@2` round-1** shrank −78.2k → **−51.7k
+plain** (−27105 + −24572; PD −28288 + −27451) and drops to ranks 6/8 — Fix 1
+cashed ~26k, the residual is Fix 2 (cue-context raises + Jordan rejection) +
+Fix 4 (strong-values action) territory.  Re-rank: the top of the table is back
+to the mined book buckets (def-r1 −126113, constructive opening/r2/r1 −94k /
+−81k / −70k), then `Defensive floor#3` (r2+r1 ≈ −57k pass discipline).  Next
+in queue ahead of those residuals: the **school tournament** (1-level Modern
+vs Cachalot vs Sputnik, 2-level forcing vs NFB vs transfers) now that Fix 1
+completed the books — P3d′/P3d″ were both-incomplete comparisons.  Report:
+`ab-results/anchor/2026-07-10-50ad20b/report.md`.
+
 **#1 is the real prize and it is a *book* item, not a floor item.**  Our
 defensive first-round structure — overcalls, takeout doubles, two-suiters
 over their opening — bleeds −2.40/div (−142733 raw at 409.6k bd), and PD is

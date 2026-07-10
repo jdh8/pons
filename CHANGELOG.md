@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Cachalot and Sputnik books completed for fair measurement** (default book
+  byte-identical — both changes sit behind the opt-in
+  `NegativeDoubleShape::Cachalot`/`Sputnik` arms). Cachalot's natural 2-level
+  free bids now reach the Section-4d forcing `answer_free_bid` table (the
+  school was previously excluded wholesale, leaving them answerless — the
+  same incomplete-book trap that produced two false negatives on free bids),
+  while its rotated 1-level calls stay with the Section-9 completions.
+  Sputnik's 1-level majors promise four cards, so opener's two-level raise of
+  a free major now demands four trumps instead of settling a 4-3 Moysian.
+  Prerequisite for the school tournament (P3d′/P3d″ re-adjudication with
+  sd-lead); no user-visible impact until a school knob is set.
+
 - **Modern negative doubles + forcing free bids, shipped default-on**
   (`set_negative_double_shape` default flipped `BothMajors` → `Modern`;
   off-switch `bba-gen --ns-negative-double-shape both-majors`). The anchor's
