@@ -23,8 +23,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   swap (each shows the other suit, alerted), opener completes and declares —
   the wrap slot completes a level higher — and responder clarifies
   (pass = weak, raise = invitational, cue = game force); lone or three-way
-  slots stay natural-forcing. Both arms measured against `Forcing` in the
-  Stage-B A/B before any default change.
+  slots stay natural-forcing. **Stage-B verdict: `Forcing` keeps the
+  default.** Transfer loses on all three scorers both vulnerabilities (vul
+  plain −0.0148 / PD −0.0285 / sd −0.0126, every CI<0) — the wrap burns a
+  level and game-going hands lose a round of natural description; the
+  right-siding never shows even at sd. Negative splits the bracket: plain
+  wash both vuls, PD loss both vuls (−0.011/−0.013), sd *win* both vuls
+  (+0.0033/+0.0043, disclosed) — without a plain win the sd edge cannot
+  overrule the PD loss, and a v2 that answered the two-way double cheaply
+  measured worse on every scorer (the floor's answers beat it on ordinary
+  doubles) and was reverted. Both styles stay opt-in with named leaks
+  (ledger rows P3e/P3f in docs/competitive-book.md).
 
 - **School tournament Stage A verdict — Modern stays the default.** With the
   books completed (see below), Cachalot vs Modern loses on **all six cells**
@@ -34,7 +43,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   shapely hands Modern frees at the 1-level. Sputnik vs Modern is a wash
   everywhere except a real but sub-gate NV sd win (+0.0039, CI>0; vul all
   wash). Both stay opt-in; the earlier "ties Modern" verdicts were
-  both-incomplete-book comparisons.
+  both-incomplete-book comparisons. A refloor per jdh8's "Cachalot is just
+  rotated Sputnik" (major-showing rotated calls at the free-bid `points`
+  floor, residual takeout at `hcp(7..)`) improved every cell but flipped
+  none — vul plain −0.0073 / sd −0.0057 (CI<0), NV sd now a wash — so the
+  residual loss is the rotation itself, ≈−0.005/board net of floors; kept as
+  the arm's better floors, still opt-in.
 
 - **Cachalot and Sputnik books completed for fair measurement** (default book
   byte-identical — both changes sit behind the opt-in
