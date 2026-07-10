@@ -1720,57 +1720,6 @@ fn negative_doubler_rebid(opening: Suit) -> Rules {
         .rule(Call::Pass, 0.2, hcp(0..))
 }
 
-/// Opener's answer to the two-way double (`FreeBidStyle::Negative`) — the
-/// school shape *or* the shapeless 12+ carrying the strong single-suiters
-/// the capped free bids displace
-///
-/// Answer **cheaply** and let the doubler's rebid (Section 4d″) resolve
-/// which type it faces: the widened double's measured leak was the floor
-/// game-jumping a phantom major while the doubler held the strong
-/// single-minor hand. One invitational jump with four trumps and 16+ is the
-/// only sanctioned extra; no Pass — the double still forces one round.
-fn answer_two_way_double(opening: Suit) -> Rules {
-    let o = opening;
-    let o_strain = Strain::from(o);
-    let mut rules = Rules::new();
-    for m in [Suit::Hearts, Suit::Spades] {
-        if m == o {
-            continue;
-        }
-        let ms = Strain::from(m);
-        for lvl in 1u8..=3 {
-            rules = rules.rule(
-                Bid::new(lvl, ms),
-                1.4,
-                min_level_is(lvl, ms) & !they_bid(ms) & len(m, 4..),
-            );
-        }
-        for lvl in 2u8..=3 {
-            rules = rules.rule(
-                Bid::new(lvl, ms),
-                1.45,
-                min_level_is(lvl - 1, ms) & !they_bid(ms) & len(m, 4..) & points(16..),
-            );
-        }
-    }
-    for lvl in 1u8..=2 {
-        rules = rules.rule(
-            Bid::new(lvl, Strain::Notrump),
-            1.2,
-            min_level_is(lvl, Strain::Notrump) & stopper_in_their_suits() & hcp(12..=14),
-        );
-    }
-    // Catch-all: the cheapest opening-suit rebid (the weakest action).
-    for lvl in 2u8..=3 {
-        rules = rules.rule(
-            Bid::new(lvl, o_strain),
-            0.0,
-            min_level_is(lvl, o_strain) & hcp(0..),
-        );
-    }
-    rules
-}
-
 /// Opener's completion of a 2-level free-bid transfer (`FreeBidStyle::
 /// Transfer`) — `shown` is responder's real suit, `comp_lvl` where the
 /// completion sits (3 on the wrap slot)
@@ -3761,37 +3710,6 @@ pub fn competition() -> Competitive {
                         }),
                     )),
                     Fallback::classify(answer_negative_free_bid(opening)),
-                );
-
-                // Section 4d⁗: opener answers the two-way double *cheaply* —
-                // the widened X carries the strong single-suiters, so the
-                // school's major-showing read must never be jumped to game
-                // (the v1 A/B's worst boards: floor blasts `X - 4♥` into a
-                // phantom fit). Section 4's `1M (2m) X` answers keep their
-                // claim via the guard's carve-out.
-                let major_opening = matches!(opening, Suit::Hearts | Suit::Spades);
-                fallback_all_seats(
-                    &mut book,
-                    &[call(1, o_strain)],
-                    3,
-                    Arc::new(described_guard(
-                        "(overcall ≤2♠) X -",
-                        guard(move |_: &Context<'_>, suffix: &[Call]| {
-                            matches!(
-                                suffix,
-                                [Call::Bid(ovc), Call::Double, Call::Pass]
-                                    if *ovc <= Bid::new(2, Strain::Spades)
-                                        && ovc.strain != o_strain
-                                        && !(major_opening
-                                            && ovc.level.get() == 2
-                                            && matches!(
-                                                ovc.strain,
-                                                Strain::Clubs | Strain::Diamonds
-                                            ))
-                            )
-                        }),
-                    )),
-                    Fallback::classify(answer_two_way_double(opening)),
                 );
 
                 // Section 4d″: the doubler's rebid over opener's answer — a
@@ -6604,26 +6522,6 @@ mod tests {
             "opener answers the FG suit"
         );
         assert!(!raise_floored, "an authored node, not the floor");
-        super::set_free_bid_style(super::FreeBidStyle::Forcing);
-    }
-
-    #[test]
-    fn two_way_double_is_answered_cheaply() {
-        super::set_free_bid_style(super::FreeBidStyle::Negative);
-        // The widened X may hide a strong single-suiter, so opener answers
-        // at the cheapest level — a game jump into the school's read was the
-        // v1 leak. 16+ with four trumps jumps once, invitationally.
-        let answer = [
-            call(1, Strain::Diamonds),
-            call(1, Strain::Spades),
-            Call::Double,
-            Call::Pass,
-        ];
-        let (cheap, floored) = best_call(&answer, "964.KQ65.AK752.2");
-        assert_eq!(cheap, call(2, Strain::Hearts), "a minimum answers cheaply");
-        assert!(!floored, "an authored node, not the floor");
-        let (jump, _) = best_call(&answer, "A4.KQ65.AKJ52.A2");
-        assert_eq!(jump, call(3, Strain::Hearts), "16+ jumps invitationally");
         super::set_free_bid_style(super::FreeBidStyle::Forcing);
     }
 
