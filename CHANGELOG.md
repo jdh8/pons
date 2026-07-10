@@ -9,6 +9,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Modern negative doubles + forcing free bids, shipped default-on**
+  (`set_negative_double_shape` default flipped `BothMajors` → `Modern`;
+  off-switch `bba-gen --ns-negative-double-shape both-majors`). The anchor's
+  biggest un-worked bucket (Competitive `fallback@1/@2`, −78k plain) decomposed
+  into a pass-slice waterfall whose two largest cells — hands the wider Modern
+  double catches (−14.1k; BBA doubles 70% of them) and natural free bids the
+  default system never authored (−24.2k) — are exactly what the `Modern` shape
+  engages. Completing the convention was load-bearing: responder's new-suit
+  free bid is now **forcing one round at both levels**, answered by the new
+  Section-4d `answer_free_bid` table (raise with 3+, cheapest notrump with a
+  stopper, natural second suit — reverses and 3-level suits 16+, opening-suit
+  rebid catch-all, no Pass); without it opener passed game-going free bids
+  out. Measured (204.8k boards/arm/vul, SEED_BASE 1783672667): plain
+  **+0.0213 NV / +0.0074 vul** IMPs/board (CI>0 both); sd-lead arbiter (16
+  worlds, disclosure-corrected via the new `ab-dump-sd
+  --on-ns-negative-double-shape` flag) **+0.42 NV / +0.29 vul** per divergent
+  board (CI>0 both, sd>plain); the vul-PD −0.026 is the perfect-defense
+  doubling artifact on thin vulnerable games, overruled by the sd arbiter per
+  the measurement playbook. The P3b′-suggested vulnerable suit-quality gate
+  (`set_free_bid_quality`, `--ns-free-bid-quality`) measured a bad trade
+  (−0.0042 vul-plain CI<0 for a +0.0033 PD wash) and stays **opt-in**, default
+  byte-identical.
+
 - **Five-card-major takeout-double discipline** (`set_suppress_5card_major_takeout`,
   **shipped default-on**; off-switch `bba-gen --no-ns-suppress-5card-major-takeout`).
   With an unbid five-card (or longer) major, overcall it rather than make a takeout

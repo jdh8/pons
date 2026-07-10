@@ -23,7 +23,9 @@ use clap::Parser;
 use contract_bridge::auction::Auction;
 use contract_bridge::{AbsoluteVulnerability, Contract, Seat};
 use pons::american;
-use pons::bidding::american::set_rule_of_20;
+use pons::bidding::american::{
+    NegativeDoubleShape, set_free_bids, set_negative_double_shape, set_rule_of_20,
+};
 use pons::bidding::context::relative;
 use pons::bidding::{Family, Inferences, Stance};
 use pons::scoring::{final_contract, imps};
@@ -55,6 +57,15 @@ struct Args {
     /// light 10-11 openings widen what an opening bid shows to the leader)
     #[arg(long, default_value_t = false)]
     on_rule_of_20: bool,
+    /// Read the ON arm's auctions with responder's free bids authored
+    /// (`set_free_bids`; opener's answers ride along)
+    #[arg(long, default_value_t = false)]
+    on_ns_free_bids: bool,
+    /// Read the ON arm's auctions under this negative-double school:
+    /// modern (shipped default) | both-majors | cachalot | sputnik
+    /// (`set_negative_double_shape`; all but both-majors imply the free bids)
+    #[arg(long, default_value = "modern")]
+    on_ns_negative_double_shape: String,
     /// Show this many of the biggest swings (each way)
     #[arg(long, default_value_t = 8)]
     show: usize,
@@ -120,11 +131,22 @@ fn main() {
     let n = on.boards.len();
 
     // Leader-view stances (knobs are read at book-construction time).  The OFF
-    // arm always reads with the default book; the ON arm optionally discloses
-    // the Rule-of-20 light-opener range.
+    // arm always reads with the default book; the ON arm discloses whatever
+    // knobs its auctions were bid with.
+    let shape = |name: &str| match name {
+        "both-majors" => NegativeDoubleShape::BothMajors,
+        "modern" => NegativeDoubleShape::Modern,
+        "cachalot" => NegativeDoubleShape::Cachalot,
+        "sputnik" => NegativeDoubleShape::Sputnik,
+        other => panic!("unknown negative-double shape {other}"),
+    };
     set_rule_of_20(args.on_rule_of_20);
+    set_free_bids(args.on_ns_free_bids);
+    set_negative_double_shape(shape(&args.on_ns_negative_double_shape));
     let stance_on = american().against(Family::NATURAL);
     set_rule_of_20(false);
+    set_free_bids(false);
+    set_negative_double_shape(NegativeDoubleShape::Modern);
     let stance_off = american().against(Family::NATURAL);
 
     // Build every blind-lead question on the boards whose auctions differ; a

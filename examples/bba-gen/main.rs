@@ -338,10 +338,17 @@ struct Args {
     #[arg(long, default_value_t = 6)]
     ns_free_bid_floor: u8,
 
+    /// Gate the vulnerable free bids on quality: a vulnerable 1-level new suit
+    /// needs two of the top three honors, and the free 1NT is not authored
+    /// vulnerable (default off; see `set_free_bid_quality`).
+    #[arg(long, default_value_t = false)]
+    ns_free_bid_quality: bool,
+
     /// The negative-double school over our minor openings:
-    /// both-majors (shipped default) | modern | cachalot | sputnik
-    /// (see `set_negative_double_shape`; all but both-majors imply the free bids).
-    #[arg(long, default_value = "both-majors")]
+    /// modern (shipped default) | both-majors | cachalot | sputnik
+    /// (see `set_negative_double_shape`; all but both-majors imply the free
+    /// bids and opener's forcing answers to them).
+    #[arg(long, default_value = "modern")]
     ns_negative_double_shape: String,
 
     /// Author responder's structure over their jump / 3-level overcalls
@@ -1209,6 +1216,7 @@ fn main() -> anyhow::Result<()> {
     pons::bidding::american::set_major_support_double(!args.no_ns_major_support_double);
     pons::bidding::american::set_free_bids(args.ns_free_bids);
     pons::bidding::american::set_free_bid_floor(args.ns_free_bid_floor);
+    pons::bidding::american::set_free_bid_quality(args.ns_free_bid_quality);
     pons::bidding::american::set_negative_double_shape(
         match args.ns_negative_double_shape.as_str() {
             "both-majors" => pons::bidding::american::NegativeDoubleShape::BothMajors,

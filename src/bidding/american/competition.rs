@@ -7,8 +7,9 @@
 //! minor overcall.
 
 use super::super::constraint::{
-    Cons, Constraint, balanced, described, has_stopper, hcp, len, min_level_is, points, stopper_in,
-    stopper_in_their_suits, suit_hcp, support, they_bid, top_honors,
+    Cons, Constraint, balanced, described, has_stopper, hcp, len, min_level_is, partner_suit_is,
+    points, stopper_in, stopper_in_their_suits, suit_hcp, support, they_bid, top_honors,
+    vulnerable,
 };
 use super::super::context::Context;
 use super::super::fallback::{
@@ -662,27 +663,38 @@ pub enum NegativeDoubleShape {
 
 thread_local! {
     /// Which negative-double school the minor openings play. Default
-    /// `BothMajors` — the shipped rule, byte-identical.
+    /// `Modern` — **shipped default-on 2026-07-10** with the forcing free-bid
+    /// answers: plain +0.0213 NV / +0.0074 vul (CI>0), sd arbiter +0.42/+0.29
+    /// per divergent board (CI>0, sd>plain, disclosure-corrected); the vul-PD
+    /// −0.026 is the perfect-defense doubling artifact on thin vul games.
     static NEGATIVE_DOUBLE_SHAPE: Cell<NegativeDoubleShape> =
-        const { Cell::new(NegativeDoubleShape::BothMajors) };
+        const { Cell::new(NegativeDoubleShape::Modern) };
 
     /// Whether responder's natural free bids over an overcall are authored
     /// (1-level new suit 5+ & 6+, 2-level non-jump 5+ & 10+, 1NT 6–10 / 2NT
-    /// 11–12 with a stopper). Default off while the A/B runs; implied by the
-    /// `Modern`/`Cachalot` negative-double shapes.
+    /// 11–12 with a stopper). Default off as a *direct* toggle, but the
+    /// shipped `Modern` shape implies them (with opener's forcing answers) —
+    /// the default system plays free bids.
     static FREE_BIDS: Cell<bool> = const { Cell::new(false) };
 
     /// Minimum points/HCP for the 1-level free bids (new-suit 5+ and 1NT, plus
     /// the Sputnik natural 4+ majors). Default 6 — the shipped floor. The vul-PD
     /// leak of the whole free-bid family lives here; sweep to 8+ and re-measure.
     static FREE_BID_FLOOR: Cell<u8> = const { Cell::new(6) };
+
+    /// Whether the vulnerable free bids demand quality: a vulnerable 1-level
+    /// new suit needs two of the top three honors, and the free 1NT is not
+    /// authored vulnerable. The P3b′ floor sweep named the family's vulnerable
+    /// leak as plain-DD-visible and strength-independent — a suit-quality
+    /// gate, not a floor. Default off while the A/B runs.
+    static FREE_BID_QUALITY: Cell<bool> = const { Cell::new(false) };
 }
 
 /// Choose the negative-double school for books built *after* this call
 /// (thread-local)
 ///
-/// Default [`NegativeDoubleShape::BothMajors`]
-/// (`--ns-negative-double-shape` in `bba-gen`).
+/// Default [`NegativeDoubleShape::Modern`] — shipped default-on; pass
+/// `--ns-negative-double-shape both-majors` in `bba-gen` for the old rule.
 pub fn set_negative_double_shape(shape: NegativeDoubleShape) {
     NEGATIVE_DOUBLE_SHAPE.with(|cell| cell.set(shape));
 }
@@ -717,6 +729,22 @@ pub fn set_free_bid_floor(min: u8) {
 /// The minimum points/HCP for the 1-level free bids
 fn free_bid_floor() -> u8 {
     FREE_BID_FLOOR.with(Cell::get)
+}
+
+/// Gate the vulnerable free bids on suit quality for books built *after* this
+/// call (thread-local)
+///
+/// Default off (`--ns-free-bid-quality` in `bba-gen` for the on arm). When
+/// on, a vulnerable 1-level free bid demands two of the top three honors in
+/// the bid suit and the free 1NT is not authored vulnerable; non-vulnerable
+/// rules and the 2-level/2NT free bids are unchanged.
+pub fn set_free_bid_quality(on: bool) {
+    FREE_BID_QUALITY.with(|cell| cell.set(on));
+}
+
+/// Whether the vulnerable free-bid quality gate is on
+fn free_bid_quality() -> bool {
+    FREE_BID_QUALITY.with(Cell::get)
 }
 
 thread_local! {
@@ -1351,11 +1379,17 @@ fn over_their_overcall(opening: Suit) -> Rules {
             }
             let xs = Strain::from(x);
             if !(rotate && matches!(x, Suit::Hearts | Suit::Spades)) {
-                rules = rules.rule(
-                    Bid::new(1, xs),
-                    1.45,
-                    min_level_is(1, xs) & len(x, 5..) & points(free_bid_floor()..) & !they_bid(xs),
-                );
+                let one_level =
+                    min_level_is(1, xs) & len(x, 5..) & points(free_bid_floor()..) & !they_bid(xs);
+                rules = if free_bid_quality() {
+                    rules.rule(
+                        Bid::new(1, xs),
+                        1.45,
+                        one_level & (top_honors(x, 2..) | !vulnerable()),
+                    )
+                } else {
+                    rules.rule(Bid::new(1, xs), 1.45, one_level)
+                };
             }
             rules = rules.rule(
                 Bid::new(2, xs),
@@ -1363,19 +1397,23 @@ fn over_their_overcall(opening: Suit) -> Rules {
                 min_level_is(2, xs) & len(x, 5..) & points(10..) & !they_bid(xs),
             );
         }
-        rules = rules
-            .rule(
+        let one_notrump = min_level_is(1, Strain::Notrump)
+            & hcp(free_bid_floor()..=10)
+            & stopper_in_their_suits();
+        rules = if free_bid_quality() {
+            rules.rule(
                 Bid::new(1, Strain::Notrump),
                 0.9,
-                min_level_is(1, Strain::Notrump)
-                    & hcp(free_bid_floor()..=10)
-                    & stopper_in_their_suits(),
+                one_notrump & !vulnerable(),
             )
-            .rule(
-                Bid::new(2, Strain::Notrump),
-                0.95,
-                min_level_is(2, Strain::Notrump) & hcp(11..=12) & stopper_in_their_suits(),
-            );
+        } else {
+            rules.rule(Bid::new(1, Strain::Notrump), 0.9, one_notrump)
+        };
+        rules = rules.rule(
+            Bid::new(2, Strain::Notrump),
+            0.95,
+            min_level_is(2, Strain::Notrump) & hcp(11..=12) & stopper_in_their_suits(),
+        );
     }
 
     // Weak jump shifts: for each suit x ≠ o, levels 2 and 3
@@ -1395,6 +1433,76 @@ fn over_their_overcall(opening: Suit) -> Rules {
 
     // Pass
     rules.rule(Call::Pass, 0.0, hcp(0..))
+}
+
+/// Opener's answer to responder's natural free bid — a new suit over their
+/// overcall, **forcing one round** at both levels (the free-bid-quality A/B's
+/// worst vulnerable boards were opener passing a game-going `2♦` out)
+///
+/// Raise partner's suit with 3-card support, bid notrump with a stopper in
+/// their suit, show a natural second suit (reverses and 3-level suits need
+/// 16+), else rebid the opening suit as the catch-all. No `Pass` rule — the
+/// free bid forces by omission; the table is total via the rebid.
+fn answer_free_bid(opening: Suit) -> Rules {
+    let o = opening;
+    let o_strain = Strain::from(o);
+    let mut rules = Rules::new();
+
+    // Raise partner's freely bid suit with 3-card support (the free bid
+    // promises five). `min_level_is` picks the cheapest legal raise.
+    for y in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
+        if y == o {
+            continue;
+        }
+        let y_strain = Strain::from(y);
+        for lvl in 2u8..=3 {
+            rules = rules.rule(
+                Bid::new(lvl, y_strain),
+                1.5,
+                partner_suit_is(y) & min_level_is(lvl, y_strain) & support(3..),
+            );
+        }
+    }
+
+    // Cheapest notrump with a stopper in their suit, minimum balanced range.
+    for lvl in 1u8..=2 {
+        rules = rules.rule(
+            Bid::new(lvl, Strain::Notrump),
+            1.2,
+            min_level_is(lvl, Strain::Notrump) & stopper_in_their_suits() & hcp(12..=14),
+        );
+    }
+
+    // A natural second suit: cheap non-reverse freely, a reverse or 3-level
+    // suit shows 16+.
+    for x in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
+        if x == o {
+            continue;
+        }
+        let x_strain = Strain::from(x);
+        for lvl in 1u8..=3 {
+            let strong = lvl >= 3 || (lvl == 2 && x > o);
+            let shape = min_level_is(lvl, x_strain)
+                & !partner_suit_is(x)
+                & !they_bid(x_strain)
+                & len(x, 4..);
+            rules = if strong {
+                rules.rule(Bid::new(lvl, x_strain), 1.1, shape & hcp(16..))
+            } else {
+                rules.rule(Bid::new(lvl, x_strain), 1.1, shape)
+            };
+        }
+    }
+
+    // Catch-all: rebid the opening suit at the cheapest level (weakest action).
+    for lvl in 2u8..=3 {
+        rules = rules.rule(
+            Bid::new(lvl, o_strain),
+            0.0,
+            min_level_is(lvl, o_strain) & hcp(0..),
+        );
+    }
+    rules
 }
 
 // ---------------------------------------------------------------------------
@@ -3256,6 +3364,44 @@ pub fn competition() -> Competitive {
                     }),
                 )),
                 Fallback::classify(answer_cue_minor_raise(minor)),
+            );
+        }
+    }
+
+    // Section 4d: opener answers responder's natural free bid (a non-jump new
+    // suit over their overcall ≤2♠), forcing one round at both levels — the
+    // free-bid-quality A/B's worst vulnerable-PD boards were opener *passing*
+    // a game-going free bid out. Suffix guard mirrors the free-bid authoring
+    // in `over_their_overcall`: overcall ≤2♠ and not a cue of our suit (4b/4c
+    // own the cue-raises), the free bid a cheapest-level new suit that is
+    // neither their suit nor ours nor notrump (the free 1NT/2NT are
+    // non-forcing). Cachalot rotates its 1-level majors into transfers, so its
+    // answers stay with `cachalot_takeout_answer`; Sputnik's natural 4-card
+    // 1-level majors read one card light here — acceptable for the opt-in arm.
+    if free_bids_engaged() && negative_double_shape() != NegativeDoubleShape::Cachalot {
+        for opening in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
+            let o_strain = Strain::from(opening);
+            fallback_all_seats(
+                &mut book,
+                &[call(1, o_strain)],
+                3,
+                Arc::new(described_guard(
+                    "(overcall ≤2♠) free-suit -",
+                    guard(move |_: &Context<'_>, suffix: &[Call]| {
+                        matches!(
+                            suffix,
+                            [Call::Bid(ovc), Call::Bid(free), Call::Pass]
+                                if *ovc <= Bid::new(2, Strain::Spades)
+                                    && ovc.strain != o_strain
+                                    && free.strain != Strain::Notrump
+                                    && free.strain != ovc.strain
+                                    && free.strain != o_strain
+                                    && free.level.get()
+                                        == ovc.level.get() + u8::from(free.strain < ovc.strain)
+                        )
+                    }),
+                )),
+                Fallback::classify(answer_free_bid(opening)),
             );
         }
     }
