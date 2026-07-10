@@ -261,6 +261,11 @@ std::thread_local! {
     /// floor otherwise passes out — reopening 1NT, 3NT over responder's free
     /// 1NT, and responder's raise (**default-on**; see [`set_reopening_notrump`]).
     static REOPENING_NOTRUMP: Cell<bool> = const { Cell::new(true) };
+
+    /// A minimum takeout doubler stops raising partner's *forced* advance on its
+    /// own points (the double already showed them) rather than driving to a
+    /// doubled game (**default-on**; see [`set_rein_advance_raise`]).
+    static REIN_ADVANCE_RAISE: Cell<bool> = const { Cell::new(true) };
 }
 
 /// Responder runs from a doubled 1NT below this many HCP; with more, 1NT-X
@@ -358,6 +363,24 @@ pub fn set_reopening_notrump(enabled: bool) {
 /// Opener's contested notrump actions are enabled (see [`set_reopening_notrump`])
 fn reopening_notrump_enabled() -> bool {
     REOPENING_NOTRUMP.with(Cell::get)
+}
+
+/// Rein in a minimum takeout doubler that over-raises partner's forced advance
+///
+/// After we double an opponent's suit for takeout and partner names a suit — a
+/// forced, possibly bust advance — a minimum doubler (< 17 total points) that
+/// re-doubles or raises the advance to the three level double-counts its values
+/// and drives to a doubled game (`1X (1Y) P 1Z X P 2m 2Z 3m X …`).  Default on;
+/// the off state restores the blind raise ladder for the A/B
+/// (`bba-gen --no-ns-rein-advance-raise`).  Read at book construction.
+#[doc(hidden)]
+pub fn set_rein_advance_raise(enabled: bool) {
+    REIN_ADVANCE_RAISE.with(|flag| flag.set(enabled));
+}
+
+/// The advance-raise rein is enabled (see [`set_rein_advance_raise`])
+fn rein_advance_raise_enabled() -> bool {
+    REIN_ADVANCE_RAISE.with(Cell::get)
 }
 
 /// Enable or disable Rubens advances of partner's simple overcall
@@ -1002,6 +1025,57 @@ fn advancing_a_double_now(context: &Context<'_>) -> bool {
 /// [`advancing_a_double_now`] as a hand-ignoring [`Constraint`] for the ladder
 fn advancing_a_double() -> Cons<impl Constraint + Clone> {
     pred(|_: Hand, context: &Context<'_>| advancing_a_double_now(context))
+}
+
+/// Partner is advancing a takeout double *we* made — a forced, weak (≈0-8)
+/// response, not a constructive suit of their own.
+///
+/// The mirror of [`advancing_a_double_now`] from the doubler's chair: earlier we
+/// (the seat to act) doubled an opponent's suit bid for takeout, and partner has
+/// since named a suit — a bid they were forced to make and could hold a bust for.
+/// The competitive raise/rebid ladder consults this so a *minimum* doubler does
+/// not raise partner's forced advance on its own points (the double already
+/// showed them) and drive to a doubled game.  A genuine maximum (17+) still acts.
+fn partner_advanced_our_double_now(context: &Context<'_>) -> bool {
+    let auction = context.auction();
+    let len = auction.len();
+    // Our own most recent double (the actor's seat: `(len - i) % 4 == 0`).
+    let Some(dbl) = (0..len)
+        .rev()
+        .find(|&i| (len - i).is_multiple_of(4) && auction[i] == Call::Double)
+    else {
+        return false;
+    };
+    // Takeout, not penalty/SOS: the call it doubled — the last non-pass before it
+    // — is an opponent's suit bid.
+    let takeout = auction[..dbl]
+        .iter()
+        .enumerate()
+        .rev()
+        .find(|(_, call)| **call != Call::Pass)
+        .is_some_and(|(k, call)| {
+            (len - k) % 2 == 1 && matches!(call, Call::Bid(bid) if bid.strain.suit().is_some())
+        });
+    // Partner named a suit after the double (their forced advance).
+    takeout
+        && (dbl + 1..len).any(|j| {
+            (len - j) % 4 == 2
+                && matches!(auction[j], Call::Bid(bid) if bid.strain.suit().is_some())
+        })
+}
+
+/// [`partner_advanced_our_double_now`] as a hand-ignoring [`Constraint`]
+fn partner_advanced_our_double() -> Cons<impl Constraint + Clone> {
+    pred(|_: Hand, context: &Context<'_>| partner_advanced_our_double_now(context))
+}
+
+/// The rein (`set_rein_advance_raise`) is silencing a minimum's *second* action
+/// over partner's forced advance of our double — a constraint to `&`-negate into
+/// the takeout-double rule (the separate 17+ rule keeps the maximum doubling).
+fn minimum_reraise_blocked() -> Cons<impl Constraint + Clone> {
+    pred(|_: Hand, context: &Context<'_>| {
+        rein_advance_raise_enabled() && partner_advanced_our_double_now(context)
+    })
 }
 
 /// We already hold an eight-card fit in some suit: our length there plus the
@@ -2169,16 +2243,26 @@ pub fn instinct() -> Rules {
         // shows its named minor short, so the floor never raises the phantom suit
         // into a doubled disaster.  A natural overcall is shown 5+, so it is
         // unaffected.  See `inference::multi_reading`.
+        //
+        // The rein (`set_rein_advance_raise`, default on) blocks the three-level+
+        // rung when partner's suit was a forced advance of *our* takeout double:
+        // the double already showed our values, so a minimum re-raise double-counts
+        // them into a doubled game.  A genuine maximum (17+ points) still competes.
         for (level, threshold) in [(2u8, 6u8), (3, 10), (4, 13)] {
-            rules = rules.rule(
-                Bid::new(level, strain),
-                1.2,
-                partner_suit_is(suit)
-                    & partner_shown_len(suit, 3..)
-                    & min_level_is(level, strain)
-                    & support(3..)
-                    & points(threshold..),
-            );
+            let raise = partner_suit_is(suit)
+                & partner_shown_len(suit, 3..)
+                & min_level_is(level, strain)
+                & support(3..)
+                & points(threshold..);
+            rules = if rein_advance_raise_enabled() && level >= 3 {
+                rules.rule(
+                    Bid::new(level, strain),
+                    1.2,
+                    raise & (!partner_advanced_our_double() | points(17..)),
+                )
+            } else {
+                rules.rule(Bid::new(level, strain), 1.2, raise)
+            };
         }
 
         // Preemptive jump to game: five-card support but too weak to invite —
@@ -3130,7 +3214,8 @@ pub fn instinct() -> Rules {
                 & short_in_their_suits()
                 & hcp(12..)
                 & not_penalty_latched()
-                & takeout_double_shape_ok(),
+                & takeout_double_shape_ok()
+                & !minimum_reraise_blocked(),
         )
         .rule(
             Call::Double,
@@ -3258,6 +3343,46 @@ mod tests {
         ];
         assert_eq!(best(&free_1nt, bal18_stop), call(3, Strain::Notrump));
         assert_eq!(best(&free_1nt, flat13), Call::Pass);
+    }
+
+    #[test]
+    fn minimum_doubler_does_not_over_raise_a_forced_advance() {
+        // 1♦ (1♥) P (1♠) X (P) 2♦ (2♥): we opened and reopened with a takeout
+        // double; partner's 2♦ is a *forced* advance (a possible bust).  A minimum
+        // doubler that raised to 3♦ (or re-doubled) drove into a doubled game.
+        let advanced = [
+            call(1, Strain::Diamonds),
+            call(1, Strain::Hearts),
+            Call::Pass,
+            call(1, Strain::Spades),
+            Call::Double,
+            Call::Pass,
+            call(2, Strain::Diamonds),
+            call(2, Strain::Hearts),
+        ];
+        let minimum = "A92.A3.J873.KJ84"; // 13: the double already showed it
+        let maximum = "AQ2.A3.KJ83.KQJ4"; // 18: a genuine game try
+
+        // Default on: the minimum passes (defend), the maximum still competes.
+        assert_eq!(best(&advanced, minimum), Call::Pass);
+        assert_eq!(best(&advanced, maximum), call(3, Strain::Diamonds));
+
+        // Off: the blind raise ladder returns (the A/B baseline).
+        set_rein_advance_raise(false);
+        assert_eq!(best(&advanced, minimum), call(3, Strain::Diamonds));
+        set_rein_advance_raise(true);
+
+        // Unaffected: raising partner's *overcall* (we never doubled) — the 2♦
+        // competitor lets us raise 1♥ to 2♥ on the same minimum values.
+        let raise_overcall = [
+            call(1, Strain::Diamonds),
+            call(1, Strain::Hearts),
+            call(2, Strain::Diamonds),
+        ];
+        assert_eq!(
+            best(&raise_overcall, "A5.KJ73.652.Q874"),
+            call(2, Strain::Hearts)
+        );
     }
 
     #[test]

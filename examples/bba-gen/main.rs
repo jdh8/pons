@@ -451,6 +451,12 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_reopening_notrump: bool,
 
+    /// Disable the rein on a minimum takeout doubler that over-raises partner's
+    /// forced advance of our double into a doubled game (default-on; see
+    /// `set_rein_advance_raise`).
+    #[arg(long, default_value_t = false)]
+    no_ns_rein_advance_raise: bool,
+
     /// Disable responder's structure over their takeout double of our 1-suit
     /// opening: Jordan/Truscott 2NT, value XX, preemptive jump-raise flip,
     /// weak NF 2-level suits (shipped default-on; see `set_jordan_truscott`).
@@ -1274,6 +1280,7 @@ fn main() -> anyhow::Result<()> {
     pons::bidding::american::set_second_suit_agreement(!args.no_ns_second_suit_agreement);
     pons::bidding::instinct::set_competitive_rebid(!args.no_ns_competitive_rebid);
     pons::bidding::instinct::set_reopening_notrump(!args.no_ns_reopening_notrump);
+    pons::bidding::instinct::set_rein_advance_raise(!args.no_ns_rein_advance_raise);
     pons::bidding::american::set_jordan_truscott(!args.no_ns_jordan_truscott);
     pons::bidding::american::set_splinter_doubled(!args.no_ns_splinter_doubled);
     pons::bidding::american::set_major_rebid_tails(!args.no_ns_major_rebid_tails);

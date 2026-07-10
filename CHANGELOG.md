@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **A minimum takeout doubler no longer over-raises partner's *forced* advance
+  into a doubled game** (`set_rein_advance_raise`, `bba-gen
+  --no-ns-rein-advance-raise`; **shipped default-on**). The instinct floor's
+  raise ladder raised partner's suit on *opener's own* points — correct after a
+  partner *overcall* (which shows 8–16), but double-counting after we
+  *doubled* an opponent's suit for takeout and partner made a **forced advance**
+  (0–8): the double already showed the values, so `1♦ (1♥) P (1♠) X (P) 2♦ (2♥)`
+  drove on to `3♦ … 4♦X` on ~16 combined HCP. Now the 3-level-and-higher rungs
+  demand 17+ points when partner merely advanced our double (a genuine maximum
+  still competes; a minimum passes and defends), and the minimum's second
+  takeout double is suppressed. A "stop doing a bad thing" fix — plain DD the
+  arbiter — measured a clean win on every scorer, both vulnerabilities: plain
+  **+0.0163/+0.0332 IMPs/board** (+0.91/+2.06 per fired NV/vul), PD agreeing big
+  (+0.0646/+0.0742), sd-lead +0.0058/+0.0235. The worst *off*-arm boards are
+  exactly the doubled minuses (`4♠X`, `3♥X`, `4♦`) the rein now defends instead
+  of declaring. Structural predicate only (we doubled their suit, partner named
+  one) — no inference change. Re-sweeping the free-1NT floor with the pass-line
+  no longer overbidding **confirms 6 is still optimal**: floor 6→8 collapses to
+  a plain-DD wash (−0.0010/+0.0001 — most of floor-6's earlier plain edge *was*
+  this bug) but still loses on the sd-lead arbiter (−0.0020/−0.0014 IMPs/board;
+  the small PD positive is the doubling artifact).
+
 ### Added
 
 - **Opener's balanced-18-19 notrump actions in a contested `1X (1Y) …`
