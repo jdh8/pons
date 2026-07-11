@@ -400,17 +400,24 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_suppress_5card_major_takeout: bool,
 
-    /// Author the **rich advance** of partner's takeout double of a one-opening
-    /// (`(1t)–X–(P)–?`): cue + notrump ladder giving the advancer an invite/force
-    /// channel (opt-in; see `set_rich_advance_double`).
+    /// Disable the **rich advance** of partner's takeout double of a one-opening
+    /// (`(1t)–X–(P)–?`) — revert to the flat advance without the cue + notrump
+    /// invite/force ladder (shipped default-on; see `set_rich_advance_double`).
     #[arg(long, default_value_t = false)]
-    ns_rich_advance: bool,
+    no_ns_rich_advance: bool,
 
     /// Add the **jump-cue Rubens transfer** layer on top of the rich advance (a
     /// transfer to a 5+ unbid major; no-op unless `--ns-rich-advance`; opt-in,
     /// see `set_advance_rubens`).
     #[arg(long, default_value_t = false)]
     ns_advance_rubens: bool,
+
+    /// Advance partner's takeout double with the **highest-ranking** eligible
+    /// suit rather than the **longest** (higher-ranking on a tie); also governs
+    /// the rich advance's weak natural and forced-suit picks (shipped default-on
+    /// = longest; see `set_longest_first_advance`).
+    #[arg(long, default_value_t = false)]
+    no_ns_longest_advance: bool,
 
     /// Disable opener's balanced `1NT` rebid after `1m – 1M` — revert a balanced
     /// 12–14 with a five-card minor to the natural `2m` (shipped default-on; see
@@ -1278,8 +1285,9 @@ fn main() -> anyhow::Result<()> {
     pons::bidding::constraint::set_suppress_5card_major_takeout(
         !args.no_ns_suppress_5card_major_takeout,
     );
-    pons::bidding::american::set_rich_advance_double(args.ns_rich_advance);
+    pons::bidding::american::set_rich_advance_double(!args.no_ns_rich_advance);
     pons::bidding::american::set_advance_rubens(args.ns_advance_rubens);
+    pons::bidding::american::set_longest_first_advance(!args.no_ns_longest_advance);
     pons::bidding::american::set_cachalot_contested_x(!args.no_ns_cachalot_contested_x);
     pons::bidding::american::set_balanced_1nt_rebid(!args.no_ns_balanced_1nt_rebid);
     pons::bidding::american::set_opener_extras_ladder(!args.no_ns_opener_extras_ladder);

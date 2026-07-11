@@ -1118,11 +1118,15 @@ thread_local! {
     /// Whether the *rich* advance of partner's takeout double of a one-opening
     /// (`[1t, X, P]`) is authored — the cue + notrump ladder that gives the
     /// advancer an invite/force channel; see [`set_rich_advance_double`].
-    static RICH_ADVANCE_DOUBLE: Cell<bool> = const { Cell::new(false) };
+    static RICH_ADVANCE_DOUBLE: Cell<bool> = const { Cell::new(true) };
     /// Whether the **jump-cue Rubens transfer** layer sits on top of the rich
     /// advance — a jump-cue transfer to a 5+ unbid major; see
     /// [`set_advance_rubens`].  No effect unless [`RICH_ADVANCE_DOUBLE`] is on.
     static ADVANCE_RUBENS: Cell<bool> = const { Cell::new(false) };
+    /// Whether the advance of partner's takeout double bids the **longest** suit
+    /// (weight climbing with length) rather than the highest-ranking 4+ suit;
+    /// see [`set_longest_first_advance`].
+    static LONGEST_FIRST_ADVANCE: Cell<bool> = const { Cell::new(true) };
 }
 
 /// Toggle the responsive double after partner's **takeout double** and their
@@ -1161,13 +1165,14 @@ pub fn set_responsive_overcall(on: bool) {
 /// opening (`(1t)–X–(P)–?`) for books built *after* this call (thread-local,
 /// read once at book-construction time)
 ///
-/// **Off by default** (the flat [`advance_double`] ladder). When on, the
-/// advancer gets a rich ladder: a cue of opener's suit asking for a 4-card major
-/// (invitational 10–11 — the Stayman-ask; game hands blast 4M), a notrump
+/// **On by default** (the shipped behavior); pass `false` (`bba-gen
+/// --no-ns-rich-advance`) to drop back to the flat [`advance_double`] ladder.
+/// The advancer gets a rich ladder: a cue of opener's suit asking for a 4-card
+/// major (invitational 10–11 — the Stayman-ask; game hands blast 4M), a notrump
 /// ladder (`1NT` 7–10 / `2NT` 11–12 / `3NT` 13+), weak shapely game jumps, and a
 /// forced 3-card-suit response when broke — filling the invite/force gap the
-/// flat floor leaves. The A/B knob (`bba-gen --ns-rich-advance`); see
-/// `docs/ai-bidder/21gf-ledger.md`.
+/// flat floor leaves. Measured a constructive win vs the flat book (see
+/// `docs/ai-bidder/21gf-ledger.md`).
 pub fn set_rich_advance_double(on: bool) {
     RICH_ADVANCE_DOUBLE.with(|cell| cell.set(on));
 }
@@ -1195,6 +1200,27 @@ pub fn set_advance_rubens(on: bool) {
 /// Whether the jump-cue Rubens transfer layer is currently authored
 fn advance_rubens_enabled() -> bool {
     ADVANCE_RUBENS.with(Cell::get)
+}
+
+/// Toggle the **longest-first** suit discipline for the flat advance of partner's
+/// takeout double of a one-of-a-suit opening (`(1t)–X–(P)–?`) for books built
+/// *after* this call (thread-local, read at book-construction time)
+///
+/// **On by default** (the shipped behavior); pass `false` (`bba-gen
+/// --no-ns-longest-advance`) to score every eligible 4+ suit alike, whereupon
+/// the argmax tie-break bids the **highest-ranking** one regardless of length —
+/// holding five clubs and four spades it advances `1♠`, not `2♣`. On, the
+/// natural-advance weight climbs with suit length, so the advancer bids the
+/// **longest** suit and breaks equal-length ties toward the higher-ranking suit
+/// (a major over a minor, spades over hearts) — standard takeout-double
+/// advancing.
+pub fn set_longest_first_advance(on: bool) {
+    LONGEST_FIRST_ADVANCE.with(|cell| cell.set(on));
+}
+
+/// Whether the longest-first advance discipline is currently authored
+fn longest_first_advance_enabled() -> bool {
+    LONGEST_FIRST_ADVANCE.with(Cell::get)
 }
 
 /// Whether the overcall responsive double is currently authored
@@ -2880,12 +2906,45 @@ pub fn advance_double(their_opening: Bid) -> Rules {
             continue;
         }
         let bid_level = if strain > theirs { level } else { level + 1 };
-        // Natural advance at the cheapest legal level.
-        rules = rules.rule(Bid::new(bid_level, strain), 1.0, len(suit, 4..));
+        // Natural advance at the cheapest legal level (longest-first under the knob).
+        rules = natural_advance(rules, suit, bid_level, 1.0, 4);
         // Major-suit game jump with support and opening values.
         if matches!(suit, Suit::Hearts | Suit::Spades) {
             rules = rules.rule(Bid::new(4, strain), 1.4, len(suit, 4..) & points(11..));
         }
+    }
+    rules
+}
+
+/// Append the natural-suit advance of a takeout double: `suit`, bid at
+/// `bid_level`, with floor weight `base` and minimum length `min_len`.
+///
+/// Off the [`set_longest_first_advance`] knob this is a single flat rule, so the
+/// classifier's argmax tie-break advances the highest-ranking eligible suit.  On
+/// it, the rule becomes a ladder whose weight climbs a hair with each held card,
+/// so the **longest** suit wins the advance; a sub-card rank bonus breaks
+/// equal-length ties toward the higher-ranking suit (a major over a minor,
+/// spades over hearts).  The increments are tiny — under the gap to every
+/// stronger rung — so only the choice *among* eligible natural suits changes,
+/// never whether a natural suit beats a jump, notrump, cue, or pass.
+fn natural_advance(
+    mut rules: Rules,
+    suit: Suit,
+    bid_level: u8,
+    base: f32,
+    min_len: usize,
+) -> Rules {
+    let strain = Strain::from(suit);
+    if !longest_first_advance_enabled() {
+        return rules.rule(Bid::new(bid_level, strain), base, len(suit, min_len..));
+    }
+    let rank_bonus = 0.0001 * f32::from(suit as u8);
+    for held in min_len..=13 {
+        rules = rules.rule(
+            Bid::new(bid_level, strain),
+            base + 0.001 * held as f32 + rank_bonus,
+            len(suit, held..),
+        );
     }
     rules
 }
@@ -2992,14 +3051,15 @@ fn advance_double_rich(their_opening: Bid) -> Rules {
             continue;
         }
         let bid_level = if strain > theirs { level } else { level + 1 };
-        // Natural advance at the cheapest legal level (weak, 0–7).
-        rules = rules.rule(Bid::new(bid_level, strain), 1.0, len(suit, 4..));
+        // Natural advance at the cheapest legal level (weak, 0–7) — longest-first
+        // under the knob, so a weak two-suiter shows its longer suit.
+        rules = natural_advance(rules, suit, bid_level, 1.0, 4);
         // Forced 3-card suit: a takeout double cannot be passed for want of a
         // bid, so any hand with no 4-card suit and no notrump/cue home still
-        // introduces its cheapest 3-card suit (no HCP cap — the higher-weight
-        // cue, notrump, and 4-card-suit rules take every hand that has a better
-        // call, leaving only the genuinely stuck ones here).
-        rules = rules.rule(Bid::new(bid_level, strain), 0.3, len(suit, 3..));
+        // introduces its longest (higher-ranking on a tie) 3-card suit (no HCP
+        // cap — the higher-weight cue, notrump, and 4-card-suit rules take every
+        // hand that has a better call, leaving only the genuinely stuck ones here).
+        rules = natural_advance(rules, suit, bid_level, 0.3, 3);
         // Jump in a new suit shows extras — but *majors only*: a jump in a minor
         // after the takeout double abandons 3NT for a suit that needs eleven
         // tricks and gets doubled (measured: minor jumps were the residual DD
@@ -4623,6 +4683,101 @@ mod tests {
     }
 
     #[test]
+    fn longest_first_advance_bids_the_longer_suit() {
+        // (1♣)–X–(P): 5 diamonds + 4 spades, a 7-HCP minimum.  This pins the
+        // *flat* book (`--no-ns-rich-advance`): it scores both 4+ suits alike, so
+        // the argmax bids the higher-ranking major 1♠; with the knob on, the
+        // weight climbs with length and the longer diamonds win the advance.
+        let over_1c = [call(1, Strain::Clubs), Call::Double, Call::Pass];
+        let hand = "KJ32.32.K8765.32"; // 4 spades, 5 diamonds
+        super::set_rich_advance_double(false);
+        super::set_longest_first_advance(false);
+        let (flat, _) = best_call(&over_1c, hand);
+        assert_eq!(
+            flat,
+            call(1, Strain::Spades),
+            "flat advance bids the higher-ranking 4-card major",
+        );
+
+        super::set_longest_first_advance(true);
+        let (longest, floored) = best_call(&over_1c, hand);
+        // Equal-length ties still break to the higher-ranking suit: 4-4 majors → 1♠
+        // (the flat book has no invitational jump; the rich book would jump to 2M).
+        let (tie, _) = best_call(&over_1c, "KJ32.KQ32.543.32");
+        super::set_longest_first_advance(true); // restore defaults
+        super::set_rich_advance_double(true);
+
+        assert_eq!(
+            longest,
+            call(1, Strain::Diamonds),
+            "longest-first bids the 5-card diamonds over the 4-card spades",
+        );
+        assert!(
+            !floored,
+            "the natural advance is a book node, not the floor"
+        );
+        assert_eq!(
+            tie,
+            call(1, Strain::Spades),
+            "4-4 majors advance the higher-ranking spades",
+        );
+    }
+
+    #[test]
+    fn longest_first_advance_governs_the_rich_book() {
+        // The rich advance's *negative* suit picks obey the same discipline: the
+        // weak natural suit and the forced-when-broke suit both go longest-first.
+        let over_1c = [call(1, Strain::Clubs), Call::Double, Call::Pass];
+        let over_1h = [call(1, Strain::Hearts), Call::Double, Call::Pass];
+        super::set_rich_advance_double(true);
+        super::set_longest_first_advance(false);
+
+        // Weak two-suiter (7 HCP, 4 spades + 5 diamonds): flat rich advances the
+        // higher-ranking 1♠, longest-first advances the longer 1♦.
+        let two_suiter = "KJ32.32.K8765.32";
+        let (flat_weak, _) = best_call(&over_1c, two_suiter);
+        super::set_longest_first_advance(true);
+        let (longest_weak, _) = best_call(&over_1c, two_suiter);
+        super::set_longest_first_advance(false);
+
+        // Forced bust (0 HCP, no 4-card suit outside their hearts): flat rich is
+        // forced by the argmax into the higher-level 2♦; longest-first prefers the
+        // higher-ranking — and cheaper — 1♠ among the equal 3-card suits.
+        let bust = "432.5432.432.432";
+        let (flat_forced, _) = best_call(&over_1h, bust);
+        super::set_longest_first_advance(true);
+        let (longest_forced, floored) = best_call(&over_1h, bust);
+
+        super::set_longest_first_advance(true); // restore defaults
+        super::set_rich_advance_double(true);
+
+        assert_eq!(
+            flat_weak,
+            call(1, Strain::Spades),
+            "flat rich weak → higher spades"
+        );
+        assert_eq!(
+            longest_weak,
+            call(1, Strain::Diamonds),
+            "rich weak → longer diamonds"
+        );
+        assert_eq!(
+            flat_forced,
+            call(2, Strain::Diamonds),
+            "flat rich forced → higher index"
+        );
+        assert_eq!(
+            longest_forced,
+            call(1, Strain::Spades),
+            "rich forced → higher spades"
+        );
+        assert!(
+            !floored,
+            "the forced advance is a rich book node, not the floor"
+        );
+    }
+
+    #[test]
     fn gladiator_club_three_way() {
         // Clubs split three ways by strength: a weak 6+♣ hand transfers via 2NT
         // (overcaller completes 3♣); an invitational 6+♣ hand goes 2♣→2♦→3♣; a
@@ -5145,6 +5300,7 @@ mod tests {
         let (forced, _) = best_call(&auction, broke);
         super::set_rich_advance_double(false);
         let (flat_force, _) = best_call(&auction, force);
+        super::set_rich_advance_double(true); // restore default
 
         assert_eq!(
             cued,
@@ -5185,7 +5341,7 @@ mod tests {
         super::set_rich_advance_double(true);
         let (driven, _) = best_call(&auction, force);
         let (rested, _) = best_call(&auction, invite);
-        super::set_rich_advance_double(false);
+        super::set_rich_advance_double(true); // restore default
 
         assert_eq!(
             driven,
@@ -5213,7 +5369,7 @@ mod tests {
 
         super::set_rich_advance_double(true);
         let (blast, _) = best_call(&auction, weak);
-        super::set_rich_advance_double(false);
+        super::set_rich_advance_double(true); // restore default
 
         assert_eq!(
             blast,
@@ -5261,7 +5417,7 @@ mod tests {
         }
 
         super::set_advance_rubens(false);
-        super::set_rich_advance_double(false);
+        super::set_rich_advance_double(true); // restore default
     }
 
     /// Best call with Woolsey forced on (default ranges) and the conflicting

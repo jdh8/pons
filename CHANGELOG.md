@@ -220,6 +220,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The advance of partner's takeout double is now the rich, longest-first
+  ladder by default** (`set_rich_advance_double` + `set_longest_first_advance`,
+  both flipped **opt-in → default-on**; off-switches `bba-gen
+  --no-ns-rich-advance` / `--no-ns-longest-advance`). The **rich advance** (cue
+  Stayman-ask, `1NT`/`2NT`/`3NT` stopper ladder, majors-only invitational
+  `2M`/`3M` jumps, two-way `4M`, penalty pass, forced 3-card response — shipped
+  opt-in in 0.10.0) gives the advancer of `(1t)–X–(P)` the invite/force channel
+  the flat floor lacked; **longest-first** grades the natural rungs by length (a
+  sub-card rank bonus breaking equal-length ties to the higher suit, via a shared
+  `natural_advance` helper) so the advancer bids its **longest** suit — 5♦4♠ →
+  `1♦`, 4-4 majors → `1♠` — instead of the highest-ranking, no longer burying a
+  biddable major under a longer minor. The two compose: the jump-to-`2M` the rich
+  book adds is exactly the rescue that made longest-first a wash in the flat book.
+
+  Why the flip now: the takeout-double-discipline features shipped in 0.10.0
+  (5332 / 4432 / flat-4333 / 5-card-major suppression) changed *which* hands
+  double, hence the advancer population the book faces. The **byte-identical**
+  rich book — a clean DD-wash against the old double population (−0.0011, kept
+  opt-in) — now measures a **significant constructive win** against the cleaner
+  one. Confirm run, 409,600 bd/arm/vul, per-shard 95% CI, reproduced across two
+  independent seeds:
+
+  | comparison | NV plain | NV PD | vul plain | vul PD |
+  | --- | --- | --- | --- | --- |
+  | rich vs flat | +0.0017 | +0.0012 | +0.0025 | +0.0023 |
+  | rich + longest vs flat | +0.0022 | +0.0016 | +0.0031 | +0.0029 |
+
+  All cells SIG+; plain ≥ PD throughout → a constructive gain, not a doubling
+  artifact. Longest-first's marginal contribution on top of the rich book is a
+  wash-to-slight-positive (~+0.0006, the jump-rescue turning the flat book's
+  slight-negative lean positive). The jump-cue **Rubens** transfer layer stays
+  opt-in (`set_advance_rubens`) — its right-siding value is invisible to
+  double-dummy. Runner `scripts/rich-advance-ab.sh`.
+
 - **The longer-major response discipline is now the default**
   (`set_longer_major_response`, `bba-gen --no-ns-longer-major-response`;
   **default-on**). Over `1♣`/`1♦` a two-suited responder now names the longer
