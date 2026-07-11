@@ -54,9 +54,15 @@ and the knob retired**. In practice the house keeps the shipped default-on knob'
   "retired" knob only faces developers, so it stays in rustdoc (no
   `#[doc(hidden)]`) — the off-switch should be documented for whoever re-measures.
 
-Precedent: `set_rule_of_20` and `set_balanced_1nt_rebid` retired this way. Each
-retirement still wants its own confirming re-measure — **out of scope for this
-document-only pass.**
+Retired this way so far: `rule_of_20`, `balanced_1nt_rebid`, and the fresh
+natural-≥-floor batch (`major_game_tries`, `longer_major_response`,
+`major_rebid_tails`, `competitive_rebid`, `suppress_nt_game_force_over_double`,
+`correct_3nt_to_major`, `overcall_discipline`, `trap_pass`,
+`penalty_double_leave_in`, `strong_two_competition`, and the three
+`suppress_*_takeout` knobs). `up_the_line` is **deliberately kept** as a `web`
+toggle: its trigger fires independent of `xyz()` (it is not gated on it), so
+forcing it on while `xyz` stays user-toggleable would strand it in its
+standalone-loss config. Retire it only once its rules are gated on `xyz()`.
 
 ### Freshness vocabulary
 
