@@ -5,8 +5,10 @@
 //! rebid and underbids as a simple two-level suit.  The **real Meckstroth
 //! adjunct** turns `2NT` into an artificial 18+ game force of *any* shape, with a
 //! `3♣` relay and shape-out continuations toward the right game or slam.  Both
-//! arms run the same 2/1 system; the only difference is the [`set_meckstroth_2nt`]
-//! toggle, read once at book-construction time.
+//! arms run the same 2/1 system; the only difference is the [`set_meckstroth_adjunct`]
+//! toggle, read once at book-construction time.  (That knob now carries the whole
+//! adjunct — the artificial `2NT` *and* the invitational `3m` jumps — so the
+//! baseline arm drops both; the `2NT` machine dominates the divergent boards.)
 //!
 //! Opponents are silenced (East/West always pass), so every auction is
 //! constructive start to finish — this measures the *constructive* value of the
@@ -24,7 +26,7 @@ use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, Contract, FullDeal, Seat};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
-use pons::bidding::american::set_meckstroth_2nt;
+use pons::bidding::american::set_meckstroth_adjunct;
 use pons::bidding::context::relative;
 use pons::bidding::{Family, Inferences, Stance};
 use pons::scoring::{final_contract, imps, ns_score_contract, ns_score_pd};
@@ -109,14 +111,14 @@ fn lead_inputs(
 fn main() {
     let args = Args::parse();
     let mut rng = rand::rng();
-    // arm 0 = baseline (natural 2NT, the shipped default), arm 1 = the artificial
-    // game-forcing 2NT.  The toggle is read at book-construction time, so build
-    // each arm under its own setting; the baked tries are independent thereafter.
-    set_meckstroth_2nt(false);
+    // arm 0 = baseline (natural 2NT, no adjunct), arm 1 = the Meckstroth adjunct
+    // (the shipped default).  The toggle is read at book-construction time, so
+    // build each arm under its own setting; the baked tries are independent
+    // thereafter.
+    set_meckstroth_adjunct(false);
     let baseline = american().against(Family::NATURAL);
-    set_meckstroth_2nt(true);
+    set_meckstroth_adjunct(true); // restore the shipped default (on)
     let adjunct = american().against(Family::NATURAL);
-    set_meckstroth_2nt(false); // restore the shipped default
     let stances = [baseline, adjunct];
 
     // Both arms bid the same deal; the only difference is opener's rebid table.

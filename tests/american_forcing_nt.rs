@@ -6,9 +6,7 @@
 mod common;
 use common::*;
 
-use pons::bidding::american::{
-    set_forcing_nt_two_suiter, set_meckstroth_2nt, set_meckstroth_adjunct,
-};
+use pons::bidding::american::{set_forcing_nt_two_suiter, set_meckstroth_adjunct};
 
 // ---------------------------------------------------------------------------
 // Responder's second call: 1♠ – (P) – 1NT – (P) – 2♦ – (P) – ?
@@ -272,13 +270,13 @@ fn responder_accepts_invitational_minor_to_heart_game() {
 //   1♠ – (P) – 1NT – (P) – 2NT! – (P) – …
 // ---------------------------------------------------------------------------
 
-/// The 2/1 pair with the artificial game-forcing 2NT adjunct **off** — it ships
-/// on (so the default `stance()` already carries it), so build the baseline arm
-/// under the toggle then restore the shipped default.
-fn meckstroth_2nt_off_stance() -> Stance {
-    set_meckstroth_2nt(false);
+/// The 2/1 pair with the Meckstroth adjunct **off** — it ships on (so the default
+/// `stance()` already carries it), so build the baseline arm under the toggle then
+/// restore the shipped default.
+fn meckstroth_off_stance() -> Stance {
+    set_meckstroth_adjunct(false);
     let system = american().against(Family::NATURAL);
-    set_meckstroth_2nt(true); // restore the shipped default
+    set_meckstroth_adjunct(true); // restore the shipped default
     system
 }
 
@@ -312,7 +310,7 @@ fn game_forcing_2nt_routes_shapely_eighteen_plus() {
     // Knob off: no GF 2NT for a shapely hand — it jump-rebids the six-card major.
     assert_eq!(
         best_call(
-            &meckstroth_2nt_off_stance(),
+            &meckstroth_off_stance(),
             &after_1s_1nt(),
             "AKQ982.KQJ4.A.32"
         ),

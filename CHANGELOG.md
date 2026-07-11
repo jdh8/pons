@@ -10,8 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **The real Meckstroth adjunct — an artificial game-forcing `2NT`** shipped
-  **default-on** (`set_meckstroth_2nt`; the `ab-meckstroth-2nt` self-play harness
-  builds a baseline arm with it off). After `1M – 1NT` (the forcing notrump)
+  **default-on** (`set_meckstroth_adjunct`; the `ab-meckstroth-2nt` self-play
+  harness builds a baseline arm with it off). After `1M – 1NT` (the forcing notrump)
   opener's `2NT` is now an artificial **18+ game force of any shape** instead of
   the natural 18–19 balanced rebid, weight-ordered above the `3M` jump-rebid so
   every 18+ hand routes through it. Responder relays `3♣` ("you describe"), shows
@@ -26,18 +26,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   continuation only on the two `1M – 1NT` nodes — `1♥ – 1♠ – 2NT`, `1♣ – 1♦ – 2NT`
   etc. keep the natural 18–19 rebid.
 
-  Note: the pre-existing `set_meckstroth_adjunct` is a **misnomer** — it only adds
-  opener's invitational `3m` jumps, not this artificial-`2NT` machine. The two are
-  independent and both ship on.
+  This consolidates the Meckstroth adjunct under **one** knob. What was formerly a
+  misnamed `set_meckstroth_adjunct` (opener's invitational `3m` jumps only) plus a
+  separate `set_meckstroth_2nt` (this artificial-`2NT` machine) is now the single
+  `set_meckstroth_adjunct` gating both feature sets — the complete convention. The
+  shipped book is byte-identical (both shipped on); only the knob structure changed.
 
   **Measured a clean win and ships default-on.** Paired self-play A/B
   (`ab-meckstroth-2nt`, 200k boards/cell × two seeds × both vulnerabilities,
-  opponents silenced), on-vs-off: plain DD **+0.0075** NV / **+0.013** vul,
-  perfect defense **+0.006 / +0.011**, single-dummy blind lead **+0.010 ± 0.0017 /
-  +0.017 ± 0.0023** — every scorer positive, both seeds, all sd CIs clean above
-  zero (+2.7 / +4.4 IMPs per divergent board). Fires on ≈0.4% of boards (opener's
-  18+ slice). Unlike `set_meckstroth_adjunct` (plain-wash + PD-loss, saved only by
-  the blind lead), this is a plain-DD win outright.
+  opponents silenced), the `2NT` machine on-vs-off: plain DD **+0.0075** NV /
+  **+0.013** vul, perfect defense **+0.006 / +0.011**, single-dummy blind lead
+  **+0.010 ± 0.0017 / +0.017 ± 0.0023** — every scorer positive, both seeds, all sd
+  CIs clean above zero (+2.7 / +4.4 IMPs per divergent board). Fires on ≈0.4% of
+  boards (opener's 18+ slice). The folded-in invitational `3m` jumps are
+  sd-vindicated (plain wash, PD over-punished, sd-lead +0.0012 / +0.0042 NV/vul),
+  whereas the `2NT` machine is a plain-DD win outright.
 
 - **Opener's invitational major two-suiter over the forcing `1NT`** shipped
   **default-on** (`set_forcing_nt_two_suiter`; the `ab-forcing-nt-two-suiter`

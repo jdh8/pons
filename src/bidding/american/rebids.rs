@@ -13,17 +13,27 @@ use std::cell::Cell;
 // building the `Pair`.  A per-classify flag (like `set_fifths_companion`) would
 // not work — the adjunct changes which *nodes exist*, baked once at build time.
 std::thread_local! {
-    /// Whether opener's rebid tables carry the **Meckstroth adjunct**: the
-    /// invitational `3m` jumps (`1M – 1NT – 3m` and `1♥ – 1♠ – 3m`) and their
-    /// responder continuations.  On by default.
+    /// Whether opener's rebid tables carry the **complete Meckstroth adjunct**:
+    /// the artificial game-forcing `2NT` (18+, any shape) with its `3♣`-relay
+    /// shape-outs, *and* the invitational `3m` jumps (`1M – 1NT – 3m` and
+    /// `1♥ – 1♠ – 3m`).  On by default; both feature sets ship on together.
     static MECKSTROTH: Cell<bool> = const { Cell::new(true) };
 }
 
-/// Enable or disable the Meckstroth adjunct in books built *after* this call
+/// Enable the complete Meckstroth adjunct in books built *after* this call
+/// (default **on**)
 ///
-/// Read at book-construction time (during `register`); set it before building
-/// the `Pair`.  The default is on.  Used by the `meckstroth-abc` A/B example to
-/// build a baseline arm (off) and a treatment arm (on).
+/// After `1M – 1NT` (the forcing notrump), opener's `2NT` is an artificial 18+
+/// game force of *any* shape (responder relays `3♣`, opener shape-describes
+/// toward game or slam) instead of the natural 18–19 balanced rebid; opener also
+/// has the invitational `3m` jumps (5+ minor, 15–17).  Read at book-construction
+/// time; set it before building the `Pair` (the `ab-meckstroth-2nt` A/B builds a
+/// baseline arm with it off).
+///
+/// Shipped **on**.  The artificial `2NT` measured a plain-DD win
+/// (`ab-meckstroth-2nt`, 200k×2 seeds: plain +0.0075/+0.013, PD +0.006/+0.011,
+/// sd-lead +0.010/+0.017 NV/vul, all CI-clean); the `3m` jumps are sd-vindicated
+/// (plain wash, PD over-punished, sd-lead +0.0012/+0.0042 NV/vul).
 pub fn set_meckstroth_adjunct(on: bool) {
     MECKSTROTH.with(|cell| cell.set(on));
 }
@@ -35,39 +45,10 @@ fn meckstroth() -> bool {
 
 // ponytail: same construction-time toggle as the Meckstroth adjunct above.
 std::thread_local! {
-    /// Whether opener's forcing-`1NT` rebid `2NT` is the **real Meckstroth
-    /// adjunct**: an artificial 18+ game force of any shape, with the `3♣`-relay
-    /// shape-out continuations, rather than the natural 18–19 balanced rebid.
-    /// Shipped **on** (`ab-meckstroth-2nt`, 200k×2 seeds: plain +0.0075/+0.013,
-    /// PD +0.006/+0.011, sd-lead +0.010/+0.017 NV/vul — all CI-clean positive).
-    static MECKSTROTH_2NT: Cell<bool> = const { Cell::new(true) };
-}
-
-/// Enable the artificial game-forcing `2NT` Meckstroth adjunct in books built
-/// after this call (default **on**)
-///
-/// After `1M – 1NT` (the forcing notrump), opener's `2NT` is an artificial 18+
-/// game force of *any* shape instead of the natural 18–19 balanced rebid;
-/// responder relays `3♣` and opener shape-describes toward game or slam.  This
-/// is the published Meckstroth adjunct — distinct from [`set_meckstroth_adjunct`],
-/// which only adds opener's invitational `3m` jumps.  Read at book-construction
-/// time; set it before building the `Pair` (the `ab-meckstroth-2nt` A/B builds a
-/// baseline arm with it off).
-pub fn set_meckstroth_2nt(on: bool) {
-    MECKSTROTH_2NT.with(|cell| cell.set(on));
-}
-
-/// Whether the artificial game-forcing `2NT` adjunct is currently enabled
-fn meckstroth_2nt() -> bool {
-    MECKSTROTH_2NT.with(Cell::get)
-}
-
-// ponytail: same construction-time toggle as the Meckstroth adjunct above.
-std::thread_local! {
     /// Whether opener shows an invitational (15–17) major two-suiter after the
     /// forcing `1NT`: the `1♥ – 1NT – 2♠` reverse (5+ hearts, 4+ spades) and the
     /// `1♠ – 1NT – 3♥` jump (5-5 majors).  Fills the seam between the minimum
-    /// natural rebids and the 18+ game force (`set_meckstroth_2nt`).  Shipped
+    /// natural rebids and the 18+ game force (`set_meckstroth_adjunct`).  Shipped
     /// **on**, sd-vindicated (`ab-forcing-nt-two-suiter`, 1M×2 seeds×2 vuls):
     /// plain wash-NV/+0.0012-vul, PD −0.0017/−0.0010 (over-punished), sd-lead
     /// **+0.0012/+0.0028** NV/vul — all four sd cells CI-clean positive.
@@ -428,11 +409,11 @@ fn rebid_one_heart_one_spade() -> Rules {
 fn rebid_after_forcing_notrump(major: Suit) -> Rules {
     let trump = Strain::from(major);
     let mut rules = Rules::new();
-    // 2NT: the real Meckstroth adjunct's artificial 18+ game force (any shape)
-    // when enabled, otherwise the natural 18–19 balanced rebid.  Weight 1.6 to
-    // outrank the 3M major jump-rebid (1.5), so every 18+ hand routes through
-    // the game force while the invitational 3m jumps stay 15–17.
-    if meckstroth_2nt() {
+    // 2NT: the Meckstroth adjunct's artificial 18+ game force (any shape) when
+    // enabled, otherwise the natural 18–19 balanced rebid.  Weight 1.6 to outrank
+    // the 3M major jump-rebid (1.5), so every 18+ hand routes through the game
+    // force while the invitational 3m jumps stay 15–17.
+    if meckstroth() {
         rules = rules
             .rule(Bid::new(2, Strain::Notrump), 1.6, points(18..))
             .alert(OPENER_GF_2NT);
@@ -1036,7 +1017,7 @@ fn opener_over_resp_clubs(major: Suit) -> Rules {
 }
 
 /// Register the artificial game-forcing `2NT` adjunct (no-op unless
-/// [`set_meckstroth_2nt`] enabled it)
+/// [`set_meckstroth_adjunct`] enabled it)
 ///
 /// Authors both sides below `1M – 1NT – 2NT!`: responder's relay round, opener's
 /// shape-out over `3♣`, responder's placement over each shape-out (with RKCB on
@@ -1046,7 +1027,7 @@ fn opener_over_resp_clubs(major: Suit) -> Rules {
 /// on-knob insert wins; with the knob off nothing is authored and the natural
 /// handling stands.
 fn register_meckstroth_2nt_continuations(book: &mut Trie) {
-    if !meckstroth_2nt() {
+    if !meckstroth() {
         return;
     }
     for major in [Suit::Hearts, Suit::Spades] {
