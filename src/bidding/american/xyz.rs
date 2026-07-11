@@ -269,8 +269,13 @@ fn register_prefix(book: &mut Trie, opening: Suit, response: Suit, rebid: Strain
 }
 
 /// Register the XYZ structure on all ten one-level prefixes (no-op when off)
+///
+/// On the four `1m – 1M – 1NT` slots, [New Minor Forcing](super::nmf) overrides
+/// XYZ when its knob is on (default off) — the two conventions are mutually
+/// exclusive on that node, so at most one is authored there.
 pub(super) fn register(book: &mut Trie) {
-    if !xyz() {
+    let nmf = super::nmf::new_minor_forcing();
+    if !xyz() && !nmf {
         return;
     }
     for opening in [Suit::Clubs, Suit::Diamonds, Suit::Hearts] {
@@ -278,12 +283,20 @@ pub(super) fn register(book: &mut Trie) {
             if Strain::from(response) <= Strain::from(opening) {
                 continue;
             }
-            for higher in Suit::ASC {
-                if Strain::from(higher) > Strain::from(response) {
-                    register_prefix(book, opening, response, Strain::from(higher));
+            if xyz() {
+                for higher in Suit::ASC {
+                    if Strain::from(higher) > Strain::from(response) {
+                        register_prefix(book, opening, response, Strain::from(higher));
+                    }
                 }
             }
-            register_prefix(book, opening, response, Strain::Notrump);
+            // The 1NT rebid: NMF claims the four minor-opening/major-response
+            // slots when on, otherwise XYZ (when on) as before.
+            if nmf && super::nmf::is_nmf_slot(opening, response) {
+                super::nmf::register_prefix(book, opening, response);
+            } else if xyz() {
+                register_prefix(book, opening, response, Strain::Notrump);
+            }
         }
     }
 }

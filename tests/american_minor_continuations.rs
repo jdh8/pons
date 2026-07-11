@@ -8,7 +8,9 @@
 mod common;
 use common::*;
 
-use pons::bidding::american::{set_longer_major_response, set_up_the_line, set_xyz};
+use pons::bidding::american::{
+    set_longer_major_response, set_new_minor_forcing, set_up_the_line, set_xyz,
+};
 
 const P: Call = Call::Pass;
 
@@ -221,5 +223,163 @@ fn xyz_invitation_accepted_to_game() {
             opener,
         ),
         call(4, Strain::Hearts),
+    );
+}
+
+// --- Knob D: New Minor Forcing (the opt-in XYZ alternative) -------------------
+
+/// A stance running New Minor Forcing in place of XYZ, defaults restored
+///
+/// NMF overrides XYZ on the four `1m – 1M – 1NT` slots; the tests only touch
+/// those, so `set_xyz` is left off to isolate the convention purely.
+fn nmf_stance() -> Stance {
+    set_longer_major_response(false);
+    set_up_the_line(false);
+    set_xyz(false);
+    set_new_minor_forcing(true);
+    let stance = american().against(Family::NATURAL);
+    set_longer_major_response(true);
+    set_up_the_line(false);
+    set_xyz(false);
+    set_new_minor_forcing(false);
+    stance
+}
+
+#[test]
+fn new_minor_forcing_checks_back_with_a_five_card_major() {
+    let system = nmf_stance();
+    let two_d = call(2, Strain::Diamonds);
+
+    // Invitational with five hearts checks back with the new minor ...
+    assert_eq!(
+        best_call(
+            &system,
+            &xyz_auction(Strain::Hearts, &[]),
+            "xx.AQJxx.Kxx.xxx"
+        ),
+        two_d,
+    );
+    // ... game values with five hearts likewise (NMF is invitational-or-better) ...
+    assert_eq!(
+        best_call(
+            &system,
+            &xyz_auction(Strain::Hearts, &[]),
+            "Kx.AQJxx.Kxx.xxx"
+        ),
+        two_d,
+    );
+    // ... only four hearts has no fit to hunt, so it invites naturally with 2NT ...
+    assert_eq!(
+        best_call(
+            &system,
+            &xyz_auction(Strain::Hearts, &[]),
+            "xxx.AQJx.Kxx.Qxx"
+        ),
+        call(2, Strain::Notrump),
+    );
+    // ... and a weak hand rebids its long major to play, never the checkback.
+    assert_eq!(
+        best_call(
+            &system,
+            &xyz_auction(Strain::Hearts, &[]),
+            "x.KJxxxx.xxx.xx"
+        ),
+        call(2, Strain::Hearts),
+    );
+}
+
+#[test]
+fn new_minor_forcing_opener_answers() {
+    let system = nmf_stance();
+    let after_nmf = xyz_auction(Strain::Hearts, &[call(2, Strain::Diamonds)]);
+
+    // Three-card support, minimum: a simple 2♥ ...
+    assert_eq!(
+        best_call(&system, &after_nmf, "Axx.Kxx.Qxx.Axxx"),
+        call(2, Strain::Hearts),
+    );
+    // ... three-card support, maximum: the jump to 3♥ ...
+    assert_eq!(
+        best_call(&system, &after_nmf, "Axx.Kxx.Qxx.AJxx"),
+        call(3, Strain::Hearts),
+    );
+    // ... and no fit forces a natural 2NT — opener may never pass the checkback.
+    assert_eq!(
+        best_call(&system, &after_nmf, "Axx.Kx.Qxxx.Axxx"),
+        call(2, Strain::Notrump),
+    );
+}
+
+#[test]
+fn new_minor_forcing_finds_the_other_major() {
+    let system = nmf_stance();
+
+    // Five spades and game values check back with 2♦ ...
+    assert_eq!(
+        best_call(
+            &system,
+            &xyz_auction(Strain::Spades, &[]),
+            "AKxxx.xx.Qxx.KJx"
+        ),
+        call(2, Strain::Diamonds),
+    );
+    // ... and opener shows the four-card heart suit the 1NT rebid concealed.
+    assert_eq!(
+        best_call(
+            &system,
+            &xyz_auction(Strain::Spades, &[call(2, Strain::Diamonds)]),
+            "xx.AQxx.Kxx.Axxx",
+        ),
+        call(2, Strain::Hearts),
+    );
+}
+
+#[test]
+fn new_minor_forcing_invitation_placed() {
+    let system = nmf_stance();
+    let inviter = "Kx.AQJxx.Qxx.xxx"; // twelve with five hearts
+
+    // Opener's minimum (the simple 2♥) declines: an invitational responder
+    // passes out the 5-3 partscore ...
+    assert_eq!(
+        best_call(
+            &system,
+            &xyz_auction(
+                Strain::Hearts,
+                &[call(2, Strain::Diamonds), call(2, Strain::Hearts)],
+            ),
+            inviter,
+        ),
+        Call::Pass,
+    );
+    // ... opener's maximum (the jump to 3♥) accepts to the 5-3 game.
+    assert_eq!(
+        best_call(
+            &system,
+            &xyz_auction(
+                Strain::Hearts,
+                &[call(2, Strain::Diamonds), call(3, Strain::Hearts)],
+            ),
+            inviter,
+        ),
+        call(4, Strain::Hearts),
+    );
+}
+
+#[test]
+fn new_minor_forcing_accepts_the_natural_2nt_invitation() {
+    let system = nmf_stance();
+    // With only four hearts responder cannot check back, so it invites naturally
+    // with 2NT.  Opener must judge that invite: a maximum accepts to game, a
+    // minimum passes.  (Without this authored acceptance the invite floated to
+    // the floor, which passed a maximum — the dominant loss against XYZ.)
+    let after_2nt = xyz_auction(Strain::Hearts, &[call(2, Strain::Notrump)]);
+    assert_eq!(
+        best_call(&system, &after_2nt, "Axx.Kxx.Qxx.AJxx"), // fourteen: accept
+        call(3, Strain::Notrump),
+    );
+    assert_eq!(
+        best_call(&system, &after_2nt, "Axx.Kxx.Qxx.Kxxx"), // twelve: decline
+        Call::Pass,
     );
 }

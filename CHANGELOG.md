@@ -7,6 +7,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **New Minor Forcing as an opt-in alternative to XYZ** (`set_new_minor_forcing`,
+  `bba-gen --ns-new-minor-forcing`, `ab-minor-continuations --nmf`; **default
+  off** — the shipped system keeps XYZ, and the default book is byte-identical).
+  On the four `1m-1M-1NT` auctions, responder's two-of-the-unbid-minor is the
+  classic one-bid checkback: invitational-or-better with a real five-card major.
+  Opener shows three-card support (a minimum raise, or a maximum jump), the
+  other four-card major, or a natural notrump; both sides are authored through
+  to game, including responder's placement over every answer, opener's
+  accept/decline of *every* invitation that stops below game — the checkback's
+  and the natural direct 2NT invite's alike — and responder's rebid of a
+  seventh-card major when opener denies a fit. Placement is
+  authored rather than floored because the answers project only a point *floor*
+  and the `fifths`-based 1NT rebid projects none — so the instinct floor can't
+  read opener's maximum and an invitational responder would under-reach. When on,
+  NMF *overrides* XYZ on exactly those four slots (the dispatch lives in
+  `xyz::register`); the other six one-level checkback auctions stay XYZ. The
+  checkback carries an `.alert(...)` and floors the *major*, not the minor, so it
+  reads with no phantom suit (guarded by a new `artificial_calls_are_alerted`
+  variant for the opt-in book).
+
+  **Measured a small loss to XYZ and stays opt-in.** Direct paired A/B against
+  an XYZ baseline (`ab-minor-continuations --nmf`, 300k boards/vul, one shared
+  seed, opponents silenced): plain DD **−0.0050 ± 0.0009** NV / **−0.0066 ±
+  0.0012** vul, perfect defense −0.0077 / −0.0097 — both scorers negative, every
+  95% CI below zero. The XYZ-vs-floor reference on the same seed reproduces the
+  shipped XYZ (+0.0185 / +0.0293 plain), so the loss is real, not a harness
+  artifact. A worst-board trace (`--dump-worst`, new) drove the authoring: the
+  *first* cut lost twice as much (−0.0100 / −0.0172) because opener passed
+  responder's natural 2NT invitation for want of an authored acceptance (about
+  two-thirds of the worst boards) and buried a long major in 3NT — authoring
+  those replies halved the loss. The residual is genuinely structural: the
+  instinct floor will not fire keycard after the artificial checkback, so NMF
+  cannot reach the slams XYZ's *natural* game force finds through the floor, and
+  a single-bid checkback has no weak-long-minor relay (XYZ's 2♣ shows one).
+  Fully authored, NMF still trails the strictly more expressive two-way
+  structure. Kept as a knob per the house rule (rejected-but-interesting stays
+  opt-in, default byte-identical), a single-dummy re-measure candidate.
+
+- **`ab-minor-continuations --dump-worst N`** prints the N worst plain-DD
+  divergent boards — the deal, both arms' auctions, and both contracts — so a
+  measured loss can be traced to the auctions that cause it (the measurement
+  playbook's divergent-board trace, on demand).
+
 ### Changed
 
 - **Retired the fresh natural-≥-floor toggles from the `web` app.** These are

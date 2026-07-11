@@ -281,6 +281,12 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_xyz: bool,
 
+    /// Enable New Minor Forcing in place of XYZ on the four `1m-1M-1NT` slots
+    /// (opt-in, off by default): responder's two-of-the-new-minor is an
+    /// invitational-or-better checkback promising a five-card major.
+    #[arg(long, default_value_t = false)]
+    ns_new_minor_forcing: bool,
+
     /// Author opener's major game tries after a single raise (`1M – 2M`): a
     /// long-suit try, the general re-raise, or a keycard-asking maximum
     /// (shipped default-on; see `set_major_game_tries`).
@@ -1260,6 +1266,7 @@ fn main() -> anyhow::Result<()> {
     pons::bidding::american::set_longer_major_response(!args.no_ns_longer_major_response);
     pons::bidding::american::set_up_the_line(!args.no_ns_up_the_line);
     pons::bidding::american::set_xyz(!args.no_ns_xyz);
+    pons::bidding::american::set_new_minor_forcing(args.ns_new_minor_forcing);
     pons::bidding::american::set_major_game_tries(!args.no_ns_major_game_tries);
     pons::bidding::american::set_limit_raise_acceptance(!args.no_ns_limit_raise_acceptance);
     pons::bidding::american::set_cue_raise_answer(!args.no_ns_cue_raise_answer);

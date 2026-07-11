@@ -3883,6 +3883,53 @@ mod tests {
         );
     }
 
+    /// The same alert invariant for the opt-in New Minor Forcing book (off by
+    /// default, so the shipped-system walk never sees it).  Guards the one
+    /// artificial call NMF adds — responder's `2`-of-the-new-minor checkback —
+    /// against losing its `.alert(...)` and reading as a phantom minor suit.
+    #[test]
+    fn new_minor_forcing_artificial_calls_are_alerted() {
+        use crate::bidding::american::{american, set_new_minor_forcing};
+
+        set_new_minor_forcing(true);
+        let pair = american();
+        set_new_minor_forcing(false);
+
+        let trie = &pair.constructive.0;
+        let mut worklist: Vec<String> = Vec::new();
+        for (auction, classifier) in trie {
+            let auction: &[Call] = &auction;
+            let Some(rules) = classifier.as_rules() else {
+                continue;
+            };
+            let context = Context::new(RelativeVulnerability::NONE, auction)
+                .with_prefixes(trie.common_prefixes(auction));
+            for rule in rules.rules() {
+                let made = rule.call();
+                if super::artificial(&rule.project(&context), made) && rule.alert().is_none() {
+                    worklist.push(format!(
+                        "[{}] {made}  (label: {:?})",
+                        auction
+                            .iter()
+                            .map(ToString::to_string)
+                            .collect::<Vec<_>>()
+                            .join(" "),
+                        rule.label(),
+                    ));
+                }
+            }
+        }
+
+        worklist.sort();
+        worklist.dedup();
+        assert!(
+            worklist.is_empty(),
+            "{} New Minor Forcing artificial calls lack an alert:\n{}",
+            worklist.len(),
+            worklist.join("\n"),
+        );
+    }
+
     proptest! {
         /// Soundness: a hand that opens the book's choice falls within the
         /// opening inference.  Tests rule 1 (the opening table) over random hands.

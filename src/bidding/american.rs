@@ -71,6 +71,7 @@ use std::sync::Arc;
 mod competition;
 mod defense;
 mod game_force;
+mod nmf;
 mod notrump;
 mod openings;
 mod raises;
@@ -120,6 +121,7 @@ pub(crate) use defense::{
     nt_overcall_systems_on, woolsey_double_floor, woolsey_enabled, woolsey_points,
 };
 pub use game_force::set_second_suit_agreement;
+pub use nmf::set_new_minor_forcing;
 pub use notrump::{
     EUROPEAN, PUPPET, notrump_responses, set_crawling_stayman, set_garbage_stayman,
     set_invitational_5card_majors, set_long_minor_force, set_minor_min_to_3nt, set_notrump_minors,
