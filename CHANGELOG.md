@@ -9,6 +9,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The real Meckstroth adjunct — an artificial game-forcing `2NT`** shipped
+  **default-on** (`set_meckstroth_2nt`; the `ab-meckstroth-2nt` self-play harness
+  builds a baseline arm with it off). After `1M – 1NT` (the forcing notrump)
+  opener's `2NT` is now an artificial **18+ game force of any shape** instead of
+  the natural 18–19 balanced rebid, weight-ordered above the `3M` jump-rebid so
+  every 18+ hand routes through it. Responder relays `3♣` ("you describe"), shows
+  a natural five-card red suit, raises a major fit, or shows five-plus clubs
+  artificially via `3NT` (a doubleton in opener's major, so opener can pull to a
+  6-2 game); opener shape-describes over the relay — six-plus own major, four of
+  the other major (finding the concealed heart fit over `1♠`), five-plus a minor
+  (`3NT`), or a `3♦` default (balanced 18–19 / four-card minor). Both sides are
+  authored through to game with RKCB on the two major-fit nodes, and every
+  artificial call carries an `.alert(...)` (guarded by the shipped
+  `artificial_calls_are_alerted` invariant). This overrides the natural-`2NT`
+  continuation only on the two `1M – 1NT` nodes — `1♥ – 1♠ – 2NT`, `1♣ – 1♦ – 2NT`
+  etc. keep the natural 18–19 rebid.
+
+  Note: the pre-existing `set_meckstroth_adjunct` is a **misnomer** — it only adds
+  opener's invitational `3m` jumps, not this artificial-`2NT` machine. The two are
+  independent and both ship on.
+
+  **Measured a clean win and ships default-on.** Paired self-play A/B
+  (`ab-meckstroth-2nt`, 200k boards/cell × two seeds × both vulnerabilities,
+  opponents silenced), on-vs-off: plain DD **+0.0075** NV / **+0.013** vul,
+  perfect defense **+0.006 / +0.011**, single-dummy blind lead **+0.010 ± 0.0017 /
+  +0.017 ± 0.0023** — every scorer positive, both seeds, all sd CIs clean above
+  zero (+2.7 / +4.4 IMPs per divergent board). Fires on ≈0.4% of boards (opener's
+  18+ slice). Unlike `set_meckstroth_adjunct` (plain-wash + PD-loss, saved only by
+  the blind lead), this is a plain-DD win outright.
+
 - **New Minor Forcing as an opt-in alternative to XYZ** (`set_new_minor_forcing`,
   `bba-gen --ns-new-minor-forcing`, `ab-minor-continuations --nmf`; **default
   off** — the shipped system keeps XYZ, and the default book is byte-identical).

@@ -33,6 +33,35 @@ fn meckstroth() -> bool {
     MECKSTROTH.with(Cell::get)
 }
 
+// ponytail: same construction-time toggle as the Meckstroth adjunct above.
+std::thread_local! {
+    /// Whether opener's forcing-`1NT` rebid `2NT` is the **real Meckstroth
+    /// adjunct**: an artificial 18+ game force of any shape, with the `3♣`-relay
+    /// shape-out continuations, rather than the natural 18–19 balanced rebid.
+    /// Shipped **on** (`ab-meckstroth-2nt`, 200k×2 seeds: plain +0.0075/+0.013,
+    /// PD +0.006/+0.011, sd-lead +0.010/+0.017 NV/vul — all CI-clean positive).
+    static MECKSTROTH_2NT: Cell<bool> = const { Cell::new(true) };
+}
+
+/// Enable the artificial game-forcing `2NT` Meckstroth adjunct in books built
+/// after this call (default **on**)
+///
+/// After `1M – 1NT` (the forcing notrump), opener's `2NT` is an artificial 18+
+/// game force of *any* shape instead of the natural 18–19 balanced rebid;
+/// responder relays `3♣` and opener shape-describes toward game or slam.  This
+/// is the published Meckstroth adjunct — distinct from [`set_meckstroth_adjunct`],
+/// which only adds opener's invitational `3m` jumps.  Read at book-construction
+/// time; set it before building the `Pair` (the `ab-meckstroth-2nt` A/B builds a
+/// baseline arm with it off).
+pub fn set_meckstroth_2nt(on: bool) {
+    MECKSTROTH_2NT.with(|cell| cell.set(on));
+}
+
+/// Whether the artificial game-forcing `2NT` adjunct is currently enabled
+fn meckstroth_2nt() -> bool {
+    MECKSTROTH_2NT.with(Cell::get)
+}
+
 // ponytail: same construction-time toggle as the Meckstroth adjunct — read
 // during `register()`, so set it before building the `Pair`.
 std::thread_local! {
@@ -178,6 +207,17 @@ const OPENER_REVERSE: Alert = Alert("opener-reverse");
 /// Opener's jump-shift — a new suit showing a big two-suiter, game-forcing
 const OPENER_JUMP_SHIFT: Alert = Alert("opener-jump-shift");
 
+/// Opener's artificial game-forcing `2NT` — 18+, any shape (real Meckstroth adjunct)
+const OPENER_GF_2NT: Alert = Alert("meckstroth-2nt");
+/// Responder's `3♣` relay over the game-forcing `2NT` — "describe"
+const PUPPET_2NT: Alert = Alert("meckstroth-2nt-relay");
+/// Responder's `3NT` over the game-forcing `2NT` — 5+ clubs, doubleton in opener's major
+const RESP_CLUBS_2NT: Alert = Alert("meckstroth-2nt-clubs");
+/// Opener's `3♦` default shape-out — balanced 18–19 or a four-card minor
+const GF_DEFAULT: Alert = Alert("meckstroth-2nt-default");
+/// Opener's `3NT` shape-out — five-plus a minor
+const GF_MINOR: Alert = Alert("meckstroth-2nt-minor");
+
 /// Append opener's strength-showing ladder to a one-level-response rebid table
 ///
 /// `opener` is opener's opened suit, `highest` responder's one-level call, and
@@ -313,13 +353,23 @@ fn rebid_one_heart_one_spade() -> Rules {
 /// fallback when nothing more descriptive fits — a basic simplification.
 fn rebid_after_forcing_notrump(major: Suit) -> Rules {
     let trump = Strain::from(major);
-    let mut rules = Rules::new()
-        .rule(
+    let mut rules = Rules::new();
+    // 2NT: the real Meckstroth adjunct's artificial 18+ game force (any shape)
+    // when enabled, otherwise the natural 18–19 balanced rebid.  Weight 1.6 to
+    // outrank the 3M major jump-rebid (1.5), so every 18+ hand routes through
+    // the game force while the invitational 3m jumps stay 15–17.
+    if meckstroth_2nt() {
+        rules = rules
+            .rule(Bid::new(2, Strain::Notrump), 1.6, points(18..))
+            .alert(OPENER_GF_2NT);
+    } else {
+        rules = rules.rule(
             Bid::new(2, Strain::Notrump),
             1.2,
             fifths(18.0..20.0) & balanced(),
-        )
-        .rule(Bid::new(2, trump), 1.0, len(major, 6..));
+        );
+    }
+    rules = rules.rule(Bid::new(2, trump), 1.0, len(major, 6..));
     // Meckstroth adjunct: invitational 3♣/3♦ jumps with a five-card minor.
     rules = with_invitational_minors(rules);
     // Major jump-rebid: 1M – 1NT – 3M on a six-card major with extras.
@@ -653,6 +703,250 @@ fn register_major_jump_rebid_continuations(book: &mut Trie) {
         ],
         responder_after_major_jump_rebid(Suit::Hearts),
     );
+}
+
+// ---------------------------------------------------------------------------
+// The real Meckstroth adjunct: opener's artificial game-forcing 2NT (opt-in)
+// ---------------------------------------------------------------------------
+
+/// The major responder could not have opened — mirrors the 2NT machine
+fn other_major(major: Suit) -> Suit {
+    match major {
+        Suit::Hearts => Suit::Spades,
+        _ => Suit::Hearts,
+    }
+}
+
+/// Responder's call over opener's artificial game-forcing `2NT`
+///
+/// `1M – 1NT – 2NT!` set up a game force (18+, any shape).  Responder shows a
+/// fit, a five-card red suit, five clubs (artificially, via `3NT`), or relays
+/// `3♣` for opener to describe.  Forcing — the `3♣` relay is the finite
+/// catch-all, so there is no `Pass`.
+///
+/// | Call  | Wt   | Meaning |
+/// |-------|------|---------|
+/// | 3M    | 1.45 | Fit + slam interest (3+ support, 10+) → RKCB round |
+/// | 4M    | 1.40 | Fit, no slam interest (3+ support, ≤9) → to play |
+/// | 3♦/3♥ | 1.30 | Natural five-plus red suit (not opener's major) |
+/// | 3NT!  | 1.25 | 5+ clubs, doubleton in opener's major (opener may pull) |
+/// | 3♣!   | 0.50 | Relay — nothing to show, "you describe" |
+fn responder_over_gf_2nt(major: Suit) -> Rules {
+    let m = Strain::from(major);
+    let mut rules = Rules::new()
+        .rule(Bid::new(3, m), 1.45, len(major, 3..) & points(10..))
+        .rule(Bid::new(4, m), 1.40, len(major, 3..) & points(..=9));
+    // Natural five-plus red suits (the game force is set, so free to show).  Over
+    // 1♥ only diamonds is available — 1NT denied four spades, and hearts is the fit.
+    for red in [Suit::Diamonds, Suit::Hearts] {
+        if red != major {
+            rules = rules.rule(Bid::new(3, Strain::from(red)), 1.30, len(red, 5..));
+        }
+    }
+    rules
+        // The fourth suit, shown artificially for symmetry with 3♦/3♥: five-plus
+        // clubs and exactly a doubleton in opener's major (so opener can pull to
+        // a 6-2 game).  Non-forcing — opener may pass 3NT.
+        .rule(
+            Bid::new(3, Strain::Notrump),
+            1.25,
+            len(Suit::Clubs, 5..) & len(major, 2..=2),
+        )
+        .alert(RESP_CLUBS_2NT)
+        // Relay: nothing to show — "you describe".  The finite catch-all.
+        .rule(Bid::new(3, Strain::Clubs), 0.50, points(0..))
+        .alert(PUPPET_2NT)
+}
+
+/// Opener's shape-out over the `3♣` relay (`1M – 1NT – 2NT! – 3♣!`)
+///
+/// Opener describes toward the right game or slam.  Forcing — `3♦` is the finite
+/// catch-all, so there is no `Pass`.
+///
+/// | Call  | Wt   | Meaning |
+/// |-------|------|---------|
+/// | 3M    | 1.35 | Six-plus own major (one-suiter) |
+/// | 3(oM) | 1.30 | Four-plus the other major (natural) |
+/// | 3NT!  | 1.25 | Five-plus a minor |
+/// | 3♦!   | 1.20 | Default — balanced 18–19 or a four-card minor; catch-all |
+fn opener_shapeout(major: Suit) -> Rules {
+    let m = Strain::from(major);
+    let other = other_major(major);
+    Rules::new()
+        .rule(Bid::new(3, m), 1.35, len(major, 6..))
+        .rule(Bid::new(3, Strain::from(other)), 1.30, len(other, 4..))
+        .rule(
+            Bid::new(3, Strain::Notrump),
+            1.25,
+            len(Suit::Clubs, 5..) | len(Suit::Diamonds, 5..),
+        )
+        .alert(GF_MINOR)
+        // Default: balanced 18–19 or a four-card minor — the guaranteed-legal
+        // catch-all (opener is 18+, so `points(0..)` always applies).
+        .rule(Bid::new(3, Strain::Diamonds), 1.20, points(0..))
+        .alert(GF_DEFAULT)
+}
+
+/// Responder places over opener's `3♦` default (`… – 2NT! – 3♣! – 3♦!`)
+///
+/// Opener is balanced 18–19 or has a four-card minor, with exactly five of the
+/// major (a sixth would have jumped to `3M`).  Responder raises a 5-3 major fit
+/// or signs off in `3NT`.
+fn resp_place_over_default(major: Suit) -> Rules {
+    Rules::new()
+        .rule(Bid::new(4, Strain::from(major)), 1.2, len(major, 3..))
+        .rule(Bid::new(3, Strain::Notrump), 1.0, points(0..))
+}
+
+/// Responder places over opener's `3(other major)` (four-plus the other major)
+///
+/// Raises the concealed 4-4 (or 4-3) fit, falls back to opener's five-card own
+/// major with three-card support, else `3NT`.
+fn resp_place_over_other_major(major: Suit) -> Rules {
+    let o = other_major(major);
+    Rules::new()
+        .rule(Bid::new(4, Strain::from(o)), 1.3, len(o, 4..))
+        .rule(Bid::new(4, Strain::from(major)), 1.1, len(major, 3..))
+        .rule(Bid::new(3, Strain::Notrump), 0.8, points(0..))
+}
+
+/// Responder places over opener's six-plus own major (`… – 3♣! – 3M`)
+///
+/// An eight-card major fit is near-certain; responder drives slam with a maximum
+/// (`4NT` RKCB) or signs off in game.
+fn resp_place_over_six(major: Suit) -> Rules {
+    let m = Strain::from(major);
+    Rules::new()
+        .rule(Bid::new(4, Strain::Notrump), 1.3, points(11..))
+        .alert(super::slam::RKCB)
+        .rule(Bid::new(4, m), 1.0, points(0..))
+}
+
+/// Responder places over opener's `3NT` (five-plus a minor, i.e. 5-5)
+///
+/// Non-forcing: responder pulls to a 5-3 major game or passes to play `3NT`.
+fn resp_place_over_minor(major: Suit) -> Rules {
+    Rules::new()
+        .rule(Bid::new(4, Strain::from(major)), 1.1, len(major, 3..))
+        .rule(Call::Pass, 0.0, points(0..))
+}
+
+/// Opener's call over responder's direct fit slam-try (`1M – 1NT – 2NT! – 3M`)
+///
+/// Responder agreed the major with slam interest; opener asks keycards on a
+/// clear maximum, else signs off in game.
+fn opener_over_fit_slamtry(major: Suit) -> Rules {
+    let m = Strain::from(major);
+    Rules::new()
+        .rule(Bid::new(4, Strain::Notrump), 1.3, points(20..))
+        .alert(super::slam::RKCB)
+        .rule(Bid::new(4, m), 0.5, points(0..))
+}
+
+/// Opener's call over responder's natural five-plus red suit
+///
+/// `red` is responder's suit.  Opener raises a heart fit to game, rebids a
+/// six-card own major, else places `3NT` (the guaranteed-legal game).
+// ponytail: no diamond-slam exploration — a diamond fit lands in 3NT (game
+// reached); add a 4♦ slam-try rung if the A/B shows stranded minor slams.
+fn opener_over_resp_red(major: Suit, red: Suit) -> Rules {
+    let mut rules = Rules::new();
+    if red == Suit::Hearts {
+        rules = rules.rule(Bid::new(4, Strain::Hearts), 1.3, len(Suit::Hearts, 3..));
+    }
+    rules
+        .rule(Bid::new(3, Strain::from(major)), 1.1, len(major, 6..))
+        .rule(Bid::new(3, Strain::Notrump), 0.5, points(0..))
+}
+
+/// Opener's call over responder's `3NT` (five-plus clubs, doubleton major)
+///
+/// Non-forcing: opener pulls to a 6-2 major game with a sixth card, else passes
+/// to play `3NT`.
+fn opener_over_resp_clubs(major: Suit) -> Rules {
+    Rules::new()
+        .rule(Bid::new(4, Strain::from(major)), 1.0, len(major, 6..))
+        .rule(Call::Pass, 0.0, points(0..))
+}
+
+/// Register the artificial game-forcing `2NT` adjunct (no-op unless
+/// [`set_meckstroth_2nt`] enabled it)
+///
+/// Authors both sides below `1M – 1NT – 2NT!`: responder's relay round, opener's
+/// shape-out over `3♣`, responder's placement over each shape-out (with RKCB on
+/// the two major-fit nodes), and opener's placement over responder's own bids.
+/// This **overrides** the natural-2NT continuation `notrump.rs` installed at
+/// `[1M, 1NT, 2NT]` — `rebids::register` runs after `notrump::register`, so the
+/// on-knob insert wins; with the knob off nothing is authored and the natural
+/// handling stands.
+fn register_meckstroth_2nt_continuations(book: &mut Trie) {
+    if !meckstroth_2nt() {
+        return;
+    }
+    for major in [Suit::Hearts, Suit::Spades] {
+        let m = Strain::from(major);
+        let one_m = call(1, m);
+        let one_nt = call(1, Strain::Notrump);
+        let two_nt = call(2, Strain::Notrump);
+        let three_c = call(3, Strain::Clubs);
+        let three_d = call(3, Strain::Diamonds);
+        let three_m = call(3, m);
+        let three_o = call(3, Strain::from(other_major(major)));
+        let three_nt = call(3, Strain::Notrump);
+        let base = [one_m, one_nt, two_nt];
+
+        // Responder's relay round over the game-forcing 2NT.
+        insert_uncontested(book, &base, responder_over_gf_2nt(major));
+
+        // Opener's shape-out over the 3♣ relay, and responder's placement over
+        // each of opener's four shape-outs.
+        insert_uncontested(
+            book,
+            &[one_m, one_nt, two_nt, three_c],
+            opener_shapeout(major),
+        );
+        insert_uncontested(
+            book,
+            &[one_m, one_nt, two_nt, three_c, three_d],
+            resp_place_over_default(major),
+        );
+        insert_uncontested(
+            book,
+            &[one_m, one_nt, two_nt, three_c, three_o],
+            resp_place_over_other_major(major),
+        );
+        let six_node = [one_m, one_nt, two_nt, three_c, three_m];
+        insert_uncontested(book, &six_node, resp_place_over_six(major));
+        super::slam::install_rkcb(book, &six_node, major);
+        insert_uncontested(
+            book,
+            &[one_m, one_nt, two_nt, three_c, three_nt],
+            resp_place_over_minor(major),
+        );
+
+        // Responder's direct fit slam-try, then RKCB.
+        let fit_node = [one_m, one_nt, two_nt, three_m];
+        insert_uncontested(book, &fit_node, opener_over_fit_slamtry(major));
+        super::slam::install_rkcb(book, &fit_node, major);
+
+        // Opener's placement over responder's natural red suits.
+        for red in [Suit::Diamonds, Suit::Hearts] {
+            if red != major {
+                insert_uncontested(
+                    book,
+                    &[one_m, one_nt, two_nt, call(3, Strain::from(red))],
+                    opener_over_resp_red(major, red),
+                );
+            }
+        }
+
+        // Opener's placement over responder's 3NT clubs (non-forcing).
+        insert_uncontested(
+            book,
+            &[one_m, one_nt, two_nt, three_nt],
+            opener_over_resp_clubs(major),
+        );
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -1051,6 +1345,7 @@ fn register_major_rebid_tails(book: &mut Trie) {
 pub(super) fn register(book: &mut Trie) {
     register_forcing_notrump_continuations(book);
     register_major_jump_rebid_continuations(book);
+    register_meckstroth_2nt_continuations(book);
     insert_uncontested(
         book,
         &[call(1, Strain::Hearts), call(1, Strain::Spades)],

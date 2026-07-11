@@ -6,7 +6,7 @@
 mod common;
 use common::*;
 
-use pons::bidding::american::set_meckstroth_adjunct;
+use pons::bidding::american::{set_meckstroth_2nt, set_meckstroth_adjunct};
 
 // ---------------------------------------------------------------------------
 // Responder's second call: 1♠ – (P) – 1NT – (P) – 2♦ – (P) – ?
@@ -262,5 +262,117 @@ fn responder_accepts_invitational_minor_to_heart_game() {
     assert_eq!(
         best_call(&system, &auction, "KJ52.Q43.A4.9762"),
         call(4, Strain::Hearts),
+    );
+}
+
+// ---------------------------------------------------------------------------
+// The real Meckstroth adjunct: opener's artificial game-forcing 2NT (opt-in)
+//   1♠ – (P) – 1NT – (P) – 2NT! – (P) – …
+// ---------------------------------------------------------------------------
+
+/// The 2/1 pair with the artificial game-forcing 2NT adjunct **off** — it ships
+/// on (so the default `stance()` already carries it), so build the baseline arm
+/// under the toggle then restore the shipped default.
+fn meckstroth_2nt_off_stance() -> Stance {
+    set_meckstroth_2nt(false);
+    let system = american().against(Family::NATURAL);
+    set_meckstroth_2nt(true); // restore the shipped default
+    system
+}
+
+/// Append `[calls…, P]`-interleaved continuations to `1♠ – (P) – 1NT – (P)`.
+fn after_1s_1nt_then(calls: &[Call]) -> Vec<Call> {
+    let mut auction = after_1s_1nt();
+    for &c in calls {
+        auction.push(c);
+        auction.push(Call::Pass);
+    }
+    auction
+}
+
+#[test]
+fn opener_bids_game_forcing_2nt_on_balanced_eighteen_plus() {
+    // AKQ98.KQ4.AQ.432 — 20 HCP, 5-3-2-3 balanced: the artificial GF 2NT.
+    let system = stance();
+    assert_eq!(
+        best_call(&system, &after_1s_1nt(), "AKQ98.KQ4.AQ.432"),
+        call(2, Strain::Notrump),
+    );
+}
+
+#[test]
+fn game_forcing_2nt_routes_shapely_eighteen_plus() {
+    // AKQ982.KQJ4.A.32 — 19 HCP, 6-4-1-2 (unbalanced): the GF 2NT takes any shape.
+    assert_eq!(
+        best_call(&stance(), &after_1s_1nt(), "AKQ982.KQJ4.A.32"),
+        call(2, Strain::Notrump),
+    );
+    // Knob off: no GF 2NT for a shapely hand — it jump-rebids the six-card major.
+    assert_eq!(
+        best_call(
+            &meckstroth_2nt_off_stance(),
+            &after_1s_1nt(),
+            "AKQ982.KQJ4.A.32"
+        ),
+        call(3, Strain::Spades),
+    );
+}
+
+#[test]
+fn responder_relays_three_clubs_with_nothing_to_show() {
+    // 32.Q432.K432.Q43 — 7 HCP, 2 spades, no five-card suit: relay 3♣.
+    let system = stance();
+    let auction = after_1s_1nt_then(&[call(2, Strain::Notrump)]);
+    assert_eq!(
+        best_call(&system, &auction, "32.Q432.K432.Q43"),
+        call(3, Strain::Clubs),
+    );
+}
+
+#[test]
+fn opener_shows_concealed_hearts_over_the_relay() {
+    // AKQ98.AQ54.K2.32 — 18 HCP, 5-4 spades+hearts: show the four-card heart suit.
+    let system = stance();
+    let auction = after_1s_1nt_then(&[call(2, Strain::Notrump), call(3, Strain::Clubs)]);
+    assert_eq!(
+        best_call(&system, &auction, "AKQ98.AQ54.K2.32"),
+        call(3, Strain::Hearts),
+    );
+}
+
+#[test]
+fn responder_raises_the_concealed_heart_fit() {
+    // 32.KJ32.Q432.J43 — four hearts opposite opener's shown four: the 4-4 game.
+    let system = stance();
+    let auction = after_1s_1nt_then(&[
+        call(2, Strain::Notrump),
+        call(3, Strain::Clubs),
+        call(3, Strain::Hearts),
+    ]);
+    assert_eq!(
+        best_call(&system, &auction, "32.KJ32.Q432.J43"),
+        call(4, Strain::Hearts),
+    );
+}
+
+#[test]
+fn responder_shows_clubs_via_three_notrump() {
+    // 32.Q42.K3.AJ8765 — six clubs, exactly two spades: the artificial 3NT.
+    let system = stance();
+    let auction = after_1s_1nt_then(&[call(2, Strain::Notrump)]);
+    assert_eq!(
+        best_call(&system, &auction, "32.Q42.K3.AJ8765"),
+        call(3, Strain::Notrump),
+    );
+}
+
+#[test]
+fn opener_pulls_club_showing_3nt_to_the_major() {
+    // AKQ982.KQ.A32.32 — six spades: pull responder's 3NT (6-2 fit) to 4♠.
+    let system = stance();
+    let auction = after_1s_1nt_then(&[call(2, Strain::Notrump), call(3, Strain::Notrump)]);
+    assert_eq!(
+        best_call(&system, &auction, "AKQ982.KQ.A32.32"),
+        call(4, Strain::Spades),
     );
 }
