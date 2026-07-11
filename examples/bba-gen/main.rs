@@ -412,12 +412,13 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_advance_rubens: bool,
 
-    /// Author the advancer's **invitational minor jump** on the rich advance — a
-    /// three-level minor jump = 5+ one-suiter, 10–12, denying a 4-card unbid
-    /// major (no-op unless `--ns-rich-advance`; opt-in, see
+    /// Disable the advancer's **invitational minor jump** on the rich advance — a
+    /// three-level minor jump = 5+ one-suiter, 10–12, denying a 4-card unbid major
+    /// (with the doubler's stopper-ask cue continuation) — revert that rung to the
+    /// floor (shipped default-on; no-op unless `--ns-rich-advance`; see
     /// `set_advance_minor_jump`).
     #[arg(long, default_value_t = false)]
-    ns_advance_minor_jump: bool,
+    no_ns_advance_minor_jump: bool,
 
     /// Disable the **doubler's accept/decline of the advancer's `2NT` invite** on
     /// the rich advance (Pass = decline, 3NT = accept to play, new 5-card major =
@@ -1302,7 +1303,7 @@ fn main() -> anyhow::Result<()> {
     );
     pons::bidding::american::set_rich_advance_double(!args.no_ns_rich_advance);
     pons::bidding::american::set_advance_rubens(args.ns_advance_rubens);
-    pons::bidding::american::set_advance_minor_jump(args.ns_advance_minor_jump);
+    pons::bidding::american::set_advance_minor_jump(!args.no_ns_advance_minor_jump);
     pons::bidding::american::set_advance_2nt_continuation(!args.no_ns_advance_2nt_continuation);
     pons::bidding::american::set_longest_first_advance(!args.no_ns_longest_advance);
     pons::bidding::american::set_cachalot_contested_x(!args.no_ns_cachalot_contested_x);

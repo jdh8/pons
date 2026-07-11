@@ -1130,7 +1130,7 @@ thread_local! {
     /// Whether the advancer's three-level jump in a **minor** shows an
     /// invitational one-suiter (5+, 10–12, denying a 4-card unbid major); see
     /// [`set_advance_minor_jump`].  No effect unless [`RICH_ADVANCE_DOUBLE`] is on.
-    static ADVANCE_MINOR_JUMP: Cell<bool> = const { Cell::new(false) };
+    static ADVANCE_MINOR_JUMP: Cell<bool> = const { Cell::new(true) };
     /// Whether the doubler answers the advancer's invitational `2NT` with an
     /// authored accept/decline instead of falling to the instinct floor (which
     /// passes even game-going hands); see [`set_advance_2nt_continuation`].  **On
@@ -1237,15 +1237,18 @@ fn longest_first_advance_enabled() -> bool {
 /// takeout double for books built *after* this call (thread-local, read at
 /// book-construction time)
 ///
-/// **Off by default**, and a no-op unless [`set_rich_advance_double`] is on. When
+/// **On by default**, and a no-op unless [`set_rich_advance_double`] is on. When
 /// on, a three-level jump in a *minor* (`(1♥)–X–(P)–3♣`, `(1♠)–X–(P)–3♦`, …)
 /// shows an invitational one-suiter — a real 5-card suit, 10–12, **denying a
 /// 4-card unbid major** (with one the advancer cues opener's suit to find the
 /// 4-4 major fit).  It ranks *below* the notrump ladder, so a stopper still
 /// prefers `1NT`/`2NT`/`3NT`; the jump is the residual for the no-stopper shapely
 /// invite that would otherwise have to cue.  Game-forcing minors (13+) are capped
-/// out and still cue or bid a stopped `3NT`.  The A/B knob
-/// (`bba-gen --ns-advance-minor-jump`).
+/// out and still cue or bid a stopped `3NT`.  The doubler, strong but stopperless,
+/// re-asks for a stopper by cueing their suit (a Western cue); the advancer bids
+/// the right-sided `3NT` with a stopper, else the minor game.  Two-seed A/B: SIG+
+/// in all four cells (plain ≥ PD → constructive).  Turn off with
+/// `bba-gen --no-ns-advance-minor-jump`.
 pub fn set_advance_minor_jump(on: bool) {
     ADVANCE_MINOR_JUMP.with(|cell| cell.set(on));
 }
@@ -3338,11 +3341,16 @@ fn advance_cue_rebid(answer: Bid) -> Rules {
 /// (`[1t, X, P, 3m, {P,X}, ?]`, gated by [`set_advance_minor_jump`])
 ///
 /// The jump is a *limited* natural invite (10–12, 5+ `minor`, no 4-card unbid
-/// major), so — unlike the forcing cue, which the doubler may never pass — the
-/// continuation is a natural-invite accept/decline, the same shape a `2NT`
-/// invite gets: **Pass** declines (too weak for game), a **new 5+ suit** accepts
-/// game-forcing (the advancer places it — [`advance_minor_jump_rebid`]), and
-/// **`3NT`** accepts to play.  All natural; nothing artificial to alert.
+/// major) that does **not** promise a stopper, so — unlike the forcing cue,
+/// which the doubler may never pass — the continuation is a natural-invite
+/// accept/decline: **Pass** declines (too weak for game), a **new 5+ suit**
+/// accepts game-forcing (the advancer places it — [`advance_minor_jump_rebid`]),
+/// and **`3NT`** accepts to play *with the doubler's own stopper*.  With game
+/// values but **no** stopper and no biddable side suit the doubler instead
+/// **cues their suit** — a Western stopper-ask; the advancer supplies the
+/// notrump from its side ([`advance_minor_stopper_ask_answer`]), right-siding
+/// `3NT` when it holds the stopper.  The cue is the only artificial call here
+/// (`ADVANCE_CUE`); the rest are natural.
 fn answer_advance_minor_jump(their_opening: Bid, minor: Suit) -> Rules {
     let theirs = their_opening.strain;
     let m = Strain::from(minor);
@@ -3364,6 +3372,15 @@ fn answer_advance_minor_jump(their_opening: Bid, minor: Suit) -> Rules {
         }
         rules = rules.rule(Bid::new(3, s), 1.3, points(15..) & len(suit, 5..));
     }
+    // Game values but no stopper and no 5-card side suit: cue their suit to ask
+    // the advancer for the stopper (a Western cue).  Lowest-weighted of the game
+    // tries, so a hand with its own stopper (`3NT`) or a biddable side suit (a
+    // new suit) is routed there first; only the shapeless stopperless 15+ lands
+    // here.  Always legal — the minor jump exists only *below* their suit, so
+    // 3-of-their-suit sits above `3m` and below `3NT`.  Artificial → `ADVANCE_CUE`.
+    rules = rules
+        .rule(Bid::new(3, theirs), 1.0, hcp(15..))
+        .alert(ADVANCE_CUE);
     rules
 }
 
@@ -3387,6 +3404,24 @@ fn advance_minor_jump_rebid(shown: Suit) -> Rules {
         // No support: notrump game (stopper preferred, else forced — game is on).
         .rule(Bid::new(3, Strain::Notrump), 0.6, stopper_in_their_suits())
         .rule(Bid::new(3, Strain::Notrump), 0.2, hcp(0..))
+}
+
+/// Advancer's answer to the doubler's stopper-ask cue after the minor jump
+/// (`[1t, X, P, 3m, {P,X}, 3t, {P,X}, ?]`, gated by [`set_advance_minor_jump`])
+///
+/// The doubler cued their suit holding game values but no stopper (and no 5-card
+/// side suit); the advancer supplies the notrump decision.  With a stopper the
+/// advancer bids **`3NT`** — right-siding it, so the opening lead runs up to the
+/// advancer's tenace — otherwise no stopper sits on either side, so the advancer
+/// signs off in the **minor game** (both hands have shown game values).  Natural;
+/// nothing to alert.
+fn advance_minor_stopper_ask_answer(minor: Suit) -> Rules {
+    let m = Strain::from(minor);
+    Rules::new()
+        // Stopper: the right-sided notrump game (the lead comes up to us).
+        .rule(Bid::new(3, Strain::Notrump), 1.3, stopper_in_their_suits())
+        // No stopper anywhere: play the minor game (game values are established).
+        .rule(Bid::new(5, m), 0.5, hcp(0..))
 }
 
 /// Doubler's accept-or-decline of the advancer's invitational `2NT`
@@ -4183,6 +4218,20 @@ pub fn defensive() -> Defensive {
                                 seq.push(rho2);
                                 insert_all_seats(&mut d, &seq, 3, advance_minor_jump_rebid(shown));
                             }
+                        }
+                        // The advancer answers the doubler's stopper-ask cue (3 of
+                        // their suit): 3NT with a stopper (right-sided), else the
+                        // minor game.
+                        for rho2 in [Call::Pass, Call::Double] {
+                            let mut seq = after_jump.to_vec();
+                            seq.push(call(3, theirs));
+                            seq.push(rho2);
+                            insert_all_seats(
+                                &mut d,
+                                &seq,
+                                3,
+                                advance_minor_stopper_ask_answer(minor),
+                            );
                         }
                     }
                 }
@@ -5634,9 +5683,10 @@ mod tests {
         let (notrump, _) = best_call(&auction, stopped);
 
         super::set_advance_minor_jump(false);
-        // Knob off (the default): the same one-suiter has no minor jump, so it
-        // cues instead of jumping.
+        // Knob off: the same one-suiter has no minor jump, so it cues instead of
+        // jumping.
         let (off, _) = best_call(&auction, one_suiter);
+        super::set_advance_minor_jump(true); // restore default-on
         super::set_rich_advance_double(true); // restore rich default
 
         assert_eq!(
@@ -5698,7 +5748,7 @@ mod tests {
         let with_fit = "xx.Kxx.AQJxx.xxx"; // 10 HCP, 5♦, 3♥ support (a valid 3♦ jump)
         let (raise, _) = best_call(&after_major, with_fit);
 
-        super::set_advance_minor_jump(false);
+        super::set_advance_minor_jump(true); // restore default-on
         super::set_rich_advance_double(true); // restore rich default
 
         assert_eq!(
@@ -5716,6 +5766,64 @@ mod tests {
             raise,
             call(4, Strain::Hearts),
             "advancer raises the doubler's shown major to game"
+        );
+    }
+
+    /// The doubler's stopper-ask cue over the minor jump: with game values but no
+    /// stopper (and no biddable side suit) the doubler cues their suit; the
+    /// advancer bids `3NT` with a stopper (right-sided) or signs off in the minor
+    /// game.
+    #[test]
+    fn doubler_stopper_ask_over_the_minor_jump() {
+        // (1♠) X (P) 3♣ (P) ? — doubler acts over the invitational 3♣ jump.
+        let jump = [
+            call(1, Strain::Spades),
+            Call::Double,
+            Call::Pass,
+            call(3, Strain::Clubs),
+            Call::Pass,
+        ];
+        super::set_rich_advance_double(true);
+        super::set_advance_minor_jump(true);
+
+        // 18 HCP, no spade stopper, no 5-card side suit: cue 3♠ to ask.
+        let ask = "xxx.AKx.AQx.KQxx";
+        let (cue, _) = best_call(&jump, ask);
+
+        // (1♠) X (P) 3♣ (P) 3♠ (P) ? — advancer answers the stopper-ask.
+        let after_ask = [
+            call(1, Strain::Spades),
+            Call::Double,
+            Call::Pass,
+            call(3, Strain::Clubs),
+            Call::Pass,
+            call(3, Strain::Spades),
+            Call::Pass,
+        ];
+        // A spade stopper: right-side the notrump game.
+        let stopped = "Kx.xxx.xxx.AQJxx";
+        let (notrump, _) = best_call(&after_ask, stopped);
+        // No stopper anywhere: play the minor game.
+        let no_stop = "xx.xxx.xxx.AKJxx";
+        let (minor, _) = best_call(&after_ask, no_stop);
+
+        super::set_advance_minor_jump(true); // restore default-on
+        super::set_rich_advance_double(true); // restore rich default
+
+        assert_eq!(
+            cue,
+            call(3, Strain::Spades),
+            "game values without a stopper cue the stopper-ask"
+        );
+        assert_eq!(
+            notrump,
+            call(3, Strain::Notrump),
+            "the advancer right-sides 3NT with a stopper"
+        );
+        assert_eq!(
+            minor,
+            call(5, Strain::Clubs),
+            "without a stopper the advancer signs off in the minor game"
         );
     }
 

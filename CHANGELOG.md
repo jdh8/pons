@@ -270,17 +270,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   A default-on convention's floor-passes-a-game bug is a strict defect, so the
   wash-positive fix earns the flip. Runner `scripts/advance-2nt-ab.sh`.
 
-  An invitational **minor** jump (`set_advance_minor_jump`, `bba-gen
-  --ns-advance-minor-jump`; **opt-in**, default byte-identical) extends the
-  ladder to `(1t)–X–(P)–3m` = 5+ minor, 10–12, denying a 4-card unbid major (a
-  4-card unbid major cues instead; a stopper still bids notrump; 13+ still
-  cues/`3NT`), weighted below the notrump ladder, with the doubler's
-  accept/decline authored (mirrors the `2NT` continuation). It fires on ~0.006%
-  of boards; the bare version (no opener continuation) measured a slight loss on
-  every cell, and authoring the continuation moved every cell to a clean wash
-  with a positive lean (all four per-shard 95% CIs ⊇ 0). Too rare to help the
-  aggregate and a debatable treatment (a minor jump abandons `3NT`/gets doubled),
-  so it stays opt-in. Runner `scripts/minor-jump-ab.sh`.
+- **The advancer's invitational minor jump is now the default, with a
+  stopper-ask cue** (`set_advance_minor_jump`, `bba-gen
+  --no-ns-advance-minor-jump`; **shipped default-on**). `(1t)–X–(P)–3m` = a 5+
+  minor, 10–12, **denying a 4-card unbid major** (a 4-card unbid major cues to
+  find the fit; a stopper still bids notrump; 13+ still cues/`3NT`), weighted
+  below the notrump ladder — the residual for the no-stopper shapely invite that
+  would otherwise have to cue. The jump promises **no stopper** (a bet that a
+  3-level minor beats notrump), so the doubler, strong but stopperless, re-asks
+  by **cueing their suit** (a Western cue); the advancer bids the right-sided
+  `3NT` with a stopper (the lead comes up to its tenace) or signs off in the
+  minor game. The doubler's accept/decline of the jump itself is authored too
+  (Pass = decline, `3NT` = own stopper, new 5-card suit = game-forcing). The bare
+  jump (no doubler continuation) lost on every cell; authoring both continuations
+  turned it around. It fires on ~0.006–0.008% of boards, so it can't move the
+  aggregate — but **two independent seeds measure SIG+ in all four cells** (NV
+  plain +0.00013/+0.00017, NV PD +0.00023/+0.00025, vul plain +0.00025/+0.00023,
+  vul PD +0.00034/+0.00032 IMPs/board; each per-shard 95% CI > 0, plain ≥ PD
+  everywhere → constructive, not a doubling artifact). Runner
+  `scripts/minor-jump-ab.sh`.
 
 - **The longer-major response discipline is now the default**
   (`set_longer_major_response`, `bba-gen --no-ns-longer-major-response`;
