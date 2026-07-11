@@ -258,7 +258,7 @@ is not grounds to change a ship decision (cf. DoubleStyle, Jordan/Truscott).
 | 58 | Fourth suit forcing | gap (floored) | add (Batch 3) | — | — |
 | 124 | Two-way game tries | gap | add (Batch 3) | — | — |
 | 52 | Drury | gap | add (Batch 3) | — | — |
-| — | Meckstroth adjunct (pons-only) | shipped | keep (complementary to XYZ) | — | — |
+| — | Meckstroth adjunct (pons-only) | shipped | keep — sd-vindicated (complementary to XYZ) | plain wash, PD −0.0036/−0.0019, **sd-lead +0.0012/+0.0042** NV/vul (2 seeds ×200k, SHA 22364c9; PD over-punishes, blind lead redeems) | — |
 
 ## Slam
 
