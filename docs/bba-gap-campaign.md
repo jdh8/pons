@@ -241,6 +241,25 @@ vs Cachalot vs Sputnik, 2-level forcing vs NFB vs transfers) now that Fix 1
 completed the books — P3d′/P3d″ were both-incomplete comparisons.  Report:
 `ab-results/anchor/2026-07-10-50ad20b/report.md`.
 
+**Re-anchor `5b5115d` (2026-07-10, 409.6k boards, same seed):** the
+post-`50ad20b` batch folded in — the natural 11-12 `2NT` jump over a 1-level
+overcall, opener's balanced-18-19 notrump in a contested `1X (1Y)` auction, and
+the rein on a minimum takeout doubler over-raising a *forced* advance (all
+default-on; the Cachalot contested-`X` fix is opt-in, so it leaves the default
+anchor unmoved) — pooled **−1.684 plain / −1.765 PD** (was −1.732 / −1.891 at
+`50ad20b`), replay-verified 100%.  Plain moved +0.048, PD +0.126 (the vul-PD
+doubling artifact the sd arbiter had overruled unwinds as the thin doubled games
+clear).  Re-rank: the head is unchanged — def-r1 `Defensive/book/round-1` still
+#1 but shrank −126113 → **−123392 plain** (−141682 PD), then constructive
+`opening`/`round-2`/`round-1` (−93067 / −81168 / −69526), then `Defensive
+floor#3` r2+r1 (≈ −55.5k pass discipline).  The target **Competitive
+`fallback@1`/`fallback@2` round-1** pair holds ≈ flat (−26434 + −23647 = −50.1k
+plain) — this batch was competitive-reopening + floor work, not the fallback
+classify (Fix 2/4).  The **school tournament** resolved: Modern + Forcing keep
+the defaults; Cachalot and Sputnik ship opt-in and are now surfaced as a radio
+family on the web Settings tab.  Report:
+`ab-results/anchor/2026-07-10-5b5115d/report.md`.
+
 **#1 is the real prize and it is a *book* item, not a floor item.**  Our
 defensive first-round structure — overcalls, takeout doubles, two-suiters
 over their opening — bleeds −2.40/div (−142733 raw at 409.6k bd), and PD is
