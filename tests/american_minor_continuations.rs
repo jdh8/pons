@@ -18,7 +18,7 @@ fn stance_with(longer_major: bool, up_the_line: bool, xyz: bool) -> Stance {
     set_up_the_line(up_the_line);
     set_xyz(xyz);
     let stance = american().against(Family::NATURAL);
-    set_longer_major_response(false);
+    set_longer_major_response(true); // restore the shipped default (longer-major is now on)
     set_up_the_line(false);
     set_xyz(false);
     stance
@@ -52,11 +52,12 @@ fn longer_major_response_discipline() {
         call(1, Strain::Hearts),
     );
 
-    // Default (the discipline measured a null and stays off): unconditional
-    // hearts-first still responds 1♥ on 5♠4♥.
-    let default = stance_with(false, false, false);
+    // Opt-in off (`set_longer_major_response(false)`): the historic
+    // unconditional hearts-first responds 1♥ on 5♠4♥ — the simplification that
+    // washed against the longer-major default and stays available as a knob.
+    let hearts_first = stance_with(false, false, false);
     assert_eq!(
-        best_call(&default, &one_club, "AKxxx.QJxx.xx.xx"),
+        best_call(&hearts_first, &one_club, "AKxxx.QJxx.xx.xx"),
         call(1, Strain::Hearts),
     );
 }

@@ -14,11 +14,15 @@ use std::cell::Cell;
 std::thread_local! {
     /// Whether minor-opening responses pick the **longer major** (equal
     /// lengths: 4-4 up the line to `1♥`, 5-5+ higher-first to `1♠`) instead of
-    /// unconditional hearts-first.  Default `false` — measured a null
-    /// (`ab-minor-continuations`, 2M boards: plain-DD wash, PD −0.12/−0.22
-    /// per divergent NV/vul; and −0.003..−0.005 IMPs/board *marginal* on top
-    /// of the shipped xyz + up-the-line package).
-    static LONGER_MAJOR_RESPONSE: Cell<bool> = const { Cell::new(false) };
+    /// unconditional hearts-first.  Default `true` — the established American
+    /// treatment (bid the longer major on 5♠4♥), which measured a null
+    /// (`ab-minor-continuations`, 2M boards: plain-DD wash, PD −0.12/−0.22 per
+    /// divergent NV/vul; −0.003..−0.005 IMPs/board marginal on the shipped xyz
+    /// + up-the-line package).  A push against a natural default goes to the
+    /// natural method — the **naturalness tiebreak** (`docs/measurement.md`);
+    /// the historic unconditional-hearts-first simplification is the opt-in
+    /// (turn this knob *off*).
+    static LONGER_MAJOR_RESPONSE: Cell<bool> = const { Cell::new(true) };
     /// Whether the natural minor-opening tree is completed **up the line**:
     /// the `1♣ – 1♦` response, opener's `1♠` rebid over `1m – 1♥`, and
     /// opener's natural `2♣` rebid after `1♣ – 1♦`.  Default `true`, shipped
@@ -31,17 +35,18 @@ std::thread_local! {
 }
 
 /// Author the longer-major response discipline for books built *after* this
-/// call (default `false`)
+/// call (default `true`; off-switch `--no-ns-longer-major-response` in
+/// `bba-gen`)
 ///
-/// On: a response to `1♣`/`1♦` names the longer major — `1♠` on 5♠4♥ or any
-/// 5-5+, `1♥` up the line only on 4-4 — so partner can infer "spades are not
-/// longer than hearts" from `1♥`.  The M6.4 control-bid classifier reads the
-/// same discipline at classify time (`classify_high_bid` in `inference.rs`):
-/// the response rule, the rebid structure, and the classifier move together
-/// (see `docs/bidding-theorems.md`).  Off (the default): the historic
-/// unconditional hearts-first pair — measured no worse than longest-first
-/// once `set_up_the_line`'s 1♠ rebid recovers the concealed spade fits, and
-/// longest-first costs a level on the heart fits.
+/// On (the default): a response to `1♣`/`1♦` names the longer major — `1♠` on
+/// 5♠4♥ or any 5-5+, `1♥` up the line only on 4-4 — so partner can infer
+/// "spades are not longer than hearts" from `1♥`.  The M6.4 control-bid
+/// classifier reads the same discipline at classify time (`classify_high_bid`
+/// in `inference.rs`): the response rule, the rebid structure, and the
+/// classifier move together (see `docs/bidding-theorems.md`).  Off: the
+/// historic unconditional hearts-first pair — measured a null against
+/// longer-major, so the naturalness tiebreak (`docs/measurement.md`) keeps the
+/// established American treatment as the default.
 pub fn set_longer_major_response(on: bool) {
     LONGER_MAJOR_RESPONSE.with(|cell| cell.set(on));
 }
@@ -252,9 +257,9 @@ fn wjs_bid(major: Suit, x: Suit) -> (u8, Strain) {
 pub fn minor_responses(minor: Suit) -> Rules {
     let trump = Strain::from(minor);
     let mut rules = Rules::new();
-    // Major selection between 4+ majors, per the longer-major knob.
+    // Major selection between 4+ majors, per the longer-major knob (default on).
     rules = if longer_major_response() {
-        // Longer-major discipline (`set_longer_major_response`): the response
+        // Longer-major discipline (the default, `set_longer_major_response`): the response
         // names the longer major — 1♠ on 5♠4♥/6♠5♥ or any 5-5+, 1♥ up the
         // line only on 4-4 — so 1♥ denies longer spades and the M6.4
         // control-bid classifier can read `1♣–1♥–2♣–4♠` as a control bid.
@@ -270,16 +275,15 @@ pub fn minor_responses(minor: Suit) -> Rules {
                 len(Suit::Hearts, 4..) & points(6..) & hearts_first(),
             )
     } else {
-        // Default pair — unconditional hearts-first: any four-plus hearts
-        // responds 1♥ even with longer spades (5♠4♥, 6♠5♥), so partner can
-        // only infer "1♠ denies four hearts", never the converse, and the
-        // M6.4 classifier must read a later jump into the suit *above* the
-        // response as natural to play (the first M6.4 A/B round assumed
-        // longest-first here and lost 6 IMPs per fired board).  The
-        // longest-first arm above was measured as the prescribed trio
-        // (response + rebids + classifier) and came back a null — hearts-first
-        // stays the default; see `set_longer_major_response` and
-        // `docs/bidding-theorems.md`.
+        // Opt-in pair (`set_longer_major_response(false)`) — unconditional
+        // hearts-first: any four-plus hearts responds 1♥ even with longer
+        // spades (5♠4♥, 6♠5♥), so partner can only infer "1♠ denies four
+        // hearts", never the converse, and the M6.4 classifier must read a
+        // later jump into the suit *above* the response as natural to play (the
+        // first M6.4 A/B round assumed longest-first here and lost 6 IMPs per
+        // fired board).  This simplification measured a null against the
+        // longer-major default and stays available as a knob; see
+        // `set_longer_major_response` and `docs/bidding-theorems.md`.
         rules
             .rule(
                 Bid::new(1, Strain::Hearts),

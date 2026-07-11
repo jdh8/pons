@@ -81,6 +81,7 @@ contract). Reality is closer to plain DD.
 | loss | win | Artifact of PD's synthetic X (it credits phantom doubles of contracts we no longer bid). Not a win. |
 | loss | loss | Loss — but trace worst boards before declaring dead (step 9). |
 | wash | wash, treatment is *additive* (repurposes a useless call, sacrifices nothing) | May ship default-on if its value is DD-invisible (obstruction, lead-direction) — precedent: Unusual 2NT over their 1NT. |
+| wash | wash, two methods that *push each other* | Break the tie by **naturalness** (ship rules): a move *toward* established natural theory ships default-on; a *convention* trialled against natural stays opt-in. |
 
 Sub-0.1 IMPs/board is noise unless the sample is large (hundreds of thousands
 of boards); a *fired-rate*-weighted per-fired figure with a CI excluding 0 is
@@ -144,6 +145,19 @@ These produced actual wrong conclusions; each has a memory/ledger trail.
   get an off-switch spelled `--no-ns-*` when shipped default-on.
 - **Default-on** requires: plain-DD win, or plain wash + PD win, or additive +
   DD-invisible value (table above). **Plain-DD loss never ships default-on.**
+- **The wash tiebreak — naturalness.** When two methods push each other (both
+  scorers wash), *direction relative to natural bidding* picks the default. The
+  default is the least-surprising agreement an unknown American / online partner
+  already assumes, so a change that moves us **toward established natural theory
+  ships default-on on a wash** — a push is enough. A change **trialling a
+  convention** against natural (artificial call, e.g. Cachalot) needs a real
+  plain-DD or DD-invisible win; a wash only earns an **opt-in knob**. Naturalness
+  is a prior DD can't score (shared understanding, an unknown partner's default),
+  and it is the same standing directive that keeps artificial 1NT defenses opt-in
+  even when they match the default (convention-tuning.md). *Worked example:*
+  `longer_major_response` — bidding the longer major on 5♠4♥ is the established
+  American treatment and the arm measured a null, so the tiebreak flips it to the
+  default; the unconditional-hearts-first simplification becomes the opt-in.
 - Flipping a default that changes `american()` behavior: update the integration
   tests that encode the old default, and say so in the changelog.
 - A default flip or new convention needs its **inference reading and alerts**

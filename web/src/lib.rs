@@ -938,7 +938,7 @@ static SETTINGS: &[Setting] = &[
     toggle("major_game_tries", REBIDS, "Major-suit game tries", true, american::set_major_game_tries),
     toggle("meckstroth_adjunct", REBIDS, "Meckstroth adjunct", true, american::set_meckstroth_adjunct),
     toggle("limit_raise_acceptance", REBIDS, "", true, american::set_limit_raise_acceptance),
-    toggle("longer_major_response", REBIDS, "", false, american::set_longer_major_response),
+    toggle("longer_major_response", REBIDS, "", true, american::set_longer_major_response),
     toggle("up_the_line", REBIDS, "", true, american::set_up_the_line),
     toggle("major_rebid_tails", REBIDS, "", true, american::set_major_rebid_tails),
     // Floor (instinct)

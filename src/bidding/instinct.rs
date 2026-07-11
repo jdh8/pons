@@ -3885,10 +3885,13 @@ mod tests {
     /// phantom spade contract
     #[test]
     fn control_bid_is_never_passed_out() {
-        // 1♦–1♠–2♦–4♥: responder bypassed the cheaper 1♥, so 4♥ cannot be
-        // long — a control bid agreeing diamonds (the M6.4 reading) — and the
-        // floor returns to the agreed suit instead of passing out the phantom
-        // heart contract.
+        use crate::bidding::american::set_longer_major_response;
+        // 1♦–1♠–2♦–4♥ under the hearts-first opt-in (knob off): a 1♠ response
+        // denies four hearts, so 4♥ cannot be long — a control bid agreeing
+        // diamonds (the M6.4 reading) — and the floor returns to the agreed
+        // suit instead of passing out the phantom heart contract.  (Under the
+        // longer-major default, 1♠ can be 5-5, so 4♥ reads to play.)
+        set_longer_major_response(false);
         let auction = [
             call(1, Strain::Diamonds),
             Call::Pass,
@@ -3900,6 +3903,7 @@ mod tests {
             Call::Pass,
         ];
         let (bid, from_floor) = american_floored(&auction, "A4.K85.KQJ62.Q75");
+        set_longer_major_response(true); // restore the shipped default
         assert!(from_floor, "the 4♥ jump is off-book");
         assert_eq!(
             bid,

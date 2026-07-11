@@ -261,12 +261,12 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_stayman_cue_continuation: bool,
 
-    /// Longer-major discipline for minor-opening responses: 1♠ on longer
-    /// spades or 5-5, 1♥ up the line only on 4-4 (with the M6.4 classifier
-    /// reading to match); off by default (measured a null — see
-    /// `set_longer_major_response`).
+    /// Disable the longer-major discipline for minor-opening responses (1♠ on
+    /// longer spades or 5-5, 1♥ up the line only on 4-4, with the M6.4
+    /// classifier reading to match); on by default (the established American
+    /// treatment — see `set_longer_major_response`). Off-switch for the A/B.
     #[arg(long, default_value_t = false)]
-    ns_longer_major_response: bool,
+    no_ns_longer_major_response: bool,
 
     /// Disable the up-the-line completion of the natural minor tree (the
     /// 1♣-1♦ response, opener's 1♠ rebid over 1m-1♥, opener's natural 2♣
@@ -1234,7 +1234,7 @@ fn main() -> anyhow::Result<()> {
     pons::bidding::american::set_invitational_5card_majors(!args.no_ns_invitational_5card_majors);
     pons::bidding::american::set_crawling_stayman(!args.no_ns_crawling_stayman);
     pons::bidding::american::set_stayman_cue_continuation(!args.no_ns_stayman_cue_continuation);
-    pons::bidding::american::set_longer_major_response(args.ns_longer_major_response);
+    pons::bidding::american::set_longer_major_response(!args.no_ns_longer_major_response);
     pons::bidding::american::set_up_the_line(!args.no_ns_up_the_line);
     pons::bidding::american::set_xyz(!args.no_ns_xyz);
     pons::bidding::american::set_major_game_tries(!args.no_ns_major_game_tries);

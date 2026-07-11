@@ -220,7 +220,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- The longer-major `1♥` response (`set_longer_major_response`, opt-in) now
+- **The longer-major response discipline is now the default**
+  (`set_longer_major_response`, `bba-gen --no-ns-longer-major-response`;
+  **default-on**). Over `1♣`/`1♦` a two-suited responder now names the longer
+  major — `1♠` on 5♠4♥ or any 5-5+, `1♥` up the line only on 4-4 — the
+  established American treatment; the M6.4 control-bid classifier reads the same
+  discipline. Behavior changes on 5♠4♥-type hands (`1♠`, not the old
+  unconditional `1♥`). This is a **naturalness-tiebreak** default: the arm
+  measured a null against unconditional-hearts-first
+  (`ab-minor-continuations`, 2M boards: plain-DD wash, PD −0.12/−0.22 per
+  divergent NV/vul), and a wash between a natural method and a house
+  simplification goes to the natural method — the rule now recorded in
+  [docs/measurement.md](docs/measurement.md). The historic
+  unconditional-hearts-first simplification stays available as the opt-in (turn
+  the knob *off*).
+- The longer-major `1♥` response (`set_longer_major_response`, default-on) now
   discloses as positive prose. Its constraint used `!spades_first()`, which the
   book rendered as *"not (spades longer than hearts, or equal five-plus)"*; a new
   `hearts_first()` selector — the exact complement, verified partitioning every

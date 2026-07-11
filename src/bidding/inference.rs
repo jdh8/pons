@@ -2603,6 +2603,12 @@ mod tests {
     /// everything else stays to play — suppressed, nothing floored.
     #[test]
     fn high_bid_control_vs_natural() {
+        use crate::bidding::american::set_longer_major_response;
+        // Pin the historic hearts-first reading (knob off): these
+        // minor-response verdicts are the knob-off ones — the longer-major
+        // default is covered by `high_bid_under_longer_major_response`, and the
+        // 1NT-transfer sub-cases below are knob-independent.
+        set_longer_major_response(false);
         // 1♦–1♠–2♦–4♥: responder bid spades first, so hearts cannot be their
         // longest — a control bid agreeing diamonds.  Hearts stays unfloored;
         // diamond support and slam-try values are recorded instead.
@@ -2691,6 +2697,7 @@ mod tests {
         ]);
         assert_eq!(mirror.partner().length(Suit::Hearts).min, 0);
         assert!(mirror.partner().length(Suit::Spades).min >= 6);
+        set_longer_major_response(true); // restore the shipped default
     }
 
     /// The longer-major response discipline swaps the M6.4 verdicts on the
@@ -2726,15 +2733,14 @@ mod tests {
             bid(4, Strain::Hearts),
             Call::Pass,
         ]);
-        set_longer_major_response(false);
-
         assert_eq!(control.partner().length(Suit::Spades).min, 0);
         assert!(control.partner().length(Suit::Clubs).min >= 3);
         assert!(control.partner().points.min >= 13);
         assert!(to_play.control_bid().is_none());
 
-        // Off (the default): the original verdicts stand — the spade jump
-        // above the response is to play, the heart bypass is a control bid.
+        // Knob off (the historic hearts-first opt-in): the original verdicts
+        // stand — the spade jump above the 1♥ response is to play.
+        set_longer_major_response(false);
         let above = read(&[
             bid(1, Strain::Clubs),
             Call::Pass,
@@ -2745,6 +2751,7 @@ mod tests {
             bid(4, Strain::Spades),
             Call::Pass,
         ]);
+        set_longer_major_response(true); // restore the shipped default
         assert!(above.control_bid().is_none());
     }
 
