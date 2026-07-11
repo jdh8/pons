@@ -254,6 +254,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   opt-in (`set_advance_rubens`) — its right-siding value is invisible to
   double-dummy. Runner `scripts/rich-advance-ab.sh`.
 
+- **The doubler now answers the advancer's invitational `2NT` instead of
+  passing a game** (`set_advance_2nt_continuation`, `bba-gen
+  --no-ns-advance-2nt-continuation`; **shipped default-on**). The rich advance's
+  `2NT` (`(1t)–X–(P)–2NT` = balanced 11–12 with a stopper) is default-on, but its
+  continuation fell to the instinct floor, which treats `2NT` as non-forcing and
+  **passes even holding a game**. The authored answer accepts/declines naturally:
+  **Pass** declines with a minimum, **`3NT`** accepts to play (14+ balanced), and
+  a **new 5-card major** accepts game-forcing so the advancer can pick the
+  4-4/5-3 major game. Fixing this strict floor-pass measured wash-positive on all
+  four cells (NV plain +0.0005, PD +0.0001; vul plain +0.0012, PD +0.0005
+  IMPs/board — every per-shard 95% CI spans 0, but the lean is positive
+  everywhere and plain ≥ PD, i.e. constructive, not a doubling artifact); it
+  fires on ~6/409.6k boards so it cannot move the aggregate but **never loses**.
+  A default-on convention's floor-passes-a-game bug is a strict defect, so the
+  wash-positive fix earns the flip. Runner `scripts/advance-2nt-ab.sh`.
+
+  An invitational **minor** jump (`set_advance_minor_jump`, `bba-gen
+  --ns-advance-minor-jump`; **opt-in**, default byte-identical) extends the
+  ladder to `(1t)–X–(P)–3m` = 5+ minor, 10–12, denying a 4-card unbid major (a
+  4-card unbid major cues instead; a stopper still bids notrump; 13+ still
+  cues/`3NT`), weighted below the notrump ladder, with the doubler's
+  accept/decline authored (mirrors the `2NT` continuation). It fires on ~0.006%
+  of boards; the bare version (no opener continuation) measured a slight loss on
+  every cell, and authoring the continuation moved every cell to a clean wash
+  with a positive lean (all four per-shard 95% CIs ⊇ 0). Too rare to help the
+  aggregate and a debatable treatment (a minor jump abandons `3NT`/gets doubled),
+  so it stays opt-in. Runner `scripts/minor-jump-ab.sh`.
+
 - **The longer-major response discipline is now the default**
   (`set_longer_major_response`, `bba-gen --no-ns-longer-major-response`;
   **default-on**). Over `1♣`/`1♦` a two-suited responder now names the longer

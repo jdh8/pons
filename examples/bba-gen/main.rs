@@ -412,6 +412,21 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_advance_rubens: bool,
 
+    /// Author the advancer's **invitational minor jump** on the rich advance — a
+    /// three-level minor jump = 5+ one-suiter, 10–12, denying a 4-card unbid
+    /// major (no-op unless `--ns-rich-advance`; opt-in, see
+    /// `set_advance_minor_jump`).
+    #[arg(long, default_value_t = false)]
+    ns_advance_minor_jump: bool,
+
+    /// Disable the **doubler's accept/decline of the advancer's `2NT` invite** on
+    /// the rich advance (Pass = decline, 3NT = accept to play, new 5-card major =
+    /// game-forcing) — revert to the floor, which passes `2NT` even holding a game
+    /// (shipped default-on; no-op unless the rich advance is on; see
+    /// `set_advance_2nt_continuation`).
+    #[arg(long, default_value_t = false)]
+    no_ns_advance_2nt_continuation: bool,
+
     /// Advance partner's takeout double with the **highest-ranking** eligible
     /// suit rather than the **longest** (higher-ranking on a tie); also governs
     /// the rich advance's weak natural and forced-suit picks (shipped default-on
@@ -1287,6 +1302,8 @@ fn main() -> anyhow::Result<()> {
     );
     pons::bidding::american::set_rich_advance_double(!args.no_ns_rich_advance);
     pons::bidding::american::set_advance_rubens(args.ns_advance_rubens);
+    pons::bidding::american::set_advance_minor_jump(args.ns_advance_minor_jump);
+    pons::bidding::american::set_advance_2nt_continuation(!args.no_ns_advance_2nt_continuation);
     pons::bidding::american::set_longest_first_advance(!args.no_ns_longest_advance);
     pons::bidding::american::set_cachalot_contested_x(!args.no_ns_cachalot_contested_x);
     pons::bidding::american::set_balanced_1nt_rebid(!args.no_ns_balanced_1nt_rebid);

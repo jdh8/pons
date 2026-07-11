@@ -1127,6 +1127,16 @@ thread_local! {
     /// (weight climbing with length) rather than the highest-ranking 4+ suit;
     /// see [`set_longest_first_advance`].
     static LONGEST_FIRST_ADVANCE: Cell<bool> = const { Cell::new(true) };
+    /// Whether the advancer's three-level jump in a **minor** shows an
+    /// invitational one-suiter (5+, 10–12, denying a 4-card unbid major); see
+    /// [`set_advance_minor_jump`].  No effect unless [`RICH_ADVANCE_DOUBLE`] is on.
+    static ADVANCE_MINOR_JUMP: Cell<bool> = const { Cell::new(false) };
+    /// Whether the doubler answers the advancer's invitational `2NT` with an
+    /// authored accept/decline instead of falling to the instinct floor (which
+    /// passes even game-going hands); see [`set_advance_2nt_continuation`].  **On
+    /// by default** — a wash-positive A/B fix to a strict floor-pass in the
+    /// default-on rich advance.  No effect unless [`RICH_ADVANCE_DOUBLE`] is on.
+    static ADVANCE_2NT_CONTINUATION: Cell<bool> = const { Cell::new(true) };
 }
 
 /// Toggle the responsive double after partner's **takeout double** and their
@@ -1221,6 +1231,51 @@ pub fn set_longest_first_advance(on: bool) {
 /// Whether the longest-first advance discipline is currently authored
 fn longest_first_advance_enabled() -> bool {
     LONGEST_FIRST_ADVANCE.with(Cell::get)
+}
+
+/// Toggle the advancer's **invitational minor jump** on the rich advance of a
+/// takeout double for books built *after* this call (thread-local, read at
+/// book-construction time)
+///
+/// **Off by default**, and a no-op unless [`set_rich_advance_double`] is on. When
+/// on, a three-level jump in a *minor* (`(1♥)–X–(P)–3♣`, `(1♠)–X–(P)–3♦`, …)
+/// shows an invitational one-suiter — a real 5-card suit, 10–12, **denying a
+/// 4-card unbid major** (with one the advancer cues opener's suit to find the
+/// 4-4 major fit).  It ranks *below* the notrump ladder, so a stopper still
+/// prefers `1NT`/`2NT`/`3NT`; the jump is the residual for the no-stopper shapely
+/// invite that would otherwise have to cue.  Game-forcing minors (13+) are capped
+/// out and still cue or bid a stopped `3NT`.  The A/B knob
+/// (`bba-gen --ns-advance-minor-jump`).
+pub fn set_advance_minor_jump(on: bool) {
+    ADVANCE_MINOR_JUMP.with(|cell| cell.set(on));
+}
+
+/// Whether the invitational minor jump is currently authored
+fn advance_minor_jump_enabled() -> bool {
+    ADVANCE_MINOR_JUMP.with(Cell::get)
+}
+
+/// Toggle the doubler's **accept/decline of the advancer's invitational `2NT`**
+/// on the rich advance of a takeout double for books built *after* this call
+/// (thread-local, read at book-construction time)
+///
+/// **On by default**, and a no-op unless [`set_rich_advance_double`] is on. The
+/// advancer's `2NT` (`(1t)–X–(P)–2NT`) is a limited balanced 11–12 invite with a
+/// stopper, but with no authored continuation the doubler falls to the instinct
+/// floor, which treats `2NT` as non-forcing and *passes it even holding a game*.
+/// When on, the doubler answers the invite naturally: **Pass** declines with a
+/// minimum, **`3NT`** accepts to play, and a **new 5-card major** accepts
+/// game-forcing so the advancer can pick the 4-4/5-3 major game.  Fixing this
+/// floor-pass measured wash-positive on all four cells (NV/vul × plain/PD),
+/// which earns the default-on flip.  Off-switch `bba-gen
+/// --no-ns-advance-2nt-continuation`.
+pub fn set_advance_2nt_continuation(on: bool) {
+    ADVANCE_2NT_CONTINUATION.with(|cell| cell.set(on));
+}
+
+/// Whether the doubler's answer to the advancer's `2NT` invite is authored
+fn advance_2nt_continuation_enabled() -> bool {
+    ADVANCE_2NT_CONTINUATION.with(Cell::get)
 }
 
 /// Whether the overcall responsive double is currently authored
@@ -2964,10 +3019,11 @@ fn natural_advance(
 ///   ([`advance_cue_rebid`]).  *Artificial* (`ADVANCE_CUE`); `hcp(10..)`.
 /// - **natural notrump ladder** — `1NT` 8–10, `2NT` 11–12 balanced, `3NT`
 ///   limited 13–17, each with a stopper in their suit.
-/// - **new-suit jumps** (*majors only* — a minor jump abandons 3NT and gets
-///   doubled) — a two-level jump is *constructive* (8–10, 4+), a three-level
-///   jump is *invitational* (10–12, 5+); the cheapest new suit is natural weak
-///   (0–7, 4+).
+/// - **new-suit jumps** — a *major* two-level jump is *constructive* (8–10, 4+)
+///   and a three-level jump is *invitational* (10–12, 5+); a *minor* three-level
+///   jump (only under [`set_advance_minor_jump`]) is an invitational one-suiter
+///   (10–12, 5+) ranked below the notrump ladder and denying a 4-card unbid
+///   major.  The cheapest new suit is natural weak (0–7, 4+).
 /// - **major game jump** (`4M`, 5+) — always *limited* (slam tries cue):
 ///   two-way (shapely-weak or minimum game force, 11–15 points) when no Rubens
 ///   transfer exists, or purely preemptive (0–10) when a transfer carries the
@@ -3060,13 +3116,10 @@ fn advance_double_rich(their_opening: Bid) -> Rules {
         // cap — the higher-weight cue, notrump, and 4-card-suit rules take every
         // hand that has a better call, leaving only the genuinely stuck ones here).
         rules = natural_advance(rules, suit, bid_level, 0.3, 3);
-        // Jump in a new suit shows extras — but *majors only*: a jump in a minor
-        // after the takeout double abandons 3NT for a suit that needs eleven
-        // tricks and gets doubled (measured: minor jumps were the residual DD
-        // leak).  A minor with values bids notrump or cues instead.  A cheap
-        // two-level jump is *constructive* (8–10, 4+); the more committal
-        // three-level jump is *invitational* and wants a real 5-card suit.  (A
-        // game-forcing hand cues or blasts `4M` — see below — so both are capped.)
+        // Jump in a new *major*: a cheap two-level jump is *constructive*
+        // (8–10, 4+); the more committal three-level jump is *invitational* and
+        // wants a real 5-card suit.  (A game-forcing hand cues or blasts `4M` —
+        // see below — so both are capped.)
         let jump = bid_level + 1;
         if matches!(suit, Suit::Hearts | Suit::Spades) {
             if jump == 2 {
@@ -3074,6 +3127,32 @@ fn advance_double_rich(their_opening: Bid) -> Rules {
             } else if jump == 3 {
                 rules = rules.rule(Bid::new(3, strain), 1.25, hcp(10..=12) & len(suit, 5..));
             }
+        } else if jump == 3 && advance_minor_jump_enabled() {
+            // Three-level jump in a *minor* — an invitational one-suiter (5+,
+            // 10–12) that DENIES a 4-card unbid major: with one the advancer cues
+            // opener's suit to find the 4-4 major fit rather than burying it under
+            // the minor.  It does *not* deny a stopper — the rule carries no
+            // stopper term; it is simply weighted *below* the notrump ladder, so
+            // a hand that fits a natural notrump invite (balanced, in the
+            // `1NT`/`2NT` band) prefers that, while a shapely hand outside the
+            // notrump band (a 6-card minor, a stiff) still jumps.  The 10–12 cap
+            // keeps game-forcing minors cueing or bidding `3NT`, so — unlike the
+            // old high-weighted minor jump — it never abandons a makeable game.
+            // The doubler then accepts or declines ([`answer_advance_minor_jump`]).
+            // At most three in each *unbid* major (opener's own major is not
+            // constrained — `..=13` is vacuously true).
+            let no_unbid_major = len(
+                Suit::Hearts,
+                ..=if theirs == Strain::Hearts { 13 } else { 3 },
+            ) & len(
+                Suit::Spades,
+                ..=if theirs == Strain::Spades { 13 } else { 3 },
+            );
+            rules = rules.rule(
+                Bid::new(3, strain),
+                1.08,
+                hcp(10..=12) & len(suit, 5..) & no_unbid_major,
+            );
         }
         // Major-suit game jump `4M` (5+ — a 4-card major cues to check the fit).
         // A game jump is always *limited*: slam tries cue.  When a Rubens
@@ -3253,6 +3332,91 @@ fn advance_cue_rebid(answer: Bid) -> Rules {
         .rule(Bid::new(3, Strain::Notrump), 0.2, hcp(13..))
         // Invitational: partner showed a minimum — stop.
         .rule(Call::Pass, 0.0, hcp(0..))
+}
+
+/// Doubler's accept-or-decline of the advancer's invitational minor jump
+/// (`[1t, X, P, 3m, {P,X}, ?]`, gated by [`set_advance_minor_jump`])
+///
+/// The jump is a *limited* natural invite (10–12, 5+ `minor`, no 4-card unbid
+/// major), so — unlike the forcing cue, which the doubler may never pass — the
+/// continuation is a natural-invite accept/decline, the same shape a `2NT`
+/// invite gets: **Pass** declines (too weak for game), a **new 5+ suit** accepts
+/// game-forcing (the advancer places it — [`advance_minor_jump_rebid`]), and
+/// **`3NT`** accepts to play.  All natural; nothing artificial to alert.
+fn answer_advance_minor_jump(their_opening: Bid, minor: Suit) -> Rules {
+    let theirs = their_opening.strain;
+    let m = Strain::from(minor);
+    let mut rules = Rules::new()
+        // Accept to play: 3NT with values and a stopper.
+        .rule(
+            Bid::new(3, Strain::Notrump),
+            1.2,
+            hcp(15..) & stopper_in_their_suits(),
+        )
+        // Too weak for game: decline (the invite is limited, so Pass is safe).
+        .rule(Call::Pass, 0.0, hcp(0..));
+    // Accept by showing a new 5+ suit (game-forcing) — any unbid suit above the
+    // jump, biddable at the three level.
+    for suit in [Suit::Diamonds, Suit::Hearts, Suit::Spades] {
+        let s = Strain::from(suit);
+        if s == theirs || s <= m {
+            continue;
+        }
+        rules = rules.rule(Bid::new(3, s), 1.3, points(15..) & len(suit, 5..));
+    }
+    rules
+}
+
+/// Advancer's placement after the doubler accepts the minor jump with a forcing
+/// new suit (`[1t, X, P, 3m, {P,X}, 3S, {P,X}, ?]`, gated by
+/// [`set_advance_minor_jump`])
+///
+/// The doubler forced to game showing a 5+ `shown` suit; the advancer (already
+/// limited to 10–12) places it: raise to game with three-card support, else
+/// `3NT` (a stopper preferred, but the game is on either way).
+fn advance_minor_jump_rebid(shown: Suit) -> Rules {
+    let s = Strain::from(shown);
+    let game = if matches!(shown, Suit::Hearts | Suit::Spades) {
+        4
+    } else {
+        5
+    };
+    Rules::new()
+        // Support: raise the doubler's suit to game.
+        .rule(Bid::new(game, s), 1.0, len(shown, 3..))
+        // No support: notrump game (stopper preferred, else forced — game is on).
+        .rule(Bid::new(3, Strain::Notrump), 0.6, stopper_in_their_suits())
+        .rule(Bid::new(3, Strain::Notrump), 0.2, hcp(0..))
+}
+
+/// Doubler's accept-or-decline of the advancer's invitational `2NT`
+/// (`[1t, X, P, 2NT, {P,X}, ?]`, gated by [`set_advance_2nt_continuation`])
+///
+/// The `2NT` invite is a limited balanced 11–12 with a stopper (the advancer
+/// supplies the notrump stopper), so the doubler — sitting on the wide takeout
+/// range — simply answers a natural invite: **Pass** declines with a minimum,
+/// **`3NT`** accepts to play, and a **new 5-card major** accepts game-forcing so
+/// the advancer can choose the 4-4/5-3 major game over `3NT` (the advancer places
+/// it — [`advance_minor_jump_rebid`], the same accept-a-forcing-suit logic).  A
+/// 5-card *minor* is not shown: with the advancer's stopper `3NT` is almost
+/// always right, so only the fit-seeking majors are worth the detour.  All
+/// natural; nothing artificial to alert.
+fn answer_advance_2nt(their_opening: Bid) -> Rules {
+    let theirs = their_opening.strain;
+    let mut rules = Rules::new()
+        // Accept to play: 3NT with a maximum (the advancer holds the stopper).
+        .rule(Bid::new(3, Strain::Notrump), 1.2, hcp(14..))
+        // Minimum: decline the invite, play 2NT.
+        .rule(Call::Pass, 0.0, hcp(0..));
+    // Accept game-forcing by showing a 5-card major to seek the fit.
+    for major in [Suit::Hearts, Suit::Spades] {
+        let s = Strain::from(major);
+        if s == theirs {
+            continue;
+        }
+        rules = rules.rule(Bid::new(3, s), 1.3, points(14..) & len(major, 5..));
+    }
+    rules
 }
 
 /// Insert the advancer's actions after partner's takeout double of weak-two
@@ -3980,6 +4144,73 @@ pub fn defensive() -> Defensive {
                         rebid.push(completion);
                         rebid.push(Call::Pass);
                         insert_all_seats(&mut d, &rebid, 3, advance_transfer_rebid(target));
+                    }
+                }
+            }
+
+            // Doubler's accept/decline of the advancer's invitational minor
+            // jump, then the advancer's placement over the doubler's forcing new
+            // suit.  The natural jump is limited, so — like a `2NT` invite — the
+            // doubler passes to decline; only the accepting new-suit/`3NT`
+            // branches (and the advancer's rebid over them) need authoring.  Wire
+            // both RHO-pass and RHO-double.  Only when the minor jump is enabled.
+            if advance_minor_jump_enabled() {
+                for minor in [Suit::Clubs, Suit::Diamonds] {
+                    let m = Strain::from(minor);
+                    // A three-level minor jump exists only below their suit.
+                    if m >= theirs {
+                        continue;
+                    }
+                    let jump = call(3, m);
+                    for rho in [Call::Pass, Call::Double] {
+                        let after_jump = [Call::Bid(opening), Call::Double, Call::Pass, jump, rho];
+                        insert_all_seats(
+                            &mut d,
+                            &after_jump,
+                            3,
+                            answer_advance_minor_jump(opening, minor),
+                        );
+                        // The advancer places game over each forcing new suit the
+                        // doubler can show (any unbid suit above the jump).
+                        for shown in [Suit::Diamonds, Suit::Hearts, Suit::Spades] {
+                            let s = Strain::from(shown);
+                            if s == theirs || s <= m {
+                                continue;
+                            }
+                            for rho2 in [Call::Pass, Call::Double] {
+                                let mut seq = after_jump.to_vec();
+                                seq.push(call(3, s));
+                                seq.push(rho2);
+                                insert_all_seats(&mut d, &seq, 3, advance_minor_jump_rebid(shown));
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Doubler's accept/decline of the advancer's invitational `2NT`
+            // (`[1t, X, P, 2NT, {P,X}, ?]`), then the advancer's placement over
+            // the doubler's forcing new major.  Without this the doubler falls to
+            // the floor, which passes `2NT` even holding a game.  Both RHO-pass
+            // and RHO-double branches; only when enabled.
+            if advance_2nt_continuation_enabled() {
+                let invite = call(2, Strain::Notrump);
+                for rho in [Call::Pass, Call::Double] {
+                    let after_2nt = [Call::Bid(opening), Call::Double, Call::Pass, invite, rho];
+                    insert_all_seats(&mut d, &after_2nt, 3, answer_advance_2nt(opening));
+                    // The advancer places game over each forcing major the doubler
+                    // can show (an unbid major at the three level).
+                    for major in [Suit::Hearts, Suit::Spades] {
+                        let s = Strain::from(major);
+                        if s == theirs {
+                            continue;
+                        }
+                        for rho2 in [Call::Pass, Call::Double] {
+                            let mut seq = after_2nt.to_vec();
+                            seq.push(call(3, s));
+                            seq.push(rho2);
+                            insert_all_seats(&mut d, &seq, 3, advance_minor_jump_rebid(major));
+                        }
                     }
                 }
             }
@@ -5375,6 +5606,177 @@ mod tests {
             blast,
             call(4, Strain::Hearts),
             "a shapely weak long-major hand blasts the two-way 4M, not a quiet 2-level"
+        );
+    }
+
+    /// The invitational minor jump (`set_advance_minor_jump`): a three-level
+    /// minor jump shows a 5+ one-suiter (10–12) denying a 4-card unbid major.
+    /// With a 4-card major the advancer cues to find the fit; with a stopper it
+    /// prefers notrump (the jump ranks below the notrump ladder).
+    #[test]
+    fn advance_minor_jump_shows_invitational_one_suiter() {
+        // (1♥) X (P) ? — advancer to act; the unbid major is spades.
+        let auction = [call(1, Strain::Hearts), Call::Double, Call::Pass];
+        super::set_rich_advance_double(true);
+        super::set_advance_minor_jump(true);
+
+        // 11 HCP, 5 diamonds, 3 spades (no 4-card major), no heart stopper: an
+        // invitational one-suiter → jump 3♦.
+        let one_suiter = "xxx.xx.AQJxx.KJx";
+        let (jump, _) = best_call(&auction, one_suiter);
+        // 11 HCP, 4 spades + 5 diamonds, no heart stopper: a 4-card unbid major →
+        // cue 2♥ to find the fit, not the minor jump.
+        let with_major = "KQxx.xx.AQxxx.xx";
+        let (cued, _) = best_call(&auction, with_major);
+        // 11 HCP, 5 diamonds, heart stopper, balanced: a minor needs eleven
+        // tricks, so it prefers 2NT — the jump ranks below the notrump ladder.
+        let stopped = "Qxx.KJx.AJxxx.xx";
+        let (notrump, _) = best_call(&auction, stopped);
+
+        super::set_advance_minor_jump(false);
+        // Knob off (the default): the same one-suiter has no minor jump, so it
+        // cues instead of jumping.
+        let (off, _) = best_call(&auction, one_suiter);
+        super::set_rich_advance_double(true); // restore rich default
+
+        assert_eq!(
+            jump,
+            call(3, Strain::Diamonds),
+            "invitational 5+ minor, no major → 3♦ jump"
+        );
+        assert_eq!(
+            cued,
+            call(2, Strain::Hearts),
+            "a 4-card unbid major cues, not the minor jump"
+        );
+        assert_eq!(
+            notrump,
+            call(2, Strain::Notrump),
+            "a stopper prefers notrump over the minor jump"
+        );
+        assert_ne!(off, call(3, Strain::Diamonds), "knob off → no minor jump");
+    }
+
+    /// The doubler's accept/decline of the minor jump, and the advancer's
+    /// placement over the doubler's forcing new suit: the limited invite lets the
+    /// doubler pass (unlike the forcing cue), accept a game-forcing 5+ suit, or
+    /// bid `3NT` to play — then the advancer raises the shown suit with support.
+    #[test]
+    fn doubler_accepts_or_declines_the_minor_jump() {
+        // (1♠) X (P) 3♦ (P) ? — doubler acts over the invitational 3♦ jump; the
+        // unbid major is hearts.
+        let jump = [
+            call(1, Strain::Spades),
+            Call::Double,
+            Call::Pass,
+            call(3, Strain::Diamonds),
+            Call::Pass,
+        ];
+        super::set_rich_advance_double(true);
+        super::set_advance_minor_jump(true);
+
+        // Maximum with a 5-card heart suit: accept by showing it, game-forcing.
+        let max_major = "x.AKQxx.Kxx.AQxx"; // 18 HCP, 5♥, no spade stopper
+        let (accept, _) = best_call(&jump, max_major);
+        // Balanced maximum with a spade stopper, no 5-card suit: 3NT to play.
+        let max_flat = "KQx.AJx.Qxx.KQxx"; // 17 HCP, spade stopper
+        let (notrump, _) = best_call(&jump, max_flat);
+        // Minimum takeout double: decline the limited invitation.
+        let minimum = "Kxxx.Qxx.xx.Kxxx"; // ~8 HCP, minimum
+        let (decline, _) = best_call(&jump, minimum);
+
+        // Advancer places game over the doubler's forcing 3♥: raise with support.
+        let after_major = [
+            call(1, Strain::Spades),
+            Call::Double,
+            Call::Pass,
+            call(3, Strain::Diamonds),
+            Call::Pass,
+            call(3, Strain::Hearts),
+            Call::Pass,
+        ];
+        let with_fit = "xx.Kxx.AQJxx.xxx"; // 10 HCP, 5♦, 3♥ support (a valid 3♦ jump)
+        let (raise, _) = best_call(&after_major, with_fit);
+
+        super::set_advance_minor_jump(false);
+        super::set_rich_advance_double(true); // restore rich default
+
+        assert_eq!(
+            accept,
+            call(3, Strain::Hearts),
+            "maximum shows a new 5+ suit, game-forcing"
+        );
+        assert_eq!(
+            notrump,
+            call(3, Strain::Notrump),
+            "balanced maximum accepts 3NT to play"
+        );
+        assert_eq!(decline, Call::Pass, "minimum declines the limited invite");
+        assert_eq!(
+            raise,
+            call(4, Strain::Hearts),
+            "advancer raises the doubler's shown major to game"
+        );
+    }
+
+    /// The doubler answers the advancer's invitational `2NT` naturally — declines
+    /// with a minimum, accepts to play with a balanced maximum, or shows a 5-card
+    /// major game-forcing — instead of the floor passing a game.
+    #[test]
+    fn doubler_accepts_or_declines_the_2nt_invite() {
+        // (1♠) X (P) 2NT (P) ? — doubler acts over the invitational 2NT; the
+        // unbid major is hearts.
+        let invite = [
+            call(1, Strain::Spades),
+            Call::Double,
+            Call::Pass,
+            call(2, Strain::Notrump),
+            Call::Pass,
+        ];
+        super::set_rich_advance_double(true);
+        super::set_advance_2nt_continuation(true);
+
+        // Maximum with a 5-card heart suit: accept by showing it, game-forcing.
+        let max_major = "x.AKQxx.Kxx.AQxx"; // 18 HCP, 5♥
+        let (accept, _) = best_call(&invite, max_major);
+        // Balanced maximum, no 5-card major: 3NT to play.
+        let max_flat = "KQx.AJx.Qxx.KQxx"; // 17 HCP, balanced
+        let (notrump, _) = best_call(&invite, max_flat);
+        // Minimum takeout double: decline the limited invite, pass 2NT.
+        let minimum = "KQxx.Qxx.xx.KQxx"; // 12 HCP, minimum
+        let (decline, _) = best_call(&invite, minimum);
+
+        // Advancer places game over the doubler's forcing 3♥: raise with support.
+        let after_major = [
+            call(1, Strain::Spades),
+            Call::Double,
+            Call::Pass,
+            call(2, Strain::Notrump),
+            Call::Pass,
+            call(3, Strain::Hearts),
+            Call::Pass,
+        ];
+        let with_fit = "Axx.Kxx.Qxx.QJxx"; // 12 HCP, 3♥ support, spade stopper
+        let (raise, _) = best_call(&after_major, with_fit);
+
+        super::set_advance_2nt_continuation(true); // restore default
+        super::set_rich_advance_double(true); // restore rich default
+
+        assert_eq!(
+            accept,
+            call(3, Strain::Hearts),
+            "maximum shows a 5-card major, game-forcing"
+        );
+        assert_eq!(
+            notrump,
+            call(3, Strain::Notrump),
+            "balanced maximum accepts 3NT to play"
+        );
+        assert_eq!(decline, Call::Pass, "minimum declines the limited invite");
+        assert_eq!(
+            raise,
+            call(4, Strain::Hearts),
+            "advancer raises the doubler's shown major to game"
         );
     }
 
