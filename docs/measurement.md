@@ -9,7 +9,9 @@ This doc answers *does this change ship?* Two sibling docs answer the adjacent
 questions: [convention-tuning.md](convention-tuning.md) (*what is a convention's
 best range, and which of its calls leaks?* — sweeping and per-call forensics)
 and [ai-bidder/gto-1nt-defense.md](ai-bidder/gto-1nt-defense.md) (*which whole
-method is best?* — the matrix-game tournament).
+method is best?* — the matrix-game tournament). The verdict every knob ships on
+is indexed in [bidding-options.md](bidding-options.md) — one row per `set_*`
+option with its A/B number and ship/opt-in decision.
 
 Mechanics that churn (exact CLI flags, shard counts) are documented where they
 live: `<example> --help`, the header of
