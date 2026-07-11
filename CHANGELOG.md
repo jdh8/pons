@@ -54,6 +54,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Web Settings: negative-double school radio (Modern / Sputnik / Cachalot).**
+  The Competition section now exposes the `set_negative_double_shape` family as a
+  mutually-exclusive radio, defaulting to the shipped **Modern** and offering the
+  two opt-in schools **Sputnik** (Roth–Stone residual double) and **Cachalot**
+  (transfer Walsh in competition) that the school tournament completed. The
+  registry-driven Settings tab renders it from `describe_options()` with no JS
+  change; the engine default is unchanged (Modern), so the default system stays
+  byte-identical. The pre-Modern `BothMajors` rule is not offered.
+
 - **Opener's balanced-18-19 notrump actions in a contested `1X (1Y) …`
   auction** (`set_reopening_notrump`, `bba-gen --no-ns-reopening-notrump`;
   **shipped default-on**). The instinct floor had exactly one reopening action —

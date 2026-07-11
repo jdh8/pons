@@ -792,6 +792,34 @@ fn set_notrump_defense_choice(value: &str) {
     });
 }
 
+/// The negative-double school over their overcall — variants map onto
+/// `american::NegativeDoubleShape`. Only the three shipped-or-playable schools
+/// surface; the pre-Modern `BothMajors` rule is not offered.
+static NEGATIVE_DOUBLE_VARIANTS: &[Variant] = &[
+    Variant {
+        value: "modern",
+        label: "Modern",
+    },
+    Variant {
+        value: "sputnik",
+        label: "Sputnik",
+    },
+    Variant {
+        value: "cachalot",
+        label: "Cachalot",
+    },
+];
+
+/// Select the negative-double school from its registry `value`.
+fn set_negative_double_choice(value: &str) {
+    use american::NegativeDoubleShape;
+    american::set_negative_double_shape(match value {
+        "sputnik" => NegativeDoubleShape::Sputnik,
+        "cachalot" => NegativeDoubleShape::Cachalot,
+        _ => NegativeDoubleShape::Modern,
+    });
+}
+
 /// Lebensohl as an on/off toggle: on = Transfer Lebensohl (the default package, not
 /// the `set_lebensohl` wrapper's lossy `Plain`), off = none.
 fn set_lebensohl_toggle(on: bool) {
@@ -880,6 +908,15 @@ static SETTINGS: &[Setting] = &[
     toggle("rich_advance_double", COMPETITION, "", false, american::set_rich_advance_double),
     toggle("advance_rubens", COMPETITION, "Rubens advances", false, american::set_advance_rubens),
     toggle("nt_overcall_gladiator", COMPETITION, "Gladiator (1NT-overcall advance)", false, american::set_nt_overcall_gladiator),
+    // Negative-double school over their overcall — the enum-backed radio family
+    Setting::Choice {
+        key: "negative_double_shape",
+        section: COMPETITION,
+        label: "Negative double (over their overcall)",
+        variants: NEGATIVE_DOUBLE_VARIANTS,
+        default: "modern",
+        set: set_negative_double_choice,
+    },
     // Defense to their 1NT — the radio family is the enum-backed choice
     Setting::Choice {
         key: "notrump_defense",
