@@ -925,10 +925,8 @@ static SETTINGS: &[Setting] = &[
     // Rebids & responses
     toggle("second_suit_agreement", REBIDS, "", true, american::set_second_suit_agreement),
     toggle("fourth_suit_forcing", REBIDS, "Fourth suit forcing", true, american::set_fourth_suit_forcing),
-    toggle("xyz", REBIDS, "XYZ (two-way checkback)", true, american::set_xyz),
     toggle("meckstroth_adjunct", REBIDS, "Meckstroth adjunct", true, american::set_meckstroth_adjunct),
     toggle("limit_raise_acceptance", REBIDS, "", true, american::set_limit_raise_acceptance),
-    toggle("up_the_line", REBIDS, "", true, american::set_up_the_line),
     // Floor (instinct)
     toggle("inference_aware", FLOOR, "", true, instinct::set_inference_aware),
     toggle("one_nt_runout", FLOOR, "", true, instinct::set_one_nt_runout),

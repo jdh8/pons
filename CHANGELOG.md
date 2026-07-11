@@ -64,9 +64,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `overcall_discipline`, `trap_pass`, `penalty_double_leave_in`,
   `strong_two_competition`, and the three `suppress_*_takeout` knobs. No engine
   behavior change: the setters stay `pub` with their `--no-ns-*` CLI wiring for
-  measurement. `up_the_line` is deliberately kept as a toggle — its trigger is
-  not gated on `xyz()`, so forcing it on while `xyz` stays toggleable would
-  strand it in its standalone-loss config.
+  measurement. `xyz` and `up_the_line` are retired **together**: XYZ is the
+  de-facto modern checkback (it displaced New Minor Forcing), so the artificial
+  convention folds into base on naturalness; retiring the pair keeps up_the_line
+  — whose trigger fires independent of `xyz()` and loses standalone — from ever
+  being forced on without XYZ.
 
 ### Fixed
 

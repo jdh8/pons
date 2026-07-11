@@ -59,10 +59,12 @@ natural-≥-floor batch (`major_game_tries`, `longer_major_response`,
 `major_rebid_tails`, `competitive_rebid`, `suppress_nt_game_force_over_double`,
 `correct_3nt_to_major`, `overcall_discipline`, `trap_pass`,
 `penalty_double_leave_in`, `strong_two_competition`, and the three
-`suppress_*_takeout` knobs). `up_the_line` is **deliberately kept** as a `web`
-toggle: its trigger fires independent of `xyz()` (it is not gated on it), so
-forcing it on while `xyz` stays user-toggleable would strand it in its
-standalone-loss config. Retire it only once its rules are gated on `xyz()`.
+`suppress_*_takeout` knobs). `xyz` and `up_the_line` are retired **together**:
+XYZ is the de-facto modern checkback (it displaced New Minor Forcing), so the
+artificial convention folds into base on naturalness, and up_the_line — whose
+trigger fires independent of `xyz()` and loses standalone — is only safe to
+force on when XYZ is forced on with it, which retiring both as a pair
+guarantees.
 
 ### Freshness vocabulary
 
@@ -87,7 +89,7 @@ that live *inside* a book are in Tier B.
 | set_one_notrump_fifths | `--nt-fifths` | Natural | OFF | — unmeasured at the *open* boundary; Fifths refuted at the *invite* boundary ([project_nt-invite-evaluator-sweep]) | unmeasured | needs A/B |
 | set_rule_of_20 | `--no-ns-rule-of-20` | Natural | ON | plain +0.0061/+0.0087, PD −0.0056/−0.0034 (doubler artifact), sd-lead +0.0096/+0.0135 (SEED 1783410574, `rule-of-20-ab.sh`) | fresh | fold into base |
 | set_longer_major_response | `--no-ns-longer-major-response` | Natural | ON | plain-DD wash, PD −0.12/−0.22 per div; kept by naturalness tiebreak (commit 2ba6b90) | fresh | fold into base |
-| set_up_the_line | `--no-ns-up-the-line` | Natural | ON | **coupled with XYZ**: joint plain +0.0382/+0.0559, PD +0.0289/+0.0407; alone a loss −0.91/−1.28 per div | fresh | fold into base *with* XYZ — do not enable independently |
+| set_up_the_line | `--no-ns-up-the-line` | Natural | ON | **coupled with XYZ**: joint plain +0.0382/+0.0559, PD +0.0289/+0.0407; alone a loss −0.91/−1.28 per div | fresh | folded into base *with* XYZ (web toggle retired as a pair) |
 | set_major_game_tries | `--no-ns-major-game-tries` | Natural | ON | plain +0.042/+0.065 (both scorers win); package w/ FSF+limit-accept +0.058/+0.089 ([project_major-continuations]) | fresh | fold into base |
 | set_limit_raise_acceptance | `--no-ns-limit-raise-acceptance` | Artificial | ON | plain +0.002/+0.002; load-bearing part is the 4NT keycard ask +4.4/+5.2 IMPs/div | fresh | default-on ✓ |
 | set_meckstroth_adjunct | `meckstroth-abc` (no bba-gen flag) | Artificial | ON | — unmeasured (harness exists, no result recorded); 21gf-ledger "complementary to XYZ, keep" | unmeasured | needs A/B |
@@ -97,7 +99,7 @@ that live *inside* a book are in Tier B.
 | set_major_rebid_tails | `--no-ns-major-rebid-tails` | Natural | ON | plain +0.016/+0.023 NV/vul | fresh | fold into base |
 | set_fourth_suit_forcing | `--no-ns-fourth-suit-forcing` | Artificial | ON | plain +0.002/bd both scorers/vuls, atop the tails; part of the +0.058/+0.089 major-continuations package. Rides `set_major_rebid_tails` | fresh | default-on ✓ |
 | set_second_suit_agreement | `--no-ns-second-suit-agreement` | Artificial | ON | plain +0.0012/PD +0.0014 NV, +0.0015/+0.0018 vul (marginal; payoff in the RKCB-on-extras tail) | fresh | default-on ✓ |
-| set_xyz | `--no-ns-xyz` | Artificial | ON | joint w/ up-the-line +0.0382/+0.0559; XYZ alone +0.504/+0.795 per div plain, +0.332/+0.472 PD | fresh | default-on ✓ |
+| set_xyz | `--no-ns-xyz` | Artificial | ON | joint w/ up-the-line +0.0382/+0.0559; XYZ alone +0.504/+0.795 per div plain, +0.332/+0.472 PD | fresh | folded into base (de-facto modern checkback; web toggle retired) |
 
 ### A2 — Our 1NT: Stayman, transfers (artificial constructive)
 
