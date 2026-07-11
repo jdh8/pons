@@ -260,6 +260,7 @@ is not grounds to change a ship decision (cf. DoubleStyle, Jordan/Truscott).
 | 52 | Drury | gap | add (Batch 3) | — | — |
 | — | Meckstroth adjunct — invitational `3m` jumps (pons-only, a misnomer) | shipped (`set_meckstroth_adjunct`) | keep — sd-vindicated (complementary to XYZ) | plain wash, PD −0.0036/−0.0019, **sd-lead +0.0012/+0.0042** NV/vul (2 seeds ×200k, SHA 22364c9; PD over-punishes, blind lead redeems) | — |
 | — | Meckstroth adjunct — **the real one**: artificial 18+ GF `2NT` + `3♣`-relay shape-outs | **shipped** (`set_meckstroth_2nt`, default on) | keep — plain-DD win; complements XYZ and the `3m`-jump adjunct | plain **+0.0075/+0.013**, PD +0.006/+0.011, **sd-lead +0.010/+0.017** NV/vul (`ab-meckstroth-2nt`, 200k×2 seeds, all CI-clean; +2.7/+4.4 IMPs/div; fires 0.4%) | — |
+| — | Forcing-1NT invitational major two-suiter: `1♥–1NT–2♠` reverse (5+♥4+♠) + `1♠–1NT–3♥` jump (5-5 majors), 15–17 | **shipped** (`set_forcing_nt_two_suiter`, default on) | keep — sd-vindicated (the `3m`-jump adjunct profile) | plain wash-NV/+0.001-vul (never neg), PD −0.0017/−0.0010 (over-punished), **sd-lead +0.0012/+0.0013 NV, +0.0026/+0.0029 vul** (`ab-forcing-nt-two-suiter`, 1M×2 seeds×2 vuls SHA 293ed53, all four sd cells CI-clean; +0.8/+2.1 IMPs/div; fires 0.14%) | — |
 
 ## Slam
 

@@ -6,7 +6,9 @@
 mod common;
 use common::*;
 
-use pons::bidding::american::{set_meckstroth_2nt, set_meckstroth_adjunct};
+use pons::bidding::american::{
+    set_forcing_nt_two_suiter, set_meckstroth_2nt, set_meckstroth_adjunct,
+};
 
 // ---------------------------------------------------------------------------
 // Responder's second call: 1♠ – (P) – 1NT – (P) – 2♦ – (P) – ?
@@ -374,5 +376,96 @@ fn opener_pulls_club_showing_3nt_to_the_major() {
     assert_eq!(
         best_call(&system, &auction, "AKQ982.KQ.A32.32"),
         call(4, Strain::Spades),
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Phase 2: opener's invitational major two-suiter (`set_forcing_nt_two_suiter`,
+// shipped on — the default `stance()` carries it; build the baseline explicitly)
+// ---------------------------------------------------------------------------
+
+/// The baseline arm with the two-suiter rebids off; restore the shipped default.
+fn two_suiter_off_stance() -> Stance {
+    set_forcing_nt_two_suiter(false);
+    let system = american().against(Family::NATURAL);
+    set_forcing_nt_two_suiter(true); // restore the shipped default (on)
+    system
+}
+
+/// Auction shorthand for 1♥ – (P) – 1NT – (P) — opener to rebid
+fn after_1h_1nt() -> Vec<Call> {
+    let p = Call::Pass;
+    vec![call(1, Strain::Hearts), p, call(1, Strain::Notrump), p]
+}
+
+#[test]
+fn opener_reverses_into_spades_with_five_four_and_extras() {
+    // KQ54.AKJ32.K2.32 — 16 HCP, 4-5-2-2: the 1♥ – 1NT – 2♠ reverse (on),
+    // a natural 2♥ rebid (off, the underbid seam this fills).
+    let hand = "KQ54.AKJ32.K2.32";
+    assert_eq!(
+        best_call(&stance(), &after_1h_1nt(), hand),
+        call(2, Strain::Spades),
+    );
+    assert_eq!(
+        best_call(&two_suiter_off_stance(), &after_1h_1nt(), hand),
+        call(2, Strain::Hearts),
+    );
+}
+
+#[test]
+fn opener_jumps_to_show_five_five_majors() {
+    // AKQ32.KQJ32.2.32 — 15 HCP, 5-5-1-2: the 1♠ – 1NT – 3♥ jump (on),
+    // a natural 2♥ rebid (off).
+    let hand = "AKQ32.KQJ32.2.32";
+    assert_eq!(
+        best_call(&stance(), &after_1s_1nt(), hand),
+        call(3, Strain::Hearts),
+    );
+    assert_eq!(
+        best_call(&two_suiter_off_stance(), &after_1s_1nt(), hand),
+        call(2, Strain::Hearts),
+    );
+}
+
+#[test]
+fn responder_raises_the_reverse_to_the_heart_game() {
+    // Q43.K32.QJ32.432 — 8 HCP, three hearts: take the 5-3 heart game.
+    let auction = {
+        let mut a = after_1h_1nt();
+        a.extend([call(2, Strain::Spades), Call::Pass]);
+        a
+    };
+    assert_eq!(
+        best_call(&stance(), &auction, "Q43.K32.QJ32.432"),
+        call(4, Strain::Hearts),
+    );
+}
+
+#[test]
+fn responder_accepts_the_five_five_jump_in_spades() {
+    // K43.J32.KJ32.432 — 8 HCP, three spades: accept to 4♠ (spade fit).
+    let auction = {
+        let mut a = after_1s_1nt();
+        a.extend([call(3, Strain::Hearts), Call::Pass]);
+        a
+    };
+    assert_eq!(
+        best_call(&stance(), &auction, "K43.J32.KJ32.432"),
+        call(4, Strain::Spades),
+    );
+}
+
+#[test]
+fn responder_declines_the_five_five_jump_with_a_minimum() {
+    // Q3.J32.QJ32.J432 — 7 HCP, two spades: decline to 3♠ (preference).
+    let auction = {
+        let mut a = after_1s_1nt();
+        a.extend([call(3, Strain::Hearts), Call::Pass]);
+        a
+    };
+    assert_eq!(
+        best_call(&stance(), &auction, "Q3.J32.QJ32.J432"),
+        call(3, Strain::Spades),
     );
 }

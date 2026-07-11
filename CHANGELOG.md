@@ -39,6 +39,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   18+ slice). Unlike `set_meckstroth_adjunct` (plain-wash + PD-loss, saved only by
   the blind lead), this is a plain-DD win outright.
 
+- **Opener's invitational major two-suiter over the forcing `1NT`** shipped
+  **default-on** (`set_forcing_nt_two_suiter`; the `ab-forcing-nt-two-suiter`
+  self-play harness builds a baseline arm with it off). After `1M – 1NT`, opener
+  with 15–17 and a second major suit previously had no invitational rebid — a 5-4
+  or 5-5 hand underbid as a minimum natural call. This fills the seam between the
+  minimum rebids and the 18+ game force (the Meckstroth `2NT`) with two calls:
+  `1♥ – 1NT – 2♠` (a reverse: 5+ hearts, 4+ spades, forcing one round) and
+  `1♠ – 1NT – 3♥` (a jump: 5-5 majors, invitational). Both are alerted (they floor
+  opener's first suit) and decoded by rule projection; responder's continuations
+  are authored (raise a fit to game, sign off, or place `3NT`), with opener's
+  natural acceptance of a below-game signoff left to the deterministic floor.
+
+  **Ships default-on, sd-vindicated** — the `set_meckstroth_adjunct` profile.
+  Self-play A/B (`ab-forcing-nt-two-suiter`, 1M boards/cell × two seeds × both
+  vulnerabilities, opponents silenced), on-vs-off: plain DD is a **wash NV /
+  +0.001 vul** (never negative, both seeds agree); perfect defense **−0.0017 /
+  −0.0010** (PD over-punishes the thin invitational games); single-dummy blind
+  lead **+0.0012 / +0.0013 NV, +0.0026 / +0.0029 vul** — all four sd cells CI-clean
+  above zero (+0.8 to +2.1 IMPs per divergent board). Fires on ≈0.14% of boards.
+  The realistic blind-lead scorer redeems the PD loss, exactly as for the
+  invitational-`3m`-jump adjunct.
+
 - **New Minor Forcing as an opt-in alternative to XYZ** (`set_new_minor_forcing`,
   `bba-gen --ns-new-minor-forcing`, `ab-minor-continuations --nmf`; **default
   off** — the shipped system keeps XYZ, and the default book is byte-identical).

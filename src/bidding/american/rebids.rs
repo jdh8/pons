@@ -62,6 +62,36 @@ fn meckstroth_2nt() -> bool {
     MECKSTROTH_2NT.with(Cell::get)
 }
 
+// ponytail: same construction-time toggle as the Meckstroth adjunct above.
+std::thread_local! {
+    /// Whether opener shows an invitational (15–17) major two-suiter after the
+    /// forcing `1NT`: the `1♥ – 1NT – 2♠` reverse (5+ hearts, 4+ spades) and the
+    /// `1♠ – 1NT – 3♥` jump (5-5 majors).  Fills the seam between the minimum
+    /// natural rebids and the 18+ game force (`set_meckstroth_2nt`).  Shipped
+    /// **on**, sd-vindicated (`ab-forcing-nt-two-suiter`, 1M×2 seeds×2 vuls):
+    /// plain wash-NV/+0.0012-vul, PD −0.0017/−0.0010 (over-punished), sd-lead
+    /// **+0.0012/+0.0028** NV/vul — all four sd cells CI-clean positive.
+    static FORCING_NT_TWO_SUITER: Cell<bool> = const { Cell::new(true) };
+}
+
+/// Enable opener's invitational major two-suiter rebids after the forcing `1NT`
+/// in books built after this call (default **on**)
+///
+/// Over the forcing 1NT, opener with 15–17 and a second major suit has no
+/// invitational rebid — a 5-4 or 5-5 hand underbids as a minimum natural call.
+/// This adds `1♥ – 1NT – 2♠` (reverse: 5+ hearts, 4+ spades) and
+/// `1♠ – 1NT – 3♥` (jump: 5-5 majors), both 15–17, with responder's
+/// continuations.  Read at book-construction time; set it before building the
+/// `Pair` (the `ab-forcing-nt-two-suiter` A/B builds a baseline arm with it off).
+pub fn set_forcing_nt_two_suiter(on: bool) {
+    FORCING_NT_TWO_SUITER.with(|cell| cell.set(on));
+}
+
+/// Whether opener's invitational major two-suiter rebids are enabled
+fn forcing_nt_two_suiter() -> bool {
+    FORCING_NT_TWO_SUITER.with(Cell::get)
+}
+
 // ponytail: same construction-time toggle as the Meckstroth adjunct — read
 // during `register()`, so set it before building the `Pair`.
 std::thread_local! {
@@ -309,6 +339,50 @@ fn with_invitational_minors(mut rules: Rules) -> Rules {
     rules
 }
 
+/// Whether a rebid is opener's invitational major two-suiter (`set_forcing_nt_two_suiter`)
+///
+/// `1♥ – 1NT – 2♠` (the reverse) or `1♠ – 1NT – 3♥` (the 5-5 jump); the other
+/// major has no such call.
+fn is_forcing_nt_two_suiter(major: Suit, rebid: Call) -> bool {
+    match major {
+        Suit::Hearts => rebid == call(2, Strain::Spades),
+        Suit::Spades => rebid == call(3, Strain::Hearts),
+        _ => false,
+    }
+}
+
+/// Append opener's invitational (15–17) major two-suiter rebid when enabled
+///
+/// Fills the seam between the minimum natural rebids and the 18+ game force:
+/// over `1♥` the `2♠` reverse (5+ hearts, 4+ spades, forcing one round), over
+/// `1♠` the `3♥` jump (5-5 majors, invitational).  Both floor opener's first
+/// suit, so both are alerted (reused reverse/jump-shift tags) and decoded by
+/// rule projection.  Weights sit above the natural minimum rebids (0.9/1.0) but
+/// below the `3M` major jump-rebid (1.5) and the 18+ `2NT` (1.6), so the crisp
+/// `points(15..=17)` band keeps 18+ hands in the game force.
+fn with_forcing_nt_two_suiter(rules: Rules, major: Suit) -> Rules {
+    if !forcing_nt_two_suiter() {
+        return rules;
+    }
+    match major {
+        Suit::Hearts => rules
+            .rule(
+                Bid::new(2, Strain::Spades),
+                1.1,
+                len(Suit::Hearts, 5..) & len(Suit::Spades, 4..) & points(15..=17),
+            )
+            .alert(OPENER_REVERSE),
+        Suit::Spades => rules
+            .rule(
+                Bid::new(3, Strain::Hearts),
+                1.15,
+                len(Suit::Spades, 5..) & len(Suit::Hearts, 5..) & points(15..=17),
+            )
+            .alert(OPENER_JUMP_SHIFT),
+        _ => rules,
+    }
+}
+
 /// Opener's rebid after `1♥ – 1♠`: raise spades, rebid hearts, or show shape
 ///
 /// Forcing on opener — there is no pass rule.
@@ -374,6 +448,8 @@ fn rebid_after_forcing_notrump(major: Suit) -> Rules {
     rules = with_invitational_minors(rules);
     // Major jump-rebid: 1M – 1NT – 3M on a six-card major with extras.
     rules = with_major_jump_rebid(rules, major, Bid::new(1, Strain::Notrump));
+    // Invitational two-suiter: 1♥ – 1NT – 2♠ reverse / 1♠ – 1NT – 3♥ jump.
+    rules = with_forcing_nt_two_suiter(rules, major);
     for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts] {
         if Strain::from(suit) < trump {
             rules = rules.rule(Bid::new(2, Strain::from(suit)), 0.9, len(suit, 4..));
@@ -611,6 +687,7 @@ fn register_forcing_notrump_continuations(book: &mut Trie) {
             let rebid = rule.call();
             if rebid != call(2, Strain::Notrump)
                 && !is_invitational_minor_jump(rebid)
+                && !is_forcing_nt_two_suiter(major, rebid)
                 && !seen.contains(&rebid)
             {
                 seen.push(rebid);
@@ -702,6 +779,95 @@ fn register_major_jump_rebid_continuations(book: &mut Trie) {
             call(3, Strain::Hearts),
         ],
         responder_after_major_jump_rebid(Suit::Hearts),
+    );
+}
+
+/// Responder's call over opener's `1♥ – 1NT – 2♠` reverse (5+ hearts, 4+ spades)
+///
+/// Opener has 15–17 and a real spade suit; responder holds ≤ 3 spades (the
+/// forcing 1NT denied four).  Forcing one round — the `2NT` fallback is the
+/// finite catch-all, so there is no `Pass`.  Opener's acceptance of a below-game
+/// signoff (`3♥`/`2NT`) is left to the deterministic floor (a natural invite).
+///
+/// | Call | Wt  | Meaning |
+/// |------|-----|---------|
+/// | 4♥   | 1.5 | 5-3 heart game (3+ hearts, values) |
+/// | 4♠   | 1.3 | 4-3 spade game (exactly three spades, values) |
+/// | 3NT  | 1.2 | No eight-card fit, values — to play |
+/// | 3♥   | 1.0 | Heart preference, minimum |
+/// | 2NT  | 0.0 | Guaranteed-legal minimum catch-all |
+fn responder_over_forcing_nt_reverse() -> Rules {
+    Rules::new()
+        .rule(
+            Bid::new(4, Strain::Hearts),
+            1.5,
+            len(Suit::Hearts, 3..) & points(8..),
+        )
+        .rule(
+            Bid::new(4, Strain::Spades),
+            1.3,
+            len(Suit::Spades, 3..=3) & points(8..),
+        )
+        .rule(Bid::new(3, Strain::Notrump), 1.2, points(8..))
+        .rule(Bid::new(3, Strain::Hearts), 1.0, len(Suit::Hearts, 2..))
+        .rule(Bid::new(2, Strain::Notrump), 0.0, points(0..))
+}
+
+/// Responder's call over opener's `1♠ – 1NT – 3♥` jump (5-5 majors, invitational)
+///
+/// Opener has 15–17 and 5-5 in the majors; responder accepts to game with a fit
+/// or values, else declines.  Non-forcing — `Pass` (heart tolerance) is the
+/// finite catch-all.  Opener's acceptance of a `3♠` decline is left to the floor.
+///
+/// | Call | Wt  | Meaning |
+/// |------|-----|---------|
+/// | 4♠   | 1.5 | Spade fit game (3+ spades, values) |
+/// | 4♥   | 1.4 | Heart fit game (3+ hearts, values) |
+/// | 3NT  | 1.2 | Values, no three-card fit — to play |
+/// | 3♠   | 1.0 | Spade preference, decline (minimum) |
+/// | Pass | 0.0 | Heart tolerance, decline — play `3♥` |
+fn responder_over_forcing_nt_5_5() -> Rules {
+    Rules::new()
+        .rule(
+            Bid::new(4, Strain::Spades),
+            1.5,
+            len(Suit::Spades, 3..) & points(8..),
+        )
+        .rule(
+            Bid::new(4, Strain::Hearts),
+            1.4,
+            len(Suit::Hearts, 3..) & points(8..),
+        )
+        .rule(Bid::new(3, Strain::Notrump), 1.2, points(8..))
+        .rule(Bid::new(3, Strain::Spades), 1.0, len(Suit::Spades, 2..))
+        .rule(Call::Pass, 0.0, points(0..))
+}
+
+/// Register responder's continuations over opener's invitational major
+/// two-suiter rebids (no-op unless [`set_forcing_nt_two_suiter`] enabled them)
+fn register_forcing_nt_two_suiter_continuations(book: &mut Trie) {
+    if !forcing_nt_two_suiter() {
+        return;
+    }
+    // 1♥ – 1NT – 2♠ (reverse).
+    insert_uncontested(
+        book,
+        &[
+            call(1, Strain::Hearts),
+            call(1, Strain::Notrump),
+            call(2, Strain::Spades),
+        ],
+        responder_over_forcing_nt_reverse(),
+    );
+    // 1♠ – 1NT – 3♥ (5-5 jump).
+    insert_uncontested(
+        book,
+        &[
+            call(1, Strain::Spades),
+            call(1, Strain::Notrump),
+            call(3, Strain::Hearts),
+        ],
+        responder_over_forcing_nt_5_5(),
     );
 }
 
@@ -1345,6 +1511,7 @@ fn register_major_rebid_tails(book: &mut Trie) {
 pub(super) fn register(book: &mut Trie) {
     register_forcing_notrump_continuations(book);
     register_major_jump_rebid_continuations(book);
+    register_forcing_nt_two_suiter_continuations(book);
     register_meckstroth_2nt_continuations(book);
     insert_uncontested(
         book,
