@@ -47,6 +47,10 @@ pub fn set_one_notrump_fifths(on: bool) {
 /// traced to sound 11-counts we passed and BBA opened — a plain-DD and
 /// sd-lead win both vulnerabilities (the pd loss is the perfect-doubler
 /// bracket; see [docs/bba-gap-campaign.md]).
+///
+/// Natural and folded into base per [docs/bidding-options.md]; retained only
+/// as a measurement off-switch, not a user-facing toggle (dropped from the
+/// `web` settings registry).
 pub fn set_rule_of_20(on: bool) {
     RULE_OF_20.with(|cell| cell.set(on));
 }

@@ -44,10 +44,19 @@ the floor** — then read the action:
 The matrix says a natural option at/above the floor should be **folded into base
 and the knob retired**. In practice the house keeps the shipped default-on knob's
 `--no-ns-*` off-switch (and a byte-identical off-state) so the change stays
-**re-measurable**. So "fold into base" here is the *system* verdict; the knob may
-survive as a `#[doc(hidden)]` measurement switch. Actually retiring a knob is a
-follow-up, each with its own re-measure — **out of scope for this document-only
-pass.**
+**re-measurable**. So "fold into base" here is the *system* verdict, and
+"retiring" a knob means removing it as a **user-facing** choice, not deleting it:
+
+- Drop its row from the `web` settings registry ([web/src/lib.rs](../web/src/lib.rs),
+  the `SETTINGS` table) — that is the only user-facing surface, and it has no
+  automatic sync to the engine setters, so this is the edit that matters.
+- Keep the `pub set_*` fn and its `--no-ns-*` CLI wiring for measurement. A
+  "retired" knob only faces developers, so it stays in rustdoc (no
+  `#[doc(hidden)]`) — the off-switch should be documented for whoever re-measures.
+
+Precedent: `set_rule_of_20` and `set_balanced_1nt_rebid` retired this way. Each
+retirement still wants its own confirming re-measure — **out of scope for this
+document-only pass.**
 
 ### Freshness vocabulary
 

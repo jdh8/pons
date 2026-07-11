@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Retired the `rule_of_20` and `balanced_1nt_rebid` toggles from the `web`
+  app.** Both are natural treatments at/above the floor that are folded into the
+  base system (see [docs/bidding-options.md](docs/bidding-options.md)), so they
+  are no longer user-facing choices — the two rows are dropped from the `web`
+  `SETTINGS` registry. No engine behavior change: the setters stay `pub` with
+  their `--no-ns-*` CLI wiring for measurement (and are no longer
+  `#[doc(hidden)]` — a retired knob still faces developers). Documents the
+  retirement mechanism (drop from `web`, keep the CLI switch) in the audit's
+  fold-into-base caveat.
+
 ### Fixed
 
 - **Opener answers a Cachalot `X` transfer under competition instead of falling

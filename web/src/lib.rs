@@ -862,7 +862,6 @@ fn set_puppet_stayman(on: bool) {
 static SETTINGS: &[Setting] = &[
     // Openings
     toggle("open_one_notrump", OPENINGS, "Open 1NT (15–17)", true, american::set_open_one_notrump),
-    toggle("rule_of_20", OPENINGS, "", true, american::set_rule_of_20),
     // Notrump
     toggle("puppet_stayman", NOTRUMP, "Puppet Stayman (3♣)", true, set_puppet_stayman),
     toggle("garbage_stayman", NOTRUMP, "Garbage Stayman", true, american::set_garbage_stayman),
@@ -931,7 +930,6 @@ static SETTINGS: &[Setting] = &[
     toggle("transfer_defense", DEFENSE, "", false, american::set_transfer_defense),
     toggle("minor_transfer_defense", DEFENSE, "", false, american::set_minor_transfer_defense),
     // Rebids & responses
-    toggle("balanced_1nt_rebid", REBIDS, "", true, american::set_balanced_1nt_rebid),
     toggle("second_suit_agreement", REBIDS, "", true, american::set_second_suit_agreement),
     toggle("fourth_suit_forcing", REBIDS, "Fourth suit forcing", true, american::set_fourth_suit_forcing),
     toggle("xyz", REBIDS, "XYZ (two-way checkback)", true, american::set_xyz),

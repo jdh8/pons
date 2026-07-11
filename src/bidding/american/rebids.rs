@@ -51,6 +51,10 @@ std::thread_local! {
 /// (the largest lever in the Constructive/book/round-2 anchor bucket).  Read at
 /// book-construction time; shipped default-on (+0.0093 plain / +0.0101 PD
 /// IMPs/board vs BBA, both vuls).
+///
+/// Natural and folded into base per [docs/bidding-options.md]; retained only
+/// as a measurement off-switch, not a user-facing toggle (dropped from the
+/// `web` settings registry).
 pub fn set_balanced_1nt_rebid(on: bool) {
     BALANCED_1NT_REBID.with(|cell| cell.set(on));
 }
