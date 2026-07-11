@@ -220,6 +220,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The longer-major `1♥` response (`set_longer_major_response`, opt-in) now
+  discloses as positive prose. Its constraint used `!spades_first()`, which the
+  book rendered as *"not (spades longer than hearts, or equal five-plus)"*; a new
+  `hearts_first()` selector — the exact complement, verified partitioning every
+  holding by a unit test — renders as *"hearts longer than spades, or equal below
+  five"*. Behavior-neutral (byte-identical bids); only the disclosed description
+  changes.
 - Internal: consolidated the copy-pasted `call`/`stance`/`best_call` prelude
   shared by the `american_*` integration tests into `tests/common/mod.rs`
   (−485 lines net across the test tree). No test behavior changed; the two files

@@ -82,11 +82,33 @@ fn spades_first() -> Cons<impl Constraint + Clone> {
     described(
         "spades longer than hearts, or equal five-plus",
         |hand: Hand, _: &Context<'_>| {
-            let spades = hand[Suit::Spades].len();
-            let hearts = hand[Suit::Hearts].len();
-            spades > hearts || (spades == hearts && spades >= 5)
+            spades_take_first(hand[Suit::Spades].len(), hand[Suit::Hearts].len())
         },
     )
+}
+
+/// The [`spades_first`] predicate on the two major lengths alone
+fn spades_take_first(spades: usize, hearts: usize) -> bool {
+    spades > hearts || (spades == hearts && spades >= 5)
+}
+
+/// Hearts take the first response: strictly longer, or equal length below five
+///
+/// The exact complement of [`spades_first`] — the 1♥ response fires precisely
+/// when spades do not. Phrased positively so the book renders "hearts longer
+/// than spades, or equal below five" rather than a negated `spades_first`.
+fn hearts_first() -> Cons<impl Constraint + Clone> {
+    described(
+        "hearts longer than spades, or equal below five",
+        |hand: Hand, _: &Context<'_>| {
+            hearts_take_first(hand[Suit::Spades].len(), hand[Suit::Hearts].len())
+        },
+    )
+}
+
+/// The [`hearts_first`] predicate on the two major lengths alone
+fn hearts_take_first(spades: usize, hearts: usize) -> bool {
+    hearts > spades || (hearts == spades && spades < 5)
 }
 
 /// Jacoby 2NT — the game-forcing major raise with four-card support
@@ -245,7 +267,7 @@ pub fn minor_responses(minor: Suit) -> Rules {
             .rule(
                 Bid::new(1, Strain::Hearts),
                 1.4,
-                len(Suit::Hearts, 4..) & points(6..) & !spades_first(),
+                len(Suit::Hearts, 4..) & points(6..) & hearts_first(),
             )
     } else {
         // Default pair — unconditional hearts-first: any four-plus hearts
@@ -464,5 +486,41 @@ pub(super) fn register(book: &mut Trie) {
             ];
             super::insert_uncontested(book, our_calls_2nt_4th, after_2nt_4th);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{hearts_first, hearts_take_first, spades_take_first};
+    use crate::bidding::constraint::Constraint;
+
+    #[test]
+    fn major_selectors_partition_every_holding() {
+        // `hearts_first` is the exact complement of `spades_first`, so on any
+        // pair of major lengths exactly one of the two selectors fires — the
+        // guard that a future edit cannot let them overlap or leave a gap.
+        for spades in 0..=13 {
+            for hearts in 0..=13 - spades {
+                assert_ne!(
+                    spades_take_first(spades, hearts),
+                    hearts_take_first(spades, hearts),
+                    "selectors overlap or gap at {spades}♠ {hearts}♥",
+                );
+            }
+        }
+        // Direction: 4-4 up the line to hearts, 5-5 high to spades, 5♠4♥ longer.
+        assert!(hearts_take_first(4, 4));
+        assert!(spades_take_first(5, 5));
+        assert!(spades_take_first(5, 4));
+    }
+
+    #[test]
+    fn hearts_first_renders_positively() {
+        // The point of the change: the 1♥ selector reads as positive prose, not
+        // a negated `spades_first` ("not (…)").
+        assert_eq!(
+            hearts_first().describe().to_string(),
+            "hearts longer than spades, or equal below five",
+        );
     }
 }
