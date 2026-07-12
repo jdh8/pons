@@ -30,7 +30,7 @@ use clap::Parser;
 use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Seat};
 use pons::american;
-use pons::bidding::american::{american_classic, american_wide_6322};
+use pons::bidding::american::{american_classic, american_wide};
 use pons::bidding::{Family, Pair};
 use pons::scoring::{final_contract, ns_score_contract};
 use rayon::prelude::*;
@@ -64,8 +64,8 @@ struct Args {
 fn system(name: &str) -> Pair {
     match name {
         "classic" => american_classic(),
-        "wide" => american(),
-        "wide6322" => american_wide_6322(),
+        "wide" => american_wide(),
+        "wide6322" => american(),
         other => panic!("unknown shape policy {other:?} (classic | wide | wide6322)"),
     }
 }

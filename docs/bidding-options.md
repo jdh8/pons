@@ -85,8 +85,8 @@ that live *inside* a book are in Tier B.
 | Option (knob) | CLI | Nat/Art | Default | A/B verdict | Fresh | Policy → action |
 | --- | --- | --- | --- | --- | --- | --- |
 | set_open_one_notrump | `--no-our-1nt` | Natural | ON | Diagnostic isolation knob; whole-system 1NT gap `--filter-1nt` −1.05 IMPs/bd, leak is constructive ([project_bba-1nt-comparison]) | stale-pop | keep on; "improve" = the constructive-1NT campaign, not knob retirement |
-| NotrumpShape (1NT open) | `?` (build enum; `ab-nt-shape`) | Natural | Wide (Balanced/Wide/Wide6322) | 5422-minor Wide vs Balanced classic +0.57/+0.93 (PD-era per-divergent); Wide6322 contested re-test **rejected** | stale-PD | fold into base (Nat≥floor); Wide6322 stays opt-in |
-| set_one_notrump_fifths | `--nt-fifths` | Natural | OFF | — unmeasured at the *open* boundary; Fifths refuted at the *invite* boundary ([project_nt-invite-evaluator-sweep]) | unmeasured | needs A/B |
+| NotrumpShape (1NT open) | `--nt-shape wide6322\|wide\|classic` (bba-gen); self-play `ab-nt-shape` | Natural | **Wide6322** (Balanced/Wide/Wide6322) | **SHIPPED Wide6322 as default 2026-07-12**, contested vs BBA (204.8k/cell ×2 vuls, SHA c6a5643, `nt-shape-ab.sh` + `nt-shape-confirm-ab.sh`). (1) Wide vs Classic (5422-minor widening) plain **+0.0087/+0.0121**, PD +0.0060/+0.0092, **sd +0.0122/+0.0171** NV/vul — all 6 cells positive, sd>plain>PD. (2) Wide6322 vs Wide, **two seeds** (1783843252 + 1783844868): plain +0.0034…0.0048/+0.0048…0.0050, PD +0.0025…0.0033/+0.0035…0.0039, sd +0.0052…0.0054/+0.0063…0.0078 — all 6 cells positive both seeds, plain wins on its own. Soundness block cleared: 1NT inference now reads opener's minors 2–6 (majors 2–5), proptest passes | shipped | **folded into base**; `american_wide()`/`american_classic()` retain the baselines for ablation |
+| set_one_notrump_fifths | `--nt-fifths` | Natural | OFF | **archived** — already measured *losing* at the open boundary: plain HCP beat the centre-corrected fifths gauge **+0.067/+0.094** NV/vul (de-confounded ×2, 2026-06-23; HCP is the shipped default — [project_1nt-aggressive-redesign]), and Fifths is also refuted at the invite/responder boundary ([project_nt-invite-evaluator-sweep]). A refuted evaluator stays archived, not re-litigated per boundary | archived | keep opt-in off; no A/B |
 | set_rule_of_20 | `--no-ns-rule-of-20` | Natural | ON | plain +0.0061/+0.0087, PD −0.0056/−0.0034 (doubler artifact), sd-lead +0.0096/+0.0135 (SEED 1783410574, `rule-of-20-ab.sh`) | fresh | fold into base |
 | set_longer_major_response | `--no-ns-longer-major-response` | Natural | ON | plain-DD wash, PD −0.12/−0.22 per div; kept by naturalness tiebreak (commit 2ba6b90) | fresh | fold into base |
 | set_up_the_line | `--no-ns-up-the-line` | Natural | ON | **coupled with XYZ**: joint plain +0.0382/+0.0559, PD +0.0289/+0.0407; alone a loss −0.91/−1.28 per div | fresh | folded into base *with* XYZ (web toggle retired as a pair) |
@@ -307,7 +307,7 @@ The options whose policy verdict can't be read off a fresh isolated A/B. Work
 these buckets per [measurement.md](measurement.md).
 
 **Never isolated (`unmeasured`):** set_notrump_minors (Puppet vs European),
-set_one_notrump_fifths, set_meckstroth_adjunct, set_delayed_cue,
+set_delayed_cue,
 set_defense_to_2d_multi, set_notrump_balancing, set_passed_hand_overcall,
 set_nt_overcall_no_major, set_responsive_overcall, set_minor_transfer_defense,
 set_suppress_4432_vs_major, set_suppress_4432_vs_minor, set_direct_3nt_stopper,
@@ -315,10 +315,10 @@ and the qualitative-only cue/runout knobs (set_cue_raise_answer,
 set_cue_minor_raise_answer, set_one_nt_runout*, set_penalize_escape_*).
 
 **Stale figures (re-measure before trusting the magnitude):**
-- `stale-PD` (pre-`a6f2206` PD-era, not comparable to plain-DD): NotrumpShape
-  (+0.57/+0.93), set_alert_reading (+2.08/+1.59), set_settle_floor (+0.26/+0.37),
+- `stale-PD` (pre-`a6f2206` PD-era, not comparable to plain-DD):
+  set_alert_reading (+2.08/+1.59), set_settle_floor (+0.26/+0.37),
   set_transfer_super_accept, minor keycard (+6.80/+8.76; PD +5.41/+7.05 is the
-  conservative re-measure).
+  conservative re-measure). *(NotrumpShape shipped Wide6322 as default 2026-07-12 — fresh, see A1.)*
 - `stale-pop` (measured before a book-population shift): set_open_one_notrump,
   set_floor_rkcb, set_natural_defense, set_direct_dont, set_landy,
   set_natural_double_shape, set_stayman_defense.

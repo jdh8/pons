@@ -165,6 +165,13 @@ struct Args {
     #[arg(long, default_value_t = false)]
     nt_fifths: bool,
 
+    /// 1NT opening shape policy for our pair: wide6322 (default, the shipped
+    /// 5422+6322-minor shape) | wide (superseded 5422-minor baseline) | classic
+    /// (balanced-only baseline).  The ablation handle for the wide-1NT redesign
+    /// against the BBA opponent; the default matches `american()`.
+    #[arg(long, default_value = "wide6322", value_name = "wide6322|wide|classic")]
+    nt_shape: String,
+
     /// Disable Rule-of-20 light openings (restores the 12+-only opener that
     /// passes sound 10-11 counts); on by default.  Off-switch for the A/B.
     #[arg(long, default_value_t = false)]
@@ -1393,7 +1400,18 @@ fn main() -> anyhow::Result<()> {
     }
     pons::bidding::american::set_always_pass_defense(args.ns_always_pass);
     let our_floor = match args.our_floor.as_str() {
-        "american" => american().against(Family::NATURAL),
+        "american" => {
+            use pons::bidding::american::{american_classic, american_wide};
+            let pair = match args.nt_shape.as_str() {
+                // `american()` now ships Wide6322 (the shipped default); `wide`
+                // is the superseded 5422-minor baseline, `classic` balanced-only.
+                "wide6322" => american(),
+                "wide" => american_wide(),
+                "classic" => american_classic(),
+                other => anyhow::bail!("--nt-shape must be wide|classic|wide6322, got {other:?}"),
+            };
+            pair.against(Family::NATURAL)
+        }
         #[cfg(feature = "neural-floor")]
         "neural-v3" => pons::american_neural_v3().against(Family::NATURAL),
         other => anyhow::bail!(

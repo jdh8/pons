@@ -2430,9 +2430,17 @@ fn apply_opening(inf: &mut Inference, bid: Bid, seat: u8) {
             inf.narrow_points(Range::new(minor_floor, 21));
         }
         (1, Strain::Notrump) => {
-            balanced(inf);
-            // The opening gates on `fifths(15.0..18.0)`, which downgrades
-            // quack-heavy hands (K/Q worth less than HCP).  Since
+            // Balanced, OR — since the shipped `Wide6322` shape also opens 1NT
+            // on a 6322 with a six-card minor — a minor running to six.  Majors
+            // stay 2–5 (a balanced 5332 major); minors widen to 2–6.  Set the
+            // four suits directly: `narrow_length` only intersects, so clamping
+            // via `balanced()` first would pin the minors back to five.
+            inf.narrow_length(Suit::Spades, Range::new(2, 5));
+            inf.narrow_length(Suit::Hearts, Range::new(2, 5));
+            inf.narrow_length(Suit::Clubs, Range::new(2, 6));
+            inf.narrow_length(Suit::Diamonds, Range::new(2, 6));
+            // The opening gates on HCP 15–17 (or the legacy fifths gauge), which
+            // downgrades quack-heavy hands (K/Q worth less than HCP).  Since
             // `hcp - fifths = 0.2·(#K+#Q) - 0.4·(#T) ≤ 1.6` and a balanced
             // hand's `point_count` is its raw HCP, a 1NT opener can hold up to
             // 19 points (e.g. ♠KQJx ♥KQx ♦KQx ♣Kxx: 19 HCP, 17.6 fifths).
@@ -2532,9 +2540,12 @@ mod tests {
         // Rule of 20 (default on) opens sound 10-11 counts, so the floor is 10.
         assert_eq!(one_heart.rho().points, Range::new(10, 21));
 
-        // A strong notrump is balanced; an artificial 2♣ says only "strong".
+        // A strong notrump is balanced-or-6322-minor (the shipped Wide6322): a
+        // major stays 2–5 (a balanced 5332 major), a minor widens to 2–6 (the
+        // 6322's six-card minor); an artificial 2♣ says only "strong".
         let one_nt = read(&[bid(1, Strain::Notrump)]);
         assert_eq!(one_nt.rho().length(Suit::Spades), Range::new(2, 5));
+        assert_eq!(one_nt.rho().length(Suit::Diamonds), Range::new(2, 6));
         assert_eq!(one_nt.rho().points, Range::new(14, 19));
 
         let two_clubs = read(&[bid(2, Strain::Clubs)]);

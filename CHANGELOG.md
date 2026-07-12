@@ -107,7 +107,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   measured loss can be traced to the auctions that cause it (the measurement
   playbook's divergent-board trace, on demand).
 
+- **`bba-gen --nt-shape wide6322|wide|classic`** ablates the 1NT opening-shape
+  policy against the BBA reference opponent — previously only the self-play
+  `ab-nt-shape*` examples could switch shape, and neither could score
+  single-dummy. With the `scripts/nt-shape-ab.sh` runner this A/Bs the shipped
+  1NT with plain + PD + **sd-lead** from one set of shards. The default matches
+  `american()` (now `wide6322`); `american_wide()` is the new named handle for
+  the superseded 5422-minor baseline.
+
+  **Refreshed the NotrumpShape verdict (2026-07-12).** Contested vs BBA, 204.8k
+  boards/cell × both vulnerabilities (SHA c6a5643, SEED 1783843252): the wide
+  **5422-minor** shape beats the balanced-only **Classic** on every scorer —
+  plain DD **+0.0087/+0.0121** NV/vul, PD +0.0060/+0.0092, **sd-lead
+  +0.0122/+0.0171** — all six cells positive with sd > plain > PD, the
+  space-stealing/concealment signature. Replaces the stale PD-era
+  `+0.57/+0.93 per-divergent` figure. The **Wide6322** superset is now the
+  shipped default — see the Changed entry below.
+
 ### Changed
+
+- **The 1NT opening default shape is now `Wide6322` (was `Wide`).** `american()`
+  opens a strong 1NT on the balanced patterns plus a 5422 *or* a **6322 with a
+  six-card minor** (previously only the 5422-minor). Adopted after a two-seed
+  A/B win vs the BBA reference opponent (`scripts/nt-shape-confirm-ab.sh`,
+  204.8k boards/cell × both vulnerabilities, SEEDs 1783843252 + 1783844868):
+  Wide6322-vs-Wide **plain DD +0.0034…0.0048 / +0.0048…0.0050** NV/vul, PD
+  +0.0025…0.0033 / +0.0035…0.0039, **sd-lead +0.0052…0.0054 / +0.0063…0.0078** —
+  every scorer positive in all six cells, both seeds, sd > plain > PD (the
+  six-card minor's space-stealing value). The soundness block that had kept
+  6322 experimental is cleared: the 1NT opening inference now reads the opener's
+  minors as **2–6** (majors stay 2–5), so a 6322 opener falls inside its own
+  disclosed envelope (`opening_inference_contains_the_opener` proptest passes
+  over the new default). The announced-meaning *text* is unchanged (the rule's
+  `"wide 1NT shape"` description is shape-invariant). The superseded 5422-minor
+  shape stays reachable as `american_wide()` / `--nt-shape wide`; the
+  balanced-only baseline as `american_classic()` / `--nt-shape classic`.
 
 - **Retired the fresh natural-≥-floor toggles from the `web` app.** These are
   natural treatments at/above the floor, folded into the base system (see

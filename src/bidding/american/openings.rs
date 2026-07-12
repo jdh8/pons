@@ -72,10 +72,11 @@ pub(crate) fn rule_of_20_enabled() -> bool {
 pub enum NotrumpShape {
     /// Balanced only — the classic baseline.
     Balanced,
-    /// Balanced plus a 5422 with a five-card minor — the shipped default.
+    /// Balanced plus a 5422 with a five-card minor — the pre-6322 baseline.
     Wide,
-    /// [`Wide`][NotrumpShape::Wide] plus a 6322 with a six-card minor
-    /// (experimental).
+    /// [`Wide`][NotrumpShape::Wide] plus a 6322 with a six-card minor — the
+    /// shipped default (adopted after a two-seed A/B win vs the reference
+    /// opponent, +0.004…0.006 IMPs/board plain, sd-confirmed).
     Wide6322,
 }
 
@@ -112,14 +113,15 @@ fn prefers_diamonds() -> Cons<impl Constraint + Clone> {
 /// Strong notrumps (15–17 / 20–21), the artificial 2♣ (22+), five-card majors,
 /// better-minor one-of-a-minor openings, weak twos, and three-level preempts.
 /// A lighter five-card major is allowed in third and fourth seat.  The 1NT also
-/// opens a 5422 with a five-card minor (`wide`; see [`openings_with`]).
+/// opens a 5422 or 6322 with a long minor (`wide6322`, the shipped default; see
+/// [`openings_with`]).
 ///
 /// Sharp on shape, fuzzy on strength: suit openings gauge upgraded
 /// [`points`], notrump ranges gauge [`fifths`].  A clean shapely maximum
 /// upgrades out of a weak two — it is too good for one.
 #[must_use]
 pub fn openings() -> Rules {
-    openings_with(NotrumpShape::Wide)
+    openings_with(NotrumpShape::Wide6322)
 }
 
 /// [`openings`] with the 1NT [`NotrumpShape`] policy selectable
@@ -301,7 +303,7 @@ mod tests {
         assert_eq!(opens(&narrow, six322_minor), one_c);
         assert_eq!(opens(&narrow, six322_major), one_s);
 
-        // Wide (default): the long-minor 5422 joins 1NT; majors and 6322 stay suits.
+        // Wide: the long-minor 5422 joins 1NT; majors and 6322 stay suits.
         let wide = openings_with(NotrumpShape::Wide);
         assert_eq!(opens(&wide, balanced16), one_nt);
         assert_eq!(opens(&wide, five422_minor), one_nt);
@@ -309,7 +311,7 @@ mod tests {
         assert_eq!(opens(&wide, six322_minor), one_c);
         assert_eq!(opens(&wide, six322_major), one_s);
 
-        // Wide6322: the long-minor 6322 also joins 1NT; majors still stay suits.
+        // Wide6322 (default): the long-minor 6322 also joins 1NT; majors still stay suits.
         let wide6322 = openings_with(NotrumpShape::Wide6322);
         assert_eq!(opens(&wide6322, five422_minor), one_nt);
         assert_eq!(opens(&wide6322, five422_major), one_s);

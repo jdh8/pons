@@ -257,7 +257,7 @@ pub fn american() -> Pair {
 ///
 /// Exactly [`american`] but for the opening table: the strong 1NT is only
 /// the balanced patterns (4333/4432/5332), without the wide-shape redesign that
-/// [`american`] now ships (a 5422 with a five-card minor also opens 1NT —
+/// [`american`] now ships (a 5422 *or* 6322 with a long minor also opens 1NT —
 /// [`openings_with`]).  The ablation handle for measuring that redesign; see the
 /// `nt-shape-abc` (constructive) and `nt-shape-contested` examples.
 #[must_use]
@@ -265,16 +265,17 @@ pub fn american_classic() -> Pair {
     with_instinct_floor(bare_american_with(NotrumpShape::Balanced))
 }
 
-/// The 2/1 pair with the **experimental** wider 1NT shape ([`NotrumpShape::Wide6322`])
+/// The 2/1 pair with the **pre-6322 wide** 1NT shape ([`NotrumpShape::Wide`])
 ///
-/// Exactly [`american`] but its 1NT also opens a 6322 with a six-card minor,
-/// on top of the shipped 5422-minor.  An experiment measured against the
-/// `american` default in the `nt-shape-contested` example; not yet adopted (a
-/// constructive ablation found the 6322 addition net-neutral — the open question
-/// is whether competition changes that).
+/// Exactly [`american`] but its 1NT opens only the balanced patterns plus a
+/// 5422 with a five-card minor — *not* the 6322-with-a-six-card-minor that
+/// [`american`] now ships.  The superseded baseline, retained as the ablation
+/// handle for re-measuring the 6322 addition (`nt-shape-contested`, `bba-gen
+/// --nt-shape wide`); the win that adopted 6322 was +0.004…0.006 IMPs/board
+/// plain, confirmed over two seeds.
 #[must_use]
-pub fn american_wide_6322() -> Pair {
-    with_instinct_floor(bare_american_with(NotrumpShape::Wide6322))
+pub fn american_wide() -> Pair {
+    with_instinct_floor(bare_american_with(NotrumpShape::Wide))
 }
 
 /// The 2/1 pair with the distilled **neural** floor (AI-bidder M1.3)
@@ -439,15 +440,15 @@ fn with_instinct_floor(pair: Pair) -> Pair {
 /// 1NT); [`american_classic`] is the balanced-only baseline.
 #[must_use]
 pub fn bare_american() -> Pair {
-    bare_american_with(NotrumpShape::Wide)
+    bare_american_with(NotrumpShape::Wide6322)
 }
 
 /// [`bare_american`] with the 1NT [`NotrumpShape`] policy selectable
 ///
 /// `shape` selects the opening table's 1NT shape ([`openings_with`]); everything
-/// else is identical.  `bare_american()` ships [`NotrumpShape::Wide`]; the
-/// classic balanced baseline ([`NotrumpShape::Balanced`]) is behind
-/// [`american_classic`].
+/// else is identical.  `bare_american()` ships [`NotrumpShape::Wide6322`]; the
+/// pre-6322 [`NotrumpShape::Wide`] is behind [`american_wide`] and the classic
+/// balanced baseline ([`NotrumpShape::Balanced`]) behind [`american_classic`].
 #[must_use]
 fn bare_american_with(shape: NotrumpShape) -> Pair {
     let mut c = Constructive::new();
