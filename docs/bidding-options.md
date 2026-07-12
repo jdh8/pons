@@ -24,11 +24,16 @@ the floor** — then read the action:
 
 - **Natural vs artificial** = the per-rule `Alert`: `None` = natural,
   `Some(_)` = artificial. Backed by the structural predicate `artificial()`
-  ([src/bidding/inference.rs:1485](../src/bidding/inference.rs#L1485)) — a bid is
-  artificial iff its authoring rule floors an *unnamed* suit — and enforced by the
+  ([src/bidding/inference.rs:1494](../src/bidding/inference.rs#L1494)) — a call is
+  artificial iff it points partner at a suit it did not name: a **bid** floors an
+  *unnamed* suit; a **double/redouble** floors an *unbid* suit (takeout — "pick a
+  suit") rather than the *doubled* strain (penalty/business → natural, "play what's
+  on the table"); a **pass** and a **transfer completion** never do. Enforced by the
   invariant test `artificial_calls_are_alerted`
-  ([inference.rs:3794](../src/bidding/inference.rs#L3794)). Passes and doubles are
-  never artificial.
+  ([inference.rs:3853](../src/bidding/inference.rs#L3853)). The structural witness is
+  *sufficient, not complete*: a takeout double whose authoring rule floors nothing
+  (opaque shape predicates, e.g. the direct takeout double) is artificial by meaning
+  and classified by its `.alert(...)` instead.
 - **`> / = / < floor`** = the sign of the isolated A/B (`arm --on-ns-<knob>` vs
   `--no-ns-<knob>` → `diffpair`, dual plain/PD scoring; `=` when the CI includes
   0), per [measurement.md](measurement.md).
@@ -161,9 +166,9 @@ that live *inside* a book are in Tier B.
 | set_splinter_doubled | `--no-ns-splinter-doubled` | Artificial | ON | plain +0.0059/+0.0079, PD same (FirstIs(Double) systems-on rebase, SEED 1783439089) | fresh | default-on ✓ |
 | set_delayed_cue | dedicated (no flag) | Artificial | OFF | gated for measurement, no headline | unmeasured | needs A/B |
 | set_major_support_double | `--no-ns-major-support-double` | Artificial | ON | plain −0.0004/+0.0004 wash, PD +0.0009/+0.0016 (vul CI>0, SEED 1783285623) | fresh | default-on ✓ (plain-wash+PD-gain) |
-| set_cachalot_contested_x | `--no-ns-cachalot-contested-x` | Artificial | ON | NV win all 3 scorers, vul wash ([project_school-tournament-responses]) — **no-op unless neg-double=Cachalot (opt-in)** | fresh | default-on ✓ (dormant) |
-| set_cue_raise_answer | `--no-ns-cue-raise-answer` | Artificial | ON | fixes floor-passes-the-cuebid ([project_cue-raise-answer]) | unmeasured (qualitative) | default-on ✓ |
-| set_cue_minor_raise_answer | `--no-ns-cue-minor-raise-answer` | Artificial | ON | minor twin, isolated over shipped major | unmeasured (qualitative) | default-on ✓ |
+| set_cachalot_contested_x | `--no-ns-cachalot-contested-x` | Natural | ON | NV win all 3 scorers, vul wash ([project_school-tournament-responses]) — **no-op unless neg-double=Cachalot (opt-in)**; opener's raise of the shown major is unalerted/natural | fresh | default-on ✓ (dormant) |
+| set_cue_raise_answer | `--no-ns-cue-raise-answer` | Natural | ON | **A4 pass** (`scripts/a4-run.sh`, JOBS=12, SHA 3dc5cbe + non-behavioral audit edits): plain **+0.0256/+0.0348**, PD **+0.0377/+0.0462** NV/vul — all 4 cells CI>0, PD≥plain (fires 0.33%, +7.8…+13.5 IMPs/fired; thin fired set, first pass). Fixes floor-passes-the-cuebid ([project_cue-raise-answer]); opener's 3M/4M raise is unalerted/natural | fresh | default-on ✓ (Natural capability-add: off strands the cuebid) |
+| set_cue_minor_raise_answer | `--no-ns-cue-minor-raise-answer` | Natural | ON | **A4 pass** (same run): plain **+0.0134/+0.0184**, PD **+0.0211/+0.0262** NV/vul — all 4 cells CI>0, PD≥plain (fires 0.25%, +5.4…+10.5 IMPs/fired; thin fired set). Minor twin; 3NT/3m-4m replies unalerted/natural | fresh | default-on ✓ (Natural capability-add) |
 | set_weak_two_competition | `--ns-weak-two-comp` | Artificial | OFF | plain −0.0012/−0.0015 wash, PD −0.0097/−0.0116 (CI<0, SEED 1783284838); **REFUTED** by fallible-opponent test | fresh | stays opt-in (measured loss) |
 | set_strong_two_competition | `--no-ns-strong-two-comp` | Natural | ON | plain +0.0009/+0.0013, PD +0.0010/+0.0014 (all 4 CI>0, SEED 1783285250) | fresh | fold into base |
 | set_uvu | `--uvu` | Artificial | ON | +0.6–2.6 IMPs/bd per call vs passing floor (DD-robust) | fresh | default-on ✓ |
@@ -309,11 +314,13 @@ these buckets per [measurement.md](measurement.md).
 **Never isolated (`unmeasured`):** set_delayed_cue,
 set_defense_to_2d_multi, set_notrump_balancing, set_passed_hand_overcall,
 set_nt_overcall_no_major, set_responsive_overcall, set_minor_transfer_defense,
-set_suppress_4432_vs_major, set_suppress_4432_vs_minor, set_direct_3nt_stopper,
-and the qualitative-only cue knobs (set_cue_raise_answer,
-set_cue_minor_raise_answer). *(A3 pass closed 2026-07-12: set_one_nt_runout*,
-set_penalize_escape_*, and set_lebensohl_style isolated via `scripts/a3-run.sh`
-— all fresh, see A3.)*
+set_suppress_4432_vs_major, set_suppress_4432_vs_minor, set_direct_3nt_stopper.
+*(A4 pass closed 2026-07-13: set_cue_raise_answer + set_cue_minor_raise_answer
+isolated via `scripts/a4-run.sh` — both fresh, clean wins, see A4. The two
+remaining A4 knobs, set_delayed_cue and set_direct_3nt_stopper, have no bba-gen
+flag and need bespoke self-play distillation — still unmeasured.)* *(A3 pass
+closed 2026-07-12: set_one_nt_runout*, set_penalize_escape_*, and
+set_lebensohl_style isolated via `scripts/a3-run.sh` — all fresh, see A3.)*
 
 **Stale figures (re-measure before trusting the magnitude):**
 - `stale-PD` (pre-`a6f2206` PD-era, not comparable to plain-DD):

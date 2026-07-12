@@ -1343,10 +1343,12 @@ pub fn defense_to_suit(their_opening: Bid) -> Rules {
             1.3,
             hcp(12..) & short_in_their_suits() & unbid_support(0) & takeout_double_shape_ok(),
         ),
-    };
+    }
+    .alert(TAKEOUT_DOUBLE);
 
     rules = rules
         .rule(Call::Double, 1.2, points(17..))
+        .alert(TAKEOUT_DOUBLE)
         .rule(Call::Pass, 0.0, hcp(0..));
 
     // Natural overcalls: five-card suit.  Disciplined bands by default — 1-level
@@ -1493,10 +1495,12 @@ pub fn defense_to_weak_two(their_opening: Bid) -> Rules {
             1.3,
             hcp(12..) & short_in_their_suits() & unbid_support(0) & takeout_double_shape_ok(),
         ),
-    };
+    }
+    .alert(TAKEOUT_DOUBLE);
 
     rules = rules
         .rule(Call::Double, 1.2, points(17..))
+        .alert(TAKEOUT_DOUBLE)
         .rule(Call::Pass, 0.0, hcp(0..));
 
     // Natural overcalls: five-card suit, 10–16 points, at the cheapest legal level.
@@ -1639,6 +1643,16 @@ const GLADIATOR_SPLINTER: Alert = Alert("gladiator:splinter");
 /// shows the two unbid suits (4-4, 8+).  A takeout call (asks partner to pick a
 /// suit), not a desire to defend, so it is alerted rather than read structurally.
 const RESPONSIVE: Alert = Alert("responsive-double");
+
+/// Direct takeout double of their suit opening — 12+ (or the 17+ any-shape tier),
+/// short in their suit, asking partner to pick an unbid suit.  Takeout by meaning,
+/// so alerted even though its shape predicates project no length floor (the reading
+/// is a sound points floor only — the 17+ tier admits any shape).
+const TAKEOUT_DOUBLE: Alert = Alert("takeout-double");
+
+/// Landy SOS redouble — after `[1NT, 2♣, X]`, equal majors asking the overcaller to
+/// name the longer one.  A "pick a suit" call, not a desire to sit, so alerted.
+const LANDY_SOS: Alert = Alert("landy:sos-redouble");
 
 const WOOLSEY_X: Alert = Alert("1ntd:woolsey-x");
 const LANDY_X: Alert = Alert("1ntd:landy-x");
@@ -2545,6 +2559,7 @@ fn landy_advances_over_double(lo: u8) -> Rules {
         )
         // Equal majors: Redouble asks the overcaller to name the longer one.
         .rule(Call::Redouble, 0.95, equal_majors & points(..invite))
+        .alert(LANDY_SOS)
         // Otherwise sign off in the longer major.
         .rule(
             Bid::new(2, Strain::Hearts),

@@ -1461,32 +1461,46 @@ fn project_authored(context: &Context<'_>) -> ([Inference; 4], u64) {
     (players, suppressed)
 }
 
-/// Whether a *bid's* projection floors a suit other than the one it names
+/// Whether a call's projection floors a suit other than the one it names
 ///
 /// The structural artificial-call detector, falling out of the projection itself:
-/// a natural bid floors its own strain (1♠ → 5+♠) or no suit (1NT → points only);
+/// a natural call floors its own strain (1♠ → 5+♠) or no suit (1NT → points only);
 /// an artificial one floors a suit it did not name (Jacoby 2♦ → 5+♥, Landy 2♣ →
 /// 4-4 majors).  A min-length floor of four-plus on a non-named suit is the witness
 /// — above any natural by-product, below every convention's real shape.
 ///
-/// **Bid-only.**  A pass or double names no suit, so the witness is inverted for
-/// them: a trap pass or penalty double floors the *opponents'* suit because it
-/// wants to defend the contract on the table — natural, not artificial.  Those are
-/// read by the settle floor and the post-walk penalty readers; the genuinely
-/// artificial doubles (takeout/responsive — they ask partner to pick a suit) carry
-/// an explicit [`Alert`][crate::bidding::Alert] instead.  So a non-bid is never
-/// structurally artificial; only its alert speaks.
+/// **The "named" suit generalizes past bids.**  A call is natural when it offers to
+/// play what it declares, artificial when it points partner at some *other* suit:
+/// - a **bid** names its own strain;
+/// - a **double / redouble** names the *doubled strain* — the contract it offers to
+///   defend.  A penalty double floors that strain (or nothing) → natural; a takeout
+///   double floors an *unbid* suit (support for where it sends partner) → artificial;
+/// - a **pass** redirects from nothing → never artificial (a trap pass defends what
+///   is on the table);
+/// - a **transfer completion** names the suit it will play, flooring no other →
+///   natural, so already `false`.
+///
+/// This is a *sound sufficient* witness, not a complete one: a takeout double whose
+/// authoring rule floors nothing (opaque shape predicates, e.g. the direct takeout
+/// double) reads `false` here though it is takeout by meaning — such calls are
+/// classified artificial by their `.alert(...)` instead, exactly as shape-only
+/// artificial bids are.
 ///
 /// **Retired from the decode gate** — alerts now carry the signal exhaustively.
 /// This survives test-only, as the `artificial_calls_are_alerted` invariant guard:
-/// any future artificial bid added without an `.alert(...)` must fail that test
+/// any future artificial call added without an `.alert(...)` must fail that test
 /// rather than silently lose its decoding.
 #[cfg(test)]
-fn artificial(projection: &Inference, made: Call) -> bool {
-    let Call::Bid(bid) = made else {
-        return false;
+fn artificial(projection: &Inference, made: Call, doubled: Option<Strain>) -> bool {
+    // The "named" suit is the one the call offers to play: a bid names its own
+    // strain; a double/redouble "names" the doubled strain it offers to defend.
+    // Artificial = the projection floors some *other* suit ≥4 — the call is really
+    // pointing partner at a suit it did not name.  A pass redirects from nothing.
+    let named = match made {
+        Call::Bid(bid) => bid.strain.suit(),
+        Call::Double | Call::Redouble => doubled.and_then(|strain| strain.suit()),
+        Call::Pass => return false,
     };
-    let named = bid.strain.suit();
     Suit::ASC
         .into_iter()
         .any(|suit| Some(suit) != named && projection.length(suit).min >= 4)
@@ -2933,7 +2947,7 @@ mod tests {
     }
 
     #[test]
-    fn artificial_is_bid_only() {
+    fn artificial_witness_covers_doubles() {
         // A projection that floors a suit it would not name — the witness a transfer
         // or two-suiter trips (5+ hearts).
         let mut floors_hearts = Inference::unknown();
@@ -2941,16 +2955,47 @@ mod tests {
 
         // A *bid* that did not name hearts is artificial (Jacoby 2♦ → 5+♥); a bid
         // naming its own suit is natural (1♥ → 5+♥).
-        assert!(artificial(&floors_hearts, bid(2, Strain::Diamonds)));
-        assert!(!artificial(&floors_hearts, bid(1, Strain::Hearts)));
+        assert!(artificial(&floors_hearts, bid(2, Strain::Diamonds), None));
+        assert!(!artificial(&floors_hearts, bid(1, Strain::Hearts), None));
 
-        // Bid-only: a pass or double names no suit, so the structural witness never
-        // fires for them even when the projection floors a suit.  A trap pass /
-        // penalty double floors the opponents' suit because it wants to defend (it is
-        // natural); the artificial doubles (takeout/responsive) are decoded by their
-        // alert instead.  This is the inversion that #5 corrected.
-        assert!(!artificial(&floors_hearts, Call::Pass));
-        assert!(!artificial(&floors_hearts, Call::Double));
+        // A pass redirects from nothing → never artificial, even flooring a suit.
+        assert!(!artificial(
+            &floors_hearts,
+            Call::Pass,
+            Some(Strain::Spades)
+        ));
+
+        // A double/redouble "names" the *doubled strain*.  Doubling spades while the
+        // projection floors hearts is takeout — it points partner at hearts → artificial;
+        // doubling hearts while flooring hearts defends the doubled strain → natural
+        // (penalty).  A redouble inherits the same doubled strain.
+        assert!(artificial(
+            &floors_hearts,
+            Call::Double,
+            Some(Strain::Spades)
+        ));
+        assert!(!artificial(
+            &floors_hearts,
+            Call::Double,
+            Some(Strain::Hearts)
+        ));
+        assert!(artificial(
+            &floors_hearts,
+            Call::Redouble,
+            Some(Strain::Spades)
+        ));
+        assert!(!artificial(
+            &floors_hearts,
+            Call::Redouble,
+            Some(Strain::Hearts)
+        ));
+
+        // A double of notrump defends no suit, so any floored side suit is takeout.
+        assert!(artificial(
+            &floors_hearts,
+            Call::Double,
+            Some(Strain::Notrump)
+        ));
     }
 
     #[test]
@@ -3826,7 +3871,10 @@ mod tests {
                     .with_prefixes(trie.common_prefixes(auction));
                 for rule in rules.rules() {
                     let made = rule.call();
-                    if super::artificial(&rule.project(&context), made) && rule.alert().is_none() {
+                    let doubled = context.last_bid().map(|last| last.strain);
+                    if super::artificial(&rule.project(&context), made, doubled)
+                        && rule.alert().is_none()
+                    {
                         worklist.push(format!(
                             "{phase}: [{}] {made}  (label: {:?})",
                             auction
@@ -3873,7 +3921,10 @@ mod tests {
                 .with_prefixes(trie.common_prefixes(auction));
             for rule in rules.rules() {
                 let made = rule.call();
-                if super::artificial(&rule.project(&context), made) && rule.alert().is_none() {
+                let doubled = context.last_bid().map(|last| last.strain);
+                if super::artificial(&rule.project(&context), made, doubled)
+                    && rule.alert().is_none()
+                {
                     worklist.push(format!(
                         "[{}] {made}  (label: {:?})",
                         auction
@@ -3920,7 +3971,10 @@ mod tests {
                 .with_prefixes(trie.common_prefixes(auction));
             for rule in rules.rules() {
                 let made = rule.call();
-                if super::artificial(&rule.project(&context), made) && rule.alert().is_none() {
+                let doubled = context.last_bid().map(|last| last.strain);
+                if super::artificial(&rule.project(&context), made, doubled)
+                    && rule.alert().is_none()
+                {
                     worklist.push(format!(
                         "[{}] {made}  (label: {:?})",
                         auction

@@ -42,6 +42,10 @@ const CUE_RAISE: Alert = Alert("comp:cue-raise");
 const NEGATIVE_DOUBLE: Alert = Alert("comp:negative-double");
 /// Support double / redouble — opener's `X`/`XX` showing exactly three-card support.
 const SUPPORT_DOUBLE: Alert = Alert("comp:support-double");
+/// Multi takeout double — `X` of their `(2♦)` Multi, values/takeout of the unknown
+/// major (8+).  Takeout by meaning, so alerted (the reading is a sound 8+ points
+/// floor — their suit is unknown, so no single side suit to floor).
+const MULTI_TAKEOUT: Alert = Alert("comp:multi-takeout");
 /// Lebensohl `2NT` — the weak relay to `3♣` over their overcall of our `1NT`.
 const LEBENSOHL_RELAY: Alert = Alert("comp:lebensohl-relay");
 /// Lebensohl cue — a cue of their suit as game-forcing Stayman.
@@ -2557,7 +2561,9 @@ fn multi_responder() -> Rules {
 
     // X = values / takeout of the unknown major — BBA's backbone (41%). Floored
     // at 8 (a touch above BBA's loose ~5) for doubled-contract discipline.
-    rules = rules.rule(Call::Double, 1.55, points(8..));
+    rules = rules
+        .rule(Call::Double, 1.55, points(8..))
+        .alert(MULTI_TAKEOUT);
 
     // Natural forcing 3-level single-suiter (incl. natural 3♦ — diamonds is not
     // their suit, so no cue).
@@ -3588,7 +3594,7 @@ pub fn competition() -> Competitive {
 
     // Section 3: support doubles and redoubles for each (opening, major)
     // pair. The four minor-major pairs always; `1♥ – (P) – 1♠` behind
-    // `set_major_support_double` (default off pending the A/B).
+    // `set_major_support_double` (default on).
     let mut support_pairs = vec![
         (Suit::Clubs, Suit::Hearts),
         (Suit::Clubs, Suit::Spades),
@@ -3907,7 +3913,7 @@ pub fn competition() -> Competitive {
     }
 
     // Section 6: their two-suiters over our 1M (`set_uvu_over_majors`, default
-    // off): unusual-vs-unusual over their both-minors (2NT), and a raise
+    // on): unusual-vs-unusual over their both-minors (2NT), and a raise
     // structure over their Michaels cue of our own major. Keyed at the deeper
     // [1M, <their call>] nodes — their cue and their 2NT are single concrete
     // calls — so these shadow the [1M] direct-seat package (whose negative
@@ -3969,7 +3975,7 @@ pub fn competition() -> Competitive {
     }
 
     // Section 11: over their takeout double (`set_jordan_truscott`, default
-    // off). Responder's first call at the deeper [1x, X] key — it wins over
+    // on). Responder's first call at the deeper [1x, X] key — it wins over
     // the [1x] FirstIs(X) systems-on rebase structurally, and the rebase
     // survives untouched below it for every deeper suffix these exact-suffix
     // guards don't claim. Opener nodes shadow exactly the three rebase
@@ -4231,7 +4237,7 @@ pub fn competition() -> Competitive {
     }
 
     // Section 8: our contested strong 2♣ (`set_strong_two_competition`,
-    // default off). Their double steals no room → systems on wholesale; their
+    // default on). Their double steals no room → systems on wholesale; their
     // overcall gets responder's natural-GF / values-X / waiting-pass table,
     // backed by opener's forced reopening in the pass-out seat.
     if strong_two_competition() {
@@ -4715,7 +4721,7 @@ pub fn competition() -> Competitive {
     }
 
     // Competition over our own Jacoby transfers (`set_competition_over_transfer`,
-    // default on): opener's replies after the opponents double `1NT-(P)-2♦/2♥-(X)`
+    // default off): opener's replies after the opponents double `1NT-(P)-2♦/2♥-(X)`
     // or overcall it.  Keyed at the `[1NT, P, 2♦]` / `[1NT, P, 2♥]` nodes — distinct
     // trie paths from the Transfer-Lebensohl `[1NT, (2♦/2♥)]` block (theirs at depth 1).
     if competition_over_transfer() {
@@ -4802,7 +4808,7 @@ pub fn competition() -> Competitive {
     }
 
     // Competition over our own two-way 2♠ minor response (`set_competition_over_
-    // minor_transfer`, default off): opener's replies after the opponents double
+    // minor_transfer`, default on): opener's replies after the opponents double
     // `1NT-(P)-2♠-(X)` or overcall it.  Keyed at `[1NT, P, 2♠]`.  Only the PUPPET
     // 2♠ (clubs *or* the balanced size-ask) has a min/max answer to protect, so the
     // block no-ops under the EUROPEAN pure-transfer scheme.
@@ -4886,7 +4892,7 @@ pub fn competition() -> Competitive {
     }
 
     // Competition over our own 2NT diamond transfer (`set_competition_over_
-    // diamond_transfer`, default off): opener's replies after the opponents double
+    // diamond_transfer`, default on): opener's replies after the opponents double
     // `1NT-(P)-2NT-(X)` or overcall it.  Keyed at `[1NT, P, 2NT]`.  Only the PUPPET
     // scheme plays 2NT as the diamond transfer, so the block no-ops under EUROPEAN.
     if competition_over_diamond_transfer() && notrump_minors() == PUPPET {
@@ -4972,7 +4978,7 @@ pub fn competition() -> Competitive {
     }
 
     // Section 5d: Unusual vs Unusual over a both-minors (2NT) overcall of our 1NT
-    // (`set_uvu`, default off). Responder's `X` is penalty; `3♣`/`3♦` are
+    // (`set_uvu`, default on). Responder's `X` is penalty; `3♣`/`3♦` are
     // INV+ cues (Stayman/5+♠, 5+♥); `4♣`/`4♦` are FG+ 5-5-majors splinters; the
     // `3♣`→`3♦` denial runs symmetric Smolen. Opener's `3♣` answer, the Smolen
     // completions, the splinter advance, and the `3♠` rebid are all shared with

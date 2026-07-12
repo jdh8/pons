@@ -9,6 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`scripts/a4-run.sh` — the A4 pass of the bidding-options audit ("Competitive
+  auctions — they overcall / double our opening").** Isolates the two `unmeasured`
+  A4 knobs that carry a bba-gen flag, via the standard `ab-lib.sh` contested
+  arm/diffpair (both are default-on, so the off arm uses the `--no-ns-*`
+  off-switch). Both are clean wins — plain **and** perfect-defense positive in all
+  four cells, PD ≥ plain (not a doubling artifact):
+  - **`set_cue_raise_answer`** (opener's answer to partner's major cue-raise):
+    plain **+0.0256/+0.0348**, PD **+0.0377/+0.0462** NV/vul (fires 0.33%,
+    +7.8…+13.5 IMPs/fired). Off strands the cuebid at the floor's Pass.
+  - **`set_cue_minor_raise_answer`** (the minor twin): plain **+0.0134/+0.0184**,
+    PD **+0.0211/+0.0262** NV/vul (fires 0.25%, +5.4…+10.5 IMPs/fired).
+
+  No behavior change (both were already the shipped default-on); their doc verdicts
+  move `unmeasured (qualitative)` → `fresh`. Fired sets are thin (a first pass);
+  the sign is unanimous across all eight cells. `delayed_cue` and
+  `direct_3nt_stopper` (no bba-gen flag) are deferred — they need bespoke
+  self-play distillation. Added a `JOBS` cap to `bba-gen-parallel.sh` and
+  `ab-lib.sh` (matched shard counts) so a shared-box run bounds its worker
+  processes.
 - **`scripts/a3-run.sh` — the A3 pass of the bidding-options audit ("Our 1NT:
   competition, runouts & escapes"), isolating its five remaining `unmeasured`
   knobs.** Unlike the A1/A2 passes, every A3 knob already had a harness, so this
@@ -180,6 +199,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **`artificial()` now classifies takeout doubles/redoubles, not just bids — the
+  A4 slice of the bidding-options audit ("competitive auctions").** The test-only
+  structural predicate (`src/bidding/inference.rs`) mirrors the bid witness onto
+  doubles: a call is artificial iff it points partner at a suit it did not name —
+  a **bid** floors an *unnamed* suit; a **double/redouble** floors an *unbid* suit
+  (takeout — "pick a suit") rather than the *doubled* strain (penalty/business →
+  natural, "play what's on the table"); a **pass** and a **transfer completion**
+  never do. This strengthens the `artificial_calls_are_alerted` invariant to also
+  guard takeout doubles (zero counterexamples on the shipped book). No bidding
+  behavior change.
+- **Three takeout/SOS doubles now carry an alert and a disclosed reading**
+  (meaning-completeness follow-through, so "artificial by meaning ⟹ alerted"
+  holds): the direct takeout double (`defense_to_suit`/`defense_to_weak_two`,
+  `TAKEOUT_DOUBLE`), the Landy SOS redouble (`LANDY_SOS`), and the Multi takeout
+  double (`MULTI_TAKEOUT`). Phantom-safe — a double names no suit, so the natural
+  walk floors none for it — so each read is a **sound points floor only**: the
+  takeout double's existing 11+ read tightens to 12+, and the Multi X gains an 8+
+  read where it read nothing. The would-be shortness/support **shape reader was
+  dropped as unsound** — the direct takeout's 17+ any-shape tier admits any shape,
+  so no side-suit floor is universally valid. Theory fix, no measured IMPs; a
+  smoke A/B is a follow-up confidence check, not a blocker.
 - **The 1NT opening default shape is now `Wide6322` (was `Wide`).** `american()`
   opens a strong 1NT on the balanced patterns plus a 5422 *or* a **6322 with a
   six-card minor** (previously only the 5422-minor). Adopted after a two-seed
@@ -215,6 +255,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Eight stale `competition.rs` section comments stated the wrong default**
+  (`set_uvu`, `set_uvu_over_majors`, `set_jordan_truscott`,
+  `set_major_support_double`, `set_strong_two_competition`, and the three
+  `set_competition_over_{transfer,minor_transfer,diamond_transfer}` knobs said
+  "default off"/"default on" opposite their `Cell::new(...)` initializers).
+  Comment-only — the setters, defaults, CLI, and web registry were already
+  correct (verified across the whole A4 knob bucket). `docs/bidding-options.md`
+  gains the double half of the natural/artificial rubric (takeout = artificial,
+  penalty = natural) and reclassifies the three cue/cachalot *answer* knobs, which
+  author unalerted natural raises, from Artificial to Natural.
 - **The `web` `invitational_5card_majors` toggle now ships ON, matching the
   engine.** The `SETTINGS` registry initialized this knob to `false` while its
   engine `Cell` defaults `true` (shipped default-on) — a hand-sync slip the

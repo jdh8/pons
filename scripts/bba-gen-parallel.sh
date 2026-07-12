@@ -32,7 +32,7 @@ outdir=$1
 count=$2
 shift 2
 
-n=$(nproc)
+n=${JOBS:-$(nproc)}   # cap worker processes on a shared box; defaults to all cores
 seed_base=${SEED_BASE:-$(date +%s)}
 bin="$(cd "$(dirname "$0")/.." && pwd)/target/release/examples/bba-gen"
 

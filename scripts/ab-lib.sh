@@ -22,7 +22,7 @@ DIFF=target/release/examples/ab-dump-diff
 SD=target/release/examples/ab-dump-sd
 PER_SHARD=${PER_SHARD:-6400}
 SHOW=${SHOW:-5}
-SHARDS=$(nproc)
+SHARDS=${JOBS:-$(nproc)}   # must match the shard count bba-gen-parallel.sh creates
 
 # BUILD_EXTRA is a deliberately word-split flag list, not one argument.
 # shellcheck disable=SC2086
