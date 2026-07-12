@@ -169,6 +169,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Tightened the disclosed point range for our `1NT` opening from 14–18 to the
+  exact plain-HCP band 15–18.** The `apply_opening` `1NT` inference arm read
+  14–19 points — slack that only ever covered the legacy fifths gauge (a
+  quack-heavy 19-count, or a ten-rich 14). With fifths archived, the shipped
+  opening gates on plain HCP 15–17; the only spread above that is a semi-balanced
+  5422/6322's fuzzy `upgrade`, capped at **+1** (its two longest suits total 9,
+  and the second upgrade point needs ≥10), so the sound envelope is exactly
+  **15–18**. The `opening_inference_contains_the_opener` proptest still passes.
+  Disclosure-precision only — no rule or call changed; the archived
+  `set_one_notrump_fifths` knob, if ever revived, would need this re-widened.
+
 - **Opener answers a Cachalot `X` transfer under competition instead of falling
   to the floor** (`set_cachalot_contested_x`, `bba-gen
   --no-ns-cachalot-contested-x`; **shipped default-on**, Cachalot only). The

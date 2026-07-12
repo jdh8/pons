@@ -2439,12 +2439,14 @@ fn apply_opening(inf: &mut Inference, bid: Bid, seat: u8) {
             inf.narrow_length(Suit::Hearts, Range::new(2, 5));
             inf.narrow_length(Suit::Clubs, Range::new(2, 6));
             inf.narrow_length(Suit::Diamonds, Range::new(2, 6));
-            // The opening gates on HCP 15–17 (or the legacy fifths gauge), which
-            // downgrades quack-heavy hands (K/Q worth less than HCP).  Since
-            // `hcp - fifths = 0.2·(#K+#Q) - 0.4·(#T) ≤ 1.6` and a balanced
-            // hand's `point_count` is its raw HCP, a 1NT opener can hold up to
-            // 19 points (e.g. ♠KQJx ♥KQx ♦KQx ♣Kxx: 19 HCP, 17.6 fifths).
-            inf.narrow_points(Range::new(14, 19));
+            // Plain HCP 15–17 gates the opening (fifths archived).  A balanced
+            // hand's `point_count` is its raw HCP, but a semi-balanced 5422/6322
+            // adds the fuzzy `upgrade` — capped at +1 here, since its two longest
+            // suits total 9 (5+4, 6+3) and the second upgrade point needs ≥10.
+            // So the sound band is 15–18.  ponytail: exact for the shipped
+            // plain-HCP gauge; the archived `set_one_notrump_fifths` knob, if
+            // ever revived, would re-widen this to 14–19.
+            inf.narrow_points(Range::new(15, 18));
         }
         (2, Strain::Clubs) => {
             // Strong and artificial: 22+ points, but nothing about shape.
@@ -2546,7 +2548,8 @@ mod tests {
         let one_nt = read(&[bid(1, Strain::Notrump)]);
         assert_eq!(one_nt.rho().length(Suit::Spades), Range::new(2, 5));
         assert_eq!(one_nt.rho().length(Suit::Diamonds), Range::new(2, 6));
-        assert_eq!(one_nt.rho().points, Range::new(14, 19));
+        // Plain HCP 15–17, plus a semi-balanced 5422/6322's +1 `upgrade` → 15–18.
+        assert_eq!(one_nt.rho().points, Range::new(15, 18));
 
         let two_clubs = read(&[bid(2, Strain::Clubs)]);
         assert_eq!(two_clubs.rho().length(Suit::Spades), Range::FULL_LENGTH);
@@ -3112,17 +3115,17 @@ mod tests {
 
     #[test]
     fn narrowed_points_intersects_one_player() {
-        // 1NT shows 14-19; narrow the opener (here our RHO) to the upper half.
+        // 1NT shows 15-18; narrow the opener (here our RHO) to the upper half.
         let inf = read(&[bid(1, Strain::Notrump)]);
-        assert_eq!(inf.rho().points, Range::new(14, 19));
+        assert_eq!(inf.rho().points, Range::new(15, 18));
 
-        let upper = inf.narrowed_points(Relative::Rho, Range::new(17, 19));
+        let upper = inf.narrowed_points(Relative::Rho, Range::new(17, 18));
         assert_eq!(
             upper.rho().points,
-            Range::new(17, 19),
+            Range::new(17, 18),
             "narrowed to the half"
         );
-        assert_eq!(inf.rho().points, Range::new(14, 19), "original unchanged");
+        assert_eq!(inf.rho().points, Range::new(15, 18), "original unchanged");
         // Shape and the other players are untouched.
         assert_eq!(
             upper.rho().length(Suit::Spades),
@@ -3132,7 +3135,7 @@ mod tests {
 
         // Intersection, not replacement: a wider request cannot widen what was shown.
         let clamped = inf.narrowed_points(Relative::Rho, Range::new(0, POINTS_CAP));
-        assert_eq!(clamped.rho().points, Range::new(14, 19));
+        assert_eq!(clamped.rho().points, Range::new(15, 18));
     }
 
     #[test]
