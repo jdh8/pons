@@ -127,8 +127,8 @@ that live *inside* a book are in Tier B.
 
 | Option (knob) | CLI | Nat/Art | Default | A/B verdict | Fresh | Policy → action |
 | --- | --- | --- | --- | --- | --- | --- |
-| set_one_nt_runout | `ab-one-nt-runout` (no flag) | Artificial | ON | qualitative — 5+ escape / XX=business / 2NT=both-minors / SOS ([project_one-nt-doubled-runout]) | unmeasured | default-on ✓ |
-| set_one_nt_runout_universal | `ab-one-nt-runout --universal` | Artificial | ON | qualitative — opener also escapes / balancing SOS-XX | unmeasured | default-on ✓ |
+| set_one_nt_runout | `ab-one-nt-runout --compare runout --filter-1nt` | Artificial | ON | **isolated vs the passing floor** (1M/cell ×2 seeds ×2 vuls, SHA 03d981f, `scripts/a3-run.sh`): plain **+0.039/+0.053**, PD **+0.023/+0.031** NV/vul — all 8 cells positive both seeds, PD holds (not a doubling artifact); fires 1.58%, +2.5/+3.4 IMPs/div plain (weak responder escapes the doubled 1NT) ([project_one-nt-doubled-runout]) | fresh | default-on ✓ |
+| set_one_nt_runout_universal | `ab-one-nt-runout --compare runout [--no-universal]` | Artificial | ON | **marginal = full runout − direct-only** (`--no-universal` off-arm, same 1M×2×2): plain **+0.009/+0.011** but PD **−0.004/−0.005** NV/vul — obstruction split (opener escape / balancing SOS-XX gains on plain, PD over-doubles it), tiny magnitude; sd-lead would arbitrate. Kept default-on as a sub-feature of the winning runout | fresh | default-on ✓ (obstruction split; sd-lead candidate) |
 | set_unusual_2nt (FourFour/FiveFiveAdd/Direct) | `ab-one-nt-runout --compare …` | Artificial | Direct | phase-2 default Direct (direct minor escape beats relay) | fresh | default-on ✓ (Direct) |
 | set_penalty_latch | `--no-ns-penalty-latch` | Natural | ON | X bucket self-play −0.621→−0.464, vs BBA −2.716→−2.329 IMPs/X-bd; no regression | fresh | default-on ✓ (no-op unless natural 1NT-defense on) |
 | set_latch_style (Penalty/Optional) | dedicated (no flag) | Natural | Penalty | defensive latch = DD wash ([project_double-style-penalty-leavein]) | fresh | keep Penalty; Optional opt-in (wash) |
@@ -140,9 +140,9 @@ that live *inside* a book are in Tier B.
 | set_suppress_nt_game_force_over_double | `--no-ns-suppress-nt-gf-over-double` | Natural | ON | [project_nt-9count-gameforce-seam] default-on (suppress 1NT-(X)-3NT overbid) | fresh | fold into base |
 | set_gambling_3nt_over_double | `--ns-gambling-3nt` | Artificial | OFF | net DD-negative (1NTxx baseline too strong) ([project_gambling-games-over-1ntx]) | fresh | stays opt-in (measured loss) |
 | set_preempt_4m_over_double | `--ns-preempt-4m` | Artificial | OFF | net DD-negative, same project | fresh | stays opt-in (measured loss) |
-| set_penalize_escape_stack | `ab-one-nt-runout --compare escape-stack` | Artificial | ON | on by default, no isolated headline | unmeasured | default-on ✓ |
-| set_penalize_escape_values | `ab-one-nt-runout --compare escape-values` | Artificial | ON | on by default, no isolated headline | unmeasured | default-on ✓ |
-| set_lebensohl_style (Off/Plain/Transfer) | `ab-lebensohl` (no flag) | Artificial | Transfer | shipped structure (2NT-relay transfers, Smolen, Leaping Michaels); Transfer-vs-Plain never isolated | unmeasured | default-on ✓ (structure) |
+| set_penalize_escape_stack | `ab-one-nt-runout --compare escape-stack --filter-1nt` | Artificial | ON | **isolated** (5M×2 vuls, SHA 03d981f): fires **0.01%** (498/5M); plain **+5.5/+7.3 IMPs/div** (penalty-X cashes) but only **+0.001/board**, PD ≈0/slightly-neg → negligible net. Penalty double of their escape on a trump stack; kept default-on qualitatively | fresh | default-on ✓ (rare, negligible net) |
+| set_penalize_escape_values | `ab-one-nt-runout --compare escape-values --filter-1nt` | Artificial | ON | **isolated** (5M×2 vuls, SHA 03d981f): fires **0.03%** (1466/5M); plain **+4.2/+5.7 IMPs/div** (+0.001–0.002/board), PD **−0.36/−0.42 IMPs/div** (≈0/board) → negligible net. Penalty-X of their escape on values after a business XX; kept default-on qualitatively | fresh | default-on ✓ (rare, negligible net) |
+| set_lebensohl_style (Off/Plain/Transfer) | `ab-lebensohl --ns transfer --ew plain` | Artificial | Transfer | **Transfer ≥ Plain, isolated** (contested self-play, 400k/cell ×2 seeds ×2 vuls, plain-DD only, SHA 03d981f, `scripts/a3-run.sh`): plain **+0.002 NV / +0.003–0.004 vul** IMPs/board — all 4 cells positive both seeds (+0.30/+0.55 IMPs/div, 0.6% fire, systems-on over 2♣ excluded). Transfer default vindicated; Plain/Off stay opt-in. Structure: 2NT-relay transfers, Smolen, Leaping Michaels | fresh | default-on ✓ (Transfer) |
 | set_lebensohl (shim) | — | — | on=Transfer / off=Off | back-compat shim onto `set_lebensohl_style` | — | see set_lebensohl_style |
 | set_penalty_double_leave_in | `ab-lebensohl` (no flag) | Natural | ON | opener's 3NT escape LOST vs sitting: +0.328 vs +0.507 IMPs/div | fresh | fold into base (keep sit) |
 | set_double_style (Takeout/Penalty/PenaltyLight/Optional) | `ab-lebensohl` (no flag) | Natural | Optional | Optional > Penalty > Takeout: +1.59 vs penalty, +2.14 vs takeout IMPs/div (robust once opener cooperates) | fresh | fold into base (Optional) |
@@ -310,8 +310,10 @@ these buckets per [measurement.md](measurement.md).
 set_defense_to_2d_multi, set_notrump_balancing, set_passed_hand_overcall,
 set_nt_overcall_no_major, set_responsive_overcall, set_minor_transfer_defense,
 set_suppress_4432_vs_major, set_suppress_4432_vs_minor, set_direct_3nt_stopper,
-and the qualitative-only cue/runout knobs (set_cue_raise_answer,
-set_cue_minor_raise_answer, set_one_nt_runout*, set_penalize_escape_*).
+and the qualitative-only cue knobs (set_cue_raise_answer,
+set_cue_minor_raise_answer). *(A3 pass closed 2026-07-12: set_one_nt_runout*,
+set_penalize_escape_*, and set_lebensohl_style isolated via `scripts/a3-run.sh`
+— all fresh, see A3.)*
 
 **Stale figures (re-measure before trusting the magnitude):**
 - `stale-PD` (pre-`a6f2206` PD-era, not comparable to plain-DD):

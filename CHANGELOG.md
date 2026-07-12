@@ -9,6 +9,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`scripts/a3-run.sh` — the A3 pass of the bidding-options audit ("Our 1NT:
+  competition, runouts & escapes"), isolating its five remaining `unmeasured`
+  knobs.** Unlike the A1/A2 passes, every A3 knob already had a harness, so this
+  is a measurement-only pass — no behavior change (all five were already the
+  shipped default), only their doc verdicts move from `unmeasured` to `fresh`.
+  A single resumable, cheapest-first script drives the self-play examples
+  (`ab-lebensohl`, `ab-one-nt-runout`) directly (these knobs have no `bba-gen`
+  flag, so the `ab-lib.sh` contested mechanism doesn't apply); launched detached
+  under `idle-run.sh`, SHA 03d981f, two fresh seeds, both vulnerabilities:
+  - **`set_lebensohl_style` (Transfer vs Plain), isolated at last.** Contested
+    self-play (`ab-lebensohl --ns transfer --ew plain`, 400k/cell, plain-DD):
+    Transfer ≥ Plain on **all four cells both seeds** — plain **+0.002 NV /
+    +0.003–0.004 vul** IMPs/board (+0.30/+0.55 IMPs/divergent, 0.6% fire,
+    systems-on over `2♣` excluded). The Transfer default is now
+    measurement-backed; Plain/Off stay opt-in.
+  - **`set_one_nt_runout`, a clean win vs the passing floor.** `--compare runout
+    --filter-1nt` (1M/cell, dual-scored): plain **+0.039/+0.053**, perfect
+    defense **+0.023/+0.031** NV/vul — all eight cells positive both seeds, PD
+    holds, so not a doubling artifact (fires 1.58%, +2.5/+3.4 IMPs/divergent).
+  - **`set_one_nt_runout_universal` — an obstruction split.** Marginal value
+    (full runout − direct-only via `--no-universal`): plain **+0.009/+0.011** but
+    perfect defense **−0.004/−0.005** NV/vul — the opener-also-escapes / balancing
+    SOS-XX extension gains under plain-DD and is over-doubled under PD, at tiny
+    magnitude. Kept default-on as a sub-feature of the winning runout; flagged an
+    sd-lead candidate (the realistic blind-lead scorer would arbitrate).
+  - **`set_penalize_escape_stack` / `set_penalize_escape_values` — rare, net
+    negligible.** The penalty double of the opponents' escape fires **0.01%** /
+    **0.03%** of boards (`--compare escape-stack|escape-values --filter-1nt`,
+    5M/cell): a big plain-DD win per divergent board (+5–7 / +4–6 IMPs, the
+    double cashing) that perfect defense neutralises to ≈0, for a whole-system
+    impact of ~+0.001 IMPs/board. Kept default-on qualitatively.
+
 - **`ab-notrump-minors` — a self-play A/B isolating our 1NT minor scheme
   (Puppet vs European), and the verdict that keeps Puppet the default.** The
   Puppet `3♣`-Stayman minor responses vs the European transfer scheme
