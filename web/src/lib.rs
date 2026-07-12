@@ -910,7 +910,7 @@ static SETTINGS: &[Setting] = &[
     toggle("lebensohl", COMPETITION, "Lebensohl (over 1NT interference)", true, set_lebensohl_toggle),
     toggle("advance_lebensohl", COMPETITION, "Lebensohl advancing a double", true, set_advance_sohl_toggle),
     toggle("splinter_doubled", COMPETITION, "", true, american::set_splinter_doubled),
-    toggle("passed_hand_overcall", COMPETITION, "", false, american::set_passed_hand_overcall),
+    toggle("passed_hand_overcall", COMPETITION, "", true, american::set_passed_hand_overcall),
     toggle("uvu", COMPETITION, "Unusual vs Unusual", true, american::set_uvu),
     toggle("uvu_over_majors", COMPETITION, "Unusual vs Unusual (over majors)", true, american::set_uvu_over_majors),
     toggle("direct_3nt_stopper", COMPETITION, "", true, american::set_direct_3nt_stopper),

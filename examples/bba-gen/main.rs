@@ -608,10 +608,10 @@ struct Args {
     #[arg(long, default_value = "on")]
     ns_overcall_discipline: String,
 
-    /// Let a passed hand overcall the disciplined 2-level lighter (9+ not 11+);
-    /// off by default (A/B candidate atop the shipped discipline).
+    /// Disable a passed hand's lighter (9+ not 11+) disciplined 2-level overcall
+    /// (folded into base default-on in the A5 pass; see `set_passed_hand_overcall`).
     #[arg(long, default_value_t = false)]
-    ns_passed_hand_overcall: bool,
+    no_ns_passed_hand_overcall: bool,
 
     /// Demand 15+ for the 2-level minor overcall (2♣/2♦ below their suit) instead
     /// of the disciplined 11+; off by default (A/B candidate — the anchor bleeds
@@ -1229,7 +1229,7 @@ fn main() -> anyhow::Result<()> {
         "off" => false,
         other => anyhow::bail!("--ns-overcall-discipline must be on|off, got {other:?}"),
     });
-    pons::bidding::american::set_passed_hand_overcall(args.ns_passed_hand_overcall);
+    pons::bidding::american::set_passed_hand_overcall(!args.no_ns_passed_hand_overcall);
     pons::bidding::american::set_two_level_minor_overcall_tight(
         args.ns_two_level_minor_overcall_tight,
     );

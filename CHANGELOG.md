@@ -9,6 +9,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`scripts/a5-run.sh` — the A5 pass of the bidding-options audit ("Defending
+  their 1NT & their overcalls"), isolating its five remaining `unmeasured`
+  knobs.** A mixed-harness pass; their doc verdicts move `unmeasured` → `fresh`.
+  One outcome (`set_passed_hand_overcall`, below) folds into base default-on; the
+  other four stay default-OFF / opt-in.
+  Four knobs use the `ab-lib.sh` contested arm/diffpair (all default-off, so the
+  ON arm sets the flag); the three DD-blind/negative ones (balancing, passed-seat
+  obstruction, lead-directing transfer) also carry an sd-lead read, and
+  `set_responsive_overcall` (no bba-gen flag) runs self-play `ab-responsive`.
+  Launched detached under `idle-run.sh`, SHA 54a1afa, `JOBS=12`, both vuls:
+  - **`set_minor_transfer_defense`** — decisive **loss** on every scorer (plain
+    −0.0041/−0.0064, PD −0.0060/−0.0082, sd-floor −0.0041/−0.0060, all CI<0); the
+    lead-direction can't pay its cost. Stays opt-in.
+  - **`set_notrump_balancing`** — **wash** all scorers (plain/PD/sd all CI⊇0), no
+    sd edge. Opt-in (= floor).
+  - **`set_responsive_overcall`** — NV **+0.928 IMPs/divergent** win but vul
+    **−0.178** loss (400k×2 PD self-play). Mixed by vul → opt-in (NV edge).
+  - **`set_passed_hand_overcall`** — **folded into base default-on** (a passed
+    hand is captain-limited, so the opening-values 11+ 2-level-overcall floor all
+    but forbids the safe light overcall; drops to 9+). Natural × ≥floor per the
+    audit matrix: consistently **wash-positive** across plain/PD/sd (plain
+    +0.0008/+0.0011, PD +0.0006/+0.0012, sd +0.0009/+0.0009 NV/vul), never negative
+    on any scorer. The bba-gen flag becomes the `--no-ns-passed-hand-overcall`
+    off-switch; the web `passed_hand_overcall` toggle now defaults on.
+  - **`set_nt_overcall_no_major`** — Natural, consistently **wash-positive** across
+    plain/PD (PD +0.0013/+0.0012) but every cell CI⊇0 on a thin (0.15%) fired set.
+    Kept OFF as a **fold-into-base candidate** pending a deeper re-measure to
+    clear CI>0.
+
+  Also resolved the six A5 `?` CLI-column cells in `docs/bidding-options.md` to
+  their real flags (`--ns-defense-to-their-stayman`, `--ns-transfer-defense`,
+  `--ns-minor-transfer-defense`, `--ns-diamond-transfer-defense`, and the
+  `ab-sohl-after-double` / `ab-leaping-michaels` self-play binaries).
 - **`scripts/a4-run.sh` — the A4 pass of the bidding-options audit ("Competitive
   auctions — they overcall / double our opening").** Isolates the two `unmeasured`
   A4 knobs that carry a bba-gen flag, via the standard `ab-lib.sh` contested

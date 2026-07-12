@@ -889,9 +889,11 @@ thread_local! {
     /// [`set_overcall_discipline`].
     static OVERCALL_DISCIPLINE: Cell<bool> = const { Cell::new(true) };
     /// Whether a **passed hand** may take the disciplined 2-level overcall a shade
-    /// lighter (9+ instead of the opening 11+); **false by default** (an unproven
-    /// refinement — A/B candidate). See [`set_passed_hand_overcall`].
-    static PASSED_HAND_OVERCALL: Cell<bool> = const { Cell::new(false) };
+    /// lighter (9+ instead of the opening 11+); **true by default** (folded into
+    /// base in the A5 pass — a passed hand is captain-limited, so the 11+ floor
+    /// all but forbids the safe light overcall; wash-positive on every scorer).
+    /// See [`set_passed_hand_overcall`].
+    static PASSED_HAND_OVERCALL: Cell<bool> = const { Cell::new(true) };
     /// Whether the 2-level **minor** overcall demands 15+ (a strong single-suiter)
     /// instead of the disciplined 11+; **false by default** (an A/B candidate —
     /// the anchor bleeds on these across every strength/shape/vul band, sd-lead
@@ -952,12 +954,13 @@ pub fn set_overcall_discipline(on: bool) {
 /// books built *after* this call (thread-local, read once at book-construction
 /// time)
 ///
-/// `false` (the **default**) applies the opening-values 11+ floor to every seat.
-/// `true` relaxes it to 9+ for a passed hand only: it cannot hold opening values
-/// anyway, so the 11+ floor would all but forbid the safe, useful light overcall
-/// (partner is a limited captain).  Only affects the disciplined 2-level overcall
-/// ([`set_overcall_discipline`] on); the 1-level floor is untouched.  An A/B knob
-/// (`bba-gen --ns-passed-hand-overcall`).
+/// `true` (the **default**, folded into base in the A5 pass) relaxes the floor to
+/// 9+ for a passed hand only: it cannot hold opening values anyway, so the 11+
+/// floor would all but forbid the safe, useful light overcall (partner is a
+/// limited captain).  `false` applies the opening-values 11+ floor to every seat.
+/// Only affects the disciplined 2-level overcall ([`set_overcall_discipline`] on);
+/// the 1-level floor is untouched.  An A/B knob (`bba-gen --no-ns-passed-hand-overcall`
+/// to disable).
 pub fn set_passed_hand_overcall(on: bool) {
     PASSED_HAND_OVERCALL.with(|cell| cell.set(on));
 }

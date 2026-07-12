@@ -195,23 +195,23 @@ that live *inside* a book are in Tier B.
 | ↳ set_meckwell | `ab-nt-defense-matrix` | Artificial | OFF | decisive LOSS plain −0.277, PD −0.522, 0% Nash all brackets ([project_meckwell-defense]) | fresh | stays opt-in (measured loss) |
 | ↳ set_landy | `--ns-landy` | Artificial | OFF | DD-lost vs natural (landy-ab) | stale-pop | stays opt-in (measured loss) |
 | ↳ set_always_pass_defense | `--ew-always-pass` | (datum) | OFF | the A/B baseline do-nothing defense; not a shipping system | n/a | keep off (measurement datum) |
-| set_advance_sohl_style (Off/Plain/Transfer) | `?` (21gf-ledger) | Artificial | Transfer | Transfer clear PD win over flat ladder +0.145/+0.227 IMPs/bd (200k filtered) | fresh | default-on ✓ (Transfer) |
-| set_leaping_michaels | `?` (21gf-ledger) | Artificial | ON | +1.090/+1.452 IMPs/bd; inference reader prices slam | fresh | default-on ✓ |
-| set_notrump_balancing | `bba-match --ns-balancing` | Artificial | OFF | undisciplined balancing doubles — off | unmeasured | needs A/B |
-| set_stayman_defense | `?` | Artificial | OFF | lead-directing (DD-invisible), PD wash | stale-pop | opt-in (DD-blind) |
-| set_transfer_defense | `?` (xfer-h/xfer-s) | Artificial | OFF | PD wash (+0.006/fired CI⊇0, 640k); plain loss = light-sac artifact | fresh | opt-in (lead-directing) |
-| set_minor_transfer_defense | `?` | Artificial | OFF | lead-directing, rare | unmeasured | opt-in |
-| set_diamond_transfer_defense | `?` | Artificial | OFF | clear loss over 1M `--filter-1nt` boards (387 fired) | fresh | stays opt-in (measured loss) |
+| set_advance_sohl_style (Off/Plain/Transfer) | `ab-sohl-after-double --ns off\|plain\|transfer` | Artificial | Transfer | Transfer clear PD win over flat ladder +0.145/+0.227 IMPs/bd (200k filtered) | fresh | default-on ✓ (Transfer) |
+| set_leaping_michaels | `ab-leaping-michaels --ns on\|off` | Artificial | ON | +1.090/+1.452 IMPs/bd; inference reader prices slam | fresh | default-on ✓ |
+| set_notrump_balancing | `--ns-balancing` | Artificial | OFF | **A5 pass** (`scripts/a5-run.sh`, JOBS=12, sha 54a1afa): plain +0.0004/−0.0003, PD −0.0002/−0.0013, sd +0.0008/+0.0003 NV/vul — wash on every scorer (all cells CI⊇0), sd shows no real edge (SEED 1783882108) | fresh | opt-in (= floor) |
+| set_stayman_defense | `--ns-defense-to-their-stayman` | Artificial | OFF | lead-directing (DD-invisible), PD wash | stale-pop | opt-in (DD-blind) |
+| set_transfer_defense | `--ns-transfer-defense` | Artificial | OFF | PD wash (+0.006/fired CI⊇0, 640k); plain loss = light-sac artifact | fresh | opt-in (lead-directing) |
+| set_minor_transfer_defense | `--ns-minor-transfer-defense` | Artificial | OFF | **A5 pass** (`scripts/a5-run.sh`, `--isolate-defense --filter-1nt`): measured LOSS all scorers — plain −0.0041/−0.0064, PD −0.0060/−0.0082, sd(floor) −0.0041/−0.0060 (every cell CI<0; −3.7…−7.0 IMPs/fired). sd is a floor (ab-dump-sd can't disclose the transfer) yet still negative → the lead-direction can't pay its cost (SEED 1783882432) | fresh | stays opt-in (measured loss) |
+| set_diamond_transfer_defense | `--ns-diamond-transfer-defense` | Artificial | OFF | clear loss over 1M `--filter-1nt` boards (387 fired) | fresh | stays opt-in (measured loss) |
 | set_natural_double_shape (Balanced/SemiBalanced/Any) | `--ns-double-shape …` | Natural | Balanced | Balanced dominates: self-play −0.70/div (−0.92 PD, 16.9k div) vs Any; flipped back 2026-06-26 | stale-pop | keep Balanced (Nat discipline) |
 | set_takeout_support (Off/Lenient/Strict) | `--ns-takeout-support …` | Natural | Strict | shipped 3+ card support gate; default-on (21gf-ledger) | fresh | fold into base |
 | set_overcall_discipline | `--ns-overcall-discipline …` | Natural | ON | shipped: 1-lvl cap 17, 2-lvl opening-11+ | fresh | fold into base |
-| set_passed_hand_overcall | `--ns-passed-hand-overcall` | Natural | OFF | unproven lighter passed-seat overcalls | unmeasured | needs A/B |
+| set_passed_hand_overcall | `--no-ns-passed-hand-overcall` | Natural | ON | **A5 pass**: plain +0.0008/+0.0011, PD +0.0006/+0.0012, sd +0.0009/+0.0009 NV/vul — consistently wash-positive on all 6 cells (each CI⊇0, closest NV plain [−0.0001,+0.0017]; thin 0.09–0.15% fired, sd does not contradict). **Folded into base 2026-07-13** (Natural × ≥floor per matrix; captain-limited passed hand, never negative) (SEED 1783882270) | fresh | folded into base ✓ |
 | set_two_level_minor_overcall_tight | `--ns-two-level-minor-overcall-tight` | Natural | OFF | tightening LOSES all bands, sd-lead confirms loss real | fresh | stays opt-in (measured loss) |
-| set_nt_overcall_no_major | `--ns-nt-overcall-no-major` | Natural | OFF | anchor shows 5cM buried under 1NT overcall | unmeasured | needs A/B |
+| set_nt_overcall_no_major | `--ns-nt-overcall-no-major` | Natural | OFF | **A5 pass**: plain +0.0004/+0.0006, PD +0.0013/+0.0012 NV/vul — all 4 cells wash-positive with PD≥plain, but each CI⊇0 (thin, 0.15% fired, ±0.0020–0.0031; +0.28…+0.85 IMPs/fired). Discipline is bridge-sound (don't bury a 5cM under a 1NT overcall) (SEED 1783881962) | fresh | fold-into-base candidate; keep OFF pending a deeper re-measure to clear CI>0 |
 | set_nt_overcall_systems_on | `--no-ns-nt-overcall-systems-on` | Artificial | ON | shipped default-on: graft opening-1NT responses below [1t,1NT]; sd WIN 4/4 | fresh | default-on ✓ |
 | set_nt_overcall_gladiator | `--ns-nt-overcall-gladiator` | Artificial | OFF | completed book WASH vs graft ([project_gladiator-major-overcall]) | fresh | opt-in (= floor) |
 | set_responsive_takeout | `responsive-ab --conv takeout` | Artificial | ON | canonical responsive double, shipped default | fresh | default-on ✓ |
-| set_responsive_overcall | `responsive-ab --conv overcall` | Artificial | OFF | non-standard extension (BBA's is takeout-only) | unmeasured | needs A/B |
+| set_responsive_overcall | `ab-responsive --conv overcall` | Artificial | OFF | **A5 pass** (`ab-responsive --conv overcall`, 400k×2 filtered, PD self-play vs floor): NV **+0.928 IMPs/divergent** (+0.009/filtered), vul **−0.178/divergent** (−0.002/filtered); 1.0% divergent (~4.1k boards). Clear NV win, small vul loss — mixed by vul; non-standard extension (BBA's is takeout-only) | fresh | opt-in (NV edge; loses vul) |
 | set_rich_advance_double | `--no-ns-rich-advance` | Artificial | ON | shipped 2026-07-11: byte-identical book, SIG+ after 0.10.0 double-discipline shift (was −0.0011 wash) | fresh | default-on ✓ |
 | set_advance_rubens | `--ns-advance-rubens` | Artificial | OFF | DD+sd wash (no effect unless rich on) | fresh | opt-in (= floor) |
 | set_longest_first_advance | `--no-ns-longest-advance` | Artificial | ON | shipped w/ rich book: rich+longest SIG+ all 4 scorers; WASH standalone on flat book | fresh | default-on ✓ (paired w/ rich) |
@@ -312,9 +312,18 @@ The options whose policy verdict can't be read off a fresh isolated A/B. Work
 these buckets per [measurement.md](measurement.md).
 
 **Never isolated (`unmeasured`):** set_delayed_cue,
-set_defense_to_2d_multi, set_notrump_balancing, set_passed_hand_overcall,
-set_nt_overcall_no_major, set_responsive_overcall, set_minor_transfer_defense,
-set_suppress_4432_vs_major, set_suppress_4432_vs_minor, set_direct_3nt_stopper.
+set_defense_to_2d_multi, set_suppress_4432_vs_major, set_suppress_4432_vs_minor,
+set_direct_3nt_stopper.
+*(A5 pass closed 2026-07-13: set_nt_overcall_no_major, set_notrump_balancing,
+set_passed_hand_overcall, set_minor_transfer_defense (bba-gen arm/diffpair, +sd
+for the DD-blind trio) and set_responsive_overcall (ab-responsive self-play)
+isolated via `scripts/a5-run.sh` — all fresh, see A5. minor_transfer_defense a
+decisive loss; notrump_balancing wash and responsive_overcall NV-win/vul-loss →
+opt-in; nt_overcall_no_major + passed_hand_overcall wash-positive but thin
+(CI⊇0). **passed_hand_overcall folded into base default-on 2026-07-13** (Natural
+× ≥floor per matrix, never negative on any scorer); nt_overcall_no_major still an
+open fold-in candidate pending a deeper re-measure. The six A5 `?` CLI cells were
+resolved to their real flags in the same pass.)*
 *(A4 pass closed 2026-07-13: set_cue_raise_answer + set_cue_minor_raise_answer
 isolated via `scripts/a4-run.sh` — both fresh, clean wins, see A4. The two
 remaining A4 knobs, set_delayed_cue and set_direct_3nt_stopper, have no bba-gen
