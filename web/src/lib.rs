@@ -901,7 +901,7 @@ static SETTINGS: &[Setting] = &[
     toggle("transfer_gf_hearts", NOTRUMP, "", true, american::set_transfer_gf_hearts),
     toggle("stayman_both_majors", NOTRUMP, "", true, american::set_stayman_both_majors),
     toggle("stayman_5card_max", NOTRUMP, "", true, american::set_stayman_5card_max),
-    toggle("invitational_5card_majors", NOTRUMP, "", false, american::set_invitational_5card_majors),
+    toggle("invitational_5card_majors", NOTRUMP, "", true, american::set_invitational_5card_majors),
     toggle("transfer_longer_major", NOTRUMP, "", true, american::set_transfer_longer_major),
     toggle("crawling_stayman", NOTRUMP, "", true, american::set_crawling_stayman),
     toggle("stayman_cue_continuation", NOTRUMP, "", true, american::set_stayman_cue_continuation),

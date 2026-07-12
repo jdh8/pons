@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`ab-notrump-minors` — a self-play A/B isolating our 1NT minor scheme
+  (Puppet vs European), and the verdict that keeps Puppet the default.** The
+  Puppet `3♣`-Stayman minor responses vs the European transfer scheme
+  (`set_notrump_minors`) had never been isolated — only the scheme as a whole vs
+  a natural baseline (+0.76/+1.15, PD-era). New harness (cloned from
+  `ab-forcing-nt-two-suiter`): 400k boards/cell × {none, both} × two seeds,
+  opponents silenced. **Puppet ≥ European on every cell** — plain DD
+  **+0.18…+0.44 IMPs/divergent** (all four positive), perfect defense positive
+  throughout, single-dummy blind lead **+0.0002…+0.0006/board** (weakly
+  positive, CI straddles 0 at vul); fires 0.3%, SHA 82840a5. No behavior change
+  (Puppet was already the shipped default); the default is now
+  measurement-backed and European stays opt-in. Indexed in
+  docs/bidding-options.md (A2).
+
 - **The real Meckstroth adjunct — an artificial game-forcing `2NT`** shipped
   **default-on** (`set_meckstroth_adjunct`; the `ab-meckstroth-2nt` self-play
   harness builds a baseline arm with it off). After `1M – 1NT` (the forcing notrump)
@@ -168,6 +182,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   being forced on without XYZ.
 
 ### Fixed
+
+- **The `web` `invitational_5card_majors` toggle now ships ON, matching the
+  engine.** The `SETTINGS` registry initialized this knob to `false` while its
+  engine `Cell` defaults `true` (shipped default-on) — a hand-sync slip the
+  registry's own comment flags has no automatic guard. Only the `web` build was
+  affected; the CLI / `american()` default was always on, and every other
+  Notrump toggle already mirrored its `Cell`. Found by the A2 pass of the
+  bidding-options audit (docs/bidding-options.md).
 
 - **Tightened the disclosed point range for our `1NT` opening from 14–18 to the
   exact plain-HCP band 15–18.** The `apply_opening` `1NT` inference arm read

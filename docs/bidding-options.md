@@ -106,7 +106,7 @@ that live *inside* a book are in Tier B.
 
 | Option (knob) | CLI | Nat/Art | Default | A/B verdict | Fresh | Policy → action |
 | --- | --- | --- | --- | --- | --- | --- |
-| set_notrump_minors (PUPPET/EUROPEAN) | `set_notrump_minors(EUROPEAN)` (no flag) | Artificial | PUPPET | Puppet-vs-European never isolated; the scheme as a whole +0.76/+1.15 ([project_minor-transfers-puppet], PD-era) | unmeasured | needs A/B (isolate Puppet vs European) |
+| set_notrump_minors (PUPPET/EUROPEAN) | `ab-notrump-minors --sd` (web `puppet_stayman` toggle) | Artificial | PUPPET | **Puppet ≥ European, isolated** (the scheme-as-a-whole was +0.76/+1.15 vs a natural baseline, PD-era [project_minor-transfers-puppet]): plain +0.18…+0.44 IMPs/divergent — 4 cells {NV,vul}×2 seeds, **all positive** (+213…+502 IMPs / ~1.2k div each), PD positive throughout, sd-lead +0.0002…+0.0006/bd (weakly positive, CI straddles 0 at vul); fires 0.3%; 400k×4, SHA 82840a5 | fresh | default-on ✓ (Puppet the default; European stays opt-in — Puppet never loses) |
 | set_transfer_super_accept | `--ns-transfer-super-accept` | Artificial | OFF | DD wash leaning neg, −0.055 IMPs/fired (640k) | stale-PD | opt-in |
 | set_transfer_slam_try | `--no-ns-transfer-slam-try` | Artificial | ON | plain +0.0012 ÷ PD +0.0012 (+1.42/fired, 320k, CI>0) | fresh | default-on ✓ |
 | set_texas_slam_drive | `--no-ns-texas-slam-drive` | Artificial | ON | plain +0.0024 ÷ PD +0.0024 (+5.87/fired, 320k, CI>0) | fresh | default-on ✓ |
@@ -115,7 +115,7 @@ that live *inside* a book are in Tier B.
 | set_transfer_gf_hearts | `--no-ns-transfer-gf-hearts` | Artificial | ON | plain +0.0015/+0.0017 ÷ PD +0.0016/+0.0018 (two seeds) | fresh | default-on ✓ |
 | set_garbage_stayman | `--no-ns-garbage-stayman` | Artificial | ON | plain +0.51/fired ÷ PD +0.70/fired (fires 0.17%) | fresh | default-on ✓ |
 | set_stayman_both_majors | `--no-ns-stayman-both-majors` | Artificial | ON | plain +2.18/fired ÷ PD +2.29 (right-siding relay, 320k) | fresh | default-on ✓ |
-| set_stayman_5card_max | `--no-ns-stayman-5card-max` | Natural | ON | plain +3.45/fired ÷ PD +3.33 (3♥/3♠ jump is natural/unalerted; a winning capability-add) | fresh | default-on ✓ (winning add; keep knob despite Nat label) |
+| set_stayman_5card_max | `--no-ns-stayman-5card-max` | Natural | ON | plain +3.45/fired ÷ PD +3.33 (3♥/3♠ jump is natural/unalerted; a winning capability-add) | fresh | default-on ✓ (keep knob: **matrix exception** — off *removes a distinct call* (the 3♥/3♠ jump), a system variant not a style tweak, so it stays user-facing where the folded natural batch re-routed among existing calls) |
 | set_invitational_5card_majors | `--no-ns-invitational-5card-majors` | Artificial | ON | plain +0.375/fired ÷ PD +0.134/fired (1.28M, CI>0). Needed doubled-2♦ systems-on companion | fresh | default-on ✓ |
 | set_crawling_stayman | `--no-ns-crawling-stayman` | Artificial | ON | plain +1.539/fired ÷ PD +2.055/fired (1.6M, PD>plain, not a doubling artifact) | fresh | default-on ✓ |
 | set_transfer_longer_major | `--no-ns-transfer-longer` | Artificial | ON | DD wash (204.8k, 47 fired); shipped on structural grounds (deterministic route, partner infers longest) | fresh | default-on ✓ (structural, not a measured win) |
@@ -306,8 +306,7 @@ provenance in [convention-tuning.md](convention-tuning.md) and the cited slugs.
 The options whose policy verdict can't be read off a fresh isolated A/B. Work
 these buckets per [measurement.md](measurement.md).
 
-**Never isolated (`unmeasured`):** set_notrump_minors (Puppet vs European),
-set_delayed_cue,
+**Never isolated (`unmeasured`):** set_delayed_cue,
 set_defense_to_2d_multi, set_notrump_balancing, set_passed_hand_overcall,
 set_nt_overcall_no_major, set_responsive_overcall, set_minor_transfer_defense,
 set_suppress_4432_vs_major, set_suppress_4432_vs_minor, set_direct_3nt_stopper,
