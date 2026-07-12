@@ -792,6 +792,34 @@ fn set_notrump_defense_choice(value: &str) {
     });
 }
 
+/// The 1NT opening shape family — variants map onto `american::NotrumpShape`.
+/// Each widens the one before it: balanced only, then also a 5422 with a
+/// five-card minor, then also a 6322 with a six-card minor (the shipped default).
+static NOTRUMP_SHAPE_VARIANTS: &[Variant] = &[
+    Variant {
+        value: "balanced",
+        label: "Balanced only",
+    },
+    Variant {
+        value: "wide",
+        label: "Also 5-card minor (5422)",
+    },
+    Variant {
+        value: "wide6322",
+        label: "Also 6-card minor (6322)",
+    },
+];
+
+/// Select the 1NT opening shape from its registry `value`.
+fn set_notrump_shape_choice(value: &str) {
+    use american::NotrumpShape;
+    american::set_notrump_shape(match value {
+        "balanced" => NotrumpShape::Balanced,
+        "wide" => NotrumpShape::Wide,
+        _ => NotrumpShape::Wide6322,
+    });
+}
+
 /// The negative-double school over their overcall — variants map onto
 /// `american::NegativeDoubleShape`. Only the three shipped-or-playable schools
 /// surface; the pre-Modern `BothMajors` rule is not offered.
@@ -862,6 +890,7 @@ fn set_puppet_stayman(on: bool) {
 static SETTINGS: &[Setting] = &[
     // Openings
     toggle("open_one_notrump", OPENINGS, "Open 1NT (15–17)", true, american::set_open_one_notrump),
+    Setting::Choice { key: "notrump_shape", section: OPENINGS, label: "1NT opening shape", variants: NOTRUMP_SHAPE_VARIANTS, default: "wide6322", set: set_notrump_shape_choice },
     // Notrump
     toggle("puppet_stayman", NOTRUMP, "Puppet Stayman (3♣)", true, set_puppet_stayman),
     toggle("garbage_stayman", NOTRUMP, "Garbage Stayman", true, american::set_garbage_stayman),
@@ -1119,6 +1148,34 @@ mod tests {
         );
 
         set_choice("notrump_defense", "natural"); // restore for a reused test thread
+    }
+
+    #[test]
+    fn set_choice_reroutes_the_notrump_shape() {
+        // North is a 16-HCP 6322 with six clubs: opens 1NT under the default
+        // wide6322 shape, its minor under balanced-only.  Selecting the family
+        // through set_choice must change North's opening.
+        const PBN: &str = "N:Q2.K3.AQ4.KQ8765 AKJT9.AQJ.KJT.A9 876.T987.987.JT4 543.6542.6532.32";
+        let mut table = WebTable::new("1");
+
+        set_choice("notrump_shape", "wide6322");
+        let wide = parse(&table.deal_pbn(PBN, "N", "none"));
+        assert!(
+            wide["auction"][0]
+                .as_str()
+                .expect("opening call")
+                .contains('N'),
+            "wide6322 opens 1NT on a 6322 with a six-card minor",
+        );
+
+        set_choice("notrump_shape", "balanced");
+        let balanced = parse(&table.deal_pbn(PBN, "N", "none"));
+        assert_ne!(
+            wide["auction"][0], balanced["auction"][0],
+            "balanced-only shape opens a minor, not 1NT",
+        );
+
+        set_choice("notrump_shape", "wide6322"); // restore for a reused test thread
     }
 
     #[test]

@@ -22,6 +22,9 @@ thread_local! {
     /// Whether we open sound 10-11 counts that satisfy the Rule of 20 with one
     /// of a suit instead of passing.  Default `true` (shipped default-on).
     static RULE_OF_20: Cell<bool> = const { Cell::new(true) };
+    /// Which shape policy the 1NT opening admits when `american()` rebuilds.
+    /// Default [`NotrumpShape::Wide6322`] (the shipped default).
+    static NOTRUMP_SHAPE: Cell<NotrumpShape> = const { Cell::new(NotrumpShape::Wide6322) };
 }
 
 /// Suppress (`false`) or restore (`true`, the default) our own 1NT opening.
@@ -59,6 +62,21 @@ pub fn set_rule_of_20(on: bool) {
 /// which drops its one-level suit point floor 12→10 to match).
 pub(crate) fn rule_of_20_enabled() -> bool {
     RULE_OF_20.with(Cell::get)
+}
+
+/// Select the 1NT opening [`NotrumpShape`] for the next rebuild of
+/// [`american()`][crate::american()] — the web Settings shape radio.  Default
+/// [`NotrumpShape::Wide6322`].  The baked ablation handles
+/// ([`american_wide`][crate::bidding::american::american_wide],
+/// [`american_classic`][crate::bidding::american::american_classic]) ignore this
+/// knob; only [`bare_american`][crate::bidding::american::bare_american] reads it.
+pub fn set_notrump_shape(shape: NotrumpShape) {
+    NOTRUMP_SHAPE.with(|cell| cell.set(shape));
+}
+
+/// The 1NT opening shape currently selected by [`set_notrump_shape`].
+pub(super) fn notrump_shape_setting() -> NotrumpShape {
+    NOTRUMP_SHAPE.with(Cell::get)
 }
 
 /// Which hand shapes the strong 1NT opening admits ([`openings_with`])

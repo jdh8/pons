@@ -133,8 +133,8 @@ pub use notrump::{
 pub(crate) use notrump::{crawling_stayman, garbage_stayman, notrump_minors};
 pub(crate) use openings::rule_of_20_enabled;
 pub use openings::{
-    NotrumpShape, openings, openings_with, set_one_notrump_fifths, set_open_one_notrump,
-    set_rule_of_20,
+    NotrumpShape, openings, openings_with, set_notrump_shape, set_one_notrump_fifths,
+    set_open_one_notrump, set_rule_of_20,
 };
 pub use raises::{set_limit_raise_acceptance, set_major_game_tries};
 pub(crate) use rebids::{opener_extras_ladder, opener_major_jump_rebid};
@@ -435,12 +435,13 @@ fn with_instinct_floor(pair: Pair) -> Pair {
 /// including passing partner's takeout double on a worthless hand.
 /// [`american()`] is exactly this pair with
 /// [`instinct`][crate::bidding::instinct()] attached to both contested books;
-/// see the `instinct-floor` example for an A/B match between the two.  The
-/// opening table ships the wide 1NT shape (a 5422 with a five-card minor opens
-/// 1NT); [`american_classic`] is the balanced-only baseline.
+/// see the `instinct-floor` example for an A/B match between the two.  The 1NT
+/// [`NotrumpShape`] follows [`set_notrump_shape`] (default
+/// [`NotrumpShape::Wide6322`] — a 5422 or 6322 with a long minor also opens 1NT);
+/// [`american_wide`] and [`american_classic`] are the baked ablation baselines.
 #[must_use]
 pub fn bare_american() -> Pair {
-    bare_american_with(NotrumpShape::Wide6322)
+    bare_american_with(openings::notrump_shape_setting())
 }
 
 /// [`bare_american`] with the 1NT [`NotrumpShape`] policy selectable

@@ -124,6 +124,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `+0.57/+0.93 per-divergent` figure. The **Wide6322** superset is now the
   shipped default — see the Changed entry below.
 
+- **The `web` Settings tab now picks the 1NT opening shape** — a three-way radio
+  under *Openings* (`notrump_shape`): "Balanced only", "Also 5-card minor
+  (5422)", "Also 6-card minor (6322)", defaulting to the shipped Wide6322. Backed
+  by a new `american::set_notrump_shape(NotrumpShape)` thread-local read when
+  `bare_american()` rebuilds; the baked ablation handles (`american_wide()`,
+  `american_classic()`) ignore it. One registry row — the JS renders the radio
+  family generically, same as the 1NT-defense picker.
+
 ### Changed
 
 - **The 1NT opening default shape is now `Wide6322` (was `Wide`).** `american()`
