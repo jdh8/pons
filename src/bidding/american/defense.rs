@@ -13,6 +13,8 @@ use super::super::constraint::{
     unbid_support,
 };
 use super::super::context::Context;
+use super::super::fallback::{Fallback, FirstIs, SuffixIs, described_rewrite, rewriter};
+use super::super::trie::{Classifier, classifier};
 use super::super::{Alert, Defensive, Rules, Trie};
 use super::competition::{
     LebensohlStyle, clubs_transfer_completion, complete_lebensohl_relay, cue_stayman_answer,
@@ -22,10 +24,11 @@ use super::competition::{
     transfer_stayman_2d_responder, transfer_target,
 };
 use super::notrump::{flat_4333, smolen_at_three, smolen_completion};
-use super::{call, insert_all_seats};
+use super::{call, fallback_all_seats, insert_all_seats};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Hand, Strain, Suit};
 use std::cell::Cell;
+use std::sync::Arc;
 
 // ---------------------------------------------------------------------------
 // Sohl after a takeout double (advancing partner's takeout double of a weak two)
@@ -3495,106 +3498,93 @@ fn insert_advance_of_double(d: &mut Defensive, suit: Suit, opening: Bid, style: 
         insert_all_seats(d, &dbl_p, 3, advance_double(opening));
         return;
     }
+    // gate_4333 = false: advancing partner's takeout double — partner is short in
+    // their suit, so the 4-4 fit keeps its ruffing value (the 4333 curse does not
+    // apply here, and that A/B was never run).
+    insert_sohl_over(d, &dbl_p, suit, style, false);
+}
+
+/// Wire a Section-5 sohl structure for our side's advancer over a single
+/// interfering suit `over`, hung off `base` (a three-call prefix ending at the
+/// advancer's first turn) — the advancer's responses, the relay completion, and
+/// (for `Transfer`) the transfer / cue-Stayman answers plus the `(2♦)` Smolen +
+/// Leaping-Michaels package.  Shared by [`insert_advance_of_double`]
+/// (`[2X, X, P]`) and Gladiator's contested advance (`[1M, 1NT, 2Y]`).
+/// `gate_4333` gates the flat-4333 Stayman/cue carve; callers pass `false` when
+/// partner is known short in `over`, `true` when partner is balanced (a 1NT).
+fn insert_sohl_over(
+    d: &mut Defensive,
+    base: &[Call],
+    over: Suit,
+    style: LebensohlStyle,
+    gate_4333: bool,
+) {
+    let node =
+        |rest: &[Call]| -> Vec<Call> { base.iter().copied().chain(rest.iter().copied()).collect() };
 
     // Advancer's first action shadows the floor (the builders end in a 0.0 Pass,
     // which covers the weak and penalty-pass hands).
     let advancer = match style {
-        // gate_4333 = false: advancing partner's takeout double — partner is short
-        // in their suit, so the 4-4 fit keeps its ruffing value (the 4333 curse does
-        // not apply here, and that A/B was never run).
-        LebensohlStyle::Transfer if suit == Suit::Diamonds => transfer_stayman_2d_responder(false),
-        LebensohlStyle::Transfer => transfer_lebensohl_responder(suit, false),
-        _ => lebensohl_responder(suit),
+        LebensohlStyle::Transfer if over == Suit::Diamonds => {
+            transfer_stayman_2d_responder(gate_4333)
+        }
+        LebensohlStyle::Transfer => transfer_lebensohl_responder(over, gate_4333),
+        _ => lebensohl_responder(over),
     };
-    insert_all_seats(d, &dbl_p, 3, advancer);
+    insert_all_seats(d, base, 3, advancer);
 
-    // Doubler completes the 2NT relay with a forced 3♣; advancer then signs off.
+    // Partner completes the 2NT relay with a forced 3♣; advancer then signs off.
     let two_nt = call(2, Strain::Notrump);
     let three_clubs = call(3, Strain::Clubs);
     insert_all_seats(
         d,
-        &[
-            Call::Bid(opening),
-            Call::Double,
-            Call::Pass,
-            two_nt,
-            Call::Pass,
-        ],
+        &node(&[two_nt, Call::Pass]),
         3,
         complete_lebensohl_relay(),
     );
     insert_all_seats(
         d,
-        &[
-            Call::Bid(opening),
-            Call::Double,
-            Call::Pass,
-            two_nt,
-            Call::Pass,
-            three_clubs,
-            Call::Pass,
-        ],
+        &node(&[two_nt, Call::Pass, three_clubs, Call::Pass]),
         3,
-        lebensohl_relay_rebid(suit),
+        lebensohl_relay_rebid(over),
     );
 
-    // Transfer style: the doubler answers each 3-level transfer / cue. Over (2♦)
-    // the Smolen block below owns the 3-level replies, so this covers (2♥)/(2♠).
-    if style == LebensohlStyle::Transfer && suit != Suit::Diamonds {
+    // Transfer style: partner answers each 3-level transfer / cue. Over (2♦) the
+    // Smolen block below owns the 3-level replies, so this covers (2♥)/(2♠).
+    if style == LebensohlStyle::Transfer && over != Suit::Diamonds {
         // Over (2♥)/(2♠) the delayed cue (2NT relay, then their suit) is always
         // *recognized* — answered as Stayman with a stopper — even when the bot
         // never bids it itself, so a human partner who plays it gets a sensible
         // reply. `split` (the default-off `set_delayed_cue` toggle) additionally
         // makes the bot *bid* the convention and read the direct cue as denying a
         // stopper (so it is answered without a free 3NT).
-        let recognize = matches!(suit, Suit::Hearts | Suit::Spades);
+        let recognize = matches!(over, Suit::Hearts | Suit::Spades);
         let split = delayed_cue() && recognize;
         for bid_suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
             let resp = call(3, Strain::from(bid_suit));
-            let reply = if bid_suit == suit {
+            let reply = if bid_suit == over {
                 if split {
-                    cue_stayman_answer_no_stopper(suit)
+                    cue_stayman_answer_no_stopper(over)
                 } else {
-                    cue_stayman_answer(suit)
+                    cue_stayman_answer(over)
                 }
-            } else if let Some(target) = transfer_target(bid_suit, suit) {
-                transfer_completion(target, suit)
+            } else if let Some(target) = transfer_target(bid_suit, over) {
+                transfer_completion(target, over)
             } else {
                 continue; // the lowest suit has no transfer target — floored
             };
-            insert_all_seats(
-                d,
-                &[
-                    Call::Bid(opening),
-                    Call::Double,
-                    Call::Pass,
-                    resp,
-                    Call::Pass,
-                ],
-                3,
-                reply,
-            );
+            insert_all_seats(d, &node(&[resp, Call::Pass]), 3, reply);
         }
-        // Delayed cue: (2X)–X–P–2NT–P–3X (their suit) — Stayman with a stopper,
+        // Delayed cue: base–2NT–P–3♣–P–3X (their suit) — Stayman with a stopper,
         // answered exactly like the direct cue but with 3NT safe. Wired whenever
         // it could be bid (recognition), independent of whether the bot bids it.
         if recognize {
-            let cue = call(3, Strain::from(suit));
+            let cue = call(3, Strain::from(over));
             insert_all_seats(
                 d,
-                &[
-                    Call::Bid(opening),
-                    Call::Double,
-                    Call::Pass,
-                    call(2, Strain::Notrump),
-                    Call::Pass,
-                    call(3, Strain::Clubs),
-                    Call::Pass,
-                    cue,
-                    Call::Pass,
-                ],
+                &node(&[two_nt, Call::Pass, three_clubs, Call::Pass, cue, Call::Pass]),
                 3,
-                cue_stayman_answer(suit),
+                cue_stayman_answer(over),
             );
         }
     }
@@ -3602,7 +3592,7 @@ fn insert_advance_of_double(d: &mut Defensive, suit: Suit, opening: Bid, style: 
     // Transfer over (2♦): 3♣-Stayman + Smolen, the Jacoby transfers
     // (3♦→♥, 3♥→♠, 3♠→♣), and Leaping Michaels 4♣/4♦ — the diamond-only package
     // ported from the 1NT-(2♦) context. (2♥/2♠ reuse the Transfer completions above.)
-    if style == LebensohlStyle::Transfer && suit == Suit::Diamonds {
+    if style == LebensohlStyle::Transfer && over == Suit::Diamonds {
         let p = Call::Pass;
         let c3 = call(3, Strain::Clubs);
         let d3 = call(3, Strain::Diamonds);
@@ -3611,26 +3601,25 @@ fn insert_advance_of_double(d: &mut Defensive, suit: Suit, opening: Bid, style: 
         let c4 = call(4, Strain::Clubs);
         let d4 = call(4, Strain::Diamonds);
         let nodes: Vec<(Vec<Call>, Rules)> = vec![
-            // 3♣ Stayman, doubler's answer; then Smolen after the 3♦ denial.
+            // 3♣ Stayman, partner's answer; then Smolen after the 3♦ denial.
             (vec![c3, p], stayman_2d_answer()),
             (vec![c3, p, d3, p], smolen_at_three()),
             (vec![c3, p, d3, p, h3, p], smolen_completion(Suit::Spades)),
             (vec![c3, p, d3, p, s3, p], smolen_completion(Suit::Hearts)),
-            // Doubler showed a 4-card major over Stayman; advancer places.
+            // Partner showed a 4-card major over Stayman; advancer places.
             (vec![c3, p, h3, p], stayman_2d_fit_rebid(Suit::Hearts)),
             (vec![c3, p, s3, p], stayman_2d_fit_rebid(Suit::Spades)),
             // Jacoby transfers: 3♦→♥, 3♥→♠ (auto-driven), 3♠→♣ (forced GF).
-            (vec![d3, p], transfer_completion(Suit::Hearts, suit)),
-            (vec![h3, p], transfer_completion(Suit::Spades, suit)),
-            (vec![s3, p], clubs_transfer_completion(suit)),
+            (vec![d3, p], transfer_completion(Suit::Hearts, over)),
+            (vec![h3, p], transfer_completion(Suit::Spades, over)),
+            (vec![s3, p], clubs_transfer_completion(over)),
             // Leaping Michaels: 4♦ both majors, 4♣ clubs + a major (ask).
             (vec![d4, p], lm_2d_both_majors_advance()),
             (vec![c4, p], lm_2d_clubs_ask()),
             (vec![c4, p, d4, p], lm_2d_clubs_major()),
         ];
         for (rest, rules) in nodes {
-            let prefix: Vec<Call> = dbl_p.iter().copied().chain(rest).collect();
-            insert_all_seats(d, &prefix, 3, rules);
+            insert_all_seats(d, &node(&rest), 3, rules);
         }
     }
 }
@@ -4504,6 +4493,63 @@ pub fn defensive() -> Defensive {
                     gladiator_cue_max_fit_raise(suit),
                 );
             }
+
+            // --- RHO acts over our 1NT before advancer can bid Gladiator ---
+            // (RHO's Double is handled by the instinct-floor runout; only 2♣ and
+            // the 2-level suit overcalls need book structure here.)
+
+            // (2♣): systems on, but it is Gladiator.  2♣ steals no room — every
+            // other advance still sits above it — so only the 2♣ relay is
+            // consumed, reappearing as X.  Rebase (their 2♣ → pass, our X → the
+            // relay) routes every continuation onto the uncontested Gladiator
+            // tree above; the transplant hands X a finite logit to be chosen.
+            let relay_call = call(2, Strain::Clubs);
+            fallback_all_seats(
+                &mut d,
+                &[Call::Bid(opening), one_nt],
+                3,
+                Arc::new(FirstIs(relay_call)),
+                Fallback::rebase(described_rewrite(
+                    "systems on: their 2♣ is treated as a pass; X asks as the stolen Gladiator relay",
+                    rewriter(move |auction: &[Call], depth: usize| {
+                        if auction.get(depth) != Some(&relay_call) {
+                            return None;
+                        }
+                        let mut rewritten = auction.to_vec();
+                        rewritten[depth] = Call::Pass; // (2♣) steals no room → systems on
+                        if auction.get(depth + 1) == Some(&Call::Double) {
+                            rewritten[depth + 1] = relay_call; // stolen relay = Double
+                        }
+                        Some(rewritten)
+                    }),
+                )),
+            );
+            // The rebase routes continuations; hand advancer a finite logit on
+            // Double so it can *choose* the stolen relay (2♣ is illegal here).
+            let advances = gladiator_advances(suit);
+            fallback_all_seats(
+                &mut d,
+                &[Call::Bid(opening), one_nt, relay_call],
+                3,
+                Arc::new(SuffixIs(vec![])),
+                Fallback::classify(classifier(move |hand: Hand, context: &Context<'_>| {
+                    let mut logits = advances.classify(hand, context);
+                    let relay = *logits.0.get(relay_call);
+                    *logits.0.get_mut(relay_call) = f32::NEG_INFINITY; // 2♣ is stolen
+                    *logits.0.get_mut(Call::Double) = relay; // X inherits the relay
+                    logits
+                })),
+            );
+
+            // (2♦/2♥/2♠): no room for the relay tree — play the partnership's
+            // Transfer Lebensohl, as if partner had opened 1NT.  gate_4333 = true:
+            // the overcaller is balanced like a 1NT opener.  Reading is free via
+            // the builders' alerts.  RHO's 3-level+ interference falls to the floor.
+            for over in [Suit::Diamonds, Suit::Hearts, Suit::Spades] {
+                let overcall = call(2, Strain::from(over));
+                let base = [Call::Bid(opening), one_nt, overcall];
+                insert_sohl_over(&mut d, &base, over, LebensohlStyle::Transfer, true);
+            }
         } else if let Some(nt) = &nt_overcall_book {
             let one_nt = call(1, Strain::Notrump);
             for n in 0..=3 {
@@ -5303,6 +5349,83 @@ mod tests {
             answer,
             call(4, Strain::Hearts),
             "overcaller jumps to 4♥ with a maximum fit"
+        );
+    }
+
+    #[test]
+    fn gladiator_over_2c_steals_the_relay_with_a_double() {
+        // (1♠) 1NT (2♣): systems on, but it is Gladiator.  2♣ steals no room, so
+        // the now-unbiddable relay reappears as X; every other advance keeps its
+        // meaning, and the overcaller answers the stolen relay with the forced 2♦.
+        super::set_nt_overcall_gladiator(true);
+        let s = || call(1, Strain::Spades);
+        let nt = || call(1, Strain::Notrump);
+        let c2 = call(2, Strain::Clubs);
+        let p = Call::Pass;
+        // The weak 5♦ relay hand now doubles (the stolen relay).
+        let (relay_x, _) = best_call(&[s(), nt(), c2], "432.J8.QJ543.J32");
+        // Overcaller answers the stolen relay with the forced 2♦, as over 2♣.
+        let (forced, _) = best_call(&[s(), nt(), c2, Call::Double, p], "AQ4.KQ4.AK92.65");
+        // A cue-Stayman hand keeps cueing 2♠ (2♣ stole only the relay).
+        let (cue, cue_floored) = best_call(&[s(), nt(), c2], "K84.KQ84.QJ32.42");
+        super::set_nt_overcall_gladiator(false);
+        assert_eq!(
+            relay_x,
+            Call::Double,
+            "the stolen relay is shown with a Double"
+        );
+        assert_eq!(
+            forced,
+            call(2, Strain::Diamonds),
+            "overcaller answers the stolen relay with the forced 2♦"
+        );
+        assert_eq!(
+            cue,
+            call(2, Strain::Spades),
+            "the cue-Stayman survives systems-on"
+        );
+        assert!(
+            !cue_floored,
+            "the systems-on cue is a book node, not the floor"
+        );
+    }
+
+    #[test]
+    fn gladiator_over_two_level_runs_transfer_lebensohl() {
+        // Once RHO takes the two level there is no room for the relay tree, so
+        // advancer plays the partnership's Transfer Lebensohl — book nodes, not
+        // the floor.  Over (2♦) the 3♣-Stayman leg fires instead.
+        super::set_nt_overcall_gladiator(true);
+        let nt = || call(1, Strain::Notrump);
+        let p = Call::Pass;
+        // (1♠) 1NT (2♥): a weak long-diamond hand relays 2NT (→ 3♣ → correct);
+        // the overcaller completes with the forced 3♣.
+        let s = call(1, Strain::Spades);
+        let h2 = call(2, Strain::Hearts);
+        let (relay, relay_floored) = best_call(&[s, nt(), h2], "J2.43.KQ9876.32");
+        let (complete, _) = best_call(
+            &[s, nt(), h2, call(2, Strain::Notrump), p],
+            "AQ4.A4.A32.KQ932",
+        );
+        // (1♥) 1NT (2♦): a 4-4-majors game-force takes the (2♦) 3♣-Stayman leg.
+        let h = call(1, Strain::Hearts);
+        let d2 = call(2, Strain::Diamonds);
+        let (stayman, stayman_floored) = best_call(&[h, nt(), d2], "AQ32.KJ32.A2.432");
+        super::set_nt_overcall_gladiator(false);
+        assert_eq!(relay, call(2, Strain::Notrump), "weak long suit relays 2NT");
+        assert!(
+            !relay_floored,
+            "the Lebensohl relay is a book node, not the floor"
+        );
+        assert_eq!(complete, call(3, Strain::Clubs), "overcaller completes 3♣");
+        assert_eq!(
+            stayman,
+            call(3, Strain::Clubs),
+            "the (2♦) leg bids 3♣-Stayman"
+        );
+        assert!(
+            !stayman_floored,
+            "the 3♣-Stayman is a book node, not the floor"
         );
     }
 

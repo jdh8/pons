@@ -9,6 +9,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Contested Gladiator — answering interference to our 1NT overcall.** Gladiator
+  previously authored no structure over interference to `(1♥/1♠) 1NT`, so when RHO
+  acted before advancer it fell to the raw instinct floor (the source of the
+  `(no-gladiator)` seed bucket that masqueraded as a headline in every Gladiator
+  A/B). Three cases now covered:
+  - **RHO doubles** → the natural 1NT-doubled runout. The runout is a keyless
+    instinct-floor structure that previously keyed on the auction's *opening* 1NT,
+    so it never fired behind a 1NT *overcall*; a runout-local recognizer
+    (`one_nt_anchor`) now anchors it on our side's 1NT whether opening or overcall.
+    **Default-ON**, and a **clean measured win** on its own two-binary A/B
+    (32×6400, both vuls): plain **+0.0025/+0.0041**, PD **+0.0023/+0.0035**, sd
+    **+0.0014/+0.0027** IMPs/board (NV/vul) — a rare fire (~0.06%) but **+2…+6.7
+    IMPs/fired**, positive on every scorer, so a genuine fix of a
+    floundering-into-doubled auction, not a doubling artifact. (Also fixes the
+    systems-on graft, which read `(1M)-1NT-(X)` as a runout but bid a floor call.)
+  - **RHO bids 2♣** → systems on, but it is Gladiator: 2♣ steals no room, so only
+    the 2♣ relay is consumed and reappears as `X` (a rebase maps their 2♣ to a pass
+    and our Double to the stolen relay; the transplant hands `X` the relay's logit;
+    `gladiator_reading` mirrors the rebase). Opt-in (under `set_nt_overcall_gladiator`).
+  - **RHO bids 2♦/2♥/2♠** → the partnership's Transfer Lebensohl, as if partner had
+    opened 1NT — reusing the Section-5 builders under `[1M,1NT,(2X)]` (the
+    `insert_advance_of_double` idiom, factored into a shared `insert_sohl_over`).
+    Reading is free via the builders' alerts. Opt-in (under the Gladiator knob).
+  - Measured (opt-in halves B+C, `scripts/nt-overcall-gladiator-ab.sh`, 32×6400
+    both vuls): the `(no-gladiator)` confound is **gone** — contested auctions now
+    land in authored buckets — but the package is a **wash** (plain +0.0011…0.0019,
+    sd +0.0006…0.0010, PD −0.0013; all within noise at <1% fire). Bucket
+    decomposition (`ab-dump-gladiator-bucket`, extended with contested labels):
+    `lebensohl-pass`/`vs-X-*` win small, but Transfer Lebensohl's *constructive*
+    responses (`lebensohl-2NT` relay, `lebensohl-direct`) are PD-negative
+    (−0.0017…−0.0021, CI-clearing) — the known two-suit-geometry ceiling (the
+    builder models one interfering suit; our auction has opener's major *and*
+    RHO's overcall). Kept as a bridge-correct, byte-identical-default completion
+    of the opt-in convention; a two-suit-aware builder is the deferred upgrade.
 - **Gladiator delayed cue + the (4333) carve on both Stayman cues**
   (`set_nt_overcall_gladiator`, still default-OFF / opt-in — byte-identical
   default). Two changes, only live when the knob is on:

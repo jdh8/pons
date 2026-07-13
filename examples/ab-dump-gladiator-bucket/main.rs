@@ -81,20 +81,66 @@ fn gladiator_bucket(calls: &[Call]) -> &'static str {
             Call::Bid(b) if b == Bid::new(1, Strain::Spades) => Strain::Spades,
             _ => continue,
         };
-        if !is_bid(calls, i + 1, 1, Strain::Notrump) || calls.get(i + 2) != Some(&Call::Pass) {
+        if !is_bid(calls, i + 1, 1, Strain::Notrump) {
             continue;
         }
-        let Some(&Call::Bid(adv)) = calls.get(i + 3) else {
-            continue;
-        };
         let omaj = if themaj == Strain::Hearts {
             Strain::Spades
         } else {
             Strain::Hearts
         };
-        return classify_advance(adv, themaj, omaj, calls, i);
+        match calls.get(i + 2) {
+            // Uncontested: their responder passes, our advance sits at i+3.
+            Some(&Call::Pass) => {
+                let Some(&Call::Bid(adv)) = calls.get(i + 3) else {
+                    continue;
+                };
+                return classify_advance(adv, themaj, omaj, calls, i);
+            }
+            // Contested: their responder acted over our 1NT overcall — the
+            // Branch A floor runout / B stolen-relay / C Transfer-Lebensohl
+            // structure. Peel these out of `(no-gladiator)` so the bucket's
+            // shrinkage is visible (HANDOFF-contested-gladiator.md).
+            Some(&Call::Double) | Some(&Call::Bid(_)) => {
+                return classify_contested(&calls[i + 2], calls.get(i + 3), themaj);
+            }
+            _ => continue,
+        }
     }
     "(no-gladiator)"
+}
+
+/// Label a *contested* advance: `interf` is their responder's call over our 1NT
+/// overcall, `adv` is our advancer's reply (if any). Coarse by design — the
+/// success signal is that these buckets are non-empty (so `(no-gladiator)`
+/// shrank) and net non-negative, not their fine structure.
+fn classify_contested(interf: &Call, adv: Option<&Call>, themaj: Strain) -> &'static str {
+    match *interf {
+        // RHO doubles our 1NT: Branch A natural runout (default-on floor, both
+        // arms — so this should net ~0; a label makes that legible).
+        Call::Double => match adv {
+            Some(&Call::Redouble) => "vs-X-redouble",
+            Some(&Call::Bid(b)) if b == Bid::new(2, Strain::Notrump) => "vs-X-2NT-minors",
+            Some(&Call::Bid(_)) => "vs-X-escape",
+            _ => "vs-X-pass",
+        },
+        // RHO bids 2♣: Branch B stolen Gladiator relay (X) vs natural systems-on.
+        Call::Bid(b) if b == Bid::new(2, Strain::Clubs) => match adv {
+            Some(&Call::Double) => "vs-2C-stolen-x",
+            Some(&Call::Bid(_)) => "vs-2C-natural",
+            _ => "vs-2C-pass",
+        },
+        // RHO takes the 2-level in a suit: Branch C Transfer Lebensohl.
+        Call::Bid(b) if b.level.get() == 2 && b.strain.suit().is_some() => match adv {
+            Some(&Call::Bid(a)) if a == Bid::new(2, Strain::Notrump) => "lebensohl-2NT",
+            Some(&Call::Bid(a)) if a.strain == themaj || a.strain == b.strain => "lebensohl-cue",
+            Some(&Call::Bid(_)) => "lebensohl-direct",
+            Some(&Call::Double) => "lebensohl-x",
+            _ => "lebensohl-pass",
+        },
+        // 3-level+ interference: floor territory (deferred), not a B/C bucket.
+        _ => "contested-other",
+    }
 }
 
 /// Classify the advance bid `adv` (their major `themaj`, other major `omaj`).

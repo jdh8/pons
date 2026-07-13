@@ -1953,11 +1953,24 @@ fn gladiator_reading(auction: &[Call]) -> Option<GladiatorReading> {
     if opening.level.get() != 1 || !matches!(m, Suit::Hearts | Suit::Spades) {
         return None;
     }
-    // Our 1NT overcall, partner passing through to the advancer.  If partner acted
-    // (the interference branch) leave it to the natural walk.
-    if auction.get(open + 1) != Some(&Call::Bid(Bid::new(1, Strain::Notrump)))
-        || auction.get(open + 2) != Some(&Call::Pass)
-    {
+    // Our 1NT overcall, then the advancer.  RHO usually passes; over RHO's (2♣)
+    // systems-on overcall we mirror the book rebase — their 2♣ maps to a pass and
+    // advancer's Double to the stolen 2♣ relay — and re-read, so every (2♣)
+    // continuation (relay, delayed cue, cue-Stayman, club transfer) decodes
+    // through the uncontested logic below with the same call indices.  Any other
+    // RHO action leaves it to the natural walk.
+    if auction.get(open + 1) != Some(&Call::Bid(Bid::new(1, Strain::Notrump))) {
+        return None;
+    }
+    if auction.get(open + 2) == Some(&Call::Bid(Bid::new(2, Strain::Clubs))) {
+        let mut stripped = auction.to_vec();
+        stripped[open + 2] = Call::Pass;
+        if auction.get(open + 3) == Some(&Call::Double) {
+            stripped[open + 3] = Call::Bid(Bid::new(2, Strain::Clubs));
+        }
+        return gladiator_reading(&stripped);
+    }
+    if auction.get(open + 2) != Some(&Call::Pass) {
         return None;
     }
     let index = open + 3;
@@ -3388,6 +3401,53 @@ mod tests {
         assert_eq!(inf.partner().length(Suit::Spades), Range::FULL_LENGTH);
         // ...and the delayed cue pins exactly 3 hearts.
         assert_eq!(inf.partner().length(Suit::Hearts), Range::new(3, 3));
+    }
+
+    #[test]
+    fn gladiator_stolen_relay_double_is_read_as_the_relay() {
+        // [1♠, 1NT, (2♣), X, P]: over RHO's systems-on 2♣, the advancer's Double is
+        // the stolen Gladiator relay (weak-or-invitational, any suit) — NOT a
+        // penalty double naming clubs.  The reader mirrors the book rebase.
+        crate::bidding::american::set_nt_overcall_gladiator(true);
+        let auction = [
+            bid(1, Strain::Spades),
+            bid(1, Strain::Notrump),
+            bid(2, Strain::Clubs),
+            Call::Double,
+            Call::Pass,
+        ];
+        let inf = read(&auction);
+        crate::bidding::american::set_nt_overcall_gladiator(false);
+        // No phantom club suit raised from the doubled strain...
+        assert_eq!(inf.partner().length(Suit::Clubs), Range::FULL_LENGTH);
+        // ...and the relay's sub-game point cap is recorded.
+        assert_eq!(inf.partner().points, Range::new(0, 9));
+    }
+
+    #[test]
+    fn gladiator_contested_transfer_lebensohl_pins_the_target() {
+        // [1♠, 1NT, (2♥), 3♦, P]: over RHO's 2♥ there is no room for the relay
+        // tree, so advancer plays Transfer Lebensohl; 3♦ transfers up through their
+        // hearts (showing spades), read via the builders' alerts — opener must not
+        // raise a phantom diamond suit.
+        crate::bidding::american::set_nt_overcall_gladiator(true);
+        let auction = [
+            bid(1, Strain::Spades),
+            bid(1, Strain::Notrump),
+            bid(2, Strain::Hearts),
+            bid(3, Strain::Diamonds),
+            Call::Pass,
+        ];
+        let inf = read_booked(&auction);
+        crate::bidding::american::set_nt_overcall_gladiator(false);
+        assert!(
+            inf.partner().length(Suit::Spades).min >= 5,
+            "transfer target pinned"
+        );
+        assert!(
+            inf.partner().length(Suit::Diamonds).min < 5,
+            "phantom suit not read"
+        );
     }
 
     #[test]

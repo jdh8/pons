@@ -693,16 +693,54 @@ fn uvu_encircle_enabled() -> Cons<impl Constraint + Clone> {
     pred(|_: Hand, _: &Context<'_>| UVU_ENCIRCLE.with(Cell::get))
 }
 
-/// Partner opened a strong 1NT, RHO doubled it, and it is responder's first
-/// turn — the runout situation.  The double need not be penalty: left in, any
-/// double of 1NT plays for the penalty, so a weak responder escapes regardless.
+/// The index and bid of our side's natural 1NT that anchors a runout — either
+/// the auction's opening 1NT, or a 1NT overcall made immediately over the
+/// opponents' 1-level suit opening.  Ignores whose turn it is; callers layer
+/// their own seat check (see [`our_one_nt_runout_seat`]).
+fn one_nt_anchor(auction: &[Call]) -> Option<(usize, Bid)> {
+    let (open_index, opening) = opening_bid(auction)?;
+    let nt = Bid::new(1, Strain::Notrump);
+    if opening == nt {
+        Some((open_index, nt))
+    } else if opening.level.get() == 1
+        && opening.strain.suit().is_some()
+        && auction.get(open_index + 1) == Some(&Call::Bid(nt))
+    {
+        Some((open_index + 1, nt))
+    } else {
+        None
+    }
+}
+
+/// Our side bid a natural 1NT (opening *or* overcall) that anchors a runout,
+/// and the player to act relates to it as `partner` (`false` = the 1NT bidder
+/// acting again, `true` = its partner).  The overcall-aware generalization of
+/// [`our_strong_notrump`]`(context, 1, partner)`; returns the anchor's index.
+fn our_one_nt_runout_seat(context: &Context<'_>, partner: bool) -> Option<usize> {
+    let auction = context.auction();
+    let (anchor, _) = one_nt_anchor(auction)?;
+    // Our side owns the indices sharing the player-to-act's parity.
+    if anchor % 2 != auction.len() % 2 {
+        return None;
+    }
+    // Seats four apart are the same player; two apart are partners.
+    match (auction.len() - anchor) % 4 {
+        0 if !partner => Some(anchor),
+        2 if partner => Some(anchor),
+        _ => None,
+    }
+}
+
+/// Partner bid a strong 1NT (opening or overcall), RHO doubled it, and it is
+/// responder/advancer's first turn — the runout situation.  The double need not
+/// be penalty: left in, any double of 1NT plays for the penalty, so a weak
+/// partner escapes regardless.
 fn responder_one_nt_runout_now(context: &Context<'_>) -> bool {
     let auction = context.auction();
     let n = auction.len();
-    our_strong_notrump(context, 1, true)
+    n >= 2
         && auction.last() == Some(&Call::Double)
-        && n >= 2
-        && matches!(auction[n - 2], Call::Bid(bid) if bid == Bid::new(1, Strain::Notrump))
+        && our_one_nt_runout_seat(context, true) == Some(n - 2)
 }
 
 /// [`responder_one_nt_runout_now`] as a hand-ignoring [`Constraint`]
@@ -714,16 +752,13 @@ fn responder_one_nt_runout() -> Cons<impl Constraint + Clone> {
 /// our turn again.  Responder ran because it is weak, so it captains the
 /// auction: opener passes rather than read the escape as a natural new suit.
 fn opener_after_one_nt_runout_now(context: &Context<'_>) -> bool {
-    let auction = context.auction();
-    if !our_strong_notrump(context, 1, false) {
-        return false;
-    }
-    let Some((index, _)) = opening_bid(auction) else {
+    let Some(anchor) = our_one_nt_runout_seat(context, false) else {
         return false;
     };
-    auction.get(index + 1) == Some(&Call::Double)
+    let auction = context.auction();
+    auction.get(anchor + 1) == Some(&Call::Double)
         && matches!(
-            auction.get(index + 2),
+            auction.get(anchor + 2),
             Some(&Call::Bid(bid)) if bid.strain.suit().is_some()
         )
 }
@@ -736,15 +771,12 @@ fn opener_after_one_nt_runout() -> Cons<impl Constraint + Clone> {
 /// We opened a strong 1NT, LHO doubled, partner scrambled `2NT` (both minors),
 /// and it is our turn — name the better minor at the three level.
 fn opener_after_one_nt_minors_now(context: &Context<'_>) -> bool {
-    let auction = context.auction();
-    if !our_strong_notrump(context, 1, false) {
-        return false;
-    }
-    let Some((index, _)) = opening_bid(auction) else {
+    let Some(anchor) = our_one_nt_runout_seat(context, false) else {
         return false;
     };
-    auction.get(index + 1) == Some(&Call::Double)
-        && auction.get(index + 2) == Some(&Call::Bid(Bid::new(2, Strain::Notrump)))
+    let auction = context.auction();
+    auction.get(anchor + 1) == Some(&Call::Double)
+        && auction.get(anchor + 2) == Some(&Call::Bid(Bid::new(2, Strain::Notrump)))
 }
 
 /// [`opener_after_one_nt_minors_now`] as a hand-ignoring [`Constraint`]
@@ -761,17 +793,14 @@ fn longer_diamonds() -> Cons<impl Constraint + Clone> {
 /// passed, and it is our turn — the balancing seat.  Partner had no escape, so
 /// it is weak: opener may run its own suit or SOS-redouble rather than sit.
 fn opener_balancing_runout_now(context: &Context<'_>) -> bool {
-    if !our_strong_notrump(context, 1, false) {
-        return false;
-    }
-    let auction = context.auction();
-    let Some((index, _)) = opening_bid(auction) else {
+    let Some(anchor) = our_one_nt_runout_seat(context, false) else {
         return false;
     };
-    auction.len() == index + 4
-        && auction.get(index + 1) == Some(&Call::Double)
-        && auction[index + 2] == Call::Pass
-        && auction[index + 3] == Call::Pass
+    let auction = context.auction();
+    auction.len() == anchor + 4
+        && auction.get(anchor + 1) == Some(&Call::Double)
+        && auction[anchor + 2] == Call::Pass
+        && auction[anchor + 3] == Call::Pass
 }
 
 /// [`opener_balancing_runout_now`] as a hand-ignoring [`Constraint`]
@@ -844,19 +873,16 @@ fn responder_over_reopening_1nt() -> Cons<impl Constraint + Clone> {
 /// Opener SOS-redoubled (the balancing redouble) and it is back to responder:
 /// pick a suit, four-card suits included — opener has none of its own.
 fn responder_after_opener_sos_now(context: &Context<'_>) -> bool {
-    if !our_strong_notrump(context, 1, true) {
-        return false;
-    }
-    let auction = context.auction();
-    let Some((index, _)) = opening_bid(auction) else {
+    let Some(anchor) = our_one_nt_runout_seat(context, true) else {
         return false;
     };
-    auction.len() >= index + 6
-        && auction.get(index + 1) == Some(&Call::Double)
-        && auction[index + 2] == Call::Pass
-        && auction[index + 3] == Call::Pass
-        && auction[index + 4] == Call::Redouble
-        && auction[index + 5..].iter().all(|&call| call == Call::Pass)
+    let auction = context.auction();
+    auction.len() >= anchor + 6
+        && auction.get(anchor + 1) == Some(&Call::Double)
+        && auction[anchor + 2] == Call::Pass
+        && auction[anchor + 3] == Call::Pass
+        && auction[anchor + 4] == Call::Redouble
+        && auction[anchor + 5..].iter().all(|&call| call == Call::Pass)
 }
 
 /// [`responder_after_opener_sos_now`] as a hand-ignoring [`Constraint`]
@@ -867,21 +893,18 @@ fn responder_after_opener_sos() -> Cons<impl Constraint + Clone> {
 /// Responder answered our SOS redouble with a suit; pass it (responder captains
 /// the rescue) rather than read it as a natural new suit and raise.
 fn opener_after_responder_sos_now(context: &Context<'_>) -> bool {
-    if !our_strong_notrump(context, 1, false) {
-        return false;
-    }
-    let auction = context.auction();
-    let Some((index, _)) = opening_bid(auction) else {
+    let Some(anchor) = our_one_nt_runout_seat(context, false) else {
         return false;
     };
-    auction.len() >= index + 8
-        && auction.get(index + 1) == Some(&Call::Double)
-        && auction[index + 2] == Call::Pass
-        && auction[index + 3] == Call::Pass
-        && auction[index + 4] == Call::Redouble
-        && auction[index + 5] == Call::Pass
-        && matches!(auction[index + 6], Call::Bid(bid) if bid.strain.suit().is_some())
-        && auction[index + 7..].iter().all(|&call| call == Call::Pass)
+    let auction = context.auction();
+    auction.len() >= anchor + 8
+        && auction.get(anchor + 1) == Some(&Call::Double)
+        && auction[anchor + 2] == Call::Pass
+        && auction[anchor + 3] == Call::Pass
+        && auction[anchor + 4] == Call::Redouble
+        && auction[anchor + 5] == Call::Pass
+        && matches!(auction[anchor + 6], Call::Bid(bid) if bid.strain.suit().is_some())
+        && auction[anchor + 7..].iter().all(|&call| call == Call::Pass)
 }
 
 /// [`opener_after_responder_sos_now`] as a hand-ignoring [`Constraint`]
@@ -891,22 +914,22 @@ fn opener_after_responder_sos() -> Cons<impl Constraint + Clone> {
 
 /// The opponents have escaped our doubled (or redoubled) 1NT and it is our turn
 ///
-/// Our side opened 1NT, LHO doubled, and since then we have only passed or
-/// (re)doubled — never made a contract bid — so the live suit contract is
-/// *theirs* (their escape), not a suit of ours.  Returns the index of our
-/// opening 1NT when the pattern holds.  Counting our own doubles as "no contract
+/// Our side bid 1NT (opening or overcall), LHO doubled, and since then we have
+/// only passed or (re)doubled — never made a contract bid — so the live suit
+/// contract is *theirs* (their escape), not a suit of ours.  Returns the index
+/// of our 1NT when the pattern holds.  Counting our own doubles as "no contract
 /// bid" is what lets the penalty chase recurse as they keep running.
 fn our_doubled_one_nt_escape(context: &Context<'_>) -> Option<usize> {
     let auction = context.auction();
-    let (index, bid) = opening_bid(auction)?;
-    // Our side is to act, and opened a 1NT that LHO doubled.
-    if index % 2 != auction.len() % 2 || bid != Bid::new(1, Strain::Notrump) {
+    let (index, _) = one_nt_anchor(auction)?;
+    // Our side is to act, and bid a 1NT (opening or overcall) that LHO doubled.
+    if index % 2 != auction.len() % 2 {
         return None;
     }
     if auction.get(index + 1) != Some(&Call::Double) {
         return None;
     }
-    // We made no contract bid since the opening: the live suit contract is the
+    // We made no contract bid since the 1NT: the live suit contract is the
     // opponents' escape, not a suit of ours that they doubled.
     let we_only_doubled = auction
         .iter()
@@ -4454,6 +4477,42 @@ mod tests {
         assert_eq!(best(&doubled, "3.QJ763.97642.83"), call(2, Strain::Hearts));
         set_runout_xx_min(7);
         set_one_nt_runout(true);
+    }
+
+    #[test]
+    fn one_nt_overcall_runout_escapes_and_redoubles() {
+        // The runout now fires when our 1NT was an OVERCALL, not just an opening:
+        // (1♥) 1NT (X), advancer to act, our 1NT anchored at index 1.
+        set_one_nt_runout(true);
+        let doubled = [
+            call(1, Strain::Hearts),
+            call(1, Strain::Notrump),
+            Call::Double,
+        ];
+        // A broke hand with five spades runs to 2♠ rather than sit for it.
+        assert_eq!(best(&doubled, "QJ763.32.9742.83"), call(2, Strain::Spades));
+        // A balanced bust has nowhere to run: it sits.
+        assert_eq!(best(&doubled, "432.J85.K74.9632"), Call::Pass);
+        // Eight balanced HCP is too good to run, too weak to force game opposite a
+        // 15–18 overcall: redouble to play 1NT-XX (business).
+        set_runout_xx_min(8);
+        assert_eq!(best(&doubled, "K43.KQ5.8642.972"), Call::Redouble);
+        set_runout_xx_min(7);
+        set_one_nt_runout(true);
+    }
+
+    #[test]
+    fn one_nt_overcall_runout_is_floor_territory() {
+        // In the full system the doubled 1NT overcall reaches the instinct floor
+        // (no book node shadows it), so the generalized runout actually fires.
+        let doubled = [
+            call(1, Strain::Hearts),
+            call(1, Strain::Notrump),
+            Call::Double,
+        ];
+        let (call_made, floored) = american_floored(&doubled, "QJ763.32.9742.83");
+        assert!(floored, "the doubled 1NT overcall is floor territory");
+        assert_eq!(call_made, call(2, Strain::Spades));
     }
 
     #[test]
