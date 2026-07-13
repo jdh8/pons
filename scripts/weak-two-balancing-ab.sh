@@ -52,22 +52,15 @@ arm() {
         >>"$R/log" 2>&1
 }
 
-# diffpair ON OFF VUL — per-shard paired diff, both scorers, 8 solvers wide
+# diffpair ON OFF VUL — paired diff over the whole arm, both scorers.
+# ab-dump-diff folds the arm dir's shards into a single DDS fan-out.
 diffpair() {
     on=$1; off=$2; vul=$3
     for score in plain pd; do
         out="$R/diff.$on.vs.$off.$vul.$score.txt"
         [ -s "$out" ] && { log "skip $out (exists)"; continue; }
         log "diff $on vs $off ($vul, $score)"
-        i=0
-        while [ "$i" -lt "$SHARDS" ]; do
-            "$DIFF" "$R/$on-$vul/shard-$i.json" "$R/$off-$vul/shard-$i.json" \
-                --score "$score" --show 5 >"$out.shard-$i" 2>&1 &
-            [ $(((i + 1) % 8)) -eq 0 ] && wait
-            i=$((i + 1))
-        done
-        wait
-        cat "$out".shard-* >"$out"; rm -f "$out".shard-*
+        "$DIFF" "$R/$on-$vul" "$R/$off-$vul" --score "$score" --show 5 >"$out" 2>&1
     done
 }
 

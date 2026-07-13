@@ -25,13 +25,15 @@ use pons::scoring::{final_contract, ns_score_contract, ns_score_pd};
 #[path = "../common/mod.rs"]
 #[allow(dead_code)]
 mod common;
-use common::{Dump, mean_with_ci, score_boards};
+use common::{mean_with_ci, score_boards};
 
 #[derive(Parser)]
 struct Args {
-    /// Dump bid with the feature ON (its `table_a` is the measured contract)
+    /// Dump bid with the feature ON (its `table_a` is the measured contract).
+    /// A directory folds its `shard-*.json` into one solve.
     on: String,
-    /// Dump bid with the feature OFF, same seed/deals (the baseline contract)
+    /// Dump bid with the feature OFF, same seed/deals (the baseline contract).
+    /// A directory folds its `shard-*.json` into one solve.
     off: String,
     /// Re-price at this vulnerability instead of the dump's
     #[arg(short, long)]
@@ -49,14 +51,8 @@ struct Args {
 
 fn main() {
     let args = Args::parse();
-    let on: Dump = serde_json::from_reader(std::io::BufReader::new(
-        std::fs::File::open(&args.on).expect("open ON dump"),
-    ))
-    .expect("parse ON dump");
-    let off: Dump = serde_json::from_reader(std::io::BufReader::new(
-        std::fs::File::open(&args.off).expect("open OFF dump"),
-    ))
-    .expect("parse OFF dump");
+    let on = common::load_dump(&args.on);
+    let off = common::load_dump(&args.off);
     assert_eq!(on.boards.len(), off.boards.len(), "dumps must be aligned");
     let vul = args.vulnerability.unwrap_or(on.vulnerability);
 

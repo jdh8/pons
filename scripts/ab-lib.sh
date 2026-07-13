@@ -22,7 +22,7 @@ DIFF=target/release/examples/ab-dump-diff
 SD=target/release/examples/ab-dump-sd
 PER_SHARD=${PER_SHARD:-6400}
 SHOW=${SHOW:-5}
-SHARDS=${JOBS:-$(nproc)}   # must match the shard count bba-gen-parallel.sh creates
+SHARDS=${JOBS:-$(nproc)}   # shard count bba-gen-parallel.sh creates; runners log it
 
 # BUILD_EXTRA is a deliberately word-split flag list, not one argument.
 # shellcheck disable=SC2086
@@ -40,42 +40,28 @@ arm() {
         >>"$R/log" 2>&1
 }
 
-# diffpair ON OFF VUL — per-shard paired diff, plain + pd, 8 solvers wide
+# diffpair ON OFF VUL — paired diff over the whole arm, plain + pd.  ab-dump-diff
+# folds every shard of the arm dir into a single DDS fan-out — one solver owns
+# all cores instead of one process per shard oversubscribing the box.
 diffpair() {
     on=$1; off=$2; vul=$3
     for score in plain pd; do
         out="$R/diff.$on.vs.$off.$vul.$score.txt"
         [ -s "$out" ] && { log "skip $out (exists)"; continue; }
         log "diff $on vs $off ($vul, $score)"
-        i=0
-        while [ "$i" -lt "$SHARDS" ]; do
-            "$DIFF" "$R/$on-$vul/shard-$i.json" "$R/$off-$vul/shard-$i.json" \
-                --score "$score" --show "$SHOW" >"$out.shard-$i" 2>&1 &
-            [ $(((i + 1) % 8)) -eq 0 ] && wait
-            i=$((i + 1))
-        done
-        wait
-        cat "$out".shard-* >"$out"; rm -f "$out".shard-*
+        "$DIFF" "$R/$on-$vul" "$R/$off-$vul" --score "$score" --show "$SHOW" >"$out" 2>&1
     done
 }
 
-# sddiff ON OFF VUL [ab-dump-sd flags...] — sd-lead paired delta over all
-# shards, 16 worlds; extra flags (e.g. --on-ns-negative-double-shape) disclose
-# the ON arm's knobs to the blind leader.
+# sddiff ON OFF VUL [ab-dump-sd flags...] — sd-lead paired delta over the whole
+# arm, 16 worlds, one solver; extra flags (e.g. --on-ns-negative-double-shape)
+# disclose the ON arm's knobs to the blind leader.
 sddiff() {
     on=$1; off=$2; vul=$3; shift 3
     out="$R/sd.$on.vs.$off.$vul.txt"
     [ -s "$out" ] && { log "skip $out (exists)"; return 0; }
     log "sd-diff $on vs $off ($vul, 16 worlds$*)"
-    i=0
-    while [ "$i" -lt "$SHARDS" ]; do
-        "$SD" "$R/$on-$vul/shard-$i.json" "$R/$off-$vul/shard-$i.json" \
-            -v "$vul" --sd-worlds 16 --show 0 "$@" >"$out.shard-$i" 2>&1 &
-        [ $(((i + 1) % 8)) -eq 0 ] && wait
-        i=$((i + 1))
-    done
-    wait
-    cat "$out".shard-* >"$out"; rm -f "$out".shard-*
+    "$SD" "$R/$on-$vul" "$R/$off-$vul" -v "$vul" --sd-worlds 16 --show 0 "$@" >"$out" 2>&1
 }
 
 # seed_for [NAME] — a persistent SEED_BASE in $R/[NAME.]seed, fresh on first use.

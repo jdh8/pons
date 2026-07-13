@@ -21,22 +21,15 @@ SEED_BASE=$(seed_for)
 
 # Shards are split by opening strain, so the diff runs over dir/tag pairs (not
 # the name-based $R/$name-$vul convention): override ab-lib's diffpair/sddiff.
-# diffpair ON_DIR OFF_DIR TAG VUL — plain + pd, 8 solvers wide
+# ab-dump-diff/-sd fold a whole strain dir's shards into one solve.
+# diffpair ON_DIR OFF_DIR TAG VUL — plain + pd
 diffpair() {
     on=$1; off=$2; tag=$3; vul=$4
     for score in plain pd; do
         out="$R/diff.$tag.$score.txt"
         [ -s "$out" ] && { log "skip $out"; continue; }
         log "diff $tag ($score)"
-        i=0
-        while [ "$i" -lt "$SHARDS" ]; do
-            [ -f "$on/shard-$i.json" ] && "$DIFF" "$on/shard-$i.json" "$off/shard-$i.json" \
-                --score "$score" --show 0 >"$out.shard-$i" 2>&1 &
-            [ $(((i + 1) % 8)) -eq 0 ] && wait
-            i=$((i + 1))
-        done
-        wait
-        cat "$out".shard-* >"$out" 2>/dev/null; rm -f "$out".shard-*
+        "$DIFF" "$on" "$off" --score "$score" --show 0 >"$out" 2>&1
     done
 }
 
@@ -46,15 +39,7 @@ sddiff() {
     out="$R/sd.$tag.txt"
     [ -s "$out" ] && { log "skip $out"; return 0; }
     log "sd-diff $tag"
-    i=0
-    while [ "$i" -lt "$SHARDS" ]; do
-        [ -f "$on/shard-$i.json" ] && "$SD" "$on/shard-$i.json" "$off/shard-$i.json" \
-            -v "$vul" --sd-worlds 16 --show 0 >"$out.shard-$i" 2>&1 &
-        [ $(((i + 1) % 8)) -eq 0 ] && wait
-        i=$((i + 1))
-    done
-    wait
-    cat "$out".shard-* >"$out" 2>/dev/null; rm -f "$out".shard-*
+    "$SD" "$on" "$off" -v "$vul" --sd-worlds 16 --show 0 >"$out" 2>&1
 }
 
 log "=== nt-overcall-systems-on A/B start, sha=$SHA, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul"

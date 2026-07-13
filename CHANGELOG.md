@@ -286,6 +286,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **A/B harness solves each arm in one DDS fan-out instead of one solver process
+  per shard.** `ab-dump-diff`/`ab-dump-sd` now accept a **directory** as either arm
+  and fold its `shard-*.json` into a single dump (shared `common::load_dump`), so the
+  whole divergent set is solved by one `Solver` that owns all cores. The old
+  `scripts/ab-lib.sh` `diffpair`/`sddiff` (and the split-by-opening overrides in
+  `nt-overcall-{systems-on,gladiator}-ab.sh` and the inline one in
+  `weak-two-balancing-ab.sh`) launched up to 8 shard processes at once, each
+  spinning a full-core DDS pool — 8× oversubscription of the box (`SetMaxThreads(0)`
+  sizes the pool to every core). DD scorers are byte-identical (verified: dir-mode
+  total == per-shard sum, plain and PD); the sd-lead scorer can drift ≈0.0007
+  IMPs/board because its world-sampling RNG is seeded once per process (the merged
+  single-process stream no longer reseeds the same `--sd-seed` per shard — arguably
+  more correct). Net −23 lines; the forensic bucket tools already globbed a dir into
+  one solve, so they were unchanged.
+
 - **`artificial()` now classifies takeout doubles/redoubles, not just bids — the
   A4 slice of the bidding-options audit ("competitive auctions").** The test-only
   structural predicate (`src/bidding/inference.rs`) mirrors the bid witness onto

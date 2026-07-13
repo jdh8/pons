@@ -139,6 +139,43 @@ pub struct Dump {
     pub boards: Vec<Board>,
 }
 
+/// Load a dump from `path`.  A plain file is read directly; a **directory**
+/// globs its `shard-*.json` (sorted, so paired arms concatenate in the same
+/// order) and folds every shard's boards into one dump.  Handing a harness the
+/// whole board set lets it solve the entire divergent set in a single DDS
+/// fan-out, instead of launching one solver process per shard — each of which
+/// spins a full-core DDS pool and oversubscribes the box.
+#[cfg(feature = "serde")]
+pub fn load_dump(path: &str) -> Dump {
+    fn read(path: &std::path::Path) -> Dump {
+        serde_json::from_reader(std::io::BufReader::new(
+            std::fs::File::open(path)
+                .unwrap_or_else(|e| panic!("open dump {}: {e}", path.display())),
+        ))
+        .unwrap_or_else(|e| panic!("parse dump {}: {e}", path.display()))
+    }
+    let root = std::path::Path::new(path);
+    if !root.is_dir() {
+        return read(root);
+    }
+    let mut shards: Vec<std::path::PathBuf> = std::fs::read_dir(root)
+        .unwrap_or_else(|e| panic!("read dir {path}: {e}"))
+        .map(|entry| entry.expect("dir entry").path())
+        .filter(|p| {
+            p.file_name()
+                .and_then(|n| n.to_str())
+                .is_some_and(|n| n.starts_with("shard-") && n.ends_with(".json"))
+        })
+        .collect();
+    assert!(!shards.is_empty(), "no shard-*.json in {path}");
+    shards.sort();
+    let mut dump = read(&shards[0]);
+    for shard in &shards[1..] {
+        dump.boards.extend(read(shard).boards);
+    }
+    dump
+}
+
 /// Sample mean and the half-width of its 95% confidence interval
 ///
 /// The mean is the headline IMPs/board; the half-width is `1.96 · SE` from the

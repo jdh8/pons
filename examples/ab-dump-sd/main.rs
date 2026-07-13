@@ -37,13 +37,15 @@ use rand::rngs::StdRng;
 #[path = "../common/mod.rs"]
 #[allow(dead_code)]
 mod common;
-use common::{Dump, mean_with_ci, seat_to_act};
+use common::{mean_with_ci, seat_to_act};
 
 #[derive(Parser)]
 struct Args {
-    /// Dump bid with the feature ON (its `table_a` auction is scored)
+    /// Dump bid with the feature ON (its `table_a` auction is scored).
+    /// A directory folds its `shard-*.json` into one solve.
     on: String,
-    /// Dump bid with the feature OFF, same seed/deals (the baseline)
+    /// Dump bid with the feature OFF, same seed/deals (the baseline).
+    /// A directory folds its `shard-*.json` into one solve.
     off: String,
     /// Re-price at this vulnerability instead of the dump's
     #[arg(short, long)]
@@ -124,17 +126,10 @@ fn lead_inputs(
     ))
 }
 
-fn read_dump(path: &str) -> Dump {
-    serde_json::from_reader(std::io::BufReader::new(
-        std::fs::File::open(path).unwrap_or_else(|e| panic!("open dump {path}: {e}")),
-    ))
-    .unwrap_or_else(|e| panic!("parse dump {path}: {e}"))
-}
-
 fn main() {
     let args = Args::parse();
-    let on = read_dump(&args.on);
-    let off = read_dump(&args.off);
+    let on = common::load_dump(&args.on);
+    let off = common::load_dump(&args.off);
     assert_eq!(on.boards.len(), off.boards.len(), "dumps must be aligned");
     let vul = args.vulnerability.unwrap_or(on.vulnerability);
     let n = on.boards.len();
