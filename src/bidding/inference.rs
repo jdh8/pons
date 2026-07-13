@@ -1129,6 +1129,12 @@ impl Inferences {
                         players[who].narrow_length(o, Range::at_least(4, LENGTH_CAP));
                         players[who].narrow_points(Range::at_least(8, POINTS_CAP));
                     }
+                    // Delayed cue: exactly 3 in the unbid major, INV+ (checks the
+                    // 5-3 fit an exactly-5-major overcall can hold).
+                    GladiatorAdvance::DelayedCue { o } => {
+                        players[who].narrow_length(o, Range::new(3, 3));
+                        players[who].narrow_points(Range::at_least(8, POINTS_CAP));
+                    }
                     GladiatorAdvance::Splinter { o, m } => {
                         players[who].narrow_length(o, Range::at_least(4, LENGTH_CAP));
                         players[who].narrow_length(m, Range::new(0, 1));
@@ -1907,6 +1913,9 @@ enum GladiatorAdvance {
     Relay,
     /// Cue of their major = Stayman: 4+ in the unbid major `o`, INV+.
     Cue { o: Suit },
+    /// Delayed cue (`2♣` relay → forced `2♦` → cue of their major): exactly 3 in
+    /// the unbid major `o`, INV+ — the 5-3-fit check.
+    DelayedCue { o: Suit },
     /// `3M` splinter: 4+ `o`, 0–1 in their major `m`, GF.
     Splinter { o: Suit, m: Suit },
     /// `4M` Leaping Michaels: both minors 5+, GF.
@@ -1967,10 +1976,21 @@ fn gladiator_reading(auction: &[Call]) -> Option<GladiatorReading> {
         suppress |= 1 << index;
         // The overcaller's forced 2♦ completion (relay, P, 2♦) says nothing of
         // diamonds — suppress it too.
+        let mut delayed = false;
         if auction.get(index + 2) == Some(&Call::Bid(Bid::new(2, Strain::Diamonds))) {
             suppress |= 1 << (index + 2);
+            // Delayed cue at index+4 (relay, P, 2♦, P, cue-of-their-major): a
+            // phantom-suit call too (advancer holds exactly 3 `o`, not `m`).
+            if auction.get(index + 4) == Some(&Call::Bid(Bid::new(2, opening.strain))) {
+                suppress |= 1 << (index + 4);
+                delayed = true;
+            }
         }
-        GladiatorAdvance::Relay
+        if delayed {
+            GladiatorAdvance::DelayedCue { o }
+        } else {
+            GladiatorAdvance::Relay
+        }
     } else if bid == Bid::new(2, opening.strain) {
         suppress |= 1 << index;
         GladiatorAdvance::Cue { o }
@@ -3342,6 +3362,32 @@ mod tests {
         let inf = read(&auction);
         crate::bidding::american::set_nt_overcall_gladiator(false);
         assert_eq!(inf.partner().length(Suit::Clubs), Range::FULL_LENGTH);
+    }
+
+    #[test]
+    fn gladiator_delayed_cue_is_read_as_exactly_three_not_spades() {
+        // [1♠,1NT,P,2♣,P,2♦,P,2♠,P]: the advancer's SECOND 2♠ (after the 2♣ relay
+        // and forced 2♦) is the Gladiator delayed cue — exactly 3 hearts, INV+ —
+        // NOT a natural spade suit.  The suppression must cover it too, else the
+        // floor raises a phantom spade suit into a doubled disaster (the iron rule).
+        crate::bidding::american::set_nt_overcall_gladiator(true);
+        let auction = [
+            bid(1, Strain::Spades),
+            bid(1, Strain::Notrump),
+            Call::Pass,
+            bid(2, Strain::Clubs),
+            Call::Pass,
+            bid(2, Strain::Diamonds),
+            Call::Pass,
+            bid(2, Strain::Spades),
+            Call::Pass,
+        ];
+        let inf = read(&auction);
+        crate::bidding::american::set_nt_overcall_gladiator(false);
+        // Their major is never floored into the advancer's hand...
+        assert_eq!(inf.partner().length(Suit::Spades), Range::FULL_LENGTH);
+        // ...and the delayed cue pins exactly 3 hearts.
+        assert_eq!(inf.partner().length(Suit::Hearts), Range::new(3, 3));
     }
 
     #[test]

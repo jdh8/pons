@@ -1359,7 +1359,7 @@ fn stayman_major_rebid(major: Suit) -> Rules {
 }
 
 /// A flat 4-3-3-3 — the one balanced shape with no doubleton
-fn flat_4333() -> Cons<impl Constraint + Clone> {
+pub(super) fn flat_4333() -> Cons<impl Constraint + Clone> {
     balanced()
         & len(Suit::Clubs, 3..)
         & len(Suit::Diamonds, 3..)

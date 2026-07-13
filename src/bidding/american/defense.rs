@@ -21,7 +21,7 @@ use super::competition::{
     stayman_2d_fit_rebid, transfer_completion, transfer_lebensohl_responder,
     transfer_stayman_2d_responder, transfer_target,
 };
-use super::notrump::{smolen_at_three, smolen_completion};
+use super::notrump::{flat_4333, smolen_at_three, smolen_completion};
 use super::{call, insert_all_seats};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Hand, Strain, Suit};
@@ -1641,6 +1641,12 @@ const GLADIATOR_CLUB_TRANSFER: Alert = Alert("gladiator:club-transfer");
 /// Gladiator splinter (`3` of their major) — a game-forcing raise of the unbid
 /// major with a singleton/void in their suit.
 const GLADIATOR_SPLINTER: Alert = Alert("gladiator:splinter");
+/// Gladiator **delayed cue** (`2♣` relay → forced `2♦` → cue of their major) —
+/// exactly 3 in the unbid major, INV+, **not flat (4333)**.  The direct cue
+/// promises 4; this delayed route promises exactly 3 with a doubleton (ruffing
+/// value), checking for the 5-3 fit a balanced 5-card-major 1NT overcall can hold
+/// (over `1♠`, a balanced 15–18 may hold 5 hearts).
+const GLADIATOR_DELAYED_CUE: Alert = Alert("gladiator:delayed-cue");
 
 /// Responsive double — partner doubled/overcalled, they raised, advancer's double
 /// shows the two unbid suits (4-4, 8+).  A takeout call (asks partner to pick a
@@ -3686,7 +3692,13 @@ fn gladiator_advances(their_major: Suit) -> Rules {
         // the relay, so this is a game-values jump).
         .rule(Bid::new(4, os), 1.35, len(o, 6..) & points(game..))
         // Cue = Stayman for the unbid major: exactly 4, invitational-or-better.
-        .rule(Bid::new(2, m), 1.4, len(o, 4..=4) & points(inv..))
+        // A flat (4333) is barred (the 4333 curse): with no doubleton it has no
+        // ruffing value, so a 4-4 major fit does not beat 3NT — it invites in NT.
+        .rule(
+            Bid::new(2, m),
+            1.4,
+            len(o, 4..=4) & points(inv..) & !flat_4333(),
+        )
         .alert(GLADIATOR_STAYMAN)
         // Game-forcing naturals: 3 of a real 5+ suit.
         .rule(
@@ -3721,13 +3733,16 @@ fn gladiator_advances(their_major: Suit) -> Rules {
             len(Suit::Diamonds, 5..=5) & points(inv..game),
         )
         .rule(Bid::new(2, os), 1.0, len(o, 5..=5) & points(inv..game))
-        // 2♣ = Gladiator relay (XYZ-style): a weak ♦/O takeout, or any
-        // invitational hand not shown directly — the forced 2♦ then sorts them.
-        // A flat/short weak hand passes 1NT (the Pass catch-all) instead.
+        // 2♣ = Gladiator relay (XYZ-style): a weak ♦/O takeout, any invitational
+        // hand not shown directly, or a game-forcing non-flat hand with exactly 3
+        // `O` that wants to check the 5-3 fit via the delayed cue — the forced 2♦
+        // then sorts them.  A flat/short weak hand passes 1NT (the Pass catch-all).
         .rule(
             Bid::new(2, Strain::Clubs),
             0.5,
-            (points(..inv) & (len(Suit::Diamonds, 5..) | len(o, 5..))) | points(inv..game),
+            (points(..inv) & (len(Suit::Diamonds, 5..) | len(o, 5..)))
+                | points(inv..game)
+                | (points(game..) & balanced() & len(o, 3..=3) & !flat_4333()),
         )
         .alert(GLADIATOR_RELAY)
         .rule(Call::Pass, 0.3, hcp(0..))
@@ -3762,6 +3777,38 @@ fn gladiator_cue_answer(their_major: Suit) -> Rules {
         .rule(Bid::new(3, Strain::Notrump), 1.0, hcp(0..))
 }
 
+/// Overcaller's reply to the Gladiator **delayed** cue (advancer showed exactly 3
+/// `O`, INV+, not flat — checking the 5-3 fit)
+///
+/// Same min/max × fit/misfit schema as [`gladiator_cue_answer`], but "fit" now
+/// means a 5-card `O` (opposite advancer's exactly 3) rather than 4: cheapest `O`
+/// = MIN fit (15–16 + 5 `O`), jump `O` = MAX fit (17–18 + 5 `O`); `2NT` = MIN
+/// misfit, `3NT` = MAX misfit.  Advancer then places via the same
+/// [`gladiator_cue_min_fit`] / [`gladiator_cue_min_misfit`] logic (GF→game,
+/// INV→pass).
+fn gladiator_delayed_cue_answer(their_major: Suit) -> Rules {
+    let o = other_major(their_major);
+    let os = Strain::from(o);
+    let m = Strain::from(their_major);
+    let cheap = if os > m { 2 } else { 3 };
+
+    Rules::new()
+        .rule(Bid::new(cheap, os), 1.4, len(o, 5..) & hcp(15..=16))
+        .rule(Bid::new(cheap + 1, os), 1.4, len(o, 5..) & hcp(17..=18))
+        .rule(
+            Bid::new(2, Strain::Notrump),
+            1.3,
+            len(o, ..=4) & hcp(15..=16),
+        )
+        .rule(
+            Bid::new(3, Strain::Notrump),
+            1.3,
+            len(o, ..=4) & hcp(17..=18),
+        )
+        // Finite catch-all (the overcall is a known 15–18).
+        .rule(Bid::new(3, Strain::Notrump), 1.0, hcp(0..))
+}
+
 /// Overcaller's forced completion of the Gladiator `2♣` relay
 ///
 /// ponytail: pure `2♦` puppet; the max-break rebids (`2♥`/`2♠` showing a
@@ -3776,14 +3823,27 @@ fn gladiator_relay_rebid() -> Rules {
 /// Advancer's continuation over the forced `2♦` (the XYZ-style sort)
 ///
 /// Weak hands sign off (pass `2♦`, or `2O` with 5+ `O`); invitational hands show
-/// a 6-card suit at the 3-level (`3♣`/`3♦`/`3O`) or bid `2NT` (balanced).
+/// a 6-card suit at the 3-level (`3♣`/`3♦`/`3O`) or bid `2NT` (balanced).  The
+/// **delayed cue** (cue of their major) is exactly 3 `O`, INV+, not flat (4333) —
+/// the 5-3-fit check that pairs with a 5-card-major overcall (see
+/// [`GLADIATOR_DELAYED_CUE`]); a flat 4333 invites in notrump instead.
 fn gladiator_relay_continuation(their_major: Suit) -> Rules {
     let o = other_major(their_major);
     let os = Strain::from(o);
+    let m = Strain::from(their_major);
     let inv = 8u8;
     let game = 10u8;
 
     Rules::new()
+        // Delayed cue = exactly 3 `O`, INV+, not flat (4333): checks the 5-3 major
+        // fit that a 5-card-major 1NT overcall can hold (the direct cue promises 4;
+        // a flat 4333 has no ruffing value and invites in notrump).
+        .rule(
+            Bid::new(2, m),
+            1.0,
+            len(o, 3..=3) & points(inv..) & !flat_4333(),
+        )
+        .alert(GLADIATOR_DELAYED_CUE)
         // Invitational, a 6-card suit.
         .rule(
             Bid::new(3, Strain::Clubs),
@@ -4415,6 +4475,35 @@ pub fn defensive() -> Defensive {
                 3,
                 gladiator_relay_major_answer(suit),
             );
+            // Delayed cue (relay → forced 2♦ → cue of their major = exactly 3 `O`,
+            // INV+, not flat): overcaller shows min/max × 5-`O`-fit/misfit, then
+            // advancer places with the same logic as after the direct cue.
+            insert_all_seats(
+                &mut d,
+                &seq(&[relay, p, forced, p, cue, p]),
+                3,
+                gladiator_delayed_cue_answer(suit),
+            );
+            insert_all_seats(
+                &mut d,
+                &seq(&[relay, p, forced, p, cue, p, call(cheap, os), p]),
+                3,
+                gladiator_cue_min_fit(suit),
+            );
+            insert_all_seats(
+                &mut d,
+                &seq(&[relay, p, forced, p, cue, p, call(2, Strain::Notrump), p]),
+                3,
+                gladiator_cue_min_misfit(),
+            );
+            if cheap + 1 < 4 {
+                insert_all_seats(
+                    &mut d,
+                    &seq(&[relay, p, forced, p, cue, p, call(cheap + 1, os), p]),
+                    3,
+                    gladiator_cue_max_fit_raise(suit),
+                );
+            }
         } else if let Some(nt) = &nt_overcall_book {
             let one_nt = call(1, Strain::Notrump);
             for n in 0..=3 {
@@ -5250,6 +5339,88 @@ mod tests {
             "the overcaller's raise is a book node, not the floor"
         );
         assert_eq!(raise, h(4), "overcaller raises the game-forcing 3♥ to 4♥");
+    }
+
+    #[test]
+    fn gladiator_delayed_cue_finds_the_five_three_fit() {
+        // A (1♠) 1NT overcall may hold a balanced 5-card heart suit.  An advancer
+        // with exactly 3 hearts, INV+, and a doubleton (NOT flat 4333, so it has
+        // ruffing value) routes 2♣ relay → forced 2♦ → 2♠ (delayed cue) to check
+        // the 5-3 fit the direct cue (promising 4) would miss; the overcaller with
+        // 5 hearts and a maximum jumps to 4♥.
+        super::set_nt_overcall_gladiator(true);
+        let s = || call(1, Strain::Spades);
+        let nt = || call(1, Strain::Notrump);
+        let c = || call(2, Strain::Clubs);
+        let d = || call(2, Strain::Diamonds);
+        let (cue, floored) = best_call(
+            &[s(), nt(), Call::Pass, c(), Call::Pass, d(), Call::Pass],
+            "84.KJ8.KQ32.QJ32", // 12 HCP, exactly 3 hearts, doubleton ♠ — not 4333
+        );
+        let (answer, _) = best_call(
+            &[
+                s(),
+                nt(),
+                Call::Pass,
+                c(),
+                Call::Pass,
+                d(),
+                Call::Pass,
+                call(2, Strain::Spades),
+                Call::Pass,
+            ],
+            "AQ2.KQ842.AK5.32", // 18 HCP, 5 hearts, ♠ stopper — max fit
+        );
+        super::set_nt_overcall_gladiator(false);
+        assert_eq!(
+            cue,
+            call(2, Strain::Spades),
+            "exactly-3-heart non-flat advancer delayed-cues 2♠"
+        );
+        assert!(!floored, "the delayed cue is a book node, not the floor");
+        assert_eq!(
+            answer,
+            call(4, Strain::Hearts),
+            "overcaller with 5 hearts + a maximum jumps to 4♥"
+        );
+    }
+
+    #[test]
+    fn gladiator_cues_barred_with_flat_4333() {
+        // The 4333 curse: a flat (4333) has no ruffing value, so neither cue is
+        // made — it invites/plays notrump instead of chasing a major fit.
+        super::set_nt_overcall_gladiator(true);
+        let s = || call(1, Strain::Spades);
+        let nt = || call(1, Strain::Notrump);
+        // Direct cue barred: flat 4333 with exactly 4 hearts, GF → 3NT, not 2♠.
+        let (direct, _) = best_call(
+            &[s(), nt(), Call::Pass],
+            "K84.KQ84.K84.Q84", // 13 HCP, 3-4-3-3 flat, 4 hearts
+        );
+        // Delayed cue barred: flat 4333 with exactly 3 hearts, INV → 2NT relay-invite.
+        let (delayed, _) = best_call(
+            &[
+                s(),
+                nt(),
+                Call::Pass,
+                call(2, Strain::Clubs),
+                Call::Pass,
+                call(2, Strain::Diamonds),
+                Call::Pass,
+            ],
+            "J843.KJ8.Q84.Q84", // 9 HCP, 4-3-3-3 flat, 3 hearts
+        );
+        super::set_nt_overcall_gladiator(false);
+        assert_eq!(
+            direct,
+            call(3, Strain::Notrump),
+            "flat 4333 with 4 hearts bids 3NT, not the direct cue"
+        );
+        assert_eq!(
+            delayed,
+            call(2, Strain::Notrump),
+            "flat 4333 with 3 hearts invites 2NT, not the delayed cue"
+        );
     }
 
     /// Coupling: a Landy range feeds the one shared two-suiter band, so Landy's and

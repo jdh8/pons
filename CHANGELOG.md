@@ -9,6 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Gladiator delayed cue + the (4333) carve on both Stayman cues**
+  (`set_nt_overcall_gladiator`, still default-OFF / opt-in — byte-identical
+  default). Two changes, only live when the knob is on:
+  - New **delayed cue** `(1♠) 1NT–2♣–2♦–2♠` = exactly-3-card other-major, INV+ —
+    a 5-3-fit finder for the balanced 5-card-major hand a 1NT overcall may hold
+    (both sides authored: overcaller min/max × fit/misfit, alert + `DelayedCue`
+    inference reading).
+  - The **(4333) curse** now bars a flat 4-3-3-3 hand (no ruffing value) from
+    *both* the direct Stayman cue `2M` and the new delayed cue (`& !flat_4333()`,
+    reusing the house helper); the relay GF-widening is carved to match, so a
+    flat-4333 game-force bids 3NT directly — a major fit doesn't beat notrump
+    without a ruffing value.
+  - Measured a **wash** vs the systems-on graft (32×12800, both vuls): the (4333)
+    carve does exactly what the theory predicts — the delayed cue's −1.8…−2.1
+    IMPs/fired loss and the direct cue's NV flat-4333 leak both collapse to zero —
+    but by *removing* the bad hands, not converting them, so no measured win (the
+    positive major headline is the pre-existing `(no-gladiator)` seed bucket; sd
+    flat both vuls). Kept as a bridge-correct completion of the opt-in convention;
+    no default flip. Tooling: `examples/ab-dump-gladiator-bucket` (per-advance IMP
+    decomposition) and `scripts/split_by_opening.py` (major/minor shard split).
 - **`scripts/a5-run.sh` — the A5 pass of the bidding-options audit ("Defending
   their 1NT & their overcalls"), isolating its five remaining `unmeasured`
   knobs.** A mixed-harness pass; their doc verdicts move `unmeasured` → `fresh`.
