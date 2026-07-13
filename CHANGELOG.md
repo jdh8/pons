@@ -9,6 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Floor shape-slam entry — RKCB ask fires at 29 combined points, not 33.** The
+  floor's off-book RKCB *ask* (4NT) on a known five-plus-card major fit gated on
+  the `combined_points(33)` notrump small-slam yardstick — a *notrump* number
+  applied to suit slams. A population probe (`examples/probe-shape-slam`) showed
+  the missable suit slams cluster at ~29 combined points (5-3/5-4 fits with a
+  ruffing shortness make a small slam >50% double-dummy within genuine 8+ fits),
+  *below* the 33 gate; an evaluator bake-off confirmed plain `point_count` beats
+  NLTC for this job even within genuine fits (the discrimination is raw high-card
+  power — shape is already conditioned on the fit). The new
+  `set_floor_slam_entry` knob (default **29**) lowers only the ask, which keeps
+  its own five-plus decodability gate — so the lower floor routes distributional
+  values through RKCB's keycard check (culling the off-two-keycard hands) and
+  *never* blasts the uncontrolled direct milestone (bare 4-4 stays untouched).
+  A/B (self-play seat-swap, 200k boards/cell × 2 seeds × 2 vuls, `ab-slam-entry`):
+  plain-DD **+0.005/+0.005** (none) and **+0.006/+0.005** (both) IMPs/board, all
+  CI above zero; PD tracks DD in lockstep (**not** a doubling artifact); ~0.16%
+  divergent. 29 beat the looser 28 on every cell (28's marginal fires overreach
+  into DD-optimistic slams and dilute the gain). `set_floor_slam_entry(33)`
+  restores the pre-change gate. **User impact:** with a known five-plus major fit
+  and ~29+ combined points and a ruffing shortness, the floor now checks keycards
+  and reaches the shape slam instead of signing off in game.
+
 - **Floor choice-of-games — bridge-true fit-sum recognises 8-card fits.** The
   instinct floor detected a known eight-card fit through a hand-rolled length-pair
   enumeration (`(5,3)|(3,5)|(2,6)`) that only fired when *one* hand showed

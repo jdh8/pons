@@ -266,6 +266,18 @@ std::thread_local! {
     /// own points (the double already showed them) rather than driving to a
     /// doubled game (**default-on**; see [`set_rein_advance_raise`]).
     static REIN_ADVANCE_RAISE: Cell<bool> = const { Cell::new(true) };
+
+    /// Combined-points floor at which the floor's RKCB *ask* (4NT) fires on a
+    /// known five-plus-card major fit (A/B knob; see [`set_floor_slam_entry`]).
+    /// Default **29** — lowered from the 33 notrump small-slam yardstick to enter
+    /// keycarding on the shape-slam band a population probe found (5-3/5-4 fits at
+    /// ~29 combined points make a small slam >50% double-dummy within genuine 8+
+    /// fits).  The ask's own five-plus decodability gate keeps it off bare 4-4
+    /// fits (which would blast the uncontrolled direct milestone), so the lower
+    /// floor only ever routes through RKCB's keycard check.  A/B'd a plain-DD win
+    /// at both vulnerabilities (~+0.005 IMPs/board, PD in lockstep); `33` restores
+    /// the pre-knob gate.  29 beat 28 (28's marginal fires overreach and dilute).
+    static FLOOR_SLAM_ENTRY: Cell<u8> = const { Cell::new(29) };
 }
 
 /// Responder runs from a doubled 1NT below this many HCP; with more, 1NT-X
@@ -463,6 +475,14 @@ pub fn set_nt_responder_game_floor(floor: u8) {
 /// [`set_nt_responder_game_floor`])
 fn nt_responder_game_floor() -> u8 {
     NT_RESPONDER_GAME_FLOOR.with(Cell::get)
+}
+
+/// Combined-points floor at which the floor's RKCB ask fires on a known
+/// five-plus major fit (see [`FLOOR_SLAM_ENTRY`]).  For A/B measurement:
+/// default 33; ~28–29 enters keycarding on shape-slam values.
+#[doc(hidden)]
+pub fn set_floor_slam_entry(threshold: u8) {
+    FLOOR_SLAM_ENTRY.with(|cell| cell.set(threshold));
 }
 
 /// Suppress (or not) the strong-1NT responder's 3NT game force over a double of
@@ -1571,6 +1591,17 @@ fn combined_points(threshold: u8) -> Cons<impl Constraint + Clone> {
     pred(move |hand: Hand, context: &Context<'_>| {
         let partner_min = Inferences::read(context).partner().points.min;
         u16::from(point_count(hand)) + u16::from(partner_min) >= u16::from(threshold)
+    })
+}
+
+/// [`combined_points`] against the live [`FLOOR_SLAM_ENTRY`] floor — read at
+/// classify time (not baked at construction) so an A/B harness can flip the
+/// RKCB-ask threshold per call, matching the other floor knobs.
+fn slam_entry_reached() -> Cons<impl Constraint + Clone> {
+    pred(|hand: Hand, context: &Context<'_>| {
+        let partner_min = Inferences::read(context).partner().points.min;
+        u16::from(point_count(hand)) + u16::from(partner_min)
+            >= u16::from(FLOOR_SLAM_ENTRY.with(Cell::get))
     })
 }
 
@@ -2904,7 +2935,7 @@ pub fn instinct() -> Rules {
                     && partner_last_call(context.auction())
                         .is_none_or(|bid| bid.strain != Strain::Notrump)
             }) & inference_aware()
-                & combined_points(33)
+                & slam_entry_reached()
                 & not_penalizing()
                 & below_slam()
                 & level_available(4, Strain::Notrump),
@@ -3861,6 +3892,35 @@ mod tests {
             best(&auction, "AKQJ7.AKQ.A32.32"),
             call(4, Strain::Notrump),
             "slam values + known fit → ask keycards, not 6♠ direct"
+        );
+    }
+
+    /// The RKCB-ask floor (`set_floor_slam_entry`) governs whether the floor
+    /// enters keycarding on shape-slam values.  The same 1♠–3♠ auction with a
+    /// ~30-combined opener stops in game at the old 33 yardstick but asks 4NT at
+    /// the shipped 29 floor — the population-probe fix (A/B'd a plain-DD win).
+    #[test]
+    fn slam_entry_floor_controls_the_rkcb_ask() {
+        let auction = [
+            call(1, Strain::Spades),
+            Call::Pass,
+            call(3, Strain::Spades),
+            Call::Pass,
+        ];
+        // 5-card spades, 20 points, opposite a 10+ limit raise → combined ~30:
+        // below 33 (game), at or above the shipped 29 gate (ask).
+        let opener = "AKQ85.AK2.KJ2.42";
+        set_floor_slam_entry(33);
+        assert_eq!(
+            best(&auction, opener),
+            call(4, Strain::Spades),
+            "combined ~30 < 33: stop in game, no ask"
+        );
+        set_floor_slam_entry(29);
+        assert_eq!(
+            best(&auction, opener),
+            call(4, Strain::Notrump),
+            "shipped 29 gate: ask keycards on shape-slam values"
         );
     }
 
