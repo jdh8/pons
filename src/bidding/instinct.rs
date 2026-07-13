@@ -291,6 +291,15 @@ std::thread_local! {
     /// plain-DD gain with perfect defense tracking; at 30 the NV perfect-defense
     /// line turns negative — a doubling artifact).  `0` (→ `None`) restores the
     /// flat `combined_points(25)` gate.
+    ///
+    /// FLIP-TIME TODO: bump this default `31` → `32` when
+    /// [`set_new_point_count`][crate::bidding::constraint::set_new_point_count]
+    /// goes default-on — the hotter scale double-counts `own_len` (which the gate
+    /// re-adds), moving the PD peak up one notch (re-probe 2026-07-14, marginal:
+    /// 31→32 PD +0.008/+0.005; docs/point-count-threshold-campaign.md roster).
+    /// Not wired scale-conditional on purpose: the A/B knob must still measure a
+    /// literal threshold under either scale, and the flip re-tunes every gate at
+    /// once — this is one line in that batch.
     static FIT_SUM_GAME: Cell<Option<NonZero<u8>>> = const { Cell::new(NonZero::new(31)) };
 }
 

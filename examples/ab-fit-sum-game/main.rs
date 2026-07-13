@@ -6,22 +6,33 @@
 //! [`set_fit_sum_game`][pons::bidding::instinct::set_fit_sum_game] knob folds the
 //! known trump length into that total — the total-tricks yardstick where a ninth
 //! trump ≈ a point, so a nine-card fit games a point cheaper and a ten-card fit
-//! two cheaper.  An eight-card fit is unchanged at the default `33` gate
-//! (`25 + 8`); this A/B sweeps the boundary at `32` / `33` / `34` to find where
-//! the length bonus pays and where it overreaches.
+//! two cheaper.  An eight-card fit games at the shipped default `31` gate
+//! (`23 + 8`); this A/B sweeps the boundary — vs `0` (off) to re-derive the
+//! floor, or adjacent thresholds (`31` vs `32`) to isolate a one-point move.
+//!
+//! `--new-point-count` arms the opt-in `hcp_plus`
+//! [`point_count`][pons::bidding::constraint::set_new_point_count] scale on
+//! *both* sides (the ambient environment, not the treatment): the fit-sum gate's
+//! total is `point_count + partner.min + own_len + partner_shown_len`, and
+//! `point_count` reads shaped hands hotter under the new scale — re-tune the
+//! threshold for it (docs/point-count-threshold-campaign.md).  Note the new
+//! scale carries a long-suit-length term while the gate re-adds `own_len`, so a
+//! fitted hand's trump length is counted twice; the sweep prices whether that
+//! double-count warrants inflating the gate.
 //!
 //! The feature side runs the armed `--threshold`; the baseline side stays off
 //! (`0` — the flat `combined_points(25)` gate, byte-identical to the shipped
-//! floor).  Each board is bid twice, duplicate style: at table A the feature pair
-//! sits North/South against an off pair, at table B the teams swap seats.  The
-//! per-call thread-local flip serves both stances from one book.  Divergent boards
-//! are scored two ways from the same DD table: [`ns_score_contract`] (plain DD)
-//! and [`ns_score_pd`] (perfect defense, which prices a failing game as doubled) —
-//! a looser game gate can bid a game that goes down, so the PD column is where an
-//! over-loose threshold shows its cost.
+//! floor) or another threshold.  Each board is bid twice, duplicate style: at
+//! table A the feature pair sits North/South against a baseline pair, at table B
+//! the teams swap seats.  The per-call thread-local flip serves both stances from
+//! one book.  Divergent boards are scored two ways from the same DD table:
+//! [`ns_score_contract`] (plain DD) and [`ns_score_pd`] (perfect defense, which
+//! prices a failing game as doubled) — a looser game gate can bid a game that
+//! goes down, so the PD column is where an over-loose threshold shows its cost.
 //!
 //! ```text
 //! cargo run --release --example ab-fit-sum-game -- --count 200000 --threshold 33
+//! cargo run --release --example ab-fit-sum-game -- --count 200000 --new-point-count --threshold 32 --baseline 31
 //! cargo run --release --example ab-fit-sum-game -- --count 20000 --threshold 33 --vulnerability both --show 8
 //! ```
 
@@ -32,6 +43,7 @@ use contract_bridge::{AbsoluteVulnerability, FullDeal, Seat};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::Accumulator;
 use pons::american;
+use pons::bidding::constraint::set_new_point_count;
 use pons::bidding::instinct::set_fit_sum_game;
 use pons::bidding::{Family, Stance};
 use pons::scoring::{final_contract, imps, ns_score_contract, ns_score_pd};
@@ -58,6 +70,11 @@ struct Args {
     /// The reference threshold for the baseline side (0 = off, the flat 25-gate)
     #[arg(short, long, default_value = "0")]
     baseline: u8,
+
+    /// Arm the opt-in `hcp_plus` point-count scale on both sides (the ambient
+    /// environment the threshold is re-tuned for; the treatment stays the gate)
+    #[arg(long, default_value_t = false)]
+    new_point_count: bool,
 
     /// Vulnerability: none, ns, ew, both
     #[arg(short, long, default_value = "none")]
@@ -93,6 +110,9 @@ fn bid_out(
             args.baseline
         };
         set_fit_sum_game(threshold);
+        // The point-count scale is the shared environment, not the treatment:
+        // arm it identically for both sides so only the threshold differs.
+        set_new_point_count(args.new_point_count);
         auction.push(next_call(
             stance,
             deal[seat],

@@ -167,6 +167,23 @@ Every capped `points(lo..=hi)` range is denominated in old points (`hcp(..)` and
   (`points(..6)`/`6..=9`/`10..=12`/13+ in responses.rs, the `12..=15`/`16..=18`
   jump tiers in rebids.rs, raises.rs, the xyz/nmf bands, weak_twos). Overflow =
   the next rung up = the measured aggression. Audit, but expect no change.
+- **Floors that re-add length — a small upward re-tune.** A `point_count`-based
+  *floor* is normally safe (fires earlier = the win), but one that *also* adds a
+  length term double-counts trump length under the new scale (which itself
+  carries a long-suit-length term). Measured: the **fit-sum major-game gate**
+  ([`FIT_SUM_GAME`](../src/bidding/instinct.rs), default 31 — `point_count +
+  partner.min + own_len + partner_shown_len >= t`) has its PD peak move **31 →
+  32** under the new scale. Sweep (`ab-fit-sum-game --new-point-count`, 200k×2vul,
+  adjacent thresholds, PD is the arbiter for a game gate): raising 30→31 PD
+  +0.027/+0.029, **31→32 +0.008/+0.005** (CI-clean both vuls), 32→33
+  −0.004/−0.008 — unimodal peak at 32. The move is only **+1** (not the raw
+  +1–3 hotness) precisely *because* the gate double-counts `own_len`, so most of
+  the inflation self-cancels; the residual notch is the un-double-counted
+  shortness term. **Marginal** (+0.005 vul, DD-negative), so this is a low-stakes
+  flip-time bump, not a live default change — the default is shared across scales
+  and 31 stays optimal under the current (old) default scale. **Action at flip:**
+  set `FIT_SUM_GAME` to 32 when `set_new_point_count` goes default-on. Sibling
+  `set_floor_slam_entry` (29) likely wants the same one-notch re-probe.
 - **Isolated / weak / overcall ceilings — probe.** A ceiling with no stronger
   sibling, so overflow lands in a gap or a wrong bid:
   - **Unusual 2NT `(8, 13)`** (defense.rs `UNUSUAL_NT`): a strong 5-5 minors

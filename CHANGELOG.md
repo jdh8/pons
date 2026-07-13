@@ -27,6 +27,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (shortness is not a value before a fit is known), plus a few ceiling
   re-denominations. Production system byte-identical.
 
+- **Point-count campaign — first gate re-probe (fit-sum major-game gate).**
+  `examples/ab-fit-sum-game` gains `--new-point-count`, arming the candidate
+  scale on both sides so the gate can be tuned under it. Measured: under the new
+  scale the fit-sum gate's PD peak moves **31 → 32** by one notch (200k×2vul,
+  adjacent thresholds; raising 31→32 PD +0.008/+0.005 CI-clean, 32→33
+  −0.004/−0.008). Only +1 despite the scale's ~1–3-point hotness, because the
+  gate already re-adds `own_len` and so double-counts trump length — the
+  inflation self-cancels bar the shortness term. Marginal and DD-negative:
+  recorded as a flip-time bump (bump `FIT_SUM_GAME` to 32 when
+  `set_new_point_count` goes default-on), not a live change — the default is
+  shared across scales and 31 stays optimal under the current default. Production
+  system byte-identical.
+
 - **Floor choice-of-games — trump length counts toward the major-game gate.** The
   instinct floor reached a major game on a flat yardstick: `25` combined points
   *and* a known eight-card fit, discarding *how long* the fit was. The fit test
