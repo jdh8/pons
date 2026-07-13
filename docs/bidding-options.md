@@ -221,22 +221,26 @@ that live *inside* a book are in Tier B.
 ### A6 — Floor & inference engine toggles
 
 Not a book of calls — these read the auction, settle the floor, or evaluate a
-hand. Judged by measured sign; kept default-on when they help.
+hand. Judged by measured sign; kept default-on when they help. **A6 pass closed
+2026-07-13** (`scripts/a6-run.sh`, SHA e688d82, self-play 1M boards/cell ×2 vuls
+dual-scored, bba diffpair for rubens): every `unmeasured`/`stale-PD` cell landed
+on the current plain-DD harness. Headline: `fuzzy_fifths` flipped **default-off**
+(net loss vs raw HCP).
 
 | Option (knob) | CLI | Kind | Default | A/B verdict | Fresh | Policy → action |
 | --- | --- | --- | --- | --- | --- | --- |
-| set_inference_aware | `inference-floor` example | Engine | ON | floor consults auction interpretation vs shape-blind fallback; foundational | unmeasured (net) | keep default-on |
-| set_settle_floor | `ab-settle-floor` | Engine | ON | "pass = play top bid": +0.26/+0.37 PD (+0.18/+0.29 plain); Stage-2 TTL reverted | stale-PD | keep default-on |
-| set_alert_reading | `ab-alert-reading` | Engine | ON | reads alerted call as artificial: +2.08/+1.59 IMPs/bd | stale-PD | keep default-on |
+| set_inference_aware | `ab-inference-floor` (scripts/a6-run.sh) | Engine | ON | floor consults auction interpretation vs shape-blind fallback (foundational): **plain +0.0270/+0.0347, PD +0.0242/+0.0309** NV/vul (1M×2, all CI>0, fires 1.86%, +1.3-1.9 IMPs/div) | fresh | keep default-on ✓ (WIN/WIN) |
+| set_settle_floor | `ab-settle-floor` (seeded+dual) | Engine | ON | "pass = play top bid": **DD +0.047/+0.092, PD +0.062/+0.107** NV/vul (1M×2, all CI>0, PD≥DD, fires 6.2%). Refreshes the stale-PD +0.26/+0.37 | fresh | keep default-on ✓ (WIN/WIN) |
+| set_alert_reading | `ab-alert-reading` (seeded+dual) | Engine | ON | reads alerted call as artificial: **plain +0.0171/+0.0234, PD +0.0207/+0.0278** NV/vul (1M×2, all CI>0, PD≥plain, +2.0-3.3 IMPs/div). Refreshes the stale-PD +2.08/+1.59; contested defense-switch value is extra | fresh | keep default-on ✓ (WIN/WIN) |
 | set_fallback_projection | BBA A/B | Engine | ON | decodes contested/fallback conventions: plain +0.0006 (+1.03/fired), PD +0.0014 (+2.38/fired), CI>0 | fresh | keep default-on |
 | set_control_bid_reading | A/B off arm | Engine | ON | reads high new-suit as control vs to-play (M6.4, BWS-distilled) | fresh | keep default-on |
-| set_nt_invite_inference | `nt-invite-abc` | Engine | ON | reads responder invitational (~8-9) vs GF (10+) of our 1NT | unmeasured (net) | keep default-on |
-| set_rubens_transfer_reading | `--no-ns-rubens-reading` | Engine | ON | records 1-level Rubens transfer meanings; unblinds overcaller + sampler | unmeasured (net) | keep default-on |
+| set_nt_invite_inference | `ab-nt-invite` (seeded+dual) | Engine | ON | reads responder invitational (~8-9) vs GF (10+) of our 1NT — **INERT: 0 divergent at 1M×2**. Puppet Stayman routes the 8-9 invite through `1NT-2♠` (two-way clubs-or-invitational), so the natural `1NT-2NT` this reads is never reached | fresh (NULL) | keep default-on (dead in the current book; harmless) |
+| set_rubens_transfer_reading | `--no-ns-rubens-reading` (bba diffpair) | Engine | ON | records 1-level Rubens transfer meanings; unblinds overcaller + sampler: **WASH** vs BBA — plain +0.0003/+0.0004 (CI⊇0), PD +0.0002/+0.0001; fires 0.01% (9-10/76.8k, per-fired set too thin to price) | fresh | keep default-on (structural; net ≈0) |
 | set_rule_accept | `ab-landy` | Engine | OFF | sampler accepts hand by replaying authoring rule: +0.24/bd on 1NT-defense | fresh | opt-in engine; wider-A/B candidate |
-| set_fuzzy_strength | doc-hidden, A/B-only | Engine (eval) | ON | umbrella for points+fifths vs raw HCP; NULL at 1NT-invite boundary (raw HCP best) | unmeasured/NULL | keep default-on |
-| set_fuzzy_points | doc-hidden | Engine (eval) | ON | points() upgrade alone | unmeasured | keep default-on |
-| set_fuzzy_fifths | doc-hidden | Engine (eval) | ON | fifths() upgrade alone; no help at 1NT invite ([reference_fifths_evaluator]) | unmeasured/NULL | keep default-on |
-| set_fifths_companion (Hcp/Bumrap) | doc-hidden | Engine (eval) | Bumrap | honor count averaged into fifths; no isolated net A/B | unmeasured | keep default |
+| set_fuzzy_strength | `ab-fuzzy-strength --policy both` | Engine (eval) | ON | umbrella (points+fifths) vs raw HCP: **plain +0.0947/+0.0994, PD −0.0469/−0.0557** NV/vul (1M×2) — the plain win is the `points` half; the `fifths` half is a net drag (see below), so points-only dominates points+fifths on both scorers | fresh | keep default-on (= points-only now that fifths is off) |
+| set_fuzzy_points | `ab-fuzzy-strength --policy points [--sd]` | Engine (eval) | ON | points() suit upgrade alone: **plain +0.1060/+0.1163, PD −0.0363/−0.0399** NV/vul (1M×2). Plain-win / PD-erases (doubling-artifact shape), but **sd-lead arbitrates for it** (`--sd`, +0.1639/+0.1939 NV/vul, 300k×2, both CI>0) — the aggression survives a realistic blind lead | fresh (sd-vindicated) | keep default-on ✓ (plain+sd win; PD is the pessimist bracket) |
+| set_fuzzy_fifths | `ab-fuzzy-strength --policy fifths` | Engine (eval) | **OFF** | fifths() NT-gauge vs raw HCP: **plain −0.0118/−0.0177, PD −0.0110/−0.0165** NV/vul (1M×2, all CI<0) — LOSS/LOSS, and it dragged the umbrella. **Flipped default-off 2026-07-13** (raw HCP for NT ranges; consistent w/ archived 1NT-open fifths loss + [project_nt-invite-evaluator-sweep]) | fresh | **improved: default→off** (raw HCP wins; knob kept for re-measure) |
+| set_fifths_companion (Hcp/Bumrap) | `ab-fifths-companion` | Engine (eval) | Bumrap | honor count averaged into fifths (HCP−BUMRAP swing): **−0.0044/−0.0074 plain, −0.0037/−0.0064 PD** NV/vul (1M×2, CI<0) → BUM-RAP beats HCP. Now **dormant** (fifths default-off) but the default is right when fifths is manually enabled | fresh | keep default Bumrap (dormant) |
 
 ### A7 — Slam & keycard
 
@@ -334,12 +338,22 @@ remaining A4 knobs, set_delayed_cue and set_direct_3nt_stopper, have no bba-gen
 flag and need bespoke self-play distillation — still unmeasured.)* *(A3 pass
 closed 2026-07-12: set_one_nt_runout*, set_penalize_escape_*, and
 set_lebensohl_style isolated via `scripts/a3-run.sh` — all fresh, see A3.)*
+*(A6 pass closed 2026-07-13: every A6 engine toggle isolated via
+`scripts/a6-run.sh` — see A6. inference_aware / alert_reading / settle_floor all
+WIN/WIN (the last two refresh their stale-PD figures); nt_invite_inference INERT
+(0 divergent — Puppet Stayman `1NT-2♠` routes the invite off `1NT-2NT`);
+rubens_transfer_reading a bba WASH; **fuzzy_fifths flipped default-off** (net loss
+vs raw HCP, dragged the umbrella); fuzzy_points kept default-on (plain+sd win, PD
+is the doubling-artifact bracket); fifths_companion Bumrap confirmed but now
+dormant. Five self-play harnesses (ab-inference-floor / ab-nt-invite /
+ab-fuzzy-strength / ab-fifths-companion / ab-alert-reading) were brought to
+seeded + dual-scored (`seeded_deals` + `report_brackets`) in the same pass, and
+ab-fuzzy-strength gained a `--sd` blind-lead arbitrator.)*
 
 **Stale figures (re-measure before trusting the magnitude):**
 - `stale-PD` (pre-`a6f2206` PD-era, not comparable to plain-DD):
-  set_alert_reading (+2.08/+1.59), set_settle_floor (+0.26/+0.37),
   set_transfer_super_accept, minor keycard (+6.80/+8.76; PD +5.41/+7.05 is the
-  conservative re-measure). *(NotrumpShape shipped Wide6322 as default 2026-07-12 — fresh, see A1.)*
+  conservative re-measure). *(NotrumpShape shipped Wide6322 as default 2026-07-12 — fresh, see A1. set_alert_reading + set_settle_floor refreshed fresh in the A6 pass 2026-07-13.)*
 - `stale-pop` (measured before a book-population shift): set_open_one_notrump,
   set_floor_rkcb, set_natural_defense, set_direct_dont, set_landy,
   set_natural_double_shape, set_stayman_defense.

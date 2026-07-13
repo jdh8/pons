@@ -20,11 +20,12 @@ fn test_openings() {
         best_call(&system, open, "AJT2.KQT.KJT.AQ9"),
         call(2, Strain::Notrump)
     );
-    // Queen-heavy 20 count (18.8 Fifths) downgrades: open 1♣ planning a
-    // 2NT rebid instead of overstating the hand with 2NT directly.
+    // 20 HCP balanced -> 2NT.  This queen-heavy 20-count is only 18.8 Fifths, so
+    // the old Fifths gauge downgraded it to a 1♣-planning-2NT-rebid; raw HCP is
+    // the default now (Fifths lost the A6 audit), so it opens 2NT directly.
     assert_eq!(
         best_call(&system, open, "AKQ2.KQ5.KJ4.Q92"),
-        call(1, Strain::Clubs)
+        call(2, Strain::Notrump)
     );
     // 22 HCP -> the strong, artificial 2♣.
     assert_eq!(

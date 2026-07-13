@@ -463,8 +463,12 @@ pub enum FifthsCompanion {
 std::thread_local! {
     /// Whether [`points`] applies its upgrade on top of raw HCP
     static FUZZY_POINTS: Cell<bool> = const { Cell::new(true) };
-    /// Whether [`fifths`] evaluates Fifths rather than raw HCP
-    static FUZZY_FIFTHS: Cell<bool> = const { Cell::new(true) };
+    /// Whether [`fifths`] evaluates Fifths rather than raw HCP.  Default **off**:
+    /// the Fifths NT-gauge measured a clean net loss vs raw HCP in the A6 audit
+    /// (self-play plain −0.012/−0.018 NV/vul, PD alike, CIs excluding 0), and it
+    /// dragged the `points` upgrade (points-only beat points+fifths on both
+    /// scorers).  See docs/bidding-options.md A6.
+    static FUZZY_FIFTHS: Cell<bool> = const { Cell::new(false) };
     /// The honor count averaged with Fifths in [`fifths`] (BUM-RAP won the A/B)
     static FIFTHS_COMPANION: Cell<FifthsCompanion> = const { Cell::new(FifthsCompanion::Bumrap) };
 }
@@ -1681,9 +1685,12 @@ mod tests {
         // are worth less toward 3NT.  The banded value averages Fifths with
         // the honor companion (≈14.55 BUM-RAP, 14.8 HCP — same verdict either
         // way), so it still drops out of a 15-17 notrump but stays inside a
-        // 12-14 one.
+        // 12-14 one.  Fifths is default-off now (raw HCP beat it in the A6
+        // audit), so this test enables the gauge it exercises.
+        set_fuzzy_fifths(true);
         assert_reject(fifths(15.0..18.0).eval(hand(BALANCED_15), &context));
         assert_pass(fifths(12.0..15.0).eval(hand(BALANCED_15), &context));
+        set_fuzzy_fifths(false); // restore the shipped default
 
         // CCCC of this 4333 is 14.90 (oracle-verified in contract-bridge).
         assert_pass(cccc_at_least(14.9).eval(hand("AQ32.K53.QJ4.A92"), &context));
@@ -1699,11 +1706,15 @@ mod tests {
         // straddle the band edge.
         let quacky = hand("AQ4.QJT.QJT.KQJT");
 
+        // The companion only matters inside the Fifths gauge, which is
+        // default-off now (raw HCP beat it in the A6 audit) — enable it here.
+        set_fuzzy_fifths(true);
         set_fifths_companion(FifthsCompanion::Hcp);
         assert_reject(fifths(15.0..18.0).eval(quacky, &context));
 
         set_fifths_companion(FifthsCompanion::Bumrap);
         assert_pass(fifths(15.0..18.0).eval(quacky, &context));
+        set_fuzzy_fifths(false); // restore the shipped default
     }
 
     #[test]
@@ -1716,8 +1727,10 @@ mod tests {
         assert_pass(points(9..=9).eval(two_suiter, &context));
         assert_pass(fifths(15.0..18.0).eval(hand(BALANCED_15), &context));
         assert_reject(fifths(15.5..18.0).eval(hand(BALANCED_15), &context));
-        set_fuzzy_strength(true);
 
+        // Turn the points upgrade back on (the shipped default); fifths stays
+        // off, so the thread is left on the shipped default for later tests.
+        set_fuzzy_points(true);
         assert_pass(points(11..=11).eval(two_suiter, &context));
     }
 

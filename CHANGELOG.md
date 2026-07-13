@@ -7,7 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **A6 audit — `fuzzy_fifths` default flipped OFF (raw HCP for notrump ranges).**
+  The A6 engine-toggle pass (`scripts/a6-run.sh`, self-play 1M boards/cell ×2 vuls,
+  dual-scored) measured the Fifths notrump-gauge as a clean net loss vs raw HCP —
+  plain **−0.0118/−0.0177**, PD **−0.0110/−0.0165** IMPs/board (NV/vul, all CI<0) —
+  and it dragged the `points` upgrade (points-only beats points+fifths on both
+  scorers). `set_fuzzy_fifths` now defaults off, so `american()` gauges notrump
+  ranges by raw HCP (consistent with the archived 1NT-open Fifths loss and the
+  invite-boundary sweep). **User impact:** e.g. a queen-heavy balanced 20-count now
+  opens 2NT directly instead of the old Fifths downgrade to a 1♣-planning-2NT-rebid.
+  The knob stays for re-measure; `set_fifths_companion` (Bumrap) is now dormant.
+  See docs/bidding-options.md A6.
+
 ### Added
+
+- **A6 engine-toggle measurement pass (harness + verdicts).** Brought five
+  self-play A/B examples (`ab-inference-floor`, `ab-nt-invite`, `ab-fuzzy-strength`,
+  `ab-fifths-companion`, `ab-alert-reading`) to reproducibly seeded + dual-scored
+  (plain DD + perfect defense with CIs, via `seeded_deals`/`report_brackets`), gave
+  `ab-fuzzy-strength` a `--sd` blind-lead arbitrator, and added `scripts/a6-run.sh`.
+  Measurement only — no system-behavior change from these. Verdicts (all fresh,
+  docs/bidding-options.md A6): `inference_aware`/`alert_reading`/`settle_floor`
+  WIN/WIN (the last two refresh stale-PD figures); `nt_invite_inference` INERT
+  (Puppet Stayman routes the 8-9 invite through `1NT-2♠`, off the natural
+  `1NT-2NT` it reads); `rubens_transfer_reading` a bba WASH; `fuzzy_points` kept
+  default-on (plain **+0.106/+0.116** and sd-lead both win; the PD −0.04 is the
+  doubling-artifact bracket).
 
 - **Contested Gladiator — answering interference to our 1NT overcall.** Gladiator
   previously authored no structure over interference to `(1♥/1♠) 1NT`, so when RHO

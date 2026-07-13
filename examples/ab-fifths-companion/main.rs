@@ -9,29 +9,31 @@
 //! pairs play the very same books — only the
 //! [`set_fifths_companion`][pons::bidding::constraint::set_fifths_companion]
 //! hook differs per acting side.  Boards whose two auctions reach different
-//! contracts are scored double dummy, and the swing is credited to the HCP
-//! team (so a positive total means HCP beats BUM-RAP).
+//! contracts are solved double dummy once and scored with **both** brackets —
+//! plain DD and perfect defense — crediting the swing to the HCP team (so a
+//! positive total means HCP beats BUM-RAP).
 //!
 //! ```text
-//! cargo run --example ab-fifths-companion -- --count 1000 --vulnerability ns
+//! cargo run --example ab-fifths-companion -- --count 1000 --vulnerability ns --seed "$SEED_BASE"
 //! ```
 
 use clap::Parser;
 use contract_bridge::auction::{Auction, Call};
-use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Hand, Seat};
+use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
 use pons::bidding::constraint::{
     FifthsCompanion, set_fifths_companion, set_fuzzy_fifths, set_fuzzy_points,
 };
 use pons::bidding::context::relative;
 use pons::bidding::{Family, Stance, System};
-use pons::scoring::{final_contract, ns_score_contract};
+use pons::scoring::final_contract;
+use rayon::prelude::*;
 
 #[path = "../common/mod.rs"]
 #[allow(dead_code)]
 mod common;
-use common::{Board, score_boards, seat_to_act};
+use common::{report_brackets, seat_to_act, seeded_deals};
 
 /// A/B the Fifths companion gauge: an HCP-vs-BUM-RAP duplicate match
 #[derive(Parser)]
@@ -43,6 +45,11 @@ struct Args {
     /// Vulnerability: none, ns, ew, both
     #[arg(short, long, default_value = "none")]
     vulnerability: AbsoluteVulnerability,
+
+    /// Base seed — fresh per experiment (`SEED_BASE=$(date +%s)`), shared
+    /// across arms/vuls; random when omitted
+    #[arg(short, long)]
+    seed: Option<u64>,
 }
 
 /// The highest-logit *legal* call, defaulting to a pass
@@ -73,9 +80,10 @@ fn next_call(
 
 /// Bid out one deal, switching the Fifths companion per acting side
 ///
-/// Both teams keep the shipped fuzzy gauges; only the companion differs.
-/// Bidding is single-threaded, so flipping the thread-local just before each
-/// classification cleanly serves both teams from one stance.
+/// Both teams keep the shipped fuzzy gauges; only the companion differs.  The
+/// companion flag is thread-local and set just before each classification, so
+/// this stays correct whether it runs on the main thread or a rayon worker
+/// (each board bids on a single thread).
 fn bid_out(
     stance: &Stance,
     hcp_is_ns: bool,
@@ -103,53 +111,49 @@ fn bid_out(
 #[allow(clippy::cast_precision_loss)]
 fn main() {
     let args = Args::parse();
-    let mut rng = rand::rng();
+    let base = args.seed.unwrap_or_else(rand::random);
+    let vul = args.vulnerability;
     let stance = american().against(Family::NATURAL);
 
-    // Bid every board at both tables, dealer rotating per board.
-    let boards: Vec<Board> = (0..args.count)
-        .map(|index| {
+    // Deals are seeded per board (base + index) so every arm/vul replays the
+    // identical stream.  Each bid_out sets its own thread-local per call, so
+    // board bidding parallelizes; the DD solver stays on the main thread below.
+    let deals = seeded_deals(base, args.count);
+    let contracts: Vec<[_; 2]> = deals
+        .par_iter()
+        .enumerate()
+        .map(|(index, deal)| {
             let dealer = Seat::ALL[index % 4];
-            let deal = full_deal(&mut rng);
-            let table_a = bid_out(&stance, true, dealer, args.vulnerability, &deal);
-            let table_b = bid_out(&stance, false, dealer, args.vulnerability, &deal);
-            Board {
-                deal,
-                dealer,
-                table_a,
-                table_b,
-            }
+            let table_a = bid_out(&stance, true, dealer, vul, deal);
+            let table_b = bid_out(&stance, false, dealer, vul, deal);
+            // Credit the HCP team: [off = table_b (HCP EW), on = table_a
+            // (HCP NS)], matching report_brackets' on − off (positive = HCP
+            // beats BUM-RAP).
+            [
+                final_contract(&table_b, dealer),
+                final_contract(&table_a, dealer),
+            ]
         })
         .collect();
 
     // Only boards whose tables reach different results can swing; solve those
-    // double dummy and credit the swing to the HCP team (NS at table A, EW at
-    // table B).
-    let contracts: Vec<_> = boards
-        .iter()
-        .map(|board| {
-            (
-                final_contract(&board.table_a, board.dealer),
-                final_contract(&board.table_b, board.dealer),
-            )
-        })
+    // once and score both brackets (plain DD + perfect defense) from the tables.
+    let divergent: Vec<usize> = (0..args.count)
+        .filter(|&i| contracts[i][0] != contracts[i][1])
         .collect();
-    let deals: Vec<FullDeal> = boards.iter().map(|board| board.deal).collect();
-    let scored = score_boards(&contracts, &deals, args.vulnerability, ns_score_contract);
-    let (total_points, total_imps) = (scored.total_points, scored.total_imps);
+    let solve_deals: Vec<FullDeal> = divergent.iter().map(|&i| deals[i]).collect();
+    let tables = Solver::lock().solve_deals(&solve_deals, NonEmptyStrainFlags::ALL);
 
     println!(
-        "=== Fifths companion A/B match (HCP vs BUM-RAP): {} boards, vulnerability {} ===",
-        args.count, args.vulnerability,
+        "=== Fifths companion A/B match (HCP vs BUM-RAP): {} boards, vulnerability {}, seed {} ===",
+        args.count, vul, base,
     );
     println!(
-        "Divergent boards: {} of {} ({:.0}%)",
-        scored.divergent.len(),
+        "Divergent boards: {} of {} ({:.2}%)",
+        divergent.len(),
         args.count,
-        100.0 * scored.divergent.len() as f64 / args.count.max(1) as f64,
+        100.0 * divergent.len() as f64 / args.count.max(1) as f64,
     );
-    println!(
-        "HCP team: {total_points:+} points, {total_imps:+} IMPs ({:+.2} IMPs/board)",
-        total_imps as f64 / args.count.max(1) as f64,
-    );
+
+    report_brackets(args.count, &divergent, &tables, &contracts, vul);
 }

@@ -14,26 +14,26 @@
 //! interleaved: bid every board with the flag off (baseline), then on (fix), and
 //! compare per board.  Opponents are silenced — this is the *constructive* value
 //! (our own artificials read correctly by partner); the contested defense-switch
-//! value wants a contested harness (e.g. `bba-match`).
+//! value wants a contested harness (e.g. `bba-match`).  Divergent boards are
+//! solved once and scored with **both** brackets — plain DD and perfect defense.
 //!
 //! ```text
-//! cargo run --release --example ab-alert-reading -- --count 5000
+//! cargo run --release --example ab-alert-reading -- --count 5000 --seed "$SEED_BASE"
 //! ```
 
 use clap::Parser;
-use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Seat};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
 use pons::bidding::Family;
 use pons::bidding::set_alert_reading;
-use pons::scoring::{final_contract, imps, ns_score_contract};
+use pons::scoring::final_contract;
 use rayon::prelude::*;
 
 #[path = "../common/mod.rs"]
 #[allow(dead_code)]
 mod common;
-use common::bid_uncontested;
+use common::{bid_uncontested, report_brackets, seeded_deals};
 
 /// Alert-reading A/B: blind-to-strong-artificials floor vs reads-the-alert floor
 #[derive(Parser)]
@@ -45,63 +45,61 @@ struct Args {
     /// Vulnerability: none, ns, ew, both
     #[arg(short, long, default_value = "none")]
     vulnerability: AbsoluteVulnerability,
+
+    /// Base seed — fresh per experiment (`SEED_BASE=$(date +%s)`), shared
+    /// across arms/vuls; random when omitted
+    #[arg(short, long)]
+    seed: Option<u64>,
 }
 
 #[allow(clippy::cast_precision_loss)]
 fn main() {
     let args = Args::parse();
-    let mut rng = rand::rng();
+    let base = args.seed.unwrap_or_else(rand::random);
+    let vul = args.vulnerability;
     let sys = american().against(Family::NATURAL);
 
-    let boards: Vec<(Seat, FullDeal)> = (0..args.count)
-        .map(|i| (Seat::ALL[i % 4], full_deal(&mut rng)))
-        .collect();
+    // Deals are seeded per board (base + index) so every arm/vul of the
+    // experiment replays the identical stream.
+    let deals = seeded_deals(base, args.count);
 
     // The flag is thread-local, so each par_iter worker sets it for its own
     // thread. The two passes stay sequential so the flag is stable within each.
-    let vul = args.vulnerability;
-    let contracts = |on: bool| {
-        boards
+    let bid_pass = |on: bool| {
+        deals
             .par_iter()
-            .map(|(dealer, deal)| {
+            .enumerate()
+            .map(|(i, deal)| {
+                let dealer = Seat::ALL[i % 4];
                 set_alert_reading(on);
-                final_contract(&bid_uncontested(&sys, *dealer, vul, deal), *dealer)
+                final_contract(&bid_uncontested(&sys, dealer, vul, deal), dealer)
             })
             .collect::<Vec<_>>()
     };
-    let baseline = contracts(false);
-    let fixed = contracts(true);
+    let baseline = bid_pass(false);
+    let fixed = bid_pass(true);
+    // [off = baseline (flag off), on = fixed (flag on)].
+    let contracts: Vec<[_; 2]> = (0..args.count).map(|i| [baseline[i], fixed[i]]).collect();
 
-    // Only boards whose arms diverge can swing; solve those once.
+    // Only boards whose arms diverge can swing; solve those once and score both
+    // brackets (plain DD + perfect defense) from the same tables.
     let divergent: Vec<usize> = (0..args.count)
-        .filter(|&i| baseline[i] != fixed[i])
+        .filter(|&i| contracts[i][0] != contracts[i][1])
         .collect();
-    let solve_deals: Vec<FullDeal> = divergent.iter().map(|&i| boards[i].1).collect();
+    let solve_deals: Vec<FullDeal> = divergent.iter().map(|&i| deals[i]).collect();
     let tables = Solver::lock().solve_deals(&solve_deals, NonEmptyStrainFlags::ALL);
 
-    let mut points = 0i64;
-    let mut total_imps = 0i64;
-    for (&i, table) in divergent.iter().zip(tables.iter()) {
-        let base = ns_score_contract(baseline[i], table, args.vulnerability);
-        let fix = ns_score_contract(fixed[i], table, args.vulnerability);
-        points += fix - base;
-        total_imps += imps(fix - base);
-    }
-
     println!(
-        "=== Alert-reading A/B: {} boards, vulnerability {} ===",
-        args.count, args.vulnerability,
+        "=== Alert-reading A/B: {} boards, vulnerability {}, seed {} ===",
+        args.count, vul, base,
     );
     println!("(opponents silenced — constructive value only)");
     println!(
-        "Divergent boards: {} of {} ({:.1}%)",
+        "Divergent boards: {} of {} ({:.2}%)",
         divergent.len(),
         args.count,
         100.0 * divergent.len() as f64 / args.count.max(1) as f64,
     );
-    println!(
-        "Reads the alert: {points:+} points, {total_imps:+} IMPs ({:+.3} IMPs/board, {:+.3} IMPs/divergent)",
-        total_imps as f64 / args.count.max(1) as f64,
-        total_imps as f64 / divergent.len().max(1) as f64,
-    );
+
+    report_brackets(args.count, &divergent, &tables, &contracts, vul);
 }
