@@ -9,6 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Floor choice-of-games — bridge-true fit-sum recognises 8-card fits.** The
+  instinct floor detected a known eight-card fit through a hand-rolled length-pair
+  enumeration (`(5,3)|(3,5)|(2,6)`) that only fired when *one* hand showed
+  five-plus. A bare 4-4 — opener's jump-shift/reverse names a *four*-card second
+  suit, responder holds four — was invisible, so a known eight-card major slipped
+  into `3NT` under the combined-25 game force instead of `4M` (and the minor site
+  never even had the `(2,6)` doubleton-six fit). `known_eight_card_fit` now uses
+  the bridge-true test — our exact length plus partner's *shown floor* ≥ 8, sound
+  because it counts partner's guaranteed minimum — carved only by a bare 4-4
+  opposite our own flat `4-3-3-3` (no ruffing value: notrump's nine-trick game
+  outscores the suit's ten). This is natural bidding, not a convention, so it is
+  unconditional (no knob). A/B (self-play seat-swap, 200k boards/cell × 2 seeds ×
+  2 vuls, SHA 42c8392): plain-DD **+0.008/+0.008** (none) and **+0.010/+0.009**
+  (both) IMPs/board, all CI above zero; PD tracks DD in lockstep (**not** a
+  doubling artifact); ~0.47% divergent, ~+1.8 (none)/+2.1 (both) IMPs/divergent.
+  **User impact:** with a known 4-4 (or short-long) eight-card major fit and game
+  values, the floor now bids `4M` instead of `3NT` — except on a flat 4333, which
+  stays in notrump.
+
 - **Web UI — score-aware double-dummy verdict.** The demo/practice DD panel's
   one-line verdict (`3NT by N: 9 tricks — makes`) is now three score-aware lines,
   matching the reference site (jdh8.github.io/pons-dds): `Result: {score} to

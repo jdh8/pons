@@ -1523,12 +1523,38 @@ fn partner_control_bid(trump: Suit) -> Cons<impl Constraint + Clone> {
     })
 }
 
-/// A known eight-card fit in `suit`: our actual length meets partner's shown
-/// floor (the milestone rules' disjunction, generalized to any suit)
+/// A known eight-card fit in `suit`: our exact length plus partner's shown floor
+/// reaches eight — the bridge-true test, sound because it counts partner's
+/// *guaranteed* minimum ([`Inferences`]), never an overbid
+///
+/// This replaces a hand-rolled enumeration of length pairs (`(5,3)|(3,5)|(2,6)`)
+/// that only recognised a fit when *one* hand showed five-plus, so a bare 4-4
+/// (opener's jump-shift/reverse names a four-card suit; responder holds four) was
+/// invisible and a known eight-card major slipped into `3NT` instead of `4M`.
+/// The sole exception is a bare 4-4 opposite our own flat `4-3-3-3`: no ruffing
+/// value, so notrump's nine-trick game outscores the suit's ten and it is not a
+/// playing fit (a shapely partner is not 4333 and shows the fit from its own
+/// seat).  A/B'd a plain-DD win at both vulnerabilities.
+///
+/// [`Inferences`]: super::inference::Inferences
 fn known_eight_card_fit(suit: Suit) -> Cons<impl Constraint + Clone> {
-    (len(suit, 5..) & partner_shown_len(suit, 3..))
-        | (len(suit, 3..) & partner_shown_len(suit, 5..))
-        | (len(suit, 2..) & partner_shown_len(suit, 6..))
+    pred(move |hand: Hand, context: &Context<'_>| {
+        let mine = hand[suit].len();
+        let partner = usize::from(Inferences::read(context).partner().length(suit).min);
+        if mine + partner < 8 {
+            return false;
+        }
+        // A bare 4-4 (neither hand five-plus) opposite our flat 4-3-3-3 has no
+        // ruffing value — sorted lengths [4,3,3,3] is exactly that shape.
+        if mine == 4 && partner == 4 {
+            let mut lens = Suit::ASC.map(|s| hand[s].len());
+            lens.sort_unstable_by(|a, b| b.cmp(a));
+            if lens == [4, 3, 3, 3] {
+                return false;
+            }
+        }
+        true
+    })
 }
 
 /// Our side holds at least `threshold` combined points: our exact count plus the
@@ -2730,8 +2756,7 @@ pub fn instinct() -> Rules {
         // notrump is unsafe (a suit they bid is unstopped) and we hold a known
         // eight-card fit.  Uncontested, their suits are vacuously stopped, so
         // this never fires and 3NT plays.
-        let known_minor_fit = (len(minor, 5..) & partner_shown_len(minor, 3..))
-            | (len(minor, 3..) & partner_shown_len(minor, 5..));
+        let known_minor_fit = known_eight_card_fit(minor);
         rules = rules.rule(
             Bid::new(5, strain),
             1.42,
@@ -2745,17 +2770,12 @@ pub fn instinct() -> Rules {
     }
     for major in [Suit::Hearts, Suit::Spades] {
         let strain = Strain::from(major);
-        // A *known* eight-card major fit outranks 3NT: our five-card suit meets
-        // partner's shown three-card support, our three meet partner's shown
-        // five, or our doubleton meets partner's shown six (a transferred suit
-        // jumped or raised to game — see [`Inferences`]).  The shown lengths come
-        // from the auction interpretation, so this fires only on a fit the calls
-        // have promised.
-        //
-        // [`Inferences`]: super::inference::Inferences
-        let known_major_fit = (len(major, 5..) & partner_shown_len(major, 3..))
-            | (len(major, 3..) & partner_shown_len(major, 5..))
-            | (len(major, 2..) & partner_shown_len(major, 6..));
+        // A *known* eight-card major fit outranks 3NT: our length plus partner's
+        // shown floor reaches eight (a transferred suit jumped or raised to game,
+        // a jump-shift's four opposite our four — see [`known_eight_card_fit`]).
+        // The shown lengths come from the auction interpretation, so this fires
+        // only on a fit the calls have promised.
+        let known_major_fit = known_eight_card_fit(major);
         rules = rules.rule(
             Bid::new(4, strain),
             1.45,
@@ -3741,6 +3761,53 @@ mod tests {
             Call::Pass,
         ];
         assert_eq!(best(&auction, "AQ52.K53.KQ4.32"), call(4, Strain::Hearts));
+    }
+
+    #[test]
+    fn fit_sum_reads_a_four_four_major_fit() {
+        // West P, North 1♣, East P, South 1♥, West P, North 2♠ (opener's
+        // extras-ladder jump-shift = 4+ spades), East P.  South holds four
+        // spades opposite the shown four: a known 4-4 fit worth 4♠.  The old
+        // pair enumeration could not see it (neither hand shows five) and settled
+        // the combined-25 game force in 3NT; the fit-sum reads the eight-card fit
+        // and prefers the major game.
+        let auction = [
+            Call::Pass,
+            call(1, Strain::Clubs),
+            Call::Pass,
+            call(1, Strain::Hearts),
+            Call::Pass,
+            call(2, Strain::Spades),
+            Call::Pass,
+        ];
+        let south = "JT87.AQT2.A75.86";
+        let (bid, from_floor) = american_floored(&auction, south);
+        assert!(
+            from_floor,
+            "South's continuation is off-book (floor territory)"
+        );
+        assert_eq!(bid, call(4, Strain::Spades));
+    }
+
+    #[test]
+    fn fit_sum_leaves_a_flat_4333_in_notrump() {
+        // Same auction, but South is flat 4-3-3-3 with four spades: a bare 4-4
+        // with no ruffing value, so the carve keeps it in 3NT (notrump's
+        // nine-trick game outscores the suit's ten).
+        let auction = [
+            Call::Pass,
+            call(1, Strain::Clubs),
+            Call::Pass,
+            call(1, Strain::Hearts),
+            Call::Pass,
+            call(2, Strain::Spades),
+            Call::Pass,
+        ];
+        let south = "KT87.AQ2.Q75.J82"; // 4=3=3=3, 11 HCP
+        assert_eq!(
+            american_floored(&auction, south).0,
+            call(3, Strain::Notrump)
+        );
     }
 
     #[test]
