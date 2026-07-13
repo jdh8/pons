@@ -61,6 +61,7 @@ use contract_bridge::auction::Call;
 use contract_bridge::eval::hcp as holding_hcp;
 use contract_bridge::{Bid, Hand, Penalty, Rank, Strain, Suit};
 use core::cell::Cell;
+use core::num::NonZero;
 
 /// The per-call alert for responder's gambling 3NT over a double of our 1NT: a
 /// long minor run, *not* a natural balanced 3NT.  Marks the call artificial so
@@ -278,6 +279,19 @@ std::thread_local! {
     /// at both vulnerabilities (~+0.005 IMPs/board, PD in lockstep); `33` restores
     /// the pre-knob gate.  29 beat 28 (28's marginal fires overreach and dilute).
     static FLOOR_SLAM_ENTRY: Cell<u8> = const { Cell::new(29) };
+
+    /// Combined-points floor at which the floor bids a major game on a known
+    /// eight-plus fit, *counting the trump length as points* — the total-tricks
+    /// yardstick where a ninth trump ≈ a point (A/B knob; see
+    /// [`set_fit_sum_game`]).  `Some(t)` reaches game when
+    /// `own_points + partner.points.min + (own_len + partner_shown_len) >= t`, so
+    /// an eight-card fit games at `t - 8` combined, a nine-card fit at `t - 9`, a
+    /// ten-card fit at `t - 10` — strictly lighter as the fit lengthens.  Default
+    /// `31` is the dual-metric peak of a swept boundary (34→31 each a CI-clean
+    /// plain-DD gain with perfect defense tracking; at 30 the NV perfect-defense
+    /// line turns negative — a doubling artifact).  `0` (→ `None`) restores the
+    /// flat `combined_points(25)` gate.
+    static FIT_SUM_GAME: Cell<Option<NonZero<u8>>> = const { Cell::new(NonZero::new(31)) };
 }
 
 /// Responder runs from a doubled 1NT below this many HCP; with more, 1NT-X
@@ -483,6 +497,15 @@ fn nt_responder_game_floor() -> u8 {
 #[doc(hidden)]
 pub fn set_floor_slam_entry(threshold: u8) {
     FLOOR_SLAM_ENTRY.with(|cell| cell.set(threshold));
+}
+
+/// The combined-points floor at which the floor bids a major game on a known
+/// eight-plus fit, counting the trump length as points (see [`FIT_SUM_GAME`]).
+/// For A/B measurement: `0` disables (the flat `combined_points(25)` gate);
+/// any `t` arms the fit-length-adjusted evaluator (the shipped default is `31`).
+#[doc(hidden)]
+pub fn set_fit_sum_game(threshold: u8) {
+    FIT_SUM_GAME.with(|cell| cell.set(NonZero::new(threshold)));
 }
 
 /// Suppress (or not) the strong-1NT responder's 3NT game force over a double of
@@ -1602,6 +1625,32 @@ fn slam_entry_reached() -> Cons<impl Constraint + Clone> {
         let partner_min = Inferences::read(context).partner().points.min;
         u16::from(point_count(hand)) + u16::from(partner_min)
             >= u16::from(FLOOR_SLAM_ENTRY.with(Cell::get))
+    })
+}
+
+/// The major-game gate that counts trump length as points (see [`FIT_SUM_GAME`]).
+///
+/// When the [`FIT_SUM_GAME`] knob is off (`None`) this is exactly
+/// [`combined_points`]`(25)` — the pre-knob floor.  Armed (`Some(t)`, default
+/// `31`) it folds the known combined trump length — our holding in `suit`
+/// plus partner's shown floor, the same sum [`known_eight_card_fit`] gates on —
+/// into the point total: game once `own_points + partner.points.min + fit >= t`.
+/// A ninth trump then buys game a point cheaper, a tenth two.  Partner's *minimum*
+/// length and points keep it a sound floor, never an overbid.  The eight-card-fit
+/// gate still lives on the rule's [`known_eight_card_fit`]; this only moves the
+/// point boundary.
+fn fit_sum_game(suit: Suit) -> Cons<impl Constraint + Clone> {
+    pred(move |hand: Hand, context: &Context<'_>| {
+        let inferences = Inferences::read(context);
+        let combined = u16::from(point_count(hand)) + u16::from(inferences.partner().points.min);
+        match FIT_SUM_GAME.with(Cell::get) {
+            None => combined >= 25,
+            Some(threshold) => {
+                let fit =
+                    hand[suit].len() as u16 + u16::from(inferences.partner().length(suit).min);
+                combined + fit >= u16::from(threshold.get())
+            }
+        }
     })
 }
 
@@ -2743,12 +2792,15 @@ pub fn instinct() -> Rules {
     // opponents.  The 3NT stopper guard is vacuous uncontested (no suit of theirs
     // to stop), so it changes only competitive auctions: never a notrump game bid
     // into an unstopped enemy suit.
-    let game_values = ((partner_strong_notrump(1)
+    // The strength-independent game forces (a strong-notrump responder past
+    // invitation, a strong 2♣, an auction already forced to game).  Split out so
+    // the fitted major-game rule can swap the plain `combined_points(25)` strand
+    // for the fit-length-adjusted [`fit_sum_game`] while these forces still apply.
+    let game_forces = (partner_strong_notrump(1)
         & (hcp(10..) | (hcp(nt_responder_game_floor()..) & undisturbed())))
         | (partner_strong_notrump(2) & hcp(5..))
-        | auction_forces_game()
-        | combined_points(25))
-        & not_penalizing();
+        | auction_forces_game();
+    let game_values = (game_forces.clone() | combined_points(25)) & not_penalizing();
     rules = rules.rule(
         Bid::new(3, Strain::Notrump),
         1.40,
@@ -2831,10 +2883,15 @@ pub fn instinct() -> Rules {
                 & below_game()
                 & level_available(4, strain),
         );
+        // A ninth or tenth trump counts as points here: `fit_sum_game` reaches
+        // game once own points + partner's shown floor + the combined trump length
+        // clear the [`FIT_SUM_GAME`] threshold (default 31).  Disarmed (`0`) it is
+        // exactly `combined_points(25)`, reproducing `game_values` byte-for-byte.
         rules = rules.rule(
             Bid::new(4, strain),
             1.50,
-            game_values.clone()
+            (game_forces.clone() | fit_sum_game(major))
+                & not_penalizing()
                 & below_game()
                 & inference_aware()
                 & known_major_fit.clone()
@@ -3778,6 +3835,33 @@ mod tests {
             Call::Pass,
         ];
         assert_eq!(best(&auction, "KQ52.AQ984.J6.32"), call(3, Strain::Notrump));
+    }
+
+    #[test]
+    fn fit_sum_game_counts_trump_length_toward_game() {
+        // Partner opened a weak 2♠ (a known six-card suit); RHO passed.  We hold a
+        // strong 19-count with three-card spade support — a known nine-card fit
+        // (3 + 6).  Combined points are 24 (our 19 + partner's shown floor of 5),
+        // one shy of the flat 25-point game gate, so the off floor invites with
+        // 3♠.  The fit-sum is 24 + 9 = 33.
+        let auction = [call(2, Strain::Spades), Call::Pass];
+        let raise = "AK4.AQ2.KJ32.Q92";
+
+        // Off: the flat combined_points(25) gate — 24 < 25, so 3♠.
+        set_fit_sum_game(0);
+        assert_eq!(best(&auction, raise), call(3, Strain::Spades));
+
+        // Armed at 31 (the default): the ninth trump counts as points (fit-sum
+        // 33 ≥ 31), lifting the hand to the major-suit game.
+        set_fit_sum_game(31);
+        assert_eq!(best(&auction, raise), call(4, Strain::Spades));
+
+        // Armed at 34: the same fit-sum (33) falls one short, so the boundary holds
+        // and we are back to inviting — confirms the threshold is read live.
+        set_fit_sum_game(34);
+        assert_eq!(best(&auction, raise), call(3, Strain::Spades));
+
+        set_fit_sum_game(31); // restore the default (31) for the rest of the suite
     }
 
     #[test]

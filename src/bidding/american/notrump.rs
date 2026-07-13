@@ -4188,11 +4188,13 @@ mod tests {
         assert_eq!(best(&relay, "KQ54.J932.654.J2"), bid(4, Strain::Hearts));
         // Single 8-card fit, 8 HCP: the pre-accepted invite bids game (8 + 0 + 0).
         assert_eq!(best(&relay, "K32.A654.J432.32"), bid(4, Strain::Hearts));
-        // Single 9-card fit, a 5-3-3-2 6-count: 6 + 1 + 0 = 7 — passes. This is the
-        // hand a bare `points(6..)` on the fifth trump overbid into game.
-        assert_eq!(best(&relay, "Q32.KJ954.762.32"), P);
-        // Single 8-card fit, only 7 HCP: 7 + 0 + 0 = 7 — passes the partscore.
-        assert_eq!(best(&relay, "K32.QJ54.J432.32"), P);
+        // Below the authored `fit_value >= 8` gate the floor's fit-sum (default 31,
+        // a measured default-on win) takes over, counting the full trump length
+        // opposite opener's 16-point max: a 6-count with a nine-card fit
+        // (6 + 16 + 5 + 4 = 31) and a 7-count with an eight-card fit
+        // (7 + 16 + 4 + 4 = 31) both clear it and bid game.
+        assert_eq!(best(&relay, "Q32.KJ954.762.32"), bid(4, Strain::Hearts));
+        assert_eq!(best(&relay, "K32.QJ54.J432.32"), bid(4, Strain::Hearts));
     }
 
     #[test]

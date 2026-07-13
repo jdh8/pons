@@ -9,6 +9,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Floor choice-of-games — trump length counts toward the major-game gate.** The
+  instinct floor reached a major game on a flat yardstick: `25` combined points
+  *and* a known eight-card fit, discarding *how long* the fit was. The fit test
+  already computed the combined trump length `own_len + partner_shown_len` but
+  used it only as a `>= 8` boolean and threw the number away. The new
+  `set_fit_sum_game` knob (default **31**) folds that same length into the point
+  total — a total-tricks yardstick where a ninth trump ≈ a point. Game is reached
+  once `own_points + partner.points.min + (own_len + partner_shown_len) >= 31`, so
+  an eight-card fit games at `23` combined, a nine-card fit at `22`, a ten-card fit
+  at `21` — strictly lighter as the fit lengthens (and lighter across the board
+  than the old flat 25). Only the major-fit rule changed; the
+  `known_eight_card_fit` gate still enforces the real fit (with its 4-4-flat-4333
+  carve-out), and partner's *minimum* shown length/points keep it a sound floor
+  (never an overbid). The **31** default is the dual-metric peak of a swept
+  boundary: 34→31 is each a CI-clean plain-DD gain with perfect defense tracking,
+  and at 30 the not-vulnerable perfect-defense line turns negative — a doubling
+  artifact, so 31 is the edge. A deconfound (`fit-sum t` vs a *flat*
+  `combined_points(t − 8)` gate that games every fit at the same point) confirmed
+  the trump-length term earns its keep on the nine-/ten-card fits rather than
+  merely lowering the gate: fit-sum ahead on all eight cells, both metrics.
+  Ship-gate A/B (self-play seat-swap, 200k boards/cell × 2 seeds × 2 vuls,
+  `ab-fit-sum-game`, **31 vs off**): plain-DD **+0.034/+0.055** (seed A none/both)
+  and **+0.032/+0.052** (seed B); perfect defense **+0.018/+0.037** and
+  **+0.015/+0.032** — every cell CI above zero on both metrics, PD tracking DD
+  (**not** a doubling artifact); ~1.1% divergent. `set_fit_sum_game(0)` restores
+  the flat `combined_points(25)` gate. **User impact:** with a known major fit the
+  floor bids game lighter as the fit lengthens — the extra trump is worth the
+  extra trick, so an eight-card fit games near 23, a nine-card fit near 22.
+
 - **Floor shape-slam entry — RKCB ask fires at 29 combined points, not 33.** The
   floor's off-book RKCB *ask* (4NT) on a known five-plus-card major fit gated on
   the `combined_points(33)` notrump small-slam yardstick — a *notrump* number

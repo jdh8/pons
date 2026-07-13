@@ -272,6 +272,7 @@ provenance in [convention-tuning.md](convention-tuning.md) and the cited slugs.
 | Knob | Value | Tunes | Sweep / source |
 | --- | --- | --- | --- |
 | set_nt_responder_game_floor | 9 | pts for NT responder to drive to game | [project_nt-9count-gameforce-seam] (10→9 undisturbed) |
+| set_fit_sum_game | 31 | combined pts + trump length to game a known-fit major (0 = off, flat 25-gate) | [project_fit-sum-game-gate] (31 vs off default-on; swept 34→27, deconfounded vs flat gate) |
 | set_runout_xx_min | 7 | pts to redouble (business) vs run from 1NT-X | [project_one-nt-doubled-runout] |
 | set_texas_game_floor | 14 | pts floor for Texas transfers | [project_nt-invite-evaluator-sweep] |
 | set_sixcard_invite_floor | 13 | pts to invite with a 6-card major | 1NT invite ladder |
