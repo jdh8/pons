@@ -9,6 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Opt-in `hcp_plus` point-count scale (`set_new_point_count`, default off).**
+  Wires an alternative `point_count` scale — `hcp_plus` (HCP + useful shortness)
+  plus a bare long-suit-length term, closer to BBO GIB — behind a thread-local
+  flag, unifies the `points()` constraint on it (so it can never drift from the
+  scale the sampler and `Inferences` read), and adds an `--sd` blind-lead
+  bracket to `examples/ab-point-count`. Measured a clear win under the realistic
+  single-dummy-lead scorer: **+0.279 / +0.293 IMPs/board (NV/vul)**, 50k
+  boards/vul, CIs excluding 0 (plain DD +0.104/+0.058; the perfect-defense
+  −0.363/−0.443 is a DD-pessimism artifact on part-scores, where DD finds a
+  killing lead no real defender does). **Default off**: the scale reads ~1–3
+  higher on every *shaped* hand, so flipping it on pushes shaped hands past the
+  invite/game/max thresholds that authored `points(..)` gates still denominate
+  in the old scale — a scatter of over-aggressions across ~23 tests. It stays
+  opt-in until the threshold campaign (docs/point-count-threshold-campaign.md)
+  re-tunes those gates: mostly a raw-HCP swap on the weak/preemptive gates
+  (shortness is not a value before a fit is known), plus a few ceiling
+  re-denominations. Production system byte-identical.
+
 - **Floor choice-of-games — trump length counts toward the major-game gate.** The
   instinct floor reached a major game on a flat yardstick: `25` combined points
   *and* a known eight-card fit, discarding *how long* the fit was. The fit test

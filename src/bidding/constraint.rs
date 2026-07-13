@@ -471,6 +471,21 @@ std::thread_local! {
     static FUZZY_FIFTHS: Cell<bool> = const { Cell::new(false) };
     /// The honor count averaged with Fifths in [`fifths`] (BUM-RAP won the A/B)
     static FIFTHS_COMPANION: Cell<FifthsCompanion> = const { Cell::new(FifthsCompanion::Bumrap) };
+    /// Whether [`point_count`] evaluates `hcp_plus`-based points (HCP plus
+    /// useful shortness, after BBO GIB) instead of the legacy
+    /// raw-HCP-plus-[`upgrade`] scale. **Default off (opt-in).** The scale is a
+    /// measured win under the realistic single-dummy-lead scorer —
+    /// +0.279/+0.293 IMPs/board (NV/vul, 50k boards/vul,
+    /// `examples/ab-point-count --sd`) — but it reads ~1-3 points higher on
+    /// every *shaped* hand (each doubleton/singleton adds, so even a plain
+    /// 6-3-2-2 inflates), pushing shaped hands past invite/game/max thresholds
+    /// that authored `points(..)` gates still denominate in the legacy scale.
+    /// It stays off until the threshold campaign re-tunes those gates
+    /// (docs/point-count-threshold-campaign.md); `set_new_point_count(true)`
+    /// flips it on. The [`Points`] constraint reads this same flag (via
+    /// [`point_count`]) so the rule-projection soundness invariant
+    /// (docs/ai-bidder/rule-projection.md) holds under either setting.
+    static NEW_POINT_COUNT: Cell<bool> = const { Cell::new(false) };
 }
 
 /// Enable or disable fuzzy strength on the current thread
@@ -502,6 +517,15 @@ pub fn set_fuzzy_fifths(enabled: bool) {
 #[doc(hidden)]
 pub fn set_fifths_companion(companion: FifthsCompanion) {
     FIFTHS_COMPANION.with(|cell| cell.set(companion));
+}
+
+/// Enable or disable the `hcp_plus`-based [`point_count`] scale on the
+/// current thread. **Default off** (opt-in, pending the threshold campaign);
+/// enable to run the candidate scale or to measure it against the legacy
+/// raw-HCP-plus-[`upgrade`] scale.
+#[doc(hidden)]
+pub fn set_new_point_count(enabled: bool) {
+    NEW_POINT_COUNT.with(|flag| flag.set(enabled));
 }
 
 /// Raw high card points of a hand
@@ -599,18 +623,39 @@ pub fn upgrade(hand: Hand) -> u8 {
     u8::from(!is_balanced(hand)) + u8::from(lengths[2] + lengths[3] >= 10)
 }
 
-/// Upgraded points as a scalar — raw HCP plus the fuzzy-strength [`upgrade`]
+/// Upgraded points as a scalar — the strength number the suit-oriented
+/// [`points`] constraint gauges and the scale [`Inferences`] records its point
+/// ranges on
 ///
-/// The number the suit-oriented [`points`] constraint gauges with fuzzy
-/// strength on, and the scale [`Inferences`] records its point ranges on.  A
-/// reader that needs the value rather than a range — constrained sampling, for
-/// one — shares this single definition so it can never drift from the ranges it
-/// checks against.
+/// **Defaults to the legacy raw-HCP-plus-[`upgrade`] scale**;
+/// [`set_new_point_count(true)`][set_new_point_count] switches to the
+/// `hcp_plus`-based candidate ([`eval::hcp_plus`] plus a bare long-suit term —
+/// opt-in pending the threshold campaign, docs/point-count-threshold-campaign.md).
+/// A reader that needs the value rather than a range — constrained sampling,
+/// for one — shares this single definition so it can never drift from the
+/// ranges it checks against, and [`points`] gauges it directly so the two can
+/// never disagree (the only exception is the legacy scale with `fuzzy_points`
+/// off, an A/B-only degrade to raw HCP).
 ///
 /// [`Inferences`]: super::inference::Inferences
 #[must_use]
 pub fn point_count(hand: Hand) -> u8 {
-    raw_hcp(hand) + upgrade(hand)
+    if NEW_POINT_COUNT.with(Cell::get) {
+        new_point_count(hand)
+    } else {
+        raw_hcp(hand) + upgrade(hand)
+    }
+}
+
+/// The `hcp_plus`-based [`point_count`] scale: `hcp_plus` (HCP plus useful
+/// shortness, see [`eval::hcp_plus`]) plus the bare long-suit length term.
+/// Closer to BBO GIB's point count than the legacy raw-HCP-plus-[`upgrade`]
+/// scale it replaces.
+fn new_point_count(hand: Hand) -> u8 {
+    let mut lengths = Suit::ASC.map(|suit| hand[suit].len());
+    lengths.sort_unstable();
+    let upgrade = lengths[2] + lengths[3] >= 10;
+    SimpleEvaluator(eval::hcp_plus::<u8>).eval(hand) + u8::from(upgrade)
 }
 
 /// Upgraded points in a range (the [`points`] constraint)
@@ -619,12 +664,15 @@ struct Points<R>(R);
 
 impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for Points<R> {
     fn eval(&self, hand: Hand, _: &Context<'_>) -> f32 {
-        let bonus = if FUZZY_POINTS.with(Cell::get) {
-            upgrade(hand)
+        // On the legacy scale, `fuzzy_points` off drops the upgrade to raw HCP
+        // — its historical A/B role.  Every other case equals `point_count`, so
+        // the sampler's soundness invariant holds on the active scale.
+        let value = if !NEW_POINT_COUNT.with(Cell::get) && !FUZZY_POINTS.with(Cell::get) {
+            raw_hcp(hand)
         } else {
-            0
+            point_count(hand)
         };
-        crisp(self.0.contains(&(raw_hcp(hand) + bonus)))
+        crisp(self.0.contains(&value))
     }
 
     fn describe(&self) -> Description {
@@ -642,7 +690,7 @@ impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for Points<R> {
     }
 }
 
-/// Upgraded points — HCP plus [`upgrade`] — in the given range
+/// [`point_count`] in the given range
 ///
 /// The strength gauge for suit-oriented calls.  Notrump-defining ranges use
 /// [`fifths`] instead, and ranges indifferent to shape keep [`hcp`].
@@ -1673,6 +1721,10 @@ mod tests {
     fn test_points_and_fifths() {
         let context = empty_context();
 
+        // This test exercises the legacy raw-HCP-plus-upgrade scale
+        // specifically; the shipped scale is covered by `test_new_point_count`.
+        set_new_point_count(false);
+
         // 9 HCP, clean 5-5: counts as 11 upgraded points.
         let two_suiter = hand("KQ765.A8765.32.2");
         assert_pass(points(11..=11).eval(two_suiter, &context));
@@ -1695,6 +1747,34 @@ mod tests {
         // CCCC of this 4333 is 14.90 (oracle-verified in contract-bridge).
         assert_pass(cccc_at_least(14.9).eval(hand("AQ32.K53.QJ4.A92"), &context));
         assert_reject(cccc_at_least(15.0).eval(hand("AQ32.K53.QJ4.A92"), &context));
+
+        set_new_point_count(true); // restore the shipped default
+    }
+
+    #[test]
+    fn test_new_point_count() {
+        let context = empty_context();
+
+        // 9 HCP, clean 5-5-2-1.  The candidate scale counts hcp_plus (useful
+        // shortness: +1 doubleton, +2 singleton) plus the long-suit term:
+        // 9 + 1 + 2 + 1 = 13, above the legacy raw-HCP-plus-upgrade of 11.  The
+        // scale is opt-in (default off), so enable it explicitly.
+        let two_suiter = hand("KQ765.A8765.32.2");
+        set_new_point_count(true);
+        assert_eq!(point_count(two_suiter), 13);
+        assert_pass(points(13..=13).eval(two_suiter, &context));
+        assert_reject(points(..=12).eval(two_suiter, &context));
+
+        set_new_point_count(false);
+        assert_eq!(point_count(two_suiter), 11);
+        assert_pass(points(11..=11).eval(two_suiter, &context));
+
+        // Flat hands carry no useful shortness, so the two scales agree.
+        let flat = hand("AQ32.K53.QJ4.A92"); // 16 HCP, 4-3-3-3
+        set_new_point_count(true);
+        assert_eq!(point_count(flat), 16);
+        set_new_point_count(false); // restore the shipped (opt-in-off) default
+        assert_eq!(point_count(flat), 16);
     }
 
     #[test]
@@ -1722,16 +1802,21 @@ mod tests {
         let context = empty_context();
         let two_suiter = hand("KQ765.A8765.32.2");
 
+        // This toggle only governs the legacy raw-HCP-plus-upgrade scale.
+        set_new_point_count(false);
         set_fuzzy_strength(false);
         // Raw HCP: 9 points, and fifths degrades to raw HCP too.
         assert_pass(points(9..=9).eval(two_suiter, &context));
         assert_pass(fifths(15.0..18.0).eval(hand(BALANCED_15), &context));
         assert_reject(fifths(15.5..18.0).eval(hand(BALANCED_15), &context));
 
-        // Turn the points upgrade back on (the shipped default); fifths stays
-        // off, so the thread is left on the shipped default for later tests.
+        // Turn the points upgrade back on (the shipped legacy default); fifths
+        // stays off, so the thread is left on the shipped default for later
+        // tests.
         set_fuzzy_points(true);
         assert_pass(points(11..=11).eval(two_suiter, &context));
+
+        set_new_point_count(true); // restore the shipped default
     }
 
     #[test]
