@@ -161,7 +161,7 @@ that live *inside* a book are in Tier B.
 | set_free_bid_style (Forcing/Negative/Transfer) | `--ns-free-bid-style` | Natural (Forcing) | Forcing | Negative: plain wash/PD loss/sd-win-only → no ship; Transfer: LOSS all 3 scorers both vuls (SEED 1783681411) | fresh | default Forcing default-on ✓; others opt-in (loss) |
 | set_free_bids | `--ns-free-bids` | Natural | OFF | plain +0.29 NV / −0.30 vul (CI<0), PD −0.31/−0.88 (P3b, SEED 1783286814); leak structural | fresh | stays opt-in (measured vul loss) |
 | set_free_bid_quality | `--ns-free-bid-quality` | Natural | OFF | gate REFUTED — vul plain −0.0042 (CI<0), suppressed *winning* junk frees (SEED 1783666604) | fresh | stays opt-in (measured loss) |
-| set_high_overcall_responses | `--ns-high-overcall` | Artificial | OFF | plain −0.0012/−0.0007, PD −0.0005/−0.0006 (all CI⊇0, SEED 1783286003); named leak: 3-level neg-X too light | fresh | stays opt-in; re-measure candidate |
+| set_high_overcall_responses | `--ns-high-overcall` | Artificial | OFF | plain −0.0012/−0.0007, PD −0.0005/−0.0006 (all CI⊇0, SEED 1783286003); named leak: 3-level neg-X too light | fresh | stays opt-in; Lebensohl re-measure candidate (see competitive-book.md P3a) |
 | set_jordan_truscott | `--no-ns-jordan-truscott` | Artificial | ON | plain +0.0041/+0.0067, PD +0.0049/+0.0065 (all CI>0; campaign's largest per-bd, SEED 1783286386) | fresh | default-on ✓ |
 | set_splinter_doubled | `--no-ns-splinter-doubled` | Artificial | ON | plain +0.0059/+0.0079, PD same (FirstIs(Double) systems-on rebase, SEED 1783439089) | fresh | default-on ✓ |
 | set_delayed_cue | dedicated (no flag) | Artificial | OFF | gated for measurement, no headline | unmeasured | needs A/B |
@@ -323,7 +323,11 @@ opt-in; nt_overcall_no_major + passed_hand_overcall wash-positive but thin
 (CI⊇0). **passed_hand_overcall folded into base default-on 2026-07-13** (Natural
 × ≥floor per matrix, never negative on any scorer); nt_overcall_no_major still an
 open fold-in candidate pending a deeper re-measure. The six A5 `?` CLI cells were
-resolved to their real flags in the same pass.)*
+resolved to their real flags in the same pass. A5 follow-up: **improve advances
+to our 1NT overcall** — enrich the advancer structure over
+set_nt_overcall_systems_on (today a systems-on graft of opening-1NT responses);
+set_nt_overcall_gladiator is an opt-in wash and set_nt_overcall_no_major an open
+fold-in candidate. Author, then re-measure.)*
 *(A4 pass closed 2026-07-13: set_cue_raise_answer + set_cue_minor_raise_answer
 isolated via `scripts/a4-run.sh` — both fresh, clean wins, see A4. The two
 remaining A4 knobs, set_delayed_cue and set_direct_3nt_stopper, have no bba-gen
