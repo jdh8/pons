@@ -126,8 +126,6 @@ function renderDemo(s) {
   const auc = id('d-auction');
   auc.classList.remove('hidden');
   auc.innerHTML = auctionHTML(s, null);
-  id('d-contract').innerHTML = s.contract
-    ? `<span class="contract">${colorizeCalls(s.contract)}</span>` : '';
 }
 
 function renderFeedback(s) {
@@ -191,7 +189,7 @@ function ddHTML(dd) {
   ).join('');
   return '<div class="panel-title">Double dummy</div>' +
     `<table class="dd">${head}${rows}</table>` +
-    (dd.verdict ? `<div class="verdict">${colorizeCalls(dd.verdict)}</div>` : '');
+    (dd.verdict ? `<div class="verdict">${dd.verdict.map(colorizeCalls).join('<br>')}</div>` : '');
 }
 
 // The fairness judge: the reached contract priced over reshuffles of the two

@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Web UI — score-aware double-dummy verdict.** The demo/practice DD panel's
+  one-line verdict (`3NT by N: 9 tricks — makes`) is now three score-aware lines,
+  matching the reference site (jdh8.github.io/pons-dds): `Result: {score} to
+  {side} — {contract}{declarer}{±/=}`, `Par: {score} to {side} — {par contracts}`,
+  and the IMPs-vs-par swing. The IMP line names a side only when it actually
+  scores (`0 IMP` on a par tie or a sub-20-point edge, else `{n} IMP to {side}`).
+  Passed-out auctions now show a verdict too (`Result: Passed out` + Par + IMP),
+  surfacing a makeable game the bots let by. The redundant demo-tab contract pill
+  above the DD panel is gone. Formatting stays in Rust (`verdict_lines`); JS just
+  renders the array. **User impact:** every bid-out board reports its result, the
+  par contract, and how many IMPs the auction won or lost against par.
+
 - **A6 audit — `fuzzy_fifths` default flipped OFF (raw HCP for notrump ranges).**
   The A6 engine-toggle pass (`scripts/a6-run.sh`, self-play 1M boards/cell ×2 vuls,
   dual-scored) measured the Fifths notrump-gauge as a clean net loss vs raw HCP —

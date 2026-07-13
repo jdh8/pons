@@ -17,12 +17,14 @@ use std::collections::{BTreeMap, HashSet};
 use contract_bridge::auction::{Auction, Call, display_calls};
 use contract_bridge::deck::{fill_deals, full_deal};
 use contract_bridge::eval::{self, HandEvaluator as _, SimpleEvaluator};
-use contract_bridge::{AbsoluteVulnerability, Bid, Builder, FullDeal, Hand, Seat, Strain};
+use contract_bridge::{
+    AbsoluteVulnerability, Bid, Builder, Contract, FullDeal, Hand, Seat, Strain,
+};
 use pons::bidding::american::bare_american;
 use pons::bidding::fallback::Fallback;
 use pons::bidding::{Stance, Table, american, constraint, inference, instinct};
-use pons::scoring::final_contract;
-use pons_dds::{Solver, TrickCountTable, solve_deal_on};
+use pons::scoring::{final_contract, imps};
+use pons_dds::{Par, Solver, TrickCountTable, Vulnerability, calculate_par, solve_deal_on};
 use rand::SeedableRng as _;
 use rand::rngs::StdRng;
 use serde::Serialize;
@@ -250,7 +252,8 @@ struct OracleJson {
 struct DdJson {
     seats: [char; 4],
     rows: Vec<DdRow>,
-    verdict: Option<String>,
+    /// The score-aware verdict, one string per line (Result / Par / IMP)
+    verdict: Option<Vec<String>>,
 }
 
 #[derive(Serialize)]
@@ -290,6 +293,102 @@ const fn vul_name(vul: AbsoluteVulnerability) -> &'static str {
         3 => "Both",
         _ => "None",
     }
+}
+
+/// The two-letter name of `seat`'s side
+const fn side_name(seat: Seat) -> &'static str {
+    match seat {
+        Seat::North | Seat::South => "NS",
+        Seat::East | Seat::West => "EW",
+    }
+}
+
+/// An NS-signed score printed as `{points} to {side}` (the magnitude sits on
+/// the side it favors)
+fn to_side(ns_score: i64) -> String {
+    if ns_score >= 0 {
+        format!("{ns_score} to NS")
+    } else {
+        format!("{} to EW", -ns_score)
+    }
+}
+
+/// The over/undertrick suffix of a result: `=`, `+n`, or `-n`
+fn result_suffix(diff: i32) -> String {
+    match diff {
+        0 => "=".to_string(),
+        n if n > 0 => format!("+{n}"),
+        n => n.to_string(), // negative already carries its own '-'
+    }
+}
+
+/// The score-aware DD verdict — Result, Par, and IMPs-vs-par lines, every score
+/// signed for North-South.
+///
+/// `reached`/`tricks` are [`Some`] together for a played contract and [`None`]
+/// together for a pass-out; par is defined for any deal, so the verdict shows
+/// even when the auction passed out (surfacing a makeable game the field let by).
+fn verdict_lines(
+    reached: Option<(Contract, Seat)>,
+    tricks: Option<u8>,
+    par: &Par,
+    vul: AbsoluteVulnerability,
+) -> Vec<String> {
+    // Result line + the NS-signed score of the reached contract (0 = passed out).
+    let (result, reached_ns) = match (reached, tricks) {
+        (Some((contract, declarer)), Some(tricks)) => {
+            let needed = 6 + i32::from(contract.bid.level.get());
+            let declarer_vul = vul.contains(side(declarer));
+            let score = i64::from(contract.score(tricks, declarer_vul));
+            let ns = match declarer {
+                Seat::North | Seat::South => score,
+                Seat::East | Seat::West => -score,
+            };
+            let line = format!(
+                "Result: {} — {contract}{}{}",
+                to_side(ns),
+                declarer.letter(),
+                result_suffix(i32::from(tricks) - needed),
+            );
+            (line, ns)
+        }
+        _ => ("Result: Passed out".to_string(), 0),
+    };
+
+    // Par line: the par score plus its contracts, deduped by side (a pair
+    // expands to both declarers, which collapse to one "NS"/"EW" string).
+    let par_line = if par.contracts.is_empty() {
+        "Par: Passed out".to_string()
+    } else {
+        let mut names: Vec<String> = Vec::new();
+        for pc in &par.contracts {
+            let name = format!(
+                "{}{}{}",
+                pc.contract,
+                side_name(pc.declarer),
+                result_suffix(i32::from(pc.overtricks)),
+            );
+            if !names.contains(&name) {
+                names.push(name);
+            }
+        }
+        format!(
+            "Par: {} — {}",
+            to_side(i64::from(par.score)),
+            names.join(", ")
+        )
+    };
+
+    // IMPs vs par: name a side only when it actually scores.
+    let diff = reached_ns - i64::from(par.score);
+    let n = imps(diff);
+    let imp_line = if n == 0 {
+        "0 IMP".to_string()
+    } else {
+        format!("{} IMP to {}", n.abs(), if diff > 0 { "NS" } else { "EW" })
+    };
+
+    vec![result, par_line, imp_line]
 }
 
 /// A bridge table in the browser: deal, bid, snapshot
@@ -390,19 +489,16 @@ impl WebTable {
         }
         let table = board.dd.expect("just solved");
 
-        let verdict = final_contract(&board.auction, board.dealer).map(|(contract, declarer)| {
-            let tricks = table[contract.bid.strain].get(declarer).get();
-            let needed = 6 + contract.bid.level.get();
-            let outcome = if tricks >= needed {
-                "makes".to_string()
-            } else {
-                format!("down {}", needed - tricks)
-            };
-            format!(
-                "{contract} by {}: {tricks} tricks — {outcome}",
-                declarer.letter()
-            )
-        });
+        // The auction has ended (guarded above), so the verdict always shows —
+        // par is defined even for a pass-out.
+        let par = calculate_par(
+            table,
+            Vulnerability::from_bits_truncate(board.vul.bits()),
+            board.dealer,
+        );
+        let reached = final_contract(&board.auction, board.dealer);
+        let tricks = reached.map(|(c, d)| table[c.bid.strain].get(d).get());
+        let verdict = Some(verdict_lines(reached, tricks, &par, board.vul));
 
         const SEAT_COLS: [Seat; 4] = [Seat::West, Seat::North, Seat::East, Seat::South];
         let rows = Strain::ASC
@@ -1021,6 +1117,73 @@ mod tests {
         serde_json::from_str(snapshot).expect("snapshot is valid JSON")
     }
 
+    /// A par contract from a parseable string, its declarer, and its overtricks
+    fn par_contract(text: &str, declarer: Seat, overtricks: i8) -> pons_dds::ParContract {
+        pons_dds::ParContract {
+            contract: text.parse().expect("valid contract"),
+            declarer,
+            overtricks,
+        }
+    }
+
+    /// `verdict_lines` renders Result / Par / IMP for the cases that matter:
+    /// an exact-par tie, a sub-IMP edge, a down result, and both flavors of
+    /// pass-out (makeable par vs genuinely flat).
+    #[test]
+    fn verdict_lines_cases() {
+        let n3 = || "3NT".parse::<Contract>().expect("valid contract");
+        let none = AbsoluteVulnerability::NONE;
+        let par_3nt = |score| Par {
+            score,
+            contracts: vec![
+                par_contract("3NT", Seat::North, 0),
+                par_contract("3NT", Seat::South, 0),
+            ],
+        };
+
+        // Exact par: 3NT-N makes, par is 3NT-NS/400 → 0 IMP, no side.
+        assert_eq!(
+            verdict_lines(Some((n3(), Seat::North)), Some(9), &par_3nt(400), none),
+            [
+                "Result: 400 to NS — 3NTN=",
+                "Par: 400 to NS — 3NTNS=",
+                "0 IMP",
+            ],
+        );
+
+        // Sub-IMP edge: reached 400 vs a par of 410 (−10) still scores 0 IMP.
+        assert_eq!(
+            verdict_lines(Some((n3(), Seat::North)), Some(9), &par_3nt(410), none).last(),
+            Some(&"0 IMP".to_string()),
+        );
+
+        // A down result: 3NT-N down two, nonvul, is −100 (100 to EW).
+        assert_eq!(
+            verdict_lines(Some((n3(), Seat::North)), Some(7), &par_3nt(400), none)[0],
+            "Result: 100 to EW — 3NTN-2",
+        );
+
+        // Passed out but 3NT-NS was cold: par shows, EW gains the swing.
+        assert_eq!(
+            verdict_lines(None, None, &par_3nt(400), none),
+            [
+                "Result: Passed out",
+                "Par: 400 to NS — 3NTNS=",
+                "9 IMP to EW",
+            ],
+        );
+
+        // Genuinely flat: no par contract, no IMP.
+        let flat = Par {
+            score: 0,
+            contracts: Vec::new(),
+        };
+        assert_eq!(
+            verdict_lines(None, None, &flat, none),
+            ["Result: Passed out", "Par: Passed out", "0 IMP"],
+        );
+    }
+
     #[test]
     fn practice_board_runs_to_completion() {
         let mut table = WebTable::new("12345");
@@ -1234,6 +1397,11 @@ mod tests {
             assert_eq!(tricks.len(), 4);
             assert!(tricks.iter().all(|t| t.as_u64().expect("u8") <= 13));
         }
+        // The verdict the JS renders line-by-line: Result / Par / IMP.
+        let verdict = dd["verdict"].as_array().expect("verdict is an array");
+        assert_eq!(verdict.len(), 3);
+        assert!(verdict[0].as_str().expect("line").starts_with("Result:"));
+        assert!(verdict[1].as_str().expect("line").starts_with("Par:"));
         // Cached: the second call is the same JSON, instantly
         let again: serde_json::Value =
             serde_json::from_str(&table.dd_table()).expect("cached dd JSON");
