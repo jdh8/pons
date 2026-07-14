@@ -291,11 +291,13 @@ std::thread_local! {
     /// line turns negative — a doubling artifact).  Proven default-on, so there is
     /// no off-state — the threshold is always armed.
     ///
-    /// FLIP-TIME TODO: bump this default `31` → `32` when
-    /// [`support_points`][crate::bidding::constraint::set_support_points] goes
-    /// default-on — the gate reads `support_point_count`, which runs a shaped hand
-    /// hotter, moving the PD peak up one notch (re-probe 2026-07-14, marginal:
-    /// 31→32 PD +0.008/+0.005; docs/point-count-threshold-campaign.md roster).
+    /// `31` holds under the default-on `support_point_count` scale: re-probed
+    /// 2026-07-14 (`ab-fit-sum-game --support-points`, 200k×2vul), 32-vs-31 is NV
+    /// PD +0.004 but **vul PD −0.004 (parity/behind)** — not a bump.  The gate
+    /// re-adds `own_len`, which the scale's own long-suit term already counts, so
+    /// the hotness self-cancels and the peak stays at 31 (an earlier, broader
+    /// re-probe under the since-deleted global scale had suggested 32; the
+    /// fit-known-only scale that shipped is narrower and refuted it).
     static FIT_SUM_GAME: Cell<u8> = const { Cell::new(31) };
 }
 

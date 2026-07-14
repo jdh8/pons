@@ -37,10 +37,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the gate is proven default-on, `FIT_SUM_GAME` drops its `Option`/off-state (the
   flat `combined_points(25)` fallback is gone) and `examples/ab-fit-sum-game`
   gains `--support-points` (renamed from `--new-point-count`). It ships at the
-  measured **31**; the hotter scale's **31 → 32** re-tune (campaign: PD
-  +0.008/+0.005, but marginal and DD-negative) is deferred to its own
-  confirmation sweep now that the scale under the gate is settled, rather than
-  folded into this change.
+  measured **31**, and **31 holds**: the confirmation sweep under the shipped
+  fit-known-only scale (`ab-fit-sum-game --support-points`, 200k×2vul) makes
+  32-vs-31 NV PD +0.004 but **vul PD −0.004 (parity/behind)**, DD −0.016/−0.027 —
+  not a bump. (The earlier **31 → 32** signal was under the broader, since-deleted
+  global `set_new_point_count`; the narrower scale absorbs the hotness because the
+  gate re-adds `own_len` the scale already counts.) Production byte-identical.
 
 - **Floor choice-of-games — trump length counts toward the major-game gate.** The
   instinct floor reached a major game on a flat yardstick: `25` combined points

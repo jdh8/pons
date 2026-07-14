@@ -6,8 +6,9 @@
 > shortness) wired into the raise / fit-raise / floor-fit-sum gates, default on
 > (plain DD +0.033/+0.053, PD +0.005/+0.020, sd-lead +0.052, all CIs clear 0).
 > Scoping to fit-known dodged "Root A" by construction — no gate-by-gate re-tune
-> needed — so this campaign is closed. Root B (ceilings/holes) and the marginal
-> `FIT_SUM_GAME` 31→32 re-probe remain open follow-ups under `support_points`.
+> needed — so this campaign is closed. `FIT_SUM_GAME` was re-probed under the
+> shipped scale (2026-07-14) and **31 holds** (below). Root B (ceilings/holes)
+> remains the one open follow-up under `support_points`.
 
 ## Why this exists
 
@@ -179,20 +180,26 @@ Every capped `points(lo..=hi)` range is denominated in old points (`hcp(..)` and
 - **Floors that re-add length — a small upward re-tune.** A `point_count`-based
   *floor* is normally safe (fires earlier = the win), but one that *also* adds a
   length term double-counts trump length under the new scale (which itself
-  carries a long-suit-length term). Measured: the **fit-sum major-game gate**
-  ([`FIT_SUM_GAME`](../src/bidding/instinct.rs), default 31 — `point_count +
-  partner.min + own_len + partner_shown_len >= t`) has its PD peak move **31 →
-  32** under the new scale. Sweep (`ab-fit-sum-game --new-point-count`, 200k×2vul,
-  adjacent thresholds, PD is the arbiter for a game gate): raising 30→31 PD
-  +0.027/+0.029, **31→32 +0.008/+0.005** (CI-clean both vuls), 32→33
-  −0.004/−0.008 — unimodal peak at 32. The move is only **+1** (not the raw
-  +1–3 hotness) precisely *because* the gate double-counts `own_len`, so most of
-  the inflation self-cancels; the residual notch is the un-double-counted
-  shortness term. **Marginal** (+0.005 vul, DD-negative), so this is a low-stakes
-  flip-time bump, not a live default change — the default is shared across scales
-  and 31 stays optimal under the current (old) default scale. **Action at flip:**
-  set `FIT_SUM_GAME` to 32 when `set_new_point_count` goes default-on. Sibling
-  `set_floor_slam_entry` (29) likely wants the same one-notch re-probe.
+  carries a long-suit-length term). Measured, and **31 holds** under the shipped
+  `support_points`. The **fit-sum major-game gate**
+  ([`FIT_SUM_GAME`](../src/bidding/instinct.rs), default 31 — `support_point_count
+  + partner.min + own_len + partner_shown_len >= t`) was re-probed twice:
+  - *Under the deleted global `set_new_point_count`* (broad, all gates hot): the
+    PD peak moved 31 → 32, but only marginally (30→31 +0.027/+0.029, 31→32
+    **+0.008/+0.005**, 32→33 −0.004/−0.008). This is the number the old breadcrumb
+    was written from.
+  - *Under the shipped fit-known-only `support_points`* (narrower — the actual
+    routing): 32-vs-31 is NV PD **+0.004** CI [+0.001, +0.007] (barely ahead), Vul
+    PD **−0.004** CI [−0.008, +0.000] (**parity/behind**), DD −0.016/−0.027. Not a
+    clean both-vuls win → **the bump is refuted; 31 is the peak.**
+
+  The move was only ever **+1** (not the raw +1–3 hotness) *because* the gate
+  double-counts `own_len`, so most inflation self-cancels; the narrower shipped
+  scale absorbs even that residual notch and the peak lands back at 31 — exactly
+  the double-count argument. Sibling `set_floor_slam_entry` (29) is the same
+  length-re-adding shape; if ever re-probed, expect the same "no bump" verdict.
+  (`ab-fit-sum-game --support-points`, 200k×2vul, PD is the arbiter for a game
+  gate; DD is monotone-worse as you raise a game gate and blind to doubling.)
 - **Isolated / weak / overcall ceilings — probe.** A ceiling with no stronger
   sibling, so overflow lands in a gap or a wrong bid:
   - **Unusual 2NT `(8, 13)`** (defense.rs `UNUSUAL_NT`): a strong 5-5 minors
