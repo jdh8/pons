@@ -37,8 +37,8 @@ use contract_bridge::{AbsoluteVulnerability, Contract, FullDeal, Hand, Seat};
 use ddss::{NonEmptyStrainFlags, Solver, TrickCountTable};
 use pons::american;
 use pons::bidding::american::{
-    set_nt_invite_hcp, set_opening_hcp_floor, set_redouble_answer, set_strong_double_hcp,
-    set_two_suiter_hcp_floor, set_weak_two_hcp,
+    WeakTwoEval, set_nt_invite_hcp, set_opening_hcp_floor, set_redouble_answer,
+    set_strong_double_hcp, set_two_suiter_hcp_floor, set_weak_two_eval, set_weak_two_hcp,
 };
 use pons::bidding::constraint::{PointScale, set_point_scale, set_support_points};
 use pons::bidding::context::relative;
@@ -104,7 +104,9 @@ struct Args {
     /// candidate book only, both sides on the shipped scale.  Overrides
     /// `--candidate` and `--weak-two-hcp`.  Specs: `strong-double-hcp:N`,
     /// `two-suiter-hcp:N`, `redouble-answer`, `nt-invite-hcp`,
-    /// `opening-hcp-floor:N`.
+    /// `opening-hcp-floor:N`, and the weak-two evaluator gauges
+    /// `weak-two-cccc:LO:HI`, `weak-two-cccc-floor:X`, `weak-two-nltc:LO:HI`,
+    /// `weak-two-nltc-ceil:X` (reals; see `probe-weak-two-eval`).
     #[arg(long)]
     fix: Option<String>,
 
@@ -150,7 +152,7 @@ impl From<Scale> for PointScale {
 }
 
 /// A remnant-gate fix measured fix-vs-shipped through the two-book path
-/// (`--fix`); all five are build-time knobs, shipped-default-off
+/// (`--fix`); all are build-time knobs, shipped-default-off
 #[derive(Clone, Copy)]
 enum Fix {
     /// `set_strong_double_hcp(n)`: the overcall/double-first partition edge
@@ -163,26 +165,34 @@ enum Fix {
     NtInviteHcp,
     /// `set_opening_hcp_floor(n)`: bar sub-n-HCP freaks from 1-level openings
     OpeningHcpFloor(u8),
+    /// `set_weak_two_eval(gauge)`: an honor-location evaluator (CCCC / NLTC)
+    /// gauges the weak-two opening — the disclosure-wall follow-up
+    WeakTwoEval(WeakTwoEval),
 }
 
 impl Fix {
-    /// Parse a `--fix` spec, e.g. `strong-double-hcp:18` or `redouble-answer`
+    /// Parse a `--fix` spec, e.g. `strong-double-hcp:18`, `redouble-answer`,
+    /// or `weak-two-cccc:5.25:11.55`
     fn parse(spec: &str) -> Self {
-        let (name, param) = spec
-            .split_once(':')
-            .map_or((spec, None), |(n, p)| (n, Some(p)));
-        let n = || {
-            param
-                .unwrap_or_else(|| panic!("--fix {name} needs :N"))
-                .parse()
-                .expect("--fix parameter is a number")
+        let parts: Vec<&str> = spec.split(':').collect();
+        let name = parts[0];
+        let param = |i: usize| {
+            *parts
+                .get(i)
+                .unwrap_or_else(|| panic!("--fix {name} is missing parameter {i}"))
         };
+        let n = |i| param(i).parse::<u8>().expect("--fix parameter is a number");
+        let x = |i| param(i).parse::<f64>().expect("--fix parameter is a real");
         match name {
-            "strong-double-hcp" => Self::StrongDoubleHcp(n()),
-            "two-suiter-hcp" => Self::TwoSuiterHcp(n()),
+            "strong-double-hcp" => Self::StrongDoubleHcp(n(1)),
+            "two-suiter-hcp" => Self::TwoSuiterHcp(n(1)),
             "redouble-answer" => Self::RedoubleAnswer,
             "nt-invite-hcp" => Self::NtInviteHcp,
-            "opening-hcp-floor" => Self::OpeningHcpFloor(n()),
+            "opening-hcp-floor" => Self::OpeningHcpFloor(n(1)),
+            "weak-two-cccc" => Self::WeakTwoEval(WeakTwoEval::CcccBand(x(1), x(2))),
+            "weak-two-cccc-floor" => Self::WeakTwoEval(WeakTwoEval::CcccFloor(x(1))),
+            "weak-two-nltc" => Self::WeakTwoEval(WeakTwoEval::NltcBand(x(1), x(2))),
+            "weak-two-nltc-ceil" => Self::WeakTwoEval(WeakTwoEval::NltcCeil(x(1))),
             _ => panic!("unknown --fix {name}"),
         }
     }
@@ -195,6 +205,7 @@ impl Fix {
             Self::RedoubleAnswer => set_redouble_answer(on),
             Self::NtInviteHcp => set_nt_invite_hcp(on),
             Self::OpeningHcpFloor(n) => set_opening_hcp_floor(on.then_some(n)),
+            Self::WeakTwoEval(gauge) => set_weak_two_eval(on.then_some(gauge)),
         }
     }
 
@@ -208,6 +219,12 @@ impl Fix {
             Self::RedoubleAnswer => "opener's answer over the value redouble authored".to_owned(),
             Self::NtInviteHcp => "post-two-suit 2NT invite hcp(10..=12)".to_owned(),
             Self::OpeningHcpFloor(n) => format!("1-level openings + hcp({n}..) floor"),
+            Self::WeakTwoEval(gauge) => match gauge {
+                WeakTwoEval::CcccBand(lo, hi) => format!("weak two = cccc({lo}..{hi})"),
+                WeakTwoEval::CcccFloor(x) => format!("weak two = points(5..=10) & cccc({x}..)"),
+                WeakTwoEval::NltcBand(lo, hi) => format!("weak two = nltc({lo}..={hi})"),
+                WeakTwoEval::NltcCeil(x) => format!("weak two = points(5..=10) & nltc(..={x})"),
+            },
         }
     }
 }

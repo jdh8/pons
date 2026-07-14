@@ -559,7 +559,7 @@ changes touch every auction and deserve their own measured pass.
 | One-level opening seam | **CLEARED** (4333 floor) + freak leg **wash** (`set_opening_hcp_floor` opt-in) |
 | Quantitative 6NT | **CLEARED** (4333 floor); raw-HCP gauge parked probe-if-bored |
 | 2/1 response band | **FIXED** (fit-split, e416a9d) |
-| Weak-two band + Ogust answer | **WALL** (disclosure; `set_weak_two_hcp` opt-in sd re-measure candidate) |
+| Weak-two band + Ogust answer | **WALL, gauge-family refuted** (HCP + CCCC + NLTC + discipline prunes all lose sd; `set_weak_two_hcp` / `set_weak_two_eval` opt-in; see the evaluator-sweep section) |
 | Competitive X ↔ bid: direct seat | **FIXED** (`set_strong_double_hcp(18)` default-on) |
 | Competitive X ↔ bid: redouble-then-game | **FIXED** (`set_redouble_answer` default-on; doubler-side sit-out parked) |
 | Garbage Michaels / UNT | **FIXED** (`set_two_suiter_hcp_floor(8)` default-on) |
@@ -568,6 +568,80 @@ changes touch every auction and deserve their own measured pass.
 | Natural-1NT-defense buckets | **WALL** (sd-tuned band; `set_natural_overcall_points` sd re-sweep candidate under the new scale) |
 | Weak-two ↔ 1-opener seam | **WALL's edge** (union band would re-admit the sd-punished class; parked) |
 
-**Slice ledger: `24.pdd` rows 0..24,500,000 consumed; cursor at 24,500,000**
+Slice ledger through the remnant close-out: `24.pdd` rows 0..24,500,000
 (remnant fixes 12.3M–22.3M plain+PD, 22.3M–22.5M sd, composite re-run
-22.5M–24.5M).
+22.5M–24.5M).  The weak-two evaluator sweep below continues the ledger;
+**the live cursor is at the end of that section.**
+
+## Weak-two evaluator gauges (the wall probed again, 2026-07-15)
+
+The disclosure-wall verdict refuted *raw HCP* as the weak-two gauge, not the
+evaluator family.  Follow-up hypothesis (jdh8): evaluators that reward
+**honors sitting in the long suit** — CCCC's honor-location terms, NLTC's
+discount of unguarded short-suit honors — select the weak twos whose offense
+is real and whose disclosure to the blind lead costs least.  `set_weak_two_eval`
+([`WeakTwoEval`]) wires four gauge forms, all default-`None` byte-identical:
+
+- **Swap bands** (evaluator replaces `points(5..=10)`): `CcccBand`, `NltcBand`.
+- **Discipline cuts** (AND-leg on the shipped band, a strict subset — the
+  `points 5..=10` reading stays exactly sound): `CcccFloor`, `NltcCeil`.
+
+Thresholds calibrated by `examples/probe-weak-two-eval` (1M deals, no DD):
+matched-fire-rate swap bands CCCC `5.25..11.55` (101%) and NLTC `8.0..=9.5`
+(98%; NLTC is blind to raw strength, so *every* band swaps ≥25% of the
+population — junk with in-band losers walks in); discipline cuts CCCC floor
+5.60/6.60 (≈10%/20% prune), NLTC ceil 9.5/9.0 (≈9%/25% prune).
+
+Sweep: plain+PD 1M boards/vul per config (`scripts/weak-two-ab.sh` with
+`EVAL=<fix-spec> SD=0`), sd-lead 50k/vul only for the finalists — a weak two
+is a preempt, sd-lead is the arbiter.  Plain+PD results (candidate − shipped,
+IMPs/board, `24.pdd` rows 24.5M–38.5M):
+
+| config | plain DD NV / vul | PD NV / vul | read |
+| --- | --- | --- | --- |
+| `weak-two-cccc:5.25:11.55` (matched) | −0.0052 ± 0.0014 / −0.0087 ± 0.0018 | +0.0021 / −0.0006 | plain loss, PD wash → sd |
+| `weak-two-cccc:4.85:11.85` (wide) | −0.0020 ± 0.0013 / −0.0005 ± 0.0017 | **+0.0026 / +0.0046** | best bracket → sd |
+| `weak-two-cccc-floor:5.60` | −0.0070 ± 0.0009 / −0.0074 ± 0.0012 | +0.0013 / +0.0018 | plain loss — dead |
+| `weak-two-cccc-floor:6.60` | −0.0149 ± 0.0012 / −0.0143 ± 0.0017 | −0.0008 / +0.0017 | plain loss — dead |
+| `weak-two-nltc:8.0:9.5` | −0.0138 ± 0.0017 / −0.0168 ± 0.0022 | −0.0081 / −0.0093 | **loss/loss — dead** |
+| `weak-two-nltc-ceil:9.5` | −0.0066 ± 0.0008 / −0.0072 ± 0.0011 | −0.0001 / +0.0004 | plain loss — dead |
+| `weak-two-nltc-ceil:9.0` | −0.0173 ± 0.0014 / −0.0182 ± 0.0018 | −0.0013 / −0.0006 | plain loss — dead |
+
+**NLTC is refuted at this boundary**: the swap band is loss/loss, and both
+discipline ceilings are plain losses — and DD is *blind* to the obstruction a
+pruned preempt gives up, so sd-lead could only make pruning worse.  The CCCC
+discipline floors fail the same way: every "prune the junk weak twos" form
+loses plain DD outright, i.e. the marginal weak twos the shipped band opens
+are *earning* their plain-DD keep, not leaking it.  The two CCCC swap bands
+went to sd-lead (`24.pdd` rows 38.5M–38.7M, 50k boards/vul, 16 worlds):
+
+| config | sd-lead NV / vul | verdict |
+| --- | --- | --- |
+| `weak-two-cccc:5.25:11.55` (matched) | **−0.0100 ± 0.0065 / −0.0086 ± 0.0078** | sd loss, both CIs clear — dead |
+| `weak-two-cccc:4.85:11.85` (wide) | −0.0032 ± 0.0058 / −0.0058 ± 0.0075 | sd wash leaning negative — no ship |
+
+The matched band — the pure honor-location selection test — is an outright
+sd loss.  The wide band reproduces the refuted raw-HCP arm's exact signature
+(plain wash, PD win, sd refuses to pay) from a *weaker* starting bracket.
+Bucket forensics (`--show 40`) close the artifact escape hatch: every
+flagged remnant bucket sits at the *opening call itself*, and the loss is
+symmetric — the hands CCCC adds (`[] P → 2M`, −0.49/divergent) lose and the
+shipped weak twos it drops (`[] 2M → P`, −0.47/divergent) lose alike.  An
+unauthored-Ogust artifact could only bleed on the add side (the drop side's
+candidate just passes), so this is gauge quality, not a missing
+continuation.
+
+**Verdict: the wall is upgraded from "raw HCP refuted" to
+"gauge-family refuted."**  The shipped shape-crediting `points(5..=10)` band
+beat raw HCP, CCCC (matched and wide, honor-location), NLTC (band and
+ceilings), and every junk-pruning discipline cut on the arbiter.  Honor
+concentration in the preempt suit does *not* buy back disclosure — if
+anything the blind lead punishes the concentrated hands no worse than DD
+already does, while the "junk" shapely weak twos keep earning.  All four
+`WeakTwoEval` forms stay opt-in (`set_weak_two_eval`, default byte-identical)
+per the house convention; the calibration probe
+(`examples/probe-weak-two-eval`) is the reusable front door if another
+suit-oriented evaluator ever shows up.
+
+**Slice ledger: `24.pdd` rows 0..38,700,000 consumed; cursor at 38,700,000**
+(sd legs 38.5M–38.7M).

@@ -1084,28 +1084,65 @@ pub fn rule_of_20() -> Cons<impl Constraint + Clone> {
     Cons(RuleOf20)
 }
 
-/// Kaplan–Rubens CCCC floor (the [`cccc_at_least`] constraint)
+/// Kaplan–Rubens CCCC in a range (the [`cccc`] constraint)
 #[derive(Clone)]
-struct CcccAtLeast(f64);
+struct Cccc<R>(R);
 
-impl Constraint for CcccAtLeast {
+impl<R: RangeBounds<f64> + Clone + Send + Sync> Constraint for Cccc<R> {
     fn eval(&self, hand: Hand, _: &Context<'_>) -> f32 {
-        crisp(eval::cccc(hand) >= self.0)
+        crisp(self.0.contains(&eval::cccc(hand)))
     }
 
     fn describe(&self) -> Description {
-        Description::atom(format!("CCCC ≥ {}", self.0))
+        describe_real_range(&self.0, "CCCC")
     }
+
+    // No `project` override: CCCC is not a bound on `point_count`, so like
+    // `support_points` it claims nothing — soundness comes from the `len` /
+    // `points` legs that co-gate the call plus rule-replay acceptance.
+}
+
+/// [Kaplan–Rubens CCCC][eval::cccc] in the given range
+///
+/// CCCC weighs honor placement together with shape — honors in long suits
+/// count more — which makes it particularly accurate for suit contracts;
+/// prefer [`fifths`] toward notrump.
+#[must_use]
+pub fn cccc(range: impl RangeBounds<f64> + Clone + Send + Sync) -> Cons<impl Constraint + Clone> {
+    Cons(Cccc(range))
 }
 
 /// [Kaplan–Rubens CCCC][eval::cccc] at least the given strength
-///
-/// CCCC weighs honor placement together with shape, which makes it
-/// particularly accurate for suit contracts; prefer [`fifths`] toward
-/// notrump.
 #[must_use]
 pub fn cccc_at_least(points: f64) -> Cons<impl Constraint + Clone> {
-    Cons(CcccAtLeast(points))
+    cccc(points..)
+}
+
+/// New Losing Trick Count in a range (the [`nltc`] constraint)
+#[derive(Clone)]
+struct Nltc<R>(R);
+
+impl<R: RangeBounds<f64> + Clone + Send + Sync> Constraint for Nltc<R> {
+    fn eval(&self, hand: Hand, _: &Context<'_>) -> f32 {
+        crisp(self.0.contains(&eval::NLTC.eval(hand)))
+    }
+
+    fn describe(&self) -> Description {
+        describe_real_range(&self.0, "NLTC")
+    }
+
+    // No `project` override, same reasoning as `Cccc`.
+}
+
+/// [New Losing Trick Count][eval::NLTC] in the given range
+///
+/// Graded losers (missing A&nbsp;=&nbsp;1.5, K&nbsp;=&nbsp;1, Q&nbsp;=&nbsp;0.5
+/// over the first three cards of each suit): *fewer* is stronger, and honors
+/// only count where they guard length, so scattered short-suit queens are
+/// discounted.  A suit-contract gauge; meaningless toward notrump.
+#[must_use]
+pub fn nltc(range: impl RangeBounds<f64> + Clone + Send + Sync) -> Cons<impl Constraint + Clone> {
+    Cons(Nltc(range))
 }
 
 /// Fit for partner's last suit (the [`support`] constraint)
@@ -1861,6 +1898,21 @@ mod tests {
         // CCCC of this 4333 is 14.90 (oracle-verified in contract-bridge).
         assert_pass(cccc_at_least(14.9).eval(hand("AQ32.K53.QJ4.A92"), &context));
         assert_reject(cccc_at_least(15.0).eval(hand("AQ32.K53.QJ4.A92"), &context));
+        assert_pass(cccc(14.0..15.0).eval(hand("AQ32.K53.QJ4.A92"), &context));
+        assert_reject(cccc(..14.9).eval(hand("AQ32.K53.QJ4.A92"), &context));
+
+        // Honor location: same 6 HCP, but KQJ concentrated in the 6-card suit
+        // versus banished to short suits.  CCCC pays for the concentration;
+        // NLTC discounts honors that don't guard length (the doubleton KQ's
+        // queen saves no loser — only 3+ card suits check the queen slot).
+        let concentrated = hand("KQJ862.943.75.82");
+        let scattered = hand("986432.94.KQ.J82");
+        assert!(eval::cccc(concentrated) > eval::cccc(scattered));
+        assert!(eval::NLTC.eval(concentrated) < eval::NLTC.eval(scattered));
+        // NLTC of the concentrated hand: ♠1.5 + ♥3 + ♦2.5 + ♣2.5 = 9.5 losers.
+        assert_pass(nltc(..=9.5).eval(concentrated, &context));
+        assert_reject(nltc(..9.5).eval(concentrated, &context));
+        assert_pass(nltc(9.0..=10.0).eval(concentrated, &context));
     }
 
     #[test]
@@ -2108,7 +2160,9 @@ mod tests {
     #[test]
     fn test_describe_atoms() {
         assert_eq!(prose(&balanced()), "balanced");
-        assert_eq!(prose(&cccc_at_least(14.9)), "CCCC ≥ 14.9");
+        assert_eq!(prose(&cccc_at_least(14.9)), "14.9+ CCCC");
+        assert_eq!(prose(&cccc(9.0..13.0)), "9.0–13.0 CCCC");
+        assert_eq!(prose(&nltc(..=8.5)), "≤8.5 NLTC");
         assert_eq!(prose(&stopper_in(Suit::Hearts)), "stopper in ♥");
         assert_eq!(prose(&stopper_in_their_suits()), "stopper in their suit(s)");
         assert_eq!(

@@ -2,7 +2,8 @@
 
 use super::insert_uncontested;
 use crate::bidding::constraint::{
-    Cons, Constraint, balanced, described, fifths, hcp, len, nth_seat, points, rule_of_20,
+    Cons, Constraint, balanced, cccc, described, fifths, hcp, len, nltc, nth_seat, points,
+    rule_of_20,
 };
 use crate::bidding::context::Context;
 use crate::bidding::{Alert, Rules, Trie};
@@ -28,6 +29,10 @@ thread_local! {
     /// The weak-two opening's strength band, gauged in raw HCP when `Some`.
     /// Default `None`: byte-identical `points(5..=10)`.  See [`set_weak_two_hcp`].
     static WEAK_TWO_HCP: Cell<Option<(u8, u8)>> = const { Cell::new(None) };
+    /// The weak-two opening's honor-location evaluator gauge when `Some`.
+    /// Default `None`: byte-identical.  Wins over [`WEAK_TWO_HCP`] if both are
+    /// armed.  See [`set_weak_two_eval`].
+    static WEAK_TWO_EVAL: Cell<Option<WeakTwoEval>> = const { Cell::new(None) };
     /// A raw-HCP floor on the `points(12..=21)` one-level suit openings when
     /// `Some(n)`.  Default `None`: byte-identical.  See
     /// [`set_opening_hcp_floor`].
@@ -111,6 +116,45 @@ pub(super) fn notrump_shape_setting() -> NotrumpShape {
 /// single-dummy re-measure candidate (docs/point-count-threshold-campaign.md).
 pub fn set_weak_two_hcp(band: Option<(u8, u8)>) {
     WEAK_TWO_HCP.with(|cell| cell.set(band));
+}
+
+/// An honor-location evaluator gauge for the weak-two openings
+/// ([`set_weak_two_eval`])
+///
+/// Both evaluators reward honors sitting *in the long suit* — the weak twos
+/// whose offense is real and whose disclosure to the opponents' blind leads
+/// costs least (the sd-lead bias that rejected the raw-HCP re-gauge).  The
+/// `*Band` forms replace the strength leg outright (evaluator-as-gauge); the
+/// `CcccFloor`/`NltcCeil` forms AND onto the shipped `points(5..=10)` band
+/// (evaluator-as-discipline — a strict subset, so the opening's `points
+/// 5..=10` inference reading stays exactly sound).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum WeakTwoEval {
+    /// Kaplan–Rubens CCCC in `lo..hi` replaces `points(5..=10)`.
+    CcccBand(f64, f64),
+    /// `points(5..=10)` plus a CCCC floor pruning scattered-honor hands.
+    CcccFloor(f64),
+    /// NLTC in `lo..=hi` replaces `points(5..=10)`; *fewer* losers = stronger,
+    /// so `lo` is the strong edge and `hi` the junk edge.
+    NltcBand(f64, f64),
+    /// `points(5..=10)` plus an NLTC ceiling: at most this many losers.
+    NltcCeil(f64),
+}
+
+/// Gauge the weak-two openings with an honor-location evaluator
+/// ([`WeakTwoEval`]) instead of the default rule-of-N+8 `points(5..=10)`
+/// (opt-in; the default `None` is byte-identical; wins over
+/// [`set_weak_two_hcp`] if both are armed).
+///
+/// The raw-HCP re-gauge ([`set_weak_two_hcp`]) was rejected on the sd-lead
+/// scorer: the marginal weak twos it admits over-disclose to the opponents'
+/// blind leads.  CCCC and NLTC test the follow-up hypothesis that *where the
+/// honors sit* — concentrated in the six-card suit versus scattered through
+/// the short suits — separates the weak twos worth their disclosure from the
+/// rest.  Like the HCP knob, only the fit-unknown opening moves; the Ogust
+/// min/max answers stay on fit-known `points`.
+pub fn set_weak_two_eval(gauge: Option<WeakTwoEval>) {
+    WEAK_TWO_EVAL.with(|cell| cell.set(gauge));
 }
 
 /// Put a raw-HCP floor under the `points(12..=21)` one-level suit openings for
@@ -321,16 +365,31 @@ pub fn openings_with(shape: NotrumpShape) -> Rules {
             ),
     };
 
-    // Weak twos (six-card suit, not in fourth seat).  Strength gauged in raw HCP
-    // when `set_weak_two_hcp` is armed (the Root-A preempt-discipline fix — sound
-    // bridge, but it measured a wash on the honest sd-lead scorer, so it stays
-    // opt-in), else the default rule-of-N+8 `points(5..=10)`.
+    // Weak twos (six-card suit, not in fourth seat).  Strength gauged by an
+    // honor-location evaluator when `set_weak_two_eval` is armed, in raw HCP
+    // when `set_weak_two_hcp` is armed (the Root-A preempt-discipline fix —
+    // sound bridge, but it measured a wash on the honest sd-lead scorer, so it
+    // stays opt-in), else the default rule-of-N+8 `points(5..=10)`.
+    let weak_two_eval = WEAK_TWO_EVAL.with(Cell::get);
     let weak_two_band = WEAK_TWO_HCP.with(Cell::get);
     for suit in [Suit::Diamonds, Suit::Hearts, Suit::Spades] {
         let bid = Bid::new(2, Strain::from(suit));
-        rules = match weak_two_band {
-            Some((lo, hi)) => rules.rule(bid, 1.0, len(suit, 6..=6) & hcp(lo..=hi) & !nth_seat(4)),
-            None => rules.rule(bid, 1.0, len(suit, 6..=6) & points(5..=10) & !nth_seat(4)),
+        let six = move || len(suit, 6..=6);
+        rules = match (weak_two_eval, weak_two_band) {
+            (Some(WeakTwoEval::CcccBand(lo, hi)), _) => {
+                rules.rule(bid, 1.0, six() & cccc(lo..hi) & !nth_seat(4))
+            }
+            (Some(WeakTwoEval::CcccFloor(x)), _) => {
+                rules.rule(bid, 1.0, six() & points(5..=10) & cccc(x..) & !nth_seat(4))
+            }
+            (Some(WeakTwoEval::NltcBand(lo, hi)), _) => {
+                rules.rule(bid, 1.0, six() & nltc(lo..=hi) & !nth_seat(4))
+            }
+            (Some(WeakTwoEval::NltcCeil(x)), _) => {
+                rules.rule(bid, 1.0, six() & points(5..=10) & nltc(..=x) & !nth_seat(4))
+            }
+            (None, Some((lo, hi))) => rules.rule(bid, 1.0, six() & hcp(lo..=hi) & !nth_seat(4)),
+            (None, None) => rules.rule(bid, 1.0, six() & points(5..=10) & !nth_seat(4)),
         };
     }
     // Three-level preempts (seven-card suit, not in fourth seat).
@@ -541,5 +600,42 @@ mod tests {
         assert_eq!(opens(&openings(), junk_four), Call::Pass);
 
         set_weak_two_hcp(None);
+    }
+
+    #[test]
+    fn weak_two_eval_gauges_honor_location() {
+        let two_s = Call::Bid(Bid::new(2, Strain::Spades));
+        // Twin 6 HCP 6-3-2-2 hands: KQJ concentrated in the six-card suit
+        // versus banished to the short suits.  Both read `points` 6, so the
+        // shipped band opens both — the evaluator gauges tell them apart.
+        let concentrated = "KQJ862.943.75.82";
+        let scattered = "986432.94.KQ.J82";
+        assert_eq!(opens(&openings(), concentrated), two_s);
+        assert_eq!(opens(&openings(), scattered), two_s);
+
+        // Discipline forms: prune the scattered hand, keep the concentrated
+        // one (CCCC 8.10 vs 5.10; NLTC 9.5 vs 10.0 losers — probe-verified,
+        // see `examples/probe-weak-two-eval.rs`).
+        set_weak_two_eval(Some(WeakTwoEval::CcccFloor(7.0)));
+        assert_eq!(opens(&openings(), concentrated), two_s);
+        assert_eq!(opens(&openings(), scattered), Call::Pass);
+        set_weak_two_eval(Some(WeakTwoEval::NltcCeil(9.5)));
+        assert_eq!(opens(&openings(), concentrated), two_s);
+        assert_eq!(opens(&openings(), scattered), Call::Pass);
+
+        // Band (swap) forms replace `points` outright and win over the armed
+        // HCP band.
+        set_weak_two_hcp(Some((5, 10)));
+        set_weak_two_eval(Some(WeakTwoEval::CcccBand(7.0, 13.0)));
+        assert_eq!(opens(&openings(), concentrated), two_s);
+        assert_eq!(opens(&openings(), scattered), Call::Pass);
+        set_weak_two_eval(Some(WeakTwoEval::NltcBand(8.0, 9.5)));
+        assert_eq!(opens(&openings(), concentrated), two_s);
+        assert_eq!(opens(&openings(), scattered), Call::Pass);
+        set_weak_two_hcp(None);
+
+        // Byte-identical default restored.
+        set_weak_two_eval(None);
+        assert_eq!(opens(&openings(), scattered), two_s);
     }
 }

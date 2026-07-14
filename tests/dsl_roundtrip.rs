@@ -30,8 +30,8 @@
 use contract_bridge::{Hand, Strain, Suit};
 use pons::bidding::Context;
 use pons::bidding::constraint::{
-    Constraint, balanced, cccc_at_least, described, fifths, hcp, len, min_level_is, nth_seat,
-    partner_shown_len, partner_shown_points, partner_suit_is, passed_hand, points,
+    Constraint, balanced, cccc, cccc_at_least, described, fifths, hcp, len, min_level_is, nltc,
+    nth_seat, partner_shown_len, partner_shown_points, partner_suit_is, passed_hand, points,
     short_in_their_suits, stopper_in, stopper_in_their_suits, support, they_bid, they_vulnerable,
     top_honors, undisturbed, vulnerable,
 };
@@ -54,7 +54,9 @@ fn vocabulary_glosses() {
     assert_eq!(gloss(hcp(15..=17)), "15–17 HCP");
     assert_eq!(gloss(points(12..=21)), "12–21 points");
     assert_eq!(gloss(fifths(15.0..18.0)), "15.0–18.0 fifths");
-    assert_eq!(gloss(cccc_at_least(14.9)), "CCCC ≥ 14.9");
+    assert_eq!(gloss(cccc(9.0..13.0)), "9.0–13.0 CCCC");
+    assert_eq!(gloss(cccc_at_least(14.9)), "14.9+ CCCC");
+    assert_eq!(gloss(nltc(..=9.5)), "≤9.5 NLTC");
 
     // Shape
     assert_eq!(gloss(len(Suit::Spades, 5..)), "5+ ♠");

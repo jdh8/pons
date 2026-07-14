@@ -93,7 +93,9 @@ column is the exact `describe()` output; `{R}` is the range rendered per §4.
 | `hcp(range: u8)` | raw high-card points | `{R} HCP` | `hcp(15..=17)` → `15–17 HCP` |
 | `points(range: u8)` | HCP + shape upgrade (suit-oriented strength) | `{R} points` | `points(12..=21)` → `12–21 points` |
 | `fifths(range: f64)` | Andrews Fifths, 40-pt scale (notrump-defining strength) | `{Rf} fifths` | `fifths(15.0..18.0)` → `15.0–18.0 fifths` |
-| `cccc_at_least(points: f64)` | Kaplan–Rubens CCCC floor | `CCCC ≥ {n}` | `cccc_at_least(14.9)` → `CCCC ≥ 14.9` |
+| `cccc(range: f64)` | Kaplan–Rubens CCCC (honor location + shape; suit-oriented) | `{Rf} CCCC` | `cccc(9.0..13.0)` → `9.0–13.0 CCCC` |
+| `cccc_at_least(points: f64)` | shorthand for `cccc(points..)` | `{n}+ CCCC` | `cccc_at_least(14.9)` → `14.9+ CCCC` |
+| `nltc(range: f64)` | New Losing Trick Count (fewer = stronger; suit-oriented) | `{Rf} NLTC` | `nltc(..=9.5)` → `≤9.5 NLTC` |
 
 ### Shape
 

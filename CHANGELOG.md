@@ -9,6 +9,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Weak-two evaluator gauges (`set_weak_two_eval`) — the disclosure wall
+  probed with honor-location evaluators, refuted, all opt-in.** Follow-up to
+  the rejected raw-HCP re-gauge: do evaluators that reward honors sitting in
+  the long suit (Kaplan–Rubens CCCC; New Losing Trick Count) select weak twos
+  whose disclosure to the blind lead costs less? New DSL constraints
+  `cccc(range)` (band form; `cccc_at_least` is now its shorthand) and
+  `nltc(range)`, both projecting `unknown()` per the `support_points`
+  precedent; four gauge forms behind one knob, default byte-identical:
+  swap bands `CcccBand`/`NltcBand` replacing `points(5..=10)`, discipline
+  cuts `CcccFloor`/`NltcCeil` ANDed onto it. Thresholds calibrated by
+  `examples/probe-weak-two-eval` (matched-fire-rate bands isolate selection
+  from frequency; NLTC cannot match rate — it is blind to raw strength).
+  Measured fix-vs-shipped (`ab-point-count --fix weak-two-*`, 1M boards/vul
+  plain+PD × 7 configs, 50k/vul sd-lead finalists, fresh `24.pdd` slices
+  24.5M–38.7M): **every form loses.** NLTC band −0.014/−0.017 plain with PD
+  negative; every junk-pruning discipline cut is a plain loss (the shipped
+  band's marginal weak twos *earn* their keep); the matched CCCC band loses
+  sd-lead outright (**−0.0100 ± 0.0065 NV / −0.0086 ± 0.0078 vul**); the wide
+  CCCC band repeats the raw-HCP arm's signature (plain wash, PD win, sd
+  wash-negative). Bucket forensics show symmetric loss on added *and* dropped
+  hands — gauge quality, not a missing continuation. The wall verdict
+  upgrades to **gauge-family refuted**: the shape-crediting `points(5..=10)`
+  band beat HCP, CCCC, NLTC, and every discipline prune on the arbiter
+  (docs/point-count-threshold-campaign.md).
+
 - **The point-count remnant close-out — five gate fixes, four shipped
   default-on; the remnant report's families all have verdicts.** Worst-board
   forensics on the flagged competitive-X buckets (replaying the remnant run
