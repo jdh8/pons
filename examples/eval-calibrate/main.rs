@@ -1,8 +1,8 @@
 //! Calibrate hand evaluators against a precomputed double-dummy database.
 //!
-//! Reads the GIB-format `sol100000.txt` (West-first deal, then 20 hex digits of
-//! the DD table: strains `NT,S,H,D,C`, declarers `E,N,W,S`, with E/W stored as
-//! `13 - tricks`) — verified against the solver — so it costs **no** DD solving.
+//! Reads a DD database in either format (GIB text like `sol100000.txt`, or
+//! binary `.pdd`; see [`pons::pdd::load`]) — verified against the solver — so
+//! it costs **no** DD solving.
 //!
 //! Hands taking fewer than 6 tricks are dropped — they are never bid. For the
 //! survivors, with `s = eᴺ + eˢ` the combined evaluation and `d = |eᴺ − eˢ|` the
@@ -22,7 +22,6 @@
 
 use contract_bridge::eval::{self, HandEvaluator};
 use contract_bridge::{Seat, Strain, Suit};
-use ddss::TrickCountTable;
 use nalgebra as na;
 
 const DEFAULT_PATH: &str = "../ddss-sys/vendor/hands/sol100000.txt";
@@ -132,18 +131,14 @@ fn main() {
     let path = std::env::args()
         .nth(1)
         .unwrap_or_else(|| DEFAULT_PATH.into());
-    let text = std::fs::read_to_string(&path).expect("read sol file");
+    let deals = pons::pdd::load(&path).expect("read sol file");
 
     // moment[eval][context] over biddable hands (6+ tricks); context 0 = NT, 1 = fit
     let mut moment = [[na::Matrix4::<f64>::zeros(); 2]; 7];
     // stat[eval][context][zone]
     let mut stat = [[[Stat::default(); 3]; 2]; 7];
 
-    for line in text.lines().filter(|l| l.len() == 88) {
-        let deal: contract_bridge::FullDeal =
-            format!("W:{}", &line[0..67]).parse().expect("parse deal");
-        let table = TrickCountTable::from_gib(&line.as_bytes()[68..]);
-
+    for (deal, table) in deals {
         for (a, b) in PAIRS {
             let (ha, hb) = (deal[a], deal[b]);
             // NT target: best of the two declarers

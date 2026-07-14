@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`pdd` — compact binary DD database format.** A `.pdd` file is an 8-byte
+  magic (`ponsDD01`) plus fixed 34-byte rows — North/East/South as
+  `Hand::to_bits` u64 words (West reconstructed) and the five trick rows as
+  seat-nibble u16 words — 2.6× smaller than GIB text and decoded with
+  `from_le_bytes` instead of PBN parsing, with the deck partition and trick
+  range validated on decode. `pons::pdd::load` sniffs the magic and falls back
+  to GIB text, so `gib read`/`verify`, `dump-teacher --deals`, and
+  `eval-calibrate` now accept either format; `gib generate --out *.pdd` writes
+  binary directly, and the new `gib convert <inputs>... --out <file>` rewrites
+  and concatenates databases in the format named by the output extension.
+  Pure I/O — the bidding system is untouched, no A/B.
+
 ### Changed
 
 - **`support_points` — a fit-known-only shortness evaluator, default on.**

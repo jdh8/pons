@@ -18,6 +18,9 @@ pub mod bidding;
 /// GIB hand-record format (deal + cached double-dummy table)
 #[cfg(feature = "dd")]
 pub mod gib;
+/// Compact binary DD database format (`.pdd`)
+#[cfg(feature = "dd")]
+pub mod pdd;
 pub mod scoring;
 /// Single-dummy trick estimation by Monte-Carlo double-dummy
 #[cfg(feature = "dd")]

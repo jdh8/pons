@@ -259,12 +259,10 @@ fn argmax_legal(logits: &pons::bidding::array::Logits) -> Call {
         .map_or(Call::Pass, |(call, _)| call)
 }
 
-/// Load every deal and its cached double-dummy table from a GIB solution file
-/// (e.g. `sol100000.txt`); see [`pons::gib::parse_line`].
+/// Load every deal and its cached double-dummy table from a solution file in
+/// either format (GIB text like `sol100000.txt`, or binary `.pdd`).
 fn load_deals(path: &str) -> std::io::Result<Vec<(FullDeal, TrickCountTable)>> {
-    let text = std::fs::read_to_string(path)?;
-    let deals: Vec<(FullDeal, TrickCountTable)> =
-        text.lines().filter_map(gib::parse_line).collect();
+    let deals = pons::pdd::load(path)?;
     eprintln!("teacher-dump: loaded {} deals from {path}", deals.len());
     Ok(deals)
 }

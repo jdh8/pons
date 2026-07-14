@@ -165,6 +165,12 @@ cat shard-*.txt > all.txt                               # order-independent, no 
 gib verify all.txt                                       # optional: re-solve and confirm
 ```
 
+Name the output `.pdd` instead of `.txt` and `generate` writes the compact
+binary format (`pons::pdd`, 34 bytes/deal vs 89 — 2.6× smaller); readers sniff
+the magic, so every consumer accepts either. Merge binary shards with
+`gib convert shard-*.pdd --out all.pdd` (also converts text ↔ binary) rather
+than `cat`, since each `.pdd` carries a header.
+
 Wrap a long `generate` in `idle-run.sh` on a shared box. `dump-teacher --deals
 all.txt` then reads that cached DD for free, so the training-row dump runs
 cheaply on a single machine. Seed-shardable `.f32` dumps (`dump-search`, …) merge
