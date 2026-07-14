@@ -310,3 +310,39 @@ on a **fresh** `.pdd` slice (cursor: `24.pdd` row 4,000,000) before it ships.
 Note the harness subtlety: an `hcp` swap changes the *legacy arm's* behavior
 too (legacy `points ⊇ hcp` on floors), so fix-vs-shipped is the honest A/B —
 both arms on `RuleOfN`, differing only in the gate — not fix-vs-legacy.
+
+## The 4333-floor A/B (2026-07-15) — the flat downgrade blocked, shipped
+
+jdh8's follow-up idea: since the gates stayed on `points`, block the scale's
+only downgrade — let `points` floor at raw HCP on flat 4-3-3-3. On the
+rule-of-N+8 scale that is one moved parenthesis: `hcp + max(0, L2 − 8)`
+instead of `max(0, hcp + L2 − 8)` (only 4-3-3-3 has L2 = 7 < 8), the new
+`PointScale::RuleOfNFloored`. Measured **fix-vs-shipped** (both arms
+otherwise rule of N+8, per the remnant-report rule; `ab-point-count
+--candidate rule-floored --baseline rule`):
+
+| stage | slice (`24.pdd`) | plain DD | PD | sd-lead |
+| --- | --- | --- | --- | --- |
+| 1M boards NV | rows 4M..5M | **+0.0129 ± 0.0020** | −0.0407 ± 0.0027 | — |
+| 1M boards vul | rows 5M..6M | −0.0007 ± 0.0027 (wash) | −0.0595 ± 0.0034 | — |
+| 50k sd NV | rows 6.00M..6.05M | +0.0112 ± 0.0088 | −0.0361 ± 0.0117 | **+0.0316 ± 0.0090** |
+| 50k sd vul | rows 6.05M..6.10M | −0.0028 ± 0.0125 | −0.0587 ± 0.0155 | **+0.0258 ± 0.0125** |
+
+Same signature as the scale's own ship (plain win/wash + PD dip, sd-lead
+positive both vuls with CIs clear) → **shipped default-on**; plain
+`RuleOfN` stays opt-in. Forensics (`--show 12`): vul, the worst buckets were
+the *opening seam* — the floor opens flat 12-counts that plain rule-of-N+8
+passes, and plain DD dislikes that vulnerable (−0.5..−0.7/board on those
+boards) but sd-lead nets it positive; NV, the worst buckets were
+competitive-X/redouble machinery and a Texas-then-4NT quantitative creep that
+PD over-punishes. Note the vul opening-seam forensic *contradicts* the
+remnant report's NV-heavy `hcp(12..)` opening prescription in direction —
+that remnant fix, if pursued, should re-measure against **this** default
+(the floor already restores flat 12-HCP openings).
+
+Fallout: with the downgrade gone `flat_hcp_slack()` is 0 by default, so the
+1NT/2NT readings return to exact 15–18/19–23 and the 2♣ `hcp(22..)` leg is
+redundant-but-exact — both mechanisms stay for the plain-`RuleOfN` opt-in
+arm. Test churn was exactly the four flat-reads-−1 encodings from the ship
+commit, reverted to their pre-rule expectations. Slice ledger: `24.pdd`
+rows 0..6,100,000 consumed; cursor at 6,100,000.

@@ -111,8 +111,12 @@ enum Scale {
     Legacy,
     /// Raw Milton Work HCP
     Hcp,
-    /// Rule of N+8: HCP + two longest suit lengths − 8 (the shipped default)
+    /// Rule of N+8: HCP + two longest suit lengths − 8 (opt-in since the
+    /// 4333-floor A/B)
     Rule,
+    /// Rule of N+8 floored at raw HCP: flat 4-3-3-3 keeps its HCP (the
+    /// shipped default)
+    RuleFloored,
 }
 
 impl From<Scale> for PointScale {
@@ -121,6 +125,7 @@ impl From<Scale> for PointScale {
             Scale::Legacy => Self::PointCount,
             Scale::Hcp => Self::Hcp,
             Scale::Rule => Self::RuleOfN,
+            Scale::RuleFloored => Self::RuleOfNFloored,
         }
     }
 }
@@ -455,7 +460,7 @@ fn main() {
         // pin the main thread back to the shipped defaults in case rayon ran a
         // bid_out here and left an arm's knob set.
         set_support_points(true);
-        set_point_scale(PointScale::RuleOfN);
+        set_point_scale(PointScale::RuleOfNFloored);
         // Blind-lead pass: on each divergent board price both arms' auctions —
         // the opening lead is chosen single-dummy over `sd_worlds` sampled worlds
         // (read from the leader's view through the default-flag book), then play

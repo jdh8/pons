@@ -151,10 +151,11 @@ pub fn openings() -> Rules {
 pub fn openings_with(shape: NotrumpShape) -> Rules {
     let mut rules = Rules::new()
         // Strong, artificial 2♣ — top priority.  The `hcp` leg is exact cover
-        // for the rule-of-N+8 scale's flat hole: a 4-3-3-3 22-count reads 21
-        // points there and would otherwise demote a game force to a passable
-        // 1♣ (unbalanced 22-HCP hands already read 22+ points, so the union
-        // adds nothing else).
+        // for the plain rule-of-N+8 opt-in scale's flat hole: a 4-3-3-3
+        // 22-count reads 21 points there and would otherwise demote a game
+        // force to a passable 1♣ (the shipped floored scale reads it 22, and
+        // unbalanced 22-HCP hands read 22+ points on every scale, so the
+        // union adds nothing else — it's redundant-but-exact by default).
         .rule(Bid::new(2, Strain::Clubs), 3.0, points(22..) | hcp(22..))
         .alert(STRONG_2C);
     // Strong 1NT — gated so a diagnostic can suppress our own 1NT opening
@@ -377,7 +378,7 @@ mod tests {
         // voided upgrade leaves this hand at 11 — the 12+ opener passes.
         set_point_scale(PointScale::PointCount);
         let call = opens(&openings(), sound_11);
-        set_point_scale(PointScale::RuleOfN);
+        set_point_scale(PointScale::RuleOfNFloored);
         set_rule_of_20(true);
         assert_eq!(call, Call::Pass);
     }

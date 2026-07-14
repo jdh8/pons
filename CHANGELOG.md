@@ -56,6 +56,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The flat 4-3-3-3 downgrade is blocked — `points` floors at raw HCP.**
+  The default point scale moves from `PointScale::RuleOfN` to
+  `PointScale::RuleOfNFloored`: the rule-of-N+8 length bonus never goes
+  negative, so flat 4-3-3-3 (the only shape whose two longest suits total
+  under 8) reads its raw HCP instead of HCP − 1; every other shape is
+  unchanged. Measured fix-vs-shipped (both arms otherwise rule of N+8,
+  fresh `24.pdd` slices): plain DD +0.013 ± 0.002 NV / −0.001 ± 0.003 vul
+  (wash), the campaign's usual PD dip (−0.041/−0.059), and the sd-lead
+  tiebreak vindicated it at **+0.032 ± 0.009 NV / +0.026 ± 0.013 vul**
+  IMPs/board (50k boards/vul) — the same evidence pattern that shipped the
+  scale itself. With the downgrade gone, `flat_hcp_slack` is 0 by default:
+  the 1NT/2NT opening readings return to their exact 15–18/19–23 bands,
+  and the strong 2♣'s `hcp(22..)` leg becomes redundant-but-exact (both
+  stay, keeping the plain `RuleOfN` opt-in arm sound). Plain rule of N+8
+  remains opt-in via `set_point_scale(PointScale::RuleOfN)`.
 - **`points` now gauges the rule of N+8 — the legacy upgrade scale is
   deposed.** The global point scale defaults to `PointScale::RuleOfN`: every
   `points(range)` gate, the constrained sampler, and the floor's combined
