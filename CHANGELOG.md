@@ -9,6 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`set_weak_two_hcp` — weak-two opening gauged in raw HCP, opt-in (default
+  byte-identical); the weak-two point-count remnant is the obstruction wall,
+  not a fixable gauge.** `Some((lo, hi))` gauges every weak-two opening in
+  `hcp(lo..=hi)` instead of the shipped rule-of-N+8 `points(5..=10)`; the Ogust
+  min/max answers deliberately stay on `points` (responder's 2NT promised
+  support, so those are fit-known and re-credit shape — the same hcp/no-fit
+  vs support-points/fit split as the 2/1 gate). A preempt's length is already
+  pinned by the six-card requirement, so gauging strength in shape-crediting
+  `points` double-counts it (`+0..+2` by second-suit length, so no `points`
+  shift restores a clean HCP cutoff); raw HCP is the disciplined, disclosable
+  gauge. **Measured fix-vs-shipped** (`ab-point-count --weak-two-hcp 5:10`,
+  both arms floored, `24.pdd` rows 8.1M–10.2M): plain DD +0.0017 NV /
+  +0.0011 vul (wash), PD +0.0131/+0.0099, but **sd-lead −0.0045 ± 0.0080 NV /
+  −0.0018 ± 0.0108 vul** — negative on the honest scorer for a competitive
+  range. The marginal weak twos over-disclose to the opponents' blind opening
+  leads (which sd-lead prices and plain DD/PD do not), so the plain-DD
+  "remnant" the point-count campaign flagged is the disclosure/obstruction
+  wall. A major-only carve (2♥/2♠ hcp, 2♦ `points`) measured strictly worse
+  (sd-vul −0.0113). Retained opt-in as a single-dummy re-measure candidate; the
+  `ab-point-count` harness gained a two-book path so build-time gate knobs (not
+  just the eval-time point scales) can be measured fix-vs-shipped.
 - **`set_major_choice_of_games` — the `1M – 3NT` choice-of-games response,
   shipped default-on** (off-switch `--no-ns-major-choice-of-games` in
   `bba-gen`, `--choice-of-games` in `ab-major-continuations`). 3NT over

@@ -391,4 +391,37 @@ The paired `hcp12`-vs-`hcp13` head-to-head kept 13 (hcp12's vul plain edge
 sd-lead probe could still revisit vul-only). Details: CHANGELOG 2026-07-15,
 `scripts/two-over-one-ab.sh`.
 
-**Slice ledger: `24.pdd` rows 0..8,100,000 consumed; cursor at 8,100,000.**
+### Weak-two band — REJECTED, the wall (2026-07-15)
+
+The prescription (Root A, `hcp(5..=10)` for the six-card weak-two opening,
+`set_weak_two_hcp`; Ogust min/max deliberately left on `points`, the fit-known
+leg — responder's 2NT promised support, mirroring the 2/1 hcp/support-points
+split) is **sound bridge but does not ship**. Fix-vs-shipped
+(`ab-point-count --weak-two-hcp 5:10`, both arms floored, `scripts/weak-two-ab.sh`):
+
+| bracket | NV | Vul |
+| --- | --- | --- |
+| plain DD (1M) | +0.0017 ± 0.0017 | +0.0011 ± 0.0023 |
+| perfect defense (1M) | +0.0131 ± 0.0022 | +0.0099 ± 0.0027 |
+| **sd-lead (50k)** | **−0.0045 ± 0.0080** | **−0.0018 ± 0.0108** |
+
+The signature is inverted from every shippable point-count win (plain wash, PD
+positive, **sd-lead negative** — sd sits *below* both DD brackets, not between
+them). A weak two is a **preempt = competitive range**, so per
+[convention-tuning.md](convention-tuning.md) sd-lead is the arbiter and it is a
+wash-to-loss: the marginal weak twos (the sound 9–10 HCP shapely hands the HCP
+band adds, that floored `points` read 11–12 and passed) **over-disclose to the
+opponents' blind opening lead** — the one bias plain DD and PD miss and sd-lead
+prices. The plain-DD −2.0k/−3.1k the remnant report flagged is therefore the
+disclosure/obstruction wall, not a fixable gauge. Forensics (`--show 40`): the
+2♦ weak two is the biggest loser both directions/vuls; a **major-only carve**
+(2♥/2♠ hcp, 2♦ `points`) measured **strictly worse** — plain-DD vul −0.0033
+(CI clear) and sd-vul −0.0113. `set_weak_two_hcp` stays opt-in (default
+byte-identical) as a single-dummy re-measure candidate; the `#1b` weak-two ask
+answer folds in (same fit-known `points` reasoning — no change). New harness
+capability: `ab-point-count` now builds two books for build-time gate knobs
+(`Arms::WeakTwoHcp`), reusable for the remaining remnant families.
+
+**Slice ledger: `24.pdd` rows 0..12,300,000 consumed; cursor at 12,300,000**
+(2/1 through 8.1M; weak-two all-suits 8.1M–10.2M, major-only carve
+10.2M–12.3M).

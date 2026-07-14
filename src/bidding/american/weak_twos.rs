@@ -103,6 +103,11 @@ pub(super) fn responses(our: Suit) -> Rules {
 /// two, but is required by the "forcing by omission" model).
 #[must_use]
 fn ogust_answers(our: Suit) -> Rules {
+    // Min (5–7) / max (8–10) points, each split bad-suit / good-suit.  Gauged in
+    // `points` (rule-of-N+8) not raw HCP: responder's 2NT promised 2+ support, so
+    // the fit is known here and opener re-evaluates with the 6th trump and side
+    // shape credited — unlike the fit-unknown opening gate (`set_weak_two_hcp`),
+    // which is disciplined in raw HCP.
     Rules::new()
         // Solid six-card suit (A-K-Q present): bid 3NT.
         .rule(Bid::new(3, Strain::Notrump), 1.5, top_honors(our, 3..))

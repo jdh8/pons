@@ -25,6 +25,9 @@ thread_local! {
     /// Which shape policy the 1NT opening admits when `american()` rebuilds.
     /// Default [`NotrumpShape::Wide6322`] (the shipped default).
     static NOTRUMP_SHAPE: Cell<NotrumpShape> = const { Cell::new(NotrumpShape::Wide6322) };
+    /// The weak-two opening's strength band, gauged in raw HCP when `Some`.
+    /// Default `None`: byte-identical `points(5..=10)`.  See [`set_weak_two_hcp`].
+    static WEAK_TWO_HCP: Cell<Option<(u8, u8)>> = const { Cell::new(None) };
 }
 
 /// Suppress (`false`) or restore (`true`, the default) our own 1NT opening.
@@ -77,6 +80,33 @@ pub fn set_notrump_shape(shape: NotrumpShape) {
 /// The 1NT opening shape currently selected by [`set_notrump_shape`].
 pub(super) fn notrump_shape_setting() -> NotrumpShape {
     NOTRUMP_SHAPE.with(Cell::get)
+}
+
+/// Gauge the weak-two openings in raw HCP over `lo..=hi` instead of the default
+/// rule-of-N+8 `points(5..=10)` (opt-in; the default is byte-identical).
+///
+/// The opening is *fit-unknown*, so a preempt's length is already pinned by the
+/// six-card requirement and gauging its *strength* in shape-crediting `points`
+/// double-counts that length: a six-card suit reads `+max(0, L2−8)`, i.e. +0 on
+/// 6-2-2-3 up to +2 on 6-4-2-1, so no single `points` shift restores a clean
+/// cutoff — the shapely hands slip in one-to-two HCP light while the top edge
+/// blurs.  Raw HCP is the disciplined, disclosable gauge: partner can trust the
+/// count for games, sacrifices, and leads.
+///
+/// Only the fit-unknown *opening* moves.  The Ogust min/max answers stay on
+/// `points`, deliberately: responder's 2NT promises support, so those are
+/// *fit-known* and re-credit shape (the split mirrors the 2/1 gate's
+/// hcp/support-points fit-split).
+///
+/// **Rejected default-on** (opt-in only): fix-vs-shipped `hcp(5..=10)` measured a
+/// wash on the honest sd-lead scorer (−0.0045 NV / −0.0018 vul, CIs span 0) — a
+/// weak two is a preempt, and the plain-DD "remnant" the point-count campaign
+/// priced on this family is the obstruction/disclosure wall, not a fixable gauge
+/// (the marginal weak twos over-disclose to the opponents' blind leads).  A
+/// major-only carve measured strictly worse (sd-vul −0.0113).  Retained as a
+/// single-dummy re-measure candidate (docs/point-count-threshold-campaign.md).
+pub fn set_weak_two_hcp(band: Option<(u8, u8)>) {
+    WEAK_TWO_HCP.with(|cell| cell.set(band));
 }
 
 /// Which hand shapes the strong 1NT opening admits ([`openings_with`])
@@ -226,13 +256,17 @@ pub fn openings_with(shape: NotrumpShape) -> Rules {
                 & len(Suit::Spades, ..5),
         );
 
-    // Weak twos (six-card suit, not in fourth seat).
+    // Weak twos (six-card suit, not in fourth seat).  Strength gauged in raw HCP
+    // when `set_weak_two_hcp` is armed (the Root-A preempt-discipline fix — sound
+    // bridge, but it measured a wash on the honest sd-lead scorer, so it stays
+    // opt-in), else the default rule-of-N+8 `points(5..=10)`.
+    let weak_two_band = WEAK_TWO_HCP.with(Cell::get);
     for suit in [Suit::Diamonds, Suit::Hearts, Suit::Spades] {
-        rules = rules.rule(
-            Bid::new(2, Strain::from(suit)),
-            1.0,
-            len(suit, 6..=6) & points(5..=10) & !nth_seat(4),
-        );
+        let bid = Bid::new(2, Strain::from(suit));
+        rules = match weak_two_band {
+            Some((lo, hi)) => rules.rule(bid, 1.0, len(suit, 6..=6) & hcp(lo..=hi) & !nth_seat(4)),
+            None => rules.rule(bid, 1.0, len(suit, 6..=6) & points(5..=10) & !nth_seat(4)),
+        };
     }
     // Three-level preempts (seven-card suit, not in fourth seat).
     for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
@@ -381,5 +415,29 @@ mod tests {
         set_point_scale(PointScale::RuleOfNFloored);
         set_rule_of_20(true);
         assert_eq!(call, Call::Pass);
+    }
+
+    #[test]
+    fn weak_two_hcp_band_gauges_raw_hcp() {
+        let two_s = Call::Bid(Bid::new(2, Strain::Spades));
+        // 9 HCP, 6-4-2-1: on the floored scale `points` = 9 + (10−8) = 11, so
+        // the default `points(5..=10)` excludes it and — too weak for a 1-opener
+        // — it passes.  Raw HCP 9 is a sound weak two the HCP band admits.
+        let sound_nine = "KQ9832.KJ85.74.4";
+        set_weak_two_hcp(None);
+        assert_eq!(opens(&openings(), sound_nine), Call::Pass);
+        set_weak_two_hcp(Some((5, 10)));
+        assert_eq!(opens(&openings(), sound_nine), two_s);
+
+        // A junky shapely light hand the shape-crediting default over-admits:
+        // 4 HCP, 6-4-2-1 reads `points` = 4 + 2 = 6, so the default opens a 2♠
+        // the raw-HCP band (4 < 5) correctly declines.
+        let junk_four = "QJ9832.T985.74.J";
+        set_weak_two_hcp(None);
+        assert_eq!(opens(&openings(), junk_four), two_s);
+        set_weak_two_hcp(Some((5, 10)));
+        assert_eq!(opens(&openings(), junk_four), Call::Pass);
+
+        set_weak_two_hcp(None);
     }
 }

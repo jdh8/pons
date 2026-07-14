@@ -36,6 +36,7 @@ use contract_bridge::auction::{Auction, Call};
 use contract_bridge::{AbsoluteVulnerability, Contract, FullDeal, Hand, Seat};
 use ddss::{NonEmptyStrainFlags, Solver, TrickCountTable};
 use pons::american;
+use pons::bidding::american::set_weak_two_hcp;
 use pons::bidding::constraint::{PointScale, set_point_scale, set_support_points};
 use pons::bidding::context::relative;
 use pons::bidding::{Family, Inferences, Stance, System};
@@ -89,6 +90,13 @@ struct Args {
     #[arg(long, value_enum, default_value = "legacy")]
     baseline: Scale,
 
+    /// Fix-vs-shipped for the weak-two remnant: `LO:HI` gauges the weak-two
+    /// opening in raw HCP on the candidate side; the baseline keeps the shipped
+    /// `points(5..=10)`.  Both sides stay on the floored scale, so this measures
+    /// the gate alone.  Overrides `--candidate`. E.g. `5:10`.
+    #[arg(long)]
+    weak_two_hcp: Option<String>,
+
     /// Bid a slice of this pre-solved binary `.pdd` deal bank instead of
     /// seeded deals; plain DD/PD then score its stored tables, no live solve
     #[arg(long)]
@@ -140,6 +148,9 @@ enum Arms {
         candidate: PointScale,
         baseline: PointScale,
     },
+    /// The weak-two opening's HCP band on the candidate side vs the shipped
+    /// `points(5..=10)` on the baseline (fix-vs-shipped; both stay floored)
+    WeakTwoHcp { band: (u8, u8) },
 }
 
 impl Arms {
@@ -151,6 +162,7 @@ impl Arms {
                 candidate,
                 baseline,
             } => set_point_scale(if is_candidate { candidate } else { baseline }),
+            Self::WeakTwoHcp { band } => set_weak_two_hcp(is_candidate.then_some(band)),
         }
     }
 }
@@ -181,13 +193,17 @@ fn next_call(
         .unwrap_or(Call::Pass)
 }
 
-/// Bid out one deal, switching the point-count scale per acting side
+/// Bid out one deal, arming the candidate side per acting seat
 ///
-/// The ablation knob is thread-local and set just before each classification,
-/// so this stays correct whether it runs on the main thread or a rayon worker
-/// (each board bids on a single thread).
+/// `stances` is `[baseline_book, candidate_book]`.  Eval-time arms (the point
+/// scales) build the two identically and rely on the thread-local knob
+/// [`Arms::apply`] flips per call; the build-time [`Arms::WeakTwoHcp`] gate bakes
+/// the difference into the two books, and `apply` is then a no-op.  Either way,
+/// each seat classifies with the book for its side and the knob set to match, so
+/// this stays correct on the main thread or a rayon worker (one board, one
+/// thread).
 fn bid_out(
-    stance: &Stance,
+    stances: &[Stance; 2],
     arms: Arms,
     candidate_is_ns: bool,
     dealer: Seat,
@@ -199,8 +215,15 @@ fn bid_out(
     while !auction.has_ended() {
         let seat = seat_to_act(dealer, auction.len());
         let seat_is_ns = matches!(seat, Seat::North | Seat::South);
-        arms.apply(seat_is_ns == candidate_is_ns);
-        auction.push(next_call(stance, deal[seat], dealer, vul, &auction));
+        let is_candidate = seat_is_ns == candidate_is_ns;
+        arms.apply(is_candidate);
+        auction.push(next_call(
+            &stances[usize::from(is_candidate)],
+            deal[seat],
+            dealer,
+            vul,
+            &auction,
+        ));
     }
     auction
 }
@@ -339,20 +362,47 @@ fn main() {
     let args = Args::parse();
     let base = args.seed.unwrap_or_else(rand::random);
     let vul = args.vulnerability;
-    let stance = american().against(Family::NATURAL);
-    // One default-flag book reads the leader's view for the blind-lead pass: the
-    // point-count scale barely shifts disclosed meaning, so a single reading
-    // serves both arms (a deliberate simplification — we do not flip the scale
-    // for inference, unlike per-call bidding above).
-    let infer_stance = american().against(Family::NATURAL);
 
-    let arms = match args.candidate {
-        Some(candidate) => Arms::PointScale {
-            candidate: candidate.into(),
-            baseline: args.baseline.into(),
-        },
-        None => Arms::SupportPoints,
+    let arms = if let Some(band) = &args.weak_two_hcp {
+        let (lo, hi) = band.split_once(':').expect("--weak-two-hcp expects LO:HI");
+        Arms::WeakTwoHcp {
+            band: (
+                lo.parse().expect("LO is a number"),
+                hi.parse().expect("HI is a number"),
+            ),
+        }
+    } else {
+        match args.candidate {
+            Some(candidate) => Arms::PointScale {
+                candidate: candidate.into(),
+                baseline: args.baseline.into(),
+            },
+            None => Arms::SupportPoints,
+        }
     };
+
+    // Two books, `[baseline, candidate]`.  The build-time WeakTwoHcp gate bakes
+    // the difference in (knob off vs on); the eval-time scale arms build both
+    // identically and let the per-call thread-local (`Arms::apply`) do the work.
+    let stances = match arms {
+        Arms::WeakTwoHcp { band } => {
+            set_weak_two_hcp(None);
+            let baseline = american().against(Family::NATURAL);
+            set_weak_two_hcp(Some(band));
+            let candidate = american().against(Family::NATURAL);
+            set_weak_two_hcp(None);
+            [baseline, candidate]
+        }
+        _ => [
+            american().against(Family::NATURAL),
+            american().against(Family::NATURAL),
+        ],
+    };
+    // One default-flag book reads the leader's view for the blind-lead pass:
+    // neither the scale nor the weak-two gate shifts disclosed meaning enough to
+    // matter, so a single reading serves both arms (a deliberate simplification —
+    // we do not flip the knob for inference, unlike per-call bidding above).
+    let infer_stance = american().against(Family::NATURAL);
 
     // Deal source: the seeded stream (base + index) so every arm/vul replays
     // the identical stream, or a slice of a pre-solved .pdd deal bank whose
@@ -385,8 +435,8 @@ fn main() {
         .enumerate()
         .map(|(index, deal)| {
             let dealer = Seat::ALL[index % 4];
-            let table_a = bid_out(&stance, arms, true, dealer, vul, deal);
-            let table_b = bid_out(&stance, arms, false, dealer, vul, deal);
+            let table_a = bid_out(&stances, arms, true, dealer, vul, deal);
+            let table_b = bid_out(&stances, arms, false, dealer, vul, deal);
             // Credit the candidate team: [off = table_b (candidate EW),
             // on = table_a (candidate NS)], matching report_brackets' on − off.
             let contracts = [
@@ -431,6 +481,9 @@ fn main() {
             args.candidate.expect("PointScale arms imply --candidate"),
             args.baseline,
         ),
+        Arms::WeakTwoHcp { band: (lo, hi) } => {
+            println!("arms: weak-two hcp({lo}..={hi}) vs shipped points(5..=10), both floored",)
+        }
     }
     if let Some(path) = &args.deals {
         println!(

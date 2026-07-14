@@ -134,7 +134,7 @@ pub(crate) use notrump::{crawling_stayman, garbage_stayman, notrump_minors};
 pub(crate) use openings::rule_of_20_enabled;
 pub use openings::{
     NotrumpShape, openings, openings_with, set_notrump_shape, set_one_notrump_fifths,
-    set_open_one_notrump, set_rule_of_20,
+    set_open_one_notrump, set_rule_of_20, set_weak_two_hcp,
 };
 pub use raises::{set_limit_raise_acceptance, set_major_game_tries};
 pub(crate) use rebids::{opener_extras_ladder, opener_major_jump_rebid};
