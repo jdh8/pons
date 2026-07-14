@@ -344,5 +344,32 @@ Fallout: with the downgrade gone `flat_hcp_slack()` is 0 by default, so the
 1NT/2NT readings return to exact 15–18/19–23 and the 2♣ `hcp(22..)` leg is
 redundant-but-exact — both mechanisms stay for the plain-`RuleOfN` opt-in
 arm. Test churn was exactly the four flat-reads-−1 encodings from the ship
-commit, reverted to their pre-rule expectations. Slice ledger: `24.pdd`
-rows 0..6,100,000 consumed; cursor at 6,100,000.
+commit, reverted to their pre-rule expectations.
+
+### Remnant report re-run vs the floored default (2026-07-15)
+
+Floored-vs-legacy on fresh slices (`24.pdd` rows 6.1M..7.1M NV, 7.1M..8.1M
+vul, 1M boards/vul, `--show 40`): plain DD **+0.0377 ± 0.0039 NV /
++0.0347 ± 0.0052 vul** — coherent with pre-floor ship-vs-legacy plus the
+floor's own fix-vs-shipped delta (+0.0252 + 0.0129 ≈ +0.0381;
++0.0334 − 0.0007 ≈ +0.0327). Flagged remnant totals shrank from ≈ −8k / −10k
+to **−6.7k NV / −8.3k vul** per 1M boards. Family status changes:
+
+- **One-level opening seam — CLEARED but for the freak leg.** The flat-12
+  buckets (`[] 1♣/1♦ → P` + mirrors, −2.3k NV) vanished — the floor *is*
+  that fix, the `hcp(12..)` union-leg prescription is confirmed moot. Only
+  `[P P] P → 1♦` ×138 (−155 NV) survives: the sub-10-HCP freak leg
+  (`hcp(10..)` floor on the light seam) is still open, now minor.
+- **Quantitative 6NT — dropped out of the flagged set entirely** (zero
+  buckets in either top-40; was −1.9k/−2.0k). The pass-direction losses were
+  4333 responders reading −1 opposite `combined_points(33)`; the floor
+  restored them. The raw-HCP-gauge prescription is downgraded from remnant
+  to probe-if-bored.
+- **Weak-two band, 2/1 response band, competitive-X seams, 2NT rebid-invite,
+  weak-two ask answer — all stand** (no 4333 exposure for the weak-two
+  families; both 2/1 directions still flagged). The redouble-then-game
+  buckets (`[1M X XX P] game → P`, ×13–14 at −10..−17/board) now flag both
+  vuls — the floor A/B's NV forensic made visible; part of the
+  competitive-X family.
+
+**Slice ledger: `24.pdd` rows 0..8,100,000 consumed; cursor at 8,100,000.**

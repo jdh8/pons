@@ -70,7 +70,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the 1NT/2NT opening readings return to their exact 15–18/19–23 bands,
   and the strong 2♣'s `hcp(22..)` leg becomes redundant-but-exact (both
   stay, keeping the plain `RuleOfN` opt-in arm sound). Plain rule of N+8
-  remains opt-in via `set_point_scale(PointScale::RuleOfN)`.
+  remains opt-in via `set_point_scale(PointScale::RuleOfN)`. The remnant
+  report re-run against this default (floored vs legacy, fresh 1M-board
+  slices/vul: plain DD +0.038/+0.035) shows the floor also cleared two of
+  the seven legacy-favoring remnant families — the one-level opening seam
+  (all but the sub-10-HCP freak leg) and the quantitative 6NT — shrinking
+  the flagged remnant pool from ≈ −8k/−10k to −6.7k/−8.3k IMPs per 1M
+  boards (details in docs/point-count-threshold-campaign.md).
 - **`points` now gauges the rule of N+8 — the legacy upgrade scale is
   deposed.** The global point scale defaults to `PointScale::RuleOfN`: every
   `points(range)` gate, the constrained sampler, and the floor's combined
