@@ -1,31 +1,45 @@
-//! Measure the fit-known
-//! [`support_points`][pons::bidding::constraint::support_points] scale: an A/B
-//! duplicate match of legacy [`point_count`][pons::bidding::constraint::point_count]
-//! (shipped) against `hcp_plus` (HCP plus useful shortness) plus the bare
-//! long-suit length term, wired into the fit-known gates only.  Each board is
+//! Measure a point-count scale change: an A/B duplicate match.  Each board is
 //! bid twice, duplicate style: at table A the candidate pair sits North/South
-//! against a pair on the shipped scale (table B swaps seats). The
-//! [`set_support_points`][pons::bidding::constraint::set_support_points]
-//! ablation hook flips the scale per acting side. Boards whose two auctions
-//! reach different contracts are solved double dummy once and scored with
-//! plain DD and perfect defense; `--sd` adds the blind-lead single-dummy
-//! bracket that sits between the two (DD is too pessimistic on part-scores),
-//! crediting the swing to the candidate team.
+//! against a baseline pair (table B swaps seats), the per-seat knob flipped
+//! just before each call.  Boards whose two auctions reach different
+//! contracts are solved double dummy once and scored with plain DD and
+//! perfect defense; `--sd` adds the blind-lead single-dummy bracket that sits
+//! between the two (DD is too pessimistic on part-scores), crediting the
+//! swing to the candidate team.
+//!
+//! Two treatments share the harness:
+//!
+//! - Default: the fit-known
+//!   [`support_points`][pons::bidding::constraint::support_points] scale
+//!   (shipped) vs legacy, via
+//!   [`set_support_points`][pons::bidding::constraint::set_support_points].
+//! - `--candidate hcp|rule`: the **global**
+//!   [`PointScale`][pons::bidding::constraint::PointScale] deprecation A/B/C —
+//!   every `points` gate, the sampler, and the floor's combined counts swap
+//!   scale together per acting side, against `--baseline` (default legacy).
+//!
+//! `--deals <bank.pdd> --offset <rows>` bids a slice of a pre-solved binary
+//! deal bank instead of seeded deals: plain DD and perfect defense then score
+//! from the stored tables with **no live solving** (only `--sd` solves), so
+//! million-board runs are bidding-bound.  `--show N` prints the worst
+//! divergent boards and the first-divergence buckets for gate forensics.
 //!
 //! ```text
 //! cargo run --example ab-point-count -- --count 1000 --vulnerability ns --seed "$SEED_BASE"
 //! cargo run --example ab-point-count -- --count 1000 --sd --seed "$SEED_BASE"
+//! cargo run --release --example ab-point-count -- --candidate rule \
+//!     --deals /nfs2/jdh8/24.pdd --offset 0 --count 1000000 --show 20
 //! ```
 
 use clap::Parser;
 use contract_bridge::auction::{Auction, Call};
 use contract_bridge::{AbsoluteVulnerability, Contract, FullDeal, Hand, Seat};
-use ddss::{NonEmptyStrainFlags, Solver};
+use ddss::{NonEmptyStrainFlags, Solver, TrickCountTable};
 use pons::american;
-use pons::bidding::constraint::set_support_points;
+use pons::bidding::constraint::{PointScale, set_point_scale, set_support_points};
 use pons::bidding::context::relative;
 use pons::bidding::{Family, Inferences, Stance, System};
-use pons::scoring::{final_contract, imps};
+use pons::scoring::{final_contract, imps, ns_score_contract};
 use pons::single_dummy::{LeadQuestion, single_dummy_leads};
 
 use rand::SeedableRng;
@@ -65,6 +79,75 @@ struct Args {
     /// Seed for the world-sampling RNG (report it to reproduce a run)
     #[arg(long, default_value_t = 20_240_607)]
     sd_seed: u64,
+
+    /// Candidate **global** point scale (the deprecation A/B/C); when omitted
+    /// the runner measures the fit-known support_points scale instead
+    #[arg(long, value_enum)]
+    candidate: Option<Scale>,
+
+    /// Baseline global point scale for the other side (with --candidate)
+    #[arg(long, value_enum, default_value = "legacy")]
+    baseline: Scale,
+
+    /// Bid a slice of this pre-solved binary `.pdd` deal bank instead of
+    /// seeded deals; plain DD/PD then score its stored tables, no live solve
+    #[arg(long)]
+    deals: Option<std::path::PathBuf>,
+
+    /// Row offset into --deals — the slice ledger's cursor, never replayed
+    #[arg(long, default_value_t = 0)]
+    offset: u64,
+
+    /// Print this many worst divergent boards (by candidate plain-DD loss)
+    /// plus the first-divergence buckets over all divergent boards
+    #[arg(long, default_value_t = 0)]
+    show: usize,
+}
+
+/// A CLI name for each global [`PointScale`] arm
+#[derive(Clone, Copy, PartialEq, Eq, Debug, clap::ValueEnum)]
+enum Scale {
+    /// Legacy raw HCP + upgrade (the shipped default)
+    Legacy,
+    /// Raw Milton Work HCP
+    Hcp,
+    /// Rule of N+8: HCP + two longest suit lengths − 8
+    Rule,
+}
+
+impl From<Scale> for PointScale {
+    fn from(scale: Scale) -> Self {
+        match scale {
+            Scale::Legacy => Self::PointCount,
+            Scale::Hcp => Self::Hcp,
+            Scale::Rule => Self::RuleOfN,
+        }
+    }
+}
+
+/// Which knob the duplicate match flips per acting side
+#[derive(Clone, Copy)]
+enum Arms {
+    /// The fit-known `support_points` scale on/off (the shipped scale's A/B)
+    SupportPoints,
+    /// The global point scale: candidate vs baseline (the deprecation A/B/C)
+    PointScale {
+        candidate: PointScale,
+        baseline: PointScale,
+    },
+}
+
+impl Arms {
+    /// Arm the acting side's knob (thread-local, set just before classifying)
+    fn apply(self, is_candidate: bool) {
+        match self {
+            Self::SupportPoints => set_support_points(is_candidate),
+            Self::PointScale {
+                candidate,
+                baseline,
+            } => set_point_scale(if is_candidate { candidate } else { baseline }),
+        }
+    }
 }
 
 /// The highest-logit *legal* call, defaulting to a pass
@@ -95,11 +178,12 @@ fn next_call(
 
 /// Bid out one deal, switching the point-count scale per acting side
 ///
-/// The ablation flag is thread-local and set just before each classification,
+/// The ablation knob is thread-local and set just before each classification,
 /// so this stays correct whether it runs on the main thread or a rayon worker
 /// (each board bids on a single thread).
 fn bid_out(
     stance: &Stance,
+    arms: Arms,
     candidate_is_ns: bool,
     dealer: Seat,
     vul: AbsoluteVulnerability,
@@ -110,7 +194,7 @@ fn bid_out(
     while !auction.has_ended() {
         let seat = seat_to_act(dealer, auction.len());
         let seat_is_ns = matches!(seat, Seat::North | Seat::South);
-        set_support_points(seat_is_ns == candidate_is_ns);
+        arms.apply(seat_is_ns == candidate_is_ns);
         auction.push(next_call(stance, deal[seat], dealer, vul, &auction));
     }
     auction
@@ -162,6 +246,78 @@ fn lead_inputs(
     ))
 }
 
+/// Forensics for `--show`: rank divergent boards by candidate plain-DD swing
+/// and bucket them all by the first differing call — a remnant gate shows up
+/// as a bucket where the baseline side keeps winning.
+fn show_divergences(
+    show: usize,
+    divergent: &[usize],
+    tables: &[TrickCountTable],
+    auctions: &[AuctionPair],
+    contracts: &[ContractPair],
+    deals: &[FullDeal],
+    vul: AbsoluteVulnerability,
+) {
+    let reached = |contract: Option<(Contract, Seat)>| {
+        contract.map_or_else(|| "pass-out".to_owned(), |(c, s)| format!("{c} by {s}"))
+    };
+
+    // (candidate IMP swing, position in `divergent`), plus per-bucket totals.
+    let mut ranked: Vec<(i64, usize)> = Vec::with_capacity(divergent.len());
+    let mut buckets: std::collections::HashMap<String, (usize, i64)> =
+        std::collections::HashMap::new();
+    for (position, (&i, table)) in divergent.iter().zip(tables).enumerate() {
+        let swing = imps(
+            ns_score_contract(contracts[i][1], table, vul)
+                - ns_score_contract(contracts[i][0], table, vul),
+        );
+        ranked.push((swing, position));
+
+        let [off, on] = &auctions[i];
+        let split = (0..off.len().min(on.len()))
+            .find(|&n| off[n] != on[n])
+            .unwrap_or_else(|| off.len().min(on.len()));
+        let prefix = off
+            .iter()
+            .take(split)
+            .map(ToString::to_string)
+            .collect::<Vec<_>>()
+            .join(" ");
+        let next = |auction: &Auction| {
+            auction
+                .get(split)
+                .map_or_else(|| "(end)".to_owned(), ToString::to_string)
+        };
+        let entry = buckets
+            .entry(format!("[{prefix}] {} → {}", next(off), next(on)))
+            .or_insert((0, 0));
+        entry.0 += 1;
+        entry.1 += swing;
+    }
+
+    ranked.sort_unstable();
+    println!("\nWorst divergent boards for the candidate (plain DD):");
+    for &(swing, position) in ranked.iter().take(show) {
+        let i = divergent[position];
+        let [off, on] = &auctions[i];
+        println!(
+            "board {i} ({swing:+} IMPs) dealer {} deal {}\n  off: {off} = {}\n   on: {on} = {}",
+            Seat::ALL[i % 4],
+            deals[i],
+            reached(contracts[i][0]),
+            reached(contracts[i][1]),
+        );
+    }
+
+    let mut sorted: Vec<(&String, &(usize, i64))> = buckets.iter().collect();
+    // Tiebreak on the key so equal totals print in a deterministic order.
+    sorted.sort_by_key(|&(key, &(_, total))| (total, key));
+    println!("\nFirst-divergence buckets (worst {show} by candidate IMPs; off-call → on-call):");
+    for &(key, &(n, total)) in sorted.iter().take(show) {
+        println!("{total:+7} IMPs  ×{n:<6} {key}");
+    }
+}
+
 #[allow(clippy::cast_precision_loss)]
 fn main() {
     let args = Args::parse();
@@ -174,20 +330,47 @@ fn main() {
     // for inference, unlike per-call bidding above).
     let infer_stance = american().against(Family::NATURAL);
 
-    // Deals are seeded per board (base + index) so every arm/vul replays the
-    // identical stream. Each bid_out sets its own thread-local per call, so
-    // board bidding parallelizes; the DD solver stays on the main thread below.
-    // Retain both tables' auctions (index 0 = table_b/off, 1 = table_a/on — the
-    // same order as `contracts`) so the single-dummy pass can read each auction
-    // from the leader's view.
-    let deals = seeded_deals(base, args.count);
+    let arms = match args.candidate {
+        Some(candidate) => Arms::PointScale {
+            candidate: candidate.into(),
+            baseline: args.baseline.into(),
+        },
+        None => Arms::SupportPoints,
+    };
+
+    // Deal source: the seeded stream (base + index) so every arm/vul replays
+    // the identical stream, or a slice of a pre-solved .pdd deal bank whose
+    // stored DD tables replace the live solve below (arms then pair by
+    // sharing the same --offset instead of the same seed).
+    let (deals, stored): (Vec<FullDeal>, Option<Vec<TrickCountTable>>) = match &args.deals {
+        Some(path) => {
+            let rows = pons::pdd::load_slice(path, args.offset, args.count)
+                .unwrap_or_else(|e| panic!("load {}: {e}", path.display()));
+            assert_eq!(
+                rows.len(),
+                args.count,
+                "deal bank exhausted: {} rows from offset {}",
+                rows.len(),
+                args.offset,
+            );
+            let (deals, tables) = rows.into_iter().unzip();
+            (deals, Some(tables))
+        }
+        None => (seeded_deals(base, args.count), None),
+    };
+
+    // Each bid_out sets its own thread-local per call, so board bidding
+    // parallelizes; the DD solver stays on the main thread below.  Retain both
+    // tables' auctions (index 0 = table_b/off, 1 = table_a/on — the same order
+    // as `contracts`) so the single-dummy pass can read each auction from the
+    // leader's view.
     let (auctions, contracts): (Vec<AuctionPair>, Vec<ContractPair>) = deals
         .par_iter()
         .enumerate()
         .map(|(index, deal)| {
             let dealer = Seat::ALL[index % 4];
-            let table_a = bid_out(&stance, true, dealer, vul, deal);
-            let table_b = bid_out(&stance, false, dealer, vul, deal);
+            let table_a = bid_out(&stance, arms, true, dealer, vul, deal);
+            let table_b = bid_out(&stance, arms, false, dealer, vul, deal);
             // Credit the candidate team: [off = table_b (candidate EW),
             // on = table_a (candidate NS)], matching report_brackets' on − off.
             let contracts = [
@@ -198,18 +381,49 @@ fn main() {
         })
         .unzip();
 
-    // Only boards whose tables reach different results can swing; solve those
-    // once and score both brackets (plain DD + perfect defense) from the tables.
+    // Only boards whose tables reach different results can swing; look their
+    // tables up in the deal bank, or solve them once, and score both brackets
+    // (plain DD + perfect defense) from the same tables.
     let divergent: Vec<usize> = (0..args.count)
         .filter(|&i| contracts[i][0] != contracts[i][1])
         .collect();
-    let solve_deals: Vec<FullDeal> = divergent.iter().map(|&i| deals[i]).collect();
-    let tables = Solver::lock().solve_deals(&solve_deals, NonEmptyStrainFlags::ALL);
+    let tables: Vec<TrickCountTable> = match &stored {
+        Some(all) => divergent.iter().map(|&i| all[i]).collect(),
+        None => {
+            let solve_deals: Vec<FullDeal> = divergent.iter().map(|&i| deals[i]).collect();
+            Solver::lock().solve_deals(&solve_deals, NonEmptyStrainFlags::ALL)
+        }
+    };
 
-    println!(
-        "=== Point-count A/B match: {} boards, vulnerability {}, seed {} ===",
-        args.count, vul, base,
-    );
+    // The deal seed is meaningless (and randomly noisy) when a deal bank
+    // supplies the boards; the bank line below carries the slice instead.
+    if args.deals.is_some() {
+        println!(
+            "=== Point-count A/B match: {} boards, vulnerability {} ===",
+            args.count, vul,
+        );
+    } else {
+        println!(
+            "=== Point-count A/B match: {} boards, vulnerability {}, seed {} ===",
+            args.count, vul, base,
+        );
+    }
+    match arms {
+        Arms::SupportPoints => println!("arms: fit-known support_points on vs off"),
+        Arms::PointScale { .. } => println!(
+            "arms: global point scale {:?} vs {:?} baseline",
+            args.candidate.expect("PointScale arms imply --candidate"),
+            args.baseline,
+        ),
+    }
+    if let Some(path) = &args.deals {
+        println!(
+            "deal bank: {} rows {}..{} (stored DD tables, no live solve)",
+            path.display(),
+            args.offset,
+            args.offset + args.count as u64,
+        );
+    }
     println!(
         "Divergent boards: {} of {} ({:.2}%)",
         divergent.len(),
@@ -219,7 +433,18 @@ fn main() {
 
     report_brackets(args.count, &divergent, &tables, &contracts, vul);
 
+    if args.show > 0 {
+        show_divergences(
+            args.show, &divergent, &tables, &auctions, &contracts, &deals, vul,
+        );
+    }
+
     if args.sd {
+        // One default-flag reading serves both arms (see infer_stance above);
+        // pin the main thread back to the shipped defaults in case rayon ran a
+        // bid_out here and left an arm's knob set.
+        set_support_points(true);
+        set_point_scale(PointScale::PointCount);
         // Blind-lead pass: on each divergent board price both arms' auctions —
         // the opening lead is chosen single-dummy over `sd_worlds` sampled worlds
         // (read from the leader's view through the default-flag book), then play

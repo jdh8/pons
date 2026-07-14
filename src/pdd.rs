@@ -104,6 +104,37 @@ pub fn load(path: impl AsRef<Path>) -> io::Result<Vec<(FullDeal, TrickCountTable
     from_bytes(&std::fs::read(path)?)
 }
 
+/// Read up to `count` rows starting at row `skip` — a seek-based slice of a
+/// binary `.pdd` database, so experiments can shard a multi-gigabyte deal
+/// bank without reading it whole.  Binary-only: GIB text has no fixed row
+/// width to seek by.  A slice past the tail returns the rows that exist; the
+/// caller decides whether short counts as exhausted.
+pub fn load_slice(
+    path: impl AsRef<Path>,
+    skip: u64,
+    count: usize,
+) -> io::Result<Vec<(FullDeal, TrickCountTable)>> {
+    use std::io::{Read, Seek, SeekFrom};
+    let invalid = |what| io::Error::new(io::ErrorKind::InvalidData, what);
+    let mut file = std::fs::File::open(path)?;
+    let mut magic = [0u8; MAGIC.len()];
+    file.read_exact(&mut magic)?;
+    if magic != MAGIC {
+        return Err(invalid("sliced reads need the binary .pdd format"));
+    }
+    file.seek(SeekFrom::Start(MAGIC.len() as u64 + skip * ROW_LEN as u64))?;
+    let mut bytes = Vec::new();
+    file.take(count as u64 * ROW_LEN as u64)
+        .read_to_end(&mut bytes)?;
+    if !bytes.len().is_multiple_of(ROW_LEN) {
+        return Err(invalid("truncated .pdd file"));
+    }
+    bytes
+        .chunks_exact(ROW_LEN)
+        .map(|row| decode_row(row.try_into().unwrap()).ok_or_else(|| invalid("corrupt .pdd row")))
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -143,6 +174,25 @@ mod tests {
         let mut row = clean;
         row[24] = 0xFF;
         assert_eq!(decode_row(&row), None);
+    }
+
+    #[test]
+    fn slices_by_row() {
+        let (deal, table) = fixture();
+        let mut bin = MAGIC.to_vec();
+        for _ in 0..3 {
+            bin.extend_from_slice(&encode_row(&deal, &table));
+        }
+        let path = std::env::temp_dir().join("pons-pdd-slice-test.pdd");
+        std::fs::write(&path, &bin).unwrap();
+
+        assert_eq!(load_slice(&path, 0, 3).unwrap().len(), 3);
+        assert_eq!(load_slice(&path, 1, 2).unwrap().len(), 2);
+        // A slice past the tail returns the rows that exist.
+        assert_eq!(load_slice(&path, 2, 5).unwrap(), [(deal, table)]);
+        assert_eq!(load_slice(&path, 3, 5).unwrap(), []);
+
+        let _ = std::fs::remove_file(&path);
     }
 
     #[test]

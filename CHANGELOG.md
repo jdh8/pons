@@ -23,6 +23,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   extracts `longest_two_suits`, de-triplicating the shape kernel shared by
   `upgrade`, `new_point_count`, and `rule_of_20`. Knob only — no default
   behavior change, no A/B verdict yet; the campaign ships separately.
+- **`pdd::load_slice` + deal-bank A/B mode.** `pons::pdd::load_slice(path,
+  skip, count)` seeks a row slice out of a binary `.pdd` deal bank without
+  reading the multi-gigabyte file whole. `ab-point-count` grows
+  `--candidate hcp|rule` / `--baseline` (the global `PointScale` arms; the
+  flagless default still measures fit-known `support_points`),
+  `--deals <bank.pdd> --offset <rows>` (bid a bank slice and score plain
+  DD + perfect defense from the **stored** tables — zero live solving, so
+  million-board A/Bs are bidding-bound at ~2 min/arm), and `--show N`
+  (worst divergent boards + first-divergence buckets for gate forensics).
+  Verified: 1,000 bank rows re-solved with 0 mismatches; same slice twice
+  → bit-identical output.
 
 - **`pdd` — compact binary DD database format.** A `.pdd` file is an 8-byte
   magic (`ponsDD01`) plus fixed 34-byte rows — North/East/South as
