@@ -460,9 +460,29 @@ pub enum FifthsCompanion {
     Bumrap,
 }
 
+/// Which scale the global [`point_count`] evaluates on the current thread —
+/// and with it every [`points`] gate, the constrained sampler's acceptance,
+/// and the floor's combined counts, all at once
+///
+/// The point-scale deprecation A/B/C: the arms swap the scalar wholesale so a
+/// candidate side's gates, projections, and sampling stay denominated in one
+/// scale — the gates-vs-sampler confound of swapping [`points`] alone cannot
+/// arise.  Authored ranges are untouched; only their gauge moves.
+#[doc(hidden)]
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum PointScale {
+    /// Legacy raw HCP + [`upgrade`] (the incumbent default)
+    PointCount,
+    /// Raw Milton Work 4-3-2-1 HCP (the old `fuzzy_points` off arm)
+    Hcp,
+    /// Rule of N+8: raw HCP + the two longest suit lengths − 8, so a
+    /// `points(12..)` gate is exactly the Rule of 20
+    RuleOfN,
+}
+
 std::thread_local! {
-    /// Whether [`points`] applies its upgrade on top of raw HCP
-    static FUZZY_POINTS: Cell<bool> = const { Cell::new(true) };
+    /// The scale [`point_count`] evaluates (the point-scale A/B knob)
+    static POINT_SCALE: Cell<PointScale> = const { Cell::new(PointScale::PointCount) };
     /// Whether [`fifths`] evaluates Fifths rather than raw HCP.  Default **off**:
     /// the Fifths NT-gauge measured a clean net loss vs raw HCP in the A6 audit
     /// (self-play plain −0.012/−0.018 NV/vul, PD alike, CIs excluding 0), and it
@@ -500,9 +520,28 @@ pub fn set_fuzzy_strength(enabled: bool) {
 }
 
 /// Enable or disable the [`points`] upgrade alone (see [`set_fuzzy_strength`])
+///
+/// A thin wrapper over [`set_point_scale`] kept for the historical A/B
+/// runners: `false` is the raw-HCP arm.
 #[doc(hidden)]
 pub fn set_fuzzy_points(enabled: bool) {
-    FUZZY_POINTS.with(|flag| flag.set(enabled));
+    set_point_scale(if enabled {
+        PointScale::PointCount
+    } else {
+        PointScale::Hcp
+    });
+}
+
+/// Select the global point-count scale on the current thread (see
+/// [`PointScale`])
+///
+/// For A/B measurement only: the scale is read at classification time by
+/// [`point_count`] — and therefore by every [`points`] gate, the constrained
+/// sampler, and the floor's combined counts together — and is per-thread;
+/// classify on the thread that set it.
+#[doc(hidden)]
+pub fn set_point_scale(scale: PointScale) {
+    POINT_SCALE.with(|cell| cell.set(scale));
 }
 
 /// Enable or disable [`fifths`] alone (see [`set_fuzzy_strength`])
@@ -572,10 +611,12 @@ impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for Hcp<R> {
         // ponytail: floor only — points = raw HCP + upgrade ≥ raw HCP, so an
         // HCP *ceiling* is unsound on the upgraded-points scale an `Inference`
         // records; the floor is exact.  Upgrade path: a balanced-only HCP axis
-        // if a reader ever needs the ceiling back.
+        // if a reader ever needs the ceiling back.  Rule of N+8 reads a flat
+        // 4-3-3-3 one under its HCP, so that scale gives the floor back 1.
+        let slack = u8::from(POINT_SCALE.with(Cell::get) == PointScale::RuleOfN);
         let floor = bound_range(&self.0, Range::FULL_POINTS.max).min;
         let mut inference = Inference::unknown();
-        inference.points = Range::new(floor, Range::FULL_POINTS.max);
+        inference.points = Range::new(floor.saturating_sub(slack), Range::FULL_POINTS.max);
         inference
     }
 }
@@ -615,26 +656,38 @@ pub fn upgrade(hand: Hand) -> u8 {
         return 0;
     }
 
-    let mut lengths = holdings.map(Holding::len);
+    u8::from(!is_balanced(hand)) + u8::from(longest_two_suits(hand) >= 10)
+}
+
+/// Total length of the two longest suits — the shape kernel shared by
+/// [`upgrade`], [`rule_of_20`], and the rule-of-N+8 [`PointScale`]
+fn longest_two_suits(hand: Hand) -> u8 {
+    let mut lengths = Suit::ASC.map(|suit| hand[suit].len());
     lengths.sort_unstable();
-    u8::from(!is_balanced(hand)) + u8::from(lengths[2] + lengths[3] >= 10)
+    // Two suit lengths total at most 26, so the cast cannot truncate.
+    u8::try_from(lengths[2] + lengths[3]).unwrap_or_else(|_| unreachable!())
 }
 
 /// Upgraded points as a scalar — the strength number the suit-oriented
 /// [`points`] constraint gauges and the scale [`Inferences`] records its point
 /// ranges on
 ///
-/// The **legacy raw-HCP-plus-[`upgrade`] scale**.  A reader that needs the value
-/// rather than a range — constrained sampling, for one — shares this single
-/// definition so it can never drift from the ranges it checks against, and
-/// [`points`] gauges it directly so the two can never disagree (the only
-/// exception is `fuzzy_points` off, an A/B-only degrade to raw HCP).  The
-/// fit-known shortness scale rides on [`support_point_count`] instead.
+/// Defaults to the **legacy raw-HCP-plus-[`upgrade`] scale**.  A reader that
+/// needs the value rather than a range — constrained sampling, for one —
+/// shares this single definition so it can never drift from the ranges it
+/// checks against, and [`points`] gauges it directly so the two can never
+/// disagree.  [`set_point_scale`] swaps the scale wholesale — gates, sampler,
+/// and floor together — for the point-scale A/B; the fit-known shortness
+/// scale rides on [`support_point_count`] instead.
 ///
 /// [`Inferences`]: super::inference::Inferences
 #[must_use]
 pub fn point_count(hand: Hand) -> u8 {
-    raw_hcp(hand) + upgrade(hand)
+    match POINT_SCALE.with(Cell::get) {
+        PointScale::PointCount => raw_hcp(hand) + upgrade(hand),
+        PointScale::Hcp => raw_hcp(hand),
+        PointScale::RuleOfN => (raw_hcp(hand) + longest_two_suits(hand)).saturating_sub(8),
+    }
 }
 
 /// The `hcp_plus`-based scale [`support_points`] gauges when its flag is on:
@@ -643,10 +696,7 @@ pub fn point_count(hand: Hand) -> u8 {
 /// fit).  Closer to BBO GIB's point count than the legacy
 /// raw-HCP-plus-[`upgrade`] [`point_count`].
 fn new_point_count(hand: Hand) -> u8 {
-    let mut lengths = Suit::ASC.map(|suit| hand[suit].len());
-    lengths.sort_unstable();
-    let upgrade = lengths[2] + lengths[3] >= 10;
-    SimpleEvaluator(eval::hcp_plus::<u8>).eval(hand) + u8::from(upgrade)
+    SimpleEvaluator(eval::hcp_plus::<u8>).eval(hand) + u8::from(longest_two_suits(hand) >= 10)
 }
 
 /// Upgraded points in a range (the [`points`] constraint)
@@ -655,15 +705,10 @@ struct Points<R>(R);
 
 impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for Points<R> {
     fn eval(&self, hand: Hand, _: &Context<'_>) -> f32 {
-        // `fuzzy_points` off drops the upgrade to raw HCP — its historical A/B
-        // role.  Otherwise this equals `point_count`, so the sampler's soundness
-        // invariant holds.
-        let value = if FUZZY_POINTS.with(Cell::get) {
-            point_count(hand)
-        } else {
-            raw_hcp(hand)
-        };
-        crisp(self.0.contains(&value))
+        // Always the shared scalar, whatever scale it is set to — the
+        // sampler's soundness invariant (it measures the same number) holds
+        // on every arm of the point-scale A/B.
+        crisp(self.0.contains(&point_count(hand)))
     }
 
     fn describe(&self) -> Description {
@@ -985,9 +1030,7 @@ pub fn balanced() -> Cons<impl Constraint + Clone> {
 
 /// Rule-of-Twenty kernel: raw HCP plus the two longest suit lengths total ≥ 20
 fn is_rule_of_20(hand: Hand) -> bool {
-    let mut lengths = Suit::ASC.map(|suit| hand[suit].len());
-    lengths.sort_unstable();
-    usize::from(raw_hcp(hand)) + lengths[2] + lengths[3] >= 20
+    raw_hcp(hand) + longest_two_suits(hand) >= 20
 }
 
 /// Rule of 20 shape (the [`rule_of_20`] constraint)
@@ -1863,6 +1906,35 @@ mod tests {
         // tests.
         set_fuzzy_points(true);
         assert_pass(points(11..=11).eval(two_suiter, &context));
+    }
+
+    #[test]
+    fn test_point_scale() {
+        let context = empty_context();
+        let two_suiter = hand("KQ765.A8765.32.2"); // 9 HCP, 5-5-2-1
+        let flat = hand("AQ32.K53.QJ4.A92"); // 16 HCP, 4-3-3-3
+
+        // Rule of N+8: raw HCP + two longest suit lengths − 8, so a
+        // `points(12..)` gate is exactly the Rule of 20.
+        set_point_scale(PointScale::RuleOfN);
+        // Clean 5-5 agrees with the legacy upgrade: 9 + 10 − 8 = 9 + 2.
+        assert_eq!(point_count(two_suiter), 11);
+        assert_pass(points(11..=11).eval(two_suiter, &context));
+        // Flat 4-3-3-3 reads one under its HCP: 16 + 7 − 8.
+        assert_eq!(point_count(flat), 15);
+        assert_reject(points(16..).eval(flat, &context));
+        // A wasted stiff K voids the legacy upgrade but its shape still
+        // counts here: 12 + 9 − 8 = 13 vs legacy 12.
+        let wasted = hand("KQ765.A876.532.K");
+        assert_eq!(point_count(wasted), 13);
+        assert_eq!(point_count(wasted), raw_hcp(wasted) + 1);
+
+        set_point_scale(PointScale::Hcp);
+        assert_eq!(point_count(two_suiter), 9);
+
+        // Restore the shipped default for the rest of the suite.
+        set_point_scale(PointScale::PointCount);
+        assert_eq!(point_count(two_suiter), 11);
     }
 
     #[test]

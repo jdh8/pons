@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`PointScale` — the point-scale deprecation A/B knob.** A three-way
+  thread-local scale behind the global `point_count` scalar: `PointCount`
+  (legacy raw HCP + `upgrade`, the default — byte-identical system),
+  `Hcp` (raw Milton Work), and `RuleOfN` (raw HCP + two longest suit
+  lengths − 8, so a `points(12..)` gate is exactly the Rule of 20).
+  `set_point_scale` swaps gates, the constrained sampler's acceptance, and
+  the floor's combined counts together — one scale per seat, no
+  gates-vs-sampler confound (the deleted `set_new_point_count` precedent).
+  `set_fuzzy_points` survives as a wrapper (`false` = the `Hcp` arm).
+  `Hcp::project` gives its floor back 1 under `RuleOfN` (a flat 4-3-3-3
+  reads one under its HCP), keeping projection sound on every arm. Also
+  extracts `longest_two_suits`, de-triplicating the shape kernel shared by
+  `upgrade`, `new_point_count`, and `rule_of_20`. Knob only — no default
+  behavior change, no A/B verdict yet; the campaign ships separately.
+
 - **`pdd` — compact binary DD database format.** A `.pdd` file is an 8-byte
   magic (`ponsDD01`) plus fixed 34-byte rows — North/East/South as
   `Hand::to_bits` u64 words (West reconstructed) and the five trick rows as
