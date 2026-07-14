@@ -15,7 +15,8 @@
 
 use super::{call, insert_uncontested, slam};
 use crate::bidding::constraint::{
-    Cons, Constraint, balanced, described, hcp, len, point_count, points, stopper_in, top_honors,
+    Cons, Constraint, balanced, described, hcp, len, point_count, points, stopper_in,
+    support_point_count, support_points, top_honors,
 };
 use crate::bidding::{Alert, Context, Rules, Trie};
 use contract_bridge::auction::Call;
@@ -624,7 +625,8 @@ fn both_majors_relay_placement(major: Suit) -> Rules {
 /// is unknowable.  ([`both_majors_relay_placement`] adds it back where opener
 /// *did* show both majors.)
 fn fit_value(hand: Hand, major: Suit) -> usize {
-    usize::from(point_count(hand)) + hand[major].len().saturating_sub(4)
+    // Fit-known (the major is agreed), so count shortness as support value.
+    usize::from(support_point_count(hand)) + hand[major].len().saturating_sub(4)
 }
 
 /// Responder's placement over opener's max five-card-major jump (`3♥`/`3♠`)
@@ -1110,7 +1112,8 @@ fn texas_game_floor() -> usize {
 fn texas_strength_gate(major: Suit) -> Cons<impl Constraint + Clone> {
     let floor = texas_game_floor();
     described("six-card-major game blast", move |hand: Hand, _| {
-        usize::from(point_count(hand)) + hand[major].len() >= floor
+        // Fit-known: a 6-card major opposite 1NT's 2+ is an 8-card fit.
+        usize::from(support_point_count(hand)) + hand[major].len() >= floor
     })
 }
 
@@ -1196,7 +1199,8 @@ fn sixcard_invite_rebid(major: Suit) -> Rules {
         len(major, 6..)
             & len(other_major(major), ..5)
             & described("six-card invitational value", move |hand: Hand, _| {
-                usize::from(point_count(hand)) + hand[major].len() >= floor
+                // Fit-known: 6-card major opposite 1NT's 2+ is an 8-card fit.
+                usize::from(support_point_count(hand)) + hand[major].len() >= floor
             }),
     )
 }
@@ -1214,7 +1218,8 @@ fn accept_sixcard_invitation(major: Suit) -> Rules {
             Bid::new(4, Strain::from(major)),
             1.0,
             described("accept six-card invite", move |hand: Hand, _| {
-                usize::from(point_count(hand)) + hand[major].len() >= floor
+                // Fit-known: responder showed six, opener has 2+ — an 8-card fit.
+                usize::from(support_point_count(hand)) + hand[major].len() >= floor
             }),
         )
         .rule(Call::Pass, 0.0, hcp(0..))
@@ -1543,19 +1548,19 @@ fn transfer_spade_gf_rebid() -> Rules {
         .rule(
             Bid::new(4, Strain::Clubs),
             1.55,
-            len(Suit::Spades, 6..) & splinter_short(Suit::Clubs) & points(16..),
+            len(Suit::Spades, 6..) & splinter_short(Suit::Clubs) & support_points(16..),
         )
         .alert(SPLINTER)
         .rule(
             Bid::new(4, Strain::Diamonds),
             1.55,
-            len(Suit::Spades, 6..) & splinter_short(Suit::Diamonds) & points(16..),
+            len(Suit::Spades, 6..) & splinter_short(Suit::Diamonds) & support_points(16..),
         )
         .alert(SPLINTER)
         .rule(
             Bid::new(4, Strain::Hearts),
             1.55,
-            len(Suit::Spades, 6..) & splinter_short(Suit::Hearts) & points(16..),
+            len(Suit::Spades, 6..) & splinter_short(Suit::Hearts) & support_points(16..),
         )
         .alert(SPLINTER)
 }
@@ -1613,19 +1618,19 @@ fn transfer_heart_gf_rebid() -> Rules {
         .rule(
             Bid::new(3, Strain::Spades),
             1.55,
-            len(Suit::Hearts, 6..) & splinter_short(Suit::Spades) & points(16..),
+            len(Suit::Hearts, 6..) & splinter_short(Suit::Spades) & support_points(16..),
         )
         .alert(SPLINTER)
         .rule(
             Bid::new(4, Strain::Clubs),
             1.55,
-            len(Suit::Hearts, 6..) & splinter_short(Suit::Clubs) & points(16..),
+            len(Suit::Hearts, 6..) & splinter_short(Suit::Clubs) & support_points(16..),
         )
         .alert(SPLINTER)
         .rule(
             Bid::new(4, Strain::Diamonds),
             1.55,
-            len(Suit::Hearts, 6..) & splinter_short(Suit::Diamonds) & points(16..),
+            len(Suit::Hearts, 6..) & splinter_short(Suit::Diamonds) & support_points(16..),
         )
         .alert(SPLINTER)
         .rule(
@@ -1751,7 +1756,9 @@ fn is_major_splinter_slam(hand: Hand, major: Suit) -> bool {
     };
     active
         && hand[major].len() >= 6
-        && usize::from(point_count(hand)) >= 16
+        // Fit-known: 6-card major opposite 1NT's 2+ is an 8-card fit, and this
+        // hand has a side-suit splinter — count the shortness as support value.
+        && usize::from(support_point_count(hand)) >= 16
         && Suit::ASC
             .into_iter()
             .filter(|&suit| suit != major)
@@ -3698,6 +3705,15 @@ mod tests {
     #[test]
     fn sixcard_major_invite() {
         use crate::bidding::american::set_sixcard_invite_floor;
+        use crate::bidding::constraint::set_support_points;
+
+        // This exercises the invite *mechanism* (transfer → 3M invite → accept
+        // ladder), whose hands are calibrated to legacy `point_count` arithmetic
+        // in the comments below.  The shipped `support_points` scale reads these
+        // shaped six-card hands ~1 hotter, tipping some across the blast/accept
+        // boundaries — that shift is measured by the A/B and `test_support_points`,
+        // so pin the legacy scale here to test the ladder in isolation.
+        set_support_points(false);
 
         let one_nt = [bid(1, Strain::Notrump), P];
         // 6 hearts, ♥KQ + ♠J = 6 HCP, 6-3-2-2: point_count 7 (+1 unbalanced),
@@ -3763,6 +3779,7 @@ mod tests {
         assert_eq!(best(&after_spade, spade_inv), bid(3, Strain::Spades));
 
         set_sixcard_invite_floor(13); // restore the default (on)
+        set_support_points(true); // restore the shipped default
     }
 
     /// Over a natural (2♣) overcall of our 1NT we play *systems on*, not

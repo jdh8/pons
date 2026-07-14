@@ -166,14 +166,17 @@ fn single_raise_passed_without_extras() {
 fn limit_raise_accepted_and_declined() {
     let system = stance_with(false, true, false, false);
 
-    // AKxxx.Kxx.Kxx.xx: 13 HCP, balanced (5=3=3=2) = 13 points — the measured
-    // boundary: the floor's raise ladder accepts at 13+, and under-bidding it
-    // lost the A/B, so the authored accept matches.
-    let opener_accept = "AKxxx.Kxx.Kxx.xx";
-    // AKxxx.Kxx.Qxx.xx: 12 HCP, balanced (5=3=3=2) = 12 points — declines.
-    let opener_decline = "AKxxx.Kxx.Qxx.xx";
-    // Kxxx.Axx.Qxx.Jxx: 10 HCP, balanced (4=3=3=3) = 10 points, 4-card
-    // spade support, no shortness anywhere — a clean limit raise.
+    // AKxxx.Kxx.Qxx.xx: 12 HCP, 5=3=3=2.  Opposite the known 9-card fit the
+    // small club doubleton is a ruffing value, so support points read 13 (12 +
+    // the working doubleton) — right at the acceptance floor, so it accepts.
+    let opener_accept = "AKxxx.Kxx.Qxx.xx";
+    // AKxxx.Kxx.xxx.Qx: also 12 HCP, but the ♣Q sits *in* the doubleton — a
+    // wasted honor with no ruffing value, so support points stay 12, below the
+    // 13 floor, and it declines.  The two 12-counts differ only in where the
+    // shortness honor sits: that is exactly what support points price.
+    let opener_decline = "AKxxx.Kxx.xxx.Qx";
+    // Kxxx.Axx.Qxx.Jxx: 10 HCP, flat 4=3=3=3, 4-card spade support, no shortness
+    // anywhere — a clean 10-point limit raise (support points 10 == HCP).
     let responder = "Kxxx.Axx.Qxx.Jxx";
 
     for opener in [opener_accept, opener_decline] {
@@ -194,12 +197,12 @@ fn limit_raise_accepted_and_declined() {
     assert_eq!(
         best_call(&system, &auction, opener_accept),
         call(4, Strain::Spades),
-        "13 points accepts the limit raise to game"
+        "13 support points (12 HCP + a working doubleton) accepts to game"
     );
     assert_eq!(
         best_call(&system, &auction, opener_decline),
         Call::Pass,
-        "12 points is below the measured 13-point acceptance floor"
+        "12 support points (the doubleton honor wasted) is below the 13 floor"
     );
 }
 

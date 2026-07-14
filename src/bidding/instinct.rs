@@ -52,7 +52,7 @@ use super::Rules;
 use super::constraint::{
     Cons, Constraint, balanced, described, hcp, len, min_level_is, partner_shown_len,
     partner_suit_is, point_count, points, pred, short_in_their_suits, stopper_in_their_suits,
-    support, takeout_double_shape_ok, they_bid, top_honors,
+    support, support_point_count, takeout_double_shape_ok, they_bid, top_honors,
 };
 use super::context::Context;
 use super::inference::Inferences;
@@ -61,7 +61,6 @@ use contract_bridge::auction::Call;
 use contract_bridge::eval::hcp as holding_hcp;
 use contract_bridge::{Bid, Hand, Penalty, Rank, Strain, Suit};
 use core::cell::Cell;
-use core::num::NonZero;
 
 /// The per-call alert for responder's gambling 3NT over a double of our 1NT: a
 /// long minor run, *not* a natural balanced 3NT.  Marks the call artificial so
@@ -282,25 +281,22 @@ std::thread_local! {
 
     /// Combined-points floor at which the floor bids a major game on a known
     /// eight-plus fit, *counting the trump length as points* — the total-tricks
-    /// yardstick where a ninth trump ≈ a point (A/B knob; see
-    /// [`set_fit_sum_game`]).  `Some(t)` reaches game when
+    /// yardstick where a ninth trump ≈ a point (threshold knob; see
+    /// [`set_fit_sum_game`]).  Game once
     /// `own_points + partner.points.min + (own_len + partner_shown_len) >= t`, so
     /// an eight-card fit games at `t - 8` combined, a nine-card fit at `t - 9`, a
     /// ten-card fit at `t - 10` — strictly lighter as the fit lengthens.  Default
     /// `31` is the dual-metric peak of a swept boundary (34→31 each a CI-clean
     /// plain-DD gain with perfect defense tracking; at 30 the NV perfect-defense
-    /// line turns negative — a doubling artifact).  `0` (→ `None`) restores the
-    /// flat `combined_points(25)` gate.
+    /// line turns negative — a doubling artifact).  Proven default-on, so there is
+    /// no off-state — the threshold is always armed.
     ///
     /// FLIP-TIME TODO: bump this default `31` → `32` when
-    /// [`set_new_point_count`][crate::bidding::constraint::set_new_point_count]
-    /// goes default-on — the hotter scale double-counts `own_len` (which the gate
-    /// re-adds), moving the PD peak up one notch (re-probe 2026-07-14, marginal:
+    /// [`support_points`][crate::bidding::constraint::set_support_points] goes
+    /// default-on — the gate reads `support_point_count`, which runs a shaped hand
+    /// hotter, moving the PD peak up one notch (re-probe 2026-07-14, marginal:
     /// 31→32 PD +0.008/+0.005; docs/point-count-threshold-campaign.md roster).
-    /// Not wired scale-conditional on purpose: the A/B knob must still measure a
-    /// literal threshold under either scale, and the flip re-tunes every gate at
-    /// once — this is one line in that batch.
-    static FIT_SUM_GAME: Cell<Option<NonZero<u8>>> = const { Cell::new(NonZero::new(31)) };
+    static FIT_SUM_GAME: Cell<u8> = const { Cell::new(31) };
 }
 
 /// Responder runs from a doubled 1NT below this many HCP; with more, 1NT-X
@@ -510,11 +506,11 @@ pub fn set_floor_slam_entry(threshold: u8) {
 
 /// The combined-points floor at which the floor bids a major game on a known
 /// eight-plus fit, counting the trump length as points (see [`FIT_SUM_GAME`]).
-/// For A/B measurement: `0` disables (the flat `combined_points(25)` gate);
-/// any `t` arms the fit-length-adjusted evaluator (the shipped default is `31`).
+/// For A/B measurement of the threshold itself — the shipped default is `31`;
+/// the `support_points` flip re-probes `32`.
 #[doc(hidden)]
 pub fn set_fit_sum_game(threshold: u8) {
-    FIT_SUM_GAME.with(|cell| cell.set(NonZero::new(threshold)));
+    FIT_SUM_GAME.with(|cell| cell.set(threshold));
 }
 
 /// Suppress (or not) the strong-1NT responder's 3NT game force over a double of
@@ -1179,9 +1175,15 @@ fn has_fit(hand: Hand, context: &Context<'_>) -> bool {
 /// the cheap take-out a bust owes partner's double.
 fn free_bid_gate(level: u8) -> Cons<impl Constraint + Clone> {
     pred(move |hand: Hand, context: &Context<'_>| {
-        level < 4
-            || !SETTLE_FLOOR.with(Cell::get)
-            || (point_count(hand) >= 11 && !has_fit(hand, context))
+        // No fit here (`!has_fit`), so raw HCP — not `point_count`, whose
+        // distributional upgrade is a ruffing value that only counts opposite a
+        // trump fit (the `support_points` rule of thumb, applied to the legacy
+        // upgrade too).
+        let raw_hcp: u8 = Suit::ASC
+            .iter()
+            .map(|&suit| holding_hcp::<u8>(hand[suit]))
+            .sum();
+        level < 4 || !SETTLE_FLOOR.with(Cell::get) || (raw_hcp >= 11 && !has_fit(hand, context))
     })
 }
 
@@ -1631,35 +1633,32 @@ fn combined_points(threshold: u8) -> Cons<impl Constraint + Clone> {
 /// RKCB-ask threshold per call, matching the other floor knobs.
 fn slam_entry_reached() -> Cons<impl Constraint + Clone> {
     pred(|hand: Hand, context: &Context<'_>| {
+        // Fit-known: the RKCB ask only fires on a shown trump, so count
+        // shortness as support value (`support_point_count`).
         let partner_min = Inferences::read(context).partner().points.min;
-        u16::from(point_count(hand)) + u16::from(partner_min)
+        u16::from(support_point_count(hand)) + u16::from(partner_min)
             >= u16::from(FLOOR_SLAM_ENTRY.with(Cell::get))
     })
 }
 
 /// The major-game gate that counts trump length as points (see [`FIT_SUM_GAME`]).
 ///
-/// When the [`FIT_SUM_GAME`] knob is off (`None`) this is exactly
-/// [`combined_points`]`(25)` — the pre-knob floor.  Armed (`Some(t)`, default
-/// `31`) it folds the known combined trump length — our holding in `suit`
-/// plus partner's shown floor, the same sum [`known_eight_card_fit`] gates on —
-/// into the point total: game once `own_points + partner.points.min + fit >= t`.
-/// A ninth trump then buys game a point cheaper, a tenth two.  Partner's *minimum*
-/// length and points keep it a sound floor, never an overbid.  The eight-card-fit
-/// gate still lives on the rule's [`known_eight_card_fit`]; this only moves the
-/// point boundary.
+/// Folds the known combined trump length — our holding in `suit` plus partner's
+/// shown floor, the same sum [`known_eight_card_fit`] gates on — into the point
+/// total: game once `own_points + partner.points.min + fit >= t` (default `t =
+/// 31`).  A ninth trump then buys game a point cheaper, a tenth two.  Partner's
+/// *minimum* length and points keep it a sound floor, never an overbid.  The
+/// eight-card-fit gate still lives on the rule's [`known_eight_card_fit`]; this
+/// only moves the point boundary.
 fn fit_sum_game(suit: Suit) -> Cons<impl Constraint + Clone> {
     pred(move |hand: Hand, context: &Context<'_>| {
+        // Fit-known (the rule pairs this with `known_eight_card_fit`), so count
+        // shortness as support value (`support_point_count`).
         let inferences = Inferences::read(context);
-        let combined = u16::from(point_count(hand)) + u16::from(inferences.partner().points.min);
-        match FIT_SUM_GAME.with(Cell::get) {
-            None => combined >= 25,
-            Some(threshold) => {
-                let fit =
-                    hand[suit].len() as u16 + u16::from(inferences.partner().length(suit).min);
-                combined + fit >= u16::from(threshold.get())
-            }
-        }
+        let combined =
+            u16::from(support_point_count(hand)) + u16::from(inferences.partner().points.min);
+        let fit = hand[suit].len() as u16 + u16::from(inferences.partner().length(suit).min);
+        combined + fit >= u16::from(FIT_SUM_GAME.with(Cell::get))
     })
 }
 
@@ -2894,8 +2893,7 @@ pub fn instinct() -> Rules {
         );
         // A ninth or tenth trump counts as points here: `fit_sum_game` reaches
         // game once own points + partner's shown floor + the combined trump length
-        // clear the [`FIT_SUM_GAME`] threshold (default 31).  Disarmed (`0`) it is
-        // exactly `combined_points(25)`, reproducing `game_values` byte-for-byte.
+        // clear the [`FIT_SUM_GAME`] threshold (default 31).
         rules = rules.rule(
             Bid::new(4, strain),
             1.50,
@@ -3850,15 +3848,10 @@ mod tests {
     fn fit_sum_game_counts_trump_length_toward_game() {
         // Partner opened a weak 2♠ (a known six-card suit); RHO passed.  We hold a
         // strong 19-count with three-card spade support — a known nine-card fit
-        // (3 + 6).  Combined points are 24 (our 19 + partner's shown floor of 5),
-        // one shy of the flat 25-point game gate, so the off floor invites with
-        // 3♠.  The fit-sum is 24 + 9 = 33.
+        // (3 + 6).  Combined points are 24 (our 19 + partner's shown floor of 5)
+        // and the fit-sum is 24 + 9 = 33.
         let auction = [call(2, Strain::Spades), Call::Pass];
         let raise = "AK4.AQ2.KJ32.Q92";
-
-        // Off: the flat combined_points(25) gate — 24 < 25, so 3♠.
-        set_fit_sum_game(0);
-        assert_eq!(best(&auction, raise), call(3, Strain::Spades));
 
         // Armed at 31 (the default): the ninth trump counts as points (fit-sum
         // 33 ≥ 31), lifting the hand to the major-suit game.
@@ -4773,10 +4766,17 @@ mod tests {
 
     #[test]
     fn preempt_4m_over_double_jumps_the_long_major() {
+        use crate::bidding::constraint::set_support_points;
         set_one_nt_runout(true);
         set_preempt_4m_over_double(true);
         set_preempt_4m_top_honors(2);
         set_preempt_4m_require_ace(true);
+        // Pin the legacy scale: these 6-count runout hands have a known 8-card
+        // fit (six-card major opposite the 1NT), so under the shipped
+        // `support_points` scale their extra shortness tips the fit-sum floor to
+        // game — masking the trump-ace / semi-solid escape gates this test checks.
+        // The scale shift itself is measured by the A/B.
+        set_support_points(false);
         let doubled = [call(1, Strain::Notrump), Call::Double];
 
         // A semi-solid six-card major headed by the trump ace jumps to its game.
@@ -4799,6 +4799,7 @@ mod tests {
         set_preempt_4m_top_honors(2);
         set_preempt_4m_over_double(false);
         set_one_nt_runout(true);
+        set_support_points(true); // restore the shipped default
     }
 
     #[test]

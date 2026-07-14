@@ -35,9 +35,10 @@ fn responder_signs_off_in_the_major_game_with_a_fit() {
 fn responder_invites_with_a_fit_and_eight() {
     let system = stance();
     let auction = after_stayman(&[call(2, Strain::Hearts)]);
-    // Four hearts, a bare 8: invitational raise to 3♥.
+    // Four hearts, a flat 8 with no shortness: support points stay 8 (no ruffing
+    // upgrade opposite the fit), an invitational raise to 3♥.
     assert_eq!(
-        best_call(&system, &auction, "xxx.KQxx.Kxxx.xx"),
+        best_call(&system, &auction, "xxx.KQxx.Kxx.xxx"),
         call(3, Strain::Hearts),
     );
 }
@@ -282,9 +283,10 @@ fn garbage_weak_both_majors_staymans() {
 #[test]
 fn garbage_responder_passes_opener_answer() {
     let system = stance_with(true, false, false);
-    // Same weak hand: over opener's 2♥ it sits in the 4-4 fit (drop-dead).
+    // A weak 4-4-major hand: over opener's 2♥ it sits in the 4-4 fit (drop-dead).
+    // Flat (no ruffing shortness), so support points stay 7 — below the invite floor.
     let auction = after_stayman(&[call(2, Strain::Hearts)]);
-    assert_eq!(best_call(&system, &auction, "Qxxx.Jxxx.Kxxx.x"), P);
+    assert_eq!(best_call(&system, &auction, "Qxxx.Jxxx.Kxx.xx"), P);
 }
 
 #[test]

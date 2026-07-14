@@ -1,5 +1,14 @@
 # Point-count threshold campaign
 
+> **Superseded (2026-07-14).** The global `set_new_point_count` flip this campaign
+> was written to re-tune is **deleted**. Its durable, fit-known fraction shipped
+> instead as `support_points` — a named, fit-known-only evaluator (HCP + useful
+> shortness) wired into the raise / fit-raise / floor-fit-sum gates, default on
+> (plain DD +0.033/+0.053, PD +0.005/+0.020, sd-lead +0.052, all CIs clear 0).
+> Scoping to fit-known dodged "Root A" by construction — no gate-by-gate re-tune
+> needed — so this campaign is closed. Root B (ceilings/holes) and the marginal
+> `FIT_SUM_GAME` 31→32 re-probe remain open follow-ups under `support_points`.
+
 ## Why this exists
 
 On 2026-07-14 the `pons` engine gained an opt-in `hcp_plus`-based

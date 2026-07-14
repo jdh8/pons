@@ -2,27 +2,24 @@
 //! duplicate match.
 //!
 //! The floor reaches a major game on a *known* eight-plus fit once the combined
-//! minimum reaches a flat point floor (`combined_points(25)`).  The
-//! [`set_fit_sum_game`][pons::bidding::instinct::set_fit_sum_game] knob folds the
-//! known trump length into that total — the total-tricks yardstick where a ninth
-//! trump ≈ a point, so a nine-card fit games a point cheaper and a ten-card fit
-//! two cheaper.  An eight-card fit games at the shipped default `31` gate
-//! (`23 + 8`); this A/B sweeps the boundary — vs `0` (off) to re-derive the
-//! floor, or adjacent thresholds (`31` vs `32`) to isolate a one-point move.
+//! minimum reaches the
+//! [`set_fit_sum_game`][pons::bidding::instinct::set_fit_sum_game] threshold,
+//! which folds the known trump length into the point total — the total-tricks
+//! yardstick where a ninth trump ≈ a point, so a nine-card fit games a point
+//! cheaper and a ten-card fit two cheaper.  An eight-card fit games at the shipped
+//! default `31` gate (`23 + 8`); this A/B sweeps the boundary between adjacent
+//! thresholds (`31` vs `32`) to isolate a one-point move.
 //!
-//! `--new-point-count` arms the opt-in `hcp_plus`
-//! [`point_count`][pons::bidding::constraint::set_new_point_count] scale on
-//! *both* sides (the ambient environment, not the treatment): the fit-sum gate's
-//! total is `point_count + partner.min + own_len + partner_shown_len`, and
-//! `point_count` reads shaped hands hotter under the new scale — re-tune the
-//! threshold for it (docs/point-count-threshold-campaign.md).  Note the new
-//! scale carries a long-suit-length term while the gate re-adds `own_len`, so a
-//! fitted hand's trump length is counted twice; the sweep prices whether that
-//! double-count warrants inflating the gate.
+//! `--support-points` arms the opt-in `hcp_plus`
+//! [`support_points`][pons::bidding::constraint::set_support_points] scale on
+//! *both* sides (the ambient environment, not the treatment): once `fit_sum_game`
+//! gauges `support_point_count`, its total is
+//! `support_point_count + partner.min + own_len + partner_shown_len`, and the new
+//! scale reads shaped hands hotter — re-tune the threshold upward for it (31→32,
+//! docs/point-count-threshold-campaign.md).
 //!
-//! The feature side runs the armed `--threshold`; the baseline side stays off
-//! (`0` — the flat `combined_points(25)` gate, byte-identical to the shipped
-//! floor) or another threshold.  Each board is bid twice, duplicate style: at
+//! The feature side runs the armed `--threshold`; the baseline side runs
+//! `--baseline` (the shipped `31` by default).  Each board is bid twice, duplicate style: at
 //! table A the feature pair sits North/South against a baseline pair, at table B
 //! the teams swap seats.  The per-call thread-local flip serves both stances from
 //! one book.  Divergent boards are scored two ways from the same DD table:
@@ -32,7 +29,7 @@
 //!
 //! ```text
 //! cargo run --release --example ab-fit-sum-game -- --count 200000 --threshold 33
-//! cargo run --release --example ab-fit-sum-game -- --count 200000 --new-point-count --threshold 32 --baseline 31
+//! cargo run --release --example ab-fit-sum-game -- --count 200000 --support-points --threshold 32 --baseline 31
 //! cargo run --release --example ab-fit-sum-game -- --count 20000 --threshold 33 --vulnerability both --show 8
 //! ```
 
@@ -43,7 +40,7 @@ use contract_bridge::{AbsoluteVulnerability, FullDeal, Seat};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::Accumulator;
 use pons::american;
-use pons::bidding::constraint::set_new_point_count;
+use pons::bidding::constraint::set_support_points;
 use pons::bidding::instinct::set_fit_sum_game;
 use pons::bidding::{Family, Stance};
 use pons::scoring::{final_contract, imps, ns_score_contract, ns_score_pd};
@@ -67,14 +64,14 @@ struct Args {
     #[arg(short, long, default_value = "33")]
     threshold: u8,
 
-    /// The reference threshold for the baseline side (0 = off, the flat 25-gate)
-    #[arg(short, long, default_value = "0")]
+    /// The reference threshold for the baseline side (the shipped default 31)
+    #[arg(short, long, default_value = "31")]
     baseline: u8,
 
-    /// Arm the opt-in `hcp_plus` point-count scale on both sides (the ambient
+    /// Arm the opt-in `hcp_plus` support-points scale on both sides (the ambient
     /// environment the threshold is re-tuned for; the treatment stays the gate)
     #[arg(long, default_value_t = false)]
-    new_point_count: bool,
+    support_points: bool,
 
     /// Vulnerability: none, ns, ew, both
     #[arg(short, long, default_value = "none")]
@@ -112,7 +109,7 @@ fn bid_out(
         set_fit_sum_game(threshold);
         // The point-count scale is the shared environment, not the treatment:
         // arm it identically for both sides so only the threshold differs.
-        set_new_point_count(args.new_point_count);
+        set_support_points(args.support_points);
         auction.push(next_call(
             stance,
             deal[seat],

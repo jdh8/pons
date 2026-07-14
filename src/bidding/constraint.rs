@@ -471,21 +471,19 @@ std::thread_local! {
     static FUZZY_FIFTHS: Cell<bool> = const { Cell::new(false) };
     /// The honor count averaged with Fifths in [`fifths`] (BUM-RAP won the A/B)
     static FIFTHS_COMPANION: Cell<FifthsCompanion> = const { Cell::new(FifthsCompanion::Bumrap) };
-    /// Whether [`point_count`] evaluates `hcp_plus`-based points (HCP plus
+    /// Whether [`support_points`] gauges the `hcp_plus`-based scale (HCP plus
     /// useful shortness, after BBO GIB) instead of the legacy
-    /// raw-HCP-plus-[`upgrade`] scale. **Default off (opt-in).** The scale is a
-    /// measured win under the realistic single-dummy-lead scorer —
-    /// +0.279/+0.293 IMPs/board (NV/vul, 50k boards/vul,
-    /// `examples/ab-point-count --sd`) — but it reads ~1-3 points higher on
-    /// every *shaped* hand (each doubleton/singleton adds, so even a plain
-    /// 6-3-2-2 inflates), pushing shaped hands past invite/game/max thresholds
-    /// that authored `points(..)` gates still denominate in the legacy scale.
-    /// It stays off until the threshold campaign re-tunes those gates
-    /// (docs/point-count-threshold-campaign.md); `set_new_point_count(true)`
-    /// flips it on. The [`Points`] constraint reads this same flag (via
-    /// [`point_count`]) so the rule-projection soundness invariant
-    /// (docs/ai-bidder/rule-projection.md) holds under either setting.
-    static NEW_POINT_COUNT: Cell<bool> = const { Cell::new(false) };
+    /// raw-HCP-plus-[`upgrade`] [`point_count`]. **Default on.** Shortness is a
+    /// ruffing value, real only once a trump fit exists, so the scale is scoped
+    /// to the **fit-known** gates only ([`support_points`], never the global
+    /// [`point_count`]) — the fit-unknown gates keep legacy [`points`] untouched.
+    /// A measured win on every scorer (`examples/ab-point-count`, 200k–500k
+    /// boards/vul): plain DD +0.033/+0.054, perfect defense +0.005/+0.020,
+    /// sd-lead +0.052 (NV/vul) — all CIs clearing zero.  The unscoped global
+    /// flip won bigger (sd-lead +0.28) but broke legacy gates on shaped hands
+    /// before a fit; this captures the fit-known fraction without that
+    /// regression.  `set_support_points(false)` is the A/B off arm.
+    static SUPPORT_POINTS: Cell<bool> = const { Cell::new(true) };
 }
 
 /// Enable or disable fuzzy strength on the current thread
@@ -519,13 +517,12 @@ pub fn set_fifths_companion(companion: FifthsCompanion) {
     FIFTHS_COMPANION.with(|cell| cell.set(companion));
 }
 
-/// Enable or disable the `hcp_plus`-based [`point_count`] scale on the
-/// current thread. **Default off** (opt-in, pending the threshold campaign);
-/// enable to run the candidate scale or to measure it against the legacy
-/// raw-HCP-plus-[`upgrade`] scale.
+/// Enable or disable the `hcp_plus`-based [`support_points`] scale on the
+/// current thread. **Default on** (the shipped fit-known shortness scale);
+/// `false` is the A/B off arm that gauges legacy [`point_count`] instead.
 #[doc(hidden)]
-pub fn set_new_point_count(enabled: bool) {
-    NEW_POINT_COUNT.with(|flag| flag.set(enabled));
+pub fn set_support_points(enabled: bool) {
+    SUPPORT_POINTS.with(|flag| flag.set(enabled));
 }
 
 /// Raw high card points of a hand
@@ -627,30 +624,24 @@ pub fn upgrade(hand: Hand) -> u8 {
 /// [`points`] constraint gauges and the scale [`Inferences`] records its point
 /// ranges on
 ///
-/// **Defaults to the legacy raw-HCP-plus-[`upgrade`] scale**;
-/// [`set_new_point_count(true)`][set_new_point_count] switches to the
-/// `hcp_plus`-based candidate ([`eval::hcp_plus`] plus a bare long-suit term —
-/// opt-in pending the threshold campaign, docs/point-count-threshold-campaign.md).
-/// A reader that needs the value rather than a range — constrained sampling,
-/// for one — shares this single definition so it can never drift from the
-/// ranges it checks against, and [`points`] gauges it directly so the two can
-/// never disagree (the only exception is the legacy scale with `fuzzy_points`
-/// off, an A/B-only degrade to raw HCP).
+/// The **legacy raw-HCP-plus-[`upgrade`] scale**.  A reader that needs the value
+/// rather than a range — constrained sampling, for one — shares this single
+/// definition so it can never drift from the ranges it checks against, and
+/// [`points`] gauges it directly so the two can never disagree (the only
+/// exception is `fuzzy_points` off, an A/B-only degrade to raw HCP).  The
+/// fit-known shortness scale rides on [`support_point_count`] instead.
 ///
 /// [`Inferences`]: super::inference::Inferences
 #[must_use]
 pub fn point_count(hand: Hand) -> u8 {
-    if NEW_POINT_COUNT.with(Cell::get) {
-        new_point_count(hand)
-    } else {
-        raw_hcp(hand) + upgrade(hand)
-    }
+    raw_hcp(hand) + upgrade(hand)
 }
 
-/// The `hcp_plus`-based [`point_count`] scale: `hcp_plus` (HCP plus useful
-/// shortness, see [`eval::hcp_plus`]) plus the bare long-suit length term.
-/// Closer to BBO GIB's point count than the legacy raw-HCP-plus-[`upgrade`]
-/// scale it replaces.
+/// The `hcp_plus`-based scale [`support_points`] gauges when its flag is on:
+/// `hcp_plus` (HCP plus useful shortness, see [`eval::hcp_plus`]) plus the bare
+/// long-suit length term (two longest suits ≥10 cards ≈ an almost-certain double
+/// fit).  Closer to BBO GIB's point count than the legacy
+/// raw-HCP-plus-[`upgrade`] [`point_count`].
 fn new_point_count(hand: Hand) -> u8 {
     let mut lengths = Suit::ASC.map(|suit| hand[suit].len());
     lengths.sort_unstable();
@@ -664,13 +655,13 @@ struct Points<R>(R);
 
 impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for Points<R> {
     fn eval(&self, hand: Hand, _: &Context<'_>) -> f32 {
-        // On the legacy scale, `fuzzy_points` off drops the upgrade to raw HCP
-        // — its historical A/B role.  Every other case equals `point_count`, so
-        // the sampler's soundness invariant holds on the active scale.
-        let value = if !NEW_POINT_COUNT.with(Cell::get) && !FUZZY_POINTS.with(Cell::get) {
-            raw_hcp(hand)
-        } else {
+        // `fuzzy_points` off drops the upgrade to raw HCP — its historical A/B
+        // role.  Otherwise this equals `point_count`, so the sampler's soundness
+        // invariant holds.
+        let value = if FUZZY_POINTS.with(Cell::get) {
             point_count(hand)
+        } else {
+            raw_hcp(hand)
         };
         crisp(self.0.contains(&value))
     }
@@ -697,6 +688,59 @@ impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for Points<R> {
 #[must_use]
 pub fn points(range: impl RangeBounds<u8> + Clone + Send + Sync) -> Cons<impl Constraint + Clone> {
     Cons(Points(range))
+}
+
+/// [`point_count`] on the fit-known shortness scale when [`set_support_points`]
+/// is on, else legacy [`point_count`] — the value-level dual of [`support_points`]
+///
+/// Only fit-known gates gauge this: a trump fit is known, so counting shortness
+/// as support value is sound.  The flag-off default equals [`point_count`], so a
+/// gate swapped from [`points`] to [`support_points`] is byte-identical by
+/// default.
+#[must_use]
+pub fn support_point_count(hand: Hand) -> u8 {
+    if SUPPORT_POINTS.with(Cell::get) {
+        new_point_count(hand)
+    } else {
+        point_count(hand)
+    }
+}
+
+/// [`support_point_count`] in a range (the [`support_points`] constraint)
+#[derive(Clone)]
+struct SupportPoints<R>(R);
+
+impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for SupportPoints<R> {
+    fn eval(&self, hand: Hand, _: &Context<'_>) -> f32 {
+        crisp(self.0.contains(&support_point_count(hand)))
+    }
+
+    fn describe(&self) -> Description {
+        describe_int_range(&self.0, "support points")
+    }
+
+    fn project(&self, _: &Context<'_>) -> Inference {
+        // ponytail: unknown() until the sampler needs the floor; see
+        // docs/ai-bidder/rule-projection.md.  With the flag on this reads the new
+        // scale while every other gate's ranges are recorded on legacy
+        // `point_count`, and `new_point_count` is not a lower bound on it (graded
+        // shortness can exceed the coarse `upgrade`), so projecting a floor the
+        // way `Points::project` does would be unsound.  Claim nothing.
+        Inference::unknown()
+    }
+}
+
+/// [`support_point_count`] in the given range — the fit-known counterpart to
+/// [`points`]
+///
+/// Wire this into a gate only when a trump fit is known; it counts shortness as
+/// support value, unsound before a fit.  The invariant is grep-able:
+/// `support_points` in a gate ⟹ a fit is known.
+#[must_use]
+pub fn support_points(
+    range: impl RangeBounds<u8> + Clone + Send + Sync,
+) -> Cons<impl Constraint + Clone> {
+    Cons(SupportPoints(range))
 }
 
 /// Fifths in a range (the [`fifths`] constraint)
@@ -1721,9 +1765,9 @@ mod tests {
     fn test_points_and_fifths() {
         let context = empty_context();
 
-        // This test exercises the legacy raw-HCP-plus-upgrade scale
-        // specifically; the shipped scale is covered by `test_new_point_count`.
-        set_new_point_count(false);
+        // This test exercises the legacy raw-HCP-plus-upgrade scale — now the
+        // only `point_count` scale; the fit-known candidate rides on
+        // `support_points` (see `test_support_points`).
 
         // 9 HCP, clean 5-5: counts as 11 upgraded points.
         let two_suiter = hand("KQ765.A8765.32.2");
@@ -1747,34 +1791,38 @@ mod tests {
         // CCCC of this 4333 is 14.90 (oracle-verified in contract-bridge).
         assert_pass(cccc_at_least(14.9).eval(hand("AQ32.K53.QJ4.A92"), &context));
         assert_reject(cccc_at_least(15.0).eval(hand("AQ32.K53.QJ4.A92"), &context));
-
-        set_new_point_count(true); // restore the shipped default
     }
 
     #[test]
-    fn test_new_point_count() {
+    fn test_support_points() {
         let context = empty_context();
 
         // 9 HCP, clean 5-5-2-1.  The candidate scale counts hcp_plus (useful
         // shortness: +1 doubleton, +2 singleton) plus the long-suit term:
-        // 9 + 1 + 2 + 1 = 13, above the legacy raw-HCP-plus-upgrade of 11.  The
-        // scale is opt-in (default off), so enable it explicitly.
+        // 9 + 1 + 2 + 1 = 13, above the legacy raw-HCP-plus-upgrade of 11.
         let two_suiter = hand("KQ765.A8765.32.2");
-        set_new_point_count(true);
-        assert_eq!(point_count(two_suiter), 13);
-        assert_pass(points(13..=13).eval(two_suiter, &context));
-        assert_reject(points(..=12).eval(two_suiter, &context));
 
-        set_new_point_count(false);
-        assert_eq!(point_count(two_suiter), 11);
-        assert_pass(points(11..=11).eval(two_suiter, &context));
+        // Off (the A/B baseline arm): byte-identical to the legacy `point_count`
+        // that `points` gauges — a gate swapped `points`→`support_points` doesn't
+        // move.
+        set_support_points(false);
+        assert_eq!(support_point_count(two_suiter), point_count(two_suiter));
+        assert_eq!(support_point_count(two_suiter), 11);
+        assert_pass(support_points(11..=11).eval(two_suiter, &context));
+
+        // On (the shipped default): the hotter hcp_plus scale, strictly above
+        // legacy for a shaped hand (the singleton and doubleton now add).
+        set_support_points(true);
+        assert_eq!(support_point_count(two_suiter), 13);
+        assert!(support_point_count(two_suiter) > point_count(two_suiter));
+        assert_pass(support_points(13..=13).eval(two_suiter, &context));
+        assert_reject(support_points(..=12).eval(two_suiter, &context));
 
         // Flat hands carry no useful shortness, so the two scales agree.
         let flat = hand("AQ32.K53.QJ4.A92"); // 16 HCP, 4-3-3-3
-        set_new_point_count(true);
-        assert_eq!(point_count(flat), 16);
-        set_new_point_count(false); // restore the shipped (opt-in-off) default
-        assert_eq!(point_count(flat), 16);
+        assert_eq!(support_point_count(flat), 16);
+        assert_eq!(support_point_count(flat), point_count(flat));
+        // Left on — the shipped default — for the rest of the suite.
     }
 
     #[test]
@@ -1802,8 +1850,8 @@ mod tests {
         let context = empty_context();
         let two_suiter = hand("KQ765.A8765.32.2");
 
-        // This toggle only governs the legacy raw-HCP-plus-upgrade scale.
-        set_new_point_count(false);
+        // This toggle governs the legacy raw-HCP-plus-upgrade scale `points`
+        // now always gauges.
         set_fuzzy_strength(false);
         // Raw HCP: 9 points, and fifths degrades to raw HCP too.
         assert_pass(points(9..=9).eval(two_suiter, &context));
@@ -1815,8 +1863,6 @@ mod tests {
         // tests.
         set_fuzzy_points(true);
         assert_pass(points(11..=11).eval(two_suiter, &context));
-
-        set_new_point_count(true); // restore the shipped default
     }
 
     #[test]

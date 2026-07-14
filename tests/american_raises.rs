@@ -10,9 +10,11 @@ fn test_splinter_over_one_spade() {
     let system = stance();
     let after_1s = &[call(1, Strain::Spades), Call::Pass][..];
 
-    // 11 HCP, singleton heart, four-card spade support -> 4♥ splinter.
+    // 10 HCP, singleton heart, four-card spade support -> support points 12 (the
+    // singleton adds 2 opposite the fit), still below the 13 Jacoby crossover, so
+    // it splinters -> 4♥.
     assert_eq!(
-        best_call(&system, after_1s, "KQ52.8.A9762.Q43"),
+        best_call(&system, after_1s, "KQ52.8.A9762.J43"),
         call(4, Strain::Hearts),
     );
     // 14 HCP, singleton heart, four-card support -> Jacoby 2NT outranks splinter at 13+.

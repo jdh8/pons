@@ -1,10 +1,11 @@
-//! Measure the candidate [`point_count`][pons::bidding::constraint::point_count]
-//! scale: an A/B duplicate match of raw-HCP-plus-[`upgrade`] (shipped) against
-//! `hcp_plus` (HCP plus useful shortness) plus the bare long-suit length term.
-//! Each board is bid twice, duplicate style: at table A the candidate pair sits
-//! North/South against a pair evaluating the shipped scale (table B swaps
-//! seats). The
-//! [`set_new_point_count`][pons::bidding::constraint::set_new_point_count]
+//! Measure the fit-known
+//! [`support_points`][pons::bidding::constraint::support_points] scale: an A/B
+//! duplicate match of legacy [`point_count`][pons::bidding::constraint::point_count]
+//! (shipped) against `hcp_plus` (HCP plus useful shortness) plus the bare
+//! long-suit length term, wired into the fit-known gates only.  Each board is
+//! bid twice, duplicate style: at table A the candidate pair sits North/South
+//! against a pair on the shipped scale (table B swaps seats). The
+//! [`set_support_points`][pons::bidding::constraint::set_support_points]
 //! ablation hook flips the scale per acting side. Boards whose two auctions
 //! reach different contracts are solved double dummy once and scored with
 //! plain DD and perfect defense; `--sd` adds the blind-lead single-dummy
@@ -21,7 +22,7 @@ use contract_bridge::auction::{Auction, Call};
 use contract_bridge::{AbsoluteVulnerability, Contract, FullDeal, Hand, Seat};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
-use pons::bidding::constraint::set_new_point_count;
+use pons::bidding::constraint::set_support_points;
 use pons::bidding::context::relative;
 use pons::bidding::{Family, Inferences, Stance, System};
 use pons::scoring::{final_contract, imps};
@@ -109,7 +110,7 @@ fn bid_out(
     while !auction.has_ended() {
         let seat = seat_to_act(dealer, auction.len());
         let seat_is_ns = matches!(seat, Seat::North | Seat::South);
-        set_new_point_count(seat_is_ns == candidate_is_ns);
+        set_support_points(seat_is_ns == candidate_is_ns);
         auction.push(next_call(stance, deal[seat], dealer, vul, &auction));
     }
     auction

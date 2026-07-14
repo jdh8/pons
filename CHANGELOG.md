@@ -9,36 +9,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **Opt-in `hcp_plus` point-count scale (`set_new_point_count`, default off).**
-  Wires an alternative `point_count` scale — `hcp_plus` (HCP + useful shortness)
-  plus a bare long-suit-length term, closer to BBO GIB — behind a thread-local
-  flag, unifies the `points()` constraint on it (so it can never drift from the
-  scale the sampler and `Inferences` read), and adds an `--sd` blind-lead
-  bracket to `examples/ab-point-count`. Measured a clear win under the realistic
-  single-dummy-lead scorer: **+0.279 / +0.293 IMPs/board (NV/vul)**, 50k
-  boards/vul, CIs excluding 0 (plain DD +0.104/+0.058; the perfect-defense
-  −0.363/−0.443 is a DD-pessimism artifact on part-scores, where DD finds a
-  killing lead no real defender does). **Default off**: the scale reads ~1–3
-  higher on every *shaped* hand, so flipping it on pushes shaped hands past the
-  invite/game/max thresholds that authored `points(..)` gates still denominate
-  in the old scale — a scatter of over-aggressions across ~23 tests. It stays
-  opt-in until the threshold campaign (docs/point-count-threshold-campaign.md)
-  re-tunes those gates: mostly a raw-HCP swap on the weak/preemptive gates
-  (shortness is not a value before a fit is known), plus a few ceiling
-  re-denominations. Production system byte-identical.
+- **`support_points` — a fit-known-only shortness evaluator, default on.**
+  Introduces `support_points` / `support_point_count` — HCP plus useful shortness
+  (`hcp_plus`, after BBO GIB) plus a bare long-suit term for the near-certain
+  double fit — and wires it into the **fit-known** gates only: opener's and
+  responder's raises (single / limit / Jacoby 2NT / splinter / inverted-minor),
+  the Stayman / transfer / six-card-major fit raises, and the instinct floor's
+  fit-sum game and slam-entry gates. Shortness is a *ruffing value*, real only
+  once a trump fit exists (the house rule: `points` only with a known fit), so
+  every fit-*unknown* gate keeps legacy `points` untouched — the rule of thumb is
+  now a grep-able invariant (`support_points` in a gate ⟹ a fit is known).
+  Measured a win on **every** scorer (`examples/ab-point-count`, 200k–500k
+  boards/vul): plain DD **+0.033 / +0.053**, perfect defense **+0.005 / +0.020**,
+  sd-lead **+0.052** (NV/vul), all CIs clearing 0. Replaces the opt-in global
+  `set_new_point_count` flip (deleted): the unscoped flip won bigger under sd-lead
+  (**+0.28**) but read every *shaped* hand ~1–3 points hot *before* a fit and
+  broke the weak/sign-off gates; scoping to fit-known captures the durable
+  fraction (~⅕ of the sd-lead win) without that regression. Also fixes one
+  fit-absent floor gate (`free_bid_gate`) to read raw HCP, and re-denominates the
+  fit-known "acceptable aggression" test expectations (splinter → Jacoby-2NT at
+  13, the Stayman invite/game and limit-raise-accept boundaries) onto the shipped
+  scale — the fit-unknown (Root-A) tests are byte-identical. `set_support_points`
+  is the A/B off arm.
 
-- **Point-count campaign — first gate re-probe (fit-sum major-game gate).**
-  `examples/ab-fit-sum-game` gains `--new-point-count`, arming the candidate
-  scale on both sides so the gate can be tuned under it. Measured: under the new
-  scale the fit-sum gate's PD peak moves **31 → 32** by one notch (200k×2vul,
-  adjacent thresholds; raising 31→32 PD +0.008/+0.005 CI-clean, 32→33
-  −0.004/−0.008). Only +1 despite the scale's ~1–3-point hotness, because the
-  gate already re-adds `own_len` and so double-counts trump length — the
-  inflation self-cancels bar the shortness term. Marginal and DD-negative:
-  recorded as a flip-time bump (bump `FIT_SUM_GAME` to 32 when
-  `set_new_point_count` goes default-on), not a live change — the default is
-  shared across scales and 31 stays optimal under the current default. Production
-  system byte-identical.
+- **`FIT_SUM_GAME` de-optionalised + fit-sum gate on `support_points`.** The
+  instinct floor's fit-sum major-game gate now reads `support_point_count`; since
+  the gate is proven default-on, `FIT_SUM_GAME` drops its `Option`/off-state (the
+  flat `combined_points(25)` fallback is gone) and `examples/ab-fit-sum-game`
+  gains `--support-points` (renamed from `--new-point-count`). It ships at the
+  measured **31**; the hotter scale's **31 → 32** re-tune (campaign: PD
+  +0.008/+0.005, but marginal and DD-negative) is deferred to its own
+  confirmation sweep now that the scale under the gate is settled, rather than
+  folded into this change.
 
 - **Floor choice-of-games — trump length counts toward the major-game gate.** The
   instinct floor reached a major game on a flat yardstick: `25` combined points

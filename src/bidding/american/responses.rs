@@ -4,7 +4,7 @@ use super::super::Alert;
 use super::super::Rules;
 use super::super::Trie;
 use super::super::constraint::{
-    Cons, Constraint, balanced, described, hcp, len, points, stopper_in, support,
+    Cons, Constraint, balanced, described, hcp, len, points, stopper_in, support, support_points,
 };
 use crate::bidding::context::Context;
 use contract_bridge::auction::Call;
@@ -142,15 +142,26 @@ pub fn major_responses(major: Suit) -> Rules {
         .rule(
             Bid::new(2, Strain::Notrump),
             3.0,
-            support(4..) & points(13..),
+            support(4..) & support_points(13..),
         )
         .alert(JACOBY_2NT)
         // Limit raise: four-card support, 10–12 points.
-        .rule(Bid::new(3, trump), 2.0, support(4..) & points(10..=12))
-        // Weak jump to game: lots of trumps, few points.
+        .rule(
+            Bid::new(3, trump),
+            2.0,
+            support(4..) & support_points(10..=12),
+        )
+        // Weak jump to game: lots of trumps, few points.  Left on legacy
+        // `points`: this preempt's ceiling gates obstruction, and revaluing
+        // shortness here would demote shapely-weak hands into a constructive
+        // single raise — a DD-flattering de-preemption (see the roadmap).
         .rule(Bid::new(4, trump), 1.6, support(5..) & points(..6))
         // Single raise.
-        .rule(Bid::new(2, trump), 1.5, support(3..) & points(6..=9))
+        .rule(
+            Bid::new(2, trump),
+            1.5,
+            support(3..) & support_points(6..=9),
+        )
         // Forcing 1NT: the catch-all when nothing more descriptive fits.
         .rule(Bid::new(1, Strain::Notrump), 0.5, hcp(6..=12))
         .rule(Call::Pass, 0.0, hcp(..6));
@@ -178,7 +189,7 @@ pub fn major_responses(major: Suit) -> Rules {
             .rule(
                 Bid::new(level, strain),
                 2.8,
-                support(4..) & points(10..=13) & len(x, ..=1),
+                support(4..) & support_points(10..=13) & len(x, ..=1),
             )
             .alert(SPLINTER);
     }
@@ -333,11 +344,13 @@ pub fn minor_responses(minor: Suit) -> Rules {
         .rule(
             Bid::new(2, trump),
             1.25,
-            support(5..) & points(10..) & len(Suit::Hearts, ..4) & len(Suit::Spades, ..4),
+            support(5..) & support_points(10..) & len(Suit::Hearts, ..4) & len(Suit::Spades, ..4),
         )
         .alert(INVERTED_MINOR)
-        // Weak preemptive raise.
-        .rule(Bid::new(3, trump), 1.1, support(5..) & points(..=9))
+        // Weak preemptive raise.  `support_points` here is behaviour-neutral —
+        // the strong-raise floor above dominates every hand it could promote —
+        // so it rides along to keep every fit-known raise gate on one scale.
+        .rule(Bid::new(3, trump), 1.1, support(5..) & support_points(..=9))
         .alert(INVERTED_MINOR)
         .rule(Call::Pass, 0.0, hcp(..6));
 
@@ -404,7 +417,7 @@ pub(super) fn register(book: &mut Trie) {
             let our_calls = &[super::call(1, m_strain), splinter];
 
             let after_splinter = Rules::new()
-                .rule(Bid::new(4, Strain::Notrump), 1.0, points(16..))
+                .rule(Bid::new(4, Strain::Notrump), 1.0, support_points(16..))
                 .alert(super::slam::RKCB)
                 .rule(Bid::new(4, m_strain), 0.5, hcp(0..));
 
@@ -453,7 +466,7 @@ pub(super) fn register(book: &mut Trie) {
         // play the cold 3NT.  4NT is keycard here by construction — install_rkcb
         // registers the answers below this node.
         let after_3nt = Rules::new()
-            .rule(Bid::new(4, Strain::Notrump), 1.0, points(14..))
+            .rule(Bid::new(4, Strain::Notrump), 1.0, support_points(14..))
             .alert(super::slam::RKCB)
             .rule(Call::Pass, 0.5, hcp(0..));
         let our_calls_3nt = &[

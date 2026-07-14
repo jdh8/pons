@@ -10,7 +10,7 @@
 //! whole win being the keycard ask at +4.4/+5.2 IMPs/divergent).
 
 use super::{call, insert_uncontested, slam};
-use crate::bidding::constraint::{fifths, hcp, len, points, top_honors};
+use crate::bidding::constraint::{fifths, hcp, len, support_points, top_honors};
 use crate::bidding::{Alert, Rules, Trie};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Strain, Suit};
@@ -103,7 +103,11 @@ fn jacoby_rebids(major: Suit) -> Rules {
     let no_shortness = !len(a, ..=1) & !len(b, ..=1) & !len(c, ..=1);
 
     // 3M: 18+ points, no side shortness (big balanced-ish raise acceptance).
-    rules = rules.rule(Bid::new(3, trump), 1.5, points(18..) & no_shortness.clone());
+    rules = rules.rule(
+        Bid::new(3, trump),
+        1.5,
+        support_points(18..) & no_shortness.clone(),
+    );
 
     // 3NT: 15–17 Fifths, no side shortness (medium, balanced).
     rules = rules.rule(
@@ -128,13 +132,13 @@ fn responder_after_jacoby(major: Suit, opener_bid: Call) -> Rules {
     if opener_bid == four_major {
         // Opener showed a minimum; slam needs extra values.
         Rules::new()
-            .rule(four_nt, 1.0, points(18..))
+            .rule(four_nt, 1.0, support_points(18..))
             .alert(slam::RKCB)
             .rule(Call::Pass, 0.0, hcp(0..))
     } else {
         // Opener showed something descriptive; slam is in range with 16+.
         Rules::new()
-            .rule(four_nt, 1.0, points(16..))
+            .rule(four_nt, 1.0, support_points(16..))
             .alert(slam::RKCB)
             .rule(four_major, 0.5, hcp(0..))
     }
@@ -199,23 +203,23 @@ fn opener_after_raise(major: Suit) -> Rules {
 
     let mut rules = Rules::new()
         // 4NT: RKCB ask on a maximum.
-        .rule(Bid::new(4, Strain::Notrump), 2.6, points(22..))
+        .rule(Bid::new(4, Strain::Notrump), 2.6, support_points(22..))
         .alert(slam::RKCB)
         // 4M: a non-asking maximum.
-        .rule(Bid::new(4, trump), 2.2, points(19..));
+        .rule(Bid::new(4, trump), 2.2, support_points(19..));
 
     // Long-suit game tries, cheapest first: natural, no alert.
     for (suit, weight) in game_try_suits(major).into_iter().zip([1.5_f32, 1.45, 1.40]) {
         rules = rules.rule(
             Bid::new(try_level(major, suit), Strain::from(suit)),
             weight,
-            len(suit, 4..) & points(16..=18),
+            len(suit, 4..) & support_points(16..=18),
         );
     }
 
     rules
         // 3M: the general re-raise try, deliberately below the suit tries.
-        .rule(Bid::new(3, trump), 1.2, points(16..=18))
+        .rule(Bid::new(3, trump), 1.2, support_points(16..=18))
         // Pass: a minimum, the finite catch-all.
         .rule(Call::Pass, 0.0, hcp(0..))
 }
@@ -233,7 +237,7 @@ fn responder_after_try(major: Suit, try_suit: Suit) -> Rules {
         .rule(
             Bid::new(4, trump),
             1.0,
-            points(8..=9) | len(try_suit, ..=1) | top_honors(try_suit, 2..),
+            support_points(8..=9) | len(try_suit, ..=1) | top_honors(try_suit, 2..),
         )
         // Decline, guaranteed legal (every try sits below 3M).
         .rule(Bid::new(3, trump), 0.5, hcp(0..))
@@ -244,7 +248,7 @@ fn responder_after_try(major: Suit, try_suit: Suit) -> Rules {
 #[must_use]
 fn responder_after_general_try(major: Suit) -> Rules {
     Rules::new()
-        .rule(Bid::new(4, Strain::from(major)), 1.0, points(8..=9))
+        .rule(Bid::new(4, Strain::from(major)), 1.0, support_points(8..=9))
         .rule(Call::Pass, 0.0, hcp(0..))
 }
 
@@ -253,7 +257,7 @@ fn responder_after_general_try(major: Suit) -> Rules {
 #[must_use]
 fn opener_after_decline(major: Suit) -> Rules {
     Rules::new()
-        .rule(Bid::new(4, Strain::from(major)), 1.0, points(18..))
+        .rule(Bid::new(4, Strain::from(major)), 1.0, support_points(18..))
         .rule(Call::Pass, 0.0, hcp(0..))
 }
 
@@ -308,10 +312,10 @@ fn opener_after_limit_raise(major: Suit) -> Rules {
     let trump = Strain::from(major);
     Rules::new()
         // 4NT: RKCB ask.
-        .rule(Bid::new(4, Strain::Notrump), 1.5, points(19..))
+        .rule(Bid::new(4, Strain::Notrump), 1.5, support_points(19..))
         .alert(slam::RKCB)
         // 4M: accept.
-        .rule(Bid::new(4, trump), 1.0, points(13..))
+        .rule(Bid::new(4, trump), 1.0, support_points(13..))
         // Pass: decline.
         .rule(Call::Pass, 0.0, hcp(0..))
 }
