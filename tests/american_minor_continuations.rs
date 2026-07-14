@@ -298,9 +298,10 @@ fn new_minor_forcing_opener_answers() {
         best_call(&system, &after_nmf, "Axx.Kxx.Qxx.Axxx"),
         call(2, Strain::Hearts),
     );
-    // ... three-card support, maximum: the jump to 3♥ ...
+    // ... three-card support, maximum (5332 — a flat 4333 14-count reads 13
+    // on the rule-of-N+8 scale and stays low): the jump to 3♥ ...
     assert_eq!(
-        best_call(&system, &after_nmf, "Axx.Kxx.Qxx.AJxx"),
+        best_call(&system, &after_nmf, "Axx.Kxx.Qx.AJxxx"),
         call(3, Strain::Hearts),
     );
     // ... and no fit forces a natural 2NT — opener may never pass the checkback.
@@ -375,7 +376,9 @@ fn new_minor_forcing_accepts_the_natural_2nt_invitation() {
     // the floor, which passed a maximum — the dominant loss against XYZ.)
     let after_2nt = xyz_auction(Strain::Hearts, &[call(2, Strain::Notrump)]);
     assert_eq!(
-        best_call(&system, &after_2nt, "Axx.Kxx.Qxx.AJxx"), // fourteen: accept
+        // Fourteen (5332): accept.  A flat 4333 fourteen reads 13 on the
+        // rule-of-N+8 scale and declines.
+        best_call(&system, &after_2nt, "Axx.Kxx.Qx.AJxxx"),
         call(3, Strain::Notrump),
     );
     assert_eq!(

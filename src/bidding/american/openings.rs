@@ -150,8 +150,12 @@ pub fn openings() -> Rules {
 #[must_use]
 pub fn openings_with(shape: NotrumpShape) -> Rules {
     let mut rules = Rules::new()
-        // Strong, artificial 2♣ — top priority.
-        .rule(Bid::new(2, Strain::Clubs), 3.0, points(22..))
+        // Strong, artificial 2♣ — top priority.  The `hcp` leg is exact cover
+        // for the rule-of-N+8 scale's flat hole: a 4-3-3-3 22-count reads 21
+        // points there and would otherwise demote a game force to a passable
+        // 1♣ (unbalanced 22-HCP hands already read 22+ points, so the union
+        // adds nothing else).
+        .rule(Bid::new(2, Strain::Clubs), 3.0, points(22..) | hcp(22..))
         .alert(STRONG_2C);
     // Strong 1NT — gated so a diagnostic can suppress our own 1NT opening
     // (`set_open_one_notrump`); the 15-17 balanced hands then open a minor.
@@ -355,16 +359,25 @@ mod tests {
 
     #[test]
     fn rule_of_20_opens_sound_eleven_counts() {
+        use crate::bidding::constraint::{PointScale, set_point_scale};
+
         let one_s = Call::Bid(Bid::new(1, Strain::Spades));
-        // 11 HCP, 5-2-4-2, Rule of 20 (11 + 9).  The wasted J9 voids the points
-        // upgrade, so the 12+ opener would pass; by default (Rule of 20 on) we
-        // open the five-card major.
+        // 11 HCP, 5-2-4-2, Rule of 20 (11 + 9).  The wasted J9 voids the legacy
+        // points upgrade; by default we open the five-card major.
         let sound_11 = "AK986.J9.QJT6.64";
         assert_eq!(opens(&openings(), sound_11), one_s);
 
-        // Turning it off restores the 12+-only opener, which passes this hand.
+        // The shipped rule-of-N+8 scale absorbs the knob: Rule of 20 is
+        // exactly `points(12..)` there, so the hand opens even with the light
+        // rules off.
         set_rule_of_20(false);
+        assert_eq!(opens(&openings(), sound_11), one_s);
+
+        // The knob's off arm only bites on the legacy opt-out scale, where the
+        // voided upgrade leaves this hand at 11 — the 12+ opener passes.
+        set_point_scale(PointScale::PointCount);
         let call = opens(&openings(), sound_11);
+        set_point_scale(PointScale::RuleOfN);
         set_rule_of_20(true);
         assert_eq!(call, Call::Pass);
     }

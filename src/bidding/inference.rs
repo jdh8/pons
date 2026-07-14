@@ -2486,14 +2486,16 @@ fn apply_opening(inf: &mut Inference, bid: Bid, seat: u8) {
             inf.narrow_length(Suit::Hearts, Range::new(2, 5));
             inf.narrow_length(Suit::Clubs, Range::new(2, 6));
             inf.narrow_length(Suit::Diamonds, Range::new(2, 6));
-            // Plain HCP 15–17 gates the opening (fifths archived).  A balanced
-            // hand's `point_count` is its raw HCP, but a semi-balanced 5422/6322
-            // adds the fuzzy `upgrade` — capped at +1 here, since its two longest
-            // suits total 9 (5+4, 6+3) and the second upgrade point needs ≥10.
-            // So the sound band is 15–18.  ponytail: exact for the shipped
-            // plain-HCP gauge; the archived `set_one_notrump_fifths` knob, if
-            // ever revived, would re-widen this to 14–19.
-            inf.narrow_points(Range::new(15, 18));
+            // Plain HCP 15–17 gates the opening (fifths archived).  The shipped
+            // rule-of-N+8 scale reads a flat 4-3-3-3 one under its HCP and a
+            // 5422/6322 one over (9-card long suits − 8); the legacy upgrade
+            // scale adds at most +1 the same way.  Sound band 15−slack..18 —
+            // the slack term keeps the legacy opt-out arm exact.  ponytail:
+            // exact for the shipped plain-HCP gauge; the archived
+            // `set_one_notrump_fifths` knob, if ever revived, would re-widen
+            // this to 14–19.
+            let slack = crate::bidding::constraint::flat_hcp_slack();
+            inf.narrow_points(Range::new(15 - slack, 18));
         }
         (2, Strain::Clubs) => {
             // Strong and artificial: 22+ points, but nothing about shape.
@@ -2503,8 +2505,10 @@ fn apply_opening(inf: &mut Inference, bid: Bid, seat: u8) {
             balanced(inf);
             // As with 1NT: `fifths(20.0..22.0)` admits a quack-heavy 23-count
             // (fifths within 1.6 of raw HCP), so the sound point envelope is
-            // 19–23, not 19–22.
-            inf.narrow_points(Range::new(19, 23));
+            // 19–23, not 19–22 — and rule of N+8 gives a flat 4-3-3-3 floor
+            // another point back.
+            let slack = crate::bidding::constraint::flat_hcp_slack();
+            inf.narrow_points(Range::new(19 - slack, 23));
         }
         (2, strain) if strain.is_suit() => {
             inf.narrow_length(strain.suit().unwrap(), Range::new(6, 6));
@@ -2595,8 +2599,9 @@ mod tests {
         let one_nt = read(&[bid(1, Strain::Notrump)]);
         assert_eq!(one_nt.rho().length(Suit::Spades), Range::new(2, 5));
         assert_eq!(one_nt.rho().length(Suit::Diamonds), Range::new(2, 6));
-        // Plain HCP 15–17, plus a semi-balanced 5422/6322's +1 `upgrade` → 15–18.
-        assert_eq!(one_nt.rho().points, Range::new(15, 18));
+        // Plain HCP 15–17: a flat 4333 reads one under on the shipped
+        // rule-of-N+8 scale, a semi-balanced 5422/6322 one over → 14–18.
+        assert_eq!(one_nt.rho().points, Range::new(14, 18));
 
         let two_clubs = read(&[bid(2, Strain::Clubs)]);
         assert_eq!(two_clubs.rho().length(Suit::Spades), Range::FULL_LENGTH);
@@ -3193,9 +3198,9 @@ mod tests {
 
     #[test]
     fn narrowed_points_intersects_one_player() {
-        // 1NT shows 15-18; narrow the opener (here our RHO) to the upper half.
+        // 1NT shows 14-18; narrow the opener (here our RHO) to the upper half.
         let inf = read(&[bid(1, Strain::Notrump)]);
-        assert_eq!(inf.rho().points, Range::new(15, 18));
+        assert_eq!(inf.rho().points, Range::new(14, 18));
 
         let upper = inf.narrowed_points(Relative::Rho, Range::new(17, 18));
         assert_eq!(
@@ -3203,7 +3208,7 @@ mod tests {
             Range::new(17, 18),
             "narrowed to the half"
         );
-        assert_eq!(inf.rho().points, Range::new(15, 18), "original unchanged");
+        assert_eq!(inf.rho().points, Range::new(14, 18), "original unchanged");
         // Shape and the other players are untouched.
         assert_eq!(
             upper.rho().length(Suit::Spades),
@@ -3213,7 +3218,7 @@ mod tests {
 
         // Intersection, not replacement: a wider request cannot widen what was shown.
         let clamped = inf.narrowed_points(Relative::Rho, Range::new(0, POINTS_CAP));
-        assert_eq!(clamped.rho().points, Range::new(15, 18));
+        assert_eq!(clamped.rho().points, Range::new(14, 18));
     }
 
     #[test]

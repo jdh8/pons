@@ -1834,9 +1834,10 @@ mod tests {
             Call::Bid(Bid::new(4, Strain::Spades)),
             "13 points -> 4♠"
         );
-        // A432.K54.Q54.J32 — 10 points, balanced -> invitational raise.
+        // A432.K542.Q54.J3 — 10 points (4-4-3-2) -> invitational raise.  A
+        // flat 4333 10-count reads 9 on the shipped scale and passes.
         assert_eq!(
-            best(&trie, AFTER_2S, "A432.K54.Q54.J32"),
+            best(&trie, AFTER_2S, "A432.K542.Q54.J3"),
             Call::Bid(Bid::new(3, Strain::Spades)),
             "10 points -> 3♠"
         );

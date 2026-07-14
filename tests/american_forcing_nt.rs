@@ -428,28 +428,30 @@ fn opener_jumps_to_show_five_five_majors() {
 
 #[test]
 fn responder_raises_the_reverse_to_the_heart_game() {
-    // Q43.K32.QJ32.432 — 8 HCP, three hearts: take the 5-3 heart game.
+    // Q43.K32.QJ432.42 — 8 HCP, three hearts: take the 5-3 heart game.  (A
+    // flat 4333 8-count reads 7 on the rule-of-N+8 scale and declines.)
     let auction = {
         let mut a = after_1h_1nt();
         a.extend([call(2, Strain::Spades), Call::Pass]);
         a
     };
     assert_eq!(
-        best_call(&stance(), &auction, "Q43.K32.QJ32.432"),
+        best_call(&stance(), &auction, "Q43.K32.QJ432.42"),
         call(4, Strain::Hearts),
     );
 }
 
 #[test]
 fn responder_accepts_the_five_five_jump_in_spades() {
-    // K43.J32.KJ32.432 — 8 HCP, three spades: accept to 4♠ (spade fit).
+    // K43.J32.KJ432.42 — 8 HCP, three spades: accept to 4♠ (spade fit).  (A
+    // flat 4333 8-count reads 7 on the rule-of-N+8 scale and declines.)
     let auction = {
         let mut a = after_1s_1nt();
         a.extend([call(3, Strain::Hearts), Call::Pass]);
         a
     };
     assert_eq!(
-        best_call(&stance(), &auction, "K43.J32.KJ32.432"),
+        best_call(&stance(), &auction, "K43.J32.KJ432.42"),
         call(4, Strain::Spades),
     );
 }

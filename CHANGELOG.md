@@ -21,8 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `Hcp::project` gives its floor back 1 under `RuleOfN` (a flat 4-3-3-3
   reads one under its HCP), keeping projection sound on every arm. Also
   extracts `longest_two_suits`, de-triplicating the shape kernel shared by
-  `upgrade`, `new_point_count`, and `rule_of_20`. Knob only — no default
-  behavior change, no A/B verdict yet; the campaign ships separately.
+  `upgrade`, `new_point_count`, and `rule_of_20`. Shipped default-on as
+  `RuleOfN` after the A/B/C below (see **Changed**).
 - **`pdd::load_slice` + deal-bank A/B mode.** `pons::pdd::load_slice(path,
   skip, count)` seeks a row slice out of a binary `.pdd` deal bank without
   reading the multi-gigabyte file whole. `ab-point-count` grows
@@ -49,6 +49,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **`points` now gauges the rule of N+8 — the legacy upgrade scale is
+  deposed.** The global point scale defaults to `PointScale::RuleOfN`: every
+  `points(range)` gate, the constrained sampler, and the floor's combined
+  counts now measure raw HCP + the two longest suit lengths − 8 (so
+  `points(12..)` is exactly the Rule of 20; a flat 4-3-3-3 reads one under
+  its HCP, a shapely hand up to four over the legacy count). The A/B/C on
+  1M pre-solved boards/vul (`/nfs2/jdh8/24.pdd`, zero live solving): raw
+  HCP (arm B) lost plain-DD −0.098/−0.105 NV/vul (PD-positive = the
+  doubling artifact, confirming the A6 verdict); rule of N+8 (arm C) won
+  plain-DD +0.031 ± 0.004 / +0.045 ± 0.006 with a PD dip −0.038/−0.026 —
+  the sd-lead tiebreak (50k boards/vul, live) vindicated it at
+  **+0.048 ± 0.019 NV / +0.064 ± 0.025 vul** IMPs/board. All 446 `points()`
+  call sites are untouched — the gauge moved, not the ranges. Fallout
+  fixes: the strong 2♣ gate grows an `hcp(22..)` leg (a flat 22-count reads
+  21 and would demote a game force to 1♣), the 1NT/2NT opening readings
+  give their floor back 1 on the new scale (the `Hcp::project` slack,
+  shared via `flat_hcp_slack`), and `set_rule_of_20(false)` now only bites
+  on the legacy opt-out scale (the new scale absorbs the rule by
+  identity). Legacy stays opt-in: `set_point_scale(PointScale::PointCount)`.
 - **`support_points` — a fit-known-only shortness evaluator, default on.**
   Introduces `support_points` / `support_point_count` — HCP plus useful shortness
   (`hcp_plus`, after BBO GIB) plus a bare long-suit term for the near-certain

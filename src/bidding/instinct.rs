@@ -4572,7 +4572,9 @@ mod tests {
             call(2, Strain::Spades),
             Call::Pass,
         ];
-        assert_eq!(best(&auction, "K54.A32.KQ32.Q43"), call(4, Strain::Spades));
+        // 14 points needs a non-flat shape on the shipped rule-of-N+8 scale
+        // (a 4333 14-count reads 13 and rests).
+        assert_eq!(best(&auction, "K542.A32.KQ32.Q4"), call(4, Strain::Spades));
         assert_ne!(best(&auction, "K54.K32.K43.Q432"), call(4, Strain::Spades));
     }
 

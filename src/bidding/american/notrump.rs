@@ -3761,9 +3761,9 @@ mod tests {
         ); // 16, ♥xx
         assert_eq!(best(&over_invite, "AK5.32.AQ74.Q963"), P); // 15, ♥xx
         assert_eq!(
-            best(&over_invite, "AK5.432.AQ7.Q963"),
+            best(&over_invite, "AK52.432.AQ74.Q9"),
             bid(4, Strain::Hearts)
-        ); // 15, ♥xxx
+        ); // 15, ♥xxx (4-3-4-2 — a flat 4333 would read 14 and rightly pass)
 
         // Spade side: 6 spades, ♠KQ + ♥J = 6 HCP transfers (2♥) then jumps to 3♠.
         let spade_inv = "KQ8765.J43.32.32";

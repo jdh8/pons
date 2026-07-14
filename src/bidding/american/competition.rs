@@ -6023,7 +6023,9 @@ mod tests {
             call(3, Strain::Hearts),
             Call::Pass,
         ];
-        let (c, floored) = bid(&after_signoff, "AK32.K43.A43.K32");
+        // 4-3-4-2, 17: a flat 4-3-3-3 17-count would read 16 on the shipped
+        // rule-of-N+8 scale and rightly decline the stretch.
+        let (c, floored) = bid(&after_signoff, "AK32.K43.A432.K3");
         assert_eq!(c, call(4, Strain::Hearts));
         assert!(!floored, "the game raise must come from the book");
 
@@ -6719,7 +6721,8 @@ mod tests {
         super::set_negative_double_shape(super::NegativeDoubleShape::Sputnik);
         // [1♣, (1♦)]: a 4-card major is bid naturally at the 1-level...
         let auction = [call(1, Strain::Clubs), call(1, Strain::Diamonds)];
-        let (spades, floored) = best_call(&auction, "KJ54.952.964.Q32");
+        // 7 HCP: a flat 6-count reads 5 on the rule-of-N+8 scale and passes.
+        let (spades, floored) = best_call(&auction, "KJ54.952.964.QJ2");
         assert_eq!(spades, call(1, Strain::Spades), "four spades bid the suit");
         assert!(!floored, "an authored node, not the floor");
         // ...while X denies a biddable major — the residual, ≤3 in each.

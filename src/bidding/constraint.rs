@@ -471,18 +471,24 @@ pub enum FifthsCompanion {
 #[doc(hidden)]
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum PointScale {
-    /// Legacy raw HCP + [`upgrade`] (the incumbent default)
+    /// Legacy raw HCP + [`upgrade`] (the deposed incumbent, kept opt-in)
     PointCount,
     /// Raw Milton Work 4-3-2-1 HCP (the old `fuzzy_points` off arm)
     Hcp,
     /// Rule of N+8: raw HCP + the two longest suit lengths − 8, so a
-    /// `points(12..)` gate is exactly the Rule of 20
+    /// `points(12..)` gate is exactly the Rule of 20 (the shipped default)
     RuleOfN,
 }
 
 std::thread_local! {
-    /// The scale [`point_count`] evaluates (the point-scale A/B knob)
-    static POINT_SCALE: Cell<PointScale> = const { Cell::new(PointScale::PointCount) };
+    /// The scale [`point_count`] evaluates (the point-scale A/B knob).
+    /// **Default [`PointScale::RuleOfN`]** since the deprecation A/B/C: vs the
+    /// legacy scale on 1M pre-solved boards/vul, plain DD +0.031/+0.045 NV/vul
+    /// (CIs clear of 0), PD −0.038/−0.026, and the sd-lead tiebreak vindicated
+    /// it at +0.048 ± 0.019 NV / +0.064 ± 0.025 vul (50k boards/vul).  Raw HCP
+    /// lost plain-DD on the same slice (−0.098/−0.105).  Legacy is the opt-out:
+    /// `set_point_scale(PointScale::PointCount)`.
+    static POINT_SCALE: Cell<PointScale> = const { Cell::new(PointScale::RuleOfN) };
     /// Whether [`fifths`] evaluates Fifths rather than raw HCP.  Default **off**:
     /// the Fifths NT-gauge measured a clean net loss vs raw HCP in the A6 audit
     /// (self-play plain −0.012/−0.018 NV/vul, PD alike, CIs excluding 0), and it
@@ -613,7 +619,7 @@ impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for Hcp<R> {
         // records; the floor is exact.  Upgrade path: a balanced-only HCP axis
         // if a reader ever needs the ceiling back.  Rule of N+8 reads a flat
         // 4-3-3-3 one under its HCP, so that scale gives the floor back 1.
-        let slack = u8::from(POINT_SCALE.with(Cell::get) == PointScale::RuleOfN);
+        let slack = flat_hcp_slack();
         let floor = bound_range(&self.0, Range::FULL_POINTS.max).min;
         let mut inference = Inference::unknown();
         inference.points = Range::new(floor.saturating_sub(slack), Range::FULL_POINTS.max);
@@ -625,6 +631,13 @@ impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for Hcp<R> {
 #[must_use]
 pub fn hcp(range: impl RangeBounds<u8> + Clone + Send + Sync) -> Cons<impl Constraint + Clone> {
     Cons(Hcp(range))
+}
+
+/// The slack an HCP-gated point envelope owes the current scale: rule of N+8
+/// reads a flat 4-3-3-3 one under its HCP; the other scales never read under.
+/// Shared by [`hcp`]'s projection and the hand-authored NT-opening readings.
+pub(crate) fn flat_hcp_slack() -> u8 {
+    u8::from(POINT_SCALE.with(Cell::get) == PointScale::RuleOfN)
 }
 
 /// Whether a short suit (at most two cards) blocks the fuzzy-strength upgrade
@@ -672,13 +685,16 @@ fn longest_two_suits(hand: Hand) -> u8 {
 /// [`points`] constraint gauges and the scale [`Inferences`] records its point
 /// ranges on
 ///
-/// Defaults to the **legacy raw-HCP-plus-[`upgrade`] scale**.  A reader that
-/// needs the value rather than a range — constrained sampling, for one —
-/// shares this single definition so it can never drift from the ranges it
-/// checks against, and [`points`] gauges it directly so the two can never
-/// disagree.  [`set_point_scale`] swaps the scale wholesale — gates, sampler,
-/// and floor together — for the point-scale A/B; the fit-known shortness
-/// scale rides on [`support_point_count`] instead.
+/// Defaults to the **rule-of-N+8 scale** — raw HCP plus the two longest suit
+/// lengths minus 8, so `points(12..)` is exactly the Rule of 20 (see
+/// [`PointScale`] for the measured verdict; the legacy
+/// raw-HCP-plus-[`upgrade`] scale is the opt-out).  A reader that needs the
+/// value rather than a range — constrained sampling, for one — shares this
+/// single definition so it can never drift from the ranges it checks against,
+/// and [`points`] gauges it directly so the two can never disagree.
+/// [`set_point_scale`] swaps the scale wholesale — gates, sampler, and floor
+/// together — for the point-scale A/B; the fit-known shortness scale rides on
+/// [`support_point_count`] instead.
 ///
 /// [`Inferences`]: super::inference::Inferences
 #[must_use]
@@ -1808,17 +1824,18 @@ mod tests {
     fn test_points_and_fifths() {
         let context = empty_context();
 
-        // This test exercises the legacy raw-HCP-plus-upgrade scale — now the
-        // only `point_count` scale; the fit-known candidate rides on
-        // `support_points` (see `test_support_points`).
+        // This test exercises the shipped rule-of-N+8 default scale; the
+        // legacy arms live in `test_point_scale`, and the fit-known candidate
+        // rides on `support_points` (see `test_support_points`).
 
-        // 9 HCP, clean 5-5: counts as 11 upgraded points.
+        // 9 HCP, clean 5-5: 9 + 10 − 8 = 11 points (agreeing with the legacy
+        // upgrade here).
         let two_suiter = hand("KQ765.A8765.32.2");
         assert_pass(points(11..=11).eval(two_suiter, &context));
         assert_reject(points(..=10).eval(two_suiter, &context));
 
-        // Balanced hands score their raw HCP.
-        assert_pass(points(15..=15).eval(hand(BALANCED_15), &context));
+        // A flat 4-3-3-3 reads one under its raw HCP: 15 + 7 − 8.
+        assert_pass(points(14..=14).eval(hand(BALANCED_15), &context));
 
         // BALANCED_15 is 15 HCP but only 14.6 Fifths: its queens and jacks
         // are worth less toward 3NT.  The banded value averages Fifths with
@@ -1845,9 +1862,9 @@ mod tests {
         // 9 + 1 + 2 + 1 = 13, above the legacy raw-HCP-plus-upgrade of 11.
         let two_suiter = hand("KQ765.A8765.32.2");
 
-        // Off (the A/B baseline arm): byte-identical to the legacy `point_count`
+        // Off (the A/B baseline arm): byte-identical to the global `point_count`
         // that `points` gauges — a gate swapped `points`→`support_points` doesn't
-        // move.
+        // move.  (Rule of N+8 and the legacy upgrade agree on this clean 5-5.)
         set_support_points(false);
         assert_eq!(support_point_count(two_suiter), point_count(two_suiter));
         assert_eq!(support_point_count(two_suiter), 11);
@@ -1861,10 +1878,11 @@ mod tests {
         assert_pass(support_points(13..=13).eval(two_suiter, &context));
         assert_reject(support_points(..=12).eval(two_suiter, &context));
 
-        // Flat hands carry no useful shortness, so the two scales agree.
+        // Flat hands carry no useful shortness, so the support scale sticks to
+        // raw HCP — while the global rule-of-N+8 scale docks a 4-3-3-3 one.
         let flat = hand("AQ32.K53.QJ4.A92"); // 16 HCP, 4-3-3-3
         assert_eq!(support_point_count(flat), 16);
-        assert_eq!(support_point_count(flat), point_count(flat));
+        assert_eq!(point_count(flat), 15);
         // Left on — the shipped default — for the rest of the suite.
     }
 
@@ -1893,19 +1911,20 @@ mod tests {
         let context = empty_context();
         let two_suiter = hand("KQ765.A8765.32.2");
 
-        // This toggle governs the legacy raw-HCP-plus-upgrade scale `points`
-        // now always gauges.
+        // This toggle swings `points` between raw HCP and the legacy
+        // raw-HCP-plus-upgrade scale (both historical arms now).
         set_fuzzy_strength(false);
         // Raw HCP: 9 points, and fifths degrades to raw HCP too.
         assert_pass(points(9..=9).eval(two_suiter, &context));
         assert_pass(fifths(15.0..18.0).eval(hand(BALANCED_15), &context));
         assert_reject(fifths(15.5..18.0).eval(hand(BALANCED_15), &context));
 
-        // Turn the points upgrade back on (the shipped legacy default); fifths
-        // stays off, so the thread is left on the shipped default for later
-        // tests.
+        // The legacy upgrade arm agrees with rule-of-N+8 on this clean 5-5.
         set_fuzzy_points(true);
         assert_pass(points(11..=11).eval(two_suiter, &context));
+
+        // Restore the shipped default for the rest of the suite.
+        set_point_scale(PointScale::RuleOfN);
     }
 
     #[test]
@@ -1932,9 +1951,12 @@ mod tests {
         set_point_scale(PointScale::Hcp);
         assert_eq!(point_count(two_suiter), 9);
 
-        // Restore the shipped default for the rest of the suite.
+        // The deposed legacy scale stays reachable as the opt-out.
         set_point_scale(PointScale::PointCount);
         assert_eq!(point_count(two_suiter), 11);
+
+        // Restore the shipped default for the rest of the suite.
+        set_point_scale(PointScale::RuleOfN);
     }
 
     #[test]

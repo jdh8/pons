@@ -9,6 +9,12 @@
 > needed — so this campaign is closed. `FIT_SUM_GAME` was re-probed under the
 > shipped scale (2026-07-14) and **31 holds** (below). Root B (ceilings/holes)
 > remains the one open follow-up under `support_points`.
+>
+> **Successor shipped (2026-07-14):** the fit-*unknown* gates moved too — the
+> global `points` scale is now the **rule of N+8** (see
+> [the deprecation A/B/C](#the-points-deprecation-abc-2026-07-14--rule-of-n8-shipped)
+> at the bottom); legacy is the `set_point_scale(PointScale::PointCount)`
+> opt-out.
 
 ## Why this exists
 
@@ -222,3 +228,62 @@ Every capped `points(lo..=hi)` range is denominated in old points (`hcp(..)` and
 - Each gate change is a bidding change: measure it (`docs/measurement.md`)
   before it ships. Flip `set_new_point_count` default-on only once the Root-A/B
   gates are fixed and re-measured.
+
+## The `points` deprecation A/B/C (2026-07-14) — rule of N+8 shipped
+
+The successor campaign: instead of re-tuning gates to a hotter scale, swap the
+scale under all 446 `points()` gates at once and let the ranges keep their
+authored meaning. Knob: `set_point_scale` (`PointScale::{PointCount, Hcp,
+RuleOfN}`) inside the `point_count` scalar — gates, sampler acceptance, and
+floor combined-counts move together, so the gates-vs-sampler confound cannot
+arise. `RuleOfN` = raw HCP + two longest suit lengths − 8 (`points(12..)` ⟺
+Rule of 20); bounds vs legacy: −1 (flat 4-3-3-3 only) to +4 (veto-blocked
+extreme shapes).
+
+**Stage 1 — 1M pre-solved boards/vul** (`/nfs2/jdh8/24.pdd` rows 0..1M NV,
+1M..2M vul; stored 20-cell tables serve both scorers, zero live solving;
+paired arms on the same slices):
+
+| arm vs legacy | plain DD NV | plain DD Vul | PD NV | PD Vul |
+| --- | --- | --- | --- | --- |
+| B `Hcp` | **−0.0981 ± 0.0041** | **−0.1053 ± 0.0055** | +0.0414 | +0.0464 |
+| C `RuleOfN` | **+0.0313 ± 0.0042** | **+0.0453 ± 0.0057** | −0.0377 | −0.0255 |
+
+B is dead on arrival — a plain-DD loss whose PD positive is the doubling
+artifact (re-confirming the A6 fuzzy-points verdict at 20× the sample). C is
+the `support_points` signature (plain win + PD dip), so the sd-lead bracket
+decides.
+
+**Stage 2 — sd-lead tiebreak, 50k boards/vul live** (seed 1784042788): NV
+**+0.0475 ± 0.0190**, vul **+0.0635 ± 0.0254** IMPs/board — both CIs clear of
+zero. **Shipped default-on**; legacy is the opt-out
+(`set_point_scale(PointScale::PointCount)`), and C's PD dip is ~10× shallower
+than the deleted `hcp_plus` global flip's.
+
+**Fallout triage (the Root-A/B taxonomy, applied):**
+
+- *Bug gates fixed before test refreshes:* the strong 2♣ gained an `hcp(22..)`
+  leg — a flat 22-count reads 21 points and `points(22..)` alone demotes a
+  game force to a passable 1♣; unbalanced 22-HCP hands already read 22+, so
+  the union is exact cover for the flat hole. The 1NT/2NT opening readings
+  give their point floor back 1 via `flat_hcp_slack()` (shared with
+  `Hcp::project`): an HCP-gated call's flat 4-3-3-3 minimum reads one under on
+  the new scale.
+- *Absorbed:* `set_rule_of_20(false)` no longer bites on the default scale —
+  Rule of 20 *is* `points(12..)` there by identity; the knob still governs the
+  legacy opt-out arm and the inference floor.
+- *Sound aggression (test hands refreshed, gates untouched):* every remaining
+  failure was a flat 4-3-3-3 boundary hand — 17-count Lebensohl max, 15-count
+  transfer-invite accept, 14-count Rubens drive / NMF max, 10-count raise
+  invite, 8-count reverse-raise, 6-count response — now correctly reading one
+  lower and declining. That is the curse of 4-3-3-3 built into the scale.
+
+**Consumed slices (never replay):** `24.pdd` rows 0..2,000,000 (stage 1, both
+arms paired).
+
+**Open follow-up — the remnant report:** the stage-1 forensics put C's biggest
+plain-DD leaks in the weak-two band shifting both ways (`[] 2♠→P`, `[] 2♥→P`,
+`[] P→2♠` — Root A: weak/preemptive gates should gauge raw HCP) and 2/1
+response-band inflation (`[1♠ P] 1NT→2♣`). Each is a per-gate `hcp(..)` swap /
+re-denomination candidate, to be measured on a fresh `.pdd` slice against the
+shipped default.
