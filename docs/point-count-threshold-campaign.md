@@ -372,4 +372,23 @@ to **−6.7k NV / −8.3k vul** per 1M boards. Family status changes:
   vuls — the floor A/B's NV forensic made visible; part of the
   competitive-X family.
 
+### 2/1 response band — FIXED (2026-07-15)
+
+The prescription shipped, sharpened by jdh8's fit-split idea: the major 2/1
+entry became `hcp(13..) | (support(3..) & support_points(13..))` —
+shape-indifferent without a fit (`set_two_over_one_gate` = `Hcp13`; shaped
+11-12s return to the forcing 1NT), `support_points` with exactly three-card
+support (`set_two_over_one_fit`; the fit is privately known, opener promised
+five, so the 2/1 is a priced preparation for `4M`) — plus the `1M – 3NT`
+choice-of-games response carving out the flat (4333) 12-15s
+(`set_major_choice_of_games`). Self-play `ab-major-continuations`, 1M
+boards/vul/arm: the gate+fit pair plain **+0.0033/+0.0048** NV/vul, PD
+**+0.0070/+0.0087**; the full package with the 3NT plain
+**+0.0039/+0.0059**, PD **+0.0074/+0.0096** — all CIs clear, both scorers,
+both vuls, ~4× the −1.5k/−2.1k the remnant report priced for this family.
+The paired `hcp12`-vs-`hcp13` head-to-head kept 13 (hcp12's vul plain edge
++0.0026 came with PD −0.0020/−0.0034 — the thin-game doubling signature; an
+sd-lead probe could still revisit vul-only). Details: CHANGELOG 2026-07-15,
+`scripts/two-over-one-ab.sh`.
+
 **Slice ledger: `24.pdd` rows 0..8,100,000 consumed; cursor at 8,100,000.**

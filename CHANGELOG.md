@@ -9,6 +9,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`set_major_choice_of_games` — the `1M – 3NT` choice-of-games response,
+  shipped default-on** (off-switch `--no-ns-major-choice-of-games` in
+  `bba-gen`, `--choice-of-games` in `ab-major-continuations`). 3NT over
+  `1♥`/`1♠` shows 3-4 card support, exactly (4333) and 12-15 HCP (over `1♥`
+  it denies four spades — that hand still bids `1♠`); opener passes balanced
+  hands (including 5332 minimums the floor's ruffing-shortness correction
+  would wrongly pull to `4M`) and corrects to `4M` with shape. The alerted
+  rule (`choice-of-games-3nt`) projects (4333) + 12+ points, so the floor's
+  `known_eight_card_fit` machinery reads the 5-3 fit. Isolated
+  (`ab-major-continuations`, 1M boards/vul, seed 1784056362): plain DD
+  **+0.0006 ± 0.0004 NV / +0.0011 ± 0.0005 vul**, PD +0.0005/+0.0010 —
+  both scorers, both vuls, CIs clear; and exactly additive atop the 2/1
+  fit-split below (full-package minus pair delta reproduces the isolated
+  numbers). Steals the flat 4-trump 12-15s from the limit raise/Jacoby —
+  the curse of (4333) applied to major raises.
+- **`set_two_over_one_fit` + `set_two_over_one_gate` — the fit-split major
+  2/1 entry, shipped default-on as fit + `Hcp13`** (off-switches
+  `--no-ns-two-over-one-fit` / `--ns-two-over-one-gate points13` in
+  `bba-gen`; matching flags + `--baseline-gate` head-to-head support in
+  `ab-major-continuations`). The fit leg admits exactly-three-card support
+  on `support_points(13..)` — the 2/1 as a preparation for `4M`, fit-known
+  (opener promised five) so shortness counts; the no-fit gauge swaps the
+  shape-promoted `points(13..)` for raw `hcp(13..)`, the
+  point-count-remnant report's shape-indifferent prescription (shaped
+  11-12s go back to the forcing 1NT). Minor 2/1 (`1♦–2♣`) untouched — no
+  fit is known there. Measured (1M boards/vul/arm): gates alone `hcp13`
+  plain +0.0019/+0.0018 PD +0.0065/+0.0069, `hcp12` plain +0.0014/+0.0034
+  PD +0.0023/+0.0038 (NV/vul); paired head-to-head `hcp12` vs `hcp13` = NV
+  plain wash + PD −0.0034, vul plain +0.0026 but PD −0.0020 — the
+  thin-game doubling signature, so 13 is the gate (hcp12-vul stays an
+  sd-probe candidate). Fit leg alone NV wash, vul plain +0.0010; **the
+  pair is complementary** (the hcp gate demotes shaped 11-12s, the fit leg
+  re-admits those holding support): fit+hcp13 plain **+0.0033 ± 0.0008 NV /
+  +0.0048 ± 0.0011 vul**, PD **+0.0070/+0.0087** — all CIs clear. Full
+  package with the choice-of-games 3NT: plain **+0.0039/+0.0059**, PD
+  **+0.0074/+0.0096**. Recovers the 2/1 response-band remnant
+  (docs/point-count-threshold-campaign.md) with room to spare. Runner:
+  `scripts/two-over-one-ab.sh`.
+
 - **`PointScale` — the point-scale deprecation A/B knob.** A three-way
   thread-local scale behind the global `point_count` scalar: `PointCount`
   (legacy raw HCP + `upgrade`, the default — byte-identical system),

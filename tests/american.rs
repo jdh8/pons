@@ -276,9 +276,11 @@ fn test_major_raise_grades() {
     let system = stance();
     let after_1h = &[call(1, Strain::Hearts), Call::Pass][..];
 
-    // 12 HCP, four-card support -> limit raise (limit raises promise four trumps).
+    // 12 HCP, four-card support -> limit raise (limit raises promise four
+    // trumps).  Not flat (4333): that hand now offers the choice-of-games
+    // 3NT instead (`set_major_choice_of_games`).
     assert_eq!(
-        best_call(&system, after_1h, "K32.K653.A96.Q92"),
+        best_call(&system, after_1h, "K32.K653.A962.Q9"),
         call(3, Strain::Hearts)
     );
 }

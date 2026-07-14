@@ -4110,6 +4110,83 @@ mod tests {
         );
     }
 
+    /// The same alert invariant for the opt-in choice-of-games 3NT and 2/1
+    /// fit-leg books (off by default, so the shipped-system walk never sees
+    /// them).
+    #[test]
+    fn choice_of_games_artificial_calls_are_alerted() {
+        use crate::bidding::american::{american, set_major_choice_of_games, set_two_over_one_fit};
+
+        set_major_choice_of_games(true);
+        set_two_over_one_fit(true);
+        let pair = american();
+        set_major_choice_of_games(false);
+        set_two_over_one_fit(false);
+
+        let trie = &pair.constructive.0;
+        let mut worklist: Vec<String> = Vec::new();
+        for (auction, classifier) in trie {
+            let auction: &[Call] = &auction;
+            let Some(rules) = classifier.as_rules() else {
+                continue;
+            };
+            let context = Context::new(RelativeVulnerability::NONE, auction)
+                .with_prefixes(trie.common_prefixes(auction));
+            for rule in rules.rules() {
+                let made = rule.call();
+                let doubled = context.last_bid().map(|last| last.strain);
+                if super::artificial(&rule.project(&context), made, doubled)
+                    && rule.alert().is_none()
+                {
+                    worklist.push(format!(
+                        "[{}] {made}  (label: {:?})",
+                        auction
+                            .iter()
+                            .map(ToString::to_string)
+                            .collect::<Vec<_>>()
+                            .join(" "),
+                        rule.label(),
+                    ));
+                }
+            }
+        }
+
+        worklist.sort();
+        worklist.dedup();
+        assert!(
+            worklist.is_empty(),
+            "{} choice-of-games artificial calls lack an alert:\n{}",
+            worklist.len(),
+            worklist.join("\n"),
+        );
+    }
+
+    /// The alerted choice-of-games 3NT decodes: opener reads responder as
+    /// (4333) with 3+ in every suit (so the 5-3 major fit is known), exactly
+    /// three spades over 1♥, and 12+ points.
+    #[test]
+    fn choice_of_games_three_notrump_reads_support() {
+        use crate::bidding::american::set_major_choice_of_games;
+
+        set_major_choice_of_games(true);
+        let stance = crate::american().against(crate::bidding::Family::NATURAL);
+        set_major_choice_of_games(false);
+
+        let auction = [
+            bid(1, Strain::Hearts),
+            Call::Pass,
+            bid(3, Strain::Notrump),
+            Call::Pass,
+        ];
+        let read =
+            Inferences::read(&stance.prefixed_context(RelativeVulnerability::NONE, &auction));
+        assert!(read.partner().length(Suit::Hearts).min >= 3);
+        assert!(read.partner().length(Suit::Diamonds).min >= 3);
+        assert!(read.partner().length(Suit::Clubs).min >= 3);
+        assert_eq!(read.partner().length(Suit::Spades), Range::new(3, 3));
+        assert!(read.partner().points.min >= 12);
+    }
+
     proptest! {
         /// Soundness: a hand that opens the book's choice falls within the
         /// opening inference.  Tests rule 1 (the opening table) over random hands.

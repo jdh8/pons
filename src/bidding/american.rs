@@ -144,7 +144,10 @@ pub use rebids::{
     set_opener_major_jump_rebid,
 };
 pub(crate) use responses::longer_major_response;
-pub use responses::{major_responses, minor_responses, set_longer_major_response, set_up_the_line};
+pub use responses::{
+    TwoOverOneGate, major_responses, minor_responses, set_longer_major_response,
+    set_major_choice_of_games, set_two_over_one_fit, set_two_over_one_gate, set_up_the_line,
+};
 pub use xyz::set_xyz;
 
 /// A bid as a [`Call`], for trie keys
@@ -517,6 +520,67 @@ mod tests {
         assert_eq!(best(&r, &a, "K2.KQ54.A964.Q92"), call(2, Strain::Notrump));
         assert_eq!(best(&r, &a, "Q32.J53.A964.Q92"), call(2, Strain::Hearts));
         assert_eq!(best(&r, &a, "A2.K3.Q543.KJ85"), call(2, Strain::Clubs));
+    }
+
+    #[test]
+    fn choice_of_games_three_notrump() {
+        let a = [call(1, Strain::Hearts), Call::Pass];
+        let on = major_responses(Suit::Hearts);
+        set_major_choice_of_games(false);
+        let off = major_responses(Suit::Hearts);
+        set_major_choice_of_games(true);
+
+        // Flat (4333) with four trumps, 13 HCP: 3NT outranks Jacoby 2NT.
+        assert_eq!(best(&on, &a, "K32.KQ54.A96.J92"), call(3, Strain::Notrump));
+        assert_eq!(best(&off, &a, "K32.KQ54.A96.J92"), call(2, Strain::Notrump));
+        // Flat (4333) with three trumps, 12 HCP: 3NT; off it is a forcing 1NT.
+        assert_eq!(best(&on, &a, "K32.K54.A964.Q92"), call(3, Strain::Notrump));
+        assert_eq!(best(&off, &a, "K32.K54.A964.Q92"), call(1, Strain::Notrump));
+        // 4=3=3=3 over 1♥ keeps bidding 1♠ — the spade exclusion is load-bearing.
+        assert_eq!(best(&on, &a, "KQ32.K54.A96.Q92"), call(1, Strain::Spades));
+        assert_eq!(best(&off, &a, "KQ32.K54.A96.Q92"), call(1, Strain::Spades));
+    }
+
+    #[test]
+    fn two_over_one_fit_leg_and_gates() {
+        let a = [call(1, Strain::Hearts), Call::Pass];
+        // Arms are relative to the legacy gate; the shipped default is
+        // fit + Hcp13 (restored at the end).
+        set_two_over_one_fit(false);
+        set_two_over_one_gate(TwoOverOneGate::Points13);
+        let baseline = major_responses(Suit::Hearts);
+        set_two_over_one_fit(true);
+        let fit = major_responses(Suit::Hearts);
+        set_two_over_one_fit(false);
+        set_two_over_one_gate(TwoOverOneGate::Hcp13);
+        let hcp13 = major_responses(Suit::Hearts);
+        set_two_over_one_gate(TwoOverOneGate::Hcp12);
+        let hcp12 = major_responses(Suit::Hearts);
+        set_two_over_one_fit(true);
+        set_two_over_one_gate(TwoOverOneGate::Hcp13);
+
+        // Fit leg: exactly three trumps, 11 HCP + spade singleton reads 13
+        // support points — a 2/1 preparing the heart raise; off, a 1NT.
+        assert_eq!(best(&fit, &a, "7.K54.A964.KJ932"), call(2, Strain::Clubs));
+        assert_eq!(
+            best(&baseline, &a, "7.K54.A964.KJ932"),
+            call(1, Strain::Notrump)
+        );
+        // Hcp13 demotes a shaped 12 (6-4 reads 13 points) back to 1NT.
+        assert_eq!(
+            best(&baseline, &a, "32.Q4.AKJ964.Q93"),
+            call(2, Strain::Diamonds)
+        );
+        assert_eq!(
+            best(&hcp13, &a, "32.Q4.AKJ964.Q93"),
+            call(1, Strain::Notrump)
+        );
+        // Hcp12 admits a no-fit flat 12 the shipped gate leaves in 1NT.
+        assert_eq!(
+            best(&baseline, &a, "K32.54.A964.KQ92"),
+            call(1, Strain::Notrump)
+        );
+        assert_eq!(best(&hcp12, &a, "K32.54.A964.KQ92"), call(2, Strain::Clubs));
     }
 
     #[test]

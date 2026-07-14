@@ -6,6 +6,7 @@ use super::super::Trie;
 use super::super::constraint::{
     Cons, Constraint, balanced, described, hcp, len, points, stopper_in, support, support_points,
 };
+use super::notrump::flat_4333;
 use crate::bidding::context::Context;
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Hand, Strain, Suit};
@@ -32,6 +33,56 @@ std::thread_local! {
     /// −0.91/−1.28 per divergent) — the 1♦ response reroutes hands into
     /// auctions only the XYZ round continues; don't enable it with XYZ off.
     static UP_THE_LINE: Cell<bool> = const { Cell::new(true) };
+    /// Whether `1M – 3NT` is authored as a **choice of games**: 3-4 card
+    /// support, exactly (4333), 12-15 HCP — responder offers 3NT, opener
+    /// passes balanced and corrects to `4M` with shape.  Default `true` —
+    /// **shipped default-on 2026-07-15** (isolated: plain +0.0006/+0.0011
+    /// NV/vul, PD +0.0005/+0.0010, all CIs clear; perfectly additive atop
+    /// the 2/1 fit-split, full-package numbers on that knob).
+    static MAJOR_CHOICE_OF_GAMES: Cell<bool> = const { Cell::new(true) };
+    /// Whether the major 2/1 game-force entry gains the **fit leg**: with
+    /// exactly three-card support the 2/1 is a preparation for `4M`, so the
+    /// hand is gauged in `support_points` (the fit is privately known —
+    /// opener promised five).  Default `true` — **shipped default-on
+    /// 2026-07-15** jointly with the `Hcp13` gate (alone a vul-only plain
+    /// win; the pair plain +0.0033/+0.0048, PD +0.0070/+0.0087 NV/vul —
+    /// the fit leg re-admits with support what the hcp gate demotes).
+    static TWO_OVER_ONE_FIT: Cell<bool> = const { Cell::new(true) };
+    /// The gauge for the **no-fit** leg of the major 2/1 game-force entry.
+    /// Default [`TwoOverOneGate::Hcp13`] — **shipped 2026-07-15**; the
+    /// legacy `points(13..)` is the `Points13` opt-out.
+    static TWO_OVER_ONE_GATE: Cell<TwoOverOneGate> = const { Cell::new(TwoOverOneGate::Hcp13) };
+}
+
+/// The gauge for the no-fit leg of the major 2/1 game force
+/// (`set_two_over_one_gate`)
+///
+/// The remnant report (docs/point-count-threshold-campaign.md) flagged the
+/// 2/1 band both ways under the rule-of-N+8 scale: shaped 11s read 13+ and
+/// forced game without a fit.  The shape-indifferent `Hcp13` swept best and
+/// shipped; `Hcp12`'s vul plain edge came with a PD loss both vuls in the
+/// paired head-to-head (the thin-game doubling signature) — an sd-lead
+/// probe candidate, not the default.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum TwoOverOneGate {
+    /// The legacy gate: `points(13..)` on the global scale
+    Points13,
+    /// Raw `hcp(13..)` — shape-indifferent, demotes shaped 11-12s to 1NT;
+    /// the shipped default
+    #[default]
+    Hcp13,
+    /// Raw `hcp(12..)` — one lighter, admits every 12-HCP hand
+    Hcp12,
+}
+
+impl TwoOverOneGate {
+    /// The raw-HCP floor of an `Hcp*` gate
+    const fn hcp_floor(self) -> u8 {
+        match self {
+            Self::Points13 | Self::Hcp13 => 13,
+            Self::Hcp12 => 12,
+        }
+    }
 }
 
 /// Author the longer-major response discipline for books built *after* this
@@ -77,6 +128,53 @@ pub fn set_up_the_line(on: bool) {
 /// Whether the up-the-line completion is currently authored
 pub(crate) fn up_the_line() -> bool {
     UP_THE_LINE.with(Cell::get)
+}
+
+/// Author the `1M – 3NT` choice-of-games response for books built after this
+/// call (default `true`; off-switch `--no-ns-major-choice-of-games` in
+/// `bba-gen`)
+///
+/// On: `3NT` over `1♥`/`1♠` shows 3-4 card support, exactly (4333) and 12-15
+/// HCP (over `1♥` it also denies four spades — that hand bids `1♠` first).
+/// Opener passes with a balanced hand and corrects to `4M` with shape; the
+/// alerted reading pins responder's three-card support so later floor
+/// decisions know the fit.  Off: the flat hand routes through its lone
+/// four-card suit as a 2/1 (or Jacoby 2NT / limit raise with four trumps).
+pub fn set_major_choice_of_games(on: bool) {
+    MAJOR_CHOICE_OF_GAMES.with(|cell| cell.set(on));
+}
+
+/// Whether the choice-of-games 3NT is currently authored
+fn major_choice_of_games() -> bool {
+    MAJOR_CHOICE_OF_GAMES.with(Cell::get)
+}
+
+/// Author the fit leg of the major 2/1 game force for books built after this
+/// call (default `true`; off-switch `--no-ns-two-over-one-fit` in `bba-gen`)
+///
+/// On: a hand with exactly three-card support and a biddable side suit enters
+/// the 2/1 on `support_points(13..)` — the 2/1 is a preparation for `4M`, and
+/// the fit is privately known (opener promised five), so shortness counts.
+/// Off: every 2/1 is gauged by the no-fit gate alone.
+pub fn set_two_over_one_fit(on: bool) {
+    TWO_OVER_ONE_FIT.with(|cell| cell.set(on));
+}
+
+/// Whether the 2/1 fit leg is currently authored
+fn two_over_one_fit() -> bool {
+    TWO_OVER_ONE_FIT.with(Cell::get)
+}
+
+/// Set the no-fit gauge of the major 2/1 game force for books built after
+/// this call (default [`TwoOverOneGate::Hcp13`];
+/// `--ns-two-over-one-gate` in `bba-gen`)
+pub fn set_two_over_one_gate(gate: TwoOverOneGate) {
+    TWO_OVER_ONE_GATE.with(|cell| cell.set(gate));
+}
+
+/// The currently authored no-fit 2/1 gauge
+fn two_over_one_gate() -> TwoOverOneGate {
+    TWO_OVER_ONE_GATE.with(Cell::get)
 }
 
 /// Spades take the first response: strictly longer, or equal length five-plus
@@ -126,6 +224,8 @@ const WEAK_JUMP_SHIFT: Alert = Alert("weak-jump-shift");
 const INVERTED_MINOR: Alert = Alert("inverted-minor");
 /// 2/1 game force — a new suit at the two level, game forcing
 const GAME_FORCE: Alert = Alert("game-force");
+/// Choice of games — `1M – 3NT` with 3-4 card support, (4333), 12-15 HCP
+const CHOICE_OF_GAMES: Alert = Alert("choice-of-games-3nt");
 
 /// Responses to our `1♥`/`1♠` opening
 ///
@@ -175,6 +275,27 @@ pub fn major_responses(major: Suit) -> Rules {
         );
     }
 
+    // Choice-of-games 3NT (`set_major_choice_of_games`): exactly (4333) with
+    // 3-4 card support, 12-15 HCP — offer 3NT and let opener choose (the
+    // curse of (4333): the flat hand often plays better in notrump).  On 4333
+    // `points` reads raw HCP under the floored scale, so the band is HCP.
+    // Weight 3.2 outranks Jacoby 2NT (3.0) and the limit raise (2.0) so flat
+    // four-trump hands prefer it; over 1♥ the spade exclusion is load-bearing
+    // — without it 3.2 would steal 4=3=3=3 from the 1♠ response (1.7).
+    if major_choice_of_games() {
+        let cog = support(3..=4) & flat_4333() & points(12..=15);
+        rules = if major == Suit::Hearts {
+            rules.rule(
+                Bid::new(3, Strain::Notrump),
+                3.2,
+                cog & len(Suit::Spades, ..4),
+            )
+        } else {
+            rules.rule(Bid::new(3, Strain::Notrump), 3.2, cog)
+        }
+        .alert(CHOICE_OF_GAMES);
+    }
+
     // Splinters: double jump in a new suit — four-card support, 10–13 HCP,
     // singleton or void in the splinter suit.
     let splinter_suits: &[Suit] = if major == Suit::Hearts {
@@ -208,17 +329,41 @@ pub fn major_responses(major: Suit) -> Rules {
             .alert(WEAK_JUMP_SHIFT);
     }
 
-    // 2/1 game-forcing new suits: cheaper suits, ranked up the line.
+    // 2/1 game-forcing new suits: cheaper suits, ranked up the line.  The
+    // entry gate splits per the knobs: the no-fit gauge is `points` or raw
+    // `hcp` (`set_two_over_one_gate`), and the fit leg
+    // (`set_two_over_one_fit`) admits exactly-three-card support on
+    // `support_points` — fit-known, so shortness counts.  The
+    // `(off, Points13)` arm is the shipped expression, byte-identical.
     let mut weight = 1.1;
     for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts] {
         if Strain::from(suit) < trump {
-            rules = rules
-                .rule(
-                    Bid::new(2, Strain::from(suit)),
+            let bid = Bid::new(2, Strain::from(suit));
+            rules = match (two_over_one_fit(), two_over_one_gate()) {
+                (false, TwoOverOneGate::Points13) => {
+                    rules.rule(bid, weight, len(suit, 4..) & points(13..) & !support(4..))
+                }
+                (false, gate) => rules.rule(
+                    bid,
                     weight,
-                    len(suit, 4..) & points(13..) & !support(4..),
-                )
-                .alert(GAME_FORCE);
+                    len(suit, 4..) & hcp(gate.hcp_floor()..) & !support(4..),
+                ),
+                (true, TwoOverOneGate::Points13) => rules.rule(
+                    bid,
+                    weight,
+                    len(suit, 4..)
+                        & !support(4..)
+                        & (points(13..) | (support(3..) & support_points(13..))),
+                ),
+                (true, gate) => rules.rule(
+                    bid,
+                    weight,
+                    len(suit, 4..)
+                        & !support(4..)
+                        & (hcp(gate.hcp_floor()..) | (support(3..) & support_points(13..))),
+                ),
+            }
+            .alert(GAME_FORCE);
             weight -= 0.05;
         }
     }
@@ -388,11 +533,22 @@ pub fn minor_responses(minor: Suit) -> Rules {
 pub(super) fn register(book: &mut Trie) {
     // --- First responses to every one-of-a-suit opening ---
     for major in [Suit::Hearts, Suit::Spades] {
-        super::insert_uncontested(
-            book,
-            &[super::call(1, Strain::from(major))],
-            major_responses(major),
-        );
+        let m_strain = Strain::from(major);
+        super::insert_uncontested(book, &[super::call(1, m_strain)], major_responses(major));
+
+        // Opener's choice after the choice-of-games 3NT: correct to 4M with
+        // an unbalanced hand (the alerted reading pins 3+ support, so the
+        // 5-3 fit is known), pass balanced — including 5332, which the
+        // floor's ruffing-shortness correction would wrongly pull.
+        if major_choice_of_games() {
+            super::insert_uncontested(
+                book,
+                &[super::call(1, m_strain), super::call(3, Strain::Notrump)],
+                Rules::new()
+                    .rule(Bid::new(4, m_strain), 1.0, !balanced())
+                    .rule(Call::Pass, 0.0, hcp(0..)),
+            );
+        }
     }
     for minor in [Suit::Clubs, Suit::Diamonds] {
         super::insert_uncontested(

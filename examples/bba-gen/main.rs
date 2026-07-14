@@ -282,6 +282,25 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_up_the_line: bool,
 
+    /// Disable the 1M-3NT choice-of-games response (3-4 card support, exactly
+    /// (4333), 12-15 HCP; opener passes balanced, corrects to 4M with shape);
+    /// on by default. Off-switch for the A/B (see `set_major_choice_of_games`).
+    #[arg(long, default_value_t = false)]
+    no_ns_major_choice_of_games: bool,
+
+    /// Disable the fit leg of the major 2/1 game force (exactly 3-card
+    /// support enters on `support_points(13..)` — the 2/1 as a preparation
+    /// for 4M); on by default. Off-switch for the A/B (see
+    /// `set_two_over_one_fit`).
+    #[arg(long, default_value_t = false)]
+    no_ns_two_over_one_fit: bool,
+
+    /// The no-fit gauge of the major 2/1 game force:
+    /// hcp13 (shipped default) | hcp12 | points13 (the legacy gate)
+    /// (see `set_two_over_one_gate`).
+    #[arg(long, default_value = "hcp13")]
+    ns_two_over_one_gate: String,
+
     /// Disable the XYZ two-way checkback after three one-level bids (2♣
     /// puppets 2♦ for sign-off or invite, 2♦ game-forces); on by default.
     /// Off-switch for the A/B.
@@ -1272,6 +1291,16 @@ fn main() -> anyhow::Result<()> {
     pons::bidding::american::set_stayman_cue_continuation(!args.no_ns_stayman_cue_continuation);
     pons::bidding::american::set_longer_major_response(!args.no_ns_longer_major_response);
     pons::bidding::american::set_up_the_line(!args.no_ns_up_the_line);
+    pons::bidding::american::set_major_choice_of_games(!args.no_ns_major_choice_of_games);
+    pons::bidding::american::set_two_over_one_fit(!args.no_ns_two_over_one_fit);
+    pons::bidding::american::set_two_over_one_gate(match args.ns_two_over_one_gate.as_str() {
+        "points13" => pons::bidding::american::TwoOverOneGate::Points13,
+        "hcp13" => pons::bidding::american::TwoOverOneGate::Hcp13,
+        "hcp12" => pons::bidding::american::TwoOverOneGate::Hcp12,
+        other => {
+            anyhow::bail!("--ns-two-over-one-gate must be points13|hcp13|hcp12, got {other:?}")
+        }
+    });
     pons::bidding::american::set_xyz(!args.no_ns_xyz);
     pons::bidding::american::set_new_minor_forcing(args.ns_new_minor_forcing);
     pons::bidding::american::set_major_game_tries(!args.no_ns_major_game_tries);

@@ -25,8 +25,8 @@ use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
 use pons::bidding::Family;
 use pons::bidding::american::{
-    set_fourth_suit_forcing, set_limit_raise_acceptance, set_major_game_tries,
-    set_major_rebid_tails,
+    TwoOverOneGate, set_fourth_suit_forcing, set_limit_raise_acceptance, set_major_choice_of_games,
+    set_major_game_tries, set_major_rebid_tails, set_two_over_one_fit, set_two_over_one_gate,
 };
 use pons::scoring::final_contract;
 use rayon::prelude::*;
@@ -69,37 +69,82 @@ struct Args {
     /// Treatment: fourth-suit forcing, rides `--tails` (`set_fourth_suit_forcing`)
     #[arg(long, default_value_t = false)]
     fsf: bool,
+
+    /// Treatment: the 1M-3NT choice-of-games response — 3-4 card support,
+    /// exactly (4333), 12-15 HCP (`set_major_choice_of_games`)
+    #[arg(long, default_value_t = false)]
+    choice_of_games: bool,
+
+    /// Treatment: the 2/1 fit leg — exactly 3-card support enters on
+    /// `support_points(13..)` (`set_two_over_one_fit`)
+    #[arg(long, default_value_t = false)]
+    two_over_one_fit: bool,
+
+    /// Treatment: the no-fit 2/1 gauge — points13 (baseline) | hcp13 | hcp12
+    /// (`set_two_over_one_gate`)
+    #[arg(long, default_value = "points13")]
+    two_over_one_gate: String,
+
+    /// The no-fit 2/1 gauge of the BASELINE arm — for gate-vs-gate
+    /// head-to-heads (both arms otherwise all-off)
+    #[arg(long, default_value = "points13")]
+    baseline_gate: String,
 }
 
-/// Set all four knobs at once
-fn set_knobs(game_tries: bool, limit_raise: bool, tails: bool, fsf: bool) {
-    set_major_game_tries(game_tries);
-    set_limit_raise_acceptance(limit_raise);
-    set_major_rebid_tails(tails);
-    set_fourth_suit_forcing(fsf);
+/// Parse the `--two-over-one-gate` argument
+fn parse_gate(s: &str) -> TwoOverOneGate {
+    match s {
+        "points13" => TwoOverOneGate::Points13,
+        "hcp13" => TwoOverOneGate::Hcp13,
+        "hcp12" => TwoOverOneGate::Hcp12,
+        other => panic!("--two-over-one-gate must be points13|hcp13|hcp12, got {other:?}"),
+    }
+}
+
+/// Set every knob at once; `treatment` false = the all-off baseline arm
+fn set_knobs(args: &Args, treatment: bool) {
+    set_major_game_tries(treatment && args.game_tries);
+    set_limit_raise_acceptance(treatment && args.limit_raise);
+    set_major_rebid_tails(treatment && args.tails);
+    set_fourth_suit_forcing(treatment && args.fsf);
+    set_major_choice_of_games(treatment && args.choice_of_games);
+    set_two_over_one_fit(treatment && args.two_over_one_fit);
+    set_two_over_one_gate(if treatment {
+        parse_gate(&args.two_over_one_gate)
+    } else {
+        parse_gate(&args.baseline_gate)
+    });
 }
 
 #[allow(clippy::cast_precision_loss)]
 fn main() {
     let args = Args::parse();
+    let gate_selected = args.two_over_one_gate != "points13";
     assert!(
-        args.game_tries || args.limit_raise || args.tails || args.fsf,
-        "select at least one treatment: --game-tries / --limit-raise / --tails / --fsf",
+        args.game_tries
+            || args.limit_raise
+            || args.tails
+            || args.fsf
+            || args.choice_of_games
+            || args.two_over_one_fit
+            || gate_selected,
+        "select at least one treatment: --game-tries / --limit-raise / --tails / --fsf / \
+         --choice-of-games / --two-over-one-fit / --two-over-one-gate",
     );
     assert!(!args.fsf || args.tails, "--fsf rides --tails; enable both");
     let base = args.seed.unwrap_or_else(rand::random);
     let vul = args.vulnerability;
 
     // arm 0 = baseline (all off), arm 1 = the selected treatment set.  All
-    // four knobs are read only at book-construction time, so each arm bakes
+    // the knobs are read only at book-construction time, so each arm bakes
     // its own books; unlike the minor-continuations longer-major knob, none
     // of these is also read at classify time, so there is no per-arm re-set
     // inside the worker below.
-    set_knobs(false, false, false, false);
+    set_knobs(&args, false);
     let baseline = american().against(Family::NATURAL);
-    set_knobs(args.game_tries, args.limit_raise, args.tails, args.fsf);
+    set_knobs(&args, true);
     let treatment = american().against(Family::NATURAL);
-    set_knobs(false, false, false, false);
+    set_knobs(&args, false);
     let stances = [baseline, treatment];
 
     // Deals are seeded per board (base + index) so any arm of the experiment
@@ -127,16 +172,21 @@ fn main() {
     let solve_deals: Vec<FullDeal> = divergent.iter().map(|&i| deals[i]).collect();
     let tables = Solver::lock().solve_deals(&solve_deals, NonEmptyStrainFlags::ALL);
 
-    let treatments: Vec<&str> = [
+    let mut treatments: Vec<String> = [
         ("game-tries", args.game_tries),
         ("limit-raise", args.limit_raise),
         ("tails", args.tails),
         ("fsf", args.fsf),
+        ("choice-of-games", args.choice_of_games),
+        ("two-over-one-fit", args.two_over_one_fit),
     ]
     .iter()
     .filter(|(_, on)| *on)
-    .map(|&(name, _)| name)
+    .map(|&(name, _)| name.to_owned())
     .collect();
+    if gate_selected {
+        treatments.push(format!("two-over-one-gate={}", args.two_over_one_gate));
+    }
     println!(
         "=== major-continuations A/B: {} boards, vulnerability {}, seed {}, treatment [{}] ===",
         args.count,
