@@ -92,8 +92,9 @@ pub use competition::{
     set_free_bid_quality, set_free_bid_style, set_free_bids, set_high_overcall_responses,
     set_jordan_truscott, set_lebensohl, set_lebensohl_style, set_major_support_double,
     set_natural_floor, set_negative_double_shape, set_penalty_double_leave_in, set_penalty_pass,
-    set_splinter_doubled, set_strong_two_competition, set_trap_pass, set_uvu, set_uvu_cue_floor,
-    set_uvu_natural_floor, set_uvu_over_majors, set_uvu_x_floor, set_weak_two_competition,
+    set_redouble_answer, set_splinter_doubled, set_strong_two_competition, set_trap_pass, set_uvu,
+    set_uvu_cue_floor, set_uvu_natural_floor, set_uvu_over_majors, set_uvu_x_floor,
+    set_weak_two_competition,
 };
 // The inference walk reads this knob at classify time (the two-suiter reading).
 pub(crate) use competition::uvu_over_majors;
@@ -111,9 +112,9 @@ pub use defense::{
     set_nt_overcall_gladiator, set_nt_overcall_no_major, set_nt_overcall_systems_on,
     set_overcall_discipline, set_passed_hand_overcall, set_responsive_overcall,
     set_responsive_takeout, set_rich_advance_double, set_stayman_defense,
-    set_stayman_defense_overcall, set_takeout_support, set_transfer_defense,
-    set_two_level_minor_overcall_tight, set_unusual_notrump_defense, set_woolsey,
-    set_woolsey_double_floor, set_woolsey_points,
+    set_stayman_defense_overcall, set_strong_double_hcp, set_takeout_support, set_transfer_defense,
+    set_two_level_minor_overcall_tight, set_two_suiter_hcp_floor, set_unusual_notrump_defense,
+    set_woolsey, set_woolsey_double_floor, set_woolsey_points,
 };
 pub(crate) use defense::{
     direct_dont_enabled, direct_landy_double, landy_range, meckwell_enabled,
@@ -134,13 +135,13 @@ pub(crate) use notrump::{crawling_stayman, garbage_stayman, notrump_minors};
 pub(crate) use openings::rule_of_20_enabled;
 pub use openings::{
     NotrumpShape, openings, openings_with, set_notrump_shape, set_one_notrump_fifths,
-    set_open_one_notrump, set_rule_of_20, set_weak_two_hcp,
+    set_open_one_notrump, set_opening_hcp_floor, set_rule_of_20, set_weak_two_hcp,
 };
 pub use raises::{set_limit_raise_acceptance, set_major_game_tries};
 pub(crate) use rebids::{opener_extras_ladder, opener_major_jump_rebid};
 pub use rebids::{
     set_balanced_1nt_rebid, set_forcing_nt_two_suiter, set_fourth_suit_forcing,
-    set_major_rebid_tails, set_meckstroth_adjunct, set_opener_extras_ladder,
+    set_major_rebid_tails, set_meckstroth_adjunct, set_nt_invite_hcp, set_opener_extras_ladder,
     set_opener_major_jump_rebid,
 };
 pub(crate) use responses::longer_major_response;

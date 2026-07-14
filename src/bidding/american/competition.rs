@@ -883,6 +883,36 @@ fn jordan_truscott() -> bool {
 }
 
 thread_local! {
+    /// Whether opener's rebid over the value redouble (`1x – (X) – XX – (P)`)
+    /// is authored.  **Default on** (fix-vs-shipped, 1M boards/vul, 24.pdd
+    /// 16.3M–18.3M: plain DD +0.0056 ± 0.0005 NV / +0.0078 ± 0.0007 vul, PD
+    /// +0.0058/+0.0080, ≈ +11..+14 IMPs per divergent board).  Off, the
+    /// systems-on rebase strips both the double and the redouble, so opener
+    /// replays onto the uncontested tree with responder's shown 10+ unseen,
+    /// and the floor blasts stopperless 3NTs / thin games off shaped minimums
+    /// — the point-count remnant's single worst per-board family
+    /// (−16..−17 IMPs/board vulnerable).  See [`set_redouble_answer`].
+    static REDOUBLE_ANSWER: Cell<bool> = const { Cell::new(true) };
+}
+
+/// Author opener's rebid over the value redouble (`1x – (X) – XX – (P)`) for
+/// books built *after* this call (thread-local); requires
+/// [`set_jordan_truscott`] on (the redouble itself)
+///
+/// **Default on** (measured; see the thread-local above).  The authored node
+/// is pass-only — a long-suit minimum sits for the redoubled make, and a 2M
+/// escape rung measured −11 IMPs/fired before deletion.  `false` restores the
+/// shipped floor for the off arm.
+pub fn set_redouble_answer(on: bool) {
+    REDOUBLE_ANSWER.with(|cell| cell.set(on));
+}
+
+/// Whether opener's answer over the value redouble is authored
+fn redouble_answer() -> bool {
+    REDOUBLE_ANSWER.with(Cell::get)
+}
+
+thread_local! {
     /// Whether a double of our splinter runs systems-on (see
     /// [`set_splinter_doubled`]).
     static SPLINTER_DOUBLED: Cell<bool> = const { Cell::new(true) };
@@ -2175,6 +2205,24 @@ fn doubled_opening_responder(opening: Suit) -> Rules {
     rules
         .rule(Bid::new(1, Strain::Notrump), 1.1, hcp(6..=9))
         .rule(Call::Pass, 0.0, hcp(0..))
+}
+
+/// Opener's rebid over responder's value redouble and their pass
+/// (`1x – (X) – XX – (P)`, behind [`set_redouble_answer`])
+///
+/// Partner holds 10+ HCP with at most three (majors; four minors) of our suit:
+/// the deal belongs to us, and the partnership's plan is to penalize their
+/// runout or buy the redoubled contract.  The rebase would strip both the
+/// double and the redouble and replay opener uncontested, where partner's
+/// shown strength reads as silence — the floor then re-prices a shaped minimum
+/// as game-going and blasts a stopperless 3NT.  Sound bridge is **pass**,
+/// full stop: even (especially) a long-suit minimum — one-of-a-suit
+/// redoubled with six-plus trumps makes with overtricks, while any pull
+/// forfeits the redoubled bonus and reopens the auction for their runout (a
+/// 2M-escape rung measured −11 IMPs/fired in the smoke A/B before it was
+/// deleted).  Extras act naturally on the next round once they run.
+fn answer_value_redouble() -> Rules {
+    Rules::new().rule(Call::Pass, 0.6, hcp(0..))
 }
 
 /// Opener's answer to the flipped preemptive jump raise (`1x – (X) – 3x`)
@@ -4010,6 +4058,18 @@ pub fn competition() -> Competitive {
                 Arc::new(SuffixIs(vec![call(3, o_strain), Call::Pass])),
                 Fallback::classify(answer_preemptive_raise(opening)),
             );
+            // Opener over the value redouble: the rebase replays it as an
+            // uncontested rebid with responder's 10+ unseen, so the floor
+            // blasts; shadow it with the pass-only answer.
+            if redouble_answer() {
+                fallback_all_seats(
+                    &mut book,
+                    &key,
+                    3,
+                    Arc::new(SuffixIs(vec![Call::Redouble, Call::Pass])),
+                    Fallback::classify(answer_value_redouble()),
+                );
+            }
             for x in [Suit::Clubs, Suit::Diamonds, Suit::Hearts] {
                 if Strain::from(x) >= o_strain {
                     continue;
@@ -6966,6 +7026,44 @@ mod tests {
         let (decline, _) = best_call(&answer, "AQ542.954.96.A32");
         assert_eq!(decline, call(3, Strain::Spades), "a minimum declines");
         super::set_jordan_truscott(true);
+    }
+
+    #[test]
+    fn redouble_answer_shadows_the_rebase_blast() {
+        // [1♠ (X) XX (P)]: opener's rebid.  The systems-on rebase strips the
+        // double and the redouble, so opener replays uncontested with
+        // responder's shown 10+ unseen, and the floor re-prices this shaped
+        // minimum (12 HCP, 15 points) as game-going — the remnant report's
+        // worst per-board family (−16..−17 IMPs/board vulnerable).  The
+        // authored answer passes — even with a long suit (one-of-a-suit
+        // redoubled makes with overtricks; a 2M escape rung measured
+        // −11 IMPs/fired and was deleted) — and shadows the floor.
+        let auction = [
+            call(1, Strain::Spades),
+            Call::Double,
+            Call::Redouble,
+            Call::Pass,
+        ];
+        let opener = "KQ652..AKT764.85"; // 12 HCP 5=0=6=2, opened 1♠
+        let (default_call, default_floored) = best_call(&auction, opener);
+        assert_eq!(default_call, Call::Pass, "the authored answer passes");
+        assert!(!default_floored, "the node shadows the floor");
+        let (long, long_floored) = best_call(&auction, "KQJT65.2.KJ85.T4"); // 10 HCP, 6 spades
+        assert_eq!(
+            long,
+            Call::Pass,
+            "a long-suit minimum sits for the redoubled make"
+        );
+        assert!(!long_floored, "the sit is authored too");
+
+        super::set_redouble_answer(false);
+        let (off_call, _) = best_call(&auction, opener);
+        super::set_redouble_answer(true);
+        assert_ne!(
+            off_call,
+            Call::Pass,
+            "the off arm: the rebase + floor bids on blindly"
+        );
     }
 
     /// Renderability invariant: every guarded fallback in the competitive book

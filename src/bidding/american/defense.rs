@@ -908,6 +908,23 @@ thread_local! {
     /// default** (an A/B candidate — the anchor shows 5-card majors buried in the
     /// 1NT overcall miss the major game). See [`set_nt_overcall_no_major`].
     static NT_OVERCALL_NO_MAJOR: Cell<bool> = const { Cell::new(false) };
+    /// When `Some(n)`, the "too strong to overcall" partition edge is gauged in
+    /// raw HCP: the strong-tier double becomes `hcp(n..)` and every natural
+    /// overcall band trades its `points` top for `hcp(..n)`.  **`Some(18)` by
+    /// default** (fix-vs-shipped, 1M boards/vul + 50k sd/vul, 24.pdd
+    /// 12.3M–14.3M + 22.3M: plain DD +0.0105 ± 0.0012 NV / +0.0115 ± 0.0016
+    /// vul, PD +0.0114/+0.0126, **sd-lead +0.0159 ± 0.0054 / +0.0115 ±
+    /// 0.0072** — every bracket, both vuls, CIs clear).  `None` restores the
+    /// legacy `points(17..)` tier / `points(..=17)` tops.  See
+    /// [`set_strong_double_hcp`].
+    static STRONG_DOUBLE_HCP: Cell<Option<u8>> = const { Cell::new(Some(18)) };
+    /// When `Some(n)`, the Michaels cue-bid and the Unusual 2NT require
+    /// `hcp(n..)` on top of the shipped `points(8..)`.  **`Some(8)` by
+    /// default** (fix-vs-shipped, 1M boards/vul + 50k sd/vul, 24.pdd
+    /// 14.3M–16.3M + 22.4M: plain DD +0.0023 ± 0.0008 NV / +0.0031 ± 0.0010
+    /// vul, PD +0.0028/+0.0036, sd-lead +0.0024 ± 0.0035 / +0.0046 ± 0.0043 —
+    /// no wall inversion).  See [`set_two_suiter_hcp_floor`].
+    static TWO_SUITER_HCP_FLOOR: Cell<Option<u8>> = const { Cell::new(Some(8)) };
     /// Whether the advancer runs **systems-on** after our natural 1NT overcall:
     /// the whole opening-1NT response structure (Stayman, transfers, Smolen)
     /// grafted below `[1t,1NT]`, so a 15–18 balanced overcall finds 4-4 major
@@ -1083,6 +1100,46 @@ pub fn set_natural_overcall_points(lo: u8, hi: u8) {
 
 pub(crate) fn natural_overcall_points() -> (u8, u8) {
     NATURAL_OVERCALL_POINTS.with(Cell::get)
+}
+
+/// Gauge the "too strong to overcall" partition edge in raw HCP for books built
+/// *after* this call: the strong-tier double of their suit opening becomes
+/// `hcp(n..)` and every natural-overcall band trades its `points` top for
+/// `hcp(..n)`, so no strength is orphaned between "overcall" and "double first,
+/// then bid".
+///
+/// The strong tier exists to promise partner *defensive tricks* — a high-card
+/// statement.  Its legacy `points(17..)` was HCP-flavored under the legacy
+/// scale, but rule-of-N+8 reads a 5-4 fourteen-count 17+: the shaped 14–16 HCP
+/// hands then double first (or overflow the overcall band top into the tier)
+/// and lose to the natural overcall — the point-count remnant's X↔bid seam,
+/// both mirror directions CI-clear.  `Some(18)` keeps 17-HCP shaped hands
+/// overcalling, the forensic winners.  **Default `Some(18)`** (measured every
+/// bracket; see the thread-local above); `None` restores the `points`
+/// partition.
+pub fn set_strong_double_hcp(n: Option<u8>) {
+    STRONG_DOUBLE_HCP.with(|cell| cell.set(n));
+}
+
+pub(crate) fn strong_double_hcp() -> Option<u8> {
+    STRONG_DOUBLE_HCP.with(Cell::get)
+}
+
+/// Require `hcp(n..)` on the Michaels cue-bid and the Unusual 2NT for books
+/// built *after* this call, on top of the shipped `points(8..)`.
+///
+/// Both rules are documented "8+ HCP" but were gauged in `points`; rule-of-N+8
+/// reads a 5-HCP 6-5 freak 8–9, and those garbage two-suiters cue at weight
+/// 2.0 straight into −800 penalty doubles (the point-count remnant's Michaels
+/// family, −17..−21 IMPs a board).  `Some(8)` restores the documented floor.
+/// **Default `Some(8)`** (measured; see the thread-local above); `None`
+/// restores the bare `points(8..)` gate.
+pub fn set_two_suiter_hcp_floor(n: Option<u8>) {
+    TWO_SUITER_HCP_FLOOR.with(|cell| cell.set(n));
+}
+
+pub(crate) fn two_suiter_hcp_floor() -> Option<u8> {
+    TWO_SUITER_HCP_FLOOR.with(Cell::get)
 }
 
 /// Semi-balanced shape for the penalty double: balanced, or one of 5422/6322/7222
@@ -1352,10 +1409,15 @@ pub fn defense_to_suit(their_opening: Bid) -> Rules {
     }
     .alert(TAKEOUT_DOUBLE);
 
-    rules = rules
-        .rule(Call::Double, 1.2, points(17..))
-        .alert(TAKEOUT_DOUBLE)
-        .rule(Call::Pass, 0.0, hcp(0..));
+    // The strong tier is a defensive-trick promise; when the partition is
+    // HCP-gauged (`set_strong_double_hcp`) it reads `hcp(n..)` and the natural
+    // overcall bands below trade their `points` top for `hcp(..n)`.
+    rules = match strong_double_hcp() {
+        Some(n) => rules.rule(Call::Double, 1.2, hcp(n..)),
+        None => rules.rule(Call::Double, 1.2, points(17..)),
+    }
+    .alert(TAKEOUT_DOUBLE)
+    .rule(Call::Pass, 0.0, hcp(0..));
 
     // Natural overcalls: five-card suit.  Disciplined bands by default — 1-level
     // 8–17, 2-level 11–17 (opening values before a below-their-suit 2-level
@@ -1373,86 +1435,101 @@ pub fn defense_to_suit(their_opening: Bid) -> Rules {
                 && two_level_minor_overcall_tight();
             let relax_passed =
                 overcall_discipline() && level == 2 && passed_hand_overcall() && !tight_minor;
-            let band = if !overcall_discipline() {
-                8..=16
-            } else if level == 1 {
-                8..=17
+            let lo = if !overcall_discipline() || level == 1 {
+                8
             } else if tight_minor {
-                15..=17
+                15
             } else if relax_passed {
-                9..=17
+                9
             } else {
-                11..=17
+                11
             };
-            rules = if relax_passed {
-                rules.rule(
+            let hi = if overcall_discipline() { 17 } else { 16 };
+            // The band top is the other face of the strong-tier floor: when the
+            // partition is HCP-gauged it moves with it, so overflow lands in the
+            // tier instead of a shape-blind double on a five-card suit.
+            rules = match (strong_double_hcp(), relax_passed) {
+                (Some(n), false) => rules.rule(
                     Bid::new(level, strain),
                     weight,
-                    len(suit, 5..) & points(band) & (points(11..) | passed_hand()),
-                )
-            } else {
-                rules.rule(
+                    len(suit, 5..) & points(lo..) & hcp(..n),
+                ),
+                (Some(n), true) => rules.rule(
                     Bid::new(level, strain),
                     weight,
-                    len(suit, 5..) & points(band),
-                )
+                    len(suit, 5..) & points(lo..) & hcp(..n) & (points(11..) | passed_hand()),
+                ),
+                (None, false) => rules.rule(
+                    Bid::new(level, strain),
+                    weight,
+                    len(suit, 5..) & points(lo..=hi),
+                ),
+                (None, true) => rules.rule(
+                    Bid::new(level, strain),
+                    weight,
+                    len(suit, 5..) & points(lo..=hi) & (points(11..) | passed_hand()),
+                ),
             };
         }
     }
 
-    // Michaels cue-bid: 2 of their suit, 5-5, 8+ HCP.
-    rules = match t {
-        // t minor → both majors
-        Suit::Clubs | Suit::Diamonds => rules
-            .rule(
-                Bid::new(2, theirs),
-                2.0,
-                len(Suit::Hearts, 5..) & len(Suit::Spades, 5..) & points(8..),
-            )
-            .alert(MICHAELS),
-        // t = ♥ → spades + a minor
-        Suit::Hearts => rules
-            .rule(
-                Bid::new(2, theirs),
-                2.0,
-                len(Suit::Spades, 5..)
-                    & (len(Suit::Clubs, 5..) | len(Suit::Diamonds, 5..))
-                    & points(8..),
-            )
-            .alert(MICHAELS),
-        // t = ♠ → hearts + a minor
-        Suit::Spades => rules
-            .rule(
-                Bid::new(2, theirs),
-                2.0,
-                len(Suit::Hearts, 5..)
-                    & (len(Suit::Clubs, 5..) | len(Suit::Diamonds, 5..))
-                    & points(8..),
-            )
-            .alert(MICHAELS),
+    // Michaels cue-bid: 2 of their suit, 5-5, 8+ HCP — the HCP is real when
+    // `set_two_suiter_hcp_floor` is armed; the shipped gate is `points(8..)`
+    // alone, which rule-of-N+8 satisfies on 5-HCP 6-5 freaks.
+    let (high, low) = match t {
+        // t minor → both majors; t major → the other major (paired with a minor
+        // below via `low`).
+        Suit::Clubs | Suit::Diamonds => (Suit::Spades, Some(Suit::Hearts)),
+        Suit::Hearts => (Suit::Spades, None),
+        Suit::Spades => (Suit::Hearts, None),
     };
+    rules = match (two_suiter_hcp_floor(), low) {
+        (Some(f), Some(l)) => rules.rule(
+            Bid::new(2, theirs),
+            2.0,
+            len(high, 5..) & len(l, 5..) & points(8..) & hcp(f..),
+        ),
+        (None, Some(l)) => rules.rule(
+            Bid::new(2, theirs),
+            2.0,
+            len(high, 5..) & len(l, 5..) & points(8..),
+        ),
+        (Some(f), None) => rules.rule(
+            Bid::new(2, theirs),
+            2.0,
+            len(high, 5..)
+                & (len(Suit::Clubs, 5..) | len(Suit::Diamonds, 5..))
+                & points(8..)
+                & hcp(f..),
+        ),
+        (None, None) => rules.rule(
+            Bid::new(2, theirs),
+            2.0,
+            len(high, 5..) & (len(Suit::Clubs, 5..) | len(Suit::Diamonds, 5..)) & points(8..),
+        ),
+    }
+    .alert(MICHAELS);
 
-    // Unusual 2NT: 5-5 in the two lowest unbid suits, 8+ HCP.
-    match t {
-        Suit::Clubs => rules
+    // Unusual 2NT: 5-5 in the two lowest unbid suits, 8+ HCP (same optional
+    // floor as Michaels).
+    let (a, b) = match t {
+        Suit::Clubs => (Suit::Diamonds, Suit::Hearts),
+        Suit::Diamonds => (Suit::Clubs, Suit::Hearts),
+        Suit::Hearts | Suit::Spades => (Suit::Clubs, Suit::Diamonds),
+    };
+    match two_suiter_hcp_floor() {
+        Some(f) => rules
             .rule(
                 Bid::new(2, Strain::Notrump),
                 1.9,
-                len(Suit::Diamonds, 5..) & len(Suit::Hearts, 5..) & points(8..),
+                len(a, 5..) & len(b, 5..) & points(8..) & hcp(f..),
             )
             .alert(UNUSUAL),
-        Suit::Diamonds => rules
+        None => rules
             .rule(
                 Bid::new(2, Strain::Notrump),
                 1.9,
-                len(Suit::Clubs, 5..) & len(Suit::Hearts, 5..) & points(8..),
-            )
-            .alert(UNUSUAL),
-        Suit::Hearts | Suit::Spades => rules
-            .rule(
-                Bid::new(2, Strain::Notrump),
-                1.9,
-                len(Suit::Clubs, 5..) & len(Suit::Diamonds, 5..) & points(8..),
+                len(a, 5..) & len(b, 5..) & points(8..),
             )
             .alert(UNUSUAL),
     }
@@ -5112,6 +5189,70 @@ mod tests {
             strong_call,
             Call::Pass,
             "a 17-count still competes, not silenced"
+        );
+    }
+
+    #[test]
+    fn strong_double_hcp_repartitions_overcall_vs_double() {
+        // Over their (1♥): a shaped 17-HCP six-carder reads 18 points, which
+        // overflows the shipped overcall band top (17) into the strong-tier
+        // double — the point-count remnant's X↔bid seam (the forensic dump's
+        // worst boards double first and lose to the natural 1♠).  The HCP
+        // partition keeps it overcalling; a flat 19 still doubles first on
+        // either setting ("too strong to overcall" = high cards, not shape).
+        let over_1h = [call(1, Strain::Hearts)];
+        let shaped = "AKQT42.A76.Q75.Q"; // 17 HCP, 18 points
+        let flat = "AQ2.K42.KQ2.AJ32"; // 19 HCP, 3=3=3=4
+        let (default_call, default_floored) = best_call(&over_1h, shaped);
+        assert_eq!(
+            default_call,
+            call(1, Strain::Spades),
+            "default (HCP partition): the 17-HCP shaped hand overcalls"
+        );
+        assert!(!default_floored, "the overcall is a book node");
+        let (strong_call, _) = best_call(&over_1h, flat);
+        assert_eq!(strong_call, Call::Double, "19 HCP still doubles first");
+
+        super::set_strong_double_hcp(None);
+        let (legacy_call, _) = best_call(&over_1h, shaped);
+        super::set_strong_double_hcp(Some(18));
+        assert_eq!(
+            legacy_call,
+            Call::Double,
+            "the points partition (off arm): 18 points reads as the strong tier"
+        );
+    }
+
+    #[test]
+    fn two_suiter_hcp_floor_bars_garbage_michaels() {
+        // Over their (1♥): a 5-HCP 6-6 freak reads 9 points and cues Michaels
+        // at weight 2.0 straight into a penalty double (−17..−21 IMPs a board
+        // in the remnant dump).  The documented gate was always "8+ HCP"; the
+        // floor makes it real, and the hand overcalls its spades instead.  A
+        // sound 11-count 5-5 still cues.
+        let over_1h = [call(1, Strain::Hearts)];
+        let garbage = "KJ9532.5..JT7632"; // 5 HCP, 9 points
+        let sound = "KQ953.5.2.AQ632"; // 11 HCP, 5-5
+        let (default_call, _) = best_call(&over_1h, garbage);
+        assert_eq!(
+            default_call,
+            call(1, Strain::Spades),
+            "default: the floor bars the cue; the freak overcalls"
+        );
+        let (sound_call, _) = best_call(&over_1h, sound);
+        assert_eq!(
+            sound_call,
+            call(2, Strain::Hearts),
+            "a sound 5-5 still cues Michaels"
+        );
+
+        super::set_two_suiter_hcp_floor(None);
+        let (legacy_call, _) = best_call(&over_1h, garbage);
+        super::set_two_suiter_hcp_floor(Some(8));
+        assert_eq!(
+            legacy_call,
+            call(2, Strain::Hearts),
+            "the bare points gate (off arm): 9 points cue Michaels"
         );
     }
 

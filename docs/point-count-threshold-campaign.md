@@ -425,3 +425,149 @@ capability: `ab-point-count` now builds two books for build-time gate knobs
 **Slice ledger: `24.pdd` rows 0..12,300,000 consumed; cursor at 12,300,000**
 (2/1 through 8.1M; weak-two all-suits 8.1M–10.2M, major-only carve
 10.2M–12.3M).
+
+## The remnant close-out (2026-07-15) — competitive-X forensics + the last families
+
+The forensic pass the competitive-X family was waiting for ("no one dominant
+gate; probe before touching bands").  Method: replay the floored-vs-legacy
+remnant run (rows 6.1M/7.1M — replay-for-tracing, not re-measurement) with
+`--show 2000`, parse the worst-board dumps per sub-family, resolve which arm
+made which call by seat parity (candidate sits EW at the `off` table), and
+read the acting hand's HCP/shape/points on each divergent board.  The
+`X ↔ bid` family decomposed into **four mechanisms**, none of them the
+negative double (the shipped negX is `hcp(8..)`, scale-invariant):
+
+1. **The overcall / double-first partition edge** (the `[1♦] X→1♠`,
+   `[P 1♠] 2♣→X`, sandwich and passed-seat cousins — both mirror directions
+   CI-flagged).  Weights make the effective partition "overcall until the
+   band top (17), double first above it" — and *both* faces of that edge were
+   `points`-denominated ([defense.rs](../src/bidding/american/defense.rs)
+   `points(8..=17)` bands / `points(17..)` strong tier).  Rule-of-N+8 reads a
+   5-4 fourteen-count 17+, so shaped 14–17 HCP hands (one dump board: a
+   **nine-card** spade suit reading 18) route into X-first auctions and lose
+   to the natural overcall.  "Too strong to overcall" is a defensive-trick
+   promise — a high-card statement.  **Fix: `set_strong_double_hcp(18)`** —
+   strong tier `hcp(18..)`, every overcall band top `hcp(..18)`, floors stay
+   `points` (the obstruction win).  The 17-HCP shaped hands — the forensic
+   winners — keep overcalling.
+2. **Redouble-then-game `[1M X XX P]`** — the report's single worst
+   per-board family (vul −16..−17 IMPs/board, near-deterministic; ≈−2.6k NV /
+   −3.1k vul per 1M over all `X XX` buckets).  Not a gauge bug: an
+   **unauthored continuation**.  Section 11 authors responder's XX but no
+   opener answer, so the `FirstIs(Double)` systems-on rebase strips both the
+   double and the redouble and opener replays *uncontested* — partner's shown
+   10+ reads as silence, and the floor re-prices shaped minimums as
+   game-going (stopperless 3NT off a 12-count 5-6).  **Fix:
+   `set_redouble_answer`** — a pass-only authored node.  The first draft
+   carried a "pure playing strength" 2M escape (6+ suit, ≤13 HCP); the smoke
+   A/B measured that rung **−11 IMPs/fired** and it was deleted — a long-suit
+   minimum is exactly the hand that wants to sit (one-of-a-suit redoubled
+   makes with overtricks), and any pull reopens the auction for their runout.
+   The forensic dump also shows the **doubler's side** sitting out a making
+   `1M xx` after `[1M X XX P P]` — a separate defensive-side node candidate,
+   parked pending post-fix forensics.
+3. **Garbage Michaels** (`[1♥] 2♥→P` and mirrors, ≈−2.1k in the NV dump).
+   Michaels and the Unusual 2NT are documented "8+ HCP" but were gauged
+   `points(8..)`: a 5-HCP 6-6 freak reads 9, cues at weight 2.0, and eats
+   −800 penalty doubles (−17..−21/board).  **Fix:
+   `set_two_suiter_hcp_floor(8)`** — an `hcp(8..)` leg on both, making the
+   documented floor real.
+4. **Legacy's 4441 upgrade** (small, parked): legacy points reached the 17+
+   tier on 16-HCP 4441s with length in *their* suit (singleton upgrades);
+   rule-of-N+8's L2 term is blind to 4441 (L2 = 8 → +0), so those hands now
+   pass.  Rare; revisit only if post-fix forensics still flag it.
+
+Also visible at `--show 2000` (the original `--show 40` cut them off), and
+deliberately **not** chased: the `[1NT] 2♥↔P` natural-1NT-defense buckets
+(that band is sd-tuned — the plain-DD remnant is the known wall; if anything,
+`set_natural_overcall_points` is an sd re-sweep candidate under the new
+scale) and the `[] 1♠↔2♠` weak-two↔1-opener seam (the weak-two family's
+edge; a `points(5..=10) | hcp(5..=9)` union band would re-admit the shapely
+sub-10s, but the weak-two sd verdict prices exactly that class as
+over-disclosure — parked).
+
+The two small families fixed alongside:
+
+- **2NT rebid-invite** `[1♥ P 1♠ P 2♦ P] 2NT↔P` (now flagged both vuls,
+  both mirror directions): responder's one no-fit rung in
+  `responder_after_minor_rebid` was `points(10..=12)` — a notrump invite
+  priced in ruffs it never takes.  **Fix: `set_nt_invite_hcp`** —
+  `hcp(10..=12)`; the fit-showing 3♥/3m invites keep `points` (the 2/1
+  hcp/support-points split, again).
+- **Freak opening leg** `[P P] P→1♦` ×138 (−155 NV): `points(12..) &
+  hcp(..10)` ⟺ eleven-plus cards in two suits, so a 9-HCP 6-5 (reads 12)
+  walks in the sound-opening front door; legacy passed or preempted.  **Fix:
+  `set_opening_hcp_floor(10)`** on the four `points(12..=21)` openings; the
+  rule-of-20 light rules already carry `hcp(10..=11)`.  The mirror leg
+  (11-HCP 4441s that legacy's singleton upgrade opened and the new scale
+  correctly passes) is the deposed upgrade scale re-litigated — left alone.
+
+All five fixes are build-time knobs, measured fix-vs-shipped through
+`ab-point-count --fix <spec>` (the `Arms::GateFix` two-book path generalizing
+`Arms::WeakTwoHcp`), both arms on the shipped floored scale
+(`scripts/remnant-fixes-ab.sh`, 1M boards/vul plain+PD each, 50k/vul sd-lead
+for the two competitive ranges where sd is the arbiter):
+
+| fix | plain DD NV / vul | PD NV / vul | sd-lead NV / vul | verdict |
+| --- | --- | --- | --- | --- |
+| `strong-double-hcp:18` | **+0.0105 ± 0.0012 / +0.0115 ± 0.0016** | +0.0114 / +0.0126 | **+0.0159 ± 0.0054 / +0.0115 ± 0.0072** | **default-on** |
+| `redouble-answer` | **+0.0056 ± 0.0005 / +0.0078 ± 0.0007** | +0.0058 / +0.0080 | — (constructive) | **default-on** |
+| `two-suiter-hcp:8` | **+0.0023 ± 0.0008 / +0.0031 ± 0.0010** | +0.0028 / +0.0036 | +0.0024 ± 0.0035 / +0.0046 ± 0.0043 | **default-on** |
+| `nt-invite-hcp` | **+0.0018 ± 0.0003 / +0.0022 ± 0.0005** | +0.0028 / +0.0032 | — (constructive) | **default-on** |
+| `opening-hcp-floor:10` | +0.0000 ± 0.0003 / +0.0000 ± 0.0003 | wash / wash | — | **wash → opt-in** |
+
+Four ship default-on with **every bracket positive and no PD dip anywhere** —
+these are gate-precision fixes, not aggression trades, so plain, PD, and sd
+agree.  The redouble answer runs +10.7/+14.0 IMPs *per divergent board*
+(rare, huge); the strong-double partition is the largest total (+10.5k/+11.5k
+IMPs per 1M boards — several times the −1.5k/−2.8k the report priced for the
+whole X↔bid family, because the fix also repairs boards where *both* scales
+mis-partitioned).  The opening floor is a genuine wash — the −155 IMPs/1M
+freak family sits below a 1M-board A/B's resolution — so the sound-bridge
+knob stays opt-in and the family closes as *wash*.
+
+The two-suiter sd NV CI spans zero (+0.0024 ± 0.0035) with vul clear; that is
+consistency, not the weak-two wall signature (sd there sat *below* both DD
+brackets — here it sits between/above).  Plain + PD + sd all point the same
+way, so it ships.
+
+### Composite verification (floored-vs-legacy, all four defaults on)
+
+Fresh slices (`24.pdd` rows 22.5M..23.5M NV, 23.5M..24.5M vul, 1M boards/vul,
+`--show 40`): plain DD **+0.0473 ± 0.0037 NV / +0.0515 ± 0.0050 vul** — up
+from +0.0377/+0.0347 at the previous re-run.  (Fix-vs-shipped gains do not
+add linearly here: a build-time fix lands in *both* books of the
+scale-vs-scale comparison, so the delta grows only by what each fix removes
+of legacy's relative edge.)  Bucket check: the redouble-then-game,
+garbage-Michaels, 2NT-invite, and direct-seat X↔bid buckets are **gone**
+from the flagged set.  Standing, as expected: the weak-two band and Ogust
+buckets (closed as the disclosure wall), the `[1NT]` natural-defense buckets
+(the sd-tuned wall), and the opening-seam trickle (wash-priced).
+
+One real residual: the X↔bid seam persists in the **sandwich**
+(`[1♦ P 1♥] 1♠→X`, −5.1/board ×52) and **balancing** (`[1♦ P P] X→1♠`)
+seats.  Those actions come from the instinct floor, not `defense_to_suit`
+(which only serves the direct seat — the seat the fix closed), so the
+prescription is a floor change: apply the same HCP partition to the floor's
+overcall-vs-double choice.  Parked as the campaign's follow-up; floor
+changes touch every auction and deserve their own measured pass.
+
+### Family ledger — every remnant family now has a verdict
+
+| family | verdict |
+| --- | --- |
+| One-level opening seam | **CLEARED** (4333 floor) + freak leg **wash** (`set_opening_hcp_floor` opt-in) |
+| Quantitative 6NT | **CLEARED** (4333 floor); raw-HCP gauge parked probe-if-bored |
+| 2/1 response band | **FIXED** (fit-split, e416a9d) |
+| Weak-two band + Ogust answer | **WALL** (disclosure; `set_weak_two_hcp` opt-in sd re-measure candidate) |
+| Competitive X ↔ bid: direct seat | **FIXED** (`set_strong_double_hcp(18)` default-on) |
+| Competitive X ↔ bid: redouble-then-game | **FIXED** (`set_redouble_answer` default-on; doubler-side sit-out parked) |
+| Garbage Michaels / UNT | **FIXED** (`set_two_suiter_hcp_floor(8)` default-on) |
+| 2NT rebid-invite | **FIXED** (`set_nt_invite_hcp` default-on) |
+| Competitive X ↔ bid: sandwich/balancing seats | **OPEN — floor follow-up** (HCP-partition the floor's overcall/double choice) |
+| Natural-1NT-defense buckets | **WALL** (sd-tuned band; `set_natural_overcall_points` sd re-sweep candidate under the new scale) |
+| Weak-two ↔ 1-opener seam | **WALL's edge** (union band would re-admit the sd-punished class; parked) |
+
+**Slice ledger: `24.pdd` rows 0..24,500,000 consumed; cursor at 24,500,000**
+(remnant fixes 12.3M–22.3M plain+PD, 22.3M–22.5M sd, composite re-run
+22.5M–24.5M).

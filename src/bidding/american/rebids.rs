@@ -1156,6 +1156,35 @@ fn fourth_suit_forcing() -> bool {
     FOURTH_SUIT_FORCING.with(Cell::get)
 }
 
+std::thread_local! {
+    /// Whether responder's natural 2NT invite after opener shows two suits
+    /// (`1♥ – 1♠ – 2m`) is gauged in raw HCP instead of `points`.  **Default
+    /// on** (fix-vs-shipped, 1M boards/vul, 24.pdd 18.3M–20.3M: plain DD
+    /// +0.0018 ± 0.0003 NV / +0.0022 ± 0.0005 vul, PD +0.0028/+0.0032).  See
+    /// [`set_nt_invite_hcp`].
+    static NT_INVITE_HCP: Cell<bool> = const { Cell::new(true) };
+}
+
+/// Gauge responder's 2NT invite after `1♥ – 1♠ – 2m` in raw HCP for books
+/// built *after* this call
+///
+/// The 2NT rung is the table's one no-fit call — the hand denied a heart
+/// preference and a minor raise, so its long-suit `points` credit prices ruffs
+/// that a notrump part-score never takes (the quantitative-6NT reasoning one
+/// level down).  Rule-of-N+8 reads a shaped 9-count 10+, invites, and loses
+/// both mirror directions (the point-count remnant's 2NT-invite seam).  The
+/// fit-showing rungs (`3♥`/`3m` invites) keep `points`, mirroring the 2/1
+/// hcp/support-points split.  **Default on** (measured; see the thread-local
+/// above); `false` restores the shipped `points` gauge.
+pub fn set_nt_invite_hcp(on: bool) {
+    NT_INVITE_HCP.with(|cell| cell.set(on));
+}
+
+/// Whether the post-two-suit 2NT invite is HCP-gauged
+fn nt_invite_hcp() -> bool {
+    NT_INVITE_HCP.with(Cell::get)
+}
+
 /// Responder's second call after opener raises to `2♠` in `1♥ – 1♠`
 ///
 /// Opener's `2♠` shows four-card support and a 12–15 point opening.  The
@@ -1275,14 +1304,21 @@ fn responder_after_minor_rebid(minor: Suit) -> Rules {
             .rule(Bid::new(2, Strain::Diamonds), 2.0, points(12..))
             .alert(FOURTH_SUIT);
     }
-    rules
+    rules = rules
         .rule(
             Bid::new(3, Strain::Hearts),
             1.3,
             len(Suit::Hearts, 3..) & points(10..=12),
         )
-        .rule(Bid::new(3, m), 1.25, len(minor, 5..) & points(10..=12))
-        .rule(Bid::new(2, Strain::Notrump), 1.2, points(10..=12))
+        .rule(Bid::new(3, m), 1.25, len(minor, 5..) & points(10..=12));
+    // The one no-fit rung: HCP-gauged when `set_nt_invite_hcp` is armed (a
+    // notrump invite takes no ruffs), else the shipped `points`.
+    rules = if nt_invite_hcp() {
+        rules.rule(Bid::new(2, Strain::Notrump), 1.2, hcp(10..=12))
+    } else {
+        rules.rule(Bid::new(2, Strain::Notrump), 1.2, points(10..=12))
+    };
+    rules
         .rule(
             Bid::new(2, Strain::Spades),
             1.05,
@@ -2015,6 +2051,48 @@ mod tests {
                 .is_none(),
             "fourth-suit-forcing must not register without the tails adjunct"
         );
+    }
+
+    #[test]
+    fn nt_invite_hcp_gauges_the_no_fit_rung() {
+        // 1♥ – 1♠ – 2♦ (the remnant report's 2NT-invite seam): a 9-HCP
+        // six-spade hand reads 10 points and invites 2NT by default — a
+        // notrump invite priced in ruffs it will never take.  HCP-gauged it
+        // takes the weak 2♠ rebid instead; a flat-ish 10-count invites on
+        // either gauge.
+        let after_2d: &[Call] = &[
+            Call::Bid(Bid::new(1, Strain::Hearts)),
+            Call::Pass,
+            Call::Bid(Bid::new(1, Strain::Spades)),
+            Call::Pass,
+            Call::Bid(Bid::new(2, Strain::Diamonds)),
+            Call::Pass,
+        ];
+        let shaped = "KT8642.7.QJ4.QJ3"; // 9 HCP, 10 points
+        let flat = "AT86.97.QJ42.QJ3"; // 10 HCP, 10 points
+        let two_nt = Call::Bid(Bid::new(2, Strain::Notrump));
+
+        let default_trie = fsf_trie();
+        assert_eq!(
+            best(&default_trie, after_2d, shaped),
+            Call::Bid(Bid::new(2, Strain::Spades)),
+            "default (HCP-gauged): the shaped 9 takes the weak rebid"
+        );
+        assert_eq!(
+            best(&default_trie, after_2d, flat),
+            two_nt,
+            "a real 10-count still invites"
+        );
+
+        set_nt_invite_hcp(false);
+        let legacy_trie = fsf_trie();
+        set_nt_invite_hcp(true);
+        assert_eq!(
+            best(&legacy_trie, after_2d, shaped),
+            two_nt,
+            "the points gauge (off arm) invites the shaped 9"
+        );
+        assert_eq!(best(&legacy_trie, after_2d, flat), two_nt);
     }
 
     /// The fourth-suit-forcing `2♦` rule carries the alert.

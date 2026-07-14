@@ -36,7 +36,10 @@ use contract_bridge::auction::{Auction, Call};
 use contract_bridge::{AbsoluteVulnerability, Contract, FullDeal, Hand, Seat};
 use ddss::{NonEmptyStrainFlags, Solver, TrickCountTable};
 use pons::american;
-use pons::bidding::american::set_weak_two_hcp;
+use pons::bidding::american::{
+    set_nt_invite_hcp, set_opening_hcp_floor, set_redouble_answer, set_strong_double_hcp,
+    set_two_suiter_hcp_floor, set_weak_two_hcp,
+};
 use pons::bidding::constraint::{PointScale, set_point_scale, set_support_points};
 use pons::bidding::context::relative;
 use pons::bidding::{Family, Inferences, Stance, System};
@@ -97,6 +100,14 @@ struct Args {
     #[arg(long)]
     weak_two_hcp: Option<String>,
 
+    /// Fix-vs-shipped for a remnant gate: the named build-time knob arms the
+    /// candidate book only, both sides on the shipped scale.  Overrides
+    /// `--candidate` and `--weak-two-hcp`.  Specs: `strong-double-hcp:N`,
+    /// `two-suiter-hcp:N`, `redouble-answer`, `nt-invite-hcp`,
+    /// `opening-hcp-floor:N`.
+    #[arg(long)]
+    fix: Option<String>,
+
     /// Bid a slice of this pre-solved binary `.pdd` deal bank instead of
     /// seeded deals; plain DD/PD then score its stored tables, no live solve
     #[arg(long)]
@@ -138,6 +149,69 @@ impl From<Scale> for PointScale {
     }
 }
 
+/// A remnant-gate fix measured fix-vs-shipped through the two-book path
+/// (`--fix`); all five are build-time knobs, shipped-default-off
+#[derive(Clone, Copy)]
+enum Fix {
+    /// `set_strong_double_hcp(n)`: the overcall/double-first partition edge
+    StrongDoubleHcp(u8),
+    /// `set_two_suiter_hcp_floor(n)`: Michaels + Unusual 2NT raw-HCP floor
+    TwoSuiterHcp(u8),
+    /// `set_redouble_answer(true)`: author opener over `1x-(X)-XX-(P)`
+    RedoubleAnswer,
+    /// `set_nt_invite_hcp(true)`: HCP-gauge the post-two-suit 2NT invite
+    NtInviteHcp,
+    /// `set_opening_hcp_floor(n)`: bar sub-n-HCP freaks from 1-level openings
+    OpeningHcpFloor(u8),
+}
+
+impl Fix {
+    /// Parse a `--fix` spec, e.g. `strong-double-hcp:18` or `redouble-answer`
+    fn parse(spec: &str) -> Self {
+        let (name, param) = spec
+            .split_once(':')
+            .map_or((spec, None), |(n, p)| (n, Some(p)));
+        let n = || {
+            param
+                .unwrap_or_else(|| panic!("--fix {name} needs :N"))
+                .parse()
+                .expect("--fix parameter is a number")
+        };
+        match name {
+            "strong-double-hcp" => Self::StrongDoubleHcp(n()),
+            "two-suiter-hcp" => Self::TwoSuiterHcp(n()),
+            "redouble-answer" => Self::RedoubleAnswer,
+            "nt-invite-hcp" => Self::NtInviteHcp,
+            "opening-hcp-floor" => Self::OpeningHcpFloor(n()),
+            _ => panic!("unknown --fix {name}"),
+        }
+    }
+
+    /// Arm (or restore to shipped) this fix's thread-local knob
+    fn set(self, on: bool) {
+        match self {
+            Self::StrongDoubleHcp(n) => set_strong_double_hcp(on.then_some(n)),
+            Self::TwoSuiterHcp(n) => set_two_suiter_hcp_floor(on.then_some(n)),
+            Self::RedoubleAnswer => set_redouble_answer(on),
+            Self::NtInviteHcp => set_nt_invite_hcp(on),
+            Self::OpeningHcpFloor(n) => set_opening_hcp_floor(on.then_some(n)),
+        }
+    }
+
+    /// The spec back, for the header line
+    fn describe(self) -> String {
+        match self {
+            Self::StrongDoubleHcp(n) => {
+                format!("strong-double hcp({n}..) + overcall tops hcp(..{n})")
+            }
+            Self::TwoSuiterHcp(n) => format!("Michaels/UNT + hcp({n}..) floor"),
+            Self::RedoubleAnswer => "opener's answer over the value redouble authored".to_owned(),
+            Self::NtInviteHcp => "post-two-suit 2NT invite hcp(10..=12)".to_owned(),
+            Self::OpeningHcpFloor(n) => format!("1-level openings + hcp({n}..) floor"),
+        }
+    }
+}
+
 /// Which knob the duplicate match flips per acting side
 #[derive(Clone, Copy)]
 enum Arms {
@@ -151,6 +225,9 @@ enum Arms {
     /// The weak-two opening's HCP band on the candidate side vs the shipped
     /// `points(5..=10)` on the baseline (fix-vs-shipped; both stay floored)
     WeakTwoHcp { band: (u8, u8) },
+    /// A remnant-gate fix on the candidate side vs the shipped default
+    /// (fix-vs-shipped; both books on the shipped scale)
+    GateFix { fix: Fix },
 }
 
 impl Arms {
@@ -163,6 +240,8 @@ impl Arms {
                 baseline,
             } => set_point_scale(if is_candidate { candidate } else { baseline }),
             Self::WeakTwoHcp { band } => set_weak_two_hcp(is_candidate.then_some(band)),
+            // Baked into the two books at build time; nothing to flip per call.
+            Self::GateFix { .. } => {}
         }
     }
 }
@@ -363,7 +442,11 @@ fn main() {
     let base = args.seed.unwrap_or_else(rand::random);
     let vul = args.vulnerability;
 
-    let arms = if let Some(band) = &args.weak_two_hcp {
+    let arms = if let Some(spec) = &args.fix {
+        Arms::GateFix {
+            fix: Fix::parse(spec),
+        }
+    } else if let Some(band) = &args.weak_two_hcp {
         let (lo, hi) = band.split_once(':').expect("--weak-two-hcp expects LO:HI");
         Arms::WeakTwoHcp {
             band: (
@@ -391,6 +474,14 @@ fn main() {
             set_weak_two_hcp(Some(band));
             let candidate = american().against(Family::NATURAL);
             set_weak_two_hcp(None);
+            [baseline, candidate]
+        }
+        Arms::GateFix { fix } => {
+            fix.set(false);
+            let baseline = american().against(Family::NATURAL);
+            fix.set(true);
+            let candidate = american().against(Family::NATURAL);
+            fix.set(false);
             [baseline, candidate]
         }
         _ => [
@@ -483,6 +574,9 @@ fn main() {
         ),
         Arms::WeakTwoHcp { band: (lo, hi) } => {
             println!("arms: weak-two hcp({lo}..={hi}) vs shipped points(5..=10), both floored",)
+        }
+        Arms::GateFix { fix } => {
+            println!("arms: {} vs shipped default, both floored", fix.describe());
         }
     }
     if let Some(path) = &args.deals {

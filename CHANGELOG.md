@@ -9,6 +9,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The point-count remnant close-out — five gate fixes, four shipped
+  default-on; the remnant report's families all have verdicts.** Worst-board
+  forensics on the flagged competitive-X buckets (replaying the remnant run
+  with `--show 2000` and resolving candidate/legacy by seat parity)
+  decomposed the family into four mechanisms and produced, measured
+  **fix-vs-shipped** on fresh `24.pdd` slices (1M boards/vul plain+PD each;
+  50k/vul sd-lead where the range is competitive; `scripts/remnant-fixes-ab.sh`):
+  - `set_strong_double_hcp(Some(18))` **default-on** — the overcall /
+    double-first partition edge in raw HCP: the strong-tier double becomes
+    `hcp(18..)` and every natural-overcall band top `hcp(..18)` (floors stay
+    `points`). Rule-of-N+8 read shaped 14–17 HCP hands past the old
+    `points(17..)`/`points(..=17)` edge into double-first auctions (one dump
+    board: a nine-card suit reading 18). Plain DD **+0.0105 ± 0.0012 NV /
+    +0.0115 ± 0.0016 vul**, PD +0.0114/+0.0126, **sd-lead +0.0159 ± 0.0054 /
+    +0.0115 ± 0.0072** — every bracket, both vuls, CIs clear.
+  - `set_redouble_answer` **default-on** — opener's pass-only authored answer
+    over `1x-(X)-XX-(P)`. Unauthored, the systems-on rebase strips both the
+    double and the redouble, so the floor re-priced shaped minimums as
+    game-going and blasted stopperless 3NTs (−16..−17 IMPs/board vulnerable,
+    the report's worst per-board family). Pass-only is deliberate: a 2M
+    "playing strength" escape rung measured **−11 IMPs/fired** in the smoke
+    A/B and was deleted — one-of-a-suit redoubled with a long suit makes with
+    overtricks, and any pull reopens their runout. Plain DD
+    **+0.0056 ± 0.0005 / +0.0078 ± 0.0007**, PD +0.0058/+0.0080
+    (+10.7/+14.0 IMPs per divergent board).
+  - `set_two_suiter_hcp_floor(Some(8))` **default-on** — Michaels and the
+    Unusual 2NT gain the `hcp(8..)` floor their doc comments always claimed:
+    5-HCP 6-5 freaks read 8–9 `points` and cued at weight 2.0 into −800
+    penalty doubles. Plain DD **+0.0023 ± 0.0008 / +0.0031 ± 0.0010**, PD
+    +0.0028/+0.0036, sd-lead +0.0024 ± 0.0035 / +0.0046 ± 0.0043 (no
+    weak-two-style wall inversion).
+  - `set_nt_invite_hcp` **default-on** — responder's 2NT invite after
+    `1♥-1♠-2m` gauged `hcp(10..=12)`: the table's one no-fit rung was priced
+    in ruffs a notrump part-score never takes; the fit-showing 3♥/3m rungs
+    keep `points` (the 2/1 hcp/support-points split again). Plain DD
+    **+0.0018 ± 0.0003 / +0.0022 ± 0.0005**, PD +0.0028/+0.0032.
+  - `set_opening_hcp_floor` **opt-in (wash)** — `Some(10)` bars sub-10-HCP
+    freaks (11+ cards in two suits; `points(12..) & hcp(..10)` is exactly
+    that class) from the one-level openings. A perfect wash at 1M boards/vul
+    (±0.0003): the −155 IMPs/1M freak family sits below the A/B's
+    resolution, so the sound-bridge knob stays off by default.
+  - Harness: `ab-point-count --fix <spec>` (the `Arms::GateFix` two-book
+    path) measures any build-time gate knob fix-vs-shipped. Parked with
+    verdicts in docs/point-count-threshold-campaign.md: the natural-1NT-
+    defense buckets (sd-tuned wall), the weak-two↔1-opener seam (the
+    disclosure wall's edge), legacy's 4441 strong-tier upgrade, and the
+    doubler-side `[1M X XX P P]` sit-out node.
 - **`set_weak_two_hcp` — weak-two opening gauged in raw HCP, opt-in (default
   byte-identical); the weak-two point-count remnant is the obstruction wall,
   not a fixable gauge.** `Some((lo, hi))` gauges every weak-two opening in
