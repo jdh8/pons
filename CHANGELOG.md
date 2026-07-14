@@ -31,9 +31,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `--deals <bank.pdd> --offset <rows>` (bid a bank slice and score plain
   DD + perfect defense from the **stored** tables — zero live solving, so
   million-board A/Bs are bidding-bound at ~2 min/arm), and `--show N`
-  (worst divergent boards + first-divergence buckets for gate forensics).
-  Verified: 1,000 bank rows re-solved with 0 mismatches; same slice twice
-  → bit-identical output.
+  (worst divergent boards + first-divergence buckets with per-bucket mean
+  ± 95% CI; a legacy-winning bucket whose CI clears zero is flagged
+  `⚠ remnant`). Verified: 1,000 bank rows re-solved with 0 mismatches;
+  same slice twice → bit-identical output. The remnant report (shipped
+  scale vs legacy, fresh 1M-board slices/vul, ship verdict re-confirmed
+  plain-DD +0.025/+0.033) lives in
+  docs/point-count-threshold-campaign.md: seven gate families still favor
+  legacy (~−0.01 IMPs/board recoverable) — weak-two band, quantitative
+  6NT, 2/1 response band, one-level opening seam, competitive-X seams —
+  each with a Root-A `hcp(..)` prescription to measure separately.
 
 - **`pdd` — compact binary DD database format.** A `.pdd` file is an 8-byte
   magic (`ponsDD01`) plus fixed 34-byte rows — North/East/South as

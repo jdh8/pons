@@ -107,11 +107,11 @@ struct Args {
 /// A CLI name for each global [`PointScale`] arm
 #[derive(Clone, Copy, PartialEq, Eq, Debug, clap::ValueEnum)]
 enum Scale {
-    /// Legacy raw HCP + upgrade (the shipped default)
+    /// Legacy raw HCP + upgrade (deposed 2026-07-14; the opt-out)
     Legacy,
     /// Raw Milton Work HCP
     Hcp,
-    /// Rule of N+8: HCP + two longest suit lengths − 8
+    /// Rule of N+8: HCP + two longest suit lengths − 8 (the shipped default)
     Rule,
 }
 
@@ -262,9 +262,11 @@ fn show_divergences(
         contract.map_or_else(|| "pass-out".to_owned(), |(c, s)| format!("{c} by {s}"))
     };
 
-    // (candidate IMP swing, position in `divergent`), plus per-bucket totals.
+    // (candidate IMP swing, position in `divergent`), plus per-bucket
+    // (count, IMP total, IMP sum of squares) for a per-bucket mean ± CI —
+    // the remnant criterion is a negative bucket whose CI clears zero.
     let mut ranked: Vec<(i64, usize)> = Vec::with_capacity(divergent.len());
-    let mut buckets: std::collections::HashMap<String, (usize, i64)> =
+    let mut buckets: std::collections::HashMap<String, (usize, i64, i64)> =
         std::collections::HashMap::new();
     for (position, (&i, table)) in divergent.iter().zip(tables).enumerate() {
         let swing = imps(
@@ -290,9 +292,10 @@ fn show_divergences(
         };
         let entry = buckets
             .entry(format!("[{prefix}] {} → {}", next(off), next(on)))
-            .or_insert((0, 0));
+            .or_insert((0, 0, 0));
         entry.0 += 1;
         entry.1 += swing;
+        entry.2 += swing * swing;
     }
 
     ranked.sort_unstable();
@@ -309,12 +312,20 @@ fn show_divergences(
         );
     }
 
-    let mut sorted: Vec<(&String, &(usize, i64))> = buckets.iter().collect();
+    let mut sorted: Vec<(&String, &(usize, i64, i64))> = buckets.iter().collect();
     // Tiebreak on the key so equal totals print in a deterministic order.
-    sorted.sort_by_key(|&(key, &(_, total))| (total, key));
+    sorted.sort_by_key(|&(key, &(_, total, _))| (total, key));
     println!("\nFirst-divergence buckets (worst {show} by candidate IMPs; off-call → on-call):");
-    for &(key, &(n, total)) in sorted.iter().take(show) {
-        println!("{total:+7} IMPs  ×{n:<6} {key}");
+    for &(key, &(n, total, sumsq)) in sorted.iter().take(show) {
+        // Per-bucket 95% CI on the mean swing per divergent board.
+        #[allow(clippy::cast_precision_loss)]
+        let (n_f, total_f, sumsq_f) = (n as f64, total as f64, sumsq as f64);
+        let mean = total_f / n_f;
+        let var = (sumsq_f - n_f * mean * mean) / (n_f - 1.0).max(1.0);
+        let ci = 1.96 * (var / n_f).sqrt();
+        // A remnant candidate: legacy keeps winning and the CI clears zero.
+        let flag = if mean + ci < 0.0 { "  ⚠ remnant" } else { "" };
+        println!("{total:+7} IMPs  ×{n:<6} {mean:+.2} ± {ci:.2}  {key}{flag}");
     }
 }
 
@@ -444,7 +455,7 @@ fn main() {
         // pin the main thread back to the shipped defaults in case rayon ran a
         // bid_out here and left an arm's knob set.
         set_support_points(true);
-        set_point_scale(PointScale::PointCount);
+        set_point_scale(PointScale::RuleOfN);
         // Blind-lead pass: on each divergent board price both arms' auctions —
         // the opening lead is chosen single-dummy over `sd_worlds` sampled worlds
         // (read from the leader's view through the default-flag book), then play

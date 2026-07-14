@@ -278,12 +278,35 @@ than the deleted `hcp_plus` global flip's.
   invite, 8-count reverse-raise, 6-count response — now correctly reading one
   lower and declining. That is the curse of 4-3-3-3 built into the scale.
 
-**Consumed slices (never replay):** `24.pdd` rows 0..2,000,000 (stage 1, both
-arms paired).
+**Consumed slices (never replay):** `24.pdd` rows 0..4,000,000 (stage 1 rows
+0..2M, remnant report rows 2M..4M; both arms paired within each slice).
 
-**Open follow-up — the remnant report:** the stage-1 forensics put C's biggest
-plain-DD leaks in the weak-two band shifting both ways (`[] 2♠→P`, `[] 2♥→P`,
-`[] P→2♠` — Root A: weak/preemptive gates should gauge raw HCP) and 2/1
-response-band inflation (`[1♠ P] 1NT→2♣`). Each is a per-gate `hcp(..)` swap /
-re-denomination candidate, to be measured on a fresh `.pdd` slice against the
-shipped default.
+## The remnant report (2026-07-15) — where legacy `points` still wins
+
+The shipped config (rule of N+8 + the 2♣/reading fixes) re-measured vs legacy
+on fresh slices (`24.pdd` rows 2M..3M NV, 3M..4M vul, 1M boards/vul,
+`--show 40`): plain DD **+0.0252 ± 0.0042 NV / +0.0334 ± 0.0057 vul** — the
+ship verdict holds and the commit-3 fixes cost nothing. Remnant = a
+first-divergence bucket where legacy wins with its per-bucket 95% CI clear of
+zero (`⚠ remnant` in the runner output). The flagged buckets group into seven
+families; they total ≈ −8k NV / −10k vul IMPs per 1M boards, so ~−0.01
+IMPs/board of the scale's win is still on the table behind legacy-favoring
+gates.
+
+| family (flagged buckets, both directions) | ≈IMPs NV / vul per 1M | gate | prescription |
+| --- | --- | --- | --- |
+| **Weak-two band** — `[] 2♥→P`, `[] P→2♥`, `[] 2♠→P`, `[P] P→2♠`, … all seats | −2.0k / −3.1k | `len(suit, 6..=6) & points(5..=10)` ([openings.rs](../src/bidding/american/openings.rs)) | Root A: the band shifted down ~1–2 HCP both edges (a 6-card suit reads +1..+2, and legacy's wasted-honor veto did real work). Re-denominate on raw HCP: `hcp(5..=10)`-ish, sweep the edges. |
+| **Quantitative 6NT** — `[2♣ P 2NT P 3NT P] 6NT↔P`, every rotation, **both directions lose** | −1.9k / −2.0k | no-fit NT slam `combined_points(33)`/`(37)` ([instinct.rs:2949-2960](../src/bidding/instinct.rs#L2949-L2960)) | A *notrump* slam has no ruffs — long-suit length is the wrong currency, and legacy wins both flip directions. Gauge raw HCP (+ partner floor) for the NT 6/7 gates; echoes the NT-invite-evaluator null (raw HCP wins at NT boundaries). |
+| **2/1 response band** — `[1♠ P] 2♣↔1NT`, `2♦↔1NT`, `2♥↔1NT`, passed-hand variants | −1.5k / −2.1k | two-over-one `len(x, 4..) & points(13..)` vs residual 1NT `points(6..)` ([responses.rs:219](../src/bidding/american/responses.rs#L219)) | Both directions lose: flat 13s belong in the game force, shaped 11s belong in 1NT. The GF entry is shape-indifferent → `hcp` leg (union, like the 2♣ fix), sweep 12/13. |
+| **One-level opening seam** — `[] P→1♣/1♦` (freaks), `[] 1♣/1♦→P` (flat 12s), all seats; NV-heavy | −2.3k / ~0 | `points(12..=21)` + Pass `points(..12)` ([openings.rs](../src/bidding/american/openings.rs)) | Two legs: flat 12-HCP now reads 11 and passes (add the `hcp(12..)` union leg, mirror of the 2♣ fix); sub-10-HCP freaks (11+ cards in two suits) now open where even the rule-of-20 light rules required `hcp(10..=11)` (add an `hcp(10..)` floor to the light seam). |
+| **Competitive X ↔ bid seams** — `[1♦] X→1♠`, `[1♣ P 1♥] X→1♠`, `[P 1♠] 2♣→X`, neg-X families | −1.5k / −2.8k scattered | takeout/negative-double and free-bid bands in [competition.rs](../src/bidding/american/competition.rs) | Scattered small buckets, no one dominant gate; probe per docs/convention-tuning.md forensics before touching bands. |
+| **2NT rebid-invite seam** — `[1♥ P 1♠ P 2♦ P] 2NT↔P` | — / −0.5k | responder's 2NT invite after two suits | NT-oriented invite → HCP gauge; probe. |
+| **Weak-two ask answer** — `[2♦ P 2NT P] 3♣→3♥` | −0.2k / — | weak-two max/min answer band | Same Root A as the opening band; fix with it. |
+
+Every prescription is expressible as an `hcp(..)` swap or an `hcp` union leg —
+the `legacy_points(range)` pin combinator was never needed (YAGNI held). Each
+fix is a bidding change: measure it per [docs/measurement.md](measurement.md)
+on a **fresh** `.pdd` slice (cursor: `24.pdd` row 4,000,000) before it ships.
+Note the harness subtlety: an `hcp` swap changes the *legacy arm's* behavior
+too (legacy `points ⊇ hcp` on floors), so fix-vs-shipped is the honest A/B —
+both arms on `RuleOfN`, differing only in the gate — not fix-vs-legacy.
