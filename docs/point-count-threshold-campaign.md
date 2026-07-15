@@ -477,14 +477,14 @@ negative double (the shipped negX is `hcp(8..)`, scale-invariant):
    rule-of-N+8's L2 term is blind to 4441 (L2 = 8 → +0), so those hands now
    pass.  Rare; revisit only if post-fix forensics still flag it.
 
-Also visible at `--show 2000` (the original `--show 40` cut them off), and
-deliberately **not** chased: the `[1NT] 2♥↔P` natural-1NT-defense buckets
-(that band is sd-tuned — the plain-DD remnant is the known wall; if anything,
-`set_natural_overcall_points` is an sd re-sweep candidate under the new
-scale) and the `[] 1♠↔2♠` weak-two↔1-opener seam (the weak-two family's
-edge; a `points(5..=10) | hcp(5..=9)` union band would re-admit the shapely
+Also visible at `--show 2000` (the original `--show 40` cut them off): the
+`[1NT] 2♥↔P` natural-1NT-defense buckets and the `[] 1♠↔2♠`
+weak-two↔1-opener seam. The former drove the re-sweep below and stays a **wall**:
+widening the overcall band is plain/sd-positive but perfect-defense negative at
+every evaluator, so it is opt-in only. The latter remains the weak-two family's
+edge: a `points(5..=10) | hcp(5..=9)` union band would re-admit the shapely
 sub-10s, but the weak-two sd verdict prices exactly that class as
-over-disclosure — parked).
+over-disclosure — parked.
 
 The two small families fixed alongside:
 
@@ -542,7 +542,8 @@ of legacy's relative edge.)  Bucket check: the redouble-then-game,
 garbage-Michaels, 2NT-invite, and direct-seat X↔bid buckets are **gone**
 from the flagged set.  Standing, as expected: the weak-two band and Ogust
 buckets (closed as the disclosure wall), the `[1NT]` natural-defense buckets
-(the sd-tuned wall), and the opening-seam trickle (wash-priced).
+(the re-sweep below confirms them a wall — widening is PD-negative at every
+evaluator, opt-in only), and the opening-seam trickle (wash-priced).
 
 One real residual: the X↔bid seam persists in the **sandwich**
 (`[1♦ P 1♥] 1♠→X`, −5.1/board ×52) and **balancing** (`[1♦ P P] X→1♠`)
@@ -565,7 +566,7 @@ changes touch every auction and deserve their own measured pass.
 | Garbage Michaels / UNT | **FIXED** (`set_two_suiter_hcp_floor(8)` default-on) |
 | 2NT rebid-invite | **FIXED** (`set_nt_invite_hcp` default-on) |
 | Competitive X ↔ bid: sandwich/balancing seats | **OPEN — floor follow-up** (HCP-partition the floor's overcall/double choice) |
-| Natural-1NT-defense buckets | **WALL** (sd-tuned band; `set_natural_overcall_points` sd re-sweep candidate under the new scale) |
+| Natural-1NT-defense buckets | **WALL — refuted widening** (NV `7:37`/cap-removal is plain+sd positive but PD-negative at every evaluator; opt-in only, default uniform `8:14`; see re-sweep below) |
 | Weak-two ↔ 1-opener seam | **WALL's edge** (union band would re-admit the sd-punished class; parked) |
 
 Slice ledger through the remnant close-out: `24.pdd` rows 0..24,500,000
@@ -645,3 +646,148 @@ suit-oriented evaluator ever shows up.
 
 **Slice ledger: `24.pdd` rows 0..38,700,000 consumed; cursor at 38,700,000**
 (sd legs 38.5M–38.7M).
+
+## Natural 1NT-defense range re-sweep (2026-07-15)
+
+The remnant report left the `[1NT] 2M↔Pass` family as an sd re-sweep after
+Rule-of-N+8 changed which shaped hands crossed the old `points(8..=14)` band.
+The live seam was real: the penalty `X` is balanced-only, so strong shapely
+hands above 14 did not route into the double — they fell into the owning
+`Pass`. The question was both edges at once: whether to admit seven-point
+one-suiters and whether to remove the ceiling.
+
+`scripts/one-nt-defense-range-ab.sh` runs the paired protocol against BBA with
+`--isolate-defense --filter-1nt --advertise-natural`: identical deals in every
+arm, ordinary and perfect-defense DD first, then 16-world sd-lead for the
+competitive-range finalists. The screen used 76,800 paired boards per
+arm/vulnerability, BBA `SEED_BASE=1784098505`, and an auction-generation
+working tree at `005df56-dirty`:
+
+| candidate − `8:14` | plain DD NV / vulnerable | PD NV / vulnerable | sd-lead screen NV / vulnerable |
+| --- | --- | --- | --- |
+| `6:14` | +0.0115 ±0.0099 / −0.0155 ±0.0131 | −0.0496 ±0.0121 / −0.0818 ±0.0155 | — |
+| `7:14` | **+0.0191 ±0.0070** / +0.0055 ±0.0093 | −0.0165 ±0.0087 / −0.0336 ±0.0113 | see disclosure note below |
+| `9:14` | −0.0207 ±0.0071 / +0.0003 ±0.0097 | +0.0243 ±0.0093 / +0.0514 ±0.0124 | — |
+| `10:14` | −0.0463 ±0.0099 / −0.0037 ±0.0136 | +0.0455 ±0.0133 / +0.0995 ±0.0176 | — |
+| `8:16` | **+0.0169 ±0.0049** / −0.0048 ±0.0066 | −0.0174 ±0.0071 / −0.0408 ±0.0094 | **+0.0220 ±0.0052** / +0.0038 ±0.0067 |
+| `8:37` | **+0.0332 ±0.0063** / −0.0021 ±0.0085 | −0.0259 ±0.0093 / −0.0625 ±0.0120 | **+0.0433 ±0.0066** / +0.0108 ±0.0085 |
+
+Floor 6 was dominated by 7; floors 9 and 10 regressed non-vulnerable plain DD
+but *won* PD (`10:14` PD NV +0.0455, vul +0.0995). Read that gradient carefully:
+plain DD rewards *widening* (lower floor, open cap), perfect defense rewards
+*tightening* — the two arbiters point in opposite directions across the whole
+sweep. That is the classic obstruction-wall / engine-exploitation signature, not
+a range to chase toward its endpoint. An earlier draft picked the widest arm
+(`7:37`) and shipped it default-on on the plain + sd numbers, writing the PD
+reversal off as "synthetic doubling, not the arbiter." **That was the error, and
+the re-measure below refutes it.**
+
+### Independent re-measure and refutation (fresh seed, evaluator sweep)
+
+BBA `SEED_BASE=1784117995`, ~102,400 paired boards per arm/vulnerability,
+`--isolate-defense --filter-1nt --advertise-natural`, sd world seed `20240607`.
+The `points` arms reproduce with `bba-gen --ns-overcall LO:HI`; the HCP/CCCC arms
+used a temporary `--ns-overcall-gauge` probe, since removed (the whole experiment
+shipped no code). Each candidate is Δ vs its **own gauge's** `8:14` baseline. The
+`points` decomposition first (floor-drop, cap-removal, both):
+
+| points arm − `8:14` | NV plain | NV **PD** | vul plain | vul **PD** |
+| --- | --- | --- | --- | --- |
+| `7:14` (floor 8→7) | +0.0142 ±0.0061 | −0.0147 ±0.0076 | −0.0002 ±0.0082 | −0.0313 ±0.0099 |
+| `8:37` (cap removed) | +0.0341 ±0.0057 | −0.0276 ±0.0082 | +0.0014 ±0.0076 | −0.0635 ±0.0105 |
+| `7:37` (both) | +0.0483 ±0.0084 | −0.0423 ±0.0112 | +0.0012 ±0.0112 | −0.0948 ±0.0145 |
+
+sd-lead (`points 7:37`): NV **+0.0619 ±0.0088**, vul +0.0268 ±0.0115 —
+reproducing (and exceeding) the earlier +0.0602/+0.0141. So the plain and sd
+gains are real and repeatable; the question is what they *mean*. Every widened arm
+is plain-positive but **perfect-defense negative**, monotonically worse with
+width, and the vulnerable plain gain is statistically zero.
+
+The three scorers form a bracket ordered by how harshly the opponents'
+penalty-doubling is modeled: sd and plain score the contract BBA's fallible
+auction actually reaches (BBA under-doubles the light overcalls), while
+perfect-defense wields the perfect penalty axe. The widening's "win" lives only at
+the generous end (sd/plain) and reverses under the strict end (PD). sd corrects
+only the DD opening-lead bias — it plays the rest double-dummy, but still off
+BBA's fallible doubling — so it cannot by itself separate real obstruction from a
+fallible-opponent artifact.
+
+The decisive test is evaluator-robustness. Re-gauging the identical integer bands
+to raw HCP and Kaplan–Rubens CCCC reproduces the same inversion:
+
+| gauge, arm − `8:14` | NV plain | NV **PD** | vul plain | vul **PD** |
+| --- | --- | --- | --- | --- |
+| hcp `8:37` | +0.0199 ±0.0042 | −0.0184 ±0.0060 | +0.0007 ±0.0056 | −0.0394 ±0.0078 |
+| hcp `7:37` | +0.0405 ±0.0075 | −0.0398 ±0.0102 | −0.0008 ±0.0102 | −0.0875 ±0.0134 |
+| cccc `8:37` | +0.0526 ±0.0078 | −0.0419 ±0.0110 | +0.0038 ±0.0104 | −0.0972 ±0.0143 |
+| cccc `7:37` | +0.0649 ±0.0096 | −0.0624 ±0.0133 | +0.0013 ±0.0129 | −0.1359 ±0.0172 |
+
+Same plain-positive / PD-negative signature under all three gauges — CCCC the
+worst, because it admits the most hands. So the effect is **evaluator-independent
+engine-exploitation**, not a `point_count` shape-inflation artifact: widening the
+overcall band into light/uncapped territory exploits BBA's DD misdefense however
+you gauge strength. It echoes the weak-two gauge-family refutation exactly.
+
+Worst-board forensics (`points 7:37` NV) confirm it: the largest swings are
+light two-level overcalls in others' auctions that gain when BBA misdefends
+(plain) and get doubled and punished under perfect defense (PD) — the same deals
+flip sign between the two scorers.
+
+**Verdict: REFUTED, and no code kept.** The default is a uniform `points(8..=14)`
+via the pre-existing `set_natural_overcall_points`; the vulnerability split, the
+evaluator gauge, and the sd disclosure plumbing were all backed out, so the system
+is byte-identical to before the probe. The widening is a plain-DD/sd artifact of a
+fallible opponent — negative under perfect defense and at every evaluator — that a
+competent partnership would not realize.
+
+### Band re-sweep under the new scale — is `8:14` the optimum? (2026-07-16)
+
+`points` was redefined on 2026-07-14 (rule-of-N+8), so the inherited `8:14` band
+was never recalibrated. A cross sweep around it — floor axis `{7,9,10}:14`, cap
+axis `8:{13,15,16,18}` — both vulnerabilities and both `points` and `hcp` gauges
+(fresh seed, ~102k boards/arm/vul, `bba-gen --ns-overcall LO:HI`). Each Δ vs that
+gauge's `8:14`, so positive = beats today's default. `points`:
+
+| points move − `8:14` | NV plain | NV PD | vul plain | vul PD |
+| --- | --- | --- | --- | --- |
+| floor 8→7 (looser) | +0.0146 | −0.0234 | −0.0008 | −0.0421 |
+| floor 8→9 (tighter) | −0.0227 | +0.0194 | −0.0028 | +0.0433 |
+| floor 8→10 (tighter) | −0.0499 | +0.0372 | −0.0092 | +0.0903 |
+| cap 14→13 (tighter) | −0.0126 | +0.0188 | +0.0051 | +0.0387 |
+| cap 14→15 (looser) | +0.0088 | −0.0105 | −0.0016 | −0.0232 |
+| cap 14→16 (looser) | +0.0159 | −0.0155 | −0.0020 | −0.0367 |
+| cap 14→18 (looser) | +0.0297 | −0.0203 | +0.0029 | −0.0503 |
+
+Two reads. (1) **Plain and PD are anti-correlated everywhere** — every tighten
+helps PD and hurts plain, every loosen the reverse; no band is positive on both.
+`8:14` sits at the plain/PD balance, so NV there is no free improvement: the
+recalibration reveals a Pareto tradeoff, not a hidden optimum. (2) **Vul the band
+looks too loose** — vul plain barely moves for any band while tightening buys
+large PD (floor→9 is plain-wash + PD **+0.043**, floor→10 PD **+0.090**). That
+reads as a shippable vul tightening — until sd is applied to the two finalists:
+
+| tighten vul | sd (realistic lead) | plain (BBA doubles) | PD (perfect double) |
+| --- | --- | --- | --- |
+| `8:14`→`9:14` | **−0.0210 ±0.0090** | −0.0028 | +0.0433 |
+| `8:14`→`10:14` | **−0.0471 ±0.0127** | −0.0092 | +0.0903 |
+
+The value is **monotone in assumed doubling severity** — sd (no double) < plain
+(BBA's fallible double) < PD (perfect axe) — so the vul "PD win" is *entirely* the
+doubling axe. The two scorers that do not assume a perfect doubler both say
+wash-to-loss, and sd (clearly negative) says the light vul overcalls have real
+competitive value under realistic play. A **PD-only win is a doubling artifact**,
+the exact mirror of the NV-loosen (a plain/sd win PD refutes): either edge of the
+band looks good on the scorer whose opponent-model flatters it.
+
+**HCP rides the identical frontier** (`9:14` vul: HCP plain −0.005 / PD +0.048 vs
+points −0.003 / +0.043) and is marginally worse at the tight end (`10:14`: HCP
+plain −0.021 vs points −0.009), so there is no case to switch the gauge —
+`points` is right for a length-driven suit overcall.
+
+**Verdict: `8:14` holds at both vulnerabilities.** Under the new scale no band
+dominates it across sd + plain + PD; the apparent vul-tighten is a doubling
+artifact. The inherited default is re-confirmed as the multi-scorer balance, not
+merely inherited.
+
+These were live filtered BBA runs, not `24.pdd` slices: the campaign cursor
+remains **38,700,000**.

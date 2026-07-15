@@ -93,11 +93,33 @@ The tell is a **monotonic sweep with no interior peak**:
 > DD-trustworthy." — `project_natural-1nt-defense`
 
 Raising the natural-overcall floor was *monotonically worse* (8:14 base, 10:14
-and 11:14 strictly worse) because the light 8–9-point overcalls are the winners
-— against BBA, a fallible auction engine our obstruction pushes into DD-bad
-contracts. That is **exploitation of a specific opponent**, not a real range;
-discount it. In perfect-bidder self-play the same gradient points the other way
-(compete less). Neither endpoint is the answer.
+and 11:14 strictly worse on plain DD) because the light 8–9-point overcalls are
+the winners — against BBA, a fallible auction engine our obstruction pushes into
+DD-bad contracts. That is **exploitation of a specific opponent**, not a real
+range; discount it. In perfect-bidder self-play the same gradient points the
+other way (compete less). Neither endpoint is the answer.
+
+The 2026-07-15 probe is the same lesson caught in the act. *Widening* the band
+(dropping the floor to 7, removing the 14 cap) looked like a win on plain DD
+(`7:37` NV **+0.048**) and even on exact-disclosure sd-lead (**+0.062**) — but
+every widened band is perfect-defense **negative** (`7:37` NV PD **−0.042**,
+monotonically worse with width), and the vulnerable plain gain is statistically
+zero. Re-gauging the identical bands to raw **HCP** or **CCCC** reproduces the
+same inversion, so it is evaluator-independent — not a `point_count` quirk.
+
+A follow-up cross sweep around `8:14` (both edges, both vulnerabilities) shows the
+mechanism: plain and PD are anti-correlated at every band — no band is positive on
+both — and the one apparent win, *tightening* the vul band, is **PD-only**. Its
+value is monotone in assumed doubling severity — sd (no double) **−0.021** <
+plain (BBA) −0.003 < PD (perfect axe) **+0.043** — so the perfect-double scorer
+likes removing the light overcalls while the two scorers that do not assume a
+perfect doubler say wash-to-loss. *Either* edge of the band looks good on the
+scorer whose opponent-model flatters it: loosen wins on plain/sd, tighten wins on
+PD, and `8:14` is the multi-scorer balance (the tell is a one-sided win, not a
+band). Widening was **refuted** and nothing shipped — the default is the
+disciplined uniform 8–14. Reproduce with `bba-gen --ns-overcall LO:HI`; full
+per-gauge and sweep tables are in
+[point-count-threshold-campaign.md](point-count-threshold-campaign.md).
 
 **How to actually price a competitive range:**
 
@@ -126,6 +148,15 @@ for exactly this — the partition "8–14 overcall = a direct bid, 15+ X = too
 strong to overcall" leaves no point-count homeless, and it matched the peak
 within noise anyway (`project_natural-1nt-defense`, the direct-Landy floor
 sweep).
+
+The natural-defense overcall band is a cautionary case: it *looks* like there is
+a hole to close — the penalty double is balanced-only, so a capped suit band
+leaves strong shapely hands in the owning `Pass` rather than routing them into
+`X`. Widening the band to admit them won on plain DD and sd-lead, which is
+exactly why it is a trap: the win is perfect-defense negative and evaluator-
+independent (see above), i.e. it is BBA misdefending the extra overcalls, not a
+real gain. The disciplined 8–14 cap remains the default. A monotonic
+plain-positive / PD-negative sweep is the tell, whatever the evaluator says.
 
 Corollary (an architecture invariant, [bidding-architecture.md](bidding-architecture.md)):
 **every rule table needs a finite catch-all.** A floor set so high the table
