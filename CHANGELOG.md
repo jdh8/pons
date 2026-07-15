@@ -3219,7 +3219,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   obstruction-wall result). Woolsey with the wider Multi is modestly DD-positive on
   both scorings — +0.414/divergent plain, +0.065 PD. Each new shape is verified
   behavior-faithful to its intended spec by a `verify::compare` guard (8k sampled
-  hands per shape). See `docs/ai-bidder/rule-projection.md`.
+  hands per shape). See `docs/ai-bidder/archive/rule-projection.md`.
 
 - **The three declarative `*_reading` decoders are retired — an artificial call's
   meaning is now read straight off its authored rule (AI-bidder M6.2c).** The
@@ -3242,7 +3242,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (Woolsey sends a six-card major to its Multi/Muiderberg calls). The deterministic
   `instinct()` ladder bids by rule and is unchanged; only search-based bidders read
   partner's projected shape. Architectural payoff, IMP-neutral by design. See
-  `docs/ai-bidder/rule-projection.md`.
+  `docs/ai-bidder/archive/rule-projection.md`.
 
 ### Added
 
@@ -3268,7 +3268,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   core — on prefixed contexts built from the real book. **No behavior change:** the
   pass is `#[cfg(test)]`-only (no production caller yet); wiring it into the keyless
   sampler/features paths and retiring the readers is M6.2c. See
-  `docs/ai-bidder/rule-projection.md`.
+  `docs/ai-bidder/archive/rule-projection.md`.
 
 - **Responder's double of an overcall of our 1NT is now optional by default, and
   opener cooperates with it.** `DoubleStyle`'s default flips `Takeout → Optional`:

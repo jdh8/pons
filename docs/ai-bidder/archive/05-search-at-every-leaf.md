@@ -7,24 +7,24 @@ Leaping Michaels work proved (`21gf-ledger.md`): an authored bid should encode
 *meaning*, and a double-dummy search should make the *judgement*. Today that only
 happens where the book is silent. M7 makes it happen on authored leaves too.
 
-Read [`01-foundations.md`](01-foundations.md) §0 first — the safety invariants
+Read [`01-foundations.md`](../01-foundations.md) §0 first — the safety invariants
 here are inherited verbatim, not re-derived.
 
 ---
 
 ## 0. The gap
 
-A bid in `pons` is produced by walking the [`Trie`](../../src/bidding/trie.rs) to
+A bid in `pons` is produced by walking the [`Trie`](../../../src/bidding/trie.rs) to
 the most specific authored node for the auction and asking its `Classifier` for
-[`Logits`](../../src/bidding/array.rs). For authored conventions that node is a
-[`Rules`](../../src/bidding/rules.rs) ladder: each rule is a `(Call, weight,
+[`Logits`](../../../src/bidding/array.rs). For authored conventions that node is a
+[`Rules`](../../../src/bidding/rules.rs) ladder: each rule is a `(Call, weight,
 Constraint)`, and the logit of a call is `max(weight + constraint.eval(hand))`
 over the rules. That is an **inflexible rule** — the weights are authored once and
 fixed; the same shape always picks the same call, regardless of where the
 specific 13 cards sit.
 
 The double-dummy search bidder
-([`SearchFloor`](../../src/bidding/search_floor.rs)) already exists and is *not*
+([`SearchFloor`](../../../src/bidding/search_floor.rs)) already exists and is *not*
 inflexible — it prices candidate calls by cardplay EV over sampled layouts. But
 it is wired in exactly one place:
 
@@ -42,7 +42,7 @@ that admits the hand is the final word. Leaping Michaels got around this *by
 hand*: it capped the authored advance at game, deliberately leaving the slam zone
 unauthored, so the auction fell through to the contested floor where `SearchFloor`
 priced `4M/5m/slam` — and it added `leaping_michaels_reading` to
-[`inference.rs`](../../src/bidding/inference.rs) so the sampler knew the two-suiter
+[`inference.rs`](../../../src/bidding/inference.rs) so the sampler knew the two-suiter
 and the EVs were sound. A directional A/B measured **+2.8 IMPs/board** for search
 on top of the rule floor, reaching slams the game-capped rules cannot.
 
@@ -65,7 +65,7 @@ see the cards. A double-dummy search can.
 > **Meaning stays authored. Judgement moves to DD.**
 
 This is the same "net proposes, search disposes" stance the search floor already
-takes ([`search_floor.rs:9`](../../src/bidding/search_floor.rs)), widened: the
+takes ([`search_floor.rs:9`](../../../src/bidding/search_floor.rs)), widened: the
 proposer is no longer only the net — it is the **authored leaf**, optionally
 unioned with the net. The leaf's logits become *a prior*, not a verdict.
 
@@ -83,7 +83,7 @@ shortlist(prior, k)          # search_floor.rs:161 — top-k legal calls by prio
 ```
 
 Today the prior is `neural::classify(&feats)`
-([`search_floor.rs:127`](../../src/bidding/search_floor.rs)). For a book leaf the
+([`search_floor.rs:127`](../../../src/bidding/search_floor.rs)). For a book leaf the
 prior is **the resolved book logits** — the very thing `classify_floored` is about
 to return. Nothing in `shortlist`/`ev_all`/`blend` needs to change.
 
@@ -108,9 +108,9 @@ constructor (e.g. `american_search_book()`) alongside `american_search()`.
 ## 3. The soundness gate (the linchpin)
 
 DD EV is only as good as the layouts it is averaged over, and the layouts are only
-as good as [`Inferences::read`](../../src/bidding/inference.rs) — the decoder that
+as good as [`Inferences::read`](../../../src/bidding/inference.rs) — the decoder that
 turns the auction into per-player range constraints the sampler
-([`sample_layouts`](../../src/bidding/sampler.rs)) conditions on.
+([`sample_layouts`](../../../src/bidding/sampler.rs)) conditions on.
 
 If a convention is **undecoded**, `read` leaves the bidder's partner range wide.
 The sampler then deals partners who need *not* hold the shape the convention
@@ -139,7 +139,7 @@ convention, each gated by its own A/B.)
 ## 4. Continuation fidelity (flagged, not solved here)
 
 The rollout finishes each sampled auction with `POLICY` — the bare distilled net
-bound for self-play ([`search_floor.rs:76`](../../src/bidding/search_floor.rs)) —
+bound for self-play ([`search_floor.rs:76`](../../../src/bidding/search_floor.rs)) —
 *not* the book+floor system being measured. Pricing a **book** leaf assuming the
 **net** continues is a mismatch: Leaping Michaels needed both the reading *and* a
 net that understood the convention before the EVs tracked reality.
@@ -162,7 +162,7 @@ This is M7.3, optional, taken only if M7.0/M7.2 show residual bias.
 From `01-foundations.md` §0 — M7 changes the *prior source*, nothing else:
 
 - **Forced rails first.** `forced(context)` short-circuits to deterministic
-  `instinct()` *before* any search ([`search_floor.rs:120`](../../src/bidding/search_floor.rs)).
+  `instinct()` *before* any search ([`search_floor.rs:120`](../../../src/bidding/search_floor.rs)).
   The net is never trusted on the rails; neither is the search; neither is a book
   leaf's judgement. Wrapping leaves does not touch this.
 - **Legality.** The mask is unchanged; illegal calls stay `-∞` and the shortlist
@@ -170,7 +170,7 @@ From `01-foundations.md` §0 — M7 changes the *prior source*, nothing else:
 - **`Pass` stays finite** and every legal call keeps a sane fallback logit
   (`blend`'s EV band sits *above* the prior tail, it does not erase it).
 - **Determinism.** Same decision → same layouts via `seed_from_features`
-  ([`search_floor.rs:229`](../../src/bidding/search_floor.rs)); `classify` stays a
+  ([`search_floor.rs:229`](../../../src/bidding/search_floor.rs)); `classify` stays a
   pure function (§0.5).
 - **`instinct()` stays the baseline and default.** Every learned/searched bidder
   is an added, gated option, never a removal (the standing ai-bidder decision).
@@ -181,8 +181,8 @@ From `01-foundations.md` §0 — M7 changes the *prior source*, nothing else:
 
 The same yardstick as every milestone: IMPs/board on the A/B duplicate match,
 **perfect-defense** default (failing contracts priced doubled). Reuse the
-[`search-floor`](../../examples/search-floor/) harness for contested and the
-[`constructive-abc`](../../examples/constructive-abc/) A/B/C for constructive. Add
+[`search-floor`](../../../examples/search-floor/) harness for contested and the
+[`constructive-abc`](../../../examples/constructive-abc/) A/B/C for constructive. Add
 a per-convention A/B as each leaf is decoded and wrapped, so the gain is
 attributed to the convention, not lost in the aggregate.
 
@@ -203,7 +203,7 @@ The two boundaries this milestone is *re-testing*, not assuming:
 
 ## 7. Milestones
 
-See [`plan.md`](plan.md) M7 for the chunked, dependency-ordered version. In short:
+See [`plan.md`](../plan.md) M7 for the chunked, dependency-ordered version. In short:
 **M7.0** wires the search-aware path (parity-or-better vs `american_search` on
 contested, rails green); **M7.1** sweeps `Inferences::read` to decode every
 authored convention (gates M7.0 quality); **M7.2** extends to constructive leaves

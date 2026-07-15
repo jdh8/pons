@@ -392,7 +392,7 @@ A/B vs baseline, and the BBA gap (S.1's −2.6) on the relevant auctions.
   20k). Length-only on the `4M` jump (slam machinery is M6.4); the derived 6+ also
   makes the sampler sound on transfer auctions.
 - ✅ **M6.2 Rule projection — read a call's meaning off its rule — COMPLETE.**
-  Design: [`rule-projection.md`](rule-projection.md). Replaces the seven
+  Design: [`rule-projection.md`](archive/rule-projection.md). Replaces the seven
   per-convention `*_reading` decoders with one generic pass: `Constraint::project`
   (the forward dual of `eval`) walks `context.prefixes()` and projects each
   artificial prior call's rule (artificial = its projection floors a suit it did
@@ -556,7 +556,7 @@ the books are thinnest — by deriving and generalizing, not by enumeration.
 >
 > Kept below as the historical record so the dead branches are not re-attempted.
 
-Full design: [`05-search-at-every-leaf.md`](05-search-at-every-leaf.md). Today an
+Full design: [`05-search-at-every-leaf.md`](archive/05-search-at-every-leaf.md). Today an
 authored leaf is the final word: `Trie::classify_floored` returns a book node's
 logits verbatim when they have mass, and the live double-dummy search
 (`SearchFloor`) is wired only as the contested-book floor — so DD search runs

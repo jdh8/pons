@@ -32,15 +32,15 @@
 
 "What does an artificial call mean" is authored exactly once — as the
 `Constraint` on the `Rule` for the call that gets made
-([`rules.rs`](../../src/bidding/rules.rs), `struct Rule { call, weight, when,
+([`rules.rs`](../../../src/bidding/rules.rs), `struct Rule { call, weight, when,
 label }`). Two consumers re-derive that meaning instead of reading it:
 
 - the **layout sampler** — but it already reads the rule *directly*:
   `rules_accept`/`made_plausibly` re-run `policy.classify` (the rule's `eval`) on
-  each candidate hand ([`sampler.rs`](../../src/bidding/sampler.rs)). Not a gap.
+  each candidate hand ([`sampler.rs`](../../../src/bidding/sampler.rs)). Not a gap.
 - the **forward reader** `Inferences::read` — the meaning the *bidder* uses to
   choose its own call — hand-writes it per-convention in seven `*_reading`
-  functions in [`inference.rs`](../../src/bidding/inference.rs):
+  functions in [`inference.rs`](../../../src/bidding/inference.rs):
   `rubens_reading`, `leaping_michaels_reading`, `landy_reading`, `multi_reading`,
   `woolsey_x_reading`, `dont_reading`, `transfer_major_reading` (the M6.1
   inference). **This is the gap.**
@@ -58,7 +58,7 @@ works; this gives the forward reader the same.
 ## Stage 1 — `Constraint::project` (SHIPPED)
 
 A third fold beside `eval` and `describe`
-([`constraint.rs`](../../src/bidding/constraint.rs)):
+([`constraint.rs`](../../../src/bidding/constraint.rs)):
 
 ```rust
 fn project(&self, _context: &Context<'_>) -> Inference {
@@ -92,7 +92,7 @@ the sound envelope is the span of both. Landy's
 exactly the sound 4-4 floor `landy_reading` records.
 
 **Soundness invariant** (executable property test in
-[`verify.rs`](../../src/bidding/verify.rs)): for every hand `h` and context `c`,
+[`verify.rs`](../../../src/bidding/verify.rs)): for every hand `h` and context `c`,
 `eval(h,c)` finite ⟹ `h ∈ project(c)`. Proven by structural induction;
 primitives are exact, `&`→intersect and `|`→union preserve containment, opaque
 and `!` project everything. The test samples ~32k hands across primitives,
@@ -100,7 +100,7 @@ conjunction, the disjoint-suit disjunctions, a negative-inference shape, and the
 opaque escape hatch.
 
 Supporting additions: `Inference::intersect`/`union` (pointwise) and
-`Range::union` in [`inference.rs`](../../src/bidding/inference.rs).
+`Range::union` in [`inference.rs`](../../../src/bidding/inference.rs).
 
 ## Stages 2–4 — retire the readers (DEFERRED, design intact)
 
@@ -110,7 +110,7 @@ A single pass replaces all seven decoders. The authoring rule for any prior call
 is recoverable from the trie the context already carries: `CommonPrefixes`
 (in `context.prefixes()`) yields `(query[..i], classifier_i)` for each authored
 exact node along the auction path; `classifier.as_rules()` downcasts to `&Rules`
-([`trie.rs`](../../src/bidding/trie.rs), the same hook the corpus exporter uses).
+([`trie.rs`](../../../src/bidding/trie.rs), the same hook the corpus exporter uses).
 So, walking the prefixes:
 
 ```text
@@ -167,12 +167,12 @@ Projection needs the trie, and the readers were **keyless by design**. The fear
 was that *two* real consumers read without a trie — the search sampler and
 `features` — so retirement would be a cross-cutting "give every keyless path trie
 access" change. **Wiring it for real showed the leak is a single site.** The floors
-([`SearchFloor`](../../src/bidding/search_floor.rs), `NeuralFloor`) are
+([`SearchFloor`](../../../src/bidding/search_floor.rs), `NeuralFloor`) are
 `Classifier`s that *receive* a context: through the normal book path they already
-get the prefixed one ([`book.rs:56`](../../src/bidding/book.rs#L56) attaches
+get the prefixed one ([`book.rs:56`](../../../src/bidding/book.rs#L56) attaches
 prefixes before `classify_floored` threads it to the floor). The only production
 keyless construction that feeds `Inferences::read`/`features` is
-[`SearchBook::classify`](../../src/bidding/search_floor.rs#L241), which re-derived a
+[`SearchBook::classify`](../../../src/bidding/search_floor.rs#L241), which re-derived a
 fresh `Context::new`; every other keyless `Inferences::read` caller is
 `#[cfg(test)]`. So the wire is one line — `SearchBook` builds
 `self.stance.prefixed_context(...)` instead — no `System`-trait accessor needed.
@@ -205,16 +205,16 @@ regression.
 - **IMPs/board A/B** — `examples/ab-landy` for the deterministic forward-reader
   path; `examples/ab-search-floor --features search` for the sampler path
   (`probe-replay-yield` to confirm no starvation), per
-  [`../../HANDOFF-rule-replay-ab.md`](../../HANDOFF-rule-replay-ab.md).
+  [`../../HANDOFF-rule-replay-ab.md`](../../../HANDOFF-rule-replay-ab.md).
 
 ## Files
 
-- [`constraint.rs`](../../src/bidding/constraint.rs) — `project` on the trait +
+- [`constraint.rs`](../../../src/bidding/constraint.rs) — `project` on the trait +
   `Len`/`Points`/`Hcp` + the `And`/`Or`/`Flip`/`Cons` folds (shipped)
-- [`inference.rs`](../../src/bidding/inference.rs) — `Inference::intersect`/`union`,
+- [`inference.rs`](../../../src/bidding/inference.rs) — `Inference::intersect`/`union`,
   `Range::union` (shipped); the generic `authored_reading` pass (deferred)
-- [`rules.rs`](../../src/bidding/rules.rs) — `Rule::project` (deferred)
-- [`american/defense.rs`](../../src/bidding/american/defense.rs) — re-author the
+- [`rules.rs`](../../../src/bidding/rules.rs) — `Rule::project` (deferred)
+- [`american/defense.rs`](../../../src/bidding/american/defense.rs) — re-author the
   `described()` shapes (deferred, Stage 4)
-- [`verify.rs`](../../src/bidding/verify.rs) — soundness test (shipped) +
+- [`verify.rs`](../../../src/bidding/verify.rs) — soundness test (shipped) +
   re-author guards (deferred)

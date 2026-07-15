@@ -33,7 +33,7 @@ is our self-alerting rule; alerts are the meaning.
 
 ## The gate (one site)
 
-[src/bidding/inference.rs](../../src/bidding/inference.rs), `project_authored`:
+[src/bidding/inference.rs](../../../src/bidding/inference.rs), `project_authored`:
 
 ```rust
 let alerted = alert_reading()
@@ -54,7 +54,7 @@ if let Some(projection) = projection.filter(|p| alerted || artificial(p, made)) 
 ## What the worklist test found (and where the original handoff was wrong)
 
 The driver is `artificial_calls_are_alerted` in
-[inference.rs](../../src/bidding/inference.rs) (`#[ignore]`, run with
+[inference.rs](../../../src/bidding/inference.rs) (`#[ignore]`, run with
 `cargo test --all-features artificial_calls_are_alerted -- --ignored --nocapture`).
 It walks every authored rule in all three `american()` tries and prints every
 call where `artificial(project(rule), call) && !alerted`.
@@ -90,8 +90,8 @@ the prior handoff's assumptions:
 Some `.gated()` blocks key on the alert slug and **silently drop** a rule whose
 alert is not in the active set:
 
-- [defense.rs:1533](../../src/bidding/american/defense.rs#L1533) `.gated(|t| alerts.contains(&t))`
-- [notrump.rs:196](../../src/bidding/american/notrump.rs#L196) `.gated(|alert| alert != dormant_minors())`
+- [defense.rs:1533](../../../src/bidding/american/defense.rs#L1533) `.gated(|t| alerts.contains(&t))`
+- [notrump.rs:196](../../../src/bidding/american/notrump.rs#L196) `.gated(|alert| alert != dormant_minors())`
 
 When alerting a rule inside such a block, **add the new slug to that block's
 active set** (or place the alert outside the gated region). The invariant test +
@@ -107,10 +107,10 @@ constants where one already exists.
 
 | # | Convention | Sample auctions | Source | Alert | Gating |
 |---|---|---|---|---|---|
-| ✅1 | Michaels cue-bid | `[1♦] 2♦`, `[1♠] 2♠`, `[1♣] 2♣` | [defense.rs](../../src/bidding/american/defense.rs) overcall/cue block | `MICHAELS` (`aa237be`) | none |
+| ✅1 | Michaels cue-bid | `[1♦] 2♦`, `[1♠] 2♠`, `[1♣] 2♣` | [defense.rs](../../../src/bidding/american/defense.rs) overcall/cue block | `MICHAELS` (`aa237be`) | none |
 | ✅2 | Unusual 2NT | `[1♦] 2NT`, `[1♠] 2NT` | ungated tail of `defense_to_suit` (NOT the 1NT-defense `unusual_2nt()` — already alerted) | `UNUSUAL` `"unusual-2nt"` (`955fada`) — named `UNUSUAL` to dodge the `set_unusual_notrump_defense` thread-local | none (outside the `active_alerts()` gate) |
 | ✅3 | Leaping Michaels | `[2♥] 4♣/4♦`, `[2♦] 4♦` | `defense_to_weak_two` LM block (overcalls). The `leaping_michaels_advances` continuations project no foreign suit → not in the worklist | `LEAPING` `"leaping-michaels"` (`842da31`) — named `LEAPING` to dodge the `leaping_michaels_enabled` thread-local | `leaping_michaels_enabled()` only; outside `active_alerts()` |
-| ✅4 | Responsive double (takeout family) | `[1♦ X 2♦] X`, `[1♦ X 3♦] X` | [defense.rs](../../src/bidding/american/defense.rs) `responsive_doubles` / `responsive_overcall_doubles` | `RESPONSIVE` `"responsive-double"` — asks partner to pick a suit (artificial) | `responsive_*_enabled()` toggles |
+| ✅4 | Responsive double (takeout family) | `[1♦ X 2♦] X`, `[1♦ X 3♦] X` | [defense.rs](../../../src/bidding/american/defense.rs) `responsive_doubles` / `responsive_overcall_doubles` | `RESPONSIVE` `"responsive-double"` — asks partner to pick a suit (artificial) | `responsive_*_enabled()` toggles |
 | ~~5~~ | ~~Trap pass~~ → **natural, not alerted** | `[1♦ X P] P` | naturalized by bid-only `artificial()`; the settle floor reads "pass = play the top bid" — the trap pass *defends* the doubled contract, so it is not artificial. (The resp-3NT trap in `competition.rs set_trap_pass` was never a counterexample: it floors HCP, not length.) | — (no alert) | — |
 | ✅6 | Transfers over 2NT (opening + 2♣ rebid) | `[2NT P] 3♦/3♥`, `[2♣ P 2♥ P 2NT P] 3♦/3♥` | `two_notrump_responses` (the 3♦/3♥ transfers only — 3♣ Stayman is an OR-disjunction the witness never flags) | reused `JACOBY` (`"jacoby-transfer"`) | none — outside the `.gated()` block |
 | ✅7 | Puppet / two-way-relay continuations | `[1NT 2♠ 2NT] 3♦/3♥/3♠/3NT`, `[1NT 2♠ 3♣] 3♦/3♥/3♠`, `[1NT 2♣ 2M] 3OM`, `[1NT 3♣ 3♦] 3♥/3♠` | `two_spade_over_min`/`_max` club splinters → `SPLINTER`; slamless 6♣ `3NT` → `PUPPET`; `stayman_major_rebid` 3OM slam try → `SLAM_TRY`; `puppet_deny_rebid` 4-4 hunt → `SMOLEN` | new `SPLINTER`/`SLAM_TRY`, reused `PUPPET`/`SMOLEN` | none — the continuation nodes are plain `insert_uncontested`, not the `.gated()` response node |
@@ -156,9 +156,9 @@ Pre-req: the invariant test is green (zero counterexamples — all remaining are
 
 ## Anchors
 
-- Gate + `artificial()`: [inference.rs](../../src/bidding/inference.rs) `project_authored`
+- Gate + `artificial()`: [inference.rs](../../../src/bidding/inference.rs) `project_authored`
 - Driver test: `artificial_calls_are_alerted` (same file, `#[ignore]`)
-- `Alert` type + `.alert()` builder/getter: [rules.rs](../../src/bidding/rules.rs)
+- `Alert` type + `.alert()` builder/getter: [rules.rs](../../../src/bidding/rules.rs)
 - Memory: `project_rule-projection`, `project_family-alert-split`,
   `project_per-call-alert-tags`
 </content>

@@ -1,7 +1,7 @@
 # Rubensohl after 1m — BBA-vs-BBA A/B (ledger toggle 105)
 
 Research + verification for `21GF.bbsa` toggle **105 "Rubensohl after 1m"**
-(deferred authoring item in [`21gf-ledger.md`](21gf-ledger.md)). No pons bidder
+(deferred authoring item in [`21gf-ledger.md`](../21gf-ledger.md)). No pons bidder
 change — this measures **BBA against itself** with the one toggle flipped.
 
 ## What the convention is
