@@ -32,7 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   hands — gauge quality, not a missing continuation. The wall verdict
   upgrades to **gauge-family refuted**: the shape-crediting `points(5..=10)`
   band beat HCP, CCCC, NLTC, and every discipline prune on the arbiter
-  (docs/point-count-threshold-campaign.md).
+  (docs/archive/point-count-threshold-campaign.md).
 
 - **The point-count remnant close-out — five gate fixes, four shipped
   default-on; the remnant report's families all have verdicts.** Worst-board
@@ -77,7 +77,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     resolution, so the sound-bridge knob stays off by default.
   - Harness: `ab-point-count --fix <spec>` (the `Arms::GateFix` two-book
     path) measures any build-time gate knob fix-vs-shipped. Parked with
-    verdicts in docs/point-count-threshold-campaign.md: the natural-1NT-
+    verdicts in docs/archive/point-count-threshold-campaign.md: the natural-1NT-
     defense buckets (sd-tuned wall), the weak-two↔1-opener seam (the
     disclosure wall's edge), legacy's 4441 strong-tier upgrade, and the
     doubler-side `[1M X XX P P]` sit-out node.
@@ -138,7 +138,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   +0.0048 ± 0.0011 vul**, PD **+0.0070/+0.0087** — all CIs clear. Full
   package with the choice-of-games 3NT: plain **+0.0039/+0.0059**, PD
   **+0.0074/+0.0096**. Recovers the 2/1 response-band remnant
-  (docs/point-count-threshold-campaign.md) with room to spare. Runner:
+  (docs/archive/point-count-threshold-campaign.md) with room to spare. Runner:
   `scripts/two-over-one-ab.sh`.
 
 - **`PointScale` — the point-scale deprecation A/B knob.** A three-way
@@ -169,7 +169,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   same slice twice → bit-identical output. The remnant report (shipped
   scale vs legacy, fresh 1M-board slices/vul, ship verdict re-confirmed
   plain-DD +0.025/+0.033) lives in
-  docs/point-count-threshold-campaign.md: seven gate families still favor
+  docs/archive/point-count-threshold-campaign.md: seven gate families still favor
   legacy (~−0.01 IMPs/board recoverable) — weak-two band, quantitative
   6NT, 2/1 response band, one-level opening seam, competitive-X seams —
   each with a Root-A `hcp(..)` prescription to measure separately.
@@ -208,7 +208,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the seven legacy-favoring remnant families — the one-level opening seam
   (all but the sub-10-HCP freak leg) and the quantitative 6NT — shrinking
   the flagged remnant pool from ≈ −8k/−10k to −6.7k/−8.3k IMPs per 1M
-  boards (details in docs/point-count-threshold-campaign.md).
+  boards (details in docs/archive/point-count-threshold-campaign.md).
 - **`points` now gauges the rule of N+8 — the legacy upgrade scale is
   deposed.** The global point scale defaults to `PointScale::RuleOfN`: every
   `points(range)` gate, the constrained sampler, and the floor's combined

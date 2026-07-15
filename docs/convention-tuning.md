@@ -119,7 +119,7 @@ PD, and `8:14` is the multi-scorer balance (the tell is a one-sided win, not a
 band). Widening was **refuted** and nothing shipped — the default is the
 disciplined uniform 8–14. Reproduce with `bba-gen --ns-overcall LO:HI`; full
 per-gauge and sweep tables are in
-[point-count-threshold-campaign.md](point-count-threshold-campaign.md).
+[point-count-threshold-campaign.md](archive/point-count-threshold-campaign.md).
 
 **How to actually price a competitive range:**
 
@@ -210,6 +210,26 @@ that leaks and fix it. The loop:
    from the tuning side. DONT's whole deficit was one missing escape node
    (`1NT X XX 2♣ X P P P → 2♣x` on a misfit); authoring the doubler's real-suit
    rebid over a doubled relay was worth +0.083/board.
+
+### Two harness techniques (from the point-count campaign)
+
+Both generalize the loop above; full worked examples in
+[archive/point-count-threshold-campaign.md](archive/point-count-threshold-campaign.md).
+
+- **Seat-parity worst-board replay.** To dump *many* divergent boards (step 2),
+  replay the flagged run with a large `--show N` (e.g. `--show 2000` — the
+  default `--show 40` cuts off the long tail) and resolve which arm made which
+  call by **seat parity**: the candidate sits EW at the `off` table, so a
+  mirror-labelled bucket is the same divergence seen from the other side. Parse
+  the acting hand's HCP/shape on each board to name the mechanism.
+- **Fix-vs-shipped, both arms on the shipped config.** When the fix is a
+  build-time gate knob, measure it as *fix-vs-shipped* — both books built on the
+  already-shipped scale/config, differing **only** in the gate under test
+  (`ab-point-count --fix <spec>`, the `Arms::GateFix` two-book path). Never
+  fix-vs-legacy: an `hcp` swap changes the *legacy* arm's behaviour too (legacy
+  `points ⊇ hcp` on floors), so fix-vs-legacy confounds the gate with the scale.
+  This isolates a gate-precision fix (every bracket positive, no PD dip) from an
+  aggression trade.
 
 **Iron rule, from measurement.md:** *before declaring a measured loss dead,
 trace the worst divergent boards.* The usual culprit is an unauthored

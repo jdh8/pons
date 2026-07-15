@@ -19,9 +19,9 @@
 ## Why this exists
 
 On 2026-07-14 the `pons` engine gained an opt-in `hcp_plus`-based
-[`point_count`](../src/bidding/constraint.rs) scale (HCP + useful shortness + a
+[`point_count`](../../src/bidding/constraint.rs) scale (HCP + useful shortness + a
 bare long-suit-length term, closer to BBO GIB), behind
-[`set_new_point_count`](../src/bidding/constraint.rs) — **default off.** It is a
+[`set_new_point_count`](../../src/bidding/constraint.rs) — **default off.** It is a
 measured win under the realistic single-dummy-lead scorer:
 
 | bracket | NV | Vul |
@@ -70,7 +70,7 @@ assertions. Each is a genuine mis-bid the aggregate SD win masks (all rare).
   they should sit below. Six of the eleven bugs (5, 6, 7, 8, 9, 10) are this.
   `point_count` is context-free, so the clean fix is **gate-level, not a global
   evaluator hack**: the weak / preemptive / sign-off `points(..)` gates should
-  gauge raw [`hcp`](../src/bidding/constraint.rs) — they were only ever right
+  gauge raw [`hcp`](../../src/bidding/constraint.rs) — they were only ever right
   *by accident* on the old scale, where `points ≈ hcp` for weak flat hands.
   Gauging a **preempt in HCP** is sounder bridge in its own right: it keeps the
   preempt within legal/disciplined bounds and lets partner trust the HCP (e.g.
@@ -89,18 +89,18 @@ assertions. Each is a genuine mis-bid the aggregate SD win masks (all rare).
 ### Root B — ceilings and holes
 
 1. **Gladiator club INV/GF split — `inv = 8`, `game = 10`**
-   ([defense.rs](../src/bidding/american/defense.rs), `gladiator_advances`). An
+   ([defense.rs](../../src/bidding/american/defense.rs), `gladiator_advances`). An
    8-HCP invitational 6-club hand (`43.72.K5.KQ9876`) reads 10 = `game`, so it
    force-to-games 3♣ instead of the 2♣ relay; forced through the relay it
    strands in 2♦ (Pass). The INV band collapses. **Fix:** re-denominate
    `inv`/`game` up (~9 / 11–12). Test: `gladiator_club_three_way`.
 2. **Opener jump-rebid band top**
-   ([rebids.rs](../src/bidding/american/rebids.rs), forcing-1NT jump rung). An
+   ([rebids.rs](../../src/bidding/american/rebids.rs), forcing-1NT jump rung). An
    18-count 6-1-3-3 (`AKQJ72.3.KQ5.J54`, was 17) overflows the jump band into a
    shape-hiding 2NT. **Fix:** raise the jump band's top / the 2NT floor. Test:
    `opener_major_jump_rebid_shows_strength`.
 4. **Six-card opener-accept `≥ 18`**
-   ([notrump.rs](../src/bidding/american/notrump.rs)). A flat-15 hand with a
+   ([notrump.rs](../../src/bidding/american/notrump.rs)). A flat-15 hand with a
    heart doubleton (`AK5.32.AQ74.Q963`) reads 16, so 16 + 2 = 18 accepts game
    instead of passing. **Fix:** raise the accept threshold. Test:
    `sixcard_major_invite`.
@@ -117,24 +117,24 @@ assertions. Each is a genuine mis-bid the aggregate SD win masks (all rare).
 
 ### Root A — shaped-hand inflation on weak/sign-off gates
 
-5. **Preempt-4M ace-gate override** ([instinct.rs](../src/bidding/instinct.rs)).
+5. **Preempt-4M ace-gate override** ([instinct.rs](../../src/bidding/instinct.rs)).
    A KQ-headed 6-bagger with no trump ace (`432.KQJ987.65.32`) reads 8 (was 7),
    crossing the escape/jump point boundary → jumps 4M despite the trump-ace
    gate. Test: `preempt_4m_over_double_jumps_the_long_major`.
 6. **Rubens advance floor via partner-suit shortness**
-   ([instinct.rs](../src/bidding/instinct.rs)). A bare 8 with a singleton in
+   ([instinct.rs](../../src/bidding/instinct.rs)). A bare 8 with a singleton in
    *partner's* overcalled suit (`2.Q32.KQT54.J432`) reads 10 and reaches the
    10-point transfer floor. Test: `rubens_new_suit_transfer`.
 7. **XYZ relay sign-off misfire**
-   ([xyz.rs](../src/bidding/american/xyz.rs)). After `1♣-1♥-1NT-2♣-2♦`, a 6-HCP
+   ([xyz.rs](../../src/bidding/american/xyz.rs)). After `1♣-1♥-1NT-2♣-2♦`, a 6-HCP
    `x.Qxxx.KJxxxx.xx` reads 8 (singleton + 6-card suit) and raises its own
    *forced* 2♦ sign-off to 3♦ — same strain, higher level, no game ambition.
    Test: `xyz_relay_signs_off_in_diamonds`.
 9. **Garbage Stayman → invite**
-   ([notrump.rs](../src/bidding/american/notrump.rs)). `Qxxx.Jxxx.Kxxx.x` (6 HCP
+   ([notrump.rs](../../src/bidding/american/notrump.rs)). `Qxxx.Jxxx.Kxxx.x` (6 HCP
    4-4-4-1) reads 8 (singleton) and invites 3♥ instead of the drop-dead Pass
    garbage Stayman is for. Test: `garbage_responder_passes_opener_answer`.
-10. **Ogust min → max** ([weak_twos.rs](../src/bidding/american/weak_twos.rs)). A
+10. **Ogust min → max** ([weak_twos.rs](../../src/bidding/american/weak_twos.rs)). A
     6-HCP minimum weak two (`94.QJ8632.K85.72`) reads 8 (worthless doubletons) →
     Ogust `points(8..=10)` max window → answers 3♥ (max) not 3♣ (min),
     collapsing the min/max ladder. Test: `test_ogust_answers_after_two_hearts`.
@@ -188,7 +188,7 @@ Every capped `points(lo..=hi)` range is denominated in old points (`hcp(..)` and
   length term double-counts trump length under the new scale (which itself
   carries a long-suit-length term). Measured, and **31 holds** under the shipped
   `support_points`. The **fit-sum major-game gate**
-  ([`FIT_SUM_GAME`](../src/bidding/instinct.rs), default 31 — `support_point_count
+  ([`FIT_SUM_GAME`](../../src/bidding/instinct.rs), default 31 — `support_point_count
   + partner.min + own_len + partner_shown_len >= t`) was re-probed twice:
   - *Under the deleted global `set_new_point_count`* (broad, all gates hot): the
     PD peak moved 31 → 32, but only marginally (30→31 +0.027/+0.029, 31→32
@@ -295,17 +295,17 @@ gates.
 
 | family (flagged buckets, both directions) | ≈IMPs NV / vul per 1M | gate | prescription |
 | --- | --- | --- | --- |
-| **Weak-two band** — `[] 2♥→P`, `[] P→2♥`, `[] 2♠→P`, `[P] P→2♠`, … all seats | −2.0k / −3.1k | `len(suit, 6..=6) & points(5..=10)` ([openings.rs](../src/bidding/american/openings.rs)) | Root A: the band shifted down ~1–2 HCP both edges (a 6-card suit reads +1..+2, and legacy's wasted-honor veto did real work). Re-denominate on raw HCP: `hcp(5..=10)`-ish, sweep the edges. |
-| **Quantitative 6NT** — `[2♣ P 2NT P 3NT P] 6NT↔P`, every rotation, **both directions lose** | −1.9k / −2.0k | no-fit NT slam `combined_points(33)`/`(37)` ([instinct.rs:2949-2960](../src/bidding/instinct.rs#L2949-L2960)) | A *notrump* slam has no ruffs — long-suit length is the wrong currency, and legacy wins both flip directions. Gauge raw HCP (+ partner floor) for the NT 6/7 gates; echoes the NT-invite-evaluator null (raw HCP wins at NT boundaries). |
-| **2/1 response band** — `[1♠ P] 2♣↔1NT`, `2♦↔1NT`, `2♥↔1NT`, passed-hand variants | −1.5k / −2.1k | two-over-one `len(x, 4..) & points(13..)` vs residual 1NT `points(6..)` ([responses.rs:219](../src/bidding/american/responses.rs#L219)) | Both directions lose: flat 13s belong in the game force, shaped 11s belong in 1NT. The GF entry is shape-indifferent → `hcp` leg (union, like the 2♣ fix), sweep 12/13. |
-| **One-level opening seam** — `[] P→1♣/1♦` (freaks), `[] 1♣/1♦→P` (flat 12s), all seats; NV-heavy | −2.3k / ~0 | `points(12..=21)` + Pass `points(..12)` ([openings.rs](../src/bidding/american/openings.rs)) | Two legs: flat 12-HCP now reads 11 and passes (add the `hcp(12..)` union leg, mirror of the 2♣ fix); sub-10-HCP freaks (11+ cards in two suits) now open where even the rule-of-20 light rules required `hcp(10..=11)` (add an `hcp(10..)` floor to the light seam). |
-| **Competitive X ↔ bid seams** — `[1♦] X→1♠`, `[1♣ P 1♥] X→1♠`, `[P 1♠] 2♣→X`, neg-X families | −1.5k / −2.8k scattered | takeout/negative-double and free-bid bands in [competition.rs](../src/bidding/american/competition.rs) | Scattered small buckets, no one dominant gate; probe per docs/convention-tuning.md forensics before touching bands. |
+| **Weak-two band** — `[] 2♥→P`, `[] P→2♥`, `[] 2♠→P`, `[P] P→2♠`, … all seats | −2.0k / −3.1k | `len(suit, 6..=6) & points(5..=10)` ([openings.rs](../../src/bidding/american/openings.rs)) | Root A: the band shifted down ~1–2 HCP both edges (a 6-card suit reads +1..+2, and legacy's wasted-honor veto did real work). Re-denominate on raw HCP: `hcp(5..=10)`-ish, sweep the edges. |
+| **Quantitative 6NT** — `[2♣ P 2NT P 3NT P] 6NT↔P`, every rotation, **both directions lose** | −1.9k / −2.0k | no-fit NT slam `combined_points(33)`/`(37)` ([instinct.rs:2949-2960](../../src/bidding/instinct.rs#L2949-L2960)) | A *notrump* slam has no ruffs — long-suit length is the wrong currency, and legacy wins both flip directions. Gauge raw HCP (+ partner floor) for the NT 6/7 gates; echoes the NT-invite-evaluator null (raw HCP wins at NT boundaries). |
+| **2/1 response band** — `[1♠ P] 2♣↔1NT`, `2♦↔1NT`, `2♥↔1NT`, passed-hand variants | −1.5k / −2.1k | two-over-one `len(x, 4..) & points(13..)` vs residual 1NT `points(6..)` ([responses.rs:219](../../src/bidding/american/responses.rs#L219)) | Both directions lose: flat 13s belong in the game force, shaped 11s belong in 1NT. The GF entry is shape-indifferent → `hcp` leg (union, like the 2♣ fix), sweep 12/13. |
+| **One-level opening seam** — `[] P→1♣/1♦` (freaks), `[] 1♣/1♦→P` (flat 12s), all seats; NV-heavy | −2.3k / ~0 | `points(12..=21)` + Pass `points(..12)` ([openings.rs](../../src/bidding/american/openings.rs)) | Two legs: flat 12-HCP now reads 11 and passes (add the `hcp(12..)` union leg, mirror of the 2♣ fix); sub-10-HCP freaks (11+ cards in two suits) now open where even the rule-of-20 light rules required `hcp(10..=11)` (add an `hcp(10..)` floor to the light seam). |
+| **Competitive X ↔ bid seams** — `[1♦] X→1♠`, `[1♣ P 1♥] X→1♠`, `[P 1♠] 2♣→X`, neg-X families | −1.5k / −2.8k scattered | takeout/negative-double and free-bid bands in [competition.rs](../../src/bidding/american/competition.rs) | Scattered small buckets, no one dominant gate; probe per docs/convention-tuning.md forensics before touching bands. |
 | **2NT rebid-invite seam** — `[1♥ P 1♠ P 2♦ P] 2NT↔P` | — / −0.5k | responder's 2NT invite after two suits | NT-oriented invite → HCP gauge; probe. |
 | **Weak-two ask answer** — `[2♦ P 2NT P] 3♣→3♥` | −0.2k / — | weak-two max/min answer band | Same Root A as the opening band; fix with it. |
 
 Every prescription is expressible as an `hcp(..)` swap or an `hcp` union leg —
 the `legacy_points(range)` pin combinator was never needed (YAGNI held). Each
-fix is a bidding change: measure it per [docs/measurement.md](measurement.md)
+fix is a bidding change: measure it per [docs/measurement.md](../measurement.md)
 on a **fresh** `.pdd` slice (cursor: `24.pdd` row 4,000,000) before it ships.
 Note the harness subtlety: an `hcp` swap changes the *legacy arm's* behavior
 too (legacy `points ⊇ hcp` on floors), so fix-vs-shipped is the honest A/B —
@@ -408,7 +408,7 @@ split) is **sound bridge but does not ship**. Fix-vs-shipped
 The signature is inverted from every shippable point-count win (plain wash, PD
 positive, **sd-lead negative** — sd sits *below* both DD brackets, not between
 them). A weak two is a **preempt = competitive range**, so per
-[convention-tuning.md](convention-tuning.md) sd-lead is the arbiter and it is a
+[convention-tuning.md](../convention-tuning.md) sd-lead is the arbiter and it is a
 wash-to-loss: the marginal weak twos (the sound 9–10 HCP shapely hands the HCP
 band adds, that floored `points` read 11–12 and passed) **over-disclose to the
 opponents' blind opening lead** — the one bias plain DD and PD miss and sd-lead
@@ -441,7 +441,7 @@ negative double (the shipped negX is `hcp(8..)`, scale-invariant):
    `[P 1♠] 2♣→X`, sandwich and passed-seat cousins — both mirror directions
    CI-flagged).  Weights make the effective partition "overcall until the
    band top (17), double first above it" — and *both* faces of that edge were
-   `points`-denominated ([defense.rs](../src/bidding/american/defense.rs)
+   `points`-denominated ([defense.rs](../../src/bidding/american/defense.rs)
    `points(8..=17)` bands / `points(17..)` strong tier).  Rule-of-N+8 reads a
    5-4 fourteen-count 17+, so shaped 14–17 HCP hands (one dump board: a
    **nine-card** spade suit reading 18) route into X-first auctions and lose
