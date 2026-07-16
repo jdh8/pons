@@ -95,6 +95,15 @@ range (projects the union — sound but loose).
   `inference.rs`, master switch `set_alert_reading`, default on): the reader
   replays the authoring rule's `project` fold. Unalerted = natural =
   floor-safe.
+- Projection reaches only calls the reader's own book authored — the
+  opponents' calls read through the natural walk. **Table-wide alert
+  reading** (`set_table_alert_reading`, default off pending A/B) extends
+  disclosure to the whole table, as at a real one: each opponent call is
+  resolved in *their* phase-routed book (`Stance::trie_for` on the auction
+  cut at their turn — `Phase::of` is slice-relative, so their side's phase
+  falls out) under their at-the-time context, and decoded when alerted. The
+  stance models the opponents as playing our own books: exact in self-play,
+  an approximation against other natural-family engines.
 - `Inferences::read` (`inference.rs`) accumulates per-player `Inference`
   (per-suit length ranges + points) from the auction — design law **soundness
   over tightness** (never claim more than the calls promise). Convention

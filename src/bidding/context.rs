@@ -9,6 +9,7 @@
 //! alone.  System interpretation (such as forcing status) deliberately does
 //! not live here — it belongs to classifiers, which know their system.
 
+use super::book::Stance;
 use super::trie::CommonPrefixes;
 use contract_bridge::auction::{AbsoluteVulnerability, Call, RelativeVulnerability};
 use contract_bridge::{Bid, Level, Penalty, Seat, Strain, Suit};
@@ -30,6 +31,21 @@ pub fn relative(vul: AbsoluteVulnerability, seat: Seat) -> RelativeVulnerability
     relative
 }
 
+/// The same vulnerability seen from the other side of the table
+#[must_use]
+pub(crate) fn flipped(vul: RelativeVulnerability) -> RelativeVulnerability {
+    let mut flipped = RelativeVulnerability::NONE;
+    flipped.set(
+        RelativeVulnerability::WE,
+        vul.contains(RelativeVulnerability::THEY),
+    );
+    flipped.set(
+        RelativeVulnerability::THEY,
+        vul.contains(RelativeVulnerability::WE),
+    );
+    flipped
+}
+
 /// Mechanical facts about an auction from the perspective of the side to act
 ///
 /// A context is computed once per classification from the raw table auction
@@ -49,6 +65,7 @@ pub struct Context<'a> {
     partner_passed_hand: bool,
     opening_index: Option<usize>,
     prefixes: Option<CommonPrefixes<'a, 'a>>,
+    their_system: Option<&'a Stance>,
 }
 
 impl<'a> Context<'a> {
@@ -72,6 +89,7 @@ impl<'a> Context<'a> {
             partner_passed_hand: len >= 2 && matches!(auction[(len - 2) % 4], Call::Pass),
             opening_index: auction.iter().position(|&call| call != Call::Pass),
             prefixes: None,
+            their_system: None,
         };
 
         for (index, &call) in auction.iter().enumerate() {
@@ -113,6 +131,27 @@ impl<'a> Context<'a> {
     pub const fn with_prefixes(mut self, prefixes: CommonPrefixes<'a, 'a>) -> Self {
         self.prefixes = Some(prefixes);
         self
+    }
+
+    /// Attach a model of the *opponents'* system for table-wide alert reading
+    ///
+    /// Alerts are disclosure to the whole table, so the reading layer may
+    /// decode the opponents' alerted calls off their authoring rules — when it
+    /// has a model of their books.  [`Stance::prefixed_context`] attaches the
+    /// stance itself: the opponents are modeled as playing our own books,
+    /// which is exact in self-play and an approximation against other
+    /// natural-family engines.  Consumed by `project_authored` behind
+    /// [`set_table_alert_reading`][super::inference::set_table_alert_reading].
+    #[must_use]
+    pub(crate) const fn with_their_system(mut self, them: &'a Stance) -> Self {
+        self.their_system = Some(them);
+        self
+    }
+
+    /// The opponents' modeled system, if attached ([`Self::with_their_system`])
+    #[must_use]
+    pub(crate) const fn their_system(&self) -> Option<&'a Stance> {
+        self.their_system
     }
 
     /// Vulnerability relative to the side to act

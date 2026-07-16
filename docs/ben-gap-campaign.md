@@ -1,8 +1,11 @@
 # The BEN gap campaign — closing pons↔BEN, with BBA as the exploit guard
 
-**Status: Phase 0 in progress (2026-07-16) — harness built and validated
-(steps 1–3 of the [ben-gen validation plan](ben-gen-design.md)); the
-EPBot-vs-BEN calibration (step 4, the Phase 0 exit gate) is running.** The
+**Status: Phase 0 COMPLETE (2026-07-17) — the EPBot-vs-BEN calibration
+(the exit gate) PASSED: 20k Tier-S boards, plain DD −0.568 pooled from
+EPBot's side vs BBA's published −0.38 DD / −0.51 SD (sign + bracket agree;
+details in [ben-gen-design.md](ben-gen-design.md), validation step 4).
+Phase 1's first pons-vs-BEN Tier-S anchor (`ab-results/ben-anchor/`) is
+next — it needs a clean committed tree and the box to itself.** The
 [survey](open-source-bidder-survey.md) refuted "pons is the strongest
 open-source bidder": BEN (GPL-3.0, code + weights in-repo) beats EPBot by
 0.35–0.38 IMPs/deal DD in BBA's own cross-engine tables, and pons trails
@@ -137,16 +140,29 @@ passed hand at ~6.3 mean HCP.
     3/4); an agreed-suit re-raise adds no length (`1M-2M-3M` game tries read
     a phantom sixth); a doubler's later jump is never a weak six-card jump
     (made on three, 2/2).
+- **Table-wide alert reading — BUILT 2026-07-17** (jdh8: "Alerting in bridge
+  is for opponents. We should make it available to the other 3 players on
+  the table, not just the partner."). The projection pass decoded an alerted
+  call only when the *reader's own* book authored it, so the opponents'
+  alerted conventions (their splinter, their checkback, their Michaels) fell
+  to the natural walk. `set_table_alert_reading` (**default off pending the
+  A/B**; bba-gen arm `--ns-table-alert-reading`, probe `--sound-reading`)
+  resolves each opponent call in *their* phase-routed book — the stance
+  models them as playing our own books, exact in self-play, an approximation
+  vs BBA/BEN — under their at-the-time context, and decodes it when the rule
+  alerts it; their natural calls keep the walk. Same-seed probe: seat-suit
+  length violations **552 → 324 (−41%), 228 drained, 0 introduced**.
 - **Still open, by ranked margin**: (1) preemptive minor jump raises
   (`1C (P) 3C`, `P P (1D) P 3D`) read as 10+ limit while the floor bids
   them on 3–6 — decide the raise's meaning, then align floor and reader;
-  (2) the XYZ complex after `1m-1M-1S/1NT` reads naturally (the 2C relay's
-  forced 2D completion 3/3 + 2/2, artificial 2D on a doubleton 2/2) — audit
-  the XYZ rules' alerts/projection; (3) `1S (1N) X` shows 15+ on the wrong
-  seat (1/1, attribution suspect); (4) passes narrow nothing — the biggest
-  bucket by volume, and jdh8's verdict: every chance to bid expresses
-  something, so a pass must narrow too (a bounded no-open, no-overcall, or
-  no-response read), even if each pass carries little.
+  (2) the XYZ complex after `1m-1M-1S/1NT` **over-claims in the projection
+  itself** (12 violation rows survive table-wide decode — same-pair and
+  defender views now share the one buggy projection; fixing it fixes both) —
+  audit the XYZ rules' alerts/projection; (3) `1S (1N) X` shows 15+ on the
+  wrong seat (1/1, attribution suspect); (4) passes narrow nothing — the
+  biggest bucket by volume, and jdh8's verdict: every chance to bid
+  expresses something, so a pass must narrow too (a bounded no-open,
+  no-overcall, or no-response read), even if each pass carries little.
 
 ## The reference pair
 

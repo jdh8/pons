@@ -48,6 +48,9 @@ use contract_bridge::auction::{Call, RelativeVulnerability};
 use core::ops::{Deref, DerefMut};
 
 /// Resolve `auction` against `trie` exactly like the bare table model
+///
+/// The standalone book impls route here; a bare trie has no [`Stance`], so no
+/// opponents' system is attached and the table-wide alert decode abstains.
 fn resolve(
     trie: &Trie,
     hand: Hand,
@@ -370,7 +373,12 @@ pub struct Stance {
 
 impl Stance {
     /// The trie answering for the auction's [`Phase`]
-    fn trie_for(&self, auction: &[Call]) -> &Trie {
+    ///
+    /// [`Phase::of`] is relative to the side to act on the slice, so this
+    /// also routes an *opponent's* prior call correctly: querying with the
+    /// auction cut at their turn yields their side's phase and book — how the
+    /// table-wide alert decode resolves their calls (`project_authored`).
+    pub(crate) fn trie_for(&self, auction: &[Call]) -> &Trie {
         match Phase::of(auction) {
             Phase::Constructive => &self.constructive,
             Phase::Competitive => &self.competitive,
@@ -394,7 +402,9 @@ impl Stance {
         auction: &[Call],
     ) -> Option<(Logits, Provenance)> {
         let trie = self.trie_for(auction);
-        let context = Context::new(vul, auction).with_prefixes(trie.common_prefixes(auction));
+        let context = Context::new(vul, auction)
+            .with_prefixes(trie.common_prefixes(auction))
+            .with_their_system(self);
         trie.classify_floored(hand, &context, auction)
     }
 
@@ -418,7 +428,9 @@ impl Stance {
         call: Call,
     ) -> Option<(Provenance, Option<ExplainedRule>)> {
         let trie = self.trie_for(auction);
-        let context = Context::new(vul, auction).with_prefixes(trie.common_prefixes(auction));
+        let context = Context::new(vul, auction)
+            .with_prefixes(trie.common_prefixes(auction))
+            .with_their_system(self);
         let (classifier, _, provenance) = trie.resolve_floored(hand, &context, auction)?;
         let rule = classifier.as_rules().and_then(|rules| {
             let &(index, _) = rules.explain(hand, &context).get(call)?;
@@ -461,7 +473,9 @@ impl Stance {
         auction: &'a [Call],
     ) -> Context<'a> {
         let trie = self.trie_for(auction);
-        Context::new(vul, auction).with_prefixes(trie.common_prefixes(auction))
+        Context::new(vul, auction)
+            .with_prefixes(trie.common_prefixes(auction))
+            .with_their_system(self)
     }
 
     /// Read what an auction has shown, exactly as this stance would at the table
@@ -482,7 +496,8 @@ impl Stance {
 
 impl System for Stance {
     fn classify(&self, hand: Hand, vul: RelativeVulnerability, auction: &[Call]) -> Option<Logits> {
-        resolve(self.trie_for(auction), hand, vul, auction)
+        self.classify_with_provenance(hand, vul, auction)
+            .map(|(logits, _)| logits)
     }
 
     fn authored_at(&self, vul: RelativeVulnerability, auction: &[Call]) -> bool {

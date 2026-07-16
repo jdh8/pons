@@ -799,6 +799,13 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_length_soundness: bool,
 
+    /// Enable table-wide alert reading (default off, unshipped): the
+    /// opponents' alerted calls decode off their authoring rules — modeling
+    /// them as playing our books, an approximation against BBA — instead of
+    /// falling to the natural walk.  The A/B on arm.
+    #[arg(long, default_value_t = false)]
+    ns_table_alert_reading: bool,
+
     /// Our side NEVER competes over BBA's 1NT (default off): authors only Pass at
     /// every seat, the truest "do nothing" baseline.  Overrides every other defense knob.
     #[arg(long, default_value_t = false)]
@@ -1042,6 +1049,7 @@ fn main() -> anyhow::Result<()> {
     pons::bidding::set_control_bid_reading(!args.no_ns_control_bid_reading);
     pons::bidding::set_cue_reading(args.ns_cue_reading);
     pons::bidding::set_length_soundness(args.ns_length_soundness);
+    pons::bidding::set_table_alert_reading(args.ns_table_alert_reading);
     pons::bidding::american::set_transfer_longer_major(!args.no_ns_transfer_longer);
     pons::bidding::set_fallback_projection(!args.no_ns_fallback_projection);
     pons::bidding::american::set_open_one_notrump(!args.no_our_1nt);

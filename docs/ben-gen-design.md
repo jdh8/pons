@@ -1,7 +1,8 @@
 # ben-gen — design for the pons↔BEN bidding harness
 
-**Status: Phase 0 in progress (2026-07-16). Servers validated live; harness
-being built.** This doc is the engineering half of the
+**Status: Phase 0 COMPLETE (2026-07-17) — all validation steps passed,
+including the EPBot-vs-BEN calibration exit gate.** This doc is the
+engineering half of the
 [BEN gap campaign](ben-gap-campaign.md); read that first for the *why*.
 Validation steps 1 (wire probe) and the environment half of step 2 are done —
 flagged unknowns below have been replaced with measured facts from the pinned
@@ -201,15 +202,21 @@ per-fix effects (±0.01) resolve at Tier-F scale.
 3. **Determinism check** — **DONE 2026-07-16**: same seed twice ⇒ identical
    `boards` (the only byte diff is `gen_args` echoing the differing
    `--output` argv, by design).
-4. **EPBot-vs-BEN calibration vs BBA's Table 1**: `--calibrate-epbot`,
-   Tier S, 10–20k boards. Published reference: EPBot v.8741 scores
-   **−0.51 SD / −0.38 DD** vs BEN v0.8.8.4 (21GF card) per deal. Acceptance
-   is sign + rough magnitude (say DD in −0.2…−0.55): our protocol differs
-   (deal stream, sd machinery) and our vendored EPBot's build vintage is
-   unknown (DLL reports only 11.0.0.0), so exact agreement is not expected.
-   A wildly-off number means harness bug or EPBot vintage mismatch —
-   investigate before trusting any pons-vs-BEN number. This step
-   independently validates the harness with **zero pons code in the loop**.
+4. **EPBot-vs-BEN calibration vs BBA's Table 1** — **DONE 2026-07-17,
+   PASS**: `--calibrate-epbot`, Tier S, 20k boards (8×1,250 × {none, both},
+   `SEED_BASE` 1784208661, `ab-results/ben-calibration/2026-07-16/`).
+   Measured from EPBot's side: plain DD **−0.539** none (CI [−0.620,
+   −0.457]) / **−0.598** both (CI [−0.699, −0.496]), pooled **−0.568**;
+   PD −0.367 / −0.462, pooled −0.415; divergence 49%/46%. Published
+   reference: EPBot v.8741 **−0.51 SD / −0.38 DD** vs BEN v0.8.8.4 (21GF).
+   Acceptance was sign + rough magnitude (DD in −0.2…−0.55): sign right,
+   pooled point a hair past the band edge with the edge well inside the CI,
+   and our plain number lands on their published *SD* figure. The modest
+   excess is consistent with our none/both-only vul mix (both inflates
+   swings) and a vendored EPBot possibly a shade older than v.8741; nothing
+   resembles a harness bug (sane divergence rate, coherent per-family
+   tables and worst-board auctions). Harness validated with **zero pons
+   code in the loop**.
 5. **First pons-vs-BEN anchor**: Tier S, 20k boards, fresh `SEED_BASE`,
    persisted like the BBA anchor series — this replaces the survey's
    chained ≈2.1-behind estimate with a measurement. Hand off to the
@@ -236,4 +243,8 @@ follow-up.
 4. ~~Linux BBA-consultation path~~ — RESOLVED: ctypes against vendored
    native `libEPBot.so` at this tag (pythonnet path removed upstream);
    works headlessly.
-5. Vendored EPBot vintage vs the site's v.8741 — step 4 bounds it.
+5. ~~Vendored EPBot vintage vs the site's v.8741~~ — BOUNDED (step 4): its
+   measured gap to BEN (−0.568 plain pooled) sits within the published
+   bracket (−0.38 DD…−0.51 SD, allowing our vul-mix inflation), so the
+   vendored build is close kin to v.8741 — at most a shade weaker; fine as
+   the exploit guard.

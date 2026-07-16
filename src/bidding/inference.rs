@@ -227,6 +227,34 @@ fn length_soundness() -> bool {
     LENGTH_SOUNDNESS.with(Cell::get)
 }
 
+std::thread_local! {
+    /// Whether [`project_authored`] also decodes the *opponents'* alerted
+    /// calls (see [`set_table_alert_reading`]).  Off by default pending the
+    /// A/B.
+    static TABLE_ALERT_READING: Cell<bool> = const { Cell::new(false) };
+}
+
+/// Toggle table-wide alert reading (default off, pending A/B)
+///
+/// Alerting exists *for the opponents*: an alerted call is disclosed to the
+/// whole table, not just remembered by partner.  The projection pass honors
+/// only half of that by default — it decodes a call off its authoring rule
+/// when the *reader's own* book authored it, so the opponents' alerted
+/// conventions (their Stayman, their splinter, their checkback) fall to the
+/// natural walk and can read as phantom suits.  On, the pass also resolves
+/// each opponent call in *their* phase-routed book — modeling them as playing
+/// our own books, exact in self-play and an approximation against other
+/// natural-family engines — under their at-the-time context, and decodes it
+/// when their rule alerts it.  Their unalerted (natural) calls still read by
+/// the walk.
+pub fn set_table_alert_reading(on: bool) {
+    TABLE_ALERT_READING.with(|cell| cell.set(on));
+}
+
+fn table_alert_reading() -> bool {
+    TABLE_ALERT_READING.with(Cell::get)
+}
+
 /// Toggle rule-replay layout acceptance (default off).
 ///
 /// On, the sampler reads each bid by the rule that authored it — the meaning is
@@ -1534,41 +1562,45 @@ fn project_authored(context: &Context<'_>) -> ([Inference; 4], u64) {
         return (players, suppressed);
     };
 
-    // Project the call made at `index`, authored by `classifier`, into the overlay.
-    let mut project_call = |index: usize, classifier: &dyn super::trie::Classifier| {
-        let (Some(&made), Some(rules)) = (auction.get(index), classifier.as_rules()) else {
-            return;
-        };
+    // Project the call made at `index`, authored by `classifier`, into the
+    // overlay, evaluating its rules under `ctx` — the reader's context for our
+    // own pair's calls, the caller's at-the-time context for table-decoded
+    // opponent calls.
+    let mut project_call =
+        |ctx: &Context<'_>, index: usize, classifier: &dyn super::trie::Classifier| {
+            let (Some(&made), Some(rules)) = (auction.get(index), classifier.as_rules()) else {
+                return;
+            };
 
-        // The logit of a call is the max over its rules, so a hand could satisfy
-        // any one of them — the sound forward envelope is their union.
-        let projection = rules
-            .rules()
-            .iter()
-            .filter(|rule| rule.call() == made)
-            .map(|rule| rule.project(context))
-            .reduce(|acc, p| acc.union(&p));
-
-        // A call is artificial — decode it — when its authoring rule *alerts* it.
-        // The alert is now the complete, exhaustive signal: every artificial call
-        // in the book carries one (guarded by the `artificial_calls_are_alerted`
-        // invariant test), so the old structural `artificial(p, made)` fallback
-        // has been retired (alert-by-disclosed-meaning, the move modern bridge
-        // made retiring "X is self-alerting").
-        let alerted = alert_reading()
-            && rules
+            // The logit of a call is the max over its rules, so a hand could satisfy
+            // any one of them — the sound forward envelope is their union.
+            let projection = rules
                 .rules()
                 .iter()
-                .any(|rule| rule.call() == made && rule.alert().is_some());
+                .filter(|rule| rule.call() == made)
+                .map(|rule| rule.project(ctx))
+                .reduce(|acc, p| acc.union(&p));
 
-        if let Some(projection) = projection.filter(|_| alerted) {
-            let who = relative_of(len, index) as usize;
-            players[who] = players[who].intersect(&projection);
-            if index < 64 {
-                suppressed |= 1 << index;
+            // A call is artificial — decode it — when its authoring rule *alerts* it.
+            // The alert is now the complete, exhaustive signal: every artificial call
+            // in the book carries one (guarded by the `artificial_calls_are_alerted`
+            // invariant test), so the old structural `artificial(p, made)` fallback
+            // has been retired (alert-by-disclosed-meaning, the move modern bridge
+            // made retiring "X is self-alerting").
+            let alerted = alert_reading()
+                && rules
+                    .rules()
+                    .iter()
+                    .any(|rule| rule.call() == made && rule.alert().is_some());
+
+            if let Some(projection) = projection.filter(|_| alerted) {
+                let who = relative_of(len, index) as usize;
+                players[who] = players[who].intersect(&projection);
+                if index < 64 {
+                    suppressed |= 1 << index;
+                }
             }
-        }
-    };
+        };
 
     if fallback_projection_enabled() {
         // Decode every prior call by the classifier that *authored* it — node or
@@ -1577,14 +1609,35 @@ fn project_authored(context: &Context<'_>) -> ([Inference; 4], u64) {
         let trie = prefixes.root();
         for index in 0..len {
             if let Some(classifier) = trie.authoring_classifier(context, &auction[..index]) {
-                project_call(index, classifier);
+                project_call(context, index, classifier);
             }
         }
     } else {
         // Exact-node classifiers only — the shipped default; fallback-authored
         // conventions are read by the hand-written readers in [`Inferences::read`].
         for (prefix, classifier) in prefixes.clone() {
-            project_call(prefix.len(), classifier);
+            project_call(context, prefix.len(), classifier);
+        }
+    }
+
+    // Alerts are table-wide disclosure: the opponents' alerted calls are
+    // explained to us, so decode them too — each resolved in *their*
+    // phase-routed book (the attached stance models them as playing our own
+    // books) under their at-the-time context, exactly as it was classified
+    // when made.  Their unalerted (natural) calls keep the natural walk.
+    if table_alert_reading()
+        && let Some(them) = context.their_system()
+    {
+        let vul = super::context::flipped(context.vul());
+        for index in ((len + 1) % 2..len).step_by(2) {
+            let prefix = &auction[..index];
+            let their_context = Context::new(vul, prefix);
+            if let Some(classifier) = them
+                .trie_for(prefix)
+                .authoring_classifier(&their_context, prefix)
+            {
+                project_call(&their_context, index, classifier);
+            }
         }
     }
 
@@ -4014,6 +4067,60 @@ mod tests {
         set_length_soundness(false);
         let off = read(&auction);
         assert_eq!(off.rho().length(Suit::Diamonds).min, 6);
+    }
+
+    #[test]
+    fn their_splinter_is_disclosed_to_the_table() {
+        // 1♠ (P) 4♦ read by a defender: their splinter is alerted and
+        // explained at the table, so it decodes off their authoring rule —
+        // diamond shortness with spade support, never diamond length.
+        set_table_alert_reading(true);
+        let auction = [bid(1, Strain::Spades), Call::Pass, bid(4, Strain::Diamonds)];
+        let inf = read_booked(&auction);
+        assert!(inf.rho().length(Suit::Diamonds).max <= 1);
+        set_table_alert_reading(false);
+        let off = read_booked(&auction);
+        assert_eq!(off.rho().length(Suit::Diamonds).max, 13);
+    }
+
+    #[test]
+    fn their_michaels_is_disclosed_to_the_table() {
+        // 1♠ (2♠) read by the opening side: their Michaels cue resolves in
+        // *their* phase-routed book (defensive at their turn) and decodes off
+        // the authored rule — five-plus hearts *with the rule's strength
+        // floor*, which the hand-written two-suiter shape reader (the off
+        // arm) does not know.
+        set_table_alert_reading(true);
+        let auction = [bid(1, Strain::Spades), bid(2, Strain::Spades)];
+        let inf = read_booked(&auction);
+        assert!(inf.rho().length(Suit::Hearts).min >= 5);
+        assert!(inf.rho().points.min >= 8);
+        assert_eq!(inf.rho().length(Suit::Spades).min, 0);
+        set_table_alert_reading(false);
+        let off = read_booked(&auction);
+        assert_eq!(off.rho().points.min, 0);
+    }
+
+    #[test]
+    fn their_checkback_is_disclosed_to_the_table() {
+        // 1♦ (P) 1♠ (P) 1NT (P) 2♣ read by a defender: their artificial
+        // checkback 2♣ promises no clubs — the natural walk floored four (the
+        // probe: four-plus clubs read on a singleton).
+        set_table_alert_reading(true);
+        let auction = [
+            bid(1, Strain::Diamonds),
+            Call::Pass,
+            bid(1, Strain::Spades),
+            Call::Pass,
+            bid(1, Strain::Notrump),
+            Call::Pass,
+            bid(2, Strain::Clubs),
+        ];
+        let inf = read_booked(&auction);
+        assert!(inf.rho().length(Suit::Clubs).min < 4);
+        set_table_alert_reading(false);
+        let off = read_booked(&auction);
+        assert!(off.rho().length(Suit::Clubs).min >= 4);
     }
 
     #[test]

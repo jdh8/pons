@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Table-wide alert reading** (jdh8's directive: alerting in bridge is
+  *for the opponents* — an alerted call is disclosed to the whole table,
+  not just remembered by partner): the projection pass used to decode an
+  alerted call only when the reader's own book authored it, so the
+  opponents' alerted conventions (their splinter, their checkback, their
+  Michaels) fell to the natural walk and could read as phantom suits. New
+  `set_table_alert_reading` knob (**default off pending the A/B**; bba-gen
+  arm `--ns-table-alert-reading`, probe `--sound-reading`) resolves each
+  opponent call in *their* phase-routed book under their at-the-time
+  context — modeling them as playing our own books, exact in self-play, an
+  approximation against other natural-family engines — and decodes it when
+  the rule alerts it; their natural calls keep the walk. Same-seed probe
+  re-run: seat-suit length violations 552 → 324 (−41 %), 228 drained, 0
+  introduced. Three new unit tests; defaults byte-identical.
+
 - **Phantom-suit reading fix — cues and sound length floors** (found by the
   BEN Info-net probe; fix ledger in
   [docs/ben-gap-campaign.md](docs/ben-gap-campaign.md)): two `inference.rs`
