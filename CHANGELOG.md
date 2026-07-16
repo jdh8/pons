@@ -9,6 +9,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **BEN gap campaign + ben-gen harness design docs**
+  ([docs/ben-gap-campaign.md](docs/ben-gap-campaign.md),
+  [docs/ben-gen-design.md](docs/ben-gen-design.md)): following the survey's
+  verdict, the north star re-aims from BBA at **BEN v0.8.8.4** (the measured
+  open-source front-runner, ≈2.1 IMPs/bd ahead by the chained estimate);
+  BBA demotes to **exploit guard** — every ship needs a vs-BEN Tier-F win
+  *and* a vs-BBA plain-DD no-regression, so quirk exploitation can't ship as
+  progress. Harness design: a `ben-gen` mirror of `bba-gen` driving BEN's
+  stateless `GET /bid` REST endpoint (request-level deterministic via
+  hand-hash seeding; stock in-repo `BEN-21GF` card = the exact artifact
+  BBA's table measured), dumps drop-in compatible with the whole
+  score/diff/sd/decompose pipeline; two engine tiers (stock-with-search for
+  20k-board overnight anchors, policy-only for 102.4k-board per-fix A/Bs);
+  validation keyed on an **EPBot-vs-BEN calibration** that reruns BBA's
+  published Table-1 match with zero pons code in the loop (also bounds our
+  vendored EPBot's vintage). Design only — no code, no measurements yet.
+
+- **Open-source bidder survey**
+  ([docs/open-source-bidder-survey.md](docs/open-source-bidder-survey.md)):
+  fact-checked answer to "is pons the strongest open-source bidder?" —
+  verdict **no, at moderate confidence**. Two genuine open rivals exist:
+  BEN (GPL-3.0, neural + DD) and brl (Apache-2.0, peer-reviewed **+1.24
+  IMPs/bd vs WBridge5**, IEEE CoG 2024, code + weights released). The
+  missing rung turned out to be on BBA's own test-results page (user tip;
+  the research sweep's summarizer had missed the HTML tables): EPBot v.8741
+  scores **−0.40 DD vs WBridge5 L4** and **−0.35…−0.38 DD vs BEN v0.8.8.4**,
+  +0.07…+0.15 vs GIB 6.x. Chained onto our private anchor (pons −1.7…−1.9
+  vs EPBot), pons sits ≈2.1 IMPs/bd behind current BEN and ≈3.4 behind brl
+  — nominal transitivity across three harnesses, every link same-signed in
+  both SD and DD brackets. Direct measurement path: `ben-gen` process
+  bridge to BEN's REST API (port 8085), days of work. Bonus corroboration:
+  BBA's systems table has WJ ≈ +0.04…+0.05 over 2/1GF, matching our
+  long-standing note. Docs-only, no code change.
+
 - **A7 slam & keycard audit pass CLOSED** (`scripts/a7-run.sh`,
   `ab-results/a7`, sha 23d3768): five experiments under four brackets
   (plain + PD + sd-lead + sd-declarer), four confirms, one inert, nothing
