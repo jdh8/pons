@@ -119,6 +119,35 @@ natural 2D/2C over 1NT (BEN's prior says Multi/Landy), our South-African
 Texas 4D. Vagueness: **passes narrow nothing** in our reading — BEN reads a
 passed hand at ~6.3 mean HCP.
 
+#### Fix ledger
+
+- **Phantom suits — FIXED 2026-07-17** (probe re-run, same seed: every
+  phantom-length bucket drained; `--sound-reading` runs the fixed reading).
+  Mechanism: our own pair's conventions decode via alert + projection (clean
+  — the cue-bidder's *partner* was never flagged), but **opponents'** calls
+  read through the natural walk, which had no cue concept. Two knobs in
+  `inference.rs`, **default off pending the A/B** (measurement.md; box busy
+  with the Tier-S calibration):
+  - `set_cue_reading` — a bid of a suit only the opponents have naturally
+    shown is a cue, never a holding; records Michaels/Leaping Michaels over
+    a minor opening (both majors 5-5) and the non-jump cue-raise (3+
+    support, 10+ points, mirroring the Rubens floors).
+  - `set_length_soundness` — opener's immediate 2-level rebid of the opened
+    suit reads 5+ not 6+ (the floor routinely rebids a good five, 5/8 +
+    3/4); an agreed-suit re-raise adds no length (`1M-2M-3M` game tries read
+    a phantom sixth); a doubler's later jump is never a weak six-card jump
+    (made on three, 2/2).
+- **Still open, by ranked margin**: (1) preemptive minor jump raises
+  (`1C (P) 3C`, `P P (1D) P 3D`) read as 10+ limit while the floor bids
+  them on 3–6 — decide the raise's meaning, then align floor and reader;
+  (2) the XYZ complex after `1m-1M-1S/1NT` reads naturally (the 2C relay's
+  forced 2D completion 3/3 + 2/2, artificial 2D on a doubleton 2/2) — audit
+  the XYZ rules' alerts/projection; (3) `1S (1N) X` shows 15+ on the wrong
+  seat (1/1, attribution suspect); (4) passes narrow nothing — the biggest
+  bucket by volume, and jdh8's verdict: every chance to bid expresses
+  something, so a pass must narrow too (a bounded no-open, no-overcall, or
+  no-response read), even if each pass carries little.
+
 ## The reference pair
 
 | Engine | Role | Cost | What it's for |

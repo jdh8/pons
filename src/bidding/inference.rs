@@ -181,6 +181,52 @@ pub(super) fn control_bid_reading() -> bool {
     CONTROL_BID_READING.with(Cell::get)
 }
 
+std::thread_local! {
+    /// Whether the natural walk recognises a bid of a suit only the *opponents*
+    /// have naturally shown as a cue rather than a holding (see
+    /// [`set_cue_reading`]).  Off by default pending the A/B.
+    static CUE_READING: Cell<bool> = const { Cell::new(false) };
+
+    /// Whether two over-tight natural length floors are relaxed to sound ones
+    /// (see [`set_length_soundness`]).  Off by default pending the A/B.
+    static LENGTH_SOUNDNESS: Cell<bool> = const { Cell::new(false) };
+}
+
+/// Toggle the cue reading of the natural walk (default off, pending A/B)
+///
+/// On, a bid of a suit only the *opponents* have naturally shown is a cue,
+/// never a holding: the phantom length the walk floored is suppressed, and the
+/// two robust standard meanings are recorded — a defender's direct cue of
+/// their one- or two-level minor opening is Michaels / Leaping Michaels (both
+/// majors, five-five), and a non-jump cue opposite exactly one natural suit on
+/// partner's side is the limit-plus cue-raise (three-plus support, ten-plus
+/// points).  The BEN Info-net probe (docs/ben-gap-campaign.md) caught the
+/// phantoms as truth violations on self-play: `(1♣) 2♣` Michaels read as five
+/// clubs on a void, `1♥ (2♦) 3♦` cue-raise read as four diamonds on two.
+pub fn set_cue_reading(on: bool) {
+    CUE_READING.with(|cell| cell.set(on));
+}
+
+fn cue_reading() -> bool {
+    CUE_READING.with(Cell::get)
+}
+
+/// Toggle sound natural length floors (default off, pending A/B)
+///
+/// On: opener's immediate two-level rebid of the opened minor reads five-plus,
+/// not six-plus — the floor routinely rebids a good five — and a player who
+/// has doubled earlier no longer has a later jump in a new suit read as a weak
+/// six-card jump (a doubler's jump is strength, made on as few as three cards,
+/// so the walk claims nothing).  Both over-claims were caught by the BEN
+/// Info-net probe as truth violations on self-play.
+pub fn set_length_soundness(on: bool) {
+    LENGTH_SOUNDNESS.with(|cell| cell.set(on));
+}
+
+fn length_soundness() -> bool {
+    LENGTH_SOUNDNESS.with(Cell::get)
+}
+
 /// Toggle rule-replay layout acceptance (default off).
 ///
 /// On, the sampler reads each bid by the rule that authored it — the meaning is
@@ -522,9 +568,15 @@ impl Inferences {
         // Suits bid and the count of bids made, per auction lane (`index % 4`);
         // lanes of equal parity are partners, the same side.
         let mut lane_suits = [0u8; 4];
+        // The subset of `lane_suits` the walk actually read as a natural
+        // holding — a cue names a suit without ever showing it.
+        let mut natural_lane_suits = [0u8; 4];
         let mut lane_bids = [0u8; 4];
+        let mut lane_doubled = [false; 4];
         let mut side_acted = [false; 2];
         let mut highest: Option<Bid> = None;
+        let read_cues = cue_reading();
+        let sound_lengths = length_soundness();
 
         // Rubens advances name relay suits; identify them so the natural reading
         // skips them, and capture a cue-raise's strength to apply afterwards.
@@ -596,6 +648,7 @@ impl Inferences {
                     {
                         players[who].narrow_points(Range::at_least(11, POINTS_CAP));
                     }
+                    lane_doubled[lane] = true;
                     side_acted[lane % 2] = true;
                 }
                 Call::Bid(bid) => {
@@ -711,38 +764,104 @@ impl Inferences {
                             let mask = 1u8 << suit as u8;
                             let i_bid_it = lane_suits[lane] & mask != 0;
                             let partner_bid_it = lane_suits[(lane + 2) % 4] & mask != 0;
+                            // A bid of a suit only the opponents have naturally
+                            // shown is a cue, never a holding (`set_cue_reading`).
+                            let opponents_natural = natural_lane_suits[(lane + 1) % 4]
+                                | natural_lane_suits[(lane + 3) % 4];
+                            let opponents_shown_it = read_cues && opponents_natural & mask != 0;
 
                             if i_bid_it {
-                                // Rebidding our own suit shows a sixth card.
-                                players[who].narrow_length(suit, Range::at_least(6, LENGTH_CAP));
+                                // Rebidding our own suit shows a sixth card —
+                                // except (`set_length_soundness`) a re-raise of
+                                // a suit partner has also bid (agreed, so no new
+                                // length) and opener's immediate two-level rebid
+                                // of the opened suit, routinely a good five
+                                // (a minor, or a major stuck over the forcing
+                                // notrump).
+                                let agreed_re_raise = sound_lengths && partner_bid_it;
+                                let five_card_rebid = sound_lengths
+                                    && lane == opener_lane
+                                    && lane_bids[lane] == 1
+                                    && bid.level.get() == 2
+                                    && opening_bid.strain.suit() == Some(suit);
+                                if !agreed_re_raise {
+                                    let floor = if five_card_rebid { 5 } else { 6 };
+                                    players[who]
+                                        .narrow_length(suit, Range::at_least(floor, LENGTH_CAP));
+                                }
+                                natural_lane_suits[lane] |= mask;
                             } else if partner_bid_it {
                                 // Raising partner's suit shows three-card support.
                                 players[who].narrow_length(suit, Range::at_least(3, LENGTH_CAP));
+                                natural_lane_suits[lane] |= mask;
+                            } else if opponents_shown_it {
+                                // A cue: no length in the named suit.  Record the
+                                // two meanings that hold robustly across natural
+                                // systems; anything else stays silent (soundness
+                                // over tightness).
+                                let partner_natural = natural_lane_suits[(lane + 2) % 4];
+                                let michaels = !is_opening_side
+                                    && first_action_of_side
+                                    && partner_natural == 0
+                                    && opponents_natural == mask
+                                    && opening_bid.strain.suit() == Some(suit)
+                                    && matches!(suit, Suit::Clubs | Suit::Diamonds)
+                                    && (jump == 0 || (opening_bid.level.get() == 2 && jump == 1));
+                                if michaels {
+                                    // A direct cue of their minor opening —
+                                    // Michaels (or Leaping Michaels over the weak
+                                    // two): both majors, five-five.  Strength
+                                    // stays open (mini-max styles run wide).
+                                    players[who].narrow_length(
+                                        Suit::Hearts,
+                                        Range::at_least(5, LENGTH_CAP),
+                                    );
+                                    players[who].narrow_length(
+                                        Suit::Spades,
+                                        Range::at_least(5, LENGTH_CAP),
+                                    );
+                                } else if jump == 0 && partner_natural.count_ones() == 1 {
+                                    // A non-jump cue opposite one natural suit:
+                                    // the limit-plus cue-raise (mirrors the
+                                    // Rubens cue-raise floors).
+                                    let agreed =
+                                        Suit::ASC[partner_natural.trailing_zeros() as usize];
+                                    players[who]
+                                        .narrow_length(agreed, Range::at_least(3, LENGTH_CAP));
+                                    players[who].narrow_points(Range::at_least(10, POINTS_CAP));
+                                }
                             } else if over_one_notrump {
                                 // Natural, forcing five-card suit over our 1NT.
                                 players[who].narrow_length(suit, Range::at_least(5, LENGTH_CAP));
+                                natural_lane_suits[lane] |= mask;
                             } else if !is_opening_side && first_action_of_side {
                                 // The defending side's first suit bid is an
                                 // overcall: a five-card suit (six if jumping),
                                 // opening values at the cheapest level.
                                 let min = if jump >= 1 { 6 } else { 5 };
                                 players[who].narrow_length(suit, Range::at_least(min, LENGTH_CAP));
+                                natural_lane_suits[lane] |= mask;
                                 if jump == 0 {
                                     players[who].narrow_points(Range::at_least(8, POINTS_CAP));
                                 }
                             } else if jump >= 1 {
                                 // A single jump in a new suit is a weak jump: a
-                                // six-card suit.  Skip splinters (double jumps).
-                                // Opener's extras-ladder jump-shift is instead a
-                                // strong 5-4, so the jumped suit is only 4+.
-                                if jump == 1 {
+                                // six-card suit.  Skip splinters (double jumps)
+                                // — and, under `set_length_soundness`, a player
+                                // who has doubled (their jump is strength on as
+                                // few as three cards; claim nothing).  Opener's
+                                // extras-ladder jump-shift is instead a strong
+                                // 5-4, so the jumped suit is only 4+.
+                                if jump == 1 && !(sound_lengths && lane_doubled[lane]) {
                                     let floor = if opener_ladder_rebid { 4 } else { 6 };
                                     players[who]
                                         .narrow_length(suit, Range::at_least(floor, LENGTH_CAP));
+                                    natural_lane_suits[lane] |= mask;
                                 }
                             } else {
                                 // A natural new suit at the cheapest level: four-plus.
                                 players[who].narrow_length(suit, Range::at_least(4, LENGTH_CAP));
+                                natural_lane_suits[lane] |= mask;
                                 apply_response_points(
                                     &mut players[who],
                                     bid,
@@ -958,6 +1077,11 @@ impl Inferences {
 
                     if let Some(suit) = bid.strain.suit() {
                         lane_suits[lane] |= 1 << suit as u8;
+                        // A natural suit opening is a shown holding (the strong
+                        // 2♣ is not); later calls set their bits in the walk.
+                        if index == opening_index && !opening_artificial {
+                            natural_lane_suits[lane] |= 1 << suit as u8;
+                        }
                     }
                     lane_bids[lane] += 1;
                     side_acted[lane % 2] = true;
@@ -3781,6 +3905,115 @@ mod tests {
         ]);
         assert!(inf.partner().length(Suit::Clubs).min >= 4);
         crate::bidding::instinct::set_rubens_advances(true);
+    }
+
+    #[test]
+    fn their_minor_cue_reads_as_michaels() {
+        // (1♣) 2♣: the direct cue of their minor opening is Michaels — both
+        // majors, five-five, and no club length (the probe caught a club void
+        // read as five clubs).  Off, the old overcall reading returns.
+        set_cue_reading(true);
+        let inf = read(&[bid(1, Strain::Clubs), bid(2, Strain::Clubs)]);
+        assert_eq!(inf.rho().length(Suit::Clubs), Range::FULL_LENGTH);
+        assert!(inf.rho().length(Suit::Hearts).min >= 5);
+        assert!(inf.rho().length(Suit::Spades).min >= 5);
+        set_cue_reading(false);
+        let off = read(&[bid(1, Strain::Clubs), bid(2, Strain::Clubs)]);
+        assert!(off.rho().length(Suit::Clubs).min >= 5);
+    }
+
+    #[test]
+    fn their_jump_cue_over_a_weak_two_is_leaping_michaels() {
+        // (2♦) 4♦: the jump cue of a weak-two minor is Leaping Michaels — both
+        // majors, no diamond length (the probe: a diamond void read as six).
+        set_cue_reading(true);
+        let inf = read(&[
+            Call::Pass,
+            bid(2, Strain::Diamonds),
+            bid(4, Strain::Diamonds),
+        ]);
+        assert_eq!(inf.rho().length(Suit::Diamonds), Range::FULL_LENGTH);
+        assert!(inf.rho().length(Suit::Hearts).min >= 5);
+        assert!(inf.rho().length(Suit::Spades).min >= 5);
+        set_cue_reading(false);
+    }
+
+    #[test]
+    fn their_cue_of_our_overcall_is_a_raise() {
+        // 1♥ (2♦) 3♦: responder's cue of the overcalled suit is the limit-plus
+        // heart raise — three-plus hearts, ten-plus points, and no diamond
+        // length (the probe: two diamonds read as four).
+        set_cue_reading(true);
+        let inf = read(&[
+            Call::Pass,
+            Call::Pass,
+            bid(1, Strain::Hearts),
+            bid(2, Strain::Diamonds),
+            bid(3, Strain::Diamonds),
+        ]);
+        assert_eq!(inf.rho().length(Suit::Diamonds), Range::FULL_LENGTH);
+        assert!(inf.rho().length(Suit::Hearts).min >= 3);
+        assert!(inf.rho().points.min >= 10);
+        set_cue_reading(false);
+    }
+
+    #[test]
+    fn a_doublers_jump_is_not_a_weak_jump() {
+        // 2♠ (X) P (3♦) P (4♥): the doubler's jump to game is strength, made
+        // on as few as three hearts — never a weak six-card jump.
+        set_length_soundness(true);
+        let auction = [
+            bid(2, Strain::Spades),
+            Call::Double,
+            Call::Pass,
+            bid(3, Strain::Diamonds),
+            Call::Pass,
+            bid(4, Strain::Hearts),
+        ];
+        let inf = read(&auction);
+        assert_eq!(inf.rho().length(Suit::Hearts), Range::FULL_LENGTH);
+        set_length_soundness(false);
+        let off = read(&auction);
+        assert!(off.rho().length(Suit::Hearts).min >= 6);
+    }
+
+    #[test]
+    fn an_agreed_suit_re_raise_adds_no_length() {
+        // 1♥ (P) 2♥ (P) 3♥: opener's game-try re-raise of the agreed suit adds
+        // no length — the five from the opening stands, not a phantom sixth.
+        set_length_soundness(true);
+        let auction = [
+            bid(1, Strain::Hearts),
+            Call::Pass,
+            bid(2, Strain::Hearts),
+            Call::Pass,
+            bid(3, Strain::Hearts),
+        ];
+        let inf = read(&auction);
+        assert_eq!(inf.rho().length(Suit::Hearts).min, 5);
+        set_length_soundness(false);
+        let off = read(&auction);
+        assert_eq!(off.rho().length(Suit::Hearts).min, 6);
+    }
+
+    #[test]
+    fn opener_minor_rebid_reads_five_plus() {
+        // 1♦ (P) 1♠ (P) 2♦: opener's two-level rebid of the opened minor is
+        // routinely a good five-card suit, not six (the probe: five of eight
+        // rebids were made on five).
+        set_length_soundness(true);
+        let auction = [
+            bid(1, Strain::Diamonds),
+            Call::Pass,
+            bid(1, Strain::Spades),
+            Call::Pass,
+            bid(2, Strain::Diamonds),
+        ];
+        let inf = read(&auction);
+        assert_eq!(inf.rho().length(Suit::Diamonds).min, 5);
+        set_length_soundness(false);
+        let off = read(&auction);
+        assert_eq!(off.rho().length(Suit::Diamonds).min, 6);
     }
 
     #[test]

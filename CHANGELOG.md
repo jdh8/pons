@@ -9,6 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Phantom-suit reading fix — cues and sound length floors** (found by the
+  BEN Info-net probe; fix ledger in
+  [docs/ben-gap-campaign.md](docs/ben-gap-campaign.md)): two `inference.rs`
+  knobs, **default off pending the A/B** (the box is running the Tier-S
+  calibration; per [docs/measurement.md](docs/measurement.md) no bidding
+  change ships unmeasured). `set_cue_reading` — the natural walk recognises
+  a bid of a suit only the *opponents* have naturally shown as a cue, never
+  a holding: kills the phantom reads (`(P 1C) 2C` Michaels read as 5 clubs
+  on a void, `(P 2D) 4D` as 6 diamonds on a void, `1H (2D) 3D` cue-raise as
+  4 diamonds on two) and records the robust meanings — Michaels/Leaping
+  Michaels over a minor opening (both majors), the non-jump cue-raise (3+
+  support, 10+ points). `set_length_soundness` — opener's immediate
+  two-level rebid of the opened suit reads 5+ not 6+, an agreed-suit
+  re-raise (`1M-2M-3M` game try) adds no phantom sixth card, and a
+  doubler's later jump is never a weak six-card jump. Probe re-run, same
+  seed, both knobs on: every phantom-length bucket drains (remaining: the
+  XYZ-complex projection audit, preemptive-raise strength, `1S (1N) X`
+  attribution — ledgered). Six new unit tests; defaults byte-identical.
+
 - **BEN Info-net probe — weights-side extraction, first findings**
   (BEN-gap campaign; harness + ledger in
   [docs/ben-gap-campaign.md](docs/ben-gap-campaign.md)): a three-stage

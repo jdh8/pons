@@ -48,6 +48,11 @@ struct Args {
     #[arg(short, long, default_value = "none")]
     vulnerability: AbsoluteVulnerability,
 
+    /// Enable the unshipped reading fixes (cue reading + sound length
+    /// floors) to verify the probe's phantom-suit buckets drain
+    #[arg(long)]
+    sound_reading: bool,
+
     /// Write jsonl here; default is stdout
     #[arg(short, long)]
     output: Option<String>,
@@ -137,6 +142,10 @@ const SEAT_CHARS: [char; 4] = ['N', 'E', 'S', 'W'];
 
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
+    if args.sound_reading {
+        pons::bidding::set_cue_reading(true);
+        pons::bidding::set_length_soundness(true);
+    }
     let stance = american().against(Family::NATURAL);
     let seed = args.seed.unwrap_or_else(rand::random);
     let mut rng = StdRng::seed_from_u64(seed);

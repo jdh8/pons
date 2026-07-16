@@ -784,6 +784,21 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_control_bid_reading: bool,
 
+    /// Enable the cue reading of the natural walk (default off, unshipped): a
+    /// bid of a suit only the opponents have naturally shown is a cue, never a
+    /// holding — the phantom length is suppressed, and Michaels/Leaping
+    /// Michaels over a minor opening and the non-jump cue-raise are recorded.
+    /// The A/B on arm.
+    #[arg(long, default_value_t = false)]
+    ns_cue_reading: bool,
+
+    /// Enable sound natural length floors (default off, unshipped): opener's
+    /// immediate two-level rebid of the opened suit reads 5+ not 6+, an
+    /// agreed-suit re-raise adds no length, and a doubler's later jump is
+    /// never a weak six-card jump.  The A/B on arm.
+    #[arg(long, default_value_t = false)]
+    ns_length_soundness: bool,
+
     /// Our side NEVER competes over BBA's 1NT (default off): authors only Pass at
     /// every seat, the truest "do nothing" baseline.  Overrides every other defense knob.
     #[arg(long, default_value_t = false)]
@@ -1025,6 +1040,8 @@ fn main() -> anyhow::Result<()> {
     pons::bidding::set_rubens_transfer_reading(!args.no_ns_rubens_reading);
     pons::bidding::instinct::set_floor_rkcb(!args.no_ns_floor_rkcb);
     pons::bidding::set_control_bid_reading(!args.no_ns_control_bid_reading);
+    pons::bidding::set_cue_reading(args.ns_cue_reading);
+    pons::bidding::set_length_soundness(args.ns_length_soundness);
     pons::bidding::american::set_transfer_longer_major(!args.no_ns_transfer_longer);
     pons::bidding::set_fallback_projection(!args.no_ns_fallback_projection);
     pons::bidding::american::set_open_one_notrump(!args.no_our_1nt);

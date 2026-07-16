@@ -54,7 +54,8 @@ pub use ev::ev_all;
 pub use features::{FEATURES_LEN, FEATURES_VERSION, features};
 pub use inference::{
     Inference, Inferences, Range, Relative, set_alert_reading, set_control_bid_reading,
-    set_fallback_projection, set_nt_invite_inference, set_rubens_transfer_reading,
+    set_cue_reading, set_fallback_projection, set_length_soundness, set_nt_invite_inference,
+    set_rubens_transfer_reading,
 };
 pub use instinct::instinct;
 pub use map::Map;
