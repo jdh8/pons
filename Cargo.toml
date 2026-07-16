@@ -139,6 +139,13 @@ required-features = ["serde"]
 # Runs the shared `common::oracle` unit tests (the `.bbsa` card parser).
 test = true
 
+# Phase B of the BEN book extraction: per-prefix hidden-hand inference rows
+# for BEN's Info net to annotate (scripts/ben-info-dump.py) and compare.
+[[example]]
+name = "probe-ben-info"
+path = "examples/probe-ben-info/main.rs"
+required-features = ["serde"]
+
 # The BEN gap campaign's generator: same Dump, BEN over REST at the far seats
 # (docs/ben-gen-design.md); --calibrate-epbot seats vendored EPBot at ours.
 [[example]]

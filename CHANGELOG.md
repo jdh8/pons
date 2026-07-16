@@ -9,6 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **BEN Info-net probe — weights-side extraction, first findings**
+  (BEN-gap campaign; harness + ledger in
+  [docs/ben-gap-campaign.md](docs/ben-gap-campaign.md)): a three-stage
+  pipeline comparing our `Inferences::read` against BEN's Info net *and*
+  ground truth on self-play auctions — `examples/probe-ben-info` (one jsonl
+  row per decision point: our hidden-seat bands + true HCP/`point_count`/
+  shape), `scripts/ben-info-dump.py` (BEN's predicted HCP+shape per hidden
+  seat, batched, deterministic, run inside `~/ben`), and
+  `scripts/ben-info-compare.py` (ranks truth violations / BEN-vs-us /
+  vagueness). First 1000-board run found real reading bugs (preemptive
+  `1C-(P)-3C` jump raise read as 10+ limit; cue and two-suited calls read
+  as natural phantom suits — `(P 2D) 4D` and `(P 1C) 2C` on voids, cue-raise
+  `3D` as 4+ diamonds; `1S (1N) X` read 15+ on a 9-count; opener's `2D`
+  rebid shown 6+ on routine 5), BEN misreading *our* natural 1NT defense
+  through its Multi-Landy prior (disclosure asymmetry, exploit-guard
+  material), and one systematic vagueness: our reading layer narrows
+  nothing on passes. No bidding-system change; probe/scripts only.
+
 - **BEN's declared system, source-extracted** (BEN-gap campaign): BEN's
   policy is all Keras weights — no symbolic book — but its source declares a
   system: the BBA convention card `BEN-21GF.bbsa` it consults at runtime for

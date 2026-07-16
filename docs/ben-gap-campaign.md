@@ -84,6 +84,41 @@ Harness hook: `bba-gen --our-card/--their-card <file.bbsa>` loads a full
 card (system id from its `System type` header; explicit `--*-conv` singles
 still apply on top).
 
+### The Info-net probe (weights-side extraction)
+
+The card is BEN's *declared* book; its Info net (auction → predicted HCP +
+shape of the three hidden hands) is a queryable slice of the *learned* one —
+usable as a reference for our `Inferences::read`. Pipeline (one forward pass
+per row, no sampling/DD — minutes on CPU):
+
+1. `cargo run --features serde --example probe-ben-info` — self-plays our
+   default system, emits one jsonl row per (board, auction prefix): actor's
+   hand, our reading of the three hidden seats, and ground truth (HCP,
+   upgraded `point_count`, suit lengths).
+2. `scripts/ben-info-dump.py` (run with `~/ben/.venv/bin/python`) — appends
+   BEN's Info-net prediction per hidden seat. Deterministic; batched.
+3. `scripts/ben-info-compare.py` — ranks (a) truth violations = the actual
+   hand breaks our shown band (self-play is honest, so every one is a
+   reading bug), (b) BEN outside our band, (c) vagueness = we show nothing
+   where BEN commits.
+
+Reading the reports: **truth + BEN against us** = our reading bug;
+**truth with us, BEN against** = BEN misreading *our* conventions through
+its GIB/BBA-shaped prior (disclosure asymmetry — exploit-guard material,
+not a bug); vagueness is inflated by BEN conditioning on the actor's own
+hand (residual-strength inference ours deliberately leaves to the sampler),
+so trust auction-level aggregates, not single rows.
+
+First 1000-board run (2026-07-17, NV, seed 1784259000): real reading bugs —
+preemptive `1C (P) 3C` jump raise read as 10+ limit (3/3), cue/two-suiter
+calls read as their *natural* suit (phantom-suit class: `(P 2D) 4D` on a
+void, `(P 1C) 2C` Michaels on a club void, `P P 1H (2D) 3D` cue-raise read
+as 4+ diamonds 4/4), opener's `1D (P) 1S (P) 2D` rebid shown 6+ but bid on
+5 (5/8), and `1S (1N) X` read as 15+ on a 9-count. BEN-misreads-us: our
+natural 2D/2C over 1NT (BEN's prior says Multi/Landy), our South-African
+Texas 4D. Vagueness: **passes narrow nothing** in our reading — BEN reads a
+passed hand at ~6.3 mean HCP.
+
 ## The reference pair
 
 | Engine | Role | Cost | What it's for |
