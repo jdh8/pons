@@ -33,8 +33,9 @@ use super::constraint::point_count;
 use super::inference::{Inference, Inferences, Relative, relative_of};
 use contract_bridge::auction::{Auction, Call, RelativeVulnerability};
 use contract_bridge::deck::fill_deals;
-use contract_bridge::{Builder, FullDeal, Hand, Seat, Suit};
+use contract_bridge::{Builder, Card, FullDeal, Hand, Seat, Suit};
 use rand::Rng;
+use rand::seq::SliceRandom;
 
 /// Random deals tried per requested layout before giving up
 ///
@@ -269,6 +270,92 @@ fn made_plausibly(
         .filter(|(call, _)| played.can_push(*call).is_ok())
         .fold(f32::NEG_INFINITY, |best, (_, &logit)| best.max(logit));
     *logits.0.get(made) >= best - MARGIN
+}
+
+/// Deal exactly `n` mid-play defender worlds consistent with declarer's view
+///
+/// The single-dummy playout ([`single_dummy_playout`][crate::single_dummy_playout])
+/// asks, at each of declarer's turns: how might the cards declarer *cannot*
+/// see — `pool`, both defenders' unplayed cards — lie?  Each world splits
+/// `pool` between the two defenders at their remaining hand sizes (derived
+/// from `lho_played`/`rho_played`: a defender's remnant is thirteen minus
+/// what they have played), subject to two layers of constraint:
+///
+/// - **Hard** — `lho_may`/`rho_may`, the cards each defender can still hold
+///   (a defender who showed out of a suit holds none of it; declarer saw
+///   that).  Satisfied *constructively*: cards only one defender may hold are
+///   forced there and the rest split at random, so every world respects the
+///   masks — a violating world would be an impossible layout (and a revoke
+///   waiting to happen at the solver's door).
+/// - **Soft** — the shown ranges of `inferences`, read from **declarer's**
+///   perspective and applied to each defender's reconstructed *original*
+///   hand (remnant ∪ played).  Rejection-sampled; when the reading is too
+///   tight to fill within the attempt budget, the remainder is topped up
+///   hard-only (a weak signal, not an error — the playout must price its
+///   candidates over *some* population, and the lead scorer tops up the same
+///   way), so this function always returns exactly `n` worlds.
+///
+/// # Panics
+///
+/// Panics if the inputs do not reconstruct two thirteen-card defenders
+/// (`pool.len() + lho_played.len() + rho_played.len() == 26` with `pool`
+/// disjoint from both), or if the masks make the true layout impossible
+/// (a pool card neither defender may hold, or more forced cards than a
+/// remnant has room for) — the caller tracks the play, so either is a
+/// bookkeeping bug.
+#[must_use]
+// Each argument is a distinct fact of the position, as in `sample_layouts_replay`.
+#[allow(clippy::too_many_arguments)]
+pub fn sample_defender_remnants(
+    pool: Hand,
+    lho_played: Hand,
+    rho_played: Hand,
+    lho_may: Hand,
+    rho_may: Hand,
+    inferences: &Inferences,
+    rng: &mut impl Rng,
+    n: usize,
+) -> Vec<(Hand, Hand)> {
+    assert!(
+        pool & (lho_played | rho_played) == Hand::EMPTY
+            && pool.len() + lho_played.len() + rho_played.len() == 26,
+        "pool and played cards must reconstruct two thirteen-card defenders"
+    );
+    // Cards only one defender may hold are forced; the rest split at random.
+    let lho_forced = pool - rho_may;
+    let rho_forced = pool - lho_may;
+    let lho_len = 13 - lho_played.len();
+    assert!(
+        lho_forced & rho_forced == Hand::EMPTY
+            && lho_forced.len() <= lho_len
+            && rho_forced.len() <= pool.len() - lho_len,
+        "hard masks must admit the true layout"
+    );
+    let mut free: Vec<Card> = (pool - lho_forced - rho_forced).into_iter().collect();
+    let lho_free = lho_len - lho_forced.len();
+    let mut split = move |rng: &mut _| {
+        let (drawn, _) = free.partial_shuffle(rng, lho_free);
+        let lho = lho_forced | drawn.iter().copied().collect();
+        (lho, pool - lho)
+    };
+
+    let mut out = Vec::with_capacity(n);
+    for _ in 0..n.saturating_mul(MAX_ATTEMPTS_PER_LAYOUT) {
+        if out.len() == n {
+            break;
+        }
+        let (lho, rho) = split(rng);
+        if hand_within(lho | lho_played, inferences.lho())
+            && hand_within(rho | rho_played, inferences.rho())
+        {
+            out.push((lho, rho));
+        }
+    }
+    // Tight or jointly-infeasible reading: top up hard-only.
+    while out.len() < n {
+        out.push(split(rng));
+    }
+    out
 }
 
 /// Vulnerability seen from the opposing side: swap the WE and THEY bits.

@@ -51,11 +51,42 @@
 use crate::bidding::{Alert, Rules, Trie};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Rank, Strain, Suit};
+use core::cell::Cell;
 use core::ops::RangeBounds;
 use std::sync::Arc;
 
 /// Roman Keycard Blackwood — the artificial keycard ask, answers, and king ask
 pub(super) const RKCB: Alert = Alert("rkcb");
+
+thread_local! {
+    /// Plain-4NT keycard for agreed **minor** trumps; **on by default**.
+    /// See [`set_minor_keycard`].
+    static MINOR_KEYCARD: Cell<bool> = const { Cell::new(true) };
+}
+
+/// Author the plain-4NT minor-suit keycard for books built *after* this call
+/// (thread-local; **on by default**).
+///
+/// Extends RKCB 1430 to agreed minor trumps at its two vehicles: the strong-2♣
+/// minor raise (`2♣–2♦–3m–4m`, opener asks with 28+ HCP instead of
+/// blind-jumping `6m` on 27+) and the inverted minor raise (`1m–2m–3NT`,
+/// responder asks on `points(14..)` instead of resting in the 18–19 3NT).  The
+/// answers reuse the trump-generic 1430 table; the asker's signoff is cramped
+/// and the 5NT king ask skipped (module docs).  Off restores the pre-keycard
+/// book byte-identically — the A/B off arm, since the original baseline
+/// (reverting commit `99da1b3`) no longer applies to main.
+///
+/// Measured vs that floor: **+6.80/+8.76 IMPs/divergent** (none/both, 2M
+/// boards), PD re-measure **+5.41/+7.05 IMPs/divergent** (10M boards, 202
+/// divergent, ~1 in 49.5k) — rare but decisively positive per fire.
+pub fn set_minor_keycard(on: bool) {
+    MINOR_KEYCARD.with(|cell| cell.set(on));
+}
+
+/// Whether the minor-suit plain-4NT keycard is currently authored
+pub(super) fn minor_keycard() -> bool {
+    MINOR_KEYCARD.with(Cell::get)
+}
 
 use super::{insert_uncontested, uncontested};
 use crate::bidding::constraint::{described, hcp};

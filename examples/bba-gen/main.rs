@@ -234,6 +234,12 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_texas_slam_drive: bool,
 
+    /// Disable the plain-4NT minor-suit keycard (strong-2♣ minor raise and
+    /// inverted-minor `1m–2m–3NT–4NT`; restores the pre-keycard blind 6m jump /
+    /// 3NT top-out); on by default.  Off-switch for the A7 re-measure.
+    #[arg(long, default_value_t = false)]
+    no_ns_minor_keycard: bool,
+
     /// Disable garbage (drop-dead) Stayman: a weak 2♣ to escape 1NT, passing
     /// opener's 2♦/2♥/2♠; on by default.  Off-switch for the A/B.
     #[arg(long, default_value_t = false)]
@@ -1280,6 +1286,7 @@ fn main() -> anyhow::Result<()> {
     pons::bidding::american::set_transfer_super_accept(args.ns_transfer_super_accept);
     pons::bidding::american::set_transfer_slam_try(!args.no_ns_transfer_slam_try);
     pons::bidding::american::set_texas_slam_drive(!args.no_ns_texas_slam_drive);
+    pons::bidding::american::set_minor_keycard(!args.no_ns_minor_keycard);
     pons::bidding::american::set_transfer_gf_majors(!args.no_ns_transfer_gf_majors);
     pons::bidding::american::set_minor_min_to_3nt(args.ns_minor_min_to_3nt);
     pons::bidding::american::set_transfer_gf_hearts(!args.no_ns_transfer_gf_hearts);

@@ -14,11 +14,20 @@
 //!   double-dummy from that card.  This scores a *reached contract* under the
 //!   one information asymmetry that dominates real-vs-DD results at partscore
 //!   level (Pavlicek: 1NT makes 67.7% at the table vs 60.5% double-dummy).
+//! - [`single_dummy_playout`] / [`single_dummy_declarer_tricks`] —
+//!   **declarer's view during play**: after the lead, declarer chooses every
+//!   card by the same Monte-Carlo double-dummy averaging over worlds
+//!   consistent with the auction and the cards seen, while the defenders
+//!   play on double-dummy.  This prices the *other* seam — declarer's
+//!   misguesses, which dominate at the slam level where the lead gap tapers
+//!   to zero and plain DD is systematically optimistic for the side bidding
+//!   more slams.
 //!
 //! A *true* single-dummy solver (each player acting on only what it sees at
-//! every trick) is an imperfect-information search orders of magnitude more
-//! expensive, and is intentionally out of scope: the DD-averaging proxy is
-//! what the field uses (GIB, Q-plus, …).
+//! every trick, with defenders also fallible and signalling) is an
+//! imperfect-information search orders of magnitude more expensive, and is
+//! intentionally out of scope: the DD-averaging proxy is what the field uses
+//! (GIB, Q-plus, …).
 //!
 //! The build reuses the crate's existing pieces: the actor's two known hands are
 //! pinned into a partial deal and the rest dealt by
@@ -30,10 +39,12 @@
 //! [`make_probability`][crate::stats::HistogramTable::make_probability] read out
 //! the answer.
 
-use crate::bidding::{Inferences, sample_layouts};
+use crate::bidding::{Inferences, sample_defender_remnants, sample_layouts};
 use crate::stats::HistogramTable;
+use contract_bridge::deal::PartialDeal;
 use contract_bridge::deck::fill_deals;
-use contract_bridge::{Builder, Card, FullDeal, Hand, Seat, Strain};
+use contract_bridge::hand::{Holding, Rank};
+use contract_bridge::{Builder, Card, FullDeal, Hand, Seat, Strain, Suit};
 use ddss::{Board, CurrentTrick, NonEmptyStrainFlags, Objective, Play, Solver, Target, TrickCount};
 use rand::Rng;
 
@@ -103,8 +114,9 @@ pub fn single_dummy(
 ///
 /// Returns the chosen lead and the declaring side's double-dummy tricks on
 /// `deal` after it.  Ceiling, stated: play *after* trick one's first card is
-/// still perfect on both sides, so declarer misguesses (the slam-level bias)
-/// and later defensive signalling are not modelled.
+/// still perfect on both sides, so declarer misguesses (the slam-level bias —
+/// [`single_dummy_playout`] models exactly that seam) and later defensive
+/// signalling are not modelled.
 ///
 /// # Panics
 ///
@@ -194,15 +206,6 @@ pub fn single_dummy_leads(
     }
     let found = Solver::lock().solve_boards(&objectives);
 
-    let score_of = |plays: &[Play], card: Card| {
-        plays
-            .iter()
-            .find(|play| {
-                card.suit == play.card.suit
-                    && (card.rank == play.card.rank || play.equals.contains(card.rank))
-            })
-            .map_or(0, |play| u64::from(u8::from(play.score)))
-    };
     questions
         .iter()
         .zip(found.chunks_exact(n + 1))
@@ -233,6 +236,344 @@ pub fn single_dummy_leads(
             (lead, tricks)
         })
         .collect()
+}
+
+/// Solved score of `card` among `plays`, matching its sequence equals
+///
+/// A [`Target::Legal`] solve lists one [`Play`] per sequence; a candidate
+/// matches the play whose `card` or `equals` holds its rank.  An absent card
+/// scores zero (it was not legal in that position).
+fn score_of(plays: &[Play], card: Card) -> u64 {
+    plays
+        .iter()
+        .find(|play| {
+            card.suit == play.card.suit
+                && (card.rank == play.card.rank || play.equals.contains(card.rank))
+        })
+        .map_or(0, |play| u64::from(u8::from(play.score)))
+}
+
+/// Legal plays collapsed to one representative per sequence
+///
+/// Two legal cards are equivalent iff they share a suit and every rank
+/// between them is in the mover's own remaining `hand` or already `seen`
+/// (played to this or an earlier trick) — DDS's "equals" rule.  Each
+/// sequence's highest card represents it.  `led` is the suit led to the
+/// current trick, if any; a hand with that suit must follow.
+fn distinct_plays(hand: Hand, led: Option<Suit>, seen: Hand) -> Vec<Card> {
+    let mut out = Vec::new();
+    let mut push_suit = |suit: Suit| {
+        let own = hand[suit];
+        let covered = own | seen[suit];
+        let mut in_sequence = false;
+        for rank in (2..=14).rev().map(Rank::new) {
+            if own.contains(rank) {
+                if !in_sequence {
+                    out.push(Card { suit, rank });
+                }
+                in_sequence = true;
+            } else if !covered.contains(rank) {
+                in_sequence = false;
+            }
+        }
+    };
+    match led.filter(|&suit| !hand[suit].is_empty()) {
+        Some(suit) => push_suit(suit),
+        None => Suit::ASC.into_iter().for_each(push_suit),
+    }
+    out
+}
+
+/// Winner of a completed trick led by `leader`
+fn trick_winner(leader: Seat, trick: &[Card], trump: Option<Suit>) -> Seat {
+    let mut winner = leader;
+    let mut best = trick[0];
+    let mut seat = leader;
+    for &card in &trick[1..] {
+        seat = seat.lho();
+        let beats = if card.suit == best.suit {
+            card.rank > best.rank
+        } else {
+            Some(card.suit) == trump
+        };
+        if beats {
+            winner = seat;
+            best = card;
+        }
+    }
+    winner
+}
+
+/// Card-by-card playout state for [`single_dummy_playout`]
+struct Playout<'a> {
+    solver: Solver,
+    strain: Strain,
+    trump: Option<Suit>,
+    declarer: Seat,
+    /// The auction read from **declarer's** perspective
+    inferences: &'a Inferences,
+    /// Unplayed cards per seat
+    remaining: Builder,
+    /// Played cards per seat (including the current trick)
+    played: Builder,
+    /// Cards each defender may still hold (show-outs remembered)
+    may: Builder,
+    /// All played cards, for sequence collapsing
+    seen: Hand,
+    leader: Seat,
+    /// Cards played to the current trick, in playing order
+    trick: Vec<Card>,
+    declarer_tricks: u8,
+}
+
+impl Playout<'_> {
+    /// Seat to play the next card
+    fn mover(&self) -> Seat {
+        self.trick.iter().fold(self.leader, |seat, _| seat.lho())
+    }
+
+    /// The current trick as the solver sees it
+    fn current_trick(&self) -> CurrentTrick {
+        CurrentTrick::from_slice(self.strain, self.leader, &self.trick)
+            .expect("a tracked trick holds at most three distinct cards")
+    }
+
+    /// Choose the mover's card: forced plays free, declarer's side over `k`
+    /// sampled worlds, defenders double-dummy on the actual position
+    fn choose(&self, rng: &mut impl Rng, k: usize) -> Card {
+        let mover = self.mover();
+        let led = self.trick.first().map(|card| card.suit);
+        let candidates = distinct_plays(self.remaining[mover], led, self.seen);
+        match candidates[..] {
+            // Forced (a single sequence): play it without solving.  Also
+            // load-bearing: DDS mode-0 answers a single-choice position with
+            // the sentinel score −2, which ddss rejects as invalid.
+            [only] => only,
+            _ if mover == self.declarer || mover == self.declarer.partner() => {
+                self.declarer_choice(&candidates, rng, k)
+            }
+            _ => self.defender_choice(),
+        }
+    }
+
+    /// Declarer's single-dummy pick: best mean outcome over `k` worlds
+    /// consistent with declarer's view
+    fn declarer_choice(&self, candidates: &[Card], rng: &mut impl Rng, k: usize) -> Card {
+        let (lho, rho) = (self.declarer.lho(), self.declarer.rho());
+        let pool = self.remaining[lho] | self.remaining[rho];
+        let worlds = sample_defender_remnants(
+            pool,
+            self.played[lho],
+            self.played[rho],
+            self.may[lho],
+            self.may[rho],
+            self.inferences,
+            rng,
+            k,
+        );
+        let trick = self.current_trick();
+        let objectives: Vec<Objective> = worlds
+            .into_iter()
+            .map(|(left, right)| {
+                let mut builder = Builder::default();
+                builder[self.declarer] = self.remaining[self.declarer];
+                builder[self.declarer.partner()] = self.remaining[self.declarer.partner()];
+                builder[lho] = left;
+                builder[rho] = right;
+                Objective {
+                    board: Board::try_new(
+                        builder
+                            .build_partial()
+                            .expect("a world splits the unseen pool disjointly"),
+                        trick.clone(),
+                    )
+                    .expect("a sampled world respects hand sizes and show-outs"),
+                    target: Target::Legal,
+                }
+            })
+            .collect();
+
+        // Total declarer-side tricks per candidate across the worlds;
+        // `max_by_key` keeps a deterministic tie-break (the last maximum in
+        // the candidates' fixed order), as in the lead scorer.
+        let mut totals: Vec<(Card, u64)> = candidates.iter().map(|&card| (card, 0)).collect();
+        for world in self.solver.solve_boards(&objectives) {
+            for (card, total) in &mut totals {
+                *total += score_of(&world.plays, *card);
+            }
+        }
+        totals
+            .into_iter()
+            .max_by_key(|&(_, total)| total)
+            .expect("a non-forced turn has candidates")
+            .0
+    }
+
+    /// A defender's double-dummy best card on the actual position
+    fn defender_choice(&self) -> Card {
+        let board = Board::try_new(
+            self.remaining
+                .build_partial()
+                .expect("the tracked position is a valid partial deal"),
+            self.current_trick(),
+        )
+        .expect("the tracked position is a valid board");
+        let found = self.solver.solve_board(&Objective {
+            board,
+            target: Target::Legal,
+        });
+        // Target::Legal sorts plays by score descending: the first is the
+        // double-dummy best for the side to move.
+        found
+            .plays
+            .first()
+            .expect("a position with a choice has legal plays")
+            .card
+    }
+
+    /// Play `card` for the mover: record show-outs, advance the trick, and
+    /// score it when it completes
+    fn apply(&mut self, card: Card) {
+        let mover = self.mover();
+        if let Some(led) = self.trick.first().map(|card| card.suit)
+            && card.suit != led
+        {
+            // Shown out: everyone saw this seat holds no more of the suit.
+            let mut gone = Hand::EMPTY;
+            gone[led] = Holding::ALL;
+            self.may[mover] -= gone;
+        }
+        assert!(
+            self.remaining[mover].remove(card),
+            "a chosen card must come from the mover's hand"
+        );
+        self.played[mover].insert(card);
+        self.seen.insert(card);
+        self.trick.push(card);
+        if self.trick.len() == 4 {
+            let winner = trick_winner(self.leader, &self.trick, self.trump);
+            self.declarer_tricks +=
+                u8::from(winner == self.declarer || winner == self.declarer.partner());
+            self.leader = winner;
+            self.trick.clear();
+        }
+    }
+}
+
+/// Single-dummy declarer playout: a fallible declarer against perfect defense
+///
+/// The dual of [`single_dummy_leads`]: where that scorer prices the
+/// *defenders'* information asymmetry (the blind opening lead), this one
+/// prices *declarer's* — the misguesses double-dummy scoring erases, which
+/// dominate real-vs-DD results at the slam level where a DD declarer picks
+/// every two-way queen, drops every offside singleton king, and finds every
+/// squeeze.  Given the reached contract and the opening `lead` (choose it
+/// with [`single_dummy_lead_tricks`] to compose both seams — or take the
+/// actual deal's double-dummy lead to isolate this one), the deal is played
+/// out card by card:
+///
+/// - **Declarer and dummy turns** choose single-dummy: `k` worlds consistent
+///   with declarer's view — the defenders' unseen cards split at their
+///   remaining sizes, hard-constrained by remembered show-outs and
+///   soft-constrained by the auction reading
+///   ([`sample_defender_remnants`]) — are solved double-dummy, and the
+///   candidate with the best mean declarer outcome is played on the
+///   **actual** deal.
+/// - **Defender turns** play the double-dummy best card of the actual
+///   position (perfect defense — the conservative side kept from plain DD).
+/// - **Forced turns** (one legal sequence) are played without solving.
+///
+/// `inferences` must be read from **declarer's** perspective (e.g. via
+/// [`Stance::infer`][crate::bidding::Stance::infer] on an auction prefix that
+/// puts declarer to act), so the sampled worlds respect both defenders'
+/// disclosures.
+///
+/// Returns declarer's tricks on `deal`.  Ceiling, stated: the defenders are
+/// omniscient — they defend double-dummy against the actual layout and are
+/// never fooled by declarer's line — so this bracket is *pessimistic* for
+/// declarer everywhere (real defenders err after trick one too, which is not
+/// modelled).  At the slam boundary, where the lead seam has tapered out,
+/// that makes plain DD the optimist end and this the pessimist, with the
+/// table result between (Pavlicek: actual − DD ≈ −1.3pp of make-rate at
+/// small slams, −6.0pp at grands).
+///
+/// # Panics
+///
+/// Panics if `k == 0` (a line cannot be chosen over zero worlds), if `lead`
+/// is not in the opening leader's hand, or if `deal` is not a valid full
+/// deal.
+#[must_use]
+pub fn single_dummy_playout(
+    deal: &FullDeal,
+    strain: Strain,
+    declarer: Seat,
+    lead: Card,
+    inferences: &Inferences,
+    rng: &mut impl Rng,
+    k: usize,
+) -> TrickCount {
+    assert!(k > 0, "a declarer line needs at least one sampled world");
+    assert!(
+        deal[declarer.lho()].contains(lead),
+        "the opening lead must come from the leader's hand"
+    );
+    let mut may = Builder::default();
+    for seat in [Seat::North, Seat::East, Seat::South, Seat::West] {
+        may[seat] = Hand::ALL;
+    }
+    let mut playout = Playout {
+        solver: Solver::lock(),
+        strain,
+        trump: Suit::try_from(strain).ok(),
+        declarer,
+        inferences,
+        remaining: Builder::from(PartialDeal::from(*deal)),
+        played: Builder::default(),
+        may,
+        seen: Hand::EMPTY,
+        leader: declarer.lho(),
+        trick: Vec::with_capacity(4),
+        declarer_tricks: 0,
+    };
+    playout.apply(lead);
+    for _ in 1..52 {
+        let card = playout.choose(rng, k);
+        playout.apply(card);
+    }
+    TrickCount::try_new(playout.declarer_tricks).expect("at most thirteen tricks")
+}
+
+/// Blind lead, then single-dummy declarer play: the table-proxy bracket
+///
+/// Composes the two modelled information seams: the opening leader chooses
+/// blind over `n` auction-consistent worlds ([`single_dummy_lead_tricks`]),
+/// then declarer plays the deal out single-dummy over `k` worlds per decision
+/// ([`single_dummy_playout`]).  `leader_inferences` reads the auction from
+/// the leader's seat and `declarer_inferences` from declarer's — the two
+/// views differ (each knows their own hand and reads the other side's
+/// calls).
+///
+/// Returns the chosen lead and declarer's tricks on `deal`.
+///
+/// # Panics
+///
+/// Panics if `n == 0` or `k == 0`, or if `deal` is not a valid full deal.
+#[must_use]
+// Each argument is a distinct fact of the position, as in `sample_layouts_replay`.
+#[allow(clippy::too_many_arguments)]
+pub fn single_dummy_declarer_tricks(
+    deal: &FullDeal,
+    strain: Strain,
+    declarer: Seat,
+    leader_inferences: &Inferences,
+    declarer_inferences: &Inferences,
+    rng: &mut impl Rng,
+    n: usize,
+    k: usize,
+) -> (Card, TrickCount) {
+    let (lead, _) = single_dummy_lead_tricks(deal, strain, declarer, leader_inferences, rng, n);
+    let tricks = single_dummy_playout(deal, strain, declarer, lead, declarer_inferences, rng, k);
+    (lead, tricks)
 }
 
 #[cfg(test)]
@@ -334,6 +675,112 @@ mod tests {
         );
         assert!(deal[Seat::East][lead.suit].contains(lead.rank));
         assert_eq!(u8::from(tricks), 13);
+    }
+
+    /// Against the lock even a fallible declarer takes all thirteen: every
+    /// line wins in every world, so the playout cannot lose a trick.
+    #[test]
+    fn playout_cannot_misplay_the_lock() {
+        let deal = unbeatable_deal();
+        let inferences = no_inferences();
+        let mut rng = StdRng::seed_from_u64(5);
+        let (lead, tricks) = single_dummy_declarer_tricks(
+            &deal,
+            Strain::Spades,
+            Seat::North,
+            &inferences,
+            &inferences,
+            &mut rng,
+            8,
+            8,
+        );
+        assert!(deal[Seat::East][lead.suit].contains(lead.rank));
+        assert_eq!(u8::from(tricks), 13);
+    }
+
+    /// A grand slam hinging on a two-way trump-queen guess: North-South hold
+    /// every side winner, and the spade suit (AJT9 opposite K876, missing
+    /// Q5432) picks up West's ♠Q54 double-dummy by finessing through West —
+    /// but a declarer who cannot see the queen must guess.
+    fn two_way_guess_deal() -> FullDeal {
+        let mut builder = Builder::new();
+        builder[Seat::North] = "AJT9.AKQ.AKQ2.AK".parse().expect("valid test hand");
+        builder[Seat::South] = "K876.JT9.JT9.QJ4".parse().expect("valid test hand");
+        builder[Seat::West] = "Q54.8765.876.T98".parse().expect("valid test hand");
+        builder[Seat::East] = "32.432.543.76532".parse().expect("valid test hand");
+        builder.build_full().expect("52 disjoint cards")
+    }
+
+    /// Double-dummy the guess deal is a cold grand (the finesse is always
+    /// "found"), but the single-dummy playout must guess blind: over many
+    /// seeds it sometimes misguesses (no peeking at the actual layout) and
+    /// sometimes guesses right — and never loses more than the guess.
+    #[test]
+    fn playout_guesses_where_double_dummy_peeks() {
+        let deal = two_way_guess_deal();
+        // Fixture validity: DD says North makes 7♠ on the actual layout.
+        let table = Solver::lock().solve_deal(deal);
+        assert_eq!(u8::from(table[Strain::Spades].get(Seat::North)), 13);
+
+        let inferences = no_inferences();
+        let results: Vec<u8> = (0..12)
+            .map(|seed| {
+                let mut rng = StdRng::seed_from_u64(seed);
+                let (_, tricks) = single_dummy_declarer_tricks(
+                    &deal,
+                    Strain::Spades,
+                    Seat::North,
+                    &inferences,
+                    &inferences,
+                    &mut rng,
+                    8,
+                    8,
+                );
+                u8::from(tricks)
+            })
+            .collect();
+        assert!(
+            results.iter().all(|&tricks| (11..=13).contains(&tricks)),
+            "only the guess (and rare mean-max risk) may cost tricks: {results:?}"
+        );
+        assert!(
+            results.iter().any(|&tricks| tricks < 13),
+            "a blind declarer must sometimes misguess: {results:?}"
+        );
+        assert!(
+            results.contains(&13),
+            "a blind declarer must sometimes guess right: {results:?}"
+        );
+    }
+
+    /// Same seed and inputs reproduce the same playout exactly.
+    #[test]
+    fn playout_is_deterministic() {
+        let deal = two_way_guess_deal();
+        let inferences = no_inferences();
+        let mut rng_a = StdRng::seed_from_u64(17);
+        let a = single_dummy_declarer_tricks(
+            &deal,
+            Strain::Spades,
+            Seat::North,
+            &inferences,
+            &inferences,
+            &mut rng_a,
+            6,
+            6,
+        );
+        let mut rng_b = StdRng::seed_from_u64(17);
+        let b = single_dummy_declarer_tricks(
+            &deal,
+            Strain::Spades,
+            Seat::North,
+            &inferences,
+            &inferences,
+            &mut rng_b,
+            6,
+            6,
+        );
+        assert_eq!(a, b);
     }
 
     /// Same seed and inputs reproduce the same lead and trick count.

@@ -187,6 +187,34 @@ pub fn ns_score_pd(
     ns_score_with(contract.bid, declarer, penalty, table, vul)
 }
 
+/// Signed-for-NS score of a reached contract given declarer's *actual* tricks
+///
+/// The pricing tail of the single-dummy scorers
+/// ([`single_dummy_lead_tricks`][crate::single_dummy_lead_tricks],
+/// [`single_dummy_playout`][crate::single_dummy_playout]): those return a trick
+/// count on the actual deal, and this scores it — the contract as it stands
+/// (its auction penalty), at the declaring side's vulnerability, signed for
+/// North/South.  The single-dummy sibling of [`ns_score_contract`], which
+/// reads its tricks from a double-dummy table instead.
+#[cfg(feature = "dd")]
+#[must_use]
+pub fn ns_score_tricks(
+    contract: Contract,
+    declarer: Seat,
+    tricks: u8,
+    vul: AbsoluteVulnerability,
+) -> i64 {
+    let declarer_vul = vul.contains(match declarer {
+        Seat::North | Seat::South => AbsoluteVulnerability::NS,
+        Seat::East | Seat::West => AbsoluteVulnerability::EW,
+    });
+    let score = i64::from(contract.score(tricks, declarer_vul));
+    match declarer {
+        Seat::North | Seat::South => score,
+        Seat::East | Seat::West => -score,
+    }
+}
+
 /// Upper bounds (exclusive) of the point difference for 0, 1, 2, … IMPs
 const IMP_BOUNDS: [i64; 24] = [
     20, 50, 90, 130, 170, 220, 270, 320, 370, 430, 500, 600, 750, 900, 1100, 1300, 1500, 1750,

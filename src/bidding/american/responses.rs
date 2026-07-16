@@ -620,18 +620,22 @@ pub(super) fn register(book: &mut Trie) {
         // Responder's third call after opener's 18–19 jump to 3NT: with slam
         // values (~32+ combined and 5+-card support) launch minor RKCB; else
         // play the cold 3NT.  4NT is keycard here by construction — install_rkcb
-        // registers the answers below this node.
-        let after_3nt = Rules::new()
-            .rule(Bid::new(4, Strain::Notrump), 1.0, support_points(14..))
-            .alert(super::slam::RKCB)
-            .rule(Call::Pass, 0.5, hcp(0..));
-        let our_calls_3nt = &[
-            super::call(1, m_strain),
-            super::call(2, m_strain),
-            super::call(3, Strain::Notrump),
-        ];
-        super::insert_uncontested(book, our_calls_3nt, after_3nt);
-        super::slam::install_rkcb(book, our_calls_3nt, minor);
+        // registers the answers below this node.  Rides the minor-keycard knob
+        // (off = no authored node, the pre-keycard book where inverted raises
+        // topped out at 3NT).
+        if super::slam::minor_keycard() {
+            let after_3nt = Rules::new()
+                .rule(Bid::new(4, Strain::Notrump), 1.0, support_points(14..))
+                .alert(super::slam::RKCB)
+                .rule(Call::Pass, 0.5, hcp(0..));
+            let our_calls_3nt = &[
+                super::call(1, m_strain),
+                super::call(2, m_strain),
+                super::call(3, Strain::Notrump),
+            ];
+            super::insert_uncontested(book, our_calls_3nt, after_3nt);
+            super::slam::install_rkcb(book, our_calls_3nt, minor);
+        }
 
         // Responder's third call after opener bids 2♥ or 2♠.
         for major in [Suit::Hearts, Suit::Spades] {

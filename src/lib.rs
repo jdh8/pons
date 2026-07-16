@@ -40,6 +40,9 @@ pub use bidding::{
 #[cfg(feature = "search")]
 pub use bidding::{american_search, american_search_book, american_search_with};
 #[cfg(feature = "dd")]
-pub use single_dummy::{LeadQuestion, single_dummy, single_dummy_lead_tricks, single_dummy_leads};
+pub use single_dummy::{
+    LeadQuestion, single_dummy, single_dummy_declarer_tricks, single_dummy_lead_tricks,
+    single_dummy_leads, single_dummy_playout,
+};
 #[cfg(feature = "dd")]
 pub use stats::{Accumulator, Statistics};

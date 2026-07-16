@@ -59,7 +59,7 @@ pub use inference::{
 pub use instinct::instinct;
 pub use map::Map;
 pub use rules::{Alert, Rules};
-pub use sampler::sample_layouts;
+pub use sampler::{sample_defender_remnants, sample_layouts};
 #[cfg(feature = "search")]
 pub use search_floor::{SearchBook, SearchFloor, american_search_book};
 pub use table::Table;

@@ -42,9 +42,9 @@
 //!   every contested auction gets a sane natural answer — in particular,
 //!   partner's takeout double is never passed without a trump stack.
 //!
-//! Deeper competitive sequences (lebensohl, reopening actions) and minor-suit
-//! keycard are left for later authored passes — until then the instinct floor
-//! answers those auctions; see the crate changelog.
+//! Auctions no authored pass covers fall to the instinct floor, which answers
+//! them with a sane natural call; see the crate changelog for what each
+//! authored pass added (lebensohl, minor-suit keycard, reopening actions…).
 //!
 //! # Forcing by omission
 //!
@@ -150,6 +150,7 @@ pub use responses::{
     TwoOverOneGate, major_responses, minor_responses, set_longer_major_response,
     set_major_choice_of_games, set_two_over_one_fit, set_two_over_one_gate, set_up_the_line,
 };
+pub use slam::set_minor_keycard;
 pub use xyz::set_xyz;
 
 /// A bid as a [`Call`], for trie keys

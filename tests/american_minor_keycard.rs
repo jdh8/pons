@@ -117,3 +117,40 @@ fn opener_passes_the_minor_slam_placement() {
     // The 18–19 opener that answered 5♣ — passes the slam responder placed.
     assert_eq!(best_call(&system, &auction, "AQxx.AQx.Kxx.Axx"), P);
 }
+
+// --- The knob's off arm (the A7 re-measure baseline) ------------------------
+
+/// With `set_minor_keycard(false)`, the pre-keycard book returns: the strong-2♣
+/// monster blind-jumps 6♣ (27+) instead of asking, and the inverted-minor
+/// responder rests in the 18–19 3NT instead of launching 4NT.
+#[test]
+fn knob_off_restores_the_pre_keycard_book() {
+    pons::bidding::american::set_minor_keycard(false);
+    let system = stance();
+    pons::bidding::american::set_minor_keycard(true);
+
+    let strong_two = [
+        call(2, Strain::Clubs),
+        P,
+        call(2, Strain::Diamonds),
+        P,
+        call(3, Strain::Clubs),
+        P,
+        call(4, Strain::Clubs),
+        P,
+    ];
+    assert_eq!(
+        best_call(&system, &strong_two, "Ax.AKQ.AK.AKQxxx"),
+        call(6, Strain::Clubs),
+    );
+
+    let inverted = [
+        call(1, Strain::Clubs),
+        P,
+        call(2, Strain::Clubs),
+        P,
+        call(3, Strain::Notrump),
+        P,
+    ];
+    assert_eq!(best_call(&system, &inverted, "Qx.Kxx.Kx.AQJxxx"), P);
+}

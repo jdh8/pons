@@ -13,7 +13,7 @@ use contract_bridge::{AbsoluteVulnerability, Contract, FullDeal, Hand, Seat, Sui
 use ddss::{NonEmptyStrainFlags, Solver, TrickCountTable};
 use pons::bidding::context::relative;
 use pons::bidding::{Stance, System};
-use pons::scoring::{imps, ns_score_contract, ns_score_pd};
+use pons::scoring::{final_contract, imps, ns_score_contract, ns_score_pd, ns_score_tricks};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
 
@@ -197,6 +197,52 @@ pub fn mean_with_ci(values: &[i64]) -> (f64, f64) {
         .sum::<f64>()
         / (n - 1) as f64;
     (mean, 1.96 * (variance / n as f64).sqrt())
+}
+
+/// NS score of an auction's reached contract under the **sd-declarer
+/// playout** ([`pons::single_dummy_declarer_tricks`]): blind opening lead,
+/// then a declarer who chooses every card over worlds consistent with the
+/// auction instead of peeking.  This is the pessimist bracket for slam
+/// aggression — plain DD is the optimist (a DD declarer never misguesses),
+/// and perfect defense only prices doubling, not guessing.  `stance` reads
+/// the auction for both modelled views (the leader's and declarer's); a
+/// pass-out scores 0.
+// Each argument is a distinct fact of the board, as in `score_boards`.
+#[allow(clippy::too_many_arguments)]
+pub fn sd_declarer_ns_score(
+    auction: &Auction,
+    dealer: Seat,
+    deal: &FullDeal,
+    stance: &Stance,
+    vul: AbsoluteVulnerability,
+    rng: &mut StdRng,
+    lead_worlds: usize,
+    line_worlds: usize,
+) -> i64 {
+    let Some((contract, declarer)) = final_contract(auction, dealer) else {
+        return 0;
+    };
+    // Align the read prefix so the viewing seat is the player to act: the
+    // last non-pass call sits within the final four calls, so exactly one of
+    // four consecutive prefix lengths keeps every non-pass call and puts that
+    // seat to act (the `ab-dump-sd` lead idiom, applied to both views).
+    let view = |seat: Seat| {
+        let cut = (auction.len().saturating_sub(3)..=auction.len())
+            .find(|&len| seat_to_act(dealer, len) == seat)
+            .expect("one of four consecutive lengths reaches every seat");
+        stance.infer(relative(vul, seat), &auction[..cut])
+    };
+    let (_, tricks) = pons::single_dummy_declarer_tricks(
+        deal,
+        contract.bid.strain,
+        declarer,
+        &view(declarer.lho()),
+        &view(declarer),
+        rng,
+        lead_worlds,
+        line_worlds,
+    );
+    ns_score_tricks(contract, declarer, u8::from(tricks), vul)
 }
 
 /// The outcome of scoring a board set against itself.

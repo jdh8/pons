@@ -215,8 +215,15 @@ fn opener_after_spades_raise() -> Rules {
 
 /// Opener after `2♣–(P)–2♦–(P)–3♣–(P)–4♣–(P)` (at `&[2♣, 2♦, 3♣, 4♣]`)
 ///
-/// With 28+ HCP, launch minor RKCB (4NT); otherwise sign off in 5♣.
+/// With 28+ HCP, launch minor RKCB (4NT); otherwise sign off in 5♣.  With the
+/// minor keycard off ([`super::slam::set_minor_keycard`]), the pre-keycard
+/// blind jump to 6♣ on 27+ instead.
 fn opener_after_clubs_raise() -> Rules {
+    if !super::slam::minor_keycard() {
+        return Rules::new()
+            .rule(Bid::new(6, Strain::Clubs), 1.0, hcp(27..))
+            .rule(Bid::new(5, Strain::Clubs), 0.5, hcp(0..));
+    }
     Rules::new()
         .rule(Bid::new(4, Strain::Notrump), 1.0, hcp(28..))
         .alert(super::slam::RKCB)
@@ -225,8 +232,15 @@ fn opener_after_clubs_raise() -> Rules {
 
 /// Opener after `2♣–(P)–2♦–(P)–3♦–(P)–4♦–(P)` (at `&[2♣, 2♦, 3♦, 4♦]`)
 ///
-/// With 28+ HCP, launch minor RKCB (4NT); otherwise sign off in 5♦.
+/// With 28+ HCP, launch minor RKCB (4NT); otherwise sign off in 5♦.  With the
+/// minor keycard off ([`super::slam::set_minor_keycard`]), the pre-keycard
+/// blind jump to 6♦ on 27+ instead.
 fn opener_after_diamonds_raise() -> Rules {
+    if !super::slam::minor_keycard() {
+        return Rules::new()
+            .rule(Bid::new(6, Strain::Diamonds), 1.0, hcp(27..))
+            .rule(Bid::new(5, Strain::Diamonds), 0.5, hcp(0..));
+    }
     Rules::new()
         .rule(Bid::new(4, Strain::Notrump), 1.0, hcp(28..))
         .alert(super::slam::RKCB)
@@ -320,30 +334,36 @@ pub(super) fn register(book: &mut Trie) {
         Suit::Spades,
     );
 
-    // Opener after responder's minor raise (waiting sequence).
+    // Opener after responder's minor raise (waiting sequence).  The 4NT ask
+    // and its answer ladder ride the minor-keycard knob together — a lone ask
+    // with no authored answers would strand partner on the floor.
     insert_uncontested(book, &[c2, d2, c3, c4], opener_after_clubs_raise());
-    super::slam::install_rkcb(
-        book,
-        &[
-            call(2, Strain::Clubs),
-            call(2, Strain::Diamonds),
-            call(3, Strain::Clubs),
-            call(4, Strain::Clubs),
-        ],
-        Suit::Clubs,
-    );
+    if super::slam::minor_keycard() {
+        super::slam::install_rkcb(
+            book,
+            &[
+                call(2, Strain::Clubs),
+                call(2, Strain::Diamonds),
+                call(3, Strain::Clubs),
+                call(4, Strain::Clubs),
+            ],
+            Suit::Clubs,
+        );
+    }
 
     insert_uncontested(book, &[c2, d2, d3, d4], opener_after_diamonds_raise());
-    super::slam::install_rkcb(
-        book,
-        &[
-            call(2, Strain::Clubs),
-            call(2, Strain::Diamonds),
-            call(3, Strain::Diamonds),
-            call(4, Strain::Diamonds),
-        ],
-        Suit::Diamonds,
-    );
+    if super::slam::minor_keycard() {
+        super::slam::install_rkcb(
+            book,
+            &[
+                call(2, Strain::Clubs),
+                call(2, Strain::Diamonds),
+                call(3, Strain::Diamonds),
+                call(4, Strain::Diamonds),
+            ],
+            Suit::Diamonds,
+        );
+    }
 
     // Suppress unused-variable warnings for variables used only in some branches.
     let _ = (h4, s4);

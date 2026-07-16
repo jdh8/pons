@@ -28,7 +28,7 @@ use pons::american;
 use pons::bidding::constraint::{set_fuzzy_fifths, set_fuzzy_points};
 use pons::bidding::context::relative;
 use pons::bidding::{Family, Inferences, Stance, System};
-use pons::scoring::{final_contract, imps};
+use pons::scoring::{final_contract, imps, ns_score_tricks};
 use pons::single_dummy::{LeadQuestion, single_dummy_leads};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -153,25 +153,6 @@ type AuctionPair = [Auction; 2];
 /// One board's two tables' reached contracts, `[off, on]` — same order as
 /// [`AuctionPair`], so the DD/PD and single-dummy paths line up.
 type ContractPair = [Option<(Contract, Seat)>; 2];
-
-/// Signed-for-NS score of a contract given declarer's (single-dummy) tricks.
-/// Copied from `ab-meckstroth-2nt` (the promotion to `src/scoring.rs` is a TODO).
-fn ns_score_tricks(
-    contract: Contract,
-    declarer: Seat,
-    tricks: u8,
-    vul: AbsoluteVulnerability,
-) -> i64 {
-    let declarer_vul = vul.contains(match declarer {
-        Seat::North | Seat::South => AbsoluteVulnerability::NS,
-        Seat::East | Seat::West => AbsoluteVulnerability::EW,
-    });
-    let score = i64::from(contract.score(tricks, declarer_vul));
-    match declarer {
-        Seat::North | Seat::South => score,
-        Seat::East | Seat::West => -score,
-    }
-}
 
 /// The (contract, declarer, leader-view inferences) of one auction, read through
 /// `stance`; `None` for a pass-out (sd score 0).  Mirrors `ab-meckstroth-2nt`.

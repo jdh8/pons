@@ -15,8 +15,17 @@
 //! through a different auction can draw a different blind lead, so an sd swing
 //! exists wherever the two `table_a` auctions differ.
 //!
+//! `--sd-declarer` swaps in the **sd-declarer playout** bracket
+//! (`single_dummy_playout`): after the blind lead, declarer plays every card
+//! single-dummy over auction-consistent worlds while the defense stays
+//! double-dummy.  This prices the seam the lead bracket can't — declarer's
+//! misguesses, which dominate at the slam level where every DD-play scorer is
+//! optimistic for the arm bidding more slams.  Sequential per board (no
+//! cross-board pooling), so reserve it for slam-sized divergent sets.
+//!
 //! ```text
 //! cargo run --release --features serde --example ab-dump-sd -- on.json off.json
+//! cargo run --release --features serde --example ab-dump-sd -- --sd-declarer on.json off.json
 //! ```
 
 use clap::Parser;
@@ -29,7 +38,7 @@ use pons::bidding::american::{
 };
 use pons::bidding::context::relative;
 use pons::bidding::{Family, Inferences, Stance};
-use pons::scoring::{final_contract, imps};
+use pons::scoring::{final_contract, imps, ns_score_tricks};
 use pons::single_dummy::{LeadQuestion, single_dummy_leads};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -56,6 +65,16 @@ struct Args {
     /// Seed for the world-sampling RNG (report it to reproduce a run)
     #[arg(long, default_value_t = 20_240_607)]
     sd_seed: u64,
+    /// Score with the **sd-declarer playout** instead of the sd lead: after
+    /// the blind lead, declarer plays every card single-dummy over
+    /// `--declarer-worlds` auction-consistent worlds while the defense stays
+    /// double-dummy.  The pessimist bracket for slam aggression (plain DD is
+    /// the optimist); far slower per board — use on slam-sized divergent sets
+    #[arg(long, default_value_t = false)]
+    sd_declarer: bool,
+    /// Worlds sampled per declarer decision (with --sd-declarer)
+    #[arg(long, default_value_t = 16)]
+    declarer_worlds: usize,
     /// Read the ON arm's auctions with the Rule-of-20 opener disclosure (its
     /// light 10-11 openings widen what an opening bid shows to the leader)
     #[arg(long, default_value_t = false)]
@@ -80,26 +99,6 @@ struct Args {
     /// Show this many of the biggest swings (each way)
     #[arg(long, default_value_t = 8)]
     show: usize,
-}
-
-/// Signed-for-NS score of a contract given declarer's (single-dummy) tricks.
-/// Copied from `ab-nt-defense-matrix` (the campaign's `ns_score_tricks`
-/// promotion to `src/scoring.rs` is still a TODO).
-fn ns_score_tricks(
-    contract: Contract,
-    declarer: Seat,
-    tricks: u8,
-    vul: AbsoluteVulnerability,
-) -> i64 {
-    let declarer_vul = vul.contains(match declarer {
-        Seat::North | Seat::South => AbsoluteVulnerability::NS,
-        Seat::East | Seat::West => AbsoluteVulnerability::EW,
-    });
-    let score = i64::from(contract.score(tricks, declarer_vul));
-    match declarer {
-        Seat::North | Seat::South => score,
-        Seat::East | Seat::West => -score,
-    }
 }
 
 /// The (contract, declarer, leader-view inferences) of one auction, read
@@ -163,44 +162,72 @@ fn main() {
     set_free_1nt_floor(6);
     let stance_off = american().against(Family::NATURAL);
 
-    // Build every blind-lead question on the boards whose auctions differ; a
-    // pass-out contributes score 0 (its arm is simply omitted here).
-    let mut pending: Vec<(usize, bool, Contract, Seat)> = Vec::new();
-    let mut questions: Vec<LeadQuestion> = Vec::new();
-    let mut fired = 0usize;
-    for (i, (a, b)) in on.boards.iter().zip(&off.boards).enumerate() {
-        assert_eq!(a.deal, b.deal, "dumps not seed-aligned");
-        if a.table_a == b.table_a {
-            continue; // identical auction ⇒ identical blind lead ⇒ swing 0
-        }
-        fired += 1;
-        for (arm_on, board, stance) in [(true, a, &stance_on), (false, b, &stance_off)] {
-            if let Some((contract, declarer, inferences)) =
-                lead_inputs(&board.table_a, stance, board.dealer, vul)
-            {
-                pending.push((i, arm_on, contract, declarer));
-                questions.push(LeadQuestion {
-                    deal: board.deal,
-                    strain: contract.bid.strain,
-                    declarer,
-                    inferences,
-                });
-            }
-        }
-    }
-
     let mut rng = StdRng::seed_from_u64(args.sd_seed);
     let mut on_score = vec![0i64; n];
     let mut off_score = vec![0i64; n];
-    const CHUNK: usize = 4096;
-    for (asked, chunk) in pending.chunks(CHUNK).zip(questions.chunks(CHUNK)) {
-        let answers = single_dummy_leads(chunk, &mut rng, args.sd_worlds);
-        for (&(i, arm_on, contract, declarer), &(_, tricks)) in asked.iter().zip(&answers) {
-            let score = ns_score_tricks(contract, declarer, u8::from(tricks), vul);
-            if arm_on {
-                on_score[i] = score;
-            } else {
-                off_score[i] = score;
+    let mut fired = 0usize;
+    if args.sd_declarer {
+        // sd-declarer playout: inherently sequential per board (each card's
+        // choice depends on the last), so no cross-board pooling here — run
+        // it on slam-sized divergent sets.
+        for (i, (a, b)) in on.boards.iter().zip(&off.boards).enumerate() {
+            assert_eq!(a.deal, b.deal, "dumps not seed-aligned");
+            if a.table_a == b.table_a {
+                continue; // identical auction ⇒ identical playout ⇒ swing 0
+            }
+            fired += 1;
+            for (score, board, stance) in [
+                (&mut on_score[i], a, &stance_on),
+                (&mut off_score[i], b, &stance_off),
+            ] {
+                *score = common::sd_declarer_ns_score(
+                    &board.table_a,
+                    board.dealer,
+                    &board.deal,
+                    stance,
+                    vul,
+                    &mut rng,
+                    args.sd_worlds,
+                    args.declarer_worlds,
+                );
+            }
+        }
+    } else {
+        // Build every blind-lead question on the boards whose auctions differ;
+        // a pass-out contributes score 0 (its arm is simply omitted here).
+        let mut pending: Vec<(usize, bool, Contract, Seat)> = Vec::new();
+        let mut questions: Vec<LeadQuestion> = Vec::new();
+        for (i, (a, b)) in on.boards.iter().zip(&off.boards).enumerate() {
+            assert_eq!(a.deal, b.deal, "dumps not seed-aligned");
+            if a.table_a == b.table_a {
+                continue; // identical auction ⇒ identical blind lead ⇒ swing 0
+            }
+            fired += 1;
+            for (arm_on, board, stance) in [(true, a, &stance_on), (false, b, &stance_off)] {
+                if let Some((contract, declarer, inferences)) =
+                    lead_inputs(&board.table_a, stance, board.dealer, vul)
+                {
+                    pending.push((i, arm_on, contract, declarer));
+                    questions.push(LeadQuestion {
+                        deal: board.deal,
+                        strain: contract.bid.strain,
+                        declarer,
+                        inferences,
+                    });
+                }
+            }
+        }
+
+        const CHUNK: usize = 4096;
+        for (asked, chunk) in pending.chunks(CHUNK).zip(questions.chunks(CHUNK)) {
+            let answers = single_dummy_leads(chunk, &mut rng, args.sd_worlds);
+            for (&(i, arm_on, contract, declarer), &(_, tricks)) in asked.iter().zip(&answers) {
+                let score = ns_score_tricks(contract, declarer, u8::from(tricks), vul);
+                if arm_on {
+                    on_score[i] = score;
+                } else {
+                    off_score[i] = score;
+                }
             }
         }
     }
@@ -210,11 +237,18 @@ fn main() {
     let total: i64 = board_imps.iter().sum();
     #[allow(clippy::cast_precision_loss)]
     {
+        let bracket = if args.sd_declarer {
+            format!(
+                "sd-declarer (lead {} × line {})",
+                args.sd_worlds, args.declarer_worlds
+            )
+        } else {
+            format!("sd-lead ({} worlds)", args.sd_worlds)
+        };
         println!(
-            "sd-lead ON {} vs OFF {} ({n} boards, vul {vul}, {} worlds): {fired} fired ({:.2}%)",
+            "{bracket} ON {} vs OFF {} ({n} boards, vul {vul}): {fired} fired ({:.2}%)",
             on.our_label,
             off.our_label,
-            args.sd_worlds,
             100.0 * fired as f64 / n.max(1) as f64,
         );
         println!(

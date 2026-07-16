@@ -20,9 +20,15 @@
 //! prices a failing slam as doubled) — a lowered slam gate can reach a slam that
 //! goes down, so the PD column is where an over-loose threshold shows its cost.
 //!
+//! `--sd` adds the **sd-declarer playout** row (`single_dummy_playout`):
+//! blind lead, then declarer plays every card single-dummy — the pessimist
+//! bracket for slam aggression, since plain DD hands declarer every guess and
+//! so flatters exactly the thin slams a lowered gate reaches.
+//!
 //! ```text
 //! cargo run --release --example ab-slam-entry -- --count 200000 --threshold 28
 //! cargo run --release --example ab-slam-entry -- --count 20000 --threshold 29 --vulnerability both --show 8
+//! cargo run --release --example ab-slam-entry -- --count 200000 --threshold 29 --sd
 //! ```
 
 use clap::Parser;
@@ -69,6 +75,20 @@ struct Args {
     /// Print this many divergent boards (auction + contracts) for inspection
     #[arg(long, default_value = "0")]
     show: usize,
+
+    /// Add the sd-declarer playout row: blind lead, then declarer plays every
+    /// card single-dummy (the pessimist bracket for slam aggression — a DD
+    /// declarer never misguesses a slam).  Sequential per divergent board
+    #[arg(long, default_value_t = false)]
+    sd: bool,
+
+    /// Worlds per blind lead and per declarer decision (with --sd)
+    #[arg(long, default_value_t = 16)]
+    sd_worlds: usize,
+
+    /// Seed for the sd world-sampling RNG (report it to reproduce a run)
+    #[arg(long, default_value_t = 20_240_607)]
+    sd_seed: u64,
 }
 
 /// Bid out one deal, lowering the slam-entry gate only for the feature side
@@ -168,6 +188,31 @@ fn main() {
         }
     }
 
+    // The sd-declarer playout row: the pessimist bracket for slam aggression
+    // (a lowered gate whose slams only make when declarer peeks shows up
+    // here).  Sequential — the playout can't pool across boards.
+    let swings_sd = args.sd.then(|| {
+        let mut rng = StdRng::seed_from_u64(args.sd_seed);
+        let mut swings = vec![0i64; args.count];
+        for &index in &divergent {
+            let board = &boards[index];
+            let [a, b] = [&board.table_a, &board.table_b].map(|auction| {
+                common::sd_declarer_ns_score(
+                    auction,
+                    board.dealer,
+                    &board.deal,
+                    &stance,
+                    args.vulnerability,
+                    &mut rng,
+                    args.sd_worlds,
+                    args.sd_worlds,
+                )
+            });
+            swings[index] = imps(a - b);
+        }
+        swings
+    });
+
     println!(
         "\n=== Slam-entry A/B: {} boards, threshold {} vs {BASELINE}, vulnerability {} ===",
         args.count, args.threshold, args.vulnerability,
@@ -178,10 +223,14 @@ fn main() {
         args.count,
         100.0 * divergent.len() as f64 / args.count.max(1) as f64,
     );
-    for (label, swings) in [
+    let mut rows = vec![
         ("ns_score_pd  (PD)", &swings_pd),
         ("ns_score_cnt (DD)", &swings_dd),
-    ] {
+    ];
+    if let Some(swings) = &swings_sd {
+        rows.push(("sd-declarer (SD)", swings));
+    }
+    for (label, swings) in rows {
         let total: i64 = swings.iter().sum();
         let mut acc = Accumulator::new();
         for &swing in swings.iter() {

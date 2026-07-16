@@ -62,7 +62,7 @@ use pons::bidding::american::{
 use pons::bidding::context::relative;
 use pons::bidding::instinct::{set_one_nt_runout, set_one_nt_runout_universal};
 use pons::bidding::{Inferences, Stance};
-use pons::scoring::{final_contract, imps, ns_score_contract, ns_score_pd};
+use pons::scoring::{final_contract, imps, ns_score_contract, ns_score_pd, ns_score_tricks};
 use pons::single_dummy::{LeadQuestion, single_dummy_leads};
 use rand::rngs::StdRng;
 use rand::{RngExt, SeedableRng};
@@ -390,24 +390,6 @@ fn lead_inputs(
         declarer,
         stance.infer(relative(vul, leader), &auction[..cut]),
     ))
-}
-
-/// Signed-for-NS score of a contract given declarer's (single-dummy) tricks
-fn ns_score_tricks(
-    contract: Contract,
-    declarer: Seat,
-    tricks: u8,
-    vul: AbsoluteVulnerability,
-) -> i64 {
-    let declarer_vul = vul.contains(match declarer {
-        Seat::North | Seat::South => AbsoluteVulnerability::NS,
-        Seat::East | Seat::West => AbsoluteVulnerability::EW,
-    });
-    let score = i64::from(contract.score(tricks, declarer_vul));
-    match declarer {
-        Seat::North | Seat::South => score,
-        Seat::East | Seat::West => -score,
-    }
 }
 
 /// Solve the zero-sum matrix game (row maximizes, column minimizes) by

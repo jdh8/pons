@@ -9,6 +9,60 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **A7 slam & keycard audit pass CLOSED** (`scripts/a7-run.sh`,
+  `ab-results/a7`, sha 23d3768): five experiments under four brackets
+  (plain + PD + sd-lead + sd-declarer), four confirms, one inert, nothing
+  demoted — every win survived even the deep-pessimist playout bound, so the
+  Pavlicek shave never had to arbitrate.  `set_floor_slam_entry` 29-vs-33
+  plain +0.004 both vuls (1M×2, 2,453 divergent, all CI>0);
+  `set_minor_keycard` plain +5.23/+6.68 per divergent (10M×2, 847 divergent);
+  `set_texas_slam_drive` plain +5.04/+5.85 per fired, positive in all four
+  brackets; `set_floor_rkcb` plain +1.01/+1.03 per fired with sd-lead its
+  strongest bracket (+2.36/+2.93 — right-siding value) and a statistical-wash
+  playout NV row retained per the Pavlicek rule.  `set_transfer_slam_try`
+  found **inert by design**: its rebid yields the slot to the default-on
+  GF-majors structure (live only with that structure off).  User impact: all
+  shipped slam defaults re-confirmed fresh; docs/bidding-options.md A7 rows
+  updated.
+
+- **The sd-declarer playout (`single_dummy_playout` /
+  `single_dummy_declarer_tricks`) — the slam-side scoring bracket.** The dual
+  of the sd-lead scorer: after the blind lead, declarer chooses **every card**
+  by Monte-Carlo DD over worlds consistent with the auction and the cards
+  seen (`sample_defender_remnants`: hard show-out masks satisfied
+  constructively, auction ranges rejection-sampled, exact-`n` with hard-only
+  top-up), while the defenders play DD on the actual deal. This prices the
+  seam every existing scorer erases — declarer misguesses — which dominates
+  at the slam level where the lead gap tapers to zero, making plain DD
+  systematically *optimistic* for the arm bidding more slams (the mirror of
+  the preempt obstruction wall; the module has stated this ceiling since the
+  lead scorer shipped). Forced turns (one sequence) play without solving,
+  which also dodges DDS's mode-0 −2 sentinel. Unit-tested on a two-way
+  trump-queen-guess grand: DD always makes it, the playout misguesses on some
+  seeds and never loses more than the guess. Runners:
+  `ab-dump-sd --sd-declarer` (bba-gen dumps), `ab-slam-entry --sd` (third row
+  beside plain/PD), shared `common::sd_declarer_ns_score`;
+  `examples/probe-sd-calibration` calibrates per-level make-rates against
+  Pavlicek's actual-vs-DD table. `ns_score_tricks` promoted to `src/scoring.rs`
+  from seven per-example copies. Calibration (40k self-play contracts, 16→32
+  world sweep): the misguess haircut is genuine ambiguity, not sampling noise,
+  but 2–4× deeper than Pavlicek's actual-vs-DD slam net (no carding
+  inference, perfect defense) — so the decision-table addendum in
+  docs/measurement.md keeps plain + PD as the verdict, prices the slam
+  insurance analytically via Pavlicek's Δlogit (shave the slam-win
+  contribution by 2–6% at the 6-level, ~6–20% at grands), and reads the
+  playout as the free robustness lower bound. User impact: none on the
+  shipped system (a measurement instrument); opens the A7 slam re-measure
+  pass (`scripts/a7-run.sh`).
+
+- **`set_minor_keycard` — the plain-4NT minor keycard gets its off-switch**
+  (`bba-gen --no-ns-minor-keycard`). The feature shipped knobless in `99da1b3`
+  and its A/B baseline was a worktree revert that no longer applies to main;
+  the off arm is now authored (strong-2♣ minor raise blind-jumps 6m on 27+,
+  inverted-minor raises top out in the 18–19 3NT) so the A7 sd-declarer
+  re-measure — and any future one — is reproducible. Default on; the shipped
+  book is byte-identical (integration test covers the off arm).
+
 - **Weak-two evaluator gauges (`set_weak_two_eval`) — the disclosure wall
   probed with honor-location evaluators, refuted, all opt-in.** Follow-up to
   the rejected raw-HCP re-gauge: do evaluators that reward honors sitting in

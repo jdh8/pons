@@ -116,8 +116,8 @@ that live *inside* a book are in Tier B.
 | --- | --- | --- | --- | --- | --- | --- |
 | set_notrump_minors (PUPPET/EUROPEAN) | `ab-notrump-minors --sd` (web `puppet_stayman` toggle) | Artificial | PUPPET | **Puppet ≥ European, isolated** (the scheme-as-a-whole was +0.76/+1.15 vs a natural baseline, PD-era [project_minor-transfers-puppet]): plain +0.18…+0.44 IMPs/divergent — 4 cells {NV,vul}×2 seeds, **all positive** (+213…+502 IMPs / ~1.2k div each), PD positive throughout, sd-lead +0.0002…+0.0006/bd (weakly positive, CI straddles 0 at vul); fires 0.3%; 400k×4, SHA 82840a5 | fresh | default-on ✓ (Puppet the default; European stays opt-in — Puppet never loses) |
 | set_transfer_super_accept | `--ns-transfer-super-accept` | Artificial | OFF | DD wash leaning neg, −0.055 IMPs/fired (640k) | stale-PD | opt-in |
-| set_transfer_slam_try | `--no-ns-transfer-slam-try` | Artificial | ON | plain +0.0012 ÷ PD +0.0012 (+1.42/fired, 320k, CI>0) | fresh | default-on ✓ |
-| set_texas_slam_drive | `--no-ns-texas-slam-drive` | Artificial | ON | plain +0.0024 ÷ PD +0.0024 (+5.87/fired, 320k, CI>0) | fresh | default-on ✓ |
+| set_transfer_slam_try | `--no-ns-transfer-slam-try` | Artificial | ON | shipped on plain +0.0012 ÷ PD +0.0012 (+1.42/fired, 320k); a7-run 2026-07-16: **0 fired in 320k×2 — INERT by design**: `transfer_slam_try_rebid` yields its slot to the default-on GF-majors structure (notrump.rs), which relocated the single-suiters to a quantitative 4NT.  Live only with `--no-ns-transfer-gf-majors`/`-hearts` | fresh | default-on ✓ (inert while the GF structure is on; keep as that structure's fallback, like nt_invite under Puppet) |
+| set_texas_slam_drive | `--no-ns-texas-slam-drive` | Artificial | ON | a7-run: plain **+5.04/+5.85 per fired** ÷ PD +5.17/+6.03 (320k×2, fires 0.02%, CI>0), sd-lead +2.67/+2.68, sd-declarer +2.89/+3.69 — positive in all four brackets | fresh | default-on ✓ |
 | set_transfer_gf_majors | `--no-ns-transfer-gf-majors` | Artificial | ON | plain +0.0014 ÷ PD +0.0016 (+1.70/+1.90 fired) | fresh | default-on ✓ |
 | set_minor_min_to_3nt | `--ns-minor-min-to-3nt` | Artificial | OFF | losing arm B of the gf-majors A/B; show-the-minor default beat it (CHANGELOG) | fresh | opt-in / improve (losing arm) |
 | set_transfer_gf_hearts | `--no-ns-transfer-gf-hearts` | Artificial | ON | plain +0.0015/+0.0017 ÷ PD +0.0016/+0.0018 (two seeds) | fresh | default-on ✓ |
@@ -247,10 +247,27 @@ on the current plain-DD harness. Headline: `fuzzy_fifths` flipped **default-off*
 
 ### A7 — Slam & keycard
 
+**Pass CLOSED 2026-07-16.** The A7 rows sit behind the **slam-optimism
+wall** — every DD-play scorer hands declarer the guesses (docs/measurement.md,
+slam-boundary addendum).  Reading rule as revised after calibration: the
+verdict comes from **plain + PD**; the insurance is the **analytic Pavlicek
+Δlogit shave** (2–6% off the slam-win contribution at the 6-level, ~6–20% at
+grands — DD is nearly calibrated at small slams, the wall bites grands); the
+**sd-declarer playout** (`single_dummy_playout`, a deliberate deep-pessimist:
+guess haircut 2–4× Pavlicek's) is the free robustness lower bound, never an
+auto-demoter.  Campaign `scripts/a7-run.sh`, results `ab-results/a7`
+(sha 23d3768): **five experiments, four confirms, one inert, nothing
+demoted** — and no verdict even needed the shave, since every win survived
+the playout bound outright (the one flip, floor-rkcb NV, was a statistical
+wash).  `set_floor_slam_entry` 29-vs-33 re-arbitrated under the new brackets:
+plain +0.004/+0.004, PD +0.003/+0.004, sd-declarer +0.001/+0.002 (1M×2, 2,453
+div, all CI>0) — the shortness slams don't hinge on guesses; 29 confirmed
+default-on.
+
 | Option (knob) | CLI | Nat/Art | Default | A/B verdict | Fresh | Policy → action |
 | --- | --- | --- | --- | --- | --- | --- |
-| set_floor_rkcb | `--no-ns-floor-rkcb` | Engine/Artificial | ON | 5-round wash ([project_m64-floor-slam]); reaches slams the direct-milestone floor misses | stale-pop | keep default-on (capability-add) |
-| minor keycard (no knob) | baked in (commit 99da1b3) | Artificial | ON | vs floor +6.80/+8.76 div; re-measured PD +5.41/+7.05 div [10M, 202 div] HOLDS ([project_minor-keycard]) | stale-PD | already folded in; no knob to retire |
+| set_floor_rkcb | `--no-ns-floor-rkcb` | Engine/Artificial | ON | a7-run: plain +1.01/+1.03 per fired (320k×2, fires 0.15%, NV CI>0, vul borderline), PD +0.84/+0.77, sd-lead +2.36/+2.93 (the strongest bracket — right-siding + lead-proofing value); sd-declarer NV −0.22/fired (CI straddles 0, a wash not a loss), vul +0.12 | fresh | default-on ✓ (capability-add; the one playout flip of the pass, retained per the Pavlicek rule — a ±0.0013 CI around −0.0003 is noise) |
+| set_minor_keycard | `--no-ns-minor-keycard` | Artificial | ON | a7-run self-play [10M×2, 847 div]: plain **+5.23/+6.68 per div** ÷ PD +5.22/+6.68, and keeps ~75% even under the deep-pessimist playout (+3.87/+5.04) — keycard's value is *staying out* of slams off two aces, line-independent.  *Knob added 2026-07-16*: the original off arm was a worktree revert of `99da1b3` that no longer applies, so the off-state is now authored (strong-2♣ blind 6m jump on 27+, inverted-minor 3NT top-out) and byte-identical default-on | fresh | default-on ✓ |
 
 ### A-suppress — takeout-double discipline (natural)
 
