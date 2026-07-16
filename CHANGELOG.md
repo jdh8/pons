@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **BEN's declared system, source-extracted** (BEN-gap campaign): BEN's
+  policy is all Keras weights — no symbolic book — but its source declares a
+  system: the BBA convention card `BEN-21GF.bbsa` it consults at runtime for
+  keycard answers. Vendored byte-identical as `vendor/ben/BEN-21GF.bbsa`
+  (sha256 in [docs/ben-gap-campaign.md](docs/ben-gap-campaign.md), which
+  gains a section with the full 10-toggle diff vs stock BBA 2/1 — 1430,
+  Two-Way NMF, Strength Lawrence raises, Leaping Michaels, 1NT-3M splinter,
+  Gerber NT-only, Extended Stayman off — plus provenance and the
+  weights-vs-card caveat: EPBot with this card is BEN's skeleton, ≈0.35
+  IMPs/bd behind BEN itself). `bba-gen` grows `--our-card`/`--their-card
+  <file.bbsa>` (a ~40-line `.bbsa` parser in `common::oracle`, unit-tested
+  on the vendored card): exploit-guard runs now seat EPBot with BEN's
+  declared card instead of stock BBA defaults. No bidding-system change; no
+  measurement.
+
 - **brl book-extraction probe — verdict: partially ruly, full-book no-go,
   disclosure mining works** ([docs/brl-book-extraction.md](docs/brl-book-extraction.md)):
   can pons extract/distill *books* from brl (harukaki/brl, the +1.24-vs-

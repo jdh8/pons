@@ -46,7 +46,7 @@ use std::ffi::{CString, c_int};
 #[path = "../common/mod.rs"]
 #[allow(dead_code)]
 mod common;
-use common::oracle::{BbaOracle, DEFAULT_LIB, SYSTEM_2_OVER_1, bid_out};
+use common::oracle::{BbaOracle, DEFAULT_LIB, SYSTEM_2_OVER_1, bid_out, load_bbsa};
 use common::{Board, Dump, hand_hcp, seat_to_act};
 
 /// Bid our 2/1 floor against BBA's 2/1 and write the boards (the generation half
@@ -91,6 +91,20 @@ struct Args {
     /// one toggle in a BBA-vs-BBA A/B.
     #[arg(long = "their-conv", value_parser = parse_override, value_name = "NAME=0|1")]
     their_conv: Vec<(CString, c_int)>,
+
+    /// Load a full `.bbsa` convention card for *our* side (implies
+    /// `--our-system` from the card's `System type` header); `--our-conv`
+    /// singles apply on top.  E.g. BEN's declared card
+    /// `vendor/ben/BEN-21GF.bbsa`.
+    #[arg(long = "our-card", value_name = "FILE.bbsa")]
+    our_card: Option<String>,
+
+    /// Load a full `.bbsa` convention card for *their* side; its `System type`
+    /// must match `--system`, and `--their-conv` singles apply on top.  Use
+    /// `--their-card vendor/ben/BEN-21GF.bbsa` so the exploit guard plays
+    /// BEN's declared system rather than stock BBA defaults.
+    #[arg(long = "their-card", value_name = "FILE.bbsa")]
+    their_card: Option<String>,
 
     /// Only keep deals with a balanced 15-17 HCP hand somewhere (a 1NT-opener
     /// candidate), to raise the yield of 1NT boards.  Cheap shape gate, no
@@ -869,6 +883,13 @@ fn system_label(system: c_int) -> &'static str {
     }
 }
 
+/// Render a loaded `.bbsa` card for a side's label, e.g. ` [card: BEN-21GF.bbsa]`
+fn label_card(card: &Option<String>) -> String {
+    card.as_deref()
+        .map(|file| format!(" [card: {file}]"))
+        .unwrap_or_default()
+}
+
 /// Render convention overrides for a side's label, e.g. ` [Rubensohl after 1m=1]`
 fn label_overrides(overrides: &[(CString, c_int)]) -> String {
     overrides
@@ -910,7 +931,40 @@ fn opening_1nt(auction: &[Call], dealer: Seat) -> Option<(usize, bool)> {
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
     let path = std::env::var("BBA_LIB").unwrap_or_else(|_| DEFAULT_LIB.into());
-    let bba = match BbaOracle::load(&path, args.system, args.their_conv.clone()) {
+    // A full `.bbsa` card expands to convention overrides applied before the
+    // explicit `--*-conv` singles, so singles override the card.
+    let their_conv = match &args.their_card {
+        Some(file) => {
+            let card = load_bbsa(file)?;
+            anyhow::ensure!(
+                card.system == args.system,
+                "`{file}` is system {}; pass `--system {}` to match",
+                card.system,
+                card.system,
+            );
+            let mut conv = card.toggles;
+            conv.extend(args.their_conv.iter().cloned());
+            conv
+        }
+        None => args.their_conv.clone(),
+    };
+    let (our_system, our_conv) = match &args.our_card {
+        Some(file) => {
+            let card = load_bbsa(file)?;
+            if let Some(system) = args.our_system {
+                anyhow::ensure!(
+                    card.system == system,
+                    "`{file}` is system {}, but --our-system says {system}",
+                    card.system,
+                );
+            }
+            let mut conv = card.toggles;
+            conv.extend(args.our_conv.iter().cloned());
+            (Some(card.system), conv)
+        }
+        None => (args.our_system, args.our_conv.clone()),
+    };
+    let bba = match BbaOracle::load(&path, args.system, their_conv.clone()) {
         Ok(bba) => bba,
         Err(error) => {
             eprintln!(
@@ -929,7 +983,7 @@ fn main() -> anyhow::Result<()> {
         "--advertise-natural and --advertise-landy are mutually exclusive"
     );
     let bba_vs_natural = if args.advertise_natural || args.advertise_landy {
-        let mut conv = args.their_conv.clone();
+        let mut conv = their_conv.clone();
         // Disclose our defense by setting how the opponent bot reads us: drop every
         // 1NT-defense convention, then (for Landy) re-enable just `Landy` so our `2♣`
         // reads as both majors and the rest natural.
@@ -1200,8 +1254,8 @@ fn main() -> anyhow::Result<()> {
             }
         ),
     };
-    let our_oracle = match args.our_system {
-        Some(system) => Some(BbaOracle::load(&path, system, args.our_conv.clone())?),
+    let our_oracle = match our_system {
+        Some(system) => Some(BbaOracle::load(&path, system, our_conv.clone())?),
         None => None,
     };
     let ours: &dyn System = match &our_oracle {
@@ -1212,17 +1266,21 @@ fn main() -> anyhow::Result<()> {
         Some(oracle) => oracle,
         None => &bba,
     };
-    let our_label = match args.our_system {
+    // Labels name the card file rather than spelling out its ~257 toggles;
+    // explicit `--*-conv` singles still render individually.
+    let our_label = match our_system {
         Some(system) => format!(
-            "BBA {}{}",
+            "BBA {}{}{}",
             system_label(system),
+            label_card(&args.our_card),
             label_overrides(&args.our_conv)
         ),
         None => format!("our {} floor", args.our_floor),
     };
     let their_label = format!(
-        "BBA {}{}",
+        "BBA {}{}{}",
         system_label(args.system),
+        label_card(&args.their_card),
         label_overrides(&args.their_conv)
     );
     let isolate_opening = args.isolate_opening.as_str();

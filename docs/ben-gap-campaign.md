@@ -43,6 +43,47 @@ Consequences:
   through its own nets. This mirrors BBA's published protocol, where
   external engines bid their own systems.
 
+## BEN's declared system (source-extracted)
+
+BEN's *policy* lives entirely in Keras weights — there is no symbolic book
+in its source to extract. What the source does ship is BEN's **declared**
+system: `BBA/CC/BEN-21GF.bbsa`, a 258-line BBA convention card that BEN
+itself consults at runtime (`consult_bba = True`: a score nudge plus RKCB /
+keycard answers). We vendor it byte-identical as
+[vendor/ben/BEN-21GF.bbsa](../vendor/ben/BEN-21GF.bbsa) (the `.bbsa` format
+has no comment syntax, so provenance lives here: lorserker/ben v0.8.8.4,
+sha256 `28e2d15f5f2761355b5d01c47b5c738e155533d212dd2953895c82da6584717a`).
+
+The card is stock BBA 2/1 (`System type = 0`) with exactly **10 toggle
+lines** changed — 7 treatments:
+
+| Treatment | Stock BBA 2/1 | BEN-21GF |
+| --- | --- | --- |
+| Keycard responses | Blackwood 0314 | **Blackwood 1430** |
+| Checkback after 1x‑1y‑1NT | New Minor Forcing | **Two‑Way NMF** (2♣ invitational relay, 2♦ GF) |
+| Major-raise structure | Shape Bergen | **Strength Lawrence** |
+| Leaping Michaels (4m over their weak two = 5‑5 strong) | off | **on** |
+| 1NT‑3♥/3♠ splinter (short major, minor-oriented GF) | off | **on** |
+| Gerber | any 4♣ per card | **NT openings only** |
+| Extended Stayman continuations | on | **off** |
+
+Provenance and its limits:
+
+- BEN's training data is GIB-bid hands, so its *learned* book is
+  GIB‑2/1‑shaped; the card above is its *declared* system. The two mostly
+  agree — kin to `american()` either way.
+- **Weights-vs-card caveat**: EPBot loaded with BEN's card is BEN's
+  *skeleton*, not BEN — EPBot measures ≈0.35 IMPs/bd behind BEN, and that
+  edge lives in the weights (search over sampled worlds), not the card.
+- Rule-level query surface: `~/ben/src/bba/BBA.py` wraps EPBot with the BEN
+  card loaded and exposes `interpret_bid`, `get_info_meaning`,
+  `get_info_min/max_length`, `get_info_strength` — a queryable book with
+  meanings, for spot-checking what BEN's declared system says a call shows.
+
+Harness hook: `bba-gen --our-card/--their-card <file.bbsa>` loads a full
+card (system id from its `System type` header; explicit `--*-conv` singles
+still apply on top).
+
 ## The reference pair
 
 | Engine | Role | Cost | What it's for |
@@ -152,6 +193,10 @@ these starts before the first anchor says the cheap fixes are exhausted.
   rule's analog); one `SEED_BASE` per experiment shared across arms; the
   anchor series keeps its persistent seed (same sanctioned exception as the
   BBA series).
+- BEN-vs-EPBot exploit-guard runs seat the guard with
+  `--their-card vendor/ben/BEN-21GF.bbsa`, so EPBot plays BEN's *declared*
+  system (see the source-extracted section above) rather than stock BBA
+  defaults.
 - Version discipline: BEN pinned at v0.8.8.4 + config hash recorded in
   `gen_args`. BEN is actively developed; re-pinning is a deliberate
   campaign decision (it moves the target), taken at most per-milestone and
