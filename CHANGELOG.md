@@ -9,6 +9,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`ben-gen` — the BEN-gap harness, built and validated live** (BEN-gap
+  campaign Phase 0, steps 1–3): `examples/ben-gen` bids our `american()`
+  floor against a **BEN v0.8.8.4** server over its REST `/bid` endpoint and
+  writes the standard `Dump` — `bba-score`/`ab-dump-diff`/`ab-dump-sd`/
+  `bba-decompose` consume it unchanged (verified end-to-end on a 100-board
+  smoke). `BenOracle` is a zero-dependency blocking HTTP client (std
+  `TcpStream` + `serde_json`); wire facts confirmed live at the tag and
+  recorded in [docs/ben-gen-design.md](docs/ben-gen-design.md): absolute
+  `vul`, dash-separated `ctx` (`P`/`X`/`XX`/`1C`…`7N`), `PASS`/`X`/`XX`
+  response tokens, hard abort (never a silent Pass) on desync or transport
+  failure. Determinism validated: same seed ⇒ identical boards. Tier F
+  measured **~0.1 s/bid, ~0.92 s/board, ~1.0 GB RSS/instance**.
+  `--calibrate-epbot` seats the vendored EPBot at our chairs (zero pons in
+  the loop) for the Table-1 calibration, via `BbaOracle` + the
+  `&dyn System` match drivers factored **verbatim** out of `bba-gen` into
+  shared `examples/common/oracle.rs`. `bba-decompose` report headlines now
+  read the dump's `our_label`/`their_label` instead of hardcoded
+  `"our american floor"`/`"BBA 2/1"`. Ops: `scripts/ben-servers.sh
+  start N [f|s] | stop | status` (idle-class servers, health-probed;
+  conf sha256 printed); `vendor/ben/` pins the two-edit Tier-F conf
+  (`search_threshold = -1`, `check_final_contract = False`) plus the two
+  local BEN fixups with their rationale — the glibc-2.35 `_dds3.so` shim
+  (`isoc23-shim.c` + `fix-dds3-verneed.py`) and `nolimit.patch` (the tag
+  parses `--nolimit` but never applies it). No measurements yet: the
+  EPBot-vs-BEN calibration and first anchor are the next steps.
+
 - **BEN gap campaign + ben-gen harness design docs**
   ([docs/ben-gap-campaign.md](docs/ben-gap-campaign.md),
   [docs/ben-gen-design.md](docs/ben-gen-design.md)): following the survey's

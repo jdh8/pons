@@ -137,6 +137,13 @@ name = "bba-gen"
 path = "examples/bba-gen/main.rs"
 required-features = ["serde"]
 
+# The BEN gap campaign's generator: same Dump, BEN over REST at the far seats
+# (docs/ben-gen-design.md); --calibrate-epbot seats vendored EPBot at ours.
+[[example]]
+name = "ben-gen"
+path = "examples/ben-gen/main.rs"
+required-features = ["serde"]
+
 [[example]]
 name = "bba-score"
 path = "examples/bba-score/main.rs"

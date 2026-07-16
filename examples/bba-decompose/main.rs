@@ -186,6 +186,8 @@ struct Arm {
     boards: Vec<common::Board>,
     origin: Vec<(Option<u64>, usize)>,
     gen_args: Vec<String>,
+    our_label: String,
+    their_label: String,
 }
 
 /// Everything the report needs about one contract-divergent board
@@ -237,6 +239,8 @@ fn load_arms(inputs: &[String]) -> anyhow::Result<Vec<Arm>> {
                     boards: Vec::new(),
                     origin: Vec::new(),
                     gen_args: dump.gen_args.clone(),
+                    our_label: dump.our_label.clone(),
+                    their_label: dump.their_label.clone(),
                 });
                 arms.last_mut().expect("just pushed")
             }
@@ -424,8 +428,8 @@ fn main() -> anyhow::Result<()> {
              perfect defense: {:+.4} IMPs/board (95% CI [{:+.4}, {:+.4}])\n\
              gen_args: {}\n",
             arm_index,
-            "our american floor",
-            "BBA 2/1",
+            arm.our_label,
+            arm.their_label,
             arm.vul,
             auction_divergent.iter().flatten().count(),
             100.0 * auction_divergent.iter().flatten().count() as f64 / count.max(1) as f64,

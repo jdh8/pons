@@ -19,6 +19,7 @@
 # See docs/ai-bidder/plan.md "Side-track S".
 /vendor/*
 !/vendor/bba
+!/vendor/ben
 
 # VS Code config
 /.vscode/

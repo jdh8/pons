@@ -6,6 +6,9 @@
 //! auto-discovery, so this never compiles as a standalone example. Each harness
 //! uses only the subset it needs, hence the `#[allow(dead_code)]` on the `mod`.
 
+#[allow(dead_code)]
+pub mod oracle;
+
 use contract_bridge::auction::{Auction, Call};
 use contract_bridge::deck::full_deal;
 use contract_bridge::eval::hcp as holding_hcp;

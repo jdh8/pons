@@ -1,6 +1,8 @@
 # The BEN gap campaign — closing pons↔BEN, with BBA as the exploit guard
 
-**Status: design only (2026-07-16). No code, no measurements yet.** The
+**Status: Phase 0 in progress (2026-07-16) — harness built and validated
+(steps 1–3 of the [ben-gen validation plan](ben-gen-design.md)); the
+EPBot-vs-BEN calibration (step 4, the Phase 0 exit gate) is running.** The
 [survey](open-source-bidder-survey.md) refuted "pons is the strongest
 open-source bidder": BEN (GPL-3.0, code + weights in-repo) beats EPBot by
 0.35–0.38 IMPs/deal DD in BBA's own cross-engine tables, and pons trails

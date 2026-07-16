@@ -1,0 +1,17 @@
+# At tag v0.8.8.4, gameapi.py parses --nolimit but never applies it: the
+# Flask-Limiter default_limits (100/min per IP) still gate /bid, and the
+# localhost exemption is wired only on /play and /bids. This one-liner makes
+# the documented flag work; ops-only, no bidding behavior change.
+# Apply once: git -C ~/ben apply <this file>
+diff --git a/src/gameapi.py b/src/gameapi.py
+index 2f8dfbb..ecb7423 100644
+--- a/src/gameapi.py
++++ b/src/gameapi.py
+@@ -696,6 +696,7 @@ limiter = Limiter(
+                                # For production with multiple workers, use Redis or Memcached:
+                                # "redis://localhost:6379"
+ )
++limiter.enabled = not nolimit
+ # Initialize the lock
+ model_lock_bid = Lock()
+ model_lock_play = Lock()
