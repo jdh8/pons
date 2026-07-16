@@ -9,6 +9,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **brl book-extraction probe — verdict: partially ruly, full-book no-go,
+  disclosure mining works** ([docs/brl-book-extraction.md](docs/brl-book-extraction.md)):
+  can pons extract/distill *books* from brl (harukaki/brl, the +1.24-vs-
+  WBridge5 RL bidder)? `vendor/brl/` pins the engine (Apache-2.0, commit +
+  weights sha256) and ships `dump_selfplay.py` — batched greedy self-play of
+  brl×4 over pgx states constructed directly (own uniform deals, paired
+  four-way vulnerability per deal, dummy DD table; pgx's `env.init` draws
+  from its capped DD lookup with random vul, wrong for paired probing).
+  200k deals × 4 vuls = 800k boards / 10.02M decisions in ~10 min CPU.
+  `examples/probe-brl-book` ingests the corpus (legality + argmax asserts),
+  runs a paired vul-flip test per node, fits one DSL box per call under
+  `Rules` max-weight semantics, and scores held-out fidelity against an
+  exact-tuple expressiveness ceiling. Findings: brl's system is radically
+  non-human (openings **anti-monotone in HCP** — 99.8% of 0–3 counts open,
+  half of 12–15 counts pass; 1C a 44% catch-all; forced-relay `1C X XX`;
+  reinvented Stayman/transfers over its strong 1NT; vul-conditioning
+  everywhere, root flip 16.6%) — validated genuine by replaying dumped
+  boards through pgx's own PBN parsing. Extraction verdict: root box
+  fidelity 57.8% vs an 83.9% vul-aware ceiling — below the ≈90% gate, so a
+  faithful full-tree extracted book is out of reach in (hcp, shape, vul)
+  vocabulary; the crisp skeleton (strong 2C 15–24, preempt shapes, relays,
+  transfers) extracts cleanly. No `src/` changes; no DD; the in-flight BEN
+  campaign is untouched.
+
 - **`ben-gen` — the BEN-gap harness, built and validated live** (BEN-gap
   campaign Phase 0, steps 1–3): `examples/ben-gen` bids our `american()`
   floor against a **BEN v0.8.8.4** server over its REST `/bid` endpoint and

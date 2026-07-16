@@ -20,6 +20,7 @@
 /vendor/*
 !/vendor/bba
 !/vendor/ben
+!/vendor/brl
 
 # VS Code config
 /.vscode/
