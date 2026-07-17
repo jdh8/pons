@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **BEN bitmap-ablation probe** (`scripts/ben-bitmap-ablation.py`) — answers
+  whether BEN's hand parameters distill to total strength + each suit's length.
+  They do by construction (HCP and the four lengths are explicit named scalars,
+  exact linear read-outs of the 24-cell hand bitmap); the only residual is
+  *honor location*. Holding the auction fixed and repacking honors into the long
+  vs short suits at identical HCP+lengths (random-hand control), the probe finds
+  honor location is a **0.4 % residual of BEN's hand-sensitivity at the median**,
+  decisive only in a thin tail — **preempt suit quality** (open the weak two only
+  with honors in the suit) and **slam control placement**. No user-facing bidding
+  change; the finding says our floor's `(HCP, shape)` vocabulary is a
+  near-sufficient statistic of the hand for BEN's policy, so the gap is search /
+  auction-state, not a missing feature (ledger: `docs/ben-gap-campaign.md`).
 - **Pass reading — negative inference** (jdh8's law: *the general reading of
   a pass is to exclude all the other calls*; open item (4) of the BEN-gap fix
   ledger — passes were ~60 % of all reading vagueness, BEN committing ~6.3

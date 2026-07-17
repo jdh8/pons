@@ -214,6 +214,52 @@ passed hand at ~6.3 mean HCP.
   later-round) and the unacted-seat conservation class, which is a sampler
   property, not a reading bug.
 
+### The bitmap-ablation probe (does honor *location* matter?)
+
+The Info-net probe reads the *auction*; this one reads the *hand feature*. BEN's
+bidder input (`model_version 3`, `n_cards_bidding 24`, 193 floats/timestep) feeds
+total HCP and all four suit lengths as **explicit named scalars** — and they are
+exact linear read-outs of the 24-cell hand bitmap (`get_hcp` = 4/3/2/1 dot
+product, `get_shape` = per-suit sum), fed only "so the net won't build neurons
+for this." So the answer to *"can BEN's hand parameters distill to strength +
+each suit's length?"* is **yes, by construction** — the only residual the bitmap
+carries beyond `(HCP, shape)` is **which suit each honor sits in** (honor
+location; spot cards ≤9 collapse into one counter, so `KJ986 ≡ KJ432` and that
+blindness is un-probeable). `scripts/ben-bitmap-ablation.py` (run with
+`~/ben/.venv/bin/python`, `--selftest` for the no-TF packer/KL check) holds the
+auction fixed, swaps the true hand for canonical hands of **identical HCP and
+identical four lengths** with honors repacked into the long suits vs the short
+suits, and measures how far the raw policy softmax moves — `pred_fun_seq`, no
+`/bid` search (Tier-S DD override is a separate question). Positive control: a
+random legal hand of different HCP/shape (the hand-sensitivity normalizer).
+
+Run 2026-07-17 (`bidder BEN-21GF-8730`, NV corpus reused from the Info-net probe,
+8,995/9,152 rows scored, 157 extreme-shape pack skips logged;
+`ab-results/ben-info-probe/2026-07-17/bitmap-ablation.json`, seed 1784309099):
+**honor location is mostly irrelevant, decisive in a thin bridge-meaningful
+tail.** Median `KL_honor / KL_rand` = **0.4%** (of everything BEN reads from the
+hand at a juncture, honor placement beyond HCP+shape is 0.4% at the median);
+sensitivity control healthy (`KL_rand` median 1.08, p95 16.4 — the net reads the
+hand hard). Material-flip rate (argmax changes *and* `KL_honor > 0.1` nats,
+i.e. not a near-tie tie-break) = **3.4%**, concentrated exactly where a bridge
+player expects: **opening decisions** (auction-length 1: 5.7%; strain not-yet-set:
+7.9%) and **light hands** (8–11 HCP: 4.6%), near-zero for strong/constructive
+hands (16+ HCP: 2%, 20+: 0%). The top tail is two clean patterns:
+- **Preempt suit quality** — 5–6 HCP, `2♥`/`2♠` weak-two/preempt: honors packed
+  *into* the 6-card suit keep the preempt (`KL≈0`), the same HCP scattered *out*
+  of it → **PASS** (`KL 3.6–4.9`). BEN preempts only with a good suit.
+- **Slam-zone control placement** — 8-to-14-call NT auctions where honor
+  relocation flips `5♣↔5♥↔5♦` (`KL 4–5`): which suit to cue / where to place it.
+
+Consequence for the floor: our authoring vocabulary (`points`,
+`support_points`, `fit_sum`, `hcp`, length constraints) **is** `(HCP, shape)` and
+so is a near-sufficient statistic of the *hand* for BEN's policy — the −1.9 IMP
+gap lives in **search over sampled worlds + auction-state memory**, not a missing
+hand feature. The one structural blind spot worth a feature is **suit quality /
+honor concentration**, and only for **preempt discipline and slam cue placement**
+— not a global floor term. (Ties into the `length_soundness` A/B: length alone,
+without honor location, is what our reader currently trades in.)
+
 ## The reference pair
 
 | Engine | Role | Cost | What it's for |
