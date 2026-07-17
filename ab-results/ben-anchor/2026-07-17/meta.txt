@@ -1,0 +1,7 @@
+SEED_BASE=1784237746 (persistent ben-anchor series seed)
+pons 119675f87f448e0ea3e505c4fb3026ddcce0afe7
+v0.8.8.4
+ bin/dds3-linux/dds3/_dds3.so | Bin 1954448 -> 2266473 bytes
+ src/gameapi.py               |   1 +
+ 2 files changed, 1 insertion(+)
+503b026a21bc59a98fbdd6622a3c69152c0b76121e0d0967ed88ee77cf7f92e4  /home/jdh8/ben/src/config/BEN-21GF.conf

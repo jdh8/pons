@@ -1,0 +1,124 @@
+=== none / plain ===
+  W:J84..8654.J97542 A753.AJ82.72.A86 T2.QT76543.Q.QT3 KQ96.K9.AKJT93.K
+  ours NS @ A: - 1♣ 3♥ X - 4♠ - 4NT - 5♣ - 5NT - 6♣ - 7♠ - - -  -> 7♠ by North
+  ours EW @ B: - 1♣ 3♥ X - - -  -> 3♥x by East
+
+=== Worst 5 we-defend-1NT boards (BBA opens 1NT, we defend) ===
+
+[board 1069] dealer East, swing -670 pts / -12 IMPs
+  W:JT6.7543.A9653.4 AQ94..T8.AKJT973 K32.AKQ82.QJ2.85 875.JT96.K74.Q62
+  ours NS @ A: 1NT - - X 2♥ - 3♥ 4♣ - - 4♥ - - 5♣ - - X - - -  -> 5♣x by North
+  ours EW @ B: 1NT - - 2♣ - 2♦ X 3♣ - - X - - -  -> 3♣x by North
+
+[board 5051] dealer West, swing -640 pts / -12 IMPs
+  W:AT7.A2.T97.AQJT4 KJ84.KT43.AJ643. 965.J875.K8.K653 Q32.Q96.Q52.9872
+  ours NS @ A: 1NT X XX - - -  -> 1NTxx by West
+  ours EW @ B: 1NT - 2♣ - 2♦ - 2NT - - -  -> 2NT by West
+
+[board 408] dealer North, swing -630 pts / -12 IMPs
+  W:JT72.K84..KQJ652 98643.J9.A852.T4 AK5.AQT53.QT3.73 Q.762.KJ9764.A98
+  ours NS @ A: - 1NT - 2♣ - 2♥ - 3♣ - 3♥ - 4♥ - - -  -> 4♥ by East
+  ours EW @ B: - 1NT 2♣ 3NT - - -  -> 3NT by East
+
+[board 4843] dealer East, swing -620 pts / -12 IMPs
+  W:KJ7.A7.942.AKQ63 3.KQJT5.AQ3.J952 Q985.43.KJ76.874 AT642.9862.T85.T
+  ours NS @ A: - - 1NT - - -  -> 1NT by West
+  ours EW @ B: - - 1NT 2♥ X 3♥ - - X - - -  -> 3♥x by North
+
+[board 3111] dealer West, swing -600 pts / -12 IMPs
+  W:A65.KT5.K72.AQJ9 KQJ43.Q6.QT95.T8 872.A972.A83.752 T9.J843.J64.K643
+  ours NS @ A: 1NT 2♠ X - - -  -> 2♠x by North
+  ours EW @ B: 1NT 2♠ X - 3♦ - - -  -> 3♦ by West
+=== none / pd ===
+  W:J84..8654.J97542 A753.AJ82.72.A86 T2.QT76543.Q.QT3 KQ96.K9.AKJT93.K
+  ours NS @ A: - 1♣ 3♥ X - 4♠ - 4NT - 5♣ - 5NT - 6♣ - 7♠ - - -  -> 7♠ by North
+  ours EW @ B: - 1♣ 3♥ X - - -  -> 3♥x by East
+
+=== Worst 5 we-defend-1NT boards (BBA opens 1NT, we defend) ===
+
+[board 408] dealer North, swing -980 pts / -14 IMPs
+  W:JT72.K84..KQJ652 98643.J9.A852.T4 AK5.AQT53.QT3.73 Q.762.KJ9764.A98
+  ours NS @ A: - 1NT - 2♣ - 2♥ - 3♣ - 3♥ - 4♥ - - -  -> 4♥ by East
+  ours EW @ B: - 1NT 2♣ 3NT - - -  -> 3NT by East
+
+[board 4301] dealer West, swing -940 pts / -14 IMPs
+  W:A432.AK5.94.KQJ5 7.QJ9763.AKQ86.9 965.T.752.AT6432 KQJT8.842.JT3.87
+  ours NS @ A: 1NT 2♦ - 2♠ - 2NT - - -  -> 2NT by North
+  ours EW @ B: 1NT 2♥ - - -  -> 2♥ by North
+
+[board 3003] dealer West, swing -910 pts / -14 IMPs
+  W:AKQ98.T2.QT4.AJ8 T.KQJ876.AJ52.T3 65.93.K973.K9654 J7432.A54.86.Q72
+  ours NS @ A: 1NT 2♦ - 2♠ - 2NT - - -  -> 2NT by North
+  ours EW @ B: 1NT 2♥ - - -  -> 2♥ by North
+
+[board 3111] dealer West, swing -800 pts / -13 IMPs
+  W:A65.KT5.K72.AQJ9 KQJ43.Q6.QT95.T8 872.A972.A83.752 T9.J843.J64.K643
+  ours NS @ A: 1NT 2♠ X - - -  -> 2♠x by North
+  ours EW @ B: 1NT 2♠ X - 3♦ - - -  -> 3♦ by West
+
+[board 1127] dealer West, swing -730 pts / -12 IMPs
+  W:KT5.JT3.K6.AKQ76 AQ864.AQ87.4.983 J3.K942.AQ9832.J 972.65.JT75.T542
+  ours NS @ A: 1NT 2♣ X 2♠ - - 3NT - - -  -> 3NT by West
+  ours EW @ B: 1NT 2♦ X 2♠ - - 5♦ - - -  -> 5♦ by East
+=== both / plain ===
+  W:7.AT9.975.A97543 JT832.63.K862.T8 5.J842.AQJT3.KJ2 AKQ964.KQ75.4.Q6
+  ours NS @ A: - - 1♦ 1♠ 2♣ 3♠ 4♣ 4♠ 5♣ - - X - - -  -> 5♣x by West
+  ours EW @ B: - - 1♦ 1♠ 2♣ 3♠ - - X - - -  -> 3♠x by South
+
+=== Worst 5 we-defend-1NT boards (BBA opens 1NT, we defend) ===
+
+[board 1545] dealer West, swing -1570 pts / -17 IMPs
+  W:QT.A842.AK965.QT J832.J96.T3.7632 7.KQ3.J42.AKJ984 AK9654.T75.Q87.5
+  ours NS @ A: 1NT - 2♠ - 3♣ - 4NT - 5♠ - 6♣ - - -  -> 6♣ by West
+  ours EW @ B: 1♦ - 2♣ - 2♥ - 3♣ - 3NT - - -  -> 3NT by West
+
+[board 1069] dealer East, swing -1490 pts / -16 IMPs
+  W:JT6.7543.A9653.4 AQ94..T8.AKJT973 K32.AKQ82.QJ2.85 875.JT96.K74.Q62
+  ours NS @ A: 1NT - - X 2♥ - 4♥ - - -  -> 4♥ by East
+  ours EW @ B: 1NT - - 2♣ - 2♦ X 3♣ - - X - - -  -> 3♣x by North
+
+[board 5051] dealer West, swing -1040 pts / -14 IMPs
+  W:AT7.A2.T97.AQJT4 KJ84.KT43.AJ643. 965.J875.K8.K653 Q32.Q96.Q52.9872
+  ours NS @ A: 1NT X XX - - -  -> 1NTxx by West
+  ours EW @ B: 1NT - 2♣ - 2♦ - 2NT - - -  -> 2NT by West
+
+[board 408] dealer North, swing -980 pts / -14 IMPs
+  W:JT72.K84..KQJ652 98643.J9.A852.T4 AK5.AQT53.QT3.73 Q.762.KJ9764.A98
+  ours NS @ A: - 1NT - 2♣ - 2♥ - 3♣ - 3♥ - 4♥ - - -  -> 4♥ by East
+  ours EW @ B: - 1NT 2♣ 3NT - - -  -> 3NT by East
+
+[board 8193] dealer East, swing -920 pts / -14 IMPs
+  W:QT7532.654.53.74 .QJT8732.AT.8653 86.A9.KQJ876.AQT AKJ94.K.942.KJ92
+  ours NS @ A: 1NT 2♠ - - -  -> 2♠ by South
+  ours EW @ B: 1♦ 1♠ - 2♥ 3♦ - - 3♥ - 4♥ - - -  -> 4♥ by North
+=== both / pd ===
+  W:QT.A842.AK965.QT J832.J96.T3.7632 7.KQ3.J42.AKJ984 AK9654.T75.Q87.5
+  ours NS @ A: 1NT - 2♠ - 3♣ - 4NT - 5♠ - 6♣ - - -  -> 6♣ by West
+  ours EW @ B: 1♦ - 2♣ - 2♥ - 3♣ - 3NT - - -  -> 3NT by West
+
+=== Worst 5 we-defend-1NT boards (BBA opens 1NT, we defend) ===
+
+[board 1545] dealer West, swing -1870 pts / -18 IMPs
+  W:QT.A842.AK965.QT J832.J96.T3.7632 7.KQ3.J42.AKJ984 AK9654.T75.Q87.5
+  ours NS @ A: 1NT - 2♠ - 3♣ - 4NT - 5♠ - 6♣ - - -  -> 6♣ by West
+  ours EW @ B: 1♦ - 2♣ - 2♥ - 3♣ - 3NT - - -  -> 3NT by West
+
+[board 408] dealer North, swing -1480 pts / -16 IMPs
+  W:JT72.K84..KQJ652 98643.J9.A852.T4 AK5.AQT53.QT3.73 Q.762.KJ9764.A98
+  ours NS @ A: - 1NT - 2♣ - 2♥ - 3♣ - 3♥ - 4♥ - - -  -> 4♥ by East
+  ours EW @ B: - 1NT 2♣ 3NT - - -  -> 3NT by East
+
+[board 8193] dealer East, swing -1420 pts / -16 IMPs
+  W:QT7532.654.53.74 .QJT8732.AT.8653 86.A9.KQJ876.AQT AKJ94.K.942.KJ92
+  ours NS @ A: 1NT 2♠ - - -  -> 2♠ by South
+  ours EW @ B: 1♦ 1♠ - 2♥ 3♦ - - 3♥ - 4♥ - - -  -> 4♥ by North
+
+[board 385] dealer East, swing -1180 pts / -15 IMPs
+  W:8.A873.KQ853.KJ7 QJ92.92.T942.963 75.KQJ54.AJ7.A84 AKT643.T6.6.QT52
+  ours NS @ A: 1NT - 3♠ - 4♥ - - -  -> 4♥ by East
+  ours EW @ B: 1NT 2♣ 3NT - - -  -> 3NT by East
+
+[board 3111] dealer West, swing -1100 pts / -15 IMPs
+  W:A65.KT5.K72.AQJ9 KQJ43.Q6.QT95.T8 872.A972.A83.752 T9.J843.J64.K643
+  ours NS @ A: 1NT - 2♣ - 2♦ - 2NT - 3NT - - -  -> 3NT by West
+  ours EW @ B: 1NT 2♠ X - 3♦ - - -  -> 3♦ by West

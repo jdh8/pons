@@ -1,0 +1,122 @@
+=== EPBot 2/1 (vendored) (us) vs BEN v0.8.8.4 21GF/S (them): 10000 boards, vulnerability none ===
+Divergent boards: 4852 of 10000 (49%)
+Our pair: -251440 points, -5386 IMPs
+IMPs/board: -0.539  (95% CI [-0.620, -0.457])
+
+=== OUR 1NT openings (we open 1NT) === (242 divergent boards, -142 IMPs, -0.587 IMPs/board)
+  2NT      18 boards     -44 IMPs  (-2.444 IMPs/board)
+  2♠       10 boards     +26 IMPs  (+2.600 IMPs/board)
+  2♣       39 boards     -57 IMPs  (-1.462 IMPs/board)
+  2♥       29 boards     +19 IMPs  (+0.655 IMPs/board)
+  2♦       35 boards     -15 IMPs  (-0.429 IMPs/board)
+  3NT      15 boards     -17 IMPs  (-1.133 IMPs/board)
+  3♠        1 boards      -7 IMPs  (-7.000 IMPs/board)
+  3♣        3 boards     -11 IMPs  (-3.667 IMPs/board)
+  3♥        2 boards     -17 IMPs  (-8.500 IMPs/board)
+  3♦        3 boards      -4 IMPs  (-1.333 IMPs/board)
+  4♣        1 boards      +3 IMPs  (+3.000 IMPs/board)
+  4♥        3 boards      +0 IMPs  (+0.000 IMPs/board)
+  4♦        4 boards      -1 IMPs  (-0.250 IMPs/board)
+  5♣        1 boards      +0 IMPs  (+0.000 IMPs/board)
+  P        69 boards     -35 IMPs  (-0.507 IMPs/board)
+  X         9 boards     +18 IMPs  (+2.000 IMPs/board)
+
+=== OUR defense vs their 1NT (they open 1NT) === (286 divergent boards, -276 IMPs, -0.965 IMPs/board)
+  2NT       1 boards      +0 IMPs  (+0.000 IMPs/board)
+  2♠       11 boards     -33 IMPs  (-3.000 IMPs/board)
+  2♣       11 boards     -22 IMPs  (-2.000 IMPs/board)
+  2♥        5 boards     -16 IMPs  (-3.200 IMPs/board)
+  2♦       21 boards     +22 IMPs  (+1.048 IMPs/board)
+  3♠        2 boards     -11 IMPs  (-5.500 IMPs/board)
+  3♣        1 boards      +4 IMPs  (+4.000 IMPs/board)
+  3♥        1 boards      -2 IMPs  (-2.000 IMPs/board)
+  3♦        4 boards      +4 IMPs  (+1.000 IMPs/board)
+  P       222 boards    -222 IMPs  (-1.000 IMPs/board)
+  X         7 boards      +0 IMPs  (+0.000 IMPs/board)
+
+=== OUR defense vs their 1NT, by auction shape (DIRECT vs CONTinuation) === (286 divergent boards, -276 IMPs, -0.965 IMPs/board)
+  CONT 2NT     8 boards     +15 IMPs  (+1.875 IMPs/board)
+  CONT 2♠     5 boards     -13 IMPs  (-2.600 IMPs/board)
+  CONT 2♣    53 boards     -24 IMPs  (-0.453 IMPs/board)
+  CONT 2♥    28 boards     -22 IMPs  (-0.786 IMPs/board)
+  CONT 2♦    43 boards     -96 IMPs  (-2.233 IMPs/board)
+  CONT 3NT     6 boards      -9 IMPs  (-1.500 IMPs/board)
+  CONT 3♠     3 boards      -1 IMPs  (-0.333 IMPs/board)
+  CONT 3♣     6 boards      -5 IMPs  (-0.833 IMPs/board)
+  CONT 3♥     1 boards     +10 IMPs  (+10.000 IMPs/board)
+  CONT 4♠     1 boards      -8 IMPs  (-8.000 IMPs/board)
+  CONT 4♣     3 boards      +2 IMPs  (+0.667 IMPs/board)
+  CONT 4♥    10 boards      +0 IMPs  (+0.000 IMPs/board)
+  CONT 4♦     9 boards      -2 IMPs  (-0.222 IMPs/board)
+  DIRECT (we bid over 1NT)    64 boards     -54 IMPs  (-0.844 IMPs/board)
+  QUIET (we passed, they passed)    46 boards     -69 IMPs  (-1.500 IMPs/board)
+
+=== OUR 1NT-(2NT) responses (focus) === (1 divergent boards, +9 IMPs, +9.000 IMPs/board)
+  P         1 boards      +9 IMPs  (+9.000 IMPs/board)
+
+=== OUR uncontested continuations (1NT P <response>) === (491 divergent boards, -61 IMPs, -0.124 IMPs/board)
+  2NT      25 boards     -13 IMPs  (-0.520 IMPs/board)
+  2♠        9 boards     -16 IMPs  (-1.778 IMPs/board)
+  2♣      160 boards     -67 IMPs  (-0.419 IMPs/board)
+  2♥       64 boards      +7 IMPs  (+0.109 IMPs/board)
+  2♦       58 boards      -9 IMPs  (-0.155 IMPs/board)
+  3NT      46 boards      +0 IMPs  (+0.000 IMPs/board)
+  3♣        5 boards      +7 IMPs  (+1.400 IMPs/board)
+  4♣        2 boards      +0 IMPs  (+0.000 IMPs/board)
+  4♥       11 boards      +0 IMPs  (+0.000 IMPs/board)
+  4♦       11 boards      -1 IMPs  (-0.091 IMPs/board)
+  P       100 boards     +31 IMPs  (+0.310 IMPs/board)
+
+=== Worst 5 divergent boards for us (their edge) ===
+
+[board 3553] dealer East, swing -1630 pts / -17 IMPs
+  W:KJT987.T6.A2.J96 Q62.AJ8.KJ86.K42 A543.Q.754.AQ873 .K975432.QT93.T5
+  ours NS @ A: 1♣ 3♥ 3♠ 4♥ 4♠ - - 5♥ 5♠ - 6♠ X - - -  -> 6♠x by West
+  ours EW @ B: 1♣ 3♥ - 4♥ - - -  -> 4♥ by South
+
+[board 3833] dealer West, swing -1540 pts / -17 IMPs
+  W:76.T6.J62.AKQ983 KJT83.3.KQT9875. Q52.J8752.3.JT64 A94.AKQ94.A4.752
+  ours NS @ A: - 2♦ - 2NT - 3♠ - 3NT - - -  -> 3NT by South
+  ours EW @ B: - 1♦ - 1♥ 2♣ 2♦ 4♣ 4NT - 5♣ X 5♥ - 5♠ - 7♦ - - -  -> 7♦ by North
+
+[board 6524] dealer South, swing -1490 pts / -16 IMPs
+  W:5.AKQ3.AK9.AKQ96 J32.J72.QT742.J5 AQ764.T.J8.T8742 KT98.98654.653.3
+  ours NS @ A: - 2♣ - 2♠ - 2NT - 3♣ - 4NT - 5♣ - 5NT - 6♣ - 7♣ - - -  -> 7♣ by West
+  ours EW @ B: - 2♣ - 2♠ - 2NT - 3NT - 6NT - - -  -> 6NT by West
+
+[board 8614] dealer South, swing -1490 pts / -16 IMPs
+  W:A864.J83.T643.76 KQT72.9.K97.J943 J953.Q74.J852.82 .AKT652.AQ.AKQT5
+  ours NS @ A: 2♣ - 2♠ - 3♥ - 3NT - 6NT - - -  -> 6NT by North
+  ours EW @ B: 2♣ - 2♠ - 3♥ - 3NT - 4♣ - 5♣ - 7♣ - - -  -> 7♣ by South
+
+[board 1301] dealer West, swing -1450 pts / -16 IMPs
+  W:J84..8654.J97542 A753.AJ82.72.A86 T2.QT76543.Q.QT3 KQ96.K9.AKJT93.K
+  ours NS @ A: - 1♣ 3♥ X - 4♠ - 4NT - 5♣ - 5NT - 6♣ - 7♠ - - -  -> 7♠ by North
+  ours EW @ B: - 1♣ 3♥ X - - -  -> 3♥x by East
+
+=== Worst 5 we-defend-1NT boards (BBA opens 1NT, we defend) ===
+
+[board 1069] dealer East, swing -670 pts / -12 IMPs
+  W:JT6.7543.A9653.4 AQ94..T8.AKJT973 K32.AKQ82.QJ2.85 875.JT96.K74.Q62
+  ours NS @ A: 1NT - - X 2♥ - 3♥ 4♣ - - 4♥ - - 5♣ - - X - - -  -> 5♣x by North
+  ours EW @ B: 1NT - - 2♣ - 2♦ X 3♣ - - X - - -  -> 3♣x by North
+
+[board 5051] dealer West, swing -640 pts / -12 IMPs
+  W:AT7.A2.T97.AQJT4 KJ84.KT43.AJ643. 965.J875.K8.K653 Q32.Q96.Q52.9872
+  ours NS @ A: 1NT X XX - - -  -> 1NTxx by West
+  ours EW @ B: 1NT - 2♣ - 2♦ - 2NT - - -  -> 2NT by West
+
+[board 408] dealer North, swing -630 pts / -12 IMPs
+  W:JT72.K84..KQJ652 98643.J9.A852.T4 AK5.AQT53.QT3.73 Q.762.KJ9764.A98
+  ours NS @ A: - 1NT - 2♣ - 2♥ - 3♣ - 3♥ - 4♥ - - -  -> 4♥ by East
+  ours EW @ B: - 1NT 2♣ 3NT - - -  -> 3NT by East
+
+[board 4843] dealer East, swing -620 pts / -12 IMPs
+  W:KJ7.A7.942.AKQ63 3.KQJT5.AQ3.J952 Q985.43.KJ76.874 AT642.9862.T85.T
+  ours NS @ A: - - 1NT - - -  -> 1NT by West
+  ours EW @ B: - - 1NT 2♥ X 3♥ - - X - - -  -> 3♥x by North
+
+[board 3111] dealer West, swing -600 pts / -12 IMPs
+  W:A65.KT5.K72.AQJ9 KQJ43.Q6.QT95.T8 872.A972.A83.752 T9.J843.J64.K643
+  ours NS @ A: 1NT 2♠ X - - -  -> 2♠x by North
+  ours EW @ B: 1NT 2♠ X - 3♦ - - -  -> 3♦ by West

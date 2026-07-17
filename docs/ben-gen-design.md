@@ -217,10 +217,13 @@ per-fix effects (±0.01) resolve at Tier-F scale.
    resembles a harness bug (sane divergence rate, coherent per-family
    tables and worst-board auctions). Harness validated with **zero pons
    code in the loop**.
-5. **First pons-vs-BEN anchor**: Tier S, 20k boards, fresh `SEED_BASE`,
-   persisted like the BBA anchor series — this replaces the survey's
-   chained ≈2.1-behind estimate with a measurement. Hand off to the
-   campaign doc.
+5. **First pons-vs-BEN anchor** — **DONE 2026-07-17**: Tier S, 20k boards,
+   `SEED_BASE` 1784237746 (the series' persistent seed), pons `119675f`,
+   `ab-results/ben-anchor/2026-07-17/`. **−1.906 plain / −1.860 PD**
+   pooled (divergence 71%/70%) — retires the survey's chained ≈2.1.
+   Headline trail lives in the campaign doc. Ops lesson baked into the
+   runner: refuse to launch if `src`/`examples`/`Cargo.toml` are dirty —
+   an anchor build must be a committed, reproducible tree.
 
 ## Work estimate
 

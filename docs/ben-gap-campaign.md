@@ -1,11 +1,13 @@
 # The BEN gap campaign — closing pons↔BEN, with BBA as the exploit guard
 
-**Status: Phase 0 COMPLETE (2026-07-17) — the EPBot-vs-BEN calibration
-(the exit gate) PASSED: 20k Tier-S boards, plain DD −0.568 pooled from
-EPBot's side vs BBA's published −0.38 DD / −0.51 SD (sign + bracket agree;
-details in [ben-gen-design.md](ben-gen-design.md), validation step 4).
-Phase 1's first pons-vs-BEN Tier-S anchor (`ab-results/ben-anchor/`) is
-next — it needs a clean committed tree and the box to itself.** The
+**Status: first anchor MEASURED (2026-07-17) — pons is
+−1.906 plain / −1.860 PD IMPs/board behind BEN Tier S** (20k boards at
+`119675f`; trail below). Phase 0 is complete: the EPBot-vs-BEN calibration
+exit gate PASSED (plain DD −0.568 pooled from EPBot's side vs BBA's
+published −0.38 DD / −0.51 SD; details in
+[ben-gen-design.md](ben-gen-design.md), validation step 4). Phase 1's
+remaining items: Tier-F gap on the anchor seeds, then the 102.4k Tier-F
+decompose. The
 [survey](open-source-bidder-survey.md) refuted "pons is the strongest
 open-source bidder": BEN (GPL-3.0, code + weights in-repo) beats EPBot by
 0.35–0.38 IMPs/deal DD in BBA's own cross-engine tables, and pons trails
@@ -284,6 +286,22 @@ these starts before the first anchor says the cheap fixes are exhausted.
 - GPL boundary: BEN runs as a separate process over HTTP. Never link, embed,
   or vendor BEN code/weights into pons.
 
+## Anchor trail (the campaign metric)
+
+Tier S, 20k boards (8×1,250 × {none, both}), persistent
+`SEED_BASE=1784237746`, series `ab-results/ben-anchor/`. Pooled = both arms.
+
+| date | pons | plain | PD | notes |
+| --- | --- | --- | --- | --- |
+| 2026-07-17 | `119675f` | **−1.906** (none −1.640 [−1.736, −1.545], both −2.172 [−2.293, −2.050]) | **−1.860** (none −1.510, both −2.209) | First anchor; retires the chained ≈2.1. Divergence 71%/70% (vs 49%/46% for EPBot-vs-BEN). Reading knobs at committed defaults (off). |
+
+Cross-checks: the same-era BBA anchor reads −1.68/−1.73 plain, so BEN
+measures ≈0.2 harder than BBA — same sign, smaller than the naive chain
+(pons−BBA −1.68 plus EPBot−BEN −0.568 ≈ −2.25) predicts; IMP transitivity
+is nonlinear across deal streams, which the design doc anticipated. The
+vul-both arm is ~0.5 worse than vul-none, the same skew the BBA series
+shows.
+
 ## Success criteria
 
 1. **Phase 0/1 (near-term)**: the calibration reproduces BBA's Table 1 in
@@ -308,6 +326,8 @@ these starts before the first anchor says the cheap fixes are exhausted.
 3. How big is the Tier F↔S gap, and is it stable enough to trust Tier-F
    ship verdicts? — Phase 1 measures it once, re-checked whenever Tier-F
    ships stop moving the Tier-S anchor.
-4. Where does the measured anchor land vs the chained ≈2.1? Large
-   disagreement (beyond protocol noise) would itself be a finding about the
-   survey's transitivity caveats.
+4. ~~Where does the measured anchor land vs the chained ≈2.1?~~ —
+   ANSWERED (first anchor): −1.906 plain pooled, slightly inside the chain
+   (≈2.1 from the survey; ≈2.25 chaining our own calibration onto the BBA
+   anchor). Sign and ballpark agree; the shortfall is ordinary IMP
+   nonlinearity across protocols, not a transitivity anomaly.
