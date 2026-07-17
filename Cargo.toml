@@ -16,7 +16,11 @@ keywords = ["bridge"]
 # trainer (its own workspace), the vendored BBA/EPBot reference engine (the
 # `vendor/bba` git submodule, ~50 MB, used only by the benchmark examples),
 # and the browser front end (its own workspace, deployed via GitHub Pages).
-exclude = ["trainer", "vendor", "web"]
+# Also the A/B campaign tooling that has no downstream value: the shell-script
+# harness (`scripts`), the tracked leftover result files (`ab-results`, mostly
+# gitignored but a pre-ignore subset is still tracked), and the Claude skill
+# docs (`.claude`, `.agents`).
+exclude = ["trainer", "vendor", "web", "ab-results", "scripts", ".claude", ".agents"]
 
 [package.metadata.docs.rs]
 all-features = true
