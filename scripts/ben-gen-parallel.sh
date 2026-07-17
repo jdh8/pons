@@ -23,7 +23,9 @@ cd "$(dirname "$(readlink -f "$0")")/.."
 cargo build --release --features serde --example ben-gen
 mkdir -p "$outdir"
 
-ports=$(pgrep -u "$USER" -af 'gameapi\.py' | grep -o -- '--port [0-9]*' | awk '{print $2}' | sort -n)
+# `|| true` absorbs the pipeline's pipefail status when no server matches, so
+# the [ -n ] guard below gets to print its message instead of a silent exit 1.
+ports=$(pgrep -u "$USER" -af 'gameapi\.py' | grep -o -- '--port [0-9]*' | awk '{print $2}' | sort -n || true)
 [ -n "$ports" ] || {
 	echo "no BEN servers running — scripts/ben-servers.sh start N [f|s]" >&2
 	exit 1

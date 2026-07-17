@@ -37,15 +37,18 @@ check() {
 	[ "$ok" -eq "$want" ] || log "!!! $dir has $ok/$want live shards — pair shards manually when scoring"
 }
 
-# Phase 1 — primary vs BEN Tier F (8 servers on 8085-8092, fragile: run first)
+# Phase 1 — primary vs BEN Tier F (8 servers on 8085-8092, fragile: run first).
+# A failed cell (servers down) logs loudly and the chain moves on — the guard
+# phase must still run; re-running this script resumes the missing cells.
 for arm in off pass; do
 	flags=()
 	[ "$arm" = pass ] && flags=(--ns-pass-reading)
 	for vul in none both; do
 		dir="$EXP/ben-$arm/$vul"
-		[ -d "$dir" ] && { log "skip $dir (exists)"; continue; }
+		[ -s "$dir/shard-0.json" ] && { log "skip $dir (done)"; continue; }
 		log "generate $dir"
-		scripts/ben-gen-parallel.sh "$dir" "$PER" -v "$vul" -t f "${flags[@]+"${flags[@]}"}"
+		scripts/ben-gen-parallel.sh "$dir" "$PER" -v "$vul" -t f "${flags[@]+"${flags[@]}"}" \
+			|| { log "!!! $dir failed — restore ~/ben + servers, re-run to resume"; continue; }
 		check "$dir" 8
 	done
 done
@@ -56,9 +59,10 @@ for arm in off pass; do
 	[ "$arm" = pass ] && flags=(--ns-pass-reading)
 	for vul in none both; do
 		dir="$EXP/bba-$arm/$vul"
-		[ -d "$dir" ] && { log "skip $dir (exists)"; continue; }
+		[ -s "$dir/shard-0.json" ] && { log "skip $dir (done)"; continue; }
 		log "generate $dir"
-		scripts/bba-gen-parallel.sh "$dir" "$PER" -v "$vul" "${flags[@]+"${flags[@]}"}"
+		scripts/bba-gen-parallel.sh "$dir" "$PER" -v "$vul" "${flags[@]+"${flags[@]}"}" \
+			|| { log "!!! $dir failed"; continue; }
 		check "$dir" "$(nproc)"
 	done
 done
@@ -66,6 +70,7 @@ done
 # Phase 3 — scoring: per-arm pooled IMPs/board + paired on-vs-off diffs,
 # both brackets (plain DD + PD), per vulnerability cell.
 for ref in ben bba; do
+	[ -s "$EXP/$ref-off/none/shard-0.json" ] || { log "no $ref data — skip scoring"; continue; }
 	for arm in off pass; do
 		for vul in none both; do
 			for score in plain pd; do
