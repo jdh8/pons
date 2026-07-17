@@ -87,12 +87,14 @@ struct Args {
     #[arg(short, long)]
     progress: bool,
 
-    /// Enable rule-replay layout acceptance for the search floor's sampler.
+    /// Disable rule-replay layout acceptance for the search floor's sampler.
     ///
-    /// Affects `ev_all` (the search floor) only; the deterministic and net
-    /// opponents are untouched, so the A/B is this run vs the flag-off run.
+    /// Replay is the crate default; pass this to fall back to range-only
+    /// sampling.  Affects `ev_all` (the search floor) only; the deterministic and
+    /// net opponents are untouched, so the paired A/B is a bare run (replay on)
+    /// vs this flag (replay off).
     #[arg(long)]
-    rule_accept: bool,
+    no_rule_accept: bool,
 
     /// Keep only deals that can reach a 1NT opening our side defends (a cheap
     /// shape pre-filter), so the slow DD search lands on boards where the 1NT
@@ -402,8 +404,9 @@ fn main() {
 
     // The flag is a thread-local read inside `ev_all`; this example bids on the
     // main thread (the sequential `duplicate_match` loop), so one call here covers
-    // every decision. The DD solver below is separate and untouched by it.
-    pons::bidding::inference::set_rule_accept(args.rule_accept);
+    // every decision. Replay is the crate default; `--no-rule-accept` opts out.
+    // The DD solver below is separate and untouched by it.
+    pons::bidding::inference::set_rule_accept(!args.no_rule_accept);
 
     let search = american_search().against(Family::NATURAL);
     let deterministic = american().against(Family::NATURAL);

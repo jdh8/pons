@@ -120,9 +120,11 @@ std::thread_local! {
     /// rule* — re-running the policy at each prior decision node and keeping the
     /// hand only if the policy would have made the call the player actually made
     /// — instead of projecting the auction into the hand-written [`Inferences`]
-    /// ranges.  Off by default; the `ab-landy` example A/Bs the two.  See
-    /// [`sample_layouts_replay`][super::sampler::sample_layouts_replay].
-    static RULE_ACCEPT: Cell<bool> = const { Cell::new(false) };
+    /// ranges.  **On by default** — the search EV ([`ev_all`][crate::bidding::ev_all])
+    /// samples its rollout worlds this way (pons's analog of BEN's soft NN-replay
+    /// gate); the `ab-search-floor` example A/Bs it off with `--no-rule-accept`.
+    /// See [`sample_layouts_replay`][super::sampler::sample_layouts_replay].
+    static RULE_ACCEPT: Cell<bool> = const { Cell::new(true) };
 
     /// Whether the projection pass decodes calls authored by *guarded fallbacks*
     /// (every contested convention — transfers, Leaping Michaels, the Lebensohl
@@ -287,16 +289,19 @@ fn table_alert_reading() -> bool {
     TABLE_ALERT_READING.with(Cell::get)
 }
 
-/// Toggle rule-replay layout acceptance (default off).
+/// Toggle rule-replay layout acceptance (**default on**).
 ///
-/// On, the sampler reads each bid by the rule that authored it — the meaning is
-/// frozen at the node, surviving later competition — rather than by the
-/// per-convention range readers.  Measured on `ab-landy`; see the plan.
+/// On (the default), the sampler reads each bid by the rule that authored it —
+/// the meaning is frozen at the node, surviving later competition — rather than
+/// by the per-convention range readers; the search EV
+/// ([`ev_all`][crate::bidding::ev_all]) samples its rollout worlds this way.  Off
+/// restores range-only sampling; the `ab-search-floor` example A/Bs the two via
+/// `--no-rule-accept`.
 pub fn set_rule_accept(on: bool) {
     RULE_ACCEPT.with(|cell| cell.set(on));
 }
 
-/// Whether rule-replay layout acceptance is enabled (default off).
+/// Whether rule-replay layout acceptance is enabled (**default on**).
 #[must_use]
 pub fn rule_accept_enabled() -> bool {
     RULE_ACCEPT.with(Cell::get)

@@ -324,4 +324,15 @@ mod tests {
             .is_empty()
         );
     }
+
+    /// Phase 1b: the search sampler replays the authored policy by *default* — a
+    /// sampled world must fall in range *and* reproduce the authored calls.  This
+    /// guards the flip (`RULE_ACCEPT` in `inference`); revert it and this fails.
+    #[test]
+    fn rule_replay_is_the_default() {
+        assert!(
+            rule_accept_enabled(),
+            "the search EV samples its rollout worlds by rule-replay by default"
+        );
+    }
 }

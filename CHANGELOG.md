@@ -452,6 +452,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The search sampler replays the authored policy by default** (AI-bidder M8
+  "sound search", Phase 1b). `set_rule_accept` now defaults **on**, so the
+  Monte-Carlo rollout that prices each candidate call (`ev_all`) draws its worlds
+  through `sample_layouts_replay` — a sampled deal must fall in the shown ranges
+  **and** *replay* the authored calls at each prior node (within `MARGIN = 3`
+  nats), pons's analog of BEN's soft NN-replay acceptance — instead of range
+  membership alone, falling back to the range reader only to top up a starved
+  auction. **No shipped-behavior change:** the only reader of the knob is
+  `ev_all`, which is off the shipped `american()` / `american_neural_search()`
+  path, so only the gated live-search bidder (`american_search`) and the offline
+  `dump-search` teacher change — the intent being a less-biased teacher for the
+  Phase-4 re-distill. Pre-check (`probe-replay-yield`): replay fill matches range
+  fill on representative auctions (ratios 0.99–1.13), so no starvation top-up
+  cost. The `ab-search-floor` example's A/B flag inverts to `--no-rule-accept`
+  (bare run = new default on, flag = off baseline). Measured deltas deferred to
+  the re-distill A/B (ledger: `docs/ai-bidder/sound-search.md`).
 - **The flat 4-3-3-3 downgrade is blocked — `points` floors at raw HCP.**
   The default point scale moves from `PointScale::RuleOfN` to
   `PointScale::RuleOfNFloored`: the rule-of-N+8 length bonus never goes
