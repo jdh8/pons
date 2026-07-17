@@ -186,6 +186,21 @@ passed hand at ~6.3 mean HCP.
   `[1N P]` their-1NT direct seat, advance/balancing seats, later-round
   passes — author those tables' gates the same way once their complements
   are checked.
+- **Reading-knob bid-inertness probe — MEASURED 2026-07-17** (same-seed
+  bba-gen divergence vs the off arm, 6400 boards/knob at seed 1784294370
+  plus 211,200 board-pairs for pass from the guard cells): `cue_reading`
+  **0** divergent, `table_alert_reading` **0**, `pass_reading` **1/211,200**
+  (a deep contested floor decision, 3NT↔4♠), `length_soundness` **23/6400
+  (0.36%)** — and the all-four composite's divergence is entirely
+  length-soundness's. Consequence for the queued A/B: three of the four
+  knobs are reading/instrument-side — their plain/PD IMPs verdict is a
+  **wash by construction** (the guard cells for pass are the on-disk
+  witness, `ab-results/reading-knobs/2026-07-17/`), so their ship gate is
+  probe soundness (0 new violations, vagueness −60%) plus the surfaces that
+  consume readings: sd-lead pricing, search-mode sampling, disclosure.
+  Only **length-soundness** has a priceable bidding delta — its
+  dual-reference A/B (off arm shared, `scripts/reading-knobs-ab.sh length`)
+  is the one that runs to a numeric verdict.
 - **Still open, by ranked margin**: (1) preemptive minor jump raises
   (`1C (P) 3C`, `P P (1D) P 3D`) read as 10+ limit while the floor bids
   them on 3–6 — decide the raise's meaning, then align floor and reader;

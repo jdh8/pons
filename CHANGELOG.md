@@ -44,6 +44,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   layout sampler applies it automatically when dealing) and on the deferred
   gates (their-1NT direct seat, advances, later rounds). Nine new unit
   tests; defaults byte-identical.
+  **A/B verdict (guard vs BBA, 2026-07-17): wash by construction** — the
+  same-seed divergence probe (`ab-results/reading-knobs/2026-07-17/`) found
+  cue/table/pass reading **bid-inert** in the default system (0, 0, and
+  1/211,200 divergent boards; the one board a deep contested floor 3NT↔4♠),
+  so their plain/PD IMPs cannot move and the ship gate is the probe's
+  soundness numbers plus the reading-consumer surfaces (sd-lead pricing,
+  search sampling, disclosure). `length_soundness` (23/6400 divergent) is
+  the one knob with a priceable bidding delta — its dual-reference A/B runs
+  via the new `scripts/reading-knobs-ab.sh` (treatment knob as argument,
+  shared off arm, resumable cells; `ben-gen` grew the four `--ns-*` reading
+  flags bba-gen already had).
 
 - **Table-wide alert reading** (jdh8's directive: alerting in bridge is
   *for the opponents* — an alerted call is disclosed to the whole table,
