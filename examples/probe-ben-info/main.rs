@@ -49,8 +49,8 @@ struct Args {
     vulnerability: AbsoluteVulnerability,
 
     /// Enable the unshipped reading fixes (cue reading, sound length floors,
-    /// and table-wide alert reading) to verify the probe's phantom-suit
-    /// buckets drain
+    /// table-wide alert reading, and the pass reading) to verify the probe's
+    /// phantom-suit and pass-vagueness buckets drain
     #[arg(long)]
     sound_reading: bool,
 
@@ -147,6 +147,7 @@ fn main() -> anyhow::Result<()> {
         pons::bidding::set_cue_reading(true);
         pons::bidding::set_length_soundness(true);
         pons::bidding::set_table_alert_reading(true);
+        pons::bidding::set_pass_reading(true);
     }
     let stance = american().against(Family::NATURAL);
     let seed = args.seed.unwrap_or_else(rand::random);

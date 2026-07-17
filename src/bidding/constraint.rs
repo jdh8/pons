@@ -73,6 +73,22 @@ pub trait Constraint: Send + Sync {
     fn project(&self, _context: &Context<'_>) -> Inference {
         Inference::unknown()
     }
+
+    /// Project the constraint into its **two-sided** [`Inference`] envelope
+    ///
+    /// The ceiling-carrying sibling of [`project`][Self::project]: `project`
+    /// deliberately claims floors only for the point gauges (a made call is
+    /// read by what it *promises*), while a **declined** call — the negative
+    /// inference of a pass — is read by what the gate would have *allowed*,
+    /// which needs the ceilings back.  Same soundness contract: a finite
+    /// `eval(hand, context)` implies `hand` lies within the band.  The
+    /// default reuses `project`, so every constraint whose projection is
+    /// already two-sided ([`len`] and the suit-set combinators) or opaque
+    /// stays correct; the point gauges and [`balanced`] override it, and
+    /// `&`/`|` compose it tightly per arm.
+    fn project_band(&self, context: &Context<'_>) -> Inference {
+        self.project(context)
+    }
 }
 
 /// Closures are natural constraints
@@ -107,6 +123,10 @@ impl<T: Constraint> Constraint for Cons<T> {
     fn project(&self, context: &Context<'_>) -> Inference {
         self.0.project(context)
     }
+
+    fn project_band(&self, context: &Context<'_>) -> Inference {
+        self.0.project_band(context)
+    }
 }
 
 /// Sum of two constraints, the logical AND for crisp constraints
@@ -125,6 +145,12 @@ impl<A: Constraint, B: Constraint> Constraint for And<A, B> {
     fn project(&self, context: &Context<'_>) -> Inference {
         self.0.project(context).intersect(&self.1.project(context))
     }
+
+    fn project_band(&self, context: &Context<'_>) -> Inference {
+        self.0
+            .project_band(context)
+            .intersect(&self.1.project_band(context))
+    }
 }
 
 /// Maximum of two constraints, the logical OR for crisp constraints
@@ -142,6 +168,12 @@ impl<A: Constraint, B: Constraint> Constraint for Or<A, B> {
 
     fn project(&self, context: &Context<'_>) -> Inference {
         self.0.project(context).union(&self.1.project(context))
+    }
+
+    fn project_band(&self, context: &Context<'_>) -> Inference {
+        self.0
+            .project_band(context)
+            .union(&self.1.project_band(context))
     }
 }
 
@@ -622,13 +654,26 @@ impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for Hcp<R> {
     fn project(&self, _: &Context<'_>) -> Inference {
         // ponytail: floor only — points = raw HCP + upgrade ≥ raw HCP, so an
         // HCP *ceiling* is unsound on the upgraded-points scale an `Inference`
-        // records; the floor is exact.  Upgrade path: a balanced-only HCP axis
-        // if a reader ever needs the ceiling back.  Rule of N+8 reads a flat
-        // 4-3-3-3 one under its HCP, so that scale gives the floor back 1.
+        // records; the floor is exact.  Rule of N+8 reads a flat 4-3-3-3 one
+        // under its HCP, so that scale gives the floor back 1.  The ceiling
+        // returns in [`project_band`][Constraint::project_band], widened by
+        // [`hcp_ceiling_slack`].
         let slack = flat_hcp_slack();
         let floor = bound_range(&self.0, Range::FULL_POINTS.max).min;
         let mut inference = Inference::unknown();
         inference.points = Range::new(floor.saturating_sub(slack), Range::FULL_POINTS.max);
+        inference
+    }
+
+    fn project_band(&self, context: &Context<'_>) -> Inference {
+        // The ceiling an HCP gate owes the upgraded scale: raw HCP plus the
+        // scale's maximum upgrade.  The floor half matches `project`.
+        let ceiling = bound_range(&self.0, Range::FULL_POINTS.max)
+            .max
+            .saturating_add(hcp_ceiling_slack())
+            .min(Range::FULL_POINTS.max);
+        let mut inference = self.project(context);
+        inference.points.max = ceiling;
         inference
     }
 }
@@ -644,6 +689,19 @@ pub fn hcp(range: impl RangeBounds<u8> + Clone + Send + Sync) -> Cons<impl Const
 /// Shared by [`hcp`]'s projection and the hand-authored NT-opening readings.
 pub(crate) fn flat_hcp_slack() -> u8 {
     u8::from(POINT_SCALE.with(Cell::get) == PointScale::RuleOfN)
+}
+
+/// The most the active scale's [`point_count`] can exceed raw HCP — the
+/// ceiling dual of [`flat_hcp_slack`]: rule of N+8 adds up to
+/// `longest_two_suits − 8` ≤ 5, the legacy upgrade at most 2, plain HCP
+/// nothing.  Widens an HCP gate's ceiling in
+/// [`project_band`][Constraint::project_band].
+fn hcp_ceiling_slack() -> u8 {
+    match POINT_SCALE.with(Cell::get) {
+        PointScale::Hcp => 0,
+        PointScale::PointCount => 2,
+        PointScale::RuleOfN | PointScale::RuleOfNFloored => 5,
+    }
 }
 
 /// Whether a short suit (at most two cards) blocks the fuzzy-strength upgrade
@@ -748,6 +806,14 @@ impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for Points<R> {
         let floor = bound_range(&self.0, Range::FULL_POINTS.max).min;
         let mut inference = Inference::unknown();
         inference.points = Range::new(floor, Range::FULL_POINTS.max);
+        inference
+    }
+
+    fn project_band(&self, _: &Context<'_>) -> Inference {
+        // Both bounds exact: `points` gauges the shared `point_count` scalar
+        // the `Inference` scale records, whatever scale it is set to.
+        let mut inference = Inference::unknown();
+        inference.points = bound_range(&self.0, Range::FULL_POINTS.max);
         inference
     }
 }
@@ -1045,6 +1111,13 @@ impl Constraint for Balanced {
 
     fn describe(&self) -> Description {
         Description::atom("balanced")
+    }
+
+    fn project_band(&self, _: &Context<'_>) -> Inference {
+        // 4333, 4432, or 5332: every suit two to five cards.
+        let mut inference = Inference::unknown();
+        inference.lengths = [Range::new(2, 5); 4];
+        inference
     }
 }
 
@@ -1770,6 +1843,37 @@ mod tests {
 
     fn assert_reject(logit: f32) {
         assert!(logit.is_infinite() && logit.is_sign_negative());
+    }
+
+    #[test]
+    fn project_band_carries_ceilings() {
+        let context = empty_context();
+        // `points` gauges the shared scalar: both bounds exact.
+        assert_eq!(
+            points(..12).project_band(&context).points,
+            Range::new(0, 11)
+        );
+        // An HCP ceiling owes the scale its maximum upgrade (rule-of-N+8
+        // default: 5); the floor matches `project`.
+        assert_eq!(hcp(..6).project_band(&context).points, Range::new(0, 10));
+        // `project` itself stays floor-only — the alert path is untouched.
+        assert_eq!(hcp(..6).project(&context).points, Range::FULL_POINTS);
+        // Composition is tight per arm: the 1NT pass gate (`notrump.rs`) — an
+        // off-major weak arm unioned with the flat-eight arm — caps points at
+        // 13 and both majors at five.
+        let gate = (hcp(..8) & len(Suit::Hearts, ..5) & len(Suit::Spades, ..5))
+            | (hcp(8..=8)
+                & balanced()
+                & len(Suit::Clubs, 3..)
+                & len(Suit::Diamonds, 3..)
+                & len(Suit::Hearts, 3..)
+                & len(Suit::Spades, 3..));
+        let band = gate.project_band(&context);
+        assert_eq!(band.points, Range::new(0, 13));
+        assert_eq!(band.length(Suit::Hearts).max, 5);
+        assert_eq!(band.length(Suit::Spades).max, 5);
+        // A trivial catch-all claims nothing — the trap-pass safeguard.
+        assert_eq!(hcp(0..).project_band(&context), Inference::unknown());
     }
 
     #[test]

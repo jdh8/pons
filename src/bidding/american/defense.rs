@@ -1411,13 +1411,23 @@ pub fn defense_to_suit(their_opening: Bid) -> Rules {
 
     // The strong tier is a defensive-trick promise; when the partition is
     // HCP-gauged (`set_strong_double_hcp`) it reads `hcp(n..)` and the natural
-    // overcall bands below trade their `points` top for `hcp(..n)`.
+    // overcall bands below trade their `points` top for `hcp(..n)`.  The pass
+    // gate documents the tier's complement — "strong hands double first
+    // regardless", so no hand above the tier's floor ever passes here.
+    // Byte-identical to the old `hcp(0..)` catch-all: below the floor the gate
+    // scores the same, above it the shape-free tier is finite at weight 1.2
+    // and always outscores a weight-0 pass.  Authored so the pass reading
+    // (`set_pass_reading`) can project the band a passed hand sits within.
     rules = match strong_double_hcp() {
-        Some(n) => rules.rule(Call::Double, 1.2, hcp(n..)),
-        None => rules.rule(Call::Double, 1.2, points(17..)),
-    }
-    .alert(TAKEOUT_DOUBLE)
-    .rule(Call::Pass, 0.0, hcp(0..));
+        Some(n) => rules
+            .rule(Call::Double, 1.2, hcp(n..))
+            .alert(TAKEOUT_DOUBLE)
+            .rule(Call::Pass, 0.0, hcp(..n)),
+        None => rules
+            .rule(Call::Double, 1.2, points(17..))
+            .alert(TAKEOUT_DOUBLE)
+            .rule(Call::Pass, 0.0, points(..17)),
+    };
 
     // Natural overcalls: five-card suit.  Disciplined bands by default — 1-level
     // 8–17, 2-level 11–17 (opening values before a below-their-suit 2-level
@@ -5145,6 +5155,59 @@ mod tests {
 
     const fn call(level: u8, strain: Strain) -> Call {
         Call::Bid(Bid::new(level, strain))
+    }
+
+    /// The direct-seat pass gate is the strong tier's complement, authored so
+    /// the pass reading can project it — byte-identical to the old `hcp(0..)`
+    /// catch-all: below the tier's floor the gate scores the same, above it
+    /// the shape-free tier is finite and outscores a weight-0 pass, so pass
+    /// never won.  Certify both halves on dealt hands, on both tier gauges:
+    /// the table never rejects a hand wholesale (no floor fallthrough the old
+    /// catch-all prevented), and no hand above the tier's floor has Pass as
+    /// its best call.
+    #[test]
+    fn direct_pass_gate_is_the_strong_tiers_complement() {
+        use crate::bidding::constraint::{hcp, points};
+        use crate::bidding::context::Context;
+        use crate::bidding::rules::Rules;
+        use crate::bidding::trie::Classifier;
+        use contract_bridge::Seat;
+        use contract_bridge::deck::full_deal;
+        use rand::SeedableRng;
+        use rand::rngs::StdRng;
+
+        fn certify(rules: &Rules, tier: &dyn crate::bidding::constraint::Constraint) {
+            let context = Context::new(RelativeVulnerability::NONE, &[]);
+            let mut rng = StdRng::seed_from_u64(1784259000);
+            let mut strong = 0;
+            for _ in 0..512 {
+                let deal = full_deal(&mut rng);
+                for hand in [Seat::North, Seat::East, Seat::South, Seat::West].map(|s| deal[s]) {
+                    let logits = rules.classify(hand, &context);
+                    let (best, &top) = (&logits.0)
+                        .into_iter()
+                        .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("logits are never NaN"))
+                        .expect("array is never empty");
+                    assert!(top.is_finite(), "the table tiles: no floor fallthrough");
+                    if tier.eval(hand, &context).is_finite() {
+                        strong += 1;
+                        assert_ne!(best, Call::Pass, "strong hands double first regardless");
+                    }
+                }
+            }
+            assert!(strong > 50, "the strong tier fired on a real sample");
+        }
+
+        // Shipped gauge: hcp(18..).
+        certify(
+            &super::defense_to_suit(Bid::new(1, Strain::Hearts)),
+            &hcp(18..),
+        );
+        // Legacy gauge: points(17..).
+        super::set_strong_double_hcp(None);
+        let legacy = super::defense_to_suit(Bid::new(1, Strain::Clubs));
+        super::set_strong_double_hcp(Some(18));
+        certify(&legacy, &points(17..));
     }
 
     /// `american()`'s best call for a hand in an auction, and whether the instinct

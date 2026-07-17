@@ -154,6 +154,38 @@ passed hand at ~6.3 mean HCP.
   vs BBA/BEN — under their at-the-time context, and decodes it when the rule
   alerts it; their natural calls keep the walk. Same-seed probe: seat-suit
   length violations **552 → 324 (−41%), 228 drained, 0 introduced**.
+- **Pass reading — BUILT 2026-07-17** (jdh8: "The general reading of a pass
+  is to exclude all the other calls" — negative inference; each pass carries
+  −log p bits, few but never zero, on the most frequent call in bridge). In
+  a well-authored table the complement is the Pass rule's own gate (the
+  opening table passes on `points(..12)` *because* the bids cover 12+), so
+  `set_pass_reading` (**default off pending the A/B**; bba-gen
+  `--ns-pass-reading`, probe `--sound-reading`) decodes each pass off the
+  union of its table's Pass gates, both bounds (`Constraint::project_band` —
+  the ceilings `project` drops return here, an `hcp` ceiling widened by the
+  scale's max upgrade), resolved in the trie of the pass's *own turn*
+  (slice-relative `trie_for`); own side always, opponents under table-wide
+  disclosure. Falls out: no-open ≤ 11 points, silent responder ≤ 10,
+  their-suit direct seat ≤ 17 HCP (`defense_to_suit`'s pass gate authored as
+  the strong tier's byte-identical complement), 1NT signoff ≤ 13 with no
+  six-card major; trap-pass advances (trivial gates) and floor passes
+  correctly read nothing. Replay sampling un-short-circuits Pass too
+  (`set_rule_accept`): the sample-level exact complement rejects
+  would-have-opened/preempted candidates — the disjunctive half the
+  envelope can't hold. Same-seed probe (BEN annotations grafted from
+  `probe-nv-ben.jsonl`, 9,130/9,160 rows; the on-arm auction stream is
+  row-identical to `probe-nv-table.jsonl`): truth violations **97 → 97
+  points / 324 → 324 lengths, 0 introduced** (compare script now checks
+  ceilings — floor-only before, so a cap-only change was unfalsifiable);
+  full-band hidden seats **15,101 → 7,279 (−52 %)**; acted-seat vagueness
+  deviation **24,417 → 9,740 (−60 %**, vs −3 % from the three prior knobs
+  combined) — the `[P]`, `[P P]`, `[1x P]` passer buckets all drain
+  (arm: `probe-nv-pass.jsonl`). Remaining pass-family vagueness: *unacted*
+  seats (deal conservation — joint, envelope-inexpressible; the layout
+  sampler applies it when dealing full deals) and the deferred gates —
+  `[1N P]` their-1NT direct seat, advance/balancing seats, later-round
+  passes — author those tables' gates the same way once their complements
+  are checked.
 - **Still open, by ranked margin**: (1) preemptive minor jump raises
   (`1C (P) 3C`, `P P (1D) P 3D`) read as 10+ limit while the floor bids
   them on 3–6 — decide the raise's meaning, then align floor and reader;
@@ -161,10 +193,11 @@ passed hand at ~6.3 mean HCP.
   itself** (12 violation rows survive table-wide decode — same-pair and
   defender views now share the one buggy projection; fixing it fixes both) —
   audit the XYZ rules' alerts/projection; (3) `1S (1N) X` shows 15+ on the
-  wrong seat (1/1, attribution suspect); (4) passes narrow nothing — the
-  biggest bucket by volume, and jdh8's verdict: every chance to bid
-  expresses something, so a pass must narrow too (a bounded no-open,
-  no-overcall, or no-response read), even if each pass carries little.
+  wrong seat (1/1, attribution suspect); (4) ~~passes narrow nothing~~ —
+  **BUILT**, see the pass-reading entry above; what remains of the pass
+  family is the deferred gates (their-1NT direct seat, advances,
+  later-round) and the unacted-seat conservation class, which is a sampler
+  property, not a reading bug.
 
 ## The reference pair
 

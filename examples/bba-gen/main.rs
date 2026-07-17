@@ -806,6 +806,14 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_table_alert_reading: bool,
 
+    /// Enable the pass reading (default off, unshipped): each pass at an
+    /// authored node reads as its table's own Pass gate — the negative
+    /// inference of declining every other call (no-open ≤ 11 points, silent
+    /// responder ≤ 5 HCP, direct seat ≤ 17 HCP).  Opponents' passes need
+    /// --ns-table-alert-reading too.  The A/B on arm.
+    #[arg(long, default_value_t = false)]
+    ns_pass_reading: bool,
+
     /// Our side NEVER competes over BBA's 1NT (default off): authors only Pass at
     /// every seat, the truest "do nothing" baseline.  Overrides every other defense knob.
     #[arg(long, default_value_t = false)]
@@ -1050,6 +1058,7 @@ fn main() -> anyhow::Result<()> {
     pons::bidding::set_cue_reading(args.ns_cue_reading);
     pons::bidding::set_length_soundness(args.ns_length_soundness);
     pons::bidding::set_table_alert_reading(args.ns_table_alert_reading);
+    pons::bidding::set_pass_reading(args.ns_pass_reading);
     pons::bidding::american::set_transfer_longer_major(!args.no_ns_transfer_longer);
     pons::bidding::set_fallback_projection(!args.no_ns_fallback_projection);
     pons::bidding::american::set_open_one_notrump(!args.no_our_1nt);

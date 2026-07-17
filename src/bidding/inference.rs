@@ -190,6 +190,10 @@ std::thread_local! {
     /// Whether two over-tight natural length floors are relaxed to sound ones
     /// (see [`set_length_soundness`]).  Off by default pending the A/B.
     static LENGTH_SOUNDNESS: Cell<bool> = const { Cell::new(false) };
+
+    /// Whether [`project_authored`] reads passes off their table's own Pass
+    /// gate (see [`set_pass_reading`]).  Off by default pending the A/B.
+    static PASS_READING: Cell<bool> = const { Cell::new(false) };
 }
 
 /// Toggle the cue reading of the natural walk (default off, pending A/B)
@@ -225,6 +229,34 @@ pub fn set_length_soundness(on: bool) {
 
 fn length_soundness() -> bool {
     LENGTH_SOUNDNESS.with(Cell::get)
+}
+
+/// Toggle the pass reading (default off, pending A/B)
+///
+/// The general reading of a pass is **negative inference — it excludes every
+/// bid and double the passer's table offered** (jdh8).  In a well-authored
+/// table that complement is already written down as the Pass rule's own gate
+/// (the opening table passes on `points(..12)` *because* the bids cover 12+),
+/// so on, the projection pass decodes each pass off the union of its authored
+/// table's Pass gates, both bounds
+/// ([`project_band`][super::constraint::Constraint::project_band]): a no-open
+/// pass caps at 11 points, the silent responder to a suit one-opening at 5 HCP
+/// (10 on the upgraded scale), a pass of partner's 1NT at 13 with no six-card
+/// major, a direct-seat pass over their suit opening at 17 HCP ("strong hands
+/// double first regardless").  Tables whose pass gate is a trivial catch-all
+/// — trap-pass advances, deep continuations — and floor (unauthored) passes
+/// correctly read nothing.  Own-side passes decode from the reader's own
+/// book; the *opponents'* passes only under [`set_table_alert_reading`], off
+/// their phase-routed book, like the rest of table-wide disclosure.  The BEN
+/// Info-net probe (docs/ben-gap-campaign.md) found passes ~60% of all reading
+/// vagueness: we showed 0–37 where BEN commits ~6.3 mean HCP on a passed
+/// hand — the biggest reading hole by volume.
+pub fn set_pass_reading(on: bool) {
+    PASS_READING.with(|cell| cell.set(on));
+}
+
+fn pass_reading() -> bool {
+    PASS_READING.with(Cell::get)
 }
 
 std::thread_local! {
@@ -567,6 +599,17 @@ impl Inferences {
         let mut control_bid = None;
 
         let Some(opening_index) = auction.iter().position(|&c| c != Call::Pass) else {
+            // Nothing but passes so far — each is still a call with a reading:
+            // a no-open pass declines the whole opening table, decoded by the
+            // projection pass off the table's own Pass gate (`points(..12)` —
+            // see [`set_pass_reading`]).  The walk below needs an opening, so
+            // apply the overlay here and return.
+            if pass_reading() {
+                let (overlay, _) = project_authored(context);
+                for (player, projected) in players.iter_mut().zip(&overlay) {
+                    *player = player.intersect(projected);
+                }
+            }
             return Self {
                 players,
                 control_bid,
@@ -1562,45 +1605,71 @@ fn project_authored(context: &Context<'_>) -> ([Inference; 4], u64) {
         return (players, suppressed);
     };
 
+    let read_passes = pass_reading();
+
     // Project the call made at `index`, authored by `classifier`, into the
     // overlay, evaluating its rules under `ctx` — the reader's context for our
     // own pair's calls, the caller's at-the-time context for table-decoded
-    // opponent calls.
-    let mut project_call =
-        |ctx: &Context<'_>, index: usize, classifier: &dyn super::trie::Classifier| {
-            let (Some(&made), Some(rules)) = (auction.get(index), classifier.as_rules()) else {
-                return;
-            };
+    // opponent calls.  `decode_pass` scopes the pass reading to the side whose
+    // book resolved `classifier`: the own-side loops resolve *every* index in
+    // the reader's trie, where an opponent's pass would land on the wrong
+    // node (their direct-seat pass over our opening resolves our *responses*
+    // table) — alerts are shielded by the alert filter, passes need the
+    // explicit side gate.
+    let mut project_call = |ctx: &Context<'_>,
+                            index: usize,
+                            classifier: &dyn super::trie::Classifier,
+                            decode_pass: bool| {
+        let (Some(&made), Some(rules)) = (auction.get(index), classifier.as_rules()) else {
+            return;
+        };
 
-            // The logit of a call is the max over its rules, so a hand could satisfy
-            // any one of them — the sound forward envelope is their union.
-            let projection = rules
-                .rules()
-                .iter()
-                .filter(|rule| rule.call() == made)
-                .map(|rule| rule.project(ctx))
-                .reduce(|acc, p| acc.union(&p));
+        let is_pass = made == Call::Pass;
+        // The logit of a call is the max over its rules, so a hand could satisfy
+        // any one of them — the sound forward envelope is their union.  A made
+        // bid reads by what it promises (`project`, floors); a pass reads by
+        // what its gate would have *allowed* (`project_band`, both bounds) —
+        // the negative inference of declining every other call, which is what
+        // the author wrote the table's Pass gate to document.
+        let projection = rules
+            .rules()
+            .iter()
+            .filter(|rule| rule.call() == made)
+            .map(|rule| {
+                if is_pass {
+                    rule.project_band(ctx)
+                } else {
+                    rule.project(ctx)
+                }
+            })
+            .reduce(|acc, p| acc.union(&p));
 
-            // A call is artificial — decode it — when its authoring rule *alerts* it.
-            // The alert is now the complete, exhaustive signal: every artificial call
-            // in the book carries one (guarded by the `artificial_calls_are_alerted`
-            // invariant test), so the old structural `artificial(p, made)` fallback
-            // has been retired (alert-by-disclosed-meaning, the move modern bridge
-            // made retiring "X is self-alerting").
-            let alerted = alert_reading()
+        // A call is artificial — decode it — when its authoring rule *alerts* it.
+        // The alert is now the complete, exhaustive signal: every artificial call
+        // in the book carries one (guarded by the `artificial_calls_are_alerted`
+        // invariant test), so the old structural `artificial(p, made)` fallback
+        // has been retired (alert-by-disclosed-meaning, the move modern bridge
+        // made retiring "X is self-alerting").  A pass is natural-by-default and
+        // never alerted; it decodes on the pass-reading knob instead.
+        let decode = if is_pass {
+            decode_pass
+        } else {
+            alert_reading()
                 && rules
                     .rules()
                     .iter()
-                    .any(|rule| rule.call() == made && rule.alert().is_some());
-
-            if let Some(projection) = projection.filter(|_| alerted) {
-                let who = relative_of(len, index) as usize;
-                players[who] = players[who].intersect(&projection);
-                if index < 64 {
-                    suppressed |= 1 << index;
-                }
-            }
+                    .any(|rule| rule.call() == made && rule.alert().is_some())
         };
+
+        if let Some(projection) = projection.filter(|_| decode) {
+            let who = relative_of(len, index) as usize;
+            players[who] = players[who].intersect(&projection);
+            // A pass suppresses nothing — it never had a natural suit reading.
+            if !is_pass && index < 64 {
+                suppressed |= 1 << index;
+            }
+        }
+    };
 
     if fallback_projection_enabled() {
         // Decode every prior call by the classifier that *authored* it — node or
@@ -1609,14 +1678,14 @@ fn project_authored(context: &Context<'_>) -> ([Inference; 4], u64) {
         let trie = prefixes.root();
         for index in 0..len {
             if let Some(classifier) = trie.authoring_classifier(context, &auction[..index]) {
-                project_call(context, index, classifier);
+                project_call(context, index, classifier, false);
             }
         }
     } else {
         // Exact-node classifiers only — the shipped default; fallback-authored
         // conventions are read by the hand-written readers in [`Inferences::read`].
         for (prefix, classifier) in prefixes.clone() {
-            project_call(context, prefix.len(), classifier);
+            project_call(context, prefix.len(), classifier, false);
         }
     }
 
@@ -1636,7 +1705,37 @@ fn project_authored(context: &Context<'_>) -> ([Inference; 4], u64) {
                 .trie_for(prefix)
                 .authoring_classifier(&their_context, prefix)
             {
-                project_call(&their_context, index, classifier);
+                project_call(&their_context, index, classifier, false);
+            }
+        }
+    }
+
+    // Passes decode in a dedicated walk: a pass's authoring node lives in the
+    // phase of *its* turn (a pre-opening pass belongs to the opening table
+    // even after the auction goes defensive), so each resolves via the
+    // slice-relative `trie_for` on the auction cut at its index, under its
+    // at-the-time context — the reader's own side always, the opponents' only
+    // under table-wide disclosure.  The attached stance models both sides with
+    // the same books (`their_system` is the reader's own stance), so it serves
+    // own-side resolution too.
+    if read_passes && let Some(them) = context.their_system() {
+        let their_vul = super::context::flipped(context.vul());
+        for index in 0..len {
+            if auction[index] != Call::Pass {
+                continue;
+            }
+            let own_side = index % 2 == len % 2;
+            if !own_side && !table_alert_reading() {
+                continue;
+            }
+            let prefix = &auction[..index];
+            let vul = if own_side { context.vul() } else { their_vul };
+            let at_the_time = Context::new(vul, prefix);
+            if let Some(classifier) = them
+                .trie_for(prefix)
+                .authoring_classifier(&at_the_time, prefix)
+            {
+                project_call(&at_the_time, index, classifier, true);
             }
         }
     }
@@ -2796,6 +2895,83 @@ mod tests {
         let one_club = read(&[bid(1, Strain::Clubs)]);
         assert_eq!(one_club.rho().length(Suit::Clubs), Range::new(3, 13));
         assert_eq!(one_club.rho().length(Suit::Hearts), Range::new(0, 4));
+    }
+
+    #[test]
+    fn pass_reading_caps_the_no_open_pass() {
+        let p = Call::Pass;
+        // Default off: a pass reads nothing (the byte-identity witness).
+        assert_eq!(read_booked(&[p, p]).partner().points, Range::FULL_POINTS);
+
+        set_pass_reading(true);
+        // Partner's no-open pass reads the opening table's own gate,
+        // `points(..12)`; an opponent's pass stays unread until table-wide
+        // disclosure is on too.
+        let own = read_booked(&[p, p]);
+        assert_eq!(own.partner().points, Range::new(0, 11));
+        assert_eq!(own.rho().points, Range::FULL_POINTS);
+        set_table_alert_reading(true);
+        assert_eq!(read_booked(&[p]).rho().points, Range::new(0, 11));
+        // A capped passer leaves the opener's own band alone.
+        let opened = read_booked(&[p, bid(1, Strain::Hearts)]);
+        assert_eq!(opened.partner().points, Range::new(0, 11));
+        assert_eq!(opened.rho().points, Range::new(10, 21));
+        set_table_alert_reading(false);
+        set_pass_reading(false);
+    }
+
+    #[test]
+    fn pass_reading_caps_the_failed_compete() {
+        let auction = [bid(1, Strain::Hearts), Call::Pass, Call::Pass];
+        assert_eq!(read_booked(&auction).partner().points, Range::FULL_POINTS);
+
+        set_pass_reading(true);
+        // Partner's direct-seat pass: the authored complement of the strong
+        // tier ("strong hands double first regardless") — at most 17 raw HCP,
+        // 22 on the upgraded scale.  Their responder's pass stays unread
+        // until table-wide disclosure is on.
+        let own = read_booked(&auction);
+        assert_eq!(own.partner().points, Range::new(0, 22));
+        assert_eq!(own.rho().points, Range::FULL_POINTS);
+        set_table_alert_reading(true);
+        assert_eq!(read_booked(&auction).rho().points, Range::new(0, 10));
+        set_table_alert_reading(false);
+        set_pass_reading(false);
+    }
+
+    #[test]
+    fn pass_reading_caps_the_silent_responder() {
+        set_pass_reading(true);
+        // Our 1♥, silent partner: the response table's `hcp(..6)` gate —
+        // at most 5 raw HCP, 10 upgraded.
+        let caps = read_booked(&[bid(1, Strain::Hearts), Call::Pass, Call::Pass, Call::Pass]);
+        assert_eq!(caps.partner().points, Range::new(0, 10));
+        set_pass_reading(false);
+    }
+
+    #[test]
+    fn pass_reading_caps_the_notrump_signoff() {
+        set_pass_reading(true);
+        // Pass of partner's 1NT: the authored union of the weak arm and the
+        // flat-eight arm — at most 13 points, no six-card major.
+        let nt = read_booked(&[bid(1, Strain::Notrump), Call::Pass, Call::Pass, Call::Pass]);
+        assert_eq!(nt.partner().points, Range::new(0, 13));
+        assert!(nt.partner().length(Suit::Hearts).max <= 5);
+        assert!(nt.partner().length(Suit::Spades).max <= 5);
+        set_pass_reading(false);
+    }
+
+    #[test]
+    fn pass_reading_skips_trap_and_trivial_passes() {
+        set_pass_reading(true);
+        set_table_alert_reading(true);
+        // The advance of a takeout double authors genuine strong sits (the
+        // penalty conversion), so its pass-gate union is trivial: nothing is
+        // claimed about the advancer even with every reading knob on.
+        let trap = read_booked(&[bid(1, Strain::Hearts), Call::Double, Call::Pass, Call::Pass]);
+        assert_eq!(trap.rho().points, Range::FULL_POINTS);
+        set_table_alert_reading(false);
+        set_pass_reading(false);
     }
 
     #[test]

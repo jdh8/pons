@@ -110,6 +110,17 @@ impl Rule {
     pub fn project(&self, context: &Context<'_>) -> Inference {
         self.when.project(context)
     }
+
+    /// The **two-sided** envelope of this rule's constraint — floors and
+    /// ceilings ([`Constraint::project_band`])
+    ///
+    /// What a *declined* call asserts: a passed hand satisfied some Pass
+    /// rule's gate, so it lies within the union of the gates' bands.  The
+    /// reading-side fold behind [`set_pass_reading`][super::set_pass_reading].
+    #[must_use]
+    pub fn project_band(&self, context: &Context<'_>) -> Inference {
+        self.when.project_band(context)
+    }
 }
 
 impl fmt::Debug for Rule {

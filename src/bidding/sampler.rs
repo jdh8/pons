@@ -241,9 +241,15 @@ fn rules_accept(
 }
 
 /// Whether `policy`, classifying `hand` at `prefix`, ranks the `made` call
-/// within [`MARGIN`] of its best legal call.  A pass carries no replay signal, a
-/// call no rule authors (nothing to replay) abstains so the range reader handles
-/// it, and an off-book node has no opinion; all three accept.
+/// within [`MARGIN`] of its best legal call.  A call no rule authors (nothing
+/// to replay) abstains so the range reader handles it, and an off-book node
+/// has no opinion; both accept.  A **pass** replays like any call — the
+/// negative inference the interval ranges cannot express: a candidate whose
+/// best alternative beats the pass is rejected (hard where the pass gate is
+/// `-∞`, e.g. a 12-count at the opening node; soft within [`MARGIN`] of
+/// weight-close alternatives such as a preempt).  A candidate the node
+/// rejects wholesale accepts (`-∞ ≥ -∞ − MARGIN`) — the floor-pass worlds
+/// stay in.
 fn made_plausibly(
     hand: Hand,
     policy: &dyn System,
@@ -251,7 +257,7 @@ fn made_plausibly(
     prefix: &[Call],
     made: Call,
 ) -> bool {
-    if matches!(made, Call::Pass) || !policy.authored_at(vul, prefix) {
+    if !policy.authored_at(vul, prefix) {
         return true;
     }
     let Some(logits) = policy.classify(hand, vul, prefix) else {
@@ -591,5 +597,56 @@ mod tests {
                 "RHO's 2C overcall promises 5+ clubs"
             );
         }
+    }
+
+    /// The pass reading flows into sampling with no sampler change: a booked
+    /// read of an all-pass auction caps the passed seat, and the range gate
+    /// already enforces the cap on every sampled layout.
+    #[test]
+    fn reads_a_passed_seat_as_bounded() {
+        use crate::bidding::constraint::point_count;
+        crate::bidding::set_pass_reading(true);
+        crate::bidding::set_table_alert_reading(true);
+        let stance = crate::american().against(crate::bidding::Family::NATURAL);
+        let inf =
+            Inferences::read(&stance.prefixed_context(RelativeVulnerability::NONE, &[Call::Pass]));
+        crate::bidding::set_table_alert_reading(false);
+        crate::bidding::set_pass_reading(false);
+        assert_eq!(inf.rho().points.max, 11, "a no-open pass caps at 11");
+
+        let actor = Seat::North;
+        let mut rng = StdRng::seed_from_u64(7);
+        let hand = full_deal(&mut rng)[actor];
+        let layouts = sample_layouts(hand, actor, &inf, &mut rng, 8);
+        assert!(!layouts.is_empty(), "a passed RHO is easy to deal");
+        for deal in &layouts {
+            assert!(point_count(deal[actor.rho()]) <= 11);
+        }
+    }
+
+    /// A pass at an authored node replays like any call: a candidate the
+    /// opening table would have opened cannot stand in for a dealer who
+    /// passed (hard rejection — the pass gate is `-∞` on a 13-count).  A
+    /// preempt-worthy hand within [`MARGIN`] of the pass would survive: the
+    /// soft margin, tuned by A/B, not here.
+    #[test]
+    fn replay_rejects_implausible_passers() {
+        let policy = crate::american().against(crate::bidding::Family::NATURAL);
+        let opener: Hand = "AKQ2.K53.QJ4.T92".parse().expect("valid test hand");
+        assert!(!made_plausibly(
+            opener,
+            &policy,
+            RelativeVulnerability::NONE,
+            &[],
+            Call::Pass
+        ));
+        let quiet: Hand = "A2.K53.J9642.T92".parse().expect("valid test hand");
+        assert!(made_plausibly(
+            quiet,
+            &policy,
+            RelativeVulnerability::NONE,
+            &[],
+            Call::Pass
+        ));
     }
 }

@@ -63,7 +63,8 @@ three:
 | --- | --- | --- |
 | `eval` | logit for a hand | classification (bidding) |
 | `describe` | `Description` tree | disclosure, corpus, `render-book` |
-| `project` | forward `Inference` envelope | decoding a call back into shape/strength |
+| `project` | forward `Inference` envelope (floors) | decoding a call back into shape/strength |
+| `project_band` | two-sided envelope (ceilings return) | the pass reading — a *declined* call reads by what its gate would have allowed (`set_pass_reading`) |
 
 Builders: `hcp`, `points`, `fifths`, `len`, `balanced`, `support`,
 `stopper_in_their_suits`, `they_bid`, combined with `&`/`|`/`!`. The suit-set
@@ -90,7 +91,10 @@ range (projects the union — sound but loose).
   every artificial bid must be alerted** — enforced by the unit invariant test
   `artificial_calls_are_alerted` (`src/bidding/inference.rs`). Passes and
   doubles are natural-by-default (they defend the contract on the table);
-  artificiality is bid-only.
+  artificiality is bid-only. A pass still *reads*: its general meaning is
+  negative inference — excluding every other call its table offered — decoded
+  from the table's own Pass gate via `project_band` (`set_pass_reading`,
+  default off pending A/B), each pass resolved in the trie of its own turn.
 - Alerted calls are decoded by **rule projection** (`project_authored` in
   `inference.rs`, master switch `set_alert_reading`, default on): the reader
   replays the authoring rule's `project` fold. Unalerted = natural =
@@ -122,7 +126,9 @@ range (projects the union — sound but loose).
 - `sample_layouts` — rejection-sample within the `Inferences` ranges.
 - `sample_layouts_replay` — additionally re-runs the policy at every authored
   node, accepting hands whose made call ranks within `MARGIN` nats of best
-  (knob `set_rule_accept`, default off).
+  (knob `set_rule_accept`, default off). Passes replay like any call — the
+  sample-level negative inference (rejects a candidate that would have
+  opened/preempted), the disjunctive half the interval envelope can't hold.
 - Budget philosophy: a deal costs ~0.3 µs, a DD solve dwarfs it — when the
   sampler starves, **draw more deals** (cap `REPLAY_DRAW_CAP` ≈ 50M), never
   loosen the reading. A consecutive-reject dry-limit distinguishes

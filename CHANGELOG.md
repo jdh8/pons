@@ -9,6 +9,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Pass reading — negative inference** (jdh8's law: *the general reading of
+  a pass is to exclude all the other calls*; open item (4) of the BEN-gap fix
+  ledger — passes were ~60 % of all reading vagueness, BEN committing ~6.3
+  mean HCP on a passed hand where we showed 0–37). In a well-authored table
+  that complement is already written down as the Pass rule's own gate (the
+  opening table passes on `points(..12)` *because* the bids cover 12+), so
+  the new `set_pass_reading` knob (**default off pending the A/B**; bba-gen
+  arm `--ns-pass-reading`, probe `--sound-reading`) decodes each pass off the
+  union of its authored table's Pass gates, both bounds, via the new
+  `Constraint::project_band` fold (the ceilings `project` deliberately drops
+  return here; an `hcp` ceiling is widened by the scale's maximum upgrade).
+  Each pass resolves in the trie of *its own turn* (slice-relative
+  `trie_for` — a pre-opening pass belongs to the opening table even after
+  the auction goes defensive), the reader's own side always, the opponents'
+  under `set_table_alert_reading`. What falls out: a no-open pass ≤ 11
+  points, the silent responder ≤ 5 HCP (10 upgraded), a pass of partner's
+  1NT ≤ 13 with no six-card major, and the direct-seat pass over their suit
+  opening ≤ 17 HCP — that last gate authored in this change as the strong
+  tier's byte-identical complement (`defense_to_suit`: "strong hands double
+  first regardless"). Trivial catch-alls (trap-pass advances) and floor
+  passes correctly read nothing. The replay sampler un-short-circuits Pass
+  too (under default-off `set_rule_accept`): the sample-level exact
+  complement rejects a candidate the table would have opened or overcalled —
+  the disjunctive precision (no preempt-shaped passer) the interval envelope
+  cannot express. Same-seed probe: off arm **byte-identical**; on arm —
+  truth violations **97 → 97 points, 324 → 324 lengths (0 introduced)**
+  under a compare script now hardened to check band ceilings too, full-band
+  hidden seats **15,101 → 7,279 (−52 %)**, acted-seat vagueness deviation
+  **24,417 → 9,740 (−60 %**; the three prior reading knobs combined moved it
+  −3 %) — every passer-seat bucket (`[P]`, `[P P]`, `[1x P]`) drains.
+  Residual pass-family vagueness sits on *unacted* seats (deal
+  conservation — a joint feature the per-seat envelope cannot display; the
+  layout sampler applies it automatically when dealing) and on the deferred
+  gates (their-1NT direct seat, advances, later rounds). Nine new unit
+  tests; defaults byte-identical.
+
 - **Table-wide alert reading** (jdh8's directive: alerting in bridge is
   *for the opponents* — an alerted call is disclosed to the whole table,
   not just remembered by partner): the projection pass used to decode an

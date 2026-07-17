@@ -70,10 +70,18 @@ def main():
             # 1. truth violations (points compare on the upgraded point_count
             # scale the bands are denominated in; fit-known support_points can
             # legitimately exceed it on raises — small residual noise there.
-            # Lengths compare exactly).
-            m = 0.0 if (plo, phi) == FULL_POINTS else max(0.0, plo - truth["points"])
+            # Both bounds are checked: floors catch an over-promising read,
+            # ceilings an over-tight pass band (set_pass_reading).  Lengths
+            # compare exactly).
+            m = (
+                0.0
+                if (plo, phi) == FULL_POINTS
+                else max(0.0, plo - truth["points"], truth["points"] - phi)
+            )
             what = (
-                f"points {truth['points']} (hcp {truth['hcp']}) < shown {plo}+" if m else ""
+                f"points {truth['points']} (hcp {truth['hcp']}) outside shown {plo}-{phi}"
+                if m
+                else ""
             )
             for s in range(4):
                 llo, lhi = band(ours["lengths"][s])
