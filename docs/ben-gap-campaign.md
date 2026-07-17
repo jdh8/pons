@@ -352,7 +352,15 @@ headline trail, as bba-gap-campaign.md does today.
 
 If Phase 1 shows the gap dominated by search-judgment buckets, the strategic
 answer converges with the AI-bidder roadmap: distil + search (BEN's own
-recipe, which pons has all the parts for). Also deferred: a Rust Blue Chip
+recipe, which pons has all the parts for). **The concrete plan now exists:**
+[ai-bidder/sound-search.md](ai-bidder/sound-search.md) (= AI-bidder
+Milestone 8) — refine the *built* search (`american_search` /
+`american_neural_search`) rather than build it: fix the sampler
+(uniform-reject → importance-weighted, reading-tightened), fix the scorer
+(single-dummy slam pricing in the offline teacher), re-distill; ordered by
+leverage with a do-not-retry list. It stays gated behind Phase 1's decompose,
+which decides whether the gap is search-judgment (→ Milestone 8) or shared
+book/floor buckets. Also deferred: a Rust Blue Chip
 table manager (unlocks WBridge5/GIB/BBA-as-member under one harness — the
 full Table 1 yardstick set), and BEN-disclosure-aware inference. None of
 these starts before the first anchor says the cheap fixes are exhausted.

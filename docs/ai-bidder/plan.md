@@ -657,6 +657,54 @@ under M6; the leaf-pricing thesis survives only as the optional M7.2 A/B.
 
 ---
 
+## Milestone 8 — Sound search (closing the BEN gap: sampler + scorer)
+
+Full design: [`sound-search.md`](sound-search.md). The search machinery is built
+(M2.3 `american_search`, M3 distilled `american_neural_search`); the two BEN
+probes (bitmap ablation, Info-net) locate the −1.9 IMP gap in **search over
+sampled worlds + auction-state memory**, not the hand features. This milestone
+makes the existing search *sound* — it subsumes the one still-live M7 branch
+(M7.2 constructive leaves) and is the concrete Phase 3 of
+[ben-gap-campaign.md](../ben-gap-campaign.md). `instinct()` / `american()` stay
+default and baseline; every phase measures under the dual-reference rule (vs BEN
+Tier-F primary + BBA plain-DD guard).
+
+- ⬜ **M8.1 Sampler soundness.** Tight, realistic worlds: land the reading knobs
+  (`length_soundness` + the three reading-side washes), make rule-replay sampling
+  (`set_rule_accept`) the search default, and add importance-weighted dealing
+  (bias `fill_deals` toward the reading's center — the GPL-clean analog of BEN's
+  Info-net-biased dealing, driven by our `Inferences`). *Measure:* EV
+  variance/bias on a fixed set + the M8.4 re-distill A/B. *Deps:* none (1a in
+  flight as the reading-knobs A/Bs).
+- ⬜ **M8.2 Scorer soundness for slam.** An `SD_EVAL` offline scorer swapping
+  `ev_all`'s DD trick source for the single-dummy declarer playout
+  (`single_dummy_declarer_tricks`), consumed by the `dump-search` teacher, **not**
+  the live bidder (cost). Fixes the slam-optimism wall in the training targets —
+  a lever to *beat* BEN, whose bid-time scorer is DD-optimistic too. *Measure:*
+  constructive slam-boundary A/B, plain + PD + sd-declarer + Pavlicek shave.
+  *Deps:* M8.1. *Do-not:* the live `SearchFloor`; competitive leaves (obstruction
+  wall — sd-declarer keeps DD defense, so it does not lift it).
+- ⬜ **M8.3 Constructive leaf search (ex-M7.2, gated).** DD-price authored
+  *constructive* leaves at the slam boundary (the Leaping Michaels template),
+  **only** after checking M6.4's authored slam machinery doesn't already reach
+  them. Never competitive leaves. *Measure:* constructive-abc A/B, its own
+  boundary. *Deps:* M8.1, M8.2 (not M7.0's dead competitive wiring).
+- ⬜ **M8.4 Re-distill (M3 round 3).** Regenerate `dump-search` with the improved
+  sampler + scorer + leaf coverage, retrain in the off-crate `trainer/`, ship
+  weights back via `include_bytes!`, A/B vs the prior champion (accept only gains)
+  under the dual-reference guard. *Deps:* any of M8.1–M8.3.
+- ⬜ **M8.5 Auction-state memory (horizon).** The second probe leg: the
+  sequence-model policy (M5.2) for auction memory, plus cheap `SearchFloor`
+  mechanics — IMP-space candidate ranking and prior fold-back / confidence gate
+  (BEN does both; we do neither). *Deps:* M5.2 for the sequence model; none for
+  the mechanics.
+
+Exit M8: the built search is sound — tight sampled worlds, an honest slam scorer,
+constructive slam reach, re-distilled into the fast floor — narrowing the BEN gap
+on the search-judgment frontier the probes identified.
+
+---
+
 ## Side-track S — External reference bidder (BBA / EPBot)
 
 Optional, parallelizable, **pure tooling** — never touches the default build, the
@@ -710,8 +758,10 @@ M0  ──► M1 ──────────────► (working learned 
   │       └─► M2 ──► M2.3 ──► (gated live search bidder: net+search > raw net)
   │              │      │
   │              │      ├─► M3 ──► (distill it → fast default floor > teacher)  ← the real goal
+  │              │      │            │
+  │              │      │            └─► M8 ──► (sound search: sampler + scorer, re-distill)  ← BEN-gap frontier
   │              │      │
-  │              │      └─► M7 ──► DEMOTED (DD blind to obstruction; only optional M7.2 A/B left)
+  │              │      └─► M7 ──► DEMOTED (folded into M8: only M7.2 constructive leaves live)
   │
   └─► M4 ─────────────────► (faster 2/1 authoring)
             │
