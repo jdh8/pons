@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Sound natural length floors ship default-on** (`set_length_soundness`,
+  was default-off pending the A/B; `--no-ns-length-soundness` is the
+  off-switch in both generators). The dual-reference A/B
+  (`scripts/reading-knobs-ab.sh length`, SEED_BASE 1784294370, off arm
+  shared): the one reading knob with a live bidding delta (23/6400 divergent
+  boards — the other three are bid-inert). Verdict plain-wash + PD-win on
+  **both** references: guard vs BBA (204.8k boards/cell) plain +0.0010/+0.0006
+  IMPs/board (wash), PD **+0.0022/+0.0023 (CIs clear of zero)**; primary vs
+  BEN Tier F (51.2k/cell) plain +0.0008/−0.0001 (wash), PD +0.0020/+0.0015
+  (directionally consistent); +0.4 to +1.1 IMPs per fired board. Ships
+  per the plain-wash + PD-gain rule. The same run banked the first
+  **pons↔BEN Tier-F gap**: plain −0.879 (none) / −1.092 (both), PD −1.122 /
+  −1.519 — vs the Tier-S anchor's −1.640/−2.172 plain, i.e. BEN's search is
+  worth ≈0.8–1.1 IMPs/board at this system distance.
+
 ### Added
 
 - **BEN bitmap-ablation probe** (`scripts/ben-bitmap-ablation.py`) — answers

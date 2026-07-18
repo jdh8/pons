@@ -201,6 +201,22 @@ passed hand at ~6.3 mean HCP.
   Only **length-soundness** has a priceable bidding delta — its
   dual-reference A/B (off arm shared, `scripts/reading-knobs-ab.sh length`)
   is the one that runs to a numeric verdict.
+- **Length-soundness A/B MEASURED + SHIPPED default-on 2026-07-18**
+  (SEED_BASE 1784294370, sha 74d783d arms; a mid-experiment lib rebuild by a
+  parallel session was certified bid-inert — 0/6400 off-flag re-bid drift).
+  Plain-wash + PD-win on **both** references: guard vs BBA (204.8k
+  boards/cell) plain +0.0010/+0.0006 wash, PD **+0.0022 ±0.0011 /
+  +0.0023 ±0.0016** clear wins; primary vs BEN Tier F (51.2k/cell) plain
+  +0.0008/−0.0001 wash, PD +0.0020 ±0.0022 / +0.0015 ±0.0030 directionally
+  consistent; +0.4–1.1 IMPs/fired. `--no-ns-length-soundness` is the
+  off-switch. The same run banked the **first Tier-F gap** (fresh seeds):
+  plain −0.879 (none) / −1.092 (both), PD −1.122 / −1.519, divergence 71% —
+  vs the Tier-S anchor −1.640/−2.172 plain: **BEN's search ≈ 0.8–1.1
+  IMPs/board** at this distance. Ops: Tier-F throughput measured 0.27 s/bid
+  under an 8-instance fleet (≈2× the uncontended design figure — the
+  per-instance bid lock makes instance count the throughput knob); fleet
+  scaled to 32 instances (~1 GB RSS each, Tier-F arenas grow ~30 KB/board)
+  after the run's port discovery completed.
 - **Still open, by ranked margin**: (1) preemptive minor jump raises
   (`1C (P) 3C`, `P P (1D) P 3D`) read as 10+ limit while the floor bids
   them on 3–6 — decide the raise's meaning, then align floor and reader;
@@ -396,6 +412,14 @@ Tier S, 20k boards (8×1,250 × {none, both}), persistent
 | date | pons | plain | PD | notes |
 | --- | --- | --- | --- | --- |
 | 2026-07-17 | `119675f` | **−1.906** (none −1.640 [−1.736, −1.545], both −2.172 [−2.293, −2.050]) | **−1.860** (none −1.510, both −2.209) | First anchor; retires the chained ≈2.1. Divergence 71%/70% (vs 49%/46% for EPBot-vs-BEN). Reading knobs at committed defaults (off). |
+
+**Tier-F gap** (one-time calibration, fresh seeds 1784294370, 102.4k/arm,
+sha 74d783d, `ab-results/reading-knobs/2026-07-17/`): plain **−0.879**
+(none) / **−1.092** (both), PD −1.122 / −1.519, divergence 71%. Vs the
+Tier-S rows above: **search is worth ≈0.8–1.1 IMPs/board to BEN** at this
+distance. Read Tier-F A/B deltas as directional; the Tier-S anchor stays
+the truth metric (different seed bases, so cross-tier comparison carries
+±0.05-ish deal-mix noise on top of the CIs).
 
 Cross-checks: the same-era BBA anchor reads −1.68/−1.73 plain, so BEN
 measures ≈0.2 harder than BBA — same sign, smaller than the naive chain

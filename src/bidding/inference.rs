@@ -190,8 +190,9 @@ std::thread_local! {
     static CUE_READING: Cell<bool> = const { Cell::new(false) };
 
     /// Whether two over-tight natural length floors are relaxed to sound ones
-    /// (see [`set_length_soundness`]).  Off by default pending the A/B.
-    static LENGTH_SOUNDNESS: Cell<bool> = const { Cell::new(false) };
+    /// (see [`set_length_soundness`]).  On by default (shipped 2026-07-18:
+    /// plain wash + PD win on both references).
+    static LENGTH_SOUNDNESS: Cell<bool> = const { Cell::new(true) };
 
     /// Whether [`project_authored`] reads passes off their table's own Pass
     /// gate (see [`set_pass_reading`]).  Off by default pending the A/B.
@@ -217,7 +218,7 @@ fn cue_reading() -> bool {
     CUE_READING.with(Cell::get)
 }
 
-/// Toggle sound natural length floors (default off, pending A/B)
+/// Toggle sound natural length floors (default on, shipped 2026-07-18)
 ///
 /// On: opener's immediate two-level rebid of the opened minor reads five-plus,
 /// not six-plus — the floor routinely rebids a good five — and a player who
@@ -225,6 +226,13 @@ fn cue_reading() -> bool {
 /// six-card jump (a doubler's jump is strength, made on as few as three cards,
 /// so the walk claims nothing).  Both over-claims were caught by the BEN
 /// Info-net probe as truth violations on self-play.
+///
+/// Shipped default-on by the dual-reference A/B (the one reading knob with a
+/// live bidding delta — 23/6400 divergent boards): plain DD a wash on both
+/// references, perfect-defense positive everywhere — vs BBA +0.0022/+0.0023
+/// IMPs/board (CIs clear of zero, 204.8k boards/cell), vs BEN Tier F
+/// +0.0020/+0.0015 (directionally consistent, 51.2k/cell); +0.4 to +1.1
+/// IMPs per fired board.  `--no-ns-length-soundness` is the off-switch.
 pub fn set_length_soundness(on: bool) {
     LENGTH_SOUNDNESS.with(|cell| cell.set(on));
 }
@@ -3606,9 +3614,11 @@ mod tests {
     }
 
     #[test]
-    fn opener_rebid_shows_sixth_card() {
-        // [1♥, P, 1♠, P, 2♥, P]: at length 6 the opener (who bid 1♥ and rebid
-        // 2♥) sits as partner, and the 1♠ responder is us.
+    fn opener_rebid_reads_five_plus_by_default() {
+        // [1♥, P, 1♠, P, 2♥, P]: the opener (who bid 1♥ and rebid 2♥) sits as
+        // partner, and the 1♠ responder is us.  The shipped sound reading
+        // keeps the rebid at five-plus (the floor routinely rebids a good
+        // five); the legacy six-card claim needs the knob off.
         let auction = [
             bid(1, Strain::Hearts),
             Call::Pass,
@@ -3618,11 +3628,14 @@ mod tests {
             Call::Pass,
         ];
         let inf = read(&auction);
-        // Partner opened 1♥ then rebid hearts, showing six.
-        assert_eq!(inf.partner().length(Suit::Hearts), Range::new(6, 13));
+        assert_eq!(inf.partner().length(Suit::Hearts), Range::new(5, 13));
         // Our 1♠ response showed four spades and six-plus points.
         assert_eq!(inf.me().length(Suit::Spades), Range::new(4, 13));
         assert_eq!(inf.me().points, Range::new(6, 37));
+        set_length_soundness(false);
+        let legacy = read(&auction);
+        assert_eq!(legacy.partner().length(Suit::Hearts), Range::new(6, 13));
+        set_length_soundness(true);
     }
 
     #[test]
@@ -4209,6 +4222,7 @@ mod tests {
         set_length_soundness(false);
         let off = read(&auction);
         assert!(off.rho().length(Suit::Hearts).min >= 6);
+        set_length_soundness(true);
     }
 
     #[test]
@@ -4228,6 +4242,7 @@ mod tests {
         set_length_soundness(false);
         let off = read(&auction);
         assert_eq!(off.rho().length(Suit::Hearts).min, 6);
+        set_length_soundness(true);
     }
 
     #[test]
@@ -4248,6 +4263,7 @@ mod tests {
         set_length_soundness(false);
         let off = read(&auction);
         assert_eq!(off.rho().length(Suit::Diamonds).min, 6);
+        set_length_soundness(true);
     }
 
     #[test]
