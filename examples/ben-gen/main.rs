@@ -113,6 +113,15 @@ struct Args {
     /// server conf's sha256 here)
     #[arg(long)]
     note: Option<String>,
+
+    /// Distillation mode: instead of the A/B match, seat BEN at all four
+    /// chairs and write a `probe-brl-book` self-play corpus (JSONL) here.
+    /// `--count` deals, each bid under all four vulnerabilities, dealer fixed
+    /// North.  Tier F is a deterministic argmax, so the corpus `top3`/`ent`
+    /// are synthetic (one fully-confident candidate, zero entropy) — the
+    /// confident-row and entropy columns of the probe are not meaningful.
+    #[arg(long)]
+    self_play: Option<String>,
 }
 
 // ---------------------------------------------------------------------------
@@ -130,6 +139,20 @@ fn call_token(call: Call) -> String {
         Call::Double => "X".into(),
         Call::Redouble => "XX".into(),
         Call::Bid(bid) => format!("{}{}", bid.level.get(), STRAIN_CHARS[bid.strain as usize]),
+    }
+}
+
+/// A call as a `probe-brl-book` corpus token (`P`, `X`, `XX`, `1C`…`1NT`…`7NT`).
+/// Same as [`call_token`] but notrump is `NT`, matching the probe's `TOKENS`.
+fn corpus_token(call: Call) -> String {
+    match call {
+        Call::Pass => "P".into(),
+        Call::Double => "X".into(),
+        Call::Redouble => "XX".into(),
+        Call::Bid(bid) => {
+            let strain = ["C", "D", "H", "S", "NT"][bid.strain as usize];
+            format!("{}{strain}", bid.level.get())
+        }
     }
 }
 
@@ -305,6 +328,50 @@ fn main() -> anyhow::Result<()> {
 
     // Health-probe the server before dealing: a fixed opening-bid request.
     ben.bid("/bid?hand=AK97543.K.T3.AK7&seat=N&dealer=N&vul=&ctx=");
+
+    // Distillation mode: BEN at all four chairs, each deal under all four
+    // vulnerabilities (paired for the probe's vul-flip test), dealer fixed
+    // North so the corpus `seats[0]` is the dealer.  One JSONL row per
+    // (deal, vul) in probe-brl-book's schema; top3/ent synthetic (Tier F is a
+    // deterministic argmax — see --self-play).
+    if let Some(path) = args.self_play.as_deref() {
+        let seed = args.seed.unwrap_or_else(rand::random);
+        let mut rng = StdRng::seed_from_u64(seed);
+        let vuls: [(&str, AbsoluteVulnerability); 4] = ["none", "ns", "ew", "both"]
+            .map(|s| (s, s.parse().expect("valid vulnerability label")));
+        let mut out = std::io::BufWriter::new(std::fs::File::create(path)?);
+        for index in 0..args.count {
+            let deal = full_deal(&mut rng);
+            let pbn = format!(
+                "N:{} {} {} {}",
+                hand_pbn(deal[Seat::North]),
+                hand_pbn(deal[Seat::East]),
+                hand_pbn(deal[Seat::South]),
+                hand_pbn(deal[Seat::West]),
+            );
+            for (label, vul) in vuls {
+                let auction = bid_out(&ben, &ben, true, Seat::North, vul, &deal);
+                let calls: Vec<String> = auction.iter().map(|&c| corpus_token(c)).collect();
+                let top3: Vec<serde_json::Value> = calls
+                    .iter()
+                    .map(|t| serde_json::json!([[t.as_str(), 1.0]]))
+                    .collect();
+                let ent = vec![0.0_f64; calls.len()];
+                let row = serde_json::json!({
+                    "deal": index, "vul": label, "pbn": pbn,
+                    "calls": calls, "top3": top3, "ent": ent,
+                });
+                writeln!(out, "{row}")?;
+            }
+        }
+        out.flush()?;
+        eprintln!(
+            "ben-gen: self-play corpus — {} deals × 4 vul = {} boards to {path} (seed {seed})",
+            args.count,
+            args.count * 4,
+        );
+        return Ok(());
+    }
 
     let our_floor = american().against(Family::NATURAL);
     let epbot = if args.calibrate_epbot {
