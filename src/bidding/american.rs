@@ -339,6 +339,25 @@ pub fn american_neural_v3() -> Pair {
     with_floor(bare_american(), super::neural_floor::NeuralFloorV3)
 }
 
+/// The 2/1 pair with the **BBA-distilled** disclosable neural floor
+///
+/// Exactly [`american_neural_v3`] but for the net's teacher: the floor is
+/// distilled from the vendored **EPBot 2/1** oracle instead of [`american`], over
+/// the same disclosable-only
+/// [`features_v3`][crate::bidding::features::features_v3] and wrapped in the
+/// [`NeuralFloorBba`][crate::bidding::neural_floor::NeuralFloorBba] safety shell
+/// with the same forced-rail delegation and legality mask.  BBA is a stronger
+/// prior than [`american`] (it clears our current floor by ~1.9 IMPs/board), so
+/// the net has more to learn — an added option, never a replacement:
+/// [`american`] stays the baseline.  Bind it against the opponents' [`Family`]
+/// with [`Pair::against`] and seat it the same way.  Gated behind the
+/// `neural-floor` feature.
+#[cfg(feature = "neural-floor")]
+#[must_use]
+pub fn american_bba_neural() -> Pair {
+    with_floor(bare_american(), super::neural_floor::NeuralFloorBba)
+}
+
 /// The 2/1 pair with the **search-target** distilled neural floor (AI-bidder M3.2)
 ///
 /// Exactly [`american_neural`] in shape — v1 features, the

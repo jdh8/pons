@@ -1281,12 +1281,14 @@ fn main() -> anyhow::Result<()> {
         "dutch" => pons::dutch().against(Family::NATURAL),
         #[cfg(feature = "neural-floor")]
         "neural-v3" => pons::american_neural_v3().against(Family::NATURAL),
+        #[cfg(feature = "neural-floor")]
+        "neural-bba" => pons::american_bba_neural().against(Family::NATURAL),
         other => anyhow::bail!(
             "--our-floor must be american|dutch{}, got {other:?}",
             if cfg!(feature = "neural-floor") {
-                " or neural-v3"
+                " or neural-v3|neural-bba"
             } else {
-                " (neural-v3 needs --features neural-floor)"
+                " (neural-v3|neural-bba need --features neural-floor)"
             }
         ),
     };

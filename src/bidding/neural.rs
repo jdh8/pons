@@ -202,6 +202,35 @@ pub fn classify_v3(features: &[f32]) -> Logits {
     forward(WEIGHTS_V3.as_slice(), features, IN_V3)
 }
 
+// ── BBA-distilled floor: same disclosable v3 features, EPBot 2/1 teacher ──────
+// Same 88-input shape and forward pass as v3; only the teacher differs — the
+// vendored EPBot 2/1 oracle (a behavioral clone of BBA's chosen call) rather than
+// the deterministic `american()`. A stronger prior for the floor to stand on.
+
+/// Embedded BBA-distilled weights: v3 layout (88 disclosable inputs), EPBot 2/1 teacher.
+static RAW_BBA: &[u8] = include_bytes!("weights/american_bba.f32");
+const _: () = assert!(
+    RAW_BBA.len() == total(IN_V3) * 4,
+    "BBA weights artifact size mismatch"
+);
+
+/// BBA weights decoded to `f32` once, on first use.
+static WEIGHTS_BBA: LazyLock<Vec<f32>> = LazyLock::new(|| decode(RAW_BBA));
+
+/// Evaluate the BBA-distilled floor: 88 disclosable features → 38 logits, in
+/// `Call`-index order. Same shape and forward pass as [`classify_v3`]; only the
+/// trained weights differ — distilled from the vendored EPBot 2/1 oracle (a
+/// hard clone of BBA's argmax call). Deterministic — fixed weights, no RNG.
+///
+/// # Panics
+///
+/// Panics if `features.len()` is not the pinned v3 [`FEATURES_LEN_V3`] (88).
+#[must_use]
+pub fn classify_bba(features: &[f32]) -> Logits {
+    assert_eq!(features.len(), IN_V3, "expected {IN_V3} features");
+    forward(WEIGHTS_BBA.as_slice(), features, IN_V3)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -279,6 +308,13 @@ mod tests {
     fn matches_candle_fixture_v3() {
         check_fixture(include_str!("weights/american_v3.fixture.json"), |x| {
             classify_v3(x).iter().map(|(_, l)| *l).collect()
+        });
+    }
+
+    #[test]
+    fn matches_candle_fixture_bba() {
+        check_fixture(include_str!("weights/american_bba.fixture.json"), |x| {
+            classify_bba(x).iter().map(|(_, l)| *l).collect()
         });
     }
 }

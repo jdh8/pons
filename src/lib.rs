@@ -35,7 +35,8 @@ pub use bidding::{
 };
 #[cfg(feature = "neural-floor")]
 pub use bidding::{
-    american_neural, american_neural_search, american_neural_v2, american_neural_v3,
+    american_bba_neural, american_neural, american_neural_search, american_neural_v2,
+    american_neural_v3,
 };
 #[cfg(feature = "search")]
 pub use bidding::{american_search, american_search_book, american_search_with};

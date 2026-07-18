@@ -373,6 +373,43 @@ M7.0's −2.96 regression plus the provability of the shadowing invariants;
 keep only a *shadowing audit* (when a bucket bleeds, check worst boards for a
 book node shadowing a smarter floor and fix that node locally).
 
+### B4. BBA-distilled floor (`neural-bba`) — routing gate PASSED (2026-07-19, sha `7122756`)
+
+The B1 wiring, realized against the **BBA** teacher instead of the search
+teacher. `dump-teacher --teacher bba` dumps `(features_v3, BBA-argmax)` rows —
+one-hot targets, since the oracle exposes only its chosen call, so this is hard
+behavioral cloning, not soft-target distillation; the existing candle trainer
+fits them unchanged; `neural::classify_bba` + `NeuralFloorBba` +
+`american_bba_neural()` seat the net in the same disclosable-v3 shell as
+`neural-v3`; `bba-gen --our-floor neural-bba` is the cfg'd arm;
+`bba-gen-parallel.sh` gained a `FEATURES` passthrough.
+
+- **Learnability:** held-out top-1 vs BBA 85.9% (constructive 86.7%, contested
+  85.4%), 40k-board dump. Below v3's 95.3% cloning `american()` — the one-hot
+  argmax target + disclosable-only features, as predicted; `val_ce` bottomed
+  ~epoch 170 then overfit, so capacity is not the limit.
+- **Routing gate (the decisive one):** paired `bba-gen --our-floor american` vs
+  `neural-bba` vs live BBA, two seeds (1784412234 × 51.2k, 1784414157 × 102.4k
+  per cell), both vuls, `ab-dump-diff` plain+PD. **`neural-bba − american`:
+  +0.12/+0.13 (none plain), +0.10/+0.09 (none PD), +0.23/+0.22 (both plain),
+  +0.29/+0.26 (both PD) IMPs/bd** — every cell a plain-AND-PD win, both seeds,
+  CIs excluding 0 by 3.5–9σ, fired ~27–29%. PD ≥ plain ⇒ not a doubling
+  artifact. Teacher-isolation vs `neural-v3`: +0.32…+0.47 (clears the
+  american-distilled net cleanly).
+- **Disclosure audit (clean):** neural-bba's call distribution matches
+  `american`'s in shape — same 38 calls, no new artificial-call class, no gadget
+  spike (4NT 0.37% vs 0.34%); the extra IMPs come from natural aggression (more
+  5-level competing / slam tries, fewer takeout doubles). No book nodes added,
+  so `artificial_calls_are_alerted` is untouched — disclosure posture identical
+  to the shipped `neural-v3` floor.
+- **Stance:** per the 2026-07-07 promotion rule (B1), a floor that passes the
+  routing gate becomes a **campaign measurement arm**; the **crate default stays
+  `instinct()`**. Shipped opt-in (`--our-floor neural-bba`). Follow-ons: (a) make
+  it the default via a *contested-only* partition (net for contested, instinct
+  for constructive — the iron rule); (b) reach *past* BBA by putting the live
+  search on top of this stronger prior (M8). Not compared against the search
+  champion `neural-search` — different category (that is follow-on b).
+
 ## Pillar C — measurement unlock (sd-lead third scorer)
 
 Wire `single_dummy_leads` into the generic pipelines; it plausibly

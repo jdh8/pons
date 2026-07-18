@@ -1,8 +1,9 @@
 //! Teacher dump (AI-bidder M0.4)
 //!
 //! Bids out boards — random, or every deal in a GIB file via `--deals` — with
-//! the assembled `american()` system (the *teacher*) and records, at every
-//! decision point, a training row of `(features, teacher_softmax)`:
+//! the *teacher* system (`american()`, or the vendored EPBot 2/1 oracle via
+//! `--teacher bba`) and records, at every decision point, a training row of
+//! `(features, teacher_softmax)`:
 //!
 //! - **features** — the feature vector for the hand to act: the 160-float
 //!   v1 vector ([`features`][pons::bidding::features::features]) by default, or
@@ -52,6 +53,11 @@ use rand::{RngExt, SeedableRng};
 use std::collections::BTreeMap;
 use std::io::{BufWriter, Write};
 
+#[path = "../common/mod.rs"]
+#[allow(dead_code)]
+mod common;
+use common::oracle::{BbaOracle, DEFAULT_LIB, SYSTEM_2_OVER_1};
+
 /// Number of calls in a `Logits` array (the softmax width).
 const SOFTMAX_LEN: usize = 38;
 
@@ -78,6 +84,12 @@ struct Args {
     /// Output path stem; writes `<out>.f32` and `<out>.json`
     #[arg(long, default_value = "target/teacher-data")]
     out: String,
+    /// Teacher to distil: `american` (the pure-Rust 2/1 floor, default) or `bba`
+    /// (the vendored EPBot 2/1 oracle). `bba` bids through a single-threaded FFI
+    /// bot per decision, so that dump is BBA-bidding-bound — tractable, not
+    /// instant. Override the `.so` with `BBA_LIB`.
+    #[arg(long, default_value = "american")]
+    teacher: String,
 }
 
 /// The four absolute vulnerabilities, sampled uniformly per board.
@@ -88,7 +100,7 @@ const VULS: [AbsoluteVulnerability; 4] = [
     AbsoluteVulnerability::ALL,
 ];
 
-fn main() -> std::io::Result<()> {
+fn main() -> anyhow::Result<()> {
     let args = Args::parse();
     let (feature_version, features_len) = match args.features_version {
         1 => (FEATURES_VERSION, FEATURES_LEN),
@@ -102,10 +114,18 @@ fn main() -> std::io::Result<()> {
     // DD label only exists when deals come from a GIB file (cached, no solving).
     let dd_len = if args.deals.is_some() { 20 } else { 0 };
     let row_len = features_len + SOFTMAX_LEN + dd_len;
-    let pair = american();
-    // Both sides play the same system; a Stance routes by auction phase, so one
-    // suffices for whichever seat is to act (vulnerability passed in relative).
-    let stance = pair.against(Family::NATURAL);
+    // Both sides play the same system; the classifier handles whichever seat is
+    // to act (vulnerability passed in relative). `american()` routes by phase
+    // through a Stance; `bba` is the vendored EPBot 2/1 oracle — a fresh
+    // single-threaded FFI bot per decision.
+    let teacher: Box<dyn System> = match args.teacher.as_str() {
+        "american" => Box::new(american().against(Family::NATURAL)),
+        "bba" => {
+            let path = std::env::var("BBA_LIB").unwrap_or_else(|_| DEFAULT_LIB.into());
+            Box::new(BbaOracle::load(&path, SYSTEM_2_OVER_1, Vec::new())?)
+        }
+        other => anyhow::bail!("--teacher must be american|bba, got {other:?}"),
+    };
     let mut rng = StdRng::seed_from_u64(args.seed);
 
     let f32_path = format!("{}.f32", args.out);
@@ -150,7 +170,7 @@ fn main() -> std::io::Result<()> {
             let hand = deal[seat];
             let rel = relative(vul, seat);
 
-            let Some(mut logits) = stance.classify(hand, rel, &auction) else {
+            let Some(mut logits) = teacher.classify(hand, rel, &auction) else {
                 forced_pass += 1;
                 auction.push(Call::Pass);
                 continue;
@@ -215,7 +235,7 @@ fn main() -> std::io::Result<()> {
             format!("row = [{features_len} features][{SOFTMAX_LEN} teacher_softmax]")
         },
         "tags": "sibling .tags file: one u8 per row, 1 = contested phase, 0 = constructive",
-        "teacher": "american()",
+        "teacher": &args.teacher,
         "deals": args.deals.as_deref().unwrap_or("random"),
         "git_sha": git_sha,
         "seed": args.seed,
