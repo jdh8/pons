@@ -5,7 +5,9 @@
 # One server instance per ben-gen shard process (bidding is serialized behind
 # a per-instance lock), ports 8085+i, all under idle-run.sh politeness — the
 # servers are the real load on this shared box (docs/shared-machine-data-gen.md).
-# RSS is ~1.0 GB/instance.
+# RSS is ~1.0 GB/instance. Each instance is pinned to one TF thread (batch-of-1
+# LSTM inference gains nothing from a pool); Tier-F fleet throughput saturates
+# ~9-10 boards/sec by ~N=16, so N=24 ties N=32 — use 24 and keep the headroom.
 #
 # Usage:
 #   scripts/ben-servers.sh start N [f|s]   # N instances, tier f (default) or s
@@ -53,7 +55,10 @@ start)
 		fi
 		(
 			cd "$BEN_DIR/src"
-			setsid nohup "$here/idle-run.sh" "$BEN_DIR/.venv/bin/python" gameapi.py \
+			# ponytail: batch-of-1 small-LSTM inference gains nothing from an intra-op
+			# pool; pin to 1 so N instances pack onto N cores, not N*32 threads thrashing.
+			setsid nohup env TF_NUM_INTRAOP_THREADS=1 TF_NUM_INTEROP_THREADS=1 OMP_NUM_THREADS=1 \
+				"$here/idle-run.sh" "$BEN_DIR/.venv/bin/python" gameapi.py \
 				--config "$conf" --port "$port" --seed 42 --nolimit true --record false \
 				>"$BEN_DIR/run/server-$port.log" 2>&1 </dev/null &
 		)
