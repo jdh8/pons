@@ -75,9 +75,10 @@ struct Args {
     #[arg(long)]
     our_system: Option<c_int>,
 
-    /// Which of our authored systems to seat: `american` (default) or
-    /// `neural-v3` (the restrictive disclosable distilled floor; requires the
-    /// `neural-floor` feature).  Ignored when `--our-system` selects an EPBot card.
+    /// Which of our authored systems to seat: `american` (default), `dutch`
+    /// (the wide-1♣ champion candidate), or `neural-v3` (the restrictive
+    /// disclosable distilled floor; requires the `neural-floor` feature).
+    /// Ignored when `--our-system` selects an EPBot card.
     #[arg(long, default_value = "american")]
     our_floor: String,
 
@@ -1275,10 +1276,13 @@ fn main() -> anyhow::Result<()> {
             };
             pair.against(Family::NATURAL)
         }
+        // The Dutch champion candidate reuses american's shared modules (incl.
+        // the shipped 1NT shape), so `--nt-shape` does not apply here.
+        "dutch" => pons::dutch().against(Family::NATURAL),
         #[cfg(feature = "neural-floor")]
         "neural-v3" => pons::american_neural_v3().against(Family::NATURAL),
         other => anyhow::bail!(
-            "--our-floor must be american{}, got {other:?}",
+            "--our-floor must be american|dutch{}, got {other:?}",
             if cfg!(feature = "neural-floor") {
                 " or neural-v3"
             } else {

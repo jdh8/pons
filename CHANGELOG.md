@@ -37,8 +37,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   dropped). Transcribed from the user's **Watermelon Dutch** system book
   (`src/1C.md`, `src/1C/1D.md`). Deep relay continuations
   (`1♣-1♦-1M/1NT/2♣/2♦`) are Phase 2.2 — until then the floor handles
-  responder's third call. Not yet A/B-measured or gate-verified (authored while
-  a BEN A/B held the box). Ledger: `docs/dutch-system.md`.
+  responder's third call. **A/B measured (SEED_BASE 1784374548): `dutch −
+  american` = −0.028/bd plain, −0.010/bd PD (none); −0.031/bd plain, −0.008/bd
+  PD (both); 204 800 bd/arm/vul vs BBA.** A plain-DD loss — the half-built-system
+  bias (unauthored deep continuations collapse in competition; the deliberate
+  balanced-only `1NT` cedes 6322/5422 15–17 hands to a minor). Not shipped; on
+  plan for Phases 2.2/4. Ledger: `docs/dutch-system.md`.
 
 ### Changed
 
