@@ -96,10 +96,25 @@ Opener borrows american's `after_inv_raise` ladder.
 | 3♣ | decline — club support, non-forcing (capped ≤16 so a max never leaves it in) |
 | 2NT | decline — balanced minimum, non-forcing / catch-all |
 
-Responder's re-rebid and slam are **left to the floor** (measured to place the
-contract correctly; not authoring keeps the floor's M6.4 RKCB live for `2♦` slams).
-The help-suit game try (`2♥`/`2♠` after `2♣`) is dropped — the floor misreads the
-artificial try, and a cheap accept/decline lands the same games.
+**Responder's continuation (authored — the redo).** The opener-only first cut
+left responder to the floor; the A/B refuted it (the floor **dropped the game
+force**, passing opener's forcing `3♣` over `2♦`, and **blasted slam** blind over
+opener's `3NT`/stopper-shows, `−1.38 IMPs/fired`). Responder is now authored to
+honour the force and cap at the right game:
+
+| After opener's | Responder |
+| --- | --- |
+| `2♦`→ `3♦`/`3♣`/`2♥`/`2♠`/`2NT` | `3NT` — name the game (never pass the force) |
+| `2♦`→ `3NT` (15+ balanced, to play) | Pass |
+| `2♣`→ `3NT` (accept) | Pass |
+| `2♣`→ `3♣`/`2NT` (non-forcing decline) | `3NT` with the GF end (12+), else Pass |
+
+Slam beyond game is deferred: the A/B's dominant loss was blind slam *blasts*,
+not missed keycard slams, so the first correct cut lands the game cleanly. The
+`3♦` diamond-fit branch is the natural home for a later RKCB reuse (widening
+`american::slam::install_rkcb` past `pub(super)`) — pending a re-A/B that shows
+the game cap leaking slams. The help-suit game try (`2♥`/`2♠` after `2♣`) stays
+dropped — a cheap accept/decline lands the same games without the extra read.
 
 ---
 

@@ -100,16 +100,48 @@ fn bare_dutch() -> Pair {
     // two-level responses.  These overwrite american's inverted-raise (`2♣`) and
     // weak-jump-shift (`2♦`) continuations, which misread the Dutch meanings
     // (invite+ 5+♣ / game-forcing 5+♦); see `docs/dutch-system.md`.
+    let two_diamonds = call(2, Strain::Diamonds);
+    let two_clubs = call(2, Strain::Clubs);
     insert_uncontested(
         book,
-        &[one_club, call(2, Strain::Diamonds)],
+        &[one_club, two_diamonds],
         responses::opener_rebids_after_two_diamonds(),
     );
     insert_uncontested(
         book,
-        &[one_club, call(2, Strain::Clubs)],
+        &[one_club, two_clubs],
         responses::opener_rebids_after_two_clubs(),
     );
+    // Responder's continuation over each opener rebid.  The opener-only version
+    // measured a loss (A/B: the floor dropped the game force and blasted slam);
+    // these author responder to honour the force and cap at the right game.
+    for rebid in [
+        call(3, Strain::Diamonds),
+        call(3, Strain::Clubs),
+        call(3, Strain::Notrump),
+        call(2, Strain::Hearts),
+        call(2, Strain::Spades),
+        call(2, Strain::Notrump),
+    ] {
+        let Call::Bid(bid) = rebid else { continue };
+        insert_uncontested(
+            book,
+            &[one_club, two_diamonds, rebid],
+            responses::responder_after_two_diamonds(bid),
+        );
+    }
+    for rebid in [
+        call(3, Strain::Notrump),
+        call(3, Strain::Clubs),
+        call(2, Strain::Notrump),
+    ] {
+        let Call::Bid(bid) = rebid else { continue };
+        insert_uncontested(
+            book,
+            &[one_club, two_clubs, rebid],
+            responses::responder_after_two_clubs(bid),
+        );
+    }
     pair
 }
 
@@ -286,32 +318,41 @@ mod tests {
         assert_eq!(responds(&a, "AQx.Kxx.xx.KJxx"), bid(3, Strain::Clubs));
     }
 
-    /// Responder places the contract off the **floor** after opener's rebid —
-    /// no authored responder node this increment (measured to bid correctly).
-    /// These lock in the reliance: a floor change that breaks them flags for
-    /// re-review (and would be the cue to author responder re-rebids).
+    /// Responder's authored continuation after opener's rebid (Phase 2.2 inc.2,
+    /// the redo).  The opener-only version leaned on the floor and measured a
+    /// loss — the floor dropped the game force and blasted slam.  These lock in
+    /// the fix: the force is honoured (never passed short of game) and every
+    /// branch caps at the right game.
     #[test]
-    fn responder_places_contract_off_floor() {
+    fn responder_continues_after_opener_rebid() {
         const P: Call = Call::Pass;
         let c = bid(1, Strain::Clubs);
         let d2 = bid(2, Strain::Diamonds);
         let c2 = bid(2, Strain::Clubs);
-        // GF 2♦, opener raises diamonds: balanced 15, both stopped → 3NT.
-        let gf_3d = [c, P, d2, P, bid(3, Strain::Diamonds), P];
-        assert_eq!(responds(&gf_3d, "KJx.KQ.AQxxx.xx"), bid(3, Strain::Notrump));
-        // GF 2♦, opener shows a heart stopper: responder has spades → 3NT.
-        let gf_2h = [c, P, d2, P, bid(2, Strain::Hearts), P];
-        assert_eq!(responds(&gf_2h, "Kxx.xx.AKxxx.Qx"), bid(3, Strain::Notrump));
-        // Invite+ 2♣, opener declines 3♣: a dead minimum passes …
+        let gf = "AQx.Kx.KQxxx.xx"; // a legal game-forcing 2♦ responder
+        // GF 2♦: over any descriptive rebid (3♦ support / 2♥ stopper / 2NT),
+        // responder names the game — 3NT — and never passes the force.
+        for rebid in [
+            bid(3, Strain::Diamonds),
+            bid(2, Strain::Hearts),
+            bid(2, Strain::Notrump),
+        ] {
+            let auction = [c, P, d2, P, rebid, P];
+            assert_eq!(responds(&auction, gf), bid(3, Strain::Notrump));
+        }
+        // GF 2♦: over opener's own 3NT (balanced 15+ to play), responder passes.
+        let gf_3nt = [c, P, d2, P, bid(3, Strain::Notrump), P];
+        assert_eq!(responds(&gf_3nt, gf), P);
+        // Invite+ 2♣, opener declines 3♣: the game-forcing end drives 3NT …
         let inv_3c = [c, P, c2, P, bid(3, Strain::Clubs), P];
-        assert_eq!(responds(&inv_3c, "Kx.Qx.Qxx.KJxxxx"), P);
-        // … and a game force drives to 3NT.
         assert_eq!(
-            responds(&inv_3c, "Ax.Kx.Qxx.KQxxxx"),
+            responds(&inv_3c, "AQx.Kx.Kx.KQxxx"),
             bid(3, Strain::Notrump)
         );
+        // … a minimum invite passes the decline.
+        assert_eq!(responds(&inv_3c, "Jxx.Qx.Qx.KQxxx"), P);
         // Invite+ 2♣, opener accepts 3NT: responder passes the game.
         let inv_3nt = [c, P, c2, P, bid(3, Strain::Notrump), P];
-        assert_eq!(responds(&inv_3nt, "Kx.Qx.Qxx.KJxxxx"), P);
+        assert_eq!(responds(&inv_3nt, "Jxx.Qx.Qx.KQxxx"), P);
     }
 }

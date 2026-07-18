@@ -343,11 +343,16 @@ pub(super) fn relay_responses_after_club() -> Rules {
 /// up the line toward 3NT, or bid notrump by strength.  Forcing, so the catch-all
 /// is a bid (2NT), never Pass.
 ///
-/// Slam beyond 3NT / 5m is deferred to a later increment: a live book node
-/// shadows the floor's M6.4 RKCB here, so this increment lands the *game* and
-/// leaves keycard exploration to a follow-up that reuses `american::slam`.
-// ponytail: caps at game; add RKCB reuse (widen `slam::install_rkcb` to pub(crate))
-// when the slam tail measures worth the cross-module coupling.
+/// Responder's continuation is authored in [`responder_after_two_diamonds`]:
+/// the force must be honoured (never passed short of game) and slam left blind
+/// would be blasted — so this increment caps every branch at the right game.
+///
+/// Slam beyond 3NT / 5m is deferred to a later increment that reuses
+/// `american::slam` (widening `slam::install_rkcb` past `pub(super)`): the
+/// A/B's dominant loss was blind slam blasts, not missed keycard slams, so the
+/// disciplined first cut lands the game cleanly and prices the slam tail after.
+// ponytail: caps at game; add RKCB (widen `slam::install_rkcb` to pub(crate),
+// install on the 3♦ diamond-fit branch) if the re-A/B shows the slam tail losing.
 pub(super) fn opener_rebids_after_two_diamonds() -> Rules {
     Rules::new()
         // 3♦ — four-card diamond support: a known nine-card fit, the best news.
@@ -391,14 +396,12 @@ pub(super) fn opener_rebids_after_two_diamonds() -> Rules {
 /// so opener must be able to stop.  Opener accepts to game with a maximum (jump
 /// to `3NT` — balanced-and-stopped, or forced by 17+ opposite the invite's 11+),
 /// otherwise declines non-forcing: `3♣` raises responder's known suit, `2NT` the
-/// balanced-minimum catch-all.  Responder then places the contract off the
-/// **floor** — it passes a dead minimum, drives a game force to 3NT, and (over
-/// `3♣`) corrects to the club partscore; measured to do so correctly, so no
-/// authored responder node is needed and the floor's slam machinery stays live.
+/// balanced-minimum catch-all.  Responder's continuation is authored in
+/// [`responder_after_two_clubs`] (over 3NT / 3♣ / 2NT).
 ///
 /// The help-suit game try (opener's `2♥`/`2♠` showing a single stopper + extras)
-/// is dropped: the floor misreads the artificial try as a natural suit and
-/// under-accepts.  A cheap accept/decline lands the same games without it.
+/// is dropped: the artificial try needs its own authored responder read, and a
+/// cheap accept/decline lands the same games without it.
 // ponytail: no game-try rung; add 2♥/2♠ help-suit tries (with an authored
 // responder node to read them) if the A/B shows thin invited games being missed.
 pub(super) fn opener_rebids_after_two_clubs() -> Rules {
@@ -422,4 +425,44 @@ pub(super) fn opener_rebids_after_two_clubs() -> Rules {
         )
         // 2NT — decline / finite catch-all: balanced minimum, non-forcing.
         .rule(Bid::new(2, Strain::Notrump), 0.9, hcp(0..))
+}
+
+/// Responder's continuation after `1♣-2♦` (game force), keyed on opener's rebid.
+///
+/// The single job that the floor got wrong — and cost the increment its first
+/// A/B — is honouring the game force without blasting slam blind.  Over every
+/// descriptive rebid (`3♦` support, `3♣` clubs, `2♥`/`2♠` stopper, `2NT`
+/// catch-all) responder simply names the game: `3NT`.  Over opener's own `3NT`
+/// (a balanced 15+ to-play acceptance) responder passes — the game is reached.
+/// Nothing here is artificial (natural notrump / pass, projecting no suit), so
+/// no alert is carried and the auction rests at game with no deeper node.
+// ponytail: flat 3NT (matches american's `after_major`, which also bids 3NT on
+// game values without re-checking the off-major stopper).  Refine to 5m / RKCB
+// on the diamond-fit branch only if the re-A/B says the game cap leaks slams.
+pub(super) fn responder_after_two_diamonds(opener_rebid: Bid) -> Rules {
+    // Opener's own 3NT is the balanced to-play acceptance — pass the game.
+    if opener_rebid == Bid::new(3, Strain::Notrump) {
+        return Rules::new().rule(Call::Pass, 0.0, hcp(0..));
+    }
+    // Every other rebid (3♦ / 3♣ / 2♥ / 2♠ / 2NT): the force lands in 3NT.
+    Rules::new().rule(Bid::new(3, Strain::Notrump), 1.0, hcp(0..))
+}
+
+/// Responder's continuation after `1♣-2♣` (invite+), keyed on opener's rebid.
+///
+/// `2♣` was only invite+, so opener's rebid may be a non-forcing decline that
+/// responder must be able to pass.  Over opener's `3NT` (accept to game)
+/// responder passes.  Over a non-forcing decline (`3♣` club support, or `2NT`
+/// balanced minimum) responder passes with the pure invite (11–12) and drives
+/// `3NT` with the game-forcing end of invite+ (12+ opposite opener's up-to-16
+/// decline is enough for game).  All natural — no alert, no deeper node.
+pub(super) fn responder_after_two_clubs(opener_rebid: Bid) -> Rules {
+    // Opener accepted to game — pass 3NT.
+    if opener_rebid == Bid::new(3, Strain::Notrump) {
+        return Rules::new().rule(Call::Pass, 0.0, hcp(0..));
+    }
+    // A non-forcing decline (3♣ / 2NT): drive game with the GF end, else pass.
+    Rules::new()
+        .rule(Bid::new(3, Strain::Notrump), 1.0, points(12..))
+        .rule(Call::Pass, 0.0, hcp(0..))
 }

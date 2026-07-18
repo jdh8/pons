@@ -65,7 +65,7 @@ the floor's transfer-completion still holds.
 | 0 | Scaffold `dutch()`, re-export, 0.000 baseline | **DONE** |
 | 1 | Dutch openings: wide 1♣, 1♦ 5+/4441, 1M 10–20, strong 2♣ | **DONE** (code; A/B pending) |
 | 2.1 | Wide-1♣ response table + opener's rebid after the `1♦` relay | **MEASURED — LOSS** (see below); on-plan for a half-built system |
-| 2.2 | Deep relay continuations (`1♣-1♦-1M/1NT/2♣/2♦`) + `[1♣,2♣]`/`[1♣,2♦]` continuations | **increments 1–2 AUTHORED** — inc.1 `1♣-1♦-1M` + `1♣-1♦-2♣`; inc.2 opener's rebid over responder's `2♣`/`2♦` (both overwrite american); A/B pending. Rare relay `1NT`/`2♦!` still deferred |
+| 2.2 | Deep relay continuations (`1♣-1♦-1M/1NT/2♣/2♦`) + `[1♣,2♣]`/`[1♣,2♦]` continuations | **increments 1–2 AUTHORED** — inc.1 `1♣-1♦-1M` + `1♣-1♦-2♣`; inc.2 opener's rebid over `2♣`/`2♦` **+ responder's continuation** (opener-only cut LOST → responder side authored → **re-A/B WIN `+0.0021/bd plain both`**). Rare relay `1NT`/`2♦!` still deferred |
 | 3 | 2-level openings (Multi/Muiderberg/UNT) + strong-2♣ tree | pending |
 | 4 | Reader/floor reconciliation + divergent-opening competitive book | pending |
 | 5 | Iterate to champion vs BBA/BEN; promote if it wins | pending |
@@ -183,9 +183,15 @@ Encoding choices (jdh8-confirmed bridge, 2026-07-19):
   transfer structure) — rare, and their strength self-discloses to the floor via
   projection. Opener's third call (after responder's authored second call) still
   falls to the floor — a soft misread, measured not fixed blind.
-- **✓ `[1♣,2♣]` / `[1♣,2♦]` overwritten (increment 2, 2026-07-19)** — see the
-  increment-2 section below. Responder's re-rebids and slam are left to the floor
-  (measured correct); a follow-up may author them if the A/B wants the tail.
+- **✓ `[1♣,2♣]` / `[1♣,2♦]` overwritten + responder side (increment 2,
+  2026-07-19)** — see the increment-2 section below. The opener-only first cut
+  left responder to the floor and **measured a loss** (git-arms A/B: the floor
+  dropped the game force and blasted slam blind, `−0.0029/bd plain, −1.38
+  IMPs/fired`); the **responder side authored** (honour the force, cap at the
+  right game) turned it into a **win** — re-A/B `+0.0012/bd plain none,
+  +0.0021/bd plain both, PD positive throughout, +0.53…+0.86 IMPs/fired` (the
+  responder side alone worth `+1.97…+3.20 IMPs/fired`). Slam beyond game deferred
+  to a later RKCB reuse.
 
 ### Phase 2.2 increment 2 — opener's rebid after responder's natural 2♣ / 2♦
 
@@ -211,18 +217,47 @@ major fit can exist**, so both auctions are the pure inverted-minors world
   maximum forcing over the 11+ invite = 28+); `3♣` = decline with club support
   (capped ≤16 so a maximum never leaves it in); `2NT` = the balanced-minimum
   decline / catch-all. The help-suit game try (`2♥`/`2♠`) is **dropped** — the
-  floor misreads the artificial try as a natural suit and under-accepts; a cheap
-  accept/decline lands the same games.
+  artificial try needs its own authored responder read; a cheap accept/decline
+  lands the same games.
 
-**Responder's re-rebid + slam: left to the floor, measured correct.** Probing the
-floor on hands valid for each auction (GF 5+♦/13+; invite+ 5+♣/11+): it drives GF
-hands to 3NT, passes a dead minimum over the non-forcing decline, and drives a
-game force — the placements an authored node would make. Not authoring them keeps
-the floor's **M6.4 RKCB** live (a book node with a finite catch-all shadows it),
-so Node A slams still get bid. The `responder_places_contract_off_floor` test
-locks in the reliance; a floor change that breaks it is the cue to author the
-re-rebids. Neither node's stopper-shows project a suit, so no alert is needed and
-`dutch_artificial_calls_are_alerted` passes untouched.
+**Responder's continuation: authored (the redo).** The first cut left responder to
+the floor on a shallow probe ("drives GF hands to 3NT, passes a dead minimum")
+and **it measured a loss.** A git-arms A/B (dutch@inc.2 vs dutch@inc.1, 204 800
+bd/arm, SEED_BASE 1784400427) scored `−0.0029/bd plain, −0.0027/bd PD, −1.38
+IMPs/fired` (0.21% fired), and the worst boards diagnosed why: the floor **dropped
+the game force** — passing opener's forcing `3♣` over `2♦` (`1♣-2♦-3♣` passed out,
+a making 6NT missed) — and **blasted slam blind** over opener's `3NT`/stopper-shows
+(`2♦-2♠-6NT`, `2♣-3NT-4NT-5♥X`). The probe was too shallow: it checked opener's
+placement, not responder's read of the artificial rebids. Lesson re-paid: never
+ship on analysis alone; complete both sides before measuring.
+
+`responder_after_two_diamonds` / `responder_after_two_clubs` now author the
+responder side to honour the force and cap at the right game:
+
+- **After `2♦` (GF):** `3NT` on every descriptive rebid (`3♦`/`3♣`/`2♥`/`2♠`/`2NT`
+  → name the game, never pass the force); Pass over opener's own `3NT` (15+
+  balanced, to play).
+- **After `2♣` (invite+):** Pass the `3NT` accept; over a non-forcing decline
+  (`3♣`/`2NT`) drive `3NT` with the game-forcing end (12+), else pass the invite.
+
+**Re-A/B: the fix wins.** Rebuilt git-arms (SEED_BASE 1784402356, 204 800
+bd/arm/vul), complete inc.2 (opener+responder) vs pre-inc.2: `+0.0012/bd plain,
++0.0007/bd PD` (none); `+0.0021/bd plain, +0.0015/bd PD` (both); `+0.53…+0.86
+IMPs/fired`, 0.23% fired — a **plain-DD win, both vuls** (3 of 4 CIs exclude
+zero), flipping the opener-only loss. Isolating the responder side (head2 vs the
+opener-only head1) it is worth `+1.97…+3.20 IMPs/fired` on its own — the exact
+mechanism the worst-board trace predicted. (This run also fixed a harness bug in
+the *first* A/B, whose `-v both` was dropped, so none/both scored identically;
+the redo's vul split is real.)
+
+Slam beyond game is **deferred**: the A/B's dominant loss was blind slam *blasts*,
+not missed keycard slams, so the disciplined first cut lands the game cleanly. The
+`3♦` diamond-fit branch is the home for a later RKCB reuse (widening
+`american::slam::install_rkcb` past `pub(super)`), pending a re-A/B that shows the
+game cap leaking slams. Everything responder bids here is natural (notrump / pass,
+projecting no suit), so no alert is carried and `dutch_artificial_calls_are_alerted`
+passes untouched. The `responder_continues_after_opener_rebid` test locks in the
+fix.
 
 ### Phase 1 notes
 

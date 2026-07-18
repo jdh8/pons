@@ -68,10 +68,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   diamond support, `3♣` = a real club second suit, `3NT` = balanced extras both
   majors stopped, `2♥`/`2♠` = a single major stopper toward 3NT, `2NT` = catch-all.
   Over `2♣` (non-forcing): `3NT` = accept, `3♣` = decline with club support (≤16),
-  `2NT` = balanced-minimum decline. Responder's re-rebid and slam are left to the
-  floor — measured to place the contract correctly, and not authoring them keeps
-  the floor's M6.4 RKCB live for `2♦` slams. No user-facing default change (Dutch
-  is a candidate, off by default); A/B pending. Ledger: `docs/dutch-system.md`.
+  `2NT` = balanced-minimum decline. **Responder's continuation is authored** (the
+  redo): the opener-only first cut left responder to the floor, and a git-arms A/B
+  refuted it — the floor **dropped the game force** (passing opener's forcing `3♣`
+  over `2♦`) and **blasted slam blind** over opener's `3NT`/stopper-shows, at
+  `−0.0029/bd plain, −0.0027/bd PD (−1.38 IMPs/fired)`. Responder now honours the
+  force and caps at the right game: over `2♦` it names `3NT` on every descriptive
+  rebid (and passes opener's `3NT`); over `2♣` it passes the accept, and over a
+  non-forcing decline drives `3NT` with the game-forcing end or passes the invite.
+  Slam beyond game is deferred (the loss was blind blasts, not missed keycard
+  slams) — the `3♦` diamond-fit branch is the home for a later RKCB reuse.
+  **Re-A/B (SEED_BASE 1784402356, 204 800 bd/arm/vul): complete inc.2 vs pre-inc.2
+  = `+0.0012/bd plain, +0.0007/bd PD` (none); `+0.0021/bd plain, +0.0015/bd PD`
+  (both); `+0.53…+0.86 IMPs/fired`, 0.23% fired — a plain-DD win, both vuls, that
+  flips the opener-only loss.** The responder side alone accounts for
+  `+1.97…+3.20 IMPs/fired` (vs the opener-only binary), confirming the diagnosis.
+  No user-facing default change (Dutch is a candidate, off by default). Ledger:
+  `docs/dutch-system.md`.
 
 ### Changed
 
