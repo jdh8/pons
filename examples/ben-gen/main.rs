@@ -26,7 +26,8 @@
 use clap::Parser;
 use contract_bridge::auction::{Call, RelativeVulnerability};
 use contract_bridge::deck::full_deal;
-use contract_bridge::{AbsoluteVulnerability, Bid, Hand, Level, Seat, Strain, Suit};
+use contract_bridge::eval::hcp;
+use contract_bridge::{AbsoluteVulnerability, Bid, FullDeal, Hand, Level, Seat, Strain, Suit};
 use pons::american;
 use pons::bidding::array::Logits;
 use pons::bidding::{Family, System};
@@ -128,6 +129,13 @@ struct Args {
     /// globally unique — the probe pairs vul-flips and splits train/test by it.
     #[arg(long, default_value_t = 0)]
     first_deal: usize,
+
+    /// Self-play corpus: keep only two-way *contested* deals (see [`contested`]).
+    /// Random deals are mostly lopsided — one side passes throughout — so plain
+    /// self-play under-samples BEN's overcall/advance/competitive-rebid nodes.
+    /// `--count` then counts *accepted* deals; the accept rate is logged.
+    #[arg(long, default_value_t = false)]
+    contested: bool,
 }
 
 // ---------------------------------------------------------------------------
@@ -319,6 +327,33 @@ impl System for BenOracle {
     }
 }
 
+/// A deal where **both** partnerships can realistically compete: each side
+/// holds an 8+ card fit (a suit worth bidding) and neither is crushed on
+/// strength (both hold ≥ 14 of the 40 HCP).  Random deals are mostly lopsided —
+/// one side owns the values and passes throughout — so unfiltered self-play
+/// under-samples the deep contested auctions.  `--contested` keeps only these,
+/// pushing BEN's overcall/advance/competitive-rebid nodes above the probe's fit
+/// floor.  Biasing which deals reach a node does not bias the node's
+/// *ruliness* (the per-(hcp, shape) call is a policy property); it only
+/// populates the contested nodes — noted where the corpus is read.
+fn contested(deal: &FullDeal) -> bool {
+    const SUITS: [Suit; 4] = [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades];
+    let best_fit = |a: Seat, b: Seat| {
+        SUITS
+            .into_iter()
+            .map(|suit| deal[a][suit].len() + deal[b][suit].len())
+            .max()
+            .expect("four suits")
+    };
+    let ns_hcp: u32 = SUITS
+        .into_iter()
+        .map(|suit| hcp::<u32>(deal[Seat::North][suit]) + hcp::<u32>(deal[Seat::South][suit]))
+        .sum();
+    ns_hcp.min(40 - ns_hcp) >= 14
+        && best_fit(Seat::North, Seat::South) >= 8
+        && best_fit(Seat::East, Seat::West) >= 8
+}
+
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
     anyhow::ensure!(
@@ -346,8 +381,14 @@ fn main() -> anyhow::Result<()> {
         let vuls: [(&str, AbsoluteVulnerability); 4] = ["none", "ns", "ew", "both"]
             .map(|s| (s, s.parse().expect("valid vulnerability label")));
         let mut out = std::io::BufWriter::new(std::fs::File::create(path)?);
-        for index in 0..args.count {
+        let mut accepted = 0usize;
+        let mut dealt = 0usize;
+        while accepted < args.count {
             let deal = full_deal(&mut rng);
+            dealt += 1;
+            if args.contested && !contested(&deal) {
+                continue;
+            }
             let pbn = format!(
                 "N:{} {} {} {}",
                 hand_pbn(deal[Seat::North]),
@@ -364,17 +405,23 @@ fn main() -> anyhow::Result<()> {
                     .collect();
                 let ent = vec![0.0_f64; calls.len()];
                 let row = serde_json::json!({
-                    "deal": args.first_deal + index, "vul": label, "pbn": pbn,
+                    "deal": args.first_deal + accepted, "vul": label, "pbn": pbn,
                     "calls": calls, "top3": top3, "ent": ent,
                 });
                 writeln!(out, "{row}")?;
             }
+            accepted += 1;
         }
         out.flush()?;
         eprintln!(
-            "ben-gen: self-play corpus — {} deals × 4 vul = {} boards to {path} (seed {seed})",
+            "ben-gen: self-play corpus — {} deals × 4 vul = {} boards to {path} (seed {seed}){}",
             args.count,
             args.count * 4,
+            if args.contested {
+                format!(" [contested filter kept {accepted}/{dealt} deals]")
+            } else {
+                String::new()
+            },
         );
         return Ok(());
     }
