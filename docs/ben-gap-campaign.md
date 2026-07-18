@@ -493,14 +493,50 @@ not rules.**
    train/test by `deal`). Corpus schema is `probe-brl-book`'s exact JSONL —
    zero fitter changes.
 
-**Honest limit — self-play under-samples deep competition.** BEN-vs-BEN plays
-the same sound 2/1, so most auctions are *uncontested* (one side has the
-values, the other passes). Competitive **entry** (LHO's first call over an
-opening) is well-sampled (8–13k rows/node) and ruly by ceiling. Deep
-**contested continuations** (advancer after an overcall, competitive rebids,
-e.g. `1D 1S …`) fall below the 2000-row fit floor. The contested tail needs a
-**pons-vs-BEN** corpus (different systems force real competition) — deferred
-until the Dutch A/B frees the box (no parallel heavy runs).
+**Self-play under-samples deep competition** — BEN-vs-BEN plays the same sound
+2/1, so random deals are mostly *uncontested* (one side has the values, the
+other passes). Competitive **entry** (LHO's first call over an opening) is
+well-sampled and ruly; deep **contested continuations** fall below the fit
+floor. Fixed with a second, **contested-biased** corpus (below), *not* the
+pons-vs-BEN corpus first mooted here — the under-sampling is a *deal* problem
+(lopsided hands), not a system-pairing one, and biasing deals keeps every call
+pure BEN (faithful to BEN's own competitive system, zero fitter change). A
+pons-vs-BEN corpus would instead measure how BEN *reacts to a foreign system*
+(an exploit question) and confound ruliness with BEN mis-modelling us.
+
+### Contested extension — does ruliness hold in competition? (2026-07-19)
+
+Second corpus: 36k deals ×4 vul = **144k boards** of BEN Tier-F self-play with
+`ben-gen --self-play --contested` (keeps only two-way-competitive deals —
+both sides an 8+ fit and ≥14 HCP; ~65% accept). This ~doubled the overcall
+rate (East contests **40.6%** of North's openings, 20.1% of boards, vs ~10%
+random) and the two-sided-contested decision mass to **691,859** (47% of all
+decisions).
+
+**Verdict: yes — the ceiling stays 92–100% into genuinely contested nodes.**
+
+| contested node | actor | rows | ceiling (seen%) |
+| --- | --- | --- | --- |
+| `1C 1D` | advancer | 1907 | **97.5%** (33) |
+| `1D 1S` | advancer | 1897 | **97.1%** (28) |
+| `1C 1S` | advancer | 1746 | **100%** (28) |
+| `1D 1H` | advancer | 1657 | **95.7%** (25) |
+| `P 1D 1S` | advancer | 1335 | **100%** (26) |
+| `1S X` | advancer | 1023 | **100%** (18) |
+
+All 12 fitted two-sided nodes: ceiling **median 100%, min 92.3%** — the same
+ruliness the constructive + entry nodes showed. So **the −1.9 gap to BEN is
+search, not competitive rules** — confirmed now *inside* the auction, not just
+at the openings.
+
+Two honest caveats: (1) coverage is thin (seen ~25% at these depths, down from
+55–74% at entry) — the exact-tuple ceiling proves ruliness on *seen* shapes,
+but the tail needs a **generalizing** rule (pons's parametric floor), not a
+lookup. (2) Even contested-biased self-play spreads the deep tree across
+**101,776** distinct nodes (top node only 1907 rows), so distilling the *full*
+competitive tree by frequency is impractical past depth ~3 — but the ruliness
+*verdict* is established and holds. Probes:
+`ab-results` scratch → `probe-contested-d4{,-m1000}.md`.
 
 ## Success criteria
 
