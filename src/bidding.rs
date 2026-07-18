@@ -7,6 +7,8 @@ pub mod book;
 pub mod compose;
 pub mod constraint;
 pub mod context;
+/// The Dutch system — a natural 2/1 built around a wide, non-forcing 1♣
+pub mod dutch;
 /// Call-EV evaluator: a candidate call's cardplay-grounded worth by rollout
 #[cfg(feature = "dd")]
 pub mod ev;
@@ -49,6 +51,7 @@ pub use array::Array;
 pub use book::{Competitive, Constructive, Defensive, ExplainedRule, Family, Pair, Phase, Stance};
 pub use compose::{OrElse, Versus};
 pub use context::Context;
+pub use dutch::dutch;
 #[cfg(feature = "dd")]
 pub use ev::ev_all;
 pub use features::{FEATURES_LEN, FEATURES_VERSION, features};

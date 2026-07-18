@@ -4610,6 +4610,54 @@ mod tests {
         );
     }
 
+    /// The same alert invariant for the [`dutch`][crate::bidding::dutch] system's
+    /// constructive book.  Dutch reuses american's competitive and defensive
+    /// books (covered by `artificial_calls_are_alerted`) and overrides only the
+    /// opening table, so this walks the constructive trie — guarding the strong
+    /// 2♣ alert and any artificial call a future Dutch phase adds.
+    #[test]
+    fn dutch_artificial_calls_are_alerted() {
+        use crate::bidding::dutch::dutch;
+
+        let pair = dutch();
+        let trie = &pair.constructive.0;
+        let mut worklist: Vec<String> = Vec::new();
+        for (auction, classifier) in trie {
+            let auction: &[Call] = &auction;
+            let Some(rules) = classifier.as_rules() else {
+                continue;
+            };
+            let context = Context::new(RelativeVulnerability::NONE, auction)
+                .with_prefixes(trie.common_prefixes(auction));
+            for rule in rules.rules() {
+                let made = rule.call();
+                let doubled = context.last_bid().map(|last| last.strain);
+                if super::artificial(&rule.project(&context), made, doubled)
+                    && rule.alert().is_none()
+                {
+                    worklist.push(format!(
+                        "[{}] {made}  (label: {:?})",
+                        auction
+                            .iter()
+                            .map(ToString::to_string)
+                            .collect::<Vec<_>>()
+                            .join(" "),
+                        rule.label(),
+                    ));
+                }
+            }
+        }
+
+        worklist.sort();
+        worklist.dedup();
+        assert!(
+            worklist.is_empty(),
+            "{} Dutch artificial calls lack an alert:\n{}",
+            worklist.len(),
+            worklist.join("\n"),
+        );
+    }
+
     /// The same alert invariant for the opt-in New Minor Forcing book (off by
     /// default, so the shipped-system walk never sees it).  Guards the one
     /// artificial call NMF adds — responder's `2`-of-the-new-minor checkback —

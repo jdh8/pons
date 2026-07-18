@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`dutch()` — a new natural 2/1 system, wide-1♣ openings (Phases 0–1)**. A
+  sibling system factory built around a wide, non-forcing 1♣ — a "lawyer's
+  Polish Club" that naturalises the Polish 1♣. It is a **champion candidate**:
+  the plan is to copy `american()` and apply the Dutch diff one measurable
+  phase at a time, promoting Dutch to default only if it measures stronger.
+  Phase 1 ships the opening table: **1♣** 2+♣ ≤4♦ 11–23 (the wide catch-all,
+  hosts strong balanced hands american opens 2♣/2NT); **1♦** 5+♦ or the
+  singleton-club 4=4=4=1 (never 3♦); **1M** 5+ cards 10–20; **2♣** strong
+  artificial (21–23 with a 5-card major or 6-card minor, or any 24+) — all
+  Rule-of-20 gated. Every american continuation (responses, 1NT structure,
+  rebids, competitive/defensive books) is reused as-is, so the pending A/B
+  measures the opening diff alone; the 1♣ response structure and the
+  Multi/Muiderberg/UNT 2-level openings follow in later phases. Not yet
+  A/B-measured — the ship gate is `dutch()` vs `american()`, dual-scored.
+  Campaign ledger: `docs/dutch-system.md`.
+
 ### Changed
 
 - **The other three reading knobs ship default-on as reading soundness**

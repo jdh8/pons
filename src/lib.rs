@@ -31,7 +31,7 @@ pub mod stats;
 
 pub use bidding::{
     Alert, Competitive, Constructive, Context, Defensive, Family, OrElse, Pair, Phase, Rules,
-    Stance, System, Table, Trie, Versus, american, instinct,
+    Stance, System, Table, Trie, Versus, american, dutch, instinct,
 };
 #[cfg(feature = "neural-floor")]
 pub use bidding::{

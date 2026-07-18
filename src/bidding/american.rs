@@ -201,7 +201,11 @@ fn uncontested(our_calls: &[Call]) -> Vec<Call> {
 /// Keys at `uncontested(our_calls)` under every leading-pass prefix
 /// (`0..=3`), so the table answers regardless of which seat opened.  An empty
 /// `our_calls` registers an opening table.
-fn insert_uncontested(book: &mut Trie, our_calls: &[Call], rules: impl Classifier + 'static) {
+pub(in crate::bidding) fn insert_uncontested(
+    book: &mut Trie,
+    our_calls: &[Call],
+    rules: impl Classifier + 'static,
+) {
     insert_all_seats(book, &uncontested(our_calls), 3, rules);
 }
 
@@ -430,7 +434,7 @@ fn with_floor<C: Classifier + 'static>(mut pair: Pair, floor: C) -> Pair {
 }
 
 /// Attach the deterministic instinct floor to a pair's contested books
-fn with_instinct_floor(pair: Pair) -> Pair {
+pub(in crate::bidding) fn with_instinct_floor(pair: Pair) -> Pair {
     with_floor(pair, instinct())
 }
 
