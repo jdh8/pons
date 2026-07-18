@@ -24,6 +24,10 @@ that loop is not retired, it is re-subordinated.
 
 ## Know the enemy
 
+The full source-verified mechanism — input encoding, net shapes, the
+decision pipeline, how competition resolves, and Tier F vs Tier S — is
+mapped in [ben-architecture.md](ben-architecture.md). Summary below.
+
 BEN is instructive, not just strong. Its current nets are **trained on deals
 bid by BBA 8730** (model names carry the BBA build), it vendors BBA and can
 consult it during bidding (`consult_bba`, a score nudge + RKCB answers), and
