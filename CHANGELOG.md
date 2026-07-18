@@ -88,6 +88,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **`gib-scavenge` now writes `.pdd` binary shards by default, 1M deals each**.
+  The idle-CPU DD scavenger (`scripts/gib-scavenge.sh`) defaulted to 100k-deal
+  GIB *text* shards; it now writes the compact `.pdd` binary format (2.6×
+  smaller) at 1M deals/shard. `GIB_EXT=txt` restores GIB text, `GIB_COUNT` sets
+  the shard size. Merge binary shards with `gib convert … --out all.pdd`, not
+  `cat` (each `.pdd` carries a header). Tooling only — the bidding system is
+  untouched, no A/B.
 - **`dutch()` 1NT widened to american's Wide6322 shape**. The Dutch 1NT opening
   was balanced-only 15–17; it now reuses american's
   `notrump_shape(NotrumpShape::Wide6322)`, so a 5422 or 6322 with a long minor

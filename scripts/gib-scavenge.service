@@ -1,6 +1,6 @@
 # Background DD-database scavenger: run the one-shot `gib generate` under the
 # idle scheduling class, restarting with a fresh random seed after each shard, so
-# it produces a continuous stream of disjoint, `cat`-mergeable GIB files while
+# it produces a continuous stream of disjoint, `gib convert`-mergeable .pdd files while
 # yielding instantly to any other user (see docs/shared-machine-data-gen.md).
 #
 # Install (per-user, zero privilege):
@@ -11,8 +11,9 @@
 #   systemctl --user enable --now gib-scavenge
 #   loginctl enable-linger "$USER"                   # keep running while logged out
 #
-# Shards land in ~/gib-shards/shard-<seed>.txt — merge any time, order-independent:
-#   cat ~/gib-shards/shard-*.txt > all.txt
+# Shards land in ~/gib-shards/shard-<seed>.pdd — merge any time, order-independent:
+#   gib convert ~/gib-shards/shard-*.pdd --out all.pdd   # each .pdd has a header, so not cat
+# (set Environment=GIB_EXT=txt for `cat`-mergeable GIB text instead)
 # Status / live log:
 #   systemctl --user status gib-scavenge ; journalctl --user -u gib-scavenge -f
 # Stop / uninstall:

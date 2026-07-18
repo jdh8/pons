@@ -183,8 +183,10 @@ To keep a fleet box growing the database whenever it's idle, supervise the
 one-shot `generate` with [`scripts/gib-scavenge.service`](../scripts/gib-scavenge.service)
 instead of writing a daemon: it runs `gib generate` in the `SCHED_IDLE` class and,
 via `Restart=always`, starts the next shard with a fresh random 64-bit seed each
-time. Shards are named `shard-<seed>.txt` (so they stay reproducible) and land in
-`~/gib-shards`; `cat` them whenever you want a merged database.
+time. Shards are named `shard-<seed>.pdd` (compact binary by default, so they stay
+reproducible) and land in `~/gib-shards`; merge them with `gib convert
+shard-*.pdd --out all.pdd` whenever you want a combined database. Set `GIB_EXT=txt`
+for `cat`-mergeable GIB text, or `GIB_COUNT` to change the 1M-deal shard size.
 
 ```sh
 cargo build --release --example gib
@@ -198,8 +200,9 @@ so don't run several (the parallel-thrash caveat above applies to scavengers too
 It also **pauses itself when the disk gets low** (`GIB_MIN_FREE_KIB`, default
 ~20 GiB free) so a forgotten scavenger can't fill a shared `/home`; it deletes
 nothing and resumes once you merge and remove old shards. Each pass is a fresh
-~8.9 MB file, so it grows without bound until either you clean up or the guard
-trips — `cat … > all.txt && rm ~/gib-shards/shard-*.txt` is the whole lifecycle.
+~34 MB `.pdd` file (1M deals), so it grows without bound until either you clean up
+or the guard trips — `gib convert ~/gib-shards/shard-*.pdd --out all.pdd && rm
+~/gib-shards/shard-*.pdd` is the whole lifecycle.
 
 ## Etiquette
 
