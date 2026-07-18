@@ -81,13 +81,11 @@ struct Args {
     #[arg(long, default_value_t = false)]
     calibrate_epbot: bool,
 
-    /// Enable the cue reading of the natural walk (default off, unshipped): a
-    /// bid of a suit only the opponents have naturally shown is a cue, never a
-    /// holding — the phantom length is suppressed, and Michaels/Leaping
-    /// Michaels over a minor opening and the non-jump cue-raise are recorded.
-    /// The A/B on arm.
+    /// Disable the cue reading of the natural walk (shipped default-on
+    /// 2026-07-18, bid-inert): a bid of a suit only the opponents have
+    /// naturally shown is a cue, never a holding.
     #[arg(long, default_value_t = false)]
-    ns_cue_reading: bool,
+    no_ns_cue_reading: bool,
 
     /// Disable sound natural length floors (shipped default-on 2026-07-18:
     /// plain wash + PD win on both references): opener's immediate two-level
@@ -96,20 +94,20 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_length_soundness: bool,
 
-    /// Enable table-wide alert reading (default off, unshipped): the
-    /// opponents' alerted calls decode off their authoring rules — modeling
-    /// them as playing our books, an approximation against BEN — instead of
-    /// falling to the natural walk.  The A/B on arm.
+    /// Disable table-wide alert reading (shipped default-on 2026-07-18,
+    /// bid-inert): the opponents' alerted calls decode off their authoring
+    /// rules — modeling them as playing our books, an approximation against
+    /// BEN — instead of falling to the natural walk.
     #[arg(long, default_value_t = false)]
-    ns_table_alert_reading: bool,
+    no_ns_table_alert_reading: bool,
 
-    /// Enable the pass reading (default off, unshipped): each pass at an
-    /// authored node reads as its table's own Pass gate — the negative
-    /// inference of declining every other call (no-open ≤ 11 points, silent
-    /// responder ≤ 5 HCP, direct seat ≤ 17 HCP).  Opponents' passes need
-    /// --ns-table-alert-reading too.  The A/B on arm.
+    /// Disable the pass reading (shipped default-on 2026-07-18, bid-inert):
+    /// each pass at an authored node reads as its table's own Pass gate — the
+    /// negative inference of declining every other call (no-open ≤ 11 points,
+    /// silent responder ≤ 5 HCP, direct seat ≤ 17 HCP).  Opponents' passes
+    /// also need table-wide alert reading on.
     #[arg(long, default_value_t = false)]
-    ns_pass_reading: bool,
+    no_ns_pass_reading: bool,
 
     /// Free-form provenance recorded in gen_args (the launcher passes the
     /// server conf's sha256 here)
@@ -299,10 +297,10 @@ fn main() -> anyhow::Result<()> {
         "--tier must be f or s"
     );
     // Classify-time inference knobs; the board loop stays on this thread.
-    pons::bidding::set_cue_reading(args.ns_cue_reading);
+    pons::bidding::set_cue_reading(!args.no_ns_cue_reading);
     pons::bidding::set_length_soundness(!args.no_ns_length_soundness);
-    pons::bidding::set_table_alert_reading(args.ns_table_alert_reading);
-    pons::bidding::set_pass_reading(args.ns_pass_reading);
+    pons::bidding::set_table_alert_reading(!args.no_ns_table_alert_reading);
+    pons::bidding::set_pass_reading(!args.no_ns_pass_reading);
     let ben = BenOracle { port: args.port };
 
     // Health-probe the server before dealing: a fixed opening-bid request.

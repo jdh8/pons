@@ -94,14 +94,14 @@ range (projects the union — sound but loose).
   artificiality is bid-only. A pass still *reads*: its general meaning is
   negative inference — excluding every other call its table offered — decoded
   from the table's own Pass gate via `project_band` (`set_pass_reading`,
-  default off pending A/B), each pass resolved in the trie of its own turn.
+  default on), each pass resolved in the trie of its own turn.
 - Alerted calls are decoded by **rule projection** (`project_authored` in
   `inference.rs`, master switch `set_alert_reading`, default on): the reader
   replays the authoring rule's `project` fold. Unalerted = natural =
   floor-safe.
 - Projection reaches only calls the reader's own book authored — the
   opponents' calls read through the natural walk. **Table-wide alert
-  reading** (`set_table_alert_reading`, default off pending A/B) extends
+  reading** (`set_table_alert_reading`, default on) extends
   disclosure to the whole table, as at a real one: each opponent call is
   resolved in *their* phase-routed book (`Stance::trie_for` on the auction
   cut at their turn — `Phase::of` is slice-relative, so their side's phase

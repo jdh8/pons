@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The other three reading knobs ship default-on as reading soundness**
+  (`set_cue_reading`, `set_table_alert_reading`, `set_pass_reading`;
+  `--no-ns-*` off-switches in both generators). All three are **bid-inert**
+  in the default system — 0, 0, and 1 divergent boards per 211k same-seed
+  guard cells (`ab-results/reading-knobs/2026-07-17/`) — so a plain/PD A/B
+  is a wash by construction; the ship gate was the BEN Info-net probe's
+  soundness record (0 new truth violations; full-band hidden seats −52%;
+  acted-seat vagueness −60%). Their payoff realizes wherever readings are
+  consumed: sd-lead pricing, search-mode sampling, disclosure. Knob tests
+  now restore the on-default.
+- **Campaign methodology inverted** (jdh8: BEN is too slow for development —
+  measured 0.27 s/bid, ~16 h per 102.4k Tier-F arm-pair vs ~15 min for the
+  same A/B vs BBA): the per-fix ship gate is now the **BBA dual-bracket
+  A/B**; BEN drops to per-batch validation plus the periodic Tier-S anchor.
+  BEN fleet scaled to 32 instances (instance ≈ one busy thread behind the
+  per-instance bid lock; ~1 GB RSS each) — a sized Tier-F arm is now a
+  ~1–4 h batch job. Details in docs/ben-gap-campaign.md.
 - **Sound natural length floors ship default-on** (`set_length_soundness`,
   was default-off pending the A/B; `--no-ns-length-soundness` is the
   off-switch in both generators). The dual-reference A/B

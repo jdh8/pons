@@ -610,8 +610,7 @@ mod tests {
         let stance = crate::american().against(crate::bidding::Family::NATURAL);
         let inf =
             Inferences::read(&stance.prefixed_context(RelativeVulnerability::NONE, &[Call::Pass]));
-        crate::bidding::set_table_alert_reading(false);
-        crate::bidding::set_pass_reading(false);
+
         assert_eq!(inf.rho().points.max, 11, "a no-open pass caps at 11");
 
         let actor = Seat::North;

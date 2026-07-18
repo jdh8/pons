@@ -182,13 +182,25 @@ roughly per matched board. With 8 instances/shards:
 | Run | Tier | Boards | Wall |
 | --- | --- | --- | --- |
 | Smoke / probes | F | 100 | ~1.5 min (measured: 0.92 s/board/instance) |
-| Ship A/B arm | F | 102.4k (8×6,400×2 vul) | ~3.5 h (est. from smoke) |
-| Decompose sweep | F | 102.4k | ~3.5 h (est.) |
+| Ship A/B arm | F | 102.4k (8×6,400×2 vul) | **~8 h measured** at 8 instances (2026-07-17: 0.27 s/bid under load vs 0.1 s uncontended) |
+| Decompose sweep | F | 102.4k | ~8 h at 8 instances; ~2 h at 32 |
 | Headline anchor | S | 20k (8×1,250×2 vul) | ~8–10 h est. (overnight) |
 
 BBA's own tables quote ±0.04 IMP/deal at 20k hands; against a starting gap
 estimated at ~2 IMPs/board, a 20k Tier-S anchor is precision to spare. Small
 per-fix effects (±0.01) resolve at Tier-F scale.
+
+**Fleet sizing (measured 2026-07-18)**: each gameapi instance is ≈ one busy
+thread — bidding serializes behind the per-instance `model_lock_bid` and the
+policy net is tiny — so **instance count is the throughput knob**, up to the
+box's hardware threads. Tier-F RSS stays ~0.9–1.0 GB/instance (arena growth
+≈ 30 KB/board *total across the fleet* — per-instance load shrinks as the
+fleet grows; the ~2.8 GB figure was Tier-S). The fleet runs 32 instances on
+the 32-thread box (~30 GB). Never grow/restart the fleet mid-experiment:
+`ben-gen-parallel` discovers ports per cell, so a fleet change breaks shard
+pairing (a watcher that scaled early forced killing 24 unpaired shards).
+Size arms to the fired rate: a 0.2%-firing knob needs 100k+ boards, a
+1–5%-firing convention change reads fine at 25.6k (~30 min at 32-wide).
 
 ## Validation plan (ordered; each gates the next)
 

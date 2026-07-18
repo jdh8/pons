@@ -131,8 +131,9 @@ passed hand at ~6.3 mean HCP.
   Mechanism: our own pair's conventions decode via alert + projection (clean
   — the cue-bidder's *partner* was never flagged), but **opponents'** calls
   read through the natural walk, which had no cue concept. Two knobs in
-  `inference.rs`, **default off pending the A/B** (measurement.md; box busy
-  with the Tier-S calibration):
+  `inference.rs`, both **SHIPPED default-on** (length-soundness 2026-07-18
+  by its dual-reference A/B; cue-reading 2026-07-18 as bid-inert reading
+  soundness — see the inertness-probe entry):
   - `set_cue_reading` — a bid of a suit only the opponents have naturally
     shown is a cue, never a holding; records Michaels/Leaping Michaels over
     a minor opening (both majors 5-5) and the non-jump cue-raise (3+
@@ -147,8 +148,9 @@ passed hand at ~6.3 mean HCP.
   the table, not just the partner."). The projection pass decoded an alerted
   call only when the *reader's own* book authored it, so the opponents'
   alerted conventions (their splinter, their checkback, their Michaels) fell
-  to the natural walk. `set_table_alert_reading` (**default off pending the
-  A/B**; bba-gen arm `--ns-table-alert-reading`, probe `--sound-reading`)
+  to the natural walk. `set_table_alert_reading` (**SHIPPED default-on 2026-07-18** as bid-inert
+  reading soundness — see the inertness-probe entry; `--no-ns-table-alert-reading`
+  is the off-switch)
   resolves each opponent call in *their* phase-routed book — the stance
   models them as playing our own books, exact in self-play, an approximation
   vs BBA/BEN — under their at-the-time context, and decodes it when the rule
@@ -159,8 +161,9 @@ passed hand at ~6.3 mean HCP.
   −log p bits, few but never zero, on the most frequent call in bridge). In
   a well-authored table the complement is the Pass rule's own gate (the
   opening table passes on `points(..12)` *because* the bids cover 12+), so
-  `set_pass_reading` (**default off pending the A/B**; bba-gen
-  `--ns-pass-reading`, probe `--sound-reading`) decodes each pass off the
+  `set_pass_reading` (**SHIPPED default-on 2026-07-18** as bid-inert reading
+  soundness — see the inertness-probe entry; `--no-ns-pass-reading` is the
+  off-switch) decodes each pass off the
   union of its table's Pass gates, both bounds (`Constraint::project_band` —
   the ceilings `project` drops return here, an `hcp` ceiling widened by the
   scale's max upgrade), resolved in the trie of the pass's *own turn*
@@ -283,25 +286,34 @@ without honor location, is what our reader currently trades in.)
 | **BEN v0.8.8.4** (BEN-21GF, stock "Tier S" / policy-only "Tier F") | **Target.** The campaign metric is pons-vs-BEN IMPs/board. | Slow (HTTP + NN + DD rollouts): 20k-board anchor ≈ overnight; 102.4k Tier-F A/B arm ≈ 5–6 h | Headline anchor (Tier S); per-fix primary A/B (Tier F); decompose |
 | **BBA/EPBot** (vendored FFI) | **Guard + microscope.** | Fast: 409.6k-board arm in ~1–2 h | Exploit guard on every ship; big-sample forensics; the existing anchor series continues as a secondary metric |
 
-**The dual-reference ship rule** (extends, never overrides,
+**The ship rule — inverted 2026-07-18** (jdh8: *BEN is too slow for
+development* — measured 0.27 s/bid; a 102.4k Tier-F arm-pair costs ~16 h
+where the same A/B vs BBA is ~15 min end-to-end, generation ~90 s per
+204.8k cell plus fired-boards-only diffs. Extends, never overrides,
 [measurement.md](measurement.md)'s decision table — all iron rules stand):
 
-1. **Primary**: fresh-seed A/B **vs BEN Tier F**, both brackets (plain DD +
-   PD; sd-lead where the treatment is competitive/lead-shaped). Verdict from
-   the standard decision table.
-2. **Guard**: same-seed A/B **vs BBA**, plain DD must not regress outside
-   CI. A vs-BEN win that loses plain DD vs BBA is presumed **exploitation**
-   (policy-net artifact, sampler blind spot) until forensics on the worst
-   divergent boards proves otherwise. PD-only wobbles on the guard don't
-   block (the vul-PD doubling artifact is a known false alarm) — plain does.
+1. **Per-fix gate**: fresh-seed A/B **vs BBA**, both brackets (plain DD +
+   PD; sd-lead where the treatment is competitive/lead-shaped). Verdict
+   from the standard decision table. This is the development loop.
+2. **Per-batch validation**: a **vs-BEN Tier-F** A/B per milestone/batch of
+   shipped fixes, arms **sized to the fired rate** (a 0.2%-firing knob
+   needs 100k+ boards; a 1–5%-firing convention change reads fine at
+   25.6k), plus the **periodic Tier-S anchor** as the truth metric. A batch
+   that wins vs BBA but regresses vs BEN triggers forensics on the worst
+   divergent boards before the next batch ships.
 3. The existing self-play/advertised exploitation guard for sd verdicts
    stays as-is.
 
-Rationale: BBA is rule-based and independent of BEN's training lineage in
-its *decisions* (even though BEN trained on its output) — a genuine bridge
-improvement should win or wash against both; a quirk exploit shows up as a
-one-reference win. This is the anti-overfitting discipline the user set for
-the campaign, and it is cheap: the guard costs 1–2 h of FFI time per ship.
+Rationale: the original primary/guard split guarded against tuning to
+BEN's quirks — but gating per-fix on BBA makes BEN-overfitting impossible
+by construction, and the per-batch BEN run catches the converse
+(BBA-overfitting) at the same cadence the old chained-anchor discipline
+did. BBA is rule-based and independent of BEN's training lineage in its
+*decisions* (even though BEN trained on its output) — a genuine bridge
+improvement wins or washes against both. Fleet ops: 32 Tier-F instances
+(ports 8085+, ~1 GB RSS each, arenas grow ~30 KB/board; each instance ≈
+one busy thread behind its bid lock, so instance count is the throughput
+knob) make a sized Tier-F arm a ~1–4 h batch job.
 
 **Tier-transfer caveat**: Tier F (policy-only) is weaker than Tier S (the
 engine BBA measured). Per-fix verdicts read at Tier F; the periodic Tier-S

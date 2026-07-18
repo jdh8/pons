@@ -186,8 +186,9 @@ pub(super) fn control_bid_reading() -> bool {
 std::thread_local! {
     /// Whether the natural walk recognises a bid of a suit only the *opponents*
     /// have naturally shown as a cue rather than a holding (see
-    /// [`set_cue_reading`]).  Off by default pending the A/B.
-    static CUE_READING: Cell<bool> = const { Cell::new(false) };
+    /// [`set_cue_reading`]).  On by default (shipped 2026-07-18: bid-inert,
+    /// reading soundness).
+    static CUE_READING: Cell<bool> = const { Cell::new(true) };
 
     /// Whether two over-tight natural length floors are relaxed to sound ones
     /// (see [`set_length_soundness`]).  On by default (shipped 2026-07-18:
@@ -195,11 +196,12 @@ std::thread_local! {
     static LENGTH_SOUNDNESS: Cell<bool> = const { Cell::new(true) };
 
     /// Whether [`project_authored`] reads passes off their table's own Pass
-    /// gate (see [`set_pass_reading`]).  Off by default pending the A/B.
-    static PASS_READING: Cell<bool> = const { Cell::new(false) };
+    /// gate (see [`set_pass_reading`]).  On by default (shipped 2026-07-18:
+    /// bid-inert, reading soundness).
+    static PASS_READING: Cell<bool> = const { Cell::new(true) };
 }
 
-/// Toggle the cue reading of the natural walk (default off, pending A/B)
+/// Toggle the cue reading of the natural walk (default on, shipped 2026-07-18)
 ///
 /// On, a bid of a suit only the *opponents* have naturally shown is a cue,
 /// never a holding: the phantom length the walk floored is suppressed, and the
@@ -241,7 +243,7 @@ fn length_soundness() -> bool {
     LENGTH_SOUNDNESS.with(Cell::get)
 }
 
-/// Toggle the pass reading (default off, pending A/B)
+/// Toggle the pass reading (default on, shipped 2026-07-18)
 ///
 /// The general reading of a pass is **negative inference — it excludes every
 /// bid and double the passer's table offered** (jdh8).  In a well-authored
@@ -261,6 +263,15 @@ fn length_soundness() -> bool {
 /// Info-net probe (docs/ben-gap-campaign.md) found passes ~60% of all reading
 /// vagueness: we showed 0–37 where BEN commits ~6.3 mean HCP on a passed
 /// hand — the biggest reading hole by volume.
+///
+/// Shipped default-on with `set_cue_reading` and `set_table_alert_reading`
+/// as reading soundness: all three are **bid-inert** in the default system
+/// (0, 0, and 1 divergent boards per 211k same-seed guard cells — the
+/// on-disk witness in `ab-results/reading-knobs/2026-07-17/`), so a
+/// plain/PD A/B is a wash by construction and the ship gate was the probe's
+/// soundness numbers (0 new truth violations; acted-seat vagueness −60%).
+/// Their payoff realizes wherever readings are consumed: sd-lead pricing,
+/// search-mode sampling, disclosure.
 pub fn set_pass_reading(on: bool) {
     PASS_READING.with(|cell| cell.set(on));
 }
@@ -271,12 +282,12 @@ fn pass_reading() -> bool {
 
 std::thread_local! {
     /// Whether [`project_authored`] also decodes the *opponents'* alerted
-    /// calls (see [`set_table_alert_reading`]).  Off by default pending the
-    /// A/B.
-    static TABLE_ALERT_READING: Cell<bool> = const { Cell::new(false) };
+    /// calls (see [`set_table_alert_reading`]).  On by default (shipped
+    /// 2026-07-18: bid-inert, reading soundness).
+    static TABLE_ALERT_READING: Cell<bool> = const { Cell::new(true) };
 }
 
-/// Toggle table-wide alert reading (default off, pending A/B)
+/// Toggle table-wide alert reading (default on, shipped 2026-07-18)
 ///
 /// Alerting exists *for the opponents*: an alerted call is disclosed to the
 /// whole table, not just remembered by partner.  The projection pass honors
@@ -2913,10 +2924,12 @@ mod tests {
     #[test]
     fn pass_reading_caps_the_no_open_pass() {
         let p = Call::Pass;
-        // Default off: a pass reads nothing (the byte-identity witness).
+        // Knob off — the pre-ship identity: a pass reads nothing.
+        set_pass_reading(false);
         assert_eq!(read_booked(&[p, p]).partner().points, Range::FULL_POINTS);
 
         set_pass_reading(true);
+        set_table_alert_reading(false);
         // Partner's no-open pass reads the opening table's own gate,
         // `points(..12)`; an opponent's pass stays unread until table-wide
         // disclosure is on too.
@@ -2929,16 +2942,16 @@ mod tests {
         let opened = read_booked(&[p, bid(1, Strain::Hearts)]);
         assert_eq!(opened.partner().points, Range::new(0, 11));
         assert_eq!(opened.rho().points, Range::new(10, 21));
-        set_table_alert_reading(false);
-        set_pass_reading(false);
     }
 
     #[test]
     fn pass_reading_caps_the_failed_compete() {
         let auction = [bid(1, Strain::Hearts), Call::Pass, Call::Pass];
+        set_pass_reading(false);
         assert_eq!(read_booked(&auction).partner().points, Range::FULL_POINTS);
 
         set_pass_reading(true);
+        set_table_alert_reading(false);
         // Partner's direct-seat pass: the authored complement of the strong
         // tier ("strong hands double first regardless") — at most 17 raw HCP,
         // 22 on the upgraded scale.  Their responder's pass stays unread
@@ -2948,8 +2961,6 @@ mod tests {
         assert_eq!(own.rho().points, Range::FULL_POINTS);
         set_table_alert_reading(true);
         assert_eq!(read_booked(&auction).rho().points, Range::new(0, 10));
-        set_table_alert_reading(false);
-        set_pass_reading(false);
     }
 
     #[test]
@@ -2959,7 +2970,6 @@ mod tests {
         // at most 5 raw HCP, 10 upgraded.
         let caps = read_booked(&[bid(1, Strain::Hearts), Call::Pass, Call::Pass, Call::Pass]);
         assert_eq!(caps.partner().points, Range::new(0, 10));
-        set_pass_reading(false);
     }
 
     #[test]
@@ -2971,7 +2981,6 @@ mod tests {
         assert_eq!(nt.partner().points, Range::new(0, 13));
         assert!(nt.partner().length(Suit::Hearts).max <= 5);
         assert!(nt.partner().length(Suit::Spades).max <= 5);
-        set_pass_reading(false);
     }
 
     #[test]
@@ -2983,8 +2992,6 @@ mod tests {
         // claimed about the advancer even with every reading knob on.
         let trap = read_booked(&[bid(1, Strain::Hearts), Call::Double, Call::Pass, Call::Pass]);
         assert_eq!(trap.rho().points, Range::FULL_POINTS);
-        set_table_alert_reading(false);
-        set_pass_reading(false);
     }
 
     #[test]
@@ -4143,6 +4150,7 @@ mod tests {
         // With Rubens advances off (`set_rubens_advances`), the same 2♣ is a
         // genuine club suit — the suppression lifts and it reads naturally.
         crate::bidding::instinct::set_rubens_advances(false);
+        set_cue_reading(false);
         let inf = read(&[
             bid(1, Strain::Clubs),
             bid(1, Strain::Spades),
@@ -4151,6 +4159,7 @@ mod tests {
             Call::Pass,
         ]);
         assert!(inf.partner().length(Suit::Clubs).min >= 4);
+        set_cue_reading(true);
         crate::bidding::instinct::set_rubens_advances(true);
     }
 
@@ -4167,6 +4176,7 @@ mod tests {
         set_cue_reading(false);
         let off = read(&[bid(1, Strain::Clubs), bid(2, Strain::Clubs)]);
         assert!(off.rho().length(Suit::Clubs).min >= 5);
+        set_cue_reading(true);
     }
 
     #[test]
@@ -4182,7 +4192,6 @@ mod tests {
         assert_eq!(inf.rho().length(Suit::Diamonds), Range::FULL_LENGTH);
         assert!(inf.rho().length(Suit::Hearts).min >= 5);
         assert!(inf.rho().length(Suit::Spades).min >= 5);
-        set_cue_reading(false);
     }
 
     #[test]
@@ -4201,7 +4210,6 @@ mod tests {
         assert_eq!(inf.rho().length(Suit::Diamonds), Range::FULL_LENGTH);
         assert!(inf.rho().length(Suit::Hearts).min >= 3);
         assert!(inf.rho().points.min >= 10);
-        set_cue_reading(false);
     }
 
     #[test]
@@ -4296,6 +4304,7 @@ mod tests {
         set_table_alert_reading(false);
         let off = read_booked(&auction);
         assert_eq!(off.rho().points.min, 0);
+        set_table_alert_reading(true);
     }
 
     #[test]
@@ -4318,6 +4327,7 @@ mod tests {
         set_table_alert_reading(false);
         let off = read_booked(&auction);
         assert!(off.rho().length(Suit::Clubs).min >= 4);
+        set_table_alert_reading(true);
     }
 
     #[test]
@@ -4401,11 +4411,14 @@ mod tests {
             "the cue is not natural hearts"
         );
 
-        // Knob off: the pre-package natural reading is preserved verbatim.
+        // Package and shipped cue reading both off: the pre-package natural
+        // reading is preserved verbatim.
         set_uvu_over_majors(false);
+        set_cue_reading(false);
         let inf = read(&[bid(1, Strain::Hearts), bid(2, Strain::Hearts)]);
         assert!(inf.rho().length(Suit::Hearts).min >= 5);
         assert_eq!(inf.rho().length(Suit::Spades), Range::FULL_LENGTH);
+        set_cue_reading(true);
         set_uvu_over_majors(true);
     }
 
