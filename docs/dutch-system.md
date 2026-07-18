@@ -14,27 +14,14 @@ bidding change ships without an A/B).
 
 ## Target system
 
-Openings:
-
-| Call | Meaning |
-| --- | --- |
-| **1♣** | NF, 2+♣, **≤4♦** (no 5+♦), no 5-card major, 11–23 HCP, Rule of 20 — the wide catch-all; soaks up every 4-diamond hand except the 4441, plus all strong hands lacking the 2♣ shape |
-| **1♦** | **5+♦, or exactly 4=4=4=1** (singleton club) — no other 4-diamond hand; no 5-card major; 11–23 HCP, Rule of 20. So 1♦ ⟹ 4+♦, never 3. Do **not** reuse american's `prefers_diamonds` (it opens 1♦ on 3♦ and on 4-diamond non-4441 hands). Encoded as `no5cM & (len(♦,5..) \| len(♣,..=1))`. |
-| **1M** | 5+ cards, 10–20 HCP, Rule of 20 |
-| **2♣!** | strong artificial: 21–23 with a 5-card major or 6-card minor, or any 24+ |
-| **2♦** | Multi |
-| **2♥ / 2♠** | Muiderberg |
-| **2NT** | UNT (both minors) |
-| 3-level | preempts as american (strength TBR) |
-
-Responses to the wide 1♣ (the load-bearing convention):
-
-| Call | Meaning |
-| --- | --- |
-| **1♣–P** | 0–5, 4–5♣ |
-| **1♣–1♦!** | artificial catch-all relay (R), may be weak |
-| **1♣–2♣** | INV+, 5+♣, no 4-card major |
-| **1♣–2♦** | FG, 5+♦, no 4-card major |
+The full bidding spec — openings, the 1♣ response ladder, opener's relay
+rebids, and the deep continuation trees — is transcribed from jdh8's Watermelon
+Dutch book in **[dutch-spec.md](dutch-spec.md)** (with pons deviations flagged
+inline). In one line: a wide non-forcing **1♣** (11–23 catch-all) with a **1♦!
+relay** carrying the awkward and the very strong; **1♦** = 5+♦ or the
+singleton-club 4441 (never 3♦; every other 4-diamond hand — incl. (xx)45 —
+opens 1♣); five-card majors 10–20; a strong artificial **2♣**; and (Phase 3)
+Multi / Muiderberg / UNT at the 2-level replacing the weak twos.
 
 ## Decisions
 
@@ -77,7 +64,8 @@ the floor's transfer-completion still holds.
 | --- | --- | --- |
 | 0 | Scaffold `dutch()`, re-export, 0.000 baseline | **DONE** |
 | 1 | Dutch openings: wide 1♣, 1♦ 5+/4441, 1M 10–20, strong 2♣ | **DONE** (code; A/B pending) |
-| 2 | Wide-1♣ responses: 1♦ relay, 2♣ INV+, 2♦ FG + opener's rebids | pending |
+| 2.1 | Wide-1♣ response table + opener's rebid after the `1♦` relay | **DONE** (code; A/B + gates pending) |
+| 2.2 | Deep relay continuations (`1♣-1♦-1M/1NT/2♣/2♦`) + `[1♣,2♣]`/`[1♣,2♦]` continuations | pending |
 | 3 | 2-level openings (Multi/Muiderberg/UNT) + strong-2♣ tree | pending |
 | 4 | Reader/floor reconciliation + divergent-opening competitive book | pending |
 | 5 | Iterate to champion vs BBA/BEN; promote if it wins | pending |
@@ -87,6 +75,52 @@ american arm), dual-scored (`ns_score_pd` + `ns_score_contract`), fresh
 `SEED_BASE`, run sequentially under `scripts/idle-run.sh`. Preemptive phases
 (3) are read knowing DD is blind to obstruction — lean on the sd-lead / PD
 bracket, not plain DD alone.
+
+### Phase 2 notes — the wide-1♣ response structure
+
+Spec tables (responder's calls, opener's relay rebids, the deep continuation
+trees) live in **[dutch-spec.md](dutch-spec.md)**. Phase 2.1 authored the first
+two nodes — `[1♣]` responses and `[1♣,1♦]` opener rebids; the `2NT!` 5-5-minor
+rebid is dropped (unreachable in pons — 5-5 minors open 1♦). This section keeps
+only the pons-specific encoding choices and the open items.
+
+Encoding choices (each a small, faithful adaptation — validate in the A/B):
+
+- **Relay constraint = `hcp(5..) | len(♣,..3)`** (constructive values, or too
+  short in clubs to pass), sitting at weight 0.3 below every natural and above
+  `Pass` (0.0). An OR-disjunction projects to the WALL → floors nothing → the
+  alert cleanly suppresses the natural-diamond reading with no phantom suit.
+- **Weak jump = exactly six, preempt = seven-plus** (`2M` `6..=6`, `3M` `7..`)
+  so `2♥♠` and `3♥♠` partition by length rather than overlapping on 6+.
+- **`2NT`/`3NT` deduped at 11** — `2NT` 10–11 invite keeps the 11, `3NT`
+  encoded 12–15 to-play (doc lists 3NT as 11–15).
+- **Opener's `2♣` spans 11–20**, not 11–17, so an 18–20 unbalanced no-4M no-6♣
+  five-club hand has a rebid instead of falling to the `Pass` catch-all; opener
+  resolves the exact band on the next round (Phase 2.2).
+- **1M responses use up-the-line** (bid the cheaper 4-card major first), pure
+  DSL, no dependency on american's `spades_first`/`hearts_first`. Longer-major
+  discipline (reader-preferred) is a deferred refinement.
+
+Alerts: only the genuinely artificial calls trip the invariant — `1♦!` relay,
+opener's `2♦!`/`2NT!`. The natural-but-meaning-inverted calls (`2♦` GF, `2♣`
+INV+, weak jumps, minor invites, major preempts) are *also* alerted so
+projection self-decodes them (american's hardcoded reader would otherwise read
+`2♦` as a weak jump and `2♣` as an inverted raise). Balanced/notrump naturals
+(`1M`, `1NT`, `2NT`, `3NT`) are left unalerted — american's read is close enough.
+
+**Open questions / deferrals:**
+
+- **✓ Phase-1 spec discrepancy resolved (2026-07-18):** the online `1D.md`
+  argument for opening 1♦ on (xx)45 [4♦5♣] is **stale** — jdh8 is no longer
+  following it. In pons, **(xx)45 opens 1♣** (the locked `1♦ = 5+♦ | 4441`
+  stands) for simplicity and as an experiment. Consequence: the `2NT!` 5-5-minor
+  rebid is unreachable (5-5 minors open 1♦) and was **dropped**.
+- **Deep continuations deferred to 2.2:** `1♣-1♦-1M` (support/two-suiter/16+),
+  `1♣-1♦-1NT` (a full 18–20 transfer structure, reuses the 1NT machinery),
+  `1♣-1♦-2♣`, `1♣-1♦-2♦` (a 21–23 transfer structure). Until authored the floor
+  handles responder's third call — a soft misread, measured not fixed blind.
+- **`[1♣,2♣]` / `[1♣,2♦]` still american** (inverted-raise / weak-jump
+  continuations) under Dutch's natural 2♣/2♦ — overwrite in 2.2.
 
 ### Phase 1 notes
 

@@ -22,6 +22,7 @@ played a long time and read a lot. For 5-card major systems, see my
 | Measuring or shipping a bidding change | [docs/measurement.md](docs/measurement.md) — the A/B playbook. **No bidding change ships without it.** |
 | Tuning an existing convention's range, or fixing which call leaks | [docs/convention-tuning.md](docs/convention-tuning.md) — sweep vs forensic; classify constructive/competitive first |
 | Neural/AI bidder work | `.claude/skills/ai-bidder` + [docs/ai-bidder/](docs/ai-bidder/) (`README.md` then `plan.md`) |
+| The Dutch system (champion candidate; wide non-forcing 1♣) | [docs/dutch-system.md](docs/dutch-system.md) — campaign ledger + phase plan; full bidding spec in [docs/dutch-spec.md](docs/dutch-spec.md) |
 | Competitive book (we open, they interfere) | [docs/competitive-book.md](docs/competitive-book.md) — wiring idiom, package designs, campaign ledger |
 | Long data-gen runs | [docs/shared-machine-data-gen.md](docs/shared-machine-data-gen.md) — this box is shared |
 | Raw bidding-theory notes | [docs/bidding-theorems.md](docs/bidding-theorems.md) |

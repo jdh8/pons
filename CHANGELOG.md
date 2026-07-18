@@ -24,6 +24,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Multi/Muiderberg/UNT 2-level openings follow in later phases. Not yet
   A/B-measured — the ship gate is `dutch()` vs `american()`, dual-scored.
   Campaign ledger: `docs/dutch-system.md`.
+- **`dutch()` Phase 2.1 — the wide-1♣ response structure**. Overwrites two
+  nodes on the reused `bare_american` pair: responder's first call over `1♣`
+  and opener's rebid after the `1♦` relay. The `1♦!` response is an artificial
+  **catch-all relay** (constructive values, or too short in clubs to pass, or a
+  strong 16+ with no descriptive bid) — the gadget that lets the wide 1♣ carry
+  21–23 without dropping the hand; `2♣`/`2♦` become *natural* invite+/game-force
+  in the minor (replacing american's inverted raise / weak jump shift). Opener
+  clarifies with a full ladder: cheap natural rebids for 11–17, jumps/reverses
+  for 18–20, and an artificial `2♦!` catch-all for 21–23 (the source system's
+  `2NT!` 5-5-minor rebid is unreachable in pons — 5-5 minors open 1♦ — so it is
+  dropped). Transcribed from the user's **Watermelon Dutch** system book
+  (`src/1C.md`, `src/1C/1D.md`). Deep relay continuations
+  (`1♣-1♦-1M/1NT/2♣/2♦`) are Phase 2.2 — until then the floor handles
+  responder's third call. Not yet A/B-measured or gate-verified (authored while
+  a BEN A/B held the box). Ledger: `docs/dutch-system.md`.
 
 ### Changed
 
