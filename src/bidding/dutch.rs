@@ -17,7 +17,7 @@ mod responses;
 use super::Pair;
 use super::american::{bare_american, insert_uncontested, with_instinct_floor};
 use contract_bridge::auction::Call;
-use contract_bridge::{Bid, Strain};
+use contract_bridge::{Bid, Strain, Suit};
 
 /// A bid as a [`Call`], for trie keys
 const fn call(level: u8, strain: Strain) -> Call {
@@ -59,9 +59,10 @@ pub fn dutch() -> Pair {
 /// (`Trie::insert_arc` replaces the classifier at each key); every other
 /// american continuation is reused verbatim.  Phase 1 overwrote the opening
 /// table ([`openings::dutch_openings`]); Phase 2.1 overwrites the wide-1♣
-/// response node and opener's rebid after the `1♦` relay
-/// ([`responses`]).  Deeper relay continuations (`1♣-1♦-1M/1NT/2♣/2♦`) are
-/// still american's until Phase 2.2; see `docs/dutch-system.md`.
+/// response node and opener's rebid after the `1♦` relay; Phase 2.2 adds
+/// responder's second call over opener's minimum rebids (`1♣-1♦-1M`,
+/// `1♣-1♦-2♣`).  The rare 18–20 `1NT` / 21–23 `2♦!` continuations stay
+/// american's — projection discloses their strength; see `docs/dutch-system.md`.
 fn bare_dutch() -> Pair {
     let mut pair = bare_american();
     let book = &mut pair.constructive.0;
@@ -69,11 +70,31 @@ fn bare_dutch() -> Pair {
     // and `Trie::insert_arc` replaces the classifier there — a clean overwrite.
     insert_uncontested(book, &[], openings::dutch_openings());
     let one_club = call(1, Strain::Clubs);
+    let relay = call(1, Strain::Diamonds);
     insert_uncontested(book, &[one_club], responses::one_club_responses());
     insert_uncontested(
         book,
-        &[one_club, call(1, Strain::Diamonds)],
+        &[one_club, relay],
         responses::opener_rebids_after_relay(),
+    );
+    // Phase 2.2 increment 1 — responder's second call after opener's *minimum*
+    // relay rebids (11–17), the high-frequency landing spots.  Deeper opener
+    // rebids (18–20 `1NT`, 21–23 `2♦!`) still fall to the floor, which reads
+    // their self-disclosed strength off the alerted rule; see `docs/dutch-system.md`.
+    insert_uncontested(
+        book,
+        &[one_club, relay, call(1, Strain::Hearts)],
+        responses::relay_responses_after_major(Suit::Hearts),
+    );
+    insert_uncontested(
+        book,
+        &[one_club, relay, call(1, Strain::Spades)],
+        responses::relay_responses_after_major(Suit::Spades),
+    );
+    insert_uncontested(
+        book,
+        &[one_club, relay, call(2, Strain::Clubs)],
+        responses::relay_responses_after_club(),
     );
     pair
 }
@@ -174,6 +195,46 @@ mod tests {
         assert_eq!(
             responds(&relay, "AKQ.x.AQxx.AQxxx"),
             bid(2, Strain::Diamonds)
+        );
+    }
+
+    /// Responder's second call after opener's minimum relay rebid (Phase 2.2).
+    #[test]
+    fn relay_deep_continuations() {
+        const P: Call = Call::Pass;
+        let c = bid(1, Strain::Clubs);
+        let d = bid(1, Strain::Diamonds);
+        // After 1♣-1♦-1♥: the 5♠/4♥ two-suiter (8 pts) is Reverse Flannery — a
+        // raise to 2♥, not a natural spade bid.
+        let after_1h = [c, P, d, P, bid(1, Strain::Hearts), P];
+        assert_eq!(
+            responds(&after_1h, "KQxxx.Kxxx.xx.xx"),
+            bid(2, Strain::Hearts)
+        );
+        // Both minors (5-4), 10 pts: 2♠ (the other major, repurposed).
+        assert_eq!(
+            responds(&after_1h, "x.xx.KQxxx.AJxx"),
+            bid(2, Strain::Spades)
+        );
+        // After 1♣-1♦-1♠: the same two-suiter raises spades (2♠); both-minors is 2♥.
+        let after_1s = [c, P, d, P, bid(1, Strain::Spades), P];
+        assert_eq!(
+            responds(&after_1s, "KQxxx.Kxxx.xx.xx"),
+            bid(2, Strain::Spades)
+        );
+        assert_eq!(
+            responds(&after_1s, "x.xx.KQxxx.AJxx"),
+            bid(2, Strain::Hearts)
+        );
+        // After 1♣-1♦-2♣: the two-suiter shows as 2♥; an invitational club raise is 2♠.
+        let after_2c = [c, P, d, P, bid(2, Strain::Clubs), P];
+        assert_eq!(
+            responds(&after_2c, "KQxxx.Kxxx.xx.xx"),
+            bid(2, Strain::Hearts)
+        );
+        assert_eq!(
+            responds(&after_2c, "Qxx.x.Qxxx.AQxx"),
+            bid(2, Strain::Spades)
         );
     }
 }

@@ -43,6 +43,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   bias (unauthored deep continuations collapse in competition; the deliberate
   balanced-only `1NT` cedes 6322/5422 15–17 hands to a minor). Not shipped; on
   plan for Phases 2.2/4. Ledger: `docs/dutch-system.md`.
+- **`dutch()` Phase 2.2 (increment 1) — responder's second call over opener's
+  minimum relay rebid**. Authors `1♣-1♦-1M` (both majors) and `1♣-1♦-2♣`, where
+  the bulk of relay auctions land (opener 11–17). Each is a natural ladder around
+  three gadgets: **Reverse Flannery** (`2M!`, and `2♥!` over `2♣`) shows the
+  exact 5=♠/4–5♥/7–9 two-suiter deliberately routed through the relay; the
+  **other major** (`2OM!`) is repurposed to both minors (5+/4+, 9–11 invite),
+  since a natural major is impossible here and any Reverse Flannery fit was
+  already found; club support is **inverted** over `2♣` (artificial `2♠!`
+  invitational, natural `3♣` minimum). Responder's `2NT` (16+ balanced) is
+  alerted so projection discloses the slam strength. The rare 18–20 `1NT` /
+  21–23 `2♦!` continuations stay `bare_american` — their strength self-discloses
+  to the floor via projection. No user-facing default change (Dutch is a
+  candidate, off by default); A/B pending. Ledger: `docs/dutch-system.md`.
 
 ### Changed
 

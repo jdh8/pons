@@ -65,7 +65,7 @@ the floor's transfer-completion still holds.
 | 0 | Scaffold `dutch()`, re-export, 0.000 baseline | **DONE** |
 | 1 | Dutch openings: wide 1♣, 1♦ 5+/4441, 1M 10–20, strong 2♣ | **DONE** (code; A/B pending) |
 | 2.1 | Wide-1♣ response table + opener's rebid after the `1♦` relay | **MEASURED — LOSS** (see below); on-plan for a half-built system |
-| 2.2 | Deep relay continuations (`1♣-1♦-1M/1NT/2♣/2♦`) + `[1♣,2♣]`/`[1♣,2♦]` continuations | pending |
+| 2.2 | Deep relay continuations (`1♣-1♦-1M/1NT/2♣/2♦`) + `[1♣,2♣]`/`[1♣,2♦]` continuations | **increment 1 AUTHORED** — `1♣-1♦-1M` + `1♣-1♦-2♣` (opener minimum); A/B pending. Rare `1NT`/`2♦!` + the `[1♣,2♣]`/`[1♣,2♦]` overwrites still deferred |
 | 3 | 2-level openings (Multi/Muiderberg/UNT) + strong-2♣ tree | pending |
 | 4 | Reader/floor reconciliation + divergent-opening competitive book | pending |
 | 5 | Iterate to champion vs BBA/BEN; promote if it wins | pending |
@@ -145,6 +145,31 @@ projection self-decodes them (american's hardcoded reader would otherwise read
 `2♦` as a weak jump and `2♣` as an inverted raise). Balanced/notrump naturals
 (`1M`, `1NT`, `2NT`, `3NT`) are left unalerted — american's read is close enough.
 
+### Phase 2.2 increment 1 — responder's second call over opener's minimum
+
+Authored `1♣-1♦-1M` (both majors) and `1♣-1♦-2♣` — where the bulk of relay
+auctions land (opener minimum, 11–17). The rare 18–20 `1NT` and 21–23 `2♦!`
+continuations are **deferred**: opener's strength there self-discloses to the
+floor through rule projection (the calls are alerted), so the floor bids toward
+the right game without an authored node — a refinement, not a hole. Measure the
+common case first, then decide.
+
+Encoding choices (jdh8-confirmed bridge, 2026-07-19):
+
+- **Reverse Flannery** (`2M!`, and `2♥!` over opener's `2♣`) is gated **exactly**
+  on `5=♠ & 4–5♥ & 7–9` — the two-suiter deliberately routed through the relay to
+  dodge the `1♣-1♠-2♣` rebid squeeze (and to keep a direct `1♣-1♠-2♣-2♥` INV+).
+  An ordinary invitational major-raiser never arrives (it raised/bid on round
+  one), so no natural-raise row exists; such hands fall to the floor.
+- **`2OM!` = both minors** (5+/4+, 9–11 invite). A natural major is impossible
+  here (real four-card majors bid up the line on round one), and if a Reverse
+  Flannery fit mattered it was already found — so the "other major" is free to
+  repurpose. Encoded 4-4 minors with at least one five-bagger.
+- **Club support inverted** over `2♣`: the artificial `2♠!` is the *invitational*
+  raise (9–11), the natural `3♣` the *minimum* one (7–9).
+- **`2NT` = 16+ balanced** is alerted (a meaning inversion vs american's invite)
+  so projection discloses the slam-going strength and rightsides the notrump.
+
 **Open questions / deferrals:**
 
 - **✓ Phase-1 spec discrepancy resolved (2026-07-18):** the online `1D.md`
@@ -152,10 +177,12 @@ projection self-decodes them (american's hardcoded reader would otherwise read
   following it. In pons, **(xx)45 opens 1♣** (the locked `1♦ = 5+♦ | 4441`
   stands) for simplicity and as an experiment. Consequence: the `2NT!` 5-5-minor
   rebid is unreachable (5-5 minors open 1♦) and was **dropped**.
-- **Deep continuations deferred to 2.2:** `1♣-1♦-1M` (support/two-suiter/16+),
-  `1♣-1♦-1NT` (a full 18–20 transfer structure, reuses the 1NT machinery),
-  `1♣-1♦-2♣`, `1♣-1♦-2♦` (a 21–23 transfer structure). Until authored the floor
-  handles responder's third call — a soft misread, measured not fixed blind.
+- **Deep continuations — increment 1 authored (2026-07-19):** `1♣-1♦-1M` and
+  `1♣-1♦-2♣` (see the increment-1 section above). Still deferred: `1♣-1♦-1NT`
+  (18–20 transfer structure, reuses the 1NT machinery) and `1♣-1♦-2♦` (21–23
+  transfer structure) — rare, and their strength self-discloses to the floor via
+  projection. Opener's third call (after responder's authored second call) still
+  falls to the floor — a soft misread, measured not fixed blind.
 - **`[1♣,2♣]` / `[1♣,2♦]` still american** (inverted-raise / weak-jump
   continuations) under Dutch's natural 2♣/2♦ — overwrite in 2.2.
 

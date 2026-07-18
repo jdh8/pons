@@ -70,15 +70,21 @@ The relay's own content: `0–7` any · `7–9` 5=♠ 4–5♥ · `8–11` unbal
 
 ---
 
-## Deep relay continuations **[2.2]** (transcribed, not yet authored)
+## Deep relay continuations
 
 Until authored, the instinct floor handles these — a soft misread, measured
 not fixed blind.
 
-### 1♣–1♦–1M (opener 11–17, 3+#)
+### 1♣–1♦–1M (opener 11–17, 3+#) **[2.2 authored]**
 
 Responder's second call. Mostly natural/non-forcing; note support = 7–9 both
 majors, 2NT = 16+ balanced (rightsides), 2OM = artificial both-minor invite.
+
+`pons:` `2M!` is gated **exactly** on Reverse Flannery (5=♠, 4–5♥, 7–9) — an
+ordinary invitational raiser never reaches here (it raised or bid on round one),
+so no natural-raise row is authored; such hands fall to the floor. `2NT` (16+)
+is alerted so projection discloses the slam strength (american would read it as
+an invite). `1♠`/`1NT`/`2♣`/`2♦`/`3♣` are natural; a weak fit passes.
 
 | Call | Meaning |
 | --- | --- |
@@ -91,10 +97,12 @@ majors, 2NT = 16+ balanced (rightsides), 2OM = artificial both-minor invite.
 | 2NT | 16+ balanced |
 | 3♣ | 6–9, 6+♣ |
 
-### 1♣–1♦–1NT (opener balanced 18–20)
+### 1♣–1♦–1NT (opener balanced 18–20) **[2.2 deferred]**
 
 As the 1NT opening minus Puppet Stayman (no 5-card major here). Reuses the 1NT
-transfer machinery.
+transfer machinery. `pons:` deferred — opener's `1NT` is rare (18–20) and its
+strength self-discloses to the floor via projection; author after measuring the
+minimum-rebid continuations.
 
 | Call | Meaning |
 | --- | --- |
@@ -115,10 +123,12 @@ transfer machinery.
 | 4NT | stronger quantitative, to 6NT |
 | 5NT | stronger quantitative, to 7NT |
 
-### 1♣–1♦–2♣ (opener 11–17, 5+♣)
+### 1♣–1♦–2♣ (opener 11–17, 5+♣) **[2.2 authored]**
 
 Responder's second call; the earlier weak jump lets the major rebids turn
-artificial.
+artificial. `pons:` `2♥!` = the Reverse Flannery two-suiter; club support is
+inverted — `2♠!` invitational (9–11), natural `3♣` minimum (7–9). `2NT` (16+)
+alerted as above.
 
 | Call | Meaning |
 | --- | --- |
@@ -128,7 +138,9 @@ artificial.
 | 2NT | 16+ balanced |
 | 3♣ | 7–9, 4+♣ |
 
-### 1♣–1♦–2♦ (opener 21–23, artificial)
+### 1♣–1♦–2♦ (opener 21–23, artificial) **[2.2 deferred]**
+
+`pons:` deferred — same reasoning as `1♣–1♦–1NT` (rare, self-disclosing).
 
 Opener has shown 21–23 with no specific shape — the top of the 1♣ range. If
 responder has no game interest and 1♣ rates to be a fine spot, they should have
