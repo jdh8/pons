@@ -122,6 +122,12 @@ struct Args {
     /// confident-row and entropy columns of the probe are not meaningful.
     #[arg(long)]
     self_play: Option<String>,
+
+    /// Self-play corpus: base value for the `deal` field (shard offset).  Each
+    /// fleet shard passes a distinct `--first-deal i*count` so `deal` ids stay
+    /// globally unique — the probe pairs vul-flips and splits train/test by it.
+    #[arg(long, default_value_t = 0)]
+    first_deal: usize,
 }
 
 // ---------------------------------------------------------------------------
@@ -358,7 +364,7 @@ fn main() -> anyhow::Result<()> {
                     .collect();
                 let ent = vec![0.0_f64; calls.len()];
                 let row = serde_json::json!({
-                    "deal": index, "vul": label, "pbn": pbn,
+                    "deal": args.first_deal + index, "vul": label, "pbn": pbn,
                     "calls": calls, "top3": top3, "ent": ent,
                 });
                 writeln!(out, "{row}")?;

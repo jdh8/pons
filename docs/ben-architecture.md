@@ -177,10 +177,14 @@ the only non-NN survivor is the BBA keycard handoff.
      authorable**, it is search. pons already ships DD; close this with
      search, not rules. Globally measured at **≈0.8–1.1 IMPs/board**
      (ben-gap ledger, Tier-F gap row).
-- **Competitive nodes will show a low box-fitter ceiling** — not because the
-  policy is complex, but because the *right* competitive call depends on DD
-  trick-math that HCP/shape features cannot express. The ceiling gap there
-  measures exactly where BEN itself needs Tier-S DD.
+- **Competitive DD-dependence hides in Tier S, not a Tier-F corpus.**
+  Prediction refined by the 2026-07-18 distillation probe (ben-gap ledger):
+  Tier-F competitive-**entry** ceilings are *high* (LHO overcalls 96–99%) —
+  the *policy prior* over competition is ruly. The DD-trick-math dependence
+  shows up only where Tier-S *overrides* that prior, which a Tier-F (no-DD)
+  corpus cannot see. So the low-ceiling competitive signal requires distilling
+  Tier S, or the deep contested continuations that self-play under-samples —
+  not the competitive-entry nodes.
 - **Exploitable asymmetry:** no alert channel + `opponent_model =
   bidder_model` ⇒ BEN mis-models opponents on a different or artificial
   system. pons alerts everything and can model the opponents' real system.

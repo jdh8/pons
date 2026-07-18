@@ -444,6 +444,64 @@ is nonlinear across deal streams, which the design doc anticipated. The
 vul-both arm is ~0.5 worse than vul-none, the same skew the BBA series
 shows.
 
+## Tier-F distillation probe — how ruly is BEN's policy? (2026-07-18)
+
+The "how many rules to pair BEN" question, measured. Corpus: 30k deals ×
+4 vuls = **120k boards / 1.28M decisions** of BEN Tier-F **self-play**
+(`ben-gen --self-play`, fleet-sharded, `--first-deal` offsets), fitted with
+`probe-brl-book --depth 3`. Per node: box-fit fidelity (what one axis-aligned
+(hcp, shape, balanced) box per call reproduces) vs the **expressiveness
+ceiling** (exact-tuple majority — the *best possible* such rule).
+
+| node | actor | box-fit | non-Pass | **ceiling** (seen%) | vul-flip |
+| --- | --- | --- | --- | --- | --- |
+| `(root)` | dealer open | 77.1% | 60.8% | **96.7%** (93.6) | 0.7% |
+| `P` | LHO / 2nd | 74.9% | 61.1% | **97.1%** (90.0) | — |
+| `P P` | 3rd-seat open | 67.7% | 60.9% | **91.2%** (79.5) | **8.4% [VUL]** |
+| `1D` | LHO overcall | 67.3% | 43.2% | **98.1%** (70.7) | — |
+| `1C` | LHO overcall | 61.5% | 28.9% | **96.9%** (70.4) | — |
+| `1H` | LHO overcall | 70.5% | 49.3% | **96.4%** (62.5) | — |
+| `1S` | LHO overcall | 71.9% | 15.4% | **97.2%** (59.9) | — |
+| `1NT` | LHO overcall | 84.3% | 19.2% | **98.7%** (55.9) | — |
+| `1D P` | responder | 87.3% | 89.3% | **100%** (60.1) | — |
+| `1C P` | responder | 88.6% | 88.9% | **99.2%** (56.1) | — |
+
+**Verdict — the policy is ~95%+ rule-expressible; the gap to BEN is search,
+not rules.**
+
+1. **Every high-mass node's ceiling is 91–100%.** BEN's Tier-F call is a
+   function of (HCP, suit lengths, vul) — the info a rule table already
+   carries. This confirms Open Question #2 for the *policy*: BEN's constructive
+   + competitive-**entry** decisions are ruly, not search-judgment. The
+   search-judgment residual lives in Tier S (below), which this corpus omits
+   by design (Tier F has no DD).
+2. **The box-fit lagging the ceiling (61–88% vs 91–100%) is fitter weakness,
+   not non-ruliness.** One axis-aligned box per call under-fits overlapping /
+   relative calls (root 1NT/2NT boxes lose to suit boxes → recall 0%). pons's
+   real `Rules` (weighted, ordered, relative constraints) sit strictly above
+   this fitter, so the floor can approach the ceiling with an authoring budget
+   on the order of what it already spends.
+3. **BEN is a human 2/1, the opposite of brl.** Opening rate is **monotone**
+   in HCP (0.8 / 10.3 / 30 / 100 / 100% by band; brl was *anti*-monotone) and
+   constructive vul-flip is **0.7%** (brl root 16.6%). Vul-conditioning shows
+   up only where humans do it — 3rd-seat opens (`P P` 8.4%), balancing,
+   preempts — and even there it is *the vul feature itself*: `P P`'s ceiling
+   rises 91.2% → **96.1% once vul joins the tuple**. A rule with a vul term
+   captures it.
+4. **`--first-deal` shard flag** added to `ben-gen` so fleet shards keep
+   globally-unique `deal` ids (the probe pairs vul-flips and splits
+   train/test by `deal`). Corpus schema is `probe-brl-book`'s exact JSONL —
+   zero fitter changes.
+
+**Honest limit — self-play under-samples deep competition.** BEN-vs-BEN plays
+the same sound 2/1, so most auctions are *uncontested* (one side has the
+values, the other passes). Competitive **entry** (LHO's first call over an
+opening) is well-sampled (8–13k rows/node) and ruly by ceiling. Deep
+**contested continuations** (advancer after an overcall, competitive rebids,
+e.g. `1D 1S …`) fall below the 2000-row fit floor. The contested tail needs a
+**pons-vs-BEN** corpus (different systems force real competition) — deferred
+until the Dutch A/B frees the box (no parallel heavy runs).
+
 ## Success criteria
 
 1. **Phase 0/1 (near-term)**: the calibration reproduces BBA's Table 1 in
