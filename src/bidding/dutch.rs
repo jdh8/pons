@@ -116,6 +116,13 @@ mod tests {
         assert_eq!(opens("A32.3.KQ432.K432"), bid(1, Strain::Diamonds));
         // 21–23 with a five-card major is the strong, artificial 2♣.
         assert_eq!(opens("AKQ32.AK3.AQ2.32"), bid(2, Strain::Clubs));
+        // A balanced 16 opens 1NT, and — american's wide shape — so does a 5422
+        // or 6322 with a long *minor* (was the wide 1♣ before the widening).
+        assert_eq!(opens("AQ32.K53.QJ4.A92"), bid(1, Strain::Notrump));
+        assert_eq!(opens("Q432.KQ.K2.AK432"), bid(1, Strain::Notrump)); // 5422, 5♣
+        assert_eq!(opens("Q2.K3.AQ4.KQ8765"), bid(1, Strain::Notrump)); // 6322, 6♣
+        // A 5422 with the five-card suit a *major* stays a suit opening (1♠).
+        assert_eq!(opens("AK432.KQ.Q432.K2"), bid(1, Strain::Spades));
         // Rule of 20 gates the light end: a flat 12-count passes.
         assert_eq!(opens("KJ32.K32.K32.Q32"), Call::Pass);
     }

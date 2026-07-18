@@ -96,7 +96,9 @@ loss splits three ways, all on the roadmap:
    american's shipped **Wide6322** — 15–17 6322/5422 hands open a *minor* in
    Dutch, `1NT` in american. Recurs as `off: 1NT (X)(XX)` scoring while Dutch's
    minor partscore does not. A Phase-1 lever (flagged below), one-line to flip,
-   the cheapest isolation to run next.
+   the cheapest isolation to run next. **FLIPPED 2026-07-18** — Dutch's 1NT now
+   reuses american's `notrump_shape(NotrumpShape::Wide6322)`, the A/B-validated
+   american default; no fresh gate (the shape carries american's two-seed win).
 2. **Half-built competitive continuations** after the wide `1♣` / `1♦` relay —
    contested auctions collapse into doubled Dutch contracts (`5♣X`, `3♠X`,
    `3♦X`) because responder's deeper calls fall to the american-tuned floor/
@@ -171,9 +173,12 @@ flip):
 
 - **Rule of 20 is a hard gate** (`hcp(band) & rule_of_20()`), so a flat
   sub-R20 minimum passes out — e.g. a 4-3-3-3 twelve-count (12+4+3 = 19).
-- **1NT is balanced-only 15–17** (american's wide-6322 5422/6322 shapes open a
-  minor instead). A deliberate Dutch choice; wide6322 is a later within-Dutch
-  A/B if wanted.
+- **1NT is american's Wide6322 15–17** (balanced, or a 5422/6322 with a long
+  minor) — flipped from the Phase-1 balanced-only choice on 2026-07-18, reusing
+  american's `notrump_shape(NotrumpShape::Wide6322)`. The shape is already
+  A/B-validated on american (two-seed win, +0.004…0.006 IMPs/bd plain,
+  sd-confirmed), so Dutch inherits that evidence by reusing the identical gate;
+  this also closes factor 1 of the Phase 2.1 LOSS post-mortem.
 - **No 3rd/4th-seat light (9-count) major openers** — american has them; the
   Dutch spec caps majors at a Rule-of-20 10-count. Watch the passed-out-seat
   boards.

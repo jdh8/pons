@@ -46,6 +46,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **`dutch()` 1NT widened to american's Wide6322 shape**. The Dutch 1NT opening
+  was balanced-only 15–17; it now reuses american's
+  `notrump_shape(NotrumpShape::Wide6322)`, so a 5422 or 6322 with a long minor
+  and 15–17 HCP opens 1NT instead of the wide 1♣ / 1♦ — matching `american()`'s
+  shipped default. The shape carries its own validation: Wide6322 became
+  american's default on a two-seed A/B win vs the reference opponent
+  (+0.004…0.006 IMPs/board plain, sd-confirmed), and Dutch reuses the identical
+  gate. Also closes factor 1 of the Phase 2.1 A/B LOSS post-mortem (15–17
+  6322/5422 hands were ceding to a minor). Ledger: `docs/dutch-system.md`.
 - **The other three reading knobs ship default-on as reading soundness**
   (`set_cue_reading`, `set_table_alert_reading`, `set_pass_reading`;
   `--no-ns-*` off-switches in both generators). All three are **bid-inert**

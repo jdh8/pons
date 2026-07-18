@@ -191,7 +191,7 @@ pub enum NotrumpShape {
 }
 
 /// Shapes eligible for a 1NT opening, per the [`NotrumpShape`] policy
-fn notrump_shape(shape: NotrumpShape) -> Cons<impl Constraint + Clone> {
+pub(crate) fn notrump_shape(shape: NotrumpShape) -> Cons<impl Constraint + Clone> {
     balanced()
         | described("wide 1NT shape", move |hand: Hand, _: &Context<'_>| {
             let mut lengths = Suit::ASC.map(|suit| hand[suit].len());

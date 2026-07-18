@@ -5,6 +5,7 @@
 //! (Phase 3 replaces the 2-level rows with Multi/Muiderberg/UNT).  See
 //! `docs/dutch-system.md` for the full spec.
 
+use crate::bidding::american::{NotrumpShape, notrump_shape};
 use crate::bidding::constraint::{balanced, fifths, hcp, len, nth_seat, or, points, rule_of_20};
 use crate::bidding::{Alert, Rules};
 use contract_bridge::auction::Call;
@@ -37,8 +38,13 @@ pub(super) fn dutch_openings() -> Rules {
             (hcp(21..=23) & (or(majors, 5..) | or(minors, 6..))) | hcp(24..),
         )
         .alert(STRONG_2C)
-        // Strong 1NT — balanced 15–17.
-        .rule(Bid::new(1, Strain::Notrump), 2.0, hcp(15..=17) & balanced())
+        // Strong 1NT — 15–17, american's wide shape: balanced, or a 5422/6322
+        // with a long minor ([`NotrumpShape::Wide6322`], american's default).
+        .rule(
+            Bid::new(1, Strain::Notrump),
+            2.0,
+            hcp(15..=17) & notrump_shape(NotrumpShape::Wide6322),
+        )
         // Strong 2NT — balanced 20–21 (Phase 1 placeholder; Phase 3 → UNT).
         .rule(
             Bid::new(2, Strain::Notrump),
