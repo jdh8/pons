@@ -96,6 +96,20 @@ fn bare_dutch() -> Pair {
         &[one_club, relay, call(2, Strain::Clubs)],
         responses::relay_responses_after_club(),
     );
+    // Phase 2.2 increment 2 — opener's rebid after responder's natural minor
+    // two-level responses.  These overwrite american's inverted-raise (`2♣`) and
+    // weak-jump-shift (`2♦`) continuations, which misread the Dutch meanings
+    // (invite+ 5+♣ / game-forcing 5+♦); see `docs/dutch-system.md`.
+    insert_uncontested(
+        book,
+        &[one_club, call(2, Strain::Diamonds)],
+        responses::opener_rebids_after_two_diamonds(),
+    );
+    insert_uncontested(
+        book,
+        &[one_club, call(2, Strain::Clubs)],
+        responses::opener_rebids_after_two_clubs(),
+    );
     pair
 }
 
@@ -236,5 +250,68 @@ mod tests {
             responds(&after_2c, "Qxx.x.Qxxx.AQxx"),
             bid(2, Strain::Spades)
         );
+    }
+
+    /// Opener's rebid after responder's game-forcing 2♦ (Phase 2.2 increment 2).
+    #[test]
+    fn opener_rebids_after_two_diamonds() {
+        const P: Call = Call::Pass;
+        let a = [bid(1, Strain::Clubs), P, bid(2, Strain::Diamonds), P];
+        // Four-card diamond support — raise the known nine-card fit.
+        assert_eq!(responds(&a, "Axx.Kx.KJxx.Qxx"), bid(3, Strain::Diamonds));
+        // Five clubs, short diamonds — the real second suit.
+        assert_eq!(responds(&a, "Ax.Kx.xxx.AQxxx"), bid(3, Strain::Clubs));
+        // Balanced 16, both majors stopped — to play.
+        assert_eq!(responds(&a, "AQx.KQx.Qxx.Kxxx"), bid(3, Strain::Notrump));
+        // Heart stopper only — shown up the line toward 3NT.
+        assert_eq!(responds(&a, "xxx.AQx.Kxx.Kxxx"), bid(2, Strain::Hearts));
+        // Spade stopper only — the other up-the-line stopper show.
+        assert_eq!(responds(&a, "AQx.xxx.Kxx.Kxxx"), bid(2, Strain::Spades));
+        // Minimum, no major stopper — the notrump catch-all (never Pass).
+        assert_eq!(responds(&a, "xxx.xxx.KQx.AQxx"), bid(2, Strain::Notrump));
+    }
+
+    /// Opener's rebid after responder's invitational-or-better 2♣ (Phase 2.2 inc.2).
+    #[test]
+    fn opener_rebids_after_two_clubs() {
+        const P: Call = Call::Pass;
+        let a = [bid(1, Strain::Clubs), P, bid(2, Strain::Clubs), P];
+        // Balanced 16, both majors stopped — accept to game.
+        assert_eq!(responds(&a, "AQx.KQx.Qxx.Kxxx"), bid(3, Strain::Notrump));
+        // 18 balanced but a major unstopped — a maximum still forces game.
+        assert_eq!(responds(&a, "Axx.xxx.AKx.AKxx"), bid(3, Strain::Notrump));
+        // Balanced 13, only two clubs — the non-forcing 2NT decline.
+        assert_eq!(responds(&a, "AQx.KQx.Qxxx.xx"), bid(2, Strain::Notrump));
+        // Minimum with club support — the non-forcing 3♣ decline.
+        assert_eq!(responds(&a, "AQx.Kxx.xx.KJxx"), bid(3, Strain::Clubs));
+    }
+
+    /// Responder places the contract off the **floor** after opener's rebid —
+    /// no authored responder node this increment (measured to bid correctly).
+    /// These lock in the reliance: a floor change that breaks them flags for
+    /// re-review (and would be the cue to author responder re-rebids).
+    #[test]
+    fn responder_places_contract_off_floor() {
+        const P: Call = Call::Pass;
+        let c = bid(1, Strain::Clubs);
+        let d2 = bid(2, Strain::Diamonds);
+        let c2 = bid(2, Strain::Clubs);
+        // GF 2♦, opener raises diamonds: balanced 15, both stopped → 3NT.
+        let gf_3d = [c, P, d2, P, bid(3, Strain::Diamonds), P];
+        assert_eq!(responds(&gf_3d, "KJx.KQ.AQxxx.xx"), bid(3, Strain::Notrump));
+        // GF 2♦, opener shows a heart stopper: responder has spades → 3NT.
+        let gf_2h = [c, P, d2, P, bid(2, Strain::Hearts), P];
+        assert_eq!(responds(&gf_2h, "Kxx.xx.AKxxx.Qx"), bid(3, Strain::Notrump));
+        // Invite+ 2♣, opener declines 3♣: a dead minimum passes …
+        let inv_3c = [c, P, c2, P, bid(3, Strain::Clubs), P];
+        assert_eq!(responds(&inv_3c, "Kx.Qx.Qxx.KJxxxx"), P);
+        // … and a game force drives to 3NT.
+        assert_eq!(
+            responds(&inv_3c, "Ax.Kx.Qxx.KQxxxx"),
+            bid(3, Strain::Notrump)
+        );
+        // Invite+ 2♣, opener accepts 3NT: responder passes the game.
+        let inv_3nt = [c, P, c2, P, bid(3, Strain::Notrump), P];
+        assert_eq!(responds(&inv_3nt, "Kx.Qx.Qxx.KJxxxx"), P);
     }
 }

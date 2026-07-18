@@ -65,7 +65,7 @@ the floor's transfer-completion still holds.
 | 0 | Scaffold `dutch()`, re-export, 0.000 baseline | **DONE** |
 | 1 | Dutch openings: wide 1♣, 1♦ 5+/4441, 1M 10–20, strong 2♣ | **DONE** (code; A/B pending) |
 | 2.1 | Wide-1♣ response table + opener's rebid after the `1♦` relay | **MEASURED — LOSS** (see below); on-plan for a half-built system |
-| 2.2 | Deep relay continuations (`1♣-1♦-1M/1NT/2♣/2♦`) + `[1♣,2♣]`/`[1♣,2♦]` continuations | **increment 1 AUTHORED** — `1♣-1♦-1M` + `1♣-1♦-2♣` (opener minimum); A/B pending. Rare `1NT`/`2♦!` + the `[1♣,2♣]`/`[1♣,2♦]` overwrites still deferred |
+| 2.2 | Deep relay continuations (`1♣-1♦-1M/1NT/2♣/2♦`) + `[1♣,2♣]`/`[1♣,2♦]` continuations | **increments 1–2 AUTHORED** — inc.1 `1♣-1♦-1M` + `1♣-1♦-2♣`; inc.2 opener's rebid over responder's `2♣`/`2♦` (both overwrite american); A/B pending. Rare relay `1NT`/`2♦!` still deferred |
 | 3 | 2-level openings (Multi/Muiderberg/UNT) + strong-2♣ tree | pending |
 | 4 | Reader/floor reconciliation + divergent-opening competitive book | pending |
 | 5 | Iterate to champion vs BBA/BEN; promote if it wins | pending |
@@ -183,8 +183,46 @@ Encoding choices (jdh8-confirmed bridge, 2026-07-19):
   transfer structure) — rare, and their strength self-discloses to the floor via
   projection. Opener's third call (after responder's authored second call) still
   falls to the floor — a soft misread, measured not fixed blind.
-- **`[1♣,2♣]` / `[1♣,2♦]` still american** (inverted-raise / weak-jump
-  continuations) under Dutch's natural 2♣/2♦ — overwrite in 2.2.
+- **✓ `[1♣,2♣]` / `[1♣,2♦]` overwritten (increment 2, 2026-07-19)** — see the
+  increment-2 section below. Responder's re-rebids and slam are left to the floor
+  (measured correct); a follow-up may author them if the A/B wants the tail.
+
+### Phase 2.2 increment 2 — opener's rebid after responder's natural 2♣ / 2♦
+
+Overwrites the two continuations american built for its own (different) meanings:
+american routes `1♣-2♣` to an **inverted club raise** (forcing) and `1♣-2♦` to a
+**weak jump shift** (0–6). Under Dutch, `2♣` is invite+ (5+♣) and `2♦` is
+game-forcing (5+♦), so both american nodes misread responder — the GF is treated
+as weak (drops games/slams), the invite as forcing (opener can't stop). Authored
+`opener_rebids_after_two_diamonds` / `opener_rebids_after_two_clubs`
+(`dutch/responses.rs`).
+
+Structure (jdh8-confirmed bridge, 2026-07-19). **Key fact:** after 1♣ (denies a
+5-card major — those open 1M) and responder's `2♣`/`2♦` (deny a 4-card major), **no
+major fit can exist**, so both auctions are the pure inverted-minors world
+(minor-fit / notrump / slam). Opener borrows american's `after_inv_raise` ladder:
+
+- **`2♦` (GF), forcing:** `3♦` = 4-card diamond support (a known nine-card fit —
+  and the wide 1♣ hosts most 4-diamond hands, the Dutch enrichment); `3♣` = a real
+  5+ club second suit; `3NT` = balanced extras, both majors stopped; `2♥`/`2♠` = a
+  single major stopper up the line toward 3NT (`!stopper` in the other, so a
+  both-stopped hand takes notrump); `2NT` = the notrump catch-all. No Pass.
+- **`2♣` (invite+), non-forcing:** `3NT` = accept (balanced max stopped, or a 17+
+  maximum forcing over the 11+ invite = 28+); `3♣` = decline with club support
+  (capped ≤16 so a maximum never leaves it in); `2NT` = the balanced-minimum
+  decline / catch-all. The help-suit game try (`2♥`/`2♠`) is **dropped** — the
+  floor misreads the artificial try as a natural suit and under-accepts; a cheap
+  accept/decline lands the same games.
+
+**Responder's re-rebid + slam: left to the floor, measured correct.** Probing the
+floor on hands valid for each auction (GF 5+♦/13+; invite+ 5+♣/11+): it drives GF
+hands to 3NT, passes a dead minimum over the non-forcing decline, and drives a
+game force — the placements an authored node would make. Not authoring them keeps
+the floor's **M6.4 RKCB** live (a book node with a finite catch-all shadows it),
+so Node A slams still get bid. The `responder_places_contract_off_floor` test
+locks in the reliance; a floor change that breaks it is the cue to author the
+re-rebids. Neither node's stopper-shows project a suit, so no alert is needed and
+`dutch_artificial_calls_are_alerted` passes untouched.
 
 ### Phase 1 notes
 

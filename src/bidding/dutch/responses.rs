@@ -20,7 +20,7 @@
 //!   (`1♣-1♦-2♣`): natural ladders around Reverse Flannery, a both-minors
 //!   repurposing of the "other major", and inverted club raises.
 
-use crate::bidding::constraint::{balanced, hcp, len, points};
+use crate::bidding::constraint::{balanced, hcp, len, points, stopper_in};
 use crate::bidding::{Alert, Rules};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Strain, Suit};
@@ -330,4 +330,96 @@ pub(super) fn relay_responses_after_club() -> Rules {
         )
         // Finite catch-all.
         .rule(Call::Pass, 0.0, hcp(0..))
+}
+
+/// Opener's rebid after `1♣-2♦` (responder game-forcing, 5+♦, no four-card major)
+///
+/// A game force with **no major fit possible** — opener denied a five-card major
+/// by opening 1♣, responder denied a four-card major — so the only live questions
+/// are the strain (diamonds / clubs / notrump) and slam.  Opener borrows the
+/// inverted-minor ladder (american's `1♦-2♦` continuation): raise responder's
+/// diamonds (a known nine-card fit, the best news — and the wide 1♣ hosts most
+/// four-diamond hands), introduce a real club suit, show a single major stopper
+/// up the line toward 3NT, or bid notrump by strength.  Forcing, so the catch-all
+/// is a bid (2NT), never Pass.
+///
+/// Slam beyond 3NT / 5m is deferred to a later increment: a live book node
+/// shadows the floor's M6.4 RKCB here, so this increment lands the *game* and
+/// leaves keycard exploration to a follow-up that reuses `american::slam`.
+// ponytail: caps at game; add RKCB reuse (widen `slam::install_rkcb` to pub(crate))
+// when the slam tail measures worth the cross-module coupling.
+pub(super) fn opener_rebids_after_two_diamonds() -> Rules {
+    Rules::new()
+        // 3♦ — four-card diamond support: a known nine-card fit, the best news.
+        .rule(
+            Bid::new(3, Strain::Diamonds),
+            1.45,
+            len(Suit::Diamonds, 4..),
+        )
+        // 3♣ — a real five-card club suit, no diamond support (minor two-suiter).
+        .rule(
+            Bid::new(3, Strain::Clubs),
+            1.35,
+            len(Suit::Clubs, 5..) & len(Suit::Diamonds, ..4),
+        )
+        // 3NT — balanced extras, both majors stopped, to play.
+        .rule(
+            Bid::new(3, Strain::Notrump),
+            1.2,
+            balanced() & hcp(15..) & stopper_in(Suit::Hearts) & stopper_in(Suit::Spades),
+        )
+        // 2♥ / 2♠ — a single major stopper, shown up the line toward 3NT (a
+        // both-stopped hand is excluded and falls to the notrump catch-all).
+        .rule(
+            Bid::new(2, Strain::Hearts),
+            1.0,
+            stopper_in(Suit::Hearts) & !stopper_in(Suit::Spades),
+        )
+        .rule(
+            Bid::new(2, Strain::Spades),
+            0.95,
+            stopper_in(Suit::Spades) & !stopper_in(Suit::Hearts),
+        )
+        // Finite catch-all — a minimum, or both-major stoppers without extras:
+        // bid notrump and let responder place the game (never Pass; opener is 11–23).
+        .rule(Bid::new(2, Strain::Notrump), 0.5, hcp(0..))
+}
+
+/// Opener's rebid after `1♣-2♣` (responder invitational-or-better, 5+♣, no major)
+///
+/// Same no-major-fit world as the game-forcing `2♦`, but 2♣ is only **invite+**,
+/// so opener must be able to stop.  Opener accepts to game with a maximum (jump
+/// to `3NT` — balanced-and-stopped, or forced by 17+ opposite the invite's 11+),
+/// otherwise declines non-forcing: `3♣` raises responder's known suit, `2NT` the
+/// balanced-minimum catch-all.  Responder then places the contract off the
+/// **floor** — it passes a dead minimum, drives a game force to 3NT, and (over
+/// `3♣`) corrects to the club partscore; measured to do so correctly, so no
+/// authored responder node is needed and the floor's slam machinery stays live.
+///
+/// The help-suit game try (opener's `2♥`/`2♠` showing a single stopper + extras)
+/// is dropped: the floor misreads the artificial try as a natural suit and
+/// under-accepts.  A cheap accept/decline lands the same games without it.
+// ponytail: no game-try rung; add 2♥/2♠ help-suit tries (with an authored
+// responder node to read them) if the A/B shows thin invited games being missed.
+pub(super) fn opener_rebids_after_two_clubs() -> Rules {
+    Rules::new()
+        // 3NT — accept to game: balanced maximum, both majors stopped.
+        .rule(
+            Bid::new(3, Strain::Notrump),
+            1.3,
+            balanced() & hcp(14..) & stopper_in(Suit::Hearts) & stopper_in(Suit::Spades),
+        )
+        // 3NT — accept to game: a 17+ maximum forces even stopper-shy, since
+        // opposite the 11+ invite the partnership holds 28+ (no minimum rebid may
+        // be passed out).
+        .rule(Bid::new(3, Strain::Notrump), 1.1, hcp(17..))
+        // 3♣ — decline: minimum-or-invitational club support, non-forcing (capped
+        // at 16 so a maximum can never leave this in).
+        .rule(
+            Bid::new(3, Strain::Clubs),
+            1.0,
+            len(Suit::Clubs, 3..) & hcp(..=16),
+        )
+        // 2NT — decline / finite catch-all: balanced minimum, non-forcing.
+        .rule(Bid::new(2, Strain::Notrump), 0.9, hcp(0..))
 }

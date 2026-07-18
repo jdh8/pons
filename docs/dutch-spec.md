@@ -70,6 +70,39 @@ The relay's own content: `0–7` any · `7–9` 5=♠ 4–5♥ · `8–11` unbal
 
 ---
 
+## Opener's rebid after 2♣ / 2♦ **[2.2 authored]**
+
+`pons:` original (no source-system table) — overwrites american's inverted-raise
+(`2♣`) and weak-jump-shift (`2♦`) continuations, which misread the Dutch meanings.
+Since 1♣ denies a 5-card major and responder's `2♣`/`2♦` deny a 4-card major, **no
+major fit exists** — the pure inverted-minors world (minor / notrump / slam).
+Opener borrows american's `after_inv_raise` ladder.
+
+**After 2♦ (game force, 5+♦) — forcing:**
+
+| Call | Meaning |
+| --- | --- |
+| 3♦ | 4-card diamond support — the known nine-card fit (1♣ hosts most 4♦ hands) |
+| 3♣ | a real 5+ club second suit (no diamond fit) |
+| 3NT | balanced extras (15+), both majors stopped, to play |
+| 2♥ / 2♠ | a single major stopper, up the line toward 3NT (both-stopped → notrump) |
+| 2NT | catch-all — minimum / stopper-shy (never Pass) |
+
+**After 2♣ (invite+, 5+♣) — non-forcing:**
+
+| Call | Meaning |
+| --- | --- |
+| 3NT | accept — balanced max stopped, or a 17+ maximum forcing (28+ opposite the invite) |
+| 3♣ | decline — club support, non-forcing (capped ≤16 so a max never leaves it in) |
+| 2NT | decline — balanced minimum, non-forcing / catch-all |
+
+Responder's re-rebid and slam are **left to the floor** (measured to place the
+contract correctly; not authoring keeps the floor's M6.4 RKCB live for `2♦` slams).
+The help-suit game try (`2♥`/`2♠` after `2♣`) is dropped — the floor misreads the
+artificial try, and a cheap accept/decline lands the same games.
+
+---
+
 ## Deep relay continuations
 
 Until authored, the instinct floor handles these — a soft misread, measured

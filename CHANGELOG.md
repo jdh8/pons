@@ -56,6 +56,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   21–23 `2♦!` continuations stay `bare_american` — their strength self-discloses
   to the floor via projection. No user-facing default change (Dutch is a
   candidate, off by default); A/B pending. Ledger: `docs/dutch-system.md`.
+- **`dutch()` Phase 2.2 (increment 2) — opener's rebid after responder's natural
+  `2♣` / `2♦`**. Overwrites the two continuations american built for its own
+  (different) meanings: an **inverted club raise** (`1♣-2♣`, forcing) and a **weak
+  jump shift** (`1♣-2♦`, 0–6). Under Dutch, `2♣` is invite+ (5+♣) and `2♦` is
+  game-forcing (5+♦), so american's nodes misread responder — the game force read
+  as weak (dropping games and slams), the invite read as forcing (opener could not
+  stop). Because 1♣ denies a 5-card major and both responses deny a 4-card major,
+  **no major fit can exist**, so both are the pure inverted-minors world: opener
+  borrows american's `after_inv_raise` ladder. Over `2♦` (forcing): `3♦` = 4-card
+  diamond support, `3♣` = a real club second suit, `3NT` = balanced extras both
+  majors stopped, `2♥`/`2♠` = a single major stopper toward 3NT, `2NT` = catch-all.
+  Over `2♣` (non-forcing): `3NT` = accept, `3♣` = decline with club support (≤16),
+  `2NT` = balanced-minimum decline. Responder's re-rebid and slam are left to the
+  floor — measured to place the contract correctly, and not authoring them keeps
+  the floor's M6.4 RKCB live for `2♦` slams. No user-facing default change (Dutch
+  is a candidate, off by default); A/B pending. Ledger: `docs/dutch-system.md`.
 
 ### Changed
 
