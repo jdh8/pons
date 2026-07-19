@@ -15,7 +15,8 @@ mod openings;
 mod responses;
 
 use super::Pair;
-use super::american::{bare_american, insert_uncontested, with_instinct_floor};
+use super::american::{bare_american, insert_uncontested, with_floor, with_instinct_floor};
+use super::neural_floor::NeuralFloorBba;
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Strain, Suit};
 
@@ -50,6 +51,20 @@ const fn call(level: u8, strain: Strain) -> Call {
 /// ```
 #[must_use]
 pub fn dutch() -> Pair {
+    with_floor(bare_dutch(), NeuralFloorBba)
+}
+
+/// The Dutch pair with the deterministic **instinct** floor (the pre-swap default)
+///
+/// Exactly [`dutch`] but for the floor: the BBA-distilled
+/// [`NeuralFloorBba`] gives way to the deterministic
+/// [`instinct`][crate::bidding::instinct()] ladder.  Mirrors
+/// [`american_instinct`][crate::american_instinct] — the fully-disclosable
+/// reference, and the fixed baseline the Dutch campaign's floor A/Bs anchor on.
+///
+/// The floor is the *only* difference; both share the same authored books.
+#[must_use]
+pub fn dutch_instinct() -> Pair {
     with_instinct_floor(bare_dutch())
 }
 

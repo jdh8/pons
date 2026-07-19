@@ -443,7 +443,7 @@ pub fn american_constructive_floor<C: Classifier + 'static>(floor: C) -> Pair {
 /// of them.  Generic over the floor so [`american`] (the deterministic
 /// [`instinct`][crate::bidding::instinct()]) and
 /// [`american_neural`] (the distilled net) share one wiring.
-fn with_floor<C: Classifier + 'static>(mut pair: Pair, floor: C) -> Pair {
+pub(in crate::bidding) fn with_floor<C: Classifier + 'static>(mut pair: Pair, floor: C) -> Pair {
     let floor = Fallback::classify(floor);
     pair.competitive.fallback_at(&[], Always, floor.clone());
     pair.defensive.fallback_at(&[], Always, floor);

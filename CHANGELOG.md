@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`dutch_instinct()` — the Dutch pair on the deterministic floor, and
+  `dutch()` moves to the BBA-distilled one.** When `american()` was promoted to
+  `NeuralFloorBba` (2026-07-19, +0.11/+0.25 IMPs/board), `dutch()` was left on
+  `with_instinct_floor` — so the campaign's claim that "Dutch's major openings
+  are bit-identical to american" was false in the one place it mattered, the
+  floor that catches every off-book auction. `dutch()` now takes the same net
+  floor; `dutch_instinct()` preserves the old body as the fully-disclosable
+  reference and the A/B baseline, mirroring `american_instinct()`. `bba-gen`
+  gains `--our-floor dutch-instinct`, and `scripts/dutch-floor-ab.sh` runs the
+  pair. **Worth +0.176/+0.276 IMPs/board plain (none/both vul) and
+  +0.168/+0.347 perfect-defense**, 204800 boards per arm per vulnerability,
+  ~27% of boards diverging — roughly double what the same swap bought
+  `american()`, since `dutch()` ran the deterministic floor over more
+  unauthored territory. Plain and PD agree, so the gain is judgement, not a
+  doubling artifact.
+
 - **The floor reads a two-over-one's promised values at the slam-entry gate
   (`set_two_over_one_slam_strength`, default on).** The 2/1 response carries
   `.alert(GAME_FORCE)`, so the inference walk suppresses its natural reading and

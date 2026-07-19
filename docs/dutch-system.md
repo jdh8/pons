@@ -66,15 +66,115 @@ the floor's transfer-completion still holds.
 | 1 | Dutch openings: wide 1♣, 1♦ 5+/4441, 1M 10–20, strong 2♣ | **DONE** (code; A/B pending) |
 | 2.1 | Wide-1♣ response table + opener's rebid after the `1♦` relay | **MEASURED — LOSS** (see below); on-plan for a half-built system |
 | 2.2 | Deep relay continuations (`1♣-1♦-1M/1NT/2♣/2♦`) + `[1♣,2♣]`/`[1♣,2♦]` continuations | **increments 1–2 AUTHORED** — inc.1 `1♣-1♦-1M` + `1♣-1♦-2♣`; inc.2 opener's rebid over `2♣`/`2♦` **+ responder's continuation** (opener-only cut LOST → responder side authored → **re-A/B WIN `+0.0021/bd plain both`**). Rare relay `1NT`/`2♦!` still deferred |
-| 3 | 2-level openings (Multi/Muiderberg/UNT) + strong-2♣ tree | pending |
+| 3 | 2-level openings (Multi + **BBA's Polish two-suiters**/UNT) + strong-2♣ tree | pending — **Muiderberg superseded**, see below |
 | 4 | Reader/floor reconciliation + divergent-opening competitive book | pending |
 | 5 | Iterate to champion vs BBA/BEN; promote if it wins | pending |
+| WJ-floor | Distil BBA-WJ as the floor over Dutch's divergent minors | **A/B A WON** (floor swap, +0.18/+0.28 plain); A/B B next, see below |
 
 Each phase gates on a paired-seed A/B via `examples/bba-gen` (dutch arm vs
 american arm), dual-scored (`ns_score_pd` + `ns_score_contract`), fresh
 `SEED_BASE`, run sequentially under `scripts/idle-run.sh`. Preemptive phases
 (3) are read knowing DD is blind to obstruction — lean on the sd-lead / PD
 bracket, not plain DD alone.
+
+### The WJ-floor campaign — BBA's Polish Club as Dutch's teacher
+
+Dutch is not a rival to Polish; it is american with the minor openings replaced.
+So the floor decomposes per opening, and BBA's WJ (EPBot system `2`,
+`vendor/bba/WJ.bbsa`) is a machine teacher for exactly the subtrees where Dutch
+leaves american. Full plan and the measured evidence:
+`~/.claude/plans/would-it-be-easier-dynamic-sedgewick.md`.
+
+**Step A — SHIPPED, A/B A won on all four cells.** `dutch()` never got the floor
+swap `american()` got on 2026-07-19 — it ran `with_instinct_floor` everywhere, so
+the claim "Dutch's majors are bit-identical to american" was false at the floor.
+`dutch()` now takes `NeuralFloorBba`; `dutch_instinct()` preserves the old body
+as the disclosable reference and A/B baseline. Runner
+`scripts/dutch-floor-ab.sh`, 204 800 bd/arm/vul, seed base 1784493655.
+
+| `dutch` − `dutch-instinct` | plain DD | perfect defense | fired |
+| --- | --- | --- | --- |
+| vul none | **+0.1764** ±0.0136 | **+0.1678** ±0.0166 | 28.11% |
+| vul both | **+0.2764** ±0.0169 | **+0.3471** ±0.0203 | 26.31% |
+
+Roughly **double** what the same swap bought `american()` (+0.11/+0.25), which is
+what the decomposition predicts: `dutch()` ran the deterministic floor over
+strictly more unauthored territory, so it had more to gain. Plain and PD agree at
+both vulnerabilities — not a doubling artifact.
+
+**The residual tail is a redouble bug, and it is probably american's too.** Four
+of the five worst plain boards and four of the five worst PD boards share one
+shape: the net **redoubles** an opponent's double of our artificial call instead
+of bidding on —
+
+```
+on:  2♥ - 2NT - 3♣ X XX - - -      off: 2♥ - 2NT - 3♣ X 4♥ - - -   [-23 IMP]
+on:  - - 1♠ 2♠ 3♥ X XX - - -       off: - - 1♠ 2♠ 3♥ X 4♠ - -      [-24 IMP]
+```
+
+These are american weak-two / competitive subtrees that Dutch inherits unchanged.
+The node is contested and off-book — the Ogust rows are keyed
+`[2♥, P, 2NT, P, 3♣, P]` and trie resolution is exact-depth, so a trailing
+`Double` has no child and falls through — so it is `NeuralFloorBba` speaking, and
+nothing in the floor path masks or penalises `XX` (only `mask_illegal`).
+
+**Probed, and it is not a defect.** Two hypotheses, both refuted on the A/B's own
+dumps (51 200 boards, N/S calls only, `table_b` = the all-BBA reference on the
+same deals and seats):
+
+| N/S call | our net floor | all-BBA reference | instinct floor |
+| --- | --- | --- | --- |
+| `X` | 12.40% | 13.85% | — |
+| `XX` | **0.71%** | **0.69%** | 0.45% |
+
+1. *Misaligned `XX` logit index* — refuted. A transposed `X`/`XX` would put `XX`
+   at doubling's ~13%, not 0.7%. (The Rust chain is provably consistent anyway:
+   one canonical ordering in `array.rs`, and EPBot's differing code space is
+   absorbed by a `Call` round-trip rather than crossing as a raw tensor index.)
+2. *A defect in the shared net, live in `american()` too* — refuted. The net
+   redoubles at **its teacher's own rate**; it is cloning BBA faithfully. What
+   differs is `instinct()`, which redoubles less (0.45%).
+
+So the tail is a **selection effect in the worst-boards list**, not a bug: sorting
+by largest divergence surfaces exactly the boards where the net redoubled and
+instinct bid on, while the +0.18…+0.35 mean says the net's judgement is better
+overall. Whether BBA *and* our clone both over-redouble relative to optimum is a
+live system question — the aggregate rates match, but that does not prove either
+is right in this specific position — and it is a separate investigation from this
+campaign.
+
+**Measured facts about BBA-WJ** (274k-board harvest via the surviving
+`bba-wj-reference` binary, which records EPBot's own
+`get_info_meaning_extended` disclosure beside each hand):
+
+| BBA-WJ opening | What it actually is |
+| --- | --- |
+| `2♦` (n=9166) | `Multi`, **weak-only** — declared `H/S [0,6]`, pts `[4,10]`; observed HCP 1–10, always a 6+ major. No strong variant at all |
+| `2♥`/`2♠` (n=5290) | `Polish two suiters`, **5-5 not 5-4** — the second suit is never four cards. `2♥` may hold 5+ spades (`S [0,13]`); `2♠` caps hearts (`H [0,3]`), since 5-5 majors always open `2♥` |
+| `2♣` (n=9143) | a **minimum club hand**: declared `C [5,13]`, `H/S [0,4]`, pts `[11,14]` — traditional WJ, every 5-club hand with a 4-card major |
+
+**Decision (jdh8, 2026-07-20): Phase 3 adopts BBA's two-level openings** — Multi
+2♦ + the 5-5 Polish two-suiters, **replacing the spec's planned Muiderberg**
+([dutch-spec.md](dutch-spec.md) still says Muiderberg; update that line when
+Phase 3 authors the rows). Book and teacher then share the same rows, which
+makes the two-level branch the cleanest floor-transfer in the system. Costs a
+weak 5-4's opening, gains the weak 5-5 majors an opening Dutch does not have
+today (1♠ needs 10+ and Rule of 20).
+
+**Hand-containment, measured** (Dutch's opening table replayed over the same
+harvest — exact, since `fuzzy_fifths` is off so `fifths(20.0..22.0)` is literally
+HCP 20–21, and `balanced()` is 4333/4432/5332):
+
+| Dutch opens | BBA-WJ agrees | Where the rest goes |
+| --- | --- | --- |
+| **1♦** (n=17868) | **89.0%** | 9.7% → WJ's 1♣, **all of it 18+** (Dutch's 1♦ is 11–23, WJ's caps ~17) · 1.3% Pass/2♣ |
+| **1♣** (n=37754) | **73.0%** | **21.3% → WJ's 2♣** (the minimums above) · 5.4% → WJ's 1♦ |
+
+So "Dutch 1♣ ⊆ Polish 1♣" is **false** — traditional WJ's 2♣ takes the club
+minimums. The breach lands on 1♣, which stays an opt-in knob default-off; 1♦ is
+the arm to ship, and its residual has no unexplained component. **Never route
+2♣**: Dutch's is strong (21–23/24+), WJ's is an 11–14 minimum — same call,
+opposite meanings, the one spot the WJ net would be catastrophically wrong.
 
 ### Phase 2.1 A/B result — LOSS, as expected for a half-built system
 
