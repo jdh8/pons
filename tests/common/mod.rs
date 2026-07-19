@@ -13,7 +13,11 @@
 
 pub use contract_bridge::auction::{Call, RelativeVulnerability};
 pub use contract_bridge::{Bid, Hand, Strain};
-pub use pons::american;
+// These integration tests pin the *designed* calls of the authored book + the
+// deterministic instinct ladder, so `american` here is `american_instinct` — the
+// pre-swap default.  The net-floored `pons::american` default is validated in
+// aggregate by the `ab-*` A/B harnesses, never by pinning individual calls.
+pub use pons::american_instinct as american;
 pub use pons::bidding::array::Logits;
 pub use pons::bidding::{Family, Stance, System};
 
@@ -22,7 +26,8 @@ pub const fn call(level: u8, strain: Strain) -> Call {
     Call::Bid(Bid::new(level, strain))
 }
 
-/// The 2/1 pair bound against natural opponents.
+/// The 2/1 pair bound against natural opponents (the deterministic instinct
+/// floor — see the `american` re-export note above).
 pub fn stance() -> Stance {
     american().against(Family::NATURAL)
 }

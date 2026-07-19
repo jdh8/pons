@@ -2,9 +2,10 @@
 //!
 //! A hand-rolled `f32` matmul + ReLU evaluation of the MLP that `trainer/` fits
 //! off-crate. There is no ML dependency: the weights are embedded with
-//! [`include_bytes!`] and the arithmetic is a few loops, so the default build
-//! stays exactly as lean as before — this module compiles only under the
-//! `neural-floor` feature.
+//! [`include_bytes!`] and the arithmetic is a few loops. The BBA-distilled net
+//! (`classify_bba`) backs the default [`american`][crate::american()] floor, so
+//! this module is always compiled; only the legacy `american_neural*` variants
+//! that call the v1/v2/v3/search nets stay behind the `neural-floor` feature.
 //!
 //! The forward pass mirrors `candle_nn::Linear` (weights are `(out, in)`
 //! row-major, `y = x·Wᵀ + b`). The parity test below asserts it reproduces the

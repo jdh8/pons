@@ -2001,7 +2001,6 @@ const TRANSFERS: [(u8, Bid, Bid); 6] = [
 /// middle, but never these forced rails.  Hand-conditioned forces (a
 /// strong-notrump responder who holds game values) are deliberately excluded —
 /// they are judgement the net is trusted with, measured on the harness.
-#[cfg(feature = "neural-floor")]
 pub(crate) fn forced(context: &Context<'_>) -> bool {
     advancing_a_double_now(context)
         || Interpretation::read(context).forced_to_game
@@ -3408,16 +3407,19 @@ mod tests {
             .expect("array is never empty")
     }
 
-    /// The full-`american()` call for a hand and whether the floor produced it
+    /// The full-`american_instinct()` call for a hand and whether the floor
+    /// produced it
     ///
     /// `depth == 0` with `fallback == Some(_)` is the instinct floor firing — so
     /// the second tuple field tells a test the node is off-book (floor territory),
     /// guarding against a floor rule that is silently shadowed by a book node.
+    /// Uses [`american_instinct`] (not the net-floored [`american`]) so these
+    /// tests exercise the deterministic instinct ladder they assert against.
     fn american_floored(auction: &[Call], hand: &str) -> (Call, bool) {
         use crate::bidding::Family;
-        use crate::bidding::american::american;
+        use crate::bidding::american::american_instinct;
         let hand: Hand = hand.parse().expect("valid test hand");
-        let (logits, provenance) = american()
+        let (logits, provenance) = american_instinct()
             .against(Family::NATURAL)
             .classify_with_provenance(hand, RelativeVulnerability::NONE, auction)
             .expect("a legal auction classifies");

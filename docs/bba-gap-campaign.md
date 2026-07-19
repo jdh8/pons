@@ -1,7 +1,12 @@
 # The BBA gap campaign — closing pons↔BBA, especially via the floor
 
 The standing plan for the campaign metric: `american()` vs BBA's 2/1 card,
-IMPs/board.  History: **−2.59** (S.1 anchor, 2000 boards, 2026-06-15) →
+IMPs/board.  **As of 2026-07-19 (the floor swap, B4) the anchor's pons side is
+`american_instinct()`** — `american()` now ships the BBA-distilled net floor,
+whose off-book calls do not decompose into book buckets, so the
+decompose-and-rank series stays on the deterministic system; the net floor's
+one-step gap reduction (+0.11 non-vul / +0.25 vul) is recorded in B4.
+History: **−2.59** (S.1 anchor, 2000 boards, 2026-06-15) →
 **−1.997** after M6.1 alone (4000 boards) → **first seeded, decomposed anchor**
 (2026-07-06, sha `62cf5c5`, `SEED_BASE=1783375064`, 204.8k boards,
 replay-verified 100%): **vul none −1.675 / vul both −2.310**, pooled **−1.99
@@ -402,13 +407,19 @@ fits them unchanged; `neural::classify_bba` + `NeuralFloorBba` +
   5-level competing / slam tries, fewer takeout doubles). No book nodes added,
   so `artificial_calls_are_alerted` is untouched — disclosure posture identical
   to the shipped `neural-v3` floor.
-- **Stance:** per the 2026-07-07 promotion rule (B1), a floor that passes the
-  routing gate becomes a **campaign measurement arm**; the **crate default stays
-  `instinct()`**. Shipped opt-in (`--our-floor neural-bba`). Follow-ons: (a) make
-  it the default via a *contested-only* partition (net for contested, instinct
-  for constructive — the iron rule); (b) reach *past* BBA by putting the live
-  search on top of this stronger prior (M8). Not compared against the search
-  champion `neural-search` — different category (that is follow-on b).
+- **Stance → PROMOTED (2026-07-19, the floor swap):** the routing-gate win
+  shipped as the **crate default** — `american()` now floors off-book with the
+  BBA net, and the deterministic pre-swap system is `american_instinct()` (the
+  anchor's new pons side, the distillation teacher, and the integration-test
+  target). `american_bba_neural()` is now an alias of `american()`; the BBA net
+  path is always compiled. The earlier follow-on "(a) contested-only partition"
+  was **dropped as backwards**: the floor has no phase gate — it already floors
+  *constructive* off-book decisions too (the net was trained on the whole
+  auction; `instinct()` is a shallow heuristic exactly where the auction runs
+  past the book), so routing constructive→instinct would *give back* measured
+  IMPs. Remaining follow-on: reach *past* BBA by putting the live DD search on
+  top of this stronger prior (M8). Not compared against the search champion
+  `neural-search` — different category.
 
 ## Pillar C — measurement unlock (sd-lead third scorer)
 

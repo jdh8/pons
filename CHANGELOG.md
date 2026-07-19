@@ -9,27 +9,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **`american_bba_neural()` — the floor distilled from EPBot 2/1 (opt-in)**. A
-  new whole-floor neural variant with the same disclosable-only v3 features and
-  safety shell as `american_neural_v3()`, but distilled from the vendored
-  **BBA / EPBot 2/1 oracle** instead of `american()` — a ~1.9-IMP/bd-stronger
-  teacher. Held-out top-1 agreement with BBA **85.9%** (hard one-hot/argmax
-  targets over disclosable-only features — less learnable than american's
-  95.3%, as expected). **Routing-gate A/B vs the shipped `american` (instinct)
-  floor, against live BBA opponents, dual-scored, two independent seeds
-  (~150k bd/cell total): +0.11 IMPs/bd non-vul, +0.25 IMPs/bd vulnerable —
-  plain-win AND PD-win in all four cells, 3.5–9σ** (vs `neural-v3` the teacher
-  effect is larger, +0.32/+0.47). No doubling artifact (PD ≥ plain); disclosure
-  audit clean (call distribution matches `american`'s — no new artificial call
-  class; the `artificial_calls_are_alerted` book invariant is untouched, no book
-  nodes added). Ships **opt-in** via `--our-floor neural-bba` /
-  `american_bba_neural()`; the default `american()` is byte-identical (the
-  standing 2026-07-07 promotion stance keeps the crate default `instinct()`).
-  Also adds `dump-teacher --teacher american|bba` (the swappable distillation
-  teacher, default `american`) and a `FEATURES` passthrough in
-  `bba-gen-parallel.sh`. Making the BBA floor the *default* (a contested-only
-  partition over `instinct()`) and search on top of the stronger prior are
-  follow-ons. Ledger: `docs/bba-gap-campaign.md` (Pillar B).
+- **`american_instinct()` — the deterministic pre-swap 2/1** (the former
+  `american()`: authored book + `instinct()` floor). Retained as the
+  fully-disclosable reference system, the distillation teacher
+  (`dump-teacher --teacher american`), and the fixed baseline the integration
+  tests pin and the BBA-gap campaign re-anchors against
+  (`bba-gen --our-floor american-instinct`).
+
+### Changed
+
+- **`american()` is now floored off-book by the BBA-distilled neural net** (was
+  the deterministic `instinct()` ladder). The whole-floor net keeps the same
+  disclosable-only v3 features and forced-rail safety shell as
+  `american_neural_v3()`, but is distilled from the vendored **BBA / EPBot 2/1
+  oracle** — a ~1.9-IMP/bd-stronger teacher than `american()` itself (held-out
+  top-1 agreement with BBA **85.9%**; hard one-hot/argmax targets over
+  disclosable-only features, less learnable than american's 95.3%, as expected).
+  **Routing-gate A/B vs the prior `instinct` floor — live BBA opponents,
+  dual-scored, two independent seeds (~150k bd/cell total): +0.11 IMPs/bd
+  non-vul, +0.25 IMPs/bd vulnerable — plain-win AND PD-win in all four cells,
+  3.5–9σ** (vs `neural-v3` the teacher effect is larger, +0.32/+0.47). No
+  doubling artifact (PD ≥ plain); disclosure audit clean — call distribution
+  matches the old floor's, no new artificial-call class, the
+  `artificial_calls_are_alerted` book invariant untouched, no book nodes added.
+  The deterministic system is preserved as `american_instinct()` (see Added);
+  `american_bba_neural()` is now an alias of `american()`. The BBA net path is
+  always compiled; the `neural-floor` feature still gates the legacy
+  v1/v2/v3/search variants. Also adds `dump-teacher --teacher american|bba`
+  (default `american`) and a `FEATURES` passthrough in `bba-gen-parallel.sh`.
+  Live DD search on top of the stronger prior is the next follow-on. Ledger:
+  `docs/bba-gap-campaign.md` (Pillar B).
 - **`dutch()` — a new natural 2/1 system, wide-1♣ openings (Phases 0–1)**. A
   sibling system factory built around a wide, non-forcing 1♣ — a "lawyer's
   Polish Club" that naturalises the Polish 1♣. It is a **champion candidate**:

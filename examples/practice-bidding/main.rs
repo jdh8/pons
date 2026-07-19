@@ -23,7 +23,7 @@ use contract_bridge::deck::{fill_deals, full_deal};
 use contract_bridge::eval::{self, HandEvaluator as _, SimpleEvaluator};
 use contract_bridge::{AbsoluteVulnerability, Builder, Contract, FullDeal, Seat, Strain, Suit};
 use ddss::{NonEmptyStrainFlags, Solver, StrainFlags, TrickCountTable};
-use pons::american;
+use pons::american_instinct;
 #[cfg(feature = "neural-floor")]
 use pons::american_neural_search;
 use pons::bidding::{Pair, Table};
@@ -113,7 +113,7 @@ enum Floor {
 /// Build a fresh 2/1 pair for the chosen floor
 fn build_pair(floor: Floor) -> Pair {
     match floor {
-        Floor::Instinct => american(),
+        Floor::Instinct => american_instinct(),
         #[cfg(feature = "neural-floor")]
         Floor::NeuralSearch => american_neural_search(),
     }

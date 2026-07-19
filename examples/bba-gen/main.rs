@@ -1279,12 +1279,15 @@ fn main() -> anyhow::Result<()> {
         // The Dutch champion candidate reuses american's shared modules (incl.
         // the shipped 1NT shape), so `--nt-shape` does not apply here.
         "dutch" => pons::dutch().against(Family::NATURAL),
+        // The deterministic pre-swap floor: the fixed re-anchor baseline now that
+        // `american` ships the BBA net.
+        "american-instinct" => pons::american_instinct().against(Family::NATURAL),
         #[cfg(feature = "neural-floor")]
         "neural-v3" => pons::american_neural_v3().against(Family::NATURAL),
         #[cfg(feature = "neural-floor")]
         "neural-bba" => pons::american_bba_neural().against(Family::NATURAL),
         other => anyhow::bail!(
-            "--our-floor must be american|dutch{}, got {other:?}",
+            "--our-floor must be american|american-instinct|dutch{}, got {other:?}",
             if cfg!(feature = "neural-floor") {
                 " or neural-v3|neural-bba"
             } else {

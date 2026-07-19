@@ -572,11 +572,11 @@ mod tests {
     /// call to the instinct fallback, each with a renderable rule.
     #[test]
     fn explain_call_names_book_and_floor_rules() {
-        use crate::bidding::american::american;
+        use crate::bidding::american::american_instinct;
         use contract_bridge::Hand;
         use contract_bridge::auction::RelativeVulnerability;
 
-        let stance = american().against(super::Family::NATURAL);
+        let stance = american_instinct().against(super::Family::NATURAL);
 
         // A book decision: the routine 1♠ opening resolves at the exact root
         // node (no fallback taken) and names the rule that produced it.

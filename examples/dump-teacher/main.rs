@@ -40,7 +40,7 @@ use contract_bridge::auction::{Auction, Call};
 use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Seat};
 use ddss::TrickCountTable;
-use pons::american;
+use pons::american_instinct;
 use pons::bidding::context::{Context, relative};
 use pons::bidding::features::{
     FEATURES_LEN, FEATURES_LEN_V2, FEATURES_LEN_V3, FEATURES_VERSION, FEATURES_VERSION_V2,
@@ -119,7 +119,7 @@ fn main() -> anyhow::Result<()> {
     // through a Stance; `bba` is the vendored EPBot 2/1 oracle — a fresh
     // single-threaded FFI bot per decision.
     let teacher: Box<dyn System> = match args.teacher.as_str() {
-        "american" => Box::new(american().against(Family::NATURAL)),
+        "american" => Box::new(american_instinct().against(Family::NATURAL)),
         "bba" => {
             let path = std::env::var("BBA_LIB").unwrap_or_else(|_| DEFAULT_LIB.into());
             Box::new(BbaOracle::load(&path, SYSTEM_2_OVER_1, Vec::new())?)

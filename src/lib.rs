@@ -31,12 +31,12 @@ pub mod stats;
 
 pub use bidding::{
     Alert, Competitive, Constructive, Context, Defensive, Family, OrElse, Pair, Phase, Rules,
-    Stance, System, Table, Trie, Versus, american, dutch, instinct,
+    Stance, System, Table, Trie, Versus, american, american_bba_neural, american_instinct, dutch,
+    instinct,
 };
 #[cfg(feature = "neural-floor")]
 pub use bidding::{
-    american_bba_neural, american_neural, american_neural_search, american_neural_v2,
-    american_neural_v3,
+    american_neural, american_neural_search, american_neural_v2, american_neural_v3,
 };
 #[cfg(feature = "search")]
 pub use bidding::{american_search, american_search_book, american_search_with};

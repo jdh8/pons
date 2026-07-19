@@ -20,11 +20,15 @@ pub mod inference;
 pub mod instinct;
 /// [`Call`]-keyed hash map
 pub mod map;
-/// Hand-rolled forward pass for the distilled neural floor (feature-gated)
-#[cfg(feature = "neural-floor")]
+/// Hand-rolled forward pass for the distilled neural floor
+///
+/// Always compiled: the BBA-distilled net ([`neural::classify_bba`]) backs the
+/// default [`american`][american::american] floor.
+// ponytail: ungating the whole module also embeds the legacy v1/v2/v3/search
+// weight blobs (~1.8 MB) in every build; gate those four per-blob if the default
+// binary size ever matters.
 pub mod neural;
-/// Deterministic safety shell over the distilled neural floor (feature-gated)
-#[cfg(feature = "neural-floor")]
+/// Deterministic safety shell over the distilled neural floor
 pub mod neural_floor;
 pub mod rules;
 /// Constrained layout sampling: deals consistent with an auction's inferences
@@ -40,11 +44,10 @@ pub mod trie;
 /// Behavioral verification of authored constraints (AI-bidder M4.2)
 pub mod verify;
 
-pub use american::american;
+pub use american::{american, american_bba_neural, american_instinct};
 #[cfg(feature = "neural-floor")]
 pub use american::{
-    american_bba_neural, american_neural, american_neural_search, american_neural_v2,
-    american_neural_v3,
+    american_neural, american_neural_search, american_neural_v2, american_neural_v3,
 };
 #[cfg(feature = "search")]
 pub use american::{american_search, american_search_with};
