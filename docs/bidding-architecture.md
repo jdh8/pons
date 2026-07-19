@@ -126,7 +126,8 @@ range (projects the union — sound but loose).
 - `sample_layouts` — rejection-sample within the `Inferences` ranges.
 - `sample_layouts_replay` — additionally re-runs the policy at every authored
   node, accepting hands whose made call ranks within `MARGIN` nats of best
-  (knob `set_rule_accept`, default off). Passes replay like any call — the
+  (knob `set_rule_accept`, default on since M8.1b `74d783d`). Passes replay like
+  any call — the
   sample-level negative inference (rejects a candidate that would have
   opened/preempted), the disjunctive half the interval envelope can't hold.
 - Budget philosophy: a deal costs ~0.3 µs, a DD solve dwarfs it — when the

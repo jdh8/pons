@@ -669,13 +669,19 @@ makes the existing search *sound* — it subsumes the one still-live M7 branch
 default and baseline; every phase measures under the dual-reference rule (vs BEN
 Tier-F primary + BBA plain-DD guard).
 
+The three-lever review behind M8 — *do we need BEN's features, more training, or
+search?* — with the pons↔BEN parameter comparison and the post-swap search
+re-basing (Phase 0), is [`stronger-floor.md`](stronger-floor.md).
+
 - ⬜ **M8.1 Sampler soundness.** Tight, realistic worlds: land the reading knobs
-  (`length_soundness` + the three reading-side washes), make rule-replay sampling
-  (`set_rule_accept`) the search default, and add importance-weighted dealing
-  (bias `fill_deals` toward the reading's center — the GPL-clean analog of BEN's
-  Info-net-biased dealing, driven by our `Inferences`). *Measure:* EV
-  variance/bias on a fixed set + the M8.4 re-distill A/B. *Deps:* none (1a in
-  flight as the reading-knobs A/Bs).
+  (`length_soundness` + the three reading-side washes); rule-replay sampling
+  (`set_rule_accept`) is **already default-on** (M8.1b, shipped `74d783d`); the
+  remaining open item is importance-weighted dealing (bias `fill_deals` toward the
+  reading's center — the GPL-clean analog of BEN's Info-net-biased dealing, driven
+  by our `Inferences`). *Measure:* EV variance/bias on a fixed set + the M8.4
+  re-distill A/B. *Deps:* none (1a in flight as the reading-knobs A/Bs). Before
+  M8.4, settle the search's prior + rollout continuation, which still point at the
+  pre-swap v1/M3 nets ([`stronger-floor.md`](stronger-floor.md) Phase 0).
 - ⬜ **M8.2 Scorer soundness for slam.** An `SD_EVAL` offline scorer swapping
   `ev_all`'s DD trick source for the single-dummy declarer playout
   (`single_dummy_declarer_tricks`), consumed by the `dump-search` teacher, **not**

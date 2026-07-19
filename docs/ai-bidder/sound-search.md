@@ -4,7 +4,10 @@
 > (M2.3 `american_search`, M3 distilled `american_neural_search`); this plan
 > refines it. Nothing here starts until a phase is explicitly chosen. The
 > concrete Phase 3 of [ben-gap-campaign.md](../ben-gap-campaign.md) and
-> Milestone 8 of [plan.md](plan.md) both point here.
+> Milestone 8 of [plan.md](plan.md) both point here. The three-lever review that
+> motivates this plan — *features vs training vs search*, with the pons↔BEN
+> parameter comparison and the post-swap search re-basing — is
+> [`stronger-floor.md`](stronger-floor.md).
 
 ## The claim, and why it reframes the work
 
@@ -28,7 +31,7 @@ Two independent probes located the gap **outside the hand features**:
 
 | Axis | pons today | BEN (v0.8.8.4, source-grounded) | Gap → phase |
 | --- | --- | --- | --- |
-| **Hidden-hand sampler** | uniform deal + **hard reject** on `Inferences` ranges (`sample_layouts`); optional rule-replay (`sample_layouts_replay`, `set_rule_accept` default **off**) | **Info-net-biased dealing** (honors dealt toward predicted hcp/shape means) + **soft NN-replay gate** (keep worlds whose replay prob clears 0.70, keep-best fallback) | Phase 1 |
+| **Hidden-hand sampler** | uniform deal + **hard reject** on `Inferences` ranges (`sample_layouts`); rule-replay (`sample_layouts_replay`, `set_rule_accept` **default-on since M8.1b `74d783d`**) | **Info-net-biased dealing** (honors dealt toward predicted hcp/shape means) + **soft NN-replay gate** (keep worlds whose replay prob clears 0.70, keep-best fallback) | Phase 1 |
 | **Rollout scorer** | double-dummy, perfect-defense doubling, **raw points**, own distilled net as continuation | double-dummy (DDS), **IMP** conversion, **BBA** as continuation policy | Phase 2 (sd for slam), Phase 5 (IMP ranking) |
 | **Net prior** | strict **shortlist only**; always searches non-forced auctions | shortlist **and** folded back into EV (`adjust_NN·insta_score`); search gated on ≥2 candidates over a low threshold | Phase 5 |
 | **Slam / forcing machinery** | authored book + `instinct()` forced rails | consults BBA at the table for RKCB/keycard/forcing | (out of scope — GPL) |
@@ -106,8 +109,8 @@ Make the sampled worlds tight and realistic, so every downstream EV (live search
   bid-inert washes (ship gate = probe soundness + disclosure/sd/search surfaces
   that consume readings); `length_soundness` is the one with a priceable bidding
   delta and a live dual-reference A/B ([ben-gap-campaign.md fix ledger](../ben-gap-campaign.md#fix-ledger)). *Deliverable:* tighter ranges default-on where measured. *Deps:* none (running).
-- **1b — Rule-replay sampling default for search.** Promote
-  `sample_layouts_replay` (`set_rule_accept`, [sampler.rs:120](../../src/bidding/sampler.rs)) from opt-in to the search sampler's default: a drawn world must not only fall in-range but *replay* the authored policy within `MARGIN=3` nats — pons's analog of BEN's soft NN-replay gate. *Measure:* EV-bias / variance on a fixed divergent set; then the Phase-4 re-distill A/B. *Deps:* 1a.
+- **1b — Rule-replay sampling default for search. ✅ Shipped (`74d783d`).**
+  `sample_layouts_replay` (`set_rule_accept`, [sampler.rs:120](../../src/bidding/sampler.rs)) is now the search sampler's default: a drawn world must not only fall in-range but *replay* the authored policy within `MARGIN=3` nats — pons's analog of BEN's soft NN-replay gate. *Measured:* EV-bias / variance on a fixed divergent set; the Phase-4 re-distill A/B remains the ship gate for its downstream effect. *Deps:* 1a.
 - **1c — Importance-weighted dealing.** Bias `fill_deals` toward the reading's
   center (deal honors toward the predicted hcp/shape, not uniformly), the
   GPL-clean analog of BEN's Info-net-biased dealing — driven by *our*
@@ -233,12 +236,12 @@ the line we do not cross.
 
 ## Start here (for the first coding session)
 
-**Phase 1c or 1b** is the cheapest first real code (Phase 1a is already running
-as A/Bs). Recommended order:
+**Phase 1c** is the cheapest first real code (Phase 1a is running as A/Bs; Phase
+1b, the `set_rule_accept` default flip, shipped in `74d783d`). Recommended order:
 
-1. **Phase 1b** — flip `set_rule_accept` to default-on for the search sampler and
-   A/B it (smallest diff; the machinery exists). Confirms replay-gating tightens
-   worlds before adding the weighted dealer.
+1. **Phase 1c** — importance-weighted dealing: bias `fill_deals` toward the
+   reading's center, the last open Phase-1 sampler item (replay-gating already
+   tightens *which* worlds are kept; weighting tightens *how they're drawn*).
 2. **Phase 2** — the `SD_EVAL` offline scorer (the highest-value *correctness*
    win; the scoring swap at [ev.rs:138](../../src/bidding/ev.rs) plus two-view inference plumbing — mirrors `sd_declarer_ns_score`, but `ev_all` must first gain `Stance` access, being generic over `System` today).
 3. **Phase 4** — re-distill and measure vs BEN Tier-F + BBA guard.

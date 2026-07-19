@@ -313,8 +313,10 @@ which never change under the fixed seed.  Afterwards:
 1. Check `report.md`'s **replay verification = 100%** — below that the dump
    was generated with non-default knobs or a drifted revision; fix before
    trusting buckets.
-2. Commit the lean set: `seed`, `log`, `report.md`, `boards.jsonl`,
-   `dd-cache.json` (shard dumps are regenerable in minutes from seed + SHA).
+2. Commit the lean set: `/ab-results/` is gitignored, so `git add -f` the
+   series `seed` + `log` and the snapshot's `report.md` — that is all prior
+   snapshots track. The `boards.jsonl` (~92 MB) and `dd-cache.json` are
+   **not** committed; they regenerate in minutes from seed + SHA.
 3. Record the headline in the 21gf-ledger campaign-metric line and
    CHANGELOG.md.
 
