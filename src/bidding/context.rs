@@ -246,6 +246,18 @@ impl<'a> Context<'a> {
             .then(|| self.auction.len() as u8 + 1)
     }
 
+    /// The opening bid — the first non-pass call — if anyone has acted
+    ///
+    /// Always a [`Bid`]: a double needs a prior bid to double, so the first
+    /// non-pass call of a legal auction cannot be `Double` or `Redouble`.
+    #[must_use]
+    pub fn opening_bid(&self) -> Option<Bid> {
+        match self.auction.get(self.opening_index?) {
+            Some(&Call::Bid(bid)) => Some(bid),
+            _ => None,
+        }
+    }
+
     /// The seat number (1–4) of the first non-pass call, if any
     #[must_use]
     pub fn opener_seat(&self) -> Option<u8> {
@@ -371,6 +383,20 @@ mod tests {
         assert_eq!(context.leading_passes(), 2);
         assert_eq!(context.opener_seat(), Some(3));
         assert_eq!(context.seat_to_open(), None);
+        // Past the leading passes, and their 1♠ overcall does not overwrite it.
+        assert_eq!(context.opening_bid(), Some(Bid::new(1, Strain::Hearts)));
+    }
+
+    #[test]
+    fn test_opening_bid() {
+        assert_eq!(
+            Context::new(RelativeVulnerability::NONE, &[]).opening_bid(),
+            None,
+        );
+        assert_eq!(
+            Context::new(RelativeVulnerability::NONE, &[Call::Pass; 3]).opening_bid(),
+            None,
+        );
     }
 
     #[test]

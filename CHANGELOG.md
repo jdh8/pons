@@ -25,6 +25,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   unauthored territory. Plain and PD agree, so the gain is judgement, not a
   doubling artifact.
 
+- **`Context::opening_bid()` — the first non-pass call of the auction.**
+  `opening_index` was already computed but private to `context`, so a classifier
+  outside that module could learn *who* opened (`opener_seat`) but not *what*
+  they opened. Returns `Option<Bid>` rather than `Option<Call>`: the first
+  non-pass call of a legal auction is always a bid, since a double needs a prior
+  bid to double. Wanted by the Dutch campaign's per-opening floor routing, where
+  1♦ goes to a WJ-distilled net and everything else to the 2/1 one.
+
 - **`dump-teacher --card FILE.bbsa` pins the distillation teacher's whole
   convention card.** `--teacher bba` hardcoded EPBot's 2/1 with whatever the
   engine defaults to; a card supplies the system id *and* all 133 named toggles,
