@@ -197,3 +197,76 @@ shape/suit-quality gate on *which* free bids to make, not a strength floor.
 | P5 competitive long-suit rebid (floor) | `set_competitive_rebid` | **SHIPPED default-on**; the campaign's largest per-board win | Opener/overcaller rebids a 6+ suit we personally bid instead of the floor's forced takeout double; 2-level unconditional, 3-level needs 7 cards or a good six (2 of top 3 honors). plain **+0.047/+0.037** IMPs/bd NV/vul, PD **+0.040/+0.023**; all four cells CI>0; +0.67…+1.37 IMPs/fired, 3.4% fired. Blanket 3-level lost vul (opener-3 PD −0.016) → quality gate flipped it to +0.007, overcaller-3 to a wash. 102.4k bd/arm/vul, SEED_BASE 1783316036. Bucketed by `ab-dump-bucket`. Follow-up: "off-shape X stronger" (a separate hand class — competitive doubles *without* a long suit) is a candidate second treatment. |
 | P6 doubled-splinter systems-on | `set_splinter_doubled` | **SHIPPED default-on**; anchor bucket #4 tail | A double of our game-forcing splinter reroutes opener into the competitive book, where — unauthored — it fell to the floor and *passed* the doubled game force (a four-ace monster passing `4♣x` while the field bids `7♠`). A `FirstIs(Double)` rebase keyed at `[1M, P, splinter]` strips the double off the whole subtree so opener + responder's keycard answers resolve systems-on. plain **+0.0059/+0.0079** IMPs/bd NV/vul, PD **+0.0059/+0.0079** (plain ≈ PD — removing *our own* doubled contracts, no artifact); all four CIs>0; +15.4/+17.6 IMPs/fired, 0.04% fired. 204.8k bd/arm/vul, SEED_BASE 1783439089, `scripts/splinter-doubled-ab.sh`. Known tail: a *second* double (of the keycard response) still passes out — 1 board in 79, the standard rebase-tail limitation. |
 | alert invariant over fallbacks | — | follow-up | — |
+| Rubens-clean transfer advances | `FreeBidStyle::RubensClean` (unbuilt) | **deferred design** — the resumable retry of the lost P3f; see below | — |
+
+## Deferred designs
+
+### Rubens-clean transfer advances (retry of P3f)
+
+**Not built.** A resumable design for a *completion-disciplined* variant of the
+transfer advance that P3f (`FreeBidStyle::Transfer`, row above) lost. Ship as a
+**new `FreeBidStyle::RubensClean` variant** so it A/Bs head-to-head against
+`Forcing` on the existing `scripts/free-bid-style-ab.sh` — do **not** reshape the
+lost `Transfer` variant (keep it for the record).
+
+**Goal.** Transfer responses over an overcall of our 1-level opening —
+`1♣ (1♠) 2♦ → hearts`. Thesis: a natural suit advance forces one side of the
+eternal **forcing-vs-non-forcing** debate; a transfer covers the **union of the
+F and NF strength bands** in one call and disambiguates strength on the
+follow-up. DD-visible (the orphaned band otherwise reaches a worse contract).
+
+**Why P3f is evidence against the naive form, not just its right-siding.** Over
+`1♣ (1♠)` both unbid suits (♦, ♥) sit below the enemy ♠, so a symmetric
+next-suit-up transfer inverts them: `2♦ → ♥` completes cleanly at **2♥** ✓, but
+`2♥ → ♦` wraps — opener can't descend to 2♦, so completion jumps to **3♦** ✗.
+Unioning the NF band into the transfer therefore shoves the *diamond* transferee
+to the 3-level = P3f's named **leak #1** (weak band over-commits). P3f's leak #2:
+game-forcing hands lose a round of natural description. Both are structural, so a
+re-run of the same shape is pointless.
+
+**The fix — completion discipline (between clean-only and symmetric P3f).** The
+value lives in *how opener completes*:
+
+- `2♦ → hearts` transfer. **Opener completes 2♥ by default ("when in doubt,
+  complete")** — the near-automatic 2-level completion keeps middle hands alive
+  in a way a natural NF `2♥` cannot (a natural NF `2♥` can be *passed out*,
+  stranding hands that want one more turn). Opener **breaks (bypasses completion)
+  only with a strong hand, ~15+.**
+- **Advancer** reads the completion: pass 2♥ = NF/weak band; bid on = the
+  F/interesting band. The F∪NF union is realized *through the completion round*,
+  not by widening the initial call.
+- **Break threshold is a knob** (`set_rubens_break_floor`, ~15+) — the primary
+  tuning parameter. Beats P3f because the default completion is a **2-level** bid
+  (NF band stops low at transfer-then-pass), not a 3-level wrap; the extra round
+  gives the F band room to continue (the leak-#2 defense — the open A/B risk).
+- **Wrap suit** (`2♥` = diamonds over `1♣ (1♠)`): keep **natural by default**;
+  a wrap transfer would be a separate second knob measured on its own.
+
+**Step 0 (prerequisite data) — probe BBA/BEN's `2♥` band + forcing-ness** to set
+the transfer floor and the F/NF boundary from data, not a guess. Neither bidder
+discloses "forcing", so bucket the actual call at prefix `[1♣, 1♠]` (actor =
+responder seat 2) and infer forcing-ness from opener's continuation at
+`[1♣, 1♠, 2♥, P]` (seat 0): **Pass (NF) vs bids-again (F)**. BBA: extend
+`examples/probe-bba-constraints/main.rs` (its `Bucket`/`render`/`pct` +
+continuation `filter` idioms; per-seat conventions via `--conv` — the `.so`
+ignores `.bbsa`). BEN: `BenOracle` (`examples/ben-gen/main.rs`, REST subprocess),
+continuation-inference only. Caveat: BBA/BEN's natural `2♥` shows only *one* band,
+so it teaches at most half the union.
+
+**Authoring seam** (competitive book, ~1 day): the 2-level free-bid region of
+`over_their_overcall(opening)` (`competition.rs:1227`, region `:1532-1608`), gated
+by `set_free_bid_style` / `FreeBidStyle` (`:675`). Copyable templates —
+transfer-Lebensohl / Cachalot. Author **both sides first** (opener completion
+`Rules` fn modeled on `transfer_completion` `:2962`; responder clarify fn for the
+round-3 F/NF split) before measuring — the P3f ledger shows bare structure loses.
+Floor the *target* suit + `.alert(...)` so `project_authored` auto-decodes; add a
+manual alert check for the new fallback node (the `artificial_calls_are_alerted`
+invariant does not yet traverse fallbacks). Register both sides with
+`fallback_all_seats(...)` keyed at `[open, overcall]`, one `SuffixIs` per round.
+
+**Measurement / win bar.** Head-to-head `RubensClean` vs `Forcing` on
+`scripts/free-bid-style-ab.sh`, both plain-DD and PD (sd if close), both vuls,
+fresh `SEED_BASE`, arms sequential. Must **clear the P3f loss** — at minimum a
+plain-DD wash + PD gain (shippable default-on), not a PD-only artifact. Trace the
+worst divergent boards to confirm the clean completion actually stops the weak
+band low and preserves GF description.
