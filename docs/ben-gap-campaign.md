@@ -678,7 +678,7 @@ cost is near-zero because this harness DD-solves only the divergent subset.)
 | --- | --- | --- | --- | --- |
 | #3 `xyz_invite_judgment` deleted | 15,041 (**0.75%**) | **−1.145 / −2.333** | **−0.466 / −1.406** | **keep**, decisively |
 | #1 `second_suit_agreement` deleted | 704 (0.04%) | **−2.777 / −3.351** | **−2.749 / −3.328** | **keep** |
-| #2 `opener_third` deleted | 971 (0.05%) | **+0.437 / +0.527** | **+0.524 / +0.637** | measures positive, **not shipped** |
+| #2 `opener_third` deleted | 971 (0.05%) | **+0.437 / +0.527** | **+0.524 / +0.637** | measures positive, **not shipped** — see below, the gain was a starved reading |
 
 **#2 measures positive and is still rejected.** +0.0002/+0.0003 plain and
 +0.0003/+0.0003 IMPs/board NV/vul, the same sign on all four arms; polarity
@@ -701,13 +701,61 @@ deletes the invariant it held by omission, and the invariant here is "opener can
 still try for slam". A +0.0003 IMPs/board gain does not buy a total capability
 loss, however consistent its sign.
 
-*Resumable design.* Follow the `set_two_over_one_force` pattern that made the
-backstop deletion pay: delete the node **and** teach `instinct()` to ask
-keycards on a controls-and-fit test at an agreed-trump game force. Only the raw
-`points(15..)` threshold is clearly wrong; the ask itself is load-bearing, and a
-floor that asks on controls should beat both arms measured here. Not attempted —
-the ceiling is ~0.0003 IMPs/board at 0.05% reach, so it is worth doing only as a
-by-product of general floor slam work.
+### #2 resolved: the node was innocent, the *reading* was starved (2026-07-20)
+
+The resumable design above — delete the node and teach `instinct()` a
+controls-based ask — rested on a diagnosis that turned out to be wrong. The
+floor is not incapable of asking here: bare `instinct()` bids 4NT on a 17-count
+and jumps to 7♠ on 26. What fails is one link upstream, and every link in it is
+individually correct:
+
+```text
+the 2/1 response carries .alert(GAME_FORCE)
+  -> the inference walk suppresses its natural reading (suppressed = 0b100)
+  -> and defers to the authoring rule's projection
+  -> the rule gates on points(13..), the rule-of-N+8 scale
+  -> which soundly projects to NO high-card floor
+     (a 13-point hand can be an eight-count with a six-card suit)
+  -> partner reads as ZERO points through an established game force
+  -> slam entry needs 29; opener's 26 + 0 never reaches it -> sign off in game
+```
+
+The projection *should* refuse to invent high cards from a shape-inflated scale.
+The defect is that alert-suppression removed a reading and nothing replaced it —
+the iron rule about unread artificial calls, in a form worth naming: the call
+*has* a reading, it is just vacuous on the axis the gate needs.
+
+The fix is `set_two_over_one_slam_strength` (~15 lines,
+[instinct.rs](../src/bidding/instinct.rs)): floor partner's shown minimum at the
+promised 13 when *partner* made the two-over-one. Crucially it is **not
+node-local** — it unblocks slam entry on every 2/1 auction the floor reaches.
+
+`scripts/two-over-one-slam-strength-ab.sh`, three arms, 409,600 boards per arm
+per vulnerability, seed base 1784487161, vs BBA:
+
+| Comparison | plain /bd NV/vul | PD /bd NV/vul | fired |
+| --- | --- | --- | --- |
+| strength vs base | **+0.0032 / +0.0042** | **+0.0031 / +0.0041** | 0.08% / 0.09% |
+| rail (strength + #2 deleted) vs strength | +0.0003 / +0.0004 | +0.0003 / +0.0005 | 0.03% |
+
+All four `strength` cells clear their CI (±0.0009 to ±0.0011) at +3.8/+4.8
+IMPs/fired; **shipped default-on**. The rail column closes #2: once the floor
+can *see*, deleting the node adds nothing distinguishable from zero. The node
+stands, and its earlier +0.437/div is explained — the deletion was accidentally
+routing around a starved gate, at a fraction of the value of unstarving it.
+
+**Two lessons, both about harnesses rather than bridge.**
+
+1. *`ab-major-continuations` measures against a stripped baseline.* Its
+   `set_knobs` drives every knob to off on **both** arms, including shipped-on
+   ones, so arm 0 is not the shipped system. This knob read **0 divergent in 2M
+   boards** there and +0.003/+0.004 IMPs/board against real routing. Use
+   `bba-gen` whenever a treatment interacts with a shipped-on knob; the header
+   of that example now says so.
+2. *A knob whose arms agree to the last IMP is dead, not neutral.* Four 2M-board
+   runs were spent before noticing — the knob is read at *classify* time and was
+   set only on the main thread, so the rayon workers never saw it. The tell was
+   there at run one: an identical IMP total, not a small one.
 
 **#1 and #3 are vindicated** — both nodes beat the floor, #3 by a wide margin at
 15× the fire rate of anything else in the sweep. #5–#7 stay unmeasured but are

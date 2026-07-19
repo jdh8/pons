@@ -454,6 +454,11 @@ std::thread_local! {
     /// Whether an uncontested 2/1 marks the auction forced to game.  **On by
     /// default** since 2026-07-20; see [`set_two_over_one_force`].
     static TWO_OVER_ONE_FORCE: Cell<bool> = const { Cell::new(true) };
+
+    /// Whether a live 2/1 floors partner's shown strength for the slam-entry
+    /// gate.  **On by default** since 2026-07-20; see
+    /// [`set_two_over_one_slam_strength`].
+    static TWO_OVER_ONE_SLAM_STRENGTH: Cell<bool> = const { Cell::new(true) };
 }
 
 /// Enable or disable the floor's two-over-one game force (**on by default**)
@@ -485,6 +490,51 @@ pub fn set_two_over_one_force(on: bool) {
 
 fn two_over_one_force() -> bool {
     TWO_OVER_ONE_FORCE.with(Cell::get)
+}
+
+/// Enable or disable the two-over-one strength floor on the slam-entry gate
+///
+/// **On by default.**  The 2/1 response is alerted
+/// (`GAME_FORCE`), so the inference walk skips its natural reading and takes the
+/// rule's projection instead — and the rule gates on `points(13..)`, which on
+/// the rule-of-N+8 scale soundly projects to *no* high-card floor at all (a
+/// 13-point hand can be an eight-count with a six-card suit).  Partner therefore
+/// reads as **zero** through an established game force, and
+/// the slam-entry gate never fires on these auctions: opener holding a
+/// 26-count opposite the force counts `26 + 0 < 29` and signs off in game.
+///
+/// On, partner's shown minimum is floored at the 13 points the two-over-one
+/// promised — the same scale our own [`support_point_count`] term already uses,
+/// so the sum stays consistent.  Only when *partner* made the two-over-one:
+/// opener's one-level opening is read naturally and needs no floor.
+///
+/// Measured vs BBA (409,600×2, both scorers): **+0.0032/+0.0042 plain,
+/// +0.0031/+0.0041 PD** IMPs/board NV/vul, all CI>0, firing on 0.08%/0.09% of
+/// boards at +3.8/+4.8 IMPs each.  The same run priced deleting
+/// [`opener_third`][super::american::set_opener_third] *on top of* this floor at
+/// +0.0003/+0.0004 with the CI straddling zero, so that node stays: the
+/// constructive re-audit's candidate #2 was starved of a reading, not shadowing
+/// a better call.
+///
+/// Read at classification time, per-thread.
+pub fn set_two_over_one_slam_strength(on: bool) {
+    TWO_OVER_ONE_SLAM_STRENGTH.with(|cell| cell.set(on));
+}
+
+/// Partner's shown minimum points, floored by a live 2/1 (see
+/// [`set_two_over_one_slam_strength`])
+fn partner_slam_strength(context: &Context<'_>) -> u8 {
+    let shown = Inferences::read(context).partner().points.min;
+    if !TWO_OVER_ONE_SLAM_STRENGTH.with(Cell::get) || !two_over_one_game_force(context) {
+        return shown;
+    }
+    // Partner made the two-over-one exactly when we are the opener: the opening
+    // and the call to make share a lane.
+    let auction = context.auction();
+    match opening_bid(auction) {
+        Some((index, _)) if index % 4 == auction.len() % 4 => shown.max(13),
+        _ => shown,
+    }
 }
 
 /// Enable or disable the floor's RKCB 1430 (M6.4)
@@ -1672,7 +1722,7 @@ fn slam_entry_reached() -> Cons<impl Constraint + Clone> {
     pred(|hand: Hand, context: &Context<'_>| {
         // Fit-known: the RKCB ask only fires on a shown trump, so count
         // shortness as support value (`support_point_count`).
-        let partner_min = Inferences::read(context).partner().points.min;
+        let partner_min = partner_slam_strength(context);
         u16::from(support_point_count(hand)) + u16::from(partner_min)
             >= u16::from(FLOOR_SLAM_ENTRY.with(Cell::get))
     })
@@ -4323,6 +4373,51 @@ mod tests {
             Call::Pass,
         ];
         assert_eq!(best(&auction, "8632.J9842.96.42"), Call::Pass);
+    }
+
+    /// Through an established 2/1 the floor must know partner holds values
+    ///
+    /// The alerted `GAME_FORCE` response reads as *zero* points (its
+    /// `points(13..)` gate projects to no high-card floor), so without the
+    /// strength floor the slam-entry gate never fires here — opener signs off in
+    /// `4♠` holding a 26-count opposite the force.
+    #[test]
+    fn two_over_one_slam_strength_unblocks_the_ask() {
+        use crate::bidding::american::set_opener_third;
+        let auction = [
+            call(1, Strain::Spades),
+            Call::Pass,
+            call(2, Strain::Clubs),
+            Call::Pass,
+            call(2, Strain::Diamonds),
+            Call::Pass,
+            call(3, Strain::Spades),
+            Call::Pass,
+        ];
+        // Delete the book node so the floor owns the position.
+        set_opener_third(false);
+        set_two_over_one_slam_strength(false);
+        let (chosen, floored) = american_floored(&auction, "AKQJ2.AKQ.AQJ4.9");
+        assert!(floored, "the deleted node leaves this to the floor");
+        assert_eq!(
+            chosen,
+            call(4, Strain::Spades),
+            "the defect: a 26-count game"
+        );
+
+        set_two_over_one_slam_strength(true);
+        let (chosen, _) = american_floored(&auction, "AKQJ2.AKQ.AQJ4.9");
+        assert_ne!(
+            chosen,
+            call(4, Strain::Spades),
+            "26 opposite a 2/1 explores"
+        );
+        // A genuine minimum still signs off — the floor is a floor, not a licence.
+        let (chosen, _) = american_floored(&auction, "AQJ52.32.KQ54.92");
+        assert_eq!(chosen, call(4, Strain::Spades));
+
+        set_two_over_one_slam_strength(true); // restore the defaults
+        set_opener_third(true);
     }
 
     /// The auctions the game backstop used to cover, and the ones it did not

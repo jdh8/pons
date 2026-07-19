@@ -9,16 +9,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The floor reads a two-over-one's promised values at the slam-entry gate
+  (`set_two_over_one_slam_strength`, default on).** The 2/1 response carries
+  `.alert(GAME_FORCE)`, so the inference walk suppresses its natural reading and
+  defers to the rule's projection — and `points(13..)` on the rule-of-N+8 scale
+  soundly projects to *no* high-card floor at all (a 13-point hand can be an
+  eight-count with a six-card suit). Partner therefore read as **zero** through
+  an established game force, and the floor's 29-point slam entry could never
+  fire: opener holding a 26-count counted 26 + 0 and signed off in game. Now
+  partner's shown minimum is floored at the promised 13 whenever *partner* made
+  the two-over-one. Worth **+0.0032/+0.0042 plain, +0.0031/+0.0041 PD**
+  IMPs/board NV/vul (`bba-gen`, 409,600 boards per arm per vulnerability, seed
+  base 1784487161, all CI>0), firing on 0.08%/0.09% of boards at +3.8/+4.8 IMPs
+  each. Every step of the old chain was individually correct — the projection
+  *should* refuse to invent high cards from a shape-inflated scale — so the loss
+  was structural: an alerted call whose reading nothing replaced.
+
 - **`set_opener_third` (default on) — a knob on opener's third call at
-  `1M–2r–R–3M`, whose deletion measured positive and was rejected anyway.**
-  Deleting the node is worth +0.437/+0.527 plain and +0.524/+0.637 PD
-  IMPs/divergent NV/vul (`ab-major-continuations`, 2,000,000 boards per arm per
-  vulnerability, seed 1784484826, 971 divergent = 0.05%), the same sign on all
-  four arms — but with it gone the floor never asks keycards at that node at
-  all, signing off in `4M` on a **26-count** opposite a game-forcing
-  two-over-one. +0.0003 IMPs/board does not buy a total capability loss.
-  Resumable via the `set_two_over_one_force` pattern: delete the node *and*
-  teach the floor a controls-based ask at an agreed-trump game force.
+  `1M–2r–R–3M`; re-audit candidate #2, now CLOSED with the node standing.**
+  Deleting it measured +0.437/+0.527 plain IMPs/divergent in self-play, which
+  the same run's unit tests showed came with a total capability loss (no keycard
+  ask at the node at all). The cause was not the node: it was the starved
+  slam-entry gate above. With `set_two_over_one_slam_strength` restoring the
+  missing reading, deleting the node *on top of that* is worth
+  **+0.0003/+0.0004 plain, +0.0003/+0.0005 PD** IMPs/board NV/vul with the
+  confidence interval straddling zero (same run) — indistinguishable from
+  nothing. The knob stays for re-measure; the default is unchanged.
 
 - **`set_xyz_invite_judgment` (default on) — a re-measure handle on opener's
   judgment of the XYZ invitations that stop below game.** Off, the table becomes

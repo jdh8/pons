@@ -532,6 +532,15 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_two_over_one_force: bool,
 
+    /// Stop flooring partner's shown strength at the 13 points a two-over-one
+    /// promised, on the floor's slam-entry gate.  The 2/1 response is alerted, so
+    /// its natural reading is suppressed and the rule's `points(13..)` gate
+    /// projects to no high-card floor at all — partner reads as *zero* through
+    /// the whole game force and the floor can never reach the slam-entry
+    /// threshold.  Shipped default-on; see `set_two_over_one_slam_strength`.
+    #[arg(long, default_value_t = false)]
+    no_ns_two_over_one_slam_strength: bool,
+
     /// Disable the competitive long-suit rebid — opener's/overcaller's rebid of a
     /// 6+ suit in competition (2-level any, 3-level needs 7 cards or a good six)
     /// instead of a forced takeout double (shipped default-on; see
@@ -1217,6 +1226,7 @@ fn main() -> anyhow::Result<()> {
     pons::bidding::american::set_opener_third(!args.no_ns_opener_third);
     pons::bidding::american::set_game_backstop(args.ns_game_backstop);
     pons::bidding::instinct::set_two_over_one_force(!args.no_ns_two_over_one_force);
+    pons::bidding::instinct::set_two_over_one_slam_strength(!args.no_ns_two_over_one_slam_strength);
     pons::bidding::instinct::set_competitive_rebid(!args.no_ns_competitive_rebid);
     pons::bidding::instinct::set_reopening_notrump(!args.no_ns_reopening_notrump);
     pons::bidding::instinct::set_rein_advance_raise(!args.no_ns_rein_advance_raise);

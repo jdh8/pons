@@ -11,6 +11,17 @@
 //! plain DD (`ns_score_contract`) and perfect defense (`ns_score_pd`) — per
 //! the measurement playbook's bracket.
 //!
+//! **Its baseline is not the shipped system.**  `set_knobs(.., false)` drives
+//! *every* knob here to its off state, including the ones that ship on
+//! (`set_two_over_one_fit`, `set_opener_third`, `set_two_over_one_force`, …), so
+//! arm 0 is a stripped system and arm 1 is that system plus the treatments.  For
+//! a knob whose value depends on machinery the stripping removes, this harness
+//! can read a flat zero where the real routing shows a win — the two-over-one
+//! slam-entry floor read 0 divergent in 2M boards here and +0.003/+0.004
+//! IMPs/board against BBA.  Prefer `bba-gen` whenever the treatment interacts
+//! with a shipped-on knob; this harness is for isolating a treatment *against
+//! its own absence*, which is a different question.
+//!
 //! Seed hygiene: pass `--seed "$SEED_BASE"` (fresh per experiment, shared by
 //! every arm and vulnerability of that experiment).
 //!
@@ -30,7 +41,7 @@ use pons::bidding::american::{
     set_second_suit_agreement, set_two_over_one_fit, set_two_over_one_gate,
     set_xyz_invite_judgment,
 };
-use pons::bidding::instinct::set_two_over_one_force;
+use pons::bidding::instinct::{set_two_over_one_force, set_two_over_one_slam_strength};
 use pons::scoring::final_contract;
 use rayon::prelude::*;
 
@@ -122,6 +133,13 @@ struct Args {
     /// re-audit candidate #3 — the most-reached one.
     #[arg(long, default_value_t = false)]
     no_xyz_invite_judgment: bool,
+
+    /// Treatment: *drop* the two-over-one strength floor on the slam-entry gate
+    /// (`set_two_over_one_slam_strength`, shipped on).  Without it the alerted
+    /// `GAME_FORCE` response reads as zero and the floor never asks keycards
+    /// through a 2/1.
+    #[arg(long, default_value_t = false)]
+    no_two_over_one_slam_strength: bool,
 }
 
 /// Parse the `--two-over-one-gate` argument
@@ -154,6 +172,7 @@ fn set_knobs(args: &Args, treatment: bool) {
     set_opener_third(!(treatment && args.no_opener_third));
     set_second_suit_agreement(!(treatment && args.no_second_suit_agreement));
     set_xyz_invite_judgment(!(treatment && args.no_xyz_invite_judgment));
+    set_two_over_one_slam_strength(!(treatment && args.no_two_over_one_slam_strength));
 }
 
 #[allow(clippy::cast_precision_loss)]
@@ -172,11 +191,12 @@ fn main() {
             || args.no_opener_third
             || args.no_second_suit_agreement
             || args.no_xyz_invite_judgment
+            || args.no_two_over_one_slam_strength
             || gate_selected,
         "select at least one treatment: --game-tries / --limit-raise / --tails / --fsf / \
          --choice-of-games / --two-over-one-fit / --two-over-one-gate / --game-backstop / \
          --no-opener-third / --no-second-suit-agreement / --no-xyz-invite-judgment / \
-         --no-two-over-one-force",
+         --no-two-over-one-force / --no-two-over-one-slam-strength",
     );
     assert!(!args.fsf || args.tails, "--fsf rides --tails; enable both");
     let base = args.seed.unwrap_or_else(rand::random);
@@ -203,13 +223,17 @@ fn main() {
         .map(|(index, deal)| {
             let dealer = Seat::ALL[index % 4];
             std::array::from_fn(|arm| {
-                // Every knob but one is construction-time and already baked into
-                // `stances`.  `two_over_one_force` is read at *classify* time, so
-                // it must be re-set inside the worker or these threads would only
-                // ever see the default (cf. ab-minor-continuations' longer-major).
+                // Every knob but these two is construction-time and already baked
+                // into `stances`.  `two_over_one_force` and
+                // `two_over_one_slam_strength` are read at *classify* time, so
+                // they must be re-set inside the worker or these threads would
+                // only ever see the default (cf. ab-minor-continuations'
+                // longer-major).
                 set_two_over_one_force(!(arm == 1 && args.no_two_over_one_force));
+                set_two_over_one_slam_strength(!(arm == 1 && args.no_two_over_one_slam_strength));
                 let auction = bid_uncontested(&stances[arm], dealer, vul, deal);
                 set_two_over_one_force(true);
+                set_two_over_one_slam_strength(true);
                 final_contract(&auction, dealer)
             })
         })
@@ -233,6 +257,10 @@ fn main() {
         ("game-backstop", args.game_backstop),
         ("no-two-over-one-force", args.no_two_over_one_force),
         ("no-opener-third", args.no_opener_third),
+        (
+            "no-two-over-one-slam-strength",
+            args.no_two_over_one_slam_strength,
+        ),
         ("no-second-suit-agreement", args.no_second_suit_agreement),
         ("no-xyz-invite-judgment", args.no_xyz_invite_judgment),
     ]
