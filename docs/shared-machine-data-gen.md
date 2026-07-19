@@ -215,10 +215,15 @@ loginctl enable-linger "$USER"          # keep running across logout/reboot
 
 macOS has no exact equivalent of Linux's `SCHED_IDLE`. The LaunchAgent in
 [`scripts/gib-scavenge.plist`](../scripts/gib-scavenge.plist) uses Darwin's
-background process classification, the lowest nice priority, and low-priority
-I/O. This is the closest native approximation: the worker is strongly
-deprioritized, but it is not strictly guaranteed to run only when every core is
-otherwise idle.
+lowest nice priority and low-priority I/O, but deliberately does **not** use
+Darwin's `Background` process classification. DDS auto-configures one worker per
+hardware core; on Apple Silicon, background QoS steers those workers onto the
+efficiency-core cluster (ten DDS workers contending for six E-cores on a base
+M4) and leaves the performance cores unused. Normal classification lets DDS use
+all core types, while `Nice=19` still gives ordinary work CPU priority over the
+scavenger. This is only an approximation: unlike `SCHED_IDLE`, nice shares the
+normal scheduling class, and using every core can still affect thermals, turbo
+headroom, cache, and memory bandwidth.
 
 The checked-in plist assumes the checkout is at `$HOME/src/pons`, matching the
 Linux example above. Install it as a per-user LaunchAgent and switch it on:

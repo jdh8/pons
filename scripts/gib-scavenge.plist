@@ -46,14 +46,14 @@ Uninstall after switching off:
     <key>ThrottleInterval</key>
     <integer>5</integer>
 
-    <!-- macOS's closest approximation to Linux SCHED_IDLE plus idle I/O. -->
-    <key>ProcessType</key>
-    <string>Background</string>
+    <!--
+    Keep DDS at the lowest normal CPU priority, but do not use ProcessType
+    Background: DDS creates one worker per hardware core, while that QoS class
+    confines CPU-heavy work to Apple Silicon's efficiency cores.
+    -->
     <key>Nice</key>
     <integer>19</integer>
     <key>LowPriorityIO</key>
-    <true/>
-    <key>LowPriorityBackgroundIO</key>
     <true/>
 </dict>
 </plist>

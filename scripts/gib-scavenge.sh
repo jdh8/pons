@@ -6,7 +6,7 @@
 # scavenger can't fill a shared disk. Shards are named by seed (reproducible)
 # and merge with `gib convert` (each .pdd carries a header, so not `cat`).
 # Supervised by scripts/gib-scavenge.service on Linux (SCHED_IDLE) or
-# scripts/gib-scavenge.plist on macOS (Darwin background scheduling).
+# scripts/gib-scavenge.plist on macOS (nice plus low-priority I/O).
 # Keep it a SINGLE instance: one shard already saturates every core.
 #
 # Knobs (env): GIB_OUT (dir), GIB_MIN_FREE_KIB (pause threshold), GIB_COUNT,
