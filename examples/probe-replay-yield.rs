@@ -15,6 +15,7 @@ use pons::bidding::inference::Inferences;
 use pons::bidding::sampler::{sample_layouts, sample_layouts_replay};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
+use std::time::{Duration, Instant};
 
 fn bid(level: u8, strain: Strain) -> Call {
     Call::Bid(Bid {
@@ -59,6 +60,49 @@ fn main() {
                 Call::Pass,
             ],
         ),
+        // Search's home is constructive reach, so the tight long auctions matter
+        // most: every extra round narrows partner further (Phase 1c's target).
+        (
+            "p 1NT, me 2D transfer, p 2H, me?",
+            vec![
+                bid(1, Strain::Notrump),
+                Call::Pass,
+                bid(2, Strain::Diamonds),
+                Call::Pass,
+                bid(2, Strain::Hearts),
+                Call::Pass,
+            ],
+        ),
+        (
+            "p 1S, me 2C GF, p 2D, me 2H, p 3C, me?",
+            vec![
+                bid(1, Strain::Spades),
+                Call::Pass,
+                bid(2, Strain::Clubs),
+                Call::Pass,
+                bid(2, Strain::Diamonds),
+                Call::Pass,
+                bid(2, Strain::Hearts),
+                Call::Pass,
+                bid(3, Strain::Clubs),
+                Call::Pass,
+            ],
+        ),
+        (
+            "p 2NT, me 3C Stayman, p 3S, me 4NT RKCB, p 5H, me?",
+            vec![
+                bid(2, Strain::Notrump),
+                Call::Pass,
+                bid(3, Strain::Clubs),
+                Call::Pass,
+                bid(3, Strain::Spades),
+                Call::Pass,
+                bid(4, Strain::Notrump),
+                Call::Pass,
+                bid(5, Strain::Hearts),
+                Call::Pass,
+            ],
+        ),
     ];
 
     for (label, auction) in auctions {
@@ -67,20 +111,35 @@ fn main() {
         let mut rng = StdRng::seed_from_u64(42);
         let seeds = 5;
         let (mut range_sum, mut replay_sum) = (0usize, 0usize);
+        let (mut range_time, mut replay_time) = (Duration::ZERO, Duration::ZERO);
         for _ in 0..seeds {
             let hand = full_deal(&mut rng)[actor];
+            let start = Instant::now();
             let r = sample_layouts(hand, actor, &inferences, &mut rng, n).len();
+            range_time += start.elapsed();
+            let start = Instant::now();
             let p =
                 sample_layouts_replay(hand, actor, &policy, vul, auction, &inferences, &mut rng, n)
                     .len();
+            replay_time += start.elapsed();
             range_sum += r;
             replay_sum += p;
         }
         let range = 100.0 * range_sum as f64 / (seeds * n) as f64;
         let replay = 100.0 * replay_sum as f64 / (seeds * n) as f64;
         let ratio = if range > 0.0 { replay / range } else { 0.0 };
+        // Cost per *kept* world — what a weighted dealer (Phase 1c) would cut.
+        let per = |time: Duration, kept: usize| {
+            if kept == 0 {
+                f64::INFINITY
+            } else {
+                time.as_secs_f64() * 1e6 / kept as f64
+            }
+        };
         println!(
-            "{label:40}  range fill {range:5.1}%   replay fill {replay:5.1}%   ratio {ratio:4.2}"
+            "{label:40}  range fill {range:5.1}% {:8.0}µs/world   replay fill {replay:5.1}% {:9.0}µs/world   ratio {ratio:4.2}",
+            per(range_time, range_sum),
+            per(replay_time, replay_sum)
         );
     }
 }

@@ -128,6 +128,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The layout sampler's attempt budget rises 256 → 4096 draws per requested
+  layout** (`sample_layouts`). `probe-replay-yield` measured ordinary auctions
+  filling only 59–93% of the requested layouts — `(1NT) X` at 59%, `1NT (2C) 2H`
+  at 61%, a 2/1 GF sequence at 93% — each *exhausting* the whole budget, so the
+  shortfall was the cap, not an infeasible reading. Short fills are the expensive
+  failure: `ev_all` then averages its candidate EVs over fewer, edge-biased
+  worlds. At the measured 0.24 µs a draw, even a fully-spent 128-layout budget
+  costs ~125 ms against the double-dummy solve each *kept* layout pays. Fills now
+  100 / 80 / 80 / 100 / 100% on the same probe (the residual 80s are genuinely
+  infeasible actor hands). The mid-play defender sampler keeps the old 256
+  (`DEFENDER_ATTEMPTS_PER_WORLD`) — it runs at every declarer turn of every
+  single-dummy playout and degrades gracefully via its hard-only top-up.
+  Affects search-mode bidding (`american_search`), sd-lead pricing, and the
+  `dump-search` teacher corpus; **`american()`'s distilled floor is unchanged**,
+  so no default-bidding A/B — the effect is priced by the Phase-4 re-distill.
+  Plan: `docs/ai-bidder/sound-search.md` Phase 1c.
+
 - **`gib-scavenge` now writes `.pdd` binary shards by default, 1M deals each**.
   The idle-CPU DD scavenger (`scripts/gib-scavenge.sh`) defaulted to 100k-deal
   GIB *text* shards; it now writes the compact `.pdd` binary format (2.6×

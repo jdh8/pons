@@ -41,9 +41,25 @@ use rand::seq::SliceRandom;
 ///
 /// Rejection sampling needs roughly `1 / acceptance` draws per kept layout, so
 /// the total budget is `n * MAX_ATTEMPTS_PER_LAYOUT`.  The cap exists only to
-/// terminate auctions whose ranges no hand can satisfy; for the loose ranges
-/// [`Inferences`] actually produces it is rarely approached.
-const MAX_ATTEMPTS_PER_LAYOUT: usize = 256;
+/// terminate auctions whose ranges no hand can satisfy.
+///
+/// It was 256, which the ranges *do* approach: `probe-replay-yield` measured
+/// 59–93 % fills on ordinary auctions (`(1NT) X`, `1H (2C)`, a 2/1 sequence),
+/// each exhausting the whole budget — the shortfall was the cap, not
+/// infeasibility.  A short fill is the expensive failure: `ev_all` then averages
+/// over fewer, edge-biased worlds.  A draw is ~0.24 µs (same probe), so even a
+/// fully-spent 128-layout budget costs ~125 ms against the double-dummy solve
+/// each kept layout pays — look harder rather than loosen the envelope
+/// ([`Inferences`] soundness).
+const MAX_ATTEMPTS_PER_LAYOUT: usize = 4096;
+
+/// Random splits tried per requested defender world, before topping up hard-only
+///
+/// The mid-play sampler ([`sample_defender_remnants`]) keeps the old, tighter
+/// budget: it runs at every declarer turn of every single-dummy playout, and a
+/// starved draw there degrades gracefully (the hard masks still hold) rather
+/// than shortening the population.
+const DEFENDER_ATTEMPTS_PER_WORLD: usize = 256;
 
 /// Total random deals the *replay* sampler will draw for one request — a generous
 /// ceiling (~10-20 s, in tempo for a human bid), since a deal is a ~0.3 µs shuffle
@@ -81,7 +97,7 @@ const MARGIN: f32 = 3.0;
 /// never samples, so the learned floor stays deterministic (invariant §0.5).
 ///
 /// Returns at most `n` layouts.  Fewer (possibly none) means the attempt budget
-/// of `n * 256` draws ran out first, which happens only when the shown ranges
+/// of `n * 4096` draws ran out first, which happens only when the shown ranges
 /// are tight or jointly infeasible given `hand`; a caller should read a short
 /// result as a weak or absent signal, not an error.
 #[must_use]
@@ -346,7 +362,7 @@ pub fn sample_defender_remnants(
     };
 
     let mut out = Vec::with_capacity(n);
-    for _ in 0..n.saturating_mul(MAX_ATTEMPTS_PER_LAYOUT) {
+    for _ in 0..n.saturating_mul(DEFENDER_ATTEMPTS_PER_WORLD) {
         if out.len() == n {
             break;
         }
