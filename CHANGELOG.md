@@ -85,6 +85,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Ogust's "good suit" is now trump HCP ≥ 5, matching BBA exactly.** Opener's
+  answers to `2M–2NT` split on suit quality, and ours gauged that as "two of
+  A/K/Q". Probing EPBot's own Ogust (`probe-bba-constraints --mode
+  weak2-{d,h,s}`, ~1300 hands per opening) shows its predicate is **HCP inside
+  the trump suit ≥ 5**, which separates its good and bad rungs with *zero
+  overlap* on all three weak-two openings. No honor count does: A/K/Q overlaps
+  at 1 (good 28 hands, bad 202) and A/K/Q/J at 2. Since K-Q = 5 is the cheapest
+  two of A/K/Q, the old predicate was a strict subset, so exactly one holding
+  class changes rung — **A-J-x-x-x-x**, 4 + 1 = 5 HCP with a single top honor,
+  which now answers good-suit instead of bad. 3NT is untouched: BBA's solid-suit
+  bucket is trump HCP 9–10, i.e. A-K-Q, already what we bid.
+
+  **The min/max split deliberately stays ours.** BBA divides on raw HCP 7/8;
+  our rungs stay on `points` (rule-of-N+8), because responder's 2NT promised
+  2+ support, so the fit is known and opener re-evaluates with the sixth trump
+  and side shape credited. Only the quality gate is overridden.
+
+  **Deliberately unmeasured — this one is inert today**, and the iron rule is
+  waived rather than satisfied. The quality bit has nowhere to go: the asker's
+  continuations map *both* quality rungs to the same table (majors branch on
+  min/max only; 2♦ separates the minimum rungs, and even there both play 3♦,
+  differing only in declarer — which double-dummy cannot see). So the change is
+  a pure no-op in the uncontested majors and right-siding-only in 2♦. Contested
+  paths do fall through to the floor, but the rungs carry no `.alert(...)`, so
+  the decode gate discards the authored projection and our 3♠ walks as natural
+  spades. An A/B run today would return zero for reasons unrelated to the
+  predicate.
+
+  It lands anyway because it is correct-by-construction and it aligns us with
+  the distillation teacher, which is what the follow-ons need. Making it
+  *effective* takes two things, both open: alerting the five rungs with
+  `Inferences` readings (which also closes the phantom-spade exposure), and
+  branching the asker's major continuations on suit quality — `asker_after_max_major`
+  bids 4M unconditionally, and max-with-a-bad-suit opposite 14 HCP is exactly
+  where that is wrong. Those get measured as one package.
+
+  Context: the reason our Ogust drifted from its teacher at all is that EPBot's
+  compiled-in 2/1 default has **Ogust off**, so `NeuralFloorBba` was distilled
+  from a teacher that never bid one. Retraining against a `--conv Ogust=1`
+  teacher is deferred.
+
 - **The constructive book re-audit: nothing ships, all three nodes stand.** After
   the game backstop's retirement below, the book was swept for the same
   signature — few rules, an unconditional `hcp(0..)`/`points(0..)`, no shape or

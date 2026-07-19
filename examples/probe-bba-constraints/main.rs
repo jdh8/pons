@@ -19,7 +19,16 @@
 //! cargo run --release --example probe-bba-constraints -- --mode rebid-h  # 2♥-overcaller's rebid after the 2NT ask
 //! cargo run --release --example probe-bba-constraints -- --mode rebid-s  # 2♠-overcaller's rebid after the 2NT ask
 //! cargo run --release --example probe-bba-constraints -- --mode counter --vul none,both  # our-side counter-defense
+//! cargo run --release --example probe-bba-constraints -- --mode weak2-h  # opener's rebid over 2♥-P-2NT-P
+//! cargo run --release --example probe-bba-constraints -- --mode weak2-h --conv Ogust=1  # ...with BBA's Ogust on
 //! ```
+//!
+//! The `weak2-*` modes read a node we author as **Ogust** and BBA does not: its
+//! 2/1 default is `Ogust = 0` (confirmed against the live engine, since the `.so`
+//! ignores the cards).  `libEPBot.so` does carry a full Ogust implementation
+//! (`odzywka_OGUST`, and an `_interpretacja` for both sides), so `--conv Ogust=1`
+//! reads the same node with it enabled — the two runs together decide whether to
+//! match BBA's ladder or to teach BBA ours.
 //!
 //! Each `sketch:` line is a *candidate* constraint to verify and hand-author,
 //! not a proof of BBA's internal logic.
@@ -30,7 +39,7 @@ use anyhow::{Result, bail};
 use clap::Parser;
 use contract_bridge::deck::fill_deals;
 use contract_bridge::eval::{self, HandEvaluator, SimpleEvaluator};
-use contract_bridge::{Builder, Hand, Seat, Suit};
+use contract_bridge::{Builder, Hand, Rank, Seat, Suit};
 use libloading::Library;
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -178,6 +187,15 @@ struct Bucket {
     /// Suit lengths in [`Suit::ASC`] order (♣ ♦ ♥ ♠).
     len: [Vec<u8>; 4],
     balanced: usize,
+    /// A/K/Q count in the mode's trump suit; empty unless the mode names one.
+    /// An Ogust-style ladder splits on suit *quality*, which neither the HCP
+    /// nor the length columns can show.
+    tops: Vec<u8>,
+    /// Rival definitions of the same "good suit", to find which one BBA uses:
+    /// A/K/Q/J count, A/K/Q/J/10 count, and plain HCP inside the trump suit.
+    tops4: Vec<u8>,
+    tops5: Vec<u8>,
+    trump_hcp: Vec<u8>,
 }
 
 #[derive(Parser)]
@@ -305,9 +323,42 @@ fn main() -> Result<()> {
             None,
             "BBA 4th-seat over 1NT-P-(2♥ →♠) — X=hearts, 2♠ cue=hearts+minor",
         ),
-        other => bail!(
-            "--mode must be multi|advance|counter|muider-h|muider-s|rebid-d|rebid-h|rebid-s|stayman|xfer-h|xfer-s, got {other:?}"
+        // Opener's rebid after our own weak two is asked with 2NT.  We author
+        // Ogust here; BBA's 2/1 default has `Ogust = 0` (verified against the live
+        // engine by `bba-conv-probe`, not the card — the `.so` ignores the file),
+        // so these read what its ladder means instead.  Pair with `--conv Ogust=1`
+        // to read the same node with BBA's own Ogust switched on.
+        "weak2-d" => (
+            0,
+            &[TWO_D, PASS, TWO_NT, PASS],
+            Some(TWO_D),
+            "BBA opener's rebid over 2♦-P-2NT-P — what the 2NT ask wants",
         ),
+        "weak2-h" => (
+            0,
+            &[TWO_H, PASS, TWO_NT, PASS],
+            Some(TWO_H),
+            "BBA opener's rebid over 2♥-P-2NT-P — what the 2NT ask wants",
+        ),
+        "weak2-s" => (
+            0,
+            &[TWO_S, PASS, TWO_NT, PASS],
+            Some(TWO_S),
+            "BBA opener's rebid over 2♠-P-2NT-P — what the 2NT ask wants",
+        ),
+        other => bail!(
+            "--mode must be multi|advance|counter|muider-h|muider-s|rebid-d|rebid-h|rebid-s|stayman|xfer-h|xfer-s|weak2-d|weak2-h|weak2-s, got {other:?}"
+        ),
+    };
+
+    // The weak-two modes probe the OPENER, so their self-consistency filter replays
+    // an empty prefix (the opening itself), not (1NT); `trump` names the suit whose
+    // top-honor count to report, since an Ogust ladder splits on suit quality.
+    let (filter_prefix, trump): (&[c_int], Option<Suit>) = match args.mode.as_str() {
+        "weak2-d" => (&[], Some(Suit::Diamonds)),
+        "weak2-h" => (&[], Some(Suit::Hearts)),
+        "weak2-s" => (&[], Some(Suit::Spades)),
+        _ => (&[ONE_NT], None),
     };
 
     let overrides = parse_conv(&args.conv)?;
@@ -329,7 +380,17 @@ fn main() -> Result<()> {
 
     for token in args.vul.split(',').map(str::trim) {
         let vul = vul_code(token, actor)?;
-        let buckets = run(&bba, actor, prefix, filter, vul, args.samples, args.seed);
+        let buckets = run(
+            &bba,
+            actor,
+            prefix,
+            filter,
+            filter_prefix,
+            trump,
+            vul,
+            args.samples,
+            args.seed,
+        );
         render_vul(&mut report, token, &buckets, &args);
     }
 
@@ -343,11 +404,16 @@ fn main() -> Result<()> {
 }
 
 /// Deal `samples` random hands, drive BBA, and bucket by its returned call.
+// ponytail: a probe harness — a params struct would be more ceremony than the
+// one call site is worth.  Bundle them if a third caller ever appears.
+#[allow(clippy::too_many_arguments)]
 fn run(
     bba: &Bba,
     actor: c_int,
     prefix: &[c_int],
     filter: Option<c_int>,
+    filter_prefix: &[c_int],
+    trump: Option<Suit>,
     vul: c_int,
     samples: usize,
     seed: u64,
@@ -360,12 +426,13 @@ fn run(
     let mut buckets: BTreeMap<c_int, Bucket> = BTreeMap::new();
     for deal in fill_deals(&mut rng, empty).take(samples) {
         let hand = deal[Seat::North];
-        // ponytail: rebid modes read the overcaller's OWN seat, so a uniform random
-        // hand is wrong — most never make the overcall.  Keep only hands whose direct
-        // call over (1NT) is the studied overcall; otherwise the rebid is from a hand
-        // that never bid it.  No upgrade path needed (rejection is exact here).
+        // ponytail: rebid modes read the bidder's OWN seat, so a uniform random hand
+        // is wrong — most never make the call.  Keep only hands whose call over
+        // `filter_prefix` is the studied one; otherwise the rebid is from a hand that
+        // never bid it.  (`filter_prefix` is (1NT) for the overcall modes and empty
+        // for the weak-two modes, which probe the opener.)  Rejection is exact here.
         if let Some(want) = filter
-            && bba.call(actor, &[ONE_NT], hand, vul) != want
+            && bba.call(actor, filter_prefix, hand, vul) != want
         {
             continue;
         }
@@ -381,6 +448,24 @@ fn run(
         }
         if is_balanced(lengths) {
             entry.balanced += 1;
+        }
+        if let Some(suit) = trump {
+            let holding = hand[suit];
+            let count =
+                |ranks: &[Rank]| ranks.iter().filter(|&&r| holding.contains(r)).count() as u8;
+            entry.tops.push(count(&[Rank::A, Rank::K, Rank::Q]));
+            entry
+                .tops4
+                .push(count(&[Rank::A, Rank::K, Rank::Q, Rank::J]));
+            entry
+                .tops5
+                .push(count(&[Rank::A, Rank::K, Rank::Q, Rank::J, Rank::T]));
+            let thcp = [(Rank::A, 4), (Rank::K, 3), (Rank::Q, 2), (Rank::J, 1)]
+                .into_iter()
+                .filter(|&(r, _)| holding.contains(r))
+                .map(|(_, v)| v)
+                .sum();
+            entry.trump_hcp.push(thcp);
         }
     }
     buckets
@@ -417,6 +502,33 @@ fn render_vul(report: &mut String, vul: &str, buckets: &BTreeMap<c_int, Bucket>,
             "- hcp: {hcp_lo}–{hcp_hi} (median {})",
             pct(&hcp, 0.5)
         );
+        if !bucket.tops.is_empty() {
+            let good = bucket.tops.iter().filter(|&&t| t >= 2).count();
+            // Sum in u32: 3 honors × a few hundred hands overflows u8, and release
+            // builds wrap silently (a 2.02 mean printed as 0.01).
+            let total: u32 = bucket.tops.iter().copied().map(u32::from).sum();
+            let mean = f64::from(total) / bucket.tops.len() as f64;
+            let _ = writeln!(
+                report,
+                "- trump A/K/Q: mean {mean:.2}, two-plus {:.0}% (Ogust \"good suit\")",
+                100.0 * good as f64 / bucket.tops.len() as f64
+            );
+            // Histograms of rival "good suit" predicates.  A predicate BBA actually
+            // uses separates the good/bad rungs with NO overlap, so read these as
+            // "which row has an empty cell exactly where the other rung is full".
+            for (label, col) in [
+                ("A/K/Q  ", &bucket.tops),
+                ("A/K/Q/J", &bucket.tops4),
+                ("+ten   ", &bucket.tops5),
+                ("trumpHC", &bucket.trump_hcp),
+            ] {
+                let hi = col.iter().copied().max().unwrap_or(0);
+                let cells: Vec<String> = (0..=hi)
+                    .map(|v| format!("{v}:{}", col.iter().filter(|&&x| x == v).count()))
+                    .collect();
+                let _ = writeln!(report, "  - {label} {}", cells.join(" "));
+            }
+        }
 
         let mut clauses = vec![format!("hcp({hcp_lo}..={hcp_hi})")];
         for (i, suit) in Suit::ASC.into_iter().enumerate() {

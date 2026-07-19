@@ -58,6 +58,15 @@ fn test_ogust_answers_after_two_hearts() {
         call(3, Strain::Notrump),
         "solid suit (AKQ) should answer 3NT",
     );
+
+    // AJ suit: 5 HCP in trumps but only one of A/K/Q.  The quality gate is trump
+    // HCP (BBA's, probed), not an honor count, so this is a *good* suit — the one
+    // holding class where the two predicates disagree.
+    assert_eq!(
+        best_call(&system, auction, "K4.AJ8632.852.72"),
+        call(3, Strain::Spades),
+        "max good suit (AJ suit = 5 trump HCP) should answer 3♠, not 3♥",
+    );
 }
 
 // ---------------------------------------------------------------------------

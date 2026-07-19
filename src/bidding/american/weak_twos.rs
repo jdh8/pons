@@ -25,7 +25,7 @@
 //! obligatory).
 
 use super::{call, insert_uncontested};
-use crate::bidding::constraint::{hcp, len, points, support, top_honors};
+use crate::bidding::constraint::{hcp, len, points, suit_hcp, support, top_honors};
 use crate::bidding::{Rules, Trie};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Strain, Suit};
@@ -93,8 +93,8 @@ pub(super) fn responses(our: Suit) -> Rules {
 /// | Call | Meaning | Weight |
 /// |------|---------|--------|
 /// | 3NT  | Solid suit (A-K-Q) | 1.5 |
-/// | 3♣   | Minimum points, bad suit (< 2 top honors) | 1.0 |
-/// | 3♦   | Minimum points, good suit (≥ 2 top honors) | 1.0 |
+/// | 3♣   | Minimum points, bad suit (< 5 HCP in trumps) | 1.0 |
+/// | 3♦   | Minimum points, good suit (≥ 5 HCP in trumps) | 1.0 |
 /// | 3♥   | Maximum points, bad suit | 1.0 |
 /// | 3♠   | Maximum points, good suit | 1.0 |
 ///
@@ -103,37 +103,47 @@ pub(super) fn responses(our: Suit) -> Rules {
 /// two, but is required by the "forcing by omission" model).
 #[must_use]
 fn ogust_answers(our: Suit) -> Rules {
-    // Min (5–7) / max (8–10) points, each split bad-suit / good-suit.  Gauged in
-    // `points` (rule-of-N+8) not raw HCP: responder's 2NT promised 2+ support, so
-    // the fit is known here and opener re-evaluates with the 6th trump and side
-    // shape credited — unlike the fit-unknown opening gate (`set_weak_two_hcp`),
-    // which is disciplined in raw HCP.
+    // Min (5–7) / max (8–10) points, each split bad-suit / good-suit.
+    //
+    // The strength gauge is `points` (rule-of-N+8) not raw HCP: responder's 2NT
+    // promised 2+ support, so the fit is known here and opener re-evaluates with
+    // the 6th trump and side shape credited — unlike the fit-unknown opening gate
+    // (`set_weak_two_hcp`), which is disciplined in raw HCP.  BBA splits min/max
+    // on raw HCP 7/8; we deliberately keep ours.
+    //
+    // The *quality* gate is BBA's, probed exactly (`probe-bba-constraints
+    // --mode weak2-{d,h,s}`): "good suit" is trump HCP ≥ 5, which separates its
+    // good and bad rungs with zero overlap on all three openings.  Rival
+    // predicates do not: A/K/Q count overlaps at 1 (good 28, bad 202) and
+    // A/K/Q/J at 2.  Our old `top_honors(our, 2..)` was a strict subset (KQ = 5
+    // is the cheapest two of A/K/Q), so the sole hands that change rung are
+    // A-J-x-x-x-x — 4 + 1 = 5 HCP with only one top honor.
     Rules::new()
-        // Solid six-card suit (A-K-Q present): bid 3NT.
+        // Solid six-card suit (A-K-Q present): bid 3NT.  Matches BBA exactly.
         .rule(Bid::new(3, Strain::Notrump), 1.5, top_honors(our, 3..))
-        // Minimum values (5–7 points), bad suit (fewer than two of A/K/Q).
+        // Minimum values (5–7 points), bad suit (under 5 HCP in trumps).
         .rule(
             Bid::new(3, Strain::Clubs),
             1.0,
-            points(5..=7) & !top_honors(our, 2..),
+            points(5..=7) & suit_hcp(our, ..5),
         )
-        // Minimum values, good suit (two or more of A/K/Q).
+        // Minimum values, good suit (5+ HCP in trumps).
         .rule(
             Bid::new(3, Strain::Diamonds),
             1.0,
-            points(5..=7) & top_honors(our, 2..),
+            points(5..=7) & suit_hcp(our, 5..),
         )
         // Maximum values (8–10 points), bad suit.
         .rule(
             Bid::new(3, Strain::Hearts),
             1.0,
-            points(8..=10) & !top_honors(our, 2..),
+            points(8..=10) & suit_hcp(our, ..5),
         )
         // Maximum values, good suit.
         .rule(
             Bid::new(3, Strain::Spades),
             1.0,
-            points(8..=10) & top_honors(our, 2..),
+            points(8..=10) & suit_hcp(our, 5..),
         )
         // Safety fallback: guarantees a legal response for any legitimate
         // weak-two hand even when the crisp constraints leave a gap.
