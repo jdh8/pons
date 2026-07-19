@@ -56,7 +56,7 @@ use std::io::{BufWriter, Write};
 #[path = "../common/mod.rs"]
 #[allow(dead_code)]
 mod common;
-use common::oracle::{BbaOracle, DEFAULT_LIB, SYSTEM_2_OVER_1};
+use common::oracle::{BbaOracle, DEFAULT_LIB, SYSTEM_2_OVER_1, load_bbsa};
 
 /// Number of calls in a `Logits` array (the softmax width).
 const SOFTMAX_LEN: usize = 38;
@@ -90,6 +90,15 @@ struct Args {
     /// instant. Override the `.so` with `BBA_LIB`.
     #[arg(long, default_value = "american")]
     teacher: String,
+    /// `--teacher bba` only: a `.bbsa` convention card (e.g.
+    /// `vendor/bba/WJ.bbsa`) pinning the teacher's system *and* every one of its
+    /// named conventions, engine defaults included. Without it the teacher is
+    /// EPBot's 2/1 with whatever the engine defaults to — fine for the 2/1 nets,
+    /// but "BBA system 2" alone does not pin `Multi` / `Polish two suiters`, so
+    /// a WJ net must name its card. Recorded in the JSON sidecar: a distilled
+    /// net is identified by its extractor *and* its teacher configuration.
+    #[arg(long)]
+    card: Option<String>,
 }
 
 /// The four absolute vulnerabilities, sampled uniformly per board.
@@ -122,7 +131,12 @@ fn main() -> anyhow::Result<()> {
         "american" => Box::new(american_instinct().against(Family::NATURAL)),
         "bba" => {
             let path = std::env::var("BBA_LIB").unwrap_or_else(|_| DEFAULT_LIB.into());
-            Box::new(BbaOracle::load(&path, SYSTEM_2_OVER_1, Vec::new())?)
+            let card = args.card.as_deref().map(load_bbsa).transpose()?;
+            let (system, toggles) = match card {
+                Some(card) => (card.system, card.toggles),
+                None => (SYSTEM_2_OVER_1, Vec::new()),
+            };
+            Box::new(BbaOracle::load(&path, system, toggles)?)
         }
         other => anyhow::bail!("--teacher must be american|bba, got {other:?}"),
     };
@@ -236,6 +250,7 @@ fn main() -> anyhow::Result<()> {
         },
         "tags": "sibling .tags file: one u8 per row, 1 = contested phase, 0 = constructive",
         "teacher": &args.teacher,
+        "card": args.card.as_deref().unwrap_or("engine defaults"),
         "deals": args.deals.as_deref().unwrap_or("random"),
         "git_sha": git_sha,
         "seed": args.seed,

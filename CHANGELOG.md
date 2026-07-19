@@ -25,6 +25,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   unauthored territory. Plain and PD agree, so the gain is judgement, not a
   doubling artifact.
 
+- **`dump-teacher --card FILE.bbsa` pins the distillation teacher's whole
+  convention card.** `--teacher bba` hardcoded EPBot's 2/1 with whatever the
+  engine defaults to; a card supplies the system id *and* all 133 named toggles,
+  so a teacher is reproducible from a vendored file rather than from an
+  undocumented default. The card path lands in the JSON sidecar beside
+  `feature_version`: "BBA system 2" alone does not pin `Multi` or `Polish two
+  suiters`, so a net distilled against natural weak twos would silently be the
+  wrong net. No flag = today's behaviour exactly.
+
 - **The floor reads a two-over-one's promised values at the slam-entry gate
   (`set_two_over_one_slam_strength`, default on).** The 2/1 response carries
   `.alert(GAME_FORCE)`, so the inference walk suppresses its natural reading and
