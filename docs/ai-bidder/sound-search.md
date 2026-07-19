@@ -114,16 +114,36 @@ Make the sampled worlds tight and realistic, so every downstream EV (live search
   ([ben-gap-campaign.md fix ledger](../ben-gap-campaign.md#fix-ledger)).
 - **1b — Rule-replay sampling default for search. ✅ Shipped (`74d783d`).**
   `sample_layouts_replay` (`set_rule_accept`, [sampler.rs:120](../../src/bidding/sampler.rs)) is now the search sampler's default: a drawn world must not only fall in-range but *replay* the authored policy within `MARGIN=3` nats — pons's analog of BEN's soft NN-replay gate. *Measured:* EV-bias / variance on a fixed divergent set; the Phase-4 re-distill A/B remains the ship gate for its downstream effect. *Deps:* 1a.
-- **1c — Importance-weighted dealing.** Bias `fill_deals` toward the reading's
-  center (deal honors toward the predicted hcp/shape, not uniformly), the
-  GPL-clean analog of BEN's Info-net-biased dealing — driven by *our*
-  `Inferences`, no BEN weights. *Deliverable:* a weighted dealer behind a knob;
-  same sound ranges, lower variance at fixed layout budget. *Measure:* variance
-  reduction at equal `n`; downstream A/B. *Deps:* none (independent of 1a/1b).
+- **1c — Importance-weighted dealing, *narrowed to the replay sampler*.** Bias
+  `fill_deals` toward the reading's center (deal honors toward the predicted
+  hcp/shape, not uniformly), the GPL-clean analog of BEN's Info-net-biased
+  dealing — driven by *our* `Inferences`, no BEN weights. **Scoped down
+  2026-07-20:** worth doing for `sample_layouts_replay` only. `probe-replay-yield`
+  puts the *range* sampler at 5–391 µs per kept world against a ~1.4 s DD
+  decision — 0.03%, nothing to win. Replay costs 8–4427 µs and pays per *draw*,
+  so weighting compounds only there. *Deliverable:* a weighted dealer behind a
+  knob; same sound ranges, fewer draws per kept world. *Measure:*
+  draws-per-kept-world at equal `n`; downstream A/B. *Deps:* none.
 
 *Do-not:* never loosen a reading to feed the sampler — when it starves, draw
 more deals (a deal is ~0.3µs; a DD solve dwarfs it), never widen the envelope
 ([bidding-architecture.md, Samplers](../bidding-architecture.md#samplers-samplerrs)).
+
+*Do-not, and this one cost a session:* a **0%** replay fill is not a starved
+sampler, so do not reach for 1c to fix it — `0% × any weight = 0%`. A flat zero
+means the gate is *infeasible*: some authored node pins the drawn call at −∞
+while keeping mass elsewhere, so `made_plausibly` rejects every hand. Found
+instance — the 2/1 **game backstop**
+([game_force.rs](../../src/bidding/american/game_force.rs)) is a deliberately
+partial table naming only 4♥/4♠/3NT, and `Rules::classify` leaves every unnamed
+call at −∞; its unconditional 3NT keeps the node's `best` finite, so the
+documented all-−∞ escape hatch ([sampler.rs](../../src/bidding/sampler.rs))
+cannot fire. `authored_at` is true (the backstop resolves at depth 4, not the
+keyless root), so the gate runs instead of abstaining. **Fix the book, not the
+sampler:** dropping the node (`set_game_backstop(false)`) lands resolution on
+the floor, where `authored_at` is false and the gate abstains — the 0% cures
+itself with no sampler code. Guard test:
+`sampler::tests::game_backstop_rejects_every_hand_until_deleted`.
 
 ### Phase 2 — Scorer soundness for slam (single-dummy in the *offline* teacher)
 
@@ -239,14 +259,13 @@ the line we do not cross.
 
 ## Start here (for the first coding session)
 
-**Phase 1c** is the cheapest first real code, and the only Phase-1 item left:
-1a shipped (`4efe75f`, `82a8c43`), 1b shipped (`74d783d`). Recommended order:
+1a shipped (`4efe75f`, `82a8c43`), 1b shipped (`74d783d`), and 1c is now
+narrowed to the replay sampler (the range sampler is 0.03% of a DD decision —
+no win there), which makes it much smaller than it looked. Recommended order:
 
-1. **Phase 1c** — importance-weighted dealing: bias `fill_deals` toward the
-   reading's center, the last open Phase-1 sampler item (replay-gating already
-   tightens *which* worlds are kept; weighting tightens *how they're drawn*).
-2. **Phase 2** — the `SD_EVAL` offline scorer (the highest-value *correctness*
+1. **Phase 2** — the `SD_EVAL` offline scorer (the highest-value *correctness*
    win; the scoring swap at [ev.rs:138](../../src/bidding/ev.rs) plus two-view inference plumbing — mirrors `sd_declarer_ns_score`, but `ev_all` must first gain `Stance` access, being generic over `System` today).
+2. **Phase 1c (narrowed)** — weighted dealing for the replay sampler only.
 3. **Phase 4** — re-distill and measure vs BEN Tier-F + BBA guard.
 
 Phases 3 and 5 wait on the gate-check (does M6 already reach the slams?) and on

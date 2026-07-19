@@ -1049,6 +1049,7 @@ static SETTINGS: &[Setting] = &[
     toggle("minor_transfer_defense", DEFENSE, "", false, american::set_minor_transfer_defense),
     // Rebids & responses
     toggle("second_suit_agreement", REBIDS, "", true, american::set_second_suit_agreement),
+    toggle("game_backstop", REBIDS, "2/1 game backstop (retired)", false, american::set_game_backstop),
     toggle("fourth_suit_forcing", REBIDS, "Fourth suit forcing", true, american::set_fourth_suit_forcing),
     toggle("meckstroth_adjunct", REBIDS, "Meckstroth adjunct", true, american::set_meckstroth_adjunct),
     toggle("limit_raise_acceptance", REBIDS, "", true, american::set_limit_raise_acceptance),
@@ -1059,6 +1060,7 @@ static SETTINGS: &[Setting] = &[
     toggle("settle_floor", FLOOR, "", true, instinct::set_settle_floor),
     toggle("rubens_advances", FLOOR, "", true, instinct::set_rubens_advances),
     toggle("floor_rkcb", FLOOR, "", true, instinct::set_floor_rkcb),
+    toggle("two_over_one_force", FLOOR, "2/1 forces game", true, instinct::set_two_over_one_force),
     toggle("penalize_escape_stack", FLOOR, "", true, instinct::set_penalize_escape_stack),
     toggle("penalize_escape_values", FLOOR, "", true, instinct::set_penalize_escape_values),
     toggle("uvu_encircle", FLOOR, "UVU penalty procedure", true, instinct::set_uvu_encircle),
@@ -1072,7 +1074,7 @@ static SETTINGS: &[Setting] = &[
     toggle("alert_reading", INFERENCE, "", true, inference::set_alert_reading),
     toggle("fallback_projection", INFERENCE, "", true, inference::set_fallback_projection),
     toggle("control_bid_reading", INFERENCE, "", true, inference::set_control_bid_reading),
-    toggle("rule_accept", INFERENCE, "", false, inference::set_rule_accept),
+    toggle("rule_accept", INFERENCE, "", true, inference::set_rule_accept),
     // Fuzzing (hand evaluation)
     toggle("fuzzy_strength", FUZZING, "Fuzzy hand strength", true, constraint::set_fuzzy_strength),
     toggle("fuzzy_points", FUZZING, "", true, constraint::set_fuzzy_points),

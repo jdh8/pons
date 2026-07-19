@@ -544,6 +544,43 @@ competitive tree by frequency is impractical past depth ~3 — but the ruliness
 *verdict* is established and holds. Probes:
 `ab-results` scratch → `probe-contested-d4{,-m1000}.md`.
 
+## Re-audit the book against the stronger floor (opened 2026-07-20)
+
+The floor got better; the book never got re-examined. Every authored node was
+written against the deterministic `instinct()` ladder, and `american()` now
+floors off the BBA-distilled net (+0.11/+0.25 vs BBA). Where a node is cruder
+than the floor it shadows, it is now a *net negative* — the iron rule says a
+node with finite mass shadows the floor, so the book keeps winning arguments it
+should be losing.
+
+**First data point — the 2/1 game backstop, retired.** Three rules (4♥/4♠ with
+support, else an unconditional 3NT) answering every game-forcing continuation
+the authored rounds miss. Deleting it, paired with the new
+`set_two_over_one_force`, measures **plain +0.0117/+0.0142, PD +0.0132/+0.0160**
+IMPs/board NV/vul vs BBA (409,600×2, all CI>0, fires 0.57%,
+`scripts/game-backstop-ab.sh`). One node, comparable to a headline engine knob.
+
+**Two lessons for the sweep.**
+
+1. *Deleting a node also deletes whatever invariant it held by omission.* The
+   backstop was the only thing enforcing "a 2/1 auction cannot die below game"
+   off-book. Deletion alone measured just +0.005 because the floor then
+   abandoned partner's 2/1 on **24%** of the boards it touched; restoring the
+   force as a floor *rule* took that to 0% and more than doubled the gain. So:
+   trace the divergent boards even on a win, and ask what property the node was
+   quietly maintaining.
+2. *Crude nodes can also break the sampler.* A deliberately **partial** table
+   leaves every unnamed call at −∞ while its unconditional rule keeps the node's
+   best finite, so the replay gate's all-−∞ escape hatch cannot fire and it
+   rejects **every** hand. `probe-replay-yield` reports that as a flat 0% fill.
+   Any node found that way is a deletion candidate on sight.
+
+**Method.** Rank shadowing nodes by fired-rate, A/B-delete the crudest. Fast
+no-DD-heavy pre-check: `ab-major-continuations` (solves only the divergent
+subset — 200k boards in seconds); real-routing verdict via `bba-gen`. Candidate
+sources: other `Fallback::classify` backstops, and any auction
+`probe-replay-yield` reports at 0%.
+
 ## Success criteria
 
 1. **Phase 0/1 (near-term)**: the calibration reproduces BBA's Table 1 in

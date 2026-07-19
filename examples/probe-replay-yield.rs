@@ -28,9 +28,11 @@ fn main() {
     let policy = american().against(Family::NATURAL);
     let actor = Seat::North;
     let vul = RelativeVulnerability::NONE;
-    let n = 50usize; // fill target; replay gets REPLAY_ATTEMPTS_PER_LAYOUT draws
-    // each, so returned « n means it starved even with the big
-    // budget (a near-infeasible auction).
+    let n = 50usize; // fill target; replay draws until REPLAY_DRAW_CAP (or gives
+    // up early on REPLAY_DRY_LIMIT), so returned « n means the
+    // auction starved even with the big budget.  A flat 0% is
+    // usually *infeasible*, not starved: some authored node
+    // pins the call at −∞ while keeping mass elsewhere.
 
     let auctions: &[(&str, Vec<Call>)] = &[
         (

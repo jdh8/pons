@@ -664,4 +664,49 @@ mod tests {
             Call::Pass
         ));
     }
+
+    /// The game backstop is a *partial* table — it names only 4♥/4♠/3NT, so
+    /// every other call sits at `-∞` while its unconditional 3NT keeps the
+    /// node's best finite.  The gate then rejects partner's 3♣ for **every**
+    /// hand: the 0% replay fill `probe-replay-yield` reports on this auction.
+    /// Dropping the node lands resolution on the keyless floor, where
+    /// [`System::authored_at`] is false and the gate abstains.
+    #[test]
+    fn game_backstop_rejects_every_hand_until_deleted() {
+        let prefix = [
+            bid(1, Strain::Spades),
+            Call::Pass,
+            bid(2, Strain::Clubs),
+            Call::Pass,
+            bid(2, Strain::Diamonds),
+            Call::Pass,
+            bid(2, Strain::Hearts),
+            Call::Pass,
+        ];
+        let made = bid(3, Strain::Clubs);
+        let vul = RelativeVulnerability::NONE;
+        let mut rng = StdRng::seed_from_u64(11);
+        let hands: Vec<Hand> = (0..16).map(|_| full_deal(&mut rng)[Seat::South]).collect();
+        let policy = |on| {
+            crate::bidding::american::set_game_backstop(on);
+            crate::american().against(crate::bidding::Family::NATURAL)
+        };
+
+        let with = policy(true);
+        assert!(
+            hands
+                .iter()
+                .all(|&hand| !made_plausibly(hand, &with, vul, &prefix, made)),
+            "the partial backstop rejects 3♣ out of hand"
+        );
+
+        let without = policy(false);
+        assert!(
+            hands
+                .iter()
+                .all(|&hand| made_plausibly(hand, &without, vul, &prefix, made)),
+            "with no node the floor answers and the gate abstains"
+        );
+        crate::bidding::american::set_game_backstop(false); // restore the default
+    }
 }

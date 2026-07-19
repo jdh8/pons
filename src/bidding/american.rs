@@ -121,7 +121,7 @@ pub(crate) use defense::{
     natural_defense_enabled, natural_double_floor, natural_overcall_points, nt_overcall_gladiator,
     nt_overcall_systems_on, woolsey_double_floor, woolsey_enabled, woolsey_points,
 };
-pub use game_force::set_second_suit_agreement;
+pub use game_force::{set_game_backstop, set_second_suit_agreement};
 pub use nmf::set_new_minor_forcing;
 pub use notrump::{
     EUROPEAN, PUPPET, notrump_responses, set_crawling_stayman, set_garbage_stayman,

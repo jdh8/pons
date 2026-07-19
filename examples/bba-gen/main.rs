@@ -507,6 +507,21 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_second_suit_agreement: bool,
 
+    /// Restore the retired 2/1 game backstop — the three-rule table (4♥/4♠/3NT)
+    /// that used to answer every game-forcing continuation the authored rounds
+    /// miss.  Shipped off since 2026-07-20; those nodes now fall to the
+    /// BBA-distilled floor (see `set_game_backstop`).
+    #[arg(long, default_value_t = false)]
+    ns_game_backstop: bool,
+
+    /// Drop the floor's 2/1 game force, letting it pass below game in an
+    /// established two-over-one.  The authored book holds the force by omission;
+    /// the floor needs telling, and without this it abandoned partner's 2/1 on
+    /// 24% of the boards the backstop deletion touched (shipped default-on; see
+    /// `set_two_over_one_force`).
+    #[arg(long, default_value_t = false)]
+    no_ns_two_over_one_force: bool,
+
     /// Disable the competitive long-suit rebid — opener's/overcaller's rebid of a
     /// 6+ suit in competition (2-level any, 3-level needs 7 cards or a good six)
     /// instead of a forced takeout double (shipped default-on; see
@@ -1189,6 +1204,8 @@ fn main() -> anyhow::Result<()> {
     pons::bidding::american::set_opener_extras_ladder(!args.no_ns_opener_extras_ladder);
     pons::bidding::american::set_opener_major_jump_rebid(!args.no_ns_opener_major_jump_rebid);
     pons::bidding::american::set_second_suit_agreement(!args.no_ns_second_suit_agreement);
+    pons::bidding::american::set_game_backstop(args.ns_game_backstop);
+    pons::bidding::instinct::set_two_over_one_force(!args.no_ns_two_over_one_force);
     pons::bidding::instinct::set_competitive_rebid(!args.no_ns_competitive_rebid);
     pons::bidding::instinct::set_reopening_notrump(!args.no_ns_reopening_notrump);
     pons::bidding::instinct::set_rein_advance_raise(!args.no_ns_rein_advance_raise);

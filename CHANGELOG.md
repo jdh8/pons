@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`set_two_over_one_force` (default on) — the floor now knows a 2/1 forces
+  game.** An uncontested two-over-one (`1♥`/`1♠` and a cheaper two-level suit,
+  or `1♦`–`2♣`) marks the auction forced to game, so the floor takes the
+  cheapest game milestone instead of passing out a partscore. `game_force`'s
+  tables have always held this invariant by *omission* — none carries a `Pass`
+  rule — but that only covers positions where a table exists; the floor owns the
+  rest and had never been told. Worth **+0.0067/+0.0102 plain, +0.0060/+0.0094
+  PD** IMPs/board NV/vul vs BBA on top of the backstop deletion below
+  (409,600×2, all CI>0), firing on exactly the 606/622 boards that were
+  abandoning the force, at +4.5/+6.7 IMPs each. Uncontested only, matching the
+  `Undisturbed` guard the deleted node carried.
+
 - **`american_instinct()` — the deterministic pre-swap 2/1** (the former
   `american()`: authored book + `instinct()` floor). Retained as the
   fully-disclosable reference system, the distillation teacher
@@ -17,6 +29,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`bba-gen --our-floor american-instinct`).
 
 ### Changed
+
+- **The 2/1 game backstop is retired** (`set_game_backstop`, default off;
+  `--ns-game-backstop` restores it). Three crude rules — 4♥/4♠ with support,
+  else an unconditional 3NT — answered every game-forcing continuation the three
+  authored rounds miss. They were written against the deterministic `instinct()`
+  ladder; once the floor became the BBA-distilled net (above), the table was
+  bidding *worse* than what it shadowed, capping deep auctions at game.
+  Deleting it, paired with `set_two_over_one_force`, is worth **plain
+  +0.0117/+0.0142, PD +0.0132/+0.0160** IMPs/board NV/vul vs BBA (409,600×2,
+  all CI>0, fires 0.57%, +2.1–2.8 IMPs/divergent).
+
+  Deletion *alone* measures only +0.005: with the node gone the floor had no
+  idea it was forced and abandoned partner's 2/1 on **24%** of the boards it
+  touched (opener passing 3♣ out in an established game force). Pairing it with
+  the forcing rail takes that to **0%** and more than doubles the gain — the
+  architecturally correct fix was also the bigger one.
+
+  Retiring the node additionally cures a `sample_layouts_replay` starvation. The
+  table is deliberately *partial*, so `Rules::classify` left every call it does
+  not name at −∞ while the unconditional 3NT kept the node's best finite — the
+  documented all-−∞ escape hatch could never fire, and the replay gate rejected
+  those calls for **every** hand (0% fill, the search silently falling back to
+  range-only worlds). With no node the floor answers, `System::authored_at` is
+  false, and the gate abstains; `probe-replay-yield` goes 0.0% → 100.0% on
+  `1♠–2♣–2♦–2♥–3♣` with no sampler change.
 
 - **`american()` is now floored off-book by the BBA-distilled neural net** (was
   the deterministic `instinct()` ladder). The whole-floor net keeps the same

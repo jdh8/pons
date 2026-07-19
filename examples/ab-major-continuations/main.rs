@@ -25,9 +25,11 @@ use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
 use pons::bidding::Family;
 use pons::bidding::american::{
-    TwoOverOneGate, set_fourth_suit_forcing, set_limit_raise_acceptance, set_major_choice_of_games,
-    set_major_game_tries, set_major_rebid_tails, set_two_over_one_fit, set_two_over_one_gate,
+    TwoOverOneGate, set_fourth_suit_forcing, set_game_backstop, set_limit_raise_acceptance,
+    set_major_choice_of_games, set_major_game_tries, set_major_rebid_tails, set_two_over_one_fit,
+    set_two_over_one_gate,
 };
+use pons::bidding::instinct::set_two_over_one_force;
 use pons::scoring::final_contract;
 use rayon::prelude::*;
 
@@ -89,6 +91,17 @@ struct Args {
     /// head-to-heads (both arms otherwise all-off)
     #[arg(long, default_value = "points13")]
     baseline_gate: String,
+
+    /// Treatment: *restore* the retired 2/1 game backstop, so uncovered
+    /// game-forcing continuations answer from its three rules instead of the
+    /// floor (`set_game_backstop`, shipped off)
+    #[arg(long, default_value_t = false)]
+    game_backstop: bool,
+
+    /// Treatment: *drop* the floor's 2/1 game force, letting it pass below game
+    /// in an established two-over-one (`set_two_over_one_force`, shipped on)
+    #[arg(long, default_value_t = false)]
+    no_two_over_one_force: bool,
 }
 
 /// Parse the `--two-over-one-gate` argument
@@ -114,6 +127,10 @@ fn set_knobs(args: &Args, treatment: bool) {
     } else {
         parse_gate(&args.baseline_gate)
     });
+    // These two ship the other way round (backstop retired, force on), so the
+    // treatment *restores* the old behaviour rather than adding a new one.
+    set_game_backstop(treatment && args.game_backstop);
+    set_two_over_one_force(!(treatment && args.no_two_over_one_force));
 }
 
 #[allow(clippy::cast_precision_loss)]
@@ -127,19 +144,21 @@ fn main() {
             || args.fsf
             || args.choice_of_games
             || args.two_over_one_fit
+            || args.game_backstop
+            || args.no_two_over_one_force
             || gate_selected,
         "select at least one treatment: --game-tries / --limit-raise / --tails / --fsf / \
-         --choice-of-games / --two-over-one-fit / --two-over-one-gate",
+         --choice-of-games / --two-over-one-fit / --two-over-one-gate / --game-backstop / \
+         --no-two-over-one-force",
     );
     assert!(!args.fsf || args.tails, "--fsf rides --tails; enable both");
     let base = args.seed.unwrap_or_else(rand::random);
     let vul = args.vulnerability;
 
-    // arm 0 = baseline (all off), arm 1 = the selected treatment set.  All
-    // the knobs are read only at book-construction time, so each arm bakes
-    // its own books; unlike the minor-continuations longer-major knob, none
-    // of these is also read at classify time, so there is no per-arm re-set
-    // inside the worker below.
+    // arm 0 = baseline (all off), arm 1 = the selected treatment set.  Most of
+    // the knobs are read only at book-construction time, so each arm bakes its
+    // own books; `two_over_one_force` is the exception — a classify-time read,
+    // re-set per arm inside the worker below.
     set_knobs(&args, false);
     let baseline = american().against(Family::NATURAL);
     set_knobs(&args, true);
@@ -157,8 +176,13 @@ fn main() {
         .map(|(index, deal)| {
             let dealer = Seat::ALL[index % 4];
             std::array::from_fn(|arm| {
-                // All four knobs are construction-time; nothing to re-set per worker.
+                // Every knob but one is construction-time and already baked into
+                // `stances`.  `two_over_one_force` is read at *classify* time, so
+                // it must be re-set inside the worker or these threads would only
+                // ever see the default (cf. ab-minor-continuations' longer-major).
+                set_two_over_one_force(!(arm == 1 && args.no_two_over_one_force));
                 let auction = bid_uncontested(&stances[arm], dealer, vul, deal);
+                set_two_over_one_force(true);
                 final_contract(&auction, dealer)
             })
         })
@@ -179,6 +203,8 @@ fn main() {
         ("fsf", args.fsf),
         ("choice-of-games", args.choice_of_games),
         ("two-over-one-fit", args.two_over_one_fit),
+        ("game-backstop", args.game_backstop),
+        ("no-two-over-one-force", args.no_two_over_one_force),
     ]
     .iter()
     .filter(|(_, on)| *on)

@@ -450,6 +450,41 @@ std::thread_local! {
     /// Whether the floor asks and answers RKCB 1430 once a fit and small-slam
     /// values are known (**on by default**, M6.4).  See [`set_floor_rkcb`].
     static FLOOR_RKCB: Cell<bool> = const { Cell::new(true) };
+
+    /// Whether an uncontested 2/1 marks the auction forced to game.  **On by
+    /// default** since 2026-07-20; see [`set_two_over_one_force`].
+    static TWO_OVER_ONE_FORCE: Cell<bool> = const { Cell::new(true) };
+}
+
+/// Enable or disable the floor's two-over-one game force (**on by default**)
+///
+/// The authored book has always held this invariant by *omission* — no table in
+/// the 2/1 game-force book carries a `Pass` rule, so pass
+/// scores −∞ and a 2/1 auction cannot die below game.  The floor never learned
+/// it, which did not matter while the game backstop covered every uncovered
+/// continuation.  Deleting that node
+/// ([`set_game_backstop`][super::american::set_game_backstop], now the default)
+/// exposed the gap: against BBA, 24% of the affected boards had our side
+/// settling below game in an established 2/1 — opener passing responder's 3♣ out
+/// in a partscore.
+///
+/// On, an uncontested 2/1 sets `Interpretation::forced_to_game`, so the floor
+/// takes the cheapest game milestone instead of passing.  Measured on top of the
+/// deletion: **+0.0067/+0.0102 plain, +0.0060/+0.0094 PD** IMPs/board NV/vul vs
+/// BBA (409,600×2, all CI>0), firing on 606/622 boards — exactly the set that
+/// abandoned the force — at +4.5/+6.7 IMPs each.  It costs routing those nodes
+/// through the deterministic ladder rather than the learned net, since the
+/// [shell][super::neural_floor] delegates wholesale on a forced auction; that
+/// price is inside the measurement.
+///
+/// Uncontested only, matching the `Undisturbed` guard the deleted node carried:
+/// over interference a two-level new suit is a free bid, not a game force.
+pub fn set_two_over_one_force(on: bool) {
+    TWO_OVER_ONE_FORCE.with(|cell| cell.set(on));
+}
+
+fn two_over_one_force() -> bool {
+    TWO_OVER_ONE_FORCE.with(Cell::get)
 }
 
 /// Enable or disable the floor's RKCB 1430 (M6.4)
@@ -1744,10 +1779,45 @@ impl Interpretation {
     fn read(context: &Context<'_>) -> Self {
         Self {
             forced_to_game: forcing_two_clubs_response(context)
-                || opener_forced_past_invitation(context),
+                || opener_forced_past_invitation(context)
+                || two_over_one_game_force(context),
             penalizing: penalizing(context),
         }
     }
+}
+
+/// Partner answered our one-of-a-suit opening with a game-forcing two-over-one
+///
+/// Exactly the auctions the 2/1 game-force book registers
+/// its tables over: `1♥`/`1♠` and a cheaper two-level suit, or `1♦`–`2♣`.  Both
+/// partners hold the force, so the flag is read from either seat.
+///
+/// Uncontested only — over interference a two-level new suit is a free bid, not
+/// a game force — which also matches the `Undisturbed` guard the deleted game
+/// backstop carried.  Without this the floor has no idea it is forced and
+/// happily passes partner's 2/1 in a partscore ([`set_two_over_one_force`]).
+fn two_over_one_game_force(context: &Context<'_>) -> bool {
+    let auction = context.auction();
+    if !two_over_one_force() || !context.undisturbed() {
+        return false;
+    }
+    let Some((index, opening)) = opening_bid(auction) else {
+        return false;
+    };
+    // The player to act must be on the opening side — opener or responder.
+    if index % 2 != auction.len() % 2 || opening.level.get() != 1 {
+        return false;
+    }
+    let Some(&Call::Bid(response)) = auction.get(index + 2) else {
+        return false;
+    };
+    response.level.get() == 2
+        && match opening.strain {
+            // A 2/1 sits *below* the opening; higher is a jump shift.
+            Strain::Hearts | Strain::Spades => response.strain < opening.strain,
+            Strain::Diamonds => response.strain == Strain::Clubs,
+            _ => false,
+        }
 }
 
 /// A prior call has committed our side to game (see [`Interpretation`])
@@ -4253,6 +4323,85 @@ mod tests {
             Call::Pass,
         ];
         assert_eq!(best(&auction, "8632.J9842.96.42"), Call::Pass);
+    }
+
+    /// The auctions the game backstop used to cover, and the ones it did not
+    #[test]
+    fn two_over_one_force_reads_the_right_auctions() {
+        set_two_over_one_force(true);
+        let forced = |auction: &[Call]| {
+            two_over_one_game_force(&Context::new(RelativeVulnerability::NONE, auction))
+        };
+        // 1♠ – 2♣ and 1♦ – 2♣: the game force, read from opener's seat.
+        assert!(forced(&[
+            call(1, Strain::Spades),
+            Call::Pass,
+            call(2, Strain::Clubs),
+            Call::Pass
+        ]));
+        assert!(forced(&[
+            call(1, Strain::Diamonds),
+            Call::Pass,
+            call(2, Strain::Clubs),
+            Call::Pass
+        ]));
+        // 1♥ – 2♠ is a jump shift, not a 2/1: the response must sit below the opening.
+        assert!(!forced(&[
+            call(1, Strain::Hearts),
+            Call::Pass,
+            call(2, Strain::Spades),
+            Call::Pass
+        ]));
+        // 1♣ – 2♦ has no suit below clubs to answer in; the book registers no
+        // game force there either.
+        assert!(!forced(&[
+            call(1, Strain::Clubs),
+            Call::Pass,
+            call(2, Strain::Diamonds),
+            Call::Pass
+        ]));
+        // Contested: over interference a two-level suit is a free bid, not a force.
+        assert!(!forced(&[
+            call(1, Strain::Spades),
+            call(2, Strain::Diamonds),
+            call(2, Strain::Hearts),
+            Call::Pass
+        ]));
+        set_two_over_one_force(false);
+        assert!(!forced(&[
+            call(1, Strain::Spades),
+            Call::Pass,
+            call(2, Strain::Clubs),
+            Call::Pass
+        ]));
+        set_two_over_one_force(true); // restore the default
+    }
+
+    /// With the game backstop deleted the floor owns these nodes, and it must
+    /// not abandon partner's game force — the 24%-of-divergences failure the
+    /// deletion A/B exposed (opener passing 3♣ out in an established 2/1).
+    #[test]
+    fn two_over_one_force_never_passes_below_game() {
+        use crate::bidding::american::set_game_backstop;
+        let auction = [
+            call(1, Strain::Spades),
+            Call::Pass,
+            call(2, Strain::Clubs),
+            Call::Pass,
+            call(2, Strain::Spades),
+            Call::Pass,
+            call(3, Strain::Clubs),
+            Call::Pass,
+        ];
+        set_game_backstop(false);
+        set_two_over_one_force(true);
+        for hand in ["AQ9876.K3.K95.76", "KQJ876.43.K95.A6", "AKJ976.Q2.J54.83"] {
+            let (chosen, floored) = american_floored(&auction, hand);
+            assert!(floored, "the deleted backstop leaves {hand} to the floor");
+            assert_ne!(chosen, Call::Pass, "{hand} must not pass a live game force");
+        }
+        set_two_over_one_force(true); // restore the defaults
+        set_game_backstop(false);
     }
 
     #[test]
