@@ -177,16 +177,32 @@ cheaply on a single machine. Seed-shardable `.f32` dumps (`dump-search`, …) me
 the same way — concatenate the per-seed `.f32`/`.tags` in seed order, keeping the
 sidecars' feature/layout/SHA in agreement.
 
-### Continuous scavenging (systemd)
+### Continuous scavenging
 
-To keep a fleet box growing the database whenever it's idle, supervise the
-one-shot `generate` with [`scripts/gib-scavenge.service`](../scripts/gib-scavenge.service)
-instead of writing a daemon: it runs `gib generate` in the `SCHED_IDLE` class and,
-via `Restart=always`, starts the next shard with a fresh random 64-bit seed each
-time. Shards are named `shard-<seed>.pdd` (compact binary by default, so they stay
-reproducible) and land in `~/gib-shards`; merge them with `gib convert
-shard-*.pdd --out all.pdd` whenever you want a combined database. Set `GIB_EXT=txt`
-for `cat`-mergeable GIB text, or `GIB_COUNT` to change the 1M-deal shard size.
+To keep a machine growing the database whenever it's idle, supervise the
+one-shot `generate` instead of writing a daemon. The shared
+[`scripts/gib-scavenge.sh`](../scripts/gib-scavenge.sh) worker starts the next
+shard with a fresh random 64-bit seed each time. Shards are named
+`shard-<seed>.pdd` (compact binary by default, so they stay reproducible) and
+land in `~/gib-shards`; merge them with `gib convert shard-*.pdd --out all.pdd`
+whenever you want a combined database. Set `GIB_EXT=txt` for `cat`-mergeable
+GIB text, or `GIB_COUNT` to change the 1M-deal shard size.
+
+The worker is single-instance by design — one shard already saturates every
+core, so don't run several (the parallel-thrash caveat above applies to
+scavengers too). It also **pauses itself when the disk gets low**
+(`GIB_MIN_FREE_KIB`, default ~20 GiB free) so a forgotten scavenger can't fill
+the target filesystem; it deletes nothing and resumes once you merge and remove
+old shards. Each pass is a fresh ~34 MB `.pdd` file (1M deals), so it grows
+without bound until either you clean up or the guard trips — `gib convert
+~/gib-shards/shard-*.pdd --out all.pdd && rm ~/gib-shards/shard-*.pdd` is the
+whole lifecycle.
+
+#### Linux (systemd)
+
+[`scripts/gib-scavenge.service`](../scripts/gib-scavenge.service) runs the
+worker in Linux's `SCHED_IDLE` CPU class plus the idle I/O class. Its
+`Restart=always` policy brings the worker back after a crash or reboot.
 
 ```sh
 cargo build --release --example gib
@@ -195,14 +211,84 @@ systemctl --user daemon-reload && systemctl --user enable --now gib-scavenge
 loginctl enable-linger "$USER"          # keep running across logout/reboot
 ```
 
-The unit is single-instance by design — one shard already saturates every core,
-so don't run several (the parallel-thrash caveat above applies to scavengers too).
-It also **pauses itself when the disk gets low** (`GIB_MIN_FREE_KIB`, default
-~20 GiB free) so a forgotten scavenger can't fill a shared `/home`; it deletes
-nothing and resumes once you merge and remove old shards. Each pass is a fresh
-~34 MB `.pdd` file (1M deals), so it grows without bound until either you clean up
-or the guard trips — `gib convert ~/gib-shards/shard-*.pdd --out all.pdd && rm
-~/gib-shards/shard-*.pdd` is the whole lifecycle.
+#### macOS (launchd)
+
+macOS has no exact equivalent of Linux's `SCHED_IDLE`. The LaunchAgent in
+[`scripts/gib-scavenge.plist`](../scripts/gib-scavenge.plist) uses Darwin's
+background process classification, the lowest nice priority, and low-priority
+I/O. This is the closest native approximation: the worker is strongly
+deprioritized, but it is not strictly guaranteed to run only when every core is
+otherwise idle.
+
+The checked-in plist assumes the checkout is at `$HOME/src/pons`, matching the
+Linux example above. Install it as a per-user LaunchAgent and switch it on:
+
+```sh
+LABEL=org.jdh8.pons.gib-scavenge
+PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
+TARGET="gui/$(id -u)/$LABEL"
+
+cargo build --release --example gib
+mkdir -p "$HOME/Library/LaunchAgents" "$HOME/Library/Logs/pons"
+cp scripts/gib-scavenge.plist "$PLIST"
+launchctl enable "$TARGET"
+launchctl bootstrap "gui/$(id -u)" "$PLIST"
+```
+
+Switch it off until explicitly re-enabled. Killing the worker PID is not an off
+switch: `KeepAlive` would immediately launch another one.
+
+```sh
+launchctl disable "gui/$(id -u)/org.jdh8.pons.gib-scavenge"
+launchctl bootout "gui/$(id -u)/org.jdh8.pons.gib-scavenge"
+```
+
+Switch it back on, inspect it, follow its log, or restart an enabled and loaded
+worker after changing the script:
+
+```sh
+# Switch back on
+launchctl enable "gui/$(id -u)/org.jdh8.pons.gib-scavenge"
+launchctl bootstrap "gui/$(id -u)" \
+  "$HOME/Library/LaunchAgents/org.jdh8.pons.gib-scavenge.plist"
+
+# Status and live log
+launchctl print "gui/$(id -u)/org.jdh8.pons.gib-scavenge"
+tail -f "$HOME/Library/Logs/pons/gib-scavenge.log"
+
+# Restart an enabled, loaded worker
+launchctl kickstart -k "gui/$(id -u)/org.jdh8.pons.gib-scavenge"
+```
+
+To uninstall, switch it off as above and remove the installed copy:
+
+```sh
+rm "$HOME/Library/LaunchAgents/org.jdh8.pons.gib-scavenge.plist"
+```
+
+The `GIB_OUT`, `GIB_MIN_FREE_KIB`, `GIB_COUNT`, and `GIB_EXT` knobs still apply,
+but environment variables exported in a terminal do not alter an already loaded
+LaunchAgent. To override them, add an `EnvironmentVariables` dictionary to the
+installed plist's top-level `<dict>`, then switch the agent off and back on:
+
+```xml
+<key>EnvironmentVariables</key>
+<dict>
+    <key>GIB_OUT</key>
+    <string>/Volumes/data/gib-shards</string>
+    <key>GIB_MIN_FREE_KIB</key>
+    <string>10485760</string>
+    <key>GIB_COUNT</key>
+    <string>1000000</string>
+    <key>GIB_EXT</key>
+    <string>pdd</string>
+</dict>
+```
+
+A per-user LaunchAgent starts after login and stops at logout. It pauses while
+the Mac sleeps and resumes after wake. Running continuously before login or
+after logout instead requires a root-installed LaunchDaemon with an explicit
+`UserName`; that privileged setup is intentionally outside this per-user recipe.
 
 ## Etiquette
 

@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+macOS LaunchAgent for the continuous GIB double-dummy scavenger.
+
+Prerequisite: build the release `gib` example in $HOME/src/pons. The complete
+setup, configuration, and lifecycle guide is in docs/shared-machine-data-gen.md.
+
+Install and switch on:
+  mkdir -p "$HOME/Library/LaunchAgents" "$HOME/Library/Logs/pons"
+  cp scripts/gib-scavenge.plist "$HOME/Library/LaunchAgents/org.jdh8.pons.gib-scavenge.plist"
+  launchctl enable "gui/$(id -u)/org.jdh8.pons.gib-scavenge"
+  launchctl bootstrap "gui/$(id -u)" "$HOME/Library/LaunchAgents/org.jdh8.pons.gib-scavenge.plist"
+
+Switch off until explicitly re-enabled:
+  launchctl disable "gui/$(id -u)/org.jdh8.pons.gib-scavenge"
+  launchctl bootout "gui/$(id -u)/org.jdh8.pons.gib-scavenge"
+
+Switch back on:
+  launchctl enable "gui/$(id -u)/org.jdh8.pons.gib-scavenge"
+  launchctl bootstrap "gui/$(id -u)" "$HOME/Library/LaunchAgents/org.jdh8.pons.gib-scavenge.plist"
+
+Status and live log:
+  launchctl print "gui/$(id -u)/org.jdh8.pons.gib-scavenge"
+  tail -f "$HOME/Library/Logs/pons/gib-scavenge.log"
+
+Uninstall after switching off:
+  rm "$HOME/Library/LaunchAgents/org.jdh8.pons.gib-scavenge.plist"
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>org.jdh8.pons.gib-scavenge</string>
+
+    <!-- Use a shell only to expand $HOME; it is replaced by the worker. -->
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/sh</string>
+        <string>-c</string>
+        <string>mkdir -p "$HOME/Library/Logs/pons" &amp;&amp; exec "$HOME/src/pons/scripts/gib-scavenge.sh" &gt;&gt;"$HOME/Library/Logs/pons/gib-scavenge.log" 2&gt;&amp;1</string>
+    </array>
+
+    <!-- Keep exactly one worker alive and throttle rapid crash loops. -->
+    <key>KeepAlive</key>
+    <true/>
+    <key>ThrottleInterval</key>
+    <integer>5</integer>
+
+    <!-- macOS's closest approximation to Linux SCHED_IDLE plus idle I/O. -->
+    <key>ProcessType</key>
+    <string>Background</string>
+    <key>Nice</key>
+    <integer>19</integer>
+    <key>LowPriorityIO</key>
+    <true/>
+    <key>LowPriorityBackgroundIO</key>
+    <true/>
+</dict>
+</plist>
