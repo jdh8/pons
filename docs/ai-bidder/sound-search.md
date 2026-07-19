@@ -103,12 +103,15 @@ ordered by leverage-per-cost, not dependency; 1 is cheapest and already moving.
 Make the sampled worlds tight and realistic, so every downstream EV (live search
 *and* re-distilled floor) is less biased.
 
-- **1a — Land the reading knobs.** The four in-flight `Inferences::read`
-  tighteners (`set_length_soundness`, `set_cue_reading`, `set_table_alert_reading`,
-  `set_pass_reading`) move to their measured defaults. Three are reading-side
-  bid-inert washes (ship gate = probe soundness + disclosure/sd/search surfaces
-  that consume readings); `length_soundness` is the one with a priceable bidding
-  delta and a live dual-reference A/B ([ben-gap-campaign.md fix ledger](../ben-gap-campaign.md#fix-ledger)). *Deliverable:* tighter ranges default-on where measured. *Deps:* none (running).
+- **1a — Land the reading knobs. ✅ Shipped 2026-07-18 (`4efe75f`, `82a8c43`).**
+  All four `Inferences::read` tighteners (`set_length_soundness`,
+  `set_cue_reading`, `set_table_alert_reading`, `set_pass_reading`) are
+  default-on, each with a `--no-ns-*` off-switch. Three shipped as bid-inert
+  reading soundness (0–1 divergent boards per 6,400; gate = probe soundness,
+  vagueness −60%); `length_soundness` ran the dual-reference A/B — plain wash +
+  PD win on **both** references (guard vs BBA PD +0.0022/+0.0023; primary vs BEN
+  Tier F PD +0.0020/+0.0015, directionally consistent), +0.4–1.1 IMPs/fired
+  ([ben-gap-campaign.md fix ledger](../ben-gap-campaign.md#fix-ledger)).
 - **1b — Rule-replay sampling default for search. ✅ Shipped (`74d783d`).**
   `sample_layouts_replay` (`set_rule_accept`, [sampler.rs:120](../../src/bidding/sampler.rs)) is now the search sampler's default: a drawn world must not only fall in-range but *replay* the authored policy within `MARGIN=3` nats — pons's analog of BEN's soft NN-replay gate. *Measured:* EV-bias / variance on a fixed divergent set; the Phase-4 re-distill A/B remains the ship gate for its downstream effect. *Deps:* 1a.
 - **1c — Importance-weighted dealing.** Bias `fill_deals` toward the reading's
@@ -236,8 +239,8 @@ the line we do not cross.
 
 ## Start here (for the first coding session)
 
-**Phase 1c** is the cheapest first real code (Phase 1a is running as A/Bs; Phase
-1b, the `set_rule_accept` default flip, shipped in `74d783d`). Recommended order:
+**Phase 1c** is the cheapest first real code, and the only Phase-1 item left:
+1a shipped (`4efe75f`, `82a8c43`), 1b shipped (`74d783d`). Recommended order:
 
 1. **Phase 1c** — importance-weighted dealing: bias `fill_deals` toward the
    reading's center, the last open Phase-1 sampler item (replay-gating already
