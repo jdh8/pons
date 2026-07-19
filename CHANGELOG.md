@@ -44,7 +44,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   through the deterministic books, so the decompose-and-rank series stays
   bit-reproducible (the net floor's off-book calls don't decompose into buckets).
   `dump-search`'s "deterministic teacher" reference likewise → `american_instinct()`.
-  Tooling only — completes the disclosable-reference repointing the floor swap began.
+  Tooling only — completes the disclosable-reference repointing the floor swap
+  began. Re-anchored at HEAD (`973d681`, 409.6k bd, replay-verified 100%): the
+  deterministic pons is **−1.500 plain / −1.683 PD IMPs/bd vs BBA** (was
+  −1.684 / −1.765 at the 2026-07-10 anchor — the interim default-on constructive
+  ships); the shipped net floor adds +0.11 NV / +0.25 vul on top (B4).
 - **`dutch()` — a new natural 2/1 system, wide-1♣ openings (Phases 0–1)**. A
   sibling system factory built around a wide, non-forcing 1♣ — a "lawyer's
   Polish Club" that naturalises the Polish 1♣. It is a **champion candidate**:

@@ -814,3 +814,91 @@ bba-decompose: report written to ab-results/anchor/2026-07-10-5b5115d/report.md
 bba-decompose: 304264 rows written to ab-results/anchor/2026-07-10-5b5115d/boards.jsonl
 bba-decompose: DD cache ab-results/anchor/dd-cache.json now holds 162839 tables (298 new)
 2026-07-10T19:43:13Z === anchor done: ab-results/anchor/2026-07-10-5b5115d/report.md
+2026-07-19T09:54:10Z === anchor start, sha=973d681, SEED_BASE=1783375064, 32x6400 bd/arm/vul -> ab-results/anchor/2026-07-19-973d681
+2026-07-19T09:54:10Z generate ab-results/anchor/2026-07-19-973d681/none
+    Finished `release` profile [optimized] target(s) in 0.05s
+bba-gen: our american-instinct floor (us) vs BBA 2/1 Game Force (them), vulnerability none — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-19-973d681/none/shard-24.json
+bba-gen: our american-instinct floor (us) vs BBA 2/1 Game Force (them), vulnerability none — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-19-973d681/none/shard-17.json
+bba-gen: our american-instinct floor (us) vs BBA 2/1 Game Force (them), vulnerability none — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-19-973d681/none/shard-4.json
+bba-gen: our american-instinct floor (us) vs BBA 2/1 Game Force (them), vulnerability none — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-19-973d681/none/shard-28.json
+bba-gen: our american-instinct floor (us) vs BBA 2/1 Game Force (them), vulnerability none — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-19-973d681/none/shard-1.json
+bba-gen: our american-instinct floor (us) vs BBA 2/1 Game Force (them), vulnerability none — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-19-973d681/none/shard-21.json
+bba-gen: our american-instinct floor (us) vs BBA 2/1 Game Force (them), vulnerability none — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-19-973d681/none/shard-15.json
+bba-gen: our american-instinct floor (us) vs BBA 2/1 Game Force (them), vulnerability none — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-19-973d681/none/shard-2.json
+bba-gen: our american-instinct floor (us) vs BBA 2/1 Game Force (them), vulnerability none — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-19-973d681/none/shard-16.json
+bba-gen: our american-instinct floor (us) vs BBA 2/1 Game Force (them), vulnerability none — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-19-973d681/none/shard-31.json
+bba-gen: our american-instinct floor (us) vs BBA 2/1 Game Force (them), vulnerability none — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-19-973d681/none/shard-6.json
+bba-gen: our american-instinct floor (us) vs BBA 2/1 Game Force (them), vulnerability none — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-19-973d681/none/shard-29.json
+bba-gen: our american-instinct floor (us) vs BBA 2/1 Game Force (them), vulnerability none — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-19-973d681/none/shard-13.json
+bba-gen: our american-instinct floor (us) vs BBA 2/1 Game Force (them), vulnerability none — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-19-973d681/none/shard-19.json
+bba-gen: our american-instinct floor (us) vs BBA 2/1 Game Force (them), vulnerability none — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-19-973d681/none/shard-25.json
+bba-gen: our american-instinct floor (us) vs BBA 2/1 Game Force (them), vulnerability none — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-19-973d681/none/shard-22.json
+bba-gen: our american-instinct floor (us) vs BBA 2/1 Game Force (them), vulnerability none — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-19-973d681/none/shard-3.json
+bba-gen: our american-instinct floor (us) vs BBA 2/1 Game Force (them), vulnerability none — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-19-973d681/none/shard-23.json
+bba-gen: our american-instinct floor (us) vs BBA 2/1 Game Force (them), vulnerability none — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-19-973d681/none/shard-7.json
+bba-gen: our american-instinct floor (us) vs BBA 2/1 Game Force (them), vulnerability none — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-19-973d681/none/shard-30.json
+bba-gen: our american-instinct floor (us) vs BBA 2/1 Game Force (them), vulnerability none — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-19-973d681/none/shard-10.json
+bba-gen: our american-instinct floor (us) vs BBA 2/1 Game Force (them), vulnerability none — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-19-973d681/none/shard-27.json
+bba-gen: our american-instinct floor (us) vs BBA 2/1 Game Force (them), vulnerability none — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-19-973d681/none/shard-20.json
+bba-gen: our american-instinct floor (us) vs BBA 2/1 Game Force (them), vulnerability none — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-19-973d681/none/shard-26.json
+bba-gen: our american-instinct floor (us) vs BBA 2/1 Game Force (them), vulnerability none — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-19-973d681/none/shard-9.json
+bba-gen: our american-instinct floor (us) vs BBA 2/1 Game Force (them), vulnerability none — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-19-973d681/none/shard-5.json
+bba-gen: our american-instinct floor (us) vs BBA 2/1 Game Force (them), vulnerability none — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-19-973d681/none/shard-14.json
+bba-gen: our american-instinct floor (us) vs BBA 2/1 Game Force (them), vulnerability none — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-19-973d681/none/shard-8.json
+bba-gen: our american-instinct floor (us) vs BBA 2/1 Game Force (them), vulnerability none — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-19-973d681/none/shard-11.json
+bba-gen: our american-instinct floor (us) vs BBA 2/1 Game Force (them), vulnerability none — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-19-973d681/none/shard-12.json
+bba-gen: our american-instinct floor (us) vs BBA 2/1 Game Force (them), vulnerability none — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-19-973d681/none/shard-18.json
+bba-gen: our american-instinct floor (us) vs BBA 2/1 Game Force (them), vulnerability none — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-19-973d681/none/shard-0.json
+bba-gen-parallel: SEED_BASE=1783375064, wrote 32 shards of 6400 boards to ab-results/anchor/2026-07-19-973d681/none
+2026-07-19T09:55:42Z generate ab-results/anchor/2026-07-19-973d681/both
+    Finished `release` profile [optimized] target(s) in 0.08s
+bba-gen: our american-instinct floor (us) vs BBA 2/1 Game Force (them), vulnerability both — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-19-973d681/both/shard-29.json
+bba-gen: our american-instinct floor (us) vs BBA 2/1 Game Force (them), vulnerability both — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-19-973d681/both/shard-4.json
+bba-gen: our american-instinct floor (us) vs BBA 2/1 Game Force (them), vulnerability both — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-19-973d681/both/shard-28.json
+bba-gen: our american-instinct floor (us) vs BBA 2/1 Game Force (them), vulnerability both — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-19-973d681/both/shard-25.json
+bba-gen: our american-instinct floor (us) vs BBA 2/1 Game Force (them), vulnerability both — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-19-973d681/both/shard-13.json
+bba-gen: our american-instinct floor (us) vs BBA 2/1 Game Force (them), vulnerability both — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-19-973d681/both/shard-11.json
+bba-gen: our american-instinct floor (us) vs BBA 2/1 Game Force (them), vulnerability both — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-19-973d681/both/shard-23.json
+bba-gen: our american-instinct floor (us) vs BBA 2/1 Game Force (them), vulnerability both — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-19-973d681/both/shard-6.json
+bba-gen: our american-instinct floor (us) vs BBA 2/1 Game Force (them), vulnerability both — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-19-973d681/both/shard-26.json
+bba-gen: our american-instinct floor (us) vs BBA 2/1 Game Force (them), vulnerability both — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-19-973d681/both/shard-24.json
+bba-gen: our american-instinct floor (us) vs BBA 2/1 Game Force (them), vulnerability both — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-19-973d681/both/shard-12.json
+bba-gen: our american-instinct floor (us) vs BBA 2/1 Game Force (them), vulnerability both — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-19-973d681/both/shard-15.json
+bba-gen: our american-instinct floor (us) vs BBA 2/1 Game Force (them), vulnerability both — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-19-973d681/both/shard-10.json
+bba-gen: our american-instinct floor (us) vs BBA 2/1 Game Force (them), vulnerability both — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-19-973d681/both/shard-16.json
+bba-gen: our american-instinct floor (us) vs BBA 2/1 Game Force (them), vulnerability both — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-19-973d681/both/shard-7.json
+bba-gen: our american-instinct floor (us) vs BBA 2/1 Game Force (them), vulnerability both — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-19-973d681/both/shard-30.json
+bba-gen: our american-instinct floor (us) vs BBA 2/1 Game Force (them), vulnerability both — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-19-973d681/both/shard-5.json
+bba-gen: our american-instinct floor (us) vs BBA 2/1 Game Force (them), vulnerability both — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-19-973d681/both/shard-21.json
+bba-gen: our american-instinct floor (us) vs BBA 2/1 Game Force (them), vulnerability both — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-19-973d681/both/shard-1.json
+bba-gen: our american-instinct floor (us) vs BBA 2/1 Game Force (them), vulnerability both — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-19-973d681/both/shard-27.json
+bba-gen: our american-instinct floor (us) vs BBA 2/1 Game Force (them), vulnerability both — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-19-973d681/both/shard-17.json
+bba-gen: our american-instinct floor (us) vs BBA 2/1 Game Force (them), vulnerability both — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-19-973d681/both/shard-22.json
+bba-gen: our american-instinct floor (us) vs BBA 2/1 Game Force (them), vulnerability both — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-19-973d681/both/shard-3.json
+bba-gen: our american-instinct floor (us) vs BBA 2/1 Game Force (them), vulnerability both — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-19-973d681/both/shard-18.json
+bba-gen: our american-instinct floor (us) vs BBA 2/1 Game Force (them), vulnerability both — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-19-973d681/both/shard-8.json
+bba-gen: our american-instinct floor (us) vs BBA 2/1 Game Force (them), vulnerability both — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-19-973d681/both/shard-9.json
+bba-gen: our american-instinct floor (us) vs BBA 2/1 Game Force (them), vulnerability both — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-19-973d681/both/shard-20.json
+bba-gen: our american-instinct floor (us) vs BBA 2/1 Game Force (them), vulnerability both — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-19-973d681/both/shard-0.json
+bba-gen: our american-instinct floor (us) vs BBA 2/1 Game Force (them), vulnerability both — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-19-973d681/both/shard-2.json
+bba-gen: our american-instinct floor (us) vs BBA 2/1 Game Force (them), vulnerability both — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-19-973d681/both/shard-31.json
+bba-gen: our american-instinct floor (us) vs BBA 2/1 Game Force (them), vulnerability both — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-19-973d681/both/shard-14.json
+bba-gen: our american-instinct floor (us) vs BBA 2/1 Game Force (them), vulnerability both — wrote 6400 boards (6400 scanned) to ab-results/anchor/2026-07-19-973d681/both/shard-19.json
+bba-gen-parallel: SEED_BASE=1783375064, wrote 32 shards of 6400 boards to ab-results/anchor/2026-07-19-973d681/both
+2026-07-19T09:57:14Z decompose -> ab-results/anchor/2026-07-19-973d681/report.md
+=== arm 0: our american-instinct floor (us) vs BBA 2/1 Game Force (them), vulnerability none, 204800 boards ===
+replay verification: 100.00% of 2127573 our-side calls (0 mismatched)
+auction-divergent: 185759 (91%), contract-divergent: 148947 (73%)
+plain DD: -1.3001 IMPs/board (95% CI [-1.3219, -1.2784]), -266269 IMPs total
+perfect defense: -1.3902 IMPs/board (95% CI [-1.4160, -1.3645])
+gen_args: --count 6400 --seed 1783375064 --output ab-results/anchor/2026-07-19-973d681/none/shard-0.json -v none --our-floor american-instinct
+=== arm 1: our american-instinct floor (us) vs BBA 2/1 Game Force (them), vulnerability both, 204800 boards ===
+replay verification: 100.00% of 2113723 our-side calls (0 mismatched)
+auction-divergent: 184956 (90%), contract-divergent: 147363 (72%)
+plain DD: -1.6998 IMPs/board (95% CI [-1.7276, -1.6721]), -348124 IMPs total
+perfect defense: -1.9755 IMPs/board (95% CI [-2.0079, -1.9431])
+gen_args: --count 6400 --seed 1783375064 --output ab-results/anchor/2026-07-19-973d681/both/shard-0.json -v both --our-floor american-instinct
+bba-decompose: report written to ab-results/anchor/2026-07-19-973d681/report.md
+bba-decompose: 296310 rows written to ab-results/anchor/2026-07-19-973d681/boards.jsonl
+bba-decompose: DD cache ab-results/anchor/dd-cache.json now holds 166772 tables (3933 new)
+2026-07-19T09:58:31Z === anchor done: ab-results/anchor/2026-07-19-973d681/report.md

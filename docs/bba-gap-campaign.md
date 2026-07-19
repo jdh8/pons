@@ -265,6 +265,27 @@ the defaults; Cachalot and Sputnik ship opt-in and are now surfaced as a radio
 family on the web Settings tab.  Report:
 `ab-results/anchor/2026-07-10-5b5115d/report.md`.
 
+**Re-anchor `973d681` (2026-07-19, 409.6k boards, same seed):** first anchor
+after the floor swap — `american()` now ships the non-decomposable BBA net, so
+the harness was repointed to the deterministic side (`anchor.sh` generates with
+`--our-floor american-instinct`, `bba-decompose` replays through
+`american_instinct()`); replay-verified **100%** (0 of 4.24M calls mismatched),
+confirming the reference is bit-reproducible again.  Pooled **−1.500 plain /
+−1.683 PD** (vul none −1.300 / −1.390, both −1.700 / −1.976), from −1.684 / −1.765
+at `5b5115d`.  The **+0.184 plain / +0.082 PD** is the interim default-on batch —
+the constructive gate/eval ships (fit-split 2/1 + 1M-3NT choice of games, the
+fit-sum major-game gate, points-as-rule-of-N+8 + `support_points` + the four
+point-count gate fixes, Wide6322 as the default 1NT, the forcing-1NT major
+two-suiter, the Meckstroth adjunct) plus the advance-of-`X` / passed-hand-overcall
+competitive work.  Re-rank: the head order is unchanged but every book bucket
+shrank as those ships landed — def-r1 `Defensive/book/round-1` still #1 at
+**−111127** (was −123392), then constructive `opening`/`round-2`/`round-1`
+(−86728 / −64692 / −49912, from −93067 / −81168 / −69526); the competitive
+`fallback@1`/`fallback@2` round-1 pair holds ≈ flat (−24201 + −21439).  The
+**shipped** floor is the BBA net on top of this deterministic prior: +0.11 NV /
++0.25 vul (B4), which does not decompose and is measured as a separate
+routing-gate A/B.  Report: `ab-results/anchor/2026-07-19-973d681/report.md`.
+
 **#1 is the real prize and it is a *book* item, not a floor item.**  Our
 defensive first-round structure — overcalls, takeout doubles, two-suiters
 over their opening — bleeds −2.40/div (−142733 raw at 409.6k bd), and PD is
