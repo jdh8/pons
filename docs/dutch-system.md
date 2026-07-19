@@ -143,6 +143,42 @@ live system question — the aggregate rates match, but that does not prove eith
 is right in this specific position — and it is a separate investigation from this
 campaign.
 
+**Step 0 — SHIPPED as a negative check, not a gate.** `scripts/wj-calibration.sh`
+plays BBA-WJ against BBA-2/1 (`--our-card vendor/bba/WJ.bbsa`, so all 134 named
+conventions are pinned from the vendored file rather than from engine defaults).
+Both sides are EPBot, so this measures the *systems* with bidder quality held
+constant. 204 800 bd/vul, seed base 1784496013, ~43–44% divergent.
+
+| BBA-WJ − BBA-2/1 | plain DD | perfect defense |
+| --- | --- | --- |
+| vul none | **+0.086** [+0.070, +0.102] | −0.001 [−0.019, +0.017] |
+| vul both | **+0.086** [+0.066, +0.107] | **−0.038** [−0.061, −0.015] |
+
+**The plain edge is a doubling artifact, and vulnerability proves it.**
+`ns_score_pd` differs from `ns_score_contract` *only* by upgrading an undoubled
+penalty to doubled when the contract fails double-dummy
+([scoring.rs:179](../src/scoring.rs#L179)) — same trick table, so PD is
+*punishment*, not better defence. WJ's plain figure is flat across vulnerability
+(+0.086 both times) while its PD figure drops from level to a significant loss,
+which is exactly what an overbid does: the extra failing contracts are cheap
+undoubled, cheap doubled non-vulnerable, and expensive doubled vulnerable. In raw
+points at `both`: +953 400 plain → −514 980 PD.
+
+**This does not gate the campaign** (an earlier draft of the plan claimed it did;
+jdh8 caught it). Dutch has *already* committed to a Polish-style minor structure,
+so the WJ net's job is to be **in distribution** for it — replacing a floor
+distilled from a 2/1 teacher that has never seen a Polish 1♦. That gain comes
+from distribution match, not systemic edge; an equally-strong teacher speaking the
+right language is precisely what is wanted. What Step 0 buys is (a) the negative
+check that the chosen structure is not a systemic liability — it passes, WJ is at
+worst −0.04 IMPs/bd against a peer — and (b) a competent-WJ reference dump.
+
+**Pre-registered for Step 4**: what transfers is the teacher's *bias*, not only
+its strength. Count double-dummy-failing contracts per arm directly from the
+dumps. If A/B B wins plain and washes-or-loses on PD, that is this same inherited
+overbid arriving in Dutch's 1♦ auctions, not judgement — and it should show up
+**worse at `both` than at `none`**, the fingerprint Step 0 just recorded.
+
 **Measured facts about BBA-WJ** (274k-board harvest via the surviving
 `bba-wj-reference` binary, which records EPBot's own
 `get_info_meaning_extended` disclosure beside each hand):
