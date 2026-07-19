@@ -502,10 +502,20 @@ struct Args {
     no_ns_opener_major_jump_rebid: bool,
 
     /// Disable opener's third-call table after responder raises opener's second
-    /// suit in a 2/1 auction (`1M – 2r – 2x – 3x`) — revert that node to the game
-    /// backstop (shipped default-on; see `set_second_suit_agreement`).
+    /// suit in a 2/1 auction (`1M – 2r – 2x – 3x`) — drop that node to the floor
+    /// (shipped default-on; see `set_second_suit_agreement`).  Constructive
+    /// book re-audit candidate #1: two rules, `points(15..)` RKCB else an
+    /// unconditional sign-off, the retired backstop's signature.
     #[arg(long, default_value_t = false)]
     no_ns_second_suit_agreement: bool,
+
+    /// Disable opener's third call after trump is agreed at `1M – 2r – R – 3M`
+    /// — drop that node to the floor (shipped default-on; see
+    /// `set_opener_third`).  Re-audit candidate #2: the deletion measures
+    /// +0.437/+0.527 plain per divergent but leaves the floor unable to ask
+    /// keycards at all here, so it is *not* shipped.
+    #[arg(long, default_value_t = false)]
+    no_ns_opener_third: bool,
 
     /// Restore the retired 2/1 game backstop — the three-rule table (4♥/4♠/3NT)
     /// that used to answer every game-forcing continuation the authored rounds
@@ -1204,6 +1214,7 @@ fn main() -> anyhow::Result<()> {
     pons::bidding::american::set_opener_extras_ladder(!args.no_ns_opener_extras_ladder);
     pons::bidding::american::set_opener_major_jump_rebid(!args.no_ns_opener_major_jump_rebid);
     pons::bidding::american::set_second_suit_agreement(!args.no_ns_second_suit_agreement);
+    pons::bidding::american::set_opener_third(!args.no_ns_opener_third);
     pons::bidding::american::set_game_backstop(args.ns_game_backstop);
     pons::bidding::instinct::set_two_over_one_force(!args.no_ns_two_over_one_force);
     pons::bidding::instinct::set_competitive_rebid(!args.no_ns_competitive_rebid);

@@ -9,6 +9,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`set_opener_third` (default on) — a knob on opener's third call at
+  `1M–2r–R–3M`, whose deletion measured positive and was rejected anyway.**
+  Deleting the node is worth +0.437/+0.527 plain and +0.524/+0.637 PD
+  IMPs/divergent NV/vul (`ab-major-continuations`, 2,000,000 boards per arm per
+  vulnerability, seed 1784484826, 971 divergent = 0.05%), the same sign on all
+  four arms — but with it gone the floor never asks keycards at that node at
+  all, signing off in `4M` on a **26-count** opposite a game-forcing
+  two-over-one. +0.0003 IMPs/board does not buy a total capability loss.
+  Resumable via the `set_two_over_one_force` pattern: delete the node *and*
+  teach the floor a controls-based ask at an agreed-trump game force.
+
+- **`set_xyz_invite_judgment` (default on) — a re-measure handle on opener's
+  judgment of the XYZ invitations that stop below game.** Off, the table becomes
+  all-−∞ and falls through to the floor. Added by the re-audit below, which
+  found it the most-reached candidate *and* comfortably better than the floor:
+  deleting it costs **−0.0086/−0.0175 plain, −0.0035/−0.0106 PD** IMPs/board
+  NV/vul. Kept on.
+
+- **`probe-node-reach` — how often a book node is actually entered.** Bids
+  uncontested self-play deals and counts auctions passing through each key.
+  The ranking input a book audit should start from; it does not correlate with
+  how crude the node's rules look.
+
 - **`set_two_over_one_force` (default on) — the floor now knows a 2/1 forces
   game.** An uncontested two-over-one (`1♥`/`1♠` and a cheaper two-level suit,
   or `1♦`–`2♣`) marks the auction forced to game, so the floor takes the
@@ -29,6 +52,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`bba-gen --our-floor american-instinct`).
 
 ### Changed
+
+- **The constructive book re-audit: nothing ships, all three nodes stand.** After
+  the game backstop's retirement below, the book was swept for the same
+  signature — few rules, an unconditional `hcp(0..)`/`points(0..)`, no shape or
+  fit term, depth ≥ 3. `probe-replay-yield` cleared every reachable candidate
+  (no repeat of the backstop's 0%-fill pathology). Four lessons, recorded in
+  `docs/ben-gap-campaign.md`:
+
+  1. **Rank by reach, not crudeness.** New `probe-node-reach` shows the two do
+     not correlate: the crudest table was the *least*-entered (0.019%) and the
+     one dismissed on appearance was the most (0.75%) — and turned out to be the
+     most valuable node in the sweep. The backstop paid because it was an
+     open-ended `Fallback` standing in for a whole subtree, not because its
+     rules were crude.
+  2. **A wash at ~90 divergent boards is an absence of data, not a null
+     result.** All three candidates read "no effect" at 200k boards and
+     separated cleanly into a win, a loss and a rout at 2M. This harness
+     DD-solves only divergent boards, so the sample was nearly free.
+  3. **A flat 0% replay fill has two causes and only one is a bug**:
+     *infeasible* (reachable auction, a node pins the call at −∞) versus
+     *unreachable* (our side never makes that call, so −∞ is correct).
+     `1♦–1♠–1NT–2NT` reads 0% purely because `xyz_responder` routes every invite
+     through the relay; both auctions stay in `probe-replay-yield` as the
+     standing example.
+  4. **Run the unit tests before believing a positive A/B.** #2's deletion
+     measured positive on all four arms and was briefly shipped; the pinned
+     auctions in `tests/` caught that the floor could no longer ask keycards
+     there. An A/B answers "is the average better", never "what capability did I
+     just remove".
 
 - **The 2/1 game backstop is retired** (`set_game_backstop`, default off;
   `--ns-game-backstop` restores it). Three crude rules — 4♥/4♠ with support,

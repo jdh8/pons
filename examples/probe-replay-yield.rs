@@ -24,6 +24,18 @@ fn bid(level: u8, strain: Strain) -> Call {
     })
 }
 
+/// A book key as a relative auction: our side's calls with the opponents
+/// passing throughout, ending with RHO's pass so the actor is on lead to bid.
+///
+/// The actor is whoever made `calls[0]` when `calls.len()` is even, and their
+/// partner when it is odd.
+fn key(calls: &[Call]) -> Vec<Call> {
+    calls
+        .iter()
+        .flat_map(|&c| [c, Call::Pass])
+        .collect::<Vec<_>>()
+}
+
 fn main() {
     let policy = american().against(Family::NATURAL);
     let actor = Seat::North;
@@ -104,6 +116,93 @@ fn main() {
                 bid(5, Strain::Hearts),
                 Call::Pass,
             ],
+        ),
+        // --- Constructive book re-audit (ben-gap-campaign.md, 2026-07-20) ---
+        // One entry per crude-node candidate, keyed on the *book* key so the
+        // node under test is the one that resolves.  A flat 0% replay fill is
+        // the infeasible-gate tell: the node pins every unnamed call at −∞
+        // while an unconditional rule keeps its `best` finite, so the escape
+        // hatch cannot fire.  Deletion candidate on sight.
+        (
+            "#1 1S-2C-2D-3D (opener_third_agree)",
+            key(&[
+                bid(1, Strain::Spades),
+                bid(2, Strain::Clubs),
+                bid(2, Strain::Diamonds),
+                bid(3, Strain::Diamonds),
+            ]),
+        ),
+        (
+            "#2 1S-2C-2D-3S (opener_third)",
+            key(&[
+                bid(1, Strain::Spades),
+                bid(2, Strain::Clubs),
+                bid(2, Strain::Diamonds),
+                bid(3, Strain::Spades),
+            ]),
+        ),
+        (
+            "#3 1D-1S-1NT-2C-2D-2NT (xyz accept_or_decline)",
+            key(&[
+                bid(1, Strain::Diamonds),
+                bid(1, Strain::Spades),
+                bid(1, Strain::Notrump),
+                bid(2, Strain::Clubs),
+                bid(2, Strain::Diamonds),
+                bid(2, Strain::Notrump),
+            ]),
+        ),
+        // The next two are NMF-only keys (`set_new_minor_forcing`, default
+        // off).  Under the shipped XYZ they read a flat 0% for a *different*
+        // reason than the game backstop did: `xyz_responder` names only
+        // 2♣/2♦/2M/Pass, so responder's 2NT and the 3M jump are −∞ — our side
+        // never bids them, the auction is unreachable, and no hand can replay
+        // it.  Unreachable, not infeasible: nothing to delete.  Keep both as
+        // the worked example of that false positive.
+        (
+            "#3 1D-1S-1NT-2NT (unreachable under XYZ)",
+            key(&[
+                bid(1, Strain::Diamonds),
+                bid(1, Strain::Spades),
+                bid(1, Strain::Notrump),
+                bid(2, Strain::Notrump),
+            ]),
+        ),
+        (
+            "#4 1D-1S-1NT-2C-3S (unreachable under XYZ)",
+            key(&[
+                bid(1, Strain::Diamonds),
+                bid(1, Strain::Spades),
+                bid(1, Strain::Notrump),
+                bid(2, Strain::Clubs),
+                bid(3, Strain::Spades),
+            ]),
+        ),
+        (
+            "#5 2S-2NT-3S (asker_after_max_major)",
+            key(&[
+                bid(2, Strain::Spades),
+                bid(2, Strain::Notrump),
+                bid(3, Strain::Spades),
+            ]),
+        ),
+        (
+            "#6 2C-2D-2S-3S (opener_after_spades_raise)",
+            key(&[
+                bid(2, Strain::Clubs),
+                bid(2, Strain::Diamonds),
+                bid(2, Strain::Spades),
+                bid(3, Strain::Spades),
+            ]),
+        ),
+        (
+            "#7 1NT-2NT-3C-3D (pass_out)",
+            key(&[
+                bid(1, Strain::Notrump),
+                bid(2, Strain::Notrump),
+                bid(3, Strain::Clubs),
+                bid(3, Strain::Diamonds),
+            ]),
         ),
     ];
 

@@ -26,8 +26,9 @@ use pons::american;
 use pons::bidding::Family;
 use pons::bidding::american::{
     TwoOverOneGate, set_fourth_suit_forcing, set_game_backstop, set_limit_raise_acceptance,
-    set_major_choice_of_games, set_major_game_tries, set_major_rebid_tails, set_two_over_one_fit,
-    set_two_over_one_gate,
+    set_major_choice_of_games, set_major_game_tries, set_major_rebid_tails, set_opener_third,
+    set_second_suit_agreement, set_two_over_one_fit, set_two_over_one_gate,
+    set_xyz_invite_judgment,
 };
 use pons::bidding::instinct::set_two_over_one_force;
 use pons::scoring::final_contract;
@@ -102,6 +103,25 @@ struct Args {
     /// in an established two-over-one (`set_two_over_one_force`, shipped on)
     #[arg(long, default_value_t = false)]
     no_two_over_one_force: bool,
+
+    /// Treatment: *drop* opener's third call after trump is agreed at
+    /// `1M–2r–R–3M`, so the node falls to the floor (`set_opener_third`,
+    /// shipped on).  Re-audit candidate #2 — measures positive but strands
+    /// every slam at the node; not shipped.
+    #[arg(long, default_value_t = false)]
+    no_opener_third: bool,
+
+    /// Treatment: *drop* opener's third call after responder agrees the second
+    /// suit at `1M–2r–2x–3x` (`set_second_suit_agreement`, shipped on).
+    /// Constructive book re-audit candidate #1.
+    #[arg(long, default_value_t = false)]
+    no_second_suit_agreement: bool,
+
+    /// Treatment: *drop* opener's judgment of the XYZ invitations that stop
+    /// below game (`set_xyz_invite_judgment`, shipped on).  Constructive book
+    /// re-audit candidate #3 — the most-reached one.
+    #[arg(long, default_value_t = false)]
+    no_xyz_invite_judgment: bool,
 }
 
 /// Parse the `--two-over-one-gate` argument
@@ -131,6 +151,9 @@ fn set_knobs(args: &Args, treatment: bool) {
     // treatment *restores* the old behaviour rather than adding a new one.
     set_game_backstop(treatment && args.game_backstop);
     set_two_over_one_force(!(treatment && args.no_two_over_one_force));
+    set_opener_third(!(treatment && args.no_opener_third));
+    set_second_suit_agreement(!(treatment && args.no_second_suit_agreement));
+    set_xyz_invite_judgment(!(treatment && args.no_xyz_invite_judgment));
 }
 
 #[allow(clippy::cast_precision_loss)]
@@ -146,9 +169,13 @@ fn main() {
             || args.two_over_one_fit
             || args.game_backstop
             || args.no_two_over_one_force
+            || args.no_opener_third
+            || args.no_second_suit_agreement
+            || args.no_xyz_invite_judgment
             || gate_selected,
         "select at least one treatment: --game-tries / --limit-raise / --tails / --fsf / \
          --choice-of-games / --two-over-one-fit / --two-over-one-gate / --game-backstop / \
+         --no-opener-third / --no-second-suit-agreement / --no-xyz-invite-judgment / \
          --no-two-over-one-force",
     );
     assert!(!args.fsf || args.tails, "--fsf rides --tails; enable both");
@@ -205,6 +232,9 @@ fn main() {
         ("two-over-one-fit", args.two_over_one_fit),
         ("game-backstop", args.game_backstop),
         ("no-two-over-one-force", args.no_two_over_one_force),
+        ("no-opener-third", args.no_opener_third),
+        ("no-second-suit-agreement", args.no_second_suit_agreement),
+        ("no-xyz-invite-judgment", args.no_xyz_invite_judgment),
     ]
     .iter()
     .filter(|(_, on)| *on)

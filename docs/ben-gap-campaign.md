@@ -546,12 +546,27 @@ competitive tree by frequency is impractical past depth ~3 — but the ruliness
 
 ## Re-audit the book against the stronger floor (opened 2026-07-20)
 
-The floor got better; the book never got re-examined. Every authored node was
-written against the deterministic `instinct()` ladder, and `american()` now
-floors off the BBA-distilled net (+0.11/+0.25 vs BBA). Where a node is cruder
+The floor got better; the book never got re-examined. Where a node is cruder
 than the floor it shadows, it is now a *net negative* — the iron rule says a
 node with finite mass shadows the floor, so the book keeps winning arguments it
 should be losing.
+
+**Which floor got better depends on the book, and this splits the audit in two.**
+`with_floor` ([american.rs](../src/bidding/american.rs)) attaches the
+BBA-distilled net to the `competitive` and `defensive` books only; the
+`constructive` book is floored by the deterministic `instinct()` ladder, by
+design — the learned floors are trained on contested auctions, so the natural
+milestone bidder is the right answer for uncontested sequences. So:
+
+- **Constructive pass (this one).** The relevant improvement is *not* the net
+  swap — it is that `instinct()` itself has gained heavily since these nodes were
+  authored: the settle floor, M6.4 slam RKCB and control reading, the fit-sum
+  game gate, `points` as rule-of-N+8, and now `set_two_over_one_force`. Nodes
+  written against the *old* ladder are the suspects.
+- **Contested pass (separate, later).** `competition.rs` / `defense.rs` nodes are
+  the ones that genuinely now shadow the distilled net (+0.11/+0.25 vs BBA).
+  Different premise, different candidate list; do it after the constructive pass
+  lands.
 
 **First data point — the 2/1 game backstop, retired.** Three rules (4♥/4♠ with
 support, else an unconditional 3NT) answering every game-forcing continuation
@@ -573,13 +588,154 @@ IMPs/board NV/vul vs BBA (409,600×2, all CI>0, fires 0.57%,
    leaves every unnamed call at −∞ while its unconditional rule keeps the node's
    best finite, so the replay gate's all-−∞ escape hatch cannot fire and it
    rejects **every** hand. `probe-replay-yield` reports that as a flat 0% fill.
-   Any node found that way is a deletion candidate on sight.
+   Any node found that way is a deletion candidate on sight — *after* the
+   reachability check below.
+
+**A flat 0% has two causes, and only one is a bug** (learned running the sweep,
+2026-07-20). The gate replays partner's *earlier* calls, so a 0% says "no hand
+we could hold bids this auction". That is a defect only when our own system can
+in fact produce the auction:
+
+- **Infeasible** — the auction is reachable and some node still pins the call at
+  −∞ (the game backstop). Real bug, delete the node.
+- **Unreachable** — our system simply never makes that call, so the −∞ is
+  correct and the auction never arises in play. Screen artifact, change nothing.
+
+Worked example of the second: `1♦–1♠–1NT–2NT` and `1♦–1♠–1NT–2♣–3♠` both read
+0%, but `xyz_responder` ([xyz.rs](../src/bidding/american/xyz.rs)) names only
+2♣/2♦/2M/Pass — under XYZ every invite goes through the relay, so responder's
+natural 2NT and the 3M jump are deliberately unbid. Both keys belong to NMF
+(`set_new_minor_forcing`, default off), which is not registered. So: before
+acting on a 0%, ask whether *our side* bids that call at that node. `probe-replay-yield`
+carries both auctions as the standing example.
 
 **Method.** Rank shadowing nodes by fired-rate, A/B-delete the crudest. Fast
 no-DD-heavy pre-check: `ab-major-continuations` (solves only the divergent
 subset — 200k boards in seconds); real-routing verdict via `bba-gen`. Candidate
 sources: other `Fallback::classify` backstops, and any auction
 `probe-replay-yield` reports at 0%.
+
+**Constructive candidate list (2026-07-20).** The signature is the backstop's:
+few rules, at least one unconditional `hcp(0..)` / `points(0..)`, no shape / fit /
+keycard term, depth ≥ 3. Ranked crudest-first.
+
+| # | Node | Depth | Shape | Knob |
+| --- | --- | --- | --- | --- |
+| 1 | `game_force.rs` `opener_third_agree` | 4 | 4NT on `points(15..)`, else unconditional 3NT + 5x | `set_second_suit_agreement` (on; shipped on only **+0.0012/+0.0014** vs the *old* floor) |
+| 2 | `game_force.rs` `opener_third` | 4 | 4NT on `points(15..)`, else unconditional 4M | none |
+| 3 | `xyz.rs` + `nmf.rs` `accept_or_decline` (two independent copies) | 4–6 | `points(14..)` else unconditional `Pass`, registered 4–6× per prefix | none |
+| 4 | `nmf.rs` `placement_over_support` / `placement_no_fit`, `maxed` branches | 5 | a *single* unconditional rule — every other call −∞ | none |
+| 5 | `weak_twos.rs` `asker_after_max_major` | 3 | one unconditional 4M; no slam path after a maximum Ogust answer | none |
+| 6 | `strong_two.rs` `opener_after_*_raise` | 4 | bare `hcp(27..)` / `hcp(28..)` trigger, else unconditional 4M / 5m | none |
+| 7 | `notrump.rs` `pass_out` | 4 | one unconditional `Pass`; the docstring self-declares it exists only to override the floor | none |
+
+*Excluded deliberately:* `slam.rs`'s asker continuations and the relay
+completions (`xyz_completion`, `complete_texas`, …). Their unconditional rules
+are convention correctness — `slam.rs` documents that they exist so no node's
+only finite logits are *illegal* calls — so there is no bidding-quality upside,
+even though each is a replay-starvation site for any off-convention call.
+
+*Exhausted:* `Fallback::classify` backstops. Of the ~20 `fallback_all_seats`
+sites in the American book exactly two carried an open-ended `Undisturbed`
+guard, and both were the retired backstop. Every remaining candidate is an
+authored node, not a fallback.
+
+**Screen result (`probe-replay-yield`, 2026-07-20): no free deletion.** Every
+*reachable* candidate fills its replay gate — #1 100%, #2 100%, #3 (the XYZ
+copy) 100%, #5 80%, #6 100%, #7 100%. The only two 0% fills are the unreachable
+NMF keys above. So no candidate repeats the backstop's sampler pathology; the
+remaining case against them is bidding quality alone.
+
+### Reach first: measure how often a node is *entered* (2026-07-20)
+
+`probe-node-reach` (new) bids uncontested self-play deals and counts auctions
+passing through each candidate key. 400,000 deals, seed 1784484329:
+
+| Key | Reach |
+| --- | --- |
+| yardstick — `1♠–2♣`, the retired backstop's anchor | **0.5975%** |
+| #3 `xyz accept_or_decline` | **0.1143%** |
+| #5 `asker_after_max_major` | 0.0560% |
+| #2 `opener_third` | 0.0488% |
+| #7 `pass_out` | 0.0385% |
+| #6 `opener_after_spades_raise` | 0.0367% |
+| #1 `opener_third_agree` | 0.0192% |
+
+This is the ranking key, and it does **not** correlate with crudeness: the
+single crudest table (#1, two rules on a raw point count) is the *least*
+reached, and the most-reached (#3) turned out to be the most valuable node in
+the set. Run this before ranking anything by how the rules look.
+
+### Verdict: nothing ships, all three nodes stand (2026-07-20)
+
+`ab-major-continuations`, **2,000,000 boards per arm per vulnerability**, seed
+1784484826, both scorers. (The first pass ran 200k and read all three as
+washes — at 0.05% fire that is ~90 divergent boards against a CI of ±1.5
+IMPs/div, i.e. no information. Ten times the sample separated them; the extra
+cost is near-zero because this harness DD-solves only the divergent subset.)
+
+| Candidate | Divergent | plain /div NV/vul | PD /div NV/vul | Verdict |
+| --- | --- | --- | --- | --- |
+| #3 `xyz_invite_judgment` deleted | 15,041 (**0.75%**) | **−1.145 / −2.333** | **−0.466 / −1.406** | **keep**, decisively |
+| #1 `second_suit_agreement` deleted | 704 (0.04%) | **−2.777 / −3.351** | **−2.749 / −3.328** | **keep** |
+| #2 `opener_third` deleted | 971 (0.05%) | **+0.437 / +0.527** | **+0.524 / +0.637** | measures positive, **not shipped** |
+
+**#2 measures positive and is still rejected.** +0.0002/+0.0003 plain and
++0.0003/+0.0003 IMPs/board NV/vul, the same sign on all four arms; polarity
+re-verified by running the restore arm, which reproduces the mirror image
+exactly (−424 IMPs, −0.437/div, the same 971 divergent boards). The default was
+flipped to off — and then flipped back, because two integration tests
+(`opener_third_keycard_ask`) failed and pointed at a capability the measurement
+does not price:
+
+```text
+1♠–(P)–2♣–(P)–2♦–(P)–3♠–(P), opener holds:
+  AQJ52.A2.KQJ4.92   (17 HCP)  ->  4♠
+  AKQJ2.AKQ.AQJ4.9   (26 HCP)  ->  4♠
+```
+
+With the node deleted the floor **never asks keycards at this node at all** — it
+signs off in `4M` on a 26-count opposite a game-forcing two-over-one, so slam is
+unreachable there. That is the backstop lesson repeating: deleting a node
+deletes the invariant it held by omission, and the invariant here is "opener can
+still try for slam". A +0.0003 IMPs/board gain does not buy a total capability
+loss, however consistent its sign.
+
+*Resumable design.* Follow the `set_two_over_one_force` pattern that made the
+backstop deletion pay: delete the node **and** teach `instinct()` to ask
+keycards on a controls-and-fit test at an agreed-trump game force. Only the raw
+`points(15..)` threshold is clearly wrong; the ask itself is load-bearing, and a
+floor that asks on controls should beat both arms measured here. Not attempted —
+the ceiling is ~0.0003 IMPs/board at 0.05% reach, so it is worth doing only as a
+by-product of general floor slam work.
+
+**#1 and #3 are vindicated** — both nodes beat the floor, #3 by a wide margin at
+15× the fire rate of anything else in the sweep. #5–#7 stay unmeasured but are
+now *lower*-reach than #2, whose entire measured effect is +0.0003 IMPs/board;
+they cannot pay for a run either way.
+
+**The transferable lessons.**
+
+1. *Rank by reach, not by crudeness.* The backstop paid because it was an
+   open-ended `Fallback` standing in for a whole subtree; crudeness of the rules
+   predicted nothing. This sweep was ordered by crudeness and got its ranking
+   backwards — #3, dismissed on appearance, was the highest-reach node and the
+   most valuable. `probe-node-reach` costs seconds; run it first.
+2. *A wash at 90 divergent boards is not a wash, it is an absence of data.*
+   Three candidates read "no effect" at 200k and separated cleanly into a win, a
+   loss and a rout at 2M. Where the harness only solves divergent boards, buy
+   the sample before drawing the conclusion.
+3. *Crude-but-rare is worth nothing, but crude-and-common can still be right.*
+   #3 is two rules on a raw point count — exactly the signature this sweep was
+   hunting — and deleting it costs 0.0175 IMPs/board vulnerable. A simple rule
+   at a common node can beat a general floor; the signature is a search hint,
+   never a verdict.
+4. *Run the unit tests before believing a positive A/B.* #2's deletion measured
+   positive on all four arms and was briefly shipped; the integration tests
+   caught that the floor cannot ask keycards there at all. The A/B answers "is
+   the average better", never "what capability did I just remove" — that is what
+   the pinned auctions in `tests/` are for, and a failing one after a deletion
+   is evidence, not a chore.
 
 ## Success criteria
 

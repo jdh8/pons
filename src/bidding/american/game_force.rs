@@ -5,7 +5,8 @@
 //! three rounds of the game-forcing auction (opener's rebid, responder's rebid,
 //! opener's third call).  A game backstop fallback used to answer everything
 //! those three rounds miss; it is retired ([`set_game_backstop`], off by
-//! default) — the BBA-distilled floor bids those positions better.
+//! default) — `instinct()`, which floors the constructive book, bids those
+//! positions better than the table did.
 //!
 //! # Forcing by omission
 //!
@@ -44,6 +45,11 @@ std::thread_local! {
     /// **Off by default** since 2026-07-20 — the floor answers these nodes
     /// better than the table did; see [`set_game_backstop`].
     static GAME_BACKSTOP: Cell<bool> = const { Cell::new(false) };
+
+    /// Whether opener authors a third-call table after trump is agreed at
+    /// `1M – 2r – R – 3M`.  On by default; the deletion measures positive but
+    /// strands every slam at this node, see [`set_opener_third`].
+    static OPENER_THIRD: Cell<bool> = const { Cell::new(true) };
 }
 
 /// Toggle opener's third call after responder agrees the second suit
@@ -56,6 +62,43 @@ pub fn set_second_suit_agreement(on: bool) {
 
 fn second_suit_agreement() -> bool {
     SECOND_SUIT_AGREEMENT.with(Cell::get)
+}
+
+/// Toggle opener's third call after responder sets trump: `1M – 2r – R – 3M`
+///
+/// Read at book-construction time.  **On by default** — but see the caveat, it
+/// is a deletion candidate blocked on a floor capability, not a settled node.
+///
+/// Two rules — 4NT RKCB on `points(15..)`, else an unconditional `4M` — the
+/// retired game backstop's signature: a raw point threshold, no shape or
+/// control term, and every cue-bid and five-level call at −∞ at depth 4.
+///
+/// Deleting it *measures* **+0.437/+0.527 plain, +0.524/+0.637 PD** IMPs per
+/// divergent board NV/vul (`ab-major-continuations`, 2,000,000 boards per arm
+/// per vulnerability, seed 1784484826, 971 divergent = 0.05%) — +0.0002/+0.0003
+/// per board, the same sign on all four arms.
+///
+/// **It is not shipped anyway.** With the node gone the floor never asks
+/// keycards here at all: it signs off in `4M` on a 26-count opposite a
+/// game-forcing two-over-one, so slam becomes unreachable at this node. That is
+/// the backstop lesson again — deleting a node deletes the invariant it held by
+/// omission, and here the invariant is "opener can still try for slam". A
+/// +0.0003 IMPs/board gain does not buy a total capability loss.
+///
+/// The architecturally correct fix, if this is ever resumed, is the
+/// [`set_two_over_one_force`][crate::bidding::instinct::set_two_over_one_force]
+/// pattern: delete the node *and* teach `instinct()` to ask keycards on a
+/// controls-and-fit test at an agreed-trump game force, which should beat both
+/// arms. Only the raw point threshold is obviously wrong; the ask itself is
+/// load-bearing.
+///
+/// The RKCB install (`slam::install_rkcb`) is independent of this knob.
+pub fn set_opener_third(on: bool) {
+    OPENER_THIRD.with(|cell| cell.set(on));
+}
+
+fn opener_third_enabled() -> bool {
+    OPENER_THIRD.with(Cell::get)
 }
 
 /// Re-register the game backstop over uncovered game-forcing continuations
@@ -358,7 +401,9 @@ fn register_major(book: &mut Trie, major: Suit, resp: Suit) {
                 r_call,
                 call(3, major_strain),
             ];
-            super::insert_uncontested(book, third_calls, opener_third(major));
+            if opener_third_enabled() {
+                super::insert_uncontested(book, third_calls, opener_third(major));
+            }
             super::slam::install_rkcb(book, third_calls, major);
         }
 

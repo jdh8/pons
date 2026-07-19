@@ -121,7 +121,7 @@ pub(crate) use defense::{
     natural_defense_enabled, natural_double_floor, natural_overcall_points, nt_overcall_gladiator,
     nt_overcall_systems_on, woolsey_double_floor, woolsey_enabled, woolsey_points,
 };
-pub use game_force::{set_game_backstop, set_second_suit_agreement};
+pub use game_force::{set_game_backstop, set_opener_third, set_second_suit_agreement};
 pub use nmf::set_new_minor_forcing;
 pub use notrump::{
     EUROPEAN, PUPPET, notrump_responses, set_crawling_stayman, set_garbage_stayman,
@@ -151,7 +151,7 @@ pub use responses::{
     set_major_choice_of_games, set_two_over_one_fit, set_two_over_one_gate, set_up_the_line,
 };
 pub use slam::set_minor_keycard;
-pub use xyz::set_xyz;
+pub use xyz::{set_xyz, set_xyz_invite_judgment};
 
 /// A bid as a [`Call`], for trie keys
 const fn call(level: u8, strain: Strain) -> Call {
