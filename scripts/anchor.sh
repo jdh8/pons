@@ -40,7 +40,10 @@ for vul in none both; do
     dir="$SNAP/$vul"
     [ -d "$dir" ] && { log "skip $dir (exists)"; continue; }
     log "generate $dir"
-    scripts/bba-gen-parallel.sh "$dir" "$PER_SHARD" -v "$vul" >>"$R/log" 2>&1
+    # --our-floor american-instinct: bba-decompose replays through the
+    # deterministic books; american() now ships the non-decomposable net floor.
+    scripts/bba-gen-parallel.sh "$dir" "$PER_SHARD" -v "$vul" \
+        --our-floor american-instinct >>"$R/log" 2>&1
 done
 
 log "decompose -> $SNAP/report.md"

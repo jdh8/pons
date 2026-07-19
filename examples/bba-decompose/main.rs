@@ -29,7 +29,7 @@ use common::{Dump, Reached, mean_with_ci, next_call, seat_to_act};
 use contract_bridge::auction::{Auction, Call};
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Seat, Strain};
 use ddss::{NonEmptyStrainFlags, Solver, TrickCountTable};
-use pons::bidding::american::american;
+use pons::bidding::american::american_instinct;
 use pons::bidding::context::relative;
 use pons::bidding::{Family, Phase, Stance};
 use pons::scoring::{final_contract, imps, ns_score_contract, ns_score_pd};
@@ -288,7 +288,10 @@ fn deal_key(deal: &FullDeal) -> String {
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
     let arms = load_arms(&args.inputs)?;
-    let stance = american().against(Family::NATURAL);
+    // Replay-verify through the deterministic reference: the anchor generates
+    // with `--our-floor american-instinct`, and replay_verify demands 100%
+    // bit-reproduction — the net floor's off-book calls don't reproduce.
+    let stance = american_instinct().against(Family::NATURAL);
 
     // DD cache: deal-keyed tables survive across anchors (same seeds → same
     // deals), so only newly-divergent boards ever need a fresh solve.

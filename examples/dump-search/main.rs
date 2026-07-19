@@ -40,7 +40,7 @@
 //!
 //! M3.1's win condition is that the targets *differ from the teacher mainly
 //! off-book / contested* (where the books were silent).  So at each row this
-//! also classifies the deterministic teacher ([`american`]) and the raw net
+//! also classifies the deterministic teacher ([`american_instinct`]) and the raw net
 //! prior ([`american_neural`]) and accumulates, split by **off-book/on-book**
 //! and **contested/constructive**:
 //!
@@ -70,7 +70,7 @@ use pons::bidding::context::{Context, relative};
 use pons::bidding::features::{FEATURES_LEN, FEATURES_VERSION, features};
 use pons::bidding::search_floor::SearchFloor;
 use pons::bidding::{Family, Phase, System};
-use pons::{american, american_neural, american_search_with};
+use pons::{american_instinct, american_neural, american_search_with};
 use rand::rngs::StdRng;
 use rand::{RngExt, SeedableRng};
 use std::collections::BTreeMap;
@@ -182,7 +182,7 @@ fn main() -> std::io::Result<()> {
     .against(Family::NATURAL);
     // The references for the M3.1 measure: the deterministic teacher and the raw
     // net prior the search starts from.  Both are cheap (no search).
-    let teacher = american().against(Family::NATURAL);
+    let teacher = american_instinct().against(Family::NATURAL);
     let net = american_neural().against(Family::NATURAL);
     let mut rng = StdRng::seed_from_u64(args.seed);
 
@@ -300,7 +300,7 @@ fn main() -> std::io::Result<()> {
         "tags": "sibling .tags file: one u8 per row, bit0 = contested phase, bit1 = off-book (search fired)",
         "system": "american_search()",
         "search": { "layouts": args.layouts, "shortlist": args.shortlist, "temperature": args.temperature },
-        "measure_references": { "teacher": "american()", "net": "american_neural()" },
+        "measure_references": { "teacher": "american_instinct()", "net": "american_neural()" },
         "git_sha": git_sha,
         "seed": args.seed,
         "boards": args.boards,
@@ -331,7 +331,7 @@ fn main() -> std::io::Result<()> {
         pct(contested),
     );
     report_reference(
-        "Search target vs the deterministic teacher (american):",
+        "Search target vs the deterministic teacher (american_instinct):",
         &vs_teacher,
     );
     report_reference(

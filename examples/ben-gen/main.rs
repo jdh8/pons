@@ -426,6 +426,9 @@ fn main() -> anyhow::Result<()> {
         return Ok(());
     }
 
+    // american() = the shipped net floor, by design: measure the real us vs BEN.
+    // The gap lives off-book/contested, exactly where the net floor differs from
+    // american_instinct(); the -1.906 Tier-S anchor (119675f) predates the swap.
     let our_floor = american().against(Family::NATURAL);
     let epbot = if args.calibrate_epbot {
         let path = std::env::var("BBA_LIB").unwrap_or_else(|_| DEFAULT_LIB.into());

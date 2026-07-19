@@ -39,6 +39,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (default `american`) and a `FEATURES` passthrough in `bba-gen-parallel.sh`.
   Live DD search on top of the stronger prior is the next follow-on. Ledger:
   `docs/bba-gap-campaign.md` (Pillar B).
+- **BBA-gap anchor harness repointed to `american_instinct()`** — `scripts/anchor.sh`
+  now generates with `--our-floor american-instinct` and `bba-decompose` replays
+  through the deterministic books, so the decompose-and-rank series stays
+  bit-reproducible (the net floor's off-book calls don't decompose into buckets).
+  `dump-search`'s "deterministic teacher" reference likewise → `american_instinct()`.
+  Tooling only — completes the disclosable-reference repointing the floor swap began.
 - **`dutch()` — a new natural 2/1 system, wide-1♣ openings (Phases 0–1)**. A
   sibling system factory built around a wide, non-forcing 1♣ — a "lawyer's
   Polish Club" that naturalises the Polish 1♣. It is a **champion candidate**:

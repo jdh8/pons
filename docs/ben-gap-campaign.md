@@ -2,7 +2,7 @@
 
 **Status: first anchor MEASURED (2026-07-17) — pons is
 −1.906 plain / −1.860 PD IMPs/board behind BEN Tier S** (20k boards at
-`119675f`; trail below). Phase 0 is complete: the EPBot-vs-BEN calibration
+`119675f`; **predates the 2026-07-19 floor swap** — see trail below). Phase 0 is complete: the EPBot-vs-BEN calibration
 exit gate PASSED (plain DD −0.568 pooled from EPBot's side vs BBA's
 published −0.38 DD / −0.51 SD; details in
 [ben-gen-design.md](ben-gen-design.md), validation step 4). Phase 1's
@@ -428,6 +428,12 @@ Tier S, 20k boards (8×1,250 × {none, both}), persistent
 | date | pons | plain | PD | notes |
 | --- | --- | --- | --- | --- |
 | 2026-07-17 | `119675f` | **−1.906** (none −1.640 [−1.736, −1.545], both −2.172 [−2.293, −2.050]) | **−1.860** (none −1.510, both −2.209) | First anchor; retires the chained ≈2.1. Divergence 71%/70% (vs 49%/46% for EPBot-vs-BEN). Reading knobs at committed defaults (off). |
+
+> **Floor-swap caveat (2026-07-19, `9dbad7d`):** this row measured the pre-swap
+> deterministic floor. `american()` now ships the BBA-distilled net (+0.11 NV /
+> +0.25 vul vs BBA), and `ben-gen` bids the real shipped floor — so the next
+> Tier-S re-anchor will refresh this headline. Deferred to the next **periodic**
+> re-anchor (not per-fix), per the Phase-2 loop.
 
 **Tier-F gap** (one-time calibration, fresh seeds 1784294370, 102.4k/arm,
 sha 74d783d, `ab-results/reading-knobs/2026-07-17/`): plain **−0.879**
