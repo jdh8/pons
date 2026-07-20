@@ -69,7 +69,7 @@ the floor's transfer-completion still holds.
 | 3 | 2-level openings (Multi + **BBA's Polish two-suiters**/UNT) + strong-2♣ tree | pending — **Muiderberg superseded**, see below |
 | 4 | Reader/floor reconciliation + divergent-opening competitive book | pending |
 | 5 | Iterate to champion vs BBA/BEN; promote if it wins | pending |
-| WJ-floor | Distil BBA-WJ as the floor over Dutch's divergent minors | **A/B A WON** (floor swap, +0.18/+0.28 plain, shipped); **A/B B LOST** (WJ over 1♦, −0.005/−0.017 PD — inherited overbid, `dutch_wj()` default-off); Phase 3's two-level rows are the remaining arm |
+| WJ-floor | Distil BBA-WJ as the floor over Dutch's divergent minors | **A/B A WON** (floor swap, +0.18/+0.28 plain, shipped); **A/B B LOST** (WJ over 1♦, −0.005/−0.017 PD — inherited overbid; routing removed, net kept); Phase 3's two-level rows are the remaining arm |
 
 Each phase gates on a paired-seed A/B via `examples/bba-gen` (dutch arm vs
 american arm), dual-scored (`ns_score_pd` + `ns_score_contract`), fresh
@@ -180,8 +180,10 @@ overbid arriving in Dutch's 1♦ auctions, not judgement — and it should show 
 **worse at `both` than at `none`**, the fingerprint Step 0 just recorded.
 
 **Step B — A/B B LOST. The teacher's overbid transferred; the range mismatch did
-not matter.** `scripts/dutch-wj-ab.sh`, 204 800 bd/arm/vul, seed base 1784527375,
-`dutch-wj` (WJ net under *our* 1♦) against `dutch` (BBA net throughout).
+not matter.** 204 800 bd/arm/vul, seed base 1784527375, `dutch-wj` (WJ net under
+*our* 1♦) against `dutch` (BBA net throughout). Dumps kept at
+`ab-results/dutch-wj/`; the runner and the `--our-floor dutch-wj` arm were
+removed with the routing, so reproducing this needs both re-added.
 
 | `dutch-wj` − `dutch` | plain DD | perfect defense | fired |
 | --- | --- | --- | --- |
@@ -217,13 +219,19 @@ routing at 17 — the repair the plan ruled out on architectural grounds — wou
 have removed only a tenth of the mass and the *smaller* half of the effect. It
 was never the fix.
 
-**`dutch_wj()` stays as a measured, default-off arm.** `dutch()` is untouched and
-byte-identical, so this costs nothing to keep, and the net plus the routing
-plumbing are what Phase 3 wants: once Dutch adopts BBA's Multi 2♦ and Polish
-two-suiters (decision below), book and teacher share the *same rows* there — a
-strictly cleaner transfer than 1♦ ever was, with no range mismatch and no
-unauthored continuation tree to bid into. The open question for that arm is
-whether the overbid follows; it is the same net, so assume it does until measured.
+**The routing was removed; the net stays** (jdh8, 2026-07-20). `dutch_wj()` and
+`DutchFloor` are gone — a measured-loss routing kept "just in case" is dead
+surface that invites someone to re-enable it without re-reading the verdict.
+`NeuralFloorWj` / `neural::classify_wj` / `weights/wj_bba.f32` remain embedded and
+tested, because the net itself is not what failed: it is what Phase 3 wants, once
+Dutch adopts BBA's Multi 2♦ and Polish two-suiters (decision below) and book and
+teacher share the *same rows* — no range mismatch, no unauthored continuation
+tree. Phase 3 wires its own routing over the two-level openings, which is a
+different arm from the 1♦ one that was measured. **Assume the overbid follows
+there until measured**; it is a property of the teacher, not of the 1♦ subtree.
+
+`dutch()` is unchanged throughout: `NeuralFloorBba` floors every Dutch subtree,
+1♦ included.
 
 **Measured facts about BBA-WJ** (274k-board harvest via the surviving
 `bba-wj-reference` binary, which records EPBot's own

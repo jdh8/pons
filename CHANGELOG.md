@@ -9,29 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **`dutch_wj()` and `DutchFloor` — a floor that routes each opening to a net
-  distilled from a teacher that plays it.** Dutch is american with the minor
-  openings replaced, so its subtrees do not share one teacher: the majors and
-  `1NT` are american's verbatim, but its `1♦` is Polish-shaped (5+♦ or 4=4=4=1,
-  denying a five-card major) and an american-distilled net has never seen one.
-  `DutchFloor` sends **our own** `1♦` subtree to `NeuralFloorWj` and everything
-  else to the `NeuralFloorBba` that `dutch()` uses throughout. The guard is on
-  *our* side having opened — the opponents bid american, so routing on the call
-  alone would read their natural `1♦` as Polish. `1♣` is excluded (only 73% hand
-  agreement: WJ's traditional `2♣` takes the minimum club hands Dutch opens `1♣`
-  with, so a quarter of the mass is out of distribution precisely on club
-  length), and `2♣` is excluded permanently — Dutch's is *strong* and WJ's is a
-  *minimum* club hand, the one place the two systems give the same call opposite
-  meanings. Smoke-tested paired at 2000 boards: 81 divergent auctions, every one
-  opened `1♦`, zero leakage. **A/B B measured it a loss** (204 800 bd/arm/vul:
-  +0.0019/−0.0052 plain, −0.0095/−0.0173 PD at none/both), so `dutch()` keeps
-  `NeuralFloorBba` and `dutch_wj()` stays a default-off arm. The loss is the
-  teacher's overbid transferring through the distillation — the WJ arm bids
-  +0.33 of a level higher over the divergent 1♦ auctions, reaching ~10pp more
-  games and ~40% more slams — and it is *not* the 18+ range mismatch the plan
-  pre-registered: the effect is larger in the 11–17 bucket than in 18+. Kept
-  because Phase 3 wants the same net over the two-level openings, where book and
-  teacher will share identical rows.
 - **`NeuralFloorWj` and `neural::classify_wj` — the WJ-distilled floor.** Same
   88 disclosable v3 features, same forward pass, same forced-rails as
   `NeuralFloorBba`; the teacher is EPBot's Wspólny Język (system 2,
@@ -41,10 +18,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   been sitting in `src/bidding/weights/` since being trained with nothing
   referencing them; they are now embedded and covered by a candle-parity fixture
   test plus a check that the two nets are actually distinct bidders.
+
+  **Nothing routes to it yet, and the one routing we measured lost.** A floor
+  sending Dutch's own `1♦` subtree to this net (`dutch_wj()` / `DutchFloor`) was
+  built, smoke-tested clean — 81 divergent auctions at 2000 paired boards, every
+  one opened `1♦` — and then measured a loss over 204 800 bd/arm/vul:
+  +0.0019/−0.0052 plain and −0.0095/−0.0173 PD at none/both. The cause is the
+  teacher's overbid surviving distillation: the WJ arm bids **+0.33 of a level
+  higher** over the divergent `1♦` auctions, reaching ~10pp more games and ~40%
+  more slams, which plain DD half-forgives and perfect defense charges for —
+  worse when vulnerable, the exact fingerprint Step 0 recorded for BBA-WJ against
+  BBA-2/1. Notably it is *not* the 18+ range mismatch that was pre-registered as
+  the risk: the overbid is larger in the 11–17 bucket (+0.341 level) than in 18+
+  (+0.230), so it is uniform teacher bias, and capping the routing at 17 would
+  have removed a tenth of the mass and the smaller half of the effect. The
+  routing was therefore removed; the net stays for Phase 3, where Dutch adopts
+  BBA's Multi `2♦` and 5-5 Polish two-suiters and book and teacher would share
+  identical rows. Assume the overbid follows there until measured.
 - **`Context::we_opened()`** — whether our side made the opening bid. The parity
-  arithmetic already existed inline in `features_v3`'s we-opened bit; the Dutch
-  routing floor needed the same fact, and duplicating seat parity is exactly the
-  kind of thing that rots silently.
+  arithmetic already existed inline in `features_v3`'s we-opened bit and is now
+  named once; duplicating seat parity is exactly the kind of thing that rots
+  silently.
 - **`cards/American.bbsa` — a BBA convention card describing *our* 2/1, and
   `examples/probe-bba-conventions` to keep it honest.** The BBA-distilled floor
   `american_bba` was dumped before `dump-teacher` had a `--card` flag, so its
