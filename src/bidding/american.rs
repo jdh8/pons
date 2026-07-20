@@ -367,7 +367,7 @@ pub fn american_bba_neural() -> Pair {
 /// The 2/1 pair with the BBA-distilled floor under the **constructive** book too
 ///
 /// Exactly [`american`] but for which floor catches off-book *uncontested*
-/// auctions: [`with_floor`] hands those to the deterministic
+/// auctions: the shipped wiring hands those to the deterministic
 /// [`instinct`][crate::bidding::instinct()] ladder, and this hands them to the
 /// same [`NeuralFloorBba`][crate::bidding::neural_floor::NeuralFloorBba] that
 /// already floors the contested books.

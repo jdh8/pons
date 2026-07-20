@@ -130,6 +130,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   tests pin and the BBA-gap campaign re-anchors against
   (`bba-gen --our-floor american-instinct`).
 
+### Fixed
+
+- **`cargo doc` builds again.** `american_bba_constructive`'s rustdoc linked to
+  `with_floor`, which is `pub(in crate::bidding)`, so
+  `rustdoc::private_intra_doc_links` failed the whole documentation build under
+  `-D warnings` — and therefore docs.rs too. The prose now names the wiring
+  instead of linking to a private item.
+
 ### Changed
 
 - **Ogust's "good suit" is now trump HCP ≥ 5, matching BBA exactly.** Opener's
