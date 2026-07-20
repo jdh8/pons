@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Net-priced game/slam boundaries — bilans session D, first rung**
+  (`set_bilans_floor`, default **off**; A/B owed before default-on). The
+  instinct floor's game/slam boundary gates — combined-25 game, fit-sum-31
+  major game, the 33/37 slam blasts, the RKCB entry, and the asker's grand —
+  can now price their own contract with the session-C trick evaluator instead
+  of the point sums: `P(≥ tricks by our declarer in that strain)` against the
+  IMP break-even for the decision at the live vulnerability (45.5% non-vul /
+  37.5% vul games, even-money small slams, ~56–58% grands), the
+  vulnerability-awareness the point gates never had. The forced rails
+  (`game_forces`, the 2/1 force), stopper gates, trump-length conditions,
+  keycard counts, and the settle rail stay authored; knob-off the gates are
+  exactly the original point arithmetic and the net never runs. The name tips
+  the hat to Edward Piwowar's *bilans* engine inside EPBot. Measure with
+  `examples/ab-bilans-floor` at both vulnerabilities (protocol:
+  `docs/measurement.md`); no measured IMPs yet — the harness run is pending.
+
 - **A learned trick evaluator — bilans session C.** BBA's floor is not a rule
   table but the *bilans* pipeline:
   reconstruct the hidden hands, count winners and losers, pick the call by

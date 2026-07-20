@@ -26,8 +26,10 @@
 //! is a closed-form `Φ` away — no knots, no interpolation, and a CDF that stays
 //! smooth out into the tails where an interpolated one would have to clamp.
 //!
-//! Nothing in any [`System`][super::System] consumes this yet; it is behind the
-//! `evaluator` feature until the expected-score floor (session D) wires it in.
+//! Consumed by the instinct floor's game/slam boundary gates behind
+//! [`set_bilans_floor`][super::instinct::set_bilans_floor] (bilans session D,
+//! default off pending its A/B); the module itself is ungated and always
+//! builds.
 
 use super::features::{FEATURES_LEN_EVAL, features_eval};
 use super::inference::{Inferences, Relative};

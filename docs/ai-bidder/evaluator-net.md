@@ -1,8 +1,10 @@
 # The trick evaluator — bilans session C, learned
 
-> Status: net built and validated; **wired to nothing**. Behind the `evaluator`
-> Cargo feature (default off). No bidding behaviour changes, so no A/B applies.
-> The consumer — the expected-score floor (session D) — is the follow-up.
+> Status: net built and validated; **consumed** by the instinct floor's
+> game/slam boundary gates behind `set_bilans_floor` (session D, default off —
+> the knob's A/B, `examples/ab-bilans-floor`, decides whether it ships
+> default-on). The module is ungated and always builds; an earlier revision of
+> this line claimed an `evaluator` Cargo feature that never existed.
 
 ## What it is
 

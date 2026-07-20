@@ -55,9 +55,10 @@ use super::constraint::{
     support, support_point_count, takeout_double_shape_ok, they_bid, top_honors,
 };
 use super::context::Context;
-use super::inference::Inferences;
+use super::evaluator::trick_estimates;
+use super::inference::{Inferences, Relative, relative_of};
 use super::rules::Alert;
-use contract_bridge::auction::Call;
+use contract_bridge::auction::{Call, RelativeVulnerability};
 use contract_bridge::eval::hcp as holding_hcp;
 use contract_bridge::{Bid, Hand, Penalty, Rank, Strain, Suit};
 use core::cell::Cell;
@@ -299,6 +300,10 @@ std::thread_local! {
     /// re-probe under the since-deleted global scale had suggested 32; the
     /// fit-known-only scale that shipped is narrower and refuted it).
     static FIT_SUM_GAME: Cell<u8> = const { Cell::new(31) };
+
+    /// The *bilans* floor: game/slam boundary gates priced by the learned trick
+    /// evaluator instead of point arithmetic (see [`set_bilans_floor`]).
+    static BILANS_FLOOR: Cell<bool> = const { Cell::new(false) };
 }
 
 /// Responder runs from a doubled 1NT below this many HCP; with more, 1NT-X
@@ -356,6 +361,39 @@ pub fn set_settle_floor(enabled: bool) {
 /// The "settle" view of Pass is enabled (see [`set_settle_floor`])
 fn settle_floor() -> Cons<impl Constraint + Clone> {
     pred(|_: Hand, _: &Context<'_>| SETTLE_FLOOR.with(Cell::get))
+}
+
+/// Enable the *bilans* floor on the current thread: the game/slam boundary
+/// gates price their calls with the learned trick evaluator instead of the
+/// point-count arithmetic
+///
+/// **Off by default** (A/B owed; see the `ab-bilans-floor` example).  With it
+/// on, each converted gate asks [`trick_estimates`] for the contract's make
+/// probability and compares it against the IMP break-even for that decision at
+/// the live vulnerability ([`break_even`]) — partscore→game at 45.5% non-vul /
+/// 37.5% vul, small slam at even money, grand at ~56–58% — the
+/// vulnerability-awareness the point gates never had.  The RKCB ask enters at
+/// [`SLAM_ENTRY_P`] instead of the [`set_floor_slam_entry`] point floor.
+///
+/// The name tips the hat to Edward Piwowar: *bilans* (Polish for "balance") is
+/// his term for the always-running deal evaluator inside EPBot, the engine
+/// behind BBA, whose reverse-engineering (`docs/ai-bidder/bba-floor.md` §5)
+/// inspired this floor.  His is analytic winner/loser arithmetic on
+/// reconstructed hands; ours is the session-C learned net over the same
+/// question.
+///
+/// Flip it only on threads that classify through a [`Stance`][super::Stance]
+/// (every real harness does): the net was fit on trie-prefixed readings, and a
+/// bare [`Context`] hands it the looser projection-less ranges it was not
+/// trained on.  Read at classification time, per-thread.
+#[doc(hidden)]
+pub fn set_bilans_floor(enabled: bool) {
+    BILANS_FLOOR.with(|flag| flag.set(enabled));
+}
+
+/// The bilans floor is enabled (see [`set_bilans_floor`])
+fn bilans_floor() -> Cons<impl Constraint + Clone> {
+    pred(|_: Hand, _: &Context<'_>| BILANS_FLOOR.with(Cell::get))
 }
 
 /// Enable opener's/overcaller's competitive rebid of a long suit (**shipped default-on**)
@@ -1720,6 +1758,18 @@ fn combined_points(threshold: u8) -> Cons<impl Constraint + Clone> {
 /// RKCB-ask threshold per call, matching the other floor knobs.
 fn slam_entry_reached() -> Cons<impl Constraint + Clone> {
     pred(|hand: Hand, context: &Context<'_>| {
+        // Bilans mode: enter keycarding once the small slam clears the entry
+        // probability — the net analogue of the support-point floor below.
+        if BILANS_FLOOR.with(Cell::get) {
+            return keycard_trump(hand, context).is_some_and(|trump| {
+                let strain = Strain::from(trump);
+                trick_estimates(hand, &Inferences::read(context)).p_at_least(
+                    strain,
+                    our_declarer(context, strain),
+                    12,
+                ) >= SLAM_ENTRY_P
+            });
+        }
         // Fit-known: the RKCB ask only fires on a shown trump, so count
         // shortness as support value (`support_point_count`).
         let partner_min = partner_slam_strength(context);
@@ -1747,6 +1797,89 @@ fn fit_sum_game(suit: Suit) -> Cons<impl Constraint + Clone> {
         let fit = hand[suit].len() as u16 + u16::from(inferences.partner().length(suit).min);
         combined + fit >= u16::from(FIT_SUM_GAME.with(Cell::get))
     })
+}
+
+/// Make probability of the small slam at which the bilans floor's RKCB ask
+/// fires — deliberately below [`break_even`]'s even-money decision line,
+/// because the ask buys information: inside the band the keycard answer
+/// converts the guess (two keycards missing → sign off at five, at most one →
+/// bid the slam).  The one bilans constant with no derivation behind it; sweep
+/// it if the A/B lands close.
+const SLAM_ENTRY_P: f32 = 0.35;
+
+/// The make probability at which bidding on breaks even in IMPs against
+/// stopping in the cold alternative — the economics half of the bilans floor
+///
+/// Derived in `docs/ai-bidder/evaluator-net.md`: partscore→game risks a
+/// partscore swing against the game bonus (5/11 non-vul, 6/16 vul), game→small
+/// slam is even money at both vulnerabilities (the slam and game bonuses scale
+/// together), and small→grand wants ~56–58% depending on strain and
+/// vulnerability.  `tricks` keys the decision: ≤ 11 is a game, 12 the small
+/// slam, 13 the grand.
+fn break_even(tricks: u8, strain: Strain, vul_we: bool) -> f32 {
+    match (tricks, strain, vul_we) {
+        (..=11, _, false) => 5.0 / 11.0,
+        (..=11, _, true) => 6.0 / 16.0,
+        (12, _, _) => 0.5,
+        (_, Strain::Hearts | Strain::Spades, false) => 14.0 / 24.0,
+        (_, Strain::Hearts | Strain::Spades, true) => 17.0 / 30.0,
+        (_, _, false) => 14.0 / 25.0,
+        (_, _, true) => 16.0 / 29.0,
+    }
+}
+
+/// Who would declare a contract of ours in `strain`: the first of our side to
+/// have named it in the auction, else the actor (bidding it now would name it
+/// first).  The evaluator's trick columns are per-declarer — double-dummy
+/// tricks depend on who is on lead — so the bilans gates price the seat that
+/// would actually play the hand.
+fn our_declarer(context: &Context<'_>, strain: Strain) -> Relative {
+    let auction = context.auction();
+    auction
+        .iter()
+        .enumerate()
+        .find_map(
+            |(index, &call)| match (call, relative_of(auction.len(), index)) {
+                (Call::Bid(bid), who @ (Relative::Me | Relative::Partner))
+                    if bid.strain == strain =>
+                {
+                    Some(who)
+                }
+                _ => None,
+            },
+        )
+        .unwrap_or(Relative::Me)
+}
+
+/// A boundary gate's authored point arithmetic, or — with [`set_bilans_floor`]
+/// on — the evaluator net clearing the decision's IMP break-even
+///
+/// Knob-off this is *exactly* `authored`: the net arm evaluates to `-∞` and
+/// falls out of the [`Or`][super::constraint] max without touching the net (its
+/// predicate short-circuits on the thread-local), and the masking arm
+/// contributes `0.0`.  Knob-on the authored arm is masked to `-∞` instead and
+/// the gate becomes `P(≥ tricks by our declarer in strain) ≥ break_even`.
+// ponytail: knob-on recomputes trick_estimates per converted rule (~17 rule
+// evals × ~9k multiply-adds per decision); a OnceCell<TrickEstimates> on
+// Context is the upgrade if profiling ever bites.
+fn points_or_net(
+    authored: Cons<impl Constraint + Clone>,
+    strain: Strain,
+    tricks: u8,
+) -> Cons<impl Constraint + Clone> {
+    let net = pred(move |hand: Hand, context: &Context<'_>| {
+        BILANS_FLOOR.with(Cell::get)
+            && trick_estimates(hand, &Inferences::read(context)).p_at_least(
+                strain,
+                our_declarer(context, strain),
+                tricks,
+            ) >= break_even(
+                tricks,
+                strain,
+                context.vul().contains(RelativeVulnerability::WE),
+            )
+    });
+    (!bilans_floor() & authored) | net
 }
 
 /// Partner opened a strong notrump of `level` (we are the responder)
@@ -2923,17 +3056,20 @@ pub fn instinct() -> Rules {
     // into an unstopped enemy suit.
     // The strength-independent game forces (a strong-notrump responder past
     // invitation, a strong 2♣, an auction already forced to game).  Split out so
-    // the fitted major-game rule can swap the plain `combined_points(25)` strand
-    // for the fit-length-adjusted [`fit_sum_game`] while these forces still apply.
+    // each game rule can price its own strand — the fitted major-game rule swaps
+    // the plain `combined_points(25)` for the fit-length-adjusted
+    // [`fit_sum_game`], and every milestone wraps its points in [`points_or_net`]
+    // (the bilans knob prices that contract's own strain and trick target) —
+    // while these forces still apply untouched.
     let game_forces = (partner_strong_notrump(1)
         & (hcp(10..) | (hcp(nt_responder_game_floor()..) & undisturbed())))
         | (partner_strong_notrump(2) & hcp(5..))
         | auction_forces_game();
-    let game_values = (game_forces.clone() | combined_points(25)) & not_penalizing();
     rules = rules.rule(
         Bid::new(3, Strain::Notrump),
         1.40,
-        game_values.clone()
+        (game_forces.clone() | points_or_net(combined_points(25), Strain::Notrump, 9))
+            & not_penalizing()
             & below_game()
             & stopper_in_their_suits()
             & nt_game_force_3nt_allowed()
@@ -2972,7 +3108,8 @@ pub fn instinct() -> Rules {
         rules = rules.rule(
             Bid::new(5, strain),
             1.42,
-            game_values.clone()
+            (game_forces.clone() | points_or_net(combined_points(25), strain, 11))
+                & not_penalizing()
                 & below_game()
                 & inference_aware()
                 & known_minor_fit
@@ -2991,7 +3128,11 @@ pub fn instinct() -> Rules {
         rules = rules.rule(
             Bid::new(4, strain),
             1.45,
-            game_values.clone() & below_game() & len(major, 6..) & level_available(4, strain),
+            (game_forces.clone() | points_or_net(combined_points(25), strain, 10))
+                & not_penalizing()
+                & below_game()
+                & len(major, 6..)
+                & level_available(4, strain),
         );
         // Preemptive 4M over a double of our 1NT (opt-in; `set_preempt_4m_over_double`).
         // The major's mirror of the gambling 3NT: a *quality* long (6+) major —
@@ -3018,7 +3159,7 @@ pub fn instinct() -> Rules {
         rules = rules.rule(
             Bid::new(4, strain),
             1.50,
-            (game_forces.clone() | fit_sum_game(major))
+            (game_forces.clone() | points_or_net(fit_sum_game(major), strain, 10))
                 & not_penalizing()
                 & below_game()
                 & inference_aware()
@@ -3047,7 +3188,7 @@ pub fn instinct() -> Rules {
         rules = rules.rule(
             Bid::new(6, strain),
             1.65,
-            combined_points(33)
+            points_or_net(combined_points(33), strain, 12)
                 & not_penalizing()
                 & below_slam()
                 & inference_aware()
@@ -3057,7 +3198,7 @@ pub fn instinct() -> Rules {
         rules = rules.rule(
             Bid::new(7, strain),
             1.75,
-            combined_points(37)
+            points_or_net(combined_points(37), strain, 13)
                 & not_penalizing()
                 & below_slam()
                 & inference_aware()
@@ -3071,7 +3212,7 @@ pub fn instinct() -> Rules {
         .rule(
             Bid::new(6, Strain::Notrump),
             1.60,
-            combined_points(33)
+            points_or_net(combined_points(33), Strain::Notrump, 12)
                 & not_penalizing()
                 & below_slam()
                 & stopper_in_their_suits()
@@ -3080,7 +3221,7 @@ pub fn instinct() -> Rules {
         .rule(
             Bid::new(7, Strain::Notrump),
             1.70,
-            combined_points(37)
+            points_or_net(combined_points(37), Strain::Notrump, 13)
                 & not_penalizing()
                 & below_slam()
                 & stopper_in_their_suits()
@@ -3164,7 +3305,9 @@ pub fn instinct() -> Rules {
             .rule(
                 Bid::new(7, strain),
                 1.86,
-                keycard_total(trump, 5..) & combined_points(37) & level_available(7, strain),
+                keycard_total(trump, 5..)
+                    & points_or_net(combined_points(37), strain, 13)
+                    & level_available(7, strain),
             )
             // At most one keycard missing: small slam.
             .rule(
@@ -4052,6 +4195,56 @@ mod tests {
     }
 
     #[test]
+    fn our_declarer_names_the_first_of_our_side() {
+        // Partner opened 1NT: partner would declare notrump; an unnamed strain
+        // falls to the actor.
+        let auction = [call(1, Strain::Notrump), Call::Pass];
+        let context = Context::new(RelativeVulnerability::NONE, &auction);
+        assert_eq!(our_declarer(&context, Strain::Notrump), Relative::Partner);
+        assert_eq!(our_declarer(&context, Strain::Spades), Relative::Me);
+
+        // We opened 1♠ and partner raised: our seat named spades first.
+        let auction = [
+            call(1, Strain::Spades),
+            Call::Pass,
+            call(2, Strain::Spades),
+            Call::Pass,
+        ];
+        let context = Context::new(RelativeVulnerability::NONE, &auction);
+        assert_eq!(our_declarer(&context, Strain::Spades), Relative::Me);
+
+        // Their bid never declares for us: RHO's 1♥ leaves hearts to the actor.
+        let auction = [call(1, Strain::Hearts)];
+        let context = Context::new(RelativeVulnerability::NONE, &auction);
+        assert_eq!(our_declarer(&context, Strain::Hearts), Relative::Me);
+    }
+
+    /// The bilans knob prices the same known-fit game the point sum reaches:
+    /// the 4-4 fit-sum board must still land in 4♠ when the net does the
+    /// arithmetic (Stance path, so the net sees the trie-prefixed reading it
+    /// was trained on).
+    #[test]
+    fn bilans_floor_still_bids_the_known_fit_game() {
+        let auction = [
+            Call::Pass,
+            call(1, Strain::Clubs),
+            Call::Pass,
+            call(1, Strain::Hearts),
+            Call::Pass,
+            call(2, Strain::Spades),
+            Call::Pass,
+        ];
+        set_bilans_floor(true);
+        let (bid, from_floor) = american_floored(&auction, "JT87.AQT2.A75.86");
+        set_bilans_floor(false); // restore the default before any assert
+        assert!(
+            from_floor,
+            "South's continuation is off-book (floor territory)"
+        );
+        assert_eq!(bid, call(4, Strain::Spades));
+    }
+
+    #[test]
     fn transfer_invite_reaches_the_floor_over_a_possible_five_two() {
         // 1NT–2♦–2♥–3♥: partner transferred to hearts and raised.  With the six-card
         // invite on (the default) this node is authored — so turn it off to exercise
@@ -4418,6 +4611,63 @@ mod tests {
 
         set_two_over_one_slam_strength(true); // restore the defaults
         set_opener_third(true);
+    }
+
+    /// Knob-on, the slam machinery stays alive end to end.  A 26-count
+    /// opposite an established 2/1 still blasts the grand — the 7♠ milestone
+    /// (1.75) outranks the ask (1.68) in *both* regimes (knob-off its
+    /// combined 39 ≥ 37; knob-on the net clears the grand break-even) — a
+    /// genuine minimum still signs off in game (the 2/1 force is a rail, so
+    /// the game never hinges on the net), and on the natural 1♠–3♠ raise the
+    /// net's [`SLAM_ENTRY_P`] entry — the one bilans gate with no forcing
+    /// rail behind it — still fires the keycard ask.
+    #[test]
+    fn bilans_floor_still_explores_the_rock_crusher_slam() {
+        use crate::bidding::american::set_opener_third;
+        let auction = [
+            call(1, Strain::Spades),
+            Call::Pass,
+            call(2, Strain::Clubs),
+            Call::Pass,
+            call(2, Strain::Diamonds),
+            Call::Pass,
+            call(3, Strain::Spades),
+            Call::Pass,
+        ];
+        // Delete the book node so the floor owns the position.
+        set_opener_third(false);
+        set_bilans_floor(true);
+        let (crusher, floored) = american_floored(&auction, "AKQJ2.AKQ.AQJ4.9");
+        let (minimum, _) = american_floored(&auction, "AQJ52.32.KQ54.92");
+        // The natural jump raise (cf. `floor_asks_keycards_with_slam_values_
+        // and_a_known_fit`): a 23-count opener in the entry band asks, not
+        // blasts.  Natural calls read alike bare or prefixed, so `best` is
+        // on-distribution here.
+        let raise = [
+            call(1, Strain::Spades),
+            Call::Pass,
+            call(3, Strain::Spades),
+            Call::Pass,
+        ];
+        let ask = best(&raise, "AKQJ7.AKQ.A32.32");
+        set_bilans_floor(false); // restore the defaults before any assert
+        set_opener_third(true);
+        assert!(floored, "the deleted node leaves this to the floor");
+        assert_eq!(
+            crusher,
+            call(7, Strain::Spades),
+            "the net clears the grand break-even where the points cleared 37"
+        );
+        assert_eq!(
+            minimum,
+            call(4, Strain::Spades),
+            "a minimum still signs off"
+        );
+        assert_eq!(
+            ask,
+            call(4, Strain::Notrump),
+            "the net's entry keeps the keycard ask alive"
+        );
     }
 
     /// The auctions the game backstop used to cover, and the ones it did not

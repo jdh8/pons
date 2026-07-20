@@ -498,17 +498,21 @@ Independent; each is its own session with its own entry point.
 | ~~A~~ | ~~**Widen the oracle FFI**~~ | **DONE** — see §6. 22 symbols bound including the whole `set_info_*` inject half; `probe`/`probe_with` on `BbaOracle`; recon dump in `examples/probe-bba-bilans`. | — |
 | B | **Read the arithmetic** | ILSpy on `vendor/bba/EPBot64.dll`; decompile `odzywka_z_bilansu`, `determine_punkty_bilansowe`, `determine_losing_winning_tricks`. Turns §5's *inferred* rows into *strong*. | needs a decompiler installed |
 | ~~C~~ | ~~**A trick model for our floor**~~ | **DONE, differently** — see [`evaluator-net.md`](evaluator-net.md). Stages 2–3 are a small *learned* net rather than authored winners/losers arithmetic: `(own hand, hidden-seat ranges) → DD trick mean and spread`, two heads per target (`μ`, `ln σ`) fit on pre-solved deals by Gaussian negative log-likelihood. It never sees the auction, so it is bidding-system agnostic; and it is scored against sampled double-dummy truth, not against `probable_level` (whose scale stays undecoded — the graded teacher turned out to be unnecessary once DD was the target). | `src/bidding/evaluator.rs` |
-| D | **Expected-score level choice** | Stage 4 over C's trick count: vulnerability, IMP/MP, doubled. Replaces weight-ladder level selection. | after C |
+| D | **Expected-score level choice** | **Constructive rung DONE** (2026-07-21): the floor's game/slam boundary gates (combined-25/fit-sum-31 games, 33/37 slams, the RKCB entry, the asker's grand) price `P(make)` via `Gaussian::p_at_least` against the IMP break-evens, vulnerability-aware, behind `set_bilans_floor` (default off; A/B owed — `examples/ab-bilans-floor`, both vulnerabilities). Still open in-row: the full `Σ P(T=k)·score(k)` integration, doubled contracts, and a probabilistic par over all 20 declarer columns for the *competitive* decisions (settle rail, sacrifices) — the natural follow-up session. | `src/bidding/instinct.rs` |
 | E | **Relational constraints (`SuitRef`)** | Symbolic auction-bound suit/level refs so `rubens_*` stops being opaque `pred` and keeps `describe`/`project`. Authoring economy + inference recovery, *not* strength. | `src/bidding/constraint.rs` |
 
-Dependency: **A and C are done**, so **D is unblocked and is the live one** — it
-consumes C's Gaussian CDF (`Gaussian::p_at_least`) and adds only the economics:
-vulnerability, IMP/MP, doubled. Note what C did *not* need: decoding the
+Dependency: **A and C are done, and D's constructive rung shipped** — the
+break-even probability table is the closed form of the expected-score integral
+for undisturbed our-side decisions, so those gates needed none of the heavier
+Stage-4 machinery. The live remainder of D is the **competitive extension**: a
+probabilistic par from the net's opponent-declarer columns, doubled-contract
+pricing, and the settle rail — where the `Σ P(T=k)·score(k)` integration and
+disaster tails genuinely matter. Note what C did *not* need: decoding the
 `probable_levels` scale, or BBA as a teacher at all. Double-dummy truth on the
 actual deal was a better target than a graded opinion, and it comes free with the
-`.pdd` stock. **B is optional** and now only matters if D's arithmetic wants
-BBA's exact score model. **E is independent** and can run in parallel; it is the
-smallest.
+`.pdd` stock. **B is optional** and now only matters if D's remaining arithmetic
+wants BBA's exact score model. **E is independent** and can run in parallel; it
+is the smallest.
 
 Standing caveat from [`../bba-gap-campaign.md`](../bba-gap-campaign.md): deep
 auctions are our *smallest* gap family (−6k, vs round-1 −213k). C and D are
