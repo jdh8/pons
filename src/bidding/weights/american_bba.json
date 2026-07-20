@@ -48,6 +48,7 @@
   },
   "softmax_len": 38,
   "teacher": "bba",
+  "card": "",
   "train_rows": 380623,
   "trainer": "pons-trainer 0.1.0",
   "val_ce": 0.45778051018714905,

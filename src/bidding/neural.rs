@@ -232,6 +232,36 @@ pub fn classify_bba(features: &[f32]) -> Logits {
     forward(WEIGHTS_BBA.as_slice(), features, IN_V3)
 }
 
+// ── WJ-distilled floor: same v3 features, EPBot *Polish Club* teacher ─────────
+// Identical shape and forward pass again; the teacher is EPBot system 2 under
+// `vendor/bba/WJ.bbsa`.  Wanted by the Dutch campaign, whose minor openings leave
+// american entirely — an american-distilled net reads Dutch's 1♦ as a system it
+// has never seen, and at Phase 3 would read a Multi 2♦ as natural diamonds.
+
+/// Embedded WJ-distilled weights: v3 layout (88 disclosable inputs), EPBot Polish Club teacher.
+static RAW_WJ: &[u8] = include_bytes!("weights/wj_bba.f32");
+const _: () = assert!(
+    RAW_WJ.len() == total(IN_V3) * 4,
+    "WJ weights artifact size mismatch"
+);
+
+/// WJ weights decoded to `f32` once, on first use.
+static WEIGHTS_WJ: LazyLock<Vec<f32>> = LazyLock::new(|| decode(RAW_WJ));
+
+/// Evaluate the WJ-distilled floor: 88 disclosable features → 38 logits, in
+/// `Call`-index order.  Same shape and forward pass as [`classify_bba`]; only
+/// the teacher differs — EPBot's **Wspólny Język** (system 2, `vendor/bba/WJ.bbsa`)
+/// rather than its 2/1.  Deterministic — fixed weights, no RNG.
+///
+/// # Panics
+///
+/// Panics if `features.len()` is not the pinned v3 [`FEATURES_LEN_V3`] (88).
+#[must_use]
+pub fn classify_wj(features: &[f32]) -> Logits {
+    assert_eq!(features.len(), IN_V3, "expected {IN_V3} features");
+    forward(WEIGHTS_WJ.as_slice(), features, IN_V3)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -317,5 +347,33 @@ mod tests {
         check_fixture(include_str!("weights/american_bba.fixture.json"), |x| {
             classify_bba(x).iter().map(|(_, l)| *l).collect()
         });
+    }
+
+    #[test]
+    fn matches_candle_fixture_wj() {
+        check_fixture(include_str!("weights/wj_bba.fixture.json"), |x| {
+            classify_wj(x).iter().map(|(_, l)| *l).collect()
+        });
+    }
+
+    /// The two distilled nets must actually be different bidders — a copy-paste
+    /// slip in the `include_bytes!` stems would otherwise pass every fixture.
+    #[test]
+    fn wj_and_bba_are_distinct() {
+        let fx: serde_json::Value =
+            serde_json::from_str(include_str!("weights/wj_bba.fixture.json")).unwrap();
+        let rows = fx["features"].as_array().unwrap();
+        let differs = rows.iter().any(|row| {
+            let x: Vec<f32> = row
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|v| v.as_f64().unwrap() as f32)
+                .collect();
+            let wj: Vec<f32> = classify_wj(&x).iter().map(|(_, l)| *l).collect();
+            let bba: Vec<f32> = classify_bba(&x).iter().map(|(_, l)| *l).collect();
+            wj.iter().zip(&bba).any(|(w, b)| (w - b).abs() > 1.0e-3)
+        });
+        assert!(differs, "WJ and BBA nets produce identical logits");
     }
 }

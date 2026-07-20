@@ -76,7 +76,8 @@ struct Args {
     our_system: Option<c_int>,
 
     /// Which of our authored systems to seat: `american` (default), `dutch`
-    /// (the wide-1♣ champion candidate), the deterministic `american-instinct` /
+    /// (the wide-1♣ champion candidate), `dutch-wj` (`dutch` with the
+    /// WJ-distilled net flooring our own 1♦ subtree), the deterministic `american-instinct` /
     /// `dutch-instinct` pre-swap baselines, `bba-constructive` (`american` with
     /// the BBA net flooring the constructive book too), or `neural-v3` (the
     /// restrictive disclosable distilled floor; requires the `neural-floor`
@@ -1319,6 +1320,9 @@ fn main() -> anyhow::Result<()> {
         // The Dutch champion candidate reuses american's shared modules (incl.
         // the shipped 1NT shape), so `--nt-shape` does not apply here.
         "dutch" => pons::dutch().against(Family::NATURAL),
+        // A/B B's treatment arm: the WJ-distilled net floors *our* 1♦ subtree,
+        // `dutch`'s BBA net floors everything else.
+        "dutch-wj" => pons::dutch_wj().against(Family::NATURAL),
         // The deterministic pre-swap floors: the fixed baselines now that
         // `american` and `dutch` both ship the BBA net.
         "american-instinct" => pons::american_instinct().against(Family::NATURAL),
@@ -1331,7 +1335,7 @@ fn main() -> anyhow::Result<()> {
         #[cfg(feature = "neural-floor")]
         "neural-bba" => pons::american_bba_neural().against(Family::NATURAL),
         other => anyhow::bail!(
-            "--our-floor must be american|american-instinct|dutch|dutch-instinct|bba-constructive{}, got {other:?}",
+            "--our-floor must be american|american-instinct|dutch|dutch-wj|dutch-instinct|bba-constructive{}, got {other:?}",
             if cfg!(feature = "neural-floor") {
                 " or neural-v3|neural-bba"
             } else {

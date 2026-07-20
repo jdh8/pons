@@ -9,6 +9,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`dutch_wj()` and `DutchFloor` — a floor that routes each opening to a net
+  distilled from a teacher that plays it.** Dutch is american with the minor
+  openings replaced, so its subtrees do not share one teacher: the majors and
+  `1NT` are american's verbatim, but its `1♦` is Polish-shaped (5+♦ or 4=4=4=1,
+  denying a five-card major) and an american-distilled net has never seen one.
+  `DutchFloor` sends **our own** `1♦` subtree to `NeuralFloorWj` and everything
+  else to the `NeuralFloorBba` that `dutch()` uses throughout. The guard is on
+  *our* side having opened — the opponents bid american, so routing on the call
+  alone would read their natural `1♦` as Polish. `1♣` is excluded (only 73% hand
+  agreement: WJ's traditional `2♣` takes the minimum club hands Dutch opens `1♣`
+  with, so a quarter of the mass is out of distribution precisely on club
+  length), and `2♣` is excluded permanently — Dutch's is *strong* and WJ's is a
+  *minimum* club hand, the one place the two systems give the same call opposite
+  meanings. Smoke-tested paired at 2000 boards: 81 divergent auctions, every one
+  opened `1♦`, zero leakage. **A/B B measured it a loss** (204 800 bd/arm/vul:
+  +0.0019/−0.0052 plain, −0.0095/−0.0173 PD at none/both), so `dutch()` keeps
+  `NeuralFloorBba` and `dutch_wj()` stays a default-off arm. The loss is the
+  teacher's overbid transferring through the distillation — the WJ arm bids
+  +0.33 of a level higher over the divergent 1♦ auctions, reaching ~10pp more
+  games and ~40% more slams — and it is *not* the 18+ range mismatch the plan
+  pre-registered: the effect is larger in the 11–17 bucket than in 18+. Kept
+  because Phase 3 wants the same net over the two-level openings, where book and
+  teacher will share identical rows.
+- **`NeuralFloorWj` and `neural::classify_wj` — the WJ-distilled floor.** Same
+  88 disclosable v3 features, same forward pass, same forced-rails as
+  `NeuralFloorBba`; the teacher is EPBot's Wspólny Język (system 2,
+  `vendor/bba/WJ.bbsa`) rather than its 2/1. Held-out `val_ce` 0.4410, top-1
+  86.02%, against `american_bba`'s 0.4578 / 85.86% — not comparable as bidding
+  strength, since each net is graded against its own teacher. The weights had
+  been sitting in `src/bidding/weights/` since being trained with nothing
+  referencing them; they are now embedded and covered by a candle-parity fixture
+  test plus a check that the two nets are actually distinct bidders.
+- **`Context::we_opened()`** — whether our side made the opening bid. The parity
+  arithmetic already existed inline in `features_v3`'s we-opened bit; the Dutch
+  routing floor needed the same fact, and duplicating seat parity is exactly the
+  kind of thing that rots silently.
 - **`cards/American.bbsa` — a BBA convention card describing *our* 2/1, and
   `examples/probe-bba-conventions` to keep it honest.** The BBA-distilled floor
   `american_bba` was dumped before `dump-teacher` had a `--card` flag, so its
@@ -132,6 +168,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **A distilled net now records the convention card its teacher was configured
+  from.** `dump-teacher --card` wrote the card into the data sidecar, but the
+  trainer dropped it while faithfully copying `data_rows` / `data_seed` /
+  `data_git_sha`, so the embedded weights could not be traced to the system they
+  were distilled from. This is precisely the gap that let `american_bba`'s
+  misalignment go unnoticed — `teacher: "bba"` alone does not pin a system, and
+  a net trained against the wrong card is silently the wrong net. `wj_bba.json`
+  and `american_bba.json` were backfilled with the cards they were actually
+  trained from (the latter empty, recording that it ran on engine defaults).
 - **`cargo doc` builds again.** `american_bba_constructive`'s rustdoc linked to
   `with_floor`, which is `pub(in crate::bidding)`, so
   `rustdoc::private_intra_doc_links` failed the whole documentation build under

@@ -252,14 +252,7 @@ fn push_context(out: &mut Vec<f32>, context: &Context<'_>) {
     }
 
     // we-opened bit: 1 value
-    let we_opened = match context.opener_seat() {
-        Some(seat) => {
-            let opening_index = seat as usize - 1;
-            (context.auction().len() - opening_index).is_multiple_of(2)
-        }
-        None => false,
-    };
-    out.push(f32::from(we_opened));
+    out.push(f32::from(context.we_opened()));
 
     // ── Inferences (40 values) ──────────────────────────────────────────────
     let inf = Inferences::read(context);

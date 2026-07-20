@@ -266,6 +266,18 @@ impl<'a> Context<'a> {
         self.opening_index.map(|index| index as u8 + 1)
     }
 
+    /// Whether **our** side made the opening bid
+    ///
+    /// False when nobody has opened yet.  Seats alternate, so our side opened
+    /// exactly when an even number of calls separates the opening from ours.
+    #[must_use]
+    pub fn we_opened(&self) -> bool {
+        match self.opener_seat() {
+            Some(seat) => (self.auction.len() - (seat as usize - 1)).is_multiple_of(2),
+            None => false,
+        }
+    }
+
     /// The cheapest level at which the strain can legally be bid
     ///
     /// Returns [`None`] when no bid in the strain is available anymore.

@@ -55,7 +55,7 @@ pub use array::Array;
 pub use book::{Competitive, Constructive, Defensive, ExplainedRule, Family, Pair, Phase, Stance};
 pub use compose::{OrElse, Versus};
 pub use context::Context;
-pub use dutch::{dutch, dutch_instinct};
+pub use dutch::{DutchFloor, dutch, dutch_instinct, dutch_wj};
 #[cfg(feature = "dd")]
 pub use ev::ev_all;
 pub use features::{FEATURES_LEN, FEATURES_VERSION, features};

@@ -40,6 +40,12 @@ pub struct Meta {
     pub git_sha: String,
     #[serde(default)]
     pub teacher: String,
+    /// Convention card the teacher was configured from (`dump-teacher --card`),
+    /// empty when it ran on the engine's compiled-in defaults.  Carried into the
+    /// weights sidecar: `teacher: "bba"` alone does not pin a system, and a net
+    /// distilled from the wrong card is silently the wrong net.
+    #[serde(default)]
+    pub card: String,
 }
 
 /// A loaded teacher dataset, rows still in dump order (board-by-board).

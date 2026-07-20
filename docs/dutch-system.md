@@ -69,7 +69,7 @@ the floor's transfer-completion still holds.
 | 3 | 2-level openings (Multi + **BBA's Polish two-suiters**/UNT) + strong-2♣ tree | pending — **Muiderberg superseded**, see below |
 | 4 | Reader/floor reconciliation + divergent-opening competitive book | pending |
 | 5 | Iterate to champion vs BBA/BEN; promote if it wins | pending |
-| WJ-floor | Distil BBA-WJ as the floor over Dutch's divergent minors | **A/B A WON** (floor swap, +0.18/+0.28 plain); A/B B next, see below |
+| WJ-floor | Distil BBA-WJ as the floor over Dutch's divergent minors | **A/B A WON** (floor swap, +0.18/+0.28 plain, shipped); **A/B B LOST** (WJ over 1♦, −0.005/−0.017 PD — inherited overbid, `dutch_wj()` default-off); Phase 3's two-level rows are the remaining arm |
 
 Each phase gates on a paired-seed A/B via `examples/bba-gen` (dutch arm vs
 american arm), dual-scored (`ns_score_pd` + `ns_score_contract`), fresh
@@ -178,6 +178,52 @@ its strength. Count double-dummy-failing contracts per arm directly from the
 dumps. If A/B B wins plain and washes-or-loses on PD, that is this same inherited
 overbid arriving in Dutch's 1♦ auctions, not judgement — and it should show up
 **worse at `both` than at `none`**, the fingerprint Step 0 just recorded.
+
+**Step B — A/B B LOST. The teacher's overbid transferred; the range mismatch did
+not matter.** `scripts/dutch-wj-ab.sh`, 204 800 bd/arm/vul, seed base 1784527375,
+`dutch-wj` (WJ net under *our* 1♦) against `dutch` (BBA net throughout).
+
+| `dutch-wj` − `dutch` | plain DD | perfect defense | fired |
+| --- | --- | --- | --- |
+| vul none | +0.0019 ±0.0036 | **−0.0095** ±0.0043 | 1.91% |
+| vul both | **−0.0052** ±0.0043 | **−0.0173** ±0.0051 | 1.71% |
+
+Three of four cells lose outside their CI, and the shape is **exactly the
+pre-registered fingerprint**: plain near-flat, PD losing at both vulnerabilities
+and losing *worse* at `both` (−0.0173) than at `none` (−0.0095). Step 0 recorded
+that same signature for BBA-WJ against BBA-2/1, so the bias transferred through
+the distillation as predicted.
+
+The mechanism is measured, not inferred — over the divergent 1♦ auctions:
+
+| | vul none | vul both |
+| --- | --- | --- |
+| mean final contract level | 3.606 vs 3.276 (**+0.33**) | 3.458 vs 3.148 (**+0.31**) |
+| reached the four-level or higher | 51.4% vs 40.5% | 44.2% vs 35.1% |
+| reached slam | 291 vs 212 | 255 vs 173 |
+
+The WJ arm bids a third of a level higher, reaches ~10 percentage points more
+games and ~40% more slams. Plain DD barely notices — it rewards an aggressive
+contract that happens to make — and PD charges for the failures, vulnerable
+most. That is an overbid, not judgement.
+
+**What this refutes: the 18+ range mismatch was never the problem.** The plan
+pre-registered that gains should concentrate below 18 HCP, since WJ routes 18+
+through its forcing 1♣ and its net has never seen a strong 1♦ opener. The
+strength split lands at 10.2%/10.4% 18+, confirming the 9.7% harvest figure — but
+the overbid is *larger* in the 11–17 bucket (+0.341 level) than in 18+ (+0.230).
+So the loss is uniform teacher bias, not distribution mismatch, and capping the
+routing at 17 — the repair the plan ruled out on architectural grounds — would
+have removed only a tenth of the mass and the *smaller* half of the effect. It
+was never the fix.
+
+**`dutch_wj()` stays as a measured, default-off arm.** `dutch()` is untouched and
+byte-identical, so this costs nothing to keep, and the net plus the routing
+plumbing are what Phase 3 wants: once Dutch adopts BBA's Multi 2♦ and Polish
+two-suiters (decision below), book and teacher share the *same rows* there — a
+strictly cleaner transfer than 1♦ ever was, with no range mismatch and no
+unauthored continuation tree to bid into. The open question for that arm is
+whether the overbid follows; it is the same net, so assume it does until measured.
 
 **Measured facts about BBA-WJ** (274k-board harvest via the surviving
 `bba-wj-reference` binary, which records EPBot's own

@@ -147,6 +147,31 @@ impl Classifier for NeuralFloorBba {
     }
 }
 
+/// The WJ-distilled disclosable floor, made safe to attach
+///
+/// Identical to [`NeuralFloorBba`] in shape and rails, over the net distilled
+/// from EPBot's **Wspólny Język** ([`neural::classify_wj`]) rather than its 2/1.
+/// Wanted by the Dutch campaign for the subtrees where Dutch leaves american —
+/// its 1♦ shares WJ's shape (5+♦ or 4=4=4=1, denying a five-card major) at 89%
+/// hand agreement, the whole residual being WJ routing 18+ through its forcing
+/// 1♣.  Never attach it to Dutch's 2♣: WJ's is a *minimum* club hand and Dutch's
+/// is *strong*, the one place the two systems give the same call opposite
+/// meanings.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct NeuralFloorWj;
+
+impl Classifier for NeuralFloorWj {
+    fn classify(&self, hand: Hand, context: &Context<'_>) -> Logits {
+        if forced(context) {
+            // Rails: trust the deterministic floor, never the net.
+            return LADDER.classify(hand, context);
+        }
+        let mut logits = neural::classify_wj(&features::features_v3(hand, context));
+        mask_illegal(&mut logits, context.auction());
+        logits
+    }
+}
+
 /// Set every call the laws forbid to `-∞`, leaving the rest as the net set them
 ///
 /// Reuses [`Auction::can_push`] — the very predicate the driver filters with —

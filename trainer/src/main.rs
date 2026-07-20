@@ -265,6 +265,7 @@ fn export(
         "param_floats": total,
         "dtype": "f32-le",
         "teacher": ds.meta.teacher,
+        "card": ds.meta.card,
         "data_git_sha": ds.meta.git_sha,
         "data_seed": ds.meta.seed,
         "data_rows": ds.rows,

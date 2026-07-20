@@ -16,9 +16,12 @@ mod responses;
 
 use super::Pair;
 use super::american::{bare_american, insert_uncontested, with_floor, with_instinct_floor};
-use super::neural_floor::NeuralFloorBba;
+use super::array::Logits;
+use super::context::Context;
+use super::neural_floor::{NeuralFloorBba, NeuralFloorWj};
+use super::trie::Classifier;
 use contract_bridge::auction::Call;
-use contract_bridge::{Bid, Strain, Suit};
+use contract_bridge::{Bid, Hand, Strain, Suit};
 
 /// A bid as a [`Call`], for trie keys
 const fn call(level: u8, strain: Strain) -> Call {
@@ -52,6 +55,54 @@ const fn call(level: u8, strain: Strain) -> Call {
 #[must_use]
 pub fn dutch() -> Pair {
     with_floor(bare_dutch(), NeuralFloorBba)
+}
+
+/// The Dutch pair with the **WJ-distilled** floor over our own 1♦ openings
+///
+/// Exactly [`dutch`] but for which net catches off-book auctions *below our own
+/// `1♦`*: [`DutchFloor`] hands those to [`NeuralFloorWj`] and everything else to
+/// the [`NeuralFloorBba`] that [`dutch`] uses throughout.  The A/B treatment arm
+/// for the WJ-floor campaign; see `docs/dutch-system.md`.
+#[must_use]
+pub fn dutch_wj() -> Pair {
+    with_floor(bare_dutch(), DutchFloor)
+}
+
+/// Routes each opening to the floor distilled from a teacher that plays it
+///
+/// Dutch is american with the minor openings replaced, so its subtrees do not
+/// share one teacher.  The majors and `1NT` are american's verbatim and keep
+/// [`NeuralFloorBba`]; **our** `1♦` is Polish-shaped (5+♦ or 4=4=4=1, denying a
+/// five-card major) and goes to [`NeuralFloorWj`], which agrees with it on 89%
+/// of hands — the entire residual being WJ routing 18+ through its forcing `1♣`.
+///
+/// Three deliberate exclusions:
+///
+/// - **Their openings.** The guard is *our* `1♦`; the opponents bid american, so
+///   routing on the call alone would read their natural `1♦` as Polish.
+/// - **`1♣`.** Only 73% agreement — WJ's traditional `2♣` takes the minimum club
+///   hands Dutch opens `1♣` with, so a quarter of the mass is out of
+///   distribution precisely on club length.  Opener's shallow tree is authored
+///   and shadows the floor there anyway.
+/// - **`2♣`.** Dutch's is *strong*, WJ's is a *minimum* club hand — the one
+///   place the two systems give the same call opposite meanings.  Falling
+///   through to [`NeuralFloorBba`] is correct; do not "complete" this table.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct DutchFloor;
+
+impl Classifier for DutchFloor {
+    fn classify(&self, hand: Hand, context: &Context<'_>) -> Logits {
+        match context.opening_bid() {
+            Some(bid)
+                if context.we_opened()
+                    && bid.level.get() == 1
+                    && bid.strain == Strain::Diamonds =>
+            {
+                NeuralFloorWj.classify(hand, context)
+            }
+            _ => NeuralFloorBba.classify(hand, context),
+        }
+    }
 }
 
 /// The Dutch pair with the deterministic **instinct** floor (the pre-swap default)
@@ -183,6 +234,55 @@ mod tests {
 
     fn bid(level: u8, strain: Strain) -> Call {
         Call::Bid(Bid::new(level, strain))
+    }
+
+    /// `DutchFloor` must route on **our** 1♦ and nothing else.  The guard is the
+    /// whole design: routing on the call alone would read the opponents' natural
+    /// 1♦ as Polish, and routing 2♣ would invert its meaning outright.
+    #[test]
+    fn wj_floor_routes_only_our_one_diamond() {
+        use super::{DutchFloor, NeuralFloorBba, NeuralFloorWj};
+        use crate::bidding::context::Context;
+        use crate::bidding::trie::Classifier;
+
+        let hand: contract_bridge::Hand = "A32.3.KQ432.K432".parse().unwrap();
+        let vul = RelativeVulnerability::NONE;
+        let wj = |auction: &[Call]| {
+            let cx = Context::new(vul, auction);
+            let routed = DutchFloor.classify(hand, &cx);
+            let by_wj = NeuralFloorWj.classify(hand, &cx);
+            let by_bba = NeuralFloorBba.classify(hand, &cx);
+            let same = |a: &crate::bidding::array::Logits, b: &crate::bidding::array::Logits| {
+                a.iter().zip(b.iter()).all(|((_, x), (_, y))| {
+                    (x - y).abs() < 1.0e-6 || (x.is_infinite() && y.is_infinite())
+                })
+            };
+            assert_ne!(
+                same(&routed, &by_wj),
+                same(&routed, &by_bba),
+                "the two nets agree here — the test cannot tell them apart"
+            );
+            same(&routed, &by_wj)
+        };
+
+        let p = Call::Pass;
+        // Partner opened 1♦ (we are responder): routed to WJ.
+        assert!(wj(&[bid(1, Strain::Diamonds), p]));
+        // We opened 1♦ ourselves and are bidding again: routed to WJ.
+        assert!(wj(&[
+            bid(1, Strain::Diamonds),
+            p,
+            bid(1, Strain::Spades),
+            p
+        ]));
+        // RHO opened 1♦ — theirs is natural american, so *not* routed.
+        assert!(!wj(&[bid(1, Strain::Diamonds)]));
+        // Our 1♣ is 27% out of WJ's distribution: not routed.
+        assert!(!wj(&[bid(1, Strain::Clubs), p]));
+        // Our 2♣ is strong and WJ's is a minimum club hand: never routed.
+        assert!(!wj(&[bid(2, Strain::Clubs), p]));
+        // A 2♦ opening is not the 1♦ subtree.
+        assert!(!wj(&[bid(2, Strain::Diamonds), p]));
     }
 
     /// The wide-1♣ opening partition (Phase 1): the load-bearing cases.
