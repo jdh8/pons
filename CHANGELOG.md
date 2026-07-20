@@ -35,6 +35,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **`docs/ai-bidder/bba-floor.md` — what BBA's "calculated bid" actually
+  computes.** The June study established that EPBot's floor is *programmatic*;
+  §5 now documents the mechanism. It is the **`bilans`** ("balance") engine —
+  `odzywka_z_bilansu`, "bid from the balance" — and it is not a rule table but a
+  four-stage pipeline: reconstruct all four hands from the auction down to
+  individual honours, evaluate with trump-vs-side-suit length points and
+  call-type HCP corrections, count winners *and* losers for both sides, then
+  choose the call by expected score (vulnerability- and IMP/MP-aware, pricing
+  the double). The balance runs continuously per seat and can *veto* a
+  rule-table call, so it is a second always-running evaluator rather than a
+  lower-priority fallback layer — which reframes the standing "strict precedence
+  vs soft weights" question as largely moot. It is analytic, not double-dummy;
+  `bcalconsole` serves card play only, and that is the ≈190× throughput gap.
+
+  Also recorded: `MB.TXT`, `EVAL.DAT` and `Comments.txt` are May-2009 artifacts
+  of the legacy `bridge.exe`, referenced by **no** shipped binary, so the
+  rule-table statistics in §2 describe a dead file; §6, that `libEPBot.so`
+  exports 72 symbols while our oracle binds 7, leaving `epbot_get_probable_level`
+  and the `info_*` block — a graded teacher signal — unused; and §7, five
+  independent follow-up sessions with their dependency order. Evidence is graded
+  per claim: the names are strong (NativeAOT retains ~4700 reflection names, and
+  `EPBot64.dll` is the same engine unobfuscated), the four-stage composition is
+  inferred, since no IL was read. Docs-only, no code change.
+
 - **`bare_american()` → `american_book()`, `bare_dutch()` → `dutch_book()`.**
   The `bare_*` pair are the authored books with no floor, which is what "the
   book" means; the names now say so, and sit beside the new `american_floor()`.
