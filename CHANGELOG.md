@@ -113,6 +113,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   symmetry assumption met) and the predicted sd runs **+0.087** wide, erring
   toward over-dispersion — the safe direction for a CDF consumer.
 
+  A paired `--bare` arm (range-only sampler instead of rule-replay) scores the
+  net *better*, at **0.0907**, and flips the spread to −0.031. It was meant to
+  split the error into learning error and the price of the range
+  representation, and it does not: the net's predicted sd (1.872) lands
+  **between** the two samplers (replay 1.785, bare 1.904), and the net is the
+  only one of the three anchored to double-dummy labels on real deals. So
+  `set_rule_accept` replay reads as **over-tight by ~0.09 tricks** rather than
+  as truth — a caveat for anything else calibrated against it. The replay
+  arm's 0.1060 stays the number of record as the conservative end.
+
   **Nothing consumes the net yet** — it is not a `Classifier` and no `System`
   references it, so no bidding behaviour changes and no A/B applies. It is
   ungated: the weights are 37 KB of `include_bytes!` and no dependency, so a

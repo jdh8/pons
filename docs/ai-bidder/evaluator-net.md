@@ -299,15 +299,53 @@ The band is selected on the *predicted* probability, not the sampled one:
 conditioning on a noisy empirical estimate landing in 35–60% would drag in
 contracts that got there by sampling error and inflate the reported gap.
 
-**Still open: the `--bare` arm** (range-only `sample_layouts` instead of
-rule-replay). The net's input *is* the projected range envelope, so bare draws
-from exactly the information the net receives while replay draws from a tighter
-set the net never sees. The gap between the arms splits the 0.1060 into the
-net's learning error (reducible by capacity or data) and the price of the range
-representation itself (not reducible without changing the input) — the fork
-between "train harder" and "40 floats is the ceiling". Prediction on record
-before it lands: the net should look *narrower* than bare's truth, flipping the
-+0.087 negative, since bare admits layouts the rules exclude.
+### The `--bare` arm, and why it did not settle what it was meant to
+
+Same 1000 boards through range-only `sample_layouts` instead of rule-replay.
+Bare draws from the projected envelope — exactly the information the net
+receives — while replay draws from the tighter, rule-consistent set:
+
+| quantity | replay | bare |
+|---|---|---|
+| mean MAE | 0.497 | 0.488 |
+| sd MAE | 0.214 | 0.181 |
+| signed spread (predicted − sampled sd) | +0.087 (1.872 vs 1.785) | **−0.031** (1.873 vs 1.904) |
+| P(make) MAE, band | 0.1127 | 0.0987 |
+| noise floor | 0.0382 | 0.0389 |
+| **net's own error, deconvolved** | **0.1060** (contested 0.1227) | **0.0907** (contested 0.1010) |
+
+The arm was launched to split 0.1060 into the net's *learning* error and the
+price of the range representation — the fork between "train harder" and "40
+floats is the ceiling". **It does not, and the reason is worth more than the
+answer would have been.**
+
+The prediction recorded beforehand was that the net would look *narrower* than
+bare's truth and *worse* against it. The sign flipped exactly as called: the
+sampled sd rises past the net's, turning +0.087 into −0.031. The magnitude went
+the other way — the net scores **better** against bare (0.0907) than against
+replay (0.1060).
+
+The stated criterion for that outcome was "the net learned the envelope rather
+than the reality". That conclusion is not safe, because **the decomposition
+assumed replay was truth, and it is not.** The net was fit to neither sampler:
+its labels are DD tables on real deals. All three disagree about spread, and
+the net's 1.872 lands *between* the two samplers (replay 1.785, bare 1.904),
+much nearer bare. The net is the only one of the three anchored to ground
+truth, so the cleanest reading is that **`set_rule_accept` replay is over-tight**
+— rejecting layouts real bidding does produce — and bare is mildly over-loose.
+
+Consequences, in order of how much they should change behaviour:
+
+1. **The fork stays open.** Resolving it needs a denominator that is not a
+   biased sampler — e.g. scoring against held-out *real* deals grouped by
+   near-identical range envelopes, where the empirical spread is the true
+   posterior spread by construction.
+2. **Prefer the replay-arm 0.1060 as the number of record** anyway. It is the
+   conservative end, and the rule-consistent distribution is the one session D
+   actually meets at a node.
+3. **The sampler bias is a finding in its own right**, independent of this net:
+   anything else calibrated against `sample_layouts_replay` inherits a spread
+   that appears to run ~0.09 tricks tight.
 
 ### Comparison with the quartile parameterization
 
