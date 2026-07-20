@@ -9,6 +9,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **BBA's bilans engine is now readable — session 7A of the floor study.**
+  `examples/common/oracle.rs` binds **22** of `libEPBot.so`'s 70 `epbot_*`
+  exports, up from 7: `probable_levels`, `get`/`set_scoring`, `info_alerting`,
+  and the eight `info_*` array fields in **both** directions. New
+  `BbaOracle::probe` returns the whole state behind one decision, and
+  `probe_with` overwrites part of BBA's hand model first, so §5's Stages 2–4
+  can later be measured with Stage 1 held fixed. `classify` and `probe` now
+  share one `with_bot` setup path, so the hot path is unchanged. New
+  `examples/probe-bba-bilans` dumps it beside our own call, one jsonl row per
+  decision — the graded teacher that sessions C and D fit against.
+  **Instrumentation only: no bidding behaviour changes, and no A/B applies.**
+
+  Measured over a 21039-row recon dump and written up in
+  `docs/ai-bidder/bba-floor.md` §6:
+
+  - **`seats[4 + auction.len() % 4]` is the actor's own hand, exactly**
+    (21039/21039). BBA's docs call positions 4–7 "calculated probable hands",
+    but the actor's own slot is its real cards; offsets 1/2/3 are LHO/partner/RHO
+    with HCP bands 17.9/15.4/12.4 wide. Positions 0–3 are the public band and are
+    never exact. This makes positions 4–8 directly comparable to our
+    `Inferences`.
+  - `strength[suit]` is that suit's HCP and `honors[suit]` the bitmask
+    A 16 / K 8 / Q 4 / J 2 / T 1, both exactly; `probable_length` is effectively
+    unused (nonzero on <1% of rows).
+  - `probable_levels` returns **9** entries, not the 5 strains assumed: 0–4 are
+    ♣ ♦ ♥ ♠ NT, entry 5 is live but undecoded, entries 6–8 are always 0. Values
+    span −6..7 and are **not** a 1–7 contract level. Decoding that scale is
+    session C's first job.
+  - `get_scoring` defaults to `1`, and forcing 0..5 changed no call or level in
+    sampling — Stage 4 may be less scoring-sensitive than §6 assumed.
+
+  Three ABI traps are documented rather than rediscovered: the `info_*` getters
+  size their buffer in **bytes** while the setters count **elements**; `-1`/`-2`
+  are legitimate `probable_levels` values as well as error codes, so a negative
+  there is not a failure; and `get_bid` must run **before** the state is read or
+  it is stale. A fourth is operational — **EPBot segfaults when driven from a
+  `cargo test` thread**, and the pre-existing `classify` path does too, which is
+  why the ABI check runs as `probe-bba-bilans --self-check` on the main thread
+  instead of as a `#[test]`.
+
 - **`american_floor()` — the 2/1 pair with no authored book at all.** All three
   books are empty, so every auction falls through to exactly the floor wiring
   `american()` uses: `NeuralFloorBba` on the contested books, the deterministic

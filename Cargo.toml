@@ -130,5 +130,10 @@ name = "bba-decompose"
 path = "examples/bba-decompose/main.rs"
 required-features = ["serde"]
 
+[[example]]
+name = "probe-bba-bilans"
+path = "examples/probe-bba-bilans/main.rs"
+required-features = ["serde"]
+
 [profile.dev.package."*"]
 opt-level = 2

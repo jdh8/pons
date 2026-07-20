@@ -139,10 +139,10 @@ broad floor rule safe to leave in the table.
 
 ## 3. The live engine confirms it (empirical probe)
 
-`examples/bba-floor-probe` drives EPBot down **deliberately deep, off-book
-auctions** (where §2 says no specific node exists) and reads back the engine's
-own call *and its self-description* via `epbot_interpret_bid` +
-`epbot_get_info_meaning[_extended]`.
+`bba-floor-probe` (a throwaway, since removed — see Artifacts) drove EPBot down
+**deliberately deep, off-book auctions** (where §2 says no specific node exists)
+and read back the engine's own call *and its self-description* via
+`epbot_interpret_bid` + `epbot_get_info_meaning[_extended]`.
 
 **Probe 1 — HCP sweep on a depth-8 competitive auction**
 `1C P 1H 1S 2H 2S 3H 3S`, N to call, hand shape fixed at 2=5=2=4, HCP swept:
@@ -386,27 +386,106 @@ actually lives.
 
 ---
 
-## 6. The FFI surface we are not using
+## 6. The bilans surface, bound and measured  *(session 7A — DONE)*
 
-`libEPBot.so` exports **72** symbols. [`examples/common/oracle.rs`](../../examples/common/oracle.rs)
-binds **7**. Unused and directly relevant:
+`libEPBot.so` exports **70** `epbot_*` symbols. [`examples/common/oracle.rs`](../../examples/common/oracle.rs)
+now binds **22**, and [`examples/probe-bba-bilans`](../../examples/probe-bba-bilans/main.rs)
+dumps them beside our own call, one jsonl row per decision. The oracle is no
+longer a one-bit comparator.
 
-| export | what it gives us |
+### The ABI
+
+Signatures are **confirmed twice over** — never guessed. The managed `EPBotFFI`
+shim that NativeAOT compiles into the `.so` ships alongside it as
+`vendor/bba/Native-libraries/wasm/EPBotWasm.dll`, and its ECMA-335 metadata
+carries full signatures *with parameter names* (parse it with python `dnfile`).
+BEN's independent ctypes binding at `src/bba/BBA.py` agrees byte-for-byte.
+
+```
+int GetProbableLevels (IntPtr bot, IntPtr buf, int bufBytes, IntPtr countOut)
+int Get/SetScoring    (IntPtr bot [, int value])
+int GetInfoAlerting   (IntPtr bot, int position)
+int GetInfo<X>        (IntPtr bot, int position, IntPtr buf, int bufBytes, IntPtr countOut)
+int SetInfo<X>        (IntPtr bot, int position, IntPtr data, int count)
+   // <X> ∈ feature, min_length, max_length, probable_length,
+   //       strength, stoppers, honors, suit_power
+```
+
+Three traps, each of which produces plausible garbage rather than an error:
+
+- The getter's size is in **bytes**; the setter's trailing `count` is in
+  **elements**. Verified by round trip, not by reading.
+- Status returns are `0` OK, `-1` null handle, `-2` exception, `-3` buffer too
+  small. `-1`/`-2` are *also* legitimate `probable_levels` values, so never
+  treat a negative there as an error.
+- `get_bid` is what drives the `calculated bid` path. Read it **before** the
+  level and info blocks or you get stale state.
+
+The per-strain scalar `epbot_get_probable_level(bot, strain)` is deliberately
+**not** bound: the array returns the same numbers in one call instead of five,
+and it is what revealed the array is 9 entries long rather than the 5 we assumed.
+
+### What the block actually contains
+
+Measured over a 21039-row / 2000-board recon dump, not inferred:
+
+| finding | status |
 |---|---|
-| `epbot_get_probable_level`, `epbot_get_probable_levels` | **Stage 4's output** — BBA's target level for the deal, read directly |
-| `epbot_get_info_min_length`, `_max_length`, `_probable_length` | Stage 1's length model, per seat per suit |
-| `epbot_get_info_honors`, `_stoppers`, `_suit_power`, `_strength` | Stage 1's honour placement and suit evaluation |
-| `epbot_get_info_feature`, `_alerting`, `_meaning[_extended]` | its own reading of each call |
-| `epbot_set_scoring` | IMP vs MP — Stage 4 is scoring-form-aware, so this changes its answers |
-| `epbot_get_sd_tricks`, `epbot_get_opponent_type` | single-dummy trick estimate; opponent model |
-| the whole `epbot_set_info_*` family | *inject* an inference model — lets us test the balance in isolation |
+| **`seats[4 + auction.len() % 4]` is the actor's own hand, exactly** | 21039/21039 |
+| positions 0..4 are the public band — never exact | 21039/21039 |
+| offsets 1, 2, 3 from the actor's slot are LHO / partner / RHO | HCP bands 17.9 / 15.4 / 12.4 wide |
+| `strength[suit]` = that suit's HCP | exact |
+| `honors[suit]` = bitmask A 16, K 8, Q 4, J 2, T 1 | exact |
+| `probable_length` is effectively **unused** | nonzero on <1% of rows |
+| `get_scoring` default | `1`, and setting 0..5 changed no call or level |
 
-The `set_info_*` half is the interesting one: it means the reconstruction stage
-can be driven externally, so Stages 2–4 can be measured apart from Stage 1.
+BBA's own prose ("positions 0-3 public, 4-7 calculated probable hands") is right
+but undersells it: slot `4 + actor` is not a *guess*, it is the actor's real
+cards, and RHO is the best-known of the other three because its call is the
+freshest evidence. That makes positions 4..8 directly comparable to our own
+`Inferences` — the same shape of object `probe-ben-info` builds for BEN.
 
-This is the cheapest lever in the whole study. Today we compare our call to
-BBA's call — one bit. `probable_level` and the `info_*` block turn the oracle
-into a **graded** teacher, and cost roughly one afternoon of binding work.
+### `probable_levels` — partly decoded, and a trap
+
+9 entries. Entries 0..5 are the strains ♣ ♦ ♥ ♠ NT, entry 5 is live but
+undecoded (0 until partner has bid, then rising with auction depth), entries
+6..9 are **always 0**.
+
+The values are **not** a 1–7 contract level. They span −6..7, sit negative early
+(a flat 16 opening reads `[-1, -2, -1, -2, -1]`) and climb as the auction firms
+up (`[5, 5, 6, 7, 7]` in a slam auction) — an offset from some baseline rather
+than a bid. Pinning that scale is the first job of session C.
+
+The strain *ordering* is confirmed: `argmax` over entries 0..4 picks the actor's
+own longest suit on **51.3%** of rows against a ~27% chance rate.
+
+> **Trap, and it looks like a real finding.** Correlating `argmax` against the
+> final contract strain gives **0.9–4.7%**, far *below* the 20% chance rate.
+> That is not evidence the ordering is reversed — it is a selection effect. The
+> opponents declare about half the time, and in those auctions the actor's best
+> strain is systematically *not* the contract strain. Split by declaring side
+> before drawing any conclusion from these numbers.
+
+### Still unbound
+
+`epbot_get_sd_tricks` (its `partnerLongerPtr` is inferred, and it returns two
+parallel arrays — a distribution, not a scalar), `epbot_get_opponent_type` (its
+`systemNumber` argument is ambiguous), and `_meaning[_extended]` (prose, not
+graded signal — §3 already used them).
+
+### Operational note
+
+**EPBot cannot be driven from a `cargo test` thread.** Its NativeAOT runtime
+segfaults there, and the *pre-existing* 7-symbol `classify` path does too — this
+is why `oracle.rs` has only ever tested pure parsing. The ABI self-check lives
+on the main thread instead:
+
+```sh
+cargo run --features serde --example probe-bba-bilans -- --self-check
+```
+
+It asserts the read path, the `set_info` round trip, the 9-entry width, and the
+actor-slot indexing invariant. Run it after any change to the binding.
 
 ---
 
@@ -416,15 +495,17 @@ Independent; each is its own session with its own entry point.
 
 | # | Area | First chunk | Entry point |
 |---|---|---|---|
-| A | **Widen the oracle FFI** | Bind `probable_level(s)`, the `info_*` getters, `set_scoring`. Dump them beside our own call on a few thousand boards. | `examples/common/oracle.rs` |
+| ~~A~~ | ~~**Widen the oracle FFI**~~ | **DONE** — see §6. 22 symbols bound including the whole `set_info_*` inject half; `probe`/`probe_with` on `BbaOracle`; recon dump in `examples/probe-bba-bilans`. | — |
 | B | **Read the arithmetic** | ILSpy on `vendor/bba/EPBot64.dll`; decompile `odzywka_z_bilansu`, `determine_punkty_bilansowe`, `determine_losing_winning_tricks`. Turns §5's *inferred* rows into *strong*. | needs a decompiler installed |
 | C | **A trick model for our floor** | Prototype Stages 2–3 only — winners/losers over `Inferences`' existing length/strength model — and score it against `probable_level` from A. | `src/bidding/instinct.rs`, `src/bidding/inference.rs` |
 | D | **Expected-score level choice** | Stage 4 over C's trick count: vulnerability, IMP/MP, doubled. Replaces weight-ladder level selection. | after C |
 | E | **Relational constraints (`SuitRef`)** | Symbolic auction-bound suit/level refs so `rubens_*` stops being opaque `pred` and keeps `describe`/`project`. Authoring economy + inference recovery, *not* strength. | `src/bidding/constraint.rs` |
 
-Dependency: **A before C/D** — without a graded teacher there is nothing to fit a
-trick model against. **B is optional but derisks C.** **E is independent** and can
-run in parallel; it is the smallest.
+Dependency: **A is now done**, so C/D are unblocked — the graded teacher exists
+and `examples/probe-bba-bilans` produces the rows to fit against. C's first job
+is decoding the `probable_levels` scale (§6), since a trick model needs to know
+what it is being scored against. **B is optional but derisks C.** **E is
+independent** and can run in parallel; it is the smallest.
 
 Standing caveat from [`../bba-gap-campaign.md`](../bba-gap-campaign.md): deep
 auctions are our *smallest* gap family (−6k, vs round-1 −213k). C and D are
@@ -436,13 +517,18 @@ without the A/B in [`../measurement.md`](../measurement.md).
 
 ## Artifacts
 
+- [`examples/probe-bba-bilans`](../../examples/probe-bba-bilans/main.rs) — §6's
+  recon dump and the ABI self-check (**kept**, unlike the throwaways below).
+- The signature parse used python `dnfile` over
+  `vendor/bba/Native-libraries/wasm/EPBotWasm.dll`'s ECMA-335 metadata, and
+  cross-checked BEN's ctypes binding at `src/bba/BBA.py`. No decompiler needed.
 - `scripts/bba_floor_stats.py` — MB.TXT static classifier (throwaway).
 - `bba-floor-probe` — live-engine off-book probe (throwaway, since removed).
 - Inputs (read-only): `vendor/bba/MB.TXT`, `vendor/bba/Comments.txt`,
   `vendor/bba/Native-libraries/linux/x64/libEPBot.so`.
-- §5–6 used no new code, only shell:
+- §5 used no new code, only shell (§6 is now the bound surface in `oracle.rs`):
   - `strings -n 5 vendor/bba/EPBotNET.dll` — managed metadata, the readable twin.
-  - `nm -D --defined-only …/libEPBot.so | grep ' T '` — the 72 exports of §6.
+  - `nm -D --defined-only …/libEPBot.so | grep ' T '` — the 70 `epbot_*` exports.
   - NativeAOT reflection names in the `.so` are length-prefixed UTF-8 with the
     prefix byte at `len * 2`; managed string literals are UTF-16, so plain
     `strings` misses them (this is why `calculated bid` needed a byte scan).
