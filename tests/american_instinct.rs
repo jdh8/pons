@@ -49,6 +49,10 @@ fn test_pass_of_preempt_without_values() {
 
 /// 1♥ (3♣): their jump overcall is past the negative-double package
 /// (`OvercallAtMost(2♠)`), but responder still raises with a limit hand
+///
+/// With the bilans floor default-on the raise goes to game rather than the
+/// limit 3♥ — the third competitive auction to move up a level when the floor
+/// shipped (see `docs/ai-bidder/evaluator-net.md`).
 #[test]
 fn test_raise_over_jump_overcall() {
     let system = stance();
@@ -58,7 +62,7 @@ fn test_raise_over_jump_overcall() {
             &[call(1, Strain::Hearts), call(3, Strain::Clubs)],
             "Q32.K53.A964.Q92",
         ),
-        call(3, Strain::Hearts),
+        call(4, Strain::Hearts),
     );
 }
 

@@ -3,8 +3,10 @@
 //! The instinct floor's game/slam boundaries are point gates — combined 25 for
 //! game, the fit-sum 31, 33/37 for the slams, support-points 29 for the RKCB
 //! ask — all blind to vulnerability.  The bilans floor
-//! ([`set_bilans_floor`][pons::bidding::instinct::set_bilans_floor], **default
-//! off** until this A/B says otherwise) swaps the arithmetic inside those gates
+//! ([`set_bilans_floor`][pons::bidding::instinct::set_bilans_floor], **shipped
+//! default-on** 2026-07-21 on the strength of this A/B — win/win on both
+//! scorers at both vulnerabilities, see the knob's docs) swaps the arithmetic
+//! inside those gates
 //! for the session-C trick evaluator: each converted gate prices its own
 //! contract as `P(≥ tricks) ≥ break-even(vulnerability)` — even money non-vul /
 //! 44.4% vul for a game (our failing branch priced *doubled*, per the

@@ -385,6 +385,30 @@ scales.
   consistent hand falls inside the envelope, and opaque predicates project to
   `unknown()`. The net learns how much a loose envelope really pins down — that
   *is* the spread.
+- **Wide envelopes bias the gates upward — the competitive-auction note.**
+  When the bilans floor shipped default-on (2026-07-21) it changed six floor
+  positions, and *every* competitive one moved up a level: a limit raise over a
+  jump overcall 3♥→4♥, a game opposite a 3-level overcall Pass→4♥, a 21-count
+  opposite an overcall 4♠→6♠.
+
+  There is a mechanism that predicts exactly this, and it is worth stating
+  because it is a property of the *gate*, not of the net's accuracy. A gate
+  fires on `P(≥ tricks) ≥ break-even`, and that probability is read off the
+  fitted Gaussian `(μ, σ)`. When μ sits **below** the trick target — the
+  borderline case every gate lives on — a **larger σ raises** `P(≥ tricks)`,
+  because more of the bell spills past the target. Wide inference envelopes
+  produce large σ. Competitive auctions have the widest envelopes there are
+  (partner's overcall reads as "8+ points, 5+ suit"). So the looser the
+  reading, the more the gate bids.
+
+  Note this is not the net being wrong: σ is *correctly* large there, and the
+  A/B is net-positive at both vulnerabilities. It is that a break-even
+  comparison on a symmetric distribution converts uncertainty into aggression
+  in one direction only. Whether that is right is an empirical question the
+  aggregate answers yes to today; the forensic — bucket a divergent set by
+  envelope width and check whether the losses concentrate in the wide bucket —
+  has not been run.
+
 - **`ln σ` is hard-clamped** to `[−5, 0]` in `tricks/13` units (σ ∈ [0.087, 13]
   tricks) in both trainer and serving, to stop the classic heteroscedastic
   collapse where σ → 0 on easy rows and the loss runs to −∞. A head parked on the

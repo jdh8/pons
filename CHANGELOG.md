@@ -9,8 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The bilans business redouble of our doubled 1NT.** 1NT redoubled is a
+  *contract*, and a making one outscores the slam the point milestones would
+  otherwise reach: 1NT×× making twelve tricks is 160 + 100 insult + 300 game +
+  five redoubled overtricks ≈ **2560** non-vul, against 990 for 6NT=. The
+  authored redouble sat at weight 1.2, below the 1.40 game and 1.60–1.75 slam
+  milestones, so a strong balanced responder pulled its own penalty to 6NT once
+  the net-priced milestones started firing. With `set_bilans_floor` on, a
+  second redouble rule at 1.78 — above every milestone, below the 1.80+ forcing
+  keycard answers — fires when the net likes seven notrump tricks at better
+  than even money *and* responder holds 15+. The `hcp(15..)` is what keeps it
+  narrow: "1NT rates to make" is nearly always true opposite a 15–17 opener, so
+  the make-probability alone would also promote the redouble over the *runout*
+  rules, and an eight-count with a six-card major wants to play 4M. Only hands
+  a milestone was about to pull to slam need rescuing, and those take 15+ to
+  reach a milestone at all. Knob-off the gate is `-∞` and never fires.
+
 - **Net-priced game/slam boundaries — bilans session D, first rung**
-  (`set_bilans_floor`, default **off**; A/B owed before default-on). The
+  (`set_bilans_floor`, **shipped default-on**). The
   instinct floor's game/slam boundary gates — combined-25 game, fit-sum-31
   major game, the 33/37 slam blasts, the RKCB entry, and the asker's grand —
   can now price their own contract with the session-C trick evaluator instead
@@ -27,8 +43,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   plain DD **+0.045**/board non-vul and **+0.072** both-vul (both CI-clean),
   PD +0.017 / +0.020 (parity, positive-leaning); the doubled posture
   pairwise-dominated the undoubled one on identical deals (plain unchanged,
-  PD recovered). Definitive 200k A/B per `docs/measurement.md` still owed
-  before any default flip.
+  PD recovered).
+
+  **Definitive 200k-board A/B (2026-07-21, seed 1784589590) — win/win at both
+  vulnerabilities, so it ships default-on:**
+
+  | vulnerability | divergent | plain DD /board | PD /board |
+  | --- | --- | --- | --- |
+  | none | 3.52% | **+0.036** [+0.030, +0.042] | **+0.009** [+0.002, +0.016] |
+  | both | 4.29% | **+0.065** [+0.057, +0.073] | **+0.013** [+0.003, +0.022] |
+
+  Both arms clear the decision table's top row (win on plain DD, win on PD),
+  and the effect is *larger vulnerable than non-vul* on both scorers while the
+  divergence rate also rises — the gates converting more hands exactly where
+  the vulnerable break-even (37.5%) sits below the non-vul one (45.5%). That
+  is the vulnerability axis the point gates were blind to, moving in the
+  direction the design predicts rather than merely in aggregate.
 
 - **A learned trick evaluator — bilans session C.** BBA's floor is not a rule
   table but the *bilans* pipeline:

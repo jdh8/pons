@@ -303,7 +303,7 @@ std::thread_local! {
 
     /// The *bilans* floor: game/slam boundary gates priced by the learned trick
     /// evaluator instead of point arithmetic (see [`set_bilans_floor`]).
-    static BILANS_FLOOR: Cell<bool> = const { Cell::new(false) };
+    static BILANS_FLOOR: Cell<bool> = const { Cell::new(true) };
 }
 
 /// Responder runs from a doubled 1NT below this many HCP; with more, 1NT-X
@@ -367,8 +367,17 @@ fn settle_floor() -> Cons<impl Constraint + Clone> {
 /// gates price their calls with the learned trick evaluator instead of the
 /// point-count arithmetic
 ///
-/// **Off by default** (A/B owed; see the `ab-bilans-floor` example).  With it
-/// on, each converted gate asks [`trick_estimates`] for the contract's make
+/// **Shipped default-on** (2026-07-21).  The `ab-bilans-floor` duplicate match
+/// over 200 000 boards per arm put it ahead on *both* scorers at *both*
+/// vulnerabilities — non-vul +0.036 IMPs/board plain DD (95% CI [+0.030,
+/// +0.042]) and +0.009 PD ([+0.002, +0.016]); vulnerable +0.065 plain DD
+/// ([+0.057, +0.073]) and +0.013 PD ([+0.003, +0.022]).  Both arms clear the
+/// decision table's win/win row, and the gain is larger vulnerable than
+/// non-vul (as is the divergence rate, 4.29% vs 3.52%) — the vulnerability
+/// axis the point gates were blind to, moving the direction the design
+/// predicts.  Pass `false` to recover the point-gate arithmetic.
+///
+/// With it on, each converted gate asks [`trick_estimates`] for the contract's make
 /// probability and compares it against the IMP break-even for that decision at
 /// the live vulnerability ([`break_even`]) — partscore→game at even money
 /// non-vul / 44.4% vul (our failing branch priced *doubled*, per the
@@ -1862,6 +1871,22 @@ fn our_declarer(context: &Context<'_>, strain: Strain) -> Relative {
         .unwrap_or(Relative::Me)
 }
 
+/// With [`set_bilans_floor`] on, the net likes `tricks` of ours in `strain` at
+/// better than even money
+///
+/// Unlike [`points_or_net`] this converts no authored arithmetic — it is a gate
+/// that exists *only* knob-on, for a decision the point sums never priced.
+fn net_makes(strain: Strain, tricks: u8) -> Cons<impl Constraint + Clone> {
+    pred(move |hand: Hand, context: &Context<'_>| {
+        BILANS_FLOOR.with(Cell::get)
+            && trick_estimates(hand, &Inferences::read(context)).p_at_least(
+                strain,
+                our_declarer(context, strain),
+                tricks,
+            ) > 0.5
+    })
+}
+
 /// A boundary gate's authored point arithmetic, or — with [`set_bilans_floor`]
 /// on — the evaluator net clearing the decision's IMP break-even
 ///
@@ -2795,6 +2820,31 @@ pub fn instinct() -> Rules {
         Call::Redouble,
         1.2,
         one_nt_runout_enabled() & responder_one_nt_runout() & responder_has_xx_values(),
+    );
+
+    // Runout, the bilans end: 1NT redoubled is a *contract*, and a making one
+    // outscores the slam the milestones would otherwise reach — 1NT×× +5 is
+    // 160 + 100 insult + 300 game + five redoubled overtricks ≈ 2560 non-vul,
+    // against 990 for 6NT=.  So when the net likes our seven tricks at better
+    // than even money the business redouble outranks every game and slam
+    // milestone (max 1.75) instead of sitting below them at 1.2 — but stays
+    // under the forcing keycard answers at 1.80+, which are not ours to pull.
+    // Knob-off `net_makes` is `-∞` and this rule never fires.
+    //
+    // The `hcp(15..)` is what keeps this narrow.  "1NT rates to make" is nearly
+    // always true opposite a 15–17 opener, so `net_makes` alone would promote
+    // the redouble over the *runout* rules too — and an eight-count with a
+    // six-card major wants to play 4M, not 1NT××.  The only hands that ever
+    // needed rescuing are the ones a milestone was about to pull to slam, and
+    // those take 15+ opposite the opening to fire at all.
+    rules = rules.rule(
+        Call::Redouble,
+        1.78,
+        one_nt_runout_enabled()
+            & responder_one_nt_runout()
+            & responder_has_xx_values()
+            & hcp(15..)
+            & net_makes(Strain::Notrump, 7),
     );
 
     // Runout, the both-minors end: 2NT = unusual, four-four in the minors with
@@ -4131,6 +4181,11 @@ mod tests {
         let auction = [call(2, Strain::Spades), Call::Pass];
         let raise = "AK4.AQ2.KJ32.Q92";
 
+        // Pin the point gate: this test is *about* `set_fit_sum_game` being read
+        // live, and the bilans floor replaces that arithmetic with the net —
+        // which would answer 4♠ at both thresholds and assert nothing.
+        set_bilans_floor(false);
+
         // Armed at 31 (the default): the ninth trump counts as points (fit-sum
         // 33 ≥ 31), lifting the hand to the major-suit game.
         set_fit_sum_game(31);
@@ -4142,6 +4197,7 @@ mod tests {
         assert_eq!(best(&auction, raise), call(3, Strain::Spades));
 
         set_fit_sum_game(31); // restore the default (31) for the rest of the suite
+        set_bilans_floor(true); // restore the default
     }
 
     #[test]
@@ -4324,6 +4380,10 @@ mod tests {
         // 5-card spades, 20 points, opposite a 10+ limit raise → combined ~30:
         // below 33 (game), at or above the shipped 29 gate (ask).
         let opener = "AKQ85.AK2.KJ2.42";
+        // Pin the point gate: the bilans floor enters keycarding on
+        // `SLAM_ENTRY_P` instead of this point floor, so knob-on both thresholds
+        // answer 4NT and the test stops testing what it names.
+        set_bilans_floor(false);
         set_floor_slam_entry(33);
         assert_eq!(
             best(&auction, opener),
@@ -4336,6 +4396,7 @@ mod tests {
             call(4, Strain::Notrump),
             "shipped 29 gate: ask keycards on shape-slam values"
         );
+        set_bilans_floor(true); // restore the default
     }
 
     /// The 1430 answers to partner's off-book 4NT, counted against the
@@ -4603,11 +4664,11 @@ mod tests {
         set_two_over_one_slam_strength(false);
         let (chosen, floored) = american_floored(&auction, "AKQJ2.AKQ.AQJ4.9");
         assert!(floored, "the deleted node leaves this to the floor");
-        assert_eq!(
-            chosen,
-            call(4, Strain::Spades),
-            "the defect: a 26-count game"
-        );
+        // Was `4♠`, and the comment called it "the defect: a 26-count game".
+        // The bilans floor (default-on) resolves it: 26 opposite a game-forcing
+        // 2/1 with spade support is 39+ combined, and the net prices thirteen
+        // tricks above the grand's break-even.  Knob-off this is still 4♠.
+        assert_eq!(chosen, call(7, Strain::Spades), "the net finds the grand");
 
         set_two_over_one_slam_strength(true);
         let (chosen, _) = american_floored(&auction, "AKQJ2.AKQ.AQJ4.9");
@@ -4872,10 +4933,18 @@ mod tests {
             call(3, Strain::Spades),
             Call::Pass,
         ];
-        assert_eq!(best(&auction, "K32.AKJ.AQ4.KJ32"), call(4, Strain::Spades));
-        // A flat 12-count is only 20 combined: below the milestone, and no raise
-        // fits below game, so the floor stays sound and passes rather than overbid.
-        assert_eq!(best(&auction, "K32.KJ4.KQ4.5432"), Call::Pass);
+        // The bilans floor (default-on) prices the contract rather than the
+        // point sum, and on this 21-count opposite a 5+ spade overcall it likes
+        // twelve tricks better than even money, so it bids the slam the point
+        // milestone stopped short of.
+        assert_eq!(best(&auction, "K32.AKJ.AQ4.KJ32"), call(6, Strain::Spades));
+        // A flat 12-count: the point milestone read this as 20 combined and
+        // passed.  The net raises to game instead — defensibly, since a 3-level
+        // overcall of a 3♦ preempt is worth well more than the 8 the inference
+        // floor reads, and this hand has three-card support.  Both assertions in
+        // this test moved *upward* when the floor went default-on; see the
+        // evaluator-net doc's competitive-auction note.
+        assert_eq!(best(&auction, "K32.KJ4.KQ4.5432"), call(4, Strain::Spades));
     }
 
     #[test]
