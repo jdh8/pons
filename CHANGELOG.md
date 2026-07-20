@@ -9,6 +9,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`cards/American.bbsa` — a BBA convention card describing *our* 2/1, and
+  `examples/probe-bba-conventions` to keep it honest.** The BBA-distilled floor
+  `american_bba` was dumped before `dump-teacher` had a `--card` flag, so its
+  teacher ran on EPBot's **compiled-in defaults** — which differ from
+  `vendor/bba/21GF.bbsa` on 18 toggles, and from what `american()` actually
+  plays on more. The 21GF campaign has been authoring the *book* toward
+  `21GF.bbsa` (locked decision #1, "mirror 21GF's ON toggles") while the *floor*
+  learned a different system underneath it. Worst case found: EPBot answers
+  keycard in **0314** and we ask in **1430**, so every learned keycard answer is
+  inverted relative to the book above it — 5♣ and 5♦ mean the opposite thing.
+  Next worst: the teacher played `1N-3D natural` while we author 3♦ as 5-5
+  majors, which is exactly the misread the 1NT-3♦ node was authored to shadow;
+  and `Checkback` where we play XYZ. The card is `21GF.bbsa` plus 22 deltas,
+  each traced to source before being applied. `probe-bba-conventions` binds the
+  previously-unbound `epbot_get_conventions` symbol and diffs any card against
+  the engine defaults for its `System type`, so this class of drift is one
+  command to check rather than an inference from behavior.
+- **`american_bba_constructive()` and `with_floors(pair, contested,
+  constructive)`.** `with_floor` attached the learned floor to the competitive
+  and defensive books but hardcoded `instinct()` under the constructive one, so
+  *every* learned floor in the crate — v1, v2, v3, search, BBA — was barred from
+  uncontested auctions. Its stated justification, that the learned floors are
+  trained on contested auctions only, is false of the BBA nets: 37% of
+  `american_bba`'s corpus is constructive, and the freshly-trained WJ net
+  validates *better* on constructive rows (86.6%) than contested ones (85.7%).
+  `with_floors` makes the constructive floor a parameter (`with_floor` is now a
+  wrapper passing `instinct()`, so behavior is unchanged), and
+  `american_bba_constructive()` plus `bba-gen --our-floor bba-constructive` and
+  `scripts/constructive-floor-ab.sh` are the A/B arm for lifting the
+  restriction.
 - **`dutch_instinct()` — the Dutch pair on the deterministic floor, and
   `dutch()` moves to the BBA-distilled one.** When `american()` was promoted to
   `NeuralFloorBba` (2026-07-19, +0.11/+0.25 IMPs/board), `dutch()` was left on

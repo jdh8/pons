@@ -77,9 +77,10 @@ struct Args {
 
     /// Which of our authored systems to seat: `american` (default), `dutch`
     /// (the wide-1♣ champion candidate), the deterministic `american-instinct` /
-    /// `dutch-instinct` pre-swap baselines, or `neural-v3` (the restrictive
-    /// disclosable distilled floor; requires the `neural-floor` feature).
-    /// Ignored when `--our-system` selects an EPBot card.
+    /// `dutch-instinct` pre-swap baselines, `bba-constructive` (`american` with
+    /// the BBA net flooring the constructive book too), or `neural-v3` (the
+    /// restrictive disclosable distilled floor; requires the `neural-floor`
+    /// feature).  Ignored when `--our-system` selects an EPBot card.
     #[arg(long, default_value = "american")]
     our_floor: String,
 
@@ -1322,12 +1323,15 @@ fn main() -> anyhow::Result<()> {
         // `american` and `dutch` both ship the BBA net.
         "american-instinct" => pons::american_instinct().against(Family::NATURAL),
         "dutch-instinct" => pons::dutch_instinct().against(Family::NATURAL),
+        // `american` with the BBA net also flooring the *constructive* book,
+        // where `with_floor` otherwise keeps the deterministic instinct ladder.
+        "bba-constructive" => pons::american_bba_constructive().against(Family::NATURAL),
         #[cfg(feature = "neural-floor")]
         "neural-v3" => pons::american_neural_v3().against(Family::NATURAL),
         #[cfg(feature = "neural-floor")]
         "neural-bba" => pons::american_bba_neural().against(Family::NATURAL),
         other => anyhow::bail!(
-            "--our-floor must be american|american-instinct|dutch|dutch-instinct{}, got {other:?}",
+            "--our-floor must be american|american-instinct|dutch|dutch-instinct|bba-constructive{}, got {other:?}",
             if cfg!(feature = "neural-floor") {
                 " or neural-v3|neural-bba"
             } else {

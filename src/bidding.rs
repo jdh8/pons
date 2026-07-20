@@ -44,7 +44,7 @@ pub mod trie;
 /// Behavioral verification of authored constraints (AI-bidder M4.2)
 pub mod verify;
 
-pub use american::{american, american_bba_neural, american_instinct};
+pub use american::{american, american_bba_constructive, american_bba_neural, american_instinct};
 #[cfg(feature = "neural-floor")]
 pub use american::{
     american_neural, american_neural_search, american_neural_v2, american_neural_v3,

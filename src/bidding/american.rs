@@ -364,6 +364,26 @@ pub fn american_bba_neural() -> Pair {
     american()
 }
 
+/// The 2/1 pair with the BBA-distilled floor under the **constructive** book too
+///
+/// Exactly [`american`] but for which floor catches off-book *uncontested*
+/// auctions: [`with_floor`] hands those to the deterministic
+/// [`instinct`][crate::bidding::instinct()] ladder, and this hands them to the
+/// same [`NeuralFloorBba`][crate::bidding::neural_floor::NeuralFloorBba] that
+/// already floors the contested books.
+///
+/// The restriction it lifts predates this net.  It was justified on the grounds
+/// that the learned floors are trained on contested auctions only — true of the
+/// instinct-distilled v1/v2 nets, false of the BBA one, whose corpus is 37%
+/// constructive and which validates no worse on that split than on the contested
+/// one.  An added option, never a replacement: [`american`] stays the baseline
+/// until this measures.  The A/B arm for `scripts/constructive-floor-ab.sh`.
+#[must_use]
+pub fn american_bba_constructive() -> Pair {
+    use super::neural_floor::NeuralFloorBba;
+    with_floors(bare_american(), NeuralFloorBba, NeuralFloorBba)
+}
+
 /// The 2/1 pair with the **search-target** distilled neural floor (AI-bidder M3.2)
 ///
 /// Exactly [`american_neural`] in shape — v1 features, the
@@ -443,18 +463,35 @@ pub fn american_constructive_floor<C: Classifier + 'static>(floor: C) -> Pair {
 /// of them.  Generic over the floor so [`american`] (the deterministic
 /// [`instinct`][crate::bidding::instinct()]) and
 /// [`american_neural`] (the distilled net) share one wiring.
-pub(in crate::bidding) fn with_floor<C: Classifier + 'static>(mut pair: Pair, floor: C) -> Pair {
-    let floor = Fallback::classify(floor);
-    pair.competitive.fallback_at(&[], Always, floor.clone());
-    pair.defensive.fallback_at(&[], Always, floor);
+pub(in crate::bidding) fn with_floor<C: Classifier + 'static>(pair: Pair, floor: C) -> Pair {
     // Uncontested auctions never reach the contested floor, so an off-book
     // constructive sequence would pass out below a cold game (e.g. `1♦–1♥–1NT`
     // passed out on a balanced 16 opposite the 12–14 rebid).  Floor the
-    // constructive book with the deterministic instinct ladder — the learned
-    // floors are trained on contested auctions only, so the natural milestone
-    // bidder is the right answer here — and those sequences reach game or slam.
+    // constructive book with the deterministic instinct ladder — the natural
+    // milestone bidder reaches game or slam on those sequences.
+    with_floors(pair, floor, instinct())
+}
+
+/// As [`with_floor`], but with the **constructive** floor chosen separately
+///
+/// The split exists because the constructive restriction above predates the
+/// BBA-distilled nets.  Its original justification — that the learned floors are
+/// trained on contested auctions only — is false of them: 37% of
+/// `american_bba`'s corpus is constructive, and the nets validate no worse there
+/// than on contested rows.  So "learned floor on contested, instinct on
+/// constructive" is a testable choice rather than a law, and this is the handle
+/// the A/B arm needs.  It matters most where the constructive book is thinnest —
+/// Dutch's minor openings, not american's heavily authored core.
+pub(in crate::bidding) fn with_floors<C: Classifier + 'static, D: Classifier + 'static>(
+    mut pair: Pair,
+    contested: C,
+    constructive: D,
+) -> Pair {
+    let contested = Fallback::classify(contested);
+    pair.competitive.fallback_at(&[], Always, contested.clone());
+    pair.defensive.fallback_at(&[], Always, contested);
     pair.constructive
-        .fallback_at(&[], Always, Fallback::classify(instinct()));
+        .fallback_at(&[], Always, Fallback::classify(constructive));
     pair
 }
 
