@@ -69,7 +69,7 @@ the floor's transfer-completion still holds.
 | 3 | 2-level openings (Multi + **BBA's Polish two-suiters**/UNT) + strong-2♣ tree | pending — **Muiderberg superseded**, see below |
 | 4 | Reader/floor reconciliation + divergent-opening competitive book | pending |
 | 5 | Iterate to champion vs BBA/BEN; promote if it wins | pending |
-| WJ-floor | Distil BBA-WJ as the floor over Dutch's divergent minors | **A/B A WON** (floor swap, +0.18/+0.28 plain, shipped); **A/B B LOST** (WJ over 1♦, −0.005/−0.017 PD — inherited overbid; routing removed, net kept); Phase 3's two-level rows are the remaining arm |
+| WJ-floor | Distil BBA-WJ as the floor over Dutch's divergent minors | **A/B A WON** (floor swap, +0.18/+0.28 plain, shipped); **A/B B LOST** (WJ over 1♦, −0.005/−0.017 PD — inherited overbid); **A/B C LOST** (WJ as *constructive* floor under 1♣, −0.012/−0.029 — nets have no settle rail); both routings removed, net kept; Phase 3's two-level rows are the remaining arm |
 
 Each phase gates on a paired-seed A/B via `examples/bba-gen` (dutch arm vs
 american arm), dual-scored (`ns_score_pd` + `ns_score_contract`), fresh
@@ -229,6 +229,68 @@ teacher share the *same rows* — no range mismatch, no unauthored continuation
 tree. Phase 3 wires its own routing over the two-level openings, which is a
 different arm from the 1♦ one that was measured. **Assume the overbid follows
 there until measured**; it is a property of the teacher, not of the 1♦ subtree.
+
+**Step C — A/B C LOST, and lost harder. The WJ net as the *constructive* floor
+under our wide 1♣.** 204 800 bd/arm/vul at `none`, seed base 1784530004, killed
+before `both` on the strength of the result. Dumps at `ab-results/dutch-wj1c/`;
+the runner, `dutch_wj_club()`, `DutchConstructiveFloor` and the `--our-floor
+dutch-wj1c` arm were removed with the routing.
+
+*The premise was right.* jdh8's argument was that a net should read `1♣-1♦` as a
+relay, not as diamonds, and that WJ is the teacher that does. Measured over
+7 077 EPBot-WJ responder rows, WJ's `1♣-1♦` is a `wildcard response` that
+discloses **nothing** — no length range, no point range — with ♦ length running
+0–8 including 58 voids, and spades as often the longest suit (2 176) as diamonds
+(1 792). EPBot's 2/1 answers 1♣ with a natural `1♦` (`bidable suit`, `D:[4,13]`,
+`pts:[6,29]`). So `american_bba` is a net that invents a diamond suit on Dutch's
+relay and the WJ net is not. That much held up.
+
+*The slot was the surprise.* `dutch()` is `with_floors(pair, NeuralFloorBba,
+instinct())` — the net wraps only the **contested** books, so uncontested
+`1♣-P-1♦-P-…` was already floored by deterministic `instinct()`, which reads the
+alerted relay through projection and never invents diamonds. The misread the
+argument targets was therefore *not happening*; the arm is really the held-back
+constructive-floor A/B, scoped to the 1♣ subtree.
+
+| `dutch-wj1c` − `dutch` | plain DD | perfect defense | fired |
+| --- | --- | --- | --- |
+| vul none | **−0.0119** ±0.0038 | **−0.0293** ±0.0046 | 1.95% |
+
+Both cells lose well outside their CI, and PD loses 2.5× what plain does. The
+mechanism, counted over all 4 689 divergent boards (not the worst-N tail):
+
+| | `dutch` | `dutch-wj1c` |
+| --- | --- | --- |
+| mean final contract level | 2.908 | **3.676** (+0.768) |
+| reached slam (≥6) | 76 | **570** (7.5×) |
+| reached the five-level or higher | 99 | **862** (8.7×) |
+| finished doubled | 5 | **45** (9×) |
+
+Twice A/B B's level inflation and an order of magnitude more slams. In 40% of
+divergences the WJ arm *strictly extends* an auction `dutch` had already passed
+out, and the extra calls are not junk — the modal one is `3NT` (720 boards),
+i.e. `instinct()` genuinely does pass out below cold games under the wide 1♣.
+But the same net that finds those games also drives `4NT`/`5NT` into doubled
+slams, and the slams cost more than the games earn.
+
+**What this says about the architecture, and it is the durable part.** A learned
+net in the **constructive** slot has no rail that tells it to stop. The
+contested floors are safe partly because `forced(context)` hands railed
+positions back to the deterministic ladder, and partly because a contested
+auction has opponents bidding to end it. A constructive auction ends only when
+someone passes, and `instinct()` carries an explicit settle floor (pass = play
+the top bid) that the nets have no equivalent of. So "swap `instinct()` for a
+net in the constructive book" is not a free upgrade anywhere, Dutch or american —
+it needs a settle rail first. That reframes the still-open
+`scripts/constructive-floor-ab.sh` arm: expect the same runaway from
+`NeuralFloorBba` over american, and build the rail before spending the compute.
+
+**The 720 missed games are the real lead.** They are a measured leak in a
+*book*, not in a floor: `instinct()` passing out under the wide 1♣ because the
+18–20 `1NT` and 21–23 `2♦!` relay continuations are unauthored. The fix is
+Phase 2.2 authoring on both sides, which is what the iron rule prescribes
+anyway — a book node with finite mass shadows the floor, so authoring removes
+the question rather than re-litigating which net floors it.
 
 `dutch()` is unchanged throughout: `NeuralFloorBba` floors every Dutch subtree,
 1♦ included.
