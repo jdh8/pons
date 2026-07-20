@@ -158,7 +158,13 @@ fn main() -> anyhow::Result<()> {
         (Mean::default(), Mean::default(), Mean::default());
     let (mut nodes, mut starved) = (0u64, 0u64);
 
-    for (deal, _) in &deals {
+    for (board, (deal, _)) in deals.iter().enumerate() {
+        // Every DD solve here is a fresh sampled layout, so a long run has no
+        // other progress signal — without this the only output is the header
+        // and, hours later, the table.
+        if board > 0 && board % 50 == 0 {
+            eprintln!("  ... {board}/{} boards, {nodes} nodes priced", deals.len());
+        }
         let dealer = rng.random_range(0..4usize);
         let vul = VULS[rng.random_range(0..4usize)];
         let mut auction = Auction::new();
@@ -280,7 +286,7 @@ fn main() -> anyhow::Result<()> {
     );
     println!("P(make) MAE           all levels {:.4}", all_err.get());
     println!(
-        "P(make) MAE in band   {:.4}   ({} contracts predicted 35–75%; contested {:.4})",
+        "P(make) MAE in band   {:.4}   ({} contracts predicted 35–60%; contested {:.4})",
         band_err.get(),
         band_err.n,
         band_err_contested.get(),
@@ -288,7 +294,15 @@ fn main() -> anyhow::Result<()> {
     println!(
         "  sampling-noise floor {:.4}  → net's own error ≈ {:.4}",
         noise_floor.get(),
-        (band_err.get() - noise_floor.get()).max(0.0),
+        // Deconvolve in *quadrature*, not linearly. The measured gap is the net's
+        // error against a noisy estimate of truth; the two are independent, so
+        // their squares add. Subtracting linearly understates the net by ~45% at
+        // these magnitudes. Both terms are MAEs of roughly Gaussian errors, and
+        // MAE = √(2/π)·σ for a Gaussian, so the √(2/π) factors cancel and the
+        // MAEs compose in quadrature exactly as the σ's do.
+        (band_err.get().powi(2) - noise_floor.get().powi(2))
+            .max(0.0)
+            .sqrt(),
     );
     Ok(())
 }

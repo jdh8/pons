@@ -81,6 +81,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   sampler-plus-solver truth it replaces. Written up in
   `docs/ai-bidder/evaluator-net.md`.
 
+  **Priced against that truth** (1000 held-out boards, 10,242 nodes, replay
+  sampler at 96 layouts/node): mean MAE **0.497** tricks, sd MAE **0.214**,
+  P(make) MAE **0.0434** over all levels and **0.1127** inside the 35–60%
+  decision band. Deconvolving the sampler's own binomial noise floor (0.0382)
+  in quadrature leaves the net's own error at **0.1060** — larger than the
+  8-point NV/vul game-threshold gap, so the evaluator is a usable prior for
+  where a hand sits but cannot alone decide a vulnerability-marginal game.
+  Calibration holds: **49.9%** of sampled mass below μ (the Gaussian's
+  symmetry assumption met) and the predicted sd runs **+0.087** wide, erring
+  toward over-dispersion — the safe direction for a CDF consumer.
+
   **Nothing consumes the net yet** — it is not a `Classifier` and no `System`
   references it, so no bidding behaviour changes and no A/B applies. It is
   ungated: the weights are 37 KB of `include_bytes!` and no dependency, so a

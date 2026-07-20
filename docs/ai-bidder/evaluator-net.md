@@ -252,24 +252,60 @@ closed unless a much larger corpus reopens it.
 
 ### Against the truth it replaces
 
-`examples/eval-evaluator`, held-out shard, replay sampler at 128 layouts/node —
-predicted moments vs the sample-and-solve loop, at the same nodes:
+`examples/eval-evaluator`, held-out shard (`shard-1010741…`, `--skip 20000`),
+1000 boards / 10,242 nodes, replay sampler at 96 layouts/node — predicted
+moments vs the sample-and-solve loop, at the same nodes:
 
 | quantity | value |
 |---|---|
-| mean MAE vs sampled mean | TBD tricks |
-| sd MAE vs sampled sd | TBD tricks |
-| signed spread (predicted − sampled sd) | TBD |
-| sampled mass below μ | TBD |
-| P(make) MAE, all levels | TBD |
-| P(make) MAE, decision band (35–60%) | TBD |
-| — minus the sampler's own binomial noise floor | **TBD** |
+| mean MAE vs sampled mean | 0.497 tricks |
+| sd MAE vs sampled sd | 0.214 tricks |
+| signed spread (predicted − sampled sd) | +0.087 (1.872 vs 1.785) |
+| sampled mass below μ | 49.9% |
+| P(make) MAE, all levels | 0.0434 |
+| P(make) MAE, decision band (35–60%) | 0.1127 (contested 0.1285) |
+| — sampler's own binomial noise floor | 0.0382 |
+| **— net's own error, deconvolved** | **0.1060** (contested 0.1227) |
 
-TBD-headtohead-commentary
+**Read the last row as the verdict.** ~10.6 points of P(make) error inside the
+decision band is *larger* than the 8-point gap between the NV and vul game
+thresholds (45.5% vs 37.5%). So the evaluator is a usable prior for where a
+hand sits, but it cannot by itself decide a vulnerability-marginal game. That
+is a statement about session D's design, not a defect: session D should treat
+the net as a fast prior and reserve sampling for boards near a threshold,
+rather than replacing sample-and-solve outright. Whether the residual costs
+IMPs is an A/B question, which session D owes regardless.
+
+**Deconvolve in quadrature, not linearly.** The measured 0.1127 is the net's
+error against a *noisy estimate* of truth. Net error and sampling noise are
+independent, so their squares add: √(0.1127² − 0.0382²) = 0.1060. An earlier
+revision of the harness subtracted the two linearly and reported 0.0745 —
+understating the net by ~45%. Both terms are MAEs of roughly Gaussian errors
+and MAE = √(2/π)·σ for a Gaussian, so the √(2/π) factors cancel and the MAEs
+compose in quadrature exactly as the σ's do.
+
+The two calibration results survive at full n. **49.9% below μ** says the
+Gaussian's symmetry assumption is genuinely met here — the one place the
+parameterization could have failed cheaply, and it did not. **+0.087 wide**
+means the net errs toward over-dispersion, the safe direction for a consumer
+that integrates a CDF: it under-claims confidence rather than over-claiming.
+
+A 40-board probe run earlier held every result's shape but was optimistic by
+~7% on each error column — worth remembering before trusting a small slice.
 
 The band is selected on the *predicted* probability, not the sampled one:
-conditioning on a noisy empirical estimate landing in 35–75% would drag in
+conditioning on a noisy empirical estimate landing in 35–60% would drag in
 contracts that got there by sampling error and inflate the reported gap.
+
+**Still open: the `--bare` arm** (range-only `sample_layouts` instead of
+rule-replay). The net's input *is* the projected range envelope, so bare draws
+from exactly the information the net receives while replay draws from a tighter
+set the net never sees. The gap between the arms splits the 0.1060 into the
+net's learning error (reducible by capacity or data) and the price of the range
+representation itself (not reducible without changing the input) — the fork
+between "train harder" and "40 floats is the ceiling". Prediction on record
+before it lands: the net should look *narrower* than bare's truth, flipping the
++0.087 negative, since bare admits layouts the rules exclude.
 
 ### Comparison with the quartile parameterization
 
