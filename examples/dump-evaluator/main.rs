@@ -1,0 +1,268 @@
+//! Trick-evaluator corpus (bilans session C)
+//!
+//! Bids out pre-solved deals with our own books and records, at every decision
+//! point, a training row of `(features, dd_tricks)` for the **trick evaluator**
+//! — the net that answers "given my cards and range envelopes on the three
+//! hidden hands, how many double-dummy tricks does each declarer take in each
+//! strain?".
+//!
+//! - **features** — [`features_eval`][pons::bidding::features::features_eval]:
+//!   40 floats of own-hand summary plus the LHO/partner/RHO range blocks read
+//!   by [`Stance::infer`]. No auction, no seat, no vulnerability: the auction
+//!   enters only through the ranges, which is what makes the evaluator
+//!   bidding-system agnostic. `--encoding onehot` swaps the 10-float hand
+//!   summary for 52 card bits (the texture ablation), same walk.
+//! - **dd_tricks** — the deal's cached double-dummy table re-oriented to the
+//!   acting seat ([`gib::relativized_tricks`]): 20 targets, strain-major in GIB
+//!   order (NT,♠,♥,♦,♣) × declarer `[me, lho, partner, rho]`. This is ground
+//!   truth on the actual deal, not a teacher's opinion, so distillation bias
+//!   cannot enter.
+//!
+//! **No solver and no EPBot run here.** The labels are already in the `.pdd`
+//! stock (`/nfs2/jdh8/*.pdd`, ~94M solved deals); the only work is bidding.
+//!
+//! ```text
+//! cargo run --release --example dump-evaluator -- \
+//!     --deals /nfs2/jdh8/22.pdd --count 100000 --seed $(date +%s)
+//! ```
+//!
+//! Output is a flat little-endian `f32` file of `features_len + 20` floats per
+//! row, a JSON sidecar pinning the layout, and a sibling `.tags` byte per row
+//! (bit 0 = contested phase, bit 1 = system index). The loop is **deal-major**
+//! so a contiguous validation split stays deal-disjoint — the ~10 rows a board
+//! contributes all share one DD label, and a shuffled split would leak it.
+
+use clap::Parser;
+use contract_bridge::auction::{Auction, Call};
+use contract_bridge::{AbsoluteVulnerability, FullDeal, Hand, Rank, Seat, Suit};
+use ddss::TrickCountTable;
+use pons::bidding::context::relative;
+use pons::bidding::features::{
+    FEATURES_LEN_EVAL, FEATURES_VERSION_EVAL, LEN_HAND_V3, features_eval,
+};
+use pons::bidding::{Family, Inferences, Phase, Stance, System};
+use pons::{american, dutch, gib};
+use rand::rngs::StdRng;
+use rand::{RngExt, SeedableRng};
+use std::io::{BufWriter, Write};
+
+/// Width of the double-dummy label: 5 strains × 4 declarers.
+const DD_LEN: usize = 20;
+
+/// Width of the `--encoding onehot` hand block: 4 suits × 13 ranks.
+const LEN_HAND_ONEHOT: usize = 52;
+
+#[derive(Parser)]
+#[command(about = "Dump (features, dd_tricks) rows for the trick evaluator")]
+struct Args {
+    /// Pre-solved deal database: binary `.pdd` (sliceable) or GIB text
+    #[arg(long)]
+    deals: String,
+    /// Skip this many deals before reading (shards a multi-gigabyte database)
+    #[arg(long, default_value_t = 0)]
+    skip: u64,
+    /// Number of deals to bid out
+    #[arg(long, default_value_t = 100_000)]
+    count: usize,
+    /// RNG seed for the dealer/vulnerability stream
+    #[arg(long, default_value_t = 0)]
+    seed: u64,
+    /// Comma-separated books to bid each deal with. Pooling systems widens the
+    /// range-shape coverage; the physics being learned is the same for all.
+    #[arg(long, default_value = "american,dutch")]
+    systems: String,
+    /// Own-hand encoding: `summary` (10 disclosable floats) or `onehot` (52
+    /// card bits — the texture ablation)
+    #[arg(long, default_value = "summary")]
+    encoding: String,
+    /// Output path stem; writes `<out>.f32`, `<out>.json`, `<out>.tags`
+    #[arg(long, default_value = "target/evaluator-data")]
+    out: String,
+}
+
+/// The four absolute vulnerabilities, sampled uniformly per board.
+const VULS: [AbsoluteVulnerability; 4] = [
+    AbsoluteVulnerability::NONE,
+    AbsoluteVulnerability::NS,
+    AbsoluteVulnerability::EW,
+    AbsoluteVulnerability::ALL,
+];
+
+fn main() -> anyhow::Result<()> {
+    let args = Args::parse();
+    let onehot = match args.encoding.as_str() {
+        "summary" => false,
+        "onehot" => true,
+        other => anyhow::bail!("--encoding must be summary|onehot, got {other:?}"),
+    };
+    let features_len = if onehot {
+        LEN_HAND_ONEHOT + FEATURES_LEN_EVAL - LEN_HAND_V3
+    } else {
+        FEATURES_LEN_EVAL
+    };
+    let row_len = features_len + DD_LEN;
+
+    let systems: Vec<(&str, Stance)> = args
+        .systems
+        .split(',')
+        .map(|name| match name.trim() {
+            "american" => Ok(("american", american().against(Family::NATURAL))),
+            "dutch" => Ok(("dutch", dutch().against(Family::NATURAL))),
+            other => anyhow::bail!("--systems entries must be american|dutch, got {other:?}"),
+        })
+        .collect::<anyhow::Result<_>>()?;
+    anyhow::ensure!(systems.len() <= 2, "the tag byte holds two system slots");
+
+    let deals = load_deals(&args.deals, args.skip, args.count)?;
+    eprintln!(
+        "evaluator-dump: {} deals × {} systems, {features_len} features + {DD_LEN} labels",
+        deals.len(),
+        systems.len()
+    );
+
+    let mut rng = StdRng::seed_from_u64(args.seed);
+    let f32_path = format!("{}.f32", args.out);
+    let mut writer = BufWriter::new(std::fs::File::create(&f32_path)?);
+    let mut tags = BufWriter::new(std::fs::File::create(format!("{}.tags", args.out))?);
+
+    let (mut rows, mut contested, mut forced_pass) = (0u64, 0u64, 0u64);
+    let mut row = vec![0f32; row_len];
+
+    // Deal-major: every row a board contributes stays contiguous, so the
+    // trainer's contiguous validation tail is deal-disjoint.
+    for (deal, table) in &deals {
+        let dealer = rng.random_range(0..4usize);
+        let vul = VULS[rng.random_range(0..4usize)];
+        for (sys_idx, (_, stance)) in systems.iter().enumerate() {
+            let mut auction = Auction::new();
+            while !auction.has_ended() {
+                let seat = Seat::ALL[(dealer + auction.len()) % 4];
+                let hand = deal[seat];
+                let rel = relative(vul, seat);
+
+                let Some(mut logits) = stance.classify(hand, rel, &auction) else {
+                    forced_pass += 1;
+                    auction.push(Call::Pass);
+                    continue;
+                };
+                for (call, slot) in logits.iter_mut() {
+                    if auction.can_push(call).is_err() {
+                        *slot = f32::NEG_INFINITY;
+                    }
+                }
+
+                // The trie-prefixed reading, so conventional calls decode off
+                // their authoring rules rather than as natural suits.
+                let inferences = stance.infer(rel, &auction);
+                encode(&mut row[..features_len], hand, &inferences, onehot);
+                row[features_len..].copy_from_slice(&gib::relativized_tricks(table, seat));
+                for value in &row {
+                    writer.write_all(&value.to_le_bytes())?;
+                }
+
+                let contested_row = Phase::of(&auction) != Phase::Constructive;
+                tags.write_all(&[u8::from(contested_row) | (sys_idx as u8) << 1])?;
+                rows += 1;
+                contested += u64::from(contested_row);
+
+                auction.push(argmax_legal(&logits));
+            }
+        }
+    }
+    writer.flush()?;
+    tags.flush()?;
+
+    let metadata = serde_json::json!({
+        "feature_version": FEATURES_VERSION_EVAL,
+        "features_len": features_len,
+        "dd_len": DD_LEN,
+        "row_len": row_len,
+        "row_bytes": row_len * 4,
+        "dtype": "f32-le",
+        "encoding": args.encoding,
+        "layout": format!("row = [{features_len} features][{DD_LEN} dd_tricks]"),
+        "label_order": "strain-major NT,S,H,D,C × declarer [me,lho,partner,rho], tricks/13",
+        "tags": "sibling .tags: one u8 per row, bit 0 = contested phase, bit 1 = system index",
+        "systems": systems.iter().map(|(n, _)| *n).collect::<Vec<_>>(),
+        "deals": args.deals,
+        "skip": args.skip,
+        "count": args.count,
+        "boards": deals.len(),
+        "git_sha": git_sha(),
+        "seed": args.seed,
+        "rows": rows,
+        "contested_rows": contested,
+        "forced_pass_decisions": forced_pass,
+    });
+    std::fs::write(format!("{}.json", args.out), format!("{metadata:#}\n"))?;
+
+    eprintln!(
+        "evaluator-dump: {rows} rows → {f32_path} ({:.1} MB), {:.0}% contested, \
+         {forced_pass} forced passes.",
+        (rows as usize * row_len * 4) as f64 / 1e6,
+        if rows == 0 {
+            0.0
+        } else {
+            100.0 * contested as f64 / rows as f64
+        },
+    );
+    Ok(())
+}
+
+/// Write one feature row: the hand block (summary or 52 card bits) followed by
+/// the three hidden seats' range blocks, which `features_eval` already lays out.
+fn encode(out: &mut [f32], hand: Hand, inferences: &Inferences, onehot: bool) {
+    let feats = features_eval(hand, inferences);
+    let (hand_block, ranges) = feats.split_at(LEN_HAND_V3);
+    let cut = if onehot {
+        for (slot, (suit, rank)) in out.iter_mut().zip(
+            Suit::ASC
+                .into_iter()
+                .flat_map(|s| (2..=14).map(move |r| (s, r))),
+        ) {
+            *slot = f32::from(hand[suit].contains(Rank::new(rank)));
+        }
+        LEN_HAND_ONEHOT
+    } else {
+        out[..LEN_HAND_V3].copy_from_slice(hand_block);
+        LEN_HAND_V3
+    };
+    out[cut..].copy_from_slice(ranges);
+}
+
+/// The highest-logit finite (hence legal, after masking) call, defaulting to a
+/// pass so the auction always terminates.
+fn argmax_legal(logits: &pons::bidding::array::Logits) -> Call {
+    logits
+        .iter()
+        .filter(|(_, l)| l.is_finite())
+        .max_by(|a, b| a.1.partial_cmp(b.1).expect("logits are never NaN"))
+        .map_or(Call::Pass, |(call, _)| call)
+}
+
+/// Load a slice of a pre-solved database: seek-based for binary `.pdd`, else
+/// read the GIB text whole (it has no fixed row width to seek by) and slice.
+fn load_deals(
+    path: &str,
+    skip: u64,
+    count: usize,
+) -> std::io::Result<Vec<(FullDeal, TrickCountTable)>> {
+    pons::pdd::load_slice(path, skip, count).or_else(|_| {
+        Ok(pons::pdd::load(path)?
+            .into_iter()
+            .skip(skip as usize)
+            .take(count)
+            .collect())
+    })
+}
+
+/// Best-effort current commit, for the metadata sidecar; `"unknown"` on failure.
+fn git_sha() -> String {
+    std::process::Command::new("git")
+        .args(["rev-parse", "HEAD"])
+        .output()
+        .ok()
+        .filter(|o| o.status.success())
+        .and_then(|o| String::from_utf8(o.stdout).ok())
+        .map_or_else(|| "unknown".to_string(), |s| s.trim().to_string())
+}

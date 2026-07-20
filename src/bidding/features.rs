@@ -17,7 +17,7 @@
 //! | **Total**            |       | **88** |
 
 use super::context::Context;
-use super::inference::{Inferences, Relative};
+use super::inference::{Inference, Inferences, Relative};
 use crate::bidding::constraint::upgrade;
 use contract_bridge::auction::RelativeVulnerability;
 use contract_bridge::eval::{self, HandEvaluator, SimpleEvaluator};
@@ -44,8 +44,11 @@ pub const LEN_CONTEXT: usize = 36;
 
 /// Offset of the inferences block (40 values)
 pub const OFFSET_INFERENCES: usize = OFFSET_CONTEXT + LEN_CONTEXT;
-/// Length of the inferences block
-pub const LEN_INFERENCES: usize = 40;
+/// Values one player's shown ranges contribute: 4 suits × `{min, max}` length
+/// plus `{min, max}` points.
+pub const LEN_INFERENCE: usize = 10;
+/// Length of the inferences block (all four seats)
+pub const LEN_INFERENCES: usize = 4 * LEN_INFERENCE;
 
 /// Offset of the vulnerability block (2 values)
 pub const OFFSET_VUL: usize = OFFSET_INFERENCES + LEN_INFERENCES;
@@ -60,6 +63,35 @@ fn holding_hcp(holding: Holding) -> u8 {
         + 3 * u8::from(holding.contains(Rank::K))
         + 2 * u8::from(holding.contains(Rank::Q))
         + u8::from(holding.contains(Rank::J))
+}
+
+/// Push the disclosable hand summary ([`LEN_HAND_V3`] values): per suit
+/// `len/13` and `suit_hcp/10`, then global `hcp/40` and `shape/2`.
+fn push_hand(out: &mut Vec<f32>, hand: Hand) {
+    // Per suit: length and suit HCP only — no rank/honor/stopper card detail.
+    for suit in Suit::ASC {
+        let holding = hand[suit];
+        out.push(holding.len() as f32 / 13.0);
+        out.push(holding_hcp(holding) as f32 / 10.0);
+    }
+
+    // Global strength: HCP and shape (= points − HCP = the fuzzy upgrade, 0–2).
+    let hcp = SimpleEvaluator(eval::hcp::<u8>).eval(hand);
+    out.push(hcp as f32 / 40.0);
+    out.push(upgrade(hand) as f32 / 2.0);
+}
+
+/// Push one player's shown ranges ([`LEN_INFERENCE`] values): per suit
+/// `{min, max}` length ÷ 13, then `{min, max}` points ÷ 37.  Nothing shown is
+/// the `[0, 1]` pattern (`Inference::unknown`), *not* zeros.
+fn push_inference(out: &mut Vec<f32>, player: &Inference) {
+    for suit in Suit::ASC {
+        let range = player.length(suit);
+        out.push(range.min as f32 / 13.0);
+        out.push(range.max as f32 / 13.0);
+    }
+    out.push(player.points.min as f32 / 37.0);
+    out.push(player.points.max as f32 / 37.0);
 }
 
 /// Push a 7-value bid encoding: [present, level/7, strain one-hot ×5]
@@ -142,14 +174,7 @@ fn push_context(out: &mut Vec<f32>, context: &Context<'_>) {
         Relative::Partner,
         Relative::Rho,
     ] {
-        let player = inf.get(who);
-        for suit in Suit::ASC {
-            let range = player.length(suit);
-            out.push(range.min as f32 / 13.0);
-            out.push(range.max as f32 / 13.0);
-        }
-        out.push(player.points.min as f32 / 37.0);
-        out.push(player.points.max as f32 / 37.0);
+        push_inference(out, inf.get(who));
     }
 
     // ── Vulnerability (2 values) ────────────────────────────────────────────
@@ -182,25 +207,61 @@ pub fn features_v3(hand: Hand, context: &Context<'_>) -> Vec<f32> {
     let mut out = Vec::with_capacity(FEATURES_LEN_V3);
 
     // ── Restrictive hand block (10 values) ──────────────────────────────────
-    // Per suit: length and suit HCP only — no rank/honor/stopper card detail.
-    for suit in Suit::ASC {
-        let holding = hand[suit];
-        out.push(holding.len() as f32 / 13.0);
-        out.push(holding_hcp(holding) as f32 / 10.0);
-    }
-
-    // Global strength: HCP and shape (= points − HCP = the fuzzy upgrade, 0–2).
-    let hcp = SimpleEvaluator(eval::hcp::<u8>).eval(hand);
-    let shape = upgrade(hand);
-    out.push(hcp as f32 / 40.0);
-    out.push(shape as f32 / 2.0);
-
+    push_hand(&mut out, hand);
     debug_assert_eq!(out.len(), LEN_HAND_V3);
 
     // ── Shared context / inferences / vulnerability (78 values) ─────────────
     push_context(&mut out, context);
 
     debug_assert_eq!(out.len(), FEATURES_LEN_V3);
+    out
+}
+
+// ── The trick-evaluator extractor (bilans session C) ─────────────────────────
+
+/// Layout version tag for the trick-evaluator extractor [`features_eval`]
+pub const FEATURES_VERSION_EVAL: u32 = 1;
+
+/// Number of `f32` values returned by [`features_eval`]: the disclosable hand
+/// summary ([`LEN_HAND_V3`]) plus the three *hidden* seats' range blocks.
+pub const FEATURES_LEN_EVAL: usize = LEN_HAND_V3 + 3 * LEN_INFERENCE;
+
+/// Extract the **trick-evaluator** feature vector: own hand plus what the
+/// three hidden seats have shown.
+///
+/// The question this vector poses is *physics*, not system: given my cards and
+/// range envelopes on the other three hands, how many double-dummy tricks does
+/// each declarer take in each strain?  So it deliberately carries **no auction,
+/// no seat, and no vulnerability** — the auction enters only through the
+/// [`Inferences`] the book already distilled from it, and vulnerability belongs
+/// to the expected-score arithmetic downstream, not to the trick count.
+///
+/// That omission is what makes an evaluator trained on this vector
+/// *bidding-system agnostic*: corpora generated under different books describe
+/// the same physics and pool into one training set.
+///
+/// | Block           | Start | Len |
+/// |-----------------|-------|-----|
+/// | Own hand        |     0 |  10 |
+/// | LHO ranges      |    10 |  10 |
+/// | Partner ranges  |    20 |  10 |
+/// | RHO ranges      |    30 |  10 |
+/// | **Total**       |       | **40** |
+///
+/// The own-hand block is [`features_v3`]'s verbatim, so honor *location* (which
+/// suit) survives but *texture* (AJx vs KQx, spot cards) does not; an evaluator
+/// absorbs texture as spread rather than predicting through it.  Get the
+/// `Inferences` from [`Stance::infer`][super::Stance::infer], never from a bare
+/// [`Context`] — the trie-prefixed reading is what decodes conventional calls
+/// off their authoring rules.
+#[must_use]
+pub fn features_eval(hand: Hand, inferences: &Inferences) -> Vec<f32> {
+    let mut out = Vec::with_capacity(FEATURES_LEN_EVAL);
+    push_hand(&mut out, hand);
+    for who in [Relative::Lho, Relative::Partner, Relative::Rho] {
+        push_inference(&mut out, inferences.get(who));
+    }
+    debug_assert_eq!(out.len(), FEATURES_LEN_EVAL);
     out
 }
 
@@ -356,6 +417,46 @@ mod tests {
         let ctx_we = Context::new(RelativeVulnerability::NONE, &auction_we);
         let f2 = features_v3(h, &ctx_we);
         assert_eq!(f2[we_opened_offset], 1.0, "we opened (partner opened)");
+    }
+
+    /// Nothing shown is `[0, 1]` per value pair — the `Inference::unknown`
+    /// encoding.  Zeros would be a *different*, out-of-distribution hand.
+    const UNKNOWN_BLOCK: [f32; LEN_INFERENCE] = [0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0];
+
+    #[test]
+    fn eval_layout_and_unknown_pattern() {
+        assert_eq!(FEATURES_LEN_EVAL, 40);
+        let h = hand("AKQ32.K532.QJ4.9");
+        let ctx = empty_context();
+        let f = features_eval(h, &Inferences::read(&ctx));
+        assert_eq!(f.len(), FEATURES_LEN_EVAL);
+
+        // The hand block is `features_v3`'s verbatim.
+        assert_eq!(f[..LEN_HAND_V3], features_v3(h, &ctx)[..LEN_HAND_V3]);
+
+        // No auction: all three hidden seats read as unknown.
+        for start in [10, 20, 30] {
+            assert_eq!(
+                f[start..start + LEN_INFERENCE],
+                UNKNOWN_BLOCK,
+                "seat block at {start} should be unknown"
+            );
+        }
+    }
+
+    #[test]
+    fn eval_seat_blocks_are_actor_relative() {
+        // A 1♠ opening one call ago is RHO's: only the last block moves.
+        let auction = [bid(1, Strain::Spades)];
+        let ctx = Context::new(RelativeVulnerability::NONE, &auction);
+        let f = features_eval(hand("AQ32.K53.QJ4.A92"), &Inferences::read(&ctx));
+
+        assert_eq!(f[10..20], UNKNOWN_BLOCK, "LHO has not called");
+        assert_eq!(f[20..30], UNKNOWN_BLOCK, "partner has not called");
+        // RHO: 5+ spades (block offset 6 = spades min, `Suit::ASC` order) and a
+        // non-zero point floor.
+        assert!(f[36] >= 5.0 / 13.0, "RHO spade floor: {}", f[36]);
+        assert!(f[38] > 0.0, "RHO point floor: {}", f[38]);
     }
 
     #[test]

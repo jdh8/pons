@@ -135,5 +135,12 @@ name = "probe-bba-bilans"
 path = "examples/probe-bba-bilans/main.rs"
 required-features = ["serde"]
 
+# Prices the learned trick evaluator against the sample-and-solve truth it
+# amortizes (bilans session C); needs the net it is measuring.
+[[example]]
+name = "eval-evaluator"
+path = "examples/eval-evaluator/main.rs"
+required-features = ["dd"]
+
 [profile.dev.package."*"]
 opt-level = 2

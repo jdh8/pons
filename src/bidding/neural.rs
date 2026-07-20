@@ -27,7 +27,7 @@ const fn total(in_dim: usize) -> usize {
 }
 
 /// Decode a little-endian `f32` weights blob.
-fn decode(raw: &[u8]) -> Vec<f32> {
+pub(super) fn decode(raw: &[u8]) -> Vec<f32> {
     raw.chunks_exact(4)
         .map(|b| f32::from_le_bytes([b[0], b[1], b[2], b[3]]))
         .collect()
@@ -35,7 +35,7 @@ fn decode(raw: &[u8]) -> Vec<f32> {
 
 /// `out[o] = bias[o] + Σ_i weight[o·in + i] · x[i]`, with `weight` `(out, in)`
 /// row-major — i.e. `candle_nn::Linear`'s `x·Wᵀ + b`.
-fn affine(weight: &[f32], bias: &[f32], x: &[f32], out: &mut [f32]) {
+pub(super) fn affine(weight: &[f32], bias: &[f32], x: &[f32], out: &mut [f32]) {
     let n = x.len();
     for (o, slot) in out.iter_mut().enumerate() {
         let row = &weight[o * n..o * n + n];
@@ -43,7 +43,7 @@ fn affine(weight: &[f32], bias: &[f32], x: &[f32], out: &mut [f32]) {
     }
 }
 
-fn relu(v: &mut [f32]) {
+pub(super) fn relu(v: &mut [f32]) {
     for x in v {
         *x = x.max(0.0);
     }

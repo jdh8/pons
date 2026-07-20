@@ -497,15 +497,18 @@ Independent; each is its own session with its own entry point.
 |---|---|---|---|
 | ~~A~~ | ~~**Widen the oracle FFI**~~ | **DONE** — see §6. 22 symbols bound including the whole `set_info_*` inject half; `probe`/`probe_with` on `BbaOracle`; recon dump in `examples/probe-bba-bilans`. | — |
 | B | **Read the arithmetic** | ILSpy on `vendor/bba/EPBot64.dll`; decompile `odzywka_z_bilansu`, `determine_punkty_bilansowe`, `determine_losing_winning_tricks`. Turns §5's *inferred* rows into *strong*. | needs a decompiler installed |
-| C | **A trick model for our floor** | Prototype Stages 2–3 only — winners/losers over `Inferences`' existing length/strength model — and score it against `probable_level` from A. | `src/bidding/instinct.rs`, `src/bidding/inference.rs` |
+| ~~C~~ | ~~**A trick model for our floor**~~ | **DONE, differently** — see [`evaluator-net.md`](evaluator-net.md). Stages 2–3 are a small *learned* net rather than authored winners/losers arithmetic: `(own hand, hidden-seat ranges) → DD trick mean and spread`, two heads per target (`μ`, `ln σ`) fit on pre-solved deals by Gaussian negative log-likelihood. It never sees the auction, so it is bidding-system agnostic; and it is scored against sampled double-dummy truth, not against `probable_level` (whose scale stays undecoded — the graded teacher turned out to be unnecessary once DD was the target). | `src/bidding/evaluator.rs` |
 | D | **Expected-score level choice** | Stage 4 over C's trick count: vulnerability, IMP/MP, doubled. Replaces weight-ladder level selection. | after C |
 | E | **Relational constraints (`SuitRef`)** | Symbolic auction-bound suit/level refs so `rubens_*` stops being opaque `pred` and keeps `describe`/`project`. Authoring economy + inference recovery, *not* strength. | `src/bidding/constraint.rs` |
 
-Dependency: **A is now done**, so C/D are unblocked — the graded teacher exists
-and `examples/probe-bba-bilans` produces the rows to fit against. C's first job
-is decoding the `probable_levels` scale (§6), since a trick model needs to know
-what it is being scored against. **B is optional but derisks C.** **E is
-independent** and can run in parallel; it is the smallest.
+Dependency: **A and C are done**, so **D is unblocked and is the live one** — it
+consumes C's Gaussian CDF (`Gaussian::p_at_least`) and adds only the economics:
+vulnerability, IMP/MP, doubled. Note what C did *not* need: decoding the
+`probable_levels` scale, or BBA as a teacher at all. Double-dummy truth on the
+actual deal was a better target than a graded opinion, and it comes free with the
+`.pdd` stock. **B is optional** and now only matters if D's arithmetic wants
+BBA's exact score model. **E is independent** and can run in parallel; it is the
+smallest.
 
 Standing caveat from [`../bba-gap-campaign.md`](../bba-gap-campaign.md): deep
 auctions are our *smallest* gap family (−6k, vs round-1 −213k). C and D are

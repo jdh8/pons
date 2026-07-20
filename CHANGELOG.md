@@ -9,6 +9,86 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **A learned trick evaluator — bilans session C.** BBA's floor is not a rule
+  table but the *bilans* pipeline:
+  reconstruct the hidden hands, count winners and losers, pick the call by
+  expected score. This ships the trick half of it as a small net, and
+  deliberately leaves the score half to arithmetic.
+
+  `bidding::evaluator::trick_estimates(hand, &inferences)` returns, for all 20
+  (strain × declarer) pairs, the **mean and standard deviation** of the
+  double-dummy trick count: one forward pass in place of the sample-and-solve
+  loop `ev_all` pays ~1.4 s per decision for. `Gaussian::p_at_least` reads them
+  through Φ — the make probability of a contract, in closed form.
+
+  Two commitments shape it:
+
+  - **No auction in the input.** The 40-float vector
+    (`features::features_eval`) is own-hand summary plus the LHO / partner / RHO
+    range blocks — no calls, no seat, no vulnerability. The auction enters only
+    through the `Inferences` the book already distilled from it, which makes the
+    evaluator **bidding-system agnostic**: the corpus pools `american()` and
+    `dutch()` self-play, and a book change does not invalidate the weights.
+  - **A spread, not a point estimate — `(μ, ln σ)` by Gaussian NLL.** Two heads
+    per target, fit by negative log-likelihood on single deals. Each corpus row
+    is *one* real deal consistent with its ranges — one unbiased draw from the
+    posterior over hidden hands — so minimising NLL drives μ to the conditional
+    mean and σ to the conditional spread without ever sampling a state twice.
+    The spread costs one output column and no extra labels: the net simply has
+    to explain the size of its own residual. `(μ, σ)` is a sufficient statistic,
+    so every threshold the floor asks about is one Φ away, smooth into the tails
+    where interpolated knots would have to clamp.
+
+  The target is double-dummy truth on the actual deal, not a teacher's call, so
+  the failure that killed the WJ floor A/B — importing the teacher's overbid
+  along with its skill — structurally cannot happen here.
+
+  Shipped net: **MLP 40 → 64 → 64 → 40, 9,384 parameters** — ~10× smaller than
+  the distilled policy net — trained on 2.0M rows from 100k pre-solved deals,
+  validated on a held-out fleet shard (402k rows, deal-disjoint):
+
+  - mean-head MAE **1.499 tricks** (RMSE 1.893) against the realized deal, and
+    central-50% coverage (`μ ± 0.6745σ`) **50.1%** against a nominal 50% —
+    calibration nothing in the loss asked for;
+  - **american 1.489 vs dutch 1.508 MAE — 1.3% apart.** One set of weights, two
+    books, neither meaningfully easier: the agnosticism claim, measured;
+  - contested auctions score *better* than constructive ones (1.452 vs 1.578) —
+    more calls means tighter envelopes means less spread, so the net is
+    demonstrably reading the auction rather than a prior;
+  - blanking the ranges costs **0.424 tricks** of accuracy (MAE 1.499 → 1.923) —
+    that is what the auction is worth in tricks, and the entire justification
+    for routing it through `Inferences` instead of feeding it raw;
+  - a 52-bit one-hot hand encoding scores no better despite strictly more
+    information and 2,688 more parameters, so card texture buys nothing at this
+    data scale and the 40-float summary stands;
+  - the honest cost of the Gaussian: it assumes symmetry and unbounded support,
+    and trick counts are discrete, left-skewed on a good fit and walled at 13.
+    Both trainer and harness report `below_mean` — the fraction of labels under
+    μ, nominally 50% — so that mismatch is measured rather than assumed away.
+    It lands at **≈48%**: the skew is real and in the predicted direction (the
+    median sits above the mean), but small.
+
+  This replaced a three-knot quantile version (Q1/Q2/Q3 by pinball loss) trained
+  at the same width, corpus and hyperparameters. The two are a wash where they
+  can be compared — MAE 1.494 vs 1.498 tricks, coverage 49.7% vs 50.2% — so the
+  Gaussian buys a sufficient statistic, a closed-form `Φ` at any threshold, and
+  12% fewer parameters for no measurable accuracy.
+
+  New `examples/dump-evaluator` streams pre-solved `.pdd` rows, self-play-bids
+  each deal under both books and emits `[40 features][20 tricks]` per decision
+  node — **no solver and no EPBot**, ~1700 deals/s. `trainer/src/bin/evaluator.rs`
+  fits it off-crate; `examples/eval-evaluator` prices the result against the
+  sampler-plus-solver truth it replaces. Written up in
+  `docs/ai-bidder/evaluator-net.md`.
+
+  **Nothing consumes the net yet** — it is not a `Classifier` and no `System`
+  references it, so no bidding behaviour changes and no A/B applies. It is
+  ungated: the weights are 37 KB of `include_bytes!` and no dependency, so a
+  cargo feature would buy binary size already conceded tenfold by the 393 KB
+  policy net beside it, at the price of skipping the candle-parity test on a
+  default `cargo test`. The consumer, an expected-score floor
+  (`bba-floor.md` session D), is the follow-up that will owe one.
+
 - **BBA's bilans engine is now readable — session 7A of the floor study.**
   `examples/common/oracle.rs` binds **22** of `libEPBot.so`'s 70 `epbot_*`
   exports, up from 7: `probable_levels`, `get`/`set_scoring`, `info_alerting`,

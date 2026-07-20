@@ -12,6 +12,8 @@ pub mod dutch;
 /// Call-EV evaluator: a candidate call's cardplay-grounded worth by rollout
 #[cfg(feature = "dd")]
 pub mod ev;
+/// Learned trick evaluator: hidden-seat ranges → double-dummy trick mean/spread
+pub mod evaluator;
 pub mod fallback;
 /// Versioned feature extractor for the AI instinct bidder
 pub mod features;
@@ -46,7 +48,10 @@ pub use context::Context;
 pub use dutch::{dutch, dutch_instinct};
 #[cfg(feature = "dd")]
 pub use ev::ev_all;
-pub use features::{FEATURES_LEN_V3, FEATURES_VERSION_V3, features_v3};
+pub use features::{
+    FEATURES_LEN_EVAL, FEATURES_LEN_V3, FEATURES_VERSION_EVAL, FEATURES_VERSION_V3, features_eval,
+    features_v3,
+};
 pub use inference::{
     Inference, Inferences, Range, Relative, set_alert_reading, set_control_bid_reading,
     set_cue_reading, set_fallback_projection, set_length_soundness, set_nt_invite_inference,
