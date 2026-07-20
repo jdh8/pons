@@ -77,7 +77,7 @@ X, keep doubling their escape) was built and measured, then **reverted**:
   +100 to us for down-one (**partscore-doubling asymmetry**).
 - "double iff expected score ≥ ~50" is the right gate, but it needs a trick
   estimate the keyless floor can't make (it can't see their trump split). That
-  estimate is the **DD search layer**'s job (`american_search`, M2.3:
+  estimate is the **DD search layer**'s job (retired with M1–M3; M2.3 was:
   shortlist-by-net-prior + `ev_all`). Conclusion: don't author the speculative
   penalty double in the fast floor.
 

@@ -9,6 +9,77 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`american_floor()` — the 2/1 pair with no authored book at all.** All three
+  books are empty, so every auction falls through to exactly the floor wiring
+  `american()` uses: `NeuralFloorBba` on the contested books, the deterministic
+  `instinct()` ladder on the constructive one. It completes the ablation square
+  — `american_book()` is the book alone, `american_floor()` the floor alone,
+  `american()` both — and makes the authored book's contribution directly
+  measurable as `american` − `american_floor` (`scripts/book-value-ab.sh`,
+  `bba-gen --our-floor american-floor`).
+
+  It prices the book's *total* contribution, not just its calls: an empty book
+  also stops projecting authored constraints into `Inferences`, so the net's
+  `features_v3` inference block collapses to unknown. The measured gap is the
+  book as authored calls **and** as disclosure.
+
+  **First measurement** (204800 boards/arm/vul vs the BBA reference,
+  `SEED_BASE=1784532174`): the authored book is worth **+0.2915 IMPs/board
+  plain [±0.0179] and +0.2319 PD [±0.0216]** non-vulnerable, **+0.3668 plain
+  [±0.0230] and +0.2659 PD [±0.0273]** vulnerable. Real, and clear of zero on
+  all four, but small next to the ≈2 IMPs/board that still separates us from
+  BBA. Auctions diverge on 53% of boards, so the book earns ≈+0.5 IMPs per
+  board it touches — the BBA-distilled floor has absorbed most of what the
+  authored book does. The PD number sitting *below* the plain one on both
+  vulnerabilities says the book is not buying its edge from doubling artifacts.
+
+### Changed
+
+- **`bare_american()` → `american_book()`, `bare_dutch()` → `dutch_book()`.**
+  The `bare_*` pair are the authored books with no floor, which is what "the
+  book" means; the names now say so, and sit beside the new `american_floor()`.
+  `american_instinct()`/`dutch_instinct()` keep their names — each is named for
+  the floor that distinguishes it from `american()`/`dutch()`, which is the axis
+  that actually varies.
+
+### Removed
+
+- **Eleven obsolete `american` variants, and the machinery under them.** The
+  AI-bidder M1–M3 search and neural line and the pre-6322 1NT shape baselines
+  had all served their campaigns; `NeuralFloorBba` won the floor and became the
+  default, leaving the rest reachable only from finished A/B arms. Deleted:
+  `american_classic`, `american_wide`, `american_neural`, `american_neural_v2`,
+  `american_neural_v3`, `american_neural_search`, `american_search`,
+  `american_search_with`, `american_search_book`, `american_constructive_floor`,
+  `american_bba_constructive`, and `american_bba_neural` (a bare alias of
+  `american()`).
+
+  Falling out with them: the `search` and `neural-floor` cargo features (which
+  would have gated nothing), `src/bidding/search_floor.rs` (613 lines —
+  `SearchFloor`/`SearchBook` had no reachable constructor left), the
+  `NeuralFloor`/`V2`/`V3`/`Search` floors and `NeuralFloorWj` (already orphaned
+  by `f15ac55`), their `neural::classify*` forward passes, the v1 and v2 feature
+  extractors, the featurizer-only surface of `tags.rs` (`derive` survives for
+  `dump-corpus`), and nine examples that existed only to drive the above.
+  `with_floors` collapsed into its sole remaining caller `with_floor`.
+
+  **~2.3 MB of `include_bytes!` weight payload leaves every build** (the
+  `american_v1`, `american_v2`, `american_v1_search`, `american_v3` and `wj_bba`
+  triples), discharging the standing note about gating the legacy blobs.
+  `american_bba` is the one net that remains.
+
+  User impact on bidding: **none.** `american()`, `american_instinct()`,
+  `dutch()` and `dutch_instinct()` are byte-identical — verified over 300 boards
+  each against the BBA reference at a fixed seed, all four auction sets
+  unchanged. This is an API and build-size change only.
+
+- **`bba-gen --nt-shape`.** The Wide6322 decision shipped and folded into the
+  base 2026-07-12, and the flag's `wide`/`classic` arms also swapped the floor
+  to `instinct()` — conflating shape with floor. `set_notrump_shape` still
+  reaches every shape cleanly. `scripts/nt-shape-ab.sh`,
+  `scripts/nt-shape-confirm-ab.sh` and `scripts/constructive-floor-ab.sh` go
+  with the arms they drove.
+
 - **`NeuralFloorWj` and `neural::classify_wj` — the WJ-distilled floor.** Same
   88 disclosable v3 features, same forward pass, same forced-rails as
   `NeuralFloorBba`; the teacher is EPBot's Wspólny Język (system 2,

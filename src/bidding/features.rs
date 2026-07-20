@@ -3,19 +3,18 @@
 //! Converts a bridge hand and its auction [`Context`] into a fixed-size
 //! `Vec<f32>` suitable for input to a neural network.  Every value is
 //! normalised so that the expected range is roughly `[0.0, 1.0]`; the exact
-//! layout is pinned by [`FEATURES_VERSION`] so that a model trained on one
+//! layout is pinned by [`FEATURES_VERSION_V3`] so that a model trained on one
 //! version cannot be accidentally loaded under another.
 //!
-//! # Layout (version 1)
+//! # Layout (version 3 — the restrictive, fully disclosable vector)
 //!
-//! | Block           | Start | Len |
-//! |-----------------|-------|-----|
-//! | Per-suit hand   |     0 |  76 |
-//! | Global hand     |    76 |   6 |
-//! | Context         |    82 |  36 |
-//! | Inferences      |   118 |  40 |
-//! | Vulnerability   |   158 |   2 |
-//! | **Total**       |       | **160** |
+//! | Block                | Start | Len |
+//! |----------------------|-------|-----|
+//! | Disclosable hand     |     0 |  10 |
+//! | Context              |    10 |  36 |
+//! | Inferences           |    46 |  40 |
+//! | Vulnerability        |    86 |   2 |
+//! | **Total**            |       | **88** |
 
 use super::context::Context;
 use super::inference::{Inferences, Relative};
@@ -23,23 +22,6 @@ use crate::bidding::constraint::upgrade;
 use contract_bridge::auction::RelativeVulnerability;
 use contract_bridge::eval::{self, HandEvaluator, SimpleEvaluator};
 use contract_bridge::{Hand, Holding, Penalty, Rank, Strain, Suit};
-
-/// Layout version tag — bump whenever the feature vector layout changes
-pub const FEATURES_VERSION: u32 = 1;
-
-/// Number of `f32` values returned by [`features`]
-pub const FEATURES_LEN: usize = 160;
-
-/// Layout version tag for the tag-augmented extractor [`features_v2`]
-pub const FEATURES_VERSION_V2: u32 = 2;
-
-/// Number of recent calls whose tags [`features_v2`] multi-hot encodes
-pub const TAG_WINDOW: usize = 4;
-
-/// Number of `f32` values returned by [`features_v2`]: the v1 vector plus a
-/// [`TAG_WINDOW`]-call tag block (one [`TAG_COUNT`][super::tags::TAG_COUNT]-wide
-/// slot per call)
-pub const FEATURES_LEN_V2: usize = FEATURES_LEN + TAG_WINDOW * super::tags::TAG_COUNT;
 
 /// Layout version tag for the restrictive *disclosable* extractor [`features_v3`]
 pub const FEATURES_VERSION_V3: u32 = 3;
@@ -50,62 +32,27 @@ pub const LEN_HAND_V3: usize = 10;
 
 /// Number of `f32` values returned by [`features_v3`]: a disclosable-only hand
 /// summary ([`LEN_HAND_V3`]) plus the shared context/inferences/vulnerability
-/// blocks, which it reuses byte-for-byte from [`features`].
+/// blocks.
 pub const FEATURES_LEN_V3: usize = LEN_HAND_V3 + LEN_CONTEXT + LEN_INFERENCES + LEN_VUL;
 
 // ── Block offsets (used in tests and as documentation) ──────────────────────
 
-/// Offset of the per-suit hand block (76 values)
-pub const OFFSET_HAND: usize = 0;
-/// Length of the per-suit hand block
-pub const LEN_HAND: usize = 76;
-
-/// Offset of the global hand block (6 values)
-pub const OFFSET_GLOBAL: usize = 76;
-/// Length of the global hand block
-pub const LEN_GLOBAL: usize = 6;
-
 /// Offset of the context block (36 values)
-pub const OFFSET_CONTEXT: usize = 82;
+pub const OFFSET_CONTEXT: usize = LEN_HAND_V3;
 /// Length of the context block
 pub const LEN_CONTEXT: usize = 36;
 
 /// Offset of the inferences block (40 values)
-pub const OFFSET_INFERENCES: usize = 118;
+pub const OFFSET_INFERENCES: usize = OFFSET_CONTEXT + LEN_CONTEXT;
 /// Length of the inferences block
 pub const LEN_INFERENCES: usize = 40;
 
 /// Offset of the vulnerability block (2 values)
-pub const OFFSET_VUL: usize = 158;
+pub const OFFSET_VUL: usize = OFFSET_INFERENCES + LEN_INFERENCES;
 /// Length of the vulnerability block
 pub const LEN_VUL: usize = 2;
 
-// ── Rank constants in descending order for per-suit encoding ─────────────────
-
-/// Ranks in the high-to-low order used for the 13 per-suit rank bits
-const RANKS_HIGH_TO_LOW: [Rank; 13] = [
-    Rank::A,
-    Rank::K,
-    Rank::Q,
-    Rank::J,
-    Rank::T,
-    Rank::new(9),
-    Rank::new(8),
-    Rank::new(7),
-    Rank::new(6),
-    Rank::new(5),
-    Rank::new(4),
-    Rank::new(3),
-    Rank::new(2),
-];
-
 // ── Private helpers ───────────────────────────────────────────────────────────
-
-/// Balanced shape: every suit ≥ 2 cards and at most one doubleton
-fn is_balanced(hand: Hand) -> bool {
-    let lengths = Suit::ASC.map(|suit| hand[suit].len());
-    lengths.iter().all(|&l| l >= 2) && lengths.iter().filter(|&&l| l == 2).count() <= 1
-}
 
 /// HCP of a single holding (A=4, K=3, Q=2, J=1)
 fn holding_hcp(holding: Holding) -> u8 {
@@ -113,14 +60,6 @@ fn holding_hcp(holding: Holding) -> u8 {
         + 3 * u8::from(holding.contains(Rank::K))
         + 2 * u8::from(holding.contains(Rank::Q))
         + u8::from(holding.contains(Rank::J))
-}
-
-/// Whether a holding stops the suit (A, Kx, Qxx, Jxxx)
-fn has_stopper(holding: Holding) -> bool {
-    holding.contains(Rank::A)
-        || (holding.contains(Rank::K) && holding.len() >= 2)
-        || (holding.contains(Rank::Q) && holding.len() >= 3)
-        || (holding.contains(Rank::J) && holding.len() >= 4)
 }
 
 /// Push a 7-value bid encoding: [present, level/7, strain one-hot ×5]
@@ -145,69 +84,9 @@ fn push_bid_encoding(out: &mut Vec<f32>, bid: Option<contract_bridge::Bid>) {
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
-/// Extract a fixed-size feature vector from a hand and auction context
-///
-/// Returns exactly [`FEATURES_LEN`] `f32` values laid out as documented in the
-/// module-level table.  All values are finite and normalised to roughly
-/// `[0.0, 1.0]`.
-#[must_use]
-pub fn features(hand: Hand, context: &Context<'_>) -> Vec<f32> {
-    let mut out = Vec::with_capacity(FEATURES_LEN);
-
-    // ── Block 1: per-suit hand (76 values) ──────────────────────────────────
-    for suit in Suit::ASC {
-        let holding = hand[suit];
-        let len = holding.len();
-
-        // 1–13: rank indicator bits, high to low
-        for &rank in &RANKS_HIGH_TO_LOW {
-            out.push(f32::from(holding.contains(rank)));
-        }
-
-        // 14: len/13
-        out.push(len as f32 / 13.0);
-
-        // 15: suit_hcp/10
-        out.push(holding_hcp(holding) as f32 / 10.0);
-
-        // 16: top_honors/3 (count of A, K, Q present)
-        let top = u8::from(holding.contains(Rank::A))
-            + u8::from(holding.contains(Rank::K))
-            + u8::from(holding.contains(Rank::Q));
-        out.push(top as f32 / 3.0);
-
-        // 17: stopper bit
-        out.push(f32::from(has_stopper(holding)));
-
-        // 18: is-major bit
-        out.push(f32::from(matches!(suit, Suit::Hearts | Suit::Spades)));
-
-        // 19: strain_rank/3 = (suit as u8) / 3.0
-        out.push(suit as u8 as f32 / 3.0);
-    }
-
-    // ── Block 2: global hand (6 values) ─────────────────────────────────────
-    let hcp = SimpleEvaluator(eval::hcp::<u8>).eval(hand);
-    let up = upgrade(hand);
-    let points = hcp + up;
-
-    out.push(hcp as f32 / 40.0);
-    out.push(points as f32 / 40.0);
-    out.push(eval::FIFTHS.eval(hand) as f32 / 40.0);
-    out.push(eval::cccc(hand) as f32 / 40.0);
-    out.push(eval::NLTC.eval(hand) as f32 / 13.0);
-    out.push(f32::from(is_balanced(hand)));
-
-    // ── Blocks 3–5: context, inferences, vulnerability (78 values) ──────────
-    push_context(&mut out, context);
-
-    debug_assert_eq!(out.len(), FEATURES_LEN);
-    out
-}
-
 /// Push the auction-context, inferences, and vulnerability blocks (36 + 40 + 2
-/// = 78 values) — the disclosable, hand-shape-independent tail shared by
-/// [`features`] and [`features_v3`].
+/// = 78 values) — the disclosable, hand-shape-independent tail of
+/// [`features_v3`].
 ///
 /// Everything here is derivable from the *public* auction and the partnership's
 /// disclosed agreements (the [`Inferences`] ranges), so it stays in the
@@ -279,58 +158,21 @@ fn push_context(out: &mut Vec<f32>, context: &Context<'_>) {
     out.push(f32::from(v.contains(RelativeVulnerability::THEY)));
 }
 
-/// Extract the version-2 feature vector: [`features`] plus the WBF tags of the
-/// last [`TAG_WINDOW`] calls (AI-bidder M5.1)
-///
-/// The trailing block holds `TAG_WINDOW` per-call multi-hot slots, **most recent
-/// first**: slot 0 is the call we are answering, slot 1 the one before it, and so
-/// on — each a [`TAG_COUNT`][super::tags::TAG_COUNT]-wide indicator over
-/// [`TAGS`][super::tags::TAGS].  Slots reaching before the start of the auction
-/// stay zero.  Each prior call's tags are read structurally with the same
-/// [`derive_tags`][super::tags::derive_tags] the corpus uses, recovering its book
-/// from the auction via [`infer_book`][super::tags::infer_book].
-///
-/// Returns exactly [`FEATURES_LEN_V2`] finite `f32` values; the first
-/// [`FEATURES_LEN`] are byte-identical to [`features`].
-#[must_use]
-pub fn features_v2(hand: Hand, context: &Context<'_>) -> Vec<f32> {
-    use super::tags::{TAG_COUNT, derive_tags, infer_book, tag_multihot};
-
-    let mut out = features(hand, context);
-    out.resize(FEATURES_LEN_V2, 0.0);
-
-    let auction = context.auction();
-    let vul = context.vul();
-    for slot in 0..TAG_WINDOW {
-        // slot 0 = most recent call; stop once we run off the front.
-        let Some(index) = auction.len().checked_sub(slot + 1) else {
-            break;
-        };
-        let prefix = Context::new(vul, &auction[..index]);
-        let tags = derive_tags(infer_book(&prefix), auction[index], &prefix);
-        let start = FEATURES_LEN + slot * TAG_COUNT;
-        tag_multihot(&tags, &mut out[start..start + TAG_COUNT]);
-    }
-
-    debug_assert_eq!(out.len(), FEATURES_LEN_V2);
-    out
-}
-
 /// Extract the **restrictive, fully disclosable** feature vector (AI-bidder v3)
 ///
 /// Bridge ethics require full disclosure: a call is explained to opponents by
 /// the partnership's *agreement*, never by the bidder's specific cards.
 /// Agreements are defined over summary abstractions — so this extractor drops
-/// every card-specific value [`features`] carries (the 13 per-suit rank bits,
-/// top-honor count, stopper bit) and keeps only what a bidder could disclose:
+/// every card-specific value (per-suit rank bits, top-honor count, stopper bit)
+/// and keeps only what a bidder could disclose:
 ///
 /// - per suit (4 × 2): `len/13`, `suit_hcp/10` (suit quality);
 /// - global (2): `hcp/40`, `shape/2` where `shape = points − hcp` is the
 ///   crate's fuzzy distribution [`upgrade`] (0–2; the detailed shape is already
 ///   carried by the four suit lengths);
-/// - the shared context, inferences, and vulnerability blocks (the same
-///   `push_context` tail [`features`] uses) — all derived from the public
-///   auction and the disclosed agreement ranges.
+/// - the shared context, inferences, and vulnerability blocks (the
+///   `push_context` tail) — all derived from the public auction and the
+///   disclosed agreement ranges.
 ///
 /// Seat (relative to dealer) and relative vulnerability are already inside those
 /// shared blocks, so they are not repeated here.  Returns exactly
@@ -385,25 +227,14 @@ mod tests {
 
     #[test]
     fn block_offsets_are_consistent() {
-        assert_eq!(OFFSET_HAND, 0);
-        assert_eq!(LEN_HAND, 76);
-        assert_eq!(OFFSET_GLOBAL, OFFSET_HAND + LEN_HAND);
-        assert_eq!(LEN_GLOBAL, 6);
-        assert_eq!(OFFSET_CONTEXT, OFFSET_GLOBAL + LEN_GLOBAL);
+        assert_eq!(LEN_HAND_V3, 10);
+        assert_eq!(OFFSET_CONTEXT, LEN_HAND_V3);
         assert_eq!(LEN_CONTEXT, 36);
         assert_eq!(OFFSET_INFERENCES, OFFSET_CONTEXT + LEN_CONTEXT);
         assert_eq!(LEN_INFERENCES, 40);
         assert_eq!(OFFSET_VUL, OFFSET_INFERENCES + LEN_INFERENCES);
         assert_eq!(LEN_VUL, 2);
-        assert_eq!(OFFSET_VUL + LEN_VUL, FEATURES_LEN);
-    }
-
-    #[test]
-    fn length_is_correct_for_empty_auction() {
-        let ctx = empty_context();
-        let h = hand("AKQ32.K532.QJ4.9");
-        let f = features(h, &ctx);
-        assert_eq!(f.len(), FEATURES_LEN);
+        assert_eq!(OFFSET_VUL + LEN_VUL, FEATURES_LEN_V3);
     }
 
     #[test]
@@ -414,9 +245,8 @@ mod tests {
             bid(2, Strain::Hearts),
         ];
         let ctx = Context::new(RelativeVulnerability::WE, &auction);
-        let h = hand("AQ32.K53.QJ4.A92");
-        let f = features(h, &ctx);
-        assert_eq!(f.len(), FEATURES_LEN);
+        let f = features_v3(hand("AQ32.K53.QJ4.A92"), &ctx);
+        assert_eq!(f.len(), FEATURES_LEN_V3);
     }
 
     #[test]
@@ -443,44 +273,14 @@ mod tests {
     }
 
     #[test]
-    fn v3_shares_context_tail_with_v1() {
-        // The trailing 78 values (context + inferences + vul) must be identical
-        // to v1's — the refactor extracted them into a shared helper.
-        let auction = [bid(1, Strain::Hearts), bid(1, Strain::Spades)];
-        let ctx = Context::new(RelativeVulnerability::WE, &auction);
-        let h = hand("AQ32.K53.QJ4.A92");
-        let v1 = features(h, &ctx);
-        let v3 = features_v3(h, &ctx);
-        assert_eq!(v1[OFFSET_CONTEXT..], v3[LEN_HAND_V3..]);
-    }
-
-    #[test]
-    fn all_values_are_finite_and_in_range() {
-        let auction = [
-            bid(1, Strain::Spades),
-            Call::Pass,
-            bid(2, Strain::Clubs),
-            Call::Double,
-        ];
-        let ctx = Context::new(RelativeVulnerability::ALL, &auction);
-        let h = hand("AKQ32.K532.QJ4.9");
-        let f = features(h, &ctx);
-        for (i, &v) in f.iter().enumerate() {
-            assert!(v.is_finite(), "feature[{i}] is not finite: {v}");
-            assert!(v >= 0.0, "feature[{i}] is negative: {v}");
-            assert!(v <= 1.5, "feature[{i}] exceeds 1.5: {v}");
-        }
-    }
-
-    #[test]
     fn empty_auction_known_values() {
         let ctx = empty_context();
-        let h = hand("AKQ32.K532.QJ4.9");
-        let f = features(h, &ctx);
+        let f = features_v3(hand("AKQ32.K532.QJ4.9"), &ctx);
 
-        // Seat one-hot: auction.len()=0, so index 0 → f[OFFSET_CONTEXT + 24] = 1.0
-        // Context layout: 5 our_strains + 5 their_strains + 7 last_bid + 7 partner + 3 penalty + 1 undisturbed + 1 passed + 1 partner_passed + 1 leading + 4 seat + 1 we_opened = 36
-        // seat one-hot starts at OFFSET_CONTEXT + 5+5+7+7+3+1+1+1+1 = OFFSET_CONTEXT + 31
+        // Context layout: 5 our_strains + 5 their_strains + 7 last_bid + 7 partner
+        // + 3 penalty + 1 undisturbed + 1 passed + 1 partner_passed + 1 leading
+        // + 4 seat + 1 we_opened = 36.
+        // Seat one-hot: auction.len() = 0, so index 0 is set.
         let seat_one_hot_start = OFFSET_CONTEXT + 5 + 5 + 7 + 7 + 3 + 1 + 1 + 1 + 1;
         assert_eq!(f[seat_one_hot_start], 1.0, "seat index 0 should be 1.0");
         assert_eq!(f[seat_one_hot_start + 1], 0.0);
@@ -501,64 +301,37 @@ mod tests {
     }
 
     #[test]
-    fn spade_rank_bits_for_known_hand() {
-        // "AKQ32.K532.QJ4.9" → spades = AKQ32 (A,K,Q,3,2)
-        let h = hand("AKQ32.K532.QJ4.9");
-        let ctx = empty_context();
-        let f = features(h, &ctx);
+    fn disclosable_hand_block_for_known_hand() {
+        // "AKQ32.K532.QJ4.9" — Suit::ASC order is clubs, diamonds, hearts, spades.
+        let f = features_v3(hand("AKQ32.K532.QJ4.9"), &empty_context());
 
-        // Spades is suit index 3 in Suit::ASC, so its block starts at OFFSET_HAND + 3*19
-        let spade_start = OFFSET_HAND + 3 * 19;
-        // Ranks HIGH→LOW: A=1, K=1, Q=1, J=0, T=0, 9=0, 8=0, 7=0, 6=0, 5=0, 4=0, 3=1, 2=1
-        assert_eq!(f[spade_start], 1.0, "A of spades");
-        assert_eq!(f[spade_start + 1], 1.0, "K of spades");
-        assert_eq!(f[spade_start + 2], 1.0, "Q of spades");
-        assert_eq!(f[spade_start + 3], 0.0, "J of spades");
-        assert_eq!(f[spade_start + 4], 0.0, "T of spades");
-        // 9,8,7,6,5,4 all 0
-        for i in 5..11 {
-            assert_eq!(f[spade_start + i], 0.0, "rank bit {i} of spades");
-        }
-        assert_eq!(f[spade_start + 11], 1.0, "3 of spades");
-        assert_eq!(f[spade_start + 12], 1.0, "2 of spades");
-
-        // len/13 = 5/13
-        assert!(
-            (f[spade_start + 13] - 5.0 / 13.0).abs() < 1e-6,
-            "spades len/13"
-        );
-
-        // stopper bit: has A, so 1.0
-        assert_eq!(f[spade_start + 16], 1.0, "spades stopper");
-
-        // is-major = 1.0
-        assert_eq!(f[spade_start + 17], 1.0, "spades is-major");
-    }
-
-    #[test]
-    fn balanced_bit_for_balanced_hand() {
-        // 4333 shape — balanced
-        let h = hand("AQ32.K53.QJ4.A92");
-        let ctx = empty_context();
-        let f = features(h, &ctx);
-        assert_eq!(f[OFFSET_GLOBAL + 5], 1.0, "balanced bit for 4333");
-
-        // 5431 shape — unbalanced (has singleton)
-        let unbalanced = hand("AKQ32.K532.QJ4.9");
-        let f2 = features(unbalanced, &ctx);
-        assert_eq!(f2[OFFSET_GLOBAL + 5], 0.0, "balanced bit for 5431");
+        // Clubs: singleton 9, no HCP.
+        assert!((f[0] - 1.0 / 13.0).abs() < 1e-6, "clubs len/13");
+        assert_eq!(f[1], 0.0, "clubs suit_hcp");
+        // Diamonds: QJ4 = 3 cards, 3 HCP.
+        assert!((f[2] - 3.0 / 13.0).abs() < 1e-6, "diamonds len/13");
+        assert!((f[3] - 3.0 / 10.0).abs() < 1e-6, "diamonds suit_hcp");
+        // Hearts: K532 = 4 cards, 3 HCP.
+        assert!((f[4] - 4.0 / 13.0).abs() < 1e-6, "hearts len/13");
+        assert!((f[5] - 3.0 / 10.0).abs() < 1e-6, "hearts suit_hcp");
+        // Spades: AKQ32 = 5 cards, 9 HCP.
+        assert!((f[6] - 5.0 / 13.0).abs() < 1e-6, "spades len/13");
+        assert!((f[7] - 9.0 / 10.0).abs() < 1e-6, "spades suit_hcp");
+        // Global: 15 HCP, then the fuzzy shape upgrade scaled by 2.
+        assert!((f[8] - 15.0 / 40.0).abs() < 1e-6, "hcp/40");
+        assert!((0.0..=1.0).contains(&f[9]), "shape/2 in range");
     }
 
     #[test]
     fn vulnerability_bits() {
-        let ctx_we = Context::new(RelativeVulnerability::WE, &[]);
         let h = hand("AQ32.K53.QJ4.A92");
-        let f = features(h, &ctx_we);
+        let ctx_we = Context::new(RelativeVulnerability::WE, &[]);
+        let f = features_v3(h, &ctx_we);
         assert_eq!(f[OFFSET_VUL], 1.0, "WE vul bit");
         assert_eq!(f[OFFSET_VUL + 1], 0.0, "THEY vul bit");
 
         let ctx_all = Context::new(RelativeVulnerability::ALL, &[]);
-        let f2 = features(h, &ctx_all);
+        let f2 = features_v3(h, &ctx_all);
         assert_eq!(f2[OFFSET_VUL], 1.0);
         assert_eq!(f2[OFFSET_VUL + 1], 1.0);
     }
@@ -566,23 +339,22 @@ mod tests {
     #[test]
     fn we_opened_bit() {
         let h = hand("AQ32.K53.QJ4.A92");
+        let we_opened_offset = OFFSET_CONTEXT + 35; // last value in context block
 
         // Empty auction: no opener → 0.0
-        let f0 = features(h, &empty_context());
-        let we_opened_offset = OFFSET_CONTEXT + 35; // last value in context block
+        let f0 = features_v3(h, &empty_context());
         assert_eq!(f0[we_opened_offset], 0.0, "no opener → 0.0");
 
-        // We opened (seat 1, actor index = 1 call, parity even → we-opened)
         // After [1♠]: auction.len()=1, opening_index=0, (1-0)%2=1 ≠ 0 → they opened
         let auction_they = [bid(1, Strain::Spades)];
         let ctx_they = Context::new(RelativeVulnerability::NONE, &auction_they);
-        let f1 = features(h, &ctx_they);
+        let f1 = features_v3(h, &ctx_they);
         assert_eq!(f1[we_opened_offset], 0.0, "they opened (RHO opened)");
 
         // After [1♠, P]: auction.len()=2, opening_index=0, (2-0)%2=0 → we opened
         let auction_we = [bid(1, Strain::Spades), Call::Pass];
         let ctx_we = Context::new(RelativeVulnerability::NONE, &auction_we);
-        let f2 = features(h, &ctx_we);
+        let f2 = features_v3(h, &ctx_we);
         assert_eq!(f2[we_opened_offset], 1.0, "we opened (partner opened)");
     }
 
@@ -592,7 +364,7 @@ mod tests {
         let penalty_offset = OFFSET_CONTEXT + 5 + 5 + 7 + 7;
 
         // Undoubled (default)
-        let f0 = features(h, &empty_context());
+        let f0 = features_v3(h, &empty_context());
         assert_eq!(f0[penalty_offset], 1.0, "undoubled");
         assert_eq!(f0[penalty_offset + 1], 0.0);
         assert_eq!(f0[penalty_offset + 2], 0.0);
@@ -600,7 +372,7 @@ mod tests {
         // Doubled
         let auction_x = [bid(1, Strain::Spades), Call::Double];
         let ctx_x = Context::new(RelativeVulnerability::NONE, &auction_x);
-        let f1 = features(h, &ctx_x);
+        let f1 = features_v3(h, &ctx_x);
         assert_eq!(f1[penalty_offset], 0.0);
         assert_eq!(f1[penalty_offset + 1], 1.0, "doubled");
         assert_eq!(f1[penalty_offset + 2], 0.0);
@@ -608,85 +380,9 @@ mod tests {
         // Redoubled
         let auction_xx = [bid(1, Strain::Spades), Call::Double, Call::Redouble];
         let ctx_xx = Context::new(RelativeVulnerability::NONE, &auction_xx);
-        let f2 = features(h, &ctx_xx);
+        let f2 = features_v3(h, &ctx_xx);
         assert_eq!(f2[penalty_offset], 0.0);
         assert_eq!(f2[penalty_offset + 1], 0.0);
         assert_eq!(f2[penalty_offset + 2], 1.0, "redoubled");
-    }
-
-    // ── version 2: tag features ─────────────────────────────────────────────
-
-    use super::super::tags::{TAG_COUNT, tag_index};
-
-    #[test]
-    fn v2_length_matches_constant() {
-        assert_eq!(FEATURES_LEN_V2, FEATURES_LEN + TAG_WINDOW * TAG_COUNT);
-        let h = hand("AKQ32.K532.QJ4.9");
-        assert_eq!(features_v2(h, &empty_context()).len(), FEATURES_LEN_V2);
-
-        let auction = [bid(1, Strain::Hearts), Call::Pass];
-        let ctx = Context::new(RelativeVulnerability::WE, &auction);
-        assert_eq!(features_v2(h, &ctx).len(), FEATURES_LEN_V2);
-    }
-
-    #[test]
-    fn v2_prefix_is_identical_to_v1() {
-        let auction = [
-            bid(1, Strain::Spades),
-            Call::Pass,
-            bid(2, Strain::Clubs),
-            Call::Double,
-        ];
-        let ctx = Context::new(RelativeVulnerability::ALL, &auction);
-        let h = hand("AKQ32.K532.QJ4.9");
-        let v1 = features(h, &ctx);
-        let v2 = features_v2(h, &ctx);
-        assert_eq!(v2[..FEATURES_LEN], v1[..], "v1 prefix must be untouched");
-    }
-
-    #[test]
-    fn v2_empty_auction_has_no_tag_bits() {
-        let h = hand("AKQ32.K532.QJ4.9");
-        let f = features_v2(h, &empty_context());
-        for &v in &f[FEATURES_LEN..] {
-            assert_eq!(v, 0.0, "no prior calls → tag block all zero");
-        }
-    }
-
-    #[test]
-    fn v2_tag_block_reads_recent_calls_most_recent_first() {
-        // Partner opened 1♥, RHO passed; responder (us) to act.
-        let auction = [bid(1, Strain::Hearts), Call::Pass];
-        let ctx = Context::new(RelativeVulnerability::NONE, &auction);
-        let h = hand("K2.KQ54.A964.Q92");
-        let f = features_v2(h, &ctx);
-
-        let slot = |s: usize| &f[FEATURES_LEN + s * TAG_COUNT..FEATURES_LEN + (s + 1) * TAG_COUNT];
-
-        // slot 0 = the most recent call (the pass) → NF.
-        assert_eq!(slot(0)[tag_index("NF").unwrap()], 1.0, "pass → NF");
-        // slot 1 = partner's 1♥ opening → NAT (one-level suit opening).
-        assert_eq!(slot(1)[tag_index("NAT").unwrap()], 1.0, "1♥ open → NAT");
-        // slots 2 and 3 reach before the auction → all zero.
-        assert!(slot(2).iter().all(|&v| v == 0.0));
-        assert!(slot(3).iter().all(|&v| v == 0.0));
-    }
-
-    #[test]
-    fn v2_all_values_finite_and_in_range() {
-        let auction = [
-            bid(1, Strain::Hearts),
-            Call::Pass,
-            bid(2, Strain::Clubs),
-            Call::Pass,
-        ];
-        let ctx = Context::new(RelativeVulnerability::ALL, &auction);
-        let h = hand("AQ32.K53.QJ4.A92");
-        let f = features_v2(h, &ctx);
-        assert_eq!(f.len(), FEATURES_LEN_V2);
-        for (i, &v) in f.iter().enumerate() {
-            assert!(v.is_finite(), "feature[{i}] not finite: {v}");
-            assert!((0.0..=1.5).contains(&v), "feature[{i}] out of range: {v}");
-        }
     }
 }

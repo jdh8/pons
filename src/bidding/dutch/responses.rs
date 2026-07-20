@@ -1,7 +1,7 @@
 //! Dutch responses to the wide 1♣ opening — the load-bearing convention (Phase 2)
 //!
 //! The nodes that diverge hard from american are authored here; the rare 18–20
-//! `1NT` and 21–23 `2♦!` relay rebids' continuations are still `bare_american`
+//! `1NT` and 21–23 `2♦!` relay rebids' continuations are still `american_book`
 //! (their strength self-discloses to the floor via projection).  See
 //! `docs/dutch-system.md` for the full spec.
 //!

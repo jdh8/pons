@@ -15,7 +15,7 @@ mod openings;
 mod responses;
 
 use super::Pair;
-use super::american::{bare_american, insert_uncontested, with_floor, with_instinct_floor};
+use super::american::{american_book, insert_uncontested, with_floor, with_instinct_floor};
 use super::neural_floor::NeuralFloorBba;
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Strain, Suit};
@@ -51,7 +51,7 @@ const fn call(level: u8, strain: Strain) -> Call {
 /// ```
 #[must_use]
 pub fn dutch() -> Pair {
-    with_floor(bare_dutch(), NeuralFloorBba)
+    with_floor(dutch_book(), NeuralFloorBba)
 }
 
 /// The Dutch pair with the deterministic **instinct** floor (the pre-swap default)
@@ -65,12 +65,12 @@ pub fn dutch() -> Pair {
 /// The floor is the *only* difference; both share the same authored books.
 #[must_use]
 pub fn dutch_instinct() -> Pair {
-    with_instinct_floor(bare_dutch())
+    with_instinct_floor(dutch_book())
 }
 
-/// The Dutch pair without the instinct floor — the authored books
+/// The Dutch pair as the authored books alone, with no floor
 ///
-/// Takes a full [`bare_american`] pair and overwrites the **divergent nodes**
+/// Takes a full [`american_book`] pair and overwrites the **divergent nodes**
 /// (`Trie::insert_arc` replaces the classifier at each key); every other
 /// american continuation is reused verbatim.  Phase 1 overwrote the opening
 /// table ([`openings::dutch_openings`]); Phase 2.1 overwrites the wide-1♣
@@ -78,8 +78,8 @@ pub fn dutch_instinct() -> Pair {
 /// responder's second call over opener's minimum rebids (`1♣-1♦-1M`,
 /// `1♣-1♦-2♣`).  The rare 18–20 `1NT` / 21–23 `2♦!` continuations stay
 /// american's — projection discloses their strength; see `docs/dutch-system.md`.
-fn bare_dutch() -> Pair {
-    let mut pair = bare_american();
+fn dutch_book() -> Pair {
+    let mut pair = american_book();
     let book = &mut pair.constructive.0;
     // `insert_uncontested` re-keys at the undisturbed auction for every seat,
     // and `Trie::insert_arc` replaces the classifier there — a clean overwrite.

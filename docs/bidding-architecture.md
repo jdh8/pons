@@ -15,7 +15,7 @@ auction + hand
   →   Rules         (rules.rs — weighted, constraint-gated rule tables)
   → floor chain     (fallback.rs — when no node claims the hand)
   →   instinct()    (instinct.rs — keyless natural-action ladder)
-  →   learned floors (neural_floor.rs / search_floor.rs, feature-gated)
+  →   learned floor  (neural_floor.rs — the BBA-distilled net)
 ```
 
 - **Books** (`book.rs`): `Constructive`, `Competitive`, `Defensive` tries per
@@ -25,8 +25,19 @@ auction + hand
   defensive book by the opponents' `Family` (`NATURAL`, `STRONG_CLUB`,
   `WEAK_NOTRUMP`).
 - **System factories** (`american.rs`): `american()` is the shipped 2/1
-  system; `american_classic`, `american_search`, `american_neural*` are
-  variants. The private `with_floor` is where floors attach.
+  system. The other three vary exactly one axis: `american_book()` is the
+  authored books with no floor, `american_floor()` the floor with no book, and
+  `american_instinct()` the books over the deterministic ladder instead of the
+  net. The private `with_floor` is where floors attach.
+- **What the authored book is worth**: `american` − `american_floor`, 204800
+  boards/vul vs the BBA reference (2026-07-20, `scripts/book-value-ab.sh`), is
+  **+0.29 plain / +0.23 PD** NV and **+0.37 plain / +0.27 PD** vul — real, all
+  CIs clear of zero, but far short of the whole system. Auctions diverge on 53%
+  of boards, so the book earns ≈+0.5 IMPs per board it actually touches. Read
+  it as the book's *total* contribution: an empty book also stops projecting
+  into `Inferences`, so the net's `features_v3` inference block collapses to
+  unknown, and the gap is the book as authored calls **and** as disclosure. The
+  BBA-distilled floor has absorbed most of what the book does.
 
 ## Resolution and shadowing — the invariants
 
@@ -139,11 +150,10 @@ range (projects the union — sound but loose).
 
 - `ev.rs` — a call's worth by rollout, scored `ns_score_bid` (perfect
   defense; evaluating a *call*, not a result).
-- `search_floor.rs` — `SearchFloor` / `american_search()`: the gated live
-  "thinking" bidder; samples layouts, prices shortlisted calls by DD. Authored
-  rules are the **fast-floor prior**; search disposes and finds the slams
-  game-capped rules can't — which is why every convention needs its inference
-  reading (an unreadable convention strands the search).
+- Authored rules are the **fast-floor prior**, and every convention still
+  needs its inference reading — an unreadable convention strands anything that
+  reasons over the auction. (The gated live-search bidder that made this acute
+  was retired with the M1–M3 neural line; see the CHANGELOG.)
 - `single_dummy.rs` — MC-DD trick estimation; `single_dummy_leads` prices the
   blind opening lead (the known DD bias at 1NT); `Stance::infer` attaches the
   trie so alerted conventions decode in the leader's sampling.

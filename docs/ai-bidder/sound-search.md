@@ -1,5 +1,12 @@
 # Sound search — closing the pons↔BEN gap through the sampler and the scorer
 
+> **⚠️ SUPERSEDED — the machinery this doc plans against was deleted.** The
+> M1–M3 search and neural line (`american_search`, `american_neural*`,
+> `search_floor.rs`, the v1/v2/v3/search nets and their weights) was removed in
+> the variant tidy-up; only the BBA-distilled `NeuralFloorBba` survives. The
+> *reasoning* here is kept for the record, but every code reference below is
+> dangling — re-deriving the machinery is a prerequisite for any phase.
+
 > **Status: design, no code.** The search *machinery* already exists and ships
 > (M2.3 `american_search`, M3 distilled `american_neural_search`); this plan
 > refines it. Nothing here starts until a phase is explicitly chosen. The

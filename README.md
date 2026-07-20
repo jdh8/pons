@@ -90,7 +90,7 @@ Dev / research harnesses (a sampler of each family):
 - `ab-*` — A/B duplicate matches pitting a convention or floor against a baseline
   (`ab-landy`, `ab-lebensohl`, `ab-defend-2sx-or-3nt`, …).
 - `eval-nltc`, `eval-zar`, `eval-calibrate` — validate hand-evaluation methods against double-dummy results.
-- `dump-*`, `probe-*` — AI-bidder data generation and diagnostics (most need `--features search`).
+- `dump-*`, `probe-*` — AI-bidder data generation and diagnostics.
 
 ### Benchmarking against BBA/EPBot
 

@@ -24,18 +24,12 @@ pub mod map;
 ///
 /// Always compiled: the BBA-distilled net ([`neural::classify_bba`]) backs the
 /// default [`american`][american::american] floor.
-// ponytail: ungating the whole module also embeds the legacy v1/v2/v3/search
-// weight blobs (~1.8 MB) in every build; gate those four per-blob if the default
-// binary size ever matters.
 pub mod neural;
 /// Deterministic safety shell over the distilled neural floor
 pub mod neural_floor;
 pub mod rules;
 /// Constrained layout sampling: deals consistent with an auction's inferences
 pub mod sampler;
-/// Gated live double-dummy search bidder over the net prior (feature-gated)
-#[cfg(feature = "search")]
-pub mod search_floor;
 pub mod table;
 /// Structural tag reading of a call — the shared corpus/feature vocabulary
 pub mod tags;
@@ -44,13 +38,7 @@ pub mod trie;
 /// Behavioral verification of authored constraints (AI-bidder M4.2)
 pub mod verify;
 
-pub use american::{american, american_bba_constructive, american_bba_neural, american_instinct};
-#[cfg(feature = "neural-floor")]
-pub use american::{
-    american_neural, american_neural_search, american_neural_v2, american_neural_v3,
-};
-#[cfg(feature = "search")]
-pub use american::{american_search, american_search_with};
+pub use american::{american, american_book, american_floor, american_instinct};
 pub use array::Array;
 pub use book::{Competitive, Constructive, Defensive, ExplainedRule, Family, Pair, Phase, Stance};
 pub use compose::{OrElse, Versus};
@@ -58,7 +46,7 @@ pub use context::Context;
 pub use dutch::{dutch, dutch_instinct};
 #[cfg(feature = "dd")]
 pub use ev::ev_all;
-pub use features::{FEATURES_LEN, FEATURES_VERSION, features};
+pub use features::{FEATURES_LEN_V3, FEATURES_VERSION_V3, features_v3};
 pub use inference::{
     Inference, Inferences, Range, Relative, set_alert_reading, set_control_bid_reading,
     set_cue_reading, set_fallback_projection, set_length_soundness, set_nt_invite_inference,
@@ -68,8 +56,6 @@ pub use instinct::instinct;
 pub use map::Map;
 pub use rules::{Alert, Rules};
 pub use sampler::{sample_defender_remnants, sample_layouts};
-#[cfg(feature = "search")]
-pub use search_floor::{SearchBook, SearchFloor, american_search_book};
 pub use table::Table;
 pub use trie::{Trie, classifier};
 pub use verify::{Report, accepts, compare};

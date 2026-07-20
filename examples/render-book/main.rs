@@ -1,6 +1,6 @@
 //! Book pretty-printer (AI-bidder M4)
 //!
-//! Walks the floor-less 2/1 books ([`bare_american`]) and prints every
+//! Walks the floor-less 2/1 books ([`american_book`]) and prints every
 //! authored node as readable prose: each auction, then per rule its call,
 //! weight, and the **constraint's own** English description
 //! ([`Rule::describe`][pons::bidding::Rules]).  Unlike the corpus exporter's
@@ -21,7 +21,7 @@
 //!
 //! Run with `cargo run --example render-book` (pipe to a pager — it is long).
 
-use pons::bidding::american::bare_american;
+use pons::bidding::american::american_book;
 use pons::bidding::constraint::Description;
 use pons::bidding::fallback::Fallback;
 use pons::bidding::rules::Rules;
@@ -48,7 +48,7 @@ fn print_rules(rules: &Rules, opaque: &mut usize) {
 }
 
 fn main() {
-    let pair = bare_american();
+    let pair = american_book();
     let books: [(&str, &Trie); 3] = [
         ("constructive", &pair.constructive.0),
         ("competitive", &pair.competitive.0),

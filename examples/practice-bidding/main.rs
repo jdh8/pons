@@ -23,11 +23,9 @@ use contract_bridge::deck::{fill_deals, full_deal};
 use contract_bridge::eval::{self, HandEvaluator as _, SimpleEvaluator};
 use contract_bridge::{AbsoluteVulnerability, Builder, Contract, FullDeal, Seat, Strain, Suit};
 use ddss::{NonEmptyStrainFlags, Solver, StrainFlags, TrickCountTable};
-use pons::american_instinct;
-#[cfg(feature = "neural-floor")]
-use pons::american_neural_search;
 use pons::bidding::{Pair, Table};
 use pons::scoring::{final_contract, ns_score_contract};
+use pons::{american, american_instinct};
 
 // ---------------------------------------------------------------------------
 // CLI
@@ -94,28 +92,23 @@ struct Args {
     floor: Floor,
 }
 
-/// Default floor: the learned net when it's compiled in, else the instinct ladder.
-#[cfg(feature = "neural-floor")]
-const DEFAULT_FLOOR: &str = "neural-search";
-#[cfg(not(feature = "neural-floor"))]
-const DEFAULT_FLOOR: &str = "instinct";
+/// Default floor: the shipped champion.
+const DEFAULT_FLOOR: &str = "american";
 
 /// Which bidding floor the bots (and the "Bot's opinion" feedback) use
 #[derive(Clone, Copy, clap::ValueEnum)]
 enum Floor {
-    /// Deterministic instinct ladder (baseline)
+    /// The shipped champion: the BBA-distilled net over the authored books
+    American,
+    /// Deterministic instinct ladder — the fully-disclosable baseline
     Instinct,
-    /// Distilled search-target neural floor (AI-bidder M3.2)
-    #[cfg(feature = "neural-floor")]
-    NeuralSearch,
 }
 
 /// Build a fresh 2/1 pair for the chosen floor
 fn build_pair(floor: Floor) -> Pair {
     match floor {
+        Floor::American => american(),
         Floor::Instinct => american_instinct(),
-        #[cfg(feature = "neural-floor")]
-        Floor::NeuralSearch => american_neural_search(),
     }
 }
 

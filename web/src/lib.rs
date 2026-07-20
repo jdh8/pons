@@ -20,7 +20,7 @@ use contract_bridge::eval::{self, HandEvaluator as _, SimpleEvaluator};
 use contract_bridge::{
     AbsoluteVulnerability, Bid, Builder, Contract, FullDeal, Hand, Seat, Strain,
 };
-use pons::bidding::american::bare_american;
+use pons::bidding::american::american_book;
 use pons::bidding::fallback::Fallback;
 use pons::bidding::{Stance, Table, american, constraint, inference, instinct};
 use pons::scoring::{final_contract, imps};
@@ -656,7 +656,7 @@ struct RuleJson {
 #[wasm_bindgen]
 #[must_use]
 pub fn book() -> String {
-    let pair = bare_american();
+    let pair = american_book();
     let books: [(&str, &pons::Trie); 3] = [
         ("constructive", &pair.constructive.0),
         ("competitive", &pair.competitive.0),

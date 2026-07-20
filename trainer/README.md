@@ -45,10 +45,16 @@ inside this directory.
 
 ## Constants
 
-`src/data.rs` mirrors `pons::bidding::features` (`FEATURES_VERSION = 1`,
-`FEATURES_LEN = 160`) and `bidding::array` (`SOFTMAX_LEN = 38`) and asserts them
-against the data sidecar. If the crate's feature spec changes, bump them
-together — a version mismatch fails the load loudly.
+`src/data.rs` mirrors `pons::bidding::features` and `bidding::array`
+(`SOFTMAX_LEN = 38`) and asserts them against the data sidecar. If the crate's
+feature spec changes, bump them together — a version mismatch fails the load
+loudly.
+
+**Note:** the crate now ships only the restrictive disclosable extractor
+(`FEATURES_VERSION_V3 = 3`, `FEATURES_LEN_V3 = 88`); the v1 (160-float) and v2
+(tag-augmented) extractors were removed with the M1–M3 neural line, so
+`dump-teacher` emits v3 rows unconditionally. Anything here still written
+against `FEATURES_VERSION = 1` / `FEATURES_LEN = 160` is stale.
 
 ## Useful flags
 

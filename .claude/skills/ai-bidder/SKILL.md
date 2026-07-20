@@ -21,7 +21,7 @@ relevant to the task. `plan.md` is the milestone map and the source of truth for
 - **Distill, then search** — clone `american()` first (M1), beat it with
   constrained-sampling + double-dummy search second (M3).
 - **Search runs at inference time too** — not only as an offline teacher. M2.3 is
-  a gated, slow "thinking" bidder (`american_search()`) that simulates before
+  a gated, slow "thinking" bidder (retired with the M1–M3 line) that simulates before
   it bids; **bidding only** (no cardplay engine). Distillation (M3) stays the path
   to the *fast (distilled)* floor; the live search bidder is an added gated option
   and the teacher whose EVs M3 distills. (`instinct()` stays the baseline; both
@@ -47,7 +47,7 @@ relevant to the task. `plan.md` is the milestone map and the source of truth for
    scorers, decision table). Report board counts; treat sub-0.1 IMPs/board
    as noise unless the sample is large.
 4. **Keep the baseline.** `instinct()` stays as default and comparison anchor; a
-   neural floor is an added option (e.g. `american_neural()`), never a
+   neural floor is an added option (measured against `american_instinct()`), never a
    removal.
 5. **Version artifacts together** — weights, feature-spec version, teacher/system
    version, data seed, git SHA. A model is meaningless without its exact feature

@@ -5,11 +5,10 @@
 //! `--teacher bba`) and records, at every decision point, a training row of
 //! `(features, teacher_softmax)`:
 //!
-//! - **features** — the feature vector for the hand to act: the 160-float
-//!   v1 vector ([`features`][pons::bidding::features::features]) by default, or
-//!   the tag-augmented v2 vector
-//!   ([`features_v2`][pons::bidding::features::features_v2]) under
-//!   `--features-version 2` (AI-bidder M5.1).
+//! - **features** — the restrictive *disclosable-only* v3 vector for the hand
+//!   to act ([`features_v3`][pons::bidding::features::features_v3]): 88 floats
+//!   of hand summary, context, inferences and vulnerability, with no
+//!   card-specific values. This is the extractor the shipped floor uses.
 //! - **teacher_softmax** — the teacher's `Logits` at that node, masked to the
 //!   *legal* calls and pushed through `softmax`, giving a 38-way distribution
 //!   over calls. Matching the full distribution (not just the argmax) is what
@@ -42,10 +41,7 @@ use contract_bridge::{AbsoluteVulnerability, FullDeal, Seat};
 use ddss::TrickCountTable;
 use pons::american_instinct;
 use pons::bidding::context::{Context, relative};
-use pons::bidding::features::{
-    FEATURES_LEN, FEATURES_LEN_V2, FEATURES_LEN_V3, FEATURES_VERSION, FEATURES_VERSION_V2,
-    FEATURES_VERSION_V3, features, features_v2, features_v3,
-};
+use pons::bidding::features::{FEATURES_LEN_V3, FEATURES_VERSION_V3, features_v3};
 use pons::bidding::{Family, Phase, System};
 use pons::gib;
 use rand::rngs::StdRng;
@@ -70,10 +66,6 @@ struct Args {
     /// RNG seed (for reproducibility)
     #[arg(long, default_value_t = 0)]
     seed: u64,
-    /// Feature extractor version: 1 = the 160-float vector, 2 = + the tag block,
-    /// 3 = the restrictive disclosable-only vector (88 floats)
-    #[arg(long, default_value_t = 1)]
-    features_version: u32,
     /// Optional GIB deal file (e.g. sol100000.txt): bid out every deal in it
     /// instead of random boards. Each line is `<PBN, West-first>:<20 hex DD>`;
     /// the cached DD table becomes a 20-float per-row regression target (random
@@ -111,15 +103,7 @@ const VULS: [AbsoluteVulnerability; 4] = [
 
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
-    let (feature_version, features_len) = match args.features_version {
-        1 => (FEATURES_VERSION, FEATURES_LEN),
-        2 => (FEATURES_VERSION_V2, FEATURES_LEN_V2),
-        3 => (FEATURES_VERSION_V3, FEATURES_LEN_V3),
-        other => {
-            eprintln!("teacher-dump: unknown --features-version {other}; use 1, 2 or 3");
-            std::process::exit(2);
-        }
-    };
+    let (feature_version, features_len) = (FEATURES_VERSION_V3, FEATURES_LEN_V3);
     // DD label only exists when deals come from a GIB file (cached, no solving).
     let dd_len = if args.deals.is_some() { 20 } else { 0 };
     let row_len = features_len + SOFTMAX_LEN + dd_len;
@@ -204,11 +188,7 @@ fn main() -> anyhow::Result<()> {
 
             // Record the row: features ++ softmax (++ DD label when present).
             let context = Context::new(rel, &auction);
-            let feats = match feature_version {
-                FEATURES_VERSION_V2 => features_v2(hand, &context),
-                FEATURES_VERSION_V3 => features_v3(hand, &context),
-                _ => features(hand, &context),
-            };
+            let feats = features_v3(hand, &context);
             row[..features_len].copy_from_slice(&feats);
             row[features_len..features_len + SOFTMAX_LEN].copy_from_slice(&softmax[..]);
             if let Some(table) = &table {

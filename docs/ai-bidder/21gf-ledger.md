@@ -448,7 +448,7 @@ under a single-dummy / IMPs-vs-humans measure where preemption actually pays.
 | 84 | Michaels cuebid | shipped | keep | — | — |
 | 127 | Unusual 2NT | shipped | keep | — | — |
 | 126 | Unusual 1NT | gap | add (Batch 1) | — | — |
-| 79 | Leaping Michaels | **shipped, default ON** | keep on | `4♣/4♦` strong 5-5 two-suiters + authored advances. **vs floor: +1.010/+1.195 board, +3.906/+4.624 div** [a6f2206, 40k, 25.8% div]. Inference reader decodes the two-suiter so `american_search` prices the advance by DD (slam-capable). `set_leaping_michaels(false)` to disable. | (this commit) |
+| 79 | Leaping Michaels | **shipped, default ON** | keep on | `4♣/4♦` strong 5-5 two-suiters + authored advances. **vs floor: +1.010/+1.195 board, +3.906/+4.624 div** [a6f2206, 40k, 25.8% div]. Inference reader decodes the two-suiter so a DD search layer could price the advance (slam-capable). `set_leaping_michaels(false)` to disable. | (this commit) |
 | 123 | Two-suit takeout double | gap | add (Batch 1) | — | — |
 | — | **Off-shape X support gate + 2-level overcall discipline** | **shipped, default ON** | anchor bucket-1 fix (traced from `Defensive / book / round-1 −98k`) | **combined vs historical: +0.004/+0.019 board plain, +0.008/+0.026 PD** [1783402635, 102.4k/vul, ~3.6% fired] — no plain loss either vul, both-vul CI>0 on both scorers → default-on. Two additive levers on disjoint boards: `set_takeout_support(Strict)` (12+ X needs 3+ in every unbid suit, else overcall / wait for 17+; **strict alone +0.005/+0.012 plain, +0.004/+0.013 PD**) and `set_overcall_discipline(true)` (2-level overcall = opening 11–17, 1-level cap 17; **disc alone −0.001/+0.007 plain, +0.004/+0.013 PD**). `Off` + `false` reproduce the historical book. | (this commit) |
 | 129 | Unusual 4NT | verify | — | — | — |
@@ -560,17 +560,17 @@ The authored advance is capped at game. To let the bidder reach the slams a big
 two-suiter is *for*, `Inferences::read` now decodes the overcall's two suits
 (`leaping_michaels_reading`, post-walk like the Rubens cue), so the constrained
 sampler conditions partner correctly and the live double-dummy search bidder
-(`american_search`, `--features search`) prices the advance — 4M / 5m / slam — by
-cardplay EV. The authored length rules become the fast-floor *prior*; DD disposes.
+of the day (`american_search`, since retired) priced the advance — 4M / 5m /
+slam — by cardplay EV. The authored length rules become the fast-floor *prior*; DD disposes.
 A directional A/B (search+LM NS vs authored-rules+LM EW, 60 filtered boards, trimmed
 64-layout search) measured **+2.8 IMPs/board** for search *on top of* the rule floor,
 and the auctions show it reaching the slams the game-capped rules cannot (e.g. a
 `6♥` off the `2♦` both-majors cue, a `7♣` grand) — at the cost of a few search
 overbids (the small-sample / shortlist noise; a larger run would tighten).
 **Shipped default ON** (`Cell::new(true)`); `set_leaping_michaels(false)` recovers
-the prior weak-two defense. The plan's "spend runtime for better calls" (M2.3)
-makes `american_search` the blessed way to play it — the slam upside lives there,
-while the fast floor's authored rules bank the row-#79 figure.
+the prior weak-two defense. The plan's "spend runtime for better calls" (M2.3) made `american_search` the
+blessed way to play it, but that bidder has since been retired; today the fast
+floor's authored rules bank the row-#79 figure on their own.
 
 **Perfect-defense re-validation sweep (after `ns_score` fix 5611eac).** `ns_score`
 now doubles any contract that fails double-dummy (a real defense doubles what it

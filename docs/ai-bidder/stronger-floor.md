@@ -1,5 +1,12 @@
 # Stronger floor — the three-lever review (features / training / search)
 
+> **⚠️ SUPERSEDED — the machinery this doc plans against was deleted.** The
+> M1–M3 search and neural line (`american_search`, `american_neural*`,
+> `search_floor.rs`, the v1/v2/v3/search nets and their weights) was removed in
+> the variant tidy-up; only the BBA-distilled `NeuralFloorBba` survives. The
+> *reasoning* here is kept for the record, but every code reference below is
+> dangling — re-deriving the machinery is a prerequisite for any phase.
+
 > **Status: review + decision, no code.** Answers three questions posed
 > 2026-07-19, right after the floor swap (`american()` → the BBA-distilled net,
 > deterministic system → `american_instinct()`; see

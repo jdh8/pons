@@ -17,9 +17,9 @@
 # Usage:
 #   scripts/idle-run.sh <command> [args...]
 #
-# Example (regenerate the AI-bidder search-data set, ~16 h on an idle box):
-#   scripts/idle-run.sh cargo run --release --features search \
-#     --example dump-search -- --boards 10000 --seed 1 --progress
+# Example (a full two-arm A/B against the BBA reference, hours on an idle box):
+#   PER_SHARD=6400 scripts/idle-run.sh \
+#     scripts/book-value-ab.sh ab-results/book-value
 #
 # To survive an SSH disconnect, run it inside tmux/screen, or:
 #   setsid nohup scripts/idle-run.sh <command> >run.log 2>&1 < /dev/null &

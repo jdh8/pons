@@ -1,12 +1,11 @@
 //! Deterministic safety shell over the distilled neural floor — AI-bidder M1.3.
 //!
-//! [`neural::classify`][crate::bidding::neural::classify] is a bare MLP: it emits a
-//! finite logit for every one of the 38 calls, with no built-in respect for the
-//! laws or for the floor's non-negotiable forced-situation rails.
-//! [`NeuralFloor`][crate::bidding::neural_floor::NeuralFloor] wraps it so it is
-//! safe to attach as the floor, exactly where
-//! [`instinct()`][super::instinct::instinct] attaches (see
-//! [`american_neural`][super::american::american_neural]).
+//! [`neural::classify_bba`][crate::bidding::neural::classify_bba] is a bare MLP:
+//! it emits a finite logit for every one of the 38 calls, with no built-in
+//! respect for the laws or for the floor's non-negotiable forced-situation
+//! rails.  [`NeuralFloorBba`][crate::bidding::neural_floor::NeuralFloorBba] wraps it so it is safe to attach as the floor,
+//! exactly where [`instinct()`][super::instinct::instinct] attaches (see
+//! [`american`][super::american::american]).
 //!
 //! The shell has two paths:
 //!
@@ -23,7 +22,11 @@
 //!
 //! Hand-conditioned game forces (a strong-notrump responder who *holds* game
 //! values) are deliberately left to the net — that is judgement, measured in
-//! aggregate by the `neural-floor` A/B example, not guarded here.
+//! aggregate by the A/B examples, not guarded here.
+//!
+//! Both paths are book-independent, so this shell is also what
+//! [`american_floor`][super::american::american_floor] stands on with no
+//! authored book at all.
 
 use super::Rules;
 use super::array::Logits;
@@ -38,100 +41,16 @@ use std::sync::LazyLock;
 /// The deterministic ladder, built once; the forced path reuses it per board.
 static LADDER: LazyLock<Rules> = LazyLock::new(instinct);
 
-/// The distilled neural floor, made safe to attach under the book
+/// The BBA-distilled disclosable floor, made safe to attach under the book
 ///
 /// A [`Classifier`] drop-in for [`instinct()`][super::instinct::instinct]: the
 /// learned net in the judgement middle, the deterministic rails preserved by
-/// delegation.  See the [module docs][self].
-#[derive(Clone, Copy, Debug, Default)]
-pub struct NeuralFloor;
-
-impl Classifier for NeuralFloor {
-    fn classify(&self, hand: Hand, context: &Context<'_>) -> Logits {
-        if forced(context) {
-            // Rails: trust the deterministic floor, never the net.
-            return LADDER.classify(hand, context);
-        }
-        let mut logits = neural::classify(&features::features(hand, context));
-        mask_illegal(&mut logits, context.auction());
-        logits
-    }
-}
-
-/// The version-2 (tag-augmented) distilled floor, made safe to attach
-///
-/// Identical to [`NeuralFloor`] but feeding
-/// [`features_v2`][super::features::features_v2] to
-/// [`neural::classify_v2`] — the same forced-rail delegation and legality mask,
-/// now over the net that also sees the recent calls' tags (AI-bidder M5.1).
-#[derive(Clone, Copy, Debug, Default)]
-pub struct NeuralFloorV2;
-
-impl Classifier for NeuralFloorV2 {
-    fn classify(&self, hand: Hand, context: &Context<'_>) -> Logits {
-        if forced(context) {
-            // Rails: trust the deterministic floor, never the net.
-            return LADDER.classify(hand, context);
-        }
-        let mut logits = neural::classify_v2(&features::features_v2(hand, context));
-        mask_illegal(&mut logits, context.auction());
-        logits
-    }
-}
-
-/// The search-target distilled floor, made safe to attach (AI-bidder M3.2)
-///
-/// Identical to [`NeuralFloor`] in shape and rails — v1 features, the same
-/// forced-rail delegation and legality mask — but over the net distilled from the
-/// M2.3 **live-search teacher** ([`neural::classify_search`]) rather than from the
-/// deterministic [`instinct()`].  The fast net that learned the search's
-/// judgement; an added option, never a replacement.
-#[derive(Clone, Copy, Debug, Default)]
-pub struct NeuralFloorSearch;
-
-impl Classifier for NeuralFloorSearch {
-    fn classify(&self, hand: Hand, context: &Context<'_>) -> Logits {
-        if forced(context) {
-            // Rails: trust the deterministic floor, never the net.
-            return LADDER.classify(hand, context);
-        }
-        let mut logits = neural::classify_search(&features::features(hand, context));
-        mask_illegal(&mut logits, context.auction());
-        logits
-    }
-}
-
-/// The version-3 (restrictive disclosable) distilled floor, made safe to attach
-///
-/// Identical to [`NeuralFloor`] in shape and rails — the same forced-rail
-/// delegation and legality mask — but feeding the *disclosable-only*
-/// [`features_v3`][super::features::features_v3] (no card-specific values) to
-/// [`neural::classify_v3`].  The net that learned to clone `american()` from
-/// what a bidder could lawfully disclose (AI-bidder v3).
-#[derive(Clone, Copy, Debug, Default)]
-pub struct NeuralFloorV3;
-
-impl Classifier for NeuralFloorV3 {
-    fn classify(&self, hand: Hand, context: &Context<'_>) -> Logits {
-        if forced(context) {
-            // Rails: trust the deterministic floor, never the net.
-            return LADDER.classify(hand, context);
-        }
-        let mut logits = neural::classify_v3(&features::features_v3(hand, context));
-        mask_illegal(&mut logits, context.auction());
-        logits
-    }
-}
-
-/// The BBA-distilled disclosable floor, made safe to attach
-///
-/// Identical to [`NeuralFloorV3`] in shape and rails — the same disclosable-only
-/// [`features_v3`][super::features::features_v3] and the same forced-rail
-/// delegation and legality mask — but over the net distilled from the vendored
-/// **EPBot 2/1** oracle ([`neural::classify_bba`]) rather than from the
-/// deterministic [`american()`][super::american::american].  A stronger learned
-/// prior for the floor to stand on (EPBot clears our current floor by ~1.9
-/// IMPs/board); an added option, never a replacement.
+/// delegation.  It is fed the *disclosable-only*
+/// [`features_v3`][super::features::features_v3] (no card-specific values) and
+/// distilled from the vendored **EPBot 2/1** oracle
+/// ([`neural::classify_bba`]) — a stronger learned prior than the deterministic
+/// ladder it floors (EPBot clears our instinct floor by ~1.9 IMPs/board).  See
+/// the [module docs][self].
 #[derive(Clone, Copy, Debug, Default)]
 pub struct NeuralFloorBba;
 
@@ -147,39 +66,11 @@ impl Classifier for NeuralFloorBba {
     }
 }
 
-/// The WJ-distilled disclosable floor, made safe to attach
-///
-/// Identical to [`NeuralFloorBba`] in shape and rails, over the net distilled
-/// from EPBot's **Wspólny Język** ([`neural::classify_wj`]) rather than its 2/1.
-/// Wanted by the Dutch campaign for the subtrees where Dutch leaves american —
-/// its 1♦ shares WJ's shape (5+♦ or 4=4=4=1, denying a five-card major) at 89%
-/// hand agreement, the whole residual being WJ routing 18+ through its forcing
-/// 1♣.  Never attach it to Dutch's 2♣: WJ's is a *minimum* club hand and Dutch's
-/// is *strong*, the one place the two systems give the same call opposite
-/// meanings.
-#[derive(Clone, Copy, Debug, Default)]
-pub struct NeuralFloorWj;
-
-impl Classifier for NeuralFloorWj {
-    fn classify(&self, hand: Hand, context: &Context<'_>) -> Logits {
-        if forced(context) {
-            // Rails: trust the deterministic floor, never the net.
-            return LADDER.classify(hand, context);
-        }
-        let mut logits = neural::classify_wj(&features::features_v3(hand, context));
-        mask_illegal(&mut logits, context.auction());
-        logits
-    }
-}
-
 /// Set every call the laws forbid to `-∞`, leaving the rest as the net set them
 ///
 /// Reuses [`Auction::can_push`] — the very predicate the driver filters with —
 /// so the mask can never drift from the laws.  `Pass` is always legal, so it
 /// stays finite and a distribution always exists (invariant §0.2).
-///
-/// Shared with the M2.3 live-search floor (`search` feature), whose judgement
-/// path masks the same net prior before shortlisting candidates by EV.
 pub(crate) fn mask_illegal(logits: &mut Logits, auction: &[Call]) {
     let mut played = Auction::new();
     // The slice is a real prior auction, so every call in it is legal.
@@ -207,24 +98,12 @@ mod tests {
     fn shelled(auction: &[Call], hand: &str) -> Logits {
         let hand: Hand = hand.parse().expect("valid test hand");
         let context = Context::new(RelativeVulnerability::NONE, auction);
-        NeuralFloor.classify(hand, &context)
+        NeuralFloorBba.classify(hand, &context)
     }
 
     /// The shelled net's highest-logit call
     fn best(auction: &[Call], hand: &str) -> Call {
         let logits = shelled(auction, hand);
-        (&logits.0)
-            .into_iter()
-            .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("logits are never NaN"))
-            .map(|(call, _)| call)
-            .expect("array is never empty")
-    }
-
-    /// As [`best`], but through the version-2 (tag-augmented) shell.
-    fn best_v2(auction: &[Call], hand: &str) -> Call {
-        let hand: Hand = hand.parse().expect("valid test hand");
-        let context = Context::new(RelativeVulnerability::NONE, auction);
-        let logits = NeuralFloorV2.classify(hand, &context);
         (&logits.0)
             .into_iter()
             .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("logits are never NaN"))
@@ -309,152 +188,6 @@ mod tests {
             Call::Pass,
         ];
         let logits = shelled(&auction, "92.K53.AQJ42.962");
-        assert_eq!(*logits.0.get(Call::Double), f32::NEG_INFINITY);
-        assert!(logits.0.get(Call::Pass).is_finite());
-    }
-
-    // The version-2 shell wraps the tag-augmented net with the *same* rails:
-    // forced situations delegate to instinct, and the legality mask still holds.
-
-    #[test]
-    fn v2_advancing_a_double_advances_a_bust() {
-        // Partner doubled their 3♣ for takeout; the v2 shell delegates to instinct
-        // exactly as v1 does — here, advancing a bust with an outside suit.
-        let auction = [call(3, Strain::Clubs), Call::Double, Call::Pass];
-        assert_eq!(
-            best_v2(&auction, "96432.J85.9742.2"),
-            call(3, Strain::Spades)
-        );
-    }
-
-    #[test]
-    fn v2_masks_illegal_keeps_pass_finite() {
-        // Not a forced auction → the v2 net + legality mask. Doubling our own
-        // side's 2♠ is illegal, so the mask zeroes it; Pass stays finite.
-        let auction = [
-            call(1, Strain::Hearts),
-            call(1, Strain::Spades),
-            Call::Pass,
-            call(2, Strain::Spades),
-            Call::Pass,
-        ];
-        let hand: Hand = "92.K53.AQJ42.962".parse().unwrap();
-        let context = Context::new(RelativeVulnerability::NONE, &auction);
-        let logits = NeuralFloorV2.classify(hand, &context);
-        assert_eq!(*logits.0.get(Call::Double), f32::NEG_INFINITY);
-        assert!(logits.0.get(Call::Pass).is_finite());
-    }
-
-    // The search-target shell (AI-bidder M3.2) wraps the search-distilled net with
-    // the *same* rails: forced situations delegate to instinct, the mask still holds.
-
-    #[test]
-    fn search_advancing_a_double_advances_a_bust() {
-        // Partner doubled their 3♣ for takeout; the search shell delegates to
-        // instinct exactly as v1 does — here, advancing a bust with an outside suit.
-        let auction = [call(3, Strain::Clubs), Call::Double, Call::Pass];
-        let hand: Hand = "96432.J85.9742.2".parse().unwrap();
-        let context = Context::new(RelativeVulnerability::NONE, &auction);
-        let chosen = NeuralFloorSearch
-            .classify(hand, &context)
-            .0
-            .into_iter()
-            .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("logits are never NaN"))
-            .map(|(call, _)| call)
-            .expect("array is never empty");
-        assert_eq!(chosen, call(3, Strain::Spades));
-    }
-
-    #[test]
-    fn search_masks_illegal_keeps_pass_finite() {
-        // Not a forced auction → the search net + legality mask. Doubling our own
-        // side's 2♠ is illegal, so the mask zeroes it; Pass stays finite.
-        let auction = [
-            call(1, Strain::Hearts),
-            call(1, Strain::Spades),
-            Call::Pass,
-            call(2, Strain::Spades),
-            Call::Pass,
-        ];
-        let hand: Hand = "92.K53.AQJ42.962".parse().unwrap();
-        let context = Context::new(RelativeVulnerability::NONE, &auction);
-        let logits = NeuralFloorSearch.classify(hand, &context);
-        assert_eq!(*logits.0.get(Call::Double), f32::NEG_INFINITY);
-        assert!(logits.0.get(Call::Pass).is_finite());
-    }
-
-    // The v3 (restrictive disclosable) shell wraps the disclosable-only net with
-    // the *same* rails: forced situations delegate to instinct, the mask holds.
-
-    #[test]
-    fn v3_advancing_a_double_advances_a_bust() {
-        // Partner doubled their 3♣ for takeout; the v3 shell delegates to instinct
-        // exactly as v1 does — here, advancing a bust with an outside suit.
-        let auction = [call(3, Strain::Clubs), Call::Double, Call::Pass];
-        let hand: Hand = "96432.J85.9742.2".parse().unwrap();
-        let context = Context::new(RelativeVulnerability::NONE, &auction);
-        let chosen = NeuralFloorV3
-            .classify(hand, &context)
-            .0
-            .into_iter()
-            .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("logits are never NaN"))
-            .map(|(call, _)| call)
-            .expect("array is never empty");
-        assert_eq!(chosen, call(3, Strain::Spades));
-    }
-
-    #[test]
-    fn v3_masks_illegal_keeps_pass_finite() {
-        // Not a forced auction → the v3 net + legality mask. Doubling our own
-        // side's 2♠ is illegal, so the mask zeroes it; Pass stays finite.
-        let auction = [
-            call(1, Strain::Hearts),
-            call(1, Strain::Spades),
-            Call::Pass,
-            call(2, Strain::Spades),
-            Call::Pass,
-        ];
-        let hand: Hand = "92.K53.AQJ42.962".parse().unwrap();
-        let context = Context::new(RelativeVulnerability::NONE, &auction);
-        let logits = NeuralFloorV3.classify(hand, &context);
-        assert_eq!(*logits.0.get(Call::Double), f32::NEG_INFINITY);
-        assert!(logits.0.get(Call::Pass).is_finite());
-    }
-
-    // The BBA-distilled floor is the same shell over a different net, so it keeps
-    // the *same* rails: forced situations delegate to instinct, the mask holds.
-
-    #[test]
-    fn bba_advancing_a_double_advances_a_bust() {
-        // Partner doubled their 3♣ for takeout; the BBA shell delegates to instinct
-        // exactly as v3 does — here, advancing a bust with an outside suit.
-        let auction = [call(3, Strain::Clubs), Call::Double, Call::Pass];
-        let hand: Hand = "96432.J85.9742.2".parse().unwrap();
-        let context = Context::new(RelativeVulnerability::NONE, &auction);
-        let chosen = NeuralFloorBba
-            .classify(hand, &context)
-            .0
-            .into_iter()
-            .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("logits are never NaN"))
-            .map(|(call, _)| call)
-            .expect("array is never empty");
-        assert_eq!(chosen, call(3, Strain::Spades));
-    }
-
-    #[test]
-    fn bba_masks_illegal_keeps_pass_finite() {
-        // Not a forced auction → the BBA net + legality mask. Doubling our own
-        // side's 2♠ is illegal, so the mask zeroes it; Pass stays finite.
-        let auction = [
-            call(1, Strain::Hearts),
-            call(1, Strain::Spades),
-            Call::Pass,
-            call(2, Strain::Spades),
-            Call::Pass,
-        ];
-        let hand: Hand = "92.K53.AQJ42.962".parse().unwrap();
-        let context = Context::new(RelativeVulnerability::NONE, &auction);
-        let logits = NeuralFloorBba.classify(hand, &context);
         assert_eq!(*logits.0.get(Call::Double), f32::NEG_INFINITY);
         assert!(logits.0.get(Call::Pass).is_finite());
     }

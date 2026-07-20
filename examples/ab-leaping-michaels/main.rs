@@ -28,8 +28,8 @@ use contract_bridge::auction::Auction;
 use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Hand, Seat, Suit};
 use pons::american;
+use pons::bidding::Family;
 use pons::bidding::american::set_leaping_michaels;
-use pons::bidding::{Family, Stance};
 use pons::scoring::{final_contract, ns_score_contract};
 use rayon::prelude::*;
 
@@ -62,13 +62,6 @@ struct Args {
     /// actually diverge. `--count` is then the number of such filtered boards.
     #[arg(long, default_value = "false")]
     filter: bool,
-
-    /// Use the live double-dummy **search** bidder (`american_search`) for the
-    /// measured (NS) pair instead of the authored-rules floor, so the advance is
-    /// chosen by cardplay EV (and can reach slam).  Requires `--features search`;
-    /// slow, so pair with a small `--count`.
-    #[arg(long, default_value = "false")]
-    search: bool,
 }
 
 /// Weak-two opening shape: a six-card D/H/S suit with 5–10 HCP (a cheap proxy for
@@ -101,26 +94,6 @@ fn could_reach_leaping_michaels(deal: &FullDeal) -> bool {
     })
 }
 
-/// Build the measured pair with the live-search bidder (knobs trimmed for speed)
-#[cfg(feature = "search")]
-fn build_search() -> Stance {
-    use pons::bidding::american::american_search_with;
-    use pons::bidding::search_floor::SearchFloor;
-    // Half the default layouts: ~2× faster, still enough to rank game vs slam.
-    american_search_with(SearchFloor {
-        layouts: 64,
-        shortlist: 8,
-        temperature: 100.0,
-    })
-    .against(Family::NATURAL)
-}
-
-/// Without the `search` feature the search bidder is unavailable.
-#[cfg(not(feature = "search"))]
-fn build_search() -> Stance {
-    panic!("--search requires building with --features search");
-}
-
 /// Parse an on/off arm flag
 fn on_from(name: &str) -> bool {
     match name {
@@ -138,11 +111,7 @@ fn main() {
     set_leaping_michaels(on_from(&args.ew));
     let baseline = american().against(Family::NATURAL);
     set_leaping_michaels(on_from(&args.ns));
-    let lm = if args.search {
-        build_search()
-    } else {
-        american().against(Family::NATURAL)
-    };
+    let lm = american().against(Family::NATURAL);
 
     // Phase 1 (sequential, cheap): deal + the shape-only filter until `count`
     // boards pass. The RNG stays single-threaded so a seed reproduces a run.

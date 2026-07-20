@@ -63,7 +63,7 @@
 use super::fallback::{Always, Fallback, Guard};
 use super::instinct::instinct;
 use super::trie::Classifier;
-use super::{Constructive, Family, Pair, Trie};
+use super::{Competitive, Constructive, Defensive, Family, Pair, Trie};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Strain};
 use std::sync::Arc;
@@ -260,7 +260,7 @@ fn fallback_all_seats(
 /// ```
 #[must_use]
 pub fn american() -> Pair {
-    with_floor(bare_american(), super::neural_floor::NeuralFloorBba)
+    with_floor(american_book(), super::neural_floor::NeuralFloorBba)
 }
 
 /// The 2/1 pair with the deterministic **instinct** floor (the pre-BBA default)
@@ -274,185 +274,35 @@ pub fn american() -> Pair {
 /// net-floored [`american`].
 #[must_use]
 pub fn american_instinct() -> Pair {
-    with_instinct_floor(bare_american())
+    with_instinct_floor(american_book())
 }
 
-/// The 2/1 pair with the **classic balanced** 1NT opening (pre-redesign)
+/// The 2/1 pair with **no authored book** — every call comes from the floor
 ///
-/// Exactly [`american`] but for the opening table: the strong 1NT is only
-/// the balanced patterns (4333/4432/5332), without the wide-shape redesign that
-/// [`american`] now ships (a 5422 *or* 6322 with a long minor also opens 1NT —
-/// [`openings_with`]).  The ablation handle for measuring that redesign; see the
-/// `nt-shape-abc` (constructive) and `nt-shape-contested` examples.
+/// Exactly [`american`] but for the books: all three are empty, so every
+/// auction falls straight through to the same floor wiring [`american`] uses —
+/// [`NeuralFloorBba`][crate::bidding::neural_floor::NeuralFloorBba] on the
+/// contested books, the deterministic [`instinct`][crate::bidding::instinct()]
+/// ladder on the constructive one.  The ablation handle that prices the
+/// authored book: `american` − `american_floor` is what [`american_book`] is
+/// worth.
+///
+/// Note it prices the book's *total* contribution.  An empty book also stops
+/// projecting authored constraints into
+/// [`Inferences`][crate::bidding::inference::Inferences], so the net's
+/// `features_v3` inference block collapses to unknown — the measured gap is the
+/// book as authored calls **and** as disclosure, not the calls alone.
 #[must_use]
-pub fn american_classic() -> Pair {
-    with_instinct_floor(bare_american_with(NotrumpShape::Balanced))
-}
-
-/// The 2/1 pair with the **pre-6322 wide** 1NT shape ([`NotrumpShape::Wide`])
-///
-/// Exactly [`american`] but its 1NT opens only the balanced patterns plus a
-/// 5422 with a five-card minor — *not* the 6322-with-a-six-card-minor that
-/// [`american`] now ships.  The superseded baseline, retained as the ablation
-/// handle for re-measuring the 6322 addition (`nt-shape-contested`, `bba-gen
-/// --nt-shape wide`); the win that adopted 6322 was +0.004…0.006 IMPs/board
-/// plain, confirmed over two seeds.
-#[must_use]
-pub fn american_wide() -> Pair {
-    with_instinct_floor(bare_american_with(NotrumpShape::Wide))
-}
-
-/// The 2/1 pair with the distilled **neural** floor (AI-bidder M1.3)
-///
-/// Exactly [`american`] but for the floor: the deterministic
-/// [`instinct`][crate::bidding::instinct()] ladder is replaced by the
-/// [`NeuralFloor`][crate::bidding::neural_floor::NeuralFloor] safety shell — the learned
-/// net in the judgement middle, the forced rails preserved by delegation.  An
-/// added option, never a replacement; [`american`] stays the baseline.  Bind
-/// it against the opponents' [`Family`] with [`Pair::against`] and seat it the
-/// same way.  Gated behind the `neural-floor` feature.
-#[cfg(feature = "neural-floor")]
-#[must_use]
-pub fn american_neural() -> Pair {
-    with_floor(bare_american(), super::neural_floor::NeuralFloor)
-}
-
-/// The 2/1 pair with the **tag-augmented** distilled neural floor (AI-bidder M5.1)
-///
-/// Exactly [`american_neural`] but for the floor's feature extractor: the net
-/// also sees the WBF tags of the recent calls
-/// ([`features_v2`][crate::bidding::features::features_v2]), wrapped in the same
-/// [`NeuralFloorV2`][crate::bidding::neural_floor::NeuralFloorV2] safety shell —
-/// the learned net in the judgement middle, the forced rails preserved by
-/// delegation.  An added option, never a replacement: [`american`] stays the
-/// baseline and [`american_neural`] the v1 learned floor.  Bind it against the
-/// opponents' [`Family`] with [`Pair::against`] and seat it the same way.  Gated
-/// behind the `neural-floor` feature.
-#[cfg(feature = "neural-floor")]
-#[must_use]
-pub fn american_neural_v2() -> Pair {
-    with_floor(bare_american(), super::neural_floor::NeuralFloorV2)
-}
-
-/// The 2/1 pair with the **restrictive disclosable** distilled neural floor (AI-bidder v3)
-///
-/// Exactly [`american_neural`] but for the floor's feature extractor: the net is
-/// fed only the *disclosable* hand summary
-/// ([`features_v3`][crate::bidding::features::features_v3]) — HCP, shape, and
-/// per-suit length and quality, never specific cards — wrapped in the
-/// [`NeuralFloorV3`][crate::bidding::neural_floor::NeuralFloorV3] safety shell
-/// with the same forced-rail delegation.  It learned to clone [`american`] from
-/// what a bidder could lawfully disclose to opponents (full disclosure being core
-/// duplicate ethics), so it never keys on undisclosable card detail.  An added
-/// option, never a replacement: [`american`] stays the baseline.  Bind it against
-/// the opponents' [`Family`] with [`Pair::against`] and seat it the same way.
-/// Gated behind the `neural-floor` feature.
-#[cfg(feature = "neural-floor")]
-#[must_use]
-pub fn american_neural_v3() -> Pair {
-    with_floor(bare_american(), super::neural_floor::NeuralFloorV3)
-}
-
-/// Alias of [`american`], retained for continuity
-///
-/// The BBA-distilled [`NeuralFloorBba`][crate::bidding::neural_floor::NeuralFloorBba]
-/// floor this names *is* the [`american`] default as of the floor swap; kept as a
-/// named handle for the `bba-gen` arms and older call sites.  For the deterministic
-/// pre-swap system, use [`american_instinct`].
-#[must_use]
-pub fn american_bba_neural() -> Pair {
-    american()
-}
-
-/// The 2/1 pair with the BBA-distilled floor under the **constructive** book too
-///
-/// Exactly [`american`] but for which floor catches off-book *uncontested*
-/// auctions: the shipped wiring hands those to the deterministic
-/// [`instinct`][crate::bidding::instinct()] ladder, and this hands them to the
-/// same [`NeuralFloorBba`][crate::bidding::neural_floor::NeuralFloorBba] that
-/// already floors the contested books.
-///
-/// The restriction it lifts predates this net.  It was justified on the grounds
-/// that the learned floors are trained on contested auctions only — true of the
-/// instinct-distilled v1/v2 nets, false of the BBA one, whose corpus is 37%
-/// constructive and which validates no worse on that split than on the contested
-/// one.  An added option, never a replacement: [`american`] stays the baseline
-/// until this measures.  The A/B arm for `scripts/constructive-floor-ab.sh`.
-#[must_use]
-pub fn american_bba_constructive() -> Pair {
-    use super::neural_floor::NeuralFloorBba;
-    with_floors(bare_american(), NeuralFloorBba, NeuralFloorBba)
-}
-
-/// The 2/1 pair with the **search-target** distilled neural floor (AI-bidder M3.2)
-///
-/// Exactly [`american_neural`] in shape — v1 features, the
-/// [`NeuralFloorSearch`][crate::bidding::neural_floor::NeuralFloorSearch] safety
-/// shell with the same forced-rail delegation — but the net is distilled from the
-/// **live-search teacher** (M2.3's EV-grounded targets, dumped at M3.1), *not* from
-/// the deterministic [`american`] and *not* the live search bidder
-/// [`american_search`] itself.  The fast net that learned the search's
-/// judgement.  An added option, never a replacement: [`american`] stays the
-/// baseline and [`american_neural`] the teacher-distilled floor.  Bind it
-/// against the opponents' [`Family`] with [`Pair::against`] and seat it the same
-/// way.  Gated behind the `neural-floor` feature.
-#[cfg(feature = "neural-floor")]
-#[must_use]
-pub fn american_neural_search() -> Pair {
-    with_floor(bare_american(), super::neural_floor::NeuralFloorSearch)
-}
-
-/// The 2/1 pair with the gated live-**search** floor (AI-bidder M2.3)
-///
-/// Exactly [`american`] but for the floor: the deterministic
-/// [`instinct`][crate::bidding::instinct()] ladder is replaced by the
-/// [`SearchFloor`][crate::bidding::search_floor::SearchFloor] safety shell, which
-/// at each non-forced decision shortlists the distilled net's top calls and
-/// scores them by cardplay EV before bidding the best — the policy *thinks*
-/// before it bids.  Strong but slow; an added gated option, never a replacement.
-/// Bind it against the opponents' [`Family`] with [`Pair::against`] and seat it
-/// the same way.  Gated behind the `search` feature (which implies
-/// `neural-floor`).
-#[cfg(feature = "search")]
-#[must_use]
-pub fn american_search() -> Pair {
-    american_search_with(super::search_floor::SearchFloor::default())
-}
-
-/// The 2/1 pair with a caller-tuned live-search floor (AI-bidder M3.1)
-///
-/// Like [`american_search`] but with explicit
-/// [`SearchFloor`][crate::bidding::search_floor::SearchFloor] knobs, so
-/// data-generation and tuning runs can trade strength for speed (smaller
-/// `layouts`/`shortlist`) without re-wiring the floor.  `american_search()`
-/// is exactly `american_search_with(SearchFloor::default())`.  Gated behind
-/// the `search` feature.
-#[cfg(feature = "search")]
-#[must_use]
-pub fn american_search_with(floor: super::search_floor::SearchFloor) -> Pair {
-    with_floor(bare_american(), floor)
-}
-
-/// Build a 2/1 pair whose **constructive** book falls back to an arbitrary
-/// classifier — the knob the standard constructors deny
-///
-/// [`american`] and the neural variants hard-wire the deterministic
-/// [`instinct`][crate::bidding::instinct()] ladder onto the constructive book —
-/// the learned floors own only the contested books.  This
-/// builder lifts that wiring so a learned floor (the live
-/// [`SearchFloor`][crate::bidding::search_floor::SearchFloor] or the distilled
-/// [`NeuralFloorSearch`][crate::bidding::neural_floor::NeuralFloorSearch]) can be
-/// *measured* on uncontested constructive auctions against the instinct baseline
-/// — the `constructive-abc` A/B/C example.  The contested books are left bare:
-/// that harness silences the opponents, so they never resolve.  Gated behind the
-/// `neural-floor` feature.
-#[cfg(feature = "neural-floor")]
-#[must_use]
-pub fn american_constructive_floor<C: Classifier + 'static>(floor: C) -> Pair {
-    let mut pair = bare_american();
-    pair.constructive
-        .fallback_at(&[], Always, Fallback::classify(floor));
-    pair
+pub fn american_floor() -> Pair {
+    with_floor(
+        Pair::new(
+            Family::NATURAL,
+            Constructive::new(),
+            Competitive::new(),
+            Defensive::new(),
+        ),
+        super::neural_floor::NeuralFloorBba,
+    )
 }
 
 /// Attach any classifier as the floor on a pair's contested books
@@ -460,38 +310,21 @@ pub fn american_constructive_floor<C: Classifier + 'static>(floor: C) -> Pair {
 /// A root `Always` fallback on both contested books, shared through the
 /// `Fallback`'s `Arc`.  Resolution reaches the root last, so the floor never
 /// overrides an authored rule — it only catches the auctions that fall past all
-/// of them.  Generic over the floor so [`american`] (the deterministic
-/// [`instinct`][crate::bidding::instinct()]) and
-/// [`american_neural`] (the distilled net) share one wiring.
-pub(in crate::bidding) fn with_floor<C: Classifier + 'static>(pair: Pair, floor: C) -> Pair {
+/// of them.  Generic over the floor so [`american`] (the BBA-distilled net) and
+/// [`american_instinct`] (the deterministic
+/// [`instinct`][crate::bidding::instinct()] ladder) share one wiring.
+pub(in crate::bidding) fn with_floor<C: Classifier + 'static>(mut pair: Pair, floor: C) -> Pair {
+    let contested = Fallback::classify(floor);
+    pair.competitive.fallback_at(&[], Always, contested.clone());
+    pair.defensive.fallback_at(&[], Always, contested);
+
     // Uncontested auctions never reach the contested floor, so an off-book
     // constructive sequence would pass out below a cold game (e.g. `1♦–1♥–1NT`
     // passed out on a balanced 16 opposite the 12–14 rebid).  Floor the
     // constructive book with the deterministic instinct ladder — the natural
     // milestone bidder reaches game or slam on those sequences.
-    with_floors(pair, floor, instinct())
-}
-
-/// As [`with_floor`], but with the **constructive** floor chosen separately
-///
-/// The split exists because the constructive restriction above predates the
-/// BBA-distilled nets.  Its original justification — that the learned floors are
-/// trained on contested auctions only — is false of them: 37% of
-/// `american_bba`'s corpus is constructive, and the nets validate no worse there
-/// than on contested rows.  So "learned floor on contested, instinct on
-/// constructive" is a testable choice rather than a law, and this is the handle
-/// the A/B arm needs.  It matters most where the constructive book is thinnest —
-/// Dutch's minor openings, not american's heavily authored core.
-pub(in crate::bidding) fn with_floors<C: Classifier + 'static, D: Classifier + 'static>(
-    mut pair: Pair,
-    contested: C,
-    constructive: D,
-) -> Pair {
-    let contested = Fallback::classify(contested);
-    pair.competitive.fallback_at(&[], Always, contested.clone());
-    pair.defensive.fallback_at(&[], Always, contested);
     pair.constructive
-        .fallback_at(&[], Always, Fallback::classify(constructive));
+        .fallback_at(&[], Always, Fallback::classify(instinct()));
     pair
 }
 
@@ -500,33 +333,24 @@ pub(in crate::bidding) fn with_instinct_floor(pair: Pair) -> Pair {
     with_floor(pair, instinct())
 }
 
-/// Build the 2/1 pair *without* the instinct floor: the bare authored books
+/// Build the 2/1 pair as the **authored books alone**, with no floor
 ///
-/// This is the ablation handle for measuring the floor.  A driver seating
-/// this pair passes whenever the books run out — the pre-floor behavior,
-/// including passing partner's takeout double on a worthless hand.
-/// [`american()`] is exactly this pair with
-/// [`instinct`][crate::bidding::instinct()] attached to both contested books;
-/// see the `instinct-floor` example for an A/B match between the two.  The 1NT
-/// [`NotrumpShape`] follows [`set_notrump_shape`] (default
-/// [`NotrumpShape::Wide6322`] — a 5422 or 6322 with a long minor also opens 1NT);
-/// [`american_wide`] and [`american_classic`] are the baked ablation baselines.
-#[must_use]
-pub fn bare_american() -> Pair {
-    bare_american_with(openings::notrump_shape_setting())
-}
-
-/// [`bare_american`] with the 1NT [`NotrumpShape`] policy selectable
+/// The book half of [`american`], and the ablation handle for measuring the
+/// floor: a driver seating this pair passes whenever the books run out — the
+/// pre-floor behavior, including passing partner's takeout double on a
+/// worthless hand.  [`american`] is exactly this pair with the BBA-distilled
+/// net attached to both contested books, and [`american_floor`] is the
+/// complementary ablation (the floor alone, with no book at all); see the
+/// `instinct-floor` example for an A/B match.
 ///
-/// `shape` selects the opening table's 1NT shape ([`openings_with`]); everything
-/// else is identical.  `bare_american()` ships [`NotrumpShape::Wide6322`]; the
-/// pre-6322 [`NotrumpShape::Wide`] is behind [`american_wide`] and the classic
-/// balanced baseline ([`NotrumpShape::Balanced`]) behind [`american_classic`].
+/// The 1NT [`NotrumpShape`] follows [`set_notrump_shape`] (default
+/// [`NotrumpShape::Wide6322`] — a 5422 or 6322 with a long minor also opens
+/// 1NT).
 #[must_use]
-fn bare_american_with(shape: NotrumpShape) -> Pair {
+pub fn american_book() -> Pair {
     let mut c = Constructive::new();
 
-    openings::register(&mut c, shape);
+    openings::register(&mut c, openings::notrump_shape_setting());
     responses::register(&mut c);
     notrump::register(&mut c);
     rebids::register(&mut c);

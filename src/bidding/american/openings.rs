@@ -78,10 +78,9 @@ pub(crate) fn rule_of_20_enabled() -> bool {
 
 /// Select the 1NT opening [`NotrumpShape`] for the next rebuild of
 /// [`american()`][crate::american()] — the web Settings shape radio.  Default
-/// [`NotrumpShape::Wide6322`].  The baked ablation handles
-/// ([`american_wide`][crate::bidding::american::american_wide],
-/// [`american_classic`][crate::bidding::american::american_classic]) ignore this
-/// knob; only [`bare_american`][crate::bidding::american::bare_american] reads it.
+/// [`NotrumpShape::Wide6322`].  Read by
+/// [`american_book`][crate::bidding::american::american_book], so every
+/// constructor built on it picks up the setting.
 pub fn set_notrump_shape(shape: NotrumpShape) {
     NOTRUMP_SHAPE.with(|cell| cell.set(shape));
 }

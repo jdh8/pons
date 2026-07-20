@@ -1,7 +1,7 @@
 # Running heavy data generation on a shared machine
 
-The AI-bidder data-generation jobs (`dump-search`, `probe-grand`, and other
-`--features search` examples) are **CPU-saturating**: the double-dummy solver
+The data-generation and A/B jobs (`bba-gen`, `ben-gen`, the `ab-*` runners)
+are **CPU-saturating**: the double-dummy solver
 ([`ddss`](https://crates.io/crates/ddss)) calls `SetMaxThreads(0)` — "use every
 core" — with no caller-side thread knob, so each batch solve spins one worker per
 hardware thread and pegs the whole box for hours.
@@ -15,8 +15,8 @@ For a box that is **idle most of the time**, run the job in the `SCHED_IDLE`
 scheduling class (plus the idle I/O class) and set **no CPU quota**:
 
 ```sh
-scripts/idle-run.sh cargo run --release --features search \
-  --example dump-search -- --boards 10000 --seed 1 --progress
+PER_SHARD=6400 scripts/idle-run.sh \
+  scripts/book-value-ab.sh ab-results/book-value
 # expands to:  nice -n10  chrt --idle 0  ionice -c3  <command>
 ```
 
@@ -71,7 +71,7 @@ flat-out box invisible.
 
 ## Do not run your own idle-run jobs in parallel
 
-Each `--features search` job already spins **one worker per hardware thread**
+Each such job already spins **one worker per hardware thread**
 (`SetMaxThreads(0)`), so it owns the whole box by itself. Launching several at
 once (e.g. four A/B variants in the background with `&`) is **N× self-
 oversubscription**: your own equal-priority threads thrash against each other, and
@@ -173,7 +173,7 @@ than `cat`, since each `.pdd` carries a header.
 
 Wrap a long `generate` in `idle-run.sh` on a shared box. `dump-teacher --deals
 all.txt` then reads that cached DD for free, so the training-row dump runs
-cheaply on a single machine. Seed-shardable `.f32` dumps (`dump-search`, …) merge
+cheaply on a single machine. Seed-shardable `.f32` dumps merge
 the same way — concatenate the per-seed `.f32`/`.tags` in seed order, keeping the
 sidecars' feature/layout/SHA in agreement.
 

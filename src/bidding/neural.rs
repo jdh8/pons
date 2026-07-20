@@ -3,9 +3,7 @@
 //! A hand-rolled `f32` matmul + ReLU evaluation of the MLP that `trainer/` fits
 //! off-crate. There is no ML dependency: the weights are embedded with
 //! [`include_bytes!`] and the arithmetic is a few loops. The BBA-distilled net
-//! (`classify_bba`) backs the default [`american`][crate::american()] floor, so
-//! this module is always compiled; only the legacy `american_neural*` variants
-//! that call the v1/v2/v3/search nets stay behind the `neural-floor` feature.
+//! (`classify_bba`) backs the default [`american`][crate::american()] floor.
 //!
 //! The forward pass mirrors `candle_nn::Linear` (weights are `(out, in)`
 //! row-major, `y = x·Wᵀ + b`). The parity test below asserts it reproduces the
@@ -13,7 +11,7 @@
 //! that the arg-max (the chosen call) matches exactly.
 
 use super::array::Logits;
-use super::features::{FEATURES_LEN, FEATURES_LEN_V2, FEATURES_LEN_V3};
+use super::features::FEATURES_LEN_V3;
 use std::sync::LazyLock;
 
 /// Shape shared by every distilled floor: hidden width and output (call) width.
@@ -34,21 +32,6 @@ fn decode(raw: &[u8]) -> Vec<f32> {
         .map(|b| f32::from_le_bytes([b[0], b[1], b[2], b[3]]))
         .collect()
 }
-
-// ── version 1: the 160-input distilled floor ────────────────────────────────
-
-/// Input width of `american_v1`, pinned to the artifact (= [`FEATURES_LEN`]).
-const IN_V1: usize = FEATURES_LEN;
-
-/// Embedded v1 weights: little-endian `f32`, layer order `l1.w,l1.b,…,l3.b`.
-static RAW_V1: &[u8] = include_bytes!("weights/american_v1.f32");
-const _: () = assert!(
-    RAW_V1.len() == total(IN_V1) * 4,
-    "v1 weights artifact size mismatch"
-);
-
-/// v1 weights decoded to `f32` once, on first use.
-static WEIGHTS_V1: LazyLock<Vec<f32>> = LazyLock::new(|| decode(RAW_V1));
 
 /// `out[o] = bias[o] + Σ_i weight[o·in + i] · x[i]`, with `weight` `(out, in)`
 /// row-major — i.e. `candle_nn::Linear`'s `x·Wᵀ + b`.
@@ -96,117 +79,14 @@ fn forward(weights: &[f32], x: &[f32], in_dim: usize) -> Logits {
     logits
 }
 
-/// Evaluate the v1 distilled floor: 160 features → 38 logits, in `Call`-index
-/// (`encode_call`) order. Deterministic — fixed weights, no RNG.
-///
-/// This is the raw net output; legality masking and the forced-situation
-/// overrides are the job of the safety shell (M1.3), not of this function.
-///
-/// # Panics
-///
-/// Panics if `features.len()` is not the pinned v1 [`FEATURES_LEN`] (160).
-#[must_use]
-pub fn classify(features: &[f32]) -> Logits {
-    assert_eq!(features.len(), IN_V1, "expected {IN_V1} features");
-    forward(WEIGHTS_V1.as_slice(), features, IN_V1)
-}
+// ── BBA-distilled floor: the disclosable v3 features, EPBot 2/1 teacher ───────
+// The net sees only the *disclosable* hand summary — no card-specific values
+// (see `features::features_v3`) — and its teacher is the vendored EPBot 2/1
+// oracle, a behavioral clone of BBA's chosen call. A stronger prior for the
+// floor to stand on than the deterministic ladder it replaces.
 
-// ── version 2: the tag-augmented distilled floor (AI-bidder M5.1) ────────────
-
-/// Input width of `american_v2` (= [`FEATURES_LEN_V2`]).
-const IN_V2: usize = FEATURES_LEN_V2;
-
-/// Embedded v2 weights: same layer order as v1, wider first layer.
-static RAW_V2: &[u8] = include_bytes!("weights/american_v2.f32");
-const _: () = assert!(
-    RAW_V2.len() == total(IN_V2) * 4,
-    "v2 weights artifact size mismatch"
-);
-
-/// v2 weights decoded to `f32` once, on first use.
-static WEIGHTS_V2: LazyLock<Vec<f32>> = LazyLock::new(|| decode(RAW_V2));
-
-/// Evaluate the v2 distilled floor: tag-augmented features → 38 logits, in
-/// `Call`-index order. Deterministic — fixed weights, no RNG.
-///
-/// # Panics
-///
-/// Panics if `features.len()` is not the pinned v2 [`FEATURES_LEN_V2`].
-#[must_use]
-pub fn classify_v2(features: &[f32]) -> Logits {
-    assert_eq!(features.len(), IN_V2, "expected {IN_V2} features");
-    forward(WEIGHTS_V2.as_slice(), features, IN_V2)
-}
-
-// ── search-target: v1-featured, distilled from the live-search teacher ───────
-// AI-bidder M3.2. Same 160-input shape and forward pass as v1; only the training
-// *target* differs (the search softmax instead of the deterministic teacher
-// softmax). Not the live search bidder — a fast net that learned its judgement.
-// Currently the **round-2** net: targets regenerated with the round-1 search net
-// as the rollout continuation policy (and a doubling-aware EV evaluator), which
-// taught it to avoid doubled-down contracts — +1.66 IMPs/board over round 1 on the
-// default perfect-defense measure (20k boards, vul none; +2.07 vul both).
-
-/// Embedded search-target weights: v1 layout (160 inputs), search-distilled.
-static RAW_SEARCH_V1: &[u8] = include_bytes!("weights/american_v1_search.f32");
-const _: () = assert!(
-    RAW_SEARCH_V1.len() == total(IN_V1) * 4,
-    "search-target weights artifact size mismatch"
-);
-
-/// Search-target weights decoded to `f32` once, on first use.
-static WEIGHTS_SEARCH_V1: LazyLock<Vec<f32>> = LazyLock::new(|| decode(RAW_SEARCH_V1));
-
-/// Evaluate the search-target distilled floor: 160 features → 38 logits, in
-/// `Call`-index order. Same shape and forward pass as [`classify`]; only the
-/// trained weights differ — distilled from the M2.3 live-search teacher's
-/// EV-grounded targets (AI-bidder M3.2). Deterministic — fixed weights, no RNG.
-///
-/// # Panics
-///
-/// Panics if `features.len()` is not the pinned v1 [`FEATURES_LEN`] (160).
-#[must_use]
-pub fn classify_search(features: &[f32]) -> Logits {
-    assert_eq!(features.len(), IN_V1, "expected {IN_V1} features");
-    forward(WEIGHTS_SEARCH_V1.as_slice(), features, IN_V1)
-}
-
-// ── version 3: the restrictive disclosable-only distilled floor (AI-bidder v3) ─
-// Same forward pass and 38-output shape as v1; only the input width (88) and the
-// trained weights differ. Distilled from `american()` over the 100K GIB deals,
-// but the net sees only the *disclosable* hand summary — no card-specific
-// values (see `features::features_v3`). Measures how well the system clones from
-// what a bidder could lawfully disclose.
-
-/// Input width of `american_v3` (= [`FEATURES_LEN_V3`]).
+/// Input width of `american_bba`, pinned to the artifact (= [`FEATURES_LEN_V3`]).
 const IN_V3: usize = FEATURES_LEN_V3;
-
-/// Embedded v3 weights: same layer order as v1, narrower first layer (88 inputs).
-static RAW_V3: &[u8] = include_bytes!("weights/american_v3.f32");
-const _: () = assert!(
-    RAW_V3.len() == total(IN_V3) * 4,
-    "v3 weights artifact size mismatch"
-);
-
-/// v3 weights decoded to `f32` once, on first use.
-static WEIGHTS_V3: LazyLock<Vec<f32>> = LazyLock::new(|| decode(RAW_V3));
-
-/// Evaluate the v3 restrictive-disclosable distilled floor: 88 features → 38
-/// logits, in `Call`-index order. Deterministic — fixed weights, no RNG.
-///
-/// # Panics
-///
-/// Panics if `features.len()` is not the pinned v3 [`FEATURES_LEN_V3`] (88).
-#[must_use]
-pub fn classify_v3(features: &[f32]) -> Logits {
-    assert_eq!(features.len(), IN_V3, "expected {IN_V3} features");
-    forward(WEIGHTS_V3.as_slice(), features, IN_V3)
-}
-
-// ── BBA-distilled floor: same disclosable v3 features, EPBot 2/1 teacher ──────
-// Same 88-input shape and forward pass as v3; only the teacher differs — the
-// vendored EPBot 2/1 oracle (a behavioral clone of BBA's chosen call) rather than
-// the deterministic `american()`. A stronger prior for the floor to stand on.
 
 /// Embedded BBA-distilled weights: v3 layout (88 disclosable inputs), EPBot 2/1 teacher.
 static RAW_BBA: &[u8] = include_bytes!("weights/american_bba.f32");
@@ -219,9 +99,11 @@ const _: () = assert!(
 static WEIGHTS_BBA: LazyLock<Vec<f32>> = LazyLock::new(|| decode(RAW_BBA));
 
 /// Evaluate the BBA-distilled floor: 88 disclosable features → 38 logits, in
-/// `Call`-index order. Same shape and forward pass as [`classify_v3`]; only the
-/// trained weights differ — distilled from the vendored EPBot 2/1 oracle (a
-/// hard clone of BBA's argmax call). Deterministic — fixed weights, no RNG.
+/// `Call`-index order. Distilled from the vendored EPBot 2/1 oracle (a hard
+/// clone of BBA's argmax call). Deterministic — fixed weights, no RNG.
+///
+/// This is the raw net output; legality masking and the forced-situation
+/// overrides are the job of the safety shell (M1.3), not of this function.
 ///
 /// # Panics
 ///
@@ -230,36 +112,6 @@ static WEIGHTS_BBA: LazyLock<Vec<f32>> = LazyLock::new(|| decode(RAW_BBA));
 pub fn classify_bba(features: &[f32]) -> Logits {
     assert_eq!(features.len(), IN_V3, "expected {IN_V3} features");
     forward(WEIGHTS_BBA.as_slice(), features, IN_V3)
-}
-
-// ── WJ-distilled floor: same v3 features, EPBot *Polish Club* teacher ─────────
-// Identical shape and forward pass again; the teacher is EPBot system 2 under
-// `vendor/bba/WJ.bbsa`.  Wanted by the Dutch campaign, whose minor openings leave
-// american entirely — an american-distilled net reads Dutch's 1♦ as a system it
-// has never seen, and at Phase 3 would read a Multi 2♦ as natural diamonds.
-
-/// Embedded WJ-distilled weights: v3 layout (88 disclosable inputs), EPBot Polish Club teacher.
-static RAW_WJ: &[u8] = include_bytes!("weights/wj_bba.f32");
-const _: () = assert!(
-    RAW_WJ.len() == total(IN_V3) * 4,
-    "WJ weights artifact size mismatch"
-);
-
-/// WJ weights decoded to `f32` once, on first use.
-static WEIGHTS_WJ: LazyLock<Vec<f32>> = LazyLock::new(|| decode(RAW_WJ));
-
-/// Evaluate the WJ-distilled floor: 88 disclosable features → 38 logits, in
-/// `Call`-index order.  Same shape and forward pass as [`classify_bba`]; only
-/// the teacher differs — EPBot's **Wspólny Język** (system 2, `vendor/bba/WJ.bbsa`)
-/// rather than its 2/1.  Deterministic — fixed weights, no RNG.
-///
-/// # Panics
-///
-/// Panics if `features.len()` is not the pinned v3 [`FEATURES_LEN_V3`] (88).
-#[must_use]
-pub fn classify_wj(features: &[f32]) -> Logits {
-    assert_eq!(features.len(), IN_V3, "expected {IN_V3} features");
-    forward(WEIGHTS_WJ.as_slice(), features, IN_V3)
 }
 
 #[cfg(test)]
@@ -314,66 +166,9 @@ mod tests {
     }
 
     #[test]
-    fn matches_candle_fixture() {
-        check_fixture(include_str!("weights/american_v1.fixture.json"), |x| {
-            classify(x).iter().map(|(_, l)| *l).collect()
-        });
-    }
-
-    #[test]
-    fn matches_candle_fixture_v2() {
-        check_fixture(include_str!("weights/american_v2.fixture.json"), |x| {
-            classify_v2(x).iter().map(|(_, l)| *l).collect()
-        });
-    }
-
-    #[test]
-    fn matches_candle_fixture_search() {
-        check_fixture(
-            include_str!("weights/american_v1_search.fixture.json"),
-            |x| classify_search(x).iter().map(|(_, l)| *l).collect(),
-        );
-    }
-
-    #[test]
-    fn matches_candle_fixture_v3() {
-        check_fixture(include_str!("weights/american_v3.fixture.json"), |x| {
-            classify_v3(x).iter().map(|(_, l)| *l).collect()
-        });
-    }
-
-    #[test]
     fn matches_candle_fixture_bba() {
         check_fixture(include_str!("weights/american_bba.fixture.json"), |x| {
             classify_bba(x).iter().map(|(_, l)| *l).collect()
         });
-    }
-
-    #[test]
-    fn matches_candle_fixture_wj() {
-        check_fixture(include_str!("weights/wj_bba.fixture.json"), |x| {
-            classify_wj(x).iter().map(|(_, l)| *l).collect()
-        });
-    }
-
-    /// The two distilled nets must actually be different bidders — a copy-paste
-    /// slip in the `include_bytes!` stems would otherwise pass every fixture.
-    #[test]
-    fn wj_and_bba_are_distinct() {
-        let fx: serde_json::Value =
-            serde_json::from_str(include_str!("weights/wj_bba.fixture.json")).unwrap();
-        let rows = fx["features"].as_array().unwrap();
-        let differs = rows.iter().any(|row| {
-            let x: Vec<f32> = row
-                .as_array()
-                .unwrap()
-                .iter()
-                .map(|v| v.as_f64().unwrap() as f32)
-                .collect();
-            let wj: Vec<f32> = classify_wj(&x).iter().map(|(_, l)| *l).collect();
-            let bba: Vec<f32> = classify_bba(&x).iter().map(|(_, l)| *l).collect();
-            wj.iter().zip(&bba).any(|(w, b)| (w - b).abs() > 1.0e-3)
-        });
-        assert!(differs, "WJ and BBA nets produce identical logits");
     }
 }

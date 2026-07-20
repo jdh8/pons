@@ -1,6 +1,6 @@
 //! Corpus exporter (AI-bidder M0.2)
 //!
-//! Walks the floorless 2/1 books ([`bare_american`]) and emits one JSONL
+//! Walks the floorless 2/1 books ([`american_book`]) and emits one JSONL
 //! record per `(node, call)` the books authorise:
 //!
 //! ```text
@@ -42,7 +42,7 @@
 //!   which overrides the derived description.
 
 use contract_bridge::auction::{Call, RelativeVulnerability};
-use pons::bidding::american::bare_american;
+use pons::bidding::american::american_book;
 use pons::bidding::constraint::Description;
 use pons::bidding::context::Context;
 use pons::bidding::tags::derive;
@@ -59,7 +59,7 @@ struct Node<'a> {
 
 fn main() {
     let system = "american";
-    let pair = bare_american();
+    let pair = american_book();
     let books: [(&'static str, &Trie); 3] = [
         ("constructive", &pair.constructive.0),
         ("competitive", &pair.competitive.0),
