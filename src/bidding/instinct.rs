@@ -370,8 +370,9 @@ fn settle_floor() -> Cons<impl Constraint + Clone> {
 /// **Off by default** (A/B owed; see the `ab-bilans-floor` example).  With it
 /// on, each converted gate asks [`trick_estimates`] for the contract's make
 /// probability and compares it against the IMP break-even for that decision at
-/// the live vulnerability ([`break_even`]) — partscore→game at 45.5% non-vul /
-/// 37.5% vul, small slam at even money, grand at ~56–58% — the
+/// the live vulnerability ([`break_even`]) — partscore→game at even money
+/// non-vul / 44.4% vul (our failing branch priced *doubled*, per the
+/// bid-scoring split), small slam at even money, grand at ~56–58% — the
 /// vulnerability-awareness the point gates never had.  The RKCB ask enters at
 /// [`SLAM_ENTRY_P`] instead of the [`set_floor_slam_entry`] point floor.
 ///
@@ -1810,16 +1811,26 @@ const SLAM_ENTRY_P: f32 = 0.35;
 /// The make probability at which bidding on breaks even in IMPs against
 /// stopping in the cold alternative — the economics half of the bilans floor
 ///
-/// Derived in `docs/ai-bidder/evaluator-net.md`: partscore→game risks a
-/// partscore swing against the game bonus (5/11 non-vul, 6/16 vul), game→small
-/// slam is even money at both vulnerabilities (the slam and game bonuses scale
-/// together), and small→grand wants ~56–58% depending on strain and
-/// vulnerability.  `tricks` keys the decision: ≤ 11 is a game, 12 the small
-/// slam, 13 the grand.
+/// A gate prices a *call*, and the house scoring split prices calls under
+/// perfect defense (`ns_score_bid` is the call scorer; the M3.1 7NT flood is
+/// why), so the failing branch of the contemplated game is **down one
+/// doubled**: non-vul risks 6 IMPs (−100 against the +140 partscore) to gain
+/// 6, vul risks 8 (−200) to gain 10.  The undoubled derivation in
+/// `docs/ai-bidder/evaluator-net.md` gave 5/11 and 6/16; doubling our own
+/// failure is also the adverse-selection premium (the layouts where a marginal
+/// game fails are the ones where the double gets found) and a hedge against
+/// the estimator's winner's curse at the firing margin.  The slam and grand
+/// rows keep the plain-derived values: their risk side is dominated by the
+/// lost game bonus, and the doubled undertrick moves them at most one IMP
+/// bucket — inside the derivation's own assumption noise.  `tricks` keys the
+/// decision: ≤ 11 is a game, 12 the small slam, 13 the grand.
+// ponytail: the endpoints (plain 5/11–6/16, doubled 6/12–8/18) bracket the
+// truth; a q = P(doubled | we fail) dial interpolating them is the upgrade if
+// neither endpoint A/Bs clean.
 fn break_even(tricks: u8, strain: Strain, vul_we: bool) -> f32 {
     match (tricks, strain, vul_we) {
-        (..=11, _, false) => 5.0 / 11.0,
-        (..=11, _, true) => 6.0 / 16.0,
+        (..=11, _, false) => 6.0 / 12.0,
+        (..=11, _, true) => 8.0 / 18.0,
         (12, _, _) => 0.5,
         (_, Strain::Hearts | Strain::Spades, false) => 14.0 / 24.0,
         (_, Strain::Hearts | Strain::Spades, true) => 17.0 / 30.0,

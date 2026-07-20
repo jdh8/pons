@@ -6,8 +6,9 @@
 //! ([`set_bilans_floor`][pons::bidding::instinct::set_bilans_floor], **default
 //! off** until this A/B says otherwise) swaps the arithmetic inside those gates
 //! for the session-C trick evaluator: each converted gate prices its own
-//! contract as `P(≥ tricks) ≥ break-even(vulnerability)` — 45.5% non-vul /
-//! 37.5% vul for a game, even money for a small slam, ~56–58% for a grand.
+//! contract as `P(≥ tricks) ≥ break-even(vulnerability)` — even money non-vul /
+//! 44.4% vul for a game (our failing branch priced *doubled*, per the
+//! bid-scoring split), even money for a small slam, ~56–58% for a grand.
 //! The forced rails, stopper gates, and trump-length conditions stay authored;
 //! only the point sums move.  Vulnerability-awareness is the whole point, so
 //! measure at `--vulnerability none` **and** `both` before reading a verdict.

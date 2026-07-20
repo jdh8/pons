@@ -15,15 +15,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   major game, the 33/37 slam blasts, the RKCB entry, and the asker's grand —
   can now price their own contract with the session-C trick evaluator instead
   of the point sums: `P(≥ tricks by our declarer in that strain)` against the
-  IMP break-even for the decision at the live vulnerability (45.5% non-vul /
-  37.5% vul games, even-money small slams, ~56–58% grands), the
-  vulnerability-awareness the point gates never had. The forced rails
-  (`game_forces`, the 2/1 force), stopper gates, trump-length conditions,
-  keycard counts, and the settle rail stay authored; knob-off the gates are
-  exactly the original point arithmetic and the net never runs. The name tips
-  the hat to Edward Piwowar's *bilans* engine inside EPBot. Measure with
-  `examples/ab-bilans-floor` at both vulnerabilities (protocol:
-  `docs/measurement.md`); no measured IMPs yet — the harness run is pending.
+  IMP break-even for the decision at the live vulnerability, with **our
+  failing branch priced doubled** (a gate prices a call, and bid = PD is the
+  scoring split; games at even money non-vul / 44.4% vul, even-money small
+  slams, ~56–58% grands) — the vulnerability-awareness the point gates never
+  had. The forced rails (`game_forces`, the 2/1 force), stopper gates,
+  trump-length conditions, keycard counts, and the settle rail stay authored;
+  knob-off the gates are exactly the original point arithmetic and the net
+  never runs. The name tips the hat to Edward Piwowar's *bilans* engine inside
+  EPBot. 20k-board pilot per vulnerability (seed 1784580177, paired postures):
+  plain DD **+0.045**/board non-vul and **+0.072** both-vul (both CI-clean),
+  PD +0.017 / +0.020 (parity, positive-leaning); the doubled posture
+  pairwise-dominated the undoubled one on identical deals (plain unchanged,
+  PD recovered). Definitive 200k A/B per `docs/measurement.md` still owed
+  before any default flip.
 
 - **A learned trick evaluator — bilans session C.** BBA's floor is not a rule
   table but the *bilans* pipeline:
