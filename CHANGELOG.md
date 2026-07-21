@@ -303,8 +303,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
   No weights ship from this: the crate's evaluator net is untouched, and the
   0.1060 band error of record stands until a candidate is re-scored on the same
-  held-out shard. `docs/ai-bidder/evaluator-net.md` still carries the
-  quartile-era ladder and ablation tables and is now out of date.
+  held-out shard. `docs/ai-bidder/evaluator-net.md` is updated to match — ladder,
+  seed note, `below μ`, the one-hot carry-over, and two Known ceilings.
 
 - **`docs/ai-bidder/bba-floor.md` — what BBA's "calculated bid" actually
   computes.** The June study established that EPBot's floor is *programmatic*;

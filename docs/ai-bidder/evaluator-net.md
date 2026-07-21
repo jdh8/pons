@@ -155,20 +155,57 @@ Corpus: 100k deals from `22.pdd` × `american()` + `dutch()` = **2,005,619 rows*
 Held-out: a whole fleet shard (20k deals → 402,092 rows), deal-disjoint by
 construction. `MAE` and `RMSE` are the mean head's error against the *realized*
 deal, in tricks; `coverage` is the fraction of deals inside `μ ± 0.6745σ`,
-nominally 50%. Every arm below is one sweep at `--seed 0`, 150 epochs.
+nominally 50%. All runs are 150 epochs.
+
+**Two trainers produced the numbers below, and it matters which.** The
+architecture ladder was re-run on 2026-07-21 after the training loop was found
+never to permute a deal-major corpus (`c019ea5`), at **three seeds per rung**.
+Every *other* arm — the shipped net's slices, the ablations, the `--bare` and
+quartile comparisons — is still a single `--seed 0` sweep on the old, unshuffled
+loop, and is flagged where the defect plausibly moved it.
 
 ### Architecture ladder
 
-| net | params | val NLL | MAE | RMSE | coverage | below μ |
+Three seeds per rung, on the fixed trainer. Medians; the NLL spread column is
+max − min across the rung's seeds.
+
+| net | params | val NLL | NLL spread | MAE | RMSE | coverage |
 |---|---|---|---|---|---|---|
-| linear 40 → 40 | 1,640 | −1.34398 | 1.564 | 1.963 | 51.1% | ≈49% |
-| **shipped: MLP-64** | **9,384** | **−1.46271** | **1.499** | **1.893** | **50.1%** | **≈48%** |
+| linear 40 → 40 | 1,640 | −1.346 | 0.143 | 1.561 | 1.959 | 48.8–53.9% |
+| MLP-64 *(shipped)* | 9,384 | −1.463 | 0.149 | 1.499 | 1.893 | 48.7–53.9% |
+| MLP-128 | 26,920 | −1.475 | 0.0011 | 1.485 | 1.877 | 48.6% |
+| **MLP-256** — the knee | **86,568** | **−1.485** | **0.0006** | **1.472** | **1.863** | **48.4%** |
+| MLP-512 *(2 seeds)* | 304,168 | −1.483 | 0.0007 | 1.472 / 1.474 | 1.865 | 47.9–48.2% |
 
 The hidden layer earns its 7,744 extra parameters on every column at once:
-0.119 of NLL, 0.065 tricks of MAE, 0.070 of RMSE, and coverage a point closer to
-nominal. Trick-taking is not linear in (hand summary, range envelopes) — which
-is the interesting half of the result, since bilans-style arithmetic *is* roughly
-that linear class.
+0.117 of NLL, 0.062 tricks of MAE, 0.066 of RMSE. Trick-taking is not linear in
+(hand summary, range envelopes) — which is the interesting half of the result,
+since bilans-style arithmetic *is* roughly that linear class.
+
+**The knee is 256, and width keeps paying much longer than recorded.** MAE falls
+0.062 → 0.014 → 0.013 → 0.000 across the four steps. The previous verdict — "64
+is where the ladder stops", carried over from the quartile sweep on the strength
+of a 0.7% gain at 128 — was an artifact of the unshuffled loop: 128 beats 64 by
+0.93% here, and 256 takes another 0.88% on top.
+
+**512 is where it actually stops**, and it stops by overfitting rather than by
+saturating. It ties 256 on MAE, loses on NLL at *every* seed (−1.4833/−1.4825
+against −1.4851/−1.4850/−1.4845, no overlap), and quadruples the train−val gap
+per rung: **0.005 at 128, 0.014 at 256, 0.053 at 512**. Its final-epoch val NLL
+is −1.4744, no better than 128 — it is the best-val checkpoint that recovers it
+to −1.483, which is that change's first visible save.
+
+A capacity ladder that ends in memorisation rather than in a plateau is a
+*corpus* limit, not an architecture limit. 100k deals of ~94M available is the
+binding constraint at 256 units, which is what makes streaming the corpus worth
+building. The rival reading — that 40 input floats are the ceiling and more deals
+would not help either — this ladder cannot exclude.
+
+**Cost is no longer the objection.** MLP-256 is 86,016 MACs against MLP-64's
+9,216, but since the forward pass moved to nalgebra (`9023796`) a 256-wide
+evaluation costs ~2.3 µs against the ~3.3 µs the 64-wide net cost on the old
+scalar kernel. The 9.2× parameter increase is cheaper in wall-clock than what it
+replaces.
 
 **Both metrics are reported because they answer different questions.** Squared
 error is minimised by the conditional *mean*, absolute error by the conditional
@@ -177,19 +214,27 @@ scoring it on MAE hands a systematic edge to anything aimed at the median
 instead. They agree here, so nothing hinges on the choice — but see the skew note
 under Calibration for where they come apart.
 
-**Methodological note: fix the seed.** An earlier unseeded sweep put linear
-*ahead* of MLP-64 on NLL — a backwards ladder conclusion. Two runs at identical
-settings differed by 0.075 NLL and 2.7 points of coverage, while MAE moved only
-0.004. The `μ` head is reproducible run to run; the `ln σ` head is not, so any
-conclusion resting on NLL or coverage needs `--seed` pinned. `seed_params` in the
-trainer overwrites every parameter after construction (candle's CPU device
-rejects `set_seed`).
+**Methodological note: the `ln σ` seed lottery is a narrow-net phenomenon.** An
+earlier unseeded sweep put linear *ahead* of MLP-64 on NLL — a backwards ladder
+conclusion — and this doc recorded the fix as "pin `--seed`", on the reading that
+the `μ` head is reproducible run to run while the `ln σ` head is not.
 
-Carried over from the quartile parameterization this replaced (not re-measured
-under NLL, because it is a fact about the function class rather than the loss):
-widening to 128 hidden units bought **0.7%** of loss for 2.8× the parameters,
-and training the 64 longer closed that gap anyway. So **64 is where the ladder
-stops**.
+The spread column above shows that is only true at the bottom of the ladder. One
+seed in three lands in a wide-σ basin at hidden 0 and 64 (spread 0.143 and 0.149,
+bad seeds at coverage 53.9%), and the basin is **gone by 128** (0.0011, then
+0.0006 at 256). A bad seed is visible at *epoch 1* and never recovers, so it is an
+initialisation basin, not a training instability — and a net wide enough to fit
+the corpus does not fall into it.
+
+Two consequences. A single-seed ladder was never able to separate 64 from 128,
+because the lottery is an order of magnitude larger than the width effect it was
+measuring; use three seeds and compare medians. And MAE is the metric that can
+carry a width verdict regardless — it held to ±0.004 across every seed, including
+the bad ones, at every rung.
+
+Shuffling the corpus did not fix the basin (spread went 0.072 → 0.153 across
+three seeds); width did. `seed_params` still overwrites every parameter after
+construction, because candle's CPU device rejects `set_seed`.
 
 ### Slices of the shipped net
 
@@ -221,6 +266,15 @@ label values and only the paired μ differs. The four slices agree to five
 decimals, far tighter than their nominal binomial error — the effective sample
 for a label-shape statistic is the ~20k distinct deals, not the 8M targets.
 
+**About half of that 2-point skew was the trainer, not the Gaussian.** On the
+fixed loop `below μ` sits at **49.9–50.1%**, dead nominal, on every seed and
+every rung — including the bad ones. The shipped net's ≈48% is a real property
+of the shipped weights, so the table stands as measured; but the reading this
+doc drew from it — that the symmetry assumption was costing ~2 points — charged
+to the parameterization what belonged to fixed batch composition. Symmetry is
+holding better than recorded, which weakens rather than strengthens the case for
+categorical per-trick heads.
+
 ### Ablations
 
 | variant | val NLL | MAE | RMSE | coverage |
@@ -251,6 +305,14 @@ information and 2,688 more parameters. At this data scale the summary's
 inductive bias — HCP arithmetic and suit lengths handed over for free — beats
 making the net rediscover them. The 40-float vector stands; the one-hot path is
 closed unless a much larger corpus reopens it.
+
+**Still un-re-run, and now doubly suspect.** That verdict was measured under the
+quartile loss *and* the unshuffled loop, and the ladder above has already shown
+one carried-over conclusion ("64 is the knee") to be an artifact of the second.
+It also proves too much as stated: the one-hot arm deleted the summary
+*wholesale*, so it had to rediscover suit lengths and HCP arithmetic from raw
+card bits, and its loss says nothing about *adding* texture to a summary that
+stays. Treat "texture does not pay" as untested rather than as settled.
 
 ### Against the truth it replaces
 
@@ -376,7 +438,9 @@ scales.
   the true median and leaves the fitted normal spilling probability past 13.
   `below_mean` measures how far off symmetry actually is; if a consumer ever
   pays IMPs for it, the upgrade path is categorical per-trick heads (an exact
-  discrete CDF, ~280 outputs).
+  discrete CDF, ~280 outputs). **Least binding of the three, and less binding
+  than recorded** — on the fixed trainer `below μ` is 49.9–50.1%, so most of the
+  skew this bullet was sized from was batching.
 - **Texture is invisible.** The hand block carries honour *location* (which
   suit) but not texture — AJx and KQx read alike, spot cards not at all. The net
   absorbs that as spread rather than predicting through it. `--encoding onehot`
@@ -413,4 +477,7 @@ scales.
   tricks) in both trainer and serving, to stop the classic heteroscedastic
   collapse where σ → 0 on easy rows and the loss runs to −∞. A head parked on the
   boundary gets no gradient back; a softplus parameterization is the upgrade if
-  that ever bites.
+  that ever bites. **It has not bitten, and the case for pre-emptively writing it
+  is now gone**: the wide-σ runs that made the clamp look like the suspect were
+  the narrow-net initialisation basin, and that basin does not exist at 128 units
+  or above.
