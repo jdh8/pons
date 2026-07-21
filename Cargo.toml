@@ -50,7 +50,7 @@ clap = { version = "4.5", features = ["derive"] }
 # AI-bidder Side-track S: the BBA reference examples dlopen EPBot's native lib
 # (the `vendor/bba` git submodule) to drive it as a reference bidder. Dev-only —
 # never part of the published default build.
-libloading = "0.8"
+libloading = "0.9"
 criterion = { version = "0.8", default-features = false, features = ["cargo_bench_support"] }
 proptest = { version = "1", default-features = false, features = ["std"] }
 rayon = "1"
