@@ -142,5 +142,14 @@ name = "eval-evaluator"
 path = "examples/eval-evaluator/main.rs"
 required-features = ["dd"]
 
+# Dumps the evaluator training corpus. Declared only so `test = true` sticks:
+# the `bits` layout is duplicated in the trainer, and its self-consistency test
+# is the contract between them.
+[[example]]
+name = "dump-evaluator"
+path = "examples/dump-evaluator/main.rs"
+required-features = ["dd"]
+test = true
+
 [profile.dev.package."*"]
 opt-level = 2

@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **A featurization sweep harness for the trick evaluator** (research tooling;
+  no shipped behaviour change). `dump-evaluator --encoding bits` emits a
+  79-float research superset — per suit `len/13`, a spot count, `suit_hcp/10`
+  and one bit each for A/K/Q/J/T, plus a `max − min` width beside every range
+  pair — and the trainer's `--arm` masks columns out of it. One corpus
+  regeneration therefore serves every arm, which is why the superset is wider
+  than any arm that will ship: `baseline` reproduces today's 40 floats
+  exactly, `bits`/`bits-nohcp` are the honour-bit question, `bits-width` adds
+  the range widths, and the `baseline-drop-*` arms price the two globals.
+  `features_v3` and `features_eval` are untouched, so the disclosable vector
+  the crate bids on is byte-identical. Two guards: `--blank-ranges` now
+  *errors* on the triple layout rather than blanking the wrong stride (it
+  assumes `(min, max)` pairs, and a silent mismatch would have made the
+  ablation read "perfectly known" on hands where nothing is known), and
+  `arm_live_widths` pins each arm's live column count against the name the CLI
+  accepts, since the layout is duplicated between dumper and trainer.
+
 - **The bilans business redouble of our doubled 1NT.** 1NT redoubled is a
   *contract*, and a making one outscores the slam the point milestones would
   otherwise reach: 1NT×× making twelve tricks is 160 + 100 insult + 300 game +

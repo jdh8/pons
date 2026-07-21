@@ -58,6 +58,15 @@ const LN_SD_MAX: f64 = 0.0;
 const LEN_RANGES: usize = 30;
 /// One seat's unknown-range encoding: `[min, max]` pairs of `[0, 1]`.
 const UNKNOWN_PAIR: [f32; 2] = [0.0, 1.0];
+/// Feature width the [`Arm`] masks are written against.
+///
+/// ```text
+/// 0..32   hand: 4 suits × [len/13, #spots/8, suit_hcp/10, A, K, Q, J, T]
+/// 32      hcp/40
+/// 33      upgrade/2
+/// 34..79  ranges: 3 seats × 5 (min, max, width) triples
+/// ```
+const ARM_FEATURES: usize = 79;
 
 /// splitmix64: advance `state` and return the next word.
 ///
@@ -92,7 +101,21 @@ fn snapshot(varmap: &VarMap) -> Result<Vec<(String, Tensor)>> {
 ///
 /// Weights are `U(-k, k)` with `k = 1/√fan_in` (PyTorch's `Linear` default);
 /// biases start at zero.
-fn seed_params(varmap: &VarMap, seed: u64, device: &Device) -> Result<()> {
+/// `live_in` is how many of the `in_dim` input columns an `--arm` left live. It
+/// only ever differs from `in_dim` under masking, and it matters because
+/// `k = 1/√fan_in` would otherwise be drawn from the *padded* width: a 40-live
+/// arm of a 79-wide corpus would start at `40/79 ≈ 0.5×` the pre-activation
+/// variance the same net trained on a real 40-float corpus gets. Measured, that
+/// is not cosmetic — it widens the catchment of the `ln σ` bad-init basin, and
+/// the sparsest arm of the first featurization sweep fell into it at epoch 1
+/// while every denser arm converged. Draw as the net the arm actually is.
+fn seed_params(
+    varmap: &VarMap,
+    seed: u64,
+    device: &Device,
+    in_dim: usize,
+    live_in: usize,
+) -> Result<()> {
     let mut state = seed;
     let mut unit = move || (splitmix64(&mut state) >> 11) as f64 / (1u64 << 53) as f64;
     let data = varmap.data().lock().expect("varmap poisoned");
@@ -103,7 +126,9 @@ fn seed_params(varmap: &VarMap, seed: u64, device: &Device) -> Result<()> {
         let var = &data[name];
         let tensor = match *var.dims() {
             [out, fan_in] => {
-                let k = 1.0 / (fan_in as f64).sqrt();
+                // Only the first layer reads the (possibly padded) corpus width.
+                let effective = if fan_in == in_dim { live_in } else { fan_in };
+                let k = 1.0 / (effective as f64).sqrt();
                 let v: Vec<f32> = (0..out * fan_in)
                     .map(|_| ((2.0 * unit() - 1.0) * k) as f32)
                     .collect();
@@ -115,6 +140,111 @@ fn seed_params(varmap: &VarMap, seed: u64, device: &Device) -> Result<()> {
         var.set(&tensor)?;
     }
     Ok(())
+}
+
+/// Featurization arm: which columns of an [`ARM_FEATURES`]-wide corpus stay
+/// live. Every other column is zeroed, in train and val alike.
+///
+/// Zeroing is equivalent to *deleting* the column for the first linear layer,
+/// which is what makes this an honest ablation rather than a handicap: the
+/// forward pass contributes `w·0 = 0`, and the gradient `∂L/∂w = δ·x` is `δ·0`
+/// — identically zero on every row of every epoch. The weight never leaves its
+/// initialisation and never touches an activation. So one corpus serves the
+/// whole ladder at an *identical parameter count*, and rungs stay comparable
+/// without re-dumping features per arm.
+#[derive(Clone, Copy, clap::ValueEnum)]
+enum Arm {
+    Full,
+    Baseline,
+    Bits,
+    BitsNohcp,
+    Ben,
+    BitsWidth,
+    BaselineDropUpgrade,
+    BaselineDropHcp,
+    BaselineDropBoth,
+}
+
+impl Arm {
+    /// The arm table: `(name, hand-column offsets within each suit's 8, keep
+    /// global `hcp`, keep global `upgrade`, offsets within each
+    /// `(min, max, width)` range triple, live column count)`.
+    ///
+    /// The two globals are separate flags because they are separately suspect.
+    /// `upgrade` is the *legacy* shape term (`!is_balanced + longest_two ≥ 10`)
+    /// from when `point_count` was `raw_hcp + upgrade`; the default scale is now
+    /// `RuleOfNFloored`, so it no longer reconstructs the scale the inference
+    /// blocks record partner's points on. And global `hcp` is exactly the sum of
+    /// the four `suit_hcp` columns whenever those are live, which is a 4-weight
+    /// reconstruction rather than the 16-weight one the coordination argument
+    /// was built on.
+    const fn spec(
+        self,
+    ) -> (
+        &'static str,
+        &'static [usize],
+        bool,
+        bool,
+        &'static [usize],
+        usize,
+    ) {
+        match self {
+            Self::Full => (
+                "full",
+                &[0, 1, 2, 3, 4, 5, 6, 7],
+                true,
+                true,
+                &[0, 1, 2],
+                79,
+            ),
+            Self::Baseline => ("baseline", &[0, 2], true, true, &[0, 1], 40),
+            Self::Bits => ("bits", &[1, 2, 3, 4, 5, 6, 7], true, true, &[0, 1], 60),
+            Self::BitsNohcp => ("bits-nohcp", &[1, 3, 4, 5, 6, 7], true, true, &[0, 1], 56),
+            Self::Ben => ("ben", &[1, 3, 4, 5, 6, 7], false, false, &[0, 1], 54),
+            Self::BitsWidth => (
+                "bits-width",
+                &[1, 2, 3, 4, 5, 6, 7],
+                true,
+                true,
+                &[0, 1, 2],
+                75,
+            ),
+            Self::BaselineDropUpgrade => {
+                ("baseline-drop-upgrade", &[0, 2], true, false, &[0, 1], 39)
+            }
+            Self::BaselineDropHcp => ("baseline-drop-hcp", &[0, 2], false, true, &[0, 1], 39),
+            Self::BaselineDropBoth => ("baseline-drop-both", &[0, 2], false, false, &[0, 1], 38),
+        }
+    }
+
+    /// Per-column keep flags. Hard-asserts (in release too — a mis-mask is
+    /// invisible in the results, and this runs once at startup) that the live
+    /// count matches the width [`Self::spec`] documents, which is what catches a
+    /// typo in an offset list.
+    fn mask(self) -> [bool; ARM_FEATURES] {
+        let (name, suit, hcp, upgrade, triple, width) = self.spec();
+        let mut keep = [false; ARM_FEATURES];
+        for cols in keep[..32].chunks_exact_mut(8) {
+            for &o in suit {
+                cols[o] = true;
+            }
+        }
+        keep[32] = hcp; // hcp/40
+        keep[33] = upgrade; // upgrade/2
+        // The 15 triples are laid out uniformly, so the seat boundary every 5 of
+        // them needs no special casing.
+        for cols in keep[34..].chunks_exact_mut(3) {
+            for &o in triple {
+                cols[o] = true;
+            }
+        }
+        assert_eq!(
+            keep.iter().filter(|&&k| k).count(),
+            width,
+            "arm {name}: live column count disagrees with its documented width"
+        );
+        keep
+    }
 }
 
 #[derive(Parser)]
@@ -167,6 +297,12 @@ struct Args {
     /// the better declarer of each side.
     #[arg(long)]
     collapse_side: bool,
+    /// Featurization arm: zero every input column outside the named subset, so
+    /// one 79-wide corpus drives the whole ladder at an identical parameter
+    /// count. Requires a 79-feature corpus; omitted, nothing is masked and
+    /// 40-wide corpora behave exactly as before.
+    #[arg(long, value_enum)]
+    arm: Option<Arm>,
 }
 
 fn main() -> Result<()> {
@@ -193,8 +329,36 @@ fn main() -> Result<()> {
         }
     };
     if args.blank_ranges {
+        // The pair-wise overwrite below would land on the wrong columns of a
+        // triple-encoded range block, silently — so refuse rather than lie.
+        if train.features_len == ARM_FEATURES {
+            bail!(
+                "--blank-ranges assumes (min, max) range pairs, but a \
+                 {ARM_FEATURES}-feature corpus encodes (min, max, width) triples"
+            );
+        }
         train.blank_ranges();
         val.blank_ranges();
+    }
+    // Defaults to the corpus width; `--arm` narrows it, and only the first
+    // layer's init scale reads it.
+    let mut live_in = train.features_len;
+    if let Some(arm) = args.arm {
+        if train.features_len != ARM_FEATURES {
+            bail!(
+                "--arm needs a {ARM_FEATURES}-feature corpus; this one is {} wide",
+                train.features_len
+            );
+        }
+        let keep = arm.mask();
+        eprintln!(
+            "arm {}: {} of {ARM_FEATURES} columns live",
+            arm.spec().0,
+            keep.iter().filter(|&&k| k).count(),
+        );
+        train.mask_features(&keep);
+        val.mask_features(&keep);
+        live_in = keep.iter().filter(|&&k| k).count();
     }
     if args.collapse_side {
         train.collapse_side();
@@ -224,7 +388,7 @@ fn main() -> Result<()> {
     let varmap = VarMap::new();
     let vb = VarBuilder::from_varmap(&varmap, DType::F32, &device);
     let model = Net::new(in_dim, args.hidden, out_dim, vb)?;
-    seed_params(&varmap, args.seed, &device)?;
+    seed_params(&varmap, args.seed, &device, in_dim, live_in)?;
     let mut opt = AdamW::new(
         varmap.all_vars(),
         ParamsAdamW {
@@ -623,6 +787,19 @@ impl Dataset {
         }
     }
 
+    /// Ablation: zero every column outside `keep`, which for the first linear
+    /// layer is the same as deleting it — see [`Arm`]. Callers must have checked
+    /// that this corpus is [`ARM_FEATURES`] wide.
+    fn mask_features(&mut self, keep: &[bool; ARM_FEATURES]) {
+        for row in self.features.chunks_exact_mut(self.features_len) {
+            for (x, &k) in row.iter_mut().zip(keep) {
+                if !k {
+                    *x = 0.0;
+                }
+            }
+        }
+    }
+
     /// Ablation: 20 per-declarer targets → 10 per-side ones, keeping the better
     /// declarer of each side (right-siding stops being visible).
     fn collapse_side(&mut self) {
@@ -719,6 +896,7 @@ fn export(
         "dtype": "f32-le",
         "blank_ranges": args.blank_ranges,
         "collapse_side": args.collapse_side,
+        "arm": args.arm.map(|a| a.spec().0),
         "data_deals": ds.meta.deals,
         "data_systems": ds.meta.systems,
         "data_git_sha": ds.meta.git_sha,
@@ -801,4 +979,42 @@ fn git_sha() -> String {
         .filter(|o| o.status.success())
         .and_then(|o| String::from_utf8(o.stdout).ok())
         .map_or_else(|| "unknown".to_string(), |s| s.trim().to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Arm;
+    use clap::ValueEnum as _;
+
+    /// Pin every arm's live column count, since a typo in an offset list would
+    /// silently change what the net sees and leave no trace in the metrics. The
+    /// widths here are transcribed independently of [`Arm::spec`]; the assert
+    /// inside [`Arm::mask`] is what ties the two together.
+    ///
+    /// Also checks that the name we log matches the name `--arm` accepts.
+    #[test]
+    fn arm_live_widths() {
+        for (arm, want) in [
+            (Arm::Full, 79),
+            (Arm::Baseline, 40),
+            (Arm::Bits, 60),
+            (Arm::BitsNohcp, 56),
+            (Arm::Ben, 54),
+            (Arm::BitsWidth, 75),
+            (Arm::BaselineDropUpgrade, 39),
+            (Arm::BaselineDropHcp, 39),
+            (Arm::BaselineDropBoth, 38),
+        ] {
+            let name = arm.spec().0;
+            assert_eq!(
+                arm.mask().iter().filter(|&&k| k).count(),
+                want,
+                "arm {name}"
+            );
+            assert_eq!(
+                arm.to_possible_value().expect("no skipped arms").get_name(),
+                name
+            );
+        }
+    }
 }
