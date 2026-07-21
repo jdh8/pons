@@ -35,6 +35,7 @@ use super::features::{FEATURES_LEN_EVAL, features_eval};
 use super::inference::{Inferences, Relative};
 use super::neural::{affine, decode, relu};
 use contract_bridge::{Hand, Strain};
+use nalgebra::SVectorView;
 use std::sync::LazyLock;
 
 /// Input width, pinned to the artifact.
@@ -186,17 +187,15 @@ fn forward(x: &[f32]) -> [f32; OUT] {
     let (b2, rest) = rest.split_at(HID);
     let (w3, b3) = rest.split_at(OUT * HID);
 
-    let mut h1 = [0f32; HID];
-    affine(w1, b1, x, &mut h1);
+    let x = SVectorView::<f32, IN>::from_slice(x).into_owned();
+
+    let mut h1 = affine::<HID, IN>(w1, b1, &x);
     relu(&mut h1);
 
-    let mut h2 = [0f32; HID];
-    affine(w2, b2, &h1, &mut h2);
+    let mut h2 = affine::<HID, HID>(w2, b2, &h1);
     relu(&mut h2);
 
-    let mut z = [0f32; OUT];
-    affine(w3, b3, &h2, &mut z);
-    z
+    affine::<OUT, HID>(w3, b3, &h2).into()
 }
 
 #[cfg(test)]

@@ -227,6 +227,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The in-crate forward pass runs on `nalgebra`: bidding is 2.07× faster**
+  (`src/bidding/neural.rs`, `src/bidding/evaluator.rs`). `affine` was a scalar
+  dot product summed with `Iterator::sum`, whose loop-carried dependency LLVM
+  will not reassociate — float addition is not associative — so it ran at
+  ~2 GMAC/s, about a thirtieth of what the vector unit does. The BBA-distilled
+  floor is 88 → 256 → 256 → 38 (97,792 multiply-adds) and fires on 0.475 of all
+  bidding decisions, which put roughly 21 µs of a 36.8 µs decision inside that
+  one kernel. Both nets now apply their layers with `nalgebra`, which reaches
+  ~40 GMAC/s ≈ 82 GFLOP/s — dual-issue AVX2 FMA near peak. Measured over 20,000
+  deals / 204,605 calls: **36.78 → 17.73 µs per bidding decision**. Every A/B
+  and data-gen run in the repo is now roughly twice as fast.
+
+  The weights blob is `(out, in)` row-major, which read column-major *is* `Wᵀ` —
+  so `tr_mul` applies `W` with no transpose and no copy, borrowing the decoded
+  blob in place, and each output is a dot product down one contiguous column.
+  `nalgebra` moves from a dev-dependency to a dependency (`default-features =
+  false`); it was already in the lock file.
+
+  **No bidding change**: the same 20,000 deals produce byte-identical auctions,
+  so this shipped without an A/B. That was worth checking rather than assuming —
+  reassociating a float sum can move the last ulp, and a moved ulp can flip an
+  arg-max. The `matches_candle_fixture_bba` parity test guards the same property
+  against the trainer's candle logits.
+
 - **`docs/ai-bidder/bba-floor.md` — what BBA's "calculated bid" actually
   computes.** The June study established that EPBot's floor is *programmatic*;
   §5 now documents the mechanism. It is the **`bilans`** ("balance") engine —

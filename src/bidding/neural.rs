@@ -1,9 +1,11 @@
 //! In-crate forward pass for the distilled neural floor — AI-bidder M1.2.
 //!
-//! A hand-rolled `f32` matmul + ReLU evaluation of the MLP that `trainer/` fits
-//! off-crate. There is no ML dependency: the weights are embedded with
-//! [`include_bytes!`] and the arithmetic is a few loops. The BBA-distilled net
-//! (`classify_bba`) backs the default [`american`][crate::american()] floor.
+//! An `f32` matmul + ReLU evaluation of the MLP that `trainer/` fits off-crate.
+//! There is no ML runtime: the weights are embedded with [`include_bytes!`] and
+//! the arithmetic is three `nalgebra` gemvs. The BBA-distilled net
+//! (`classify_bba`) backs the default [`american`][crate::american()] floor, and
+//! runs on roughly half of all bidding decisions — the hand-rolled scalar loops
+//! this replaced were ~60% of the crate's bidding time on their own.
 //!
 //! The forward pass mirrors `candle_nn::Linear` (weights are `(out, in)`
 //! row-major, `y = x·Wᵀ + b`). The parity test below asserts it reproduces the
@@ -12,6 +14,7 @@
 
 use super::array::Logits;
 use super::features::FEATURES_LEN_V3;
+use nalgebra::{SMatrixView, SVector, SVectorView};
 use std::sync::LazyLock;
 
 /// Shape shared by every distilled floor: hidden width and output (call) width.
@@ -33,41 +36,47 @@ pub(super) fn decode(raw: &[u8]) -> Vec<f32> {
         .collect()
 }
 
-/// `out[o] = bias[o] + Σ_i weight[o·in + i] · x[i]`, with `weight` `(out, in)`
-/// row-major — i.e. `candle_nn::Linear`'s `x·Wᵀ + b`.
-pub(super) fn affine(weight: &[f32], bias: &[f32], x: &[f32], out: &mut [f32]) {
-    let n = x.len();
-    for (o, slot) in out.iter_mut().enumerate() {
-        let row = &weight[o * n..o * n + n];
-        *slot = bias[o] + row.iter().zip(x).map(|(w, xi)| w * xi).sum::<f32>();
-    }
+/// `W·x + b` for `weight` in `(R, C)` row-major layout — i.e.
+/// `candle_nn::Linear`'s `x·Wᵀ + b`.
+///
+/// Read column-major, a row-major `(R, C)` buffer *is* `Wᵀ`, so `tr_mul` applies
+/// `W` without materialising a transpose or copying the blob: the view borrows
+/// the decoded weights in place. Each output is then a dot product down one
+/// contiguous column, which is both cache-optimal and what nalgebra vectorises.
+///
+/// The hand-rolled scalar loop this replaces summed with `Iterator::sum`, whose
+/// loop-carried dependency LLVM may not reassociate — it ran at ~2 GMAC/s
+/// against ~40 here.
+pub(super) fn affine<const R: usize, const C: usize>(
+    weight: &[f32],
+    bias: &[f32],
+    x: &SVector<f32, C>,
+) -> SVector<f32, R> {
+    SMatrixView::<f32, C, R>::from_slice(weight).tr_mul(x) + SVectorView::<f32, R>::from_slice(bias)
 }
 
-pub(super) fn relu(v: &mut [f32]) {
-    for x in v {
-        *x = x.max(0.0);
-    }
+pub(super) fn relu<const R: usize>(v: &mut SVector<f32, R>) {
+    v.apply(|x| *x = x.max(0.0));
 }
 
-/// Run the MLP: `in_dim` features → 38 logits in `Call`-index (`encode_call`)
-/// order. `weights` is the layer-ordered blob for an `in_dim`-input net.
-fn forward(weights: &[f32], x: &[f32], in_dim: usize) -> Logits {
-    let (w1, rest) = weights.split_at(HID * in_dim);
+/// Run the MLP: `IN` features → 38 logits in `Call`-index (`encode_call`)
+/// order. `weights` is the layer-ordered blob for an `IN`-input net.
+fn forward<const IN: usize>(weights: &[f32], x: &[f32]) -> Logits {
+    let (w1, rest) = weights.split_at(HID * IN);
     let (b1, rest) = rest.split_at(HID);
     let (w2, rest) = rest.split_at(N_W2);
     let (b2, rest) = rest.split_at(HID);
     let (w3, b3) = rest.split_at(N_W3);
 
-    let mut h1 = [0f32; HID];
-    affine(w1, b1, x, &mut h1);
+    let x = SVectorView::<f32, IN>::from_slice(x).into_owned();
+
+    let mut h1 = affine::<HID, IN>(w1, b1, &x);
     relu(&mut h1);
 
-    let mut h2 = [0f32; HID];
-    affine(w2, b2, &h1, &mut h2);
+    let mut h2 = affine::<HID, HID>(w2, b2, &h1);
     relu(&mut h2);
 
-    let mut z = [0f32; OUT];
-    affine(w3, b3, &h2, &mut z);
+    let z = affine::<OUT, HID>(w3, b3, &h2);
 
     // The net's output dim `i` is the logit for `decode_call(i)`, and
     // `iter_mut()` visits slots in that same index order — so a positional zip
@@ -111,7 +120,7 @@ static WEIGHTS_BBA: LazyLock<Vec<f32>> = LazyLock::new(|| decode(RAW_BBA));
 #[must_use]
 pub fn classify_bba(features: &[f32]) -> Logits {
     assert_eq!(features.len(), IN_V3, "expected {IN_V3} features");
-    forward(WEIGHTS_BBA.as_slice(), features, IN_V3)
+    forward::<IN_V3>(WEIGHTS_BBA.as_slice(), features)
 }
 
 #[cfg(test)]
