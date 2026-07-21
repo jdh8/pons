@@ -244,6 +244,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The evaluator trainer trains on the GPU: ~37× faster** (`--features cuda`,
+  optional so the trainer still builds without a CUDA toolkit). `Device::Cpu`
+  was hardcoded, and the box has two idle GPUs; the matmuls are far too small
+  to fill 32 cores, so a 150-epoch run at 2M rows sat at ~3 of them for 56
+  minutes. On a 4090 the same run is **0.7 s/epoch against 26 s/epoch**, at 91%
+  utilisation — a 1M-deal corpus fits in VRAM whole. `Device::cuda_if_available`
+  falls back to CPU when built without the feature, so this is safe
+  unconditionally. **Numerically identical to the CPU path**: same seed and data
+  agree to five decimals at epoch 1, and `matches_candle_fixture` passes on
+  GPU-trained weights, so train-on-GPU / infer-on-CPU is sound. Note the system
+  `/usr/bin/nvcc` is 11.5 and **cannot target the 4090's sm_89** — build with
+  `/usr/local/cuda-12.8` on `PATH`. Both cards are usable via
+  `CUDA_VISIBLE_DEVICES`.
+
+- **`Dataset::load` streams the corpus instead of slurping it.** It read the
+  whole `.f32` into a `Vec<u8>` before parsing it into f32s, so peak memory was
+  ~3× the file — fine at the 481 MB of a 100k-deal corpus, less so at the 7.9 GB
+  of a 1M-deal `bits` one on a shared box. Now a `BufReader` walks it a row at a
+  time, dropping one full copy. Verified identical: same row count, same
+  first-epoch metrics.
+
 - **The in-crate forward pass runs on `nalgebra`: bidding is 2.07× faster**
   (`src/bidding/neural.rs`, `src/bidding/evaluator.rs`). `affine` was a scalar
   dot product summed with `Iterator::sum`, whose loop-carried dependency LLVM

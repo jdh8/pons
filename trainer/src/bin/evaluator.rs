@@ -37,7 +37,7 @@ use candle_core::{DType, Device, Tensor};
 use candle_nn::{AdamW, Linear, Module, Optimizer, ParamsAdamW, VarBuilder, VarMap};
 use clap::Parser;
 use serde::Deserialize;
-use std::io::{BufWriter, Write};
+use std::io::{BufReader, BufWriter, Read, Write};
 use std::path::Path;
 
 /// Targets per row: 5 strains × 4 declarers.
@@ -307,7 +307,12 @@ struct Args {
 
 fn main() -> Result<()> {
     let args = Args::parse();
-    let device = Device::Cpu;
+    // Falls back to CPU when built without `--features cuda`, so this is safe
+    // unconditionally. The whole corpus lives on the device (8 GB of f32 for
+    // 1M deals against the 4090's 24 GB), which is what makes the per-epoch
+    // `index_select` shuffle cheap.
+    let device = Device::cuda_if_available(0)?;
+    eprintln!("device: {device:?}");
 
     let mut train = Dataset::load(&args.data)?;
     let mut val = match &args.test {
@@ -710,12 +715,18 @@ impl Dataset {
             );
         }
 
-        let bytes = std::fs::read(&f32_path).with_context(|| format!("reading {f32_path}"))?;
+        // Streamed a row at a time rather than `fs::read` into one `Vec<u8>`:
+        // the split below already materialises the whole corpus as f32, so
+        // slurping the bytes first costs a second full copy of it at peak. At
+        // 100k deals that was 481 MB and nobody noticed; a 1M-deal `bits`
+        // corpus is 7.9 GB, and this box is shared.
+        let file = std::fs::File::open(&f32_path).with_context(|| format!("opening {f32_path}"))?;
         let row_bytes = meta.row_len * 4;
-        if bytes.len() % row_bytes != 0 {
+        let len = usize::try_from(file.metadata()?.len())?;
+        if len % row_bytes != 0 {
             bail!("{f32_path} is not a whole number of {row_bytes}-byte rows");
         }
-        let rows = bytes.len() / row_bytes;
+        let rows = len / row_bytes;
         if rows as u64 != meta.rows {
             bail!("{f32_path} has {rows} rows, sidecar says {}", meta.rows);
         }
@@ -723,7 +734,10 @@ impl Dataset {
         let features_len = meta.features_len;
         let mut features = Vec::with_capacity(rows * features_len);
         let mut labels = Vec::with_capacity(rows * DD_LEN);
-        for row in bytes.chunks_exact(row_bytes) {
+        let mut reader = BufReader::new(file);
+        let mut row = vec![0u8; row_bytes];
+        for _ in 0..rows {
+            reader.read_exact(&mut row)?;
             let mut floats = row
                 .chunks_exact(4)
                 .map(|b| f32::from_le_bytes([b[0], b[1], b[2], b[3]]));

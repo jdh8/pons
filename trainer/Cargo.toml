@@ -13,6 +13,12 @@ description = "Off-crate trainer for the pons AI instinct bidder (M1 distillatio
 # it stays a lean candle build (no DDS/contract-bridge compile just to train).
 [workspace]
 
+# Optional because the trainer must still build on a box without a CUDA
+# toolkit; `--features cuda` needs nvcc ≥ 11.8 for the 4090's sm_89, so point
+# PATH at /usr/local/cuda-12.8 rather than the /usr/bin/nvcc 11.5.
+[features]
+cuda = ["candle-core/cuda", "candle-nn/cuda"]
+
 [dependencies]
 candle-core = "0.11"
 candle-nn = "0.11"
