@@ -81,6 +81,30 @@ fn push_hand(out: &mut Vec<f32>, hand: Hand) {
     out.push(upgrade(hand) as f32 / 2.0);
 }
 
+/// The five honours [`push_hand_eval`] flags per suit.  Everything else in a
+/// suit is a spot card — ranks 2..9, hence the divisor 8 rather than 13.
+const HONOURS: [Rank; 5] = [Rank::A, Rank::K, Rank::Q, Rank::J, Rank::T];
+
+/// Push the trick-evaluator hand block ([`LEN_HAND_EVAL`] values): per suit
+/// `#spots/8` then one bit each for A, K, Q, J, T.
+///
+/// This is [`push_hand`]'s granular counterpart, and it is strictly more
+/// informative: `len = #spots + ΣA..T` and `suit_hcp = 4A + 3K + 2Q + J` are
+/// both one weight away, so the first layer can recover the summary exactly.
+/// The globals `hcp` and `shape` are dropped for the same reason — measured
+/// free, because `hcp` is a fixed dot product of the sixteen honour bits.
+fn push_hand_eval(out: &mut Vec<f32>, hand: Hand) {
+    for suit in Suit::ASC {
+        let holding = hand[suit];
+        // A suit holds any *subset* of the honours, so count what is actually
+        // there; the rest of its length is spot cards.
+        let held = HONOURS.map(|rank| holding.contains(rank));
+        let spots = holding.len() - held.iter().filter(|&&h| h).count();
+        out.push(spots as f32 / 8.0);
+        out.extend(held.map(f32::from));
+    }
+}
+
 /// Push one player's shown ranges ([`LEN_INFERENCE`] values): per suit
 /// `{min, max}` length ÷ 13, then `{min, max}` points ÷ 37.  Nothing shown is
 /// the `[0, 1]` pattern (`Inference::unknown`), *not* zeros.
@@ -220,11 +244,17 @@ pub fn features_v3(hand: Hand, context: &Context<'_>) -> Vec<f32> {
 // ── The trick-evaluator extractor (bilans session C) ─────────────────────────
 
 /// Layout version tag for the trick-evaluator extractor [`features_eval`]
-pub const FEATURES_VERSION_EVAL: u32 = 1;
+///
+/// Version 2 replaced the disclosable `{len, suit_hcp}` hand summary with the
+/// per-suit honour decomposition — the `ben` arm of the featurization sweep.
+pub const FEATURES_VERSION_EVAL: u32 = 2;
 
-/// Number of `f32` values returned by [`features_eval`]: the disclosable hand
-/// summary ([`LEN_HAND_V3`]) plus the three *hidden* seats' range blocks.
-pub const FEATURES_LEN_EVAL: usize = LEN_HAND_V3 + 3 * LEN_INFERENCE;
+/// Length of the trick-evaluator hand block: 4 suits × `{#spots, A, K, Q, J, T}`
+pub const LEN_HAND_EVAL: usize = 24;
+
+/// Number of `f32` values returned by [`features_eval`]: the honour-granular
+/// hand block ([`LEN_HAND_EVAL`]) plus the three *hidden* seats' range blocks.
+pub const FEATURES_LEN_EVAL: usize = LEN_HAND_EVAL + 3 * LEN_INFERENCE;
 
 /// Extract the **trick-evaluator** feature vector: own hand plus what the
 /// three hidden seats have shown.
@@ -242,22 +272,26 @@ pub const FEATURES_LEN_EVAL: usize = LEN_HAND_V3 + 3 * LEN_INFERENCE;
 ///
 /// | Block           | Start | Len |
 /// |-----------------|-------|-----|
-/// | Own hand        |     0 |  10 |
-/// | LHO ranges      |    10 |  10 |
-/// | Partner ranges  |    20 |  10 |
-/// | RHO ranges      |    30 |  10 |
-/// | **Total**       |       | **40** |
+/// | Own hand        |     0 |  24 |
+/// | LHO ranges      |    24 |  10 |
+/// | Partner ranges  |    34 |  10 |
+/// | RHO ranges      |    44 |  10 |
+/// | **Total**       |       | **54** |
 ///
-/// The own-hand block is [`features_v3`]'s verbatim, so honor *location* (which
-/// suit) survives but *texture* (AJx vs KQx, spot cards) does not; an evaluator
-/// absorbs texture as spread rather than predicting through it.  Get the
-/// `Inferences` from [`Stance::infer`][super::Stance::infer], never from a bare
-/// [`Context`] — the trie-prefixed reading is what decodes conventional calls
-/// off their authoring rules.
+/// The own-hand block is a per-suit honour decomposition, *not*
+/// [`features_v3`]'s summary: the evaluator is never disclosed to opponents, so
+/// the ethics constraint that shapes the policy vector does not bind here.
+/// Texture therefore survives down to honour granularity — AJx and KQx are both
+/// 5 HCP in three cards and now read differently — though spot-card *identity*
+/// below the ten still does not (T9x and T2x read alike), and the net absorbs
+/// that residue as spread.  Get the `Inferences` from
+/// [`Stance::infer`][super::Stance::infer], never from a bare [`Context`] — the
+/// trie-prefixed reading is what decodes conventional calls off their authoring
+/// rules.
 #[must_use]
 pub fn features_eval(hand: Hand, inferences: &Inferences) -> Vec<f32> {
     let mut out = Vec::with_capacity(FEATURES_LEN_EVAL);
-    push_hand(&mut out, hand);
+    push_hand_eval(&mut out, hand);
     for who in [Relative::Lho, Relative::Partner, Relative::Rho] {
         push_inference(&mut out, inferences.get(who));
     }
@@ -425,17 +459,32 @@ mod tests {
 
     #[test]
     fn eval_layout_and_unknown_pattern() {
-        assert_eq!(FEATURES_LEN_EVAL, 40);
+        assert_eq!(LEN_HAND_EVAL, 24);
+        assert_eq!(FEATURES_LEN_EVAL, 54);
         let h = hand("AKQ32.K532.QJ4.9");
         let ctx = empty_context();
         let f = features_eval(h, &Inferences::read(&ctx));
         assert_eq!(f.len(), FEATURES_LEN_EVAL);
 
-        // The hand block is `features_v3`'s verbatim.
-        assert_eq!(f[..LEN_HAND_V3], features_v3(h, &ctx)[..LEN_HAND_V3]);
+        // The hand block no longer *repeats* `features_v3`'s summary — it
+        // **recovers** it: `len = #spots + ΣA..T` and `suit_hcp = 4A+3K+2Q+J`.
+        // That identity is what makes the honour block strictly more
+        // informative, so the first layer can still represent everything the
+        // 10-float summary carried.  Both sides divide rather than multiply
+        // out, and 8 is a power of two, so the compare is exact.
+        let v3 = features_v3(h, &ctx);
+        for (i, block) in f[..LEN_HAND_EVAL]
+            .chunks_exact(LEN_HAND_EVAL / 4)
+            .enumerate()
+        {
+            let (spots, honours) = (block[0] * 8.0, &block[1..]);
+            assert_eq!(v3[2 * i], (spots + honours.iter().sum::<f32>()) / 13.0);
+            let hcp = 4.0 * honours[0] + 3.0 * honours[1] + 2.0 * honours[2] + honours[3];
+            assert_eq!(v3[2 * i + 1], hcp / 10.0);
+        }
 
         // No auction: all three hidden seats read as unknown.
-        for start in [10, 20, 30] {
+        for start in [24, 34, 44] {
             assert_eq!(
                 f[start..start + LEN_INFERENCE],
                 UNKNOWN_BLOCK,
@@ -451,12 +500,12 @@ mod tests {
         let ctx = Context::new(RelativeVulnerability::NONE, &auction);
         let f = features_eval(hand("AQ32.K53.QJ4.A92"), &Inferences::read(&ctx));
 
-        assert_eq!(f[10..20], UNKNOWN_BLOCK, "LHO has not called");
-        assert_eq!(f[20..30], UNKNOWN_BLOCK, "partner has not called");
+        assert_eq!(f[24..34], UNKNOWN_BLOCK, "LHO has not called");
+        assert_eq!(f[34..44], UNKNOWN_BLOCK, "partner has not called");
         // RHO: 5+ spades (block offset 6 = spades min, `Suit::ASC` order) and a
         // non-zero point floor.
-        assert!(f[36] >= 5.0 / 13.0, "RHO spade floor: {}", f[36]);
-        assert!(f[38] > 0.0, "RHO point floor: {}", f[38]);
+        assert!(f[50] >= 5.0 / 13.0, "RHO spade floor: {}", f[50]);
+        assert!(f[52] > 0.0, "RHO point floor: {}", f[52]);
     }
 
     #[test]

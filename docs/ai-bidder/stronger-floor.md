@@ -27,7 +27,7 @@ The three questions:
 
 | # | Lever | Verdict | Why (one line) |
 | --- | --- | --- | --- |
-| 1 | **More hand features** | **No** | Honor location past `(HCP, shape)` is a **0.4 % median** residual — our authoring vocabulary already *is* `(HCP, shape)`. |
+| 1 | **More hand features** | **No** — *for the policy* | Honor location past `(HCP, shape)` is a **0.4 % median** residual *on BEN's policy* — our authoring vocabulary already *is* `(HCP, shape)`. Measured separately on the trick **evaluator**, honour bits do pay, but only 0.008 NLL. |
 | 1′ | **Auction-state memory** (the real feature gap) | **Yes, but horizon** | BEN's LSTM remembers the *sequence*; our MLP sees a flattened summary. This is M5.2 / M8.5, gated behind a sequence-model policy. |
 | 2 | **Train more (of the same target)** | **No** | We hard-clone BBA; a cloned policy asymptotes to its teacher. More BBA rows → closer to BBA, never past it. |
 | 2′ | **Re-distill *search* targets** | **Yes** | The sanctioned form of "train more": distil the improved search, not more oracle calls. This *is* expert iteration (M8.4). |
@@ -48,7 +48,7 @@ The comparison the review asked for. Sources: BEN v0.8.8.4 21GF, read from
 | Axis | pons (shipped `NeuralFloorBba`) | BEN (21GF) |
 | --- | --- | --- |
 | **Input width** | **88 f32** (`features_v3`) | **193 f32** per step |
-| **Hand encoding** | **10 summary numbers**: 4 suit lengths + 4 per-suit HCP + total HCP + a shape scalar. *Disclosable-only* — no card detail. | **24-cell honor bitmap** `[A,K,Q,J,T,#small]`/suit (the real hand at honor granularity) **+** exact HCP + 4 shape scalars. |
+| **Hand encoding** | Two nets, two answers. **Policy** (`features_v3`, what the rest of this table is about): **10 summary numbers** — 4 suit lengths + 4 per-suit HCP + total HCP + a shape scalar; disclosable-only *by rule*, so unchanged. **Evaluator** (`features_eval`, physics not calls): per-suit `[A,K,Q,J,T,#spots]` — BEN's own granularity, [measured](evaluator-net.md#featurization-sweep) and shipped in v2. | **24-cell honor bitmap** `[A,K,Q,J,T,#small]`/suit (the real hand at honor granularity) **+** exact HCP + 4 shape scalars. |
 | **Auction encoding** | **Flattened summary**: last bid, partner's last bid, strain bitmasks, penalty/passout flags **+** the disclosed `Inferences` min/max ranges (40 cells). No ordered call history. | **Full `4×40` seat-separated one-hot call history**, fed step-by-step. |
 | **Memory over the auction** | **None** — a per-decision MLP (88→256→256→38). | **LSTM ×3 (128)** — recurrent auction-state memory. |
 | **Hidden-hand inference** | **Authored** `Inferences::read` (sound ranges), fed as 40 input features. | **Learned Info-net** (same LSTM trunk) predicting 3 hidden hands' HCP + shape. |
@@ -60,7 +60,8 @@ Two structural differences carry signal; the rest is the same `(HCP, shape)`
 statistic in different clothes:
 
 - **Honor granularity** (BEN's 24-cell bitmap vs our 10 summary numbers) — but
-  see Lever 1: measured at 0.4 %.
+  see Lever 1: measured at 0.4 % **for a policy**, and separately at 0.008 NLL
+  for a trick evaluator, which is a different net on a different target.
 - **Auction memory** (BEN's LSTM over the call sequence vs our flattened
   summary) — the one representational gap with real mass, Lever 1′.
 
@@ -84,6 +85,22 @@ Two probes measured whether BEN's target depends on what we don't feed:
 concentration, and only scoped to **preempt discipline + slam cue placement** —
 not a global floor term. Low priority; do it as a targeted convention/eval, not a
 representation overhaul.
+
+**A second measurement now exists, on a different net, and it does not move this
+verdict.** The trick evaluator's
+[featurization sweep](evaluator-net.md#featurization-sweep) put honour bits head
+to head with the 10-float summary and they **win by 0.008 NLL / 0.008 tricks of
+MAE** — ~13× the seed noise, so real, and the champion featurization is BEN's own
+per-suit `[A,K,Q,J,T,#spots]`. That sits *beside* the 0.4 %, it does not contest
+it: the 0.4 % is a KL on BEN's **policy** softmax with honour location scrambled,
+the 0.008 is a likelihood on **double-dummy tricks**. Texture can be nearly
+irrelevant to *which call* a 95 %-rule-expressible system chooses and still
+matter to *how many tricks the cards take* — AJx and KQx bid the same and cash
+differently. Two consequences worth keeping straight. Lever 1's **No** stands as
+written, because it is a verdict about the policy vector, which stays
+disclosable-only by rule whatever a physics-only evaluator is allowed to read.
+And 0.008 is not a floor-moving number on its own — the honour bits are worth
+having in the evaluator, not worth a representation overhaul of the bidder.
 
 **The real feature gap is Lever 1′ — auction-state memory.** Our MLP flattens the
 auction into last-bid + ranges; BEN's LSTM remembers the *shape* of the whole

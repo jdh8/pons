@@ -41,7 +41,7 @@ use std::sync::LazyLock;
 /// Input width, pinned to the artifact.
 const IN: usize = FEATURES_LEN_EVAL;
 /// Hidden width of both hidden layers.
-const HID: usize = 64;
+const HID: usize = 256;
 /// Trick targets: 5 strains × 4 declarers.
 const TARGETS: usize = 20;
 /// Heads per target: the mean and the log standard deviation.
@@ -59,7 +59,7 @@ const LN_SD_MIN: f32 = -5.0;
 /// Upper bound on `ln σ`; see [`LN_SD_MIN`].
 const LN_SD_MAX: f32 = 0.0;
 
-static RAW: &[u8] = include_bytes!("weights/evaluator_v1.f32");
+static RAW: &[u8] = include_bytes!("weights/evaluator_v2.f32");
 const _: () = assert!(
     RAW.len() == TOTAL * 4,
     "evaluator weights artifact size mismatch"
@@ -202,6 +202,7 @@ fn forward(x: &[f32]) -> [f32; OUT] {
 mod tests {
     use super::*;
     use crate::bidding::Context;
+    use crate::bidding::features::FEATURES_VERSION_EVAL;
     use contract_bridge::auction::RelativeVulnerability;
 
     fn hand(s: &str) -> Hand {
@@ -213,7 +214,17 @@ mod tests {
     #[test]
     fn matches_candle_fixture() {
         let fx: serde_json::Value =
-            serde_json::from_str(include_str!("weights/evaluator_v1.fixture.json")).unwrap();
+            serde_json::from_str(include_str!("weights/evaluator_v2.fixture.json")).unwrap();
+
+        // The blob's own guard is a byte count, and a byte count cannot tell a
+        // 54-wide v2 artifact from any other blob of the same size — so pin the
+        // layout tag too, or a stale fixture would sail through on width alone.
+        assert_eq!(
+            fx["feature_version"].as_u64(),
+            Some(u64::from(FEATURES_VERSION_EVAL)),
+            "fixture layout tag disagrees with the crate's"
+        );
+
         let rows = fx["features"].as_array().unwrap();
         let golds = fx["outputs"].as_array().unwrap();
         assert!(!rows.is_empty(), "fixture has no rows");

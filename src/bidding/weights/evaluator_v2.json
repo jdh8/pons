@@ -1,0 +1,177 @@
+{
+ "arch": "x -> Linear(54, 256) -> relu -> Linear(256, 256) -> relu -> Linear(256, 40)",
+ "arm": "ben",
+ "batch": 4096,
+ "blank_ranges": false,
+ "collapse_side": false,
+ "data_deals": "/nfs2/jdh8/22.pdd",
+ "data_git_sha": "b36bcce8d86488ac8c0cb35ea44280b2595b124f",
+ "data_seed": 1,
+ "data_systems": [
+  "american",
+  "dutch"
+ ],
+ "dtype": "f32-le",
+ "encoding": "ben (54 live columns gathered from the 79-float bits superset)",
+ "epochs": 150,
+ "feature_version": 2,
+ "features_len": 54,
+ "gathered_from": {
+  "arm": "ben",
+  "live_columns": [
+   1,
+   3,
+   4,
+   5,
+   6,
+   7,
+   9,
+   11,
+   12,
+   13,
+   14,
+   15,
+   17,
+   19,
+   20,
+   21,
+   22,
+   23,
+   25,
+   27,
+   28,
+   29,
+   30,
+   31,
+   34,
+   35,
+   37,
+   38,
+   40,
+   41,
+   43,
+   44,
+   46,
+   47,
+   49,
+   50,
+   52,
+   53,
+   55,
+   56,
+   58,
+   59,
+   61,
+   62,
+   64,
+   65,
+   67,
+   68,
+   70,
+   71,
+   73,
+   74,
+   76,
+   77
+  ],
+  "note": "trained at 79 with dead columns zeroed pre-tensor; the gather is exact",
+  "source_width": 79
+ },
+ "git_sha": "095ac85532488211db14c4351851ec5d64533239",
+ "heads": [
+  "mu",
+  "ln_sd"
+ ],
+ "hidden": 256,
+ "label_order": "strain-major NT,S,H,D,C \u00d7 declarer [me,lho,partner,rho]",
+ "ln_sd_clamp": [
+  -5.0,
+  0.0
+ ],
+ "lr": 0.001,
+ "out_dim": 40,
+ "out_layout": "[20 \u00d7 mu][20 \u00d7 ln_sd], tricks / 13",
+ "param_floats": 90152,
+ "param_order": [
+  "l1.weight",
+  "l1.bias",
+  "l2.weight",
+  "l2.bias",
+  "l3.weight",
+  "l3.bias"
+ ],
+ "param_shapes": {
+  "l1.bias": [
+   256
+  ],
+  "l1.weight": [
+   256,
+   54
+  ],
+  "l2.bias": [
+   256
+  ],
+  "l2.weight": [
+   256,
+   256
+  ],
+  "l3.bias": [
+   40
+  ],
+  "l3.weight": [
+   40,
+   256
+  ]
+ },
+ "seed": 1,
+ "targets": 20,
+ "test": "../target/eval-test-bits",
+ "train_rows": 20143935,
+ "trainer": "pons-trainer evaluator",
+ "val_below_mean": 0.4999353289604187,
+ "val_by_phase": [
+  {
+   "below_mean": 0.49943768978118896,
+   "coverage": 0.4846356511116028,
+   "mae_tricks": 1.5381875038146973,
+   "nll": -1.4546267986297607,
+   "rmse_tricks": 1.9527097940444946,
+   "slice": "constructive",
+   "targets": 2989520
+  },
+  {
+   "below_mean": 0.5002280473709106,
+   "coverage": 0.4847736954689026,
+   "mae_tricks": 1.3868181705474854,
+   "nll": -1.5433944463729858,
+   "rmse_tricks": 1.7534059286117554,
+   "slice": "contested",
+   "targets": 5082060
+  }
+ ],
+ "val_by_system": [
+  {
+   "below_mean": 0.5004444122314453,
+   "coverage": 0.479860782623291,
+   "mae_tricks": 1.434394359588623,
+   "nll": -1.5176082849502563,
+   "rmse_tricks": 1.818453073501587,
+   "slice": "american",
+   "targets": 4052740
+  },
+  {
+   "below_mean": 0.49942198395729065,
+   "coverage": 0.48962536454200745,
+   "mae_tricks": 1.451440691947937,
+   "nll": -1.5033659934997559,
+   "rmse_tricks": 1.841084599494934,
+   "slice": "dutch",
+   "targets": 4018840
+  }
+ ],
+ "val_coverage": 0.4847225844860077,
+ "val_mae_tricks": 1.44288170337677,
+ "val_nll": -1.5105170011520386,
+ "val_rmse_tricks": 1.829756259918213,
+ "wd": 0.0
+}

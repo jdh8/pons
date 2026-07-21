@@ -1,10 +1,14 @@
 # The trick evaluator — bilans session C, learned
 
-> Status: net built and validated; **consumed** by the instinct floor's
-> game/slam boundary gates behind `set_bilans_floor` (session D, default off —
-> the knob's A/B, `examples/ab-bilans-floor`, decides whether it ships
-> default-on). The module is ungated and always builds; an earlier revision of
-> this line claimed an `evaluator` Cargo feature that never existed.
+> Status: net built, validated, and **shipped default-on**. The instinct
+> floor's game/slam boundary gates price `P(make)` through it, behind
+> `set_bilans_floor` (default *on* — `BILANS_FLOOR` is `Cell::new(true)`; the
+> knob now only turns it off). `examples/ab-bilans-floor` measured it twice, at
+> v1 and again at the v2 weights — see [Against the shipped
+> floor](#against-the-shipped-floor). The module is ungated and always builds;
+> an earlier revision of this line claimed an `evaluator` Cargo feature that
+> never existed, and a later one still called the knob default-off after it had
+> shipped.
 
 ## What it is
 
@@ -27,10 +31,13 @@ t.p_at_least(Strain::Spades, Relative::Me, 10)   // P(we make 4♠)
 
 ## Two design commitments
 
-**No auction in the input, ever.** The vector is own-hand summary (10 floats)
-plus the LHO / partner / RHO range blocks (30 floats) — no calls, no seat, no
-vulnerability. The auction enters *only* through the `Inferences` the book
-already distilled from it.
+**No auction in the input, ever.** The vector is own-hand summary (24 floats in
+shipped v2, 10 in v1 — see the
+[featurization sweep](#featurization-sweep)) plus the LHO / partner / RHO range
+blocks (30 floats) — no calls, no seat, no vulnerability. The auction enters
+*only* through the `Inferences` the book already distilled from it. Widening the
+hand block does not touch this commitment; it is a claim about the auction, not
+about width.
 
 That is what makes the evaluator **bidding-system agnostic**: (own cards,
 ranges) → tricks is physics, true under `american()`, `dutch()`, or any future
@@ -128,16 +135,16 @@ good fit, and hard-bounded at 13. Both the trainer and `eval-evaluator` report
 
 | Piece | Path |
 |---|---|
-| Feature extractor (40 floats) | `src/bidding/features.rs` — `features_eval` |
+| Feature extractor (54 floats) | `src/bidding/features.rs` — `features_eval` |
 | Corpus generator | `examples/dump-evaluator` |
 | Trainer (candle, off-crate) | `trainer/src/bin/evaluator.rs` |
-| In-crate forward pass | `src/bidding/evaluator.rs` (ungated; 37 KB of weights, no deps) |
-| Weights + sidecar + parity fixture | `src/bidding/weights/evaluator_v1.{f32,json,fixture.json}` |
+| In-crate forward pass | `src/bidding/evaluator.rs` (ungated; 352 KB of weights, no deps) |
+| Weights + sidecar + parity fixture | `src/bidding/weights/evaluator_v2.{f32,json,fixture.json}` |
 | Truth head-to-head | `examples/eval-evaluator` |
 
 **Corpus**: `.pdd` rows stream in with their double-dummy tables already solved
 (`/nfs2/jdh8/`, ~94M deals), each deal is self-play-bid under both books, and
-every decision node emits `[40 features][20 tricks/13]`. **No solver and no
+every decision node emits `[54 features][20 tricks/13]`. **No solver and no
 EPBot run** — the generator is bidding-bound, ~1700 deals/s single-threaded.
 The label is `gib::relativized_tricks`: strain-major in GIB order (NT ♠ ♥ ♦ ♣) ×
 declarer `[me, lho, partner, rho]`, actor-relative like the input.
@@ -151,8 +158,10 @@ distribution.
 
 ## Results
 
-Corpus: 100k deals from `22.pdd` × `american()` + `dutch()` = **2,005,619 rows**.
-Held-out: a whole fleet shard (20k deals → 402,092 rows), deal-disjoint by
+Corpus: 100k deals from `22.pdd` × `american()` + `dutch()` = **2,005,619 rows**
+— except the [featurization sweep](#featurization-sweep), which runs on a 10×
+corpus (20,143,935 rows) and whose NLL column therefore compares only within
+itself. Held-out: a whole fleet shard (20k deals → 402,092 rows), deal-disjoint by
 construction. `MAE` and `RMSE` are the mean head's error against the *realized*
 deal, in tricks; `coverage` is the fraction of deals inside `μ ± 0.6745σ`,
 nominally 50%. All runs are 150 epochs.
@@ -299,20 +308,80 @@ an earlier *unseeded* blank arm over-covered at 57.9%, and coverage is exactly
 the init-sensitive statistic — so read the direction here as provisional and the
 magnitude not at all.
 
-Also carried over from the quartile ladder: a **52-bit one-hot hand** (texture)
-scored slightly *worse* than the 10-float summary despite strictly more
-information and 2,688 more parameters. At this data scale the summary's
-inductive bias — HCP arithmetic and suit lengths handed over for free — beats
-making the net rediscover them. The 40-float vector stands; the one-hot path is
-closed unless a much larger corpus reopens it.
+#### Featurization sweep
 
-**Still un-re-run, and now doubly suspect.** That verdict was measured under the
-quartile loss *and* the unshuffled loop, and the ladder above has already shown
-one carried-over conclusion ("64 is the knee") to be an artifact of the second.
-It also proves too much as stated: the one-hot arm deleted the summary
+Six arms, 2026-07-22, on the fixed trainer at the width the ladder chose: hidden
+256, `--seed 1`, 150 epochs, batch 4096, lr 0.001, **20,143,935 train rows** from
+`/nfs2/jdh8/22.pdd` under `american()` + `dutch()` (data `b36bcce`, trainer
+`095ac85`). The corpus is dumped **once**, as `--encoding bits`' 79-float research
+superset, and each arm zeroes the columns it does not want via `--arm`. Same
+rows, same batch order, same parameter count — the only thing that moves is what
+the first layer can see. Reported NLL is the restored best-val checkpoint.
+
+| arm | live cols | val NLL | MAE |
+|---|---|---|---|
+| **`ben`** | **54** | **−1.51051** | **1.443** |
+| `full` | 79 | −1.51043 | 1.443 |
+| `baseline` | 40 | −1.50284 | 1.451 |
+| `baseline-drop-both` | 38 | −1.50232 | 1.452 |
+| `baseline-drop-hcp` | 39 | −1.50222 | 1.452 |
+| `baseline-drop-upgrade` | 39 | −1.50229 | 1.452 |
+
+**Texture pays 0.008 of NLL and 0.008 tricks of MAE** — `ben` (54) over
+`baseline` (40), against the 0.0006 seed spread the architecture ladder measured
+at hidden 256, so ~13× noise. Small, and real.
+
+`ben` swaps each suit's `(len, suit_hcp)` for **six columns: one bit each for
+A/K/Q/J/T, plus a spot count** (ranks 2–9, hence the divisor 8), and drops both
+globals. That is strictly finer at *no* representational cost, because the six
+recover the two exactly and linearly — `len` is the spot count plus the honours
+flagged, `suit_hcp` is `4/3/2/1` against the top four bits, and global `hcp` is
+that same dot product over all sixteen. The first layer can rebuild `baseline` in
+four weights per suit if that is what it wants; what it gains is the distinction
+`baseline` throws away. **AJx and KQx are both 5 HCP in three cards, and now read
+differently.**
+
+Two sub-negatives fall out of the same table and are worth exactly as much as the
+win. **`full` (79) ties `ben` (54) to 8e-5** — well inside the 0.0006 seed spread
+— so the 25 columns `full` adds buy nothing, and two of them were named
+hypotheses rather than filler. The range **widths** (`max − min` carried beside
+every `(min, max)` pair, on the theory that a net reads a width more cheaply than
+it learns to subtract) measure **0.000**. And `suit_hcp` kept as a **skip
+connection** alongside the honour bits — the four-weight sum handed over rather
+than learned — measures **0.000** as well. Both are dead as authored, and neither
+is a reason to widen the dump.
+
+**The two globals are free to delete**, which *refutes* their standing as the
+hand block's last deletion candidate — there was nothing there to lose. `ben`
+drops `hcp/40` and `upgrade/2` outright and is still champion, and the three
+`baseline-drop-*` arms land within **0.0006** of `baseline`, the seed spread
+exactly. The mechanism is that neither was ever new information: `hcp` is the
+four `suit_hcp` columns summed, and `upgrade` is the legacy shape term from when
+`point_count` was `raw_hcp + upgrade`, a scale `RuleOfNFloored` has since
+replaced.
+
+**This retires the carried-over one-hot verdict, and the hedge that came with it
+was right about the mechanism.** The quartile ladder's **52-bit one-hot hand**
+scored slightly *worse* than the 10-float summary despite strictly more
+information and 2,688 more parameters, and this doc drew "texture does not pay"
+from it while warning that the arm proved too much: it deleted the summary
 *wholesale*, so it had to rediscover suit lengths and HCP arithmetic from raw
-card bits, and its loss says nothing about *adding* texture to a summary that
-stays. Treat "texture does not pay" as untested rather than as settled.
+card bits, and said nothing about **adding** texture to a summary that stays. The
+sweep above is exactly that missing experiment, and it splits the difference.
+Texture **does** pay — but only 0.008, and only as honour bits beside a retained
+summary, never as 52 raw card bits. The one-hot path stays closed; the
+honour-bit path is open, and it is the champion.
+
+**Two caveats, and the first is a gap rather than a result.** The **cross-GPU
+control was cancelled**, so the hardware confound is *inferred*, not measured:
+arms ran across lanes, and two cross-lane pairings agreed to **~1e-4**, which is
+the only bound there is. Against the **0.008** headline that is ~80× of margin
+and the verdict holds; but `full` ≡ `ben` at 8e-5 sits *inside* the inferred
+bound, so that tie can be read as a tie and nothing finer. Second, every arm is a
+**single seed**, and the 0.0006 spread it is judged against was measured on the
+architecture ladder — a different corpus, ten times smaller. For the same reason
+the absolute NLL here is not comparable to any other table in this doc; only
+differences *within* this one mean anything.
 
 ### Against the truth it replaces
 
@@ -431,6 +500,37 @@ what session D has to integrate against a score table.
 The loss values themselves are *not* comparable — pinball and NLL are different
 scales.
 
+### Against the shipped floor
+
+Calibration is not the ship gate; IMPs are. `examples/ab-bilans-floor` plays the
+floor with the gates priced by the net against the same floor pricing them by
+point arithmetic. It has run twice, at 200k boards per vulnerability and the
+**same seed** (1784589590), once at the v1 weights and again at v2:
+
+| vulnerability | scorer | v1 | **v2** |
+|---|---|---|---|
+| none | plain DD | +0.036 [+0.030, +0.042] | **+0.068** [+0.061, +0.076] |
+| none | perfect defense | +0.009 [+0.002, +0.016] | **+0.048** [+0.040, +0.056] |
+| both | plain DD | +0.065 [+0.057, +0.073] | **+0.110** [+0.100, +0.120] |
+| both | perfect defense | +0.013 [+0.003, +0.022] | **+0.070** [+0.059, +0.081] |
+
+IMPs per board, net-positive meaning the net-priced gates win; 95% CIs. Both
+scorers win at both vulnerabilities in both runs, so the knob ships default-on
+under the decision table with no doubling-artifact caveat.
+
+**The re-run is paired, and that is the point.** The A/B's arms are knob-on vs
+knob-off, and the knob-*off* arm never touches the net — it is a fixed
+reference. Re-running the recorded seed rather than a fresh one therefore makes
+the change in margin the *weights'* effect on an identical deal set. (This is
+the one place [seed hygiene](../measurement.md) is deliberately set aside: it is
+a paired re-run of one experiment with one variable moved, not a new
+experiment.) Read that way, v2 roughly doubles the plain-DD margin and
+**quintuples** the perfect-defense one — every interval disjoint from v1's.
+
+That the perfect-defense column gains most is the expected shape: PD punishes
+overbidding hardest, so a sharper `sd` — which is what the featurization sweep
+bought — shows up first as *fewer* contracts bid past their break-even.
+
 ## Known ceilings
 
 - **The Gaussian is symmetric; tricks are not.** On a good fit the trick
@@ -441,10 +541,20 @@ scales.
   discrete CDF, ~280 outputs). **Least binding of the three, and less binding
   than recorded** — on the fixed trainer `below μ` is 49.9–50.1%, so most of the
   skew this bullet was sized from was batching.
-- **Texture is invisible.** The hand block carries honour *location* (which
-  suit) but not texture — AJx and KQx read alike, spot cards not at all. The net
-  absorbs that as spread rather than predicting through it. `--encoding onehot`
-  measures what 52 card bits would buy.
+- **Texture is no longer invisible — it is measured, and it is small.** The old
+  v1 hand block carried honour *location* (which suit) but not texture: AJx and
+  KQx read alike, spot cards not at all, and the net absorbed that as spread
+  rather than predicting through it. The
+  [featurization sweep](#featurization-sweep) prices exactly that at **0.008 NLL
+  / 0.008 tricks of MAE**, recovered by replacing each suit's `(len, suit_hcp)`
+  with A/K/Q/J/T bits plus a spot count. That is the champion `ben`
+  featurization, and **v2 ships it**: `features_eval` is now 54 floats and the
+  in-crate weights are the `ben` arm gathered to 54 columns. What stays invisible
+  even after the swap is spot-card *identity* below the ten: the count collapses
+  ranks 2–9, so **T9x and T2x still read alike**, and nothing measures what that
+  last slice is worth. The `--encoding onehot` arm this bullet used to name is
+  the wrong instrument — the dumper emits the 79-float superset at
+  `--encoding bits` and the trainer selects the arm with `--arm`.
 - **Range envelopes are sound but loose.** `Constraint::project` guarantees every
   consistent hand falls inside the envelope, and opaque predicates project to
   `unknown()`. The net learns how much a loose envelope really pins down — that

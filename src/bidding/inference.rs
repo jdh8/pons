@@ -605,6 +605,15 @@ impl Inferences {
 
     /// Derive, hand-independently, what every player's calls have shown under
     /// standard 2/1 meanings, relative to the side to act
+    ///
+    /// **A bare `Context::new` reads far less than the bidder does.**
+    /// Projection-based reading — the pass bands, the authored-rule overlay —
+    /// needs the convention keys that only `Stance::prefixed_context` attaches,
+    /// so on a keyless context every one of them is skipped silently: no error,
+    /// and `0..=37` is a perfectly well-formed answer. A pass that the bidder
+    /// reads as `0..=11` comes back vacuous here. Diagnostics that want *what
+    /// the bidder actually sees* must go through `Stance::infer`; this entry
+    /// point is for the hand-coded walk alone.
     #[must_use]
     pub fn read(context: &Context<'_>) -> Self {
         // A systems-on advance of our 1NT overcall reads as an opening-1NT

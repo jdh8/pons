@@ -7,6 +7,96 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **The trick evaluator ships v2 — the `ben` featurization, and it is worth
+  real IMPs.** `features_eval` grows 40 → 54 floats: each suit's `(len,
+  suit_hcp)` pair becomes a spot count plus A/K/Q/J/T bits, so the hand block
+  is 24 rather than 10. The hidden layer widens 64 → 256. Weights move to
+  `src/bidding/weights/evaluator_v2.{f32,json,fixture.json}` (352 KB) and
+  `FEATURES_VERSION_EVAL` is now `2`; the trainer accepts corpora tagged `1` or
+  `2`. **Breaking**: `LEN_HAND_EVAL` and `FEATURES_LEN_EVAL` changed value, and
+  the `evaluator_v1` artifacts are deleted.
+
+  The old block carried honour *location* but not texture — `AJx` and `KQx`
+  read alike, spot cards not at all — and the net absorbed that as spread
+  rather than predicting through it. The featurization sweep prices the
+  difference at **0.008 NLL / 0.008 tricks of MAE**.
+
+  **Measured, both scorers, both vulnerabilities.** `examples/ab-bilans-floor`
+  at 200k boards per vulnerability, re-run at the *same* seed (1784589590) as
+  the recorded v1 baseline:
+
+  | vulnerability | scorer | v1 | v2 |
+  | --- | --- | --- | --- |
+  | none | plain DD | +0.036 [+0.030, +0.042] | **+0.068** [+0.061, +0.076] |
+  | none | perfect defense | +0.009 [+0.002, +0.016] | **+0.048** [+0.040, +0.056] |
+  | both | plain DD | +0.065 [+0.057, +0.073] | **+0.110** [+0.100, +0.120] |
+  | both | perfect defense | +0.013 [+0.003, +0.022] | **+0.070** [+0.059, +0.081] |
+
+  The A/B's arms are knob-on vs knob-off and the knob-*off* arm never touches
+  the net, so reusing the seed is deliberate: it makes the change in margin the
+  weights' effect on an identical deal set. Every interval is disjoint from
+  v1's; v2 roughly doubles the plain-DD margin and quintuples the
+  perfect-defense one. That PD gains most is the expected shape — PD punishes
+  overbidding hardest, and a sharper `sd` shows up first as fewer contracts bid
+  past their break-even.
+
+  **No retraining was needed, and that is exact rather than approximate.** The
+  champion sweep arm trained on a 79-float superset with the dead columns
+  masked. The trainer's `mask_features` zeroes them *before any tensor exists*,
+  so `W1[:, dead]` never affects an activation and never receives gradient —
+  dropping those columns is an identity, not a truncation. The crate therefore
+  takes a 54-column gather of `l1.weight` and copies every later layer
+  verbatim; it reproduces the fixture bit-identically (max |79-wide − 54-wide|
+  = `0.000e+00`, both at `3.6e-07` of the gold moments).
+
+  Two traps worth recording, because either would have loaded cleanly and
+  produced silent garbage. `l1.weight` is `[out, in]` row-major, so this is a
+  **column** gather at stride 79, not a row slice. And the parity fixture's
+  nonzero union is only **46 of 54** columns, so selecting live columns by
+  sparsity — the obvious shortcut — would have dropped eight real ones.
+  `examples/dump-evaluator`'s new `summary_is_the_ben_gather_of_bits` pins the
+  encoder against a re-derivation of the mask, a coupling nothing previously
+  checked: `arm_live_widths` constrains column *counts*, never index *sets*, so
+  a permutation between trainer and crate had nothing to trip over.
+
+  **`features_v3` is deliberately untouched.** The policy net stays
+  disclosable-only by bridge-ethics rule; the evaluator is physics and is never
+  disclosed, which is what makes texture admissible there and only there.
+  `push_hand` is shared and unchanged.
+
+  **Four pinned floor calls moved, and they moved both ways** — which is the
+  tell that this is a sharper net rather than a more aggressive one:
+
+  | auction | hand | v1 | v2 | partner reads |
+  | --- | --- | --- | --- | --- |
+  | `1♣ 1♥ 2♠` | `JT87.AQT2.A75.86` | 4♠ | **6♠** | `18..=21`, ♠ exactly 4 |
+  | `1♥ (3♣)` | `Q32.K53.A964.Q92` | 4♥ | **3♥** | opener |
+  | `(3♣) 3♦ (P)` | `AKQ.AQJ.32.K432` | 3NT | **6NT** | `8..=37` |
+  | `1♠ 2♣ 2♦ 3♠` | `AQJ52.32.KQ54.92` | 4♠ | **4NT** | `0..=37` |
+
+  The first two are v2 being *right*. The 6♠ is measured, not argued: over 2000
+  layouts drawn from that auction's own read, 6♠ makes **66.3%** double-dummy
+  [63.3, 69.2] against the 50% IMP break-even for bidding a small slam (4♠
+  makes 99.9%), so the old 4♠ pin was the underbid. The 3♥ is the reverse —
+  ten points with three trumps and no shortness is 22–24 combined opposite a
+  12–14 opener, and v1's jump to game was an artifact its own test comment had
+  flagged as such.
+
+  The last two are the **wide-envelope ceiling**, and they are a reading defect
+  rather than a floor one — the second is the already-documented 2/1 erasure
+  (`sampled-projection.md`: every 2/1 game force reads `points 0..=37`, the
+  fit-split `Or` unioning away its own `hcp(13..)`). Where partner's shown
+  range is vacuous the sampled layouts include partners the auction cannot
+  hold, and the mean they drag up clears the slam gate; a sharper `sd` only
+  makes a pre-existing bias bite harder. Those calls are *not* pinned as intent — the
+  6NT test now asserts the strain (its subject is stopper discipline, which
+  still holds), and the 4NT one moved to an `#[ignore]`d
+  `a_minimum_signs_off_opposite_an_established_two_over_one` that keeps the
+  assertion as written pending the projection fix. Every other guard in those
+  tests stays live.
+
 ### Removed
 
 - **`rule_of_20()` is gone — `points` already is the Rule of 20.** Since

@@ -50,9 +50,13 @@ fn test_pass_of_preempt_without_values() {
 /// 1♥ (3♣): their jump overcall is past the negative-double package
 /// (`OvercallAtMost(2♠)`), but responder still raises with a limit hand
 ///
-/// With the bilans floor default-on the raise goes to game rather than the
-/// limit 3♥ — the third competitive auction to move up a level when the floor
-/// shipped (see `docs/ai-bidder/evaluator-net.md`).
+/// The v1 bilans floor pushed this raise to game — "the third competitive
+/// auction to move up a level when the floor shipped".  The v2 weights hand it
+/// back: ten points with three trumps and no shortness is 22–24 combined
+/// opposite a 12–14 opener, so the limit raise is the call and 4♥ was the
+/// artifact.  This is the sharper `sd` showing up as *fewer* contracts bid past
+/// their break-even — the same effect that made perfect defense the A/B's
+/// biggest gainer (see `docs/ai-bidder/evaluator-net.md`).
 #[test]
 fn test_raise_over_jump_overcall() {
     let system = stance();
@@ -62,7 +66,7 @@ fn test_raise_over_jump_overcall() {
             &[call(1, Strain::Hearts), call(3, Strain::Clubs)],
             "Q32.K53.A964.Q92",
         ),
-        call(4, Strain::Hearts),
+        call(3, Strain::Hearts),
     );
 }
 

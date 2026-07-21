@@ -126,8 +126,16 @@ fn seed_params(
         let var = &data[name];
         let tensor = match *var.dims() {
             [out, fan_in] => {
-                // Only the first layer reads the (possibly padded) corpus width.
-                let effective = if fan_in == in_dim { live_in } else { fan_in };
+                // Only `l1` reads the (possibly padded) corpus width, so key off
+                // the name. The old shape test `fan_in == in_dim` also caught
+                // `l2` (hidden, hidden) and `l3` (out_dim, hidden) whenever
+                // `--hidden` happened to equal `in_dim`, drawing those at
+                // `1/√live_in` instead of `1/√hidden`. The assert pins the name,
+                // so a rename of the export order fails loudly here rather than
+                // silently switching the narrowing off.
+                let first = name == "l1.weight";
+                assert!(!first || fan_in == in_dim, "{name} is not the input layer");
+                let effective = if first { live_in } else { fan_in };
                 let k = 1.0 / (effective as f64).sqrt();
                 let v: Vec<f32> = (0..out * fan_in)
                     .map(|_| ((2.0 * unit() - 1.0) * k) as f32)
@@ -258,8 +266,12 @@ struct Args {
     /// the dump is deal-major, so that tail is still deal-disjoint.
     #[arg(long)]
     test: Option<String>,
-    /// Output stem: `<stem>.f32` + `<stem>.json` + `<stem>.fixture.json`
-    #[arg(long, default_value = "../src/bidding/weights/evaluator_v1")]
+    /// Output stem: `<stem>.f32` + `<stem>.json` + `<stem>.fixture.json`.
+    /// The default is the artifact the crate `include_bytes!`s, behind a
+    /// compile-time size assert — so a run at a mismatched width silently
+    /// clobbers the shipped weights and breaks the build. Point it elsewhere
+    /// for sweeps.
+    #[arg(long, default_value = "../src/bidding/weights/evaluator_v2")]
     weights_out: String,
     /// Hidden width of both hidden layers; `0` fits a single linear layer
     #[arg(long, default_value_t = 64)]
@@ -700,9 +712,13 @@ impl Dataset {
             &std::fs::read(&json_path).with_context(|| format!("reading sidecar {json_path}"))?,
         )
         .with_context(|| format!("parsing sidecar {json_path}"))?;
-        if meta.feature_version != 1 {
+        // Coarse gate, not a layout check: the dumper stamps the same tag on
+        // every `--encoding`, so summary, onehot and bits corpora are
+        // indistinguishable here. `features_len` and `meta.encoding` are what
+        // actually identify the layout. v1 corpora on disk stay readable.
+        if !matches!(meta.feature_version, 1 | 2) {
             bail!(
-                "evaluator feature_version {} unsupported (this trainer knows 1)",
+                "evaluator feature_version {} unsupported (this trainer knows 1 and 2)",
                 meta.feature_version
             );
         }

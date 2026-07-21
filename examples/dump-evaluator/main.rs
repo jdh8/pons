@@ -7,11 +7,11 @@
 //! strain?".
 //!
 //! - **features** — [`features_eval`][pons::bidding::features::features_eval]:
-//!   40 floats of own-hand summary plus the LHO/partner/RHO range blocks read
-//!   by [`Stance::infer`]. No auction, no seat, no vulnerability: the auction
-//!   enters only through the ranges, which is what makes the evaluator
-//!   bidding-system agnostic. `--encoding onehot` swaps the 10-float hand
-//!   summary for 52 card bits (the texture ablation), same walk;
+//!   54 floats of own-hand honour decomposition plus the LHO/partner/RHO range
+//!   blocks read by [`Stance::infer`]. No auction, no seat, no vulnerability:
+//!   the auction enters only through the ranges, which is what makes the
+//!   evaluator bidding-system agnostic. `--encoding onehot` swaps the 24-float
+//!   hand block for 52 card bits (the texture ablation), same walk;
 //!   `--encoding bits` emits the 79-float research superset (honour bits, a
 //!   spot count, and a width beside every range pair) for a featurization
 //!   sweep. All three walk the same auctions and differ only in this row.
@@ -36,12 +36,13 @@
 //! contributes all share one DD label, and a shuffled split would leak it.
 
 use clap::Parser;
-use contract_bridge::auction::{Auction, Call};
+use contract_bridge::auction::{Auction, Call, RelativeVulnerability};
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Hand, Rank, Seat, Suit};
 use ddss::TrickCountTable;
-use pons::bidding::context::relative;
+use pons::bidding::context::{Context, relative};
 use pons::bidding::features::{
-    FEATURES_LEN_EVAL, FEATURES_VERSION_EVAL, LEN_HAND_V3, features_eval,
+    FEATURES_LEN_EVAL, FEATURES_VERSION_EVAL, LEN_HAND_EVAL, LEN_HAND_V3, features_eval,
+    features_v3,
 };
 use pons::bidding::{Family, Inferences, Phase, Stance, System};
 use pons::{american, dutch, gib};
@@ -64,20 +65,20 @@ const LEN_SUIT_BITS: usize = 8;
 const HONOURS: [Rank; 5] = [Rank::A, Rank::K, Rank::Q, Rank::J, Rank::T];
 
 /// Width of the `--encoding bits` hand block: 4 suits × [`LEN_SUIT_BITS`] plus
-/// the two globals (`hcp/40`, `upgrade/2`) taken verbatim from `features_eval`.
+/// the two globals (`hcp/40`, `upgrade/2`) taken verbatim from `features_v3`.
 const LEN_HAND_BITS: usize = 4 * LEN_SUIT_BITS + 2;
 
 /// Width of `features_eval`'s range tail: 3 hidden seats × 10, i.e. 15
 /// `(min, max)` pairs.  `--encoding bits` widens each into a
 /// `(min, max, max − min)` triple, so its tail is 45 instead.
-const LEN_RANGES: usize = FEATURES_LEN_EVAL - LEN_HAND_V3;
+const LEN_RANGES: usize = FEATURES_LEN_EVAL - LEN_HAND_EVAL;
 
 /// Own-hand encoding selected by `--encoding`
 #[derive(Clone, Copy)]
 enum Encoding {
-    /// `features_eval`'s 10-float disclosable summary, verbatim
+    /// `features_eval`'s 24-float honour block, verbatim
     Summary,
-    /// 52 card bits in place of the summary — the texture ablation
+    /// 52 card bits in place of the hand block — the texture ablation
     Onehot,
     /// The 79-float research superset: per-suit honour bits and spot count,
     /// plus a width beside every range pair
@@ -103,7 +104,7 @@ struct Args {
     /// range-shape coverage; the physics being learned is the same for all.
     #[arg(long, default_value = "american,dutch")]
     systems: String,
-    /// Own-hand encoding: `summary` (10 disclosable floats), `onehot` (52 card
+    /// Own-hand encoding: `summary` (24 honour floats), `onehot` (52 card
     /// bits — the texture ablation), or `bits` (the 79-float research superset)
     #[arg(long, default_value = "summary")]
     encoding: String,
@@ -247,11 +248,11 @@ fn main() -> anyhow::Result<()> {
 /// which `features_eval` already lays out.
 fn encode(out: &mut [f32], hand: Hand, inferences: &Inferences, encoding: Encoding) {
     let feats = features_eval(hand, inferences);
-    let (hand_block, ranges) = feats.split_at(LEN_HAND_V3);
+    let (hand_block, ranges) = feats.split_at(LEN_HAND_EVAL);
     let cut = match encoding {
         Encoding::Summary => {
-            out[..LEN_HAND_V3].copy_from_slice(hand_block);
-            LEN_HAND_V3
+            out[..LEN_HAND_EVAL].copy_from_slice(hand_block);
+            LEN_HAND_EVAL
         }
         Encoding::Onehot => {
             for (slot, (suit, rank)) in out.iter_mut().zip(
@@ -264,13 +265,17 @@ fn encode(out: &mut [f32], hand: Hand, inferences: &Inferences, encoding: Encodi
             LEN_HAND_ONEHOT
         }
         Encoding::Bits => {
-            // `len` and `suit_hcp` are lifted out of the summary rather than
-            // recomputed, so the floats `bits` shares with `summary` stay
-            // bit-for-bit identical.  `hand_block` is 4 `(len, suit_hcp)` pairs
-            // then the 2 globals; zipping `Suit::ASC` stops before the globals.
+            // `len`, `suit_hcp`, and the two globals come from `features_v3`:
+            // `features_eval`'s block is the honour decomposition and no longer
+            // carries them, and `upgrade` is not public API to recompute.  An
+            // empty `Context` is correct — the v3 hand block reads the hand
+            // alone and never the auction.
+            let v3 = features_v3(hand, &Context::new(RelativeVulnerability::NONE, &[]));
+            // `v3[..LEN_HAND_V3]` is 4 `(len, suit_hcp)` pairs then the 2
+            // globals; zipping `Suit::ASC` stops before the globals.
             for ((block, pair), suit) in out
                 .chunks_exact_mut(LEN_SUIT_BITS)
-                .zip(hand_block.chunks_exact(2))
+                .zip(v3[..LEN_HAND_V3].chunks_exact(2))
                 .zip(Suit::ASC)
             {
                 let holding = hand[suit];
@@ -283,8 +288,7 @@ fn encode(out: &mut [f32], hand: Hand, inferences: &Inferences, encoding: Encodi
                 block[2] = pair[1];
                 block[3..].copy_from_slice(&held.map(f32::from));
             }
-            // `upgrade` is not public API — copy both globals verbatim.
-            out[4 * LEN_SUIT_BITS..LEN_HAND_BITS].copy_from_slice(&hand_block[2 * 4..]);
+            out[4 * LEN_SUIT_BITS..LEN_HAND_BITS].copy_from_slice(&v3[2 * 4..LEN_HAND_V3]);
             LEN_HAND_BITS
         }
     };
@@ -340,15 +344,24 @@ fn git_sha() -> String {
 /// The `--encoding bits` row is self-describing: 79 floats, each suit's
 /// length is exactly its spots plus the honours it flags, each suit's HCP
 /// is what those honour bits imply, and every range triple carries the
-/// width of the pair it widened.
+/// width of the pair it widened.  And `--encoding summary` is exactly the
+/// subset of it the trainer's `--arm ben` keeps.
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    #[test]
-    fn bits_row_is_self_consistent() {
-        // A void, an honourless suit, and two mixed holdings, so `#spots` is
-        // exercised as "length minus honours held" and not as a constant.
+    /// Ben-arm column offsets within a suit's [`LEN_SUIT_BITS`] block: `#spots`
+    /// and the five honour flags, i.e. everything but `len` and `suit_hcp`.
+    const BEN_SUIT: [usize; 6] = [1, 3, 4, 5, 6, 7];
+
+    /// Ben-arm offsets within a `(min, max, width)` range triple: the width the
+    /// `bits` encoding added is dropped again.
+    const BEN_TRIPLE: [usize; 2] = [0, 1];
+
+    /// The shared fixture: a void, an honourless suit, and two mixed holdings,
+    /// so `#spots` is exercised as "length minus honours held" and not as a
+    /// constant, under an auction that actually shows something.
+    fn fixture() -> (Hand, Inferences) {
         let hand: Hand = "AT2.KQ98.J76543.".parse().expect("valid test hand");
         let auction: Vec<Call> = ["1S", "P", "2H"]
             .iter()
@@ -356,7 +369,27 @@ mod tests {
             .collect();
         let stance = american().against(Family::NATURAL);
         let vul = relative(AbsoluteVulnerability::NONE, Seat::North);
-        let inferences = stance.infer(vul, &auction);
+        (hand, stance.infer(vul, &auction))
+    }
+
+    /// The `bits` columns the trainer's `--arm ben` leaves live, re-derived from
+    /// its offset table rather than transcribed as a 54-element literal.
+    fn ben_live_columns() -> Vec<usize> {
+        let mut cols = Vec::new();
+        for suit in 0..4 {
+            cols.extend(BEN_SUIT.map(|o| suit * LEN_SUIT_BITS + o));
+        }
+        // Columns 32 (`hcp/40`) and 33 (`upgrade/2`) are the globals the arm
+        // drops, so the range triples follow immediately.
+        for triple in 0..LEN_RANGES / 2 {
+            cols.extend(BEN_TRIPLE.map(|o| LEN_HAND_BITS + 3 * triple + o));
+        }
+        cols
+    }
+
+    #[test]
+    fn bits_row_is_self_consistent() {
+        let (hand, inferences) = fixture();
 
         let mut row = vec![0f32; LEN_HAND_BITS + LEN_RANGES / 2 * 3];
         assert_eq!(row.len(), 79);
@@ -378,10 +411,36 @@ mod tests {
         assert_eq!(triples.len(), 45);
         for (triple, pair) in triples
             .chunks_exact(3)
-            .zip(feats[LEN_HAND_V3..].chunks_exact(2))
+            .zip(feats[LEN_HAND_EVAL..].chunks_exact(2))
         {
             assert_eq!(triple[..2], *pair);
             assert_eq!(triple[2], triple[1] - triple[0]);
+        }
+    }
+
+    /// `features_eval` is now exactly the `ben` arm of the `bits` superset: the
+    /// same 24 honour columns and the same 30 range bounds, in the same order.
+    /// Nothing else checks that coupling, and it is silent when it breaks — the
+    /// trainer would fit a net on one column order while the crate serves it
+    /// another, permuted, with no width mismatch to trip over.  So gather the
+    /// `bits` row at the arm's live columns and demand the `summary` row back.
+    ///
+    /// Exact float equality is right here: both sides are copies of the very
+    /// same computed floats, not two roundings of one quantity.
+    #[test]
+    fn summary_is_the_ben_gather_of_bits() {
+        let (hand, inferences) = fixture();
+
+        let mut summary = vec![0f32; FEATURES_LEN_EVAL];
+        encode(&mut summary, hand, &inferences, Encoding::Summary);
+        let mut bits = vec![0f32; LEN_HAND_BITS + LEN_RANGES / 2 * 3];
+        encode(&mut bits, hand, &inferences, Encoding::Bits);
+
+        let live = ben_live_columns();
+        assert_eq!(live.len(), 54, "the ben arm's documented live width");
+        assert_eq!(live.len(), summary.len());
+        for (i, (&col, &want)) in live.iter().zip(&summary).enumerate() {
+            assert_eq!(bits[col], want, "summary[{i}] should be bits[{col}]");
         }
     }
 }
