@@ -239,11 +239,6 @@ fn competitive_rebid_reaches_the_missed_game() {
     // real stance: the fix is opener's rebid alone, responder was never broken.
     use pons::bidding::instinct::set_competitive_rebid;
     set_competitive_rebid(true);
-    // Isolate the competitive rebid: with Rule-of-20 light openings on (the
-    // default) responder reads the 1♦ opener as 10+ and no longer drives the
-    // thin 5♦, a separately-measured trade-off of opening lighter — not this
-    // feature's concern, so pin the classic 12+ opener here.
-    pons::bidding::american::set_rule_of_20(false);
     let system = stance();
 
     let after_raise = [

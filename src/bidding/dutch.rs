@@ -205,8 +205,13 @@ mod tests {
         assert_eq!(opens("Q2.K3.AQ4.KQ8765"), bid(1, Strain::Notrump)); // 6322, 6♣
         // A 5422 with the five-card suit a *major* stays a suit opening (1♠).
         assert_eq!(opens("AK432.KQ.Q432.K2"), bid(1, Strain::Spades));
-        // Rule of 20 gates the light end: a flat 12-count passes.
+        // `points(12..)` gates the light end, and it is the Rule of 20 wherever
+        // the two longest suits reach eight cards.  Flat 4-3-3-3 is the one
+        // shape that falls short — the 1♣ node's extra doubleton term makes it
+        // pay the thirteenth point the Rule of 20 asked for, so a flat 12-count
+        // still passes and a flat 13-count opens.
         assert_eq!(opens("KJ32.K32.K32.Q32"), Call::Pass);
+        assert_eq!(opens("KJ32.K32.KQ2.Q32"), bid(1, Strain::Clubs));
     }
 
     /// The Dutch call after an undisturbed `auction`.

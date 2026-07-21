@@ -3,7 +3,6 @@
 use super::insert_uncontested;
 use crate::bidding::constraint::{
     Cons, Constraint, balanced, cccc, described, fifths, hcp, len, nltc, nth_seat, points,
-    rule_of_20,
 };
 use crate::bidding::context::Context;
 use crate::bidding::{Alert, Rules, Trie};
@@ -20,9 +19,6 @@ thread_local! {
     /// Restore the fifths gauge (`fifths(14.5..17.5)`, centre-matched to plain HCP
     /// 15-17) for the 1NT opening.  Default `false` — the opening gauges plain HCP.
     static ONE_NOTRUMP_FIFTHS: Cell<bool> = const { Cell::new(false) };
-    /// Whether we open sound 10-11 counts that satisfy the Rule of 20 with one
-    /// of a suit instead of passing.  Default `true` (shipped default-on).
-    static RULE_OF_20: Cell<bool> = const { Cell::new(true) };
     /// Which shape policy the 1NT opening admits when `american()` rebuilds.
     /// Default [`NotrumpShape::Wide6322`] (the shipped default).
     static NOTRUMP_SHAPE: Cell<NotrumpShape> = const { Cell::new(NotrumpShape::Wide6322) };
@@ -52,28 +48,6 @@ pub fn set_open_one_notrump(on: bool) {
 /// default (`false`) gauges plain HCP 15-17, which opens 1NT a touch more often.
 pub fn set_one_notrump_fifths(on: bool) {
     ONE_NOTRUMP_FIFTHS.with(|cell| cell.set(on));
-}
-
-/// Open sound 10-11 counts satisfying the Rule of 20 (raw HCP + two longest
-/// suits ≥ 20) with one of a suit, instead of passing (`true`, the shipped
-/// default; `false` restores the 12+-only opener).  Natural: strain priority
-/// mirrors the 12+ openings (five-card major first, else the better minor).
-/// Shipped default-on after the anchor's Constructive/book/opening bucket
-/// traced to sound 11-counts we passed and BBA opened — a plain-DD and
-/// sd-lead win both vulnerabilities (the pd loss is the perfect-doubler
-/// bracket; see [docs/bba-gap-campaign.md]).
-///
-/// Natural and folded into base per [docs/bidding-options.md]; retained only
-/// as a measurement off-switch, not a user-facing toggle (dropped from the
-/// `web` settings registry).
-pub fn set_rule_of_20(on: bool) {
-    RULE_OF_20.with(|cell| cell.set(on));
-}
-
-/// Whether Rule-of-20 light openings are on (read by the opening inference,
-/// which drops its one-level suit point floor 12→10 to match).
-pub(crate) fn rule_of_20_enabled() -> bool {
-    RULE_OF_20.with(Cell::get)
 }
 
 /// Select the 1NT opening [`NotrumpShape`] for the next rebuild of
@@ -164,8 +138,7 @@ pub fn set_weak_two_eval(gauge: Option<WeakTwoEval>) {
 /// one-level front door that rule-of-N+8 opened for them (a 9-HCP 6-5 reads
 /// 12).  Legacy passed or preempted those hands, and the remnant report's
 /// one-level seam kept that leg flagged after the 4333 floor cleared the flat
-/// twelves.  The rule-of-20 light rules already carry their own
-/// `hcp(10..=11)` and are untouched.
+/// twelves.
 pub fn set_opening_hcp_floor(n: Option<u8>) {
     OPENING_HCP_FLOOR.with(|cell| cell.set(n));
 }
@@ -279,11 +252,13 @@ pub fn openings_with(shape: NotrumpShape) -> Rules {
             2.0,
             fifths(20.0..22.0) & balanced(),
         );
-    // Sound one-level suit openings.  `points(12..) & hcp(..10)` is exactly the
-    // freak class (11+ cards in two suits), so the optional raw-HCP floor
-    // (`set_opening_hcp_floor`) bars sub-10-HCP freaks from the front door;
-    // default `None` is byte-identical.  The lighter third/fourth-seat majors
-    // and the rule-of-20 rules below carry their own HCP gates.
+    // Sound one-level suit openings.  `points(12..)` on the shipped rule-of-N+8
+    // scale *is* the Rule of 20, so the sound 10-11 counts come in here rather
+    // than through a light rule of their own.  `points(12..) & hcp(..10)` is
+    // exactly the freak class (11+ cards in two suits), so the optional raw-HCP
+    // floor (`set_opening_hcp_floor`) bars sub-10-HCP freaks from the front
+    // door; default `None` is byte-identical.  The lighter third/fourth-seat
+    // majors carry their own HCP gate.
     let opening_floor = OPENING_HCP_FLOOR.with(Cell::get);
     // Five-card majors; 1♠ ranks just above 1♥ so 5-5 opens the higher.
     rules = match opening_floor {
@@ -398,42 +373,6 @@ pub fn openings_with(shape: NotrumpShape) -> Rules {
             0.9,
             len(suit, 7..) & points(..12) & !nth_seat(4),
         );
-    }
-    // Rule-of-20 light openers (sound 10-11 counts) — behind `set_rule_of_20`.
-    // Natural; same weights and strain priority as the 12+ suit openings, so a
-    // five-card major opens ahead of the better minor and these outrank the
-    // weak two / preempt a shapely light hand would otherwise reach.
-    if RULE_OF_20.with(Cell::get) {
-        rules = rules
-            .rule(
-                Bid::new(1, Strain::Spades),
-                1.6,
-                hcp(10..=11) & rule_of_20() & len(Suit::Spades, 5..),
-            )
-            .rule(
-                Bid::new(1, Strain::Hearts),
-                1.5,
-                hcp(10..=11) & rule_of_20() & len(Suit::Hearts, 5..),
-            )
-            .rule(
-                Bid::new(1, Strain::Diamonds),
-                1.0,
-                hcp(10..=11)
-                    & rule_of_20()
-                    & prefers_diamonds()
-                    & len(Suit::Hearts, ..5)
-                    & len(Suit::Spades, ..5),
-            )
-            .rule(
-                Bid::new(1, Strain::Clubs),
-                1.0,
-                hcp(10..=11)
-                    & rule_of_20()
-                    & len(Suit::Clubs, 3..)
-                    & !prefers_diamonds()
-                    & len(Suit::Hearts, ..5)
-                    & len(Suit::Spades, ..5),
-            );
     }
     rules.rule(Call::Pass, 0.0, points(..12))
 }
@@ -553,27 +492,21 @@ mod tests {
     }
 
     #[test]
-    fn rule_of_20_opens_sound_eleven_counts() {
+    fn sound_eleven_counts_open_one_of_a_suit() {
         use crate::bidding::constraint::{PointScale, set_point_scale};
 
         let one_s = Call::Bid(Bid::new(1, Strain::Spades));
-        // 11 HCP, 5-2-4-2, Rule of 20 (11 + 9).  The wasted J9 voids the legacy
-        // points upgrade; by default we open the five-card major.
+        // 11 HCP, 5-2-4-2, Rule of 20 (11 + 9).  `points(12..)` on the shipped
+        // rule-of-N+8 scale *is* the Rule of 20, so the sole `points(12..=21)`
+        // opening covers this hand — there is no separate light rule.
         let sound_11 = "AK986.J9.QJT6.64";
         assert_eq!(opens(&openings(), sound_11), one_s);
 
-        // The shipped rule-of-N+8 scale absorbs the knob: Rule of 20 is
-        // exactly `points(12..)` there, so the hand opens even with the light
-        // rules off.
-        set_rule_of_20(false);
-        assert_eq!(opens(&openings(), sound_11), one_s);
-
-        // The knob's off arm only bites on the legacy opt-out scale, where the
-        // voided upgrade leaves this hand at 11 — the 12+ opener passes.
+        // The identity is what does the work: on the legacy opt-out scale the
+        // wasted J9 voids the upgrade, leaving the hand at 11, and it passes.
         set_point_scale(PointScale::PointCount);
         let call = opens(&openings(), sound_11);
         set_point_scale(PointScale::RuleOfNFloored);
-        set_rule_of_20(true);
         assert_eq!(call, Call::Pass);
     }
 

@@ -6,7 +6,7 @@
 # response) vs off (--no-ns-opener-extras-ladder, the minimum natural 2m/2M rebid
 # with no upper bound), both vulnerabilities, both scorers, arms strictly sequential, one
 # shared SEED_BASE (paired diffs need identical deals). Modeled on
-# scripts/rule-of-20-ab.sh; do NOT touch the codebase while it runs
+# scripts/competitive-rebid-ab.sh; do NOT touch the codebase while it runs
 # (bba-gen-parallel re-invokes cargo build; must stay a no-op).
 #
 #   PER_SHARD=6400 setsid nohup scripts/idle-run.sh \

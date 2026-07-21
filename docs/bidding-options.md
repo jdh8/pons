@@ -59,7 +59,7 @@ and the knob retired**. In practice the house keeps the shipped default-on knob'
   "retired" knob only faces developers, so it stays in rustdoc (no
   `#[doc(hidden)]`) — the off-switch should be documented for whoever re-measures.
 
-Retired this way so far: `rule_of_20`, `balanced_1nt_rebid`, and the fresh
+Retired this way so far: `balanced_1nt_rebid` and the fresh
 natural-≥-floor batch (`major_game_tries`, `longer_major_response`,
 `major_rebid_tails`, `competitive_rebid`, `suppress_nt_game_force_over_double`,
 `correct_3nt_to_major`, `overcall_discipline`, `trap_pass`,
@@ -70,6 +70,18 @@ artificial convention folds into base on naturalness, and up_the_line — whose
 trigger fires independent of `xyz()` and loses standalone — is only safe to
 force on when XYZ is forced on with it, which retiring both as a pair
 guarantees.
+
+**Deleted outright, not retired: `rule_of_20`.** The one case where the
+off-switch is not worth keeping is a knob whose two arms became *the same
+predicate*. Since `points` shipped on the rule-of-N+8 scale, `points(12..)` is
+the Rule of 20 wherever the two longest suits reach eight cards, so the light
+`hcp(10..=11) & rule_of_20()` openings were a strict subset of the
+`points(12..=21)` openings above them at identical weights, and the knob's off
+arm no longer bit. Deleted 2026-07-21 with the `rule_of_20()` constraint, the
+CLI flags, and `scripts/rule-of-20-ab.sh`; the identity is pinned by
+`points_twelve_is_the_rule_of_20` and `sound_eleven_counts_open_one_of_a_suit`.
+Its last verdict, for the record: plain +0.0061/+0.0087, PD −0.0056/−0.0034
+(doubler artifact), sd-lead +0.0096/+0.0135 (SEED 1783410574).
 
 ### Freshness vocabulary
 
@@ -92,7 +104,6 @@ that live *inside* a book are in Tier B.
 | set_open_one_notrump | `--no-our-1nt` | Natural | ON | Diagnostic isolation knob; whole-system 1NT gap `--filter-1nt` −1.05 IMPs/bd, leak is constructive ([project_bba-1nt-comparison]) | stale-pop | keep on; "improve" = the constructive-1NT campaign, not knob retirement |
 | NotrumpShape (1NT open) | `set_notrump_shape` (web radio, Settings → Openings) | Natural | **Wide6322** (Balanced/Wide/Wide6322) | **SHIPPED Wide6322 as default 2026-07-12**, contested vs BBA (204.8k/cell ×2 vuls, SHA c6a5643, `nt-shape-ab.sh` + `nt-shape-confirm-ab.sh`). (1) Wide vs Classic (5422-minor widening) plain **+0.0087/+0.0121**, PD +0.0060/+0.0092, **sd +0.0122/+0.0171** NV/vul — all 6 cells positive, sd>plain>PD. (2) Wide6322 vs Wide, **two seeds** (1783843252 + 1783844868): plain +0.0034…0.0048/+0.0048…0.0050, PD +0.0025…0.0033/+0.0035…0.0039, sd +0.0052…0.0054/+0.0063…0.0078 — all 6 cells positive both seeds, plain wins on its own. Soundness block cleared: 1NT inference now reads opener's minors 2–6 (majors 2–5), proptest passes | shipped | **folded into base**; the `american_wide()`/`american_classic()` baselines and the `--nt-shape` flag were retired once the decision folded in — `set_notrump_shape` still reaches every shape |
 | set_one_notrump_fifths | `--nt-fifths` | Natural | OFF | **archived** — already measured *losing* at the open boundary: plain HCP beat the centre-corrected fifths gauge **+0.067/+0.094** NV/vul (de-confounded ×2, 2026-06-23; HCP is the shipped default — [project_1nt-aggressive-redesign]), and Fifths is also refuted at the invite/responder boundary ([project_nt-invite-evaluator-sweep]). A refuted evaluator stays archived, not re-litigated per boundary | archived | keep opt-in off; no A/B |
-| set_rule_of_20 | `--no-ns-rule-of-20` | Natural | ON | plain +0.0061/+0.0087, PD −0.0056/−0.0034 (doubler artifact), sd-lead +0.0096/+0.0135 (SEED 1783410574, `rule-of-20-ab.sh`) | fresh | fold into base |
 | set_longer_major_response | `--no-ns-longer-major-response` | Natural | ON | plain-DD wash, PD −0.12/−0.22 per div; kept by naturalness tiebreak (commit 2ba6b90) | fresh | fold into base |
 | set_up_the_line | `--no-ns-up-the-line` | Natural | ON | **coupled with XYZ**: joint plain +0.0382/+0.0559, PD +0.0289/+0.0407; alone a loss −0.91/−1.28 per div | fresh | folded into base *with* XYZ (web toggle retired as a pair) |
 | set_major_game_tries | `--no-ns-major-game-tries` | Natural | ON | plain +0.042/+0.065 (both scorers win); package w/ FSF+limit-accept +0.058/+0.089 ([project_major-continuations]) | fresh | fold into base |

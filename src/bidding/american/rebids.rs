@@ -141,7 +141,7 @@ pub fn set_opener_extras_ladder(on: bool) {
 /// Whether opener's strength-showing rebid ladder is currently enabled
 ///
 /// Read at book-construction time by `register`, and at classify time by the
-/// matching `Inferences` reading (mirrors `rule_of_20_enabled`).
+/// matching `Inferences` reading.
 pub(crate) fn opener_extras_ladder() -> bool {
     OPENER_EXTRAS_LADDER.with(Cell::get)
 }

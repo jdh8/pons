@@ -311,7 +311,7 @@ the question rather than re-litigating which net floors it.
 Phase 3 authors the rows). Book and teacher then share the same rows, which
 makes the two-level branch the cleanest floor-transfer in the system. Costs a
 weak 5-4's opening, gains the weak 5-5 majors an opening Dutch does not have
-today (1♠ needs 10+ and Rule of 20).
+today (1♠ needs 10+ HCP and 12+ points).
 
 **Hand-containment, measured** (Dutch's opening table replayed over the same
 harvest — exact, since `fuzzy_fifths` is off so `fifths(20.0..22.0)` is literally
@@ -523,8 +523,21 @@ in `american.rs` → `pub(in crate::bidding)`. Openings live in
 Design choices to validate in the A/B (each defensible from the spec, cheap to
 flip):
 
-- **Rule of 20 is a hard gate** (`hcp(band) & rule_of_20()`), so a flat
-  sub-R20 minimum passes out — e.g. a 4-3-3-3 twelve-count (12+4+3 = 19).
+- **`points(12..)` is a hard gate** (`hcp(band) & points(12..)`), so a flat
+  sub-Rule-of-20 minimum passes out — e.g. a 4-3-3-3 twelve-count (12+4+3 = 19).
+  On the shipped rule-of-N+8 scale `points(12..)` *is* the Rule of 20 wherever
+  the two longest suits reach eight cards, which the 1♥/1♠/1♦ shape gates all
+  guarantee. The wide 1♣ is the sole exception — it admits flat 4-3-3-3, where
+  the floored scale reads raw HCP — so it carries an extra
+  `points(13..) | or(ASC, ..3)` term to keep the flat twelve out.
+
+  **That term is load-bearing, measured 2026-07-21** (`ab-results/dutch-r20`,
+  204.8k bd/arm/vul, SEED 1784664673, two stashed builds). Letting flat
+  twelve-counts open 1♣ lost **plain −0.0048 ±0.0021 / PD −0.0169 ±0.0028**
+  vulnerable and **plain +0.0000 ±0.0016 / PD −0.0096 ±0.0022** non-vulnerable —
+  plain loses on its own vul, so it is not a doubling artifact. All 298
+  divergences on a 40k-board witness were exactly this one class. Do not
+  "simplify" the term away.
 - **1NT is american's Wide6322 15–17** (balanced, or a 5422/6322 with a long
   minor) — flipped from the Phase-1 balanced-only choice on 2026-07-18, reusing
   american's `notrump_shape(NotrumpShape::Wide6322)`. The shape is already

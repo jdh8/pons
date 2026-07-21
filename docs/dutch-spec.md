@@ -24,9 +24,9 @@ Where pons deviates from the book it is called out inline (`pons:`).
 
 | Call | Meaning |
 | --- | --- |
-| **1♣** | 11–23, 1+♣ — the wide catch-all (`pons:` floored `2+♣`, behaviourally identical). Hosts strong balanced hands and every 4-diamond hand but the 4441. Rule-of-20 gated. |
+| **1♣** | 11–23, 1+♣ — the wide catch-all (`pons:` floored `2+♣`, behaviourally identical). Hosts strong balanced hands and every 4-diamond hand but the 4441. `points(12..)` gated, plus a doubleton-or-thirteenth-point term — the one node where `points(12..)` alone is not the Rule of 20, so a flat 4-3-3-3 still needs 13. |
 | **1♦** | 5+♦, or the singleton-club 4=4=4=1 — never 3♦. (`pons:` (xx)45 [4♦5♣] and all other 4-diamond hands open 1♣; the book's online "open 1♦ for (xx)45" is stale per jdh8.) |
-| **1♥ / 1♠** | 5+ cards, 10–20, Rule of 20 |
+| **1♥ / 1♠** | 5+ cards, 10–20 HCP, 12+ points (≡ Rule of 20 with a five-card suit) |
 | **2♣!** | strong: 21–23 with a 5-card major or 6-card minor, or any 24+ |
 | **2♦ / 2♥ / 2♠ / 2NT** | `pons:` still american weak-twos / strong 2NT until Phase 3 (Multi / Muiderberg / UNT) |
 

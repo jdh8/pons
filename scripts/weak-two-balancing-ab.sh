@@ -14,7 +14,7 @@
 # Each feature arm sets ONLY its own flag, so the paired per-shard diff vs base
 # isolates exactly one knob against BBA. Both vulnerabilities, both scorers
 # (plain DD + perfect-defense), arms strictly sequential, one shared SEED_BASE
-# (paired diffs need identical deals). Modeled on scripts/rule-of-20-ab.sh; do
+# (paired diffs need identical deals). Modeled on scripts/competitive-rebid-ab.sh; do
 # NOT touch the codebase while it runs (bba-gen-parallel re-invokes cargo build;
 # it must stay a no-op).
 #

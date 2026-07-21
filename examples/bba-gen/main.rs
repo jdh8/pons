@@ -175,11 +175,6 @@ struct Args {
     #[arg(long, default_value_t = false)]
     nt_fifths: bool,
 
-    /// Disable Rule-of-20 light openings (restores the 12+-only opener that
-    /// passes sound 10-11 counts); on by default.  Off-switch for the A/B.
-    #[arg(long, default_value_t = false)]
-    no_ns_rule_of_20: bool,
-
     /// Disable our continuations after the opponents contest our 2♣ Stayman
     /// (`1NT-(P)-2♣-(X)`/`-(2♦/2♥/2♠)`); on by default.  Off-switch for the A/B.
     #[arg(long, default_value_t = false)]
@@ -1091,7 +1086,6 @@ fn main() -> anyhow::Result<()> {
     pons::bidding::set_fallback_projection(!args.no_ns_fallback_projection);
     pons::bidding::american::set_open_one_notrump(!args.no_our_1nt);
     pons::bidding::american::set_one_notrump_fifths(args.nt_fifths);
-    pons::bidding::american::set_rule_of_20(!args.no_ns_rule_of_20);
     pons::bidding::american::set_natural_double_shape(match args.ns_double_shape.as_str() {
         "any" => DoubleShape::Any,
         "semi" => DoubleShape::SemiBalanced,

@@ -794,7 +794,7 @@ pub fn upgrade(hand: Hand) -> u8 {
 }
 
 /// Total length of the two longest suits — the shape kernel shared by
-/// [`upgrade`], [`rule_of_20`], and the rule-of-N+8 [`PointScale`]
+/// [`upgrade`] and the rule-of-N+8 [`PointScale`]
 fn longest_two_suits(hand: Hand) -> u8 {
     let mut lengths = Suit::ASC.map(|suit| hand[suit].len());
     lengths.sort_unstable();
@@ -1212,36 +1212,6 @@ impl Constraint for Balanced {
 #[must_use]
 pub fn balanced() -> Cons<impl Constraint + Clone> {
     Cons(Balanced)
-}
-
-/// Rule-of-Twenty kernel: raw HCP plus the two longest suit lengths total ≥ 20
-fn is_rule_of_20(hand: Hand) -> bool {
-    raw_hcp(hand) + longest_two_suits(hand) >= 20
-}
-
-/// Rule of 20 shape (the [`rule_of_20`] constraint)
-#[derive(Clone)]
-struct RuleOf20;
-
-impl Constraint for RuleOf20 {
-    fn eval(&self, hand: Hand, _: &Context<'_>) -> f32 {
-        crisp(is_rule_of_20(hand))
-    }
-
-    fn describe(&self) -> Description {
-        Description::atom("Rule of 20")
-    }
-}
-
-/// Rule of 20: raw HCP plus the two longest suits total at least 20
-///
-/// The classic light-opening test for a borderline 10–11 count with enough
-/// shape to open one of a suit.  Gauges *raw* HCP, not upgraded [`points`]:
-/// the upgrade voids on a wasted short-suit honor, which would reject exactly
-/// the shapely hands this rule is meant to admit.
-#[must_use]
-pub fn rule_of_20() -> Cons<impl Constraint + Clone> {
-    Cons(RuleOf20)
 }
 
 /// Kaplan–Rubens CCCC in a range (the [`cccc`] constraint)
@@ -2020,27 +1990,44 @@ mod tests {
         assert_eq!(upgrade(hand("KQ765.87654.AK.2")), 0); // AK tight
     }
 
+    /// `points(12..)` *is* the Rule of 20 — the identity the dedicated
+    /// `rule_of_20()` constraint was deleted in favour of
     #[test]
-    fn test_rule_of_20() {
+    fn points_twelve_is_the_rule_of_20() {
         let context = empty_context();
-        let opens = |text: &str| rule_of_20().eval(hand(text), &context);
+        let opens = |text: &str| points(12..).eval(hand(text), &context);
+        // Raw HCP + the two longest suits, the classic Rule-of-20 kernel.
+        let rule_of_20 = |text: &str| {
+            let hand = hand(text);
+            raw_hcp(hand) + longest_two_suits(hand) >= 20
+        };
 
-        // 11 HCP, 5-4: 11 + 9 = 20.  The wasted J9 that voids the points upgrade
-        // is irrelevant to the raw-HCP Rule of 20 — that is the whole point of
-        // gauging raw HCP here rather than upgraded `points`.
-        assert_pass(opens("AK986.J9.QJT6.64"));
-        // 11 HCP, 6-6: 11 + 12 = 23.
-        assert_pass(opens(".KQ7542.A.Q96542"));
-        // 10 HCP, 6-4: 10 + 10 = 20.
-        assert_pass(opens("KJ9876.5.KQJ4.32"));
-        // Raw HCP, so a 7-count 7-6 also clears (7 + 13); the opening rule's
-        // hcp(10..) floor, not this predicate, keeps such freaks out.
-        assert_pass(opens("A765432.K76543.."));
-
-        // Flat 11-count 4-3-3-3: 11 + 7 = 18.
-        assert_reject(opens("KQ32.K32.Q32.J32"));
-        // 11 HCP, 5-3-3-2: 11 + 8 = 19 — still a pass, not a Rule-of-20 opener.
+        // 11 HCP, 5-4: 11 + 9 = 20.  The wasted J9 that voids the *legacy*
+        // upgrade is irrelevant to the rule-of-N+8 scale, which is pure shape.
+        // 11 HCP, 6-6: 11 + 12 = 23.  10 HCP, 6-4: 10 + 10 = 20.  A 7-count 7-6
+        // clears too (7 + 13) — the opening rule's own HCP floor, not the point
+        // count, is what keeps such freaks out.
+        for text in [
+            "AK986.J9.QJT6.64",
+            ".KQ7542.A.Q96542",
+            "KJ9876.5.KQJ4.32",
+            "A765432.K76543..",
+        ] {
+            assert!(rule_of_20(text));
+            assert_pass(opens(text));
+        }
+        // 11 HCP, 5-3-3-2: 11 + 8 = 19 — a pass under both readings.
+        assert!(!rule_of_20("KQ876.K32.Q32.J2"));
         assert_reject(opens("KQ876.K32.Q32.J2"));
+
+        // The identity holds wherever the two longest suits reach 8 cards, i.e.
+        // every shape but flat 4-3-3-3, where the floored scale reads raw HCP:
+        // a flat 12-count is `points(12..)` but not Rule-of-20 (12 + 7 = 19).
+        assert!(!rule_of_20("KJ32.K32.K32.Q32"));
+        assert_pass(opens("KJ32.K32.K32.Q32"));
+        // A flat 11-count is short of both.
+        assert!(!rule_of_20("KQ32.K32.Q32.J32"));
+        assert_reject(opens("KQ32.K32.Q32.J32"));
     }
 
     #[test]
@@ -2264,7 +2251,8 @@ mod tests {
 
     #[test]
     fn test_partner_shown_len_and_points() {
-        // Partner opened 1♦ (3+ diamonds, 10+ by Rule of 20), RHO passed; we act.
+        // Partner opened 1♦ (3+ diamonds, 10+ HCP — `points(12..)` is the Rule
+        // of 20), RHO passed; we act.
         let auction = [Call::Bid(Bid::new(1, Strain::Diamonds)), Call::Pass];
         let context = Context::new(RelativeVulnerability::NONE, &auction);
 

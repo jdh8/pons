@@ -6,7 +6,7 @@
 //! `docs/dutch-system.md` for the full spec.
 
 use crate::bidding::american::{NotrumpShape, notrump_shape};
-use crate::bidding::constraint::{balanced, fifths, hcp, len, nth_seat, or, points, rule_of_20};
+use crate::bidding::constraint::{balanced, fifths, hcp, len, nth_seat, or, points};
 use crate::bidding::{Alert, Rules};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Strain, Suit};
@@ -22,9 +22,10 @@ const STRONG_2C: Alert = Alert("strong-2c");
 /// opens 2NT here — the wide 1♣ only hosts 22–23 balanced until Phase 3 turns
 /// 2NT into UNT.
 ///
-/// Sharp on shape, and Rule-of-20 sound: a one-level opening needs its HCP band
-/// **and** raw HCP + two longest suits ≥ 20, so a flat sub-Rule-of-20 minimum
-/// (e.g. a 4-3-3-3 twelve-count) passes.  The finite `Pass` catch-all keeps the
+/// Sharp on shape, and sound: a one-level opening needs its raw-HCP band **and**
+/// `points(12..)`, which on the shipped rule-of-N+8 scale is the Rule of 20
+/// wherever the two longest suits reach eight cards — every shape but flat
+/// 4-3-3-3, which reads its raw HCP.  The finite `Pass` catch-all keeps the
 /// table total.
 pub(super) fn dutch_openings() -> Rules {
     let majors = [Suit::Hearts, Suit::Spades];
@@ -51,36 +52,48 @@ pub(super) fn dutch_openings() -> Rules {
             2.0,
             fifths(20.0..22.0) & balanced(),
         )
-        // Five-card majors, 10–20 HCP, Rule of 20; 1♠ ranks above 1♥ so 5-5 opens
-        // the higher.
+        // Five-card majors, 10–20 HCP and 12+ points; 1♠ ranks above 1♥ so 5-5
+        // opens the higher.
         .rule(
             Bid::new(1, Strain::Spades),
             1.6,
-            hcp(10..=20) & rule_of_20() & len(Suit::Spades, 5..),
+            hcp(10..=20) & points(12..) & len(Suit::Spades, 5..),
         )
         .rule(
             Bid::new(1, Strain::Hearts),
             1.5,
-            hcp(10..=20) & rule_of_20() & len(Suit::Hearts, 5..),
+            hcp(10..=20) & points(12..) & len(Suit::Hearts, 5..),
         )
         // 1♦ — 5+♦, or exactly the singleton-club 4=4=4=1 (`≤1♣` with no five-card
-        // major forces four diamonds).  No five-card major; 11–23, Rule of 20.
+        // major forces four diamonds).  No five-card major; 11–23 HCP, 12+ points.
         .rule(
             Bid::new(1, Strain::Diamonds),
             1.0,
             hcp(11..=23)
-                & rule_of_20()
+                & points(12..)
                 & len(Suit::Hearts, ..5)
                 & len(Suit::Spades, ..5)
                 & (len(Suit::Diamonds, 5..) | len(Suit::Clubs, ..=1)),
         )
         // 1♣ — the wide catch-all: 2+♣, ≤4♦ (deny 5+♦), no five-card major;
-        // 11–23, Rule of 20.  Soaks up every four-diamond hand but the 4=4=4=1.
+        // 11–23 HCP, 12+ points.  Soaks up every four-diamond hand but the
+        // 4=4=4=1.
+        //
+        // The only node whose shape gate does not already force the two longest
+        // suits to eight cards, so the only one where `points(12..)` is not the
+        // Rule of 20: a flat 4-3-3-3 reads its raw HCP on the floored scale, and
+        // opening those on twelve measured plain −0.0048 / PD −0.0169 IMPs per
+        // board vulnerable (204.8k/arm/vul, SEED 1784664673, `ab-results/dutch-r20`).
+        // `or(ASC, ..3)` — some suit at most a doubleton — is exactly "not flat
+        // 4-3-3-3" here, since ♦/♥/♠ are already capped at four and any club
+        // length of five or more leaves a doubleton behind.  So a flat twelve
+        // needs its thirteenth point, which is what the Rule of 20 asked for.
         .rule(
             Bid::new(1, Strain::Clubs),
             1.0,
             hcp(11..=23)
-                & rule_of_20()
+                & points(12..)
+                & (points(13..) | or(Suit::ASC, ..3))
                 & len(Suit::Clubs, 2..)
                 & len(Suit::Diamonds, ..5)
                 & len(Suit::Hearts, ..5)

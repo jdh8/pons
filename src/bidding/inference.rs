@@ -2743,17 +2743,12 @@ fn meckwell_reading(auction: &[Call]) -> Option<MeckwellReading> {
 
 /// Apply the meaning of the opening bid (the first non-pass call)
 fn apply_opening(inf: &mut Inference, bid: Bid, seat: u8) {
-    // Rule-of-20 light openers (default on) drop the one-level suit point floor
-    // from 12 to 10 in any seat; third/fourth seat opens majors lighter still (9).
-    let light = crate::bidding::american::rule_of_20_enabled();
-    let major_floor = if seat >= 3 {
-        9
-    } else if light {
-        10
-    } else {
-        12
-    };
-    let minor_floor = if light { 10 } else { 12 };
+    // A one-level suit opening reads 10, not 12: `points(12..)` on the shipped
+    // rule-of-N+8 scale is the Rule of 20, which admits sound 10-11 counts, and
+    // the reading has to stay loose enough for a floor arm or an opponent whose
+    // scale we do not control.  Third/fourth seat opens majors lighter still (9).
+    let major_floor = if seat >= 3 { 9 } else { 10 };
+    let minor_floor = 10;
     let majors_light = Range::new(major_floor, 21);
     match (bid.level.get(), bid.strain) {
         (1, Strain::Hearts) => {
@@ -2891,7 +2886,8 @@ mod tests {
         // [1♥]: the opener sits to our right (the call just before ours).
         let one_heart = read(&[bid(1, Strain::Hearts)]);
         assert_eq!(one_heart.rho().length(Suit::Hearts), Range::new(5, 13));
-        // Rule of 20 (default on) opens sound 10-11 counts, so the floor is 10.
+        // `points(12..)` is the Rule of 20, which opens sound 10-11 HCP counts,
+        // so the floor is 10.
         assert_eq!(one_heart.rho().points, Range::new(10, 21));
 
         // A strong notrump is balanced-or-6322-minor (the shipped Wide6322): a
@@ -4075,7 +4071,7 @@ mod tests {
     fn cheapest_two_notrump_over_a_response_is_not_strong() {
         // [1♦, P, 2♣, P, 2NT, P]: 2NT is the *cheapest* notrump over a 2/1, a
         // minimum — it must not be read as the 18–19 jump.  Opener stays at the
-        // opening floor (10–21 with Rule of 20 on).
+        // opening floor (10–21).
         let inf = read(&[
             bid(1, Strain::Diamonds),
             Call::Pass,
@@ -4118,8 +4114,8 @@ mod tests {
     #[test]
     fn competition_suppresses_the_limited_rebid_reading() {
         // [1♦, P, 1♥, 1♠, 1NT, P]: with the opponents in, opener's 1NT is not
-        // the quiet 12–16 rebid — leave the strength at the opening floor (10–21
-        // with Rule of 20 on).
+        // the quiet 12–16 rebid — leave the strength at the opening floor
+        // (10–21).
         let inf = read(&[
             bid(1, Strain::Diamonds),
             Call::Pass,

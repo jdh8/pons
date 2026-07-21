@@ -34,7 +34,7 @@ use contract_bridge::{AbsoluteVulnerability, Contract, Seat};
 use pons::american;
 use pons::bidding::american::{
     FreeBidStyle, NegativeDoubleShape, set_free_1nt_floor, set_free_bid_style, set_free_bids,
-    set_negative_double_shape, set_rule_of_20,
+    set_negative_double_shape,
 };
 use pons::bidding::context::relative;
 use pons::bidding::{Family, Inferences, Stance};
@@ -75,10 +75,6 @@ struct Args {
     /// Worlds sampled per declarer decision (with --sd-declarer)
     #[arg(long, default_value_t = 16)]
     declarer_worlds: usize,
-    /// Read the ON arm's auctions with the Rule-of-20 opener disclosure (its
-    /// light 10-11 openings widen what an opening bid shows to the leader)
-    #[arg(long, default_value_t = false)]
-    on_rule_of_20: bool,
     /// Read the ON arm's auctions with responder's free bids authored
     /// (`set_free_bids`; opener's answers ride along)
     #[arg(long, default_value_t = false)]
@@ -149,13 +145,11 @@ fn main() {
         "transfer" => FreeBidStyle::Transfer,
         other => panic!("unknown free-bid style {other}"),
     };
-    set_rule_of_20(args.on_rule_of_20);
     set_free_bids(args.on_ns_free_bids);
     set_negative_double_shape(shape(&args.on_ns_negative_double_shape));
     set_free_bid_style(style(&args.on_ns_free_bid_style));
     set_free_1nt_floor(args.on_ns_free_1nt_floor);
     let stance_on = american().against(Family::NATURAL);
-    set_rule_of_20(false);
     set_free_bids(false);
     set_negative_double_shape(NegativeDoubleShape::Modern);
     set_free_bid_style(FreeBidStyle::Forcing);

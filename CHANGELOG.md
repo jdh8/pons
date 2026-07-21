@@ -7,6 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+- **`rule_of_20()` is gone — `points` already is the Rule of 20.** Since
+  `point_count` shipped on the floored rule-of-N+8 scale, `points = raw HCP +
+  max(0, L₂ − 8)`, so `points ≥ 12 ⟺ raw HCP + L₂ ≥ 20` for every `L₂ ≥ 8`. The
+  constraint, the `set_rule_of_20` knob, its `--no-ns-rule-of-20` /
+  `--on-rule-of-20` CLI flags, the `rule_of_20_enabled` reader in
+  `apply_opening`, and `scripts/rule-of-20-ab.sh` are all deleted; net −191/+113
+  lines. **Breaking**: `bidding::constraint::rule_of_20` and
+  `bidding::american::set_rule_of_20` were public.
+
+  American's four "light" rule-of-20 openings were *dead code* on the shipped
+  scale and were deleted rather than rewritten: `hcp(10..=11)` plus Rule of 20
+  forces `L₂ ≥ 9`, hence `points ∈ [12,16] ⊂ [12,21]`, and the `points(12..=21)`
+  openings directly above them carried identical strain conditions at identical
+  weights (1.6/1.5/1.0/1.0). The opening *reader* keeps its floor of 10 — it has
+  to stay loose for `american_floor()`, for `set_point_scale`, and for opponents
+  read with our floors, none of which honour the identity.
+
+  Dutch's four one-level openings moved from `hcp(band) & rule_of_20()` to
+  `hcp(band) & points(12..)`, exact for 1♥/1♠/1♦ (their shape gates force
+  `L₂ ≥ 8`). The wide 1♣ is the one node that admits flat 4-3-3-3, where the
+  floored scale reads raw HCP, so it carries an extra `points(13..) |
+  or(Suit::ASC, ..3)` — "some doubleton, or a thirteenth point" — which is
+  exactly "not flat 4-3-3-3" under that node's existing caps.
+
+  **Measured, and the guard is load-bearing.** Dropping the flat-4333 term (i.e.
+  letting flat twelve-counts open 1♣) lost plain **−0.0048 ±0.0021** / PD
+  **−0.0169 ±0.0028** IMPs per board vulnerable and plain +0.0000 ±0.0016 / PD
+  −0.0096 ±0.0022 non-vulnerable — plain loses on its own vul, so it is not a
+  doubling artifact (204.8k bd/arm/vul, both vulnerabilities, SEED 1784664673,
+  `ab-results/dutch-r20`, two stashed builds since no knob exists). All 298
+  divergences on a 40k-board witness were that single class.
+
+  **Verified as a no-op, not measured as a wash.** `bba-gen` auction dumps at a
+  fixed seed, before vs after, over `american`, `american-instinct` and `dutch`
+  × both vulnerabilities: **0 of 20 000 auctions differ in all six arms**. The
+  identity is pinned by `points_twelve_is_the_rule_of_20` (constraint.rs) and
+  `sound_eleven_counts_open_one_of_a_suit` (american/openings.rs), which shows
+  the sound 11-count still opens 1♠ and passes on the legacy opt-out scale.
+
 ### Fixed
 
 - **A negated constraint now projects.** `Flip` implemented `eval` and
