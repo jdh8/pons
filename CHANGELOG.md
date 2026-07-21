@@ -251,6 +251,61 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   arg-max. The `matches_candle_fixture_bba` parity test guards the same property
   against the trainer's candle logits.
 
+- **Trainer hygiene for the evaluator net** (`trainer/src/bin/evaluator.rs`).
+  The training loop walked the corpus in order with no permutation anywhere in
+  the file. The corpus is deal-major at ~20 rows per deal and all rows of a
+  deal share one DD label vector, so a nominal 4096-row minibatch held only
+  **~200 distinct labels replicated ~20×** — and the *same* ~200, in the same
+  order, every epoch. Since the `ln σ` head is fit from the spread of residuals
+  within a batch, that was the suspected cause of the recorded instability (the
+  `μ` head reproducible to ~0.004 MAE run to run while `ln σ` moved 0.075 NLL
+  and 2.7 points of coverage). Now: a Fisher–Yates row permutation each epoch
+  gathered through `index_select`, cosine LR decay to ~0, and a best-val
+  checkpoint (the exporter shipped whatever the final epoch landed on). The
+  splitmix64 generator already inside `seed_params` is lifted to a free
+  function and reused, so no new dependency.
+
+  **The instability hypothesis was tested and refuted**, so it is recorded here
+  rather than claimed. Across 3 seeds × {old, new} at 150 epochs, the run-to-run
+  NLL spread did not shrink — it went 0.072 → 0.153, and coverage 2.4 → 5.1
+  points. Both arms have exactly one bad seed in three, and the new arm's bad
+  run was already lost at **epoch 1** (val nll −1.049 at 61.9% coverage against
+  −1.400 at 49.8%), never recovered, and its best-val checkpoint was its final
+  epoch. That is a bimodal initialisation basin — one run in three settling in a
+  wide-σ well — not a batching artifact.
+
+  The ladder below then placed that basin: the NLL spread across three seeds is
+  0.143 at hidden 0 and 0.149 at 64, but **0.0011 at 128 and 0.0006 at 256**. So
+  `ln σ` is not inherently init-sensitive; it is init-sensitive *while the net is
+  too narrow to fit the corpus*, and the instability the doc has been attributing
+  to the head's nature disappears at the width we would actually ship. The
+  softplus clamp change deferred as "the next suspect" has nothing left to fix at
+  256 and should not be written.
+
+  The change stands on hygiene, the same footing the quartile → Gaussian-NLL
+  switch was taken on: a loop that never permutes a deal-major corpus is
+  defective on its face, and a wash is good enough for a correctness fix. It did
+  buy one unpredicted gain — **`below-mu` moved from 48.0–48.3% to 49.9–50.1%**,
+  dead nominal, consistent across all three seeds including the bad one. Roughly
+  2 points of the recorded skew from the Gaussian's symmetry assumption was the
+  fixed batch composition, not the parameterisation.
+
+  **The width ladder, re-run on the fixed loop at three seeds per rung** (the old
+  one was single-seed, and the seed lottery above is an order of magnitude larger
+  than the width effect it was meant to detect). Median val MAE: 1.561 linear →
+  1.499 at 64 → 1.485 at 128 → **1.472 at 256** → 1.472/1.474 at 512. The
+  recorded verdict that "64 is where the ladder stops" was an artifact of the old
+  loop; the knee is at 256. Hidden 512 ties on MAE, loses on NLL at every seed
+  (−1.4833/−1.4825 against 256's −1.4851/−1.4850/−1.4845, no overlap), and
+  quadruples the train−val gap per rung — 0.005 at 128, 0.014 at 256, 0.053 at
+  512 — which is capacity going into memorising 100k deals, not into fit. The
+  one-hot texture verdict and the ablation deltas are still un-re-run.
+
+  No weights ship from this: the crate's evaluator net is untouched, and the
+  0.1060 band error of record stands until a candidate is re-scored on the same
+  held-out shard. `docs/ai-bidder/evaluator-net.md` still carries the
+  quartile-era ladder and ablation tables and is now out of date.
+
 - **`docs/ai-bidder/bba-floor.md` — what BBA's "calculated bid" actually
   computes.** The June study established that EPBot's floor is *programmatic*;
   §5 now documents the mechanism. It is the **`bilans`** ("balance") engine —

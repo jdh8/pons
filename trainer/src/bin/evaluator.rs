@@ -59,6 +59,30 @@ const LEN_RANGES: usize = 30;
 /// One seat's unknown-range encoding: `[min, max]` pairs of `[0, 1]`.
 const UNKNOWN_PAIR: [f32; 2] = [0.0, 1.0];
 
+/// splitmix64: advance `state` and return the next word.
+///
+/// A few lines beat a new dependency, and reproducibility is the only thing
+/// asked of it. Shared by [`seed_params`] and the per-epoch shuffle.
+fn splitmix64(state: &mut u64) -> u64 {
+    *state = state.wrapping_add(0x9E37_79B9_7F4A_7C15);
+    let mut z = *state;
+    z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
+    z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
+    z ^ (z >> 31)
+}
+
+/// Deep-copy every parameter, for the best-val checkpoint.
+///
+/// `Var::set` writes through the existing storage, so a cloned `Tensor` would
+/// alias the live parameter and be clobbered by the next optimiser step —
+/// [`Tensor::copy`] is what makes the snapshot a snapshot.
+fn snapshot(varmap: &VarMap) -> Result<Vec<(String, Tensor)>> {
+    let data = varmap.data().lock().expect("varmap poisoned");
+    data.iter()
+        .map(|(name, var)| Ok((name.clone(), var.as_tensor().copy()?)))
+        .collect()
+}
+
 /// Deterministically re-initialise every parameter from `seed`.
 ///
 /// candle's CPU device rejects `set_seed`, so `VarBuilder`'s init is drawn from
@@ -69,17 +93,8 @@ const UNKNOWN_PAIR: [f32; 2] = [0.0, 1.0];
 /// Weights are `U(-k, k)` with `k = 1/√fan_in` (PyTorch's `Linear` default);
 /// biases start at zero.
 fn seed_params(varmap: &VarMap, seed: u64, device: &Device) -> Result<()> {
-    // splitmix64. A few lines beat a new dependency, and reproducibility is the
-    // only thing asked of it.
     let mut state = seed;
-    let mut unit = move || {
-        state = state.wrapping_add(0x9E37_79B9_7F4A_7C15);
-        let mut z = state;
-        z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
-        z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
-        z ^= z >> 31;
-        (z >> 11) as f64 / (1u64 << 53) as f64
-    };
+    let mut unit = move || (splitmix64(&mut state) >> 11) as f64 / (1u64 << 53) as f64;
     let data = varmap.data().lock().expect("varmap poisoned");
     // Sorted, so the draw order does not depend on HashMap iteration order.
     let mut names: Vec<_> = data.keys().collect();
@@ -219,25 +234,50 @@ fn main() -> Result<()> {
         },
     )?;
 
+    // The corpus is deal-major with ~20 rows per deal, and all rows of a deal
+    // share one DD label vector. Walked in order, a nominal 4096-row batch holds
+    // only ~200 distinct labels replicated ~20× — and the same ~200 every epoch.
+    // The σ head is fit from the spread of residuals within a batch, so that is
+    // exactly the head a fixed, label-degenerate batching destabilises. Shuffle.
+    let mut perm: Vec<u32> = (0..train.rows as u32).collect();
+    let mut rng = args.seed ^ 0x5EED_5EED_5EED_5EED;
+    let mut best: Option<(f32, Vec<(String, Tensor)>)> = None;
+
     for epoch in 1..=args.epochs {
+        // Fisher–Yates.
+        for i in (1..perm.len()).rev() {
+            perm.swap(i, (splitmix64(&mut rng) % (i as u64 + 1)) as usize);
+        }
+        // Cosine decay to ~0; the decayed tail is what lets the σ head settle.
+        let progress = (epoch - 1) as f64 / args.epochs.max(1) as f64;
+        opt.set_learning_rate(args.lr * 0.5 * (1.0 + (std::f64::consts::PI * progress).cos()));
+
         let (mut start, mut running, mut steps) = (0usize, 0f32, 0usize);
         while start < train.rows {
             let len = args.batch.min(train.rows - start);
-            let pred = model.forward(&xtrain.narrow(0, start, len)?)?;
-            let loss = gaussian_nll(&pred, &ytrain.narrow(0, start, len)?, targets)?;
+            let idx = Tensor::from_slice(&perm[start..start + len], len, &device)?;
+            let pred = model.forward(&xtrain.index_select(&idx, 0)?)?;
+            let loss = gaussian_nll(&pred, &ytrain.index_select(&idx, 0)?, targets)?;
             opt.backward_step(&loss)?;
             running += loss.to_scalar::<f32>()?;
             steps += 1;
             start += len;
         }
+
+        // Every epoch, so the checkpoint is the true best and not the best of a
+        // 5-epoch stride; a val forward pass is cheap beside the training epoch.
+        let e = evaluate(&model, &xval, &yval, targets, &val.tags)?;
+        let nll = e.overall.mean_nll();
+        if best.as_ref().is_none_or(|(b, _)| nll < *b) {
+            best = Some((nll, snapshot(&varmap)?));
+        }
         if epoch == 1 || epoch % 5 == 0 || epoch == args.epochs {
-            let e = evaluate(&model, &xval, &yval, targets, &val.tags)?;
             eprintln!(
                 "epoch {epoch:>4}: train {:.5}  val nll {:.5}  MAE {:.3}  RMSE {:.3} tricks  \
                  coverage {:.1}% (constructive {:.1}% / contested {:.1}%)  \
                  below-mu {:.1}%",
                 running / steps as f32,
-                e.overall.mean_nll(),
+                nll,
                 e.overall.mae_tricks(),
                 e.overall.rmse_tricks(),
                 100.0 * e.overall.coverage(),
@@ -248,6 +288,14 @@ fn main() -> Result<()> {
         }
     }
 
+    // Ship the best epoch, not whatever the last one happened to land on.
+    if let Some((nll, params)) = best {
+        let data = varmap.data().lock().expect("varmap poisoned");
+        for (name, tensor) in &params {
+            data[name].set(tensor)?;
+        }
+        eprintln!("restored best-val checkpoint: nll {nll:.5}");
+    }
     let final_eval = evaluate(&model, &xval, &yval, targets, &val.tags)?;
     export(&args, &varmap, &model, &xval, &train, targets, &final_eval)?;
     Ok(())
