@@ -4561,6 +4561,128 @@ mod tests {
         );
     }
 
+    /// Sibling invariant to [`artificial_calls_are_alerted`]: an authored rule that
+    /// *gates* on an axis must not *read* as ⊤ on that axis.
+    ///
+    /// The fit-split bug is the motivating case (see
+    /// `docs/ai-bidder/sampled-projection.md`): `hcp(13..) | (support(3..) &
+    /// support_points(13..))` is a correct bidding rule that measured as a win, yet
+    /// its projection says nothing about points at all — `Or::project` is the union,
+    /// and `SupportPoints::project` is deliberately `unknown()`, so the union is
+    /// `0..=37`.  Nothing errored and no test went red; the reading simply stopped
+    /// knowing anything and kept a straight face.  The principle this pins down: the
+    /// machinery may be *imprecise*, but never imprecise **invisibly**.
+    ///
+    /// "Mentions an axis" is read off [`Constraint::describe`], the only structural
+    /// record of which axes a rule names.  That means sniffing the noun out of the
+    /// rendered atom — fragile against rewording, and the two helpers below carry the
+    /// exclusions that keeps the signal usable (off-axis `suit_hcp` and the honour
+    /// gauges read "… in ♠", vacuous `0+` floors are ⊤ *correctly*).  Points are
+    /// checked against [`Constraint::project_band`], not `project`: `project` claims
+    /// floors only on purpose, so a ceiling-only rule is not a leak there.
+    ///
+    /// **Pinned as counts, not as a list.** The 114 leaks all fall into four causes,
+    /// none of which is an authoring error:
+    ///
+    /// | cause | example |
+    /// | --- | --- |
+    /// | `SupportPoints::project` is `unknown()` by design | `13+ support points` |
+    /// | `Or::project` unions a floor away | `5+ ♣ \| 5+ ♦` |
+    /// | `support(4..)` unresolved to a concrete suit | `partner's last suit is ♠` |
+    /// | a shortness ceiling inside an `Or` | `18+ support points \| ≤1 ♣` |
+    ///
+    /// So the assertion is a **ratchet**: the numbers may fall (Stage A tightens
+    /// `Flip`, Stage B the points axis) but never rise.  A fix-one-add-one swap slips
+    /// through, which is the price of not maintaining a 114-line snapshot.
+    #[test]
+    fn authored_calls_read_what_they_gate() {
+        use crate::bidding::american::american;
+        use crate::bidding::constraint::Description;
+
+        /// Flatten a description tree into its leaf atoms.
+        fn atoms(description: &Description, out: &mut Vec<String>) {
+            match description {
+                Description::Atom(text) => out.push(text.to_string()),
+                Description::Not(inner) => atoms(inner, out),
+                Description::All(parts) | Description::Any(parts) => {
+                    for part in parts {
+                        atoms(part, out);
+                    }
+                }
+                Description::Opaque => {}
+            }
+        }
+
+        /// A non-vacuous points claim: `describe_int_range` puts the noun last.
+        fn claims_points(atom: &str) -> bool {
+            (atom.ends_with("HCP") || atom.ends_with("points")) && !atom.starts_with("0+")
+        }
+
+        /// A non-vacuous *length* claim for `suit` — so the atom ends with the suit
+        /// symbol and is not one of the off-axis "… in ♠" gauges.
+        fn claims_length(atom: &str, symbol: &str) -> bool {
+            atom.ends_with(symbol) && !atom.starts_with("0+") && !atom.contains(" in ")
+        }
+
+        let pair = american();
+        let tries = [
+            ("constructive", &pair.constructive.0),
+            ("competitive", &pair.competitive.0),
+            ("defensive", &pair.defensive.0),
+        ];
+
+        let mut points_leaks: Vec<String> = Vec::new();
+        let mut length_leaks: Vec<String> = Vec::new();
+        for (phase, trie) in tries {
+            for (auction, classifier) in trie {
+                let auction: &[Call] = &auction;
+                let Some(rules) = classifier.as_rules() else {
+                    continue;
+                };
+                let context = Context::new(RelativeVulnerability::NONE, auction)
+                    .with_prefixes(trie.common_prefixes(auction));
+                for rule in rules.rules() {
+                    let mut leaves = Vec::new();
+                    atoms(&rule.describe(), &mut leaves);
+                    let band = rule.project_band(&context);
+                    let text = leaves.join(" | ");
+
+                    if leaves.iter().any(|atom| claims_points(atom))
+                        && band.points == Range::FULL_POINTS
+                    {
+                        points_leaks.push(format!("{phase}: {} :: {text}", rule.call()));
+                    }
+                    for suit in Suit::ASC {
+                        let symbol = suit.to_string();
+                        if leaves.iter().any(|atom| claims_length(atom, &symbol))
+                            && band.length(suit) == Range::FULL_LENGTH
+                        {
+                            length_leaks
+                                .push(format!("{phase}: {symbol} {} :: {text}", rule.call()));
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        points_leaks.sort();
+        points_leaks.dedup();
+        length_leaks.sort();
+        length_leaks.dedup();
+
+        // ponytail: counts, not a snapshot.  Ratchet these down as the stages land.
+        assert!(
+            points_leaks.len() <= 61 && length_leaks.len() <= 53,
+            "axis readings regressed: {} points leaks (was 61), {} length leaks (was 53)\n\
+             --- POINTS ---\n{}\n--- LENGTH ---\n{}",
+            points_leaks.len(),
+            length_leaks.len(),
+            points_leaks.join("\n"),
+            length_leaks.join("\n"),
+        );
+    }
+
     /// The same alert invariant, but for the opt-in Gladiator book (off by default,
     /// so the walk above never sees it).  A Gladiator artificial call added without
     /// `.alert(...)` fails here.

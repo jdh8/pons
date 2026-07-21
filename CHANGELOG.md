@@ -9,6 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **An invariant test that an authored rule reads what it gates on**
+  (`authored_calls_read_what_they_gate`; no shipped behaviour change). The
+  sibling of `artificial_calls_are_alerted`, and the motivating case is the
+  shipped 2/1 fit-split: `hcp(13..) | (support(3..) & support_points(13..))` is
+  a correct bidding rule that measured as a win, yet its projection says
+  nothing about points at all — `Or::project` is the union and
+  `SupportPoints::project` is deliberately `unknown()`, so the union is
+  `0..=37`. Nothing errored and no test went red; the reading simply stopped
+  knowing anything and kept a straight face, which is the failure mode this
+  pins down — the machinery may be *imprecise*, but never imprecise
+  **invisibly**. The walk finds **114 such leaks across 44,468 rules** (61 on
+  points, 53 on length), in four causes, none an authoring error:
+  `SupportPoints::project` being `unknown()` by design, `Or::project` unioning
+  a floor away, `support(4..)` unresolved to a concrete suit, and a shortness
+  ceiling inside an `Or`. Pinned as **counts rather than a snapshot**, so the
+  numbers may fall as the projection stages land but never rise; the hole that
+  admits is a fix-one-add-one swap, which is the price of not maintaining a
+  114-line list that churns on every reworded description. Points are checked
+  against `project_band`, not `project`, since `project` claims floors only on
+  purpose and a ceiling-only rule is not a leak there.
+
 - **A featurization sweep harness for the trick evaluator** (research tooling;
   no shipped behaviour change). `dump-evaluator --encoding bits` emits a
   79-float research superset — per suit `len/13`, a spot count, `suit_hcp/10`
