@@ -89,6 +89,39 @@ pub trait Constraint: Send + Sync {
     fn project_band(&self, context: &Context<'_>) -> Inference {
         self.project(context)
     }
+
+    /// Project the **negation** of this constraint into its envelope
+    ///
+    /// What [`Flip`] reads: the hands `!self` accepts are exactly the ones
+    /// `self` rejects, so a gate that pins one axis to a half-open band pins
+    /// the same axis to the other half.  `!len(♠, 4..)` is "at most three
+    /// spades", which is a perfectly ordinary box — the information was there
+    /// all along, and only the missing fold lost it.
+    ///
+    /// Two-sided by construction, so [`Flip`] uses it for
+    /// [`project_band`][Self::project_band] as well.  The default asserts
+    /// nothing, and so does every implementor whose complement is *not* a box:
+    /// `!hcp(13..=15)` is a union of two bands, which one [`Inference`] cannot
+    /// hold, and returning either half alone would reject legal hands.  That
+    /// asymmetry is the whole reason negation is pushed to the leaves before
+    /// anything is complemented — `!⊤ = ⊥` is *tighter than the truth*, and an
+    /// off-axis gauge like [`suit_hcp`] approximates to ⊤.
+    fn project_complement(&self, _context: &Context<'_>) -> Inference {
+        Inference::unknown()
+    }
+}
+
+/// The complement of a band within `0..=cap`, when the complement is a band
+///
+/// `4..` complements to `0..=3` and `..=3` to `4..=13`.  A two-sided band like
+/// `4..=5` complements to a *union*, which an [`Inference`]'s single box cannot
+/// hold, so it widens back to the full range instead.
+fn complement_range(range: Range, cap: u8) -> Option<Range> {
+    match (range.min, range.max) {
+        (0, max) if max < cap => Some(Range::new(max + 1, cap)),
+        (min, max) if min > 0 && max == cap => Some(Range::new(0, min - 1)),
+        _ => None,
+    }
 }
 
 /// Closures are natural constraints
@@ -126,6 +159,10 @@ impl<T: Constraint> Constraint for Cons<T> {
 
     fn project_band(&self, context: &Context<'_>) -> Inference {
         self.0.project_band(context)
+    }
+
+    fn project_complement(&self, context: &Context<'_>) -> Inference {
+        self.0.project_complement(context)
     }
 }
 
@@ -191,6 +228,10 @@ impl<T: Constraint> Constraint for Flip<T> {
 
     fn describe(&self) -> Description {
         self.0.describe().negate()
+    }
+
+    fn project(&self, context: &Context<'_>) -> Inference {
+        self.0.project_complement(context)
     }
 }
 
@@ -665,17 +706,33 @@ impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for Hcp<R> {
         inference
     }
 
-    fn project_band(&self, context: &Context<'_>) -> Inference {
-        // The ceiling an HCP gate owes the upgraded scale: raw HCP plus the
-        // scale's maximum upgrade.  The floor half matches `project`.
-        let ceiling = bound_range(&self.0, Range::FULL_POINTS.max)
-            .max
-            .saturating_add(hcp_ceiling_slack())
-            .min(Range::FULL_POINTS.max);
-        let mut inference = self.project(context);
-        inference.points.max = ceiling;
-        inference
+    fn project_band(&self, _: &Context<'_>) -> Inference {
+        hcp_band(bound_range(&self.0, Range::FULL_POINTS.max))
     }
+
+    fn project_complement(&self, _: &Context<'_>) -> Inference {
+        // `!hcp(13..)` is "at most twelve raw HCP", which the upgraded scale
+        // then widens upward by the same slack `project_band` owes it.
+        complement_range(
+            bound_range(&self.0, Range::FULL_POINTS.max),
+            Range::FULL_POINTS.max,
+        )
+        .map_or_else(Inference::unknown, hcp_band)
+    }
+}
+
+/// The upgraded-points envelope a *raw HCP* band implies: slacked down by
+/// [`flat_hcp_slack`] (rule of N+8 reads a flat 4-3-3-3 one under its HCP) and
+/// up by [`hcp_ceiling_slack`] (the scale's maximum upgrade).
+fn hcp_band(raw: Range) -> Inference {
+    let mut inference = Inference::unknown();
+    inference.points = Range::new(
+        raw.min.saturating_sub(flat_hcp_slack()),
+        raw.max
+            .saturating_add(hcp_ceiling_slack())
+            .min(Range::FULL_POINTS.max),
+    );
+    inference
 }
 
 /// Total high card points in the given range
@@ -816,6 +873,18 @@ impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for Points<R> {
         inference.points = bound_range(&self.0, Range::FULL_POINTS.max);
         inference
     }
+
+    fn project_complement(&self, _: &Context<'_>) -> Inference {
+        // Exact on the same scale, so the complement is exact too.
+        let mut inference = Inference::unknown();
+        if let Some(range) = complement_range(
+            bound_range(&self.0, Range::FULL_POINTS.max),
+            Range::FULL_POINTS.max,
+        ) {
+            inference.points = range;
+        }
+        inference
+    }
 }
 
 /// [`point_count`] in the given range
@@ -945,6 +1014,24 @@ impl<R: RangeBounds<usize> + Clone + Send + Sync> Constraint for Len<R> {
         // bounds project soundly.
         len_projection(self.suit, &self.range)
     }
+
+    fn project_complement(&self, _: &Context<'_>) -> Inference {
+        len_complement(self.suit, &self.range)
+    }
+}
+
+/// The projection of `!len(suit, range)` — `suit` bounded to the complement of
+/// `range`, every other suit full, and nothing at all when that complement is
+/// not a band.  Shared with [`Support`], whose suit comes from the auction.
+fn len_complement<R: RangeBounds<usize>>(suit: Suit, range: &R) -> Inference {
+    let mut inference = Inference::unknown();
+    if let Some(range) = complement_range(
+        bound_range(range, Range::FULL_LENGTH.max),
+        Range::FULL_LENGTH.max,
+    ) {
+        inference.lengths[suit as usize] = range;
+    }
+    inference
 }
 
 /// Length of the given suit in the given range
@@ -1233,6 +1320,15 @@ impl<R: RangeBounds<usize> + Clone + Send + Sync> Constraint for Support<R> {
 
     fn describe(&self) -> Description {
         describe_int_range(&self.0, "card support for partner")
+    }
+
+    fn project_complement(&self, context: &Context<'_>) -> Inference {
+        // `!support(4..)` is "at most three of partner's suit" — a box once the
+        // auction names the suit.  With no suit named, `eval` rejects every
+        // hand, so the negation accepts every hand and ⊤ is the exact reading.
+        context
+            .partner_last_suit()
+            .map_or_else(Inference::unknown, |suit| len_complement(suit, &self.0))
     }
 }
 

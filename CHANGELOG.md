@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **A negated constraint now projects.** `Flip` implemented `eval` and
+  `describe` but not `project`, so every `!`-gated rule read as ⊤ on the axis
+  it gates. The visible cost was the most common constructive auction in the
+  system: the two-over-one denies four-card support (`!support(4..)`), which is
+  a plain box — "at most three of partner's suit" — and yet responder's spades
+  came back `0..=13` after `1♠–(P)–2♣`. Now `0..=3`, pinned by
+  `two_over_one_denies_four_card_support`. The new fold is
+  `Constraint::project_complement`, implemented on `len`, `points`, `hcp` and
+  `support`, and **only for half-open bands**: `!hcp(13..=15)` is a union of
+  two bands that one `Inference` cannot hold, and returning either half alone
+  would reject legal hands. That asymmetry is why negation must be pushed to
+  the leaves before anything is complemented — `!⊤ = ⊥` is *tighter than the
+  truth*, and every off-axis gauge (`suit_hcp`, `nltc`, `support_points`)
+  approximates to ⊤. The strength half of the same two-over-one rule is still
+  blind, since `Or::project` unions `hcp(13..)` away; that needs the
+  disjunction work in `docs/ai-bidder/sampled-projection.md`. Length leaks in
+  `authored_calls_read_what_they_gate` fall 53 → 49 and the ratchet moves with
+  them.
+
 ### Added
 
 - **An invariant test that an authored rule reads what it gates on**

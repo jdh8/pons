@@ -2921,6 +2921,23 @@ mod tests {
         assert_eq!(one_club.rho().length(Suit::Hearts), Range::new(0, 4));
     }
 
+    /// A two-over-one denies four-card support, and the reading now says so.
+    ///
+    /// `Flip` had no projection at all, so `!support(4..)` — a plain box, "at
+    /// most three of partner's suit" — read as ⊤ and responder's spades came
+    /// back `0..=13` after `1♠–2♣`.  The strength half of the same rule is
+    /// still blind (`Or::project` unions `hcp(13..)` away; see
+    /// `docs/ai-bidder/sampled-projection.md`), which is why only the length
+    /// axis is asserted here.
+    #[test]
+    fn two_over_one_denies_four_card_support() {
+        let auction = [bid(1, Strain::Spades), Call::Pass, bid(2, Strain::Clubs)];
+        let read = read_booked(&auction);
+        let responder = read.rho();
+        assert_eq!(responder.length(Suit::Spades), Range::new(0, 3));
+        assert_eq!(responder.length(Suit::Clubs), Range::new(4, 13));
+    }
+
     #[test]
     fn pass_reading_caps_the_no_open_pass() {
         let p = Call::Pass;
@@ -4673,8 +4690,8 @@ mod tests {
 
         // ponytail: counts, not a snapshot.  Ratchet these down as the stages land.
         assert!(
-            points_leaks.len() <= 61 && length_leaks.len() <= 53,
-            "axis readings regressed: {} points leaks (was 61), {} length leaks (was 53)\n\
+            points_leaks.len() <= 61 && length_leaks.len() <= 49,
+            "axis readings regressed: {} points leaks (was 61), {} length leaks (was 49)\n\
              --- POINTS ---\n{}\n--- LENGTH ---\n{}",
             points_leaks.len(),
             length_leaks.len(),
