@@ -22,11 +22,11 @@
 //!   cannot enter.
 //!
 //! **No solver and no EPBot run here.** The labels are already in the `.pdd`
-//! stock (`/nfs2/jdh8/*.pdd`, ~94M solved deals); the only work is bidding.
+//! stock (`/nfs2/jdh8/pons/*.pdd`, ~94M solved deals); the only work is bidding.
 //!
 //! ```text
 //! cargo run --release --example dump-evaluator -- \
-//!     --deals /nfs2/jdh8/22.pdd --count 100000 --seed $(date +%s)
+//!     --deals /nfs2/jdh8/pons/22.pdd --count 100000 --seed $(date +%s)
 //! ```
 //!
 //! Output is a flat little-endian `f32` file of `features_len + 20` floats per

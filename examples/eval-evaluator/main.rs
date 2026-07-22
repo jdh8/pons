@@ -27,7 +27,7 @@
 //!
 //! ```text
 //! scripts/idle-run.sh cargo run --release --all-features --example eval-evaluator -- \
-//!     --deals /nfs2/jdh8/shard-....pdd --boards 200 --layouts 96 --seed $(date +%s)
+//!     --deals /nfs2/jdh8/pons/shard-....pdd --boards 200 --layouts 96 --seed $(date +%s)
 //! ```
 //!
 //! The solver is a process-global lock and is used from the main thread only:

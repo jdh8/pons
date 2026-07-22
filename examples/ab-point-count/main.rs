@@ -28,7 +28,7 @@
 //! cargo run --example ab-point-count -- --count 1000 --vulnerability ns --seed "$SEED_BASE"
 //! cargo run --example ab-point-count -- --count 1000 --sd --seed "$SEED_BASE"
 //! cargo run --release --example ab-point-count -- --candidate rule \
-//!     --deals /nfs2/jdh8/24.pdd --offset 0 --count 1000000 --show 20
+//!     --deals /nfs2/jdh8/pons/24.pdd --offset 0 --count 1000000 --show 20
 //! ```
 
 use clap::Parser;

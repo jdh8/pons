@@ -37,7 +37,7 @@
 //!
 //! ```sh
 //! cargo run --release --example probe-keycard-reach -- \
-//!     --deals /nfs2/jdh8/22.pdd --count 200000 --seed 1
+//!     --deals /nfs2/jdh8/pons/22.pdd --count 200000 --seed 1
 //! ```
 
 use clap::Parser;

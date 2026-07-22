@@ -26,7 +26,7 @@
 # Resumable: a non-empty result file is skipped; the sd world seed persists.
 set -eu
 R=${1:?usage: remnant-fixes-ab.sh RESULTS_DIR}
-DEALS=${DEALS:-/nfs2/jdh8/24.pdd}
+DEALS=${DEALS:-/nfs2/jdh8/pons/24.pdd}
 BIN=target/release/examples/ab-point-count
 mkdir -p "$R"
 

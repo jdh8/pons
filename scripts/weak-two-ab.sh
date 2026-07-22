@@ -23,7 +23,7 @@
 # SD=0 skips the sd legs (the cheap plain+PD sweep — sd only the finalists).
 set -eu
 R=${1:?usage: weak-two-ab.sh RESULTS_DIR}
-DEALS=${DEALS:-/nfs2/jdh8/24.pdd}
+DEALS=${DEALS:-/nfs2/jdh8/pons/24.pdd}
 BAND=${BAND:-5:10}
 EVAL=${EVAL:-}
 SD=${SD:-1}
