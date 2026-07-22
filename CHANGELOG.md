@@ -9,6 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`points`-gauged 1NT opening refuted (investigation, no system change; knob
+  dropped).** Asked whether gauging the strong 1NT opening by `points`
+  (rule-of-N+8) instead of `hcp(15..=17)` helps. It is provably a no-op on
+  balanced hands (`point_count == raw_hcp` there), so the only boards that move
+  are the wide non-balanced 1NT shapes the default `NotrumpShape::Wide6322`
+  admits: a 14-HCP 5422/6322-with-a-long-minor reads 15 points and newly opens
+  1NT, a 17-HCP one reads 18 and opens the minor. A sizing probe put the effect
+  at 0.65% of first-seat hands (0.47% newly-1NT, 0.19% no-longer-1NT, 0.00%
+  other — confirming the balanced no-op).
+
+  **Verdict: refuted** (205k boards/arm/vul vs BBA): plain DD −0.0008 ±0.0018 NV
+  (wash) / −0.0024 ±0.0023 vul (marginal loss); PD −0.0048 ±0.0022 NV / −0.0078
+  ±0.0028 vul (both significant losses). The length bonus is suit-play value, not
+  notrump value — the `points` arm opens 1NT on 14-HCP semi-balanced hands and
+  those overbids get doubled under perfect defense. Confirms the house rule that
+  notrump-defining ranges gauge `fifths`/`hcp`, not `points`. A plain loss with
+  no right-siding value earns no knob: the experimental toggle and its harness
+  were removed, so the shipped system is unchanged.
+
 - **Net-priced Stayman invite/force seams (`set_stayman_net_force`, opt-in,
   default off — measured a loss).** Asked whether the blanket 9-HCP game force
   over our 1NT survives the evaluator net: `probe-nt-invite-eval` gained two
