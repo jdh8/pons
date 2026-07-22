@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Honour-oracle kill-gate for the hidden-seat keycard axis (BEN-projection
+  Phase 3).** `dump-evaluator --oracle` appends 8 truth columns — partner's
+  actual per-strain keycards (aces + trump-K, `/5`) and trump-Q bits — to the
+  `bits` superset; the trainer gains `ben-oracle`/`baseline-drop-both-oracle`
+  arms (`ARM_FEATURES` 79→87, every other arm masks the tail off) and a
+  slam-slice MAE (val targets with truth ≥ 12 tricks) in `evaluate`. A truth
+  oracle upper-bounds any projection of the same quantity, so this prices the
+  ceiling before building the projection.
+
+  **Verdict: cleared, decisively.** On one 87-wide corpus (500k deals
+  ×{american,dutch}, 10.08M rows, h256, seed 1, 552,646 slam cells), partner's
+  true keycards cut slam-slice MAE from **2.66 → 1.41 tricks (−47%)** for `ben`
+  and 2.71 → 1.51 (−44%) for the `baseline-drop-both` control — worth ~1.2
+  tricks *beyond* the partner point-ranges the net already reads, which is
+  exactly what RKCB conveys that HCP does not. Two refinements to the plan's
+  priors: the gain is ~96% **main effect** (ben's extra over baseline is only
+  −0.05 tricks), so Phase 4 needs no deep own×partner interaction features; and
+  the oracle feeds truth on every node whereas projection recovers keycards only
+  on the ~25–35 RKCB nodes, so realizable gain is **reach-capped** and reach —
+  not the ceiling — is Phase 4's binding risk. Shipped crate byte-identical
+  (off-crate trainer + example only).
+
 ### Changed
 
 - **`american()`'s one-level suit openings carry an explicit HCP floor, for

@@ -58,6 +58,12 @@ const LN_SD_MAX: f64 = 0.0;
 const LEN_RANGES: usize = 30;
 /// One seat's unknown-range encoding: `[min, max]` pairs of `[0, 1]`.
 const UNKNOWN_PAIR: [f32; 2] = [0.0, 1.0];
+/// Columns the `bits` superset writes before the Phase-3 oracle tail.
+const BITS_FEATURES: usize = 79;
+/// Phase-3 honour oracle (`dump-evaluator --oracle`): partner's true per-strain
+/// keycards (4) then trump-Q bits (4). Only the `*-oracle` arms keep them; every
+/// other arm masks them off, so an oracle corpus trains the whole ladder.
+const ORACLE_LEN: usize = 8;
 /// Feature width the [`Arm`] masks are written against.
 ///
 /// ```text
@@ -65,8 +71,9 @@ const UNKNOWN_PAIR: [f32; 2] = [0.0, 1.0];
 /// 32      hcp/40
 /// 33      upgrade/2
 /// 34..79  ranges: 3 seats × 5 (min, max, width) triples
+/// 79..87  oracle: partner keycards ×4 (Suit::ASC), then trump-Q ×4
 /// ```
-const ARM_FEATURES: usize = 79;
+const ARM_FEATURES: usize = BITS_FEATURES + ORACLE_LEN;
 
 /// splitmix64: advance `state` and return the next word.
 ///
@@ -171,12 +178,19 @@ enum Arm {
     BaselineDropUpgrade,
     BaselineDropHcp,
     BaselineDropBoth,
+    /// `Ben` plus the honour oracle — the interaction arm (own + partner in a
+    /// few weights). Phase 3's headline.
+    BenOracle,
+    /// `BaselineDropBoth` plus the oracle — the control arm; `suit_hcp` alone
+    /// cannot extract an ace, so at most a mild main effect is expected.
+    BaselineDropBothOracle,
 }
 
 impl Arm {
     /// The arm table: `(name, hand-column offsets within each suit's 8, keep
     /// global `hcp`, keep global `upgrade`, offsets within each
-    /// `(min, max, width)` range triple, live column count)`.
+    /// `(min, max, width)` range triple, keep the 8 oracle columns, live column
+    /// count)`.
     ///
     /// The two globals are separate flags because they are separately suspect.
     /// `upgrade` is the *legacy* shape term (`!is_balanced + longest_two ≥ 10`)
@@ -194,6 +208,7 @@ impl Arm {
         bool,
         bool,
         &'static [usize],
+        bool,
         usize,
     ) {
         match self {
@@ -203,25 +218,83 @@ impl Arm {
                 true,
                 true,
                 &[0, 1, 2],
+                false,
                 79,
             ),
-            Self::Baseline => ("baseline", &[0, 2], true, true, &[0, 1], 40),
-            Self::Bits => ("bits", &[1, 2, 3, 4, 5, 6, 7], true, true, &[0, 1], 60),
-            Self::BitsNohcp => ("bits-nohcp", &[1, 3, 4, 5, 6, 7], true, true, &[0, 1], 56),
-            Self::Ben => ("ben", &[1, 3, 4, 5, 6, 7], false, false, &[0, 1], 54),
+            Self::Baseline => ("baseline", &[0, 2], true, true, &[0, 1], false, 40),
+            Self::Bits => (
+                "bits",
+                &[1, 2, 3, 4, 5, 6, 7],
+                true,
+                true,
+                &[0, 1],
+                false,
+                60,
+            ),
+            Self::BitsNohcp => (
+                "bits-nohcp",
+                &[1, 3, 4, 5, 6, 7],
+                true,
+                true,
+                &[0, 1],
+                false,
+                56,
+            ),
+            Self::Ben => ("ben", &[1, 3, 4, 5, 6, 7], false, false, &[0, 1], false, 54),
             Self::BitsWidth => (
                 "bits-width",
                 &[1, 2, 3, 4, 5, 6, 7],
                 true,
                 true,
                 &[0, 1, 2],
+                false,
                 75,
             ),
-            Self::BaselineDropUpgrade => {
-                ("baseline-drop-upgrade", &[0, 2], true, false, &[0, 1], 39)
-            }
-            Self::BaselineDropHcp => ("baseline-drop-hcp", &[0, 2], false, true, &[0, 1], 39),
-            Self::BaselineDropBoth => ("baseline-drop-both", &[0, 2], false, false, &[0, 1], 38),
+            Self::BaselineDropUpgrade => (
+                "baseline-drop-upgrade",
+                &[0, 2],
+                true,
+                false,
+                &[0, 1],
+                false,
+                39,
+            ),
+            Self::BaselineDropHcp => (
+                "baseline-drop-hcp",
+                &[0, 2],
+                false,
+                true,
+                &[0, 1],
+                false,
+                39,
+            ),
+            Self::BaselineDropBoth => (
+                "baseline-drop-both",
+                &[0, 2],
+                false,
+                false,
+                &[0, 1],
+                false,
+                38,
+            ),
+            Self::BenOracle => (
+                "ben-oracle",
+                &[1, 3, 4, 5, 6, 7],
+                false,
+                false,
+                &[0, 1],
+                true,
+                62,
+            ),
+            Self::BaselineDropBothOracle => (
+                "baseline-drop-both-oracle",
+                &[0, 2],
+                false,
+                false,
+                &[0, 1],
+                true,
+                46,
+            ),
         }
     }
 
@@ -230,7 +303,7 @@ impl Arm {
     /// count matches the width [`Self::spec`] documents, which is what catches a
     /// typo in an offset list.
     fn mask(self) -> [bool; ARM_FEATURES] {
-        let (name, suit, hcp, upgrade, triple, width) = self.spec();
+        let (name, suit, hcp, upgrade, triple, oracle, width) = self.spec();
         let mut keep = [false; ARM_FEATURES];
         for cols in keep[..32].chunks_exact_mut(8) {
             for &o in suit {
@@ -240,12 +313,14 @@ impl Arm {
         keep[32] = hcp; // hcp/40
         keep[33] = upgrade; // upgrade/2
         // The 15 triples are laid out uniformly, so the seat boundary every 5 of
-        // them needs no special casing.
-        for cols in keep[34..].chunks_exact_mut(3) {
+        // them needs no special casing. Bound the slice at `BITS_FEATURES`: past
+        // it is the oracle tail, which is not triple-encoded.
+        for cols in keep[34..BITS_FEATURES].chunks_exact_mut(3) {
             for &o in triple {
                 cols[o] = true;
             }
         }
+        keep[BITS_FEATURES..].fill(oracle); // the 8 oracle columns, all or none
         assert_eq!(
             keep.iter().filter(|&&k| k).count(),
             width,
@@ -456,7 +531,7 @@ fn main() -> Result<()> {
             eprintln!(
                 "epoch {epoch:>4}: train {:.5}  val nll {:.5}  MAE {:.3}  RMSE {:.3} tricks  \
                  coverage {:.1}% (constructive {:.1}% / contested {:.1}%)  \
-                 below-mu {:.1}%",
+                 below-mu {:.1}%  slam-MAE {:.3}",
                 running / steps as f32,
                 nll,
                 e.overall.mae_tricks(),
@@ -465,6 +540,7 @@ fn main() -> Result<()> {
                 100.0 * e.phase[0].coverage(),
                 100.0 * e.phase[1].coverage(),
                 100.0 * e.overall.below_mean(),
+                e.slam.mae_tricks(),
             );
         }
     }
@@ -640,6 +716,10 @@ struct Eval {
     /// evidence for the system-agnostic claim — the net reads ranges, never
     /// calls, so neither book should be systematically easier.
     system: [Slice; 2],
+    /// Targets whose *truth* is a slam (≥ 12 of 13 tricks) — Phase 3's kill-gate
+    /// metric. The whole point of partner-honour info is bidding slams, so an
+    /// oracle that does not move MAE *here* has not earned the axis it bounds.
+    slam: Slice,
 }
 
 fn evaluate(model: &Net, x: &Tensor, y: &Tensor, targets: usize, tags: &[u8]) -> Result<Eval> {
@@ -649,6 +729,7 @@ fn evaluate(model: &Net, x: &Tensor, y: &Tensor, targets: usize, tags: &[u8]) ->
         overall: Slice::default(),
         phase: [Slice::default(); 2],
         system: [Slice::default(); 2],
+        slam: Slice::default(),
     };
 
     for (row, (pr, tr)) in p.iter().zip(&t).enumerate() {
@@ -668,6 +749,11 @@ fn evaluate(model: &Net, x: &Tensor, y: &Tensor, targets: usize, tags: &[u8]) ->
             eval.overall.push(nll, abs, inside, below);
             eval.phase[usize::from(tag & 1)].push(nll, abs, inside, below);
             eval.system[usize::from(tag >> 1 & 1)].push(nll, abs, inside, below);
+            // `truth` is tricks/13; ≥ 11.5/13 selects the 12- and 13-trick cells
+            // clear of any float-rounding on the 11 boundary.
+            if truth * 13.0 >= 11.5 {
+                eval.slam.push(nll, abs, inside, below);
+            }
         }
     }
     Ok(eval)
@@ -944,6 +1030,9 @@ fn export(
         "val_rmse_tricks": eval.overall.rmse_tricks(),
         "val_coverage": eval.overall.coverage(),
         "val_below_mean": eval.overall.below_mean(),
+        "val_slam_mae_tricks": eval.slam.mae_tricks(),
+        "val_slam_rmse_tricks": eval.slam.rmse_tricks(),
+        "val_slam_targets": eval.slam.n,
         "val_by_phase": slices(["constructive", "contested"], &eval.phase),
         "val_by_system": slices(
             [

@@ -73,6 +73,12 @@ const LEN_HAND_BITS: usize = 4 * LEN_SUIT_BITS + 2;
 /// `(min, max, max − min)` triple, so its tail is 45 instead.
 const LEN_RANGES: usize = FEATURES_LEN_EVAL - LEN_HAND_EVAL;
 
+/// Phase-3 honour oracle (`--oracle`, `bits` only): partner's *true* per-strain
+/// keycards (aces + trump-K, `/5`) for the four suit strains, then the four
+/// trump-Q bits.  A truth column that upper-bounds any projected `keycards`
+/// axis — if even this washes on the slam slice, the axis is dead.
+const ORACLE_LEN: usize = 8;
+
 /// Own-hand encoding selected by `--encoding`
 #[derive(Clone, Copy)]
 enum Encoding {
@@ -108,6 +114,12 @@ struct Args {
     /// bits — the texture ablation), or `bits` (the 79-float research superset)
     #[arg(long, default_value = "summary")]
     encoding: String,
+    /// Append the Phase-3 honour oracle: 8 columns of partner's *true*
+    /// per-strain keycards + trump-Q. Requires `--encoding bits`; the trainer's
+    /// `ben-oracle`/`baseline-drop-both-oracle` arms read them, every other arm
+    /// masks them off.
+    #[arg(long)]
+    oracle: bool,
     /// Output path stem; writes `<out>.f32`, `<out>.json`, `<out>.tags`
     #[arg(long, default_value = "target/evaluator-data")]
     out: String,
@@ -129,11 +141,16 @@ fn main() -> anyhow::Result<()> {
         "bits" => Encoding::Bits,
         other => anyhow::bail!("--encoding must be summary|onehot|bits, got {other:?}"),
     };
-    let features_len = match encoding {
+    let base_len = match encoding {
         Encoding::Summary => FEATURES_LEN_EVAL,
         Encoding::Onehot => LEN_HAND_ONEHOT + LEN_RANGES,
         Encoding::Bits => LEN_HAND_BITS + LEN_RANGES / 2 * 3,
     };
+    anyhow::ensure!(
+        !args.oracle || matches!(encoding, Encoding::Bits),
+        "--oracle only extends the `bits` superset the trainer arms mask over"
+    );
+    let features_len = base_len + if args.oracle { ORACLE_LEN } else { 0 };
     let row_len = features_len + DD_LEN;
 
     let systems: Vec<(&str, Stance)> = args
@@ -188,7 +205,10 @@ fn main() -> anyhow::Result<()> {
                 // The trie-prefixed reading, so conventional calls decode off
                 // their authoring rules rather than as natural suits.
                 let inferences = stance.infer(rel, &auction);
-                encode(&mut row[..features_len], hand, &inferences, encoding);
+                encode(&mut row[..base_len], hand, &inferences, encoding);
+                if args.oracle {
+                    write_oracle(&mut row[base_len..features_len], deal[seat.partner()]);
+                }
                 row[features_len..].copy_from_slice(&gib::relativized_tricks(table, seat));
                 for value in &row {
                     writer.write_all(&value.to_le_bytes())?;
@@ -214,6 +234,7 @@ fn main() -> anyhow::Result<()> {
         "row_bytes": row_len * 4,
         "dtype": "f32-le",
         "encoding": args.encoding,
+        "oracle": args.oracle,
         "layout": format!("row = [{features_len} features][{DD_LEN} dd_tricks]"),
         "label_order": "strain-major NT,S,H,D,C × declarer [me,lho,partner,rho], tricks/13",
         "tags": "sibling .tags: one u8 per row, bit 0 = contested phase, bit 1 = system index",
@@ -301,6 +322,24 @@ fn encode(out: &mut [f32], hand: Hand, inferences: &Inferences, encoding: Encodi
         }
     } else {
         tail.copy_from_slice(ranges);
+    }
+}
+
+/// Write the [`ORACLE_LEN`] honour-oracle columns for `partner`'s actual hand:
+/// four per-strain keycard counts (aces + trump-K, `/5`) in `Suit::ASC` order,
+/// then the four trump-Q bits. All keycards regardless of strain, plus the
+/// trump king — the RKCB census, which is the whole reach of the axis it bounds.
+fn write_oracle(out: &mut [f32], partner: Hand) {
+    let aces = Suit::ASC
+        .into_iter()
+        .filter(|&s| partner[s].contains(Rank::A))
+        .count();
+    let (keycards, queens) = out.split_at_mut(4);
+    for (slot, suit) in keycards.iter_mut().zip(Suit::ASC) {
+        *slot = (aces + usize::from(partner[suit].contains(Rank::K))) as f32 / 5.0;
+    }
+    for (slot, suit) in queens.iter_mut().zip(Suit::ASC) {
+        *slot = f32::from(partner[suit].contains(Rank::Q));
     }
 }
 
@@ -427,6 +466,18 @@ mod tests {
     ///
     /// Exact float equality is right here: both sides are copies of the very
     /// same computed floats, not two roundings of one quantity.
+    /// The oracle counts every ace as a keycard, adds the trump king per strain,
+    /// and flags the trump queen — in `Suit::ASC` (♣♦♥♠) order, keycards then
+    /// queens. `AKQJ.AK2.Q32.432` has two aces (♠♥), so ♥/♠ read 3 keycards
+    /// (own trump king) and ♣/♦ read 2, with the queen only under ♦ and ♠.
+    #[test]
+    fn oracle_counts_partner_keycards_and_trump_queen() {
+        let partner: Hand = "AKQJ.AK2.Q32.432".parse().expect("valid test hand");
+        let mut out = [0f32; ORACLE_LEN];
+        write_oracle(&mut out, partner);
+        assert_eq!(out, [0.4, 0.4, 0.6, 0.6, 0.0, 1.0, 0.0, 1.0]);
+    }
+
     #[test]
     fn summary_is_the_ben_gather_of_bits() {
         let (hand, inferences) = fixture();
