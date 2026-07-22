@@ -35,7 +35,9 @@
 //! diverges opposite a minimum).  Heavy — run via `scripts/idle-run.sh`.
 //!
 //! ponytail: declarer = best of N/S per contract (matches probe-nt-range-split);
-//! opener acceptance held at the book's 17+ rule; minor-suit games omitted.
+//! opener acceptance defaults to the book's 17+ rule — columns with an
+//! acceptance evaluator rank-calibrate it to the same acceptance frequency
+//! (the two-sided precision test); minor-suit games omitted.
 
 use contract_bridge::auction::{Call, RelativeVulnerability};
 use contract_bridge::eval::{self, HandEvaluator};
@@ -117,19 +119,37 @@ fn ev_net_game(h: Hand) -> f64 {
     .fold(0.0f64, |acc, p| acc.max(f64::from(p)))
 }
 
-/// A named hand evaluator: `(label, fn)`.
-type Eval = (&'static str, fn(Hand) -> f64);
+/// Split boundary: the force seam stays raw HCP (9+ forces, lifted above every
+/// sub-9), but the pass/invite seam below it orders by Fifths — "invite with
+/// good sub-9s" (the user's `fifths ≥ t && hcp < 9` proposal, rank-calibrated).
+fn ev_fifths_invite(h: Hand) -> f64 {
+    let hcp = f64::from(raw_hcp(h));
+    if hcp >= 9.0 {
+        1000.0 + hcp
+    } else {
+        eval::FIFTHS.eval(h)
+    }
+}
+
+/// A named column: `(label, responder eval, opener-acceptance eval)`.
+/// `None` = the book acceptance rule (17+); `Some(f)` rank-calibrates `f` over
+/// the dealt openers to the book's exact acceptance frequency (good 16s in,
+/// quacky 17s out — same selectivity, pure ranking).
+type Eval = (&'static str, fn(Hand) -> f64, Option<fn(Hand) -> f64>);
 
 /// HCP first — its calibrated arm must score ~0 vs the control (the sanity check).
 const EVALS: &[Eval] = &[
-    ("HCP", ev_hcp),
-    ("points", ev_points),
-    ("fifths", ev_fifths),
-    ("bumrap", ev_bumrap),
-    ("cccc", ev_cccc),
-    ("controls", ev_controls),
-    ("netNT", ev_net_nt),
-    ("netPgame", ev_net_game),
+    ("HCP", ev_hcp, None),
+    ("points", ev_points, None),
+    ("fifths", ev_fifths, None),
+    ("bumrap", ev_bumrap, None),
+    ("cccc", ev_cccc, None),
+    ("controls", ev_controls, None),
+    ("netNT", ev_net_nt, None),
+    ("netPgame", ev_net_game, None),
+    ("fifInv", ev_fifths_invite, None),
+    ("fifAcc", ev_hcp, Some(ev_fifths)),
+    ("fifInv2s", ev_fifths_invite, Some(ev_fifths)),
 ];
 
 // --- shape predicates -------------------------------------------------------
@@ -335,23 +355,25 @@ fn main() {
         // Gather this class's deals, responder evaluators, and per-vul action values.
         let mut resp_evals: Vec<[f64; EVALS.len()]> = Vec::new();
         let mut hcps: Vec<u8> = Vec::new();
-        // values[deal][vul][action]
-        let mut values: Vec<[[i64; 3]; 2]> = Vec::new();
+        let mut openers: Vec<Hand> = Vec::new();
+        let mut book_accepts: Vec<bool> = Vec::new();
+        // values[deal][vul] = [pass, force, invite-accepted, invite-declined]
+        let mut values: Vec<[[i64; 4]; 2]> = Vec::new();
         for (i, &c) in classes.iter().enumerate() {
             if c != class {
                 continue;
             }
             let (resp, opener, table) = (deals[i][Seat::South], deals[i][Seat::North], &tables[i]);
             let cs = contracts(class, resp, opener);
-            let accept = raw_hcp(opener) >= 17;
-            let mut per_vul = [[0i64; 3]; 2];
+            let mut per_vul = [[0i64; 4]; 2];
             for (vi, &(_, vul)) in vuls.iter().enumerate() {
                 let v = |(l, s): (u8, Strain)| score1(l, s, table, vul);
-                let invite = if accept { v(cs[2]) } else { v(cs[3]) };
-                per_vul[vi] = [v(cs[0]), invite, v(cs[1])]; // pass, invite, force
+                per_vul[vi] = cs.map(v);
             }
             values.push(per_vul);
             hcps.push(raw_hcp(resp));
+            openers.push(opener);
+            book_accepts.push(raw_hcp(opener) >= 17);
             resp_evals.push(std::array::from_fn(|e| EVALS[e].1(resp)));
         }
 
@@ -370,16 +392,44 @@ fn main() {
                 "    {:<9} {:>9}  {:>14}  {:>8}",
                 "evaluator", "IMP/bd", "95% CI", "diverg"
             );
-            for (e, &(ename, _)) in EVALS.iter().enumerate() {
+            for (e, &(ename, _, accept_fn)) in EVALS.iter().enumerate() {
                 let col: Vec<f64> = resp_evals.iter().map(|r| r[e]).collect();
                 let action = calibrate(&col, n_pass, n_inv);
+                // Acceptance: book 17+ unless the column ranks openers itself,
+                // calibrated to the book's exact acceptance count.
+                let accepts: Vec<bool> = match accept_fn {
+                    None => book_accepts.clone(),
+                    Some(f) => {
+                        let vals: Vec<f64> = openers.iter().map(|&o| f(o)).collect();
+                        let k = book_accepts.iter().filter(|&&a| a).count();
+                        let mut idx: Vec<usize> = (0..n).collect();
+                        idx.sort_by(|&a, &b| {
+                            vals[b]
+                                .partial_cmp(&vals[a])
+                                .expect("evaluators are never NaN")
+                        });
+                        let mut acc = vec![false; n];
+                        idx.iter().take(k).for_each(|&i| acc[i] = true);
+                        acc
+                    }
+                };
+                // [pass, force, inv-acc, inv-dec] → the action's realized contract.
+                let val = |v: &[i64; 4], action: usize, acc: bool| match action {
+                    0 => v[0],
+                    2 => v[1],
+                    _ => v[2 + usize::from(!acc)],
+                };
                 let mut board_imps = vec![0i64; n];
                 let mut diverg = 0usize;
                 for d in 0..n {
-                    if action[d] != control[d] {
+                    let same = action[d] == control[d]
+                        && (control[d] != 1 || accepts[d] == book_accepts[d]);
+                    if !same {
                         diverg += 1;
                         let v = &values[d][vi];
-                        board_imps[d] = imps(v[action[d]] - v[control[d]]);
+                        board_imps[d] = imps(
+                            val(v, action[d], accepts[d]) - val(v, control[d], book_accepts[d]),
+                        );
                     }
                 }
                 let (mean, ci) = mean_ci(&board_imps);

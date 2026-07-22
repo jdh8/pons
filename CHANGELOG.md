@@ -36,6 +36,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   defense, the decision table's doubling-artifact row. Open refinement: a
   frequency-matched NT-seam-only gate re-scored under `single_dummy_leads`.
 
+  **Follow-up — sub-integer point-count precision refuted (investigation, no
+  system change).** Can a finer count like Fifths sharpen the *invitation*
+  interval ("invite with Fifths ≥ 7.5 and < 9 HCP") or opener's acceptance?
+  Three frequency-matched probe columns: `fifInv` (force stays HCP-9+, the
+  pass/invite seam below ordered by Fifths), `fifAcc` (acceptance ranked by
+  Fifths at the book's 17+ frequency — good 16s in, quacky 17s out), and
+  `fifInv2s` (both sides). All NULL in every cell (50k/class, both vuls, both
+  opener bands; |mean| ≤ 0.013 IMPs/board, no CI excludes 0): the ace/ten-rich
+  7s an upgrade promotes are worth exactly the bad 8s they displace. The
+  earlier archived Fifths-opening loss is conceded as a range-shift artifact —
+  this is the clean per-seam test, and quarter-point granularity still buys
+  nothing opposite a known balanced 15-17.
+
 - **Dutch wide-1♥ responder-captaincy probes (investigation, no system
   change).** Two double-dummy survey examples for pricing a response opposite
   Dutch's wide (10-20 HCP) 1♥ opening: `probe-1m-slice` (`P(game makes)` by
