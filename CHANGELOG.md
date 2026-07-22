@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Dutch wide-1♥ responder-captaincy probes (investigation, no system
+  change).** Two double-dummy survey examples for pricing a response opposite
+  Dutch's wide (10-20 HCP) 1♥ opening: `probe-1m-slice` (`P(game makes)` by
+  responder support points × opener HCP slice) and `probe-1m-raise-ev` (IMPs of
+  raising vs passing a light fit hand, opener's re-capture modelled as a
+  2♥/3♥/4♥ ladder by strength).
+
+  **Verdict: no change — the min-priced 2♥ raise floor (`support_points 6`) is
+  correct.** Opposite an 18-20 opener the existing simple raise (sp 6-9) is
+  already a 63-94% game, opener drives it (0% pass, 79% straight to game/slam
+  over `1♥-2♥`), and only 7.9% of 1♥ opens are 18-20 anyway. Lowering the raise
+  floor to sp 3-5 measured **−1.63 IMPs/board NV / −2.04 vul** (40k boards) —
+  the overbid trap, since the 87% non-max mass bleeds (`3♥` opposite 15-17 makes
+  only 36-63%). Responder describes (2♥ = 6-9 + fit); opener re-captains the
+  concealed strength — the handoff already works.
+
 - **Honour-oracle kill-gate for the hidden-seat keycard axis (BEN-projection
   Phase 3).** `dump-evaluator --oracle` appends 8 truth columns — partner's
   actual per-strain keycards (aces + trump-K, `/5`) and trump-Q bits — to the

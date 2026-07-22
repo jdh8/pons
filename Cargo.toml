@@ -161,5 +161,15 @@ path = "examples/probe-keycard-reach.rs"
 required-features = ["dd"]
 test = true
 
+[[example]]
+name = "probe-1m-slice"
+path = "examples/probe-1m-slice/main.rs"
+required-features = ["dd"]
+
+[[example]]
+name = "probe-1m-raise-ev"
+path = "examples/probe-1m-raise-ev/main.rs"
+required-features = ["dd"]
+
 [profile.dev.package."*"]
 opt-level = 2
