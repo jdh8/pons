@@ -1,6 +1,6 @@
 #!/bin/sh
 # remnant-fixes-ab.sh — fix-vs-shipped A/Bs for the point-count remnant
-# families (docs/point-count-threshold-campaign.md).  Five build-time gate
+# families (docs/point-count-threshold-campaign.md).  Build-time gate
 # fixes, each measured through ab-point-count's two-book --fix path with both
 # arms on the shipped floored scale, so each A/B isolates its gate:
 #
@@ -8,7 +8,10 @@
 #   two-suiter-hcp:8       Michaels + Unusual 2NT raw-HCP floor
 #   redouble-answer        opener's pass-only answer over 1x-(X)-XX-(P)
 #   nt-invite-hcp          1♥-1♠-2m 2NT invite gauged in HCP
-#   opening-hcp-floor:10   sub-10-HCP freaks barred from 1-level openings
+#
+# (opening-hcp-floor:10 was the fifth fix; it is now the shipped default —
+# the one-level openings carry an explicit hcp floor for systems-legality —
+# so its knob and --fix arm are gone.)
 #
 # Plain+PD (1M boards/vul each) from the pre-solved .pdd bank first — all five
 # land in ~20 minutes; then the sd-lead legs (50k/vul, live solving) for the
@@ -63,8 +66,6 @@ run redouble      redouble-answer      none "$((OFF + 4000000))"      1000000 --
 run redouble      redouble-answer      both "$((OFF + 5000000))"      1000000 --show 40
 run nt-invite     nt-invite-hcp        none "$((OFF + 6000000))"      1000000 --show 40
 run nt-invite     nt-invite-hcp        both "$((OFF + 7000000))"      1000000 --show 40
-run opening-floor opening-hcp-floor:10 none "$((OFF + 8000000))"      1000000 --show 40
-run opening-floor opening-hcp-floor:10 both "$((OFF + 9000000))"      1000000 --show 40
 
 # sd-lead tiebreak for the competitive-range fixes (solves live, slow).
 run sd-strong-double strong-double-hcp:18 none "$((OFF + 10000000))" 50000 --sd --sd-seed "$SDSEED"

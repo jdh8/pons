@@ -29,10 +29,6 @@ thread_local! {
     /// Default `None`: byte-identical.  Wins over [`WEAK_TWO_HCP`] if both are
     /// armed.  See [`set_weak_two_eval`].
     static WEAK_TWO_EVAL: Cell<Option<WeakTwoEval>> = const { Cell::new(None) };
-    /// A raw-HCP floor on the `points(12..=21)` one-level suit openings when
-    /// `Some(n)`.  Default `None`: byte-identical.  See
-    /// [`set_opening_hcp_floor`].
-    static OPENING_HCP_FLOOR: Cell<Option<u8>> = const { Cell::new(None) };
 }
 
 /// Suppress (`false`) or restore (`true`, the default) our own 1NT opening.
@@ -128,19 +124,6 @@ pub enum WeakTwoEval {
 /// min/max answers stay on fit-known `points`.
 pub fn set_weak_two_eval(gauge: Option<WeakTwoEval>) {
     WEAK_TWO_EVAL.with(|cell| cell.set(gauge));
-}
-
-/// Put a raw-HCP floor under the `points(12..=21)` one-level suit openings for
-/// books built *after* this call (opt-in; the default is byte-identical).
-///
-/// `points(12..) & hcp(..10)` is exactly the freak class — eleven-plus cards
-/// in two suits — so `Some(10)` bars sub-10-HCP freaks from walking in the
-/// one-level front door that rule-of-N+8 opened for them (a 9-HCP 6-5 reads
-/// 12).  Legacy passed or preempted those hands, and the remnant report's
-/// one-level seam kept that leg flagged after the 4333 floor cleared the flat
-/// twelves.
-pub fn set_opening_hcp_floor(n: Option<u8>) {
-    OPENING_HCP_FLOOR.with(|cell| cell.set(n));
 }
 
 /// Which hand shapes the strong 1NT opening admits ([`openings_with`])
@@ -252,92 +235,65 @@ pub fn openings_with(shape: NotrumpShape) -> Rules {
             2.0,
             fifths(20.0..22.0) & balanced(),
         );
-    // Sound one-level suit openings.  `points(12..)` on the shipped rule-of-N+8
-    // scale *is* the Rule of 20, so the sound 10-11 counts come in here rather
-    // than through a light rule of their own.  `points(12..) & hcp(..10)` is
-    // exactly the freak class (11+ cards in two suits), so the optional raw-HCP
-    // floor (`set_opening_hcp_floor`) bars sub-10-HCP freaks from the front
-    // door; default `None` is byte-identical.  The lighter third/fourth-seat
-    // majors carry their own HCP gate.
-    let opening_floor = OPENING_HCP_FLOOR.with(Cell::get);
+    // One-level suit openings.  Every band carries an explicit `hcp` floor,
+    // because a `points` band alone cannot supply one: on the rule-of-N+8 scale
+    // a hand's count is `hcp + max(0, L1+L2 − 8)` and `L1+L2` reaches 13 on a
+    // 7-6-0-0, so `points(N..)` bottoms out at `N − 5` HCP — `points(12..)`
+    // admits a 7-count.  WBF Systems Policy 2024 §2.3.1(c) makes a system a HUM
+    // if a one-level opening in first or second seat "may be made with 7 high
+    // card points or less", so an envelope that *touches* 0..=7 is caught
+    // however rare the hand.  EBU Blue Book §7A3/§8A4 impose the same absolute
+    // 8 in every seat, third and fourth included, where the WBF does not reach.
+    //
+    // First/second seat takes `hcp(10..)` rather than the bare legal minimum —
+    // standard practice, since partner must be able to aim at 3NT.  Third and
+    // fourth seat open lighter on `points(11..)`, exactly the Rule of 19 (=
+    // ACBL "Average Strength", which those charts require in all four seats),
+    // floored at the legal 8.
+    //
     // Five-card majors; 1♠ ranks just above 1♥ so 5-5 opens the higher.
-    rules = match opening_floor {
-        Some(f) => rules
-            .rule(
-                Bid::new(1, Strain::Spades),
-                1.6,
-                points(12..=21) & hcp(f..) & len(Suit::Spades, 5..),
-            )
-            .rule(
-                Bid::new(1, Strain::Hearts),
-                1.5,
-                points(12..=21) & hcp(f..) & len(Suit::Hearts, 5..),
-            ),
-        None => rules
-            .rule(
-                Bid::new(1, Strain::Spades),
-                1.6,
-                points(12..=21) & len(Suit::Spades, 5..),
-            )
-            .rule(
-                Bid::new(1, Strain::Hearts),
-                1.5,
-                points(12..=21) & len(Suit::Hearts, 5..),
-            ),
-    };
     rules = rules
+        .rule(
+            Bid::new(1, Strain::Spades),
+            1.6,
+            points(12..=21) & hcp(10..) & len(Suit::Spades, 5..) & (nth_seat(1) | nth_seat(2)),
+        )
+        .rule(
+            Bid::new(1, Strain::Hearts),
+            1.5,
+            points(12..=21) & hcp(10..) & len(Suit::Hearts, 5..) & (nth_seat(1) | nth_seat(2)),
+        )
         // Lighter five-card majors in third/fourth seat.
         .rule(
             Bid::new(1, Strain::Spades),
             2.6,
-            points(9..=11) & len(Suit::Spades, 5..) & (nth_seat(3) | nth_seat(4)),
+            points(11..=21) & hcp(8..) & len(Suit::Spades, 5..) & (nth_seat(3) | nth_seat(4)),
         )
         .rule(
             Bid::new(1, Strain::Hearts),
             2.5,
-            points(9..=11) & len(Suit::Hearts, 5..) & (nth_seat(3) | nth_seat(4)),
+            points(11..=21) & hcp(8..) & len(Suit::Hearts, 5..) & (nth_seat(3) | nth_seat(4)),
+        )
+        // Better-minor openings (deny a five-card major).
+        .rule(
+            Bid::new(1, Strain::Diamonds),
+            1.0,
+            points(12..=21)
+                & hcp(10..)
+                & prefers_diamonds()
+                & len(Suit::Hearts, ..5)
+                & len(Suit::Spades, ..5),
+        )
+        .rule(
+            Bid::new(1, Strain::Clubs),
+            1.0,
+            points(12..=21)
+                & hcp(10..)
+                & len(Suit::Clubs, 3..)
+                & !prefers_diamonds()
+                & len(Suit::Hearts, ..5)
+                & len(Suit::Spades, ..5),
         );
-    // Better-minor openings (deny a five-card major).
-    rules = match opening_floor {
-        Some(f) => rules
-            .rule(
-                Bid::new(1, Strain::Diamonds),
-                1.0,
-                points(12..=21)
-                    & hcp(f..)
-                    & prefers_diamonds()
-                    & len(Suit::Hearts, ..5)
-                    & len(Suit::Spades, ..5),
-            )
-            .rule(
-                Bid::new(1, Strain::Clubs),
-                1.0,
-                points(12..=21)
-                    & hcp(f..)
-                    & len(Suit::Clubs, 3..)
-                    & !prefers_diamonds()
-                    & len(Suit::Hearts, ..5)
-                    & len(Suit::Spades, ..5),
-            ),
-        None => rules
-            .rule(
-                Bid::new(1, Strain::Diamonds),
-                1.0,
-                points(12..=21)
-                    & prefers_diamonds()
-                    & len(Suit::Hearts, ..5)
-                    & len(Suit::Spades, ..5),
-            )
-            .rule(
-                Bid::new(1, Strain::Clubs),
-                1.0,
-                points(12..=21)
-                    & len(Suit::Clubs, 3..)
-                    & !prefers_diamonds()
-                    & len(Suit::Hearts, ..5)
-                    & len(Suit::Spades, ..5),
-            ),
-    };
 
     // Weak twos (six-card suit, not in fourth seat).  Strength gauged by an
     // honor-location evaluator when `set_weak_two_eval` is armed, in raw HCP
@@ -402,39 +358,40 @@ mod tests {
     }
 
     #[test]
-    fn opening_hcp_floor_bars_sub_ten_freaks() {
-        // ♠5 ♥JT952 ♦J ♣AK7652 — 9 HCP, 12 points (6-5): rule-of-N+8 walks it
-        // in the sound-opening front door (legacy passed or preempted; the
-        // remnant report's freak leg).  The floor bars it — the weak two stays
-        // unavailable (points 12, and clubs never weak-two) — so all opening
-        // rules go dead and the full book's floor passes.  A flat 12 keeps
-        // opening on both settings.
+    fn sub_ten_hcp_freaks_open_only_in_third_seat() {
+        // ♠5 ♥JT952 ♦J ♣AK7652 — 9 HCP, 12 points (6-5).  Rule-of-N+8 alone
+        // would walk it in the sound-opening front door; `hcp(10..)` bars it in
+        // first seat, and no other rule takes it (points 12 is past the weak
+        // two's band, and clubs never weak-two), so every logit goes dead and
+        // the full book's floor passes.  Third seat opens it: 12 points clears
+        // `points(11..)` and 9 HCP clears the legal `hcp(8..)`.
         let freak: Hand = "5.JT952.J.AK7652".parse().expect("valid test hand");
-        let flat12 = "AT86.975.QJ4.AJ3";
-        let one_h = Call::Bid(Bid::new(1, Strain::Hearts));
-        let one_c = Call::Bid(Bid::new(1, Strain::Clubs));
+        let table = openings();
 
-        assert_eq!(
-            opens(&openings(), "5.JT952.J.AK7652"),
-            one_h,
-            "shipped: 12 points open 1♥"
-        );
-
-        set_opening_hcp_floor(Some(10));
-        let floored = openings();
-        set_opening_hcp_floor(None);
-        let context = Context::new(RelativeVulnerability::NONE, &[]);
-        let logits = floored.classify(freak, &context);
+        let first = Context::new(RelativeVulnerability::NONE, &[]);
         assert!(
-            (&logits.0)
+            (&table.classify(freak, &first).0)
                 .into_iter()
                 .all(|(_, logit)| logit.is_infinite()),
-            "the floored table rejects the sub-10 freak (falls through to Pass)"
+            "first seat rejects the sub-10-HCP freak (falls through to Pass)"
         );
+
+        let third = Context::new(RelativeVulnerability::NONE, &[Call::Pass, Call::Pass]);
+        let best = (&table.classify(freak, &third).0)
+            .into_iter()
+            .max_by(|(_, a): &(Call, &f32), (_, b)| a.partial_cmp(b).expect("logits are never NaN"))
+            .map(|(call, _)| call)
+            .expect("array is never empty");
         assert_eq!(
-            opens(&floored, flat12),
-            one_c,
-            "a flat 12 still opens its better minor"
+            best,
+            Call::Bid(Bid::new(1, Strain::Hearts)),
+            "third seat opens it light"
+        );
+
+        assert_eq!(
+            opens(&table, "AT86.975.QJ4.AJ3"),
+            Call::Bid(Bid::new(1, Strain::Clubs)),
+            "a flat 12 still opens its better minor in first seat"
         );
     }
 

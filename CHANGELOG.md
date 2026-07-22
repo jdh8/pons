@@ -9,6 +9,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **`american()`'s one-level suit openings carry an explicit HCP floor, for
+  systems-legality.** Every band was gated on `points` alone, and no `points`
+  band can bound HCP: on the rule-of-N+8 scale a hand counts `hcp + max(0,
+  L1+L2 − 8)`, and `L1+L2` reaches 13 on a 7-6-0-0, so `points(N..)` bottoms out
+  at `N − 5` HCP — `points(12..=21)` admitted a 7-count, and the light 3rd/4th
+  major admitted a 4-count. A one-level opening in first or second seat that
+  *may* be made with 7 HCP or fewer is a HUM under [WBF Systems Policy 2024
+  §2.3.1(c)](https://www.worldbridge.org/wp-content/uploads/2016/12/WBFSystemsPolicy.pdf),
+  and 7 HCP breaks [EBU Blue Book 2024
+  §7A3/§8A4](https://www.ebu.co.uk/documents/laws-and-ethics/blue-book/blue-book.pdf)
+  (absolute 8, all seats); regulators judge the agreement's envelope, not its
+  frequency. New bands:
+
+  | rule | seats | constraint |
+  | --- | --- | --- |
+  | sound majors | 1st/2nd | `points(12..=21) & hcp(10..)` |
+  | light majors | 3rd/4th | `points(11..=21) & hcp(8..)` |
+  | minors | all | `points(12..=21) & hcp(10..)` |
+
+  First/second takes `hcp(10..)` over the bare legal minimum — standard, since
+  partner may aim at 3NT. Third/fourth opens lighter on `points(11..)` (exactly
+  the Rule of 19 = ACBL "Average Strength", required in all four seats on the
+  Basic charts), floored at the legal 8; the WBF does not regulate 3rd/4th
+  strength, but EBU's absolute 8 and ACBL Basic do. The result is legal on every
+  chart surveyed (WBF GREEN, ACBL Basic through Open+, EBU Levels 2–5) without
+  special licensing.
+
+  **Net a tightening**, measured-free in the two places it bites: barring
+  sub-10-HCP freaks (11+ cards in two suits) from the 1st/2nd front door is
+  exactly the old `set_opening_hcp_floor(Some(10))`, which measured a perfect
+  wash at 1M boards/vul (±0.0003 plain and PD). The 3rd/4th re-band ships on
+  legality, not a number — third-seat light openings are lead-directing, which
+  double-dummy prices at zero reward and full risk, so a DD A/B is not the
+  arbiter here. One small loosening falls out: an 11-HCP flat 4-3-3-3 with a
+  five-card major now opens in 3rd/4th (points 11), which is standard and legal.
+
 - **The trick evaluator ships v2 — the `ben` featurization, and it is worth
   real IMPs.** `features_eval` grows 40 → 54 floats: each suit's `(len,
   suit_hcp)` pair becomes a spot count plus A/K/Q/J/T bits, so the hand block
@@ -98,6 +134,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   tests stays live.
 
 ### Removed
+
+- **`set_opening_hcp_floor` is gone — its `Some(10)` arm is now the default.**
+  The one-level openings carry an explicit `hcp` floor for systems-legality (see
+  Changed), so the opt-in raw-HCP floor and its `--fix opening-hcp-floor:N` A/B
+  arm in `ab-point-count` no longer have anything to switch between. **Breaking**:
+  `bidding::american::set_opening_hcp_floor` was public.
 
 - **`rule_of_20()` is gone — `points` already is the Rule of 20.** Since
   `point_count` shipped on the floored rule-of-N+8 scale, `points = raw HCP +

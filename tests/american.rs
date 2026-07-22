@@ -64,10 +64,18 @@ fn test_openings() {
 #[test]
 fn test_light_third_seat_major() {
     let system = stance();
-    // The same 9-count that passes in first seat opens 1♠ in third.
+    // 9 HCP, 5-5-2-1 -> 11 points: short of the first-seat `points(12..)` but
+    // clear of third seat's Rule-of-19 band, and 9 HCP clears the legal 8.
+    let light = "AQ432.J8765.Q4.2";
+    assert_eq!(best_call(&system, &[], light), Call::Pass);
+    assert_eq!(
+        best_call(&system, &[Call::Pass, Call::Pass], light),
+        call(1, Strain::Spades),
+    );
+    // A 9-count with no shape (5-3-3-2 -> 9 points) now passes in third too.
     assert_eq!(
         best_call(&system, &[Call::Pass, Call::Pass], "AQJ32.853.Q42.92"),
-        call(1, Strain::Spades),
+        Call::Pass,
     );
 }
 
