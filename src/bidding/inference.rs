@@ -37,7 +37,7 @@
 
 use super::context::Context;
 use contract_bridge::auction::Call;
-use contract_bridge::{Bid, Strain, Suit};
+use contract_bridge::{Bid, Hand, Strain, Suit};
 use std::cell::Cell;
 
 /// The largest a suit length range may span
@@ -155,6 +155,34 @@ pub fn set_fallback_projection(on: bool) {
 #[must_use]
 pub fn fallback_projection_enabled() -> bool {
     FALLBACK_PROJECTION.with(Cell::get)
+}
+
+std::thread_local! {
+    /// Whether a call's reading is stored as a *union of boxes* (a DNF) and the
+    /// sampler accepts a hand that lies in **any** box, rather than the single
+    /// bounding-box hull (see [`set_dnf_reading`]).  **Off by default** — the
+    /// Phase C2 knob; every arm and the shipped default stay byte-identical to
+    /// the hull path until the A/B measures the tighter acceptance.
+    static DNF_READING: Cell<bool> = const { Cell::new(false) };
+}
+
+/// Toggle union-of-boxes (DNF) readings for the sampler (**default off**, C2)
+///
+/// Off, a disjunctive reading (`Or`, `AnyLen`, a call authored by several rules)
+/// widens to its bounding box, so the sampler accepts the whole hull — today's
+/// behaviour.  On, the reading keeps its separate boxes and the sampler accepts
+/// a layout only if it lies in *some* box, pinning two-suiters / Multi / the
+/// fit-split instead of the box that spans them.  The net still reads the hull
+/// ([`crate::bidding::features`] is unchanged); only the sampler sees the
+/// disjunction.  Read at classification and acceptance time, per-thread.
+pub fn set_dnf_reading(on: bool) {
+    DNF_READING.with(|cell| cell.set(on));
+}
+
+/// Whether union-of-boxes readings are enabled (default off)
+#[must_use]
+pub fn dnf_reading() -> bool {
+    DNF_READING.with(Cell::get)
 }
 
 std::thread_local! {
@@ -472,6 +500,154 @@ impl Inference {
         out.points = out.points.union(other.points);
         out
     }
+
+    /// The intersection box, or `None` when any axis is disjoint (empty product)
+    ///
+    /// Unlike [`intersect`][Self::intersect], which widens a crossed range to
+    /// preserve soundness *within* a single box, this reports the empty product
+    /// so a [`Dnf`] can **drop** the contradictory term — the surviving terms of
+    /// a union still cover every hand, so the union stays sound while getting
+    /// tighter (e.g. `1NT ∩ 4-5♥` drops the balanced-diamond box whose hearts
+    /// cannot reach four).
+    fn intersect_nonempty(&self, other: &Self) -> Option<Self> {
+        let mut lengths = [Range::FULL_LENGTH; 4];
+        for suit in Suit::ASC {
+            let (a, b) = (self.length(suit), other.length(suit));
+            let (min, max) = (a.min.max(b.min), a.max.min(b.max));
+            if min > max {
+                return None;
+            }
+            lengths[suit as usize] = Range::new(min, max);
+        }
+        let (min, max) = (
+            self.points.min.max(other.points.min),
+            self.points.max.min(other.points.max),
+        );
+        if min > max {
+            return None;
+        }
+        Some(Self {
+            lengths,
+            points: Range::new(min, max),
+        })
+    }
+
+    /// Whether a hand's suit lengths and point count all fall within this box
+    ///
+    /// The per-box membership test the sampler and [`Dnf::contains`] share.
+    #[must_use]
+    pub fn admits(&self, hand: Hand) -> bool {
+        Suit::ASC.into_iter().all(|suit| {
+            // SAFETY: a suit length is at most 13, so the cast cannot truncate.
+            #[allow(clippy::cast_possible_truncation)]
+            let length = hand[suit].len() as u8;
+            self.length(suit).contains(length)
+        }) && self.points.contains(super::constraint::point_count(hand))
+    }
+}
+
+/// A forward reading as a union of boxes — disjunctive normal form
+///
+/// One [`Inference`] is a single axis-aligned box; a disjunction (`Multi`, a
+/// two-suiter, a `!`-shape) needs a *union* of boxes, which a single box cannot
+/// hold without widening to the bounding box (the "`Or` wall").  A [`Dnf`] keeps
+/// the terms: a hand is consistent with the call iff it lies in **some** box.
+///
+/// Sound by construction — every operation is *exact or widening, never
+/// narrowing*.  [`intersect`][Self::intersect] distributes (Cartesian product of
+/// box-intersects, dropping empty products); [`union`][Self::union] concatenates.
+/// [`hull`][Self::hull] collapses the union back to the single bounding box, the
+/// migration escape hatch that reproduces today's single-box reading.
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct Dnf(
+    /// The disjoined boxes; non-empty (`len >= 1`) by invariant.
+    Vec<Inference>,
+);
+
+impl Dnf {
+    /// Nothing shown yet: a single [`Inference::unknown`] box
+    #[must_use]
+    pub fn unknown() -> Self {
+        Self(vec![Inference::unknown()])
+    }
+
+    /// The bounding box of the union — fold [`Inference::union`] over the terms
+    ///
+    /// Today's single-box behaviour: every consumer that still wants one
+    /// [`Inference`] hulls here.  Never narrows (a hand in some term is in the
+    /// hull), so hulling a sound `Dnf` stays sound.
+    #[must_use]
+    pub fn hull(&self) -> Inference {
+        self.0
+            .iter()
+            .copied()
+            .reduce(|a, b| a.union(&b))
+            .unwrap_or_else(Inference::unknown)
+    }
+
+    /// Whether **some** box admits the hand — tighter than `hull().admits()`
+    #[must_use]
+    pub fn contains(&self, hand: Hand) -> bool {
+        self.0.iter().any(|b| b.admits(hand))
+    }
+
+    /// Concatenate the terms — the `|` projection (either box may hold)
+    #[must_use]
+    pub fn union(mut self, mut other: Self) -> Self {
+        self.0.append(&mut other.0);
+        self
+    }
+
+    /// The `|` combine the projection fold uses: separate boxes under
+    /// [`dnf_reading`], else the single bounding-box hull
+    ///
+    /// Off (the default), reproduces [`Inference::union`] exactly, so the hull
+    /// path stays byte-identical; on, keeps the arms so an enclosing `&`
+    /// distributes and the sampler pins the disjunction.
+    #[must_use]
+    pub fn disjoin(self, other: Self) -> Self {
+        if dnf_reading() {
+            self.union(other)
+        } else {
+            Self::from(self.hull().union(&other.hull()))
+        }
+    }
+
+    /// Cartesian product of pairwise box-intersects — the `&` projection
+    ///
+    /// `(A ∪ B) ∩ (C ∪ D) = (A∩C) ∪ (A∩D) ∪ (B∩C) ∪ (B∩D)`, dropping empty
+    /// products (`Inference::intersect_nonempty`).  The common case is one box
+    /// each → one box out (`and` is a cheap box-shrink); growth needs *both*
+    /// sides to be genuine disjunctions.  If every product is empty the whole
+    /// conjunction is unsatisfiable, so fall back to the widened hull-intersect
+    /// — sound and loose, never an empty (unsound) `Dnf`.
+    #[must_use]
+    pub fn intersect(&self, other: &Self) -> Self {
+        let mut out = Vec::new();
+        for a in &self.0 {
+            for b in &other.0 {
+                if let Some(product) = a.intersect_nonempty(b) {
+                    out.push(product);
+                }
+            }
+        }
+        if out.is_empty() {
+            out.push(self.hull().intersect(&other.hull()));
+        }
+        // ponytail: no cap — `and`-of-two-`or`s is the only multiplier and it is
+        // rare, so the Vec stays short on the real book.  The assert fires
+        // loudly if some auction blows up; add sound exact-merge (containment +
+        // axis-adjacency) only then.
+        debug_assert!(out.len() < 64, "DNF term explosion: {} boxes", out.len());
+        Self(out)
+    }
+}
+
+impl From<Inference> for Dnf {
+    fn from(box_: Inference) -> Self {
+        Self(vec![box_])
+    }
 }
 
 /// A seat relative to the player about to act, clockwise
@@ -545,10 +721,20 @@ fn systems_on_overcall_strip(auction: &[Call]) -> Option<Vec<Call>> {
 }
 
 /// All four players' shown shape and strength, relative to the side to act
-#[derive(Clone, Copy, Debug)]
+///
+/// `Vec`-backed [`Dnf`] means this is `Clone`, not `Copy` (two convertible call
+/// sites: `narrowed_points`, `single_dummy`).
+#[derive(Clone, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Inferences {
+    /// Per-seat bounding-box hull of `dnf` — the single-[`Inference`] reading the
+    /// American engine consumes via [`get`][Self::get].  A redundant cache of
+    /// `dnf[i].hull()` (`ponytail: keeps get()->&Inference and all readers
+    /// unchanged; collapse to get-by-value if the two ever drift`).
     players: [Inference; 4],
+    /// Per-seat union-of-boxes reading; the sampler tests any-box under
+    /// [`dnf_reading`].  Off, every entry is a single box equal to `players[i]`.
+    dnf: [Dnf; 4],
     /// The last call the M6.4 classifier read as a control bid: its auction
     /// index and the suit it agrees.  The exact witness for the instinct
     /// signoff — "the named suit is unread" cannot tell a control bid from an
@@ -559,10 +745,25 @@ pub struct Inferences {
 }
 
 impl Inferences {
-    /// The shown shape and strength of one relative seat
+    /// The shown shape and strength of one relative seat (the hull)
     #[must_use]
     pub const fn get(&self, who: Relative) -> &Inference {
         &self.players[who as usize]
+    }
+
+    /// Whether `hand` is consistent with one seat's reading
+    ///
+    /// Under [`dnf_reading`] a hand must lie in *some* box of that seat's union
+    /// (tighter — pins two-suiters / Multi / the fit-split); off, it need only
+    /// lie in the bounding-box hull (today's acceptance).  The sampler's per-seat
+    /// test.
+    #[must_use]
+    pub fn admits(&self, who: Relative, hand: Hand) -> bool {
+        if dnf_reading() {
+            self.dnf[who as usize].contains(hand)
+        } else {
+            self.players[who as usize].admits(hand)
+        }
     }
 
     /// What the player to act has shown by their own prior calls
@@ -598,8 +799,16 @@ impl Inferences {
     /// Intersects (never widens), so the result stays within what was shown.
     #[must_use]
     pub fn narrowed_points(&self, who: Relative, points: Range) -> Self {
-        let mut copy = *self;
-        copy.players[who as usize].points = copy.players[who as usize].points.intersect(points);
+        let mut copy = self.clone();
+        let i = who as usize;
+        copy.players[i].points = copy.players[i].points.intersect(points);
+        // Narrow the points of every box in the union to keep `dnf` == the hull's
+        // source (a points-only slab drops no box: it never crosses a length axis).
+        let slab = Inference {
+            points,
+            ..Inference::unknown()
+        };
+        copy.dnf[i] = copy.dnf[i].intersect(&slab.into());
         copy
     }
 
@@ -629,6 +838,9 @@ impl Inferences {
         let auction = context.auction();
         let len = auction.len();
         let mut players = [Inference::unknown(); 4];
+        // The disjunctive overlay, folded into `players` (the hull) below and into
+        // `dnf` (the boxes) at each return.  Unknown until `project_authored` runs.
+        let mut overlay_dnf: [Dnf; 4] = std::array::from_fn(|_| Dnf::unknown());
         let mut control_bid = None;
 
         let Some(opening_index) = auction.iter().position(|&c| c != Call::Pass) else {
@@ -640,17 +852,22 @@ impl Inferences {
             if pass_reading() {
                 let (overlay, _) = project_authored(context);
                 for (player, projected) in players.iter_mut().zip(&overlay) {
-                    *player = player.intersect(projected);
+                    *player = player.intersect(&projected.hull());
                 }
+                overlay_dnf = overlay;
             }
+            let dnf = dnf_of(&players, &overlay_dnf);
             return Self {
                 players,
+                dnf,
                 control_bid,
             };
         };
         let Call::Bid(opening_bid) = auction[opening_index] else {
+            let dnf = dnf_of(&players, &overlay_dnf);
             return Self {
                 players,
+                dnf,
                 control_bid,
             };
         };
@@ -692,7 +909,11 @@ impl Inferences {
         // records each artificial call's projected shape (applied post-walk);
         // `suppressed` is a bitset of the indices whose natural single-suit reading
         // the walk must skip.
-        let (overlay, suppressed) = project_authored(context);
+        let (overlay_boxes, suppressed) = project_authored(context);
+        overlay_dnf = overlay_boxes;
+        // The hulled overlay the natural walk consumes (`shown_suit`, the post-walk
+        // intersect); the boxes are re-combined into `dnf` at the return.
+        let overlay: [Inference; 4] = std::array::from_fn(|i| overlay_dnf[i].hull());
         // The one suppression the projection cannot see: the advancer's 2♦ relay /
         // 2♥-2♠ preference over a Landy/Woolsey both-majors 2♣ names no length of its
         // own, so its rule projects nothing — suppress it by hand (the doc's stub).
@@ -1410,8 +1631,10 @@ impl Inferences {
             players[who].narrow_points(Range::at_least(8, POINTS_CAP));
         }
 
+        let dnf = dnf_of(&players, &overlay_dnf);
         Self {
             players,
+            dnf,
             control_bid,
         }
     }
@@ -1442,8 +1665,10 @@ impl Inferences {
 #[cfg(test)]
 #[must_use]
 pub(crate) fn authored_reading(context: &Context<'_>) -> Inferences {
+    let dnf = project_authored(context).0;
     Inferences {
-        players: project_authored(context).0,
+        players: std::array::from_fn(|i| dnf[i].hull()),
+        dnf,
         control_bid: None,
     }
 }
@@ -1628,10 +1853,22 @@ fn classify_high_bid(
 ///
 /// The bitset indexes by auction position; a position past 64 (never reached by a
 /// real auction) is simply left unmarked, falling back to the natural reading.
-fn project_authored(context: &Context<'_>) -> ([Inference; 4], u64) {
+/// Combine the final hulled `players` with the disjunctive `overlay` into the
+/// per-seat DNF the sampler consumes
+///
+/// `players[i]` already folds `overlay[i].hull()` and every hand-walk narrowing,
+/// and each overlay box is `⊆` that hull, so re-intersecting recovers exactly
+/// `⋃(hand-walk ∩ boxₖ)` — the tight union — while dropping boxes the walk
+/// contradicts.  With [`dnf_reading`] off each overlay is one box, so the result
+/// is the single box `players[i]` and `dnf[i].hull() == players[i]` (byte-identical).
+fn dnf_of(players: &[Inference; 4], overlay: &[Dnf; 4]) -> [Dnf; 4] {
+    std::array::from_fn(|i| Dnf::from(players[i]).intersect(&overlay[i]))
+}
+
+fn project_authored(context: &Context<'_>) -> ([Dnf; 4], u64) {
     let auction = context.auction();
     let len = auction.len();
-    let mut players = [Inference::unknown(); 4];
+    let mut players: [Dnf; 4] = std::array::from_fn(|_| Dnf::unknown());
     let mut suppressed = 0u64;
 
     let Some(prefixes) = context.prefixes() else {
@@ -1670,12 +1907,12 @@ fn project_authored(context: &Context<'_>) -> ([Inference; 4], u64) {
             .filter(|rule| rule.call() == made)
             .map(|rule| {
                 if is_pass {
-                    rule.project_band(ctx)
+                    rule.project_band_dnf(ctx)
                 } else {
-                    rule.project(ctx)
+                    rule.project_dnf(ctx)
                 }
             })
-            .reduce(|acc, p| acc.union(&p));
+            .reduce(Dnf::disjoin);
 
         // A call is artificial — decode it — when its authoring rule *alerts* it.
         // The alert is now the complete, exhaustive signal: every artificial call
@@ -1703,6 +1940,8 @@ fn project_authored(context: &Context<'_>) -> ([Inference; 4], u64) {
             }
         }
     };
+    // `players` is a `[Dnf; 4]` closed over by `project_call`; every branch below
+    // accumulates through it, and the caller hulls each entry for the natural walk.
 
     if fallback_projection_enabled() {
         // Decode every prior call by the classifier that *authored* it — node or
@@ -2888,6 +3127,91 @@ mod tests {
     fn read_booked(auction: &[Call]) -> Inferences {
         let stance = crate::american().against(crate::bidding::Family::NATURAL);
         Inferences::read(&stance.prefixed_context(RelativeVulnerability::NONE, auction))
+    }
+
+    /// The `Dnf` box algebra: `intersect` distributes and **drops** the empty
+    /// products, so a disjunctive reading stays tight instead of hulling to the
+    /// bounding box.  The worked example is `1NT ∩ 4-5♥` (opener's Stayman `2♥`).
+    #[test]
+    fn dnf_intersect_drops_empty_products() {
+        // A box literal: [♣, ♦, ♥, ♠] length ranges (ASC order) and points.
+        let box_ = |c: (u8, u8), d: (u8, u8), h: (u8, u8), s: (u8, u8), p: (u8, u8)| Inference {
+            lengths: [
+                Range::new(c.0, c.1),
+                Range::new(d.0, d.1),
+                Range::new(h.0, h.1),
+                Range::new(s.0, s.1),
+            ],
+            points: Range::new(p.0, p.1),
+        };
+
+        // 1NT as three shapes, all 15-17: balanced, then each 5-card major.
+        let one_nt = Dnf(vec![
+            box_((2, 6), (2, 6), (2, 4), (2, 4), (15, 17)), // balanced
+            box_((2, 3), (2, 3), (2, 3), (5, 5), (15, 17)), // 5=♠
+            box_((2, 3), (2, 3), (5, 5), (2, 3), (15, 17)), // 5=♥
+        ]);
+        // Opener's `2♥` over Stayman = 1NT ∩ {4-5 hearts}, other suits free.
+        let four_five_hearts = Dnf::from(box_((0, 13), (0, 13), (4, 5), (0, 13), (0, 37)));
+
+        let two_hearts = one_nt.intersect(&four_five_hearts);
+
+        // The 5=♠ box (hearts 2-3) contradicts 4-5♥ and is dropped: 2 boxes, not 3.
+        assert_eq!(two_hearts.0.len(), 2, "empty product not dropped");
+        // The survivors pin hearts to exactly 4 (from balanced) and exactly 5.
+        let hearts: Vec<Range> = two_hearts
+            .0
+            .iter()
+            .map(|b| b.length(Suit::Hearts))
+            .collect();
+        assert!(hearts.contains(&Range::new(4, 4)) && hearts.contains(&Range::new(5, 5)));
+
+        // The hull re-widens to the bounding box — the slop the Dnf avoids: it
+        // admits ♠4♥5, a hand *neither* surviving box holds (balanced caps ♠ at 4
+        // only with ≤4♥; the 5♥ box caps ♠ at 3).
+        let hull = two_hearts.hull();
+        assert_eq!(hull.length(Suit::Hearts), Range::new(4, 5));
+        assert_eq!(hull.length(Suit::Spades), Range::new(2, 4));
+        assert!(two_hearts.0.iter().all(|b| {
+            !(b.length(Suit::Spades).contains(4) && b.length(Suit::Hearts).contains(5))
+        }));
+
+        // Fully-contradictory intersect falls back to the widened hull, never empty.
+        let empty = Dnf::from(box_((0, 0), (0, 13), (0, 13), (0, 13), (0, 37)));
+        let clubs = Dnf::from(box_((5, 13), (0, 13), (0, 13), (0, 13), (0, 37)));
+        assert_eq!(empty.intersect(&clubs).0.len(), 1);
+    }
+
+    /// `set_dnf_reading` gates the `Or` wall: off, `or([♥, ♠], 6..)` hulls to one
+    /// box that admits a 5-4 hand with no six-card major; on, it keeps the two
+    /// boxes and rejects that hand while still admitting each true one-suiter.
+    #[test]
+    fn dnf_reading_pins_the_two_suiter() {
+        use crate::bidding::constraint::{Constraint, or};
+        // Holdings are spades.hearts.diamonds.clubs.
+        let six_spades: Hand = "AKQJ32.KQ4.32.32".parse().unwrap();
+        let six_hearts: Hand = "KQ4.AKQJ32.32.32".parse().unwrap();
+        let five_four: Hand = "AKQJ3.KQ42.32.32".parse().unwrap(); // no six-card major
+        let ctx = Context::new(RelativeVulnerability::NONE, &[]);
+        let reading = or([Suit::Hearts, Suit::Spades], 6..);
+
+        set_dnf_reading(false);
+        let hull = reading.project(&ctx);
+        assert_eq!(hull.0.len(), 1, "off: one bounding box");
+        assert!(
+            hull.contains(five_four),
+            "off: the hull admits the 5-4 slop"
+        );
+
+        set_dnf_reading(true);
+        let boxes = reading.project(&ctx);
+        assert_eq!(boxes.0.len(), 2, "on: one box per major");
+        assert!(boxes.contains(six_spades) && boxes.contains(six_hearts));
+        assert!(
+            !boxes.contains(five_four),
+            "on: neither box holds the 5-4 hand"
+        );
+        set_dnf_reading(false);
     }
 
     #[test]

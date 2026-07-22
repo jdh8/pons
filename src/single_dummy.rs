@@ -135,7 +135,7 @@ pub fn single_dummy_lead_tricks(
         deal: *deal,
         strain,
         declarer,
-        inferences: *inferences,
+        inferences: inferences.clone(),
     };
     single_dummy_leads(&[question], rng, n)
         .pop()

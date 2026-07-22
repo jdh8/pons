@@ -353,15 +353,7 @@ mod tests {
     /// escape hatch (which must stay sound by projecting no info).
     #[test]
     fn projection_contains_every_accepted_hand() {
-        use crate::bidding::constraint::{Constraint, point_count};
-        use crate::bidding::inference::Inference;
-
-        fn within(envelope: &Inference, hand: Hand) -> bool {
-            Suit::ASC.into_iter().all(|suit| {
-                let length = u8::try_from(hand[suit].len()).expect("holding fits u8");
-                envelope.length(suit).contains(length)
-            }) && envelope.points.contains(point_count(hand))
-        }
+        use crate::bidding::constraint::Constraint;
 
         let ctx = empty_context();
         let battery: [Box<dyn Constraint>; 11] = [
@@ -393,7 +385,7 @@ mod tests {
             for hand in random_hands(&mut rng).take(N) {
                 if constraint.eval(hand, &ctx) > f32::NEG_INFINITY {
                     assert!(
-                        within(&envelope, hand),
+                        envelope.contains(hand),
                         "projection unsound: {hand} accepted but outside {envelope:?}"
                     );
                 }

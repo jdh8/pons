@@ -30,7 +30,7 @@
 //! ```
 
 use super::context::Context;
-use super::inference::{Inference, Inferences, Range};
+use super::inference::{Dnf, Inference, Inferences, Range};
 use contract_bridge::eval::{self, HandEvaluator, SimpleEvaluator};
 use contract_bridge::{Hand, Holding, Level, Rank, Strain, Suit};
 use core::cell::Cell;
@@ -70,8 +70,8 @@ pub trait Constraint: Send + Sync {
     /// `project(context)`.  The default asserts nothing
     /// ([`Inference::unknown`]), so an opaque predicate stays sound but loose
     /// until a length- or points-bearing primitive overrides it.
-    fn project(&self, _context: &Context<'_>) -> Inference {
-        Inference::unknown()
+    fn project(&self, _context: &Context<'_>) -> Dnf {
+        Dnf::unknown()
     }
 
     /// Project the constraint into its **two-sided** [`Inference`] envelope
@@ -86,7 +86,7 @@ pub trait Constraint: Send + Sync {
     /// already two-sided ([`len`] and the suit-set combinators) or opaque
     /// stays correct; the point gauges and [`balanced`] override it, and
     /// `&`/`|` compose it tightly per arm.
-    fn project_band(&self, context: &Context<'_>) -> Inference {
+    fn project_band(&self, context: &Context<'_>) -> Dnf {
         self.project(context)
     }
 
@@ -106,8 +106,8 @@ pub trait Constraint: Send + Sync {
     /// asymmetry is the whole reason negation is pushed to the leaves before
     /// anything is complemented — `!⊤ = ⊥` is *tighter than the truth*, and an
     /// off-axis gauge like [`suit_hcp`] approximates to ⊤.
-    fn project_complement(&self, _context: &Context<'_>) -> Inference {
-        Inference::unknown()
+    fn project_complement(&self, _context: &Context<'_>) -> Dnf {
+        Dnf::unknown()
     }
 }
 
@@ -153,15 +153,15 @@ impl<T: Constraint> Constraint for Cons<T> {
         self.0.describe()
     }
 
-    fn project(&self, context: &Context<'_>) -> Inference {
+    fn project(&self, context: &Context<'_>) -> Dnf {
         self.0.project(context)
     }
 
-    fn project_band(&self, context: &Context<'_>) -> Inference {
+    fn project_band(&self, context: &Context<'_>) -> Dnf {
         self.0.project_band(context)
     }
 
-    fn project_complement(&self, context: &Context<'_>) -> Inference {
+    fn project_complement(&self, context: &Context<'_>) -> Dnf {
         self.0.project_complement(context)
     }
 }
@@ -179,11 +179,11 @@ impl<A: Constraint, B: Constraint> Constraint for And<A, B> {
         self.0.describe().and(self.1.describe())
     }
 
-    fn project(&self, context: &Context<'_>) -> Inference {
+    fn project(&self, context: &Context<'_>) -> Dnf {
         self.0.project(context).intersect(&self.1.project(context))
     }
 
-    fn project_band(&self, context: &Context<'_>) -> Inference {
+    fn project_band(&self, context: &Context<'_>) -> Dnf {
         self.0
             .project_band(context)
             .intersect(&self.1.project_band(context))
@@ -203,14 +203,14 @@ impl<A: Constraint, B: Constraint> Constraint for Or<A, B> {
         self.0.describe().or(self.1.describe())
     }
 
-    fn project(&self, context: &Context<'_>) -> Inference {
-        self.0.project(context).union(&self.1.project(context))
+    fn project(&self, context: &Context<'_>) -> Dnf {
+        self.0.project(context).disjoin(self.1.project(context))
     }
 
-    fn project_band(&self, context: &Context<'_>) -> Inference {
+    fn project_band(&self, context: &Context<'_>) -> Dnf {
         self.0
             .project_band(context)
-            .union(&self.1.project_band(context))
+            .disjoin(self.1.project_band(context))
     }
 }
 
@@ -230,7 +230,7 @@ impl<T: Constraint> Constraint for Flip<T> {
         self.0.describe().negate()
     }
 
-    fn project(&self, context: &Context<'_>) -> Inference {
+    fn project(&self, context: &Context<'_>) -> Dnf {
         self.0.project_complement(context)
     }
 }
@@ -531,15 +531,15 @@ impl<E: Constraint, R: Constraint> Constraint for ReadsAs<E, R> {
         self.reading.describe()
     }
 
-    fn project(&self, context: &Context<'_>) -> Inference {
+    fn project(&self, context: &Context<'_>) -> Dnf {
         self.reading.project(context)
     }
 
-    fn project_band(&self, context: &Context<'_>) -> Inference {
+    fn project_band(&self, context: &Context<'_>) -> Dnf {
         self.reading.project_band(context)
     }
 
-    fn project_complement(&self, context: &Context<'_>) -> Inference {
+    fn project_complement(&self, context: &Context<'_>) -> Dnf {
         self.reading.project_complement(context)
     }
 }
@@ -740,7 +740,7 @@ impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for Hcp<R> {
         describe_int_range(&self.0, "HCP")
     }
 
-    fn project(&self, _: &Context<'_>) -> Inference {
+    fn project(&self, _: &Context<'_>) -> Dnf {
         // ponytail: floor only — points = raw HCP + upgrade ≥ raw HCP, so an
         // HCP *ceiling* is unsound on the upgraded-points scale an `Inference`
         // records; the floor is exact.  Rule of N+8 reads a flat 4-3-3-3 one
@@ -751,21 +751,23 @@ impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for Hcp<R> {
         let floor = bound_range(&self.0, Range::FULL_POINTS.max).min;
         let mut inference = Inference::unknown();
         inference.points = Range::new(floor.saturating_sub(slack), Range::FULL_POINTS.max);
-        inference
+        Dnf::from(inference)
     }
 
-    fn project_band(&self, _: &Context<'_>) -> Inference {
-        hcp_band(bound_range(&self.0, Range::FULL_POINTS.max))
+    fn project_band(&self, _: &Context<'_>) -> Dnf {
+        Dnf::from(hcp_band(bound_range(&self.0, Range::FULL_POINTS.max)))
     }
 
-    fn project_complement(&self, _: &Context<'_>) -> Inference {
+    fn project_complement(&self, _: &Context<'_>) -> Dnf {
         // `!hcp(13..)` is "at most twelve raw HCP", which the upgraded scale
         // then widens upward by the same slack `project_band` owes it.
-        complement_range(
-            bound_range(&self.0, Range::FULL_POINTS.max),
-            Range::FULL_POINTS.max,
+        Dnf::from(
+            complement_range(
+                bound_range(&self.0, Range::FULL_POINTS.max),
+                Range::FULL_POINTS.max,
+            )
+            .map_or_else(Inference::unknown, hcp_band),
         )
-        .map_or_else(Inference::unknown, hcp_band)
     }
 }
 
@@ -904,25 +906,25 @@ impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for Points<R> {
         describe_int_range(&self.0, "points")
     }
 
-    fn project(&self, _: &Context<'_>) -> Inference {
+    fn project(&self, _: &Context<'_>) -> Dnf {
         // Floor only, matching every hand-written reader (`at_least(floor,
         // CAP)`): sound whether or not the fuzzy-strength upgrade is on, since
         // the upgraded point count is never below the band's floor.
         let floor = bound_range(&self.0, Range::FULL_POINTS.max).min;
         let mut inference = Inference::unknown();
         inference.points = Range::new(floor, Range::FULL_POINTS.max);
-        inference
+        Dnf::from(inference)
     }
 
-    fn project_band(&self, _: &Context<'_>) -> Inference {
+    fn project_band(&self, _: &Context<'_>) -> Dnf {
         // Both bounds exact: `points` gauges the shared `point_count` scalar
         // the `Inference` scale records, whatever scale it is set to.
         let mut inference = Inference::unknown();
         inference.points = bound_range(&self.0, Range::FULL_POINTS.max);
-        inference
+        Dnf::from(inference)
     }
 
-    fn project_complement(&self, _: &Context<'_>) -> Inference {
+    fn project_complement(&self, _: &Context<'_>) -> Dnf {
         // Exact on the same scale, so the complement is exact too.
         let mut inference = Inference::unknown();
         if let Some(range) = complement_range(
@@ -931,7 +933,7 @@ impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for Points<R> {
         ) {
             inference.points = range;
         }
-        inference
+        Dnf::from(inference)
     }
 }
 
@@ -973,14 +975,14 @@ impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for SupportPoints<R> {
         describe_int_range(&self.0, "support points")
     }
 
-    fn project(&self, _: &Context<'_>) -> Inference {
+    fn project(&self, _: &Context<'_>) -> Dnf {
         // ponytail: unknown() until the sampler needs the floor; see
         // docs/ai-bidder/rule-projection.md.  With the flag on this reads the new
         // scale while every other gate's ranges are recorded on legacy
         // `point_count`, and `new_point_count` is not a lower bound on it (graded
         // shortness can exceed the coarse `upgrade`), so projecting a floor the
         // way `Points::project` does would be unsound.  Claim nothing.
-        Inference::unknown()
+        Dnf::unknown()
     }
 }
 
@@ -1057,14 +1059,14 @@ impl<R: RangeBounds<usize> + Clone + Send + Sync> Constraint for Len<R> {
         describe_int_range(&self.range, &self.suit.to_string())
     }
 
-    fn project(&self, _: &Context<'_>) -> Inference {
+    fn project(&self, _: &Context<'_>) -> Dnf {
         // Length is exact — the same `hand[suit].len()` `eval` checks — so both
         // bounds project soundly.
-        len_projection(self.suit, &self.range)
+        Dnf::from(len_projection(self.suit, &self.range))
     }
 
-    fn project_complement(&self, _: &Context<'_>) -> Inference {
-        len_complement(self.suit, &self.range)
+    fn project_complement(&self, _: &Context<'_>) -> Dnf {
+        Dnf::from(len_complement(self.suit, &self.range))
     }
 }
 
@@ -1123,14 +1125,16 @@ impl<const N: usize, R: RangeBounds<usize> + Clone + Send + Sync> Constraint for
             .unwrap_or(Description::Opaque)
     }
 
-    fn project(&self, _: &Context<'_>) -> Inference {
+    fn project(&self, _: &Context<'_>) -> Dnf {
         // Every named suit is floored to `range` (the same exact `len` check), so
         // the projection intersects each suit's bound — sound *and* tight.
-        self.suits
-            .iter()
-            .map(|&suit| len_projection(suit, &self.range))
-            .reduce(|acc, inf| acc.intersect(&inf))
-            .unwrap_or_else(Inference::unknown)
+        Dnf::from(
+            self.suits
+                .iter()
+                .map(|&suit| len_projection(suit, &self.range))
+                .reduce(|acc, inf| acc.intersect(&inf))
+                .unwrap_or_else(Inference::unknown),
+        )
     }
 }
 
@@ -1172,15 +1176,19 @@ impl<const N: usize, R: RangeBounds<usize> + Clone + Send + Sync> Constraint for
             .unwrap_or(Description::Opaque)
     }
 
-    fn project(&self, _: &Context<'_>) -> Inference {
+    fn project(&self, _: &Context<'_>) -> Dnf {
         // At least one named suit lies in `range`, but not which — the sound
         // envelope is the union of the arms, which widens every suit back to full
         // unless exactly one suit is named (then it floors exactly, like `len`).
+        //
+        // C2 (`dnf_reading` on) keeps the arms as separate `Dnf` boxes so
+        // `or([♥, ♠], 6..)` pins the two shapes instead of widening both suits
+        // to full — the `Or`-wall fix; off, it hulls to one box (byte-identical).
         self.suits
             .iter()
-            .map(|&suit| len_projection(suit, &self.range))
-            .reduce(|acc, inf| acc.union(&inf))
-            .unwrap_or_else(Inference::unknown)
+            .map(|&suit| Dnf::from(len_projection(suit, &self.range)))
+            .reduce(Dnf::disjoin)
+            .unwrap_or_else(Dnf::unknown)
     }
 }
 
@@ -1248,11 +1256,11 @@ impl Constraint for Balanced {
         Description::atom("balanced")
     }
 
-    fn project_band(&self, _: &Context<'_>) -> Inference {
+    fn project_band(&self, _: &Context<'_>) -> Dnf {
         // 4333, 4432, or 5332: every suit two to five cards.
         let mut inference = Inference::unknown();
         inference.lengths = [Range::new(2, 5); 4];
-        inference
+        Dnf::from(inference)
     }
 }
 
@@ -1340,13 +1348,15 @@ impl<R: RangeBounds<usize> + Clone + Send + Sync> Constraint for Support<R> {
         describe_int_range(&self.0, "card support for partner")
     }
 
-    fn project_complement(&self, context: &Context<'_>) -> Inference {
+    fn project_complement(&self, context: &Context<'_>) -> Dnf {
         // `!support(4..)` is "at most three of partner's suit" — a box once the
         // auction names the suit.  With no suit named, `eval` rejects every
         // hand, so the negation accepts every hand and ⊤ is the exact reading.
-        context
-            .partner_last_suit()
-            .map_or_else(Inference::unknown, |suit| len_complement(suit, &self.0))
+        Dnf::from(
+            context
+                .partner_last_suit()
+                .map_or_else(Inference::unknown, |suit| len_complement(suit, &self.0)),
+        )
     }
 }
 
@@ -1962,16 +1972,20 @@ mod tests {
     #[test]
     fn project_band_carries_ceilings() {
         let context = empty_context();
-        // `points` gauges the shared scalar: both bounds exact.
+        // `points` gauges the shared scalar: both bounds exact.  (`.hull()`
+        // collapses the single-box C1 `Dnf` to its `Inference`.)
         assert_eq!(
-            points(..12).project_band(&context).points,
+            points(..12).project_band(&context).hull().points,
             Range::new(0, 11)
         );
         // An HCP ceiling owes the scale its maximum upgrade (rule-of-N+8
         // default: 5); the floor matches `project`.
-        assert_eq!(hcp(..6).project_band(&context).points, Range::new(0, 10));
+        assert_eq!(
+            hcp(..6).project_band(&context).hull().points,
+            Range::new(0, 10)
+        );
         // `project` itself stays floor-only — the alert path is untouched.
-        assert_eq!(hcp(..6).project(&context).points, Range::FULL_POINTS);
+        assert_eq!(hcp(..6).project(&context).hull().points, Range::FULL_POINTS);
         // Composition is tight per arm: the 1NT pass gate (`notrump.rs`) — an
         // off-major weak arm unioned with the flat-eight arm — caps points at
         // 13 and both majors at five.
@@ -1982,12 +1996,12 @@ mod tests {
                 & len(Suit::Diamonds, 3..)
                 & len(Suit::Hearts, 3..)
                 & len(Suit::Spades, 3..));
-        let band = gate.project_band(&context);
+        let band = gate.project_band(&context).hull();
         assert_eq!(band.points, Range::new(0, 13));
         assert_eq!(band.length(Suit::Hearts).max, 5);
         assert_eq!(band.length(Suit::Spades).max, 5);
         // A trivial catch-all claims nothing — the trap-pass safeguard.
-        assert_eq!(hcp(0..).project_band(&context), Inference::unknown());
+        assert_eq!(hcp(0..).project_band(&context).hull(), Inference::unknown());
     }
 
     #[test]

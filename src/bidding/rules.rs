@@ -108,6 +108,21 @@ impl Rule {
     /// [`Constraint::project`]).
     #[must_use]
     pub fn project(&self, context: &Context<'_>) -> Inference {
+        // ponytail: hull the DNF to a single box, so the alert/`artificial`
+        // checks and `authored_reading` stay on `Inference`.  The overlay that
+        // the sampler consumes uses [`project_dnf`][Self::project_dnf] to keep
+        // the boxes when `dnf_reading` is on.
+        self.when.project(context).hull()
+    }
+
+    /// The forward reading as a union of boxes — [`project`][Self::project]
+    /// without the hull
+    ///
+    /// The overlay [`Inferences::read`][super::inference::Inferences] feeds the
+    /// sampler; keeps the disjunctive boxes under
+    /// [`set_dnf_reading`][super::set_dnf_reading] (off → one box, the hull).
+    #[must_use]
+    pub fn project_dnf(&self, context: &Context<'_>) -> super::inference::Dnf {
         self.when.project(context)
     }
 
@@ -119,6 +134,13 @@ impl Rule {
     /// reading-side fold behind [`set_pass_reading`][super::set_pass_reading].
     #[must_use]
     pub fn project_band(&self, context: &Context<'_>) -> Inference {
+        self.when.project_band(context).hull()
+    }
+
+    /// The two-sided band as a union of boxes — [`project_band`][Self::project_band]
+    /// without the hull (the DNF overlay's Pass reading)
+    #[must_use]
+    pub fn project_band_dnf(&self, context: &Context<'_>) -> super::inference::Dnf {
         self.when.project_band(context)
     }
 }

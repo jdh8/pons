@@ -9,6 +9,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`Dnf` — a disjunctive-normal-form forward reading (Stage C1: type +
+  plumbing, book byte-identical).** A single `Inference` is one axis-aligned
+  box, so `Or::project` widens a disjunction to its bounding box — the "`Or`
+  wall" (Multi, two-suiters, weak-or-strong). `Dnf(Vec<Inference>)` keeps the
+  terms: a hand is consistent iff it lies in **some** box. `intersect`
+  distributes (Cartesian product of box-intersects) and **drops empty products**
+  — `1NT ∩ 4-5♥` (opener's Stayman `2♥`) drops the balanced box whose hearts
+  cannot reach four, leaving a tight two-box reading instead of the slop-filled
+  hull. `Constraint::project`/`project_band`/`project_complement` now return
+  `Dnf`; the soundness battery checks the tighter any-box `contains`, not just
+  the hull. **No behaviour change:** `Or::project` still hulls its arms (single
+  box out) and every consumer (`Rule::project`, the sampler's `players`, the
+  alert checks, `push_inference`) hulls, so C1 is a pure refactor — the full
+  suite is green with the book byte-identical. C2 flips `Or` to keep the boxes
+  (knob-gated, A/B'd) and lets the sampler test any-box. This does **not** touch
+  the 2/1 *points* wash (`support_points` projects nothing — an off-axis ⊤ box
+  hulls to ⊤ regardless of the disjunction); see
+  `docs/ai-bidder/sampled-projection.md`.
+
+- **`set_dnf_reading` — expose the DNF boxes to the sampler (Stage C2, opt-in
+  knob, default off, book byte-identical). Shipped as the structural DNF
+  foundation.** On, `Or`/`AnyLen`/a call authored by several rules keep their
+  separate boxes (`Dnf::disjoin` concatenates instead of hulling), the per-seat
+  reading is carried as `Inferences.dnf: [Dnf; 4]` alongside the hull
+  (`players`), and the sampler (`within_ranges`, `sample_defender_remnants`)
+  accepts a layout only if it lies in **some** box (`Inferences::admits`) —
+  pinning two-suiters / Multi / the fit-split instead of the bounding box that
+  spans them. The reading is a provably sound *superset* (`T ⊆ players ∩ ⋃boxₖ`),
+  so it never rejects a truly-possible hand. Off (default), every `Dnf` is one
+  box equal to the hull, so the path is byte-identical; the net still reads the
+  hull (`push_inference` unchanged, no `FEATURES_VERSION` bump).
+  **Scope + measurement (measured):** the shipped `american()` floor+net bidder
+  does **not** sample during bidding — `sample_layouts` is reached only by
+  `ev_all` (live-search) and `single_dummy_leads` (the sd-lead scorer) — so the
+  knob is **inert for the default bidder** and its effect surfaces only in
+  sampled paths. The `ab-dnf-sd-lead` A/B (contested american, same auction both
+  arms, opening lead priced off vs on) changes the chosen lead on **16.4%** of
+  boards but scores a **wash** (−0.021 IMPs/board, 95% CI ±0.071 at 3k) — the
+  disjunctive readings the current constraints emit are too few to move the
+  average. Landed default-off for the *structural* win (correct end-to-end DNF
+  representation); the default flip and a decisive A/B wait on authoring the
+  constraints DNF-native, where the tightening pays.
+
 - **Major 2/1 natural per-call suit lengths + a lighter `1♠-2♥` (two opt-in
   knobs, default off, book byte-identical — A/B pending).** Today every major
   2/1 shares a uniform `len(suit, 4..)`, which mis-describes two of the calls

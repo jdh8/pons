@@ -29,11 +29,10 @@
 //! later if EV throughput demands it; the signature would not change.
 
 use super::System;
-use super::constraint::point_count;
-use super::inference::{Inference, Inferences, Relative, relative_of};
+use super::inference::{Inferences, Relative, relative_of};
 use contract_bridge::auction::{Auction, Call, RelativeVulnerability};
 use contract_bridge::deck::fill_deals;
-use contract_bridge::{Builder, Card, FullDeal, Hand, Seat, Suit};
+use contract_bridge::{Builder, Card, FullDeal, Hand, Seat};
 use rand::Rng;
 use rand::seq::SliceRandom;
 
@@ -208,23 +207,12 @@ fn sample_with(
 /// not re-checked.
 fn within_ranges(deal: &FullDeal, seat: Seat, inferences: &Inferences) -> bool {
     [
-        (seat.lho(), inferences.lho()),
-        (seat.partner(), inferences.partner()),
-        (seat.rho(), inferences.rho()),
+        (seat.lho(), Relative::Lho),
+        (seat.partner(), Relative::Partner),
+        (seat.rho(), Relative::Rho),
     ]
     .into_iter()
-    .all(|(other, shown)| hand_within(deal[other], shown))
-}
-
-/// Whether a hand falls within one player's shown length and point ranges
-fn hand_within(hand: Hand, shown: &Inference) -> bool {
-    let lengths_fit = Suit::ASC.into_iter().all(|suit| {
-        // SAFETY: a suit length is at most 13, so the cast cannot truncate.
-        #[allow(clippy::cast_possible_truncation)]
-        let length = hand[suit].len() as u8;
-        shown.length(suit).contains(length)
-    });
-    lengths_fit && shown.points.contains(point_count(hand))
+    .all(|(other, who)| inferences.admits(who, deal[other]))
 }
 
 /// Whether LHO, partner, and RHO in `deal` could each have made their actual
@@ -367,8 +355,8 @@ pub fn sample_defender_remnants(
             break;
         }
         let (lho, rho) = split(rng);
-        if hand_within(lho | lho_played, inferences.lho())
-            && hand_within(rho | rho_played, inferences.rho())
+        if inferences.admits(Relative::Lho, lho | lho_played)
+            && inferences.admits(Relative::Rho, rho | rho_played)
         {
             out.push((lho, rho));
         }
@@ -397,10 +385,11 @@ fn swap_sides(vul: RelativeVulnerability) -> RelativeVulnerability {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::bidding::constraint::point_count;
     use crate::bidding::context::Context;
     use contract_bridge::auction::{Call, RelativeVulnerability};
     use contract_bridge::deck::full_deal;
-    use contract_bridge::{Bid, Level, Strain};
+    use contract_bridge::{Bid, Level, Strain, Suit};
     use proptest::prelude::*;
     use rand::SeedableRng;
     use rand::rngs::StdRng;
