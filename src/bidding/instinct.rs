@@ -4311,7 +4311,7 @@ mod tests {
         ];
         set_bilans_floor(true);
         let (bid, from_floor) = american_floored(&auction, "JT87.AQT2.A75.86");
-        set_bilans_floor(false); // restore the default before any assert
+        set_bilans_floor(true); // restore the default (bilans is on) before any assert
         assert!(
             from_floor,
             "South's continuation is off-book (floor territory)"
@@ -4768,7 +4768,7 @@ mod tests {
             Call::Pass,
         ];
         let ask = best(&raise, "AKQJ7.AKQ.A32.32");
-        set_bilans_floor(false); // restore the defaults before any assert
+        set_bilans_floor(true); // restore the default (bilans is on) before any assert
         set_opener_third(true);
         assert!(floored, "the deleted node leaves this to the floor");
         assert_eq!(
