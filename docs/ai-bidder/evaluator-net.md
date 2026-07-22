@@ -386,42 +386,54 @@ differences *within* this one mean anything.
 ### Against the truth it replaces
 
 `examples/eval-evaluator`, held-out shard (`shard-1010741…`, `--skip 20000`),
-1000 boards / 10,242 nodes, replay sampler at 96 layouts/node — predicted
-moments vs the sample-and-solve loop, at the same nodes:
+1000 boards, replay sampler at 96 layouts/node — predicted moments vs the
+sample-and-solve loop, at the same nodes. Run at v1 and again at v2, same
+shard/skip/boards/layouts, so the columns compare directly (v1 priced 10,242
+nodes, v2 10,275 — which nodes starve for samples shifts slightly with the net):
 
-| quantity | value |
-|---|---|
-| mean MAE vs sampled mean | 0.497 tricks |
-| sd MAE vs sampled sd | 0.214 tricks |
-| signed spread (predicted − sampled sd) | +0.087 (1.872 vs 1.785) |
-| sampled mass below μ | 49.9% |
-| P(make) MAE, all levels | 0.0434 |
-| P(make) MAE, decision band (35–60%) | 0.1127 (contested 0.1285) |
-| — sampler's own binomial noise floor | 0.0382 |
-| **— net's own error, deconvolved** | **0.1060** (contested 0.1227) |
+| quantity | v1 | v2 |
+|---|---|---|
+| mean MAE vs sampled mean | 0.497 tricks | **0.417** tricks |
+| sd MAE vs sampled sd | 0.214 tricks | **0.188** tricks |
+| signed spread (predicted − sampled sd) | +0.087 (1.872 vs 1.785) | **−0.038** (1.748 vs 1.786) |
+| sampled mass below μ | 49.9% | 49.8% |
+| P(make) MAE, all levels | 0.0434 | **0.0375** |
+| P(make) MAE, decision band (35–60%) | 0.1127 (contested 0.1285) | **0.0954** (contested 0.1092) |
+| — sampler's own binomial noise floor | 0.0382 | 0.0387 |
+| **— net's own error, deconvolved** | **0.1060** (contested 0.1227) | **0.0872** (contested 0.1021) |
 
-**Read the last row as the verdict.** ~10.6 points of P(make) error inside the
-decision band is *larger* than the 8-point gap between the NV and vul game
-thresholds (45.5% vs 37.5%). So the evaluator is a usable prior for where a
-hand sits, but it cannot by itself decide a vulnerability-marginal game. That
-is a statement about session D's design, not a defect: session D should treat
-the net as a fast prior and reserve sampling for boards near a threshold,
-rather than replacing sample-and-solve outright. Whether the residual costs
-IMPs is an A/B question, which session D owes regardless.
+**Read the last row as the verdict, and v2 moved it the right way** — 10.6 → 8.7
+points of P(make) error inside the decision band, the sharpening the
+[featurization sweep](#featurization-sweep) predicted and the A/B then priced in
+IMPs. But 8.7 points is still *just over* the 8-point gap between the NV and vul
+game thresholds (45.5% vs 37.5%), so the qualitative conclusion is unchanged: the
+evaluator is a usable prior for where a hand sits, and it still cannot by itself
+decide a vulnerability-marginal game. That remains a statement about session D's
+design, not a defect — treat the net as a fast prior and reserve sampling for
+boards near a threshold. The margin is now thin enough that a further sharpening
+could cross it; the A/B, not this number, is the ship gate either way.
 
-**Deconvolve in quadrature, not linearly.** The measured 0.1127 is the net's
+**Deconvolve in quadrature, not linearly.** The measured band MAE is the net's
 error against a *noisy estimate* of truth. Net error and sampling noise are
-independent, so their squares add: √(0.1127² − 0.0382²) = 0.1060. An earlier
-revision of the harness subtracted the two linearly and reported 0.0745 —
+independent, so their squares add: v2's √(0.0954² − 0.0387²) = 0.0872. An earlier
+revision of the harness subtracted the two linearly (and reported 0.0745 at v1) —
 understating the net by ~45%. Both terms are MAEs of roughly Gaussian errors
 and MAE = √(2/π)·σ for a Gaussian, so the √(2/π) factors cancel and the MAEs
-compose in quadrature exactly as the σ's do.
+compose in quadrature exactly as the σ's do. The harness now prints the
+deconvolved figure directly.
 
-The two calibration results survive at full n. **49.9% below μ** says the
-Gaussian's symmetry assumption is genuinely met here — the one place the
-parameterization could have failed cheaply, and it did not. **+0.087 wide**
-means the net errs toward over-dispersion, the safe direction for a consumer
-that integrates a CDF: it under-claims confidence rather than over-claiming.
+**The one row that got worse is the safe one.** v1 ran **+0.087 wide** —
+over-dispersed, the safe direction for a consumer that integrates a CDF, since
+it under-claims confidence. v2 is **−0.038 wide**, a hair the other way. Two
+things keep that from being a regression: the magnitude is half v1's and inside
+the earlier probe's ~7% shot noise, and the comparison is against the *replay*
+sampler, which [the `--bare` arm](#the---bare-arm-and-why-it-did-not-settle-what-it-was-meant-to)
+showed is itself over-tight (bare's sampled sd is 1.904). The net at 1.748 is the
+only one of the three anchored to double-dummy truth; that it now sits between
+the two samplers rather than above both is consistent with a sharper fit, not an
+overconfident one. **49.8% below μ** confirms the Gaussian's symmetry assumption
+still holds at v2 — the cheap failure the parameterization could have had, and
+did not.
 
 A 40-board probe run earlier held every result's shape but was optimistic by
 ~7% on each error column — worth remembering before trusting a small slice.
@@ -431,6 +443,14 @@ conditioning on a noisy empirical estimate landing in 35–60% would drag in
 contracts that got there by sampling error and inflate the reported gap.
 
 ### The `--bare` arm, and why it did not settle what it was meant to
+
+*All figures in this subsection are the **v1** net; the arm was not re-run at
+v2. Its methodological findings — replay is over-tight, the fork needs an
+unbiased denominator — are version-independent and stand. And the fork it left
+open ("train harder" vs "the hand encoding is the ceiling") was since answered
+from the other side: the [featurization sweep](#featurization-sweep) showed the
+`(len, suit_hcp)` encoding **was** leaving ~0.008 NLL on the table, and
+recovering it is what v2 ships.*
 
 Same 1000 boards through range-only `sample_layouts` instead of rule-replay.
 Bare draws from the projected envelope — exactly the information the net
