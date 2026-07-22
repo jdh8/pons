@@ -46,6 +46,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   almost never know partner's keycards at evaluation time. Recon only; no
   crate change.
 
+- **Hidden-seat axis value-of-information survey (harness).** The keycard
+  track's two-factor pricing — realizable gain ≈ oracle ceiling × auction
+  reach — generalized to four more candidate axes: suit **quality**,
+  **shortness** location, **controls**, and **stopper**, truth for all three
+  hidden seats. `dump-evaluator --oracle-all` widens the `bits` superset to
+  147 features (axis-major tail, per-suit truth — never "the shown suit", which
+  would smuggle in a fit indicator); the trainer gains one arm per axis
+  (`ben-oracle-{quality,shortness,controls,stopper}`, `ARM_FEATURES` 87→147 —
+  the 87-wide `--oracle` corpus is retired, same seed regenerates it) and two
+  new ceiling slices (**suit-game**: suit targets ≥ 10 tricks; **nt-contested**:
+  NT targets ≥ 9 on contested rows); `probe-keycard-reach` measures all five
+  axes in one walk, each with a book-prose latch and a structural (or, for
+  shortness, live-envelope) latch, reported as the disclosed-seat fraction.
+  Scripted-auction tests pin every prose needle so a description rewording
+  fails the build instead of silently reading zero reach. A 5k smoke run
+  already shows controls book-reach exactly 0 (nothing authored) and
+  prose-disclosed shortness ≈12× its envelope-realized reach — the projection
+  OR-union gap again. Survey run pending (recipe + decision rule in
+  `docs/ai-bidder/evaluator-net.md` § Hidden-seat axis survey). Shipped crate
+  byte-identical (dumper/trainer/probe only).
+
 ### Changed
 
 - **`american()`'s one-level suit openings carry an explicit HCP floor, for

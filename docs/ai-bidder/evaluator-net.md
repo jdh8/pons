@@ -383,6 +383,60 @@ architecture ladder — a different corpus, ten times smaller. For the same reas
 the absolute NLL here is not comparable to any other table in this doc; only
 differences *within* this one mean anything.
 
+#### Hidden-seat axis survey
+
+The keycard track's two-factor pricing — **realizable gain ≈ ceiling (oracle
+slice-MAE reduction) × reach (fraction of the slice the auction actually
+discloses)** — generalized from one axis to a survey. Keycards cleared the
+ceiling (−1.257 tricks on the slam slice) and died on reach (0.54% ⟹ ≈0.007
+tricks); the survey prices the other candidate axes the same way before any
+of them is built.
+
+Harness (all off-crate; shipped crate byte-identical):
+
+- `dump-evaluator --oracle-all` extends the `bits` superset to **147**
+  features: the 8 keycard columns verbatim, then per-axis truth for all three
+  hidden seats [LHO, partner, RHO] — quality (per-suit `suit_hcp/10`, cols
+  87..99), shortness (`len ≤ 1` bits, 99..111), controls (per-suit ace+king
+  bits, 111..135), stopper (A/Kx/Qxx/Jxxx bits, 135..147). Per-suit truth,
+  never "the shown suit" — a shown-suit collapse would manufacture the fit
+  indicator the projection design forbids. The 87-wide `--oracle` corpus is
+  retired by the width bump; same seed regenerates the same auctions.
+- Trainer arms `ben-oracle-quality|shortness|controls|stopper` (masks keep
+  one tail block each; `ARM_FEATURES` 87→147), plus two new eval slices where
+  the ceilings are read: **suit-game** (suit-strain targets, truth ≥ 10
+  tricks — shortness's home turf) and **nt-contested** (NT targets on
+  contested rows, truth ≥ 9 — quality's and stopper's).
+- `probe-keycard-reach` now measures all five axes in one walk. Per axis, a
+  *book* latch (the winning rule's prose disclosed the axis: `"HCP in"`/
+  `"of the top honors in"`, `"≤1 ♣/♦/♥/♠"`, `"control"`, `"stopper in"`) and a
+  *structural* latch (Ogust answer position, strong 2♣ opening, 2NT/3NT over
+  their shown suit) — except shortness, whose second kind is the live
+  **envelope** (`Stance::infer` already caps a suit at ≤1), i.e. the portion
+  the range features already realize. Survey reach is the **disclosed-seat
+  fraction** of the 3 hidden seats. Scripted-auction tests pin every prose
+  needle so a rewording fails the build instead of silently reading zero.
+
+A 5k-deal smoke run (seed 1) already shows the shape of the answer: controls
+book-reach is exactly 0 (nothing in the American book is authored on
+controls), and shortness prose-disclosure (≈1.8% of suit-game seat-cells)
+exceeds envelope-realized shortness (≈0.16%) by ~12× — the projection
+OR-union gap, the same defect family as the 2/1 reading erasure. The full
+survey (ceilings + 500k-deal reach) has not run yet; recipe:
+
+```sh
+dump-evaluator --deals /nfs2/jdh8/22.pdd --count 500000 --seed 1 \
+    --encoding bits --oracle-all --out <corpus>       # ~15 min, 6.7 GB
+probe-keycard-reach --deals /nfs2/jdh8/22.pdd --count 500000 --seed 1
+# reach first; then arms in descending reach order, matching the Phase-3
+# sidecar's epochs/seed; `--arm ben` must reproduce slam-MAE ≈ 2.664 first
+```
+
+Decision rule, per axis: ceiling × book-reach ≥ ~0.05 tricks on its slice ⟹
+worth a Phase-4-style projection build; below ⟹ recorded and closed, like
+keycards. Ceilings overlap (quality partially implies stopper and controls),
+so the products rank candidates — they do not sum.
+
 ### Against the truth it replaces
 
 `examples/eval-evaluator`, held-out shard (`shard-1010741…`, `--skip 20000`),

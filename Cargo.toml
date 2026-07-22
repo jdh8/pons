@@ -151,5 +151,15 @@ path = "examples/dump-evaluator/main.rs"
 required-features = ["dd"]
 test = true
 
+# The axis reach survey (BEN-projection Phase 4 and successors). Declared so
+# `test = true` sticks: its latch predicates are prose-matches against the
+# live books, and the scripted-auction tests are what keep them from silently
+# reading zero reach after a rewording.
+[[example]]
+name = "probe-keycard-reach"
+path = "examples/probe-keycard-reach.rs"
+required-features = ["dd"]
+test = true
+
 [profile.dev.package."*"]
 opt-level = 2

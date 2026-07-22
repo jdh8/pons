@@ -79,6 +79,21 @@ const LEN_RANGES: usize = FEATURES_LEN_EVAL - LEN_HAND_EVAL;
 /// axis — if even this washes on the slam slice, the axis is dead.
 const ORACLE_LEN: usize = 8;
 
+/// Hidden-seat axis survey (`--oracle-all`): the keycard oracle verbatim, then
+/// per-axis truth blocks for all three hidden seats in `features_eval` order
+/// [LHO, partner, RHO], suits in `Suit::ASC` within a seat.  Axis-major so
+/// every trainer arm's mask is one contiguous range:
+///
+/// - **Q**uality, 12 = 3×4: per-suit `suit_hcp/10`
+/// - **S**hortness, 12 = 3×4: per-suit `len ≤ 1` bit
+/// - **C**ontrols, 24 = 3×8: per-suit ace bit then king bit
+/// - **St**opper, 12 = 3×4: per-suit A/Kx/Qxx/Jxxx bit
+///
+/// Per-suit truth, never "the shown suit" — collapsing onto a shown or agreed
+/// suit would manufacture the fit-indicator product the projection design
+/// forbids, and the 20 outputs are already strain-indexed.
+const ORACLE_ALL_LEN: usize = ORACLE_LEN + 3 * (4 + 4 + 8 + 4);
+
 /// Own-hand encoding selected by `--encoding`
 #[derive(Clone, Copy)]
 enum Encoding {
@@ -120,6 +135,12 @@ struct Args {
     /// masks them off.
     #[arg(long)]
     oracle: bool,
+    /// Append the full hidden-seat axis-survey oracle: the 8 keycard columns
+    /// plus quality/shortness/controls/stopper truth for all three hidden
+    /// seats (68 columns total). Requires `--encoding bits`; supersets
+    /// `--oracle`. One corpus serves every survey arm — the trainer masks.
+    #[arg(long)]
+    oracle_all: bool,
     /// Output path stem; writes `<out>.f32`, `<out>.json`, `<out>.tags`
     #[arg(long, default_value = "target/evaluator-data")]
     out: String,
@@ -147,10 +168,17 @@ fn main() -> anyhow::Result<()> {
         Encoding::Bits => LEN_HAND_BITS + LEN_RANGES / 2 * 3,
     };
     anyhow::ensure!(
-        !args.oracle || matches!(encoding, Encoding::Bits),
-        "--oracle only extends the `bits` superset the trainer arms mask over"
+        !(args.oracle || args.oracle_all) || matches!(encoding, Encoding::Bits),
+        "--oracle/--oracle-all only extend the `bits` superset the trainer arms mask over"
     );
-    let features_len = base_len + if args.oracle { ORACLE_LEN } else { 0 };
+    let features_len = base_len
+        + if args.oracle_all {
+            ORACLE_ALL_LEN
+        } else if args.oracle {
+            ORACLE_LEN
+        } else {
+            0
+        };
     let row_len = features_len + DD_LEN;
 
     let systems: Vec<(&str, Stance)> = args
@@ -206,7 +234,9 @@ fn main() -> anyhow::Result<()> {
                 // their authoring rules rather than as natural suits.
                 let inferences = stance.infer(rel, &auction);
                 encode(&mut row[..base_len], hand, &inferences, encoding);
-                if args.oracle {
+                if args.oracle_all {
+                    write_oracle_all(&mut row[base_len..features_len], deal, seat);
+                } else if args.oracle {
                     write_oracle(&mut row[base_len..features_len], deal[seat.partner()]);
                 }
                 row[features_len..].copy_from_slice(&gib::relativized_tricks(table, seat));
@@ -235,6 +265,7 @@ fn main() -> anyhow::Result<()> {
         "dtype": "f32-le",
         "encoding": args.encoding,
         "oracle": args.oracle,
+        "oracle_all": args.oracle_all,
         "layout": format!("row = [{features_len} features][{DD_LEN} dd_tricks]"),
         "label_order": "strain-major NT,S,H,D,C × declarer [me,lho,partner,rho], tricks/13",
         "tags": "sibling .tags: one u8 per row, bit 0 = contested phase, bit 1 = system index",
@@ -340,6 +371,43 @@ fn write_oracle(out: &mut [f32], partner: Hand) {
     }
     for (slot, suit) in queens.iter_mut().zip(Suit::ASC) {
         *slot = f32::from(partner[suit].contains(Rank::Q));
+    }
+}
+
+/// Write the [`ORACLE_ALL_LEN`] axis-survey columns: the keycard oracle for
+/// partner verbatim, then quality, shortness, controls, and stopper truth for
+/// the three hidden seats.  Layout documented at [`ORACLE_ALL_LEN`].
+fn write_oracle_all(out: &mut [f32], deal: &FullDeal, seat: Seat) {
+    write_oracle(&mut out[..ORACLE_LEN], deal[seat.partner()]);
+    let hidden = [seat.lho(), seat.partner(), seat.rho()].map(|s| deal[s]);
+    let holdings = hidden.iter().flat_map(|hand| Suit::ASC.map(|s| hand[s]));
+
+    let (quality, rest) = out[ORACLE_LEN..].split_at_mut(12);
+    let (shortness, rest) = rest.split_at_mut(12);
+    let (controls, stoppers) = rest.split_at_mut(24);
+    for (slot, h) in quality.iter_mut().zip(holdings.clone()) {
+        let hcp = 4 * u8::from(h.contains(Rank::A))
+            + 3 * u8::from(h.contains(Rank::K))
+            + 2 * u8::from(h.contains(Rank::Q))
+            + u8::from(h.contains(Rank::J));
+        *slot = f32::from(hcp) / 10.0;
+    }
+    for (slot, h) in shortness.iter_mut().zip(holdings.clone()) {
+        *slot = f32::from(h.len() <= 1);
+    }
+    for (pair, h) in controls.chunks_exact_mut(2).zip(holdings.clone()) {
+        pair[0] = f32::from(h.contains(Rank::A));
+        pair[1] = f32::from(h.contains(Rank::K));
+    }
+    for (slot, h) in stoppers.iter_mut().zip(holdings) {
+        // The crisp textbook stopper — A, Kx, Qxx, or Jxxx — restated because
+        // the crate's `has_stopper` is not public API.
+        *slot = f32::from(
+            h.contains(Rank::A)
+                || (h.contains(Rank::K) && h.len() >= 2)
+                || (h.contains(Rank::Q) && h.len() >= 3)
+                || (h.contains(Rank::J) && h.len() >= 4),
+        );
     }
 }
 
@@ -476,6 +544,48 @@ mod tests {
         let mut out = [0f32; ORACLE_LEN];
         write_oracle(&mut out, partner);
         assert_eq!(out, [0.4, 0.4, 0.6, 0.6, 0.0, 1.0, 0.0, 1.0]);
+    }
+
+    /// The survey oracle, pinned cell by cell: keycard head verbatim (same
+    /// fixture hand as [`oracle_counts_partner_keycards_and_trump_queen`],
+    /// placed at South's partner), then each axis block for the hidden seats
+    /// [LHO, partner, RHO] = [West, North, East] in ♣♦♥♠ order.
+    #[test]
+    fn oracle_all_layout_is_axis_major() {
+        let deal: FullDeal = "W:T9876.QJT9.J54.A AKQJ.AK2.Q32.432 5432.87.AKT9.KQJ \
+                              .6543.876.T98765"
+            .parse()
+            .expect("valid test deal");
+        let mut out = [0f32; ORACLE_ALL_LEN];
+        write_oracle_all(&mut out, &deal, Seat::South);
+
+        // Keycard head: partner (North) holds AKQJ.AK2.Q32.432.
+        assert_eq!(out[..8], [0.4, 0.4, 0.6, 0.6, 0.0, 1.0, 0.0, 1.0]);
+        // Quality: per-suit HCP / 10.
+        let quality = [
+            [0.4, 0.1, 0.3, 0.0], // West: ♣A, ♦J54, ♥QJT9, ♠T9876
+            [0.0, 0.2, 0.7, 1.0], // North: ♣432, ♦Q32, ♥AK2, ♠AKQJ
+            [0.6, 0.7, 0.0, 0.0], // East: ♣KQJ, ♦AKT9, ♥87, ♠5432
+        ];
+        assert_eq!(out[8..20], quality.concat()[..]);
+        // Shortness: only West's singleton ♣A qualifies.
+        let mut shortness = [0.0; 12];
+        shortness[0] = 1.0;
+        assert_eq!(out[20..32], shortness);
+        // Controls: (ace, king) per suit.
+        let controls = [
+            [1., 0., 0., 0., 0., 0., 0., 0.], // West: ♣A only
+            [0., 0., 0., 0., 1., 1., 1., 1.], // North: ♥AK, ♠AKQJ
+            [0., 1., 1., 1., 0., 0., 0., 0.], // East: ♣KQJ, ♦AKT9
+        ];
+        assert_eq!(out[32..56], controls.concat()[..]);
+        // Stoppers: A / Kx / Qxx / Jxxx — West's ♦J54 is a J with only three.
+        let stoppers = [
+            [1.0, 0.0, 1.0, 0.0], // West: ♣A, ♥QJT9
+            [0.0, 1.0, 1.0, 1.0], // North: ♦Qxx, ♥AK2, ♠AKQJ
+            [1.0, 1.0, 0.0, 0.0], // East: ♣KQJ, ♦AKT9
+        ];
+        assert_eq!(out[56..68], stoppers.concat()[..]);
     }
 
     #[test]

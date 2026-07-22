@@ -1,5 +1,8 @@
 //! Fit the trick evaluator (bilans session C): ranges → double-dummy trick mean
 //! and spread.
+// The export sidecar's `json!` literal outgrew the default macro recursion
+// limit when the survey slices joined it.
+#![recursion_limit = "256"]
 //!
 //! Reads the corpus from `examples/dump-evaluator` — rows of
 //! `[features][20 dd_tricks]`, where the features are own-hand summary plus the
@@ -60,20 +63,49 @@ const LEN_RANGES: usize = 30;
 const UNKNOWN_PAIR: [f32; 2] = [0.0, 1.0];
 /// Columns the `bits` superset writes before the Phase-3 oracle tail.
 const BITS_FEATURES: usize = 79;
-/// Phase-3 honour oracle (`dump-evaluator --oracle`): partner's true per-strain
-/// keycards (4) then trump-Q bits (4). Only the `*-oracle` arms keep them; every
-/// other arm masks them off, so an oracle corpus trains the whole ladder.
-const ORACLE_LEN: usize = 8;
+/// The hidden-seat axis-survey oracle tail (`dump-evaluator --oracle-all`),
+/// as `(start, len)` column ranges. Only the `*-oracle*` arms keep their block;
+/// every other arm masks the whole tail off, so one oracle corpus trains the
+/// whole ladder. Per-axis blocks cover all three hidden seats [LHO, partner,
+/// RHO], suits `Suit::ASC` within a seat — see `dump-evaluator`'s
+/// `ORACLE_ALL_LEN` for the cell semantics.
+const ORACLE_KEYCARDS: (usize, usize) = (BITS_FEATURES, 8);
+/// Per-suit `suit_hcp/10` truth ×3 seats.
+const ORACLE_QUALITY: (usize, usize) = (87, 12);
+/// Per-suit `len ≤ 1` bit ×3 seats.
+const ORACLE_SHORTNESS: (usize, usize) = (99, 12);
+/// Per-suit (ace, king) bits ×3 seats.
+const ORACLE_CONTROLS: (usize, usize) = (111, 24);
+/// Per-suit A/Kx/Qxx/Jxxx stopper bit ×3 seats.
+const ORACLE_STOPPER: (usize, usize) = (135, 12);
 /// Feature width the [`Arm`] masks are written against.
 ///
 /// ```text
-/// 0..32   hand: 4 suits × [len/13, #spots/8, suit_hcp/10, A, K, Q, J, T]
-/// 32      hcp/40
-/// 33      upgrade/2
-/// 34..79  ranges: 3 seats × 5 (min, max, width) triples
-/// 79..87  oracle: partner keycards ×4 (Suit::ASC), then trump-Q ×4
+/// 0..32     hand: 4 suits × [len/13, #spots/8, suit_hcp/10, A, K, Q, J, T]
+/// 32        hcp/40
+/// 33        upgrade/2
+/// 34..79    ranges: 3 seats × 5 (min, max, width) triples
+/// 79..87    oracle: partner keycards ×4 (Suit::ASC), then trump-Q ×4
+/// 87..147   axis-survey oracle: quality, shortness, controls, stopper
 /// ```
-const ARM_FEATURES: usize = BITS_FEATURES + ORACLE_LEN;
+///
+/// The Phase-3 87-wide `--oracle` corpus is retired by this bump; regenerate
+/// with `--oracle-all` (same walk, same seed reproduces the same auctions).
+const ARM_FEATURES: usize = ORACLE_STOPPER.0 + ORACLE_STOPPER.1;
+
+/// One [`Arm`]'s mask recipe — the [`Arm::spec`] row: `(name, hand-column
+/// offsets within each suit's 8, keep global `hcp`, keep global `upgrade`,
+/// offsets within each range triple, oracle-tail `(start, len)` ranges to
+/// keep, live column count)`.
+type ArmSpec = (
+    &'static str,
+    &'static [usize],
+    bool,
+    bool,
+    &'static [usize],
+    &'static [(usize, usize)],
+    usize,
+);
 
 /// splitmix64: advance `state` and return the next word.
 ///
@@ -184,13 +216,22 @@ enum Arm {
     /// `BaselineDropBoth` plus the oracle — the control arm; `suit_hcp` alone
     /// cannot extract an ace, so at most a mild main effect is expected.
     BaselineDropBothOracle,
+    /// `Ben` plus per-suit `suit_hcp` truth for the hidden seats — the quality
+    /// axis of the hidden-seat survey.
+    BenOracleQuality,
+    /// `Ben` plus per-suit shortness bits for the hidden seats.
+    BenOracleShortness,
+    /// `Ben` plus per-suit (ace, king) bits for the hidden seats.
+    BenOracleControls,
+    /// `Ben` plus per-suit stopper bits for the hidden seats.
+    BenOracleStopper,
 }
 
 impl Arm {
     /// The arm table: `(name, hand-column offsets within each suit's 8, keep
     /// global `hcp`, keep global `upgrade`, offsets within each
-    /// `(min, max, width)` range triple, keep the 8 oracle columns, live column
-    /// count)`.
+    /// `(min, max, width)` range triple, oracle-tail `(start, len)` ranges to
+    /// keep, live column count)`.
     ///
     /// The two globals are separate flags because they are separately suspect.
     /// `upgrade` is the *legacy* shape term (`!is_balanced + longest_two ≥ 10`)
@@ -200,17 +241,7 @@ impl Arm {
     /// the four `suit_hcp` columns whenever those are live, which is a 4-weight
     /// reconstruction rather than the 16-weight one the coordination argument
     /// was built on.
-    const fn spec(
-        self,
-    ) -> (
-        &'static str,
-        &'static [usize],
-        bool,
-        bool,
-        &'static [usize],
-        bool,
-        usize,
-    ) {
+    const fn spec(self) -> ArmSpec {
         match self {
             Self::Full => (
                 "full",
@@ -218,36 +249,28 @@ impl Arm {
                 true,
                 true,
                 &[0, 1, 2],
-                false,
+                &[],
                 79,
             ),
-            Self::Baseline => ("baseline", &[0, 2], true, true, &[0, 1], false, 40),
-            Self::Bits => (
-                "bits",
-                &[1, 2, 3, 4, 5, 6, 7],
-                true,
-                true,
-                &[0, 1],
-                false,
-                60,
-            ),
+            Self::Baseline => ("baseline", &[0, 2], true, true, &[0, 1], &[], 40),
+            Self::Bits => ("bits", &[1, 2, 3, 4, 5, 6, 7], true, true, &[0, 1], &[], 60),
             Self::BitsNohcp => (
                 "bits-nohcp",
                 &[1, 3, 4, 5, 6, 7],
                 true,
                 true,
                 &[0, 1],
-                false,
+                &[],
                 56,
             ),
-            Self::Ben => ("ben", &[1, 3, 4, 5, 6, 7], false, false, &[0, 1], false, 54),
+            Self::Ben => ("ben", &[1, 3, 4, 5, 6, 7], false, false, &[0, 1], &[], 54),
             Self::BitsWidth => (
                 "bits-width",
                 &[1, 2, 3, 4, 5, 6, 7],
                 true,
                 true,
                 &[0, 1, 2],
-                false,
+                &[],
                 75,
             ),
             Self::BaselineDropUpgrade => (
@@ -256,25 +279,17 @@ impl Arm {
                 true,
                 false,
                 &[0, 1],
-                false,
+                &[],
                 39,
             ),
-            Self::BaselineDropHcp => (
-                "baseline-drop-hcp",
-                &[0, 2],
-                false,
-                true,
-                &[0, 1],
-                false,
-                39,
-            ),
+            Self::BaselineDropHcp => ("baseline-drop-hcp", &[0, 2], false, true, &[0, 1], &[], 39),
             Self::BaselineDropBoth => (
                 "baseline-drop-both",
                 &[0, 2],
                 false,
                 false,
                 &[0, 1],
-                false,
+                &[],
                 38,
             ),
             Self::BenOracle => (
@@ -283,7 +298,7 @@ impl Arm {
                 false,
                 false,
                 &[0, 1],
-                true,
+                &[ORACLE_KEYCARDS],
                 62,
             ),
             Self::BaselineDropBothOracle => (
@@ -292,8 +307,44 @@ impl Arm {
                 false,
                 false,
                 &[0, 1],
-                true,
+                &[ORACLE_KEYCARDS],
                 46,
+            ),
+            Self::BenOracleQuality => (
+                "ben-oracle-quality",
+                &[1, 3, 4, 5, 6, 7],
+                false,
+                false,
+                &[0, 1],
+                &[ORACLE_QUALITY],
+                66,
+            ),
+            Self::BenOracleShortness => (
+                "ben-oracle-shortness",
+                &[1, 3, 4, 5, 6, 7],
+                false,
+                false,
+                &[0, 1],
+                &[ORACLE_SHORTNESS],
+                66,
+            ),
+            Self::BenOracleControls => (
+                "ben-oracle-controls",
+                &[1, 3, 4, 5, 6, 7],
+                false,
+                false,
+                &[0, 1],
+                &[ORACLE_CONTROLS],
+                78,
+            ),
+            Self::BenOracleStopper => (
+                "ben-oracle-stopper",
+                &[1, 3, 4, 5, 6, 7],
+                false,
+                false,
+                &[0, 1],
+                &[ORACLE_STOPPER],
+                66,
             ),
         }
     }
@@ -320,7 +371,9 @@ impl Arm {
                 cols[o] = true;
             }
         }
-        keep[BITS_FEATURES..].fill(oracle); // the 8 oracle columns, all or none
+        for &(start, len) in oracle {
+            keep[start..start + len].fill(true);
+        }
         assert_eq!(
             keep.iter().filter(|&&k| k).count(),
             width,
@@ -423,10 +476,12 @@ fn main() -> Result<()> {
     if args.blank_ranges {
         // The pair-wise overwrite below would land on the wrong columns of a
         // triple-encoded range block, silently — so refuse rather than lie.
-        if train.features_len == ARM_FEATURES {
+        // Keyed off the sidecar's encoding, not a width compare: `bits`
+        // corpora come 79, 87, or 147 wide and all encode triples.
+        if train.meta.encoding == "bits" {
             bail!(
-                "--blank-ranges assumes (min, max) range pairs, but a \
-                 {ARM_FEATURES}-feature corpus encodes (min, max, width) triples"
+                "--blank-ranges assumes (min, max) range pairs, but a `bits` \
+                 corpus encodes (min, max, width) triples"
             );
         }
         train.blank_ranges();
@@ -531,7 +586,7 @@ fn main() -> Result<()> {
             eprintln!(
                 "epoch {epoch:>4}: train {:.5}  val nll {:.5}  MAE {:.3}  RMSE {:.3} tricks  \
                  coverage {:.1}% (constructive {:.1}% / contested {:.1}%)  \
-                 below-mu {:.1}%  slam-MAE {:.3}",
+                 below-mu {:.1}%  slam-MAE {:.3}  suit-game-MAE {:.3}  nt-cont-MAE {:.3}",
                 running / steps as f32,
                 nll,
                 e.overall.mae_tricks(),
@@ -541,6 +596,8 @@ fn main() -> Result<()> {
                 100.0 * e.phase[1].coverage(),
                 100.0 * e.overall.below_mean(),
                 e.slam.mae_tricks(),
+                e.suit_game.mae_tricks(),
+                e.nt_contested.mae_tricks(),
             );
         }
     }
@@ -720,6 +777,12 @@ struct Eval {
     /// metric. The whole point of partner-honour info is bidding slams, so an
     /// oracle that does not move MAE *here* has not earned the axis it bounds.
     slam: Slice,
+    /// Suit-strain targets whose truth makes game or better (≥ 10 tricks) —
+    /// the shortness axis's home turf: ruffing value prices suit games.
+    suit_game: Slice,
+    /// NT targets on contested rows whose truth makes game or better (≥ 9
+    /// tricks) — where the quality and stopper axes would earn their keep.
+    nt_contested: Slice,
 }
 
 fn evaluate(model: &Net, x: &Tensor, y: &Tensor, targets: usize, tags: &[u8]) -> Result<Eval> {
@@ -730,6 +793,8 @@ fn evaluate(model: &Net, x: &Tensor, y: &Tensor, targets: usize, tags: &[u8]) ->
         phase: [Slice::default(); 2],
         system: [Slice::default(); 2],
         slam: Slice::default(),
+        suit_game: Slice::default(),
+        nt_contested: Slice::default(),
     };
 
     for (row, (pr, tr)) in p.iter().zip(&t).enumerate() {
@@ -749,10 +814,17 @@ fn evaluate(model: &Net, x: &Tensor, y: &Tensor, targets: usize, tags: &[u8]) ->
             eval.overall.push(nll, abs, inside, below);
             eval.phase[usize::from(tag & 1)].push(nll, abs, inside, below);
             eval.system[usize::from(tag >> 1 & 1)].push(nll, abs, inside, below);
-            // `truth` is tricks/13; ≥ 11.5/13 selects the 12- and 13-trick cells
-            // clear of any float-rounding on the 11 boundary.
+            // `truth` is tricks/13; mid-gap thresholds (11.5, 9.5, 8.5) keep
+            // each slice clear of float-rounding on its trick boundary. Labels
+            // are strain-major NT,S,H,D,C × 4 declarers, so `j < 4` is NT.
             if truth * 13.0 >= 11.5 {
                 eval.slam.push(nll, abs, inside, below);
+            }
+            if j >= 4 && truth * 13.0 >= 9.5 {
+                eval.suit_game.push(nll, abs, inside, below);
+            }
+            if j < 4 && tag & 1 == 1 && truth * 13.0 >= 8.5 {
+                eval.nt_contested.push(nll, abs, inside, below);
             }
         }
     }
@@ -1033,6 +1105,12 @@ fn export(
         "val_slam_mae_tricks": eval.slam.mae_tricks(),
         "val_slam_rmse_tricks": eval.slam.rmse_tricks(),
         "val_slam_targets": eval.slam.n,
+        "val_suit_game_mae_tricks": eval.suit_game.mae_tricks(),
+        "val_suit_game_rmse_tricks": eval.suit_game.rmse_tricks(),
+        "val_suit_game_targets": eval.suit_game.n,
+        "val_nt_contested_mae_tricks": eval.nt_contested.mae_tricks(),
+        "val_nt_contested_rmse_tricks": eval.nt_contested.rmse_tricks(),
+        "val_nt_contested_targets": eval.nt_contested.n,
         "val_by_phase": slices(["constructive", "contested"], &eval.phase),
         "val_by_system": slices(
             [
@@ -1081,6 +1159,9 @@ fn export(
     };
     row("constructive", eval.phase[0]);
     row("contested", eval.phase[1]);
+    row("slam", eval.slam);
+    row("suit-game", eval.suit_game);
+    row("nt-contested", eval.nt_contested);
     for (i, s) in eval.system.iter().enumerate() {
         if s.n > 0 {
             row(ds.meta.systems.get(i).map_or("system?", String::as_str), *s);
@@ -1123,6 +1204,12 @@ mod tests {
             (Arm::BaselineDropUpgrade, 39),
             (Arm::BaselineDropHcp, 39),
             (Arm::BaselineDropBoth, 38),
+            (Arm::BenOracle, 62),
+            (Arm::BaselineDropBothOracle, 46),
+            (Arm::BenOracleQuality, 66),
+            (Arm::BenOracleShortness, 66),
+            (Arm::BenOracleControls, 78),
+            (Arm::BenOracleStopper, 66),
         ] {
             let name = arm.spec().0;
             assert_eq!(
