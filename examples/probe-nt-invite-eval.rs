@@ -30,20 +30,26 @@
 //! cargo run --release --example probe-nt-invite-eval -- 30000 0
 //! ```
 //! Args (positional, optional): `count` per class (default 30000), `seed`
-//! (default 0).  Heavy — run via `scripts/idle-run.sh`.
+//! (default 0), `opener_lo opener_hi` (default 15 17; pass `15 15` to isolate
+//! the force/invite seam — extras accept the invite, so the choice only
+//! diverges opposite a minimum).  Heavy — run via `scripts/idle-run.sh`.
 //!
 //! ponytail: declarer = best of N/S per contract (matches probe-nt-range-split);
 //! opener acceptance held at the book's 17+ rule; minor-suit games omitted.
 
+use contract_bridge::auction::{Call, RelativeVulnerability};
 use contract_bridge::eval::{self, HandEvaluator};
 use contract_bridge::{
     AbsoluteVulnerability, Bid, Contract, FullDeal, Hand, Penalty, Rank, Seat, Strain, Suit,
 };
 use ddss::{NonEmptyStrainFlags, Solver, TrickCountTable};
 use pons::bidding::constraint::point_count;
+use pons::bidding::evaluator::trick_estimates;
+use pons::bidding::{Context, Inferences, Relative};
 use pons::scoring::{imps, ns_score_contract};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
+use std::sync::LazyLock;
 
 // --- evaluators (responder hand → scalar) -----------------------------------
 
@@ -78,6 +84,39 @@ fn ev_controls(h: Hand) -> f64 {
     f64::from(controls(h))
 }
 
+/// Responder's decision-time reading of `1NT`–`Pass` — the same
+/// `Inferences::read(context)` the production `points_or_net` bilans gates feed
+/// the net, so the screen matches the input distribution a wired gate would see.
+static NT_INF: LazyLock<Inferences> = LazyLock::new(|| {
+    let prior = [Call::Bid(Bid::new(1, Strain::Notrump)), Call::Pass];
+    Inferences::read(&Context::new(RelativeVulnerability::NONE, &prior))
+});
+
+/// Eval net: expected notrump tricks, opener declaring (opener named NT first,
+/// and in every route here — Stayman 4-4, Puppet 5-3, transfers — opener also
+/// declares the major, so `Partner` is *the* declarer seat).
+fn ev_net_nt(h: Hand) -> f64 {
+    f64::from(
+        trick_estimates(h, &NT_INF)
+            .get(Strain::Notrump, Relative::Partner)
+            .mean,
+    )
+}
+
+/// Eval net: best game make-probability across 3NT / 4♥ / 4♠, opener declaring —
+/// the "can we make game?" scalar the force decision actually asks.
+fn ev_net_game(h: Hand) -> f64 {
+    let e = trick_estimates(h, &NT_INF);
+    [
+        (Strain::Notrump, 9),
+        (Strain::Hearts, 10),
+        (Strain::Spades, 10),
+    ]
+    .into_iter()
+    .map(|(s, t)| e.p_at_least(s, Relative::Partner, t))
+    .fold(0.0f64, |acc, p| acc.max(f64::from(p)))
+}
+
 /// A named hand evaluator: `(label, fn)`.
 type Eval = (&'static str, fn(Hand) -> f64);
 
@@ -89,6 +128,8 @@ const EVALS: &[Eval] = &[
     ("bumrap", ev_bumrap),
     ("cccc", ev_cccc),
     ("controls", ev_controls),
+    ("netNT", ev_net_nt),
+    ("netPgame", ev_net_game),
 ];
 
 // --- shape predicates -------------------------------------------------------
@@ -234,9 +275,17 @@ fn main() {
     let mut argv = std::env::args().skip(1);
     let count: usize = argv.next().and_then(|s| s.parse().ok()).unwrap_or(30_000);
     let seed: u64 = argv.next().and_then(|s| s.parse().ok()).unwrap_or(0);
+    // Optional opener HCP band (default the full 15-17).  Restricting to
+    // exactly 15 isolates the force/invite seam: an opener with extras accepts
+    // the invitation, so force-vs-invite only diverges opposite a minimum —
+    // the mixture run dilutes that seam with boards where the choice was moot.
+    // (The net candidates still read the full 1NT envelope — that is all
+    // responder knows; only the *dealt* opener is restricted.)
+    let opener_lo: u8 = argv.next().and_then(|s| s.parse().ok()).unwrap_or(15);
+    let opener_hi: u8 = argv.next().and_then(|s| s.parse().ok()).unwrap_or(17);
     let attempt_cap = count.saturating_mul(4000).max(50_000_000);
 
-    // Deal both classes in one sweep: opener 15-17 balanced, responder in band.
+    // Deal both classes in one sweep: opener balanced in band, responder in band.
     let mut deals: Vec<FullDeal> = Vec::new();
     let mut classes: Vec<Class> = Vec::new();
     let (mut n_stay, mut n_no4) = (0usize, 0usize);
@@ -246,7 +295,7 @@ fn main() {
         attempts += 1;
         let deal = contract_bridge::deck::full_deal(&mut rng);
         let opener = deal[Seat::North];
-        if !is_balanced(opener) || !(15..=17).contains(&raw_hcp(opener)) {
+        if !is_balanced(opener) || !(opener_lo..=opener_hi).contains(&raw_hcp(opener)) {
             continue;
         }
         let resp = deal[Seat::South];
@@ -284,7 +333,7 @@ fn main() {
 
     for (cname, class) in class_list {
         // Gather this class's deals, responder evaluators, and per-vul action values.
-        let mut resp_evals: Vec<[f64; 6]> = Vec::new();
+        let mut resp_evals: Vec<[f64; EVALS.len()]> = Vec::new();
         let mut hcps: Vec<u8> = Vec::new();
         // values[deal][vul][action]
         let mut values: Vec<[[i64; 3]; 2]> = Vec::new();

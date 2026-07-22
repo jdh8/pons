@@ -15,9 +15,10 @@
 
 use super::{call, insert_uncontested, slam};
 use crate::bidding::constraint::{
-    Cons, Constraint, balanced, described, hcp, len, point_count, points, stopper_in,
-    support_point_count, support_points, top_honors,
+    Cons, Constraint, balanced, described, hcp, len, point_count, points, pred, reads_as,
+    stopper_in, support_point_count, support_points, top_honors,
 };
+use crate::bidding::instinct::net_break_even_gate;
 use crate::bidding::{Alert, Context, Rules, Trie};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Hand, Holding, Rank, Strain, Suit};
@@ -997,6 +998,73 @@ fn stayman_5card_max() -> bool {
     STAYMAN_5CARD_MAX.with(Cell::get)
 }
 
+thread_local! {
+    /// See [`set_stayman_net_force`].
+    static STAYMAN_NET_FORCE: Cell<bool> = const { Cell::new(false) };
+}
+
+/// Price responder's Stayman-rebid invite/force seams with the evaluator net
+/// instead of the point tests (thread-local; **off by default — measured a
+/// loss**, kept for re-measurement)
+///
+/// The `probe-nt-invite-eval` screen (30 000 deals per class, seed 1784718391)
+/// found the net's game make-probability is the first evaluator to out-rank
+/// raw HCP at the 1NT invite/force boundary — but only on the Stayman class
+/// (+0.030 ±0.017 IMPs/board vul none, +0.044 ±0.025 vul both, rising to
+/// +0.048/+0.069 opposite exactly-15 openers); the balanced no-major seam
+/// stays HCP (net ≈ 0, third evaluator family to fail there).  This knob
+/// converts exactly the Stayman-rebid seams: with a fit the `4M`/`3M`/`3OM`
+/// split, without one the `3NT`/`2NT` revert — each force arm becomes "the
+/// net clears the game's IMP break-even at the live vulnerability", its
+/// invite twin the declined half.  The 2♣ entry, Smolen, garbage/crawling
+/// and the quantitative 4NT are untouched.
+///
+/// **The live A/B refuted it** (`ab-stayman-net-force --slice`, 200k sliced
+/// boards per vul, seed 1784719896): vul none −0.022 plain DD / +0.003 PD,
+/// vul both −0.021 plain / −0.027 PD.  The forensic split explains the
+/// screen-vs-live reversal: at the *fit* seam the incumbent is not raw HCP
+/// but [`fit_value`] — already an upgrade evaluator, and the net loses to it
+/// on both scorers in both directions; at the *no-fit NT* seam the net's
+/// flips are plain-DD-positive (matching the screen, which scored plain DD)
+/// but PD-negative — the DD-trained net promotes 3NTs that die against
+/// perfect defense, the decision table's "doubling artifact, don't ship" row.
+/// A frequency-matched NT-seam-only gate re-scored under `single_dummy_leads`
+/// is the remaining open refinement.
+///
+/// Unlike its construction-time neighbours, this is read at **classification
+/// time** (like [`set_bilans_floor`][crate::bidding::instinct::set_bilans_floor]):
+/// flip it on threads that classify through a [`Stance`][crate::bidding::Stance],
+/// no book rebuild needed.
+#[doc(hidden)]
+pub fn set_stayman_net_force(on: bool) {
+    STAYMAN_NET_FORCE.with(|cell| cell.set(on));
+}
+
+/// Plain-bool read of the Stayman net-force knob (see [`set_stayman_net_force`])
+fn stayman_net_force() -> bool {
+    STAYMAN_NET_FORCE.with(Cell::get)
+}
+
+/// One side of a Stayman-rebid invite/force seam: knob-off exactly
+/// `shape & points`; with [`set_stayman_net_force`] on, `shape` plus the net's
+/// `want` verdict on `tricks` in `strain` replacing the point test
+///
+/// The call *reads* as `shape & points` either way ([`reads_as`]) — the net
+/// arm is an opaque predicate, and letting it into the projection `Or` would
+/// union the authored band out to a vacuous reading.
+fn stayman_net_seam(
+    shape: Cons<impl Constraint + Clone>,
+    points: Cons<impl Constraint + Clone>,
+    want: bool,
+    strain: Strain,
+    tricks: u8,
+) -> Cons<impl Constraint + Clone> {
+    let off = pred(|_: Hand, _: &Context<'_>| !stayman_net_force());
+    let evaluated = shape.clone()
+        & ((off & points.clone()) | net_break_even_gate(stayman_net_force, want, strain, tricks));
+    reads_as(evaluated, shape & points)
+}
+
 /// Author the invitational 5-4-majors structure for books built *after* this call
 /// (thread-local; **off by default**).
 ///
@@ -1299,7 +1367,13 @@ fn stayman_major_rebid(major: Suit) -> Rules {
         .rule(
             Bid::new(3, other),
             1.4,
-            len(major, 4..) & hcp(9..) & (balanced() | hcp(16..)) & spade_cap.clone(),
+            stayman_net_seam(
+                len(major, 4..) & (balanced() | hcp(16..)) & spade_cap.clone(),
+                hcp(9..),
+                true,
+                strain,
+                10,
+            ),
         )
         .alert(SLAM_TRY)
         // Fit: sign off in the major game — any upgrade past a flat eight (a ninth
@@ -1307,21 +1381,30 @@ fn stayman_major_rebid(major: Suit) -> Rules {
         .rule(
             Bid::new(4, strain),
             1.3,
-            len(major, 4..)
-                & described("game value for the fit", move |hand: Hand, _| {
+            stayman_net_seam(
+                len(major, 4..) & spade_cap.clone(),
+                described("game value for the fit", move |hand: Hand, _| {
                     fit_value(hand, major) >= 9
-                })
-                & spade_cap.clone(),
+                }),
+                true,
+                strain,
+                10,
+            ),
         )
-        // Fit: invitational raise — a flat eight, four-card fit, no upgrade.
+        // Fit: invitational raise — a flat eight, four-card fit, no upgrade (or,
+        // net-priced, any fit hand whose game the net declines).
         .rule(
             Bid::new(3, strain),
             1.2,
-            len(major, 4..)
-                & described("invitational value for the fit", move |hand: Hand, _| {
+            stayman_net_seam(
+                len(major, 4..) & spade_cap.clone(),
+                described("invitational value for the fit", move |hand: Hand, _| {
                     fit_value(hand, major) == 8
-                })
-                & spade_cap.clone(),
+                }),
+                false,
+                strain,
+                10,
+            ),
         )
         // No fit: quantitative 4NT (as if the 2♣ detour never happened).
         .rule(
@@ -1329,16 +1412,29 @@ fn stayman_major_rebid(major: Suit) -> Rules {
             1.2,
             len(major, ..4) & hcp(16..=17),
         )
-        // No fit: game / invitational notrump raise.
+        // No fit: game / invitational notrump raise.  The net seams keep the
+        // 2♣ entry's 8-HCP floor so a garbage/crawling weak hand never invites.
         .rule(
             Bid::new(3, Strain::Notrump),
             1.0,
-            len(major, ..4) & hcp(9..),
+            stayman_net_seam(
+                len(major, ..4) & hcp(8..),
+                hcp(9..),
+                true,
+                Strain::Notrump,
+                9,
+            ),
         )
         .rule(
             Bid::new(2, Strain::Notrump),
             1.0,
-            len(major, ..4) & hcp(8..=8),
+            stayman_net_seam(
+                len(major, ..4) & hcp(8..),
+                hcp(8..=8),
+                false,
+                Strain::Notrump,
+                9,
+            ),
         );
     // Stayman-then-minor slam try: a natural 5+ minor with slam values (14+) and no
     // fit for opener's major (capped at three, else responder raises or takes the
@@ -1815,8 +1911,18 @@ fn stayman_no_major_rebid() -> Rules {
         )
         .alert(SMOLEN)
         .rule(Bid::new(4, Strain::Notrump), 1.2, hcp(16..=17))
-        .rule(Bid::new(3, Strain::Notrump), 1.0, hcp(9..))
-        .rule(Bid::new(2, Strain::Notrump), 1.0, hcp(8..=8));
+        // The notrump revert seams are net-priced under `set_stayman_net_force`
+        // (Smolen and the quantitative 4NT outrank them by weight either way).
+        .rule(
+            Bid::new(3, Strain::Notrump),
+            1.0,
+            stayman_net_seam(hcp(8..), hcp(9..), true, Strain::Notrump, 9),
+        )
+        .rule(
+            Bid::new(2, Strain::Notrump),
+            1.0,
+            stayman_net_seam(hcp(8..), hcp(8..=8), false, Strain::Notrump, 9),
+        );
     let rules = if crawling_stayman() {
         // Crawling Stayman: 4-4 majors short in diamonds (a bare 2♥, weak) — both
         // majors, pass-or-correct (see `answer_crawling_stayman`).  Gated by the

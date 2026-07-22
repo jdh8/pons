@@ -403,7 +403,13 @@ pub fn set_bilans_floor(enabled: bool) {
 
 /// The bilans floor is enabled (see [`set_bilans_floor`])
 fn bilans_floor() -> Cons<impl Constraint + Clone> {
-    pred(|_: Hand, _: &Context<'_>| BILANS_FLOOR.with(Cell::get))
+    pred(|_: Hand, _: &Context<'_>| bilans_enabled())
+}
+
+/// Plain-bool read of the bilans knob, for gates that must short-circuit ahead
+/// of a net forward pass (see [`net_break_even_gate`])
+fn bilans_enabled() -> bool {
+    BILANS_FLOOR.with(Cell::get)
 }
 
 /// Enable opener's/overcaller's competitive rebid of a long suit (**shipped default-on**)
@@ -1903,19 +1909,37 @@ fn points_or_net(
     strain: Strain,
     tricks: u8,
 ) -> Cons<impl Constraint + Clone> {
-    let net = pred(move |hand: Hand, context: &Context<'_>| {
-        BILANS_FLOOR.with(Cell::get)
-            && trick_estimates(hand, &Inferences::read(context)).p_at_least(
-                strain,
-                our_declarer(context, strain),
-                tricks,
-            ) >= break_even(
-                tricks,
-                strain,
-                context.vul().contains(RelativeVulnerability::WE),
-            )
-    });
-    (!bilans_floor() & authored) | net
+    (!bilans_floor() & authored) | net_break_even_gate(bilans_enabled, true, strain, tricks)
+}
+
+/// The evaluator net's verdict on `tricks` of ours in `strain`, as a
+/// classification-time constraint arm for a converted seam: finite only when
+/// `knob()` is on **and** the break-even comparison equals `want`
+///
+/// The generalisation of [`points_or_net`]'s net arm over which knob gates it
+/// and over the verdict's sign — the invite side of a converted force/invite
+/// seam needs the *declined* half (`want == false`) so the pair stays a
+/// partition.  The knob check short-circuits ahead of the forward pass (And/Or
+/// constraints do not short-circuit), so knob-off never touches the net.
+pub(crate) fn net_break_even_gate(
+    knob: fn() -> bool,
+    want: bool,
+    strain: Strain,
+    tricks: u8,
+) -> Cons<impl Constraint + Clone> {
+    pred(move |hand: Hand, context: &Context<'_>| {
+        knob()
+            && want
+                == (trick_estimates(hand, &Inferences::read(context)).p_at_least(
+                    strain,
+                    our_declarer(context, strain),
+                    tricks,
+                ) >= break_even(
+                    tricks,
+                    strain,
+                    context.vul().contains(RelativeVulnerability::WE),
+                ))
+    })
 }
 
 /// Partner opened a strong notrump of `level` (we are the responder)

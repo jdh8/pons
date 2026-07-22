@@ -9,6 +9,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Net-priced Stayman invite/force seams (`set_stayman_net_force`, opt-in,
+  default off — measured a loss).** Asked whether the blanket 9-HCP game force
+  over our 1NT survives the evaluator net: `probe-nt-invite-eval` gained two
+  net candidates (`netNT`, `netPgame`, both reading the `1NT` envelope) and an
+  opener-HCP-band argument (pass `15 15` to isolate the force/invite seam —
+  an opener with extras accepts the invite either way, so the mixture dilutes
+  the seam). The screen made the net the **first evaluator ever to out-rank
+  raw HCP** at this boundary — Stayman class only (+0.030/+0.044 IMPs/board
+  by vul, rising to +0.048/+0.069 opposite exactly-15 openers); the balanced
+  no-major seam stays HCP (net ≈ 0, the third evaluator family to fail there,
+  so **the blanket-9 force stands** where it lives). The knob converts the
+  Stayman-rebid seams (fit `4M`/`3M`/`3OM`, no-fit `3NT`/`2NT`) to net-vs-IMP
+  break-even gates at classification time, with a new `reads_as` constraint
+  combinator so each converted call still *reads* as its authored band (an
+  opaque net arm in the projection `Or` would union the reading out to
+  vacuous — the phantom-reading trap).
+
+  **Verdict: the live gate is refuted** (`ab-stayman-net-force --slice`, 200k
+  sliced boards per vul): vul none −0.022 plain DD, vul both −0.021 plain /
+  −0.027 PD. The forensic seam split explains the screen-vs-live reversal:
+  the *fit* seam's incumbent is `fit_value` — already an upgrade evaluator,
+  which beats the net on both scorers in both directions — and the *no-fit
+  NT* seam's flips are plain-DD-positive (agreeing with the plain-DD screen)
+  but PD-negative: the DD-trained net promotes 3NTs that die against perfect
+  defense, the decision table's doubling-artifact row. Open refinement: a
+  frequency-matched NT-seam-only gate re-scored under `single_dummy_leads`.
+
 - **Dutch wide-1♥ responder-captaincy probes (investigation, no system
   change).** Two double-dummy survey examples for pricing a response opposite
   Dutch's wide (10-20 HCP) 1♥ opening: `probe-1m-slice` (`P(game makes)` by

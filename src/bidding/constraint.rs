@@ -515,6 +515,54 @@ where
     })
 }
 
+/// See [`reads_as`].
+#[derive(Clone)]
+struct ReadsAs<E, R> {
+    evaluated: E,
+    reading: R,
+}
+
+impl<E: Constraint, R: Constraint> Constraint for ReadsAs<E, R> {
+    fn eval(&self, hand: Hand, context: &Context<'_>) -> f32 {
+        self.evaluated.eval(hand, context)
+    }
+
+    fn describe(&self) -> Description {
+        self.reading.describe()
+    }
+
+    fn project(&self, context: &Context<'_>) -> Inference {
+        self.reading.project(context)
+    }
+
+    fn project_band(&self, context: &Context<'_>) -> Inference {
+        self.reading.project_band(context)
+    }
+
+    fn project_complement(&self, context: &Context<'_>) -> Inference {
+        self.reading.project_complement(context)
+    }
+}
+
+/// Evaluate as `evaluated`, but describe and project as `reading`
+///
+/// For a knob-gated classification-time arm (e.g. an evaluator-net gate) that
+/// would otherwise vacuous the authored reading: an `Or` with an opaque
+/// predicate unions every projection out to the full range, so the call would
+/// read as *nothing* — the phantom-reading disaster.  Wrapping the seam keeps
+/// the authored band as the declared reading instead.
+///
+/// Soundness caveat: with the knob **off** the two sides agree exactly and the
+/// projection contract holds.  Knob-**on**, the reading is an approximation of
+/// the live gate (the disclosable-floor compromise) — acceptable for an
+/// opt-in arm whose A/B must vindicate it, not for a default-on conversion.
+pub fn reads_as(
+    evaluated: Cons<impl Constraint + Clone>,
+    reading: Cons<impl Constraint + Clone>,
+) -> Cons<impl Constraint + Clone> {
+    Cons(ReadsAs { evaluated, reading })
+}
+
 /// Which honor-weighted count tempers [`fifths`] (the A/B companion gauge)
 ///
 /// Fifths is tuned for 3NT — it rewards aces and tens and discounts kings and
