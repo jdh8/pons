@@ -31,6 +31,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   not the ceiling — is Phase 4's binding risk. Shipped crate byte-identical
   (off-crate trainer + example only).
 
+- **Keycard-projection reach probe (BEN-projection Phase 4 recon).**
+  `examples/probe-keycard-reach.rs` walks the same self-play auctions the
+  evaluator corpus does and, per decision row, latches whether partner has
+  answered RKCB — `book` (an authored `keycards(...)` rule served the response,
+  exactly what a projecting `Constraint` would recover) vs `struct` (any
+  `5♣/♦/♥/♠` after partner's `4NT`, the floor-inclusive superset). **Verdict:
+  Phase 4 NO-GO on reach.** Over 500k deals ×{american,dutch} (10.08M rows),
+  book-RKCB reaches only **0.54% of slam cells** (1.13% of our-side slams);
+  even the floor-inclusive upper bound caps at 1.1–2.4%. Realizable slam-slice
+  gain ≈ book-reach × the 1.26-trick ceiling ≈ **0.007–0.014 tricks** — ~1% of
+  the ceiling, invisible on the overall MAE the shipped net optimises. The
+  keycard axis is real but unreachable: RKCB fires on <1% of auctions, so we
+  almost never know partner's keycards at evaluation time. Recon only; no
+  crate change.
+
 ### Changed
 
 - **`american()`'s one-level suit openings carry an explicit HCP floor, for
