@@ -305,6 +305,19 @@ struct Args {
     #[arg(long, default_value = "hcp13")]
     ns_two_over_one_gate: String,
 
+    /// Natural per-call 2/1 suit lengths: `1♠–2♥` promises 5+ hearts, `1♠–2♣`
+    /// allows 3+ clubs (the cheapest 2/1 catch-all); every other 2/1 keeps 4+.
+    /// Off by default (uniform 4+) — on-switch for the A/B (see
+    /// `set_two_over_one_natural_lengths`).
+    #[arg(long, default_value_t = false)]
+    ns_two_over_one_natural_lengths: bool,
+
+    /// Lighten `1♠–2♥` by one HCP on its no-fit leg (`hcp(12..)` at the default
+    /// hcp13 gate), the five-card major worth a shade-light game force. Off by
+    /// default — on-switch for the A/B (see `set_two_over_one_major_discount`).
+    #[arg(long, default_value_t = false)]
+    ns_two_over_one_major_discount: bool,
+
     /// Disable the XYZ two-way checkback after three one-level bids (2♣
     /// puppets 2♦ for sign-off or invite, 2♦ game-forces); on by default.
     /// Off-switch for the A/B.
@@ -1159,6 +1172,8 @@ fn main() -> anyhow::Result<()> {
             anyhow::bail!("--ns-two-over-one-gate must be points13|hcp13|hcp12, got {other:?}")
         }
     });
+    pons::bidding::american::set_two_over_one_natural_lengths(args.ns_two_over_one_natural_lengths);
+    pons::bidding::american::set_two_over_one_major_discount(args.ns_two_over_one_major_discount);
     pons::bidding::american::set_xyz(!args.no_ns_xyz);
     pons::bidding::american::set_new_minor_forcing(args.ns_new_minor_forcing);
     pons::bidding::american::set_major_game_tries(!args.no_ns_major_game_tries);

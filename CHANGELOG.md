@@ -9,6 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Major 2/1 natural per-call suit lengths + a lighter `1♠-2♥` (two opt-in
+  knobs, default off, book byte-identical — A/B pending).** Today every major
+  2/1 shares a uniform `len(suit, 4..)`, which mis-describes two of the calls
+  the reader/sampler projects: `1♠-2♥` should promise five (a 2/1 into a major
+  is a real five-card suit) and `1♠-2♣` should allow three (the cheapest 2/1 is
+  the catch-all). `set_two_over_one_natural_lengths` gives each 2/1 its natural
+  floor — `1♠-2♥` 5+, `1♠-2♣` 3+, the rest 4+ — sharpening the *shape* reading;
+  `set_two_over_one_major_discount` lets the five-card-major `1♠-2♥` force game
+  one HCP light (`hcp(12..)` at the default `hcp13` gate), serving both 3NT and
+  4♥. Both wired into `bba-gen` (`--ns-two-over-one-natural-lengths`,
+  `--ns-two-over-one-major-discount`) to drive the three-arm head-to-head
+  (baseline / lengths / lengths+light) that decides each on its own merit.
+  This does **not** lift the 2/1 *points* reading off `0..=37`: `Or::project`
+  unions the fit/no-fit branches into one bounding box and `support_points`
+  projects nothing, so the points wash survives any branch rework — the
+  disjunction (DNF) projection that would fix it is still design-only
+  (`docs/ai-bidder/sampled-projection.md`).
+
 - **`examples/probe-dutch-1s-points` diagnostic example.** Histograms `points`
   and `support_points` over Dutch's real 1♠ openers (classified through the
   full book, not just the opening table's own gate) — no verdict, a reusable

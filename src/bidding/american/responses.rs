@@ -52,6 +52,17 @@ std::thread_local! {
     /// Default [`TwoOverOneGate::Hcp13`] — **shipped 2026-07-15**; the
     /// legacy `points(13..)` is the `Points13` opt-out.
     static TWO_OVER_ONE_GATE: Cell<TwoOverOneGate> = const { Cell::new(TwoOverOneGate::Hcp13) };
+    /// Whether the major 2/1 game force names **natural per-call suit lengths**
+    /// instead of a uniform four: `1♠–2♥` promises five (a 2/1 into a major is
+    /// a real five-card suit), `1♠–2♣` allows three (the cheapest 2/1 is the
+    /// catch-all), and the rest keep four.  Default `false` (uniform four,
+    /// book byte-identical); A/B pending.
+    static TWO_OVER_ONE_NATURAL_LENGTHS: Cell<bool> = const { Cell::new(false) };
+    /// Whether `1♠–2♥` (the five-card-major 2/1) forces game a shade light: its
+    /// no-fit `Hcp*` floor drops by one — `hcp(12..)` at the default `Hcp13`
+    /// gate — serving both 3NT and `4♥`.  Default `false` (book byte-identical);
+    /// A/B pending.
+    static TWO_OVER_ONE_MAJOR_DISCOUNT: Cell<bool> = const { Cell::new(false) };
 }
 
 /// The gauge for the no-fit leg of the major 2/1 game force
@@ -186,6 +197,38 @@ pub fn set_two_over_one_gate(gate: TwoOverOneGate) {
 /// The currently authored no-fit 2/1 gauge
 fn two_over_one_gate() -> TwoOverOneGate {
     TWO_OVER_ONE_GATE.with(Cell::get)
+}
+
+/// Author natural per-call suit lengths for the major 2/1 game force for books
+/// built after this call (default `false`;
+/// `--ns-two-over-one-natural-lengths` in `bba-gen`)
+///
+/// On: `1♠–2♥` promises 5+ hearts and `1♠–2♣` allows 3+ clubs (the cheapest
+/// 2/1 is the catch-all); every other 2/1 keeps its 4+ floor.  Off: a uniform
+/// 4+ in every 2/1 suit.
+pub fn set_two_over_one_natural_lengths(on: bool) {
+    TWO_OVER_ONE_NATURAL_LENGTHS.with(|cell| cell.set(on));
+}
+
+/// Whether natural per-call 2/1 suit lengths are currently authored
+fn two_over_one_natural_lengths() -> bool {
+    TWO_OVER_ONE_NATURAL_LENGTHS.with(Cell::get)
+}
+
+/// Lighten the `1♠–2♥` game force by one HCP for books built after this call
+/// (default `false`; `--ns-two-over-one-major-discount` in `bba-gen`)
+///
+/// On: the no-fit leg of `1♠–2♥` drops its `Hcp*` floor by one — `hcp(12..)`
+/// at the default `Hcp13` gate — because the five-card major is worth a game
+/// force a shade light.  Off: the full gate floor.  No effect on the `Points*`
+/// gates or on any other 2/1.
+pub fn set_two_over_one_major_discount(on: bool) {
+    TWO_OVER_ONE_MAJOR_DISCOUNT.with(|cell| cell.set(on));
+}
+
+/// Whether the `1♠–2♥` HCP discount is currently authored
+fn two_over_one_major_discount() -> bool {
+    TWO_OVER_ONE_MAJOR_DISCOUNT.with(Cell::get)
 }
 
 /// Spades take the first response: strictly longer, or equal length five-plus
@@ -360,38 +403,58 @@ pub fn major_responses(major: Suit) -> Rules {
     for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts] {
         if Strain::from(suit) < trump {
             let bid = Bid::new(2, Strain::from(suit));
+            // Suit-length floor: a 2/1 into a major promises five (2♥ over 1♠),
+            // and the cheapest 2/1 (2♣ over 1♠) is the catch-all and can be
+            // three; every other 2/1 stays four.  Hearts only reaches this loop
+            // over 1♠ (`Strain < trump` bars it over 1♥), so it needs no guard.
+            let min_len = if two_over_one_natural_lengths() {
+                match suit {
+                    Suit::Hearts => 5,
+                    Suit::Clubs if major == Suit::Spades => 3,
+                    _ => 4,
+                }
+            } else {
+                4
+            };
+            // 2♥ over 1♠ (the five-card major) may force game one HCP light.
+            let discount = u8::from(two_over_one_major_discount() && suit == Suit::Hearts);
             rules = match (two_over_one_fit(), two_over_one_gate()) {
-                (false, TwoOverOneGate::Points13) => {
-                    rules.rule(bid, weight, len(suit, 4..) & points(13..) & !support(4..))
-                }
-                (false, TwoOverOneGate::Points12) => {
-                    rules.rule(bid, weight, len(suit, 4..) & points(12..) & !support(4..))
-                }
+                (false, TwoOverOneGate::Points13) => rules.rule(
+                    bid,
+                    weight,
+                    len(suit, min_len..) & points(13..) & !support(4..),
+                ),
+                (false, TwoOverOneGate::Points12) => rules.rule(
+                    bid,
+                    weight,
+                    len(suit, min_len..) & points(12..) & !support(4..),
+                ),
                 (false, gate) => rules.rule(
                     bid,
                     weight,
-                    len(suit, 4..) & hcp(gate.hcp_floor()..) & !support(4..),
+                    len(suit, min_len..) & hcp((gate.hcp_floor() - discount)..) & !support(4..),
                 ),
                 (true, TwoOverOneGate::Points13) => rules.rule(
                     bid,
                     weight,
-                    len(suit, 4..)
+                    len(suit, min_len..)
                         & !support(4..)
                         & (points(13..) | (support(3..) & support_points(13..))),
                 ),
                 (true, TwoOverOneGate::Points12) => rules.rule(
                     bid,
                     weight,
-                    len(suit, 4..)
+                    len(suit, min_len..)
                         & !support(4..)
                         & (points(12..) | (support(3..) & support_points(13..))),
                 ),
                 (true, gate) => rules.rule(
                     bid,
                     weight,
-                    len(suit, 4..)
+                    len(suit, min_len..)
                         & !support(4..)
-                        & (hcp(gate.hcp_floor()..) | (support(3..) & support_points(13..))),
+                        & (hcp((gate.hcp_floor() - discount)..)
+                            | (support(3..) & support_points(13..))),
                 ),
             }
             .alert(GAME_FORCE);
