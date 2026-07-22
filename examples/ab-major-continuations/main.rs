@@ -94,8 +94,8 @@ struct Args {
     #[arg(long, default_value_t = false)]
     two_over_one_fit: bool,
 
-    /// Treatment: the no-fit 2/1 gauge — points13 (baseline) | hcp13 | hcp12
-    /// (`set_two_over_one_gate`)
+    /// Treatment: the no-fit 2/1 gauge — points13 (baseline) | points12 |
+    /// hcp13 | hcp12 | hcp14 (`set_two_over_one_gate`)
     #[arg(long, default_value = "points13")]
     two_over_one_gate: String,
 
@@ -146,9 +146,13 @@ struct Args {
 fn parse_gate(s: &str) -> TwoOverOneGate {
     match s {
         "points13" => TwoOverOneGate::Points13,
+        "points12" => TwoOverOneGate::Points12,
         "hcp13" => TwoOverOneGate::Hcp13,
         "hcp12" => TwoOverOneGate::Hcp12,
-        other => panic!("--two-over-one-gate must be points13|hcp13|hcp12, got {other:?}"),
+        "hcp14" => TwoOverOneGate::Hcp14,
+        other => {
+            panic!("--two-over-one-gate must be points13|points12|hcp13|hcp12|hcp14, got {other:?}")
+        }
     }
 }
 
@@ -178,7 +182,7 @@ fn set_knobs(args: &Args, treatment: bool) {
 #[allow(clippy::cast_precision_loss)]
 fn main() {
     let args = Args::parse();
-    let gate_selected = args.two_over_one_gate != "points13";
+    let gate_selected = args.two_over_one_gate != args.baseline_gate;
     assert!(
         args.game_tries
             || args.limit_raise

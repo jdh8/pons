@@ -37,8 +37,8 @@ use contract_bridge::{AbsoluteVulnerability, Contract, FullDeal, Hand, Seat};
 use ddss::{NonEmptyStrainFlags, Solver, TrickCountTable};
 use pons::american;
 use pons::bidding::american::{
-    WeakTwoEval, set_nt_invite_hcp, set_redouble_answer, set_strong_double_hcp,
-    set_two_suiter_hcp_floor, set_weak_two_eval, set_weak_two_hcp,
+    TwoOverOneGate, WeakTwoEval, set_nt_invite_hcp, set_redouble_answer, set_strong_double_hcp,
+    set_two_over_one_gate, set_two_suiter_hcp_floor, set_weak_two_eval, set_weak_two_hcp,
 };
 use pons::bidding::constraint::{PointScale, set_point_scale, set_support_points};
 use pons::bidding::context::relative;
@@ -106,7 +106,9 @@ struct Args {
     /// `two-suiter-hcp:N`, `redouble-answer`, `nt-invite-hcp`, and the
     /// weak-two evaluator gauges
     /// `weak-two-cccc:LO:HI`, `weak-two-cccc-floor:X`, `weak-two-nltc:LO:HI`,
-    /// `weak-two-nltc-ceil:X` (reals; see `probe-weak-two-eval`).
+    /// `weak-two-nltc-ceil:X` (reals; see `probe-weak-two-eval`); and
+    /// `two-over-one-gate:points13|points12|hcp13|hcp12|hcp14` (the major
+    /// no-fit 2/1 entry, vs the shipped `hcp13`).
     #[arg(long)]
     fix: Option<String>,
 
@@ -166,6 +168,9 @@ enum Fix {
     /// `set_weak_two_eval(gauge)`: an honor-location evaluator (CCCC / NLTC)
     /// gauges the weak-two opening — the disclosure-wall follow-up
     WeakTwoEval(WeakTwoEval),
+    /// `set_two_over_one_gate(gate)`: the major no-fit 2/1 entry gauge, vs
+    /// the shipped `Hcp13`
+    TwoOverOneGate(TwoOverOneGate),
 }
 
 impl Fix {
@@ -190,6 +195,16 @@ impl Fix {
             "weak-two-cccc-floor" => Self::WeakTwoEval(WeakTwoEval::CcccFloor(x(1))),
             "weak-two-nltc" => Self::WeakTwoEval(WeakTwoEval::NltcBand(x(1), x(2))),
             "weak-two-nltc-ceil" => Self::WeakTwoEval(WeakTwoEval::NltcCeil(x(1))),
+            "two-over-one-gate" => Self::TwoOverOneGate(match param(1) {
+                "points13" => TwoOverOneGate::Points13,
+                "points12" => TwoOverOneGate::Points12,
+                "hcp13" => TwoOverOneGate::Hcp13,
+                "hcp12" => TwoOverOneGate::Hcp12,
+                "hcp14" => TwoOverOneGate::Hcp14,
+                other => panic!(
+                    "--fix two-over-one-gate must be points13|points12|hcp13|hcp12|hcp14, got {other:?}"
+                ),
+            }),
             _ => panic!("unknown --fix {name}"),
         }
     }
@@ -202,6 +217,9 @@ impl Fix {
             Self::RedoubleAnswer => set_redouble_answer(on),
             Self::NtInviteHcp => set_nt_invite_hcp(on),
             Self::WeakTwoEval(gauge) => set_weak_two_eval(on.then_some(gauge)),
+            Self::TwoOverOneGate(gate) => {
+                set_two_over_one_gate(if on { gate } else { TwoOverOneGate::Hcp13 });
+            }
         }
     }
 
@@ -220,6 +238,7 @@ impl Fix {
                 WeakTwoEval::NltcBand(lo, hi) => format!("weak two = nltc({lo}..={hi})"),
                 WeakTwoEval::NltcCeil(x) => format!("weak two = points(5..=10) & nltc(..={x})"),
             },
+            Self::TwoOverOneGate(gate) => format!("2/1 no-fit gate {gate:?} vs shipped Hcp13"),
         }
     }
 }

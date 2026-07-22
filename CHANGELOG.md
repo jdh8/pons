@@ -9,6 +9,73 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`examples/probe-dutch-1s-points` diagnostic example.** Histograms `points`
+  and `support_points` over Dutch's real 1♠ openers (classified through the
+  full book, not just the opening table's own gate) — no verdict, a reusable
+  front door for eyeballing either scale's distribution over any opening.
+
+- **2/1 no-fit floor: lighter alternatives refuted, `hcp13` re-confirmed even
+  at its own margin (investigation, no default change).** Asked whether the
+  shipped 13-HCP major 2/1 no-fit floor is too strict. Added
+  `TwoOverOneGate::Points12` (Rule of 20, `points(12..)`) and `Hcp14` (one
+  point *stricter*, for symmetry) alongside the existing `Points13`/`Hcp13`/
+  `Hcp12`, wired into `ab-major-continuations --two-over-one-gate` and
+  `ab-point-count --fix two-over-one-gate:...` for real-routing head-to-heads
+  (both default off; shipped `Hcp13` unchanged).
+
+  `Points12`: full-routing vs shipped `hcp13` (`ab-point-count --fix
+  two-over-one-gate:points12`, 100k boards) — plain DD **−0.0105 ± 0.0043**,
+  PD **−0.0214 ± 0.0051**, loss/loss; its shape credit admits nearly double
+  the marginal population of a flat HCP cut. A dedicated slice
+  (`examples/probe-two-over-one-nofit-3nt`: opener 12-13 points, responder
+  hcp<13 & points 12-13, no fit — 2M deals, 907 boards) shows why: the
+  candidate lands in notrump 66% of the time and only 21% of those make,
+  vs. the shipped gate's sensible non-forcing 2NT on 67% of the same boards.
+
+  `Hcp12`: a narrower, harsher slice (`examples/probe-two-over-one-hcp12-3nt`:
+  opener a genuine Rule-of-20 light opener, hcp 10-12 — `points(12..)` is
+  automatic from the opening rule itself; responder hcp exactly 12; no fit;
+  5M deals, 1050 boards) shows the classic doubling-artifact signature —
+  plain DD **+0.770**, PD **−0.319** — despite reaching real games and slams
+  (373/1050) the shipped floor never attempts at all.
+
+  `Hcp14` (one stricter than shipped, to check the other direction): the same
+  slice shape one rung up (`examples/probe-two-over-one-hcp13-3nt`, responder
+  hcp exactly 13) shows the shipped `hcp13` wearing **the same signature at
+  its own margin** — plain DD **+0.412**, PD **−0.575** vs the stricter arm.
+  So the risk isn't really the exact cutoff: a genuinely light (Rule-of-20)
+  opener facing a bare-minimum no-fit responder is a structurally thin corner
+  for 2/1 game-forcing at any of 12/13/14.
+
+  **Verdict: `hcp13` holds.** It's the only floor of the four that doesn't
+  lose outright on the full population, and no alternative wins cleanly even
+  at its own margin — moving the number doesn't fix a risk that's inherent to
+  forcing game through this corner. All three candidate gates stay opt-in.
+
+### Fixed
+
+- **2/1 no-fit floor: forcing-1NT catch-all coverage gap for a stricter
+  gate.** The catch-all (`major_responses`) was hardcoded `hcp(6..=12)`,
+  which happens to dovetail exactly with the shipped `hcp13` — and with every
+  `Points*`/`Hcp12` arm too, since `points >= hcp` always guarantees raw
+  `hcp(13..)` already clears any `points` floor — but silently orphans hands
+  to the undesigned instinct floor for any hypothetical gate *stricter* than
+  `hcp13`. Building `Hcp14` above surfaced it directly: a bare 13-count fell
+  through every authored rule and the floor improvised a shapeless direct
+  `3NT` jump off a two-suited minor hand with a singleton in opener's major —
+  not a designed alternative, just an artifact. Now
+  `hcp(6..=(gate.hcp_floor().max(13) - 1))`: byte-identical for every gate at
+  or below `hcp13` (verified — full test suite unchanged), total for any
+  future stricter one.
+- **`ab-major-continuations`'s `--baseline-gate` head-to-head asserted "no
+  treatment selected" whenever the candidate gate was named `points13`** —
+  `gate_selected` compared the candidate string against the literal
+  `"points13"` instead of `args.baseline_gate`, so a `--baseline-gate hcp13
+  --two-over-one-gate points13` run (exactly the head-to-head this flag
+  exists for) panicked. Now compares against the actual baseline.
+
+### Added
+
 - **`points`-gauged 1NT opening refuted (investigation, no system change; knob
   dropped).** Asked whether gauging the strong 1NT opening by `points`
   (rule-of-N+8) instead of `hcp(15..=17)` helps. It is provably a no-op on

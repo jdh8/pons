@@ -62,25 +62,36 @@ std::thread_local! {
 /// forced game without a fit.  The shape-indifferent `Hcp13` swept best and
 /// shipped; `Hcp12`'s vul plain edge came with a PD loss both vuls in the
 /// paired head-to-head (the thin-game doubling signature) — an sd-lead
-/// probe candidate, not the default.
+/// probe candidate, not the default.  `Points12` (Rule of 20) revisits the
+/// same floor-lightening question on the `points` scale instead of raw HCP.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum TwoOverOneGate {
     /// The legacy gate: `points(13..)` on the global scale
     Points13,
+    /// `points(12..)` on the global scale — one point lighter than the
+    /// legacy gate; on the shipped rule-of-N+8 scale this is exactly the
+    /// Rule of 20 (raw HCP plus the two longest suits, floored at 8)
+    Points12,
     /// Raw `hcp(13..)` — shape-indifferent, demotes shaped 11-12s to 1NT;
     /// the shipped default
     #[default]
     Hcp13,
     /// Raw `hcp(12..)` — one lighter, admits every 12-HCP hand
     Hcp12,
+    /// Raw `hcp(14..)` — one *stricter* than the shipped default, the
+    /// tightening counterpart to `Hcp12`: is 13 itself too light, or does
+    /// tightening give back more than it costs?
+    Hcp14,
 }
 
 impl TwoOverOneGate {
-    /// The raw-HCP floor of an `Hcp*` gate
+    /// The raw-HCP floor of an `Hcp*` gate (unused by the `Points*` gates,
+    /// which are matched separately in [`major_responses`])
     const fn hcp_floor(self) -> u8 {
         match self {
-            Self::Points13 | Self::Hcp13 => 13,
+            Self::Points13 | Self::Points12 | Self::Hcp13 => 13,
             Self::Hcp12 => 12,
+            Self::Hcp14 => 14,
         }
     }
 }
@@ -263,7 +274,17 @@ pub fn major_responses(major: Suit) -> Rules {
             support(3..) & support_points(6..=9),
         )
         // Forcing 1NT: the catch-all when nothing more descriptive fits.
-        .rule(Bid::new(1, Strain::Notrump), 0.5, hcp(6..=12))
+        // Capped one under the no-fit gate's raw-HCP floor, so the table stays
+        // total: a `Points*` gate (or `Hcp13`/`Hcp12`) never needs the cap
+        // above 12 (`points >= hcp` always, so hcp(13..) already clears every
+        // `points` floor and wins the 2/1 rule on weight), but a gate
+        // *stricter* than `Hcp13` would otherwise orphan the hands between —
+        // caught by neither rule — to the floor instead of a designed 1NT.
+        .rule(
+            Bid::new(1, Strain::Notrump),
+            0.5,
+            hcp(6..=(two_over_one_gate().hcp_floor().max(13) - 1)),
+        )
         .rule(Call::Pass, 0.0, hcp(..6));
 
     // 1♠ over 1♥: a new suit at the one level, preferred to a single raise.
@@ -343,6 +364,9 @@ pub fn major_responses(major: Suit) -> Rules {
                 (false, TwoOverOneGate::Points13) => {
                     rules.rule(bid, weight, len(suit, 4..) & points(13..) & !support(4..))
                 }
+                (false, TwoOverOneGate::Points12) => {
+                    rules.rule(bid, weight, len(suit, 4..) & points(12..) & !support(4..))
+                }
                 (false, gate) => rules.rule(
                     bid,
                     weight,
@@ -354,6 +378,13 @@ pub fn major_responses(major: Suit) -> Rules {
                     len(suit, 4..)
                         & !support(4..)
                         & (points(13..) | (support(3..) & support_points(13..))),
+                ),
+                (true, TwoOverOneGate::Points12) => rules.rule(
+                    bid,
+                    weight,
+                    len(suit, 4..)
+                        & !support(4..)
+                        & (points(12..) | (support(3..) & support_points(13..))),
                 ),
                 (true, gate) => rules.rule(
                     bid,
