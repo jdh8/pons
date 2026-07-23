@@ -91,7 +91,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   eval ⟹ membership sweep is its soundness gate, the knob its kill-switch).
   `ab-dnf-sd-lead` now scores the full off/dnf/gauge/both knob matrix on one
   bid-out in one process, so every arm prices the identical lead question.
-  A/B verdict pending.
+  **A/B verdict: WASH every cell** (sd-lead, 20000 boards × both vuls, seed
+  1784779888): gauge vs off −0.0034 ±0.0262 NV / −0.0042 ±0.0309 vul, and on
+  top of dnf +0.0140 ±0.0261 / +0.0002 ±0.0317 — the expected outcome (the
+  teeth cost nothing; the knob is a soundness kill-switch, not an IMPs play).
+  Stays default-off; the ride-along decision belongs to chop F. Side reading
+  recorded as an F caution: the post-G `dnf` arm's NV cell is a significant
+  sd-lead loss (−0.0318 ±0.0267; vul-both +0.0121 ±0.0315, pooled wash) where
+  the pre-G dnf arm measured a wash.
 
 - **`Strength` — the `Envelope` strength axis, gauged on every scale bridge
   counts on (infrastructure, crate default byte-identical).** `Envelope`'s single
