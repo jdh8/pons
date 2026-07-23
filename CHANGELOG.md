@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **DNF chop F harness: `--ns-dnf` / `--ns-gauge-membership` arm flags in
+  `bba-gen` (no default change).** The flip candidate becomes a one-flag arm
+  in the BBA diffpair pipeline: `bba-gen` sets `set_dnf_reading` /
+  `set_gauge_membership` for our side once in `main()` (the example is
+  single-threaded by FFI design, so the thread-locals govern the whole
+  bid-out). Both knobs also gain [docs/bidding-options.md] Engine rows. The
+  flip verdict — full match, both vuls, plain + PD — is owed;
+  [docs/dnf-migration.md] chop F tracks it.
+
 - **DNF migration wave A→E0 (infrastructure, crate default byte-identical —
   dump-diffed 4000 boards × both vuls × two seeds, zero divergent boards).**
   The campaign ledger is [docs/dnf-migration.md](docs/dnf-migration.md); all

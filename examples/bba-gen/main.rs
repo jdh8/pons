@@ -153,6 +153,20 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_fallback_projection: bool,
 
+    /// Turn ON the DNF union-of-boxes reading for our side (`set_dnf_reading`,
+    /// crate default off): disjunctions keep their separate boxes instead of
+    /// hulling to the bounding box, tightening hulls → net features +
+    /// `PartnerShownLen` gates.  The chop-F flip arm (docs/dnf-migration.md).
+    #[arg(long, default_value_t = false)]
+    ns_dnf: bool,
+
+    /// Also give the strength gauges membership teeth for our side
+    /// (`set_gauge_membership`, crate default off): samplers reject hands
+    /// outside the raw-HCP / support-points bands.  Measured WASH on sd-lead;
+    /// independent kill-switch, usually paired with `--ns-dnf`.
+    #[arg(long, default_value_t = false)]
+    ns_gauge_membership: bool,
+
     /// Cleanly isolate our DEFENSE to BBA's 1NT.  Keep only boards where BBA (E/W)
     /// opens 1NT and our pair (N/S) defends, and bid table B as an ALL-BBA
     /// reference — same BBA opener and responses, only the defender differs (ours
@@ -1097,6 +1111,8 @@ fn main() -> anyhow::Result<()> {
     pons::bidding::set_pass_reading(!args.no_ns_pass_reading);
     pons::bidding::american::set_transfer_longer_major(!args.no_ns_transfer_longer);
     pons::bidding::set_fallback_projection(!args.no_ns_fallback_projection);
+    pons::bidding::set_dnf_reading(args.ns_dnf);
+    pons::bidding::set_gauge_membership(args.ns_gauge_membership);
     pons::bidding::american::set_open_one_notrump(!args.no_our_1nt);
     pons::bidding::american::set_one_notrump_fifths(args.nt_fifths);
     pons::bidding::american::set_natural_double_shape(match args.ns_double_shape.as_str() {

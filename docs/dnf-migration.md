@@ -36,8 +36,8 @@ verdict. Design lives in the docs above and the code.
 | `set_dnf_reading` | off | `Dnf::disjoin` (build), `Inferences::admits` (accept), `Dnf::tidy` (hygiene), every ⊤→boxes projection upgrade (`shapes`, `Support::project`, `Balanced::project`, De Morgan complements, `dnf_upgrade`, `top_honors`, `Points`→hcp coupling) |
 | `set_gauge_membership` | off | `Envelope::admits` (hence `Dnf::contains`, the overlay, and every sampler) also tests the `hcp` + `support_points` bands — the one knob that can *reject legal hands* if a projection over-claims; E0's eval⟹membership sweep is its soundness gate |
 
-Neither knob has a [bidding-options.md](bidding-options.md) row yet — chop F
-adds both.
+Both knobs have [bidding-options.md](bidding-options.md) Engine rows and
+`bba-gen` arm flags (`--ns-dnf`, `--ns-gauge-membership`).
 
 ## Chops
 
@@ -68,7 +68,7 @@ boards.
 | E0 | book-wide eval ⟹ strict-membership sweep over american()+dutch(), knob-on, forward + band (inference.rs, beside the ratchet) | landed |
 | G | the conversion tail, knob-on meter → **0 in every column**: comparative staircases (`longer_suit`/`at_least_as_long`/`equal_length`, exact `∪ₖ {b ≤ k, a ≥ k+gap}` — 15 `described` closures replaced, labels kept, eval pinned exhaustively); transfer reroutes + `splinter_short` via `dnf_upgrade` (boxes sound in both treatment states, authoring-time `union` never `disjoin`); `top_honors` floors its suit length + raw HCP (2/5/9 for 1/2/3 honors); `Points` → `hcp` gauge coupling (a points floor implies an HCP floor slacked by `hcp_ceiling_slack` — without it, tidy's *correct* containment dedup swallows the `hcp` arm of `points(22..) \| hcp(22..)` and loses the knowledge); `Balanced::project_complement` (unbalanced = 4 short + 4 long + 12 two-suiter boxes, exact); sniffer stops counting context claims ("partner's last suit is ♠") and no-op caps ("≤13 ♠") | landed |
 | E | **MEASURED** `set_gauge_membership`: gauges get membership teeth. Knob + harness landed (default off, byte-identical); `ab-dnf-sd-lead` runs the **in-process knob matrix** off/dnf/gauge/both on one bid-out (tighter than the planned per-arm `--arm` flag — every arm prices the identical lead question). **Verdict: WASH every cell** (20000 boards × both vuls, seed 1784779888, 16 worlds): gauge vs off −0.0034 ±0.0262 NV / −0.0042 ±0.0309 vul; on top of dnf +0.0140 ±0.0261 / +0.0002 ±0.0317. The expected outcome — no regression, teeth are free; the knob stays **default-off** as the independent kill-switch, its on/off ride-along decided with F. *Side reading, F caution:* the post-G `dnf` arm's NV cell is a significant sd-lead **loss** (−0.0318 ±0.0267) where the pre-G dnf arm measured a wash; vul-both +0.0121 ±0.0315, pooled a wash. If F's match loses, first suspect a G-era box family over-tightening the leader's sampled worlds | landed |
-| F | **MEASURED** flip `set_dnf_reading` default-on: full bba-gen/bba-score match both vuls plain+PD, sd-lead arms, regen/retrain evaluation, `--no-ns-dnf`, bidding-options rows, ratchet re-pin | parked |
+| F | **MEASURED** flip `set_dnf_reading` default-on. Harness landed: `--ns-dnf` + `--ns-gauge-membership` arm flags in `bba-gen` (single-threaded, so `main()` sets the thread-locals once — the proven `set_*` pattern), bidding-options Engine rows for both knobs. Verdict OWED: full bba-gen/bba-score match both vuls plain+PD (`--ns-dnf` arm vs default). On a flip: ratchet re-pin (knob-off columns die), `--ns-dnf` → `--no-ns-dnf`, regen/retrain evaluation (feature shift) = **user checkpoint** | in flight |
 | G0 | **MEASURED** 2NT shape redesign {M 2..=4, m 2..=6} (drops 5M(332), adds wide minors) — a treatment, not a rewrite | parked |
 | G-tail | term-merge if `debug_assert!(< 64)` ever fires; `described` closures whose labels name no axis (e.g. "spades longer than hearts, or equal five-plus" in the 1M responses) are invisible to the meter and stay ⊤ — convert on demand | parked |
 
