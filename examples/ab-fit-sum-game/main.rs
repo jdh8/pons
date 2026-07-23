@@ -41,7 +41,7 @@ use ddss::{NonEmptyStrainFlags, Solver};
 use pons::Accumulator;
 use pons::american;
 use pons::bidding::constraint::set_support_points;
-use pons::bidding::instinct::set_fit_sum_game;
+use pons::bidding::instinct::{set_fit_sum_game, set_fit_sum_support_read};
 use pons::bidding::{Family, Stance};
 use pons::scoring::{final_contract, imps, ns_score_contract, ns_score_pd};
 use rand::SeedableRng;
@@ -73,6 +73,12 @@ struct Args {
     #[arg(long, default_value_t = false)]
     support_points: bool,
 
+    /// Edit 1 treatment: arm `set_fit_sum_support_read` on the feature side only,
+    /// so `fit_sum_game` reads partner's `support_points` gauge.  Pair with equal
+    /// `--threshold`/`--baseline` so the gauge read is the sole variable.
+    #[arg(long, default_value_t = false)]
+    support_read: bool,
+
     /// Vulnerability: none, ns, ew, both
     #[arg(short, long, default_value = "none")]
     vulnerability: AbsoluteVulnerability,
@@ -101,7 +107,8 @@ fn bid_out(
     while !auction.has_ended() {
         let seat = seat_to_act(dealer, auction.len());
         let seat_is_ns = matches!(seat, Seat::North | Seat::South);
-        let threshold = if seat_is_ns == feature_is_ns {
+        let feature_side = seat_is_ns == feature_is_ns;
+        let threshold = if feature_side {
             args.threshold
         } else {
             args.baseline
@@ -110,6 +117,8 @@ fn bid_out(
         // The point-count scale is the shared environment, not the treatment:
         // arm it identically for both sides so only the threshold differs.
         set_support_points(args.support_points);
+        // Edit 1 treatment: the support-gauge read fires only for the feature side.
+        set_fit_sum_support_read(args.support_read && feature_side);
         auction.push(next_call(
             stance,
             deal[seat],

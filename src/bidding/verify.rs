@@ -441,8 +441,14 @@ mod tests {
                     "projection diverged from reader on {suit:?}"
                 );
             }
-            assert_eq!(reader.points, points, "reader points oracle drifted");
-            assert_eq!(projected.points, points, "projection points diverged");
+            assert_eq!(
+                reader.strength.points, points,
+                "reader points oracle drifted"
+            );
+            assert_eq!(
+                projected.strength.points, points,
+                "projection points diverged"
+            );
         };
 
         // Jacoby transfer to hearts (on by default): [1NT, P, 2♦, P, 2♥, P], the

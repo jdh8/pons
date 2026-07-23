@@ -430,6 +430,124 @@ impl Range {
             max: self.max.max(other.max),
         }
     }
+
+    /// The overlap, or `None` when the ranges are disjoint (an empty product)
+    ///
+    /// Unlike [`intersect`][Self::intersect], which widens a crossed range to
+    /// preserve soundness within a single box, this reports the empty product so
+    /// a [`Dnf`] can **drop** the contradictory term.
+    #[must_use]
+    fn intersect_nonempty(self, other: Self) -> Option<Self> {
+        let (min, max) = (self.min.max(other.min), self.max.min(other.max));
+        (min <= max).then(|| Self::new(min, max))
+    }
+}
+
+/// Shown strength, gauged on the several scales bridge counts on
+///
+/// The scales are **not mutually ordered**: raw [`hcp`][super::constraint::hcp],
+/// the length-upgraded [`point_count`][super::constraint::point_count] (`points`),
+/// and the fit-known shortness-upgraded
+/// [`support_point_count`][super::constraint::support_point_count]
+/// (`support_points`).  A reader promise is an axis-aligned interval on *one*
+/// scale, so each scale is its own [`Range`] and the combinators fold
+/// field-by-field.  The gauges are **marginals, never a joint**: no cross-gauge
+/// relation (`points == hcp`, i.e. "balanced") fits a box — that is a shape fact,
+/// and lives in [`Envelope::lengths`].  The one exception is the monotone floor
+/// `support_points >= hcp` (and `points >= hcp`), which *is* box-representable and
+/// `canonicalize` restores after every narrow.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct Strength {
+    /// Raw HCP, crisp (no upgrade slack) — the notrump-valuation gauge
+    pub hcp: Range,
+    /// HCP + long-suit upgrade, on the [`points`][super::constraint::points] scale
+    /// the suit-oriented rules gauge (raw HCP for the balanced openings) — the
+    /// legacy single axis
+    pub points: Range,
+    /// HCP + shortness, on the fit-known
+    /// [`support_point_count`][super::constraint::support_point_count] scale
+    pub support_points: Range,
+}
+
+impl Strength {
+    /// Nothing shown yet: every gauge `0..=37`
+    #[must_use]
+    pub const fn unknown() -> Self {
+        Self {
+            hcp: Range::FULL_POINTS,
+            points: Range::FULL_POINTS,
+            support_points: Range::FULL_POINTS,
+        }
+    }
+
+    /// Restore the sound cross-gauge floor `support_points >= hcp`
+    ///
+    /// `hcp` bounds every scale from below (`point_count` and
+    /// `support_point_count` both add a non-negative upgrade to raw HCP, bar the
+    /// rule-of-N flat-4-3-3-3 read the `points` scale already slacks by
+    /// [`flat_hcp_slack`][super::constraint::flat_hcp_slack]).  So a pure-HCP
+    /// promise (a 15–17 1NT) floors the support gauge for free, without a
+    /// fit-showing raise having fired.  Monotone (only raises a `.min`), so it
+    /// never narrows past the truth.
+    fn canonicalize(&mut self) {
+        let slack = super::constraint::flat_hcp_slack();
+        self.support_points.min = self
+            .support_points
+            .min
+            .max(self.hcp.min.saturating_sub(slack));
+    }
+
+    /// Field-by-field [`Range::intersect`], then [`canonicalize`][Self::canonicalize]
+    #[must_use]
+    fn intersect(mut self, other: Self) -> Self {
+        self.hcp = self.hcp.intersect(other.hcp);
+        self.points = self.points.intersect(other.points);
+        self.support_points = self.support_points.intersect(other.support_points);
+        self.canonicalize();
+        self
+    }
+
+    /// Field-by-field [`Range::union`] — the `|` dual, soundness over tightness
+    #[must_use]
+    fn union(self, other: Self) -> Self {
+        Self {
+            hcp: self.hcp.union(other.hcp),
+            points: self.points.union(other.points),
+            support_points: self.support_points.union(other.support_points),
+        }
+    }
+
+    /// Bounded intersection; `None` only when the `points` gauge is disjoint
+    ///
+    /// **Only `points` gates box-emptiness**, exactly as the pre-`Strength` box
+    /// algebra did.  The new gauges combine by the widening [`Range::intersect`]
+    /// so they never drop a box a `points`/length reading would have kept — they
+    /// are inert until Edits 1/2, and must not perturb the [`Dnf`] the sampler
+    /// reads through `admits` (which reads `points` only).
+    fn intersect_nonempty(self, other: Self) -> Option<Self> {
+        let mut out = Self {
+            hcp: self.hcp.intersect(other.hcp),
+            points: self.points.intersect_nonempty(other.points)?,
+            support_points: self.support_points.intersect(other.support_points),
+        };
+        out.canonicalize();
+        Some(out)
+    }
+
+    /// The support-points floor if the gauge was narrowed from unknown, else
+    /// `None` — a consumer reads this dedicated axis only when populated, and
+    /// otherwise falls back to the length-scale [`points`][Self::points].
+    #[must_use]
+    pub fn support_floor(&self) -> Option<u8> {
+        (self.support_points.max < Range::FULL_POINTS.max).then_some(self.support_points.min)
+    }
+
+    /// The raw-HCP floor if the [`hcp`][Self::hcp] gauge was narrowed, else `None`.
+    #[must_use]
+    pub fn hcp_floor(&self) -> Option<u8> {
+        (self.hcp.max < Range::FULL_POINTS.max).then_some(self.hcp.min)
+    }
 }
 
 /// What the calls have shown about one player, hand-independently
@@ -439,18 +557,17 @@ pub struct Envelope {
     /// Shown length range per suit, indexed by `suit as usize` (the ascending
     /// [`Suit::ASC`] order: clubs, diamonds, hearts, spades)
     pub lengths: [Range; 4],
-    /// Shown point range, on the upgraded [`points`][super::constraint::points]
-    /// scale the suit-oriented rules gauge (raw HCP for the balanced openings)
-    pub points: Range,
+    /// Shown strength, gauged on every scale (see [`Strength`])
+    pub strength: Strength,
 }
 
 impl Envelope {
-    /// Nothing shown yet: every suit `0..=13`, points `0..=37`
+    /// Nothing shown yet: every suit `0..=13`, every strength gauge `0..=37`
     #[must_use]
     pub const fn unknown() -> Self {
         Self {
             lengths: [Range::FULL_LENGTH; 4],
-            points: Range::FULL_POINTS,
+            strength: Strength::unknown(),
         }
     }
 
@@ -466,9 +583,23 @@ impl Envelope {
         *slot = slot.intersect(range);
     }
 
-    /// Narrow the shown points by intersecting in `range`
+    /// Narrow the shown points (length scale) by intersecting in `range`
     fn narrow_points(&mut self, range: Range) {
-        self.points = self.points.intersect(range);
+        self.strength.points = self.strength.points.intersect(range);
+    }
+
+    /// Narrow the shown support points (fit-known scale) by intersecting in `range`
+    ///
+    /// Only fit-showing raises call this: a raise's point promise is valued on
+    /// the support scale once the fit is agreed.  Read only behind Edit 1's knob.
+    fn narrow_support_points(&mut self, range: Range) {
+        self.strength.support_points = self.strength.support_points.intersect(range);
+    }
+
+    /// Narrow the shown raw HCP by intersecting in `range`, then propagate
+    fn narrow_hcp(&mut self, range: Range) {
+        self.strength.hcp = self.strength.hcp.intersect(range);
+        self.strength.canonicalize();
     }
 
     /// Pointwise intersection — the `&` projection (both sets of bounds hold)
@@ -482,7 +613,7 @@ impl Envelope {
         for suit in Suit::ASC {
             out.narrow_length(suit, other.length(suit));
         }
-        out.narrow_points(other.points);
+        out.strength = out.strength.intersect(other.strength);
         out
     }
 
@@ -497,7 +628,7 @@ impl Envelope {
         for suit in Suit::ASC {
             out.lengths[suit as usize] = out.length(suit).union(other.length(suit));
         }
-        out.points = out.points.union(other.points);
+        out.strength = out.strength.union(other.strength);
         out
     }
 
@@ -519,22 +650,15 @@ impl Envelope {
             }
             lengths[suit as usize] = Range::new(min, max);
         }
-        let (min, max) = (
-            self.points.min.max(other.points.min),
-            self.points.max.min(other.points.max),
-        );
-        if min > max {
-            return None;
-        }
-        Some(Self {
-            lengths,
-            points: Range::new(min, max),
-        })
+        let strength = self.strength.intersect_nonempty(other.strength)?;
+        Some(Self { lengths, strength })
     }
 
     /// Whether a hand's suit lengths and point count all fall within this box
     ///
     /// The per-box membership test the sampler and [`Dnf::contains`] share.
+    /// Reads the `points` (length) gauge only — the support/HCP gauges are not
+    /// independent membership bounds.
     #[must_use]
     pub fn admits(&self, hand: Hand) -> bool {
         Suit::ASC.into_iter().all(|suit| {
@@ -542,7 +666,10 @@ impl Envelope {
             #[allow(clippy::cast_possible_truncation)]
             let length = hand[suit].len() as u8;
             self.length(suit).contains(length)
-        }) && self.points.contains(super::constraint::point_count(hand))
+        }) && self
+            .strength
+            .points
+            .contains(super::constraint::point_count(hand))
     }
 }
 
@@ -801,11 +928,14 @@ impl Inferences {
     pub fn narrowed_points(&self, who: Relative, points: Range) -> Self {
         let mut copy = self.clone();
         let i = who as usize;
-        copy.players[i].points = copy.players[i].points.intersect(points);
+        copy.players[i].strength.points = copy.players[i].strength.points.intersect(points);
         // Narrow the points of every box in the union to keep `dnf` == the hull's
         // source (a points-only slab drops no box: it never crosses a length axis).
         let slab = Envelope {
-            points,
+            strength: Strength {
+                points,
+                ..Strength::unknown()
+            },
             ..Envelope::unknown()
         };
         copy.dnf[i] = copy.dnf[i].intersect(&slab.into());
@@ -1154,6 +1284,11 @@ impl Inferences {
                                     players[who]
                                         .narrow_length(agreed, Range::at_least(3, LENGTH_CAP));
                                     players[who].narrow_points(Range::at_least(10, POINTS_CAP));
+                                    // Fit agreed (the cue names partner's suit), so
+                                    // the raise's point promise is a support-scale
+                                    // one — read behind Edit 1's knob.
+                                    players[who]
+                                        .narrow_support_points(Range::at_least(10, POINTS_CAP));
                                 }
                             } else if over_one_notrump {
                                 // Natural, forcing five-card suit over our 1NT.
@@ -1275,9 +1410,18 @@ impl Inferences {
                                     .level
                                     .get()
                                     .saturating_sub(cheapest_level(highest, bid.strain));
+                                // Fit agreed (raising opener's suit), so the raise
+                                // strength is a support-scale promise — the
+                                // support gauge tracks it for Edit 1's knob.
                                 match jump {
-                                    0 => players[who].narrow_points(Range::new(6, 10)),
-                                    1 => players[who].narrow_points(Range::new(10, 12)),
+                                    0 => {
+                                        players[who].narrow_points(Range::new(6, 10));
+                                        players[who].narrow_support_points(Range::new(6, 10));
+                                    }
+                                    1 => {
+                                        players[who].narrow_points(Range::new(10, 12));
+                                        players[who].narrow_support_points(Range::new(10, 12));
+                                    }
                                     _ => {}
                                 }
                             }
@@ -1424,6 +1568,8 @@ impl Inferences {
             let who = relative_of(len, cue_index) as usize;
             players[who].narrow_length(overcall_suit, Range::at_least(3, LENGTH_CAP));
             players[who].narrow_points(Range::at_least(10, POINTS_CAP));
+            // Fit agreed (cue of partner's overcall), a support-scale promise.
+            players[who].narrow_support_points(Range::at_least(10, POINTS_CAP));
         }
 
         // A one-level Rubens transfer records its meaning likewise (see
@@ -3040,6 +3186,9 @@ fn apply_opening(inf: &mut Envelope, bid: Bid, seat: u8) {
             // this to 14–19.
             let slack = crate::bidding::constraint::flat_hcp_slack();
             inf.narrow_points(Range::new(15 - slack, 18));
+            // The `hcp` gauge is crisp raw HCP — 15–17 gates the opening, with
+            // no upgrade slack (notrump valuation, read behind Edit 2's knob).
+            inf.narrow_hcp(Range::new(15, 17));
         }
         (2, Strain::Clubs) => {
             // Strong and artificial: 22+ points, but nothing about shape.
@@ -3142,7 +3291,10 @@ mod tests {
                 Range::new(h.0, h.1),
                 Range::new(s.0, s.1),
             ],
-            points: Range::new(p.0, p.1),
+            strength: Strength {
+                points: Range::new(p.0, p.1),
+                ..Strength::unknown()
+            },
         };
 
         // 1NT as three shapes, all 15-17: balanced, then each 5-card major.
@@ -3221,7 +3373,7 @@ mod tests {
         assert_eq!(one_heart.rho().length(Suit::Hearts), Range::new(5, 13));
         // `points(12..)` is the Rule of 20, which opens sound 10-11 HCP counts,
         // so the floor is 10.
-        assert_eq!(one_heart.rho().points, Range::new(10, 21));
+        assert_eq!(one_heart.rho().strength.points, Range::new(10, 21));
 
         // A strong notrump is balanced-or-6322-minor (the shipped Wide6322): a
         // major stays 2–5 (a balanced 5332 major), a minor widens to 2–6 (the
@@ -3231,16 +3383,16 @@ mod tests {
         assert_eq!(one_nt.rho().length(Suit::Diamonds), Range::new(2, 6));
         // Plain HCP 15–17: no downgrade on the shipped floored scale, a
         // semi-balanced 5422/6322 reads one over → 15–18.
-        assert_eq!(one_nt.rho().points, Range::new(15, 18));
+        assert_eq!(one_nt.rho().strength.points, Range::new(15, 18));
 
         let two_clubs = read(&[bid(2, Strain::Clubs)]);
         assert_eq!(two_clubs.rho().length(Suit::Spades), Range::FULL_LENGTH);
-        assert_eq!(two_clubs.rho().points, Range::new(20, 37));
+        assert_eq!(two_clubs.rho().strength.points, Range::new(20, 37));
 
         // Weak two: exactly six; three-level preempt: seven-plus.
         let weak_two = read(&[bid(2, Strain::Spades)]);
         assert_eq!(weak_two.rho().length(Suit::Spades), Range::new(6, 6));
-        assert_eq!(weak_two.rho().points, Range::new(5, 10));
+        assert_eq!(weak_two.rho().strength.points, Range::new(5, 10));
         let preempt = read(&[bid(3, Strain::Diamonds)]);
         assert_eq!(preempt.rho().length(Suit::Diamonds), Range::new(7, 13));
 
@@ -3272,7 +3424,10 @@ mod tests {
         let p = Call::Pass;
         // Knob off — the pre-ship identity: a pass reads nothing.
         set_pass_reading(false);
-        assert_eq!(read_booked(&[p, p]).partner().points, Range::FULL_POINTS);
+        assert_eq!(
+            read_booked(&[p, p]).partner().strength.points,
+            Range::FULL_POINTS
+        );
 
         set_pass_reading(true);
         set_table_alert_reading(false);
@@ -3280,21 +3435,24 @@ mod tests {
         // `points(..12)`; an opponent's pass stays unread until table-wide
         // disclosure is on too.
         let own = read_booked(&[p, p]);
-        assert_eq!(own.partner().points, Range::new(0, 11));
-        assert_eq!(own.rho().points, Range::FULL_POINTS);
+        assert_eq!(own.partner().strength.points, Range::new(0, 11));
+        assert_eq!(own.rho().strength.points, Range::FULL_POINTS);
         set_table_alert_reading(true);
-        assert_eq!(read_booked(&[p]).rho().points, Range::new(0, 11));
+        assert_eq!(read_booked(&[p]).rho().strength.points, Range::new(0, 11));
         // A capped passer leaves the opener's own band alone.
         let opened = read_booked(&[p, bid(1, Strain::Hearts)]);
-        assert_eq!(opened.partner().points, Range::new(0, 11));
-        assert_eq!(opened.rho().points, Range::new(10, 21));
+        assert_eq!(opened.partner().strength.points, Range::new(0, 11));
+        assert_eq!(opened.rho().strength.points, Range::new(10, 21));
     }
 
     #[test]
     fn pass_reading_caps_the_failed_compete() {
         let auction = [bid(1, Strain::Hearts), Call::Pass, Call::Pass];
         set_pass_reading(false);
-        assert_eq!(read_booked(&auction).partner().points, Range::FULL_POINTS);
+        assert_eq!(
+            read_booked(&auction).partner().strength.points,
+            Range::FULL_POINTS
+        );
 
         set_pass_reading(true);
         set_table_alert_reading(false);
@@ -3303,10 +3461,13 @@ mod tests {
         // 22 on the upgraded scale.  Their responder's pass stays unread
         // until table-wide disclosure is on.
         let own = read_booked(&auction);
-        assert_eq!(own.partner().points, Range::new(0, 22));
-        assert_eq!(own.rho().points, Range::FULL_POINTS);
+        assert_eq!(own.partner().strength.points, Range::new(0, 22));
+        assert_eq!(own.rho().strength.points, Range::FULL_POINTS);
         set_table_alert_reading(true);
-        assert_eq!(read_booked(&auction).rho().points, Range::new(0, 10));
+        assert_eq!(
+            read_booked(&auction).rho().strength.points,
+            Range::new(0, 10)
+        );
     }
 
     #[test]
@@ -3315,7 +3476,7 @@ mod tests {
         // Our 1♥, silent partner: the response table's `hcp(..6)` gate —
         // at most 5 raw HCP, 10 upgraded.
         let caps = read_booked(&[bid(1, Strain::Hearts), Call::Pass, Call::Pass, Call::Pass]);
-        assert_eq!(caps.partner().points, Range::new(0, 10));
+        assert_eq!(caps.partner().strength.points, Range::new(0, 10));
     }
 
     #[test]
@@ -3324,7 +3485,7 @@ mod tests {
         // Pass of partner's 1NT: the authored union of the weak arm and the
         // flat-eight arm — at most 13 points, no six-card major.
         let nt = read_booked(&[bid(1, Strain::Notrump), Call::Pass, Call::Pass, Call::Pass]);
-        assert_eq!(nt.partner().points, Range::new(0, 13));
+        assert_eq!(nt.partner().strength.points, Range::new(0, 13));
         assert!(nt.partner().length(Suit::Hearts).max <= 5);
         assert!(nt.partner().length(Suit::Spades).max <= 5);
     }
@@ -3337,7 +3498,7 @@ mod tests {
         // penalty conversion), so its pass-gate union is trivial: nothing is
         // claimed about the advancer even with every reading knob on.
         let trap = read_booked(&[bid(1, Strain::Hearts), Call::Double, Call::Pass, Call::Pass]);
-        assert_eq!(trap.rho().points, Range::FULL_POINTS);
+        assert_eq!(trap.rho().strength.points, Range::FULL_POINTS);
     }
 
     #[test]
@@ -3351,17 +3512,17 @@ mod tests {
         // Jump-rebid 3♦: a self-sufficient six-plus diamonds, 16+.
         let jr = read(&[d, p, s, p, bid(3, Strain::Diamonds), p]);
         assert!(jr.partner().length(Suit::Diamonds).min >= 6);
-        assert!(jr.partner().points.min >= 16);
+        assert!(jr.partner().strength.points.min >= 16);
         // Reverse 2♥: five-plus diamonds, four-plus hearts, 17+.
         let rev = read(&[d, p, s, p, bid(2, Strain::Hearts), p]);
         assert!(rev.partner().length(Suit::Diamonds).min >= 5);
         assert!(rev.partner().length(Suit::Hearts).min >= 4);
-        assert!(rev.partner().points.min >= 17);
+        assert!(rev.partner().strength.points.min >= 17);
         // Jump-shift 3♣: five-plus diamonds, 18+, and clubs read as the strong
         // 4+ second suit — NOT the weak-jump six (the phantom-suit fix).
         let js = read(&[d, p, s, p, bid(3, Strain::Clubs), p]);
         assert!(js.partner().length(Suit::Diamonds).min >= 5);
-        assert!(js.partner().points.min >= 18);
+        assert!(js.partner().strength.points.min >= 18);
         assert_eq!(
             js.partner().length(Suit::Clubs),
             Range::at_least(4, LENGTH_CAP)
@@ -3379,7 +3540,7 @@ mod tests {
         // Opener after 1♥ – 1♠ – 3♥: jump-rebid of a six-plus major, 16+.
         let jr = read(&[h, p, s, p, bid(3, Strain::Hearts), p]);
         assert!(jr.partner().length(Suit::Hearts).min >= 6);
-        assert!(jr.partner().points.min >= 16);
+        assert!(jr.partner().strength.points.min >= 16);
         set_opener_major_jump_rebid(true);
     }
 
@@ -3410,7 +3571,7 @@ mod tests {
         ]);
         assert_eq!(control.partner().length(Suit::Hearts).min, 0);
         assert!(control.partner().length(Suit::Diamonds).min >= 3);
-        assert!(control.partner().points.min >= 13);
+        assert!(control.partner().strength.points.min >= 13);
 
         // 1♦–1♠–2♦–4♠: rebidding one's own suit is natural — six-plus spades.
         let rebid = read(&[
@@ -3521,7 +3682,7 @@ mod tests {
         ]);
         assert_eq!(control.partner().length(Suit::Spades).min, 0);
         assert!(control.partner().length(Suit::Clubs).min >= 3);
-        assert!(control.partner().points.min >= 13);
+        assert!(control.partner().strength.points.min >= 13);
         assert!(to_play.control_bid().is_none());
 
         // Knob off (the historic hearts-first opt-in): the original verdicts
@@ -3571,7 +3732,7 @@ mod tests {
         let advance = read_booked(&[bid(2, Strain::Hearts), bid(4, Strain::Clubs), Call::Pass]);
         assert_eq!(advance.partner().length(Suit::Clubs), Range::new(5, 13));
         assert_eq!(advance.partner().length(Suit::Spades), Range::new(5, 13));
-        assert_eq!(advance.partner().points, Range::new(14, 37));
+        assert_eq!(advance.partner().strength.points, Range::new(14, 37));
 
         // Over 2♦, the 4♦ cue shows both majors; 4♣ shows clubs + an unknown
         // major, so only clubs is pinned.
@@ -3602,7 +3763,7 @@ mod tests {
         assert_eq!(advance.partner().length(Suit::Hearts), Range::new(4, 13));
         assert_eq!(advance.partner().length(Suit::Spades), Range::new(4, 13));
         assert_eq!(advance.partner().length(Suit::Clubs), Range::FULL_LENGTH);
-        assert_eq!(advance.partner().points, Range::new(8, 37));
+        assert_eq!(advance.partner().strength.points, Range::new(8, 37));
 
         // (1NT)–2NT–(P): both minors, 5-5 (the independent unusual-2NT toggle).
         let minors = read_booked(&[bid(1, Strain::Notrump), bid(2, Strain::Notrump), Call::Pass]);
@@ -3651,7 +3812,7 @@ mod tests {
         assert_eq!(two_c.partner().length(Suit::Hearts), Range::new(4, 5));
         assert_eq!(two_c.partner().length(Suit::Spades), Range::new(4, 5));
         assert_eq!(two_c.partner().length(Suit::Clubs), Range::FULL_LENGTH);
-        assert_eq!(two_c.partner().points, Range::new(10, 37));
+        assert_eq!(two_c.partner().strength.points, Range::new(10, 37));
 
         // (1NT)–2♦–(P): the Multi names diamonds it does NOT hold, so the natural
         // ≥5 reading is suppressed and BOTH minors narrow to ≤4 — the floor can no
@@ -3772,7 +3933,7 @@ mod tests {
         // the doubler's strength (12+) is recorded, where a bare double of 1NT would
         // otherwise read as nothing.
         let x = read(&[bid(1, Strain::Notrump), Call::Double, Call::Pass]);
-        assert_eq!(x.partner().points, Range::new(12, 37));
+        assert_eq!(x.partner().strength.points, Range::new(12, 37));
 
         // (1NT)–X–(P)–2♣–(P): the advancer's 2♣ is a "name your minor" relay, not own
         // clubs, so its natural ≥4 reading is suppressed (read from the advancer seat).
@@ -3795,13 +3956,13 @@ mod tests {
             bid(2, Strain::Notrump),
             Call::Pass,
         ]);
-        assert_eq!(ask.partner().points, Range::new(0, 37));
+        assert_eq!(ask.partner().strength.points, Range::new(0, 37));
 
         // Off: the Woolsey 12+ reading must not leak — the double now falls through to
         // the default-on natural penalty reading (15+), not Woolsey's 12+.
         set_woolsey(false);
         let off = read(&[bid(1, Strain::Notrump), Call::Double, Call::Pass]);
-        assert_eq!(off.partner().points, Range::new(15, 37));
+        assert_eq!(off.partner().strength.points, Range::new(15, 37));
 
         set_unusual_notrump_defense(Some((8, 13)));
     }
@@ -3818,7 +3979,7 @@ mod tests {
         // would otherwise read as nothing.
         let x = read(&[bid(1, Strain::Notrump), Call::Double, Call::Pass]);
         assert_eq!(x.partner().length(Suit::Spades), Range::new(0, 3));
-        assert_eq!(x.partner().points, Range::new(8, 37));
+        assert_eq!(x.partner().strength.points, Range::new(8, 37));
 
         // (1NT)–X–(P)–2♣–(P): the advancer's 2♣ is a "name your suit" relay, not own
         // clubs, so its natural ≥4 reading is suppressed (read from the advancer seat).
@@ -3835,7 +3996,7 @@ mod tests {
         // is suppressed (a 4-club / 5-major DONT hand makes this call), re-pinned to ≥4.
         let two_c = read(&[bid(1, Strain::Notrump), bid(2, Strain::Clubs), Call::Pass]);
         assert_eq!(two_c.partner().length(Suit::Clubs), Range::new(4, 13));
-        assert_eq!(two_c.partner().points, Range::new(8, 37));
+        assert_eq!(two_c.partner().strength.points, Range::new(8, 37));
 
         // (1NT)–2♣–(P)–2♦–(P): the advancer's 2♦ is a "name your higher suit" relay,
         // not own diamonds — suppressed.
@@ -3870,7 +4031,7 @@ mod tests {
         // sound per-suit fact, so ONLY the points floor is recorded — no length is
         // narrowed (unlike DONT's X, which pins spades ≤ 3).
         let x = read(&[bid(1, Strain::Notrump), Call::Double, Call::Pass]);
-        assert_eq!(x.partner().points, Range::new(8, 37));
+        assert_eq!(x.partner().strength.points, Range::new(8, 37));
         assert_eq!(x.partner().length(Suit::Spades), Range::FULL_LENGTH);
         assert_eq!(x.partner().length(Suit::Hearts), Range::FULL_LENGTH);
 
@@ -3889,7 +4050,7 @@ mod tests {
         // reading is suppressed (a 4-club / 5-major hand makes this call), re-pinned ≥ 4.
         let two_c = read(&[bid(1, Strain::Notrump), bid(2, Strain::Clubs), Call::Pass]);
         assert_eq!(two_c.partner().length(Suit::Clubs), Range::new(4, 13));
-        assert_eq!(two_c.partner().points, Range::new(8, 37));
+        assert_eq!(two_c.partner().strength.points, Range::new(8, 37));
 
         // (1NT)–2♦–(P): diamonds + a major, real ≥ 4.
         let two_d = read(&[
@@ -3920,32 +4081,39 @@ mod tests {
     fn narrowed_points_intersects_one_player() {
         // 1NT shows 15-18; narrow the opener (here our RHO) to the upper half.
         let inf = read(&[bid(1, Strain::Notrump)]);
-        assert_eq!(inf.rho().points, Range::new(15, 18));
+        assert_eq!(inf.rho().strength.points, Range::new(15, 18));
 
         let upper = inf.narrowed_points(Relative::Rho, Range::new(17, 18));
         assert_eq!(
-            upper.rho().points,
+            upper.rho().strength.points,
             Range::new(17, 18),
             "narrowed to the half"
         );
-        assert_eq!(inf.rho().points, Range::new(15, 18), "original unchanged");
+        assert_eq!(
+            inf.rho().strength.points,
+            Range::new(15, 18),
+            "original unchanged"
+        );
         // Shape and the other players are untouched.
         assert_eq!(
             upper.rho().length(Suit::Spades),
             inf.rho().length(Suit::Spades)
         );
-        assert_eq!(upper.partner().points, inf.partner().points);
+        assert_eq!(
+            upper.partner().strength.points,
+            inf.partner().strength.points
+        );
 
         // Intersection, not replacement: a wider request cannot widen what was shown.
         let clamped = inf.narrowed_points(Relative::Rho, Range::new(0, POINTS_CAP));
-        assert_eq!(clamped.rho().points, Range::new(15, 18));
+        assert_eq!(clamped.rho().strength.points, Range::new(15, 18));
     }
 
     #[test]
     fn third_seat_openings_are_light() {
         // [P, P, 1♠]: a third-seat opener may be down to nine points.
         let third = read(&[Call::Pass, Call::Pass, bid(1, Strain::Spades)]);
-        assert_eq!(third.rho().points, Range::new(9, 21));
+        assert_eq!(third.rho().strength.points, Range::new(9, 21));
     }
 
     #[test]
@@ -3963,7 +4131,7 @@ mod tests {
         assert_eq!(inf.me().length(Suit::Hearts), Range::new(5, 13));
         // Index 2 (2♣) is two before → Partner, the 2/1 responder.
         assert_eq!(inf.partner().length(Suit::Clubs), Range::new(4, 13));
-        assert_eq!(inf.partner().points, Range::new(13, 37));
+        assert_eq!(inf.partner().strength.points, Range::new(13, 37));
     }
 
     #[test]
@@ -3984,7 +4152,7 @@ mod tests {
         assert_eq!(inf.partner().length(Suit::Hearts), Range::new(5, 13));
         // Our 1♠ response showed four spades and six-plus points.
         assert_eq!(inf.me().length(Suit::Spades), Range::new(4, 13));
-        assert_eq!(inf.me().points, Range::new(6, 37));
+        assert_eq!(inf.me().strength.points, Range::new(6, 37));
         set_length_soundness(false);
         let legacy = read(&auction);
         assert_eq!(legacy.partner().length(Suit::Hearts), Range::new(6, 13));
@@ -4020,7 +4188,7 @@ mod tests {
         // Index 0 (1♦ opening) → Partner; index 1 (1♠ overcall) → Rho.
         assert_eq!(inf.partner().length(Suit::Diamonds), Range::new(3, 13));
         assert_eq!(inf.rho().length(Suit::Spades), Range::new(5, 13));
-        assert_eq!(inf.rho().points, Range::new(8, 37));
+        assert_eq!(inf.rho().strength.points, Range::new(8, 37));
     }
 
     #[test]
@@ -4151,7 +4319,7 @@ mod tests {
         // No phantom club suit raised from the doubled strain...
         assert_eq!(inf.partner().length(Suit::Clubs), Range::FULL_LENGTH);
         // ...and the relay's sub-game point cap is recorded.
-        assert_eq!(inf.partner().points, Range::new(0, 9));
+        assert_eq!(inf.partner().strength.points, Range::new(0, 9));
     }
 
     #[test]
@@ -4366,11 +4534,14 @@ mod tests {
         // The same 1♥ opening lands on a different relative seat as the
         // auction grows by one call.
         assert_eq!(
-            read(&[bid(1, Strain::Hearts)]).rho().points,
+            read(&[bid(1, Strain::Hearts)]).rho().strength.points,
             Range::new(10, 21)
         );
         assert_eq!(
-            read(&[bid(1, Strain::Hearts), Call::Pass]).partner().points,
+            read(&[bid(1, Strain::Hearts), Call::Pass])
+                .partner()
+                .strength
+                .points,
             Range::new(10, 21)
         );
     }
@@ -4386,7 +4557,7 @@ mod tests {
             bid(1, Strain::Notrump),
             Call::Pass,
         ]);
-        assert_eq!(one_nt.partner().points, Range::new(12, 16));
+        assert_eq!(one_nt.partner().strength.points, Range::new(12, 16));
 
         // A jump to 2NT is the strong 18–19 rebid (sound bound 18–21).
         let two_nt = read(&[
@@ -4397,7 +4568,7 @@ mod tests {
             bid(2, Strain::Notrump),
             Call::Pass,
         ]);
-        assert_eq!(two_nt.partner().points, Range::new(18, 21));
+        assert_eq!(two_nt.partner().strength.points, Range::new(18, 21));
     }
 
     #[test]
@@ -4413,7 +4584,7 @@ mod tests {
             bid(2, Strain::Notrump),
             Call::Pass,
         ]);
-        assert_eq!(inf.partner().points, Range::new(10, 21));
+        assert_eq!(inf.partner().strength.points, Range::new(10, 21));
     }
 
     #[test]
@@ -4425,7 +4596,7 @@ mod tests {
             bid(2, Strain::Hearts),
             Call::Pass,
         ]);
-        assert_eq!(single.partner().points, Range::new(6, 10));
+        assert_eq!(single.partner().strength.points, Range::new(6, 10));
         // [1♥, P, 3♥, P]: a limit (jump) raise is 10–12.
         let limit = read(&[
             bid(1, Strain::Hearts),
@@ -4433,7 +4604,7 @@ mod tests {
             bid(3, Strain::Hearts),
             Call::Pass,
         ]);
-        assert_eq!(limit.partner().points, Range::new(10, 12));
+        assert_eq!(limit.partner().strength.points, Range::new(10, 12));
         // [1♥, P, 1NT, P]: a 1NT response is 6–12.
         let one_nt = read(&[
             bid(1, Strain::Hearts),
@@ -4441,7 +4612,7 @@ mod tests {
             bid(1, Strain::Notrump),
             Call::Pass,
         ]);
-        assert_eq!(one_nt.partner().points, Range::new(6, 12));
+        assert_eq!(one_nt.partner().strength.points, Range::new(6, 12));
     }
 
     #[test]
@@ -4457,7 +4628,7 @@ mod tests {
             bid(1, Strain::Notrump),
             Call::Pass,
         ]);
-        assert_eq!(inf.partner().points, Range::new(10, 21));
+        assert_eq!(inf.partner().strength.points, Range::new(10, 21));
     }
 
     #[test]
@@ -4473,7 +4644,7 @@ mod tests {
             Call::Pass,
         ]);
         assert!(inf.partner().length(Suit::Clubs).min >= 3);
-        assert!(inf.partner().points.min >= 10);
+        assert!(inf.partner().strength.points.min >= 10);
         assert_eq!(inf.partner().length(Suit::Spades), Range::FULL_LENGTH);
     }
 
@@ -4555,7 +4726,7 @@ mod tests {
         ]);
         assert_eq!(inf.rho().length(Suit::Diamonds), Range::FULL_LENGTH);
         assert!(inf.rho().length(Suit::Hearts).min >= 3);
-        assert!(inf.rho().points.min >= 10);
+        assert!(inf.rho().strength.points.min >= 10);
     }
 
     #[test]
@@ -4645,11 +4816,11 @@ mod tests {
         let auction = [bid(1, Strain::Spades), bid(2, Strain::Spades)];
         let inf = read_booked(&auction);
         assert!(inf.rho().length(Suit::Hearts).min >= 5);
-        assert!(inf.rho().points.min >= 8);
+        assert!(inf.rho().strength.points.min >= 8);
         assert_eq!(inf.rho().length(Suit::Spades).min, 0);
         set_table_alert_reading(false);
         let off = read_booked(&auction);
-        assert_eq!(off.rho().points.min, 0);
+        assert_eq!(off.rho().strength.points.min, 0);
         set_table_alert_reading(true);
     }
 
@@ -4689,7 +4860,7 @@ mod tests {
             Call::Pass,
         ]);
         assert!(inf.partner().length(Suit::Spades).min >= 3);
-        assert!(inf.partner().points.min >= 10);
+        assert!(inf.partner().strength.points.min >= 10);
         assert_eq!(inf.partner().length(Suit::Hearts), Range::FULL_LENGTH);
     }
 
@@ -4705,7 +4876,7 @@ mod tests {
             Call::Pass,
         ]);
         assert!(inf.partner().length(Suit::Diamonds).min >= 5);
-        assert!(inf.partner().points.min >= 10);
+        assert!(inf.partner().strength.points.min >= 10);
         assert_eq!(inf.partner().length(Suit::Clubs), Range::FULL_LENGTH);
     }
 
@@ -4722,7 +4893,7 @@ mod tests {
             Call::Double,
         ]);
         assert!(inf.partner().length(Suit::Spades).min >= 3);
-        assert!(inf.partner().points.min >= 10);
+        assert!(inf.partner().strength.points.min >= 10);
     }
 
     #[test]
@@ -4739,7 +4910,7 @@ mod tests {
             Call::Pass,
         ]);
         assert_eq!(inf.lho().length(Suit::Spades), Range::FULL_LENGTH);
-        assert_eq!(inf.lho().points, Range::FULL_POINTS);
+        assert_eq!(inf.lho().strength.points, Range::FULL_POINTS);
     }
 
     #[test]
@@ -4804,7 +4975,10 @@ mod tests {
             cue_bidder.length(Suit::Hearts).min >= 3,
             "the projected fit"
         );
-        assert!(cue_bidder.points.min >= 10, "the projected strength");
+        assert!(
+            cue_bidder.strength.points.min >= 10,
+            "the projected strength"
+        );
         assert_eq!(
             cue_bidder.length(Suit::Clubs),
             Range::FULL_LENGTH,
@@ -4826,7 +5000,7 @@ mod tests {
         ]);
         assert_eq!(inf.partner().length(Suit::Spades), Range::FULL_LENGTH);
         assert_eq!(inf.partner().length(Suit::Hearts), Range::FULL_LENGTH);
-        assert_eq!(inf.partner().points, Range::FULL_POINTS);
+        assert_eq!(inf.partner().strength.points, Range::FULL_POINTS);
         set_rubens_transfer_reading(true);
     }
 
@@ -4994,7 +5168,7 @@ mod tests {
                     let text = leaves.join(" | ");
 
                     if leaves.iter().any(|atom| claims_points(atom))
-                        && band.points == Range::FULL_POINTS
+                        && band.strength.points == Range::FULL_POINTS
                     {
                         points_leaks.push(format!("{phase}: {} :: {text}", rule.call()));
                     }
@@ -5250,7 +5424,7 @@ mod tests {
         assert!(read.partner().length(Suit::Diamonds).min >= 3);
         assert!(read.partner().length(Suit::Clubs).min >= 3);
         assert_eq!(read.partner().length(Suit::Spades), Range::new(3, 3));
-        assert!(read.partner().points.min >= 12);
+        assert!(read.partner().strength.points.min >= 12);
     }
 
     proptest! {
@@ -5283,9 +5457,9 @@ mod tests {
             let opener = inf.rho();
             let points = point_count(hand);
             prop_assert!(
-                opener.points.contains(points),
+                opener.strength.points.contains(points),
                 "{call} opener with {points} points outside {:?}",
-                opener.points
+                opener.strength.points
             );
             for suit in Suit::ASC {
                 let length = hand[suit].len();

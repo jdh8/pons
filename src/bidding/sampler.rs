@@ -412,7 +412,7 @@ mod tests {
     fn reads_natural_penalty_double_of_their_notrump() {
         // (1NT) X by an unpassed seat — RHO of the side to act (the 1NT responder).
         let direct = inferences(&[bid(1, Strain::Notrump), Call::Double]);
-        assert_eq!(direct.rho().points.min, 15);
+        assert_eq!(direct.rho().strength.points.min, 15);
 
         // A passed hand doubling: dealer passes, RHO opens 1NT, two passes, then the
         // dealer (now a passed hand) doubles — both majors, not a 15+ penalty double.
@@ -423,7 +423,7 @@ mod tests {
             Call::Pass,
             Call::Double,
         ]);
-        assert!(passed.rho().points.min < 15);
+        assert!(passed.rho().strength.points.min < 15);
     }
 
     /// The latch's subsequent penalty double reads as four-plus in the doubled
@@ -477,7 +477,7 @@ mod tests {
                         let length = deal[other][suit].len() as u8;
                         prop_assert!(shown.length(suit).contains(length));
                     }
-                    prop_assert!(shown.points.contains(point_count(deal[other])));
+                    prop_assert!(shown.strength.points.contains(point_count(deal[other])));
                 }
             }
         });
@@ -498,10 +498,10 @@ mod tests {
         for deal in &layouts {
             let partner = deal[actor.partner()];
             assert!(partner[Suit::Hearts].len() >= 5);
-            assert!(inf.partner().points.contains(point_count(partner)));
+            assert!(inf.partner().strength.points.contains(point_count(partner)));
             let rho = deal[actor.rho()];
             assert!(rho[Suit::Spades].len() >= 5);
-            assert!(inf.rho().points.contains(point_count(rho)));
+            assert!(inf.rho().strength.points.contains(point_count(rho)));
         }
     }
 
@@ -616,7 +616,11 @@ mod tests {
         let inf =
             Inferences::read(&stance.prefixed_context(RelativeVulnerability::NONE, &[Call::Pass]));
 
-        assert_eq!(inf.rho().points.max, 11, "a no-open pass caps at 11");
+        assert_eq!(
+            inf.rho().strength.points.max,
+            11,
+            "a no-open pass caps at 11"
+        );
 
         let actor = Seat::North;
         let mut rng = StdRng::seed_from_u64(7);

@@ -114,8 +114,8 @@ fn push_inference(out: &mut Vec<f32>, player: &Envelope) {
         out.push(range.min as f32 / 13.0);
         out.push(range.max as f32 / 13.0);
     }
-    out.push(player.points.min as f32 / 37.0);
-    out.push(player.points.max as f32 / 37.0);
+    out.push(player.strength.points.min as f32 / 37.0);
+    out.push(player.strength.points.max as f32 / 37.0);
 }
 
 /// Push a 7-value bid encoding: [present, level/7, strain one-hot ×5]

@@ -750,7 +750,9 @@ impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for Hcp<R> {
         let slack = flat_hcp_slack();
         let floor = bound_range(&self.0, Range::FULL_POINTS.max).min;
         let mut inference = Envelope::unknown();
-        inference.points = Range::new(floor.saturating_sub(slack), Range::FULL_POINTS.max);
+        inference.strength.points = Range::new(floor.saturating_sub(slack), Range::FULL_POINTS.max);
+        // The `hcp` gauge is raw HCP, so its floor is exact — no upgrade slack.
+        inference.strength.hcp = Range::new(floor, Range::FULL_POINTS.max);
         Dnf::from(inference)
     }
 
@@ -776,12 +778,14 @@ impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for Hcp<R> {
 /// up by [`hcp_ceiling_slack`] (the scale's maximum upgrade).
 fn hcp_band(raw: Range) -> Envelope {
     let mut inference = Envelope::unknown();
-    inference.points = Range::new(
+    inference.strength.points = Range::new(
         raw.min.saturating_sub(flat_hcp_slack()),
         raw.max
             .saturating_add(hcp_ceiling_slack())
             .min(Range::FULL_POINTS.max),
     );
+    // The `hcp` gauge keeps the crisp raw band, unslacked (notrump valuation).
+    inference.strength.hcp = raw;
     inference
 }
 
@@ -912,7 +916,7 @@ impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for Points<R> {
         // the upgraded point count is never below the band's floor.
         let floor = bound_range(&self.0, Range::FULL_POINTS.max).min;
         let mut inference = Envelope::unknown();
-        inference.points = Range::new(floor, Range::FULL_POINTS.max);
+        inference.strength.points = Range::new(floor, Range::FULL_POINTS.max);
         Dnf::from(inference)
     }
 
@@ -920,7 +924,7 @@ impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for Points<R> {
         // Both bounds exact: `points` gauges the shared `point_count` scalar
         // the `Envelope` scale records, whatever scale it is set to.
         let mut inference = Envelope::unknown();
-        inference.points = bound_range(&self.0, Range::FULL_POINTS.max);
+        inference.strength.points = bound_range(&self.0, Range::FULL_POINTS.max);
         Dnf::from(inference)
     }
 
@@ -931,7 +935,7 @@ impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for Points<R> {
             bound_range(&self.0, Range::FULL_POINTS.max),
             Range::FULL_POINTS.max,
         ) {
-            inference.points = range;
+            inference.strength.points = range;
         }
         Dnf::from(inference)
     }
@@ -976,13 +980,22 @@ impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for SupportPoints<R> {
     }
 
     fn project(&self, _: &Context<'_>) -> Dnf {
-        // ponytail: unknown() until the sampler needs the floor; see
-        // docs/ai-bidder/rule-projection.md.  With the flag on this reads the new
-        // scale while every other gate's ranges are recorded on legacy
-        // `point_count`, and `new_point_count` is not a lower bound on it (graded
-        // shortness can exceed the coarse `upgrade`), so projecting a floor the
-        // way `Points::project` does would be unsound.  Claim nothing.
-        Dnf::unknown()
+        // Floor into the dedicated `support_points` gauge, which measures this
+        // same `support_point_count` scalar — so, unlike a projection into the
+        // legacy `points` gauge (which records `point_count`, no lower bound on
+        // the shortness scale), the floor is exact regardless of the scale flag.
+        // Read behind Edit 1's knob; the `points`/`admits` gauge is untouched.
+        let floor = bound_range(&self.0, Range::FULL_POINTS.max).min;
+        let mut inference = Envelope::unknown();
+        inference.strength.support_points = Range::new(floor, Range::FULL_POINTS.max);
+        Dnf::from(inference)
+    }
+
+    fn project_band(&self, _: &Context<'_>) -> Dnf {
+        // Both bounds exact on the dedicated `support_points` gauge.
+        let mut inference = Envelope::unknown();
+        inference.strength.support_points = bound_range(&self.0, Range::FULL_POINTS.max);
+        Dnf::from(inference)
     }
 }
 
@@ -1410,7 +1423,7 @@ struct PartnerShownPoints<R>(R);
 
 impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for PartnerShownPoints<R> {
     fn eval(&self, _: Hand, context: &Context<'_>) -> f32 {
-        let shown = Inferences::read(context).partner().points;
+        let shown = Inferences::read(context).partner().strength.points;
         crisp(self.0.contains(&shown.min))
     }
 
@@ -1975,17 +1988,20 @@ mod tests {
         // `points` gauges the shared scalar: both bounds exact.  (`.hull()`
         // collapses the single-box C1 `Dnf` to its `Envelope`.)
         assert_eq!(
-            points(..12).project_band(&context).hull().points,
+            points(..12).project_band(&context).hull().strength.points,
             Range::new(0, 11)
         );
         // An HCP ceiling owes the scale its maximum upgrade (rule-of-N+8
         // default: 5); the floor matches `project`.
         assert_eq!(
-            hcp(..6).project_band(&context).hull().points,
+            hcp(..6).project_band(&context).hull().strength.points,
             Range::new(0, 10)
         );
         // `project` itself stays floor-only — the alert path is untouched.
-        assert_eq!(hcp(..6).project(&context).hull().points, Range::FULL_POINTS);
+        assert_eq!(
+            hcp(..6).project(&context).hull().strength.points,
+            Range::FULL_POINTS
+        );
         // Composition is tight per arm: the 1NT pass gate (`notrump.rs`) — an
         // off-major weak arm unioned with the flat-eight arm — caps points at
         // 13 and both majors at five.
@@ -1997,7 +2013,7 @@ mod tests {
                 & len(Suit::Hearts, 3..)
                 & len(Suit::Spades, 3..));
         let band = gate.project_band(&context).hull();
-        assert_eq!(band.points, Range::new(0, 13));
+        assert_eq!(band.strength.points, Range::new(0, 13));
         assert_eq!(band.length(Suit::Hearts).max, 5);
         assert_eq!(band.length(Suit::Spades).max, 5);
         // A trivial catch-all claims nothing — the trap-pass safeguard.

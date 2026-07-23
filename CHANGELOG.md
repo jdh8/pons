@@ -9,6 +9,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`Strength` — the `Envelope` strength axis, gauged on every scale bridge
+  counts on (infrastructure, crate default byte-identical).** `Envelope`'s single
+  `points: Range` becomes `strength: Strength`, a POD of three marginal gauges:
+  `hcp` (crisp raw HCP, no upgrade slack — notrump valuation), `points` (the
+  legacy length-scale `point_count` axis), and `support_points` (the fit-known
+  shortness scale). The gauges are stored **composite** (each reader promise is
+  an axis-aligned interval on its own scale), not as an orthogonal
+  `hcp`+deltas basis — a diagonal `point_count ≥ t` promise has no box floor.
+  A monotone `canonicalize` restores `support_points ≥ hcp` after every narrow,
+  so a pure-HCP promise (a 15–17 1NT) floors the support gauge for free. The
+  `hcp` gauge is populated crisp from `Hcp`/`hcp_band` and the 1NT opening; the
+  `support_points` gauge from fit-showing raises (single/jump raise, cue-raises)
+  and `SupportPoints::project`. **No behaviour change:** only `points`/`lengths`
+  gate box-emptiness (the new gauges combine by widening, never dropping a `Dnf`
+  box), `admits` reads `points` only, and no floor consumer reads the new gauges
+  by default — the full suite is green with the crate byte-identical.
+
+- **`set_fit_sum_support_read` — value partner's raise on the support scale in
+  `fit_sum_game` (Edit 1, opt-in knob, default off).** On, the fit-known
+  major-game gate reads partner's `support_points` gauge (falling back to the
+  length-scale `points` floor when unpopulated) instead of `points`, so both
+  halves of the `own + partner + fit ≥ 31` sum sit on the support scale rather
+  than mixing partner's length count with own shortness count. A/B owed
+  (`ab-fit-sum-game`, both vuls, plain + PD, vs BBA).
+
+- **`set_nt_hcp_read` — value the notrump milestones on raw HCP (Edit 2, opt-in
+  knob, default off).** On, the 3NT/6NT/7NT `combined_hcp` milestones value both
+  hands on raw HCP (own hand, and partner's crisp `hcp` gauge with the `points`
+  fallback) instead of the length-upgraded `point_count`, whose long-suit bonus
+  overcounts for notrump. A/B owed (filtered to notrump contracts).
+
 - **`Dnf` — a disjunctive-normal-form forward reading (Stage C1: type +
   plumbing, book byte-identical).** A single `Envelope` is one axis-aligned
   box, so `Or::project` widens a disjunction to its bounding box — the "`Or`

@@ -202,7 +202,7 @@ fn main() {
     let prior = [Call::Bid(Bid::new(1, Strain::Notrump)), Call::Pass];
     let context = Context::new(RelativeVulnerability::NONE, &prior);
     let inf = Inferences::read(&context);
-    let full = inf.partner().points; // the opener (Relative::Partner)
+    let full = inf.partner().strength.points; // the opener (Relative::Partner)
     assert!(full.max > full.min, "1NT shows a splittable point range");
     let mid = (full.min + full.max) / 2;
     let lower = inf.narrowed_points(Relative::Partner, Range::new(full.min, mid));

@@ -284,7 +284,7 @@ std::thread_local! {
     /// eight-plus fit, *counting the trump length as points* — the total-tricks
     /// yardstick where a ninth trump ≈ a point (threshold knob; see
     /// [`set_fit_sum_game`]).  Game once
-    /// `own_points + partner.points.min + (own_len + partner_shown_len) >= t`, so
+    /// `own_points + partner.strength.points.min + (own_len + partner_shown_len) >= t`, so
     /// an eight-card fit games at `t - 8` combined, a nine-card fit at `t - 9`, a
     /// ten-card fit at `t - 10` — strictly lighter as the fit lengthens.  Default
     /// `31` is the dual-metric peak of a swept boundary (34→31 each a CI-clean
@@ -304,6 +304,19 @@ std::thread_local! {
     /// The *bilans* floor: game/slam boundary gates priced by the learned trick
     /// evaluator instead of point arithmetic (see [`set_bilans_floor`]).
     static BILANS_FLOOR: Cell<bool> = const { Cell::new(true) };
+
+    /// Edit 1: read partner's fit-known strength off the dedicated
+    /// `support_points` gauge in [`fit_sum_game`], falling back to the
+    /// length-scale `points` when it is unpopulated (see
+    /// [`set_fit_sum_support_read`]).  Default off — byte-identical to reading
+    /// `points`.
+    static FIT_SUM_SUPPORT_READ: Cell<bool> = const { Cell::new(false) };
+
+    /// Edit 2: value the notrump game/slam milestones on raw HCP — own hand and
+    /// partner's crisp `hcp` gauge — instead of the length-upgraded `point_count`
+    /// (see [`set_nt_hcp_read`]).  Default off — [`combined_hcp`] is then
+    /// [`combined_points`] verbatim.
+    static NT_HCP_READ: Cell<bool> = const { Cell::new(false) };
 }
 
 /// Responder runs from a doubled 1NT below this many HCP; with more, 1NT-X
@@ -578,7 +591,7 @@ pub fn set_two_over_one_slam_strength(on: bool) {
 /// Partner's shown minimum points, floored by a live 2/1 (see
 /// [`set_two_over_one_slam_strength`])
 fn partner_slam_strength(context: &Context<'_>) -> u8 {
-    let shown = Inferences::read(context).partner().points.min;
+    let shown = Inferences::read(context).partner().strength.points.min;
     if !TWO_OVER_ONE_SLAM_STRENGTH.with(Cell::get) || !two_over_one_game_force(context) {
         return shown;
     }
@@ -652,6 +665,21 @@ pub fn set_floor_slam_entry(threshold: u8) {
 #[doc(hidden)]
 pub fn set_fit_sum_game(threshold: u8) {
     FIT_SUM_GAME.with(|cell| cell.set(threshold));
+}
+
+/// Edit 1 — read partner's fit-known strength off the dedicated `support_points`
+/// gauge in [`fit_sum_game`] instead of the length-scale `points` (default off).
+/// For A/B measurement (`ab-fit-sum-game`).
+#[doc(hidden)]
+pub fn set_fit_sum_support_read(on: bool) {
+    FIT_SUM_SUPPORT_READ.with(|cell| cell.set(on));
+}
+
+/// Edit 2 — value the notrump game/slam milestones ([`combined_hcp`]) on raw HCP
+/// instead of the length-upgraded `point_count` (default off).  For A/B measurement.
+#[doc(hidden)]
+pub fn set_nt_hcp_read(on: bool) {
+    NT_HCP_READ.with(|cell| cell.set(on));
 }
 
 /// Suppress (or not) the strong-1NT responder's 3NT game force over a double of
@@ -1764,8 +1792,41 @@ fn known_eight_card_fit(suit: Suit) -> Cons<impl Constraint + Clone> {
 /// [`Inferences`]: super::inference::Inferences
 fn combined_points(threshold: u8) -> Cons<impl Constraint + Clone> {
     pred(move |hand: Hand, context: &Context<'_>| {
-        let partner_min = Inferences::read(context).partner().points.min;
+        let partner_min = Inferences::read(context).partner().strength.points.min;
         u16::from(point_count(hand)) + u16::from(partner_min) >= u16::from(threshold)
+    })
+}
+
+/// Raw HCP of a whole hand — the notrump valuation, no distributional upgrade
+fn raw_hcp(hand: Hand) -> u8 {
+    Suit::ASC
+        .iter()
+        .map(|&suit| holding_hcp::<u8>(hand[suit]))
+        .sum()
+}
+
+/// [`combined_points`] for notrump: both hands on raw HCP (length and shortness
+/// are worthless in notrump), reading partner's crisp `hcp` gauge when populated
+///
+/// Edit 2 — with [`NT_HCP_READ`] off this is [`combined_points`] verbatim
+/// (`point_count` own, partner's length-scale `points` floor), so the notrump
+/// milestones stay byte-identical until the knob flips.
+fn combined_hcp(threshold: u8) -> Cons<impl Constraint + Clone> {
+    pred(move |hand: Hand, context: &Context<'_>| {
+        let inferences = Inferences::read(context);
+        let partner = inferences.partner();
+        let (own, partner_min) = if NT_HCP_READ.with(Cell::get) {
+            (
+                raw_hcp(hand),
+                partner
+                    .strength
+                    .hcp_floor()
+                    .unwrap_or(partner.strength.points.min),
+            )
+        } else {
+            (point_count(hand), partner.strength.points.min)
+        };
+        u16::from(own) + u16::from(partner_min) >= u16::from(threshold)
     })
 }
 
@@ -1798,7 +1859,7 @@ fn slam_entry_reached() -> Cons<impl Constraint + Clone> {
 ///
 /// Folds the known combined trump length — our holding in `suit` plus partner's
 /// shown floor, the same sum [`known_eight_card_fit`] gates on — into the point
-/// total: game once `own_points + partner.points.min + fit >= t` (default `t =
+/// total: game once `own_points + partner.strength.points.min + fit >= t` (default `t =
 /// 31`).  A ninth trump then buys game a point cheaper, a tenth two.  Partner's
 /// *minimum* length and points keep it a sound floor, never an overbid.  The
 /// eight-card-fit gate still lives on the rule's [`known_eight_card_fit`]; this
@@ -1808,9 +1869,19 @@ fn fit_sum_game(suit: Suit) -> Cons<impl Constraint + Clone> {
         // Fit-known (the rule pairs this with `known_eight_card_fit`), so count
         // shortness as support value (`support_point_count`).
         let inferences = Inferences::read(context);
-        let combined =
-            u16::from(support_point_count(hand)) + u16::from(inferences.partner().points.min);
-        let fit = hand[suit].len() as u16 + u16::from(inferences.partner().length(suit).min);
+        let partner = inferences.partner();
+        // Edit 1: partner's raise valued on the support scale when that gauge is
+        // populated (a fit-showing raise fired), else the length-scale floor.
+        let partner_pts = if FIT_SUM_SUPPORT_READ.with(Cell::get) {
+            partner
+                .strength
+                .support_floor()
+                .unwrap_or(partner.strength.points.min)
+        } else {
+            partner.strength.points.min
+        };
+        let combined = u16::from(support_point_count(hand)) + u16::from(partner_pts);
+        let fit = hand[suit].len() as u16 + u16::from(partner.length(suit).min);
         combined + fit >= u16::from(FIT_SUM_GAME.with(Cell::get))
     })
 }
@@ -3153,7 +3224,7 @@ pub fn instinct() -> Rules {
     rules = rules.rule(
         Bid::new(3, Strain::Notrump),
         1.40,
-        (game_forces.clone() | points_or_net(combined_points(25), Strain::Notrump, 9))
+        (game_forces.clone() | points_or_net(combined_hcp(25), Strain::Notrump, 9))
             & not_penalizing()
             & below_game()
             & stopper_in_their_suits()
@@ -3297,7 +3368,7 @@ pub fn instinct() -> Rules {
         .rule(
             Bid::new(6, Strain::Notrump),
             1.60,
-            points_or_net(combined_points(33), Strain::Notrump, 12)
+            points_or_net(combined_hcp(33), Strain::Notrump, 12)
                 & not_penalizing()
                 & below_slam()
                 & stopper_in_their_suits()
@@ -3306,7 +3377,7 @@ pub fn instinct() -> Rules {
         .rule(
             Bid::new(7, Strain::Notrump),
             1.70,
-            points_or_net(combined_points(37), Strain::Notrump, 13)
+            points_or_net(combined_hcp(37), Strain::Notrump, 13)
                 & not_penalizing()
                 & below_slam()
                 & stopper_in_their_suits()
