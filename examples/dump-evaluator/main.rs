@@ -144,6 +144,11 @@ struct Args {
     /// Output path stem; writes `<out>.f32`, `<out>.json`, `<out>.tags`
     #[arg(long, default_value = "target/evaluator-data")]
     out: String,
+    /// Bid and read with `set_dnf_reading(true)` — the F2b corpus. Both the
+    /// auctions and the range features come from the knob-on regime, matching
+    /// what a knob-on bidder serves the evaluator.
+    #[arg(long)]
+    dnf: bool,
 }
 
 /// The four absolute vulnerabilities, sampled uniformly per board.
@@ -156,6 +161,8 @@ const VULS: [AbsoluteVulnerability; 4] = [
 
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
+    // Single-threaded example, so the thread-local knob set once covers the run.
+    pons::bidding::set_dnf_reading(args.dnf);
     let encoding = match args.encoding.as_str() {
         "summary" => Encoding::Summary,
         "onehot" => Encoding::Onehot,
@@ -276,6 +283,7 @@ fn main() -> anyhow::Result<()> {
         "boards": deals.len(),
         "git_sha": git_sha(),
         "seed": args.seed,
+        "dnf": args.dnf,
         "rows": rows,
         "contested_rows": contested,
         "forced_pass_decisions": forced_pass,

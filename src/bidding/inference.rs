@@ -160,13 +160,16 @@ pub fn fallback_projection_enabled() -> bool {
 std::thread_local! {
     /// Whether a call's reading is stored as a *union of boxes* (a DNF) and the
     /// sampler accepts a hand that lies in **any** box, rather than the single
-    /// bounding-box hull (see [`set_dnf_reading`]).  **Off by default** — the
-    /// Phase C2 knob; every arm and the shipped default stay byte-identical to
-    /// the hull path until the A/B measures the tighter acceptance.
-    static DNF_READING: Cell<bool> = const { Cell::new(false) };
+    /// bounding-box hull (see [`set_dnf_reading`]).  **On by default** since
+    /// chop F2b (docs/dnf-migration.md): with the knob-matched evaluator twin
+    /// and the statically pinned Jacoby box, the flip measured a win in all
+    /// four cells — plain +0.0094/+0.0080, PD +0.0118/+0.0085 NV/vul, CIs
+    /// clear (204,800 boards/arm/vul, seed 1784809754).  Off is the legacy
+    /// hull path, kept as the kill-switch.
+    static DNF_READING: Cell<bool> = const { Cell::new(true) };
 }
 
-/// Toggle union-of-boxes (DNF) readings for the sampler (**default off**, C2)
+/// Toggle union-of-boxes (DNF) readings for the sampler (**default on**, F2b)
 ///
 /// Off, a disjunctive reading (`Or`, `AnyLen`, a call authored by several rules)
 /// widens to its bounding box, so the sampler accepts the whole hull — today's
@@ -184,7 +187,7 @@ pub fn set_dnf_reading(on: bool) {
     DNF_READING.with(|cell| cell.set(on));
 }
 
-/// Whether union-of-boxes readings are enabled (default off)
+/// Whether union-of-boxes readings are enabled (default on)
 #[must_use]
 pub fn dnf_reading() -> bool {
     DNF_READING.with(Cell::get)
@@ -3513,7 +3516,7 @@ mod tests {
             !boxes.contains(five_four),
             "on: neither box holds the 5-4 hand"
         );
-        set_dnf_reading(false);
+        set_dnf_reading(true);
     }
 
     #[test]
@@ -5175,7 +5178,7 @@ mod tests {
         let dup = (balanced() & (points(8..) | points(10..))).project_band(&context);
         assert_eq!(dup.boxes().len(), 5);
 
-        set_dnf_reading(false);
+        set_dnf_reading(true);
     }
 
     /// Chop E: `set_gauge_membership` gives the raw-HCP and support-points
@@ -5237,7 +5240,14 @@ mod tests {
 
     /// The alert-invariant worklist for one trie: rules whose projection the
     /// structural [`artificial`] detector flags but which carry no `.alert(...)`
+    ///
+    /// Walks under the **legacy hull projection** (`set_dnf_reading(false)`):
+    /// the detector's "floors a suit it did not name" reading was defined
+    /// against hulls, and knob-on box unions (the fit-split's major floors,
+    /// `dnf_upgrade` boxes) legitimately carry other-suit information that
+    /// would false-positive it.
     fn unalerted_artificial(label: &str, trie: &crate::bidding::trie::Trie) -> Vec<String> {
+        set_dnf_reading(false);
         let mut worklist = Vec::new();
         for_each_authored_rule(trie, |auction, context, rule| {
             let made = rule.call();
@@ -5254,6 +5264,7 @@ mod tests {
                 ));
             }
         });
+        set_dnf_reading(true);
         worklist
     }
 
@@ -5484,7 +5495,6 @@ mod tests {
                 }
             });
         }
-        set_dnf_reading(false);
 
         assert!(
             failures.is_empty(),
@@ -5534,10 +5544,10 @@ mod tests {
             ("dutch constructive", &dutch.constructive.0),
         ];
 
+        set_dnf_reading(false);
         let off = axis_leaks(&tries);
         set_dnf_reading(true);
         let on = axis_leaks(&tries);
-        set_dnf_reading(false);
 
         // (column, knob-off pin, knob-on pin) — re-pins go in the
         // docs/dnf-migration.md ledger.  Chop G drove every knob-on column to

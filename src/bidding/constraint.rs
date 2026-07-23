@@ -2485,6 +2485,7 @@ mod tests {
     #[test]
     fn project_band_carries_ceilings() {
         let context = empty_context();
+        set_dnf_reading(false);
         // `points` gauges the shared scalar: both bounds exact.  (`.hull()`
         // collapses the single-box C1 `Dnf` to its `Envelope`.)
         assert_eq!(
@@ -2518,6 +2519,7 @@ mod tests {
         assert_eq!(band.length(Suit::Spades).max, 5);
         // A trivial catch-all claims nothing — the trap-pass safeguard.
         assert_eq!(hcp(0..).project_band(&context).hull(), Envelope::unknown());
+        set_dnf_reading(true);
     }
 
     #[test]
@@ -3004,9 +3006,10 @@ mod tests {
     #[test]
     fn complement_dnf_boxes() {
         let ctx = empty_context();
+        set_dnf_reading(false);
 
-        // Knob-off: a two-sided band's complement hulls to ⊤ (today's reading),
-        // and De Morgan stays ⊤.
+        // Knob-off: a two-sided band's complement hulls to ⊤ (the legacy
+        // reading), and De Morgan stays ⊤.
         let band = (!hcp(15..=17)).project(&ctx);
         assert_eq!(band.hull().strength.hcp, Range::FULL_POINTS);
         let demorgan = (!(len(Suit::Spades, 4..) & hcp(13..))).project(&ctx);
@@ -3036,7 +3039,7 @@ mod tests {
         let double = (!!hcp(15..=17)).project(&ctx);
         assert_eq!(double.hull().strength.hcp, Range::new(15, 17));
 
-        set_dnf_reading(false);
+        set_dnf_reading(true);
     }
 
     /// D1b: `balanced` projects the exact 5-box union knob-on and hulls back
@@ -3044,6 +3047,7 @@ mod tests {
     #[test]
     fn balanced_projection_boxes() {
         let ctx = empty_context();
+        set_dnf_reading(false);
         assert_eq!(balanced().project(&ctx).hull(), Envelope::unknown());
         assert_eq!(
             balanced().project_band(&ctx).hull().lengths,
@@ -3062,7 +3066,7 @@ mod tests {
                 "balanced boxes disagree at {lengths:?}",
             );
         });
-        set_dnf_reading(false);
+        set_dnf_reading(true);
     }
 
     /// G: the comparative staircases evaluate exactly as the `described`
@@ -3100,6 +3104,7 @@ mod tests {
     #[test]
     fn unbalanced_complement_boxes() {
         let ctx = empty_context();
+        set_dnf_reading(false);
         assert_eq!((!balanced()).project(&ctx).hull(), Envelope::unknown());
 
         set_dnf_reading(true);
@@ -3112,7 +3117,7 @@ mod tests {
                 "unbalanced boxes disagree at {lengths:?}",
             );
         });
-        set_dnf_reading(false);
+        set_dnf_reading(true);
     }
 
     /// G: `top_honors` floors its suit length and raw HCP knob-on; a
@@ -3121,6 +3126,7 @@ mod tests {
     #[test]
     fn honor_and_points_gauge_boxes() {
         let ctx = empty_context();
+        set_dnf_reading(false);
         assert_eq!(
             top_honors(Suit::Spades, 2..).project(&ctx).hull(),
             Envelope::unknown(),
@@ -3144,6 +3150,6 @@ mod tests {
                 .any(|b| b.strength.hcp != Range::FULL_POINTS),
             "22+ points | 22+ HCP lost its HCP floor: {strong_two:?}",
         );
-        set_dnf_reading(false);
+        set_dnf_reading(true);
     }
 }

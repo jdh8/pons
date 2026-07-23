@@ -9,6 +9,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **DNF flip day: `set_dnf_reading` ships default-ON.** Union-of-boxes
+  readings are now the crate default (measured F2b round 2: plain
+  +0.0094/+0.0080 IMPs/board NV/vul, PD +0.0118/+0.0085, all CIs clear);
+  the legacy bounding-box hull stays as the kill-switch. **Breaking flags:**
+  `bba-gen --ns-dnf` is now `--no-ns-dnf` (an off-switch), `probe-classify
+  --dnf` is now `--no-dnf`. The evaluator serves its knob-matched twin by
+  default. Deliberate re-pins: the marginal 6♠ on the fit-sum fixture prices
+  back to 4♠ (both regimes pinned in-test), the alert-invariant and
+  projection pin tests fix their knob state explicitly. Known parked hole
+  (ledger): the splinter's shortness cap is lost knob-on — the hand-written
+  reader's ♣≤1 does not survive into the box reading; next chop is a
+  `dnf_upgrade` splinter box.
+
+- **DNF chop F2b: the knob-matched evaluator twin — `evaluator_v2_dnf`,
+  trained on knob-on prefixed readings and served automatically under
+  `set_dnf_reading`.** F1 traced the chop-F flip loss to the bilans evaluator
+  reading knob-tightened ranges it was never fit on; F2b removes the mismatch
+  at the source. Same architecture, recipe, and seeds as the shipped net —
+  only the corpora are regenerated with the knob on (`dump-evaluator --dnf`,
+  new flag). Held-out fit matches the shipped net (val NLL −1.51183 / MAE
+  1.441 vs −1.51052 / 1.4429), i.e. the out-of-distribution penalty is gone
+  at equal quality. `evaluator.rs` embeds the twin beside the shipped weights
+  and `forward` selects by `dnf_reading()` per call, so the knob-off crate is
+  untouched (byte-identity structural) and one binary serves both A/B arms; a
+  second candle-parity fixture test pins the twin. The F1 traced board
+  (`KQ964.Q2.KQJ8.A4`, `1♠-2♣-2♦-3NT`) no longer blasts 6NT knob-on. The
+  re-flip A/B (`scripts/dnf-flip2-ab.sh`, off vs dnf, plain+PD) decides the
+  flip; verdict to be recorded in docs/dnf-migration.md.
+
+- **DNF chop F2b′: Jacoby 2NT's knob-on reading pinned to the opening major
+  (`dnf_upgrade` one-box, the C2 fit-split idiom).** The F2b round-1 A/B
+  (wash, every CI spanning 0) concentrated its whole loss in one family:
+  after `1M-2NT-…-4M`, the floor's RKCB ask fired 4NT and then **passed the
+  5♣/5♦ keycard answer** — the `support(4..)` leg of Jacoby 2NT re-projects
+  under the reader's context, and the off-book floor answer (alerted but
+  invisible to the reader — instinct is not in the trie) re-targeted the
+  4-card box to the answer suit, erasing the spade support the completion's
+  `keycard_trump` needs. Knob-on the box is now static ({major 4+, sp 13+};
+  eval-equivalence pinned by `jacoby_dnf_matches_composite`); knob-off
+  eval/describe/reading are byte-identical via the legacy arm. The traced
+  board (`AQJ85.AKT743.3.9`, all five keycards + ♠Q) now completes 6♠
+  instead of stranding in 5♦.
+
+  **With the twin evaluator + pinned Jacoby box, the DNF flip WINS all four
+  cells** (204,800 boards/arm/vul, SEED_BASE 1784809754): plain
+  +0.0094/+0.0080 IMPs/board NV/vul, perfect-defense +0.0118/+0.0085, every
+  95% CI clear of zero — shippable default-on per docs/measurement.md. Both
+  auction phases contribute (constructive +1158 IMPs, contested +766 on the
+  NV divergents). The default flip itself (knob on by default, harness flag
+  rename, ratchet re-pin) is staged as a follow-up change.
+
 - **DNF chop F1 (forensic): the chop-F flip loss is the `set_bilans_floor`
   evaluator reading knob-shifted ranges — the retrain that matters is the
   *evaluator net*, not the policy floor net.** Re-diffing the saved F run in

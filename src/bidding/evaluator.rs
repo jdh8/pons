@@ -32,7 +32,7 @@
 //! builds.
 
 use super::features::{FEATURES_LEN_EVAL, features_eval};
-use super::inference::{Inferences, Relative};
+use super::inference::{Inferences, Relative, dnf_reading};
 use super::neural::{affine, decode, relu};
 use contract_bridge::{Hand, Strain};
 use nalgebra::SVectorView;
@@ -65,8 +65,21 @@ const _: () = assert!(
     "evaluator weights artifact size mismatch"
 );
 
+/// The knob-matched twin (DNF chop F2b): same architecture and training
+/// recipe, corpus regenerated with `set_dnf_reading(true)` so the range
+/// blocks come from the tightened prefixed readings a knob-on bidder serves.
+/// Selected per call by [`dnf_reading`]; knob-off never touches it.
+static RAW_DNF: &[u8] = include_bytes!("weights/evaluator_v2_dnf.f32");
+const _: () = assert!(
+    RAW_DNF.len() == TOTAL * 4,
+    "dnf evaluator weights artifact size mismatch"
+);
+
 /// Weights decoded to `f32` once, on first use.
 static WEIGHTS: LazyLock<Vec<f32>> = LazyLock::new(|| decode(RAW));
+
+/// [`RAW_DNF`] decoded once, on first use.
+static WEIGHTS_DNF: LazyLock<Vec<f32>> = LazyLock::new(|| decode(RAW_DNF));
 
 /// The strain order the training label uses (`gib::relativized_tricks`, itself
 /// the GIB tail order). [`Strain`]'s own discriminants ascend ♣♦♥♠NT, so this
@@ -178,9 +191,15 @@ pub fn trick_estimates(hand: Hand, inferences: &Inferences) -> TrickEstimates {
     TrickEstimates(out)
 }
 
-/// The raw `OUT` outputs, before reshaping and rescaling.
+/// The raw `OUT` outputs, before reshaping and rescaling. Serves the weights
+/// fit on the reading regime the calling thread is actually in: the knob-on
+/// twin under [`dnf_reading`], the shipped artifact otherwise.
 fn forward(x: &[f32]) -> [f32; OUT] {
-    let weights = WEIGHTS.as_slice();
+    let weights = if dnf_reading() {
+        WEIGHTS_DNF.as_slice()
+    } else {
+        WEIGHTS.as_slice()
+    };
     let (w1, rest) = weights.split_at(HID * IN);
     let (b1, rest) = rest.split_at(HID);
     let (w2, rest) = rest.split_at(HID * HID);
@@ -209,12 +228,25 @@ mod tests {
         s.parse().expect("valid test hand")
     }
 
-    /// The hand-rolled forward pass must reproduce the trainer's candle outputs
-    /// on the exported fixture.
+    /// The hand-rolled forward pass must reproduce the trainer's candle
+    /// outputs on the exported fixture — the legacy (knob-off) weights.
+    /// Thread-local knob, restored to the crate default afterwards.
     #[test]
     fn matches_candle_fixture() {
-        let fx: serde_json::Value =
-            serde_json::from_str(include_str!("weights/evaluator_v2.fixture.json")).unwrap();
+        crate::bidding::set_dnf_reading(false);
+        check_candle_fixture(include_str!("weights/evaluator_v2.fixture.json"));
+        crate::bidding::set_dnf_reading(true);
+    }
+
+    /// The knob-on twin (the shipped default) against its own fixture.
+    #[test]
+    fn dnf_matches_candle_fixture() {
+        crate::bidding::set_dnf_reading(true);
+        check_candle_fixture(include_str!("weights/evaluator_v2_dnf.fixture.json"));
+    }
+
+    fn check_candle_fixture(fixture: &str) {
+        let fx: serde_json::Value = serde_json::from_str(fixture).unwrap();
 
         // The blob's own guard is a byte count, and a byte count cannot tell a
         // 54-wide v2 artifact from any other blob of the same size — so pin the

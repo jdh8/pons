@@ -153,12 +153,12 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_fallback_projection: bool,
 
-    /// Turn ON the DNF union-of-boxes reading for our side (`set_dnf_reading`,
-    /// crate default off): disjunctions keep their separate boxes instead of
-    /// hulling to the bounding box, tightening hulls → net features +
-    /// `PartnerShownLen` gates.  The chop-F flip arm (docs/dnf-migration.md).
+    /// Turn OFF the DNF union-of-boxes reading for our side (`set_dnf_reading`,
+    /// crate default ON since chop F2b — docs/dnf-migration.md): fall back to
+    /// hulling every disjunction to its bounding box, the legacy reading and
+    /// the F2b A/B's off arm.
     #[arg(long, default_value_t = false)]
-    ns_dnf: bool,
+    no_ns_dnf: bool,
 
     /// Also give the strength gauges membership teeth for our side
     /// (`set_gauge_membership`, crate default off): samplers reject hands
@@ -1118,7 +1118,7 @@ fn main() -> anyhow::Result<()> {
     pons::bidding::set_pass_reading(!args.no_ns_pass_reading);
     pons::bidding::american::set_transfer_longer_major(!args.no_ns_transfer_longer);
     pons::bidding::set_fallback_projection(!args.no_ns_fallback_projection);
-    pons::bidding::set_dnf_reading(args.ns_dnf);
+    pons::bidding::set_dnf_reading(!args.no_ns_dnf);
     pons::bidding::set_gauge_membership(args.ns_gauge_membership);
     pons::bidding::american::set_two_notrump_wide(args.ns_two_nt_wide);
     pons::bidding::american::set_open_one_notrump(!args.no_our_1nt);

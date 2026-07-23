@@ -31,17 +31,17 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_competitive_rebid: bool,
 
-    /// Classify under union-of-boxes readings (`set_dnf_reading`, the chop-F
-    /// knob) and print each seat's reading — the forensic view of what the
-    /// flip changes at this node
+    /// Classify under the legacy bounding-box hull reading (`set_dnf_reading`
+    /// off; the crate default is ON since chop F2b) — the forensic view of
+    /// what the flip changes at this node
     #[arg(long, default_value_t = false)]
-    dnf: bool,
+    no_dnf: bool,
 }
 
 fn main() {
     let args = Args::parse();
     pons::bidding::instinct::set_competitive_rebid(!args.no_competitive_rebid);
-    pons::bidding::set_dnf_reading(args.dnf);
+    pons::bidding::set_dnf_reading(!args.no_dnf);
     let hand: Hand = args.hand.parse().expect("valid hand");
     let mut auction = Auction::new();
     for token in args.auction.split_whitespace() {
@@ -56,7 +56,7 @@ fn main() {
     // `Context::new` skips the projection overlay; see `Inferences::read`).
     println!(
         "inferences via Stance::infer (dnf_reading={}):\n{:#?}",
-        args.dnf,
+        !args.no_dnf,
         stance.infer(vul, &auction)
     );
     match stance.classify_with_provenance(hand, vul, &auction) {

@@ -294,11 +294,17 @@ const CHOICE_OF_GAMES: Alert = Alert("choice-of-games-3nt");
 pub fn major_responses(major: Suit) -> Rules {
     let trump = Strain::from(major);
     let mut rules = Rules::new()
-        // Jacoby 2NT: game-forcing raise with four-card support.
+        // Jacoby 2NT: game-forcing raise with four-card support.  The
+        // `support` leg replays under the reader's seat and re-targets to
+        // whatever suit partner showed *last* — a floor-RKCB 5♦ answer moved
+        // this box to diamonds, erased the spade support, and stranded the
+        // asker in 5♦ (chop F2b's worst family) — so knob-on the box pins the
+        // node's own major statically.  Legacy carries eval/describe and the
+        // knob-off reading unchanged.
         .rule(
             Bid::new(2, Strain::Notrump),
             3.0,
-            support(4..) & support_points(13..),
+            dnf_upgrade(support(4..) & support_points(13..), jacoby_box(major)),
         )
         .alert(JACOBY_2NT)
         // Limit raise: four-card support, 10–12 points.
@@ -525,6 +531,18 @@ fn fit_split_gate(
     let legacy =
         len(suit, min_len..) & !support(4..) & (no_fit | (support(3..) & support_points(13..)));
     dnf_upgrade(legacy, fit_split_boxes(suit, min_len, major, no_fit_floor))
+}
+
+/// The exact one-box knob-on reading of Jacoby 2NT: four-card support for the
+/// node's own `major` (statically pinned — immune to the reader-seat
+/// re-targeting of the `support` leg) with game-forcing support points.
+/// Eval-equivalence to the legacy composite is pinned by
+/// `jacoby_dnf_matches_composite`.
+fn jacoby_box(major: Suit) -> Dnf {
+    let mut env = Envelope::unknown();
+    env.lengths[major as usize] = Range::new(4, Range::FULL_LENGTH.max);
+    env.strength.support_points = Range::new(13, Range::FULL_POINTS.max);
+    Dnf::from(env)
 }
 
 /// The exact two-box knob-on reading of [`fit_split_gate`]
@@ -877,6 +895,41 @@ mod tests {
     /// opener's major, length floor, and gauge arm.
     ///
     /// [`Dnf`]: crate::bidding::inference::Dnf
+    #[test]
+    fn jacoby_dnf_matches_composite() {
+        use super::jacoby_box;
+        use crate::bidding::constraint::{support, support_points};
+        use crate::bidding::context::Context;
+        use crate::bidding::verify;
+        use contract_bridge::auction::{Call, RelativeVulnerability};
+        use contract_bridge::{Bid, Strain, Suit};
+        use rand::SeedableRng as _;
+        use rand::rngs::StdRng;
+
+        let mut rng = StdRng::seed_from_u64(0x2F18);
+        for major in [Suit::Hearts, Suit::Spades] {
+            let auction = [Call::Bid(Bid::new(1, Strain::from(major))), Call::Pass];
+            let context = Context::new(RelativeVulnerability::NONE, &auction);
+            let composite = support(4..) & support_points(13..);
+            let native = jacoby_box(major);
+            let report = verify::compare(
+                |hand| composite.eval(hand, &context).is_finite(),
+                |hand| native.eval(hand, &context).is_finite(),
+                &mut rng,
+                4000,
+            );
+            assert!(
+                report.agrees(),
+                "jacoby box diverges over 1{major}: {:?}",
+                report.disagreements,
+            );
+            assert!(
+                report.reference_accepts > 0,
+                "vacuous compare over 1{major}"
+            );
+        }
+    }
+
     #[test]
     fn fit_split_dnf_matches_composite() {
         use super::{fit_split_boxes, gauge_floor};

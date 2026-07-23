@@ -3807,6 +3807,7 @@ pub fn instinct() -> Rules {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::bidding::inference::set_dnf_reading;
     use crate::bidding::trie::Classifier;
     use contract_bridge::auction::RelativeVulnerability;
 
@@ -4340,7 +4341,17 @@ mod tests {
             from_floor,
             "South's continuation is off-book (floor territory)"
         );
-        assert_eq!(bid, call(6, Strain::Spades));
+        // The fit-sum's claim is the *strain* — major over 3NT.  The level is
+        // the evaluator's: the legacy net claimed the marginal slam (6♠ made
+        // 66.3% double-dummy over the knob-off read), and the F2b default —
+        // union-of-boxes reading + the knob-matched `evaluator_v2_dnf` twin —
+        // prices it back to game.  Both pins are deliberate; the A/B
+        // (docs/dnf-migration.md, F2b round 2) says the package wins.
+        assert_eq!(bid, call(4, Strain::Spades));
+        set_dnf_reading(false);
+        let (legacy, _) = american_floored(&auction, south);
+        set_dnf_reading(true);
+        assert_eq!(legacy, call(6, Strain::Spades));
     }
 
     #[test]
@@ -4411,9 +4422,10 @@ mod tests {
             from_floor,
             "South's continuation is off-book (floor territory)"
         );
-        // 66.3% double-dummy over the auction's own read — see
-        // `fit_sum_reads_a_four_four_major_fit` for the measurement.
-        assert_eq!(bid, call(6, Strain::Spades));
+        // Literally the known fit *game* since F2b: the knob-on read + twin
+        // evaluator price the marginal slam out (see
+        // `fit_sum_reads_a_four_four_major_fit`, which pins both regimes).
+        assert_eq!(bid, call(4, Strain::Spades));
     }
 
     #[test]
