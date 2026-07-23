@@ -13,7 +13,7 @@ use super::Map;
 use super::array::Logits;
 use super::constraint::{Constraint, Description};
 use super::context::Context;
-use super::inference::Inference;
+use super::inference::Envelope;
 use super::trie::Classifier;
 use contract_bridge::Hand;
 use contract_bridge::auction::Call;
@@ -98,7 +98,7 @@ impl Rule {
         self.when.describe()
     }
 
-    /// The forward [`Inference`] envelope this rule's constraint implies
+    /// The forward [`Envelope`] this rule's constraint implies
     ///
     /// The reading-side dual of [`eval`][Self::eval]: where `eval` scores a
     /// known hand, `project` reports the per-suit length and point ranges every
@@ -107,9 +107,9 @@ impl Rule {
     /// to the constraint fold); sound by construction (see
     /// [`Constraint::project`]).
     #[must_use]
-    pub fn project(&self, context: &Context<'_>) -> Inference {
+    pub fn project(&self, context: &Context<'_>) -> Envelope {
         // ponytail: hull the DNF to a single box, so the alert/`artificial`
-        // checks and `authored_reading` stay on `Inference`.  The overlay that
+        // checks and `authored_reading` stay on `Envelope`.  The overlay that
         // the sampler consumes uses [`project_dnf`][Self::project_dnf] to keep
         // the boxes when `dnf_reading` is on.
         self.when.project(context).hull()
@@ -133,7 +133,7 @@ impl Rule {
     /// rule's gate, so it lies within the union of the gates' bands.  The
     /// reading-side fold behind [`set_pass_reading`][super::set_pass_reading].
     #[must_use]
-    pub fn project_band(&self, context: &Context<'_>) -> Inference {
+    pub fn project_band(&self, context: &Context<'_>) -> Envelope {
         self.when.project_band(context).hull()
     }
 

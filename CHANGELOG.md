@@ -10,9 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **`Dnf` — a disjunctive-normal-form forward reading (Stage C1: type +
-  plumbing, book byte-identical).** A single `Inference` is one axis-aligned
+  plumbing, book byte-identical).** A single `Envelope` is one axis-aligned
   box, so `Or::project` widens a disjunction to its bounding box — the "`Or`
-  wall" (Multi, two-suiters, weak-or-strong). `Dnf(Vec<Inference>)` keeps the
+  wall" (Multi, two-suiters, weak-or-strong). `Dnf(Vec<Envelope>)` keeps the
   terms: a hand is consistent iff it lies in **some** box. `intersect`
   distributes (Cartesian product of box-intersects) and **drops empty products**
   — `1NT ∩ 4-5♥` (opener's Stayman `2♥`) drops the balanced box whose hearts
@@ -112,6 +112,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   lose outright on the full population, and no alternative wins cleanly even
   at its own margin — moving the number doesn't fix a risk that's inherent to
   forcing game through this corner. All three candidate gates stay opt-in.
+
+### Changed
+
+- **`Inference` (the forward-reading box) renamed to `Envelope`.** The struct is
+  a single axis-aligned box — four suit-length `Range`s and a points `Range` — so
+  `Envelope` names its *shape* rather than its provenance, and it is the word the
+  code and docs already used for it informally (`Constraint::project` reports
+  "the forward envelope"). Pure rename, no behaviour change; the public re-export
+  moves from `pons::bidding::Inference` to `pons::bidding::Envelope`. The per-seat
+  reading aggregate `Inferences` (per-seat `Envelope`/`Dnf` + control-bid witness)
+  and the `Dnf` union-of-boxes keep their names.
 
 ### Fixed
 
@@ -454,7 +465,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `two_over_one_denies_four_card_support`. The new fold is
   `Constraint::project_complement`, implemented on `len`, `points`, `hcp` and
   `support`, and **only for half-open bands**: `!hcp(13..=15)` is a union of
-  two bands that one `Inference` cannot hold, and returning either half alone
+  two bands that one `Envelope` cannot hold, and returning either half alone
   would reject legal hands. That asymmetry is why negation must be pushed to
   the leaves before anything is complemented — `!⊤ = ⊥` is *tighter than the
   truth*, and every off-axis gauge (`suit_hcp`, `nltc`, `support_points`)

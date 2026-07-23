@@ -30,7 +30,7 @@
 //! ```
 
 use super::context::Context;
-use super::inference::{Dnf, Inference, Inferences, Range};
+use super::inference::{Dnf, Envelope, Inferences, Range};
 use contract_bridge::eval::{self, HandEvaluator, SimpleEvaluator};
 use contract_bridge::{Hand, Holding, Level, Rank, Strain, Suit};
 use core::cell::Cell;
@@ -59,7 +59,7 @@ pub trait Constraint: Send + Sync {
         Description::Opaque
     }
 
-    /// Project the constraint into the forward [`Inference`] envelope it implies
+    /// Project the constraint into the forward [`Envelope`] it implies
     ///
     /// The third fold, beside [`eval`][Self::eval] and [`describe`][Self::describe]:
     /// where `eval` scores one hand and `describe` names the meaning, `project`
@@ -68,13 +68,13 @@ pub trait Constraint: Send + Sync {
     /// authored call, the dual of evaluating a known hand.  Sound by
     /// construction: a finite `eval(hand, context)` implies `hand` lies within
     /// `project(context)`.  The default asserts nothing
-    /// ([`Inference::unknown`]), so an opaque predicate stays sound but loose
+    /// ([`Envelope::unknown`]), so an opaque predicate stays sound but loose
     /// until a length- or points-bearing primitive overrides it.
     fn project(&self, _context: &Context<'_>) -> Dnf {
         Dnf::unknown()
     }
 
-    /// Project the constraint into its **two-sided** [`Inference`] envelope
+    /// Project the constraint into its **two-sided** [`Envelope`]
     ///
     /// The ceiling-carrying sibling of [`project`][Self::project]: `project`
     /// deliberately claims floors only for the point gauges (a made call is
@@ -101,7 +101,7 @@ pub trait Constraint: Send + Sync {
     /// Two-sided by construction, so [`Flip`] uses it for
     /// [`project_band`][Self::project_band] as well.  The default asserts
     /// nothing, and so does every implementor whose complement is *not* a box:
-    /// `!hcp(13..=15)` is a union of two bands, which one [`Inference`] cannot
+    /// `!hcp(13..=15)` is a union of two bands, which one [`Envelope`] cannot
     /// hold, and returning either half alone would reject legal hands.  That
     /// asymmetry is the whole reason negation is pushed to the leaves before
     /// anything is complemented — `!⊤ = ⊥` is *tighter than the truth*, and an
@@ -114,7 +114,7 @@ pub trait Constraint: Send + Sync {
 /// The complement of a band within `0..=cap`, when the complement is a band
 ///
 /// `4..` complements to `0..=3` and `..=3` to `4..=13`.  A two-sided band like
-/// `4..=5` complements to a *union*, which an [`Inference`]'s single box cannot
+/// `4..=5` complements to a *union*, which an [`Envelope`]'s single box cannot
 /// hold, so it widens back to the full range instead.
 fn complement_range(range: Range, cap: u8) -> Option<Range> {
     match (range.min, range.max) {
@@ -705,7 +705,7 @@ fn raw_hcp(hand: Hand) -> u8 {
 /// Project a numeric range bound into an inference [`Range`], clamped to `cap`
 ///
 /// The forward dual of [`describe_int_range`]: where that names a bound in
-/// prose, this turns it into the `[min, max]` an [`Inference`] records, sharing
+/// prose, this turns it into the `[min, max]` an [`Envelope`] records, sharing
 /// the same [`ToU64`] so `len` (a `usize` range) and `points`/`hcp` (`u8`)
 /// project through one path.  An unbounded end becomes `cap`, the quantity's
 /// natural ceiling.
@@ -722,7 +722,7 @@ fn bound_range<T: ToU64>(range: &impl RangeBounds<T>, cap: u8) -> Range {
         Bound::Unbounded => cap,
     };
     // `min(cap)` keeps both ends within the quantity's ceiling, so the casts
-    // back to the `u8` an `Inference` stores never truncate.
+    // back to the `u8` an `Envelope` stores never truncate.
     let clamp = |x: u64| u8::try_from(x.min(cap)).unwrap_or_else(|_| unreachable!());
     Range::new(clamp(min), clamp(max))
 }
@@ -742,14 +742,14 @@ impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for Hcp<R> {
 
     fn project(&self, _: &Context<'_>) -> Dnf {
         // ponytail: floor only — points = raw HCP + upgrade ≥ raw HCP, so an
-        // HCP *ceiling* is unsound on the upgraded-points scale an `Inference`
+        // HCP *ceiling* is unsound on the upgraded-points scale an `Envelope`
         // records; the floor is exact.  Rule of N+8 reads a flat 4-3-3-3 one
         // under its HCP, so that scale gives the floor back 1.  The ceiling
         // returns in [`project_band`][Constraint::project_band], widened by
         // [`hcp_ceiling_slack`].
         let slack = flat_hcp_slack();
         let floor = bound_range(&self.0, Range::FULL_POINTS.max).min;
-        let mut inference = Inference::unknown();
+        let mut inference = Envelope::unknown();
         inference.points = Range::new(floor.saturating_sub(slack), Range::FULL_POINTS.max);
         Dnf::from(inference)
     }
@@ -766,7 +766,7 @@ impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for Hcp<R> {
                 bound_range(&self.0, Range::FULL_POINTS.max),
                 Range::FULL_POINTS.max,
             )
-            .map_or_else(Inference::unknown, hcp_band),
+            .map_or_else(Envelope::unknown, hcp_band),
         )
     }
 }
@@ -774,8 +774,8 @@ impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for Hcp<R> {
 /// The upgraded-points envelope a *raw HCP* band implies: slacked down by
 /// [`flat_hcp_slack`] (rule of N+8 reads a flat 4-3-3-3 one under its HCP) and
 /// up by [`hcp_ceiling_slack`] (the scale's maximum upgrade).
-fn hcp_band(raw: Range) -> Inference {
-    let mut inference = Inference::unknown();
+fn hcp_band(raw: Range) -> Envelope {
+    let mut inference = Envelope::unknown();
     inference.points = Range::new(
         raw.min.saturating_sub(flat_hcp_slack()),
         raw.max
@@ -911,22 +911,22 @@ impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for Points<R> {
         // CAP)`): sound whether or not the fuzzy-strength upgrade is on, since
         // the upgraded point count is never below the band's floor.
         let floor = bound_range(&self.0, Range::FULL_POINTS.max).min;
-        let mut inference = Inference::unknown();
+        let mut inference = Envelope::unknown();
         inference.points = Range::new(floor, Range::FULL_POINTS.max);
         Dnf::from(inference)
     }
 
     fn project_band(&self, _: &Context<'_>) -> Dnf {
         // Both bounds exact: `points` gauges the shared `point_count` scalar
-        // the `Inference` scale records, whatever scale it is set to.
-        let mut inference = Inference::unknown();
+        // the `Envelope` scale records, whatever scale it is set to.
+        let mut inference = Envelope::unknown();
         inference.points = bound_range(&self.0, Range::FULL_POINTS.max);
         Dnf::from(inference)
     }
 
     fn project_complement(&self, _: &Context<'_>) -> Dnf {
         // Exact on the same scale, so the complement is exact too.
-        let mut inference = Inference::unknown();
+        let mut inference = Envelope::unknown();
         if let Some(range) = complement_range(
             bound_range(&self.0, Range::FULL_POINTS.max),
             Range::FULL_POINTS.max,
@@ -1073,8 +1073,8 @@ impl<R: RangeBounds<usize> + Clone + Send + Sync> Constraint for Len<R> {
 /// The projection of `!len(suit, range)` — `suit` bounded to the complement of
 /// `range`, every other suit full, and nothing at all when that complement is
 /// not a band.  Shared with [`Support`], whose suit comes from the auction.
-fn len_complement<R: RangeBounds<usize>>(suit: Suit, range: &R) -> Inference {
-    let mut inference = Inference::unknown();
+fn len_complement<R: RangeBounds<usize>>(suit: Suit, range: &R) -> Envelope {
+    let mut inference = Envelope::unknown();
     if let Some(range) = complement_range(
         bound_range(range, Range::FULL_LENGTH.max),
         Range::FULL_LENGTH.max,
@@ -1095,8 +1095,8 @@ pub fn len(
 /// The projection of a single `len(suit, range)` — `suit` floored to `range`,
 /// every other suit full.  Shared by [`AllLen`] (intersected) and [`AnyLen`]
 /// (unioned), and by [`Len::project`]'s sibling logic.
-fn len_projection<R: RangeBounds<usize>>(suit: Suit, range: &R) -> Inference {
-    let mut inference = Inference::unknown();
+fn len_projection<R: RangeBounds<usize>>(suit: Suit, range: &R) -> Envelope {
+    let mut inference = Envelope::unknown();
     inference.lengths[suit as usize] = bound_range(range, Range::FULL_LENGTH.max);
     inference
 }
@@ -1133,7 +1133,7 @@ impl<const N: usize, R: RangeBounds<usize> + Clone + Send + Sync> Constraint for
                 .iter()
                 .map(|&suit| len_projection(suit, &self.range))
                 .reduce(|acc, inf| acc.intersect(&inf))
-                .unwrap_or_else(Inference::unknown),
+                .unwrap_or_else(Envelope::unknown),
         )
     }
 }
@@ -1258,7 +1258,7 @@ impl Constraint for Balanced {
 
     fn project_band(&self, _: &Context<'_>) -> Dnf {
         // 4333, 4432, or 5332: every suit two to five cards.
-        let mut inference = Inference::unknown();
+        let mut inference = Envelope::unknown();
         inference.lengths = [Range::new(2, 5); 4];
         Dnf::from(inference)
     }
@@ -1355,7 +1355,7 @@ impl<R: RangeBounds<usize> + Clone + Send + Sync> Constraint for Support<R> {
         Dnf::from(
             context
                 .partner_last_suit()
-                .map_or_else(Inference::unknown, |suit| len_complement(suit, &self.0)),
+                .map_or_else(Envelope::unknown, |suit| len_complement(suit, &self.0)),
         )
     }
 }
@@ -1973,7 +1973,7 @@ mod tests {
     fn project_band_carries_ceilings() {
         let context = empty_context();
         // `points` gauges the shared scalar: both bounds exact.  (`.hull()`
-        // collapses the single-box C1 `Dnf` to its `Inference`.)
+        // collapses the single-box C1 `Dnf` to its `Envelope`.)
         assert_eq!(
             points(..12).project_band(&context).hull().points,
             Range::new(0, 11)
@@ -2001,7 +2001,7 @@ mod tests {
         assert_eq!(band.length(Suit::Hearts).max, 5);
         assert_eq!(band.length(Suit::Spades).max, 5);
         // A trivial catch-all claims nothing — the trap-pass safeguard.
-        assert_eq!(hcp(0..).project_band(&context).hull(), Inference::unknown());
+        assert_eq!(hcp(0..).project_band(&context).hull(), Envelope::unknown());
     }
 
     #[test]

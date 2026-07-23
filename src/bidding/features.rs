@@ -17,7 +17,7 @@
 //! | **Total**            |       | **88** |
 
 use super::context::Context;
-use super::inference::{Inference, Inferences, Relative};
+use super::inference::{Envelope, Inferences, Relative};
 use crate::bidding::constraint::upgrade;
 use contract_bridge::auction::RelativeVulnerability;
 use contract_bridge::eval::{self, HandEvaluator, SimpleEvaluator};
@@ -107,8 +107,8 @@ fn push_hand_eval(out: &mut Vec<f32>, hand: Hand) {
 
 /// Push one player's shown ranges ([`LEN_INFERENCE`] values): per suit
 /// `{min, max}` length ÷ 13, then `{min, max}` points ÷ 37.  Nothing shown is
-/// the `[0, 1]` pattern (`Inference::unknown`), *not* zeros.
-fn push_inference(out: &mut Vec<f32>, player: &Inference) {
+/// the `[0, 1]` pattern (`Envelope::unknown`), *not* zeros.
+fn push_inference(out: &mut Vec<f32>, player: &Envelope) {
     for suit in Suit::ASC {
         let range = player.length(suit);
         out.push(range.min as f32 / 13.0);
@@ -453,7 +453,7 @@ mod tests {
         assert_eq!(f2[we_opened_offset], 1.0, "we opened (partner opened)");
     }
 
-    /// Nothing shown is `[0, 1]` per value pair — the `Inference::unknown`
+    /// Nothing shown is `[0, 1]` per value pair — the `Envelope::unknown`
     /// encoding.  Zeros would be a *different*, out-of-distribution hand.
     const UNKNOWN_BLOCK: [f32; LEN_INFERENCE] = [0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0];
 

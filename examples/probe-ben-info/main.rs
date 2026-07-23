@@ -23,7 +23,7 @@ use pons::american;
 use pons::bidding::Family;
 use pons::bidding::constraint::point_count;
 use pons::bidding::context::relative;
-use pons::bidding::inference::{Inference, Relative};
+use pons::bidding::inference::{Envelope, Relative};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
 use std::io::Write;
@@ -94,7 +94,7 @@ fn hand_pbn(hand: Hand) -> String {
 /// our `points` bands are denominated in (raw HCP + long-suit bonus, floored;
 /// fit-known `support_points` can still legitimately exceed it on raises),
 /// and suit lengths in [`Suit::ASC`] order (clubs, diamonds, hearts, spades)
-/// — the same order [`Inference::lengths`] uses.
+/// — the same order [`Envelope::lengths`] uses.
 #[derive(serde::Serialize)]
 struct Truth {
     hcp: u8,
@@ -127,7 +127,7 @@ struct Row {
     prefix: usize,
     /// `points` is our upgraded scale (raw HCP only when balanced) — compare
     /// bands and ordering against BEN's HCP mean, not raw deltas
-    ours: Hidden<Inference>,
+    ours: Hidden<Envelope>,
     truth: Hidden<Truth>,
 }
 

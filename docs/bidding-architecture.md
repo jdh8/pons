@@ -74,7 +74,7 @@ three:
 | --- | --- | --- |
 | `eval` | logit for a hand | classification (bidding) |
 | `describe` | `Description` tree | disclosure, corpus, `render-book` |
-| `project` | forward `Inference` envelope (floors) | decoding a call back into shape/strength |
+| `project` | forward `Envelope` (floors) | decoding a call back into shape/strength |
 | `project_band` | two-sided envelope (ceilings return) | the pass reading — a *declined* call reads by what its gate would have allowed (`set_pass_reading`) |
 
 Builders: `hcp`, `points`, `fifths`, `len`, `balanced`, `support`,
@@ -119,7 +119,7 @@ range (projects the union — sound but loose).
   falls out) under their at-the-time context, and decoded when alerted. The
   stance models the opponents as playing our own books: exact in self-play,
   an approximation against other natural-family engines.
-- `Inferences::read` (`inference.rs`) accumulates per-player `Inference`
+- `Inferences::read` (`inference.rs`) accumulates per-player `Envelope`
   (per-suit length ranges + points) from the auction — design law **soundness
   over tightness** (never claim more than the calls promise). Convention
   readings suppress the literal natural reading at the artificial bid's index

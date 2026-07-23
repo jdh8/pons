@@ -345,7 +345,7 @@ mod tests {
     }
 
     /// The projection soundness invariant: every hand a constraint accepts must
-    /// fall within the forward `Inference` envelope `project` reports.  A
+    /// fall within the forward `Envelope` `project` reports.  A
     /// violation is a witness hand inside `eval` but outside `project` — exactly
     /// the bug that would let the forward reader under-constrain a player and
     /// raise a phantom suit.  Spans primitives, conjunction, the disjoint-suit

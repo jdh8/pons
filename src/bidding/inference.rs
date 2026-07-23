@@ -19,7 +19,7 @@
 //!
 //! # Soundness over tightness
 //!
-//! Every player starts at [`Inference::unknown`] and each call only ever
+//! Every player starts at [`Envelope::unknown`] and each call only ever
 //! *narrows* a range via [`Range::intersect`].  A rule that is unsure leaves
 //! the range wide; a missing rule costs tightness, never soundness.  The
 //! guarantee a consumer may rely on is one-directional: a hand that actually
@@ -435,7 +435,7 @@ impl Range {
 /// What the calls have shown about one player, hand-independently
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct Inference {
+pub struct Envelope {
     /// Shown length range per suit, indexed by `suit as usize` (the ascending
     /// [`Suit::ASC`] order: clubs, diamonds, hearts, spades)
     pub lengths: [Range; 4],
@@ -444,7 +444,7 @@ pub struct Inference {
     pub points: Range,
 }
 
-impl Inference {
+impl Envelope {
     /// Nothing shown yet: every suit `0..=13`, points `0..=37`
     #[must_use]
     pub const fn unknown() -> Self {
@@ -548,7 +548,7 @@ impl Inference {
 
 /// A forward reading as a union of boxes — disjunctive normal form
 ///
-/// One [`Inference`] is a single axis-aligned box; a disjunction (`Multi`, a
+/// One [`Envelope`] is a single axis-aligned box; a disjunction (`Multi`, a
 /// two-suiter, a `!`-shape) needs a *union* of boxes, which a single box cannot
 /// hold without widening to the bounding box (the "`Or` wall").  A [`Dnf`] keeps
 /// the terms: a hand is consistent with the call iff it lies in **some** box.
@@ -562,28 +562,28 @@ impl Inference {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Dnf(
     /// The disjoined boxes; non-empty (`len >= 1`) by invariant.
-    Vec<Inference>,
+    Vec<Envelope>,
 );
 
 impl Dnf {
-    /// Nothing shown yet: a single [`Inference::unknown`] box
+    /// Nothing shown yet: a single [`Envelope::unknown`] box
     #[must_use]
     pub fn unknown() -> Self {
-        Self(vec![Inference::unknown()])
+        Self(vec![Envelope::unknown()])
     }
 
-    /// The bounding box of the union — fold [`Inference::union`] over the terms
+    /// The bounding box of the union — fold [`Envelope::union`] over the terms
     ///
     /// Today's single-box behaviour: every consumer that still wants one
-    /// [`Inference`] hulls here.  Never narrows (a hand in some term is in the
+    /// [`Envelope`] hulls here.  Never narrows (a hand in some term is in the
     /// hull), so hulling a sound `Dnf` stays sound.
     #[must_use]
-    pub fn hull(&self) -> Inference {
+    pub fn hull(&self) -> Envelope {
         self.0
             .iter()
             .copied()
             .reduce(|a, b| a.union(&b))
-            .unwrap_or_else(Inference::unknown)
+            .unwrap_or_else(Envelope::unknown)
     }
 
     /// Whether **some** box admits the hand — tighter than `hull().admits()`
@@ -602,7 +602,7 @@ impl Dnf {
     /// The `|` combine the projection fold uses: separate boxes under
     /// [`dnf_reading`], else the single bounding-box hull
     ///
-    /// Off (the default), reproduces [`Inference::union`] exactly, so the hull
+    /// Off (the default), reproduces [`Envelope::union`] exactly, so the hull
     /// path stays byte-identical; on, keeps the arms so an enclosing `&`
     /// distributes and the sampler pins the disjunction.
     #[must_use]
@@ -617,7 +617,7 @@ impl Dnf {
     /// Cartesian product of pairwise box-intersects — the `&` projection
     ///
     /// `(A ∪ B) ∩ (C ∪ D) = (A∩C) ∪ (A∩D) ∪ (B∩C) ∪ (B∩D)`, dropping empty
-    /// products (`Inference::intersect_nonempty`).  The common case is one box
+    /// products (`Envelope::intersect_nonempty`).  The common case is one box
     /// each → one box out (`and` is a cheap box-shrink); growth needs *both*
     /// sides to be genuine disjunctions.  If every product is empty the whole
     /// conjunction is unsatisfiable, so fall back to the widened hull-intersect
@@ -644,8 +644,8 @@ impl Dnf {
     }
 }
 
-impl From<Inference> for Dnf {
-    fn from(box_: Inference) -> Self {
+impl From<Envelope> for Dnf {
+    fn from(box_: Envelope) -> Self {
         Self(vec![box_])
     }
 }
@@ -727,11 +727,11 @@ fn systems_on_overcall_strip(auction: &[Call]) -> Option<Vec<Call>> {
 #[derive(Clone, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Inferences {
-    /// Per-seat bounding-box hull of `dnf` — the single-[`Inference`] reading the
+    /// Per-seat bounding-box hull of `dnf` — the single-[`Envelope`] reading the
     /// American engine consumes via [`get`][Self::get].  A redundant cache of
-    /// `dnf[i].hull()` (`ponytail: keeps get()->&Inference and all readers
+    /// `dnf[i].hull()` (`ponytail: keeps get()->&Envelope and all readers
     /// unchanged; collapse to get-by-value if the two ever drift`).
-    players: [Inference; 4],
+    players: [Envelope; 4],
     /// Per-seat union-of-boxes reading; the sampler tests any-box under
     /// [`dnf_reading`].  Off, every entry is a single box equal to `players[i]`.
     dnf: [Dnf; 4],
@@ -747,7 +747,7 @@ pub struct Inferences {
 impl Inferences {
     /// The shown shape and strength of one relative seat (the hull)
     #[must_use]
-    pub const fn get(&self, who: Relative) -> &Inference {
+    pub const fn get(&self, who: Relative) -> &Envelope {
         &self.players[who as usize]
     }
 
@@ -768,25 +768,25 @@ impl Inferences {
 
     /// What the player to act has shown by their own prior calls
     #[must_use]
-    pub const fn me(&self) -> &Inference {
+    pub const fn me(&self) -> &Envelope {
         self.get(Relative::Me)
     }
 
     /// What partner has shown
     #[must_use]
-    pub const fn partner(&self) -> &Inference {
+    pub const fn partner(&self) -> &Envelope {
         self.get(Relative::Partner)
     }
 
     /// What the left-hand opponent has shown
     #[must_use]
-    pub const fn lho(&self) -> &Inference {
+    pub const fn lho(&self) -> &Envelope {
         self.get(Relative::Lho)
     }
 
     /// What the right-hand opponent has shown
     #[must_use]
-    pub const fn rho(&self) -> &Inference {
+    pub const fn rho(&self) -> &Envelope {
         self.get(Relative::Rho)
     }
 
@@ -804,9 +804,9 @@ impl Inferences {
         copy.players[i].points = copy.players[i].points.intersect(points);
         // Narrow the points of every box in the union to keep `dnf` == the hull's
         // source (a points-only slab drops no box: it never crosses a length axis).
-        let slab = Inference {
+        let slab = Envelope {
             points,
-            ..Inference::unknown()
+            ..Envelope::unknown()
         };
         copy.dnf[i] = copy.dnf[i].intersect(&slab.into());
         copy
@@ -837,7 +837,7 @@ impl Inferences {
         }
         let auction = context.auction();
         let len = auction.len();
-        let mut players = [Inference::unknown(); 4];
+        let mut players = [Envelope::unknown(); 4];
         // The disjunctive overlay, folded into `players` (the hull) below and into
         // `dnf` (the boxes) at each return.  Unknown until `project_authored` runs.
         let mut overlay_dnf: [Dnf; 4] = std::array::from_fn(|_| Dnf::unknown());
@@ -913,7 +913,7 @@ impl Inferences {
         overlay_dnf = overlay_boxes;
         // The hulled overlay the natural walk consumes (`shown_suit`, the post-walk
         // intersect); the boxes are re-combined into `dnf` at the return.
-        let overlay: [Inference; 4] = std::array::from_fn(|i| overlay_dnf[i].hull());
+        let overlay: [Envelope; 4] = std::array::from_fn(|i| overlay_dnf[i].hull());
         // The one suppression the projection cannot see: the advancer's 2♦ relay /
         // 2♥-2♠ preference over a Landy/Woolsey both-majors 2♣ names no length of its
         // own, so its rule projects nothing — suppress it by hand (the doc's stub).
@@ -1657,7 +1657,7 @@ impl Inferences {
 /// seat, exactly as the hand-written readers do, but read straight off the rule.
 ///
 /// A keyless context (no prefixes) or an all-natural auction leaves every seat at
-/// [`Inference::unknown`], so this is a sound, loose *overlay* — never the natural
+/// [`Envelope::unknown`], so this is a sound, loose *overlay* — never the natural
 /// reading itself (openings, raises, rebids stay in [`Inferences::read`]).
 ///
 /// The projection in isolation: [`Inferences::read`] folds [`project_authored`]
@@ -1714,8 +1714,8 @@ fn classify_high_bid(
     bid: Bid,
     len: usize,
     opening_index: usize,
-    players: &[Inference; 4],
-    overlay: &[Inference; 4],
+    players: &[Envelope; 4],
+    overlay: &[Envelope; 4],
     suppressed_so_far: u64,
 ) -> HighBid {
     let Some(suit) = bid.strain.suit() else {
@@ -1861,7 +1861,7 @@ fn classify_high_bid(
 /// `⋃(hand-walk ∩ boxₖ)` — the tight union — while dropping boxes the walk
 /// contradicts.  With [`dnf_reading`] off each overlay is one box, so the result
 /// is the single box `players[i]` and `dnf[i].hull() == players[i]` (byte-identical).
-fn dnf_of(players: &[Inference; 4], overlay: &[Dnf; 4]) -> [Dnf; 4] {
+fn dnf_of(players: &[Envelope; 4], overlay: &[Dnf; 4]) -> [Dnf; 4] {
     std::array::from_fn(|i| Dnf::from(players[i]).intersect(&overlay[i]))
 }
 
@@ -2045,7 +2045,7 @@ fn project_authored(context: &Context<'_>) -> ([Dnf; 4], u64) {
 /// any future artificial call added without an `.alert(...)` must fail that test
 /// rather than silently lose its decoding.
 #[cfg(test)]
-fn artificial(projection: &Inference, made: Call, doubled: Option<Strain>) -> bool {
+fn artificial(projection: &Envelope, made: Call, doubled: Option<Strain>) -> bool {
     // The "named" suit is the one the call offers to play: a bid names its own
     // strain; a double/redouble "names" the doubled strain it offers to defend.
     // Artificial = the projection floors some *other* suit ≥4 — the call is really
@@ -2990,7 +2990,7 @@ fn meckwell_reading(auction: &[Call]) -> Option<MeckwellReading> {
 }
 
 /// Apply the meaning of the opening bid (the first non-pass call)
-fn apply_opening(inf: &mut Inference, bid: Bid, seat: u8) {
+fn apply_opening(inf: &mut Envelope, bid: Bid, seat: u8) {
     // A one-level suit opening reads 10, not 12: `points(12..)` on the shipped
     // rule-of-N+8 scale is the Rule of 20, which admits sound 10-11 counts, and
     // the reading has to stay loose enough for a floor arm or an opponent whose
@@ -3067,7 +3067,7 @@ fn apply_opening(inf: &mut Inference, bid: Bid, seat: u8) {
 }
 
 /// Narrow a balanced opener: two to five cards in every suit
-fn balanced(inf: &mut Inference) {
+fn balanced(inf: &mut Envelope) {
     for suit in Suit::ASC {
         inf.narrow_length(suit, Range::new(2, 5));
     }
@@ -3078,7 +3078,7 @@ fn balanced(inf: &mut Inference) {
 /// A one-level new suit promises six-plus points; a game-forcing 2/1 (a
 /// two-level new suit over a one-of-a-major opening, or `1♦`–`2♣`) promises
 /// thirteen-plus.
-fn apply_response_points(inf: &mut Inference, response: Bid, opening: Bid, eligible: bool) {
+fn apply_response_points(inf: &mut Envelope, response: Bid, opening: Bid, eligible: bool) {
     if !eligible {
         return;
     }
@@ -3135,7 +3135,7 @@ mod tests {
     #[test]
     fn dnf_intersect_drops_empty_products() {
         // A box literal: [♣, ♦, ♥, ♠] length ranges (ASC order) and points.
-        let box_ = |c: (u8, u8), d: (u8, u8), h: (u8, u8), s: (u8, u8), p: (u8, u8)| Inference {
+        let box_ = |c: (u8, u8), d: (u8, u8), h: (u8, u8), s: (u8, u8), p: (u8, u8)| Envelope {
             lengths: [
                 Range::new(c.0, c.1),
                 Range::new(d.0, d.1),
@@ -3708,7 +3708,7 @@ mod tests {
     fn artificial_witness_covers_doubles() {
         // A projection that floors a suit it would not name — the witness a transfer
         // or two-suiter trips (5+ hearts).
-        let mut floors_hearts = Inference::unknown();
+        let mut floors_hearts = Envelope::unknown();
         floors_hearts.narrow_length(Suit::Hearts, Range::at_least(5, LENGTH_CAP));
 
         // A *bid* that did not name hearts is artificial (Jacoby 2♦ → 5+♥); a bid

@@ -50,7 +50,7 @@ one authored rule:
 ```rust
 fn eval(&self, hand, ctx) -> f32;      // "does THIS hand qualify?"  0.0 yes, -inf no
 fn describe(&self) -> Description;     // "what do you mean?"        (English)
-fn project(&self, ctx) -> Inference;   // "summarise ALL hands that qualify"
+fn project(&self, ctx) -> Envelope;   // "summarise ALL hands that qualify"
 ```
 
 `eval` runs **backwards** (we have a hand, does it fit?) — that is our own
@@ -70,7 +70,7 @@ Writing `hcp(13..) & len(♣, 4..)` computes nothing; it builds the value
 **The default is what keeps it safe:**
 
 ```rust
-fn project(&self, _ctx) -> Inference { Inference::unknown() }   // "any hand"
+fn project(&self, _ctx) -> Envelope { Envelope::unknown() }   // "any hand"
 ```
 
 A constraint that does not override this says "I know nothing." Loose, never
@@ -87,7 +87,7 @@ The trap is the obvious fix:
 
 ```rust
 // WRONG
-fn project(&self, ctx) -> Inference { complement(self.0.project(ctx)) }
+fn project(&self, ctx) -> Envelope { complement(self.0.project(ctx)) }
 ```
 
 For `!len(♠, 4..)` that works, because the inner summary is exact. For
@@ -103,7 +103,7 @@ of the truth, not a superset of it.
 
 ```rust
 /// Summarise all hands that FAIL this constraint.
-fn project_complement(&self, _ctx) -> Inference { Inference::unknown() }
+fn project_complement(&self, _ctx) -> Envelope { Envelope::unknown() }
 ```
 
 `Flip::project` then calls `self.0.project_complement(ctx)`, asking the inner
@@ -205,7 +205,7 @@ cost is double-dummy solving, not sampling).
 
 ## Representation: atoms are slabs, combinators do the rest
 
-`Inference` has exactly five axes — four suit lengths and points. Every primitive
+`Envelope` has exactly five axes — four suit lengths and points. Every primitive
 constrains **one** axis to a contiguous interval and leaves the rest at ⊤:
 
 | constraint | axis | atom? |
@@ -322,7 +322,7 @@ code.**
 **Stage 0 — the invariant test (arguably the highest value here).** The fit-split
 bug was not an authoring error: `hcp(13..) | (support(3..) & support_points(13..))`
 is a *correct* bidding rule that measured as a win. The machinery silently degraded
-it, and `0..=37` is a perfectly well-formed `Inference` — nothing errored, nothing
+it, and `0..=37` is a perfectly well-formed `Envelope` — nothing errored, nothing
 was empty, no test went red. It simply stopped knowing anything and kept a straight
 face.
 
@@ -356,7 +356,7 @@ stage that unparks the evaluator — the three tests pinning the 12-count at 4�
 downstream of the blind envelope.
 
 **Stage C — the DNF.** `Constraint::project` returns a capped DNF instead of one
-`Inference`; combinators implement their cases; `Flip` gets NNF. Consumers wanting a
+`Envelope`; combinators implement their cases; `Flip` gets NNF. Consumers wanting a
 single box take the hull, **which is exactly today's behaviour**, so the migration is
 incremental and each consumer moves at its own pace. Feature-version bump when the
 net starts reading more than the hull.

@@ -298,7 +298,7 @@ extracts, it cuts its error by 22%. That gap is the entire value of routing the
 auction through `Inferences` rather than feeding it raw, and it is what the
 session-D floor will be buying.
 
-Blanking is `Inference::unknown()`'s `[0, 1]` encoding, not zeros — zeros are
+Blanking is `Envelope::unknown()`'s `[0, 1]` encoding, not zeros — zeros are
 out-of-distribution and would measure a different, meaningless thing.
 
 The blanked arm also **under-covers** (47.2% against a nominal 50%): with the

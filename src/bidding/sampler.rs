@@ -5,7 +5,7 @@
 //! act, their actual hand, and those ranges, it deals the *other three* hands at
 //! random so each falls within everything the calls have shown.
 //!
-//! Because every range starts at [`Inference::unknown`] and only ever narrows
+//! Because every range starts at [`Envelope::unknown`] and only ever narrows
 //! soundly (`Range::intersect`'s soundness-over-tightness), a hand that truly
 //! made these calls always lands inside its range.  The sampled layouts are
 //! therefore a sound population of "full deals this auction could have come
