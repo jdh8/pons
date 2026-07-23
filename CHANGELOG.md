@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **DNF chop G0 harness and verdict: the wide-minor 2NT opening shape is a
+  measured WASH; the knob stays default-off opt-in (no default change).**
+  A treatment, not a rewrite: `set_two_notrump_wide` swaps the strong-2NT
+  shape from `balanced()` to `{majors 2..=4, minors 2..=6}` — drops balanced
+  5-card-major hands (they open 1M), adds wide minors (5m422/6m322) — and
+  widens the inference reading to match, both knob-gated. Harness:
+  `--ns-two-nt-wide` in `bba-gen`, `scripts/two-nt-wide-ab.sh` (off/wide arms,
+  plain+PD). Verdict: a first run (204800 bd/arm/vul) leaned +0.0009 IMPs/bd
+  in all four cells with every CI spanning 0; a 5× re-measure (1024000
+  bd/arm/vul, SEED_BASE 1784789763) regressed the lean by half to
+  +0.0004–0.0005 IMPs/bd — 3/4 cells still span 0, plain-DD primary never
+  clears → **WASH**. The effect is real but negligible (per-fired +0.28 IMPs,
+  fires only 0.15%); a handful of −14…−21 IMP slam/game misroutes offset the
+  many small minor-fit wins. Settled, not a re-measure candidate. sd-lead
+  parked (disclosure mismatch). Byte-identity holds (both knob-gated). See
+  [docs/dnf-migration.md](docs/dnf-migration.md).
+
 - **DNF chop F harness and verdict: the `set_dnf_reading` flip is REFUTED
   as-is; the knob stays default-off opt-in (no default change).** Harness:
   `--ns-dnf` / `--ns-gauge-membership` arm flags in `bba-gen` (set once in

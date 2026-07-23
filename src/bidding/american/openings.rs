@@ -31,6 +31,10 @@ thread_local! {
     /// Default `None`: byte-identical.  Wins over [`WEAK_TWO_HCP`] if both are
     /// armed.  See [`set_weak_two_eval`].
     static WEAK_TWO_EVAL: Cell<Option<WeakTwoEval>> = const { Cell::new(None) };
+    /// Whether the strong 2NT (20-21) opening admits the wide-minor shape
+    /// instead of plain `balanced()`.  Default `false` (byte-identical).  See
+    /// [`set_two_notrump_wide`].
+    static TWO_NOTRUMP_WIDE: Cell<bool> = const { Cell::new(false) };
 }
 
 /// Suppress (`false`) or restore (`true`, the default) our own 1NT opening.
@@ -128,6 +132,26 @@ pub fn set_weak_two_eval(gauge: Option<WeakTwoEval>) {
     WEAK_TWO_EVAL.with(|cell| cell.set(gauge));
 }
 
+/// Open the strong 2NT (20-21) on the wide-minor shape `{M 2..=4, m 2..=6}`
+/// instead of plain `balanced()` (opt-in; the default `false` is byte-identical)
+///
+/// This is DNF-ledger chop G0 (docs/dnf-migration.md): the 1NT `Wide6322`
+/// treatment carried up to the 20-21 opening.  It **drops the 5M(332)** balanced
+/// hands (a 5-card major now opens one-of-a-major and jump-rebuilds) and **adds
+/// the wide minors** (5m422/6m322), mirroring [`NotrumpShape::Wide6322`] minus
+/// its two major pan-handles.  The reading in
+/// [`apply_opening`][crate::bidding::inference] widens opener's minors to six
+/// under the same knob.
+pub fn set_two_notrump_wide(on: bool) {
+    TWO_NOTRUMP_WIDE.with(|cell| cell.set(on));
+}
+
+/// Whether the strong 2NT opening admits the wide-minor shape (chop G0).  Read
+/// by both the opening table and the inference reading so they stay in step.
+pub(crate) fn two_notrump_wide() -> bool {
+    TWO_NOTRUMP_WIDE.with(Cell::get)
+}
+
 /// Which hand shapes the strong 1NT opening admits ([`openings_with`])
 ///
 /// Every variant opens the balanced patterns (4333/4432/5332).  A long *major*
@@ -175,6 +199,24 @@ pub(crate) fn notrump_shape(shape: NotrumpShape) -> Cons<impl Constraint + Clone
         }
     }
     shapes(label, boxes)
+}
+
+/// The wide-minor 2NT shape (chop G0): the `Wide6322` cube `{M 2..=4, m 2..=6}`
+/// with no pan-handles — balanced/semi-balanced with the longest suit a minor.
+///
+/// The 13-card sum does the excluding: majors capped at four drop every 5-card
+/// major (so 5M(332) opens one-of-a-major instead), and minors run to six for
+/// the 5m(422)/6m(322) hands.  `{4432, 4333, 5m332, 5m422, 6m322}`.
+fn two_notrump_wide_shape() -> Cons<impl Constraint + Clone> {
+    shapes(
+        "balanced or wide-minor 2NT shape",
+        vec![length_box([
+            Range::new(2, 6), // clubs
+            Range::new(2, 6), // diamonds
+            Range::new(2, 4), // hearts
+            Range::new(2, 4), // spades
+        ])],
+    )
 }
 
 /// Better-minor selector: open 1♦ rather than 1♣
@@ -244,13 +286,22 @@ pub fn openings_with(shape: NotrumpShape) -> Rules {
             )
         };
     }
-    rules = rules
-        // Strong 2NT.
-        .rule(
+    // Strong 2NT.  `balanced()` by default; the G0 opt-in
+    // (`set_two_notrump_wide`) swaps in the wide-minor shape.  Each arm reissues
+    // `.rule()` so the differing constraint types unify to `Rules`.
+    rules = if TWO_NOTRUMP_WIDE.with(Cell::get) {
+        rules.rule(
+            Bid::new(2, Strain::Notrump),
+            2.0,
+            fifths(20.0..22.0) & two_notrump_wide_shape(),
+        )
+    } else {
+        rules.rule(
             Bid::new(2, Strain::Notrump),
             2.0,
             fifths(20.0..22.0) & balanced(),
-        );
+        )
+    };
     // One-level suit openings.  Every band carries an explicit `hcp` floor,
     // because a `points` band alone cannot supply one: on the rule-of-N+8 scale
     // a hand's count is `hcp + max(0, L1+L2 − 8)` and `L1+L2` reaches 13 on a
@@ -580,5 +631,27 @@ mod tests {
                 );
             });
         }
+    }
+
+    /// G0: the wide-minor 2NT shape is exactly `Wide6322` with the 5-card
+    /// majors removed — it drops the 5M(332) pan-handles (a 5-card major opens
+    /// one-of-a-major) and keeps the wide minors (5m422/6m322).
+    #[test]
+    fn two_notrump_wide_shape_drops_five_card_majors() {
+        use crate::bidding::constraint::for_each_shape;
+        use contract_bridge::auction::RelativeVulnerability;
+
+        let ctx = Context::new(RelativeVulnerability::NONE, &[]);
+        let wide6322 = notrump_shape(NotrumpShape::Wide6322);
+        let g0 = two_notrump_wide_shape();
+        for_each_shape(|lengths, hand| {
+            // [C, D, H, S] in ASC order — majors are indexes 2 and 3.
+            let majors_capped = lengths[2] <= 4 && lengths[3] <= 4;
+            assert_eq!(
+                g0.eval(hand, &ctx).is_finite(),
+                wide6322.eval(hand, &ctx).is_finite() && majors_capped,
+                "G0 shape disagrees at {lengths:?}",
+            );
+        });
     }
 }

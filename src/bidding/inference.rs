@@ -3329,7 +3329,18 @@ fn apply_opening(inf: &mut Envelope, bid: Bid, seat: u8) {
             inf.narrow_points(Range::at_least(20, POINTS_CAP));
         }
         (2, Strain::Notrump) => {
-            balanced(inf);
+            if crate::bidding::american::two_notrump_wide() {
+                // Chop G0: the wide-minor 2NT (`set_two_notrump_wide`) caps
+                // majors at four (5M(332) opens one-of-a-major) and runs minors
+                // to six (5m422/6m322).  `narrow_length` only intersects, so set
+                // the four suits directly rather than clamping via `balanced()`.
+                inf.narrow_length(Suit::Spades, Range::new(2, 4));
+                inf.narrow_length(Suit::Hearts, Range::new(2, 4));
+                inf.narrow_length(Suit::Clubs, Range::new(2, 6));
+                inf.narrow_length(Suit::Diamonds, Range::new(2, 6));
+            } else {
+                balanced(inf);
+            }
             // As with 1NT: `fifths(20.0..22.0)` admits a quack-heavy 23-count
             // (fifths within 1.6 of raw HCP), so the sound point envelope is
             // 19–23, not 19–22 — and the plain rule-of-N+8 opt-in gives a

@@ -167,6 +167,13 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_gauge_membership: bool,
 
+    /// Open the strong 2NT (20-21) on the wide-minor shape `{M 2..=4, m 2..=6}`
+    /// for our side (`set_two_notrump_wide`, crate default off): drops the
+    /// 5M(332) balanced hands (they open one-of-a-major) and adds the wide
+    /// minors (5m422/6m322).  DNF-ledger chop G0 (docs/dnf-migration.md).
+    #[arg(long, default_value_t = false)]
+    ns_two_nt_wide: bool,
+
     /// Cleanly isolate our DEFENSE to BBA's 1NT.  Keep only boards where BBA (E/W)
     /// opens 1NT and our pair (N/S) defends, and bid table B as an ALL-BBA
     /// reference — same BBA opener and responses, only the defender differs (ours
@@ -1113,6 +1120,7 @@ fn main() -> anyhow::Result<()> {
     pons::bidding::set_fallback_projection(!args.no_ns_fallback_projection);
     pons::bidding::set_dnf_reading(args.ns_dnf);
     pons::bidding::set_gauge_membership(args.ns_gauge_membership);
+    pons::bidding::american::set_two_notrump_wide(args.ns_two_nt_wide);
     pons::bidding::american::set_open_one_notrump(!args.no_our_1nt);
     pons::bidding::american::set_one_notrump_fifths(args.nt_fifths);
     pons::bidding::american::set_natural_double_shape(match args.ns_double_shape.as_str() {
