@@ -9,6 +9,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **DNF migration wave A→E0 (infrastructure, crate default byte-identical —
+  dump-diffed 4000 boards × both vuls × two seeds, zero divergent boards).**
+  The campaign ledger is [docs/dnf-migration.md](docs/dnf-migration.md); all
+  new reading precision sits behind `set_dnf_reading` (default off). In one
+  wave:
+  - `Envelope` and `Dnf` implement `Constraint` — a union of boxes can be
+    authored directly as a hand gate. Eval is the new strict
+    `Envelope::accepts` (lengths plus **all three** strength gauges, ceilings
+    enforced); projection is the identity (knob-hulled for `Dnf`), so pass
+    readings get true bands for free; `describe` renders through the standard
+    axis nouns.
+  - The 2/1 fit-split pilot: the gate keeps its legacy composite for eval,
+    disclosure, and the knob-off reading (via the new `dnf_upgrade` adapter),
+    and knob-on reads the exact two boxes — `{2/1 suit ≥ len, major ≤ 3,
+    hcp ≥ 13}` ∪ `{2/1 suit ≥ len, major = 3, support points ≥ 13}` — the
+    measured "every 2/1 reads 0..=37" bug's cure. The dump diff caught that
+    the legacy reading is **context-sensitive by accident** (its `support`
+    legs replay under the reader's seat), which no static box list can
+    reproduce knob-off — hence the adapter; the wrong-seat trap is now a
+    ledger rule.
+  - Two-sided band complements (`!hcp(15..=17)`, `!len`, `!points`, new
+    `!support_points`) read as their two outer halves; De Morgan on
+    `And`/`Or` and `Flip` double-negation complements (knob-gated).
+  - Exact shape DNFs via the new `shapes()` combinator: `balanced` =
+    {2..=4}⁴ ∪ four 5(332), `semi_balanced` = {2..=5}⁴ ∪ four
+    {suit 6..=7, rest 2..=3}, and the 1NT opening shapes per `NotrumpShape`
+    variant ({M 2..=4, m 2..=cap} ∪ two 5M(332)) — each pinned
+    eval-equivalent to the closure it replaces, exhaustively over all 560
+    length compositions.
+  - `Support::project` finally forward-boxes partner's suit (knob-on), and
+    knob-on box hygiene (`Dnf::tidy`) drops sum-infeasible ghost boxes and
+    contained duplicates.
+  - Guard rails: the `authored_calls_read_what_they_gate` ratchet now walks
+    `dutch()` too, splits per-gauge noun columns, checks leaks per-box, and
+    pins **exact dual-knob counts** (knob-off = byte-identity guard, knob-on
+    = migration meter: support leaks 84 → 0, HCP 17 → 7, support points
+    18 → 12 knob-on); a new book-wide soundness sweep replays every authored
+    rule of both systems and asserts a finite eval implies strict membership
+    of the knob-on projection.
+  - Measured chops E (gauge membership) and F (flip the knob default-on, full
+    match A/B) stay parked in the ledger.
+
 - **`Strength` — the `Envelope` strength axis, gauged on every scale bridge
   counts on (infrastructure, crate default byte-identical).** `Envelope`'s single
   `points: Range` becomes `strength: Strength`, a POD of three marginal gauges:

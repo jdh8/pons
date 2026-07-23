@@ -112,7 +112,7 @@ impl Report {
 /// 13-card hands (a sound population though not mutually independent — they
 /// partition one deck).  Taking all four amortizes the shuffle across four
 /// samples, which matters when `compare` draws several thousand.
-fn random_hands(rng: &mut impl Rng) -> impl Iterator<Item = Hand> + '_ {
+pub(crate) fn random_hands(rng: &mut impl Rng) -> impl Iterator<Item = Hand> + '_ {
     core::iter::repeat_with(move || full_deal(rng))
         .flat_map(|deal| Seat::ALL.map(|seat| deal[seat]))
 }

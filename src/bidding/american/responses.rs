@@ -4,10 +4,12 @@ use super::super::Alert;
 use super::super::Rules;
 use super::super::Trie;
 use super::super::constraint::{
-    Cons, Constraint, balanced, described, hcp, len, points, stopper_in, support, support_points,
+    Cons, Constraint, balanced, described, dnf_upgrade, hcp, len, points, stopper_in, support,
+    support_points,
 };
 use super::notrump::flat_4333;
 use crate::bidding::context::Context;
+use crate::bidding::inference::{Dnf, Envelope, Range, Strength};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Hand, Strain, Suit};
 use std::cell::Cell;
@@ -437,24 +439,35 @@ pub fn major_responses(major: Suit) -> Rules {
                 (true, TwoOverOneGate::Points13) => rules.rule(
                     bid,
                     weight,
-                    len(suit, min_len..)
-                        & !support(4..)
-                        & (points(13..) | (support(3..) & support_points(13..))),
+                    fit_split_gate(
+                        suit,
+                        min_len,
+                        major,
+                        points(13..),
+                        gauge_floor(|s| &mut s.points, 13),
+                    ),
                 ),
                 (true, TwoOverOneGate::Points12) => rules.rule(
                     bid,
                     weight,
-                    len(suit, min_len..)
-                        & !support(4..)
-                        & (points(12..) | (support(3..) & support_points(13..))),
+                    fit_split_gate(
+                        suit,
+                        min_len,
+                        major,
+                        points(12..),
+                        gauge_floor(|s| &mut s.points, 12),
+                    ),
                 ),
                 (true, gate) => rules.rule(
                     bid,
                     weight,
-                    len(suit, min_len..)
-                        & !support(4..)
-                        & (hcp((gate.hcp_floor() - discount)..)
-                            | (support(3..) & support_points(13..))),
+                    fit_split_gate(
+                        suit,
+                        min_len,
+                        major,
+                        hcp((gate.hcp_floor() - discount)..),
+                        gauge_floor(|s| &mut s.hcp, gate.hcp_floor() - discount),
+                    ),
                 ),
             }
             .alert(GAME_FORCE);
@@ -480,6 +493,70 @@ pub(super) fn splinter_bid(major: Suit, x: Suit) -> (u8, Strain) {
         // Below the major, level 4
         (4, x_strain)
     }
+}
+
+/// The 2/1 fit-split gate as a native [`Dnf`] — the union of the two hands a
+/// game-forcing 2/1 with the fit leg admits
+///
+/// Replaces the composite `len(suit, min_len..) & !support(4..) & (no_fit |
+/// (support(3..) & support_points(13..)))`: opener's `major` is statically
+/// known here, so the `support` legs are plain length pins on it, and
+/// `support(3..) & !support(4..)` pins the major to **exactly three**.
+///
+/// | box | `suit` | `major` | strength |
+/// | --- | --- | --- | --- |
+/// | no-fit | `min_len..` | `..=3` | the arm's gauge floor (`no_fit_floor`) |
+/// | fit | `min_len..` | exactly 3 | 13+ support points |
+///
+/// The knob-on boxes are pinned eval-equivalent to the legacy composite by
+/// `fit_split_dnf_matches_composite`, and the legacy gate carries everything
+/// shipped — eval, describe, and the knob-off reading with all its
+/// context-sensitivity (its `support` legs replay under the *reader's* seat,
+/// which is how every 2/1 came to read `0..=37`,
+/// docs/ai-bidder/sampled-projection.md).  Knob-on, [`dnf_upgrade`] swaps in
+/// the exact two-box reading — the fit-split bug's cure.
+fn fit_split_gate(
+    suit: Suit,
+    min_len: usize,
+    major: Suit,
+    no_fit: Cons<impl Constraint + Clone + 'static>,
+    no_fit_floor: impl FnOnce(&mut Strength),
+) -> Cons<impl Constraint + Clone> {
+    let legacy =
+        len(suit, min_len..) & !support(4..) & (no_fit | (support(3..) & support_points(13..)));
+    dnf_upgrade(legacy, fit_split_boxes(suit, min_len, major, no_fit_floor))
+}
+
+/// The exact two-box knob-on reading of [`fit_split_gate`]
+fn fit_split_boxes(
+    suit: Suit,
+    min_len: usize,
+    major: Suit,
+    no_fit_floor: impl FnOnce(&mut Strength),
+) -> Dnf {
+    // A 2/1 length floor is 3..=5, so the cast cannot truncate.
+    let min_len = u8::try_from(min_len).unwrap_or_else(|_| unreachable!());
+    let mut base = Envelope::unknown();
+    base.lengths[suit as usize] = Range::new(min_len, Range::FULL_LENGTH.max);
+
+    let mut no_fit = base;
+    no_fit.lengths[major as usize] = Range::new(0, 3);
+    no_fit_floor(&mut no_fit.strength);
+
+    let mut fit = base;
+    fit.lengths[major as usize] = Range::new(3, 3);
+    fit.strength.support_points = Range::new(13, Range::FULL_POINTS.max);
+
+    Dnf::from(no_fit).union(Dnf::from(fit))
+}
+
+/// A gauge floor for [`fit_split_dnf`]'s no-fit box: `floor..` on the field
+/// `pick` selects
+fn gauge_floor(
+    pick: impl FnOnce(&mut Strength) -> &mut Range,
+    floor: u8,
+) -> impl FnOnce(&mut Strength) {
+    move |strength| *pick(strength) = Range::new(floor, Range::FULL_POINTS.max)
 }
 
 /// The weak jump shift bid for major `m` into suit `x`
@@ -793,5 +870,104 @@ mod tests {
             hearts_first().describe().to_string(),
             "hearts longer than spades, or equal below five",
         );
+    }
+
+    /// C2 pilot invariant: the native-[`Dnf`] fit-split gate accepts exactly
+    /// the hands the composite it replaced accepted — per response suit,
+    /// opener's major, length floor, and gauge arm.
+    ///
+    /// [`Dnf`]: crate::bidding::inference::Dnf
+    #[test]
+    fn fit_split_dnf_matches_composite() {
+        use super::{fit_split_boxes, gauge_floor};
+        use crate::bidding::constraint::{Cons, hcp, len, points, support, support_points};
+        use crate::bidding::context::Context;
+        use crate::bidding::inference::Strength;
+        use crate::bidding::verify;
+        use contract_bridge::auction::{Call, RelativeVulnerability};
+        use contract_bridge::{Bid, Strain, Suit};
+        use rand::SeedableRng as _;
+        use rand::rngs::StdRng;
+
+        fn check(
+            context: &Context<'_>,
+            rng: &mut StdRng,
+            suit: Suit,
+            min_len: usize,
+            major: Suit,
+            no_fit: Cons<impl Constraint + Clone>,
+            floor: impl FnOnce(&mut Strength),
+        ) {
+            let composite = len(suit, min_len..)
+                & !support(4..)
+                & (no_fit | (support(3..) & support_points(13..)));
+            let native = fit_split_boxes(suit, min_len, major, floor);
+            let report = verify::compare(
+                |hand| composite.eval(hand, context).is_finite(),
+                |hand| native.eval(hand, context).is_finite(),
+                rng,
+                4000,
+            );
+            assert!(
+                report.agrees(),
+                "fit-split diverges: 2{suit} over 1{major}, min_len {min_len}: {:?}",
+                report.disagreements,
+            );
+            assert!(
+                report.reference_accepts > 0,
+                "vacuous compare: 2{suit} over 1{major}, min_len {min_len}",
+            );
+        }
+
+        let mut rng = StdRng::seed_from_u64(0x2F17);
+        for major in [Suit::Hearts, Suit::Spades] {
+            let auction = [Call::Bid(Bid::new(1, Strain::from(major))), Call::Pass];
+            let context = Context::new(RelativeVulnerability::NONE, &auction);
+            for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts] {
+                if Strain::from(suit) >= Strain::from(major) {
+                    continue;
+                }
+                for min_len in [3, 4, 5] {
+                    let ctx = &context;
+                    let rng = &mut rng;
+                    check(
+                        ctx,
+                        rng,
+                        suit,
+                        min_len,
+                        major,
+                        points(13..),
+                        gauge_floor(|s| &mut s.points, 13),
+                    );
+                    check(
+                        ctx,
+                        rng,
+                        suit,
+                        min_len,
+                        major,
+                        points(12..),
+                        gauge_floor(|s| &mut s.points, 12),
+                    );
+                    check(
+                        ctx,
+                        rng,
+                        suit,
+                        min_len,
+                        major,
+                        hcp(13..),
+                        gauge_floor(|s| &mut s.hcp, 13),
+                    );
+                    check(
+                        ctx,
+                        rng,
+                        suit,
+                        min_len,
+                        major,
+                        hcp(12..),
+                        gauge_floor(|s| &mut s.hcp, 12),
+                    );
+                }
+            }
+        }
     }
 }

@@ -441,6 +441,11 @@ impl Range {
         let (min, max) = (self.min.max(other.min), self.max.min(other.max));
         (min <= max).then(|| Self::new(min, max))
     }
+
+    /// Whether `other` lies entirely within this range
+    const fn encloses(self, other: Self) -> bool {
+        self.min <= other.min && other.max <= self.max
+    }
 }
 
 /// Shown strength, gauged on the several scales bridge counts on
@@ -671,6 +676,55 @@ impl Envelope {
             .points
             .contains(super::constraint::point_count(hand))
     }
+
+    /// Whether some 13-card hand can realize this box's suit lengths
+    ///
+    /// A box born of an intersection can be range-nonempty on every axis yet
+    /// sum-infeasible — `balanced ∩ {3..}⁴` leaves a 5-3-3-3 product summing
+    /// 14 — and such a **ghost box** admits nothing.  Dropping it from a union
+    /// is exact.
+    fn sum_feasible(&self) -> bool {
+        let min: u8 = self.lengths.iter().map(|range| range.min).sum();
+        let max: u8 = self.lengths.iter().map(|range| range.max).sum();
+        min <= 13 && 13 <= max
+    }
+
+    /// Whether every hand in this box also lies in `other` — axis-wise
+    /// enclosure over the lengths and all three gauges
+    fn subset_of(&self, other: &Self) -> bool {
+        Suit::ASC
+            .into_iter()
+            .all(|suit| other.length(suit).encloses(self.length(suit)))
+            && other.strength.hcp.encloses(self.strength.hcp)
+            && other.strength.points.encloses(self.strength.points)
+            && other
+                .strength
+                .support_points
+                .encloses(self.strength.support_points)
+    }
+
+    /// Whether a hand lies within this box on **every** gauge — the strict,
+    /// gate-side membership test
+    ///
+    /// [`admits`][Self::admits] plus the raw-HCP and support-points gauges,
+    /// each scored on its own scale (raw HCP,
+    /// [`support_point_count`][super::constraint::support_point_count]).  This
+    /// is what a natively authored `Envelope`/[`Dnf`] **gate** evaluates
+    /// through `Constraint::eval`: the box is the whole rule, so every stored
+    /// bound — ceilings included — is enforced.  The reading-side
+    /// [`admits`][Self::admits] stays lenient (lengths + `points` only) for
+    /// sampler compatibility with
+    /// projected readings.  Strict ⟹ lenient, so a native gate's accepted
+    /// hands always satisfy the eval-within-projection soundness sweep.
+    #[must_use]
+    pub fn accepts(&self, hand: Hand) -> bool {
+        self.admits(hand)
+            && self.strength.hcp.contains(super::constraint::raw_hcp(hand))
+            && self
+                .strength
+                .support_points
+                .contains(super::constraint::support_point_count(hand))
+    }
 }
 
 /// A forward reading as a union of boxes — disjunctive normal form
@@ -719,6 +773,12 @@ impl Dnf {
         self.0.iter().any(|b| b.admits(hand))
     }
 
+    /// The disjoined boxes — non-empty (`len >= 1`) by invariant
+    #[must_use]
+    pub fn boxes(&self) -> &[Envelope] {
+        &self.0
+    }
+
     /// Concatenate the terms — the `|` projection (either box may hold)
     #[must_use]
     pub fn union(mut self, mut other: Self) -> Self {
@@ -735,7 +795,7 @@ impl Dnf {
     #[must_use]
     pub fn disjoin(self, other: Self) -> Self {
         if dnf_reading() {
-            self.union(other)
+            self.union(other).tidy()
         } else {
             Self::from(self.hull().union(&other.hull()))
         }
@@ -766,8 +826,42 @@ impl Dnf {
         // rare, so the Vec stays short on the real book.  The assert fires
         // loudly if some auction blows up; add sound exact-merge (containment +
         // axis-adjacency) only then.
-        debug_assert!(out.len() < 64, "DNF term explosion: {} boxes", out.len());
-        Self(out)
+        let out = Self(out).tidy();
+        debug_assert!(
+            out.0.len() < 64,
+            "DNF term explosion: {} boxes",
+            out.0.len()
+        );
+        out
+    }
+
+    /// Knob-on box hygiene — drop what changes nothing, keep the union exact
+    ///
+    /// Two prunes, both union-preserving: **ghost boxes** whose suit lengths
+    /// are sum-infeasible ([`Envelope::sum_feasible`]) admit no hand, and a
+    /// box **contained** in another ([`Envelope::subset_of`]) adds no hands
+    /// (equal boxes keep their first copy).  Runs only under [`dnf_reading`] —
+    /// the knob-off hull path must stay byte-identical — and restores the
+    /// non-empty invariant with ⊤ if every box was a ghost (an unsatisfiable
+    /// conjunction; sound, loose, rare).
+    fn tidy(mut self) -> Self {
+        if !dnf_reading() {
+            return self;
+        }
+        self.0.retain(Envelope::sum_feasible);
+        let mut kept = Vec::with_capacity(self.0.len());
+        'boxes: for (i, a) in self.0.iter().enumerate() {
+            for (j, b) in self.0.iter().enumerate() {
+                if i != j && a.subset_of(b) && (!b.subset_of(a) || j < i) {
+                    continue 'boxes;
+                }
+            }
+            kept.push(*a);
+        }
+        if kept.is_empty() {
+            kept.push(Envelope::unknown());
+        }
+        Self(kept)
     }
 }
 
@@ -5004,6 +5098,30 @@ mod tests {
         set_rubens_transfer_reading(true);
     }
 
+    /// D1c: knob-on hygiene drops sum-infeasible ghosts and contained boxes,
+    /// leaving the union exact and short.
+    #[test]
+    fn tidy_prunes_ghosts_and_contained() {
+        use crate::bidding::constraint::{Constraint as _, and, balanced, points};
+
+        set_dnf_reading(true);
+        let context = Context::new(RelativeVulnerability::NONE, &[]);
+
+        // `balanced & {3..}⁴`: the four 5(332) pan-handles intersect to
+        // sum-infeasible 5-3-3-3 ghosts; only the {3..=4}⁴ flat cube survives.
+        let flat = (balanced() & and(Suit::ASC, 3..)).project_band(&context);
+        let mut expected = Envelope::unknown();
+        expected.lengths = [Range::new(3, 4); 4];
+        assert_eq!(flat.boxes(), &[expected]);
+
+        // A strength-only `Or` duplicates the five shape boxes across its two
+        // arms; the wider-points copy encloses the narrower, so five remain.
+        let dup = (balanced() & (points(8..) | points(10..))).project_band(&context);
+        assert_eq!(dup.boxes().len(), 5);
+
+        set_dnf_reading(false);
+    }
+
     #[test]
     fn range_intersect_widens_on_conflict() {
         // Disjoint ranges cannot both hold; widen to the union, never empty.
@@ -5014,6 +5132,62 @@ mod tests {
         assert_eq!(
             Range::new(0, 3).intersect(Range::new(6, 13)),
             Range::new(0, 13)
+        );
+    }
+
+    /// Walk every authored rule of a book trie under its authoring-time context
+    ///
+    /// The shared chassis of the book-wide invariant tests below: iterate the
+    /// trie's `(auction, classifier)` nodes, skip non-rule classifiers, build the
+    /// node's [`Context`] (with common prefixes), and visit each rule.
+    fn for_each_authored_rule(
+        trie: &crate::bidding::trie::Trie,
+        mut visit: impl FnMut(&[Call], &Context<'_>, &crate::bidding::rules::Rule),
+    ) {
+        for (auction, classifier) in trie {
+            let auction: &[Call] = &auction;
+            let Some(rules) = classifier.as_rules() else {
+                continue;
+            };
+            let context = Context::new(RelativeVulnerability::NONE, auction)
+                .with_prefixes(trie.common_prefixes(auction));
+            for rule in rules.rules() {
+                visit(auction, &context, rule);
+            }
+        }
+    }
+
+    /// The alert-invariant worklist for one trie: rules whose projection the
+    /// structural [`artificial`] detector flags but which carry no `.alert(...)`
+    fn unalerted_artificial(label: &str, trie: &crate::bidding::trie::Trie) -> Vec<String> {
+        let mut worklist = Vec::new();
+        for_each_authored_rule(trie, |auction, context, rule| {
+            let made = rule.call();
+            let doubled = context.last_bid().map(|last| last.strain);
+            if super::artificial(&rule.project(context), made, doubled) && rule.alert().is_none() {
+                worklist.push(format!(
+                    "{label}: [{}] {made}  (label: {:?})",
+                    auction
+                        .iter()
+                        .map(ToString::to_string)
+                        .collect::<Vec<_>>()
+                        .join(" "),
+                    rule.label(),
+                ));
+            }
+        });
+        worklist
+    }
+
+    /// Assert an alert worklist is empty, listing the offenders
+    fn assert_all_alerted(what: &str, mut worklist: Vec<String>) {
+        worklist.sort();
+        worklist.dedup();
+        assert!(
+            worklist.is_empty(),
+            "{} {what} artificial calls lack an alert:\n{}",
+            worklist.len(),
+            worklist.join("\n"),
         );
     }
 
@@ -5036,87 +5210,43 @@ mod tests {
         use crate::bidding::american::american;
 
         let pair = american();
-        let tries = [
+        let mut worklist = Vec::new();
+        for (phase, trie) in [
             ("constructive", &pair.constructive.0),
             ("competitive", &pair.competitive.0),
             ("defensive", &pair.defensive.0),
-        ];
-
-        let mut worklist: Vec<String> = Vec::new();
-        for (phase, trie) in tries {
-            for (auction, classifier) in trie {
-                let auction: &[Call] = &auction;
-                let Some(rules) = classifier.as_rules() else {
-                    continue;
-                };
-                let context = Context::new(RelativeVulnerability::NONE, auction)
-                    .with_prefixes(trie.common_prefixes(auction));
-                for rule in rules.rules() {
-                    let made = rule.call();
-                    let doubled = context.last_bid().map(|last| last.strain);
-                    if super::artificial(&rule.project(&context), made, doubled)
-                        && rule.alert().is_none()
-                    {
-                        worklist.push(format!(
-                            "{phase}: [{}] {made}  (label: {:?})",
-                            auction
-                                .iter()
-                                .map(ToString::to_string)
-                                .collect::<Vec<_>>()
-                                .join(" "),
-                            rule.label(),
-                        ));
-                    }
-                }
-            }
+        ] {
+            worklist.extend(unalerted_artificial(phase, trie));
         }
-
-        worklist.sort();
-        worklist.dedup();
-        assert!(
-            worklist.is_empty(),
-            "{} artificial calls lack an alert (the retirement worklist):\n{}",
-            worklist.len(),
-            worklist.join("\n"),
-        );
+        assert_all_alerted("american", worklist);
     }
 
-    /// Sibling invariant to [`artificial_calls_are_alerted`]: an authored rule that
-    /// *gates* on an axis must not *read* as ⊤ on that axis.
+    /// Per-column reading-leak lists over a set of book tries
     ///
-    /// The fit-split bug is the motivating case (see
-    /// `docs/ai-bidder/sampled-projection.md`): `hcp(13..) | (support(3..) &
-    /// support_points(13..))` is a correct bidding rule that measured as a win, yet
-    /// its projection says nothing about points at all — `Or::project` is the union,
-    /// and `SupportPoints::project` is deliberately `unknown()`, so the union is
-    /// `0..=37`.  Nothing errored and no test went red; the reading simply stopped
-    /// knowing anything and kept a straight face.  The principle this pins down: the
-    /// machinery may be *imprecise*, but never imprecise **invisibly**.
+    /// A **leak** is an authored rule whose [`Constraint::describe`] names an
+    /// axis while **no box** of its [`Rule::project_band_dnf`] band constrains
+    /// that axis.  Per-box (not hull) on purpose: a disjunction that constrains
+    /// the axis in every arm — the fit-split's `points | support points` — is a
+    /// *sound* reading knob-on even though its hull is full, but knob-off the
+    /// band is a single hull box, so the same predicate degenerates to the
+    /// original hull check.
     ///
-    /// "Mentions an axis" is read off [`Constraint::describe`], the only structural
-    /// record of which axes a rule names.  That means sniffing the noun out of the
-    /// rendered atom — fragile against rewording, and the two helpers below carry the
-    /// exclusions that keeps the signal usable (off-axis `suit_hcp` and the honour
-    /// gauges read "… in ♠", vacuous `0+` floors are ⊤ *correctly*).  Points are
-    /// checked against [`Constraint::project_band`], not `project`: `project` claims
-    /// floors only on purpose, so a ceiling-only rule is not a leak there.
+    /// Columns: one per strength gauge (`HCP`, `points`, `support points` —
+    /// each noun checked against **its own** gauge), `length` (suit-symbol
+    /// atoms), and `support` ("card support for partner", resolved through
+    /// [`Context::partner_last_suit`]).
     ///
-    /// **Pinned as counts, not as a list.** The 114 leaks all fall into four causes,
-    /// none of which is an authoring error:
-    ///
-    /// | cause | example |
-    /// | --- | --- |
-    /// | `SupportPoints::project` is `unknown()` by design | `13+ support points` |
-    /// | `Or::project` unions a floor away | `5+ ♣ \| 5+ ♦` |
-    /// | `support(4..)` unresolved to a concrete suit | `partner's last suit is ♠` |
-    /// | a shortness ceiling inside an `Or` | `18+ support points \| ≤1 ♣` |
-    ///
-    /// So the assertion is a **ratchet**: the numbers may fall (Stage A tightens
-    /// `Flip`, Stage B the points axis) but never rise.  A fix-one-add-one swap slips
-    /// through, which is the price of not maintaining a 114-line snapshot.
-    #[test]
-    fn authored_calls_read_what_they_gate() {
-        use crate::bidding::american::american;
+    /// "Names an axis" is sniffed off the rendered atoms — `describe_int_range`
+    /// puts the noun last, so the describe strings are **load-bearing test
+    /// infrastructure**: reword a noun and this sniffer must follow.  The
+    /// exclusions that keep the signal usable: off-axis gauges read "… in ♠"
+    /// (excluded from `length`), partner-facing atoms end in "partner"
+    /// (excluded from every gauge column), vacuous `0+` floors are ⊤
+    /// *correctly*, and `points` awards an atom to the most specific noun
+    /// (`support points` is not a `points` claim).
+    fn axis_leaks(
+        tries: &[(&str, &crate::bidding::trie::Trie)],
+    ) -> std::collections::BTreeMap<&'static str, Vec<String>> {
         use crate::bidding::constraint::Description;
 
         /// Flatten a description tree into its leaf atoms.
@@ -5133,73 +5263,238 @@ mod tests {
             }
         }
 
-        /// A non-vacuous points claim: `describe_int_range` puts the noun last.
-        fn claims_points(atom: &str) -> bool {
-            (atom.ends_with("HCP") || atom.ends_with("points")) && !atom.starts_with("0+")
+        /// A non-vacuous claim of `noun`: `describe_int_range` puts the noun last.
+        fn claims(atom: &str, noun: &str) -> bool {
+            atom.ends_with(noun) && !atom.starts_with("0+")
         }
 
-        /// A non-vacuous *length* claim for `suit` — so the atom ends with the suit
-        /// symbol and is not one of the off-axis "… in ♠" gauges.
-        fn claims_length(atom: &str, symbol: &str) -> bool {
-            atom.ends_with(symbol) && !atom.starts_with("0+") && !atom.contains(" in ")
-        }
+        let mut leaks = std::collections::BTreeMap::<&'static str, Vec<String>>::new();
+        for &(system, trie) in tries {
+            for_each_authored_rule(trie, |_, context, rule| {
+                let mut leaves = Vec::new();
+                atoms(&rule.describe(), &mut leaves);
+                let band = rule.project_band_dnf(context);
+                let boxes = band.boxes();
+                let text = leaves.join(" | ");
+                let entry = format!("{system}: {} :: {text}", rule.call());
 
-        let pair = american();
-        let tries = [
-            ("constructive", &pair.constructive.0),
-            ("competitive", &pair.competitive.0),
-            ("defensive", &pair.defensive.0),
+                type Gauge = fn(&Strength) -> Range;
+                let gauges: [(&'static str, Gauge); 3] = [
+                    ("HCP", |s| s.hcp),
+                    ("points", |s| s.points),
+                    ("support points", |s| s.support_points),
+                ];
+                for (noun, gauge) in gauges {
+                    let named = leaves.iter().any(|atom| {
+                        claims(atom, noun) && (noun != "points" || !claims(atom, "support points"))
+                    });
+                    if named
+                        && boxes
+                            .iter()
+                            .all(|b| gauge(&b.strength) == Range::FULL_POINTS)
+                    {
+                        leaks.entry(noun).or_default().push(entry.clone());
+                    }
+                }
+
+                for suit in Suit::ASC {
+                    let symbol = suit.to_string();
+                    let named = leaves
+                        .iter()
+                        .any(|atom| claims(atom, &symbol) && !atom.contains(" in "));
+                    if named && boxes.iter().all(|b| b.length(suit) == Range::FULL_LENGTH) {
+                        leaks
+                            .entry("length")
+                            .or_default()
+                            .push(format!("{system}: {symbol} {} :: {text}", rule.call()));
+                        break;
+                    }
+                }
+
+                if let Some(suit) = context.partner_last_suit() {
+                    let named = leaves
+                        .iter()
+                        .any(|atom| claims(atom, "card support for partner"));
+                    if named && boxes.iter().all(|b| b.length(suit) == Range::FULL_LENGTH) {
+                        leaks.entry("support").or_default().push(entry.clone());
+                    }
+                }
+            });
+        }
+        for column in leaks.values_mut() {
+            column.sort();
+            column.dedup();
+        }
+        leaks
+    }
+
+    /// E0: book-wide soundness — a finite `eval` implies strict membership of
+    /// the knob-on projection, forward and band, for every authored rule of
+    /// the shipped systems.
+    ///
+    /// This is the safety net under the whole DNF wave: every projection
+    /// upgrade (complement halves, De Morgan, shape unions, `Support`'s
+    /// forward box, `tidy`'s pruning) claims *at most* what its gate enforces,
+    /// and here each claim is replayed against random hands — a hand the rule
+    /// accepts must lie in some box of the rule's own reading, on **every**
+    /// gauge ([`Envelope::accepts`]).  A few extreme hands ride along to probe
+    /// the gauge ceilings (a 37-HCP maximum, a 13-0-0-0 freak).
+    #[test]
+    fn authored_rules_eval_within_projection() {
+        use crate::bidding::american::american;
+        use crate::bidding::dutch::dutch;
+        use rand::SeedableRng as _;
+
+        // ponytail: 128 hands keeps the sweep under ~10s in the default test
+        // run; the deep-auction rules re-walk `Inferences::read` per eval and
+        // dominate the cost.  Crank the pool when hunting a specific leak.
+        let mut rng = rand::rngs::StdRng::seed_from_u64(0xE0);
+        let mut hands: Vec<Hand> = crate::bidding::verify::random_hands(&mut rng)
+            .take(128)
+            .collect();
+        hands.extend(
+            [
+                "AKQJ.AKQJ.AKQ.AK",
+                "AKQJT98765432...",
+                "..AKQJT98765432.",
+                "AKQ2.K53.QJ4.T92",
+            ]
+            .map(|text| text.parse::<Hand>().unwrap_or_else(|_| unreachable!())),
+        );
+
+        set_dnf_reading(true);
+        let american = american();
+        let dutch = dutch();
+        let tries: [(&str, &crate::bidding::trie::Trie); 4] = [
+            ("american constructive", &american.constructive.0),
+            ("american competitive", &american.competitive.0),
+            ("american defensive", &american.defensive.0),
+            ("dutch constructive", &dutch.constructive.0),
         ];
 
-        let mut points_leaks: Vec<String> = Vec::new();
-        let mut length_leaks: Vec<String> = Vec::new();
-        for (phase, trie) in tries {
-            for (auction, classifier) in trie {
-                let auction: &[Call] = &auction;
-                let Some(rules) = classifier.as_rules() else {
-                    continue;
-                };
-                let context = Context::new(RelativeVulnerability::NONE, auction)
-                    .with_prefixes(trie.common_prefixes(auction));
-                for rule in rules.rules() {
-                    let mut leaves = Vec::new();
-                    atoms(&rule.describe(), &mut leaves);
-                    let band = rule.project_band(&context);
-                    let text = leaves.join(" | ");
-
-                    if leaves.iter().any(|atom| claims_points(atom))
-                        && band.strength.points == Range::FULL_POINTS
-                    {
-                        points_leaks.push(format!("{phase}: {} :: {text}", rule.call()));
+        let mut failures: Vec<String> = Vec::new();
+        for (system, trie) in tries {
+            for_each_authored_rule(trie, |auction, context, rule| {
+                let forward = rule.project_dnf(context);
+                let band = rule.project_band_dnf(context);
+                for &hand in &hands {
+                    if !rule.eval(hand, context).is_finite() {
+                        continue;
                     }
-                    for suit in Suit::ASC {
-                        let symbol = suit.to_string();
-                        if leaves.iter().any(|atom| claims_length(atom, &symbol))
-                            && band.length(suit) == Range::FULL_LENGTH
+                    for (fold, dnf) in [("project", &forward), ("band", &band)] {
+                        if !dnf.boxes().iter().any(|envelope| envelope.accepts(hand))
+                            && failures.len() < 16
                         {
-                            length_leaks
-                                .push(format!("{phase}: {symbol} {} :: {text}", rule.call()));
-                            break;
+                            failures.push(format!(
+                                "{system}: [{}] {} {fold} excludes accepted hand {hand}",
+                                auction
+                                    .iter()
+                                    .map(ToString::to_string)
+                                    .collect::<Vec<_>>()
+                                    .join(" "),
+                                rule.call(),
+                            ));
                         }
                     }
                 }
+            });
+        }
+        set_dnf_reading(false);
+
+        assert!(
+            failures.is_empty(),
+            "unsound projections (eval ⊄ reading):\n{}",
+            failures.join("\n"),
+        );
+    }
+
+    /// Sibling invariant to [`artificial_calls_are_alerted`]: an authored rule that
+    /// *gates* on an axis must not *read* as ⊤ on that axis.
+    ///
+    /// The fit-split bug is the motivating case (see
+    /// `docs/ai-bidder/sampled-projection.md`): `hcp(13..) | (support(3..) &
+    /// support_points(13..))` is a correct bidding rule that measured as a win, yet
+    /// its projection says nothing about points at all — `Or::project` is the union,
+    /// and one box holding a union is the bounding box, so the union is `0..=37`.
+    /// Nothing errored and no test went red; the reading simply stopped knowing
+    /// anything and kept a straight face.  The principle this pins down: the
+    /// machinery may be *imprecise*, but never imprecise **invisibly**.
+    ///
+    /// The leak notion and its describe-sniffing caveats live on [`axis_leaks`].
+    /// The walk covers the shipped `american()` books plus `dutch()`'s
+    /// constructive trie (Dutch reuses american's competitive and defensive
+    /// books), and runs **twice**:
+    ///
+    /// - **knob-off** (`set_dnf_reading(false)`, the shipped reading) — the
+    ///   byte-identity guard.  These counts must not move *in either direction*:
+    ///   a fall means a knob-off hull tightened, which is a bidding change that
+    ///   must ship through measurement, not slip in as a refactor.
+    /// - **knob-on** — the migration meter.  DNF-wave chops drive these toward
+    ///   zero; each re-pin is recorded in `docs/dnf-migration.md`'s ledger.
+    ///
+    /// **Pinned exactly, not as a `<=` ratchet**: a fix-one-add-one swap cannot
+    /// hide, at the price of consciously re-pinning (same commit, ledger row)
+    /// whenever authoring legitimately moves a count.
+    #[test]
+    fn authored_calls_read_what_they_gate() {
+        use crate::bidding::american::american;
+        use crate::bidding::dutch::dutch;
+
+        let american = american();
+        let dutch = dutch();
+        let tries: [(&str, &crate::bidding::trie::Trie); 4] = [
+            ("american constructive", &american.constructive.0),
+            ("american competitive", &american.competitive.0),
+            ("american defensive", &american.defensive.0),
+            ("dutch constructive", &dutch.constructive.0),
+        ];
+
+        let off = axis_leaks(&tries);
+        set_dnf_reading(true);
+        let on = axis_leaks(&tries);
+        set_dnf_reading(false);
+
+        // (column, knob-off pin, knob-on pin) — re-pins go in the
+        // docs/dnf-migration.md ledger.  The knob-on residue as pinned:
+        // `length` 29 = described-shape arms and comparative helpers (chops
+        // D1b/G), `support` 84 = `Support::project` forward-boxes nothing yet
+        // (chop D2).
+        // The knob-on pins jumped when D1c's containment dedup landed: an
+        // `Or` with an opaque arm used to read as `[tight-box, ⊤]`, which is
+        // membership-wise just ⊤ — the tight box was phantom axis knowledge.
+        // Tidying collapses it to `[⊤]`, so knob-on now meters *real*
+        // residual work (opaque `described` arms and `Support`'s missing
+        // forward box), not box-list cosmetics.
+        let pinned: [(&str, usize, usize); 5] = [
+            ("HCP", 17, 7),
+            ("length", 71, 47),
+            ("points", 3, 3),
+            ("support", 84, 0),
+            ("support points", 18, 12),
+        ];
+        let count = |leaks: &std::collections::BTreeMap<&str, Vec<String>>, column| {
+            leaks.get(column).map_or(0, Vec::len)
+        };
+        let dump = |leaks: &std::collections::BTreeMap<&str, Vec<String>>, column| {
+            leaks.get(column).map_or_else(String::new, |v| v.join("\n"))
+        };
+        let mut mismatches = Vec::new();
+        for (column, pin_off, pin_on) in pinned {
+            let (got_off, got_on) = (count(&off, column), count(&on, column));
+            if got_off != pin_off || got_on != pin_on {
+                mismatches.push(format!(
+                    "{column}: knob-off {got_off} (pinned {pin_off}), \
+                     knob-on {got_on} (pinned {pin_on})\n\
+                     --- knob-off ---\n{}\n--- knob-on ---\n{}",
+                    dump(&off, column),
+                    dump(&on, column),
+                ));
             }
         }
-
-        points_leaks.sort();
-        points_leaks.dedup();
-        length_leaks.sort();
-        length_leaks.dedup();
-
-        // ponytail: counts, not a snapshot.  Ratchet these down as the stages land.
         assert!(
-            points_leaks.len() <= 61 && length_leaks.len() <= 49,
-            "axis readings regressed: {} points leaks (was 61), {} length leaks (was 49)\n\
-             --- POINTS ---\n{}\n--- LENGTH ---\n{}",
-            points_leaks.len(),
-            length_leaks.len(),
-            points_leaks.join("\n"),
-            length_leaks.join("\n"),
+            mismatches.is_empty(),
+            "axis leak counts moved:\n{}",
+            mismatches.join("\n\n"),
         );
     }
 
@@ -5214,41 +5509,9 @@ mod tests {
         let pair = american();
         set_nt_overcall_gladiator(false);
 
-        let trie = &pair.defensive.0;
-        let mut worklist: Vec<String> = Vec::new();
-        for (auction, classifier) in trie {
-            let auction: &[Call] = &auction;
-            let Some(rules) = classifier.as_rules() else {
-                continue;
-            };
-            let context = Context::new(RelativeVulnerability::NONE, auction)
-                .with_prefixes(trie.common_prefixes(auction));
-            for rule in rules.rules() {
-                let made = rule.call();
-                let doubled = context.last_bid().map(|last| last.strain);
-                if super::artificial(&rule.project(&context), made, doubled)
-                    && rule.alert().is_none()
-                {
-                    worklist.push(format!(
-                        "[{}] {made}  (label: {:?})",
-                        auction
-                            .iter()
-                            .map(ToString::to_string)
-                            .collect::<Vec<_>>()
-                            .join(" "),
-                        rule.label(),
-                    ));
-                }
-            }
-        }
-
-        worklist.sort();
-        worklist.dedup();
-        assert!(
-            worklist.is_empty(),
-            "{} Gladiator artificial calls lack an alert:\n{}",
-            worklist.len(),
-            worklist.join("\n"),
+        assert_all_alerted(
+            "Gladiator",
+            unalerted_artificial("defensive", &pair.defensive.0),
         );
     }
 
@@ -5262,41 +5525,9 @@ mod tests {
         use crate::bidding::dutch::dutch;
 
         let pair = dutch();
-        let trie = &pair.constructive.0;
-        let mut worklist: Vec<String> = Vec::new();
-        for (auction, classifier) in trie {
-            let auction: &[Call] = &auction;
-            let Some(rules) = classifier.as_rules() else {
-                continue;
-            };
-            let context = Context::new(RelativeVulnerability::NONE, auction)
-                .with_prefixes(trie.common_prefixes(auction));
-            for rule in rules.rules() {
-                let made = rule.call();
-                let doubled = context.last_bid().map(|last| last.strain);
-                if super::artificial(&rule.project(&context), made, doubled)
-                    && rule.alert().is_none()
-                {
-                    worklist.push(format!(
-                        "[{}] {made}  (label: {:?})",
-                        auction
-                            .iter()
-                            .map(ToString::to_string)
-                            .collect::<Vec<_>>()
-                            .join(" "),
-                        rule.label(),
-                    ));
-                }
-            }
-        }
-
-        worklist.sort();
-        worklist.dedup();
-        assert!(
-            worklist.is_empty(),
-            "{} Dutch artificial calls lack an alert:\n{}",
-            worklist.len(),
-            worklist.join("\n"),
+        assert_all_alerted(
+            "Dutch",
+            unalerted_artificial("constructive", &pair.constructive.0),
         );
     }
 
@@ -5312,41 +5543,9 @@ mod tests {
         let pair = american();
         set_new_minor_forcing(false);
 
-        let trie = &pair.constructive.0;
-        let mut worklist: Vec<String> = Vec::new();
-        for (auction, classifier) in trie {
-            let auction: &[Call] = &auction;
-            let Some(rules) = classifier.as_rules() else {
-                continue;
-            };
-            let context = Context::new(RelativeVulnerability::NONE, auction)
-                .with_prefixes(trie.common_prefixes(auction));
-            for rule in rules.rules() {
-                let made = rule.call();
-                let doubled = context.last_bid().map(|last| last.strain);
-                if super::artificial(&rule.project(&context), made, doubled)
-                    && rule.alert().is_none()
-                {
-                    worklist.push(format!(
-                        "[{}] {made}  (label: {:?})",
-                        auction
-                            .iter()
-                            .map(ToString::to_string)
-                            .collect::<Vec<_>>()
-                            .join(" "),
-                        rule.label(),
-                    ));
-                }
-            }
-        }
-
-        worklist.sort();
-        worklist.dedup();
-        assert!(
-            worklist.is_empty(),
-            "{} New Minor Forcing artificial calls lack an alert:\n{}",
-            worklist.len(),
-            worklist.join("\n"),
+        assert_all_alerted(
+            "New Minor Forcing",
+            unalerted_artificial("constructive", &pair.constructive.0),
         );
     }
 
@@ -5355,49 +5554,17 @@ mod tests {
     /// them).
     #[test]
     fn choice_of_games_artificial_calls_are_alerted() {
-        use crate::bidding::american::{american, set_major_choice_of_games, set_two_over_one_fit};
+        use crate::bidding::american::{american, set_major_choice_of_games};
 
+        // ponytail: `two_over_one_fit` now defaults on, so the old set/restore
+        // pair here was stale (and restored to the *non*-default).
         set_major_choice_of_games(true);
-        set_two_over_one_fit(true);
         let pair = american();
         set_major_choice_of_games(false);
-        set_two_over_one_fit(false);
 
-        let trie = &pair.constructive.0;
-        let mut worklist: Vec<String> = Vec::new();
-        for (auction, classifier) in trie {
-            let auction: &[Call] = &auction;
-            let Some(rules) = classifier.as_rules() else {
-                continue;
-            };
-            let context = Context::new(RelativeVulnerability::NONE, auction)
-                .with_prefixes(trie.common_prefixes(auction));
-            for rule in rules.rules() {
-                let made = rule.call();
-                let doubled = context.last_bid().map(|last| last.strain);
-                if super::artificial(&rule.project(&context), made, doubled)
-                    && rule.alert().is_none()
-                {
-                    worklist.push(format!(
-                        "[{}] {made}  (label: {:?})",
-                        auction
-                            .iter()
-                            .map(ToString::to_string)
-                            .collect::<Vec<_>>()
-                            .join(" "),
-                        rule.label(),
-                    ));
-                }
-            }
-        }
-
-        worklist.sort();
-        worklist.dedup();
-        assert!(
-            worklist.is_empty(),
-            "{} choice-of-games artificial calls lack an alert:\n{}",
-            worklist.len(),
-            worklist.join("\n"),
+        assert_all_alerted(
+            "choice-of-games",
+            unalerted_artificial("constructive", &pair.constructive.0),
         );
     }
 

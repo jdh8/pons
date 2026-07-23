@@ -30,7 +30,7 @@
 //! ```
 
 use super::context::Context;
-use super::inference::{Dnf, Envelope, Inferences, Range};
+use super::inference::{Dnf, Envelope, Inferences, Range, dnf_reading};
 use contract_bridge::eval::{self, HandEvaluator, SimpleEvaluator};
 use contract_bridge::{Hand, Holding, Level, Rank, Strain, Suit};
 use core::cell::Cell;
@@ -111,17 +111,19 @@ pub trait Constraint: Send + Sync {
     }
 }
 
-/// The complement of a band within `0..=cap`, when the complement is a band
+/// The complement of a band within `0..=cap`, as up to two disjoint halves
 ///
-/// `4..` complements to `0..=3` and `..=3` to `4..=13`.  A two-sided band like
-/// `4..=5` complements to a *union*, which an [`Envelope`]'s single box cannot
-/// hold, so it widens back to the full range instead.
-fn complement_range(range: Range, cap: u8) -> Option<Range> {
-    match (range.min, range.max) {
-        (0, max) if max < cap => Some(Range::new(max + 1, cap)),
-        (min, max) if min > 0 && max == cap => Some(Range::new(0, min - 1)),
-        _ => None,
-    }
+/// `4..` complements to the single low half `0..=3`; a two-sided band like
+/// `4..=5` complements to a *union*, `0..=3` ∪ `6..=cap`, which one
+/// [`Envelope`] box cannot hold — the caller folds the halves through
+/// [`Dnf::disjoin`], so knob-off they hull back to the full range (exactly the
+/// pre-DNF reading) while knob-on both boxes survive.  The full band
+/// complements to no halves at all; the caller's fold falls back to ⊤, sound
+/// for the truly-empty complement.
+fn complement_halves(range: Range, cap: u8) -> impl Iterator<Item = Range> {
+    let low = (range.min > 0).then(|| Range::new(0, range.min - 1));
+    let high = (range.max < cap).then(|| Range::new(range.max + 1, cap));
+    low.into_iter().chain(high)
 }
 
 /// Closures are natural constraints
@@ -131,6 +133,100 @@ where
 {
     fn eval(&self, hand: Hand, context: &Context<'_>) -> f32 {
         self(hand, context)
+    }
+}
+
+/// Describe one box through the same nouns the atom constraints use
+///
+/// A natively authored box must stay visible to noun-sniffing consumers — the
+/// `authored_calls_read_what_they_gate` ratchet reads axes off these rendered
+/// atoms — so each non-full axis renders exactly as its atom constraint would:
+/// lengths like [`len`] (`"5+ ♠"`), the gauges like [`hcp`]/[`points`]/
+/// [`support_points`] (`"13+ HCP"`, `"≤10 points"`, `"13+ support points"`).
+fn describe_box(envelope: &Envelope) -> Description {
+    /// One axis as an atom, `None` when the range is the full (vacuous) one.
+    fn axis(range: Range, cap: u8, noun: &str) -> Option<Description> {
+        match (range.min, range.max) {
+            (0, max) if max >= cap => None,
+            (min, max) if max >= cap => Some(describe_int_range(&(min..), noun)),
+            (0, max) => Some(describe_int_range(&(..=max), noun)),
+            (min, max) => Some(describe_int_range(&(min..=max), noun)),
+        }
+    }
+
+    let mut parts = Vec::new();
+    for suit in Suit::ASC {
+        parts.extend(axis(
+            envelope.length(suit),
+            Range::FULL_LENGTH.max,
+            &suit.to_string(),
+        ));
+    }
+    let strength = &envelope.strength;
+    parts.extend(axis(strength.hcp, Range::FULL_POINTS.max, "HCP"));
+    parts.extend(axis(strength.points, Range::FULL_POINTS.max, "points"));
+    parts.extend(axis(
+        strength.support_points,
+        Range::FULL_POINTS.max,
+        "support points",
+    ));
+    match parts.len() {
+        0 => Description::atom("any hand"),
+        1 => parts.pop().unwrap_or_else(|| unreachable!()),
+        _ => Description::All(parts),
+    }
+}
+
+/// An [`Envelope`] box authored directly as a hand gate
+///
+/// The reading vocabulary doubles as authoring vocabulary: a box states its
+/// per-suit lengths and per-gauge strength bands, and as a gate it enforces
+/// exactly that — [`Envelope::accepts`], the strict membership test over
+/// **all** gauges (lengths, `points`, raw HCP, `support_points`), ceilings
+/// included.  The projection is therefore the identity, exact in both
+/// directions: what the gate enforces is literally the box it stores, so the
+/// pass reading gets true bands for free.
+impl Constraint for Envelope {
+    fn eval(&self, hand: Hand, _: &Context<'_>) -> f32 {
+        crisp(self.accepts(hand))
+    }
+
+    fn describe(&self) -> Description {
+        describe_box(self)
+    }
+
+    fn project(&self, _: &Context<'_>) -> Dnf {
+        Dnf::from(*self)
+    }
+}
+
+/// A [`Dnf`] union of boxes authored directly as a hand gate
+///
+/// The `Or`-wall cure at the authoring layer: a disjunctive meaning (a
+/// two-suiter, a fit-split) is written as the union of the boxes it is, evals
+/// as strict membership of **some** box ([`Envelope::accepts`] per box), and
+/// projects as itself — through [`Dnf::disjoin`], so the knob-off reading
+/// hulls exactly as an equivalent `|`-composite would (byte-identical), while
+/// knob-on keeps the boxes.
+impl Constraint for Dnf {
+    fn eval(&self, hand: Hand, _: &Context<'_>) -> f32 {
+        crisp(self.boxes().iter().any(|envelope| envelope.accepts(hand)))
+    }
+
+    fn describe(&self) -> Description {
+        let mut parts: Vec<_> = self.boxes().iter().map(describe_box).collect();
+        match parts.len() {
+            1 => parts.pop().unwrap_or_else(|| unreachable!()),
+            _ => Description::Any(parts),
+        }
+    }
+
+    fn project(&self, _: &Context<'_>) -> Dnf {
+        self.boxes()
+            .iter()
+            .map(|&envelope| Dnf::from(envelope))
+            .reduce(Dnf::disjoin)
+            .unwrap_or_else(Dnf::unknown)
     }
 }
 
@@ -188,6 +284,19 @@ impl<A: Constraint, B: Constraint> Constraint for And<A, B> {
             .project_band(context)
             .intersect(&self.1.project_band(context))
     }
+
+    fn project_complement(&self, context: &Context<'_>) -> Dnf {
+        // De Morgan: `!(A & B)` = `!A | !B`, the disjunction of the arm
+        // complements.  New precision (the default was ⊤), so the whole
+        // reading sits behind the knob — knob-off stays ⊤, today's hull.
+        if dnf_reading() {
+            self.0
+                .project_complement(context)
+                .disjoin(self.1.project_complement(context))
+        } else {
+            Dnf::unknown()
+        }
+    }
 }
 
 /// Maximum of two constraints, the logical OR for crisp constraints
@@ -212,6 +321,19 @@ impl<A: Constraint, B: Constraint> Constraint for Or<A, B> {
             .project_band(context)
             .disjoin(self.1.project_band(context))
     }
+
+    fn project_complement(&self, context: &Context<'_>) -> Dnf {
+        // De Morgan: `!(A | B)` = `!A & !B` — an *intersection*, which always
+        // tightens, so the whole reading sits behind the knob (knob-off stays
+        // ⊤, today's hull; `Dnf::intersect` never consults the knob itself).
+        if dnf_reading() {
+            self.0
+                .project_complement(context)
+                .intersect(&self.1.project_complement(context))
+        } else {
+            Dnf::unknown()
+        }
+    }
 }
 
 /// Crisp negation of a constraint
@@ -232,6 +354,17 @@ impl<T: Constraint> Constraint for Flip<T> {
 
     fn project(&self, context: &Context<'_>) -> Dnf {
         self.0.project_complement(context)
+    }
+
+    fn project_complement(&self, context: &Context<'_>) -> Dnf {
+        // `!!A = A`: the double negation accepts exactly `A`'s hands, so the
+        // sound (and tight) reading is `A`'s two-sided band.  New precision —
+        // knob-gated; knob-off keeps today's ⊤.
+        if dnf_reading() {
+            self.0.project_band(context)
+        } else {
+            Dnf::unknown()
+        }
     }
 }
 
@@ -698,7 +831,7 @@ pub fn set_support_points(enabled: bool) {
 }
 
 /// Raw high card points of a hand
-fn raw_hcp(hand: Hand) -> u8 {
+pub(crate) fn raw_hcp(hand: Hand) -> u8 {
     SimpleEvaluator(eval::hcp::<u8>).eval(hand)
 }
 
@@ -762,14 +895,17 @@ impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for Hcp<R> {
 
     fn project_complement(&self, _: &Context<'_>) -> Dnf {
         // `!hcp(13..)` is "at most twelve raw HCP", which the upgraded scale
-        // then widens upward by the same slack `project_band` owes it.
-        Dnf::from(
-            complement_range(
-                bound_range(&self.0, Range::FULL_POINTS.max),
-                Range::FULL_POINTS.max,
-            )
-            .map_or_else(Envelope::unknown, hcp_band),
+        // then widens upward by the same slack `project_band` owes it.  A
+        // two-sided band complements to its two outer halves through
+        // `disjoin`: knob-off they hull back to the full range (the pre-DNF
+        // reading, byte-identical); knob-on both boxes survive.
+        complement_halves(
+            bound_range(&self.0, Range::FULL_POINTS.max),
+            Range::FULL_POINTS.max,
         )
+        .map(|half| Dnf::from(hcp_band(half)))
+        .reduce(Dnf::disjoin)
+        .unwrap_or_else(Dnf::unknown)
     }
 }
 
@@ -929,15 +1065,20 @@ impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for Points<R> {
     }
 
     fn project_complement(&self, _: &Context<'_>) -> Dnf {
-        // Exact on the same scale, so the complement is exact too.
-        let mut inference = Envelope::unknown();
-        if let Some(range) = complement_range(
+        // Exact on the same scale, so the complement halves are exact too;
+        // `disjoin` keeps knob-off hulled to the full range (the pre-DNF
+        // reading), knob-on both boxes.
+        complement_halves(
             bound_range(&self.0, Range::FULL_POINTS.max),
             Range::FULL_POINTS.max,
-        ) {
-            inference.strength.points = range;
-        }
-        Dnf::from(inference)
+        )
+        .map(|half| {
+            let mut inference = Envelope::unknown();
+            inference.strength.points = half;
+            Dnf::from(inference)
+        })
+        .reduce(Dnf::disjoin)
+        .unwrap_or_else(Dnf::unknown)
     }
 }
 
@@ -996,6 +1137,26 @@ impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for SupportPoints<R> {
         let mut inference = Envelope::unknown();
         inference.strength.support_points = bound_range(&self.0, Range::FULL_POINTS.max);
         Dnf::from(inference)
+    }
+
+    fn project_complement(&self, _: &Context<'_>) -> Dnf {
+        // Exact on the dedicated gauge.  No complement existed before the DNF
+        // wave (even one-sided reads were ⊤), so the whole reading is new
+        // precision and sits behind the knob — knob-off stays ⊤.
+        if !dnf_reading() {
+            return Dnf::unknown();
+        }
+        complement_halves(
+            bound_range(&self.0, Range::FULL_POINTS.max),
+            Range::FULL_POINTS.max,
+        )
+        .map(|half| {
+            let mut inference = Envelope::unknown();
+            inference.strength.support_points = half;
+            Dnf::from(inference)
+        })
+        .reduce(Dnf::disjoin)
+        .unwrap_or_else(Dnf::unknown)
     }
 }
 
@@ -1079,22 +1240,27 @@ impl<R: RangeBounds<usize> + Clone + Send + Sync> Constraint for Len<R> {
     }
 
     fn project_complement(&self, _: &Context<'_>) -> Dnf {
-        Dnf::from(len_complement(self.suit, &self.range))
+        len_complement(self.suit, &self.range)
     }
 }
 
 /// The projection of `!len(suit, range)` — `suit` bounded to the complement of
-/// `range`, every other suit full, and nothing at all when that complement is
-/// not a band.  Shared with [`Support`], whose suit comes from the auction.
-fn len_complement<R: RangeBounds<usize>>(suit: Suit, range: &R) -> Envelope {
-    let mut inference = Envelope::unknown();
-    if let Some(range) = complement_range(
+/// `range`, every other suit full.  A two-sided `range` complements to its two
+/// outer halves through [`Dnf::disjoin`]: knob-off they hull back to the full
+/// suit (the pre-DNF reading, byte-identical); knob-on both boxes survive.
+/// Shared with [`Support`], whose suit comes from the auction.
+fn len_complement<R: RangeBounds<usize>>(suit: Suit, range: &R) -> Dnf {
+    complement_halves(
         bound_range(range, Range::FULL_LENGTH.max),
         Range::FULL_LENGTH.max,
-    ) {
-        inference.lengths[suit as usize] = range;
-    }
-    inference
+    )
+    .map(|half| {
+        let mut inference = Envelope::unknown();
+        inference.lengths[suit as usize] = half;
+        Dnf::from(inference)
+    })
+    .reduce(Dnf::disjoin)
+    .unwrap_or_else(Dnf::unknown)
 }
 
 /// Length of the given suit in the given range
@@ -1269,18 +1435,167 @@ impl Constraint for Balanced {
         Description::atom("balanced")
     }
 
-    fn project_band(&self, _: &Context<'_>) -> Dnf {
-        // 4333, 4432, or 5332: every suit two to five cards.
-        let mut inference = Envelope::unknown();
-        inference.lengths = [Range::new(2, 5); 4];
-        Dnf::from(inference)
+    fn project(&self, _: &Context<'_>) -> Dnf {
+        // The forward reading was historically ⊤ (only the band was boxed), so
+        // the exact union is new precision — knob-gated; knob-off stays ⊤.
+        if dnf_reading() {
+            balanced_dnf()
+        } else {
+            Dnf::unknown()
+        }
     }
+
+    fn project_band(&self, _: &Context<'_>) -> Dnf {
+        // 4333, 4432, or 5332 — exactly: the {2..=4}⁴ cube (4333/4432, the
+        // 13-card sum excludes the rest) plus four 5(332) pan-handles, born
+        // via `disjoin` so knob-off they hull to the historical
+        // every-suit-2..=5 box, byte-identically.
+        balanced_dnf()
+    }
+}
+
+/// The exact 5-box `balanced` union: the `{2..=4}⁴` cube (4333/4432) plus four
+/// 5(332) pan-handles, one per five-card suit
+fn balanced_boxes() -> [Envelope; 5] {
+    let mut boxes = [length_box([Range::new(2, 4); 4]); 5];
+    for suit in Suit::ASC {
+        boxes[1 + suit as usize] = long_suit_box(suit, Range::new(5, 5), Range::new(2, 3));
+    }
+    boxes
+}
+
+/// [`balanced_boxes`] folded through [`Dnf::disjoin`]: knob-off the single
+/// 2..=5 hull, knob-on the exact 5-box union
+fn balanced_dnf() -> Dnf {
+    balanced_boxes()
+        .into_iter()
+        .map(Dnf::from)
+        .reduce(Dnf::disjoin)
+        .unwrap_or_else(Dnf::unknown)
+}
+
+/// A pure length box: per-suit ranges in [`Suit::ASC`] order (♣ ♦ ♥ ♠),
+/// strength unconstrained
+pub(crate) fn length_box(lengths: [Range; 4]) -> Envelope {
+    let mut envelope = Envelope::unknown();
+    envelope.lengths = lengths;
+    envelope
+}
+
+/// A one-long-suit box: `suit` in `long`, every other suit in `rest` — the
+/// "thin pan-handle" beside a shape union's cube
+pub(crate) fn long_suit_box(suit: Suit, long: Range, rest: Range) -> Envelope {
+    let mut envelope = length_box([rest; 4]);
+    envelope.lengths[suit as usize] = long;
+    envelope
 }
 
 /// Balanced shape: 4333, 4432, or 5332
 #[must_use]
 pub fn balanced() -> Cons<impl Constraint + Clone> {
     Cons(Balanced)
+}
+
+/// A pure shape predicate as an explicit union of length boxes (the [`shapes`]
+/// constraint)
+#[derive(Clone)]
+struct Shapes {
+    label: &'static str,
+    boxes: Vec<Envelope>,
+}
+
+impl Constraint for Shapes {
+    fn eval(&self, hand: Hand, _: &Context<'_>) -> f32 {
+        crisp(self.boxes.iter().any(|envelope| envelope.accepts(hand)))
+    }
+
+    fn describe(&self) -> Description {
+        Description::atom(self.label)
+    }
+
+    fn project(&self, _: &Context<'_>) -> Dnf {
+        // New precision over the `described` closures this replaces (their
+        // projection was ⊤), so the union sits behind the knob — knob-off
+        // reads ⊤ exactly as the closure arm did.
+        if dnf_reading() {
+            self.boxes
+                .iter()
+                .map(|&envelope| Dnf::from(envelope))
+                .reduce(Dnf::union)
+                .unwrap_or_else(Dnf::unknown)
+        } else {
+            Dnf::unknown()
+        }
+    }
+}
+
+/// A pure shape predicate as an explicit, exact union of length boxes
+///
+/// The DNF-native replacement for a `described` shape closure: every pure
+/// shape predicate is a finite subset of the 13-card length lattice, hence an
+/// exact finite union of boxes — usually a bigger cube plus thin pan-handles
+/// ([`long_suit_box`]), with the 13-card sum doing the excluding.  Evaluates
+/// as strict box membership; describes as the bare `label` (no axis nouns,
+/// like the closures this replaces); projects ⊤ knob-off and the exact union
+/// knob-on.
+pub(crate) fn shapes(label: &'static str, boxes: Vec<Envelope>) -> Cons<impl Constraint + Clone> {
+    Cons(Shapes { label, boxes })
+}
+
+/// A DNF re-authoring of a legacy composite gate, knob-switched at the reading
+///
+/// Everything the table sees stays the legacy constraint's — `eval` (the
+/// weight race), `describe` (disclosure and the ratchet's noun sniffer), and
+/// the **knob-off projections**, which reproduce the shipped reading exactly,
+/// *including its accidents*: a composite whose `support` legs replay under
+/// the reader's seat can read ⊤ or a wrong-suit box depending on where in the
+/// auction it is read from, and no static box list reproduces that.  Knob-on,
+/// the projections read the exact `boxes` instead — the DNF cure.  The
+/// authoring invariant that makes the swap sound (legacy-accepted hands lie
+/// in some box) is the E0 sweep's `eval ⟹ membership` check.
+#[derive(Clone)]
+struct DnfUpgrade<T> {
+    legacy: T,
+    boxes: Dnf,
+}
+
+impl<T: Constraint> Constraint for DnfUpgrade<T> {
+    fn eval(&self, hand: Hand, context: &Context<'_>) -> f32 {
+        self.legacy.eval(hand, context)
+    }
+
+    fn describe(&self) -> Description {
+        self.legacy.describe()
+    }
+
+    fn project(&self, context: &Context<'_>) -> Dnf {
+        if dnf_reading() {
+            self.boxes.project(context)
+        } else {
+            self.legacy.project(context)
+        }
+    }
+
+    fn project_band(&self, context: &Context<'_>) -> Dnf {
+        if dnf_reading() {
+            self.boxes.project_band(context)
+        } else {
+            self.legacy.project_band(context)
+        }
+    }
+
+    fn project_complement(&self, context: &Context<'_>) -> Dnf {
+        self.legacy.project_complement(context)
+    }
+}
+
+/// Upgrade a legacy composite gate with an exact knob-on box reading (see
+/// [`DnfUpgrade`])
+pub(crate) fn dnf_upgrade(
+    legacy: Cons<impl Constraint + Clone>,
+    boxes: Dnf,
+) -> Cons<impl Constraint + Clone> {
+    Cons(DnfUpgrade { legacy, boxes })
 }
 
 /// Kaplan–Rubens CCCC in a range (the [`cccc`] constraint)
@@ -1361,15 +1676,30 @@ impl<R: RangeBounds<usize> + Clone + Send + Sync> Constraint for Support<R> {
         describe_int_range(&self.0, "card support for partner")
     }
 
+    fn project(&self, context: &Context<'_>) -> Dnf {
+        // `support(3..)` is a plain length bound on partner's suit once the
+        // auction names it — the same box `len` projects.  The forward reading
+        // was historically ⊤, so resolving the suit is new precision and sits
+        // behind the knob; knob-off stays ⊤.  With no suit named, `eval`
+        // rejects every hand, so ⊤ is (loosely) sound there too.
+        if dnf_reading() {
+            context
+                .partner_last_suit()
+                .map_or_else(Dnf::unknown, |suit| {
+                    Dnf::from(len_projection(suit, &self.0))
+                })
+        } else {
+            Dnf::unknown()
+        }
+    }
+
     fn project_complement(&self, context: &Context<'_>) -> Dnf {
         // `!support(4..)` is "at most three of partner's suit" — a box once the
         // auction names the suit.  With no suit named, `eval` rejects every
         // hand, so the negation accepts every hand and ⊤ is the exact reading.
-        Dnf::from(
-            context
-                .partner_last_suit()
-                .map_or_else(Envelope::unknown, |suit| len_complement(suit, &self.0)),
-        )
+        context
+            .partner_last_suit()
+            .map_or_else(Dnf::unknown, |suit| len_complement(suit, &self.0))
     }
 }
 
@@ -1957,9 +2287,37 @@ pub fn nth_seat(seat: u8) -> Cons<impl Constraint + Clone> {
     Cons(NthSeat(seat))
 }
 
+/// Test-only: every composition of 13 into four suit lengths (`[♣, ♦, ♥, ♠]`,
+/// the [`Suit::ASC`] order), each realized as a synthetic hand of top cards —
+/// the exhaustive ground the shape-DNF equivalence tests enumerate (560
+/// shapes).
+#[cfg(test)]
+pub(crate) fn for_each_shape(mut f: impl FnMut([u8; 4], Hand)) {
+    fn top(n: u8) -> &'static str {
+        &"AKQJT98765432"[..n as usize]
+    }
+    for clubs in 0..=13u8 {
+        for diamonds in 0..=13 - clubs {
+            for hearts in 0..=13 - clubs - diamonds {
+                let spades = 13 - clubs - diamonds - hearts;
+                let text = format!(
+                    "{}.{}.{}.{}",
+                    top(spades),
+                    top(hearts),
+                    top(diamonds),
+                    top(clubs),
+                );
+                let hand = text.parse().unwrap_or_else(|_| panic!("unparsable {text}"));
+                f([clubs, diamonds, hearts, spades], hand);
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::bidding::inference::set_dnf_reading;
     use contract_bridge::auction::{Call, RelativeVulnerability};
     use contract_bridge::{Bid, Strain};
 
@@ -2497,5 +2855,71 @@ mod tests {
         });
         assert_eq!(prose(&prefers_diamonds), "prefers diamonds");
         assert_pass(prefers_diamonds.eval(hand(BALANCED_15), &empty_context()));
+    }
+
+    /// D1: complements read as unions of halves knob-on, hull to the pre-DNF
+    /// readings knob-off.
+    #[test]
+    fn complement_dnf_boxes() {
+        let ctx = empty_context();
+
+        // Knob-off: a two-sided band's complement hulls to ⊤ (today's reading),
+        // and De Morgan stays ⊤.
+        let band = (!hcp(15..=17)).project(&ctx);
+        assert_eq!(band.hull().strength.hcp, Range::FULL_POINTS);
+        let demorgan = (!(len(Suit::Spades, 4..) & hcp(13..))).project(&ctx);
+        assert_eq!(demorgan.hull(), Envelope::unknown());
+
+        set_dnf_reading(true);
+
+        // Two-sided band → two outer halves on the raw-HCP gauge.
+        let band = (!hcp(15..=17)).project(&ctx);
+        let halves: Vec<Range> = band.boxes().iter().map(|b| b.strength.hcp).collect();
+        assert_eq!(halves, [Range::new(0, 14), Range::new(18, 37)]);
+
+        // De Morgan on `&`: `!(4+ ♠ & 13+ HCP)` = `≤3 ♠ | ≤12 HCP`.
+        let demorgan = (!(len(Suit::Spades, 4..) & hcp(13..))).project(&ctx);
+        let boxes = demorgan.boxes();
+        assert_eq!(boxes.len(), 2);
+        assert_eq!(boxes[0].length(Suit::Spades), Range::new(0, 3));
+        assert_eq!(boxes[1].strength.hcp, Range::new(0, 12));
+
+        // De Morgan on `|`: `!(5+ ♠ | 5+ ♥)` = both majors ≤4, one box.
+        let neither = (!(len(Suit::Spades, 5..) | len(Suit::Hearts, 5..))).project(&ctx);
+        let hull = neither.hull();
+        assert_eq!(hull.length(Suit::Spades), Range::new(0, 4));
+        assert_eq!(hull.length(Suit::Hearts), Range::new(0, 4));
+
+        // Double negation reads the inner band again.
+        let double = (!!hcp(15..=17)).project(&ctx);
+        assert_eq!(double.hull().strength.hcp, Range::new(15, 17));
+
+        set_dnf_reading(false);
+    }
+
+    /// D1b: `balanced` projects the exact 5-box union knob-on and hulls back
+    /// to the historical readings knob-off (⊤ forward, 2..=5 band).
+    #[test]
+    fn balanced_projection_boxes() {
+        let ctx = empty_context();
+        assert_eq!(balanced().project(&ctx).hull(), Envelope::unknown());
+        assert_eq!(
+            balanced().project_band(&ctx).hull().lengths,
+            [Range::new(2, 5); 4],
+        );
+
+        set_dnf_reading(true);
+        let dnf = balanced().project(&ctx);
+        assert_eq!(dnf.boxes().len(), 5);
+        // Exhaustive over the length lattice: the union admits exactly the
+        // balanced shapes.
+        for_each_shape(|lengths, hand| {
+            assert_eq!(
+                dnf.boxes().iter().any(|envelope| envelope.admits(hand)),
+                is_balanced(hand),
+                "balanced boxes disagree at {lengths:?}",
+            );
+        });
+        set_dnf_reading(false);
     }
 }

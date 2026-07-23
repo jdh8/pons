@@ -24,6 +24,7 @@ played a long time and read a lot. For 5-card major systems, see my
 | Neural/AI bidder work | `.claude/skills/ai-bidder` + [docs/ai-bidder/](docs/ai-bidder/) (`README.md` then `plan.md`) |
 | A call reads as nothing, or an `Or` projects to `0..=37` | [docs/ai-bidder/sampled-projection.md](docs/ai-bidder/sampled-projection.md) — read a call off the *bidder*, not its rules; includes the measured 2/1 reading bug |
 | The Dutch system (champion candidate; wide non-forcing 1♣) | [docs/dutch-system.md](docs/dutch-system.md) — campaign ledger + phase plan; full bidding spec in [docs/dutch-spec.md](docs/dutch-spec.md) |
+| DNF readings (union-of-boxes; killing the Or wall) | [docs/dnf-migration.md](docs/dnf-migration.md) — chop ledger, knob matrix, the one migration rule |
 | Competitive book (we open, they interfere) | [docs/competitive-book.md](docs/competitive-book.md) — wiring idiom, package designs, campaign ledger |
 | Long data-gen runs | [docs/shared-machine-data-gen.md](docs/shared-machine-data-gen.md) — this box is shared |
 | Raw bidding-theory notes | [docs/bidding-theorems.md](docs/bidding-theorems.md) |

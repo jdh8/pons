@@ -2,9 +2,11 @@
 
 use super::insert_uncontested;
 use crate::bidding::constraint::{
-    Cons, Constraint, balanced, cccc, described, fifths, hcp, len, nltc, nth_seat, points,
+    Cons, Constraint, balanced, cccc, described, fifths, hcp, len, length_box, long_suit_box, nltc,
+    nth_seat, points, shapes,
 };
 use crate::bidding::context::Context;
+use crate::bidding::inference::Range;
 use crate::bidding::{Alert, Rules, Trie};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Hand, Strain, Suit};
@@ -146,19 +148,33 @@ pub enum NotrumpShape {
 }
 
 /// Shapes eligible for a 1NT opening, per the [`NotrumpShape`] policy
+///
+/// Authored as an exact union of length boxes ([`shapes`]).  The wide
+/// variants are a bigger cube plus two pan-handles: majors capped at four and
+/// minors at five (`Wide`) or six (`Wide6322`) — the 13-card sum excludes
+/// 5-5, 6-4, 7222, and singletons from the cube, so it is exactly the
+/// balanced-with-≤4-card-majors patterns plus 5m(422) (and 6m(322) for
+/// `Wide6322`) — plus the two 5M(332) boxes restoring the balanced five-card
+/// majors.  `Balanced` is the plain 4333/4432/5332 union.  Eval-equivalence
+/// with the closure this replaces is pinned exhaustively by
+/// `notrump_shape_boxes_match_closure`.
 pub(crate) fn notrump_shape(shape: NotrumpShape) -> Cons<impl Constraint + Clone> {
-    balanced()
-        | described("wide 1NT shape", move |hand: Hand, _: &Context<'_>| {
-            let mut lengths = Suit::ASC.map(|suit| hand[suit].len());
-            lengths.sort_unstable();
-            let long = match (shape, lengths) {
-                (NotrumpShape::Balanced, _) => return false,
-                (_, [2, 2, 4, 5]) => 5,
-                (NotrumpShape::Wide6322, [2, 2, 3, 6]) => 6,
-                _ => return false,
-            };
-            hand[Suit::Clubs].len() == long || hand[Suit::Diamonds].len() == long
-        })
+    let major_cube = Range::new(2, 4);
+    let (label, minor_cube) = match shape {
+        NotrumpShape::Balanced => ("balanced 1NT shape", Range::new(2, 4)),
+        NotrumpShape::Wide => ("balanced or 5m(422) 1NT shape", Range::new(2, 5)),
+        NotrumpShape::Wide6322 => ("balanced or 5m(422)/6m(322) 1NT shape", Range::new(2, 6)),
+    };
+    let mut boxes = vec![length_box([minor_cube, minor_cube, major_cube, major_cube])];
+    for suit in Suit::ASC {
+        // The pan-handles: 5(332) for every suit under `Balanced` (the plain
+        // balanced union), majors only for the wide cubes (whose minor range
+        // already covers the five-card-minor patterns).
+        if shape == NotrumpShape::Balanced || matches!(suit, Suit::Hearts | Suit::Spades) {
+            boxes.push(long_suit_box(suit, Range::new(5, 5), Range::new(2, 3)));
+        }
+    }
+    shapes(label, boxes)
 }
 
 /// Better-minor selector: open 1♦ rather than 1♣
@@ -526,5 +542,43 @@ mod tests {
         // Byte-identical default restored.
         set_weak_two_eval(None);
         assert_eq!(opens(&openings(), scattered), two_s);
+    }
+
+    /// D1b: the box union behind each [`NotrumpShape`] variant accepts exactly
+    /// the shapes the pre-DNF `balanced() | described(closure)` composite did,
+    /// exhaustively over the 560-shape length lattice.
+    #[test]
+    fn notrump_shape_boxes_match_closure() {
+        use crate::bidding::constraint::for_each_shape;
+        use contract_bridge::auction::RelativeVulnerability;
+
+        let ctx = Context::new(RelativeVulnerability::NONE, &[]);
+        for shape in [
+            NotrumpShape::Balanced,
+            NotrumpShape::Wide,
+            NotrumpShape::Wide6322,
+        ] {
+            let gate = notrump_shape(shape);
+            for_each_shape(|lengths, hand| {
+                // The replaced composite, restated on lengths: balanced, or
+                // the wide closure (5m422 / Wide6322's 6m322, long suit a
+                // minor — ♣ and ♦ are indexes 0 and 1 in ASC order).
+                let mut sorted = lengths;
+                sorted.sort_unstable();
+                let is_balanced = matches!(sorted, [3, 3, 3, 4] | [2, 3, 4, 4] | [2, 3, 3, 5]);
+                let long = match (shape, sorted) {
+                    (NotrumpShape::Balanced, _) => 0,
+                    (_, [2, 2, 4, 5]) => 5,
+                    (NotrumpShape::Wide6322, [2, 2, 3, 6]) => 6,
+                    _ => 0,
+                };
+                let wide = long != 0 && (lengths[0] == long || lengths[1] == long);
+                assert_eq!(
+                    gate.eval(hand, &ctx).is_finite(),
+                    is_balanced || wide,
+                    "{shape:?} disagrees at {lengths:?}",
+                );
+            });
+        }
     }
 }

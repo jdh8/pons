@@ -8,12 +8,13 @@
 //! double, a natural 2NT overcall, and natural suit overcalls).
 
 use super::super::constraint::{
-    Cons, Constraint, and, balanced, described, hcp, len, min_level_is, or, passed_hand, points,
-    short_in_their_suits, stopper_in_their_suits, suit_hcp, takeout_double_shape_ok, top_honors,
-    unbid_support,
+    Cons, Constraint, and, balanced, described, hcp, len, length_box, long_suit_box, min_level_is,
+    or, passed_hand, points, shapes, short_in_their_suits, stopper_in_their_suits, suit_hcp,
+    takeout_double_shape_ok, top_honors, unbid_support,
 };
 use super::super::context::Context;
 use super::super::fallback::{Fallback, FirstIs, SuffixIs, described_rewrite, rewriter};
+use super::super::inference::Range;
 use super::super::trie::{Classifier, classifier};
 use super::super::{Alert, Defensive, Rules, Trie};
 use super::competition::{
@@ -1143,13 +1144,17 @@ pub(crate) fn two_suiter_hcp_floor() -> Option<u8> {
 }
 
 /// Semi-balanced shape for the penalty double: balanced, or one of 5422/6322/7222
+///
+/// Authored as the exact 5-box union `{2..=5}⁴ ∪ four {suit 6..=7, rest
+/// 2..=3}`: the cube is exactly "no singleton, no six-card suit" (balanced ∪
+/// 5422, the 13-card sum excludes 5-5 and worse), and the four pan-handles
+/// are the 6322/7222 patterns per long suit.  Eval-equivalence with the
+/// closure this replaces is pinned exhaustively by
+/// `semi_balanced_boxes_match_closure`.
 fn semi_balanced() -> Cons<impl Constraint + Clone> {
-    balanced()
-        | described("5422/6322/7222", |hand: Hand, _: &Context<'_>| {
-            let mut lengths = Suit::ASC.map(|suit| hand[suit].len());
-            lengths.sort_unstable();
-            matches!(lengths, [2, 2, 4, 5] | [2, 2, 3, 6] | [2, 2, 2, 7])
-        })
+    let mut boxes = vec![length_box([Range::new(2, 5); 4])];
+    boxes.extend(Suit::ASC.map(|suit| long_suit_box(suit, Range::new(6, 7), Range::new(2, 3))));
+    shapes("balanced or 5422/6322/7222", boxes)
 }
 
 /// Toggle the always-pass defense to an opponent's 1NT for books built
@@ -6995,5 +7000,34 @@ mod tests {
         // Diamonds longer → 3♦.
         let (d, _) = best_call(&auction, "432.32.QJ876.T98");
         assert_eq!(d, call(3, Strain::Diamonds));
+    }
+
+    /// D1b: the 5-box `semi_balanced` union accepts exactly the shapes the
+    /// pre-DNF `balanced() | described("5422/6322/7222", …)` composite did,
+    /// exhaustively over the 560-shape length lattice.
+    #[test]
+    fn semi_balanced_boxes_match_closure() {
+        use super::semi_balanced;
+        use crate::bidding::constraint::{Constraint as _, for_each_shape};
+        use crate::bidding::context::Context;
+
+        let ctx = Context::new(RelativeVulnerability::NONE, &[]);
+        let gate = semi_balanced();
+        for_each_shape(|lengths, hand| {
+            let mut sorted = lengths;
+            sorted.sort_unstable();
+            let reference = matches!(
+                sorted,
+                // balanced …
+                [3, 3, 3, 4] | [2, 3, 4, 4] | [2, 3, 3, 5]
+                // … or the replaced closure's patterns
+                | [2, 2, 4, 5] | [2, 2, 3, 6] | [2, 2, 2, 7]
+            );
+            assert_eq!(
+                gate.eval(hand, &ctx).is_finite(),
+                reference,
+                "semi_balanced disagrees at {lengths:?}",
+            );
+        });
     }
 }
