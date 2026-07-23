@@ -9,14 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **DNF chop F harness: `--ns-dnf` / `--ns-gauge-membership` arm flags in
-  `bba-gen` (no default change).** The flip candidate becomes a one-flag arm
-  in the BBA diffpair pipeline: `bba-gen` sets `set_dnf_reading` /
-  `set_gauge_membership` for our side once in `main()` (the example is
-  single-threaded by FFI design, so the thread-locals govern the whole
-  bid-out). Both knobs also gain [docs/bidding-options.md] Engine rows. The
-  flip verdict — full match, both vuls, plain + PD — is owed;
-  [docs/dnf-migration.md] chop F tracks it.
+- **DNF chop F harness and verdict: the `set_dnf_reading` flip is REFUTED
+  as-is; the knob stays default-off opt-in (no default change).** Harness:
+  `--ns-dnf` / `--ns-gauge-membership` arm flags in `bba-gen` (set once in
+  `main()` — the example is single-threaded by FFI design), Engine rows in
+  [docs/bidding-options.md], `scripts/dnf-flip-ab.sh` (off/dnf/both arms).
+  Verdict (204800 boards/arm/vul, both vuls, SEED_BASE 1784784503):
+  dnf-vs-off **loses all four cells** — plain −0.0038 ±0.0030 NV /
+  −0.0054 ±0.0036 vul, PD −0.0039 ±0.0036 / −0.0053 ±0.0043; fired ~1%,
+  −0.37/−0.60 IMPs per fired. The worst tail under-reaches (stops below
+  making slams), consistent with the plan's predicted feature shift: the
+  frozen BBA-distilled net is calibrated to *hulled* features, so truthfully
+  tighter knob-on hulls read as a weaker partner. The remaining flip path —
+  regenerate training data and retrain with knob-on features — is a user
+  decision. `both`-vs-`dnf` fired **0 of 409600 boards**: `set_gauge_membership`
+  is bidding-inert at scale, as designed (it only gates samplers).
 
 - **DNF migration wave A→E0 (infrastructure, crate default byte-identical —
   dump-diffed 4000 boards × both vuls × two seeds, zero divergent boards).**
