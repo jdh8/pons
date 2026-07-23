@@ -30,11 +30,18 @@ struct Args {
     /// Disable the (shipped default-on) competitive long-suit rebid floor
     #[arg(long, default_value_t = false)]
     no_competitive_rebid: bool,
+
+    /// Classify under union-of-boxes readings (`set_dnf_reading`, the chop-F
+    /// knob) and print each seat's reading — the forensic view of what the
+    /// flip changes at this node
+    #[arg(long, default_value_t = false)]
+    dnf: bool,
 }
 
 fn main() {
     let args = Args::parse();
     pons::bidding::instinct::set_competitive_rebid(!args.no_competitive_rebid);
+    pons::bidding::set_dnf_reading(args.dnf);
     let hand: Hand = args.hand.parse().expect("valid hand");
     let mut auction = Auction::new();
     for token in args.auction.split_whitespace() {
@@ -45,6 +52,13 @@ fn main() {
     let stance = american().against(Family::NATURAL);
     let seat = Seat::ALL[auction.len() % 4];
     let vul = relative(args.vulnerability, seat);
+    // The prefixed reading — what the bidder actually sees (a bare
+    // `Context::new` skips the projection overlay; see `Inferences::read`).
+    println!(
+        "inferences via Stance::infer (dnf_reading={}):\n{:#?}",
+        args.dnf,
+        stance.infer(vul, &auction)
+    );
     match stance.classify_with_provenance(hand, vul, &auction) {
         None => println!("no classification (auction off-book, floor rejected)"),
         Some((logits, provenance)) => {

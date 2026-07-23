@@ -172,9 +172,14 @@ std::thread_local! {
 /// widens to its bounding box, so the sampler accepts the whole hull — today's
 /// behaviour.  On, the reading keeps its separate boxes and the sampler accepts
 /// a layout only if it lies in *some* box, pinning two-suiters / Multi / the
-/// fit-split instead of the box that spans them.  The net still reads the hull
-/// ([`crate::bidding::features`] is unchanged); only the sampler sees the
-/// disjunction.  Read at classification and acceptance time, per-thread.
+/// fit-split instead of the box that spans them.  Two hull regimes, measured
+/// (docs/dnf-migration.md, chop F1): on a **bare** `Context::new` (no
+/// projection overlay — the `dump-teacher` feature path) the hulls are
+/// knob-invariant, byte-identical over a 21K-row dump; on a **prefixed**
+/// context (`Stance::infer` — what the bidder, the floor net, and the
+/// bilans evaluator actually see) the authored-projection overlay tightens
+/// knob-on (⊤→box upgrades, `dnf_upgrade`), so those consumers' inputs move
+/// with the knob.  Read at classification and acceptance time, per-thread.
 pub fn set_dnf_reading(on: bool) {
     DNF_READING.with(|cell| cell.set(on));
 }

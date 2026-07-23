@@ -9,6 +9,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **DNF chop F1 (forensic): the chop-F flip loss is the `set_bilans_floor`
+  evaluator reading knob-shifted ranges — the retrain that matters is the
+  *evaluator net*, not the policy floor net.** Re-diffing the saved F run in
+  full splits the verdict: contested first-divergences are net **positive**
+  (+177/+162 IMPs — the sampler's box-pinning works), while the entire loss
+  is **constructive** (−957/−1276 on ~350 boards/vul): slam/level conversions
+  deep in 2/1 auctions, wrong in both directions. A board-level trace shows
+  the 6NT blasts firing through `points_or_net`'s **net arm** (bilans ships
+  default-on, ca18fb4) with the authored 33-count gate false. Root cause is
+  a two-regime hull: bare-context readings (the `dump-teacher` feature path)
+  are knob-invariant — measured byte-identical over a 21K-row dump — but
+  **prefixed**-context readings (`Stance::infer`, what the bidder, floor net
+  and bilans evaluator actually consume) tighten under `set_dnf_reading`
+  (the traced board's partner gains ♠≤3 / sp≥13 from the C2 fit-split
+  boxes), and the evaluator was fit on knob-off prefixed readings — knob-on
+  inputs are out-of-distribution for it. Recorded in
+  [docs/dnf-migration.md](docs/dnf-migration.md) with the candidate next
+  chops (evaluator-input compat shim; evaluator regen+retrain). Side finding:
+  the policy floor net trains on bare-context features but serves on
+  prefixed ones — a standing train/serve skew, knob aside. No bidding
+  change; `probe-classify` gains `--dnf` and now prints the prefixed
+  `Stance::infer` reading (the bare read it printed before is not what the
+  bidder sees).
+
 - **DNF chop G0 harness and verdict: the wide-minor 2NT opening shape is a
   measured WASH; the knob stays default-off opt-in (no default change).**
   A treatment, not a rewrite: `set_two_notrump_wide` swaps the strong-2NT
