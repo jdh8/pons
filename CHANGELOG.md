@@ -27,18 +27,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   by default — the full suite is green with the crate byte-identical.
 
 - **`set_fit_sum_support_read` — value partner's raise on the support scale in
-  `fit_sum_game` (Edit 1, opt-in knob, default off).** On, the fit-known
-  major-game gate reads partner's `support_points` gauge (falling back to the
-  length-scale `points` floor when unpopulated) instead of `points`, so both
-  halves of the `own + partner + fit ≥ 31` sum sit on the support scale rather
-  than mixing partner's length count with own shortness count. A/B owed
-  (`ab-fit-sum-game`, both vuls, plain + PD, vs BBA).
+  `fit_sum_game` (Edit 1, opt-in knob, default off — MEASURED no-op).** On, the
+  fit-known major-game gate reads partner's `support_points` gauge (points
+  fallback) instead of `points`. **A/B: 200k×2vul `ab-fit-sum-game
+  --support-read`, 0 divergent boards** — a structural no-op: partner's
+  `support_points.min` always equals `points.min` at a `fit_sum_game` call,
+  because the reader's raise branches mirror the same authored number into both
+  gauges and the constructive raise book's `support_points()` gates
+  (american/responses.rs) are never projected into the reading (`project_authored`
+  covers only the declarative conventions). The gauge gains a distinct value only
+  once those constraints are migrated into the Envelope reading; the knob is ready
+  for then.
 
 - **`set_nt_hcp_read` — value the notrump milestones on raw HCP (Edit 2, opt-in
-  knob, default off).** On, the 3NT/6NT/7NT `combined_hcp` milestones value both
-  hands on raw HCP (own hand, and partner's crisp `hcp` gauge with the `points`
-  fallback) instead of the length-upgraded `point_count`, whose long-suit bonus
-  overcounts for notrump. A/B owed (filtered to notrump contracts).
+  knob, default off — shadowed no-op, LOSS when exposed).** On, the 3NT/6NT/7NT
+  `combined_hcp` milestones value both hands on raw HCP instead of the
+  length-upgraded `point_count`. **A/B: `ab-nt-hcp` 20k, 0 divergent under the
+  shipped floor** — `points_or_net`'s point-arithmetic arm is
+  `!bilans_floor() & authored`, and `bilans_floor()` defaults on, so the bilans
+  net floor decides every notrump milestone and `combined_hcp` never fires. With
+  the net floor off (`--no-bilans`), the raw-HCP read measures **feature behind**
+  (plain DD −0.019/bd, PD −0.015/bd): raw HCP is too tight — the length overcount
+  was buying good notrump games. Does not ship; the knob stays opt-in.
 
 - **`Dnf` — a disjunctive-normal-form forward reading (Stage C1: type +
   plumbing, book byte-identical).** A single `Envelope` is one axis-aligned
