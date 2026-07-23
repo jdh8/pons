@@ -1,20 +1,24 @@
-//! DNF sd-lead A/B: the **same** auction scored twice, `set_dnf_reading` off vs on.
+//! DNF sd-lead A/B: the **same** auction scored four ways — the
+//! `set_dnf_reading` × `set_gauge_membership` knob matrix (off / dnf / gauge /
+//! both), all in one process so every arm prices the identical lead question.
 //!
-//! `set_dnf_reading` is inert for the floor+net bidder — it never samples during
-//! bidding (`sample_layouts` is reached only by `ev_all` and this sd-lead scorer).
-//! So the DNF win surfaces only where a sampler runs. The sd-lead scorer is the
-//! shipped one: the leader (declarer's LHO) picks a card single-dummy over
-//! `sd_worlds` auction-consistent layouts, then play is double-dummy on the real
-//! deal (`single_dummy_leads`). On, a disjunctive reading (a two-suiter overcall,
-//! Multi, `AnyLen`) keeps its separate boxes and the leader's sampled
-//! partner/declarer hands are *pinned* to a true shape instead of the bounding
-//! box that spans them.
+//! Both knobs are inert for the floor+net bidder — it never samples during
+//! bidding (`sample_layouts` is reached only by `ev_all` and this sd-lead
+//! scorer). So their value surfaces only where a sampler runs. The sd-lead
+//! scorer is the shipped one: the leader (declarer's LHO) picks a card
+//! single-dummy over `sd_worlds` auction-consistent layouts, then play is
+//! double-dummy on the real deal (`single_dummy_leads`). `dnf` keeps a
+//! disjunctive reading's separate boxes (a two-suiter overcall pins to a true
+//! shape instead of the bounding box); `gauge` makes the sampled hands respect
+//! the raw-HCP and support-points bands too (a 15–17 1NT stops admitting
+//! 13-counts the `points` scale upgraded) — independent mechanisms, hence the
+//! matrix.
 //!
 //! Bidding is **contested** — all four seats bid `american()` — so the default-on
 //! two-suiter overcalls (Michaels, Unusual NT) fire and the leader actually reads
-//! a disjunction. The auction is identical in both arms (the bidder is
+//! a disjunction. The auction is identical in every arm (the bidder is
 //! knob-independent); only the leader's sampled model changes, so an sd swing is
-//! pure DNF value. Uncontested american barely disjoins, hence contested here.
+//! pure reading value. Uncontested american barely disjoins, hence contested here.
 //!
 //! ```text
 //! cargo run --release --example ab-dnf-sd-lead -- --count 20000 --sd-worlds 16
@@ -26,7 +30,7 @@ use contract_bridge::auction::Auction;
 use contract_bridge::{AbsoluteVulnerability, Contract, Seat};
 use pons::american;
 use pons::bidding::context::relative;
-use pons::bidding::{Family, Inferences, Stance, set_dnf_reading};
+use pons::bidding::{Family, Inferences, Stance, set_dnf_reading, set_gauge_membership};
 use pons::scoring::{final_contract, imps, ns_score_tricks};
 use pons::single_dummy::{LeadQuestion, single_dummy_leads};
 use rand::SeedableRng;
@@ -100,12 +104,16 @@ fn main() {
         .map(|(i, deal)| bid_out(&stance, &stance, true, Seat::ALL[i % 4], vul, deal))
         .collect();
 
-    // Price the opening lead for one arm: read the leader's inferences and sample
-    // worlds *under the arm's knob* (disjunctive boxes vs bounding-box hull).  The
-    // sampler runs on the main thread inside `single_dummy_leads`, so the
-    // thread-local set here governs it.
-    let score_arm = |on: bool| -> Vec<i64> {
-        set_dnf_reading(on);
+    // Price the opening lead for one arm: read the leader's inferences and
+    // sample worlds *under the arm's knobs* (disjunctive boxes and/or gauge
+    // membership).  The sampler runs on the main thread inside
+    // `single_dummy_leads`, so the thread-locals set here govern it.
+    let score_arm = |dnf: bool, gauge: bool| -> Vec<i64> {
+        let set_knobs = || {
+            set_dnf_reading(dnf);
+            set_gauge_membership(gauge);
+        };
+        set_knobs();
         let mut pending: Vec<(usize, Contract, Seat)> = Vec::new();
         let mut questions: Vec<LeadQuestion> = Vec::new();
         for (i, auction) in auctions.iter().enumerate() {
@@ -126,41 +134,47 @@ fn main() {
         let mut score = vec![0i64; args.count];
         const CHUNK: usize = 4096;
         for (asked, chunk) in pending.chunks(CHUNK).zip(questions.chunks(CHUNK)) {
-            set_dnf_reading(on); // keep it set across chunks on this thread
+            set_knobs(); // keep them set across chunks on this thread
             let answers = single_dummy_leads(chunk, &mut rng, args.sd_worlds);
             for (&(i, contract, declarer), &(_, tricks)) in asked.iter().zip(&answers) {
                 score[i] = ns_score_tricks(contract, declarer, u8::from(tricks), vul);
             }
         }
         set_dnf_reading(false);
+        set_gauge_membership(false);
         score
     };
 
-    let off = score_arm(false);
-    let on = score_arm(true);
-
-    // NS-signed sd score, so IMPs read from NS's chair; a defensive gain on a
-    // board NS defends and a declaring gain where NS declares both count.
-    let board_imps: Vec<i64> = (0..args.count).map(|i| imps(on[i] - off[i])).collect();
-    let divergent = board_imps.iter().filter(|&&d| d != 0).count();
-    let (mean, ci) = mean_with_ci(&board_imps);
-    let total: i64 = board_imps.iter().sum();
+    let off = score_arm(false, false);
+    let dnf = score_arm(true, false);
+    let gauge = score_arm(false, true);
+    let both = score_arm(true, true);
 
     println!(
-        "=== DNF sd-lead A/B (contested): {} boards, vulnerability {}, deal seed {} ===",
+        "=== DNF×gauge sd-lead A/B (contested): {} boards, vulnerability {}, deal seed {} ===",
         args.count, vul, base,
     );
     println!(
-        "(set_dnf_reading on vs off; bidding identical — only the leader's sampled model changes)"
-    );
-    println!(
-        "Divergent leads: {} of {} ({:.2}%)",
-        divergent,
-        args.count,
-        100.0 * divergent as f64 / args.count.max(1) as f64,
-    );
-    println!(
-        "sd-lead DNF-on (vs off, {} worlds, seed {}): {total:+} IMPs, {mean:+.4} IMPs/board [95% CI ±{ci:.4}]",
+        "(knob matrix on one bid-out; bidding identical — only the leader's sampled model changes; {} worlds, sd seed {})",
         args.sd_worlds, args.sd_seed,
     );
+
+    // NS-signed sd score, so IMPs read from NS's chair; a defensive gain on a
+    // board NS defends and a declaring gain where NS declares both count.
+    let report = |label: &str, arm: &[i64], baseline: &[i64]| {
+        let board_imps: Vec<i64> = (0..args.count)
+            .map(|i| imps(arm[i] - baseline[i]))
+            .collect();
+        let divergent = board_imps.iter().filter(|&&d| d != 0).count();
+        let (mean, ci) = mean_with_ci(&board_imps);
+        let total: i64 = board_imps.iter().sum();
+        println!(
+            "{label}: {total:+} IMPs, {mean:+.4} IMPs/board [95% CI ±{ci:.4}], divergent {divergent} ({:.2}%)",
+            100.0 * divergent as f64 / args.count.max(1) as f64,
+        );
+    };
+    report("dnf   vs off", &dnf, &off);
+    report("gauge vs off", &gauge, &off);
+    report("both  vs off", &both, &off);
+    report("both  vs dnf", &both, &dnf);
 }

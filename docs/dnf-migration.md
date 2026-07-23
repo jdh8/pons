@@ -33,8 +33,8 @@ verdict. Design lives in the docs above and the code.
 
 | Knob | Default | Gates |
 | --- | --- | --- |
-| `set_dnf_reading` | off | `Dnf::disjoin` (build), `Inferences::admits` (accept), `Dnf::tidy` (hygiene), every ⊤→boxes projection upgrade (`shapes`, `Support::project`, `Balanced::project`, De Morgan complements, `dnf_upgrade`) |
-| `set_gauge_membership` | (chop E, not yet built) | `admits`/`contains` also test `hcp` + `support_points` gauges |
+| `set_dnf_reading` | off | `Dnf::disjoin` (build), `Inferences::admits` (accept), `Dnf::tidy` (hygiene), every ⊤→boxes projection upgrade (`shapes`, `Support::project`, `Balanced::project`, De Morgan complements, `dnf_upgrade`, `top_honors`, `Points`→hcp coupling) |
+| `set_gauge_membership` | off | `Envelope::admits` (hence `Dnf::contains`, the overlay, and every sampler) also tests the `hcp` + `support_points` bands — the one knob that can *reject legal hands* if a projection over-claims; E0's eval⟹membership sweep is its soundness gate |
 
 Neither knob has a [bidding-options.md](bidding-options.md) row yet — chop F
 adds both.
@@ -67,7 +67,7 @@ boards.
 | D2 | `Support::project` forward-boxes partner's suit, knob-gated | landed |
 | E0 | book-wide eval ⟹ strict-membership sweep over american()+dutch(), knob-on, forward + band (inference.rs, beside the ratchet) | landed |
 | G | the conversion tail, knob-on meter → **0 in every column**: comparative staircases (`longer_suit`/`at_least_as_long`/`equal_length`, exact `∪ₖ {b ≤ k, a ≥ k+gap}` — 15 `described` closures replaced, labels kept, eval pinned exhaustively); transfer reroutes + `splinter_short` via `dnf_upgrade` (boxes sound in both treatment states, authoring-time `union` never `disjoin`); `top_honors` floors its suit length + raw HCP (2/5/9 for 1/2/3 honors); `Points` → `hcp` gauge coupling (a points floor implies an HCP floor slacked by `hcp_ceiling_slack` — without it, tidy's *correct* containment dedup swallows the `hcp` arm of `points(22..) \| hcp(22..)` and loses the knowledge); `Balanced::project_complement` (unbalanced = 4 short + 4 long + 12 two-suiter boxes, exact); sniffer stops counting context claims ("partner's last suit is ♠") and no-op caps ("≤13 ♠") | landed |
-| E | **MEASURED** `set_gauge_membership`: gauges get membership teeth; `ab-dnf-sd-lead --arm off\|dnf\|gauge\|both` | parked |
+| E | **MEASURED** `set_gauge_membership`: gauges get membership teeth. Knob + harness landed (default off, byte-identical); `ab-dnf-sd-lead` runs the **in-process knob matrix** off/dnf/gauge/both on one bid-out (tighter than the planned per-arm `--arm` flag — every arm prices the identical lead question). Verdict OWED: sd-lead both vuls | in flight |
 | F | **MEASURED** flip `set_dnf_reading` default-on: full bba-gen/bba-score match both vuls plain+PD, sd-lead arms, regen/retrain evaluation, `--no-ns-dnf`, bidding-options rows, ratchet re-pin | parked |
 | G0 | **MEASURED** 2NT shape redesign {M 2..=4, m 2..=6} (drops 5M(332), adds wide minors) — a treatment, not a rewrite | parked |
 | G-tail | term-merge if `debug_assert!(< 64)` ever fires; `described` closures whose labels name no axis (e.g. "spades longer than hearts, or equal five-plus" in the 1M responses) are invisible to the meter and stay ⊤ — convert on demand | parked |

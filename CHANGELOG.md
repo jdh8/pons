@@ -81,6 +81,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     knob-off `length` pin 71 → 59 is meter precision, not a reading change.
     Final pins: knob-on **0/0/0/0/0**, guarded exact.
 
+- **DNF chop E code: `set_gauge_membership` (default off, crate byte-identical)
+  and the four-arm sd-lead harness.** The new knob gives the raw-HCP and
+  support-points bands membership teeth in `Envelope::admits` (hence
+  `Dnf::contains`, the DNF overlay, and every sampler) — a 15–17 1NT stops
+  admitting 13-counts the `points` scale upgraded. Deliberately its own knob,
+  never folded into `set_dnf_reading`: independent mechanism, and the one chop
+  that can reject legal hands if a projection over-claims (the book-wide
+  eval ⟹ membership sweep is its soundness gate, the knob its kill-switch).
+  `ab-dnf-sd-lead` now scores the full off/dnf/gauge/both knob matrix on one
+  bid-out in one process, so every arm prices the identical lead question.
+  A/B verdict pending.
+
 - **`Strength` — the `Envelope` strength axis, gauged on every scale bridge
   counts on (infrastructure, crate default byte-identical).** `Envelope`'s single
   `points: Range` becomes `strength: Strength`, a POD of three marginal gauges:

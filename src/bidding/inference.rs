@@ -186,6 +186,39 @@ pub fn dnf_reading() -> bool {
 }
 
 std::thread_local! {
+    /// Whether box membership also tests the `hcp` and `support_points`
+    /// gauges (see [`set_gauge_membership`]).  **Off by default** — the
+    /// chop-E knob; every consumer stays on the lengths + `points` membership
+    /// until the A/B measures the tighter acceptance.
+    static GAUGE_MEMBERSHIP: Cell<bool> = const { Cell::new(false) };
+}
+
+/// Give the strength gauges membership teeth (**default off**, chop E of
+/// docs/dnf-migration.md)
+///
+/// Off, [`Envelope::admits`] — and everything routed through it: sampler
+/// acceptance, [`Dnf::contains`], the DNF overlay — tests suit lengths and
+/// the legacy `points` gauge only, the pre-`Strength` behaviour.  On, a
+/// sampled hand must also fall within the box's raw-HCP and support-points
+/// bands, so a 15–17 1NT stops admitting 13-counts the `points` scale
+/// upgraded.  Deliberately its **own** knob, never folded into
+/// [`set_dnf_reading`]: the mechanisms are independent (gauge bands tighten
+/// sampling even on the single-hull reading), the recorded DNF sd-lead WASH
+/// stays meaningful, and this is the one chop that can *reject legal hands*
+/// if a projection over-claims — the book-wide eval ⟹ membership sweep is
+/// its soundness gate, and this knob its kill-switch.  Read at acceptance
+/// time, per-thread (set it inside worker closures, like the scale flags).
+pub fn set_gauge_membership(on: bool) {
+    GAUGE_MEMBERSHIP.with(|cell| cell.set(on));
+}
+
+/// Whether gauge membership is enabled (default off)
+#[must_use]
+pub fn gauge_membership() -> bool {
+    GAUGE_MEMBERSHIP.with(Cell::get)
+}
+
+std::thread_local! {
     /// Whether the reading classifies high (four-plus level) new-suit bids as
     /// control bids vs to-play (**on by default**, M6.4).  The deterministic
     /// rule, distilled from Bridge World Standard: such a bid is *natural* iff
@@ -662,8 +695,9 @@ impl Envelope {
     /// Whether a hand's suit lengths and point count all fall within this box
     ///
     /// The per-box membership test the sampler and [`Dnf::contains`] share.
-    /// Reads the `points` (length) gauge only — the support/HCP gauges are not
-    /// independent membership bounds.
+    /// Reads the `points` (length) gauge only — until
+    /// [`set_gauge_membership`] (chop E, default off) also gives the raw-HCP
+    /// and support-points bands membership teeth.
     #[must_use]
     pub fn admits(&self, hand: Hand) -> bool {
         Suit::ASC.into_iter().all(|suit| {
@@ -675,6 +709,12 @@ impl Envelope {
             .strength
             .points
             .contains(super::constraint::point_count(hand))
+            && (!gauge_membership()
+                || (self.strength.hcp.contains(super::constraint::raw_hcp(hand))
+                    && self
+                        .strength
+                        .support_points
+                        .contains(super::constraint::support_point_count(hand))))
     }
 
     /// Whether some 13-card hand can realize this box's suit lengths
@@ -5120,6 +5160,28 @@ mod tests {
         assert_eq!(dup.boxes().len(), 5);
 
         set_dnf_reading(false);
+    }
+
+    /// Chop E: `set_gauge_membership` gives the raw-HCP and support-points
+    /// bands membership teeth; off (the default) they are inert.
+    #[test]
+    fn gauge_membership_teeth() {
+        // 15 raw HCP, flat 4333 (no upgrade on any scale).
+        let hand: Hand = "AKQ2.K53.QJ4.T92".parse().expect("valid hand");
+        let mut envelope = Envelope::unknown();
+        envelope.strength.hcp = Range::new(16, 17);
+
+        // Off: the `points` gauge alone doesn't exclude it…
+        assert!(envelope.admits(hand));
+
+        // …on: the raw-HCP band does, and widening the band re-admits.
+        set_gauge_membership(true);
+        assert!(!envelope.admits(hand));
+        envelope.strength.hcp = Range::new(15, 17);
+        assert!(envelope.admits(hand));
+        envelope.strength.support_points = Range::new(16, 37);
+        assert!(!envelope.admits(hand));
+        set_gauge_membership(false);
     }
 
     #[test]
