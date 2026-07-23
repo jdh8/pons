@@ -15,9 +15,11 @@
 
 use super::{call, insert_uncontested, slam};
 use crate::bidding::constraint::{
-    Cons, Constraint, balanced, described, hcp, len, point_count, points, pred, reads_as,
-    stopper_in, support_point_count, support_points, top_honors,
+    Cons, Constraint, balanced, described, dnf_upgrade, equal_length, hcp, len, long_suit_box,
+    longer_suit, point_count, points, pred, reads_as, stopper_in, support_point_count,
+    support_points, top_honors,
 };
+use crate::bidding::inference::{Dnf, Range};
 use crate::bidding::instinct::net_break_even_gate;
 use crate::bidding::{Alert, Context, Rules, Trie};
 use contract_bridge::auction::Call;
@@ -1791,17 +1793,12 @@ fn gf_splinter_answer(major: Suit) -> Rules {
 /// The `longer` major strictly outnumbers `shorter` — the transfer names the
 /// longer major (see [`set_transfer_longer_major`])
 fn longer_major(longer: Suit, shorter: Suit) -> Cons<impl Constraint + Clone> {
-    described(
-        format!("{longer} longer than {shorter}"),
-        move |hand: Hand, _: &Context<'_>| hand[longer].len() > hand[shorter].len(),
-    )
+    longer_suit(longer, shorter)
 }
 
 /// Both majors of exactly equal length (the 5-5/6-6 two-suiters)
 fn equal_majors() -> Cons<impl Constraint + Clone> {
-    described("equal-length majors", |hand: Hand, _: &Context<'_>| {
-        hand[Suit::Hearts].len() == hand[Suit::Spades].len()
-    })
+    equal_length("equal-length majors", Suit::Hearts, Suit::Spades)
 }
 
 /// A 5-5 majors hand strong enough to drive slam (`point_count ≥ 17`)
@@ -1811,14 +1808,24 @@ fn equal_majors() -> Cons<impl Constraint + Clone> {
 /// this widens the spade-transfer guard to admit it.  Always false off the gate, so
 /// the baseline transfer guard is unchanged.
 fn slam_55_reroute() -> Cons<impl Constraint + Clone> {
-    described(
+    let legacy = described(
         "5-5 slam reroute to the spade transfer",
         |hand: Hand, _: &Context<'_>| {
             transfer_gf_majors()
                 && hand[Suit::Hearts].len() >= 5
                 && usize::from(point_count(hand)) >= 17
         },
-    )
+    );
+    // Whenever the gate accepts at all it requires 5+ hearts and 17+ points
+    // (and off its treatment it accepts nothing), so the box is sound in both
+    // knob states.
+    let mut envelope = long_suit_box(
+        Suit::Hearts,
+        Range::new(5, Range::FULL_LENGTH.max),
+        Range::FULL_LENGTH,
+    );
+    envelope.strength.points = Range::new(17, Range::FULL_POINTS.max);
+    dnf_upgrade(legacy, Dnf::from(envelope))
 }
 
 /// A void or low singleton — the shortness a splinter shows
@@ -1832,9 +1839,15 @@ fn is_splinter_holding(holding: Holding) -> bool {
 
 /// Void or a low singleton in `suit`, as a constraint (see [`is_splinter_holding`])
 fn splinter_short(suit: Suit) -> Cons<impl Constraint + Clone> {
-    described(
+    let legacy = described(
         "void or a low singleton",
         move |hand: Hand, _: &Context<'_>| is_splinter_holding(hand[suit]),
+    );
+    // Sound over-approximation: the singleton-A/K exclusion is honor
+    // location, which no `Envelope` axis holds — the box keeps `suit ≤ 1`.
+    dnf_upgrade(
+        legacy,
+        Dnf::from(long_suit_box(suit, Range::new(0, 1), Range::FULL_LENGTH)),
     )
 }
 
@@ -1863,10 +1876,32 @@ fn is_major_splinter_slam(hand: Hand, major: Suit) -> bool {
 
 /// The splinter reroute as a positive constraint (widens the major's transfer guard)
 fn major_splinter_reroute(major: Suit) -> Cons<impl Constraint + Clone> {
-    described(
+    let legacy = described(
         "6-card-major splinter reroute to the transfer",
         move |hand: Hand, _: &Context<'_>| is_major_splinter_slam(hand, major),
-    )
+    );
+    // One box per short side suit: 6+ in the major, 16+ support points, that
+    // side suit at most one card (the singleton-honor exclusion is
+    // over-approximated away, as in `splinter_short`).  Sound in both
+    // treatment states; raw `union`, never `disjoin`, for authoring-time
+    // boxes (the C2 precedent — `disjoin` would hull them while the knob is
+    // off during book construction).
+    let boxes = Suit::ASC
+        .into_iter()
+        .filter(|&suit| suit != major)
+        .map(|short| {
+            let mut envelope = long_suit_box(
+                major,
+                Range::new(6, Range::FULL_LENGTH.max),
+                Range::FULL_LENGTH,
+            );
+            envelope.lengths[short as usize] = Range::new(0, 1);
+            envelope.strength.support_points = Range::new(16, Range::FULL_POINTS.max);
+            Dnf::from(envelope)
+        })
+        .reduce(Dnf::union)
+        .unwrap_or_else(Dnf::unknown);
+    dnf_upgrade(legacy, boxes)
 }
 
 /// The splinter reroute negated (carves the direct Texas and direct game-jump)

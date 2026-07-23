@@ -1053,6 +1053,17 @@ impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for Points<R> {
         let floor = bound_range(&self.0, Range::FULL_POINTS.max).min;
         let mut inference = Envelope::unknown();
         inference.strength.points = Range::new(floor, Range::FULL_POINTS.max);
+        if dnf_reading() {
+            // `point_count` exceeds raw HCP by at most `hcp_ceiling_slack`,
+            // so a points floor implies an HCP floor slacked by the scale's
+            // maximum upgrade — without this, a `points | hcp` disjunction
+            // whose HCP box the points box (correctly) swallows loses its HCP
+            // knowledge entirely.  New precision — knob-gated.
+            inference.strength.hcp = Range::new(
+                floor.saturating_sub(hcp_ceiling_slack()),
+                Range::FULL_POINTS.max,
+            );
+        }
         Dnf::from(inference)
     }
 
@@ -1060,7 +1071,19 @@ impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for Points<R> {
         // Both bounds exact: `points` gauges the shared `point_count` scalar
         // the `Envelope` scale records, whatever scale it is set to.
         let mut inference = Envelope::unknown();
-        inference.strength.points = bound_range(&self.0, Range::FULL_POINTS.max);
+        let band = bound_range(&self.0, Range::FULL_POINTS.max);
+        inference.strength.points = band;
+        if dnf_reading() {
+            // The two-sided HCP image of a points band: down by the scale's
+            // maximum upgrade, up by its flat-hand under-read (rule of N+8
+            // reads a flat 4-3-3-3 one under its HCP).  Knob-gated as above.
+            inference.strength.hcp = Range::new(
+                band.min.saturating_sub(hcp_ceiling_slack()),
+                band.max
+                    .saturating_add(flat_hcp_slack())
+                    .min(Range::FULL_POINTS.max),
+            );
+        }
         Dnf::from(inference)
     }
 
@@ -1452,6 +1475,43 @@ impl Constraint for Balanced {
         // every-suit-2..=5 box, byte-identically.
         balanced_dnf()
     }
+
+    fn project_complement(&self, _: &Context<'_>) -> Dnf {
+        // Unbalanced, exactly: a singleton-or-void suit, a six-plus suit, or
+        // two suits of 5+/4+ (5422 and the 5-4/5-5 family the first two boxes
+        // miss) — 4 + 4 + 12 boxes, pinned exhaustively against
+        // `!is_balanced` over the length lattice.  New precision (the default
+        // was ⊤), so the whole reading sits behind the knob.
+        if !dnf_reading() {
+            return Dnf::unknown();
+        }
+        let extremes = Suit::ASC.into_iter().flat_map(|suit| {
+            [
+                long_suit_box(suit, Range::new(0, 1), Range::FULL_LENGTH),
+                long_suit_box(
+                    suit,
+                    Range::new(6, Range::FULL_LENGTH.max),
+                    Range::FULL_LENGTH,
+                ),
+            ]
+        });
+        let two_suiters = Suit::ASC.into_iter().flat_map(|a| {
+            Suit::ASC
+                .into_iter()
+                .filter(move |&b| a != b)
+                .map(move |b| {
+                    let mut lengths = [Range::FULL_LENGTH; 4];
+                    lengths[a as usize] = Range::new(5, Range::FULL_LENGTH.max);
+                    lengths[b as usize] = Range::new(4, Range::FULL_LENGTH.max);
+                    length_box(lengths)
+                })
+        });
+        extremes
+            .chain(two_suiters)
+            .map(Dnf::from)
+            .reduce(Dnf::disjoin)
+            .unwrap_or_else(Dnf::unknown)
+    }
 }
 
 /// The exact 5-box `balanced` union: the `{2..=4}⁴` cube (4333/4432) plus four
@@ -1500,7 +1560,7 @@ pub fn balanced() -> Cons<impl Constraint + Clone> {
 /// constraint)
 #[derive(Clone)]
 struct Shapes {
-    label: &'static str,
+    label: String,
     boxes: Vec<Envelope>,
 }
 
@@ -1510,7 +1570,7 @@ impl Constraint for Shapes {
     }
 
     fn describe(&self) -> Description {
-        Description::atom(self.label)
+        Description::atom(self.label.clone())
     }
 
     fn project(&self, _: &Context<'_>) -> Dnf {
@@ -1538,8 +1598,66 @@ impl Constraint for Shapes {
 /// as strict box membership; describes as the bare `label` (no axis nouns,
 /// like the closures this replaces); projects ⊤ knob-off and the exact union
 /// knob-on.
-pub(crate) fn shapes(label: &'static str, boxes: Vec<Envelope>) -> Cons<impl Constraint + Clone> {
-    Cons(Shapes { label, boxes })
+pub(crate) fn shapes(
+    label: impl Into<String>,
+    boxes: Vec<Envelope>,
+) -> Cons<impl Constraint + Clone> {
+    Cons(Shapes {
+        label: label.into(),
+        boxes,
+    })
+}
+
+/// The exact staircase union for "`a` outnumbers `b` by at least `gap`":
+/// `∪ₖ {b ≤ k, a ≥ k + gap}` over `k = 0..=6`
+///
+/// Every feasible hand with `a ≥ b + gap` lands on the step `k = b` (two
+/// suits of seven don't fit in thirteen cards, so `b ≤ 6`), and each fat step
+/// only contains hands satisfying the comparison, so the union is **exact** —
+/// the axis-aligned cover of a triangle in the length lattice.
+fn staircase(a: Suit, b: Suit, gap: u8) -> Vec<Envelope> {
+    (0..=6u8)
+        .map(|k| {
+            let mut lengths = [Range::FULL_LENGTH; 4];
+            lengths[b as usize] = Range::new(0, k);
+            lengths[a as usize] = Range::new(k + gap, Range::FULL_LENGTH.max);
+            length_box(lengths)
+        })
+        .collect()
+}
+
+/// `a` strictly longer than `b` — an exact [`staircase`] of length boxes
+///
+/// The DNF-native replacement for the "`a` longer than `b`" `described`
+/// closures; identical label and (exhaustively pinned) identical eval.
+pub(crate) fn longer_suit(a: Suit, b: Suit) -> Cons<impl Constraint + Clone> {
+    shapes(format!("{a} longer than {b}"), staircase(a, b, 1))
+}
+
+/// `a` at least as long as `b` — the non-strict [`staircase`]
+pub(crate) fn at_least_as_long(a: Suit, b: Suit) -> Cons<impl Constraint + Clone> {
+    shapes(format!("{a} at least as long as {b}"), staircase(a, b, 0))
+}
+
+/// `a` and `b` of exactly equal length — the lattice diagonal, one thin box
+/// per feasible common length (at most six of each)
+///
+/// `label` keeps the caller's shipped prose ("equal majors",
+/// "equal-length majors").
+pub(crate) fn equal_length(
+    label: impl Into<String>,
+    a: Suit,
+    b: Suit,
+) -> Cons<impl Constraint + Clone> {
+    let boxes = (0..=6u8)
+        .map(|k| {
+            let mut lengths = [Range::FULL_LENGTH; 4];
+            lengths[a as usize] = Range::new(k, k);
+            lengths[b as usize] = Range::new(k, k);
+            length_box(lengths)
+        })
+        .collect();
+    shapes(label, boxes)
 }
 
 /// A DNF re-authoring of a legacy composite gate, knob-switched at the reading
@@ -1791,6 +1909,30 @@ impl<R: RangeBounds<usize> + Clone + Send + Sync> Constraint for TopHonors<R> {
 
     fn describe(&self) -> Description {
         describe_int_range(&self.range, &format!("of the top honors in {}", self.suit))
+    }
+
+    fn project(&self, _: &Context<'_>) -> Dnf {
+        // `n` of A/K/Q needs `n` cards in the suit and at least the cheapest
+        // `n` honors — Q, then +K, then +A: raw-HCP floors 2/5/9.  An
+        // over-approximation (the box also admits honor-less hands), which is
+        // all soundness asks of a projection: the honor *location* itself has
+        // no `Envelope` axis.  A top-honor ceiling pins nothing, so the
+        // default `project_band` (= this) is already the band.  New precision
+        // (the default was ⊤) — knob-gated.
+        if !dnf_reading() {
+            return Dnf::unknown();
+        }
+        let n = bound_range(&self.range, 3).min;
+        if n == 0 {
+            return Dnf::unknown();
+        }
+        let mut envelope = long_suit_box(
+            self.suit,
+            Range::new(n, Range::FULL_LENGTH.max),
+            Range::FULL_LENGTH,
+        );
+        envelope.strength.hcp = Range::new([0, 2, 5, 9][n as usize], Range::FULL_POINTS.max);
+        Dnf::from(envelope)
     }
 }
 
@@ -2920,6 +3062,88 @@ mod tests {
                 "balanced boxes disagree at {lengths:?}",
             );
         });
+        set_dnf_reading(false);
+    }
+
+    /// G: the comparative staircases evaluate exactly as the `described`
+    /// closures they replace, over the whole length lattice.
+    #[test]
+    fn comparative_staircases_match_closures() {
+        let ctx = empty_context();
+        let longer = longer_suit(Suit::Spades, Suit::Hearts);
+        let at_least = at_least_as_long(Suit::Hearts, Suit::Spades);
+        let equal = equal_length("equal majors", Suit::Hearts, Suit::Spades);
+        assert_eq!(prose(&longer), "♠ longer than ♥");
+        assert_eq!(prose(&at_least), "♥ at least as long as ♠");
+        for_each_shape(|lengths, hand| {
+            let [_, _, hearts, spades] = lengths;
+            assert_eq!(
+                longer.eval(hand, &ctx).is_finite(),
+                spades > hearts,
+                "longer_suit at {lengths:?}",
+            );
+            assert_eq!(
+                at_least.eval(hand, &ctx).is_finite(),
+                hearts >= spades,
+                "at_least_as_long at {lengths:?}",
+            );
+            assert_eq!(
+                equal.eval(hand, &ctx).is_finite(),
+                hearts == spades,
+                "equal_length at {lengths:?}",
+            );
+        });
+    }
+
+    /// G: `!balanced` reads the exact 20-box unbalanced union knob-on and
+    /// stays ⊤ knob-off.
+    #[test]
+    fn unbalanced_complement_boxes() {
+        let ctx = empty_context();
+        assert_eq!((!balanced()).project(&ctx).hull(), Envelope::unknown());
+
+        set_dnf_reading(true);
+        let dnf = (!balanced()).project(&ctx);
+        assert_eq!(dnf.boxes().len(), 20);
+        for_each_shape(|lengths, hand| {
+            assert_eq!(
+                dnf.boxes().iter().any(|envelope| envelope.admits(hand)),
+                !is_balanced(hand),
+                "unbalanced boxes disagree at {lengths:?}",
+            );
+        });
+        set_dnf_reading(false);
+    }
+
+    /// G: `top_honors` floors its suit length and raw HCP knob-on; a
+    /// `points | hcp` disjunction keeps its implied HCP floor through the
+    /// containment dedup (the strong-2♣ swallow).
+    #[test]
+    fn honor_and_points_gauge_boxes() {
+        let ctx = empty_context();
+        assert_eq!(
+            top_honors(Suit::Spades, 2..).project(&ctx).hull(),
+            Envelope::unknown(),
+        );
+
+        set_dnf_reading(true);
+        let honors = top_honors(Suit::Spades, 2..).project(&ctx);
+        let envelope = honors.boxes()[0];
+        assert_eq!(envelope.length(Suit::Spades), Range::new(2, 13));
+        assert_eq!(envelope.strength.hcp, Range::new(5, 37));
+
+        // The points box carries its implied HCP floor (down by the scale's
+        // maximum upgrade — 5 on the default rule-of-N+8-floored scale), so
+        // after tidy (correctly) swallows the tighter `hcp` arm into the
+        // wider `points` arm, the HCP knowledge survives.
+        let strong_two = (points(22..) | hcp(22..)).project_band(&ctx);
+        assert!(
+            strong_two
+                .boxes()
+                .iter()
+                .any(|b| b.strength.hcp != Range::FULL_POINTS),
+            "22+ points | 22+ HCP lost its HCP floor: {strong_two:?}",
+        );
         set_dnf_reading(false);
     }
 }

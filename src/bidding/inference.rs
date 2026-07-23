@@ -5299,9 +5299,16 @@ mod tests {
 
                 for suit in Suit::ASC {
                     let symbol = suit.to_string();
-                    let named = leaves
-                        .iter()
-                        .any(|atom| claims(atom, &symbol) && !atom.contains(" in "));
+                    let named = leaves.iter().any(|atom| {
+                        claims(atom, &symbol)
+                            // Off-axis gauges read "… in ♠"; "partner's last
+                            // suit is ♠" is a *context* claim, not a hand one;
+                            // "≤13 ♠" is a deliberate no-op cap (`len(x, ..14)`
+                            // for gating symmetry) — all vacuous on the axis.
+                            && !atom.contains(" in ")
+                            && !atom.contains("last suit is")
+                            && !atom.starts_with("≤13 ")
+                    });
                     if named && boxes.iter().all(|b| b.length(suit) == Range::FULL_LENGTH) {
                         leaks
                             .entry("length")
@@ -5455,22 +5462,20 @@ mod tests {
         set_dnf_reading(false);
 
         // (column, knob-off pin, knob-on pin) — re-pins go in the
-        // docs/dnf-migration.md ledger.  The knob-on residue as pinned:
-        // `length` 29 = described-shape arms and comparative helpers (chops
-        // D1b/G), `support` 84 = `Support::project` forward-boxes nothing yet
-        // (chop D2).
-        // The knob-on pins jumped when D1c's containment dedup landed: an
-        // `Or` with an opaque arm used to read as `[tight-box, ⊤]`, which is
-        // membership-wise just ⊤ — the tight box was phantom axis knowledge.
-        // Tidying collapses it to `[⊤]`, so knob-on now meters *real*
-        // residual work (opaque `described` arms and `Support`'s missing
-        // forward box), not box-list cosmetics.
+        // docs/dnf-migration.md ledger.  Chop G drove every knob-on column to
+        // **zero**: comparative staircases, reroute `dnf_upgrade` boxes,
+        // `top_honors`/`Points` gauge floors, and `Balanced`'s unbalanced
+        // complement.  Knob-off pins are the byte-identity guard; `length`
+        // dropped 71 → 59 when the sniffer stopped counting context claims
+        // ("partner's last suit is ♠") and deliberate no-op caps ("≤13 ♠") —
+        // a meter-precision change, not a reading change (the dump diff
+        // stayed clean).
         let pinned: [(&str, usize, usize); 5] = [
-            ("HCP", 17, 7),
-            ("length", 71, 47),
-            ("points", 3, 3),
+            ("HCP", 17, 0),
+            ("length", 59, 0),
+            ("points", 3, 0),
             ("support", 84, 0),
-            ("support points", 18, 12),
+            ("support points", 18, 0),
         ];
         let count = |leaks: &std::collections::BTreeMap<&str, Vec<String>>, column| {
             leaks.get(column).map_or(0, Vec::len)

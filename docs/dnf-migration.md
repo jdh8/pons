@@ -66,10 +66,11 @@ boards.
 | D1c | knob-on box hygiene (`Dnf::tidy`): sum-feasibility prune + containment dedup | landed |
 | D2 | `Support::project` forward-boxes partner's suit, knob-gated | landed |
 | E0 | book-wide eval ⟹ strict-membership sweep over american()+dutch(), knob-on, forward + band (inference.rs, beside the ratchet) | landed |
+| G | the conversion tail, knob-on meter → **0 in every column**: comparative staircases (`longer_suit`/`at_least_as_long`/`equal_length`, exact `∪ₖ {b ≤ k, a ≥ k+gap}` — 15 `described` closures replaced, labels kept, eval pinned exhaustively); transfer reroutes + `splinter_short` via `dnf_upgrade` (boxes sound in both treatment states, authoring-time `union` never `disjoin`); `top_honors` floors its suit length + raw HCP (2/5/9 for 1/2/3 honors); `Points` → `hcp` gauge coupling (a points floor implies an HCP floor slacked by `hcp_ceiling_slack` — without it, tidy's *correct* containment dedup swallows the `hcp` arm of `points(22..) \| hcp(22..)` and loses the knowledge); `Balanced::project_complement` (unbalanced = 4 short + 4 long + 12 two-suiter boxes, exact); sniffer stops counting context claims ("partner's last suit is ♠") and no-op caps ("≤13 ♠") | landed |
 | E | **MEASURED** `set_gauge_membership`: gauges get membership teeth; `ab-dnf-sd-lead --arm off\|dnf\|gauge\|both` | parked |
 | F | **MEASURED** flip `set_dnf_reading` default-on: full bba-gen/bba-score match both vuls plain+PD, sd-lead arms, regen/retrain evaluation, `--no-ns-dnf`, bidding-options rows, ratchet re-pin | parked |
 | G0 | **MEASURED** 2NT shape redesign {M 2..=4, m 2..=6} (drops 5M(332), adds wide minors) — a treatment, not a rewrite | parked |
-| G | tail: comparative-shape helpers, `Balanced::project_complement`, the ⊤-`described` arms behind the remaining knob-on leaks, term-merge if `debug_assert!(< 64)` fires | parked |
+| G-tail | term-merge if `debug_assert!(< 64)` ever fires; `described` closures whose labels name no axis (e.g. "spades longer than hearts, or equal five-plus" in the 1M responses) are invisible to the meter and stay ⊤ — convert on demand | parked |
 
 ## Ratchet counts
 
@@ -86,6 +87,14 @@ toward 0. Cells are knob-off/knob-on; knob-off never moved during the wave.
 | D1 | 17/0 | 71/24 | 3/0 | 84/84 | 18/0 |
 | D1c | 17/7 | 71/47 | 3/3 | 84/84 | 18/12 |
 | D2 (wave tip) | 17/7 | 71/47 | 3/3 | 84/0 | 18/12 |
+| G | 17/**0** | 59/**0** | 3/**0** | 84/**0** | 18/**0** |
+
+G's knob-off `length` 71 → 59 is **sniffer precision, not a reading change**
+(dump diff clean): the twelve dropped entries are the eight "partner's last
+suit is x" context claims and the four "≤13 x" deliberate no-op caps, which
+never claimed anything about the hand.  The knob-on meter is **done** — every
+authored rule that names an axis now reads a box constraining that axis; the
+exact pins guard the zero.
 
 D1c's knob-on **rise** is the meter getting honest, not a regression: an `Or`
 with an opaque arm used to read `[tight-box, ⊤]`, which is membership-wise
@@ -99,6 +108,9 @@ worklist.
 
 ## Irreducible tail (stays ⊤, by design)
 
-Honor-location atoms (stoppers, `top_honors`, `suit_hcp`, alt scales,
-keycards) have no `Envelope` axis. Context atoms (`min_level_is`, `they_bid`,
-seats, vulnerability) are hand-vacuous — ⊤ is *exact*, not a leak.
+Honor-location atoms (stoppers, `suit_hcp`, alt scales, keycards) have no
+`Envelope` axis — though `top_honors` shows the pattern for squeezing a sound
+*floor* out of one (n honors ⟹ n cards + their minimum HCP); `suit_hcp` could
+do the same if a leak ever names it. Context atoms (`min_level_is`,
+`they_bid`, seats, vulnerability) are hand-vacuous — ⊤ is *exact*, not a
+leak.

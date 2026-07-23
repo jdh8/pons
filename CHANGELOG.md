@@ -51,6 +51,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Measured chops E (gauge membership) and F (flip the knob default-on, full
     match A/B) stay parked in the ledger.
 
+- **DNF chop G — the conversion tail; knob-on leak meter → zero in every
+  column (crate default byte-identical — dump-diffed 4000 boards × both vuls ×
+  two seeds).** Still all behind `set_dnf_reading` (default off):
+  - Comparative shapes as exact staircases: `longer_suit` / `at_least_as_long`
+    / `equal_length` author "`a` longer than `b`"-style predicates as
+    `∪ₖ {b ≤ k, a ≥ k+gap}` (an axis-aligned cover of the length-lattice
+    triangle, exact because two 7-card suits don't fit in 13 cards). Fifteen
+    `described` closures across the Landy/DONT/Michaels/Leaping-Michaels/
+    Unusual-2NT advances and the Jacoby major-choice replaced — labels and
+    eval byte-identical, pinned exhaustively over all 560 shapes.
+  - The Jacoby transfer reroute arms (`slam_55_reroute`,
+    `major_splinter_reroute`) and `splinter_short` carry sound boxes via
+    `dnf_upgrade` — the arms that used to hull the whole transfer guard to ⊤
+    knob-on ({♥5+, points 17+}; per-short-suit {major 6+, side ≤ 1, support
+    points 16+}; {suit ≤ 1}).
+  - `top_honors(suit, n..)` floors its suit length at `n` and raw HCP at
+    2/5/9 (Q, +K, +A) — an over-approximation, which is all a projection
+    owes; unblocks the long-suit game-try acceptance reading.
+  - `Points` couples its `hcp` gauge: a points floor implies an HCP floor
+    slacked by the scale's maximum upgrade. Without it, `Dnf::tidy`'s
+    (correct) containment dedup swallows the `hcp` arm of the strong 2♣'s
+    `points(22..) | hcp(22..)` and the HCP knowledge vanishes.
+  - `Balanced::project_complement`: unbalanced, exactly — 4 singleton/void +
+    4 six-plus + 12 two-suiter (5+/4+) boxes, pinned against `!is_balanced`
+    exhaustively; un-⊤s every `!flat_4333()` Stayman gate.
+  - The ratchet's noun sniffer stops counting context claims ("partner's
+    last suit is ♠") and deliberate no-op caps ("≤13 ♠") as length claims —
+    knob-off `length` pin 71 → 59 is meter precision, not a reading change.
+    Final pins: knob-on **0/0/0/0/0**, guarded exact.
+
 - **`Strength` — the `Envelope` strength axis, gauged on every scale bridge
   counts on (infrastructure, crate default byte-identical).** `Envelope`'s single
   `points: Range` becomes `strength: Strength`, a POD of three marginal gauges:

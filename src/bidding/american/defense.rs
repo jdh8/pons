@@ -8,9 +8,10 @@
 //! double, a natural 2NT overcall, and natural suit overcalls).
 
 use super::super::constraint::{
-    Cons, Constraint, and, balanced, described, hcp, len, length_box, long_suit_box, min_level_is,
-    or, passed_hand, points, shapes, short_in_their_suits, stopper_in_their_suits, suit_hcp,
-    takeout_double_shape_ok, top_honors, unbid_support,
+    Cons, Constraint, and, at_least_as_long, balanced, equal_length, hcp, len, length_box,
+    long_suit_box, longer_suit, min_level_is, or, passed_hand, points, shapes,
+    short_in_their_suits, stopper_in_their_suits, suit_hcp, takeout_double_shape_ok, top_honors,
+    unbid_support,
 };
 use super::super::context::Context;
 use super::super::fallback::{Fallback, FirstIs, SuffixIs, described_rewrite, rewriter};
@@ -2536,15 +2537,9 @@ fn landy_advances(lo: u8) -> Rules {
     let invite = 20u8.saturating_sub(lo);
     let game = 22u8.saturating_sub(lo);
 
-    let hearts_longer = described("♥ at least as long as ♠", |h: Hand, _: &Context<'_>| {
-        h[Suit::Hearts].len() >= h[Suit::Spades].len()
-    });
-    let spades_longer = described("♠ longer than ♥", |h: Hand, _: &Context<'_>| {
-        h[Suit::Spades].len() > h[Suit::Hearts].len()
-    });
-    let equal_majors = described("equal majors", |h: Hand, _: &Context<'_>| {
-        h[Suit::Hearts].len() == h[Suit::Spades].len()
-    });
+    let hearts_longer = at_least_as_long(Suit::Hearts, Suit::Spades);
+    let spades_longer = longer_suit(Suit::Spades, Suit::Hearts);
+    let equal_majors = equal_length("equal majors", Suit::Hearts, Suit::Spades);
 
     Rules::new()
         // Game with a known 4-card fit (preferred over the ask).
@@ -2612,15 +2607,9 @@ fn landy_advances_over_double(lo: u8) -> Rules {
     let invite = 20u8.saturating_sub(lo);
     let game = 22u8.saturating_sub(lo);
 
-    let hearts_longer = described("♥ at least as long as ♠", |h: Hand, _: &Context<'_>| {
-        h[Suit::Hearts].len() >= h[Suit::Spades].len()
-    });
-    let spades_longer = described("♠ longer than ♥", |h: Hand, _: &Context<'_>| {
-        h[Suit::Spades].len() > h[Suit::Hearts].len()
-    });
-    let equal_majors = described("equal majors", |h: Hand, _: &Context<'_>| {
-        h[Suit::Hearts].len() == h[Suit::Spades].len()
-    });
+    let hearts_longer = at_least_as_long(Suit::Hearts, Suit::Spades);
+    let spades_longer = longer_suit(Suit::Spades, Suit::Hearts);
+    let equal_majors = equal_length("equal majors", Suit::Hearts, Suit::Spades);
     // A long minor with both majors short (no 8-card fit opposite the overcaller's
     // 5-carder) outranks a major signoff. Gate A/B-tuned via set_doubled_landy_escape.
     let (min_minor, max_major) = doubled_landy_escape();
@@ -2681,12 +2670,8 @@ fn landy_advances_over_double(lo: u8) -> Rules {
 /// (`[1NT, 2♣, X, 2♦, P]`): pass partner's diamonds, but with a singleton/void
 /// diamond pull to the longer major (a 5-2 major fit beats a 6-1 diamond one).
 fn landy_doubled_2d_rebid() -> Rules {
-    let hearts_longer = described("♥ at least as long as ♠", |h: Hand, _: &Context<'_>| {
-        h[Suit::Hearts].len() >= h[Suit::Spades].len()
-    });
-    let spades_longer = described("♠ longer than ♥", |h: Hand, _: &Context<'_>| {
-        h[Suit::Spades].len() > h[Suit::Hearts].len()
-    });
+    let hearts_longer = at_least_as_long(Suit::Hearts, Suit::Spades);
+    let spades_longer = longer_suit(Suit::Spades, Suit::Hearts);
     Rules::new()
         .rule(
             Bid::new(2, Strain::Hearts),
@@ -2704,12 +2689,8 @@ fn landy_doubled_2d_rebid() -> Rules {
 /// Overcaller's rebid after the `2♦` relay (`[1NT, 2♣, P, 2♦, P]`): name the
 /// longer major, so the equal-majors advancer plays the right strain
 fn landy_2d_rebid() -> Rules {
-    let hearts_longer = described("♥ at least as long as ♠", |h: Hand, _: &Context<'_>| {
-        h[Suit::Hearts].len() >= h[Suit::Spades].len()
-    });
-    let spades_longer = described("♠ longer than ♥", |h: Hand, _: &Context<'_>| {
-        h[Suit::Spades].len() > h[Suit::Hearts].len()
-    });
+    let hearts_longer = at_least_as_long(Suit::Hearts, Suit::Spades);
+    let spades_longer = longer_suit(Suit::Spades, Suit::Hearts);
     Rules::new()
         .rule(Bid::new(2, Strain::Hearts), 1.0, hearts_longer)
         .rule(Bid::new(2, Strain::Spades), 1.0, spades_longer)
@@ -2734,12 +2715,8 @@ fn sit() -> Rules {
 /// `2♦` is real diamonds, so a double of it is sat, not run from.
 fn both_majors_x_runout(lo: u8) -> Rules {
     let game = 22u8.saturating_sub(lo);
-    let hearts_longer = described("♥ longer than ♠", |h: Hand, _: &Context<'_>| {
-        h[Suit::Hearts].len() > h[Suit::Spades].len()
-    });
-    let spades_longer = described("♠ longer than ♥", |h: Hand, _: &Context<'_>| {
-        h[Suit::Spades].len() > h[Suit::Hearts].len()
-    });
+    let hearts_longer = longer_suit(Suit::Hearts, Suit::Spades);
+    let spades_longer = longer_suit(Suit::Spades, Suit::Hearts);
     let short_majors = len(Suit::Hearts, ..=2) & len(Suit::Spades, ..=2);
     Rules::new()
         // To-play game with a big fit in the preferred major.
@@ -2830,9 +2807,7 @@ fn passed_dont_2d_rebid() -> Rules {
 /// Advancing partner's DONT `2♥` (both majors, `[…,1NT,2♥,P]`): pass with hearts,
 /// correct to `2♠` with longer spades.
 fn passed_dont_2h_advance() -> Rules {
-    let spades_longer = described("♠ longer than ♥", |h: Hand, _: &Context<'_>| {
-        h[Suit::Spades].len() > h[Suit::Hearts].len()
-    });
+    let spades_longer = longer_suit(Suit::Spades, Suit::Hearts);
     Rules::new()
         .rule(Bid::new(2, Strain::Spades), 1.0, spades_longer)
         .rule(Call::Pass, 0.0, hcp(0..))
@@ -2994,9 +2969,7 @@ fn muiderberg_advances_doubled(major: Suit, lo: u8) -> Rules {
 /// Overcaller answering the Muiderberg `2NT` minor-ask (`[1NT, 2M, …, 2NT, P]`):
 /// name the 4+ minor — `3♦` with diamonds (longer or equal), else `3♣`
 fn muiderberg_2nt_rebid() -> Rules {
-    let diamonds_longer = described("♦ at least as long as ♣", |h: Hand, _: &Context<'_>| {
-        h[Suit::Diamonds].len() >= h[Suit::Clubs].len()
-    });
+    let diamonds_longer = at_least_as_long(Suit::Diamonds, Suit::Clubs);
     Rules::new()
         .rule(Bid::new(3, Strain::Diamonds), 1.0, diamonds_longer)
         .rule(Bid::new(3, Strain::Clubs), 0.9, hcp(0..))
@@ -4042,13 +4015,8 @@ fn michaels_advances(t: Suit) -> Rules {
     match t {
         // Partner shows both majors: prefer the longer one.
         Suit::Clubs | Suit::Diamonds => {
-            let hearts_longer = described(
-                "♥ at least as long as ♠",
-                |hand: Hand, _: &Context<'_>| hand[Suit::Hearts].len() >= hand[Suit::Spades].len(),
-            );
-            let spades_longer = described("♠ longer than ♥", |hand: Hand, _: &Context<'_>| {
-                hand[Suit::Spades].len() > hand[Suit::Hearts].len()
-            });
+            let hearts_longer = at_least_as_long(Suit::Hearts, Suit::Spades);
+            let spades_longer = longer_suit(Suit::Spades, Suit::Hearts);
             Rules::new()
                 .rule(
                     Bid::new(4, Strain::Hearts),
@@ -4111,13 +4079,8 @@ fn leaping_michaels_advances(theirs: Suit, lm: Suit) -> Rules {
         Suit::Diamonds => match lm {
             // 4♦ cue = both majors: pick the longer (both forced to game).
             Suit::Diamonds => {
-                let hearts_longer =
-                    described("♥ at least as long as ♠", |h: Hand, _: &Context<'_>| {
-                        h[Suit::Hearts].len() >= h[Suit::Spades].len()
-                    });
-                let spades_longer = described("♠ longer than ♥", |h: Hand, _: &Context<'_>| {
-                    h[Suit::Spades].len() > h[Suit::Hearts].len()
-                });
+                let hearts_longer = at_least_as_long(Suit::Hearts, Suit::Spades);
+                let spades_longer = longer_suit(Suit::Spades, Suit::Hearts);
                 Rules::new()
                     .rule(Bid::new(4, Strain::Hearts), 1.3, hearts_longer)
                     .rule(Bid::new(4, Strain::Spades), 1.3, spades_longer)
@@ -4161,14 +4124,8 @@ const fn unusual_suits(t: Suit) -> (Suit, Suit) {
 /// Advancer's response to partner's Unusual 2NT over their opening `t`
 fn unusual_nt_advances(t: Suit) -> Rules {
     let (a, b) = unusual_suits(t);
-    let a_longer = described(
-        format!("{a} at least as long as {b}"),
-        move |hand: Hand, _: &Context<'_>| hand[a].len() >= hand[b].len(),
-    );
-    let b_longer = described(
-        format!("{b} longer than {a}"),
-        move |hand: Hand, _: &Context<'_>| hand[b].len() > hand[a].len(),
-    );
+    let a_longer = at_least_as_long(a, b);
+    let b_longer = longer_suit(b, a);
     Rules::new()
         .rule(Bid::new(3, Strain::from(a)), 1.0, a_longer)
         .rule(Bid::new(3, Strain::from(b)), 1.0, b_longer)
