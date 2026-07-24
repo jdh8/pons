@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Default point-count scale flipped to raw-HCP + upgrade (`PointScale::PointCount`),
+  superseding rule-of-N+8.** With `upgrade` now linearised (previous entry), the
+  capped shape scale reads wild two-suiters and freaks lighter than rule-of-N+8's
+  length bonus of up to +5, cutting the overbids perfect defense punishes. A/B vs
+  the previous `RuleOfNFloored` default (two disjoint ~90k-board/vul seeds,
+  deterministic floor so the CI is the whole error budget — no retrain, the net
+  reads `upgrade` directly regardless of scale): **plain-DD wash both vuls, PD
+  +0.023 NV / +0.037 vul** (CIs clear 0, both seeds agree in sign on all four
+  cells) → ships default-on. Rule-of-N+8 (`RuleOfNFloored`/`RuleOfN`) and raw HCP
+  (`Hcp`) remain reachable via `set_point_scale`. Note: `points(12..)` is no
+  longer exactly the Rule of 20 (that identity is now the opt-out), and the
+  `hcp(10..)` first/second-seat opening guards are now redundant under the
+  default (retained as the belt for the N+8 opt-out). This supersedes the
+  "off-by-default opt-out" note in the entry below.
+
 - **`upgrade` linearised — wasted honors cost one point each, not the whole
   upgrade.** The fuzzy-strength `upgrade` (whose only default consumer is the
   policy net's feature column 88; the `raw_hcp + upgrade` floor scale

@@ -302,15 +302,17 @@ pub fn openings_with(shape: NotrumpShape) -> Rules {
             fifths(20.0..22.0) & balanced(),
         )
     };
-    // One-level suit openings.  Every band carries an explicit `hcp` floor,
-    // because a `points` band alone cannot supply one: on the rule-of-N+8 scale
-    // a hand's count is `hcp + max(0, L1+L2 − 8)` and `L1+L2` reaches 13 on a
-    // 7-6-0-0, so `points(N..)` bottoms out at `N − 5` HCP — `points(12..)`
-    // admits a 7-count.  WBF Systems Policy 2024 §2.3.1(c) makes a system a HUM
-    // if a one-level opening in first or second seat "may be made with 7 high
-    // card points or less", so an envelope that *touches* 0..=7 is caught
-    // however rare the hand.  EBU Blue Book §7A3/§8A4 impose the same absolute
-    // 8 in every seat, third and fourth included, where the WBF does not reach.
+    // One-level suit openings.  Every band carries an explicit `hcp` floor.
+    // On the default PointCount scale the shape [`upgrade`] caps at 2, so
+    // `points(N..)` already implies `hcp(N−2..)` and the floor is redundant —
+    // but it is retained as the belt for the rule-of-N+8 opt-out, where a
+    // count is `hcp + max(0, L1+L2 − 8)`, `L1+L2` reaches 13 on a 7-6-0-0, and
+    // `points(N..)` bottoms out at `N − 5` HCP (`points(12..)` would admit a
+    // 7-count).  WBF Systems Policy 2024 §2.3.1(c) makes a system a HUM if a
+    // one-level opening in first or second seat "may be made with 7 high card
+    // points or less", so an envelope that *touches* 0..=7 is caught however
+    // rare the hand.  EBU Blue Book §7A3/§8A4 impose the same absolute 8 in
+    // every seat, third and fourth included, where the WBF does not reach.
     //
     // First/second seat takes `hcp(10..)` rather than the bare legal minimum —
     // standard practice, since partner must be able to aim at 3NT.  Third and
@@ -426,6 +428,10 @@ mod tests {
 
     #[test]
     fn sub_ten_hcp_freaks_open_only_in_third_seat() {
+        use crate::bidding::constraint::{PointScale, set_point_scale};
+        // Calibrated to the rule-of-N+8 opt-out — the scale these example
+        // hands' points assume (6-5 reads 12, not the point-count cap of 10).
+        set_point_scale(PointScale::RuleOfNFloored);
         // ♠5 ♥JT952 ♦J ♣AK7652 — 9 HCP, 12 points (6-5).  Rule-of-N+8 alone
         // would walk it in the sound-opening front door; `hcp(10..)` bars it in
         // first seat, and no other rule takes it (points 12 is past the weak
@@ -460,6 +466,7 @@ mod tests {
             Call::Bid(Bid::new(1, Strain::Clubs)),
             "a flat 12 still opens its better minor in first seat"
         );
+        set_point_scale(PointScale::PointCount);
     }
 
     #[test]
@@ -520,18 +527,18 @@ mod tests {
         use crate::bidding::constraint::{PointScale, set_point_scale};
 
         let one_s = Call::Bid(Bid::new(1, Strain::Spades));
-        // 11 HCP, 5-2-4-2, Rule of 20 (11 + 9).  `points(12..)` on the shipped
-        // rule-of-N+8 scale *is* the Rule of 20, so the sole `points(12..=21)`
-        // opening covers this hand — there is no separate light rule.
+        // 11 HCP, 5-2-4-2.  On the shipped raw-HCP+upgrade scale the wasted J9
+        // doubleton voids the shape upgrade, leaving the hand at 11 points —
+        // below the sole `points(12..=21)` opening — so it passes.
         let sound_11 = "AK986.J9.QJT6.64";
-        assert_eq!(opens(&openings(), sound_11), one_s);
+        assert_eq!(opens(&openings(), sound_11), Call::Pass);
 
-        // The identity is what does the work: on the legacy opt-out scale the
-        // wasted J9 voids the upgrade, leaving the hand at 11, and it passes.
-        set_point_scale(PointScale::PointCount);
+        // On the rule-of-N+8 opt-out `points(12..)` *is* the Rule of 20 (11 + 9),
+        // blind to the wasted J9, so the identity opens the same hand 1♠.
+        set_point_scale(PointScale::RuleOfN);
         let call = opens(&openings(), sound_11);
-        set_point_scale(PointScale::RuleOfNFloored);
-        assert_eq!(call, Call::Pass);
+        set_point_scale(PointScale::PointCount);
+        assert_eq!(call, one_s);
     }
 
     #[test]

@@ -332,6 +332,10 @@ mod tests {
 
     #[test]
     fn two_over_one_fit_leg_and_gates() {
+        use crate::bidding::constraint::{PointScale, set_point_scale};
+        // Calibrated to the rule-of-N+8 opt-out — the scale the Points13 arm's
+        // example hand assumes (the 6-4 reads 13, not the point-count 12).
+        set_point_scale(PointScale::RuleOfNFloored);
         let a = [call(1, Strain::Hearts), Call::Pass];
         // Arms are relative to the legacy gate; the shipped default is
         // fit + Hcp13 (restored at the end).
@@ -370,6 +374,7 @@ mod tests {
             call(1, Strain::Notrump)
         );
         assert_eq!(best(&hcp12, &a, "K32.54.A964.KQ92"), call(2, Strain::Clubs));
+        set_point_scale(PointScale::PointCount);
     }
 
     #[test]

@@ -63,6 +63,10 @@ fn test_openings() {
 
 #[test]
 fn test_light_third_seat_major() {
+    use pons::bidding::constraint::{PointScale, set_point_scale};
+    // Calibrated to the rule-of-N+8 opt-out — the scale these example hands'
+    // points assume (the 5-5 reads 11, not the point-count cap of 10).
+    set_point_scale(PointScale::RuleOfNFloored);
     let system = stance();
     // 9 HCP, 5-5-2-1 -> 11 points: short of the first-seat `points(12..)` but
     // clear of third seat's Rule-of-19 band, and 9 HCP clears the legal 8.
@@ -77,6 +81,7 @@ fn test_light_third_seat_major() {
         best_call(&system, &[Call::Pass, Call::Pass], "AQJ32.853.Q42.92"),
         Call::Pass,
     );
+    set_point_scale(PointScale::PointCount);
 }
 
 // --- Major responses --------------------------------------------------------

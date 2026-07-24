@@ -5219,6 +5219,10 @@ mod tests {
 
     #[test]
     fn strong_double_hcp_repartitions_overcall_vs_double() {
+        use crate::bidding::constraint::{PointScale, set_point_scale};
+        // Calibrated to the rule-of-N+8 opt-out — the scale these example
+        // hands' points assume (the 6-3-3-1 reads 18, not the point-count 17).
+        set_point_scale(PointScale::RuleOfNFloored);
         // Over their (1♥): a shaped 17-HCP six-carder reads 18 points, which
         // overflows the shipped overcall band top (17) into the strong-tier
         // double — the point-count remnant's X↔bid seam (the forensic dump's
@@ -5246,10 +5250,15 @@ mod tests {
             Call::Double,
             "the points partition (off arm): 18 points reads as the strong tier"
         );
+        set_point_scale(PointScale::PointCount);
     }
 
     #[test]
     fn two_suiter_hcp_floor_bars_garbage_michaels() {
+        use crate::bidding::constraint::{PointScale, set_point_scale};
+        // Calibrated to the rule-of-N+8 opt-out — the scale these example
+        // hands' points assume (the 6-6 freak reads 9, not the point-count 7).
+        set_point_scale(PointScale::RuleOfNFloored);
         // Over their (1♥): a 5-HCP 6-6 freak reads 9 points and cues Michaels
         // at weight 2.0 straight into a penalty double (−17..−21 IMPs a board
         // in the remnant dump).  The documented gate was always "8+ HCP"; the
@@ -5279,6 +5288,7 @@ mod tests {
             call(2, Strain::Hearts),
             "the bare points gate (off arm): 9 points cue Michaels"
         );
+        set_point_scale(PointScale::PointCount);
     }
 
     #[test]

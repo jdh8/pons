@@ -3633,15 +3633,17 @@ mod tests {
         set_table_alert_reading(false);
         // Partner's direct-seat pass: the authored complement of the strong
         // tier ("strong hands double first regardless") — at most 17 raw HCP,
-        // 22 on the upgraded scale.  Their responder's pass stays unread
-        // until table-wide disclosure is on.
+        // 19 on the point-count scale (17 + max upgrade 2).  Their responder's
+        // pass stays unread until table-wide disclosure is on.
         let own = read_booked(&auction);
-        assert_eq!(own.partner().strength.points, Range::new(0, 22));
+        assert_eq!(own.partner().strength.points, Range::new(0, 19));
         assert_eq!(own.rho().strength.points, Range::FULL_POINTS);
         set_table_alert_reading(true);
+        // Their responder's pass: the response table's `hcp(..6)` gate — at
+        // most 5 raw HCP, 7 on the point-count scale (5 + max upgrade 2).
         assert_eq!(
             read_booked(&auction).rho().strength.points,
-            Range::new(0, 10)
+            Range::new(0, 7)
         );
     }
 
@@ -3649,18 +3651,19 @@ mod tests {
     fn pass_reading_caps_the_silent_responder() {
         set_pass_reading(true);
         // Our 1♥, silent partner: the response table's `hcp(..6)` gate —
-        // at most 5 raw HCP, 10 upgraded.
+        // at most 5 raw HCP, 7 on the point-count scale (5 + max upgrade 2).
         let caps = read_booked(&[bid(1, Strain::Hearts), Call::Pass, Call::Pass, Call::Pass]);
-        assert_eq!(caps.partner().strength.points, Range::new(0, 10));
+        assert_eq!(caps.partner().strength.points, Range::new(0, 7));
     }
 
     #[test]
     fn pass_reading_caps_the_notrump_signoff() {
         set_pass_reading(true);
         // Pass of partner's 1NT: the authored union of the weak arm and the
-        // flat-eight arm — at most 13 points, no six-card major.
+        // flat-eight arm — at most 10 points (the flat-eight arm's 8 HCP + the
+        // point-count max upgrade 2), no six-card major.
         let nt = read_booked(&[bid(1, Strain::Notrump), Call::Pass, Call::Pass, Call::Pass]);
-        assert_eq!(nt.partner().strength.points, Range::new(0, 13));
+        assert_eq!(nt.partner().strength.points, Range::new(0, 10));
         assert!(nt.partner().length(Suit::Hearts).max <= 5);
         assert!(nt.partner().length(Suit::Spades).max <= 5);
     }

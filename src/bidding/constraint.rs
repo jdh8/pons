@@ -739,25 +739,32 @@ pub enum PointScale {
     /// Raw Milton Work 4-3-2-1 HCP (the old `fuzzy_points` off arm)
     Hcp,
     /// Rule of N+8: raw HCP + the two longest suit lengths − 8, so a
-    /// `points(12..)` gate is exactly the Rule of 20 (opt-in since the
-    /// 4333-floor A/B; its flat downgrade measured worse than the floor)
+    /// `points(12..)` gate is exactly the Rule of 20 (an opt-out since the
+    /// upgrade-linearisation flip; its flat downgrade measured worse than the
+    /// floor)
     RuleOfN,
     /// [`PointScale::RuleOfN`] with the length bonus floored at 0: flat
     /// 4-3-3-3 — plain rule-of-N+8's only downgrade — reads its raw HCP
-    /// (the shipped default)
+    /// (an opt-out since the upgrade-linearisation flip)
     RuleOfNFloored,
 }
 
 std::thread_local! {
     /// The scale [`point_count`] evaluates (the point-scale A/B knob).
-    /// **Default [`PointScale::RuleOfNFloored`]**.  The deprecation A/B/C
-    /// deposed legacy for rule of N+8 (plain DD +0.031/+0.045 NV/vul, sd-lead
-    /// +0.048/+0.064; raw HCP lost plain-DD −0.098/−0.105); the follow-up
-    /// 4333-floor A/B then beat plain rule-of-N+8 on the sd-lead tiebreak at
-    /// +0.032 ± 0.009 NV / +0.026 ± 0.013 vul (50k boards/vul; 1M-board plain
-    /// DD +0.013 NV / wash vul, the campaign's usual PD dip).  Legacy is the
-    /// opt-out: `set_point_scale(PointScale::PointCount)`.
-    static POINT_SCALE: Cell<PointScale> = const { Cell::new(PointScale::RuleOfNFloored) };
+    /// **Default [`PointScale::PointCount`]** — raw HCP plus the capped
+    /// shape [`upgrade`] (0-2: +1 unbalanced, +1 for a ten-card two-suiter,
+    /// −1 per wasted short honor).  History: the deprecation A/B/C once deposed
+    /// this legacy scale for rule of N+8, but that was against the *cliff*
+    /// upgrade (first wasted honor voided the whole bonus); linearising
+    /// [`upgrade`] flipped the verdict back — vs rule-of-N+8-floored, PointCount
+    /// measured plain-DD wash both vuls and **PD +0.023 NV / +0.037 vul** (two
+    /// disjoint ~90k-board/vul seeds, deterministic floor so the CI is the whole
+    /// error budget; no retrain — the net consumes `upgrade` directly, scale-free).
+    /// The capped shape reads wild two-suiters/freaks lighter than N+8's
+    /// bonus-of-5, cutting the overbids PD punishes.  Rule of N+8 is now the
+    /// opt-out: `set_point_scale(PointScale::RuleOfNFloored)` (and
+    /// `PointScale::Hcp` for raw HCP).
+    static POINT_SCALE: Cell<PointScale> = const { Cell::new(PointScale::PointCount) };
     /// Whether [`fifths`] evaluates Fifths rather than raw HCP.  Default **off**:
     /// the Fifths NT-gauge measured a clean net loss vs raw HCP in the A6 audit
     /// (self-play plain −0.012/−0.018 NV/vul, PD alike, CIs excluding 0), and it
@@ -1004,11 +1011,12 @@ fn longest_two_suits(hand: Hand) -> u8 {
 /// [`points`] constraint gauges and the scale [`Inferences`] records its point
 /// ranges on
 ///
-/// Defaults to the **floored rule-of-N+8 scale** — raw HCP plus the two
-/// longest suit lengths minus 8, the length bonus never negative, so
-/// `points(12..)` is exactly the Rule of 20 and flat 4-3-3-3 reads its raw
-/// HCP (see [`PointScale`] for the measured verdicts; the legacy
-/// raw-HCP-plus-[`upgrade`] scale is the opt-out).  A reader that needs the
+/// Defaults to the **raw-HCP-plus-[`upgrade`] scale** ([`PointScale::PointCount`])
+/// — raw HCP plus the capped shape upgrade (0-2), which reads wild shapes
+/// lighter than rule-of-N+8's bonus-of-5 and measured a plain-DD wash with a
+/// PD gain against it (see [`PointScale`] for the verdicts; rule-of-N+8-floored,
+/// where `points(12..)` is exactly the Rule of 20, is now the opt-out).  A
+/// reader that needs the
 /// value rather than a range — constrained sampling, for one — shares this
 /// single definition so it can never drift from the ranges it checks against,
 /// and [`points`] gauges it directly so the two can never disagree.
@@ -2564,11 +2572,11 @@ mod tests {
             points(..12).project_band(&context).hull().strength.points,
             Range::new(0, 11)
         );
-        // An HCP ceiling owes the scale its maximum upgrade (rule-of-N+8
-        // default: 5); the floor matches `project`.
+        // An HCP ceiling owes the scale its maximum upgrade (point-count
+        // default: 2); the floor matches `project`.
         assert_eq!(
             hcp(..6).project_band(&context).hull().strength.points,
-            Range::new(0, 10)
+            Range::new(0, 7)
         );
         // `project` itself stays floor-only — the alert path is untouched.
         assert_eq!(
@@ -2577,7 +2585,8 @@ mod tests {
         );
         // Composition is tight per arm: the 1NT pass gate (`notrump.rs`) — an
         // off-major weak arm unioned with the flat-eight arm — caps points at
-        // 13 and both majors at five.
+        // 10 (the flat-eight arm's 8 HCP + the point-count max upgrade 2) and
+        // both majors at five.
         let gate = (hcp(..8) & len(Suit::Hearts, ..5) & len(Suit::Spades, ..5))
             | (hcp(8..=8)
                 & balanced()
@@ -2586,7 +2595,7 @@ mod tests {
                 & len(Suit::Hearts, 3..)
                 & len(Suit::Spades, 3..));
         let band = gate.project_band(&context).hull();
-        assert_eq!(band.strength.points, Range::new(0, 13));
+        assert_eq!(band.strength.points, Range::new(0, 10));
         assert_eq!(band.length(Suit::Hearts).max, 5);
         assert_eq!(band.length(Suit::Spades).max, 5);
         // A trivial catch-all claims nothing — the trap-pass safeguard.
@@ -2646,6 +2655,9 @@ mod tests {
     /// `rule_of_20()` constraint was deleted in favour of
     #[test]
     fn points_twelve_is_the_rule_of_20() {
+        // The N+8 = Rule-of-20 identity is now the opt-out, not the default:
+        // pin the rule-of-N+8 scale these example hands' points assume.
+        set_point_scale(PointScale::RuleOfNFloored);
         let context = empty_context();
         let opens = |text: &str| points(12..).eval(hand(text), &context);
         // Raw HCP + the two longest suits, the classic Rule-of-20 kernel.
@@ -2680,6 +2692,7 @@ mod tests {
         // A flat 11-count is short of both.
         assert!(!rule_of_20("KQ32.K32.Q32.J32"));
         assert_reject(opens("KQ32.K32.Q32.J32"));
+        set_point_scale(PointScale::PointCount);
     }
 
     #[test]
@@ -2710,12 +2723,12 @@ mod tests {
     fn test_points_and_fifths() {
         let context = empty_context();
 
-        // This test exercises the shipped floored rule-of-N+8 default scale;
-        // the legacy arms live in `test_point_scale`, and the fit-known
-        // candidate rides on `support_points` (see `test_support_points`).
+        // This test exercises the shipped raw-HCP+upgrade (PointCount) default
+        // scale; the rule-of-N+8 arms live in `test_point_scale`, and the
+        // fit-known candidate rides on `support_points` (see `test_support_points`).
 
-        // 9 HCP, clean 5-5: 9 + 10 − 8 = 11 points (agreeing with the legacy
-        // upgrade here).
+        // 9 HCP, clean 5-5: 9 + upgrade 2 = 11 points (the clean two-suiter
+        // agrees with rule-of-N+8's 9 + 10 − 8 here).
         let two_suiter = hand("KQ765.A8765.32.2");
         assert_pass(points(11..=11).eval(two_suiter, &context));
         assert_reject(points(..=10).eval(two_suiter, &context));
@@ -2859,7 +2872,7 @@ mod tests {
         assert_pass(points(11..=11).eval(two_suiter, &context));
 
         // Restore the shipped default for the rest of the suite.
-        set_point_scale(PointScale::RuleOfNFloored);
+        set_point_scale(PointScale::PointCount);
     }
 
     #[test]
@@ -2897,7 +2910,7 @@ mod tests {
         assert_eq!(point_count(two_suiter), 11);
 
         // Restore the shipped default for the rest of the suite.
-        set_point_scale(PointScale::RuleOfNFloored);
+        set_point_scale(PointScale::PointCount);
     }
 
     #[test]
