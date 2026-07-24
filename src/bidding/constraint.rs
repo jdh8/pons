@@ -165,11 +165,20 @@ fn describe_box(envelope: &Envelope) -> Description {
     let strength = &envelope.strength;
     parts.extend(axis(strength.hcp, Range::FULL_POINTS.max, "HCP"));
     parts.extend(axis(strength.points, Range::FULL_POINTS.max, "points"));
-    parts.extend(axis(
-        strength.support_points,
-        Range::FULL_POINTS.max,
-        "support points",
-    ));
+    let support = strength.support_points;
+    if support.iter().all(|slot| *slot == support[0]) {
+        // Uniform slots — one band about every fit renders as a scalar.
+        parts.extend(axis(support[0], Range::FULL_POINTS.max, "support points"));
+    } else {
+        // Per-suit slots: name each narrowed trump.
+        for suit in Suit::ASC {
+            parts.extend(axis(
+                support[suit as usize],
+                Range::FULL_POINTS.max,
+                &format!("support points in {suit}"),
+            ));
+        }
+    }
     match parts.len() {
         0 => Description::atom("any hand"),
         1 => parts.pop().unwrap_or_else(|| unreachable!()),
@@ -1114,13 +1123,16 @@ pub fn points(range: impl RangeBounds<u8> + Clone + Send + Sync) -> Cons<impl Co
     Cons(Points(range))
 }
 
-/// [`point_count`] on the fit-known shortness scale when [`set_support_points`]
-/// is on, else legacy [`point_count`] — the value-level dual of [`support_points`]
+/// The **suit-blind** support scalar: [`point_count`] on the fit-known
+/// shortness scale when [`set_support_points`] is on, else legacy
+/// [`point_count`]
 ///
-/// Only fit-known gates gauge this: a trump fit is known, so counting shortness
-/// as support value is sound.  The flag-off default equals [`point_count`], so a
-/// gate swapped from [`points`] to [`support_points`] is byte-identical by
-/// default.
+/// Superseded by [`support_point_count_in`] at every gate that knows its
+/// trump statically — this sums `hcp_plus` over *all four* suits, crediting
+/// even a short trump holding with ruffing value it cannot have.  It remains
+/// for the sites where the trump is dynamic (`slam_entry_reached` resolves
+/// its trump per call — migration is a ledger follow-up) and for the
+/// diagnostic probes.
 #[must_use]
 pub fn support_point_count(hand: Hand) -> u8 {
     if SUPPORT_POINTS.with(Cell::get) {
@@ -1130,35 +1142,92 @@ pub fn support_point_count(hand: Hand) -> u8 {
     }
 }
 
-/// [`support_point_count`] in a range (the [`support_points`] constraint)
+/// The suit-indexed support scale every [`support_points`] gate gauges: the
+/// trump suit is worth plain HCP — trumps are trumps, not ruffs, so a short
+/// trump holding earns no shortness value — while the side suits keep
+/// `hcp_plus` (HCP plus useful shortness) and the double-fit term stays as in
+/// the suit-blind [`support_point_count`].  Trump *length* is deliberately
+/// not in the scale: the sites where fit length decides games
+/// (`fit_sum_game`, Texas, the six-card invites, `fit_value`) add it
+/// explicitly, as they always have.
+///
+/// Whenever trump length ≥ 3 (every fit-known gate), this is exactly
+/// `support_point_count(hand)`; the scales diverge only on a short trump
+/// holding, where the suit-blind scale wrongly counted ruffing shortness *in
+/// trump* — a doubleton reads a point lower here, a stiff two.  Under
+/// [`set_support_points`]`(false)` (the historical A/B off arm) it falls back
+/// to legacy [`point_count`], which counts no shortness anywhere.
+#[must_use]
+pub fn support_point_count_in(hand: Hand, trump: Suit) -> u8 {
+    if !SUPPORT_POINTS.with(Cell::get) {
+        return point_count(hand);
+    }
+    let holdings = Suit::ASC.map(|suit| {
+        if suit == trump {
+            eval::hcp::<u8>(hand[suit])
+        } else {
+            eval::hcp_plus::<u8>(hand[suit])
+        }
+    });
+    holdings.iter().sum::<u8>() + u8::from(longest_two_suits(hand) >= 10)
+}
+
+/// Write a support band into an [`Envelope`]'s per-suit slots: the named
+/// trump's slot alone — the band is a claim about *that* fit — while the
+/// rest stay full.
+fn support_slots(trump: Suit, band: Range) -> [Range; 4] {
+    let mut slots = [Range::FULL_POINTS; 4];
+    slots[trump as usize] = band;
+    slots
+}
+
+/// [`support_point_count_in`] in a range (the [`support_points`] constraint)
 #[derive(Clone)]
-struct SupportPoints<R>(R);
+struct SupportPoints<R> {
+    suit: Suit,
+    range: R,
+}
+
+impl<R: RangeBounds<u8> + Clone + Send + Sync> SupportPoints<R> {
+    /// The authored band, bounded onto the scale
+    fn band(&self) -> Range {
+        bound_range(&self.range, Range::FULL_POINTS.max)
+    }
+}
 
 impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for SupportPoints<R> {
     fn eval(&self, hand: Hand, _: &Context<'_>) -> f32 {
-        crisp(self.0.contains(&support_point_count(hand)))
+        // Clamp the measured value at the scale cap: a capped ceiling means
+        // "unbounded", so the clamp keeps a freak hand inside every
+        // floor-only band.
+        let value = support_point_count_in(hand, self.suit).min(Range::FULL_POINTS.max);
+        crisp(self.band().contains(value))
     }
 
     fn describe(&self) -> Description {
-        describe_int_range(&self.0, "support points")
+        // The gate names no suit in disclosure: every gate conjoins 3+ trumps,
+        // where the suit-indexed value equals the familiar suit-blind count.
+        describe_int_range(&self.range, "support points")
     }
 
     fn project(&self, _: &Context<'_>) -> Dnf {
-        // Floor into the dedicated `support_points` gauge, which measures this
-        // same `support_point_count` scalar — so, unlike a projection into the
-        // legacy `points` gauge (which records `point_count`, no lower bound on
-        // the shortness scale), the floor is exact regardless of the scale flag.
+        // Floor into the dedicated per-suit `support_points` gauge, which
+        // measures this same value — so, unlike a projection into the legacy
+        // `points` gauge (which records `point_count`, no lower bound on the
+        // shortness scale), the floor is exact.
         // Read behind Edit 1's knob; the `points`/`admits` gauge is untouched.
-        let floor = bound_range(&self.0, Range::FULL_POINTS.max).min;
+        let floor = self.band().min;
         let mut inference = Envelope::unknown();
-        inference.strength.support_points = Range::new(floor, Range::FULL_POINTS.max);
+        inference.strength.support_points =
+            support_slots(self.suit, Range::new(floor, Range::FULL_POINTS.max));
         Dnf::from(inference)
     }
 
     fn project_band(&self, _: &Context<'_>) -> Dnf {
-        // Both bounds exact on the dedicated `support_points` gauge.
+        // Both bounds exact on the dedicated `support_points` gauge — the
+        // band is precisely the eval's test.
         let mut inference = Envelope::unknown();
-        inference.strength.support_points = bound_range(&self.0, Range::FULL_POINTS.max);
+        inference.strength.support_points = support_slots(self.suit, self.band());
         Dnf::from(inference)
     }
 
@@ -1169,31 +1238,35 @@ impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for SupportPoints<R> {
         if !dnf_reading() {
             return Dnf::unknown();
         }
-        complement_halves(
-            bound_range(&self.0, Range::FULL_POINTS.max),
-            Range::FULL_POINTS.max,
-        )
-        .map(|half| {
-            let mut inference = Envelope::unknown();
-            inference.strength.support_points = half;
-            Dnf::from(inference)
-        })
-        .reduce(Dnf::disjoin)
-        .unwrap_or_else(Dnf::unknown)
+        complement_halves(self.band(), Range::FULL_POINTS.max)
+            .map(|half| {
+                let mut inference = Envelope::unknown();
+                inference.strength.support_points = support_slots(self.suit, half);
+                Dnf::from(inference)
+            })
+            .reduce(Dnf::disjoin)
+            .unwrap_or_else(Dnf::unknown)
     }
 }
 
-/// [`support_point_count`] in the given range — the fit-known counterpart to
-/// [`points`]
+/// [`support_point_count_in`] in the given range — the fit-known counterpart
+/// to [`points`]
 ///
 /// Wire this into a gate only when a trump fit is known; it counts shortness as
 /// support value, unsound before a fit.  The invariant is grep-able:
 /// `support_points` in a gate ⟹ a fit is known.
+///
+/// `suit` is the agreed trump — written explicitly, because the context's
+/// partner-last-suit is the *wrong* trump at Jacoby rebids (partner's last
+/// call was 2NT) and transfer-GF rebids.  The gate tests
+/// [`support_point_count_in`]`(hand, suit)`, denying a short trump holding
+/// the phantom ruffing value the suit-blind scale credited it.
 #[must_use]
 pub fn support_points(
+    suit: Suit,
     range: impl RangeBounds<u8> + Clone + Send + Sync,
 ) -> Cons<impl Constraint + Clone> {
-    Cons(SupportPoints(range))
+    Cons(SupportPoints { suit, range })
 }
 
 /// Fifths in a range (the [`fifths`] constraint)
@@ -2697,15 +2770,15 @@ mod tests {
         set_support_points(false);
         assert_eq!(support_point_count(two_suiter), point_count(two_suiter));
         assert_eq!(support_point_count(two_suiter), 11);
-        assert_pass(support_points(11..=11).eval(two_suiter, &context));
+        assert_pass(support_points(Suit::Spades, 11..=11).eval(two_suiter, &context));
 
         // On (the shipped default): the hotter hcp_plus scale, strictly above
         // legacy for a shaped hand (the singleton and doubleton now add).
         set_support_points(true);
         assert_eq!(support_point_count(two_suiter), 13);
         assert!(support_point_count(two_suiter) > point_count(two_suiter));
-        assert_pass(support_points(13..=13).eval(two_suiter, &context));
-        assert_reject(support_points(..=12).eval(two_suiter, &context));
+        assert_pass(support_points(Suit::Spades, 13..=13).eval(two_suiter, &context));
+        assert_reject(support_points(Suit::Spades, ..=12).eval(two_suiter, &context));
 
         // Flat hands carry no useful shortness, so the support scale sticks to
         // raw HCP — and the floored rule-of-N+8 default agrees on a 4-3-3-3.
@@ -2713,6 +2786,40 @@ mod tests {
         assert_eq!(support_point_count(flat), 16);
         assert_eq!(point_count(flat), 16);
         // Left on — the shipped default — for the rest of the suite.
+    }
+
+    #[test]
+    fn test_suit_support_points() {
+        let context = empty_context();
+        // 9 HCP, clean 5-5-2-1: suit-blind SP = 13 (9 + 1 + 2 + 1 double-fit).
+        let two_suiter = hand("KQ765.A8765.32.2");
+
+        // The ≥3-trump identity: a 3+ card holding earns no shortness value on
+        // either scale, so SP_in = SP exactly — every fit-known gate (all
+        // conjoin 3+ support) reads the familiar suit-blind count.
+        assert_eq!(support_point_count_in(two_suiter, Suit::Spades), 13);
+        assert_eq!(support_point_count_in(two_suiter, Suit::Hearts), 13);
+        // Short-trump corners, where the scales diverge: the suit-blind scale
+        // counted ruffing shortness *in trump* (doubleton +1, singleton +2);
+        // suit-indexed, trumps are trumps, not ruffs.
+        assert_eq!(support_point_count_in(two_suiter, Suit::Diamonds), 12); // = 13 − 1
+        assert_eq!(support_point_count_in(two_suiter, Suit::Clubs), 11); // = 13 − 2
+
+        // Flat 16-count: no shortness anywhere, so both scales are raw HCP.
+        let flat = hand("AQ32.K53.QJ4.A92");
+        assert_eq!(support_point_count_in(flat, Suit::Spades), 16);
+        assert_eq!(
+            support_point_count_in(flat, Suit::Spades),
+            support_point_count(flat)
+        );
+
+        // The gate tests SP_in for its authored trump against the band.
+        assert_pass(support_points(Suit::Spades, 13..=13).eval(two_suiter, &context));
+        assert_pass(support_points(Suit::Spades, 13..).eval(two_suiter, &context));
+        assert_reject(support_points(Suit::Spades, ..=12).eval(two_suiter, &context));
+        assert_reject(support_points(Suit::Spades, 14..).eval(two_suiter, &context));
+        // The corner bites through the DSL: a stiff-club "trump" reads 11.
+        assert_reject(support_points(Suit::Clubs, 13..).eval(two_suiter, &context));
     }
 
     #[test]

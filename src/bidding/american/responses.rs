@@ -304,14 +304,17 @@ pub fn major_responses(major: Suit) -> Rules {
         .rule(
             Bid::new(2, Strain::Notrump),
             3.0,
-            dnf_upgrade(support(4..) & support_points(13..), jacoby_box(major)),
+            dnf_upgrade(
+                support(4..) & support_points(major, 13..),
+                jacoby_box(major),
+            ),
         )
         .alert(JACOBY_2NT)
         // Limit raise: four-card support, 10–12 points.
         .rule(
             Bid::new(3, trump),
             2.0,
-            support(4..) & support_points(10..=12),
+            support(4..) & support_points(major, 10..=12),
         )
         // Weak jump to game: lots of trumps, few points.  Left on legacy
         // `points`: this preempt's ceiling gates obstruction, and revaluing
@@ -322,7 +325,7 @@ pub fn major_responses(major: Suit) -> Rules {
         .rule(
             Bid::new(2, trump),
             1.5,
-            support(3..) & support_points(6..=9),
+            support(3..) & support_points(major, 6..=9),
         )
         // Forcing 1NT: the catch-all when nothing more descriptive fits.
         // Capped one under the no-fit gate's raw-HCP floor, so the table stays
@@ -382,7 +385,7 @@ pub fn major_responses(major: Suit) -> Rules {
             .rule(
                 Bid::new(level, strain),
                 2.8,
-                support(4..) & support_points(10..=13) & len(x, ..=1),
+                support(4..) & support_points(major, 10..=13) & len(x, ..=1),
             )
             .alert(SPLINTER);
     }
@@ -528,8 +531,9 @@ fn fit_split_gate(
     no_fit: Cons<impl Constraint + Clone + 'static>,
     no_fit_floor: impl FnOnce(&mut Strength),
 ) -> Cons<impl Constraint + Clone> {
-    let legacy =
-        len(suit, min_len..) & !support(4..) & (no_fit | (support(3..) & support_points(13..)));
+    let legacy = len(suit, min_len..)
+        & !support(4..)
+        & (no_fit | (support(3..) & support_points(major, 13..)));
     dnf_upgrade(legacy, fit_split_boxes(suit, min_len, major, no_fit_floor))
 }
 
@@ -541,7 +545,7 @@ fn fit_split_gate(
 fn jacoby_box(major: Suit) -> Dnf {
     let mut env = Envelope::unknown();
     env.lengths[major as usize] = Range::new(4, Range::FULL_LENGTH.max);
-    env.strength.support_points = Range::new(13, Range::FULL_POINTS.max);
+    env.narrow_support_points(major, Range::new(13, Range::FULL_POINTS.max));
     Dnf::from(env)
 }
 
@@ -563,7 +567,7 @@ fn fit_split_boxes(
 
     let mut fit = base;
     fit.lengths[major as usize] = Range::new(3, 3);
-    fit.strength.support_points = Range::new(13, Range::FULL_POINTS.max);
+    fit.narrow_support_points(major, Range::new(13, Range::FULL_POINTS.max));
 
     Dnf::from(no_fit).union(Dnf::from(fit))
 }
@@ -678,13 +682,20 @@ pub fn minor_responses(minor: Suit) -> Rules {
         .rule(
             Bid::new(2, trump),
             1.25,
-            support(5..) & support_points(10..) & len(Suit::Hearts, ..4) & len(Suit::Spades, ..4),
+            support(5..)
+                & support_points(minor, 10..)
+                & len(Suit::Hearts, ..4)
+                & len(Suit::Spades, ..4),
         )
         .alert(INVERTED_MINOR)
         // Weak preemptive raise.  `support_points` here is behaviour-neutral —
         // the strong-raise floor above dominates every hand it could promote —
         // so it rides along to keep every fit-known raise gate on one scale.
-        .rule(Bid::new(3, trump), 1.1, support(5..) & support_points(..=9))
+        .rule(
+            Bid::new(3, trump),
+            1.1,
+            support(5..) & support_points(minor, ..=9),
+        )
         .alert(INVERTED_MINOR)
         .rule(Call::Pass, 0.0, hcp(..6));
 
@@ -762,7 +773,12 @@ pub(super) fn register(book: &mut Trie) {
             let our_calls = &[super::call(1, m_strain), splinter];
 
             let after_splinter = Rules::new()
-                .rule(Bid::new(4, Strain::Notrump), 1.0, support_points(16..))
+                // Opener's seat: the trump is the own five-card major, +5.
+                .rule(
+                    Bid::new(4, Strain::Notrump),
+                    1.0,
+                    support_points(major, 16..),
+                )
                 .alert(super::slam::RKCB)
                 .rule(Bid::new(4, m_strain), 0.5, hcp(0..));
 
@@ -814,7 +830,12 @@ pub(super) fn register(book: &mut Trie) {
         // topped out at 3NT).
         if super::slam::minor_keycard() {
             let after_3nt = Rules::new()
-                .rule(Bid::new(4, Strain::Notrump), 1.0, support_points(14..))
+                // Responder's seat: the inverted raise promised 5+ trumps, +5.
+                .rule(
+                    Bid::new(4, Strain::Notrump),
+                    1.0,
+                    support_points(minor, 14..),
+                )
                 .alert(super::slam::RKCB)
                 .rule(Call::Pass, 0.5, hcp(0..));
             let our_calls_3nt = &[
@@ -910,7 +931,7 @@ mod tests {
         for major in [Suit::Hearts, Suit::Spades] {
             let auction = [Call::Bid(Bid::new(1, Strain::from(major))), Call::Pass];
             let context = Context::new(RelativeVulnerability::NONE, &auction);
-            let composite = support(4..) & support_points(13..);
+            let composite = support(4..) & support_points(major, 13..);
             let native = jacoby_box(major);
             let report = verify::compare(
                 |hand| composite.eval(hand, &context).is_finite(),
@@ -953,7 +974,7 @@ mod tests {
         ) {
             let composite = len(suit, min_len..)
                 & !support(4..)
-                & (no_fit | (support(3..) & support_points(13..)));
+                & (no_fit | (support(3..) & support_points(major, 13..)));
             let native = fit_split_boxes(suit, min_len, major, floor);
             let report = verify::compare(
                 |hand| composite.eval(hand, context).is_finite(),

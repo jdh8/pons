@@ -511,9 +511,12 @@ pub struct Strength {
     /// the suit-oriented rules gauge (raw HCP for the balanced openings) — the
     /// legacy single axis
     pub points: Range,
-    /// HCP + shortness, on the fit-known
-    /// [`support_point_count`][super::constraint::support_point_count] scale
-    pub support_points: Range,
+    /// HCP + shortness, on the fit-known suit-indexed
+    /// [`support_point_count_in`][super::constraint::support_point_count_in]
+    /// scale — one slot per candidate trump suit, indexed by `suit as usize`
+    /// like [`Envelope::lengths`], each gauged with its own suit as trump (no
+    /// shortness value in the trump suit itself).
+    pub support_points: [Range; 4],
 }
 
 impl Strength {
@@ -523,7 +526,7 @@ impl Strength {
         Self {
             hcp: Range::FULL_POINTS,
             points: Range::FULL_POINTS,
-            support_points: Range::FULL_POINTS,
+            support_points: [Range::FULL_POINTS; 4],
         }
     }
 
@@ -538,10 +541,10 @@ impl Strength {
     /// never narrows past the truth.
     fn canonicalize(&mut self) {
         let slack = super::constraint::flat_hcp_slack();
-        self.support_points.min = self
-            .support_points
-            .min
-            .max(self.hcp.min.saturating_sub(slack));
+        let floor = self.hcp.min.saturating_sub(slack);
+        for slot in &mut self.support_points {
+            slot.min = slot.min.max(floor);
+        }
     }
 
     /// Field-by-field [`Range::intersect`], then [`canonicalize`][Self::canonicalize]
@@ -549,7 +552,8 @@ impl Strength {
     fn intersect(mut self, other: Self) -> Self {
         self.hcp = self.hcp.intersect(other.hcp);
         self.points = self.points.intersect(other.points);
-        self.support_points = self.support_points.intersect(other.support_points);
+        self.support_points =
+            core::array::from_fn(|i| self.support_points[i].intersect(other.support_points[i]));
         self.canonicalize();
         self
     }
@@ -560,7 +564,9 @@ impl Strength {
         Self {
             hcp: self.hcp.union(other.hcp),
             points: self.points.union(other.points),
-            support_points: self.support_points.union(other.support_points),
+            support_points: core::array::from_fn(|i| {
+                self.support_points[i].union(other.support_points[i])
+            }),
         }
     }
 
@@ -575,18 +581,24 @@ impl Strength {
         let mut out = Self {
             hcp: self.hcp.intersect(other.hcp),
             points: self.points.intersect_nonempty(other.points)?,
-            support_points: self.support_points.intersect(other.support_points),
+            support_points: core::array::from_fn(|i| {
+                self.support_points[i].intersect(other.support_points[i])
+            }),
         };
         out.canonicalize();
         Some(out)
     }
 
-    /// The support-points floor if the gauge was narrowed from unknown, else
-    /// `None` — a consumer reads this dedicated axis only when populated, and
-    /// otherwise falls back to the length-scale [`points`][Self::points].
+    /// The support-points floor for `suit` as trump if that slot was narrowed
+    /// from unknown, else `None` — a consumer reads this dedicated axis only
+    /// when populated, and otherwise falls back to the length-scale
+    /// [`points`][Self::points].  Suit-blind (the default) every slot holds
+    /// the same band; suit-indexed, the slot is on the same units minus the
+    /// trump suit's phantom shortness — never any length term.
     #[must_use]
-    pub fn support_floor(&self) -> Option<u8> {
-        (self.support_points.max < Range::FULL_POINTS.max).then_some(self.support_points.min)
+    pub fn support_floor(&self, suit: Suit) -> Option<u8> {
+        let slot = self.support_points[suit as usize];
+        (slot.max < Range::FULL_POINTS.max).then_some(slot.min)
     }
 
     /// The raw-HCP floor if the [`hcp`][Self::hcp] gauge was narrowed, else `None`.
@@ -634,12 +646,15 @@ impl Envelope {
         self.strength.points = self.strength.points.intersect(range);
     }
 
-    /// Narrow the shown support points (fit-known scale) by intersecting in `range`
+    /// Narrow the shown support points (fit-known scale) by intersecting in
+    /// `range`
     ///
     /// Only fit-showing raises call this: a raise's point promise is valued on
-    /// the support scale once the fit is agreed.  Read only behind Edit 1's knob.
-    fn narrow_support_points(&mut self, range: Range) {
-        self.strength.support_points = self.strength.support_points.intersect(range);
+    /// the support scale once the fit is agreed.  `suit` is the agreed trump —
+    /// the promise narrows that suit's slot alone.
+    pub(super) fn narrow_support_points(&mut self, suit: Suit, range: Range) {
+        let slot = &mut self.strength.support_points[suit as usize];
+        *slot = slot.intersect(range);
     }
 
     /// Narrow the shown raw HCP by intersecting in `range`, then propagate
@@ -719,10 +734,18 @@ impl Envelope {
             .contains(super::constraint::point_count(hand))
             && (!gauge_membership()
                 || (self.strength.hcp.contains(super::constraint::raw_hcp(hand))
-                    && self
-                        .strength
-                        .support_points
-                        .contains(super::constraint::support_point_count(hand))))
+                    && self.supports(hand)))
+    }
+
+    /// Whether the hand's support points fit every suit's slot, each gauged by
+    /// [`support_point_count_in`][super::constraint::support_point_count_in]
+    /// with that suit as trump (clamped at the scale cap, whose ceiling means
+    /// "unbounded")
+    fn supports(&self, hand: Hand) -> bool {
+        Suit::ASC.into_iter().all(|suit| {
+            let value = super::constraint::support_point_count_in(hand, suit);
+            self.strength.support_points[suit as usize].contains(value.min(Range::FULL_POINTS.max))
+        })
     }
 
     /// Whether some 13-card hand can realize this box's suit lengths
@@ -745,19 +768,18 @@ impl Envelope {
             .all(|suit| other.length(suit).encloses(self.length(suit)))
             && other.strength.hcp.encloses(self.strength.hcp)
             && other.strength.points.encloses(self.strength.points)
-            && other
-                .strength
-                .support_points
-                .encloses(self.strength.support_points)
+            && (self.strength.support_points.iter())
+                .zip(other.strength.support_points)
+                .all(|(inner, outer)| outer.encloses(*inner))
     }
 
     /// Whether a hand lies within this box on **every** gauge — the strict,
     /// gate-side membership test
     ///
     /// [`admits`][Self::admits] plus the raw-HCP and support-points gauges,
-    /// each scored on its own scale (raw HCP,
-    /// [`support_point_count`][super::constraint::support_point_count]).  This
-    /// is what a natively authored `Envelope`/[`Dnf`] **gate** evaluates
+    /// each scored on its own scale (raw HCP, per-suit
+    /// [`support_point_count_in`][super::constraint::support_point_count_in]).
+    /// This is what a natively authored `Envelope`/[`Dnf`] **gate** evaluates
     /// through `Constraint::eval`: the box is the whole rule, so every stored
     /// bound — ceilings included — is enforced.  The reading-side
     /// [`admits`][Self::admits] stays lenient (lengths + `points` only) for
@@ -768,10 +790,7 @@ impl Envelope {
     pub fn accepts(&self, hand: Hand) -> bool {
         self.admits(hand)
             && self.strength.hcp.contains(super::constraint::raw_hcp(hand))
-            && self
-                .strength
-                .support_points
-                .contains(super::constraint::support_point_count(hand))
+            && self.supports(hand)
     }
 }
 
@@ -1429,8 +1448,10 @@ impl Inferences {
                                     // Fit agreed (the cue names partner's suit), so
                                     // the raise's point promise is a support-scale
                                     // one — read behind Edit 1's knob.
-                                    players[who]
-                                        .narrow_support_points(Range::at_least(10, POINTS_CAP));
+                                    players[who].narrow_support_points(
+                                        agreed,
+                                        Range::at_least(10, POINTS_CAP),
+                                    );
                                 }
                             } else if over_one_notrump {
                                 // Natural, forcing five-card suit over our 1NT.
@@ -1558,11 +1579,12 @@ impl Inferences {
                                 match jump {
                                     0 => {
                                         players[who].narrow_points(Range::new(6, 10));
-                                        players[who].narrow_support_points(Range::new(6, 10));
+                                        players[who].narrow_support_points(suit, Range::new(6, 10));
                                     }
                                     1 => {
                                         players[who].narrow_points(Range::new(10, 12));
-                                        players[who].narrow_support_points(Range::new(10, 12));
+                                        players[who]
+                                            .narrow_support_points(suit, Range::new(10, 12));
                                     }
                                     _ => {}
                                 }
@@ -1711,7 +1733,7 @@ impl Inferences {
             players[who].narrow_length(overcall_suit, Range::at_least(3, LENGTH_CAP));
             players[who].narrow_points(Range::at_least(10, POINTS_CAP));
             // Fit agreed (cue of partner's overcall), a support-scale promise.
-            players[who].narrow_support_points(Range::at_least(10, POINTS_CAP));
+            players[who].narrow_support_points(overcall_suit, Range::at_least(10, POINTS_CAP));
         }
 
         // A one-level Rubens transfer records its meaning likewise (see
@@ -5198,7 +5220,7 @@ mod tests {
         assert!(!envelope.admits(hand));
         envelope.strength.hcp = Range::new(15, 17);
         assert!(envelope.admits(hand));
-        envelope.strength.support_points = Range::new(16, 37);
+        envelope.strength.support_points = [Range::new(16, 37); 4];
         assert!(!envelope.admits(hand));
         set_gauge_membership(false);
     }
@@ -5367,21 +5389,21 @@ mod tests {
                 let text = leaves.join(" | ");
                 let entry = format!("{system}: {} :: {text}", rule.call());
 
-                type Gauge = fn(&Strength) -> Range;
-                let gauges: [(&'static str, Gauge); 3] = [
-                    ("HCP", |s| s.hcp),
-                    ("points", |s| s.points),
-                    ("support points", |s| s.support_points),
+                type Vacuous = fn(&Strength) -> bool;
+                let gauges: [(&'static str, Vacuous); 3] = [
+                    ("HCP", |s| s.hcp == Range::FULL_POINTS),
+                    ("points", |s| s.points == Range::FULL_POINTS),
+                    ("support points", |s| {
+                        s.support_points
+                            .iter()
+                            .all(|slot| *slot == Range::FULL_POINTS)
+                    }),
                 ];
-                for (noun, gauge) in gauges {
+                for (noun, vacuous) in gauges {
                     let named = leaves.iter().any(|atom| {
                         claims(atom, noun) && (noun != "points" || !claims(atom, "support points"))
                     });
-                    if named
-                        && boxes
-                            .iter()
-                            .all(|b| gauge(&b.strength) == Range::FULL_POINTS)
-                    {
+                    if named && boxes.iter().all(|b| vacuous(&b.strength)) {
                         leaks.entry(noun).or_default().push(entry.clone());
                     }
                 }

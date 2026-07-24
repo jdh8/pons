@@ -9,6 +9,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Suit-indexed support points — adopted as the fit-known scale.** New
+  gauge `support_point_count_in(hand, trump)`, now gauged by every
+  `support_points` gate, native box, and envelope membership test: the trump
+  suit is worth **plain HCP only** — a short trump holding stops earning the
+  phantom ruffing value the suit-blind scale credited it (trumps are trumps,
+  not ruffs) — side suits keep `hcp_plus`, and the ≥10 double-fit +1 stays
+  verbatim.  Trump length is not in the scale: the sites where fit length
+  decides games (`fit_sum_game`, Texas, the six-card invites, `fit_value`)
+  keep their explicit length terms.  Every `support_points` gate names its
+  trump (`support_points(suit, range)` — explicit, because
+  partner-last-suit is the wrong trump at Jacoby and transfer-GF rebids),
+  and the `Envelope` support axis becomes per-suit (`[Range; 4]`, mirroring
+  `lengths`; a raise now narrows only its own suit's slot); box-emptiness
+  stays points-only, so the sampler is untouched.  On 3+ trumps the scales
+  agree, so every raise ladder classifies identically — the change bites
+  only where a *short* holding in the fit suit is valued.  **Adoption A/B
+  NULL-positive** (200k × 2 seeds × 2 vuls, SEED 1784892361): 7 divergent
+  boards in 800k, **the fix won all 7** (+41 PD / +17 DD summed) — every
+  firing was opener declining a six-card major invite it had accepted on a
+  doubleton's phantom point, agreeing with the measured accept-17 optimum
+  of the 2♠ size-ask.  The suit-blind `support_point_count` survives only
+  for the dynamic-trump `slam_entry_reached` (migration = ledger follow-up)
+  and the diagnostic probes; `set_support_points(false)` still pins the
+  legacy `point_count` arm.  (A first arm that also folded raw trump length
+  into the scale and shifted every band by the node's trump-length floor
+  was REFUTED before commit — slam churn in both directions, plain
+  −0.004…−0.006 / PD −0.009…−0.012, SEED 1784890860 — and survives only in
+  the A6 ledger; its game-rung half won vulnerable and is the ranked
+  carve-out follow-up.)
+
 - **DNF flip day: `set_dnf_reading` ships default-ON.** Union-of-boxes
   readings are now the crate default (measured F2b round 2: plain
   +0.0094/+0.0080 IMPs/board NV/vul, PD +0.0118/+0.0085, all CIs clear);

@@ -52,7 +52,8 @@ use super::Rules;
 use super::constraint::{
     Cons, Constraint, balanced, described, hcp, len, min_level_is, partner_shown_len,
     partner_suit_is, point_count, points, pred, short_in_their_suits, stopper_in_their_suits,
-    support, support_point_count, takeout_double_shape_ok, they_bid, top_honors,
+    support, support_point_count, support_point_count_in, takeout_double_shape_ok, they_bid,
+    top_honors,
 };
 use super::context::Context;
 use super::evaluator::trick_estimates;
@@ -1848,7 +1849,10 @@ fn slam_entry_reached() -> Cons<impl Constraint + Clone> {
             });
         }
         // Fit-known: the RKCB ask only fires on a shown trump, so count
-        // shortness as support value (`support_point_count`).
+        // shortness as support value.  Still the suit-blind scalar — the
+        // trump here is dynamic (`keycard_trump`), and the migration to
+        // `support_point_count_in` is a ledger follow-up with its own
+        // FLOOR_SLAM_ENTRY resweep.
         let partner_min = partner_slam_strength(context);
         u16::from(support_point_count(hand)) + u16::from(partner_min)
             >= u16::from(FLOOR_SLAM_ENTRY.with(Cell::get))
@@ -1867,22 +1871,20 @@ fn slam_entry_reached() -> Cons<impl Constraint + Clone> {
 fn fit_sum_game(suit: Suit) -> Cons<impl Constraint + Clone> {
     pred(move |hand: Hand, context: &Context<'_>| {
         // Fit-known (the rule pairs this with `known_eight_card_fit`), so count
-        // shortness as support value (`support_point_count`).
+        // shortness as support value — side suits only, never the own trump
+        // holding; the fit length term is explicit.
         let inferences = Inferences::read(context);
         let partner = inferences.partner();
         // Edit 1: partner's raise valued on the support scale when that gauge is
         // populated (a fit-showing raise fired), else the length-scale floor.
-        let partner_pts = if FIT_SUM_SUPPORT_READ.with(Cell::get) {
-            partner
-                .strength
-                .support_floor()
-                .unwrap_or(partner.strength.points.min)
-        } else {
-            partner.strength.points.min
-        };
-        let combined = u16::from(support_point_count(hand)) + u16::from(partner_pts);
+        let partner_pts = FIT_SUM_SUPPORT_READ
+            .with(Cell::get)
+            .then(|| partner.strength.support_floor(suit))
+            .flatten()
+            .unwrap_or(partner.strength.points.min);
+        let own = support_point_count_in(hand, suit);
         let fit = hand[suit].len() as u16 + u16::from(partner.length(suit).min);
-        combined + fit >= u16::from(FIT_SUM_GAME.with(Cell::get))
+        u16::from(own) + u16::from(partner_pts) + fit >= u16::from(FIT_SUM_GAME.with(Cell::get))
     })
 }
 

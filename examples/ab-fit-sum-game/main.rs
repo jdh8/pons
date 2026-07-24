@@ -13,8 +13,8 @@
 //! `--support-points` arms the opt-in `hcp_plus`
 //! [`support_points`][pons::bidding::constraint::set_support_points] scale on
 //! *both* sides (the ambient environment, not the treatment): once `fit_sum_game`
-//! gauges `support_point_count`, its total is
-//! `support_point_count + partner.min + own_len + partner_shown_len`, and the new
+//! gauges the support scale, its total is
+//! `support + partner.min + own_len + partner_shown_len`, and the shortness
 //! scale reads shaped hands hotter — re-tune the threshold upward for it (31→32,
 //! docs/point-count-threshold-campaign.md).
 //!

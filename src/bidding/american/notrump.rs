@@ -16,7 +16,7 @@
 use super::{call, insert_uncontested, slam};
 use crate::bidding::constraint::{
     Cons, Constraint, balanced, described, dnf_upgrade, equal_length, hcp, len, long_suit_box,
-    longer_suit, point_count, points, pred, reads_as, stopper_in, support_point_count,
+    longer_suit, point_count, points, pred, reads_as, stopper_in, support_point_count_in,
     support_points, top_honors,
 };
 use crate::bidding::inference::{Dnf, Range};
@@ -628,8 +628,11 @@ fn both_majors_relay_placement(major: Suit) -> Rules {
 /// is unknowable.  ([`both_majors_relay_placement`] adds it back where opener
 /// *did* show both majors.)
 fn fit_value(hand: Hand, major: Suit) -> usize {
-    // Fit-known (the major is agreed), so count shortness as support value.
-    usize::from(support_point_count(hand)) + hand[major].len().saturating_sub(4)
+    // Fit-known (the major is agreed), so count shortness as support value —
+    // in the side suits only, never in trump itself; the
+    // length-beyond-the-eighth term is explicit.
+    let support = usize::from(support_point_count_in(hand, major));
+    support + hand[major].len().saturating_sub(4)
 }
 
 /// Responder's placement over opener's max five-card-major jump (`3♥`/`3♠`)
@@ -1183,7 +1186,9 @@ fn texas_strength_gate(major: Suit) -> Cons<impl Constraint + Clone> {
     let floor = texas_game_floor();
     described("six-card-major game blast", move |hand: Hand, _| {
         // Fit-known: a 6-card major opposite 1NT's 2+ is an 8-card fit.
-        usize::from(support_point_count(hand)) + hand[major].len() >= floor
+        // Side-suit shortness counts; the length term is explicit.
+        let support = usize::from(support_point_count_in(hand, major));
+        support + hand[major].len() >= floor
     })
 }
 
@@ -1270,7 +1275,9 @@ fn sixcard_invite_rebid(major: Suit) -> Rules {
             & len(other_major(major), ..5)
             & described("six-card invitational value", move |hand: Hand, _| {
                 // Fit-known: 6-card major opposite 1NT's 2+ is an 8-card fit.
-                usize::from(support_point_count(hand)) + hand[major].len() >= floor
+                // Side-suit shortness counts; the length term is explicit.
+                let support = usize::from(support_point_count_in(hand, major));
+                support + hand[major].len() >= floor
             }),
     )
 }
@@ -1289,7 +1296,10 @@ fn accept_sixcard_invitation(major: Suit) -> Rules {
             1.0,
             described("accept six-card invite", move |hand: Hand, _| {
                 // Fit-known: responder showed six, opener has 2+ — an 8-card fit.
-                usize::from(support_point_count(hand)) + hand[major].len() >= floor
+                // A doubleton trump holding earns no phantom ruffing value —
+                // the corner where the suit-indexed scale measurably won.
+                let support = usize::from(support_point_count_in(hand, major));
+                support + hand[major].len() >= floor
             }),
         )
         .rule(Call::Pass, 0.0, hcp(0..))
@@ -1643,22 +1653,29 @@ fn transfer_spade_gf_rebid() -> Rules {
         // Six-card-spade slam tries with a side-suit splinter — carved off the direct
         // Texas `4♦` / `4♠` (see `is_major_splinter_slam`).  Artificial (the bid names
         // the *short* suit, not a strain to play), so each carries [`SPLINTER`].
+        // Responder's own six-card spade suit is the trump, +6.
         .rule(
             Bid::new(4, Strain::Clubs),
             1.55,
-            len(Suit::Spades, 6..) & splinter_short(Suit::Clubs) & support_points(16..),
+            len(Suit::Spades, 6..)
+                & splinter_short(Suit::Clubs)
+                & support_points(Suit::Spades, 16..),
         )
         .alert(SPLINTER)
         .rule(
             Bid::new(4, Strain::Diamonds),
             1.55,
-            len(Suit::Spades, 6..) & splinter_short(Suit::Diamonds) & support_points(16..),
+            len(Suit::Spades, 6..)
+                & splinter_short(Suit::Diamonds)
+                & support_points(Suit::Spades, 16..),
         )
         .alert(SPLINTER)
         .rule(
             Bid::new(4, Strain::Hearts),
             1.55,
-            len(Suit::Spades, 6..) & splinter_short(Suit::Hearts) & support_points(16..),
+            len(Suit::Spades, 6..)
+                & splinter_short(Suit::Hearts)
+                & support_points(Suit::Spades, 16..),
         )
         .alert(SPLINTER)
 }
@@ -1713,22 +1730,29 @@ fn transfer_heart_gf_rebid() -> Rules {
         )
         // Six-card-heart slam tries with a side-suit splinter — the spade shortness at
         // the cheap `3♠`, the minors at the four level.  Artificial, so each is alerted.
+        // Responder's own six-card heart suit is the trump, +6.
         .rule(
             Bid::new(3, Strain::Spades),
             1.55,
-            len(Suit::Hearts, 6..) & splinter_short(Suit::Spades) & support_points(16..),
+            len(Suit::Hearts, 6..)
+                & splinter_short(Suit::Spades)
+                & support_points(Suit::Hearts, 16..),
         )
         .alert(SPLINTER)
         .rule(
             Bid::new(4, Strain::Clubs),
             1.55,
-            len(Suit::Hearts, 6..) & splinter_short(Suit::Clubs) & support_points(16..),
+            len(Suit::Hearts, 6..)
+                & splinter_short(Suit::Clubs)
+                & support_points(Suit::Hearts, 16..),
         )
         .alert(SPLINTER)
         .rule(
             Bid::new(4, Strain::Diamonds),
             1.55,
-            len(Suit::Hearts, 6..) & splinter_short(Suit::Diamonds) & support_points(16..),
+            len(Suit::Hearts, 6..)
+                & splinter_short(Suit::Diamonds)
+                & support_points(Suit::Hearts, 16..),
         )
         .alert(SPLINTER)
         .rule(
@@ -1866,8 +1890,10 @@ fn is_major_splinter_slam(hand: Hand, major: Suit) -> bool {
     active
         && hand[major].len() >= 6
         // Fit-known: 6-card major opposite 1NT's 2+ is an 8-card fit, and this
-        // hand has a side-suit splinter — count the shortness as support value.
-        && usize::from(support_point_count(hand)) >= 16
+        // hand has a side-suit splinter — count the shortness as support
+        // value, in lockstep with the splinter gates'
+        // `support_points(major, 16..)` and the reroute boxes.
+        && usize::from(support_point_count_in(hand, major)) >= 16
         && Suit::ASC
             .into_iter()
             .filter(|&suit| suit != major)
@@ -1896,7 +1922,7 @@ fn major_splinter_reroute(major: Suit) -> Cons<impl Constraint + Clone> {
                 Range::FULL_LENGTH,
             );
             envelope.lengths[short as usize] = Range::new(0, 1);
-            envelope.strength.support_points = Range::new(16, Range::FULL_POINTS.max);
+            envelope.narrow_support_points(major, Range::new(16, Range::FULL_POINTS.max));
             Dnf::from(envelope)
         })
         .reduce(Dnf::union)
