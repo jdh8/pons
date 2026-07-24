@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **`upgrade` linearised — wasted honors cost one point each, not the whole
+  upgrade.** The fuzzy-strength `upgrade` (whose only default consumer is the
+  policy net's feature column 88; the `raw_hcp + upgrade` floor scale
+  `PointScale::PointCount` is the off-by-default opt-out) drops its cliff: a hand
+  earns +1 unbalanced and +1 more for ten cards in its two longest suits, then
+  subtracts **one point per wasted short honor** (floored at zero) instead of
+  zeroing the entire upgrade on the first waste.  The `american_bba` policy
+  net was retrained on the new feature.  Measured a wash vs the shipped cliff
+  formula (4-retrain A/B, both vuls, plain+PD: v1 both-PD mean −0.100
+  IMPs/bd vs the retrain-noise floor −0.103) — adopted for its monotonicity
+  at zero measured cost.  Refuted en route: uncapping the two-suiter reward
+  beyond +2 (−0.03 PD) and dropping the 4-4-4-1 +1 (a further −0.03 PD) both
+  mildly hurt, so the +2 cap and the 4-4-4-1 reward stay.
+
 ### Added
 
 - **Suit-indexed support points — adopted as the fit-known scale.** New

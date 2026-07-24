@@ -981,16 +981,14 @@ const fn wasted(holding: Holding) -> bool {
 /// [`points`] coincides with [`hcp`] for them.
 ///
 /// An honor (A, K, Q, or J) in a suit of at most two cards is wasted and
-/// voids the whole upgrade, except the working holdings Ax and Kx.
+/// costs one point each, except the working holdings Ax and Kx.  The upgrade
+/// floors at zero.
 #[must_use]
 pub fn upgrade(hand: Hand) -> u8 {
     let holdings = Suit::ASC.map(|suit| hand[suit]);
-
-    if holdings.iter().any(|&holding| wasted(holding)) {
-        return 0;
-    }
-
-    u8::from(!is_balanced(hand)) + u8::from(longest_two_suits(hand) >= 10)
+    let nwasted = holdings.iter().filter(|&&holding| wasted(holding)).count() as u32;
+    let base = u32::from(!is_balanced(hand)) + u32::from(longest_two_suits(hand) >= 10);
+    u8::try_from(base.saturating_sub(nwasted)).unwrap_or_else(|_| unreachable!())
 }
 
 /// Total length of the two longest suits — the shape kernel shared by
@@ -2638,10 +2636,10 @@ mod tests {
         // Ax and Kx are working short holdings, not wasted.
         assert_eq!(upgrade(hand("KQ765.87654.A2.2")), 2);
 
-        // Wasted short honors void the whole upgrade.
-        assert_eq!(upgrade(hand("KQ765.A876.532.K")), 0); // stiff K
-        assert_eq!(upgrade(hand("KQ765.A8765.Q2.2")), 0); // Qx
-        assert_eq!(upgrade(hand("KQ765.87654.AK.2")), 0); // AK tight
+        // Wasted short honors cost one point each; the upgrade floors at zero.
+        assert_eq!(upgrade(hand("KQ765.A876.532.K")), 0); // +1 base, −1 stiff K
+        assert_eq!(upgrade(hand("KQ765.A8765.Q2.2")), 1); // +2 base, −1 Qx
+        assert_eq!(upgrade(hand("KQ765.87654.AK.2")), 1); // +2 base, −1 AK tight
     }
 
     /// `points(12..)` *is* the Rule of 20 — the identity the dedicated
