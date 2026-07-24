@@ -43,7 +43,7 @@ use pons::bidding::american::{
 use pons::bidding::constraint::{PointScale, set_point_scale, set_support_points};
 use pons::bidding::context::relative;
 use pons::bidding::{Family, Inferences, Stance, System};
-use pons::scoring::{final_contract, imps, ns_score_contract, ns_score_tricks};
+use pons::scoring::{final_contract, imps, ns_score_contract, ns_score_pd_tricks, ns_score_tricks};
 use pons::single_dummy::{LeadQuestion, single_dummy_leads};
 
 use rand::SeedableRng;
@@ -169,7 +169,7 @@ enum Fix {
     /// gauges the weak-two opening — the disclosure-wall follow-up
     WeakTwoEval(WeakTwoEval),
     /// `set_two_over_one_gate(gate)`: the major no-fit 2/1 entry gauge, vs
-    /// the shipped `Hcp13`
+    /// the shipped `Points13`
     TwoOverOneGate(TwoOverOneGate),
 }
 
@@ -218,7 +218,7 @@ impl Fix {
             Self::NtInviteHcp => set_nt_invite_hcp(on),
             Self::WeakTwoEval(gauge) => set_weak_two_eval(on.then_some(gauge)),
             Self::TwoOverOneGate(gate) => {
-                set_two_over_one_gate(if on { gate } else { TwoOverOneGate::Hcp13 });
+                set_two_over_one_gate(if on { gate } else { TwoOverOneGate::default() });
             }
         }
     }
@@ -238,7 +238,12 @@ impl Fix {
                 WeakTwoEval::NltcBand(lo, hi) => format!("weak two = nltc({lo}..={hi})"),
                 WeakTwoEval::NltcCeil(x) => format!("weak two = points(5..=10) & nltc(..={x})"),
             },
-            Self::TwoOverOneGate(gate) => format!("2/1 no-fit gate {gate:?} vs shipped Hcp13"),
+            Self::TwoOverOneGate(gate) => {
+                format!(
+                    "2/1 no-fit gate {gate:?} vs shipped {:?}",
+                    TwoOverOneGate::default()
+                )
+            }
         }
     }
 }
@@ -647,15 +652,21 @@ fn main() {
         let mut rng = StdRng::seed_from_u64(args.sd_seed);
         let mut on_score = vec![0i64; args.count];
         let mut off_score = vec![0i64; args.count];
+        let mut on_pd = vec![0i64; args.count];
+        let mut off_pd = vec![0i64; args.count];
         const CHUNK: usize = 4096;
         for (asked, chunk) in pending.chunks(CHUNK).zip(questions.chunks(CHUNK)) {
             let answers = single_dummy_leads(chunk, &mut rng, args.sd_worlds);
             for (&(i, is_on, contract, declarer), &(_, tricks)) in asked.iter().zip(&answers) {
-                let score = ns_score_tricks(contract, declarer, u8::from(tricks), vul);
+                let t = u8::from(tricks);
+                let score = ns_score_tricks(contract, declarer, t, vul);
+                let pd = ns_score_pd_tricks(contract, declarer, t, vul);
                 if is_on {
                     on_score[i] = score;
+                    on_pd[i] = pd;
                 } else {
                     off_score[i] = score;
+                    off_pd[i] = pd;
                 }
             }
         }
@@ -663,16 +674,22 @@ fn main() {
         // blind lead. ns_score_tricks already flips sign for an EW declarer, so
         // on_score − off_score credits the candidate exactly as the DD path's
         // [table_b (off), table_a (on)] ordering does.
-        let board_imps: Vec<i64> = (0..args.count)
-            .map(|i| imps(on_score[i] - off_score[i]))
-            .collect();
-        let (mean, ci) = mean_with_ci(&board_imps);
-        let total: i64 = board_imps.iter().sum();
-        println!(
-            "sd-lead candidate ({} worlds, seed {}): {total:+} IMPs, {mean:+.4} IMPs/board [95% CI ±{ci:.4}], {:+.3} IMPs/divergent",
-            args.sd_worlds,
-            args.sd_seed,
-            total as f64 / divergent.len().max(1) as f64,
-        );
+        let report = |label: &str, on: &[i64], off: &[i64]| {
+            let board_imps: Vec<i64> = (0..args.count).map(|i| imps(on[i] - off[i])).collect();
+            let (mean, ci) = mean_with_ci(&board_imps);
+            let total: i64 = board_imps.iter().sum();
+            println!(
+                "{label} ({} worlds, seed {}): {total:+} IMPs, {mean:+.4} IMPs/board [95% CI ±{ci:.4}], {:+.3} IMPs/divergent",
+                args.sd_worlds,
+                args.sd_seed,
+                total as f64 / divergent.len().max(1) as f64,
+            );
+        };
+        // Plain SD (SD lead, DD play, face value) and SD+PD (same trick count,
+        // but a game that still fails is doubled). The PD bracket is the arbiter
+        // for a game-reaching treatment; plain SD relaxes only the defenders'
+        // lead and never punishes the failures, so it flatters aggression.
+        report("sd-lead plain          ", &on_score, &off_score);
+        report("sd-lead perfect-defense", &on_pd, &off_pd);
     }
 }

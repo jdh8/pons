@@ -7,7 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `scoring::ns_score_pd_tricks` — the single-dummy perfect-defense scorer
+  (single-dummy lead + actual tricks, but a contract that fails on those tricks
+  is scored doubled). The honest arbiter for a game-reaching treatment: plain
+  single-dummy relaxes only the defenders' opening lead and never punishes the
+  failures, so it flatters aggression; this layers the perfect-defense downside
+  back on. `ab-point-count --sd` now reports both the plain-SD and SD-PD
+  brackets.
+
 ### Changed
+
+- **Default major 2/1 no-fit gate → `Points13` (`points(13..)`), superseding
+  `Hcp13`.** Under the new PointCount scale (entry below), the no-support leg of
+  a game-forcing major 2/1 gauges `points(13..)` (raw HCP + upgrade) instead of
+  raw `hcp(13..)`: a shapely 11-12 HCP hand whose upgrade reaches 13 forces game
+  rather than retreating to a forcing 1NT. The bet — a shaped 12-count
+  out-tricks a flat 13 — is borne out by a trick-variance probe (at a matched 12
+  HCP, unbalanced hands take +0.6 more par tricks, suit-game `P(par≥10)` 85% vs
+  66%). Fix-vs-shipped A/B (fit leg on both arms, so only misfit hands move;
+  `ab-point-count --fix two-over-one-gate:points13`): plain-DD **non-negative**
+  (+0.0007 NV / +0.0027 vul) and, on the SD-PD arbiter (new `ns_score_pd_tricks`
+  — a realistic lead with failing games doubled), **+0.0015 NV / +0.0039 vul
+  IMPs/board, both CIs clear of zero**. The gate `points(13..)` already matches
+  the `apply_response_points` reading, so the flip is self-consistent — no
+  reading change; only the legacy-`Or` fallback swaps its six-rule leak from the
+  HCP axis to points (the shipped DNF-on reading stays sound, and the ratchet
+  pins are re-pinned in `docs/dnf-migration.md`). `Hcp13` (shape-indifferent)
+  and `Hcp12`/`Points12` (a point lighter — both lost at perfect defense, the
+  thin-game doubling signature) remain reachable via `set_two_over_one_gate`.
 
 - **Default point-count scale flipped to raw-HCP + upgrade (`PointScale::PointCount`),
   superseding rule-of-N+8.** With `upgrade` now linearised (previous entry), the

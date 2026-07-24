@@ -51,9 +51,12 @@ std::thread_local! {
     /// the fit leg re-admits with support what the hcp gate demotes).
     static TWO_OVER_ONE_FIT: Cell<bool> = const { Cell::new(true) };
     /// The gauge for the **no-fit** leg of the major 2/1 game-force entry.
-    /// Default [`TwoOverOneGate::Hcp13`] — **shipped 2026-07-15**; the
-    /// legacy `points(13..)` is the `Points13` opt-out.
-    static TWO_OVER_ONE_GATE: Cell<TwoOverOneGate> = const { Cell::new(TwoOverOneGate::Hcp13) };
+    /// Default [`TwoOverOneGate::Points13`] — **shipped 2026-07-25** under the
+    /// PointCount scale (277059f): `points(13..)` re-admits the shapely
+    /// 11-12 HCP hands that the raw-HCP `Hcp13` gate demoted to a forcing 1NT.
+    /// `Hcp13` (shipped 2026-07-15) is the shape-indifferent opt-out.
+    static TWO_OVER_ONE_GATE: Cell<TwoOverOneGate> =
+        const { Cell::new(TwoOverOneGate::Points13) };
     /// Whether the major 2/1 game force names **natural per-call suit lengths**
     /// instead of a uniform four: `1♠–2♥` promises five (a 2/1 into a major is
     /// a real five-card suit), `1♠–2♣` allows three (the cheapest 2/1 is the
@@ -70,30 +73,33 @@ std::thread_local! {
 /// The gauge for the no-fit leg of the major 2/1 game force
 /// (`set_two_over_one_gate`)
 ///
-/// The remnant report (docs/point-count-threshold-campaign.md) flagged the
-/// 2/1 band both ways under the rule-of-N+8 scale: shaped 11s read 13+ and
-/// forced game without a fit.  The shape-indifferent `Hcp13` swept best and
-/// shipped; `Hcp12`'s vul plain edge came with a PD loss both vuls in the
-/// paired head-to-head (the thin-game doubling signature) — an sd-lead
-/// probe candidate, not the default.  `Points12` (Rule of 20) revisits the
-/// same floor-lightening question on the `points` scale instead of raw HCP.
+/// Under the default PointCount scale (277059f: raw HCP + a linearised
+/// `upgrade`), the default is [`Points13`][Self::Points13] — `points(13..)`
+/// admits the shapely 11-12 HCP hands whose upgrade lifts them to 13, on the
+/// bet (SD-PD-confirmed, 2026-07-25) that a shaped 12-count out-tricks a flat
+/// 13.  `Hcp13` (the 2026-07-15 shipped gate) is the shape-indifferent
+/// alternative — it demotes those same hands to a forcing 1NT — and `Hcp14`
+/// its stricter counterpart.  `Points12`/`Hcp12` lower the floor a further
+/// point; both lost at PD (the thin-game doubling signature — the perfect
+/// defender doubles the balanced-12 3NT), so they stay opt-in.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum TwoOverOneGate {
-    /// The legacy gate: `points(13..)` on the global scale
+    /// `points(13..)` on the global scale — the shipped default: under
+    /// PointCount, shape (`upgrade`) lets a strong 11-12 force game
+    #[default]
     Points13,
     /// `points(12..)` on the global scale — one point lighter than the
-    /// legacy gate; on the shipped rule-of-N+8 scale this is exactly the
-    /// Rule of 20 (raw HCP plus the two longest suits, floored at 8)
+    /// default; on the rule-of-N+8 scale this is exactly the Rule of 20 (raw
+    /// HCP plus the two longest suits, floored at 8)
     Points12,
     /// Raw `hcp(13..)` — shape-indifferent, demotes shaped 11-12s to 1NT;
-    /// the shipped default
-    #[default]
+    /// the 2026-07-15 shipped gate, now the opt-out
     Hcp13,
     /// Raw `hcp(12..)` — one lighter, admits every 12-HCP hand
     Hcp12,
-    /// Raw `hcp(14..)` — one *stricter* than the shipped default, the
-    /// tightening counterpart to `Hcp12`: is 13 itself too light, or does
-    /// tightening give back more than it costs?
+    /// Raw `hcp(14..)` — one *stricter* than `Hcp13`, the tightening
+    /// counterpart to `Hcp12`: is 13 itself too light, or does tightening
+    /// give back more than it costs?
     Hcp14,
 }
 
@@ -190,7 +196,7 @@ fn two_over_one_fit() -> bool {
 }
 
 /// Set the no-fit gauge of the major 2/1 game force for books built after
-/// this call (default [`TwoOverOneGate::Hcp13`];
+/// this call (default [`TwoOverOneGate::Points13`];
 /// `--ns-two-over-one-gate` in `bba-gen`)
 pub fn set_two_over_one_gate(gate: TwoOverOneGate) {
     TWO_OVER_ONE_GATE.with(|cell| cell.set(gate));
@@ -408,8 +414,9 @@ pub fn major_responses(major: Suit) -> Rules {
     // entry gate splits per the knobs: the no-fit gauge is `points` or raw
     // `hcp` (`set_two_over_one_gate`), and the fit leg
     // (`set_two_over_one_fit`) admits exactly-three-card support on
-    // `support_points` — fit-known, so shortness counts.  The
-    // `(off, Points13)` arm is the shipped expression, byte-identical.
+    // `support_points` — fit-known, so shortness counts.  The default is
+    // `(true, Points13)` (shipped 2026-07-25); the `(off, Points13)` arm
+    // reproduces the pre-knob legacy book byte-identically.
     let mut weight = 1.1;
     for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts] {
         if Strain::from(suit) < trump {

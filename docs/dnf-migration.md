@@ -95,6 +95,16 @@ toward 0. Cells are knob-off/knob-on; knob-off never moved during the wave.
 | D1c | 17/7 | 71/47 | 3/3 | 84/84 | 18/12 |
 | D2 (wave tip) | 17/7 | 71/47 | 3/3 | 84/0 | 18/12 |
 | G | 17/**0** | 59/**0** | 3/**0** | 84/**0** | 18/**0** |
+| Points13 (2/1 gate, 2026-07-25) | **11**/0 | 59/0 | **9**/0 | 84/0 | 18/0 |
+
+The `Points13` row is **not a chop** — it is the shipped default flip of the
+major no-fit 2/1 gate (`hcp(13..)` → `points(13..)`, docs/bidding-options.md).
+Six 2/1 rules move the axis their legacy-`Or` reading leaks on: knob-off HCP
+17 → 11 and points 3 → 9, a clean swap (the union of `points(13..)` with the
+fit leg's `support_points(13..)` bounds points to ⊤, exactly as it bounded HCP
+to ⊤ before). Knob-on stays **0/0** on both — the `dnf_upgrade` fit-split box
+pins `points(13..)` on the no-fit box exactly, so the shipped DNF-on reading
+never leaked. Re-pinned in the same commit per the ratchet's re-pin rule.
 
 G's knob-off `length` 71 → 59 is **sniffer precision, not a reading change**
 (dump diff clean): the twelve dropped entries are the eight "partner's last

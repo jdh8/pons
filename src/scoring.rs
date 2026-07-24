@@ -215,6 +215,45 @@ pub fn ns_score_tricks(
     }
 }
 
+/// Perfect-defense NS score of a reached contract given declarer's *actual*
+/// tricks: the single-dummy analogue of [`ns_score_pd`].
+///
+/// Like [`ns_score_tricks`] it prices an explicit trick count on the real deal,
+/// but a contract that **fails on those tricks** is scored doubled (an undoubled
+/// failure becomes [`Penalty::Doubled`]; an existing double/redouble is kept).
+/// This layers the perfect-defense downside onto the realistic single-dummy
+/// lead: concealment still earns its extra makes, but the games that fail anyway
+/// pay the doubled penalty a real opponent would exact.  The SD arbiter for a
+/// game-reaching treatment — plain single-dummy relaxes only the defenders' lead
+/// and never punishes the failures, so it flatters aggression.
+#[cfg(feature = "dd")]
+#[must_use]
+pub fn ns_score_pd_tricks(
+    contract: Contract,
+    declarer: Seat,
+    tricks: u8,
+    vul: AbsoluteVulnerability,
+) -> i64 {
+    let fails = u32::from(tricks) < 6 + u32::from(contract.bid.level.get());
+    let penalty = if fails {
+        match contract.penalty {
+            Penalty::Undoubled => Penalty::Doubled,
+            doubled => doubled,
+        }
+    } else {
+        contract.penalty
+    };
+    ns_score_tricks(
+        Contract {
+            bid: contract.bid,
+            penalty,
+        },
+        declarer,
+        tricks,
+        vul,
+    )
+}
+
 /// Upper bounds (exclusive) of the point difference for 0, 1, 2, … IMPs
 const IMP_BOUNDS: [i64; 24] = [
     20, 50, 90, 130, 170, 220, 270, 320, 370, 430, 500, 600, 750, 900, 1100, 1300, 1500, 1750,

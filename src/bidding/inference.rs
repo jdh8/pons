@@ -5582,11 +5582,14 @@ mod tests {
         // dropped 71 → 59 when the sniffer stopped counting context claims
         // ("partner's last suit is ♠") and deliberate no-op caps ("≤13 ♠") —
         // a meter-precision change, not a reading change (the dump diff
-        // stayed clean).
+        // stayed clean).  The 2026-07-25 `Points13` gate default (the major
+        // no-fit 2/1 now gauges `points(13..)`, not `hcp(13..)`) swaps six
+        // legacy-`Or` leaks from HCP (17 → 11) to points (3 → 9); the knob-on
+        // DNF box pins both axes exactly, so both knob-on columns stay 0.
         let pinned: [(&str, usize, usize); 5] = [
-            ("HCP", 17, 0),
+            ("HCP", 11, 0),
             ("length", 59, 0),
-            ("points", 3, 0),
+            ("points", 9, 0),
             ("support", 84, 0),
             ("support points", 18, 0),
         ];

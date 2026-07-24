@@ -338,7 +338,7 @@ mod tests {
         set_point_scale(PointScale::RuleOfNFloored);
         let a = [call(1, Strain::Hearts), Call::Pass];
         // Arms are relative to the legacy gate; the shipped default is
-        // fit + Hcp13 (restored at the end).
+        // fit + Points13 (the `fit` arm below; restored at the end).
         set_two_over_one_fit(false);
         set_two_over_one_gate(TwoOverOneGate::Points13);
         let baseline = major_responses(Suit::Hearts);
@@ -350,7 +350,7 @@ mod tests {
         set_two_over_one_gate(TwoOverOneGate::Hcp12);
         let hcp12 = major_responses(Suit::Hearts);
         set_two_over_one_fit(true);
-        set_two_over_one_gate(TwoOverOneGate::Hcp13);
+        set_two_over_one_gate(TwoOverOneGate::Points13);
 
         // Fit leg: exactly three trumps, 11 HCP + spade singleton reads 13
         // support points — a 2/1 preparing the heart raise; off, a 1NT.
@@ -380,6 +380,10 @@ mod tests {
     #[test]
     fn two_over_one_natural_lengths_and_light_major() {
         let a = [call(1, Strain::Spades), Call::Pass];
+        // The major discount subtracts from an `Hcp*` floor (`hcp_floor -
+        // discount`); the shipped `Points13` gate hardcodes `points(13..)` and
+        // ignores it, so pin the raw-HCP gate this knob was designed against.
+        set_two_over_one_gate(TwoOverOneGate::Hcp13);
         set_two_over_one_natural_lengths(true);
         let nat = major_responses(Suit::Spades);
         set_two_over_one_major_discount(true);
@@ -405,6 +409,7 @@ mod tests {
             best(&nat_light, &a, "Q2.KQJ54.K32.J43"),
             call(2, Strain::Hearts)
         );
+        set_two_over_one_gate(TwoOverOneGate::default());
     }
 
     #[test]
