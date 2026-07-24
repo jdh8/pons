@@ -20,9 +20,10 @@
 //! which marks an uncontested 2/1 forced to game so the floor takes the cheapest
 //! game milestone rather than passing out a partscore.
 
+use super::super::Trie;
+use super::call;
 use super::fallback_all_seats;
 use super::uncontested;
-use super::{Trie, call};
 use crate::bidding::Rules;
 use crate::bidding::constraint::{
     balanced, described, fifths, hcp, len, partner_suit_is, points, support,

@@ -355,6 +355,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **System-independent build helpers extracted to `bidding::common`.** The
+  seat-fan / trie-authoring helpers (`call`, `insert_all_seats`, `uncontested`,
+  `insert_uncontested`, `fallback_all_seats`) and the floor-attachment wiring
+  (`with_floor`, `with_instinct_floor`) moved out of `american.rs` into a new
+  `src/bidding/common.rs`. They are generic across systems; `dutch.rs` (and any
+  future system) now imports them from a neutral peer module instead of reaching
+  into `american`, and `dutch`'s duplicated `call` is gone. Pure refactor, no
+  behaviour change — every call site resolves to the same code.
+
 - **`Inference` (the forward-reading box) renamed to `Envelope`.** The struct is
   a single axis-aligned box — four suit-length `Range`s and a points `Range` — so
   `Envelope` names its *shape* rather than its provenance, and it is the word the

@@ -15,15 +15,11 @@ mod openings;
 mod responses;
 
 use super::Pair;
-use super::american::{american_book, insert_uncontested, with_floor, with_instinct_floor};
+use super::american::american_book;
+use super::common::{call, insert_uncontested, with_floor, with_instinct_floor};
 use super::neural_floor::NeuralFloorBba;
 use contract_bridge::auction::Call;
-use contract_bridge::{Bid, Strain, Suit};
-
-/// A bid as a [`Call`], for trie keys
-const fn call(level: u8, strain: Strain) -> Call {
-    Call::Bid(Bid::new(level, strain))
-}
+use contract_bridge::{Strain, Suit};
 
 /// Build the Dutch system as one side's [`Pair`]
 ///

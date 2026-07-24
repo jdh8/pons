@@ -4,6 +4,8 @@ pub mod american;
 pub mod array;
 /// Role-aware partnership books
 pub mod book;
+/// System-independent build helpers shared across bidding systems
+pub(in crate::bidding) mod common;
 pub mod compose;
 pub mod constraint;
 pub mod context;

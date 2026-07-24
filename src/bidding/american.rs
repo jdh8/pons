@@ -60,13 +60,11 @@
 //! Constraints are kept disjoint where practical; where calls can both apply,
 //! the weights order them so the more descriptive bid wins.
 
-use super::fallback::{Always, Fallback, Guard};
-use super::instinct::instinct;
-use super::trie::Classifier;
-use super::{Competitive, Constructive, Defensive, Family, Pair, Trie};
-use contract_bridge::auction::Call;
-use contract_bridge::{Bid, Strain};
-use std::sync::Arc;
+use super::common::{
+    call, fallback_all_seats, insert_all_seats, insert_uncontested, uncontested, with_floor,
+    with_instinct_floor,
+};
+use super::{Competitive, Constructive, Defensive, Family, Pair};
 
 mod competition;
 mod defense;
@@ -155,83 +153,6 @@ pub use responses::{
 pub use slam::set_minor_keycard;
 pub use xyz::{set_xyz, set_xyz_invite_judgment};
 
-/// A bid as a [`Call`], for trie keys
-const fn call(level: u8, strain: Strain) -> Call {
-    Call::Bid(Bid::new(level, strain))
-}
-
-// ---------------------------------------------------------------------------
-// Seat-fan helpers
-// ---------------------------------------------------------------------------
-
-/// Insert one classifier at `suffix` under every leading-pass prefix
-///
-/// For each `n` in `0..=max_passes` the classifier is keyed at `[P; n] ++
-/// suffix`, sharing one [`Arc`] across all of them (pointer-cheap, see
-/// [`insert_arc`][super::Trie::insert_arc]).  This authors a table once and
-/// makes it answer in every seat that could have reached it.
-fn insert_all_seats(
-    book: &mut Trie,
-    suffix: &[Call],
-    max_passes: usize,
-    rules: impl Classifier + 'static,
-) {
-    let shared: Arc<dyn Classifier> = Arc::new(rules);
-    for n in 0..=max_passes {
-        let key: Vec<Call> = core::iter::repeat_n(Call::Pass, n)
-            .chain(suffix.iter().copied())
-            .collect();
-        book.insert_arc(&key, Arc::clone(&shared));
-    }
-}
-
-/// Interleave one opposing pass after each of our calls
-///
-/// The constructive book keys the *raw table auction*, so an undisturbed
-/// sequence of our calls `[1♥, 1♠]` lives at `[1♥, P, 1♠, P]` (plus leading
-/// passes for the opener's seat).  This is the one place that spells out the
-/// interleaving; author keys through it, never by hand.
-fn uncontested(our_calls: &[Call]) -> Vec<Call> {
-    our_calls
-        .iter()
-        .flat_map(|&call| [call, Call::Pass])
-        .collect()
-}
-
-/// Insert a continuation table after our undisturbed `our_calls`, every seat
-///
-/// Keys at `uncontested(our_calls)` under every leading-pass prefix
-/// (`0..=3`), so the table answers regardless of which seat opened.  An empty
-/// `our_calls` registers an opening table.
-pub(in crate::bidding) fn insert_uncontested(
-    book: &mut Trie,
-    our_calls: &[Call],
-    rules: impl Classifier + 'static,
-) {
-    insert_all_seats(book, &uncontested(our_calls), 3, rules);
-}
-
-/// Attach a guarded fallback at `suffix` under every leading-pass prefix
-// ponytail: `guard`/`fallback` stay by-value — callers pass a freshly built
-// `Arc::new(ConcreteGuard)`, which unsize-coerces to `Arc<dyn Guard>` only on
-// the move; a `&Arc<dyn Guard>` param would force a `let` binding at all ~20
-// call sites for no real gain.
-#[allow(clippy::needless_pass_by_value)]
-fn fallback_all_seats(
-    book: &mut Trie,
-    suffix: &[Call],
-    max_passes: usize,
-    guard: Arc<dyn Guard>,
-    fallback: Fallback,
-) {
-    for n in 0..=max_passes {
-        let key: Vec<Call> = core::iter::repeat_n(Call::Pass, n)
-            .chain(suffix.iter().copied())
-            .collect();
-        book.fallback_arc_at(&key, Arc::clone(&guard), fallback.clone());
-    }
-}
-
 // ---------------------------------------------------------------------------
 // Assembly
 // ---------------------------------------------------------------------------
@@ -307,34 +228,6 @@ pub fn american_floor() -> Pair {
     )
 }
 
-/// Attach any classifier as the floor on a pair's contested books
-///
-/// A root `Always` fallback on both contested books, shared through the
-/// `Fallback`'s `Arc`.  Resolution reaches the root last, so the floor never
-/// overrides an authored rule — it only catches the auctions that fall past all
-/// of them.  Generic over the floor so [`american`] (the BBA-distilled net) and
-/// [`american_instinct`] (the deterministic
-/// [`instinct`][crate::bidding::instinct()] ladder) share one wiring.
-pub(in crate::bidding) fn with_floor<C: Classifier + 'static>(mut pair: Pair, floor: C) -> Pair {
-    let contested = Fallback::classify(floor);
-    pair.competitive.fallback_at(&[], Always, contested.clone());
-    pair.defensive.fallback_at(&[], Always, contested);
-
-    // Uncontested auctions never reach the contested floor, so an off-book
-    // constructive sequence would pass out below a cold game (e.g. `1♦–1♥–1NT`
-    // passed out on a balanced 16 opposite the 12–14 rebid).  Floor the
-    // constructive book with the deterministic instinct ladder — the natural
-    // milestone bidder reaches game or slam on those sequences.
-    pair.constructive
-        .fallback_at(&[], Always, Fallback::classify(instinct()));
-    pair
-}
-
-/// Attach the deterministic instinct floor to a pair's contested books
-pub(in crate::bidding) fn with_instinct_floor(pair: Pair) -> Pair {
-    with_floor(pair, instinct())
-}
-
 /// Build the 2/1 pair as the **authored books alone**, with no floor
 ///
 /// The book half of [`american`], and the ablation handle for measuring the
@@ -375,8 +268,9 @@ mod tests {
     use super::*;
     use crate::bidding::Rules;
     use crate::bidding::context::Context;
-    use contract_bridge::auction::RelativeVulnerability;
-    use contract_bridge::{Hand, Suit};
+    use crate::bidding::trie::Classifier;
+    use contract_bridge::auction::{Call, RelativeVulnerability};
+    use contract_bridge::{Bid, Hand, Strain, Suit};
 
     /// The highest-logit call a sub-builder makes for a hand in a context
     fn best(rules: &Rules, auction: &[Call], hand: &str) -> Call {
