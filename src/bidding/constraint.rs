@@ -960,11 +960,12 @@ fn hcp_ceiling_slack() -> u8 {
     }
 }
 
-/// Whether a short suit (at most two cards) blocks the fuzzy-strength upgrade
+/// Whether a short suit (at most two cards) holds a **wasted honor**
 ///
 /// Honors in shortness are wasted: any of A/K/Q/J in a suit of at most two
-/// cards blocks the upgrade, except the working holdings Ax and Kx.
-const fn blocks_upgrade(holding: Holding) -> bool {
+/// cards fails to pull its weight, except the working holdings Ax and Kx.
+/// A wasted honor voids the fuzzy [`upgrade`].
+const fn wasted(holding: Holding) -> bool {
     holding.len() <= 2
         && (holding.contains(Rank::Q)
             || holding.contains(Rank::J)
@@ -985,7 +986,7 @@ const fn blocks_upgrade(holding: Holding) -> bool {
 pub fn upgrade(hand: Hand) -> u8 {
     let holdings = Suit::ASC.map(|suit| hand[suit]);
 
-    if holdings.iter().any(|&holding| blocks_upgrade(holding)) {
+    if holdings.iter().any(|&holding| wasted(holding)) {
         return 0;
     }
 
@@ -2605,19 +2606,19 @@ mod tests {
     }
 
     #[test]
-    fn test_blocks_upgrade() {
-        let clean = ["", "2", "32", "A2", "K2", "KT", "AKQ", "QJ2", "J32"];
-        let wasted = [
+    fn test_wasted() {
+        let working = ["", "2", "32", "A2", "K2", "KT", "AKQ", "QJ2", "J32"];
+        let wasted_holdings = [
             "A", "K", "Q", "J", "Q2", "J2", "AK", "AQ", "AJ", "KQ", "KJ", "QJ",
         ];
 
-        for text in clean {
+        for text in working {
             let holding: Holding = text.parse().expect(text);
-            assert!(!blocks_upgrade(holding), "{text} should not block");
+            assert!(!wasted(holding), "{text} should not be wasted");
         }
-        for text in wasted {
+        for text in wasted_holdings {
             let holding: Holding = text.parse().expect(text);
-            assert!(blocks_upgrade(holding), "{text} should block");
+            assert!(wasted(holding), "{text} should be wasted");
         }
     }
 

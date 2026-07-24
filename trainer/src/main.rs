@@ -54,6 +54,21 @@ struct Args {
     /// DD target); the policy cross-entropy always has weight 1.
     #[arg(long, default_value_t = 1.0)]
     dd_weight: f64,
+    /// Train on a CUDA GPU (requires the binary built with `--features cuda`);
+    /// otherwise CPU. The policy MLP is tiny, so this pays off mainly for a
+    /// multi-draw variance sweep — many independent inits over the same corpus.
+    #[arg(long)]
+    cuda: bool,
+    /// Which CUDA device to use (with `--cuda`), e.g. 0 or 1 to spread a sweep
+    /// across both GPUs.
+    #[arg(long, default_value_t = 0)]
+    device_index: usize,
+    /// Seed the weight-init RNG for a reproducible draw. Omitted, the init is
+    /// entropy-seeded (the historical unseeded behavior) and every run differs —
+    /// which is *why* the retrain variance exists. Set distinct seeds to make a
+    /// variance sweep reproducible.
+    #[arg(long)]
+    init_seed: Option<u64>,
 }
 
 /// Held-out metrics, split by the constructive/contested tag.
@@ -70,7 +85,17 @@ struct Eval {
 
 fn main() -> Result<()> {
     let args = Args::parse();
-    let device = Device::Cpu;
+    let device = if args.cuda {
+        Device::new_cuda(args.device_index)?
+    } else {
+        Device::Cpu
+    };
+    // Seed the init RNG *before* the VarMap draws its weights, so a set seed
+    // makes the draw reproducible; without one, entropy seeds it (unseeded).
+    if let Some(seed) = args.init_seed {
+        device.set_seed(seed)?;
+    }
+    eprintln!("device: {device:?}  init_seed: {:?}", args.init_seed);
 
     let ds = data::Dataset::load(&args.data)?;
     let features_len = ds.features_len;
@@ -276,6 +301,8 @@ fn export(
         "lr": args.lr,
         "wd": args.wd,
         "batch": args.batch,
+        "init_seed": args.init_seed,
+        "device": if args.cuda { format!("cuda:{}", args.device_index) } else { "cpu".into() },
         "git_sha": git_sha(),
         "val_ce": eval.loss,
         "val_top1_overall": eval.overall,

@@ -1855,7 +1855,7 @@ fn slam_55_reroute() -> Cons<impl Constraint + Clone> {
 /// A void or low singleton — the shortness a splinter shows
 ///
 /// A singleton ace or king is a *working* honor, not shortness to advertise, so it
-/// is excluded (the same wasted-honor principle as [`upgrade`]'s `blocks_upgrade`).
+/// is excluded (the same wasted-honor principle as [`upgrade`]'s `wasted`).
 fn is_splinter_holding(holding: Holding) -> bool {
     holding.is_empty()
         || (holding.len() == 1 && !holding.contains(Rank::A) && !holding.contains(Rank::K))
