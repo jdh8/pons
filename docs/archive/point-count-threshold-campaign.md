@@ -789,5 +789,59 @@ dominates it across sd + plain + PD; the apparent vul-tighten is a doubling
 artifact. The inherited default is re-confirmed as the multi-scorer balance, not
 merely inherited.
 
+> **CORRECTED 2026-07-26 — the vul half of this verdict does not follow.** See
+> the SD-PD re-adjudication immediately below. The NV half stands.
+
+#### SD-PD re-adjudication (2026-07-26, dump rescore, seed 20240607)
+
+The reasoning above rests on a ladder — "value is monotone in assumed doubling
+severity, sd (no double) < plain (BBA's fallible double) < PD (perfect axe)" —
+and concludes that a win visible only at the top of the ladder is an artifact.
+`ns_score_pd_tricks` (**SD-PD**: blind lead *with* the perfect axe) supplies the
+missing cell, so the four brackets form a 2×2 in lead model × doubling model
+rather than a chain. Rescored from the stored `nt-defense-range-screen-20260715`
+dumps; **the gate passes** — plain SD reprints at both vul cells (`9:14` −0.0195
+±0.0103 vs published −0.0210 ±0.0090; `10:14` −0.0512 ±0.0145 vs −0.0471
+±0.0127).
+
+| band, vul | DD lead / fallible dbl | DD lead / perfect dbl | blind lead / no dbl | **blind lead / perfect dbl** |
+| --- | --- | --- | --- | --- |
+| `9:14` NV | −0.0207 | +0.0243 | −0.0393 ±0.0077 | **−0.0007 ±0.0093** |
+| `10:14` NV | −0.0463 | +0.0455 | −0.0854 ±0.0110 | **−0.0055 ±0.0135** |
+| `9:14` vul | −0.0028 | +0.0433 | −0.0195 ±0.0103 | **+0.0272 ±0.0124** |
+| `10:14` vul | −0.0092 | +0.0903 | −0.0512 ±0.0145 | **+0.0456 ±0.0177** |
+
+**The two axes are separable, and that breaks the chain.** At `10:14` vul the
+doubling axis is worth +0.0995 under the DD lead and +0.0968 under the blind
+lead; the lead axis costs −0.042 under fallible doubling and −0.045 under perfect
+doubling. Same at `9:14` (+0.046/+0.047 and −0.017/−0.017). The brackets are not
+a severity chain to be read monotonically — they are a product of two
+independent models, and plain SD differs from PD in *both* coordinates at once.
+
+**The error was ranking plain SD as the realistic scorer.** On the doubling axis
+plain SD is the most extreme model available — nobody ever doubles — which is
+strictly *less* realistic than plain DD's fallible BBA doubler. The honest
+realism pair is [plain DD, SD-PD] (fallible-lead/fallible-double vs
+blind-lead/perfect-double), not [plain SD, PD]. So "a PD-only win is a doubling
+artifact" was the wrong description of these cells: the win is not PD-only, it is
+*perfect-doubling*-only, and it survives the lead relaxation that was supposed to
+kill it.
+
+- **NV: `8:14` holds, and now for a better reason.** SD-PD is a dead wash at both
+  candidates (−0.0007, −0.0055), so the Pareto-tradeoff reading is confirmed by
+  the bracket that was missing rather than assumed.
+- **Vul: undetermined, leaning tighten.** Both perfect-doubling brackets are
+  CI-clear positive and plain DD is a wash, which is exactly the house pattern
+  *"plain-DD wash + PD win → shippable default-on"*. The tighten was blocked by
+  plain SD alone, and plain SD is the one bracket with no doubling at all. What
+  it now turns on is how well real opponents double — a question no bracket here
+  answers, since the harness offers only "never" and "perfectly".
+- **Acting on it needs code that does not exist**: the win is vul-only, and
+  `set_natural_overcall_points(lo, hi)` is a single band for both
+  vulnerabilities. A vul-dependent band is the prerequisite, not a flag flip.
+
+Default deliberately untouched (`8:14` both vuls), per the re-adjudication rule:
+verdicts get corrected in the ledgers, flips are a separate decision.
+
 These were live filtered BBA runs, not `24.pdd` slices: the campaign cursor
 remains **38,700,000**.

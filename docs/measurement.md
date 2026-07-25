@@ -103,6 +103,32 @@ board's swing keeps its sign and SD-PD adds no independent signal. A verdict
 resting on such a harness alone needs a plain+PD re-adjudication, not an SD-PD
 row.
 
+**The four brackets are a 2×2, not a ladder** (2026-07-26). It is tempting to
+rank them by how harshly they treat the bidding side — sd < plain < PD — and
+call a win visible only at the top an artifact. That reasoning shipped a real
+verdict (the `8:14` vul overcall band) and is **wrong**, because the brackets
+vary two independent things:
+
+|  | fallible/no doubling | perfect doubling |
+| --- | --- | --- |
+| **double-dummy lead** | plain DD | PD |
+| **blind lead** | plain SD | **SD-PD** |
+
+Measured on that band, the two axes separate almost exactly: the doubling axis is
+worth the same under either lead model, and the lead axis costs the same under
+either doubling model (archive/point-count-threshold-campaign.md). **Plain SD
+differs from PD in both coordinates at once**, so a plain-SD↔PD gap tells you
+nothing about which axis produced it — that is the whole reason the chain looked
+convincing. Two rules follow:
+
+- **Compare along one axis with the other held fixed.** Doubling effect = PD −
+  plain DD, or SD-PD − plain SD. Lead effect = plain SD − plain DD, or SD-PD −
+  PD. Never plain SD − PD.
+- **Plain SD is not the realistic end of anything.** On the doubling axis it is
+  the most extreme model available (nobody ever doubles), hence *less* realistic
+  than plain DD's fallible doubler. The honest realism pair is **[plain DD,
+  SD-PD]**; a treatment those two agree on needs no further argument.
+
 **Reading the SD pair: three outcomes, not two** (2026-07-25, from the first
 re-adjudication batch). SD-PD is not a uniformly harsher scorer — it is harsher
 on *whichever arm bids the failing contract*. So comparing the two SD rows sorts

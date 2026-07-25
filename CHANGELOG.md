@@ -302,6 +302,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   scalar wins; and a default re-justified by a newer independent measurement
   (`set_fuzzy_points` ← `277059f`) makes its old verdict row stale evidence that
   no re-measure can move.
+- **Re-adjudication batch 2 — the GTO 1NT-defense headline falls, and the
+  bracket *ladder* falls with it.** (1) `docs/ai-bidder/gto-1nt-defense.md`'s
+  "Woolsey, both vulnerabilities" is **REFUTED**: on fresh 60k-board matrices
+  (both vuls) `ab-nt-defense-matrix` now carries SD-PD as a fourth matrix,
+  equilibrium and bootstrap, and under it **every** defense in the menu is
+  negative against always-pass, at 200/200 bootstrap support in both cells —
+  while plain sd-lead named Meckwell (+0.275 NV) and Woolsey (+0.057 vul). The
+  two SD rows differ by 0.35–0.47 IMPs/board, an order more than the lead
+  relaxation is worth, so the 1NT obstruction wall was the missing double, not
+  the blind-lead bias. Surviving: the *ranking* (Woolsey still best-in-menu,
+  3–4× less bad than natural or DONT) — the card choice is unchanged, only
+  whether to defend at all. (2) **`set_two_level_minor_overcall_tight` is
+  reversed to a promotion candidate**: the sd-wash that rejected it
+  (−0.0021/+0.0025) was plain SD letting the *default's* 11–14 overcalls fail
+  unpunished; SD-PD is **+0.0063 ±0.0037 NV / +0.0081 ±0.0047 vul**, CI-clear
+  both, tracking PD with plain DD non-negative. (3) The **`8:14` vul verdict is
+  corrected to *undetermined, leaning tighten*** (NV holds — SD-PD washes
+  there). Its rejection rested on "value is monotone in assumed doubling
+  severity, sd < plain < PD, so a top-of-ladder win is an artifact" — but the
+  four brackets are a **2×2 in lead model × doubling model**, not a chain. On
+  those cells the axes separate almost exactly (doubling worth the same under
+  either lead model, lead costing the same under either doubling model), so the
+  tighten's win is *perfect-doubling*-only, not PD-only, and it survives the
+  lead relaxation meant to kill it. The structural error: **plain SD is not the
+  realistic end of anything** — on the doubling axis it is the most extreme
+  model there is, hence less realistic than plain DD's fallible doubler. The
+  honest realism pair is **[plain DD, SD-PD]**, and one must never compare plain
+  SD against PD, which differ in both coordinates at once. Defaults untouched
+  throughout; verdicts corrected in the ledgers.
 
 ### Added
 

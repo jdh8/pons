@@ -121,11 +121,28 @@ disciplined uniform 8–14. Reproduce with `bba-gen --ns-overcall LO:HI`; full
 per-gauge and sweep tables are in
 [point-count-threshold-campaign.md](archive/point-count-threshold-campaign.md).
 
-That severity ladder is now a *four*-point scale, and the entry it quotes as
-"sd" is only the bottom of it: plain SD assumes **no** double on a realistic
-lead, SD-PD assumes a perfect one on the same lead. The missing SD-PD figure
-belongs beside PD, not beside sd — so the `8:14` tighten is on the
-re-adjudication queue (measurement.md, §"Plain SD is not an arbiter").
+**That severity ladder was not a ladder** (measured 2026-07-26; the tighten's
+SD-PD figures are now in). The four brackets are a **2×2 in lead model ×
+doubling model**, not a chain — and plain SD differs from PD in *both*
+coordinates at once, which is what made the chain look real:
+
+| vul tighten `9:14` / `10:14` | fallible double | perfect double |
+| --- | --- | --- |
+| DD lead | −0.003 / −0.009 | **+0.043 / +0.090** |
+| blind lead | −0.020 / −0.051 | **+0.027 / +0.046** |
+
+The axes separate cleanly: doubling is worth ≈+0.046/+0.097 under *either* lead
+model, the blind lead costs ≈−0.017/−0.044 under *either* doubling model. So the
+tighten's win is not PD-only, it is **perfect-doubling-only**, and it survives
+the lead relaxation that was supposed to kill it. The error was calling plain SD
+the realistic scorer: on the doubling axis it is the most extreme model there is
+— nobody ever doubles — hence *less* realistic than plain DD's fallible BBA
+doubler. **The honest realism pair is [plain DD, SD-PD]**, not [plain SD, PD].
+The `8:14` vul verdict is corrected to *undetermined, leaning tighten*
+(archive/point-count-threshold-campaign.md); NV it holds, SD-PD washing there.
+
+Generalize the lesson: never read four brackets as one ordered scale. Difference
+along one axis is only interpretable with the other axis held fixed.
 
 **How to actually price a competitive range:**
 

@@ -145,7 +145,23 @@ overcall (5+, 11+) bleeds ~−2/bd across every points/shape/vul band, so
 minimums → Pass).  A/B vs BBA: plain +0.0015 NV / +0.0061 vul, PD +0.0075 /
 +0.0131 — **but sd-lead washes both** (−0.0021 [±0.0031] NV, +0.0025 [±0.0040]
 vul).  For a competitive range sd is the arbiter, so the plain/PD gains are the
-obstruction-wall artifact; kept opt-in, default byte-identical.  The lesson: the
+obstruction-wall artifact; kept opt-in, default byte-identical.
+
+> **REVERSED 2026-07-26 by SD-PD** (dump rescore, `sd-pd-dumps.sh`, 204800
+> boards/vul, 2.27%/2.29% fired).  Plain sd never doubles, and here the *looser*
+> arm is the default — so plain sd let the 11–14 overcalls it keeps fail
+> unpunished, and the "wash" was the missing axe.  Repricing the same trick
+> counts with failures doubled: plain SD +0.0010 ±0.0030 NV / +0.0019 ±0.0039
+> vul (washes, as published), **SD-PD +0.0063 ±0.0037 NV / +0.0081 ±0.0047 vul —
+> CI-clear positive both, tracking PD (+0.0075/+0.0131)**.  Plain DD is
+> non-negative both vuls, so this is the house pattern *plain-DD wash + PD win →
+> shippable default-on*, and the tighten is a **promotion candidate from opt-in
+> to default-on** (confirm on a fresh seed before flipping — this is a rescore of
+> one board set).  "For a competitive range sd is the arbiter" is retired: plain
+> sd is the arbiter of nothing on its own, being optimistic on both the lead and
+> the doubling axis at once.  Default deliberately untouched.
+
+The lesson: the
 anchor's *ours-vs-BBA* sd deficit on the overcall does not mean *suppressing* it
 helps — the actionable A/B sd (suppress-vs-keep) washed because our own pass-line
 is equally bad.  The recoverable def-r1 value, if any, is the CONSTRUCTIVE
