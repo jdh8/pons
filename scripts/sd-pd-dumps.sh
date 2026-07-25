@@ -97,6 +97,22 @@ for vul in none both; do
         "$A/two-level-minor-overcall/on-$vul" \
         "$A/two-level-minor-overcall/off-$vul" \
         "$vul" --on-ns-two-level-minor-overcall-tight
+
+    # The `8:14` natural 1NT-defense band, vul-tighten finalists (band re-sweep
+    # 2026-07-16, `8:14` HELD).  That verdict is the cleanest statement of the
+    # doctrine SD-PD was built to test: value "monotone in assumed doubling
+    # severity", sd (no double) < plain (BBA's fallible double) < PD (perfect
+    # axe), so the vul PD win (+0.043 / +0.090) was called a doubling artifact
+    # because plain SD said −0.021 / −0.047.  SD-PD is the missing middle — a
+    # blind lead *with* the perfect axe.  If it lands with plain SD the artifact
+    # reading holds; if it lands with PD, the tighten was real and the lead
+    # relaxation, not the doubling, was doing the work.
+    for band in 9-14 10-14; do
+        rescore "nt-defense-band-$band.$vul" \
+            "$A/nt-defense-range-screen-20260715/natural-$band-$vul" \
+            "$A/nt-defense-range-screen-20260715/natural-8-14-$vul" \
+            "$vul" --on-ns-overcall "$(echo "$band" | tr - :)" --off-ns-overcall 8:14
+    done
 done
 
 echo "=== sd-pd dump re-adjudication done $(date -Is)"

@@ -34,7 +34,7 @@ use contract_bridge::{AbsoluteVulnerability, Contract, Seat};
 use pons::american;
 use pons::bidding::american::{
     FreeBidStyle, NegativeDoubleShape, set_free_1nt_floor, set_free_bid_style, set_free_bids,
-    set_negative_double_shape, set_two_level_minor_overcall_tight,
+    set_natural_overcall_points, set_negative_double_shape, set_two_level_minor_overcall_tight,
 };
 use pons::bidding::context::relative;
 use pons::bidding::{Family, Inferences, Stance};
@@ -96,6 +96,14 @@ struct Args {
     /// 15+ (`set_two_level_minor_overcall_tight`)
     #[arg(long, default_value_t = false)]
     on_ns_two_level_minor_overcall_tight: bool,
+    /// Read the ON arm's auctions with this natural 1NT-defense suit-overcall
+    /// band `LO:HI` (`set_natural_overcall_points`; the band sweep's arms differ
+    /// only here, so the blind leader must know which one bid)
+    #[arg(long, default_value = "8:14")]
+    on_ns_overcall: String,
+    /// Same for the OFF arm (the sweep's baseline is 8:14)
+    #[arg(long, default_value = "8:14")]
+    off_ns_overcall: String,
     /// Show this many of the biggest swings (each way)
     #[arg(long, default_value_t = 8)]
     show: usize,
@@ -154,11 +162,20 @@ fn main() {
     set_free_bid_style(style(&args.on_ns_free_bid_style));
     set_free_1nt_floor(args.on_ns_free_1nt_floor);
     set_two_level_minor_overcall_tight(args.on_ns_two_level_minor_overcall_tight);
+    let band = |spec: &str| -> (u8, u8) {
+        spec.split_once(':')
+            .and_then(|(lo, hi)| Some((lo.parse().ok()?, hi.parse().ok()?)))
+            .unwrap_or_else(|| panic!("overcall band must be LO:HI, got {spec:?}"))
+    };
+    let (lo, hi) = band(&args.on_ns_overcall);
+    set_natural_overcall_points(lo, hi);
     let stance_on = american().against(Family::NATURAL);
     set_free_bids(false);
     set_negative_double_shape(NegativeDoubleShape::Modern);
     set_free_bid_style(FreeBidStyle::Forcing);
     set_two_level_minor_overcall_tight(false);
+    let (lo, hi) = band(&args.off_ns_overcall);
+    set_natural_overcall_points(lo, hi);
     set_free_1nt_floor(6);
     let stance_off = american().against(Family::NATURAL);
 
