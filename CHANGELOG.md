@@ -56,6 +56,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   readings (`closure_is_membership_inert`). Both knobs default **off**, so the
   shipped reading is byte-identical.
 
+  **Correction: only C1 is membership-inert.** C2 bounds `points` — which the
+  sampler tests — using `hcp`, which it does not, so the closure hands an
+  otherwise unenforced HCP claim teeth *through* `points`: a box reading
+  `hcp ..=8` with `points` slacked to `..=10` narrows back to `..=8` once its
+  lengths force balanced, and the sampler stops dealing the 9- and 10-counts it
+  was accepting outside the stated band. Found by the new probe below (249
+  rejections in 8,576 cross-tested layouts, against C1's 0 in 409,708) and
+  pinned by `upgrade_closure_gives_hcp_teeth`; the five readings the proptest
+  walks happen not to combine a balanced-forcing box with a tighter `hcp` band.
+  C2's bidding-inertness is unaffected — the effect is real but rarer than a
+  call-flip needs.
+
+- **`examples/probe-closure-features.rs` — does a reading change move the net's
+  inputs without moving the distribution those inputs describe?** Bids a corpus
+  under the baseline so the arms cannot diverge in *which* readings they see,
+  then at every auction node reads it under both knob settings: it diffs the 30
+  hidden-seat values of `features_eval` (the evaluator's actual input, reported
+  in feature units and in units of each column's corpus σ) and cross-tests
+  `sample_layouts` draws against the other arm's reading. ~2 s per 2000 boards,
+  no double-dummy solve, no training run.
+
+  On C1 (20,669 nodes): endpoints move at **15.7%** of nodes and moments at
+  none. Only the four length *ceilings* move, by a mean of 0.36 feature units
+  (≈ 4.6 cards), p90 0.46, max 0.77 — **1.9σ (majors) to 3.9σ (minors)** of each
+  column's own corpus spread, while **0 of 409,708** sampled layouts change
+  membership. That measures the migration rule below instead of arguing it:
+  C1's perturbation really is information-free, so its ~60% net share is pure
+  encoding non-invariance and no evaluator retrain can be *earned* on it.
+
   **The net's half has a named cause, and it generalizes** — recorded as a new
   migration rule in `docs/dnf-migration.md`. `features::push_inference` feeds
   each seat only `{min,max} ÷ cap`, so the nets carry **no prior over the

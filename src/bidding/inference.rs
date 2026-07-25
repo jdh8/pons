@@ -907,10 +907,14 @@ impl Envelope {
     /// [`Points::project`][super::constraint::points] slacked `hcp` by the
     /// scale's global worst case in both directions.
     ///
-    /// Exact, hence membership-inert, hence sound for
-    /// [`subset_of`][Self::subset_of] dedup — the containments it exposes are
-    /// real.  A no-op on scales whose upgrade a length box cannot bound (see
-    /// `super::constraint::upgrade_ceiling`).
+    /// Exact — it drops no hand the box claims — hence sound for
+    /// [`subset_of`][Self::subset_of] dedup.  But **not membership-inert**,
+    /// unlike [`narrow_to_sum`][Self::narrow_to_sum]: it bounds `points`,
+    /// which [`admits`][Self::admits] tests, using `hcp`, which `admits`
+    /// ignores until [`set_gauge_membership`].  So it gives an unenforced HCP
+    /// claim teeth through `points`, and the sampler *does* move
+    /// (`upgrade_closure_gives_hcp_teeth`).  A no-op on scales whose upgrade a
+    /// length box cannot bound (see `super::constraint::upgrade_ceiling`).
     fn narrow_to_upgrade(&mut self) {
         let Some(ceiling) = super::constraint::upgrade_ceiling(&self.lengths) else {
             return;
@@ -5496,6 +5500,34 @@ mod tests {
 
         assert_eq!(read_hcp(false), Range::new(13, Range::FULL_POINTS.max));
         assert_eq!(read_hcp(true), Range::new(15, Range::FULL_POINTS.max));
+    }
+
+    /// C2 is **not** membership-inert, unlike C1: it derives a bound on
+    /// `points` — an axis `admits` tests — from `hcp`, an axis it does not
+    /// (the write-only axis; see [`set_gauge_membership`]).  So the closure
+    /// gives an otherwise unenforced HCP claim teeth *through* `points`.
+    ///
+    /// Found by `examples/probe-closure-features.rs`, which cross-tested
+    /// sampled layouts against the other arm's reading: C1 rejected 0 of
+    /// 409,708, C2 rejected 249 of 8,576.  The narrowing is exact relative to
+    /// what the box *claims*; it is the sampler's acceptance that widens
+    /// without it.
+    #[test]
+    fn upgrade_closure_gives_hcp_teeth() {
+        use crate::bidding::constraint::{Constraint as _, balanced, hcp};
+
+        // Flat 4333, 10 raw HCP: balanced ⇒ no upgrade ⇒ `points` == `hcp`.
+        // Outside the `hcp(..=8)` claim, yet the loose reading admits it,
+        // because `points` was slacked to `hcp + hcp_ceiling_slack()`.
+        let hand: Hand = "AKQ2.J43.432.432".parse().expect("valid hand");
+        set_dnf_reading(true);
+        let context = Context::new(RelativeVulnerability::NONE, &[]);
+        let reading = (balanced() & hcp(..=8)).project_band(&context);
+
+        assert!(reading.clone().tidy().contains(hand));
+        set_upgrade_closure(true);
+        assert!(!reading.tidy().contains(hand));
+        set_upgrade_closure(false);
     }
 
     /// Chop E: `set_gauge_membership` gives the raw-HCP and support-points
