@@ -265,6 +265,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   default-on"* is **retired** — the sd-win must now be an SD-PD win. Not a
   bidding change: the shipped system is byte-identical, only reporting moves.
   The verdicts this rule produced are on a re-adjudication queue.
+- **Re-adjudication batch 1 — six knobs re-scored under SD-PD; one refuted, one
+  split, four confirmed.** No default is flipped by this entry: verdicts are
+  corrected, and flipping is a separate decision. Self-play harnesses
+  (`scripts/sd-pd-readjudicate.sh`, fresh measurement) and stored-dump rescores
+  (`scripts/sd-pd-dumps.sh`, reproduction gate live):
+  **`set_forcing_nt_two_suiter` REFUTED** — plain SD +0.0005/+0.0018 (CI>0 both)
+  → SD-PD **−0.0011 (CI<0) / +0.0000**, with plain DD a wash and PD −0.002 both
+  vuls; it shipped default-on on the plain-SD row alone and that row was the
+  missing doubling. Demotion to opt-in recommended, pending a fresh-seed
+  confirmation (~1390 divergent boards).
+  **Modern negative doubles SPLIT** — SD-PD +0.0093 (CI>0) NV but **−0.0075
+  (CI<0) vul**, rejecting the ship's stated rationale that the vul-PD loss was
+  "the perfect-defense doubling artifact"; corroborates the unfixed leak P3b′
+  already named (shape/suit-quality gate, not a floor).
+  **Confirmed**: `set_meckstroth_adjunct` (+0.0073/+0.0120, ~75-80% retained —
+  but this exercises the *merged* knob, so the PD-negative `3m`-jump leg still
+  rides on its original plain-SD row and needs a re-split);
+  `set_floor_rkcb` (+0.0035/+0.0041, unmoved; reproduction gate passes);
+  `set_nt_overcall_systems_on` (3 of 4 cells CI-clear, NV-major degrades to a
+  wash); `set_notrump_minors`/Puppet, **strengthened** from "straddles 0" to
+  CI-clear both vuls.
+  Two methodological findings came out of the batch, both now in
+  `docs/measurement.md`. *The SD pair sorts three ways, not two* — SD-PD is
+  harsher on whichever arm bids the failing contract, so a treatment reaching
+  **sounder** contracts than its baseline gains from it (Puppet), which also
+  falsifies the ledger's habit of filing "PD loss redeemed by sd" knobs as one
+  profile: the batch split them. *Check dump provenance* —
+  `ab-results/free-bid-style` silently holds a v2 ON arm against a v1 OFF arm
+  because the v2 campaign regenerated one arm into the v1 directory, so
+  `FreeBidStyle::Negative`'s v1 verdict is unre-adjudicatable by rescore and
+  needs a fresh A/B. Queue pruned at the same time: **gauge elections are not
+  re-measured** (`set_fuzzy_points`, `set_gauge_membership`, weak-two `cccc`
+  bands) — the `Envelope` already carries `hcp`/`support_points`/`suit_hcp` side
+  by side, so the live question is which features the net gets, not which fused
+  scalar wins; and a default re-justified by a newer independent measurement
+  (`set_fuzzy_points` ← `277059f`) makes its old verdict row stale evidence that
+  no re-measure can move.
 
 ### Added
 

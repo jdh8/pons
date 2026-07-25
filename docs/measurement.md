@@ -120,6 +120,25 @@ one kept its win, the other inverted. *"Plain SD rescued it"* was never a
 profile, only a coin flip between a real effect and an artifact, and nothing but
 SD-PD separates the two.
 
+**Check dump provenance before trusting a rescore** (2026-07-25). Re-scoring
+stored arm dumps is the cheapest way to re-adjudicate an old verdict — no
+re-bidding, so a moved book cannot contaminate it. The failure mode is that the
+dumps may not be the arms you think. A driver that reuses its results directory
+regenerates arms into it, and **nothing in the output announces the overwrite**;
+`ab-dump-sd` happily pairs an ON arm from one experiment with an OFF arm from
+another and prints a confident number. Worked example: `ab-results/free-bid-style`
+holds a v2 `negative` arm (sha 3d4fac3, the reverted tempering, shard mtime
+19:36) against a v1 `forcing` arm (sha 6d8b0ab, mtime 19:05), because the v2
+campaign re-ran `arm negative` into the v1 directory. Rescoring it reproduces the
+*v2* verdict, not the v1 one it appears to name — the v1 arms no longer exist, so
+that verdict is unre-adjudicatable and needs a fresh A/B.
+
+So: before reading a rescore, (1) compare shard mtimes across the two arm dirs —
+they should match the same run, and (2) check the published figure reprints.
+Both gates fired usefully in this batch: `set_floor_rkcb` reprinted (+2.36
+published vs +2.414 measured per fired) and was trustworthy; `free-bid-negative`
+did not, and the mtimes explained why.
+
 **Measure bidding decisions, not gauges** (2026-07-25). When the re-adjudication
 queue was drawn up it mixed two kinds of row: knobs that change *which call we
 make*, and knobs that merely elect *which scalar strength gauge* the ranges are
