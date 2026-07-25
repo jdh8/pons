@@ -38,7 +38,8 @@ use ddss::{NonEmptyStrainFlags, Solver, TrickCountTable};
 use pons::american;
 use pons::bidding::american::{
     TwoOverOneGate, WeakTwoEval, set_nt_invite_hcp, set_redouble_answer, set_strong_double_hcp,
-    set_two_over_one_gate, set_two_suiter_hcp_floor, set_weak_two_eval, set_weak_two_hcp,
+    set_two_over_one_gate, set_two_over_one_heart_light, set_two_suiter_hcp_floor,
+    set_weak_two_eval, set_weak_two_hcp,
 };
 use pons::bidding::constraint::{PointScale, set_point_scale, set_support_points};
 use pons::bidding::context::relative;
@@ -106,9 +107,11 @@ struct Args {
     /// `two-suiter-hcp:N`, `redouble-answer`, `nt-invite-hcp`, and the
     /// weak-two evaluator gauges
     /// `weak-two-cccc:LO:HI`, `weak-two-cccc-floor:X`, `weak-two-nltc:LO:HI`,
-    /// `weak-two-nltc-ceil:X` (reals; see `probe-weak-two-eval`); and
+    /// `weak-two-nltc-ceil:X` (reals; see `probe-weak-two-eval`);
     /// `two-over-one-gate:points13|points12|hcp13|hcp12|hcp14` (the major
-    /// no-fit 2/1 entry, vs the shipped `hcp13`).
+    /// no-fit 2/1 entry, vs the shipped `points13`); and
+    /// `two-over-one-heart-light` (`1♠–2♥` forces game on a flat twelve with
+    /// five hearts, the strain-location bet).
     #[arg(long)]
     fix: Option<String>,
 
@@ -171,6 +174,10 @@ enum Fix {
     /// `set_two_over_one_gate(gate)`: the major no-fit 2/1 entry gauge, vs
     /// the shipped `Points13`
     TwoOverOneGate(TwoOverOneGate),
+    /// `set_two_over_one_heart_light(true)`: `1♠–2♥` forces game on a flat
+    /// twelve with five hearts (`len(♥,5..) & hcp(12..)`), the strain-location
+    /// bet — reach `4♥` on the 5-3 fit instead of the minor 2/1s' thin 3NT
+    TwoOverOneHeartLight,
 }
 
 impl Fix {
@@ -205,6 +212,7 @@ impl Fix {
                     "--fix two-over-one-gate must be points13|points12|hcp13|hcp12|hcp14, got {other:?}"
                 ),
             }),
+            "two-over-one-heart-light" => Self::TwoOverOneHeartLight,
             _ => panic!("unknown --fix {name}"),
         }
     }
@@ -220,6 +228,7 @@ impl Fix {
             Self::TwoOverOneGate(gate) => {
                 set_two_over_one_gate(if on { gate } else { TwoOverOneGate::default() });
             }
+            Self::TwoOverOneHeartLight => set_two_over_one_heart_light(on),
         }
     }
 
@@ -243,6 +252,9 @@ impl Fix {
                     "2/1 no-fit gate {gate:?} vs shipped {:?}",
                     TwoOverOneGate::default()
                 )
+            }
+            Self::TwoOverOneHeartLight => {
+                "1♠–2♥ heart-light: len(♥,5..) & hcp(12..) no-fit vs shipped".to_owned()
             }
         }
     }

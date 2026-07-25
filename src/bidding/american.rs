@@ -148,7 +148,8 @@ pub(crate) use responses::longer_major_response;
 pub use responses::{
     TwoOverOneGate, major_responses, minor_responses, set_longer_major_response,
     set_major_choice_of_games, set_two_over_one_fit, set_two_over_one_gate,
-    set_two_over_one_major_discount, set_two_over_one_natural_lengths, set_up_the_line,
+    set_two_over_one_heart_light, set_two_over_one_major_discount,
+    set_two_over_one_natural_lengths, set_up_the_line,
 };
 pub use slam::set_minor_keycard;
 pub use xyz::{set_xyz, set_xyz_invite_judgment};

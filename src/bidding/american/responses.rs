@@ -68,6 +68,16 @@ std::thread_local! {
     /// gate — serving both 3NT and `4♥`.  Default `false` (book byte-identical);
     /// A/B pending.
     static TWO_OVER_ONE_MAJOR_DISCOUNT: Cell<bool> = const { Cell::new(false) };
+    /// Whether `1♠–2♥` forces game on a flat twelve, banking its **ensured
+    /// five-card heart suit**: the no-fit leg becomes `len(♥,5..) & hcp(12..)`
+    /// (from the default `points(13..)` at `min_len` four), admitting the flat
+    /// 5=3=3=2 twelve-counts that the `points` scale leaves at a forcing 1NT
+    /// (they carry no `upgrade`).  The bet: unlike the minor 2/1s' thin 3NT, a
+    /// five-card major finds a `4♥` landing whenever opener holds three — the
+    /// strain-location fix, not the upgrade.  The fit leg (exactly-three-card
+    /// spade support on `support_points(13..)`) is unchanged.  Default `false`
+    /// (book byte-identical); A/B pending.
+    static TWO_OVER_ONE_HEART_LIGHT: Cell<bool> = const { Cell::new(false) };
 }
 
 /// The gauge for the no-fit leg of the major 2/1 game force
@@ -237,6 +247,34 @@ pub fn set_two_over_one_major_discount(on: bool) {
 /// Whether the `1♠–2♥` HCP discount is currently authored
 fn two_over_one_major_discount() -> bool {
     TWO_OVER_ONE_MAJOR_DISCOUNT.with(Cell::get)
+}
+
+/// Force `1♠–2♥` game on a flat twelve with five hearts for books built after
+/// this call (default `false`; measured via `ab-point-count --fix
+/// two-over-one-heart-light`)
+///
+/// On: the no-fit leg of `1♠–2♥` becomes `len(♥,5..) & hcp(12..)` — the ensured
+/// five-card major forces game a full HCP light, admitting the flat 5=3=3=2
+/// twelve-counts the `points` scale leaves at a forcing 1NT.  Off: the shipped
+/// `points(13..)` no-fit gate at `min_len` four.  No effect on any other 2/1 or
+/// on the fit leg.  Unlike [`set_two_over_one_major_discount`] (which threads
+/// only the `Hcp*` gates), this overrides the `Points*` default directly.
+///
+/// **Refuted 2026-07-25** (default stays off): the admitted flat twelves do not
+/// settle in the intended `4♥` on the 5-3 fit — the floor's slam machinery
+/// overshoots to `6♥`/`7♥` because the 2/1 response reads `0..=37` (the deferred
+/// fit-split `Or` erasure; see `docs/ai-bidder/sampled-projection.md`), so opener
+/// cannot see responder is a minimum.  A/B `ab-point-count --fix`: plain
+/// −0.0007/−0.0005, PD −0.0010/−0.0009 IMPs/board NV/vul.  A **reading-cap**
+/// re-measure candidate — capping the 2/1 reading (a ceiling, not just
+/// `set_two_over_one_slam_strength`'s floor) is the prerequisite.
+pub fn set_two_over_one_heart_light(on: bool) {
+    TWO_OVER_ONE_HEART_LIGHT.with(|cell| cell.set(on));
+}
+
+/// Whether the `1♠–2♥` flat-twelve heart-light gate is currently authored
+fn two_over_one_heart_light() -> bool {
+    TWO_OVER_ONE_HEART_LIGHT.with(Cell::get)
 }
 
 /// Spades take the first response: strictly longer, or equal length five-plus
@@ -436,6 +474,23 @@ pub fn major_responses(major: Suit) -> Rules {
             };
             // 2♥ over 1♠ (the five-card major) may force game one HCP light.
             let discount = u8::from(two_over_one_major_discount() && suit == Suit::Hearts);
+            // Heart-light overrides the gate on `1♠–2♥` alone: the ensured
+            // five-card suit forces game on a flat twelve (`len(♥,5..) &
+            // hcp(12..)`), reaching `4♥` on the 5-3 fit — the strain-location
+            // bet.  Fit leg (exactly-three-card spade support) unchanged; an
+            // early-out keeps the gate match below byte-identical.  ponytail:
+            // pairs with the shipped fit-split, never `set_two_over_one_fit(false)`.
+            if two_over_one_heart_light() && suit == Suit::Hearts {
+                rules = rules
+                    .rule(
+                        bid,
+                        weight,
+                        fit_split_gate(suit, 5, major, hcp(12..), gauge_floor(|s| &mut s.hcp, 12)),
+                    )
+                    .alert(GAME_FORCE);
+                weight -= 0.05;
+                continue;
+            }
             rules = match (two_over_one_fit(), two_over_one_gate()) {
                 (false, TwoOverOneGate::Points13) => rules.rule(
                     bid,

@@ -17,6 +17,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   back on. `ab-point-count --sd` now reports both the plain-SD and SD-PD
   brackets.
 
+- `set_two_over_one_heart_light` (opt-in, default-off — **the shipped book is
+  byte-identical**) and its probe `examples/probe-heart-light-4h`. On, `1♠–2♥`
+  forces game on a flat 5=3=3=2 twelve (`len(♥,5..) & hcp(12..)` in place of the
+  shipped `points(13..)`), banking the ensured five-card major. **Refuted**
+  (`ab-point-count --fix two-over-one-heart-light`, 1.5M/vul): plain
+  −0.0007/−0.0005, PD −0.0010/−0.0009 IMPs/board NV/vul. The idea is sound in
+  strain (the continuation reaches `4♥` on the 5-3 fit via the floor's `3NT→4♥`
+  correction, no direct raise) but the floor **overshoots to `6♥`/`7♥`**: the 2/1
+  response reads `0..=37` (the deferred fit-split `Or` erasure), so opener's slam
+  machinery fires on 25-26 combined HCP — only 32 of 362 fit-boards settle in a
+  sane `4♥`. Kept as a **reading-cap re-measure candidate** (cap the 2/1 reading
+  ceiling first).
+
 ### Changed
 
 - **Default major 2/1 no-fit gate → `Points13` (`points(13..)`), superseding
