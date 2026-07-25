@@ -103,6 +103,28 @@ board's swing keeps its sign and SD-PD adds no independent signal. A verdict
 resting on such a harness alone needs a plain+PD re-adjudication, not an SD-PD
 row.
 
+**Known limitation — `ab-dump-sd` does not price disclosure** (measured
+2026-07-26, unfixed). The dump-rescore harness reads each arm's auctions for the
+blind leader via `stance.infer(relative(vul, leader), …)`, and its `--on-ns-*`
+flags are meant to make the leader read the ON arm under the ON arm's system.
+**They are inert.** Rescoring `nt-defense-band-9-14` with `--on-ns-overcall
+20:37` — claiming the overcaller holds 20–37 HCP rather than 9–14 — reproduces
+the flagged run to the last IMP, and so does dropping
+`--on-ns-negative-double-shape modern` from `modern-negx`. It is therefore not a
+natural-vs-alerted split: no setting on *our* book reaches the leader's model.
+The leader is an opponent, so the prime suspect is that inference from the
+opposing seat never consults our book (cf. the wrong-seat trap in
+`dnf-migration.md`).
+
+Consequences, in order: verdicts from dump rescores **stand** (both arms are read
+identically, and the arms still differ in the auctions and contracts the dumps
+recorded, so the treatment effect is real); the claim that a dump rescore prices
+disclosure or lead-direction value **does not**; and any future harness that
+needs disclosure priced must verify it moves the numbers before trusting it — the
+one-line check is to re-run with a deliberately absurd band and confirm the
+output changes. Fixing it would move every sd number the script has produced, so
+it is flagged rather than patched.
+
 **The four brackets are a 2×2, not a ladder** (2026-07-26). It is tempting to
 rank them by how harshly they treat the bidding side — sd < plain < PD — and
 call a win visible only at the top an artifact. That reasoning shipped a real

@@ -15,10 +15,32 @@
 # 20240607 vs +0.828 at 1783925001, inside noise), but matching the original
 # invocation keeps the gate honest.
 #
-# Disclosure matters: the blind leader must read the ON arm's auctions under the
-# ON arm's system, or the sd numbers credit us for opponents misreading bids
-# they would in fact alert.  Each row passes the same --on-ns-* flag its original
-# driver used.
+# Disclosure was supposed to matter: the blind leader should read the ON arm's
+# auctions under the ON arm's system, or the sd numbers credit us for opponents
+# misreading bids they would in fact alert.  Each row passes the same --on-ns-*
+# flag its original driver used.
+#
+# MEASURED 2026-07-26: **those flags are inert in this harness.**  Two probes,
+# both byte-identical to their flagged runs, down to the last IMP:
+#
+#   * natural band  — nt-defense-band-9-14 rescored with `--on-ns-overcall 20:37`
+#     (telling the leader the overcaller holds 20-37 HCP instead of 9-14)
+#   * alerted call  — modern-negx rescored with the `--on-ns-negative-double-shape
+#     modern` flag simply removed
+#
+# So it is not a natural-vs-artificial split: no setting on *our* book reaches
+# the blind leader's model here.  `lead_inputs` reads via
+# `stance.infer(relative(vul, leader), ..)` from the LEADER's seat, and the
+# leader is an opponent — the prime suspect is that inference from the opposing
+# seat never consults our book (cf. the wrong-seat trap in dnf-migration.md).
+#
+# This does NOT invalidate the verdicts below: both arms are read the same way
+# in every run, and the arms still differ in the auctions and contracts the
+# dumps actually recorded, so the treatment effect is real.  What it invalidates
+# is the claim that a dump rescore prices *disclosure* — it does not, and the
+# sd-lead bracket's advertised lead-direction value is absent here.  Left as a
+# flagged discrepancy rather than a silent fix: repairing it would move every
+# sd number this script has ever produced.
 #
 #   BINDIR=<path>/release/examples setsid nohup scripts/idle-run.sh \
 #       scripts/sd-pd-dumps.sh ab-results/sd-pd-dumps \
