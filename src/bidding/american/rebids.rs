@@ -43,6 +43,29 @@ fn meckstroth() -> bool {
     MECKSTROTH.with(Cell::get)
 }
 
+// ponytail: a second gate on the *same* adjunct, so its two halves can be
+// measured apart.  One flag shipped both, and the SD-PD re-adjudication
+// confirmed only the merged knob — the `3m` leg's own verdict (plain wash, PD
+// loss, plain-SD win) is the shape that batch refuted elsewhere.
+std::thread_local! {
+    /// Whether the adjunct's invitational `3m` jumps are built (default **on**).
+    /// Ignored when [`set_meckstroth_adjunct`] is off — the jumps live inside
+    /// the adjunct.
+    static MECKSTROTH_MINOR_JUMPS: Cell<bool> = const { Cell::new(true) };
+}
+
+/// Build the Meckstroth adjunct's invitational `3m` jumps (default **on**)
+///
+/// The adjunct is two independent features under one flag: the artificial 18+
+/// `2NT` game force and the invitational `3m` jumps (5+ minor, 15–17). Turn
+/// this off to keep the game force and drop the jumps — the arm that isolates
+/// the `3m` leg, whose only positive bracket was plain SD.
+///
+/// Read at book-construction time, like [`set_meckstroth_adjunct`].
+pub fn set_meckstroth_minor_jumps(on: bool) {
+    MECKSTROTH_MINOR_JUMPS.with(|cell| cell.set(on));
+}
+
 // ponytail: same construction-time toggle as the Meckstroth adjunct above.
 std::thread_local! {
     /// Whether opener shows an invitational (15–17) major two-suiter after the
@@ -308,7 +331,7 @@ fn is_invitational_minor_jump(rebid: Call) -> bool {
 /// the strong 2NT (1.2), so disjointness is by strength: 18–19 balanced → 2NT;
 /// 15–17 with a five-card minor → `3m`; a minimum → the natural two level.
 fn with_invitational_minors(mut rules: Rules) -> Rules {
-    if meckstroth() {
+    if meckstroth() && MECKSTROTH_MINOR_JUMPS.with(Cell::get) {
         for minor in [Suit::Clubs, Suit::Diamonds] {
             rules = rules.rule(
                 Bid::new(3, Strain::from(minor)),

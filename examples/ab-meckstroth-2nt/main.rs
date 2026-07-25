@@ -9,6 +9,8 @@
 //! toggle, read once at book-construction time.  (That knob now carries the whole
 //! adjunct — the artificial `2NT` *and* the invitational `3m` jumps — so the
 //! baseline arm drops both; the `2NT` machine dominates the divergent boards.)
+//! `--minor-jumps-only` splits them: the baseline then keeps the game force and
+//! drops only the jumps, pricing the `3m` leg on its own.
 //!
 //! Opponents are silenced (East/West always pass), so every auction is
 //! constructive start to finish — this measures the *constructive* value of the
@@ -26,7 +28,7 @@ use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, Contract, FullDeal, Seat};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
-use pons::bidding::american::set_meckstroth_adjunct;
+use pons::bidding::american::{set_meckstroth_adjunct, set_meckstroth_minor_jumps};
 use pons::bidding::context::relative;
 use pons::bidding::{Family, Inferences, Stance};
 use pons::scoring::{
@@ -65,6 +67,11 @@ struct Args {
     /// Seed for the world-sampling RNG (report it to reproduce a run)
     #[arg(long, default_value_t = 20_240_607)]
     sd_seed: u64,
+
+    /// Isolate the adjunct's invitational `3m` leg: the baseline arm keeps the
+    /// artificial 18+ `2NT` game force and drops only the jumps
+    #[arg(long, default_value_t = false)]
+    minor_jumps_only: bool,
 }
 
 /// One board's two arms: each arm's uncontested auction and its final contract.
@@ -98,9 +105,13 @@ fn main() {
     // (the shipped default).  The toggle is read at book-construction time, so
     // build each arm under its own setting; the baked tries are independent
     // thereafter.
-    set_meckstroth_adjunct(false);
+    // With --minor-jumps-only the baseline instead keeps the game force and
+    // drops just the 3m jumps, so the A/B prices that leg alone.
+    set_meckstroth_adjunct(!args.minor_jumps_only);
+    set_meckstroth_minor_jumps(false);
     let baseline = american().against(Family::NATURAL);
     set_meckstroth_adjunct(true); // restore the shipped default (on)
+    set_meckstroth_minor_jumps(true);
     let adjunct = american().against(Family::NATURAL);
     let stances = [baseline, adjunct];
 

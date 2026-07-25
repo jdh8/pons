@@ -305,6 +305,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`set_meckstroth_minor_jumps` — the adjunct's two halves split apart.**
+  `set_meckstroth_adjunct` shipped the artificial 18+ `2NT` game force and the
+  invitational `3m` jumps (`1M – 1NT – 3m`) under one flag, and the SD-PD
+  re-adjudication could only confirm the *merged* knob. The new flag drops the
+  jumps while keeping the game force, and `ab-meckstroth-2nt --minor-jumps-only`
+  builds the baseline arm that way, so the `3m` leg — whose only positive
+  bracket was plain SD (plain wash, PD loss) — can be priced on its own.
+  Default **on**; the shipped system is byte-identical.
+
 - **Per-suit HCP axis on the DNF envelope** (`Strength.suit_hcp: [Range; 4]`,
   cap 10 = AKQJ) — the honor-*location* gauge. `suit_hcp` gains exact
   projection folds (forward, band, complement — the forward one keeps its

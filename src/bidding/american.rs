@@ -141,8 +141,8 @@ pub use raises::{set_limit_raise_acceptance, set_major_game_tries};
 pub(crate) use rebids::{opener_extras_ladder, opener_major_jump_rebid};
 pub use rebids::{
     set_balanced_1nt_rebid, set_forcing_nt_two_suiter, set_fourth_suit_forcing,
-    set_major_rebid_tails, set_meckstroth_adjunct, set_nt_invite_hcp, set_opener_extras_ladder,
-    set_opener_major_jump_rebid,
+    set_major_rebid_tails, set_meckstroth_adjunct, set_meckstroth_minor_jumps, set_nt_invite_hcp,
+    set_opener_extras_ladder, set_opener_major_jump_rebid,
 };
 pub(crate) use responses::longer_major_response;
 pub use responses::{
