@@ -186,7 +186,7 @@ pub fn empty_context() -> Context<'static> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::bidding::constraint::{and, described, hcp, len, or, points};
+    use crate::bidding::constraint::{and, described, hcp, len, or, points, suit_hcp};
     use contract_bridge::Suit;
     use rand::SeedableRng;
     use rand::rngs::StdRng;
@@ -356,7 +356,7 @@ mod tests {
         use crate::bidding::constraint::Constraint;
 
         let ctx = empty_context();
-        let battery: [Box<dyn Constraint>; 11] = [
+        let battery: [Box<dyn Constraint>; 14] = [
             Box::new(len(Suit::Hearts, 5..)),
             Box::new(points(8..=16)),
             Box::new(hcp(15..=17)),
@@ -377,6 +377,11 @@ mod tests {
             Box::new(
                 or([Suit::Hearts, Suit::Spades], 6..) & and([Suit::Clubs, Suit::Diamonds], ..=4),
             ),
+            // The per-suit HCP axis: alone, `&`-composed with its length (the
+            // stopper-quality idiom), and `|`-composed across suits.
+            Box::new(suit_hcp(Suit::Clubs, 5..)),
+            Box::new(len(Suit::Clubs, 5..) & suit_hcp(Suit::Clubs, 5..)),
+            Box::new(suit_hcp(Suit::Hearts, 4..) | suit_hcp(Suit::Spades, 4..)),
         ];
 
         let mut rng = rng();
@@ -387,6 +392,13 @@ mod tests {
                     assert!(
                         envelope.contains(hand),
                         "projection unsound: {hand} accepted but outside {envelope:?}"
+                    );
+                    // The lenient `contains` never reads the gauge axes; the
+                    // strict sibling holds the ceilings to account too.
+                    assert!(
+                        envelope.boxes().iter().any(|b| b.accepts(hand)),
+                        "projection unsound strictly: {hand} accepted but no box \
+                         of {envelope:?} accepts it"
                     );
                 }
             }

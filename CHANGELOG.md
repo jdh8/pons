@@ -9,6 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Per-suit HCP axis on the DNF envelope** (`Strength.suit_hcp: [Range; 4]`,
+  cap 10 = AKQJ) — the honor-*location* gauge. `suit_hcp` gains exact
+  projection folds (forward, band, complement — the forward one keeps its
+  ceiling, sound on its own scale) and `top_honors` now floors the suit's own
+  HCP (2/5/9) beside its whole-hand floor, so Ogust answers, the Lebensohl
+  trap pass, and every suit-quality gate *read* what they gate. **The shipped
+  system is byte-identical** (dump diff clean, 4000 boards × both vuls × 2
+  seeds): the lenient sampler membership never tests the new axis
+  (`set_gauge_membership` stays off) and no default-on consumer reads it —
+  consumers (Ogust quality read, penalty leave-ins, a `stopper_in` staircase)
+  are follow-up measured chops, per `docs/dnf-migration.md` (SHCP row). No
+  canonicalize couplings, by design: the len↔suit-HCP cap tables ship as
+  exhaustively pinned test-side contracts instead. The leak ratchet grows a
+  sixth `suit HCP` column, born 0/0; a pre-existing meter blind spot found on
+  the way (rules wired as `Fallback::classify` — the UVU double, penalty X,
+  SOS runouts — are invisible to the ratchet and E0 sweep on *every* column)
+  is recorded in the ledger.
+
 - `scoring::ns_score_pd_tricks` — the single-dummy perfect-defense scorer
   (single-dummy lead + actual tricks, but a contract that fails on those tricks
   is scored doubled). The honest arbiter for a game-reaching treatment: plain

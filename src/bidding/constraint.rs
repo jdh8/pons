@@ -105,7 +105,7 @@ pub trait Constraint: Send + Sync {
     /// hold, and returning either half alone would reject legal hands.  That
     /// asymmetry is the whole reason negation is pushed to the leaves before
     /// anything is complemented — `!⊤ = ⊥` is *tighter than the truth*, and an
-    /// off-axis gauge like [`suit_hcp`] approximates to ⊤.
+    /// off-axis atom like [`stopper_in`] approximates to ⊤.
     fn project_complement(&self, _context: &Context<'_>) -> Dnf {
         Dnf::unknown()
     }
@@ -142,7 +142,8 @@ where
 /// `authored_calls_read_what_they_gate` ratchet reads axes off these rendered
 /// atoms — so each non-full axis renders exactly as its atom constraint would:
 /// lengths like [`len`] (`"5+ ♠"`), the gauges like [`hcp`]/[`points`]/
-/// [`support_points`] (`"13+ HCP"`, `"≤10 points"`, `"13+ support points"`).
+/// [`support_points`]/[`suit_hcp`] (`"13+ HCP"`, `"≤10 points"`,
+/// `"13+ support points"`, `"5+ HCP in ♠"`).
 fn describe_box(envelope: &Envelope) -> Description {
     /// One axis as an atom, `None` when the range is the full (vacuous) one.
     fn axis(range: Range, cap: u8, noun: &str) -> Option<Description> {
@@ -178,6 +179,14 @@ fn describe_box(envelope: &Envelope) -> Description {
                 &format!("support points in {suit}"),
             ));
         }
+    }
+    // Always per-suit — whole-hand HCP is a different axis, never a shortcut.
+    for suit in Suit::ASC {
+        parts.extend(axis(
+            strength.suit_hcp[suit as usize],
+            Range::FULL_SUIT_HCP.max,
+            &format!("HCP in {suit}"),
+        ));
     }
     match parts.len() {
         0 => Description::atom("any hand"),
@@ -851,6 +860,12 @@ pub(crate) fn raw_hcp(hand: Hand) -> u8 {
     SimpleEvaluator(eval::hcp::<u8>).eval(hand)
 }
 
+/// Raw high card points held in one suit — the kernel [`SuitHcp`]'s eval and
+/// the [`Envelope`][super::inference::Envelope] `suit_hcp` gauge share
+pub(crate) fn suit_raw_hcp(hand: Hand, suit: Suit) -> u8 {
+    eval::hcp::<u8>(hand[suit])
+}
+
 /// Project a numeric range bound into an inference [`Range`], clamped to `cap`
 ///
 /// The forward dual of [`describe_int_range`]: where that names a bound in
@@ -1497,12 +1512,47 @@ struct SuitHcp<R> {
 
 impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for SuitHcp<R> {
     fn eval(&self, hand: Hand, _: &Context<'_>) -> f32 {
-        crisp(self.range.contains(&eval::hcp::<u8>(hand[self.suit])))
+        crisp(self.range.contains(&suit_raw_hcp(hand, self.suit)))
     }
 
     fn describe(&self) -> Description {
         describe_int_range(&self.range, &format!("HCP in {}", self.suit))
     }
+
+    fn project(&self, _: &Context<'_>) -> Dnf {
+        // Both bounds are exact — the axis records the very scalar the gate
+        // evaluates, so unlike `Hcp` (whose ceiling is unsound on the upgraded
+        // points scale) the *forward* projection keeps its ceiling.  Intended;
+        // do not "fix" the asymmetry in either direction.
+        Dnf::from(suit_hcp_box(
+            self.suit,
+            bound_range(&self.range, SUIT_HCP_CAP),
+        ))
+    }
+
+    fn project_band(&self, context: &Context<'_>) -> Dnf {
+        self.project(context)
+    }
+
+    fn project_complement(&self, _: &Context<'_>) -> Dnf {
+        // A two-sided band complements to its two outer halves through
+        // `disjoin`: knob-off they hull back to the full range (the pre-DNF
+        // reading, byte-identical); knob-on both boxes survive.
+        complement_halves(bound_range(&self.range, SUIT_HCP_CAP), SUIT_HCP_CAP)
+            .map(|half| Dnf::from(suit_hcp_box(self.suit, half)))
+            .reduce(Dnf::disjoin)
+            .unwrap_or_else(Dnf::unknown)
+    }
+}
+
+/// The cap of the [`Envelope`]'s per-suit HCP axis (AKQJ)
+const SUIT_HCP_CAP: u8 = Range::FULL_SUIT_HCP.max;
+
+/// An otherwise-unknown box whose `suit_hcp` slot for `suit` is `band`
+fn suit_hcp_box(suit: Suit, band: Range) -> Envelope {
+    let mut inference = Envelope::unknown();
+    inference.strength.suit_hcp[suit as usize] = band;
+    inference
 }
 
 /// High card points held in the given suit, in the given range
@@ -1993,10 +2043,11 @@ impl<R: RangeBounds<usize> + Clone + Send + Sync> Constraint for TopHonors<R> {
 
     fn project(&self, _: &Context<'_>) -> Dnf {
         // `n` of A/K/Q needs `n` cards in the suit and at least the cheapest
-        // `n` honors — Q, then +K, then +A: raw-HCP floors 2/5/9.  An
-        // over-approximation (the box also admits honor-less hands), which is
-        // all soundness asks of a projection: the honor *location* itself has
-        // no `Envelope` axis.  A top-honor ceiling pins nothing, so the
+        // `n` honors — Q, then +K, then +A: HCP floors 2/5/9, on both the
+        // whole-hand gauge and the suit's own `suit_hcp` axis.  Still an
+        // over-approximation (the box admits any cards worth that much in the
+        // suit — AJ passes a `top_honors(2..)` box), which is all soundness
+        // asks of a projection.  A top-honor ceiling pins nothing, so the
         // default `project_band` (= this) is already the band.  New precision
         // (the default was ⊤) — knob-gated.
         if !dnf_reading() {
@@ -2012,6 +2063,10 @@ impl<R: RangeBounds<usize> + Clone + Send + Sync> Constraint for TopHonors<R> {
             Range::FULL_LENGTH,
         );
         envelope.strength.hcp = Range::new([0, 2, 5, 9][n as usize], Range::FULL_POINTS.max);
+        // The same cheapest-honors floor lands on the suit's own HCP axis,
+        // where it is far tighter: the honors live *in this suit*.
+        envelope.strength.suit_hcp[self.suit as usize] =
+            Range::new([0, 2, 5, 9][n as usize], SUIT_HCP_CAP);
         Dnf::from(envelope)
     }
 }
@@ -3256,6 +3311,11 @@ mod tests {
         let envelope = honors.boxes()[0];
         assert_eq!(envelope.length(Suit::Spades), Range::new(2, 13));
         assert_eq!(envelope.strength.hcp, Range::new(5, 37));
+        // The same cheapest-honors floor, on the suit's own axis.
+        assert_eq!(
+            envelope.strength.suit_hcp[Suit::Spades as usize],
+            Range::new(5, 10),
+        );
 
         // The points box carries its implied HCP floor (down by the scale's
         // maximum upgrade — 5 on the default rule-of-N+8-floored scale), so
@@ -3270,5 +3330,82 @@ mod tests {
             "22+ points | 22+ HCP lost its HCP floor: {strong_two:?}",
         );
         set_dnf_reading(true);
+    }
+
+    /// The [`SuitHcp`] projection folds are exact on the `suit_hcp` axis —
+    /// including the forward ceiling, the one forward projection that keeps
+    /// one (own-scale, no upgrade slack exists to make it unsound).
+    #[test]
+    fn suit_hcp_folds_are_exact() {
+        let ctx = empty_context();
+        let slot = |dnf: &Dnf, suit: Suit| {
+            dnf.boxes()
+                .iter()
+                .map(|b| b.strength.suit_hcp[suit as usize])
+                .collect::<Vec<_>>()
+        };
+
+        set_dnf_reading(true);
+        let band = suit_hcp(Suit::Spades, 5..=7).project_band(&ctx);
+        assert_eq!(slot(&band, Suit::Spades), [Range::new(5, 7)]);
+        // Forward = band: the ceiling survives the alert path too.
+        let forward = suit_hcp(Suit::Hearts, ..5).project(&ctx);
+        assert_eq!(slot(&forward, Suit::Hearts), [Range::new(0, 4)]);
+        // A bounded band complements to its two outer halves knob-on…
+        let complement = (!suit_hcp(Suit::Spades, 5..=7)).project(&ctx);
+        assert_eq!(
+            slot(&complement, Suit::Spades),
+            [Range::new(0, 4), Range::new(8, 10)],
+        );
+
+        // …and knob-off the halves hull back to the full axis.
+        set_dnf_reading(false);
+        let hulled = (!suit_hcp(Suit::Spades, 5..=7)).project(&ctx);
+        assert_eq!(hulled.hull(), Envelope::unknown());
+        set_dnf_reading(true);
+    }
+
+    /// The length ↔ suit-HCP cap tables, exhaustively pinned against every
+    /// one of the 2¹³ holdings.
+    ///
+    /// These tables are the *documented contract* for future gauge-membership
+    /// and stopper work — deliberately **not** live `canonicalize` couplings:
+    /// each candidate coupling either writes an old axis (a shipped-reading
+    /// change) or manufactures the containment that lets `Dnf::tidy`'s
+    /// correct dedup swallow the arm carrying the suit knowledge.
+    #[test]
+    fn suit_hcp_cap_tables() {
+        let mut max_hcp_of_len = [0u8; 14];
+        let mut min_len_of_hcp = [u8::MAX; 11];
+        let mut min_hcp_of_honors = [u8::MAX; 4];
+        let mut min_len_of_honors = [u8::MAX; 4];
+        for bits in 0..1u16 << 13 {
+            // Rank bit positions run 2..=14.
+            let holding = Holding::from_bits_truncate(bits << 2);
+            let hcp = eval::hcp::<u8>(holding);
+            let len = holding.len();
+            let honors = [Rank::A, Rank::K, Rank::Q]
+                .into_iter()
+                .filter(|&rank| holding.contains(rank))
+                .count();
+            max_hcp_of_len[len] = max_hcp_of_len[len].max(hcp);
+            // SAFETY: a holding has at most 13 cards.
+            #[allow(clippy::cast_possible_truncation)]
+            let len = len as u8;
+            min_len_of_hcp[hcp as usize] = min_len_of_hcp[hcp as usize].min(len);
+            min_hcp_of_honors[honors] = min_hcp_of_honors[honors].min(hcp);
+            min_len_of_honors[honors] = min_len_of_honors[honors].min(len);
+        }
+        // A one-card suit holds at most an ace, two AK, three AKQ, four+ AKQJ.
+        assert_eq!(
+            max_hcp_of_len,
+            [0, 4, 7, 9, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10]
+        );
+        // 1–4 HCP fit in one card, 5–7 need two (AK), 8–9 three (AKQ), 10 four.
+        assert_eq!(min_len_of_hcp, [0, 1, 1, 1, 1, 2, 2, 2, 3, 3, 4]);
+        // `TopHonors::project`'s floors: cheapest n of {A, K, Q} — Q, QK, QKA —
+        // and n top honors are n cards.
+        assert_eq!(min_hcp_of_honors, [0, 2, 5, 9]);
+        assert_eq!(min_len_of_honors, [0, 1, 2, 3]);
     }
 }

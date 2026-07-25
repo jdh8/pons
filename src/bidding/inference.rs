@@ -44,6 +44,8 @@ use std::cell::Cell;
 const LENGTH_CAP: u8 = 13;
 /// The largest a point range may span (all forty HCP, then some)
 const POINTS_CAP: u8 = 37;
+/// The largest a single suit's HCP range may span (AKQJ)
+const SUIT_HCP_CAP: u8 = 10;
 
 std::thread_local! {
     /// Whether [`Inferences::read`] quantifies a natural notrump raise of our own
@@ -207,9 +209,13 @@ std::thread_local! {
 /// Off, [`Envelope::admits`] — and everything routed through it: sampler
 /// acceptance, [`Dnf::contains`], the DNF overlay — tests suit lengths and
 /// the legacy `points` gauge only, the pre-`Strength` behaviour.  On, a
-/// sampled hand must also fall within the box's raw-HCP and support-points
-/// bands, so a 15–17 1NT stops admitting 13-counts the `points` scale
-/// upgraded.  Deliberately its **own** knob, never folded into
+/// sampled hand must also fall within the box's raw-HCP, support-points, and
+/// per-suit HCP bands, so a 15–17 1NT stops admitting 13-counts the `points`
+/// scale upgraded.  The measured "bidding-inert" verdict (chop E: 0 fired in
+/// 409,600 boards) predates both the suit-indexed `supports` gauging and the
+/// `suit_hcp` axis — those bands have real teeth (an Ogust quality ceiling
+/// rejects hands no whole-hand gauge can), so a future flip owes a fresh
+/// measurement.  Deliberately its **own** knob, never folded into
 /// [`set_dnf_reading`]: the mechanisms are independent (gauge bands tighten
 /// sampling even on the single-hull reading), the recorded DNF sd-lead WASH
 /// stays meaningful, and this is the one chop that can *reject legal hands*
@@ -419,6 +425,11 @@ impl Range {
         min: 0,
         max: POINTS_CAP,
     };
+    /// Nothing known about a suit's HCP yet: `0..=10`
+    pub const FULL_SUIT_HCP: Self = Self {
+        min: 0,
+        max: SUIT_HCP_CAP,
+    };
 
     /// An inclusive `[min, max]` range
     #[must_use]
@@ -517,16 +528,25 @@ pub struct Strength {
     /// like [`Envelope::lengths`], each gauged with its own suit as trump (no
     /// shortness value in the trump suit itself).
     pub support_points: [Range; 4],
+    /// Raw HCP held in each suit, indexed by `suit as usize` like
+    /// [`Envelope::lengths`]; cap 10 (AKQJ).  The honor-*location* gauge the
+    /// quality gates (`suit_hcp`, `top_honors`) read — deliberately uncoupled
+    /// from the whole-hand gauges in `canonicalize`: every candidate coupling
+    /// either writes an old axis (a shipped-reading change) or manufactures
+    /// the containment that lets `Dnf::tidy`'s correct dedup swallow the arm
+    /// holding the suit knowledge.
+    pub suit_hcp: [Range; 4],
 }
 
 impl Strength {
-    /// Nothing shown yet: every gauge `0..=37`
+    /// Nothing shown yet: every whole-hand gauge `0..=37`, every suit `0..=10`
     #[must_use]
     pub const fn unknown() -> Self {
         Self {
             hcp: Range::FULL_POINTS,
             points: Range::FULL_POINTS,
             support_points: [Range::FULL_POINTS; 4],
+            suit_hcp: [Range::FULL_SUIT_HCP; 4],
         }
     }
 
@@ -539,6 +559,13 @@ impl Strength {
     /// promise (a 15–17 1NT) floors the support gauge for free, without a
     /// fit-showing raise having fired.  Monotone (only raises a `.min`), so it
     /// never narrows past the truth.
+    ///
+    /// [`suit_hcp`][Self::suit_hcp] is deliberately **not** coupled here: the
+    /// sound whole-hand implications (`hcp.min >= Σ suit mins`, a length-capped
+    /// suit ceiling) all write an *old* axis — a shipped-reading change — and
+    /// the floor coupling manufactures exactly the containment that lets
+    /// [`Dnf::tidy`]'s correct dedup swallow the arm carrying the suit
+    /// knowledge (the `points(22..) | hcp(22..)` lesson, in reverse).
     fn canonicalize(&mut self) {
         let slack = super::constraint::flat_hcp_slack();
         let floor = self.hcp.min.saturating_sub(slack);
@@ -554,6 +581,7 @@ impl Strength {
         self.points = self.points.intersect(other.points);
         self.support_points =
             core::array::from_fn(|i| self.support_points[i].intersect(other.support_points[i]));
+        self.suit_hcp = core::array::from_fn(|i| self.suit_hcp[i].intersect(other.suit_hcp[i]));
         self.canonicalize();
         self
     }
@@ -567,6 +595,7 @@ impl Strength {
             support_points: core::array::from_fn(|i| {
                 self.support_points[i].union(other.support_points[i])
             }),
+            suit_hcp: core::array::from_fn(|i| self.suit_hcp[i].union(other.suit_hcp[i])),
         }
     }
 
@@ -584,6 +613,7 @@ impl Strength {
             support_points: core::array::from_fn(|i| {
                 self.support_points[i].intersect(other.support_points[i])
             }),
+            suit_hcp: core::array::from_fn(|i| self.suit_hcp[i].intersect(other.suit_hcp[i])),
         };
         out.canonicalize();
         Some(out)
@@ -734,7 +764,8 @@ impl Envelope {
             .contains(super::constraint::point_count(hand))
             && (!gauge_membership()
                 || (self.strength.hcp.contains(super::constraint::raw_hcp(hand))
-                    && self.supports(hand)))
+                    && self.supports(hand)
+                    && self.suit_hcps(hand)))
     }
 
     /// Whether the hand's support points fit every suit's slot, each gauged by
@@ -745,6 +776,16 @@ impl Envelope {
         Suit::ASC.into_iter().all(|suit| {
             let value = super::constraint::support_point_count_in(hand, suit);
             self.strength.support_points[suit as usize].contains(value.min(Range::FULL_POINTS.max))
+        })
+    }
+
+    /// Whether the hand's raw HCP in each suit fits that suit's
+    /// [`suit_hcp`][Strength::suit_hcp] slot (no clamp — a suit holds at most
+    /// 10 HCP physically)
+    fn suit_hcps(&self, hand: Hand) -> bool {
+        Suit::ASC.into_iter().all(|suit| {
+            self.strength.suit_hcp[suit as usize]
+                .contains(super::constraint::suit_raw_hcp(hand, suit))
         })
     }
 
@@ -761,7 +802,7 @@ impl Envelope {
     }
 
     /// Whether every hand in this box also lies in `other` — axis-wise
-    /// enclosure over the lengths and all three gauges
+    /// enclosure over the lengths and every gauge
     fn subset_of(&self, other: &Self) -> bool {
         Suit::ASC
             .into_iter()
@@ -770,6 +811,9 @@ impl Envelope {
             && other.strength.points.encloses(self.strength.points)
             && (self.strength.support_points.iter())
                 .zip(other.strength.support_points)
+                .all(|(inner, outer)| outer.encloses(*inner))
+            && (self.strength.suit_hcp.iter())
+                .zip(other.strength.suit_hcp)
                 .all(|(inner, outer)| outer.encloses(*inner))
     }
 
@@ -791,6 +835,7 @@ impl Envelope {
         self.admits(hand)
             && self.strength.hcp.contains(super::constraint::raw_hcp(hand))
             && self.supports(hand)
+            && self.suit_hcps(hand)
     }
 }
 
@@ -5347,14 +5392,16 @@ mod tests {
     ///
     /// Columns: one per strength gauge (`HCP`, `points`, `support points` —
     /// each noun checked against **its own** gauge), `length` (suit-symbol
-    /// atoms), and `support` ("card support for partner", resolved through
+    /// atoms), `suit HCP` ("HCP in ♠" atoms against the per-suit HCP axis),
+    /// and `support` ("card support for partner", resolved through
     /// [`Context::partner_last_suit`]).
     ///
     /// "Names an axis" is sniffed off the rendered atoms — `describe_int_range`
     /// puts the noun last, so the describe strings are **load-bearing test
     /// infrastructure**: reword a noun and this sniffer must follow.  The
-    /// exclusions that keep the signal usable: off-axis gauges read "… in ♠"
-    /// (excluded from `length`), partner-facing atoms end in "partner"
+    /// exclusions that keep the signal usable: per-suit gauges read "… in ♠"
+    /// (excluded from `length`; "HCP in ♠" meters on its own `suit HCP`
+    /// column), partner-facing atoms end in "partner"
     /// (excluded from every gauge column), vacuous `0+` floors are ⊤
     /// *correctly*, and `points` awards an atom to the most specific noun
     /// (`support points` is not a `points` claim).
@@ -5415,10 +5462,11 @@ mod tests {
                     let symbol = suit.to_string();
                     let named = leaves.iter().any(|atom| {
                         claims(atom, &symbol)
-                            // Off-axis gauges read "… in ♠"; "partner's last
-                            // suit is ♠" is a *context* claim, not a hand one;
-                            // "≤13 ♠" is a deliberate no-op cap (`len(x, ..14)`
-                            // for gating symmetry) — all vacuous on the axis.
+                            // Per-suit gauges read "… in ♠" and meter on their
+                            // own columns; "partner's last suit is ♠" is a
+                            // *context* claim, not a hand one; "≤13 ♠" is a
+                            // deliberate no-op cap (`len(x, ..14)` for gating
+                            // symmetry) — all vacuous on the length axis.
                             && !atom.contains(" in ")
                             && !atom.contains("last suit is")
                             && !atom.starts_with("≤13 ")
@@ -5428,6 +5476,21 @@ mod tests {
                             .entry("length")
                             .or_default()
                             .push(format!("{system}: {symbol} {} :: {text}", rule.call()));
+                        break;
+                    }
+                }
+
+                for suit in Suit::ASC {
+                    let noun = format!("HCP in {suit}");
+                    let named = leaves.iter().any(|atom| claims(atom, &noun));
+                    if named
+                        && (boxes.iter())
+                            .all(|b| b.strength.suit_hcp[suit as usize] == Range::FULL_SUIT_HCP)
+                    {
+                        leaks
+                            .entry("suit HCP")
+                            .or_default()
+                            .push(format!("{system}: {suit} {} :: {text}", rule.call()));
                         break;
                     }
                 }
@@ -5586,10 +5649,18 @@ mod tests {
         // no-fit 2/1 now gauges `points(13..)`, not `hcp(13..)`) swaps six
         // legacy-`Or` leaks from HCP (17 → 11) to points (3 → 9); the knob-on
         // DNF box pins both axes exactly, so both knob-on columns stay 0.
-        let pinned: [(&str, usize, usize); 5] = [
+        let pinned: [(&str, usize, usize); 6] = [
             ("HCP", 11, 0),
             ("length", 59, 0),
             ("points", 9, 0),
+            // 0/0 measured at birth (2026-07-25): every `suit_hcp` gate the
+            // walk reaches (Ogust, the Lebensohl trap pass) is `&`-chained, and
+            // the exact base-axis projection is ungated, so even the knob-off
+            // hull keeps the band.  The `Or`-shaped gates (UVU double, penalty
+            // X, SOS runouts) are wired as `Fallback::classify` and the walk
+            // never sees them — a pre-existing meter blind spot on EVERY
+            // column, recorded in docs/dnf-migration.md.
+            ("suit HCP", 0, 0),
             ("support", 84, 0),
             ("support points", 18, 0),
         ];
