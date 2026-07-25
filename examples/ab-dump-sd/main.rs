@@ -34,7 +34,7 @@ use contract_bridge::{AbsoluteVulnerability, Contract, Seat};
 use pons::american;
 use pons::bidding::american::{
     FreeBidStyle, NegativeDoubleShape, set_free_1nt_floor, set_free_bid_style, set_free_bids,
-    set_negative_double_shape,
+    set_negative_double_shape, set_two_level_minor_overcall_tight,
 };
 use pons::bidding::context::relative;
 use pons::bidding::{Family, Inferences, Stance};
@@ -92,6 +92,10 @@ struct Args {
     /// discloses a tightened `1X (1Y) 1NT` band to the blind leader)
     #[arg(long, default_value_t = 6)]
     on_ns_free_1nt_floor: u8,
+    /// Read the ON arm's auctions with the 2-level minor overcall tightened to
+    /// 15+ (`set_two_level_minor_overcall_tight`)
+    #[arg(long, default_value_t = false)]
+    on_ns_two_level_minor_overcall_tight: bool,
     /// Show this many of the biggest swings (each way)
     #[arg(long, default_value_t = 8)]
     show: usize,
@@ -149,10 +153,12 @@ fn main() {
     set_negative_double_shape(shape(&args.on_ns_negative_double_shape));
     set_free_bid_style(style(&args.on_ns_free_bid_style));
     set_free_1nt_floor(args.on_ns_free_1nt_floor);
+    set_two_level_minor_overcall_tight(args.on_ns_two_level_minor_overcall_tight);
     let stance_on = american().against(Family::NATURAL);
     set_free_bids(false);
     set_negative_double_shape(NegativeDoubleShape::Modern);
     set_free_bid_style(FreeBidStyle::Forcing);
+    set_two_level_minor_overcall_tight(false);
     set_free_1nt_floor(6);
     let stance_off = american().against(Family::NATURAL);
 

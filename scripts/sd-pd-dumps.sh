@@ -85,6 +85,18 @@ for vul in none both; do
         "$A/free-bid-style/free-bid-style-negative-$vul" \
         "$A/free-bid-style/free-bid-style-forcing-$vul" \
         "$vul" --on-ns-free-bid-style negative
+
+    # Batch 2 — the inverse suspects, where plain SD *vetoed* a DD win.
+    # set_two_level_minor_overcall_tight (floor 11→15, stays OPT-IN).  Published:
+    # plain +0.0015 NV / +0.0061 vul, PD +0.0075 / +0.0131 — but plain SD washed
+    # both (−0.0021 ±0.0031 / +0.0025 ±0.0040) and the wash killed it, "for a
+    # competitive range sd is the arbiter".  Plain SD is the arm-friendly scorer
+    # for the *looser* arm here, so restoring the doubling should move this cell
+    # if the wash was the missing punishment on the 11–14 overcalls.
+    rescore "two-level-minor-overcall.$vul" \
+        "$A/two-level-minor-overcall/on-$vul" \
+        "$A/two-level-minor-overcall/off-$vul" \
+        "$vul" --on-ns-two-level-minor-overcall-tight
 done
 
 echo "=== sd-pd dump re-adjudication done $(date -Is)"
