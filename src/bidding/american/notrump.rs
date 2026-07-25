@@ -86,6 +86,82 @@ pub(crate) fn notrump_minors() -> Alert {
     NOTRUMP_MINORS.with(Cell::get)
 }
 
+/// How a balanced eight with no four-card major responds to our 1NT — the
+/// *size ask* class (`hcp(8) & balanced() & no four-card major`).
+///
+/// The shipped default routes the flat 4-3-3-3 subset to Pass (it plays a level
+/// too high — a shape with no ruff and no long suit is its high cards and nothing
+/// more) and lets the shapelier eights invite via the `2♠`/`2NT` size ask.  The
+/// two poles ([`Invite`][SizeAskEight::Invite], [`Pass`][SizeAskEight::Pass])
+/// exist so a measurement harness can price inviting-the-whole-class against
+/// passing-it under a realistic scorer — the flat-4333 carve was decided on plain
+/// double dummy, which is level-dependently pessimistic on the low contracts in
+/// play (very on 1NT, slightly on 3NT).  See [`set_size_ask_eight`].
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
+pub enum SizeAskEight {
+    /// Flat 4-3-3-3 passes, shapelier eights size-ask — the crate default.
+    #[default]
+    Shipped,
+    /// The whole class size-asks (the pre-2026-07-03 behaviour).
+    Invite,
+    /// The whole class passes.
+    Pass,
+}
+
+thread_local! {
+    /// Routing of the size-ask eight, read once at book-construction time.
+    /// [`SizeAskEight::Shipped`] by default; see [`set_size_ask_eight`].
+    static SIZE_ASK_EIGHT: Cell<SizeAskEight> = const { Cell::new(SizeAskEight::Shipped) };
+}
+
+/// Route the size-ask eight (balanced 8, no four-card major) for books built
+/// *after* this call (thread-local; [`SizeAskEight::Shipped`] by default)
+///
+/// A throwaway measurement knob: `Invite` un-suppresses the flat 4-3-3-3 eight so
+/// the whole class size-asks, `Pass` sends the whole class to Pass.  Comparing the
+/// two poles under the single-dummy perfect-defense scorer
+/// ([`ns_score_pd_tricks`][crate::scoring::ns_score_pd_tricks]) re-prices the
+/// flat-4333 carve — and the still-live shapelier eights — with realistic tricks
+/// instead of double dummy.  The default is byte-identical to the shipped system.
+pub fn set_size_ask_eight(mode: SizeAskEight) {
+    SIZE_ASK_EIGHT.with(|cell| cell.set(mode));
+}
+
+/// The active size-ask-eight routing, defaulting to [`SizeAskEight::Shipped`]
+fn size_ask_eight() -> SizeAskEight {
+    SIZE_ASK_EIGHT.with(Cell::get)
+}
+
+/// The size-ask eight class: a balanced eight with no four-card major — the
+/// population the `2♠`/`2NT` size ask and the flat-4333 Pass carve both key on.
+fn size_ask_eight_class() -> Cons<impl Constraint + Clone> {
+    hcp(8..=8) & balanced() & len(Suit::Hearts, ..4) & len(Suit::Spades, ..4)
+}
+
+/// The Pass rule for a 1NT response, gated on [`size_ask_eight`].
+///
+/// The 0-7 pass is unconditional.  The eight's pass leg is knob-dependent:
+/// `Shipped`/`Invite` keep the shipped `hcp(8) & flat_4333()` leg **verbatim** (so
+/// the default is byte-identical, and a flat 4-3-3-3 with a four-card *major* —
+/// which can neither Stayman nor size-ask — always passes); the higher-weight
+/// `2♠`/`2NT` size-ask rule outranks this Pass where they overlap, so widening the
+/// size ask in the `Invite` arm reroutes the flat-4-minor eight without touching
+/// this rule.  The `Pass` arm additionally routes the whole class here so the
+/// non-flat eights, whose size-ask rule is dropped, have a home.
+fn size_ask_eight_pass() -> Rules {
+    let base = hcp(..8) & len(Suit::Hearts, ..5) & len(Suit::Spades, ..5);
+    match size_ask_eight() {
+        SizeAskEight::Shipped | SizeAskEight::Invite => {
+            Rules::new().rule(Call::Pass, 0.0, base | (hcp(8..=8) & flat_4333()))
+        }
+        SizeAskEight::Pass => Rules::new().rule(
+            Call::Pass,
+            0.0,
+            base | (hcp(8..=8) & flat_4333()) | size_ask_eight_class(),
+        ),
+    }
+}
+
 // ---------------------------------------------------------------------------
 // 1NT response structure
 // ---------------------------------------------------------------------------
@@ -295,13 +371,9 @@ pub fn notrump_responses() -> Rules {
         // 16M deals) prices passing over the `2♠` size-ask invite at +0.64 IMPs/board
         // for the whole class, rising to +1.08 for the pure-quack (no ace, no ten)
         // eight — even the ace-holding eights gain.  The *nine* still forces (3NT):
-        // the same probe found blanket-inviting it loses −0.33.
-        .rule(
-            Call::Pass,
-            0.0,
-            (hcp(..8) & len(Suit::Hearts, ..5) & len(Suit::Spades, ..5))
-                | (hcp(8..=8) & flat_4333()),
-        )
+        // the same probe found blanket-inviting it loses −0.33.  The size-ask eight's
+        // pass/invite split is knob-gated for re-measurement — see `size_ask_eight`.
+        .chain(size_ask_eight_pass())
         // Minor-suit responses (2♠/2NT/3♣): both schemes are authored here, each
         // alerted with its variant, and only the active one is gated in.  The gate
         // drops just the dormant minor scheme; every always-on alert (Stayman,
@@ -431,11 +503,11 @@ fn dormant_minors() -> Alert {
 /// three-card major, so this routes most balanced game forces through 3♣ (the
 /// no-fit case relays back to 3NT).
 fn puppet_minors() -> Rules {
-    Rules::new()
-        // 2♠ = six-card clubs, or the bare-8 balanced invite with no four-card major.
-        // A flat 4-3-3-3 is excluded (it passes — see `notrump_responses`): the shape
-        // plays a level too high, so it does not invite even with a four-card major.
-        .rule(
+    // 2♠ = six-card clubs, plus the bare-8 balanced size ask (no four-card major),
+    // gated on `size_ask_eight`: `Shipped` excludes the flat 4-3-3-3 (it passes),
+    // `Invite` size-asks the whole class, `Pass` drops the invite (clubs only).
+    let two_spades = match size_ask_eight() {
+        SizeAskEight::Shipped => Rules::new().rule(
             Bid::new(2, Strain::Spades),
             1.3,
             len(Suit::Clubs, 6..)
@@ -444,7 +516,17 @@ fn puppet_minors() -> Rules {
                     & len(Suit::Hearts, ..4)
                     & len(Suit::Spades, ..4)
                     & !flat_4333()),
-        )
+        ),
+        SizeAskEight::Invite => Rules::new().rule(
+            Bid::new(2, Strain::Spades),
+            1.3,
+            len(Suit::Clubs, 6..) | size_ask_eight_class(),
+        ),
+        SizeAskEight::Pass => {
+            Rules::new().rule(Bid::new(2, Strain::Spades), 1.3, len(Suit::Clubs, 6..))
+        }
+    };
+    two_spades
         .alert(PUPPET)
         .rule(
             Bid::new(2, Strain::Notrump),
@@ -475,21 +557,30 @@ fn puppet_minors() -> Rules {
 /// no Puppet Stayman: a game-forcing balanced hand with only a three-card major
 /// bids 3NT (the standard continental treatment).
 fn european_minors() -> Rules {
+    // 2NT = the bare-8 size ask (no four-card major), gated on `size_ask_eight`:
+    // `Shipped` excludes the flat 4-3-3-3 (it passes), `Invite` size-asks the whole
+    // class, `Pass` drops the 2NT size ask entirely.
+    let size_ask = match size_ask_eight() {
+        SizeAskEight::Shipped => Rules::new()
+            .rule(
+                Bid::new(2, Strain::Notrump),
+                1.3,
+                hcp(8..=8)
+                    & balanced()
+                    & len(Suit::Hearts, ..4)
+                    & len(Suit::Spades, ..4)
+                    & !flat_4333(),
+            )
+            .alert(EUROPEAN),
+        SizeAskEight::Invite => Rules::new()
+            .rule(Bid::new(2, Strain::Notrump), 1.3, size_ask_eight_class())
+            .alert(EUROPEAN),
+        SizeAskEight::Pass => Rules::new(),
+    };
     Rules::new()
         .rule(Bid::new(2, Strain::Spades), 1.3, len(Suit::Clubs, 6..))
         .alert(EUROPEAN)
-        .rule(
-            Bid::new(2, Strain::Notrump),
-            1.3,
-            // The bare-8 size ask, no four-card major.  A flat 4-3-3-3 is excluded
-            // (it passes — the shape plays a level too high; see `notrump_responses`).
-            hcp(8..=8)
-                & balanced()
-                & len(Suit::Hearts, ..4)
-                & len(Suit::Spades, ..4)
-                & !flat_4333(),
-        )
-        .alert(EUROPEAN)
+        .chain(size_ask)
         .rule(
             Bid::new(3, Strain::Clubs),
             1.3,

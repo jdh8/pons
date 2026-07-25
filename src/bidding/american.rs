@@ -122,9 +122,9 @@ pub(crate) use defense::{
 pub use game_force::{set_game_backstop, set_opener_third, set_second_suit_agreement};
 pub use nmf::set_new_minor_forcing;
 pub use notrump::{
-    EUROPEAN, PUPPET, notrump_responses, set_crawling_stayman, set_garbage_stayman,
+    EUROPEAN, PUPPET, SizeAskEight, notrump_responses, set_crawling_stayman, set_garbage_stayman,
     set_invitational_5card_majors, set_long_minor_force, set_minor_min_to_3nt, set_notrump_minors,
-    set_sixcard_accept_floor, set_sixcard_invite_floor, set_stayman_5card_max,
+    set_sixcard_accept_floor, set_sixcard_invite_floor, set_size_ask_eight, set_stayman_5card_max,
     set_stayman_both_majors, set_stayman_cue_continuation, set_stayman_minor_slam_try,
     set_stayman_net_force, set_texas_game_floor, set_texas_slam_drive, set_transfer_gf_hearts,
     set_transfer_gf_majors, set_transfer_longer_major, set_transfer_slam_try,

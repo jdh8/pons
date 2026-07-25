@@ -70,6 +70,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   sane `4♥`. Kept as a **reading-cap re-measure candidate** (cap the 2/1 reading
   ceiling first).
 
+- `set_size_ask_eight` (opt-in `SizeAskEight::{Shipped, Invite, Pass}`, default
+  `Shipped` — **the shipped book is byte-identical**) and its A/B
+  `examples/ab-size-ask-eight`. Re-prices the 1NT **size ask** on a balanced eight
+  with no four-card major (`2♠` Puppet / `2NT` European) — invite the whole class
+  vs pass it — under **SD-PD**, re-testing the plain-DD decision that shipped the
+  flat-4-3-3-3 pass (`probe-uninvite-4333`, +0.64 IMPs/divergent). DD is
+  level-dependently pessimistic on the low contracts in play — very on 1NT (the
+  pass outcome), less on the invited 2NT/3NT — so a DD pass-vs-invite verdict
+  mis-weights the levels the decision turns on. Pass − Invite, 5M boards/vul,
+  9425 divergent, four brackets (+ ⇒ passing wins ⇒ the size ask is bad):
+
+  | bracket | NV IMPs/div | vul IMPs/div |
+  | --- | --- | --- |
+  | plain-DD | +0.601 | +0.464 |
+  | DD-PD | +1.262 | +1.460 |
+  | plain-SD | **−0.106** | **−0.494** |
+  | **SD-PD** | **+0.283 ± 0.081** | **+0.092 ± 0.117** |
+
+  The brackets straddle zero: plain-DD says "pass, by a lot" (the old verdict, here
+  reproduced — flat-4333 plain-DD +0.620/div ≈ the probe's +0.64); a realistic
+  blind lead (plain-SD) **flips to favor inviting** (the thin invited games gain
+  more from a blind lead than 1NT does — DD was underscoring them); SD-PD, layering
+  the failed-invite doubling (LDX) back on, settles at a **small pass edge NV,
+  dead wash vul** (+0.0005 / +0.0002 IMPs/board). Per shape, SD-PD Pass − Invite:
+  flat-4333 +0.219/div NV, +0.019 vul; non-flat +0.314/div NV, +0.128 vul.
+  **Verdict: the 8-HCP size ask is not clearly bad** — the plain-DD "pass wins" was
+  ~3× inflated and its vul win is a DD artifact. The shipped flat-4333 pass survives
+  SD-PD as a marginal NV win / vul wash; extending the suppress to the non-flat
+  eights is at most a small NV gain (vul wash), so it stays a **knob, not a default
+  flip**. No functional change.
+
 ### Changed
 
 - **Default major 2/1 no-fit gate → `Points13` (`points(13..)`), superseding
