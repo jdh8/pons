@@ -228,6 +228,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`SCHED_IDLE`) is unchanged. Reinstall the LaunchAgent (bootout →
   bootstrap, see the plist header) to pick this up.
 
+### Changed
+
+- **Every single-dummy harness now reports the SD bracket as a *pair* — plain
+  SD and SD-PD — and plain SD is retired as an arbiter.** `ns_score_pd_tricks`
+  shipped with the 2/1 no-fit gate but was wired into `ab-point-count` alone, so
+  roughly thirty recorded verdicts rest on plain `ns_score_tricks`. That scorer
+  relaxes the defenders' opening lead **and** leaves every failing contract
+  undoubled — optimistic on *both* axes, hence friendlier to aggression than
+  plain DD itself, which is exactly why a plain-SD win kept "rescuing"
+  treatments perfect defense had just killed. The pair **[SD-PD, plain SD]** now
+  mirrors **[PD, plain DD]**: quote both, read the verdict from SD-PD.
+  Newly dual-bracketed: `ab-fuzzy-strength`, `ab-meckstroth-2nt`,
+  `ab-notrump-minors`, `ab-forcing-nt-two-suiter`, `ab-dump-sd` (both the
+  blind-lead and `--sd-declarer` paths), `ab-nt-defense-matrix` (a fourth
+  matrix, plus its fictitious-play equilibrium and bootstrap), `ab-minor-keycard`
+  and `ab-slam-entry` (a fourth row each). New shared plumbing in
+  `examples/common/mod.rs`: `report_sd_brackets` does the dual print, and
+  `sd_declarer_ns_score` returns `[plain, pd]` from one playout — a second call
+  would draw different worlds and price a *different* trick count. **No extra
+  DDS solves and no extra lead questions**: the pd figure reprices the same
+  trick count. Plain-SD numbers are unchanged, so old figures reproduce.
+  Two documented limits. *Level realism* — doubling a failing contract is what a
+  real opponent does at partscore and game, not at slam, so SD-PD arbitrates
+  below slam and is a pessimism stress-test above it (that is the whole reading
+  of the new `ab-slam-entry` / `ab-minor-keycard` rows, whose defense already
+  plays double-dummy). *Identical contracts* — where an A/B's arms reach the
+  same contract and differ only in cards played, both SD scorers are
+  nondecreasing in one trick count, so every swing keeps its sign and SD-PD adds
+  no independent signal; `ab-dnf-sd-lead` is therefore deliberately **not**
+  wired, and any verdict resting on it alone (`set_gauge_membership`) needs a
+  plain+PD re-adjudication instead. Doctrine updated in `docs/measurement.md`
+  (new §"Plain SD is not an arbiter", scorer table, harness inventory),
+  `docs/convention-tuning.md`, and `.claude/skills/measure-ab`; the
+  `docs/bba-gap-campaign.md` ship rule *"wash/wash + sd-win → shippable
+  default-on"* is **retired** — the sd-win must now be an SD-PD win. Not a
+  bidding change: the shipped system is byte-identical, only reporting moves.
+  The verdicts this rule produced are on a re-adjudication queue.
+
 ### Added
 
 - **Per-suit HCP axis on the DNF envelope** (`Strength.suit_hcp: [Range; 4]`,

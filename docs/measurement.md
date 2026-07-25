@@ -65,7 +65,9 @@ the parts that do not churn: protocol, interpretation, and ship rules.
 | `ns_score_contract` | Plain DD: the reached contract with its *actual* table penalty. | Duplicate A/B results — the default verdict. |
 | `ns_score_pd` | Perfect defense: a contract that fails DD is scored **doubled** (synthetic X), making ones undoubled. | The pessimistic bracket end: "scored against a competent doubler." |
 | `ns_score_bid` | Perfect defense, takes a `Bid` (derives the penalty). | Evaluating a **call** (EV rollouts, contract-choice probes) — never for A/B results. |
-| `single_dummy_leads` (`src/single_dummy.rs`) | MC-DD with a *blind* opening lead chosen from the leader's sampled worlds. | The one known DD bias at 1NT level (DD defenders always find the killing lead, ~+0.3 tricks to 1NT declarers). Re-score close NT-defense verdicts with it. |
+| `ns_score_tricks` | **Plain SD**: an explicit single-dummy trick count priced at the contract's *actual* penalty. | The pricing tail of the SD scorers. **Never a verdict on its own** — see below. |
+| `ns_score_pd_tricks` | **SD-PD**: the same trick count, but a contract that *fails on those tricks* is scored **doubled**. | The SD arbiter. Report it beside plain SD everywhere the SD bracket is quoted. |
+| `single_dummy_leads` (`src/single_dummy.rs`) | MC-DD with a *blind* opening lead chosen from the leader's sampled worlds. | The one known DD bias at 1NT level (DD defenders always find the killing lead, ~+0.3 tricks to 1NT declarers). Re-score close NT-defense verdicts with it — under **both** SD scorers. |
 | `single_dummy_playout` (`src/single_dummy.rs`) | The **sd-declarer playout**: blind lead, then declarer chooses every card MC-DD over auction-consistent worlds (show-outs remembered) while the defense plays DD on the actual deal. | The slam-side DD bias (see below): a DD declarer never misguesses, so every DD-play scorer is *optimistic* for the arm bidding more slams. Runners: `ab-dump-sd --sd-declarer`, `ab-slam-entry --sd`. Sequential per board — divergent sets only. |
 
 **The principle** (jdh8, 2026-06-24): *the threat of a double is a legitimate
@@ -73,6 +75,33 @@ deterrent, but a double that never appeared on the table must never enter the
 final score.* Hence the bracket: truth sits between plain DD (under-punishes
 overbids) and PD (over-punishes — a perfect doubler never doubles a making
 contract). Reality is closer to plain DD.
+
+**Plain SD is not an arbiter — it is half a bracket** (2026-07-25). The DD
+scorers come in pairs for a reason, and so must the SD ones. Plain SD relaxes
+the defenders' opening lead (which *helps declarer*) **and** keeps every failing
+contract undoubled (which also helps declarer): it is optimistic on *both* axes
+at once, and so is strictly friendlier to aggression than plain DD. That is why
+it reliably rehabilitates treatments perfect defense has just killed — for years
+a plain-SD win was read as overruling a PD loss, and it shipped several defaults
+on that reading.
+
+The fix is the pair **[SD-PD, plain SD]**, exactly mirroring **[PD, plain DD]**:
+`ns_score_pd_tricks` keeps the realistic lead but restores the doubled downside,
+so the two SD numbers bracket the truth the same way the two DD numbers do.
+**Quote both or quote neither**, and read the verdict from SD-PD. A plain-SD win
+with an SD-PD loss is the same doubling artifact the decision table already names
+on the DD side — not a rehabilitation.
+
+Two caveats on SD-PD. *Level realism*: doubling a failing contract is what a real
+opponent does at partscore and game, and is not what happens at slam — nobody
+doubles a voluntarily bid six — so SD-PD is a genuine arbiter below slam and a
+pessimism stress-test above it. *Identical contracts*: where an A/B's arms reach
+the **same** contract and differ only in the cards played (the sd-declarer
+playouts, and `ab-dnf-sd-lead`, whose arms vary only the leader's sampled model),
+both SD scorers are nondecreasing step functions of one trick count, so every
+board's swing keeps its sign and SD-PD adds no independent signal. A verdict
+resting on such a harness alone needs a plain+PD re-adjudication, not an SD-PD
+row.
 
 ## The decision table
 
@@ -235,11 +264,14 @@ questions are a flag on an old harness.
 
 sd brackets on existing harnesses: `ab-dump-sd` scores aligned `bba-gen` dumps
 with the blind lead (default) or the full sd-declarer playout
-(`--sd-declarer`); `ab-slam-entry --sd` adds the playout as a third row beside
-plain/PD. `probe-sd-calibration` is the bracket's own calibration (per-level
-make-rates vs Pavlicek). The playout is sequential per board (no cross-board
-pooling), so reserve it for divergent sets, and note the shared helper
-`common::sd_declarer_ns_score` when wiring it into another harness.
+(`--sd-declarer`); `ab-slam-entry --sd` adds the playout as rows beside
+plain/PD; `ab-point-count --sd` is the `.pdd`-bank harness. **Every one of them
+now prints the SD pair** (plain and perfect-defense) from a single trick count —
+`common::report_sd_brackets` does the dual print, and
+`common::sd_declarer_ns_score` returns `[plain, pd]`; wire both when adding SD
+to another harness. `probe-sd-calibration` is the bracket's own calibration
+(per-level make-rates vs Pavlicek). The playout is sequential per board (no
+cross-board pooling), so reserve it for divergent sets.
 
 New-harness rules (the Rayon pattern, commits `8f549ed`/`eadb654`):
 

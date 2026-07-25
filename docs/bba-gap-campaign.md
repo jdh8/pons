@@ -468,6 +468,14 @@ MC-cardplay effort, explicitly out of scope here.
   plain-loss + sd-win re-classifies to "sd-positive, blocked on plain loss"
   with mandatory forensics.  sd verdicts count for competitive/lead-shaped
   treatments below slam level only.
+  **RETIRED 2026-07-25 — the "sd-win" here meant *plain* SD, which is not an
+  arbiter.**  Plain SD relaxes the defenders' lead *and* leaves every failing
+  contract undoubled, so it is friendlier to aggression than plain DD itself;
+  this rule is how several defaults shipped over a negative PD.  The sd-win now
+  has to be an **SD-PD** win (`ns_score_pd_tricks`, failures doubled), quoted
+  beside its plain-SD twin, and the plain-SD number alone decides nothing.  See
+  measurement.md §"Plain SD is not an arbiter"; the verdicts this rule produced
+  are on the re-adjudication queue.
 - Exploitation guard: a vs-BBA sd win must be confirmed by self-play sd or an
   advertised rerun (`--advertise-*`); on sign disagreement, ship on the
   self-play side.

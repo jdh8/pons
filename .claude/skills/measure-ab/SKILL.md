@@ -39,6 +39,13 @@ read it now if this session hasn't. This skill is the run procedure.
    two big artifacts: PD-only win = doubling artifact; DD loss on an
    obstructive/concealment idea = harness blindness, park it opt-in for a
    single-dummy re-measure (`single_dummy_leads` prices the blind-lead seam).
+   **The SD bracket is a pair too** — plain (`ns_score_tricks`) *and* SD-PD
+   (`ns_score_pd_tricks`, failures doubled), exactly as DD pairs plain with PD.
+   Quote both, read the verdict from SD-PD: plain SD relaxes the lead *and*
+   drops the doubling, so it flatters aggression and cannot overrule a PD loss
+   on its own (docs/measurement.md §"Plain SD is not an arbiter"). SD-PD is a
+   real arbiter below slam; at slam, and wherever both arms reach the *same*
+   contract, it is only a stress-test.
 7. **Losing? Trace the worst divergent boards before declaring dead.** Look
    for: an unauthored continuation (passed-out cue, unanswered doubled
    transfer), an over-broad trigger (fires outside its hand class — dilution

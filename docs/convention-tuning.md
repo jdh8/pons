@@ -121,14 +121,27 @@ disciplined uniform 8–14. Reproduce with `bba-gen --ns-overcall LO:HI`; full
 per-gauge and sweep tables are in
 [point-count-threshold-campaign.md](archive/point-count-threshold-campaign.md).
 
+That severity ladder is now a *four*-point scale, and the entry it quotes as
+"sd" is only the bottom of it: plain SD assumes **no** double on a realistic
+lead, SD-PD assumes a perfect one on the same lead. The missing SD-PD figure
+belongs beside PD, not beside sd — so the `8:14` tighten is on the
+re-adjudication queue (measurement.md, §"Plain SD is not an arbiter").
+
 **How to actually price a competitive range:**
 
-- **sd-lead** (`single_dummy_leads`, `--sd-worlds`) — the one bias DD gets
-  measurably wrong at the 1NT level (the blind opening lead). It gives
+- **the sd-lead pair** (`single_dummy_leads`, `--sd-worlds`) — the one bias DD
+  gets measurably wrong at the 1NT level (the blind opening lead). It gives
   disclosure a price, so an overcall's lead-direction value finally registers.
-  This is the right scorer for competitive ranges; it is what flipped Woolsey to
-  the equilibrium at both vuls (`project_gto-1nt-defense`, gto-1nt-defense.md
-  §"The sd-lead bracket").
+  This is the right *engine* for competitive ranges, but read it as a bracket,
+  never as one number: score it both plain (`ns_score_tricks`) and **SD-PD**
+  (`ns_score_pd_tricks`, failures doubled), and take the verdict from SD-PD.
+  Plain SD relaxes the lead *and* drops the doubling — optimistic on both axes,
+  friendlier to aggression than plain DD itself, which is exactly how it
+  "rescues" treatments perfect defense has killed (measurement.md, §"Plain SD is
+  not an arbiter"). Every plain-SD-only verdict on this page predates that fix
+  and is being re-adjudicated — including the Woolsey both-vuls equilibrium
+  (`project_gto-1nt-defense`, gto-1nt-defense.md §"The sd-lead bracket"), whose
+  own text already flags an "sd-lead-trusting asterisk."
 - **vs BBA, exploitation discounted** — informative about *this* opponent, not
   GTO. State it as "beats BBA by tuning to its frozen range-model," not "the
   best range."

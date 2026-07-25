@@ -27,7 +27,9 @@ use pons::american;
 use pons::bidding::american::set_forcing_nt_two_suiter;
 use pons::bidding::context::relative;
 use pons::bidding::{Family, Inferences, Stance};
-use pons::scoring::{final_contract, imps, ns_score_contract, ns_score_pd, ns_score_tricks};
+use pons::scoring::{
+    final_contract, imps, ns_score_contract, ns_score_pd, ns_score_pd_tricks, ns_score_tricks,
+};
 use pons::single_dummy::{LeadQuestion, single_dummy_leads};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -36,7 +38,7 @@ use rayon::prelude::*;
 #[path = "../common/mod.rs"]
 #[allow(dead_code)]
 mod common;
-use common::{bid_uncontested, mean_with_ci, seat_to_act};
+use common::{bid_uncontested, report_sd_brackets, seat_to_act};
 
 /// Forcing-1NT two-suiter A/B: minimum natural rebid vs invitational reverse/jump
 #[derive(Parser)]
@@ -191,13 +193,17 @@ fn main() {
             }
         }
         let mut rng = StdRng::seed_from_u64(args.sd_seed);
-        let mut on_score = vec![0i64; args.count];
-        let mut off_score = vec![0i64; args.count];
+        let mut on_score = vec![[0i64; 2]; args.count];
+        let mut off_score = vec![[0i64; 2]; args.count];
         const CHUNK: usize = 4096;
         for (asked, chunk) in pending.chunks(CHUNK).zip(questions.chunks(CHUNK)) {
             let answers = single_dummy_leads(chunk, &mut rng, args.sd_worlds);
             for (&(i, arm_on, contract, declarer), &(_, tricks)) in asked.iter().zip(&answers) {
-                let score = ns_score_tricks(contract, declarer, u8::from(tricks), vul);
+                let t = u8::from(tricks);
+                let score = [
+                    ns_score_tricks(contract, declarer, t, vul),
+                    ns_score_pd_tricks(contract, declarer, t, vul),
+                ];
                 if arm_on {
                     on_score[i] = score;
                 } else {
@@ -205,16 +211,13 @@ fn main() {
                 }
             }
         }
-        let board_imps: Vec<i64> = (0..args.count)
-            .map(|i| imps(on_score[i] - off_score[i]))
-            .collect();
-        let (mean, ci) = mean_with_ci(&board_imps);
-        let total: i64 = board_imps.iter().sum();
-        println!(
-            "sd-lead two-suiter ({} worlds, seed {}): {total:+} IMPs, {mean:+.4} IMPs/board [95% CI ±{ci:.4}], {:+.3} IMPs/divergent",
+        report_sd_brackets(
+            "sd-lead two-suiter",
             args.sd_worlds,
             args.sd_seed,
-            total as f64 / divergent.len().max(1) as f64,
+            &on_score,
+            &off_score,
+            divergent.len(),
         );
     }
 }

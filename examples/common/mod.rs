@@ -16,7 +16,9 @@ use contract_bridge::{AbsoluteVulnerability, Contract, FullDeal, Hand, Seat, Sui
 use ddss::{NonEmptyStrainFlags, Solver, TrickCountTable};
 use pons::bidding::context::relative;
 use pons::bidding::{Stance, System};
-use pons::scoring::{final_contract, imps, ns_score_contract, ns_score_pd, ns_score_tricks};
+use pons::scoring::{
+    final_contract, imps, ns_score_contract, ns_score_pd, ns_score_pd_tricks, ns_score_tricks,
+};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
 
@@ -202,7 +204,7 @@ pub fn mean_with_ci(values: &[i64]) -> (f64, f64) {
     (mean, 1.96 * (variance / n as f64).sqrt())
 }
 
-/// NS score of an auction's reached contract under the **sd-declarer
+/// NS scores of an auction's reached contract under the **sd-declarer
 /// playout** ([`pons::single_dummy_declarer_tricks`]): blind opening lead,
 /// then a declarer who chooses every card over worlds consistent with the
 /// auction instead of peeking.  This is the pessimist bracket for slam
@@ -210,6 +212,19 @@ pub fn mean_with_ci(values: &[i64]) -> (f64, f64) {
 /// and perfect defense only prices doubling, not guessing.  `stance` reads
 /// the auction for both modelled views (the leader's and declarer's); a
 /// pass-out scores 0.
+///
+/// Returns `[plain, perfect-defense]` — the one trick count priced both ways
+/// ([`ns_score_tricks`] and [`ns_score_pd_tricks`]).  Both come back from a
+/// single call because the playout is expensive *and* draws from `rng`:
+/// calling twice would run a second playout with different draws, pricing a
+/// *different* trick count rather than the same one twice.
+///
+/// Read the perfect-defense entry as a pessimism stress-test, not an arbiter.
+/// The defenders here already play double-dummy after the lead
+/// ([`pons::single_dummy_playout`]), so the PD entry layers perfect doubling
+/// on top of peeking defense and tracks the harness's existing DD-PD row; and
+/// doubling a failing contract is realistic at partscore and game but not at
+/// slam, where nobody doubles a voluntarily bid six.
 // Each argument is a distinct fact of the board, as in `score_boards`.
 #[allow(clippy::too_many_arguments)]
 pub fn sd_declarer_ns_score(
@@ -221,9 +236,9 @@ pub fn sd_declarer_ns_score(
     rng: &mut StdRng,
     lead_worlds: usize,
     line_worlds: usize,
-) -> i64 {
+) -> [i64; 2] {
     let Some((contract, declarer)) = final_contract(auction, dealer) else {
-        return 0;
+        return [0; 2];
     };
     // Align the read prefix so the viewing seat is the player to act: the
     // last non-pass call sits within the final four calls, so exactly one of
@@ -245,7 +260,11 @@ pub fn sd_declarer_ns_score(
         lead_worlds,
         line_worlds,
     );
-    ns_score_tricks(contract, declarer, u8::from(tricks), vul)
+    let tricks = u8::from(tricks);
+    [
+        ns_score_tricks(contract, declarer, tricks, vul),
+        ns_score_pd_tricks(contract, declarer, tricks, vul),
+    ]
 }
 
 /// The outcome of scoring a board set against itself.
@@ -339,6 +358,40 @@ pub fn report_brackets(
             "{label:>15}: {:+} IMPs — {per_board_mean:+.4} ± {per_board_ci:.4} IMPs/board, \
              {fired_mean:+.3} ± {fired_ci:.3} IMPs/divergent",
             fired.iter().sum::<i64>(),
+        );
+    }
+}
+
+/// The single-dummy sibling of [`report_brackets`]: one trick count per board,
+/// reported under **both** SD brackets — plain (`ns_score_tricks`, the
+/// contract's own penalty) and perfect defense (`ns_score_pd_tricks`, a
+/// contract failing on those tricks priced doubled).
+///
+/// `on[i]` and `off[i]` are that board's `[plain, perfect-defense]` pair, as
+/// produced beside every `single_dummy_leads` answer; the swing is `on − off`
+/// within each bracket.  `divergent` is the divergent-board count, the
+/// denominator of the per-divergent figure.
+///
+/// **Read the perfect-defense line as the arbiter, not the plain one.** Plain
+/// SD relaxes the defenders' opening lead *and* never punishes the failures —
+/// optimistic on both axes, so it flatters aggression; this pairs the
+/// realistic lead with the doubled downside a real opponent exacts.
+pub fn report_sd_brackets(
+    label: &str,
+    worlds: usize,
+    seed: u64,
+    on: &[[i64; 2]],
+    off: &[[i64; 2]],
+    divergent: usize,
+) {
+    for (k, bracket) in ["plain          ", "perfect-defense"].iter().enumerate() {
+        let board_imps: Vec<i64> = on.iter().zip(off).map(|(a, b)| imps(a[k] - b[k])).collect();
+        let (mean, ci) = mean_with_ci(&board_imps);
+        let total: i64 = board_imps.iter().sum();
+        println!(
+            "{label} {bracket} ({worlds} worlds, seed {seed}): {total:+} IMPs, \
+             {mean:+.4} IMPs/board [95% CI ±{ci:.4}], {:+.3} IMPs/divergent",
+            total as f64 / divergent.max(1) as f64,
         );
     }
 }

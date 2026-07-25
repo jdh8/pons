@@ -20,6 +20,19 @@
 //! knob-independent); only the leader's sampled model changes, so an sd swing is
 //! pure reading value. Uncontested american barely disjoins, hence contested here.
 //!
+//! **No SD-PD bracket here, deliberately.** Every other sd harness reports the
+//! same trick count twice — plain ([`ns_score_tricks`][pons::scoring::ns_score_tricks])
+//! and perfect-defense ([`ns_score_pd_tricks`][pons::scoring::ns_score_pd_tricks],
+//! a contract failing on those tricks priced doubled) — because plain SD
+//! flatters aggression. That correction is meaningless *here*: all four arms
+//! reach the identical contract, and for a fixed contract both scorers are
+//! nondecreasing step functions of tricks, so every board's swing keeps its
+//! sign under PD and only magnitudes change. It could never produce a
+//! per-board disagreement, and it would misattribute the opponents' doubling
+//! judgment to the leader's world model. A verdict resting on this harness
+//! alone therefore needs a **plain+PD** re-adjudication (`scripts/dnf-flip-ab.sh`),
+//! not an SD-PD row.
+//!
 //! ```text
 //! cargo run --release --example ab-dnf-sd-lead -- --count 20000 --sd-worlds 16
 //! cargo run --release --example ab-dnf-sd-lead -- --count 20000 --vulnerability both

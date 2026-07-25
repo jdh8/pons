@@ -3,7 +3,10 @@
 use contract_bridge::auction::{Auction, Call};
 use contract_bridge::{AbsoluteVulnerability, Bid, Contract, Penalty, Seat, Strain};
 use ddss::{TrickCountRow, TrickCountTable};
-use pons::scoring::{final_contract, imps, ns_score_bid, ns_score_contract, ns_score_pd};
+use pons::scoring::{
+    final_contract, imps, ns_score_bid, ns_score_contract, ns_score_pd, ns_score_pd_tricks,
+    ns_score_tricks,
+};
 
 const fn bid(level: u8, strain: Strain) -> Call {
     Call::Bid(Bid::new(level, strain))
@@ -219,6 +222,41 @@ fn test_ns_score_pd_carries_table_double() {
 
     // Pass-out scores 0.
     assert_eq!(ns_score_pd(None, &makes, AbsoluteVulnerability::ALL), 0);
+}
+
+#[test]
+fn test_ns_score_pd_tricks_doubles_only_failures() {
+    // The whole SD-PD bracket rests on one comparison — `tricks < 6 + level`.
+    // A `<`/`<=` slip would double every *exactly made* game, and no harness
+    // would panic: they would silently print a different number.
+    let four_spades = Contract {
+        bid: Bid::new(4, Strain::Spades),
+        penalty: Penalty::Undoubled,
+    };
+    let vul = AbsoluteVulnerability::NONE;
+
+    // Exactly making keeps its own penalty: 420, not a doubled make.
+    assert_eq!(ns_score_pd_tricks(four_spades, Seat::North, 10, vul), 420);
+    assert_eq!(
+        ns_score_pd_tricks(four_spades, Seat::North, 10, vul),
+        ns_score_tricks(four_spades, Seat::North, 10, vul),
+    );
+
+    // One down is scored doubled: −100, not the undoubled −50.
+    assert_eq!(ns_score_pd_tricks(four_spades, Seat::North, 9, vul), -100);
+
+    // An EW declarer flips the sign, as in `ns_score_tricks`.
+    assert_eq!(ns_score_pd_tricks(four_spades, Seat::West, 9, vul), 100);
+
+    // An existing double is kept, never downgraded.
+    let doubled = Contract {
+        bid: Bid::new(4, Strain::Spades),
+        penalty: Penalty::Doubled,
+    };
+    assert_eq!(
+        ns_score_pd_tricks(doubled, Seat::North, 9, vul),
+        ns_score_tricks(doubled, Seat::North, 9, vul),
+    );
 }
 
 #[test]

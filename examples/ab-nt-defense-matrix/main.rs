@@ -62,7 +62,9 @@ use pons::bidding::american::{
 use pons::bidding::context::relative;
 use pons::bidding::instinct::{set_one_nt_runout, set_one_nt_runout_universal};
 use pons::bidding::{Inferences, Stance};
-use pons::scoring::{final_contract, imps, ns_score_contract, ns_score_pd, ns_score_tricks};
+use pons::scoring::{
+    final_contract, imps, ns_score_contract, ns_score_pd, ns_score_pd_tricks, ns_score_tricks,
+};
 use pons::single_dummy::{LeadQuestion, single_dummy_leads};
 use rand::rngs::StdRng;
 use rand::{RngExt, SeedableRng};
@@ -553,14 +555,19 @@ fn main() {
     // pooled batches, so ddss's thread pool stays saturated instead of
     // stalling on one slow board per tiny batch.
     let mut sdl: Vec<Vec<Vec<i64>>> = vec![vec![vec![0; n]; COLS]; ROWS];
+    // The SD arbiter: the same trick counts, but a contract that fails on them
+    // priced doubled.  Plain SD relaxes the defenders' lead *and* never
+    // punishes the failures, so it flatters every active defense against the
+    // played-out datum; this layers the doubled downside back on.
+    let mut sdl_pd: Vec<Vec<Vec<i64>>> = vec![vec![vec![0; n]; COLS]; ROWS];
     let mut sd_divergent = [[0usize; COLS]; ROWS];
     let sd_on = args.sd_worlds > 0;
     if sd_on {
         let mut sd_rng = StdRng::seed_from_u64(seed.wrapping_add(2));
         // Pass-outs keep score 0 and ask no question.
-        let mut sd_scores: Vec<Vec<i64>> = boards
+        let mut sd_scores: Vec<Vec<[i64; 2]>> = boards
             .iter()
-            .map(|board| vec![0; board.auctions.len()])
+            .map(|board| vec![[0; 2]; board.auctions.len()])
             .collect();
         let mut pending: Vec<(usize, usize, Contract, Seat)> = Vec::new();
         let mut questions: Vec<LeadQuestion> = Vec::new();
@@ -600,7 +607,10 @@ fn main() {
             let answers = single_dummy_leads(chunk, &mut sd_rng, args.sd_worlds);
             for (&(b, index, contract, declarer), &(_, tricks)) in asked.iter().zip(&answers) {
                 let tricks = u8::from(tricks);
-                sd_scores[b][index] = ns_score_tricks(contract, declarer, tricks, vul);
+                sd_scores[b][index] = [
+                    ns_score_tricks(contract, declarer, tricks, vul),
+                    ns_score_pd_tricks(contract, declarer, tricks, vul),
+                ];
                 if index == 0
                     && let Some(&t) = table_of.get(&b)
                 {
@@ -621,7 +631,8 @@ fn main() {
                 for col in 0..COLS {
                     let index = board.cell_auction[row][col] as usize;
                     if index != 0 {
-                        sdl[row][col][b] = imps(sd_scores[b][index] - sd_scores[b][0]);
+                        sdl[row][col][b] = imps(sd_scores[b][index][0] - sd_scores[b][0][0]);
+                        sdl_pd[row][col][b] = imps(sd_scores[b][index][1] - sd_scores[b][0][1]);
                         sd_divergent[row][col] += 1;
                     }
                 }
@@ -664,6 +675,7 @@ fn main() {
     print_matrix("perfect defense (ns_score_pd)", &pd);
     if sd_on {
         print_matrix("sd-lead (blind opening lead, DD after)", &sdl);
+        print_matrix("sd-lead + perfect defense (the SD arbiter)", &sdl_pd);
     }
     let print_divergence = |name: &str, counts: &[[usize; COLS]; ROWS]| {
         println!("--- {name} (% of boards) ---");
@@ -699,6 +711,7 @@ fn main() {
     let mut scorers: Vec<(&str, &Vec<Vec<Vec<i64>>>)> = vec![("plain", &plain), ("pd", &pd)];
     if sd_on {
         scorers.push(("sd-lead", &sdl));
+        scorers.push(("sd-pd", &sdl_pd));
     }
     for &(name, swings) in &scorers {
         let m = mean_matrix(swings);

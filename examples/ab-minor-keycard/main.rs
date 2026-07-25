@@ -145,7 +145,7 @@ fn main() {
     // tables (the knob only gates book *nodes*; range reading is shared).
     let swings_sd = args.sd.then(|| {
         let mut rng = StdRng::seed_from_u64(args.sd_seed);
-        let mut swings = vec![0i64; args.count];
+        let mut swings = [vec![0i64; args.count], vec![0i64; args.count]];
         for &index in &divergent {
             let board = &boards[index];
             let [a, b] = [&board.table_a, &board.table_b].map(|auction| {
@@ -160,7 +160,9 @@ fn main() {
                     args.sd_worlds,
                 )
             });
-            swings[index] = imps(a - b);
+            for (k, swing) in swings.iter_mut().enumerate() {
+                swing[index] = imps(a[k] - b[k]);
+            }
         }
         swings
     });
@@ -179,8 +181,12 @@ fn main() {
         ("ns_score_pd  (PD)", &swings_pd),
         ("ns_score_cnt (DD)", &swings_dd),
     ];
-    if let Some(swings) = &swings_sd {
-        rows.push(("sd-declarer (SD)", swings));
+    // The PD row layers perfect doubling onto a defense that already peeks —
+    // a pessimism stress-test, and unrealistic at the slam level this harness
+    // lives at (nobody doubles a voluntarily bid six).  Read it as a bound.
+    if let Some([sd, sd_pd]) = &swings_sd {
+        rows.push(("sd-declarer  (SD)", sd));
+        rows.push(("sd-decl + PD (SD)", sd_pd));
     }
     for (label, swings) in rows {
         let total: i64 = swings.iter().sum();
