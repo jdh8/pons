@@ -103,6 +103,23 @@ board's swing keeps its sign and SD-PD adds no independent signal. A verdict
 resting on such a harness alone needs a plain+PD re-adjudication, not an SD-PD
 row.
 
+**Reading the SD pair: three outcomes, not two** (2026-07-25, from the first
+re-adjudication batch). SD-PD is not a uniformly harsher scorer — it is harsher
+on *whichever arm bids the failing contract*. So comparing the two SD rows sorts
+a verdict three ways, and the third is easy to miss:
+
+| SD-PD vs plain SD | Reading | Worked example |
+| --- | --- | --- |
+| ≈ equal (keeps most of its magnitude) | Real effect; plain SD happened to be right | `set_meckstroth_adjunct` — +0.0097/+0.0146 → +0.0073/+0.0120, ~75-80% retained, CI-clear |
+| **collapses, often sign-flipping** | The win *was* the missing doubling | `set_forcing_nt_two_suiter` — +0.0005/+0.0018 (CI>0) → **−0.0011 (CI<0) / +0.0000** |
+| **higher than plain SD** | Plain SD *understated* it: the treatment is the sounder bidder, so restoring the doubling punishes the **baseline** more | `set_notrump_minors` (Puppet) — +0.0003/+0.0005 (straddles 0) → **+0.0006/+0.0010, CI-clear both** |
+
+The first two rows also kill a grouping the ledger used to make. Knobs whose PD
+loss was "redeemed by sd" were filed as one profile; the batch split them —
+one kept its win, the other inverted. *"Plain SD rescued it"* was never a
+profile, only a coin flip between a real effect and an artifact, and nothing but
+SD-PD separates the two.
+
 **Measure bidding decisions, not gauges** (2026-07-25). When the re-adjudication
 queue was drawn up it mixed two kinds of row: knobs that change *which call we
 make*, and knobs that merely elect *which scalar strength gauge* the ranges are
