@@ -334,8 +334,10 @@ fn encode(out: &mut [f32], hand: Hand, inferences: &Inferences, encoding: Encodi
             // `v3[..LEN_HAND_V3]` is 4 `(len, suit_hcp)` pairs then the 2
             // globals; zipping `Suit::ASC` stops before the globals.
             for ((block, pair), suit) in out
-                .chunks_exact_mut(LEN_SUIT_BITS)
-                .zip(v3[..LEN_HAND_V3].chunks_exact(2))
+                .as_chunks_mut::<LEN_SUIT_BITS>()
+                .0
+                .iter_mut()
+                .zip(v3[..LEN_HAND_V3].as_chunks::<2>().0)
                 .zip(Suit::ASC)
             {
                 let holding = hand[suit];
@@ -356,8 +358,13 @@ fn encode(out: &mut [f32], hand: Hand, inferences: &Inferences, encoding: Encodi
     if matches!(encoding, Encoding::Bits) {
         // Widen every `(min, max)` into `(min, max, max − min)`.  The width
         // inherits its pair's normalisation, so nothing extra to divide by.
-        for (triple, pair) in tail.chunks_exact_mut(3).zip(ranges.chunks_exact(2)) {
-            triple.copy_from_slice(&[pair[0], pair[1], pair[1] - pair[0]]);
+        for (triple, pair) in tail
+            .as_chunks_mut::<3>()
+            .0
+            .iter_mut()
+            .zip(ranges.as_chunks::<2>().0)
+        {
+            *triple = [pair[0], pair[1], pair[1] - pair[0]];
         }
     } else {
         tail.copy_from_slice(ranges);
@@ -403,7 +410,12 @@ fn write_oracle_all(out: &mut [f32], deal: &FullDeal, seat: Seat) {
     for (slot, h) in shortness.iter_mut().zip(holdings.clone()) {
         *slot = f32::from(h.len() <= 1);
     }
-    for (pair, h) in controls.chunks_exact_mut(2).zip(holdings.clone()) {
+    for (pair, h) in controls
+        .as_chunks_mut::<2>()
+        .0
+        .iter_mut()
+        .zip(holdings.clone())
+    {
         pair[0] = f32::from(h.contains(Rank::A));
         pair[1] = f32::from(h.contains(Rank::K));
     }
@@ -511,7 +523,10 @@ mod tests {
         encode(&mut row, hand, &inferences, Encoding::Bits);
 
         let (hand_block, triples) = row.split_at(LEN_HAND_BITS);
-        for block in hand_block[..4 * LEN_SUIT_BITS].chunks_exact(LEN_SUIT_BITS) {
+        for block in hand_block[..4 * LEN_SUIT_BITS]
+            .as_chunks::<LEN_SUIT_BITS>()
+            .0
+        {
             let (spots, honours) = (block[1] * 8.0, &block[3..]);
             // Span identity: len = #spots + A + K + Q + J + T.  Both sides
             // divide by 13 rather than multiplying out, so the compare is exact.
@@ -525,8 +540,10 @@ mod tests {
         let feats = features_eval(hand, &inferences);
         assert_eq!(triples.len(), 45);
         for (triple, pair) in triples
-            .chunks_exact(3)
-            .zip(feats[LEN_HAND_EVAL..].chunks_exact(2))
+            .as_chunks::<3>()
+            .0
+            .iter()
+            .zip(feats[LEN_HAND_EVAL..].as_chunks::<2>().0)
         {
             assert_eq!(triple[..2], *pair);
             assert_eq!(triple[2], triple[1] - triple[0]);

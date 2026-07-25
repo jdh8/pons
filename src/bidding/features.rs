@@ -474,7 +474,9 @@ mod tests {
         // out, and 8 is a power of two, so the compare is exact.
         let v3 = features_v3(h, &ctx);
         for (i, block) in f[..LEN_HAND_EVAL]
-            .chunks_exact(LEN_HAND_EVAL / 4)
+            .as_chunks::<{ LEN_HAND_EVAL / 4 }>()
+            .0
+            .iter()
             .enumerate()
         {
             let (spots, honours) = (block[0] * 8.0, &block[1..]);

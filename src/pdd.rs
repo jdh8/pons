@@ -40,14 +40,14 @@ const SEATS: [Seat; 4] = [Seat::North, Seat::East, Seat::South, Seat::West];
 #[must_use]
 pub fn encode_row(deal: &FullDeal, table: &TrickCountTable) -> [u8; ROW_LEN] {
     let mut row = [0; ROW_LEN];
-    for (chunk, seat) in row.chunks_exact_mut(8).zip(STORED_SEATS) {
-        chunk.copy_from_slice(&deal[seat].to_bits().to_le_bytes());
+    for (chunk, seat) in row.as_chunks_mut::<8>().0.iter_mut().zip(STORED_SEATS) {
+        *chunk = deal[seat].to_bits().to_le_bytes();
     }
-    for (chunk, tricks) in row[24..].chunks_exact_mut(2).zip(table.0) {
+    for (chunk, tricks) in row[24..].as_chunks_mut::<2>().0.iter_mut().zip(table.0) {
         let bits = SEATS.into_iter().enumerate().fold(0u16, |acc, (i, seat)| {
             acc | u16::from(tricks.get(seat).get()) << (4 * i)
         });
-        chunk.copy_from_slice(&bits.to_le_bytes());
+        *chunk = bits.to_le_bytes();
     }
     row
 }
@@ -71,8 +71,8 @@ pub fn decode_row(row: &[u8; ROW_LEN]) -> Option<(FullDeal, TrickCountTable)> {
         .build_full()
         .ok()?;
     let mut table = TrickCountTable([TrickCountRow::new(0, 0, 0, 0); 5]);
-    for (chunk, tricks) in row[24..].chunks_exact(2).zip(&mut table.0) {
-        let bits = u16::from_le_bytes(chunk.try_into().unwrap());
+    for (chunk, tricks) in row[24..].as_chunks::<2>().0.iter().zip(&mut table.0) {
+        let bits = u16::from_le_bytes(*chunk);
         let nib = |i: u16| (bits >> (4 * i) & 15) as u8;
         *tricks = TrickCountRow::try_new(nib(0), nib(1), nib(2), nib(3)).ok()?;
     }
@@ -94,8 +94,10 @@ pub fn from_bytes(bytes: &[u8]) -> io::Result<Vec<(FullDeal, TrickCountTable)>> 
     if !rows.len().is_multiple_of(ROW_LEN) {
         return Err(invalid("truncated .pdd file"));
     }
-    rows.chunks_exact(ROW_LEN)
-        .map(|row| decode_row(row.try_into().unwrap()).ok_or_else(|| invalid("corrupt .pdd row")))
+    rows.as_chunks::<ROW_LEN>()
+        .0
+        .iter()
+        .map(|row| decode_row(row).ok_or_else(|| invalid("corrupt .pdd row")))
         .collect()
 }
 
@@ -130,8 +132,10 @@ pub fn load_slice(
         return Err(invalid("truncated .pdd file"));
     }
     bytes
-        .chunks_exact(ROW_LEN)
-        .map(|row| decode_row(row.try_into().unwrap()).ok_or_else(|| invalid("corrupt .pdd row")))
+        .as_chunks::<ROW_LEN>()
+        .0
+        .iter()
+        .map(|row| decode_row(row).ok_or_else(|| invalid("corrupt .pdd row")))
         .collect()
 }
 
