@@ -9,6 +9,12 @@
 # match the published numbers in each row's comment before the SD-PD row means
 # anything.  A mismatch is dump/schema drift, not a verdict.
 #
+# Seed: deliberately NOT overridden — ab-lib.sh's sddiff passes no --sd-seed, so
+# the published runs used ab-dump-sd's default 20240607 and so do these.  The
+# world seed turns out to matter little (modern-negx NV measured +0.875/fired at
+# 20240607 vs +0.828 at 1783925001, inside noise), but matching the original
+# invocation keeps the gate honest.
+#
 # Disclosure matters: the blind leader must read the ON arm's auctions under the
 # ON arm's system, or the sd numbers credit us for opponents misreading bids
 # they would in fact alert.  Each row passes the same --on-ns-* flag its original
@@ -24,7 +30,6 @@ R=${1:?usage: sd-pd-dumps.sh RESULTS_DIR}
 BINDIR=${BINDIR:?set BINDIR to the release examples directory}
 A=${A:-/home/jdh8/src/pons/ab-results}
 WORLDS=${WORLDS:-16}
-SDSEED=${SDSEED:-1783925001}
 mkdir -p "$R"
 
 # rescore TAG ON_DIR OFF_DIR VUL [flags...]
@@ -42,7 +47,7 @@ rescore() {
     fi
     echo "=== $tag vul=$vul worlds=$WORLDS $(date -Is)"
     "$BINDIR/ab-dump-sd" "$on" "$off" -v "$vul" \
-        --sd-worlds "$WORLDS" --sd-seed "$SDSEED" --show 0 "$@" >"$out.tmp"
+        --sd-worlds "$WORLDS" --show 0 "$@" >"$out.tmp"
     mv "$out.tmp" "$out"
     cat "$out"
 }
