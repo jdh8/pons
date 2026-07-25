@@ -7,6 +7,97 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Binky Points with error bars** — an additive hand valuation that publishes a
+  *spread*, not just a centre. Per suit holding: a contribution to expected
+  tricks and one to the *variance* of that count, both additive across the
+  partnership, so `P(make) = Φ((μ − k + ½)/σ)` is closed form instead of a
+  threshold comparison. Notrump and best suit are fitted separately, as Andrews
+  does, because they are different physics. New `examples/binky` fits it off the
+  pre-solved `.pdd` bank, `docs/binky-points.md` reports it,
+  `docs/binky-table{,-suit}.md` and `web/binky{,-suit}.json` are the generated
+  tables, and the web UI grows an **Evaluate** tab.
+
+  Variance is the additive column, not `ln σ`: given both N-S hands the residual
+  randomness is the E-W split, which enters as near-independent per-suit events,
+  and independent sources add *variances*. That also makes the fit plain OLS of
+  the squared residual on the same design — one Gram, two right-hand sides.
+
+  **Two variance columns, because the benchmark found two honest questions.**
+  Fitting the variance head to the squared residual estimates
+  `Var(T | N,S) + (μ_true − μ̂)²` — the hand's uncertainty *plus the model's own
+  squared bias*, and the second term is nearly half the total. So `--variance-truth`
+  fits a second column against reshuffled E-W truth, which is the physical
+  quantity. Two shuffles per pair suffices and is *unbiased*, not a compromise:
+  `E[(T₁−T₂)²] = 2·Var(T | N,S)` exactly, so per-row noise costs rows rather than
+  correctness. The *predictive* column stays, because it is what makes `P(make)`
+  calibrated. The decomposition closes: 1.578 ≈ 0.900 + 0.678.
+
+  `--benchmark` prices the table against those true conditional moments by fixing
+  N-S and reshuffling E-W — an **unbiased denominator**, since conditioned on two
+  known hands the posterior over the hidden 26 cards *is* uniform over E-W splits.
+  Fitting against truth cuts σ MAE 0.440 → 0.270 and over-dispersion +0.346 →
+  +0.053.
+
+  The mean column independently reproduces the earlier point-count distillation
+  (A:K:Q:J:T = 4 : 2.68 : 1.60 : 0.74 : 0.26, the Fifths/BUM-RAP family) from a
+  different basis, and beats an HCP baseline on held-out RMSE 1.257 vs 1.337
+  tricks. The variance column is new information (R² 0.031 against
+  `span{1, size, μ}`), reliability sits on the diagonal in every decile, and it
+  flips 5.3% of live-band game decisions, right 55.9% of the time. Its physical
+  content: **every honour narrows the trick distribution; spots, low honours and
+  length widen it** — an honour is a trick however the cards lie, while a long
+  suit's extra tricks ride on the break.
+
+  Honest limitations, both measured: an additive per-hand table cannot see
+  alignment, so it recovers only ~24% of the pair-level σ spread that
+  `probe-trick-variance`'s new Cut C finds, and its physical σ correlates just
+  0.331 with true conditional σ — right on average, weakly discriminating per
+  hand. Diagnostic and publication only — no bidding change, no A/B, crate
+  byte-identical.
+
+  **The best-suit σ column is a published negative.** Its mean is fine (0.614
+  tricks MAE against notrump's 0.589), but its spread does not track truth at
+  all: correlation 0.059, and across true-σ quintiles predicted σ moves 7%, not
+  monotonically, while truth more than doubles. It is a constant wearing error
+  bars. This is the pre-registered failure mode — best-suit tricks are a max over
+  strains of a quantity that depends on how two hands *mesh*, additivity is the
+  wrong functional form, and the misspecification has nowhere to land but σ. The
+  table ships with the mean usable and the Evaluate tab says so on selection.
+- **An `Evaluate` tab in the web UI**, with a live double-dummy verdict. Type or
+  import two hands and read μ, both σ's, and `P(make)` at every level against the
+  IMP break-evens; hands move both ways with the Edit tab. The new `Binky` wasm
+  export runs the benchmark *in the browser* on the hands on screen — fixing N-S,
+  reshuffling E-W, and solving each layout through the pure-Rust `pons-dds` in
+  chunks so the page keeps painting — and overlays the table's physical Gaussian
+  on the observed histogram. 100 shuffles by default (σ's own standard error
+  ≈ 0.067 tricks), 1000 offered for a tighter read.
+- **A trick-estimate hint in the practice tab**, off by default. Tick it and the
+  evaluator net prices all five strains for your side from *what the auction has
+  shown* — the same `Inferences` the bidder itself consumes, so this is the net
+  on its training input rather than a synthetic envelope. Doubles as a
+  reading-quality display: σ should tighten call by call, and a call that fails
+  to narrow it is a reading bug visible while playing rather than only in a probe.
+- `Table::<Stance, Stance>::infer` — the routing twin of `Table::classify`,
+  returning what the auction has shown to the seat about to act. Goes through
+  `Stance::infer` rather than a bare `Inferences::read`, which on a keyless
+  context silently skips every projection-based reading and answers `0..=37`.
+- `examples/probe-trick-variance` grows **Cut C**, the pre-registered kill gate
+  for the above: conditional σ of N-S notrump tricks at matched partnership HCP,
+  by longest combined suit, with and without the auction-disclosure confound.
+  Measured spread 0.83–0.96 tricks (0.49–0.70 on the quiet-opponents
+  replication) against a 0.3 threshold — the mean is flat where the spread
+  nearly doubles.
+
+### Fixed
+
+- **A web test had silently stopped running.** Adding the Evaluate tab's tests
+  inserted them between an existing `#[test]` and its function, so
+  `oracle_accumulates_over_reshuffles` lost its attribute and was compiled as
+  dead code. Restored; the duplicate attribute would also have failed CI's
+  `-D warnings`.
+
 ### Changed
 
 - **ddss bumped to 0.2.0.** Its `Solver::lock`/`try_lock` now take

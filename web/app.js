@@ -1,6 +1,6 @@
 // Thin static UI over the pons wasm bidder: the engine holds the deal and the
 // auction; JS rebuilds the DOM from each JSON snapshot (gin-rummy pattern).
-import init, { WebTable, book, set_option, set_choice, describe_options } from './pkg/pons_web.js';
+import init, { WebTable, Binky, book, set_option, set_choice, describe_options } from './pkg/pons_web.js';
 
 const SEATS = ['N', 'E', 'S', 'W'];
 const SEAT_NAMES = { N: 'North', E: 'East', S: 'South', W: 'West' };
@@ -35,15 +35,17 @@ async function main() {
   }
   window.addEventListener('hashchange', () => showTab(location.hash.slice(1)));
   id('p-deal').onclick = dealPractice;
+  id('p-hint-on').onchange = renderHint;
   id('d-deal').onclick = dealDemo;
   id('d-edit').onclick = editDemo;
   id('b-filter').oninput = filterBook;
   initEdit();
+  initBinky();
   showTab(location.hash.slice(1));
 }
 
 function showTab(tab) {
-  if (!['practice', 'demo', 'book', 'edit', 'settings'].includes(tab)) tab = 'practice';
+  if (!['practice', 'demo', 'book', 'edit', 'binky', 'settings'].includes(tab)) tab = 'practice';
   for (const sec of document.querySelectorAll('main > section')) {
     sec.classList.toggle('hidden', sec.id !== tab);
   }
@@ -52,6 +54,7 @@ function showTab(tab) {
   }
   if (tab === 'book' && !bookNodes) loadBook();
   if (tab === 'settings' && !settingsBuilt) renderSettings();
+  if (tab === 'binky' && !kTable) loadBinky();
 }
 
 // --- dealing -----------------------------------------------------------------
@@ -115,8 +118,27 @@ function renderPractice(s) {
     : '';
   id('p-auction').innerHTML = auctionHTML(s, s.seat);
   updateBiddingBox(s);
+  renderHint();
   renderFeedback(s);
   renderReveal(s);
+}
+
+// The net read off the auction, not off the hidden hands: the same inferences
+// the bidder itself consumes. Watch sd narrow as partner describes their hand —
+// a call that fails to narrow it is a reading bug you can see while playing.
+function renderHint() {
+  const box = id('p-hint');
+  const on = id('p-hint-on').checked;
+  const rows = on ? JSON.parse(game.hint()) : null;
+  box.classList.toggle('hidden', !rows);
+  if (!rows) return;
+
+  box.innerHTML =
+    '<div class="seat-head">Our tricks, as the auction reads so far</div>' +
+    `<div class="hintrow">${rows.map((r) => `
+       <div><span class="statlabel">${colorizeCalls(r.strain)}</span>
+       <span class="statbig">${r.mean.toFixed(1)}</span>
+       <span class="hintsd">± ${r.sd.toFixed(1)}</span></div>`).join('')}</div>`;
 }
 
 function renderDemo(s) {
@@ -388,6 +410,7 @@ function initEdit() {
     location.hash = 'demo'; // hand the edited deal to the Demo tab and bid it out
     runDemo(game.deal_pbn(toPBN(editAssign), id('d-dealer').value, id('d-vul').value));
   };
+  id('e-eval').onclick = () => { binkyFromEdit(); location.hash = 'binky'; };
   id('e-grid').onclick = (ev) => {
     const card = ev.target.closest('button')?.dataset.card;
     if (!card) return;
@@ -590,3 +613,306 @@ function setOption(key, value) {
 }
 
 main();
+
+// --- evaluate (Binky Points with error bars) ---------------------------------
+//
+// The published table is data, not code: `binky.json` maps a suit holding to its
+// contribution to the mean and to the variance, both additive across the eight
+// N-S holdings.  See docs/binky-points.md.
+
+const K_HONOURS = 'AKQJT';
+// Observed = filled bars, predicted = a stepped line.  The pair validates on the
+// six colour checks against --paper (protan ΔE 10.1); the form difference is a
+// second encoding on top, so the two never rely on hue alone.
+const K_OBSERVED = 'var(--club)';
+const K_PREDICTED = 'var(--diamond)';
+
+let kTable = null; // the parsed binky.json
+let kVerdict = null; // {n, mean, sd, histogram} from the DD shuffles
+let kRunning = false;
+
+function initBinky() {
+  for (const x of ['k-north', 'k-south']) id(x).oninput = () => { kVerdict = null; renderBinky(); };
+  id('k-which').onchange = loadBinky;
+  id('k-filter').oninput = renderBinkyTable;
+  id('k-verify').onclick = runVerdict;
+  id('k-from-edit').onclick = binkyFromEdit;
+  id('k-to-edit').onclick = binkyToEdit;
+}
+
+function binkyNotrump() { return id('k-which').value === 'binky.json'; }
+
+async function loadBinky() {
+  kVerdict = null;
+  try {
+    const res = await fetch(id('k-which').value);
+    if (!res.ok) throw new Error(res.status);
+    kTable = await res.json();
+  } catch {
+    kTable = null;
+    id('k-parse').textContent = 'That table has not been generated yet — run examples/binky.';
+    return;
+  }
+  id('k-gauge').textContent =
+    `${kTable.label}. Weights are excess versus an average holding; the fit is rank-deficient ` +
+    'by two directions (Σn = 8 and Σn·size = 26), so the table is only defined up to ' +
+    'w → w + α + β·size with 8α + 26β = 0.' +
+    // Measured: best-suit sigma is flat across true-sigma quintiles (corr 0.059).
+    // The mean column is fine; say so rather than quietly serving a constant.
+    (binkyNotrump() ? '' :
+      ' Read the mean only — benchmarked against reshuffled truth, the best-suit σ is' +
+      ' effectively constant (corr 0.059), because additivity cannot see fit.');
+  renderBinky();
+  renderBinkyTable();
+}
+
+// "AK32.QJ4.T98.762" → four holdings, or null if it is not 13 cards in 4 suits.
+function parseHolding(text) {
+  const suits = text.trim().toUpperCase().split('.');
+  if (suits.length !== 4) return null;
+  const cards = suits.join('');
+  if (cards.length !== 13 || /[^AKQJT2-9]/.test(cards)) return null;
+  return suits;
+}
+
+// Look a holding up, folding spots down the way the fit merged its rare cells.
+function binkyLookup(cards) {
+  const honours = [...K_HONOURS].filter((h) => cards.includes(h)).join('');
+  let spots = [...cards].filter((c) => !K_HONOURS.includes(c)).length;
+  for (; spots >= 0; spots--) {
+    const row = kTable.holdings[(honours + 'x'.repeat(spots)) || 'void'];
+    if (row) return row;
+  }
+  return [0, 0, 0, 0];
+}
+
+function normalCdf(z) {
+  // Abramowitz & Stegun 26.2.17 — the approximation the Rust crate also serves.
+  const b = [0.31938153, -0.356563782, 1.781477937, -1.821255978, 1.330274429];
+  const x = Math.abs(z);
+  const t = 1 / (1 + 0.2316419 * x);
+  const poly = b.reduceRight((acc, c) => (acc + c) * t, 0);
+  const upper = 0.3989422804014327 * Math.exp(-0.5 * x * x) * poly;
+  return z < 0 ? upper : 1 - upper;
+}
+
+// The two hands' eight holdings summed: predictive sigma prices the contracts,
+// physical sigma is what the DD verdict should actually match.
+function binkyEvaluate() {
+  const hands = ['k-north', 'k-south'].map((x) => {
+    const parsed = parseHolding(id(x).value);
+    id(x).classList.toggle('bad', parsed === null);
+    return parsed;
+  });
+  if (!kTable || hands.some((h) => h === null)) return null;
+
+  const holdings = hands.flat();
+  let mu = kTable.mean_const;
+  let variance = kTable.var_const;
+  let physical = kTable.physical_var_const ?? null;
+  for (const h of holdings) {
+    const [m, v, pv] = binkyLookup(h);
+    mu += m;
+    variance += v;
+    if (physical !== null) physical += pv;
+  }
+  return {
+    holdings,
+    mu,
+    sd: Math.sqrt(Math.max(variance, 0.01)),
+    physical: physical === null ? null : Math.sqrt(Math.max(physical, 0.01)),
+  };
+}
+
+function renderBinky() {
+  const e = binkyEvaluate();
+  if (!e) {
+    // No table means loadBinky already wrote why; leave that message standing.
+    if (kTable) {
+      id('k-parse').textContent =
+        'Each hand needs thirteen cards as spades.hearts.diamonds.clubs — e.g. AK32.QJ4.T98.762';
+    }
+    id('k-readout').innerHTML = '';
+    return;
+  }
+  id('k-parse').textContent = '';
+
+  const game = binkyNotrump() ? 9 : 10;
+  const p = (k) => 1 - normalCdf((k - 0.5 - e.mu) / e.sd);
+  const rows = binkyNotrump()
+    ? [['1NT', 7], ['2NT', 8], ['3NT', 9], ['4NT', 10], ['5NT', 11], ['6NT', 12], ['7NT', 13]]
+    : [['2-level', 8], ['3-level', 9], ['4 of a major', 10], ['5 of a minor', 11],
+       ['small slam', 12], ['grand slam', 13]];
+  // IMP break-evens against a cold alternative (docs/binky-points.md).
+  const BREAK_EVEN = { 9: ['45.5%', '37.5%'], 10: ['45.5%', '37.5%'],
+                       12: ['50.0%', '50.0%'], 13: ['58.3%', '56.7%'] };
+
+  id('k-readout').innerHTML =
+    `<div class="statrow">
+       <div><span class="statlabel">expected tricks</span><span class="statbig">${e.mu.toFixed(2)}</span></div>
+       <div><span class="statlabel">σ predictive</span><span class="statbig">${e.sd.toFixed(2)}</span></div>
+       <div><span class="statlabel">σ physical</span><span class="statbig">${
+         e.physical === null ? '—' : e.physical.toFixed(2)}</span></div>
+       <div><span class="statlabel">P(game)</span><span class="statbig">${(100 * p(game)).toFixed(0)}%</span></div>
+     </div>
+     <p class="hint"><strong>Predictive</strong> σ prices the contracts below — it includes the
+     table's own error, which is what makes those probabilities calibrated.
+     <strong>Physical</strong> σ is the hands' genuine volatility over the opponents' possible
+     splits. The gap between them is the table's ignorance, and the DD verdict measures the
+     physical one.</p>
+     <p class="hint">Holdings: ${e.holdings.map((h) => holdingKey(h)).join(' · ')}</p>
+     <table class="ddtable"><thead><tr><th>contract</th><th>tricks</th><th>P(make)</th>
+       <th>NV break-even</th><th>vul</th></tr></thead><tbody>` +
+    rows.map(([name, k]) => {
+      const [nv, vul] = BREAK_EVEN[k] ?? ['', ''];
+      const pct = 100 * p(k);
+      const made = nv && pct >= parseFloat(nv);
+      return `<tr><td>${name}</td><td>${k}</td>` +
+             `<td${made ? ' class="win"' : ''}>${pct.toFixed(1)}%</td><td>${nv}</td><td>${vul}</td></tr>`;
+    }).join('') + '</tbody></table>';
+
+  renderVerdict(e);
+}
+
+function holdingKey(cards) {
+  const honours = [...K_HONOURS].filter((h) => cards.includes(h)).join('');
+  const spots = [...cards].filter((c) => !K_HONOURS.includes(c)).length;
+  return (honours + 'x'.repeat(spots)) || 'void';
+}
+
+// --- the double-dummy verdict ------------------------------------------------
+//
+// Fix both N-S hands, reshuffle East-West, solve each layout.  Conditioned on the
+// two N-S hands the posterior over the hidden 26 cards IS uniform over E-W splits,
+// so this is ground truth with no sampler to be biased — the same check
+// `examples/binky --benchmark` runs natively.
+
+const K_CHUNK = 10; // solves per JS task, so the page keeps painting
+
+async function runVerdict() {
+  const e = binkyEvaluate();
+  if (!e || kRunning) return;
+  const total = Number(id('k-shuffles').value);
+  const engine = Binky.create(id('k-north').value.trim(), id('k-south').value.trim(),
+                              binkyNotrump(), String(Math.floor(Math.random() * 2 ** 53)));
+  if (!engine) { id('k-progress').textContent = 'Those two hands overlap.'; return; }
+
+  kRunning = true;
+  id('k-verify').disabled = true;
+  for (let done = 0; done < total; done += K_CHUNK) {
+    kVerdict = JSON.parse(engine.run(Math.min(K_CHUNK, total - done)));
+    id('k-progress').textContent = `${kVerdict.n} / ${total} layouts solved`;
+    renderVerdict(e);
+    await new Promise((r) => setTimeout(r, 0)); // yield so the browser repaints
+  }
+  id('k-progress').textContent = `${kVerdict.n} layouts solved`;
+  id('k-verify').disabled = false;
+  kRunning = false;
+}
+
+function renderVerdict(e) {
+  const box = id('k-verdict');
+  if (!kVerdict || !kVerdict.n) { box.classList.add('hidden'); return; }
+  box.classList.remove('hidden');
+
+  // Overlay the column the histogram actually tests. The shuffles measure the
+  // spread given the two hands, which is the PHYSICAL column; drawing the
+  // predictive one here would look like a miscalibrated fit when it is simply
+  // answering a different question (it carries the table's own error too).
+  const overlaySd = e.physical ?? e.sd;
+  const overlayName = e.physical === null ? 'predictive' : 'physical';
+  // P(T = k) from the fitted Gaussian, by differencing the CDF on half-trick
+  // boundaries — the same continuity correction the crate's `p_at_least` uses.
+  const predicted = kVerdict.histogram.map((_, k) =>
+    normalCdf((k + 0.5 - e.mu) / overlaySd) - normalCdf((k - 0.5 - e.mu) / overlaySd));
+  const observed = kVerdict.histogram.map((c) => c / kVerdict.n);
+  const peak = Math.max(...observed, ...predicted, 1e-6);
+
+  // Trim the empty tails so the plot spends its width where the mass is.
+  let lo = 0, hi = 13;
+  while (lo < hi && observed[lo] < 0.005 && predicted[lo] < 0.005) lo++;
+  while (hi > lo && observed[hi] < 0.005 && predicted[hi] < 0.005) hi--;
+
+  const bars = [];
+  for (let k = lo; k <= hi; k++) {
+    const o = (100 * observed[k]) / peak;
+    const pr = (100 * predicted[k]) / peak;
+    bars.push(
+      `<div class="kbar" title="${k} tricks — observed ${(100 * observed[k]).toFixed(1)}%, ` +
+      `predicted ${(100 * predicted[k]).toFixed(1)}%">` +
+      `<div class="kbarstack"><div class="kobserved" style="height:${o}%"></div>` +
+      `<div class="kpredicted" style="bottom:${pr}%"></div></div>` +
+      `<div class="kbarlabel">${k}</div></div>`);
+  }
+
+  const sdGap = e.physical === null ? null : e.physical - kVerdict.sd;
+  box.innerHTML =
+    `<h3>Double-dummy verdict — ${kVerdict.n} East-West shuffles</h3>
+     <p class="hint">Both N-S hands fixed; only the opponents' 26 cards are redealt. Conditioned
+     on your two hands, that posterior is exactly uniform — there is no sampler here to be
+     biased, so these are the true conditional moments up to sampling noise
+     (σ's own standard error is about ${(kVerdict.sd / Math.sqrt(2 * kVerdict.n)).toFixed(3)} tricks).</p>
+     <div class="klegend">
+       <span><i class="kswatch" style="background:${K_OBSERVED}"></i>observed (double dummy)</span>
+       <span><i class="kswatch kline" style="background:${K_PREDICTED}"></i>the table's ${overlayName} Gaussian</span>
+     </div>
+     <div class="kchart">${bars.join('')}</div>
+     <div class="kaxis">tricks</div>
+     <table class="ddtable"><thead><tr><th></th><th>mean</th><th>σ</th></tr></thead><tbody>
+       <tr><td>observed</td><td>${kVerdict.mean.toFixed(3)}</td><td>${kVerdict.sd.toFixed(3)}</td></tr>
+       <tr><td>table, predictive</td><td>${e.mu.toFixed(3)}</td><td>${e.sd.toFixed(3)}</td></tr>
+       ${e.physical === null ? '' :
+         `<tr><td>table, physical</td><td>${e.mu.toFixed(3)}</td><td>${e.physical.toFixed(3)}</td></tr>`}
+     </tbody></table>
+     <p class="hint">${
+       sdGap === null
+         ? 'This table has no physical column — regenerate it with --variance-truth.'
+         : `Physical σ is ${sdGap >= 0 ? 'over' : 'under'} the observed spread by ` +
+           `${Math.abs(sdGap).toFixed(3)} tricks. Predictive σ sits ` +
+           `${(e.sd - kVerdict.sd).toFixed(3)} above it by design: it carries the table's own error.`}</p>`;
+}
+
+// --- handoff with the Edit tab ----------------------------------------------
+
+function binkyFromEdit() {
+  const hands = editHands();
+  for (const [box, seat] of [['k-north', 'N'], ['k-south', 'S']]) {
+    id(box).value = HAND_ORDER.map((g) => hands[seat][SUIT_KEYS[g]] || '').join('.');
+  }
+  kVerdict = null;
+  renderBinky();
+}
+
+function binkyToEdit() {
+  const hands = ['k-north', 'k-south'].map((x) => parseHolding(id(x).value));
+  if (hands.some((h) => h === null)) return;
+  // Only N-S move; E-W becomes whatever is left, so the editor shows a full deal.
+  const assign = {};
+  for (const [suits, seat] of [[hands[0], 'N'], [hands[1], 'S']]) {
+    suits.forEach((holding, i) => { for (const r of holding) assign[HAND_ORDER[i] + r] = seat; });
+  }
+  const rest = [];
+  for (const g of HAND_ORDER) for (const r of RANKS) if (!assign[g + r]) rest.push(g + r);
+  rest.forEach((card, i) => { assign[card] = i < rest.length / 2 ? 'E' : 'W'; });
+  editAssign = assign;
+  syncFromBoard();
+  location.hash = 'edit';
+}
+
+function renderBinkyTable() {
+  if (!kTable) return;
+  const needle = id('k-filter').value.trim().toLowerCase();
+  const hasPhysical = kTable.physical_var_const !== undefined;
+  const cell = (x) => `<td class="${x < 0 ? 'lose' : 'win'}">${x >= 0 ? '+' : ''}${x.toFixed(3)}</td>`;
+  const rows = Object.entries(kTable.holdings)
+    .filter(([name]) => name.toLowerCase().includes(needle))
+    .map(([name, row]) => {
+      const n = row[row.length - 1];
+      return `<tr><td>${name}</td>${cell(row[0])}${cell(row[1])}` +
+             (hasPhysical ? cell(row[2]) : '') + `<td>${n.toLocaleString()}</td></tr>`;
+    });
+  id('k-table').innerHTML =
+    '<table class="ddtable"><thead><tr><th>holding</th><th>μ (tricks)</th><th>predictive var</th>' +
+    (hasPhysical ? '<th>physical var</th>' : '') + '<th>deals</th></tr></thead><tbody>' +
+    rows.join('') + '</tbody></table>';
+}

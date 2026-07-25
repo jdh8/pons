@@ -308,3 +308,73 @@ label.opt input { width: 1rem; height: 1rem; cursor: pointer; }
   .bid-grid { grid-template-columns: repeat(5, 1fr); width: 100%; }
   .bid-extra { grid-template-columns: repeat(3, 1fr); width: 100%; }
 }
+
+/* --- Evaluate tab (Binky Points with error bars) ------------------------------
+   Chart colours come from the suit palette above and pass the six colour checks
+   against --paper (worst adjacent pair protan ΔE 10.1).  Observed is a filled
+   bar and predicted a 2px rule, so the two series never rely on hue alone. */
+.hands-row { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 0.5rem; }
+.hands-row label { flex: 1 1 18rem; display: flex; flex-direction: column; gap: 0.2rem; }
+.hands-row input {
+  font: inherit;
+  font-family: ui-monospace, monospace;
+  padding: 0.35rem;
+  border: 1px solid #bbb;
+  border-radius: 4px;
+}
+.hands-row input.bad { border-color: var(--heart); background: #fff0ee; }
+
+.statrow { display: flex; flex-wrap: wrap; gap: 1.6rem; margin-bottom: 0.6rem; }
+.statrow > div { display: flex; flex-direction: column; }
+.statlabel { font-size: 0.8rem; opacity: 0.7; }
+.statbig { font-size: 1.8rem; font-weight: 700; line-height: 1.1; }
+
+table.ddtable { border-collapse: collapse; width: 100%; margin-top: 0.5rem; }
+table.ddtable th, table.ddtable td {
+  padding: 0.2rem 0.6rem;
+  text-align: right;
+  border-bottom: 1px solid #e4e4dc;
+  font-variant-numeric: tabular-nums;
+}
+table.ddtable th { font-weight: 600; opacity: 0.7; font-size: 0.85rem; }
+table.ddtable th:first-child, table.ddtable td:first-child { text-align: left; }
+table.ddtable td.win { color: var(--club); font-weight: 700; }
+table.ddtable td.lose { color: var(--heart); }
+.tablescroll { max-height: 24rem; overflow-y: auto; overflow-x: auto; }
+
+/* One column per trick count: observed height, predicted as a rule across it. */
+.kchart {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px; /* the surface gap between adjacent bars */
+  height: 11rem;
+  margin-top: 0.6rem;
+}
+.kbar { flex: 1; display: flex; flex-direction: column; height: 100%; }
+.kbarstack { position: relative; flex: 1; }
+.kobserved {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  background: var(--club);
+  border-radius: 4px 4px 0 0; /* rounded data-end, square on the baseline */
+}
+.kpredicted {
+  position: absolute;
+  inset-inline: 0;
+  height: 2px;
+  background: var(--diamond);
+  box-shadow: 0 0 0 2px var(--paper); /* surface ring where it crosses a bar */
+}
+.kbarlabel { text-align: center; font-size: 0.75rem; opacity: 0.7; padding-top: 0.2rem; }
+.kaxis { text-align: center; font-size: 0.75rem; opacity: 0.55; }
+.klegend { display: flex; gap: 1.2rem; font-size: 0.85rem; margin-top: 0.4rem; }
+.klegend span { display: flex; align-items: center; gap: 0.35rem; }
+.kswatch { width: 0.8rem; height: 0.8rem; border-radius: 2px; display: inline-block; }
+.kswatch.kline { height: 2px; border-radius: 0; }
+
+/* Practice hint: the net's per-strain estimate, one compact row. */
+.hintbar { display: block; margin: 8px 0 4px; font-size: 0.9em; opacity: 0.75; }
+.hintrow { display: flex; flex-wrap: wrap; gap: 16px; }
+.hintrow > div { display: flex; align-items: baseline; gap: 6px; }
+.hintsd { opacity: 0.6; font-variant-numeric: tabular-nums; }

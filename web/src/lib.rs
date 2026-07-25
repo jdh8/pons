@@ -15,6 +15,7 @@
 use std::collections::{BTreeMap, HashSet};
 
 use contract_bridge::auction::{Auction, Call, display_calls};
+use contract_bridge::deal::PartialDeal;
 use contract_bridge::deck::{fill_deals, full_deal};
 use contract_bridge::eval::{self, HandEvaluator as _, SimpleEvaluator};
 use contract_bridge::{
@@ -22,7 +23,8 @@ use contract_bridge::{
 };
 use pons::bidding::american::american_book;
 use pons::bidding::fallback::Fallback;
-use pons::bidding::{Stance, Table, american, constraint, inference, instinct};
+use pons::bidding::evaluator::trick_estimates;
+use pons::bidding::{Relative, Stance, Table, american, constraint, inference, instinct};
 use pons::scoring::{final_contract, imps};
 use pons_dds::{Par, Solver, TrickCountTable, Vulnerability, calculate_par, solve_deal_on};
 use rand::SeedableRng as _;
@@ -100,7 +102,44 @@ struct Board {
     solver: Option<Solver>,
 }
 
+/// One strain's estimate for our side, in tricks
+#[derive(Serialize)]
+struct HintRow {
+    strain: String,
+    mean: f32,
+    sd: f32,
+}
+
 impl Board {
+    /// Price every strain for the side to act, off what the auction has shown
+    ///
+    /// Declarer is whichever of us the net rates higher — the pair picks the
+    /// better hand to play it, so the useful number is the max, not our own.
+    fn hint(&self) -> Vec<HintRow> {
+        let seat = self.table.seat_to_act(self.auction.len());
+        let estimates = trick_estimates(self.deal[seat], &self.table.infer(&self.auction));
+
+        Strain::ASC
+            .iter()
+            .map(|&strain| {
+                let ours = [Relative::Me, Relative::Partner]
+                    .map(|declarer| estimates.get(strain, declarer));
+                // Pick by mean, then report *that* seat's sd — taking the max of
+                // each column separately would invent a pairing neither seat has.
+                let best = if ours[0].mean >= ours[1].mean {
+                    ours[0]
+                } else {
+                    ours[1]
+                };
+                HintRow {
+                    strain: strain.to_string(),
+                    mean: best.mean,
+                    sd: best.sd,
+                }
+            })
+            .collect()
+    }
+
     /// Bid bot seats forward until the human is to act or the auction ends
     fn advance(&mut self) {
         while !self.auction.has_ended() {
@@ -579,6 +618,24 @@ impl WebTable {
             }
             None => "null".to_string(),
         }
+    }
+
+    /// The evaluator net's trick estimate for our side, read off the auction
+    ///
+    /// `null` unless someone is to act on a live auction.  This is the net on
+    /// its *training* input — inferences a real auction produced — so unlike a
+    /// synthetic maximum-information envelope it carries no distribution
+    /// caveat.  Watch `sd` shrink as partner describes their hand: a call that
+    /// fails to narrow it is a reading bug, visible without a probe.
+    #[must_use]
+    pub fn hint(&self) -> String {
+        let Some(board) = &self.board else {
+            return "null".to_string();
+        };
+        if board.auction.has_ended() {
+            return "null".to_string();
+        }
+        serde_json::to_string(&board.hint()).expect("hint serialization")
     }
 }
 
@@ -1081,6 +1138,110 @@ static SETTINGS: &[Setting] = &[
     toggle("fuzzy_fifths", FUZZING, "", true, constraint::set_fuzzy_fifths),
 ];
 
+/// The in-browser half of `examples/binky`'s benchmark: fix N-S, reshuffle E-W.
+///
+/// The published `(mu, sigma)` table claims to describe the distribution of
+/// double-dummy tricks given the two N-S hands. This checks that claim on *your*
+/// hands, and it is an honest check for one specific reason: conditioned on both
+/// N-S hands and nothing else, the posterior over the hidden twenty-six cards
+/// **is** uniform over East-West splits. No inference, no range envelope, no
+/// rule replay — so there is no sampler to be biased.
+///
+/// Stateful because the transposition table is worth keeping between chunks:
+/// JS calls [`run`][Binky::run] in small batches so the page keeps painting,
+/// exactly as the practice oracle does.
+#[wasm_bindgen]
+pub struct Binky {
+    partial: PartialDeal,
+    /// Notrump alone, or the four suits to take a max over.
+    strains: Vec<Strain>,
+    solver: Solver,
+    rng: StdRng,
+    /// Layouts by trick count, 0..=13.
+    histogram: [u32; 14],
+}
+
+#[wasm_bindgen]
+impl Binky {
+    /// Fix the two N-S hands; `north`/`south` are `spades.hearts.diamonds.clubs`.
+    ///
+    /// Returns `None` if either hand is not thirteen valid cards, or if the two
+    /// overlap — a caller should surface that rather than solve a nonsense deal.
+    /// A **static factory, not a `constructor`**: `new` in JS must yield an
+    /// object, so a fallible constructor would have to throw or hand back a
+    /// half-built one.
+    #[must_use]
+    pub fn create(north: &str, south: &str, notrump: bool, seed: &str) -> Option<Binky> {
+        let north: Hand = north.parse().ok()?;
+        let south: Hand = south.parse().ok()?;
+        let partial = set_seat(set_seat(Builder::new(), Seat::North, north), Seat::South, south)
+            .build_partial()
+            .ok()?;
+        // `build_partial` accepts short hands; the shuffle only means anything
+        // when both are complete.
+        if north.len() != 13 || south.len() != 13 {
+            return None;
+        }
+        let strains = if notrump {
+            vec![Strain::Notrump]
+        } else {
+            Strain::ASC[..4].to_vec()
+        };
+        Some(Self {
+            partial,
+            solver: Solver::with_memory(strains[0], TT_MB.0, TT_MB.1),
+            strains,
+            rng: StdRng::seed_from_u64(seed.parse().unwrap_or(0)),
+            histogram: [0; 14],
+        })
+    }
+
+    /// Solve `samples` more E-W shuffles and return the running verdict as JSON:
+    /// `{n, mean, sd, histogram}` — `histogram[k]` is the count of layouts on
+    /// which N-S take exactly `k` tricks.
+    pub fn run(&mut self, samples: u32) -> String {
+        for deal in fill_deals(&mut self.rng, self.partial).take(samples as usize) {
+            // The label is the pair's best declarer, and for a suit table also
+            // their best suit — the same `max` `examples/binky` fits against.
+            let tricks = self
+                .strains
+                .iter()
+                .map(|&strain| {
+                    self.solver.set_strain(strain);
+                    let row = self.solver.solve(deal);
+                    row.get(Seat::North).get().max(row.get(Seat::South).get())
+                })
+                .max()
+                .unwrap_or(0);
+            self.histogram[usize::from(tricks).min(13)] += 1;
+        }
+
+        let n: u32 = self.histogram.iter().sum();
+        let total = f64::from(n).max(1.0);
+        let mean = self
+            .histogram
+            .iter()
+            .enumerate()
+            .map(|(k, &c)| k as f64 * f64::from(c))
+            .sum::<f64>()
+            / total;
+        let variance = self
+            .histogram
+            .iter()
+            .enumerate()
+            .map(|(k, &c)| f64::from(c) * (k as f64 - mean).powi(2))
+            .sum::<f64>()
+            / total;
+        serde_json::to_string(&serde_json::json!({
+            "n": n,
+            "mean": mean,
+            "sd": variance.max(0.0).sqrt(),
+            "histogram": self.histogram,
+        }))
+        .expect("verdict serialization")
+    }
+}
+
 /// Flip a boolean bidding knob for the **next** deal (the Settings tab).  Unknown
 /// keys are a no-op.
 #[wasm_bindgen]
@@ -1184,6 +1345,33 @@ mod tests {
             verdict_lines(None, None, &flat, none),
             ["Result: Passed out", "Par: Passed out", "0 IMP"],
         );
+    }
+
+    /// The hint prices all five strains while the auction is live, and goes
+    /// quiet once it ends.  Watching `sd` narrow call by call is the point of
+    /// the feature, but that is a property of the *reading*, not of this
+    /// wiring — it belongs in the UI and in an A/B, not in an assertion here.
+    #[test]
+    fn hint_prices_every_strain_on_a_live_auction() {
+        let mut table = WebTable::new("12345");
+        let mut snap = parse(&table.deal_practice("S", "N", "none", 0));
+
+        let rows = parse(&table.hint());
+        let rows = rows.as_array().expect("a live auction has a hint");
+        assert_eq!(rows.len(), 5, "one row per strain");
+        for row in rows {
+            let mean = row["mean"].as_f64().expect("mean is a number");
+            let sd = row["sd"].as_f64().expect("sd is a number");
+            assert!((0.0..=13.0).contains(&mean), "{mean} is a trick count");
+            assert!(sd > 0.0 && sd < 6.0, "{sd} is a usable spread");
+        }
+
+        while snap["your_turn"] == true {
+            let legal = snap["legal"].as_array().expect("legal is an array");
+            let call = legal[0].as_str().expect("a legal call").to_string();
+            snap = parse(&table.bid(&call));
+        }
+        assert_eq!(table.hint(), "null", "no hint once the auction has ended");
     }
 
     #[test]
@@ -1408,6 +1596,47 @@ mod tests {
         let again: serde_json::Value =
             serde_json::from_str(&table.dd_table()).expect("cached dd JSON");
         assert_eq!(dd, again);
+    }
+
+    /// The Evaluate tab's ground truth: fix N-S, reshuffle E-W, and read the
+    /// conditional distribution off the histogram. Two disjoint thirteen-card
+    /// hands in, a distribution over 0..=13 tricks out, accumulating across the
+    /// chunks the UI calls it in.
+    #[test]
+    fn binky_verdict_accumulates_and_is_conditional() {
+        // A flat 25-count facing itself: it should land near nine notrump tricks
+        // and, being flat, should not spread far.
+        let mut binky = Binky::create("AK32.QJ4.T98.762", "Q54.AK5.QJ42.A83", true, "7")
+            .expect("two disjoint thirteen-card hands");
+
+        let first: serde_json::Value = serde_json::from_str(&binky.run(6)).expect("verdict JSON");
+        assert_eq!(first["n"], 6);
+        let again: serde_json::Value = serde_json::from_str(&binky.run(6)).expect("verdict JSON");
+        assert_eq!(again["n"], 12, "the histogram accumulates across chunks");
+
+        let counts: Vec<u32> = serde_json::from_value(again["histogram"].clone()).expect("counts");
+        assert_eq!(counts.len(), 14);
+        assert_eq!(counts.iter().sum::<u32>(), 12, "every layout lands in a bin");
+
+        // The whole point is that this is *conditional*: N-S hold 25 HCP, so the
+        // unconditional mean of ~6.5 tricks must not be what comes back.
+        let mean = again["mean"].as_f64().expect("mean");
+        assert!((7.0..=11.0).contains(&mean), "25 HCP should take ~9 tricks, got {mean}");
+        assert!(again["sd"].as_f64().expect("sd") < 3.0, "a flat pair is not wild");
+    }
+
+    /// Overlapping or short hands must be refused rather than solved as nonsense.
+    #[test]
+    fn binky_rejects_impossible_hands() {
+        assert!(
+            Binky::create("AK32.QJ4.T98.762", "AK32.QJ4.T98.762", true, "1").is_none(),
+            "the same hand twice is not a deal"
+        );
+        assert!(
+            Binky::create("AK32.QJ4.T98.76", "Q54.AK5.QJ42.A83", true, "1").is_none(),
+            "twelve cards is not a hand"
+        );
+        assert!(Binky::create("nonsense", "Q54.AK5.QJ42.A83", true, "1").is_none());
     }
 
     #[test]

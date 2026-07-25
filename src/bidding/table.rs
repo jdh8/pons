@@ -126,4 +126,25 @@ impl Table<Stance, Stance> {
     pub fn of_pairs(ns: &Pair, ew: &Pair, dealer: Seat, vul: AbsoluteVulnerability) -> Self {
         Self::new(ns.against(ew.family), ew.against(ns.family), dealer, vul)
     }
+
+    /// Read what `auction` has shown, from the seat about to act
+    ///
+    /// The routing twin of [`classify`][Self::classify]: same seat rotation,
+    /// same absolute-to-relative vulnerability conversion, but it returns the
+    /// shown ranges instead of the logits.  Goes through
+    /// [`Stance::infer`][Stance::infer], **not** a bare
+    /// [`Inferences::read`][super::Inferences::read] — a keyless context
+    /// silently skips every projection-based reading and hands back a vacuous
+    /// `0..=37`.  Consumers wanting what the bidder actually sees must enter
+    /// here.
+    #[must_use]
+    pub fn infer(&self, auction: &[Call]) -> super::Inferences {
+        let seat = self.seat_to_act(auction.len());
+        let vul = relative(self.vul, seat);
+
+        match seat {
+            Seat::North | Seat::South => self.north_south.infer(vul, auction),
+            Seat::East | Seat::West => self.east_west.infer(vul, auction),
+        }
+    }
 }

@@ -14,6 +14,7 @@
       <button data-tab="demo">Demo</button>
       <button data-tab="book">Book</button>
       <button data-tab="edit">Edit</button>
+      <button data-tab="binky">Evaluate</button>
       <button data-tab="settings">Settings</button>
     </nav>
   </header>
@@ -40,6 +41,9 @@
         <div id="p-auction" class="panel auction-panel"></div>
       </div>
       <div id="p-bidbox" class="bidbox"></div>
+      <label class="hintbar"><input id="p-hint-on" type="checkbox">
+        Show the evaluator net's trick estimate for our side</label>
+      <div id="p-hint" class="panel hidden"></div>
       <div id="p-feedback" class="panel feedback hidden"></div>
       <div id="p-reveal" class="revealbox hidden"></div>
       <div id="p-oracle" class="panel ddpanel hidden"></div>
@@ -78,10 +82,44 @@
         <button id="e-random" class="primary">Random</button>
         <button id="e-clear" class="secondary">Clear</button>
         <button id="e-bid" class="primary">Bid it out in Demo →</button>
+        <button id="e-eval" class="secondary">Evaluate N-S →</button>
       </div>
       <div id="e-status" class="boardinfo"></div>
       <div id="e-grid" class="editgrid"></div>
       <div id="e-board"></div>
+    </section>
+    <section id="binky" class="hidden">
+      <div class="controls">
+        <label>Contract <select id="k-which">
+          <option value="binky.json" selected>Notrump</option>
+          <option value="binky-suit.json">Best suit</option>
+        </select></label>
+        <button id="k-from-edit" class="secondary">← Load N-S from Edit</button>
+        <button id="k-to-edit" class="secondary">Edit these hands →</button>
+      </div>
+      <div class="hands-row">
+        <label>North <input id="k-north" type="text" spellcheck="false"
+          value="AK32.QJ4.T98.762" placeholder="spades.hearts.diamonds.clubs"></label>
+        <label>South <input id="k-south" type="text" spellcheck="false"
+          value="Q54.AK5.QJ42.A83" placeholder="spades.hearts.diamonds.clubs"></label>
+      </div>
+      <p id="k-parse" class="hint"></p>
+      <div id="k-readout" class="panel"></div>
+      <div class="controls">
+        <button id="k-verify" class="primary">Verify with double dummy</button>
+        <label>Shuffles <select id="k-shuffles">
+          <option value="100" selected>100 — interactive</option>
+          <option value="1000">1000 — deep</option>
+        </select></label>
+        <span id="k-progress" class="hint"></span>
+      </div>
+      <div id="k-verdict" class="panel hidden"></div>
+      <div class="panel">
+        <h3>The table</h3>
+        <p class="hint" id="k-gauge"></p>
+        <input id="k-filter" type="text" placeholder="filter holdings, e.g. AK or xxxx" spellcheck="false">
+        <div id="k-table" class="tablescroll"></div>
+      </div>
     </section>
     <section id="settings" class="hidden">
       <div class="boardinfo">Toggle conventions, then Deal in Practice or Demo — changes apply to the next deal.</div>

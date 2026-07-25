@@ -27,6 +27,7 @@ played a long time and read a lot. For 5-card major systems, see my
 | DNF readings (union-of-boxes; killing the Or wall) | [docs/dnf-migration.md](docs/dnf-migration.md) — chop ledger, knob matrix, the one migration rule |
 | Competitive book (we open, they interfere) | [docs/competitive-book.md](docs/competitive-book.md) — wiring idiom, package designs, campaign ledger |
 | Long data-gen runs | [docs/shared-machine-data-gen.md](docs/shared-machine-data-gen.md) — this box is shared |
+| Hand valuation, point counts, or "how uncertain is this hand?" | [docs/binky-points.md](docs/binky-points.md) — additive (μ, σ²) per holding; the gauge statement, and why an additive table sees only ~24% of the pair-level spread |
 | Raw bidding-theory notes | [docs/bidding-theorems.md](docs/bidding-theorems.md) |
 
 Repo skills: `author-convention` (end-to-end checklist for a new convention or
