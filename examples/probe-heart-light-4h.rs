@@ -133,7 +133,7 @@ fn main() {
     );
 
     let solve_deals: Vec<FullDeal> = qualifying.iter().map(|b| b.deal).collect();
-    let tables = Solver::lock().solve_deals(&solve_deals, NonEmptyStrainFlags::ALL);
+    let tables = Solver::lock(None).solve_deals(&solve_deals, NonEmptyStrainFlags::ALL);
 
     // Split by opener's heart length: 3+ = the 5-3 fit, ≤2 = no fit.
     let mut fit = Split::default();

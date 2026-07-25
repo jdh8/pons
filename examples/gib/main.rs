@@ -22,6 +22,7 @@
 use clap::{Parser, Subcommand};
 use contract_bridge::deck::full_deal;
 use contract_bridge::{FullDeal, Seat, Strain};
+use core::num::NonZero;
 use ddss::{NonEmptyStrainFlags, Solver, TrickCountTable};
 use pons::{gib, pdd};
 use rand::SeedableRng;
@@ -50,6 +51,11 @@ enum Cmd {
         /// Output file (default: stdout)
         #[arg(long)]
         out: Option<String>,
+        /// Cap the DDS thread pool (default: one worker per hardware core).
+        /// Under a background QoS class, cap at the efficiency-core count so
+        /// the workers stop oversubscribing the cores the OS grants.
+        #[arg(long)]
+        threads: Option<NonZero<usize>>,
     },
     /// Re-solve every deal and check the stored DD table matches.
     Verify { file: String },
@@ -75,7 +81,12 @@ const STRAINS: [(&str, Strain); 5] = [
 fn main() -> std::io::Result<()> {
     match Args::parse().cmd {
         Cmd::Read { file } => read(&file),
-        Cmd::Generate { count, seed, out } => generate(count, seed, out.as_deref()),
+        Cmd::Generate {
+            count,
+            seed,
+            out,
+            threads,
+        } => generate(count, seed, out.as_deref(), threads),
         Cmd::Verify { file } => verify(&file),
         Cmd::Convert { inputs, out } => convert(&inputs, &out),
     }
@@ -121,7 +132,20 @@ fn write_deal(
     }
 }
 
-fn generate(count: usize, seed: u64, out: Option<&str>) -> std::io::Result<()> {
+fn generate(
+    count: usize,
+    seed: u64,
+    out: Option<&str>,
+    threads: Option<NonZero<usize>>,
+) -> std::io::Result<()> {
+    // Apply the pool cap up front and report the effective size — the
+    // observable that E-core confinement is verified against.  The chunk
+    // loop re-locks with the same value, which ddss treats as a free re-lock.
+    drop(Solver::lock(threads));
+    eprintln!(
+        "gib generate: {} DDS threads",
+        ddss::system_info().num_threads()
+    );
     let mut rng = StdRng::seed_from_u64(seed);
     let binary = out.is_some_and(is_pdd);
     let mut w: BufWriter<Box<dyn Write>> = BufWriter::new(match out {
@@ -137,7 +161,7 @@ fn generate(count: usize, seed: u64, out: Option<&str>) -> std::io::Result<()> {
     while done < count {
         let n = CHUNK.min(count - done);
         let deals: Vec<FullDeal> = (0..n).map(|_| full_deal(&mut rng)).collect();
-        let tables = Solver::lock().solve_deals(&deals, NonEmptyStrainFlags::ALL);
+        let tables = Solver::lock(threads).solve_deals(&deals, NonEmptyStrainFlags::ALL);
         for (deal, table) in deals.iter().zip(&tables) {
             write_deal(&mut w, binary, deal, table)?;
         }
@@ -151,7 +175,7 @@ fn generate(count: usize, seed: u64, out: Option<&str>) -> std::io::Result<()> {
 fn verify(file: &str) -> std::io::Result<()> {
     let parsed = pdd::load(file)?;
     let deals: Vec<FullDeal> = parsed.iter().map(|&(deal, _)| deal).collect();
-    let solved = Solver::lock().solve_deals(&deals, NonEmptyStrainFlags::ALL);
+    let solved = Solver::lock(None).solve_deals(&deals, NonEmptyStrainFlags::ALL);
 
     let mut mismatches = 0usize;
     for (i, ((_, stored), fresh)) in parsed.iter().zip(&solved).enumerate() {

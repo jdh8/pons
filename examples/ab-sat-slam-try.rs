@@ -200,7 +200,7 @@ fn main() {
     }
     eprintln!("\rsampled {}/{}        ", args.count, args.count);
 
-    let tables = Solver::lock().solve_deals(&deals, NonEmptyStrainFlags::ALL);
+    let tables = Solver::lock(None).solve_deals(&deals, NonEmptyStrainFlags::ALL);
 
     let mut total_imps = 0i64;
     let mut total_points = 0i64;

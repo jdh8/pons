@@ -142,7 +142,7 @@ fn main() {
         "dealt {} invite boards ({attempts} attempts); solving…",
         deals.len()
     );
-    let tables = Solver::lock().solve_deals(&deals, NonEmptyStrainFlags::ALL);
+    let tables = Solver::lock(None).solve_deals(&deals, NonEmptyStrainFlags::ALL);
 
     let vuls = [
         ("none", AbsoluteVulnerability::NONE),

@@ -515,7 +515,7 @@ fn main() {
         })
         .collect();
     let deals: Vec<FullDeal> = need_solve.iter().map(|&b| boards[b].deal).collect();
-    let tables = Solver::lock().solve_deals(&deals, NonEmptyStrainFlags::ALL);
+    let tables = Solver::lock(None).solve_deals(&deals, NonEmptyStrainFlags::ALL);
 
     // Per-cell per-board IMP swings vs the datum, on both scorers.
     let mut plain: Vec<Vec<Vec<i64>>> = vec![vec![vec![0; n]; COLS]; ROWS];

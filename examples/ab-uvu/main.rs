@@ -240,7 +240,7 @@ fn main() {
         .filter(|&index| contracts[index].0 != contracts[index].1)
         .collect();
     let solve_deals: Vec<FullDeal> = divergent.iter().map(|&index| boards[index].deal).collect();
-    let tables = Solver::lock().solve_deals(&solve_deals, NonEmptyStrainFlags::ALL);
+    let tables = Solver::lock(None).solve_deals(&solve_deals, NonEmptyStrainFlags::ALL);
 
     let mut total_points = 0i64;
     let mut total_imps = 0i64;

@@ -42,7 +42,7 @@ fn eval_random_deals(n: usize) -> Evaluation {
         .take(n)
         .collect();
 
-    let rows: Vec<_> = Solver::lock()
+    let rows: Vec<_> = Solver::lock(None)
         .solve_deals(&deals, NonEmptyStrainFlags::ALL)
         .into_iter()
         .map(calculate_par_suit_tricks)

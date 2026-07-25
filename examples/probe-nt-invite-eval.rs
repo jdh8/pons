@@ -340,7 +340,7 @@ fn main() {
         "dealt: Stayman {n_stay}, No-4-major {n_no4} ({attempts} attempts); solving {} boards…",
         deals.len()
     );
-    let tables = Solver::lock().solve_deals(&deals, NonEmptyStrainFlags::ALL);
+    let tables = Solver::lock(None).solve_deals(&deals, NonEmptyStrainFlags::ALL);
 
     let vuls = [
         ("none", AbsoluteVulnerability::NONE),

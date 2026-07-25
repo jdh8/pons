@@ -346,7 +346,7 @@ fn main() -> anyhow::Result<()> {
             .collect();
         for chunk in missing.chunks(4096) {
             let deals: Vec<FullDeal> = chunk.iter().map(|&i| arm.boards[i].deal).collect();
-            let solved = Solver::lock().solve_deals(&deals, NonEmptyStrainFlags::ALL);
+            let solved = Solver::lock(None).solve_deals(&deals, NonEmptyStrainFlags::ALL);
             for (&i, table) in chunk.iter().zip(solved) {
                 cache.insert(deal_key(&arm.boards[i].deal), table);
             }

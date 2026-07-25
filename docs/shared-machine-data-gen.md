@@ -2,9 +2,11 @@
 
 The data-generation and A/B jobs (`bba-gen`, `ben-gen`, the `ab-*` runners)
 are **CPU-saturating**: the double-dummy solver
-([`ddss`](https://crates.io/crates/ddss)) calls `SetMaxThreads(0)` — "use every
-core" — with no caller-side thread knob, so each batch solve spins one worker per
-hardware thread and pegs the whole box for hours.
+([`ddss`](https://crates.io/crates/ddss)) defaults to "use every core", so each
+batch solve spins one worker per hardware thread and pegs the whole box for
+hours. (Since ddss 0.2.0, `Solver::lock(Some(n))` can cap the pool — the gib
+scavenger uses it on Apple Silicon, see the macOS section — but pons code
+passes `None` everywhere else.)
 
 On a machine shared with colleagues, the cap has to come from the **OS**, not the
 app. The policy below is what we use; it's wrapped in [`scripts/idle-run.sh`](../scripts/idle-run.sh).
@@ -215,15 +217,19 @@ loginctl enable-linger "$USER"          # keep running across logout/reboot
 
 macOS has no exact equivalent of Linux's `SCHED_IDLE`. The LaunchAgent in
 [`scripts/gib-scavenge.plist`](../scripts/gib-scavenge.plist) uses Darwin's
-lowest nice priority and low-priority I/O, but deliberately does **not** use
-Darwin's `Background` process classification. DDS auto-configures one worker per
-hardware core; on Apple Silicon, background QoS steers those workers onto the
-efficiency-core cluster (ten DDS workers contending for six E-cores on a base
-M4) and leaves the performance cores unused. Normal classification lets DDS use
-all core types, while `Nice=19` still gives ordinary work CPU priority over the
-scavenger. This is only an approximation: unlike `SCHED_IDLE`, nice shares the
-normal scheduling class, and using every core can still affect thermals, turbo
-headroom, cache, and memory bandwidth.
+`Background` process classification instead: on Apple Silicon, background QoS
+steers CPU-heavy work onto the efficiency-core cluster, leaving the P-cores
+(and their thermals, turbo headroom, and most of the shared memory bandwidth)
+to interactive work. The catch — and why earlier revisions deliberately
+avoided `Background` — is that DDS auto-configures one worker per hardware
+core, so ten workers would contend for six E-cores on a base M4. Since ddss
+0.2.0, `Solver::lock(Some(n))` caps the global pool, so `gib-scavenge.sh`
+detects the E-core count (`sysctl -n hw.perflevel1.logicalcpu`, override via
+`GIB_THREADS`) and passes it as `gib generate --threads`: six workers, six
+E-cores, P-cores untouched. Capping is not pinning — the QoS class does the
+confinement, the cap just right-sizes the pool for it. Trade-off vs the old
+`Nice=19` approach: the scavenger no longer scavenges idle P-cores, but it
+also can no longer degrade foreground work at all.
 
 The checked-in plist assumes the checkout is at `$HOME/src/pons`, matching the
 Linux example above. Install it as a per-user LaunchAgent and switch it on:

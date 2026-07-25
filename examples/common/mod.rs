@@ -283,7 +283,7 @@ pub fn score_boards(
         .filter(|&index| contracts[index].0 != contracts[index].1)
         .collect();
     let solve: Vec<FullDeal> = divergent.iter().map(|&index| deals[index]).collect();
-    let tables = Solver::lock().solve_deals(&solve, NonEmptyStrainFlags::ALL);
+    let tables = Solver::lock(None).solve_deals(&solve, NonEmptyStrainFlags::ALL);
 
     let mut total_points = 0i64;
     let mut board_imps = vec![0i64; contracts.len()];

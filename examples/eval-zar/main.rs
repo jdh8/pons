@@ -27,7 +27,7 @@ fn eval_random_deals(n: usize) -> [Statistics; 64] {
         .take(n)
         .collect();
 
-    Solver::lock()
+    Solver::lock(None)
         .solve_deals(&deals, NonEmptyStrainFlags::ALL)
         .into_iter()
         .map(calculate_par_suit_tricks)

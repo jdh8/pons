@@ -109,7 +109,7 @@ fn main() {
             })
             .collect();
         let solve: Vec<FullDeal> = reached.iter().map(|&(_, deal, ..)| deal).collect();
-        let tables = Solver::lock().solve_deals(&solve, NonEmptyStrainFlags::ALL);
+        let tables = Solver::lock(None).solve_deals(&solve, NonEmptyStrainFlags::ALL);
 
         // All blind leads in one pooled solve (straggler-bound otherwise),
         // then the expensive playouts only on the per-level subsample.

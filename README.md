@@ -60,7 +60,7 @@ let cards = Builder::new()
     .south(south_hand)
     .build_partial()
     .expect("north and south hands are disjoint and ≤13 each");
-let solutions = Solver::lock().solve_deals(
+let solutions = Solver::lock(None).solve_deals(
     &deck::fill_deals(&mut rand::rng(), cards).take(90).collect::<Vec<_>>(),
     NonEmptyStrainFlags::ALL,
 );

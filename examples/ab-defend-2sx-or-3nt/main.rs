@@ -297,7 +297,7 @@ fn score_deals(
     deals: &[FullDeal],
     vulnerability: AbsoluteVulnerability,
 ) -> (Vec<Outcome>, BranchTelemetry) {
-    let tricks = Solver::lock().solve_deals(deals, NonEmptyStrainFlags::ALL);
+    let tricks = Solver::lock(None).solve_deals(deals, NonEmptyStrainFlags::ALL);
     let two_sx = Some((
         Contract::new(2, Strain::Spades, Penalty::Doubled),
         Seat::West,

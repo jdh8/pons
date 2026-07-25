@@ -92,7 +92,7 @@ fn main() {
     }
 
     let deals: Vec<FullDeal> = samples.iter().map(|&(deal, _)| deal).collect();
-    let tables = Solver::lock().solve_deals(&deals, NonEmptyStrainFlags::ALL);
+    let tables = Solver::lock(None).solve_deals(&deals, NonEmptyStrainFlags::ALL);
 
     let mut sliced: BTreeMap<(HeartLength, u8), Results> = BTreeMap::new();
     let mut marginal: BTreeMap<u8, Results> = BTreeMap::new();

@@ -245,7 +245,7 @@ New-harness rules (the Rayon pattern, commits `8f549ed`/`eadb654`):
 
 - Deal generation sequential (seeded, reproducible); **bidding** parallelized
   with `rayon::par_iter` (classify is pure; `Stance` is `Sync`).
-- The ddss `Solver` stays on the **main thread** — `Solver::lock().solve_deals`
+- The ddss `Solver` stays on the **main thread** — `Solver::lock(None).solve_deals`
   batches and parallelizes internally; never call it inside a worker.
 - Thread-local knobs read at *book construction* are baked in; knobs read at
   *classify time* must be set inside the worker closure.

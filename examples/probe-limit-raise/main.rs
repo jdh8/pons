@@ -69,7 +69,7 @@ fn main() {
         })
         .collect();
     let solve_deals: Vec<FullDeal> = divergent.iter().map(|&i| deals[i]).collect();
-    let tables = Solver::lock().solve_deals(&solve_deals, NonEmptyStrainFlags::ALL);
+    let tables = Solver::lock(None).solve_deals(&solve_deals, NonEmptyStrainFlags::ALL);
 
     // Swing per divergent board, plain DD, and the divergence class: a
     // treatment auction containing 4NT is the keycard class, else the plain

@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **ddss bumped to 0.2.0.** Its `Solver::lock`/`try_lock` now take
+  `threads: Option<NonZero<usize>>` (a cap on ddss's global thread pool);
+  every pons call site migrates mechanically and behavior-preservingly to
+  `Solver::lock(None)` (auto-detect all cores, exactly the 0.1.x behavior).
+  The 0.2.0 `!Sync` soundness fix on `Solver` is a no-op here — the solver
+  already lives on the main thread only (iron rule). Not a bidding change;
+  no A/B.
+- **The macOS GIB scavenger is now confined to the efficiency cores.**
+  `gib generate` grows `--threads <n>` (caps the DDS pool via the new ddss
+  API and logs the effective pool size once at startup);
+  `scripts/gib-scavenge.sh` defaults it to the E-core count on Apple Silicon
+  (`sysctl -n hw.perflevel1.logicalcpu`, override with `GIB_THREADS`, empty
+  elsewhere = uncapped); and `scripts/gib-scavenge.plist` switches from
+  `Nice=19` + `LowPriorityIO` to `ProcessType Background`, whose background
+  QoS steers the (now right-sized) workers onto the E-cluster. On a base M4
+  that is 6 workers on 6 E-cores with the 4 P-cores untouched — the
+  scavenger can no longer degrade foreground work at all. Linux
+  (`SCHED_IDLE`) is unchanged. Reinstall the LaunchAgent (bootout →
+  bootstrap, see the plist header) to pick this up.
+
 ### Added
 
 - **Per-suit HCP axis on the DNF envelope** (`Strength.suit_hcp: [Range; 4]`,

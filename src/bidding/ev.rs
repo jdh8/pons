@@ -111,7 +111,7 @@ pub fn ev_all(
     }
 
     // One solve per layout, shared across every candidate call (the cost note).
-    let tables = Solver::lock().solve_deals(&deals, NonEmptyStrainFlags::ALL);
+    let tables = Solver::lock(None).solve_deals(&deals, NonEmptyStrainFlags::ALL);
     let dealer = dealer_of(seat, context.auction().len());
     let table = Table::new(policy, policy, dealer, vul);
     let actor_is_ns = matches!(seat, Seat::North | Seat::South);

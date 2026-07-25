@@ -87,7 +87,7 @@ fn main() {
         .filter(|&i| contracts[i][0] != contracts[i][1])
         .collect();
     let solve_deals: Vec<FullDeal> = divergent.iter().map(|&i| deals[i]).collect();
-    let tables = Solver::lock().solve_deals(&solve_deals, NonEmptyStrainFlags::ALL);
+    let tables = Solver::lock(None).solve_deals(&solve_deals, NonEmptyStrainFlags::ALL);
 
     println!(
         "=== Alert-reading A/B: {} boards, vulnerability {}, seed {} ===",

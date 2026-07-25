@@ -47,13 +47,14 @@ Uninstall after switching off:
     <integer>5</integer>
 
     <!--
-    Keep DDS at the lowest normal CPU priority, but do not use ProcessType
-    Background: DDS creates one worker per hardware core, while that QoS class
-    confines CPU-heavy work to Apple Silicon's efficiency cores.
+    Confine the scavenger to Apple Silicon's efficiency cores: Background QoS
+    (darwinbg) steers CPU-heavy work onto the E-cluster and subsumes the old
+    Nice=19 + LowPriorityIO pair.  DDS would still create one worker per
+    hardware core, so gib-scavenge.sh pairs this with a DDS pool cap at the
+    E-core count (gib generate --threads, ddss >= 0.2.0) — capped and
+    confined, the workers no longer oversubscribe the cores the OS grants.
     -->
-    <key>Nice</key>
-    <integer>19</integer>
-    <key>LowPriorityIO</key>
-    <true/>
+    <key>ProcessType</key>
+    <string>Background</string>
 </dict>
 </plist>

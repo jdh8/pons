@@ -141,7 +141,7 @@ fn main() {
     }
     eprintln!("\rsampled {}/{}        ", args.count, args.count);
 
-    let tables = Solver::lock().solve_deals(&deals, NonEmptyStrainFlags::ALL);
+    let tables = Solver::lock(None).solve_deals(&deals, NonEmptyStrainFlags::ALL);
 
     // (sum IMPs, board count) for all configs and the short / not-short split.
     let mut all = (0i64, 0usize);

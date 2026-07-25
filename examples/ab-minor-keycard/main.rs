@@ -114,7 +114,7 @@ fn main() {
         .filter(|&index| contracts[index].0 != contracts[index].1)
         .collect();
     let solve: Vec<FullDeal> = divergent.iter().map(|&index| boards[index].deal).collect();
-    let tables = Solver::lock().solve_deals(&solve, NonEmptyStrainFlags::ALL);
+    let tables = Solver::lock(None).solve_deals(&solve, NonEmptyStrainFlags::ALL);
 
     let mut swings_pd = vec![0i64; args.count];
     let mut swings_dd = vec![0i64; args.count];

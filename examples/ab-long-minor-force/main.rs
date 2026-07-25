@@ -132,7 +132,7 @@ fn main() {
 
     // Solve the divergent deals once; score each arm's real contract.
     let deals: Vec<FullDeal> = divergent.iter().map(|(d, ..)| *d).collect();
-    let tables = Solver::lock().solve_deals(&deals, NonEmptyStrainFlags::ALL);
+    let tables = Solver::lock(None).solve_deals(&deals, NonEmptyStrainFlags::ALL);
     let swings: Vec<i64> = divergent
         .iter()
         .zip(&tables)

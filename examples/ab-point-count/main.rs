@@ -577,7 +577,7 @@ fn main() {
         Some(all) => divergent.iter().map(|&i| all[i]).collect(),
         None => {
             let solve_deals: Vec<FullDeal> = divergent.iter().map(|&i| deals[i]).collect();
-            Solver::lock().solve_deals(&solve_deals, NonEmptyStrainFlags::ALL)
+            Solver::lock(None).solve_deals(&solve_deals, NonEmptyStrainFlags::ALL)
         }
     };
 

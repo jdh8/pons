@@ -125,7 +125,7 @@ fn main() {
         .filter(|&index| contracts[index].0 != contracts[index].1)
         .collect();
     let deals: Vec<FullDeal> = divergent.iter().map(|&index| boards[index].deal).collect();
-    let tables = Solver::lock().solve_deals(&deals, NonEmptyStrainFlags::ALL);
+    let tables = Solver::lock(None).solve_deals(&deals, NonEmptyStrainFlags::ALL);
 
     // Per-board IMP swing to the settle team (0 on non-divergent boards), scored
     // under perfect defense with the actual penalty carried (`ns_score_pd`).

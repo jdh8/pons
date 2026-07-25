@@ -170,7 +170,7 @@ Mirror `bba-gen`'s anatomy; everything non-EPBot is reused as-is:
   for the vendored-EPBot-vintage question.
 
 Scoring/DD is untouched: divergence-only DD solve on the main thread via
-`Solver::lock()`, plain + PD brackets from `src/scoring.rs`, sd via
+`Solver::lock(None)`, plain + PD brackets from `src/scoring.rs`, sd via
 `ab-dump-sd` — all consume the dump, none know about BEN.
 
 ## Throughput budget (estimates — smoke run calibrates)

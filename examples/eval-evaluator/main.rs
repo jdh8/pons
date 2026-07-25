@@ -204,7 +204,7 @@ fn main() -> anyhow::Result<()> {
             } else {
                 // One batched solve per node, on the main thread: the solver is
                 // a process-global lock and must never meet rayon.
-                let tables = Solver::lock().solve_deals(&sampled, NonEmptyStrainFlags::ALL);
+                let tables = Solver::lock(None).solve_deals(&sampled, NonEmptyStrainFlags::ALL);
                 let predicted = trick_estimates(hand, &inferences);
                 let contested = Phase::of(&auction) != Phase::Constructive;
 

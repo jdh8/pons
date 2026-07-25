@@ -85,7 +85,7 @@ pub fn single_dummy(
     // no rejection, no starvation.  One solve per layout; the fold into a
     // `HistogramTable` is `FromIterator<TrickCountTable>` (free aggregation).
     let deals: Vec<_> = fill_deals(rng, partial).take(n).collect();
-    Solver::lock()
+    Solver::lock(None)
         .solve_deals(&deals, NonEmptyStrainFlags::ALL)
         .into_iter()
         .collect()
@@ -204,7 +204,7 @@ pub fn single_dummy_leads(
             }
         }));
     }
-    let found = Solver::lock().solve_boards(&objectives);
+    let found = Solver::lock(None).solve_boards(&objectives);
 
     questions
         .iter()
@@ -522,7 +522,7 @@ pub fn single_dummy_playout(
         may[seat] = Hand::ALL;
     }
     let mut playout = Playout {
-        solver: Solver::lock(),
+        solver: Solver::lock(None),
         strain,
         trump: Suit::try_from(strain).ok(),
         declarer,
@@ -719,7 +719,7 @@ mod tests {
     fn playout_guesses_where_double_dummy_peeks() {
         let deal = two_way_guess_deal();
         // Fixture validity: DD says North makes 7♠ on the actual layout.
-        let table = Solver::lock().solve_deal(deal);
+        let table = Solver::lock(None).solve_deal(deal);
         assert_eq!(u8::from(table[Strain::Spades].get(Seat::North)), 13);
 
         let inferences = no_inferences();

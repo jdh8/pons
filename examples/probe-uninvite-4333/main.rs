@@ -173,7 +173,7 @@ fn main() {
 
     // Batch-solve every qualifying deal once, then price the three contracts.
     let deals: Vec<FullDeal> = boards.iter().map(|b| b.deal).collect();
-    let tables = Solver::lock().solve_deals(&deals, NonEmptyStrainFlags::ALL);
+    let tables = Solver::lock(None).solve_deals(&deals, NonEmptyStrainFlags::ALL);
     let rows: Vec<Row> = boards
         .iter()
         .zip(&tables)

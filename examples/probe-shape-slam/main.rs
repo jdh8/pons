@@ -130,7 +130,7 @@ fn main() {
 
     // Solve the actual deals of the 4M stops (one table each) on the main thread.
     let solve: Vec<FullDeal> = stops.iter().map(|&(idx, ..)| deals[idx]).collect();
-    let tables = Solver::lock().solve_deals(&solve, NonEmptyStrainFlags::ALL);
+    let tables = Solver::lock(None).solve_deals(&solve, NonEmptyStrainFlags::ALL);
 
     let boards: Vec<Board> = stops
         .iter()

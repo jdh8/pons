@@ -131,7 +131,7 @@ fn main() {
     );
 
     let solve_deals: Vec<FullDeal> = qualifying.iter().map(|b| b.deal).collect();
-    let tables = Solver::lock().solve_deals(&solve_deals, NonEmptyStrainFlags::ALL);
+    let tables = Solver::lock(None).solve_deals(&solve_deals, NonEmptyStrainFlags::ALL);
 
     let mut landed_3nt = 0usize;
     let mut made_3nt = 0usize;

@@ -224,7 +224,7 @@ fn print_verdict(
 
         let sim_deals: Vec<FullDeal> = fill_deals(rng, partial).take(args.simulations).collect();
         let flags = strain_flags(contract.bid.strain);
-        let sim_tables = Solver::lock().solve_deals(&sim_deals, flags);
+        let sim_tables = Solver::lock(None).solve_deals(&sim_deals, flags);
 
         let mut makes: usize = 0;
         let mut score_sum: i64 = 0;

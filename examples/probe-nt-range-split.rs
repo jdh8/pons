@@ -237,8 +237,8 @@ fn main() {
             skipped += 1;
             continue;
         }
-        let tables_lo = Solver::lock().solve_deals(&deals_lo, NonEmptyStrainFlags::ALL);
-        let tables_hi = Solver::lock().solve_deals(&deals_hi, NonEmptyStrainFlags::ALL);
+        let tables_lo = Solver::lock(None).solve_deals(&deals_lo, NonEmptyStrainFlags::ALL);
+        let tables_hi = Solver::lock(None).solve_deals(&deals_hi, NonEmptyStrainFlags::ALL);
 
         let hcp = raw_hcp(responder);
         let shapely = longest(responder) >= 5;

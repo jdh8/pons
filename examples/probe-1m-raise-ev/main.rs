@@ -142,7 +142,7 @@ fn main() {
     }
 
     let deals: Vec<FullDeal> = samples.iter().map(|sample| sample.deal).collect();
-    let tables = Solver::lock().solve_deals(&deals, NonEmptyStrainFlags::ALL);
+    let tables = Solver::lock(None).solve_deals(&deals, NonEmptyStrainFlags::ALL);
 
     println!(
         "Light simple-raise probe: {} accepted deals from {attempts} attempts, seed {}",
