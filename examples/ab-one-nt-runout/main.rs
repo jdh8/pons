@@ -38,17 +38,21 @@
 use clap::{Parser, ValueEnum};
 use contract_bridge::auction::{Auction, Call};
 use contract_bridge::deck::full_deal;
-use contract_bridge::{AbsoluteVulnerability, Bid, FullDeal, Hand, Seat, Strain, Suit};
+use contract_bridge::{AbsoluteVulnerability, Bid, Contract, FullDeal, Hand, Seat, Strain, Suit};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
+use pons::bidding::context::relative;
 use pons::bidding::instinct::{
     Unusual2nt, set_gambling_3nt_over_double, set_gambling_3nt_require_ace,
     set_gambling_3nt_top_honors, set_one_nt_runout, set_one_nt_runout_universal,
     set_penalize_escape_stack, set_penalize_escape_values, set_preempt_4m_over_double,
     set_preempt_4m_require_ace, set_preempt_4m_top_honors, set_runout_xx_min, set_unusual_2nt,
 };
-use pons::bidding::{Family, Stance};
-use pons::scoring::{final_contract, imps, ns_score_contract, ns_score_pd};
+use pons::bidding::{Family, Inferences, Stance};
+use pons::scoring::{
+    final_contract, imps, ns_score_contract, ns_score_pd, ns_score_pd_tricks, ns_score_tricks,
+};
+use pons::single_dummy::{LeadQuestion, single_dummy_leads};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
 use rayon::prelude::*;
@@ -56,7 +60,7 @@ use rayon::prelude::*;
 #[path = "../common/mod.rs"]
 #[allow(dead_code)]
 mod common;
-use common::{Board, hand_hcp, next_call, seat_to_act};
+use common::{Board, hand_hcp, next_call, report_sd_brackets, seat_to_act};
 
 /// Which runout feature the two tables differ on
 #[derive(Clone, Copy, PartialEq, Eq, Debug, ValueEnum)]
@@ -147,6 +151,19 @@ struct Args {
     /// Restrict the runout to responder's direct seat (no opener escape / SOS)
     #[arg(long)]
     no_universal: bool,
+
+    /// Also price the opening lead single-dummy on divergent boards (slower):
+    /// the SD bracket pair — blind lead, then blind lead + perfect doubling
+    #[arg(long, default_value_t = false)]
+    sd: bool,
+
+    /// Worlds sampled per blind lead (the validated GTO setting is 16)
+    #[arg(long, default_value_t = 16)]
+    sd_worlds: usize,
+
+    /// Seed for the world-sampling RNG (report it to reproduce a run)
+    #[arg(long, default_value_t = 20_240_607)]
+    sd_seed: u64,
 
     /// Print this many divergent boards (auction + contracts) for inspection
     #[arg(long, default_value = "0")]
@@ -330,6 +347,30 @@ fn run_coverage(stance: &Stance, args: &Args, deals: &[(Seat, FullDeal)]) {
 }
 
 #[allow(clippy::cast_precision_loss)]
+/// The (contract, declarer, leader-view inferences) of one auction, read through
+/// `stance`; `None` for a pass-out (sd score 0).  Mirrors `ab-dump-sd`.
+///
+/// ponytail: read under the shipped defaults, not each table's runout toggle —
+/// the escape calls the two tables differ on are natural suit bids either way,
+/// so the leader's reading of them barely moves.
+fn lead_inputs(
+    auction: &Auction,
+    stance: &Stance,
+    dealer: Seat,
+    vul: AbsoluteVulnerability,
+) -> Option<(Contract, Seat, Inferences)> {
+    let (contract, declarer) = final_contract(auction, dealer)?;
+    let leader = declarer.lho();
+    let cut = (auction.len().saturating_sub(3)..=auction.len())
+        .find(|&len| seat_to_act(dealer, len) == leader)
+        .expect("one of four consecutive lengths reaches every seat");
+    Some((
+        contract,
+        declarer,
+        stance.infer(relative(vul, leader), &auction[..cut]),
+    ))
+}
+
 fn main() {
     let args = Args::parse();
     let stance = american().against(Family::NATURAL);
@@ -430,4 +471,59 @@ fn main() {
         total_imps as f64 / args.count.max(1) as f64,
         total_imps as f64 / divergent.len().max(1) as f64,
     );
+
+    if args.sd {
+        // Blind-lead pass over the same divergent boards: each table's auction is
+        // read for the leader (declarer's LHO), the opening lead is chosen
+        // single-dummy over `sd_worlds` sampled worlds, and play is double-dummy
+        // on the actual deal.  Both SD scorers price that one trick count, so the
+        // pair costs nothing extra.  Main thread only — the solver is not
+        // reentrant, and the solve above has released it.
+        let vul = args.vulnerability;
+        let mut pending: Vec<(usize, bool, Contract, Seat)> = Vec::new();
+        let mut questions: Vec<LeadQuestion> = Vec::new();
+        for &index in &divergent {
+            let board = &boards[index];
+            for (is_a, auction) in [(true, &board.table_a), (false, &board.table_b)] {
+                if let Some((contract, declarer, inferences)) =
+                    lead_inputs(auction, &stance, board.dealer, vul)
+                {
+                    pending.push((index, is_a, contract, declarer));
+                    questions.push(LeadQuestion {
+                        deal: board.deal,
+                        strain: contract.bid.strain,
+                        declarer,
+                        inferences,
+                    });
+                }
+            }
+        }
+        let mut rng = StdRng::seed_from_u64(args.sd_seed);
+        let mut a_score = vec![[0i64; 2]; boards.len()];
+        let mut b_score = vec![[0i64; 2]; boards.len()];
+        const CHUNK: usize = 4096;
+        for (asked, chunk) in pending.chunks(CHUNK).zip(questions.chunks(CHUNK)) {
+            let answers = single_dummy_leads(chunk, &mut rng, args.sd_worlds);
+            for (&(index, is_a, contract, declarer), &(_, tricks)) in asked.iter().zip(&answers) {
+                let t = u8::from(tricks);
+                let score = [
+                    ns_score_tricks(contract, declarer, t, vul),
+                    ns_score_pd_tricks(contract, declarer, t, vul),
+                ];
+                if is_a {
+                    a_score[index] = score;
+                } else {
+                    b_score[index] = score;
+                }
+            }
+        }
+        report_sd_brackets(
+            "sd-lead runout",
+            args.sd_worlds,
+            args.sd_seed,
+            &a_score,
+            &b_score,
+            divergent.len(),
+        );
+    }
 }
