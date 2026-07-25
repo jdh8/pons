@@ -162,6 +162,41 @@ fn size_ask_eight_pass() -> Rules {
     }
 }
 
+thread_local! {
+    /// Opener's HCP floor to *accept* the balanced-eight size ask, read once at
+    /// book-construction time.  `16` by default; see [`set_size_ask_accept_floor`].
+    static SIZE_ASK_ACCEPT_FLOOR: Cell<u8> = const { Cell::new(16) };
+}
+
+/// Set opener's HCP floor for accepting the balanced-eight size-ask invite for
+/// books built *after* this call (thread-local; **default 16**)
+///
+/// Over the size ask (`2♠` Puppet max-signal `3♣`, or European `2NT`→`3NT`), a
+/// maximum accepts game and a minimum declines to `2NT`.  Shipped floor is **16**
+/// (accept the 24-HCP game): the earlier double-dummy probe rejected accept-16,
+/// but DD over-punishes the accepted `3NT` with doubled failures a realistic
+/// blind lead dodges.  Re-priced under the single-dummy perfect-defense scorer
+/// ([`ns_score_pd_tricks`][crate::scoring::ns_score_pd_tricks]) accept-16 wins
+/// both vulnerabilities (SD-PD −0.85 NV / −2.16 vul IMPs/divergent, plain-DD
+/// non-negative), so 16 is default-on.  In the Puppet scheme this signal is
+/// shared with the club one-suiter; the club buckets measured benign.  Raise to
+/// 17 to restore the pre-2026-07-25 conservative accept.
+///
+/// The meaningful sweep is `{15, 16, 17}` (opener's 1NT range).  Floor 15 is a
+/// **falsification control**, not a shippable setting: accepting on `15 + 8 = 23`
+/// turns the invite into a game force, so 15 *should* decline — the harness is
+/// expected to price accept-15 as a clear loss, and a measured *win* there is a
+/// warning that the scorer (not the treatment) is wrong.  It priced accept-15 at
+/// SD-PD +1.11 NV / +0.99 vul (a clear decline), validating the scorer.
+pub fn set_size_ask_accept_floor(floor: u8) {
+    SIZE_ASK_ACCEPT_FLOOR.with(|cell| cell.set(floor));
+}
+
+/// Opener's current accept floor for the balanced-eight size ask (default 16)
+fn size_ask_accept_floor() -> u8 {
+    SIZE_ASK_ACCEPT_FLOOR.with(Cell::get)
+}
+
 // ---------------------------------------------------------------------------
 // 1NT response structure
 // ---------------------------------------------------------------------------
@@ -2584,7 +2619,11 @@ fn club_no_shortness(threshold: u8) -> Cons<impl Constraint + Clone> {
 /// (max), and a game-going club hand splinters.
 fn two_spade_answer() -> Rules {
     Rules::new()
-        .rule(Bid::new(3, Strain::Clubs), 1.0, hcp(17..))
+        .rule(
+            Bid::new(3, Strain::Clubs),
+            1.0,
+            hcp(size_ask_accept_floor()..),
+        )
         .rule(Bid::new(2, Strain::Notrump), 0.9, hcp(0..))
 }
 
@@ -2708,9 +2747,10 @@ fn european_two_spade_rebid() -> Rules {
 /// The 2NT bidder is a balanced eight; opposite a 17 (`25` combined) opener accepts
 /// game, otherwise passes and plays 2NT — reproducing the natural-2NT outcome.
 fn european_two_nt_answer() -> Rules {
+    let floor = size_ask_accept_floor();
     Rules::new()
-        .rule(Bid::new(3, Strain::Notrump), 1.0, hcp(17..))
-        .rule(Call::Pass, 0.0, hcp(..17))
+        .rule(Bid::new(3, Strain::Notrump), 1.0, hcp(floor..))
+        .rule(Call::Pass, 0.0, hcp(..floor))
 }
 
 /// Opener completes the European diamond transfer: `3♦`

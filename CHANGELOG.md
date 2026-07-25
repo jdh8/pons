@@ -70,6 +70,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   sane `4♥`. Kept as a **reading-cap re-measure candidate** (cap the 2/1 reading
   ceiling first).
 
+- `set_size_ask_accept_floor(u8)` (thread-local, default **16** after the flip
+  above; raise to 17 to restore the pre-2026-07-25 conservative accept) and its
+  A/B `examples/ab-size-ask-accept`. The example sweeps opener's accept floor
+  between two poles and buckets divergent boards by opener HCP, so a single run
+  yields both the accept-16 question and the accept-15 falsification control
+  (see the Changed entry above). Four scoring brackets (plain-DD / DD-PD /
+  plain-SD / SD-PD).
+
 - `set_size_ask_eight` (opt-in `SizeAskEight::{Shipped, Invite, Pass}`, default
   `Shipped` — **the shipped book is byte-identical**) and its A/B
   `examples/ab-size-ask-eight`. Re-prices the 1NT **size ask** on a balanced eight
@@ -102,6 +110,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   flip**. No functional change.
 
 ### Changed
+
+- **Opener accepts the balanced-eight size ask on 16, not 17** (floor 17→16 in
+  `two_spade_answer`/`european_two_nt_answer`). Over the size ask (`2♠` Puppet
+  max-signal `3♣`, or European `2NT`→`3NT`), a maximum accepts game; the floor was
+  17 (accept 25 combined, stop at 24). A 2026-07-22 double-dummy probe rejected
+  accept-16, but DD over-punishes the accepted `3NT` with doubled failures a
+  realistic blind lead dodges. Re-priced under **SD-PD**
+  (`ns_score_pd_tricks`) with a 15-count **falsification control** (accept on
+  `15+8=23` is a game force — it *must* measure as a decline, else the scorer is
+  wrong). Single 15-vs-17 A/B (`ab-size-ask-accept`), opener-HCP bucketed, Decline
+  − Accept, + ⇒ declining wins ⇒ accepting is bad (12M NV / 5M vul, seed
+  1784979640, IMPs/divergent):
+
+  | bucket | plain-DD | DD-PD | plain-SD | **SD-PD** |
+  | --- | --- | --- | --- | --- |
+  | op15 invite (CONTROL) NV | +1.258 | +2.945 | −0.078 | **+1.110 ± 0.149** |
+  | op15 invite (CONTROL) vul | +1.271 | +3.686 | −0.714 | **+0.994 ± 0.332** |
+  | **op16 invite (QUESTION) NV** | −0.014 | +1.158 | −1.600 | **−0.849 ± 0.171** |
+  | **op16 invite (QUESTION) vul** | −0.870 | +0.904 | −3.267 | **−2.159 ± 0.387** |
+
+  The control fired correctly both vuls (SD-PD prices accept-15 as a clear decline;
+  only the perfect-defense doubling rejects it — plain-SD alone washes/favors it),
+  so the scorer is trusted. accept-16 then **wins both vuls** and is no doubling
+  artifact: plain-SD favors accepting hugely (−1.6/−3.3), plain-DD is non-negative
+  (NV wash, vul −0.87 favorable), and only DD-PD (+1.16/+0.90 — the blind-lead
+  doubling the 2026-07-22 rejection was built on) prefers declining. SD-PD
+  overturns it. Per the decision table (plain non-negative + SD-PD gain) this ships
+  **default-on**. The Puppet max/min signal is shared with the club one-suiter;
+  the club buckets measured benign (SD-PD −0.14/−0.19 NV, −0.19/−0.23 vul).
 
 - **Default major 2/1 no-fit gate → `Points13` (`points(13..)`), superseding
   `Hcp13`.** Under the new PointCount scale (entry below), the no-support leg of
