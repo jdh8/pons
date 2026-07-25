@@ -38,8 +38,8 @@ use pons::american;
 use pons::bidding::context::relative;
 use pons::bidding::features::LEN_INFERENCE;
 use pons::bidding::{
-    FEATURES_LEN_EVAL, Family, Relative, features_eval, sample_layouts, set_sum_closure,
-    set_upgrade_closure,
+    FEATURES_LEN_EVAL, Family, Relative, features_eval, sample_layouts, set_gauge_membership,
+    set_sum_closure, set_upgrade_closure,
 };
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -69,6 +69,14 @@ struct Args {
     /// Probe C2 (`set_upgrade_closure`) instead of C1
     #[arg(long)]
     upgrade: bool,
+
+    /// Give the strength gauges membership teeth in *both* arms
+    /// ([`set_gauge_membership`]).  C2's membership effect should vanish
+    /// under it: C2 bounds `points` by `hcp + upgrade_ceiling(lengths)`, and
+    /// a hand inside the box has `upgrade <= upgrade_ceiling`, so any hand
+    /// the closure rejects was already rejected by the direct `hcp` test.
+    #[arg(long)]
+    gauge: bool,
 }
 
 /// The 10 column kinds one seat contributes, for the per-column report
@@ -111,6 +119,7 @@ fn main() {
         set_sum_closure
     };
     let name = if args.upgrade { "C2 upgrade" } else { "C1 sum" };
+    set_gauge_membership(args.gauge);
 
     // Per column kind: every |Δ| that was nonzero, plus every value seen
     // knob-off (for the corpus σ that puts the movement on the net's scale).

@@ -85,6 +85,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   C1's perturbation really is information-free, so its ~60% net share is pure
   encoding non-invariance and no evaluator retrain can be *earned* on it.
 
+  A `--gauge` flag runs both arms with `set_gauge_membership` on, which closes
+  the C2 × gauge-membership re-measure the ledger had standing — without a run.
+  C2's 249 rejections drop to **0 of 8,576** (C1 stays 0 of 405,546), because
+  the subsumption is a theorem: C2 bounds `points` by
+  `hcp + upgrade_ceiling(lengths)` and every hand inside the box has
+  `upgrade ≤ upgrade_ceiling`, so anything the closure rejects the direct `hcp`
+  test rejected first. Stacking C2 on gauge membership therefore adds only the
+  0.09σ `pts max` endpoint move — the artifact-shaped direction C1 was just
+  refuted for — on top of a knob already measured a wash. Re-measure: **no-go**,
+  and `set_upgrade_closure` loses its billing as that flip's enabler.
+
   **The net's half has a named cause, and it generalizes** — recorded as a new
   migration rule in `docs/dnf-migration.md`. `features::push_inference` feeds
   each seat only `{min,max} ÷ cap`, so the nets carry **no prior over the
