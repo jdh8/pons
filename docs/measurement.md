@@ -103,6 +103,25 @@ board's swing keeps its sign and SD-PD adds no independent signal. A verdict
 resting on such a harness alone needs a plain+PD re-adjudication, not an SD-PD
 row.
 
+**Measure bidding decisions, not gauges** (2026-07-25). When the re-adjudication
+queue was drawn up it mixed two kinds of row: knobs that change *which call we
+make*, and knobs that merely elect *which scalar strength gauge* the ranges are
+denominated in (point scale, HCP-vs-CCCC bands, Fifths-vs-HCP). Only the first
+kind is worth DDS-hours. The reading layer now carries several strength axes
+side by side on the same `Envelope` — `hcp`, `support_points`, `suit_hcp` — so
+the evaluator question has stopped being "which fused scalar wins" and become
+"which features does the net get"; electing one scalar by A/B optimises the
+wrong layer. Drop gauge-election rows from a queue and record them as
+*superseded, not measured*, with the reason.
+
+A second, sharper filter applies to any re-measure: **if a default has since
+been re-justified by a newer and independent measurement, its old verdict row is
+stale evidence and no re-measure can move it.** `set_fuzzy_points` is the worked
+example — plain SD shipped it over a negative PD bracket, which is exactly the
+artifact above, but its default now rests on the `277059f` scale flip
+(plain-DD wash, PD +0.023/+0.037), not on that plain-SD row. Re-measuring it
+would produce a number that changes nothing.
+
 ## The decision table
 
 | Plain DD | PD | Verdict |
