@@ -70,6 +70,15 @@ for vul in none both; do
     run "runout-direct.$vul" \
         "$BINDIR/ab-one-nt-runout" --compare runout --filter-1nt --no-universal \
         --count 1000000 -v "$vul" --seed "$SEED" --sd --sd-seed "$SEED"
+    # --score selects the *DD* scorer only (the SD pair prints either way), and
+    # the published marginal's PD leg is the negative one (-0.004/-0.005), so it
+    # needs its own pair of runs to complete the 2x2.
+    run "runout-full-pd.$vul" \
+        "$BINDIR/ab-one-nt-runout" --compare runout --filter-1nt --score pd \
+        --count 1000000 -v "$vul" --seed "$SEED"
+    run "runout-direct-pd.$vul" \
+        "$BINDIR/ab-one-nt-runout" --compare runout --filter-1nt --score pd \
+        --no-universal --count 1000000 -v "$vul" --seed "$SEED"
 done
 
 echo "=== sd-pd queue done $(date -Is)"

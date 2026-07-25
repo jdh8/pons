@@ -331,6 +331,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   honest realism pair is **[plain DD, SD-PD]**, and one must never compare plain
   SD against PD, which differ in both coordinates at once. Defaults untouched
   throughout; verdicts corrected in the ledgers.
+- **Re-adjudication batch 3 — the Meckstroth `3m` leg refuted, the runout
+  marginal inert.** Splitting `set_meckstroth_minor_jumps` out of the merged
+  adjunct finally prices the invitational `3m` jumps alone (400k/vul; **0.2%
+  divergent against the merged knob's 0.6%**, the tell that the split took).
+  Published as *sd-vindicated* (plain wash, PD −0.0036/−0.0019, sd-lead
+  +0.0012/+0.0042); measured now, **every bracket is ≤0** — plain DD
+  −0.002/−0.003, PD −0.004/−0.005, plain SD −0.0007 ±0.0007 / −0.0003 ±0.0009
+  (a wash, not the published win), **SD-PD −0.0025 ±0.0009 / −0.0021 ±0.0011,
+  CI-clear negative both vuls**. The merged knob's confirmation is therefore
+  entirely its `2NT` machine (≈ +0.0098/+0.0141 SD-PD once the leg's drag comes
+  out), and the batch-1 caveat that the suspect leg still rode on its original
+  plain-SD row is discharged. Recommend demoting to opt-in.
+  `set_one_nt_runout_universal`, tagged "sd-lead candidate" on an obstruction
+  split (plain +0.009/+0.011, PD −0.004/−0.005), re-measured across the full
+  2×2: the marginal is **inert on all four brackets** (|Δ| ≤ 0.0007, noise
+  ≈±0.0015) and **the split itself is gone** — PD is no longer negative, so
+  there is nothing for a lead-scorer to arbitrate. Tag retired; default kept.
+  Both are fresh measurements rather than rescores, and neither published
+  figure reproduces at today's book.
+
+### Fixed
+
+- **`ab-meckstroth-2nt --minor-jumps-only` had inverted polarity** and silently
+  re-ran the merged A/B: it dropped the whole adjunct from the baseline instead
+  of keeping the game force. Caught by the output rather than the compiler —
+  divergence landed on the merged knob's 0.6% and the numbers came back within
+  noise of the merged figures. The flag shipped and was used in the same
+  session, so no published verdict rests on it.
 
 ### Added
 

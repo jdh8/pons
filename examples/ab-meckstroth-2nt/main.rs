@@ -107,7 +107,11 @@ fn main() {
     // thereafter.
     // With --minor-jumps-only the baseline instead keeps the game force and
     // drops just the 3m jumps, so the A/B prices that leg alone.
-    set_meckstroth_adjunct(!args.minor_jumps_only);
+    // NB the polarity: --minor-jumps-only means the baseline *keeps* the game
+    // force (so only the jumps move); without it the baseline drops the whole
+    // adjunct.  An inverted `!` here silently re-ran the merged A/B instead —
+    // the tell was divergence landing on the merged knob's 0.6%.
+    set_meckstroth_adjunct(args.minor_jumps_only);
     set_meckstroth_minor_jumps(false);
     let baseline = american().against(Family::NATURAL);
     set_meckstroth_adjunct(true); // restore the shipped default (on)
