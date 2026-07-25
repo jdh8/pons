@@ -9,6 +9,74 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Box closure — narrow a read box to what its own contents already imply.**
+  Two opt-in knobs on the DNF reading, both **exact** (no hand is dropped) and
+  therefore **membership-inert**: the sampler cannot move, only `Dnf::hull`
+  (tighter bands for the evaluator and feature nets) and the `subset_of` dedup
+  (fewer terms). Neither adds an axis.
+
+  - `set_sum_closure` (**C1**, `bba-gen --ns-sum-closure`) — `Σ len = 13` was
+    only ever *tested* (`Envelope::sum_feasible` drops ghost boxes); nothing
+    narrowed with it. A both-majors reading therefore stored
+    `{♠ 5..13, ♥ 5..13, ♦ 0..13, ♣ 0..13}` when the truth is
+    `{♠ 5..8, ♥ 5..8, ♦ 0..3, ♣ 0..3}` — eight of the thirteen cards are
+    already spoken for. One sweep gives bounds consistency for a single linear
+    equality and is exact: the largest realizable `len_i` is
+    `min(hi_i, 13 − Σ_{j≠i} lo_j)`, attained by giving `i` that value and
+    distributing the rest. Fires on **8.0%** of boards — and **measures a loss
+    in all four cells** (204,800 bd/arm/vul, seed 1785011107): plain
+    −0.0370/−0.0463, PD −0.0667/−0.0750 NV/vul, every CI clear of zero.
+    Default-off opt-in. The reading is *true* and the sampler is pinned inert,
+    so the entire delta flows through hull consumers — the chop-F1 mechanism at
+    ~3.5× F's firing rate. The isolation run (`scripts/closure-isolate-ab.sh`,
+    new `bba-gen --no-ns-bilans` on both arms) splits it: **the bilans net is
+    47-64% of the loss, and C1 still loses decisively without it** — plain
+    −0.0133/−0.0191, PD −0.0332/−0.0394. Both the net and the authored gates
+    read the tighter bounds badly. See `docs/dnf-migration.md` row C1.
+  - `set_upgrade_closure` (**C2**, `bba-gen --ns-upgrade-closure`) — `points` is
+    `hcp` plus a shape-and-honor `upgrade`, and *balanced hands never upgrade*
+    (every balanced shape holds at most 9 cards in its two longest suits). So a
+    box whose lengths force balanced reads `points == hcp`, where `points`'
+    projection slacked `hcp` by the scale's **global** worst case — a 2-HCP leak
+    at each end of the most-read strength gate in the book. New
+    `constraint::upgrade_ceiling` is the box-local dual of `hcp_ceiling_slack`.
+
+  **C2 measures bidding-inert (0/3000 boards divergent), and the reason is a
+  finding in its own right: `Envelope::strength.hcp` is a write-only axis.**
+  Nothing consumes it at default settings — the sampler tests lengths and
+  `points` only (`gauge_membership` is off), the policy and evaluator nets are
+  fed lengths + `points` by `features::push_inference`, and no gate reads the
+  band. The knob is kept as the enabler for a `set_gauge_membership` flip, not
+  as a shippable win.
+
+  Verification: exactness of C1 is pinned by brute force over all 560 shapes
+  (`sum_closure_is_exact_and_inert`, also checking idempotence), C2's balanced
+  case by `upgrade_closure_crisps_the_balanced_band`, and the load-bearing
+  membership-inertness claim by a proptest over real deals and five authored
+  readings (`closure_is_membership_inert`). Both knobs default **off**, so the
+  shipped reading is byte-identical.
+
+  **The net's half has a named cause, and it generalizes** — recorded as a new
+  migration rule in `docs/dnf-migration.md`. `features::push_inference` feeds
+  each seat only `{min,max} ÷ cap`, so the nets carry **no prior over the
+  range**: `hcp(10..=20)` has P(10-12) = 0.264 vs P(18-20) = 0.033 (8×) and
+  `E = 12.97` against a midpoint of 15.00, while `♥ 5..13` and `♥ 5..8` are the
+  *same claim* (E = 5.36, mass 0.1763 vs 0.1762) with `max/13` moving
+  1.00 → 0.62. An exact closure can therefore be nearly pure information-free
+  feature perturbation. That is stronger than "out of distribution" — the
+  encoding is not invariant to information-preserving re-representations, so a
+  retrain fixes the instance, not the class.
+
+### Fixed
+
+- **`Strength`'s doc no longer promises a floor `canonicalize` does not
+  restore.** It claimed `canonicalize` re-establishes `points >= hcp` alongside
+  `support_points >= hcp`; only the latter is looped. Nothing was unsound — the
+  `points` floor is written at the source by `hcp`'s projection — but a bare
+  `narrow_hcp`, or an `intersect` with a box whose `points` came from elsewhere,
+  left the documented invariant unheld. Doc-only; the coupling itself now lands
+  (two-sided, knob-gated) in `Envelope::narrow_to_upgrade`.
+
 - **Binky Points with error bars** — an additive hand valuation that publishes a
   *spread*, not just a centre. Per suit holding: a contribution to expected
   tricks and one to the *variance* of that count, both additive across the

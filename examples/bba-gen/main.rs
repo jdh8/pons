@@ -167,6 +167,30 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_gauge_membership: bool,
 
+    /// Narrow our side's read suit lengths by `Σ len = 13` (`set_sum_closure`,
+    /// crate default off): a both-majors box stops claiming 13 spades.  Exact
+    /// and membership-inert, so only hulls and term counts move.  DNF-ledger
+    /// chop C1 (docs/dnf-migration.md).
+    #[arg(long, default_value_t = false)]
+    ns_sum_closure: bool,
+
+    /// Turn OFF the learned bilans floor for our side
+    /// (`instinct::set_bilans_floor`, crate default on): the converted game and
+    /// slam gates fall back to authored point arithmetic instead of asking the
+    /// `evaluator_v2` net.  The isolation arm for any reading change suspected
+    /// of putting the evaluator out of distribution (chop F1's mechanism) —
+    /// run it on BOTH arms of the pair, so the delta that survives is the one
+    /// the *authored* gates see.
+    #[arg(long, default_value_t = false)]
+    no_ns_bilans: bool,
+
+    /// Close our side's read `hcp` against `points` through the shape upgrade
+    /// (`set_upgrade_closure`, crate default off): balanced hands never
+    /// upgrade, so a balanced box reads `points == hcp` instead of carrying the
+    /// scale's global slack.  DNF-ledger chop C2.
+    #[arg(long, default_value_t = false)]
+    ns_upgrade_closure: bool,
+
     /// Open the strong 2NT (20-21) on the wide-minor shape `{M 2..=4, m 2..=6}`
     /// for our side (`set_two_notrump_wide`, crate default off): drops the
     /// 5M(332) balanced hands (they open one-of-a-major) and adds the wide
@@ -1120,6 +1144,9 @@ fn main() -> anyhow::Result<()> {
     pons::bidding::set_fallback_projection(!args.no_ns_fallback_projection);
     pons::bidding::set_dnf_reading(!args.no_ns_dnf);
     pons::bidding::set_gauge_membership(args.ns_gauge_membership);
+    pons::bidding::instinct::set_bilans_floor(!args.no_ns_bilans);
+    pons::bidding::set_sum_closure(args.ns_sum_closure);
+    pons::bidding::set_upgrade_closure(args.ns_upgrade_closure);
     pons::bidding::american::set_two_notrump_wide(args.ns_two_nt_wide);
     pons::bidding::american::set_open_one_notrump(!args.no_our_1nt);
     pons::bidding::american::set_one_notrump_fifths(args.nt_fifths);

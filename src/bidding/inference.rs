@@ -233,6 +233,63 @@ pub fn gauge_membership() -> bool {
 }
 
 std::thread_local! {
+    /// Whether [`Dnf::tidy`] narrows suit lengths by `Σ len = 13` (see
+    /// [`set_sum_closure`]).  **Off by default** — a hull change, so it owes
+    /// an A/B.
+    static SUM_CLOSURE: Cell<bool> = const { Cell::new(false) };
+    /// Whether [`Dnf::tidy`] closes `hcp` against `points` through the shape
+    /// upgrade (see [`set_upgrade_closure`]).  **Off by default**, same reason.
+    static UPGRADE_CLOSURE: Cell<bool> = const { Cell::new(false) };
+}
+
+/// C1: narrow each box's suit lengths to what `Σ len = 13` implies
+/// (**default off**, chop C of docs/dnf-migration.md)
+///
+/// `Envelope::sum_feasible` only *tests* the sum; nothing narrows with it, so a
+/// both-majors reading stores `{♠ 5..13, ♥ 5..13, ♦ 0..13, ♣ 0..13}` when the
+/// truth is `{♠ 5..8, ♥ 5..8, ♦ 0..3, ♣ 0..3}` — eight of the thirteen cards
+/// are already spoken for.  See `Envelope::narrow_to_sum` for the sweep and its
+/// exactness proof.
+///
+/// Its own knob, never folded into [`set_upgrade_closure`]: the two closures
+/// read different axes and the A/B measures them apart before stacking.
+/// Requires [`dnf_reading`] (the knob-off hull path stays byte-identical).
+/// Read at classification time, per-thread.
+#[doc = include_str!("closure-inertness.md")]
+pub fn set_sum_closure(on: bool) {
+    SUM_CLOSURE.with(|cell| cell.set(on));
+}
+
+/// Whether the `Σ len = 13` closure is enabled (default off)
+#[must_use]
+pub fn sum_closure() -> bool {
+    SUM_CLOSURE.with(Cell::get)
+}
+
+/// C2: close `hcp` against `points` through the shape upgrade
+/// (**default off**, chop C of docs/dnf-migration.md)
+///
+/// `points` is `hcp` plus a shape-and-honor
+/// [`upgrade`][super::constraint::upgrade], and *balanced hands never upgrade*
+/// (every balanced shape holds at most 9 cards in its two longest suits).  So a
+/// box whose lengths force balanced reads `points == hcp`, where
+/// [`points`][super::constraint::points]' projection slacks `hcp` by the
+/// scale's **global** worst case — a 2-HCP leak at each end of the most-read
+/// strength gate in the book.  See `Envelope::narrow_to_upgrade`.
+///
+/// Requires [`dnf_reading`].  Read at classification time, per-thread.
+#[doc = include_str!("closure-inertness.md")]
+pub fn set_upgrade_closure(on: bool) {
+    UPGRADE_CLOSURE.with(|cell| cell.set(on));
+}
+
+/// Whether the shape-upgrade closure is enabled (default off)
+#[must_use]
+pub fn upgrade_closure() -> bool {
+    UPGRADE_CLOSURE.with(Cell::get)
+}
+
+std::thread_local! {
     /// Whether the reading classifies high (four-plus level) new-suit bids as
     /// control bids vs to-play (**on by default**, M6.4).  The deterministic
     /// rule, distilled from Bridge World Standard: such a bid is *natural* iff
@@ -511,8 +568,13 @@ impl Range {
 /// field-by-field.  The gauges are **marginals, never a joint**: no cross-gauge
 /// relation (`points == hcp`, i.e. "balanced") fits a box — that is a shape fact,
 /// and lives in [`Envelope::lengths`].  The one exception is the monotone floor
-/// `support_points >= hcp` (and `points >= hcp`), which *is* box-representable and
-/// `canonicalize` restores after every narrow.
+/// `support_points >= hcp`, which *is* box-representable and `canonicalize`
+/// restores after every narrow.  (`points >= hcp` holds too, but is written at
+/// the source by [`hcp`][super::constraint::hcp]'s projection rather than
+/// restored here — see `canonicalize`.)  The shape fact *is* recoverable per
+/// box, just not in the `(hcp, points)` plane: the lengths sit in the same box,
+/// so `Envelope::narrow_to_upgrade` closes the two gauges against each other
+/// under [`set_upgrade_closure`].
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Strength {
@@ -559,6 +621,13 @@ impl Strength {
     /// promise (a 15–17 1NT) floors the support gauge for free, without a
     /// fit-showing raise having fired.  Monotone (only raises a `.min`), so it
     /// never narrows past the truth.
+    ///
+    /// [`points`][Self::points] is **not** floored here even though the same
+    /// implication holds: its floor is written at the source by
+    /// [`Hcp::project`][super::constraint::hcp], and adding it here would be a
+    /// shipped-reading change (a bare `narrow_hcp` currently leaves `points`
+    /// alone).  [`Envelope::narrow_to_upgrade`] is where that coupling lands,
+    /// knob-gated and two-sided.
     ///
     /// [`suit_hcp`][Self::suit_hcp] is deliberately **not** coupled here: the
     /// sound whole-hand implications (`hcp.min >= Σ suit mins`, a length-capped
@@ -801,6 +870,68 @@ impl Envelope {
         min <= 13 && 13 <= max
     }
 
+    /// Narrow the suit lengths to the tightest bounds `Σ len = 13` implies
+    ///
+    /// [`sum_feasible`][Self::sum_feasible] only *tests* the sum; a box born of
+    /// an `&` keeps whatever ⊤ its arms left, so a both-majors reading stores
+    /// `{♠ 5..13, ♥ 5..13, ♦ 0..13, ♣ 0..13}` when eight of those thirteen
+    /// cards are already spoken for.  One sweep achieves bounds consistency for
+    /// a single linear equality, and it is **exact**: the largest realizable
+    /// `len_i` is `min(hi_i, 13 − Σ_{j≠i} lo_j)`, attained by giving `i` that
+    /// value and distributing the rest, which is feasible for any
+    /// `sum_feasible` box.  Symmetric for the floor.
+    ///
+    /// **Membership-inert** — every 13-card hand satisfies the sum, so
+    /// [`admits`][Self::admits] is unchanged.  Only [`Dnf::hull`] (tighter) and
+    /// [`subset_of`][Self::subset_of] (more containments) move.  Idempotent.
+    fn narrow_to_sum(&mut self) {
+        let total_min: u8 = self.lengths.iter().map(|range| range.min).sum();
+        let total_max: u8 = self.lengths.iter().map(|range| range.max).sum();
+        // Every suit reads the *original* totals — that is what makes the one
+        // sweep bounds-consistent (and idempotent) rather than order-dependent.
+        let before = self.lengths;
+        for (range, was) in self.lengths.iter_mut().zip(before) {
+            range.max = was.max.min(13_u8.saturating_sub(total_min - was.min));
+            range.min = was.min.max(13_u8.saturating_sub(total_max - was.max));
+        }
+    }
+
+    /// Close `hcp` and `points` against each other through the shape upgrade
+    ///
+    /// `points = hcp + upgrade` on the shipped scale, and the upgrade is a
+    /// function of shape and honor placement — so the box's own `lengths` bound
+    /// it.  The case that pays: **balanced hands never upgrade**
+    /// ([`upgrade`][super::constraint::upgrade]; every balanced shape has its
+    /// two longest suits at 9 cards or fewer), so a box whose lengths force
+    /// balanced has `points == hcp` exactly, where
+    /// [`Points::project`][super::constraint::points] slacked `hcp` by the
+    /// scale's global worst case in both directions.
+    ///
+    /// Exact, hence membership-inert, hence sound for
+    /// [`subset_of`][Self::subset_of] dedup — the containments it exposes are
+    /// real.  A no-op on scales whose upgrade a length box cannot bound (see
+    /// `super::constraint::upgrade_ceiling`).
+    fn narrow_to_upgrade(&mut self) {
+        let Some(ceiling) = super::constraint::upgrade_ceiling(&self.lengths) else {
+            return;
+        };
+        // The floor of `points − hcp` is 0 on every closable scale (a wasted
+        // honor can eat the whole upgrade), so only the ceiling is two-sided.
+        let strength = &mut self.strength;
+        strength.points.min = strength.points.min.max(strength.hcp.min);
+        strength.hcp.max = strength.hcp.max.min(strength.points.max);
+        strength.points.max = strength
+            .points
+            .max
+            .min(strength.hcp.max.saturating_add(ceiling));
+        strength.hcp.min = strength
+            .hcp
+            .min
+            .max(strength.points.min.saturating_sub(ceiling));
+        // A raised `hcp` floor owes the support gauge its floor back.
+        strength.canonicalize();
+    }
+
     /// Whether every hand in this box also lies in `other` — axis-wise
     /// enclosure over the lengths and every gauge
     fn subset_of(&self, other: &Self) -> bool {
@@ -952,7 +1083,11 @@ impl Dnf {
     /// Two prunes, both union-preserving: **ghost boxes** whose suit lengths
     /// are sum-infeasible ([`Envelope::sum_feasible`]) admit no hand, and a
     /// box **contained** in another ([`Envelope::subset_of`]) adds no hands
-    /// (equal boxes keep their first copy).  Runs only under [`dnf_reading`] —
+    /// (equal boxes keep their first copy).  Between them, under
+    /// [`set_sum_closure`] / [`set_upgrade_closure`], each surviving box is
+    /// narrowed to the bounds its own contents imply
+    /// (`Envelope::narrow_to_sum`, `Envelope::narrow_to_upgrade`) — exact, so
+    /// the extra containments the dedup then finds are real.  Runs only under [`dnf_reading`] —
     /// the knob-off hull path must stay byte-identical — and restores the
     /// non-empty invariant with ⊤ if every box was a ghost (an unsatisfiable
     /// conjunction; sound, loose, rare).
@@ -961,6 +1096,20 @@ impl Dnf {
             return self;
         }
         self.0.retain(Envelope::sum_feasible);
+        if sum_closure() || upgrade_closure() {
+            // Exact and membership-inert, so running it *before* the dedup is
+            // safe: every containment it exposes is a real one.  Sum first —
+            // it can force a box balanced, which is what the upgrade closure
+            // reads.
+            for box_ in &mut self.0 {
+                if sum_closure() {
+                    box_.narrow_to_sum();
+                }
+                if upgrade_closure() {
+                    box_.narrow_to_upgrade();
+                }
+            }
+        }
         let mut kept = Vec::with_capacity(self.0.len());
         'boxes: for (i, a) in self.0.iter().enumerate() {
             for (j, b) in self.0.iter().enumerate() {
@@ -5251,6 +5400,104 @@ mod tests {
         set_dnf_reading(true);
     }
 
+    /// The 560 ordered shapes — every 4-tuple of suit lengths summing to 13.
+    fn all_shapes() -> Vec<[u8; 4]> {
+        (0..=13u8)
+            .flat_map(|a| {
+                (0..=13 - a)
+                    .flat_map(move |b| (0..=13 - a - b).map(move |c| [a, b, c, 13 - a - b - c]))
+            })
+            .collect()
+    }
+
+    fn shape_fits(lengths: &[Range; 4], shape: &[u8; 4]) -> bool {
+        lengths
+            .iter()
+            .zip(shape)
+            .all(|(range, &len)| range.contains(len))
+    }
+
+    /// C1: `narrow_to_sum` is **exact** — every narrowed bound is attained by a
+    /// real 13-card shape inside the box — and **membership-inert**: the same
+    /// shapes lie in the box before and after.  Idempotent, too.
+    #[test]
+    fn sum_closure_is_exact_and_inert() {
+        let shapes = all_shapes();
+        assert_eq!(shapes.len(), 560);
+
+        // Deterministic xorshift — the point is coverage, not randomness.
+        let mut state = 0x2545_f491_4f6c_dd1d_u64;
+        let mut next = move || {
+            state ^= state << 13;
+            state ^= state >> 7;
+            state ^= state << 17;
+            state
+        };
+        let mut tested = 0_u32;
+        for _ in 0..8000 {
+            let mut lengths = [Range::FULL_LENGTH; 4];
+            for range in &mut lengths {
+                let min = u8::try_from(next() % 8).expect("under 8");
+                let max = min + u8::try_from(next() % u64::from(14 - min)).expect("under 14");
+                *range = Range::new(min, max);
+            }
+            let mut envelope = Envelope::unknown();
+            envelope.lengths = lengths;
+            if !envelope.sum_feasible() {
+                continue;
+            }
+            tested += 1;
+
+            let inside: Vec<_> = shapes.iter().filter(|s| shape_fits(&lengths, s)).collect();
+            assert!(
+                !inside.is_empty(),
+                "sum-feasible box {lengths:?} holds no shape"
+            );
+            envelope.narrow_to_sum();
+
+            for (suit, range) in envelope.lengths.iter().enumerate() {
+                let low = inside.iter().map(|s| s[suit]).min().expect("nonempty");
+                let high = inside.iter().map(|s| s[suit]).max().expect("nonempty");
+                assert_eq!(
+                    (range.min, range.max),
+                    (low, high),
+                    "suit {suit} of {lengths:?} narrowed to {range:?}, truth {low}..={high}"
+                );
+            }
+            assert!(
+                shapes
+                    .iter()
+                    .all(|s| shape_fits(&lengths, s) == shape_fits(&envelope.lengths, s)),
+                "closure moved membership on {lengths:?}"
+            );
+
+            let once = envelope.lengths;
+            envelope.narrow_to_sum();
+            assert_eq!(envelope.lengths, once, "not idempotent on {lengths:?}");
+        }
+        assert!(tested > 1000, "only {tested} feasible boxes sampled");
+    }
+
+    /// C2: a box whose lengths force balanced reads `points == hcp`, because a
+    /// balanced hand never upgrades.  Knob-off the HCP floor carries the
+    /// scale's *global* worst-case slack instead.
+    #[test]
+    fn upgrade_closure_crisps_the_balanced_band() {
+        use crate::bidding::constraint::{Constraint as _, balanced, points};
+
+        set_dnf_reading(true);
+        let context = Context::new(RelativeVulnerability::NONE, &[]);
+        let read_hcp = |on: bool| {
+            set_upgrade_closure(on);
+            let dnf = (balanced() & points(15..)).project(&context);
+            set_upgrade_closure(false);
+            dnf.hull().strength.hcp
+        };
+
+        assert_eq!(read_hcp(false), Range::new(13, Range::FULL_POINTS.max));
+        assert_eq!(read_hcp(true), Range::new(15, Range::FULL_POINTS.max));
+    }
+
     /// Chop E: `set_gauge_membership` gives the raw-HCP and support-points
     /// bands membership teeth; off (the default) they are inert.
     #[test]
@@ -5829,6 +6076,52 @@ mod tests {
                     opener.length(suit).contains(length),
                     "{call} opener with {length} {suit:?} outside {:?}",
                     opener.length(suit)
+                );
+            }
+        }
+
+        /// The load-bearing C1/C2 pin: closing the boxes is **membership-inert**
+        /// on the real reading path, so the sampler cannot move.  Every hand a
+        /// reading admitted knob-off it still admits knob-on, and vice versa —
+        /// on the lenient `Dnf::contains` the sampler uses *and* the strict
+        /// `Envelope::accepts` gate.  If this ever fires, the closure is
+        /// dropping legal hands and the A/B verdict means nothing.
+        #[test]
+        fn closure_is_membership_inert(seed in any::<u64>()) {
+            use crate::bidding::constraint::{Constraint as _, and, balanced, hcp, len, or, points};
+            use contract_bridge::deck::full_deal;
+            use rand::SeedableRng;
+
+            let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
+            let deal = full_deal(&mut rng);
+            let hand: Hand = deal[contract_bridge::Seat::North];
+
+            set_dnf_reading(true);
+            let context = Context::new(RelativeVulnerability::NONE, &[]);
+            let readings = [
+                (balanced() & points(15..17)).project_band(&context),
+                (or([Suit::Hearts, Suit::Spades], 5..) & points(8..)).project(&context),
+                (and([Suit::Hearts, Suit::Spades], 5..) & hcp(6..11)).project_band(&context),
+                (len(Suit::Spades, 6..) & points(13..)).project(&context),
+                (!balanced() & points(12..)).project(&context),
+            ];
+
+            for reading in readings {
+                let loose = reading.clone().tidy();
+                set_sum_closure(true);
+                set_upgrade_closure(true);
+                let closed = reading.tidy();
+                set_sum_closure(false);
+                set_upgrade_closure(false);
+
+                prop_assert_eq!(
+                    loose.contains(hand), closed.contains(hand),
+                    "contains moved: {:?} vs {:?}", loose, closed
+                );
+                prop_assert_eq!(
+                    loose.boxes().iter().any(|b| b.accepts(hand)),
+                    closed.boxes().iter().any(|b| b.accepts(hand)),
+                    "accepts moved: {:?} vs {:?}", loose, closed
                 );
             }
         }

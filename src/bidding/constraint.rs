@@ -982,6 +982,51 @@ fn hcp_ceiling_slack() -> u8 {
     }
 }
 
+/// The most `point_count − raw_hcp` can be for a hand whose suit lengths lie in
+/// `lengths`, or `None` when the active scale's upgrade is not bounded by shape
+/// alone
+///
+/// The box-local dual of [`hcp_ceiling_slack`], which answers the same question
+/// for *any* hand.  The gap that pays is [`is_balanced`]: a balanced hand has
+/// at most 9 cards in its two longest suits and never upgrades, so a box whose
+/// lengths force balanced reads `points == hcp` where the global slack leaves 2
+/// HCP on the table at each end.  Used by
+/// [`Envelope::narrow_to_upgrade`][super::inference::Envelope::narrow_to_upgrade].
+///
+/// Rule-of-N+8 returns `None`: its count can fall *below* raw HCP (a flat
+/// 4-3-3-3 reads one under), so the closure's `points >= hcp` leg does not hold
+/// and the scale is not worth its own case — nothing measures on it today.
+pub(crate) fn upgrade_ceiling(lengths: &[Range; 4]) -> Option<u8> {
+    match POINT_SCALE.with(Cell::get) {
+        PointScale::Hcp => Some(0),
+        PointScale::PointCount => Some(if forces_balanced(lengths) { 0 } else { 2 }),
+        PointScale::RuleOfN | PointScale::RuleOfNFloored => None,
+    }
+}
+
+/// Whether every 13-card shape inside this length box is [`is_balanced`]
+///
+/// ponytail: brute force over the box's own compositions, early-exiting on the
+/// first unbalanced one — which is immediate for the overwhelmingly common
+/// wide box.  Balanced boxes are narrow (`2..=5` at worst), so the loop stays
+/// tiny; swap in a precomputed 560-shape table only if a profile says so.
+fn forces_balanced(lengths: &[Range; 4]) -> bool {
+    for a in lengths[0].min..=lengths[0].max.min(13) {
+        for b in lengths[1].min..=lengths[1].max.min(13 - a) {
+            for c in lengths[2].min..=lengths[2].max.min(13 - a - b) {
+                let shape = [a, b, c, 13 - a - b - c];
+                if lengths[3].contains(shape[3])
+                    && !(shape.iter().all(|&len| len >= 2)
+                        && shape.iter().filter(|&&len| len == 2).count() <= 1)
+                {
+                    return false;
+                }
+            }
+        }
+    }
+    true
+}
+
 /// Whether a short suit (at most two cards) holds a **wasted honor**
 ///
 /// Honors in shortness are wasted: any of A/K/Q/J in a suit of at most two
