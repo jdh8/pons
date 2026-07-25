@@ -1,9 +1,11 @@
 # The best (GTO) defense to a strong 1NT — a matrix-game tournament
 
-**Status: measured 2026-07-03** on all three brackets — plain DD, perfect
-defense, and the **sd-lead** single-dummy-lead scorer added later the same day
-(results below; the sd-lead headline: Woolsey is the equilibrium at *both*
-vulnerabilities). Harness:
+**Status: measured 2026-07-03** on three brackets — plain DD, perfect defense,
+and the **sd-lead** single-dummy-lead scorer added later the same day, whose
+headline was "Woolsey is the equilibrium at *both* vulnerabilities".
+**Re-adjudicated 2026-07-26 on the fourth bracket, sd-pd, which REFUTES that
+headline: always-pass is the equilibrium at both vuls** (see the SD-PD section);
+plain sd-lead never doubles, and the doubling was the whole effect. Harness:
 [`examples/ab-nt-defense-matrix`](../../examples/ab-nt-defense-matrix/main.rs).
 
 ## Why "best defense" is a game, not an A/B
@@ -192,6 +194,45 @@ Two structural findings beyond the headline:
   confirmation that the runout — not the cardplay — is what rescues doubled
   openers. The soft column donates ~+0.15 IMPs/board to the defenders.
 
+### SD-PD re-adjudication (2026-07-26, seeds 1784991959/60, 60k boards/matrix)
+
+The asterisk above is now cashed, and it does not pay.  Plain sd-lead relaxes
+the defenders' opening lead **and** never doubles a failing contract — optimistic
+on both axes.  `ns_score_pd_tricks` (**sd-pd**) reprices the *same* trick count
+with failures doubled: a realistic blind lead with the perfect axe, the missing
+middle of the severity ladder `sd < plain < pd`.  `ab-nt-defense-matrix` now
+carries it as a fourth matrix, equilibrium and bootstrap.
+
+| scenario | plain | pd | sd-lead | **sd-pd** |
+|---|---|---|---|---|
+| NV | Meckwell/sit +0.136 | **pass** 0 | Meckwell/sit +0.275 | **pass** 0 |
+| both | **pass** 0 | **pass** 0 | Woolsey/sit +0.057 | **pass** 0 |
+
+**Verdict: "Woolsey, both vulnerabilities" is REFUTED — it was the missing
+doubling, not the blind lead.**  Under sd-pd every defense in the menu is
+negative against always-pass at both vulnerabilities, with always-pass at
+**200/200 bootstrap support** in both cells (sd-lead's own vul support was
+Woolsey 73% · Meckwell 27%).  The gap between the two SD rows is 0.35–0.47
+IMPs/board — an order more than the lead relaxation is worth, so the obstruction
+wall at the 1NT level was *not* to first order the blind-lead bias.
+
+Two things survive the reversal:
+
+- **The ranking holds, only the sign moves.** Woolsey stays the best defense in
+  the menu under sd-pd (NV −0.060, both −0.191), 3–4× less bad than natural
+  (−0.269 / −0.608) or DONT (−0.209 / −0.551).  If you must defend, the card
+  choice is unchanged; what changed is whether to defend at all.
+- **The ladder is confirmed empirically, not just asserted.** Woolsey NV walks
+  plain-sd +0.173 → sd-pd −0.060 → pd −0.187, monotone in assumed doubling
+  severity.  The blind lead does buy back real value (about half the pd
+  penalty); it simply never crosses zero.
+
+Caveat, stated because the reproduction gate matters: this is a **fresh
+measurement, not a rescore** — the harness re-bids and the shipped book has moved
+since 2026-07-03, so the published cells do not reprint (this run's NV plain
+equilibrium is Meckwell, not Woolsey).  The evidence is the *internal* sd-lead vs
+sd-pd contrast within one run, where both DD brackets come along to place it.
+
 ### Rung 1 — best response vs BBA (204.8k kept we-defend boards/arm)
 
 IMPs/board vs the all-BBA reference (table B: BBA's own Multi-Landy defends), so
@@ -224,14 +265,16 @@ IMPs/board vs the all-BBA reference (table B: BBA's own Multi-Landy defends), so
    vulnerability-free answer** (NV → Woolsey plain / natural pd; vulnerable →
    pass), and the plain/pd disagreement at NV sat exactly where the doubling
    model matters (Woolsey's wide 8–19 overcalls are pd-fragile, natural's
-   penalty-X package is pd-robust).  **The sd-lead bracket resolves the split:
-   Woolsey, both vulnerabilities.** The DD verdicts were leaning on a measured,
-   directional bias (the double-dummy opening lead), the sd-lead scorer removes
-   exactly that bias and nothing else, and the answer stabilizes on the defense
-   that was already winning the least-biased DD cell.  Confidence order for the
-   NV headline is therefore sd-lead > plain > pd; for the vulnerable verdict
-   the brackets genuinely disagree (pd's perfect doubling still says pass), so
-   "Woolsey, both vuls" carries an sd-lead-trusting asterisk.
+   penalty-X package is pd-robust).  The sd-lead bracket appeared to resolve the
+   split — "Woolsey, both vulnerabilities" — on the argument that sd-lead removes
+   a measured directional bias and nothing else.  **That argument was wrong, and
+   the 2026-07-26 sd-pd re-adjudication above refutes the headline.** Plain
+   sd-lead removes the double-dummy *lead* but also silently removes the
+   opponents' *double*, so it is optimistic on two axes, not one; restore the
+   doubling and every defense goes negative at both vuls.  The correct reading is
+   that the brackets never genuinely disagreed: plain DD, pd and sd-pd all say
+   pass, and plain sd-lead was the lone dissenter because it was the lone scorer
+   letting a failing overcall go undoubled.  There is no asterisk left to cash.
 2. **The equilibrium lens changed the shipped-defaults question.** The
    defender's side of the shipped system (natural default-on) is the pd-bracket
    equilibrium; the opener's side (Optional doubles, trap, conversion, runout)
