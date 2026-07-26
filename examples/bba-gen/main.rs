@@ -184,6 +184,17 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_bilans: bool,
 
+    /// Collar the bilans net for our side instead of letting it replace the
+    /// point arithmetic (`instinct::set_net_collar`, crate default off).  The
+    /// shipped wiring masks the authored gate off and hands the net the whole
+    /// criterion; with this on the arithmetic decides and the net rules on it in
+    /// one direction only — accelerating at game (reaching at most 2 points
+    /// below the threshold) and vetoing at slam, the split `break_even`'s own
+    /// key implies.  Pair it with `--no-ns-bilans` on neither arm: this is a
+    /// treatment of the net's licence, not of the net's presence.
+    #[arg(long, default_value_t = false)]
+    ns_net_collar: bool,
+
     /// Close our side's read `hcp` against `points` through the shape upgrade
     /// (`set_upgrade_closure`, crate default off): balanced hands never
     /// upgrade, so a balanced box reads `points == hcp` instead of carrying the
@@ -1145,6 +1156,7 @@ fn main() -> anyhow::Result<()> {
     pons::bidding::set_dnf_reading(!args.no_ns_dnf);
     pons::bidding::set_gauge_membership(args.ns_gauge_membership);
     pons::bidding::instinct::set_bilans_floor(!args.no_ns_bilans);
+    pons::bidding::instinct::set_net_collar(args.ns_net_collar);
     pons::bidding::set_sum_closure(args.ns_sum_closure);
     pons::bidding::set_upgrade_closure(args.ns_upgrade_closure);
     pons::bidding::american::set_two_notrump_wide(args.ns_two_nt_wide);

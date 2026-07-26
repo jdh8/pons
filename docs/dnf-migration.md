@@ -192,10 +192,29 @@ hand-vacuous — ⊤ is *exact*, not a leak.  And the **fallback blind spot**
 and the E0 sweep on *every* column — a meter-scope chop of its own if the
 fallback-competitive layer is ever to be metered.
 
-The one ⊤ that is a **real** leak rather than an exact reading is the
-evaluator net's own gate: `net_break_even_gate` is a `pred`, so it takes the
-default `project` (⊤), and `points_or_net` disjoins it — knob-on, all eleven
-converted milestones read as nothing.  Not a missing fold: a `pred` accepts
-hands no box contains, so ⊤ *is* the sound projection.  See
+The ⊤s that are **real** leaks rather than exact readings all sit at the floor's
+game/slam milestones, and there are two kinds, not one:
+
+- **The evaluator net's own gate.** `net_break_even_gate` is a `pred`, so it
+  takes the default `project` (⊤), and `points_or_net` disjoins it — knob-on, all
+  eleven converted milestones read as nothing.  Not a missing fold: a `pred`
+  accepts hands no box contains, so ⊤ *is* the sound projection.
+- **The pair-level point gates themselves** — `combined_points`, `combined_hcp`,
+  `fit_sum_game`, `slam_entry_reached`.  All four are `pred`, and no milestone
+  call site conjoins an own-hand point band, so `box(authored)` is ⊤ *with the
+  net off too*.  The arithmetic no more advertises itself than the net does; it
+  is simply the older leak.  A contextual `project` is not the fix — it would
+  recurse (`project` → `Inferences::read` → `project_authored` → `project`) and
+  re-target to the reader's seat (the wrong-seat trap, F2b′ row).  No static
+  own-hand floor is sound either: partner's shown minimum ranges 0…22, so
+  `combined 25` implies only own ≥ 3.  Closing it needs
+  `Constraint::project` widened to carry the actor's seat and the fold's partial
+  readings, or the behavioural reading of
+  [`ai-bidder/sampled-projection.md`](ai-bidder/sampled-projection.md).
+
+Both were invisible to the meter for the same reason as the rest of the fallback
+blind spot above: the floor is wired as `Fallback::classify`.  See
 [`ai-bidder/evaluator-net.md`](ai-bidder/evaluator-net.md) — "The reach
-ceiling" — for why it is survivable where it sits and what the fix costs.
+ceiling", and the 2026-07-26 correction under it — for why they are survivable
+where they sit (every converted site is a mostly-terminal milestone) and what
+each fix costs.

@@ -867,3 +867,159 @@ that fails is not.
 wiring holds that unbounded veto at the game sites too, so the collar gives it
 back. Some of the win/win/win/win may be thin 25-counts the net declined, and
 only an A/B separates the collar from the veto from the status quo.
+
+### Correction — the collar is a behaviour fix, not a disclosure fix *(2026-07-26)*
+
+The table above computes the accelerator's projection as
+`box(authored) ∪ box(collar)`, which presumes `combined_points(25)` projects
+finitely. **It does not.** All four pair-level gates in the floor are `pred`:
+[`combined_points`](../../src/bidding/instinct.rs),
+`combined_hcp`, `fit_sum_game` and `slam_entry_reached`. So `box(authored)` is
+already ⊤ at every one of the nine `points_or_net` sites, and the collar
+formula is `⊤ ∪ ⊤ = ⊤`. No call site conjoins an own-hand point band either.
+
+The consequence is worth stating plainly, because the section above got it
+wrong: **the arithmetic does not advertise itself either.** The net gate is not
+the only ⊤ at these milestones, merely the newest one. What the collar buys is
+that the arithmetic is the *criterion* again — it does not buy a reading.
+
+Nor is that cheaply fixable. A contextual `project` on a pair gate would
+
+- **recurse** — `project` → `Inferences::read` → `project_authored` → `project`;
+- **hit the wrong-seat trap** — `project_call` evaluates rules in the *reader's*
+  context ([`inference.rs`](../../src/bidding/inference.rs), the `project_call`
+  closure), so `partner()` there is not the bidder-at-index's partner. That is
+  the F2b′ bug, −13 IMPs/board.
+
+And no *static* own-hand floor is sound across auctions: partner's shown minimum
+ranges 0…22, so `combined 25` implies only own ≥ 3. Making pair gates project
+therefore needs `Constraint::project` widened to carry the actor's seat and the
+fold's partial readings — see the follow-ups below.
+
+### The direction is derived, but only over vul-pairs
+
+"Bidding a game the points do not support is cheap" is the right conclusion from
+the wrong argument, and [`break_even`](../../src/bidding/instinct.rs) supplies
+the right one — with a wrinkle. The table **mixes scoring conventions**: per the
+bid-scoring split (a gate prices a *call*, and calls score under perfect
+defense) the game row's failing branch is priced **down one doubled**, while the
+slam and grand rows keep the **plain/undoubled** values.
+
+| convention | game NV / vul | small slam | grand |
+| --- | --- | --- | --- |
+| plain (undoubled) | 5/11 = **0.455** / 6/16 = **0.375** | 0.500 | 0.560–0.583 |
+| PD (down one doubled) | 6/12 = 0.500 / 8/18 = 0.444 | 0.500 | ≈ unchanged |
+
+Two boundary facts, both of which break the naive strict form of the argument:
+
+- **The non-vul game row is exactly 0.500, uniformly across all three
+  milestones** — not a 5m artifact. Doubled failure against the partscore at the
+  same trick count: 3NT 400 vs 2NT+1 150, 4M 420 vs 3M+1 170, 5m 400 vs 4m+1
+  150, all 250 → 6 IMPs to gain; 120/140/130 against −100, i.e. 220/240/230 → 6
+  to risk. All six sit in the 220–260 = 6 band, which is why one row covers
+  three milestones. Vul is likewise uniformly 450 → 10 against 320/340/330 → 8.
+- **The small slam is exactly 0.500 on *both* conventions, structurally.** The
+  slam bonus is symmetric (6♠ NV 980 vs 4♠+2 480 = 500 → 11 to gain, 4♠+1 450 vs
+  −50 = 500 → 11 to risk; vul 1430 vs 680 and 650 vs −100, both 750 → 13), and
+  doubling the undertrick moves neither side out of its bucket (NV 550 → still
+  11, vul 850 → still 13). Which is also *why* the game row could be re-derived
+  under doubling while the slam rows stayed plain at no cost.
+
+So `break_even < 0.5` vs `≥ 0.5` does **not** separate game from slam — non-vul
+game and the small slam are tied on the line. The split survives in the
+never-above / never-below form, read over vul-*pairs*, which is the right
+granularity anyway because the shape is fixed at rule-construction time and must
+serve both vulnerabilities:
+
+| decision | `tricks` | over both vuls | net's licence |
+| --- | --- | --- | --- |
+| game | ≤ 11 | never *above* even money | accelerate — `points_or_net` |
+| slam | ≥ 12 | never *below* even money | veto — `points_and_net` |
+
+At exactly even money the economics give no direction, so the small slam's
+tie-break is structural rather than economic: **a veto is the free shape** (it
+only shrinks the accepted set, so it keeps `authored`'s reading), an accelerator
+is not. Pinned by `break_even_keys_the_collar_direction`, whose bounds are
+non-strict *on purpose* — tighten them to `<` / `>` and the two boundary rows
+fail.
+
+### Landed, unmeasured — `set_net_collar` *(2026-07-26)*
+
+`points_or_net` gained a `collar` argument and a sibling `points_and_net`; the
+nine milestones split 4 accelerate (3NT, 5m, 4M, fitted 4M, collar
+`COLLAR_SLACK = 2` below the threshold) / 5 veto (6M, 7M, 6NT, 7NT, the RKCB
+grand). Knob `set_net_collar`, default **off**, harness `bba-gen
+--ns-net-collar`, A/B `scripts/net-collar-ab.sh`.
+
+Byte-identity is *not* expressible as a unit test — the legacy expression no
+longer exists in the tree — so it was proven against a baseline worktree at the
+parent commit: 3200 boards × both vuls × identical seed, **0 boards differ**
+(the only delta is the output path echoed into `gen_args`). The four existing
+bilans pins are also unmoved.
+
+Smoke, same seed, knob-on vs knob-off (3200 bd/vul):
+
+| vul | boards diverging | collar bids LOWER | HIGHER | same level |
+| --- | --- | --- | --- | --- |
+| none | 79 (2.47%) | 70 | 6 | 3 |
+| both | 89 (2.78%) | 77 | 5 | 7 |
+
+**The veto does essentially all the work; the accelerator is close to inert.**
+Top families are `4♠ → Pass`, `6NT → Pass`, `6NT → 3NT`, `4♥ → Pass`,
+`3NT → Pass`, `6♠ → Pass`, `6♥ → 4♥` — the collar is removing overbids the net
+alone was making, not finding thin games. Even the handful of "higher" boards
+are not game-site accelerations: the best example is off `3NT` → collar `4♦`,
+the 3NT veto letting a lower-ranked rule win.
+
+That has a consequence for the three-arm design proposed above: **collar and veto
+would measure nearly identically**, because the arm they differ in (the
+accelerator) barely fires. Two arms suffice, and if the collar loses, the
+accelerator is not where to look for the reason.
+
+The flagship board is the F1 forensic's 6NT blast, reached from the other side.
+Seed 20260726 board 33, `AJ843.AK7.KJ52.7` at `1NT–2♥–2♠–3♦–3NT`: the shipped
+wiring bids **6NT on a combined 31** because `combined_hcp(33)` was masked off
+entirely; collared, `authored & net` declines and the auction rests in 3NT. F1
+fixed the net's *inputs*; the collar restores the point floor the net was allowed
+to ignore. Pinned by `net_collar_vetoes_the_notrump_slam_below_thirty_three`.
+
+### Follow-ups this leaves open
+
+- **A — project with seat and partial state.** Widen `Constraint::project` to
+  `project(&self, ctx, who: Relative, partial: &[Dnf; 4])`. Non-recursive:
+  `project_authored`'s fold is already sequential over `0..len` and already
+  holds `players`, so the readings from indices `< i` are available at index `i`
+  without re-entering `Inferences::read`; `who` kills the wrong-seat trap.
+  `combined_points(t)` then emits `points((t − partner_min)..)`. Cost: ~20
+  `project` impls in `constraint.rs` plus every ratchet re-pin. This is the only
+  route that makes the *arithmetic* self-describing.
+- **B — behavioural acceptance reading.** The general escape from
+  [sampled-projection.md](sampled-projection.md): replay the bidder as the
+  acceptance test and hull the accepted layouts. Works for *any* criterion
+  including the net, so it dissolves the projectability question instead of
+  answering it — and it is the only route that ever reads the learned contested
+  floor. Costs a bidder call per layout against a free interval intersection.
+- **C — the two sites left alone.** `net_makes` converts no authored arithmetic
+  (it exists only knob-on, one caller: the business XX of a doubled 1NT), so
+  neither shape applies. `slam_entry_reached` is a whole-`pred` if/else rather
+  than Cons algebra, so collaring it is a restructure; note also that
+  `SLAM_ENTRY_P = 0.35` is *deliberately* below break-even because the ask buys
+  information, so it is an accelerator by intent and an RKCB ask is not a final
+  contract.
+- **D — 5m should probably not share 4M's threshold.** The 5m milestone gates
+  eleven tricks on the same `combined_points(25)` as 4M's ten. `break_even`
+  cannot see the difference (its game row is one constant over `tricks ≤ 11`),
+  and its partscore derivation *is* right at this site, since the rule only fires
+  behind `!stopper_in_their_suits()` — the alternative genuinely is a partscore,
+  not 3NT. What is unpriced is the point threshold. Own A/B, own knob, per
+  [convention-tuning.md](../convention-tuning.md); sweeping 26 / 27 is the cheap
+  first arm. **After** the collar A/B settles — they touch the same rule.
+- **E — 5m cannot be bid on a seven-card fit, and sometimes must be.**
+  `known_eight_card_fit` returns `false` whenever `mine + partner.min < 8`, so 5♦
+  on a 4-3 is unauthored and the hand falls through to a stopperless 3NT or a
+  partscore. The layout where that bites is exactly the one the site already
+  guards for — their suit unstopped, so notrump is off — and a 4-3 minor fit is
+  then the only game. Sketch: admit a known **seven**-card fit at a higher
+  threshold (`combined_points(26)`, roughly 3NT's strength and a shade above
+  4M's), with the eight-card fit keeping whatever D settles. Beware: this widens
+  the same rule the collar touches, so it is a third experiment, not a rider.

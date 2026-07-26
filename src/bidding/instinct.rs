@@ -306,6 +306,11 @@ std::thread_local! {
     /// evaluator instead of point arithmetic (see [`set_bilans_floor`]).
     static BILANS_FLOOR: Cell<bool> = const { Cell::new(true) };
 
+    /// Collar the bilans net's licence instead of letting it replace the point
+    /// arithmetic: the net accelerates at game and only vetoes at slam (see
+    /// [`set_net_collar`]).  Default off — byte-identical to the shipped mask.
+    static NET_COLLAR: Cell<bool> = const { Cell::new(false) };
+
     /// Edit 1: read partner's fit-known strength off the dedicated
     /// `support_points` gauge in [`fit_sum_game`], falling back to the
     /// length-scale `points` when it is unpopulated (see
@@ -425,6 +430,46 @@ fn bilans_floor() -> Cons<impl Constraint + Clone> {
 fn bilans_enabled() -> bool {
     BILANS_FLOOR.with(Cell::get)
 }
+
+/// Collar the bilans net instead of letting it replace the point arithmetic
+///
+/// [`set_bilans_floor`] as shipped *masks the authored arithmetic off* and hands
+/// the net the whole criterion — an unbounded veto over hands the point sums
+/// accept, and an unbounded reach below them.  With this on, the arithmetic is
+/// the criterion again and the net rules on it in one direction only, chosen by
+/// the decision's own IMP economics ([`break_even`]):
+///
+/// | decision | `tricks` | break-even, both vuls | net's licence |
+/// | --- | --- | --- | --- |
+/// | game | ≤ 11 | never *above* even money | accelerate — [`points_or_net`] |
+/// | slam | ≥ 12 | never *below* even money | veto — [`points_and_net`] |
+///
+/// A game is taken at or below even money, so the cheap direction is to *add*
+/// hands the point sums decline, bounded by a collar ([`COLLAR_SLACK`] below the
+/// authored threshold).  A slam needs at or above even money, so the net may only
+/// *decline*.  The two boundary rows sit exactly on 0.5 (non-vul game under the
+/// bid-scoring doubling premium, and the small slam on every convention — its
+/// bonus is symmetric), where the economics give no direction; the tie-break
+/// there is structural, since a veto keeps the authored reading and an
+/// accelerator does not (`docs/ai-bidder/evaluator-net.md`, "The reach ceiling").
+///
+/// Default off — byte-identical to the shipped mask in every
+/// [`set_bilans_floor`] state.  Read at classification time, per-thread.
+#[doc(hidden)]
+pub fn set_net_collar(enabled: bool) {
+    NET_COLLAR.with(|flag| flag.set(enabled));
+}
+
+/// The net collar is enabled (see [`set_net_collar`])
+fn net_collar() -> Cons<impl Constraint + Clone> {
+    pred(|_: Hand, _: &Context<'_>| NET_COLLAR.with(Cell::get))
+}
+
+/// How far below an authored game threshold the collared net may reach — the
+/// invitational band, where a human already calls it judgment
+// ponytail: slack fixed at 2; a live NET_COLLAR_SLACK thread-local is the
+// upgrade if the A/B lands close enough to want it swept.
+const COLLAR_SLACK: u8 = 2;
 
 /// Enable opener's/overcaller's competitive rebid of a long suit (**shipped default-on**)
 ///
@@ -1868,7 +1913,12 @@ fn slam_entry_reached() -> Cons<impl Constraint + Clone> {
 /// *minimum* length and points keep it a sound floor, never an overbid.  The
 /// eight-card-fit gate still lives on the rule's [`known_eight_card_fit`]; this
 /// only moves the point boundary.
-fn fit_sum_game(suit: Suit) -> Cons<impl Constraint + Clone> {
+///
+/// `slack` lowers the threshold, so `fit_sum_game(suit, COLLAR_SLACK)` is the
+/// collar arm of [`points_or_net`] at the fitted-major game.  It subtracts from
+/// the *live* [`FIT_SUM_GAME`], so the collar keeps tracking
+/// [`set_fit_sum_game`] instead of pinning a second constant.
+fn fit_sum_game(suit: Suit, slack: u8) -> Cons<impl Constraint + Clone> {
     pred(move |hand: Hand, context: &Context<'_>| {
         // Fit-known (the rule pairs this with `known_eight_card_fit`), so count
         // shortness as support value — side suits only, never the own trump
@@ -1884,7 +1934,8 @@ fn fit_sum_game(suit: Suit) -> Cons<impl Constraint + Clone> {
             .unwrap_or(partner.strength.points.min);
         let own = support_point_count_in(hand, suit);
         let fit = hand[suit].len() as u16 + u16::from(partner.length(suit).min);
-        u16::from(own) + u16::from(partner_pts) + fit >= u16::from(FIT_SUM_GAME.with(Cell::get))
+        u16::from(own) + u16::from(partner_pts) + fit
+            >= u16::from(FIT_SUM_GAME.with(Cell::get).saturating_sub(slack))
     })
 }
 
@@ -1966,23 +2017,62 @@ fn net_makes(strain: Strain, tricks: u8) -> Cons<impl Constraint + Clone> {
     })
 }
 
-/// A boundary gate's authored point arithmetic, or — with [`set_bilans_floor`]
-/// on — the evaluator net clearing the decision's IMP break-even
+/// A **game** milestone's authored point arithmetic, which the evaluator net may
+/// *accelerate* — reach below, no further than `collar`
 ///
-/// Knob-off this is *exactly* `authored`: the net arm evaluates to `-∞` and
-/// falls out of the [`Or`][super::constraint] max without touching the net (its
-/// predicate short-circuits on the thread-local), and the masking arm
-/// contributes `0.0`.  Knob-on the authored arm is masked to `-∞` instead and
-/// the gate becomes `P(≥ tricks by our declarer in strain) ≥ break_even`.
+/// Three states, and the first two are the shipped ones:
+///
+/// - Both knobs off: exactly `authored`.  The net arm is `-∞` and falls out of
+///   the [`Or`][super::constraint] max without touching the net (its predicate
+///   short-circuits on the thread-local); the masking arms contribute `0.0`.
+/// - [`set_bilans_floor`] on, [`set_net_collar`] off: exactly the net.  The
+///   authored arm is masked to `-∞` and the gate is
+///   `P(≥ tricks by our declarer in strain) ≥ break_even` — an unbounded reach
+///   *and* an unbounded veto over hands the point sums accept.
+/// - Both on: `authored | (collar & net)`.  The arithmetic decides on its own
+///   above the threshold, the net gets a vote only inside the collar, and it can
+///   no longer veto a hand the arithmetic accepts.
+///
+/// Games break even at or *below* even money in IMPs ([`break_even`]), which is
+/// why the collared licence here is to add rather than to decline; the slam
+/// milestones take the mirror shape, [`points_and_net`].
 // ponytail: knob-on recomputes trick_estimates per converted rule (~17 rule
 // evals × ~9k multiply-adds per decision); a OnceCell<TrickEstimates> on
 // Context is the upgrade if profiling ever bites.
 fn points_or_net(
     authored: Cons<impl Constraint + Clone>,
+    collar: Cons<impl Constraint + Clone>,
     strain: Strain,
     tricks: u8,
 ) -> Cons<impl Constraint + Clone> {
-    (!bilans_floor() & authored) | net_break_even_gate(bilans_enabled, true, strain, tricks)
+    debug_assert!(tricks <= 11, "a game milestone, per break_even's own key");
+    // ponytail: the `!net_collar()` legs are the legacy mask, byte-identical to
+    // the shipped wiring; they die with the knob flip whichever way it lands.
+    (authored & (net_collar() | !bilans_floor()))
+        | ((!net_collar() | collar) & net_break_even_gate(bilans_enabled, true, strain, tricks))
+}
+
+/// A **slam** milestone's authored point arithmetic, which the evaluator net may
+/// only *veto* — decline, never reach below
+///
+/// The mirror of [`points_or_net`]: slams break even at or *above* even money, so
+/// the cheap direction is to decline rather than to add.  Knob states, as there:
+/// both off is exactly `authored`; [`set_bilans_floor`] alone is exactly the net
+/// (the legacy mask); both on is `authored & net`, which needs no collar because
+/// it only ever shrinks the accepted set — and therefore keeps `authored`'s own
+/// reading, loose in the safe direction.
+fn points_and_net(
+    authored: Cons<impl Constraint + Clone>,
+    strain: Strain,
+    tricks: u8,
+) -> Cons<impl Constraint + Clone> {
+    debug_assert!(tricks >= 12, "a slam milestone, per break_even's own key");
+    // ponytail: as in `points_or_net`, the first two arms are the legacy mask.
+    (!net_collar() & !bilans_floor() & authored.clone())
+        | (!net_collar() & net_break_even_gate(bilans_enabled, true, strain, tricks))
+        | (net_collar()
+            & authored
+            & (!bilans_floor() | net_break_even_gate(bilans_enabled, true, strain, tricks)))
 }
 
 /// The evaluator net's verdict on `tricks` of ours in `strain`, as a
@@ -3226,7 +3316,13 @@ pub fn instinct() -> Rules {
     rules = rules.rule(
         Bid::new(3, Strain::Notrump),
         1.40,
-        (game_forces.clone() | points_or_net(combined_hcp(25), Strain::Notrump, 9))
+        (game_forces.clone()
+            | points_or_net(
+                combined_hcp(25),
+                combined_hcp(25 - COLLAR_SLACK),
+                Strain::Notrump,
+                9,
+            ))
             & not_penalizing()
             & below_game()
             & stopper_in_their_suits()
@@ -3266,7 +3362,13 @@ pub fn instinct() -> Rules {
         rules = rules.rule(
             Bid::new(5, strain),
             1.42,
-            (game_forces.clone() | points_or_net(combined_points(25), strain, 11))
+            (game_forces.clone()
+                | points_or_net(
+                    combined_points(25),
+                    combined_points(25 - COLLAR_SLACK),
+                    strain,
+                    11,
+                ))
                 & not_penalizing()
                 & below_game()
                 & inference_aware()
@@ -3286,7 +3388,13 @@ pub fn instinct() -> Rules {
         rules = rules.rule(
             Bid::new(4, strain),
             1.45,
-            (game_forces.clone() | points_or_net(combined_points(25), strain, 10))
+            (game_forces.clone()
+                | points_or_net(
+                    combined_points(25),
+                    combined_points(25 - COLLAR_SLACK),
+                    strain,
+                    10,
+                ))
                 & not_penalizing()
                 & below_game()
                 & len(major, 6..)
@@ -3317,7 +3425,13 @@ pub fn instinct() -> Rules {
         rules = rules.rule(
             Bid::new(4, strain),
             1.50,
-            (game_forces.clone() | points_or_net(fit_sum_game(major), strain, 10))
+            (game_forces.clone()
+                | points_or_net(
+                    fit_sum_game(major, 0),
+                    fit_sum_game(major, COLLAR_SLACK),
+                    strain,
+                    10,
+                ))
                 & not_penalizing()
                 & below_game()
                 & inference_aware()
@@ -3346,7 +3460,7 @@ pub fn instinct() -> Rules {
         rules = rules.rule(
             Bid::new(6, strain),
             1.65,
-            points_or_net(combined_points(33), strain, 12)
+            points_and_net(combined_points(33), strain, 12)
                 & not_penalizing()
                 & below_slam()
                 & inference_aware()
@@ -3356,7 +3470,7 @@ pub fn instinct() -> Rules {
         rules = rules.rule(
             Bid::new(7, strain),
             1.75,
-            points_or_net(combined_points(37), strain, 13)
+            points_and_net(combined_points(37), strain, 13)
                 & not_penalizing()
                 & below_slam()
                 & inference_aware()
@@ -3370,7 +3484,7 @@ pub fn instinct() -> Rules {
         .rule(
             Bid::new(6, Strain::Notrump),
             1.60,
-            points_or_net(combined_hcp(33), Strain::Notrump, 12)
+            points_and_net(combined_hcp(33), Strain::Notrump, 12)
                 & not_penalizing()
                 & below_slam()
                 & stopper_in_their_suits()
@@ -3379,7 +3493,7 @@ pub fn instinct() -> Rules {
         .rule(
             Bid::new(7, Strain::Notrump),
             1.70,
-            points_or_net(combined_hcp(37), Strain::Notrump, 13)
+            points_and_net(combined_hcp(37), Strain::Notrump, 13)
                 & not_penalizing()
                 & below_slam()
                 & stopper_in_their_suits()
@@ -3464,7 +3578,7 @@ pub fn instinct() -> Rules {
                 Bid::new(7, strain),
                 1.86,
                 keycard_total(trump, 5..)
-                    & points_or_net(combined_points(37), strain, 13)
+                    & points_and_net(combined_points(37), strain, 13)
                     & level_available(7, strain),
             )
             // At most one keycard missing: small slam.
@@ -4402,6 +4516,46 @@ mod tests {
         assert_eq!(our_declarer(&context, Strain::Hearts), Relative::Me);
     }
 
+    /// The accelerate/veto split is **derived** from each decision's own IMP
+    /// economics, not chosen per site: a game never breaks even *above* even
+    /// money, a slam never *below*.  That is what licenses [`points_or_net`] to
+    /// let the net reach below a game threshold while [`points_and_net`] lets it
+    /// only decline a slam.  Retune [`break_even`] past 0.5 at a game row and
+    /// the collared reach stops being the cheap direction — this fails rather
+    /// than letting the wiring quietly stop matching its own justification.
+    ///
+    /// Both bounds are **non-strict on purpose**, and the two boundary rows are
+    /// why.  Non-vul game sits exactly on 0.5 under the bid-scoring doubling
+    /// premium (6 IMPs risked against 6 gained), and the small slam sits on it
+    /// under *every* convention — the slam bonus is symmetric, and doubling the
+    /// undertrick moves neither side out of its IMP bucket (non-vul 500 → 550,
+    /// both 11 IMPs; vul 750 → 850, both 13).  Do not "tighten" to `<` / `>`.
+    #[test]
+    fn break_even_keys_the_collar_direction() {
+        for strain in Strain::ASC {
+            for vul_we in [false, true] {
+                // A game is takeable at or below even money, so the net's cheap
+                // licence is to *add* hands the point sums decline.
+                for tricks in 7..=11 {
+                    assert!(
+                        break_even(tricks, strain, vul_we) <= 0.5,
+                        "game ({tricks} tricks, vul {vul_we}) must never break even \
+                         above even money — `points_or_net` accelerates here"
+                    );
+                }
+                // A slam needs at or above even money, so the net may only
+                // *decline* — and a veto is the shape that keeps the reading.
+                for tricks in 12..=13 {
+                    assert!(
+                        break_even(tricks, strain, vul_we) >= 0.5,
+                        "slam ({tricks} tricks, vul {vul_we}) must never break even \
+                         below even money — `points_and_net` only vetoes here"
+                    );
+                }
+            }
+        }
+    }
+
     /// The bilans knob prices the same known-fit game the point sum reaches:
     /// the 4-4 fit-sum board must still land in 4♠ when the net does the
     /// arithmetic (Stance path, so the net sees the trie-prefixed reading it
@@ -4428,6 +4582,49 @@ mod tests {
         // evaluator price the marginal slam out (see
         // `fit_sum_reads_a_four_four_major_fit`, which pins both regimes).
         assert_eq!(bid, call(4, Strain::Spades));
+    }
+
+    /// [`set_net_collar`]'s veto, on the board the smoke run surfaced (seed
+    /// 20260726 board 33, 2026-07-26): the shipped wiring blasts 6NT on a
+    /// combined **31**, because knob-on `points_or_net` masked
+    /// [`combined_hcp`]`(33)` off entirely and the net alone decided.  Collared,
+    /// the notrump slam is [`points_and_net`] — `authored & net` — so 31 < 33
+    /// declines it and the auction rests in partner's 3NT.
+    ///
+    /// This is the F1 forensic's 6NT-blast family (docs/dnf-migration.md, chop
+    /// F1, traced at `combined_hcp(33)` false), reached from the other side: F1
+    /// fixed the net's *inputs*, the collar restores the point floor the net was
+    /// allowed to ignore.  Stance path, so the net sees the trie-prefixed
+    /// reading it was trained on.
+    #[test]
+    fn net_collar_vetoes_the_notrump_slam_below_thirty_three() {
+        // Partner opened 1NT, we transferred to spades, showed diamonds, and
+        // partner signed off in 3NT.  We hold 16 opposite a 15-17 notrump.
+        let auction = [
+            Call::Pass,
+            call(1, Strain::Notrump),
+            Call::Pass,
+            call(2, Strain::Hearts),
+            Call::Pass,
+            call(2, Strain::Spades),
+            Call::Pass,
+            call(3, Strain::Diamonds),
+            Call::Pass,
+            call(3, Strain::Notrump),
+            Call::Pass,
+        ];
+        let hand = "AJ843.AK7.KJ52.7";
+
+        // Shipped default: the net holds the whole criterion and blasts the slam.
+        let (bid, from_floor) = american_floored(&auction, hand);
+        assert!(from_floor, "our continuation is off-book (floor territory)");
+        assert_eq!(bid, call(6, Strain::Notrump));
+
+        // Collared: the arithmetic is the criterion again and vetoes it.
+        set_net_collar(true);
+        let collared = american_floored(&auction, hand).0;
+        set_net_collar(false); // restore the default before asserting
+        assert_eq!(collared, Call::Pass);
     }
 
     #[test]

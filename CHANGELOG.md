@@ -33,7 +33,75 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   worth **~1.9 kings in tricks** on top of the HCP both are already charged
   for, most of all at notrump.
 
+### Added
+
+- **`set_net_collar` — the evaluator net stops *replacing* the floor's point
+  arithmetic and starts ruling on it, in one direction per decision.** Default
+  **off**, so the crate is byte-identical; opt in via `bba-gen --ns-net-collar`,
+  A/B `scripts/net-collar-ab.sh`. **Unmeasured — the A/B has not been run.**
+
+  As shipped, `set_bilans_floor` masks the authored gate off and hands the net
+  the whole criterion at nine game/slam milestones: an unbounded reach below the
+  point threshold *and* an unbounded veto over hands the point sums accept.
+  Collared, the arithmetic decides and the net's licence is the cheap direction
+  only — `points_or_net` lets it *accelerate* at game (reach at most
+  `COLLAR_SLACK = 2` below the threshold), the new `points_and_net` lets it only
+  *veto* at slam. Four accelerate sites (3NT, 5m, 4M, fitted 4M), five veto (6M,
+  7M, 6NT, 7NT, the RKCB grand).
+
+  The split is **derived** from `break_even`, not chosen per site: read over
+  vul-pairs, a game never breaks even *above* even money and a slam never
+  *below*. Non-strict on both ends, and the boundary rows are why — non-vul game
+  sits exactly on 0.500 under the bid-scoring doubling premium, and the small
+  slam sits on it under *every* convention, because the slam bonus is symmetric
+  and doubling the undertrick moves neither side out of its IMP bucket. At the
+  tie the tie-break is structural, not economic: a veto only shrinks the accepted
+  set, so it keeps the authored reading, and an accelerator does not. Pinned by
+  `break_even_keys_the_collar_direction`.
+
+  Byte-identity is not expressible as a unit test — the legacy expression is gone
+  from the tree — so it was proven against a baseline worktree at the parent
+  commit: 3200 boards × both vuls × identical seed, **0 boards differ**. The four
+  existing bilans behaviour pins are unmoved.
+
+  Smoke (same seed, 3200 bd/vul) diverges **2.47% non-vul / 2.78% vul**, and the
+  direction is lopsided: **70/79 and 77/89 diverging boards are the collar
+  bidding *lower*.** The veto does essentially all the work and the accelerator
+  is close to inert — top families are `4♠→Pass`, `6NT→Pass`, `6NT→3NT`,
+  `4♥→Pass`, `6♥→4♥`. So the three-arm design the docs proposed collapses to
+  two: collar and veto differ only in the arm that barely fires.
+
+  The flagship board is chop F1's 6NT blast, reached from the other side: seed
+  20260726 board 33, `AJ843.AK7.KJ52.7` at `1NT–2♥–2♠–3♦–3NT` bids **6NT on a
+  combined 31** because `combined_hcp(33)` was masked off entirely; collared,
+  `authored & net` declines and the auction rests in 3NT. F1 fixed the net's
+  *inputs*; the collar restores the point floor the net was allowed to ignore.
+  Pinned by `net_collar_vetoes_the_notrump_slam_below_thirty_three`.
+
 ### Changed
+
+- **Corrected the reach-ceiling writeup: the collar is a behaviour fix, not a
+  disclosure fix, because the floor's *arithmetic* does not advertise itself
+  either.** The entry below computed the accelerator's projection as
+  `box(authored) ∪ box(collar)`, presuming `combined_points(25)` projects
+  finitely. It does not — `combined_points`, `combined_hcp`, `fit_sum_game` and
+  `slam_entry_reached` are **all `pred`**, and no milestone call site conjoins an
+  own-hand point band, so `box(authored)` is ⊤ with the net off too and the
+  collar formula is `⊤ ∪ ⊤`. The net gate is the newest ⊤ at these sites, not the
+  only one.
+
+  Not cheaply fixable: a contextual `project` on a pair gate would recurse
+  (`project` → `Inferences::read` → `project_authored` → `project`) and re-target
+  to the reader's seat (the wrong-seat trap, −13 IMPs/board as F2b′), and no
+  static own-hand floor is sound across auctions — partner's shown minimum ranges
+  0…22, so `combined 25` implies only own ≥ 3. Closing it needs
+  `Constraint::project` widened to carry the actor's seat and the fold's partial
+  readings, or the behavioural reading of
+  [docs/ai-bidder/sampled-projection.md](docs/ai-bidder/sampled-projection.md).
+  Both are recorded as follow-ups, with the 5m threshold and seven-card-fit gaps,
+  in [docs/ai-bidder/evaluator-net.md](docs/ai-bidder/evaluator-net.md);
+  [docs/dnf-migration.md](docs/dnf-migration.md)'s ⊤-source list now names all
+  four pair gates beside the net gate.
 
 - **Documented a disclosure hole in `set_bilans_floor`: knob-on, all eleven
   converted milestones publish a vacuous reading.** No behaviour change — this
