@@ -771,3 +771,99 @@ Three of these are worth keeping in mind whatever the backend is:
    `level = max(level, winning_tricks − 6)` — a trick count that can only ever
    *raise* the level, never lower it. That asymmetry is what a floor wants, and
    it needs no backend change.
+
+## The reach ceiling — what a net gate publishes  *(2026-07-26)*
+
+Consequence 4 generalises, and following it out finds a defect in how
+`set_bilans_floor` is wired. Nothing measured here; this is a reading of the
+code and of the projection algebra, recorded before it bites.
+
+### The gate reads as nothing
+
+[`instinct.rs:1985`](../../src/bidding/instinct.rs#L1985):
+
+```rust
+(!bilans_floor() & authored) | net_break_even_gate(bilans_enabled, true, strain, tricks)
+```
+
+`net_break_even_gate` is a `pred`, so it inherits the default
+`project` — `Dnf::unknown()`, [`constraint.rs:73`](../../src/bidding/constraint.rs#L73) —
+and a DNF union containing ⊤ is ⊤. **Knob-on, every one of the eleven
+converted milestones publishes a vacuous reading**, the same Or wall that
+erased the 2/1 (see [`sampled-projection.md`](sampled-projection.md)).
+
+This is not a missing fold. `project`'s soundness contract is
+`finite eval ⇒ inside the projection`, and the net accepts hands no box
+contains, so ⊤ *is* the correct projection. Tightening the reading requires
+tightening the **criterion**; there is no cheaper rung.
+
+Note also that knob-on the authored arm is masked off entirely, so the net
+does not merely add to the arithmetic — it *replaces* it, holding an unbounded
+veto over hands the point sums accept.
+
+### Why it shipped anyway, and where it stops
+
+Every converted site is a game or slam milestone — 3NT, 4M, 5m, 6, 7. Those
+calls are mostly terminal, so the reading destroyed is one nobody consumes,
+which is how the arm won all four cells with a hole in it. *Mostly*: a 4♥ that
+gets bid over still owes partner and the opponents a reading.
+
+The ceiling is what happens if the net is ever moved off terminal calls — a
+limit raise, an invite, a 2/1. There the vacuum compounds: our call reads ⊤, so
+partner's `Inferences::read` hands *the net itself* a ⊤ box for our seat, and
+partner's estimate is computed on nothing. **Arithmetic has no such ceiling**;
+its criterion is its reading by construction. That is a structural argument for
+an auditable backend that the accuracy gate above does not capture, and it is
+independent of the 0.34 tricks.
+
+The general escape already exists —
+[behavioural acceptance sampling](sampled-projection.md) replays the bidder as
+the acceptance test, giving the exact reading whatever the criterion (the
+measured `true 11..=26` against `projected 0..=37`). It costs a bidder call per
+sampled layout against a free interval intersection.
+
+### The fix, from the projection algebra
+
+`And::project` intersects and `Or::project` unions
+([`constraint.rs:296`](../../src/bidding/constraint.rs#L296)), so the two
+directions a net gate can move a decision cost very different amounts:
+
+| direction | shape | projection | cost |
+|---|---|---|---|
+| **veto** — net may only decline | `authored & net` | `box(authored) ∩ ⊤` = `box(authored)` | **free**; accepted set shrinks inside the promise |
+| **accelerator** — net may only add | `authored \| (collar & net)` | `box(authored) ∪ box(collar)` | needs a finite `collar` |
+
+A veto is already disclosure-correct and needs no collar: the reading stays
+`authored`, loose in the safe direction. Only the accelerator adds hands
+outside the box, and there the collar is forced by the soundness contract
+above.
+
+The candidate diff is one signature, and it *deletes* the mask:
+
+```rust
+fn points_or_net(
+    authored: Cons<impl Constraint + Clone>,
+    collar: Cons<impl Constraint + Clone>, // how far below `authored` the net may reach
+    strain: Strain,
+    tricks: u8,
+) -> Cons<impl Constraint + Clone> {
+    authored | (collar & net_break_even_gate(bilans_enabled, true, strain, tricks))
+}
+```
+
+Knob-off the net arm is `-∞`, so `collar & -∞` is `-∞` and the gate is exactly
+`authored` — byte-identical, and `!bilans_floor()` goes away. Call sites read
+`points_or_net(combined_points(25), combined_points(23), strain, 11)`, which
+puts the collar in plain sight where the threshold is. 23 is not arbitrary: it
+is the invitational band, where a human already calls it judgment.
+
+Which direction per site is BBA's answer, and it is the cheap/expensive
+asymmetry — **accelerate at game, veto at slam**. `max(level, winning − 6)`
+raises the level; `losing ≤ 1` is a *necessary* condition on the 33-point slam
+override. Bidding a game the points do not support is cheap; bidding a slam
+that fails is not.
+
+**If measured, it is three arms, not two.** Today's replace-the-arithmetic
+wiring holds that unbounded veto at the game sites too, so the collar gives it
+back. Some of the win/win/win/win may be thin 25-counts the net declined, and
+only an A/B separates the collar from the veto from the status quo.

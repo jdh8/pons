@@ -35,6 +35,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Documented a disclosure hole in `set_bilans_floor`: knob-on, all eleven
+  converted milestones publish a vacuous reading.** No behaviour change — this
+  is a reading of the code, recorded before it bites. `net_break_even_gate` is
+  a `pred`, so it takes the default projection (⊤), and `points_or_net`
+  disjoins it; a DNF union containing ⊤ is ⊤. Not a missing fold: the net
+  accepts hands no box contains, so ⊤ is the *sound* projection, and a finite
+  reading requires a finite criterion. Survivable where it sits — every
+  converted site is a game or slam milestone, mostly terminal — but it caps the
+  net's reach at terminal calls, because on a non-terminal call the vacuum
+  compounds into the next seat's estimate. The fix falls out of the projection
+  algebra (a veto is free, an accelerator needs a finite collar) and the
+  per-site split is BBA's: accelerate at game, veto at slam. Written up in
+  [docs/ai-bidder/evaluator-net.md](docs/ai-bidder/evaluator-net.md) under "The
+  reach ceiling", with a cross-reference from
+  [docs/dnf-migration.md](docs/dnf-migration.md)'s ⊤-source list.
+
 - **`docs/ai-bidder/bba-floor.md` §5.5 — BBA's *bilans* arithmetic is now read,
   not inferred** (ledger row B closed; `ilspycmd` on the unobfuscated managed
   `vendor/bba/EPBot64.dll`, 6.5 s for the whole assembly). Its level is

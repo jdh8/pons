@@ -191,3 +191,11 @@ hand-vacuous — ⊤ is *exact*, not a leak.  And the **fallback blind spot**
 (SHCP row): rules wired as `Fallback::classify` are invisible to the meter
 and the E0 sweep on *every* column — a meter-scope chop of its own if the
 fallback-competitive layer is ever to be metered.
+
+The one ⊤ that is a **real** leak rather than an exact reading is the
+evaluator net's own gate: `net_break_even_gate` is a `pred`, so it takes the
+default `project` (⊤), and `points_or_net` disjoins it — knob-on, all eleven
+converted milestones read as nothing.  Not a missing fold: a `pred` accepts
+hands no box contains, so ⊤ *is* the sound projection.  See
+[`ai-bidder/evaluator-net.md`](ai-bidder/evaluator-net.md) — "The reach
+ceiling" — for why it is survivable where it sits and what the fix costs.
