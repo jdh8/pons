@@ -302,6 +302,51 @@ shrank as those ships landed — def-r1 `Defensive/book/round-1` still #1 at
 +0.25 vul (B4), which does not decompose and is measured as a separate
 routing-gate A/B.  Report: `ab-results/anchor/2026-07-19-973d681/report.md`.
 
+**Re-anchor `eb02d9d` (2026-07-26, 409.6k boards, same seed):** 109 commits of
+default-on ships since `973d681`, none of them individually anchored — pooled
+**−1.152 plain / −1.355 PD** (vul none −1.024 / −1.116, both −1.279 / −1.593),
+from −1.500 / −1.683.  Both arms replay-verified **100%** (0 of 4.23M calls).
+The **+0.348 plain / +0.328 PD** is the largest single-batch move the series has
+recorded, and unlike earlier batches it is *not* concentrated: every phase
+improved (Defensive −251275 → −194513, Constructive −232496 → −168727,
+Competitive −130622 → −108429) and so did both provenances (`book` −322470 →
+−245400, `floor#3` −85435 → −64160).  The batch is the shared-vocabulary work —
+`points` → `PointCount`, suit-indexed `support_points`, the DNF projection flip
+(which moves the floor twice: tightened hulls into `partner_shown_*`, and a
+swapped weight artifact into the bilans evaluator) and bilans itself going
+default-on — so it lifts every consumer at once rather than one bucket.
+
+Re-rank: **the head order is unchanged for the fourth anchor running** — def-r1
+`Defensive/book/round-1` still #1 at **−85805** (was −111127), then constructive
+`opening`/`round-2`/`round-1` (−71779 / −45155 / −35084, from −86728 / −64692 /
+−49912); `floor#3` defensive pass discipline r2+r1 −51372 → −40338; the
+competitive `fallback@1`/`fallback@2` round-1 pair −45640 → −38645.  One row
+moved differently from the rest: `Constructive/book/opening` gained **+29348
+PD** against only +14949 plain (PD −88698 → −59350), i.e. the openings we now
+avoid were the ones getting doubled — a PD-shaped win that plain DD understates.
+
+**What the *shipping* pair scores (`--our-floor american`, same deals, same
+seed):** pooled **−1.021 plain / −1.254 PD** (vul none −0.929 / −1.150, both
+−1.112 / −1.357), i.e. the BBA net floor is worth **+0.131 plain / +0.101 PD**
+on top of the deterministic prior.  Read the headline only — replay verification
+is 89–90% *by construction* (the net floor's off-book calls do not reproduce
+through `american_instinct()`), so `report-american.md`'s bucket rows are not
+valid and only the IMP figures, which come from the recorded auctions, are.
+
+That total hides a split worth a re-measure: the floor is **+0.167 plain /
++0.236 PD at vul both**, but at **vul none it is +0.094 plain and −0.034 PD** —
+it gains on plain DD while *losing* under perfect defense, the signature of
+calls that buy the contract and then get doubled.  The unpaired CIs overlap
+([−1.1754, −1.1248] vs [−1.1416, −1.0905]), so this is suggestive rather than
+decided; the arms share deals, so a paired NV A/B of the floor's routing gate
+would settle it cheaply.  For context, B4's routing gate recorded +0.11 NV /
++0.25 vul at `7122756`, eight net-floor commits ago.
+
+*Caveat on cross-anchor `floor#N`*: the labels are only stable within a build.
+`floor#3` carries identical rule text in both reports so its row is comparable;
+`floor#246`/`floor#247` rows are new numbering and are **not** to be diffed
+against `973d681`.
+
 **#1 is the real prize and it is a *book* item, not a floor item.**  Our
 defensive first-round structure — overcalls, takeout doubles, two-suiters
 over their opening — bleeds −2.40/div (−142733 raw at 409.6k bd), and PD is
@@ -328,11 +373,21 @@ which never change under the fixed seed.  Afterwards:
 
 1. Check `report.md`'s **replay verification = 100%** — below that the dump
    was generated with non-default knobs or a drifted revision; fix before
-   trusting buckets.
-2. Commit the lean set: `/ab-results/` is gitignored, so `git add -f` the
-   series `seed` + `log` and the snapshot's `report.md` — that is all prior
-   snapshots track. The `boards.jsonl` (~92 MB) and `dd-cache.json` are
-   **not** committed; they regenerate in minutes from seed + SHA.
+   trusting buckets.  **The usual cause is a stale `bba-gen` clap default.**
+   `bba-gen` applies ~130 `set_*` knobs from CLI defaults while `bba-decompose`
+   replays on crate defaults, so when a crate default flips and the matching
+   `default_value` is not updated in the same commit, an unflagged run silently
+   measures a system we do not ship.  That is what a *tiny* miss looks like
+   (`eb02d9d`: 1447 of 4.23M calls, 0.034%, from `--ns-two-over-one-gate` still
+   defaulting to `hcp13` a day after `39a5eb6` shipped `points13`) — a knob that
+   is wholly on or off mismatches far more loudly.  Confirm it is systematic by
+   re-running the decompose on one shard twice: an identical count is drift, a
+   varying one would be nondeterminism.  **When you flip a crate default, grep
+   `examples/bba-gen/main.rs` for its `set_*` in the same commit.**
+2. Anchor outputs stay **untracked**. `/ab-results` is gitignored and `6a5cbdb`
+   dropped the 21 previously-committed reports: every snapshot regenerates from
+   the series `seed` + the SHA, so the repo carries the headline (here and in
+   CHANGELOG.md), not the artefact.
 3. Record the headline in the 21gf-ledger campaign-metric line and
    CHANGELOG.md.
 

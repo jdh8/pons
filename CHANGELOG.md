@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Two `bba-gen` clap defaults had drifted from their crate defaults, so an
+  unflagged measurement run silently bid a system we do not ship.**
+  `--ns-two-over-one-gate` still defaulted to `hcp13` a day after `39a5eb6` made
+  `TwoOverOneGate::Points13` the crate default (its doc comment also had the two
+  backwards, calling the shipped gate "the legacy gate"), and
+  `--ns-staydef-overcall` defaulted to `6:12` against a crate default of `6:14`.
+  The second is inert — `--ns-defense-to-their-stayman` is off by default — but
+  it would have baselined a future Stayman-defense A/B against a stale band.
+
+  Caught by the anchor's replay-verification gate, which compares `bba-gen`'s
+  recorded calls against a `bba-decompose` replay on crate defaults: the
+  2026-07-26 re-anchor read **99.97%** (1447 of 4.23M calls, 0.034%) instead of
+  100%. A miss that small is the signature of a drifted *scalar* default — a
+  boolean knob flipped wholesale mismatches far more loudly. No new regression
+  test: the gate already is one, and it worked. The standing rule is now in the
+  runbook — when you flip a crate default, grep `examples/bba-gen/main.rs` for
+  its `set_*` in the same commit.
+
+  Re-anchored after the fix (`eb02d9d`, 409.6k bd, same `SEED_BASE=1783375064`,
+  both arms replay-verified **100%**): the deterministic pons is **−1.152 plain
+  / −1.355 PD IMPs/bd vs BBA** (vul none −1.024 / −1.116, both −1.279 / −1.593),
+  from −1.500 / −1.683 at `973d681` — **+0.348 plain / +0.328 PD** across 109
+  commits, the series' largest single-batch move, and broad rather than
+  bucket-shaped (every phase and both provenances improved). The shipping
+  `american()` pair, same deals, scores **−1.021 plain / −1.254 PD**, so the BBA
+  net floor adds +0.131 plain / +0.101 PD — but that splits into +0.167/+0.236
+  at vul both against +0.094 plain and **−0.034 PD** at vul none, a
+  plain-win/PD-loss shape worth a paired re-measure. Full table and the
+  re-ranked buckets in [docs/bba-gap-campaign.md](docs/bba-gap-campaign.md).
+
 ### Added
 
 - **`examples/eval-arithmetic` — priced an auditable arithmetic backend for

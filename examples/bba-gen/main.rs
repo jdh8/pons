@@ -356,9 +356,12 @@ struct Args {
     no_ns_two_over_one_fit: bool,
 
     /// The no-fit gauge of the major 2/1 game force:
-    /// hcp13 (shipped default) | hcp12 | points13 (the legacy gate)
-    /// (see `set_two_over_one_gate`).
-    #[arg(long, default_value = "hcp13")]
+    /// points13 (shipped default since `39a5eb6`) | hcp13 (superseded) | hcp12
+    /// (see `set_two_over_one_gate`).  Must track the crate default: an
+    /// unflagged run is the shipped system, and `bba-decompose` replays on
+    /// crate defaults, so a stale value here shows up as a replay-verification
+    /// miss and silently measures a system we do not ship.
+    #[arg(long, default_value = "points13")]
     ns_two_over_one_gate: String,
 
     /// Natural per-call 2/1 suit lengths: `1♠–2♥` promises 5+ hearts, `1♠–2♣`
@@ -699,10 +702,10 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_diamond_transfer_defense: bool,
 
-    /// Stayman-defense natural-overcall `MIN_LEN:POINTS_FLOOR` (default 6:12); the
-    /// A/B search knob for the 2♦/2♥/2♠ length + strength (no effect unless
-    /// `--ns-defense-to-their-stayman`).
-    #[arg(long, default_value = "6:12")]
+    /// Stayman-defense natural-overcall `MIN_LEN:POINTS_FLOOR` (default 6:14, the
+    /// crate default); the A/B search knob for the 2♦/2♥/2♠ length + strength (no
+    /// effect unless `--ns-defense-to-their-stayman`).
+    #[arg(long, default_value = "6:14")]
     ns_staydef_overcall: String,
 
     /// Shape gate for our natural penalty double of their 1NT: balanced (default,
