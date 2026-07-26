@@ -41,6 +41,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`examples/probe-reading-census.rs` — the ⊤ census the reading programme was
+  waiting on: which calls read as *nothing*, weighted by how often they fire.**
+  Tooling only; no behaviour changes and no IMPs of its own. It sizes the part
+  of the negative control's −0.65…−1.27 IMPs/bd that is still on the table, on
+  the same surface that control moved (the five axes `push_inference` hands the
+  nets — four suit lengths and `points`, ⊤ when still at `Envelope::unknown`).
+  Every decision node of a real self-play auction counts once, so firing
+  frequency *is* the weight; no double-dummy, so 20,000 boards cost 1.4 s. One
+  runnable self-check asserts a bare `Context::new` scores ≥ the `Stance::infer`
+  ⊤ count, which fails loudly if the prefixed read path ever stops being wired —
+  the failure that would report zero headroom for the wrong reason.
+
+  **Result (20,000 bd, seed 1785200001): 2.646 of 5 axes are ⊤ for a seat that
+  has bid, and 6.29% of those readings are ⊤ on all five.** The blindness is not
+  where the 2/1 fit-split bug pointed, and it splits into two mechanisms wanting
+  opposite work. *(1)* Every fully-blind key is a **pass**, and the worst are
+  passes over non-suit openings — `2♦/2♥/2♠ P` read nothing on **100%** of
+  readings, `1NT P` on 90.7%, `2NT P` 86.6%, `2♣ P` 80.3% — while `1♣/1♦/1♥/1♠ P`
+  are 0.00% blind. Mechanism: `project_authored` projects a call only when its
+  classifier answers `as_rules()`, which only `Rules` does, so every position
+  wired as `Fallback::classify` has **no projection attempted at all**. That is
+  the DNF ledger's predicted fallback blind spot, now measured, and it is
+  missing machinery rather than a missing box. *(2)* The largest *bid* ⊤ mass is
+  `1♥`/`1♠` (55,177 ⊤ axes), which read own-suit + points where `1♣`/`1♦` also
+  read both majors — because the minors carry `len(♥, ..5) & len(♠, ..5)` in the
+  rule text while `1♥` denies five spades only by losing the 5-5 hands to `1♠`'s
+  higher weight. That is **rule competition**, the first measured case where the
+  behavioural probe is the only instrument and not merely the convenient one.
+  Census, worklist and the C1 caution against tightening those ceilings without
+  a retrain in
+  [docs/ai-bidder/sampled-projection.md](docs/ai-bidder/sampled-projection.md),
+  whose stale stage list is corrected in the same change (Stages 0, A and C all
+  landed; what remains is this census and Stage B).
+
 - **`announced()` — a call decided by the evaluator net can now say what it
   means, without lying to the sampler.** Opt-in and measured a **wash**; the
   crate default is byte-identical (`set_announced_reading` off,

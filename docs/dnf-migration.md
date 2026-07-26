@@ -190,7 +190,13 @@ Context atoms (`min_level_is`, `they_bid`, seats, vulnerability) are
 hand-vacuous — ⊤ is *exact*, not a leak.  And the **fallback blind spot**
 (SHCP row): rules wired as `Fallback::classify` are invisible to the meter
 and the E0 sweep on *every* column — a meter-scope chop of its own if the
-fallback-competitive layer is ever to be metered.
+fallback-competitive layer is ever to be metered.  **Now priced** by the ⊤
+census (`examples/probe-reading-census.rs`,
+[ai-bidder/sampled-projection.md](ai-bidder/sampled-projection.md)): it is not
+merely unmetered, it is unprojected — `project_authored` skips any classifier
+whose `as_rules()` is `None`, so a pass over a weak two reads 5/5 ⊤ on **100%**
+of readings and a pass over 1NT on 90.7%.  Every fully-blind key in the census
+is one of these.
 
 The ⊤s that are **real** leaks rather than exact readings all sit at the floor's
 game/slam milestones, and there are two kinds, not one:

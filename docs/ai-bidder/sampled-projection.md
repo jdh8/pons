@@ -13,6 +13,11 @@
 >
 > Update (2026-07-26): the negative control below prices this design's prize at
 > **0.65–1.27 IMPs/board** — about the whole remaining gap to BBA. Build it.
+> The census that followed (`examples/probe-reading-census.rs`, its own section
+> below) says *where*: the blind head is passes through the `Fallback::classify`
+> layer, which needs machinery rather than probing, and the largest bid-side ⊤
+> mass is **rule competition** on the 1♥/1♠ openings, which needs probing and
+> nothing else can reach.
 
 ## The idea, in one line
 
@@ -318,6 +323,14 @@ needs no fixed point. It is a genuine second path, not a vestige.
 
 ## Implementation stages
 
+> **Status (2026-07-26): Stages 0, A and C have all landed.** Stage 0 is
+> `authored_calls_read_what_they_gate` (095ac85); Stage A is the `Flip`
+> complements (1e11c49); Stage C is the whole DNF migration, shipped
+> **default-on** on 2026-07-23 after the F2b′ A/B won 4/4 — ledger in
+> [`../dnf-migration.md`](../dnf-migration.md). Stage D (cap selection) is
+> parked behind a `debug_assert!(< 64)` that has never fired. What remains is
+> the census below and **Stage B**. The stage text is kept as the record.
+
 Each stage changes the net's inputs, so each costs regen + retrain (~30 min on the
 GPU trainer) + A/B both vulnerabilities, plain and PD. **The validation dominates the
 code.**
@@ -421,9 +434,91 @@ call, including the ones no one will ever author a reader for and the ones a
 learned criterion decides.
 
 The census that sizes the remaining headroom inside that prize is *what
-fraction of calls project ⊤ today*, weighted by how often they fire. Run it
-before Stage A — it turns "0.65–1.27 is the ceiling" into "and here is the part
-still on the table."
+fraction of calls project ⊤ today*, weighted by how often they fire — it turns
+"0.65–1.27 is the ceiling" into "and here is the part still on the table." It
+is below.
+
+## The census — where the ⊤s actually are (2026-07-26)
+
+`examples/probe-reading-census.rs` counts, at every decision node of real
+self-play auctions, how many of the five axes `features::push_inference` hands
+the nets (four suit lengths and `points`) are still at their
+`Envelope::unknown` value. Same surface the negative control moved, so the two
+numbers are commensurable. Frequency weighting is free — every node counts
+once — and there is no double-dummy: 20,000 boards cost **1.4 s**.
+
+20,000 boards, seed 1785200001, `american().against(NATURAL)`, 498,687
+hidden-seat readings, shipped defaults:
+
+| read seat | readings | ⊤ axes / seat (of 5) | ⊤ on all five |
+| --- | --- | --- | --- |
+| has bid | 306,017 | 2.646 | 6.29% |
+| passes only | 192,670 | 4.257 | 26.21% |
+
+The headroom is real, it is **not** where the 2/1 fit-split bug pointed, and
+the ranked worklist splits into two mechanisms that want opposite work.
+
+### The blind head is passes, and it is missing machinery
+
+Every fully-blind key is a pass. Ranked by 5/5-⊤ readings:
+
+| key | readings | ⊤/seat | blind |
+| --- | --- | --- | --- |
+| `1NT P` | 4,518 | 4.907 | **90.7%** |
+| `2♦ P` / `2♥ P` / `2♠ P` | 650 / 631 / 563 | 5.000 | **100%** |
+| `2NT P` | 821 | 4.866 | 86.6% |
+| `2♣ P` | 867 | 4.803 | 80.3% |
+| `1NT P 2♣` | 1,089 | 4.747 | 74.7% |
+| `1♦ 1♠ P`, `1♣ 1♠ P`, `1♣ 1♦ P` | 511 / 492 / 421 | 4.77–4.82 | 73–82% |
+| `1x P 1y P` (fourth seat) | 1,620–2,481 | 4.36–4.48 | 35–48% |
+
+Against that, `1♣ P` / `1♦ P` / `1♥ P` / `1♠ P` are **0.00% blind** — a pass
+over a natural one-of-a-suit opening reads its points band and nothing else,
+which is the pass reading working as designed.
+
+The mechanism is the **fallback blind spot** the DNF ledger predicted, now
+measured. `project_authored` projects a call only when its classifier answers
+`as_rules()`, and `Some` comes from `Rules` alone
+([rules.rs](../../src/bidding/rules.rs)) — the blanket
+`impl<F> Classifier for F` inherits the `None` default
+([trie.rs](../../src/bidding/trie.rs)). Every position wired as
+`Fallback::classify` therefore has **no projection attempted at all**, which is
+why a pass over a weak two reads 5/5 ⊤ on 100% of readings. This is not a
+missing box on an authored rule; it is a layer the projection pass never
+reaches. Cheap to fix relative to Stage B, and it owns the plurality of the
+blindness.
+
+### The biggest *bid* ⊤ mass is rule competition — only a probe can reach it
+
+| opening | readings | ⊤/seat | axes read |
+| --- | --- | --- | --- |
+| `1♥` / `1♠` | 8,802 / 9,369 | 3.03–3.04 | own suit + points |
+| `1♣` / `1♦` | 11,850 / 12,675 | 1.08–1.09 | own suit + points + **both majors** |
+
+The asymmetry is in the rule text, not the machinery: the minor openings carry
+`len(♥, ..5) & len(♠, ..5)` explicitly, the major openings carry no cap on the
+other major ([american/openings.rs](../../src/bidding/american/openings.rs)).
+`1♥` does imply at most four spades — but only because `1♠` outranks it at 1.6
+against 1.5 and takes the 5-5 hands. That is **rule competition**, exactly the
+axis no per-rule algebra can see and a probe can. The 1♥/1♠ pair is 55,177 ⊤
+axes over 18,171 readings, the largest bid bucket in the census.
+
+Caution before treating it as free: filling it tightens a length *ceiling*
+(♠ `0..13` → `0..4`, so `max/13` moves 1.00 → 0.31), which is the C1-shaped
+move refuted 4/4 in [`../dnf-migration.md`](../dnf-migration.md). It differs
+from C1 in that it moves real **mass** — five-card spade suits are excluded,
+not merely made unreachable — so a retrain can be earned on it where C1's could
+not. Measure it as a chop; do not assume it.
+
+### What it decides
+
+Two separate pieces of work, in cost order:
+
+1. **Project the fallback layer's passes.** Missing machinery, no probe needed,
+   and it owns the blind head.
+2. **Stage B for rule competition.** The 1♥/1♠ ceilings are unreachable
+   symbolically by construction — the first measured case where the probe is
+   the *only* instrument rather than the more convenient one.
 
 ## Caveats
 
