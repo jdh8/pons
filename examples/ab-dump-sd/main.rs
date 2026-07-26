@@ -35,6 +35,7 @@ use pons::american;
 use pons::bidding::american::{
     FreeBidStyle, NegativeDoubleShape, set_free_1nt_floor, set_free_bid_style, set_free_bids,
     set_natural_overcall_points, set_negative_double_shape, set_two_level_minor_overcall_tight,
+    set_weak_two_notrump_advances, set_weak_two_notrump_points,
 };
 use pons::bidding::context::relative;
 use pons::bidding::{Family, Inferences, Stance};
@@ -104,6 +105,22 @@ struct Args {
     /// Same for the OFF arm (the sweep's baseline is 8:14)
     #[arg(long, default_value = "8:14")]
     off_ns_overcall: String,
+    /// Read the ON arm's auctions with this `hcp` band `LO:HI` on the 2NT
+    /// overcall of their weak two (`set_weak_two_notrump_points`; same reason
+    /// as `--on-ns-overcall` — the leader must know which band bid 2NT)
+    #[arg(long, default_value = "16:17")]
+    on_ns_weak_two_nt_points: String,
+    /// Same for the OFF arm (the shipped default is 16:17)
+    #[arg(long, default_value = "16:17")]
+    off_ns_weak_two_nt_points: String,
+    /// Read the ON arm's auctions with the Gladiator advances of that 2NT
+    /// authored (`set_weak_two_notrump_advances`), which is what makes `3♣`
+    /// a relay rather than natural to the leader
+    #[arg(long, default_value_t = false)]
+    on_ns_weak_two_nt_advances: bool,
+    /// Same for the OFF arm
+    #[arg(long, default_value_t = false)]
+    off_ns_weak_two_nt_advances: bool,
     /// Show this many of the biggest swings (each way)
     #[arg(long, default_value_t = 8)]
     show: usize,
@@ -169,6 +186,9 @@ fn main() {
     };
     let (lo, hi) = band(&args.on_ns_overcall);
     set_natural_overcall_points(lo, hi);
+    let (lo, hi) = band(&args.on_ns_weak_two_nt_points);
+    set_weak_two_notrump_points(lo, hi);
+    set_weak_two_notrump_advances(args.on_ns_weak_two_nt_advances);
     let stance_on = american().against(Family::NATURAL);
     set_free_bids(false);
     set_negative_double_shape(NegativeDoubleShape::Modern);
@@ -176,6 +196,9 @@ fn main() {
     set_two_level_minor_overcall_tight(false);
     let (lo, hi) = band(&args.off_ns_overcall);
     set_natural_overcall_points(lo, hi);
+    let (lo, hi) = band(&args.off_ns_weak_two_nt_points);
+    set_weak_two_notrump_points(lo, hi);
+    set_weak_two_notrump_advances(args.off_ns_weak_two_nt_advances);
     set_free_1nt_floor(6);
     let stance_off = american().against(Family::NATURAL);
 

@@ -207,7 +207,7 @@ pub(crate) fn notrump_shape(shape: NotrumpShape) -> Cons<impl Constraint + Clone
 /// The 13-card sum does the excluding: majors capped at four drop every 5-card
 /// major (so 5M(332) opens one-of-a-major instead), and minors run to six for
 /// the 5m(422)/6m(322) hands.  `{4432, 4333, 5m332, 5m422, 6m322}`.
-fn two_notrump_wide_shape() -> Cons<impl Constraint + Clone> {
+pub(crate) fn two_notrump_wide_shape() -> Cons<impl Constraint + Clone> {
     shapes(
         "balanced or wide-minor 2NT shape",
         vec![length_box([

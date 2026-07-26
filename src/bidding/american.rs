@@ -112,7 +112,10 @@ pub use defense::{
     set_responsive_takeout, set_rich_advance_double, set_stayman_defense,
     set_stayman_defense_overcall, set_strong_double_hcp, set_takeout_support, set_transfer_defense,
     set_two_level_minor_overcall_tight, set_two_suiter_hcp_floor, set_unusual_notrump_defense,
-    set_woolsey, set_woolsey_double_floor, set_woolsey_points,
+    set_weak_two_cue, set_weak_two_jump_overcall, set_weak_two_notrump_advances,
+    set_weak_two_notrump_points, set_weak_two_notrump_shape, set_weak_two_overcall_discipline,
+    set_weak_two_overcall_points, set_weak_two_pass_gate, set_woolsey, set_woolsey_double_floor,
+    set_woolsey_points,
 };
 pub(crate) use defense::{
     direct_dont_enabled, direct_landy_double, landy_range, meckwell_enabled,

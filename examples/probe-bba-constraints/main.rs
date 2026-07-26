@@ -346,8 +346,29 @@ fn main() -> Result<()> {
             Some(TWO_S),
             "BBA opener's rebid over 2♠-P-2NT-P — what the 2NT ask wants",
         ),
+        // Direct seat over THEIR weak two — the whole toolkit at once: the 2NT
+        // overcall's range and shape, the takeout double's floor, the natural
+        // overcalls, whether a jump is authored, and what the cue means.
+        "def2-d" => (
+            1,
+            &[TWO_D],
+            None,
+            "BBA direct seat over (2♦) — X / 2NT / natural overcalls / 3♦ cue",
+        ),
+        "def2-h" => (
+            1,
+            &[TWO_H],
+            None,
+            "BBA direct seat over (2♥) — X / 2NT / natural overcalls / 3♥ cue",
+        ),
+        "def2-s" => (
+            1,
+            &[TWO_S],
+            None,
+            "BBA direct seat over (2♠) — X / 2NT / natural overcalls / 3♠ cue",
+        ),
         other => bail!(
-            "--mode must be multi|advance|counter|muider-h|muider-s|rebid-d|rebid-h|rebid-s|stayman|xfer-h|xfer-s|weak2-d|weak2-h|weak2-s, got {other:?}"
+            "--mode must be multi|advance|counter|muider-h|muider-s|rebid-d|rebid-h|rebid-s|stayman|xfer-h|xfer-s|weak2-d|weak2-h|weak2-s|def2-d|def2-h|def2-s, got {other:?}"
         ),
     };
 
@@ -358,6 +379,11 @@ fn main() -> Result<()> {
         "weak2-d" => (&[], Some(Suit::Diamonds)),
         "weak2-h" => (&[], Some(Suit::Hearts)),
         "weak2-s" => (&[], Some(Suit::Spades)),
+        // The `def2-*` modes read the DEFENDER, so `trump` names *their* suit:
+        // the top-honor column is then the stopper the 2NT overcall wants.
+        "def2-d" => (&[], Some(Suit::Diamonds)),
+        "def2-h" => (&[], Some(Suit::Hearts)),
+        "def2-s" => (&[], Some(Suit::Spades)),
         _ => (&[ONE_NT], None),
     };
 

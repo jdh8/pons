@@ -7,6 +7,315 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **A natural suit overcall of their weak two demands more when *we* are
+  vulnerable: 12–17 at the two level, 15–17 at the three (default-on,
+  `win | win`, 8/8 cells over two seeds).** Non-vulnerable keeps the flat 10–16
+  band. `set_weak_two_overcall_discipline` / `--no-ns-weak-two-overcall-discipline`.
+
+  | `-v` | we vulnerable? | fired | plain DD | PD |
+  | --- | --- | --- | --- | --- |
+  | none | no | 0.00% | **0.0000 ± 0.0000** | 0.0000 ± 0.0000 |
+  | ns | **yes** | 0.62% | **+0.0026 ± 0.0018** | +0.0136 ± 0.0022 |
+  | both | **yes** | 0.67% | **+0.0029 ± 0.0020** | +0.0182 ± 0.0024 |
+
+  Pooled over `SEED_BASE` 1785092622 / 1785093604, 204.8k bd/arm/vul vs BBA 2/1;
+  every one of the eight live cells is positive and both pooled plain-DD CIs
+  clear zero, at +0.45 IMPs/fired.
+
+  **The `none` row is a control, not a result.** With nobody vulnerable the
+  disjunction reduces to exactly the `points(lo..=hi)` it replaced, so it must
+  read 0.000 on *zero* divergences — and it does. A non-zero there would have
+  meant the vulnerability conjunct was miswired and the other two rows were
+  measuring something else. Cheap to get (it is one of the arms you were running
+  anyway) and it is the reason the rest can be believed.
+
+  Two vulnerabilities were not enough to find this. `none` and `both` are both
+  *symmetric* — our side and theirs equally at risk — so neither can tell our
+  vulnerability from theirs, and an earlier flat-band sweep read as an
+  incoherent mix. Adding `ns` (we vulnerable, they not) split plain DD
+  monotonically on **our** vulnerability with nothing left over, which is what
+  picked `vulnerable()` over `they_vulnerable()`.
+
+  PD runs 5–6× the plain gain here, which is the expected shape rather than a
+  red flag: the change deletes light vulnerable overcalls, and light vulnerable
+  overcalls are precisely what perfect defense punishes hardest once BBA doubles
+  them. Read on its own that column would be the doubling artifact; it ships on
+  the plain-DD half, which agrees in sign at every live cell. The bridge is
+  ordinary — vulnerable at the three level over a preempt, opposite a partner
+  who has not spoken, an 11-count has no business bidding.
+
+- **The 2NT overcall of their weak two narrows from 15–18 to 16–17
+  (default-on, `win | win` on both seeds at both vulnerabilities).** Both
+  edges of the old band were wrong, and — the useful part — wrong
+  *independently*. Each one-point trim diverges from 15–18 only at its own end,
+  so the two arms touch disjoint hand classes:
+
+  | band | trims | fired | plain NV / vul | PD NV / vul |
+  | --- | --- | --- | --- | --- |
+  | 15–17 | 18s → double | 0.06% | +0.0009 / +0.0004 | +0.0014 / +0.0007 |
+  | 16–18 | 15s → pass | 0.09% | +0.0006 / +0.0007 | +0.0024 / +0.0018 |
+  | **16–17** | both | 0.16% | **+0.0015 / +0.0011** | **+0.0037 / +0.0025** |
+
+  IMPs/board, mean of `SEED_BASE` 1785088050 and 1785088953, 204.8k bd/arm/vul
+  vs BBA 2/1; pooled CI ±0.0008 plain, ±0.0009 PD. Positive on all 8 cells of
+  the 16–17 arm. The combined row is the **sum** of the two above it to within
+  noise on every cell including the fire rate (0.06 + 0.09 ≈ 0.16), which is
+  what confirms the edits compose rather than compete — the two trims were run
+  as rivals and turned out to be addends.
+
+  Note the fire rates run opposite to the bid frequencies, which is easy to
+  misread (jdh8 caught it): 15–17 *makes* the 2NT overcall more often than
+  16–18 does, but *diverges* from the 15–18 baseline less often, because
+  divergence happens only at the trimmed edge and a 15-count is some three times
+  as common as an 18-count. Trimming the floor is therefore the larger edit.
+
+  Both trims hand the hand to a call the system already authors. An 18-count
+  meets the takeout double's `points(17..)` — that is the classic
+  double-then-notrump auction, and it was being pre-empted by a 2NT that
+  understated the hand. A balanced 15 with a stopper has no rule to catch it and
+  passes: facing a preempt with a partner who has not spoken, 2NT was buying a
+  bad 3NT. `set_weak_two_notrump_points(lo, hi)` /
+  `--ns-weak-two-nt-points LO:HI` re-tune it; the clap default is re-anchored to
+  match.
+
+  **One confound, raised (by jdh8) and then measured out**: every cell above was
+  measured with the 2NT overcall having *no authored continuations at all* —
+  advancer dropped to the instinct floor. So "15-counts should pass" might
+  instead have been "2NT is a bad call because nothing lives underneath it",
+  which is not the same claim. Note this is an *interaction*, so the fact that
+  `set_weak_two_notrump_advances` alone measures null does not settle it: the
+  advances were priced at 16–17, the band that deliberately makes 2NT rarest.
+  Re-run with the continuations switched on underneath (`SEED_BASE` 1785095201,
+  204.8k bd/arm/vul, all arms carrying the shipped defaults), sign convention
+  *wide minus narrow*:
+
+  | widened to | fired | plain NV / vul | PD NV / vul |
+  | --- | --- | --- | --- |
+  | 15–17 | 0.11 / 0.08% | +0.0001 / −0.0009 | −0.0016 / −0.0020 |
+  | 15–18 | 0.16 / 0.12% | −0.0010 / −0.0025 | −0.0029 / −0.0038 |
+
+  Refuted, and monotone in how far the band is widened: negative on seven of
+  eight cells and on all four PD cells, which is the honest arbiter for a
+  contract-boundary question. Reading the two rows as a difference isolates the
+  18-edge (+0.0011 / +0.0016 plain, +0.0013 / +0.0018 PD to trim it) and the
+  first row is the 15-edge (−0.0001 / +0.0009, +0.0016 / +0.0020) — both
+  replicate the original sweep's single-trim arms to within a whisker, on a
+  third seed and with continuations underneath, which is the real result here.
+  Neither edge dominates: they are worth about the same, so the derived
+  comparison **16–18 ≈ 15–17** is a tie in both experiments and only the
+  double trim is separated. Additivity holds as it did in the original sweep
+  (`adv1517`/`base` = `adv`/`base` + `adv1517`/`adv` to within 0.0001 on every
+  cell), which is what confirms the arms are wired right.
+
+  jdh8 then asked for the third bracket, on the grounds that DD's clairvoyant
+  opening lead is worth most in notrump and the widened arms buy more of it.
+  The mechanism is real and it is *measurable* — re-scoring the same dumps
+  under the blind lead moves every one of the eight cells toward the widening,
+  by +0.0003 … +0.0009, and the lift scales with how much extra notrump the arm
+  bids (15–18 gains about twice what 15–17 does). It is a factor of three short:
+
+  | widened to | fired | SD-plain NV / vul | **SD-PD** NV / vul |
+  | --- | --- | --- | --- |
+  | 15–17 | 0.12 / 0.09% | +0.0004 / −0.0006 | −0.0010 / −0.0017 |
+  | 15–18 | 0.18 / 0.13% | −0.0004 / −0.0016 | −0.0022 / −0.0029 |
+
+  (`ab-dump-sd`, 16 worlds, `--sd-seed` 20240607, both arms disclosing their own
+  band. SD compares at *auction* granularity, so its divergent sets run slightly
+  larger than the DD ones — 242 against 218 boards NV — and the lift is not a
+  perfectly paired difference.) SD-PD is a real arbiter below slam and it is
+  negative on all four cells, so the refutation holds in all three brackets. It
+  also settles the edges a third time: the 15-edge (−0.0010 / −0.0017) and the
+  18-edge (−0.0012 / −0.0012, by difference) are again worth the same, so
+  **16–18 ≈ 15–17** under SD-PD as under DD, and neither single trim is worth a
+  fifth arm. `set_weak_two_notrump_advances` is null here too (+0.0007 / +0.0002
+  SD-PD on 160 / 102 fired), which is fourteen cells across three brackets.
+
+  So the band verdict stands, now on measurement rather than inference. One
+  caveat kept for whoever revisits it: the continuations are authored over their
+  major only, and 2♦ is ~31% of our 2NT overcalls, so ~31% of the widened
+  overcalls in the arms above still dead-ended to the floor.
+
+### Added
+
+- `ab-dump-sd --on/off-ns-weak-two-nt-points LO:HI` and
+  `--on/off-ns-weak-two-nt-advances`, so the blind leader reads each arm's own
+  2NT band and knows whether `3♣` is a relay or natural clubs. Same reason as
+  the existing `--on/off-ns-overcall`: without it a band sweep's widened arm is
+  scored by a leader who thinks 2NT was 16–17.
+
+- **Gladiator advances over our 2NT overcall of their weak two — authored in
+  full, measured null, left opt-in.** `set_weak_two_notrump_advances` /
+  `--ns-weak-two-nt-advances`, default off, shipped system byte-identical.
+  Structure to jdh8's spec: over their `2M`, advancer's cue of *their* major is
+  Stayman for the other one, `3♦` / the other major / `3NT` are game-forcing, and
+  `3♣` is a relay to a **forced** `3♦` looking to sign off at the three level,
+  after which everything is pass-or-correct and `3♥` shows long diamonds (safe
+  opposite `4♦`). Four alerts, three rule tables, three tests — including a
+  phantom-suit guard that reads the relay's `3♦` back as *diamonds*, not clubs.
+
+  There is no invitational tier: opposite a 16–17 overcall, eight opposite is
+  already game values, which is what lets `3♣` be the weak relay and everything
+  above it game-forcing. That threshold is computed as `24 − band.lo` rather
+  than frozen at eight, so moving the band with `set_weak_two_notrump_points`
+  moves it too. Byte-identical at the shipped 16–17; it exists because the
+  frozen constant silently biased the *first* attempt at the widening A/B below,
+  driving advancer to game on 23 in precisely the arms the widening was meant to
+  help. That run was discarded before it finished.
+
+  | vul | plain DD | PD | fired |
+  | --- | --- | --- | --- |
+  | none | −0.0002 ± 0.0007 | +0.0001 ± 0.0008 | 0.07% |
+  | both | −0.0004 ± 0.0009 | −0.0002 ± 0.0010 | 0.05% |
+  | N/S | −0.0007 ± 0.0008 | −0.0006 ± 0.0009 | 0.05% |
+
+  204.8k bd/arm/vul vs BBA 2/1, `SEED_BASE=1785092622`. Every CI straddles zero
+  and the sign is negative in five cells of six, so no second seed was spent.
+  The band-interaction run above is effectively that second seed
+  (`SEED_BASE=1785095201`, on top of the now-shipped overcall discipline) and it
+  lands the same size the other way — +0.0007 / +0.0002 plain and +0.0008 /
+  +0.0004 PD at `none` / `both`, every CI again straddling zero. Ten cells over
+  two seeds averaging near nothing with the sign flipping between them is a
+  null, not a small win; and the sd-lead bracket agrees on the same dumps
+  (+0.0007 / +0.0000 SD-plain, +0.0007 / +0.0002 SD-PD), which is fourteen cells
+  across all three scorers. The default stays off.
+
+  The denominator is the finding. A weak-two **opening** followed by our direct
+  `2NT` is **0.23% of tables** (0.133% over `2♥`, 0.102% over `2♠`), and of those
+  the node rewrites about one advance in five. So it is neither shadowed nor
+  idle — it is reached, it fires at a healthy rate *within* its node, and the
+  node itself is simply too rare to pay for authoring. "Smarten the floor, don't
+  author a node per bid" reporting back from the far side.
+
+  Where it differs it leans slightly wrong, and the mechanism is in the spec
+  rather than the wiring. The floor's `3♣` is *natural clubs* — 47 of the 240
+  advances, the single most common non-pass call; Gladiator's `3♣` is a relay
+  only a weak **diamond** hand can use. Turning it on halves that bucket (47 →
+  25) and scatters the weak club hands into `3♦`/`3M`/`3NT` or a pass.
+  Surrendering natural `3♣` is the price of the relay, and at this frequency the
+  relay does not repay it.
+
+  Two nodes left deliberately unauthored on jdh8's instruction: advancer's `3♠`+
+  rebid inside the relay, and the delayed cue over `2♠` — which would itself be
+  `3♠`, inside that same zone.
+
+- **Three opt-in weak-two defense treatments, all default off; one wash, one
+  loss, one void measurement.** Knobs `set_weak_two_notrump_shape`,
+  `set_weak_two_jump_overcall`, `set_weak_two_cue` (`--ns-weak-two-*` in
+  `bba-gen`); all three leave the shipped system byte-identical. Also new: a `notrump_shape()`
+  predicate (2–4 majors, 2–6 minors, a plain `len` conjunction so it projects as
+  one box) and `probe-bba-constraints --mode def2-{d,h,s}`, which reads BBA's
+  whole direct-seat toolkit over a weak two in one run.
+
+  That probe is what set the specs. BBA over their 2♥: `X` 8.0% hcp 11–21,
+  natural overcalls 10–16 on 5–6 cards, **`2NT` 3.1% hcp 15–17** with majors 2–4
+  / minors 2–5 and 88% balanced, **`3♥` cue 1.3% = Michaels** (♠ 5–6, a minor
+  5–6, ♥ 0–2, 0% balanced). Over 2♦ there is **no `3♦` bucket at all**, and at
+  neither opening does BBA author a jump or a direct 3NT.
+
+  The package measured wash-leaning-negative (204.8k bd/arm/vul,
+  `SEED_BASE=1785085719`), so it was attributed:
+
+  | treatment | plain NV / vul | PD NV / vul | verdict |
+  | --- | --- | --- | --- |
+  | notrump shape | +0.0008 ± 0.0008 / +0.0008 ± 0.0009 | +0.0010 / +0.0011 | **wash** (seed 2 below) |
+  | jump overcall | −0.0008 ± 0.0007 / −0.0010 ± 0.0008 | −0.0012 / −0.0011 | **lost 4/4** |
+  | Michaels cue | −0.0006 ± 0.0009 / −0.0013 ± 0.0010 | −0.0011 / −0.0015 | **void** |
+
+  **Shape**: seed 1 went 4/4 positive (+0.77 to +1.63 IMPs/fired) and a second
+  seed (1785086925) did not replicate — +0.0002 ± 0.0008 NV, −0.0001 ± 0.0008
+  vul on plain DD. Pooled, every CI straddles zero. The `wash | wash` tiebreak
+  is naturalness and it argues against: Cohen, kwbridge and the St Andrews
+  notes all specify *balanced* for a 2NT overcall, so `balanced()` is the
+  textbook rule and the widening is the trial. This is the two-seed rule earning
+  its keep — one seed's 4/4 would have shipped it.
+
+  **Jump**: lost, and the trace is the classic case against strong jump
+  overcalls — `2♦ 3♥ P 4♥` where the cheap `2♦ 2♥ P 6♥` found the slam. But the
+  authoring compounded it: `points(13..=19)` @1.1 overlaps the natural
+  `points(10..=16)` @1.0, so every 13–16 six-carder jumps instead of overcalling
+  cheaply. A retry wants disjoint bands before anything is concluded about jump
+  overcalls as such.
+
+  **Cue**: the number is not about Michaels. Continuations are wired for the
+  takeout double and Leaping Michaels only, so `[2♠, 3♠, P]` drops to the floor
+  and the floor **redoubles the cue** (`- 2♠ 3♠ X XX - - -`, playing 3♠ redoubled
+  in their own suit). An incomplete convention was measured, which the iron rule
+  forbids. Advancer's structure has to exist first.
+
+- **`examples/probe-call-reading` — print what one call reads as, in ranges.**
+  `probe-reading-census` counts ⊤ axes; this prints them, so a key off the
+  census worklist can be inspected directly. It immediately found a **sharper
+  hole than the census's mass ranking shows**: the direct seat over their weak
+  two reads
+
+  | call | points | ♣ ♦ ♥ ♠ |
+  | --- | --- | --- |
+  | `P` | `0..=37` ⊤ | all ⊤ |
+  | `X` | `12..=37` | all ⊤ |
+  | `2NT` | `0..=37` ⊤ | all ⊤ |
+
+  — and that 2NT is authored `hcp(15..=18) & balanced() &
+  stopper_in_their_suits()`. A fully specified natural hand reaches the nets as
+  **nothing on all five axes**, because `project_authored` decodes *alerted
+  calls only* and the natural walk reads length off a bid **suit**, so it has
+  nothing to say about a notrump overcall. (Contrast the `1NT` book node:
+  `points 15..=18`, `♣ 2..=6 ♦ 2..=6 ♥ 2..=5 ♠ 2..=5`.) The same gate costs the
+  takeout double its whole shape — `short_in_their_suits()` and `unbid_support`
+  project ⊤ — and costs the natural `3♣` overcall its `points(10..=16)` band,
+  which reads `8..=37` off the walk instead. Unalerted natural non-suit calls
+  are a distinct blind class from the census's passes, and a better target: they
+  are *bids*, fully specified in rule text, and filling them **moves mass**
+  rather than merely adding a ceiling. Blocked on the same encoding/retrain
+  finding as the knob below.
+
+- **`set_weak_two_pass_gate` — opt-in, default off: filling the ⊤ census's
+  blind head is REFUTED, and the mechanism is the encoding, not the bridge.**
+  The census's worst key was the direct-seat pass over their weak two, ⊤ on all
+  five axes the nets read at **100%** of firings against **0.00%** for
+  `1♣/1♦/1♥/1♠ P`. The cause was one line: `defense_to_weak_two`'s Pass rule was
+  the trivial `hcp(0..)` catch-all, sitting immediately below the very same
+  shape-free `points(17..)` takeout double that `defense_to_suit` already
+  complements with `points(..17)`. Authoring the complement drops passes-only
+  blindness 26.21% → 24.74% and ⊤/seat 4.257 → 4.243 (`probe-reading-census`,
+  20k boards, seed 1785200001).
+
+  A/B (204.8k bd/arm/vul, `SEED_BASE=1785083246`, 0.45%/0.38% fired):
+
+  | vul | plain DD | PD | IMPs/fired (plain) |
+  | --- | --- | --- | --- |
+  | none | **−0.0028 ± 0.0017** | +0.0005 ± 0.0022 | −0.624 |
+  | both | −0.0012 ± 0.0022 | +0.0015 ± 0.0026 | −0.325 |
+
+  `loss | wash` — a plain-DD loss never ships default-on, so the default system
+  is byte-identical and the knob is opt-in (`--ns-weak-two-pass-gate`).
+
+  The trace is the interesting part. Capping the passer at 16 should make us
+  **more** cautious, yet all five worst boards are the ON arm overbidding into a
+  double — `6NT-X`, `7♦-X`, `5♦-X`, twice more at the three-level. That is not a
+  bridge failure; it is the C1 encoding failure a third time.
+  `features::push_inference` hands the net the raw `{min, max}` endpoints, so
+  `max/37` moves 1.00 → 0.43 on a seat every training auction showed as ⊤, and
+  the net answers out of distribution. C1 (an *exact* closure rejecting 0 of
+  409,708 layouts) lost 4/4 cells the same way. **Filling ⊤ is blocked on the
+  encoding, not on authoring** — a strictly sounder reading measures worse until
+  the net is retrained on it, so the census worklist needs the F2b evaluator-twin
+  budget before any of it is worth spending. Kept opt-in as the re-measure
+  candidate once that exists.
+
+  Two boundaries the exercise settled, both raised by jdh8. A ceiling on a pass
+  is authorable **only against a shape-free rule**: `points(17..)` carries no
+  shape conjunct, so it accepts every 17+ hand and the gate forbids nothing
+  reachable. Where every rule is shaped the union has holes at every strength — a
+  balanced 22 fits no Woolsey rule and genuinely passes over their 1NT — so
+  `1NT P` (90.7% blind, now the census head) is **not** a reading bug but a
+  system hole, fixable only by a bidding change. And the gate is not itself
+  "too strict": the driver takes the argmax, so a 17-count already doubled
+  before the gate existed. If one ever *should* pass, the fix is a shape guard on
+  the double and the ceiling must come off in the same edit — complement and
+  tier are one object.
+
 ### Fixed
 
 - **Two `bba-gen` clap defaults had drifted from their crate defaults, so an

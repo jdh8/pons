@@ -942,6 +942,55 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_pass_reading: bool,
 
+    /// Document the shape-free 17+ tier's complement (`points(..17)`) on the
+    /// direct-seat pass over their weak two, so it projects a band instead of ⊤
+    /// on all five axes the nets read (default off — REFUTED, plain DD −0.0028
+    /// ± 0.0017 NV; see `set_weak_two_pass_gate`).
+    #[arg(long, default_value_t = false)]
+    ns_weak_two_pass_gate: bool,
+
+    /// Widen our 2NT overcall of their weak two from strict `balanced()`
+    /// (4333/4432/5332 only) to 2-4 majors / 2-6 minors, so a 6322 with a
+    /// stopper and a long minor can bid it (default off; see
+    /// `set_weak_two_notrump_shape`).
+    #[arg(long, default_value_t = false)]
+    ns_weak_two_notrump_shape: bool,
+
+    /// Author our jump in a new suit below 3NT over their weak two — 6+ cards
+    /// and three more points than the natural overcall (default off; see
+    /// `set_weak_two_jump_overcall`).
+    #[arg(long, default_value_t = false)]
+    ns_weak_two_jump_overcall: bool,
+
+    /// Author our direct cue of their *major* weak two as Michaels — the other
+    /// major plus a minor, 5-5 (default off; see `set_weak_two_cue`).
+    #[arg(long, default_value_t = false)]
+    ns_weak_two_cue: bool,
+
+    /// Author advancer's Gladiator structure over our 2NT overcall of their
+    /// weak two in a major — 3♣ relay, cue = Stayman, 3♦+ game-forcing
+    /// (default off; see `set_weak_two_notrump_advances`).
+    #[arg(long, default_value_t = false)]
+    ns_weak_two_nt_advances: bool,
+
+    /// Turn OFF the *vulnerable* discipline on our suit overcall of their weak
+    /// two (`set_weak_two_overcall_discipline`, crate default ON): let the flat
+    /// band apply at every vulnerability instead of demanding 12–17 at the two
+    /// level and 15–17 at the three.  This is the A/B off-arm.
+    #[arg(long, default_value_t = false)]
+    no_ns_weak_two_overcall_discipline: bool,
+
+    /// Inclusive `hcp` band `LO:HI` of our 2NT overcall of their weak two
+    /// (default 16:17; BBA's own bucket is 15–17)
+    #[arg(long, default_value = "16:17")]
+    ns_weak_two_nt_points: String,
+
+    /// Inclusive `points` bands `LO2:HI2:LO3:HI3` of our natural suit overcall
+    /// of their weak two, split by the level it lands on (default 10:16:10:16 —
+    /// the shipped flat band at both levels)
+    #[arg(long, default_value = "10:16:10:16")]
+    ns_weak_two_overcall: String,
+
     /// Our side NEVER competes over BBA's 1NT (default off): authors only Pass at
     /// every seat, the truest "do nothing" baseline.  Overrides every other defense knob.
     #[arg(long, default_value_t = false)]
@@ -1187,6 +1236,46 @@ fn main() -> anyhow::Result<()> {
     pons::bidding::set_length_soundness(!args.no_ns_length_soundness);
     pons::bidding::set_table_alert_reading(!args.no_ns_table_alert_reading);
     pons::bidding::set_pass_reading(!args.no_ns_pass_reading);
+    pons::bidding::american::set_weak_two_pass_gate(args.ns_weak_two_pass_gate);
+    pons::bidding::american::set_weak_two_notrump_shape(args.ns_weak_two_notrump_shape);
+    pons::bidding::american::set_weak_two_jump_overcall(args.ns_weak_two_jump_overcall);
+    pons::bidding::american::set_weak_two_cue(args.ns_weak_two_cue);
+    pons::bidding::american::set_weak_two_notrump_advances(args.ns_weak_two_nt_advances);
+    pons::bidding::american::set_weak_two_overcall_discipline(
+        !args.no_ns_weak_two_overcall_discipline,
+    );
+    {
+        let (lo, hi) = args
+            .ns_weak_two_nt_points
+            .split_once(':')
+            .and_then(|(l, h)| Some((l.parse::<u8>().ok()?, h.parse::<u8>().ok()?)))
+            .ok_or_else(|| {
+                anyhow::anyhow!(
+                    "--ns-weak-two-nt-points must be LO:HI, got {:?}",
+                    args.ns_weak_two_nt_points
+                )
+            })?;
+        pons::bidding::american::set_weak_two_notrump_points(lo, hi);
+
+        let band: Vec<u8> = args
+            .ns_weak_two_overcall
+            .split(':')
+            .map(|n| n.parse::<u8>())
+            .collect::<Result<_, _>>()
+            .map_err(|_| {
+                anyhow::anyhow!(
+                    "--ns-weak-two-overcall must be LO2:HI2:LO3:HI3, got {:?}",
+                    args.ns_weak_two_overcall
+                )
+            })?;
+        let [two_lo, two_hi, three_lo, three_hi] = band[..].try_into().map_err(|_| {
+            anyhow::anyhow!(
+                "--ns-weak-two-overcall must be LO2:HI2:LO3:HI3, got {:?}",
+                args.ns_weak_two_overcall
+            )
+        })?;
+        pons::bidding::american::set_weak_two_overcall_points(two_lo, two_hi, three_lo, three_hi);
+    }
     pons::bidding::american::set_transfer_longer_major(!args.no_ns_transfer_longer);
     pons::bidding::set_fallback_projection(!args.no_ns_fallback_projection);
     pons::bidding::set_dnf_reading(!args.no_ns_dnf);
