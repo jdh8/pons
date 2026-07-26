@@ -413,6 +413,43 @@ fn pass_reading() -> bool {
 }
 
 std::thread_local! {
+    /// Whether [`project_authored`] folds a second, *agreement* overlay off
+    /// [`Rule::announce_dnf`][super::rules::Rule::announce_dnf] (see
+    /// [`set_announced_reading`]).  Off by default — knob-off the announce
+    /// overlay is a clone of the projection overlay and every reading is
+    /// byte-identical.
+    static ANNOUNCED_READING: Cell<bool> = const { Cell::new(false) };
+}
+
+/// Toggle the agreement overlay — what a call *announces*, beside what it projects
+///
+/// [`Inferences`] serves two masters that want opposite things.  The sampler
+/// ([`sample_layouts`][super::sampler::sample_layouts]) needs a box that
+/// **contains** the truth, or it rejects the very hands the auction was bid on;
+/// disclosure needs the box the partnership **agreement** names, which is what
+/// partner reasons from and what the opponents are owed.  For an authored rule
+/// the two coincide and nothing here changes.  They part company exactly where a
+/// learned criterion decides: the evaluator net accepts hands no box contains, so
+/// its sound projection is ⊤ and always will be, and the call reads as nothing.
+///
+/// On, every rule contributes a second overlay via
+/// [`announce`][super::constraint::Constraint::announce], which defaults to
+/// `project` and diverges only where the rule used
+/// [`announced`][super::constraint::announced].  The projection overlay — and so
+/// the sampler, `admits`, and the opening-lead sampling — is untouched; the
+/// agreement overlay is what [`features`][super::features] hands the nets.
+///
+/// Default **off** pending its A/B.  Read at reading time, per-thread.
+#[doc(hidden)]
+pub fn set_announced_reading(on: bool) {
+    ANNOUNCED_READING.with(|cell| cell.set(on));
+}
+
+fn announced_reading() -> bool {
+    ANNOUNCED_READING.with(Cell::get)
+}
+
+std::thread_local! {
     /// Whether [`project_authored`] also decodes the *opponents'* alerted
     /// calls (see [`set_table_alert_reading`]).  On by default (shipped
     /// 2026-07-18: bid-inert, reading soundness).
@@ -1221,6 +1258,13 @@ pub struct Inferences {
     /// Per-seat union-of-boxes reading; the sampler tests any-box under
     /// [`dnf_reading`].  Off, every entry is a single box equal to `players[i]`.
     dnf: [Dnf; 4],
+    /// Per-seat hull of `announced` — the *agreement* twin of `players`, and
+    /// what [`features`][super::features] hands the nets.  Equal to `players`
+    /// unless [`set_announced_reading`] is on and some rule split the two with
+    /// [`announced`][super::constraint::announced].
+    announced_players: [Envelope; 4],
+    /// Per-seat agreement boxes; the twin of `dnf` (see `announced_players`).
+    announced: [Dnf; 4],
     /// The last call the M6.4 classifier read as a control bid: its auction
     /// index and the suit it agrees.  The exact witness for the instinct
     /// signoff — "the named suit is unread" cannot tell a control bid from an
@@ -1235,6 +1279,46 @@ impl Inferences {
     #[must_use]
     pub const fn get(&self, who: Relative) -> &Envelope {
         &self.players[who as usize]
+    }
+
+    /// What one relative seat's calls **announce** — the partnership agreement
+    ///
+    /// The disclosure twin of [`get`][Self::get].  Equal to it unless
+    /// [`set_announced_reading`] is on and a rule split the two with
+    /// [`announced`][super::constraint::announced], which is how a call decided
+    /// by the evaluator net can still say what it means: the sound projection
+    /// stays ⊤ for the sampler while this carries the agreement.
+    ///
+    /// Consume this for disclosure and for anything that *reasons* about the
+    /// auction (the nets' feature vectors); consume [`get`][Self::get] wherever
+    /// a hand must be tested for consistency, because only that one is bound to
+    /// contain the truth.
+    #[must_use]
+    pub const fn announced(&self, who: Relative) -> &Envelope {
+        &self.announced_players[who as usize]
+    }
+
+    /// Assemble a reading from the natural walk's hull and the two overlays
+    ///
+    /// The agreement side reuses `players`, so a box it *widens* cannot show
+    /// through — an announce looser than its projection is silently clipped
+    /// back.  Sound for the pilot, whose agreement is strictly tighter than ⊤.
+    // ponytail: re-running the walk per overlay is the fix if a looser
+    // agreement ever needs to show through; nothing wants one yet.
+    fn assemble(
+        players: [Envelope; 4],
+        overlay: &[Dnf; 4],
+        agreement: &[Dnf; 4],
+        control_bid: Option<(u8, Suit)>,
+    ) -> Self {
+        let announced = dnf_of(&players, agreement);
+        Self {
+            dnf: dnf_of(&players, overlay),
+            announced_players: std::array::from_fn(|i| announced[i].hull()),
+            announced,
+            players,
+            control_bid,
+        }
     }
 
     /// Whether `hand` is consistent with one seat's reading
@@ -1298,6 +1382,12 @@ impl Inferences {
             ..Envelope::unknown()
         };
         copy.dnf[i] = copy.dnf[i].intersect(&slab.into());
+        // An externally-imposed points slice is a fact about the hand, not a
+        // reading of a call, so it narrows the agreement side identically —
+        // otherwise the two drift apart on the one axis the caller sliced.
+        copy.announced_players[i].strength.points =
+            copy.announced_players[i].strength.points.intersect(points);
+        copy.announced[i] = copy.announced[i].intersect(&slab.into());
         copy
     }
 
@@ -1330,6 +1420,9 @@ impl Inferences {
         // The disjunctive overlay, folded into `players` (the hull) below and into
         // `dnf` (the boxes) at each return.  Unknown until `project_authored` runs.
         let mut overlay_dnf: [Dnf; 4] = std::array::from_fn(|_| Dnf::unknown());
+        // The agreement twin of `overlay_dnf`; a clone of it unless
+        // [`set_announced_reading`] is on (see [`project_authored`]).
+        let mut agreement_dnf: [Dnf; 4] = std::array::from_fn(|_| Dnf::unknown());
         let mut control_bid = None;
 
         let Some(opening_index) = auction.iter().position(|&c| c != Call::Pass) else {
@@ -1339,26 +1432,17 @@ impl Inferences {
             // see [`set_pass_reading`]).  The walk below needs an opening, so
             // apply the overlay here and return.
             if pass_reading() {
-                let (overlay, _) = project_authored(context);
+                let (overlay, agreement, _) = project_authored(context);
                 for (player, projected) in players.iter_mut().zip(&overlay) {
                     *player = player.intersect(&projected.hull());
                 }
                 overlay_dnf = overlay;
+                agreement_dnf = agreement;
             }
-            let dnf = dnf_of(&players, &overlay_dnf);
-            return Self {
-                players,
-                dnf,
-                control_bid,
-            };
+            return Self::assemble(players, &overlay_dnf, &agreement_dnf, control_bid);
         };
         let Call::Bid(opening_bid) = auction[opening_index] else {
-            let dnf = dnf_of(&players, &overlay_dnf);
-            return Self {
-                players,
-                dnf,
-                control_bid,
-            };
+            return Self::assemble(players, &overlay_dnf, &agreement_dnf, control_bid);
         };
         let opener_lane = opening_index % 4;
         // SAFETY: at most three passes precede the opening, so the cast is safe.
@@ -1398,8 +1482,9 @@ impl Inferences {
         // records each artificial call's projected shape (applied post-walk);
         // `suppressed` is a bitset of the indices whose natural single-suit reading
         // the walk must skip.
-        let (overlay_boxes, suppressed) = project_authored(context);
+        let (overlay_boxes, agreement_boxes, suppressed) = project_authored(context);
         overlay_dnf = overlay_boxes;
+        agreement_dnf = agreement_boxes;
         // The hulled overlay the natural walk consumes (`shown_suit`, the post-walk
         // intersect); the boxes are re-combined into `dnf` at the return.
         let overlay: [Envelope; 4] = std::array::from_fn(|i| overlay_dnf[i].hull());
@@ -2139,12 +2224,7 @@ impl Inferences {
             players[who].narrow_points(Range::at_least(8, POINTS_CAP));
         }
 
-        let dnf = dnf_of(&players, &overlay_dnf);
-        Self {
-            players,
-            dnf,
-            control_bid,
-        }
+        Self::assemble(players, &overlay_dnf, &agreement_dnf, control_bid)
     }
 
     /// The last call the M6.4 classifier read as a control bid: its auction
@@ -2173,10 +2253,12 @@ impl Inferences {
 #[cfg(test)]
 #[must_use]
 pub(crate) fn authored_reading(context: &Context<'_>) -> Inferences {
-    let dnf = project_authored(context).0;
+    let (dnf, announced, _) = project_authored(context);
     Inferences {
         players: std::array::from_fn(|i| dnf[i].hull()),
+        announced_players: std::array::from_fn(|i| announced[i].hull()),
         dnf,
+        announced,
         control_bid: None,
     }
 }
@@ -2373,17 +2455,22 @@ fn dnf_of(players: &[Envelope; 4], overlay: &[Dnf; 4]) -> [Dnf; 4] {
     std::array::from_fn(|i| Dnf::from(players[i]).intersect(&overlay[i]))
 }
 
-fn project_authored(context: &Context<'_>) -> ([Dnf; 4], u64) {
+fn project_authored(context: &Context<'_>) -> ([Dnf; 4], [Dnf; 4], u64) {
     let auction = context.auction();
     let len = auction.len();
     let mut players: [Dnf; 4] = std::array::from_fn(|_| Dnf::unknown());
+    // The agreement overlay, folded in lockstep with `players` off
+    // `Rule::announce_dnf`.  Knob-off it is never read separately — the caller
+    // gets a clone of `players` — so the second reduce below costs nothing.
+    let mut announced: [Dnf; 4] = std::array::from_fn(|_| Dnf::unknown());
     let mut suppressed = 0u64;
 
     let Some(prefixes) = context.prefixes() else {
-        return (players, suppressed);
+        return (players.clone(), players, suppressed);
     };
 
     let read_passes = pass_reading();
+    let announce_split = announced_reading();
 
     // Project the call made at `index`, authored by `classifier`, into the
     // overlay, evaluating its rules under `ctx` — the reader's context for our
@@ -2441,6 +2528,34 @@ fn project_authored(context: &Context<'_>) -> ([Dnf; 4], u64) {
 
         if let Some(projection) = projection.filter(|_| decode) {
             let who = relative_of(len, index) as usize;
+            // The agreement, where it differs.  `announce` defaults to
+            // `project`, so knob-off — and at every rule that never called
+            // `announced` — this is the same union and the two overlays stay
+            // identical.  A pass reads by its *band*, which `announce` does not
+            // split.
+            //
+            // The union is over the **alerted** rules alone, and that is the
+            // second half of the split.  A projection must cover every rule that
+            // shares the bid, because any of them could have produced it and the
+            // sampler may not exclude a hand one of them accepts — the floor's
+            // 4NT keycard ask sits on the same call as an unalerted weight-0.3
+            // catch-all, whose ⊤ would union the agreement away.  But disclosure
+            // does not work like that: an alerted call is explained as *the
+            // convention*, not as the residue sharing its bid.  Non-pass calls
+            // only reach here when `decode` found an alert, so the filter always
+            // matches something.
+            let agreement = if announce_split && !is_pass {
+                rules
+                    .rules()
+                    .iter()
+                    .filter(|rule| rule.call() == made && rule.alert().is_some())
+                    .map(|rule| rule.announce_dnf(ctx))
+                    .reduce(Dnf::disjoin)
+                    .unwrap_or_else(|| projection.clone())
+            } else {
+                projection.clone()
+            };
+            announced[who] = announced[who].intersect(&agreement);
             players[who] = players[who].intersect(&projection);
             // A pass suppresses nothing — it never had a natural suit reading.
             if !is_pass && index < 64 {
@@ -2520,7 +2635,7 @@ fn project_authored(context: &Context<'_>) -> ([Dnf; 4], u64) {
         }
     }
 
-    (players, suppressed)
+    (players, announced, suppressed)
 }
 
 /// Whether a call's projection floors a suit other than the one it names

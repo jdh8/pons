@@ -105,10 +105,52 @@ fn push_hand_eval(out: &mut Vec<f32>, hand: Hand) {
     }
 }
 
+std::thread_local! {
+    /// Whether the inference blocks are blanked to `Envelope::unknown` (see
+    /// [`set_blind_inference`]).  Off by default.
+    static BLIND_INFERENCE: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// Blank every inference block the nets see — the reading program's *negative control*
+///
+/// Every generator of readings (authored `project`, the agreement overlay behind
+/// [`set_announced_reading`][super::inference::set_announced_reading], and any
+/// future sampled projection) competes for one prize: the IMPs that flow from
+/// the nets reasoning about what the other three seats have shown.  Tightening a
+/// reading measures the *derivative* of that prize and lands in the noise.  This
+/// knob measures its **level** — on, all four seats read as `Envelope::unknown`
+/// and the nets reason from the auction alone.
+///
+/// The A/B against the shipped default is therefore a ceiling on the whole
+/// program: no reading, however well generated, can be worth more than what
+/// deleting every reading costs.  Nothing else consumes this — the sampler's
+/// containment test, `admits`, and the opening-lead sampling all read the
+/// [`Inferences`] directly and are untouched.
+///
+/// Diagnostic only; never ship it on.  Read at extraction time, per-thread.
+#[doc(hidden)]
+pub fn set_blind_inference(on: bool) {
+    BLIND_INFERENCE.with(|cell| cell.set(on));
+}
+
+/// The reading the nets are fed: the seat's agreement, or nothing under
+/// [`set_blind_inference`].
+fn shown(player: &Envelope) -> &Envelope {
+    // ponytail: one shared `unknown` rather than a per-call temporary — the
+    // envelope is immutable and `Envelope::unknown` is `const`.
+    const NOTHING: Envelope = Envelope::unknown();
+    if BLIND_INFERENCE.with(std::cell::Cell::get) {
+        &NOTHING
+    } else {
+        player
+    }
+}
+
 /// Push one player's shown ranges ([`LEN_INFERENCE`] values): per suit
 /// `{min, max}` length ÷ 13, then `{min, max}` points ÷ 37.  Nothing shown is
 /// the `[0, 1]` pattern (`Envelope::unknown`), *not* zeros.
 fn push_inference(out: &mut Vec<f32>, player: &Envelope) {
+    let player = shown(player);
     for suit in Suit::ASC {
         let range = player.length(suit);
         out.push(range.min as f32 / 13.0);
@@ -198,7 +240,11 @@ fn push_context(out: &mut Vec<f32>, context: &Context<'_>) {
         Relative::Partner,
         Relative::Rho,
     ] {
-        push_inference(out, inf.get(who));
+        // The *agreement*, not the sound projection: a call is explained by what
+        // the partnership announces, and that is what a reasoning seat should be
+        // fed.  Identical to `get` unless `set_announced_reading` is on and some
+        // rule split the two — a net-decided call, whose sound projection is ⊤.
+        push_inference(out, inf.announced(who));
     }
 
     // ── Vulnerability (2 values) ────────────────────────────────────────────
@@ -293,7 +339,10 @@ pub fn features_eval(hand: Hand, inferences: &Inferences) -> Vec<f32> {
     let mut out = Vec::with_capacity(FEATURES_LEN_EVAL);
     push_hand_eval(&mut out, hand);
     for who in [Relative::Lho, Relative::Partner, Relative::Rho] {
-        push_inference(&mut out, inferences.get(who));
+        // The hidden seats' *agreements* — see `push_context`.  This is the site
+        // the reach ceiling names: a seat whose call the net decided projects ⊤,
+        // so without the split partner's estimate is computed on nothing.
+        push_inference(&mut out, inferences.announced(who));
     }
     debug_assert_eq!(out.len(), FEATURES_LEN_EVAL);
     out
@@ -365,6 +414,38 @@ mod tests {
                 assert!(v.is_finite() && (0.0..=1.5).contains(&v), "v3[{i}] = {v}");
             }
         }
+    }
+
+    /// The negative control blanks the whole inference block and nothing else.
+    ///
+    /// Knob-off an opened auction shows *something* — this is what every reading
+    /// generator competes to sharpen; knob-on all four seats read
+    /// `Envelope::unknown`, the `[0, 1]` pattern, and the rest of the vector is
+    /// untouched.
+    #[test]
+    fn blind_inference_blanks_only_the_reading_block() {
+        let auction = [bid(1, Strain::Spades), Call::Pass, bid(2, Strain::Clubs)];
+        let ctx = Context::new(RelativeVulnerability::NONE, &auction);
+        let hand = hand("AKQ32.K532.QJ4.9");
+
+        let seen = features_v3(hand, &ctx);
+        set_blind_inference(true);
+        let blind = features_v3(hand, &ctx);
+        set_blind_inference(false); // restore the default before any assert
+
+        let block = OFFSET_INFERENCES..OFFSET_INFERENCES + LEN_INFERENCES;
+        assert_ne!(
+            seen[block.clone()],
+            blind[block.clone()],
+            "nothing was shown"
+        );
+        assert_eq!(
+            blind[block.clone()],
+            [0.0, 1.0].repeat(LEN_INFERENCES / 2),
+            "blind is not the unknown pattern"
+        );
+        assert_eq!(seen[..block.start], blind[..block.start]);
+        assert_eq!(seen[block.end..], blind[block.end..]);
     }
 
     #[test]

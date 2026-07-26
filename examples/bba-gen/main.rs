@@ -195,6 +195,39 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_net_collar: bool,
 
+    /// Split disclosure from projection for our side
+    /// (`inference::set_announced_reading`, crate default off).  A call decided
+    /// by the evaluator net projects ⊤ and always will — a net accepts hands no
+    /// box contains — so it reads as nothing.  On, every rule also contributes
+    /// an *agreement* overlay, which the nets' feature vectors consume while the
+    /// sampler keeps the sound projection.  Today one site takes the split: the
+    /// floor's 4NT RKCB ask, the one converted milestone that is not a final
+    /// contract (`instinct::RKCB_ASK_ANNOUNCE`).  Reading-only — no criterion
+    /// moves, so a divergence here is the nets reacting to a tighter box.
+    #[arg(long, default_value_t = false)]
+    ns_announced_reading: bool,
+
+    /// Drop the RKCB ask's agreement for our side
+    /// (`instinct::set_rkcb_announce`, crate default on but inert unless
+    /// `--ns-announced-reading` is also passed).  The attribution arm: the
+    /// agreement overlay's two halves are nested, so running
+    /// `--ns-announced-reading --no-ns-rkcb-announce` against
+    /// `--ns-announced-reading` isolates the pilot from the alerted-only union
+    /// it rides on.  Measured bid-inert at 5 boards in 60k.
+    #[arg(long, default_value_t = false)]
+    no_ns_rkcb_announce: bool,
+
+    /// Blank every reading our nets see (`features::set_blind_inference`, crate
+    /// default off — diagnostic, never ship it on).  The reading program's
+    /// negative control: each generator of readings tightens a box and measures
+    /// the *derivative*, which keeps landing in the noise.  This deletes the
+    /// boxes outright, so the arm's loss is a **ceiling** on what any generator
+    /// can be worth.  Only the nets' feature vectors go blind — the sampler's
+    /// containment test, `admits`, and the opening-lead sampling read the
+    /// `Inferences` directly and are untouched.
+    #[arg(long, default_value_t = false)]
+    ns_blind_inference: bool,
+
     /// Close our side's read `hcp` against `points` through the shape upgrade
     /// (`set_upgrade_closure`, crate default off): balanced hands never
     /// upgrade, so a balanced box reads `points == hcp` instead of carrying the
@@ -1160,6 +1193,9 @@ fn main() -> anyhow::Result<()> {
     pons::bidding::set_gauge_membership(args.ns_gauge_membership);
     pons::bidding::instinct::set_bilans_floor(!args.no_ns_bilans);
     pons::bidding::instinct::set_net_collar(args.ns_net_collar);
+    pons::bidding::inference::set_announced_reading(args.ns_announced_reading);
+    pons::bidding::instinct::set_rkcb_announce(!args.no_ns_rkcb_announce);
+    pons::bidding::features::set_blind_inference(args.ns_blind_inference);
     pons::bidding::set_sum_closure(args.ns_sum_closure);
     pons::bidding::set_upgrade_closure(args.ns_upgrade_closure);
     pons::bidding::american::set_two_notrump_wide(args.ns_two_nt_wide);

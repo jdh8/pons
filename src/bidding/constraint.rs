@@ -109,6 +109,29 @@ pub trait Constraint: Send + Sync {
     fn project_complement(&self, _context: &Context<'_>) -> Dnf {
         Dnf::unknown()
     }
+
+    /// Project the constraint into the box its *agreement* announces
+    ///
+    /// The disclosure twin of [`project`][Self::project], and the two carry
+    /// different contracts.  `project` is bound by soundness — a finite `eval`
+    /// implies the hand lies inside it — because it is what
+    /// [`sample_layouts`][super::sampler::sample_layouts] accepts against, and a
+    /// box tighter than the truth makes the sampler exclude hands we actually
+    /// hold.  `announce` is bound by *disclosure*: it is the partnership
+    /// agreement, what the call would be explained as at the table, which a
+    /// judgment call may stretch below without announcing anything different.
+    ///
+    /// That is not a licence to be wrong, it is a licence to be *tight*: an
+    /// agreement is calibrated to what the criterion does in the population, so
+    /// it can name a floor a black-box criterion will occasionally reach past.
+    /// [`project`][Self::project] cannot, which is why the evaluator net's gates
+    /// publish ⊤ there and will keep doing so.
+    ///
+    /// Defaults to `project`, so every constraint announces exactly what it
+    /// projects until [`announced`] splits the two.
+    fn announce(&self, context: &Context<'_>) -> Dnf {
+        self.project(context)
+    }
 }
 
 /// The complement of a band within `0..=cap`, as up to two disjoint halves
@@ -278,6 +301,10 @@ impl<T: Constraint> Constraint for Cons<T> {
     fn project_complement(&self, context: &Context<'_>) -> Dnf {
         self.0.project_complement(context)
     }
+
+    fn announce(&self, context: &Context<'_>) -> Dnf {
+        self.0.announce(context)
+    }
 }
 
 /// Sum of two constraints, the logical AND for crisp constraints
@@ -315,6 +342,12 @@ impl<A: Constraint, B: Constraint> Constraint for And<A, B> {
             Dnf::unknown()
         }
     }
+
+    fn announce(&self, context: &Context<'_>) -> Dnf {
+        self.0
+            .announce(context)
+            .intersect(&self.1.announce(context))
+    }
 }
 
 /// Maximum of two constraints, the logical OR for crisp constraints
@@ -351,6 +384,10 @@ impl<A: Constraint, B: Constraint> Constraint for Or<A, B> {
         } else {
             Dnf::unknown()
         }
+    }
+
+    fn announce(&self, context: &Context<'_>) -> Dnf {
+        self.0.announce(context).disjoin(self.1.announce(context))
     }
 }
 
@@ -712,6 +749,68 @@ pub fn reads_as(
     reading: Cons<impl Constraint + Clone>,
 ) -> Cons<impl Constraint + Clone> {
     Cons(ReadsAs { evaluated, reading })
+}
+
+/// See [`announced`].
+#[derive(Clone)]
+struct Announced<J, A> {
+    judgment: J,
+    agreement: A,
+}
+
+impl<J: Constraint, A: Constraint> Constraint for Announced<J, A> {
+    fn eval(&self, hand: Hand, context: &Context<'_>) -> f32 {
+        self.judgment.eval(hand, context)
+    }
+
+    fn describe(&self) -> Description {
+        self.agreement.describe()
+    }
+
+    fn project(&self, context: &Context<'_>) -> Dnf {
+        self.judgment.project(context)
+    }
+
+    fn project_band(&self, context: &Context<'_>) -> Dnf {
+        self.judgment.project_band(context)
+    }
+
+    fn project_complement(&self, context: &Context<'_>) -> Dnf {
+        self.judgment.project_complement(context)
+    }
+
+    fn announce(&self, context: &Context<'_>) -> Dnf {
+        self.agreement.announce(context)
+    }
+}
+
+/// Evaluate as `judgment`, disclose as `agreement`
+///
+/// The sibling of [`reads_as`], and the one that is safe default-on.  `reads_as`
+/// overrides [`project`][Constraint::project], the fold
+/// [`sample_layouts`][super::sampler::sample_layouts] accepts against, so an
+/// approximate reading there breaks the containment contract and the sampler
+/// starts excluding hands we hold — and
+/// [`sample_layouts_replay`][super::sampler::sample_layouts_replay] does not
+/// rescue it, because replay *conjoins* the range test rather than replacing it.
+/// `announced` leaves all three projections on `judgment` — an evaluator-net
+/// gate's ⊤ stays ⊤ and the sampler is untouched — and splits only
+/// [`announce`][Constraint::announce] and [`describe`][Constraint::describe].
+///
+/// The use it exists for: a learned criterion decides, and the arithmetic it
+/// replaced says what the call *means*.  The agreement must be calibrated to
+/// what the criterion does in the population, not inherited from the arithmetic
+/// unexamined — at the floor's RKCB ask the net fires some seven points below
+/// the point sum it replaced, so announcing that sum would misdescribe the
+/// median hand, never mind the tail.
+pub fn announced(
+    judgment: Cons<impl Constraint + Clone>,
+    agreement: Cons<impl Constraint + Clone>,
+) -> Cons<impl Constraint + Clone> {
+    Cons(Announced {
+        judgment,
+        agreement,
+    })
 }
 
 /// Which honor-weighted count tempers [`fifths`] (the A/B companion gauge)
@@ -2660,6 +2759,40 @@ mod tests {
 
     fn assert_reject(logit: f32) {
         assert!(logit.is_infinite() && logit.is_sign_negative());
+    }
+
+    /// [`Constraint::announce`] defaults to [`Constraint::project`], and the
+    /// combinators forward it — so the two folds are the same fold everywhere
+    /// until [`announced`] deliberately splits them.  This is what makes the
+    /// agreement overlay byte-identical to the projection overlay across the
+    /// whole book, and the pilot's A/B a clean one-site experiment.
+    #[test]
+    fn announce_defaults_to_project() {
+        let context = empty_context();
+        set_dnf_reading(false);
+
+        // A leaf, and both combinators over leaves.
+        let same = |c: &dyn Constraint| {
+            assert_eq!(c.project(&context).hull(), c.announce(&context).hull());
+        };
+        same(&points(12..));
+        same(&(points(12..) & len(Suit::Spades, 5..)));
+        same(&(points(20..) | len(Suit::Hearts, 6..)));
+
+        // `announced` splits them: evaluation and projection stay on the
+        // judgment (an opaque `pred`, so ⊤), the agreement carries the box.
+        let split = announced(pred(|_, _| true), points(11..));
+        assert_eq!(
+            split.project(&context).hull().strength.points,
+            Range::FULL_POINTS,
+            "the judgment's projection is what the sampler still sees"
+        );
+        assert_eq!(
+            split.announce(&context).hull().strength.points.min,
+            11,
+            "the agreement is what the table is told"
+        );
+        assert_pass(split.eval(hand(BALANCED_15), &context));
     }
 
     #[test]

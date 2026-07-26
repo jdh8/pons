@@ -41,6 +41,104 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`announced()` — a call decided by the evaluator net can now say what it
+  means, without lying to the sampler.** Opt-in and measured a **wash**; the
+  crate default is byte-identical (`set_announced_reading` off,
+  `set_rkcb_announce` inert without it).
+
+  `Inferences` served two masters that want opposite things. The sampler needs a
+  box that **contains** the truth, or `within_ranges` rejects the very hands the
+  auction was bid on — and `sample_layouts_replay` *conjoins* that test rather
+  than replacing it, so replay is no escape. Disclosure needs the box the
+  partnership **agreement** names, which is not bound by containment: that is
+  what an agreement *is* at the table, and `features.rs` already said so. One
+  object served both, so the sampler's contract was imposed on disclosure and
+  the net's ⊤ propagated to a partner computing its estimate on nothing.
+
+  So there are two folds now. `Constraint::announce` defaults to `project` and
+  is forwarded through `And` (intersect) / `Or` (disjoin) / `Cons`;
+  `Rule::announce_dnf` and a parallel overlay in `project_authored` carry it to
+  `Inferences::announced(who)`. `announced(judgment, agreement)` splits them —
+  `eval` and all three projections stay on the judgment, so an evaluator-net
+  gate's ⊤ survives and the sampler never notices, while `announce` and
+  `describe` take the agreement. This is the piece `reads_as` could not be:
+  `reads_as` overrides `project`, which its own doc concedes is "not for a
+  default-on conversion". `features_v3` and `features_eval` consume the
+  agreement; `admits`, `within_ranges` and the opening-lead sampling keep the
+  projection.
+
+  Two things the build learned that the design did not. **The agreement unions
+  over *alerted* rules only** — the floor's 4NT keycard ask shares its bid with
+  an unalerted weight-0.3 catch-all whose ⊤ unioned the agreement straight back
+  to ⊤. That union is mandatory for a projection (any of those rules could have
+  produced the call) and simply wrong for disclosure, where an alerted call is
+  explained as the convention rather than the residue sharing its bid. And **the
+  announce must ride `points`**: `features::push_inference` encodes four lengths
+  and `points`, nothing else, so a box on `support_points` would have been
+  invisible to every net that reads the auction — the same write-only-axis trap
+  the DNF ledger hit with `strength.hcp`.
+
+  The pilot is the 4NT RKCB ask, the one bilans-converted milestone that is not
+  a final contract and the worst reading in the tree (`.alert(RKCB_FLOOR)`
+  suppresses the natural reading *and* the projection is ⊤, so it announced
+  nothing at all). `examples/probe-announced-rkcb`, 100k boards: the ask fires
+  on 2.23% of boards, **59.8% of them floor-authored** (a book node shadows the
+  floor), with the asker's own `point_count` at p5 = 11 and its own seat already
+  read at p25 = **0**. `RKCB_ASK_ANNOUNCE = 11` covers 95% of firings and bites
+  on 80.6% of them for a mean +4.24 points of floor. Deliberately **not**
+  `FLOOR_SLAM_ENTRY`'s 29 combined: partner's shown floor there is median 6, so
+  the arithmetic would claim ~23 of our own while the net fires at 16 — it
+  reaches some seven points below the sum it replaced, and inheriting that sum
+  would misdescribe the median hand, not just the tail. An agreement is
+  calibrated to what the criterion *does*.
+
+  **The pilot is bid-inert and the overlay is a wash.** Same-seed divergence
+  over 60k boards isolates the two nested halves: the alerted-only union alone
+  moves 1400 boards (2.333%), adding the RKCB agreement moves 1405 (2.342%) —
+  five boards in sixty thousand. Not a failure of the mechanism but a fact about
+  the site: after `4NT` the auction runs on keycard answers and `keycard_total`,
+  neither of which reads partner's points, so nothing there *decides* on the
+  reading. The A/B therefore measures the alerted-only union
+  (`scripts/announced-reading-ab.sh`, `SEED_BASE=1785070714`, 204,800 bd/arm/vul,
+  arms `off` vs `--ns-announced-reading`):
+
+  | vul | scorer | IMPs/board | fired |
+  | --- | --- | --- | --- |
+  | none | plain DD | −0.0008 [±0.0028] | 1947 (0.95%) |
+  | none | perfect defense | +0.0020 [±0.0033] | " |
+  | both | plain DD | +0.0010 [±0.0035] | 1850 (0.90%) |
+  | both | perfect defense | +0.0039 [±0.0040] | " |
+
+  Every interval straddles zero — a wash, directionally positive in three cells
+  of four, with PD above plain at both vulnerabilities (+0.0028 / +0.0029) in
+  the overbid-removal direction but well inside the noise. So the change costs
+  nothing and its case rests on disclosure rather than IMPs, which is the ground
+  `set_pass_reading`, `set_cue_reading` and `set_table_alert_reading` shipped
+  on. Left **default off** pending that call. Full write-up as follow-up F in
+  [docs/ai-bidder/evaluator-net.md](docs/ai-bidder/evaluator-net.md).
+
+  The corollary generalises the reach ceiling: a vacuous reading only costs
+  where something *reads* it. Before wrapping the next site, check a consumer
+  exists — the same way this one had to check the feature encoder before
+  choosing an axis.
+
+- **`set_blind_inference` — the reading program's negative control.**
+  `#[doc(hidden)]`, default off, diagnostic only, `--ns-blind-inference` in
+  `bba-gen`. On, both feature vectors read every seat as `Envelope::unknown` and
+  the nets reason from the auction alone; the sampler's containment test,
+  `admits` and the opening-lead sampling read the `Inferences` directly and are
+  untouched.
+
+  Every generator of readings — authored `project`, the agreement overlay above,
+  a sampled projection — tightens a box and so measures the *derivative* of what
+  readings are worth, and that derivative keeps landing in the noise. A
+  derivative near zero has two readings that call for opposite work: the prize
+  is large and we are near its optimum, or the prize is small. Deleting the
+  boxes outright measures the **level**, and the arm's loss is a ceiling on the
+  whole program — no reading, however generated, can be worth more than what
+  having none costs. `scripts/blind-inference-ab.sh`; the verdict bands are in
+  its header.
+
 - **`examples/eval-arithmetic` — priced an auditable arithmetic backend for
   bilans against the shipped evaluator net, and refused it.** No user-visible
   behaviour change: the crate is byte-identical and `set_bilans_floor` keeps the

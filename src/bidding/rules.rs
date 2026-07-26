@@ -143,6 +143,18 @@ impl Rule {
     pub fn project_band_dnf(&self, context: &Context<'_>) -> super::inference::Dnf {
         self.when.project_band(context)
     }
+
+    /// The **agreement** this rule announces, as a union of boxes
+    /// ([`Constraint::announce`])
+    ///
+    /// The disclosure twin of [`project_dnf`][Self::project_dnf].  Identical to
+    /// it unless the rule's constraint used
+    /// [`announced`][super::constraint::announced], which is what keeps the two
+    /// overlays byte-identical everywhere the split is not deliberately taken.
+    #[must_use]
+    pub fn announce_dnf(&self, context: &Context<'_>) -> super::inference::Dnf {
+        self.when.announce(context)
+    }
 }
 
 impl fmt::Debug for Rule {

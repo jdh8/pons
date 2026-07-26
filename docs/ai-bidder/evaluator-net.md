@@ -1078,3 +1078,149 @@ is not free, and follow-up A is now the only route that does not cost IMPs.
   threshold (`combined_points(26)`, roughly 3NT's strength and a shade above
   4M's), with the eight-card fit keeping whatever D settles. Beware: this widens
   the same rule the collar touches, so it is a third experiment, not a rider.
+
+## Follow-up F — split disclosure from projection: `announced()` *(2026-07-26)*
+
+Follow-ups A and B both answer "how do we make the *criterion* projectable".
+There is a third route neither considers: stop requiring it to be. Let the net
+decide and have the arithmetic say what the call means.
+
+### Why `reads_as` is the wrong tool for it
+
+The mechanism looks like it already exists —
+[`reads_as`](../../src/bidding/constraint.rs) is exactly "evaluate as X, project
+as Y", and its doc even names an evaluator-net gate as the motivating case. But
+it overrides `project`, and `project` is what
+[`within_ranges`](../../src/bidding/sampler.rs) accepts against. Publish a box
+tighter than the criterion there and the sampler stops dealing the very hands
+the net bids on — false precision, the catastrophic half of
+[sampled-projection.md](sampled-projection.md)'s safety inversion. Nor does
+replay rescue it: `sample_layouts_replay` **conjoins** `within_ranges` rather
+than replacing it, so a too-tight range is a floor under both acceptance modes.
+`reads_as`'s own doc concedes this — "acceptable for an opt-in arm whose A/B
+must vindicate it, not for a default-on conversion".
+
+### The observation that dissolves it
+
+`Inferences` serves two masters that want opposite things.
+
+| consumer | needs | because |
+| --- | --- | --- |
+| `admits` / `within_ranges` / sd-lead sampling | a box that **contains** the truth | a hand that made the call must be dealable |
+| `features_v3`, `features_eval`, disclosure | the box the **agreement** names | a call is explained by the partnership's agreement, never by the bidder's cards |
+
+The second is not bound by containment — that is what "agreement" *means* at the
+table, and `features.rs` already says so in as many words. Only the first is.
+Today one object serves both, so the sampler's contract is imposed on
+disclosure, and the net's ⊤ propagates to a partner computing its estimate on
+nothing.
+
+So: a second fold. `Constraint::announce`, defaulting to `project`, forwarded
+through `And` (intersect) / `Or` (disjoin) / `Cons`; `Rule::announce_dnf`; a
+parallel overlay in `project_authored`; `Inferences::announced(who)`. The two
+arrays are byte-identical everywhere until
+
+```rust
+pub fn announced(judgment: ..., agreement: ...) -> ...
+```
+
+splits them — `eval` and all three projections stay on the judgment (the net's
+⊤ survives, the sampler never notices), `announce` and `describe` take the
+agreement. Knob `set_announced_reading`, default off.
+
+### Two things the build learned that the design did not know
+
+**The agreement must union over *alerted* rules only.** The floor's 4NT keycard
+ask shares its bid with an unalerted weight-0.3 catch-all, and the fold's
+`reduce(Dnf::disjoin)` over every rule for that call unioned the agreement
+straight back to ⊤. For the projection that union is mandatory — any of those
+rules could have produced the call, so the sampler may not exclude a hand any of
+them accepts. For disclosure it is simply wrong: an alerted call is explained as
+*the convention*, not as the residue sharing its bid. This is the same
+discrimination `decode` already makes one line above.
+
+**The announce must ride `points`, not `support_points`.**
+`features::push_inference` encodes four lengths and `points` — nothing else. A
+box on `strength.support_points` is invisible to every net that reads the
+auction, which is the same write-only-axis trap the DNF ledger's C2 hit with
+`strength.hcp`. Check the encoder before choosing an axis.
+
+### The pilot, and what it measured
+
+`slam_entry_reached` at the 4NT RKCB ask — follow-up C's site, the one converted
+milestone that is not a final contract, and the worst reading in the tree
+(`.alert(RKCB_FLOOR)` suppresses the natural reading *and* the projection is ⊤,
+so it announces nothing at all). `examples/probe-announced-rkcb`, 100k boards:
+
+| quantity | value |
+| --- | --- |
+| ask fires | 2.23% of boards |
+| **floor**-authored (the pilot's reach; a book node shadows the floor) | 59.8% of those, **1.35% of boards** |
+| asker's own `point_count` | p5 = 11, p10 = 12, median 16 |
+| asker's own seat floor *already* read | p25 = **0**, median 10, mean 7.8 |
+| `points(11..)` bites | 80.6% of firings, mean **+4.24** points of floor |
+
+`RKCB_ASK_ANNOUNCE = 11` covers 95% of firings. Deliberately **not**
+`FLOOR_SLAM_ENTRY`'s 29 combined: partner's shown floor at these nodes is median
+6, so the arithmetic would claim ~23 of our own while the net actually fires at
+16. **The net reaches some seven points below the sum it replaced**, so
+inheriting that sum as the agreement would misdescribe the median hand, not just
+the tail. An agreement is calibrated to what the criterion *does*.
+
+**And the pilot is bid-inert.** Same-seed divergence, 60k boards, the two knobs
+isolating the nested halves:
+
+| arm | boards diverging |
+| --- | --- |
+| agreement overlay (alerted-only union), `set_rkcb_announce` off | 1400 (2.333%) |
+| + the RKCB agreement | 1405 (2.342%) |
+
+Five boards in sixty thousand. Not a failure of the mechanism — a fact about the
+site: after `4NT` the auction runs on keycard answers and `keycard_total`,
+neither of which reads partner's points, so **nothing there decides on the
+reading**. Its payoff is disclosure and lead/defence sampling, which is the
+ground `set_pass_reading`, `set_cue_reading` and `set_table_alert_reading`
+shipped on — all three bid-inert, all three shipped for reading soundness.
+
+The corollary generalises the reach-ceiling argument: a vacuous reading only
+costs where something *reads* it. Before wrapping the next site, check that a
+consumer exists, the same way this section checked the encoder before choosing
+an axis.
+
+### The A/B — a wash in all four cells
+
+Since the pilot is inert, the measurement is of the alerted-only union.
+`scripts/announced-reading-ab.sh`, `SEED_BASE=1785070714`, 204,800 boards per
+arm per vulnerability, arms `off` vs `--ns-announced-reading`. Positive = the
+agreement overlay wins.
+
+| vul | scorer | IMPs/board | fired | IMPs/fired |
+| --- | --- | --- | --- | --- |
+| none | plain DD | −0.0008 [±0.0028] | 1947 (0.95%) | −0.085 |
+| none | perfect defense | +0.0020 [±0.0033] | " | +0.206 |
+| both | plain DD | +0.0010 [±0.0035] | 1850 (0.90%) | +0.105 |
+| both | perfect defense | +0.0039 [±0.0040] | " | +0.430 |
+
+**Every interval straddles zero.** Directionally positive in three cells of
+four, and PD sits above plain at both vulnerabilities (+0.0028 and +0.0029) —
+the overbid-removal signature, and the opposite of the collar's, which lost
+*worse* on plain. But it is well inside the noise and must not be read as a win;
+at 0.9% firing the per-fired numbers are what the intervals are made of.
+
+So the change is free rather than profitable, and its case rests where it always
+did — on disclosure. That is the same ground `set_pass_reading`,
+`set_cue_reading` and `set_table_alert_reading` shipped on, with one difference
+worth stating plainly: those three were *bid-inert* (0–1 divergent boards per
+211k) so their A/B was a wash by construction, while this one genuinely moves
+0.9% of boards and comes back level. That is a stronger result than inertness,
+not a weaker one — it says the tighter agreement does not mislead the nets.
+
+Left **default off** pending an explicit call on the default.
+
+Worth noting for whoever picks this up: the worst boards diverge *early* —
+`1♥ 1♠ 2♠ 2NT …` against `1♥ 1♠ 2♠ – …`, the fourth call — and cluster on
+competitive auctions with `6♣ X` sacrifices, nowhere near the RKCB site. That is
+the alerted-only union reaching every alerted call in the book, exactly as the
+isolation runs said. If the default is ever flipped, the per-family attribution
+to run first is which *alerted conventions* the tightened agreement moved, not
+the pilot.

@@ -50,14 +50,14 @@
 
 use super::Rules;
 use super::constraint::{
-    Cons, Constraint, balanced, described, hcp, len, min_level_is, partner_shown_len,
-    partner_suit_is, point_count, points, pred, short_in_their_suits, stopper_in_their_suits,
-    support, support_point_count, support_point_count_in, takeout_double_shape_ok, they_bid,
-    top_honors,
+    Cons, Constraint, Description, announced, balanced, described, hcp, len, min_level_is,
+    partner_shown_len, partner_suit_is, point_count, points, pred, short_in_their_suits,
+    stopper_in_their_suits, support, support_point_count, support_point_count_in,
+    takeout_double_shape_ok, they_bid, top_honors,
 };
 use super::context::Context;
 use super::evaluator::trick_estimates;
-use super::inference::{Inferences, Relative, relative_of};
+use super::inference::{Dnf, Inferences, Relative, relative_of};
 use super::rules::Alert;
 use contract_bridge::auction::{Call, RelativeVulnerability};
 use contract_bridge::eval::hcp as holding_hcp;
@@ -1939,6 +1939,88 @@ fn fit_sum_game(suit: Suit, slack: u8) -> Cons<impl Constraint + Clone> {
     })
 }
 
+/// What the floor's 4NT RKCB ask **announces** — its agreement, not its gate
+///
+/// The ask is the one bilans-converted milestone that is not a final contract,
+/// and the worst reading in the tree: `.alert(RKCB_FLOOR)` suppresses the
+/// natural reading, and knob-on its gate is the evaluator net, whose sound
+/// projection is ⊤.  So the ask says *nothing* — and unlike the terminal
+/// milestones, partner and the opponents still have an auction to bid.
+///
+/// [`announced`] splits the two folds so the agreement can be tight without the
+/// sampler's containment contract having to hold it.  The number is measured,
+/// not inherited: `examples/probe-announced-rkcb` over 100k boards finds the ask
+/// firing on 2.23% of boards with the asker's own `point_count` at p5 = 11,
+/// p10 = 12, median 16.  **11 covers 95% of firings.**
+///
+/// Deliberately *not* [`FLOOR_SLAM_ENTRY`]'s 29 combined: partner's shown floor
+/// at these nodes is median 6, so the arithmetic would claim ~23 of our own
+/// while the net actually fires at 16 — it reaches some seven points below the
+/// sum it replaced, and announcing that sum would misdescribe the median hand.
+/// An agreement is calibrated to what the criterion *does*, not to the
+/// arithmetic it replaced.
+// ponytail: a static floor is the pilot's compromise — the auction-aware
+// version needs partner's shown minimum, which is follow-up A's two-pass fold.
+const RKCB_ASK_ANNOUNCE: u8 = 11;
+
+std::thread_local! {
+    /// Whether the RKCB ask announces [`RKCB_ASK_ANNOUNCE`] (see
+    /// [`set_rkcb_announce`]).  On by default, but inert unless
+    /// [`set_announced_reading`][super::inference::set_announced_reading] is
+    /// also on, which it is not.
+    static RKCB_ANNOUNCE: Cell<bool> = const { Cell::new(true) };
+}
+
+/// Toggle the RKCB ask's agreement — the `announced()` pilot, in isolation
+///
+/// Separated from
+/// [`set_announced_reading`][super::inference::set_announced_reading] so the two
+/// halves of the agreement overlay can be attributed apart.  They are nested,
+/// not independent: the overlay unions over *alerted* rules, and without that
+/// the unalerted weight-0.3 4NT catch-all sharing this bid would union the
+/// agreement back to ⊤.  So the isolation runs are
+///
+/// | arm | 60k boards diverging |
+/// | --- | --- |
+/// | agreement overlay, this off | 1400 (2.333%) |
+/// | agreement overlay, this on | 1405 (2.342%) |
+///
+/// — **the pilot is bid-inert**, five boards in sixty thousand. That is not a
+/// failure: after `4NT` the auction runs on keycard answers and `keycard_total`,
+/// neither of which reads partner's points, so nothing here *decides* on the
+/// reading. Its payoff is disclosure and lead/defence sampling, the same ground
+/// [`set_pass_reading`][super::set_pass_reading] and
+/// [`set_cue_reading`][super::set_cue_reading] shipped on.
+///
+/// Default on, read at reading time, per-thread.
+#[doc(hidden)]
+pub fn set_rkcb_announce(on: bool) {
+    RKCB_ANNOUNCE.with(|cell| cell.set(on));
+}
+
+/// See [`set_rkcb_announce`] — announces [`RKCB_ASK_ANNOUNCE`], or nothing.
+#[derive(Clone, Copy)]
+struct RkcbAgreement;
+
+impl Constraint for RkcbAgreement {
+    /// Never consulted: [`announced`] evaluates its judgment arm, not this one.
+    fn eval(&self, _: Hand, _: &Context<'_>) -> f32 {
+        0.0
+    }
+
+    fn describe(&self) -> Description {
+        points(RKCB_ASK_ANNOUNCE..).describe()
+    }
+
+    fn announce(&self, context: &Context<'_>) -> Dnf {
+        if RKCB_ANNOUNCE.with(Cell::get) {
+            points(RKCB_ASK_ANNOUNCE..).announce(context)
+        } else {
+            Dnf::unknown()
+        }
+    }
+}
+
 /// Make probability of the small slam at which the bilans floor's RKCB ask
 /// fires — deliberately below [`break_even`]'s even-money decision line,
 /// because the ask buys information: inside the band the keycard answer
@@ -3533,7 +3615,7 @@ pub fn instinct() -> Rules {
                     && partner_last_call(context.auction())
                         .is_none_or(|bid| bid.strain != Strain::Notrump)
             }) & inference_aware()
-                & slam_entry_reached()
+                & announced(slam_entry_reached(), Cons(RkcbAgreement))
                 & not_penalizing()
                 & below_slam()
                 & level_available(4, Strain::Notrump),
@@ -4625,6 +4707,93 @@ mod tests {
         let collared = american_floored(&auction, hand).0;
         set_net_collar(false); // restore the default before asserting
         assert_eq!(collared, Call::Pass);
+    }
+
+    /// The `announced()` pilot: the floor's 4NT RKCB ask discloses slam values
+    /// even though the evaluator net decided it.
+    ///
+    /// The thesis in one assertion. The ask is `.alert(RKCB_FLOOR)`, so the
+    /// natural reading is suppressed and the projection is all partner gets —
+    /// and the projection is ⊤, because knob-on the gate is the net and a net
+    /// accepts hands no box contains. The *agreement* fold has no such ceiling:
+    /// it is what the partnership would say the call means, so it can name the
+    /// measured floor ([`RKCB_ASK_ANNOUNCE`]).
+    ///
+    /// Both sides are pinned deliberately. The projection must not move — that
+    /// is what keeps [`sample_layouts`][super::sampler::sample_layouts] dealing
+    /// the light hands the net actually asks on — while the agreement carries
+    /// the reading.
+    ///
+    /// This auction is the *modest* case: the asker opened `1♠`, so the natural
+    /// walk already floors it at 10 and the agreement adds one point. The probe
+    /// measures the asker's own seat reading nothing at all at p25 (median 10),
+    /// so `RKCB_ASK_ANNOUNCE` bites on 80.6% of firings for a mean +4.24.
+    #[test]
+    fn rkcb_ask_announces_slam_values_the_projection_cannot() {
+        use crate::bidding::Family;
+        use crate::bidding::american::american_instinct;
+        use crate::bidding::inference::set_announced_reading;
+
+        // `1♥ – P – 4♦ – P – 4♥ – P – 4NT – P`, from
+        // `examples/probe-announced-rkcb --count 60000`: responder splintered
+        // with a diamond void, opener signed off in game, responder asks. The
+        // book has no node here, so the *floor* authors the ask — the pilot only
+        // reaches floor-authored asks, 59.8% of them (a book node with finite
+        // mass shadows the floor). The reader is the `4♥` bidder, so the asker
+        // sits at `Relative::Partner`, and the walk floors that seat at nothing.
+        let after_ask = [
+            call(1, Strain::Hearts),
+            Call::Pass,
+            call(4, Strain::Diamonds),
+            Call::Pass,
+            call(4, Strain::Hearts),
+            Call::Pass,
+            call(4, Strain::Notrump),
+            Call::Pass,
+        ];
+        let stance = american_instinct().against(Family::NATURAL);
+        let read = |on: bool| {
+            set_announced_reading(on);
+            let inferences = stance.infer(RelativeVulnerability::NONE, &after_ask);
+            set_announced_reading(false); // restore the default before any assert
+            inferences
+        };
+
+        // Knob off: the two folds are the same object, both vacuous.
+        let off = read(false);
+        assert_eq!(
+            off.announced(Relative::Partner).strength.points,
+            off.partner().strength.points,
+            "knob-off the agreement is the projection"
+        );
+
+        let on = read(true);
+        assert_eq!(
+            on.partner().strength.points,
+            off.partner().strength.points,
+            "the projection — and so the sampler — is untouched by the split"
+        );
+        assert_eq!(
+            on.announced(Relative::Partner).strength.points.min,
+            RKCB_ASK_ANNOUNCE,
+            "the ask announces the slam values the projection cannot"
+        );
+        assert!(
+            on.announced(Relative::Partner).strength.points.min > on.partner().strength.points.min,
+            "the agreement is strictly tighter than the projection — the split shows"
+        );
+
+        // The pilot's own knob, the other half of the attribution: with the
+        // overlay on but this off, the ask is back to announcing nothing, and
+        // what remains is the alerted-only union alone.
+        set_rkcb_announce(false);
+        let bare = read(true);
+        set_rkcb_announce(true); // restore the default before asserting
+        assert_eq!(
+            bare.announced(Relative::Partner).strength.points,
+            bare.partner().strength.points,
+            "without the pilot the ask announces nothing again"
+        );
     }
 
     #[test]
