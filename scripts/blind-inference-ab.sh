@@ -34,6 +34,12 @@
 #   0.02 .. 0.10      real but small — spend on disclosure-driven sites only
 #   <= 0.02           the program is a correctness feature; stop pricing it
 #
+# MEASURED 2026-07-26 (SEED_BASE=1785072635, 204800 bd/arm/vul): -0.6501 plain /
+# -1.1052 PD at vul none, -0.8850 / -1.2685 at both — six to twelve times the
+# top band, and about the whole remaining gap to BBA (-1.152 / -1.355).  Broad,
+# not a tail: a third of boards diverge and the mean divergent board loses 1.8
+# to 3.9 IMPs.  Verdict recorded in docs/ai-bidder/sampled-projection.md.
+#
 #   setsid nohup scripts/idle-run.sh scripts/blind-inference-ab.sh \
 #       ab-results/blind-inference >ab-results/blind-inference.log 2>&1 &
 #

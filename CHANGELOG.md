@@ -136,8 +136,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   is large and we are near its optimum, or the prize is small. Deleting the
   boxes outright measures the **level**, and the arm's loss is a ceiling on the
   whole program — no reading, however generated, can be worth more than what
-  having none costs. `scripts/blind-inference-ab.sh`; the verdict bands are in
-  its header.
+  having none costs. `scripts/blind-inference-ab.sh`.
+
+  **Measured: readings are worth about the entire remaining gap to BBA.**
+  `SEED_BASE=1785072635`, 204,800 bd/arm/vul:
+
+  | vul | scorer | IMPs/board | IMPs/fired | fired |
+  | --- | --- | --- | --- | --- |
+  | none | plain DD | −0.6501 [±0.0177] | −1.844 | 72199 (35.25%) |
+  | none | perfect defense | −1.1052 [±0.0221] | −3.135 | " |
+  | both | plain DD | −0.8850 [±0.0215] | −2.737 | 66223 (32.34%) |
+  | both | perfect defense | −1.2685 [±0.0257] | −3.923 | " |
+
+  Against an anchor of −1.152 plain / −1.355 PD. The loss is **broad, not a
+  tail**: a third of boards diverge and the mean divergent board loses 1.8–3.9
+  IMPs. The doubled/redoubled wrecks heading the worst list are a symptom —
+  doubled finals go 6.44% → 8.09%, redoubles 0.11% → 0.35%, and 0.24pp of extra
+  redoubles cannot fund a 0.65 IMP/board swing — though they do explain the
+  PD-worse-than-plain spread (0.38–0.46): a blind seat walks into more doubles
+  and perfect defense collects on them.
+
+  Read beside the wash above, this reprices the whole programme. Sharpening
+  calls that already read moved 0.9% of boards for nothing; deleting every
+  reading moves 33% for an IMP. **The payoff is in coverage, not sharpness** —
+  the axis a sampled projection moves and a per-rule reader does not. Write-up
+  and the next step (a ⊤-coverage census weighted by firing rate) in
+  [docs/ai-bidder/sampled-projection.md](docs/ai-bidder/sampled-projection.md).
 
 - **`examples/eval-arithmetic` — priced an auditable arithmetic backend for
   bilans against the shipped evaluator net, and refused it.** No user-visible

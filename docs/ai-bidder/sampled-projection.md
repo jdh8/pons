@@ -10,6 +10,9 @@
 > is in `archive/`. Stale path — worth fixing when that comment is next touched,
 > since it is the comment justifying the vacuous `SupportPoints::project` this
 > design makes moot.
+>
+> Update (2026-07-26): the negative control below prices this design's prize at
+> **0.65–1.27 IMPs/board** — about the whole remaining gap to BBA. Build it.
 
 ## The idea, in one line
 
@@ -363,6 +366,64 @@ net starts reading more than the hull.
 
 **Stage D — cap selection.** Cluster-count histogram across the book. Evidence, not
 argument.
+
+## What readings are worth — the negative control (2026-07-26)
+
+Every attempt to improve a reading tightens some box and measures the
+**derivative** of what readings are worth. Two of those in a row landed in the
+noise: the agreement overlay (`set_announced_reading`, follow-up F in
+[`evaluator-net.md`](evaluator-net.md)) was a wash in all four cells, and the
+`Or`-wall chops in [`../dnf-migration.md`](../dnf-migration.md) have been small.
+A derivative near zero admits two readings that call for opposite work — *the
+prize is large and we are near its optimum*, or *the prize is small* — and
+nothing in a tightening experiment can tell them apart.
+
+So measure the **level**. `features::set_blind_inference` (`#[doc(hidden)]`,
+default off, `--ns-blind-inference`) blanks all four inference blocks in both
+feature vectors: every seat reads `Envelope::unknown`, and the nets reason from
+the auction alone. Only the nets go blind — `within_ranges`, `admits` and the
+opening-lead sampling read the `Inferences` directly and are untouched, so the
+deals are identical and only the decisions taken on them move.
+`scripts/blind-inference-ab.sh`, `SEED_BASE=1785072635`, 204,800 bd/arm/vul:
+
+| vul | scorer | IMPs/board | IMPs/fired | fired |
+| --- | --- | --- | --- | --- |
+| none | plain DD | **−0.6501** [±0.0177] | −1.844 | 72199 (35.25%) |
+| none | perfect defense | **−1.1052** [±0.0221] | −3.135 | " |
+| both | plain DD | **−0.8850** [±0.0215] | −2.737 | 66223 (32.34%) |
+| both | perfect defense | **−1.2685** [±0.0257] | −3.923 | " |
+
+For scale, the 2026-07-26 anchor puts the deterministic pons **−1.152 plain /
+−1.355 PD** behind BBA. Readings are worth roughly the entire remaining gap.
+
+The loss is **broad, not a tail**. A third of boards diverge and the mean
+divergent board loses 1.8–3.9 IMPs; a tail-driven number would show a small
+mean beside a few −24s. The doubled/redoubled wrecks that dominate the *worst*
+list are a symptom rather than the driver — doubled finals go 6.44% → 8.09% and
+redoubles 0.11% → 0.35%, and that 0.24pp of extra redoubles cannot fund a
+0.65 IMP/board swing. What it does explain is the PD-vs-plain spread
+(0.38–0.46, PD always worse): a blind seat walks into more doubles, and perfect
+defense collects on them.
+
+### What this says about where to spend
+
+The two results together are the whole argument for this design:
+
+| experiment | what it moved | result |
+| --- | --- | --- |
+| `--ns-announced-reading` | 0.9% of boards, sharpening calls that already read | wash |
+| `--ns-blind-inference` | 33% of boards, deleting every reading | −0.65 … −1.27 |
+
+The payoff is in **coverage** — how many calls read as *anything* — not in
+sharpening the ones that already do. That is exactly the axis a sampled
+projection moves and a per-rule reader does not: one derivation covers every
+call, including the ones no one will ever author a reader for and the ones a
+learned criterion decides.
+
+The census that sizes the remaining headroom inside that prize is *what
+fraction of calls project ⊤ today*, weighted by how often they fire. Run it
+before Stage A — it turns "0.65–1.27 is the ceiling" into "and here is the part
+still on the table."
 
 ## Caveats
 
