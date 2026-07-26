@@ -38,7 +38,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`set_net_collar` — the evaluator net stops *replacing* the floor's point
   arithmetic and starts ruling on it, in one direction per decision.** Default
   **off**, so the crate is byte-identical; opt in via `bba-gen --ns-net-collar`,
-  A/B `scripts/net-collar-ab.sh`. **Unmeasured — the A/B has not been run.**
+  A/B `scripts/net-collar-ab.sh`. **Measured and REFUTED — it stays off.**
+
+  The A/B (204,800 bd/arm/vul, seed 1785059133) loses every cell:
+  **−0.031 / −0.027 IMPs/board non-vul** (plain DD / perfect defense) and
+  **−0.047 / −0.037 vul**, all four intervals clear of zero, firing on
+  1.2–1.5% of boards. The loss is *larger* on plain DD than under PD — the
+  opposite signature to the overbid-removal the collar was built to be.
+
+  **The smoke run below read the right divergence and drew the wrong sign.**
+  Those "collar bids lower" boards are the cost: grouping the loss tail by the
+  first divergent call gives `7NT→3NT` (15 bd, −234 IMP), `7♠→4♠`/`7♥→4♥` (17,
+  −265), `4M→Pass` (22, −328). The shipped net bids those grands and they
+  **make** — `AQ9.98.AQT32.JT6` opposite `KJT4.AKQ.K96.A72` is `2NT–7NT` cold
+  on a combined 33, and the collar rests in 3NT.
+
+  Both shapes are refuted, so the three-arm design is moot. The accelerator
+  fails by a mechanism the design missed: `COLLAR_SLACK = 2` caps the net's
+  reach below the authored threshold, but the incumbent wiring's reach is
+  *unbounded*, so at the game sites the collar subtracts hands rather than
+  adding them. **An accelerator whose collar is tighter than the incumbent's
+  reach is a veto wearing the other shape's name.**
+
+  One level up, this answers the doubt that opened the session — the net's
+  reach below the point thresholds *earns* IMPs, and pair-level point
+  arithmetic is the worse criterion at all nine milestones. Same verdict as the
+  `eval-arithmetic` gate above, now paid for in boards rather than in NLL. The
+  disclosure argument for an auditable backend is untouched; it was never an
+  accuracy claim.
 
   As shipped, `set_bilans_floor` masks the authored gate off and hands the net
   the whole criterion at nine game/slam milestones: an unbounded reach below the

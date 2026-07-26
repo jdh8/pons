@@ -943,7 +943,7 @@ is not. Pinned by `break_even_keys_the_collar_direction`, whose bounds are
 non-strict *on purpose* — tighten them to `<` / `>` and the two boundary rows
 fail.
 
-### Landed, unmeasured — `set_net_collar` *(2026-07-26)*
+### Landed, then REFUTED — `set_net_collar` *(2026-07-26)*
 
 `points_or_net` gained a `collar` argument and a sibling `points_and_net`; the
 nine milestones split 4 accelerate (3NT, 5m, 4M, fitted 4M, collar
@@ -983,6 +983,59 @@ entirely; collared, `authored & net` declines and the auction rests in 3NT. F1
 fixed the net's *inputs*; the collar restores the point floor the net was allowed
 to ignore. Pinned by `net_collar_vetoes_the_notrump_slam_below_thirty_three`.
 
+#### The A/B — all four cells lose
+
+`scripts/net-collar-ab.sh`, sha `6fe1a27`, `SEED_BASE=1785059133`, 204,800
+boards per arm per vulnerability. Arms are knob-off (shipped: the net holds the
+whole criterion) vs `--ns-net-collar`. Positive = the collar wins.
+
+| vul | scorer | IMPs/board | fired | IMPs/fired |
+| --- | --- | --- | --- | --- |
+| none | plain DD | **−0.0308** [±0.0041] | 2503 (1.22%) | −2.52 |
+| none | perfect defense | **−0.0269** [±0.0043] | " | −2.20 |
+| both | plain DD | **−0.0473** [±0.0055] | 3048 (1.49%) | −3.18 |
+| both | perfect defense | **−0.0366** [±0.0059] | " | −2.46 |
+
+Loss at both vulnerabilities on both scorers, every interval clear of zero, and
+*larger* on plain DD than under perfect defense — the opposite signature to an
+overbid-removal, which is what the collar was built to be. `set_net_collar`
+stays **default off**, an opt-in knob and nothing more.
+
+**The smoke run's direction was right and its sign was backwards.** It measured
+that ~88% of diverging boards had the collar bidding lower and read that as
+"removing overbids the net alone was making". Those lower calls are what costs
+the IMPs. Grouping the 40 worst boards (the loss tail, not a census) by the
+first divergent call, both vuls under PD:
+
+| family | boards | IMPs |
+| --- | --- | --- |
+| `7NT → 3NT` | 15 | −234 |
+| `7♠ → 4♠`, `7♥ → 4♥` | 17 | −265 |
+| `4♠ → Pass`, `4♥ → Pass` | 22 | −328 |
+| `4m → 3NT` | 9 | −120 |
+
+The shipped net bids those grands and they **make**. Board
+`AQ9.98.AQT32.JT6` opposite `KJT4.AKQ.K96.A72` is the clean one: `2NT–7NT`
+cold on a combined 33, and the collar rests in 3NT for −14.
+
+**Both shapes lose, so neither half is salvageable and the third arm is moot.**
+The veto is refuted directly. The accelerator is too, and by a mechanism the
+design missed: `COLLAR_SLACK = 2` caps the net's reach *below* the authored
+threshold, but the shipped wiring's reach is **unbounded**, so at the game sites
+the collar does not add hands — it takes away the ones the net was reaching for
+past 2 points. Every `4M → Pass` above is that. An accelerator whose collar is
+tighter than the incumbent's reach is a veto wearing the other shape's name.
+
+**What this settles, one level up.** The doubt that opened this whole session —
+that the net is a black box with an unbounded licence — is answered
+empirically at all nine milestones: the net's reach below the point thresholds
+**earns IMPs**, and pair-level point arithmetic used as either floor or
+criterion is the worse of the two. That is the same verdict as the
+[auditable-arithmetic gate](#is-arithmetic-enough-the-auditable-backend-gate-2026-07-26),
+now paid for in boards rather than in NLL. The reach-ceiling *disclosure*
+argument is untouched — it was never an accuracy claim — but its proposed fix
+is not free, and follow-up A is now the only route that does not cost IMPs.
+
 ### Follow-ups this leaves open
 
 - **A — project with seat and partial state.** Widen `Constraint::project` to
@@ -1013,7 +1066,9 @@ to ignore. Pinned by `net_collar_vetoes_the_notrump_slam_below_thirty_three`.
   behind `!stopper_in_their_suits()` — the alternative genuinely is a partscore,
   not 3NT. What is unpriced is the point threshold. Own A/B, own knob, per
   [convention-tuning.md](../convention-tuning.md); sweeping 26 / 27 is the cheap
-  first arm. **After** the collar A/B settles — they touch the same rule.
+  first arm. The collar A/B has since settled (refuted), so this is unblocked —
+  but note it now sweeps a threshold the shipped wiring **masks off**, so the
+  knob has to reach the arithmetic before the sweep can move anything.
 - **E — 5m cannot be bid on a seven-card fit, and sometimes must be.**
   `known_eight_card_fit` returns `false` whenever `mine + partner.min < 8`, so 5♦
   on a 4-3 is unauthored and the hand falls through to a stopperless 3NT or a
