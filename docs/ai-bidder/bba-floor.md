@@ -314,6 +314,127 @@ Vulnerability-aware, scoring-form-aware (IMPs vs matchpoints change the answer),
 and it prices *being doubled*. The `C_PERCENTAGE50/70/90` constants are the
 familiar contract-success thresholds.
 
+---
+
+## 5.5 The arithmetic itself, **read**  *(2026-07-26 — closes row B)*
+
+`ilspycmd` on `vendor/bba/EPBot64.dll` (plain unobfuscated VB.NET: 21 types,
+1125 methods, 1391 fields; 6.5 s to decompile the whole assembly). Everything
+below is read off the C#, not inferred. Line numbers are into the decompiled
+`EPBot64/ModuleCommon.cs` and `EPBot64/EPBot.cs`.
+
+The headline: **the elaborate 900-line trick counter is not what picks the
+level.** A points-to-level ladder picks it; the trick count acts as a *floor*
+and as the slam/grand veto.
+
+### The level formula (`get_max_wysokosc_gry`, ModuleCommon:2851)
+
+```
+combined   = pkt[player] + pkt[partner] − useless_NT_HCP        clamp 0..40
+total_pts  = combined + shape_pts[strain] + partner_potential_shape[strain]
+           + correction                                          clamp −3..+3
+
+level      = (total_pts + 1) / 3 − 6            ← integer division. THE ladder
+level      = min(level, 6)
+level      = max(level, winning_tricks[strain] − 6)   ← tricks can only RAISE
+```
+
+with these overrides taken in order, before the ladder:
+
+| condition | level |
+|---|---|
+| `winning_tricks == 13` | 7 |
+| `combined + HCP_plus_minus ≥ 37` and no losers | 7 |
+| `total_pts ≥ 39 + potential` and `losing ≤ 1` and `losing_tricks == 0` and no losing parts | 7 |
+| `winning_tricks == 12` | 6 |
+| `combined + HCP_plus_minus ≥ 33` (or `== 32` with `winning ≥ 11`) and `losing ≤ 1` | 6 |
+| `total_pts ≥ 34 + potential` and `losing ≤ 1` | 6 |
+| `total_pts ≤ 0` | −6 (pass) |
+| NT, ladder gave `< 3`, and `combined ≥ 25 && total_pts ≥ 25` (or `24`/`26`) | 3 |
+
+So **three points per level**, dead centre of standard practice, with the whole
+winners/losers apparatus contributing `max(level, winning − 6)` plus the slam
+gates. `correction` is `round(0.2·additional_points[hcp] + 0.2·too_few_points −
+0.2·(jacks − jacks_in_trump) + 0.1..0.3·tens)`, clamped to ±3 — the coefficients
+vary by combined trump length (`suma_atu ≥ 10`, `== 9`, `== 8`, else).
+
+`additional_points[0..40]` (EPBot:52229) is a dead-zone linear ramp: −10 flat
+below 10 HCP, then `h − 19` up to a **flat plateau at 19–21**, then `h − 21`,
+clamped at +10. Distance from the average partnership share, in other words.
+
+### What the trick counter actually consumes (`determine_losing_winning_tricks`, ModuleCommon:1923)
+
+Per suit, and this is the whole input vector (ModuleCommon:4400):
+
+```
+honorAB[s]       = honors_A[s] | honors_B[s]     5-bit A16 K8 Q4 J2 T1, PARTNERSHIP union
+sumaAB[s]        = len_A[s] + len_B[s]
+dluzsze[s]       = max(len_A, len_B)             krotsze[s]        = min(len_A, len_B)
+dluzszy_opsow[s] = max(len_LHO, len_RHO)         krotszy_opsow[s]  = min(len_LHO, len_RHO)
+```
+
+plus the trump suit and the combined trump length. Output is `winning[s]`,
+`losing[s]`, `losing_parts[s]`, summed by `tricks_sum` (`min(Σ, 13)`).
+
+Two things follow. First, the thresholds throughout are written as ordinal
+comparisons on the bitmask — `honorAB ≥ 24` **is** "holds A and K", `≥ 28` is
+AKQ, `≥ 30` AKQJ, `≥ 16` "holds the ace" — which works because the mask is
+ordered by honour significance. Second, and the reason this matters for us:
+**the count is additive per suit over the *combined partnership* holding, never
+over one hand.** That is precisely the structure `docs/binky-points.md`
+identifies as unreachable by an additive one-hand table (its ~24 % of pair-level
+σ spread). BBA is not fighting that wall; it sits on the other side of it.
+
+### Uncertainty: finite differences, not a distribution (`get_SD_tricks`, EPBot:2166)
+
+For each of the five strains, BBA runs `determine_punkty_bilansowe` →
+`determine_losing_winning_tricks` → `get_max_wysokosc_gry` **three times**, at
+`MY_BILANS.deviation ∈ {−1, 0, +1}` (an offset on partner's potential shape
+points), giving `more_probable_level` / `probable_level` / `less_probable_level`.
+The confidence is read off how much the level *moved*:
+
+```
+less_probable > probable                → 90
+probable == winning_tricks[strain] − 6  → 90
+more_probable < probable                → 50
+otherwise                               → 70
+```
+
+**That is the entire meaning of `C_PERCENTAGE50/70/90`.** BBA has no σ. It
+perturbs one scalar input to a deterministic point estimate and reads the
+sensitivity of the output level. Note also that `get_SD_tricks` sets
+`MY_BILANS.real_hands = true` over a *reconstructed* partner hand — it is
+`f(one modal layout)`, not `E[f]` over the posterior.
+
+### Corrections this forces on §5 above
+
+- **`set_honor_table` is not a tunable table.** `honor_table[h, j] = (h >> j) & 1`
+  (EPBot:52397, via `H_honoru = {1,2,4,8,16}`). It is bit extraction, memoised.
+- **`set_sila_longera_table` is not a tunable table either.** All 32 entries
+  (EPBot:41613) are exactly **plain 4-3-2-1 suit HCP**, ten worth zero —
+  A 4, K 3, Q 2, J 1, verified on every entry (`AK` 7, `KQ` 5, `AQJ` 7,
+  `AKQ` 9, `AKQJ` 10). Stage 2's "richer point count than HCP + shape" is real
+  in its *length and ruffing* terms, but its suit-strength term is just HCP.
+- Stage 4's "expected score" is **not** an `Σ P(T=k)·score(k)` integral. It is a
+  points ladder with tabulated overrides plus the three-point sensitivity bucket
+  above. `expected_score` prices the *chosen* level; it does not choose it.
+
+### What this says about our backend
+
+Directly relevant to `evaluator.rs` and `set_bilans_floor`:
+
+1. Our net's `(μ, σ)` is **strictly richer** than BBA's three-point finite
+   difference. The doubt that started this session — that we are using a heavy
+   tool where arithmetic suffices — does not survive contact with what BBA
+   actually computes on the uncertainty side.
+2. But BBA's *input parameterisation* is the good idea, and we do not have it:
+   per-suit `(combined honour mask, our two lengths, their two lengths)`. That
+   is a small, enumerable domain; our net sees `{min,max} ÷ cap` endpoints with
+   no prior over the range.
+3. `level = max(level, winning_tricks − 6)` is worth stealing on its own — a
+   trick count that can only ever *raise* the level is exactly the asymmetry a
+   floor wants, and it is one line.
+
 ### Where it sits in the dispatch
 
 In metadata (file) order, `odzywka_z_bilansu` is declared **among the per-seat
@@ -356,14 +477,20 @@ over pipes (`C_PIPE_DD`, `C_PIPE_PLAY`, errors `201`–`203` about *leads*) for
 |---|---|
 | `calculated bid` is the label of `odzywka_z_bilansu` | **strong** — UTF-16 literal at `.rodata` `0x313c2b`, length-prefixed 14 chars, sitting in the alphabetised `info_meaning` label pool (`artificial`, `forcing`, `penalty`, …) |
 | all the method/field names above exist | **strong** — NativeAOT keeps ~4700 reflection names in `libEPBot.so`; `EPBot64.dll` is the same engine as an unobfuscated managed assembly |
-| the four stages compose in that order | **inferred** — from names, declaration clustering and the §3 probe. No IL was read |
+| the four stages compose in that order | **read** (2026-07-26) — `get_SD_tricks` calls `determine_punkty_bilansowe` → `determine_losing_winning_tricks` → `get_max_wysokosc_gry` in that order, per strain. See §5.5 |
 | the balance is per-seat and continuous | **strong** — four `calculated_*` seats, `aktualizuj_bilans` beside the dispatchers |
 | the balance can veto rule-table bids | **moderate** — `determine_odzywki_zabronione_z_bilansu` by name only |
 | the bidding path does not call the DD solver | **moderate** — solver strings are all play/lead errors; no link found from the balance cluster |
+| Stage 4 picks the level by expected score | **read, and WRONG as stated** — it is `(total_points + 1)/3 − 6` with tabulated slam overrides and a `max(level, winning − 6)` floor. `expected_score` prices the chosen level, it does not choose it. §5.5 |
+| Stage 2 uses tunable honour tables | **read, and WRONG as stated** — `honor_table` is bit extraction; `sila_longera` is plain 4-3-2-1 suit HCP. §5.5 |
+| the engine carries a trick *distribution* | **read: it does not.** Three runs at `deviation ∈ {−1,0,+1}` bucketed to 50/70/90 %. §5.5 |
 
-**To get the actual arithmetic, decompile `vendor/bba/EPBot64.dll` with ILSpy.**
-It is a plain managed assembly, not obfuscated; the `.so` is a NativeAOT build of
-it (`.comment`: `ilc 10.0.5-servicing.26153.111`). No decompiler on this box yet.
+**Reproduce §5.5:** `dotnet tool install -g ilspycmd --version 9.1.0.7988` (pin —
+10.x needs .NET 9; `dotnet-install.sh --channel 8.0` puts the runtime in
+`~/.dotnet`, no root), then `ilspycmd -o <out> -p vendor/bba/EPBot64.dll`. It is
+a plain managed assembly, not obfuscated; the `.so` is a NativeAOT build of it
+(`.comment`: `ilc 10.0.5-servicing.26153.111`). Zero-install fallback: `dnfile` +
+`dncil` are on the box and decode every method body, at the cost of reading IL.
 
 ### Correction to §0
 
@@ -496,12 +623,13 @@ Independent; each is its own session with its own entry point.
 | # | Area | First chunk | Entry point |
 |---|---|---|---|
 | ~~A~~ | ~~**Widen the oracle FFI**~~ | **DONE** — see §6. 22 symbols bound including the whole `set_info_*` inject half; `probe`/`probe_with` on `BbaOracle`; recon dump in `examples/probe-bba-bilans`. | — |
-| B | **Read the arithmetic** | ILSpy on `vendor/bba/EPBot64.dll`; decompile `odzywka_z_bilansu`, `determine_punkty_bilansowe`, `determine_losing_winning_tricks`. Turns §5's *inferred* rows into *strong*. | needs a decompiler installed |
+| ~~B~~ | ~~**Read the arithmetic**~~ | **DONE 2026-07-26 — see §5.5.** `ilspycmd` on `vendor/bba/EPBot64.dll`. Level is `(total_points + 1)/3 − 6` floored by `max(level, winning_tricks − 6)`, with tabulated 33/37-point slam overrides; uncertainty is a three-point finite difference on `deviation`, bucketed 50/70/90 %, **not** a distribution; `honor_table` and `sila_longera` are bit-extraction and plain 4-3-2-1 suit HCP, not tuned tables. Two §5 rows were **wrong** and are corrected in the grading table. The transferable idea is the per-suit input parameterisation `(combined honour mask, our two lengths, their two lengths)` — see the ladder in row F. | — |
+| F | **An auditable arithmetic backend** | **MEASURED 2026-07-26 — the replacement is REFUSED; the ladder is kept as a forensic.** `examples/eval-arithmetic` fits BBA-shaped least-squares rungs on the existing 20 M-row evaluator corpus and scores them with the trainer's exact loss on the same held-out shard the shipped net was scored on. Result below: the widest auditable rung is **0.34 tricks of MAE and 0.23 nats behind** `evaluator_v2_dnf`, which is far too large for the A/B ship rule to survive. The wide diagnostic splits the gap: **⅔ is feature compression, ⅓ is nonlinearity.** So the net stays, and the arithmetic's value is that its coefficients are readable. | `examples/eval-arithmetic` |
 | ~~C~~ | ~~**A trick model for our floor**~~ | **DONE, differently** — see [`evaluator-net.md`](evaluator-net.md). Stages 2–3 are a small *learned* net rather than authored winners/losers arithmetic: `(own hand, hidden-seat ranges) → DD trick mean and spread`, two heads per target (`μ`, `ln σ`) fit on pre-solved deals by Gaussian negative log-likelihood. It never sees the auction, so it is bidding-system agnostic; and it is scored against sampled double-dummy truth, not against `probable_level` (whose scale stays undecoded — the graded teacher turned out to be unnecessary once DD was the target). | `src/bidding/evaluator.rs` |
 | D | **Expected-score level choice** | **Constructive rung DONE** (2026-07-21): the floor's game/slam boundary gates (combined-25/fit-sum-31 games, 33/37 slams, the RKCB entry, the asker's grand) price `P(make)` via `Gaussian::p_at_least` against the IMP break-evens (our failing branch priced *doubled* — a gate prices a call, and bid = PD is the scoring split), vulnerability-aware, behind `set_bilans_floor` (**default on** — `examples/ab-bilans-floor` measured it at both vulnerabilities, both scorers winning, at v1 and again at the v2 weights; see [evaluator-net.md](evaluator-net.md#against-the-shipped-floor)). Still open in-row: the full `Σ P(T=k)·score(k)` integration, doubled contracts, and a probabilistic par over all 20 declarer columns for the *competitive* decisions (settle rail, sacrifices) — the natural follow-up session. | `src/bidding/instinct.rs` |
 | E | **Relational constraints (`SuitRef`)** | Symbolic auction-bound suit/level refs so `rubens_*` stops being opaque `pred` and keeps `describe`/`project`. Authoring economy + inference recovery, *not* strength. | `src/bidding/constraint.rs` |
 
-Dependency: **A and C are done, and D's constructive rung shipped** — the
+Dependency: **A, B and C are done, and D's constructive rung shipped** — the
 break-even probability table is the closed form of the expected-score integral
 for undisturbed our-side decisions, so those gates needed none of the heavier
 Stage-4 machinery. The live remainder of D is the **competitive extension**: a
@@ -510,9 +638,10 @@ pricing, and the settle rail — where the `Σ P(T=k)·score(k)` integration and
 disaster tails genuinely matter. Note what C did *not* need: decoding the
 `probable_levels` scale, or BBA as a teacher at all. Double-dummy truth on the
 actual deal was a better target than a graded opinion, and it comes free with the
-`.pdd` stock. **B is optional** and now only matters if D's remaining arithmetic
-wants BBA's exact score model. **E is independent** and can run in parallel; it
-is the smallest.
+`.pdd` stock. **B turned out to matter for a different reason than expected** —
+not for D's score model (BBA has no `Σ P(T=k)·score(k)` to copy) but for its
+*input* parameterisation, which is what row **F** now carries. **E is
+independent** and can run in parallel; it is the smallest.
 
 Standing caveat from [`../bba-gap-campaign.md`](../bba-gap-campaign.md): deep
 auctions are our *smallest* gap family (−6k, vs round-1 −213k). C and D are
@@ -533,6 +662,10 @@ without the A/B in [`../measurement.md`](../measurement.md).
 - `bba-floor-probe` — live-engine off-book probe (throwaway, since removed).
 - Inputs (read-only): `vendor/bba/MB.TXT`, `vendor/bba/Comments.txt`,
   `vendor/bba/Native-libraries/linux/x64/libEPBot.so`.
+- §5.5 used no new code either — `ilspycmd -o <out> -p vendor/bba/EPBot64.dll`
+  into a scratch dir, then reading `EPBot64/ModuleCommon.cs` (5195 lines; the
+  whole trick/level engine lives there) and `EPBot64/EPBot.cs` (63616 lines; the
+  constant tables and `get_SD_tricks`). Decompiling the assembly takes 6.5 s.
 - §5 used no new code, only shell (§6 is now the bound surface in `oracle.rs`):
   - `strings -n 5 vendor/bba/EPBotNET.dll` — managed metadata, the readable twin.
   - `nm -D --defined-only …/libEPBot.so | grep ' T '` — the 70 `epbot_*` exports.

@@ -9,6 +9,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`examples/eval-arithmetic` — priced an auditable arithmetic backend for
+  bilans against the shipped evaluator net, and refused it.** No user-visible
+  behaviour change: the crate is byte-identical and `set_bilans_floor` keeps the
+  net. The harness fits BBA-shaped least-squares rungs on the existing
+  `eval-train-1m-dnf` corpus and scores them with the trainer's exact loss on
+  the same held-out shard `evaluator_v2_dnf` was scored on — no solver, no
+  sampler, seconds to run.
+
+  The widest auditable rung (13 terms) lands at **NLL −1.286 / MAE 1.779
+  tricks** against the net's **−1.512 / 1.441**; a 0.34-trick shortfall in the
+  mean has no path through a non-regression A/B, so no boards were spent. The
+  diagnostic rung — a plain linear fit on all 79 raw corpus features, MAE
+  1.553 — splits the gap: **0.226 tricks is feature compression, 0.112 tricks
+  is nonlinearity**, so on this input set better features are worth ~2× a
+  better function class. Full table, the readable coefficients, and what would
+  re-open the question in
+  [docs/ai-bidder/evaluator-net.md](docs/ai-bidder/evaluator-net.md).
+
+  Two coefficients worth keeping: `pair HCP` fits at **0.11 tricks/point in
+  suits — one trick per 3 HCP**, recovering BBA's `(total_points + 1)/3` ladder
+  from double-dummy labels with no bridge knowledge in the loop; and an ace is
+  worth **~1.9 kings in tricks** on top of the HCP both are already charged
+  for, most of all at notrump.
+
+### Changed
+
+- **`docs/ai-bidder/bba-floor.md` §5.5 — BBA's *bilans* arithmetic is now read,
+  not inferred** (ledger row B closed; `ilspycmd` on the unobfuscated managed
+  `vendor/bba/EPBot64.dll`, 6.5 s for the whole assembly). Its level is
+  `(total_points + 1) / 3 − 6`, floored by `max(level, winning_tricks − 6)`,
+  with tabulated 33/37-point slam overrides; the per-suit trick count consumes
+  exactly `(combined honour mask, our two lengths, their two lengths)`.
+
+  Three §5 claims were **wrong** and are corrected in place: `set_honor_table`
+  is bit extraction, not a tuned table; `set_sila_longera_table` is plain
+  4-3-2-1 suit HCP on every one of its 32 entries; and Stage 4 is not an
+  `Σ P(T=k)·score(k)` integral. BBA carries **no trick distribution at all** —
+  `C_PERCENTAGE50/70/90` is the bucketed sensitivity of the chosen level to a
+  ±1 perturbation of one scalar, so our `(μ, σ)` head is strictly richer than
+  what prompted the doubt.
+
 - **Box closure — narrow a read box to what its own contents already imply.**
   Two opt-in knobs on the DNF reading, both **exact** (no hand is dropped) and
   therefore **membership-inert**: the sampler cannot move, only `Dnf::hull`

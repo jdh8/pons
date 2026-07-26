@@ -665,3 +665,109 @@ bought — shows up first as *fewer* contracts bid past their break-even.
   is now gone**: the wide-σ runs that made the clamp look like the suspect were
   the narrow-net initialisation basin, and that basin does not exist at 128 units
   or above.
+
+---
+
+## Is arithmetic enough? The auditable-backend gate  *(2026-07-26)*
+
+jdh8's question, after BBA's own engine turned out to be plain arithmetic
+([`bba-floor.md`](bba-floor.md) §5.5): **is a learned net the right backend for
+bilans at all?** The worry was not speed — it was that the net is a black box
+that DNF chop C1 caught *degrading on a provably true input tightening*, with
+`--no-ns-bilans` attributing 47–64 % of that loss to the net alone.
+
+[`examples/eval-arithmetic`](../../examples/eval-arithmetic/main.rs) prices the
+alternative. It fits BBA-shaped least-squares rungs on the existing
+`eval-train-1m-dnf` corpus (2 M rows; 13 coefficients do not need 20 M) and
+scores them with the trainer's exact loss, `L = s + ½(t − μ)²e^{−2s}`, on
+`eval-test-bits-dnf` — **the same held-out shard `evaluator_v2_dnf` was scored
+on**, so the last row of the table is directly comparable. The rungs are nested,
+so the whole ladder is leading principal submatrices of one Gram matrix per
+target: one pass to fit, seconds to run, no solver and no sampler.
+
+| rung | cols | NLL | MAE tricks | slam MAE |
+|---|---:|---:|---:|---:|
+| R0 const | 1 | −1.02475 | 2.334 | 5.993 |
+| R1 +strength | 2 | −1.07559 | 2.218 | 5.354 |
+| R2 +fit | 3 | −1.10227 | 2.162 | 5.137 |
+| R3 +texture | 6 | −1.18405 | 1.983 | 4.288 |
+| R4 +defence | 8 | −1.24744 | 1.849 | 3.830 |
+| R5 +shape/width | 13 | −1.28560 | 1.779 | 3.612 |
+| *linear on all 79 raw features* | 80 | — | *1.553* | — |
+| **`evaluator_v2_dnf`** | 54→256→256 | **−1.51183** | **1.441** | **2.646** |
+
+**Verdict: the replacement is refused.** The widest auditable rung is 0.34
+tricks of MAE and 0.23 nats behind the net. The ship rule for this campaign was
+deliberately the A/B rather than the NLL gate — the goal was auditability, not
+accuracy — but a backend 0.34 tricks worse in the mean has no realistic path
+through a non-regression A/B, and spending 200 k boards × 2 vulnerabilities to
+confirm that would be spending the measurement to learn what the offline number
+already says.
+
+**The wide diagnostic is the useful part.** A plain linear fit on *all 79* raw
+corpus features (`--oracle` truth columns excluded) lands at MAE 1.553. So the
+gap from the 13-term arithmetic to the net splits:
+
+- **0.226 tricks — feature compression.** Information the corpus already
+  carries that 13 hand-picked terms throw away. Two-thirds of the gap.
+- **0.112 tricks — nonlinearity.** What the two hidden layers buy over a linear
+  map on identical inputs. One-third of the gap.
+
+That ratio is the actionable finding: **on this input set, better features are
+worth about 2× better function class.** It also bounds the ceiling for any
+future arithmetic backend — even a *perfect* linear model on every column the
+net sees still trails it by 0.112 tricks.
+
+### What the coefficients say
+
+R4's eight terms are the readable ones (R5 fits better but its terms stop
+reading as bridge quantities — adding `spots` makes `pair HCP` absorb collinear
+mass and pushes `kings` slightly negative in the majors, which is a real cost
+under an auditability goal). In tricks per unit, our side declaring:
+
+| strain | const | pair HCP | fit | aces | kings | trump HCP | their HCP | shortness |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| NT | 5.637 | 0.145 | −0.209 | 0.848 | 0.471 | 0.061 | −0.083 | 0.000 |
+| ♠ | 5.974 | 0.120 | 0.404 | 0.559 | 0.290 | 0.123 | −0.069 | −0.682 |
+| ♥ | 6.165 | 0.114 | 0.392 | 0.585 | 0.312 | 0.117 | −0.069 | −0.677 |
+| ♦ | 2.809 | 0.109 | 0.501 | 0.636 | 0.347 | 0.103 | −0.059 | −0.448 |
+| ♣ | 2.814 | 0.110 | 0.488 | 0.618 | 0.334 | 0.106 | −0.061 | −0.427 |
+
+Three of these are worth keeping in mind whatever the backend is:
+
+- **`pair HCP` ≈ 0.11 tricks/point in suits — one trick per 3 HCP, recovered
+  from double-dummy labels with no bridge knowledge in the loop.** That is
+  exactly BBA's `level = (total_points + 1) / 3 − 6` ladder, arrived at
+  independently. The folklore constant is right.
+- **An ace is worth ~1.9 kings in tricks**, above and beyond the HCP the fit
+  already charges for both — and the premium is largest at notrump (0.848).
+  4-3-2-1 undervalues aces for *trick-taking* even where it prices *strength*
+  correctly.
+- **`fit` is +0.4 to +0.5 tricks per combined trump card, and −0.21 at
+  notrump.** The sign flip is the whole reason a single "hand value" scalar
+  cannot serve both strains, and it is the measured form of the
+  [`binky-points.md`](../binky-points.md) alignment limitation — except that
+  here it is reachable, because the estimator sees *both* hulls rather than one
+  hand's holdings.
+
+### Consequences
+
+1. **`set_bilans_floor` keeps the net.** The doubt that opened this session is
+   answered on the numbers, in the direction of the status quo.
+2. **The C1 fragility is not fixed by this and stays open.** An arithmetic
+   backend would have been monotone in the reading by construction; the net is
+   not, and the pre-registered C1 falsification never got to run because its
+   subject was refused at the gate. The live candidate for C1 remains a
+   knob-matched retrain, which is what F2b already did for the DNF flip.
+3. **What would re-open a replacement:** the feature-compression term, not the
+   function class. The corpus's range blocks carry lengths and `points` only —
+   `Envelope::strength.suit_hcp` is never encoded
+   (`features::push_inference`), so BBA's actual per-suit parameterisation
+   (*combined* honour mask × both lengths) is unreachable here. Emitting those
+   24 columns from `dump-evaluator` is a ~62-minute regen with no DD; check
+   first how often `suit_hcp` is narrowed at real nodes, since the SHCP chop
+   shipped it with no default-on consumer.
+4. **One BBA idea is free and independent of all of this:**
+   `level = max(level, winning_tricks − 6)` — a trick count that can only ever
+   *raise* the level, never lower it. That asymmetry is what a floor wants, and
+   it needs no backend change.
