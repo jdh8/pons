@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`dump-evaluator` is parallel** (rayon over deals; the DD labels are
+  pre-solved, so per-deal work is pure bidding — the solver rule doesn't
+  apply). ~32× on this box: the corpus regen that gated every evaluator
+  retrain drops from ~an hour to minutes (500k deals / 10.2M rows in 3m26s).
+  Deterministic and thread-count independent (verified byte-identical at 1 vs
+  32 threads): (dealer, vul) now derive from a per-deal RNG keyed on
+  `(seed, index)`, so the stream differs from the old sequential dumper at the
+  same seed — the sidecar records the scheme (`deal_rng`), and old corpora are
+  not byte-reproducible post-change. Thread-local reading knobs reach the
+  workers via `rayon::broadcast`.
+
 ### Changed
 
 - **A natural suit overcall of their weak two demands more when *we* are

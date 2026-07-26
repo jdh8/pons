@@ -48,6 +48,7 @@ use pons::bidding::{Family, Inferences, Phase, Stance, System};
 use pons::{american, dutch, gib};
 use rand::rngs::StdRng;
 use rand::{RngExt, SeedableRng};
+use rayon::prelude::*;
 use std::io::{BufWriter, Write};
 
 /// Width of the double-dummy label: 5 strains × 4 declarers.
@@ -161,7 +162,7 @@ const VULS: [AbsoluteVulnerability; 4] = [
 
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
-    // Single-threaded example, so the thread-local knob set once covers the run.
+    // Main thread's copy; the rayon workers get theirs via `broadcast` below.
     pons::bidding::set_dnf_reading(args.dnf);
     let encoding = match args.encoding.as_str() {
         "summary" => Encoding::Summary,
@@ -206,58 +207,91 @@ fn main() -> anyhow::Result<()> {
         systems.len()
     );
 
-    let mut rng = StdRng::seed_from_u64(args.seed);
     let f32_path = format!("{}.f32", args.out);
     let mut writer = BufWriter::new(std::fs::File::create(&f32_path)?);
     let mut tags = BufWriter::new(std::fs::File::create(format!("{}.tags", args.out))?);
 
+    // The reading knob is a thread-local: every rayon worker needs the same
+    // setting main got at the top, and `broadcast` forces the pool up so no
+    // worker is born later with the bare default.
+    rayon::broadcast(|_| pons::bidding::set_dnf_reading(args.dnf));
+
     let (mut rows, mut contested, mut forced_pass) = (0u64, 0u64, 0u64);
-    let mut row = vec![0f32; row_len];
 
     // Deal-major: every row a board contributes stays contiguous, so the
-    // trainer's contiguous validation tail is deal-disjoint.
-    for (deal, table) in &deals {
-        let dealer = rng.random_range(0..4usize);
-        let vul = VULS[rng.random_range(0..4usize)];
-        for (sys_idx, (_, stance)) in systems.iter().enumerate() {
-            let mut auction = Auction::new();
-            while !auction.has_ended() {
-                let seat = Seat::ALL[(dealer + auction.len()) % 4];
-                let hand = deal[seat];
-                let rel = relative(vul, seat);
+    // trainer's contiguous validation tail is deal-disjoint.  Parallel over
+    // deals — the DD tables are pre-solved, so per-deal work is pure bidding.
+    // (dealer, vul) derive from a per-deal RNG keyed on (seed, index), making
+    // the output independent of thread schedule; the stream differs from the
+    // old sequential dumper at the same seed (sidecar records the scheme).
+    // ponytail: chunked collect bounds memory at ~CHUNK deals of rows; a
+    // bounded-channel pipeline would overlap write with bidding if the writer
+    // ever becomes the bottleneck.
+    const CHUNK: usize = 4096;
+    for (chunk_index, chunk) in deals.chunks(CHUNK).enumerate() {
+        let buffers: Vec<(Vec<u8>, Vec<u8>, u64)> = chunk
+            .par_iter()
+            .enumerate()
+            .map(|(in_chunk, (deal, table))| {
+                let index = (chunk_index * CHUNK + in_chunk) as u64;
+                let mut rng =
+                    StdRng::seed_from_u64(args.seed ^ index.wrapping_mul(0x9E37_79B9_7F4A_7C15));
+                let dealer = rng.random_range(0..4usize);
+                let vul = VULS[rng.random_range(0..4usize)];
 
-                let Some(mut logits) = stance.classify(hand, rel, &auction) else {
-                    forced_pass += 1;
-                    auction.push(Call::Pass);
-                    continue;
-                };
-                for (call, slot) in logits.iter_mut() {
-                    if auction.can_push(call).is_err() {
-                        *slot = f32::NEG_INFINITY;
+                let mut row = vec![0f32; row_len];
+                let mut bytes = Vec::new();
+                let mut tag_bytes = Vec::new();
+                let mut forced = 0u64;
+                for (sys_idx, (_, stance)) in systems.iter().enumerate() {
+                    let mut auction = Auction::new();
+                    while !auction.has_ended() {
+                        let seat = Seat::ALL[(dealer + auction.len()) % 4];
+                        let hand = deal[seat];
+                        let rel = relative(vul, seat);
+
+                        let Some(mut logits) = stance.classify(hand, rel, &auction) else {
+                            forced += 1;
+                            auction.push(Call::Pass);
+                            continue;
+                        };
+                        for (call, slot) in logits.iter_mut() {
+                            if auction.can_push(call).is_err() {
+                                *slot = f32::NEG_INFINITY;
+                            }
+                        }
+
+                        // The trie-prefixed reading, so conventional calls
+                        // decode off their authoring rules rather than as
+                        // natural suits.
+                        let inferences = stance.infer(rel, &auction);
+                        encode(&mut row[..base_len], hand, &inferences, encoding);
+                        if args.oracle_all {
+                            write_oracle_all(&mut row[base_len..features_len], deal, seat);
+                        } else if args.oracle {
+                            write_oracle(&mut row[base_len..features_len], deal[seat.partner()]);
+                        }
+                        row[features_len..].copy_from_slice(&gib::relativized_tricks(table, seat));
+                        for value in &row {
+                            bytes.extend_from_slice(&value.to_le_bytes());
+                        }
+
+                        let contested_row = Phase::of(&auction) != Phase::Constructive;
+                        tag_bytes.push(u8::from(contested_row) | (sys_idx as u8) << 1);
+
+                        auction.push(argmax_legal(&logits));
                     }
                 }
+                (bytes, tag_bytes, forced)
+            })
+            .collect();
 
-                // The trie-prefixed reading, so conventional calls decode off
-                // their authoring rules rather than as natural suits.
-                let inferences = stance.infer(rel, &auction);
-                encode(&mut row[..base_len], hand, &inferences, encoding);
-                if args.oracle_all {
-                    write_oracle_all(&mut row[base_len..features_len], deal, seat);
-                } else if args.oracle {
-                    write_oracle(&mut row[base_len..features_len], deal[seat.partner()]);
-                }
-                row[features_len..].copy_from_slice(&gib::relativized_tricks(table, seat));
-                for value in &row {
-                    writer.write_all(&value.to_le_bytes())?;
-                }
-
-                let contested_row = Phase::of(&auction) != Phase::Constructive;
-                tags.write_all(&[u8::from(contested_row) | (sys_idx as u8) << 1])?;
-                rows += 1;
-                contested += u64::from(contested_row);
-
-                auction.push(argmax_legal(&logits));
-            }
+        for (bytes, tag_bytes, forced) in buffers {
+            rows += tag_bytes.len() as u64;
+            contested += tag_bytes.iter().map(|&t| u64::from(t & 1)).sum::<u64>();
+            forced_pass += forced;
+            writer.write_all(&bytes)?;
+            tags.write_all(&tag_bytes)?;
         }
     }
     writer.flush()?;
@@ -283,6 +317,8 @@ fn main() -> anyhow::Result<()> {
         "boards": deals.len(),
         "git_sha": git_sha(),
         "seed": args.seed,
+        "deal_rng": "per-deal StdRng(seed ^ index·0x9E3779B97F4A7C15); \
+                     not byte-compatible with pre-parallel sequential dumps",
         "dnf": args.dnf,
         "rows": rows,
         "contested_rows": contested,
