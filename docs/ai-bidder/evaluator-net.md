@@ -1479,3 +1479,117 @@ contracts across the full arms (688 vs 690 at our table, unchanged).
 `set_eval_shape` therefore stays **off**, which is how it shipped.  It is kept as
 the reference implementation of an invariant reading and as the instrument for
 any future chop that lands inside ±0.02.
+
+## Strength-distribution reading — the Gaussian is refused, the crisp band is the win  *(2026-07-27)*
+
+Research only.  `features::features_eval_points` (136 floats) is a superset for
+the ablation; **nothing ships from it**.  The strength distribution measured a
+*loss* as a replacement and nothing as an addition, while the block that pays is
+two columns of `strength.hcp` endpoints — an axis that was already being computed
+and thrown away.
+
+### The hypothesis, and why it was worth a sweep
+
+v4 replaced each seat's *length* endpoints with a shape Gaussian and measured
+par.  Strength looked like the axis where that argument breaks: a length reading
+is narrow (`♠5..13`, `♥0..2`) and its prior nearly flat, so `{min, max}` is
+close to sufficient — whereas a strength reading is wide (`0..37` unshown,
+`11..26` after a 2/1) and its prior sharply peaked, so the endpoints should
+discard far more.  Measured on the corpus, that premise holds: the mean band is
+15.4 HCP wide but `sd[hcp]` is 2.77 against the 4.46 a uniform band of that width
+would carry, and `E[hcp]` sits 4.28 HCP from the band's midpoint on average
+(corr 0.685).
+
+### The kernel
+
+The honour analogue of `walk_shapes`.  With `n_c` unseen cards of each honour
+class `c ∈ {A, K, Q, J}`, a hidden seat holding `(a, k, q, j)` of them has
+hypergeometric weight `C(n_A,a)·C(n_K,k)·C(n_Q,q)·C(n_J,j)·C(39−Σn_c, 13−a−k−q−j)`,
+summing to `C(39,13)` by Vandermonde — so the log-mass column shares v4's scale.
+At most `5⁴ = 625` atoms, against the shape lattice's 560.
+
+Two differences from the shape kernel are worth keeping:
+
+- **Union membership is a bitmask, not a per-atom scan.**  Raw HCP is one scalar
+  axis, so the union of boxes is 38 bits of `u64` and admission is a shift.
+- **It reads both whole-hand strength axes.**  `strength.hcp` is the crisp band;
+  `points = hcp + upgrade` with `upgrade ∈ 0..=ceiling` bounds raw HCP too, and
+  `constraint::upgrade_ceiling` supplies the ceiling *box-locally* — 0 for a box
+  whose lengths force balanced, so a 1NT box pins raw HCP from both ends.
+
+It is the **marginal** walk: it reads each box's strength axes and ignores its
+lengths, exactly as `walk_shapes` reads lengths and ignores strength.  The joint
+walk is a per-suit honour lattice (2⁴ per suit, 65536 atoms) that could also read
+`suit_hcp`; it costs ~100× and is not built.
+
+### Step 0 — `strength.hcp` is written but unread
+
+`docs/dnf-migration.md` calls it a write-only axis.  The writes are real
+(`Hcp::project_band` writes an unslacked band where the `points` leg beside it is
+slacked), and 20k deals / 407,449 rows say the axis carries information at
+serving time:
+
+| seat | `points` not ⊤ | `hcp` not ⊤ | `hcp` binds beyond what `points` implies |
+| --- | --- | --- | --- |
+| LHO | 49.8% | 22.7% | **12.3%** |
+| partner | 55.5% | 26.1% | **14.4%** |
+| RHO | 63.5% | 28.9% | **16.1%** |
+
+### The ablation — six arms over one corpus
+
+`scripts/eval-points-sweep.sh`, `--encoding points`, 400k deals of `22.pdd`,
+seed 1, pooled american+dutch, `--dnf`, 8,146,934 rows (the same decision nodes
+the shape sweep saw).  Every arm is a `--arm` mask, so all see identical rows in
+identical batch order at identical parameter count.  `pts-control` reproduces
+`features_eval_v4` out of the superset and lands at −1.54560 against the shape
+sweep's −1.54562 for the same vector — the corpus checks out.
+
+| arm | live | val NLL | Δ | MAE | slam-MAE |
+| --- | --- | --- | --- | --- | --- |
+| `pts-control` — = shipped v4 | 97 | −1.54560 | — | 1.3959 | 2.4541 |
+| `pts-gauss` — moments *replacing* the endpoints | 97 | −1.54441 | **+0.00118** | 1.3974 | 2.4586 |
+| `pts-gauss-mass` — + log-mass | 100 | −1.54457 | +0.00102 | 1.3970 | 2.4582 |
+| `pts-both` — moments *beside* the endpoints | 106 | −1.54651 | −0.00091 | 1.3949 | 2.4494 |
+| `pts-hcp-ends` — the crisp band, no kernel | 103 | **−1.54766** | **−0.00207** | 1.3937 | 2.4432 |
+| `pts-hcp-both` — band *and* moments | 112 | −1.54722 | −0.00162 | 1.3941 | 2.4473 |
+
+**The reference 0.0006 spread understates this corpus.** Replicating the winner
+at seeds 2 and 3 gave −0.00109 and −0.00115 against seed 1's −0.00207: mean
+**−0.00143**, spread **0.00098**.  Every single-seed Δ of ≈0.001 in the table is
+therefore within about one seed-spread of noise, `pts-both` included, and the
+table must be read with that in mind.
+
+Three readings:
+
+- **Replacement loses.**  +0.0011 across both replace arms, consistent in sign —
+  the one direction the shape sweep found free.
+- **The crisp band is the win, and it is not the kernel.**  Six columns, two per
+  seat, read straight off a box axis; 3/3 seeds negative, worst case −0.00109 =
+  1.8× the reference spread.  It also posts the table's best slam-MAE (2.4432 vs
+  2.4541), which fits — a crisp raw-HCP band is what a slam decision wants.
+- **The distribution adds nothing once the band is present.**  `pts-hcp-both`
+  −0.00162 against `pts-hcp-ends` −0.00143 is well inside the spread.  So
+  `pts-both`'s −0.00091 was a weaker proxy for the same information, not a
+  separate effect.
+
+### Why replacement loses here and was free for shape
+
+The moments track a reading's **floor** and lose its **ceiling**: over the
+corpus, `corr(μ−2σ, points.min)` is 0.85–0.89 but `corr(μ+2σ, points.max)` is
+only 0.60–0.72.  Bridge readings are mostly floors ("12+"), so a truncated mean
+follows them closely; the ceiling is the part that says *do not bid game*, and a
+`(μ, σ)` pair cannot represent it — least of all across a disjunction, where
+`{6..9} ∪ {20..23}` reads as 7.6 because the strong hump carries almost no prior
+mass against 25 unseen HCP.  Meanwhile the peakedness the Gaussian adds is what
+the net already recovers from the endpoints plus its own honours, exactly as the
+shape section predicted.  So the moments delete something used and add something
+already known — a loss, not the par the shape swap earned.
+
+### Where this leaves a v5
+
+The clearing mask is `pts-hcp-ends` = v4 + `strength.hcp` endpoints, 103 columns,
+no kernel and no serving cost.  At −0.00143 it is 30× smaller than the calls
+tail that bought v3 its +0.018/+0.028 IMPs and 35× larger than the shape swap
+that lost its A/B, so the IMP result is genuinely open and the A/B is the only
+thing that can settle it.  The kernel stays research-only, like
+`features_eval_shape` before it.

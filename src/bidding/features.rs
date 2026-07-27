@@ -18,7 +18,7 @@
 
 use super::context::Context;
 use super::inference::{Dnf, Envelope, Inferences, Relative};
-use crate::bidding::constraint::upgrade;
+use crate::bidding::constraint::{upgrade, upgrade_ceiling};
 use contract_bridge::auction::{Call, RelativeVulnerability};
 use contract_bridge::eval::{self, HandEvaluator, SimpleEvaluator};
 use contract_bridge::{Hand, Holding, Penalty, Rank, Strain, Suit};
@@ -405,6 +405,252 @@ fn shown_boxes(dnf: &Dnf) -> Option<&[Envelope]> {
     (!BLIND_INFERENCE.with(std::cell::Cell::get)).then(|| dnf.boxes())
 }
 
+// ── The HCP-distribution reading ──────────────────────────────────────────────
+
+/// Binomial coefficients `C(n, k)` for `n ≤ 39`, `k ≤ 13` — Pascal's triangle
+/// again, wide enough for the honour walk.
+///
+/// [`BINOM`] cannot serve it twice over: it stops at `n = 13`, while the
+/// non-honour factor runs to `C(39, 13) ≈ 8.1e9`, which overflows the `u32` it
+/// stores.  `k > n` entries stay zero so a lookup can be unguarded.
+const BINOM_39: [[u64; 14]; 40] = {
+    let mut table = [[0_u64; 14]; 40];
+    let mut n = 0;
+    while n < 40 {
+        table[n][0] = 1;
+        let mut k = 1;
+        while k < 14 {
+            table[n][k] = if n == 0 {
+                0
+            } else {
+                table[n - 1][k - 1] + table[n - 1][k]
+            };
+            k += 1;
+        }
+        n += 1;
+    }
+    table
+};
+
+/// Divisor that brings an HCP standard deviation into roughly `[0, 1]`.  A
+/// hidden hand's unconditional σ is ≈4 and the widest a reading can leave it is
+/// a barbell across the band, so 8 covers the realistic span.
+const HCP_SPREAD_SCALE: f64 = 8.0;
+
+/// Values one hidden seat's raw-HCP endpoints contribute: `{min, max}` ÷ 37
+pub const LEN_HCP_ENDS: usize = 2;
+
+/// Values one hidden seat's strength reading contributes: `E[hcp]`, `sd[hcp]`,
+/// then the log-mass column
+pub const LEN_HCP_GAUSS: usize = 3;
+
+/// The most HCP thirteen cards can hold — AAAA KKKK QQQQ J.  Also the width of
+/// the [`walk_hcp`] admission mask, which is why it must stay under 64.
+const HCP_CAP: u8 = 37;
+
+/// What each honour class is worth, in [`UnseenHonours`] order
+const HONOUR_HCP: [Rank; 4] = [Rank::A, Rank::K, Rank::Q, Rank::J];
+
+/// Ways one hidden seat can hold each honour class — the honour analogue of
+/// [`Unseen`], and the same trick: `counts[c]` is how many of class `c` this
+/// hand does not hold, `classes[c][n]` is `C(counts[c], n)`, and `rest[k]` is
+/// `C(unseen non-honours, k)`.
+///
+/// Built once per hand and shared by all three hidden seats — only the
+/// admission mask differs between them.
+struct UnseenHonours {
+    counts: [u8; 4],
+    classes: [[f64; 5]; 4],
+    rest: [f64; 14],
+}
+
+impl UnseenHonours {
+    fn new(hand: Hand) -> Self {
+        let counts = HONOUR_HCP.map(|rank| {
+            let held = Suit::ASC
+                .iter()
+                .filter(|&&suit| hand[suit].contains(rank))
+                .count();
+            // Four of each rank exist, so what this hand lacks is unseen.
+            4 - held as u8
+        });
+        let honours: u8 = counts.iter().sum();
+        let rest = usize::from(39 - honours);
+        Self {
+            counts,
+            classes: counts.map(|n| std::array::from_fn(|k| BINOM_39[usize::from(n)][k] as f64)),
+            rest: std::array::from_fn(|k| BINOM_39[rest][k] as f64),
+        }
+    }
+}
+
+/// Bits `lo..=hi` of a `u64`, empty when the band is
+fn band_mask(lo: u8, hi: u8) -> u64 {
+    let hi = hi.min(HCP_CAP);
+    if lo > hi {
+        return 0;
+    }
+    let width = u32::from(hi - lo) + 1;
+    (u64::MAX >> (64 - width)) << lo
+}
+
+/// Bitmask over `0..=HCP_CAP` of the raw-HCP values one box admits
+///
+/// Reads **both** whole-hand strength axes, which is where the information the
+/// hull cannot carry actually is.  `strength.hcp` is the crisp raw band an
+/// HCP-gated rule writes — a 1NT box holds 15..17 there while the `points` leg
+/// beside it is slacked to 15..19 — and no shipped vector has ever read it.
+/// `points = hcp + upgrade` with `upgrade` in `0..=ceiling`, so the points leg
+/// bounds raw HCP too; [`upgrade_ceiling`] supplies the ceiling *box-locally*,
+/// which is 0 for a box whose lengths force balanced, so a 1NT box pins raw HCP
+/// from both ends.  It returns `None` under rule-of-N+8, whose count can fall
+/// below raw HCP; the leg is then dropped, which is sound because wider is.
+fn box_hcp_mask(envelope: &Envelope) -> u64 {
+    let hcp = envelope.strength.hcp;
+    let (mut lo, mut hi) = (hcp.min, hcp.max);
+    if let Some(ceiling) = upgrade_ceiling(&envelope.lengths) {
+        let points = envelope.strength.points;
+        lo = lo.max(points.min.saturating_sub(ceiling));
+        hi = hi.min(points.max);
+    }
+    band_mask(lo, hi)
+}
+
+/// Weighted sums over the HCP lattice, before normalisation
+#[derive(Default)]
+struct HcpMoments {
+    /// Total weight over every honour split — always `C(39, 13)`, by Vandermonde
+    all: f64,
+    /// Total weight over the splits the reading admits
+    hit: f64,
+    /// `Σ w·hcp`
+    sum: f64,
+    /// `Σ w·hcp²`
+    square: f64,
+}
+
+/// Walk every `(A, K, Q, J)` count the unseen honours allow — at most 625 atoms
+/// — and accumulate the hypergeometric weight of those the reading admits.
+///
+/// Enumerating atoms makes a union of boxes free for the same reason it does in
+/// [`walk_shapes`]: a split lies in some box or in none, so there is no
+/// inclusion–exclusion to pay.  Here it collapses further — raw HCP is a single
+/// scalar axis, so the whole union is a 38-bit mask and admission is a shift.
+///
+/// ponytail: this is the *marginal* HCP walk. It reads each box's strength
+/// axes and ignores its lengths, exactly as `walk_shapes` reads lengths and
+/// ignores strength, so a box that couples the two ("weak with six spades")
+/// contributes its strength leg and its shape leg independently. The joint walk
+/// is a per-suit honour lattice (2⁴ states per suit, 65536 atoms) that could
+/// also read `suit_hcp`; it costs ~100× this one and is the upgrade path if the
+/// marginal measures interesting.
+fn walk_hcp(unseen: &UnseenHonours, admitted: u64) -> HcpMoments {
+    let mut m = HcpMoments::default();
+    for a in 0..=unseen.counts[0] {
+        for k in 0..=unseen.counts[1] {
+            for q in 0..=unseen.counts[2] {
+                for j in 0..=unseen.counts[3] {
+                    let held = a + k + q + j;
+                    if held > 13 {
+                        continue;
+                    }
+                    let weight = unseen.classes[0][usize::from(a)]
+                        * unseen.classes[1][usize::from(k)]
+                        * unseen.classes[2][usize::from(q)]
+                        * unseen.classes[3][usize::from(j)]
+                        * unseen.rest[usize::from(13 - held)];
+                    if weight == 0.0 {
+                        continue;
+                    }
+                    m.all += weight;
+                    // Thirteen cards cap this at 37, so the shift is in range.
+                    let hcp = 4 * a + 3 * k + 2 * q + j;
+                    debug_assert!(hcp <= HCP_CAP, "{hcp} HCP in thirteen cards");
+                    if admitted >> hcp & 1 == 0 {
+                        continue;
+                    }
+                    m.hit += weight;
+                    let hcp = f64::from(hcp);
+                    m.sum += weight * hcp;
+                    m.square += weight * hcp * hcp;
+                }
+            }
+        }
+    }
+    m
+}
+
+/// One hidden seat's raw-HCP distribution, normalised
+struct HcpDist {
+    /// `E[hcp]`, in points
+    mean: f64,
+    /// `sd[hcp]`, in points
+    sd: f64,
+    /// How much the reading pins the seat's strength down, in `[0, 1]` — the
+    /// strength twin of [`Shape::mass`], on the same `C(39, 13)` scale
+    mass: f64,
+}
+
+/// Walk the lattice once and normalise.
+fn hcp_of(unseen: &UnseenHonours, boxes: Option<&[Envelope]>) -> HcpDist {
+    let admitted = boxes.map_or(u64::MAX, |boxes| {
+        boxes
+            .iter()
+            .fold(0, |mask, envelope| mask | box_hcp_mask(envelope))
+    });
+    let m = walk_hcp(unseen, admitted);
+    // Same guard as `shape_of`: an *agreement* can over-claim against a hand
+    // that saw a card it did not expect, and that reads as "shows nothing"
+    // rather than dividing by zero.
+    let m = if m.hit > 0.0 {
+        m
+    } else {
+        walk_hcp(unseen, u64::MAX)
+    };
+    let inv = 1.0 / m.hit;
+    let mean = m.sum * inv;
+    HcpDist {
+        mean,
+        sd: (m.square * inv - mean * mean).max(0.0).sqrt(),
+        mass: -(m.hit * (1.0 / m.all)).ln() / m.all.ln(),
+    }
+}
+
+/// Push one hidden seat's **raw-HCP endpoints** ([`LEN_HCP_ENDS`] values) — the
+/// `strength.hcp` axis, `{min, max}` ÷ 37.
+///
+/// The axis every net has ignored.  It is written unslacked wherever `points`
+/// is written slacked, so it is strictly sharper on exactly the hands the
+/// notrump gates care about; the ablation's `pts-hcp-ends` arm is what prices
+/// it against the [`push_hcp_gauss`] block that consumes the same axis.
+///
+/// Takes the [`shown`] envelope, like [`push_points`].
+fn push_hcp_ends(out: &mut Vec<f32>, shown: &Envelope) {
+    out.push(shown.strength.hcp.min as f32 / 37.0);
+    out.push(shown.strength.hcp.max as f32 / 37.0);
+}
+
+/// Push one hidden seat's **strength reading** ([`LEN_HCP_GAUSS`] values) — the
+/// distributional twin of [`push_points`]'s two endpoints.
+///
+/// The shape kernel's argument, on the axis where it should bite harder.  A
+/// length reading is narrow (`♠5..13`, `♥0..2`) and the prior across it is
+/// flat enough that `{min, max}` is nearly sufficient — which is why the shape
+/// Gaussian measured par.  A strength reading is wide (`0..37` unshown,
+/// `11..26` after a 2/1) and the prior across it is sharply peaked, so the
+/// endpoints discard much more: the truncated mean of `11..26` sits nowhere
+/// near its midpoint, and where it does sit depends on how many honours this
+/// hand is holding.
+///
+/// Conditions on the strength axes only, and on one seat at a time,
+/// marginalising over the other two hidden hands exactly as the endpoints it
+/// replaces do.
+fn push_hcp_gauss(out: &mut Vec<f32>, dist: &HcpDist) {
+    out.push((dist.mean / 37.0) as f32);
+    out.push((dist.sd / HCP_SPREAD_SCALE) as f32);
+    out.push(dist.mass as f32);
+}
+
 /// Push a 7-value bid encoding: [present, level/7, strain one-hot ×5]
 fn push_bid_encoding(out: &mut Vec<f32>, bid: Option<contract_bridge::Bid>) {
     match bid {
@@ -769,6 +1015,70 @@ pub fn features_eval_shape(hand: Hand, inferences: &Inferences, auction: &[Call]
     out
 }
 
+// ── The strength-reading research superset ────────────────────────────────────
+
+/// Width of one hidden seat's block in [`features_eval_points`]: the hull
+/// [`LEN_INFERENCE`] endpoints, the shipped [`LEN_SHAPE_GAUSS`] shape reading,
+/// then the two new strength blocks.
+pub const LEN_SEAT_POINTS: usize = LEN_INFERENCE + LEN_SHAPE_GAUSS + LEN_HCP_ENDS + LEN_HCP_GAUSS;
+
+/// Number of `f32` values returned by [`features_eval_points`]
+pub const FEATURES_LEN_EVAL_POINTS: usize =
+    LEN_HAND_EVAL + 3 * LEN_SEAT_POINTS + CALLS_EVAL_V3 * LEN_CALL_EVAL_V3;
+
+/// The **research superset** behind the strength-reading ablation: everything
+/// [`features_eval_v4`] carries, plus each hidden seat's raw-HCP endpoints and
+/// its strength distribution.
+///
+/// Dumped once; the trainer's `--arm` masks the columns each arm does not want,
+/// so every arm sees the same rows in the same batch order and only differences
+/// *within* one sweep mean anything.  Carrying the shipped blocks alongside is
+/// what lets the control arm reproduce [`features_eval_v4`] out of this corpus,
+/// and carrying the `points` endpoints beside the strength distribution is what
+/// re-tests the MARG finding one axis over — the shape sweep found the length
+/// endpoints **spent** against exact moments (re-adding all eight moved the NLL
+/// by 0.00001), and whether that transfers to strength is the question.
+///
+/// Two blocks are new, and they answer different questions.  The strength
+/// distribution is the re-parameterization, whose honest prior is *par*:
+/// truncated moments are a deterministic function of the endpoints and this
+/// hand's honours, all of which the net already has.  The raw-HCP endpoints are
+/// what carries information no net has seen — the crisp `strength.hcp` axis,
+/// written unslacked wherever `points` is slacked.
+///
+/// | Block                                   | Start | Len |
+/// |-----------------------------------------|-------|-----|
+/// | Own hand                                |     0 |  24 |
+/// | LHO endpoints + shape + strength        |    24 |  24 |
+/// | Partner endpoints + shape + strength    |    48 |  24 |
+/// | RHO endpoints + shape + strength        |    72 |  24 |
+/// | Calls −1 … −4                           |    96 |  40 |
+/// | **Total**                               |       | **136** |
+///
+/// One seat's 24, in order: 8 length endpoints, 2 `points` endpoints, 8 shape
+/// moments, 1 shape mass, 2 `hcp` endpoints, 2 strength moments, 1 strength
+/// mass.
+#[must_use]
+pub fn features_eval_points(hand: Hand, inferences: &Inferences, auction: &[Call]) -> Vec<f32> {
+    let mut out = Vec::with_capacity(FEATURES_LEN_EVAL_POINTS);
+    push_hand_eval(&mut out, hand);
+    let unseen = Unseen::new(hand);
+    let honours = UnseenHonours::new(hand);
+    for who in [Relative::Lho, Relative::Partner, Relative::Rho] {
+        push_inference(&mut out, inferences.announced(who));
+        let boxes = shown_boxes(inferences.announced_dnf(who));
+        push_shape_gauss(&mut out, &shape_of(&unseen, boxes));
+        push_hcp_ends(&mut out, shown(inferences.announced(who)));
+        push_hcp_gauss(&mut out, &hcp_of(&honours, boxes));
+    }
+    for age in 1..=CALLS_EVAL_V3 {
+        let call = auction.len().checked_sub(age).map(|j| auction[j]);
+        push_call_identity(&mut out, call);
+    }
+    debug_assert_eq!(out.len(), FEATURES_LEN_EVAL_POINTS);
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -899,6 +1209,112 @@ mod tests {
         );
     }
 
+    /// A strength box, leaving lengths unknown.
+    fn strength(hcp: (u8, u8), points: (u8, u8)) -> Envelope {
+        use super::super::inference::Range;
+        let mut envelope = Envelope::unknown();
+        envelope.strength.hcp = Range::new(hcp.0, hcp.1);
+        envelope.strength.points = Range::new(points.0, points.1);
+        envelope
+    }
+
+    fn hcp_block(cards: &str, boxes: Option<&[Envelope]>) -> Vec<f32> {
+        let mut out = Vec::new();
+        push_hcp_gauss(&mut out, &hcp_of(&UnseenHonours::new(hand(cards)), boxes));
+        assert_eq!(out.len(), LEN_HCP_GAUSS);
+        out
+    }
+
+    /// `E[hcp]` of one hidden seat, undoing the block's ÷37.
+    fn mean_hcp(cards: &str, boxes: Option<&[Envelope]>) -> f64 {
+        f64::from(hcp_block(cards, boxes)[0]) * 37.0
+    }
+
+    /// The kernel's arithmetic, against a closed form it cannot fake: the three
+    /// hidden seats split what this hand does not hold, so an unconstrained
+    /// seat averages a third of the missing HCP.
+    #[test]
+    fn unconditional_hcp_prior_is_hypergeometric() {
+        // SPREAD_HAND holds ♠AKQ ♥K ♦QJ = 15 HCP, so 25 are unseen.
+        let block = hcp_block(SPREAD_HAND, None);
+        assert!(
+            (mean_hcp(SPREAD_HAND, None) - 25.0 / 3.0).abs() < 1e-4,
+            "E[hcp] = {}",
+            mean_hcp(SPREAD_HAND, None)
+        );
+        // Shows nothing, so it pins nothing.
+        assert!(block[2].abs() < 1e-6, "pinned = {}", block[2]);
+        // The walk must cover the whole prior, not a sub-lattice of it: a
+        // 13-card draw from 39 has σ[hcp] ≈ 4, and 0 would mean it collapsed.
+        let sd = f64::from(block[1]) * HCP_SPREAD_SCALE;
+        assert!((3.0..5.0).contains(&sd), "sd[hcp] = {sd}");
+    }
+
+    /// **The point of the encoding.**  The endpoints of `11..=26` say the
+    /// midpoint is 18.5; the truncated prior says the seat averages barely over
+    /// 13, because 25 unseen HCP rarely land three-quarters in one hand.
+    #[test]
+    fn a_wide_band_is_nothing_like_its_midpoint() {
+        let wide = strength((11, 26), (11, 26));
+        let mean = mean_hcp(SPREAD_HAND, Some(&[wide]));
+        assert!((11.0..=26.0).contains(&mean), "E[hcp] = {mean}");
+        assert!(
+            mean < 15.0,
+            "E[hcp] = {mean}, nowhere near the midpoint 18.5"
+        );
+    }
+
+    /// The band reads **both** strength axes.  A 1NT box carries a crisp
+    /// `hcp 15..=17` beside a slacked `points 15..=19`; dropping either leg
+    /// widens the support, so the mean must sit inside the tighter one.
+    #[test]
+    fn the_strength_band_intersects_hcp_with_points() {
+        let notrump = strength((15, 17), (15, 19));
+        let mean = mean_hcp(SPREAD_HAND, Some(&[notrump]));
+        assert!((15.0..=17.0).contains(&mean), "E[hcp] = {mean}");
+
+        // The `points` leg is load-bearing too: `upgrade >= 0` caps raw HCP at
+        // `points.max`, so widening it alone moves the reading.
+        let looser = strength((15, 17), (15, 16));
+        assert_ne!(
+            hcp_block(SPREAD_HAND, Some(&[notrump])),
+            hcp_block(SPREAD_HAND, Some(&[looser]))
+        );
+    }
+
+    /// The union of boxes is an OR of bands weighted by *prior mass*, not a
+    /// hull — and this is the case the endpoints cannot represent at all.
+    ///
+    /// "6-9 or 20-23" hulls to `6..=23`, which hands the net a band whose bulk
+    /// is the 10-19 middle the reading explicitly excludes.  The kernel instead
+    /// reads the two humps it was given, and weights them: against 25 unseen
+    /// HCP the strong alternative is nearly impossible, so the reading sits on
+    /// the weak hump — below where the hull's own truncated mean lands.
+    #[test]
+    fn disjoint_strength_boxes_do_not_read_as_their_hull() {
+        let weak = strength((6, 9), (6, 9));
+        let strong = strength((20, 23), (20, 23));
+        let split = mean_hcp(SPREAD_HAND, Some(&[weak, strong]));
+        let hull = mean_hcp(SPREAD_HAND, Some(&[strength((6, 23), (6, 23))]));
+        assert!((6.0..=23.0).contains(&split), "E[hcp] = {split}");
+        assert!(split < 9.0, "E[hcp] = {split}, off the weak hump");
+        assert!(
+            hull > split + 0.5,
+            "split {split} vs hull {hull}: the union collapsed to its span"
+        );
+    }
+
+    /// An agreement can over-claim on strength as well as on shape.
+    #[test]
+    fn an_unsatisfiable_strength_reading_falls_back_to_nothing_shown() {
+        // 25 HCP are unseen, so "30+" admits no split at all.
+        let impossible = strength((30, 37), (30, 37));
+        assert_eq!(
+            hcp_block(SPREAD_HAND, Some(&[impossible])),
+            hcp_block(SPREAD_HAND, None)
+        );
+    }
+
     /// The superset carries the shipped vector verbatim, so the control arm of
     /// the ablation is reproducible from the same corpus.
     #[test]
@@ -1005,6 +1421,49 @@ mod tests {
         }
         let tail = LEN_HAND_EVAL + 3 * LEN_SEAT_V4;
         assert_eq!(v4[tail..], v3[FEATURES_LEN_EVAL..]);
+    }
+
+    /// The strength superset carries [`features_eval_v4`] verbatim, so the
+    /// ablation's control arm is the shipped vector reproduced from the same
+    /// corpus — the whole reason a superset exists.
+    #[test]
+    fn points_superset_embeds_the_shipped_vector() {
+        assert_eq!(LEN_SEAT_POINTS, 24);
+        assert_eq!(FEATURES_LEN_EVAL_POINTS, 136);
+
+        let auction = [
+            bid(1, Strain::Spades),
+            Call::Pass,
+            bid(2, Strain::Clubs),
+            Call::Double,
+        ];
+        let ctx = Context::new(RelativeVulnerability::ALL, &auction);
+        let inferences = Inferences::read(&ctx);
+        let cards = hand(SPREAD_HAND);
+        let wide = features_eval_points(cards, &inferences, &auction);
+        let v4 = features_eval_v4(cards, &inferences, &auction);
+
+        assert_eq!(wide.len(), FEATURES_LEN_EVAL_POINTS);
+        assert_eq!(wide[..LEN_HAND_EVAL], v4[..LEN_HAND_EVAL]);
+        for seat in 0..3 {
+            // v4's seat block is the superset's `points` endpoints and shape
+            // reading, contiguous — offsets 8..19 of the 24.
+            let from = LEN_HAND_EVAL + seat * LEN_SEAT_POINTS + 8;
+            let was = LEN_HAND_EVAL + seat * LEN_SEAT_V4;
+            assert_eq!(
+                wide[from..from + LEN_SEAT_V4],
+                v4[was..was + LEN_SEAT_V4],
+                "seat {seat}"
+            );
+        }
+        let tail = LEN_HAND_EVAL + 3 * LEN_SEAT_POINTS;
+        assert_eq!(wide[tail..], v4[LEN_HAND_EVAL + 3 * LEN_SEAT_V4..]);
+        for (i, &v) in wide.iter().enumerate() {
+            assert!(
+                v.is_finite() && (-1.0..=1.5).contains(&v),
+                "points[{i}] = {v}"
+            );
+        }
     }
 
     /// The two halves of the block must agree: each suit's 14 bins are a

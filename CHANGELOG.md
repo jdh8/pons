@@ -9,6 +9,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Strength-reading research superset (`features_eval_points`, 136 floats).**
+  The ablation vehicle for "should a hidden seat's strength be read as a
+  distribution rather than a `{min, max}` band?" — `features_eval_v4`'s blocks
+  plus, per hidden seat, the crisp `strength.hcp` endpoints and an `E[hcp]` /
+  `sd[hcp]` / log-mass summary from a new ≤625-atom honour lattice. No
+  user-visible bidding change: nothing in the serving path calls it, the crate
+  gains no knob, and `evaluator.rs` is untouched.
+
+  **The Gaussian is refused; the crisp band is the win.** Six arms over one
+  corpus (400k deals of `22.pdd`, 8,146,934 rows, `--dnf`), Δ against the v4
+  control: replacing the `points` endpoints with the moments *loses*
+  (**+0.00118** NLL), carrying them beside the endpoints leans −0.00091, and
+  simply feeding the net the `strength.hcp` endpoints — two columns per seat,
+  no kernel, no serving cost — wins **−0.00143** (3 seeds, all negative; best
+  slam-MAE in the table, 2.4432 vs 2.4541). Adding the distribution on top of
+  the band changes nothing, so the moments were a weaker proxy for what the
+  band carries directly.
+
+  Why replacement loses here and was free for shape: the moments track a
+  reading's *floor* (corr 0.85–0.89) but lose its *ceiling* (corr 0.60–0.72),
+  and a bridge ceiling is what says do not bid game. Note the observed seed
+  spread on this corpus is 0.00098, larger than the 0.0006 reference — every
+  ≈0.001 single-seed delta is within one spread of noise. See
+  `docs/ai-bidder/evaluator-net.md` and the PTS row of `docs/dnf-migration.md`;
+  the v5 serving column and its A/B are owed.
+
 - **Shape-distribution reading (`set_eval_shape`, opt-in, default off).**
   `features_eval_v4` replaces each hidden seat's four suit-length
   `{min, max}` pairs with a summary of the *distribution over shapes* the

@@ -141,6 +141,47 @@ const SHAPE_HIST: (usize, usize) = (18, 56);
 /// decomposes.
 const SHAPE_MASS: (usize, usize) = (74, 1);
 
+/// The `dump-evaluator --encoding points` layout: the strength-reading research
+/// superset.  Same 24-float hand block and 4×10 call tail as a `shape` corpus,
+/// with a narrower seat block — the shipped v4 vector plus the two new strength
+/// blocks, and none of the 56-bin length marginal.
+///
+/// ```text
+/// 0..24        hand: 4 suits × [#spots/8, A, K, Q, J, T]   (always live)
+/// 24 + 24·i    seat i of [LHO, partner, RHO]:
+///     +0..8      hull length endpoints, 4 × (min, max) ÷ 13
+///     +8..10     hull points (min, max) ÷ 37
+///     +10..18    shape: E[len] ×4, sd[len] ×4
+///     +18        shape: pinned = −ln(mass) / ln C(39,13)
+///     +19..21    hull raw HCP (min, max) ÷ 37   — the axis no net has read
+///     +21..23    strength: E[hcp], sd[hcp]
+///     +23        strength: pinned, same scale as the shape mass
+/// 96..136      4 most-recent calls × 10 identity columns  (always live)
+/// ```
+const POINTS_HAND: usize = 24;
+/// Columns one hidden seat occupies in a `points` corpus.
+const POINTS_SEAT: usize = 24;
+/// Width of a `points` corpus.
+const POINTS_FEATURES: usize = POINTS_HAND + 3 * POINTS_SEAT + 40;
+
+/// Sub-blocks of one seat's [`POINTS_SEAT`] columns, as `(offset, len)`.  The
+/// campaign question is the same one the shape sweep asked, one axis over:
+/// can the strength distribution *replace* [`P_HULL_POINTS`] rather than sit
+/// beside it — and, separately, is there anything in [`P_HCP_ENDS`], which is
+/// written unslacked wherever `points` is slacked and which no shipped vector
+/// has ever read.
+/// The `points` endpoints — what the strength blocks are trying to replace.
+const P_HULL_POINTS: (usize, usize) = (8, 2);
+/// The shipped v4 shape reading, moments and mass together.  Every arm keeps
+/// it: the sweep prices strength against a fixed shape baseline.
+const P_SHAPE_GAUSS: (usize, usize) = (10, 9);
+/// The crisp raw-HCP endpoints.
+const P_HCP_ENDS: (usize, usize) = (19, 2);
+/// `E[hcp]` and `sd[hcp]`: the 1:1 replacement for [`P_HULL_POINTS`].
+const P_HCP_MOMENTS: (usize, usize) = (21, 2);
+/// One column: how much the reading pins strength down.
+const P_HCP_MASS: (usize, usize) = (23, 1);
+
 /// Feature width the [`Arm`] masks are written against.
 ///
 /// ```text
@@ -337,6 +378,32 @@ enum Arm {
     /// this ties `ShapeFull`, the endpoints were redundant; if it ties
     /// `ShapeControl`, the distribution was.
     ShapeHybrid,
+    /// **Points corpus** (`--encoding points`) — the control: the shipped
+    /// `features_eval_v4` vector reproduced out of the superset. 97 live
+    /// columns, and the number every other points arm is judged against.
+    PtsControl,
+    /// Points corpus — `E[hcp]` and `sd[hcp]` *replacing* the `points`
+    /// endpoints. Same 97 live columns as `PtsControl`, so this is the pure
+    /// re-parameterisation at identical width: the cleanest read of whether a
+    /// strength distribution beats a strength interval.
+    PtsGauss,
+    /// Points corpus — the strength moments plus their log-mass (100).
+    PtsGaussMass,
+    /// Points corpus — the strength distribution *beside* the endpoints (106).
+    /// The shape sweep found the length endpoints spent against exact moments;
+    /// this is that test on the strength axis.
+    PtsBoth,
+    /// Points corpus — the `points` endpoints plus the crisp raw-HCP endpoints
+    /// (103), no distribution. Isolates the one block carrying information the
+    /// net has never seen, and is what says whether the whole idea is
+    /// downstream of an empty axis.
+    PtsHcpEnds,
+    /// Points corpus — every strength block at once: both endpoint pairs, the
+    /// strength moments and their mass (112). The decomposition arm: if the
+    /// distribution's win over `PtsControl` is just a weaker proxy for what the
+    /// crisp band carries directly, this lands on `PtsHcpEnds` rather than past
+    /// it, and a serving vector needs only the two endpoint pairs.
+    PtsHcpBoth,
 }
 
 impl Arm {
@@ -485,6 +552,13 @@ impl Arm {
             | Self::ShapeHist
             | Self::ShapeHistMass
             | Self::ShapeHybrid => panic!("shape arms have no `bits` spec"),
+            // Likewise, via `points_spec`.
+            Self::PtsControl
+            | Self::PtsGauss
+            | Self::PtsGaussMass
+            | Self::PtsBoth
+            | Self::PtsHcpEnds
+            | Self::PtsHcpBoth => panic!("points arms have no `bits` spec"),
         }
     }
 
@@ -516,17 +590,64 @@ impl Arm {
         })
     }
 
-    /// Whether this arm is written against the `shape` corpus layout
-    const fn is_shape(self) -> bool {
-        self.shape_spec().is_some()
+    /// The points-corpus arms: `(name, per-seat sub-blocks, live column count)`.
+    /// `None` for every arm written against another superset.
+    const fn points_spec(self) -> Option<(&'static str, &'static [(usize, usize)], usize)> {
+        // 24 hand + 40 calls are live in every arm; the rest is 3 × per-seat.
+        Some(match self {
+            Self::PtsControl => ("pts-control", &[P_HULL_POINTS, P_SHAPE_GAUSS], 97),
+            Self::PtsGauss => ("pts-gauss", &[P_HCP_MOMENTS, P_SHAPE_GAUSS], 97),
+            Self::PtsGaussMass => (
+                "pts-gauss-mass",
+                &[P_HCP_MOMENTS, P_HCP_MASS, P_SHAPE_GAUSS],
+                100,
+            ),
+            Self::PtsBoth => (
+                "pts-both",
+                &[P_HULL_POINTS, P_HCP_MOMENTS, P_HCP_MASS, P_SHAPE_GAUSS],
+                106,
+            ),
+            Self::PtsHcpEnds => (
+                "pts-hcp-ends",
+                &[P_HULL_POINTS, P_HCP_ENDS, P_SHAPE_GAUSS],
+                103,
+            ),
+            Self::PtsHcpBoth => (
+                "pts-hcp-both",
+                &[
+                    P_HULL_POINTS,
+                    P_HCP_ENDS,
+                    P_HCP_MOMENTS,
+                    P_HCP_MASS,
+                    P_SHAPE_GAUSS,
+                ],
+                112,
+            ),
+            _ => return None,
+        })
     }
 
-    /// The arm's reported name, under either layout
-    const fn name(self) -> &'static str {
-        match self.shape_spec() {
-            Some((name, _, _)) => name,
-            None => self.spec().0,
+    /// Which corpus layout this arm's column offsets are written against — the
+    /// `--encoding` family it can serve.
+    const fn layout(self) -> &'static str {
+        if self.shape_spec().is_some() {
+            "shape"
+        } else if self.points_spec().is_some() {
+            "points"
+        } else {
+            "bits"
         }
+    }
+
+    /// The arm's reported name, under any layout
+    const fn name(self) -> &'static str {
+        if let Some((name, _, _)) = self.shape_spec() {
+            return name;
+        }
+        if let Some((name, _, _)) = self.points_spec() {
+            return name;
+        }
+        self.spec().0
     }
 
     /// Per-column keep flags. Hard-asserts (in release too — a mis-mask is
@@ -534,16 +655,25 @@ impl Arm {
     /// count matches the width [`Self::spec`] documents, which is what catches a
     /// typo in an offset list.
     fn mask(self) -> [bool; ARM_FEATURES] {
-        if let Some((name, blocks, width)) = self.shape_spec() {
+        // The two superset layouts differ only in their per-seat stride and
+        // total width, so one builder serves both.
+        let seated = self
+            .shape_spec()
+            .map(|spec| (spec, SHAPE_HAND, SHAPE_SEAT, SHAPE_FEATURES))
+            .or_else(|| {
+                self.points_spec()
+                    .map(|spec| (spec, POINTS_HAND, POINTS_SEAT, POINTS_FEATURES))
+            });
+        if let Some(((name, blocks, width), hand, seat_len, features)) = seated {
             let mut keep = [false; ARM_FEATURES];
-            keep[..SHAPE_HAND].fill(true);
+            keep[..hand].fill(true);
             for seat in 0..3 {
-                let base = SHAPE_HAND + seat * SHAPE_SEAT;
+                let base = hand + seat * seat_len;
                 for &(offset, len) in blocks {
                     keep[base + offset..base + offset + len].fill(true);
                 }
             }
-            keep[SHAPE_HAND + 3 * SHAPE_SEAT..SHAPE_FEATURES].fill(true);
+            keep[hand + 3 * seat_len..features].fill(true);
             assert_eq!(
                 keep.iter().filter(|&&k| k).count(),
                 width,
@@ -699,12 +829,17 @@ fn main() -> Result<()> {
         // The two layouts share column offsets with entirely different
         // meanings, so the sidecar's encoding — not the width — is the
         // authority on which family of arms this corpus can serve.
-        if arm.is_shape() != (train.meta.encoding == "shape") {
+        let corpus_layout = match train.meta.encoding.as_str() {
+            "shape" => "shape",
+            "points" => "points",
+            _ => "bits",
+        };
+        if arm.layout() != corpus_layout {
             bail!(
                 "--arm {} is written against the `{}` layout, but this corpus \
                  is `--encoding {}`",
                 arm.name(),
-                if arm.is_shape() { "shape" } else { "bits" },
+                arm.layout(),
                 train.meta.encoding
             );
         }
@@ -718,7 +853,13 @@ fn main() -> Result<()> {
                 arm.name()
             );
         }
-        if !arm.is_shape() && !is_auction_arm && train.meta.auction && !arm.spec().5.is_empty() {
+        // `spec()` panics for the superset layouts, so the `bits` test has to
+        // come first and short-circuit.
+        if arm.layout() == "bits"
+            && !is_auction_arm
+            && train.meta.auction
+            && !arm.spec().5.is_empty()
+        {
             bail!(
                 "--arm {} reads oracle truth columns, but this corpus's tail \
                  is the `--auction` block (sidecar `auction: true`)",
@@ -1471,6 +1612,12 @@ mod tests {
             (Arm::ShapeHist, 238),
             (Arm::ShapeHistMass, 265),
             (Arm::ShapeHybrid, crate::SHAPE_FEATURES),
+            (Arm::PtsControl, 97),
+            (Arm::PtsGauss, 97),
+            (Arm::PtsGaussMass, 100),
+            (Arm::PtsBoth, 106),
+            (Arm::PtsHcpEnds, 103),
+            (Arm::PtsHcpBoth, 112),
         ] {
             let name = arm.name();
             assert_eq!(

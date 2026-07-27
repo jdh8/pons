@@ -41,9 +41,10 @@ use contract_bridge::{AbsoluteVulnerability, FullDeal, Hand, Rank, Seat, Strain,
 use ddss::TrickCountTable;
 use pons::bidding::context::{Context, relative};
 use pons::bidding::features::{
-    FEATURES_LEN_EVAL, FEATURES_LEN_EVAL_SHAPE, FEATURES_LEN_EVAL_V3, FEATURES_LEN_EVAL_V4,
-    FEATURES_VERSION_EVAL, FEATURES_VERSION_EVAL_V4, LEN_HAND_EVAL, LEN_HAND_V3, features_eval,
-    features_eval_shape, features_eval_v3, features_eval_v4, features_v3,
+    FEATURES_LEN_EVAL, FEATURES_LEN_EVAL_POINTS, FEATURES_LEN_EVAL_SHAPE, FEATURES_LEN_EVAL_V3,
+    FEATURES_LEN_EVAL_V4, FEATURES_VERSION_EVAL, FEATURES_VERSION_EVAL_V4, LEN_HAND_EVAL,
+    LEN_HAND_V3, features_eval, features_eval_points, features_eval_shape, features_eval_v3,
+    features_eval_v4, features_v3,
 };
 use pons::bidding::tags::derive;
 use pons::bidding::{Family, Inferences, Phase, Stance, System};
@@ -143,6 +144,11 @@ enum Encoding {
     /// shape-reading evaluator, so the corpus and the crate agree by
     /// construction
     Eval4,
+    /// `features_eval_points` verbatim (136 floats): the strength-reading
+    /// research superset — the `eval4` vector with each hidden seat's raw-HCP
+    /// endpoints and strength distribution spliced in beside its `points`
+    /// endpoints, so one corpus trains the v4 control arm and every strength arm
+    Points,
 }
 
 #[derive(Parser)]
@@ -168,9 +174,11 @@ struct Args {
     /// bits — the texture ablation), `bits` (the 79-float research superset),
     /// `eval3` (features_eval_v3's 94 floats — the calls-only serving
     /// extractor, verbatim), `shape` (features_eval_shape's 289 floats — the
-    /// shape-reading superset: endpoints *and* shape distribution per seat), or
+    /// shape-reading superset: endpoints *and* shape distribution per seat),
     /// `eval4` (features_eval_v4's 97 floats — the shape-reading serving
-    /// extractor, verbatim)
+    /// extractor, verbatim), or `points` (features_eval_points' 136 floats —
+    /// the strength-reading superset: `eval4` plus raw-HCP endpoints and the
+    /// strength distribution per seat)
     #[arg(long, default_value = "summary")]
     encoding: String,
     /// Append the Phase-3 honour oracle: 8 columns of partner's *true*
@@ -230,9 +238,10 @@ fn main() -> anyhow::Result<()> {
         "eval3" => Encoding::Eval3,
         "shape" => Encoding::Shape,
         "eval4" => Encoding::Eval4,
-        other => {
-            anyhow::bail!("--encoding must be summary|onehot|bits|eval3|shape|eval4, got {other:?}")
-        }
+        "points" => Encoding::Points,
+        other => anyhow::bail!(
+            "--encoding must be summary|onehot|bits|eval3|shape|eval4|points, got {other:?}"
+        ),
     };
     let base_len = match encoding {
         Encoding::Summary => FEATURES_LEN_EVAL,
@@ -241,6 +250,7 @@ fn main() -> anyhow::Result<()> {
         Encoding::Eval3 => FEATURES_LEN_EVAL_V3,
         Encoding::Shape => FEATURES_LEN_EVAL_SHAPE,
         Encoding::Eval4 => FEATURES_LEN_EVAL_V4,
+        Encoding::Points => FEATURES_LEN_EVAL_POINTS,
     };
     anyhow::ensure!(
         !(args.oracle || args.oracle_all) || matches!(encoding, Encoding::Bits),
@@ -412,7 +422,8 @@ fn main() -> anyhow::Result<()> {
             // `eval3` rows are `features_eval_v3`; `shape` splices its superset
             // around the same v3 blocks.
             Encoding::Eval3 | Encoding::Shape => 3,
-            Encoding::Eval4 => FEATURES_VERSION_EVAL_V4,
+            // `points` splices its superset around the same v4 blocks.
+            Encoding::Eval4 | Encoding::Points => FEATURES_VERSION_EVAL_V4,
             _ => FEATURES_VERSION_EVAL,
         },
         "features_len": features_len,
@@ -434,7 +445,10 @@ fn main() -> anyhow::Result<()> {
         "shape_layout": "encoding=shape: [24 hand][3 seats × (10 hull endpoints + 65 shape)]\
                          [4 calls × 10]; shape = [4 E len][4 sd len][56 P(len=k)][1 pinned].  \
                          encoding=eval4: [24 hand][3 seats × (2 points + 9 shape)][4 calls × 10]; \
-                         shape = [4 E len][4 sd len][1 pinned]",
+                         shape = [4 E len][4 sd len][1 pinned].  \
+                         encoding=points: [24 hand][3 seats × (10 hull endpoints + 9 shape + \
+                         2 hcp endpoints + 3 strength)][4 calls × 10]; \
+                         strength = [E hcp][sd hcp][1 pinned]",
         "layout": format!("row = [{features_len} features][{DD_LEN} dd_tricks]"),
         "label_order": "strain-major NT,S,H,D,C × declarer [me,lho,partner,rho], tricks/13",
         "tags": "sibling .tags: one u8 per row, bit 0 = contested phase, bit 1 = system index",
@@ -492,12 +506,16 @@ fn encode(
             out.copy_from_slice(&features_eval_v4(hand, inferences, calls));
             return;
         }
+        Encoding::Points => {
+            out.copy_from_slice(&features_eval_points(hand, inferences, calls));
+            return;
+        }
         _ => {}
     }
     let feats = features_eval(hand, inferences);
     let (hand_block, ranges) = feats.split_at(LEN_HAND_EVAL);
     let cut = match encoding {
-        Encoding::Eval3 | Encoding::Shape | Encoding::Eval4 => {
+        Encoding::Eval3 | Encoding::Shape | Encoding::Eval4 | Encoding::Points => {
             unreachable!("returned above")
         }
         Encoding::Summary => {
