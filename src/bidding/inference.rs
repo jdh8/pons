@@ -5702,6 +5702,41 @@ mod tests {
         }
     }
 
+    /// The fallback sibling of [`for_each_authored_rule`]: walk every authored
+    /// rule wired through a guarded [`Fallback::Classify`][crate::bidding::fallback::Fallback]
+    ///
+    /// Iterates [`Trie::fallbacks`][crate::bidding::trie::Trie::fallbacks],
+    /// keeps the classifiers that expose authored
+    /// [`Rules`][crate::bidding::rules::Rules] via `as_rules`, and visits each
+    /// rule under the **node-key context** — the same authoring-time
+    /// approximation the exact-node chassis makes (the fallback actually fires
+    /// on longer auctions; the sniffer's `claims()` filters already exclude
+    /// context-dependent atoms).  Classifiers with `as_rules() == None` are
+    /// reported to `opaque` with their guard label: that list is the residue no
+    /// rule walk can meter, and the conversion worklist for the pass-reading
+    /// campaign (`docs/ai-bidder/sampled-projection.md`).
+    fn for_each_fallback_rule(
+        trie: &crate::bidding::trie::Trie,
+        mut visit: impl FnMut(&[Call], &Context<'_>, &crate::bidding::rules::Rule),
+        mut opaque: impl FnMut(&[Call], Option<String>),
+    ) {
+        for (auction, guard, fallback) in trie.fallbacks() {
+            let crate::bidding::fallback::Fallback::Classify(classifier) = fallback else {
+                continue;
+            };
+            let auction: &[Call] = &auction;
+            let Some(rules) = classifier.as_rules() else {
+                opaque(auction, guard.describe());
+                continue;
+            };
+            let context = Context::new(RelativeVulnerability::NONE, auction)
+                .with_prefixes(trie.common_prefixes(auction));
+            for rule in rules.rules() {
+                visit(auction, &context, rule);
+            }
+        }
+    }
+
     /// The alert-invariant worklist for one trie: rules whose projection the
     /// structural [`artificial`] detector flags but which carry no `.alert(...)`
     ///
@@ -5799,8 +5834,21 @@ mod tests {
     /// (excluded from every gauge column), vacuous `0+` floors are ⊤
     /// *correctly*, and `points` awards an atom to the most specific noun
     /// (`support points` is not a `points` claim).
+    /// The rule walk `axis_leaks_with` meters over — exact-node or fallback
+    type RuleWalk = fn(
+        &crate::bidding::trie::Trie,
+        &mut dyn FnMut(&[Call], &Context<'_>, &crate::bidding::rules::Rule),
+    );
+
     fn axis_leaks(
         tries: &[(&str, &crate::bidding::trie::Trie)],
+    ) -> std::collections::BTreeMap<&'static str, Vec<String>> {
+        axis_leaks_with(tries, |trie, visit| for_each_authored_rule(trie, visit))
+    }
+
+    fn axis_leaks_with(
+        tries: &[(&str, &crate::bidding::trie::Trie)],
+        walk: RuleWalk,
     ) -> std::collections::BTreeMap<&'static str, Vec<String>> {
         use crate::bidding::constraint::Description;
 
@@ -5825,7 +5873,7 @@ mod tests {
 
         let mut leaks = std::collections::BTreeMap::<&'static str, Vec<String>>::new();
         for &(system, trie) in tries {
-            for_each_authored_rule(trie, |_, context, rule| {
+            walk(trie, &mut |_, context, rule| {
                 let mut leaves = Vec::new();
                 atoms(&rule.describe(), &mut leaves);
                 let band = rule.project_band_dnf(context);
@@ -5950,32 +5998,54 @@ mod tests {
             ("dutch constructive", &dutch.constructive.0),
         ];
 
+        fn check(
+            failures: &mut Vec<String>,
+            hands: &[Hand],
+            system: &str,
+            auction: &[Call],
+            context: &Context<'_>,
+            rule: &crate::bidding::rules::Rule,
+        ) {
+            let forward = rule.project_dnf(context);
+            let band = rule.project_band_dnf(context);
+            for &hand in hands {
+                if !rule.eval(hand, context).is_finite() {
+                    continue;
+                }
+                for (fold, dnf) in [("project", &forward), ("band", &band)] {
+                    if !dnf.boxes().iter().any(|envelope| envelope.accepts(hand))
+                        && failures.len() < 16
+                    {
+                        failures.push(format!(
+                            "{system}: [{}] {} {fold} excludes accepted hand {hand}",
+                            auction
+                                .iter()
+                                .map(ToString::to_string)
+                                .collect::<Vec<_>>()
+                                .join(" "),
+                            rule.call(),
+                        ));
+                    }
+                }
+            }
+        }
+
         let mut failures: Vec<String> = Vec::new();
         for (system, trie) in tries {
             for_each_authored_rule(trie, |auction, context, rule| {
-                let forward = rule.project_dnf(context);
-                let band = rule.project_band_dnf(context);
-                for &hand in &hands {
-                    if !rule.eval(hand, context).is_finite() {
-                        continue;
-                    }
-                    for (fold, dnf) in [("project", &forward), ("band", &band)] {
-                        if !dnf.boxes().iter().any(|envelope| envelope.accepts(hand))
-                            && failures.len() < 16
-                        {
-                            failures.push(format!(
-                                "{system}: [{}] {} {fold} excludes accepted hand {hand}",
-                                auction
-                                    .iter()
-                                    .map(ToString::to_string)
-                                    .collect::<Vec<_>>()
-                                    .join(" "),
-                                rule.call(),
-                            ));
-                        }
-                    }
-                }
+                check(&mut failures, &hands, system, auction, context, rule);
             });
+            // The same soundness claim for fallback-authored rules — the layer
+            // the exact-node walk cannot see (`docs/ai-bidder/sampled-projection.md`
+            // census: the meter blind spot).  Asserts, not pins: soundness has
+            // no acceptable nonzero.
+            for_each_fallback_rule(
+                trie,
+                |auction, context, rule| {
+                    check(&mut failures, &hands, system, auction, context, rule);
+                },
+                |_, _| {},
+            );
         }
 
         assert!(
@@ -6081,6 +6151,117 @@ mod tests {
             mismatches.is_empty(),
             "axis leak counts moved:\n{}",
             mismatches.join("\n\n"),
+        );
+    }
+
+    /// The fallback-layer twin of [`authored_calls_read_what_they_gate`]: the
+    /// same axis-leak meter over every rule wired through a guarded
+    /// [`Fallback::classify`][crate::bidding::fallback::Fallback::classify] —
+    /// the layer the exact-node walk cannot see (every contested convention:
+    /// UVU, penalty-X and SOS runouts, transfer competition).
+    ///
+    /// Pinned exactly like its sibling, in a **separate table** so the
+    /// exact-node pins never re-pin for fallback churn.  Pin-first discipline:
+    /// the initial nonzero counts *are* the worklist
+    /// (`docs/ai-bidder/sampled-projection.md`), not failures to fix before
+    /// landing the meter.  The opaque census below is the residue even this
+    /// walk cannot meter — closures with no `as_rules()` — pinned with labels
+    /// so a new dark classifier is a conscious act; that list is the
+    /// conversion worklist for the pass-reading campaign.
+    #[test]
+    fn fallback_rules_read_what_they_gate() {
+        use crate::bidding::american::american;
+        use crate::bidding::dutch::dutch;
+
+        let american = american();
+        let dutch = dutch();
+        let tries: [(&str, &crate::bidding::trie::Trie); 4] = [
+            ("american constructive", &american.constructive.0),
+            ("american competitive", &american.competitive.0),
+            ("american defensive", &american.defensive.0),
+            ("dutch constructive", &dutch.constructive.0),
+        ];
+        let walk: RuleWalk = |trie, visit| for_each_fallback_rule(trie, visit, |_, _| {});
+
+        set_dnf_reading(false);
+        let off = axis_leaks_with(&tries, walk);
+        set_dnf_reading(true);
+        let on = axis_leaks_with(&tries, walk);
+
+        // Pinned at birth (2026-07-27) — the meter getting honest, not a
+        // regression: these are the worklist the exact-node walk never saw.
+        // The knob-on residue (14 HCP, 19 length, 2 points) is dominated by
+        // the competitive free-bid/responsive-double package and the 4NT
+        // quantitative fallback; `suit HCP`'s two knob-off leaks (the UVU
+        // double) already close knob-on.  Re-pins ride the
+        // docs/dnf-migration.md ledger like the sibling's.
+        let pinned: [(&str, usize, usize); 6] = [
+            ("HCP", 14, 14),
+            ("length", 28, 19),
+            ("points", 2, 2),
+            ("suit HCP", 2, 0),
+            ("support", 0, 0),
+            ("support points", 0, 0),
+        ];
+        let count = |leaks: &std::collections::BTreeMap<&str, Vec<String>>, column| {
+            leaks.get(column).map_or(0, Vec::len)
+        };
+        let dump = |leaks: &std::collections::BTreeMap<&str, Vec<String>>, column| {
+            leaks.get(column).map_or_else(String::new, |v| v.join("\n"))
+        };
+        let mut mismatches = Vec::new();
+        for (column, pin_off, pin_on) in pinned {
+            let (got_off, got_on) = (count(&off, column), count(&on, column));
+            if got_off != pin_off || got_on != pin_on {
+                mismatches.push(format!(
+                    "{column}: knob-off {got_off} (pinned {pin_off}), \
+                     knob-on {got_on} (pinned {pin_on})\n\
+                     --- knob-off ---\n{}\n--- knob-on ---\n{}",
+                    dump(&off, column),
+                    dump(&on, column),
+                ));
+            }
+        }
+        assert!(
+            mismatches.is_empty(),
+            "fallback axis leak counts moved:\n{}",
+            mismatches.join("\n\n"),
+        );
+
+        // The opaque census: `Fallback::classify` installations whose
+        // classifier exposes no rules.  Counts installations (a shared entry
+        // under seat-fanned prefixes rows once per node key), labelled by the
+        // guard's describe().
+        let mut opaque = Vec::new();
+        for (system, trie) in tries {
+            for_each_fallback_rule(
+                trie,
+                |_, _, _| {},
+                |auction, label| {
+                    opaque.push(format!(
+                        "{system}: [{}] guard: {}",
+                        auction
+                            .iter()
+                            .map(ToString::to_string)
+                            .collect::<Vec<_>>()
+                            .join(" "),
+                        label.unwrap_or_else(|| "<unlabelled>".into()),
+                    ));
+                },
+            );
+        }
+        opaque.sort();
+        // Census at birth (2026-07-27), the residue worklist for the
+        // pass-reading campaign: the seat-fanned `[1NT 2♣]`
+        // competition-over-Stayman closure (×4), and the two root `(always)`
+        // catch-alls — the competitive and defensive floor layers, exactly the
+        // `Fallback::classify` blind spot the ⊤-census named.  Converting one
+        // to `Rules` shrinks this pin and grows the metered tables above.
+        assert_eq!(
+            opaque.len(),
+            6,
+            "opaque classify-fallback census moved (re-pin consciously):\n{}",
+            opaque.join("\n"),
         );
     }
 

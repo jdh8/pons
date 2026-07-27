@@ -20,6 +20,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   not byte-reproducible post-change. Thread-local reading knobs reach the
   workers via `rayon::broadcast`.
 
+- **The reading meter now sees the fallback layer.** `for_each_fallback_rule`
+  walks every rule wired through a guarded `Fallback::classify` — the layer the
+  ⊤-census identified as the blind-pass head and that the exact-node ratchet
+  never metered. Three results, test-only (no bidding or reading change):
+  `fallback_rules_read_what_they_gate` pins the layer's axis leaks in its own
+  table (born 14/28/2/2 knob-off on HCP/length/points/suit-HCP — the worklist,
+  now visible); the E0 soundness sweep extends over the same walk with **zero**
+  failures (the layer was unmetered, never unsound); and the six opaque
+  `as_rules() == None` closures (seat-fanned `[1NT 2♣]` ×4 + the competitive and
+  defensive root catch-alls) are pinned by label as the conversion worklist for
+  the pass-reading campaign. Ledger: `docs/dnf-migration.md` FBM row.
+
 ### Changed
 
 - **A natural suit overcall of their weak two demands more when *we* are
