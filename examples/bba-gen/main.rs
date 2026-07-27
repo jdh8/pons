@@ -206,6 +206,19 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_eval_auction: bool,
 
+    /// Serve the v4 shape-reading evaluator for our side
+    /// (`evaluator::set_eval_shape`, crate default off).  Replaces each hidden
+    /// seat's four suit-length `{min, max}` pairs with its shape distribution
+    /// — `E[len]`, `sd[len]` per suit plus a log-mass column — over the
+    /// 560-shape lattice.  NLL-par with the v3 hull vector by construction;
+    /// what it buys is invariance, so the live test is pairing it with
+    /// `--ns-sum-closure`, which moves the endpoint columns 4.19σ at 81% of
+    /// nodes and the shape columns 0.07σ at 0.11%.  Supersedes
+    /// `--no-ns-eval-auction` (v4 carries the calls tail) and is only honoured
+    /// in the DNF reading regime it was trained on.
+    #[arg(long, default_value_t = false)]
+    ns_eval_shape: bool,
+
     /// Split disclosure from projection for our side
     /// (`inference::set_announced_reading`, crate default off).  A call decided
     /// by the evaluator net projects ⊤ and always will — a net accepts hands no
@@ -1295,6 +1308,7 @@ fn main() -> anyhow::Result<()> {
     pons::bidding::instinct::set_net_collar(args.ns_net_collar);
     pons::bidding::inference::set_announced_reading(args.ns_announced_reading);
     pons::bidding::evaluator::set_eval_auction(!args.no_ns_eval_auction);
+    pons::bidding::evaluator::set_eval_shape(args.ns_eval_shape);
     pons::bidding::instinct::set_rkcb_announce(!args.no_ns_rkcb_announce);
     pons::bidding::features::set_blind_inference(args.ns_blind_inference);
     pons::bidding::set_sum_closure(args.ns_sum_closure);
