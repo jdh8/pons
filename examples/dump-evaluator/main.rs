@@ -41,8 +41,8 @@ use contract_bridge::{AbsoluteVulnerability, FullDeal, Hand, Rank, Seat, Strain,
 use ddss::TrickCountTable;
 use pons::bidding::context::{Context, relative};
 use pons::bidding::features::{
-    FEATURES_LEN_EVAL, FEATURES_VERSION_EVAL, LEN_HAND_EVAL, LEN_HAND_V3, features_eval,
-    features_v3,
+    FEATURES_LEN_EVAL, FEATURES_LEN_EVAL_V3, FEATURES_VERSION_EVAL, LEN_HAND_EVAL, LEN_HAND_V3,
+    features_eval, features_eval_v3, features_v3,
 };
 use pons::bidding::tags::derive;
 use pons::bidding::{Family, Inferences, Phase, Stance, System};
@@ -129,6 +129,10 @@ enum Encoding {
     /// The 79-float research superset: per-suit honour bits and spot count,
     /// plus a width beside every range pair
     Bits,
+    /// `features_eval_v3` verbatim (94 floats): the serving extractor for the
+    /// calls-only v3 evaluator, so the corpus and the crate agree by
+    /// construction
+    Eval3,
 }
 
 #[derive(Parser)]
@@ -150,8 +154,10 @@ struct Args {
     /// range-shape coverage; the physics being learned is the same for all.
     #[arg(long, default_value = "american,dutch")]
     systems: String,
-    /// Own-hand encoding: `summary` (24 honour floats), `onehot` (52 card
-    /// bits — the texture ablation), or `bits` (the 79-float research superset)
+    /// Row encoding: `summary` (features_eval's 54 floats), `onehot` (52 card
+    /// bits — the texture ablation), `bits` (the 79-float research superset),
+    /// or `eval3` (features_eval_v3's 94 floats — the calls-only serving
+    /// extractor, verbatim)
     #[arg(long, default_value = "summary")]
     encoding: String,
     /// Append the Phase-3 honour oracle: 8 columns of partner's *true*
@@ -208,12 +214,14 @@ fn main() -> anyhow::Result<()> {
         "summary" => Encoding::Summary,
         "onehot" => Encoding::Onehot,
         "bits" => Encoding::Bits,
-        other => anyhow::bail!("--encoding must be summary|onehot|bits, got {other:?}"),
+        "eval3" => Encoding::Eval3,
+        other => anyhow::bail!("--encoding must be summary|onehot|bits|eval3, got {other:?}"),
     };
     let base_len = match encoding {
         Encoding::Summary => FEATURES_LEN_EVAL,
         Encoding::Onehot => LEN_HAND_ONEHOT + LEN_RANGES,
         Encoding::Bits => LEN_HAND_BITS + LEN_RANGES / 2 * 3,
+        Encoding::Eval3 => FEATURES_LEN_EVAL_V3,
     };
     anyhow::ensure!(
         !(args.oracle || args.oracle_all) || matches!(encoding, Encoding::Bits),
@@ -324,7 +332,7 @@ fn main() -> anyhow::Result<()> {
                             pons::bidding::set_upgrade_closure(true);
                         }
                         let inferences = stance.infer(rel, &auction);
-                        encode(&mut row[..base_len], hand, &inferences, encoding);
+                        encode(&mut row[..base_len], hand, &inferences, &auction, encoding);
                         if args.closed_hulls {
                             pons::bidding::set_sum_closure(false);
                             pons::bidding::set_upgrade_closure(false);
@@ -380,7 +388,8 @@ fn main() -> anyhow::Result<()> {
     tags.flush()?;
 
     let metadata = serde_json::json!({
-        "feature_version": FEATURES_VERSION_EVAL,
+        // The extractor layout version: `eval3` rows are `features_eval_v3`.
+        "feature_version": if matches!(encoding, Encoding::Eval3) { 3 } else { FEATURES_VERSION_EVAL },
         "features_len": features_len,
         "dd_len": DD_LEN,
         "row_len": row_len,
@@ -432,10 +441,23 @@ fn main() -> anyhow::Result<()> {
 /// Write one feature row: the hand block (summary, 52 card bits, or the `bits`
 /// honour/spot decomposition) followed by the three hidden seats' range blocks,
 /// which `features_eval` already lays out.
-fn encode(out: &mut [f32], hand: Hand, inferences: &Inferences, encoding: Encoding) {
+fn encode(
+    out: &mut [f32],
+    hand: Hand,
+    inferences: &Inferences,
+    calls: &[Call],
+    encoding: Encoding,
+) {
+    if let Encoding::Eval3 = encoding {
+        // The serving extractor verbatim — corpus/serving parity by
+        // construction, nothing to reassemble.
+        out.copy_from_slice(&features_eval_v3(hand, inferences, calls));
+        return;
+    }
     let feats = features_eval(hand, inferences);
     let (hand_block, ranges) = feats.split_at(LEN_HAND_EVAL);
     let cut = match encoding {
+        Encoding::Eval3 => unreachable!("returned above"),
         Encoding::Summary => {
             out[..LEN_HAND_EVAL].copy_from_slice(hand_block);
             LEN_HAND_EVAL
@@ -701,7 +723,7 @@ mod tests {
 
         let mut row = vec![0f32; LEN_HAND_BITS + LEN_RANGES / 2 * 3];
         assert_eq!(row.len(), 79);
-        encode(&mut row, hand, &inferences, Encoding::Bits);
+        encode(&mut row, hand, &inferences, &[], Encoding::Bits);
 
         let (hand_block, triples) = row.split_at(LEN_HAND_BITS);
         for block in hand_block[..4 * LEN_SUIT_BITS]
@@ -799,9 +821,9 @@ mod tests {
         let (hand, inferences) = fixture();
 
         let mut summary = vec![0f32; FEATURES_LEN_EVAL];
-        encode(&mut summary, hand, &inferences, Encoding::Summary);
+        encode(&mut summary, hand, &inferences, &[], Encoding::Summary);
         let mut bits = vec![0f32; LEN_HAND_BITS + LEN_RANGES / 2 * 3];
-        encode(&mut bits, hand, &inferences, Encoding::Bits);
+        encode(&mut bits, hand, &inferences, &[], Encoding::Bits);
 
         let live = ben_live_columns();
         assert_eq!(live.len(), 54, "the ben arm's documented live width");

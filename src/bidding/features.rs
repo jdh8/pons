@@ -19,7 +19,7 @@
 use super::context::Context;
 use super::inference::{Envelope, Inferences, Relative};
 use crate::bidding::constraint::upgrade;
-use contract_bridge::auction::RelativeVulnerability;
+use contract_bridge::auction::{Call, RelativeVulnerability};
 use contract_bridge::eval::{self, HandEvaluator, SimpleEvaluator};
 use contract_bridge::{Hand, Holding, Penalty, Rank, Strain, Suit};
 
@@ -348,6 +348,72 @@ pub fn features_eval(hand: Hand, inferences: &Inferences) -> Vec<f32> {
     out
 }
 
+// ── The trick-evaluator extractor, v3: + the raw call tail ────────────────────
+
+/// Calls of auction history in the [`features_eval_v3`] tail, most recent
+/// first.  Four matches the window the NLL ablation measured; the hulls carry
+/// the older history in compressed form.
+pub const CALLS_EVAL_V3: usize = 4;
+
+/// Width of one call-identity slot: the 7-value bid encoding plus one bit each
+/// for pass, double, and redouble.
+pub const LEN_CALL_EVAL_V3: usize = 10;
+
+/// Number of `f32` values returned by [`features_eval_v3`]
+pub const FEATURES_LEN_EVAL_V3: usize = FEATURES_LEN_EVAL + CALLS_EVAL_V3 * LEN_CALL_EVAL_V3;
+
+/// Push one call-identity slot ([`LEN_CALL_EVAL_V3`] values).  `None` — the
+/// auction is shorter than the window — is all zeros, distinguishable from
+/// every real call because a real call sets `present` or a call-kind bit.
+fn push_call_identity(out: &mut Vec<f32>, call: Option<Call>) {
+    push_bid_encoding(
+        out,
+        match call {
+            Some(Call::Bid(bid)) => Some(bid),
+            _ => None,
+        },
+    );
+    out.push(f32::from(call == Some(Call::Pass)));
+    out.push(f32::from(call == Some(Call::Double)));
+    out.push(f32::from(call == Some(Call::Redouble)));
+}
+
+/// [`features_eval`] plus the identities of the last [`CALLS_EVAL_V3`] calls,
+/// most recent first.
+///
+/// This overturns v2's "no auction, ever" commitment, and it was overturned by
+/// measurement: the 2026-07-27 NLL ablation priced the raw call tail at
+/// **0.042 NLL / 0.053 tricks of MAE** over the hull-only vector — the
+/// largest featurization delta on record, concentrated exactly where the
+/// ⊤-census says the readings starve (contested, slam) — and bare call
+/// identity carries 90% of it (tags and alerts, the rest of the measured
+/// block, are *not* included: +0.004 was not worth coupling the vector to how
+/// rules are authored).  See docs/ai-bidder/evaluator-net.md §auction-input
+/// ablation, including what the win costs: a v3 corpus is coupled to the
+/// bidding system that generated it, so corpora only pool across systems whose
+/// auctions were dumped alongside, and every routing change owes the twin
+/// protocol.
+///
+/// | Block             | Start | Len |
+/// |-------------------|-------|-----|
+/// | [`features_eval`] |     0 |  54 |
+/// | Call −1 (latest)  |    54 |  10 |
+/// | Call −2           |    64 |  10 |
+/// | Call −3           |    74 |  10 |
+/// | Call −4           |    84 |  10 |
+/// | **Total**         |       | **94** |
+#[must_use]
+pub fn features_eval_v3(hand: Hand, inferences: &Inferences, auction: &[Call]) -> Vec<f32> {
+    let mut out = features_eval(hand, inferences);
+    out.reserve_exact(CALLS_EVAL_V3 * LEN_CALL_EVAL_V3);
+    for age in 1..=CALLS_EVAL_V3 {
+        let call = auction.len().checked_sub(age).map(|j| auction[j]);
+        push_call_identity(&mut out, call);
+    }
+    debug_assert_eq!(out.len(), FEATURES_LEN_EVAL_V3);
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -574,6 +640,33 @@ mod tests {
                 "seat block at {start} should be unknown"
             );
         }
+    }
+
+    #[test]
+    fn eval_v3_call_tail_is_most_recent_first() {
+        assert_eq!(FEATURES_LEN_EVAL_V3, 94);
+        let auction = [bid(1, Strain::Spades), Call::Pass, bid(2, Strain::Clubs)];
+        let ctx = Context::new(RelativeVulnerability::NONE, &auction);
+        let f = features_eval_v3(hand("AQ32.K53.QJ4.A92"), &Inferences::read(&ctx), &auction);
+        assert_eq!(f.len(), FEATURES_LEN_EVAL_V3);
+        // Head is exactly the v2 vector.
+        assert_eq!(
+            f[..FEATURES_LEN_EVAL],
+            features_eval(hand("AQ32.K53.QJ4.A92"), &Inferences::read(&ctx))[..]
+        );
+        // Slot 0 (latest): 2♣ — present, level 2/7, ♣ one-hot first in ASC.
+        let slot0 = &f[54..64];
+        assert_eq!(slot0[..7], [1.0, 2.0 / 7.0, 1.0, 0.0, 0.0, 0.0, 0.0]);
+        assert_eq!(slot0[7..], [0.0, 0.0, 0.0]);
+        // Slot 1: pass — no bid, pass bit set.
+        let slot1 = &f[64..74];
+        assert_eq!(slot1[..7], [0.0; 7]);
+        assert_eq!(slot1[7..], [1.0, 0.0, 0.0]);
+        // Slot 2: 1♠ — present, level 1/7, ♠ is fourth in ASC.
+        let slot2 = &f[74..84];
+        assert_eq!(slot2[..7], [1.0, 1.0 / 7.0, 0.0, 0.0, 0.0, 1.0, 0.0]);
+        // Slot 3: beyond the auction — all zeros, unlike any real call.
+        assert_eq!(f[84..94], [0.0; 10]);
     }
 
     #[test]

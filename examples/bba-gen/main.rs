@@ -195,6 +195,17 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_net_collar: bool,
 
+    /// Turn OFF the v3 calls-tail evaluator for our side
+    /// (`evaluator::set_eval_auction`, crate default on — shipped 2026-07-27,
+    /// `win | win`, plain +0.018/+0.028 by vul).  The bilans game/slam gates
+    /// read trick estimates from the v3 artifact, whose input is the hull
+    /// vector plus the last four call identities — the 0.038-NLL win of the
+    /// auction-input ablation, served.  Only honoured in the DNF reading
+    /// regime the twin was trained on (`--no-ns-dnf` makes it inert); off,
+    /// the hull-only `evaluator_v2_dnf` serves as before.
+    #[arg(long, default_value_t = false)]
+    no_ns_eval_auction: bool,
+
     /// Split disclosure from projection for our side
     /// (`inference::set_announced_reading`, crate default off).  A call decided
     /// by the evaluator net projects ⊤ and always will — a net accepts hands no
@@ -1283,6 +1294,7 @@ fn main() -> anyhow::Result<()> {
     pons::bidding::instinct::set_bilans_floor(!args.no_ns_bilans);
     pons::bidding::instinct::set_net_collar(args.ns_net_collar);
     pons::bidding::inference::set_announced_reading(args.ns_announced_reading);
+    pons::bidding::evaluator::set_eval_auction(!args.no_ns_eval_auction);
     pons::bidding::instinct::set_rkcb_announce(!args.no_ns_rkcb_announce);
     pons::bidding::features::set_blind_inference(args.ns_blind_inference);
     pons::bidding::set_sum_closure(args.ns_sum_closure);

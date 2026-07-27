@@ -467,6 +467,38 @@ mode is missing mass, not messy bounds — which is one more arrow pointing at
 coverage, i.e. sampled projection, rather than at rewriting the readings we
 already have.
 
+**Served and SHIPPED default-on (same day): evaluator v3, calls-only.** The
+campaign the gate opened ran to completion in one day.  `features_eval_v3` =
+the 54-float hull vector + the last four bare call identities (94 floats;
+tags/alerts left on the table per `ben-calls`), dumped verbatim by
+`dump-evaluator --encoding eval3` so corpus and serving agree by
+construction; the native twin `evaluator_v3_dnf` hit −1.54872 val NLL,
+reproducing the masked `ben-calls` arm (−1.54826); serving rides
+`trick_estimates_with_auction` behind `evaluator::set_eval_auction`, honoured
+only in the DNF regime the twin was trained on.  The A/B (204,800
+boards/arm/vul, `SEED_BASE` 1785138816, vs BBA 2/1) came back `win | win` on
+every cell:
+
+| vul | scorer | Δ IMPs/board | 95% CI | fired | IMPs/fired |
+|---|---|---|---|---|---|
+| none | plain | **+0.0180** | ±0.0042 | 1.33% | +1.35 |
+| none | PD | +0.0222 | ±0.0045 | 1.33% | +1.66 |
+| both | plain | **+0.0284** | ±0.0056 | 1.58% | +1.80 |
+| both | PD | +0.0360 | ±0.0061 | 1.58% | +2.28 |
+
+Both plain-DD CIs clear zero by 4–5×, so this ships **default-on** — and it
+is the counterexample to the `features_v2` precedent: an auction-input NLL
+win *can* survive the A/B when the consumer is the evaluator (whose μ/σ
+directly price game/slam boundaries) rather than the policy net.  The knob's
+consumers are only the bilans gates, so the divergences are re-priced
+game/slam decisions (1.3–1.6% of boards at +1.3 to +2.3 IMPs each).  What
+was spent: the evaluator's weights are now coupled to the auctions of the
+systems in the corpus (american + dutch), so routing changes owe the twin
+protocol one retrain, and future systems must be dumped into the pool.  The
+serving/training reading mismatch (bare `Context` at the call sites vs
+`Stance::infer` in the corpus) is inherited from v2, unchanged, and still
+open in the ledger.
+
 #### Hidden-seat axis survey
 
 The keycard track's two-factor pricing — **realizable gain ≈ ceiling (oracle

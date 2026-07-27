@@ -51,8 +51,8 @@ pub use dutch::{dutch, dutch_instinct};
 #[cfg(feature = "dd")]
 pub use ev::ev_all;
 pub use features::{
-    FEATURES_LEN_EVAL, FEATURES_LEN_V3, FEATURES_VERSION_EVAL, FEATURES_VERSION_V3, features_eval,
-    features_v3,
+    CALLS_EVAL_V3, FEATURES_LEN_EVAL, FEATURES_LEN_EVAL_V3, FEATURES_LEN_V3, FEATURES_VERSION_EVAL,
+    FEATURES_VERSION_V3, LEN_CALL_EVAL_V3, features_eval, features_eval_v3, features_v3,
 };
 pub use inference::{
     Dnf, Envelope, Inferences, Range, Relative, set_alert_reading, set_control_bid_reading,

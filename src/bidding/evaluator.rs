@@ -31,11 +31,13 @@
 //! default off pending its A/B); the module itself is ungated and always
 //! builds.
 
-use super::features::{FEATURES_LEN_EVAL, features_eval};
+use super::features::{FEATURES_LEN_EVAL, FEATURES_LEN_EVAL_V3, features_eval, features_eval_v3};
 use super::inference::{Inferences, Relative, dnf_reading};
 use super::neural::{affine, decode, relu};
+use contract_bridge::auction::Call;
 use contract_bridge::{Hand, Strain};
 use nalgebra::SVectorView;
+use std::cell::Cell;
 use std::sync::LazyLock;
 
 /// Input width, pinned to the artifact.
@@ -80,6 +82,54 @@ static WEIGHTS: LazyLock<Vec<f32>> = LazyLock::new(|| decode(RAW));
 
 /// [`RAW_DNF`] decoded once, on first use.
 static WEIGHTS_DNF: LazyLock<Vec<f32>> = LazyLock::new(|| decode(RAW_DNF));
+
+/// Input width of the v3 (calls-tail) artifact.
+const IN_V3: usize = FEATURES_LEN_EVAL_V3;
+
+/// Float count of the v3 MLP — same architecture, wider first layer.
+const TOTAL_V3: usize = HID * IN_V3 + HID + HID * HID + HID + OUT * HID + OUT;
+
+/// The calls-tail evaluator (`features_eval_v3`), trained on the `--dnf`
+/// reading regime — the only regime it serves; see
+/// [`trick_estimates_with_auction`].
+static RAW_V3_DNF: &[u8] = include_bytes!("weights/evaluator_v3_dnf.f32");
+const _: () = assert!(
+    RAW_V3_DNF.len() == TOTAL_V3 * 4,
+    "v3 evaluator weights artifact size mismatch"
+);
+
+/// [`RAW_V3_DNF`] decoded once, on first use.
+static WEIGHTS_V3_DNF: LazyLock<Vec<f32>> = LazyLock::new(|| decode(RAW_V3_DNF));
+
+std::thread_local! {
+    /// Whether [`trick_estimates_with_auction`] serves the v3 calls-tail
+    /// artifact (see [`set_eval_auction`]).  On by default.
+    static EVAL_AUCTION: Cell<bool> = const { Cell::new(true) };
+}
+
+/// Serve the v3 calls-tail evaluator (default **on**, shipped 2026-07-27)
+///
+/// On, [`trick_estimates_with_auction`] feeds [`features_eval_v3`] — the hull
+/// vector plus the last four call identities — to the v3 artifact, which the
+/// 2026-07-27 NLL ablation priced at 0.038 over the hull-only vector (bare
+/// calls; docs/ai-bidder/evaluator-net.md §auction-input ablation).  The A/B
+/// shipped it default-on with a `win | win` verdict: plain DD +0.0180 ± 0.0042
+/// (none) / +0.0284 ± 0.0056 (both), PD +0.0222 / +0.0360, on 204,800
+/// boards/arm/vul at `SEED_BASE` 1785138816 — fired 1.3–1.6%, +1.3 to +2.3
+/// IMPs per fired board at the bilans game/slam gates.  The v3 twin was
+/// trained on the [`dnf_reading`] regime only, so the knob is only honoured
+/// there; anywhere else the v2 path serves as before.
+///
+/// Per-thread, like every reading knob; set it inside worker closures.
+pub fn set_eval_auction(on: bool) {
+    EVAL_AUCTION.with(|cell| cell.set(on));
+}
+
+/// Whether the v3 calls-tail evaluator is enabled (default on)
+#[must_use]
+pub fn eval_auction() -> bool {
+    EVAL_AUCTION.with(Cell::get)
+}
 
 /// The strain order the training label uses (`gib::relativized_tricks`, itself
 /// the GIB tail order). [`Strain`]'s own discriminants ascend ♣♦♥♠NT, so this
@@ -176,11 +226,35 @@ impl TrickEstimates {
 pub fn trick_estimates(hand: Hand, inferences: &Inferences) -> TrickEstimates {
     let x = features_eval(hand, inferences);
     debug_assert_eq!(x.len(), IN);
+    reshape(forward(&x))
+}
 
-    let z = forward(&x);
+/// [`trick_estimates`], with the raw auction available for the v3 calls-tail
+/// artifact.
+///
+/// Under [`set_eval_auction`] **and** the [`dnf_reading`] regime the v3 twin
+/// was trained on, this serves [`features_eval_v3`] — the same vector plus the
+/// last four call identities.  Anywhere else it is exactly
+/// [`trick_estimates`], byte for byte, so call sites can migrate to this
+/// signature unconditionally.
+#[must_use]
+pub fn trick_estimates_with_auction(
+    hand: Hand,
+    inferences: &Inferences,
+    calls: &[Call],
+) -> TrickEstimates {
+    if !(eval_auction() && dnf_reading()) {
+        return trick_estimates(hand, inferences);
+    }
+    let x = features_eval_v3(hand, inferences, calls);
+    debug_assert_eq!(x.len(), IN_V3);
+    reshape(forward_with::<IN_V3>(&WEIGHTS_V3_DNF, &x))
+}
 
-    // Head-major: all 20 means, then all 20 log deviations — and in units of
-    // tricks / 13, the scale `gib::relativized_tricks` labels in.
+/// Reshape the raw head-major outputs — all 20 means, then all 20 log
+/// deviations, in units of tricks / 13 (the scale `gib::relativized_tricks`
+/// labels in) — into [`TrickEstimates`].
+fn reshape(z: [f32; OUT]) -> TrickEstimates {
     let mut out = [[Gaussian { mean: 0.0, sd: 0.0 }; 4]; STRAIN_ROWS];
     for (i, slot) in out.iter_mut().flatten().enumerate() {
         *slot = Gaussian {
@@ -200,15 +274,21 @@ fn forward(x: &[f32]) -> [f32; OUT] {
     } else {
         WEIGHTS.as_slice()
     };
-    let (w1, rest) = weights.split_at(HID * IN);
+    forward_with::<IN>(weights, x)
+}
+
+/// One forward pass of the shared architecture at input width `IN_DIM`, over
+/// an explicit weight blob (`W1,b1,W2,b2,W3,b3`).
+fn forward_with<const IN_DIM: usize>(weights: &[f32], x: &[f32]) -> [f32; OUT] {
+    let (w1, rest) = weights.split_at(HID * IN_DIM);
     let (b1, rest) = rest.split_at(HID);
     let (w2, rest) = rest.split_at(HID * HID);
     let (b2, rest) = rest.split_at(HID);
     let (w3, b3) = rest.split_at(OUT * HID);
 
-    let x = SVectorView::<f32, IN>::from_slice(x).into_owned();
+    let x = SVectorView::<f32, IN_DIM>::from_slice(x).into_owned();
 
-    let mut h1 = affine::<HID, IN>(w1, b1, &x);
+    let mut h1 = affine::<HID, IN_DIM>(w1, b1, &x);
     relu(&mut h1);
 
     let mut h2 = affine::<HID, HID>(w2, b2, &h1);
@@ -245,7 +325,28 @@ mod tests {
         check_candle_fixture(include_str!("weights/evaluator_v2_dnf.fixture.json"));
     }
 
+    /// The v3 calls-tail artifact against its own fixture — served directly,
+    /// no knobs, since the weight set is explicit.
+    #[test]
+    fn v3_matches_candle_fixture() {
+        check_fixture(
+            include_str!("weights/evaluator_v3_dnf.fixture.json"),
+            3,
+            IN_V3,
+            |x| forward_with::<IN_V3>(&WEIGHTS_V3_DNF, x),
+        );
+    }
+
     fn check_candle_fixture(fixture: &str) {
+        check_fixture(fixture, u64::from(FEATURES_VERSION_EVAL), IN, forward);
+    }
+
+    fn check_fixture(
+        fixture: &str,
+        version: u64,
+        in_dim: usize,
+        fwd: impl Fn(&[f32]) -> [f32; OUT],
+    ) {
         let fx: serde_json::Value = serde_json::from_str(fixture).unwrap();
 
         // The blob's own guard is a byte count, and a byte count cannot tell a
@@ -253,7 +354,7 @@ mod tests {
         // layout tag too, or a stale fixture would sail through on width alone.
         assert_eq!(
             fx["feature_version"].as_u64(),
-            Some(u64::from(FEATURES_VERSION_EVAL)),
+            Some(version),
             "fixture layout tag disagrees with the crate's"
         );
 
@@ -273,13 +374,54 @@ mod tests {
         for (frow, grow) in rows.iter().zip(golds) {
             let x = to_vec(frow);
             let gold = to_vec(grow);
-            assert_eq!(x.len(), IN);
+            assert_eq!(x.len(), in_dim);
             assert_eq!(gold.len(), OUT);
-            for (pred, g) in forward(&x).iter().zip(&gold) {
+            for (pred, g) in fwd(&x).iter().zip(&gold) {
                 max_abs = max_abs.max((pred - g).abs());
             }
         }
         assert!(max_abs < 1.0e-3, "max abs diff {max_abs} exceeds tolerance");
+    }
+
+    /// Knob off, `trick_estimates_with_auction` is exactly `trick_estimates`
+    /// — the byte-identity half of the knob contract.  Knob on (the shipped
+    /// default) in the dnf regime, the v3 artifact serves: same plausibility
+    /// bounds, and the auction tail visibly moves the estimate.
+    #[test]
+    fn with_auction_knob_contract() {
+        use contract_bridge::{Bid, Level};
+        let auction = [
+            Call::Bid(Bid {
+                level: Level::new(1),
+                strain: Strain::Spades,
+            }),
+            Call::Pass,
+        ];
+        let ctx = Context::new(RelativeVulnerability::NONE, &auction);
+        let inf = Inferences::read(&ctx);
+        let h = hand("AQ32.K53.QJ4.A92");
+
+        set_eval_auction(false);
+        let v2 = trick_estimates(h, &inf);
+        assert_eq!(trick_estimates_with_auction(h, &inf, &auction), v2);
+
+        crate::bidding::set_dnf_reading(true);
+        set_eval_auction(true);
+        let v3 = trick_estimates_with_auction(h, &inf, &auction);
+
+        assert_ne!(v3, v2, "v3 artifact should not shadow v2 exactly");
+        for strain in Strain::ASC {
+            for who in [
+                Relative::Me,
+                Relative::Lho,
+                Relative::Partner,
+                Relative::Rho,
+            ] {
+                let g = v3.get(strain, who);
+                assert!((-1.0..=14.0).contains(&g.mean), "{strain:?} {who:?} {g:?}");
+                assert!((0.1..=5.0).contains(&g.sd), "{strain:?} {who:?} {g:?}");
+            }
+        }
     }
 
     #[test]

@@ -1,0 +1,126 @@
+{
+  "arch": "x -> Linear(94, 256) -> relu -> Linear(256, 256) -> relu -> Linear(256, 40)",
+  "arm": null,
+  "batch": 4096,
+  "blank_ranges": false,
+  "collapse_side": false,
+  "data_closed_hulls": false,
+  "data_deals": "/nfs2/jdh8/pons/22.pdd",
+  "data_git_sha": "b1078aac4a0d35d5029e5a64c1dad9273471473f",
+  "data_seed": 1,
+  "data_systems": [
+    "american",
+    "dutch"
+  ],
+  "dtype": "f32-le",
+  "encoding": "eval3",
+  "epochs": 150,
+  "feature_version": 3,
+  "features_len": 94,
+  "git_sha": "b1078aac4a0d35d5029e5a64c1dad9273471473f",
+  "heads": [
+    "mu",
+    "ln_sd"
+  ],
+  "hidden": 256,
+  "label_order": "strain-major NT,S,H,D,C × declarer [me,lho,partner,rho]",
+  "ln_sd_clamp": [
+    -5.0,
+    0.0
+  ],
+  "lr": 0.001,
+  "out_dim": 40,
+  "out_layout": "[20 × mu][20 × ln_sd], tricks / 13",
+  "param_floats": 100392,
+  "param_order": [
+    "l1.weight",
+    "l1.bias",
+    "l2.weight",
+    "l2.bias",
+    "l3.weight",
+    "l3.bias"
+  ],
+  "param_shapes": {
+    "l1.bias": [
+      256
+    ],
+    "l1.weight": [
+      256,
+      94
+    ],
+    "l2.bias": [
+      256
+    ],
+    "l2.weight": [
+      256,
+      256
+    ],
+    "l3.bias": [
+      40
+    ],
+    "l3.weight": [
+      40,
+      256
+    ]
+  },
+  "seed": 1,
+  "targets": 20,
+  "test": null,
+  "train_rows": 9163737,
+  "trainer": "pons-trainer evaluator",
+  "val_below_mean": 0.5000718235969543,
+  "val_by_phase": [
+    {
+      "below_mean": 0.49977025389671326,
+      "coverage": 0.484992116689682,
+      "mae_tricks": 1.4977880716323853,
+      "nll": -1.4849028587341309,
+      "rmse_tricks": 1.908078908920288,
+      "slice": "constructive",
+      "targets": 7664700
+    },
+    {
+      "below_mean": 0.5002538561820984,
+      "coverage": 0.48428651690483093,
+      "mae_tricks": 1.3289227485656738,
+      "nll": -1.5872422456741333,
+      "rmse_tricks": 1.6841379404067993,
+      "slice": "contested",
+      "targets": 12699160
+    }
+  ],
+  "val_by_system": [
+    {
+      "below_mean": 0.5001914501190186,
+      "coverage": 0.4828900098800659,
+      "mae_tricks": 1.3894504308700562,
+      "nll": -1.5513356924057007,
+      "rmse_tricks": 1.767919898033142,
+      "slice": "american",
+      "targets": 10200880
+    },
+    {
+      "below_mean": 0.4999517798423767,
+      "coverage": 0.4862203896045685,
+      "mae_tricks": 1.3955239057540894,
+      "nll": -1.5461006164550781,
+      "rmse_tricks": 1.775589108467102,
+      "slice": "dutch",
+      "targets": 10162980
+    }
+  ],
+  "val_coverage": 0.4845520853996277,
+  "val_mae_tricks": 1.3924815654754639,
+  "val_nll": -1.5487229824066162,
+  "val_nt_contested_mae_tricks": 1.6855453252792358,
+  "val_nt_contested_rmse_tricks": 2.0708401203155518,
+  "val_nt_contested_targets": 466860,
+  "val_rmse_tricks": 1.7717515230178833,
+  "val_slam_mae_tricks": 2.4789464473724365,
+  "val_slam_rmse_tricks": 2.8623485565185547,
+  "val_slam_targets": 558813,
+  "val_suit_game_mae_tricks": 1.85054612159729,
+  "val_suit_game_rmse_tricks": 2.2722878456115723,
+  "val_suit_game_targets": 2328693,
+  "wd": 0.0
+}

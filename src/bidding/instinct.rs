@@ -56,7 +56,7 @@ use super::constraint::{
     takeout_double_shape_ok, they_bid, top_honors,
 };
 use super::context::Context;
-use super::evaluator::trick_estimates;
+use super::evaluator::trick_estimates_with_auction;
 use super::inference::{Dnf, Inferences, Relative, relative_of};
 use super::rules::Alert;
 use contract_bridge::auction::{Call, RelativeVulnerability};
@@ -396,7 +396,8 @@ fn settle_floor() -> Cons<impl Constraint + Clone> {
 /// axis the point gates were blind to, moving the direction the design
 /// predicts.  Pass `false` to recover the point-gate arithmetic.
 ///
-/// With it on, each converted gate asks [`trick_estimates`] for the contract's make
+/// With it on, each converted gate asks
+/// [`trick_estimates`][super::evaluator::trick_estimates] for the contract's make
 /// probability and compares it against the IMP break-even for that decision at
 /// the live vulnerability ([`break_even`]) — partscore→game at even money
 /// non-vul / 44.4% vul (our failing branch priced *doubled*, per the
@@ -1886,11 +1887,9 @@ fn slam_entry_reached() -> Cons<impl Constraint + Clone> {
         if BILANS_FLOOR.with(Cell::get) {
             return keycard_trump(hand, context).is_some_and(|trump| {
                 let strain = Strain::from(trump);
-                trick_estimates(hand, &Inferences::read(context)).p_at_least(
-                    strain,
-                    our_declarer(context, strain),
-                    12,
-                ) >= SLAM_ENTRY_P
+                trick_estimates_with_auction(hand, &Inferences::read(context), context.auction())
+                    .p_at_least(strain, our_declarer(context, strain), 12)
+                    >= SLAM_ENTRY_P
             });
         }
         // Fit-known: the RKCB ask only fires on a shown trump, so count
@@ -2091,11 +2090,9 @@ fn our_declarer(context: &Context<'_>, strain: Strain) -> Relative {
 fn net_makes(strain: Strain, tricks: u8) -> Cons<impl Constraint + Clone> {
     pred(move |hand: Hand, context: &Context<'_>| {
         BILANS_FLOOR.with(Cell::get)
-            && trick_estimates(hand, &Inferences::read(context)).p_at_least(
-                strain,
-                our_declarer(context, strain),
-                tricks,
-            ) > 0.5
+            && trick_estimates_with_auction(hand, &Inferences::read(context), context.auction())
+                .p_at_least(strain, our_declarer(context, strain), tricks)
+                > 0.5
     })
 }
 
@@ -2175,15 +2172,17 @@ pub(crate) fn net_break_even_gate(
     pred(move |hand: Hand, context: &Context<'_>| {
         knob()
             && want
-                == (trick_estimates(hand, &Inferences::read(context)).p_at_least(
-                    strain,
-                    our_declarer(context, strain),
-                    tricks,
-                ) >= break_even(
-                    tricks,
-                    strain,
-                    context.vul().contains(RelativeVulnerability::WE),
-                ))
+                == (trick_estimates_with_auction(
+                    hand,
+                    &Inferences::read(context),
+                    context.auction(),
+                )
+                .p_at_least(strain, our_declarer(context, strain), tricks)
+                    >= break_even(
+                        tricks,
+                        strain,
+                        context.vul().contains(RelativeVulnerability::WE),
+                    ))
     })
 }
 
@@ -4540,12 +4539,15 @@ mod tests {
             "South's continuation is off-book (floor territory)"
         );
         // The fit-sum's claim is the *strain* — major over 3NT.  The level is
-        // the evaluator's: the legacy net claimed the marginal slam (6♠ made
-        // 66.3% double-dummy over the knob-off read), and the F2b default —
-        // union-of-boxes reading + the knob-matched `evaluator_v2_dnf` twin —
-        // prices it back to game.  Both pins are deliberate; the A/B
-        // (docs/dnf-migration.md, F2b round 2) says the package wins.
-        assert_eq!(bid, call(4, Strain::Spades));
+        // the evaluator's, and it has changed hands twice: the legacy net
+        // claimed the marginal slam (6♠ made 66.3% double-dummy over the
+        // knob-off read), the hull-only F2b twin (`evaluator_v2_dnf`) priced
+        // it back to game, and the shipped v3 calls-tail twin
+        // (`evaluator_v3_dnf`, 2026-07-27, `win | win`) claims it again —
+        // with the raw calls in view its μ/σ clears the 50% break-even the
+        // fixture's own sampling supports.  Both pins are deliberate; each
+        // regime's A/B says its package wins.
+        assert_eq!(bid, call(6, Strain::Spades));
         set_dnf_reading(false);
         let (legacy, _) = american_floored(&auction, south);
         set_dnf_reading(true);
@@ -4638,10 +4640,10 @@ mod tests {
         }
     }
 
-    /// The bilans knob prices the same known-fit game the point sum reaches:
-    /// the 4-4 fit-sum board must still land in 4♠ when the net does the
-    /// arithmetic (Stance path, so the net sees the trie-prefixed reading it
-    /// was trained on).
+    /// The bilans knob prices the same known fit the point sum reaches: the
+    /// 4-4 fit-sum board must land where the shipped evaluator prices it when
+    /// the net does the arithmetic (Stance path, so the net sees the
+    /// trie-prefixed reading it was trained on).
     #[test]
     fn bilans_floor_still_bids_the_known_fit_game() {
         let auction = [
@@ -4660,10 +4662,12 @@ mod tests {
             from_floor,
             "South's continuation is off-book (floor territory)"
         );
-        // Literally the known fit *game* since F2b: the knob-on read + twin
-        // evaluator price the marginal slam out (see
-        // `fit_sum_reads_a_four_four_major_fit`, which pins both regimes).
-        assert_eq!(bid, call(4, Strain::Spades));
+        // The known fit priced by the shipped evaluator: game under the
+        // hull-only F2b twin, the marginal slam again under the v3 calls-tail
+        // twin (2026-07-27, `win | win`) — see
+        // `fit_sum_reads_a_four_four_major_fit`, which documents the level
+        // changing hands with each measured regime.
+        assert_eq!(bid, call(6, Strain::Spades));
     }
 
     /// [`set_net_collar`]'s veto, on the board the smoke run surfaced (seed
@@ -5450,10 +5454,13 @@ mod tests {
             Call::Pass,
         ];
         // The bilans floor (default-on) prices the contract rather than the
-        // point sum, and on this 21-count opposite a 5+ spade overcall it likes
-        // twelve tricks better than even money, so it bids the slam the point
-        // milestone stopped short of.
-        assert_eq!(best(&auction, "K32.AKJ.AQ4.KJ32"), call(6, Strain::Spades));
+        // point sum.  The hull-only twin liked twelve tricks better than even
+        // money here; the shipped v3 calls-tail twin (2026-07-27), with the
+        // 3♦ preempt and the 3♠ overcall in its input, likes thirteen — the
+        // aggressive edge of the slam family its `win | win` A/B measured
+        // (the worst divergent boards are exactly 7-level claims, and the
+        // aggregate still wins both scorers at both vulnerabilities).
+        assert_eq!(best(&auction, "K32.AKJ.AQ4.KJ32"), call(7, Strain::Spades));
         // A flat 12-count: the point milestone read this as 20 combined and
         // passed.  The net raises to game instead — defensibly, since a 3-level
         // overcall of a 3♦ preempt is worth well more than the 8 the inference

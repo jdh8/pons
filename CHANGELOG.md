@@ -59,6 +59,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   projection) over rewriting existing readings. Tooling kept:
   `--closed-hulls`, trainer arm `ben-calls`.
 
+- **Evaluator v3 — the calls-tail evaluator — SHIPPED default-on
+  (`win | win`, the largest measured win on record for an evaluator change).**
+  `features_eval_v3` = the hull vector + the last four call identities (94
+  floats; bare calls only — the tags/alerts sliver was not worth coupling to
+  rule authoring), `dump-evaluator --encoding eval3` dumps it verbatim so
+  corpus and serving agree by construction, and the serving twin
+  `evaluator_v3_dnf` (val NLL −1.54872, matching the masked `ben-calls`
+  ablation arm at −1.54826) serves behind `evaluator::set_eval_auction`
+  (default **on**; honoured only in the DNF regime it was trained on;
+  knob-off is byte-identical — the bilans gates route through
+  `trick_estimates_with_auction`, which degrades to `trick_estimates`
+  exactly). A/B vs BBA 2/1, 204.8k bd/arm/vul, `SEED_BASE` 1785138816:
+
+  | vul | plain DD | PD | fired |
+  | --- | --- | --- | --- |
+  | none | **+0.0180 ± 0.0042** | +0.0222 ± 0.0045 | 1.33% |
+  | both | **+0.0284 ± 0.0056** | +0.0360 ± 0.0061 | 1.58% |
+
+  +1.3 to +2.3 IMPs per fired board, all at the bilans game/slam gates.
+  Opt-out: `--no-ns-eval-auction` / `set_eval_auction(false)`; re-measure with
+  `scripts/eval-auction-ab.sh`. Cost accepted: evaluator weights are now
+  coupled to the pooled systems' auctions (american + dutch) — routing changes
+  owe the twin protocol a retrain.
+
 ### Changed
 
 - **A natural suit overcall of their weak two demands more when *we* are

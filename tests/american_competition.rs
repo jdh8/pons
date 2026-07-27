@@ -261,15 +261,16 @@ fn competitive_rebid_reaches_the_missed_game() {
         call(3, Strain::Diamonds),
         Call::Pass,
     ];
-    // The raise's *level* is the evaluator's, and the two reading regimes
-    // price it differently: the F2b default (union-of-boxes + the
-    // knob-matched evaluator twin) stops in 4♦, the legacy hull read carries
-    // to the 5♦ game.  Both pins are deliberate — the package A/B
-    // (docs/dnf-migration.md, F2b round 2) wins all four cells; what this
-    // test guards is that the rebid puts the raise ladder in motion at all.
+    // The raise's *level* is the evaluator's, and it has moved with each
+    // measured regime: the legacy hull read carried to the 5♦ game, the F2b
+    // hull-only twin stopped in 4♦, and the shipped v3 calls-tail twin
+    // (2026-07-27, `win | win`) carries to 5♦ again — the game this very
+    // fixture calls cold (11 tricks double-dummy).  All pins deliberate; what
+    // this test guards is that the rebid puts the raise ladder in motion at
+    // all.
     assert_eq!(
         best_call(&system, &after_rebid, "AKQ.T95.Q73.QJ95"),
-        call(4, Strain::Diamonds),
+        call(5, Strain::Diamonds),
         "responder raises the shown suit"
     );
     pons::bidding::set_dnf_reading(false);
