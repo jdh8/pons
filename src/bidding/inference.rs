@@ -1298,6 +1298,20 @@ impl Inferences {
         &self.announced_players[who as usize]
     }
 
+    /// One relative seat's announced **union of boxes** — the unhulled twin of
+    /// [`announced`][Self::announced]
+    ///
+    /// The hull is what the nets have always read, and hulling is where the
+    /// information goes: `♥5..13` and `♥5..8` are the same claim, yet their
+    /// endpoints differ by a third of the column's range.  Anything that wants
+    /// the *distribution* a reading describes rather than its bounding box —
+    /// [`features_eval_shape`][super::features::features_eval_shape] — reads
+    /// the boxes here and tests membership atom by atom.
+    #[must_use]
+    pub const fn announced_dnf(&self, who: Relative) -> &Dnf {
+        &self.announced[who as usize]
+    }
+
     /// Assemble a reading from the natural walk's hull and the two overlays
     ///
     /// The agreement side reuses `players`, so a box it *widens* cannot show

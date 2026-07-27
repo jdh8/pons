@@ -17,7 +17,7 @@
 //! | **Total**            |       | **88** |
 
 use super::context::Context;
-use super::inference::{Envelope, Inferences, Relative};
+use super::inference::{Dnf, Envelope, Inferences, Relative};
 use crate::bidding::constraint::upgrade;
 use contract_bridge::auction::{Call, RelativeVulnerability};
 use contract_bridge::eval::{self, HandEvaluator, SimpleEvaluator};
@@ -46,7 +46,9 @@ pub const LEN_CONTEXT: usize = 36;
 pub const OFFSET_INFERENCES: usize = OFFSET_CONTEXT + LEN_CONTEXT;
 /// Values one player's shown ranges contribute: 4 suits × `{min, max}` length
 /// plus `{min, max}` points.
-pub const LEN_INFERENCE: usize = 10;
+pub const LEN_INFERENCE: usize = 8 + LEN_POINTS;
+/// Values one player's shown `points` range contributes: `{min, max}` ÷ 37.
+pub const LEN_POINTS: usize = 2;
 /// Length of the inferences block (all four seats)
 pub const LEN_INFERENCES: usize = 4 * LEN_INFERENCE;
 
@@ -156,8 +158,251 @@ fn push_inference(out: &mut Vec<f32>, player: &Envelope) {
         out.push(range.min as f32 / 13.0);
         out.push(range.max as f32 / 13.0);
     }
-    out.push(player.strength.points.min as f32 / 37.0);
-    out.push(player.strength.points.max as f32 / 37.0);
+    push_points(out, player);
+}
+
+/// Push one player's shown `points` range ([`LEN_POINTS`] values) — the half of
+/// [`push_inference`] the shape distribution does *not* replace, because
+/// `points` couples to shape only weakly, through [`upgrade`].
+///
+/// Takes the [`shown`] envelope, not the raw one: [`push_inference`] has already
+/// resolved the blind knob by the time it delegates here.
+fn push_points(out: &mut Vec<f32>, shown: &Envelope) {
+    out.push(shown.strength.points.min as f32 / 37.0);
+    out.push(shown.strength.points.max as f32 / 37.0);
+}
+
+// ── The shape-distribution reading ────────────────────────────────────────────
+
+/// Binomial coefficients `C(n, k)` for `n, k ≤ 13` — Pascal's triangle, with
+/// the impossible `k > n` entries left at zero so a lookup can be unguarded.
+const BINOM: [[u32; 14]; 14] = {
+    let mut table = [[0_u32; 14]; 14];
+    let mut n = 0;
+    while n < 14 {
+        table[n][0] = 1;
+        let mut k = 1;
+        while k <= n {
+            table[n][k] = table[n - 1][k - 1] + table[n - 1][k];
+            k += 1;
+        }
+        n += 1;
+    }
+    table
+};
+
+/// Divisor that brings a length standard deviation into roughly `[0, 1]`.  A
+/// suit length's unconditional σ is ≈1.8 and the widest a reading can make it
+/// is a 0/13 barbell, so 4 covers the realistic span.
+const SPREAD_SCALE: f64 = 4.0;
+
+/// Values one hidden seat's **shipped** shape reading contributes: `E[len]` and
+/// `sd[len]` per suit, then the log-mass column.
+///
+/// This is the round-two `gauss-mass` arm, and the width is the point.  It
+/// replaces the eight length endpoints with nine columns at **exact NLL par**
+/// (+0.00004 against a 94-column control on 8.15M rows) while being invariant to
+/// information-preserving re-hulling, which the endpoints are not.
+pub const LEN_SHAPE_GAUSS: usize = 8 + 1;
+
+/// Values one hidden seat's shape distribution contributes to the ablation
+/// superset: [`LEN_SHAPE_GAUSS`] plus the full per-suit length marginal
+/// `P(len = k)` for `k = 0..=13` (56).
+///
+/// Round two of the ablation replaced round one's hand-picked functionals with
+/// the marginal itself.  Measured: the six `Cov[len_s, len_t]` off-diagonals
+/// were worth **0.00001** — the joint term a shape distribution is supposed to
+/// buy, and it bought nothing — while the histogram is worth **+0.0008** over
+/// the Gaussian summary, barely past the 0.0006 seed spread and costing 168
+/// extra columns per row for it.  Hence [`features_eval_v4`] ships the Gaussian
+/// and this stays research-only; see docs/ai-bidder/evaluator-net.md.
+pub const LEN_SHAPE: usize = LEN_SHAPE_GAUSS + 4 * 14;
+
+/// Per-suit weights over the 39 cards this hand does not hold: `w[s][k]` is the
+/// number of ways one hidden seat holds exactly `k` cards of suit `s`, namely
+/// `C(13 − my_len_s, k)`.
+///
+/// Built once per hand and shared by all three hidden seats — only the
+/// membership mask differs between them.
+struct Unseen([[f64; 14]; 4]);
+
+impl Unseen {
+    fn new(hand: Hand) -> Self {
+        Self(std::array::from_fn(|s| {
+            let unseen = 13 - hand[Suit::ASC[s]].len();
+            std::array::from_fn(|k| f64::from(BINOM[unseen][k]))
+        }))
+    }
+}
+
+/// Weighted sums over the shape lattice, before normalisation
+#[derive(Default)]
+struct Moments {
+    /// Total weight over all 560 shapes — always `C(39, 13)`, by Vandermonde
+    all: f64,
+    /// Total weight over the shapes the reading admits
+    hit: f64,
+    /// `Σ w·len_s`
+    sum: [f64; 4],
+    /// `Σ w·len_s²`
+    square: [f64; 4],
+    /// `Σ w` over each `(suit, length)` cell — the per-suit length marginal
+    histogram: [[f64; 14]; 4],
+}
+
+/// Walk all 560 shapes — every 4-tuple of suit lengths summing to 13 — and
+/// accumulate the hypergeometric weight of those the reading admits.
+///
+/// `boxes` is `None` for a reading that shows nothing.  Enumerating the *atoms*
+/// is what makes a union of boxes free here: a shape either lies in some box or
+/// in none, so there is no inclusion–exclusion to pay and no overlap to cap.
+fn walk_shapes(unseen: &Unseen, boxes: Option<&[Envelope]>) -> Moments {
+    let w = &unseen.0;
+    let mut m = Moments::default();
+    for a in 0..=13 {
+        for b in 0..=13 - a {
+            for c in 0..=13 - a - b {
+                let d = 13 - a - b - c;
+                let weight = w[0][a] * w[1][b] * w[2][c] * w[3][d];
+                if weight == 0.0 {
+                    continue;
+                }
+                m.all += weight;
+                let shape = [a as u8, b as u8, c as u8, d as u8];
+                let admitted = boxes.is_none_or(|boxes| {
+                    boxes.iter().any(|envelope| {
+                        envelope
+                            .lengths
+                            .iter()
+                            .zip(shape)
+                            .all(|(range, len)| range.contains(len))
+                    })
+                });
+                if !admitted {
+                    continue;
+                }
+                m.hit += weight;
+                for (s, &len) in shape.iter().enumerate() {
+                    m.histogram[s][usize::from(len)] += weight;
+                    let len = f64::from(len);
+                    m.sum[s] += weight * len;
+                    m.square[s] += weight * len * len;
+                }
+            }
+        }
+    }
+    m
+}
+
+/// One hidden seat's shape distribution, normalised — the shared core of the
+/// shipped [`push_shape_gauss`] block and the [`push_shape_dist`] superset.
+struct Shape {
+    /// `E[len_s]`, in cards
+    mean: [f64; 4],
+    /// `sd[len_s]`, in cards
+    sd: [f64; 4],
+    /// `P(len_s = k)`
+    histogram: [[f64; 14]; 4],
+    /// How much the reading pins the seat down, in `[0, 1]`: 0 when it admits
+    /// every shape, 1 when it admits a single hand.  The total weight is
+    /// `C(39, 13)` for every hand, so the scale is fixed rather than
+    /// hand-dependent.
+    mass: f64,
+}
+
+/// Walk the lattice once and normalise.
+fn shape_of(unseen: &Unseen, boxes: Option<&[Envelope]>) -> Shape {
+    let m = walk_shapes(unseen, boxes);
+    // A sound reading contains the truth, so it cannot exclude every shape —
+    // but `announced` carries an *agreement*, which can over-claim against a
+    // hand that saw a card the agreement did not expect.  Read that as "nothing
+    // shown" rather than dividing by zero.
+    let m = if m.hit > 0.0 {
+        m
+    } else {
+        debug_assert!(boxes.is_some(), "the unconditional walk always has mass");
+        walk_shapes(unseen, None)
+    };
+    let inv = 1.0 / m.hit;
+    let mean = m.sum.map(|sum| sum * inv);
+    Shape {
+        mean,
+        sd: std::array::from_fn(|s| (m.square[s] * inv - mean[s] * mean[s]).max(0.0).sqrt()),
+        histogram: m.histogram.map(|row| row.map(|cell| cell * inv)),
+        mass: -(m.hit * (1.0 / m.all)).ln() / m.all.ln(),
+    }
+}
+
+/// Push one hidden seat's **shape reading** ([`LEN_SHAPE_GAUSS`] values) — the
+/// distributional twin of [`push_inference`]'s length endpoints, and what
+/// [`features_eval_v4`] ships in their place.
+///
+/// The hull encoding is not invariant to information-preserving
+/// re-representation: `♥5..13` and `♥5..8` are the same claim (`E[len] = 5.36`
+/// and the same mass to four digits — nine-plus suits are 0.04% of the 5+ mass)
+/// yet `max/13` moves 1.00 → 0.62.  A closure that provably rejects no hand
+/// therefore displaces the net's inputs by multiple σ, which is why every
+/// hull-tightening chop has had to buy a retrain before it could be judged on
+/// merit.  Conditioning on the *distribution* the reading describes removes that
+/// by construction: re-hulling a box without moving mass leaves every column
+/// here unchanged.
+///
+/// Conditions on lengths only — `points` couples to shape weakly through
+/// [`upgrade`] and its two endpoint columns stay beside this block — and on one
+/// seat at a time, marginalising over the other two hidden hands exactly as the
+/// hull it replaces does.
+fn push_shape_gauss(out: &mut Vec<f32>, shape: &Shape) {
+    for value in shape.mean {
+        out.push((value / 13.0) as f32);
+    }
+    for value in shape.sd {
+        out.push((value / SPREAD_SCALE) as f32);
+    }
+    out.push(shape.mass as f32);
+}
+
+/// Push one hidden seat's **shape distribution** ([`LEN_SHAPE`] values) — the
+/// distributional twin of [`push_inference`]'s bounding box.
+///
+/// The hull encoding is not invariant to information-preserving
+/// re-representation: `♥5..13` and `♥5..8` are the same claim (`E[len] = 5.36`
+/// and the same mass to four digits — nine-plus suits are 0.04% of the 5+ mass)
+/// yet `max/13` moves 1.00 → 0.62.  A closure that provably rejects no hand
+/// therefore displaces the net's inputs by multiple σ, which is why every
+/// hull-tightening chop has had to buy a retrain before it could be judged on
+/// merit.  Conditioning on the *distribution* the reading describes removes that
+/// by construction: re-hulling a box without moving mass leaves every column
+/// here unchanged.
+///
+/// Conditions on lengths only — `points` couples to shape weakly through
+/// [`upgrade`] and its two endpoint columns stay beside this block — and on one
+/// seat at a time, marginalising over the other two hidden hands exactly as the
+/// hull it replaces does.  The marginal is per suit, so genuinely *joint*
+/// structure (5-4 in the majors) survives only through `Σ len = 13`; round one
+/// priced the explicit covariances at 0.00001 and they are not carried.
+///
+/// Layout is [`push_shape_gauss`]'s summary, the marginal, then the log-mass —
+/// the mass column stays last so the ablation's block offsets keep their
+/// meaning.
+fn push_shape_dist(out: &mut Vec<f32>, shape: &Shape) {
+    for value in shape.mean {
+        out.push((value / 13.0) as f32);
+    }
+    for value in shape.sd {
+        out.push((value / SPREAD_SCALE) as f32);
+    }
+    for row in shape.histogram {
+        for cell in row {
+            out.push(cell as f32);
+        }
+    }
+    out.push(shape.mass as f32);
+}
+
+/// The boxes the nets are fed: the seat's agreement union, or nothing under
+/// [`set_blind_inference`].  `None` means "shows nothing", the ⊤ reading.
+fn shown_boxes(dnf: &Dnf) -> Option<&[Envelope]> {
+    (!BLIND_INFERENCE.with(std::cell::Cell::get)).then(|| dnf.boxes())
 }
 
 /// Push a 7-value bid encoding: [present, level/7, strain one-hot ×5]
@@ -414,6 +659,116 @@ pub fn features_eval_v3(hand: Hand, inferences: &Inferences, auction: &[Call]) -
     out
 }
 
+// ── The shape-reading evaluator vector (v4) ───────────────────────────────────
+
+/// Feature version tag of [`features_eval_v4`]
+pub const FEATURES_VERSION_EVAL_V4: u32 = 4;
+
+/// Width of one hidden seat's block in [`features_eval_v4`]: the two `points`
+/// endpoints, then the [`LEN_SHAPE_GAUSS`] shape reading that replaces the eight
+/// length endpoints.
+pub const LEN_SEAT_V4: usize = LEN_POINTS + LEN_SHAPE_GAUSS;
+
+/// Number of `f32` values returned by [`features_eval_v4`]
+pub const FEATURES_LEN_EVAL_V4: usize =
+    LEN_HAND_EVAL + 3 * LEN_SEAT_V4 + CALLS_EVAL_V3 * LEN_CALL_EVAL_V3;
+
+/// [`features_eval_v3`] with each hidden seat's **length hull replaced by its
+/// shape distribution** — the shipped shape-reading vector.
+///
+/// Three columns wider than v3 and, on the round-two ablation, exactly as good:
+/// `gauss-mass` scored −1.54562 against the 94-column control's −1.54558 on
+/// 8.15M rows, inside a 0.0006 seed spread.  The NLL case for this vector is
+/// *nil*, and that is the expected result — MASS already showed the fitted
+/// `(μ, σ)` at a hull row is the union-conditional the net learned empirically,
+/// so handing it the same information in a different parameterization cannot
+/// pay.  What is bought is **invariance**: under `set_sum_closure`, a
+/// provably-rejection-free tightening, the endpoint columns move at 81.17% of
+/// nodes by up to 4.19σ while these columns move at 0.11% by up to 0.07σ — and
+/// that 0.11% is where the reading genuinely changed.  Every future
+/// hull-tightening chop can then be judged on merit instead of buying a retrain.
+///
+/// Two findings from the same sweep are load-bearing on the layout.  The
+/// log-mass column is worth +0.0007 *beside* a length reading but −0.023 as a
+/// substitute for one, so it is a modifier, not a replacement.  And the
+/// endpoints are **spent**: given this block, re-adding all eight of them moved
+/// the NLL by 0.00001, which inverts the MARG/MASS verdict — those campaigns
+/// measured *estimated* marginals beside the endpoints, and against exact ones
+/// it is the endpoints that are redundant.
+///
+/// | Block                       | Start | Len |
+/// |-----------------------------|-------|-----|
+/// | Own hand                    |     0 |  24 |
+/// | LHO points + shape          |    24 |  11 |
+/// | Partner points + shape      |    35 |  11 |
+/// | RHO points + shape          |    46 |  11 |
+/// | Calls −1 … −4               |    57 |  40 |
+/// | **Total**                   |       | **97** |
+#[must_use]
+pub fn features_eval_v4(hand: Hand, inferences: &Inferences, auction: &[Call]) -> Vec<f32> {
+    let mut out = Vec::with_capacity(FEATURES_LEN_EVAL_V4);
+    push_hand_eval(&mut out, hand);
+    let unseen = Unseen::new(hand);
+    for who in [Relative::Lho, Relative::Partner, Relative::Rho] {
+        push_points(&mut out, shown(inferences.announced(who)));
+        let boxes = shown_boxes(inferences.announced_dnf(who));
+        push_shape_gauss(&mut out, &shape_of(&unseen, boxes));
+    }
+    for age in 1..=CALLS_EVAL_V3 {
+        let call = auction.len().checked_sub(age).map(|j| auction[j]);
+        push_call_identity(&mut out, call);
+    }
+    debug_assert_eq!(out.len(), FEATURES_LEN_EVAL_V4);
+    out
+}
+
+// ── The shape-distribution research superset ──────────────────────────────────
+
+/// Width of one hidden seat's block in [`features_eval_shape`]: the hull
+/// [`LEN_INFERENCE`] hull endpoints, then the [`LEN_SHAPE`] shape distribution.
+pub const LEN_SEAT_SHAPE: usize = LEN_INFERENCE + LEN_SHAPE;
+
+/// Number of `f32` values returned by [`features_eval_shape`]
+pub const FEATURES_LEN_EVAL_SHAPE: usize =
+    LEN_HAND_EVAL + 3 * LEN_SEAT_SHAPE + CALLS_EVAL_V3 * LEN_CALL_EVAL_V3;
+
+/// The **research superset** behind the shape-reading ablation: everything
+/// [`features_eval_v3`] carries, plus each hidden seat's shape distribution.
+///
+/// Dumped once; the trainer's `--arm` masks the columns each arm does not want,
+/// so every arm sees the same rows in the same batch order and only differences
+/// *within* one sweep mean anything.  Keeping the endpoints alongside is what
+/// lets the control arm reproduce the shipped vector out of the same corpus —
+/// and what lets a hybrid arm re-test the MARG finding, that distributional
+/// columns *beside* the endpoints buy nothing.  The shipped encoding will be a
+/// **replacement**: retaining the endpoints retains their non-invariance.
+///
+/// | Block                          | Start | Len |
+/// |--------------------------------|-------|-----|
+/// | Own hand                       |     0 |  24 |
+/// | LHO endpoints + shape          |    24 |  75 |
+/// | Partner endpoints + shape      |    99 |  75 |
+/// | RHO endpoints + shape          |   174 |  75 |
+/// | Calls −1 … −4                  |   249 |  40 |
+/// | **Total**                      |       | **289** |
+#[must_use]
+pub fn features_eval_shape(hand: Hand, inferences: &Inferences, auction: &[Call]) -> Vec<f32> {
+    let mut out = Vec::with_capacity(FEATURES_LEN_EVAL_SHAPE);
+    push_hand_eval(&mut out, hand);
+    let unseen = Unseen::new(hand);
+    for who in [Relative::Lho, Relative::Partner, Relative::Rho] {
+        push_inference(&mut out, inferences.announced(who));
+        let boxes = shown_boxes(inferences.announced_dnf(who));
+        push_shape_dist(&mut out, &shape_of(&unseen, boxes));
+    }
+    for age in 1..=CALLS_EVAL_V3 {
+        let call = auction.len().checked_sub(age).map(|j| auction[j]);
+        push_call_identity(&mut out, call);
+    }
+    debug_assert_eq!(out.len(), FEATURES_LEN_EVAL_SHAPE);
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -433,6 +788,284 @@ mod tests {
 
     fn empty_context() -> Context<'static> {
         Context::new(RelativeVulnerability::NONE, &[])
+    }
+
+    /// A length box, in `Suit::ASC` order: clubs, diamonds, hearts, spades.
+    fn lengths(bounds: [(u8, u8); 4]) -> Envelope {
+        let mut envelope = Envelope::unknown();
+        envelope.lengths = bounds.map(|(min, max)| super::super::inference::Range::new(min, max));
+        envelope
+    }
+
+    fn shape_block(cards: &str, boxes: Option<&[Envelope]>) -> Vec<f32> {
+        let mut out = Vec::new();
+        push_shape_dist(&mut out, &shape_of(&Unseen::new(hand(cards)), boxes));
+        assert_eq!(out.len(), LEN_SHAPE);
+        out
+    }
+
+    /// The shipped [`LEN_SHAPE_GAUSS`] block, for the same reading.
+    fn gauss_block(cards: &str, boxes: Option<&[Envelope]>) -> Vec<f32> {
+        let mut out = Vec::new();
+        push_shape_gauss(&mut out, &shape_of(&Unseen::new(hand(cards)), boxes));
+        assert_eq!(out.len(), LEN_SHAPE_GAUSS);
+        out
+    }
+
+    /// `C(n, k)` in `f64` — the test's own arithmetic, independent of [`BINOM`].
+    fn choose(n: u32, k: u32) -> f64 {
+        (0..k).fold(1.0, |acc, i| acc * f64::from(n - i) / f64::from(i + 1))
+    }
+
+    /// A hand with 1-3-4-5 in `Suit::ASC` order, so all four unseen counts differ.
+    const SPREAD_HAND: &str = "AKQ32.K532.QJ4.9";
+
+    #[test]
+    fn unconditional_shape_prior_is_hypergeometric() {
+        // Unseen per suit, ASC: ♣12 ♦10 ♥9 ♠8, summing to 39.  A hidden seat
+        // draws 13 of those, so `E[len_s] = 13 · n_s / 39 = n_s / 3` exactly.
+        let block = shape_block(SPREAD_HAND, None);
+        for (s, unseen) in [12.0, 10.0, 9.0, 8.0].into_iter().enumerate() {
+            assert!(
+                (f64::from(block[s]) - unseen / 3.0 / 13.0).abs() < 1e-6,
+                "E[len_{s}] = {}",
+                block[s]
+            );
+        }
+        // Shows nothing, so it pins nothing.
+        assert!(
+            block[LEN_SHAPE - 1].abs() < 1e-6,
+            "{}",
+            block[LEN_SHAPE - 1]
+        );
+    }
+
+    /// **The point of the encoding.**  `set_sum_closure` narrows every box to
+    /// what `Σ len = 13` already implies — it cannot reject a hand, so it is
+    /// information-free — yet it moves `push_inference`'s endpoints by multiple
+    /// σ of their own corpus spread.  The shape block must not move at all.
+    #[test]
+    fn shape_block_is_invariant_to_the_sum_closure() {
+        // Two majors of 5+ leave at most 3 cards for each minor and at most 8
+        // for each major.  Same set of hands, different bounding box.
+        let open = lengths([(0, 13), (0, 13), (5, 13), (5, 13)]);
+        let closed = lengths([(0, 3), (0, 3), (5, 8), (5, 8)]);
+
+        let mut endpoints = (Vec::new(), Vec::new());
+        push_inference(&mut endpoints.0, &open);
+        push_inference(&mut endpoints.1, &closed);
+        assert_ne!(endpoints.0, endpoints.1, "the closure moves the endpoints");
+
+        for cards in [SPREAD_HAND, "AQ32.K53.QJ4.A92"] {
+            assert_eq!(
+                shape_block(cards, Some(&[open])),
+                shape_block(cards, Some(&[closed])),
+                "{cards}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_shown_void_reads_as_its_exact_mass() {
+        // ♠ 0..=0 against the 8 unseen spades: the seat draws all 13 from the
+        // other 31 unseen cards.
+        let block = shape_block(
+            SPREAD_HAND,
+            Some(&[lengths([(0, 13), (0, 13), (0, 13), (0, 0)])]),
+        );
+        assert!(block[3].abs() < 1e-6, "E[len_♠] = {}", block[3]);
+        assert!(block[7].abs() < 1e-6, "sd[len_♠] = {}", block[7]);
+        // Spades are suit 3, so its 14-bin marginal starts at 8 + 3·14 = 50.
+        assert!((block[50] - 1.0).abs() < 1e-6, "P(♠ = 0) = {}", block[50]);
+
+        let all = choose(39, 13);
+        let want = -(choose(31, 13) / all).ln() / all.ln();
+        assert!(
+            (f64::from(block[LEN_SHAPE - 1]) - want).abs() < 1e-6,
+            "pinned = {} want {want}",
+            block[LEN_SHAPE - 1]
+        );
+    }
+
+    /// An agreement can over-claim against a hand that holds the cards it wants.
+    /// Dividing by zero mass is not an option; read it as nothing shown.
+    #[test]
+    fn an_unsatisfiable_reading_falls_back_to_nothing_shown() {
+        // Only 8 spades are unseen, so "9+ spades" admits no shape at all.
+        let impossible = lengths([(0, 13), (0, 13), (0, 13), (9, 13)]);
+        assert_eq!(
+            shape_block(SPREAD_HAND, Some(&[impossible])),
+            shape_block(SPREAD_HAND, None)
+        );
+    }
+
+    /// The superset carries the shipped vector verbatim, so the control arm of
+    /// the ablation is reproducible from the same corpus.
+    #[test]
+    fn shape_superset_embeds_the_shipped_vector() {
+        assert_eq!(LEN_SHAPE, 65);
+        assert_eq!(FEATURES_LEN_EVAL_SHAPE, 289);
+
+        let auction = [
+            bid(1, Strain::Spades),
+            Call::Pass,
+            bid(2, Strain::Clubs),
+            Call::Double,
+        ];
+        let ctx = Context::new(RelativeVulnerability::ALL, &auction);
+        let inferences = Inferences::read(&ctx);
+        let cards = hand(SPREAD_HAND);
+        let wide = features_eval_shape(cards, &inferences, &auction);
+        let shipped = features_eval_v3(cards, &inferences, &auction);
+
+        assert_eq!(wide.len(), FEATURES_LEN_EVAL_SHAPE);
+        assert_eq!(wide[..LEN_HAND_EVAL], shipped[..LEN_HAND_EVAL]);
+        for seat in 0..3 {
+            let from = LEN_HAND_EVAL + seat * LEN_SEAT_SHAPE;
+            let was = LEN_HAND_EVAL + seat * LEN_INFERENCE;
+            assert_eq!(
+                wide[from..from + LEN_INFERENCE],
+                shipped[was..was + LEN_INFERENCE],
+                "seat {seat}"
+            );
+        }
+        let tail = LEN_HAND_EVAL + 3 * LEN_SEAT_SHAPE;
+        assert_eq!(wide[tail..], shipped[FEATURES_LEN_EVAL..]);
+        for (i, &v) in wide.iter().enumerate() {
+            assert!(
+                v.is_finite() && (-1.0..=1.5).contains(&v),
+                "shape[{i}] = {v}"
+            );
+        }
+    }
+
+    /// The shipped vector's layout, and the one property it exists for: the
+    /// sum closure moves the endpoints it replaces and must not move it.
+    #[test]
+    fn eval_v4_is_invariant_where_the_hull_is_not() {
+        assert_eq!(LEN_SEAT_V4, 11);
+        assert_eq!(FEATURES_LEN_EVAL_V4, 97);
+
+        let open = lengths([(0, 13), (0, 13), (5, 13), (5, 13)]);
+        let closed = lengths([(0, 3), (0, 3), (5, 8), (5, 8)]);
+        for cards in [SPREAD_HAND, "AQ32.K53.QJ4.A92"] {
+            assert_eq!(
+                gauss_block(cards, Some(&[open])),
+                gauss_block(cards, Some(&[closed])),
+                "{cards}"
+            );
+        }
+        // …and it is not invariant to everything, or it would be reading nothing.
+        assert_ne!(
+            gauss_block(SPREAD_HAND, Some(&[open])),
+            gauss_block(SPREAD_HAND, None)
+        );
+    }
+
+    /// v4 is v3's hand and calls with each seat's eight length endpoints swapped
+    /// for the shape reading — every column traceable to a shipped one.
+    #[test]
+    fn eval_v4_swaps_the_length_hull_for_the_shape_reading() {
+        let auction = [
+            bid(1, Strain::Spades),
+            Call::Pass,
+            bid(2, Strain::Clubs),
+            Call::Double,
+        ];
+        let ctx = Context::new(RelativeVulnerability::ALL, &auction);
+        let inferences = Inferences::read(&ctx);
+        let cards = hand(SPREAD_HAND);
+        let v4 = features_eval_v4(cards, &inferences, &auction);
+        let v3 = features_eval_v3(cards, &inferences, &auction);
+        let wide = features_eval_shape(cards, &inferences, &auction);
+
+        assert_eq!(v4.len(), FEATURES_LEN_EVAL_V4);
+        assert_eq!(v4[..LEN_HAND_EVAL], v3[..LEN_HAND_EVAL]);
+        for seat in 0..3 {
+            // The `points` endpoints survive the swap verbatim…
+            let from = LEN_HAND_EVAL + seat * LEN_SEAT_V4;
+            let was = LEN_HAND_EVAL + seat * LEN_INFERENCE + 8;
+            assert_eq!(
+                v4[from..from + LEN_POINTS],
+                v3[was..was + LEN_POINTS],
+                "seat {seat} points"
+            );
+            // …and the shape reading is the superset's own summary and mass.
+            let wide_seat = LEN_HAND_EVAL + seat * LEN_SEAT_SHAPE + LEN_INFERENCE;
+            assert_eq!(
+                v4[from + LEN_POINTS..from + LEN_SEAT_V4 - 1],
+                wide[wide_seat..wide_seat + 8],
+                "seat {seat} moments"
+            );
+            assert_eq!(
+                v4[from + LEN_SEAT_V4 - 1],
+                wide[wide_seat + LEN_SHAPE - 1],
+                "seat {seat} mass"
+            );
+        }
+        let tail = LEN_HAND_EVAL + 3 * LEN_SEAT_V4;
+        assert_eq!(v4[tail..], v3[FEATURES_LEN_EVAL..]);
+    }
+
+    /// The two halves of the block must agree: each suit's 14 bins are a
+    /// probability distribution, and the `E`/`sd` summary beside them is its
+    /// first two moments.  Cheap, and it is what catches an offset slip.
+    #[test]
+    fn the_marginal_and_its_summary_agree() {
+        let block = shape_block(
+            SPREAD_HAND,
+            Some(&[lengths([(0, 13), (0, 3), (5, 13), (5, 13)])]),
+        );
+        for s in 0..4 {
+            let bins: Vec<f64> = block[8 + s * 14..8 + (s + 1) * 14]
+                .iter()
+                .map(|&p| f64::from(p))
+                .collect();
+            let total: f64 = bins.iter().sum();
+            assert!((total - 1.0).abs() < 1e-5, "suit {s} mass {total}");
+
+            let mean: f64 = bins.iter().enumerate().map(|(k, p)| k as f64 * p).sum();
+            let var: f64 = bins
+                .iter()
+                .enumerate()
+                .map(|(k, p)| (k as f64 - mean).powi(2) * p)
+                .sum();
+            assert!(
+                (f64::from(block[s]) - mean / 13.0).abs() < 1e-5,
+                "suit {s} E: {} vs {}",
+                block[s],
+                mean / 13.0
+            );
+            assert!(
+                (f64::from(block[4 + s]) - var.sqrt() / SPREAD_SCALE).abs() < 1e-5,
+                "suit {s} sd: {} vs {}",
+                block[4 + s],
+                var.sqrt() / SPREAD_SCALE
+            );
+        }
+    }
+
+    /// The negative control has to reach the shape block too, or it stops
+    /// bounding the reading channel: blind, every seat must read as the bare
+    /// hypergeometric prior over shapes.
+    #[test]
+    fn blind_inference_blanks_the_shape_block() {
+        let auction = [bid(1, Strain::Spades), Call::Pass, bid(2, Strain::Clubs)];
+        let ctx = Context::new(RelativeVulnerability::NONE, &auction);
+        let inferences = Inferences::read(&ctx);
+        let cards = hand(SPREAD_HAND);
+
+        let seeing = features_eval_shape(cards, &inferences, &auction);
+        set_blind_inference(true);
+        let blind = features_eval_shape(cards, &inferences, &auction);
+        set_blind_inference(false);
+
+        assert_ne!(seeing, blind, "an opened auction shows something");
+        let prior = shape_block(SPREAD_HAND, None);
+        for seat in 0..3 {
+            let from = LEN_HAND_EVAL + seat * LEN_SEAT_SHAPE + LEN_INFERENCE;
+            assert_eq!(blind[from..from + LEN_SHAPE], prior[..], "seat {seat}");
+        }
     }
 
     #[test]

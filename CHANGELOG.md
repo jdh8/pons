@@ -9,6 +9,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Shape-distribution reading (`set_eval_shape`, default off pending its
+  A/B).** `features_eval_v4` replaces each hidden seat's four suit-length
+  `{min, max}` pairs with a summary of the *distribution over shapes* the
+  auction implies: `E[len]`, `sd[len]` per suit and one log-mass column, 97
+  input floats against v3's 94. No user-visible bidding change while the knob
+  is off — `bba-gen` dump diff is byte-identical, both vulnerabilities, two
+  seeds.
+
+  **What it buys is invariance, not accuracy.** A bounding box is not a
+  function of the information: `♥5..13, ♠5..13` and `♥5..8, ♠5..8` admit the
+  identical set of hands, yet `max/13` reads 1.00 in one and 0.62 in the other.
+  So `set_sum_closure` — which provably rejects no hand — displaces the
+  endpoint columns at **81.17%** of nodes by up to **4.19σ**, and every
+  reading-fidelity chop has had to buy an evaluator retrain before it could be
+  judged on merit. The shape columns move at **0.11%** by up to **0.07σ**, and
+  that 0.11% is where the reading genuinely changed (10,000 boards / 103,043
+  nodes). The kernel is exact and cheap: enumerating the 560 length atoms makes
+  union membership an any-box test — no inclusion–exclusion, no `MassOracle` —
+  for **+6%** dump cost.
+
+  NLL is **par by design and par in fact**: the shipped arm scored +0.00004
+  against a matched 94-column control (seed spread 0.0006), and the native
+  artifact −1.54856 / MAE 1.392 / slam-MAE 2.474 against v3's −1.54872 / 1.392
+  / 2.479. MASS already showed the fitted `(μ, σ)` at a hull row *is* the
+  union-conditional, so on covered patterns a re-parameterization cannot pay;
+  the gain lives on patterns a closure chop creates.
+
+  Three results from the twelve-arm ablation are worth more than the shipped
+  arm: the six length **covariances are worth 0.00001** (the joint term is the
+  entire intuitive case for a shape distribution, and it is nil); the log-mass
+  column is **+0.0007 beside** a length reading but **−0.023 instead of** one;
+  and re-adding the endpoints on top of the shape block moves NLL by
+  **0.00001**, which inverts the MARG/MASS "hulls are the sufficient statistic"
+  verdict — those campaigns measured *estimated* marginals beside the
+  endpoints, and against exact ones the endpoints are the redundant side. The
+  full 14-bin per-suit marginal buys +0.0008 for 168 extra columns per row and
+  a 43% wider forward pass, so the Gaussian ships and the marginal stays
+  research-only (`features_eval_shape`, `--encoding shape`).
+
+  Owed: A/B-1 (v4 vs v3) is a non-inferiority check only — at 204.8k
+  bd/arm/vul the interval is ±0.004 IMPs against a ~0.0005 effect. A/B-2,
+  `set_sum_closure` on vs off *under the shape twin*, is the one with signal
+  and the result the campaign exists for. See
+  [docs/ai-bidder/evaluator-net.md](docs/ai-bidder/evaluator-net.md)
+  §shape-distribution reading and the SHAPE row in
+  [docs/dnf-migration.md](docs/dnf-migration.md).
+
 - **`dump-evaluator` is parallel** (rayon over deals; the DD labels are
   pre-solved, so per-deal work is pure bidding — the solver rule doesn't
   apply). ~32× on this box: the corpus regen that gated every evaluator

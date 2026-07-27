@@ -1340,3 +1340,95 @@ the alerted-only union reaching every alerted call in the book, exactly as the
 isolation runs said. If the default is ever flipped, the per-family attribution
 to run first is which *alerted conventions* the tightened agreement moved, not
 the pilot.
+
+## Shape-distribution reading — the hull is not a function of the reading  *(2026-07-27)*
+
+Shipped as `features_eval_v4` behind `set_eval_shape`, default off pending its
+A/B.  Replaces each hidden seat's four length `{min, max}` pairs with a summary
+of the **distribution over shapes** the reading implies.  Three columns wider
+than v3 (97 vs 94), NLL-identical, and invariant where the endpoints are not.
+
+### The defect being fixed
+
+`push_inference` encodes a reading as an axis-aligned box.  A box is not a
+function of the information: `♥5..13, ♠5..13` and `♥5..8, ♠5..8` admit the
+*identical* set of hands — with 5+ spades you cannot hold 9 hearts — yet `max/13`
+reads 1.00 in one and 0.62 in the other.  So `set_sum_closure`, which provably
+rejects no hand, still displaces the net's inputs by multiple σ, and every
+reading-fidelity chop has had to buy a retrain before it could be judged on
+merit (chop C1, `docs/dnf-migration.md`).
+
+### The kernel
+
+There are exactly 560 length vectors `l = (l♠, l♥, l♦, l♣)` with `Σ l = 13`.
+With `n_s = 13 − my_len_s` unseen cards per suit, one hidden seat holds shape `l`
+with hypergeometric weight `w(l) = ∏_s C(n_s, l_s)`.  The reading is a union of
+boxes; keep the atoms admitted by any box, renormalise, read off `E[l_s]`,
+`sd[l_s]` and `−ln(admitted/total) / ln C(39,13)`.
+
+Enumerating the **atoms** is what makes this affordable: union membership is
+"is `l` in any box", so there is no inclusion–exclusion, no overlap cap, and none
+of the machinery that made the archived `MassOracle` (0.35 ms build + 0.1 ms per
+query) unaffordable.  Measured dump cost: +6%.
+
+### The ablation — two rounds, twelve arms
+
+Round one (10.18M rows) priced the pieces; round two (8.15M rows, control
+re-anchored at −1.54558) chose the family.  Seed spread 0.0006.
+
+| arm | live cols | val NLL | Δ | MAE | slam-MAE |
+| --- | --- | --- | --- | --- | --- |
+| `shape-control` — endpoints | 94 | −1.54558 | — | 1.396 | 2.456 |
+| `shape-gauss` — E, sd | 94 | −1.54493 | −0.00065 | 1.397 | 2.456 |
+| `shape-mass` — log-mass alone | 73 | −1.52264 | **−0.02294** | 1.426 | 2.534 |
+| `shape-gauss-mass` **(shipped)** | 97 | −1.54562 | **+0.00004** | 1.396 | 2.456 |
+| `shape-hist` — 14-bin marginal | 238 | −1.54577 | +0.00019 | 1.395 | 2.446 |
+| `shape-hist-mass` | 265 | −1.54639 | +0.00081 | 1.395 | 2.449 |
+| `shape-hybrid` — + endpoints | 289 | −1.54640 | +0.00082 | 1.395 | 2.449 |
+
+Round one, on its own corpus: `shape-moments` −0.0004, `shape-cov` −0.0004,
+`shape-full` +0.0011, `shape-hybrid` +0.0012.
+
+Four readings, all load-bearing:
+
+- **The covariances are worth 0.00001.** The joint term across suits is the
+  entire intuitive case for a shape *distribution* over four per-suit readings,
+  and it bought nothing.  They are not carried.
+- **The log-mass column is a modifier, not a substitute.** +0.0007 beside a
+  length reading, −0.023 in place of one.  "How much do I know" cannot stand in
+  for "what does partner hold".
+- **The endpoints are spent.** `hybrid` ties `hist-mass` at 0.00001, replicated
+  across two corpora and two shape blocks.  This *inverts* the MARG/MASS verdict
+  that "hulls are the sufficient statistic": those campaigns measured estimated
+  marginals *beside* the endpoints, and against exact ones it is the endpoints
+  that are redundant.
+- **The marginal is not worth its width.** +0.0008 for 168 extra columns per row
+  and a 43% wider forward pass — 1.35× the seed spread, ≈0.0005 IMPs/bd by the
+  calls-tail scaling.  Hence the Gaussian ships.
+
+### Par is the correct result
+
+`p(tricks | my hand, reading)` depends on the reading only through the set of
+hands it admits.  The endpoints are a *non-injective* encoding of that set, so
+the net must learn "these two inputs mean the same thing" from data — and only
+learns it where the corpus has examples.  The moments are a function of the
+admitted set itself, so the ambiguity is gone by construction rather than by
+training.  MASS already showed the fitted `(μ, σ)` at a hull row *is* the
+union-conditional; on covered patterns a re-parameterization cannot pay.  The
+gain lives on patterns the corpus does not cover — which is exactly what a
+closure chop manufactures.
+
+Shipped artifact, trained natively on the 97-wide layout at the v3 protocol
+(500k deals of `22.pdd`, seed 1, pooled american+dutch, `--dnf`, 9,165,496 train
+rows): **−1.54856 / MAE 1.392 / slam-MAE 2.474**, against the shipped v3's
+−1.54872 / 1.392 / 2.479.
+
+### What is owed
+
+The A/B, in two parts.  **A/B-1** (v4 vs v3) is a *non-inferiority* check only:
+at 204.8k bd/arm/vul the interval is ±0.004 IMPs and the effect is ~0.0005, so
+it can refute a regression and cannot detect a win.  **A/B-2** is the one with
+signal — `set_sum_closure` on vs off *under the shape twin*, against the same
+pairing under endpoints, where the closure is a known feature-perturbation loss.
+A wash-or-win there is what unblocks the closure roadmap and is the result this
+campaign exists for.

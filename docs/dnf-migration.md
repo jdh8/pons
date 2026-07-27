@@ -59,6 +59,53 @@ verdict. Design lives in the docs above and the code.
   both in ~0.1 ms (MASS row). Neither MARG (marginal columns *beside* the
   endpoints → par) nor MASS (serve-time re-conditioning of an endpoint-trained
   net → lost) tested replacement.
+  **The replacement is now built and its invariance half is measured (SHAPE
+  row, 2026-07-27):** `features::features_eval_shape` reads each hidden seat as
+  a distribution over the 560-shape lattice — `E[len]`, `sd[len]`, the six
+  length covariances, `P(len ≥ 5/6/7)`, `P(len = 0/1)`, and a log-mass column —
+  and the same probe scores it beside the endpoints, 10,000 boards / 103,043
+  nodes, seed 1:
+
+  | group | C1 moved it at | p90 | worst max |
+  | --- | --- | --- | --- |
+  | hull endpoints | **81.17%** of nodes | **4.19σ** | 1.00, the whole column |
+  | shape distribution | **0.11%** of nodes | **0.07σ** | 0.0174 |
+
+  **and the same run retires this bullet's "membership-inert" premise for the
+  *union*.** At 2,000 boards the cross-test rejected 0 of 2,114,388 layouts; at
+  10,000 it rejects **1,487 of 10,624,694 (0.014%)**. C1 is exact *per box*
+  (`sum_closure_is_exact_and_inert`, 8,000 random boxes) but the live reading is
+  a `Dnf`, and its hull can carry minima no single hand satisfies — the witness
+  reads `♦ 6..13, ♥ 5..13, ♠ 5..13`, a 16-card minimum, so those floors come
+  from *different* boxes. Narrowing the boxes moves the union at the margins.
+  So the shape block's 0.11% residue is not rounding and not a defect: it is the
+  encoding **tracking a real information change**, at ~1/700 the rate at which
+  the endpoints track a representational one. That is the stronger claim, and
+  the one to quote: not "the distribution never moves", but "it moves when the
+  information moves".
+  The kernel needs no `MassOracle`: enumerating the 560 *atoms* makes union
+  membership an any-box test, so there is no inclusion–exclusion to pay and no
+  overlap to cap, and the dump cost is **+6%**.
+  **The replacement now ships** as `features_eval_v4` behind `set_eval_shape`
+  (default off pending its A/B, 2026-07-27): nine columns per hidden seat —
+  `E[len]`, `sd[len]`, log-mass — in place of the eight length endpoints, at 97
+  wide against v3's 94. The NLL ablation ran twelve arms over two rounds and the
+  shipped arm is **exact par** (+0.00004 against a matched control, seed spread
+  0.0006; the native artifact scores −1.54856 against v3's −1.54872). Par is the
+  expected result and not a disappointment — see the MASS reasoning above. Three
+  results from that sweep belong here because they price the *other* cells of
+  this bullet: the six length covariances are worth **0.00001** (the joint term
+  is the whole intuitive case for a distribution, and it is nil, which is why v4
+  carries none); the log-mass column alone, replacing all length information,
+  loses **0.023** (it is a modifier, not a substitute); and re-adding the
+  endpoints on top of the shape block moves NLL by **0.00001**, so *the endpoints
+  are the redundant side*. That last one inverts MARG/MASS: those campaigns
+  measured estimated marginals beside the endpoints, and against exact ones the
+  endpoints carry nothing. Full table in
+  [docs/ai-bidder/evaluator-net.md](ai-bidder/evaluator-net.md)
+  §shape-distribution reading. What is still owed is the A/B that this bullet
+  exists to enable: `set_sum_closure` on vs off **under the shape twin**, against
+  the same pairing under endpoints.
 
 ## Knob matrix
 

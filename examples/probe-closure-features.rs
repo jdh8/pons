@@ -14,7 +14,7 @@
 //! under the baseline, so the arms cannot diverge in *which* readings they
 //! see):
 //!
-//! - **endpoints** — the 30 hidden-seat values of [`features_eval`], the
+//! - **endpoints** — the 30 hidden-seat values `push_inference` emits, the
 //!   evaluator's actual input, diffed knob-off vs knob-on and reported in raw
 //!   units and in units of each column's corpus σ (the scale the first layer
 //!   sees);
@@ -28,6 +28,14 @@
 //! exactly that.  C2 does not — it bounds `points`, which membership tests,
 //! from `hcp`, which it does not, so it moves the sampler too.
 //!
+//! Since the shape-reading campaign the probe reports a **third** group: the
+//! per-seat shape distribution [`features_eval_shape`] adds beside the
+//! endpoints.  It is the encoding proposed to replace them, and the claim it
+//! must survive is exactly this one — an information-free closure moves the
+//! endpoints by multiple σ and must move the shape columns by nothing.  Read
+//! the two groups against each other; the σ column shows each column really
+//! does vary across the corpus, so "never moved" is inertness, not deadness.
+//!
 //! ```sh
 //! cargo run --release --example probe-closure-features -- -c 2000
 //! ```
@@ -36,10 +44,9 @@ use clap::Parser;
 use contract_bridge::{AbsoluteVulnerability, Seat};
 use pons::american;
 use pons::bidding::context::relative;
-use pons::bidding::features::LEN_INFERENCE;
+use pons::bidding::features::{LEN_HAND_EVAL, LEN_INFERENCE, LEN_SEAT_SHAPE, features_eval_shape};
 use pons::bidding::{
-    FEATURES_LEN_EVAL, Family, Relative, features_eval, sample_layouts, set_gauge_membership,
-    set_sum_closure, set_upgrade_closure,
+    Family, Relative, sample_layouts, set_gauge_membership, set_sum_closure, set_upgrade_closure,
 };
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -49,8 +56,10 @@ use rand::rngs::StdRng;
 mod common;
 use common::{bid_out, seat_to_act, seeded_deals};
 
-/// Where the three hidden-seat range blocks start in [`features_eval`]
-const OFFSET: usize = FEATURES_LEN_EVAL - 3 * LEN_INFERENCE;
+/// The three hidden-seat blocks of [`features_eval_shape`]: they follow the
+/// own-hand block and precede the call tail.
+const OFFSET: usize = LEN_HAND_EVAL;
+const END: usize = OFFSET + 3 * LEN_SEAT_SHAPE;
 
 #[derive(Parser)]
 struct Args {
@@ -79,10 +88,34 @@ struct Args {
     gauge: bool,
 }
 
-/// The 10 column kinds one seat contributes, for the per-column report
-const COLUMNS: [&str; LEN_INFERENCE] = [
+/// The 10 endpoint column kinds one seat contributes, for the per-column report
+const ENDPOINTS: [&str; LEN_INFERENCE] = [
     "♣ min", "♣ max", "♦ min", "♦ max", "♥ min", "♥ max", "♠ min", "♠ max", "pts min", "pts max",
 ];
+
+/// Suit glyphs in `Suit::ASC` order — the order every feature block uses
+const SUITS: [&str; 4] = ["♣", "♦", "♥", "♠"];
+
+/// Labels for the [`LEN_SEAT_SHAPE`] columns one seat contributes: the
+/// endpoints, then the shape distribution in its emission order.
+fn columns() -> Vec<String> {
+    let per_suit = |prefix: &str| SUITS.map(|s| format!("{s} {prefix}"));
+    let mut out: Vec<String> = ENDPOINTS.iter().map(|s| (*s).to_owned()).collect();
+    out.extend(per_suit("E"));
+    out.extend(per_suit("sd"));
+    for (a, b) in [(0, 1), (0, 2), (0, 3), (1, 2), (1, 3), (2, 3)] {
+        out.push(format!("cov {}{}", SUITS[a], SUITS[b]));
+    }
+    for floor in [5, 6, 7] {
+        out.extend(per_suit(&format!("≥{floor}")));
+    }
+    for exact in [0, 1] {
+        out.extend(per_suit(&format!("={exact}")));
+    }
+    out.push("pinned".to_owned());
+    assert_eq!(out.len(), LEN_SEAT_SHAPE);
+    out
+}
 
 /// Running mean / p50 / p90 / max over a stream of magnitudes
 struct Spread(Vec<f64>);
@@ -123,11 +156,12 @@ fn main() {
 
     // Per column kind: every |Δ| that was nonzero, plus every value seen
     // knob-off (for the corpus σ that puts the movement on the net's scale).
-    let mut moved: Vec<Vec<f64>> = vec![Vec::new(); LEN_INFERENCE];
-    let mut seen: Vec<Vec<f64>> = vec![Vec::new(); LEN_INFERENCE];
-    let (mut nodes, mut nodes_moved) = (0_u64, 0_u64);
+    let mut moved: Vec<Vec<f64>> = vec![Vec::new(); LEN_SEAT_SHAPE];
+    let mut seen: Vec<Vec<f64>> = vec![Vec::new(); LEN_SEAT_SHAPE];
+    let (mut nodes, mut nodes_moved, mut shape_moved) = (0_u64, 0_u64, 0_u64);
     let (mut sampled, mut drawn, mut rejected) = (0_u64, 0_u64, 0_u64);
     let mut witness: Option<String> = None;
+    let mut shape_witness: Option<String> = None;
 
     for (board, deal) in seeded_deals(base, args.count).into_iter().enumerate() {
         let dealer = Seat::ALL[board % 4];
@@ -147,21 +181,41 @@ fn main() {
             };
             let (off, on) = (read(false), read(true));
             let (a, b) = (
-                features_eval(deal[seat], &off),
-                features_eval(deal[seat], &on),
+                features_eval_shape(deal[seat], &off, prefix),
+                features_eval_shape(deal[seat], &on, prefix),
             );
 
             nodes += 1;
-            let mut any = false;
-            for (i, (&x, &y)) in a[OFFSET..].iter().zip(&b[OFFSET..]).enumerate() {
-                let col = i % LEN_INFERENCE;
+            let (mut any, mut any_shape) = (false, false);
+            for (i, (&x, &y)) in a[OFFSET..END].iter().zip(&b[OFFSET..END]).enumerate() {
+                let col = i % LEN_SEAT_SHAPE;
                 seen[col].push(f64::from(x));
                 let delta = f64::from(y - x).abs();
                 if delta > 0.0 {
                     moved[col].push(delta);
-                    any = true;
+                    if col < LEN_INFERENCE {
+                        any = true;
+                    } else {
+                        any_shape = true;
+                        // A shape column can only move if the *set of shapes*
+                        // the union admits moved — i.e. the closure changed the
+                        // reading, not just its bounding box.  That should not
+                        // happen for a membership-inert closure, so name the
+                        // first one rather than average it away.
+                        if shape_witness.is_none() {
+                            let who = [Relative::Lho, Relative::Partner, Relative::Rho]
+                                [i / LEN_SEAT_SHAPE];
+                            shape_witness = Some(format!(
+                                "board {board} cut {cut}, {who:?}, column {col} moved {delta:.6}\
+                                 \n  loose boxes  {:?}\n  closed boxes {:?}",
+                                off.announced_dnf(who).boxes(),
+                                on.announced_dnf(who).boxes(),
+                            ));
+                        }
+                    }
                 }
             }
+            shape_moved += u64::from(any_shape);
             if !any {
                 continue;
             }
@@ -214,17 +268,32 @@ fn main() {
     let pct = |x: u64| 100.0 * x as f64 / nodes as f64;
     println!(
         "{name}: {} boards, {nodes} nodes, seed {base}\n\
-         endpoints moved at {nodes_moved} nodes ({:.2}%)\n",
+         endpoints moved at {nodes_moved} nodes ({:.2}%)\n\
+         shape distribution moved at {shape_moved} nodes ({:.2}%)\n",
         args.count,
         pct(nodes_moved),
+        pct(shape_moved),
     );
 
-    println!("── endpoint columns (feature units; 13ths for lengths, 37ths for points) ──");
-    for (col, label) in COLUMNS.iter().enumerate() {
-        let n = seen[col].len() as f64;
-        let mean = seen[col].iter().sum::<f64>() / n;
-        let sigma = (seen[col].iter().map(|v| (v - mean).powi(2)).sum::<f64>() / n).sqrt();
-        Spread(std::mem::take(&mut moved[col])).report(label, sigma);
+    let labels = columns();
+    for (title, range) in [
+        (
+            "endpoint columns (feature units; 13ths for lengths, 37ths for points)",
+            0..LEN_INFERENCE,
+        ),
+        (
+            "shape-distribution columns — an information-free closure must not move these",
+            LEN_INFERENCE..LEN_SEAT_SHAPE,
+        ),
+    ] {
+        println!("── {title} ──");
+        for col in range {
+            let n = seen[col].len() as f64;
+            let mean = seen[col].iter().sum::<f64>() / n;
+            let sigma = (seen[col].iter().map(|v| (v - mean).powi(2)).sum::<f64>() / n).sqrt();
+            Spread(std::mem::take(&mut moved[col])).report(&labels[col], sigma);
+        }
+        println!();
     }
 
     if args.samples > 0 {
@@ -237,5 +306,8 @@ fn main() {
         if let Some(w) = witness {
             println!("\nfirst witness:\n{w}");
         }
+    }
+    if let Some(w) = shape_witness {
+        println!("\nfirst shape-column witness (the closure moved the admitted shape set):\n{w}");
     }
 }

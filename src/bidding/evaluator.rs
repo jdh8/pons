@@ -31,7 +31,10 @@
 //! default off pending its A/B); the module itself is ungated and always
 //! builds.
 
-use super::features::{FEATURES_LEN_EVAL, FEATURES_LEN_EVAL_V3, features_eval, features_eval_v3};
+use super::features::{
+    FEATURES_LEN_EVAL, FEATURES_LEN_EVAL_V3, FEATURES_LEN_EVAL_V4, features_eval, features_eval_v3,
+    features_eval_v4,
+};
 use super::inference::{Inferences, Relative, dnf_reading};
 use super::neural::{affine, decode, relu};
 use contract_bridge::auction::Call;
@@ -101,10 +104,32 @@ const _: () = assert!(
 /// [`RAW_V3_DNF`] decoded once, on first use.
 static WEIGHTS_V3_DNF: LazyLock<Vec<f32>> = LazyLock::new(|| decode(RAW_V3_DNF));
 
+/// Input width of the v4 (shape-reading) artifact.
+const IN_V4: usize = FEATURES_LEN_EVAL_V4;
+
+/// Float count of the v4 MLP — same architecture, three columns wider.
+const TOTAL_V4: usize = HID * IN_V4 + HID + HID * HID + HID + OUT * HID + OUT;
+
+/// The shape-reading evaluator (`features_eval_v4`), trained on the `--dnf`
+/// regime whose union readings the shape block conditions on; see
+/// [`set_eval_shape`].
+static RAW_V4_DNF: &[u8] = include_bytes!("weights/evaluator_v4_dnf.f32");
+const _: () = assert!(
+    RAW_V4_DNF.len() == TOTAL_V4 * 4,
+    "v4 evaluator weights artifact size mismatch"
+);
+
+/// [`RAW_V4_DNF`] decoded once, on first use.
+static WEIGHTS_V4_DNF: LazyLock<Vec<f32>> = LazyLock::new(|| decode(RAW_V4_DNF));
+
 std::thread_local! {
     /// Whether [`trick_estimates_with_auction`] serves the v3 calls-tail
     /// artifact (see [`set_eval_auction`]).  On by default.
     static EVAL_AUCTION: Cell<bool> = const { Cell::new(true) };
+
+    /// Whether [`trick_estimates_with_auction`] serves the v4 shape-reading
+    /// artifact (see [`set_eval_shape`]).
+    static EVAL_SHAPE: Cell<bool> = const { Cell::new(false) };
 }
 
 /// Serve the v3 calls-tail evaluator (default **on**, shipped 2026-07-27)
@@ -129,6 +154,41 @@ pub fn set_eval_auction(on: bool) {
 #[must_use]
 pub fn eval_auction() -> bool {
     EVAL_AUCTION.with(Cell::get)
+}
+
+/// Serve the v4 shape-reading evaluator (default **off**, pending its A/B)
+///
+/// On, [`trick_estimates_with_auction`] feeds [`features_eval_v4`] to the v4
+/// artifact: v3's vector with each hidden seat's four length `{min, max}` pairs
+/// replaced by its **shape distribution** — `E[len]` and `sd[len]` per suit over
+/// the 560-shape lattice, plus one column for how much the reading pins the seat
+/// down.  Three columns wider than v3, and worth nothing in NLL: the round-two
+/// ablation scored the encoding at +0.00004 against a matched control on 8.15M
+/// rows, inside a 0.0006 seed spread.
+///
+/// The prize is **invariance**, not accuracy.  A hull is not a well-defined
+/// function of a reading — `♥5..13` and `♥5..8` are the same claim yet differ by
+/// a third of the column's range — so `set_sum_closure`, which provably rejects
+/// no hand, still displaces the endpoint columns at 81% of nodes by up to 4.19σ
+/// and has to buy a retrain before it can be judged on merit.  The shape columns
+/// move at 0.11% of nodes by up to 0.07σ, and that 0.11% is where the reading
+/// genuinely changed.  Under this knob the reading-fidelity chops become
+/// measurable on their own terms.
+///
+/// Supersedes [`set_eval_auction`] when both are on — v4 carries the calls tail
+/// verbatim.  Like the v3 twin it was trained on the [`dnf_reading`] regime
+/// only, and its shape block reads the *union* of announced boxes, so it is
+/// honoured only there.
+///
+/// Per-thread, like every reading knob; set it inside worker closures.
+pub fn set_eval_shape(on: bool) {
+    EVAL_SHAPE.with(|cell| cell.set(on));
+}
+
+/// Whether the v4 shape-reading evaluator is enabled (default off)
+#[must_use]
+pub fn eval_shape() -> bool {
+    EVAL_SHAPE.with(Cell::get)
 }
 
 /// The strain order the training label uses (`gib::relativized_tricks`, itself
@@ -234,8 +294,10 @@ pub fn trick_estimates(hand: Hand, inferences: &Inferences) -> TrickEstimates {
 ///
 /// Under [`set_eval_auction`] **and** the [`dnf_reading`] regime the v3 twin
 /// was trained on, this serves [`features_eval_v3`] — the same vector plus the
-/// last four call identities.  Anywhere else it is exactly
-/// [`trick_estimates`], byte for byte, so call sites can migrate to this
+/// last four call identities.  Under [`set_eval_shape`] it serves
+/// [`features_eval_v4`] instead, which carries that tail and reads each hidden
+/// seat as a shape distribution rather than a bounding box.  Anywhere else it is
+/// exactly [`trick_estimates`], byte for byte, so call sites can migrate to this
 /// signature unconditionally.
 #[must_use]
 pub fn trick_estimates_with_auction(
@@ -243,7 +305,17 @@ pub fn trick_estimates_with_auction(
     inferences: &Inferences,
     calls: &[Call],
 ) -> TrickEstimates {
-    if !(eval_auction() && dnf_reading()) {
+    // Both twins were fit on the tightened prefixed readings a knob-on bidder
+    // serves, and v4's shape block conditions on the box union itself.
+    if !dnf_reading() {
+        return trick_estimates(hand, inferences);
+    }
+    if eval_shape() {
+        let x = features_eval_v4(hand, inferences, calls);
+        debug_assert_eq!(x.len(), IN_V4);
+        return reshape(forward_with::<IN_V4>(&WEIGHTS_V4_DNF, &x));
+    }
+    if !eval_auction() {
         return trick_estimates(hand, inferences);
     }
     let x = features_eval_v3(hand, inferences, calls);
@@ -335,6 +407,64 @@ mod tests {
             IN_V3,
             |x| forward_with::<IN_V3>(&WEIGHTS_V3_DNF, x),
         );
+    }
+
+    /// The v4 shape-reading artifact against its own fixture.
+    #[test]
+    fn v4_matches_candle_fixture() {
+        check_fixture(
+            include_str!("weights/evaluator_v4_dnf.fixture.json"),
+            u64::from(crate::bidding::features::FEATURES_VERSION_EVAL_V4),
+            IN_V4,
+            |x| forward_with::<IN_V4>(&WEIGHTS_V4_DNF, x),
+        );
+    }
+
+    /// The v4 knob's contract: off it changes nothing, on it supersedes v3 and
+    /// still lands in the plausible band.  Restores the crate defaults.
+    #[test]
+    fn eval_shape_knob_contract() {
+        use contract_bridge::{Bid, Level};
+        let auction = [
+            Call::Bid(Bid {
+                level: Level::new(1),
+                strain: Strain::Spades,
+            }),
+            Call::Pass,
+        ];
+        let ctx = Context::new(RelativeVulnerability::NONE, &auction);
+        let inf = Inferences::read(&ctx);
+        let h = hand("AQ32.K53.QJ4.A92");
+
+        crate::bidding::set_dnf_reading(true);
+        set_eval_auction(true);
+        let v3 = trick_estimates_with_auction(h, &inf, &auction);
+        assert!(!eval_shape(), "the v4 knob ships off");
+
+        set_eval_shape(true);
+        let v4 = trick_estimates_with_auction(h, &inf, &auction);
+        set_eval_shape(false);
+        assert_eq!(
+            trick_estimates_with_auction(h, &inf, &auction),
+            v3,
+            "knob off must be byte-identical"
+        );
+
+        assert_ne!(v4, v3, "the v4 artifact should not shadow v3 exactly");
+        for strain in Strain::ASC {
+            for who in [
+                Relative::Me,
+                Relative::Lho,
+                Relative::Partner,
+                Relative::Rho,
+            ] {
+                let g = v4.get(strain, who);
+                assert!(
+                    (0.0..=13.0).contains(&g.mean) && g.sd > 0.0 && g.sd < 13.0,
+                    "{strain:?} {who:?}: {g:?}"
+                );
+            }
+        }
     }
 
     fn check_candle_fixture(fixture: &str) {

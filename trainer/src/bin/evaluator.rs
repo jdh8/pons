@@ -98,6 +98,49 @@ const AUCTION_CALLS_ONLY: [(usize, usize); 4] = [
     (BITS_FEATURES + 80, 10),
     (BITS_FEATURES + 120, 10),
 ];
+/// The `dump-evaluator --encoding shape` layout: the shape-reading research
+/// superset.  A 24-float honour hand block, then three hidden-seat blocks of
+/// [`SHAPE_SEAT`], then the 4×10 call tail — see the dumper's `shape_layout`
+/// sidecar field.
+///
+/// ```text
+/// 0..24        hand: 4 suits × [#spots/8, A, K, Q, J, T]   (always live)
+/// 24 + 45·i    seat i of [LHO, partner, RHO]:
+///     +0..8      hull length endpoints, 4 × (min, max) ÷ 13
+///     +8..10     hull points (min, max) ÷ 37
+///     +10..18    shape: E[len] ×4, sd[len] ×4      (the Gaussian summary)
+///     +18..74    shape: P(len_s = k), suit-major, 4 × 14 bins
+///     +74        shape: pinned = −ln(mass) / ln C(39,13)
+/// 249..289     4 most-recent calls × 10 identity columns  (always live)
+/// ```
+const SHAPE_HAND: usize = 24;
+/// Columns one hidden seat occupies in a `shape` corpus.
+const SHAPE_SEAT: usize = 75;
+/// Width of a `shape` corpus — the [`Arm`] hybrid arm's live count.
+const SHAPE_FEATURES: usize = SHAPE_HAND + 3 * SHAPE_SEAT + 40;
+
+/// Sub-blocks of one seat's [`SHAPE_SEAT`] columns, as `(offset, len)`.  The
+/// arms are combinations of these, and the campaign question is whether the
+/// distributional blocks can *replace* [`HULL_LEN`] rather than sit beside it:
+/// keeping the endpoints keeps their non-invariance to information-free
+/// re-hulling, which is the defect the encoding exists to fix.
+const HULL_LEN: (usize, usize) = (0, 8);
+/// The `points` endpoints — orthogonal to the shape block, which is
+/// length-only, so every arm keeps them.
+const HULL_POINTS: (usize, usize) = (8, 2);
+/// `E[len]` and `sd[len]`: the 1:1 replacement for [`HULL_LEN`], and the
+/// "Gaussian" family — round one measured it at *par* with the endpoints.
+const SHAPE_MOMENTS: (usize, usize) = (10, 8);
+/// The full per-suit length marginal, 4 suits × 14 bins — the non-parametric
+/// family. Subsumes round one's threshold and tail masses, each of which was a
+/// sum of these bins.
+const SHAPE_HIST: (usize, usize) = (18, 56);
+/// One column: how much the reading pins down, `−ln(mass) / ln C(39,13)`.
+/// Round one never isolated it — the +0.0011 arm carried it together with the
+/// thresholds and tails, so which of the three paid is exactly what round two
+/// decomposes.
+const SHAPE_MASS: (usize, usize) = (74, 1);
+
 /// Feature width the [`Arm`] masks are written against.
 ///
 /// ```text
@@ -116,7 +159,16 @@ const AUCTION_CALLS_ONLY: [(usize, usize); 4] = [
 ///
 /// The Phase-3 87-wide `--oracle` corpus is retired by this bump; regenerate
 /// with `--oracle-all` (same walk, same seed reproduces the same auctions).
-const ARM_FEATURES: usize = AUCTION.0 + AUCTION.1;
+///
+/// Wide enough for *either* layout — the `bits` superset's auction tail (239)
+/// or a `shape` corpus (289). A mask wider than the corpus is harmless
+/// ([`Dataset::mask_features`] zips against the row), and the per-arm coverage
+/// check is what refuses an arm whose live columns the corpus does not reach.
+const ARM_FEATURES: usize = if SHAPE_FEATURES > AUCTION.0 + AUCTION.1 {
+    SHAPE_FEATURES
+} else {
+    AUCTION.0 + AUCTION.1
+};
 
 /// One [`Arm`]'s mask recipe — the [`Arm::spec`] row: `(name, hand-column
 /// offsets within each suit's 8, keep global `hcp`, keep global `upgrade`,
@@ -260,6 +312,31 @@ enum Arm {
     /// structural tags and alert columns add once the hulls and the raw calls
     /// are both on the table.
     BenCalls,
+    /// **Shape corpus** (`--encoding shape`) — the control: hull endpoints and
+    /// points, i.e. the shipped `features_eval_v3` vector reproduced out of the
+    /// superset. 94 live columns.
+    ShapeControl,
+    /// Shape corpus — the **Gaussian** family: `E[len]` and `sd[len]`
+    /// *replacing* the length endpoints. Same 94 live columns as
+    /// `ShapeControl`, so this is a pure re-parameterisation at identical
+    /// width; round one measured it at par.
+    ShapeGauss,
+    /// Shape corpus — the endpoints replaced by **one column per seat**, the
+    /// log-mass. The cheapest distributional reading there is: not what the
+    /// seat holds, only how much the auction pinned down.
+    ShapeMass,
+    /// Shape corpus — Gaussian summary plus the log-mass.
+    ShapeGaussMass,
+    /// Shape corpus — the **marginal** family: the full 14-bin per-suit length
+    /// distribution replacing the endpoints, no summary beside it.
+    ShapeHist,
+    /// Shape corpus — marginal, its Gaussian summary, and the log-mass: the
+    /// ceiling of a per-seat, per-suit reading.
+    ShapeHistMass,
+    /// Shape corpus — distribution *beside* the endpoints. The MARG cell: if
+    /// this ties `ShapeFull`, the endpoints were redundant; if it ties
+    /// `ShapeControl`, the distribution was.
+    ShapeHybrid,
 }
 
 impl Arm {
@@ -399,6 +476,56 @@ impl Arm {
                 &AUCTION_CALLS_ONLY,
                 94,
             ),
+            // Written against the `shape` layout instead; `mask` and `name`
+            // both branch on `shape_spec` before they ever reach here.
+            Self::ShapeControl
+            | Self::ShapeGauss
+            | Self::ShapeMass
+            | Self::ShapeGaussMass
+            | Self::ShapeHist
+            | Self::ShapeHistMass
+            | Self::ShapeHybrid => panic!("shape arms have no `bits` spec"),
+        }
+    }
+
+    /// The shape-corpus arms: `(name, per-seat sub-blocks, live column count)`.
+    /// `None` for every arm written against the `bits` superset.
+    const fn shape_spec(self) -> Option<(&'static str, &'static [(usize, usize)], usize)> {
+        // 24 hand + 40 calls are live in every arm; the rest is 3 × per-seat.
+        Some(match self {
+            Self::ShapeControl => ("shape-control", &[HULL_LEN, HULL_POINTS], 94),
+            Self::ShapeGauss => ("shape-gauss", &[HULL_POINTS, SHAPE_MOMENTS], 94),
+            Self::ShapeMass => ("shape-mass", &[HULL_POINTS, SHAPE_MASS], 73),
+            Self::ShapeGaussMass => (
+                "shape-gauss-mass",
+                &[HULL_POINTS, SHAPE_MOMENTS, SHAPE_MASS],
+                97,
+            ),
+            Self::ShapeHist => ("shape-hist", &[HULL_POINTS, SHAPE_HIST], 238),
+            Self::ShapeHistMass => (
+                "shape-hist-mass",
+                &[HULL_POINTS, SHAPE_MOMENTS, SHAPE_HIST, SHAPE_MASS],
+                265,
+            ),
+            Self::ShapeHybrid => (
+                "shape-hybrid",
+                &[HULL_LEN, HULL_POINTS, SHAPE_MOMENTS, SHAPE_HIST, SHAPE_MASS],
+                SHAPE_FEATURES,
+            ),
+            _ => return None,
+        })
+    }
+
+    /// Whether this arm is written against the `shape` corpus layout
+    const fn is_shape(self) -> bool {
+        self.shape_spec().is_some()
+    }
+
+    /// The arm's reported name, under either layout
+    const fn name(self) -> &'static str {
+        match self.shape_spec() {
+            Some((name, _, _)) => name,
+            None => self.spec().0,
         }
     }
 
@@ -407,6 +534,23 @@ impl Arm {
     /// count matches the width [`Self::spec`] documents, which is what catches a
     /// typo in an offset list.
     fn mask(self) -> [bool; ARM_FEATURES] {
+        if let Some((name, blocks, width)) = self.shape_spec() {
+            let mut keep = [false; ARM_FEATURES];
+            keep[..SHAPE_HAND].fill(true);
+            for seat in 0..3 {
+                let base = SHAPE_HAND + seat * SHAPE_SEAT;
+                for &(offset, len) in blocks {
+                    keep[base + offset..base + offset + len].fill(true);
+                }
+            }
+            keep[SHAPE_HAND + 3 * SHAPE_SEAT..SHAPE_FEATURES].fill(true);
+            assert_eq!(
+                keep.iter().filter(|&&k| k).count(),
+                width,
+                "arm {name}: live column count disagrees with its documented width"
+            );
+            return keep;
+        }
         let (name, suit, hcp, upgrade, triple, oracle, width) = self.spec();
         let mut keep = [false; ARM_FEATURES];
         for cols in keep[..32].chunks_exact_mut(8) {
@@ -531,10 +675,12 @@ fn main() -> Result<()> {
         // triple-encoded range block, silently — so refuse rather than lie.
         // Keyed off the sidecar's encoding, not a width compare: `bits`
         // corpora come 79, 87, or 147 wide and all encode triples.
-        if train.meta.encoding == "bits" {
+        if !matches!(train.meta.encoding.as_str(), "summary" | "onehot") {
             bail!(
-                "--blank-ranges assumes (min, max) range pairs, but a `bits` \
-                 corpus encodes (min, max, width) triples"
+                "--blank-ranges overwrites the last {LEN_RANGES} columns as \
+                 (min, max) pairs; only `summary` and `onehot` corpora put the \
+                 range block there (this one is `{}`)",
+                train.meta.encoding
             );
         }
         train.blank_ranges();
@@ -550,6 +696,18 @@ fn main() -> Result<()> {
                 train.features_len
             );
         }
+        // The two layouts share column offsets with entirely different
+        // meanings, so the sidecar's encoding — not the width — is the
+        // authority on which family of arms this corpus can serve.
+        if arm.is_shape() != (train.meta.encoding == "shape") {
+            bail!(
+                "--arm {} is written against the `{}` layout, but this corpus \
+                 is `--encoding {}`",
+                arm.name(),
+                if arm.is_shape() { "shape" } else { "bits" },
+                train.meta.encoding
+            );
+        }
         // Columns past `BITS_FEATURES` are oracle truth on an oracle corpus but
         // the auction block on an `--auction` one — same offsets, different
         // meaning — so the sidecar flag, not the width, is the authority.
@@ -557,14 +715,14 @@ fn main() -> Result<()> {
         if is_auction_arm && !train.meta.auction {
             bail!(
                 "--arm {} needs an `--auction` corpus (sidecar `auction: true`)",
-                arm.spec().0
+                arm.name()
             );
         }
-        if !is_auction_arm && train.meta.auction && !arm.spec().5.is_empty() {
+        if !arm.is_shape() && !is_auction_arm && train.meta.auction && !arm.spec().5.is_empty() {
             bail!(
                 "--arm {} reads oracle truth columns, but this corpus's tail \
                  is the `--auction` block (sidecar `auction: true`)",
-                arm.spec().0
+                arm.name()
             );
         }
         let keep = arm.mask();
@@ -574,14 +732,15 @@ fn main() -> Result<()> {
         if train.features_len < needed {
             bail!(
                 "--arm {} keeps columns up to {needed}; this corpus is only {} wide",
-                arm.spec().0,
+                arm.name(),
                 train.features_len
             );
         }
         eprintln!(
-            "arm {}: {} of {ARM_FEATURES} columns live",
-            arm.spec().0,
+            "arm {}: {} of {} columns live",
+            arm.name(),
             keep.iter().filter(|&&k| k).count(),
+            train.features_len,
         );
         train.mask_features(&keep);
         val.mask_features(&keep);
@@ -963,9 +1122,9 @@ impl Dataset {
         // every `--encoding`, so summary, onehot and bits corpora are
         // indistinguishable here. `features_len` and `meta.encoding` are what
         // actually identify the layout. v1 corpora on disk stay readable.
-        if !matches!(meta.feature_version, 1 | 2 | 3) {
+        if !matches!(meta.feature_version, 1..=4) {
             bail!(
-                "evaluator feature_version {} unsupported (this trainer knows 1 and 2)",
+                "evaluator feature_version {} unsupported (this trainer knows 1 to 4)",
                 meta.feature_version
             );
         }
@@ -1176,7 +1335,7 @@ fn export(
         "dtype": "f32-le",
         "blank_ranges": args.blank_ranges,
         "collapse_side": args.collapse_side,
-        "arm": args.arm.map(|a| a.spec().0),
+        "arm": args.arm.map(Arm::name),
         "data_deals": ds.meta.deals,
         "data_systems": ds.meta.systems,
         "data_git_sha": ds.meta.git_sha,
@@ -1305,8 +1464,15 @@ mod tests {
             (Arm::BenOracleStopper, 66),
             (Arm::BenAuction, 214),
             (Arm::BenCalls, 94),
+            (Arm::ShapeControl, 94),
+            (Arm::ShapeGauss, 94),
+            (Arm::ShapeMass, 73),
+            (Arm::ShapeGaussMass, 97),
+            (Arm::ShapeHist, 238),
+            (Arm::ShapeHistMass, 265),
+            (Arm::ShapeHybrid, crate::SHAPE_FEATURES),
         ] {
-            let name = arm.spec().0;
+            let name = arm.name();
             assert_eq!(
                 arm.mask().iter().filter(|&&k| k).count(),
                 want,

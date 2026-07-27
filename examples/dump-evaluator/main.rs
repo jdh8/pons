@@ -41,8 +41,9 @@ use contract_bridge::{AbsoluteVulnerability, FullDeal, Hand, Rank, Seat, Strain,
 use ddss::TrickCountTable;
 use pons::bidding::context::{Context, relative};
 use pons::bidding::features::{
-    FEATURES_LEN_EVAL, FEATURES_LEN_EVAL_V3, FEATURES_VERSION_EVAL, LEN_HAND_EVAL, LEN_HAND_V3,
-    features_eval, features_eval_v3, features_v3,
+    FEATURES_LEN_EVAL, FEATURES_LEN_EVAL_SHAPE, FEATURES_LEN_EVAL_V3, FEATURES_LEN_EVAL_V4,
+    FEATURES_VERSION_EVAL, FEATURES_VERSION_EVAL_V4, LEN_HAND_EVAL, LEN_HAND_V3, features_eval,
+    features_eval_shape, features_eval_v3, features_eval_v4, features_v3,
 };
 use pons::bidding::tags::derive;
 use pons::bidding::{Family, Inferences, Phase, Stance, System};
@@ -133,6 +134,15 @@ enum Encoding {
     /// calls-only v3 evaluator, so the corpus and the crate agree by
     /// construction
     Eval3,
+    /// `features_eval_shape` verbatim (199 floats): the shape-reading research
+    /// superset — the `eval3` vector with each hidden seat's shape distribution
+    /// spliced in beside its hull endpoints, so one corpus trains both the
+    /// control arm and every distributional arm
+    Shape,
+    /// `features_eval_v4` verbatim (97 floats): the serving extractor for the
+    /// shape-reading evaluator, so the corpus and the crate agree by
+    /// construction
+    Eval4,
 }
 
 #[derive(Parser)]
@@ -156,7 +166,10 @@ struct Args {
     systems: String,
     /// Row encoding: `summary` (features_eval's 54 floats), `onehot` (52 card
     /// bits — the texture ablation), `bits` (the 79-float research superset),
-    /// or `eval3` (features_eval_v3's 94 floats — the calls-only serving
+    /// `eval3` (features_eval_v3's 94 floats — the calls-only serving
+    /// extractor, verbatim), `shape` (features_eval_shape's 289 floats — the
+    /// shape-reading superset: endpoints *and* shape distribution per seat), or
+    /// `eval4` (features_eval_v4's 97 floats — the shape-reading serving
     /// extractor, verbatim)
     #[arg(long, default_value = "summary")]
     encoding: String,
@@ -215,13 +228,19 @@ fn main() -> anyhow::Result<()> {
         "onehot" => Encoding::Onehot,
         "bits" => Encoding::Bits,
         "eval3" => Encoding::Eval3,
-        other => anyhow::bail!("--encoding must be summary|onehot|bits|eval3, got {other:?}"),
+        "shape" => Encoding::Shape,
+        "eval4" => Encoding::Eval4,
+        other => {
+            anyhow::bail!("--encoding must be summary|onehot|bits|eval3|shape|eval4, got {other:?}")
+        }
     };
     let base_len = match encoding {
         Encoding::Summary => FEATURES_LEN_EVAL,
         Encoding::Onehot => LEN_HAND_ONEHOT + LEN_RANGES,
         Encoding::Bits => LEN_HAND_BITS + LEN_RANGES / 2 * 3,
         Encoding::Eval3 => FEATURES_LEN_EVAL_V3,
+        Encoding::Shape => FEATURES_LEN_EVAL_SHAPE,
+        Encoding::Eval4 => FEATURES_LEN_EVAL_V4,
     };
     anyhow::ensure!(
         !(args.oracle || args.oracle_all) || matches!(encoding, Encoding::Bits),
@@ -389,7 +408,13 @@ fn main() -> anyhow::Result<()> {
 
     let metadata = serde_json::json!({
         // The extractor layout version: `eval3` rows are `features_eval_v3`.
-        "feature_version": if matches!(encoding, Encoding::Eval3) { 3 } else { FEATURES_VERSION_EVAL },
+        "feature_version": match encoding {
+            // `eval3` rows are `features_eval_v3`; `shape` splices its superset
+            // around the same v3 blocks.
+            Encoding::Eval3 | Encoding::Shape => 3,
+            Encoding::Eval4 => FEATURES_VERSION_EVAL_V4,
+            _ => FEATURES_VERSION_EVAL,
+        },
         "features_len": features_len,
         "dd_len": DD_LEN,
         "row_len": row_len,
@@ -406,6 +431,10 @@ fn main() -> anyhow::Result<()> {
              [{} tag multi-hot][1 alerted][8 fnv1a(alert) % 8 one-hot]",
             TAGS.len()
         ),
+        "shape_layout": "encoding=shape: [24 hand][3 seats × (10 hull endpoints + 65 shape)]\
+                         [4 calls × 10]; shape = [4 E len][4 sd len][56 P(len=k)][1 pinned].  \
+                         encoding=eval4: [24 hand][3 seats × (2 points + 9 shape)][4 calls × 10]; \
+                         shape = [4 E len][4 sd len][1 pinned]",
         "layout": format!("row = [{features_len} features][{DD_LEN} dd_tricks]"),
         "label_order": "strain-major NT,S,H,D,C × declarer [me,lho,partner,rho], tricks/13",
         "tags": "sibling .tags: one u8 per row, bit 0 = contested phase, bit 1 = system index",
@@ -448,16 +477,29 @@ fn encode(
     calls: &[Call],
     encoding: Encoding,
 ) {
-    if let Encoding::Eval3 = encoding {
-        // The serving extractor verbatim — corpus/serving parity by
+    match encoding {
+        // The serving extractors verbatim — corpus/serving parity by
         // construction, nothing to reassemble.
-        out.copy_from_slice(&features_eval_v3(hand, inferences, calls));
-        return;
+        Encoding::Eval3 => {
+            out.copy_from_slice(&features_eval_v3(hand, inferences, calls));
+            return;
+        }
+        Encoding::Shape => {
+            out.copy_from_slice(&features_eval_shape(hand, inferences, calls));
+            return;
+        }
+        Encoding::Eval4 => {
+            out.copy_from_slice(&features_eval_v4(hand, inferences, calls));
+            return;
+        }
+        _ => {}
     }
     let feats = features_eval(hand, inferences);
     let (hand_block, ranges) = feats.split_at(LEN_HAND_EVAL);
     let cut = match encoding {
-        Encoding::Eval3 => unreachable!("returned above"),
+        Encoding::Eval3 | Encoding::Shape | Encoding::Eval4 => {
+            unreachable!("returned above")
+        }
         Encoding::Summary => {
             out[..LEN_HAND_EVAL].copy_from_slice(hand_block);
             LEN_HAND_EVAL
