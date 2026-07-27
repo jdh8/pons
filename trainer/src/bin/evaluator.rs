@@ -78,6 +78,26 @@ const ORACLE_SHORTNESS: (usize, usize) = (99, 12);
 const ORACLE_CONTROLS: (usize, usize) = (111, 24);
 /// Per-suit A/Kx/Qxx/Jxxx stopper bit ×3 seats.
 const ORACLE_STOPPER: (usize, usize) = (135, 12);
+/// The `dump-evaluator --auction` block: 4 most-recent calls × 40 columns
+/// (bid encoding, call-kind bits, tag multi-hot, alerted bit, hashed alert).
+///
+/// It starts at [`BITS_FEATURES`] like the oracle tail — the two are mutually
+/// exclusive on the dumper side, so columns past 79 are *either* oracle truth
+/// (147-wide corpus) or the auction block (239-wide corpus). The sidecar's
+/// `auction` flag is what tells the arms apart; see the guards in `main`.
+const AUCTION: (usize, usize) = (BITS_FEATURES, 160);
+
+/// The bare-call slice of the `--auction` block: per 40-column call slot, only
+/// the 10 call-identity columns (7-value bid encoding + pass/X/XX bits),
+/// zeroing the 21 structural tags, the alerted bit, and the 8-bucket alert
+/// hash. The "hulls replace tags and alerts" arm: if `ben-calls` matches
+/// `ben-auction`, the tag/alert columns were redundant given the ranges.
+const AUCTION_CALLS_ONLY: [(usize, usize); 4] = [
+    (BITS_FEATURES, 10),
+    (BITS_FEATURES + 40, 10),
+    (BITS_FEATURES + 80, 10),
+    (BITS_FEATURES + 120, 10),
+];
 /// Feature width the [`Arm`] masks are written against.
 ///
 /// ```text
@@ -87,11 +107,16 @@ const ORACLE_STOPPER: (usize, usize) = (135, 12);
 /// 34..79    ranges: 3 seats × 5 (min, max, width) triples
 /// 79..87    oracle: partner keycards ×4 (Suit::ASC), then trump-Q ×4
 /// 87..147   axis-survey oracle: quality, shortness, controls, stopper
+/// 79..239   — or, on an `--auction` corpus, the auction+alert block
 /// ```
+///
+/// Narrower corpora are fine: [`Dataset::mask_features`]' zip stops at the
+/// corpus width, and a per-arm coverage check refuses an arm whose highest
+/// live column the corpus does not reach.
 ///
 /// The Phase-3 87-wide `--oracle` corpus is retired by this bump; regenerate
 /// with `--oracle-all` (same walk, same seed reproduces the same auctions).
-const ARM_FEATURES: usize = ORACLE_STOPPER.0 + ORACLE_STOPPER.1;
+const ARM_FEATURES: usize = AUCTION.0 + AUCTION.1;
 
 /// One [`Arm`]'s mask recipe — the [`Arm::spec`] row: `(name, hand-column
 /// offsets within each suit's 8, keep global `hcp`, keep global `upgrade`,
@@ -225,6 +250,16 @@ enum Arm {
     BenOracleControls,
     /// `Ben` plus per-suit stopper bits for the hidden seats.
     BenOracleStopper,
+    /// `Ben` plus the `--auction` block — the auction+alert ablation. Needs an
+    /// `--auction` corpus (sidecar `auction: true`); the ranges the ben columns
+    /// carry already compress the auction, so the delta over `Ben` is what the
+    /// raw calls + alerts add beyond that compression.
+    BenAuction,
+    /// `Ben` plus only the call-identity columns of the `--auction` block —
+    /// no tags, no alerts. The delta `ben-auction − ben-calls` is what the
+    /// structural tags and alert columns add once the hulls and the raw calls
+    /// are both on the table.
+    BenCalls,
 }
 
 impl Arm {
@@ -345,6 +380,24 @@ impl Arm {
                 &[0, 1],
                 &[ORACLE_STOPPER],
                 66,
+            ),
+            Self::BenAuction => (
+                "ben-auction",
+                &[1, 3, 4, 5, 6, 7],
+                false,
+                false,
+                &[0, 1],
+                &[AUCTION],
+                214,
+            ),
+            Self::BenCalls => (
+                "ben-calls",
+                &[1, 3, 4, 5, 6, 7],
+                false,
+                false,
+                &[0, 1],
+                &AUCTION_CALLS_ONLY,
+                94,
             ),
         }
     }
@@ -491,13 +544,40 @@ fn main() -> Result<()> {
     // layer's init scale reads it.
     let mut live_in = train.features_len;
     if let Some(arm) = args.arm {
-        if train.features_len != ARM_FEATURES {
+        if train.features_len > ARM_FEATURES {
             bail!(
-                "--arm needs a {ARM_FEATURES}-feature corpus; this one is {} wide",
+                "--arm masks are {ARM_FEATURES} wide; this corpus is {} wide",
                 train.features_len
             );
         }
+        // Columns past `BITS_FEATURES` are oracle truth on an oracle corpus but
+        // the auction block on an `--auction` one — same offsets, different
+        // meaning — so the sidecar flag, not the width, is the authority.
+        let is_auction_arm = matches!(arm, Arm::BenAuction | Arm::BenCalls);
+        if is_auction_arm && !train.meta.auction {
+            bail!(
+                "--arm {} needs an `--auction` corpus (sidecar `auction: true`)",
+                arm.spec().0
+            );
+        }
+        if !is_auction_arm && train.meta.auction && !arm.spec().5.is_empty() {
+            bail!(
+                "--arm {} reads oracle truth columns, but this corpus's tail \
+                 is the `--auction` block (sidecar `auction: true`)",
+                arm.spec().0
+            );
+        }
         let keep = arm.mask();
+        // `mask_features`' zip stops at the corpus width, so a narrower corpus
+        // is fine only when every live column actually exists in it.
+        let needed = keep.iter().rposition(|&k| k).map_or(0, |last| last + 1);
+        if train.features_len < needed {
+            bail!(
+                "--arm {} keeps columns up to {needed}; this corpus is only {} wide",
+                arm.spec().0,
+                train.features_len
+            );
+        }
         eprintln!(
             "arm {}: {} of {ARM_FEATURES} columns live",
             arm.spec().0,
@@ -850,6 +930,15 @@ struct Meta {
     systems: Vec<String>,
     #[serde(default)]
     deals: String,
+    /// The corpus's tail past column 79 is the `--auction` block, not oracle
+    /// truth (`dump-evaluator --auction`). Old sidecars default to `false`.
+    #[serde(default)]
+    auction: bool,
+    /// Features were extracted with both box closures folded into the hulls
+    /// (`dump-evaluator --closed-hulls`); the auctions themselves are bid
+    /// knob-off. Old sidecars default to `false`.
+    #[serde(default)]
+    closed_hulls: bool,
 }
 
 struct Dataset {
@@ -958,6 +1047,8 @@ impl Dataset {
                 git_sha: self.meta.git_sha.clone(),
                 systems: self.meta.systems.clone(),
                 deals: self.meta.deals.clone(),
+                auction: self.meta.auction,
+                closed_hulls: self.meta.closed_hulls,
             },
         };
         self.rows = at;
@@ -976,8 +1067,9 @@ impl Dataset {
     }
 
     /// Ablation: zero every column outside `keep`, which for the first linear
-    /// layer is the same as deleting it — see [`Arm`]. Callers must have checked
-    /// that this corpus is [`ARM_FEATURES`] wide.
+    /// layer is the same as deleting it — see [`Arm`]. The zip stops at the
+    /// row width, so a corpus narrower than [`ARM_FEATURES`] is safe here;
+    /// callers must have checked it still reaches every *live* column.
     fn mask_features(&mut self, keep: &[bool; ARM_FEATURES]) {
         for row in self.features.chunks_exact_mut(self.features_len) {
             for (x, &k) in row.iter_mut().zip(keep) {
@@ -1089,6 +1181,7 @@ fn export(
         "data_systems": ds.meta.systems,
         "data_git_sha": ds.meta.git_sha,
         "data_seed": ds.meta.seed,
+        "data_closed_hulls": ds.meta.closed_hulls,
         "train_rows": ds.rows,
         "test": args.test,
         "epochs": args.epochs,
@@ -1210,6 +1303,8 @@ mod tests {
             (Arm::BenOracleShortness, 66),
             (Arm::BenOracleControls, 78),
             (Arm::BenOracleStopper, 66),
+            (Arm::BenAuction, 214),
+            (Arm::BenCalls, 94),
         ] {
             let name = arm.spec().0;
             assert_eq!(

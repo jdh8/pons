@@ -383,6 +383,90 @@ architecture ladder — a different corpus, ten times smaller. For the same reas
 the absolute NLL here is not comparable to any other table in this doc; only
 differences *within* this one mean anything.
 
+#### Auction-input ablation (2026-07-27): the gate PASSES
+
+The standing commitment — *no auction in the input, ever* — was put to the NLL
+gate, expecting a refusal, and instead measured the largest single featurization
+delta in this document. Two arms, fresh corpus: 500k deals of `22.pdd` under
+`american()` + `dutch()`, `--encoding bits --auction --dnf --seed 1` (data
+`77091ca`, trainer `b1078aa`), 10,181,930 rows, val = the deal-disjoint 10%
+tail. The dump appends a 160-float auction block to the 79-float superset: for
+each of the last 4 calls, 7 bid-encoding floats + 3 pass/X/XX bits + the 21
+WBF-tag multi-hot + 1 alerted bit + an 8-bucket FNV-1a hash of the alert name.
+Family columns are omitted — both pooled systems are `Family::NATURAL`, so they
+are dead by construction, and that *is* the "families" verdict.
+
+| arm | live cols | val NLL | MAE (tricks) |
+|---|---|---|---|
+| `ben` | 54 | −1.51059 | 1.441 |
+| **`ben-auction`** | **214** | **−1.55253** | **1.388** |
+
+**Δ = 0.0419 NLL and 0.053 tricks of MAE** — ~70× the 0.0006 seed spread, ~5×
+the texture win that shipped v2. The gain concentrates exactly where the
+⊤-census says the readings starve: contested 0.050, nt-contested 0.084,
+suit-game 0.066, **slam 0.105** (slam MAE 2.62 → 2.46), against constructive's
+0.029. Both systems gain (american 0.038, dutch 0.046), so at least across this
+pool the win is not one system's memorized quirks. Absolute NLLs are not
+comparable to the 2026-07-22 table (different corpus); only the within-table
+difference means anything.
+
+Read this jointly with the blind negative control: the reading channel as a
+whole is worth 0.65–1.27 IMPs/board, and this ablation shows the *hulls are not
+carrying all of it* — the raw calls hold signal that the projected envelopes
+drop, which is the starvation diagnosis stated as an NLL number. It is a
+**ceiling claim, not a shipping decision**: `features_v2` fed the same last-4 ×
+21-tag block to the *policy* net, won distillation CE, and measured IMP parity
+(−0.016, CI [−0.039, +0.007]) — an NLL win does not automatically survive the
+A/B. And the price is real: auction-coupled weights surrender knob-invariance
+and cross-system pooling, the properties the hull interface was chosen for.
+Per the gate protocol the next step is a separate, user-approved campaign
+(crate featurization, serving plumbing, the A/B) — nothing ships from this
+table. The sampled-projection track remains the fix that captures the same
+signal *inside* the hull interface; this number is now also that track's
+target: readings good enough to close a 0.042 NLL gap.
+
+**Same-day follow-ups: what inside the block pays, and whether canonical
+hulls close the gap.** Two questions, three more arms. First, are the tag and
+alert columns doing anything the hulls don't already do (the hulls *are* the
+disclosure, compressed)? `ben-calls` keeps only the 10 call-identity columns
+per slot — bid encoding plus pass/X/XX — and zeroes the 21 tags, the alerted
+bit, and the hash. Second, is the auction win really just *slack* hulls —
+would canonicalized readings recover it? `dump-evaluator --closed-hulls`
+re-extracts the same corpus with both box closures folded (`narrow_to_sum` +
+`narrow_to_upgrade`) around feature extraction only: the auctions are bid
+knob-off, and the `.tags` stream is **byte-identical** between the corpora,
+so rows and targets align exactly. The closures bite hard as geometry —
+**72.6% of rows** have at least one tightened hull float, mean move 0.36 on
+touched floats, every move a pure tightening (no min down, no max up) — the
+`5+/5+ ⇒ each ≤ 8` arithmetic, applied everywhere.
+
+| arm | hulls | auction block | val NLL | Δ vs `ben` |
+|---|---|---|---|---|
+| `ben` | as-written | — | −1.51059 | — |
+| `ben-closed` | canonical | — | −1.51220 | 0.0016 |
+| `ben-calls` | as-written | calls only | −1.54826 | 0.0377 |
+| `ben-auction` | as-written | calls+tags+alerts | −1.55253 | 0.0419 |
+| `ben-auction-closed` | canonical | calls+tags+alerts | −1.55232 | 0.0417 |
+
+Three verdicts. **Bare calls carry 90% of the block** (0.0377 of 0.0419);
+tags + alerts add 0.0043 — real (~7× seed noise) but a sliver, so the hulls
+do work as disambiguators for most of what the tags spell out. **Hull
+canonicalization is REFUSED at the gate**: 0.0016, under the 0.002 line,
+despite rewriting nearly three-quarters of all rows. The net trained on
+as-written hulls had already learned the system's writing style — slack that
+is *consistent* is slack a net can compensate for, so exact-but-loose and
+exact-but-tight endpoints carry nearly the same information. And the closure
+**does not eat the auction margin**: on canonical hulls the block is still
+worth 0.0401, and with the block present the closure's own contribution
+rounds to zero (−1.55253 vs −1.55232). What the raw calls add is
+*information the hulls never held* — which call was actually made — not
+sharper arithmetic on what they do hold. Canonicalization remains the right
+hygiene for the symbolic consumers (sampler acceptance, disclosure, any
+arithmetic gate reads endpoints, not styles), but for the net the failure
+mode is missing mass, not messy bounds — which is one more arrow pointing at
+coverage, i.e. sampled projection, rather than at rewriting the readings we
+already have.
+
 #### Hidden-seat axis survey
 
 The keycard track's two-factor pricing — **realizable gain ≈ ceiling (oracle

@@ -32,6 +32,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   defensive root catch-alls) are pinned by label as the conversion worklist for
   the pass-reading campaign. Ledger: `docs/dnf-migration.md` FBM row.
 
+- **Auction-input NLL ablation: the gate PASSES, Δ = 0.042 — nothing ships.**
+  Appending the last-4-calls block (bid encoding + WBF tags + alert bit +
+  hashed alert name; Family omitted as dead-by-construction) to the eval net's
+  input beats the shipped hull-only featurization by **0.0419 val NLL and
+  0.053 tricks of MAE** (ben −1.51059 → ben-auction −1.55253; 10.2M rows,
+  american+dutch pooled, seed 1) — ~70× seed noise, ~5× the texture win that
+  shipped v2, and the largest featurization delta measured. The gain sits
+  where the ⊤-census says readings starve (contested 0.050, nt-contested
+  0.084, slam 0.105). This is a ceiling claim: `features_v2` won the same kind
+  of gate at the policy net and measured IMP parity, and auction-coupled
+  weights surrender knob-invariance and cross-system pooling. Shipping it is a
+  separate campaign; meanwhile it prices the sampled-projection track's
+  target. Verdict + table: `docs/ai-bidder/evaluator-net.md` §auction-input
+  ablation. Tooling kept: `dump-evaluator --auction`, trainer arm
+  `ben-auction`, `ExplainedRule.alert`.
+
+  Same-day follow-ups (three more arms): **bare call identity carries 90% of
+  the block** (`ben-calls` 0.0377 of 0.0419; tags + alerts add only 0.0043),
+  and **hull canonicalization is REFUSED at the gate** — re-extracting the
+  identical corpus with both box closures folded (`dump-evaluator
+  --closed-hulls`, extraction-only: auctions byte-identical) tightens hulls
+  on 72.6% of rows yet pays 0.0016 NLL alone and ~0.000 beside the auction
+  block. The auction's win is information the hulls never held (which call
+  was made), not slack arithmetic — evidence for coverage (sampled
+  projection) over rewriting existing readings. Tooling kept:
+  `--closed-hulls`, trainer arm `ben-calls`.
+
 ### Changed
 
 - **A natural suit overcall of their weak two demands more when *we* are

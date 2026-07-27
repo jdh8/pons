@@ -37,13 +37,14 @@
 
 use clap::Parser;
 use contract_bridge::auction::{Auction, Call, RelativeVulnerability};
-use contract_bridge::{AbsoluteVulnerability, FullDeal, Hand, Rank, Seat, Suit};
+use contract_bridge::{AbsoluteVulnerability, FullDeal, Hand, Rank, Seat, Strain, Suit};
 use ddss::TrickCountTable;
 use pons::bidding::context::{Context, relative};
 use pons::bidding::features::{
     FEATURES_LEN_EVAL, FEATURES_VERSION_EVAL, LEN_HAND_EVAL, LEN_HAND_V3, features_eval,
     features_v3,
 };
+use pons::bidding::tags::derive;
 use pons::bidding::{Family, Inferences, Phase, Stance, System};
 use pons::{american, dutch, gib};
 use rand::rngs::StdRng;
@@ -95,6 +96,29 @@ const ORACLE_LEN: usize = 8;
 /// forbids, and the 20 outputs are already strain-indexed.
 const ORACLE_ALL_LEN: usize = ORACLE_LEN + 3 * (4 + 4 + 8 + 4);
 
+/// The structural tag vocabulary of [`derive`], in first-appearance order in
+/// `src/bidding/tags.rs` — the multi-hot axis of the `--auction` block.
+const TAGS: [&str; 21] = [
+    "NF", "RDBL", "T/O", "NEG", "PEN", "NAT", "BAL", "ART", "STR", "PRE", "WK", "STAY", "TRF", "F",
+    "QUANT", "CUE", "SUPP", "L/S", "SPL", "WJS", "FG",
+];
+
+/// Width of one call's `--auction` slot: the 7-value bid encoding
+/// (`[present, level/7, strain one-hot ×5]`, the `push_bid_encoding` layout),
+/// 3 call-kind bits `[is_pass, is_double, is_redouble]` (all-zero = no such
+/// call), the [`TAGS`] multi-hot, an alerted bit, and an 8-bucket FNV-1a
+/// one-hot of the alert name.
+const LEN_CALL_SLOT: usize = 7 + 3 + TAGS.len() + 1 + 8;
+
+/// Number of most-recent calls the `--auction` block encodes, most recent
+/// first.
+const AUCTION_CALLS: usize = 4;
+
+/// Width of the whole `--auction` block (`--encoding bits` only): the
+/// auction+alert ablation's extra columns, appended after the 79-float
+/// superset.
+const AUCTION_LEN: usize = AUCTION_CALLS * LEN_CALL_SLOT;
+
 /// Own-hand encoding selected by `--encoding`
 #[derive(Clone, Copy)]
 enum Encoding {
@@ -142,6 +166,13 @@ struct Args {
     /// `--oracle`. One corpus serves every survey arm — the trainer masks.
     #[arg(long)]
     oracle_all: bool,
+    /// Append the auction+alert block: the 4 most-recent calls, each as bid
+    /// encoding + call-kind bits + structural tag multi-hot + the winning
+    /// rule's alert (bit + hashed name). Requires `--encoding bits`; mutually
+    /// exclusive with the oracle columns — the trainer's `ben-auction` arm
+    /// reads these.
+    #[arg(long, conflicts_with_all = ["oracle", "oracle_all"])]
+    auction: bool,
     /// Output path stem; writes `<out>.f32`, `<out>.json`, `<out>.tags`
     #[arg(long, default_value = "target/evaluator-data")]
     out: String,
@@ -150,6 +181,15 @@ struct Args {
     /// what a knob-on bidder serves the evaluator.
     #[arg(long)]
     dnf: bool,
+    /// Fold both box closures (`set_sum_closure` + `set_upgrade_closure`) into
+    /// the hulls the features see — the canonicalized-reading corpus. The
+    /// closures are flipped on only around `infer`/`encode`, so the *auctions*
+    /// are still bid knob-off and stay byte-identical to a dump without this
+    /// flag: same rows, same targets, only the hull columns tighten. Requires
+    /// `--dnf` (the closures fold inside `Dnf::tidy`, which is a no-op
+    /// knob-off).
+    #[arg(long, requires = "dnf")]
+    closed_hulls: bool,
 }
 
 /// The four absolute vulnerabilities, sampled uniformly per board.
@@ -179,11 +219,17 @@ fn main() -> anyhow::Result<()> {
         !(args.oracle || args.oracle_all) || matches!(encoding, Encoding::Bits),
         "--oracle/--oracle-all only extend the `bits` superset the trainer arms mask over"
     );
+    anyhow::ensure!(
+        !args.auction || matches!(encoding, Encoding::Bits),
+        "--auction only extends the `bits` superset the trainer arms mask over"
+    );
     let features_len = base_len
         + if args.oracle_all {
             ORACLE_ALL_LEN
         } else if args.oracle {
             ORACLE_LEN
+        } else if args.auction {
+            AUCTION_LEN
         } else {
             0
         };
@@ -245,6 +291,10 @@ fn main() -> anyhow::Result<()> {
                 let mut forced = 0u64;
                 for (sys_idx, (_, stance)) in systems.iter().enumerate() {
                     let mut auction = Auction::new();
+                    // Parallel to the auction under `--auction`: the alert of
+                    // each call's winning rule, `None` for forced or rule-less
+                    // calls.
+                    let mut alerts: Vec<Option<&'static str>> = Vec::new();
                     while !auction.has_ended() {
                         let seat = Seat::ALL[(dealer + auction.len()) % 4];
                         let hand = deal[seat];
@@ -252,6 +302,9 @@ fn main() -> anyhow::Result<()> {
 
                         let Some(mut logits) = stance.classify(hand, rel, &auction) else {
                             forced += 1;
+                            if args.auction {
+                                alerts.push(None);
+                            }
                             auction.push(Call::Pass);
                             continue;
                         };
@@ -263,13 +316,29 @@ fn main() -> anyhow::Result<()> {
 
                         // The trie-prefixed reading, so conventional calls
                         // decode off their authoring rules rather than as
-                        // natural suits.
+                        // natural suits. Under `--closed-hulls` the closures
+                        // are on for exactly this read: `classify` above ran
+                        // knob-off, so the auctions never move.
+                        if args.closed_hulls {
+                            pons::bidding::set_sum_closure(true);
+                            pons::bidding::set_upgrade_closure(true);
+                        }
                         let inferences = stance.infer(rel, &auction);
                         encode(&mut row[..base_len], hand, &inferences, encoding);
+                        if args.closed_hulls {
+                            pons::bidding::set_sum_closure(false);
+                            pons::bidding::set_upgrade_closure(false);
+                        }
                         if args.oracle_all {
                             write_oracle_all(&mut row[base_len..features_len], deal, seat);
                         } else if args.oracle {
                             write_oracle(&mut row[base_len..features_len], deal[seat.partner()]);
+                        } else if args.auction {
+                            write_auction_block(
+                                &mut row[base_len..features_len],
+                                &auction,
+                                &alerts,
+                            );
                         }
                         row[features_len..].copy_from_slice(&gib::relativized_tricks(table, seat));
                         for value in &row {
@@ -279,7 +348,20 @@ fn main() -> anyhow::Result<()> {
                         let contested_row = Phase::of(&auction) != Phase::Constructive;
                         tag_bytes.push(u8::from(contested_row) | (sys_idx as u8) << 1);
 
-                        auction.push(argmax_legal(&logits));
+                        let call = argmax_legal(&logits);
+                        if args.auction {
+                            // The winning rule's alert, read off the same
+                            // routing that chose the call; `None` when a floor
+                            // (not rule-backed) or an unalerted (natural) rule
+                            // won.
+                            alerts.push(
+                                stance
+                                    .explain_call(hand, rel, &auction, call)
+                                    .and_then(|(_, rule)| rule)
+                                    .and_then(|rule| rule.alert),
+                            );
+                        }
+                        auction.push(call);
                     }
                 }
                 (bytes, tag_bytes, forced)
@@ -287,7 +369,7 @@ fn main() -> anyhow::Result<()> {
             .collect();
 
         for (bytes, tag_bytes, forced) in buffers {
-            rows += tag_bytes.len() as u64;
+            rows += (tag_bytes.len()) as u64;
             contested += tag_bytes.iter().map(|&t| u64::from(t & 1)).sum::<u64>();
             forced_pass += forced;
             writer.write_all(&bytes)?;
@@ -307,6 +389,14 @@ fn main() -> anyhow::Result<()> {
         "encoding": args.encoding,
         "oracle": args.oracle,
         "oracle_all": args.oracle_all,
+        "auction": args.auction,
+        "closed_hulls": args.closed_hulls,
+        "auction_layout": format!(
+            "{AUCTION_CALLS} most-recent calls (most recent first) × {LEN_CALL_SLOT} = \
+             [7 bid: present, level/7, strain one-hot CDHSN][3: pass, X, XX]\
+             [{} tag multi-hot][1 alerted][8 fnv1a(alert) % 8 one-hot]",
+            TAGS.len()
+        ),
         "layout": format!("row = [{features_len} features][{DD_LEN} dd_tricks]"),
         "label_order": "strain-major NT,S,H,D,C × declarer [me,lho,partner,rho], tricks/13",
         "tags": "sibling .tags: one u8 per row, bit 0 = contested phase, bit 1 = system index",
@@ -465,6 +555,61 @@ fn write_oracle_all(out: &mut [f32], deal: &FullDeal, seat: Seat) {
                 || (h.contains(Rank::J) && h.len() >= 4),
         );
     }
+}
+
+/// Write the [`AUCTION_LEN`] `--auction` columns: one [`LEN_CALL_SLOT`] slot
+/// per most-recent call, most recent first, zero-filled slots beyond the
+/// auction's start.  `alerts` is the alert history parallel to `auction`.
+///
+/// The 7-value bid encoding clones the layout of the crate-private
+/// `push_bid_encoding` (`src/bidding/features.rs`): `[present, level/7,
+/// strain one-hot ×5]` in [`Strain::ASC`] order.  Tags come from the same
+/// structural [`derive`] the corpus exporter uses: the [`Context`] of the
+/// auction prefix *before* the call (whose side to act is the seat that made
+/// it), under the book [`Phase::of`] names for that prefix.
+fn write_auction_block(out: &mut [f32], auction: &[Call], alerts: &[Option<&'static str>]) {
+    out.fill(0.0);
+    let slots = out.as_chunks_mut::<LEN_CALL_SLOT>().0.iter_mut();
+    for (slot, j) in slots.zip((0..auction.len()).rev()) {
+        let call = auction[j];
+        if let Call::Bid(bid) = call {
+            slot[0] = 1.0;
+            slot[1] = f32::from(bid.level.get()) / 7.0;
+            for (flag, strain) in slot[2..7].iter_mut().zip(Strain::ASC) {
+                *flag = f32::from(bid.strain == strain);
+            }
+        }
+        slot[7] = f32::from(call == Call::Pass);
+        slot[8] = f32::from(call == Call::Double);
+        slot[9] = f32::from(call == Call::Redouble);
+
+        let prefix = &auction[..j];
+        let book = match Phase::of(prefix) {
+            Phase::Constructive => "constructive",
+            Phase::Competitive => "competitive",
+            Phase::Defensive => "defensive",
+        };
+        let ctx = Context::new(RelativeVulnerability::NONE, prefix);
+        for tag in derive(book, call, &ctx).0 {
+            let index = TAGS
+                .iter()
+                .position(|&t| t == tag)
+                .expect("derive's tags stay within the TAGS vocabulary");
+            slot[10 + index] = 1.0;
+        }
+
+        if let Some(name) = alerts.get(j).copied().flatten() {
+            slot[10 + TAGS.len()] = 1.0;
+            slot[11 + TAGS.len() + (fnv1a(name) % 8) as usize] = 1.0;
+        }
+    }
+}
+
+/// Standard 64-bit FNV-1a over the string's bytes.
+fn fnv1a(s: &str) -> u64 {
+    s.bytes().fold(0xcbf2_9ce4_8422_2325_u64, |hash, byte| {
+        (hash ^ u64::from(byte)).wrapping_mul(0x100_0000_01b3)
+    })
 }
 
 /// The highest-logit finite (hence legal, after masking) call, defaulting to a
@@ -664,5 +809,52 @@ mod tests {
         for (i, (&col, &want)) in live.iter().zip(&summary).enumerate() {
             assert_eq!(bits[col], want, "summary[{i}] should be bits[{col}]");
         }
+    }
+
+    /// The `--auction` block, pinned on `1NT–P–2♣` (our Stayman): the
+    /// most-recent slot carries the 2♣ bid encoding, the `STAY` tag bit, the
+    /// alerted bit, and exactly one hash bucket; the Pass slot is `is_pass`
+    /// with no bid present; slots past the auction's start stay all-zero.
+    #[test]
+    fn auction_block_encodes_stayman() {
+        let auction: Vec<Call> = ["1N", "P", "2C"]
+            .iter()
+            .map(|c| c.parse().expect("valid test call"))
+            .collect();
+        // Invitational with both four-card majors — a live Stayman hand, so
+        // the alerted 2♣ rule gives it a finite logit and wins attribution.
+        let hand: Hand = "AQ32.KJ54.876.54".parse().expect("valid test hand");
+        let stance = american().against(Family::NATURAL);
+        let vul = relative(AbsoluteVulnerability::NONE, Seat::South);
+        let alert = stance
+            .explain_call(hand, vul, &auction[..2], auction[2])
+            .and_then(|(_, rule)| rule)
+            .and_then(|rule| rule.alert);
+        assert_eq!(alert, Some("stayman"), "the Stayman rule's alert");
+
+        let alerts = vec![None, None, alert];
+        let mut block = [0f32; AUCTION_LEN];
+        write_auction_block(&mut block, &auction, &alerts);
+
+        // Slot 0, most recent = 2♣: present, level 2, clubs first in ASC.
+        let (recent, rest) = block.split_at(LEN_CALL_SLOT);
+        assert_eq!(recent[..7], [1.0, 2.0 / 7.0, 1.0, 0.0, 0.0, 0.0, 0.0]);
+        assert_eq!(recent[7..10], [0.0; 3]);
+        let stay = TAGS.iter().position(|&t| t == "STAY").expect("STAY tag");
+        let tags: Vec<usize> = (0..TAGS.len()).filter(|&i| recent[10 + i] != 0.0).collect();
+        assert_eq!(tags, [stay], "exactly the STAY tag bit");
+        assert_eq!(recent[10 + TAGS.len()], 1.0, "alerted bit");
+        let buckets = &recent[11 + TAGS.len()..];
+        assert_eq!(buckets.len(), 8);
+        assert!(buckets.iter().all(|&b| b == 0.0 || b == 1.0));
+        assert_eq!(buckets.iter().sum::<f32>(), 1.0, "exactly one hash bucket");
+
+        // Slot 1 = the Pass: no bid present, only the is_pass call-kind bit.
+        let pass = &rest[..LEN_CALL_SLOT];
+        assert_eq!(pass[..8], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0]);
+        assert_eq!(pass[8..10], [0.0; 2]);
+
+        // Slot 3 is beyond the 3-call auction: all-zero, unlike a real Pass.
+        assert!(block[3 * LEN_CALL_SLOT..].iter().all(|&x| x == 0.0));
     }
 }

@@ -439,6 +439,7 @@ impl Stance {
                 index,
                 label: rule.label(),
                 description: rule.describe().to_string(),
+                alert: rule.alert().map(|alert| alert.0),
             })
         });
         Some((provenance, rule))
@@ -455,6 +456,9 @@ pub struct ExplainedRule {
     pub label: &'static str,
     /// The rule's constraint rendered as prose ([`Rule::describe`][super::rules::Rule::describe])
     pub description: String,
+    /// The [`Alert`][super::rules::Alert] name the rule carries, or [`None`]
+    /// for a natural (unalerted) rule
+    pub alert: Option<&'static str>,
 }
 
 impl Stance {
