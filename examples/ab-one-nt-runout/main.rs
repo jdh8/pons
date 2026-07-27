@@ -48,7 +48,7 @@ use pons::bidding::instinct::{
     set_penalize_escape_stack, set_penalize_escape_values, set_preempt_4m_over_double,
     set_preempt_4m_require_ace, set_preempt_4m_top_honors, set_runout_xx_min, set_unusual_2nt,
 };
-use pons::bidding::{Family, Inferences, Stance};
+use pons::bidding::{Inferences, Stance};
 use pons::scoring::{
     final_contract, imps, ns_score_contract, ns_score_pd, ns_score_pd_tricks, ns_score_tricks,
 };
@@ -373,7 +373,7 @@ fn lead_inputs(
 
 fn main() {
     let args = Args::parse();
-    let stance = american().against(Family::NATURAL);
+    let stance = american().against();
 
     // Deal sequentially (seeded, reproducible); bid both tables in parallel.  With
     // --filter-1nt keep only deals holding a 1NT-opener candidate, to raise the

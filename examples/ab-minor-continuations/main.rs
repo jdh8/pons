@@ -26,7 +26,6 @@ use clap::Parser;
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Seat};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
-use pons::bidding::Family;
 use pons::bidding::american::{
     set_longer_major_response, set_new_minor_forcing, set_up_the_line, set_xyz,
 };
@@ -108,14 +107,14 @@ fn main() {
     // both arms; every other treatment is measured against the bare floor.
     let baseline_xyz = args.nmf;
     set_knobs(false, false, baseline_xyz, false);
-    let baseline = american().against(Family::NATURAL);
+    let baseline = american().against();
     set_knobs(
         args.longer_major,
         args.up_the_line,
         args.xyz || args.nmf,
         args.nmf,
     );
-    let treatment = american().against(Family::NATURAL);
+    let treatment = american().against();
     set_knobs(false, false, false, false);
     let stances = [baseline, treatment];
 

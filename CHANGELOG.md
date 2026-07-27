@@ -9,6 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Trie × DNF assessed: DNF stays a fold of the Constraint DSL, not the trie's
+  storage (design decision, no bidding change).** Storing the system as a trie
+  of DNF was considered and declined — boxes carry only membership (the
+  eval/describe/announce folds do the bidding and the disclosure), the
+  wrong-seat trap bars static box storage for context-relative legs, and the
+  ledger's own record (C1, F, MARG, MASS) prices representation churn negative
+  even when information-preserving. Per-node static boxes remain the
+  `dnf_upgrade` idiom. Recorded in
+  [docs/bidding-architecture.md](docs/bidding-architecture.md) §Trie × DNF and
+  the [docs/dnf-migration.md](docs/dnf-migration.md) TRIE row.
+
+- **[docs/reader-retirement.md](docs/reader-retirement.md): the campaign design
+  for retiring the ten hand-written disjunction readers** (`multi_reading`,
+  `woolsey_x_reading`, `dont_reading`, …) in favor of the authored rules' own
+  DNF projections — inventory, per-reader migration rule (express the meaning
+  on the rules, diff the reader's residue, knob per reader, full A/B with the
+  C1/F frozen-consumer caution), and an empty ledger. The readers are the
+  pre-DNF legacy; the alerts are not (they gate the decode and the
+  suppression, and select rule variants at build time).
+
 - **BBA's `1NT–3♥/3♠` splinter probed (investigation, no system change).** Three
   `probe-bba-constraints` modes — `nt-resp` (BBA's response ladder to its own
   1NT), `nt-3h`/`nt-3s` (opener's continuation) — read the slot we leave
@@ -227,7 +247,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   coupled to the pooled systems' auctions (american + dutch) — routing changes
   owe the twin protocol a retrain.
 
+### Removed
+
+- **Breaking: `Family` and `Pair::defensive_vs` are gone; `Pair::new` drops its
+  leading `Family` argument and `Pair::against` takes no argument** (rides the
+  0.11.0-dev breaking window). The whole-system identity label was
+  production-dead — its only branch, the `defensive_vs` lookup, had no
+  non-test consumer — and conceptually redundant: a system announces itself
+  through its calls' own alerts and readings (a strong club is itself an
+  alerted opening). If a non-natural opponent book ever needs a dedicated
+  defense, dispatch belongs in reading-gated rules, not a label argument. No
+  bidding change: every shipped pair was `Family::NATURAL`.
+
 ### Fixed
+
+- **Fixed a stale doc link: `Stance::prefixed_context` referenced the retired
+  `search_floor::SearchBook`** (module deleted with the M1–M3 live-search
+  line); the doc now states the projection-pass purpose directly.
 
 - **Declared `rayon = "1.6"` instead of `"1"`.** `examples/dump-evaluator` calls
   `rayon::broadcast`, which landed in rayon 1.6.0, so the CI `minimal-versions`

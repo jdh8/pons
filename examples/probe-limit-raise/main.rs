@@ -11,7 +11,6 @@ use contract_bridge::auction::display_calls;
 use contract_bridge::{AbsoluteVulnerability, Bid, FullDeal, Seat, Strain};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
-use pons::bidding::Family;
 use pons::bidding::american::set_limit_raise_acceptance;
 use pons::scoring::{final_contract, imps, ns_score_contract};
 use rayon::prelude::*;
@@ -46,9 +45,9 @@ fn main() {
     let vul = args.vulnerability;
 
     set_limit_raise_acceptance(false);
-    let baseline = american().against(Family::NATURAL);
+    let baseline = american().against();
     set_limit_raise_acceptance(true);
-    let treatment = american().against(Family::NATURAL);
+    let treatment = american().against();
     set_limit_raise_acceptance(false);
     let stances = [baseline, treatment];
 

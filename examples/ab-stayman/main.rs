@@ -21,7 +21,6 @@ use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, Contract, FullDeal, Seat};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
-use pons::bidding::Family;
 use pons::scoring::{final_contract, imps, ns_score_contract, ns_score_pd};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -88,7 +87,7 @@ fn decode(line: &str) -> Option<(Contract, Seat)> {
 fn main() {
     let args = Args::parse();
     pons::bidding::american::set_stayman_minor_slam_try(args.treatment);
-    let sys = american().against(Family::NATURAL);
+    let sys = american().against();
     let boards = boards(args.seed, args.count);
 
     let contracts: Vec<Option<(Contract, Seat)>> = boards

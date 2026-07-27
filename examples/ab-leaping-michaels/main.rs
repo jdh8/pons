@@ -28,7 +28,6 @@ use contract_bridge::auction::Auction;
 use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Hand, Seat, Suit};
 use pons::american;
-use pons::bidding::Family;
 use pons::bidding::american::set_leaping_michaels;
 use pons::scoring::{final_contract, ns_score_contract};
 use rayon::prelude::*;
@@ -109,9 +108,9 @@ fn main() {
     let mut rng = rand::rng();
 
     set_leaping_michaels(on_from(&args.ew));
-    let baseline = american().against(Family::NATURAL);
+    let baseline = american().against();
     set_leaping_michaels(on_from(&args.ns));
-    let lm = american().against(Family::NATURAL);
+    let lm = american().against();
 
     // Phase 1 (sequential, cheap): deal + the shape-only filter until `count`
     // boards pass. The RNG stays single-threaded so a seed reproduces a run.

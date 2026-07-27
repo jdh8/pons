@@ -574,7 +574,7 @@ mod tests {
     /// both — read by the rule, not a hand-written range.
     #[test]
     fn replay_honors_both_sides_under_competition() {
-        let policy = crate::american().against(crate::bidding::Family::NATURAL);
+        let policy = crate::american().against();
         let actor = Seat::North;
         // len 2, North to act: index 0 is partner's 1♥, index 1 is RHO's 2♣.
         let auction = [bid(1, Strain::Hearts), bid(2, Strain::Clubs)];
@@ -612,7 +612,7 @@ mod tests {
         use crate::bidding::constraint::point_count;
         crate::bidding::set_pass_reading(true);
         crate::bidding::set_table_alert_reading(true);
-        let stance = crate::american().against(crate::bidding::Family::NATURAL);
+        let stance = crate::american().against();
         let inf =
             Inferences::read(&stance.prefixed_context(RelativeVulnerability::NONE, &[Call::Pass]));
 
@@ -639,7 +639,7 @@ mod tests {
     /// soft margin, tuned by A/B, not here.
     #[test]
     fn replay_rejects_implausible_passers() {
-        let policy = crate::american().against(crate::bidding::Family::NATURAL);
+        let policy = crate::american().against();
         let opener: Hand = "AKQ2.K53.QJ4.T92".parse().expect("valid test hand");
         assert!(!made_plausibly(
             opener,
@@ -682,7 +682,7 @@ mod tests {
         let hands: Vec<Hand> = (0..16).map(|_| full_deal(&mut rng)[Seat::South]).collect();
         let policy = |on| {
             crate::bidding::american::set_game_backstop(on);
-            crate::american().against(crate::bidding::Family::NATURAL)
+            crate::american().against()
         };
 
         let with = policy(true);

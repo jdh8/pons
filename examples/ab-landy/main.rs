@@ -34,7 +34,6 @@ use contract_bridge::auction::{Auction, Call};
 use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, Bid, Contract, FullDeal, Hand, Seat, Strain, Suit};
 use pons::american;
-use pons::bidding::Family;
 use pons::bidding::american::{
     DoubleShape, set_always_pass_defense, set_direct_dont, set_direct_landy_double,
     set_direct_landy_double_floor, set_direct_landy_penalty_pass, set_doubled_landy_escape,
@@ -472,7 +471,7 @@ fn main() {
     set_woolsey(false);
     set_penalty_pass(ew_penalty_pass);
     set_doubler_xx_runout(false);
-    let baseline = american().against(Family::NATURAL);
+    let baseline = american().against();
     set_landy(majors);
     set_unusual_notrump_defense(minors);
     set_landy_hcp(use_hcp);
@@ -506,7 +505,7 @@ fn main() {
         set_direct_dont(false);
         set_direct_landy_double(None);
     }
-    let measured = american().against(Family::NATURAL);
+    let measured = american().against();
 
     // Each board at both tables (Landy NS at A, EW at B), dealer rotating.
     // The baseline never acts when always-pass is on, so NS's natural action

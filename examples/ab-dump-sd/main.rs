@@ -38,7 +38,7 @@ use pons::bidding::american::{
     set_weak_two_notrump_advances, set_weak_two_notrump_points,
 };
 use pons::bidding::context::relative;
-use pons::bidding::{Family, Inferences, Stance};
+use pons::bidding::{Inferences, Stance};
 use pons::scoring::{final_contract, imps, ns_score_pd_tricks, ns_score_tricks};
 use pons::single_dummy::{LeadQuestion, single_dummy_leads};
 use rand::SeedableRng;
@@ -189,7 +189,7 @@ fn main() {
     let (lo, hi) = band(&args.on_ns_weak_two_nt_points);
     set_weak_two_notrump_points(lo, hi);
     set_weak_two_notrump_advances(args.on_ns_weak_two_nt_advances);
-    let stance_on = american().against(Family::NATURAL);
+    let stance_on = american().against();
     set_free_bids(false);
     set_negative_double_shape(NegativeDoubleShape::Modern);
     set_free_bid_style(FreeBidStyle::Forcing);
@@ -200,7 +200,7 @@ fn main() {
     set_weak_two_notrump_points(lo, hi);
     set_weak_two_notrump_advances(args.off_ns_weak_two_nt_advances);
     set_free_1nt_floor(6);
-    let stance_off = american().against(Family::NATURAL);
+    let stance_off = american().against();
 
     let mut rng = StdRng::seed_from_u64(args.sd_seed);
     // Each entry is that board's `[plain, perfect-defense]` SD price — one

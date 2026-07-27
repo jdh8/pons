@@ -79,7 +79,7 @@ use ddss::{NonEmptyStrainFlags, Solver, TrickCountTable};
 use pons::american;
 use pons::bidding::constraint::point_count;
 use pons::bidding::evaluator::{set_eval_shape, trick_estimates, trick_estimates_with_auction};
-use pons::bidding::{Context, Family, Inferences, Relative};
+use pons::bidding::{Context, Inferences, Relative};
 use pons::scoring::{imps, ns_score_contract};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -137,7 +137,7 @@ static NT_INF: LazyLock<Inferences> =
 /// 2026-07-22 verdict, and moving their input would forfeit the comparison.
 static NT_INF_PREFIXED: LazyLock<Inferences> = LazyLock::new(|| {
     american()
-        .against(Family::NATURAL)
+        .against()
         .infer(RelativeVulnerability::NONE, &PRIOR)
 });
 

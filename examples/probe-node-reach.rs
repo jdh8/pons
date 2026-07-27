@@ -18,7 +18,6 @@ use clap::Parser;
 use contract_bridge::auction::Call;
 use contract_bridge::{AbsoluteVulnerability, Bid, Level, Seat, Strain};
 use pons::american;
-use pons::bidding::Family;
 use rayon::prelude::*;
 
 #[path = "common/mod.rs"]
@@ -48,7 +47,7 @@ fn main() {
     let args = Args::parse();
     let base = args.seed.unwrap_or_else(rand::random);
     let vul = AbsoluteVulnerability::NONE;
-    let stance = american().against(Family::NATURAL);
+    let stance = american().against();
 
     // The constructive book re-audit candidates (ben-gap-campaign.md), plus the
     // retired game backstop's own anchor as the calibration yardstick: it fired

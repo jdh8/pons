@@ -2,7 +2,7 @@ use contract_bridge::auction::{Call, RelativeVulnerability};
 use contract_bridge::{Bid, Hand, Level, Strain};
 use pons::bidding::array::Logits;
 use pons::bidding::trie::classifier;
-use pons::bidding::{Competitive, Constructive, Defensive, Family, Pair, System};
+use pons::bidding::{Competitive, Constructive, Defensive, Pair, System};
 
 const fn bid(level: u8, strain: Strain) -> Call {
     Call::Bid(Bid {
@@ -78,8 +78,7 @@ fn test_stance_routes_by_phase() {
     let mut defensive = Defensive::new();
     defensive.insert(&[one_s], classifier(|_, _| marker_logits(3.0)));
 
-    let stance =
-        Pair::new(Family::NATURAL, constructive, competitive, defensive).against(Family::NATURAL);
+    let stance = Pair::new(constructive, competitive, defensive).against();
 
     // Nobody has opened: the opening decision is constructive.
     assert_eq!(classify_marker(&stance, &[]), Some(1.0));
@@ -118,39 +117,6 @@ fn test_books_gate_on_phase() {
     let mut defensive = Defensive::new();
     defensive.insert(&[], classifier(|_, _| marker_logits(4.0)));
     assert_eq!(classify_marker(&defensive, &[]), None);
-}
-
-#[test]
-fn test_family_override_selects_book() {
-    let one_c = bid(1, Strain::Clubs);
-
-    let mut natural_defense = Defensive::new();
-    natural_defense.insert(&[one_c], classifier(|_, _| marker_logits(1.0)));
-
-    let mut special_defense = Defensive::new();
-    special_defense.insert(&[one_c], classifier(|_, _| marker_logits(2.0)));
-
-    let pair = Pair::new(
-        Family::NATURAL,
-        Constructive::new(),
-        Competitive::new(),
-        natural_defense,
-    )
-    .defensive_vs(Family::WEAK_NOTRUMP, special_defense);
-
-    assert_eq!(
-        classify_marker(&pair.against(Family::NATURAL), &[one_c]),
-        Some(1.0)
-    );
-    assert_eq!(
-        classify_marker(&pair.against(Family::WEAK_NOTRUMP), &[one_c]),
-        Some(2.0)
-    );
-    // A family with no override gets the default defense.
-    assert_eq!(
-        classify_marker(&pair.against(Family::STRONG_CLUB), &[one_c]),
-        Some(1.0)
-    );
 }
 
 #[test]

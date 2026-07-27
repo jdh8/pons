@@ -47,7 +47,7 @@ use pons::bidding::features::{
     features_eval_v4, features_v3,
 };
 use pons::bidding::tags::derive;
-use pons::bidding::{Family, Inferences, Phase, Stance, System};
+use pons::bidding::{Inferences, Phase, Stance, System};
 use pons::{american, dutch, gib};
 use rand::rngs::StdRng;
 use rand::{RngExt, SeedableRng};
@@ -276,8 +276,8 @@ fn main() -> anyhow::Result<()> {
         .systems
         .split(',')
         .map(|name| match name.trim() {
-            "american" => Ok(("american", american().against(Family::NATURAL))),
-            "dutch" => Ok(("dutch", dutch().against(Family::NATURAL))),
+            "american" => Ok(("american", american().against())),
+            "dutch" => Ok(("dutch", dutch().against())),
             other => anyhow::bail!("--systems entries must be american|dutch, got {other:?}"),
         })
         .collect::<anyhow::Result<_>>()?;
@@ -757,7 +757,7 @@ mod tests {
             .iter()
             .map(|c| c.parse().expect("valid test call"))
             .collect();
-        let stance = american().against(Family::NATURAL);
+        let stance = american().against();
         let vul = relative(AbsoluteVulnerability::NONE, Seat::North);
         (hand, stance.infer(vul, &auction))
     }
@@ -906,7 +906,7 @@ mod tests {
         // Invitational with both four-card majors — a live Stayman hand, so
         // the alerted 2♣ rule gives it a finite logit and wins attribution.
         let hand: Hand = "AQ32.KJ54.876.54".parse().expect("valid test hand");
-        let stance = american().against(Family::NATURAL);
+        let stance = american().against();
         let vul = relative(AbsoluteVulnerability::NONE, Seat::South);
         let alert = stance
             .explain_call(hand, vul, &auction[..2], auction[2])

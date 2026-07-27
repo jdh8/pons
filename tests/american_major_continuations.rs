@@ -27,7 +27,7 @@ fn stance_with(tries: bool, limit: bool, tails: bool, fsf: bool) -> Stance {
     set_limit_raise_acceptance(limit);
     set_major_rebid_tails(tails);
     set_fourth_suit_forcing(fsf);
-    let stance = american().against(Family::NATURAL);
+    let stance = american().against();
     set_major_game_tries(true);
     set_limit_raise_acceptance(true);
     set_major_rebid_tails(true);
@@ -441,7 +441,7 @@ fn fsf_without_tails_is_inert() {
 #[test]
 fn default_state_matches_all_on() {
     let all_on = stance_with(true, true, true, true);
-    let fresh = american().against(Family::NATURAL);
+    let fresh = american().against();
 
     // The 1♥ – 2♥ opener decision (the game-tries node): reuse
     // `single_raise_passed_without_extras`'s flat 13-point opener.

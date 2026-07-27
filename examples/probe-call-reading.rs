@@ -24,7 +24,7 @@ use contract_bridge::auction::Call;
 use contract_bridge::{AbsoluteVulnerability, Suit};
 use pons::american;
 use pons::bidding::context::relative;
-use pons::bidding::{Envelope, Family, Relative};
+use pons::bidding::{Envelope, Relative};
 
 #[path = "common/mod.rs"]
 #[allow(dead_code)]
@@ -61,7 +61,7 @@ fn main() {
     pons::bidding::american::set_weak_two_jump_overcall(args.weak_two_v2);
     pons::bidding::american::set_weak_two_cue(args.weak_two_v2);
     let vul = AbsoluteVulnerability::NONE;
-    let stance = american().against(Family::NATURAL);
+    let stance = american().against();
 
     for text in &args.auctions {
         let auction: Vec<Call> = text

@@ -25,7 +25,6 @@ use clap::Parser;
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Seat};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
-use pons::bidding::Family;
 use pons::bidding::set_alert_reading;
 use pons::scoring::final_contract;
 use rayon::prelude::*;
@@ -57,7 +56,7 @@ fn main() {
     let args = Args::parse();
     let base = args.seed.unwrap_or_else(rand::random);
     let vul = args.vulnerability;
-    let sys = american().against(Family::NATURAL);
+    let sys = american().against();
 
     // Deals are seeded per board (base + index) so every arm/vul of the
     // experiment replays the identical stream.

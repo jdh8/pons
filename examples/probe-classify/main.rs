@@ -9,7 +9,6 @@ use contract_bridge::Hand;
 use contract_bridge::auction::{Auction, Call};
 use contract_bridge::{AbsoluteVulnerability, Seat};
 use pons::american;
-use pons::bidding::Family;
 use pons::bidding::context::relative;
 
 /// Print logits + provenance for one hand at one auction
@@ -49,7 +48,7 @@ fn main() {
         auction.push(call);
     }
 
-    let stance = american().against(Family::NATURAL);
+    let stance = american().against();
     let seat = Seat::ALL[auction.len() % 4];
     let vul = relative(args.vulnerability, seat);
     // The prefixed reading — what the bidder actually sees (a bare

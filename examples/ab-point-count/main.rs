@@ -43,7 +43,7 @@ use pons::bidding::american::{
 };
 use pons::bidding::constraint::{PointScale, set_point_scale, set_support_points};
 use pons::bidding::context::relative;
-use pons::bidding::{Family, Inferences, Stance, System};
+use pons::bidding::{Inferences, Stance, System};
 use pons::scoring::{final_contract, imps, ns_score_contract, ns_score_pd_tricks, ns_score_tricks};
 use pons::single_dummy::{LeadQuestion, single_dummy_leads};
 
@@ -499,30 +499,27 @@ fn main() {
     let stances = match arms {
         Arms::WeakTwoHcp { band } => {
             set_weak_two_hcp(None);
-            let baseline = american().against(Family::NATURAL);
+            let baseline = american().against();
             set_weak_two_hcp(Some(band));
-            let candidate = american().against(Family::NATURAL);
+            let candidate = american().against();
             set_weak_two_hcp(None);
             [baseline, candidate]
         }
         Arms::GateFix { fix } => {
             fix.set(false);
-            let baseline = american().against(Family::NATURAL);
+            let baseline = american().against();
             fix.set(true);
-            let candidate = american().against(Family::NATURAL);
+            let candidate = american().against();
             fix.set(false);
             [baseline, candidate]
         }
-        _ => [
-            american().against(Family::NATURAL),
-            american().against(Family::NATURAL),
-        ],
+        _ => [american().against(), american().against()],
     };
     // One default-flag book reads the leader's view for the blind-lead pass:
     // neither the scale nor the weak-two gate shifts disclosed meaning enough to
     // matter, so a single reading serves both arms (a deliberate simplification —
     // we do not flip the knob for inference, unlike per-call bidding above).
-    let infer_stance = american().against(Family::NATURAL);
+    let infer_stance = american().against();
 
     // Deal source: the seeded stream (base + index) so every arm/vul replays
     // the identical stream, or a slice of a pre-solved .pdd deal bank whose

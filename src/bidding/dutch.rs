@@ -23,17 +23,16 @@ use contract_bridge::{Strain, Suit};
 
 /// Build the Dutch system as one side's [`Pair`]
 ///
-/// Bind it against the opponents' [`Family`][super::Family] with
-/// [`Pair::against`] and seat two pairs with [`Table::of_pairs`][super::Table::of_pairs],
-/// exactly like `american()`.
+/// Bind it with [`Pair::against`] and seat two pairs with
+/// [`Table::of_pairs`][super::Table::of_pairs], exactly like `american()`.
 ///
 /// ```
 /// use pons::dutch;
-/// use pons::bidding::{Family, System};
+/// use pons::bidding::System;
 /// use contract_bridge::auction::{Call, RelativeVulnerability};
 /// use contract_bridge::{Bid, Strain};
 ///
-/// let stance = dutch().against(Family::NATURAL);
+/// let stance = dutch().against();
 /// let hand = "AQ32.K53.QJ4.A92".parse().unwrap(); // 16 HCP, balanced
 /// let logits = stance
 ///     .classify(hand, RelativeVulnerability::NONE, &[])
@@ -159,13 +158,13 @@ fn dutch_book() -> Pair {
 #[cfg(test)]
 mod tests {
     use super::dutch;
-    use crate::bidding::{Family, System};
+    use crate::bidding::System;
     use contract_bridge::auction::{Call, RelativeVulnerability};
     use contract_bridge::{Bid, Strain};
 
     /// The Dutch opening for a first-seat hand.
     fn opens(hand: &str) -> Call {
-        let stance = dutch().against(Family::NATURAL);
+        let stance = dutch().against();
         let hand = hand.parse().unwrap();
         let logits = stance
             .classify(hand, RelativeVulnerability::NONE, &[])
@@ -212,7 +211,7 @@ mod tests {
 
     /// The Dutch call after an undisturbed `auction`.
     fn responds(auction: &[Call], hand: &str) -> Call {
-        let stance = dutch().against(Family::NATURAL);
+        let stance = dutch().against();
         let hand = hand.parse().unwrap();
         let logits = stance
             .classify(hand, RelativeVulnerability::NONE, auction)

@@ -28,7 +28,6 @@ use contract_bridge::{
 };
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
-use pons::bidding::Family;
 use pons::bidding::american::set_long_minor_force;
 use pons::scoring::{final_contract, imps, ns_score_contract};
 use rand::SeedableRng;
@@ -98,9 +97,9 @@ fn main() {
 
     // Two systems: the knob is read when the book is built, so build one each way.
     set_long_minor_force(false);
-    let sys_off = american().against(Family::NATURAL);
+    let sys_off = american().against();
     set_long_minor_force(true);
-    let sys_on = american().against(Family::NATURAL);
+    let sys_on = american().against();
 
     // Scan for a qualifying eight opposite partner's 1NT, bid both arms, keep the
     // deal plus each arm's final contract when they diverge.

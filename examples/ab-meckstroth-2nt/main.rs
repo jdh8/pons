@@ -30,7 +30,7 @@ use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
 use pons::bidding::american::{set_meckstroth_adjunct, set_meckstroth_minor_jumps};
 use pons::bidding::context::relative;
-use pons::bidding::{Family, Inferences, Stance};
+use pons::bidding::{Inferences, Stance};
 use pons::scoring::{
     final_contract, imps, ns_score_contract, ns_score_pd, ns_score_pd_tricks, ns_score_tricks,
 };
@@ -113,10 +113,10 @@ fn main() {
     // the tell was divergence landing on the merged knob's 0.6%.
     set_meckstroth_adjunct(args.minor_jumps_only);
     set_meckstroth_minor_jumps(false);
-    let baseline = american().against(Family::NATURAL);
+    let baseline = american().against();
     set_meckstroth_adjunct(true); // restore the shipped default (on)
     set_meckstroth_minor_jumps(true);
-    let adjunct = american().against(Family::NATURAL);
+    let adjunct = american().against();
     let stances = [baseline, adjunct];
 
     // Both arms bid the same deal; the only difference is opener's rebid table.

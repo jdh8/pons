@@ -41,7 +41,7 @@ use ddss::{NonEmptyStrainFlags, Solver, TrickCountTable};
 use pons::bidding::context::relative;
 use pons::bidding::evaluator::trick_estimates;
 use pons::bidding::sampler::{sample_layouts, sample_layouts_replay};
-use pons::bidding::{Family, Phase, Relative, Stance, System};
+use pons::bidding::{Phase, Relative, Stance, System};
 use pons::{american, dutch};
 use rand::rngs::StdRng;
 use rand::{RngExt, SeedableRng};
@@ -138,8 +138,8 @@ impl Mean {
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
     let stance: Stance = match args.system.as_str() {
-        "american" => american().against(Family::NATURAL),
-        "dutch" => dutch().against(Family::NATURAL),
+        "american" => american().against(),
+        "dutch" => dutch().against(),
         other => anyhow::bail!("--system must be american|dutch, got {other:?}"),
     };
     let deals = pons::pdd::load_slice(&args.deals, args.skip, args.boards)?;

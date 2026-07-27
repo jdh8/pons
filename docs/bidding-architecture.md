@@ -21,9 +21,11 @@ auction + hand
 - **Books** (`book.rs`): `Constructive`, `Competitive`, `Defensive` tries per
   side, bundled into `Pair`; `Stance` is one seat's runtime view
   (`classify_with_provenance`, `infer`). `Phase::of` is the single routing
-  point deciding which book an auction belongs to. `Pair::against` selects a
-  defensive book by the opponents' `Family` (`NATURAL`, `STRONG_CLUB`,
-  `WEAK_NOTRUMP`).
+  point deciding which book an auction belongs to. `Pair::against` binds the
+  books into a `Stance`. There is no whole-system identity label (`Family`
+  was deleted in 0.11): a system announces itself through its calls' own
+  alerts and readings, and defense dispatch against a future non-natural
+  book belongs in reading-gated rules, not a label argument.
 - **System factories** (`american.rs`): `american()` is the shipped 2/1
   system. The other three vary exactly one axis: `american_book()` is the
   authored books with no floor, `american_floor()` the floor with no book, and
@@ -94,6 +96,32 @@ range (projects the union — sound but loose).
   meanings (Woolsey) must keep their shapes disjoint or equal-weight rules tie
   unpredictably. A cheaper overlapping rule (a transfer) can swallow the hands
   a new rule was written for — check who wins the weight race.
+
+### Trie × DNF (assessed 2026-07-28: DNF stays a fold, not the storage)
+
+The trie stores *rules*; `Dnf` (union of `Envelope` boxes) is the compiled
+reading — the `project*`/`announce` folds of the constraint, not its
+replacement. Storing the book as a trie of DNF was considered and declined:
+
+- Boxes carry only membership. The other folds do the bidding: `eval`'s
+  weighted logits are how overlapping rules resolve, and gates like
+  `points_or_net` or the RKCB answers accept hands no box contains — ⊤ is
+  their only *sound* projection. `describe`/`announce` carry disclosure.
+- **The wrong-seat trap** bars static box storage outright for
+  context-relative legs (`support`, `stopper_in_their_suits`): they
+  re-project under the *reader's* context, so no box list fixed at authoring
+  time reproduces them ([dnf-migration.md](dnf-migration.md), the F2b′
+  Jacoby family). Where a node's boxes *are* static, `dnf_upgrade(legacy,
+  boxes)` pins them on the node — DNF incorporated into the trie exactly
+  where it is sound, and only there.
+- The measured record prices representation churn negative even when
+  information-preserving: chop C1 (−0.037 plain), the F flip (lost until the
+  evaluator was retrained), MARG/MASS (refused at the NLL gate).
+
+A rule whose meaning genuinely is a box union can be authored as one — 
+`Envelope`/`Dnf` implement `Constraint` with identity projection (chop C).
+The live sequel is retiring the hand-written disjunction readers in favor of
+the authored projections: [reader-retirement.md](reader-retirement.md).
 
 ## Disclosure: `Alert` and readings
 

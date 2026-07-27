@@ -46,7 +46,7 @@ use pons::american;
 use pons::bidding::context::relative;
 use pons::bidding::features::{LEN_HAND_EVAL, LEN_INFERENCE, LEN_SEAT_SHAPE, features_eval_shape};
 use pons::bidding::{
-    Family, Relative, sample_layouts, set_gauge_membership, set_sum_closure, set_upgrade_closure,
+    Relative, sample_layouts, set_gauge_membership, set_sum_closure, set_upgrade_closure,
 };
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -145,7 +145,7 @@ fn main() {
     let args = Args::parse();
     let base = args.seed.unwrap_or_else(rand::random);
     let vul = AbsoluteVulnerability::NONE;
-    let stance = american().against(Family::NATURAL);
+    let stance = american().against();
     let knob: fn(bool) = if args.upgrade {
         set_upgrade_closure
     } else {

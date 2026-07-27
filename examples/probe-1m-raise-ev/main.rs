@@ -9,8 +9,8 @@ use contract_bridge::{
     AbsoluteVulnerability, Bid, Contract, FullDeal, Penalty, Seat, Strain, Suit,
 };
 use ddss::{NonEmptyStrainFlags, Solver};
+use pons::bidding::System;
 use pons::bidding::constraint::support_point_count;
-use pons::bidding::{Family, System};
 use pons::dutch;
 use pons::scoring::{imps, ns_score_tricks};
 use rand::SeedableRng;
@@ -103,7 +103,7 @@ fn main() {
     let args = Args::parse();
     assert!(args.count > 0, "--count must be positive");
 
-    let stance = dutch().against(Family::NATURAL);
+    let stance = dutch().against();
     let one_heart = Bid::new(1, Strain::Hearts);
     let mut rng = StdRng::seed_from_u64(args.seed);
     let mut attempts = 0usize;

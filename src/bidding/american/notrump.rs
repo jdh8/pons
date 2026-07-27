@@ -3543,7 +3543,7 @@ pub(super) fn register_two_nt_and_rebids(book: &mut Trie) {
 #[cfg(test)]
 mod tests {
     use crate::american;
-    use crate::bidding::{Family, System};
+    use crate::bidding::System;
     use contract_bridge::auction::{Call, RelativeVulnerability};
     use contract_bridge::{Bid, Strain};
 
@@ -3557,7 +3557,7 @@ mod tests {
     fn best(auction: &[Call], hand: &str) -> Call {
         let hand = hand.parse().expect("valid test hand");
         let logits = american()
-            .against(Family::NATURAL)
+            .against()
             .classify(hand, RelativeVulnerability::NONE, auction)
             .expect("a decision");
         (&logits.0)
@@ -4107,7 +4107,7 @@ mod tests {
         let best_legal = |auction: &[Call], hand: &str| -> Call {
             let hand = hand.parse().expect("valid test hand");
             let logits = american()
-                .against(Family::NATURAL)
+                .against()
                 .classify(hand, RelativeVulnerability::NONE, auction)
                 .expect("a decision");
             let mut played = Auction::new();

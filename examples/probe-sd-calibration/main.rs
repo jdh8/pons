@@ -25,7 +25,6 @@ use contract_bridge::auction::Auction;
 use contract_bridge::{AbsoluteVulnerability, Contract, FullDeal, Seat};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
-use pons::bidding::Family;
 use pons::bidding::context::relative;
 use pons::scoring::final_contract;
 use pons::single_dummy::{LeadQuestion, single_dummy_leads, single_dummy_playout};
@@ -82,7 +81,7 @@ struct Row {
 
 fn main() {
     let args = Args::parse();
-    let stance = american().against(Family::NATURAL);
+    let stance = american().against();
     let mut rows: Vec<Row> = Vec::new();
     let mut playouts_at = [0usize; 8];
 

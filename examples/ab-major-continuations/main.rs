@@ -34,7 +34,6 @@ use clap::Parser;
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Seat};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
-use pons::bidding::Family;
 use pons::bidding::american::{
     TwoOverOneGate, set_fourth_suit_forcing, set_game_backstop, set_limit_raise_acceptance,
     set_major_choice_of_games, set_major_game_tries, set_major_rebid_tails, set_opener_third,
@@ -211,9 +210,9 @@ fn main() {
     // own books; `two_over_one_force` is the exception — a classify-time read,
     // re-set per arm inside the worker below.
     set_knobs(&args, false);
-    let baseline = american().against(Family::NATURAL);
+    let baseline = american().against();
     set_knobs(&args, true);
-    let treatment = american().against(Family::NATURAL);
+    let treatment = american().against();
     set_knobs(&args, false);
     let stances = [baseline, treatment];
 

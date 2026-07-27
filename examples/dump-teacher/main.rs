@@ -42,7 +42,7 @@ use ddss::TrickCountTable;
 use pons::american_instinct;
 use pons::bidding::context::{Context, relative};
 use pons::bidding::features::{FEATURES_LEN_V3, FEATURES_VERSION_V3, features_v3};
-use pons::bidding::{Family, Phase, System};
+use pons::bidding::{Phase, System};
 use pons::gib;
 use rand::rngs::StdRng;
 use rand::{RngExt, SeedableRng};
@@ -112,7 +112,7 @@ fn main() -> anyhow::Result<()> {
     // through a Stance; `bba` is the vendored EPBot 2/1 oracle — a fresh
     // single-threaded FFI bot per decision.
     let teacher: Box<dyn System> = match args.teacher.as_str() {
-        "american" => Box::new(american_instinct().against(Family::NATURAL)),
+        "american" => Box::new(american_instinct().against()),
         "bba" => {
             let path = std::env::var("BBA_LIB").unwrap_or_else(|_| DEFAULT_LIB.into());
             let card = args.card.as_deref().map(load_bbsa).transpose()?;

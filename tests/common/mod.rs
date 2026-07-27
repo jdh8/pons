@@ -19,7 +19,7 @@ pub use contract_bridge::{Bid, Hand, Strain};
 // aggregate by the `ab-*` A/B harnesses, never by pinning individual calls.
 pub use pons::american_instinct as american;
 pub use pons::bidding::array::Logits;
-pub use pons::bidding::{Family, Stance, System};
+pub use pons::bidding::{Stance, System};
 
 /// Shorthand for a bid call at `level`/`strain`.
 pub const fn call(level: u8, strain: Strain) -> Call {
@@ -29,7 +29,7 @@ pub const fn call(level: u8, strain: Strain) -> Call {
 /// The 2/1 pair bound against natural opponents (the deterministic instinct
 /// floor — see the `american` re-export note above).
 pub fn stance() -> Stance {
-    american().against(Family::NATURAL)
+    american().against()
 }
 
 /// The single highest-logit call the system assigns the hand for the auction.

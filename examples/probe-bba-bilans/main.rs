@@ -23,8 +23,8 @@
 use clap::Parser;
 use contract_bridge::auction::{Auction, Call, RelativeVulnerability};
 use contract_bridge::{AbsoluteVulnerability, Bid, Hand, Level, Seat, Strain};
+use pons::bidding::System;
 use pons::bidding::context::relative;
-use pons::bidding::{Family, System};
 use std::io::Write;
 
 #[path = "../common/mod.rs"]
@@ -164,8 +164,8 @@ fn main() -> anyhow::Result<()> {
     }
 
     let ours = match args.our_floor.as_str() {
-        "american" => pons::american().against(Family::NATURAL),
-        "american-floor" => pons::american_floor().against(Family::NATURAL),
+        "american" => pons::american().against(),
+        "american-floor" => pons::american_floor().against(),
         other => anyhow::bail!("--our-floor must be american|american-floor, got {other:?}"),
     };
 

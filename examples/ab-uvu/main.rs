@@ -28,10 +28,10 @@ use contract_bridge::eval::hcp as holding_hcp;
 use contract_bridge::{AbsoluteVulnerability, Bid, FullDeal, Hand, Seat, Strain, Suit};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
+use pons::bidding::Stance;
 use pons::bidding::american::{
     set_unusual_notrump_defense, set_uvu, set_uvu_cue_floor, set_uvu_natural_floor, set_uvu_x_floor,
 };
-use pons::bidding::{Family, Stance};
 use pons::scoring::{final_contract, imps, ns_score_contract};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -178,13 +178,13 @@ fn main() {
     let range = Some((args.opp_lo, args.opp_hi));
     set_unusual_notrump_defense(range);
     set_uvu(false);
-    let baseline = american().against(Family::NATURAL);
+    let baseline = american().against();
     set_unusual_notrump_defense(range);
     set_uvu(true);
     set_uvu_x_floor(args.x_floor);
     set_uvu_cue_floor(args.cue_floor);
     set_uvu_natural_floor(args.natural_floor);
-    let feature = american().against(Family::NATURAL);
+    let feature = american().against();
 
     // Deal sequentially (seeded, reproducible); keep only deals where the
     // auction can arise, until `count` pass; bid both tables in parallel.

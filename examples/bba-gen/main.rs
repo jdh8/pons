@@ -37,8 +37,8 @@ use contract_bridge::auction::Call;
 use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, Bid, Hand, Seat, Strain, Suit};
 use pons::american;
+use pons::bidding::System;
 use pons::bidding::american::DoubleShape;
-use pons::bidding::{Family, System};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
 use std::ffi::{CString, c_int};
@@ -1524,18 +1524,18 @@ fn main() -> anyhow::Result<()> {
     }
     pons::bidding::american::set_always_pass_defense(args.ns_always_pass);
     let our_floor = match args.our_floor.as_str() {
-        "american" => american().against(Family::NATURAL),
+        "american" => american().against(),
         // The authored books with no floor at all: a driver seating this passes
         // whenever the books run out.  The floor ablation's other end.
-        "american-book" => pons::bidding::american::american_book().against(Family::NATURAL),
-        "dutch" => pons::dutch().against(Family::NATURAL),
+        "american-book" => pons::bidding::american::american_book().against(),
+        "dutch" => pons::dutch().against(),
         // The deterministic pre-swap floors: the fixed baselines now that
         // `american` and `dutch` both ship the BBA net.
-        "american-instinct" => pons::american_instinct().against(Family::NATURAL),
-        "dutch-instinct" => pons::dutch_instinct().against(Family::NATURAL),
+        "american-instinct" => pons::american_instinct().against(),
+        "dutch-instinct" => pons::dutch_instinct().against(),
         // The book ablation: no authored book at all, the same floor wiring
         // `american` uses.  `american` − `american-floor` prices the book.
-        "american-floor" => pons::american_floor().against(Family::NATURAL),
+        "american-floor" => pons::american_floor().against(),
         other => anyhow::bail!(
             "--our-floor must be american|american-book|american-instinct|american-floor|dutch|dutch-instinct, got {other:?}"
         ),

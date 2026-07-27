@@ -21,7 +21,6 @@ use clap::Parser;
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Hand, Rank, Seat, Strain, Suit};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
-use pons::bidding::Family;
 use pons::bidding::constraint::point_count;
 use pons::scoring::final_contract;
 use rayon::prelude::*;
@@ -99,7 +98,7 @@ struct Board {
 
 fn main() {
     let args = Args::parse();
-    let stance = american().against(Family::NATURAL);
+    let stance = american().against();
     let deals = seeded_deals(args.seed, args.count);
     let vul = args.vulnerability;
 

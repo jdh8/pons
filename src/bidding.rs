@@ -44,7 +44,7 @@ pub mod verify;
 
 pub use american::{american, american_book, american_floor, american_instinct};
 pub use array::Array;
-pub use book::{Competitive, Constructive, Defensive, ExplainedRule, Family, Pair, Phase, Stance};
+pub use book::{Competitive, Constructive, Defensive, ExplainedRule, Pair, Phase, Stance};
 pub use compose::{OrElse, Versus};
 pub use context::Context;
 pub use dutch::{dutch, dutch_instinct};

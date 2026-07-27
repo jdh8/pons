@@ -36,7 +36,7 @@ use pons::bidding::constraint::{point_count, support_point_count_in};
 use pons::bidding::context::relative;
 use pons::bidding::inference::set_announced_reading;
 use pons::bidding::instinct::set_rkcb_announce;
-use pons::bidding::{Family, Inferences, Stance, System};
+use pons::bidding::{Inferences, Stance, System};
 use rayon::prelude::*;
 
 #[path = "common/mod.rs"]
@@ -243,7 +243,7 @@ struct Args {
 
 fn main() {
     let args = Args::parse();
-    let stance = american().against(Family::NATURAL);
+    let stance = american().against();
     let deals = seeded_deals(args.seed, args.count);
     eprintln!("announced-rkcb: {} boards", deals.len());
 

@@ -33,7 +33,6 @@ use contract_bridge::{
 };
 use ddss::{NonEmptyStrainFlags, Solver, TrickCountTable};
 use pons::american;
-use pons::bidding::Family;
 use pons::scoring::{final_contract, imps, ns_score_contract};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -124,7 +123,7 @@ fn nt_score(level: u8, opener: Seat, table: &TrickCountTable, vul: AbsoluteVulne
 #[allow(clippy::cast_precision_loss)]
 fn main() {
     let args = Args::parse();
-    let sys = american().against(Family::NATURAL);
+    let sys = american().against();
     let one_nt = Bid::new(1, Strain::Notrump);
     let base = args.seed.unwrap_or_else(rand::random);
     let vul = args.vulnerability;

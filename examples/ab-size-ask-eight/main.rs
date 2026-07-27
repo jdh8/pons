@@ -41,7 +41,7 @@ use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
 use pons::bidding::american::{SizeAskEight, set_size_ask_eight};
 use pons::bidding::context::relative;
-use pons::bidding::{Family, Inferences, Stance};
+use pons::bidding::{Inferences, Stance};
 use pons::scoring::{
     final_contract, imps, ns_score_contract, ns_score_pd, ns_score_pd_tricks, ns_score_tricks,
 };
@@ -157,9 +157,9 @@ fn main() {
     // read at book-construction time, so build each arm under its own setting; the
     // baked tries are independent thereafter.  Restore the shipped default after.
     set_size_ask_eight(SizeAskEight::Invite);
-    let invite = american().against(Family::NATURAL);
+    let invite = american().against();
     set_size_ask_eight(SizeAskEight::Pass);
-    let pass = american().against(Family::NATURAL);
+    let pass = american().against();
     set_size_ask_eight(SizeAskEight::Shipped);
     let stances = [invite, pass];
 

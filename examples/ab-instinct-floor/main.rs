@@ -26,9 +26,9 @@ use contract_bridge::auction::{Auction, Call};
 use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Seat};
 use pons::american;
+use pons::bidding::Stance;
 use pons::bidding::american::american_book;
 use pons::bidding::context::relative;
-use pons::bidding::{Family, Stance};
 use pons::scoring::{final_contract, ns_score_contract};
 use std::collections::HashMap;
 
@@ -164,8 +164,8 @@ fn bid_out(
 fn main() {
     let args = Args::parse();
     let mut rng = rand::rng();
-    let floored = american().against(Family::NATURAL);
-    let bare = american_book().against(Family::NATURAL);
+    let floored = american().against();
+    let bare = american_book().against();
     let mut telemetry = Telemetry::default();
 
     // Bid every board at both tables, dealer rotating per board.

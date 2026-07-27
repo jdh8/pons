@@ -20,7 +20,6 @@ use contract_bridge::auction::{Auction, Call, RelativeVulnerability};
 use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, Hand, Seat, Suit};
 use pons::american;
-use pons::bidding::Family;
 use pons::bidding::constraint::point_count;
 use pons::bidding::context::relative;
 use pons::bidding::inference::{Envelope, Relative};
@@ -149,7 +148,7 @@ fn main() -> anyhow::Result<()> {
         pons::bidding::set_table_alert_reading(true);
         pons::bidding::set_pass_reading(true);
     }
-    let stance = american().against(Family::NATURAL);
+    let stance = american().against();
     let seed = args.seed.unwrap_or_else(rand::random);
     let mut rng = StdRng::seed_from_u64(seed);
     let vul = args.vulnerability;

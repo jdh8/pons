@@ -22,7 +22,6 @@ use contract_bridge::auction::Auction;
 use contract_bridge::{AbsoluteVulnerability, Bid, FullDeal, Hand, Seat, Strain, Suit};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
-use pons::bidding::Family;
 use pons::bidding::american::{TwoOverOneGate, set_two_over_one_gate};
 use pons::bidding::constraint::point_count;
 use pons::scoring::final_contract;
@@ -77,9 +76,9 @@ fn main() {
     // Two books, built once — `set_two_over_one_gate` is read at book
     // construction, never at classify time.
     set_two_over_one_gate(TwoOverOneGate::Hcp14);
-    let baseline_stance = american().against(Family::NATURAL);
+    let baseline_stance = american().against();
     set_two_over_one_gate(TwoOverOneGate::Hcp13);
-    let candidate_stance = american().against(Family::NATURAL);
+    let candidate_stance = american().against();
     set_two_over_one_gate(TwoOverOneGate::Hcp13);
 
     let deals = seeded_deals(seed, count);

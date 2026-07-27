@@ -31,7 +31,7 @@ use contract_bridge::{AbsoluteVulnerability, FullDeal, Seat, Strain};
 use ddss::{NonEmptyStrainFlags, Solver, TrickCountTable};
 use pons::bidding::american::american_instinct;
 use pons::bidding::context::relative;
-use pons::bidding::{Family, Phase, Stance};
+use pons::bidding::{Phase, Stance};
 use pons::scoring::{final_contract, imps, ns_score_contract, ns_score_pd};
 use rayon::prelude::*;
 use std::collections::{BTreeMap, HashMap};
@@ -291,7 +291,7 @@ fn main() -> anyhow::Result<()> {
     // Replay-verify through the deterministic reference: the anchor generates
     // with `--our-floor american-instinct`, and replay_verify demands 100%
     // bit-reproduction — the net floor's off-book calls don't reproduce.
-    let stance = american_instinct().against(Family::NATURAL);
+    let stance = american_instinct().against();
 
     // DD cache: deal-keyed tables survive across anchors (same seeds → same
     // deals), so only newly-divergent boards ever need a fresh solve.

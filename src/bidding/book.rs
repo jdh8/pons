@@ -17,9 +17,10 @@
 //! they deref to it, so [`insert`][Trie::insert],
 //! [`fallback_at`][Trie::fallback_at], and friends are available directly.
 //! What the newtype adds is a *gated* [`System`] implementation that answers
-//! only for its phase.  A [`Pair`] assembles the three books with a [`Family`]
-//! identity; binding it against the opponents' family with [`Pair::against`]
-//! yields a [`Stance`], the system that actually classifies.
+//! only for its phase.  A [`Pair`] assembles the three books; binding it with
+//! [`Pair::against`] yields a [`Stance`], the system that actually
+//! classifies.  There is no whole-system identity label: a system announces
+//! itself through its calls' own [`Alert`][super::Alert]s and their readings.
 //!
 //! # Key disjointness
 //!
@@ -190,39 +191,6 @@ impl Phase {
     }
 }
 
-/// An opponent-visible system identity (the "convention card")
-///
-/// Defensive agreements target what the opponents' calls *mean*, so a [`Pair`]
-/// declares the family it plays and selects its competitive and defensive
-/// books against the opponents' family — once, at table assembly
-/// ([`Pair::against`]).  A family is one convention card: a system that varies
-/// by seat or vulnerability is still one family, because the variation is
-/// visible to both sides (the seat through the auction keys, the vulnerability
-/// through the [`Context`]).
-///
-/// This is the *system-level* disclosure that picks a base defense; an
-/// individual artificial call carries a per-call [`Alert`][super::Alert]
-/// instead.  The newtype is open — downstream systems mint their own families
-/// as constants, such as `const MOSCITO: Family = Family("moscito");`.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct Family(pub &'static str);
-
-impl Family {
-    /// Natural systems: mostly natural openings with a strong notrump,
-    /// such as Standard American, 2/1, and Acol
-    pub const NATURAL: Self = Self("natural");
-    /// Strong club systems, such as Precision
-    pub const STRONG_CLUB: Self = Self("strong-club");
-    /// Natural systems with a weak notrump
-    pub const WEAK_NOTRUMP: Self = Self("weak-notrump");
-}
-
-impl Default for Family {
-    fn default() -> Self {
-        Self::NATURAL
-    }
-}
-
 /// Our book for the auctions where **we** open and **they** intervene
 ///
 /// Keyed by the raw table auction like its siblings: `[1♥, 2♣]` is our
@@ -265,66 +233,48 @@ impl System for Competitive {
     }
 }
 
-/// One pair's authored system: its identity and its three books
+/// One pair's authored system: its three books
 ///
 /// A pair writes a [`Constructive`] book (strictly uncontested), a
 /// [`Competitive`] book (we open, they intervene), and a [`Defensive`] book
-/// (they open), and may override the latter two against specific opposing
-/// tags.  A pair is *authoring material*, not yet a [`System`]: bind it
-/// against the opponents' [`Family`] with [`against`][Self::against] — once,
-/// at table assembly — to get a [`Stance`] that classifies.
+/// (they open).  A pair is *authoring material*, not yet a [`System`]: bind
+/// it with [`against`][Self::against] — once, at table assembly — to get a
+/// [`Stance`] that classifies.
 ///
 /// The books occupy disjoint keys by construction: a constructive key has all
 /// opposing calls as passes, while a competitive key contains an opposing
 /// non-pass call.
 #[derive(Clone, Debug, Default)]
 pub struct Pair {
-    /// The family this pair plays, which the opponents defend against
-    pub family: Family,
     /// The book for the strictly uncontested auctions
     pub constructive: Constructive,
-    /// The default book for when we open and they intervene
+    /// The book for when we open and they intervene
     pub competitive: Competitive,
-    /// The default book for when they open
+    /// The book for when they open
     pub defensive: Defensive,
-    defensive_vs: Vec<(Family, Defensive)>,
 }
 
 impl Pair {
-    /// Assemble a pair from its tag and its three default books
+    /// Assemble a pair from its three books
     #[must_use]
     pub const fn new(
-        family: Family,
         constructive: Constructive,
         competitive: Competitive,
         defensive: Defensive,
     ) -> Self {
         Self {
-            family,
             constructive,
             competitive,
             defensive,
-            defensive_vs: Vec::new(),
         }
     }
 
-    /// Override the defensive book against one opposing tag
+    /// Bind this pair into a playable [`Stance`]
     ///
-    /// The first matching override wins; opponents with no override get the
-    /// default book.
-    #[must_use]
-    pub fn defensive_vs(mut self, them: Family, book: Defensive) -> Self {
-        self.defensive_vs.push((them, book));
-        self
-    }
-
-    /// Bind this pair against an opposing tag
-    ///
-    /// Selects the competitive and defensive books for `them` and merges a
-    /// clone of the constructive trie into the bound competitive trie
-    /// ([`Trie::merge`], classifiers stay shared), so that competitive rebases
-    /// — the "system on" idiom — resolve into the uncontested core.  Bind once
-    /// per table, not per call.
+    /// Merges a clone of the constructive trie into the bound competitive
+    /// trie ([`Trie::merge`], classifiers stay shared), so that competitive
+    /// rebases — the "system on" idiom — resolve into the uncontested core.
+    /// Bind once per table, not per call.
     ///
     /// # Panics
     ///
@@ -332,15 +282,8 @@ impl Pair {
     /// classify the same exact auction; by the key disjointness above, such a
     /// collision is an authoring bug.
     #[must_use]
-    pub fn against(&self, them: Family) -> Stance {
-        let competitive = &self.competitive;
-        let defensive = self
-            .defensive_vs
-            .iter()
-            .find(|entry| entry.0 == them)
-            .map_or(&self.defensive, |entry| &entry.1);
-
-        let mut bound = competitive.0.clone();
+    pub fn against(&self) -> Stance {
+        let mut bound = self.competitive.0.clone();
         let collisions = bound.merge(self.constructive.0.clone());
         debug_assert!(
             collisions.is_empty(),
@@ -350,12 +293,12 @@ impl Pair {
         Stance {
             constructive: self.constructive.0.clone(),
             competitive: bound,
-            defensive: defensive.0.clone(),
+            defensive: self.defensive.0.clone(),
         }
     }
 }
 
-/// A pair's system bound against one opposing tag
+/// A pair's system, bound and ready to classify
 ///
 /// Built by [`Pair::against`].  As a [`System`] it routes each query by
 /// [`Phase`]: the constructive trie answers the strictly uncontested auctions,
@@ -467,8 +410,7 @@ impl Stance {
     /// The same trie-routed, prefix-bearing context the [`System`] impl builds
     /// (cf. [`classify_with_provenance`][Self::classify_with_provenance]).  It
     /// hands the otherwise-keyless reading paths the trie access the projection
-    /// pass needs: [`SearchBook`][super::search_floor::SearchBook] prefixes its
-    /// search context with it (M6.2c) so [`Inferences::read`][super::inference::Inferences::read]
+    /// pass needs, so [`Inferences::read`][super::inference::Inferences::read]
     /// can project each artificial prior call straight off its authored rule.
     #[must_use]
     pub(crate) fn prefixed_context<'a>(
@@ -580,7 +522,7 @@ mod tests {
         use contract_bridge::Hand;
         use contract_bridge::auction::RelativeVulnerability;
 
-        let stance = american_instinct().against(super::Family::NATURAL);
+        let stance = american_instinct().against();
 
         // A book decision: the routine 1♠ opening resolves at the exact root
         // node (no fallback taken) and names the rule that produced it.

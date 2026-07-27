@@ -24,7 +24,7 @@ use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
 use pons::bidding::context::relative;
 use pons::bidding::instinct::set_inference_aware;
-use pons::bidding::{Family, Stance, System};
+use pons::bidding::{Stance, System};
 use pons::scoring::final_contract;
 use rayon::prelude::*;
 
@@ -104,7 +104,7 @@ fn main() {
     let args = Args::parse();
     let base = args.seed.unwrap_or_else(rand::random);
     let vul = args.vulnerability;
-    let stance = american().against(Family::NATURAL);
+    let stance = american().against();
 
     // Deals are seeded per board (base + index) so every arm/vul replays the
     // identical stream.  Each bid_out sets its own thread-local per call, so

@@ -26,7 +26,7 @@ use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
 use pons::bidding::american::set_forcing_nt_two_suiter;
 use pons::bidding::context::relative;
-use pons::bidding::{Family, Inferences, Stance};
+use pons::bidding::{Inferences, Stance};
 use pons::scoring::{
     final_contract, imps, ns_score_contract, ns_score_pd, ns_score_pd_tricks, ns_score_tricks,
 };
@@ -97,9 +97,9 @@ fn main() {
     // on).  The toggle is read at book-construction time, so build each arm under
     // its own setting; the baked tries are independent thereafter.
     set_forcing_nt_two_suiter(false);
-    let baseline = american().against(Family::NATURAL);
+    let baseline = american().against();
     set_forcing_nt_two_suiter(true); // restore the shipped default (on)
-    let treatment = american().against(Family::NATURAL);
+    let treatment = american().against();
     let stances = [baseline, treatment];
 
     // Both arms bid the same deal; the only difference is opener's rebid table.

@@ -27,7 +27,7 @@ use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
 use pons::bidding::constraint::{set_fuzzy_fifths, set_fuzzy_points};
 use pons::bidding::context::relative;
-use pons::bidding::{Family, Inferences, Stance, System};
+use pons::bidding::{Inferences, Stance, System};
 use pons::scoring::{final_contract, ns_score_pd_tricks, ns_score_tricks};
 use pons::single_dummy::{LeadQuestion, single_dummy_leads};
 use rand::SeedableRng;
@@ -180,12 +180,12 @@ fn main() {
     let base = args.seed.unwrap_or_else(rand::random);
     let vul = args.vulnerability;
     let policy = args.policy;
-    let stance = american().against(Family::NATURAL);
+    let stance = american().against();
     // One default-flag book reads the leader's view for the blind-lead pass: the
     // fuzzy upgrade barely shifts disclosed meaning, so a single reading serves
     // both arms (a deliberate simplification — we do not flip the fuzzy flags for
     // inference, unlike per-call bidding above).
-    let infer_stance = american().against(Family::NATURAL);
+    let infer_stance = american().against();
 
     // Deals are seeded per board (base + index) so every arm/vul replays the
     // identical stream.  Each bid_out sets its own thread-local per call, so

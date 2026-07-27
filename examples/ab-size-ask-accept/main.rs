@@ -51,7 +51,7 @@ use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
 use pons::bidding::american::set_size_ask_accept_floor;
 use pons::bidding::context::relative;
-use pons::bidding::{Family, Inferences, Stance};
+use pons::bidding::{Inferences, Stance};
 use pons::scoring::{
     final_contract, imps, ns_score_contract, ns_score_pd, ns_score_pd_tricks, ns_score_tricks,
 };
@@ -207,9 +207,9 @@ fn main() {
     // book-construction time; build each arm under its own setting, the baked tries
     // are independent thereafter.  Restore the shipped default.
     set_size_ask_accept_floor(15);
-    let accept = american().against(Family::NATURAL);
+    let accept = american().against();
     set_size_ask_accept_floor(17);
-    let decline = american().against(Family::NATURAL);
+    let decline = american().against();
     let stances = [accept, decline];
 
     let deals = seeded_deals(base, args.count);

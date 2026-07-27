@@ -23,7 +23,6 @@ use contract_bridge::auction::{Auction, Call};
 use contract_bridge::{AbsoluteVulnerability, Bid, Contract, FullDeal, Hand, Seat, Strain, Suit};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
-use pons::bidding::Family;
 use pons::bidding::american::set_two_over_one_heart_light;
 use pons::bidding::constraint::point_count;
 use pons::scoring::{final_contract, imps, ns_score_contract, ns_score_pd};
@@ -83,9 +82,9 @@ fn main() {
 
     // Two books, built once — the knob is read at construction, not classify time.
     set_two_over_one_heart_light(false);
-    let baseline = american().against(Family::NATURAL);
+    let baseline = american().against();
     set_two_over_one_heart_light(true);
-    let candidate = american().against(Family::NATURAL);
+    let candidate = american().against();
     set_two_over_one_heart_light(false);
 
     let deals = seeded_deals(seed, count);

@@ -43,7 +43,7 @@ use contract_bridge::auction::Call;
 use contract_bridge::{AbsoluteVulnerability, Seat, Suit};
 use pons::american;
 use pons::bidding::context::relative;
-use pons::bidding::{Context, Envelope, Family, Inferences, Range, Relative, Stance};
+use pons::bidding::{Context, Envelope, Inferences, Range, Relative, Stance};
 use rayon::prelude::*;
 use std::collections::HashMap;
 
@@ -211,7 +211,7 @@ fn main() {
     let args = Args::parse();
     let base = args.seed.unwrap_or_else(rand::random);
     let vul = AbsoluteVulnerability::NONE;
-    let stance = american().against(Family::NATURAL);
+    let stance = american().against();
 
     let census = seeded_deals(base, args.count)
         .par_iter()

@@ -9,7 +9,6 @@ use contract_bridge::auction::{Call, RelativeVulnerability};
 use contract_bridge::deck::full_deal;
 use contract_bridge::{Bid, Level, Seat, Strain};
 use pons::american;
-use pons::bidding::Family;
 use pons::bidding::context::Context;
 use pons::bidding::inference::Inferences;
 use pons::bidding::sampler::{sample_layouts, sample_layouts_replay};
@@ -37,7 +36,7 @@ fn key(calls: &[Call]) -> Vec<Call> {
 }
 
 fn main() {
-    let policy = american().against(Family::NATURAL);
+    let policy = american().against();
     let actor = Seat::North;
     let vul = RelativeVulnerability::NONE;
     let n = 50usize; // fill target; replay draws until REPLAY_DRAW_CAP (or gives

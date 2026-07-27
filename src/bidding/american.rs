@@ -64,7 +64,7 @@ use super::common::{
     call, fallback_all_seats, insert_all_seats, insert_uncontested, uncontested, with_floor,
     with_instinct_floor,
 };
-use super::{Competitive, Constructive, Defensive, Family, Pair};
+use super::{Competitive, Constructive, Defensive, Pair};
 
 mod competition;
 mod defense;
@@ -163,17 +163,17 @@ pub use xyz::{set_xyz, set_xyz_invite_judgment};
 
 /// Build the basic 2/1 game-forcing system as one side's [`Pair`]
 ///
-/// Bind it against the opponents' [`Family`] for a playable system, and seat
+/// Bind it with [`against`][Pair::against] for a playable system, and seat
 /// two pairs with [`Table::of_pairs`][super::Table::of_pairs] for a full
 /// table.
 ///
 /// ```
 /// use pons::american;
-/// use pons::bidding::{Family, System};
+/// use pons::bidding::System;
 /// use contract_bridge::auction::{Call, RelativeVulnerability};
 /// use contract_bridge::{Bid, Strain};
 ///
-/// let stance = american().against(Family::NATURAL);
+/// let stance = american().against();
 /// let hand = "AQ32.K53.QJ4.A92".parse().unwrap(); // 16 HCP, balanced
 /// let logits = stance
 ///     .classify(hand, RelativeVulnerability::NONE, &[])
@@ -222,12 +222,7 @@ pub fn american_instinct() -> Pair {
 #[must_use]
 pub fn american_floor() -> Pair {
     with_floor(
-        Pair::new(
-            Family::NATURAL,
-            Constructive::new(),
-            Competitive::new(),
-            Defensive::new(),
-        ),
+        Pair::new(Constructive::new(), Competitive::new(), Defensive::new()),
         super::neural_floor::NeuralFloorBba,
     )
 }
@@ -259,12 +254,7 @@ pub fn american_book() -> Pair {
     strong_two::register(&mut c);
     weak_twos::register(&mut c);
 
-    Pair::new(
-        Family::NATURAL,
-        c,
-        competition::competition(),
-        defense::defensive(),
-    )
+    Pair::new(c, competition::competition(), defense::defensive())
 }
 
 #[cfg(test)]

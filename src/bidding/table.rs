@@ -118,13 +118,13 @@ impl<N: System, E: System> Table<N, E> {
 }
 
 impl Table<Stance, Stance> {
-    /// Seat two pairs, binding each against the other's family
+    /// Seat two pairs, binding each into its [`Stance`]
     ///
-    /// This is the usual table assembly: `ns` plays
-    /// [`against`][Pair::against] `ew.family` and vice versa.
+    /// This is the usual table assembly: each pair is bound with
+    /// [`against`][Pair::against].
     #[must_use]
     pub fn of_pairs(ns: &Pair, ew: &Pair, dealer: Seat, vul: AbsoluteVulnerability) -> Self {
-        Self::new(ns.against(ew.family), ew.against(ns.family), dealer, vul)
+        Self::new(ns.against(), ew.against(), dealer, vul)
     }
 
     /// Read what `auction` has shown, from the seat about to act

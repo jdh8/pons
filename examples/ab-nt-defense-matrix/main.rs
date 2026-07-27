@@ -52,7 +52,6 @@ use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, Bid, Contract, FullDeal, Hand, Seat, Strain, Suit};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
-use pons::bidding::Family;
 use pons::bidding::american::{
     DoubleStyle, set_always_pass_defense, set_direct_dont, set_direct_dont_one_suiter_min,
     set_direct_dont_x_floor, set_direct_landy_double, set_double_style, set_landy, set_meckwell,
@@ -155,7 +154,7 @@ fn build_books() -> (Vec<Stance>, Vec<Stance>) {
     let build = |configure: &dyn Fn()| {
         reset_knobs();
         configure();
-        american().against(Family::NATURAL)
+        american().against()
     };
     // The DONT parity config (docs/ai-bidder/1nt-defense-dont.md): 6+ one-suiter
     // minimum; DONT owns 2♣/2NT, so the Landy/Unusual overlays are overridden.  The

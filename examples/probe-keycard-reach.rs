@@ -45,7 +45,7 @@ use contract_bridge::auction::{Auction, Call};
 use contract_bridge::{AbsoluteVulnerability, Bid, FullDeal, Seat, Strain, Suit};
 use ddss::TrickCountTable;
 use pons::bidding::context::relative;
-use pons::bidding::{Family, Phase, Stance, System};
+use pons::bidding::{Phase, Stance, System};
 use pons::{american, dutch, gib};
 use rand::rngs::StdRng;
 use rand::{RngExt, SeedableRng};
@@ -364,10 +364,7 @@ fn main() -> anyhow::Result<()> {
     let deals = pons::pdd::load_slice(&args.deals, args.skip, args.count)?;
     eprintln!("axis-reach: {} deals × 2 systems", deals.len());
 
-    let systems = [
-        american().against(Family::NATURAL),
-        dutch().against(Family::NATURAL),
-    ];
+    let systems = [american().against(), dutch().against()];
     let rkcb = [
         Call::Bid(Bid::new(5, Strain::Clubs)),
         Call::Bid(Bid::new(5, Strain::Diamonds)),
@@ -524,7 +521,7 @@ mod tests {
     /// The winning rule's prose for `call` at this point of a North-dealt
     /// auction, `""` when no authored rule serves it.
     fn describe(auction: &[&str], hand: &str, call: &str) -> String {
-        let stance = american().against(Family::NATURAL);
+        let stance = american().against();
         let auction = calls(auction);
         let hand: Hand = hand.parse().expect("valid test hand");
         let seat = Seat::ALL[auction.len() % 4];
@@ -552,7 +549,7 @@ mod tests {
             "shortness prose not found in {desc:?}"
         );
 
-        let stance = american().against(Family::NATURAL);
+        let stance = american().against();
         let auction = calls(&["1S", "P", "4C", "P"]);
         let rel = relative(AbsoluteVulnerability::NONE, Seat::North);
         // Envelope realization is a legacy-hull-walk property: the splinter's

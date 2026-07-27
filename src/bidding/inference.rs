@@ -3776,7 +3776,7 @@ mod tests {
     /// hands `Inferences::read` (cf. `Stance::prefixed_context`).  The plain `read`
     /// above is keyless, so it sees no convention overlay.
     fn read_booked(auction: &[Call]) -> Inferences {
-        let stance = crate::american().against(crate::bidding::Family::NATURAL);
+        let stance = crate::american().against();
         Inferences::read(&stance.prefixed_context(RelativeVulnerability::NONE, auction))
     }
 
@@ -6357,7 +6357,7 @@ mod tests {
         use crate::bidding::american::set_major_choice_of_games;
 
         set_major_choice_of_games(true);
-        let stance = crate::american().against(crate::bidding::Family::NATURAL);
+        let stance = crate::american().against();
         set_major_choice_of_games(false);
 
         let auction = [

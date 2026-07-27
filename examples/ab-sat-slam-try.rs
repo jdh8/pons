@@ -39,7 +39,7 @@ use contract_bridge::{
 };
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
-use pons::bidding::{Family, Stance};
+use pons::bidding::Stance;
 use pons::scoring::{final_contract, imps, ns_score_contract};
 
 #[path = "common/mod.rs"]
@@ -181,7 +181,7 @@ fn main() {
 
     let args = Args::parse();
     let mut rng = rand::rng();
-    let stance = american().against(Family::NATURAL);
+    let stance = american().against();
 
     // Collect slam-try configurations (only the N/S partnership, so North/South
     // scoring stays sign-consistent), each with the deal for the batch solve.

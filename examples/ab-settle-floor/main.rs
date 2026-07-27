@@ -30,8 +30,8 @@ use contract_bridge::{AbsoluteVulnerability, FullDeal, Seat};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::Accumulator;
 use pons::american;
+use pons::bidding::Stance;
 use pons::bidding::instinct::set_settle_floor;
-use pons::bidding::{Family, Stance};
 use pons::scoring::{final_contract, imps, ns_score_contract, ns_score_pd};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -92,7 +92,7 @@ fn bid_out(
 #[allow(clippy::cast_precision_loss)]
 fn main() {
     let args = Args::parse();
-    let stance = american().against(Family::NATURAL);
+    let stance = american().against();
 
     // Deal sequentially (seeded, reproducible); bid both tables in parallel.
     let mut rng = StdRng::seed_from_u64(args.seed);

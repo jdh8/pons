@@ -23,8 +23,9 @@ use std::sync::Arc;
 /// A per-call alert: the name of the artificial convention a rule's call shows
 ///
 /// In real bridge an artificial call is *alerted* so the opponents read it as the
-/// convention rather than as natural — the per-call dual of a whole-system
-/// [`Family`][super::Family].  Here an alert does two jobs: it is the build-time
+/// convention rather than as natural.  Per-call alerts are the whole of a
+/// system's identity — even a strong club announces itself through its
+/// opening's own alert.  Here an alert does two jobs: it is the build-time
 /// **gate** (`[`Rules::alert`]` stamps a block, [`Rules::gated`] ships only the
 /// active variant), and it marks a call as artificial so the inference reader
 /// suppresses the natural single-suit reading and projects the convention instead.

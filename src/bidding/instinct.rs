@@ -4033,11 +4033,10 @@ mod tests {
     /// Uses [`american_instinct`] (not the net-floored [`american`]) so these
     /// tests exercise the deterministic instinct ladder they assert against.
     fn american_floored(auction: &[Call], hand: &str) -> (Call, bool) {
-        use crate::bidding::Family;
         use crate::bidding::american::american_instinct;
         let hand: Hand = hand.parse().expect("valid test hand");
         let (logits, provenance) = american_instinct()
-            .against(Family::NATURAL)
+            .against()
             .classify_with_provenance(hand, RelativeVulnerability::NONE, auction)
             .expect("a legal auction classifies");
         let call = (&logits.0)
@@ -4734,7 +4733,6 @@ mod tests {
     /// so `RKCB_ASK_ANNOUNCE` bites on 80.6% of firings for a mean +4.24.
     #[test]
     fn rkcb_ask_announces_slam_values_the_projection_cannot() {
-        use crate::bidding::Family;
         use crate::bidding::american::american_instinct;
         use crate::bidding::inference::set_announced_reading;
 
@@ -4755,7 +4753,7 @@ mod tests {
             call(4, Strain::Notrump),
             Call::Pass,
         ];
-        let stance = american_instinct().against(Family::NATURAL);
+        let stance = american_instinct().against();
         let read = |on: bool| {
             set_announced_reading(on);
             let inferences = stance.infer(RelativeVulnerability::NONE, &after_ask);

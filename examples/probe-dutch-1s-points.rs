@@ -15,7 +15,7 @@ use contract_bridge::auction::{Call, RelativeVulnerability};
 use contract_bridge::deck::full_deal;
 use contract_bridge::{Bid, Hand, Seat, Strain};
 use pons::bidding::constraint::{point_count, support_point_count};
-use pons::{Family, System, dutch};
+use pons::{System, dutch};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
 
@@ -56,7 +56,7 @@ fn main() {
     let count: usize = argv.next().and_then(|s| s.parse().ok()).unwrap_or(500_000);
     let seed: u64 = argv.next().and_then(|s| s.parse().ok()).unwrap_or(0);
 
-    let stance = dutch().against(Family::NATURAL);
+    let stance = dutch().against();
     let mut rng = StdRng::seed_from_u64(seed);
     let mut points = Vec::new();
     let mut support = Vec::new();

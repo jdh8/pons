@@ -28,7 +28,7 @@ use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
 use pons::bidding::american::{EUROPEAN, PUPPET, set_notrump_minors};
 use pons::bidding::context::relative;
-use pons::bidding::{Family, Inferences, Stance};
+use pons::bidding::{Inferences, Stance};
 use pons::scoring::{
     final_contract, imps, ns_score_contract, ns_score_pd, ns_score_pd_tricks, ns_score_tricks,
 };
@@ -99,9 +99,9 @@ fn main() {
     // book-construction time, so build each arm under its own setting; the baked
     // tries are independent thereafter.
     set_notrump_minors(EUROPEAN);
-    let european = american().against(Family::NATURAL);
+    let european = american().against();
     set_notrump_minors(PUPPET); // restore the shipped default
-    let puppet = american().against(Family::NATURAL);
+    let puppet = american().against();
     let stances = [european, puppet];
 
     // Both arms bid the same deal; the only difference is the 1NT minor table.

@@ -23,7 +23,6 @@ use contract_bridge::{AbsoluteVulnerability, FullDeal, Seat};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::Accumulator;
 use pons::american;
-use pons::bidding::Family;
 use pons::bidding::american::set_minor_keycard;
 use pons::scoring::{final_contract, imps, ns_score_contract, ns_score_pd};
 use rand::SeedableRng;
@@ -74,9 +73,9 @@ fn main() {
     // build one stance per arm (a per-call thread-local flip would be a
     // no-op on an already-built book).
     set_minor_keycard(true);
-    let feature = american().against(Family::NATURAL);
+    let feature = american().against();
     set_minor_keycard(false);
-    let baseline = american().against(Family::NATURAL);
+    let baseline = american().against();
     set_minor_keycard(true);
 
     let deals: Vec<(Seat, FullDeal)> = seeded_deals(args.seed, args.count)

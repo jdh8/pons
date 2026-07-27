@@ -5652,7 +5652,6 @@ pub fn defensive() -> Defensive {
 
 #[cfg(test)]
 mod tests {
-    use crate::bidding::Family;
     use crate::bidding::american::{
         LebensohlStyle, american, set_advance_sohl_style, set_always_pass_defense, set_direct_dont,
         set_direct_landy_double, set_leaping_michaels, set_meckwell, set_unusual_notrump_defense,
@@ -5723,7 +5722,7 @@ mod tests {
     fn best_call(auction: &[Call], hand: &str) -> (Call, bool) {
         let hand: Hand = hand.parse().expect("valid test hand");
         let (logits, prov) = american()
-            .against(Family::NATURAL)
+            .against()
             .classify_with_provenance(hand, RelativeVulnerability::NONE, auction)
             .expect("a legal auction classifies");
         let best = (&logits.0)
@@ -5738,7 +5737,7 @@ mod tests {
     fn best_call_vul(auction: &[Call], hand: &str, vul: RelativeVulnerability) -> Call {
         let hand: Hand = hand.parse().expect("valid test hand");
         let (logits, _) = american()
-            .against(Family::NATURAL)
+            .against()
             .classify_with_provenance(hand, vul, auction)
             .expect("a legal auction classifies");
         (&logits.0)
@@ -6284,7 +6283,7 @@ mod tests {
         use contract_bridge::Suit;
 
         super::set_weak_two_notrump_advances(true);
-        let read = american().against(Family::NATURAL).infer(
+        let read = american().against().infer(
             RelativeVulnerability::NONE,
             &[
                 call(2, Strain::Hearts),

@@ -43,7 +43,7 @@ use contract_bridge::auction::Auction;
 use contract_bridge::{AbsoluteVulnerability, Contract, Seat};
 use pons::american;
 use pons::bidding::context::relative;
-use pons::bidding::{Family, Inferences, Stance, set_dnf_reading, set_gauge_membership};
+use pons::bidding::{Inferences, Stance, set_dnf_reading, set_gauge_membership};
 use pons::scoring::{final_contract, imps, ns_score_tricks};
 use pons::single_dummy::{LeadQuestion, single_dummy_leads};
 use rand::SeedableRng;
@@ -105,7 +105,7 @@ fn main() {
     let args = Args::parse();
     let base = args.seed.unwrap_or_else(rand::random);
     let vul = args.vulnerability;
-    let stance = american().against(Family::NATURAL);
+    let stance = american().against();
     let deals = seeded_deals(base, args.count);
 
     // Bidding is knob-independent (the floor+net bidder never samples), so bid
