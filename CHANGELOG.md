@@ -227,6 +227,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   coupled to the pooled systems' auctions (american + dutch) — routing changes
   owe the twin protocol a retrain.
 
+### Fixed
+
+- **Declared `rayon = "1.6"` instead of `"1"`.** `examples/dump-evaluator` calls
+  `rayon::broadcast`, which landed in rayon 1.6.0, so the CI `minimal-versions`
+  job failed to build. Dev-dependency only — no impact on the published build.
+
 ### Changed
 
 - **A natural suit overcall of their weak two demands more when *we* are
