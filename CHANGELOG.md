@@ -9,8 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Shape-distribution reading (`set_eval_shape`, default off pending its
-  A/B).** `features_eval_v4` replaces each hidden seat's four suit-length
+- **Shape-distribution reading (`set_eval_shape`, opt-in, default off).**
+  `features_eval_v4` replaces each hidden seat's four suit-length
   `{min, max}` pairs with a summary of the *distribution over shapes* the
   auction implies: `E[len]`, `sd[len]` per suit and one log-mass column, 97
   input floats against v3's 94. No user-visible bidding change while the knob
@@ -48,10 +48,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a 43% wider forward pass, so the Gaussian ships and the marginal stays
   research-only (`features_eval_shape`, `--encoding shape`).
 
-  Owed: A/B-1 (v4 vs v3) is a non-inferiority check only — at 204.8k
-  bd/arm/vul the interval is ±0.004 IMPs against a ~0.0005 effect. A/B-2,
-  `set_sum_closure` on vs off *under the shape twin*, is the one with signal
-  and the result the campaign exists for. See
+  **Measured (204.8k bd/arm/vul, both vulnerabilities, vs BBA 2/1).** Crossing
+  the knob with `set_sum_closure` prices the defect: the closure costs −0.1766
+  plain / −0.3445 PD under the endpoints and −0.1588 / −0.3168 under the shape
+  reading, a difference of **+0.0177 ±0.0138 plain and +0.0278 ±0.0164 PD** —
+  same sign in all four cells, both pooled 95% intervals excluding zero, and
+  conservative because the paired arms share deals. Its footprint shrinks with
+  it, 20.61%→19.39% and 17.85%→16.46%. So the mechanism is confirmed and worth
+  ≈0.02 IMPs/bd — **and that closes the roadmap it was meant to open.** A chop
+  costing −0.18 does not become shippable by recovering a tenth of it, and no
+  chop on the ledger sits inside ±0.02 of its threshold, so the standing rule
+  that a reading-fidelity chop must buy a retrain before it can be judged is
+  refuted by its own price. Measure the rest directly on v3.
+
+  The knob stays **off**: the encoding swap on its own loses **−0.0037 ±0.0028
+  plain / −0.0034 ±0.0030 PD** (both vulnerabilities agreeing, both intervals
+  excluding zero), ≈0.45 IMPs against on the 0.8% of boards where it changes a
+  decision. Par NLL on the corpus is not par on the decision-relevant subset. No
+  mechanism identified. See
   [docs/ai-bidder/evaluator-net.md](docs/ai-bidder/evaluator-net.md)
   §shape-distribution reading and the SHAPE row in
   [docs/dnf-migration.md](docs/dnf-migration.md).

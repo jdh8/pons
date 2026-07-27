@@ -211,9 +211,10 @@ struct Args {
     /// seat's four suit-length `{min, max}` pairs with its shape distribution
     /// — `E[len]`, `sd[len]` per suit plus a log-mass column — over the
     /// 560-shape lattice.  NLL-par with the v3 hull vector by construction;
-    /// what it buys is invariance, so the live test is pairing it with
-    /// `--ns-sum-closure`, which moves the endpoint columns 4.19σ at 81% of
-    /// nodes and the shape columns 0.07σ at 0.11%.  Supersedes
+    /// what it buys is invariance — pairing it with `--ns-sum-closure` recovers
+    /// +0.018 plain / +0.028 PD of that lossless re-hull's cost, but on its own
+    /// it measured −0.0037 plain / −0.0034 PD, so it stays off and is kept as
+    /// the reference invariant reading.  Supersedes
     /// `--no-ns-eval-auction` (v4 carries the calls tail) and is only honoured
     /// in the DNF reading regime it was trained on.
     #[arg(long, default_value_t = false)]

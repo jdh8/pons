@@ -103,9 +103,32 @@ verdict. Design lives in the docs above and the code.
   measured estimated marginals beside the endpoints, and against exact ones the
   endpoints carry nothing. Full table in
   [docs/ai-bidder/evaluator-net.md](ai-bidder/evaluator-net.md)
-  §shape-distribution reading. What is still owed is the A/B that this bullet
-  exists to enable: `set_sum_closure` on vs off **under the shape twin**, against
-  the same pairing under endpoints.
+  §shape-distribution reading.
+
+  **The A/B this bullet exists to enable is measured** (2026-07-27,
+  `scripts/eval-shape-ab.sh`, SEED_BASE 1785154805, 204.8k bd/arm/vul, both
+  vulnerabilities, vs BBA 2/1). `set_sum_closure` on vs off, under each
+  encoding, pooled over both vulnerabilities:
+
+  | encoding | plain | PD | fires (none / both) |
+  | --- | --- | --- | --- |
+  | hull endpoints | −0.1766 | −0.3445 | 20.61% / 17.85% |
+  | shape distribution | −0.1588 | −0.3168 | 19.39% / 16.46% |
+  | **difference** | **+0.0177 ±0.0138** | **+0.0278 ±0.0164** | |
+
+  Same sign in all four cells, both pooled 95% intervals exclude zero, and the
+  estimate is conservative — the two arms of each pair share deals, so they are
+  positively correlated and the true interval is narrower. **The defect is real
+  and now priced: invariance to a lossless re-hull is worth ≈0.02 IMPs/bd, the
+  size of the calls-tail win.**
+
+  **And that retires this bullet's prescription rather than fulfilling it.** C1
+  costs −0.177 plain / −0.34 PD; recovering a tenth of that still leaves a
+  catastrophe, so the chop is dead **on merit**, under either encoding. The
+  contamination can only flip a verdict inside ±0.02 IMPs/bd, and nothing on the
+  chop ledger is that close. So: measure the remaining hull-tightening chops
+  directly against the shipped v3 net and do not buy a retrain first. The
+  prerequisite this campaign set out to satisfy turns out not to be needed.
 
 ## Knob matrix
 

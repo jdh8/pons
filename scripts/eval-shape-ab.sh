@@ -38,6 +38,22 @@
 # IMPs against an effect the NLL scaling puts near 0.0005.  Read it as "did the
 # re-parameterization cost anything", never as a win.
 #
+# RESULT (2026-07-27, sha 580655f, SEED_BASE 1785154805, 204.8k bd/arm/vul):
+#
+#   closure cost, pooled     plain              PD
+#     under endpoints        -0.1766            -0.3445
+#     under shape            -0.1588            -0.3168
+#     difference            +0.0177 +-0.0138   +0.0278 +-0.0164
+#
+#   A/B-1, pooled           -0.0037 +-0.0028   -0.0034 +-0.0030
+#
+# The mechanism is confirmed -- one sign in all four cells, both pooled
+# intervals excluding zero -- and it closed the roadmap instead of opening it:
+# the closure costs -0.18, so recovering a tenth of it leaves it dead on merit,
+# and no chop on the ledger sits inside the +-0.02 the encoding can move.
+# Measure the remaining hull-tightening chops directly on v3.  A/B-1 came back a
+# small REAL loss rather than a wash, so `set_eval_shape` stays off.
+#
 #   setsid nohup scripts/idle-run.sh scripts/eval-shape-ab.sh \
 #       ab-results/eval-shape >ab-results/eval-shape.log 2>&1 &
 #

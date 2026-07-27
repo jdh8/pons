@@ -1423,12 +1423,59 @@ Shipped artifact, trained natively on the 97-wide layout at the v3 protocol
 rows): **−1.54856 / MAE 1.392 / slam-MAE 2.474**, against the shipped v3's
 −1.54872 / 1.392 / 2.479.
 
-### What is owed
+### The A/B — the mechanism confirmed, the roadmap closed
 
-The A/B, in two parts.  **A/B-1** (v4 vs v3) is a *non-inferiority* check only:
-at 204.8k bd/arm/vul the interval is ±0.004 IMPs and the effect is ~0.0005, so
-it can refute a regression and cannot detect a win.  **A/B-2** is the one with
-signal — `set_sum_closure` on vs off *under the shape twin*, against the same
-pairing under endpoints, where the closure is a known feature-perturbation loss.
-A wash-or-win there is what unblocks the closure roadmap and is the result this
-campaign exists for.
+`scripts/eval-shape-ab.sh`, 2026-07-27: four arms per vulnerability at 204.8k
+bd/arm/vul vs BBA 2/1, SEED_BASE 1785154805, sha 580655f.  The 2×2 crosses
+`set_eval_shape` with `set_sum_closure`, so the closure pair under each encoding
+is measured on the same deals and their difference isolates the encoding.
+
+**A/B-2 — what the closure costs under each encoding:**
+
+| vul | endpoints | shape | difference |
+| --- | --- | --- | --- |
+| none, plain | −0.1582 ±0.0130 | −0.1433 ±0.0123 | +0.0149 ±0.0179 |
+| both, plain | −0.1950 ±0.0153 | −0.1744 ±0.0143 | +0.0206 ±0.0209 |
+| **pooled plain** | **−0.1766** | **−0.1588** | **+0.0177 ±0.0138** |
+| none, PD | −0.3330 ±0.0156 | −0.3097 ±0.0150 | +0.0233 ±0.0216 |
+| both, PD | −0.3560 ±0.0179 | −0.3238 ±0.0169 | +0.0322 ±0.0246 |
+| **pooled PD** | **−0.3445** | **−0.3168** | **+0.0278 ±0.0164** |
+
+Four cells, one sign; both pooled intervals exclude zero; conservative, because
+the paired arms share deals and are positively correlated.  The closure's
+*footprint* shrinks with it — 20.61% → 19.39% (none), 17.85% → 16.46% (both) —
+matching the pre-measured split, where the endpoint net contributed +1.87 points
+of divergence and the shape net −0.03.
+
+So the mechanism is confirmed end to end: the encoding is what the probe said it
+was, and deleting the non-invariance is worth **≈0.02 IMPs/bd** on a lossless
+re-hull of this size.
+
+**It does not unblock the roadmap; it dissolves the reason for it.**  C1 costs
+−0.177 plain / −0.34 PD, and recovering a tenth of a catastrophe leaves a
+catastrophe: the chop is dead on merit under either encoding.  Generalising, the
+contamination can only change a verdict inside ±0.02 IMPs/bd, and no chop on the
+ledger sits that close to its threshold.  The standing rule — *a
+reading-fidelity chop must buy an evaluator retrain before it can be judged* —
+is refuted by its own price.  Measure the rest directly on v3.
+
+**A/B-1 — the encoding swap alone — is a small real loss, not a wash:**
+
+| vul | plain | PD | fired |
+| --- | --- | --- | --- |
+| none | −0.0036 ±0.0035 | −0.0032 ±0.0036 | 0.77% |
+| both | −0.0038 ±0.0044 | −0.0036 ±0.0047 | 0.88% |
+| **pooled** | **−0.0037 ±0.0028** | **−0.0034 ±0.0030** | −0.45 IMPs/fired |
+
+Both vulnerabilities agree and both pooled intervals exclude zero.  Par NLL did
+*not* buy a coin flip on the boards where the encoding changes a decision: on
+the ~0.8% that diverge, v4 is worse by ≈0.45 IMPs.  Par on the corpus
+distribution is not par on the decision-relevant subset — and the shipped v4
+artifact was itself 0.00016 behind v3 in NLL, inside the seed spread but on the
+wrong side of it.  No mechanism was identified; an early read of the worst
+boards as grand-slam over-extension was retracted after counting 7-level
+contracts across the full arms (688 vs 690 at our table, unchanged).
+
+`set_eval_shape` therefore stays **off**, which is how it shipped.  It is kept as
+the reference implementation of an invariant reading and as the instrument for
+any future chop that lands inside ±0.02.
