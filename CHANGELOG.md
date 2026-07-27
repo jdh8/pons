@@ -9,6 +9,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The 1NT no-major invite seam re-screened on evaluator v3/v4 (investigation,
+  no system change).** Can the evaluator net *accelerate* games by upgrading good
+  sub-9 responders opposite our 1NT, where the ladder forces `3NT` on `hcp(9..)`
+  and size-asks the balanced eight? The seam measured ≈0 for the net on
+  2026-07-22, but that verdict predates two evaluator generations — and
+  `probe-nt-invite-eval` **could not see them**: its `netNT`/`netPgame` columns
+  call the bare `trick_estimates`, pinned to v2, where only
+  `trick_estimates_with_auction` dispatches to v3/v4. Added `netNT3`/`netPgame3`
+  reading through a trie-prefixed `Stance::infer` reading (the distribution v3/v4
+  were fit on, not the bare-`Context` twin), plus a `--shape` flag serving v4. The
+  v2 columns keep their bare reading verbatim as the pinned control.
+
+  **Verdict: the null holds, on all three net generations.** Seed 1785169172,
+  50k/class, both vuls, both opener bands, v3 and v4 — eight No-4-major cells,
+  every one straddling zero, largest |mean| **0.0088 IMPs/board**, no CI excluding
+  0. Both controls fired: `HCP` scores exactly `+0.0000` (the rank-calibration
+  floor is exact) and `controls` −0.39 to −0.72, reproducing its recorded
+  −0.43…−0.75.
+
+  **The null is structural, not a stale measurement.** `features_eval_v3` extends
+  `features_eval` with the calls tail and v4 re-parameterizes partner's length
+  hull as a shape distribution — but the probe holds one reading for the whole
+  class, so *both additions are constant across every hand screened*. All three
+  generations therefore rank these hands on the same 24-float own-hand honour
+  block. A responder who can neither Stayman nor transfer, opposite a known
+  balanced 15-17, has only honour texture left, and at fixed HCP that is worth
+  nothing: **HCP is the sufficient statistic at this seam**, and no future net
+  trained on the same own-hand block can change that.
+
+  **The Stayman class separates cleanly, which is the mechanism.** The same nets
+  score +0.052/+0.074 (v2), +0.055/+0.077 (v3), +0.058/+0.081 (v4) NV/vul there,
+  every cell significant and *rising with net version* — the newer nets are
+  genuinely better where the class leaves shape free to vary, and worth nothing
+  where the class has conditioned shape away. Consistent with the two independent
+  refutations already on the books: `set_long_minor_force` (the source-of-tricks
+  eight, off — the transfer reaches the better game) and the `accept-15`
+  falsification control, which priced reaching `3NT` on 15+8 at SD-PD **+1.11 NV /
+  +0.99 vul in favour of declining**. The blanket-9 force stands.
+
 - **Strength-reading research superset (`features_eval_points`, 136 floats).**
   The ablation vehicle for "should a hidden seat's strength be read as a
   distribution rather than a `{min, max}` band?" — `features_eval_v4`'s blocks

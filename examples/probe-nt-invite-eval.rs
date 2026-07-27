@@ -32,7 +32,38 @@
 //! Args (positional, optional): `count` per class (default 30000), `seed`
 //! (default 0), `opener_lo opener_hi` (default 15 17; pass `15 15` to isolate
 //! the force/invite seam — extras accept the invite, so the choice only
-//! diverges opposite a minimum).  Heavy — run via `scripts/idle-run.sh`.
+//! diverges opposite a minimum).  Flag `--shape` serves `evaluator_v4` where the
+//! default serves v3.  Heavy — run via `scripts/idle-run.sh`.
+//!
+//! # Which net the columns screen
+//!
+//! `netNT`/`netPgame` call the bare `trick_estimates`, which is pinned to
+//! `evaluator_v2` — they are the **pinned control** reproducing the 2026-07-22
+//! verdict (net first to out-rank HCP on the Stayman class, ≈0 on No-4-major).
+//! `netNT3`/`netPgame3` call `trick_estimates_with_auction`, which serves the
+//! *shipped* v3 (or v4 under `--shape`) off a trie-prefixed reading.
+//!
+//! Pre-registered prediction for the No-4-major class was **still ≈0**, on this
+//! reasoning: the probe holds one reading for the whole class, so partner's
+//! envelope and the calls tail are *constant* across every hand screened; the
+//! only input that varies hand-to-hand is the 24-float own-hand honour block,
+//! byte-identical in v2, v3 and v4.  The newer nets bring no discriminating
+//! information here, only a different nonlinearity around the same information.
+//!
+//! **Confirmed** (2026-07-28, seed 1785169172, 50k/class, both vuls, both opener
+//! bands, v3 and v4 — eight No-4-major cells): every cell straddles zero, largest
+//! |mean| **0.0088 IMPs/board**, no CI excluding 0.  Both controls fired — `HCP`
+//! exactly `+0.0000` (the rank-calibration floor is exact) and `controls` −0.39
+//! to −0.72, reproducing its recorded −0.43…−0.75.
+//!
+//! The **Stayman class is the positive control, and it separates cleanly**: the
+//! same nets score +0.052/+0.074 (v2), +0.055/+0.077 (v3), +0.058/+0.081 (v4)
+//! NV/vul, every cell significant, *rising* with net version.  So the newer nets
+//! are genuinely better where the class leaves shape free to vary — and worth
+//! nothing where the class has already conditioned shape away.  That contrast is
+//! the mechanism: opposite a known balanced 15-17, a balanced responder with no
+//! four-card major has only honour texture left to rank on, and at fixed HCP
+//! texture is not worth an IMP.  **HCP is the sufficient statistic here.**
 //!
 //! ponytail: declarer = best of N/S per contract (matches probe-nt-range-split);
 //! opener acceptance defaults to the book's 17+ rule — columns with an
@@ -45,9 +76,10 @@ use contract_bridge::{
     AbsoluteVulnerability, Bid, Contract, FullDeal, Hand, Penalty, Rank, Seat, Strain, Suit,
 };
 use ddss::{NonEmptyStrainFlags, Solver, TrickCountTable};
+use pons::american;
 use pons::bidding::constraint::point_count;
-use pons::bidding::evaluator::trick_estimates;
-use pons::bidding::{Context, Inferences, Relative};
+use pons::bidding::evaluator::{set_eval_shape, trick_estimates, trick_estimates_with_auction};
+use pons::bidding::{Context, Family, Inferences, Relative};
 use pons::scoring::{imps, ns_score_contract};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -86,12 +118,27 @@ fn ev_controls(h: Hand) -> f64 {
     f64::from(controls(h))
 }
 
+/// The auction responder decides over: partner opened `1NT`, RHO passed.
+const PRIOR: [Call; 2] = [Call::Bid(Bid::new(1, Strain::Notrump)), Call::Pass];
+
 /// Responder's decision-time reading of `1NT`–`Pass` — the same
 /// `Inferences::read(context)` the production `points_or_net` bilans gates feed
 /// the net, so the screen matches the input distribution a wired gate would see.
-static NT_INF: LazyLock<Inferences> = LazyLock::new(|| {
-    let prior = [Call::Bid(Bid::new(1, Strain::Notrump)), Call::Pass];
-    Inferences::read(&Context::new(RelativeVulnerability::NONE, &prior))
+static NT_INF: LazyLock<Inferences> =
+    LazyLock::new(|| Inferences::read(&Context::new(RelativeVulnerability::NONE, &PRIOR)));
+
+/// The same reading, built through the **trie-prefixed** context a live bidder
+/// serves (`Stance::infer`) rather than a bare `Context`.
+///
+/// `evaluator_v3`/`v4` were fit on the tightened prefixed readings a knob-on
+/// bidder produces, so feeding them the bare-context twin above would be
+/// off-distribution and a null would be uninterpretable.  The v2 columns keep
+/// [`NT_INF`] verbatim: they are the pinned control that reproduces the
+/// 2026-07-22 verdict, and moving their input would forfeit the comparison.
+static NT_INF_PREFIXED: LazyLock<Inferences> = LazyLock::new(|| {
+    american()
+        .against(Family::NATURAL)
+        .infer(RelativeVulnerability::NONE, &PRIOR)
 });
 
 /// Eval net: expected notrump tricks, opener declaring (opener named NT first,
@@ -109,6 +156,31 @@ fn ev_net_nt(h: Hand) -> f64 {
 /// the "can we make game?" scalar the force decision actually asks.
 fn ev_net_game(h: Hand) -> f64 {
     let e = trick_estimates(h, &NT_INF);
+    [
+        (Strain::Notrump, 9),
+        (Strain::Hearts, 10),
+        (Strain::Spades, 10),
+    ]
+    .into_iter()
+    .map(|(s, t)| e.p_at_least(s, Relative::Partner, t))
+    .fold(0.0f64, |acc, p| acc.max(f64::from(p)))
+}
+
+/// [`ev_net_nt`] on the **shipped** evaluator: `trick_estimates_with_auction`
+/// serves `evaluator_v3` under the default knobs (`set_eval_auction` on,
+/// `dnf_reading` on) and `evaluator_v4` under `--shape`, where the bare
+/// `trick_estimates` the v2 columns call is pinned to v2 for good.
+fn ev_net_nt3(h: Hand) -> f64 {
+    f64::from(
+        trick_estimates_with_auction(h, &NT_INF_PREFIXED, &PRIOR)
+            .get(Strain::Notrump, Relative::Partner)
+            .mean,
+    )
+}
+
+/// [`ev_net_game`] on the shipped evaluator — see [`ev_net_nt3`].
+fn ev_net_game3(h: Hand) -> f64 {
+    let e = trick_estimates_with_auction(h, &NT_INF_PREFIXED, &PRIOR);
     [
         (Strain::Notrump, 9),
         (Strain::Hearts, 10),
@@ -147,6 +219,8 @@ const EVALS: &[Eval] = &[
     ("controls", ev_controls, None),
     ("netNT", ev_net_nt, None),
     ("netPgame", ev_net_game, None),
+    ("netNT3", ev_net_nt3, None),
+    ("netPgame3", ev_net_game3, None),
     ("fifInv", ev_fifths_invite, None),
     ("fifAcc", ev_hcp, Some(ev_fifths)),
     ("fifInv2s", ev_fifths_invite, Some(ev_fifths)),
@@ -292,7 +366,19 @@ fn main() {
     assert_eq!(control_action(8), 1);
     assert_eq!(control_action(9), 2);
 
-    let mut argv = std::env::args().skip(1);
+    // `--shape` serves `evaluator_v4` to the `net*3` columns instead of v3.  The
+    // probe is single-threaded (the ddss `Solver` is main-thread-only), so the
+    // thread-local knob set here holds for every column evaluated below.
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    let shape = args.iter().any(|a| a == "--shape");
+    set_eval_shape(shape);
+    eprintln!(
+        "net columns: netNT/netPgame = v2 (bare reading, pinned control); \
+         netNT3/netPgame3 = {} (prefixed reading)",
+        if shape { "v4" } else { "v3" }
+    );
+
+    let mut argv = args.iter().filter(|a| !a.starts_with("--"));
     let count: usize = argv.next().and_then(|s| s.parse().ok()).unwrap_or(30_000);
     let seed: u64 = argv.next().and_then(|s| s.parse().ok()).unwrap_or(0);
     // Optional opener HCP band (default the full 15-17).  Restricting to

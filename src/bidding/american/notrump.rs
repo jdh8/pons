@@ -391,6 +391,20 @@ pub fn notrump_responses() -> Rules {
         // makes game often enough that the invitational stop loses more by missing
         // games than it gains.  Deciding the 9 by Fifths instead was measured
         // *worse* — even quack-heavy 9s are worth forcing.
+        //
+        // Nor can the evaluator net upgrade good sub-9s into the force: rank-
+        // calibrated against raw HCP at this seam it scores ≈0, now on all three
+        // net generations (v2 2026-07-22; v3 and v4 re-screened 2026-07-28 —
+        // eight cells over both vuls and both opener bands, largest |mean| 0.0088
+        // IMPs/board, no CI excluding 0).  The null is *structural*, not a stale
+        // measurement waiting on a better net: `features_eval_v3`/`v4` extend
+        // `features_eval` with the calls tail and partner's shape reading, both of
+        // which are **constant** across this class, so every net generation ranks
+        // these hands on the same 24-float own-hand honour block.  A responder who
+        // can neither Stayman nor transfer, opposite a known balanced 15-17, has
+        // only honour texture left — and at fixed HCP that is worth nothing.  The
+        // same screen's Stayman class is the positive control: there the net wins,
+        // and wins *more* with each version (+0.052 → +0.055 → +0.058 NV).
         .rule(
             Bid::new(3, Strain::Notrump),
             1.0,
