@@ -122,9 +122,9 @@ fn for_each_row(path: &str, cap: usize, mut f: impl FnMut(&[f32])) -> Result<usi
         if filled % (ROW_LEN * 4) != 0 {
             bail!("{path}: {filled} bytes is not a whole number of {ROW_LEN}-float rows");
         }
-        for chunk in buf[..filled].chunks_exact(ROW_LEN * 4) {
-            for (slot, bytes) in row.iter_mut().zip(chunk.chunks_exact(4)) {
-                *slot = f32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]);
+        for chunk in buf[..filled].as_chunks::<{ ROW_LEN * 4 }>().0 {
+            for (slot, bytes) in row.iter_mut().zip(chunk.as_chunks::<4>().0) {
+                *slot = f32::from_le_bytes(*bytes);
             }
             f(&row);
             seen += 1;
