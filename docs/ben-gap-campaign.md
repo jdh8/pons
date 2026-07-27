@@ -72,7 +72,7 @@ lines** changed — 7 treatments:
 | Checkback after 1x‑1y‑1NT | New Minor Forcing | **Two‑Way NMF** (2♣ invitational relay, 2♦ GF) |
 | Major-raise structure | Shape Bergen | **Strength Lawrence** |
 | Leaping Michaels (4m over their weak two = 5‑5 strong) | off | **on** |
-| 1NT‑3♥/3♠ splinter (short major, minor-oriented GF) | off | **on** |
+| 1NT‑3♥/3♠ splinter ([probed](ai-bidder/bba-1nt-splinter.md): 0–1 in the bid major, *exactly 4* in the other, rest minors, 9+ HCP, GF) | off | **on** |
 | Gerber | any 4♣ per card | **NT openings only** |
 | Extended Stayman continuations | on | **off** |
 

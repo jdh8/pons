@@ -9,6 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **BBA's `1NT–3♥/3♠` splinter probed (investigation, no system change).** Three
+  `probe-bba-constraints` modes — `nt-resp` (BBA's response ladder to its own
+  1NT), `nt-3h`/`nt-3s` (opener's continuation) — read the slot we leave
+  unauthored and BEN's card switches on. Write-up in
+  [docs/ai-bidder/bba-1nt-splinter.md](docs/ai-bidder/bba-1nt-splinter.md).
+
+  **The call is tighter than its BEN-card description.** Untrimmed over 40 000
+  hands: 0–1 in the bid major, **exactly four** in the other major, the rest in
+  the minors (4-4/5-3/5-4 — a 5+ minor is *not* required), from **9 HCP** with no
+  ceiling; 0% balanced, ≈0.9% frequency each. Opener never bids four of the bid
+  major (0 of ~1000) and never passes: 3NT ≈46/52%, four of the *other* major
+  ≈32/34% — a game force with the 4-4 fit as its target.
+
+  Also settled: the engine's compiled default for `1N-3M splinter` under system 0
+  is **0**, though `vendor/bba/21GF.bbsa` claims 1. Every anchor run to date has
+  faced a BBA that does not splinter here; BEN, which loads its card, does. With
+  `--conv "1N-3M splinter"=0` both buckets vanish, so the toggle owns the slot.
+
 - **The 1NT no-major invite seam re-screened on evaluator v3/v4 (investigation,
   no system change).** Can the evaluator net *accelerate* games by upgrading good
   sub-9 responders opposite our 1NT, where the ladder forces `3NT` on `hcp(9..)`

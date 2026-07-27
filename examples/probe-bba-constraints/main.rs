@@ -21,6 +21,8 @@
 //! cargo run --release --example probe-bba-constraints -- --mode counter --vul none,both  # our-side counter-defense
 //! cargo run --release --example probe-bba-constraints -- --mode weak2-h  # opener's rebid over 2♥-P-2NT-P
 //! cargo run --release --example probe-bba-constraints -- --mode weak2-h --conv Ogust=1  # ...with BBA's Ogust on
+//! cargo run --release --example probe-bba-constraints -- --mode nt-resp --conv "1N-3M splinter"=1  # responses to BBA's own 1NT
+//! cargo run --release --example probe-bba-constraints -- --mode nt-3h --conv "1N-3M splinter"=1    # opener over 1NT-P-3♥-P
 //! ```
 //!
 //! The `weak2-*` modes read a node we author as **Ogust** and BBA does not: its
@@ -57,6 +59,8 @@ const TWO_D: c_int = 11; // 5 + 1*5 + 1
 const TWO_H: c_int = 12; // 5 + 1*5 + 2
 const TWO_S: c_int = 13; // 5 + 1*5 + 3
 const TWO_NT: c_int = 14; // 5 + 1*5 + 4
+const THREE_H: c_int = 17; // 5 + 2*5 + 2
+const THREE_S: c_int = 18; // 5 + 2*5 + 3
 
 type CreateFn = unsafe extern "C" fn() -> *mut c_void;
 type DestroyFn = unsafe extern "C" fn(*mut c_void);
@@ -367,8 +371,29 @@ fn main() -> Result<()> {
             None,
             "BBA direct seat over (2♠) — X / 2NT / natural overcalls / 3♠ cue",
         ),
+        // Constructive: BBA's *own* 1NT structure.  `1N-3M splinter` is on in the
+        // stock 21GF card and off in ours, and the `.so` ignores both — pass
+        // `--conv "1N-3M splinter"=0|1` to read the slot either way.
+        "nt-resp" => (
+            2,
+            &[ONE_NT, PASS],
+            None,
+            "BBA responder over its own 1NT-P — the 3♥/3♠ buckets are the splinter",
+        ),
+        "nt-3h" => (
+            0,
+            &[ONE_NT, PASS, THREE_H, PASS],
+            Some(ONE_NT),
+            "BBA opener over 1NT-P-3♥-P — a natural read raises hearts, a splinter never does",
+        ),
+        "nt-3s" => (
+            0,
+            &[ONE_NT, PASS, THREE_S, PASS],
+            Some(ONE_NT),
+            "BBA opener over 1NT-P-3♠-P — a natural read raises spades, a splinter never does",
+        ),
         other => bail!(
-            "--mode must be multi|advance|counter|muider-h|muider-s|rebid-d|rebid-h|rebid-s|stayman|xfer-h|xfer-s|weak2-d|weak2-h|weak2-s|def2-d|def2-h|def2-s, got {other:?}"
+            "--mode must be multi|advance|counter|muider-h|muider-s|rebid-d|rebid-h|rebid-s|stayman|xfer-h|xfer-s|weak2-d|weak2-h|weak2-s|def2-d|def2-h|def2-s|nt-resp|nt-3h|nt-3s, got {other:?}"
         ),
     };
 
@@ -384,6 +409,10 @@ fn main() -> Result<()> {
         "def2-d" => (&[], Some(Suit::Diamonds)),
         "def2-h" => (&[], Some(Suit::Hearts)),
         "def2-s" => (&[], Some(Suit::Spades)),
+        // The `nt-3*` modes probe the OPENER, so their filter is "a hand BBA
+        // opens 1NT" — an empty prefix, exactly like `weak2-*`.
+        "nt-3h" => (&[], Some(Suit::Hearts)),
+        "nt-3s" => (&[], Some(Suit::Spades)),
         _ => (&[ONE_NT], None),
     };
 
