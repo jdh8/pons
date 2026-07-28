@@ -30,6 +30,18 @@ pub const MAGIC: [u8; 8] = *b"ponsDD01";
 /// Bytes per row: three hand words plus five trick-row words.
 pub const ROW_LEN: usize = 34;
 
+/// Whole rows in a `.pdd` file of `len` bytes, rounding a ragged tail down.
+///
+/// A generator killed mid-write leaves a partial row (the output buffer is not
+/// a row multiple), which [`from_bytes`] rejects outright. This is the length
+/// arithmetic for recovering such a file: rows `0..rows_in(len)` are intact, so
+/// truncating to `MAGIC.len() + rows_in(len) * ROW_LEN` discards fewer than
+/// [`ROW_LEN`] bytes and never a whole deal.
+#[must_use]
+pub fn rows_in(len: u64) -> u64 {
+    len.saturating_sub(MAGIC.len() as u64) / ROW_LEN as u64
+}
+
 /// The three stored seats, in row order; West is reconstructed on decode.
 const STORED_SEATS: [Seat; 3] = [Seat::North, Seat::East, Seat::South];
 
@@ -178,6 +190,22 @@ mod tests {
         let mut row = clean;
         row[24] = 0xFF;
         assert_eq!(decode_row(&row), None);
+    }
+
+    #[test]
+    fn counts_whole_rows() {
+        let head = MAGIC.len() as u64;
+        // Shorter than the magic, or a bare header: no rows, no underflow.
+        assert_eq!(rows_in(0), 0);
+        assert_eq!(rows_in(head - 1), 0);
+        assert_eq!(rows_in(head), 0);
+        // Exact multiples, and every ragged tail rounding down to them.
+        for rows in 1..4u64 {
+            let clean = head + rows * ROW_LEN as u64;
+            assert_eq!(rows_in(clean), rows);
+            assert_eq!(rows_in(clean - 1), rows - 1);
+            assert_eq!(rows_in(clean + ROW_LEN as u64 - 1), rows);
+        }
     }
 
     #[test]

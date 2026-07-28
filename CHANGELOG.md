@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`gib generate --append`: resume a shard instead of stranding it.** A `.pdd`
+  shard is an exact prefix of its seed's stream — `StdRng::seed_from_u64(seed)`
+  is deterministic and rows are a fixed 34 bytes — so a killed run can be
+  continued rather than abandoned. `--append` reads the deals already on disk,
+  replays the RNG past them (`full_deal` without `solve_deals`: ~200 ns/deal
+  against milliseconds to solve one, so the skipped deals are effectively free),
+  and appends from there. A ragged tail left by the output buffer is trimmed
+  first — under one record, never a whole deal — which also kills the failure
+  mode where one partial shard made `pdd::load` error and aborted an entire
+  `gib convert`. Appending to a `.pdd` path whose magic doesn't match is refused
+  rather than silently corrupting it. Without the flag, behaviour is unchanged:
+  re-running a seed still truncates and rewrites. New `pdd::rows_in` exposes the
+  length arithmetic. User impact: an interrupted data-gen run costs only the
+  deals still in the buffer, not the whole shard.
+
 - **The deviation panel: measure the reading layer against a *population* of
   perturbed opponents, not one bot.** `Inferences::read` applies our meanings to
   the opponents' calls, and `probe-reading-sound` priced that: our boxes exclude
@@ -181,6 +196,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **`gib-scavenge` grows shards instead of opening a new one every pass.** Each
+  pass now appends `GIB_COUNT` deals to the first shard under the new `GIB_CAP`
+  (default 10M deals, ~340 MB), reading the seed back out of the filename, and
+  only mints a fresh random seed once every shard is full. Two consequences: an
+  interrupted pass is resumed rather than stranded (a partial shard used to sit
+  unfinished forever — this box had 165,504 such deals across two files), and
+  the file count is bounded by total volume rather than by how often the machine
+  was interrupted. Exactly one shard is hot at a time, so the rest stay
+  immutable and safe to merge mid-run. `GIB_CAP` is bounded above by `gib
+  convert`/`gib verify`, which load a file whole at ~48 B/deal decoded.
+  Single-instance is now **enforced** with `flock` on the output directory
+  rather than left to a comment: two scavengers would otherwise select the same
+  shard and interleave appends into corruption. This makes `shard-<seed>.<ext>`
+  a *claim* that the bytes are the first *k* deals of that seed's stream, so a
+  merged file (no single seed behind it) must not be named `shard-*`.
 - **`bba-gen --disclose` now defaults to `generated`: BBA is told what we play.**
   Every anchor recorded before this faced a BBA that took us for a BBA, so part
   of the measured gap was its misreading of our conventions rather than our

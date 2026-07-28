@@ -122,8 +122,13 @@ The rule:
 - **Record the echoed `SEED_BASE` + the git SHA** to reproduce a run; that pair
   (plus count and flags) regenerates the exact dataset.
 
-The `gib-scavenge` unit already follows the spirit of this — it starts each shard
-with a fresh random 64-bit seed (`shard-<seed>.txt`), never a fixed small one.
+The `gib-scavenge` unit already follows the spirit of this — every new shard gets
+a fresh random 64-bit seed (`shard-<seed>.pdd`), never a fixed small one. It
+*resumes* a shard by reading that seed back out of the filename, which makes the
+name a **claim**, not a label: the bytes must be the first *k* deals of that
+seed's stream, because the scavenger appends deal *k+1* to them. A file with no
+single seed behind it — anything `gib convert` produced — must therefore not be
+named `shard-*`, or it will be grown with a foreign deal stream.
 
 ## When to add a hard cap
 
@@ -149,6 +154,11 @@ systemd-run --user --scope -p CPUQuota=600% -p CPUWeight=10 -p MemoryMax=12G \
   `.json` sidecar, so **shard by seed** (`--seed 1`, `--seed 2`, …, with distinct
   `--out`) for natural checkpoints you can stop and resume, instead of one
   monolithic run.
+- For the DD database the checkpoint unit is finer still — a *record*, not a
+  shard. Since `--seed` is a deterministic stream and rows are fixed-width, a
+  half-written shard is an exact prefix of the finished one, so `gib generate
+  --append` replays the RNG past what is on disk (no solving) and continues.
+  A kill costs you nothing but the deals in the output buffer.
 
 ## Spreading across machines
 
@@ -183,22 +193,38 @@ sidecars' feature/layout/SHA in agreement.
 
 To keep a machine growing the database whenever it's idle, supervise the
 one-shot `generate` instead of writing a daemon. The shared
-[`scripts/gib-scavenge.sh`](../scripts/gib-scavenge.sh) worker starts the next
-shard with a fresh random 64-bit seed each time. Shards are named
-`shard-<seed>.pdd` (compact binary by default, so they stay reproducible) and
-land in `~/gib-shards`; merge them with `gib convert shard-*.pdd --out all.pdd`
-whenever you want a combined database. Set `GIB_EXT=txt` for `cat`-mergeable
-GIB text, or `GIB_COUNT` to change the 1M-deal shard size.
+[`scripts/gib-scavenge.sh`](../scripts/gib-scavenge.sh) worker **grows an
+undersized shard** each pass — appending `GIB_COUNT` deals (default 1M) to the
+first one below `GIB_CAP` (default 10M deals, ~340 MB) — and only mints a fresh
+random 64-bit seed once every shard is full. Shards are named `shard-<seed>.pdd`
+(compact binary by default) and land in `~/gib-shards`; merge them with
+`gib convert shard-*.pdd --out all.pdd` whenever you want a combined database.
+Set `GIB_EXT=txt` for `cat`-mergeable GIB text.
 
-The worker is single-instance by design — one shard already saturates every
-core, so don't run several (the parallel-thrash caveat above applies to
-scavengers too). It also **pauses itself when the disk gets low**
+Growing rather than always starting fresh buys two things. An interrupted pass
+is **resumed instead of stranded** — previously a reboot left a partial shard
+that no later pass would ever extend, and if its tail was ragged it also
+poisoned `gib convert` for the whole directory. And the file count is bounded by
+total volume rather than by how often the machine was interrupted. Only one file
+is ever hot (the worker takes the lowest-sorting undersized shard), so every
+other shard is immutable and safe to convert or copy mid-run.
+
+`GIB_CAP` is bounded from above by your own merge step: consumers sample with
+`pdd::load_slice` and don't care about file size, but `gib convert` and `gib
+verify` use `pdd::load`, which holds the file whole at ~48 B/deal decoded — so
+the 10M default peaks around 480 MB.
+
+The worker is single-instance, now **enforced** by `flock` on the output
+directory rather than left to convention: two scavengers would pick the same
+shard and interleave appends into corruption. (The lock dies with the process,
+so a `SIGKILL` can't wedge the service's `Restart=always`. macOS has no
+`flock(1)`; launchd enforces one instance per label there, so only a hand-started
+run can race.) It also **pauses itself when the disk gets low**
 (`GIB_MIN_FREE_KIB`, default ~20 GiB free) so a forgotten scavenger can't fill
 the target filesystem; it deletes nothing and resumes once you merge and remove
-old shards. Each pass is a fresh ~34 MB `.pdd` file (1M deals), so it grows
-without bound until either you clean up or the guard trips — `gib convert
-~/gib-shards/shard-*.pdd --out all.pdd && rm ~/gib-shards/shard-*.pdd` is the
-whole lifecycle.
+old shards. `gib convert ~/gib-shards/shard-*.pdd --out all.pdd && rm
+~/gib-shards/shard-*.pdd` is the whole lifecycle — just don't name that merged
+output `shard-*` (see the naming invariant under Seed hygiene).
 
 #### Linux (systemd)
 
