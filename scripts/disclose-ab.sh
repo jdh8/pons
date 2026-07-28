@@ -9,8 +9,12 @@
 # 3.7% of boards diverge — and therefore moves the anchor.
 #
 # Two arms per vul, identical deals and an identical pons side:
-#   blind   BBA models us as a BBA         (today's default, every recorded anchor)
+#   blind   --disclose off                 (every anchor recorded before 2026-07-28)
 #   told    --disclose cards/American.bbsa (BBA reads our alerts)
+#
+# Both arms name their stance explicitly: `--disclose` now defaults to
+# `generated`, so neither is the default any more and an unflagged arm would
+# quietly be a third thing.
 #
 # Unlike every other runner here, the knob is on THEIR side: our bidding is
 # byte-identical across the arms and only BBA's model of us differs.  The swing
@@ -36,7 +40,7 @@ CARD=${CARD:-cards/American.bbsa}
 
 log "=== disclose start, sha=$SHA, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul (--disclose $CARD)"
 for vul in none both; do
-    arm blind "$vul"
+    arm blind "$vul" --disclose off
     arm told  "$vul" --disclose "$CARD"
     diffpair told blind "$vul"
 done

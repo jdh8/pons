@@ -42,6 +42,9 @@ for vul in none both; do
     log "generate $dir"
     # --our-floor american-instinct: bba-decompose replays through the
     # deterministic books; american() now ships the non-decomposable net floor.
+    # Disclosure is left at its `generated` default from 2026-07-28 on, so BBA
+    # reads our alerts.  Anchors before that date faced a blind BBA and are a
+    # different series — see CHANGELOG for the re-base.
     scripts/bba-gen-parallel.sh "$dir" "$PER_SHARD" -v "$vul" \
         --our-floor american-instinct >>"$R/log" 2>&1
 done

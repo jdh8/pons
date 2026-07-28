@@ -146,6 +146,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **`bba-gen --disclose` now defaults to `generated`: BBA is told what we play.**
+  Every anchor recorded before this faced a BBA that took us for a BBA, so part
+  of the measured gap was its misreading of our conventions rather than our
+  bidding. Disclosure costs IMPs — BBA defends better when it knows what our
+  calls mean, measured at −0.009/board when the card was static — and that cost
+  is the price of a fair fight, not a regression. The generated card makes the
+  default safe: an A/B arm that flips a knob now discloses the system it
+  actually plays, which a static file could never do.
+
+  `--disclose off` reproduces the blind series. Both arms of
+  `scripts/disclose-ab.sh` now name their stance explicitly, since neither is
+  the default any more. A BBA-vs-BBA run (`--our-system`) discloses nothing:
+  our authored system is not at the table, so the generated card would describe
+  a system nobody is bidding.
+
+  **This re-bases the pons↔BBA anchor** (`scripts/anchor.sh`, which inherits the
+  new default). The previous blind anchor was −1.024 NV / −1.279 vul plain,
+  −1.116 / −1.593 PD (2026-07-26, `eb02d9d`, 204.8k bd/vul). The BEN anchor
+  (−1.906/−1.860) is unaffected — `ben-gen` has no disclosure channel.
+
 - **`cards/American.bbsa` audited against `american()`**
   (`docs/ai-bidder/bba-card-audit.md`). **31 of the 33 live rows already
   described us correctly** — the card was written well; what it lacked was a

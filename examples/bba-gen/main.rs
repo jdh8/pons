@@ -123,13 +123,15 @@ struct Args {
     /// pons and changes only what BBA believes pons plays, via the per-seat
     /// convention setters on the seats we occupy.
     ///
-    /// `off` by default because disclosure changes BBA's calls, and therefore
-    /// the anchor: every anchor recorded to date was measured against a BBA that
-    /// took us for a BBA.
+    /// `generated` by default: a BBA that takes us for a BBA misreads our
+    /// conventions, and a gap measured that way is partly its confusion rather
+    /// than our bidding.  It costs IMPs — BBA defends better when it knows what
+    /// our calls mean — which is the price of a fair fight, not a regression.
+    /// Pass `off` to reproduce the blind series measured before 2026-07-28.
     #[arg(
         long = "disclose",
         value_name = "off|generated|FILE.bbsa",
-        default_value = "off"
+        default_value = "generated"
     )]
     disclose: String,
 
@@ -1153,6 +1155,11 @@ fn parse_override(spec: &str) -> Result<(CString, c_int), String> {
 fn disclosure(args: &Args) -> anyhow::Result<Option<ConventionCard>> {
     let mut card = match args.disclose.as_str() {
         "off" => return Ok(None),
+        // A BBA-vs-BBA arm does not play our authored system at all, so the
+        // generated card would describe a system nobody at the table is
+        // bidding.  Leave those seats at their EPBot defaults, which is what
+        // every such A/B measured before disclosure defaulted on.
+        "generated" if args.our_system.is_some() => return Ok(None),
         "generated" => {
             // The floor names the system; `-book`/`-instinct`/`-floor` variants
             // differ only in the floor, which no card row can express.
