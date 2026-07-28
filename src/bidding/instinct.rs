@@ -4497,13 +4497,20 @@ mod tests {
         // We opened 1NT; partner's off-book, forcing 3♥ shows five-plus hearts.
         // With three-card support that is a known eight-card fit, so bid 4♥
         // rather than the stopperless-agnostic 3NT.
+        //
+        // The splinter owns this auction by default (short hearts, not long), so
+        // it is switched off here: the floor path under test is only reachable
+        // when the slot is empty, which is exactly when it should apply.
+        crate::bidding::american::set_nt_splinter(false);
         let auction = [
             call(1, Strain::Notrump),
             Call::Pass,
             call(3, Strain::Hearts),
             Call::Pass,
         ];
-        assert_eq!(best(&auction, "AQ52.K53.KQ4.32"), call(4, Strain::Hearts));
+        let bid = best(&auction, "AQ52.K53.KQ4.32");
+        crate::bidding::american::set_nt_splinter(true); // restore the default
+        assert_eq!(bid, call(4, Strain::Hearts));
     }
 
     #[test]

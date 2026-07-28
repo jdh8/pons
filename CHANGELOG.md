@@ -9,6 +9,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`1NT–3♥/3♠` splinter authored and shipped default-on (`set_nt_splinter`).**
+  The last two empty slots in our response ladder are filled with the *Bridge
+  World Standard / Polish Club* treatment: shortness in the **bid** major (void
+  or a low singleton — a stiff A/K un-wastes opener's honors and is a real
+  notrump stopper), **2–3** in the other major, **exactly four** diamonds and
+  **five or six** clubs, from 9 HCP (`set_nt_splinter_floor`), game-forcing,
+  alerted and read off the alert rather than walked as a natural five-card suit.
+
+  Deliberately **not** BBA/EPBot's version, which plays the GIB form (*exactly
+  four* in the other major) — that is the hand Stayman already finds. Ours is
+  closed rather than floored, so every axis is pinned and opener gets an exact
+  13-card read: `3-1-4-5`, `1-2-4-6`, `0-3-4-6` and mirrors. The `3-1-4-5` row
+  had **no route at all** before — too few majors for Stayman, too few diamonds
+  for the `2NT` transfer, too few clubs for the `2♠` transfer, not `balanced()`
+  for Puppet `3♣` — so it blasted 3NT at 9+ and *passed 1NT holding a singleton*
+  opposite 15-17 at 8.
+
+  **The floor could not use the reading.** With opener left to `instinct()` the
+  convention measured inert: 600 000 boards fired 217 times and diverged on
+  **9**, −4 IMPs plain / −22 PD, and a direct probe found the floor bidding
+  `3NT` on *every* opener hand tried — including `♥KQJ` opposite a known stiff.
+  So `nt_splinter_answer` is authored and places the game on one pivot, a guard
+  in the short major: `3NT` with one, otherwise `5♣` (responder's 5-6 opposite
+  three is a nine-card fit) or `5♦` when opener is short in clubs.
+
+  Measured self-play (`examples/ab-nt-splinter`, opponents silenced,
+  5 000 000 boards per vulnerability, `SEED_BASE=1785227147`), win in all four
+  cells: **+0.56 plain / +0.67 PD** IMPs per fired board not vulnerable,
+  **+0.69 / +0.81** vulnerable. Fire rate 0.040%; the effect lives on the 176
+  divergent boards, worth **+6.4 to +9.2 IMPs each**. IMPs/board is +0.0002 to
+  +0.0003 — a thin slot bid well, not a broad gain.
+  [docs/ai-bidder/bba-1nt-splinter.md](docs/ai-bidder/bba-1nt-splinter.md)
+  §Ours.
+
 - **Trie × DNF assessed: DNF stays a fold of the Constraint DSL, not the trie's
   storage (design decision, no bidding change).** Storing the system as a trie
   of DNF was considered and declined — boxes carry only membership (the

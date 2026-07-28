@@ -1585,8 +1585,21 @@ impl Inferences {
                             && bid.level.get() == 3
                             && matches!(bid.strain, Strain::Hearts | Strain::Spades)
                             && lane_suits[(lane + 2) % 4] & (1u8 << suit as u8) == 0;
+                        // Responder's 1NT–3M splinter, when authored, is the
+                        // shortest possible major: never a natural five-plus.
+                        // Suppressing this *one* index (rather than routing it
+                        // through `nt_structure_artificial`, whose `entered` set
+                        // marks the whole continuation subtree) leaves opener's
+                        // natural `3♠`/`4♣`/`4♦` rebids reading off the walk.
+                        let nt_splinter_artificial = crate::bidding::american::nt_splinter()
+                            && is_opening_side
+                            && opening_bid == Bid::new(1, Strain::Notrump)
+                            && index == opening_index + 2
+                            && bid.level.get() == 3
+                            && matches!(bid.strain, Strain::Hearts | Strain::Spades);
                         let nt_blanket = is_opening_side && opening_artificial && !over_one_notrump;
                         let chain = stayman_artificial
+                            || nt_splinter_artificial
                             || nt_structure_artificial(auction, index, opening_index)
                             || rubens_suppress.contains(&Some(index))
                             || (index < 64 && suppressed >> index & 1 != 0)
@@ -4712,8 +4725,12 @@ mod tests {
 
     #[test]
     fn three_level_suit_over_one_notrump_is_natural() {
-        // [1NT, P, 3♥, P]: a three-level suit bid over 1NT is forcing and
-        // natural in the instinct reading — five-plus hearts.
+        // [1NT, P, 3♥, P]: with the splinter *not* authored, a three-level suit
+        // bid over 1NT is forcing and natural in the instinct reading —
+        // five-plus hearts.  This is the knob-off control for
+        // `nt_splinter_is_read_as_shortness_not_length`; the splinter is on by
+        // default, so the walk has to be asked for explicitly.
+        crate::bidding::american::set_nt_splinter(false);
         let auction = [
             bid(1, Strain::Notrump),
             Call::Pass,
@@ -4721,7 +4738,36 @@ mod tests {
             Call::Pass,
         ];
         let inf = read(&auction);
+        crate::bidding::american::set_nt_splinter(true);
         assert_eq!(inf.partner().length(Suit::Hearts), Range::new(5, 13));
+    }
+
+    #[test]
+    fn nt_splinter_is_read_as_shortness_not_length() {
+        // [1NT, P, 3♥, P] with the splinter authored: the *same* call that reads
+        // as five-plus hearts above now decodes off its alert into the pinned
+        // shape — short hearts, 2-3 spades, exactly four diamonds, 5-6 clubs.
+        // The natural walk would floor a phantom heart suit responder is void in.
+        crate::bidding::american::set_nt_splinter(true);
+        let auction = [
+            bid(1, Strain::Notrump),
+            Call::Pass,
+            bid(3, Strain::Hearts),
+            Call::Pass,
+        ];
+        let inf = read_booked(&auction);
+        crate::bidding::american::set_nt_splinter(false);
+
+        let partner = inf.partner();
+        assert!(partner.length(Suit::Hearts).max <= 1);
+        assert_eq!(partner.length(Suit::Spades), Range::new(2, 3));
+        assert_eq!(partner.length(Suit::Diamonds), Range::new(4, 4));
+        assert_eq!(partner.length(Suit::Clubs), Range::new(5, 6));
+
+        // Knob off, the book has no 3♥ rule and the walk is back: five-plus.
+        let off = read_booked(&auction);
+        crate::bidding::american::set_nt_splinter(true); // restore the default
+        assert_eq!(off.partner().length(Suit::Hearts), Range::new(5, 13));
     }
 
     #[test]

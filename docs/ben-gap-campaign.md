@@ -84,6 +84,13 @@ Provenance and its limits:
 - **Weights-vs-card caveat**: EPBot loaded with BEN's card is BEN's
   *skeleton*, not BEN — EPBot measures ≈0.35 IMPs/bd behind BEN, and that
   edge lives in the weights (search over sampled worlds), not the card.
+- **Owed — reading BEN's splinter.** We now author a `1NT–3M` splinter of our
+  own and read it off the alert, but in the *Bridge World / Polish Club* form
+  (2–3 in the other major) rather than BEN's **GIB** form (exactly 4). Against
+  BEN the box is therefore wrong on one axis. Deferred rather than guessed,
+  because it is unmeasurable today: BBA's *engine* default for the toggle is
+  off, so no anchor run ever produces a `1NT–3M`, and there is no BEN harness
+  yet. Land it with `ben-gen` — a per-opponent reading, not a change to ours.
 - Rule-level query surface: `~/ben/src/bba/BBA.py` wraps EPBot with the BEN
   card loaded and exposes `interpret_bid`, `get_info_meaning`,
   `get_info_min/max_length`, `get_info_strength` — a queryable book with

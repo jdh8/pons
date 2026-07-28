@@ -1059,6 +1059,7 @@ static SETTINGS: &[Setting] = &[
     toggle("crawling_stayman", NOTRUMP, "", true, american::set_crawling_stayman),
     toggle("stayman_cue_continuation", NOTRUMP, "", true, american::set_stayman_cue_continuation),
     toggle("stayman_minor_slam_try", NOTRUMP, "", true, american::set_stayman_minor_slam_try),
+    toggle("nt_splinter", NOTRUMP, "1NT–3M splinter (short major, ♦4, ♣5–6)", true, american::set_nt_splinter),
     // Competition
     toggle("lebensohl", COMPETITION, "Lebensohl (over 1NT interference)", true, set_lebensohl_toggle),
     toggle("advance_lebensohl", COMPETITION, "Lebensohl advancing a double", true, set_advance_sohl_toggle),
