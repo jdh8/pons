@@ -340,18 +340,11 @@ fn american_row(name: &str) -> i32 {
         "Support double redouble" => i32::from(major_support_double()),
         "Two way game tries" => i32::from(major_game_tries()),
 
-        // ---- carried over from the hand-written card, semantics unverified ----
-        //
-        // Both plausibly map to a knob, and both are **cosmetic** rows (zero of
-        // 8406 decisions moved in `docs/ai-bidder/bba-disclosure-sweep.md`), so
-        // neither was audited.  `Extended acceptance` is a distinct BBA row from
-        // `Super acceptance`, and `Transfers if RHO bids clubs` may mean
-        // "systems on over their club overcall" rather than the opener
-        // continuations `set_competition_over_transfer` authors — both of which
-        // are off by default here.  Held at the card's historical value until
-        // `probe-bba-sensitivity --explain` names the auctions they move; moving
-        // them on a guess would be the misdescription this module exists to stop.
-        "Extended acceptance after NT" | "Transfers if RHO bids clubs" => 1,
+        // Systems on when RHO overcalls our 1NT with 2♣ — EPBot's
+        // `conventions[156]` is one of the three flags feeding
+        // `accepted_LHO_BID_TO_STAYMAN_AND_TRANSFERS`, and the (2♣) systems-on
+        // rebase in `competition.rs` rides the same gate as Lebensohl itself.
+        "Transfers if RHO bids clubs" => i32::from(lebensohl_style() != LebensohlStyle::Off),
 
         // ---- constant: we author these (or pointedly do not), and no knob moves them ----
         //
@@ -392,6 +385,13 @@ fn american_row(name: &str) -> i32 {
         | "Kickback 0314"
         | "Kickback 1430"
         | "Exclusion" => 0,
+        // EPBot's `conventions[58]` is the *side-suit* super-accept: after a
+        // transfer, opener bids a feature above the completion (its gate wants
+        // 4+ support with a doubleton or shorter somewhere).  `notrump.rs` only
+        // ever authors the plain jump — the fit-/shortness-showing forms are a
+        // deliberate omission there — so this row is 0 whatever
+        // `set_transfer_super_accept` says.
+        "Extended acceptance after NT" => 0,
         // Cue bids, DOPI/ROPI over their interference in a keycard auction, and
         // the 5NT king ask.
         "Cue bid" | "DOPI" | "ROPI" | "King ask by 5NT" => 1,

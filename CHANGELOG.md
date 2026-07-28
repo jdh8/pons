@@ -23,16 +23,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   reason we do not play them. Bless with
   `cargo run --example bba-card -- --system american >cards/American.bbsa`.
 
-  **Two rows the generator corrects.** `1N-3M splinter` 0 → 1 (the drift), and
-  `Super acceptance after NT` 1 → 0: `set_transfer_super_accept` is off by
-  default, so the old card claimed a convention we do not play. Both are
-  *cosmetic* rows in `docs/ai-bidder/bba-disclosure-sweep.md` (zero of 8406
-  decisions moved), so no measured number moves — but the card is a description,
-  and it was wrong. `Extended acceptance after NT` and `Transfers if RHO bids
-  clubs` are held at their historical `1` with the uncertainty recorded in
-  `card.rs`: both plausibly map to an off-by-default knob, neither has its BBA
-  semantics pinned, and moving them on a guess is the misdescription this module
-  exists to stop. `probe-bba-sensitivity --explain` settles them.
+  **Three rows the generator corrects.** `1N-3M splinter` 0 → 1 (the drift),
+  `Super acceptance after NT` 1 → 0 (`set_transfer_super_accept` is off by
+  default, so the old card claimed a convention we do not play), and
+  `Extended acceptance after NT` 1 → 0. All three are *cosmetic* rows in
+  `docs/ai-bidder/bba-disclosure-sweep.md` (zero of 8406 decisions moved), so no
+  measured number moves — but the card is a description, and it was wrong.
+
+  The last two were named by decompiling `EPBotNET.dll` rather than by the
+  sweep, which cannot see a row it never exercises. `conventions[58]`
+  (`Extended acceptance`) is the **side-suit** super-accept — after a transfer,
+  opener bids a feature above the completion — which `notrump.rs` deliberately
+  omits, so the row is 0 regardless of the jump knob. `conventions[156]`
+  (`Transfers if RHO bids clubs`) feeds
+  `accepted_LHO_BID_TO_STAYMAN_AND_TRANSFERS`, i.e. systems on when RHO
+  overcalls our 1NT with 2♣ — which we do play, on the same gate as Lebensohl
+  itself, so it is now computed from `lebensohl_style()` instead of pinned.
 
 - **`cards/Dutch.bbsa`**, generated the same way. `dutch()` overwrites only the
   divergent nodes of `american_book()` and has no `set_*` knobs of its own, so
