@@ -40,6 +40,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   **+0.69 / +0.81** vulnerable. Fire rate 0.040%; the effect lives on the 176
   divergent boards, worth **+6.4 to +9.2 IMPs each**. IMPs/board is +0.0002 to
   +0.0003 — a thin slot bid well, not a broad gain.
+  The `set_nt_splinter_floor` 8-versus-9 sweep **refuted the eight** (same seed,
+  so the arm-1 totals subtract): the 711 extra eight-count firings are worth
+  −52/−773 IMPs not vulnerable and +229/−519 vulnerable (plain/PD), and they
+  nearly quadruple the divergence count. An eight-count with a singleton forcing
+  to game reaches games that fail, and perfect defense is where a thin game
+  stops making. The default stays **9**.
   [docs/ai-bidder/bba-1nt-splinter.md](docs/ai-bidder/bba-1nt-splinter.md)
   §Ours.
 

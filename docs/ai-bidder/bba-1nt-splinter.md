@@ -204,8 +204,25 @@ The [`set_splinter_doubled`](../../CHANGELOG.md) comparison from the plan
 (+15.4 IMPs/fired at the same 0.04% frequency) sets the scale: half that, which
 is what a *constructive* slot should look like next to a *competitive* one.
 
-The `set_nt_splinter_floor` 8-vs-9 sweep is a separate run at the same seed
-(arm 0 is identical, so the two arm-1 totals subtract).
+### The floor stays at 9 — the sweep REFUTED 8
+
+Same harness, same seed, `--floor 8`. Arm 0 is identical (the knob only builds
+arm 1), so the two runs' arm-1 totals subtract and the difference *is* the
+marginal value of the 711 extra eight-count firings:
+
+| cell | floor 9 | floor 8 | the eight-counts |
+| --- | --- | --- | --- |
+| none, plain | +1118 | +1066 | **−52** |
+| none, PD | +1346 | +573 | **−773** |
+| both, plain | +1369 | +1598 | +229 |
+| both, PD | +1624 | +1105 | **−519** |
+
+Three of four cells negative and both PD cells strongly so. The mechanism is in
+the divergence count, which nearly *quadruples* (176 → 651 at none): the extra
+≈475 divergent boards are eight-counts, costing ≈−1.6 IMPs each on PD. An
+eight-count with a singleton forcing to game reaches games that fail, and
+perfect defense is precisely where a thin game stops making. `9` stands — the
+same floor BBA measured for its own version of the slot, and BWS's "strong".
 
 ### Owed: reading BEN's form
 
