@@ -72,6 +72,19 @@ struct Args {
     /// decisions but never says *which*, which is what names a row's semantics.
     #[arg(long, value_name = "ROW")]
     explain: Option<String>,
+
+    /// Flip the `--explain` row on BBA's **own** seats instead of the disclosure
+    /// channel.
+    ///
+    /// The disclosure sweep can only see rows that change a call BBA has to
+    /// *make*.  A row governing how BBA reads a constructive auction of ours it
+    /// never competes over moves zero decisions and looks inert, which is a
+    /// blind spot, not a verdict.  Flipping the row on BBA's own seats instead
+    /// makes BBA the bidder, so the row's meaning shows up as a change in its
+    /// own calls — the difference between "does this matter to the opponents"
+    /// and "what does this row mean".
+    #[arg(long)]
+    own: bool,
 }
 
 /// One decision BBA made in a recorded auction
@@ -168,12 +181,17 @@ fn main() -> anyhow::Result<()> {
             .iter()
             .find(|(name, _)| name.to_string_lossy() == *wanted)
             .ok_or_else(|| anyhow::anyhow!("no row named {wanted:?} in {}", args.card))?;
-        println!("\n`{wanted}` (card says {card_value}) — auctions it moves:");
+        let seats = if args.own { "BBA's own seats" } else { "ours" };
+        println!("\n`{wanted}` (card says {card_value}, flipped on {seats}) — auctions it moves:");
         for value in [0, 1] {
-            bba = bba.with_opponents(Some(ConventionCard {
-                system: card.system,
-                toggles: vec![(name.clone(), value)],
-            }));
+            bba = if args.own {
+                BbaOracle::load(&lib, args.system, vec![(name.clone(), value)])?
+            } else {
+                bba.with_opponents(Some(ConventionCard {
+                    system: card.system,
+                    toggles: vec![(name.clone(), value)],
+                }))
+            };
             for ((now, was), p) in calls(&bba, &positions)
                 .iter()
                 .zip(&baseline)

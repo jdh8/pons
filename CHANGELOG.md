@@ -135,6 +135,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `--explain <ROW>` prints the auctions a row moves rather than tallying them,
   which is what names a row's semantics; a count never can.
 
+  **`--own`** flips the `--explain` row on BBA's **own** seats instead of the
+  disclosure channel. A row governing how BBA *reads* a constructive auction of
+  ours it never competes over moves zero decisions in the sweep and looks inert
+  — a blind spot, not a verdict, since the sweep replays only positions where a
+  BBA seat has to act. Under `--own` BBA is the bidder, so the row's meaning
+  shows up as a change in its own calls. This is what settled `Shape Bergen
+  structure`: after `[P 1♠ P 2♥ P]` holding `♠AKT76 ♥T5 ♦3 ♣QJ752` — 11 HCP, a
+  minimum — BBA bids `3♣` under Shape and `2♠` under Strength.
+
 ### Changed
 
 - **`cards/American.bbsa` audited against `american()`**
