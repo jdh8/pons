@@ -2,6 +2,11 @@
 
 mod common;
 use common::*;
+use contract_bridge::Seat;
+use contract_bridge::deck::full_deal;
+use pons::bidding::constraint::set_strength_dial;
+use rand::SeedableRng;
+use rand::rngs::StdRng;
 
 // --- Openings ---------------------------------------------------------------
 
@@ -371,6 +376,22 @@ fn test_full_board_smoke() {
             )
             .is_some()
     );
+}
+
+#[test]
+fn strength_dial_zero_preserves_american_logits() {
+    let baseline = pons::american().against();
+    set_strength_dial(0);
+    let dial_zero = pons::american().against();
+    let mut rng = StdRng::seed_from_u64(0x5_7EED);
+
+    for _ in 0..8 {
+        let hand = full_deal(&mut rng)[Seat::North];
+        assert_eq!(
+            baseline.classify(hand, RelativeVulnerability::NONE, &[]),
+            dial_zero.classify(hand, RelativeVulnerability::NONE, &[])
+        );
+    }
 }
 
 // --- End-to-end auctions across conventions ---------------------------------

@@ -31,6 +31,7 @@
 
 use super::context::Context;
 use super::inference::{Dnf, Envelope, Inferences, Range, dnf_reading};
+use contract_bridge::auction::Call;
 use contract_bridge::eval::{self, HandEvaluator, SimpleEvaluator};
 use contract_bridge::{Hand, Holding, Level, Rank, Strain, Suit};
 use core::cell::Cell;
@@ -894,6 +895,14 @@ std::thread_local! {
     /// before a fit; this captures the fit-known fraction without that
     /// regression.  `set_support_points(false)` is the A/B off arm.
     static SUPPORT_POINTS: Cell<bool> = const { Cell::new(true) };
+    /// Antisymmetric strength adjustment for a simulated natural bidder.
+    /// **Default 0** — byte-identical to the authored card.  Openings and
+    /// overcalls are this many points lighter; responses and advances are this
+    /// many points heavier.  Captured by strength gauges at book construction.
+    ///
+    /// Projection deliberately keeps disclosing the undialled authored
+    /// meanings: that mismatch is the simulated deviation being measured.
+    static STRENGTH_DIAL: Cell<u8> = const { Cell::new(0) };
 }
 
 /// Enable or disable fuzzy strength on the current thread
@@ -954,6 +963,53 @@ pub fn set_support_points(enabled: bool) {
     SUPPORT_POINTS.with(|flag| flag.set(enabled));
 }
 
+/// Set the antisymmetric strength adjustment for books subsequently built on
+/// the current thread (**default 0**, measurement only)
+///
+/// The deviation panel's B axis (docs/deviation-panel.md): a simulated natural
+/// bidder whose openings and overcalls are `dial` points lighter and whose
+/// responses and advances are `dial` points heavier.  The antisymmetry is the
+/// point — pair-level calibration is preserved, so the partnership still stops
+/// in the same places and every authored continuation stays coherent.
+///
+/// Captured when a gauge is *built*, so set it, build the deviant book, and
+/// reset — a classify-time read would leak the dial into the book seated
+/// opposite on the same thread.  Projections stay undialled: the deviant
+/// opponent keeps disclosing the authored meanings, and that mismatch is the
+/// deviation being measured.
+pub fn set_strength_dial(dial: u8) {
+    STRENGTH_DIAL.with(|cell| cell.set(dial));
+}
+
+fn strength_dial() -> u8 {
+    STRENGTH_DIAL.with(Cell::get)
+}
+
+/// Direction in which the strength dial moves a measured value
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum DialShift {
+    /// Make an opening or overcall lighter
+    Add(u8),
+    /// Make a response or advance heavier
+    Subtract(u8),
+}
+
+/// Choose the dial direction from the first non-pass call by our side
+pub(crate) fn dial_shift(dial: u8, context: &Context<'_>) -> DialShift {
+    let auction = context.auction();
+    for (index, call) in auction.iter().enumerate() {
+        if *call == Call::Pass {
+            continue;
+        }
+        match (auction.len() - index) % 4 {
+            0 => return DialShift::Add(dial),
+            2 => return DialShift::Subtract(dial),
+            _ => {}
+        }
+    }
+    DialShift::Add(dial)
+}
+
 /// Raw high card points of a hand
 pub(crate) fn raw_hcp(hand: Hand) -> u8 {
     SimpleEvaluator(eval::hcp::<u8>).eval(hand)
@@ -992,15 +1048,26 @@ fn bound_range<T: ToU64>(range: &impl RangeBounds<T>, cap: u8) -> Range {
 
 /// Raw high card points in a range (the [`hcp`] constraint)
 #[derive(Clone)]
-struct Hcp<R>(R);
+struct Hcp<R> {
+    range: R,
+    dial: u8,
+}
 
 impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for Hcp<R> {
-    fn eval(&self, hand: Hand, _: &Context<'_>) -> f32 {
-        crisp(self.0.contains(&raw_hcp(hand)))
+    fn eval(&self, hand: Hand, context: &Context<'_>) -> f32 {
+        let value = raw_hcp(hand);
+        if self.dial == 0 {
+            return crisp(self.range.contains(&value));
+        }
+        let value = match dial_shift(self.dial, context) {
+            DialShift::Add(dial) => value.saturating_add(dial),
+            DialShift::Subtract(dial) => value.saturating_sub(dial),
+        };
+        crisp(self.range.contains(&value))
     }
 
     fn describe(&self) -> Description {
-        describe_int_range(&self.0, "HCP")
+        describe_int_range(&self.range, "HCP")
     }
 
     fn project(&self, _: &Context<'_>) -> Dnf {
@@ -1011,7 +1078,7 @@ impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for Hcp<R> {
         // returns in [`project_band`][Constraint::project_band], widened by
         // [`hcp_ceiling_slack`].
         let slack = flat_hcp_slack();
-        let floor = bound_range(&self.0, Range::FULL_POINTS.max).min;
+        let floor = bound_range(&self.range, Range::FULL_POINTS.max).min;
         let mut inference = Envelope::unknown();
         inference.strength.points = Range::new(floor.saturating_sub(slack), Range::FULL_POINTS.max);
         // The `hcp` gauge is raw HCP, so its floor is exact — no upgrade slack.
@@ -1020,7 +1087,7 @@ impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for Hcp<R> {
     }
 
     fn project_band(&self, _: &Context<'_>) -> Dnf {
-        Dnf::from(hcp_band(bound_range(&self.0, Range::FULL_POINTS.max)))
+        Dnf::from(hcp_band(bound_range(&self.range, Range::FULL_POINTS.max)))
     }
 
     fn project_complement(&self, _: &Context<'_>) -> Dnf {
@@ -1030,7 +1097,7 @@ impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for Hcp<R> {
         // `disjoin`: knob-off they hull back to the full range (the pre-DNF
         // reading, byte-identical); knob-on both boxes survive.
         complement_halves(
-            bound_range(&self.0, Range::FULL_POINTS.max),
+            bound_range(&self.range, Range::FULL_POINTS.max),
             Range::FULL_POINTS.max,
         )
         .map(|half| Dnf::from(hcp_band(half)))
@@ -1058,7 +1125,10 @@ fn hcp_band(raw: Range) -> Envelope {
 /// Total high card points in the given range
 #[must_use]
 pub fn hcp(range: impl RangeBounds<u8> + Clone + Send + Sync) -> Cons<impl Constraint + Clone> {
-    Cons(Hcp(range))
+    Cons(Hcp {
+        range,
+        dial: strength_dial(),
+    })
 }
 
 /// The slack an HCP-gated point envelope owes the current scale: rule of N+8
@@ -1207,25 +1277,36 @@ fn new_point_count(hand: Hand) -> u8 {
 
 /// Upgraded points in a range (the [`points`] constraint)
 #[derive(Clone)]
-struct Points<R>(R);
+struct Points<R> {
+    range: R,
+    dial: u8,
+}
 
 impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for Points<R> {
-    fn eval(&self, hand: Hand, _: &Context<'_>) -> f32 {
+    fn eval(&self, hand: Hand, context: &Context<'_>) -> f32 {
         // Always the shared scalar, whatever scale it is set to — the
         // sampler's soundness invariant (it measures the same number) holds
         // on every arm of the point-scale A/B.
-        crisp(self.0.contains(&point_count(hand)))
+        let value = point_count(hand);
+        if self.dial == 0 {
+            return crisp(self.range.contains(&value));
+        }
+        let value = match dial_shift(self.dial, context) {
+            DialShift::Add(dial) => value.saturating_add(dial),
+            DialShift::Subtract(dial) => value.saturating_sub(dial),
+        };
+        crisp(self.range.contains(&value))
     }
 
     fn describe(&self) -> Description {
-        describe_int_range(&self.0, "points")
+        describe_int_range(&self.range, "points")
     }
 
     fn project(&self, _: &Context<'_>) -> Dnf {
         // Floor only, matching every hand-written reader (`at_least(floor,
         // CAP)`): sound whether or not the fuzzy-strength upgrade is on, since
         // the upgraded point count is never below the band's floor.
-        let floor = bound_range(&self.0, Range::FULL_POINTS.max).min;
+        let floor = bound_range(&self.range, Range::FULL_POINTS.max).min;
         let mut inference = Envelope::unknown();
         inference.strength.points = Range::new(floor, Range::FULL_POINTS.max);
         if dnf_reading() {
@@ -1246,7 +1327,7 @@ impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for Points<R> {
         // Both bounds exact: `points` gauges the shared `point_count` scalar
         // the `Envelope` scale records, whatever scale it is set to.
         let mut inference = Envelope::unknown();
-        let band = bound_range(&self.0, Range::FULL_POINTS.max);
+        let band = bound_range(&self.range, Range::FULL_POINTS.max);
         inference.strength.points = band;
         if dnf_reading() {
             // The two-sided HCP image of a points band: down by the scale's
@@ -1267,7 +1348,7 @@ impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for Points<R> {
         // `disjoin` keeps knob-off hulled to the full range (the pre-DNF
         // reading), knob-on both boxes.
         complement_halves(
-            bound_range(&self.0, Range::FULL_POINTS.max),
+            bound_range(&self.range, Range::FULL_POINTS.max),
             Range::FULL_POINTS.max,
         )
         .map(|half| {
@@ -1286,7 +1367,10 @@ impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for Points<R> {
 /// [`fifths`] instead, and ranges indifferent to shape keep [`hcp`].
 #[must_use]
 pub fn points(range: impl RangeBounds<u8> + Clone + Send + Sync) -> Cons<impl Constraint + Clone> {
-    Cons(Points(range))
+    Cons(Points {
+        range,
+        dial: strength_dial(),
+    })
 }
 
 /// The **suit-blind** support scalar: [`point_count`] on the fit-known
@@ -1352,6 +1436,7 @@ fn support_slots(trump: Suit, band: Range) -> [Range; 4] {
 struct SupportPoints<R> {
     suit: Suit,
     range: R,
+    dial: u8,
 }
 
 impl<R: RangeBounds<u8> + Clone + Send + Sync> SupportPoints<R> {
@@ -1362,11 +1447,19 @@ impl<R: RangeBounds<u8> + Clone + Send + Sync> SupportPoints<R> {
 }
 
 impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for SupportPoints<R> {
-    fn eval(&self, hand: Hand, _: &Context<'_>) -> f32 {
+    fn eval(&self, hand: Hand, context: &Context<'_>) -> f32 {
         // Clamp the measured value at the scale cap: a capped ceiling means
         // "unbounded", so the clamp keeps a freak hand inside every
         // floor-only band.
-        let value = support_point_count_in(hand, self.suit).min(Range::FULL_POINTS.max);
+        let value = support_point_count_in(hand, self.suit);
+        if self.dial == 0 {
+            return crisp(self.band().contains(value.min(Range::FULL_POINTS.max)));
+        }
+        let value = match dial_shift(self.dial, context) {
+            DialShift::Add(dial) => value.saturating_add(dial),
+            DialShift::Subtract(dial) => value.saturating_sub(dial),
+        }
+        .min(Range::FULL_POINTS.max);
         crisp(self.band().contains(value))
     }
 
@@ -1432,7 +1525,11 @@ pub fn support_points(
     suit: Suit,
     range: impl RangeBounds<u8> + Clone + Send + Sync,
 ) -> Cons<impl Constraint + Clone> {
-    Cons(SupportPoints { suit, range })
+    Cons(SupportPoints {
+        suit,
+        range,
+        dial: strength_dial(),
+    })
 }
 
 /// Fifths in a range (the [`fifths`] constraint)
@@ -2843,6 +2940,74 @@ mod tests {
         assert_reject(hcp(16..).eval(hand(BALANCED_15), &context));
         assert_pass(balanced().eval(hand(BALANCED_15), &context));
         assert_reject(balanced().eval(hand("AKQJ2.K543.QJ4.2"), &context));
+    }
+
+    #[test]
+    fn strength_dial_role_detection() {
+        let one_club = Call::Bid(Bid::new(1, Strain::Clubs));
+        let one_spade = Call::Bid(Bid::new(1, Strain::Spades));
+        let role =
+            |auction: &[Call]| dial_shift(2, &Context::new(RelativeVulnerability::NONE, auction));
+
+        assert_eq!(role(&[]), DialShift::Add(2)); // opener
+        assert_eq!(
+            role(&[one_club, one_spade, Call::Pass, Call::Pass, Call::Double,]),
+            DialShift::Add(2)
+        ); // overcaller
+        assert_eq!(role(&[one_club, Call::Pass]), DialShift::Subtract(2)); // responder
+        assert_eq!(
+            role(&[one_club, one_spade, Call::Pass]),
+            DialShift::Subtract(2)
+        ); // advancer
+        assert_eq!(role(&[one_club, Call::Pass, Call::Pass]), DialShift::Add(2)); // balancer
+    }
+
+    #[test]
+    fn strength_dial_zero_is_identical_in_both_roles() {
+        let one_club = Call::Bid(Bid::new(1, Strain::Clubs));
+        let responder_auction = [one_club, Call::Pass];
+        let opener = empty_context();
+        let responder = Context::new(RelativeVulnerability::NONE, &responder_auction);
+        let test_hand = hand(BALANCED_15);
+
+        let baseline_hcp = hcp(15..=17);
+        let baseline_points = points(15..=17);
+        let baseline_support = support_points(Suit::Spades, 15..=17);
+        set_strength_dial(0);
+        let zero_hcp = hcp(15..=17);
+        let zero_points = points(15..=17);
+        let zero_support = support_points(Suit::Spades, 15..=17);
+
+        for context in [&opener, &responder] {
+            assert_eq!(
+                baseline_hcp.eval(test_hand, context),
+                zero_hcp.eval(test_hand, context)
+            );
+            assert_eq!(
+                baseline_points.eval(test_hand, context),
+                zero_points.eval(test_hand, context)
+            );
+            assert_eq!(
+                baseline_support.eval(test_hand, context),
+                zero_support.eval(test_hand, context)
+            );
+        }
+    }
+
+    #[test]
+    fn strength_dial_two_moves_points_antisymmetrically() {
+        let test_hand = hand("KQ765.A8765.32.2"); // 11 points
+        let one_club = Call::Bid(Bid::new(1, Strain::Clubs));
+        let responder_auction = [one_club, Call::Pass];
+        let opener = empty_context();
+        let responder = Context::new(RelativeVulnerability::NONE, &responder_auction);
+
+        set_strength_dial(2);
+        let gate = points(13..);
+        set_strength_dial(0);
+
+        assert_pass(gate.eval(test_hand, &opener));
+        assert_reject(gate.eval(test_hand, &responder));
     }
 
     #[test]
