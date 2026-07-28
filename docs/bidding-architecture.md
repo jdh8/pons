@@ -123,6 +123,19 @@ A rule whose meaning genuinely is a box union can be authored as one —
 The live sequel is retiring the hand-written disjunction readers in favor of
 the authored projections: [reader-retirement.md](reader-retirement.md).
 
+The corollary (assessed 2026-07-28): **no opaque-predicate field on
+`Envelope`/`Dnf`** — `boxes & pred(...)` already merges the two with the box
+half projecting exactly, `sample_layouts_replay` already gives every pred
+membership teeth under the correct authoring-seat context, and a stored
+closure would make `subset_of` undecidable (breaking `tidy`'s dedup) while
+replaying under the *reader's* context — the wrong-seat trap. The long-run
+convergence is scoped instead: **own-hand** preds may become axes/boxes
+on-demand ([dnf-migration.md](dnf-migration.md) §Irreducible tail is the
+worklist and its triggers); pair-level gates (`combined_points`,
+`fit_sum_game`, …) and net gates stay fold-side permanently — an `Envelope`
+describes one hand, and a net's accept region is no box union — read via a
+seat-carrying `project` or the sampled projection.
+
 ## Disclosure: `Alert` and readings
 
 - `Alert("kebab-slug")` (`rules.rs`) marks a call artificial. The system-wide
