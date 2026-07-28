@@ -40,6 +40,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   overcalls our 1NT with 2♣ — which we do play, on the same gate as Lebensohl
   itself, so it is now computed from `lebensohl_style()` instead of pinned.
 
+  The same audit over the **live** rows (the 33 that move a decision) found the
+  one that is not cosmetic: `Weak Jump Shifts 2` / `3` 0 → 1. `responses.rs`
+  authors responder's single jump in a new suit as 6+ cards and 2–5 points at
+  both levels, and the card denied it — so BBA has been reading our weak jumps
+  as strong ones. `Weak Jump Shifts 2` moved 2 of 8406 decisions in the sweep.
+
 - **`cards/Dutch.bbsa`**, generated the same way. `dutch()` overwrites only the
   divergent nodes of `american_book()` and has no `set_*` knobs of its own, so
   its card is American's plus one row — but a **different header**:

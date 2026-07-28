@@ -466,9 +466,13 @@ fn american_row(name: &str) -> i32 {
         | "Soloway Jump Shifts Extended"
         | "Surplus pass"
         | "Transfers if RHO passes"
-        | "Transfers if RHO doubles"
-        | "Weak Jump Shifts 2"
-        | "Weak Jump Shifts 3" => 0,
+        | "Transfers if RHO doubles" => 0,
+        // Responder's single jump in a new suit is weak — 6+ cards, 2–5 points
+        // (`responses.rs`, `wjs_bid`), at whichever level the jump lands: `2♠`
+        // over `1♥`, the 3 level below the major.  EPBot splits the two levels
+        // into `conventions[166]`/`[167]`, both of which we want.  No knob —
+        // this is the response structure, not a treatment.
+        "Weak Jump Shifts 2" | "Weak Jump Shifts 3" => 1,
         _ => panic!("`{name}` is in the .bbsa schema with no value in `american_row`"),
     }
 }
