@@ -425,9 +425,18 @@ fn american_row(name: &str) -> i32 {
         | "Weak natural 2M" => 1,
         // Radio pair, like the `1NT opening natural` / `NT style` group: EPBot's
         // setter for either index clears the other, so never flip one alone.
-        // We play neither Bergen nor Reverse Bergen, so the strength reading of
-        // opener's jump rebid is the one we want.
-        "Strength Lawrence structure" => 1,
+        //
+        // Despite the names, neither is about raises — both live in EPBot's
+        // `rebid_po_forsujacym_21` (`21` is *two-over-one*), opener's rebid
+        // after a game-forcing `2/1` response, and both gate the **three-level
+        // side suit** specifically.  `Shape` bids it on any strength;
+        // `Strength` demands roughly `25 - partner_min + 1` and reads that
+        // strength back off the call.  `game_force::opener_rebid` offers
+        // `call(3, x)` on `len(x, 4..)` with no point term at all, so we are
+        // Shape — every strength-showing call there is a separate rule (the
+        // `3M` jump wants `points(15..)`, the raise wants support).
+        "Shape Bergen structure" => 1,
+        "Strength Lawrence structure" => 0,
         // Unresolved, and cosmetic (zero decisions moved).  EPBot's
         // `conventions[151]` changes what `1M`–`1NT`–`2M` and a raise over RHO's
         // double mean, which does not line up cleanly with anything we author —
@@ -476,7 +485,6 @@ fn american_row(name: &str) -> i32 {
         | "Reverse drury"
         | "Rubensohl after 1NT"
         | "Rubensohl after 1m"
-        | "Shape Bergen structure"
         | "Snapdragon Double"
         | "Soloway Jump Shifts"
         | "Soloway Jump Shifts Extended"

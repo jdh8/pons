@@ -46,6 +46,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   both levels, and the card denied it — so BBA has been reading our weak jumps
   as strong ones. `Weak Jump Shifts 2` moved 2 of 8406 decisions in the sweep.
 
+  `Shape Bergen structure` / `Strength Lawrence structure` were **backwards**,
+  and they are a radio pair (EPBot's setter for either index clears the other,
+  so flipping one alone silently moves the other). Despite the names neither is
+  about raises: both live in EPBot's `rebid_po_forsujacym_21` (`21` is
+  *two-over-one*), opener's rebid after a game-forcing `2/1` response, and both
+  gate the three-level side suit specifically. `Shape` bids it on any strength;
+  `Strength` demands roughly `25 − partner_min + 1` and reads that strength back
+  off the call. `game_force::opener_rebid` offers `call(3, x)` on `len(x, 4..)`
+  with no point term, so we are Shape, and the card claimed Strength.
+
   Sweeping the remaining constant rows the same way found one more,
   `Minor Suit Transfers after 2NT` 1 → 0: responder's 2NT structure is 3♣
   Stayman, 3♦/3♥ to the majors, 3NT and 4NT quantitative, with no minor transfer
