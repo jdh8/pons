@@ -5953,6 +5953,31 @@ mod tests {
         assert_all_alerted("american", worklist);
     }
 
+    #[test]
+    fn deviation_knobs_preserve_alert_invariant() {
+        use crate::bidding::american::{
+            american, set_one_notrump_offshape, set_overcall_four_card, set_weak_two_wild,
+        };
+
+        set_one_notrump_offshape(true);
+        set_overcall_four_card(true);
+        set_weak_two_wild(true);
+        let pair = american();
+        set_one_notrump_offshape(false);
+        set_overcall_four_card(false);
+        set_weak_two_wild(false);
+
+        let mut worklist = Vec::new();
+        for (phase, trie) in [
+            ("constructive", &pair.constructive.0),
+            ("competitive", &pair.competitive.0),
+            ("defensive", &pair.defensive.0),
+        ] {
+            worklist.extend(unalerted_artificial(phase, trie));
+        }
+        assert_all_alerted("american deviation knobs", worklist);
+    }
+
     /// Disclosure tripwire: the alerted call sites of the default `american()`
     /// book, counted per alert slug, against `tests/fixtures/alert-sites.txt`
     ///

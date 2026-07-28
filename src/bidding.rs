@@ -44,7 +44,10 @@ pub mod trie;
 /// Behavioral verification of authored constraints (AI-bidder M4.2)
 pub mod verify;
 
-pub use american::{american, american_book, american_floor, american_instinct};
+pub use american::{
+    american, american_book, american_floor, american_instinct, set_one_notrump_offshape,
+    set_overcall_four_card, set_weak_two_wild,
+};
 pub use array::Array;
 pub use book::{Competitive, Constructive, Defensive, ExplainedRule, Pair, Phase, Stance};
 pub use compose::{OrElse, Versus};

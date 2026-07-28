@@ -110,8 +110,8 @@ pub use defense::{
     set_natural_double_floor, set_natural_double_shape, set_natural_double_weight,
     set_natural_overcall_points, set_notrump_balancing, set_notrump_defense,
     set_nt_overcall_gladiator, set_nt_overcall_no_major, set_nt_overcall_systems_on,
-    set_overcall_discipline, set_passed_hand_overcall, set_responsive_overcall,
-    set_responsive_takeout, set_rich_advance_double, set_stayman_defense,
+    set_overcall_discipline, set_overcall_four_card, set_passed_hand_overcall,
+    set_responsive_overcall, set_responsive_takeout, set_rich_advance_double, set_stayman_defense,
     set_stayman_defense_overcall, set_strong_double_hcp, set_takeout_support, set_transfer_defense,
     set_two_level_minor_overcall_tight, set_two_suiter_hcp_floor, set_unusual_notrump_defense,
     set_weak_two_cue, set_weak_two_jump_overcall, set_weak_two_notrump_advances,
@@ -145,7 +145,8 @@ pub(crate) use openings::notrump_shape_setting;
 pub(crate) use openings::two_notrump_wide;
 pub use openings::{
     NotrumpShape, WeakTwoEval, openings, openings_with, set_notrump_shape, set_one_notrump_fifths,
-    set_open_one_notrump, set_two_notrump_wide, set_weak_two_eval, set_weak_two_hcp,
+    set_one_notrump_offshape, set_open_one_notrump, set_two_notrump_wide, set_weak_two_eval,
+    set_weak_two_hcp, set_weak_two_wild,
 };
 pub(crate) use raises::major_game_tries;
 pub use raises::{set_limit_raise_acceptance, set_major_game_tries};

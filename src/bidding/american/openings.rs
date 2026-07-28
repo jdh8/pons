@@ -35,6 +35,12 @@ thread_local! {
     /// instead of plain `balanced()`.  Default `false` (byte-identical).  See
     /// [`set_two_notrump_wide`].
     static TWO_NOTRUMP_WIDE: Cell<bool> = const { Cell::new(false) };
+    /// Whether the 1NT opening admits human-style off-shape hands. Default
+    /// `false` (byte-identical). See [`set_one_notrump_offshape`].
+    static ONE_NOTRUMP_OFFSHAPE: Cell<bool> = const { Cell::new(false) };
+    /// Whether weak twos admit five-card suits and a wider strength band.
+    /// Default `false` (byte-identical). See [`set_weak_two_wild`].
+    static WEAK_TWO_WILD: Cell<bool> = const { Cell::new(false) };
 }
 
 /// Suppress (`false`) or restore (`true`, the default) our own 1NT opening.
@@ -146,6 +152,26 @@ pub fn set_two_notrump_wide(on: bool) {
     TWO_NOTRUMP_WIDE.with(|cell| cell.set(on));
 }
 
+/// Admit 5422 and mild singleton-honour shapes to the 15–17 1NT opening
+/// (opt-in; the default `false` is byte-identical).
+pub fn set_one_notrump_offshape(on: bool) {
+    ONE_NOTRUMP_OFFSHAPE.with(|cell| cell.set(on));
+}
+
+fn one_notrump_offshape() -> bool {
+    ONE_NOTRUMP_OFFSHAPE.with(Cell::get)
+}
+
+/// Admit five-card suits and `points(3..=12)` to weak-two openings (opt-in;
+/// the default `false` is byte-identical).
+pub fn set_weak_two_wild(on: bool) {
+    WEAK_TWO_WILD.with(|cell| cell.set(on));
+}
+
+fn weak_two_wild() -> bool {
+    WEAK_TWO_WILD.with(Cell::get)
+}
+
 /// Whether the strong 2NT opening admits the wide-minor shape (chop G0).  Read
 /// by both the opening table and the inference reading so they stay in step.
 pub(crate) fn two_notrump_wide() -> bool {
@@ -219,6 +245,29 @@ pub(crate) fn two_notrump_wide_shape() -> Cons<impl Constraint + Clone> {
     )
 }
 
+/// Human-style off-shape 1NT hands: any 5422, or 4441/5431 with a singleton Q/J.
+fn one_notrump_offshape_gate() -> Cons<impl Constraint + Clone> {
+    let mut boxes = Vec::new();
+    for suit in Suit::ASC {
+        boxes.push(long_suit_box(suit, Range::new(5, 5), Range::new(2, 2)));
+    }
+    let shape = shapes("5422 1NT shape", boxes);
+    shape
+        | described(
+            "4441/5431 with a singleton queen or jack",
+            |hand: Hand, _: &Context<'_>| {
+                let mut lengths = Suit::ASC.map(|suit| hand[suit].len());
+                lengths.sort_unstable();
+                matches!(lengths, [1, 3, 4, 5] | [1, 4, 4, 4])
+                    && Suit::ASC.into_iter().any(|suit| {
+                        hand[suit].len() == 1
+                            && (hand[suit].contains(contract_bridge::Rank::Q)
+                                || hand[suit].contains(contract_bridge::Rank::J))
+                    })
+            },
+        )
+}
+
 /// Better-minor selector: open 1♦ rather than 1♣
 ///
 /// Open the longer minor; with equal length open 1♦ on four-or-more (the
@@ -269,7 +318,13 @@ pub fn openings_with(shape: NotrumpShape) -> Rules {
         // Strength gauged by plain HCP 15-17 by default; `set_one_notrump_fifths`
         // restores the legacy Andrews' fifths gauge.  Each arm reissues `.rule()`
         // so the differing constraint types unify to `Rules`.
-        rules = if ONE_NOTRUMP_FIFTHS.with(Cell::get) {
+        rules = if (ONE_NOTRUMP_FIFTHS.with(Cell::get), one_notrump_offshape()) == (true, true) {
+            rules.rule(
+                Bid::new(1, Strain::Notrump),
+                2.0,
+                fifths(14.5..17.5) & (notrump_shape(shape) | one_notrump_offshape_gate()),
+            )
+        } else if ONE_NOTRUMP_FIFTHS.with(Cell::get) {
             // 14.5..17.5 (centre 16), not 15..18 (centre 16.5): fifths sums to 40
             // over the deck like HCP, so an unbiased "15-17 HCP" gate shares the
             // plain-HCP band's centre — the old 15..18 was half a point too high.
@@ -277,6 +332,12 @@ pub fn openings_with(shape: NotrumpShape) -> Rules {
                 Bid::new(1, Strain::Notrump),
                 2.0,
                 fifths(14.5..17.5) & notrump_shape(shape),
+            )
+        } else if one_notrump_offshape() {
+            rules.rule(
+                Bid::new(1, Strain::Notrump),
+                2.0,
+                hcp(15..=17) & (notrump_shape(shape) | one_notrump_offshape_gate()),
             )
         } else {
             rules.rule(
@@ -374,6 +435,10 @@ pub fn openings_with(shape: NotrumpShape) -> Rules {
     for suit in [Suit::Diamonds, Suit::Hearts, Suit::Spades] {
         let bid = Bid::new(2, Strain::from(suit));
         let six = move || len(suit, 6..=6);
+        if weak_two_wild() {
+            rules = rules.rule(bid, 1.0, len(suit, 5..=6) & points(3..=12) & !nth_seat(4));
+            continue;
+        }
         rules = match (weak_two_eval, weak_two_band) {
             (Some(WeakTwoEval::CcccBand(lo, hi)), _) => {
                 rules.rule(bid, 1.0, six() & cccc(lo..hi) & !nth_seat(4))
@@ -520,6 +585,66 @@ mod tests {
         let call = opens(&openings(), balanced16);
         set_open_one_notrump(true);
         assert_eq!(call, one_c);
+    }
+
+    #[test]
+    fn one_notrump_offshape_is_opt_in() {
+        use contract_bridge::Seat;
+        use contract_bridge::deck::full_deal;
+        use rand::SeedableRng;
+        use rand::rngs::StdRng;
+
+        let baseline = openings();
+        set_one_notrump_offshape(false);
+        let explicit_off = openings();
+        let context = Context::new(RelativeVulnerability::NONE, &[]);
+        let mut rng = StdRng::seed_from_u64(0x1A70_FF51);
+        for _ in 0..64 {
+            let deal = full_deal(&mut rng);
+            for hand in Seat::ALL.map(|seat| deal[seat]) {
+                assert_eq!(
+                    baseline.classify(hand, &context).0,
+                    explicit_off.classify(hand, &context).0
+                );
+            }
+        }
+
+        let offshape = "AQ43.KQJ2.K532.J";
+        let one_nt = Call::Bid(Bid::new(1, Strain::Notrump));
+        assert_ne!(opens(&explicit_off, offshape), one_nt);
+        set_one_notrump_offshape(true);
+        assert_eq!(opens(&openings(), offshape), one_nt);
+        set_one_notrump_offshape(false);
+    }
+
+    #[test]
+    fn weak_two_wild_is_opt_in() {
+        use contract_bridge::Seat;
+        use contract_bridge::deck::full_deal;
+        use rand::SeedableRng;
+        use rand::rngs::StdRng;
+
+        let baseline = openings();
+        set_weak_two_wild(false);
+        let explicit_off = openings();
+        let context = Context::new(RelativeVulnerability::NONE, &[]);
+        let mut rng = StdRng::seed_from_u64(0x2EA4_71D2);
+        for _ in 0..64 {
+            let deal = full_deal(&mut rng);
+            for hand in Seat::ALL.map(|seat| deal[seat]) {
+                assert_eq!(
+                    baseline.classify(hand, &context).0,
+                    explicit_off.classify(hand, &context).0
+                );
+            }
+        }
+
+        let five_card = "KQJ98.743.52.842";
+        let two_s = Call::Bid(Bid::new(2, Strain::Spades));
+        assert_ne!(opens(&explicit_off, five_card), two_s);
+        set_weak_two_wild(true);
+        assert_eq!(opens(&openings(), five_card), two_s);
+        set_weak_two_wild(false);
     }
 
     #[test]

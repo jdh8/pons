@@ -894,6 +894,9 @@ thread_local! {
     /// flat `points(8..=16)`; **true by default** (the shipped fix). See
     /// [`set_overcall_discipline`].
     static OVERCALL_DISCIPLINE: Cell<bool> = const { Cell::new(true) };
+    /// Whether a natural direct overcall may be made on a good four-card suit.
+    /// Default `false` (byte-identical). See [`set_overcall_four_card`].
+    static OVERCALL_FOUR_CARD: Cell<bool> = const { Cell::new(false) };
     /// Whether a **passed hand** may take the disciplined 2-level overcall a shade
     /// lighter (9+ instead of the opening 11+); **true by default** (folded into
     /// base in the A5 pass — a passed hand is captain-limited, so the 11+ floor
@@ -1015,6 +1018,16 @@ fn takeout_support() -> TakeoutSupport {
 /// at both levels.  An A/B knob (`bba-gen --ns-overcall-discipline on|off`).
 pub fn set_overcall_discipline(on: bool) {
     OVERCALL_DISCIPLINE.with(|cell| cell.set(on));
+}
+
+/// Allow a natural direct overcall on exactly four cards when the suit holds
+/// at least five HCP (opt-in; the default `false` is byte-identical).
+pub fn set_overcall_four_card(on: bool) {
+    OVERCALL_FOUR_CARD.with(|cell| cell.set(on));
+}
+
+fn overcall_four_card() -> bool {
+    OVERCALL_FOUR_CARD.with(Cell::get)
 }
 
 /// Let a passed hand overcall the disciplined 2-level a shade lighter (9+) for
@@ -1799,6 +1812,37 @@ pub fn defense_to_suit(their_opening: Bid) -> Rules {
                     len(suit, 5..) & points(lo..=hi) & (points(11..) | passed_hand()),
                 ),
             };
+            if overcall_four_card() {
+                rules = match (strong_double_hcp(), relax_passed) {
+                    (Some(n), false) => rules.rule(
+                        Bid::new(level, strain),
+                        weight,
+                        len(suit, 4..=4) & suit_hcp(suit, 5..) & points(lo..) & hcp(..n),
+                    ),
+                    (Some(n), true) => rules.rule(
+                        Bid::new(level, strain),
+                        weight,
+                        len(suit, 4..=4)
+                            & suit_hcp(suit, 5..)
+                            & points(lo..)
+                            & hcp(..n)
+                            & (points(11..) | passed_hand()),
+                    ),
+                    (None, false) => rules.rule(
+                        Bid::new(level, strain),
+                        weight,
+                        len(suit, 4..=4) & suit_hcp(suit, 5..) & points(lo..=hi),
+                    ),
+                    (None, true) => rules.rule(
+                        Bid::new(level, strain),
+                        weight,
+                        len(suit, 4..=4)
+                            & suit_hcp(suit, 5..)
+                            & points(lo..=hi)
+                            & (points(11..) | passed_hand()),
+                    ),
+                };
+            }
         }
     }
 
@@ -5715,6 +5759,49 @@ mod tests {
         let legacy = super::defense_to_suit(Bid::new(1, Strain::Clubs));
         super::set_strong_double_hcp(Some(18));
         certify(&legacy, &points(17..));
+    }
+
+    #[test]
+    fn four_card_overcall_is_opt_in() {
+        use crate::bidding::context::Context;
+        use crate::bidding::trie::Classifier;
+        use contract_bridge::Seat;
+        use contract_bridge::deck::full_deal;
+        use rand::SeedableRng;
+        use rand::rngs::StdRng;
+
+        let their_opening = Bid::new(1, Strain::Clubs);
+        let auction = [Call::Bid(their_opening)];
+        let context = Context::new(RelativeVulnerability::NONE, &auction);
+        let baseline = super::defense_to_suit(their_opening);
+        super::set_overcall_four_card(false);
+        let explicit_off = super::defense_to_suit(their_opening);
+        let mut rng = StdRng::seed_from_u64(0x4CA4_D0C1);
+        for _ in 0..64 {
+            let deal = full_deal(&mut rng);
+            for hand in Seat::ALL.map(|seat| deal[seat]) {
+                assert_eq!(
+                    baseline.classify(hand, &context).0,
+                    explicit_off.classify(hand, &context).0
+                );
+            }
+        }
+
+        let hand: Hand = "AQJ9.K42.763.542".parse().expect("valid test hand");
+        let one_s = call(1, Strain::Spades);
+        let off = explicit_off.classify(hand, &context);
+        let best = |logits: &crate::bidding::Array<f32>| {
+            logits
+                .into_iter()
+                .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("logits are never NaN"))
+                .map(|(call, _)| call)
+                .expect("array is never empty")
+        };
+        assert_ne!(best(&off.0), one_s);
+        super::set_overcall_four_card(true);
+        let on = super::defense_to_suit(their_opening).classify(hand, &context);
+        super::set_overcall_four_card(false);
+        assert_eq!(best(&on.0), one_s);
     }
 
     /// `american()`'s best call for a hand in an auction, and whether the instinct
