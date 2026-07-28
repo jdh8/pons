@@ -196,6 +196,36 @@ pub fn dnf_reading() -> bool {
 }
 
 std::thread_local! {
+    /// Whether the two opponent seats' readings are blanked (see
+    /// [`set_blind_opponent_reading`]).  **Off by default.**
+    static BLIND_OPPONENT_READING: Cell<bool> = const { Cell::new(false) };
+}
+
+/// Blank what the *opponents* have shown (**default off**, measurement only)
+///
+/// On, [`Inferences`] hands back [`Envelope::unknown`] / [`Dnf::unknown`] for
+/// [`Relative::Lho`] and [`Relative::Rho`]; partner and the actor keep their
+/// live readings.  This is the `blind` arm of the deviation panel
+/// (docs/deviation-panel.md): the paired `seen − blind` score is what our
+/// reading of *their* calls is worth against one perturbed opponent, a
+/// statistic that stays honest when the deviant system is itself weaker.
+///
+/// Distinct from [`features::set_blind_inference`][super::features::set_blind_inference],
+/// which blanks all four seats and only for the nets — this one cuts at the
+/// source, so the sampler, the floor and the evaluator all go blind together.
+/// The two are **not** comparable; the historical blind control was the other
+/// knob.  Read at assembly time, per-thread.
+pub fn set_blind_opponent_reading(on: bool) {
+    BLIND_OPPONENT_READING.with(|cell| cell.set(on));
+}
+
+/// Whether the opponents' readings are blanked (default off)
+#[must_use]
+pub fn blind_opponent_reading() -> bool {
+    BLIND_OPPONENT_READING.with(Cell::get)
+}
+
+std::thread_local! {
     /// Whether box membership also tests the `hcp` and `support_points`
     /// gauges (see [`set_gauge_membership`]).  **Off by default** — the
     /// chop-E knob; every consumer stays on the lengths + `points` membership
@@ -1326,13 +1356,23 @@ impl Inferences {
         control_bid: Option<(u8, Suit)>,
     ) -> Self {
         let announced = dnf_of(&players, agreement);
-        Self {
+        let mut this = Self {
             dnf: dnf_of(&players, overlay),
             announced_players: std::array::from_fn(|i| announced[i].hull()),
             announced,
             players,
             control_bid,
+        };
+        if blind_opponent_reading() {
+            for who in [Relative::Lho, Relative::Rho] {
+                let i = who as usize;
+                this.players[i] = Envelope::unknown();
+                this.announced_players[i] = Envelope::unknown();
+                this.dnf[i] = Dnf::unknown();
+                this.announced[i] = Dnf::unknown();
+            }
         }
+        this
     }
 
     /// Whether `hand` is consistent with one seat's reading
@@ -3879,6 +3919,50 @@ mod tests {
             "on: neither box holds the 5-4 hand"
         );
         set_dnf_reading(true);
+    }
+
+    /// `set_blind_opponent_reading` blanks LHO and RHO and *only* those: the
+    /// deviation panel's blind arm must leave partner and our own reading
+    /// intact, or it stops measuring what reading *their* calls is worth.
+    #[test]
+    fn blind_opponent_reading_spares_our_side() {
+        // 1♦ (me) - 1♥ (LHO) - 1♠ (partner) - 2♥ (RHO): all four seats have
+        // shown something, so blanking two of them is visible.
+        let auction = [
+            bid(1, Strain::Diamonds),
+            bid(1, Strain::Hearts),
+            bid(1, Strain::Spades),
+            bid(2, Strain::Hearts),
+        ];
+        let seen = read(&auction);
+        set_blind_opponent_reading(true);
+        let blind = read(&auction);
+        set_blind_opponent_reading(false);
+
+        for who in [Relative::Lho, Relative::Rho] {
+            assert_eq!(*blind.get(who), Envelope::unknown(), "{who:?} not blanked");
+            assert_eq!(blind.announced_dnf(who), &Dnf::unknown());
+        }
+        assert_ne!(
+            *seen.get(Relative::Rho),
+            Envelope::unknown(),
+            "the fixture must read RHO's 1♥, else the test proves nothing"
+        );
+        for who in [Relative::Me, Relative::Partner] {
+            assert_eq!(*blind.get(who), *seen.get(who), "{who:?} moved");
+            assert_eq!(blind.announced_dnf(who), seen.announced_dnf(who));
+        }
+        // Knob off is byte-identical to never having set it.
+        let after = read(&auction);
+        for who in [
+            Relative::Me,
+            Relative::Lho,
+            Relative::Partner,
+            Relative::Rho,
+        ] {
+            assert_eq!(*after.get(who), *seen.get(who), "{who:?} moved after reset");
+            assert_eq!(after.announced_dnf(who), seen.announced_dnf(who));
+        }
     }
 
     #[test]
