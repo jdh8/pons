@@ -134,6 +134,62 @@ All four cells positive; the two PD cells clear zero, the plain ones do not at
 this size (the pilot's job was the pipeline, not the verdict). Reading is worth
 +0.4 to +0.8 IMPs on each board where it changes a call.
 
-### Full panel
+### Full panel — 2026-07-29
 
-*(running)*
+Twelve members (the eleven above plus the **BBA 2/1 control**, which the first
+roster forgot — without an undeviated baseline the panel has no zero point).
+16,000 boards per arm per vul, `SEED_BASE=1785265670`, ~31 minutes. Paired
+`seen − blind`, so a positive number is reading value; CIs run ±0.045 to ±0.073.
+
+| member | axis | plain none/both | PD none/both |
+| --- | --- | --- | --- |
+| **BBA 2/1 (control)** | — | +0.058 / +0.103 | +0.133 / +0.169 |
+| WJ (Polish Club) | A | +0.045 / +0.116 | +0.142 / **+0.218** |
+| Precision | A | +0.054 / +0.076 | +0.146 / +0.174 |
+| Acol | A | +0.066 / +0.075 | +0.141 / +0.154 |
+| SAYC | A | +0.061 / +0.094 | +0.133 / +0.160 |
+| 2/1 + Multi 2♦ | A | +0.056 / +0.097 | +0.127 / +0.161 |
+| 2/1, Cappelletti | A | +0.055 / +0.099 | +0.125 / +0.164 |
+| wild weak twos | C | +0.050 / +0.076 | +0.141 / +0.165 |
+| dial x=1 | B | +0.030 / +0.044 | +0.126 / +0.150 |
+| off-shape 1NT | C | +0.035 / +0.046 | +0.117 / +0.126 |
+| 4-card overcalls | C | +0.035 / +0.037 | +0.113 / +0.106 |
+| dial x=2 | B | **−0.001** / +0.031 | +0.125 / +0.133 |
+
+**The memorisation hypothesis is refuted.** All 22 PD cells are positive and
+clear of zero, across four foreign base systems and two convention swaps. Had
+`features_v3` memorised BBA's 2/1, reading value would fall off a cliff when the
+opponents switch to Precision or Acol — instead WJ and Precision score *above*
+the control. That is transfer, not lookup. It also closes the question
+[[project_eval-v5-hcp-ends-refuted]] left open: v3's win over v4 was not
+overfitting to one opponent's card.
+
+**What does erode is real and bounded.** The B axis is the one clean
+within-family gradient (same engine, one knob, two settings): plain-DD reading
+value runs +0.030 → −0.001 (none) and +0.044 → +0.031 (both) from dial 1 to
+dial 2, while PD holds near +0.13. Dial 2 is roughly a club player two points
+off our card in both directions, and at that distance our reading is worth
+nothing under plain DD. Four-card overcalls is the weakest PD member
+(+0.113/+0.106 against the control's +0.133/+0.169) — a 25-35% haircut, never a
+sign flip.
+
+**Reading is a perfect-defense asset.** Every member scores 2-4× more under PD
+than plain, the control included. Consistent with the standing bracket: PD
+punishes the overbid, and knowing what the opponents hold is mostly how we
+avoid it.
+
+Two caveats the table cannot show:
+
+- The A members are EPBot, the B/C members a pons book, so the *level* gap
+  between those groups confounds deviation with opponent engine. Only
+  within-axis comparisons are clean.
+- These deviations are plausible, not adversarial. A human deliberately
+  targeting our reader is a different experiment, and this panel does not
+  bound it.
+
+**Verdict against the decision rule above: the layer generalises.** Slack on
+opponent boxes is not the next lever — with the asterisk that plain-DD value
+does reach zero at dial 2. Promotion to a standing per-change gauge is **not**
+taken: at 31 minutes for twelve members it is cheap enough to re-run on demand,
+and nothing in the result argues it would move for an ordinary bidding change.
+Re-run it when the *reading layer itself* changes.

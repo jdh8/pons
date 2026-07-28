@@ -32,7 +32,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `--their-dial`/`--their-*`, plus `--ns-blind-opponent-reading`;
   `probe-reading-sound` gains the same opponent selection.
 
-  No measured number yet — this ships the gauge, not a verdict.
+  **Measured, twelve members × 16,000 bd/arm/vul, `SEED_BASE=1785265670`.** All
+  22 perfect-defense cells are positive and clear of zero, across four foreign
+  base systems (SAYC, WJ, Precision, Acol) and two convention swaps — WJ
+  (+0.218 vul) and Precision (+0.174) score *above* the BBA 2/1 control
+  (+0.133/+0.169). **`features_v3` did not memorise BBA's card**; its reading
+  value transfers to systems it never saw. The erosion that is real: on the one
+  clean within-family gradient (the strength dial, same engine) plain-DD value
+  runs +0.030 → −0.001 from dial 1 to dial 2, and four-card overcalls is the
+  weakest PD member (+0.113/+0.106) — a 25-35% haircut, never a sign flip.
+  Reading is a perfect-defense asset throughout, worth 2-4× more under PD than
+  plain. Full table and caveats: `docs/deviation-panel.md`.
 
 - **`pons::bidding::card`: generate the `.bbsa` convention card from the live
   system, so disclosure cannot drift.** `cards/American.bbsa` was hand-written,
