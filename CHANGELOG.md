@@ -162,9 +162,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a system nobody is bidding.
 
   **This re-bases the pons↔BBA anchor** (`scripts/anchor.sh`, which inherits the
-  new default). The previous blind anchor was −1.024 NV / −1.279 vul plain,
-  −1.116 / −1.593 PD (2026-07-26, `eb02d9d`, 204.8k bd/vul). The BEN anchor
-  (−1.906/−1.860) is unaffected — `ben-gen` has no disclosure channel.
+  new default). Re-anchored at `3c94802`, 409.6k boards, same persistent seed,
+  both arms replay-verified 100%: pooled **−1.113 plain / −1.273 PD** (vul none
+  −1.004 / −1.064, both −1.222 / −1.481), from **−1.152 / −1.355** blind at
+  `eb02d9d`. Report: `ab-results/anchor/2026-07-28-3c94802/report.md`.
+
+  **The +0.039 / +0.083 is not disclosure's doing** — 30 commits landed between
+  the two snapshots, including the v3 calls-tail evaluator (+0.018/+0.028
+  measured) and the 1NT 3M splinter, so the batch confounds them. Disclosure's
+  isolated cost is still the −0.009/board `disclose-ab.sh` measured, and if
+  anything the head bucket points the same way: `Defensive/book/round-1` is the
+  one head bucket that got *worse* (−85805 → −88313) while every other head
+  bucket and all three phases improved. Defending is where our disclosed calls
+  tell BBA the most.
+
+  The BEN anchor (−1.906/−1.860) is unaffected — `ben-gen` has no disclosure
+  channel.
 
 - **`cards/American.bbsa` audited against `american()`**
   (`docs/ai-bidder/bba-card-audit.md`). **31 of the 33 live rows already

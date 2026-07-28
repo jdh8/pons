@@ -12,7 +12,10 @@ History: **−2.59** (S.1 anchor, 2000 boards, 2026-06-15) →
 replay-verified 100%): **vul none −1.675 / vul both −2.310**, pooled **−1.99
 plain / −2.40 PD** (findings and re-ranking below) → **re-anchored 2026-07-07,
 sha `5f16e68`, 409.6k boards** (buckets #2–#4 shipped): pooled **−1.99 plain /
-−2.36 PD** — the metric held, the fixes moved mostly PD.  This doc holds the
+−2.36 PD** — the metric held, the fixes moved mostly PD.  **From 2026-07-28
+(`3c94802`) the anchor runs with disclosure on** — BBA is told what we play — so
+anchors before and after that date are different series; see the `3c94802`
+re-anchor below.  This doc holds the
 campaign structure, the anchor protocol, and the runbook; ship rules stay in
 [measurement.md](measurement.md), per-treatment history in
 [ai-bidder/21gf-ledger.md](ai-bidder/21gf-ledger.md) and
@@ -341,6 +344,34 @@ calls that buy the contract and then get doubled.  The unpaired CIs overlap
 decided; the arms share deals, so a paired NV A/B of the floor's routing gate
 would settle it cheaply.  For context, B4's routing gate recorded +0.11 NV /
 +0.25 vul at `7122756`, eight net-floor commits ago.
+
+**Re-anchor `3c94802` (2026-07-28, 409.6k boards, same seed) — and the series
+changes meaning here.**  `bba-gen --disclose` now defaults to `generated`, so
+from this snapshot on **BBA is told what we play**: every earlier anchor faced a
+BBA that took us for a BBA, and part of what those numbers measured was its
+misreading of our conventions.  Pooled **−1.113 plain / −1.273 PD** (vul none
+−1.004 / −1.064, both −1.222 / −1.481), from −1.152 / −1.355.  Both arms
+replay-verified **100%**.
+
+**Do not read the +0.039 / +0.083 as disclosure's effect.**  Thirty commits
+landed between the snapshots — the v3 calls-tail evaluator (+0.018/+0.028
+measured), the 1NT 3♥/3♠ splinter, the vulnerable weak-two overcall gate, the
+card-generator fixes — so the batch confounds them with the flip.  Disclosure's
+isolated cost remains `disclose-ab.sh`'s −0.009/board, measured with the old
+static card; re-running it against the *generated* card is the outstanding
+question, and cheap now that a full anchor generates in 12 minutes.
+
+The re-rank is the tell.  Every phase improved (Defensive −194513 → −192542,
+Constructive −168727 → −156731, Competitive −108429 → −106717) and so did both
+provenances (`book` −245400 → −238966, `floor#3` −64160 → −60087) — but
+**`Defensive/book/round-1`, the #1 bucket, went the other way**: −85805 →
+−88313, the only head bucket to lose ground in a batch that lifted everything
+else.  That is exactly where disclosure should bite.  We defend by overcalling
+and doubling, and those are the calls the card now explains to them.  Head order
+otherwise unchanged for the fifth anchor running: constructive
+`opening`/`round-2`/`round-1` −69131 / −40047 / −33747 (from −71779 / −45155 /
+−35084), `floor#3` defensive r2+r1 −40338 → −37776, the competitive
+`fallback@1`/`fallback@2` round-1 pair −38645 → −38179.
 
 *Caveat on cross-anchor `floor#N`*: the labels are only stable within a build.
 `floor#3` carries identical rule text in both reports so its row is comparable;
