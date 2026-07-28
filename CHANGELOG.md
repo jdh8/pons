@@ -46,6 +46,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   both levels, and the card denied it — so BBA has been reading our weak jumps
   as strong ones. `Weak Jump Shifts 2` moved 2 of 8406 decisions in the sweep.
 
+  Sweeping the remaining constant rows the same way found one more,
+  `Minor Suit Transfers after 2NT` 1 → 0: responder's 2NT structure is 3♣
+  Stayman, 3♦/3♥ to the majors, 3NT and 4NT quantitative, with no minor transfer
+  at any level. `Support 1NT` stays at its hand-written `1` — EPBot's
+  `conventions[151]` does not line up with anything we author — and `Unusual
+  1NT` / `Unusual 4NT` / `Two suit takeout double` stay at `1` as **floor**
+  territory: each fires only where the authored book is silent, which is the
+  limitation this module documents rather than a row it can compute.
+
 - **`cards/Dutch.bbsa`**, generated the same way. `dutch()` overwrites only the
   divergent nodes of `american_book()` and has no `set_*` knobs of its own, so
   its card is American's plus one row — but a **different header**:

@@ -396,13 +396,17 @@ fn american_row(name: &str) -> i32 {
         // the 5NT king ask.
         "Cue bid" | "DOPI" | "ROPI" | "King ask by 5NT" => 1,
         "DEPO" | "King ask by 5NT inviting" | "King ask by available bid" => 0,
-        // Michaels and the unusual notrumps; `set_unusual_notrump_defense` gates
-        // only our *defense* to theirs, not our own two-suiter bids.
-        "Michaels Cuebid"
-        | "Unusual 1NT"
-        | "Unusual 2NT"
-        | "Unusual 4NT"
-        | "Two suit takeout double" => 1,
+        // Michaels and Unusual 2NT we author outright; `set_unusual_notrump_defense`
+        // gates only our *defense* to theirs, not our own two-suiter bids.
+        "Michaels Cuebid" | "Unusual 2NT" => 1,
+        // Floor territory, and the reason this module documents that limitation.
+        // Each fires only where the book is silent — `Unusual 1NT` wants a passed
+        // hand or a 20+ opponent (our authored `1NT` overcall is natural 15–18, so
+        // it cannot be the caller there), `Unusual 4NT` and the two-suited takeout
+        // double want a two-suiter already shown.  The BBA-distilled floor bids
+        // those seats, and every vendor card including BBA's own sets all three,
+        // so `1` describes our bidder better than `0` would.
+        "Unusual 1NT" | "Unusual 4NT" | "Two suit takeout double" => 1,
         "Unusual 3NT" | "Non-Leaping Michaels" | "Ghestem" | "Polish two suiters" | "Wilkosz" => 0,
         // The forcing 1NT response and its two-suiter rebids; not semi-forcing.
         "Forcing 1NT" => 1,
@@ -416,12 +420,20 @@ fn american_row(name: &str) -> i32 {
         | "SMOLEN"
         | "Texas"
         | "Quantitative 4NT"
-        | "Minor Suit Transfers after 2NT"
         | "Ogust"
-        | "Strength Lawrence structure"
-        | "Support 1NT"
         | "Weak natural 2D"
         | "Weak natural 2M" => 1,
+        // Radio pair, like the `1NT opening natural` / `NT style` group: EPBot's
+        // setter for either index clears the other, so never flip one alone.
+        // We play neither Bergen nor Reverse Bergen, so the strength reading of
+        // opener's jump rebid is the one we want.
+        "Strength Lawrence structure" => 1,
+        // Unresolved, and cosmetic (zero decisions moved).  EPBot's
+        // `conventions[151]` changes what `1M`–`1NT`–`2M` and a raise over RHO's
+        // double mean, which does not line up cleanly with anything we author —
+        // our limit-raise-over-a-double is `Jordan Truscott 2NT`.  Carried at the
+        // hand-written `1` rather than guessed at in either direction.
+        "Support 1NT" => 1,
         // Not authored.  Each is a real convention BBA can play and we do not;
         // a zero here is a claim, not a default.
         "(1X)-1Y-(1Z)-2Z natural"
@@ -451,6 +463,10 @@ fn american_row(name: &str) -> i32 {
         | "Mini Splinter"
         | "Minor Suit Slam Try after 2NT"
         | "Minor Suit Stayman after 2NT"
+        // Responder's 2NT structure is 3♣ Stayman, 3♦/3♥ to the majors, 3NT,
+        // 4NT quantitative (`notrump_responses_at_three`) — the minors have no
+        // transfer, at any level.  The 1NT minor transfers are a different row.
+        | "Minor Suit Transfers after 2NT"
         | "Mixed raise"
         | "Multi"
         | "Namyats"
