@@ -4,6 +4,8 @@ pub mod american;
 pub mod array;
 /// Role-aware partnership books
 pub mod book;
+/// `.bbsa` convention cards generated from the live system
+pub mod card;
 /// System-independent build helpers shared across bidding systems
 pub(in crate::bidding) mod common;
 pub mod compose;

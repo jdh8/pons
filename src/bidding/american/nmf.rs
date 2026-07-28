@@ -54,7 +54,7 @@ pub fn set_new_minor_forcing(on: bool) {
 }
 
 /// Whether NMF is currently authored (read by [`super::xyz::register`])
-pub(super) fn new_minor_forcing() -> bool {
+pub(crate) fn new_minor_forcing() -> bool {
     NEW_MINOR_FORCING.with(Cell::get)
 }
 

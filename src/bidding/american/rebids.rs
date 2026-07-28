@@ -1175,7 +1175,7 @@ pub fn set_fourth_suit_forcing(on: bool) {
 }
 
 /// Whether fourth-suit-forcing is currently enabled
-fn fourth_suit_forcing() -> bool {
+pub(crate) fn fourth_suit_forcing() -> bool {
     FOURTH_SUIT_FORCING.with(Cell::get)
 }
 

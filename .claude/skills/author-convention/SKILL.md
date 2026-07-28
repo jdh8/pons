@@ -73,7 +73,14 @@ Come back here only if the fix means authoring new nodes — then steps 3–11 a
     plain-DD win or plain-wash+PD-win; rejected treatments stay opt-in with the
     default byte-identical. Flipping a default updates the integration tests
     that encoded the old one.
-11. **Record**: CHANGELOG entry with the measured numbers (IMPs/board,
+11. **Disclose it.** `src/bidding/card.rs` generates our `.bbsa` cards from the
+    live knob state, so BBA reads our alerts correctly. If BBA's schema has a row
+    for the convention, wire it to your knob there (a row is computed *iff*
+    something can move it); if it has none, say so in the constant arm. Re-bless
+    with `cargo run --example bba-card -- --system american >cards/American.bbsa`
+    (and `--system dutch >cards/Dutch.bbsa`), and re-bless
+    `tests/fixtures/alert-sites.txt` — the tripwire that fired to send you here.
+12. **Record**: CHANGELOG entry with the measured numbers (IMPs/board,
     IMPs/fired, board count, vulnerabilities); ledger row if it's a tracked
     campaign item; propose the commit message (commit directly on `main`).
 

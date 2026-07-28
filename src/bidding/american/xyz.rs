@@ -57,7 +57,7 @@ pub fn set_xyz(on: bool) {
 }
 
 /// Whether XYZ is currently authored
-fn xyz() -> bool {
+pub(crate) fn xyz() -> bool {
     XYZ.with(Cell::get)
 }
 

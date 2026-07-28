@@ -9,6 +9,61 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`pons::bidding::card`: generate the `.bbsa` convention card from the live
+  system, so disclosure cannot drift.** `cards/American.bbsa` was hand-written,
+  and it had already drifted: `set_nt_splinter` shipped default-on in da96c04
+  while the card still declared `1N-3M splinter = 0`. A checklist step cannot fix
+  that — one already existed. Worse, a *static* card cannot describe an **A/B
+  arm** at all: an arm that flips a knob plays one system and discloses another.
+
+  So `american_card()` / `dutch_card()` compute every row from the live
+  thread-local knob state, and `cards/*.bbsa` become golden snapshots that
+  `the_checked_in_cards_match_the_generator` asserts are current. A row is
+  computed *iff* something can move it; the rest are constants carrying the
+  reason we do not play them. Bless with
+  `cargo run --example bba-card -- --system american >cards/American.bbsa`.
+
+  **Two rows the generator corrects.** `1N-3M splinter` 0 → 1 (the drift), and
+  `Super acceptance after NT` 1 → 0: `set_transfer_super_accept` is off by
+  default, so the old card claimed a convention we do not play. Both are
+  *cosmetic* rows in `docs/ai-bidder/bba-disclosure-sweep.md` (zero of 8406
+  decisions moved), so no measured number moves — but the card is a description,
+  and it was wrong. `Extended acceptance after NT` and `Transfers if RHO bids
+  clubs` are held at their historical `1` with the uncertainty recorded in
+  `card.rs`: both plausibly map to an off-by-default knob, neither has its BBA
+  semantics pinned, and moving them on a guess is the misdescription this module
+  exists to stop. `probe-bba-sensitivity --explain` settles them.
+
+- **`cards/Dutch.bbsa`**, generated the same way. `dutch()` overwrites only the
+  divergent nodes of `american_book()` and has no `set_*` knobs of its own, so
+  its card is American's plus one row — but a **different header**:
+  `System type = 2` (WJ, Wspólny Język). No row in the 258-name schema expresses
+  "1♣ is 2+ cards, 11–23 HCP, non-forcing", so the header is the only channel for
+  the system's defining feature. The one row that differs is `1D opening with 5
+  cards = 1`: Dutch's 1♦ is 5+♦ or exactly the singleton-club 4=4=4=1, against
+  American's better-minor 1♦ that can be three cards.
+
+- **`bba-gen --disclose off|generated|FILE.bbsa` and `--disclose-conv
+  NAME=0|1`.** `generated` builds the card for `--our-floor`'s system *after*
+  every `--ns-*` knob is applied, so an A/B arm discloses what it plays;
+  `--disclose-conv` overrides single rows on top of either source (the escape
+  hatch for rows with no knob). A `--our-floor` whose system has no card
+  generator is a **hard error** — disclosing another system's card misdescribes
+  us far more damagingly than disclosing nothing, and silently falling back to
+  blind would make the arms of a cross-system A/B incomparable. Disclosure stays
+  **off by default** in this commit, so output is byte-identical at a fixed seed
+  and no anchor moves; the default flip and the anchor re-base follow.
+
+- **`tests/fixtures/alert-sites.txt`: the authoring tripwire.** Generation cannot
+  catch the one hole left — authoring a convention and never giving it a row.
+  `alerted_call_sites_match_the_disclosure_fixture` counts the default book's
+  alerted call sites per alert slug (42 slugs) and fails when they move, sending
+  the author to `card.rs`. Counts rather than the call-site list, which runs to
+  four figures and would make every unrelated node edit an unreviewable diff.
+  Counts are also the granularity that *works*: `Alert("splinter")` is shared by
+  the major-raise splinter and the 1NT splinter, so the slug **set** never moved
+  when the NT splinter shipped — only the count did.
+
 - **`bba-gen --disclose <FILE.bbsa>`: tell the BBA opponents what we play.**
   `cards/American.bbsa` has described our 2/1 in BBA's own vocabulary since
   8c3139b, but nothing ever replayed it onto the seats pons occupies:

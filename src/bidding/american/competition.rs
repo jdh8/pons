@@ -185,7 +185,7 @@ pub fn set_lebensohl(on: bool) {
 }
 
 /// The currently selected Lebensohl package
-fn lebensohl_style() -> LebensohlStyle {
+pub(crate) fn lebensohl_style() -> LebensohlStyle {
     LEBENSOHL_STYLE.with(Cell::get)
 }
 
@@ -634,7 +634,7 @@ pub fn set_major_support_double(on: bool) {
 }
 
 /// Whether the major-major support double is engaged
-fn major_support_double() -> bool {
+pub(crate) fn major_support_double() -> bool {
     MAJOR_SUPPORT_DOUBLE.with(Cell::get)
 }
 
@@ -878,7 +878,7 @@ pub fn set_jordan_truscott(on: bool) {
 }
 
 /// Whether the over-their-double package is engaged
-fn jordan_truscott() -> bool {
+pub(crate) fn jordan_truscott() -> bool {
     JORDAN_TRUSCOTT.with(Cell::get)
 }
 

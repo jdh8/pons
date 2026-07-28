@@ -95,7 +95,9 @@ pub use competition::{
     set_weak_two_competition,
 };
 // The inference walk reads this knob at classify time (the two-suiter reading).
-pub(crate) use competition::uvu_over_majors;
+pub(crate) use competition::{
+    jordan_truscott, lebensohl_style, major_support_double, uvu_over_majors,
+};
 pub use defense::{
     DoubleShape, NotrumpDefense, TakeoutSupport, advance_double, defense_to_suit,
     defense_to_weak_two, set_advance_2nt_continuation, set_advance_minor_jump, set_advance_rubens,
@@ -118,11 +120,13 @@ pub use defense::{
     set_woolsey_points,
 };
 pub(crate) use defense::{
-    direct_dont_enabled, direct_landy_double, landy_range, meckwell_enabled,
-    natural_defense_enabled, natural_double_floor, natural_overcall_points, nt_overcall_gladiator,
-    nt_overcall_systems_on, woolsey_double_floor, woolsey_enabled, woolsey_points,
+    direct_dont_enabled, direct_landy_double, landy_range, leaping_michaels_enabled,
+    meckwell_enabled, natural_defense_enabled, natural_double_floor, natural_overcall_points,
+    notrump_defense, nt_overcall_gladiator, nt_overcall_systems_on, responsive_takeout_enabled,
+    woolsey_double_floor, woolsey_enabled, woolsey_points,
 };
 pub use game_force::{set_game_backstop, set_opener_third, set_second_suit_agreement};
+pub(crate) use nmf::new_minor_forcing;
 pub use nmf::set_new_minor_forcing;
 pub use notrump::{
     EUROPEAN, PUPPET, SizeAskEight, notrump_responses, set_crawling_stayman, set_garbage_stayman,
@@ -133,15 +137,19 @@ pub use notrump::{
     set_texas_game_floor, set_texas_slam_drive, set_transfer_gf_hearts, set_transfer_gf_majors,
     set_transfer_longer_major, set_transfer_slam_try, set_transfer_super_accept,
 };
-pub(crate) use notrump::{crawling_stayman, garbage_stayman, notrump_minors, nt_splinter};
+pub(crate) use notrump::{
+    crawling_stayman, garbage_stayman, notrump_minors, nt_splinter, transfer_super_accept,
+};
 pub(crate) use openings::notrump_shape;
+pub(crate) use openings::notrump_shape_setting;
 pub(crate) use openings::two_notrump_wide;
 pub use openings::{
     NotrumpShape, WeakTwoEval, openings, openings_with, set_notrump_shape, set_one_notrump_fifths,
     set_open_one_notrump, set_two_notrump_wide, set_weak_two_eval, set_weak_two_hcp,
 };
+pub(crate) use raises::major_game_tries;
 pub use raises::{set_limit_raise_acceptance, set_major_game_tries};
-pub(crate) use rebids::{opener_extras_ladder, opener_major_jump_rebid};
+pub(crate) use rebids::{fourth_suit_forcing, opener_extras_ladder, opener_major_jump_rebid};
 pub use rebids::{
     set_balanced_1nt_rebid, set_forcing_nt_two_suiter, set_fourth_suit_forcing,
     set_major_rebid_tails, set_meckstroth_adjunct, set_meckstroth_minor_jumps, set_nt_invite_hcp,
@@ -155,6 +163,7 @@ pub use responses::{
     set_two_over_one_natural_lengths, set_up_the_line,
 };
 pub use slam::set_minor_keycard;
+pub(crate) use xyz::xyz;
 pub use xyz::{set_xyz, set_xyz_invite_judgment};
 
 // ---------------------------------------------------------------------------

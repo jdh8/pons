@@ -5869,6 +5869,49 @@ mod tests {
         assert_all_alerted("american", worklist);
     }
 
+    /// Disclosure tripwire: the alerted call sites of the default `american()`
+    /// book, counted per alert slug, against `tests/fixtures/alert-sites.txt`
+    ///
+    /// [`card`][crate::bidding::card] generates our `.bbsa` disclosure from the
+    /// live knob state, so a row that *has* a knob can no longer drift.  What
+    /// generation cannot catch is authoring a convention and never giving it a
+    /// row at all — the card then silently under-describes us to BBA.  This is
+    /// the artifact that fires on that: any new (or deleted) alerted rule moves
+    /// a count, and the failure sends the author to the generator.
+    ///
+    /// Counts, not the call-site list: the list runs to four figures and would
+    /// make every unrelated node edit an unreviewable diff, which is how a
+    /// fixture degrades into a rubber stamp.  Counts are also the granularity
+    /// that *works* — `Alert("splinter")` is shared by the major-raise splinter
+    /// and the 1NT splinter, so the slug **set** was unchanged when
+    /// `set_nt_splinter` shipped, and only the count moved.
+    #[test]
+    fn alerted_call_sites_match_the_disclosure_fixture() {
+        use crate::bidding::american::american;
+        use std::collections::BTreeMap;
+
+        let pair = american();
+        let mut counts: BTreeMap<&str, usize> = BTreeMap::new();
+        for trie in [&pair.constructive.0, &pair.competitive.0, &pair.defensive.0] {
+            for_each_authored_rule(trie, |_auction, _context, rule| {
+                if let Some(alert) = rule.alert() {
+                    *counts.entry(alert.0).or_default() += 1;
+                }
+            });
+        }
+        let found = counts
+            .iter()
+            .map(|(slug, count)| format!("{slug} {count}\n"))
+            .collect::<String>();
+        assert_eq!(
+            found,
+            include_str!("../../tests/fixtures/alert-sites.txt"),
+            "the book's alerted call sites moved.  If you authored or retired a \
+             convention, give it a row in `src/bidding/card.rs` (or record there \
+             why BBA's schema cannot express it), then bless this fixture:\n\n{found}",
+        );
+    }
+
     /// Per-column reading-leak lists over a set of book tries
     ///
     /// A **leak** is an authored rule whose [`Constraint::describe`] names an

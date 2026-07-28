@@ -920,7 +920,7 @@ pub fn set_transfer_super_accept(on: bool) {
 }
 
 /// Whether the jump super-accept is currently authored
-pub(super) fn transfer_super_accept() -> bool {
+pub(crate) fn transfer_super_accept() -> bool {
     TRANSFER_SUPER_ACCEPT.with(Cell::get)
 }
 

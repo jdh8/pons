@@ -1,5 +1,13 @@
 # Audit of `cards/American.bbsa` against `american()`
 
+> **Superseded as a maintenance procedure.** `cards/American.bbsa` is now
+> *generated* from the live system by `src/bidding/card.rs`, and a row that a
+> knob can move reads that knob rather than being audited after the fact.  This
+> audit survives as the record of what each live row means — the evidence the
+> generator's row mapping was written from — and as the referent for the two
+> rows it still holds constant under stated uncertainty (`Extended acceptance
+> after NT`, `Transfers if RHO bids clubs`).
+
 The card declares our 2/1 to the BBA seats (`bba-gen --disclose`). Only rows that
 change a BBA call when disclosed are audited here — the
 [sensitivity sweep](bba-disclosure-sweep.md) partitions the 257 rows into **33

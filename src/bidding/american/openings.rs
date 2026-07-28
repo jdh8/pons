@@ -62,7 +62,7 @@ pub fn set_notrump_shape(shape: NotrumpShape) {
 }
 
 /// The 1NT opening shape currently selected by [`set_notrump_shape`].
-pub(super) fn notrump_shape_setting() -> NotrumpShape {
+pub(crate) fn notrump_shape_setting() -> NotrumpShape {
     NOTRUMP_SHAPE.with(Cell::get)
 }
 

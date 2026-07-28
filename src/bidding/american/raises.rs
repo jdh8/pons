@@ -36,7 +36,7 @@ pub fn set_major_game_tries(on: bool) {
 }
 
 /// Whether major game tries are currently authored
-fn major_game_tries() -> bool {
+pub(crate) fn major_game_tries() -> bool {
     MAJOR_GAME_TRIES.with(Cell::get)
 }
 

@@ -46,7 +46,7 @@ use std::ffi::{CString, c_int};
 #[path = "../common/mod.rs"]
 #[allow(dead_code)]
 mod common;
-use common::oracle::{BbaOracle, DEFAULT_LIB, SYSTEM_2_OVER_1, bid_out, load_bbsa};
+use common::oracle::{BbaOracle, ConventionCard, DEFAULT_LIB, SYSTEM_2_OVER_1, bid_out, load_bbsa};
 use common::{Board, Dump, hand_hcp, seat_to_act};
 
 /// Bid our 2/1 floor against BBA's 2/1 and write the boards (the generation half
@@ -109,19 +109,38 @@ struct Args {
     #[arg(long = "their-card", value_name = "FILE.bbsa")]
     their_card: Option<String>,
 
-    /// Declare *our* system to the BBA seats, so they read our calls correctly
-    /// — e.g. `--disclose cards/American.bbsa`.
+    /// Declare *our* system to the BBA seats, so they read our calls correctly:
+    /// `off`, `generated`, or a `FILE.bbsa` path.
+    ///
+    /// `generated` builds the card from the live system — `--our-floor`'s system
+    /// read through every `--ns-*` knob this run set — so an arm that flips a
+    /// knob discloses what it actually plays (see [`pons::bidding::card`]).  A
+    /// path discloses that file verbatim instead; `--disclose-conv` singles
+    /// apply on top of either.
     ///
     /// Not to be confused with `--our-card`, which configures a *separate* BBA
     /// oracle to play our side in a BBA-vs-BBA A/B.  This one leaves our side as
     /// pons and changes only what BBA believes pons plays, via the per-seat
     /// convention setters on the seats we occupy.
     ///
-    /// Off by default because it changes BBA's calls, and therefore the anchor:
-    /// every anchor recorded before this flag existed was measured against a BBA
-    /// that took us for a BBA.
-    #[arg(long = "disclose", value_name = "FILE.bbsa")]
-    disclose: Option<String>,
+    /// `off` by default because disclosure changes BBA's calls, and therefore
+    /// the anchor: every anchor recorded to date was measured against a BBA that
+    /// took us for a BBA.
+    #[arg(
+        long = "disclose",
+        value_name = "off|generated|FILE.bbsa",
+        default_value = "off"
+    )]
+    disclose: String,
+
+    /// Override one disclosed convention row, e.g.
+    /// `--disclose-conv "1N-3M splinter=0"`; repeatable, applied after
+    /// `--disclose`.
+    ///
+    /// The escape hatch for rows the generator holds constant — a treatment with
+    /// no knob, or a row whose BBA semantics we have not pinned down.
+    #[arg(long = "disclose-conv", value_parser = parse_override, value_name = "NAME=0|1")]
+    disclose_conv: Vec<(CString, c_int)>,
 
     /// Only keep deals with a balanced 15-17 HCP hand somewhere (a 1NT-opener
     /// candidate), to raise the yield of 1NT boards.  Cheap shape gate, no
@@ -1120,6 +1139,52 @@ fn parse_override(spec: &str) -> Result<(CString, c_int), String> {
     Ok((name, on))
 }
 
+/// What to declare to the BBA seats, per `--disclose` and `--disclose-conv`
+///
+/// Call **after** every `--ns-*` knob is set: a generated card is a function of
+/// the live thread-local state, so building it early would describe a system
+/// this run then reconfigures.
+///
+/// A `--our-floor` with no card generator is a hard error rather than a fall
+/// back to American's card or to silence — disclosing the wrong card
+/// misdescribes us to BBA far more damagingly than disclosing nothing, and
+/// silently reverting to blind would make the two arms of a cross-system A/B
+/// incomparable.
+fn disclosure(args: &Args) -> anyhow::Result<Option<ConventionCard>> {
+    let mut card = match args.disclose.as_str() {
+        "off" => return Ok(None),
+        "generated" => {
+            // The floor names the system; `-book`/`-instinct`/`-floor` variants
+            // differ only in the floor, which no card row can express.
+            let card = match args.our_floor.split('-').next().unwrap_or_default() {
+                "american" => pons::bidding::card::american_card(),
+                "dutch" => pons::bidding::card::dutch_card(),
+                other => anyhow::bail!(
+                    "--disclose generated: no card generator for system `{other}` \
+                     (known: american, dutch).  Write one in `src/bidding/card.rs` \
+                     rather than disclosing another system's card."
+                ),
+            };
+            ConventionCard {
+                system: card.system,
+                toggles: card
+                    .rows
+                    .iter()
+                    .map(|(name, value)| {
+                        (
+                            CString::new(*name).expect("a schema name has no NUL"),
+                            *value as c_int,
+                        )
+                    })
+                    .collect(),
+            }
+        }
+        file => load_bbsa(file)?,
+    };
+    card.toggles.extend(args.disclose_conv.iter().cloned());
+    Ok(Some(card))
+}
+
 /// EPBot system label for the indices we use (the pinned `vendor/bba` build)
 fn system_label(system: c_int) -> &'static str {
     match system {
@@ -1210,10 +1275,7 @@ fn main() -> anyhow::Result<()> {
         }
         None => (args.our_system, args.our_conv.clone()),
     };
-    let disclosed = args.disclose.as_deref().map(load_bbsa).transpose()?;
-    let bba = match BbaOracle::load(&path, args.system, their_conv.clone())
-        .map(|bba| bba.with_opponents(disclosed))
-    {
+    let bba = match BbaOracle::load(&path, args.system, their_conv.clone()) {
         Ok(bba) => bba,
         Err(error) => {
             eprintln!(
@@ -1540,6 +1602,10 @@ fn main() -> anyhow::Result<()> {
         pons::bidding::american::set_direct_dont(false);
     }
     pons::bidding::american::set_always_pass_defense(args.ns_always_pass);
+    // Disclosure last: every `--ns-*` knob above moves the system, and a
+    // generated card reads them.  Built here rather than beside the oracle so
+    // the card cannot describe a system the run then reconfigures.
+    let bba = bba.with_opponents(disclosure(&args)?);
     let our_floor = match args.our_floor.as_str() {
         "american" => american().against(),
         // The authored books with no floor at all: a driver seating this passes
@@ -1586,10 +1652,10 @@ fn main() -> anyhow::Result<()> {
         label_card(&args.their_card),
         label_overrides(&args.their_conv),
         // Disclosure configures BBA's *view of us*, so it belongs on their label.
-        args.disclose
-            .as_deref()
-            .map(|file| format!(" [told: {file}]"))
-            .unwrap_or_default(),
+        match args.disclose.as_str() {
+            "off" => String::new(),
+            told => format!(" [told: {told}]{}", label_overrides(&args.disclose_conv)),
+        },
     );
     let isolate_opening = args.isolate_opening.as_str();
     anyhow::ensure!(
