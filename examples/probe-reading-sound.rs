@@ -38,20 +38,23 @@ use contract_bridge::auction::Call;
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Seat};
 use pons::american;
 use pons::bidding::context::relative;
-use pons::bidding::{Relative, Stance};
+use pons::bidding::{Relative, Stance, System};
 use std::collections::HashMap;
+use std::ffi::{CString, c_int};
 
 #[path = "common/mod.rs"]
 #[allow(dead_code)]
 mod common;
-use common::oracle::{BbaOracle, ConventionCard, DEFAULT_LIB, SYSTEM_2_OVER_1, bid_out};
-use common::{auction_key, seat_to_act, seeded_deals};
+use common::oracle::{BbaOracle, ConventionCard, DEFAULT_LIB, SYSTEM_2_OVER_1, bid_out, load_bbsa};
+use common::{auction_key, deviant_floor, seat_to_act, seeded_deals};
 
 /// The hidden seats, in report order, with how far back each one last acted
+/// The opponent seats say "(them)" rather than "(BBA)": `--their-floor` seats a
+/// perturbed pons book there instead.
 const HIDDEN: [(&str, Relative, usize); 3] = [
-    ("LHO (BBA)", Relative::Lho, 3),
+    ("LHO (them)", Relative::Lho, 3),
     ("partner (ours)", Relative::Partner, 2),
-    ("RHO (BBA)", Relative::Rho, 1),
+    ("RHO (them)", Relative::Rho, 1),
 ];
 
 /// One-letter tag per hidden seat, prefixed onto a worklist key so a hot spot
@@ -75,6 +78,41 @@ struct Args {
     /// Do not disclose our card to BBA (the `bba-gen --disclose off` arm)
     #[arg(long)]
     no_disclose: bool,
+
+    /// BBA system index to seat at the opponent seats (default 2/1)
+    #[arg(long)]
+    system: Option<c_int>,
+
+    /// A vendored `.bbsa` card for the opponents; its `System type` header
+    /// must agree with `--system` when both are given
+    #[arg(long, value_name = "FILE.bbsa")]
+    their_card: Option<String>,
+
+    /// Single convention override on top of the opponents' card, repeatable
+    #[arg(long = "their-conv", value_name = "NAME=0|1")]
+    their_conv: Vec<String>,
+
+    /// Seat a **pons** book as the opponents instead of EPBot — the deviation
+    /// panel's B/C axes.  Same names as `bba-gen --their-floor`; the exclusion
+    /// rate then measures deviation from our *own* card.
+    #[arg(long, value_name = "NAME")]
+    their_floor: Option<String>,
+
+    /// Antisymmetric strength dial for `--their-floor` (see `bba-gen`)
+    #[arg(long, default_value_t = 0, value_name = "POINTS")]
+    their_dial: u8,
+
+    /// `--their-floor` overcalls on a good four-card suit
+    #[arg(long)]
+    their_overcall_four_card: bool,
+
+    /// `--their-floor` opens 1NT off-shape
+    #[arg(long)]
+    their_offshape_1nt: bool,
+
+    /// `--their-floor` opens undisciplined weak twos
+    #[arg(long)]
+    their_wild_weak_two: bool,
 }
 
 /// Readings taken, and how many excluded the truth
@@ -96,6 +134,19 @@ impl Cell {
         }
         100.0 * self.bad as f64 / self.readings as f64
     }
+}
+
+/// Parse a `NAME=0|1` convention override for `--their-conv`
+fn parse_override(spec: &str) -> anyhow::Result<(CString, c_int)> {
+    let (name, value) = spec
+        .rsplit_once('=')
+        .ok_or_else(|| anyhow::anyhow!("expected NAME=0|1, got {spec:?}"))?;
+    let on = match value.trim() {
+        "0" => 0,
+        "1" => 1,
+        other => anyhow::bail!("value must be 0 or 1, got `{other}`"),
+    };
+    Ok((CString::new(name.trim())?, on))
 }
 
 /// Our generated card, so BBA reads our calls the way `bba-gen` has it read them
@@ -155,21 +206,61 @@ fn main() -> anyhow::Result<()> {
     let vul = AbsoluteVulnerability::NONE;
     let stance = american().against();
 
+    // The opponents: a perturbed pons book (deviation panel axes B/C) or, by
+    // default, EPBot on whichever card `--system`/`--their-card` names (axis A).
+    let their_floor = match &args.their_floor {
+        Some(name) => Some(deviant_floor(
+            name,
+            args.their_dial,
+            args.their_overcall_four_card,
+            args.their_offshape_1nt,
+            args.their_wild_weak_two,
+        )?),
+        None => None,
+    };
+    let (system, mut their_conv) = match &args.their_card {
+        Some(file) => {
+            let card = load_bbsa(file)?;
+            if let Some(system) = args.system {
+                anyhow::ensure!(
+                    card.system == system,
+                    "`{file}` is system {}, but --system says {system}",
+                    card.system,
+                );
+            }
+            (card.system, card.toggles)
+        }
+        None => (args.system.unwrap_or(SYSTEM_2_OVER_1), Vec::new()),
+    };
+    for spec in &args.their_conv {
+        their_conv.push(parse_override(spec)?);
+    }
+
     let path = std::env::var("BBA_LIB").unwrap_or_else(|_| DEFAULT_LIB.into());
-    let bba = BbaOracle::load(&path, SYSTEM_2_OVER_1, Vec::new())
-        .map_err(|error| {
-            anyhow::anyhow!(
-                "could not load EPBot native lib at `{path}`: {error}\n\
-                 Fetch it with `git submodule update --init vendor/bba`, or set BBA_LIB."
-            )
-        })?
-        .with_opponents((!args.no_disclose).then(our_card));
+    let bba = match &their_floor {
+        Some(_) => None,
+        None => Some(
+            BbaOracle::load(&path, system, their_conv)
+                .map_err(|error| {
+                    anyhow::anyhow!(
+                        "could not load EPBot native lib at `{path}`: {error}\n\
+                         Fetch it with `git submodule update --init vendor/bba`, or set BBA_LIB."
+                    )
+                })?
+                .with_opponents((!args.no_disclose).then(our_card)),
+        ),
+    };
+    let opponent: &dyn System = match (&their_floor, &bba) {
+        (Some(book), _) => book,
+        (None, Some(oracle)) => oracle,
+        (None, None) => unreachable!("one of the two is always built"),
+    };
 
     let mut seats = [Cell::default(); 3];
     let mut keys: HashMap<String, Cell> = HashMap::new();
     for (board, deal) in seeded_deals(base, args.count).iter().enumerate() {
         let dealer = Seat::ALL[board % 4];
-        let auction = bid_out(&stance, &bba, true, dealer, vul, deal);
+        let auction = bid_out(&stance, opponent, true, dealer, vul, deal);
         census(&stance, dealer, vul, deal, &auction, &mut seats, &mut keys);
     }
 

@@ -414,3 +414,89 @@ pub fn report_sd_brackets(
         );
     }
 }
+
+/// Build one of our authored books by name, as `--our-floor`/`--their-floor`
+/// spell it
+///
+/// Reads the live knob state, so a caller wanting a *perturbed* book sets every
+/// `set_*` it should carry before calling and resets them straight after — the
+/// knobs are captured at construction, so two differently-configured books can
+/// then coexist on one thread.
+pub fn seat_floor(name: &str) -> anyhow::Result<Stance> {
+    Ok(match name {
+        "american" => pons::american().against(),
+        // The authored books with no floor at all: a driver seating this passes
+        // whenever the books run out.  The floor ablation's other end.
+        "american-book" => pons::bidding::american::american_book().against(),
+        "dutch" => pons::dutch().against(),
+        // The deterministic pre-swap floors: the fixed baselines now that
+        // `american` and `dutch` both ship the BBA net.
+        "american-instinct" => pons::american_instinct().against(),
+        "dutch-instinct" => pons::dutch_instinct().against(),
+        // The book ablation: no authored book at all, the same floor wiring
+        // `american` uses.  `american` − `american-floor` prices the book.
+        "american-floor" => pons::american_floor().against(),
+        other => anyhow::bail!(
+            "floor must be american|american-book|american-instinct|american-floor|dutch|dutch-instinct, got {other:?}"
+        ),
+    })
+}
+
+/// Apply the deviation-panel knobs, build a book under them, and reset
+///
+/// The B/C axes of docs/deviation-panel.md: `dial` is the antisymmetric
+/// strength dial, the three flags are the shape-indiscipline knobs.  Only the
+/// returned book carries them.
+pub fn deviant_floor(
+    name: &str,
+    dial: u8,
+    overcall_four_card: bool,
+    offshape_1nt: bool,
+    wild_weak_two: bool,
+) -> anyhow::Result<Stance> {
+    pons::bidding::constraint::set_strength_dial(dial);
+    pons::bidding::american::set_overcall_four_card(overcall_four_card);
+    pons::bidding::american::set_one_notrump_offshape(offshape_1nt);
+    pons::bidding::american::set_weak_two_wild(wild_weak_two);
+    let book = seat_floor(name);
+    pons::bidding::constraint::set_strength_dial(0);
+    pons::bidding::american::set_overcall_four_card(false);
+    pons::bidding::american::set_one_notrump_offshape(false);
+    pons::bidding::american::set_weak_two_wild(false);
+    book
+}
+
+/// A [`System`] that classifies with the *opponents'* readings blanked
+///
+/// Wraps [`pons::bidding::set_blind_opponent_reading`] around `classify` and
+/// restores the previous state, so one side of the table can go blind while a
+/// pons book on the *other* side, sharing the thread, keeps its readings.  The
+/// `blind` arm of the deviation panel.
+pub struct Blinded<'a>(pub &'a dyn System);
+
+impl System for Blinded<'_> {
+    fn classify(
+        &self,
+        hand: Hand,
+        vul: contract_bridge::auction::RelativeVulnerability,
+        auction: &[Call],
+    ) -> Option<pons::bidding::array::Logits> {
+        let was = pons::bidding::blind_opponent_reading();
+        pons::bidding::set_blind_opponent_reading(true);
+        let out = self.0.classify(hand, vul, auction);
+        pons::bidding::set_blind_opponent_reading(was);
+        out
+    }
+
+    fn authored_at(
+        &self,
+        vul: contract_bridge::auction::RelativeVulnerability,
+        auction: &[Call],
+    ) -> bool {
+        let was = pons::bidding::blind_opponent_reading();
+        pons::bidding::set_blind_opponent_reading(true);
+        let out = self.0.authored_at(vul, auction);
+        pons::bidding::set_blind_opponent_reading(was);
+        out
+    }
+}

@@ -36,7 +36,6 @@ use clap::Parser;
 use contract_bridge::auction::Call;
 use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, Bid, Hand, Seat, Strain, Suit};
-use pons::american;
 use pons::bidding::System;
 use pons::bidding::american::DoubleShape;
 use rand::SeedableRng;
@@ -47,7 +46,7 @@ use std::ffi::{CString, c_int};
 #[allow(dead_code)]
 mod common;
 use common::oracle::{BbaOracle, ConventionCard, DEFAULT_LIB, SYSTEM_2_OVER_1, bid_out, load_bbsa};
-use common::{Board, Dump, hand_hcp, seat_to_act};
+use common::{Blinded, Board, Dump, deviant_floor, hand_hcp, seat_floor, seat_to_act};
 
 /// Bid our 2/1 floor against BBA's 2/1 and write the boards (the generation half
 /// of the A/B duplicate match; `bba-score` scores them)
@@ -83,6 +82,39 @@ struct Args {
     /// feature).  Ignored when `--our-system` selects an EPBot card.
     #[arg(long, default_value = "american")]
     our_floor: String,
+
+    /// Seat a **pons** book as the opponents instead of EPBot — the deviation
+    /// panel's B/C axes (docs/deviation-panel.md).  Takes the same names as
+    /// `--our-floor`; the `--their-dial` / `--their-overcall-four-card` /
+    /// `--their-offshape-1nt` / `--their-wild-weak-two` knobs then perturb
+    /// *that* book only, simulating a natural bidder who deviates from our
+    /// card.  Mutually exclusive with `--isolate-*` and `--our-system`.
+    #[arg(long, value_name = "NAME")]
+    their_floor: Option<String>,
+
+    /// Antisymmetric strength dial for `--their-floor`: their openings and
+    /// overcalls are this many points lighter, their responses and advances
+    /// the same amount heavier (pair calibration preserved).  0 = off.
+    #[arg(long, default_value_t = 0, value_name = "POINTS")]
+    their_dial: u8,
+
+    /// `--their-floor` overcalls on a good four-card suit
+    #[arg(long)]
+    their_overcall_four_card: bool,
+
+    /// `--their-floor` opens 1NT off-shape
+    #[arg(long)]
+    their_offshape_1nt: bool,
+
+    /// `--their-floor` opens undisciplined (five-card, wide-range) weak twos
+    #[arg(long)]
+    their_wild_weak_two: bool,
+
+    /// Blank the two opponent seats' readings on **our** side — the `blind`
+    /// arm of the deviation panel.  The paired `seen − blind` score is what
+    /// reading their calls is worth against one perturbed opponent.
+    #[arg(long)]
+    ns_blind_opponent_reading: bool,
 
     /// Force a named BBA convention on/off on *our* side (repeatable), e.g.
     /// `--our-conv "Rubensohl after 1m=1"`.  Only meaningful with `--our-system`.
@@ -1613,22 +1645,20 @@ fn main() -> anyhow::Result<()> {
     // generated card reads them.  Built here rather than beside the oracle so
     // the card cannot describe a system the run then reconfigures.
     let bba = bba.with_opponents(disclosure(&args)?);
-    let our_floor = match args.our_floor.as_str() {
-        "american" => american().against(),
-        // The authored books with no floor at all: a driver seating this passes
-        // whenever the books run out.  The floor ablation's other end.
-        "american-book" => pons::bidding::american::american_book().against(),
-        "dutch" => pons::dutch().against(),
-        // The deterministic pre-swap floors: the fixed baselines now that
-        // `american` and `dutch` both ship the BBA net.
-        "american-instinct" => pons::american_instinct().against(),
-        "dutch-instinct" => pons::dutch_instinct().against(),
-        // The book ablation: no authored book at all, the same floor wiring
-        // `american` uses.  `american` − `american-floor` prices the book.
-        "american-floor" => pons::american_floor().against(),
-        other => anyhow::bail!(
-            "--our-floor must be american|american-book|american-instinct|american-floor|dutch|dutch-instinct, got {other:?}"
-        ),
+    let our_floor = seat_floor(&args.our_floor)?;
+    // The deviation panel's opponent: a second pons book built under the
+    // `--their-*` deviation knobs, which are reset immediately afterwards so
+    // only this book carries them (they are read at book construction, the
+    // same discipline `--ns-*` follows above).
+    let their_floor = match &args.their_floor {
+        Some(name) => Some(deviant_floor(
+            name,
+            args.their_dial,
+            args.their_overcall_four_card,
+            args.their_offshape_1nt,
+            args.their_wild_weak_two,
+        )?),
+        None => None,
     };
     let our_oracle = match our_system {
         Some(system) => Some(BbaOracle::load(&path, system, our_conv.clone())?),
@@ -1638,9 +1668,19 @@ fn main() -> anyhow::Result<()> {
         Some(oracle) => oracle,
         None => &our_floor,
     };
-    let opponent: &dyn System = match &bba_vs_natural {
-        Some(oracle) => oracle,
-        None => &bba,
+    let opponent: &dyn System = match (&their_floor, &bba_vs_natural) {
+        (Some(deviant), _) => deviant,
+        (None, Some(oracle)) => oracle,
+        (None, None) => &bba,
+    };
+    // Blind arm of the deviation panel: our side classifies with the two
+    // opponent seats' readings blanked.  Wrapped rather than set globally so
+    // the pons book seated opposite us keeps its own readings.
+    let blinded = Blinded(ours);
+    let ours: &dyn System = if args.ns_blind_opponent_reading {
+        &blinded
+    } else {
+        ours
     };
     // Labels name the card file rather than spelling out its ~257 toggles;
     // explicit `--*-conv` singles still render individually.
@@ -1653,17 +1693,34 @@ fn main() -> anyhow::Result<()> {
         ),
         None => format!("our {} floor", args.our_floor),
     };
-    let their_label = format!(
-        "BBA {}{}{}{}",
-        system_label(args.system),
-        label_card(&args.their_card),
-        label_overrides(&args.their_conv),
-        // Disclosure configures BBA's *view of us*, so it belongs on their label.
-        match args.disclose.as_str() {
-            "off" => String::new(),
-            told => format!(" [told: {told}]{}", label_overrides(&args.disclose_conv)),
-        },
-    );
+    let their_label = if let Some(name) = &args.their_floor {
+        let mut label = format!("their {name} floor");
+        if args.their_dial != 0 {
+            label += &format!(" [dial {}]", args.their_dial);
+        }
+        for (on, tag) in [
+            (args.their_overcall_four_card, "4-card overcalls"),
+            (args.their_offshape_1nt, "off-shape 1NT"),
+            (args.their_wild_weak_two, "wild weak twos"),
+        ] {
+            if on {
+                label += &format!(" [{tag}]");
+            }
+        }
+        label
+    } else {
+        format!(
+            "BBA {}{}{}{}",
+            system_label(args.system),
+            label_card(&args.their_card),
+            label_overrides(&args.their_conv),
+            // Disclosure configures BBA's *view of us*, so it belongs on their label.
+            match args.disclose.as_str() {
+                "off" => String::new(),
+                told => format!(" [told: {told}]{}", label_overrides(&args.disclose_conv)),
+            },
+        )
+    };
     let isolate_opening = args.isolate_opening.as_str();
     anyhow::ensure!(
         matches!(isolate_opening, "off" | "bba" | "pons"),
@@ -1672,6 +1729,21 @@ fn main() -> anyhow::Result<()> {
     anyhow::ensure!(
         !(args.isolate_defense && isolate_opening != "off"),
         "--isolate-defense and --isolate-opening are mutually exclusive"
+    );
+    // The isolation modes and `--our-system` both seat BBA where the deviant
+    // book would go, so the comparison they name no longer exists.
+    anyhow::ensure!(
+        args.their_floor.is_none()
+            || (isolate_opening == "off" && !args.isolate_defense && our_system.is_none()),
+        "--their-floor is incompatible with --isolate-opening/--isolate-defense/--our-system"
+    );
+    anyhow::ensure!(
+        args.their_floor.is_some()
+            || (args.their_dial == 0
+                && !args.their_overcall_four_card
+                && !args.their_offshape_1nt
+                && !args.their_wild_weak_two),
+        "the --their-dial/--their-* deviation knobs need --their-floor"
     );
 
     let seed = args.seed.unwrap_or_else(rand::random);
