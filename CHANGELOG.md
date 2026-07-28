@@ -9,6 +9,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The deviation panel: measure the reading layer against a *population* of
+  perturbed opponents, not one bot.** `Inferences::read` applies our meanings to
+  the opponents' calls, and `probe-reading-sound` priced that: our boxes exclude
+  the opponent's true hand 8.2/8.3% (LHO/RHO) against BBA, versus 3.3% for
+  partner. The goal is to beat humans, who deviate — so the instrument comes
+  before any slack-on-boxes lever. `scripts/panel.sh` runs eleven members across
+  three axes (BBA base-system/convention swaps; an antisymmetric strength dial;
+  shape indiscipline), each as a paired `seen` vs `blind` A/B on identical
+  deals. Design, roster and the decision rule: `docs/deviation-panel.md`.
+
+  New machinery, all default-off and byte-identical off:
+  `bidding::set_blind_opponent_reading` (blanks LHO/RHO at the `Inferences`
+  level — unlike `features::set_blind_inference`, which blanks all four seats
+  and only for the nets, so the two are **not** comparable);
+  `constraint::set_strength_dial` (their openings/overcalls x points lighter,
+  their responses/advances x heavier — antisymmetric, so pair calibration and
+  every authored continuation survive; captured at book construction, never at
+  classify time); `american::set_overcall_four_card` /
+  `set_one_notrump_offshape` / `set_weak_two_wild`. `bba-gen` gains
+  `--their-floor` (seat a second, perturbed pons book as the opponents) with
+  `--their-dial`/`--their-*`, plus `--ns-blind-opponent-reading`;
+  `probe-reading-sound` gains the same opponent selection.
+
+  No measured number yet — this ships the gauge, not a verdict.
+
 - **`pons::bidding::card`: generate the `.bbsa` convention card from the live
   system, so disclosure cannot drift.** `cards/American.bbsa` was hand-written,
   and it had already drifted: `set_nt_splinter` shipped default-on in da96c04
