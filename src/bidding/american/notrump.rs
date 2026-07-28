@@ -569,8 +569,8 @@ fn long_minor_force_rule() -> Rules {
 /// four and is therefore the hand Stayman already finds.  See
 /// `docs/ai-bidder/bba-1nt-splinter.md` for the measured read of it.
 ///
-/// Off by default pending its A/B (`examples/ab-nt-splinter`); see
-/// [`set_nt_splinter`].
+/// On by default since 2026-07-28, its A/B (`examples/ab-nt-splinter`) having
+/// won in all four cells; see [`set_nt_splinter`] for the measured numbers.
 fn nt_splinter_rules() -> Rules {
     if !nt_splinter() {
         return Rules::new();
