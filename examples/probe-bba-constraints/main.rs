@@ -253,6 +253,18 @@ fn main() -> Result<()> {
         .mode
         .as_str()
     {
+        // Dealer opening, nothing replayed.  Reads what the `1NT opening *`
+        // rows of a `.bbsa` card actually do — `1NT opening natural` and
+        // `1NT opening NT style` move BBA's calls when disclosed
+        // (docs/ai-bidder/bba-disclosure-sweep.md) but their meaning is not
+        // documented anywhere, and the card claims `natural = 0` for a system
+        // whose 1NT is a natural 15-17.
+        "open" => (
+            0,
+            &[],
+            None,
+            "BBA's opening call in first seat — the 1NT bucket is the one to read",
+        ),
         "multi" => (
             1,
             &[ONE_NT],
@@ -393,7 +405,7 @@ fn main() -> Result<()> {
             "BBA opener over 1NT-P-3♠-P — a natural read raises spades, a splinter never does",
         ),
         other => bail!(
-            "--mode must be multi|advance|counter|muider-h|muider-s|rebid-d|rebid-h|rebid-s|stayman|xfer-h|xfer-s|weak2-d|weak2-h|weak2-s|def2-d|def2-h|def2-s|nt-resp|nt-3h|nt-3s, got {other:?}"
+            "--mode must be open|multi|advance|counter|muider-h|muider-s|rebid-d|rebid-h|rebid-s|stayman|xfer-h|xfer-s|weak2-d|weak2-h|weak2-s|def2-d|def2-h|def2-s|nt-resp|nt-3h|nt-3s, got {other:?}"
         ),
     };
 

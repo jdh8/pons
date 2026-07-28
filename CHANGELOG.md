@@ -9,6 +9,70 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`bba-gen --disclose <FILE.bbsa>`: tell the BBA opponents what we play.**
+  `cards/American.bbsa` has described our 2/1 in BBA's own vocabulary since
+  8c3139b, but nothing ever replayed it onto the seats pons occupies:
+  `BbaOracle::with_bot` configured all four seats identically, so inside EPBot's
+  bot **our seats were BBA-playing-BBA's-own-card**. Every anchor to date was
+  measured against opponents who took us for a BBA. `BbaOracle::with_opponents`
+  splits the seat loop — `{actor, actor+2}` get our configuration, the other two
+  get theirs — and `--disclose` feeds a card to our side. Off by default; absent
+  the flag, output is byte-identical at a fixed seed. Not to be confused with
+  `--our-card`, which builds a *separate* oracle for BBA-vs-BBA A/Bs.
+
+  **The delta is ~0.01 IMPs/board, so the anchor series stands.** 50k
+  boards/arm/vul, fresh seed, disclosed vs blind, our bidding byte-identical
+  across the arms and only BBA's model of us differing:
+
+  | vul | plain DD | perfect defense |
+  | --- | --- | --- |
+  | none | −0.0087 ±0.0066 | −0.0104 ±0.0076 |
+  | both | −0.0073 ±0.0079 | −0.0104 ±0.0090 |
+
+  Negative in all four brackets and clearing the CI in three — a BBA that reads
+  our alerts does beat us harder, as predicted, mostly by finding penalty
+  doubles it used to miss (`1NT 2♣ X 2♥` where it once blasted `3NT`). But it
+  fires on only 1.0–1.1% of boards and moves the −1.906/−1.860 anchor by ~0.5%
+  of its own size. **No anchor needs re-basing, and disclosure stays default-off**
+  — it costs a measurable sliver and would make future anchors incomparable to
+  the recorded series for no analytic gain. Switch it on only to measure
+  judgment against an informed opponent. Filed under the campaign's quieter
+  findings: how little of BBA's strength comes from reading its opponents.
+
+- **`probe-bba-sensitivity`: partition a convention card into live and cosmetic
+  rows.** Auditing 258 rows costs the same whether a row is load-bearing or
+  decorative, so flip each on the opponents' seats and count the real decisions
+  that move. Positions come from an anchor shard dump — genuine pons-vs-BBA
+  auctions — and the replay doubles as a self-check: with nothing disclosed
+  EPBot must reproduce the recorded call, which it does **8406/8406**. Verdict:
+  **33 live rows, 224 cosmetic** (`docs/ai-bidder/bba-disclosure-sweep.md`).
+  `--explain <ROW>` prints the auctions a row moves rather than tallying them,
+  which is what names a row's semantics; a count never can.
+
+### Changed
+
+- **`cards/American.bbsa` audited against `american()`**
+  (`docs/ai-bidder/bba-card-audit.md`). **31 of the 33 live rows already
+  described us correctly** — the card was written well; what it lacked was a
+  channel, not accuracy. Three cosmetic rows claimed conventions with no
+  implementation and are now `0`: `Exclusion`, `BROMAD`, `Maximal Doubles`.
+
+  Two rows that look stale are correct and stay: `1N-3M splinter = 0` (BBA's
+  toggle is the GIB form, not the BWS/Polish Club form we ship — setting it
+  would *misdescribe* us) and `Blackwood 1430 = 1` (inert as a disclosure flag
+  as well as a bidding one, but the honest declaration).
+
+  `1NT opening natural = 0` / `1NT opening NT style = 1` looked wrong on its
+  face — our 1NT *is* a natural 15-17 — and probes aimed at the opening found
+  no semantic difference, because the opening is not what the pair describes.
+  `--explain` shows both rows moving the **same six decisions**, mirrored: one
+  radio group, not two knobs. At the authored setting BBA makes the
+  lead-directing double of our transfer `2♥` holding five hearts; flipped, it
+  reads `2♥` as natural and passes. The card has **no bare `Stayman` or
+  red-suit-transfer row** — every such row is a variant on an assumed base — so
+  this pair *is* the Stayman-and-transfers switch. `0` is the honest value and
+  genuinely load-bearing.
+
 - **`1NT–3♥/3♠` splinter authored and shipped default-on (`set_nt_splinter`).**
   The last two empty slots in our response ladder are filled with the *Bridge
   World Standard / Polish Club* treatment: shortness in the **bid** major (void

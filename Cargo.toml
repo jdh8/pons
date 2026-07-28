@@ -97,6 +97,14 @@ name = "bba-score"
 path = "examples/bba-score/main.rs"
 required-features = ["serde"]
 
+# Partitions a `.bbsa` card into rows that move BBA's calls when disclosed and
+# rows that do not, by replaying an anchor dump's BBA decisions.  Reads shard
+# dumps through `common::load_dump`, hence the serde feature.
+[[example]]
+name = "probe-bba-sensitivity"
+path = "examples/probe-bba-sensitivity.rs"
+required-features = ["serde"]
+
 [[example]]
 name = "ab-dump-diff"
 path = "examples/ab-dump-diff/main.rs"

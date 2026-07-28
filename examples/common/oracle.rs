@@ -112,10 +112,13 @@ pub const PROBABLE_LEVELS: usize = 9;
 
 /// EPBot 2/1 bidder behind pons's [`System`] trait.
 ///
-/// Each [`System::classify`] call drives a *fresh* bot: it configures all four
-/// seats to the chosen system, deals the actor's hand, replays the auction so
-/// far with `set_bid`, and reads the actor's call with `get_bid`.  A fresh bot
-/// per decision keeps `classify` a pure, stateless function of its arguments.
+/// Each [`System::classify`] call drives a *fresh* bot: it configures the seats
+/// to their systems, deals the actor's hand, replays the auction so far with
+/// `set_bid`, and reads the actor's call with `get_bid`.  A fresh bot per
+/// decision keeps `classify` a pure, stateless function of its arguments.
+///
+/// Both the system and the convention setters are per-seat, so the opponents may
+/// be declared to play something else — see [`BbaOracle::with_opponents`].
 ///
 /// Cached raw function pointers (copied out of the [`Library`]) avoid a `dlsym`
 /// per call; `_lib` is held so the pointers stay valid for the oracle's life.
@@ -136,9 +139,13 @@ pub struct BbaOracle {
     get_info: [GetArrFn; INFO_FIELDS.len()],
     set_info: [SetArrFn; INFO_FIELDS.len()],
     system: c_int,
-    /// Named conventions forced to a value on all four seats of every fresh bot,
-    /// applied after `set_system` (which loads the system's defaults).
+    /// Named conventions forced to a value on this oracle's own seats of every
+    /// fresh bot, applied after `set_system` (which loads the system's defaults).
     overrides: Vec<(CString, c_int)>,
+    /// The system and conventions the *opponents* are declared to play, or
+    /// [`None`] to configure their seats identically to ours (see
+    /// [`BbaOracle::with_opponents`]).
+    opponents: Option<(c_int, Vec<(CString, c_int)>)>,
     /// Scoring form forced on every fresh bot, or [`None`] to keep BBA's default
     ///
     /// Stage 4 picks its level by expected score, so this changes its answers.
@@ -189,6 +196,7 @@ impl BbaOracle {
                 _lib: lib,
                 system,
                 overrides,
+                opponents: None,
                 scoring: None,
             })
         }
@@ -198,6 +206,26 @@ impl BbaOracle {
     #[must_use]
     pub fn with_scoring(mut self, scoring: Option<c_int>) -> Self {
         self.scoring = scoring;
+        self
+    }
+
+    /// Declare what the **opponents** play, so EPBot reads their calls correctly
+    ///
+    /// EPBot's system and convention setters are both per-seat, and its bidding
+    /// genuinely consults the opponents' seats: `probe-bba-disclosure` measures
+    /// one toggle flipped on those seats alone moving EPBot's own call — told the
+    /// opponents' `2♦` is a Multi it bids `2♠` where it otherwise bids `3♦`, and
+    /// told their `1NT` is 12-14 it doubles where it otherwise passes.
+    ///
+    /// Without this, every seat gets *our* system and overrides, so EPBot plays
+    /// pons believing pons plays EPBot's card.  [`None`] keeps exactly that
+    /// behaviour, which is why it is the default: turning disclosure on changes
+    /// BBA's calls, and therefore the anchor.
+    ///
+    /// Pair with [`load_bbsa`] to declare a full card (`cards/American.bbsa`).
+    #[must_use]
+    pub fn with_opponents(mut self, opponents: Option<ConventionCard>) -> Self {
+        self.opponents = opponents.map(|card| (card.system, card.toggles));
         self
     }
 }
@@ -249,10 +277,12 @@ pub fn load_bbsa(path: &str) -> anyhow::Result<ConventionCard> {
 impl BbaOracle {
     /// Build a fresh bot for one decision, run `read` on it, and destroy it
     ///
-    /// Configures all four seats to the chosen system, deals the actor's hand,
-    /// and replays the auction so far with `set_bid` — the shared setup behind
-    /// both [`System::classify`] and [`BbaOracle::probe`].  A fresh bot per
-    /// decision keeps both a pure, stateless function of their arguments.
+    /// Configures our side's seats to the chosen system and the opponents' to
+    /// whatever [`BbaOracle::with_opponents`] declared (our own by default),
+    /// deals the actor's hand, and replays the auction so far with `set_bid` —
+    /// the shared setup behind both [`System::classify`] and [`BbaOracle::probe`].
+    /// A fresh bot per decision keeps both a pure, stateless function of their
+    /// arguments.
     ///
     /// Returns [`None`] only if EPBot fails to allocate a bot.
     fn with_bot<T>(
@@ -277,12 +307,29 @@ impl BbaOracle {
             if bot.is_null() {
                 return None;
             }
-            for seat in 0..4 {
+            // Our side and theirs, with the dealer canonicalized to position 0.
+            // Undeclared opponents (the default) get our own configuration on
+            // every seat, which is what EPBot saw before `with_opponents`.
+            let ours = [actor, (actor + 2) % 4];
+            let theirs = [(actor + 1) % 4, (actor + 3) % 4];
+            let (their_system, their_overrides) = match &self.opponents {
+                Some((system, toggles)) => (*system, toggles.as_slice()),
+                None => (self.system, self.overrides.as_slice()),
+            };
+            for seat in ours {
                 (self.set_system)(bot, seat, self.system);
+            }
+            for seat in theirs {
+                (self.set_system)(bot, seat, their_system);
             }
             // Force any isolated convention(s) AFTER set_system loads defaults.
             for (name, value) in &self.overrides {
-                for seat in 0..4 {
+                for seat in ours {
+                    (self.set_conv)(bot, seat, name.as_ptr(), *value);
+                }
+            }
+            for (name, value) in their_overrides {
+                for seat in theirs {
                     (self.set_conv)(bot, seat, name.as_ptr(), *value);
                 }
             }

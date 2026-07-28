@@ -109,6 +109,20 @@ struct Args {
     #[arg(long = "their-card", value_name = "FILE.bbsa")]
     their_card: Option<String>,
 
+    /// Declare *our* system to the BBA seats, so they read our calls correctly
+    /// — e.g. `--disclose cards/American.bbsa`.
+    ///
+    /// Not to be confused with `--our-card`, which configures a *separate* BBA
+    /// oracle to play our side in a BBA-vs-BBA A/B.  This one leaves our side as
+    /// pons and changes only what BBA believes pons plays, via the per-seat
+    /// convention setters on the seats we occupy.
+    ///
+    /// Off by default because it changes BBA's calls, and therefore the anchor:
+    /// every anchor recorded before this flag existed was measured against a BBA
+    /// that took us for a BBA.
+    #[arg(long = "disclose", value_name = "FILE.bbsa")]
+    disclose: Option<String>,
+
     /// Only keep deals with a balanced 15-17 HCP hand somewhere (a 1NT-opener
     /// candidate), to raise the yield of 1NT boards.  Cheap shape gate, no
     /// bidding; `--count` then means *kept* boards.
@@ -1196,7 +1210,10 @@ fn main() -> anyhow::Result<()> {
         }
         None => (args.our_system, args.our_conv.clone()),
     };
-    let bba = match BbaOracle::load(&path, args.system, their_conv.clone()) {
+    let disclosed = args.disclose.as_deref().map(load_bbsa).transpose()?;
+    let bba = match BbaOracle::load(&path, args.system, their_conv.clone())
+        .map(|bba| bba.with_opponents(disclosed))
+    {
         Ok(bba) => bba,
         Err(error) => {
             eprintln!(
@@ -1564,10 +1581,15 @@ fn main() -> anyhow::Result<()> {
         None => format!("our {} floor", args.our_floor),
     };
     let their_label = format!(
-        "BBA {}{}{}",
+        "BBA {}{}{}{}",
         system_label(args.system),
         label_card(&args.their_card),
-        label_overrides(&args.their_conv)
+        label_overrides(&args.their_conv),
+        // Disclosure configures BBA's *view of us*, so it belongs on their label.
+        args.disclose
+            .as_deref()
+            .map(|file| format!(" [told: {file}]"))
+            .unwrap_or_default(),
     );
     let isolate_opening = args.isolate_opening.as_str();
     anyhow::ensure!(
