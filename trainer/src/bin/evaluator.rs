@@ -170,6 +170,11 @@ const POINTS_FEATURES: usize = POINTS_HAND + 3 * POINTS_SEAT + 40;
 /// beside it — and, separately, is there anything in [`P_HCP_ENDS`], which is
 /// written unslacked wherever `points` is slacked and which no shipped vector
 /// has ever read.
+/// The hull length endpoints — the *v3* shape reading, which the shipped
+/// `features_eval_v4` vector dropped for [`P_SHAPE_GAUSS`].  Every arm above
+/// prices strength against the v4 baseline; the two `pts-len-*` arms price it
+/// against v3, which is the vector that actually ships.
+const P_HULL_LEN: (usize, usize) = (0, 8);
 /// The `points` endpoints — what the strength blocks are trying to replace.
 const P_HULL_POINTS: (usize, usize) = (8, 2);
 /// The shipped v4 shape reading, moments and mass together.  Every arm keeps
@@ -404,6 +409,15 @@ enum Arm {
     /// crisp band carries directly, this lands on `PtsHcpEnds` rather than past
     /// it, and a serving vector needs only the two endpoint pairs.
     PtsHcpBoth,
+    /// Points corpus — the **v3** baseline: hull length endpoints plus the
+    /// `points` endpoints, no shape distribution (94). Every arm above prices
+    /// strength on top of v4, which lost its A/B and ships off; this is the
+    /// same corpus, same rows, reproducing the vector that actually ships.
+    PtsLenControl,
+    /// Points corpus — v3 plus the crisp raw-HCP endpoints (100). The arm the
+    /// sweep should have run: it is what a serving `features_eval_v5` would be,
+    /// and it is a pure mask over the corpus already on disk.
+    PtsLenHcpEnds,
 }
 
 impl Arm {
@@ -558,7 +572,9 @@ impl Arm {
             | Self::PtsGaussMass
             | Self::PtsBoth
             | Self::PtsHcpEnds
-            | Self::PtsHcpBoth => panic!("points arms have no `bits` spec"),
+            | Self::PtsHcpBoth
+            | Self::PtsLenControl
+            | Self::PtsLenHcpEnds => panic!("points arms have no `bits` spec"),
         }
     }
 
@@ -622,6 +638,12 @@ impl Arm {
                     P_SHAPE_GAUSS,
                 ],
                 112,
+            ),
+            Self::PtsLenControl => ("pts-len-control", &[P_HULL_LEN, P_HULL_POINTS], 94),
+            Self::PtsLenHcpEnds => (
+                "pts-len-hcp-ends",
+                &[P_HULL_LEN, P_HULL_POINTS, P_HCP_ENDS],
+                100,
             ),
             _ => return None,
         })
@@ -1618,6 +1640,8 @@ mod tests {
             (Arm::PtsBoth, 106),
             (Arm::PtsHcpEnds, 103),
             (Arm::PtsHcpBoth, 112),
+            (Arm::PtsLenControl, 94),
+            (Arm::PtsLenHcpEnds, 100),
         ] {
             let name = arm.name();
             assert_eq!(

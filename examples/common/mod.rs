@@ -27,6 +27,25 @@ pub fn hand_hcp(hand: Hand) -> u8 {
     Suit::ASC.iter().map(|&s| holding_hcp::<u8>(hand[s])).sum()
 }
 
+/// One display key per decision: leading passes stripped, calls joined
+///
+/// Stripping merges the four dealer rotations of one decision into one line —
+/// leading passes only encode the seat, which the books already fan over.  The
+/// result is directly greppable against `examples/render-book`.
+pub fn auction_key(auction: &[Call]) -> String {
+    let key = auction
+        .iter()
+        .skip_while(|&&call| call == Call::Pass)
+        .map(ToString::to_string)
+        .collect::<Vec<_>>()
+        .join(" ");
+    if key.is_empty() {
+        "(opening passes)".to_owned()
+    } else {
+        key
+    }
+}
+
 /// The seat acting after `len` calls from `dealer`
 pub const fn seat_to_act(dealer: Seat, len: usize) -> Seat {
     Seat::ALL[(dealer as usize + len) % 4]

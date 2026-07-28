@@ -1593,3 +1593,139 @@ tail that bought v3 its +0.018/+0.028 IMPs and 35× larger than the shape swap
 that lost its A/B, so the IMP result is genuinely open and the A/B is the only
 thing that can settle it.  The kernel stays research-only, like
 `features_eval_shape` before it.
+
+> **Corrected 2026-07-29 — that mask sits on a base that lost.**  Every arm in
+> the table above keeps `P_SHAPE_GAUSS`, i.e. prices strength on top of **v4**,
+> and v4 lost its A/B and ships **off**.  A serving `pts-hcp-ends` would carry
+> v4's −0.0037 IMPs to buy a −0.00143 NLL gain worth ≈+0.0006 by linear scaling
+> — net negative.  The arm that should have been run is `hcp` endpoints on the
+> **v3** base, and it is a pure mask over the same corpus; see the section
+> below.
+
+## Reading soundness and the unread axes — three checks before a v5 *(2026-07-29)*
+
+Opened by the hypothesis that v3 beat v4 by *overfitting*, and that opponents
+therefore want a Gaussian where partner wants crisp boxes.  Both halves are
+wrong, and the way they are wrong is worth recording:
+
+- **It was not overfitting.**  v3 −1.54872 vs v4 −1.54856 on *validation* is 4×
+  inside the seed spread, and v4 was never better on **train** — the signature
+  overfitting requires.  The loss is entirely in the A/B, on the 0.77–0.88% of
+  boards where the two vectors bid differently (≈−0.45 IMPs per fired board).
+- **v4's Gaussian is not an opponent model.**  `features::shape_of` walks all 560
+  shapes with exact hypergeometric weights *conditional on the reading's boxes
+  being true*.  It adds zero epistemic slack; it is a lossless
+  reparameterisation of the same hard box, which is why it measured NLL par.
+
+The intuition behind the proposal — *we never have 100% understanding of the
+opponents* — is still right.  It is just a statement about **soundness**, not
+about moments, and that is what the third probe measures.
+
+### The two missing arms — `hcp` endpoints on the v3 base
+
+`--arm pts-len-control` (94 cols, = shipped **v3**) and `--arm pts-len-hcp-ends`
+(100 cols, = v3 + the crisp raw-HCP band).  Both are pure masks over the same
+`target/eval-points-corpus` the six arms above used, so no re-dump was needed;
+`P_HULL_LEN = (0, 8)` was simply a sub-block no arm had ever kept.
+
+Validation NLL, 150 epochs, `--hidden 256`, three seeds:
+
+| arm | cols | seed 1 | seed 2 | seed 3 | mean |
+| --- | --- | --- | --- | --- | --- |
+| `pts-len-control` (v3) | 94 | −1.54633 | −1.54587 | −1.54601 | **−1.54607** |
+| `pts-len-hcp-ends` | 100 | −1.54736 | −1.54655 | −1.54665 | **−1.54685** |
+| Δ | | −0.00103 | −0.00068 | −0.00063 | **−0.00078** |
+
+**Gate (a) FAILS, so no v5.**  The gate wanted Δ ≤ −0.00147 (1.5× the 0.00098
+corpus seed spread); −0.00078 is *inside* one spread.  Sign-consistent across
+seeds, so raw `hcp` endpoints are not worth nothing — but by the same linear
+scaling that priced the v4 arm, −0.00078 NLL buys ≈+0.0003 IMPs, which is under
+the resolution of any A/B we can afford.  Six columns, no measurable table
+value.  Closed.
+
+**Gate (b) PASSES, and it settles v3-vs-v4.**  `pts-len-control` at −1.54607
+beats `pts-control` (v4 base) at −1.54560 by 0.00047 — same corpus, identical
+rows, identical batch order, identical parameter count.  The shape sweep's
+−1.54558 vs −1.54562 came from a different 289-wide layout and was a wash; this
+is the first apples-to-apples read, and it says **v3 is not paying NLL for the
+IMPs it won**.  v3 wins on both axes.  The "clearing mask" v5 sketched above
+would have carried v4's −0.0037 for nothing.
+
+Note the two arms' own seed spread is 0.00046, half the 0.00098 the gate used.
+That is the spread of a *mask* over one fixed corpus; the 0.00098 came from arms
+differing in width, and is the right conservative number when the decision is
+whether to dump a new corpus.
+
+### The unread axes — `suit_hcp` is empty, `support_points` is not
+
+`examples/probe-reading-census` now reports, per hidden seat, how often each
+`Strength` axis the eval vector does **not** read is non-⊤, and how often it
+**binds beyond** what the axes the net already holds (`lengths`, `points`)
+imply.  20,000 deals, 498,360 hidden-seat readings, every decision node of real
+self-play auctions:
+
+| axis | LHO non-⊤ / binds | partner | RHO | in a corpus? |
+| --- | --- | --- | --- | --- |
+| `strength.hcp` | 44.4% / **19.2%** | 45.0% / **19.4%** | 44.0% / **19.5%** | yes (`points`) |
+| `strength.support_points` | 11.0% / 11.0% | 10.0% / 10.0% | 10.9% / 10.9% | no |
+| `strength.suit_hcp` | 0.00% / 0.00% | 0.00% / 0.00% | 0.00% / 0.00% | no |
+
+Three things fall out:
+
+- **`suit_hcp` is dead at serving time.**  It rounds to zero in 500k readings.
+  The honour-location gauge the quality gates read is written by so few rules,
+  and survives so little of `Dnf::tidy`, that no corpus should be dumped for it.
+  This inverts the prior bet — honour location is physics the DD target depends
+  on, but the reading does not carry it.
+- **`support_points` fires at ~10%**, and every firing binds beyond the implied
+  box (it has no implication to restate: `hcp` is not a net input).  That is
+  half `hcp`'s rate, on eight columns rather than two.  Worth a re-dump only if
+  the `hcp` arm above clears its gate first.
+- **`upgrade` needs no probe**: it is `points − hcp` clamped by
+  `constraint::upgrade_ceiling`, so once `hcp` is live the only thing the net
+  cannot reconstruct is the clamp.
+
+> **Discrepancy, not reconciled.**  The Step-0 table above reports `hcp` non-⊤ at
+> 22.7 / 26.1 / 28.9% and binds-beyond at 12.3 / 14.4 / 16.1% — roughly half
+> these rates.  Different denominators: Step-0 counted `dump-evaluator` rows,
+> this counts every decision node of a self-play auction, and the binds-beyond
+> tests are written against different implications.  The *ordering* of the axes
+> is the load-bearing part and it is the same under both.
+
+### Reading soundness — our boxes exclude the opponent's actual hand 8% of the time
+
+`Inferences::read`'s module doc promises soundness over tightness: a hand that
+actually made these calls always falls **within** every shown range.  The same
+doc then says the meanings are `american`'s.  At our own seats the guarantee is
+therefore *derived*; at LHO and RHO, who are not playing `american`, it is only
+*assumed* — and nothing in the repo had ever measured it.
+
+`examples/probe-reading-sound` does, with `Dnf::contains(true_hand)` at every
+decision node of our two seats, BBA at the opponent seats.  10,000 deals:
+
+| hidden seat | readings | exclude the truth |
+| --- | --- | --- |
+| LHO (BBA) | 37,314 | **8.24%** |
+| partner (ours) | 42,314 | **3.29%** |
+| RHO (BBA) | 47,314 | **8.34%** |
+
+Disclosure-independent (`--no-disclose`: 8.22 / 3.32 / 8.33%).  The worklists say
+what each number is made of:
+
+- **Opponents — foreign meanings, read as ours.**  BBA's weak twos head the list
+  (`2♠` 37%, `2♥` 33%, `2♦` 35% of readings excluded), and their Multi `2♦` over
+  our 1NT is excluded **100%** of the time: we read it as diamonds, they hold a
+  major.  This is the phantom-suit failure the alert invariant exists to prevent,
+  arriving from the other side of the table where no invariant of ours applies.
+- **Partner — a real defect, 3.3%.**  Expected ≈0%.  The offenders are our own
+  preference and raise sequences (`1♠ P 1NT P 2♥ P 2♠` 100%, `1♣ P 2♣` 92%,
+  `1♦ P 3♦` 100%, `3♥ P 4♥` 100%), i.e. calls the instinct floor makes on hands
+  the authored rule that *reads* them would not admit.  A book node and its
+  floor-made continuations disagree about what the call shows.  **Not fixed
+  here** — logged as its own defect.
+
+The evaluator consequence outranks the column question.  A box that excludes the
+truth is not a loose prior, it is a wrong one, and `shape_of`'s zero-mass
+fallback only catches *total* exclusion, not a box that is merely wrong.  Two
+extra columns describing such a box more precisely cannot help; slack on the
+opponent boxes is the larger lever, and it is now measured rather than assumed.

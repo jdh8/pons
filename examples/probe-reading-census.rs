@@ -50,10 +50,16 @@ use std::collections::HashMap;
 #[path = "common/mod.rs"]
 #[allow(dead_code)]
 mod common;
-use common::{bid_out, seat_to_act, seeded_deals};
+use common::{auction_key, bid_out, seat_to_act, seeded_deals};
 
 /// The axes the nets read per seat: four suit lengths and `points`
 const AXES: u32 = 5;
+
+/// The [`Strength`][pons::bidding::Inferences] axes the reading computes and no
+/// shipped eval vector reads.  `hcp` is in the `--encoding points` corpus but
+/// unread; the two suit-indexed axes are in no corpus at all, so this table is
+/// what decides whether either is worth a re-dump.
+const EXTRA: [&str; 3] = ["hcp", "support_points", "suit_hcp"];
 
 #[derive(Parser)]
 struct Args {
@@ -77,24 +83,6 @@ fn top_axes(shown: &Envelope) -> u32 {
         top += u32::from(shown.length(suit) == Range::FULL_LENGTH);
     }
     top
-}
-
-/// One display key per decision: leading passes stripped, calls joined
-///
-/// Stripping merges the four dealer rotations of one decision into one line —
-/// leading passes only encode the seat, which the books already fan over.
-fn auction_key(auction: &[Call]) -> String {
-    let key = auction
-        .iter()
-        .skip_while(|&&call| call == Call::Pass)
-        .map(ToString::to_string)
-        .collect::<Vec<_>>()
-        .join(" ");
-    if key.is_empty() {
-        "(opening passes)".to_owned()
-    } else {
-        key
-    }
 }
 
 /// Seat-readings observed, ⊤ axes summed over them, and how many were ⊤ on all
@@ -135,6 +123,79 @@ impl Cell {
     }
 }
 
+/// The most HCP a suit of at most `len` cards can hold: A, K, Q, J in order
+const fn honor_cap(len: u8) -> u8 {
+    match len {
+        0 => 0,
+        1 => 4,
+        2 => 7,
+        3 => 9,
+        _ => 10,
+    }
+}
+
+/// Per-seat tallies for the axes in [`EXTRA`]
+#[derive(Default, Clone, Copy)]
+struct Extra {
+    readings: u64,
+    non_top: [u64; 3],
+    binds: [u64; 3],
+}
+
+impl Extra {
+    /// Count one seat-reading.  **binds-beyond** asks whether the axis is
+    /// strictly tighter than what the axes the net already has — `lengths` and
+    /// `points` — imply.  An axis that only restates them is worth no columns.
+    fn add(&mut self, shown: &Envelope) {
+        self.readings += 1;
+        let s = shown.strength;
+        let axes = [
+            // `points >= hcp` is written at the source, so `points.max` already
+            // caps `hcp`; nothing implies a floor.
+            (
+                s.hcp != Range::FULL_POINTS,
+                s.hcp.min > 0 || s.hcp.max < s.points.max,
+            ),
+            // `support_points >= hcp` is the floor `canonicalize` restores, but
+            // `hcp` is not a net input either, so the implied box is the full one.
+            (
+                s.support_points.iter().any(|&r| r != Range::FULL_POINTS),
+                s.support_points
+                    .iter()
+                    .any(|&r| r.min > 0 || r.max < Range::FULL_POINTS.max),
+            ),
+            // A suit's HCP is capped by its shown length (top honours in order)
+            // and by the whole hand's `points`.
+            (
+                s.suit_hcp.iter().any(|&r| r != Range::FULL_SUIT_HCP),
+                (0..4).any(|i| {
+                    let cap = honor_cap(shown.lengths[i].max).min(s.points.max);
+                    s.suit_hcp[i].min > 0 || s.suit_hcp[i].max < cap
+                }),
+            ),
+        ];
+        for (i, (non_top, binds)) in axes.into_iter().enumerate() {
+            self.non_top[i] += u64::from(non_top);
+            self.binds[i] += u64::from(binds);
+        }
+    }
+
+    fn merge(&mut self, other: Self) {
+        self.readings += other.readings;
+        for i in 0..EXTRA.len() {
+            self.non_top[i] += other.non_top[i];
+            self.binds[i] += other.binds[i];
+        }
+    }
+
+    fn pct(self, count: u64) -> f64 {
+        if self.readings == 0 {
+            return 0.0;
+        }
+        100.0 * count as f64 / self.readings as f64
+    }
+}
+
 #[derive(Default)]
 struct Census {
     /// Per-key tallies, charged to the read seat's last call
@@ -146,6 +207,8 @@ struct Census {
     /// The same readings taken through a bare `Context::new`, which skips every
     /// projection-based reading silently.  The self-check below leans on it.
     bare: Cell,
+    /// The unread axes, per hidden seat in `[LHO, partner, RHO]` order
+    extra: [Extra; 3],
 }
 
 impl Census {
@@ -156,6 +219,9 @@ impl Census {
         self.bid.merge(other.bid);
         self.passed.merge(other.passed);
         self.bare.merge(other.bare);
+        for (mine, theirs) in self.extra.iter_mut().zip(other.extra) {
+            mine.merge(theirs);
+        }
         self
     }
 }
@@ -179,15 +245,17 @@ fn census_auction(
 
         // A hidden seat's own calls sit `back` before the actor and every four
         // before that (`Relative`'s parity, counted back from the reader).
-        for (who, back) in [
-            (Relative::Rho, 1_usize),
-            (Relative::Partner, 2),
-            (Relative::Lho, 3),
+        for (who, back, slot) in [
+            (Relative::Rho, 1_usize, 2),
+            (Relative::Partner, 2, 1),
+            (Relative::Lho, 3, 0),
         ] {
             let Some(last) = cut.checked_sub(back) else {
                 continue; // the seat has not called yet
             };
-            let top = top_axes(read.announced(who));
+            let shown = read.announced(who);
+            out.extra[slot].add(shown);
+            let top = top_axes(shown);
             if (0..=last)
                 .rev()
                 .step_by(4)
@@ -254,6 +322,25 @@ fn main() {
             cell.per_reading(),
             cell.blind_pct(),
         );
+    }
+
+    // The unread axes: is any of them worth a wider corpus?  An axis pays only
+    // where it *binds beyond* the lengths and `points` the net already holds.
+    println!("\nunread axes (non-⊤ % / binds-beyond %, per hidden seat)\n");
+    println!(
+        "{:<16} {:>16} {:>16} {:>16}",
+        "axis", "LHO", "partner", "RHO"
+    );
+    for (i, axis) in EXTRA.iter().enumerate() {
+        print!("{axis:<16}");
+        for cell in census.extra {
+            print!(
+                " {:>7.2}% {:>6.2}%",
+                cell.pct(cell.non_top[i]),
+                cell.pct(cell.binds[i]),
+            );
+        }
+        println!();
     }
 
     // Two rankings, because they answer different questions.  Total ⊤ mass is
