@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Longest-first advance said as a constraint, not a weight race.** The
+  advance-of-a-takeout-double's longest-first discipline
+  (`set_longest_first_advance`, shipped default-on) was a ladder of ~10 rules
+  per suit whose weight climbed `0.001` per held card plus a `0.0001` rank
+  bonus — argmax picked the longest suit, but the *reading* of the call could
+  never say so. Each natural rung is now **one flat-weight rule** carrying a
+  new `longest_unbid` condition (an exact `shapes` union: the suit strictly
+  out-lengths a higher-ranking unbid rival, at least equals a lower-ranking
+  one; opener's suit never competes), so under `dnf_reading` the advance
+  finally projects the relative-length claim — `1♦` over `(1♣)–X–(P)` now
+  pins ♥/♠ at most as long as the diamonds — while knob-off the reading stays
+  the bare `len` floor, byte-identical to before. The rich book's weak
+  4-card rung and forced-3-card rung also merge into one 3+ rule knob-on
+  (argmax-identical: no advance rule weighs inside `(0.3, 1.0)`, and both
+  rungs always chose the same suit; the off-arm keeps the split). Suit
+  *choice* is unchanged everywhere — 5♦4♠ still advances `1♦`, 4-4 majors
+  still `1♠`, a bust still offers its highest-ranking 3-card suit. Verified
+  by the `bba-gen` dump diff (seed 1785315000, 6400 boards × both knob
+  states): **0 divergent auctions**, with 151 fired suit advances and their
+  full continuations byte-identical, and the golden `.bbsa` cards unchanged.
+  User impact: none at the table today — this is the reading-honest substrate
+  the next advance experiments (the weak-only penalty-pass yield) build on.
+
 ### Added
 
 - **`gib generate --append`: resume a shard instead of stranding it.** A `.pdd`

@@ -3616,7 +3616,7 @@ pub fn advance_double(their_opening: Bid) -> Rules {
         }
         let bid_level = if strain > theirs { level } else { level + 1 };
         // Natural advance at the cheapest legal level (longest-first under the knob).
-        rules = natural_advance(rules, suit, bid_level, 1.0, 4);
+        rules = natural_advance(rules, t, suit, bid_level, 1.0, 4);
         // Major-suit game jump with support and opening values.
         if matches!(suit, Suit::Hearts | Suit::Spades) {
             rules = rules.rule(Bid::new(4, strain), 1.4, len(suit, 4..) & points(11..));
@@ -3626,36 +3626,62 @@ pub fn advance_double(their_opening: Bid) -> Rules {
 }
 
 /// Append the natural-suit advance of a takeout double: `suit`, bid at
-/// `bid_level`, with floor weight `base` and minimum length `min_len`.
+/// `bid_level`, with weight `base` and minimum length `min_len`.
 ///
 /// Off the [`set_longest_first_advance`] knob this is a single flat rule, so the
 /// classifier's argmax tie-break advances the highest-ranking eligible suit.  On
-/// it, the rule becomes a ladder whose weight climbs a hair with each held card,
-/// so the **longest** suit wins the advance; a sub-card rank bonus breaks
-/// equal-length ties toward the higher-ranking suit (a major over a minor,
-/// spades over hearts).  The increments are tiny — under the gap to every
-/// stronger rung — so only the choice *among* eligible natural suits changes,
-/// never whether a natural suit beats a jump, notrump, cue, or pass.
+/// it, the rule gains the [`longest_unbid`] condition, so the **longest** unbid
+/// suit advances, an equal-length tie going to the higher rank (5♦4♠ → `1♦`,
+/// 4-4 majors → `1♠`) — the same choice the retired weight ladder
+/// (`base + 0.001·held + 0.0001·rank`) made, said as a constraint instead of a
+/// race among rules.
 fn natural_advance(
-    mut rules: Rules,
+    rules: Rules,
+    theirs: Suit,
     suit: Suit,
     bid_level: u8,
     base: f32,
     min_len: usize,
 ) -> Rules {
-    let strain = Strain::from(suit);
-    if !longest_first_advance_enabled() {
-        return rules.rule(Bid::new(bid_level, strain), base, len(suit, min_len..));
+    let bid = Bid::new(bid_level, Strain::from(suit));
+    if longest_first_advance_enabled() {
+        rules.rule(
+            bid,
+            base,
+            len(suit, min_len..) & longest_unbid(suit, theirs),
+        )
+    } else {
+        rules.rule(bid, base, len(suit, min_len..))
     }
-    let rank_bonus = 0.0001 * f32::from(suit as u8);
-    for held in min_len..=13 {
-        rules = rules.rule(
-            Bid::new(bid_level, strain),
-            base + 0.001 * held as f32 + rank_bonus,
-            len(suit, held..),
-        );
-    }
-    rules
+}
+
+/// `suit` is the longest of the three unbid suits, an equal-length tie going to
+/// the higher rank
+///
+/// Crisp, and a partition: of the three unbid suits exactly one satisfies its
+/// instance — `suit` must strictly out-length a higher-ranking rival (which
+/// would win the tie) and at least equal a lower-ranking one.  Opener's suit
+/// never competes.  An exact [`shapes`] union, one box per own-length floor
+/// `k` (`suit` ≥ k, each rival capped at k or k−1 by rank; `k ≤ 7` suffices —
+/// two suits of eight don't fit in thirteen cards), so knob-on the reading
+/// pins the relative-length claim and knob-off it stays ⊤, leaving the
+/// companion `len` floor as the whole pre-DNF reading.
+fn longest_unbid(suit: Suit, theirs: Suit) -> Cons<impl Constraint + Clone> {
+    let boxes = (0..=7u8)
+        .filter_map(|k| {
+            let mut lengths = [Range::FULL_LENGTH; 4];
+            lengths[suit as usize] = Range::new(k, Range::FULL_LENGTH.max);
+            for rival in Suit::ASC {
+                if rival == suit || rival == theirs {
+                    continue;
+                }
+                let cap = if rival > suit { k.checked_sub(1)? } else { k };
+                lengths[rival as usize] = Range::new(0, cap);
+            }
+            Some(length_box(lengths))
+        })
+        .collect();
+    shapes(format!("{suit} the longest unbid suit"), boxes)
 }
 
 /// Rich advance of partner's takeout double of a one-of-a-suit `their_opening`
@@ -3761,15 +3787,28 @@ fn advance_double_rich(their_opening: Bid) -> Rules {
             continue;
         }
         let bid_level = if strain > theirs { level } else { level + 1 };
-        // Natural advance at the cheapest legal level (weak, 0–7) — longest-first
-        // under the knob, so a weak two-suiter shows its longer suit.
-        rules = natural_advance(rules, suit, bid_level, 1.0, 4);
-        // Forced 3-card suit: a takeout double cannot be passed for want of a
-        // bid, so any hand with no 4-card suit and no notrump/cue home still
-        // introduces its longest (higher-ranking on a tie) 3-card suit (no HCP
-        // cap — the higher-weight cue, notrump, and 4-card-suit rules take every
-        // hand that has a better call, leaving only the genuinely stuck ones here).
-        rules = natural_advance(rules, suit, bid_level, 0.3, 3);
+        if longest_first_advance_enabled() {
+            // Natural advance at the cheapest legal level — the weak 4-card rung
+            // and the forced-3-card rung merged into one rule: the longest unbid
+            // suit at 3+ cards.  A takeout double cannot be passed for want of a
+            // bid, and no HCP cap is needed — the higher-weight cue, notrump,
+            // jump, and pass rules take every hand with a better call, leaving
+            // only the weak and the genuinely stuck ones here.  The merge is
+            // argmax-identical to the split rungs while no advance rule weighs
+            // strictly inside (0.3, 1.0): both rungs always chose the same suit,
+            // and nothing outranks one without outranking both.
+            rules = natural_advance(rules, t, suit, bid_level, 1.0, 3);
+        } else {
+            // Natural advance at the cheapest legal level (weak, 0–7).
+            rules = natural_advance(rules, t, suit, bid_level, 1.0, 4);
+            // Forced 3-card suit: a takeout double cannot be passed for want of
+            // a bid, so any hand with no 4-card suit and no notrump/cue home
+            // still introduces its highest-ranking 3-card suit (no HCP cap —
+            // the higher-weight cue, notrump, and 4-card-suit rules take every
+            // hand that has a better call, leaving only the genuinely stuck
+            // ones here).
+            rules = natural_advance(rules, t, suit, bid_level, 0.3, 3);
+        }
         // Jump in a new *major*: a cheap two-level jump is *constructive*
         // (8–10, 4+); the more committal three-level jump is *invitational* and
         // wants a real 5-card suit.  (A game-forcing hand cues or blasts `4M` —
@@ -6062,6 +6101,46 @@ mod tests {
             !floored,
             "the forced advance is a rich book node, not the floor"
         );
+    }
+
+    /// The [`longest_unbid`] condition is an exact box union: `eval` and
+    /// knob-on box membership agree, opener's suit never competes, and an
+    /// equal-length tie goes to the higher rank — the reading the retired
+    /// weight ladder could never project.
+    #[test]
+    fn longest_unbid_reads_the_relative_length() {
+        use super::Context;
+        use crate::bidding::constraint::Constraint as _;
+        use crate::bidding::inference::set_dnf_reading;
+        use contract_bridge::Suit;
+
+        set_dnf_reading(true);
+        let context = Context::new(RelativeVulnerability::NONE, &[]);
+        // The ♦ instance over their (1♥): rivals ♠ (higher rank, must stay
+        // strictly shorter) and ♣ (lower rank, may equal).
+        let diamonds = super::longest_unbid(Suit::Diamonds, Suit::Hearts);
+        let boxes = diamonds.project(&context);
+
+        // Holdings are spades.hearts.diamonds.clubs.
+        for (hand, held, why) in [
+            ("432.32.K8765.432", true, "5♦ over 3♠/3♣ is the longest"),
+            ("432.32.K876.5432", true, "the ♦=♣ tie goes to the higher ♦"),
+            (
+                "5432.32.K876.432",
+                false,
+                "the ♠=♦ tie goes to the higher ♠",
+            ),
+            ("65432.32.K876.32", false, "5♠ out-lengths 4♦"),
+            ("32.65432.K876.32", true, "opener's longer ♥ never competes"),
+        ] {
+            let hand: Hand = hand.parse().unwrap();
+            assert_eq!(boxes.contains(hand), held, "boxes: {why}");
+            assert_eq!(
+                diamonds.eval(hand, &context).is_finite(),
+                held,
+                "eval: {why}"
+            );
+        }
     }
 
     #[test]
