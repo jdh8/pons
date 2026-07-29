@@ -145,6 +145,18 @@ impl Rule {
         self.when.project_band(context)
     }
 
+    /// The two-sided band of this rule's **negation** as a union of boxes
+    /// ([`Constraint::project_complement`])
+    ///
+    /// What *declining* this rule asserts: under argmax selection a hand
+    /// inside a gate that outweighs every Pass rule cannot have passed, so
+    /// the passer lies in the gate's complement.  The reading-side fold
+    /// behind [`set_pass_exclusion_reading`][super::set_pass_exclusion_reading].
+    #[must_use]
+    pub fn project_complement_dnf(&self, context: &Context<'_>) -> super::inference::Dnf {
+        self.when.project_complement(context)
+    }
+
     /// The **agreement** this rule announces, as a union of boxes
     /// ([`Constraint::announce`])
     ///

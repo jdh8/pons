@@ -7,7 +7,60 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
+### Added
+
+- **Pass-exclusion reading** (`set_pass_exclusion_reading`, default off). The
+  general pass reading is "exclude every call the passer's table offered"; a
+  catch-all `hcp(0..)` Pass gate says nothing, which is why passes over their
+  weak twos read fully blind in the ⊤ census. The bidder is argmax over
+  `weight + eval`, so a pass proves the hand outside every sibling gate whose
+  weight strictly beats every Pass rule's — the knob intersects those gates'
+  complements into the pass band (single-box complements only, the shape-free
+  tiers). Census, 20k boards, seed 1785200001: `2♦/2♥/2♠ P` go **5.000 ⊤/seat,
+  100% blind → 4.000, 0.00%** (the passer now reads ≤16 points); every
+  control key is byte-unmoved (`1NT P` 90.68%, `1NT P 2♣` 74.66%, `2NT/2♣ P`,
+  the `1m (1♠) P` family). Not bid-inert (~0.06% of readings shift the floor
+  net), and the identical band was refuted pre-retrain as
+  `weak_two_pass_gate` (C1 encoding loss) — so default-off, queued for the
+  next feature retrain; guarded by the new `passes_read_within_their_table`
+  sweep (argmax-passes must be admitted by the knob-on projection, all four
+  books, zero failures). **A/B vs BBA** (204,800 bd/arm/vul, seed 1785344858):
+  plain **−0.0060 / −0.0062**, PD **−0.0029 / −0.0032** IMPs/board (none /
+  both), 0.68% fired — the pre-registered C1 signature, a real plain loss on
+  the net-visible surface. Stays off; re-measure after the feature retrain.
+
+- **Sampled projection, Stage B: the behavioral probe** (`Stance::probe` +
+  `set_probed_reading`, default off). The docs/ai-bidder/sampled-projection.md
+  derivation, keyed by **traffic** rather than authorship: bid N deals in
+  self-play, record the actor's hand at every decision, store a widened
+  bounding box per prefix key with ≥200 samples (two iterations, fixed-point
+  drift reported). This is the only reader that reaches the floor's calls — a
+  net's pass has no rule to project. Knob-on, the projection pass intersects
+  each prior call's probed box into both overlays; empty map or knob-off is
+  byte-identical (full suite green). Viability gate measured first
+  (`examples/probe-pass-meaning`, 100k boards): 57.9% of decision traffic has
+  ≥100 samples; the class-C blind head is real content — `1NT P` passer mean
+  7.8 points p99 17 vs ⊤ today, `2NT P` mean 7.1 vs ⊤, `2♣ P` mean 6.2 vs ⊤.
+  Probed census (20k boards, `--probe 100000`, 520 keys): has-bid ⊤/seat
+  **2.642 → 0.541**, passes-only **4.257 → 1.442** (blind 26.21% → 4.67%) —
+  the old blind head leaves the worklist entirely, including the 1♥/1♠
+  rule-competition ceilings (3.03 → ~0.09) that no symbolic path can reach.
+  Fixed-point drift 241/520 keys between probe iterations.
+  **A/B vs BBA REFUTES the v1 boxes as a bidding input** (204,800 bd/arm/vul,
+  seed 1785344858): plain **−0.314 / −0.428**, PD **−0.570 / −0.690**
+  IMPs/board (none / both), 25–28% of boards diverge — two orders of magnitude
+  past any convention-sized effect, and negative on *both* scorers, so not a
+  doubling artifact of PD. Mechanism, from the 160 worst boards: **104 end in
+  a contract we redoubled that the base arm never doubled**. The probed boxes
+  are too tight, the floor believes the opponents are limited, doubles them,
+  and they redouble and make — the predicted probing failure mode (false
+  precision, the catastrophic side of the soundness asymmetry) landing exactly
+  where the doc said it would. The census win is real and the boxes are useful
+  *description*; what is refuted is feeding v1 widening (points ±2, length ±1)
+  straight into a bidder that trusts its readings. Knob stays off. The
+  observed-vs-published divergences the viability example caught (`1♣ P 1♥`
+  announced 6..=11 vs observed up to 24; `1♠ P 2♠` floor 6 vs observed
+  4–5-point raises) are recorded in the doc as open defects.
 
 - **Windows CI: pin line endings with `.gitattributes`.** GitHub's Windows
   runners ship Git with `core.autocrlf=true`, so every checked-in text file

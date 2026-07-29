@@ -361,6 +361,14 @@ std::thread_local! {
     /// gate (see [`set_pass_reading`]).  On by default (shipped 2026-07-18:
     /// bid-inert, reading soundness).
     static PASS_READING: Cell<bool> = const { Cell::new(true) };
+
+    /// Whether a pass additionally excludes the sibling gates it declined
+    /// (see [`set_pass_exclusion_reading`]).  Off by default.
+    static PASS_EXCLUSION_READING: Cell<bool> = const { Cell::new(false) };
+
+    /// Whether [`project_authored`] folds the stance's behaviorally probed
+    /// boxes (see [`set_probed_reading`]).  Off by default.
+    static PROBED_READING: Cell<bool> = const { Cell::new(false) };
 }
 
 /// Toggle the cue reading of the natural walk (default on, shipped 2026-07-18)
@@ -440,6 +448,62 @@ pub fn set_pass_reading(on: bool) {
 
 fn pass_reading() -> bool {
     PASS_READING.with(Cell::get)
+}
+
+/// Toggle pass-exclusion: a pass also excludes the sibling gates it declined
+/// (default off)
+///
+/// [`set_pass_reading`] reads a pass off the table's own Pass gates — which in
+/// a catch-all table (`hcp(0..)`: the weak-two and 1NT defenses, trap-pass
+/// advances) says nothing, and those tables own the plurality of the reading
+/// census's fully-blind passes.  This knob completes the stated negative
+/// inference: the bidder is argmax over `weight + eval`, so a hand inside a
+/// sibling gate whose weight strictly beats **every** Pass rule's weight could
+/// not have passed — the passer lies in that gate's complement
+/// ([`Rule::project_complement_dnf`][super::rules::Rule::project_complement_dnf]),
+/// and the pass band may be intersected with it.
+///
+/// Only **single-box** complements are folded in — a shape-free
+/// single-conjunct tier, such as the weak-two defense's `points(17..)` strong
+/// double, whose complement is exactly `points(..=16)`.  A shaped or bounded
+/// gate complements to a union (or to ⊤ via an off-axis atom), where the
+/// per-box precision is not worth the term growth; skipping it costs
+/// precision, never soundness.
+///
+/// Expectations are calibrated by history: for the weak-two defense this band
+/// is equivalent to the authored `weak_two_pass_gate` (REFUTED pre-retrain —
+/// a C1-shaped encoding loss, kept opt-in), so the knob ships **off**, queued
+/// for the next feature retrain; its immediate payoff is wherever readings
+/// are consumed directly (sd-lead pricing, search-mode sampling, disclosure).
+pub fn set_pass_exclusion_reading(on: bool) {
+    PASS_EXCLUSION_READING.with(|cell| cell.set(on));
+}
+
+fn pass_exclusion_reading() -> bool {
+    PASS_EXCLUSION_READING.with(Cell::get)
+}
+
+/// Toggle the probed reading — behaviorally measured boxes folded into the
+/// projection overlay (default off)
+///
+/// The sampled-projection derivation, stored: [`Stance::probe`][super::Stance::probe]
+/// bids self-play deals and records the widened bounding box of the hands
+/// that actually made each call, keyed by auction prefix.  On, the projection
+/// pass intersects each prior call's probed box into both overlays.  This is
+/// the only reader that reaches the floor's calls — a net's pass has no rule
+/// to project, and the census's residual blind head (their 1NT/2♣/2NT
+/// openings' passers, fourth-seat passes) is exactly that territory.
+///
+/// The boxes are **behavioral estimates**, widened at the edges (a sample
+/// bound is not a rule bound) — see `Observed::boxed` in
+/// [`book`][super::Stance] for the exact slack.  A stance with an empty
+/// probed map reads identically with the knob on or off.
+pub fn set_probed_reading(on: bool) {
+    PROBED_READING.with(|cell| cell.set(on));
+}
+
+pub(crate) fn probed_reading() -> bool {
+    PROBED_READING.with(Cell::get)
 }
 
 std::thread_local! {
@@ -2522,6 +2586,45 @@ fn dnf_of(players: &[Envelope; 4], overlay: &[Dnf; 4]) -> [Dnf; 4] {
     std::array::from_fn(|i| Dnf::from(players[i]).intersect(&overlay[i]))
 }
 
+/// One table's pass reading: the union of its Pass rules' bands, knob-on
+/// intersected with the complements of the sibling gates the passer declined
+///
+/// The exclusion half (see [`set_pass_exclusion_reading`]) leans on argmax
+/// selection: a hand inside a sibling gate whose weight strictly beats
+/// **every** Pass rule's weight could not have let Pass win, so the passer
+/// lies in that gate's complement.  Single-box complements only — the
+/// shape-free tiers; skipping the rest costs precision, never soundness, and
+/// holds the box count down.  [`None`] when the table authors no Pass rule at
+/// all (the projection pass then records nothing, as before).
+fn project_pass(rules: &super::rules::Rules, ctx: &Context<'_>) -> Option<Dnf> {
+    let band = rules
+        .rules()
+        .iter()
+        .filter(|rule| rule.call() == Call::Pass)
+        .map(|rule| rule.project_band_dnf(ctx))
+        .reduce(Dnf::disjoin)?;
+    if !pass_exclusion_reading() {
+        return Some(band);
+    }
+    let ceiling = rules
+        .rules()
+        .iter()
+        .filter(|rule| rule.call() == Call::Pass)
+        .map(super::rules::Rule::weight)
+        .fold(f32::NEG_INFINITY, f32::max);
+    Some(
+        rules
+            .rules()
+            .iter()
+            .filter(|rule| rule.call() != Call::Pass && rule.weight() > ceiling)
+            .map(|rule| rule.project_complement_dnf(ctx))
+            .filter(|complement| {
+                complement.boxes().len() == 1 && complement.boxes()[0] != Envelope::unknown()
+            })
+            .fold(band, |acc, complement| acc.intersect(&complement)),
+    )
+}
+
 fn project_authored(context: &Context<'_>) -> ([Dnf; 4], [Dnf; 4], u64) {
     let auction = context.auction();
     let len = auction.len();
@@ -2563,18 +2666,16 @@ fn project_authored(context: &Context<'_>) -> ([Dnf; 4], [Dnf; 4], u64) {
         // what its gate would have *allowed* (`project_band`, both bounds) —
         // the negative inference of declining every other call, which is what
         // the author wrote the table's Pass gate to document.
-        let projection = rules
-            .rules()
-            .iter()
-            .filter(|rule| rule.call() == made)
-            .map(|rule| {
-                if is_pass {
-                    rule.project_band_dnf(ctx)
-                } else {
-                    rule.project_dnf(ctx)
-                }
-            })
-            .reduce(Dnf::disjoin);
+        let projection = if is_pass {
+            project_pass(rules, ctx)
+        } else {
+            rules
+                .rules()
+                .iter()
+                .filter(|rule| rule.call() == made)
+                .map(|rule| rule.project_dnf(ctx))
+                .reduce(Dnf::disjoin)
+        };
 
         // A call is artificial — decode it — when its authoring rule *alerts* it.
         // The alert is now the complete, exhaustive signal: every artificial call
@@ -2698,6 +2799,23 @@ fn project_authored(context: &Context<'_>) -> ([Dnf; 4], [Dnf; 4], u64) {
                 .authoring_classifier(&at_the_time, prefix)
             {
                 project_call(&at_the_time, index, classifier, true);
+            }
+        }
+    }
+
+    // The probed overlay (see [`set_probed_reading`]): fold each prior call's
+    // behaviorally measured box, keyed by the prefix through it.  Runs last so
+    // it composes with — never replaces — the symbolic folds above; an empty
+    // probed map is a no-op.
+    if probed_reading()
+        && let Some(them) = context.their_system()
+    {
+        for index in 0..len {
+            if let Some(&box_) = them.probed_box(&auction[..=index]) {
+                let who = relative_of(len, index) as usize;
+                let dnf = Dnf::from(box_);
+                players[who] = players[who].intersect(&dnf);
+                announced[who] = announced[who].intersect(&dnf);
             }
         }
     }
@@ -4101,6 +4219,35 @@ mod tests {
         // claimed about the advancer even with every reading knob on.
         let trap = read_booked(&[bid(1, Strain::Hearts), Call::Double, Call::Pass, Call::Pass]);
         assert_eq!(trap.rho().strength.points, Range::FULL_POINTS);
+    }
+
+    /// Pass-exclusion (`set_pass_exclusion_reading`) caps the direct-seat pass
+    /// over their weak two off the *declined* shape-free double tier
+    /// (`points(17..)`, weight 1.2) — the catch-all `hcp(0..)` Pass gate says
+    /// nothing on its own, which is why this key read 100% blind in the census.
+    /// Shaped siblings (the overcalls, the 2NT arm) complement to unions or ⊤
+    /// and are skipped by the single-box filter, so the lengths stay ⊤.
+    #[test]
+    fn pass_exclusion_caps_the_weak_two_defender() {
+        let auction = [bid(2, Strain::Spades), Call::Pass, Call::Pass];
+        set_pass_reading(true);
+        set_table_alert_reading(false);
+
+        // Knob off — today's identity: the catch-all gate reads nothing.
+        set_pass_exclusion_reading(false);
+        let off = read_booked(&auction);
+        assert_eq!(off.partner().strength.points, Range::FULL_POINTS);
+
+        // Knob on — declining the 17+ double caps the passer.
+        set_pass_exclusion_reading(true);
+        let on = read_booked(&auction);
+        assert_eq!(on.partner().strength.points, Range::new(0, 16));
+        // The overcall complements are multi-box and skipped: no length claim.
+        assert_eq!(on.partner().length(Suit::Hearts), Range::new(0, 13));
+
+        // Off again is byte-identical to never having been on.
+        set_pass_exclusion_reading(false);
+        assert_eq!(read_booked(&auction).partner(), off.partner());
     }
 
     #[test]
@@ -6263,6 +6410,102 @@ mod tests {
         assert!(
             failures.is_empty(),
             "unsound projections (eval ⊄ reading):\n{}",
+            failures.join("\n"),
+        );
+    }
+
+    /// Pass-exclusion soundness: wherever a table's argmax is (or ties with)
+    /// Pass, the knob-on pass projection must admit the hand.
+    ///
+    /// [`authored_rules_eval_within_projection`] replays each rule against its
+    /// *own* reading; the exclusion reading is a claim about the **table** —
+    /// "no passer holds a hand a strictly-heavier sibling gate accepts" — so
+    /// this sweep replays the argmax itself.  Ties count as passes (stricter
+    /// than the drivers, whose `max_by` keeps the later call), which is why
+    /// the exclusion threshold is a strict `>` on weight.
+    #[test]
+    fn passes_read_within_their_table() {
+        use crate::bidding::american::american;
+        use crate::bidding::dutch::dutch;
+        use crate::bidding::trie::Classifier as _;
+        use rand::SeedableRng as _;
+
+        let mut rng = rand::rngs::StdRng::seed_from_u64(0x9A55);
+        let mut hands: Vec<Hand> = crate::bidding::verify::random_hands(&mut rng)
+            .take(128)
+            .collect();
+        hands.extend(
+            ["AKQJ.AKQJ.AKQ.AK", "AKQ2.K53.QJ4.T92"]
+                .map(|text| text.parse::<Hand>().unwrap_or_else(|_| unreachable!())),
+        );
+
+        set_dnf_reading(true);
+        set_pass_exclusion_reading(true);
+        let american = american();
+        let dutch = dutch();
+        let tries: [(&str, &crate::bidding::trie::Trie); 4] = [
+            ("american constructive", &american.constructive.0),
+            ("american competitive", &american.competitive.0),
+            ("american defensive", &american.defensive.0),
+            ("dutch constructive", &dutch.constructive.0),
+        ];
+
+        let mut failures: Vec<String> = Vec::new();
+        let mut check = |system: &str,
+                         auction: &[Call],
+                         context: &Context<'_>,
+                         rules: &crate::bidding::rules::Rules| {
+            let Some(projection) = super::project_pass(rules, context) else {
+                return;
+            };
+            for &hand in &hands {
+                let logits = rules.classify(hand, context);
+                let pass = *logits.0.get(Call::Pass);
+                let best_other = (&logits.0)
+                    .into_iter()
+                    .filter(|(call, _)| *call != Call::Pass)
+                    .map(|(_, logit)| *logit)
+                    .fold(f32::NEG_INFINITY, f32::max);
+                if !pass.is_finite() || pass < best_other {
+                    continue;
+                }
+                if !projection.boxes().iter().any(|b| b.accepts(hand)) && failures.len() < 16 {
+                    failures.push(format!(
+                        "{system}: [{}] pass reading excludes passing hand {hand}",
+                        auction
+                            .iter()
+                            .map(ToString::to_string)
+                            .collect::<Vec<_>>()
+                            .join(" "),
+                    ));
+                }
+            }
+        };
+
+        for (system, trie) in tries {
+            for (auction, classifier) in trie {
+                if let Some(rules) = classifier.as_rules() {
+                    let context = Context::new(RelativeVulnerability::NONE, &auction)
+                        .with_prefixes(trie.common_prefixes(&auction));
+                    check(system, &auction, &context, rules);
+                }
+            }
+            for (auction, _, fallback) in trie.fallbacks() {
+                let crate::bidding::fallback::Fallback::Classify(classifier) = fallback else {
+                    continue;
+                };
+                if let Some(rules) = classifier.as_rules() {
+                    let context = Context::new(RelativeVulnerability::NONE, &auction)
+                        .with_prefixes(trie.common_prefixes(&auction));
+                    check(system, &auction, &context, rules);
+                }
+            }
+        }
+        set_pass_exclusion_reading(false);
+
+        assert!(
+            failures.is_empty(),
+            "pass-exclusion excludes hands that pass:\n{}",
             failures.join("\n"),
         );
     }

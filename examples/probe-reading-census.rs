@@ -74,6 +74,15 @@ struct Args {
     /// Keys to list in the ranked worklist
     #[arg(long, default_value = "30")]
     top: usize,
+
+    /// Read passes with sibling-gate exclusion (`set_pass_exclusion_reading`)
+    #[arg(long)]
+    exclusion: bool,
+
+    /// Probe the stance over this many self-play boards first and census with
+    /// the probed reading on (`Stance::probe` + `set_probed_reading`)
+    #[arg(long, default_value = "0")]
+    probe: usize,
 }
 
 /// How many of the five axes the nets read carry no information
@@ -279,12 +288,23 @@ fn main() {
     let args = Args::parse();
     let base = args.seed.unwrap_or_else(rand::random);
     let vul = AbsoluteVulnerability::NONE;
-    let stance = american().against();
+    let mut stance = american().against();
+    if args.probe > 0 {
+        let report = stance.probe(args.probe, base.wrapping_add(0x9B0BE));
+        eprintln!(
+            "probed {} boards: {} keys stored, {} drifted between iterations",
+            args.probe, report.keys, report.drifted,
+        );
+    }
+    let stance = stance;
 
     let census = seeded_deals(base, args.count)
         .par_iter()
         .enumerate()
         .map(|(board, deal)| {
+            // Thread-local knobs: set in every rayon worker, not just main.
+            pons::bidding::set_pass_exclusion_reading(args.exclusion);
+            pons::bidding::set_probed_reading(args.probe > 0);
             let dealer = Seat::ALL[board % 4];
             let auction = bid_out(&stance, &stance, true, dealer, vul, deal);
             census_auction(&stance, dealer, vul, &auction)

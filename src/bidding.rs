@@ -49,7 +49,9 @@ pub use american::{
     set_overcall_four_card, set_weak_two_wild,
 };
 pub use array::Array;
-pub use book::{Competitive, Constructive, Defensive, ExplainedRule, Pair, Phase, Stance};
+pub use book::{
+    Competitive, Constructive, Defensive, ExplainedRule, Pair, Phase, ProbeReport, Stance,
+};
 pub use compose::{OrElse, Versus};
 pub use context::Context;
 pub use dutch::{dutch, dutch_instinct};
@@ -63,8 +65,8 @@ pub use inference::{
     Dnf, Envelope, Inferences, Range, Relative, blind_opponent_reading, set_alert_reading,
     set_blind_opponent_reading, set_control_bid_reading, set_cue_reading, set_dnf_reading,
     set_fallback_projection, set_gauge_membership, set_length_soundness, set_nt_invite_inference,
-    set_pass_reading, set_rubens_transfer_reading, set_sum_closure, set_table_alert_reading,
-    set_upgrade_closure,
+    set_pass_exclusion_reading, set_pass_reading, set_probed_reading, set_rubens_transfer_reading,
+    set_sum_closure, set_table_alert_reading, set_upgrade_closure,
 };
 pub use instinct::instinct;
 pub use map::Map;

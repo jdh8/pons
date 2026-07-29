@@ -18,6 +18,19 @@
 > layer, which needs machinery rather than probing, and the largest bid-side ⊤
 > mass is **rule competition** on the 1♥/1♠ openings, which needs probing and
 > nothing else can reach.
+>
+> Update (2026-07-30): **both census work items landed, defensive-first, both
+> default-off pending A/B.** The census's "missing machinery" mechanism story
+> was a misdiagnosis — see the correction in the census section — and the two
+> fixes that actually move the blind head are `set_pass_exclusion_reading`
+> (symbolic: a pass excludes the strictly-heavier sibling gates it declined)
+> and **Stage B itself as `Stance::probe`** (behavioral: self-play boxes keyed
+> by *traffic*, not authorship — which is what reaches the floor's passes, the
+> real residue). Viability gate cleared by `examples/probe-pass-meaning`:
+> one 100k-board self-play sweep gives ≥100 samples to 57.9% of decision
+> traffic, no per-node rejection sampling needed. The 1♥/1♠ rule-competition
+> chop is deliberately deferred behind the defensive head (user's ordering,
+> 2026-07-29).
 
 ## The idea, in one line
 
@@ -488,6 +501,29 @@ missing box on an authored rule; it is a layer the projection pass never
 reaches. Cheap to fix relative to Stage B, and it owns the plurality of the
 blindness.
 
+**Correction (2026-07-30, code/git audit): the mechanism above is wrong,
+though the numbers stand.** The fallback-resolution machinery had already
+shipped a month before the census (`Trie::authoring_classifier` +
+`FALLBACK_PROJECTION`, default **on**, 2026-06-28), and essentially every
+authored fallback site passes a `Rules` *value* whose `as_rules` survives the
+`Arc<dyn Classifier>` erasure — the `fallback_rules_read_what_they_gate`
+meter pins exactly 6 opaque installations, none owning census mass. The
+blindness decomposes instead as:
+
+- **≈7,000 readings, vacuous authored gates** — projection *runs* and
+  honestly reports the `hcp(0..)` catch-all Pass gate (weak-two and 1NT
+  defenses, `over_their_overcall`). Fixed symbolically by
+  `set_pass_exclusion_reading` (below).
+- **≈4,700 readings, the neural floor's passes** — `2NT P`, `2♣ P`,
+  fourth-seat `1x P 1y P`: chosen by the net, nothing to expose. **Only the
+  probe reads these.**
+- **≈800 readings, truthful unions** — `1NT P 2♣` with garbage + crawling
+  Stayman shipped genuinely promises ~nothing on the census axes. Correct
+  blindness; leave it.
+- `1NT P` (≈4,100) is **hull-irreducible**: the only strong tier over their
+  1NT is shaped (`hcp(15..) & balanced` double), so no sound points ceiling
+  exists for the passer at hull level — probe territory too.
+
 ### The biggest *bid* ⊤ mass is rule competition — only a probe can reach it
 
 | opening | readings | ⊤/seat | axes read |
@@ -519,6 +555,113 @@ Two separate pieces of work, in cost order:
 2. **Stage B for rule competition.** The 1♥/1♠ ceilings are unreachable
    symbolically by construction — the first measured case where the probe is
    the *only* instrument rather than the more convenient one.
+
+## What landed (2026-07-30) — and what the A/B still owes
+
+**Pass-exclusion** (`set_pass_exclusion_reading`, default off) is the sound
+symbolic completion of the pass reading: under argmax a pass proves the hand
+outside every sibling gate whose weight strictly beats every Pass rule's, so
+the pass band is intersected with those gates' complements — single-box
+complements only (a shape-free tier like the weak-two defense's
+`points(17..)` double; a shaped or bounded gate complements to a union or ⊤
+and is skipped, costing precision never soundness). Census (20k boards, seed
+1785200001): `2♦/2♥/2♠ P` **100% blind → 0.00%**, ⊤/seat 5.000 → 4.000,
+every control key byte-unmoved. Guarded by the
+`passes_read_within_their_table` sweep: wherever a table's argmax is (or
+ties with) Pass, the knob-on projection must admit the hand. Expectation
+management: the band is equivalent to the refuted `weak_two_pass_gate`
+(C1-encoding loss pre-retrain), so it ships off, queued for the next retrain.
+
+**Stage B is `Stance::probe`** (+ `set_probed_reading`, default off), with
+one design amendment over the staging above: coverage is keyed by
+**traffic**, not authorship. One self-play sweep records the actor's hand at
+every decision; every prefix key with ≥200 observations stores a widened
+bounding box (points ±2, lengths ±1 — a sample edge is not a rule edge), two
+iterations with fixed-point drift reported. This dissolves the per-node
+acceptance-rate question the caveat below poses: there is no per-node
+rejection sampling at all, and `examples/probe-pass-meaning` (the viability
+gate) measures 57.9% of decision traffic at ≥100 samples from 100k boards.
+The class-C keys it reaches are real content: `1NT P` passer mean 7.8 points
+p99 17 (vs ⊤, and hull-irreducible symbolically), `2NT P` mean 7.1, `2♣ P`
+mean 6.2, all vs ⊤ today.
+
+**The probed census** (20k boards, seed 1785200001, `--probe 100000`: 520
+keys stored, 241 drifted between the two probe iterations) moves the whole
+surface, not just the pass head: has-bid ⊤/seat **2.642 → 0.541** (blind
+6.22% → 3.05%), passes-only **4.257 → 1.442** (blind 26.21% → **4.67%**).
+Every key of the old blind head leaves the worklist — including the **1♥/1♠
+rule-competition ceilings** (3.03 → ~0.09 ⊤/seat), the chop deferred above:
+the probe fills an axis without asking why it was ⊤. The residual head is
+exactly what traffic-keying predicts, the sub-`MIN_SAMPLES` tail (`1♣ 1NT P`
+at 280 readings, `2♠ X XX`, deep competitive keys) — coverage there is a
+boards-count dial, not a design question. The 241/520 drift is the honest
+fixed-point number: probed readings materially move the bidder's own
+auctions, so a consumer that retrains on probed features must retrain on the
+*post-probe* auction distribution.
+
+The same example doubles as a **published-vs-actual divergence meter**, and
+its first run already caught two: `1♣ P 1♥` announces 6..=11 while observed
+responders run to 24 (the natural walk's non-jump response band — the 1-over-1
+sibling of the erased 2/1 reading), and `1♠ P 2♠` announces a floor of 6
+while 4–5-point hands measurably raise (fuzzy-gate slack breaching a
+published floor). Both are open defects to price, not fixed here.
+
+### The A/B verdict (2026-07-30, seed 1785344858, 204,800 bd/arm/vul)
+
+| arm | plain none | plain both | PD none | PD both | fired |
+| --- | --- | --- | --- | --- | --- |
+| exclusion | −0.0060 | −0.0062 | −0.0029 | −0.0032 | 0.68% |
+| probed | −0.314 | −0.428 | −0.570 | −0.690 | 25–28% |
+
+**Exclusion**: the pre-registered C1 signature — a small real plain loss on a
+net-visible surface encoding a band the features already refuted. Stays off,
+re-measure after the feature retrain; the pre-retrain number is a floor, not
+the verdict.
+
+**Probed v1 is refuted as a bidding input**, and not marginally: two orders of
+magnitude past convention scale, negative on both scorers (so not a PD
+doubling artifact), and the mechanism is legible in the worst boards — **104
+of the 160 worst end in a contract we redoubled that the base arm never
+doubled**. The boxes are too tight, so the floor reads the opponents as
+limited, doubles, and gets redoubled into a making contract. This is the
+soundness asymmetry of §"probing fails toward false precision" arriving on
+schedule: the census metric (⊤ mass removed) rewards *tightness*, and
+tightness is exactly the failure direction. **The census is not a proxy for
+the A/B — the two metrics point opposite ways.**
+
+What survives: the boxes are good *description* (disclosure, sd-lead pricing,
+sampler priors) and the class-C content is real. What is refuted is v1
+widening (points ±2, length ±1) feeding a bidder that trusts its readings.
+Next candidate, if this is picked up: widen by *sample quantiles with a
+coverage guarantee* — store the box that admits ≥99% of observed hands with a
+count-scaled margin, so a thin key widens toward ⊤ rather than toward a lie —
+and re-price penalty doubles separately, since they are the sole loss channel
+identified.
+
+## Per-node training — the probe as the sync step (recorded 2026-07-29)
+
+The larger ambition this build serves (jdh8): *discover* meanings from
+self-play, per node — not only read them off the authored system. Three
+anchors keep that honest:
+
+- **The probe is bidder-agnostic.** "The acceptance test is the system" holds
+  whether the decision-maker is authored rules, the distilled floor, or a
+  future per-node-trained policy. For a learned policy the probe is the
+  *only* reader — its conventions exist purely behaviorally — and the only
+  route to disclosure (`artificial_calls_are_alerted` demands a reading).
+- **Per-node training is coordinate ascent on the partnership's joint
+  policy**, and the probe is its synchronization step: train a node →
+  re-probe its calls → downstream nodes see fresh readings → train them.
+  Leaves are coordination-free (no downstream language to break) and
+  constructive leaves already proved out (bilans, M6.4); competitive leaves
+  are where the DD reward is most biased (the obstruction wall that killed
+  M7).
+- **The walls are measured, not hypothetical**: DD reward bias unlearns
+  preemption; self-play drifts to private codes (fine vs itself, wrong vs
+  the field and human partners — BEN anchors to human data for this);
+  convention *discovery* needs orders of magnitude more games than
+  distillation. Defensive/contested territory first, which also respects the
+  book/floor partition invariant (learned layers wrap contested books only).
 
 ## Caveats
 

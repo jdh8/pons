@@ -42,11 +42,12 @@
 use super::System;
 use super::array::Logits;
 use super::context::Context;
-use super::inference::Inferences;
+use super::inference::{Envelope, Inferences, Range};
 use super::trie::{Provenance, Trie};
-use contract_bridge::Hand;
-use contract_bridge::auction::{Call, RelativeVulnerability};
+use contract_bridge::auction::{Auction, Call, RelativeVulnerability};
+use contract_bridge::{FullDeal, Hand, Seat, Suit};
 use core::ops::{Deref, DerefMut};
+use std::collections::HashMap;
 
 /// Resolve `auction` against `trie` exactly like the bare table model
 ///
@@ -294,6 +295,7 @@ impl Pair {
             constructive: self.constructive.0.clone(),
             competitive: bound,
             defensive: self.defensive.0.clone(),
+            probed: HashMap::new(),
         }
     }
 }
@@ -312,6 +314,11 @@ pub struct Stance {
     constructive: Trie,
     competitive: Trie,
     defensive: Trie,
+    /// Behaviorally probed readings, keyed by auction prefix with leading
+    /// passes stripped (dealer rotations merge, as the books fan).  Empty
+    /// until [`probe`][Self::probe] runs; consumed by the projection pass
+    /// under [`set_probed_reading`][super::set_probed_reading].
+    probed: HashMap<Vec<Call>, Envelope>,
 }
 
 impl Stance {
@@ -440,6 +447,214 @@ impl Stance {
     }
 }
 
+/// What one [`Stance::probe`] run stored, and how stable the fixed point was
+#[derive(Clone, Copy, Debug)]
+pub struct ProbeReport {
+    /// Prefix keys with a stored box (≥ the sample floor, binding some axis)
+    pub keys: usize,
+    /// Keys whose box moved between the two probe iterations — the fixed-point
+    /// drift.  A large fraction means the probed readings materially changed
+    /// the bidder's own auctions and a third iteration is worth considering.
+    pub drifted: usize,
+}
+
+/// Per-key sample aggregate of the probe harvest: observed per-axis extremes
+#[derive(Clone, Copy)]
+struct Observed {
+    count: u64,
+    points: Range,
+    lengths: [Range; 4],
+}
+
+impl Observed {
+    fn new() -> Self {
+        Self {
+            count: 0,
+            points: Range::new(37, 0), // inverted: first `add` overwrites
+            lengths: [Range::new(13, 0); 4],
+        }
+    }
+
+    fn add(&mut self, hand: Hand) {
+        fn widen(range: &mut Range, value: u8) {
+            range.min = range.min.min(value);
+            range.max = range.max.max(value);
+        }
+        self.count += 1;
+        widen(&mut self.points, super::constraint::point_count(hand));
+        for suit in Suit::ASC {
+            widen(&mut self.lengths[suit as usize], {
+                #[allow(clippy::cast_possible_truncation)]
+                let len = hand[suit].len() as u8;
+                len
+            });
+        }
+    }
+
+    fn merge(&mut self, other: &Self) {
+        if other.count == 0 {
+            return;
+        }
+        if self.count == 0 {
+            *self = *other;
+            return;
+        }
+        self.count += other.count;
+        self.points = self.points.union(other.points);
+        for (a, b) in self.lengths.iter_mut().zip(other.lengths) {
+            *a = a.union(b);
+        }
+    }
+
+    /// The stored box: observed support **widened** on every axis — a sample
+    /// edge is not a rule edge (docs/ai-bidder/sampled-projection.md), and a
+    /// too-narrow box is the catastrophic side (the sampler rejects hands the
+    /// bidder actually holds).  `None` when nothing binds after widening.
+    fn boxed(&self) -> Option<Envelope> {
+        const POINT_SLACK: u8 = 2;
+        const LENGTH_SLACK: u8 = 1;
+        let pad = |range: Range, slack: u8, cap: u8| {
+            Range::new(
+                range.min.saturating_sub(slack),
+                range.max.saturating_add(slack).min(cap),
+            )
+        };
+        let mut envelope = Envelope::unknown();
+        envelope.strength.points = pad(self.points, POINT_SLACK, Range::FULL_POINTS.max);
+        for suit in Suit::ASC {
+            envelope.lengths[suit as usize] = pad(
+                self.lengths[suit as usize],
+                LENGTH_SLACK,
+                Range::FULL_LENGTH.max,
+            );
+        }
+        (envelope != Envelope::unknown()).then_some(envelope)
+    }
+}
+
+/// A prefix key with its leading passes stripped — dealer rotations merge,
+/// exactly as the books fan seats.  `None` when every call is a pass.
+fn stripped(prefix: &[Call]) -> Option<&[Call]> {
+    let start = prefix.iter().position(|&call| call != Call::Pass)?;
+    Some(&prefix[start..])
+}
+
+impl Stance {
+    /// The probed box for a prefix, if [`probe`][Self::probe] stored one
+    pub(crate) fn probed_box(&self, prefix: &[Call]) -> Option<&Envelope> {
+        if self.probed.is_empty() {
+            return None;
+        }
+        self.probed.get(stripped(prefix)?)
+    }
+
+    /// Probe this stance's own behavior and store the answers as readings
+    ///
+    /// The sampled-projection derivation
+    /// (docs/ai-bidder/sampled-projection.md), keyed by **traffic** rather
+    /// than authorship: bid `boards` deals in self-play, record the actor's
+    /// hand at every decision, and store a widened bounding box per prefix
+    /// key with at least [`MIN_SAMPLES`](Self::MIN_SAMPLES) observations.
+    /// This reaches what no symbolic projection can: the floor's calls (a
+    /// net's pass has no rule to project), rule competition, and off-axis
+    /// shadows.  Consumed by [`Inferences::read`] only under
+    /// [`set_probed_reading`][super::set_probed_reading].
+    ///
+    /// Runs **two** iterations: the first probes the bidder under the current
+    /// (symbolic) readings, the second re-probes with the first pass's boxes
+    /// installed — the fixed-point check the design demands.  The returned
+    /// [`ProbeReport`] counts the keys that moved between the two.
+    ///
+    /// Probes at no vulnerability, the census methodology; vulnerability-gated
+    /// ranges (the weak-two bands) are pooled, which the widening slack
+    /// absorbs.  Reading-affecting knobs must not change between this call
+    /// and consumption — the boxes bake in the knob state at probe time.
+    pub fn probe(&mut self, boards: usize, seed: u64) -> ProbeReport {
+        // ponytail: sequential — rayon is dev-only and the library must keep
+        // building for wasm (`default-features = false`).  ~2 ms/board, so an
+        // A/B-scale probe is minutes once per arm; add an optional rayon
+        // feature only if probe time ever dominates a harness.
+        let harvest = |stance: &Self, probed_on: bool| -> HashMap<Vec<Call>, Observed> {
+            super::inference::set_probed_reading(probed_on);
+            let mut into: HashMap<Vec<Call>, Observed> = HashMap::new();
+            for board in 0..boards {
+                let deal = contract_bridge::deck::full_deal(&mut {
+                    use rand::SeedableRng as _;
+                    rand::rngs::StdRng::seed_from_u64(seed.wrapping_add(board as u64))
+                });
+                for (key, agg) in stance.harvest_board(board, &deal) {
+                    into.entry(key)
+                        .and_modify(|existing| existing.merge(&agg))
+                        .or_insert(agg);
+                }
+            }
+            into
+        };
+        let boxed = |observed: HashMap<Vec<Call>, Observed>| -> HashMap<Vec<Call>, Envelope> {
+            observed
+                .into_iter()
+                .filter(|(_, agg)| agg.count >= Self::MIN_SAMPLES)
+                .filter_map(|(key, agg)| agg.boxed().map(|envelope| (key, envelope)))
+                .collect()
+        };
+
+        let was = super::inference::probed_reading();
+        let first = boxed(harvest(self, false));
+        self.probed = first;
+        let second = boxed(harvest(self, true));
+        super::inference::set_probed_reading(was);
+
+        let drifted = second
+            .iter()
+            .filter(|(key, envelope)| self.probed.get(*key) != Some(envelope))
+            .count()
+            + self
+                .probed
+                .keys()
+                .filter(|key| !second.contains_key(*key))
+                .count();
+        self.probed = second;
+        ProbeReport {
+            keys: self.probed.len(),
+            drifted,
+        }
+    }
+
+    /// The sample floor under which a key stores nothing
+    pub const MIN_SAMPLES: u64 = 200;
+
+    /// One self-play board's harvest: `(stripped key → actor's hand)` per call
+    fn harvest_board(&self, board: usize, deal: &FullDeal) -> HashMap<Vec<Call>, Observed> {
+        let mut auction = Auction::new();
+        let mut keys: HashMap<Vec<Call>, Observed> = HashMap::new();
+        while !auction.has_ended() {
+            let seat = Seat::ALL[(board + auction.len()) % 4];
+            let call = self
+                .classify(deal[seat], RelativeVulnerability::NONE, &auction)
+                .and_then(|logits| {
+                    let mut scored: Vec<(Call, f32)> = logits
+                        .iter()
+                        .map(|(call, &logit)| (call, logit))
+                        .filter(|&(_, logit)| logit.is_finite())
+                        .collect();
+                    scored.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("logits are never NaN"));
+                    scored
+                        .into_iter()
+                        .map(|(call, _)| call)
+                        .find(|&call| auction.can_push(call).is_ok())
+                })
+                .unwrap_or(Call::Pass);
+            auction.push(call);
+            if let Some(key) = stripped(&auction) {
+                keys.entry(key.to_vec())
+                    .or_insert_with(Observed::new)
+                    .add(deal[seat]);
+            }
+        }
+        keys
+    }
+}
+
 impl System for Stance {
     fn classify(&self, hand: Hand, vul: RelativeVulnerability, auction: &[Call]) -> Option<Logits> {
         self.classify_with_provenance(hand, vul, auction)
@@ -456,10 +671,45 @@ impl System for Stance {
 mod tests {
     use super::Phase;
     use contract_bridge::auction::Call;
-    use contract_bridge::{Bid, Strain};
+    use contract_bridge::{Bid, Strain, Suit};
 
     const fn bid(level: u8, strain: Strain) -> Call {
         Call::Bid(Bid::new(level, strain))
+    }
+
+    /// [`Stance::probe`] stores boxes for high-traffic keys; the knob-on
+    /// reading tightens and the knob-off reading is byte-identical to an
+    /// unprobed stance.  The **floorless** book keeps the self-play cheap in
+    /// debug (rule evaluation only — the neural floor is ~75 ms/board
+    /// unoptimized); 2,000 boards give the `1♦ P` key ~240 expected samples,
+    /// clearing the [`Stance::MIN_SAMPLES`] floor.
+    #[test]
+    fn probe_stores_and_reads_high_traffic_keys() {
+        use contract_bridge::auction::RelativeVulnerability;
+
+        let mut stance = crate::bidding::american::american_book().against();
+        let plain = crate::bidding::american::american_book().against();
+        let report = stance.probe(2000, 0x9B0BE);
+        assert!(report.keys > 0, "probe stored nothing");
+        assert!(report.drifted <= report.keys);
+
+        let auction = [bid(1, Strain::Diamonds), Call::Pass];
+        // Knob off — byte-identical to an unprobed stance.
+        let off = stance.infer(RelativeVulnerability::NONE, &auction);
+        let unprobed = plain.infer(RelativeVulnerability::NONE, &auction);
+        assert_eq!(off.rho(), unprobed.rho());
+
+        crate::bidding::set_probed_reading(true);
+        let on = stance.infer(RelativeVulnerability::NONE, &auction);
+        crate::bidding::set_probed_reading(false);
+        // The probed box only tightens the symbolic band — and it reads suit
+        // lengths on the passer, which no symbolic path can (the pass gate is
+        // points-only).
+        assert!(on.rho().strength.points.max <= off.rho().strength.points.max);
+        assert!(
+            on.rho().length(Suit::Diamonds).max < 13,
+            "no probed length ceiling on the passer"
+        );
     }
 
     const P: Call = Call::Pass;

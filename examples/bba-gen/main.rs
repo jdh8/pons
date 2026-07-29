@@ -320,6 +320,22 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_blind_inference: bool,
 
+    /// Read our side's passes with sibling-gate exclusion
+    /// (`set_pass_exclusion_reading`, crate default off).  A pass proves the
+    /// hand outside every table sibling whose weight strictly beats every
+    /// Pass rule's; single-box complements fold into the pass band, so the
+    /// catch-all defensive passes (their weak twos) read ≤16 points instead
+    /// of ⊤.
+    #[arg(long, default_value_t = false)]
+    ns_pass_exclusion: bool,
+
+    /// Probe our stance's behavior over this many self-play boards at startup
+    /// and read with the probed boxes on (`Stance::probe` +
+    /// `set_probed_reading`, crate default off).  Fixed probe seed, so every
+    /// shard of an arm carries the identical probed map.  0 = off.
+    #[arg(long, default_value_t = 0)]
+    ns_probe: usize,
+
     /// Close our side's read `hcp` against `points` through the shape upgrade
     /// (`set_upgrade_closure`, crate default off): balanced hands never
     /// upgrade, so a balanced box reads `points == hcp` instead of carrying the
@@ -1661,7 +1677,19 @@ fn main() -> anyhow::Result<()> {
     // generated card reads them.  Built here rather than beside the oracle so
     // the card cannot describe a system the run then reconfigures.
     let bba = bba.with_opponents(disclosure(&args)?);
-    let our_floor = seat_floor(&args.our_floor)?;
+    pons::bidding::set_pass_exclusion_reading(args.ns_pass_exclusion);
+    let mut our_floor = seat_floor(&args.our_floor)?;
+    if args.ns_probe > 0 {
+        // Fixed seed: every shard of an arm probes the identical map, so the
+        // arm's readings are consistent across its shards.
+        let report = our_floor.probe(args.ns_probe, 0x9B0BE);
+        eprintln!(
+            "probed {} boards: {} keys, {} drifted",
+            args.ns_probe, report.keys, report.drifted
+        );
+        pons::bidding::set_probed_reading(true);
+    }
+    let our_floor = our_floor;
     // The deviation panel's opponent: a second pons book built under the
     // `--their-*` deviation knobs, which are reset immediately afterwards so
     // only this book carries them (they are read at book construction, the
