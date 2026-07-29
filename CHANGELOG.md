@@ -38,6 +38,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`set_advance_pass_yield_major` — the weak sit's yield to a 4-card major,
+  measured and REFUTED; opt-in, default off.** The surviving sliver of the
+  refuted penalty-pass cap: only below the cue band (`hcp ≤ 9`), an advancer
+  whose trump stack would convert partner's takeout double instead bids the
+  longest-first ladder when holding a 4+ unbid major (`bba-gen
+  --ns-advance-pass-yield`; both books fold `hcp(10..) | no 4-card unbid
+  major` into the sit). The both-vuls A/B (seed 1785321152, 32×6400
+  boards/arm/vul, sha 58f1943) rejects it in every cell, and harder under
+  perfect defense than plain DD — the cap signature again, so real defensive
+  value lost, not a doubling artifact: per fired board NV plain −3.8 / PD
+  −5.0, vul plain −5.9 / PD −7.1, sd-lead NV −1.9/−2.8, vul −3.5/−4.5 IMPs
+  (~44 fired per 204,800 boards). The worst boards all share one shape: the
+  off arm passes out `1♣x`/`1♦x` for a massacre while the yield arm runs to
+  a 4-card major and is driven up by the big doubler. The weak trump-stack
+  sit is precisely where the conversion's value lives; the knob stays as a
+  rejected-but-interesting opt-in per house convention. User impact: none —
+  the default system is byte-identical (dump-verified 0/6400).
+
 - **`gib generate --append`: resume a shard instead of stranding it.** A `.pdd`
   shard is an exact prefix of its seed's stream — `StdRng::seed_from_u64(seed)`
   is deterministic and rows are a fixed 34 bytes — so a killed run can be

@@ -1526,6 +1526,10 @@ thread_local! {
     /// invitational one-suiter (5+, 10–12, denying a 4-card unbid major); see
     /// [`set_advance_minor_jump`].  No effect unless [`RICH_ADVANCE_DOUBLE`] is on.
     static ADVANCE_MINOR_JUMP: Cell<bool> = const { Cell::new(true) };
+    /// Whether the advancer's **weak** penalty pass yields to a 4+ unbid major
+    /// (below the cue band the hand bids the ladder instead of sitting); see
+    /// [`set_advance_pass_yield_major`].
+    static ADVANCE_PASS_YIELD_MAJOR: Cell<bool> = const { Cell::new(false) };
     /// Whether the doubler answers the advancer's invitational `2NT` with an
     /// authored accept/decline instead of falling to the instinct floor (which
     /// passes even game-going hands); see [`set_advance_2nt_continuation`].  **On
@@ -1626,6 +1630,27 @@ pub fn set_longest_first_advance(on: bool) {
 /// Whether the longest-first advance discipline is currently authored
 fn longest_first_advance_enabled() -> bool {
     LONGEST_FIRST_ADVANCE.with(Cell::get)
+}
+
+/// Toggle the weak advancer's **pass-yield to a 4-card major** over partner's
+/// takeout double (`(1t)–X–(P)–?`) for books built *after* this call
+/// (thread-local, read at book-construction time)
+///
+/// **Off by default.**  On (`bba-gen --ns-advance-pass-yield`), the penalty
+/// pass's trump-stack legs yield when the hand is *below the cue band*
+/// (`hcp ≤ 9`) **and** holds a 4+ unbid major: instead of converting the
+/// double to penalty, the hand advances on the normal longest-first ladder
+/// (which may still land in a longer minor).  Strong sits (10+) stand
+/// regardless — restricting *them* is the refuted cap migration
+/// (`ab-results/advance-penalty-pass/`, −2 IMPs/fired on both scorers).  The
+/// A/B knob for `scripts/advance-pass-yield-ab.sh`.
+pub fn set_advance_pass_yield_major(on: bool) {
+    ADVANCE_PASS_YIELD_MAJOR.with(|cell| cell.set(on));
+}
+
+/// Whether the weak penalty pass yields to a 4-card unbid major
+fn advance_pass_yield_major_enabled() -> bool {
+    ADVANCE_PASS_YIELD_MAJOR.with(Cell::get)
 }
 
 /// Toggle the advancer's **invitational minor jump** on the rich advance of a
@@ -3595,9 +3620,15 @@ pub fn advance_double(their_opening: Bid) -> Rules {
     let t = theirs.suit().expect("their opening is always a suit bid");
     let level = their_opening.level.get();
 
-    let mut rules = Rules::new()
-        // Convert for penalty: a trump stack sits for the double.
-        .rule(Call::Pass, 1.5, len(t, 4..) & top_honors(t, 2..) & hcp(6..))
+    // Convert for penalty: a trump stack sits for the double — yielding, under
+    // `set_advance_pass_yield_major`, to a weak hand's 4+ unbid major.
+    let sit = len(t, 4..) & top_honors(t, 2..) & hcp(6..);
+    let mut rules = if advance_pass_yield_major_enabled() {
+        Rules::new().rule(Call::Pass, 1.5, sit & (hcp(10..) | no_unbid_major(t)))
+    } else {
+        Rules::new().rule(Call::Pass, 1.5, sit)
+    };
+    rules = rules
         // 3NT to play: a stopper in their suit and game values.
         .rule(
             Bid::new(3, Strain::Notrump),
@@ -3722,6 +3753,26 @@ fn cheapest_forced(suit: Suit, theirs: Suit, their_level: u8) -> Cons<impl Const
     )
 }
 
+/// No 4-card major outside `theirs` — the weak sit's license to convert
+///
+/// The [`set_advance_pass_yield_major`] yield: a weak advancer holding a 4+
+/// unbid major has a constructive home the penalty conversion would bury, so
+/// the sit is reserved for hands with none (or with cue-band strength, where
+/// the conversion is a choice, not a default).  One box capping each unbid
+/// major at three; knob-off the reading stays ⊤.
+fn no_unbid_major(theirs: Suit) -> Cons<impl Constraint + Clone> {
+    let mut lengths = [Range::FULL_LENGTH; 4];
+    for major in [Suit::Hearts, Suit::Spades] {
+        if major != theirs {
+            lengths[major as usize] = Range::new(0, 3);
+        }
+    }
+    shapes(
+        format!("no 4-card major outside {theirs}"),
+        vec![length_box(lengths)],
+    )
+}
+
 /// Rich advance of partner's takeout double of a one-of-a-suit `their_opening`
 /// (`(1t)–X–(P)–?`), gated by [`set_rich_advance_double`]
 ///
@@ -3758,16 +3809,18 @@ fn advance_double_rich(their_opening: Bid) -> Rules {
     let level = their_opening.level.get();
     let cue = Bid::new(level + 1, theirs);
 
-    let mut rules = Rules::new()
-        // Penalty pass: a trump stack sits for the double — 5+ of their suit
-        // (length alone is enough to convert), or 4 with two top honors.  A weak
-        // 5-card holding in their suit passes rather than being forced into a
-        // three-card minor that the field doubles at the game level.
-        .rule(
-            Call::Pass,
-            1.6,
-            len(t, 5..) | (len(t, 4..) & top_honors(t, 2..)),
-        );
+    // Penalty pass: a trump stack sits for the double — 5+ of their suit
+    // (length alone is enough to convert), or 4 with two top honors.  A weak
+    // 5-card holding in their suit passes rather than being forced into a
+    // three-card minor that the field doubles at the game level.  Under
+    // `set_advance_pass_yield_major`, a hand below the 10+ cue band holding a
+    // 4+ unbid major bids the ladder instead of sitting.
+    let sit = len(t, 5..) | (len(t, 4..) & top_honors(t, 2..));
+    let mut rules = if advance_pass_yield_major_enabled() {
+        Rules::new().rule(Call::Pass, 1.6, sit & (hcp(10..) | no_unbid_major(t)))
+    } else {
+        Rules::new().rule(Call::Pass, 1.6, sit)
+    };
 
     // Cue of opener's suit — *invitational-or-better*, forcing for one round
     // (the standard advancer force).  It is the residual for any 10+ hand with
@@ -6166,6 +6219,42 @@ mod tests {
         // lowest-ranking: 1♦, not 1♠.
         let (forced, _) = best_call(&over_1c, "432.432.432.5432");
         assert_eq!(forced, call(1, Strain::Diamonds), "forced → cheapest 1♦");
+    }
+
+    /// The weak sit yields to a 4-card unbid major under
+    /// [`set_advance_pass_yield_major`]: below the cue band the trump stack
+    /// bids the ladder; a 10+ hand or a majorless one sits as before.
+    #[test]
+    fn advance_pass_yields_to_a_major_only_when_weak() {
+        let over_1c = [call(1, Strain::Clubs), Call::Double, Call::Pass];
+        super::set_rich_advance_double(true);
+        super::set_longest_first_advance(true);
+
+        // 4 HCP, five clubs, four spades: sits by default...
+        let stack = "KJ32.32.32.87654";
+        let (sit, _) = best_call(&over_1c, stack);
+        assert_eq!(sit, Call::Pass, "default: the weak stack sits");
+
+        super::set_advance_pass_yield_major(true);
+        // ...but yields to the spade major under the knob.
+        let (yielded, _) = best_call(&over_1c, stack);
+        assert_eq!(yielded, call(1, Strain::Spades), "yield: bid the major");
+
+        // A cue-band sit (10 HCP) stands...
+        let (strong, _) = best_call(&over_1c, "QJ32.Q32.2.KQ654");
+        assert_eq!(strong, Call::Pass, "strong sit stands");
+
+        // ...and so does a weak sit with no 4-card major.
+        let (majorless, _) = best_call(&over_1c, "32.432.32.KJ8765");
+        assert_eq!(majorless, Call::Pass, "majorless sit stands");
+
+        // The flat book folds the same yield.
+        super::set_rich_advance_double(false);
+        let (flat, _) = best_call(&over_1c, "J432.32.32.KQ654");
+        assert_eq!(flat, call(1, Strain::Spades), "flat book yields too");
+
+        super::set_rich_advance_double(true);
+        super::set_advance_pass_yield_major(false);
     }
 
     /// The [`longest_unbid`] condition is an exact box union: `eval` and

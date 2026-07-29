@@ -100,8 +100,9 @@ pub(crate) use competition::{
 };
 pub use defense::{
     DoubleShape, NotrumpDefense, TakeoutSupport, advance_double, defense_to_suit,
-    defense_to_weak_two, set_advance_2nt_continuation, set_advance_minor_jump, set_advance_rubens,
-    set_advance_sohl_style, set_always_pass_defense, set_diamond_transfer_defense, set_direct_dont,
+    defense_to_weak_two, set_advance_2nt_continuation, set_advance_minor_jump,
+    set_advance_pass_yield_major, set_advance_rubens, set_advance_sohl_style,
+    set_always_pass_defense, set_diamond_transfer_defense, set_direct_dont,
     set_direct_dont_four_four, set_direct_dont_one_suiter_min, set_direct_dont_x_floor,
     set_direct_landy_double, set_direct_landy_double_floor, set_direct_landy_penalty_pass,
     set_doubled_landy_escape, set_landy, set_landy_hcp, set_leaping_michaels,
