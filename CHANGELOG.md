@@ -62,7 +62,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   perfect defense than plain DD — the cap signature again, so real defensive
   value lost, not a doubling artifact: per fired board NV plain −3.8 / PD
   −5.0, vul plain −5.9 / PD −7.1, sd-lead NV −1.9/−2.8, vul −3.5/−4.5 IMPs
-  (~44 fired per 204,800 boards). The worst boards all share one shape: the
+  (~44 fired per 204,800 boards). The single-dummy family brackets the
+  verdict from both sides: sd-lead (blind defensive lead — the yield's
+  *best-case* scorer, shrinking our 1mx penalties and fattening our
+  run-outs) still loses every sub-cell, and the sd-declarer playout (lead
+  16 × line 16, the yield's worst case) loses NV −4.0/−5.2, vul −5.0/−5.9 —
+  twelve cells, twelve losses. The worst boards all share one shape: the
   off arm passes out `1♣x`/`1♦x` for a massacre while the yield arm runs to
   a 4-card major and is driven up by the big doubler. The weak trump-stack
   sit is precisely where the conversion's value lives; the knob stays as a
