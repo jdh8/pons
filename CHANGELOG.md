@@ -20,16 +20,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   one; opener's suit never competes), so under `dnf_reading` the advance
   finally projects the relative-length claim — `1♦` over `(1♣)–X–(P)` now
   pins ♥/♠ at most as long as the diamonds — while knob-off the reading stays
-  the bare `len` floor, byte-identical to before. The rich book's weak
-  4-card rung and forced-3-card rung also merge into one 3+ rule knob-on
-  (argmax-identical: no advance rule weighs inside `(0.3, 1.0)`, and both
-  rungs always chose the same suit; the off-arm keeps the split). Suit
-  *choice* is unchanged everywhere — 5♦4♠ still advances `1♦`, 4-4 majors
-  still `1♠`, a bust still offers its highest-ranking 3-card suit. Verified
-  by the `bba-gen` dump diff (seed 1785315000, 6400 boards × both knob
-  states): **0 divergent auctions**, with 151 fired suit advances and their
-  full continuations byte-identical, and the golden `.bbsa` cards unchanged.
-  User impact: none at the table today — this is the reading-honest substrate
+  the bare `len` floor, byte-identical to before. The rich book's forced
+  3-card rung keeps its own rule with the **opposite tie-break**: with no
+  4-card suit outside theirs, a `cheapest_forced` box (suit exactly three,
+  cheaper-to-bid rivals capped at two, dearer at three) picks the **cheapest
+  bid** rather than the highest rank, keeping the forced auction as low as
+  possible — standard advancer theory (ACBL Lesson 8, Loeb). 4+ suit choice
+  is unchanged — 5♦4♠ still advances `1♦`, 4-4 majors still `1♠` — and the
+  off-arm ladder is untouched. Verified by `bba-gen` dump diffs (seed
+  1785315000, 6400 boards × both knob states): the constraint rewrite itself
+  is **0 divergent auctions** (151 fired suit advances byte-identical), and
+  the cheapest-forced flip diverges **1 board in 6400** (a 3-3-3 bust over
+  `(1♣)–X–(P)` now advancing `1♦`, not `1♠` — same `2♦` contract, re-sided),
+  far below any A/B floor; golden `.bbsa` cards unchanged. User impact:
+  effectively none at the table today — this is the reading-honest substrate
   the next advance experiments (the weak-only penalty-pass yield) build on.
 
 ### Added

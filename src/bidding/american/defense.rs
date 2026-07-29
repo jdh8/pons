@@ -3684,6 +3684,44 @@ fn longest_unbid(suit: Suit, theirs: Suit) -> Cons<impl Constraint + Clone> {
     shapes(format!("{suit} the longest unbid suit"), boxes)
 }
 
+/// `suit` is the cheapest-to-bid 3-card suit of a hand with no 4-card suit
+/// outside `theirs` — the forced-advance rung's discipline
+///
+/// With a 4-card suit somewhere the longest-first rung takes over; stuck below
+/// that, the priority flips from highest-ranking to **cheapest bid**, keeping
+/// the forced auction as low as possible — `(1♥)`–X–(P) with 3=2=3=3 bids
+/// `1♠`, but `(1♠)`–X–(P) with 2=3=3=3 bids `2♣`.  One exact box: `suit`
+/// exactly three cards, every rival whose advance is cheaper capped at two
+/// (it would be forced first), every dearer rival capped at three (a fourth
+/// card there promotes the hand to the longest-first rung).  Knob-off the
+/// reading stays ⊤, leaving the companion `len` floor as the whole pre-DNF
+/// reading.
+fn cheapest_forced(suit: Suit, theirs: Suit, their_level: u8) -> Cons<impl Constraint + Clone> {
+    let bid_of = |s: Suit| {
+        (
+            if s > theirs {
+                their_level
+            } else {
+                their_level + 1
+            },
+            s,
+        )
+    };
+    let mut lengths = [Range::FULL_LENGTH; 4];
+    lengths[suit as usize] = Range::new(3, 3);
+    for rival in Suit::ASC {
+        if rival == suit || rival == theirs {
+            continue;
+        }
+        let cap = if bid_of(rival) < bid_of(suit) { 2 } else { 3 };
+        lengths[rival as usize] = Range::new(0, cap);
+    }
+    shapes(
+        format!("{suit} the cheapest 3-card suit"),
+        vec![length_box(lengths)],
+    )
+}
+
 /// Rich advance of partner's takeout double of a one-of-a-suit `their_opening`
 /// (`(1t)–X–(P)–?`), gated by [`set_rich_advance_double`]
 ///
@@ -3709,7 +3747,8 @@ fn longest_unbid(suit: Suit, theirs: Suit) -> Cons<impl Constraint + Clone> {
 ///   transfer exists, or purely preemptive (0–10) when a transfer carries the
 ///   strong hands.
 /// - **forced 3-card suit** when broke with no 4-card suit outside their suit —
-///   a takeout double cannot be passed for want of a bid.
+///   a takeout double cannot be passed for want of a bid; the cheapest such
+///   bid, keeping the forced auction low.
 /// - **penalty pass** with a trump stack (5+ of their suit, or 4 with two top
 ///   honors).
 #[must_use]
@@ -3788,16 +3827,20 @@ fn advance_double_rich(their_opening: Bid) -> Rules {
         }
         let bid_level = if strain > theirs { level } else { level + 1 };
         if longest_first_advance_enabled() {
-            // Natural advance at the cheapest legal level — the weak 4-card rung
-            // and the forced-3-card rung merged into one rule: the longest unbid
-            // suit at 3+ cards.  A takeout double cannot be passed for want of a
-            // bid, and no HCP cap is needed — the higher-weight cue, notrump,
-            // jump, and pass rules take every hand with a better call, leaving
-            // only the weak and the genuinely stuck ones here.  The merge is
-            // argmax-identical to the split rungs while no advance rule weighs
-            // strictly inside (0.3, 1.0): both rungs always chose the same suit,
-            // and nothing outranks one without outranking both.
-            rules = natural_advance(rules, t, suit, bid_level, 1.0, 3);
+            // Natural advance at the cheapest legal level (weak, 0–7): the
+            // longest unbid suit, an equal-length tie to the higher rank.
+            rules = natural_advance(rules, t, suit, bid_level, 1.0, 4);
+            // Forced 3-card suit: a takeout double cannot be passed for want of
+            // a bid — but with no 4-card suit outside their suit the priority
+            // flips from highest-ranking to **cheapest bid**, keeping the
+            // forced auction as low as possible.  No HCP cap — the
+            // higher-weight cue, notrump, jump, and pass rules take every hand
+            // with a better call, leaving only the genuinely stuck ones here.
+            rules = rules.rule(
+                Bid::new(bid_level, strain),
+                0.3,
+                len(suit, 3..) & cheapest_forced(suit, t, level),
+            );
         } else {
             // Natural advance at the cheapest legal level (weak, 0–7).
             rules = natural_advance(rules, t, suit, bid_level, 1.0, 4);
@@ -6101,6 +6144,28 @@ mod tests {
             !floored,
             "the forced advance is a rich book node, not the floor"
         );
+    }
+
+    /// The forced rung's priority is the **cheapest bid**, not the highest
+    /// rank: with no 4-card suit outside theirs, the advance keeps the auction
+    /// as low as possible ([`cheapest_forced`]).
+    #[test]
+    fn forced_three_card_advance_bids_the_cheapest() {
+        let over_1s = [call(1, Strain::Spades), Call::Double, Call::Pass];
+        let over_1c = [call(1, Strain::Clubs), Call::Double, Call::Pass];
+        super::set_rich_advance_double(true);
+        super::set_longest_first_advance(true);
+
+        // Broke with four small of their spades and 3-3-3 outside: no sit (no
+        // top honors), no 4-card rung — the forced rung bids 2♣, not 2♥.
+        let (forced, floored) = best_call(&over_1s, "5432.432.432.432");
+        assert_eq!(forced, call(2, Strain::Clubs), "forced → cheapest 2♣");
+        assert!(!floored, "the forced advance is a book node, not the floor");
+
+        // Over (1♣) every advance sits at the one level, so cheapest means
+        // lowest-ranking: 1♦, not 1♠.
+        let (forced, _) = best_call(&over_1c, "432.432.432.5432");
+        assert_eq!(forced, call(1, Strain::Diamonds), "forced → cheapest 1♦");
     }
 
     /// The [`longest_unbid`] condition is an exact box union: `eval` and
