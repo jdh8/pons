@@ -675,6 +675,13 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_advance_pass_yield: bool,
 
+    /// Swap the advancer's 4-card penalty-pass quality gate from two top
+    /// honors to a per-suit HCP floor N — 5 admits exactly AJxx, 6 instead
+    /// drops bare KQxx — rich advance only (default: the honor gate; see
+    /// `set_advance_sit_hcp_gate`).
+    #[arg(long, value_name = "N")]
+    ns_advance_sit_hcp: Option<u8>,
+
     /// Disable opener's balanced `1NT` rebid after `1m – 1M` — revert a balanced
     /// 12–14 with a five-card minor to the natural `2m` (shipped default-on; see
     /// `set_balanced_1nt_rebid`).
@@ -1566,6 +1573,7 @@ fn main() -> anyhow::Result<()> {
     pons::bidding::american::set_advance_2nt_continuation(!args.no_ns_advance_2nt_continuation);
     pons::bidding::american::set_longest_first_advance(!args.no_ns_longest_advance);
     pons::bidding::american::set_advance_pass_yield_major(args.ns_advance_pass_yield);
+    pons::bidding::american::set_advance_sit_hcp_gate(args.ns_advance_sit_hcp);
     pons::bidding::american::set_cachalot_contested_x(!args.no_ns_cachalot_contested_x);
     pons::bidding::american::set_balanced_1nt_rebid(!args.no_ns_balanced_1nt_rebid);
     pons::bidding::american::set_opener_extras_ladder(!args.no_ns_opener_extras_ladder);

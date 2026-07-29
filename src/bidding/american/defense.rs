@@ -1530,6 +1530,10 @@ thread_local! {
     /// (below the cue band the hand bids the ladder instead of sitting); see
     /// [`set_advance_pass_yield_major`].
     static ADVANCE_PASS_YIELD_MAJOR: Cell<bool> = const { Cell::new(false) };
+    /// The advancer's 4-card penalty-pass quality gate as a `suit_hcp` floor —
+    /// `None` keeps the shipped `top_honors(t, 2..)`; see
+    /// [`set_advance_sit_hcp_gate`].
+    static ADVANCE_SIT_HCP_GATE: Cell<Option<u8>> = const { Cell::new(None) };
     /// Whether the doubler answers the advancer's invitational `2NT` with an
     /// authored accept/decline instead of falling to the instinct floor (which
     /// passes even game-going hands); see [`set_advance_2nt_continuation`].  **On
@@ -1651,6 +1655,35 @@ pub fn set_advance_pass_yield_major(on: bool) {
 /// Whether the weak penalty pass yields to a 4-card unbid major
 fn advance_pass_yield_major_enabled() -> bool {
     ADVANCE_PASS_YIELD_MAJOR.with(Cell::get)
+}
+
+/// Swap the advancer's **4-card penalty-pass quality gate** over partner's
+/// takeout double (`(1t)–X–(P)–?`) to a per-suit HCP floor for books built
+/// *after* this call (thread-local, read at book-construction time)
+///
+/// **`None` by default** (the shipped behavior): a 4-card trump stack sits
+/// with two of the top three honors.  `Some(n)` (`bba-gen
+/// --ns-advance-sit-hcp N`) replaces that gate with `suit_hcp(t, n..)` in the
+/// **rich** advance only — the flat book, which is also the weak-two advance
+/// node, keeps the honor gate.  The candidate gates nest,
+/// {6+} ⊂ {top2} ⊂ {5+}:
+/// - `Some(5)` admits exactly one new class, **AJxx** — KQ = 5 is the
+///   cheapest two of A/K/Q, so nothing is removed (the same subset relation
+///   probed for BBA's Ogust "good suit"; see [`suit_hcp`]);
+/// - `Some(6)` instead drops exactly **bare KQxx** (no jack ⇒ 5) while
+///   keeping KQJx/AKxx/AQxx; AJxx stays out (5 is the most a single top
+///   honor can carry).
+///
+/// Composes with [`set_advance_pass_yield_major`]: the yield wraps whichever
+/// sit gate is live (both default-off, so the default system is untouched).
+/// The sweep knob for `scripts/advance-sit-hcp-ab.sh`.
+pub fn set_advance_sit_hcp_gate(gate: Option<u8>) {
+    ADVANCE_SIT_HCP_GATE.with(|cell| cell.set(gate));
+}
+
+/// The advancer's 4-card sit quality gate override, if any
+fn advance_sit_hcp_gate() -> Option<u8> {
+    ADVANCE_SIT_HCP_GATE.with(Cell::get)
 }
 
 /// Toggle the advancer's **invitational minor jump** on the rich advance of a
@@ -3801,7 +3834,7 @@ fn no_unbid_major(theirs: Suit) -> Cons<impl Constraint + Clone> {
 ///   a takeout double cannot be passed for want of a bid; the cheapest such
 ///   bid, keeping the forced auction low.
 /// - **penalty pass** with a trump stack (5+ of their suit, or 4 with two top
-///   honors).
+///   honors — a swept `suit_hcp` floor under [`set_advance_sit_hcp_gate`]).
 #[must_use]
 fn advance_double_rich(their_opening: Bid) -> Rules {
     let theirs = their_opening.strain;
@@ -3810,16 +3843,23 @@ fn advance_double_rich(their_opening: Bid) -> Rules {
     let cue = Bid::new(level + 1, theirs);
 
     // Penalty pass: a trump stack sits for the double — 5+ of their suit
-    // (length alone is enough to convert), or 4 with two top honors.  A weak
+    // (length alone is enough to convert), or 4 with two top honors (under
+    // `set_advance_sit_hcp_gate`, a swept `suit_hcp` floor instead).  A weak
     // 5-card holding in their suit passes rather than being forced into a
     // three-card minor that the field doubles at the game level.  Under
     // `set_advance_pass_yield_major`, a hand below the 10+ cue band holding a
     // 4+ unbid major bids the ladder instead of sitting.
-    let sit = len(t, 5..) | (len(t, 4..) & top_honors(t, 2..));
-    let mut rules = if advance_pass_yield_major_enabled() {
-        Rules::new().rule(Call::Pass, 1.6, sit & (hcp(10..) | no_unbid_major(t)))
-    } else {
-        Rules::new().rule(Call::Pass, 1.6, sit)
+    fn sit_pass(t: Suit, quality: Cons<impl Constraint + Clone + 'static>) -> Rules {
+        let sit = len(t, 5..) | (len(t, 4..) & quality);
+        if advance_pass_yield_major_enabled() {
+            Rules::new().rule(Call::Pass, 1.6, sit & (hcp(10..) | no_unbid_major(t)))
+        } else {
+            Rules::new().rule(Call::Pass, 1.6, sit)
+        }
+    }
+    let mut rules = match advance_sit_hcp_gate() {
+        Some(gate) => sit_pass(t, suit_hcp(t, gate..)),
+        None => sit_pass(t, top_honors(t, 2..)),
     };
 
     // Cue of opener's suit — *invitational-or-better*, forcing for one round
@@ -6255,6 +6295,45 @@ mod tests {
 
         super::set_rich_advance_double(true);
         super::set_advance_pass_yield_major(false);
+    }
+
+    /// The 4-card sit's quality gate under [`set_advance_sit_hcp_gate`]:
+    /// `Some(5)` admits exactly AJxx (KJTx still advances), `Some(6)` drops
+    /// bare KQxx but keeps KQJx, and `None` keeps the shipped honor gate.
+    #[test]
+    fn advance_sit_hcp_gate_reshapes_the_4card_sit() {
+        let over_1c = [call(1, Strain::Clubs), Call::Double, Call::Pass];
+        super::set_rich_advance_double(true);
+
+        // AJxx: 5 suit HCP but one top honor — forced 1♦ by default...
+        let ajxx = "432.432.432.AJ32";
+        let (default, _) = best_call(&over_1c, ajxx);
+        assert_eq!(default, call(1, Strain::Diamonds), "default: AJxx advances");
+
+        // ...sits under the 5+ floor...
+        super::set_advance_sit_hcp_gate(Some(5));
+        let (sits, _) = best_call(&over_1c, ajxx);
+        assert_eq!(sits, Call::Pass, "5+ floor: AJxx sits");
+
+        // ...while KJTx (4) still advances.
+        let (kjtx, _) = best_call(&over_1c, "432.432.432.KJT2");
+        assert_eq!(kjtx, call(1, Strain::Diamonds), "5+ floor: KJTx advances");
+
+        // The 6+ floor drops bare KQxx (5) but keeps KQJx (6).
+        super::set_advance_sit_hcp_gate(Some(6));
+        let (kqxx, _) = best_call(&over_1c, "432.432.432.KQ32");
+        assert_eq!(
+            kqxx,
+            call(1, Strain::Diamonds),
+            "6+ floor: bare KQxx advances"
+        );
+        let (kqjx, _) = best_call(&over_1c, "432.432.432.KQJ2");
+        assert_eq!(kqjx, Call::Pass, "6+ floor: KQJx sits");
+
+        // Back to the honor gate: bare KQxx sits as shipped.
+        super::set_advance_sit_hcp_gate(None);
+        let (shipped, _) = best_call(&over_1c, "432.432.432.KQ32");
+        assert_eq!(shipped, Call::Pass, "honor gate: KQxx sits");
     }
 
     /// The [`longest_unbid`] condition is an exact box union: `eval` and

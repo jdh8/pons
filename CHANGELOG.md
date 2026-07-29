@@ -51,6 +51,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`set_advance_sit_hcp_gate` — sweep the 4-card sit's quality gate; opt-in,
+  sweep pending.** The advancer's penalty pass of a takeout double
+  (`(1t)–X–(P)–P`) sits on 5+ trumps, or exactly 4 with two of the top three
+  honors. Both prior A/Bs on this band (the strength cap, the major yield)
+  were refuted *narrowings* that held the honor gate fixed; this knob is the
+  first to vary the gate itself, swapping it for a per-suit HCP floor
+  (`bba-gen --ns-advance-sit-hcp N`, rich advance only — the flat book, which
+  also advances a double of a weak two, keeps the honor gate). The candidate
+  gates nest, {6+} ⊂ {top2} ⊂ {5+}: `5` admits exactly one new class, AJxx
+  (KQ = 5 is the cheapest two of A/K/Q, the subset relation already probed
+  for BBA's Ogust "good suit"), while `6` instead drops exactly bare KQxx
+  (no jack ⇒ 5) and keeps KQJx. The three-arm sweep is
+  `scripts/advance-sit-hcp-ab.sh`; its verdict rule is asymmetric because DD
+  overprices the sit (the yield's sd bracket): plain DD flatters the `5`
+  widening (an sd bracket gates its ship) and undersells the `6` narrowing
+  (an sd bracket gates its burial). User impact: none yet — default `None`
+  is byte-identical; results land here after the sweep.
+
 - **`set_advance_pass_yield_major` — the weak sit's yield to a 4-card major,
   measured and REFUTED; opt-in, default off.** The surviving sliver of the
   refuted penalty-pass cap: only below the cue band (`hcp ≤ 9`), an advancer
