@@ -51,8 +51,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **`set_advance_sit_hcp_gate` — sweep the 4-card sit's quality gate; opt-in,
-  sweep pending.** The advancer's penalty pass of a takeout double
+- **`set_advance_sit_hcp_gate` — sweep the 4-card sit's quality gate; both
+  arms measured, the honor gate STANDS; opt-in.** The advancer's penalty
+  pass of a takeout double
   (`(1t)–X–(P)–P`) sits on 5+ trumps, or exactly 4 with two of the top three
   honors. Both prior A/Bs on this band (the strength cap, the major yield)
   were refuted *narrowings* that held the honor gate fixed; this knob is the
@@ -66,8 +67,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `scripts/advance-sit-hcp-ab.sh`; its verdict rule is asymmetric because DD
   overprices the sit (the yield's sd bracket): plain DD flatters the `5`
   widening (an sd bracket gates its ship) and undersells the `6` narrowing
-  (an sd bracket gates its burial). User impact: none yet — default `None`
-  is byte-identical; results land here after the sweep.
+  (an sd bracket gates its burial). Verdict (seed 1785336456, sha 9938c0d,
+  32×6400 bd/arm/vul, ~14–17 fired per 204,800 per cell, per-fired IMPs):
+  **`5` (AJxx) is REFUTED** — NV loses on every scorer (plain −1.7, PD −1.2,
+  sd-lead −2.3/−2.1) and its lone vul DD win (+0.9/+0.8) evaporates to
+  exactly **0.0** under sd-lead, the sit-overprice artifact the yield
+  bracket taught us to expect; the fired hands are 10–13 counts trading
+  invites and games (2NT/3NT/4♥) for one-level penalties, and under
+  declarer the J finesses away — two *top* honors really are the bar.
+  **`6` (drop bare KQxx) is vul-split, no signature** — NV positive on all
+  four scorers (plain +1.4, PD +0.6, sd +1.9/+1.2) but vul DD-negative
+  (plain −0.8, PD −1.5) with sd near-wash (+0.2/−0.6): the bare-KQxx sit
+  earns its keep exactly when penalties are fat, so neither burying nor
+  shipping it clears the uniform-sign bar the yield's 12/12 set. Both knob
+  values stay opt-in; with the strength axis (cap, yield) and now the
+  quality axis defended in both directions, the shipped sit gate
+  `len(t,5..) | len4 & top2` is measured-optimal on every border probed so
+  far. User impact: none — the default is byte-identical (dump-verified
+  0/6400 vs ed78e68).
 
 - **`set_advance_pass_yield_major` — the weak sit's yield to a 4-card major,
   measured and REFUTED; opt-in, default off.** The surviving sliver of the
