@@ -83,8 +83,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   values stay opt-in; with the strength axis (cap, yield) and now the
   quality axis defended in both directions, the shipped sit gate
   `len(t,5..) | len4 & top2` is measured-optimal on every border probed so
-  far. User impact: none — the default is byte-identical (dump-verified
-  0/6400 vs ed78e68).
+  far. **Coda — the AJTx variant is below measurement's reach, not
+  authored**: since an AJT-only gate is a subset of `suit_hcp ≥ 5`, its full
+  verdict is a forensic filter on the hcp5 arms — exactly **2 distinct AJT
+  deals in 409,600 boards** (~1 fired per 140k, an impact ceiling of
+  ±0.00004 IMPs/bd): AJT9 −4 on every scorer NV and −10 under sd-lead vul,
+  AJT8 +8 vul-only. The T-less fired boards span −15..+14, so the ten does
+  not separate winners from losers — the opportunity cost of the lost
+  invite/game dominates, and *under* the tenace T/J merely force K/Q
+  without promoting the fourth card (only A-J-T-**9** truly promotes, and
+  our one AJT9 board lost anyway). User impact: none — the default is
+  byte-identical (dump-verified 0/6400 vs ed78e68).
 
 - **`set_advance_pass_yield_major` — the weak sit's yield to a 4-card major,
   measured and REFUTED; opt-in, default off.** The surviving sliver of the
