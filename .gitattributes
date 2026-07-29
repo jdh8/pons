@@ -1,0 +1,6 @@
+# Golden fixtures (cards/*.bbsa, tests/fixtures/*) are compared byte-for-byte
+# against generated strings; CRLF checkout on Windows runners breaks them.
+* text=auto eol=lf
+
+# Patch context must match the target's bytes, CRLF included.
+*.patch -text

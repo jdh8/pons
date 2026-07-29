@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Windows CI: pin line endings with `.gitattributes`.** GitHub's Windows
+  runners ship Git with `core.autocrlf=true`, so every checked-in text file
+  was rewritten to CRLF at checkout. The golden-fixture gates added with the
+  card generator (`cards/*.bbsa` vs `american_card()`, and
+  `tests/fixtures/alert-sites.txt` vs the live book) compare `include_str!`
+  bytes against generated `\n` strings, so both went red on Windows on every
+  push since — invisible locally on Linux. `* text=auto eol=lf` checks out LF
+  everywhere and retires the whole failure class; `*.patch -text` exempts
+  `vendor/ben/nolimit.patch`, whose CRLF context lines must match BEN's own
+  files byte-for-byte. No tracked file changed under renormalization.
+
 ### Changed
 
 - **Longest-first advance said as a constraint, not a weight race.** The
