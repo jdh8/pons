@@ -45,7 +45,7 @@ chop; four of them are one missing `.alert(...)` away.
 | `woolsey_x_reading` | our Woolsey X (4M + longer minor) | same (`woolsey_x_advance`'s 2♣) |
 | `multi_reading` | the Multi 2♦ in our Woolsey defense | same (`multi_advances` pass-or-correct) |
 | `landy_advance_suppress` | advances of our Landy 2♣ | same, plus `equal_majors` is an opaque `equal_length` predicate that projects nothing |
-| `rubens_reading` | Rubens advances of our overcall | two knobs (`rubens_advances_enabled` + `rubens_transfer_reading`); the only reader touching the `support_points` axis; cue recording is not side-gated while the transfer's is |
+| `rubens_reading` | Rubens advances of our overcall | two knobs (`rubens_advances_enabled` + `rubens_transfer_reading`); the only reader touching the `support_points` axis. **Chop blocked pending the layer A/B**: the reader's length claims are measured unsound on *both* sides, and the underlying convention may not be live at all — see §The Rubens layer below |
 | `gladiator_reading` | Gladiator responses to our 1NT overcall | the `(2♣)`→`Pass` auction rebase and self-recursion, which no box can carry. **Also drifts**: stamps `points 0..9` on the relay while the rule's third arm is `points(game..)` = 10+, deleting the projection's GF box. Fix that first, on its own A/B |
 | `responder_overcall_double_reading` | responder's X of their overcall | no knob at all, and its `points ≥ 8` is a hand-derived intersection across three `DoubleStyle` variants — a real authoring job, not a delete |
 | `penalty_latch_double_reading` | penalty doubles under the latch | reconstructs a latch by carrying `last_suit_bid` across calls, and its `penalty_x_reading` helper has an agreement contract with the floor (`instinct.rs`). Retire last, or never |
@@ -115,6 +115,61 @@ DDS cost. If that diff moves, the analysis is wrong — stop and escalate to the
 knob and the full A/B.
 
 Anything that fails one of the four is a normal chop: knob, A/B, steps 3-5.
+
+## The Rubens layer — measured, chop deferred
+
+`rubens_reading` was queued as a normal chop. Probing it first (the
+`probe-bba-constraints` `ucb-*` / `rub-ch` modes, 20k advancer hands per
+auction per arm) found something the chop rule does not cover: **the reader's
+claims are false, and the convention under them may not be live.**
+
+What the reader asserts, against what actually happens (violation = the
+reading's box excludes the truth; the ambient rates from
+[deviation-panel.md](deviation-panel.md) are 8.2/8.3% for LHO/RHO and 3.3%
+for partner):
+
+| claim | regime | BBA | ours |
+| --- | --- | --- | --- |
+| `len(Y) ≥ 3` | two-level cue, `Y` a **major** (`1♠ (2♥)`) | 0.0% | 2.8% |
+| `len(Y) ≥ 3` | two-level cue, `Y` a **minor** (`1♠ (2♦)`, `1♠ (2♣)`, `1♦ (2♣)`) | 19–28% | 5.9–87.5% |
+| `SP(Y) ≥ 10` | two-level cue, `Y` a major | 7.6% | 17.3% |
+| `SP(Y) ≥ 10` | two-level cue, `Y` a minor | 0.0% | 0.0% |
+| `len(Y) ≥ 3` | one-level transfer into partner's suit | *(our side only)* | 93.3% |
+| `points ≥ 10` | one-level transfer into partner's suit | *(our side only)* | 0.0% |
+
+Two things fall out.
+
+1. **The cue's meaning is structure-determined, not universal.** Ours is
+   authored as a raise (`rubens_cue_raise & support(3..) & points(10..)`);
+   BBA's is a strong general force, because it has no transfer layer to carry
+   the strong hands and so must cue with them — short in partner's suit one
+   time in four. Over a *major* both sides mean the raise (support is worth
+   showing); over a *minor* the cue is half a stopper ask. The band that would
+   be sound for the major cue is `8..`, not `10..` (violation 0.1% BBA /
+   3.1% ours at 8, vs 7.6% / 17.3% at 10).
+2. **The layer is largely dead where it is supposed to own the node.** Over
+   `1♣ (1♥) P`, our own bidder picks the `2♦` transfer-into-partner's-hearts
+   **0.4%** of the time and those hands hold **6–7 diamonds and 1–2 hearts** —
+   natural diamonds; the `2♣` "transfer to diamonds" holds no diamond suit
+   (median 3) and is the floor cueing; and the natural `2♥` raise the transfer
+   layer exists to abolish is alive at 13.4%. The authored rule is `−∞` for
+   those hands, the floor calls anyway, and the reader decodes the floor's
+   natural call as an artificial one. That is the phantom-suit class, on our
+   own partner.
+
+So the reader's unsoundness is downstream of a convention the bidder mostly
+does not play, and `set_rubens_advances` has never been measured against the
+natural ladder it replaced — [bidding-options.md](bidding-options.md) files it
+as *"baseline default; knob is the A/B off-arm"*. **The layer A/B comes first**
+(`scripts/rubens-ab.sh`, `--no-ns-rubens` vs default, plain + PD, both vuls):
+the knob silences `rubens_reading` too, so a wash or a loss retires the reader
+along with the convention and every leg above becomes moot. Only a win makes
+the leg repairs worth authoring.
+
+Generalisation worth carrying to the other nine: a reader is only as sound as
+the *bidder*, not the rule it transcribes — read a call off the bidder before
+trusting its authored meaning
+([sampled-projection.md](ai-bidder/sampled-projection.md)).
 
 ## Ledger
 

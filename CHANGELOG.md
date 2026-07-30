@@ -166,6 +166,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   unaffected by this mechanism and stays open, but wants a re-run on the
   corrected keys before it is priced.
 
+### Added
+
+- **`probe-bba-constraints` reads the unassuming cue-raise** — new `ucb-sd` /
+  `ucb-sc` / `ucb-dc` / `ucb-sh` modes (BBA's advancer over `1♠ (2♦)`,
+  `1♠ (2♣)`, `1♦ (2♣)`, `1♠ (2♥)`), a `rub-ch` mode for the one-level
+  transfer node (`1♣ (1♥)`), and an `--ours` arm that replays the *same* node
+  through our own bidder instead of EPBot. The support columns report
+  `support_point_count_in(hand, Y)` and the plain `points` image beside the
+  suit lengths, and each bucket prints the rate at which
+  `rubens_reading`'s cue floor (`len(Y) ≥ 3 ∧ SP(Y) ≥ 10`) would exclude the
+  truth, plus a band sweep over `8/9/10/11`. **No behaviour change** — a probe.
+  What it found is recorded in
+  [docs/reader-retirement.md](docs/reader-retirement.md) §The Rubens layer:
+  the cue's `len(Y) ≥ 3` claim is violated 19–28% against BBA and 5.9–87.5%
+  by our *own* bidder over a minor overcall (sound over a major: 0.0% / 2.8%),
+  the strength band inverts (sound over a minor, 7.6% / 17.3% over a major,
+  where `8..` would be sound), and the one-level transfer-into-partner's-suit
+  claim is violated **93.3%** on our own partner. Root cause is not the
+  reader: over `1♣ (1♥) P` our bidder takes the `2♦` "transfer to hearts"
+  0.4% of the time holding **6–7 diamonds and 1–2 hearts** — the authored rule
+  is `−∞`, the floor calls anyway, and the reader decodes a natural call as an
+  artificial one. `scripts/rubens-ab.sh` measures the layer itself
+  (`--no-ns-rubens` vs default, plain + PD, both vuls); `set_rubens_advances`
+  has never been measured against the natural ladder it replaced.
+
 ### Changed
 
 - **Docs: `set_dnf_reading`'s options row was two chops stale.**

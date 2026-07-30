@@ -39,20 +39,35 @@
 
 use anyhow::{Result, bail};
 use clap::Parser;
+use contract_bridge::AbsoluteVulnerability;
+use contract_bridge::auction::{Auction, Call};
 use contract_bridge::deck::fill_deals;
 use contract_bridge::eval::{self, HandEvaluator, SimpleEvaluator};
+use contract_bridge::{Bid, Strain};
 use contract_bridge::{Builder, Hand, Rank, Seat, Suit};
 use libloading::Library;
+use pons::american;
+use pons::bidding::Stance;
+use pons::bidding::constraint::{point_count, support_point_count_in};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
 use std::collections::BTreeMap;
 use std::ffi::{CString, c_char, c_int, c_void};
 use std::fmt::Write as _;
 
+#[path = "../common/mod.rs"]
+#[allow(dead_code)]
+mod common;
+use common::next_call;
+
 const DEFAULT_LIB: &str = "vendor/bba/Native-libraries/linux/x64/libEPBot.so";
 
 // EPBot bid codes: Pass = 0, X = 1; a bid is 5 + (level-1)*5 + strain (♣..NT).
 const PASS: c_int = 0;
+const ONE_C: c_int = 5; // 5 + 0*5 + 0
+const ONE_D: c_int = 6; // 5 + 0*5 + 1
+const ONE_H: c_int = 7; // 5 + 0*5 + 2
+const ONE_S: c_int = 8; // 5 + 0*5 + 3
 const ONE_NT: c_int = 9; // 5 + 0*5 + 4
 const TWO_C: c_int = 10; // 5 + 1*5 + 0
 const TWO_D: c_int = 11; // 5 + 1*5 + 1
@@ -151,6 +166,62 @@ fn hand_to_suits(hand: Hand) -> CString {
     CString::new(suits).expect("a holding string never contains a NUL byte")
 }
 
+/// The strains in EPBot's code order (♣ ♦ ♥ ♠ NT), for code ↔ [`Call`]
+const STRAINS: [Strain; 5] = [
+    Strain::Clubs,
+    Strain::Diamonds,
+    Strain::Hearts,
+    Strain::Spades,
+    Strain::Notrump,
+];
+
+/// An EPBot bid code as a [`Call`], so the `--ours` arm can replay the same node
+/// through our own bidder and be bucketed by the same code.
+fn code_to_call(code: c_int) -> Option<Call> {
+    match code {
+        0 => Some(Call::Pass),
+        1 => Some(Call::Double),
+        2 => Some(Call::Redouble),
+        5..=39 => {
+            let i = (code - 5) as u8;
+            Some(Call::Bid(Bid::new(i / 5 + 1, STRAINS[(i % 5) as usize])))
+        }
+        _ => None,
+    }
+}
+
+/// The inverse of [`code_to_call`] — our bidder's call as an EPBot code
+fn call_to_code(call: Call) -> c_int {
+    match call {
+        Call::Pass => 0,
+        Call::Double => 1,
+        Call::Redouble => 2,
+        Call::Bid(bid) => {
+            let strain = STRAINS
+                .iter()
+                .position(|&s| s == bid.strain)
+                .expect("every strain is in STRAINS");
+            5 + (c_int::from(bid.level.get()) - 1) * 5 + strain as c_int
+        }
+    }
+}
+
+/// Our own bidder's call at the probed node — the `--ours` arm
+///
+/// BBA's buckets answer *what the opponents mean by this call*; ours answer
+/// *what we actually do with it*, which is the other half of whether a reading
+/// that only fits our own agreement should be side-gated or dropped outright.
+/// The book rule may be `-∞` for a hand and the floor still choose the call, so
+/// this replays the whole bidder, not the rule (docs/ai-bidder/sampled-projection.md).
+fn our_call(stance: &Stance, prefix: &[c_int], hand: Hand, vul: AbsoluteVulnerability) -> Call {
+    let mut auction = Auction::new();
+    for &code in prefix {
+        let call = code_to_call(code).expect("probe prefixes are legal calls");
+        auction.push(call);
+    }
+    next_call(stance, hand, Seat::North, vul, &auction)
+}
+
 /// Decode an EPBot bid code into a label, or `None` for an error/illegal code
 fn decode(code: c_int) -> Option<String> {
     const STRAIN: [&str; 5] = ["♣", "♦", "♥", "♠", "NT"];
@@ -200,6 +271,11 @@ struct Bucket {
     tops4: Vec<u8>,
     tops5: Vec<u8>,
     trump_hcp: Vec<u8>,
+    /// Support points in the mode's *support* suit, and the legacy `points`
+    /// image; empty unless the mode names one.  The `ucb-*` modes need these:
+    /// `rubens_reading`'s cue block asserts a floor on that scale, not on HCP.
+    sp: Vec<u8>,
+    points: Vec<u8>,
 }
 
 #[derive(Parser)]
@@ -232,6 +308,10 @@ struct Args {
     /// Force a named convention: NAME=0|1 (repeatable). Default: Multi-Landy=1, Cappelletti=0
     #[arg(long = "conv")]
     conv: Vec<String>,
+
+    /// Probe **our own** bidder at the same node instead of BBA's (`ucb-*` only)
+    #[arg(long)]
+    ours: bool,
 
     /// Optional output file (default: stdout)
     #[arg(long)]
@@ -404,8 +484,58 @@ fn main() -> Result<()> {
             Some(ONE_NT),
             "BBA opener over 1NT-P-3♠-P — a natural read raises spades, a splinter never does",
         ),
+        // The **unassuming cue-raise**: BBA's advancer over our 1-of-a-suit
+        // opening and its partner's simple *two-level* overcall.  This is the
+        // one node where `rubens_reading` records a floor on an **opponent**
+        // (three-plus cards in partner's overcall, support band `10..`) with no
+        // side gate, unlike the Rubens transfer beside it.  A `2X` bucket whose
+        // hands fall outside that floor is a box that excludes the truth — a
+        // wrong prior, not a loose one (see `probe-reading-sound`).  The cue
+        // needs `level == 2`, i.e. the overcall suit *below* opener's, so these
+        // three auctions are the whole shape of it.
+        "ucb-sd" => (
+            3,
+            &[ONE_S, TWO_D, PASS],
+            None,
+            "BBA advancer over 1♠-(2♦)-P — the 2♠ bucket is the unassuming cue-raise",
+        ),
+        "ucb-sc" => (
+            3,
+            &[ONE_S, TWO_C, PASS],
+            None,
+            "BBA advancer over 1♠-(2♣)-P — the 2♠ bucket is the unassuming cue-raise",
+        ),
+        "ucb-dc" => (
+            3,
+            &[ONE_D, TWO_C, PASS],
+            None,
+            "BBA advancer over 1♦-(2♣)-P — the 2♦ bucket is the unassuming cue-raise",
+        ),
+        // The one *major* the cue can ever be about: the overcall must rank
+        // below opener's suit, so ♠ is never a two-level simple overcall and
+        // `1♠ (2♥)` is the whole major case.  Support for a major is worth more
+        // than support for a minor — and the cue over a minor is half a stopper
+        // ask — so the two are not the same measurement.
+        "ucb-sh" => (
+            3,
+            &[ONE_S, TWO_H, PASS],
+            None,
+            "BBA advancer over 1♠-(2♥)-P — the 2♠ bucket is the unassuming cue-raise (major)",
+        ),
+        // The *one-level* overcall: `(1♣) 1♥` routes to the Rubens **transfer**
+        // branch instead, where `2♦` (the transfer into partner's suit) is the
+        // limit-plus raise and carries the same `len(Y) >= 3, points >= 10`
+        // claim.  That reading is already our-side-only, so `--ours` is the arm
+        // that matters: it asks whether our own floor makes the transfer with
+        // hands the authored rule rejects.
+        "rub-ch" => (
+            3,
+            &[ONE_C, ONE_H, PASS],
+            None,
+            "advancer over 1♣-(1♥)-P — the 2♦ bucket is the transfer into partner's hearts",
+        ),
         other => bail!(
-            "--mode must be open|multi|advance|counter|muider-h|muider-s|rebid-d|rebid-h|rebid-s|stayman|xfer-h|xfer-s|weak2-d|weak2-h|weak2-s|def2-d|def2-h|def2-s|nt-resp|nt-3h|nt-3s, got {other:?}"
+            "--mode must be open|multi|advance|counter|muider-h|muider-s|rebid-d|rebid-h|rebid-s|stayman|xfer-h|xfer-s|weak2-d|weak2-h|weak2-s|def2-d|def2-h|def2-s|nt-resp|nt-3h|nt-3s|ucb-sd|ucb-sc|ucb-dc|ucb-sh|rub-ch, got {other:?}"
         ),
     };
 
@@ -428,6 +558,22 @@ fn main() -> Result<()> {
         _ => (&[ONE_NT], None),
     };
 
+    // Partner's overcall suit `Y` for the `ucb-*` modes — the suit
+    // `rubens_reading`'s cue block asserts `len(Y) >= 3` and `SP(Y) >= 10` in.
+    // Suit quality is not what the floor claims, so these modes take the support
+    // columns instead of the honour histograms.
+    let support = match args.mode.as_str() {
+        "ucb-sd" => Some(Suit::Diamonds),
+        "ucb-sc" | "ucb-dc" => Some(Suit::Clubs),
+        "ucb-sh" | "rub-ch" => Some(Suit::Hearts),
+        _ => None,
+    };
+
+    if args.ours && support.is_none() {
+        bail!("--ours is only meaningful for the ucb-* modes");
+    }
+    let ours = args.ours.then(|| american().against());
+
     let overrides = parse_conv(&args.conv)?;
     let path = std::env::var("BBA_LIB").unwrap_or_else(|_| DEFAULT_LIB.into());
     let bba = Bba::load(&path, overrides)?;
@@ -447,6 +593,15 @@ fn main() -> Result<()> {
 
     for token in args.vul.split(',').map(str::trim) {
         let vul = vul_code(token, actor)?;
+        // Our bidder takes the absolute vulnerability; the actor sits West with
+        // the dealer canonicalized to North, so "we" is E/W.
+        let vul_abs = match token {
+            "none" => AbsoluteVulnerability::NONE,
+            "both" => AbsoluteVulnerability::ALL,
+            "we" => AbsoluteVulnerability::EW,
+            "they" => AbsoluteVulnerability::NS,
+            other => bail!("--vul must be none|we|they|both, got {other:?}"),
+        };
         let buckets = run(
             &bba,
             actor,
@@ -454,11 +609,13 @@ fn main() -> Result<()> {
             filter,
             filter_prefix,
             trump,
+            support,
+            ours.as_ref().map(|stance| (stance, vul_abs)),
             vul,
             args.samples,
             args.seed,
         );
-        render_vul(&mut report, token, &buckets, &args);
+        render_vul(&mut report, token, &buckets, &args, support);
     }
 
     if let Some(out) = &args.out {
@@ -481,6 +638,8 @@ fn run(
     filter: Option<c_int>,
     filter_prefix: &[c_int],
     trump: Option<Suit>,
+    support: Option<Suit>,
+    ours: Option<(&Stance, AbsoluteVulnerability)>,
     vul: c_int,
     samples: usize,
     seed: u64,
@@ -503,7 +662,10 @@ fn run(
         {
             continue;
         }
-        let code = bba.call(actor, prefix, hand, vul);
+        let code = match ours {
+            Some((stance, vul_abs)) => call_to_code(our_call(stance, prefix, hand, vul_abs)),
+            None => bba.call(actor, prefix, hand, vul),
+        };
         if decode(code).is_none() {
             continue; // EPBot error/illegal code — drop it
         }
@@ -534,12 +696,22 @@ fn run(
                 .sum();
             entry.trump_hcp.push(thcp);
         }
+        if let Some(suit) = support {
+            entry.sp.push(support_point_count_in(hand, suit));
+            entry.points.push(point_count(hand));
+        }
     }
     buckets
 }
 
 /// One report section per vulnerability: the per-call buckets in DSL vocabulary.
-fn render_vul(report: &mut String, vul: &str, buckets: &BTreeMap<c_int, Bucket>, args: &Args) {
+fn render_vul(
+    report: &mut String,
+    vul: &str,
+    buckets: &BTreeMap<c_int, Bucket>,
+    args: &Args,
+    support: Option<Suit>,
+) {
     let probed: usize = buckets.values().map(|b| b.hcp.len()).sum();
     let _ = writeln!(report, "## vul: {vul}   (n={probed})\n");
     if probed == 0 {
@@ -595,6 +767,55 @@ fn render_vul(report: &mut String, vul: &str, buckets: &BTreeMap<c_int, Bucket>,
                     .collect();
                 let _ = writeln!(report, "  - {label} {}", cells.join(" "));
             }
+        }
+
+        // What `rubens_reading`'s cue block would assert about this hand if the
+        // call were the cue.  Columns are pushed in lockstep, so index `k` is one
+        // hand across all of them; the violation rate is this block's
+        // box-excludes-the-truth rate, to be read against the ambient
+        // opponent-reading rate of docs/deviation-panel.md (LHO/RHO 8.2/8.3%,
+        // partner 3.3%).
+        if let Some(y) = support
+            && !bucket.sp.is_empty()
+        {
+            let len_y = &bucket.len[y as usize];
+            let mut sp = bucket.sp.clone();
+            sp.sort_unstable();
+            let _ = writeln!(
+                report,
+                "- support points in {y:?}: {}–{} (median {})",
+                pct(&sp, 0.10),
+                pct(&sp, 0.90),
+                pct(&sp, 0.5)
+            );
+            let short = (0..n).filter(|&k| len_y[k] < 3).count();
+            let weak = (0..n).filter(|&k| bucket.sp[k] < 10).count();
+            // The legacy-axis image the block also publishes: `support_band_to_points`
+            // maps the `10..` band to `5..` on the plain `points` scale.
+            let thin = (0..n).filter(|&k| bucket.points[k] < 5).count();
+            let bad = (0..n)
+                .filter(|&k| len_y[k] < 3 || bucket.sp[k] < 10)
+                .count();
+            // Where the band would have to sit to be sound: the floor is the one
+            // free parameter, so price the candidates rather than guess.
+            let band: Vec<String> = [8, 9, 10, 11]
+                .into_iter()
+                .map(|floor| {
+                    let miss = bucket.sp.iter().filter(|&&v| v < floor).count();
+                    format!("{floor}:{:.1}%", 100.0 * miss as f64 / n as f64)
+                })
+                .collect();
+            let share = |c: usize| 100.0 * c as f64 / n as f64;
+            let _ = writeln!(
+                report,
+                "- **cue floor `len({y:?}) >= 3 & SP({y:?}) >= 10` violated {:.1}%** \
+                 (short {:.1}%, weak {:.1}%; legacy `points >= 5` violated {:.1}%)",
+                share(bad),
+                share(short),
+                share(weak),
+                share(thin)
+            );
+            let _ = writeln!(report, "  - SP band sweep (violated): {}", band.join("  "));
         }
 
         let mut clauses = vec![format!("hcp({hcp_lo}..={hcp_hi})")];
