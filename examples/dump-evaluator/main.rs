@@ -208,6 +208,11 @@ struct Args {
     /// what a knob-on bidder serves the evaluator.
     #[arg(long)]
     dnf: bool,
+    /// Bid and read with `set_pass_exclusion_reading(true)` — the exclusion
+    /// twin's corpus. Like `--dnf`, auctions and range features both come
+    /// from the knob-on regime.
+    #[arg(long)]
+    pass_exclusion: bool,
     /// Fold both box closures (`set_sum_closure` + `set_upgrade_closure`) into
     /// the hulls the features see — the canonicalized-reading corpus. The
     /// closures are flipped on only around `infer`/`encode`, so the *auctions*
@@ -231,6 +236,7 @@ fn main() -> anyhow::Result<()> {
     let args = Args::parse();
     // Main thread's copy; the rayon workers get theirs via `broadcast` below.
     pons::bidding::set_dnf_reading(args.dnf);
+    pons::bidding::set_pass_exclusion_reading(args.pass_exclusion);
     let encoding = match args.encoding.as_str() {
         "summary" => Encoding::Summary,
         "onehot" => Encoding::Onehot,
@@ -297,7 +303,10 @@ fn main() -> anyhow::Result<()> {
     // The reading knob is a thread-local: every rayon worker needs the same
     // setting main got at the top, and `broadcast` forces the pool up so no
     // worker is born later with the bare default.
-    rayon::broadcast(|_| pons::bidding::set_dnf_reading(args.dnf));
+    rayon::broadcast(|_| {
+        pons::bidding::set_dnf_reading(args.dnf);
+        pons::bidding::set_pass_exclusion_reading(args.pass_exclusion);
+    });
 
     let (mut rows, mut contested, mut forced_pass) = (0u64, 0u64, 0u64);
 
@@ -462,6 +471,7 @@ fn main() -> anyhow::Result<()> {
         "deal_rng": "per-deal StdRng(seed ^ index·0x9E3779B97F4A7C15); \
                      not byte-compatible with pre-parallel sequential dumps",
         "dnf": args.dnf,
+        "pass_exclusion": args.pass_exclusion,
         "rows": rows,
         "contested_rows": contested,
         "forced_pass_decisions": forced_pass,

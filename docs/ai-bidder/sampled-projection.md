@@ -638,6 +638,64 @@ count-scaled margin, so a thin key widens toward ⊤ rather than toward a lie �
 and re-price penalty doubles separately, since they are the sole loss channel
 identified.
 
+### The exclusion retrain (2026-07-30)
+
+The queued retrain was bought **probe-first**, per the C-P lesson that C1's
+retrain was unearnable and a ~2s probe can say so before a GPU run and an A/B
+are spent. `probe-closure-features --pass-exclusion` (new arm; the run also
+repaired the example's label table, stale since the round-one shape block —
+45 labels vs `LEN_SEAT_SHAPE` 75, a panic on every arm) pre-registered a
+stark-only kill criterion: kill only on the C1 picture, endpoints moving with
+moments unmoved and zero rejections. The measurement (2000 boards, 20,347
+nodes, seed 1785351807) is the anti-C1 picture on both halves: **10,034 of
+93,220 cross-arm layouts rejected (10.8%**, vs C1's 0/409,708), and the
+moment columns moving for real — E ≈1σ, sd to 2.49σ, histogram cells to
+3.22σ at p90, mass 1.67σ — at 1.07% of nodes, beside endpoint movement at
+3.60% (`pts max` at 575 nodes, 1.89σ; and *length* ceilings from single-box
+shape complements, ♦ max 7.33σ at 35 nodes, e.g. ♦ `0..13 → 0..2`). Both
+predicted channels are live, so the perturbation carries information and the
+retrain can be earned.
+
+The twin is the F2b recipe on the shipped v3: `dump-evaluator --encoding
+eval3 --dnf --pass-exclusion` (new flag, sidecar records the regime) over
+500k deals of `22.pdd` seed 1 → 10,161,643 rows (knob-on auctions move, as
+they should); trainer `--hidden 256 --epochs 150 --batch 4096 --lr 0.001
+--seed 1`. **Held-out gate passed: val NLL −1.55010 / MAE 1.391 tricks** on
+the knob-on deal-disjoint tail vs the dnf twin's −1.54872 on its own regime —
+the OOD penalty gone at better-than-equal fit. Serving keys on
+`pass_exclusion_reading()` inside the v3 calls-tail path
+(`trick_estimates_with_auction`), so the ON arm of any A/B picks the twin up
+through the thread-local knob with no harness change; knob-off is
+structurally byte-identical (`exclusion_matches_candle_fixture`,
+`exclusion_knob_swaps_v3_weights`).
+
+**Re-measure DONE 2026-07-30**: `scripts/exclusion-retrain-ab.sh`
+(`ab-results/exclusion-retrain/`), base vs `--ns-pass-exclusion`, 204,800
+bd/arm/vul, SEED_BASE 1785354456, sha ad0983f plus this uncommitted tree.
+Pre-registered disposition: plain wash + PD win → the reading flips
+default-on; a plain loss again → thread closed, knob stays opt-in
+permanently.
+
+**Verdict: wash in all four cells — no PD win, so the ship condition fails;
+the knob stays opt-in and the thread is closed.** Plain −0.0024
+[±0.0040]/−0.0028 [±0.0051], PD −0.0016 [±0.0045]/−0.0001 [±0.0057]
+(none/both), fired 1.45%/1.50% — up from 0.68% pre-retrain because the twin
+moves *evaluations*, not just readings. The retrain did recover the channel
+it could: plain −0.0060/−0.0062 → −0.0024/−0.0028 and PD-both to −0.0001,
+landing the residual exactly where the interpretation note below predicted —
+in the authored-gate channel, which a further retrain cannot reach. Worst-
+board trace (iron rule): the dominant ON-side pattern is grand-slam blasts —
+13–15 of the 40 worst per vul bid 7NT/7M where OFF stops in six (grands in
+the OFF lines: ≤1). Reading opponents' passes caps their strength, which
+concentrates the missing honors in partner's inferred box — μ up, σ down —
+and the twin blasts on confidence the deal repays only half the time; the
+aggregate wash says this is variance, not edge.
+
+Note for interpretation: the pre-retrain loss was never isolated between the
+net-OOD and authored-gate channels (C1 split ~60/40); if the post-retrain
+number lands between wash and the old −0.006, the residual is the authored
+gates reading the tightened bounds, and a further retrain cannot recover it.
+
 ## Per-node training — the probe as the sync step (recorded 2026-07-29)
 
 The larger ambition this build serves (jdh8): *discover* meanings from

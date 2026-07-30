@@ -9,6 +9,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Pass-exclusion evaluator twin** (`evaluator_v3_exclusion`, served
+  automatically under the knob). The queued feature retrain for the
+  pass-exclusion reading, bought only after a probe gate said it could be
+  earned: `probe-closure-features --pass-exclusion` (new arm; the example's
+  label table was also repaired — it still described the round-one shape
+  block, 45 labels vs `LEN_SEAT_SHAPE` 75, and panicked on every arm at HEAD)
+  measured the **anti-C1 picture** on 2000 boards, seed 1785351807 — 10,034
+  of 93,220 cross-arm layouts rejected (10.8%; C1 was 0) and the shape
+  *moment* columns moving for real (E ~1σ, sd to 2.5σ, histogram cells to
+  3.2σ p90), through both channels (points-cap complements ⊤→`0..16`, and
+  single-box length complements ♦ `0..13 → 0..2`). The twin is the F2b
+  recipe on the shipped v3: `dump-evaluator --encoding eval3 --dnf
+  --pass-exclusion` (new flag; sidecar records the regime) over 500k deals of
+  `22.pdd` seed 1, 10,161,643 rows; trainer `--hidden 256 --epochs 150
+  --batch 4096 --lr 0.001 --seed 1` — **held-out gate passed, val NLL
+  −1.55010 / MAE 1.391 tricks on the knob-on tail vs the dnf twin's −1.54872
+  on its own regime** (the OOD penalty gone at better-than-equal fit).
+  Serving keys on `pass_exclusion_reading()` (now a public getter) inside the
+  v3 calls-tail path; knob-off is structurally byte-identical, pinned by
+  `exclusion_matches_candle_fixture` and `exclusion_knob_swaps_v3_weights`.
+  **Re-measure A/B verdict: wash in all four cells** (`scripts/
+  exclusion-retrain-ab.sh`, base vs `--ns-pass-exclusion`, 204,800
+  bd/arm/vul, SEED_BASE 1785354456): plain −0.0024 [±0.0040]/−0.0028
+  [±0.0051], PD −0.0016 [±0.0045]/−0.0001 [±0.0057] (none/both), fired
+  1.45%/1.50%. No PD win → **the knob stays opt-in; thread closed.** The
+  retrain recovered the net-OOD channel (plain was −0.006 pre-retrain, PD
+  -both to −0.0001); the residual is the authored-gate channel, per the
+  pre-registered interpretation note. Worst-board pattern: ON blasts grands
+  (13–15/40 bid 7NT/7M where OFF stops in six) — excluded opponent passes
+  concentrate missing honors in partner's box and the twin over-trusts the
+  shrunken σ; the wash says it wins as often as it loses.
+
 - **Pass-exclusion reading** (`set_pass_exclusion_reading`, default off). The
   general pass reading is "exclude every call the passer's table offered"; a
   catch-all `hcp(0..)` Pass gate says nothing, which is why passes over their

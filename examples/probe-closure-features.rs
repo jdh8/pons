@@ -46,7 +46,8 @@ use pons::american;
 use pons::bidding::context::relative;
 use pons::bidding::features::{LEN_HAND_EVAL, LEN_INFERENCE, LEN_SEAT_SHAPE, features_eval_shape};
 use pons::bidding::{
-    Relative, sample_layouts, set_gauge_membership, set_sum_closure, set_upgrade_closure,
+    Relative, sample_layouts, set_gauge_membership, set_pass_exclusion_reading, set_sum_closure,
+    set_upgrade_closure,
 };
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -79,6 +80,13 @@ struct Args {
     #[arg(long)]
     upgrade: bool,
 
+    /// Probe the pass-exclusion reading (`set_pass_exclusion_reading`)
+    /// instead — not a closure: it narrows the described hand set, so
+    /// membership rejections are the earnable picture, C1's (0 rejections)
+    /// the unearnable one
+    #[arg(long, conflicts_with = "upgrade")]
+    pass_exclusion: bool,
+
     /// Give the strength gauges membership teeth in *both* arms
     /// ([`set_gauge_membership`]).  C2's membership effect should vanish
     /// under it: C2 bounds `points` by `hcp + upgrade_ceiling(lengths)`, and
@@ -97,22 +105,19 @@ const ENDPOINTS: [&str; LEN_INFERENCE] = [
 const SUITS: [&str; 4] = ["♣", "♦", "♥", "♠"];
 
 /// Labels for the [`LEN_SEAT_SHAPE`] columns one seat contributes: the
-/// endpoints, then the shape distribution in its emission order.
+/// endpoints, then the shape distribution in `push_shape_dist`'s emission
+/// order — gauss summary, per-suit length marginal, log-mass last.
 fn columns() -> Vec<String> {
     let per_suit = |prefix: &str| SUITS.map(|s| format!("{s} {prefix}"));
     let mut out: Vec<String> = ENDPOINTS.iter().map(|s| (*s).to_owned()).collect();
     out.extend(per_suit("E"));
     out.extend(per_suit("sd"));
-    for (a, b) in [(0, 1), (0, 2), (0, 3), (1, 2), (1, 3), (2, 3)] {
-        out.push(format!("cov {}{}", SUITS[a], SUITS[b]));
+    for suit in SUITS {
+        for len in 0..14 {
+            out.push(format!("{suit} ={len}"));
+        }
     }
-    for floor in [5, 6, 7] {
-        out.extend(per_suit(&format!("≥{floor}")));
-    }
-    for exact in [0, 1] {
-        out.extend(per_suit(&format!("={exact}")));
-    }
-    out.push("pinned".to_owned());
+    out.push("mass".to_owned());
     assert_eq!(out.len(), LEN_SEAT_SHAPE);
     out
 }
@@ -146,12 +151,13 @@ fn main() {
     let base = args.seed.unwrap_or_else(rand::random);
     let vul = AbsoluteVulnerability::NONE;
     let stance = american().against();
-    let knob: fn(bool) = if args.upgrade {
-        set_upgrade_closure
+    let (knob, name): (fn(bool), &str) = if args.pass_exclusion {
+        (set_pass_exclusion_reading, "pass-exclusion")
+    } else if args.upgrade {
+        (set_upgrade_closure, "C2 upgrade")
     } else {
-        set_sum_closure
+        (set_sum_closure, "C1 sum")
     };
-    let name = if args.upgrade { "C2 upgrade" } else { "C1 sum" };
     set_gauge_membership(args.gauge);
 
     // Per column kind: every |Δ| that was nonzero, plus every value seen

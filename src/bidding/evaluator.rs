@@ -35,7 +35,7 @@ use super::features::{
     FEATURES_LEN_EVAL, FEATURES_LEN_EVAL_V3, FEATURES_LEN_EVAL_V4, features_eval, features_eval_v3,
     features_eval_v4,
 };
-use super::inference::{Inferences, Relative, dnf_reading};
+use super::inference::{Inferences, Relative, dnf_reading, pass_exclusion_reading};
 use super::neural::{affine, decode, relu};
 use contract_bridge::auction::Call;
 use contract_bridge::{Hand, Strain};
@@ -103,6 +103,20 @@ const _: () = assert!(
 
 /// [`RAW_V3_DNF`] decoded once, on first use.
 static WEIGHTS_V3_DNF: LazyLock<Vec<f32>> = LazyLock::new(|| decode(RAW_V3_DNF));
+
+/// The pass-exclusion twin of the v3 artifact — same architecture and recipe,
+/// corpus regenerated with `set_pass_exclusion_reading(true)` on top of the
+/// `--dnf` regime (val NLL −1.55010 vs the dnf twin's −1.54872 on its own
+/// regime).  Selected per call by [`pass_exclusion_reading`] inside the v3
+/// path; knob-off never touches it.
+static RAW_V3_EXCLUSION: &[u8] = include_bytes!("weights/evaluator_v3_exclusion.f32");
+const _: () = assert!(
+    RAW_V3_EXCLUSION.len() == TOTAL_V3 * 4,
+    "exclusion evaluator weights artifact size mismatch"
+);
+
+/// [`RAW_V3_EXCLUSION`] decoded once, on first use.
+static WEIGHTS_V3_EXCLUSION: LazyLock<Vec<f32>> = LazyLock::new(|| decode(RAW_V3_EXCLUSION));
 
 /// Input width of the v4 (shape-reading) artifact.
 const IN_V4: usize = FEATURES_LEN_EVAL_V4;
@@ -294,11 +308,12 @@ pub fn trick_estimates(hand: Hand, inferences: &Inferences) -> TrickEstimates {
 ///
 /// Under [`set_eval_auction`] **and** the [`dnf_reading`] regime the v3 twin
 /// was trained on, this serves [`features_eval_v3`] — the same vector plus the
-/// last four call identities.  Under [`set_eval_shape`] it serves
-/// [`features_eval_v4`] instead, which carries that tail and reads each hidden
-/// seat as a shape distribution rather than a bounding box.  Anywhere else it is
-/// exactly [`trick_estimates`], byte for byte, so call sites can migrate to this
-/// signature unconditionally.
+/// last four call identities — from the weight set matching the calling
+/// thread's [`pass_exclusion_reading`] regime.  Under [`set_eval_shape`] it
+/// serves [`features_eval_v4`] instead, which carries that tail and reads each
+/// hidden seat as a shape distribution rather than a bounding box.  Anywhere
+/// else it is exactly [`trick_estimates`], byte for byte, so call sites can
+/// migrate to this signature unconditionally.
 #[must_use]
 pub fn trick_estimates_with_auction(
     hand: Hand,
@@ -320,7 +335,14 @@ pub fn trick_estimates_with_auction(
     }
     let x = features_eval_v3(hand, inferences, calls);
     debug_assert_eq!(x.len(), IN_V3);
-    reshape(forward_with::<IN_V3>(&WEIGHTS_V3_DNF, &x))
+    // The exclusion twin was fit on readings carrying the pass-exclusion caps;
+    // serving it only under its knob keeps knob-off byte-identical.
+    let weights = if pass_exclusion_reading() {
+        &WEIGHTS_V3_EXCLUSION
+    } else {
+        &WEIGHTS_V3_DNF
+    };
+    reshape(forward_with::<IN_V3>(weights, &x))
 }
 
 /// Reshape the raw head-major outputs — all 20 means, then all 20 log
@@ -406,6 +428,50 @@ mod tests {
             3,
             IN_V3,
             |x| forward_with::<IN_V3>(&WEIGHTS_V3_DNF, x),
+        );
+    }
+
+    /// The pass-exclusion twin of the v3 artifact against its own fixture.
+    #[test]
+    fn exclusion_matches_candle_fixture() {
+        check_fixture(
+            include_str!("weights/evaluator_v3_exclusion.fixture.json"),
+            3,
+            IN_V3,
+            |x| forward_with::<IN_V3>(&WEIGHTS_V3_EXCLUSION, x),
+        );
+    }
+
+    /// The exclusion knob's serving contract: with the reading held fixed,
+    /// knob on swaps the v3 path onto the exclusion twin and knob off is
+    /// byte-identical to the dnf twin.  Restores the crate default (off).
+    #[test]
+    fn exclusion_knob_swaps_v3_weights() {
+        use contract_bridge::{Bid, Level};
+        let auction = [
+            Call::Bid(Bid {
+                level: Level::new(1),
+                strain: Strain::Spades,
+            }),
+            Call::Pass,
+        ];
+        let ctx = Context::new(RelativeVulnerability::NONE, &auction);
+        let inf = Inferences::read(&ctx);
+        let h = hand("AQ32.K53.QJ4.A92");
+
+        crate::bidding::set_dnf_reading(true);
+        crate::bidding::set_pass_exclusion_reading(false);
+        let dnf = trick_estimates_with_auction(h, &inf, &auction);
+
+        crate::bidding::set_pass_exclusion_reading(true);
+        let exclusion = trick_estimates_with_auction(h, &inf, &auction);
+        crate::bidding::set_pass_exclusion_reading(false);
+
+        assert_ne!(exclusion, dnf, "the twin should not shadow the dnf weights");
+        assert_eq!(
+            trick_estimates_with_auction(h, &inf, &auction),
+            dnf,
+            "knob off must be byte-identical"
         );
     }
 

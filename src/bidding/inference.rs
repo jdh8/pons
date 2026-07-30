@@ -470,16 +470,20 @@ fn pass_reading() -> bool {
 /// per-box precision is not worth the term growth; skipping it costs
 /// precision, never soundness.
 ///
-/// Expectations are calibrated by history: for the weak-two defense this band
-/// is equivalent to the authored `weak_two_pass_gate` (REFUTED pre-retrain —
-/// a C1-shaped encoding loss, kept opt-in), so the knob ships **off**, queued
-/// for the next feature retrain; its immediate payoff is wherever readings
-/// are consumed directly (sd-lead pricing, search-mode sampling, disclosure).
+/// The knob ships **off**, permanently opt-in: the feature retrain
+/// (`evaluator_v3_exclusion`, served automatically under this knob) recovered
+/// the net-OOD half of the pre-retrain loss but the re-measure A/B was a wash
+/// in all four cells — no PD win, no ship (details:
+/// `docs/ai-bidder/sampled-projection.md` § "The exclusion retrain").  Its
+/// payoff is wherever readings are consumed directly (sd-lead pricing,
+/// search-mode sampling, disclosure).
 pub fn set_pass_exclusion_reading(on: bool) {
     PASS_EXCLUSION_READING.with(|cell| cell.set(on));
 }
 
-fn pass_exclusion_reading() -> bool {
+/// Whether the pass-exclusion reading is enabled (default off)
+#[must_use]
+pub fn pass_exclusion_reading() -> bool {
     PASS_EXCLUSION_READING.with(Cell::get)
 }
 
