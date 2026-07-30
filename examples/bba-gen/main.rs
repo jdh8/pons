@@ -299,6 +299,18 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_announced_reading: bool,
 
+    /// Project **unalerted** (natural) authored calls too
+    /// (`inference::set_natural_reading`, crate default off).  The projection
+    /// pass decodes a call when its rule alerts it, so an authored-but-natural
+    /// rule — `len(♦, 5..) & points(10..)` — contributes nothing and the natural
+    /// walk's guess from auction shape stands unchecked beside it.  On, the
+    /// rule's own union is intersected into the reading *without* suppressing
+    /// the walk.  Reading-only for the authored layer, but not bid-inert: the
+    /// nets eat inference features, so expect divergence.  See
+    /// `docs/reading-drift-handoff.md`.
+    #[arg(long, default_value_t = false)]
+    ns_natural_reading: bool,
+
     /// Drop the RKCB ask's agreement for our side
     /// (`instinct::set_rkcb_announce`, crate default on but inert unless
     /// `--ns-announced-reading` is also passed).  The attribution arm: the
@@ -1457,6 +1469,7 @@ fn main() -> anyhow::Result<()> {
     pons::bidding::instinct::set_bilans_floor(!args.no_ns_bilans);
     pons::bidding::instinct::set_net_collar(args.ns_net_collar);
     pons::bidding::inference::set_announced_reading(args.ns_announced_reading);
+    pons::bidding::inference::set_natural_reading(args.ns_natural_reading);
     pons::bidding::evaluator::set_eval_auction(!args.no_ns_eval_auction);
     pons::bidding::evaluator::set_eval_shape(args.ns_eval_shape);
     pons::bidding::instinct::set_rkcb_announce(!args.no_ns_rkcb_announce);

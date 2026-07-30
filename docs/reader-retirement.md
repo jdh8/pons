@@ -46,7 +46,7 @@ chop; four of them are one missing `.alert(...)` away.
 | `multi_reading` | the Multi 2♦ in our Woolsey defense | same (`multi_advances` pass-or-correct) |
 | `landy_advance_suppress` | advances of our Landy 2♣ | same, plus `equal_majors` is an opaque `equal_length` predicate that projects nothing |
 | `rubens_reading` | Rubens advances of our overcall | two knobs (`rubens_advances_enabled` + `rubens_transfer_reading`); the only reader touching the `support_points` axis. **Silent under the default** since the layer lost its re-measure (2026-07-31) — the reader shares `rubens_advances_enabled`. Reachable only through `--ns-rubens`, where its length claims are measured unsound on *both* sides; see §The Rubens layer below |
-| `gladiator_reading` | Gladiator responses to our 1NT overcall | the `(2♣)`→`Pass` auction rebase and self-recursion, which no box can carry. **Also drifts**: stamps `points 0..9` on the relay while the rule's third arm is `points(game..)` = 10+, deleting the projection's GF box. Fix that first, on its own A/B |
+| `gladiator_reading` | Gladiator responses to our 1NT overcall | the `(2♣)`→`Pass` auction rebase and self-recursion, which no box can carry — a permanent **partial** retirement. The relay's `points 0..9` drift is **fixed** (2026-07-31): the band is gone, the projection's union carries the strength. No A/B was owed — `set_nt_overcall_gladiator` is default-off, so the change is byte-identical in the shipped system; see §The Gladiator relay below |
 | `responder_overcall_double_reading` | responder's X of their overcall | no knob at all, and its `points ≥ 8` is a hand-derived intersection across three `DoubleStyle` variants — a real authoring job, not a delete |
 | `penalty_latch_double_reading` | penalty doubles under the latch | reconstructs a latch by carrying `last_suit_bid` across calls, and its `penalty_x_reading` helper has an agreement contract with the floor (`instinct.rs`). Retire last, or never |
 
@@ -183,6 +183,89 @@ double at all). So `rubens_reading` is now **silent under the default** and its
 three unsound legs are moot: the chop becomes a straight deletion whenever the
 knob itself is retired, and until then the reader is only reachable through
 `--ns-rubens`. Nothing here needs authoring.
+
+## The Gladiator relay — the band deleted, the arm kept
+
+`gladiator_reading`'s `Relay` arm stamped `points 0..=9` ("weak-or-invitational,
+< game") on the advancer's `2♣`. The rule authoring that relay is a **three-way
+disjunction** whose third arm is `points(game..) & balanced() & len(o, 3..=3) &
+!flat_4333()` — a game-forcing hand with exactly three in the unbid major, whose
+entry that arm is to the delayed cue (`gladiator_relay_continuation` authors the
+cue `points(inv..)`, unbounded above). The stamp lands on the walk hull before
+`assemble`, which folds `Dnf::from(players[i]).intersect(&overlay[i])`, so
+`0..=9 ∩ 10..` emptied exactly that box: a **wrong** box, not a loose one.
+
+Deleted, with no A/B owed — `set_nt_overcall_gladiator` is `Cell::new(false)`
+and `gladiator_reading` returns `None` on its first line when the knob is off,
+so the shipped system cannot reach the code (the §subset escape's spirit: a run
+that must print zero is a run you did not need).
+
+Three findings worth keeping:
+
+- **Our Gladiator is not the reference's.** The card we play
+  (<https://www.bridgewebs.com/crowborough/NT%20Responses.htm>) defines `2♣` as
+  weak-or-invitational *only*, and parks the 3-card-major ask in a **direct**
+  `2♦` Extended Stayman (INV+). That is Gladiator over a 1NT *opening*. Over our
+  1NT *overcall* `2♦` is natural and the cue is Stayman, so the relay has to
+  absorb the ask — which is why its third arm is game-forcing and why `0..=9`
+  was wrong as an agreement, whatever the bidder happens to do.
+- **Arm 3 is weight-shadowed, deliberately.** At `0.5` the relay loses to `3NT`
+  (`1.2`) and to the `3♣`/`3♦`/`3O` naturals (`1.3`), all of which admit the same
+  hands, so no hand plays it: the arm is **read, never played**. Promoting it
+  (its own rule at a higher weight, or gating the shadowing calls) was rejected
+  — the box is too confined to yield enough hands for a verdict, so the change
+  could never be adjudicated. Pinned as a divergence in
+  `gladiator_advances_follow_the_card`, not hidden.
+- **A separate defect the sweep turned up — now fixed.** The card's *natural*
+  game-forcing advances are authored `len(suit, 5..) & points(game..)`, but the
+  natural walk read a jump advance as a weak **6+** with no strength, so every
+  five-card GF advancer was excluded by its own reading (`KQT.K8.AJT64.QJ4` bids
+  `3♦`, read `♦ 6..=13`; 16 of 256 random advancers hit it). Fixed 2026-07-31 in
+  the walk, not here: `over_one_notrump` now also recognises our 1NT *overcall*,
+  which systems-on got for free through `systems_on_overcall_strip` and
+  Gladiator did not. Default byte-identical (the strip covers every auction the
+  new clause does, whenever it is on). This is regime 2 of
+  [reading-drift-handoff.md](reading-drift-handoff.md) — authored-but-natural
+  calls, which no DNF projection reads and no static test compares.
+
+Pinned by three new tests: `gladiator_advances_follow_the_card` (one hand per
+advance and per relay continuation, replaying the **bidder** — so a floor that
+drifts under the structure goes red instead of silently ceasing to fire),
+`gladiator_readings_admit_the_bidder` (256 seeded hands over the quiet, relay
+and doubled branches; **every** call the bidder makes must be admitted by the
+reading it produces — unscoped since the walk fix) and
+`gladiator_runs_out_of_the_doubled_overcall` (§below). The second is the
+behavioural analogue of `authored_rules_eval_within_projection`, which cannot
+reach this table: that sweep walks the shipped tries, and `gladiator_advances`
+is only in one with the knob on.
+
+## The doubled overcall — the strip is load-bearing for the floor
+
+`[1M, 1NT, (X)]` had no book node under Gladiator; the comment said the
+instinct-floor runout would answer it. It does — under `american_instinct()`,
+identically in both arms. Under the shipped **distilled** floor it did not:
+Gladiator turns off `systems_on_overcall_strip` (its advances differ, so the
+strip identity fails), the net was distilled on the stripped picture, and fed
+the unstripped one it escaped a **1-count to `3♥` doubled**. That is ≈40% of the
+treatment's measured loss, and it is the mechanism behind the `vs-X-*` buckets.
+
+`gladiator_doubled_runout` now authors the node — `XX` on values, else run to a
+five-plus suit, never into their major, else sit — because a finite book node
+shadows the floor and stops the runout depending on what the net makes of a
+picture it never saw. The general lesson (a reading knob is a bidding knob under
+a neural floor) is written up in
+[reading-drift-handoff.md](reading-drift-handoff.md).
+
+Two more nodes were authored the same way, and the rest of the tree was probed
+and deliberately left alone. The floor answered a *weak `2O` signoff* off the
+relay by raising on three trumps or bidding `3NT` opposite a hand that had
+denied 8 points (`gladiator_relay_signoff_answer`: pass, or `3O` on four trumps
+and 18), and answered **Leaping Michaels `4♣` with `5NT`**
+(`gladiator_leaping_answer`: the major game on a three-card fit, else five of
+the minor). Every remaining leaf is "advancer passes the game opposite a limited
+hand", where the floor is right on all six probed and a bare `Pass` node would
+only shadow its slam machinery — pinned either way by
+`gladiator_continuations_are_authored_to_the_leaf`.
 
 ## Ledger
 

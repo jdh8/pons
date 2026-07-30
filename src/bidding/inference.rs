@@ -511,6 +511,50 @@ pub(crate) fn probed_reading() -> bool {
 }
 
 std::thread_local! {
+    /// Whether [`project_authored`] also projects **unalerted** (natural) calls
+    /// into the overlay (see [`set_natural_reading`]).  Off by default.
+    static NATURAL_READING: Cell<bool> = const { Cell::new(false) };
+}
+
+/// Project every authored call, not only the alerted ones (default off)
+///
+/// The projection pass decodes a call when its authoring rule **alerts** it —
+/// correct as *disclosure*, since an unalerted call is natural and the natural
+/// walk reads it. But that leaves a whole regime unread: a rule that is authored
+/// and natural (`gladiator_advances`'s game-forcing `3♣`/`3♦`/`3O`, authored
+/// `len(suit, 5..) & points(game..)`) contributes **nothing** to the reading, and
+/// the walk's guess from auction shape is an unverified duplicate that can and
+/// does contradict it. See `docs/reading-drift-handoff.md`.
+///
+/// On, an unalerted call's rules project the same sound union as an alerted
+/// one's, and it is **intersected with** the walk's natural reading rather than
+/// replacing it — the call keeps its suppression bit clear, so the walk's
+/// bookkeeping (natural-suit lanes, agreed fits, later cue detection) is
+/// untouched and only the rule's own claim is added. Two consequences follow
+/// from intersecting rather than substituting:
+///
+/// - Where the walk is *right* the reading strictly tightens: the rule's
+///   strength band (which the walk usually has no way to know) lands on a call
+///   that previously published only a length floor.
+/// - Where the walk is *wrong* the boxes can go **empty**, because a wrong walk
+///   claim intersected with a sound rule claim is still wrong. That is a
+///   diagnostic, not a regression of this knob: it surfaces walk defects the
+///   alert gate had been hiding. Sweep with the `admits` invariant before
+///   reading anything into an A/B.
+///
+/// Default **off** pending that A/B: it tightens thousands of readings at once,
+/// and per `docs/dnf-migration.md`'s C1 finding a tightening that moves
+/// *endpoints* without moving *mass* is close to pure feature perturbation for
+/// the frozen nets. Read at reading time, per-thread.
+pub fn set_natural_reading(on: bool) {
+    NATURAL_READING.with(|cell| cell.set(on));
+}
+
+fn natural_reading() -> bool {
+    NATURAL_READING.with(Cell::get)
+}
+
+std::thread_local! {
     /// Whether [`project_authored`] folds a second, *agreement* overlay off
     /// [`Rule::announce_dnf`][super::rules::Rule::announce_dnf] (see
     /// [`set_announced_reading`]).  Off by default — knob-off the announce
@@ -1344,16 +1388,38 @@ fn systems_on_overcall_strip(auction: &[Call]) -> Option<Vec<Call>> {
     if opening.level.get() != 1 || !opening.strain.is_suit() {
         return None;
     }
+    if auction.get(open + 1) != Some(&Call::Bid(Bid::new(1, Strain::Notrump))) {
+        return None;
+    }
     // Over a MAJOR, Gladiator replaces the opening-1NT graft with a differently
-    // shaped structure (cue = Stayman, 2♣ = relay), so the strip identity no
-    // longer holds — leave those auctions to `gladiator_reading` / the walk.
+    // shaped structure (cue = Stayman, 2♣ = relay), so the strip identity fails
+    // — but only where Gladiator actually *has* that structure.  RHO's call over
+    // our 1NT decides:
+    //
+    // | RHO      | Gladiator plays          | systems-on plays  | strip? |
+    // | -------- | ------------------------ | ----------------- | ------ |
+    // | pass     | the Gladiator advances   | the 1NT responses | no     |
+    // | `2♣`     | the stolen relay (rebase)| systems on        | no     |
+    // | `2♦/M`   | Transfer Lebensohl       | its own sohl      | no     |
+    // | **X**    | a natural runout         | a natural runout  | yes    |
+    // | **3+**   | the floor                | the floor         | yes    |
+    //
+    // The last two rows are the same auction in both systems, and the floor that
+    // answers them is inference-aware — so denying it the stripped picture it
+    // was distilled on changes *calls*, not just readings.  That was ~40% of the
+    // treatment's measured loss (`vs-X-*` and `contested-other`); see
+    // `docs/reading-drift-handoff.md`.
     if crate::bidding::american::nt_overcall_gladiator()
         && matches!(opening.strain, Strain::Hearts | Strain::Spades)
     {
-        return None;
-    }
-    if auction.get(open + 1) != Some(&Call::Bid(Bid::new(1, Strain::Notrump))) {
-        return None;
+        let gladiator_owns_it = match auction.get(open + 2) {
+            None | Some(&Call::Pass) => true,
+            Some(&Call::Bid(rho)) => rho.level.get() == 2,
+            Some(&Call::Double | &Call::Redouble) => false,
+        };
+        if gladiator_owns_it {
+            return None;
+        }
     }
     let mut stripped = auction.to_vec();
     stripped.remove(open);
@@ -1721,9 +1787,27 @@ impl Inferences {
                         // forcing — the instinct reading takes it as natural,
                         // five-plus (see `opener_forced_past_invitation`).  The
                         // two-level responses are Stayman and transfers.
-                        let over_one_notrump = is_opening_side
-                            && opening_bid == Bid::new(1, Strain::Notrump)
-                            && bid.level.get() == 3;
+                        //
+                        // Our 1NT *overcall* is the same structure one seat
+                        // over, so the advancer's three-level suit is natural
+                        // and forcing too — never the weak six-card jump the
+                        // `jump >= 1` arm below would read.  Systems-on gets
+                        // this free (`systems_on_overcall_strip` deletes their
+                        // opening and the auction reads as an opening 1NT);
+                        // Gladiator turns the strip off because its advances
+                        // differ, so the walk has to recognise the overcall
+                        // itself — `gladiator_advances` authors the game-forcing
+                        // `3♣`/`3♦`/`3O` as `len(suit, 5..)`, and a 6+ reading
+                        // excluded every five-card advancer from its own box.
+                        let one_nt = Bid::new(1, Strain::Notrump);
+                        let our_one_nt_overcall = !is_opening_side
+                            && opening_bid.level.get() == 1
+                            && opening_bid.strain.is_suit()
+                            && auction.get(opening_index + 1) == Some(&Call::Bid(one_nt))
+                            && index > opening_index + 1
+                            && (index - opening_index - 1) % 4 == 2;
+                        let over_one_notrump = bid.level.get() == 3
+                            && ((is_opening_side && opening_bid == one_nt) || our_one_nt_overcall);
                         // Responder's 3OM slam try and Smolen jumps are
                         // artificial three-level majors in a new suit (partner
                         // never bid it); never read them as a natural long suit.
@@ -2321,12 +2405,18 @@ impl Inferences {
             if matches!(who, Relative::Me | Relative::Partner) {
                 let who = who as usize;
                 match gladiator.advance {
-                    // The relay is weak-or-invitational (< game); only the point
-                    // cap is a sound per-call fact (the suit is revealed by the
-                    // XYZ-style rebid over 2♦, read naturally).
-                    GladiatorAdvance::Relay => {
-                        players[who].narrow_points(Range::new(0, 9));
-                    }
+                    // No band: the relay is a *three-way* disjunction — a weak
+                    // ♦/`o` takeout, any invitational hand, **or a game-forcing
+                    // balanced hand with exactly three `o`** heading for the
+                    // delayed cue (`gladiator_advances`, the 2♣ rule; its
+                    // continuation authors the delayed cue `points(inv..)`,
+                    // unbounded).  A `0..=9` cap here was intersected into the
+                    // projection's game-forcing box and emptied it — a wrong
+                    // box, not a loose one.  The strength reading is the
+                    // authored rule's own union of boxes, and the suit stays
+                    // unread (the XYZ-style rebid over 2♦ reveals it, read
+                    // naturally).
+                    GladiatorAdvance::Relay => {}
                     GladiatorAdvance::Cue { o } => {
                         players[who].narrow_length(o, Range::at_least(4, LENGTH_CAP));
                         players[who].narrow_points(Range::at_least(8, POINTS_CAP));
@@ -2713,14 +2803,22 @@ fn project_authored(context: &Context<'_>) -> ([Dnf; 4], [Dnf; 4], u64) {
         // has been retired (alert-by-disclosed-meaning, the move modern bridge
         // made retiring "X is self-alerting").  A pass is natural-by-default and
         // never alerted; it decodes on the pass-reading knob instead.
+        let alerted = !is_pass
+            && rules
+                .rules()
+                .iter()
+                .any(|rule| rule.call() == made && rule.alert().is_some());
         let decode = if is_pass {
             decode_pass
         } else {
-            alert_reading()
-                && rules
-                    .rules()
-                    .iter()
-                    .any(|rule| rule.call() == made && rule.alert().is_some())
+            // An *unalerted* authored call is natural, so it is read by the
+            // natural walk — and the rule that produced it says nothing, which
+            // is how a rule and its reading drift apart (the regime-2 class of
+            // `docs/reading-drift-handoff.md`).  Knob-on, project it too: the
+            // union is the same sound one, but the suppression bit below stays
+            // clear, so the projection *adds to* the walk's natural reading
+            // instead of replacing it.
+            (alerted && alert_reading()) || natural_reading()
         };
 
         if let Some(projection) = projection.filter(|_| decode) {
@@ -2738,9 +2836,9 @@ fn project_authored(context: &Context<'_>) -> ([Dnf; 4], [Dnf; 4], u64) {
             // 4NT keycard ask sits on the same call as an unalerted weight-0.3
             // catch-all, whose ⊤ would union the agreement away.  But disclosure
             // does not work like that: an alerted call is explained as *the
-            // convention*, not as the residue sharing its bid.  Non-pass calls
-            // only reach here when `decode` found an alert, so the filter always
-            // matches something.
+            // convention*, not as the residue sharing its bid.  An unalerted
+            // call reaching here on `natural_reading()` has nothing to announce
+            // beyond what it projects, and the `unwrap_or_else` catches it.
             let agreement = if announce_split && !is_pass {
                 rules
                     .rules()
@@ -2755,7 +2853,11 @@ fn project_authored(context: &Context<'_>) -> ([Dnf; 4], [Dnf; 4], u64) {
             announced[who] = announced[who].intersect(&agreement);
             players[who] = players[who].intersect(&projection);
             // A pass suppresses nothing — it never had a natural suit reading.
-            if !is_pass && index < 64 {
+            // Neither does an unalerted call read only because `natural_reading`
+            // is on: it *is* natural, and suppressing it would delete the walk's
+            // lane bookkeeping (natural-suit masks, agreed fits, cue detection)
+            // that later calls read from.
+            if alerted && index < 64 {
                 suppressed |= 1 << index;
             }
         }
@@ -5099,8 +5201,531 @@ mod tests {
         crate::bidding::american::set_nt_overcall_gladiator(false);
         // No phantom club suit raised from the doubled strain...
         assert_eq!(inf.partner().length(Suit::Clubs), Range::FULL_LENGTH);
-        // ...and the relay's sub-game point cap is recorded.
-        assert_eq!(inf.partner().strength.points, Range::new(0, 9));
+        // ...and no point cap: the relay's third arm is game-forcing, so the
+        // `0..=9` this used to assert excluded hands the agreement admits (see
+        // the `Relay` arm of the post-walk block).
+        assert_eq!(inf.partner().strength.points, Range::FULL_POINTS);
+    }
+
+    /// The system's own choice at `auction` — the highest finite logit, book
+    /// and floor together (the in-crate twin of `examples/common::next_call`,
+    /// minus the legality filter: every call these tests expect is legal).
+    fn chosen_call(stance: &crate::bidding::Stance, hand: Hand, auction: &[Call]) -> Call {
+        let (logits, _) = stance
+            .classify_with_provenance(hand, RelativeVulnerability::NONE, auction)
+            .expect("the Gladiator node classifies");
+        (&logits.0)
+            .into_iter()
+            .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("logits are never NaN"))
+            .map(|(call, _)| call)
+            .expect("array is never empty")
+    }
+
+    /// Do we play the card we claim to play?
+    ///
+    /// Our Gladiator (`set_nt_overcall_gladiator`) adapts the Crowborough card
+    /// — <https://www.bridgewebs.com/crowborough/NT%20Responses.htm> — from a
+    /// 1NT *opening* to our 1NT *overcall*, where `2♦` is natural and the cue
+    /// is Stayman, so the relay must also park the hands that card's `2♦`
+    /// Extended Stayman takes.  This replays the **bidder** (not the rule
+    /// table) over one representative hand per advance and per relay
+    /// continuation, so a floor that drifts under the structure shows up as a
+    /// red test rather than as a convention that quietly stops firing.
+    #[test]
+    fn gladiator_advances_follow_the_card() {
+        crate::bidding::american::set_nt_overcall_gladiator(true);
+        let stance = crate::american().against();
+        let node = [bid(1, Strain::Spades), bid(1, Strain::Notrump), Call::Pass];
+        // After the relay and its forced 2♦ puppet: the XYZ-style sort.
+        let sorted: Vec<Call> = node
+            .iter()
+            .copied()
+            .chain([
+                bid(2, Strain::Clubs),
+                Call::Pass,
+                bid(2, Strain::Diamonds),
+                Call::Pass,
+            ])
+            .collect();
+
+        // (hand, auction, expected call, what the hand is)
+        let rows: &[(&str, &[Call], Call, &str)] = &[
+            // Their major is ♠, so the one unbid major `o` is ♥ throughout.
+            (
+                "873.93.KJ973.T94",
+                &node,
+                bid(2, Strain::Clubs),
+                "weak with 5+♦ — the relay's weak takeout arm",
+            ),
+            (
+                "K872.Q93.J84.Q93",
+                &node,
+                bid(2, Strain::Clubs),
+                "invitational, nothing to bid directly — the relay's INV arm",
+            ),
+            (
+                "K3.Q876.KJ84.972",
+                &node,
+                bid(2, Strain::Spades),
+                "INV with exactly 4♥, not 4333 — the cue, Stayman for ♥",
+            ),
+            (
+                "K3.972.KJ864.Q93",
+                &node,
+                bid(2, Strain::Diamonds),
+                "INV with exactly 5♦ — natural",
+            ),
+            (
+                "93.KJ864.K73.Q92",
+                &node,
+                bid(2, Strain::Hearts),
+                "INV with exactly 5♥ — natural",
+            ),
+            (
+                "93.874.J6.KQ9764",
+                &node,
+                bid(2, Strain::Notrump),
+                "weak with 6+♣ — the transfer to clubs",
+            ),
+            (
+                "3.KQ86.AJ84.K976",
+                &node,
+                bid(3, Strain::Spades),
+                "GF raise of ♥ with a singleton spade — the splinter",
+            ),
+            // The relay's continuations over the forced 2♦.
+            (
+                "873.93.KJ973.T94",
+                &sorted,
+                Call::Pass,
+                "weak with ♦ — pass the puppet",
+            ),
+            (
+                "93.KJ864.T73.972",
+                &sorted,
+                bid(2, Strain::Hearts),
+                "weak with 5+♥ — the takeout",
+            ),
+            (
+                "K872.Q93.J84.Q93",
+                &sorted,
+                bid(2, Strain::Notrump),
+                "balanced INV (flat 4333: no delayed cue)",
+            ),
+            (
+                "K872.Q93.KJ84.9",
+                &sorted,
+                bid(2, Strain::Spades),
+                "INV with exactly 3♥, not 4333 — the delayed cue",
+            ),
+            (
+                "932.7.QJ9764.KJ2",
+                &sorted,
+                bid(3, Strain::Diamonds),
+                "INV with a good 6-card suit",
+            ),
+            // The relay's *third* arm — a game-forcing balanced hand with
+            // exactly 3♥ — is authored but weight-shadowed: at 0.5 it loses to
+            // `3NT` (1.2) and to the 3-level naturals (1.3), so no hand plays
+            // it.  Deliberate (the box is too confined to adjudicate an A/B on),
+            // and pinned here so the divergence is documented rather than
+            // hidden: the arm is read, never played.
+            (
+                "K942.Q76.AJ83.K4",
+                &node,
+                bid(3, Strain::Notrump),
+                "GF balanced with exactly 3♥ — arm 3 is shadowed by 3NT",
+            ),
+        ];
+
+        let mut failures: Vec<String> = Vec::new();
+        for &(text, auction, expected, what) in rows {
+            let hand: Hand = text.parse().expect("a hand");
+            let made = chosen_call(&stance, hand, auction);
+            if made != expected {
+                failures.push(format!("{text} ({what}): bid {made}, carded {expected}"));
+            }
+        }
+        crate::bidding::american::set_nt_overcall_gladiator(false);
+
+        assert!(
+            failures.is_empty(),
+            "Gladiator diverges from the card:\n{}",
+            failures.join("\n"),
+        );
+    }
+
+    /// Every Gladiator reading admits the hand that actually made the call.
+    ///
+    /// The behavioural analogue of `authored_rules_eval_within_projection`,
+    /// which cannot cover this table: that sweep walks the shipped tries, and
+    /// `gladiator_advances` is only in one when the knob is on.  It also covers
+    /// what no static sweep can — the hand-written stamps in the post-walk
+    /// block, which may narrow past what the rules promise (this test is what
+    /// caught the relay's `0..=9` band deleting the game-forcing box).
+    #[test]
+    fn gladiator_readings_admit_the_bidder() {
+        use rand::SeedableRng as _;
+
+        crate::bidding::american::set_nt_overcall_gladiator(true);
+        set_dnf_reading(true);
+        let stance = crate::american().against();
+        let node = [bid(1, Strain::Spades), bid(1, Strain::Notrump), Call::Pass];
+
+        let mut rng = rand::rngs::StdRng::seed_from_u64(0x61AD);
+        let hands: Vec<Hand> = crate::bidding::verify::random_hands(&mut rng)
+            .take(256)
+            .collect();
+
+        let mut failures: Vec<String> = Vec::new();
+        // The advancer sits two seats back once a pass follows their call, so
+        // `Relative::Partner` is the seat that just bid.
+        //
+        // Every advance, not just the ones `gladiator_reading` decodes: the
+        // card's *natural* advances are read by the walk, and the walk used to
+        // read the game-forcing `3♣`/`3♦`/`3O` — authored `len(suit, 5..)` — as
+        // a weak six-card jump, excluding every five-card advancer from its own
+        // box.  Fixed by teaching the walk that our 1NT *overcall* takes the
+        // same three-level reading as an opening 1NT (`over_one_notrump`), and
+        // pinned here so the two layers cannot drift apart again.
+        let check = |failures: &mut Vec<String>, hand: Hand, auction: &[Call], made: Call| {
+            let mut read: Vec<Call> = auction.to_vec();
+            read.push(made);
+            read.push(Call::Pass);
+            let inferences = stance.infer(RelativeVulnerability::NONE, &read);
+            if !inferences.admits(Relative::Partner, hand) && failures.len() < 16 {
+                failures.push(format!(
+                    "[{}] reading excludes the hand that bid it: {hand}",
+                    read.iter()
+                        .map(ToString::to_string)
+                        .collect::<Vec<_>>()
+                        .join(" "),
+                ));
+            }
+        };
+
+        // Both reading regimes.  Knob-on, the natural advances project their
+        // authoring rule *on top of* the walk's reading, so a walk claim that
+        // contradicts the rule empties the box instead of quietly overriding it
+        // — the sweep is how `set_natural_reading` gets adjudicated per node.
+        for natural in [false, true] {
+            set_natural_reading(natural);
+            for &hand in &hands {
+                let made = chosen_call(&stance, hand, &node);
+                check(&mut failures, hand, &node, made);
+                // Relayers carry on through the forced 2♦ — the only route to
+                // the delayed cue, whose stamp is the other narrowing one.
+                if made != bid(2, Strain::Clubs) {
+                    continue;
+                }
+                let sorted: Vec<Call> = node
+                    .iter()
+                    .copied()
+                    .chain([
+                        bid(2, Strain::Clubs),
+                        Call::Pass,
+                        bid(2, Strain::Diamonds),
+                        Call::Pass,
+                    ])
+                    .collect();
+                let continued = chosen_call(&stance, hand, &sorted);
+                check(&mut failures, hand, &sorted, continued);
+            }
+            // The runout branch too — `[1♠, 1NT, (X)]` is authored, so its
+            // escapes are read by the walk like any other natural call.
+            let doubled = [
+                bid(1, Strain::Spades),
+                bid(1, Strain::Notrump),
+                Call::Double,
+            ];
+            for &hand in &hands {
+                let made = chosen_call(&stance, hand, &doubled);
+                check(&mut failures, hand, &doubled, made);
+            }
+        }
+        set_natural_reading(false);
+        crate::bidding::american::set_nt_overcall_gladiator(false);
+
+        assert!(
+            failures.is_empty(),
+            "Gladiator readings exclude their own bidders:\n{}",
+            failures.join("\n"),
+        );
+    }
+
+    /// A doubled 1NT overcall runs out — it does not jump to the three level.
+    ///
+    /// Gladiator turns off `systems_on_overcall_strip`, which is what let the
+    /// floor read `[1M, 1NT, X]` as a doubled *opening* 1NT.  Without it the
+    /// distilled net escaped a 1-count to `3♥`; `gladiator_doubled_runout` is
+    /// the book node that shadows it.
+    #[test]
+    fn gladiator_runs_out_of_the_doubled_overcall() {
+        crate::bidding::american::set_nt_overcall_gladiator(true);
+        let stance = crate::american().against();
+        let node = [
+            bid(1, Strain::Spades),
+            bid(1, Strain::Notrump),
+            Call::Double,
+        ];
+
+        // (hand, expected, what it is)
+        let rows: &[(&str, Call, &str)] = &[
+            ("873.93.KJ973.T94", bid(2, Strain::Diamonds), "bust, 5♦"),
+            ("93.KJ864.T73.972", bid(2, Strain::Hearts), "bust, 5♥"),
+            ("93.874.J6.KQ9764", bid(2, Strain::Clubs), "bust, 6♣"),
+            (
+                "8732.932.J973.T4",
+                Call::Pass,
+                "1-count, no five-bagger: sit",
+            ),
+            (
+                "T9843.93.J973.T4",
+                Call::Pass,
+                "bust with five of THEIR major: sit, never run into it",
+            ),
+            ("K872.Q93.J84.Q93", Call::Redouble, "values: play 1NT××"),
+        ];
+
+        let mut failures: Vec<String> = Vec::new();
+        for &(text, expected, what) in rows {
+            let hand: Hand = text.parse().expect("a hand");
+            let made = chosen_call(&stance, hand, &node);
+            if made != expected {
+                failures.push(format!("{text} ({what}): bid {made}, carded {expected}"));
+            }
+        }
+        crate::bidding::american::set_nt_overcall_gladiator(false);
+
+        assert!(
+            failures.is_empty(),
+            "the doubled 1NT overcall misplays its runout:\n{}",
+            failures.join("\n"),
+        );
+    }
+
+    /// `set_natural_reading` publishes what an unalerted authored rule promises.
+    ///
+    /// `gladiator_advances` authors the game-forcing `3♦` as
+    /// `len(♦, 5..) & points(game..)`.  It is natural, so it carries no alert and
+    /// the projection pass skips it: the walk supplies a length floor and the
+    /// game force is simply lost.  Knob-on the rule's own box is intersected in.
+    #[test]
+    fn natural_reading_publishes_an_unalerted_rules_promise() {
+        crate::bidding::american::set_nt_overcall_gladiator(true);
+        set_dnf_reading(true);
+        let auction = [
+            bid(1, Strain::Spades),
+            bid(1, Strain::Notrump),
+            Call::Pass,
+            bid(3, Strain::Diamonds),
+            Call::Pass,
+        ];
+
+        set_natural_reading(false);
+        let off = read_booked(&auction);
+        set_natural_reading(true);
+        let on = read_booked(&auction);
+        set_natural_reading(false);
+        crate::bidding::american::set_nt_overcall_gladiator(false);
+
+        assert_eq!(
+            off.partner().strength.points,
+            Range::FULL_POINTS,
+            "knob-off the game force is unread"
+        );
+        assert!(
+            on.partner().strength.points.min >= 10,
+            "knob-on the rule's `points(game..)` reaches the reading, got {:?}",
+            on.partner().strength.points,
+        );
+        // The walk's natural reading survives: the call is not suppressed, so
+        // the diamond suit is still read from the auction, not only from the box.
+        assert!(on.partner().length(Suit::Diamonds).min >= 5);
+    }
+
+    /// Every Gladiator continuation ends where the card says, not where the
+    /// floor guesses.
+    ///
+    /// Authoring a node **shadows** the floor, so this sweep is also the record
+    /// of what is deliberately *not* authored: every "advancer passes the game
+    /// opposite a limited hand" leaf below is answered by the floor and answered
+    /// right, and a bare `Pass` node there would only cost the floor its slam
+    /// machinery.  The three that are authored are the ones the floor got wrong
+    /// — it raised a weak signoff on three trumps, bid `3NT` opposite a hand
+    /// that had denied 8 points, and answered Leaping Michaels `4♣` with `5NT`.
+    #[test]
+    fn gladiator_continuations_are_authored_to_the_leaf() {
+        crate::bidding::american::set_nt_overcall_gladiator(true);
+        let stance = crate::american().against();
+        let p = Call::Pass;
+        let base = [bid(1, Strain::Spades), bid(1, Strain::Notrump), p];
+        let seq = |tail: &[Call]| -> Vec<Call> {
+            base.iter().copied().chain(tail.iter().copied()).collect()
+        };
+        let relay = bid(2, Strain::Clubs);
+        let forced = bid(2, Strain::Diamonds);
+
+        // (auction, hand, expected, what)
+        let rows: Vec<(Vec<Call>, &str, Call, &str)> = vec![
+            // --- authored: the floor was wrong here ---
+            (
+                seq(&[relay, p, forced, p, bid(2, Strain::Hearts), p]),
+                "AQ8.AK9.Q852.A93",
+                p,
+                "16 with three hearts: pass the weak signoff (floor raised)",
+            ),
+            (
+                seq(&[relay, p, forced, p, bid(2, Strain::Hearts), p]),
+                "AQ86.AKJ.Q85.A93",
+                p,
+                "17 with three hearts: pass (floor bid 3NT opposite a bust)",
+            ),
+            (
+                seq(&[relay, p, forced, p, bid(2, Strain::Hearts), p]),
+                "AQ8.AKJ2.Q85.A9",
+                bid(3, Strain::Hearts),
+                "18 with four hearts: the one sound push",
+            ),
+            (
+                seq(&[bid(4, Strain::Clubs), p]),
+                "AQ8.AK9.Q852.A93",
+                bid(4, Strain::Hearts),
+                "Leaping 4♣ (5-5 hearts+clubs GF), three-card fit (floor bid 5NT)",
+            ),
+            (
+                seq(&[bid(4, Strain::Diamonds), p]),
+                "AQ86.AKJ.Q85.A93",
+                bid(4, Strain::Hearts),
+                "Leaping 4♦, three-card fit",
+            ),
+            (
+                seq(&[bid(4, Strain::Spades), p]),
+                "AQ8.AK9.Q852.A93",
+                bid(5, Strain::Diamonds),
+                "Leaping 4♠ (both minors), diamonds the longer",
+            ),
+            // --- deliberately left to the floor, and it answers right ---
+            (
+                seq(&[bid(2, Strain::Notrump), p, bid(3, Strain::Clubs), p]),
+                "93.874.J6.KQ9764",
+                p,
+                "weak club transfer completed: pass",
+            ),
+            (
+                seq(&[forced, p, bid(3, Strain::Notrump), p]),
+                "K3.972.KJ864.Q93",
+                p,
+                "invitational 2♦ accepted to 3NT: pass",
+            ),
+            (
+                seq(&[bid(2, Strain::Hearts), p, bid(4, Strain::Hearts), p]),
+                "93.KJ864.K73.Q92",
+                p,
+                "invitational 2♥ raised to game: pass",
+            ),
+            (
+                seq(&[
+                    relay,
+                    p,
+                    forced,
+                    p,
+                    bid(2, Strain::Notrump),
+                    p,
+                    bid(3, Strain::Notrump),
+                    p,
+                ]),
+                "K872.Q93.J84.Q93",
+                p,
+                "balanced invitation accepted: pass",
+            ),
+            (
+                seq(&[bid(3, Strain::Spades), p, bid(4, Strain::Hearts), p]),
+                "3.KQ86.AJ84.K976",
+                p,
+                "splinter raised to game: pass",
+            ),
+            (
+                seq(&[bid(3, Strain::Diamonds), p, bid(3, Strain::Notrump), p]),
+                "KQT.K8.AJT64.QJ4",
+                p,
+                "game-forcing 3♦ placed in 3NT: pass",
+            ),
+        ];
+
+        let mut failures: Vec<String> = Vec::new();
+        for (auction, text, expected, what) in rows {
+            let hand: Hand = text.parse().expect("a hand");
+            let made = chosen_call(&stance, hand, &auction);
+            if made != expected {
+                failures.push(format!("{text} ({what}): bid {made}, wanted {expected}"));
+            }
+        }
+        crate::bidding::american::set_nt_overcall_gladiator(false);
+
+        assert!(
+            failures.is_empty(),
+            "Gladiator continuations land in the wrong place:\n{}",
+            failures.join("\n"),
+        );
+    }
+
+    /// Gladiator keeps the systems-on strip where it has no structure of its own.
+    ///
+    /// Over RHO's **X** and over 3-level-or-higher interference, Gladiator and
+    /// systems-on play the same auction (a natural runout, then the floor), so
+    /// the strip identity still holds and the inference-aware floor keeps the
+    /// picture it was distilled on.  Over a pass or a 2-level bid it does not —
+    /// the advances, the stolen relay and Transfer Lebensohl all diverge.
+    #[test]
+    fn gladiator_keeps_the_strip_where_it_has_no_structure() {
+        crate::bidding::american::set_nt_overcall_gladiator(true);
+        let p = Call::Pass;
+        let one_s = bid(1, Strain::Spades);
+        let one_nt = bid(1, Strain::Notrump);
+        // (auction after [1♠, 1NT], stripped?)
+        let rows: &[(&[Call], bool, &str)] = &[
+            (&[Call::Double], true, "their X — a runout in both systems"),
+            (
+                &[bid(3, Strain::Clubs)],
+                true,
+                "3-level — the floor in both",
+            ),
+            (
+                &[bid(4, Strain::Hearts)],
+                true,
+                "4-level — the floor in both",
+            ),
+            (&[], false, "quiet — the Gladiator advances"),
+            (&[p], false, "quiet — the Gladiator advances"),
+            (
+                &[bid(2, Strain::Clubs)],
+                false,
+                "their 2♣ — the stolen relay",
+            ),
+            (
+                &[bid(2, Strain::Hearts)],
+                false,
+                "their 2♥ — Transfer Lebensohl",
+            ),
+        ];
+        let mut failures: Vec<String> = Vec::new();
+        for &(tail, want, what) in rows {
+            let auction: Vec<Call> = [one_s, one_nt]
+                .into_iter()
+                .chain(tail.iter().copied())
+                .collect();
+            let got = super::systems_on_overcall_strip(&auction).is_some();
+            if got != want {
+                failures.push(format!("{what}: stripped = {got}, wanted {want}"));
+            }
+        }
+        crate::bidding::american::set_nt_overcall_gladiator(false);
+        assert!(
+            failures.is_empty(),
+            "strip scope wrong:\n{}",
+            failures.join("\n")
+        );
     }
 
     #[test]

@@ -37,6 +37,18 @@ struct Args {
     /// Re-price at this vulnerability instead of the dump's
     #[arg(short, long)]
     vulnerability: Option<AbsoluteVulnerability>,
+    /// After the table, print the N worst boards (for the feature) of one
+    /// bucket — the forensic step the table can only point at.  Needs
+    /// `--bucket`; scored by `--show-score`.
+    #[arg(long, default_value_t = 0)]
+    show: usize,
+    /// Which bucket `--show` dumps (an exact label from the table)
+    #[arg(long)]
+    bucket: Option<String>,
+    /// Scorer `--show` ranks by: `pd` (the default — a contested bucket's
+    /// verdict is read from PD) or `plain`
+    #[arg(long, default_value = "pd")]
+    show_score: String,
 }
 
 /// Load every `shard-*.json` in a dir, concatenated, plus the dump vulnerability.
@@ -326,6 +338,34 @@ fn main() {
     };
     for r in &rows {
         print_row(r.label, r);
+    }
+
+    // The forensic: the worst boards of one bucket, with both arms' auctions.
+    if args.show > 0 {
+        let label = args.bucket.as_deref().expect("--show needs --bucket");
+        let series = match args.show_score.as_str() {
+            "plain" => &plain,
+            "pd" => &pd,
+            other => panic!("--show-score must be plain or pd, got {other}"),
+        };
+        let mut swings: Vec<(usize, i64)> = (0..on.len())
+            .filter(|&i| bucket_of[i] == label && divergent[i])
+            .map(|i| (i, series[i]))
+            .collect();
+        swings.sort_by_key(|&(_, imp)| imp);
+        let show = args.show.min(swings.len());
+        println!(
+            "\n--- {label}: {show} worst for the feature ({}), of {} fired ---",
+            args.show_score,
+            swings.len(),
+        );
+        for &(i, imp) in swings.iter().take(show) {
+            let (con, coff) = contracts[i];
+            println!(
+                "[{imp:+} IMP] {}\n  on:  {} -> {con:?}\n  off: {} -> {coff:?}",
+                on[i].deal, on[i].table_a, off[i].table_a,
+            );
+        }
     }
 
     // TOTAL = every bucket summed (all boards, all contract-divergent).

@@ -4719,6 +4719,57 @@ fn gladiator_gf_minor_answer() -> Rules {
     Rules::new().rule(Bid::new(3, Strain::Notrump), 1.2, hcp(0..))
 }
 
+/// Overcaller's reply to the weak `2O` signoff off the relay
+/// (`[2♣, P, 2♦, P, 2O]` — advancer 5+ `O`, under invitational)
+///
+/// Advancer took the relay to *run*, not to invite: it has denied invitational
+/// values by not rebidding `2NT`/`3X`/the cue.  Pass, unless a maximum with real
+/// support wants one more — `3O` on four trumps and 18, where nine trumps and
+/// 22-plus points make the partscore push sound.  Unauthored, the floor read the
+/// signoff as a free bid and raised on **three** trumps, or bid `3NT` opposite a
+/// hand that had just denied 8 points.
+fn gladiator_relay_signoff_answer(their_major: Suit) -> Rules {
+    let o = other_major(their_major);
+    let os = Strain::from(o);
+    Rules::new()
+        .rule(Bid::new(3, os), 1.2, len(o, 4..) & hcp(18..))
+        .rule(Call::Pass, 1.0, hcp(0..))
+}
+
+/// Overcaller's reply to Leaping Michaels (`4♣`/`4♦` = 5-5 `O` + that minor;
+/// `4M` = 5-5 both minors — both game-forcing)
+///
+/// `shown` is the minor the jump named, [`None`] for the both-minors `4M`.  The
+/// auction is already past `3NT`, so there is no notrump landing and the only
+/// question is which known fit to take: three-card support for `O` plays the
+/// major game, otherwise five of the minor (the longer one when the jump showed
+/// both).  Unauthored, the floor answered `4♣` with **`5NT`**.
+fn gladiator_leaping_answer(their_major: Suit, shown: Option<Suit>) -> Rules {
+    let o = other_major(their_major);
+    let os = Strain::from(o);
+    match shown {
+        Some(minor) => Rules::new().rule(Bid::new(4, os), 1.4, len(o, 3..)).rule(
+            Bid::new(5, Strain::from(minor)),
+            1.2,
+            hcp(0..),
+        ),
+        None => Rules::new()
+            .rule(
+                Bid::new(5, Strain::Diamonds),
+                1.2,
+                at_least_as_long(Suit::Diamonds, Suit::Clubs),
+            )
+            .rule(
+                Bid::new(5, Strain::Clubs),
+                1.2,
+                longer_suit(Suit::Clubs, Suit::Diamonds),
+            )
+            // Finite catch-all: the two above already partition, but a table
+            // that can reject a hand falls through to the floor.
+            .rule(Bid::new(5, Strain::Clubs), 0.5, hcp(0..)),
+    }
+}
+
 /// Advancer places the contract after the cue-answer showed a MIN fit (cheapest
 /// `O`, 15–16 + 4 `O`): game-forcing values raise to `4O`, invitational pass.
 fn gladiator_cue_min_fit(their_major: Suit) -> Rules {
@@ -4742,6 +4793,51 @@ fn gladiator_cue_min_misfit() -> Rules {
     Rules::new()
         .rule(Bid::new(3, Strain::Notrump), 1.3, points(10..))
         .rule(Call::Pass, 1.0, hcp(0..))
+}
+
+/// Advancer's runout when RHO doubles our 1NT overcall (`[1M, 1NT, X]`)
+///
+/// A doubled 1NT always wants a runout.  The systems-on graft gets one for
+/// free: [`systems_on_overcall_strip`][crate::bidding] deletes their opening, the
+/// auction reads as an opening 1NT, and the deterministic floor's
+/// `responder_one_nt_runout` rules fire on a well-formed picture.  Gladiator
+/// turns that strip off — its advances differ, so the strip identity no longer
+/// holds — and the distilled net, fed the unstripped auction, escaped to the
+/// *three* level on a bust (`8732.932.J973.T4` bid `3♥` doubled).  A finite book
+/// node shadows the floor, so author the house card here instead.
+///
+/// `XX` = values, play `1NT××`; otherwise run to a five-plus suit, the longer
+/// the better.  **Never into their major** — our side bidding their suit reads
+/// as a cue, and running into the suit they opened is the worst landing on the
+/// board.  A bust with no other five-bagger sits.
+fn gladiator_doubled_runout(their_major: Suit) -> Rules {
+    // Matches the floor's `set_runout_xx_min` default: below it we run, at it
+    // or above we sit for the redouble.
+    let xx_min = 7;
+    let mut rules = Rules::new().rule(Call::Redouble, 1.2, hcp(xx_min..));
+    for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
+        if suit == their_major {
+            continue;
+        }
+        let strain = Strain::from(suit);
+        let major_bonus = if matches!(suit, Suit::Hearts | Suit::Spades) {
+            0.05
+        } else {
+            0.0
+        };
+        rules = rules
+            .rule(
+                Bid::new(2, strain),
+                1.0 + major_bonus,
+                len(suit, 5..) & hcp(..xx_min),
+            )
+            .rule(
+                Bid::new(2, strain),
+                1.1 + major_bonus,
+                len(suit, 6..) & hcp(..xx_min),
+            );
+    }
+    rules.rule(Call::Pass, 0.3, hcp(0..))
 }
 
 /// Advancer's response to partner's Michaels cue-bid over their opening `t`
@@ -5218,6 +5314,20 @@ pub fn defensive() -> Defensive {
                 gladiator_gf_major_answer(suit),
             );
 
+            // Leaping Michaels — overcaller places the 5-5 game force.
+            for (jump, shown) in [
+                (call(4, Strain::Clubs), Some(Suit::Clubs)),
+                (call(4, Strain::Diamonds), Some(Suit::Diamonds)),
+                (call(4, theirs), None),
+            ] {
+                insert_all_seats(
+                    &mut d,
+                    &seq(&[jump, p]),
+                    3,
+                    gladiator_leaping_answer(suit, shown),
+                );
+            }
+
             // 2♣ relay → forced 2♦ → advancer's XYZ-style sort; overcaller then
             // accepts or declines each invitational rebid.
             let relay = call(2, Strain::Clubs);
@@ -5246,6 +5356,14 @@ pub fn defensive() -> Defensive {
                 &seq(&[relay, p, forced, p, call(3, os), p]),
                 3,
                 gladiator_relay_major_answer(suit),
+            );
+            // The weak `2O` takeout is a signoff, not a free bid — overcaller
+            // passes it unless a max with four trumps pushes once.
+            insert_all_seats(
+                &mut d,
+                &seq(&[relay, p, forced, p, call(2, os), p]),
+                3,
+                gladiator_relay_signoff_answer(suit),
             );
             // Delayed cue (relay → forced 2♦ → cue of their major = exactly 3 `O`,
             // INV+, not flat): overcaller shows min/max × 5-`O`-fit/misfit, then
@@ -5278,8 +5396,17 @@ pub fn defensive() -> Defensive {
             }
 
             // --- RHO acts over our 1NT before advancer can bid Gladiator ---
-            // (RHO's Double is handled by the instinct-floor runout; only 2♣ and
-            // the 2-level suit overcalls need book structure here.)
+
+            // (X): a doubled 1NT always wants a runout, and Gladiator cannot
+            // borrow the graft's — turning off `systems_on_overcall_strip`
+            // leaves the floor reading an auction it was never distilled on.
+            // Author it (see `gladiator_doubled_runout`).
+            insert_all_seats(
+                &mut d,
+                &[Call::Bid(opening), one_nt, Call::Double],
+                3,
+                gladiator_doubled_runout(suit),
+            );
 
             // (2♣): systems on, but it is Gladiator.  2♣ steals no room — every
             // other advance still sits above it — so only the 2♣ relay is
