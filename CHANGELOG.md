@@ -105,6 +105,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `vendor/ben/nolimit.patch`, whose CRLF context lines must match BEN's own
   files byte-for-byte. No tracked file changed under renormalization.
 
+### Fixed
+
+- **The divergence meter pooled passed and unpassed hands under one key.**
+  `probe-pass-meaning` grouped by `common::auction_key`, which strips leading
+  passes for dealer-invariance — right for the census worklist, unsound for a
+  published-vs-actual comparison, because passer status changes the reading.
+  Its headline finding, "`1♣ P 1♥` announces 6..=11 while responders run past
+  20", was therefore **a false positive**: a new-suit response is unlimited
+  (`at_least(6, POINTS_CAP)`) and an opening pass caps at 11
+  (`set_pass_reading`, default on), so the key was comparing the passed-hand
+  reading against the unpassed population. The example now keys on the full
+  prefix; the same seed splits it into `1♣ P 1♥` reading 6..=37 against
+  observed 6-20 and `P P 1♣ P 1♥` reading 6..=11 against observed 6-11 —
+  sound on both sides. No bidding, reading, or `src/` change; the census and
+  soundness probes keep the stripped key. The second reported defect
+  (`1♠ P 2♠` announcing a floor of 6 while 4–5-point hands raise) is
+  unaffected by this mechanism and stays open, but wants a re-run on the
+  corrected keys before it is priced.
+
 ### Changed
 
 - **Longest-first advance said as a constraint, not a weight race.** The

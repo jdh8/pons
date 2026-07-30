@@ -3,8 +3,8 @@
 //! The sampled-projection design (docs/ai-bidder/sampled-projection.md) asks
 //! for the real acceptance rate before any storage machinery is built.  One
 //! self-play sweep answers it for *every* position at once: bid `count` deals,
-//! record the actor's hand at each decision, and group by the census's auction
-//! key.  Traffic is the sample weight — the highest-traffic blind keys (the
+//! record the actor's hand at each decision, and group by auction prefix.
+//! Traffic is the sample weight — the highest-traffic blind keys (the
 //! defensive head: passes over their preempts and 1NT, fourth-seat passes) get
 //! the largest samples for free, with no per-node rejection sampling at all.
 //!
@@ -17,6 +17,14 @@
 //! - **support-edge danger** — the observed extremes are *sample* bounds, not
 //!   rule bounds; p1/p99 beside min/max show whether mass dies off before the
 //!   edge (safe to tighten toward) or runs right up to it (widen, never trust).
+//!
+//! Keys keep their **leading passes**, unlike the census's
+//! [`auction_key`][common::auction_key]: passer status changes the published
+//! reading — an opening pass caps at 11 points
+//! ([`set_pass_reading`][pons::bidding::set_pass_reading]) — so pooling
+//! `1♣ P 1♥` with `P P 1♣ P 1♥` compares a passed hand's correct 6..=11
+//! against an unpassed population running to 21.  That was this example's
+//! first false positive; the wider key is what keeps a row one population.
 //!
 //! No double-dummy, no solver.
 //!
@@ -37,7 +45,18 @@ use std::collections::HashMap;
 #[path = "common/mod.rs"]
 #[allow(dead_code)]
 mod common;
-use common::{auction_key, bid_out, seat_to_act, seeded_deals};
+use common::{bid_out, seat_to_act, seeded_deals};
+
+/// The full auction prefix as a key, leading passes intact (see the module doc)
+// ponytail: not `common::auction_key` — its pass stripping is dealer-invariance
+// for the census worklist, and pooling passer status is unsound *here*.
+fn prefix_key(prefix: &[Call]) -> String {
+    prefix
+        .iter()
+        .map(ToString::to_string)
+        .collect::<Vec<_>>()
+        .join(" ")
+}
 
 #[derive(Parser)]
 struct Args {
@@ -157,7 +176,7 @@ fn main() {
         for index in 0..auction.len() {
             let prefix = &auction[..=index];
             let seat = seat_to_act(dealer, index);
-            keys.entry(auction_key(prefix))
+            keys.entry(prefix_key(prefix))
                 .or_insert_with(|| KeyAgg::new(prefix, dealer))
                 .add(deal[seat]);
         }

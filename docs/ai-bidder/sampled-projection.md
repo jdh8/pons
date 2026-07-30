@@ -600,11 +600,24 @@ auctions, so a consumer that retrains on probed features must retrain on the
 *post-probe* auction distribution.
 
 The same example doubles as a **published-vs-actual divergence meter**, and
-its first run already caught two: `1♣ P 1♥` announces 6..=11 while observed
-responders run to 24 (the natural walk's non-jump response band — the 1-over-1
-sibling of the erased 2/1 reading), and `1♠ P 2♠` announces a floor of 6
-while 4–5-point hands measurably raise (fuzzy-gate slack breaching a
-published floor). Both are open defects to price, not fixed here.
+its first run reported two candidate defects. One was the meter's own:
+`1♣ P 1♥` appeared to announce 6..=11 against responders running past 20.
+Both readings were correct and the *row* was wrong — `auction_key` strips
+leading passes, so the key pooled `1♣ P 1♥` (unpassed responder, a new suit
+is unlimited: `at_least(6, POINTS_CAP)`) with `P P 1♣ P 1♥` (passed
+responder, where `set_pass_reading`'s 11-point opening-pass cap correctly
+intersects it to 6..=11), and printed whichever prefix the aggregate happened
+to store. **Two populations, one row.** The meter now keys on the full prefix
+(2026-07-30); split, the same seed gives 6..=37 against observed 6-20 for the
+unpassed key and 6..=11 against observed 6-11 for the passed ones — sound on
+both sides. *Lesson: a divergence meter must key on everything that changes
+the reading, and passer status changes it.*
+
+The second is real and open: `1♠ P 2♠` announces a floor of 6 while
+4–5-point hands measurably raise (fuzzy-gate slack breaching a published
+floor). A pass cap lowers a ceiling and cannot raise a floor, so the pooling
+above does not explain it — but it was measured on the same pooled keys, so
+price it from a re-run, not from the original row.
 
 ### The A/B verdict (2026-07-30, seed 1785344858, 204,800 bd/arm/vul)
 
