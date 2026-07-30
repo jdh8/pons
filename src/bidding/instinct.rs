@@ -181,11 +181,11 @@ std::thread_local! {
     static DOUBLER_XX_RUNOUT: Cell<bool> = const { Cell::new(true) };
 
     /// Whether advances of partner's simple overcall are Rubens transfers /
-    /// the cue-raise (**on by default** — today's behavior; see
-    /// [`set_rubens_advances`]).  Off recovers a natural-advances baseline for
-    /// A/B: raises stay the natural ladder and a knob-off natural new-suit
-    /// advance covers the hands the transfers covered.
-    static RUBENS_ADVANCES: Cell<bool> = const { Cell::new(true) };
+    /// the cue-raise (**off by default since 2026-07-31** — the layer was
+    /// measured against the natural ladder it replaced and lost; see
+    /// [`set_rubens_advances`]).  On restores the transfer structure: raises go
+    /// through a relay and the cue-raise means a limit-plus raise.
+    static RUBENS_ADVANCES: Cell<bool> = const { Cell::new(false) };
 
     /// HCP floor at which a strong-1NT responder forces game off the floor *in an
     /// undisturbed auction* (A/B knob; see [`set_nt_responder_game_floor`]).  The
@@ -532,15 +532,34 @@ fn rein_advance_raise_enabled() -> bool {
 
 /// Enable or disable Rubens advances of partner's simple overcall
 ///
-/// **On by default** (today's behavior): over a one-level overcall the calls
-/// from the cue up to just below partner's suit are transfers, and over a
-/// two-level overcall the cue is the limit-plus raise.  Disable to recover a
-/// natural-advances baseline — raises stay the natural ladder (the limit
-/// distinction is lost, the honest natural price) and a natural two-level
-/// new-suit advance replaces the new-suit transfer.  For A/B measurement (see
-/// `bba-gen --no-ns-rubens`); read at classification time, per-thread.  The
-/// [`Inferences`] reading shares the knob: off, an advance in the band is a
-/// genuine suit.
+/// **Off by default since 2026-07-31 — a reversal on re-measure.**  The layer
+/// won its M6.3 A/B (2026-07-02, plain +0.0016 ±0.0015 with the CI excluding
+/// zero, PD −0.0009 wash, 1144 fired) once both sides' continuations were
+/// authored, and shipped default-on on that.  Re-measured on the current
+/// system (`scripts/rubens-ab.sh`, 204,800 bd/arm/vul, SEED_BASE 1785426828,
+/// sha 4485555) it **loses in all four cells** — plain −0.0009 ±0.0009 NV / −0.0008 ±0.0011 vul, PD
+/// −0.0014 ±0.0011 / −0.0014 ±0.0013 (both PD CIs clear of zero), fired
+/// 0.11%/0.09%, −0.83/−0.85 plain and −1.29/−1.51 PD per fired board.  The
+/// default is now the natural ladder: raises stay the natural ladder (the
+/// limit distinction is lost, the honest natural price) and a natural
+/// two-level new-suit advance covers the hands the transfers covered.
+///
+/// On, the calls from the cue up to just below partner's suit are transfers
+/// over a one-level overcall, and the cue is the limit-plus raise over a
+/// two-level one.  The firing rate fell with the verdict — 1144 fired at M6.3
+/// against 218/193 now on the same 204,800 boards, so the floor around it
+/// moved and the transfers are reached far less often than when they won.
+/// Kept as a knob for re-measure — the losing tail is
+/// over-reach (`1♦ 1♠ - 2♥` climbing to a failing `4♠` where the natural arm
+/// stops), not one unauthored continuation, and the transfers were mostly not
+/// reached in the first place: over `1♣ (1♥) P` the bidder took the `2♦`
+/// transfer 0.4% of the time, holding six-plus *diamonds*
+/// (`probe-bba-constraints --mode rub-ch --ours`,
+/// docs/reader-retirement.md §The Rubens layer).
+///
+/// Read at classification time, per-thread.  The [`Inferences`] reading shares
+/// the knob: off, an advance in the band is a genuine suit — so this default
+/// also silences `rubens_reading`.
 ///
 /// [`Inferences`]: super::inference::Inferences
 #[doc(hidden)]
@@ -5504,6 +5523,7 @@ mod tests {
 
     #[test]
     fn rubens_new_suit_transfer() {
+        set_rubens_advances(true);
         // (1♣) 1♠ (P): advancing partner's spade overcall with our own five-card
         // diamond suit, we transfer — 2♣ shows diamonds (the next suit up).  The
         // floor is 10 upgraded points (a *good* 9 and all 10+), since the
@@ -5517,6 +5537,7 @@ mod tests {
 
     #[test]
     fn rubens_limit_raise_transfer() {
+        set_rubens_advances(true);
         // (1♣) 1♠ (P): a limit raise of partner's spades goes through the
         // transfer that lands in their suit — 2♥ (the bid just below 2♠).
         let auction = [call(1, Strain::Clubs), call(1, Strain::Spades), Call::Pass];
@@ -5525,6 +5546,7 @@ mod tests {
 
     #[test]
     fn rubens_completion_is_mechanical() {
+        set_rubens_advances(true);
         // (1♣) 1♠ (P) 2♣ (P): partner transferred to diamonds; the overcaller
         // completes into 2♦ regardless of hand.
         let auction = [
@@ -5542,6 +5564,7 @@ mod tests {
 
     #[test]
     fn rubens_two_level_cue_raise() {
+        set_rubens_advances(true);
         // (1♠) 2♣ (P): partner overcalled at the two level, so the cue (2♠) is
         // the limit-plus raise of clubs — no transfer ladder where there is no room.
         let auction = [call(1, Strain::Spades), call(2, Strain::Clubs), Call::Pass];
@@ -5559,6 +5582,7 @@ mod tests {
 
     #[test]
     fn rubens_completes_through_the_double() {
+        set_rubens_advances(true);
         // (1♣) 1♠ (P) 2♣ (X): opener lead-directs against the transfer; the
         // completion still fires — otherwise the relay dies and partner plays
         // the phantom suit doubled.
@@ -5577,6 +5601,7 @@ mod tests {
 
     #[test]
     fn rubens_max_breaks_the_completion_to_game() {
+        set_rubens_advances(true);
         // (1♣) 1♠ (P) 2♥ (P): partner's transfer into our spades showed 10+
         // with support, so a maximum places the game instead of completing.
         let auction = [
@@ -5606,6 +5631,7 @@ mod tests {
 
     #[test]
     fn rubens_new_suit_break_bids_what_it_would_over_natural() {
+        set_rubens_advances(true);
         // (1♣) 1♠ (P) 2♦ (P): partner shows hearts.  The completion covers the
         // would-pass-a-natural-2♥ hands; with a fit and values the overcaller
         // bids what it would have bid over that natural 2♥.
@@ -5643,6 +5669,7 @@ mod tests {
 
     #[test]
     fn rubens_transferee_clarifies_with_extras() {
+        set_rubens_advances(true);
         // (1♣) 1♠ (P) 2♦ (P) 2♥ (P): the heart transfer was wide yet
         // unlimited — a six-card maximum now bids the game.
         let hearts = [
@@ -5676,6 +5703,7 @@ mod tests {
 
     #[test]
     fn rubens_raiser_moves_with_extras_over_the_completion() {
+        set_rubens_advances(true);
         // (1♣) 1♠ (P) 2♥ (P) 2♠ (P): the mechanical completion denied extras,
         // so the raiser drives to game with 14+ and rests below it otherwise.
         let auction = [
@@ -5695,6 +5723,7 @@ mod tests {
 
     #[test]
     fn rubens_cue_answer_places_the_contract() {
+        set_rubens_advances(true);
         // (1♠) 2♣ (P) 2♠ (P): partner's cue-raise must never play their suit.
         let auction = [
             call(1, Strain::Spades),
@@ -5721,6 +5750,7 @@ mod tests {
 
     #[test]
     fn rubens_cue_answer_fires_through_the_system() {
+        set_rubens_advances(true);
         // The same node reached through `american()`: the floor rule must not
         // be shadowed by a book node (`project_floor_shadowed_by_book_nodes`),
         // or the cue keeps passing out at the real table.
@@ -5751,7 +5781,8 @@ mod tests {
 
     #[test]
     fn rubens_disabled_reverts_to_natural_advances() {
-        // Knob off (`set_rubens_advances`): the same hands advance naturally.
+        // Knob off (`set_rubens_advances`) — the default since the layer A/B:
+        // the same hands advance naturally.
         set_rubens_advances(false);
         let auction = [call(1, Strain::Clubs), call(1, Strain::Spades), Call::Pass];
         // The limit raise is a direct natural raise, not the 2♥ transfer.
@@ -5771,7 +5802,6 @@ mod tests {
             Call::Pass,
         ];
         assert_ne!(best(&after, "AKJ52.K3.952.J32"), call(2, Strain::Diamonds));
-        set_rubens_advances(true);
     }
 
     #[test]

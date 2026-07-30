@@ -1006,11 +1006,12 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_doubler_run: bool,
 
-    /// Disable Rubens advances of partner's simple overcall (default on): the
-    /// transfers/cue-raise revert to natural raises plus a natural two-level
-    /// new-suit advance — the natural-advances baseline for the A/B.
+    /// Enable Rubens advances of partner's simple overcall (**default off**
+    /// since the layer lost its A/B, `scripts/rubens-ab.sh`): the natural
+    /// raises plus natural two-level new-suit advance become the transfer
+    /// ladder and the two-level cue-raise.  Also un-silences `rubens_reading`.
     #[arg(long, default_value_t = false)]
-    no_ns_rubens: bool,
+    ns_rubens: bool,
 
     /// Disable recording the one-level Rubens transfers' meaning (default on):
     /// the transfers revert to suppress-only, the overcaller blind to the shown
@@ -1401,7 +1402,7 @@ fn main() -> anyhow::Result<()> {
     pons::bidding::instinct::set_penalty_no_pull(!args.ns_allow_pull);
     pons::bidding::instinct::set_advancer_xx_runout(!args.no_ns_xx_runout);
     pons::bidding::instinct::set_doubler_xx_runout(!args.no_ns_doubler_run);
-    pons::bidding::instinct::set_rubens_advances(!args.no_ns_rubens);
+    pons::bidding::instinct::set_rubens_advances(args.ns_rubens);
     pons::bidding::set_rubens_transfer_reading(!args.no_ns_rubens_reading);
     pons::bidding::instinct::set_floor_rkcb(!args.no_ns_floor_rkcb);
     pons::bidding::set_control_bid_reading(!args.no_ns_control_bid_reading);

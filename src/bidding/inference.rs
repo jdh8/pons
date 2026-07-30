@@ -5461,8 +5461,8 @@ mod tests {
 
     #[test]
     fn rubens_reading_respects_the_knob() {
-        // With Rubens advances off (`set_rubens_advances`), the same 2♣ is a
-        // genuine club suit — the suppression lifts and it reads naturally.
+        // With Rubens advances off — the default since the layer A/B — the same
+        // 2♣ is a genuine club suit: the suppression lifts and it reads naturally.
         crate::bidding::instinct::set_rubens_advances(false);
         set_cue_reading(false);
         let inf = read(&[
@@ -5474,7 +5474,6 @@ mod tests {
         ]);
         assert!(inf.partner().length(Suit::Clubs).min >= 4);
         set_cue_reading(true);
-        crate::bidding::instinct::set_rubens_advances(true);
     }
 
     #[test]
@@ -5650,6 +5649,7 @@ mod tests {
 
     #[test]
     fn rubens_limit_raise_transfer_records_support() {
+        crate::bidding::instinct::set_rubens_advances(true);
         // (1♣) 1♠ (P) 2♥ (P): partner's transfer into our spades is the
         // limit-plus raise — the overcaller reads three-plus spades and
         // ten-plus points, while the named hearts stay unread (a relay).
@@ -5667,6 +5667,7 @@ mod tests {
 
     #[test]
     fn rubens_new_suit_transfer_records_the_target() {
+        crate::bidding::instinct::set_rubens_advances(true);
         // (1♣) 1♠ (P) 2♣ (P): the new-suit transfer shows the advancer's own
         // five-card diamond suit and ten-plus points; clubs stay unread.
         let inf = read(&[
@@ -5683,6 +5684,7 @@ mod tests {
 
     #[test]
     fn rubens_transfer_records_despite_intervention() {
+        crate::bidding::instinct::set_rubens_advances(true);
         // (1♣) 1♠ (P) 2♥ (X): opener doubles the transfer — the completion
         // never comes, but the shown limit raise is exactly what the
         // overcaller needs for the competitive decision.
@@ -5874,6 +5876,7 @@ mod tests {
 
     #[test]
     fn rubens_transfer_reading_knob_recovers_suppress_only() {
+        crate::bidding::instinct::set_rubens_advances(true);
         // Stage-2 knob off: the transfer is still suppressed (not natural
         // hearts) but records nothing — the pre-fix shape.
         set_rubens_transfer_reading(false);

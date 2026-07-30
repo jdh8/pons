@@ -13,10 +13,10 @@
 # The reading then decodes those natural calls as artificial Rubens ones — a
 # phantom-suit reading on our own partner.
 #
-# Two arms per vul, identical deals:
-#   on    the shipped default (Rubens advances + their reading)
-#   off   --no-ns-rubens (the natural advance ladder; the reading follows the
-#         knob, so `rubens_reading` goes silent with it)
+# Two arms per vul, identical deals.  The layer LOST (see the CHANGELOG entry
+# and docs/bidding-options.md), so the arms are expressed off the new default:
+#   off   the shipped default (natural advance ladder; `rubens_reading` silent)
+#   on    --ns-rubens (the transfer ladder + cue-raise, and their reading)
 #
 #   setsid nohup scripts/idle-run.sh scripts/rubens-ab.sh \
 #       ab-results/rubens >ab-results/rubens.log 2>&1 &
@@ -26,10 +26,10 @@ R=${1:?usage: rubens-ab.sh RESULTS_DIR}
 . "$(dirname "$0")/ab-lib.sh"
 SEED_BASE=$(seed_for)
 
-log "=== rubens start, sha=$SHA, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul (--no-ns-rubens vs default)"
+log "=== rubens start, sha=$SHA, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul (--ns-rubens vs default)"
 for vul in none both; do
-    arm on  "$vul"
-    arm off "$vul" --no-ns-rubens
+    arm on  "$vul" --ns-rubens
+    arm off "$vul"
     diffpair on off "$vul"
 done
 log "=== rubens done"

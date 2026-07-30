@@ -45,7 +45,7 @@ chop; four of them are one missing `.alert(...)` away.
 | `woolsey_x_reading` | our Woolsey X (4M + longer minor) | same (`woolsey_x_advance`'s 2♣) |
 | `multi_reading` | the Multi 2♦ in our Woolsey defense | same (`multi_advances` pass-or-correct) |
 | `landy_advance_suppress` | advances of our Landy 2♣ | same, plus `equal_majors` is an opaque `equal_length` predicate that projects nothing |
-| `rubens_reading` | Rubens advances of our overcall | two knobs (`rubens_advances_enabled` + `rubens_transfer_reading`); the only reader touching the `support_points` axis. **Chop blocked pending the layer A/B**: the reader's length claims are measured unsound on *both* sides, and the underlying convention may not be live at all — see §The Rubens layer below |
+| `rubens_reading` | Rubens advances of our overcall | two knobs (`rubens_advances_enabled` + `rubens_transfer_reading`); the only reader touching the `support_points` axis. **Silent under the default** since the layer lost its re-measure (2026-07-31) — the reader shares `rubens_advances_enabled`. Reachable only through `--ns-rubens`, where its length claims are measured unsound on *both* sides; see §The Rubens layer below |
 | `gladiator_reading` | Gladiator responses to our 1NT overcall | the `(2♣)`→`Pass` auction rebase and self-recursion, which no box can carry. **Also drifts**: stamps `points 0..9` on the relay while the rule's third arm is `points(game..)` = 10+, deleting the projection's GF box. Fix that first, on its own A/B |
 | `responder_overcall_double_reading` | responder's X of their overcall | no knob at all, and its `points ≥ 8` is a hand-derived intersection across three `DoubleStyle` variants — a real authoring job, not a delete |
 | `penalty_latch_double_reading` | penalty doubles under the latch | reconstructs a latch by carrying `last_suit_bid` across calls, and its `penalty_x_reading` helper has an agreement contract with the floor (`instinct.rs`). Retire last, or never |
@@ -170,6 +170,19 @@ Generalisation worth carrying to the other nine: a reader is only as sound as
 the *bidder*, not the rule it transcribes — read a call off the bidder before
 trusting its authored meaning
 ([sampled-projection.md](ai-bidder/sampled-projection.md)).
+
+**Verdict (2026-07-31): the layer lost on re-measure, and is now default-off.**
+It won M6.3 (2026-07-02: plain +0.0016 ±0.0015, CI excluding zero; PD −0.0009
+wash; 1144 fired) with both sides' continuations authored. Re-run on the
+current system it reverses, and fires 5× less often — 204,800
+bd/arm/vul, SEED_BASE 1785426828, sha `4485555` — plain −0.0009 ±0.0009 NV /
+−0.0008 ±0.0011 vul, PD −0.0014 ±0.0011 / −0.0014 ±0.0013, all four cells
+negative and both PD CIs clear of zero; fired 0.11%/0.09%. The tail is
+over-reach, not one unauthored continuation (15 of 60 worst boards involve a
+double at all). So `rubens_reading` is now **silent under the default** and its
+three unsound legs are moot: the chop becomes a straight deletion whenever the
+knob itself is retired, and until then the reader is only reachable through
+`--ns-rubens`. Nothing here needs authoring.
 
 ## Ledger
 

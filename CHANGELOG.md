@@ -193,6 +193,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Rubens advances are now opt-in — the layer reversed on re-measure.**
+  `set_rubens_advances` (transfer advances of partner's simple overcall plus
+  the two-level cue-raise) **won its M6.3 A/B** (2026-07-02, third round with
+  both sides' continuations authored: plain +0.0016 ±0.0015 with the CI
+  excluding zero, PD −0.0009 wash, 1144 fired) and shipped default-on on that
+  verdict. A month of shipped work later it does not hold up.
+  **REVERSED — LOSS in all four cells**
+  (`scripts/rubens-ab.sh`, 204,800 bd/arm/vul, SEED_BASE 1785426828, sha
+  `4485555`): plain **−0.0009 ±0.0009 NV / −0.0008 ±0.0011 vul**, PD
+  **−0.0014 ±0.0011 / −0.0014 ±0.0013** — both PD CIs clear of zero, plain NV
+  touching it — fired 0.11%/0.09%, −0.83/−0.85 plain and −1.29/−1.51 PD per
+  fired board. This is the mirror of the plain-wash + PD-win rule that ships
+  things default-on. The **firing rate moved too** — 1144 fired at M6.3 against
+  218/193 now on the same 204,800 boards, so the floor around the layer changed
+  underneath it (evaluator v3 calls-tail, DNF reading default-on, the
+  suit-indexed support scale, `points` → PointCount all landed in between) and
+  the transfers are reached roughly five times less often than when they won. Tail traced before calling it (60 worst, NV): **not** the
+  doubled advance (15 boards, −182 of −650 IMPs) but plain over-reach — the
+  `1♦ 1♠ - 2♥` transfer climbing to a failing `4♠` where the natural arm stops
+  in 2♥ or passes out, plus wrong-strain landings (`- 4♥` where the natural arm
+  reaches 4♠). Attribution is the **bidding** half: `set_rubens_transfer_reading`
+  separately measured a wash. What prompted the measurement is in
+  [docs/reader-retirement.md](docs/reader-retirement.md) §The Rubens layer —
+  the bidder was barely playing the convention (over `1♣ (1♥) P` it took the
+  `2♦` "transfer into partner's hearts" 0.4% of the time, holding **6–7
+  diamonds and 1–2 hearts**), while `rubens_reading` decoded those natural
+  calls as artificial ones. **User impact:** advances of a simple overcall
+  revert to the natural ladder — a limit raise raises, a good five-card suit
+  bids itself at the two level. The knob is kept for re-measure and now reads
+  `bba-gen --ns-rubens` (renamed from `--no-ns-rubens` with the default), and
+  because the reader shares the knob, `rubens_reading` is **silent under the
+  default** — the three unsound legs it was about to be patched for
+  (cue length over a minor, cue band over a major, the transfer's length claim
+  at 93.3% wrong on our own partner) are moot. Fifteen unit tests and three
+  integration tests that relied on the on-default now enable it explicitly;
+  `cards/American.bbsa` is byte-identical (BBA has no card slot for transfer
+  advances, so the ON arm's calls were never disclosable — any concealment
+  value is invisible to DD, as always).
+
 - **Docs: `set_dnf_reading`'s options row was two chops stale.**
   [docs/bidding-options.md](docs/bidding-options.md) still filed the knob as
   **OFF** with the verdict *"Flip REFUTED as-is — LOSS all 4 cells"*, while the

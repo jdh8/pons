@@ -93,12 +93,17 @@ fn test_deep_contested_auction_is_covered() {
 // --- Precedence ---------------------------------------------------------------
 
 // --- Rubens advances: the floor owns advancing a simple overcall ------------
+//
+// The layer is **opt-in** since it lost its A/B (`scripts/rubens-ab.sh`), so
+// these three enable it explicitly; the knob-off default is pinned by
+// `rubens_disabled_reverts_to_natural_advances` in `instinct.rs`.
 
 /// (1♣) 1♠ (P): advancing with our own five-card diamond suit and a good 9
 /// (10+ upgraded points) transfers — 2♣ shows diamonds.  Reaches the floor now
 /// that the book authors no `advances`.
 #[test]
 fn test_rubens_new_suit_transfer_through_system() {
+    pons::bidding::instinct::set_rubens_advances(true);
     let system = stance();
     assert_eq!(
         best_call(
@@ -114,6 +119,7 @@ fn test_rubens_new_suit_transfer_through_system() {
 /// suit — 2♥, not a direct 2♠.
 #[test]
 fn test_rubens_limit_raise_through_system() {
+    pons::bidding::instinct::set_rubens_advances(true);
     let system = stance();
     assert_eq!(
         best_call(
@@ -147,6 +153,7 @@ fn test_rubens_preemptive_raise_through_system() {
 /// (2♠) is the limit-plus club raise.
 #[test]
 fn test_rubens_cue_raise_through_system() {
+    pons::bidding::instinct::set_rubens_advances(true);
     let system = stance();
     assert_eq!(
         best_call(
