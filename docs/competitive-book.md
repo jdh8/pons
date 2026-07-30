@@ -68,11 +68,19 @@ UvU-style: cheaper cue (their lower suit / the other-major cue) = limit+ raise
 (alert `comp:uvu-major-raise`), second cue = GF other-major, X = values /
 penalty interest, direct raises stay natural-competitive, jump raise
 preemptive. Opener reuses `answer_cue_raise`/`answer_cue_minor_raise` for the
-limit+ cue. One hand-written reading: suppress the natural walk's "their cue
-of our opened suit = natural 5+ suit" misread (unsound vs Michaels), record
-the two-suiter shape when the knob is on. Fixes a live misbid: today the
-negative-double rule fires over `1♥-(2♥ Michaels)`.
-Deferral: their-Michaels-over-our-minors (`1m-(2m)`), same misread.
+limit+ cue. Fixes a live misbid: today the negative-double rule fires over
+`1♥-(2♥ Michaels)`.
+
+P1 is now a **pure book package**. It shipped with one hand-written reading
+(suppress the natural walk's "their cue of our opened suit = natural 5+ suit"
+misread, record the two-suiter shape); that reader was retired as chop 1 of
+[reader-retirement.md](reader-retirement.md), so the two halves of the misread
+are owned generically: `set_cue_reading` (the natural walk records no length
+for a cue) and `set_table_alert_reading` (the projection decodes the alerted
+Michaels / unusual rules, and *adds* their `points ≥ 8` floor).
+Deferral: their-Michaels-over-our-minors (`1m-(2m)`), same misread — but note
+`defense_to_suit(1♣/1♦)` authors the both-majors Michaels with the same alert,
+so the reading half may already be closed for free; check before authoring.
 
 ### P2 — contested weak twos (`set_weak_two_competition`) + strong 2♣ (`set_strong_two_competition`)
 

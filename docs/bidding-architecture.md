@@ -166,7 +166,10 @@ seat-carrying `project` or the sampled projection.
   readings suppress the literal natural reading at the artificial bid's index
   and post-walk narrow the real shape; the per-suit ranges can't express
   disjunctions, so pin the *other* suits and let the sampler deal the residual
-  into the long suit.
+  into the long suit. That set is **shrinking**: post-`Dnf` the projection
+  carries the disjunction itself, so the hand-written readers are being retired
+  one measured chop at a time — see
+  [reader-retirement.md](reader-retirement.md).
 - Footgun: `Rules::gated` blocks keyed on an alert slug **silently drop** the
   rule when the slug isn't in the active set; alert-const names can collide
   with toggle thread-locals — pick distinct names.

@@ -168,6 +168,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Reader retirement, chop 1: `two_suiter_reading` deleted** (opens the ledger
+  in [docs/reader-retirement.md](docs/reader-retirement.md)). The hand-written
+  decoder for *their* two-suiters over our 1♥/1♠ — the Michaels cue of our own
+  major, the unusual `(2NT)` — is gone, ~85 lines out and none in. Those calls
+  are now read solely by `project_authored`'s table-alert decode of the
+  `.alert(MICHAELS)` / `.alert(UNUSUAL)` rules in `defense_to_suit`. **No user
+  impact, and no A/B was run, because there is nothing to measure**: the
+  projection hulls (`{om≥5, pts≥8}` from two boxes for Michaels, `{♣≥5, ♦≥5,
+  pts≥8}` for unusual) *contain* the reader's whole claim, that hull is folded
+  into `players` **before** the reader's post-walk recording block, and
+  `narrow_length` is a plain per-axis `Range::intersect` — so the reader was
+  already an idempotent no-op in the shipped config. Confirmed empirically: a
+  `probe-call-reading` diff over 9 auctions is byte-identical across the
+  deletion. Residue was nil — the only suppression target is alerted, so
+  `project_call` sets the natural-walk suppression bit regardless, and a
+  notrump bid never entered the suit walk. The projection is strictly *richer*
+  than what it replaced: it adds the rules' `points ≥ 8` floor, and keeps the
+  unknown Michaels minor as two separate boxes, the very disjunction the
+  reader's own doc comment conceded per-suit ranges could not pin.
+  `set_uvu_over_majors` keeps its book half; the reading is now owned by
+  `set_table_alert_reading`, and the two reading tests moved from the keyless
+  `read()` helper to `read_booked` with their off arms re-keyed accordingly. A
+  new `retired_two_suiter_reader_is_subsumed_by_the_projection` pins the subset
+  property across both seat-fans and both reading seats — a stronger guard than
+  an A/B, which could only show an empty divergent set on one seed. No meter
+  pin moved (`authored_calls_read_what_they_gate` and
+  `fallback_rules_read_what_they_gate` walk `Trie` rules, never
+  `Inferences::read`). The only behaviour lost sits outside the shipped path:
+  keyless contexts, and the `--no-ns-table-alert-reading` off arm, where the
+  loss is sound-but-looser and arguably a fix — that arm had been silently
+  keeping half the disclosure the flag claims to remove.
 - **Longest-first advance said as a constraint, not a weight race.** The
   advance-of-a-takeout-double's longest-first discipline
   (`set_longest_first_advance`, shipped default-on) was a ladder of ~10 rules

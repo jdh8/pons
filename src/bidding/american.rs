@@ -94,10 +94,8 @@ pub use competition::{
     set_uvu_cue_floor, set_uvu_natural_floor, set_uvu_over_majors, set_uvu_x_floor,
     set_weak_two_competition,
 };
-// The inference walk reads this knob at classify time (the two-suiter reading).
-pub(crate) use competition::{
-    jordan_truscott, lebensohl_style, major_support_double, uvu_over_majors,
-};
+// Knobs the inference walk reads at classify time.
+pub(crate) use competition::{jordan_truscott, lebensohl_style, major_support_double};
 pub use defense::{
     DoubleShape, NotrumpDefense, TakeoutSupport, advance_double, defense_to_suit,
     defense_to_weak_two, set_advance_2nt_continuation, set_advance_minor_jump,

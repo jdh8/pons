@@ -1672,10 +1672,6 @@ impl Inferences {
         // majors) records points only; the 2♣/2♦ minor + major and the advancer's
         // relay are suppressed like DONT's.
         let meckwell = meckwell_reading(auction);
-        // Their two-suiter over our 1M: the Michaels cue of our own major is
-        // suppressed (it is not a natural suit in our major); what each call
-        // genuinely shows is recorded post-walk.
-        let two_suiter = two_suiter_reading(auction);
         // Our natural penalty double of their 1NT (15+): a double names no suit, so the
         // generic walk reads it as nothing — the points floor is recorded post-walk.
         let penalty_x = penalty_x_reading(auction);
@@ -1761,7 +1757,6 @@ impl Inferences {
                             || woolsey_x.is_some_and(|w| w.suppresses(index))
                             || dont.is_some_and(|d| d.suppresses(index))
                             || meckwell.is_some_and(|m| m.suppresses(index))
-                            || two_suiter.is_some_and(|t| t.suppresses(index))
                             || gladiator.is_some_and(|g| g.suppresses(index));
 
                         // M6.4: a four-plus-level suit bid in the slam zone is
@@ -2316,21 +2311,6 @@ impl Inferences {
                 }
             }
             players[who].narrow_points(Range::at_least(meckwell.floor, POINTS_CAP));
-        }
-
-        // Their two-suiter over our 1M.  A Michaels cue records the other major's
-        // 5-card floor (the unknown minor is a disjunction left to the residual);
-        // the both-minors (2NT) pins both.  No points floor — mini-maxi Michaels
-        // styles run too wide for a sound one.
-        if let Some(two_suiter) = two_suiter {
-            let who = relative_of(len, two_suiter.index) as usize;
-            match two_suiter.michaels_om {
-                Some(om) => players[who].narrow_length(om, Range::at_least(5, LENGTH_CAP)),
-                None => {
-                    players[who].narrow_length(Suit::Clubs, Range::at_least(5, LENGTH_CAP));
-                    players[who].narrow_length(Suit::Diamonds, Range::at_least(5, LENGTH_CAP));
-                }
-            }
         }
 
         // Our Gladiator advance: record the real shape the suppressed call hid.
@@ -3236,70 +3216,6 @@ fn multi_reading(auction: &[Call]) -> Option<MultiReading> {
         advance_suppress,
         ..reading
     })
-}
-
-/// Their two-suiter over our 1♥/1♠ opening
-/// ([`set_uvu_over_majors`][crate::bidding::american::set_uvu_over_majors])
-///
-/// The defenders' *direct* action over our major opening, read as the
-/// NATURAL-family two-suiters: a `2M` cue of our own major is Michaels (5+ in
-/// the other major plus 5+ in an unknown minor), a `(2NT)` jump is unusual
-/// (both minors).  Without this reading the natural walk takes the Michaels
-/// cue as a genuine 5-card suit *in our own major* — the sampler then deals
-/// the cue-bidder length in the one suit the convention all but denies.  The
-/// unknown Michaels minor is a disjunction the per-suit ranges cannot pin, so
-/// only the other-major floor is recorded; no points floor either (mini-maxi
-/// Michaels styles run too wide for a sound one).
-#[derive(Clone, Copy)]
-struct TwoSuiterReading {
-    /// Index of their two-suited call
-    index: usize,
-    /// The other major shown by a Michaels cue of our opened major, or
-    /// [`None`] for the both-minors `(2NT)` (which needs no suppression — a
-    /// notrump bid never enters the walk's natural suit reading)
-    michaels_om: Option<Suit>,
-}
-
-impl TwoSuiterReading {
-    const fn suppresses(self, index: usize) -> bool {
-        self.michaels_om.is_some() && index == self.index
-    }
-}
-
-fn two_suiter_reading(auction: &[Call]) -> Option<TwoSuiterReading> {
-    if !crate::bidding::american::uvu_over_majors() {
-        return None;
-    }
-    let opening_index = auction.iter().position(|&c| c != Call::Pass)?;
-    let Call::Bid(opening) = auction[opening_index] else {
-        return None;
-    };
-    if opening.level.get() != 1 || !matches!(opening.strain, Strain::Hearts | Strain::Spades) {
-        return None;
-    }
-    let Some(&Call::Bid(direct)) = auction.get(opening_index + 1) else {
-        return None;
-    };
-
-    let index = opening_index + 1;
-    if direct == Bid::new(2, opening.strain) {
-        let om = if opening.strain == Strain::Hearts {
-            Suit::Spades
-        } else {
-            Suit::Hearts
-        };
-        Some(TwoSuiterReading {
-            index,
-            michaels_om: Some(om),
-        })
-    } else if direct == Bid::new(2, Strain::Notrump) {
-        Some(TwoSuiterReading {
-            index,
-            michaels_om: None,
-        })
-    } else {
-        None
-    }
 }
 
 /// Our **Gladiator** advance of a 1NT overcall of their major
@@ -5692,8 +5608,10 @@ mod tests {
         // 1♠ (2♠) read by the opening side: their Michaels cue resolves in
         // *their* phase-routed book (defensive at their turn) and decodes off
         // the authored rule — five-plus hearts *with the rule's strength
-        // floor*, which the hand-written two-suiter shape reader (the off
-        // arm) does not know.
+        // floor*, which the retired `two_suiter_reading` never knew (chop 1,
+        // `docs/reader-retirement.md`).  This knob is now the only owner of
+        // the reading, so its off arm is the honest record of what the
+        // retirement gives up: the shape floor goes too.
         set_table_alert_reading(true);
         let auction = [bid(1, Strain::Spades), bid(2, Strain::Spades)];
         let inf = read_booked(&auction);
@@ -5703,6 +5621,7 @@ mod tests {
         set_table_alert_reading(false);
         let off = read_booked(&auction);
         assert_eq!(off.rho().strength.points.min, 0);
+        assert_eq!(off.rho().length(Suit::Hearts).min, 0);
         set_table_alert_reading(true);
     }
 
@@ -5795,47 +5714,132 @@ mod tests {
         assert_eq!(inf.lho().strength.points, Range::FULL_POINTS);
     }
 
+    /// Their Michaels cue of our opened major, post-retirement (chop 1)
+    ///
+    /// The reading now comes from the authored `.alert(MICHAELS)` rule's own
+    /// projection, so the auction must be read **keyed** (`read_booked`) and
+    /// the knob that owns the reading is `set_table_alert_reading`, not
+    /// `set_uvu_over_majors` (which kept only its book half).  The projection
+    /// also carries the rule's strength floor, which the retired reader never
+    /// did.
     #[test]
     fn michaels_cue_over_our_major_reads_the_other_major() {
-        use crate::bidding::american::set_uvu_over_majors;
-
         // [1♥, (2♥)]: their direct cue of our opened major is Michaels — 5+
-        // spades, and NOT a natural heart suit (the walk's misread suppressed).
-        set_uvu_over_majors(true);
-        let inf = read(&[bid(1, Strain::Hearts), bid(2, Strain::Hearts)]);
+        // spades with the rule's 8+ floor, and NOT a natural heart suit (the
+        // walk's misread suppressed by the alert).
+        let inf = read_booked(&[bid(1, Strain::Hearts), bid(2, Strain::Hearts)]);
         assert!(inf.rho().length(Suit::Spades).min >= 5, "the shown major");
+        assert!(inf.rho().strength.points.min >= 8, "the rule's floor");
         assert_eq!(
             inf.rho().length(Suit::Hearts),
             Range::FULL_LENGTH,
             "the cue is not natural hearts"
         );
 
-        // Package and shipped cue reading both off: the pre-package natural
-        // reading is preserved verbatim.
-        set_uvu_over_majors(false);
+        // Table-wide disclosure and the shipped cue reading both off: the
+        // pre-package natural reading is preserved verbatim.
+        set_table_alert_reading(false);
         set_cue_reading(false);
-        let inf = read(&[bid(1, Strain::Hearts), bid(2, Strain::Hearts)]);
+        let inf = read_booked(&[bid(1, Strain::Hearts), bid(2, Strain::Hearts)]);
         assert!(inf.rho().length(Suit::Hearts).min >= 5);
         assert_eq!(inf.rho().length(Suit::Spades), Range::FULL_LENGTH);
         set_cue_reading(true);
-        set_uvu_over_majors(true);
+        set_table_alert_reading(true);
     }
 
+    /// Their unusual `(2NT)` over our major, post-retirement (chop 1) — as
+    /// above, but the authored rule is a single box, so it pins both minors
+    /// *and* the strength floor.
     #[test]
     fn unusual_2nt_over_our_major_reads_both_minors() {
-        use crate::bidding::american::set_uvu_over_majors;
-
-        set_uvu_over_majors(true);
-        let inf = read(&[bid(1, Strain::Spades), bid(2, Strain::Notrump)]);
+        let inf = read_booked(&[bid(1, Strain::Spades), bid(2, Strain::Notrump)]);
         assert!(inf.rho().length(Suit::Clubs).min >= 5);
         assert!(inf.rho().length(Suit::Diamonds).min >= 5);
-        set_uvu_over_majors(false);
+        assert!(inf.rho().strength.points.min >= 8, "the rule's floor");
 
-        // Knob off: nothing recorded for their 2NT.
-        let inf = read(&[bid(1, Strain::Spades), bid(2, Strain::Notrump)]);
+        // Table-wide disclosure off: nothing recorded for their 2NT (a notrump
+        // bid never entered the natural suit walk either).
+        set_table_alert_reading(false);
+        let inf = read_booked(&[bid(1, Strain::Spades), bid(2, Strain::Notrump)]);
         assert_eq!(inf.rho().length(Suit::Clubs), Range::FULL_LENGTH);
         assert_eq!(inf.rho().length(Suit::Diamonds), Range::FULL_LENGTH);
-        set_uvu_over_majors(true);
+        assert_eq!(inf.rho().strength.points, Range::FULL_POINTS);
+        set_table_alert_reading(true);
+    }
+
+    /// The retirement guard for chop 1 (`docs/reader-retirement.md`)
+    ///
+    /// `two_suiter_reading` claimed `other_major >= 5` for their Michaels cue
+    /// and `♣ >= 5 && ♦ >= 5` for their unusual `(2NT)`.  Every one of those
+    /// claims is a **subset** of the authoring rule's projection on every
+    /// auction the reader used to fire on — both seat-fans of the opening and
+    /// both reading seats (the opponents' call decoded by the table-alert
+    /// walk, and the same call decoded own-side at the advancer's turn) — and
+    /// the projection adds the rule's `points >= 8` on top.  That subset
+    /// property is why the chop needed no A/B: the reader's `narrow_length`
+    /// was already an idempotent intersect against a hull folded in before it.
+    #[test]
+    fn retired_two_suiter_reader_is_subsumed_by_the_projection() {
+        let michaels: [(&[Call], Relative); 3] = [
+            (
+                &[bid(1, Strain::Hearts), bid(2, Strain::Hearts)],
+                Relative::Rho,
+            ),
+            (
+                &[Call::Pass, bid(1, Strain::Hearts), bid(2, Strain::Hearts)],
+                Relative::Rho,
+            ),
+            // The advancer's turn: index 1 is now our own side, decoded by the
+            // exact-node walk rather than the table-alert one.
+            (
+                &[bid(1, Strain::Hearts), bid(2, Strain::Hearts), Call::Pass],
+                Relative::Partner,
+            ),
+        ];
+        for (auction, who) in michaels {
+            let inf = read_booked(auction);
+            let shown = inf.get(who);
+            assert!(
+                shown.length(Suit::Spades).min >= 5,
+                "{auction:?}: the retired reader's other-major floor"
+            );
+            assert!(
+                shown.strength.points.min >= 8,
+                "{auction:?}: the floor the reader never carried"
+            );
+            assert_eq!(
+                shown.length(Suit::Hearts),
+                Range::FULL_LENGTH,
+                "{auction:?}: the cue is not natural hearts"
+            );
+        }
+
+        let unusual: [(&[Call], Relative); 2] = [
+            (
+                &[bid(1, Strain::Spades), bid(2, Strain::Notrump)],
+                Relative::Rho,
+            ),
+            (
+                &[bid(1, Strain::Spades), bid(2, Strain::Notrump), Call::Pass],
+                Relative::Partner,
+            ),
+        ];
+        for (auction, who) in unusual {
+            let inf = read_booked(auction);
+            let shown = inf.get(who);
+            assert!(
+                shown.length(Suit::Clubs).min >= 5,
+                "{auction:?}: the retired reader's club floor"
+            );
+            assert!(
+                shown.length(Suit::Diamonds).min >= 5,
+                "{auction:?}: the retired reader's diamond floor"
+            );
+            assert!(
+                shown.strength.points.min >= 8,
+                "{auction:?}: the floor the reader never carried"
+            );
+        }
     }
 
     #[test]
