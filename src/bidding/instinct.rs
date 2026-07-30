@@ -285,7 +285,7 @@ std::thread_local! {
     /// eight-plus fit, *counting the trump length as points* — the total-tricks
     /// yardstick where a ninth trump ≈ a point (threshold knob; see
     /// [`set_fit_sum_game`]).  Game once
-    /// `own_points + partner.strength.points.min + (own_len + partner_shown_len) >= t`, so
+    /// `own_points + partner_shown_floor + (own_len + partner_shown_len) >= t`, so
     /// an eight-card fit games at `t - 8` combined, a nine-card fit at `t - 9`, a
     /// ten-card fit at `t - 10` — strictly lighter as the fit lengthens.  Default
     /// `31` is the dual-metric peak of a swept boundary (34→31 each a CI-clean
@@ -638,7 +638,7 @@ pub fn set_two_over_one_slam_strength(on: bool) {
 /// Partner's shown minimum points, floored by a live 2/1 (see
 /// [`set_two_over_one_slam_strength`])
 fn partner_slam_strength(context: &Context<'_>) -> u8 {
-    let shown = Inferences::read(context).partner().strength.points.min;
+    let shown = Inferences::read(context).partner().strength.shown_floor();
     if !TWO_OVER_ONE_SLAM_STRENGTH.with(Cell::get) || !two_over_one_game_force(context) {
         return shown;
     }
@@ -1839,7 +1839,7 @@ fn known_eight_card_fit(suit: Suit) -> Cons<impl Constraint + Clone> {
 /// [`Inferences`]: super::inference::Inferences
 fn combined_points(threshold: u8) -> Cons<impl Constraint + Clone> {
     pred(move |hand: Hand, context: &Context<'_>| {
-        let partner_min = Inferences::read(context).partner().strength.points.min;
+        let partner_min = Inferences::read(context).partner().strength.shown_floor();
         u16::from(point_count(hand)) + u16::from(partner_min) >= u16::from(threshold)
     })
 }
@@ -1868,10 +1868,10 @@ fn combined_hcp(threshold: u8) -> Cons<impl Constraint + Clone> {
                 partner
                     .strength
                     .hcp_floor()
-                    .unwrap_or(partner.strength.points.min),
+                    .unwrap_or_else(|| partner.strength.shown_floor()),
             )
         } else {
-            (point_count(hand), partner.strength.points.min)
+            (point_count(hand), partner.strength.shown_floor())
         };
         u16::from(own) + u16::from(partner_min) >= u16::from(threshold)
     })
@@ -1907,8 +1907,10 @@ fn slam_entry_reached() -> Cons<impl Constraint + Clone> {
 ///
 /// Folds the known combined trump length — our holding in `suit` plus partner's
 /// shown floor, the same sum [`known_eight_card_fit`] gates on — into the point
-/// total: game once `own_points + partner.strength.points.min + fit >= t` (default `t =
-/// 31`).  A ninth trump then buys game a point cheaper, a tenth two.  Partner's
+/// total: game once `own_points + partner_shown_floor + fit >= t` (default `t =
+/// 31`; the floor is `Strength::shown_floor`, the legacy `points` floor
+/// lifted by any populated support promise).  A ninth trump then buys game a
+/// point cheaper, a tenth two.  Partner's
 /// *minimum* length and points keep it a sound floor, never an overbid.  The
 /// eight-card-fit gate still lives on the rule's [`known_eight_card_fit`]; this
 /// only moves the point boundary.
@@ -1930,7 +1932,7 @@ fn fit_sum_game(suit: Suit, slack: u8) -> Cons<impl Constraint + Clone> {
             .with(Cell::get)
             .then(|| partner.strength.support_floor(suit))
             .flatten()
-            .unwrap_or(partner.strength.points.min);
+            .unwrap_or_else(|| partner.strength.shown_floor());
         let own = support_point_count_in(hand, suit);
         let fit = hand[suit].len() as u16 + u16::from(partner.length(suit).min);
         u16::from(own) + u16::from(partner_pts) + fit

@@ -840,6 +840,25 @@ impl Strength {
     pub fn hcp_floor(&self) -> Option<u8> {
         (self.hcp.max < Range::FULL_POINTS.max).then_some(self.hcp.min)
     }
+
+    /// The sharpest sound scalar floor of the shown strength — the legacy
+    /// [`points`][Self::points] floor lifted by every per-suit support promise
+    ///
+    /// The raise readers once wrote their support-scale bands verbatim onto
+    /// the legacy axis, and every floor gate summing "own count + partner's
+    /// shown floor" calibrated on that number.  Now that the legacy axis
+    /// keeps only a band's sound image (`support_band_to_points`), this max
+    /// hands those gates the same figure from its correct home.  Sound
+    /// either way: each slot floor is a true claim about the hand's value in
+    /// play with that trump, and `canonicalize` seeds slots only from the
+    /// raw-HCP floor, itself a lower bound of every scale.
+    #[must_use]
+    pub fn shown_floor(&self) -> u8 {
+        self.support_points
+            .iter()
+            .map(|slot| slot.min)
+            .fold(self.points.min, u8::max)
+    }
 }
 
 /// What the calls have shown about one player, hand-independently
@@ -1372,6 +1391,32 @@ pub struct Inferences {
     control_bid: Option<(u8, Suit)>,
 }
 
+/// The sound legacy-`points` image of a fit-known support-scale band
+///
+/// The two scales share raw HCP and diverge by side-suit shortness credit
+/// plus the double-fit term against the capped shape [`upgrade`]
+/// [`point_count`] adds.  With three-plus trumps (every fit-known site) the
+/// skew is bounded both ways: the support count exceeds [`point_count`] by at
+/// most **5** (two side voids credit 6 and the double fit 1, while that shape
+/// necessarily earns the full upgrade of 2 with nothing wasted), and trails
+/// it by at most **1** (an unbalanced hand whose only short suits are working
+/// doubletons upgrades 1 with no shortness credit).  So a support promise
+/// `[F, C]` pins the legacy scale only to `[F − 5, C + 1]` — publishing the
+/// band verbatim excluded the shapely light raises that measurably make it
+/// (the `1♠ P 2♠` divergence-meter defect: observed point counts 4–10
+/// against a published 6..=10), and [`Envelope::admits`] gauges the legacy
+/// axis unconditionally, so the sampler refused to deal partner those hands.
+/// Pinned by `support_band_points_image_is_sound`.
+///
+/// [`point_count`]: super::constraint::point_count
+/// [`upgrade`]: super::constraint::upgrade
+fn support_band_to_points(band: Range) -> Range {
+    Range::new(
+        band.min.saturating_sub(5),
+        band.max.saturating_add(1).min(POINTS_CAP),
+    )
+}
+
 impl Inferences {
     /// The shown shape and strength of one relative seat (the hull)
     #[must_use]
@@ -1862,14 +1907,13 @@ impl Inferences {
                                         Suit::ASC[partner_natural.trailing_zeros() as usize];
                                     players[who]
                                         .narrow_length(agreed, Range::at_least(3, LENGTH_CAP));
-                                    players[who].narrow_points(Range::at_least(10, POINTS_CAP));
                                     // Fit agreed (the cue names partner's suit), so
                                     // the raise's point promise is a support-scale
-                                    // one — read behind Edit 1's knob.
-                                    players[who].narrow_support_points(
-                                        agreed,
-                                        Range::at_least(10, POINTS_CAP),
-                                    );
+                                    // one; the legacy axis takes only its sound
+                                    // image.
+                                    let band = Range::at_least(10, POINTS_CAP);
+                                    players[who].narrow_points(support_band_to_points(band));
+                                    players[who].narrow_support_points(agreed, band);
                                 }
                             } else if over_one_notrump {
                                 // Natural, forcing five-card suit over our 1NT.
@@ -1993,18 +2037,17 @@ impl Inferences {
                                     .saturating_sub(cheapest_level(highest, bid.strain));
                                 // Fit agreed (raising opener's suit), so the raise
                                 // strength is a support-scale promise — the
-                                // support gauge tracks it for Edit 1's knob.
-                                match jump {
-                                    0 => {
-                                        players[who].narrow_points(Range::new(6, 10));
-                                        players[who].narrow_support_points(suit, Range::new(6, 10));
-                                    }
-                                    1 => {
-                                        players[who].narrow_points(Range::new(10, 12));
-                                        players[who]
-                                            .narrow_support_points(suit, Range::new(10, 12));
-                                    }
-                                    _ => {}
+                                // support gauge carries it exactly; the legacy
+                                // axis takes only its sound image
+                                // (`support_band_to_points`).
+                                let band = match jump {
+                                    0 => Some(Range::new(6, 10)),
+                                    1 => Some(Range::new(10, 12)),
+                                    _ => None,
+                                };
+                                if let Some(band) = band {
+                                    players[who].narrow_points(support_band_to_points(band));
+                                    players[who].narrow_support_points(suit, band);
                                 }
                             }
                         }
@@ -2149,9 +2192,11 @@ impl Inferences {
         if let Some((cue_index, overcall_suit)) = rubens_cue {
             let who = relative_of(len, cue_index) as usize;
             players[who].narrow_length(overcall_suit, Range::at_least(3, LENGTH_CAP));
-            players[who].narrow_points(Range::at_least(10, POINTS_CAP));
-            // Fit agreed (cue of partner's overcall), a support-scale promise.
-            players[who].narrow_support_points(overcall_suit, Range::at_least(10, POINTS_CAP));
+            // Fit agreed (cue of partner's overcall), a support-scale promise;
+            // the legacy axis takes only its sound image.
+            let band = Range::at_least(10, POINTS_CAP);
+            players[who].narrow_points(support_band_to_points(band));
+            players[who].narrow_support_points(overcall_suit, band);
         }
 
         // A one-level Rubens transfer records its meaning likewise (see
@@ -3955,6 +4000,40 @@ mod tests {
         Inferences::read(&stance.prefixed_context(RelativeVulnerability::NONE, auction))
     }
 
+    /// Pins the skew bound `support_band_to_points` is derived from: at every
+    /// fit-known trump (three-plus cards), `point_count` lies within the
+    /// image of the hand's own support count — so a support band's image
+    /// always contains the legacy count of every hand the band admits.
+    #[test]
+    fn support_band_points_image_is_sound() {
+        use rand::SeedableRng as _;
+
+        let mut rng = rand::rngs::StdRng::seed_from_u64(0x5B);
+        let hands = crate::bidding::verify::random_hands(&mut rng)
+            .take(4096)
+            // Extremes the random pool cannot deal: two side voids attain
+            // the +5 skew; working doubletons alone attain the −1 side.
+            .chain(
+                ["432.AKQJT98765..", "..432.AKQJT98765", "AQJT9.KQJT.A2.K2"]
+                    .map(|text| text.parse::<Hand>().unwrap_or_else(|_| unreachable!())),
+            );
+        for hand in hands {
+            for trump in Suit::ASC {
+                if hand[trump].len() < 3 {
+                    continue;
+                }
+                let support =
+                    crate::bidding::constraint::support_point_count_in(hand, trump).min(POINTS_CAP);
+                let image = support_band_to_points(Range::new(support, support));
+                let points = point_count(hand);
+                assert!(
+                    image.contains(points),
+                    "{hand}: trump {trump}, support {support}, points {points}"
+                );
+            }
+        }
+    }
+
     /// The `Dnf` box algebra: `intersect` distributes and **drops** the empty
     /// products, so a disjunctive reading stays tight instead of hulling to the
     /// bounding box.  The worked example is `1NT ∩ 4-5♥` (opener's Stayman `2♥`).
@@ -5375,14 +5454,23 @@ mod tests {
 
     #[test]
     fn raises_and_one_notrump_response_narrow_the_responder() {
-        // [1♥, P, 2♥, P]: a single raise is 6–10.
+        // [1♥, P, 2♥, P]: a single raise is 6–10 — a support-scale band, so
+        // the dedicated gauge carries it exactly and the legacy axis holds
+        // only its sound image (4-point shapely raises are measured fact:
+        // the `1♠ P 2♠` divergence-meter defect).
         let single = read(&[
             bid(1, Strain::Hearts),
             Call::Pass,
             bid(2, Strain::Hearts),
             Call::Pass,
         ]);
-        assert_eq!(single.partner().strength.points, Range::new(6, 10));
+        let hearts = Suit::Hearts as usize;
+        assert_eq!(
+            single.partner().strength.support_points[hearts],
+            Range::new(6, 10)
+        );
+        assert_eq!(single.partner().strength.points, Range::new(1, 11));
+        assert_eq!(single.partner().strength.shown_floor(), 6);
         // [1♥, P, 3♥, P]: a limit (jump) raise is 10–12.
         let limit = read(&[
             bid(1, Strain::Hearts),
@@ -5390,7 +5478,11 @@ mod tests {
             bid(3, Strain::Hearts),
             Call::Pass,
         ]);
-        assert_eq!(limit.partner().strength.points, Range::new(10, 12));
+        assert_eq!(
+            limit.partner().strength.support_points[hearts],
+            Range::new(10, 12)
+        );
+        assert_eq!(limit.partner().strength.points, Range::new(5, 13));
         // [1♥, P, 1NT, P]: a 1NT response is 6–12.
         let one_nt = read(&[
             bid(1, Strain::Hearts),
@@ -5430,7 +5522,10 @@ mod tests {
             Call::Pass,
         ]);
         assert!(inf.partner().length(Suit::Clubs).min >= 3);
-        assert!(inf.partner().strength.points.min >= 10);
+        // A support-scale promise: exact on the club slot, only its sound
+        // image on the legacy axis.
+        assert!(inf.partner().strength.support_points[Suit::Clubs as usize].min >= 10);
+        assert!(inf.partner().strength.points.min >= 5);
         assert_eq!(inf.partner().length(Suit::Spades), Range::FULL_LENGTH);
     }
 
@@ -5512,7 +5607,8 @@ mod tests {
         ]);
         assert_eq!(inf.rho().length(Suit::Diamonds), Range::FULL_LENGTH);
         assert!(inf.rho().length(Suit::Hearts).min >= 3);
-        assert!(inf.rho().strength.points.min >= 10);
+        assert!(inf.rho().strength.support_points[Suit::Hearts as usize].min >= 10);
+        assert!(inf.rho().strength.points.min >= 5);
     }
 
     #[test]

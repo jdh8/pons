@@ -17,7 +17,7 @@
 //! | **Total**            |       | **88** |
 
 use super::context::Context;
-use super::inference::{Dnf, Envelope, Inferences, Relative};
+use super::inference::{Dnf, Envelope, Inferences, Range, Relative};
 use crate::bidding::constraint::{upgrade, upgrade_ceiling};
 use contract_bridge::auction::{Call, RelativeVulnerability};
 use contract_bridge::eval::{self, HandEvaluator, SimpleEvaluator};
@@ -168,8 +168,28 @@ fn push_inference(out: &mut Vec<f32>, player: &Envelope) {
 /// Takes the [`shown`] envelope, not the raw one: [`push_inference`] has already
 /// resolved the blind knob by the time it delegates here.
 fn push_points(out: &mut Vec<f32>, shown: &Envelope) {
-    out.push(shown.strength.points.min as f32 / 37.0);
-    out.push(shown.strength.points.max as f32 / 37.0);
+    let points = net_points(shown);
+    out.push(points.min as f32 / 37.0);
+    out.push(points.max as f32 / 37.0);
+}
+
+/// The points hull served to the nets: the legacy axis with every per-suit
+/// support promise folded back in
+///
+/// The shipped nets were trained on corpora where a fit-showing raise wrote
+/// its support-scale band verbatim onto the legacy `points` axis.  The
+/// reader now keeps that axis sound (`support_band_to_points` — a 4-point
+/// shapely raise sits inside the box), which would hand a trained net an
+/// off-distribution widening at every raise auction — the pass-exclusion
+/// lesson: a reading change the net consumes is a retrain, not a free edit.
+/// Folding the slots back in reconstructs the training-time hull exactly at
+/// those nodes and is a no-op elsewhere (an unnarrowed slot is ⊤, and
+/// `canonicalize` seeds slot floors only from the raw-HCP floor the `points`
+/// axis already carries).  The next feature version retires this fold by
+/// serving the support slots as their own columns.
+fn net_points(shown: &Envelope) -> Range {
+    (shown.strength.support_points.iter())
+        .fold(shown.strength.points, |acc, slot| acc.intersect(*slot))
 }
 
 // ── The shape-distribution reading ────────────────────────────────────────────

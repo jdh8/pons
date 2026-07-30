@@ -613,11 +613,67 @@ unpassed key and 6..=11 against observed 6-11 for the passed ones — sound on
 both sides. *Lesson: a divergence meter must key on everything that changes
 the reading, and passer status changes it.*
 
-The second is real and open: `1♠ P 2♠` announces a floor of 6 while
-4–5-point hands measurably raise (fuzzy-gate slack breaching a published
-floor). A pass cap lowers a ceiling and cannot raise a floor, so the pooling
-above does not explain it — but it was measured on the same pooled keys, so
-price it from a re-run, not from the original row.
+The second was real, and is now **closed (2026-07-30)** — but the recorded
+attribution ("fuzzy-gate slack") was wrong. The re-run on corrected keys
+(100k boards, seed 1785200001) confirmed the breach survives the split on
+every passer variant — `1♠ P 2♠` observed 4-10 (n=722, p1 5) against a
+published 6..=10, `P P 1♠ P 2♠` observed 4-9 (n=332), `P 1♠ P 2♠` 5-10,
+`P P P 1♠ P 2♠` 5-9; the ceiling held everywhere — so it was not pooling,
+and the strength dial defaults to 0, so it was not fuzz either. The
+mechanism is a **unit transplant**: the raise gate is
+`support(3..) & support_points(major, 6..=9)` — a *support-scale* band,
+where side-suit shortness has value — and the hand-written reader published
+that band verbatim on the legacy `point_count` axis
+(`narrow_points(6..=10)`) beside the correct dedicated slot. A 4-HCP hand
+with a singleton holds 6+ support points, raises inside its gate, and sat
+outside the published legacy box. The same transplant lived at the jump
+raise (10..=12), the limit-plus cue-raise (10..), and the Rubens cue-raise
+(10..). `SupportPoints::project` had refused this from birth — its comment
+warns the legacy gauge has "no lower bound on the shortness scale" — only
+the hand-written reader transplanted.
+
+The fix is three-sided, because three consumer classes want three different
+things from the same number:
+
+- **The envelope** (sampler `admits`, the meter, disclosure) gets soundness:
+  the reader keeps the exact band on the support slot and writes only its
+  sound image on the legacy axis — `support_band_to_points`, floor −5 /
+  ceiling +1, the statically derived maximum inter-scale skew with 3+
+  trumps, pinned by `support_band_points_image_is_sound`. `admits` gauges
+  the legacy axis unconditionally, so before the fix constrained sampling
+  *rejected* partner's true shapely raises — the census's phantom-precision
+  failure mode, on our own partner.
+- **The floor's arithmetic gates** (`combined_points`, `combined_hcp`,
+  `fit_sum_game`, `partner_slam_strength`) get the same figure they always
+  calibrated on, from its correct home: `Strength::shown_floor()`, the
+  legacy floor lifted by every populated support promise. At every
+  hand-written raise node this reproduces the old number exactly.
+- **The nets** get their training distribution: `features::net_points`
+  folds the support slots back into the served points hull, byte-identical
+  at raise nodes to the transplanted hull the corpora contained. Serving
+  the honest widening instead would be the pass-exclusion OOD lesson again
+  (a reading change the net consumes is a retrain, not a free edit); the
+  next feature version retires the fold by serving the slots as columns.
+
+**Verification (2026-07-30).** Post-fix meter, same seed: every `1♠ P 2♠`
+passer variant reads `1..=11` with the observed 4-10 inside — sound on both
+bounds — and the per-key sample counts are byte-identical, so the self-play
+traffic did not move at the fixed keys. The behavioral residue was priced
+with a `bba-gen` dump diff (seed 1785400000, 6400 boards): 27 of 12,800
+tables diverge (0.21%), 10 contract changes, scored **plain +0.0034
+[±0.0088] / PD +0.0033 [±0.0088]** IMPs/board — a wash with positive lean
+on both scorers. The divergence does *not* sit on simple raises (their
+gates see the identical `shown_floor`); it concentrates on Jacoby-2NT and
+GF-machine auctions whose **book-projected** `support_points(major,
+16../18..)` slots existed but were consumed by nobody — `shown_floor` and
+the fold now read those sound gate claims, so a few slam auctions move in
+both directions. A full A/B can pin the residue down if it ever needs a
+sharper bound; at 0.16% contract divergence measuring wash-positive, the
+soundness fix ships without one. `probe-reading-sound` (2000 boards, seed
+1785400000, old vs new binary) prices the fix's share of the partner
+soundness defect: partner box-excludes-truth **3.515% → 3.351%** (297 →
+283 readings) — real movement, but the raise transplant was a minor slice;
+partner's residual ~3.35% stays an open defect with its mass elsewhere.
 
 ### The A/B verdict (2026-07-30, seed 1785344858, 204,800 bd/arm/vul)
 

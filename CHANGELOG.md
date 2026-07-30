@@ -107,6 +107,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **The raise readers published support-scale bands on the point-count axis
+  — the `1♠ P 2♠` divergence-meter defect, closed.** The meter re-run on
+  corrected full-prefix keys (100k boards, seed 1785200001) confirmed the
+  breach survives the passer split — `1♠ P 2♠` observed points 4-10 (n=722,
+  p1 5) against a published 6..=10, with every passed variant breaching too
+  and the ceiling holding — refuting both candidate mechanisms on record
+  (pooling, fuzz: the strength dial defaults to 0). The real mechanism is a
+  **unit transplant**: the single raise gates on
+  `support(3..) & support_points(major, 6..=9)` — a support-scale band where
+  side-suit shortness has value — and the hand-written reader wrote that
+  band verbatim onto the legacy `point_count` axis, so a 4-HCP raise with a
+  singleton (support 6+) sat outside its own published box. Same transplant
+  at the jump raise (10..=12), the limit-plus cue-raise (10..), and the
+  Rubens cue-raise (10..). Three-sided fix, one per consumer class: the
+  **envelope** turns sound — the reader keeps the exact band on the
+  dedicated support slot and the legacy axis gets only its sound image
+  (`support_band_to_points`, floor −5 / ceiling +1, the statically maximal
+  inter-scale skew at 3+ trumps, pinned by
+  `support_band_points_image_is_sound`), which un-breaks `admits`: the
+  sampler was *rejecting* partner's true shapely raises. The **floor's
+  arithmetic gates** (`combined_points`, `combined_hcp`, `fit_sum_game`,
+  `partner_slam_strength`) read `Strength::shown_floor()` — the legacy
+  floor lifted by populated support promises — handing them the exact
+  figure they always calibrated on, from its correct home. The **nets**
+  keep their training distribution: `features::net_points` folds the
+  support slots back into the served points hull (byte-identical to the
+  transplanted hull the corpora contained; serving the honest widening
+  would replay the pass-exclusion OOD loss — a reading change the net
+  consumes is a retrain, not a free edit; the next feature version retires
+  the fold by serving the slots as columns). **Verification**: post-fix
+  meter — every `1♠ P 2♠` passer variant reads `1..=11`, observed 4-10
+  inside, per-key traffic byte-identical; `bba-gen` dump diff (seed
+  1785400000, 6400 boards) — 27/12,800 tables diverge (0.21%), 10 contract
+  changes, **plain +0.0034 [±0.0088] / PD +0.0033 [±0.0088]** IMPs/board
+  (wash, positive lean both scorers).  The divergence sits on Jacoby-2NT /
+  GF-machine auctions, not raises: their book-projected
+  `support_points(16../18..)` slots were consumed by nobody, and
+  `shown_floor` + the fold now read those sound gate claims.
+  `probe-reading-sound` (2000 boards, seed 1785400000, old-vs-new binary):
+  partner box-excludes-truth **3.515% → 3.351%** — the transplant was a
+  real but minor slice of the open partner-soundness defect.
+
 - **The divergence meter pooled passed and unpassed hands under one key.**
   `probe-pass-meaning` grouped by `common::auction_key`, which strips leading
   passes for dealer-invariance — right for the census worklist, unsound for a
