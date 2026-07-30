@@ -168,6 +168,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Docs: `set_dnf_reading`'s options row was two chops stale.**
+  [docs/bidding-options.md](docs/bidding-options.md) still filed the knob as
+  **OFF** with the verdict *"Flip REFUTED as-is — LOSS all 4 cells"*, while the
+  code has been `Cell::new(true)` since the F2b′ flip day (2026-07-23). That row
+  inverted the premise of the whole reader-retirement campaign — every chop's
+  argument is "the projection carries the disjunction now", and a reader
+  checking the option index concluded the opposite. The row now records the
+  shipping verdict (chop F2b′, SEED 1784809754, 204,800 bd/arm/vul: plain
+  +0.0094/+0.0080, PD +0.0118/+0.0085 NV/vul, all CIs clear), keeps F's
+  refutation and F1's frozen-net mechanism as the standing warning that a
+  *truer* reading can lose through an evaluator it was never fit on, and names
+  the flag the flip-day rename actually left behind — `--no-ns-dnf`, not
+  `--ns-dnf`. **No user impact: documentation only, nothing in `src/` moved.**
+  Two dangling pointers went with it: `scripts/dnf-flip-ab.sh` is **deleted**
+  (dead twice over — `--ns-dnf` no longer parses, and its `off` arm "both knobs
+  off" is now the shipped default; `scripts/dnf-flip2-ab.sh` is the live
+  harness), and `examples/ab-dnf-sd-lead`'s re-adjudication pointer moves to
+  that script.
+
 - **Reader retirement, chop 1: `two_suiter_reading` deleted** (opens the ledger
   in [docs/reader-retirement.md](docs/reader-retirement.md)). The hand-written
   decoder for *their* two-suiters over our 1♥/1♠ — the Michaels cue of our own

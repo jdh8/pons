@@ -30,7 +30,7 @@
 //! sign under PD and only magnitudes change. It could never produce a
 //! per-board disagreement, and it would misattribute the opponents' doubling
 //! judgment to the leader's world model. A verdict resting on this harness
-//! alone therefore needs a **plain+PD** re-adjudication (`scripts/dnf-flip-ab.sh`),
+//! alone therefore needs a **plain+PD** re-adjudication (`scripts/dnf-flip2-ab.sh`),
 //! not an SD-PD row.
 //!
 //! ```text
