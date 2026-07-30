@@ -58,6 +58,31 @@ the parts that do not churn: protocol, interpretation, and ship rules.
 10. **Ship per the [ship rules](#ship-rules)**; record the result in
     `CHANGELOG.md` (and the relevant `docs/ai-bidder/*ledger*` if applicable).
 
+## Watching a run
+
+A long run is watched by **polling the runner process**, never by grepping the
+log for the script's own success line:
+
+```sh
+setsid nohup scripts/idle-run.sh scripts/my-ab.sh ab-results/my-ab >ab-results/my-ab.log 2>&1 &
+PID=$(pgrep -f my-ab.sh | head -1)
+while kill -0 "$PID" 2>/dev/null; do sleep 20; done
+tail -5 ab-results/my-ab.log        # then read the diff files in a *separate* command
+```
+
+Two failure modes this avoids, both paid for on the Gladiator v6 run:
+
+- **A dead run never writes its "done" line.** `while ! grep -q "A/B done"`
+  waits forever on the one outcome you most need to hear about. v6 was killed
+  at 18:57 by a mid-run `cargo build` picking up a broken tree (see item 6
+  above); the string-watcher was still waiting minutes later. Since then
+  `idle-run.sh` also prints `idle-run: <script> exited <status>` on *every*
+  path, so a log tail is conclusive even without the PID — but the absence of
+  the job's own done line beside a non-zero status is what names the failure.
+- **Chaining the report into the watcher loses the report.** Killing a stuck
+  watcher throws away the `ab-dump-diff` output it was going to print. Watch,
+  then read the results in a separate command.
+
 ## Scorers (`src/scoring.rs`)
 
 | Scorer | What it scores | Use for |

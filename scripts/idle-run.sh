@@ -46,4 +46,18 @@ else
 fi
 command -v ionice >/dev/null 2>&1 && prefix+=(ionice -c3) # idle I/O class
 
-exec "${prefix[@]}" "$@"
+# Always leave a terminal line in the log, whatever happens. A watcher that
+# greps for the *job's own* "A/B done" line hangs forever when the job dies
+# (a mid-run rebuild, a `set -e` bail), so the failure goes unnoticed instead
+# of being reported. This line appears on success and on failure alike, with
+# the exit status — see docs/measurement.md § "Watching a run".
+#
+# The braces make bash parse the whole tail before running it, so editing this
+# file mid-run cannot corrupt an in-flight instance (`exec` used to give that
+# for free).
+{
+	status=0
+	"${prefix[@]}" "$@" || status=$?
+	printf 'idle-run: %s exited %d\n' "${1##*/}" "$status"
+	exit "$status"
+}

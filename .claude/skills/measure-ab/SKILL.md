@@ -31,6 +31,12 @@ read it now if this session hasn't. This skill is the run procedure.
    strictly sequential; one run already saturates every core. `tmux` or
    `setsid nohup` for long runs. Typical scale: 200k filtered boards/cell
    contested, ~205k/arm (6400 × nproc) for bba-gen; 40k filtered ≈ 1 min/cell.
+   **Watch the runner PID** (`pgrep -f <script>`, then `while kill -0 $PID`),
+   never `grep -q "A/B done"` — a run that dies never writes that line, so the
+   watcher hangs on the outcome you most need to hear. Report and read the
+   results in a *separate* command; killing a stuck watcher would take the
+   report with it. `idle-run.sh` always logs `idle-run: <script> exited <n>`.
+   See docs/measurement.md § "Watching a run".
 5. **Score both ways** — plain DD and PD — from the same solved tables, at
    both vulnerabilities (none/both). Report IMPs/board, IMPs/fired (or
    IMPs/divergent on filtered harnesses — never IMPs/board there), fired rate,

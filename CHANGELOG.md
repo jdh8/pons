@@ -150,6 +150,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`scripts/idle-run.sh` always logs a terminal line**, `idle-run: <script>
+  exited <status>`, on success and on failure alike (it no longer `exec`s the
+  job; the tail is braced so an edit can't corrupt an in-flight instance). A
+  run watched by grepping for its *own* "A/B done" line hangs forever when the
+  run dies — the Gladiator v6 A/B was killed at 18:57 by a mid-run rebuild and
+  sat unnoticed. The run procedure is now to poll the runner PID and read the
+  results in a separate command, written up in docs/measurement.md §"Watching
+  a run" and in the `measure-ab` skill.
 - **`gladiator_reading`'s relay band deleted — it was emptying the
   projection's game-forcing box.** The `Relay` arm stamped `points 0..=9`
   ("weak-or-invitational, < game") on the advancer's Gladiator `2♣`, while the
