@@ -1645,6 +1645,8 @@ fn keycard_trump(hand: Hand, context: &Context<'_>) -> Option<Suit> {
 /// no hand, no readings, so every seat (and the [`forced`] rail) provably
 /// lands on the one trump by keying on the same physical ask index
 ///
+/// The dichotomy (jdh8): when 4NT is ambiguous, it is RKCB if the side's
+/// last non-cue bid below the ask is a *suit*, quantitative if *notrump*.
 /// Two rules, in order:
 ///
 /// 1. **The known fit** — a suit *both* members of the asking side bid
@@ -1652,12 +1654,22 @@ fn keycard_trump(hand: Hand, context: &Context<'_>) -> Option<Suit> {
 ///    bidding *their* suit is cue territory, not agreement), most recent
 ///    agreement wins.  Fit precedence is what keeps a cue or control bid
 ///    on the way to 4NT from masquerading as trumps (`1♠ P 3♠ P 4♣ P 4NT`
-///    asks in spades, not clubs).
-/// 2. **The side's last bid is a suit** — then that suit is the trump:
-///    `2♥ X 3♥ X P 4♠ P 4NT` asks in spades, a completed transfer or
-///    Stayman answer asks in the found major, `1♦ P 4NT` asks in
-///    diamonds.  A last bid in *notrump* vetoes the rule — that 4NT is
-///    quantitative — and a cue of their suit is no trump either.
+///    asks in spades, not clubs).  One carve: an agreed **minor** yields
+///    when the side's last non-cue bid is notrump — that 3NT was a
+///    *sign-off* re-opening the strain (`1♦ P 3♦ P 3NT P 4NT` is
+///    quantitative), where over an agreed **major** the same 3NT is
+///    non-serious and the fit stands.  BBA agrees the minor cell is no
+///    keycard ask: probed, its own slam move there is 4♣ Gerber (ace
+///    steps), and a forced 4NT draws an unconditional 6♦ — but Gerber is
+///    rejected for pons (ambiguous when clubs are the strain); the
+///    dichotomy already gives minors their RKCB route through a suit-last
+///    auction.
+/// 2. **The side's last non-cue bid is a suit** — then that suit is the
+///    trump: `2♥ X 3♥ X P 4♠ P 4NT` asks in spades, a completed transfer
+///    or Stayman answer asks in the found major, `1♦ P 4NT` asks in
+///    diamonds, and a cue of their suit is transparent — `1♥ (3♦) 4♦ P
+///    4NT` steps back past the cue and asks in hearts.  A last bid in
+///    *notrump* vetoes the rule — that 4NT is quantitative.
 ///
 /// The final rung of [`answer_trump`]'s derivation ladder (the hand-seen
 /// fit and the provable-eight readings sit above it and see through
@@ -1669,7 +1681,7 @@ fn face_trump(auction: &[Call], ask: usize) -> Option<Suit> {
     let mut ours = [[false; 2]; 4]; // [suit][member]
     let mut theirs = [false; 4];
     let mut agreed = None;
-    let mut last = None; // the asking side's most recent bid below the ask
+    let mut last = None; // the side's most recent non-cue bid below the ask
     for (index, call) in auction.iter().enumerate().take(ask) {
         let Call::Bid(bid) = call else { continue };
         if index % 2 != ask % 2 {
@@ -1678,20 +1690,25 @@ fn face_trump(auction: &[Call], ask: usize) -> Option<Suit> {
             }
             continue;
         }
-        last = Some(bid.strain);
         let Some(suit) = bid.strain.suit() else {
+            last = Some(bid.strain);
             continue;
         };
         if theirs[suit as usize] {
-            continue;
+            continue; // a cue is transparent to the face: it never becomes `last`
         }
+        last = Some(bid.strain);
         let member = usize::from(index % 4 == ask % 4);
         if ours[suit as usize][1 - member] {
             agreed = Some(suit);
         }
         ours[suit as usize][member] = true;
     }
-    agreed.or_else(|| last?.suit().filter(|&suit| !theirs[suit as usize]))
+    agreed
+        .filter(|&suit| {
+            matches!(suit, Suit::Hearts | Suit::Spades) || last != Some(Strain::Notrump)
+        })
+        .or_else(|| last?.suit().filter(|&suit| !theirs[suit as usize]))
 }
 
 /// The trump the 4NT *answerer* counts against: the known fit if our hand
@@ -5582,6 +5599,82 @@ mod tests {
             best(&auction, "A873.KT65.84.632"),
             call(5, Strain::Hearts),
             "the answerer decodes the face-agreed trump"
+        );
+    }
+
+    /// The face dichotomy: RKCB if the side's last non-cue bid is a suit,
+    /// quantitative if notrump — cues are transparent, an agreed minor
+    /// yields to a 3NT sign-off while an agreed major survives it
+    /// (non-serious), and a suit-last minor auction keeps its RKCB route.
+    #[test]
+    fn face_trump_steps_past_cues_and_reads_the_nt_dichotomy() {
+        // `1♥ (3♦) 4♦ P 4NT`: the 4♦ cue no longer blocks partner's
+        // solo-bid hearts.
+        let cue_blocked = [
+            call(1, Strain::Hearts),
+            call(3, Strain::Diamonds),
+            call(4, Strain::Diamonds),
+            Call::Pass,
+        ];
+        assert_eq!(
+            face_trump(&cue_blocked, 4),
+            Some(Suit::Hearts),
+            "the face steps back past a cue of their suit"
+        );
+        // `1NT (2♠) 3♠ P 4NT`: the cue is skipped, the walk lands on 1NT —
+        // the veto stands, that 4NT is quantitative.
+        let nt_stop = [
+            call(1, Strain::Notrump),
+            call(2, Strain::Spades),
+            call(3, Strain::Spades),
+            Call::Pass,
+        ];
+        assert_eq!(
+            face_trump(&nt_stop, 4),
+            None,
+            "stepping past cues stops at notrump"
+        );
+        // `1♦ P 3♦ P 3NT P 4NT`: the agreed minor yields to the 3NT
+        // sign-off (BBA's probed slam move here is 4♣, never 4NT-as-RKCB).
+        let minor_signoff = [
+            call(1, Strain::Diamonds),
+            Call::Pass,
+            call(3, Strain::Diamonds),
+            Call::Pass,
+            call(3, Strain::Notrump),
+            Call::Pass,
+        ];
+        assert_eq!(
+            face_trump(&minor_signoff, 6),
+            None,
+            "an agreed minor yields to a 3NT sign-off"
+        );
+        // `1♠ P 3♠ P 3NT P 4NT`: over the agreed major the same 3NT is
+        // non-serious — the fit stands.
+        let major_nonserious = [
+            call(1, Strain::Spades),
+            Call::Pass,
+            call(3, Strain::Spades),
+            Call::Pass,
+            call(3, Strain::Notrump),
+            Call::Pass,
+        ];
+        assert_eq!(
+            face_trump(&major_nonserious, 6),
+            Some(Suit::Spades),
+            "an agreed major survives a non-serious 3NT"
+        );
+        // `1♦ P 3♦ P 4NT`: suit last — the minor keeps its RKCB route.
+        let minor_suit_last = [
+            call(1, Strain::Diamonds),
+            Call::Pass,
+            call(3, Strain::Diamonds),
+            Call::Pass,
+        ];
+        assert_eq!(
+            face_trump(&minor_suit_last, 4),
+            Some(Suit::Diamonds),
+            "a suit-last minor auction stays RKCB"
         );
     }
 

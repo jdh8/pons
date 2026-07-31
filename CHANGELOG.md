@@ -9,6 +9,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **The face steps back past cues and reads the notrump dichotomy.** Two
+  repairs in `face_trump`, one doctrine (jdh8's): when 4NT is ambiguous it
+  is RKCB if the side's last **non-cue** bid below the ask is a suit,
+  quantitative if notrump. (1) A cue of their suit no longer overwrites the
+  face — `1♥ (3♦) 4♦ P 4NT` steps back past the cue and asks in partner's
+  hearts (the filed cue-blocked defect: `last` was set before the cue
+  check, so the rung died exactly where contested readings are vacuous).
+  (2) An agreed **minor** yields when the last non-cue bid is notrump —
+  `1♦ P 3♦ P 3NT P 4NT` is quantitative (the 3NT was *sign-off*,
+  re-opening the strain) — while an agreed **major** survives the same 3NT
+  (non-serious, minimum game force). Both propagate to the answerer's
+  ladder, the `recognizable` rail, and the ask gate. BBA, probed live,
+  corroborates the minor cell: its own slam move after the minor-fit 3NT
+  is 4♣ **Gerber** (steps count aces — the one-ace/no-trump-K
+  discriminator answers the second step), and a forced 4NT there draws an
+  unconditional 6♦ from any holding — never RKCB. Gerber itself is
+  rejected for pons (ambiguous against the 4♣ sign-off when clubs are the
+  strain); the dichotomy already routes minor RKCB through suit-last
+  auctions. A/B vs 49f4837 (SEED_BASE 1785512396, 204,800 bd/arm/vul):
+  **positive in all four cells** (pre-registered bar was non-loss) —
+  plain +0.0002 [±0.0005] / +0.0003 [±0.0006], PD +0.0005 [±0.0006] /
+  +0.0006 [±0.0007] (none/both), fired 0.02%, **+0.85 to +3.40 IMPs per
+  fired board**, PD > plain in every cell. Default-on, knobless.
+
 - **The 4NT ask gate is recalibrated: provable eight or the face, above a
   conversation floor.** The floor ask's decodability test still modeled the
   retired shown-five trump rung, blocking face-decodable raised 4-4 fits

@@ -876,3 +876,67 @@ next separate A/B), minors initiation (new: `keycard_trump` gains ♣/♦
 under the provable-8 bar, watching the 3NT/quant collision), DOPI
 residue, contested free-bid stamps, the strength-silent invite
 re-raise.
+
+### Experiment: cue-blocked face + the NT dichotomy (2026-07-31, positive all four cells — SHIPPED)
+
+Taken up by grilling (decisions jdh8's).  The filed defect: `face_trump`
+set `last` *before* the cue check, so `1♥ (3♦) 4♦ P 4NT` overwrote
+partner's solo-bid hearts with the cue and rung 2 died.  While settling
+the step-back semantics jdh8 pinned the general doctrine — **when 4NT is
+ambiguous, it is RKCB if the side's last non-cue bid below the ask is a
+suit, quantitative if notrump** — with one carve descending from the
+3NT ruling: over an agreed **major**, 3NT is non-serious (minimum game
+force beside control bids), the fit survives an NT last bid; over an
+agreed **minor**, 3NT is *sign-off* — the NT last bid re-opens the
+strain and the subsequent 4NT is quantitative.
+
+**BBA probed live** (ctypes against the vendored libEPBot, dealer
+canonicalized, methodology validated on `1♠ P 3♠ P 4NT` where answers
+are genuine keycard steps tracking the hand): after `1♦ P 3♦ P 3NT`,
+BBA's own slam move is **4♣ = Gerber** — steps count *aces*, proven by
+the discriminator hand (one ace, no trump K) answering 4♥, the second
+step, not the first — and a *forced* 4NT there draws an **unconditional
+6♦**, from 19 HCP with three keycards down to 12 HCP with zero.  BBA
+never plays that 4NT as RKCB; its resolution of the minor-3NT cell is a
+cheaper ask vehicle, not a quant reading.  **Gerber rejected for pons**
+(jdh8): with clubs the agreed strain, a 4♣ ask is ambiguous against the
+4♣ sign-off/pull — the phantom-lane class this campaign kills.  The
+dichotomy already gives minors their RKCB route: keep the side's last
+bid a suit and 4NT asks; only the 3NT-sign-off lane is quant.  Carried
+into the minors-initiation filing as its reference design constraint.
+
+The change, two edits in one function (`face_trump`), bundled per the
+seven-repair precedent: (1) **cue-skip** — a suit bid already named by
+the opponents *at the time it was made* (`theirs` is built
+incrementally, the correct was-it-a-cue semantics) never becomes
+`last`, so the walk steps back past cues and stops at a real suit
+(face) or notrump (veto stands); (2) **the minor carve** — `agreed`
+yields when the last non-cue bid is notrump and the agreed suit is a
+minor, falling to rung 2 whose NT veto answers `None`.  Both propagate
+free to all three consumers (answerer ladder, `recognizable`/rail, the
+ask gate — 49f4837 routed the gate through `face_trump`): the gate
+stops minting 4NT asks after a minor-fit 3NT sign-off, and the rail
+reads the cue-blocked lanes.  Five-case unit test
+(`face_trump_steps_past_cues_and_reads_the_nt_dichotomy`) pins the
+doctrine table; `readings_admit_the_bidder` stays green.
+
+A/B in `ab-results/reading-drift-cue-face/`: two-binary
+`reading-drift-ab.sh` protocol, base **49f4837**, SEED_BASE
+**1785512396**, 32×6400 bd/arm/vul, arms sequential under
+`idle-run.sh`, plain + PD.  **Pre-registered bar: non-loss ships**
+(doctrine-pinning reading repair, the seven-repair-batch/DOPI class); a
+loss traces its worst divergent boards first.
+
+**Verdict (read 2026-08-01, 204,800 bd/arm/vul): positive in all four
+cells — SHIPPED default-on, knobless.**
+
+| vul | plain DD | perfect defense |
+| --- | --- | --- |
+| none | +0.0002 [±0.0005] | +0.0005 [±0.0006] |
+| both | +0.0003 [±0.0006] | +0.0006 [±0.0007] |
+
+Fired 39/35 boards per vul (0.02% — the narrowest trigger of the
+campaign), **+0.85 to +3.40 IMPs per fired board**, and PD > plain in
+every cell — the dichotomy's edge grows when the defense punishes the
+base arm's phantom asks.  The bar was a mere non-loss; the table clears
+it in every cell.
