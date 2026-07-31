@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **BBA's Kickback rule set extracted, validated, and documented** (no
+  bidding change; probe infrastructure + reference doc). With trumps T, the
+  ask is the cheapest bid above 4-of-T (♣→4♦, ♦→4♥, ♥→4♠ — never the second
+  step) when *neither hand has shown 4+ cards in the ask suit* and fit/HCP
+  gates hold; otherwise 4NT stays plain RKCB, so the toggle only ever adds
+  asks. Full trigger/answer/continuation/competition rules with decompile
+  citations in `docs/ai-bidder/bba-kickback.md`, including a proposed pons
+  adoption sketch (knob `set_kickback`, follow-up campaign). Evidence:
+  `examples/probe-bba-kickback.rs` (39 constructed cases, 35/35 expectations
+  pass, flag-bites controls both directions) and
+  `examples/probe-bba-kickback-census.rs` (5000-board self-play census:
+  predictor from the decompiled clauses agrees 3028/3081 = 98.3% with
+  **zero false negatives**; the 53 misses are earlier-dispatch naturals,
+  classified). New FFI findings recorded: `epbot_set_conventions` addresses
+  a *side* (0/1, seats 2/3 throw −2 silently), and
+  `epbot_get_info_meaning(bot, k)` returns seat k's latest call's label
+  (refreshed by `set_bid`; `epbot_interpret_bid`'s argument is a bid code,
+  not a position — the historical first-round-only caveat was that misuse).
+
 ### Fixed
 
 - **The face steps back past cues and reads the notrump dichotomy.** Two
