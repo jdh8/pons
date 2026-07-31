@@ -1700,8 +1700,55 @@ fn face_trump(auction: &[Call], ask: usize) -> Option<Suit> {
 /// transfers and splinters, where the face mislabels the artificial call),
 /// else the auction's face ([`face_trump`]: the raised suit, or the side's
 /// last bid a natural suit).
+///
+/// Once the 1430 answer is on the table (the asker decoding at `ask + 4`),
+/// the natural walk reads that artificial five-of-a-major as a genuine long
+/// suit — partner's heart floor jumps past five and the reading rungs flip
+/// to a phantom trump the answerer never counted against, so the asker sits
+/// the answer as if it were trumps (`1♦ P 1♥ 1♠ P 3♠ 4♦ P 4NT P 5♥ X`
+/// passed out on a 4-1 "fit", −20).  The reading rungs therefore accept the
+/// *answer's own suit* only when the reading as the **answerer** saw it —
+/// the auction through the opponent's call over the ask — already justified
+/// it.  The prefix is read on a bare context, which under-reads authored
+/// calls (a keyed prefix needs the stance, unreachable from a rule); the
+/// lanes that lean on them (transfers, Jacoby) recover through the face
+/// rung, whose completion or agreement evidence survives truncation.
 fn answer_trump(hand: Hand, context: &Context<'_>, ask: usize) -> Option<Suit> {
+    let auction = context.auction();
+    // The in-window answer, present once the auction extends past the
+    // answerer's turn (the asker decoding it, or the answerer back on the
+    // respect path).
+    let answer = auction.get(ask + 2).and_then(|call| match *call {
+        Call::Bid(bid) if bid.level.get() == 5 => bid.strain.suit(),
+        _ => None,
+    });
+    let pre = answer.map(|_| Inferences::read(&Context::new(context.vul(), &auction[..ask + 2])));
+    // At the prefix's end the *answerer* is to act, so the caller's partner
+    // is the prefix's `me` when the asker calls (decoding at `ask + 4`) and
+    // its `partner` when the answerer calls back (the respect path at
+    // `ask + 6`).  A suit passes if the pre-answer evidence justified it by
+    // either criterion (the hand-seen fit or the shown five).
+    let corroborated = |suit: Suit| {
+        answer != Some(suit)
+            || pre.as_ref().is_some_and(|pre| {
+                let partner = if (auction.len() - ask).is_multiple_of(4) {
+                    pre.me()
+                } else {
+                    pre.partner()
+                };
+                let floor = partner.length(suit).min;
+                #[allow(clippy::cast_possible_truncation)]
+                let seen = hand[suit].len() as u8 + floor >= 8;
+                seen || floor.max(
+                    pre.me()
+                        .length(suit)
+                        .min
+                        .max(pre.partner().length(suit).min),
+                ) >= 5
+            })
+    };
     keycard_trump(hand, context)
+        .filter(|&suit| corroborated(suit))
         .or_else(|| {
             let inferences = Inferences::read(context);
             let shown = |suit: Suit| {
@@ -1713,7 +1760,7 @@ fn answer_trump(hand: Hand, context: &Context<'_>, ask: usize) -> Option<Suit> {
             };
             [Suit::Hearts, Suit::Spades]
                 .into_iter()
-                .filter(|&suit| shown(suit) >= 5)
+                .filter(|&suit| shown(suit) >= 5 && corroborated(suit))
                 .max_by_key(|&suit| (shown(suit), suit as u8))
         })
         .or_else(|| face_trump(context.auction(), ask))
@@ -1812,7 +1859,9 @@ fn keycard_answered(hand: Hand, context: &Context<'_>) -> Option<(Suit, usize)> 
     let answer_suit = answer.strain.suit()?;
     // The same derivation ladder as the answerer's, its face rung keyed on
     // the same physical ask index — sharing the function is the guarantee
-    // both seats land on the one trump.
+    // both seats land on the one trump.  The ladder's pre-answer discipline
+    // (see [`answer_trump`]) keeps that guarantee across time: the answer we
+    // are decoding must not mint the trump it is counted against.
     let trump = answer_trump(hand, context, n - 4)?;
     let mine = count_keycards(hand, trump);
     let (low, high) = match answer_suit {
@@ -1842,6 +1891,15 @@ fn answer_is_five_of(trump: Suit) -> Cons<impl Constraint + Clone> {
     pred(move |_: Hand, context: &Context<'_>| {
         context.last_bid() == Some(Bid::new(5, Strain::from(trump)))
     })
+}
+
+/// Their double sits directly on partner's 1430 answer — the asker is
+/// looking at a doubled artificial contract, not a place to play.  Combined
+/// with [`keycard_total`] (which pins the ask at `n - 4` and the answer at
+/// `n - 2` inside a quiet window), a trailing double can only be theirs and
+/// can only double the answer.
+fn answer_doubled() -> Cons<impl Constraint + Clone> {
+    pred(|_: Hand, context: &Context<'_>| context.auction().last() == Some(&Call::Double))
 }
 
 /// We answered partner's 4NT keycard ask and partner has since placed the
@@ -1876,8 +1934,22 @@ fn respect_keycard_signoff() -> Cons<impl Constraint + Clone> {
         if answer.level.get() != 5 || !answer.strain.is_suit() {
             return false;
         }
-        let Some(trump) = signoff.strain.suit() else {
-            return false;
+        let trump = match signoff.strain.suit() {
+            Some(trump) => trump,
+            // The doubled-answer escape can land in 5NT (the asker's escape
+            // rungs): respect it like any placement, deriving the trump
+            // through the shared ladder.  Only when their X sits on our
+            // answer — an undisturbed 5NT stays the king ask, not ours to
+            // pass.
+            None => {
+                if signoff.level.get() != 5 || auction[n - 3] != Call::Double {
+                    return false;
+                }
+                match answer_trump(hand, context, n - 6) {
+                    Some(trump) => trump,
+                    None => return false,
+                }
+            }
         };
         count_keycards(hand, trump) <= 1
     })
@@ -3877,7 +3949,60 @@ pub fn instinct() -> Rules {
                 Bid::new(6, strain),
                 0.3,
                 keycard_total(trump, ..) & level_available(6, strain),
+            )
+            // The cramped doubled answer: their X sits on partner's answer
+            // past five of trump — we never play a suit we have no fit in,
+            // so the doubled artificial suit is always escaped (`… 4♦ P 4NT
+            // P 5♥ X` passed out on a 4-1, −20).  Below the true signoffs
+            // (five of trump still available bids it at 1.82; the answer
+            // itself our trump sits at 1.80), the rungs order the landing
+            // spots by trust: the hand-seen fit, a stopped 5NT a level
+            // cheaper, another seen fit (below, outside the loop), and the
+            // derived trump as the last resort.
+            .rule(
+                Bid::new(6, strain),
+                1.73,
+                keycard_total(trump, ..)
+                    & answer_doubled()
+                    & known_eight_card_fit(trump)
+                    & level_available(6, strain),
+            )
+            .rule(
+                Bid::new(5, Strain::Notrump),
+                1.72,
+                keycard_total(trump, ..)
+                    & answer_doubled()
+                    & stopper_in_their_suits()
+                    & level_available(5, Strain::Notrump),
+            )
+            .rule(
+                Bid::new(6, strain),
+                1.70,
+                keycard_total(trump, ..) & answer_doubled() & level_available(6, strain),
             );
+        // Fleeing the face-derived trump to a fit we can actually see: the
+        // face's agreement rule is both-bid-it, not eight cards, so a seen
+        // eight-card fit elsewhere outranks an unseen trump (1.71 sits
+        // between the seen-fit six above and the last-resort six).  Never
+        // into the answer's own suit: its floor in the live reading is the
+        // answer's natural mis-read (the very pollution [`answer_trump`]
+        // corroborates away), not a fit.
+        for other in Suit::ASC {
+            if other == trump {
+                continue;
+            }
+            let other_strain = Strain::from(other);
+            rules = rules.rule(
+                Bid::new(6, other_strain),
+                1.71,
+                keycard_total(trump, ..)
+                    & answer_doubled()
+                    & !answer_is_five_of(other)
+                    & known_eight_card_fit(other)
+                    & !known_eight_card_fit(trump)
+                    & level_available(6, other_strain),
+            );
+        }
     }
     // Never pass out partner's control bid — it agrees a suit and forces.
     // Return to the agreed suit at the cheapest level; with slam-zone values
@@ -5260,6 +5385,87 @@ mod tests {
             best(&signed_off, "QJT8.KQ4.KQJ9.65"),
             Call::Pass,
             "the contested signoff is respected short a keycard"
+        );
+    }
+
+    /// The cramped doubled answer: their X on partner's 1430 answer past
+    /// five of trump is never passed out, and never played in the answer's
+    /// phantom suit.  Anchor: the face-trump A/B's worst board (`1♦ P 1♥ 1♠
+    /// P 3♠ 4♦ P 4NT P 5♥ X` passed out on a 4-1 heart "fit", −20), where
+    /// the answer's own natural read minted a phantom heart trump for the
+    /// asker — [`answer_trump`]'s pre-answer discipline — and the sit rung
+    /// played the doubled answer.
+    #[test]
+    fn cramped_doubled_answer_escapes_the_phantom_suit() {
+        let doubled = [
+            call(1, Strain::Diamonds),
+            Call::Pass,
+            call(1, Strain::Hearts),
+            call(1, Strain::Spades),
+            Call::Pass,
+            call(3, Strain::Spades),
+            call(4, Strain::Diamonds),
+            Call::Pass,
+            call(4, Strain::Notrump),
+            Call::Pass,
+            call(5, Strain::Hearts),
+            Call::Double,
+        ];
+        // The −20 board's asker: partner's 5♥ shows two keycards, not
+        // hearts — the trump stays the diamond agreement, and the doubled
+        // off-fit answer escapes to six of the seen fit.
+        assert_eq!(
+            best(&doubled, "KQ.9.AQ9875.T764"),
+            call(6, Strain::Diamonds),
+            "the doubled answer escapes to six of the seen fit"
+        );
+        // No seen diamond fit but their spades stopped: 5NT, a level
+        // cheaper — and never 6♥ off the answer's polluted heart floor.
+        assert_eq!(
+            best(&doubled, "KQ5.96.A.QT87642"),
+            call(5, Strain::Notrump),
+            "without a seen fit the stopped hand drifts to 5NT"
+        );
+        // Stopperless with no seen fit: six of the derived trump, the last
+        // resort — still never the answer suit doubled.
+        assert_eq!(
+            best(&doubled, "965.96.A.QJT8764"),
+            call(6, Strain::Diamonds),
+            "the last resort is six of the derived trump"
+        );
+        // The answerer sits the suit escape (two keycards keep the
+        // correction exception live, but nothing drives past the escape)...
+        let placed = [doubled.as_slice(), &[call(6, Strain::Diamonds), Call::Pass]].concat();
+        assert_eq!(
+            best(&placed, "A6.Q532.KJT642.Q"),
+            Call::Pass,
+            "the answerer sits the suit escape"
+        );
+        // ...and the notrump escape.
+        let notrump = [doubled.as_slice(), &[call(5, Strain::Notrump), Call::Pass]].concat();
+        assert_eq!(
+            best(&notrump, "A6.Q532.KJT642.Q"),
+            Call::Pass,
+            "the answerer sits the notrump escape"
+        );
+        // The 1.88 respect rung reaches the notrump escape too: a club-lane
+        // answerer short a keycard passes the asker's 5NT by rule.
+        let club_lane = [
+            call(1, Strain::Clubs),
+            Call::Pass,
+            call(3, Strain::Clubs),
+            Call::Pass,
+            call(4, Strain::Notrump),
+            Call::Pass,
+            call(5, Strain::Diamonds),
+            Call::Double,
+            call(5, Strain::Notrump),
+            Call::Pass,
+        ];
+        assert_eq!(
+            best(&club_lane, "QJ98.KQJ4.QJ92.4"),
+            Call::Pass,
+            "the notrump escape is respected short a keycard"
         );
     }
 

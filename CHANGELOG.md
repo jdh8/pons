@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **The cramped doubled answer escapes the phantom suit.** Forensics on the
+  filed −20 board (`1♦ P 1♥ 1♠ P 3♠ 4♦ P 4NT P 5♥ X` passed out) corrected
+  the ledger's story: the fit rule did *not* key diamonds — the asker's
+  post-answer reading took the artificial 5♥ as six real hearts, minted a
+  phantom heart trump, and the 1.80 sit rung (answer *is* five of trump)
+  passed partner's doubled answer. Two repairs on the instinct floor:
+  `answer_trump` now corroborates the answer's own suit against a
+  *pre-answer* reading of the auction (the answer we are decoding must not
+  mint the trump it is counted against), and the asker gains an escape
+  ladder over a doubled cramped answer — we never play a suit we have no
+  fit in: a hand-seen six-of-trump (1.73), a stopped 5NT (1.72), six of
+  another seen fit (1.71, never the answer suit), fallback six-of-trump
+  (1.70). The answerer's signoff-respect learns the 5NT escape (doubled
+  window only — the undisturbed book's 5NT king ask is untouched). A/B vs
+  69864ab (SEED_BASE 1785500157, 204,800 bd/arm/vul): **win in all four
+  cells** — plain +0.0007 [±0.0007] / +0.0005 [±0.0007], PD +0.0012
+  [±0.0009] / +0.0010 [±0.0009] (none/both), 0.03–0.04 % fired, ~+1.8
+  plain IMPs per fired board. Default-on, knobless.
+
 ### Added
 
 - **The floor authors readings — the vacuous-scoped probed serving, opt-in.**
