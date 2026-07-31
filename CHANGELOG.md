@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Kickback phase 1: jdh8's walk-up ladder, resolved and tested** (no
+  bidding change; `kickback_ladder` is `#[cfg(test)]` until the floor wires
+  it in phase 2). Where BBA *gives up* the relocation once four-of-(T+1) is
+  guarded — after 1♦–1♥–3♦ its 4♥ is natural, so the ask reverts to 4NT — our
+  rule keeps **walking up** to the first unguarded suit and asks 4♠, falling
+  to 4NT only when nothing below it is free. Never worse than BBA, and the
+  ask is never lost. Face-only like `face_trump` (no hand, no readings), so
+  both members provably build the same table: a suit is *guarded* when either
+  member named it naturally or the opponents named it at all, *set* when our
+  side named it twice, and the `face_trump` notrump veto suppresses the whole
+  ladder. Set suits claim in ascending rank, so two fits can carry two
+  relocated asks (after 1♣–2♣–2♥–3♥, 4♦ asks in clubs and 4♠ in hearts).
+  Additive by construction — 4NT keeps its meaning, so no auction pons
+  already bids changes. Rule, phase ledger, and the deliberately deferred
+  question (what 4NT *should* mean once the ask relocates — it belongs to the
+  control-bid session, not to the kickback A/B) in
+  `docs/ai-bidder/bba-kickback.md` §7.
 - **BBA's Kickback rule set extracted, validated, and documented** (no
   bidding change; probe infrastructure + reference doc). With trumps T, the
   ask is the cheapest bid above 4-of-T (♣→4♦, ♦→4♥, ♥→4♠ — never the second
@@ -17,8 +34,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   asks. Full trigger/answer/continuation/competition rules with decompile
   citations in `docs/ai-bidder/bba-kickback.md`, including a proposed pons
   adoption sketch (knob `set_kickback`, follow-up campaign). Evidence:
-  `examples/probe-bba-kickback.rs` (39 constructed cases, 35/35 expectations
-  pass, flag-bites controls both directions) and
+  `examples/probe-bba-kickback.rs` (39 constructed cases replayed with the row
+  off and on: 35 pinned expectations pass, 0 fail, 43 exploratory
+  observations; flag-bites controls both directions) and
   `examples/probe-bba-kickback-census.rs` (5000-board self-play census:
   predictor from the decompiled clauses agrees 3028/3081 = 98.3% with
   **zero false negatives**; the 53 misses are earlier-dispatch naturals,

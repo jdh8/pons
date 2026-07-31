@@ -1711,6 +1711,77 @@ fn face_trump(auction: &[Call], ask: usize) -> Option<Suit> {
         .or_else(|| last?.suit().filter(|&suit| !theirs[suit as usize]))
 }
 
+/// The kickback ladder for the side acting at `ask`: for each suit, the trump
+/// a four-of-that-suit bid asks keycards in, indexed by `Suit` in ascending
+/// order.  Face-only like [`face_trump`] — no hand, no readings — so both
+/// members provably build the same table, the same guarantee that lets the
+/// 4NT ask be answered at all.
+///
+/// Three notions, all read off the face below `ask`:
+///
+/// - **guarded** — a suit either member of our side named naturally, or the
+///   opponents named at all.  A guarded suit keeps its natural meaning at the
+///   four level (after `1♦ P 1♥ P 3♦`, responder's 4♥ is *hearts*), and their
+///   suit there is a cue.
+/// - **set** — a suit our side named **twice**: both members (a formal raise)
+///   or one member twice (`1♦ P 1♥ P 3♦`).  One bid is no agreement, or
+///   `1♦ P 4♥` would ask.
+/// - the [`face_trump`] **veto** — when the face names no trump at all (the
+///   notrump dichotomy: `1♦ P 3♦ P 3NT P` is quantitative), nothing relocates.
+///
+/// Each set suit, in ascending rank, then claims the cheapest **unclaimed
+/// unguarded** suit strictly above it.  Whatever goes unclaimed still asks at
+/// 4NT, whose meaning is unchanged: kickback *adds* asks, it never removes
+/// one (jdh8), so no auction pons already bids changes.  Two fits can carry
+/// two relocated asks — after `1♣ P 2♣ P 2♥ P 3♥ P`, 4♦ asks in clubs and 4♠
+/// in hearts.
+///
+/// This is jdh8's ladder, not BBA's.  BBA reverts to 4NT the moment
+/// four-of-(T+1) is guarded (`docs/ai-bidder/bba-kickback.md` §1.1); walking
+/// on up to 4NT is never worse and keeps a relocated ask after `1♦ P 1♥ P 3♦`,
+/// where BBA loses it.  The price is the cheapest unbid-suit cue: 4♠ over
+/// agreed hearts stops being a control bid.
+///
+/// Legality is the caller's business — the table says what a bid *would* mean,
+/// not that it is available over the auction so far.
+// ponytail: phase 1 is the rule and its tests; the floor's relocated ask
+// (phase 2, `docs/ai-bidder/bba-kickback.md` §7) is what un-gates this.
+#[cfg(test)]
+fn kickback_ladder(auction: &[Call], ask: usize) -> [Option<Suit>; 4] {
+    let mut ladder = [None; 4];
+    if face_trump(auction, ask).is_none() {
+        return ladder;
+    }
+    let mut ours = [0u8; 4]; // our side's natural bids, per suit
+    let mut theirs = [false; 4];
+    for (index, call) in auction.iter().enumerate().take(ask) {
+        let Call::Bid(bid) = call else { continue };
+        let Some(suit) = bid.strain.suit() else {
+            continue;
+        };
+        if index % 2 != ask % 2 {
+            theirs[suit as usize] = true;
+        } else if !theirs[suit as usize] {
+            // A cue of a suit they have already named shows no length, exactly
+            // as it stays transparent to [`face_trump`].
+            ours[suit as usize] += 1;
+        }
+    }
+    let guarded = |suit: Suit| ours[suit as usize] > 0 || theirs[suit as usize];
+    for trump in Suit::ASC {
+        if ours[trump as usize] < 2 {
+            continue;
+        }
+        let claim = Suit::ASC
+            .into_iter()
+            .find(|&suit| suit > trump && !guarded(suit) && ladder[suit as usize].is_none());
+        if let Some(suit) = claim {
+            ladder[suit as usize] = Some(trump);
+        }
+    }
+    ladder
+}
+
 /// The trump the 4NT *answerer* counts against: the known fit if our hand
 /// sees one, else a still-provable eight (partner's shown floor completing
 /// our shorter holding — the 6-2 and 7-1 fits the first rung's three-card
@@ -5675,6 +5746,128 @@ mod tests {
             face_trump(&minor_suit_last, 4),
             Some(Suit::Diamonds),
             "a suit-last minor auction stays RKCB"
+        );
+    }
+
+    /// jdh8's ladder walks past a *guarded* kickback suit instead of giving
+    /// up on the relocation: after `1♦ P 1♥ P 3♦`, 4♥ is natural (responder
+    /// showed four) and BBA reverts to 4NT — we ask 4♠ instead, one step
+    /// cheaper, and 4NT keeps its meaning beside it.
+    #[test]
+    fn kickback_walks_up_past_guarded_suits() {
+        let jump_rebid = [
+            call(1, Strain::Diamonds),
+            Call::Pass,
+            call(1, Strain::Hearts),
+            Call::Pass,
+            call(3, Strain::Diamonds),
+            Call::Pass,
+        ];
+        assert_eq!(
+            kickback_ladder(&jump_rebid, 6),
+            [None, None, None, Some(Suit::Diamonds)],
+            "hearts are guarded, so the diamond ask walks up to 4♠"
+        );
+        assert_eq!(
+            face_trump(&jump_rebid, 6),
+            Some(Suit::Diamonds),
+            "and it asks in the suit 4NT would have asked in"
+        );
+    }
+
+    /// Two set suits claim in ascending order, so both can carry a relocated
+    /// ask — 4♦ asks in clubs, 4♠ in hearts, and 4NT is left over.
+    #[test]
+    fn kickback_serves_both_fits_when_it_can() {
+        let two_fits = [
+            call(1, Strain::Clubs),
+            Call::Pass,
+            call(2, Strain::Clubs),
+            Call::Pass,
+            call(2, Strain::Hearts),
+            Call::Pass,
+            call(3, Strain::Hearts),
+            Call::Pass,
+        ];
+        assert_eq!(
+            kickback_ladder(&two_fits, 8),
+            [None, Some(Suit::Clubs), None, Some(Suit::Hearts)],
+            "clubs claim 4♦, hearts claim 4♠"
+        );
+        // Only one free suit above the lower fit: it goes to the lower fit
+        // (claiming is ascending), and the higher one falls back to 4NT.
+        let one_free = [
+            call(1, Strain::Hearts),
+            Call::Pass,
+            call(2, Strain::Diamonds),
+            Call::Pass,
+            call(3, Strain::Diamonds),
+            Call::Pass,
+            call(3, Strain::Hearts),
+            Call::Pass,
+        ];
+        assert_eq!(
+            kickback_ladder(&one_free, 8),
+            [None, None, None, Some(Suit::Diamonds)],
+            "the lower fit claims 4♠; hearts keep 4NT"
+        );
+    }
+
+    /// What must *not* relocate: an unagreed suit, the opponents' suit, a
+    /// spade fit with nothing above it, and the notrump dichotomy's veto.
+    #[test]
+    fn kickback_refuses_without_a_set_trump() {
+        let one_bid = [call(1, Strain::Diamonds), Call::Pass];
+        assert_eq!(
+            kickback_ladder(&one_bid, 2),
+            [None; 4],
+            "one bid is no agreement — `1♦ P 4♥` is not an ask"
+        );
+        let spades = [
+            call(1, Strain::Spades),
+            Call::Pass,
+            call(3, Strain::Spades),
+            Call::Pass,
+        ];
+        assert_eq!(
+            kickback_ladder(&spades, 4),
+            [None; 4],
+            "nothing sits between 4♠ and 4NT"
+        );
+        // `1♦ P 3♦ P 3NT P`: [`face_trump`] reads the sign-off and vetoes —
+        // that 4NT is quantitative, so there is no ask to relocate either.
+        let minor_signoff = [
+            call(1, Strain::Diamonds),
+            Call::Pass,
+            call(3, Strain::Diamonds),
+            Call::Pass,
+            call(3, Strain::Notrump),
+            Call::Pass,
+        ];
+        assert_eq!(
+            kickback_ladder(&minor_signoff, 6),
+            [None; 4],
+            "the notrump veto carries to the ladder"
+        );
+    }
+
+    /// A cue of their suit shows no length, so it never becomes the ask —
+    /// `1♥ (3♦) 4♦ P 4♥ P` sets hearts and relocates to 4♠, leaving 4♦ the
+    /// cue it was.
+    #[test]
+    fn kickback_never_claims_the_opponents_suit() {
+        let cued = [
+            call(1, Strain::Hearts),
+            call(3, Strain::Diamonds),
+            call(4, Strain::Diamonds),
+            Call::Pass,
+            call(4, Strain::Hearts),
+            Call::Pass,
+        ];
+        assert_eq!(
+            kickback_ladder(&cued, 6),
+            [None, None, None, Some(Suit::Hearts)],
+            "their diamonds are guarded; the heart ask takes 4♠"
         );
     }
 

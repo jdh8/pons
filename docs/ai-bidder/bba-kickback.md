@@ -11,7 +11,7 @@ never the second step** — 4♠ is never a diamond ask; with hearts agreed, 4�
 
 Sources: `EPBot64.dll` decompiled with ilspycmd 9.1.0.7988 (plain VB.NET, no
 obfuscation; ~6.5 s — recipe in [bba-floor.md](bba-floor.md) §5.5); methods
-cited by name below, all in type `EPBot`. Validation: 37 constructed clause
+cited by name below, all in type `EPBot`. Validation: 39 constructed clause
 probes (`examples/probe-bba-kickback.rs`) and a predictive census
 (`examples/probe-bba-kickback-census.rs`) against
 `vendor/bba/Native-libraries/linux/x64/libEPBot.so`.
@@ -162,8 +162,9 @@ the default 5NT king ask answers at 6♦ = "one king" — still below 6♥. Plai
 
 ## 4. Probe evidence (examples/probe-bba-kickback.rs)
 
-39 constructed cases, **35 expectations pass / 0 fail** (44 exploratory
-observations), all against the shipped `.so`. The load-bearing rows:
+39 constructed cases, each replayed with the `Kickback 1430` row off and on:
+**35 pinned expectations pass / 0 fail**, 43 exploratory observations, all
+against the shipped `.so`. The load-bearing rows:
 
 - **Ladder + labels**: fed asks read `"Kickback 1430, for !C/!D/!H"` after
   1♣–3♣ / 1♦–3♦ / 1♥–3♥; answers hit the exact 1430 steps with disclosure
@@ -248,31 +249,119 @@ interpretation dispatch; the classes above are the documented boundary.
 - **Retro-agreement** is a BBA-ism: a bare 4♥ over a 5+♦-shower retro-agrees
   diamonds. Human kickback needs explicit agreement first.
 
-## 7. Proposed pons trigger rule (design sketch for the follow-up campaign)
+## 7. The pons rule: jdh8's walk-up ladder
 
-Guiding choice: adopt the *static-inventory* school, not BBA's dynamic
-shown-4+ guard — our book knows which auctions agree trumps formally, and a
-deterministic trigger keeps the floor, the readings, and the disclosure
-consistent (a reading knob is a bidding knob under a neural floor).
+**We differ from BBA on §1.1.** BBA's natural-ambiguity guard *gives up* the
+relocation the moment four-of-(T+1) is guarded: after 1♦–1♥–3♦, 4♥ is hearts,
+so the ask reverts to 4NT. jdh8's rule instead **keeps walking up** to the
+first unguarded suit — 4♠ — and only falls to 4NT when nothing below it is
+free. Never worse than BBA, sometimes a step better, and the ask is never
+lost.
 
-- Knob `set_kickback` (default off, byte-identical system). When on:
-  with a **formally agreed** trump T ∈ {♣, ♦, ♥} below the four level, in an
-  uncontested constructive auction, the keycard ask is 4-of-(T+1); 4NT
-  reverts to natural/quantitative in those auctions. No relocation for
-  spades. Suppress the relocation when the would-be ask suit was bid
-  naturally by either hand (mirrors the one BBA guard worth keeping) —
-  then 4NT stays RKCB.
-- Answers: existing 1430 ladder relative to the ask; queen/king asks
-  relocated per §3's available-bid rule; signoff = cheapest trump.
-- Competition: reuse the DOPI/ROPI/DEPO family relative to the relocated ask.
-- Wiring: `american/slam.rs` (RKCB home; the `Kickback (4♣/4♦), the usual
-  remedy, is out of scope` comments mark the entry points), floor awareness
-  in `instinct.rs` (`keycard_trump` / `keycard_asked` / `keycard_answer`),
-  `Inferences` reading + `.alert("kickback")`, card rows `Kickback 1430 = 1`
-  (mutually exclusive rows stay honest), invariant test, and the A/B per
-  [measurement.md](../measurement.md) — plain DD + perfect defense, against
-  the real routing; the shipped plain-4NT minor keycard
-  (`set_minor_keycard`) is the incumbent arm.
-- The interesting measurable: BBA's own motivation cases — minor slams
-  vetoed below 5m (the C3 probe: a 2+Q answer lands in 5♣ *as the contract*)
-  and the hearts grand via the ♠K.
+### 7.1 The ladder
+
+Face-only, exactly like the floor's `face_trump` — no hand, no readings, so
+both members provably build the same table (the same guarantee that makes a
+4NT ask answerable at all). Three notions, read off the auction below the ask:
+
+- **guarded** — a suit *either* member of our side named naturally, or the
+  opponents named at all. A guarded suit keeps its natural meaning at the four
+  level; their suit there is a cue.
+- **set** — a suit our side named **twice**: both members (a formal raise), or
+  one member twice (1♦–1♥–**3♦**). One bid is no agreement, or `1♦ P 4♥` would
+  ask.
+- the **`face_trump` veto** — when the face names no trump at all (the notrump
+  dichotomy: `1♦ P 3♦ P 3NT P` is a sign-off, so that 4NT is quantitative),
+  nothing relocates.
+
+Each set suit, **in ascending rank**, then claims the cheapest *unclaimed
+unguarded* suit strictly above it. Whatever goes unclaimed still asks at 4NT.
+
+```text
+1♦ P 1♥ P 3♦ P     set {♦}    guarded {♦,♥}   → 4♠ = RKCB(♦)                  †
+1♥ P 2♦ P 3♦ P 3♥ P set {♦,♥} guarded {♦,♥}   → 4♠ = RKCB(♦), 4NT = RKCB(♥)
+1♣ P 2♣ P 2♥ P 3♥ P set {♣,♥} guarded {♣,♥}   → 4♦ = RKCB(♣), 4♠ = RKCB(♥)    †
+1♥ (3♦) 4♦ P 4♥ P  set {♥}    guarded {♥,♦}   → 4♠ = RKCB(♥); 4♦ stays a cue  †
+1♠ P 3♠ P          set {♠}    guarded {♠}     → 4NT only (nothing above 4♠)
+1♦ P               set {}                     → no relocation
+1♦ P 3♦ P 3NT P    face veto                  → no relocation
+```
+
+**Additive.** 4NT keeps its existing meaning throughout: kickback *adds* asks,
+it never removes one (BBA's own posture, §1's "Kickback ON therefore *adds*
+asks"). That is what holds the blast radius at zero — no auction pons already
+bids changes meaning.
+
+**The price, named.** The relocated ask consumes the cheapest unbid-suit cue:
+4♠ over agreed hearts stops being a control bid. That is exactly what the
+phase-2 A/B prices.
+
+**Open — belongs to the control-bid session.** The rows marked † leave a 4NT
+that is redundant (rows 1 and 4) or entirely free (row 3). Additive keeps it
+as RKCB *for now*, a scheduling choice and not a verdict; the real question —
+quantitative, last train, or a control bid — cannot be answered before pons
+has an authored control-bid structure to answer it against, and answering it
+moves `face_trump`'s notrump dichotomy with it. Do not settle it inside the
+kickback A/B: an arm that changes both the ask *and* the meaning of 4NT cannot
+attribute its own result.
+
+### 7.2 Phase ledger
+
+| phase | scope | state |
+|---|---|---|
+| 1 | the ladder as a face-only resolver + unit tests | **done** — `kickback_ladder` in [instinct.rs](../../src/bidding/instinct.rs), beside `face_trump`; `#[cfg(test)]` until phase 2 wires it. No bidding change. |
+| 2 | the floor, **majors only** (♥ agreed, ♠ unguarded → 4♠) | not started |
+| 3 | minors, and the authored book in `slam.rs` | not started |
+| 4 | competition + disclosure | not started |
+
+**Phase 2 — why majors only.** `keycard_trump` (`instinct.rs`) is majors-only
+*by measured decision* — round 4 of the M6.4 A/B lost 14 IMPs a board
+rerouting minor and thin 6-2 slams — so the floor's ask gate only ever
+proposes ♥ or ♠, and with ♠ nothing relocates. The whole phase-2 slice is
+therefore **"♥ agreed, ♠ unguarded → 4♠"**. That is BBA's dominant case in
+practice (♥ 158 of 224 labelled kickbacks in §5's census) and the ♠K-grand
+payoff of §3, and 4♠ over agreed hearts sits *above* game, so it can collide
+with no splinter and no natural bid. Work items:
+
+- knob `set_kickback` (classify-time thread-local beside `set_floor_rkcb`,
+  default off, off-state byte-identical);
+- ask emission at the "provable eight or the face" gate — propose 4♠ when the
+  ladder offers it;
+- the `Bid::new(4, Strain::Notrump)` literals in `keycard_asked`,
+  `keycard_asked_over_bid`, `keycard_answered`, `respect_keycard_signoff` and
+  `keycard_conversation_now` become "4NT **or** the ladder's ask";
+- answers as *steps above the ask* (`bid_successor` is the existing
+  primitive), and the asker's continuations with them;
+- `.alert(RKCB_FLOOR)` on the relocated ask and its answers — the alert is
+  what suppresses the natural reading; without it partner reads 4♠ as spades
+  and the sampler deals the phantom;
+- an arm in `keycard_conversation_now`, or the neural shell freewheels inside
+  a relocated window;
+- knob registration in all four places (crate re-export, `bba-gen` flag, the
+  web settings registry, [bidding-options.md](../bidding-options.md)), and
+  `tests/fixtures/alert-sites.txt` re-blessed.
+
+**Phase 3 — minors and the book.** Minors reopen the `keycard_trump`
+majors-only carve, so they need their own A/B, not a rider on phase 2. The
+book side means parameterizing `install_rkcb` by an `ask: Call` and making
+`rkcb_answers` / `asker_after_*` / `king_answers` step-relative across its 27
+install sites — mechanical but wide. Note that pons has **no queen ask at
+all**: the trump queen is folded into the 5♥/5♠ split, so BBA's relocated
+queen/king machinery (§3) is a fresh design, not a port.
+
+**Phase 4 — competition and disclosure.** DOPI/ROPI/DEPO relative to the
+relocated ask. Disclosure is a known hole: BBA's `"Kickback 1430"` row means
+"ask = four-of-(T+1) under the shown-4+ guard", which our walk-up rule
+strictly *contains* — flipping the row to 1 in
+[card.rs](../../src/bidding/card.rs) still under-discloses 4♠-for-♦. Record
+the divergence in the constant arm rather than pretending the row fits.
+
+**Measurement**, from phase 2 on, per [measurement.md](../measurement.md) and
+the `measure-ab` skill: a new `examples/ab-kickback` modelled on
+`examples/ab-minor-keycard` (the shipped plain-4NT minor keycard is the
+incumbent arm), duplicate match, **both** plain DD and perfect defense, fresh
+`SEED_BASE` shared across arms. Slam gains are contract-boundary effects that
+plain DD can see, so a PD-only win here would be a doubling artifact, not a
+ship. The interesting measurables are BBA's own motivation cases: minor slams
+vetoed below 5m (the C3 probe — a 2+Q answer lands in 5♣ *as the contract*)
+and the hearts grand via the ♠K.

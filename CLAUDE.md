@@ -29,6 +29,7 @@ played a long time and read a lot. For 5-card major systems, see my
 | Retiring a hand-written convention reader (`inference.rs`) | [docs/reader-retirement.md](docs/reader-retirement.md) — inventory, per-reader migration rule, ledger |
 | A rule's constraint and its reading disagree; a "reading-only" change moved calls | [docs/reading-drift-handoff.md](docs/reading-drift-handoff.md) — the three reading regimes, why DNF left one uncovered, and why a reading knob is a bidding knob under a neural floor |
 | Competitive book (we open, they interfere) | [docs/competitive-book.md](docs/competitive-book.md) — wiring idiom, package designs, campaign ledger |
+| Kickback (relocating the keycard ask below 4NT) | [docs/ai-bidder/bba-kickback.md](docs/ai-bidder/bba-kickback.md) §7 — jdh8's walk-up ladder (not BBA's), the phase ledger, and the 4NT question deferred to control bids |
 | Long data-gen runs | [docs/shared-machine-data-gen.md](docs/shared-machine-data-gen.md) — this box is shared |
 | Hand valuation, point counts, or "how uncertain is this hand?" | [docs/binky-points.md](docs/binky-points.md) — additive (μ, σ²) per holding; the gauge statement, and why an additive table sees only ~24% of the pair-level spread |
 | Raw bidding-theory notes | [docs/bidding-theorems.md](docs/bidding-theorems.md) |
