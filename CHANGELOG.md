@@ -9,6 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Keycard trump demands proof: no fit from one hand's shown five.**
+  `answer_trump`'s second rung took the *larger* of the two seats' shown
+  floors, so the asker's own 5-card suit could become trump with no fit
+  evidence — one filed board sat a DOPI 5♥ step answer in a 5-2 (−13)
+  while free judgment bid 6♠ making. Doctrine now: trump is the hand-seen
+  fit, a provable eight (my holding completing partner's shown floor — the
+  6-2/7-1 fits the first rung's three-card bar refuses), a self-sufficient
+  own *seven*, or the auction's face by fiat (the ask's placement carries
+  the asker's intent: `2♥ X 4♥ 4♠ – 4NT` assumes spades). The
+  `corroborated` closure mirrors the same bar — the load-bearing half,
+  since the answer's natural mis-read pollutes partner's floor and lets
+  rung *one* mint the phantom. Ask initiation is untouched (`keycard_trump`
+  keeps its three-card bar; we still never ask on a 6-2). A/B vs 8ba8844
+  (SEED_BASE 1785504001, 204,800 bd/arm/vul): **positive in all four
+  cells** — plain +0.0005 [±0.0008] / +0.0002 [±0.0008], PD +0.0003
+  [±0.0009] / +0.0003 [±0.0010] (none/both), 93/85 divergent boards,
+  +0.38 to +1.15 IMPs per divergent board. The filed DOPI board verified
+  flipped by replay: the 5♥ answer is never minted. Default-on, knobless.
+  Filed: the ask-gate's decodability proxy still models the old rung, and
+  the face yields None when our side's last bid was a cue of their suit.
+
 - **The cramped doubled answer escapes the phantom suit.** Forensics on the
   filed −20 board (`1♦ P 1♥ 1♠ P 3♠ 4♦ P 4NT P 5♥ X` passed out) corrected
   the ledger's story: the fit rule did *not* key diamonds — the asker's

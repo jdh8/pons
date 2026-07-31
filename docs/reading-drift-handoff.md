@@ -726,4 +726,53 @@ rung passed a DOPI 5♥ step answer out in a 5-2 (−13; the off arm's free
 judgment bid 6♠ making). Old rung-2 behavior newly exposed by the live
 window — repairing it (fit evidence, not one-hand length, as the
 shown-five bar) moves every keycard auction's trump derivation and
-needs its own A/B.
+needs its own A/B (below).
+
+### The own-shown-five 5-2 trump repair (2026-07-31, no fit without proof)
+
+Design settled by grilling. Doctrine: **one hand's shown five never
+synthesizes a fit.** Trump comes from a provable eight, a
+self-sufficient own seven, or the auction's face by fiat — the ask's
+*placement* carries the asker's intent (`2♥ X 4♥ 4♠ – 4NT` assumes
+spades), so a suit the face can see is agreed by the ask itself, and a
+shown five the face cannot see was never agreed.
+
+- `answer_trump` rung 2: the either-seat `shown ≥ 5` filter becomes
+  `hand + partner_floor ≥ 8 || hand ≥ 7` (actual holding, majors-only
+  scope kept, both seats). Surviving population vs rung 1: the 6-2/7-1
+  fits its three-card bar refuses, and unshown 7-baggers.
+- `corroborated` mirrors the same bar (`seen ≥ 8 || hand ≥ 7`, the old
+  `≥ 5` disjunct deleted). This half is **load-bearing**: fixing rung 2
+  alone leaves the pollution path open — the 5♥ answer read naturally
+  bumps partner's floor to 5, *rung 1* fires the phantom, and only the
+  corroboration stands between it and the sit rung. An answerer's
+  five-level bid in its own shown five-carder now reads as natural
+  flight, harmonizing with Part A's escape ladder.
+- Untouched by decision: `face_trump` (fiat, uncorroborated stands);
+  `keycard_trump` and both direct call sites — the ask still never
+  *initiates* on a 6-2, so the −14/bd 6NT-reroute lesson stays sealed.
+- Filed: the ask-gate's decodability proxy (instinct.rs:4023) still
+  models the old rung 2 — if worst boards show asks counted against the
+  wrong suit (answerer showed five early, last pre-ask bid a second
+  suit), recalibrate the gate in its own A/B.
+
+Verdict (A/B vs 8ba8844, SEED_BASE 1785504001, 204,800 bd/arm/vul):
+**positive in all four cells — ships default-on, knobless** (the
+pre-registered bar was a mere non-loss).
+
+| vul | plain DD | perfect defense |
+| --- | --- | --- |
+| none | +0.0005 [±0.0008] | +0.0003 [±0.0009] |
+| both | +0.0002 [±0.0008] | +0.0003 [±0.0010] |
+
+Divergent 93 / 85 boards per vul (0.04–0.05 %), +0.38 to +1.15 IMPs
+per divergent board. Worst-board mechanisms, neither a decode defect:
+4NTs the floor never initiated as RKCB now read quantitative and get
+passed (the old arm answered against an unprovable suit and sometimes
+landed on its feet), and the face yields None when our side's last bid
+was a cue of their suit (`1♥ 3♦ 4♦ – 4NT`: the cue blocks partner's
+solo-bid hearts — a step-back-past-cues face refinement is a filed
+candidate). The −13 DOPI board verified flipped by `probe-classify`
+replay: the answerer now passes over their 5♦ instead of minting the
+5♥ step, so the phantom-heart sit cannot arise (the face's most-recent
+agreement there is the *real* 4-6 club fit, 2♣ opposite 4♣).

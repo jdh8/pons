@@ -1660,8 +1660,8 @@ fn keycard_trump(hand: Hand, context: &Context<'_>) -> Option<Suit> {
 ///    quantitative — and a cue of their suit is no trump either.
 ///
 /// The final rung of [`answer_trump`]'s derivation ladder (the hand-seen
-/// fit and the shown-five readings sit above it and see through transfers,
-/// where the face mislabels the artificial call).  `None` (no bid below
+/// fit and the provable-eight readings sit above it and see through
+/// transfers, where the face mislabels the artificial call).  `None` (no bid below
 /// the ask, a notrump last bid, a bare cue) leaves the 4NT unrecognizable
 /// from the face alone.  All four suits qualify — the asker's continuation
 /// rungs are built per suit, and 1430 arithmetic is trump-agnostic.
@@ -1695,11 +1695,15 @@ fn face_trump(auction: &[Call], ask: usize) -> Option<Suit> {
 }
 
 /// The trump the 4NT *answerer* counts against: the known fit if our hand
-/// sees one, else the partnership's genuinely shown five-plus suit (either
-/// seat's — BWS's "the only shown suit", and the branch that sees through
-/// transfers and splinters, where the face mislabels the artificial call),
-/// else the auction's face ([`face_trump`]: the raised suit, or the side's
-/// last bid a natural suit).
+/// sees one, else a still-provable eight (partner's shown floor completing
+/// our shorter holding — the 6-2 and 7-1 fits the first rung's three-card
+/// bar refuses) or our own self-sufficient seven, else the auction's face
+/// ([`face_trump`]: the raised suit, or the side's last bid a natural suit).
+/// One hand's shown five alone never synthesizes a fit — an asker keen on
+/// our suit asks *over* it, so the face carries that intent, and a shown
+/// five the face cannot see was never agreed (the old either-seat shown-five
+/// rung let the asker's own suit become trump with no fit evidence, and a
+/// DOPI step answer got sat in a 5-2).
 ///
 /// Once the 1430 answer is on the table (the asker decoding at `ask + 4`),
 /// the natural walk reads that artificial five-of-a-major as a genuine long
@@ -1709,7 +1713,8 @@ fn face_trump(auction: &[Call], ask: usize) -> Option<Suit> {
 /// passed out on a 4-1 "fit", −20).  The reading rungs therefore accept the
 /// *answer's own suit* only when the reading as the **answerer** saw it —
 /// the auction through the opponent's call over the ask — already justified
-/// it.  The prefix is read on a bare context, which under-reads authored
+/// it by the same provable-eight-or-own-seven bar the rungs themselves
+/// hold.  The prefix is read on a bare context, which under-reads authored
 /// calls (a keyed prefix needs the stance, unreachable from a rule); the
 /// lanes that lean on them (transfers, Jacoby) recover through the face
 /// rung, whose completion or agreement evidence survives truncation.
@@ -1727,41 +1732,30 @@ fn answer_trump(hand: Hand, context: &Context<'_>, ask: usize) -> Option<Suit> {
     // is the prefix's `me` when the asker calls (decoding at `ask + 4`) and
     // its `partner` when the answerer calls back (the respect path at
     // `ask + 6`).  A suit passes if the pre-answer evidence justified it by
-    // either criterion (the hand-seen fit or the shown five).
+    // the same bar the derivation rungs hold (the provable eight, or our own
+    // self-sufficient seven, which needs no reading at all).
     let corroborated = |suit: Suit| {
         answer != Some(suit)
+            || hand[suit].len() >= 7
             || pre.as_ref().is_some_and(|pre| {
                 let partner = if (auction.len() - ask).is_multiple_of(4) {
                     pre.me()
                 } else {
                     pre.partner()
                 };
-                let floor = partner.length(suit).min;
-                #[allow(clippy::cast_possible_truncation)]
-                let seen = hand[suit].len() as u8 + floor >= 8;
-                seen || floor.max(
-                    pre.me()
-                        .length(suit)
-                        .min
-                        .max(pre.partner().length(suit).min),
-                ) >= 5
+                hand[suit].len() + usize::from(partner.length(suit).min) >= 8
             })
     };
     keycard_trump(hand, context)
         .filter(|&suit| corroborated(suit))
         .or_else(|| {
             let inferences = Inferences::read(context);
-            let shown = |suit: Suit| {
-                inferences
-                    .partner()
-                    .length(suit)
-                    .min
-                    .max(inferences.me().length(suit).min)
-            };
+            let total =
+                |suit: Suit| hand[suit].len() + usize::from(inferences.partner().length(suit).min);
             [Suit::Hearts, Suit::Spades]
                 .into_iter()
-                .filter(|&suit| shown(suit) >= 5 && corroborated(suit))
-                .max_by_key(|&suit| (shown(suit), suit as u8))
+                .filter(|&suit| (total(suit) >= 8 || hand[suit].len() >= 7) && corroborated(suit))
+                .max_by_key(|&suit| (total(suit), suit as u8))
         })
         .or_else(|| face_trump(context.auction(), ask))
 }
