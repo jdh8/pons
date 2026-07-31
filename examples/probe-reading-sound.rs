@@ -13,7 +13,12 @@
 //! and no amount of extra columns describing it helps.
 //!
 //! So: bid a mixed table with BBA at the opponent seats, and at every decision
-//! node of *our* seats test `announced_dnf(who).contains(true_hand)`.
+//! node of *our* seats test two predicates per hidden seat: [`Inferences::admits`]
+//! (the strict *table* reading every in-crate consumer sits on) and
+//! `announced_dnf(who).contains(true_hand)` (the lenient *disclosure* overlay,
+//! the recorded baseline).  Partner exclusions are additionally bucketed by the
+//! auction prefix through partner's call — the repair worklist of
+//! `docs/reading-drift-handoff.md`.
 //!
 //! - **partner ≈ 0%** is the self-check. The membership test and the harness
 //!   are only trustworthy if our own side comes out clean; a material rate there
@@ -57,9 +62,9 @@ const HIDDEN: [(&str, Relative, usize); 3] = [
     ("RHO (them)", Relative::Rho, 1),
 ];
 
-/// One-letter tag per hidden seat, prefixed onto a worklist key so a hot spot
-/// says *whose* call was misread as well as which
-const TAG: [&str; 3] = ["L", "P", "R"];
+// ponytail: the worklist buckets partner only — every partner offender maps to
+// a node we author, so the whole list is actionable; opponent drift stays a
+// tracked scalar.  Bucket LHO/RHO too if the defensive book ever gets a pass.
 
 #[derive(Parser)]
 struct Args {
@@ -113,26 +118,41 @@ struct Args {
     /// `--their-floor` opens undisciplined weak twos
     #[arg(long)]
     their_wild_weak_two: bool,
+
+    /// Our seats read **every** authored call, not only the alerted ones
+    /// (`set_natural_reading` — the regime-2 diagnostic; see
+    /// `docs/reading-drift-handoff.md`)
+    #[arg(long)]
+    ns_natural_reading: bool,
 }
 
-/// Readings taken, and how many excluded the truth
+/// Readings taken, and how many excluded the truth — on both predicates
+///
+/// `bad` tests [`Inferences::admits`], the *table* reading every in-crate
+/// consumer (sampler, nets, `set_inference_aware` floor) actually sits on, and
+/// the one the `readings_admit_the_bidder` sweep enforces.  `bad_announced`
+/// tests `announced_dnf().contains`, the lenient *disclosure* overlay — the
+/// predicate of the recorded 8.2/3.3/8.3% baseline (`docs/deviation-panel.md`).
+/// The delta between them is itself a finding: an announce-vs-reading gap.
 #[derive(Default, Clone, Copy)]
 struct Cell {
     readings: u64,
     bad: u64,
+    bad_announced: u64,
 }
 
 impl Cell {
-    fn add(&mut self, sound: bool) {
+    fn add(&mut self, admits: bool, announced: bool) {
         self.readings += 1;
-        self.bad += u64::from(!sound);
+        self.bad += u64::from(!admits);
+        self.bad_announced += u64::from(!announced);
     }
 
-    fn pct(self) -> f64 {
+    fn pct(self, bad: u64) -> f64 {
         if self.readings == 0 {
             return 0.0;
         }
-        100.0 * self.bad as f64 / self.readings as f64
+        100.0 * bad as f64 / self.readings as f64
     }
 }
 
@@ -191,11 +211,14 @@ fn census(
             };
             // `back` calls ago is `back` seats counter-clockwise from the actor.
             let hand = deal[Seat::ALL[(seat as usize + 4 - back) % 4]];
-            let sound = read.announced_dnf(who).contains(hand);
-            seats[slot].add(sound);
-            keys.entry(format!("{} {}", TAG[slot], auction_key(&auction[..=last])))
-                .or_default()
-                .add(sound);
+            let admits = read.admits(who, hand);
+            let announced = read.announced_dnf(who).contains(hand);
+            seats[slot].add(admits, announced);
+            if who == Relative::Partner {
+                keys.entry(auction_key(&auction[..=last]))
+                    .or_default()
+                    .add(admits, announced);
+            }
         }
     }
 }
@@ -204,6 +227,7 @@ fn main() -> anyhow::Result<()> {
     let args = Args::parse();
     let base = args.seed.unwrap_or_else(rand::random);
     let vul = AbsoluteVulnerability::NONE;
+    pons::bidding::inference::set_natural_reading(args.ns_natural_reading);
     let stance = american().against();
 
     // The opponents: a perturbed pons book (deviation panel axes B/C) or, by
@@ -266,20 +290,23 @@ fn main() -> anyhow::Result<()> {
 
     println!("boards {}  seed {base}", args.count);
     println!(
-        "disclosure {}\n",
+        "disclosure {}  natural-reading {}\n",
         if args.no_disclose { "off" } else { "generated" },
+        if args.ns_natural_reading { "on" } else { "off" },
     );
     println!(
-        "{:<16} {:>10} {:>10} {:>10}",
-        "seat", "readings", "excluded", "%"
+        "{:<16} {:>10} {:>10} {:>9} {:>10} {:>9}",
+        "seat", "readings", "admits✗", "%", "announce✗", "%"
     );
     for (slot, (label, _, _)) in HIDDEN.into_iter().enumerate() {
         let cell = seats[slot];
         println!(
-            "{label:<16} {:>10} {:>10} {:>9.3}%",
+            "{label:<16} {:>10} {:>10} {:>8.3}% {:>10} {:>8.3}%",
             cell.readings,
             cell.bad,
-            cell.pct(),
+            cell.pct(cell.bad),
+            cell.bad_announced,
+            cell.pct(cell.bad_announced),
         );
     }
 
@@ -287,16 +314,20 @@ fn main() -> anyhow::Result<()> {
     let n = keys.len();
     keys.sort_unstable_by(|a, b| b.1.bad.cmp(&a.1.bad).then_with(|| a.0.cmp(&b.0)));
     println!(
-        "\ntop {} keys by excluded readings (of {n} distinct)\n",
+        "\npartner worklist: top {} nodes by admits-excluded readings (of {n} distinct)\n",
         args.top.min(n),
     );
-    println!("{:>10} {:>10} {:>9}  key", "excluded", "readings", "%");
+    println!(
+        "{:>10} {:>10} {:>9} {:>10}  node (auction through partner's call)",
+        "admits✗", "readings", "%", "announce✗"
+    );
     for (key, cell) in keys.iter().take(args.top) {
         println!(
-            "{:>10} {:>10} {:>8.2}%  {key}",
+            "{:>10} {:>10} {:>8.2}% {:>10}  {key}",
             cell.bad,
             cell.readings,
-            cell.pct(),
+            cell.pct(cell.bad),
+            cell.bad_announced,
         );
     }
     Ok(())

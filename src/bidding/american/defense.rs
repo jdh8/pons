@@ -5052,7 +5052,7 @@ pub fn defensive() -> Defensive {
     // Systems-on advances of our 1NT overcall: the whole 1NT-opening response
     // structure (Stayman, transfers, Smolen — reflecting the same knobs), built
     // once and grafted below each `[their-suit, 1NT]` so the advancer plays it
-    // verbatim.  Off by default; see `set_nt_overcall_systems_on`.
+    // verbatim.  On by default; see `set_nt_overcall_systems_on`.
     let nt_overcall_book = nt_overcall_systems_on().then(|| {
         let mut nt = Trie::new();
         super::notrump::register_one_nt(&mut nt);

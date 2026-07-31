@@ -1641,11 +1641,19 @@ impl Inferences {
         // auction with their opening stripped: the advancer plays the grafted
         // 1NT structure, so the hand-coded notrump walk reads its artificial
         // Stayman/transfer calls instead of the natural walk raising a phantom
-        // suit.  Re-read keyless (projection dropped — soundness over tightness;
-        // `read` ignores vul, and the stripped opening is 1NT so this recurses at
-        // most once).
+        // suit.  Re-key the stripped auction through the attached stance so the
+        // projection overlay survives the strip — a bare `Context::new` has no
+        // trie prefixes, so `project_authored` silently skips every authored
+        // rule, and the calls only the *book* knows are conventional (the
+        // alerted both-majors `3♦`, which the walk's off-book arm reads as
+        // natural `♦ 5..`) excluded their own bidders (`readings_admit_the_
+        // bidder`).  The stripped opening is 1NT, which the strip never fires
+        // on, so this recurses at most once.
         if let Some(stripped) = systems_on_overcall_strip(context.auction()) {
-            return Self::read(&Context::new(context.vul(), &stripped));
+            return match context.their_system() {
+                Some(stance) => Self::read(&stance.prefixed_context(context.vul(), &stripped)),
+                None => Self::read(&Context::new(context.vul(), &stripped)),
+            };
         }
         let auction = context.auction();
         let len = auction.len();
@@ -1698,6 +1706,10 @@ impl Inferences {
         // The subset of `lane_suits` the walk actually read as a natural
         // holding — a cue names a suit without ever showing it.
         let mut natural_lane_suits = [0u8; 4];
+        // The subset of `natural_lane_suits` the lane has shown *twice* (a
+        // rebid or jump-rebid suit, six long or a good five) — a raise of one
+        // is routinely made on a doubleton, even jumping to game.
+        let mut rebid_lane_suits = [0u8; 4];
         let mut lane_bids = [0u8; 4];
         let mut lane_doubled = [false; 4];
         let mut side_acted = [false; 2];
@@ -1806,7 +1818,15 @@ impl Inferences {
                             && auction.get(opening_index + 1) == Some(&Call::Bid(one_nt))
                             && index > opening_index + 1
                             && (index - opening_index - 1) % 4 == 2;
+                        // Only the lane's *first* bid: a three-level call made
+                        // after an earlier (artificial) response — a second
+                        // suit behind a Jacoby transfer, a super-accept — is
+                        // structure, not the direct natural-forcing response,
+                        // and reading it five-plus excluded the four-card
+                        // second-suiters from their own box.  Gated out here it
+                        // falls back under the notrump-structure blanket.
                         let over_one_notrump = bid.level.get() == 3
+                            && lane_bids[lane] == 0
                             && ((is_opening_side && opening_bid == one_nt) || our_one_nt_overcall);
                         // Responder's 3OM slam try and Smolen jumps are
                         // artificial three-level majors in a new suit (partner
@@ -1942,15 +1962,72 @@ impl Inferences {
                                     && lane_bids[lane] == 1
                                     && bid.level.get() == 2
                                     && opening_bid.strain.suit() == Some(suit);
+                                // Under XYZ (`set_xyz`) responder's two-level
+                                // rebid of the one-level major is authored
+                                // five-plus, both routes: the direct 2M weak
+                                // sign-off and the invitational 2M through the
+                                // 2♣ relay (`xyz_responder`/`xyz_after_relay`).
+                                // Reading a sixth card excluded every five-card
+                                // responder from their own box.
+                                let xyz_rebid = crate::bidding::american::xyz()
+                                    && !side_acted[defending_parity]
+                                    && is_opening_side
+                                    && lane != opener_lane
+                                    && matches!(suit, Suit::Hearts | Suit::Spades)
+                                    && bid.level.get() == 2
+                                    && opening_bid.level.get() == 1
+                                    && opening_bid.strain.is_suit()
+                                    && auction.get(opening_index + 2)
+                                        == Some(&Call::Bid(Bid::new(1, Strain::from(suit))))
+                                    && matches!(
+                                        auction.get(opening_index + 4),
+                                        Some(Call::Bid(rebid)) if rebid.level.get() == 1
+                                    )
+                                    && (index == opening_index + 6
+                                        || (index == opening_index + 10
+                                            && auction.get(opening_index + 6)
+                                                == Some(&Call::Bid(Bid::new(2, Strain::Clubs)))
+                                            && auction.get(opening_index + 8)
+                                                == Some(&Call::Bid(Bid::new(
+                                                    2,
+                                                    Strain::Diamonds,
+                                                )))));
                                 if !agreed_re_raise {
-                                    let floor = if five_card_rebid { 5 } else { 6 };
+                                    let floor = if five_card_rebid || xyz_rebid { 5 } else { 6 };
                                     players[who]
                                         .narrow_length(suit, Range::at_least(floor, LENGTH_CAP));
                                 }
+                                if natural_lane_suits[lane] & mask != 0 {
+                                    rebid_lane_suits[lane] |= mask;
+                                }
                                 natural_lane_suits[lane] |= mask;
                             } else if partner_bid_it {
-                                // Raising partner's suit shows three-card support.
-                                players[who].narrow_length(suit, Range::at_least(3, LENGTH_CAP));
+                                // Raising partner's suit shows three-card support
+                                // — unless partner has already shown six-plus (a
+                                // preempt, a weak jump, a jump-rebid suit): a
+                                // raise of a known-long suit to game is routinely
+                                // made on a doubleton or stiff honour, so no
+                                // length claim is sound there.  A *delayed*
+                                // return to a suit partner has shown five-plus
+                                // (the opened major back over the forcing
+                                // notrump, an XYZ five-card rebid) floors at two
+                                // — the false preference on Hx is the norm, not
+                                // the exception.  A preference takes the cheapest
+                                // route, so a jump return qualifies only when
+                                // partner has bid the suit twice; direct raises
+                                // and raises of 4-card or unknown-length suits
+                                // keep the three-card claim.
+                                let partner_length = players[(who + 2) % 4].length(suit).min;
+                                if partner_length < 6 {
+                                    let partner_rebid_it =
+                                        rebid_lane_suits[(lane + 2) % 4] & mask != 0;
+                                    let delayed = (jump == 0 || partner_rebid_it)
+                                        && lane_bids[lane] >= 1
+                                        && partner_length >= 5;
+                                    let floor = if delayed { 2 } else { 3 };
+                                    players[who]
+                                        .narrow_length(suit, Range::at_least(floor, LENGTH_CAP));
+                                }
                                 natural_lane_suits[lane] |= mask;
                             } else if opponents_shown_it {
                                 // A cue: no length in the named suit.  Record the
@@ -2106,10 +2183,16 @@ impl Inferences {
                         } else if let Some(suit) = bid.strain.suit() {
                             // Responder raising opener's suit shows limited
                             // support strength: a single raise constructive, a
-                            // jump raise invitational.
+                            // jump raise invitational.  One-level openings only:
+                            // a raise of a preempt is two-way — furthering the
+                            // preempt on nothing OR bidding a game to make on
+                            // 16+ — so no strength band is sound there (the
+                            // `1..=11` image of the constructive band excluded
+                            // every to-make raiser of `[3♥ P 4♥]` from its own
+                            // box).
                             let partner_bid_it =
                                 lane_suits[(lane + 2) % 4] & (1 << suit as u8) != 0;
-                            if responder_first && partner_bid_it {
+                            if responder_first && partner_bid_it && opening_one_suit {
                                 let jump = bid
                                     .level
                                     .get()
@@ -2762,9 +2845,10 @@ fn project_authored(context: &Context<'_>) -> ([Dnf; 4], [Dnf; 4], u64) {
     let announce_split = announced_reading();
 
     // Project the call made at `index`, authored by `classifier`, into the
-    // overlay, evaluating its rules under `ctx` — the reader's context for our
-    // own pair's calls, the caller's at-the-time context for table-decoded
-    // opponent calls.  `decode_pass` scopes the pass reading to the side whose
+    // overlay, evaluating its rules under `ctx` — always the bidder's
+    // at-the-time context, for our own pair's calls as much as for
+    // table-decoded opponent calls (see the `at_the_time` builder below).
+    // `decode_pass` scopes the pass reading to the side whose
     // book resolved `classifier`: the own-side loops resolve *every* index in
     // the reader's trie, where an opponent's pass would land on the wrong
     // node (their direct-seat pass over our opening resolves our *responses*
@@ -2865,6 +2949,26 @@ fn project_authored(context: &Context<'_>) -> ([Dnf; 4], [Dnf; 4], u64) {
     // `players` is a `[Dnf; 4]` closed over by `project_call`; every branch below
     // accumulates through it, and the caller hulls each entry for the natural walk.
 
+    // A rule's constraint is a claim about the moment its call was made, so it
+    // must project under the bidder's **at-the-time** context — exactly as the
+    // table-alert and pass walks below already do.  Projecting under the
+    // reader's full-auction context mis-resolved every auction-relative atom:
+    // `support(3..)` reads `partner_last_suit()`, and the reader's "partner's
+    // last bid" *is the projected call itself*, so a cue raise's support atom
+    // stamped n+ cards of the **cue suit** — a wrong box that excluded the
+    // bidder (probe-reading-sound: `[1♥ 1♠ 2♠]` 8/15, `[1♣ 1♦ 2♦]` 4/4).  The
+    // same skew put the support double's 3-card claim on opener's own suit.
+    // For plain raises the two contexts happen to agree (the raise suit is the
+    // support suit), which is how this survived the raise-reader sweeps.
+    let at_the_time = |index: usize| {
+        let vul = if index % 2 == len % 2 {
+            context.vul()
+        } else {
+            super::context::flipped(context.vul())
+        };
+        Context::new(vul, &auction[..index])
+    };
+
     if fallback_projection_enabled() {
         // Decode every prior call by the classifier that *authored* it — node or
         // guarded fallback — so contested conventions (transfers, Leaping Michaels,
@@ -2872,14 +2976,15 @@ fn project_authored(context: &Context<'_>) -> ([Dnf; 4], [Dnf; 4], u64) {
         let trie = prefixes.root();
         for index in 0..len {
             if let Some(classifier) = trie.authoring_classifier(context, &auction[..index]) {
-                project_call(context, index, classifier, false);
+                project_call(&at_the_time(index), index, classifier, false);
             }
         }
     } else {
-        // Exact-node classifiers only — the shipped default; fallback-authored
-        // conventions are read by the hand-written readers in [`Inferences::read`].
+        // Exact-node classifiers only (fallback projection, the shipped
+        // default, takes the branch above); fallback-authored conventions are
+        // then read by the hand-written readers in [`Inferences::read`].
         for (prefix, classifier) in prefixes.clone() {
-            project_call(context, prefix.len(), classifier, false);
+            project_call(&at_the_time(prefix.len()), prefix.len(), classifier, false);
         }
     }
 
@@ -4349,6 +4454,7 @@ mod tests {
         // Off again is byte-identical to never having been on.
         set_pass_exclusion_reading(false);
         assert_eq!(read_booked(&auction).partner(), off.partner());
+        set_table_alert_reading(true);
     }
 
     #[test]
@@ -4599,6 +4705,7 @@ mod tests {
         set_leaping_michaels(false);
         let off = read_booked(&[bid(2, Strain::Hearts), bid(4, Strain::Clubs), Call::Pass]);
         assert_eq!(off.partner().length(Suit::Spades), Range::FULL_LENGTH);
+        set_leaping_michaels(true);
     }
 
     #[test]
@@ -4713,6 +4820,7 @@ mod tests {
 
         // Restore the shipped default (unusual 2NT ships on).
         set_unusual_notrump_defense(Some((8, 13)));
+        set_woolsey_points(8, 19);
     }
 
     #[test]
@@ -4815,6 +4923,7 @@ mod tests {
         assert_eq!(off.partner().strength.points, Range::new(15, 37));
 
         set_unusual_notrump_defense(Some((8, 13)));
+        set_woolsey_points(8, 19);
     }
 
     #[test]
@@ -5449,6 +5558,231 @@ mod tests {
         assert!(
             failures.is_empty(),
             "Gladiator readings exclude their own bidders:\n{}",
+            failures.join("\n"),
+        );
+    }
+
+    /// Every reading admits the hand that actually made the call — the
+    /// table-driven regime-2 invariant of `docs/reading-drift-handoff.md`.
+    ///
+    /// At each node the *bidder* is replayed over seeded hands and partner's
+    /// reading of the chosen call must admit the hand, in both reading regimes
+    /// — the only check that catches an authored-natural rule contradicting the
+    /// walk's shape-guess (`authored_rules_eval_within_projection` compares a
+    /// rule to *its own* projection and is blind to the walk).  Default knobs;
+    /// the knob-gated twin is `gladiator_readings_admit_the_bidder`.
+    ///
+    /// A row lands **together with the repair that makes it green** — the
+    /// unrepaired queue lives in the handoff doc's ledger, not here.
+    #[test]
+    fn readings_admit_the_bidder() {
+        use rand::SeedableRng as _;
+
+        set_dnf_reading(true);
+        let stance = crate::american().against();
+
+        // (what the node is, the auction up to the seat replayed).  Multi-call
+        // seats are route-filtered below: a hand counts only when replaying
+        // the seat's *earlier* decisions reproduces the script, so the reading
+        // of the whole lane is tested against hands that actually bid it.
+        let nodes: &[(&str, &[Call])] = &[
+            ("opening", &[]),
+            ("second-seat opening", &[Call::Pass]),
+            ("response to 1♠", &[bid(1, Strain::Spades), Call::Pass]),
+            ("response to 1♥", &[bid(1, Strain::Hearts), Call::Pass]),
+            // A raise of a preempt is two-way (furthering or to-make), so the
+            // walk stamps no band and no support floor on it — the `1..=11`
+            // cap used to exclude every to-make raiser of `[3♥ P 4♥]`.
+            (
+                "raise of a 3♥ preempt",
+                &[bid(3, Strain::Hearts), Call::Pass],
+            ),
+            (
+                "raise of a 3♠ preempt",
+                &[bid(3, Strain::Spades), Call::Pass],
+            ),
+            ("raise of a weak 2♥", &[bid(2, Strain::Hearts), Call::Pass]),
+            // Delayed preferences/raises of a shown 5-6 suit floor at two (the
+            // false preference on Hx is the norm) — the blanket 3-card stamp
+            // excluded 81% of the actual preference bidders.
+            (
+                "preference after forcing NT, 2♦ rebid",
+                &[
+                    bid(1, Strain::Spades),
+                    Call::Pass,
+                    bid(1, Strain::Notrump),
+                    Call::Pass,
+                    bid(2, Strain::Diamonds),
+                    Call::Pass,
+                ],
+            ),
+            (
+                "preference after forcing NT, 2♥ rebid",
+                &[
+                    bid(1, Strain::Spades),
+                    Call::Pass,
+                    bid(1, Strain::Notrump),
+                    Call::Pass,
+                    bid(2, Strain::Hearts),
+                    Call::Pass,
+                ],
+            ),
+            (
+                "raise of the jump rebid",
+                &[
+                    bid(1, Strain::Spades),
+                    Call::Pass,
+                    bid(1, Strain::Notrump),
+                    Call::Pass,
+                    bid(3, Strain::Spades),
+                    Call::Pass,
+                ],
+            ),
+            (
+                "raise of opener's rebid suit",
+                &[
+                    bid(1, Strain::Hearts),
+                    Call::Pass,
+                    bid(1, Strain::Spades),
+                    Call::Pass,
+                    bid(2, Strain::Hearts),
+                    Call::Pass,
+                ],
+            ),
+            // The XYZ 2M rebid is authored five-plus on both routes; the
+            // walk's sixth-card stamp excluded every 5-carder.
+            (
+                "XYZ relay then 2♠ invite",
+                &[
+                    bid(1, Strain::Diamonds),
+                    Call::Pass,
+                    bid(1, Strain::Spades),
+                    Call::Pass,
+                    bid(1, Strain::Notrump),
+                    Call::Pass,
+                    bid(2, Strain::Clubs),
+                    Call::Pass,
+                    bid(2, Strain::Diamonds),
+                    Call::Pass,
+                ],
+            ),
+            (
+                "XYZ direct 2♠ sign-off",
+                &[
+                    bid(1, Strain::Diamonds),
+                    Call::Pass,
+                    bid(1, Strain::Spades),
+                    Call::Pass,
+                    bid(1, Strain::Notrump),
+                    Call::Pass,
+                ],
+            ),
+            // Post-transfer continuations fall under the notrump-structure
+            // blanket — the artificial 2♦ used to count as a first diamond
+            // bid, reading responder's 3♦ as a six-card rebid.
+            (
+                "responder's second suit after a transfer",
+                &[
+                    bid(1, Strain::Notrump),
+                    Call::Pass,
+                    bid(2, Strain::Diamonds),
+                    Call::Pass,
+                    bid(2, Strain::Hearts),
+                    Call::Pass,
+                ],
+            ),
+            // The support double's `support(3..=3)` projects under the
+            // bidder's at-the-time context — the reader-context skew used to
+            // stamp the exactly-3 on the opened minor (100% exclusion).
+            (
+                "opener's support double",
+                &[
+                    bid(1, Strain::Diamonds),
+                    Call::Pass,
+                    bid(1, Strain::Hearts),
+                    bid(1, Strain::Spades),
+                ],
+            ),
+            // Cue raises: the same skew put the `support(n..)` atom on the
+            // cue suit itself, excluding every cue-bidder over a minor.
+            (
+                "cue raise over their 1♠",
+                &[bid(1, Strain::Hearts), bid(1, Strain::Spades)],
+            ),
+            (
+                "cue raise over their 2♦",
+                &[bid(1, Strain::Spades), bid(2, Strain::Diamonds)],
+            ),
+            (
+                "cue raise over their 1♦",
+                &[bid(1, Strain::Clubs), bid(1, Strain::Diamonds)],
+            ),
+            (
+                "advance of our 1NT overcall (systems on)",
+                &[bid(1, Strain::Spades), bid(1, Strain::Notrump), Call::Pass],
+            ),
+            (
+                "runout of our doubled 1NT overcall (systems on)",
+                &[
+                    bid(1, Strain::Spades),
+                    bid(1, Strain::Notrump),
+                    Call::Double,
+                ],
+            ),
+        ];
+
+        // The four 5-5-major witnesses that caught the strip's keyless re-read
+        // (each bids the authored both-majors 3♦ off `points(8..)` on the
+        // upgrade scale), then a random sweep.
+        let mut rng = rand::rngs::StdRng::seed_from_u64(0x5EAD);
+        let hands: Vec<Hand> = [
+            "Q9632.AT985.T53.",
+            "QJ862.96543.K5.Q",
+            "KJT84.AQ653.87.T",
+            "KQ853.T7542.9.QJ",
+        ]
+        .iter()
+        .map(|text| text.parse().expect("a hand"))
+        .chain(crate::bidding::verify::random_hands(&mut rng).take(256))
+        .collect();
+
+        let mut failures: Vec<String> = Vec::new();
+        for natural in [false, true] {
+            set_natural_reading(natural);
+            for &(what, node) in nodes {
+                for &hand in &hands {
+                    // Honest route only: the seat's earlier calls in the
+                    // script must be the ones this hand actually chooses.
+                    if (node.len() % 4..node.len())
+                        .step_by(4)
+                        .any(|i| chosen_call(&stance, hand, &node[..i]) != node[i])
+                    {
+                        continue;
+                    }
+                    let made = chosen_call(&stance, hand, node);
+                    // After `made` and a pass, the seat to act is the bidder's
+                    // partner, so `Relative::Partner` is the seat replayed.
+                    let mut read: Vec<Call> = node.to_vec();
+                    read.push(made);
+                    read.push(Call::Pass);
+                    let inferences = stance.infer(RelativeVulnerability::NONE, &read);
+                    if !inferences.admits(Relative::Partner, hand) && failures.len() < 16 {
+                        failures.push(format!(
+                            "{what} [{}] (natural-reading {natural}) excludes the hand that bid it: {hand}",
+                            read.iter()
+                                .map(ToString::to_string)
+                                .collect::<Vec<_>>()
+                                .join(" "),
+                        ));
+                    }
+                }
+            }
+        }
+        set_natural_reading(false);
+
+        assert!(
+            failures.is_empty(),
+            "readings exclude their own bidders:\n{}",
             failures.join("\n"),
         );
     }
@@ -7520,6 +7854,7 @@ mod tests {
             "choice-of-games",
             unalerted_artificial("constructive", &pair.constructive.0),
         );
+        set_major_choice_of_games(true);
     }
 
     /// The alerted choice-of-games 3NT decodes: opener reads responder as
@@ -7546,6 +7881,7 @@ mod tests {
         assert!(read.partner().length(Suit::Clubs).min >= 3);
         assert_eq!(read.partner().length(Suit::Spades), Range::new(3, 3));
         assert!(read.partner().strength.points.min >= 12);
+        set_major_choice_of_games(true);
     }
 
     proptest! {

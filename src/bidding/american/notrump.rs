@@ -1938,20 +1938,27 @@ fn transfer_spade_gf_rebid() -> Rules {
             len(Suit::Diamonds, 4..) & len(Suit::Hearts, ..4) & points(minor_floor..),
         )
         // Choice of games: exactly five spades (the transfer pins the floor; `..6`
-        // rules out a six-card one-suiter), balanced, game values but short of the
-        // 16+ slam quant.  Natural (all upper bounds — floors no un-named suit, so
+        // rules out a six-card one-suiter), game values but short of the 16+ slam
+        // quant.  Natural (all upper bounds — floors no un-named suit, so
         // unalerted), and being a recognised undisturbed node it lets opener read
         // 3NT as *balanced* rather than guessing — the read only holds undisturbed,
         // which is why opener's correction gates on it (`has_ruffing_shortness`).
+        //
+        // `hcp(9..16)`, not `points(10..) & hcp(..16)`, and no minor caps: the
+        // gate mirrors the instinct floor's game force (`hcp(9..)` undisturbed —
+        // the shipped 9-count seam, `nt_responder_game_floor`).  The old tighter
+        // gates sent the 9-count and the 4-card-minor game forces below the
+        // minor rules' `points(10..)` through to that floor, which bid the
+        // *same* 3NT — and under `set_natural_reading` this rule's projected
+        // box then excluded the very hands that bid it.  Every hand the old
+        // gates admitted was balanced (shape forced by the caps), where
+        // `points(10..)` implies `hcp(10..)`, so this is a pure loosening: the
+        // bidder is unchanged (hands newly admitted here bid this same 3NT via
+        // the floor before, and every rule sharing a 9..15 hand outweighs 1.4).
         .rule(
             Bid::new(3, Strain::Notrump),
             1.4,
-            len(Suit::Spades, ..6)
-                & len(Suit::Hearts, ..4)
-                & len(Suit::Clubs, ..4)
-                & len(Suit::Diamonds, ..4)
-                & points(10..)
-                & hcp(..16),
+            len(Suit::Spades, ..6) & len(Suit::Hearts, ..4) & hcp(9..16),
         )
         .rule(
             Bid::new(4, Strain::Notrump),
@@ -2028,18 +2035,15 @@ fn transfer_heart_gf_rebid() -> Rules {
             len(Suit::Diamonds, 4..) & len(Suit::Spades, ..4) & points(minor_floor..),
         )
         // Choice of games: exactly five hearts (`..6` rules out a six-card one-suiter),
-        // balanced, game values short of the 16+ slam quant.  Natural (upper bounds
+        // game values short of the 16+ slam quant.  Natural (upper bounds
         // only — unalerted), the undisturbed node that lets opener read 3NT as
-        // *balanced* for the ruff-gated correction.
+        // *balanced* for the ruff-gated correction.  `hcp(9..16)` mirrors the
+        // instinct floor's game force so the rule owns every 3NT this node
+        // actually produces — see the spade mirror (`transfer_spade_gf_rebid`).
         .rule(
             Bid::new(3, Strain::Notrump),
             1.4,
-            len(Suit::Hearts, ..6)
-                & len(Suit::Spades, ..4)
-                & len(Suit::Clubs, ..4)
-                & len(Suit::Diamonds, ..4)
-                & points(10..)
-                & hcp(..16),
+            len(Suit::Hearts, ..6) & len(Suit::Spades, ..4) & hcp(9..16),
         )
         // Six-card-heart slam tries with a side-suit splinter — the spade shortness at
         // the cheap `3♠`, the minors at the four level.  Artificial, so each is alerted.
@@ -4672,6 +4676,7 @@ mod tests {
         // Off the gate the sequence is unauthored — responder does not bid 3♣.
         set_stayman_minor_slam_try(false);
         assert_ne!(best(&after_2h, "AJ54.32.32.AKQ32"), bid(3, Strain::Clubs));
+        set_stayman_minor_slam_try(true);
     }
 
     #[test]

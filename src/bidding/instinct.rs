@@ -1641,39 +1641,105 @@ fn keycard_trump(hand: Hand, context: &Context<'_>) -> Option<Suit> {
         .map(|(_, suit)| suit)
 }
 
+/// The major our side has bid **and raised** — named as a bid by *both*
+/// members — derived from the auction shape alone, no hand, no readings
+///
+/// BWS's "an agreed suit makes 4NT keycard" in its most literal form, and
+/// the branch that keeps the machinery alive in competition: a contested
+/// lane whose walk readings are still vacuous (a free bid stamps no length
+/// yet) can never derive a trump from shown minima, but `1♦ (2♣) 2♠ P 3♠ P
+/// 4NT` has agreed spades on its face.  Majors only (the M6.4 doctrine —
+/// minor slams route through 6NT power-blasts), suits the opponents ever
+/// named excluded (both members bidding *their* suit is cue territory, not
+/// agreement), most recent agreement wins.  Artificial namings (a transfer,
+/// a cue of a lead-directing raise) can mislabel; the both-members bar
+/// keeps that rare, and the readings branch beside this one is the seat
+/// that sees through transfers.
+fn raised_major(auction: &[Call]) -> Option<Suit> {
+    let n = auction.len();
+    let mut ours = [[false; 2]; 2]; // [major][member]
+    let mut theirs = [false; 2];
+    let mut agreed = None;
+    for (index, call) in auction.iter().enumerate() {
+        let Call::Bid(bid) = call else { continue };
+        let Some(suit @ (Suit::Hearts | Suit::Spades)) = bid.strain.suit() else {
+            continue;
+        };
+        let major = usize::from(suit == Suit::Spades);
+        if index % 2 != n % 2 {
+            theirs[major] = true;
+            continue;
+        }
+        let member = usize::from(index % 4 == n % 4);
+        if ours[major][1 - member] && !theirs[major] {
+            agreed = Some(suit);
+        }
+        ours[major][member] = true;
+    }
+    agreed
+}
+
 /// The trump the 4NT *answerer* counts against: the known fit if our hand
 /// sees one, else the partnership's genuinely shown five-plus suit (either
 /// seat's — BWS's "the only shown suit") — the asker knew the fit from their
 /// side (a sixth card opposite our shown doubleton, or a fit for the six our
-/// own rebid showed) even when we cannot count to eight
+/// own rebid showed) even when we cannot count to eight — else the major our
+/// side bid and raised on the auction's face ([`raised_major`])
 fn answer_trump(hand: Hand, context: &Context<'_>) -> Option<Suit> {
-    keycard_trump(hand, context).or_else(|| {
-        let inferences = Inferences::read(context);
-        let shown = |suit: Suit| {
-            inferences
-                .partner()
-                .length(suit)
-                .min
-                .max(inferences.me().length(suit).min)
-        };
-        [Suit::Hearts, Suit::Spades]
-            .into_iter()
-            .filter(|&suit| shown(suit) >= 5)
-            .max_by_key(|&suit| (shown(suit), suit as u8))
-    })
+    keycard_trump(hand, context)
+        .or_else(|| {
+            let inferences = Inferences::read(context);
+            let shown = |suit: Suit| {
+                inferences
+                    .partner()
+                    .length(suit)
+                    .min
+                    .max(inferences.me().length(suit).min)
+            };
+            [Suit::Hearts, Suit::Spades]
+                .into_iter()
+                .filter(|&suit| shown(suit) >= 5)
+                .max_by_key(|&suit| (shown(suit), suit as u8))
+        })
+        .or_else(|| raised_major(context.auction()))
 }
 
-/// Partner's off-book 4NT asks keycards: undisturbed, not an opening, not
-/// over our own notrump bid (that 4NT is quantitative — BWS reads keycard
-/// only with an agreed suit), and a fit is known from our seat.  Returns the
-/// agreed trump the 1430 answer counts against.
+/// The opponents' calls since `index` (exclusive) are all passes or doubles
+/// — the keycard-window discipline shared by the whole M6.4 machinery and
+/// the [`forced`] rail predicate, so the two can never disagree on when a
+/// window is live.  A contested auction *before* the 4NT is no obstacle
+/// (4NT in competition with an agreed suit is keycard, not quantitative),
+/// and their double of the ask or of an answer changes nothing the 1430
+/// arithmetic depends on; but their *bid* inside the window takes the
+/// answer rooms away, so the machinery stands down and judgement resumes.
+///
+/// The anchors are always an even distance from the end (partner's ask at
+/// `n − 2`, our ask at `n − 4`, partner's ask at `n − 6`), so the
+/// opponents' calls are exactly the odd-from-end slots the reverse walk
+/// visits.
+fn opponents_quiet_since(auction: &[Call], index: usize) -> bool {
+    auction[index + 1..]
+        .iter()
+        .rev()
+        .step_by(2)
+        .all(|call| matches!(call, Call::Pass | Call::Double))
+}
+
+/// Partner's off-book 4NT asks keycards: a quiet window (opponents at most
+/// doubling since the ask), not an opening, not over our own notrump bid
+/// (that 4NT is quantitative — BWS reads keycard only with an agreed suit),
+/// and a fit is known from our seat.  Returns the agreed trump the 1430
+/// answer counts against.
 fn keycard_asked(hand: Hand, context: &Context<'_>) -> Option<Suit> {
-    if !floor_rkcb_now() || !context.undisturbed() {
+    if !floor_rkcb_now() {
         return None;
     }
     let auction = context.auction();
     let n = auction.len();
     if partner_last_call(auction) != Some(Bid::new(4, Strain::Notrump)) {
+        return None;
+    }
+    if !opponents_quiet_since(auction, n - 2) {
         return None;
     }
     let (opening_index, _) = opening_bid(auction)?;
@@ -1710,12 +1776,15 @@ fn keycard_answer(counts: &'static [usize], queen: Option<bool>) -> Cons<impl Co
 /// one) and optimistically otherwise — the book's policy.
 fn keycard_answered(hand: Hand, context: &Context<'_>) -> Option<(Suit, usize)> {
     use super::american::slam::count_keycards;
-    if !floor_rkcb_now() || !context.undisturbed() {
+    if !floor_rkcb_now() {
         return None;
     }
     let auction = context.auction();
     let n = auction.len();
     if n < 4 || auction[n - 4] != Call::Bid(Bid::new(4, Strain::Notrump)) {
+        return None;
+    }
+    if !opponents_quiet_since(auction, n - 4) {
         return None;
     }
     let Some(&Call::Bid(answer)) = auction.get(n - 2) else {
@@ -1725,7 +1794,10 @@ fn keycard_answered(hand: Hand, context: &Context<'_>) -> Option<(Suit, usize)> 
         return None;
     }
     let answer_suit = answer.strain.suit()?;
-    let trump = keycard_trump(hand, context)?;
+    // The same derivation ladder as the answerer's — both seats must land on
+    // the one trump, and sharing the function is the only guarantee (the
+    // net's contested asks never derived one at all).
+    let trump = answer_trump(hand, context)?;
     let mine = count_keycards(hand, trump);
     let (low, high) = match answer_suit {
         Suit::Clubs => (1, 4),
@@ -1771,12 +1843,15 @@ fn answer_is_five_of(trump: Suit) -> Cons<impl Constraint + Clone> {
 fn respect_keycard_signoff() -> Cons<impl Constraint + Clone> {
     use super::american::slam::count_keycards;
     pred(|hand: Hand, context: &Context<'_>| {
-        if !floor_rkcb_now() || !context.undisturbed() {
+        if !floor_rkcb_now() {
             return false;
         }
         let auction = context.auction();
         let n = auction.len();
         if n < 6 || auction[n - 6] != Call::Bid(Bid::new(4, Strain::Notrump)) {
+            return false;
+        }
+        if !opponents_quiet_since(auction, n - 6) {
             return false;
         }
         let (Call::Bid(answer), Call::Bid(signoff)) = (auction[n - 4], auction[n - 2]) else {
@@ -2570,8 +2645,9 @@ const TRANSFERS: [(u8, Bid, Bid); 6] = [
 ];
 
 /// An auction-determined forced situation: partner's live takeout double, a
-/// prior call committing our side to game, or partner's just-made transfer over
-/// our strong notrump
+/// prior call committing our side to game, partner's just-made transfer over
+/// our strong notrump, or a live keycard conversation
+/// ([`keycard_conversation_now`])
 ///
 /// Hand-independent — it follows from the calls alone.  The neural safety shell
 /// consults it to decide when to delegate to the deterministic [`instinct()`]
@@ -2585,6 +2661,75 @@ pub(crate) fn forced(context: &Context<'_>) -> bool {
         || TRANSFERS
             .iter()
             .any(|&(nt_level, from, _)| partner_transferred_now(context, from, nt_level))
+        || keycard_conversation_now(context)
+}
+
+/// A live keycard conversation, judged from the auction alone: partner's
+/// 4NT awaits our answer, partner's 1430 answer awaits our placement, or
+/// partner has placed the contract over our answer.  Auction-determined like
+/// the other [`forced`] arms — the neural shell delegates these to the
+/// deterministic ladder, because a keycard window is a convention in motion,
+/// not judgement: the reading-drift A/B's worst boards were the net
+/// freewheeling inside one (a 4NT passed out, a 5♦ answer played, a doubled
+/// 5♣ answer redoubled and left in).  Over-matching is NOT safe: every
+/// shape requires the recognizable-ask gate, because a hijacked window with
+/// no decodable trump has no continuation rung and strands the auction in
+/// the 1430 answer — the round-2 A/B's worst boards were making minor slams
+/// passed out in 5♥.  Shares [`opponents_quiet_since`] with the machinery's
+/// own gates so the two never disagree.
+pub(crate) fn keycard_conversation_now(context: &Context<'_>) -> bool {
+    if !floor_rkcb_now() {
+        return false;
+    }
+    let auction = context.auction();
+    let n = auction.len();
+    let four_nt = Call::Bid(Bid::new(4, Strain::Notrump));
+    let five_level_suit =
+        |call: Call| matches!(call, Call::Bid(bid) if bid.level.get() == 5 && bid.strain.is_suit());
+    // The window is only ours to police when the ask itself is recognizable:
+    // not an opening, not over the asker's own side's notrump bid
+    // (quantitative), and decodable — a major our side bid and raised on the
+    // auction's face, or one genuinely shown five-plus by either seat
+    // (mirroring the ladder ask's own decodability gate).  Every shape needs
+    // this, not just `asked`: an unrecognizable 4NT (quantitative, or a
+    // minor-slam probe) is judgement all the way down — hijacking its
+    // five-level answer leaves the ladder with no continuation rung, and the
+    // round-2 A/B's worst boards were making minor slams passed out in 5♥.
+    let recognizable = |ask: usize| {
+        opening_bid(auction).is_some_and(|(index, _)| index != ask)
+            && !(ask >= 2
+                && matches!(auction[ask - 2], Call::Bid(bid) if bid.strain == Strain::Notrump))
+            && (raised_major(auction).is_some() || {
+                let inferences = Inferences::read(context);
+                [Suit::Hearts, Suit::Spades].into_iter().any(|major| {
+                    inferences
+                        .me()
+                        .length(major)
+                        .min
+                        .max(inferences.partner().length(major).min)
+                        >= 5
+                })
+            })
+    };
+    // Partner just asked: answer.
+    let asked = n >= 2
+        && auction[n - 2] == four_nt
+        && opponents_quiet_since(auction, n - 2)
+        && recognizable(n - 2);
+    // We asked and partner answered at the five level: place the contract.
+    let answered = n >= 4
+        && auction[n - 4] == four_nt
+        && five_level_suit(auction[n - 2])
+        && opponents_quiet_since(auction, n - 4)
+        && recognizable(n - 4);
+    // We answered and partner placed: respect (or correct) the placement.
+    let placed = n >= 6
+        && auction[n - 6] == four_nt
+        && five_level_suit(auction[n - 4])
+        && matches!(auction[n - 2], Call::Bid(_))
+        && opponents_quiet_since(auction, n - 6)
+        && recognizable(n - 6);
+    asked || answered || placed
 }
 
 /// The opponents opened a one-level suit `X`, and our side answered with a
@@ -3683,23 +3828,30 @@ pub fn instinct() -> Rules {
                     & points_and_net(combined_points(37), strain, 13)
                     & level_available(7, strain),
             )
-            // At most one keycard missing: small slam.
+            // At most one keycard missing AND the values that justify an
+            // ask: small slam.  The entry gate re-checks what the ladder's
+            // own ask verified before bidding 4NT — but the *net* also asks
+            // (contested lanes, where its 4NT is judgement), and decoding an
+            // unvetted ask into an automatic six converts every frivolous
+            // 4NT into a slam; without the entry, the signoff below wins.
             .rule(
                 Bid::new(6, strain),
                 1.84,
-                keycard_total(trump, 4..) & level_available(6, strain),
+                keycard_total(trump, 4..) & slam_entry_reached() & level_available(6, strain),
             )
-            // Two missing: sign off at five while it is still available...
+            // Sign off at five while it is still available — the catch-all
+            // placement (weighted below the vetted six, so "one missing and
+            // entry values" still bids the slam)...
             .rule(
                 Bid::new(5, strain),
                 1.82,
-                keycard_total(trump, ..=3) & level_available(5, strain),
+                keycard_total(trump, ..) & level_available(5, strain),
             )
             // ...pass when partner's answer already is five of the trump...
             .rule(
                 Call::Pass,
                 1.80,
-                keycard_total(trump, ..=3) & answer_is_five_of(trump),
+                keycard_total(trump, ..) & answer_is_five_of(trump),
             )
             // ...and with no room below slam (a cramped minor, or a 5♠ answer
             // over hearts) accept six rather than strand the phantom answer —
@@ -4985,11 +5137,21 @@ mod tests {
             call(5, Strain::Spades),
             "two keycards missing → sign off"
         );
-        // 4 keycards: 5♦ means 0 — one missing → 6♠.
+        // 4 keycards, but a 15-count opposite a limit raise is no slam: one
+        // keycard missing used to hoist six unconditionally, and the same
+        // decode applied to an *unvetted* ask (the net's contested 4NT)
+        // converted every frivolous ask into a slam.  The six rung now
+        // re-checks the slam entry; short of it, sign off.
         assert_eq!(
             best(&auction, "AK752.A76.72.A93"),
+            call(5, Strain::Spades),
+            "one missing but no slam values → still sign off"
+        );
+        // The same four keycards with genuine slam values: one missing → 6♠.
+        assert_eq!(
+            best(&auction, "AKQJ2.AK5.72.A93"),
             call(6, Strain::Spades),
-            "one keycard missing → small slam"
+            "one keycard missing with the entry in hand → small slam"
         );
     }
 
@@ -5018,6 +5180,124 @@ mod tests {
             Call::Pass,
             "the answerer never overrides the asker's signoff short a keycard"
         );
+    }
+
+    /// The keycard machinery runs in a *contested* auction — the whole-auction
+    /// undisturbed gate is gone; only a bid inside the window stands it down.
+    /// Anchor: the reading-drift A/B's worst board (`1♦ (2♣) 2♠ P 3♠ P 4NT`),
+    /// where the net freewheeled the window into 5♣ – X – XX passed out in a
+    /// 2-2 club fit, −24 IMPs.
+    #[test]
+    fn contested_keycard_window_answers_and_places() {
+        let ask = [
+            Call::Pass,
+            Call::Pass,
+            call(1, Strain::Diamonds),
+            call(2, Strain::Clubs),
+            call(2, Strain::Spades),
+            Call::Pass,
+            call(3, Strain::Spades),
+            Call::Pass,
+            call(4, Strain::Notrump),
+            Call::Pass,
+        ];
+        // The opener answers 1430 despite the earlier interference: A♠ K♠ =
+        // two keycards, no queen → 5♥ (the net had mis-stated its count
+        // with 5♣).
+        assert_eq!(
+            best(&ask, "AKT8.8432.KQJ.65"),
+            call(5, Strain::Hearts),
+            "a contested window still answers 1430"
+        );
+        // The asker decodes 5♥ (two + two = one missing) but holds a
+        // 10-count: the ask was the net's judgement, not a vetted slam
+        // entry, so the six rung stands down and the signoff places 5♠.
+        let answered = [ask.as_slice(), &[call(5, Strain::Hearts), Call::Pass]].concat();
+        assert_eq!(
+            best(&answered, "J9654.AJ.AT74.74"),
+            call(5, Strain::Spades),
+            "an unvetted ask signs off at five"
+        );
+        // Their double of the answer changes nothing the arithmetic needs:
+        // the asker still places the contract — never a redouble, never a
+        // pass that leaves 5♥ doubled as the final contract.
+        let doubled = [ask.as_slice(), &[call(5, Strain::Hearts), Call::Double]].concat();
+        assert_eq!(
+            best(&doubled, "J9654.AJ.AT74.74"),
+            call(5, Strain::Spades),
+            "the asker places over their double of the answer"
+        );
+        // The answerer respects the contested signoff holding at most one
+        // keycard — even with the interference and their double on the way.
+        let signed_off = [
+            ask.as_slice(),
+            &[
+                call(5, Strain::Diamonds),
+                Call::Double,
+                call(5, Strain::Spades),
+                Call::Pass,
+            ],
+        ]
+        .concat();
+        assert_eq!(
+            best(&signed_off, "QJT8.KQ4.KQJ9.65"),
+            Call::Pass,
+            "the contested signoff is respected short a keycard"
+        );
+    }
+
+    /// [`keycard_conversation_now`] marks the live window as forced-rail
+    /// territory for the neural shell — and stands down the moment the
+    /// opponents bid inside it or the ask is not decodable
+    #[test]
+    fn keycard_conversation_is_forced_rail_territory() {
+        let live = |auction: &[Call]| forced(&Context::new(RelativeVulnerability::NONE, auction));
+        // The contested ask window: partner's 4NT with a shown spade suit.
+        assert!(live(&[
+            call(1, Strain::Diamonds),
+            call(2, Strain::Clubs),
+            call(2, Strain::Spades),
+            Call::Pass,
+            call(3, Strain::Spades),
+            Call::Pass,
+            call(4, Strain::Notrump),
+            Call::Pass,
+        ]));
+        // Their bid over the 4NT takes the answer rooms away: judgement.
+        assert!(!live(&[
+            call(1, Strain::Diamonds),
+            call(2, Strain::Clubs),
+            call(2, Strain::Spades),
+            Call::Pass,
+            call(3, Strain::Spades),
+            Call::Pass,
+            call(4, Strain::Notrump),
+            call(5, Strain::Clubs),
+        ]));
+        // No shown five-card major: partner's direct 4NT is not a decodable
+        // keycard ask (minors or quantitative) — the net keeps the node.
+        assert!(!live(&[
+            call(1, Strain::Diamonds),
+            Call::Pass,
+            call(4, Strain::Notrump),
+            Call::Pass,
+        ]));
+        // The round-2 A/B's worst boards: an unrecognizable 4NT (over the
+        // asker's side's own 3NT, no major in sight) stays judgement even
+        // after a five-level answer — hijacking the asker here passed out
+        // making minor slams in 5♥.
+        assert!(!live(&[
+            call(1, Strain::Diamonds),
+            Call::Pass,
+            call(2, Strain::Clubs),
+            call(2, Strain::Notrump),
+            call(3, Strain::Notrump),
+            Call::Pass,
+            call(4, Strain::Notrump),
+            Call::Pass,
+            call(5, Strain::Hearts),
+            Call::Pass,
+        ]));
     }
 
     /// Partner's post-transfer 4♠ is a control bid agreeing hearts (the M6.4
@@ -5076,8 +5356,10 @@ mod tests {
     fn nine_count_five_card_major_forces_game_after_a_transfer() {
         // 1NT–2♥–2♠: a 9-count with a single five-card spade suit transferred (it
         // cannot bid the direct 3NT, which denies a five-card major) and now forces
-        // game off the floor — the authored rebid table stops at the exactly-8
-        // invite, so the floor (default 9) carries the 9.
+        // game.  The choice-of-games rule's `hcp(9..16)` mirrors the floor's
+        // 9-count seam (`nt_responder_game_floor`), so the *book* authors the 3NT
+        // the floor used to carry — same call, and now the rule's projection
+        // admits the hand that bid it (`set_natural_reading` soundness).
         let auction = [
             call(1, Strain::Notrump),
             Call::Pass,
@@ -5087,7 +5369,7 @@ mod tests {
             Call::Pass,
         ];
         let (bid, from_floor) = american_floored(&auction, "AK543.82.Q76.542");
-        assert!(from_floor, "the game force is off-book, the floor decides");
+        assert!(!from_floor, "the 9-count game force is on-book now");
         assert_eq!(bid, call(3, Strain::Notrump));
     }
 

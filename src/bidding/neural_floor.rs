@@ -11,10 +11,14 @@
 //!
 //! - **Forced** — when `instinct::forced` reports an
 //!   *auction-determined* forced situation (partner's live takeout double, a
-//!   prior call committing us to game, or partner's just-made transfer over our
-//!   strong notrump), it returns the deterministic [`instinct()`] answer
-//!   verbatim.  The net is never trusted on the rails; delegating reproduces the
-//!   already-tested behavior exactly.
+//!   prior call committing us to game, partner's just-made transfer over our
+//!   strong notrump, or a live keycard conversation — partner's 4NT, their
+//!   1430 answer to ours, or their placement over our answer), it returns the
+//!   deterministic [`instinct()`] answer verbatim.  The net is never trusted
+//!   on the rails; delegating reproduces the already-tested behavior exactly.
+//!   The keycard rail exists because a convention in motion is not judgement:
+//!   left to itself the net passed out asks, played 1430 answers, and
+//!   redoubled doubled answers (the reading-drift A/B's worst boards).
 //! - **Judgement** — otherwise it returns the net's logits, legality-masked: any
 //!   call the laws forbid is set to `-∞`, while `Pass` (always legal) stays
 //!   finite so a distribution always exists.  This is the vast middle the net is
@@ -123,6 +127,44 @@ mod tests {
         let auction = [call(3, Strain::Clubs), Call::Double, Call::Pass];
         assert_eq!(best(&auction, "96432.J85.9742.2"), call(3, Strain::Spades));
         assert_eq!(best(&auction, "964.J85.974.9632"), Call::Pass);
+    }
+
+    #[test]
+    fn keycard_window_delegates_in_competition() {
+        // The reading-drift A/B's worst board: inside this live contested
+        // keycard window the bare net mis-answered 5♣, redoubled the doubled
+        // answer, and left 5♣XX to play in a 2-2 club fit (−24 IMPs).  A
+        // keycard conversation is forced-rail territory: the shell delegates
+        // to instinct, which answers 1430 and places the contract.
+        let ask = [
+            Call::Pass,
+            Call::Pass,
+            call(1, Strain::Diamonds),
+            call(2, Strain::Clubs),
+            call(2, Strain::Spades),
+            Call::Pass,
+            call(3, Strain::Spades),
+            Call::Pass,
+            call(4, Strain::Notrump),
+            Call::Pass,
+        ];
+        assert_eq!(
+            best(&ask, "AKT8.8432.KQJ.65"),
+            call(5, Strain::Hearts),
+            "two keycards, no queen → 5♥, interference notwithstanding"
+        );
+        let doubled = [ask.as_slice(), &[call(5, Strain::Hearts), Call::Double]].concat();
+        let placed = best(&doubled, "J9654.AJ.AT74.74");
+        assert_ne!(
+            placed,
+            Call::Redouble,
+            "a doubled 1430 answer is never redoubled"
+        );
+        assert_eq!(
+            placed,
+            call(5, Strain::Spades),
+            "the asker places the contract over their double"
+        );
     }
 
     #[test]

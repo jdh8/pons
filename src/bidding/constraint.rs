@@ -2890,6 +2890,7 @@ mod tests {
             "the agreement is what the table is told"
         );
         assert_pass(split.eval(hand(BALANCED_15), &context));
+        set_dnf_reading(true);
     }
 
     #[test]

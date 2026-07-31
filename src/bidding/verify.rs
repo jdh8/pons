@@ -505,5 +505,6 @@ mod tests {
             Range::new(8, 37),
         );
         set_landy(None);
+        set_leaping_michaels(true);
     }
 }

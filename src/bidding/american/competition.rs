@@ -6324,6 +6324,8 @@ mod tests {
         // Restore the defaults for other tests sharing this thread.
         set_penalty_double_leave_in(true);
         set_double_style(DoubleStyle::Penalty);
+        super::set_lebensohl_style(super::LebensohlStyle::Transfer);
+        set_double_style(DoubleStyle::Optional);
     }
 
     #[test]
@@ -6354,6 +6356,8 @@ mod tests {
         let (stuck, _) = best_call(&auction, "A52.93.KJ54.AKQ6");
         assert_eq!(stuck, Call::Pass, "a doubleton with no suit stands");
         set_double_style(DoubleStyle::Penalty); // restore the default
+        super::set_lebensohl_style(super::LebensohlStyle::Transfer);
+        set_double_style(DoubleStyle::Optional);
     }
 
     #[test]
@@ -6590,6 +6594,7 @@ mod tests {
         let (four, _) = best_call(&complete, "AQ5.K542.96.QJ32");
         assert_eq!(four, call(2, Strain::Hearts), "four raises");
         super::set_negative_double_shape(super::NegativeDoubleShape::BothMajors);
+        super::set_negative_double_shape(super::NegativeDoubleShape::Modern);
     }
 
     #[test]
@@ -6666,6 +6671,7 @@ mod tests {
             eprintln!("{t:28}: {:?}", best_call(&a, h));
         }
         super::set_negative_double_shape(super::NegativeDoubleShape::BothMajors);
+        super::set_negative_double_shape(super::NegativeDoubleShape::Modern);
     }
 
     #[test]
@@ -6698,6 +6704,7 @@ mod tests {
             best_call(&ph, "A2.KQ54.A3.KJ654")
         );
         super::set_negative_double_shape(super::NegativeDoubleShape::BothMajors);
+        super::set_negative_double_shape(super::NegativeDoubleShape::Modern);
     }
 
     #[test]
@@ -6741,6 +6748,7 @@ mod tests {
             eprintln!("{tag}: {:?}", best_call(&a, "A2.KJ54.KQ543.A2"));
         }
         super::set_negative_double_shape(super::NegativeDoubleShape::BothMajors);
+        super::set_negative_double_shape(super::NegativeDoubleShape::Modern);
     }
 
     #[test]
@@ -6777,6 +6785,7 @@ mod tests {
         assert_eq!(raise, call(3, Strain::Spades), "over (1♥) four spades jump");
 
         super::set_negative_double_shape(super::NegativeDoubleShape::BothMajors);
+        super::set_negative_double_shape(super::NegativeDoubleShape::Modern);
     }
 
     #[test]
@@ -6796,6 +6805,7 @@ mod tests {
             "≤3 in both majors is the residual double"
         );
         super::set_negative_double_shape(super::NegativeDoubleShape::BothMajors);
+        super::set_negative_double_shape(super::NegativeDoubleShape::Modern);
     }
 
     #[test]

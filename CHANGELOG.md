@@ -7,6 +7,84 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **The keycard-window rail: contested 4NT completes as RKCB.** Round 1 of
+  the reading-drift A/B (below) washed on plain DD but lost −0.0060
+  [±0.0052] on perfect defense at vul none, and the trace showed why: the
+  sounder readings let the neural floor *start* keycard conversations in
+  contested lanes, where the M6.4 machinery was gated on whole-auction
+  `undisturbed()` — so the net freewheeled the continuation (a 4NT passed
+  out, a 5♦ answer left to play, a doubled 5♣ answer redoubled and played
+  in a 2-2 fit, −24 IMPs). 4NT in competition with an agreed suit is RKCB,
+  not quantitative; now the machinery's gates only require the *window* to
+  be quiet (their X inside it is tolerated, their bid stands it down), a
+  live window is a new `forced()` rail (the shell delegates it to the
+  deterministic ladder), `raised_major` derives the agreed trump from the
+  auction's face when contested readings are still vacuous, and the asker's
+  "one keycard missing → six" rung re-checks the slam entry so an unvetted
+  net ask signs off at five instead of hoisting a 25-count slam. Round-2
+  batch A/B (SEED_BASE 1785481388): **all four cells wash** — the PD-none
+  loss is gone (−0.0049 [±0.0060]; plain −0.0012/−0.0025, PD-both
+  −0.0023) — but its worst boards exposed a rail defect: the
+  `answered`/`placed` window shapes lacked the `asked` shape's
+  decodability gate, so on contested *minor* auctions the shell hijacked
+  the asker with no derivable trump and **passed out the 1430 answer**
+  (5♥ in a diamond deal) where the bare net bid the making minor slam.
+  All three shapes now share one `recognizable(ask)` gate (not an
+  opening, not over the asker's side's own notrump, trump decodable);
+  an unrecognizable 4NT stays the net's judgement. Round-3 batch A/B
+  (base 240a573, SEED_BASE 1785482709, 32×6400 bd/arm/vul): **non-loss
+  in all four cells** — plain +0.0007 [±0.0050] none / +0.0049
+  [±0.0058] both, PD −0.0010 [±0.0058] none / **+0.0067 [±0.0067]**
+  both (edge-of-win) — the batch ships as the default (knobless
+  soundness corrections). Remaining worst boards trace to the filed
+  vacuous-contested-readings coverage hole, not the rail: a jump to
+  4♠ after two doubles stamps nothing, so `recognizable` is blind
+  exactly where the walk is — the rail's reach grows as that hole
+  closes.
+- **Reading drift, first repair pass** (campaign ledger in
+  [docs/reading-drift-handoff.md](docs/reading-drift-handoff.md); round-1
+  batched A/B read 2026-07-31: plain DD wash both vuls, PD wash at both, PD
+  **−0.0060 [±0.0052] at none** — traced to the contested-4NT floor lane,
+  authored above, batch re-measured). `probe-reading-sound` attributed
+  partner's 3.16% box-excludes-the-bidder rate to mechanistic families and
+  seven repairs landed, each pinned by the new table-driven invariant
+  `readings_admit_the_bidder` (replays the *bidder* at 20 nodes, honest
+  routes, both reading regimes):
+  - the systems-on **strip re-read keyless**, silently dropping every authored
+    projection at stripped nodes (the alerted both-majors `3♦` read as natural
+    `♦5+`, excluding its own 5-5-major bidders) — now re-keyed through the
+    attached stance, so `[1♠ 1NT P …]` reads byte-identical to the opening;
+  - the **reader-context projection skew**: `support(...)` atoms projected
+    under the reader's context landed on the wrong suit — cue raises stamped
+    the *cue* suit (`1♣ 1♦ 2♦` excluded 24/24 of its bidders), the support
+    double stamped exactly-3 on the *opened minor* (9/9). Projection now uses
+    the bidder's at-the-time context, as the table-alert and pass branches
+    always did;
+  - preempt raises to game carried the constructive band's `1..=11` image
+    (13/13 of `3♥ P 4♥` raisers excluded) — the band now gates on one-level
+    openings, and no support floor is stamped on a suit shown 6+;
+  - delayed preferences/raises of a shown 5-card suit floor at **2** (81% of
+    forcing-NT preference bidders were doubletons), with the jump guard that
+    keeps the slam-sampler intact;
+  - post-transfer continuations no longer read as natural rebids (`1NT P 2♦ P
+    2♥ P 3♦` claimed ♦6+ against an actual 4) — `over_one_notrump` requires
+    the lane's first bid; and the XYZ 2M rebid reads 5+ on both routes (the
+    direct sign-off was the single largest measured offender, 143/198);
+  - the transfer choice-of-games 3NT gates now mirror the instinct floor's
+    seam (`hcp(9..16)`) so the book authors every 3NT the node produces —
+    verified bidder-inert over 16,384 honest replays; names a new mechanism
+    class (projection at a *deliberately partial* rules table over a total
+    floor), filed for the `set_natural_reading` campaign.
+- **Test hygiene: 15 thread-local knob leaks.** Tests that ended with
+  non-default knob state (dnf/table-alert readings, leaping-michaels, woolsey
+  points, choice-of-games, lebensohl/double styles, negative-double shape,
+  Stayman minor slam try) poisoned later same-thread tests — one made the new
+  invariant flaky in-suite. All restored; the `doubled_splinter_runs_systems_on`
+  off-arm pin updated (the floor now reads the doubled splinter's support and
+  drives the slam it used to pass).
+
 ### Added
 
 - **Pass-exclusion evaluator twin** (`evaluator_v3_exclusion`, served

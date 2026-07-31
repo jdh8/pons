@@ -1,9 +1,10 @@
-# Handoff — why constraints and readings still disagree after DNF
+# Reading drift — diagnosis and campaign ledger
 
 **Written 2026-07-31**, out of the Gladiator audit. Two defects found in one
 small convention, both of the same family, neither reachable by any check the
 crate currently runs. This file names the family, prices it, and proposes the
-program. It is a *diagnosis*, not a plan of record — nothing here is measured.
+program; the [ledger](#campaign-ledger) at the bottom tracks the campaign that
+took it up (same day).
 
 Prerequisites: [dnf-migration.md](dnf-migration.md) (what the DNF work did and
 did not do), [reader-retirement.md](reader-retirement.md) (the hand-written
@@ -132,6 +133,7 @@ convention.
 - **`Points::project` is floor-only** ([constraint.rs](../src/bidding/constraint.rs)).
   No `points(..X)` ceiling survives projection, so every alerted call reads with
   an unbounded top. Fixing it is a book-wide reading change → its own A/B.
+  (Made bids only: passes fold through `project_band`, which keeps both bounds.)
 - **Negations project nothing.** `!flat_4333()` and friends contribute ⊤, so a
   box is always looser than its rule. Sound, so not a defect — but it means
   "the projection *is* the rule" is false even in regime 1.
@@ -201,3 +203,317 @@ has attributed that 3.3% to specific nodes.
   of that loss (≈40% in the `(X)` branch) is exactly what the runout node
   addresses — so the treatment is owed a re-measure before its row means
   anything. See [bidding-options.md](bidding-options.md).
+  *(Stale since the v5/v7 re-measures, same day: the row is now filed as
+  opt-in **WASH**, mechanism fixed — the owed re-measure happened.)*
+
+## Campaign ledger
+
+**Opened 2026-07-31.** Scope fixed with jdh8: steps 1–3 of the program above;
+step 4 (measuring `set_natural_reading` as a default, with its knob-matched
+evaluator twin) deferred to its own campaign. Repair policy this pass: **walk
+fixes only** — genuinely-conventional offenders are *filed* as alert-candidates,
+not alerted. All walk fixes ship through **one batched A/B** (non-loss ships
+default-on; a loss gets its divergent boards traced first). Sweep rows land
+only together with the repair that makes them green.
+
+### Instrument (step 1 — done)
+
+`probe-reading-sound` grew the missing pieces (step 1 of the program was
+already substantially built — the probe bucketed by `(seat, prefix)` before
+this campaign, contrary to the freshly-written section above):
+
+- `--ns-natural-reading` runs the census under the regime-2 knob;
+- every cell counts **both predicates** — `Inferences::admits` (the table
+  reading every in-crate consumer sits on; the invariant's predicate) and
+  `announced_dnf().contains` (the recorded baseline). Under default knobs the
+  two are byte-identical (the announce overlay is a clone of the projection
+  overlay until `set_announced_reading` is on), which the first run confirmed;
+- the worklist buckets **partner only** — every partner offender is a node we
+  author, so the whole list is actionable.
+
+**Follow-up filed:** an opponent-seat worklist (LHO 8.26% / RHO 8.49%,
+jumping to 10.73% / 11.02% under the knob) — our readings of *their* calls,
+a mix of defensive-book drift and foreign-system noise, not worked this pass.
+
+### Attribution (10k deals, seed 20260731, BBA 2/1 opponents)
+
+| regime | LHO | partner | RHO | distinct partner nodes |
+| --- | --- | --- | --- | --- |
+| knob off | 8.262% | **3.156%** | 8.492% | 12756 |
+| knob on | 10.732% | **3.241%** | 11.023% | 12910 |
+
+The partner worklist is **families, not a flat tail** — the top offenders
+cluster by mechanism (share of the 1338 knob-off partner exclusions in the
+top-40: ~20%, but each family covers many tail keys):
+
+| family | exemplar (excluded/readings) | wrong claim |
+| --- | --- | --- |
+| preempt raise to game | `3♥ P 4♥` (13/13) | points capped 1..=11 — the to-make raise excluded |
+| preference/raise of a shown 5-6 suit | `1♠ P 1NT P 2♦ P 2♠` (10/11), `…2♥ P 2♠` (8/8), `…3♠ P 4♠` (11/14) | support 3.. — doubleton preference excluded |
+| rebid inflation through artificial calls | XYZ `…2♣ P 2♦ P 2♠` (12/14), transfer `1NT P 2♦ P 2♥ P 3♦` (8/8) | ♠6.. / ♦6.. — the relay counted as a natural suit bid |
+| opener's X of RHO's overcall | `1♦ P 1♥ 1♠ X` (9/9) | support-double stamp (♥3..=3, 10..=21) the bidder never matches |
+| cue raise | `1♥ 1♠ 2♠` (8/15) | hull ⊤ but a DNF box excludes — projection-level |
+| strip node, both-majors 3♦ | `1♠ 1NT P 3♦` (sweep catch) | reads walk-natural ♦5.. instead of the alerted both-majors; floor also bids it on 5 HCP |
+
+### Invariant (step 2 — done)
+
+`readings_admit_the_bidder` (src/bidding/inference.rs): table-driven, default
+knobs, both regimes, 256 seeded hands per node replayed through the *bidder*.
+Landed with rows for openings (1st/2nd seat), responses to 1♥/1♠, and the
+systems-on 1NT-overcall advance and runout nodes — the advance row is what
+caught the both-majors 3♦ defect above on its first run.
+
+### Verification (probe re-run, same 10k deals/seed, after all repairs)
+
+| regime | LHO | partner | RHO |
+| --- | --- | --- | --- |
+| knob off | 8.262% → 7.517% | **3.156% → 2.358%** | 8.492% → 7.665% |
+| knob on | 10.732% → 10.166% | **3.241% → 2.430%** | 11.023% → 10.360% |
+
+A quarter of partner's ambient exclusion rate attributed and repaired; the
+opponents improved ~0.7-0.9 points free of charge (the projection-context and
+strip fixes serve their calls too). Every repaired family left the worklist
+top. The tail is now flat: the top cells are the bare openings at 1.2-1.95%
+*rate* — an opening's bucket also collects its interference variants
+(`[1♥ X]`, `[1♥ 2♣]`, … all key as `1♥`), so that family is diffuse and
+unattributed — and everything else sits at ≤9 counts per 42k readings.
+Named-but-unrepaired (filed above and by the triage notes): the minor raise
+`1♣ P 2♣` (9/18), Michaels advances `1♥ 2♥ P 2♠` (8/9), the sixth-card-rebid
+stamp's narrow excuse (`1♠ P 3NT P 4♠`), the cue-agreement-blind
+`agreed_re_raise` (`2♦ 2♠ P 3♦ P 3♥`), and lebensohl continuations.
+
+### Batched A/B (launched 2026-07-31)
+
+`scripts/reading-drift-ab.sh` — two-binary protocol (the repairs are
+knobless): `bba-gen-base` (HEAD 240a573) vs `bba-gen-fix` (all repairs),
+both prebuilt into `ab-results/reading-drift/` before launch so nothing
+rebuilds in flight. 32×6400 bd/arm/vul, SEED_BASE **1785449222**, arms
+sequential under `idle-run.sh`, plain + PD diffs at `--show 40`. Read the
+verdict from `ab-results/reading-drift/diff.fix.vs.base.{none,both}.{plain,pd}.txt`
+against the measurement.md decision table: **non-loss ships** (the repairs
+are soundness corrections; a loss traces its worst divergent boards first).
+
+**Verdict (read 2026-07-31, 204800 bd/arm/vul):**
+
+| vul | plain DD | perfect-defense |
+| --- | --- | --- |
+| none | −0.0013 [±0.0044] wash | **−0.0060 [±0.0052] loss** |
+| both | −0.0031 [±0.0053] wash | −0.0016 [±0.0061] wash |
+
+Fired 2.50%/2.27% (none/both). Three washes and one just-significant PD
+loss at vul none — not the clean non-loss the rule ships on, so the worst
+divergent boards were traced (iron rule) before concluding.
+
+**Trace: the readings are right; the floor spends them in an unauthored
+lane.** The dominant motif (9 of the loss cell's 40 worst carry an on-arm
+4NT; the raise-shape family covers ~⅔ of the tail) is contested auctions
+where a competitive raise (`1♦ 2♣ 2♠ P 3♠`, `1♥ 2♠ 3♠`, `2♥ P 3♥`) now
+reads as real support — the fix arm's floor sees the fit-plus-values it was
+previously blind to and drives slam via 4NT in lanes with **no authored
+keycard machinery**. The continuation shatters in every way the iron rule
+predicts of an unread artificial call: 4NT passed out, the 5♦/5♣ answer
+passed out and played, a 5♥ signoff pulled to a dead 6♣, a doubled answer
+redoubled and left in (`5♣ X XX`). A second motif is higher part-score
+competition/sacrifices that perfect defense punishes (five doubled-contract
+`XX` left-ins among the worst 40). A minority are the mirror image — the
+base arm reaching a good slam the fix arm now declines. The loss
+concentrates at vul none (cheap to over-compete) and in the PD scorer
+(which punishes every overreach); plain DD calls all four cells a wash.
+
+Disposition of round 1: **superseded** — the exposed defect was the
+contested-4NT floor lane (an intra-floor phantom convention), not any
+reading. Reverting provably-correct readings to hide a floor hole would be
+backwards; the lane was authored instead and the batch re-measured.
+
+### The keycard-window rail (authored 2026-07-31, joins the batch)
+
+4NT in competition with an agreed suit is RKCB, not quantitative (jdh8's
+call, and every worst board agrees — no contested 4NT in the tail was
+quant). The M6.4 machinery already knew how to run the conversation but was
+gated on whole-auction `undisturbed()`, so in contested lanes the net
+freewheeled it. The repair, in `src/bidding/instinct.rs` +
+`neural_floor.rs`:
+
+- **Window, not auction, must be quiet** (`opponents_quiet_since`): the
+  three continuation gates (`keycard_asked`, `keycard_answered`,
+  `respect_keycard_signoff`) now tolerate any contested prefix and their
+  X *inside* the window; only their bid inside it stands the machinery
+  down. The ladder's own 4NT *ask* stays undisturbed-gated — contested
+  asks remain the net's judgement; we only complete them.
+- **Delegation** (`keycard_conversation_now`, a new `forced()` arm): a live
+  keycard window — partner's decodable 4NT, partner's 1430 answer to ours,
+  partner's placement over our answer — is forced-rail territory, so
+  `NeuralFloorBba` hands it to the deterministic ladder instead of the net.
+  Auction-determined like the other rails; shares the window helper with
+  the machinery's gates so the two cannot disagree.
+- **`raised_major`** — the trump derivation that works when readings are
+  vacuous: a major bid by *both* members of our side (opponents' suits
+  excluded) is agreed on the auction's face, no hand, no readings. Needed
+  because the contested walk stamps nothing for a free bid yet (`1♦ (2♣)
+  2♠ P 3♠ P 4NT` read partner ♠ `0..13` — a **coverage** hole the
+  exclusion probe cannot see, filed below). `keycard_answered` now derives
+  through the same `answer_trump` ladder as the answerer — sharing the
+  function is the only both-seats-agree guarantee.
+- **The six rung re-checks the slam entry**: decoding an *unvetted* ask
+  into an automatic "one missing → six" converted every frivolous net 4NT
+  into a slam (board 1's 10-count asker would have hoisted 6♠ off 25
+  combined). Six now requires `slam_entry_reached()`; the five-level
+  signoff/pass rungs widened to `keycard_total(..)` as the catch-all
+  placement. One shipped pin adjudicated accordingly
+  (`floor_asker_continues_after_the_answer`: a 15-count opposite a limit
+  raise signs off at five now; the small slam needs the entry in hand).
+
+Pinned by `contested_keycard_window_answers_and_places` (the board-1 lane:
+1430 answer, placement over their X — never a redouble — and the respected
+signoff), `keycard_conversation_is_forced_rail_territory`, and the shell's
+`keycard_window_delegates_in_competition`.
+
+New follow-up filed: **contested free bids read as nothing** — partner's
+`2♠` over `(2♣)` and even our own `3♠` raise stamp no length in the bare
+walk (all `0..13`). Soundly vacuous, so `probe-reading-sound` cannot rank
+it; the cost is coverage (the reading program's priced axis), and the
+keycard rail had to route around it with `raised_major`.
+
+### Batched A/B, round 2 (2026-07-31 — all four cells wash; one rail defect traced and gated)
+
+Same two-binary protocol, fresh dir `ab-results/reading-drift-2/`:
+`bba-gen-base` (HEAD 240a573) vs `bba-gen-fix` (seven reading repairs +
+the keycard-window rail), SEED_BASE **1785481388**, 32×6400 bd/arm/vul,
+arms sequential under `idle-run.sh`, plain + PD.
+
+| vul | plain DD | perfect defense |
+| --- | --- | --- |
+| none | −0.0012 [±0.0051] wash | −0.0049 [±0.0060] wash |
+| both | −0.0025 [±0.0061] wash | −0.0023 [±0.0070] wash |
+
+Fired 3.00 % / 2.69 %. The round-1 PD-none *loss* (−0.0060 [±0.0052]) is
+gone — the rail did its job on the disaster lane. But the PD worst-board
+lists exposed a defect **in the rail itself**: the `answered`/`placed`
+window shapes lacked the decodability gate the `asked` shape carried. On
+contested minor auctions (`1♦ … 3NT (2NT interference) 4NT – 5♥`) the
+shell hijacked the asker's rebid, `answer_trump` decoded nothing, no
+continuation rung fired, and the ladder **passed out the 1430 answer** —
+5♥ in a diamond deal — where the base net bid the making minor slam
+(three of the four worst PD-none boards, −20 to −21 each). The
+"slightly over-matching is safe" assumption was measured false.
+
+**Repair:** all three shapes of `keycard_conversation_now` now share one
+`recognizable(ask_index)` gate — not an opening, not over the asker's
+side's own notrump (quantitative), and trump-decodable (`raised_major`
+on the auction's face, or a genuinely shown five-card major). An
+unrecognizable 4NT is judgement all the way down; the net keeps the
+node. Pinned in `keycard_conversation_is_forced_rail_territory`.
+
+### Batched A/B, round 3 (2026-07-31 — non-loss in all four cells, SHIPPED)
+
+`ab-results/reading-drift-3/`: base 240a573 vs seven repairs + rail +
+recognizability gate, SEED_BASE **1785482709**, same protocol (base
+binary reused from round 2 — same commit).
+
+| vul | plain DD | perfect defense |
+| --- | --- | --- |
+| none | +0.0007 [±0.0050] wash | −0.0010 [±0.0058] wash |
+| both | +0.0049 [±0.0058] wash | **+0.0067 [±0.0067]** edge-of-win |
+
+Fired 2.91 % / 2.58 %. The 5♥-passout signature is gone; per the
+decision rule (soundness corrections, non-loss ships) the batch is the
+new default — knobless code corrections, nothing to toggle.
+
+One worst board is evidence for the filed vacuous-readings follow-up,
+not a gate defect: `2♥ X 3♥ X – 4♠ – 4NT – 5♥ X XX` (−23). Partner's
+jump to 4♠ after two doubles shows spades to any human, but the
+contested walk stamps nothing and no raise exists on the auction's
+face, so `recognizable` was blind, the window stayed judgement, and
+the net redoubled the doubled answer. Stamping contested free bids
+(the coverage follow-up) would have put the ladder on this board —
+the rail's reach grows exactly as that hole closes.
+
+### Repairs (step 3 — seven landed this pass)
+
+Per-family disposition, each pinned by a `readings_admit_the_bidder` row and
+joining the one batched A/B:
+
+- **Strip node (`1♠ 1NT P 3♦`) — FIXED, mechanism-level.** The strip re-read
+  the stripped auction on a bare keyless `Context::new`; `project_authored`
+  needs the trie prefixes, so it silently skipped *every* authored rule at
+  stripped nodes and the walk's off-book arm stamped the alerted both-majors
+  `3♦` as natural `♦5..`. Re-keyed through the attached stance —
+  `[1♠ 1NT P 3♦]` now reads byte-identical to `[1NT 3♦]`, and the repair
+  covers every authored-alerted call at stripped nodes (runout, Puppet,
+  splinters, Texas), not just `3♦`. No bidder bug: the "5-HCP" witnesses are
+  8–9 on the PointCount gauge the rule shipped with; a `points(8..)` tighten
+  would be convention-tuning on a measured treatment, not a defect.
+- **Delayed preferences/raises of a shown 5-6 suit — FIXED.** The blanket
+  raise-shows-3-support stamp excluded 81% of the actual forcing-NT
+  preference bidders (`♠=2` on every single exclusion; the points band
+  excluded nobody). New floor: partner shown **6+** → no length claim at all
+  (game raises on a stiff honour are real); a *delayed, non-jump* return to a
+  shown **5** → two (zero singletons in ~2500 replayed decisions, so 2 is
+  sound and tight); jump returns qualify only when the suit was bid twice —
+  the guard that keeps the slam machinery intact (loosening jump returns to a
+  once-shown 5-suit let the sampler deal doubleton responders and dragged the
+  bilans grand-slam estimate below break-even: the handoff's "a reading knob
+  is a bidding knob" made live in a unit test).
+- **Rebid inflation through artificial calls — FIXED, two mechanisms.**
+  (1) `over_one_notrump` now requires the lane's *first* bid, so post-transfer
+  continuations fall under the notrump-structure blanket instead of the
+  natural walk — the alerted Jacoby 2♦ no longer counts as a first diamond
+  bid (`1NT P 2♦ P 2♥ P 3♦` read ♦6.. against an actual 4; super-accepts and
+  post-Stayman 3m had the same exposure). (2) An XYZ-aware five-card floor on
+  responder's 2M rebid, both routes — the direct sign-off
+  (`1♦ P 1♠ P 1NT P 2♠`, the single largest offender measured: 143/198) and
+  the 2♣-relay invite. Gated on `xyz()`; a genuine natural 1♠-then-2♠ still
+  reads 6+. Left open: the XYZ 2♦-GF route and NMF (knob-off) still read 6+;
+  the underlying `lane_suits` pollution by suppressed calls stands outside
+  the 1NT blanket (flagged — the principled `natural_lane_suits` switch
+  interacts with cue detection, larger than the measured defects justify).
+- **Reader-context projection skew (`support(...)`) — FIXED,
+  mechanism-level.** Two agents independently converged on the same root
+  cause: `project_authored` projected own-side calls under the *reader's*
+  full-auction context, and `Support::project` resolves `partner_last_suit()`
+  seat-relatively — so the cue raise's `support(n..)` stamped n+ cards of the
+  **cue suit** (`1♣ 1♦ 2♦` 24/24 excluded; the hull stayed near-⊤, which is
+  why only the DNF probe saw it) and the support double's `support(3..=3)`
+  stamped exactly-3 on the **opened minor** (`1♦ P 1♥ 1♠ X` 9/9 — the bidder
+  plays a textbook support double, every doubler has exactly 3 hearts; the
+  reading was the wrong suit). Fixed by projecting under the bidder's
+  **at-the-time context** (auction cut at the call, vul parity-flipped),
+  exactly as the table-alert and pass branches already did. For plain raises
+  the two contexts coincide, which is how this survived every raise-reader
+  sweep. Note the ♥ slot *tightens* 0..=4 → 3..=3 — correct-by-construction
+  (the rule gated the bid), but a tightening the batched A/B must carry.
+- **Partial-table projection at the transfer choice-of-games 3NT — FIXED,
+  and a new mechanism class named.** Knob-on, `[1NT P 2♦ P 2♥ P 3NT]`
+  excluded the 9-count and 4-card-minor game-forcers that bid it. Not a
+  wrong rule and not `Fallback::classify`: the 3NT came from the **instinct
+  floor** falling through a *deliberately partial* rules table
+  (mass-aware `classify_floored`), while `authoring_classifier` resolves
+  structurally — so the projection stamped the node rule's `points(10..)` +
+  minor-caps box onto a call the floor authored. The projection's premise —
+  "some rule sharing this bid produced it" — fails at any partial table over
+  a total floor. Minimal repair: both transfer-GF 3NT gates become the
+  floor's own seam (`hcp(9..16)`, minor caps dropped) so the book owns every
+  3NT the node produces — verified **bidder-inert** over 16,384 honest
+  replays (call maps byte-identical; the 9-count force just moves floor →
+  book, one provenance pin updated). The *family* closure (project the
+  fall-through classifier's same-call union knob-on, or a totality marker on
+  `Rules`) is a design decision, filed for the step-4 campaign.
+- **Test-hygiene audit (side finding).** The sweep was flaky in-suite: the
+  committed `transfer_gf_majors_*` tests hold the GF knobs across assertion
+  windows, and a full audit found ~14 tests ending with non-default knob
+  state (dnf/table-alert readings, leaping-michaels, woolsey points,
+  choice-of-games, lebensohl/double styles, negative-double shape, Stayman
+  minor slam try) — every one a same-thread landmine for later tests.
+  One-line restores applied to all.
+- **Preempt raise to game (`3♥ P 4♥` 13/13) — FIXED, two hunks.** The
+  responder-raise strength band lacked an `opening_one_suit` gate, so a raise
+  of a preempt inherited the constructive band's `1..=11` image and excluded
+  every to-make raiser; and the generic raise-shows-3-support stamp is
+  unsound once partner has shown 6+ (game raises on a stiff honour). Both
+  purely loosening; `1♥ P 2♥` / `1♥ P 3♥` readings byte-identical before and
+  after. Triage of lookalikes found **distinct** mechanisms left on the
+  worklist: the sixth-card-rebid stamp's five-card excuse is too narrow
+  (choice-of-games `1♠ P 3NT P 4♠`), the cue-agreement is invisible to
+  `agreed_re_raise` (`2♦ 2♠ P 3♦ P 3♠`), and doubleton 2/1 power raises hit
+  the raise-3 stamp on a known-**5** suit — deliberately not lifted (it would
+  loosen raises of every overcall system-wide; own A/B if pursued).

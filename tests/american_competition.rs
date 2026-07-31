@@ -293,11 +293,16 @@ fn doubled_splinter_runs_systems_on() {
     use pons::bidding::american::set_splinter_doubled;
     // Anchor board 2448 (Constructive/book/round-1 bucket #4 tail): opener holds
     // 16 HCP with four aces and five spades. 1♠ – (P) – 4♣ (splinter) – (X): with
-    // the knob off the double reroutes opener to the competitive book, where it
-    // fell to the floor and *passed* the doubled game force. Systems-on (the
-    // shipped default) rebases the double back onto the undisturbed splinter tree,
-    // so opener keycards toward the slam the field bids — identical to the call it
-    // makes when the splinter is not doubled.
+    // the knob off the double reroutes opener to the competitive book and the
+    // floor decides.  That floor once *passed* the doubled game force — its
+    // reading of the splinter was broken (the projection stamped the support
+    // atom under the reader's context); since the at-the-time projection fix
+    // (docs/reading-drift-handoff.md) it reads partner's spade support and
+    // drives slam directly.  Systems-on (the shipped default) rebases the double
+    // back onto the undisturbed splinter tree, so opener keycards toward the
+    // same slam — identical to the call it makes when the splinter is not
+    // doubled, and the knob's value is the *route* (keycard finds the grand
+    // when it is there, and stays out of slam off two keycards).
     let auction = [
         call(1, Strain::Spades),
         Call::Pass,
@@ -316,8 +321,8 @@ fn doubled_splinter_runs_systems_on() {
 
     assert_eq!(
         off,
-        Call::Pass,
-        "the off arm leaves the doubled splinter in"
+        call(6, Strain::Spades),
+        "the off arm's floor now reads the splinter and blasts the slam"
     );
     assert_eq!(
         on,
