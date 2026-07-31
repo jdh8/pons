@@ -776,3 +776,103 @@ candidate). The −13 DOPI board verified flipped by `probe-classify`
 replay: the answerer now passes over their 5♦ instead of minting the
 5♥ step, so the phantom-heart sit cannot arise (the face's most-recent
 agreement there is the *real* 4-6 club fit, 2♣ opposite 4♣).
+
+### Experiment: the ask-gate recalibration (launched 2026-07-31, verdict pending)
+
+The filed follow-up, taken up by grilling (decisions jdh8's): the ask
+gate's decodability proxy (instinct.rs, the 4NT ask rule) still modelled
+the **old** rung 2 — either seat's reading showing 5+ of the trump.
+Stale both ways: it blocked face-decodable raised 4-4 fits (the raiser
+proves the eight in hand while the table shows 4+3; the old floor then
+blast-bid the milestone slam *blind* — the fixture's 66.3% DD includes
+every off-two-keycards board), and it passed shown-5 asks the ba07b26
+answerer no longer corroborates (five shown early, a second suit last —
+the answerer's face keys the wrong suit).
+
+The swap, mirroring the answerer's doctrine from the asker's seat (the
+answerer's hand is unknowable, so "share the function" becomes "share
+the guarantee"): the trump must be **provable on the table** (my shown
+floor + partner's shown floor ≥ 8 — partner's hand is at least partner's
+floor, so any seat proves it) **or keyed by the face** (`face_trump` at
+the ask's own index, hand-independent, computed on the identical prefix
+by every seat).  One addition forced by the pin sweep: the ask reuses
+`known_eight_card_fit`'s measured flat-4333 carve
+(`bare_four_four_own_flat`, now a shared helper) — a bare 4-4 opposite
+our own flat hand is not a playing fit, so it is no RKCB trump either.
+Untouched by decision: `undisturbed()` on the ask, majors-only
+initiation and the 3-card bar in `keycard_trump`, every answer rung.
+
+Doctrine pinned along the way (jdh8): directly over the Stayman answer
+or the transfer completion, 4NT is QUANT — the only call exploring the
+uncertain major fit and the misfit 6NT at once — and slam interest cues
+the other major.  Both lanes are book territory (the 3OM slam try, the
+quantitative 4NT), so the gate change is inert there; pinned by
+`one_notrump_lanes_stay_book_quant` on provenance, not just calls.
+Veto symmetry verified in code: the gate's `partner_last_call != NT` is
+the answerer's `auction[n − 4]`-was-NT quant veto seen from the other
+seat.  Pins: `face_agreed_four_four_fit_asks` (the 1♦–1♥–2♥–3♥ raiser
+asks; the answerer decodes the same trump), `unprovable_fit_never_asks`
+(opener's shown five over our bare three: face keys the second suit —
+the wrong-suit clash lane now stays judgment), and the two blast-board
+pins adjudicated to the vetted route (4NT → 5♦ → 6♠: the same slam,
+now entered through 1430).
+
+A/B round 1 in `ab-results/keycard-ask-gate/`: base **ba07b26** vs the
+swap, two-binary protocol (knobless), SEED_BASE **1785507043**, 32×6400
+bd/arm/vul.  Widening the gate is a bidding change → the plain decision
+table applies (the face-trump precedent).
+
+**Round-1 verdict: LOSS in all four cells** (plain −0.0014/−0.0023, PD
+−0.0016/−0.0025, fired 0.16/0.18 %, −0.9 to −1.4 IMPs/fired).  Worst-board
+trace, three families: (A, dominant) newly-enabled asks over *settled*
+auctions (`1m P 1♠ P 3♠ P 4♠ P 4NT`) decoding the ambiguous 1430 step
+(`5♦` = {0,3}, `5♣` = {1,4}) on the high branch and driving six off
+two-plus keycards; (B, mirror) the same ambiguity decoded low, the asker
+signs off and the answerer's value-gated correction never fires, missing
+slams the base arm blast-bid; (C, accepted) the narrowing dropped a few
+old wrong-suit asks that landed on their feet.  Common thread: every
+worst board was a **~26–28-combined** ask over a limited raise.
+
+**Round 2 — jdh8's doctrine collapses the machinery.**  An intermediate
+design (pessimistic quiet-ladder decode + the answerer's arithmetic
+high-count correction of the relay signoff, strength-projection
+disambiguation) was built and then **reverted**: *a partnership that
+cannot assume three combined keycards should not be seeking slam at all,
+and inside combined 3..=5 every 1430 step is unambiguous* (the two
+readings differ by exactly three, so at most one fits the window — the
+existing optimistic decode is exact under the assumption).  The repair
+is therefore one constraint on the **ask**, not a decode protocol:
+`combined_points(29)` joins the gate — the strength floor that buys the
+three-keycard assumption (at 29+ the opponents hold ≤ 11 HCP, and three
+keycards need 11 packed exactly — jdh8's "almost impossible").  The
+bilans entry prices tricks; this floor prices the *conversation*.  Every
+round-1 worst family dies at the floor (all were sub-29).  Discovered en
+route, filed: the invite re-raise (`1♦ P 1♥ P 2♥ P 3♥`) stamps **no
+strength** — an uncontested vacuous-reading instance that keeps the
+whole lane below any conversation floor.
+
+Round 2 A/B in `ab-results/keycard-ask-gate-2/`: same base, fix = gate
+swap + flat-4333 carve + `combined_points(29)`, SEED_BASE **1785508970**,
+same protocol.
+
+**Round-2 verdict: WIN in all four cells — SHIPPED default-on, knobless.**
+
+| vul | plain DD | perfect defense |
+| --- | --- | --- |
+| none | **+0.0022 [±0.0022]** | **+0.0028 [±0.0022]** |
+| both | **+0.0032 [±0.0027]** | **+0.0040 [±0.0027]** |
+
+Fired 0.30 / 0.32 %, **+0.74 to +1.24 IMPs per fired board** — the
+table's best case (plain win + PD win, both vuls), and PD > plain in
+every cell: the conversation's edge grows when the defense punishes
+every overreach.  The residual worst boards are the accepted mirror
+(the base arm's old shown-5 asks and sub-floor blasts sometimes landed
+on their feet) and ordinary slam-judgment margins; **no decode defect
+in the tail** — no passed-out 4NT, no wrong-suit count, no redoubled
+answer left in.
+
+Filed as follow-ups, in order: cue-blocked face (step-back-past-cues,
+next separate A/B), minors initiation (new: `keycard_trump` gains ♣/♦
+under the provable-8 bar, watching the 3NT/quant collision), DOPI
+residue, contested free-bid stamps, the strength-silent invite
+re-raise.

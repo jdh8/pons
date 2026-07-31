@@ -1940,9 +1940,15 @@ fn depo_answer(even: bool) -> Cons<impl Constraint + Clone> {
 /// of trump) or DEPO (at or above).  Their bid over the *answer* stands the
 /// machinery down and judgement resumes.
 ///
-/// The ambiguous answers resolve arithmetically first (five keycards exist,
-/// so a high reading inconsistent with our own count means the low one) and
-/// optimistically otherwise — the book's policy.
+/// The ambiguous answers resolve arithmetically, and the arithmetic is
+/// exact by doctrine (jdh8): a partnership that cannot assume **three
+/// combined keycards should not be seeking slam at all** — the ask's
+/// `combined_points(29)` floor is what buys the assumption — and inside
+/// combined 3..=5 the two readings of any step differ by three, so at most
+/// one fits the window.  A high reading past five means the low one; a low
+/// reading under three means the high one; both at once is impossible.
+/// The round-1 ask-gate A/B measured the alternative: sub-29 asks whose
+/// decode had to guess, driving six off two keycards on every high guess.
 fn keycard_answered(hand: Hand, context: &Context<'_>) -> Option<(Suit, usize)> {
     use super::american::slam::count_keycards;
     if !floor_rkcb_now() {
@@ -2127,20 +2133,20 @@ fn known_eight_card_fit(suit: Suit) -> Cons<impl Constraint + Clone> {
     pred(move |hand: Hand, context: &Context<'_>| {
         let mine = hand[suit].len();
         let partner = usize::from(Inferences::read(context).partner().length(suit).min);
-        if mine + partner < 8 {
-            return false;
-        }
-        // A bare 4-4 (neither hand five-plus) opposite our flat 4-3-3-3 has no
-        // ruffing value — sorted lengths [4,3,3,3] is exactly that shape.
-        if mine == 4 && partner == 4 {
-            let mut lens = Suit::ASC.map(|s| hand[s].len());
-            lens.sort_unstable_by(|a, b| b.cmp(a));
-            if lens == [4, 3, 3, 3] {
-                return false;
-            }
-        }
-        true
+        mine + partner >= 8 && !bare_four_four_own_flat(hand, suit, partner)
     })
+}
+
+/// A bare 4-4 (neither hand five-plus) opposite our own flat 4-3-3-3 has no
+/// ruffing value — sorted lengths [4,3,3,3] is exactly that shape.  The
+/// measured carve of [`known_eight_card_fit`], shared with the RKCB ask gate
+/// so a fit the machinery refuses to play never becomes its trump.
+fn bare_four_four_own_flat(hand: Hand, suit: Suit, partner_min: usize) -> bool {
+    hand[suit].len() == 4 && partner_min == 4 && {
+        let mut lens = Suit::ASC.map(|s| hand[s].len());
+        lens.sort_unstable_by(|a, b| b.cmp(a));
+        lens == [4, 3, 3, 3]
+    }
 }
 
 /// Our side holds at least `threshold` combined points: our exact count plus the
@@ -4003,10 +4009,17 @@ pub fn instinct() -> Rules {
     // two-keycards-missing slam.  Not over partner's notrump bid (partner
     // would read that 4NT quantitative), mirroring the answerer's gate; the
     // grand-zone 37 keeps bidding sevens directly (1.75 outweighs the ask).
-    // The ask must also be *decodable*: the trump has to be a suit someone
-    // genuinely showed five-plus of, or partner cannot derive it and the ask
-    // gets passed out (an 8-count fit against a four-card Puppet answer is
-    // known only to us — round 2 lost 11 IMPs a board on exactly that).
+    // The ask must also be *decodable*: partner proves the eight from their
+    // hand plus our shown floor, and their hand is at least their own shown
+    // floor — so an eight provable on the table (the two floors sum to
+    // eight) is decodable by construction; otherwise the hand-independent
+    // face must key the same trump, the fiat every seat derives identically
+    // (an 8-count fit against a four-card Puppet answer used to be known
+    // only to us, and round 2 lost 11 IMPs a board on the passed-out ask —
+    // the face rung reads that lane now, and the book's quantitative 4NT
+    // shadows the 1NT lanes anyway).  Only a beyond-doubt trump converts
+    // 4NT from the dual-exit quant — six-of-major or the misfit 6NT, both
+    // still open — into an ask that forfeits the notrump exit.
     rules = rules
         .rule(
             Bid::new(4, Strain::Notrump),
@@ -4016,16 +4029,28 @@ pub fn instinct() -> Rules {
                     && context.undisturbed()
                     && keycard_trump(hand, context).is_some_and(|trump| {
                         let inferences = Inferences::read(context);
-                        inferences
-                            .me()
-                            .length(trump)
-                            .min
-                            .max(inferences.partner().length(trump).min)
-                            >= 5
+                        let partner = inferences.partner().length(trump).min;
+                        let on_table = inferences.me().length(trump).min + partner;
+                        // A fit the fit-sum machinery refuses to play is no
+                        // RKCB trump either (the measured flat-4333 carve of
+                        // `known_eight_card_fit`) — the initiation site only;
+                        // an answerer's flatness is irrelevant once asked.
+                        !bare_four_four_own_flat(hand, trump, usize::from(partner))
+                            && (on_table >= 8
+                                || face_trump(context.auction(), context.auction().len())
+                                    == Some(trump))
                     })
                     && partner_last_call(context.auction())
                         .is_none_or(|bid| bid.strain != Strain::Notrump)
             }) & inference_aware()
+                // The strength floor that makes the decode exact (jdh8's
+                // doctrine): a side without slam-seeking values cannot
+                // assume three combined keycards, and outside combined
+                // 3..=5 the 1430 steps are guesses — the round-1 A/B's
+                // worst boards were ~26-27-combined asks over limited
+                // raises, decoded high and six off two.  The bilans entry
+                // prices tricks; this floor prices the *conversation*.
+                & combined_points(29)
                 & announced(slam_entry_reached(), Cons(RkcbAgreement))
                 & not_penalizing()
                 & below_slam()
@@ -5054,13 +5079,31 @@ mod tests {
         // it back to game, and the shipped v3 calls-tail twin
         // (`evaluator_v3_dnf`, 2026-07-27, `win | win`) claims it again —
         // with the raw calls in view its μ/σ clears the 50% break-even the
-        // fixture's own sampling supports.  Both pins are deliberate; each
-        // regime's A/B says its package wins.
-        assert_eq!(bid, call(6, Strain::Spades));
+        // fixture's own sampling supports.  Since the recalibrated ask gate
+        // (the face rung keys the jump-shift spades; the support-lifted
+        // shown floor clears the `combined_points(29)` conversation floor
+        // under this stance's readings), the slam is claimed *through RKCB*
+        // rather than blind — 66.3% includes the boards off two keycards.
+        assert_eq!(bid, call(4, Strain::Notrump));
         set_dnf_reading(false);
         let (legacy, _) = american_floored(&auction, south);
         set_dnf_reading(true);
-        assert_eq!(legacy, call(6, Strain::Spades));
+        assert_eq!(legacy, call(4, Strain::Notrump));
+        // North answers 1430 (A♠ A♣ + trump K♠ = 3 → 5♦); South holds two,
+        // and under the three-combined-keycards doctrine 0 is impossible
+        // (2 + 0 < 3), so the step is exact: five keycards, small slam.
+        let asked = [auction.as_slice(), &[call(4, Strain::Notrump), Call::Pass]].concat();
+        assert_eq!(
+            american_floored(&asked, "AK92.7.K84.AKQ93").0,
+            call(5, Strain::Diamonds),
+            "the jump-shifter answers 1430"
+        );
+        let answered = [asked.as_slice(), &[call(5, Strain::Diamonds), Call::Pass]].concat();
+        assert_eq!(
+            american_floored(&answered, south).0,
+            call(6, Strain::Spades),
+            "the exact decode claims the vetted slam"
+        );
     }
 
     #[test]
@@ -5175,8 +5218,9 @@ mod tests {
         // hull-only F2b twin, the marginal slam again under the v3 calls-tail
         // twin (2026-07-27, `win | win`) — see
         // `fit_sum_reads_a_four_four_major_fit`, which documents the level
-        // changing hands with each measured regime.
-        assert_eq!(bid, call(6, Strain::Spades));
+        // changing hands with each measured regime and, since the ask-gate
+        // recalibration, the slam entering through RKCB instead of blind.
+        assert_eq!(bid, call(4, Strain::Notrump));
     }
 
     /// [`set_net_collar`]'s veto, on the board the smoke run surfaced (seed
@@ -5510,6 +5554,92 @@ mod tests {
             Call::Pass,
             "the answerer never overrides the asker's signoff short a keycard"
         );
+    }
+
+    /// The answerer decodes a face-agreed 4-4 trump: hearts were bid by
+    /// both members below the ask, so the face keys them even though the
+    /// answerer's table proves only seven (own four, the raise stamp three).
+    /// The *floor* never asks on this auction — the invite re-raise stamps
+    /// no strength, so the shown floors cannot reach the ask's
+    /// `combined_points(29)` conversation floor (a filed vacuous-reading
+    /// note) — but a net 4NT lands here, and the answer must not strand it.
+    #[test]
+    fn answerer_decodes_a_face_agreed_four_four_trump() {
+        let auction = [
+            call(1, Strain::Diamonds),
+            Call::Pass,
+            call(1, Strain::Hearts),
+            Call::Pass,
+            call(2, Strain::Hearts),
+            Call::Pass,
+            call(3, Strain::Hearts),
+            Call::Pass,
+            call(4, Strain::Notrump),
+            Call::Pass,
+        ];
+        // Two keycards, no queen → 5♥.
+        assert_eq!(
+            best(&auction, "A873.KT65.84.632"),
+            call(5, Strain::Hearts),
+            "the answerer decodes the face-agreed trump"
+        );
+    }
+
+    /// One hand's shown five never converts 4NT into an ask: opener's five
+    /// hearts complete our bare three to an eight *we* can see, but the
+    /// table proves only five and the face keys opener's second suit — the
+    /// old proxy fired here and the answerer counted against spades (the
+    /// wrong-suit clash the drift ledger filed as the ask-gate follow-up).
+    /// The gate now leaves the node to judgment, keeping the quant exit.
+    #[test]
+    fn unprovable_fit_never_asks() {
+        let auction = [
+            call(1, Strain::Hearts),
+            Call::Pass,
+            call(2, Strain::Diamonds),
+            Call::Pass,
+            call(2, Strain::Spades),
+            Call::Pass,
+        ];
+        assert_ne!(
+            best(&auction, "K42.K73.AQJ85.A2"),
+            call(4, Strain::Notrump),
+            "a fit only one seat can prove keeps 4NT out of the ask"
+        );
+    }
+
+    /// jdh8's doctrine: directly over the Stayman answer or the transfer
+    /// completion, 4NT is quantitative — the one call exploring the
+    /// uncertain major fit and the misfit 6NT at once — and slam interest
+    /// cues the other major first.  Both nodes are book territory, so the
+    /// recalibrated floor gate never decides them.
+    #[test]
+    fn one_notrump_lanes_stay_book_quant() {
+        let stayman = [
+            call(1, Strain::Notrump),
+            Call::Pass,
+            call(2, Strain::Clubs),
+            Call::Pass,
+            call(2, Strain::Spades),
+            Call::Pass,
+        ];
+        let (made, off_book) = american_floored(&stayman, "KQ73.A5.KJ84.Q92");
+        assert!(!off_book, "the Stayman lane is book territory");
+        assert_eq!(
+            made,
+            call(3, Strain::Hearts),
+            "slam interest cues the other major, not 4NT"
+        );
+        let transfer = [
+            call(1, Strain::Notrump),
+            Call::Pass,
+            call(2, Strain::Hearts),
+            Call::Pass,
+            call(2, Strain::Spades),
+            Call::Pass,
+        ];
+        let (_, off_book) = american_floored(&transfer, "KQ873.A5.KJ8.Q92");
+        assert!(!off_book, "the transfer lane is book territory");
     }
 
     /// The keycard machinery runs in a *contested* auction — the whole-auction

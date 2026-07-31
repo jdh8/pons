@@ -9,6 +9,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **The 4NT ask gate is recalibrated: provable eight or the face, above a
+  conversation floor.** The floor ask's decodability test still modeled the
+  retired shown-five trump rung, blocking face-decodable raised 4-4 fits
+  (the floor blast-bid those slams blind — the fixture's 66.3% 6♠ includes
+  every off-two-keycards board) while passing shown-5 asks the answerer now
+  counts against a different suit. The gate's test becomes: the eight is
+  provable **on the table** (both shown floors sum to eight, so any seat
+  proves it) or `face_trump` keys the same trump at the ask's own index —
+  mirroring the answerer's ladder from the asker's seat, with veto symmetry
+  verified (`partner_last_call != NT` ≡ the answerer's own-previous-bid-NT
+  quant veto). Two guards joined en route: the measured flat-4333 carve of
+  `known_eight_card_fit` (now the shared `bare_four_four_own_flat` — a fit
+  the fit-sum machinery refuses to play is no RKCB trump), and jdh8's
+  doctrine as `combined_points(29)`: a side that cannot assume **three
+  combined keycards should not seek slam at all**, and within combined
+  3..=5 every 1430 step decodes exactly (the two readings differ by three;
+  the round-1 A/B measured the alternative — sub-29 asks over limited
+  raises guessing the `{0,3}`/`{1,4}` steps, −0.9 to −1.4 IMPs per fired
+  board in all four cells). Doctrine also pinned: directly over the Stayman
+  answer or transfer completion 4NT stays **quantitative** (the dual-exit
+  call — six-of-major or the misfit 6NT), slam interest cues the other
+  major, and those book lanes shadow the floor. Round-2 A/B vs ba07b26
+  (SEED_BASE 1785508970, 204,800 bd/arm/vul): **win in all four cells** —
+  plain +0.0022 [±0.0022] / +0.0032 [±0.0027], PD +0.0028 [±0.0022] /
+  +0.0040 [±0.0027] (none/both), fired 0.30/0.32 %, **+0.74 to +1.24 IMPs
+  per fired board**. Default-on, knobless. Filed: the cue-blocked face,
+  minors initiation under the provable-8 bar, and the strength-silent
+  invite re-raise (`1♦ P 1♥ P 2♥ P 3♥` stamps nothing).
+
 - **Keycard trump demands proof: no fit from one hand's shown five.**
   `answer_trump`'s second rung took the *larger* of the two seats' shown
   floors, so the asker's own 5-card suit could become trump with no fit
