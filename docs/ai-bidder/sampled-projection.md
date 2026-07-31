@@ -707,6 +707,50 @@ count-scaled margin, so a thin key widens toward ⊤ rather than toward a lie �
 and re-price penalty doubles separately, since they are the sole loss channel
 identified.
 
+### v2 (2026-07-31): the vacuous-scoped serving
+
+Picked up from the other end — before sharpening the *boxes* (the quantile
+candidate above), scope the *serving* to the slice v1's mechanism cannot
+reach.  `set_probed_vacuous_reading` (`--ns-probe N --ns-probe-vacuous`,
+default off) serves the same probed map:
+
+- **own-side calls only** (the self-referential caveat: right for partner,
+  wrong for opponents — and v1's redouble trap was the opponents' boxes);
+- **onto fully-open axes only** — fill-⊤, never tighten.  The mask is judged
+  against the *complete* symbolic reading, so the fold lives at the end of
+  `Inferences::read`, after the natural walk (inside `project_authored` it
+  tightened half-open axes — the walk stamps after that returns);
+- **contested prefixes only** — from the first index where both sides have
+  acted.  Measured necessary, not hypothesized: unscoped fill-⊤ smoke-tested
+  at 23% fired, **−0.67 IMPs/board**, all constructive grand blasts
+  (`1NT–2♦–2♥–3NT–7NT X`) — filling constructive ⊤ axes (opener's minors,
+  responder's side suits) shrinks sampling σ on slam auctions, the exclusion
+  retrain's worst-board signature at 30× the fired rate.  Contested-scoped,
+  the same 200-board smoke reads 8% fired, +0.015 [±0.212].
+
+`Stance::probe` runs its fixed-point iteration under whichever fold is armed
+(set the vacuous knob before probing), so the boxes are consistent with
+their serving policy.  The target population is the reading-drift ledger's
+coverage hole — contested free bids the walk stamps nothing for
+(`1♦ (2♣) 2♠` partner ♠ `0..13`) — which is also where the keycard rail's
+`recognizable` gate reads.
+
+**Verdict (A/B `ab-results/probed-vacuous/`, SEED_BASE 1785493701, 204,800
+bd/arm/vul): LOSS in all four cells** — plain −0.0467/−0.0658, PD
+−0.1118/−0.1337 (none/both), ~10% fired — full table and worst-board trace
+in docs/reading-drift-handoff.md.  One mechanism, the pre-registered one:
+the contested floor net, fed partner boxes tighter than its training
+distribution, keeps acting where the base arm settles (reopens, blasts,
+doubles into redoubles) — the exclusion retrain's σ-shrink signature on the
+slice where the floor net decides most.  The knob stays opt-in; the queued
+path is the probe-first retrain gate, then the F2b twin served under the
+knob, with the quantile widening above as the box-side lever if the retrain
+washes.  v2's serving scopes stand as measured constraints for any v3: the
+constructive slice is untouchable pre-retrain at −0.67 IMPs/board, and
+own-side/fill-⊤ alone is not enough — the *consumer* (a net that trusts its
+readings without having trained on them) is the binding wall, not the
+serving policy.
+
 ### The exclusion retrain (2026-07-30)
 
 The queued retrain was bought **probe-first**, per the C-P lesson that C1's

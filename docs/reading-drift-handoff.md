@@ -474,6 +474,84 @@ five-of-trump, escaping to six of the trump — or drifting to 5NT or
 another known fit — beats playing the answer suit doubled. Needs its
 own rung + A/B.
 
+### Experiment: the floor authors the readings — vacuous-scoped probed serving (2026-07-31, LOSS — knob stays opt-in, retrain queued)
+
+jdh8's question, aimed at the vacuous-contested follow-up: *can the floor
+author the readings — calls read as how the floor decides them, as close as
+possible?* The machinery exists (`Stance::probe`, Stage B of
+docs/ai-bidder/sampled-projection.md): a probed key's box **is** "the hands
+the bidder actually chose this call with", and it is the only reader that
+reaches the floor's calls. What was refuted (v1, 2026-07-30) was the
+*serving* — every box, both sides, tightening axes that already read;
+"as close as possible" is a description virtue and a bidding vice (the
+census rewards tightness, and tightness was the loss channel).
+
+**The v2 serving** (`set_probed_vacuous_reading`, `--ns-probe N
+--ns-probe-vacuous`, default off) scopes the same probed map to the
+failure-free slice:
+
+- **own-side calls only** — the probe replays our system; its boxes model
+  partner correctly and opponents wrongly (v1's redouble trap ran through
+  the opponents' boxes);
+- **fully-open axes only** — a probed axis folds in only where the complete
+  symbolic reading says nothing (`0..=37` points, `0..=13` length); an axis
+  that already reads is never touched.  Latest call first, so the sharpest
+  prefix fills and earlier keys leave it alone.  The fold lives at the end
+  of `Inferences::read`, *after* the natural walk — masking inside
+  `project_authored` judged "open" too early and tightened half-open axes
+  (caught by the pin `probed_vacuous_fills_only_open_axes_on_contested_own_calls`);
+- **contested prefixes only** — a key serves only from the index where both
+  sides have acted.  Without this gate the first smoke (200 boards, seed 42)
+  fired on **23% of boards at −0.67 IMPs/board**, all constructive net-OOD
+  grand blasts (`1NT–2♦–2♥–3NT–7NT X`): filling constructive ⊤ axes shrinks
+  the sampler's σ on slam auctions, the exact signature of the
+  pass-exclusion retrain's worst boards.  With the gate the same smoke reads
+  8% fired, +0.015 [±0.212] — competitive judgment moving in both
+  directions, which is the A/B's question.
+
+`Stance::probe`'s fixed-point iteration now serves through whichever fold
+is armed (the vacuous knob is set *before* probing), so the boxes are
+fixed-pointed under the serving policy that consumes them; 100k probe
+boards store 527 keys, 203 drifting between iterations.
+
+A/B in `ab-results/probed-vacuous/`: one binary (4e544f7 + this tree — the
+knob off is byte-identical, pinned), arms differ by
+`FIX_ARGS="--ns-probe 100000 --ns-probe-vacuous"`, SEED_BASE
+**1785493701**, 32×6400 bd/arm/vul, plain + PD.  Interpretation guard: the
+nets consume readings as features, so a pre-retrain plain loss is a floor,
+not a verdict (the pass-exclusion lesson) — disposition on a loss is knob
+off + probe-first retrain queue, not thread closed.
+
+**Verdict: LOSS in all four cells — the knob ships off, permanently
+knob-gated until a retrain earns a re-measure.**
+
+| vul | plain DD | perfect defense |
+| --- | --- | --- |
+| none | −0.0467 [±0.0086] | −0.1118 [±0.0106] |
+| both | −0.0658 [±0.0104] | −0.1337 [±0.0125] |
+
+Fired 10.40 % / 9.40 %, −0.45 to −1.42 IMPs/fired.  Real on both scorers
+(not a PD doubling artifact), PD ≈ 2× plain — the doubling channel
+amplifies it (7 redoubled finals in the top-40 worst alone).  The worst
+boards are one mechanism throughout, and it is the pre-registered one, not
+a soundness defect: the contested floor net, fed partner boxes tighter
+than anything in its training distribution, **keeps acting where the base
+arm settles** — reopens (`1♠ 2♣ P P` X instead of 3♠, ending 5♣ XX −21),
+blasts competitive slams (`1NT 2♣ … 6♥ X`, `2♠ 3♣ … 6♥ XX`), doubles on
+confidence and gets redoubled.  The exclusion retrain's σ-shrink
+signature, on the contested slice where the floor net makes most of its
+decisions.
+
+Disposition per the pre-registration: **off + retrain queue** — (1) the
+probe-first gate (`probe-closure-features` under this knob: kill only on
+the C1 picture, endpoints moving with moments unmoved); (2) if earned, the
+F2b twin recipe (dump the eval corpus knob-on, train the twin, serve it
+under this knob, re-measure).  The box-side lever (quantile widening with
+a coverage guarantee) remains if the retrain washes.  What stands
+regardless: the machinery (probe fixed-pointed under its serving fold, the
+three-gate scoping, the pins), and the measured map of *why* each scope
+gate exists.
+
 ### Repairs (step 3 — seven landed this pass)
 
 Per-family disposition, each pinned by a `readings_admit_the_bidder` row and

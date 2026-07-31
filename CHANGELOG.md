@@ -9,6 +9,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The floor authors readings — the vacuous-scoped probed serving, opt-in.**
+  `set_probed_vacuous_reading` (`--ns-probe N --ns-probe-vacuous`, default
+  **off**) serves `Stance::probe`'s behavioral boxes — "the hands the bidder
+  actually chose this call with" — through the slice the refuted full fold
+  (v1, 2026-07-30) could not survive: own-side calls only, onto axes the
+  complete symbolic reading left fully open (the fold runs at the end of
+  `Inferences::read`, after the natural walk — masking earlier tightened
+  half-open axes), and in contested prefixes only (unscoped, a 200-board
+  smoke fired 23 % at −0.67 IMPs/board of constructive net-OOD grand
+  blasts). The probe's fixed-point iteration now runs under whichever fold
+  is armed, so the boxes are consistent with their serving. Target: the
+  reading-drift coverage hole — contested free bids the walk stamps nothing
+  for (`1♦ (2♣) 2♠` partner ♠ `0..13`). A/B (SEED_BASE 1785493701, 204,800
+  bd/arm/vul, one binary, arms differ by flag): **loss in all four cells**
+  — plain −0.0467 [±0.0086] / −0.0658 [±0.0104], PD −0.1118 [±0.0106] /
+  −0.1337 [±0.0125] (none/both), ~10 % fired — every worst board the
+  contested floor net acting on tightened partner boxes it never trained on
+  (reopening, blasting, doubling into redoubles) where the base arm
+  settles. Pre-registered disposition: the pre-retrain loss is a floor, not
+  a verdict (the pass-exclusion precedent) — knob stays opt-in, queued for
+  the probe-first retrain gate and the F2b twin; ledger in
+  docs/reading-drift-handoff.md and docs/ai-bidder/sampled-projection.md
+  § v2. `scripts/reading-drift-ab.sh` gains `FIX_ARGS`/`BASE_ARGS` for
+  knob-driven arms.
+
 - **The face-trump rung: 4NT's trump read off the auction alone.** The
   keycard trump derivation gains a final auction-face rung,
   `face_trump(auction, ask)` — the known fit (a suit both members of the

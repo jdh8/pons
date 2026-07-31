@@ -369,6 +369,11 @@ std::thread_local! {
     /// Whether [`project_authored`] folds the stance's behaviorally probed
     /// boxes (see [`set_probed_reading`]).  Off by default.
     static PROBED_READING: Cell<bool> = const { Cell::new(false) };
+
+    /// Whether the probed overlay serves only own-side calls, and only onto
+    /// axes the symbolic reading left fully open (see
+    /// [`set_probed_vacuous_reading`]).  Off by default.
+    static PROBED_VACUOUS_READING: Cell<bool> = const { Cell::new(false) };
 }
 
 /// Toggle the cue reading of the natural walk (default on, shipped 2026-07-18)
@@ -508,6 +513,49 @@ pub fn set_probed_reading(on: bool) {
 
 pub(crate) fn probed_reading() -> bool {
     PROBED_READING.with(Cell::get)
+}
+
+/// Toggle the vacuous-scoped probed reading — coverage where the symbolic
+/// reading has none, and nowhere else (default off)
+///
+/// The full probed fold ([`set_probed_reading`]) was refuted as a bidding
+/// input: its boxes tightened axes that already read, on both sides, and the
+/// worst boards were penalty doubles of opponents misread as limited
+/// (docs/ai-bidder/sampled-projection.md, the v1 A/B).  This knob serves the
+/// same probed map through the failure-free slice:
+///
+/// - **own-side calls only** — the probe replays *our* system, so its boxes
+///   model partner correctly and opponents wrongly (the self-referential
+///   caveat);
+/// - **fully-open axes only** — a probed axis folds in only where the
+///   symbolic reading says nothing at all (points `0..=37`, a length
+///   `0..=13`), so an axis that already reads is never tightened.  Latest
+///   call first: the longest prefix is the sharpest conditioning, and once
+///   it fills an axis, earlier keys leave it alone.
+///
+/// The target is the measured coverage hole — contested free bids and raises
+/// the natural walk stamps nothing for (`1♦ (2♣) 2♠ P 3♠` all `0..13`,
+/// docs/reading-drift-handoff.md), which no symbolic reader reaches.  A
+/// third gate scopes the fold to **contested prefixes** (both sides have
+/// acted): filling constructive axes smoke-tested at −0.67 IMPs/board of
+/// net-OOD grand blasts.  A stance with an empty probed map reads
+/// identically with the knob on or off; when both probed knobs are on, the
+/// full fold wins.
+///
+/// Ships **off**, opt-in pending a feature retrain: the A/B (2026-07-31,
+/// SEED_BASE 1785493701, 204,800 bd/arm/vul) lost in all four cells — plain
+/// −0.0467/−0.0658, PD −0.1118/−0.1337 at ~10% fired — the worst boards all
+/// the contested floor net acting on tightened partner boxes it never
+/// trained on (balancing on, doubling, getting redoubled) where the base
+/// arm settles.  Pre-registered reading: a pre-retrain loss is a floor, not
+/// a verdict (the pass-exclusion precedent) — the queued path is the
+/// probe-first retrain gate, then the F2b twin served under this knob.
+pub fn set_probed_vacuous_reading(on: bool) {
+    PROBED_VACUOUS_READING.with(|cell| cell.set(on));
+}
+
+pub(crate) fn probed_vacuous_reading() -> bool {
+    PROBED_VACUOUS_READING.with(Cell::get)
 }
 
 std::thread_local! {
@@ -2557,6 +2605,61 @@ impl Inferences {
             players[who].narrow_points(Range::at_least(8, POINTS_CAP));
         }
 
+        // The vacuous-scoped probed overlay ([`set_probed_vacuous_reading`]):
+        // own-side calls in *contested* prefixes only, folded onto axes every
+        // symbolic source above — walk stamps, projections, and hand
+        // recordings alike — left fully open.  It runs here, last, because
+        // the mask must be judged against the complete symbolic reading (the
+        // full fold's home, `project_authored`, runs before the walk stamps).
+        // Latest call first: the longest prefix is the sharpest conditioning,
+        // and once it fills an axis, earlier keys leave it alone.  The
+        // contested gate scopes the fold to the measured coverage hole
+        // (contested free bids the walk stamps nothing for): filling
+        // constructive ⊤ axes moved ~23% of boards in the 2026-07-31 smoke,
+        // all net-OOD grand blasts — the σ-shrink signature of the exclusion
+        // retrain.  Under the full fold this is redundant — every probed box
+        // already folded unmasked.
+        if probed_vacuous_reading()
+            && !probed_reading()
+            && let Some(them) = context.their_system()
+        {
+            // The first index at which both sides have acted: keys through a
+            // call before it read purely constructive traffic — not the hole.
+            let contested_from = {
+                let mut acted = [usize::MAX; 2];
+                for (index, call) in auction.iter().enumerate() {
+                    if *call != Call::Pass {
+                        let side = &mut acted[index % 2];
+                        if *side == usize::MAX {
+                            *side = index;
+                        }
+                    }
+                }
+                acted[0].max(acted[1])
+            };
+            for index in (contested_from..len).rev() {
+                if index % 2 != len % 2 {
+                    continue;
+                }
+                let Some(&box_) = them.probed_box(&auction[..=index]) else {
+                    continue;
+                };
+                let who = relative_of(len, index) as usize;
+                let mut masked = Envelope::unknown();
+                if players[who].strength.points == Range::FULL_POINTS {
+                    masked.strength.points = box_.strength.points;
+                }
+                for suit in 0..4 {
+                    if players[who].lengths[suit] == Range::FULL_LENGTH {
+                        masked.lengths[suit] = box_.lengths[suit];
+                    }
+                }
+                if masked != Envelope::unknown() {
+                    players[who] = players[who].intersect(&masked);
+                }
+            }
+        }
+
         Self::assemble(players, &overlay_dnf, &agreement_dnf, control_bid)
     }
 
@@ -3042,7 +3145,10 @@ fn project_authored(context: &Context<'_>) -> ([Dnf; 4], [Dnf; 4], u64) {
     // The probed overlay (see [`set_probed_reading`]): fold each prior call's
     // behaviorally measured box, keyed by the prefix through it.  Runs last so
     // it composes with — never replaces — the symbolic folds above; an empty
-    // probed map is a no-op.
+    // probed map is a no-op.  The vacuous-scoped variant lives in
+    // [`Inferences::read`] instead: its fill-only mask must be judged against
+    // the *complete* symbolic reading, and the natural walk stamps after this
+    // returns.
     if probed_reading()
         && let Some(them) = context.their_system()
     {

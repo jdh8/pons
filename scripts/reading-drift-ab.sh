@@ -33,6 +33,11 @@ mkdir -p "$R"
 PER_SHARD=${PER_SHARD:-6400}
 SHARDS=${JOBS:-$(nproc)}
 SHOW=${SHOW:-40}
+# Optional extra bba-gen flags per arm (word-split intentionally), for A/Bs
+# where the arms differ by knob rather than binary — the same binary is then
+# copied to both bba-gen-fix and bba-gen-base.
+FIX_ARGS=${FIX_ARGS:-}
+BASE_ARGS=${BASE_ARGS:-}
 
 for bin in bba-gen-fix bba-gen-base ab-dump-diff; do
     [ -x "$R/$bin" ] || { echo "missing $R/$bin — see the preparation comment" >&2; exit 2; }
@@ -44,17 +49,18 @@ SEED_BASE=$(cat "$seed_f")
 
 log() { echo "$(date -u +%FT%TZ) $*" | tee -a "$R/log" >&2; }
 
-# arm BIN NAME VUL — one arm, shard-parallel, same SEED_BASE both arms
+# arm BIN NAME VUL ARGS — one arm, shard-parallel, same SEED_BASE both arms
 arm() {
-    bin=$1; name=$2; vul=$3
+    bin=$1; name=$2; vul=$3; args=${4:-}
     dir="$R/$name-$vul"
     [ -d "$dir" ] && { log "skip $dir (exists)"; return 0; }
-    log "generate $dir ($bin, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD})"
+    log "generate $dir ($bin $args, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD})"
     mkdir -p "$dir.tmp"
     i=0
     while [ "$i" -lt "$SHARDS" ]; do
+        # shellcheck disable=SC2086 — $args word-splits by design
         "$R/$bin" --count "$PER_SHARD" --seed "$((SEED_BASE + i))" \
-            --vulnerability "$vul" --output "$dir.tmp/shard-$i.json" &
+            --vulnerability "$vul" --output "$dir.tmp/shard-$i.json" $args &
         i=$((i + 1))
     done
     wait
@@ -63,8 +69,8 @@ arm() {
 
 log "=== reading-drift start, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul"
 for vul in none both; do
-    arm bba-gen-fix fix "$vul"
-    arm bba-gen-base base "$vul"
+    arm bba-gen-fix fix "$vul" "$FIX_ARGS"
+    arm bba-gen-base base "$vul" "$BASE_ARGS"
     for score in plain pd; do
         out="$R/diff.fix.vs.base.$vul.$score.txt"
         [ -s "$out" ] && { log "skip $out (exists)"; continue; }

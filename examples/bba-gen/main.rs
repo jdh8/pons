@@ -348,6 +348,14 @@ struct Args {
     #[arg(long, default_value_t = 0)]
     ns_probe: usize,
 
+    /// Serve the probed boxes through the vacuous-scoped fold instead of the
+    /// full one (`set_probed_vacuous_reading`, crate default off): own-side
+    /// calls only, and only onto axes the symbolic reading left fully open —
+    /// the coverage slice of the probed reading, without the tightening that
+    /// refuted the full fold.  Requires `--ns-probe`.
+    #[arg(long, default_value_t = false, requires = "ns_probe")]
+    ns_probe_vacuous: bool,
+
     /// Close our side's read `hcp` against `points` through the shape upgrade
     /// (`set_upgrade_closure`, crate default off): balanced hands never
     /// upgrade, so a balanced box reads `points == hcp` instead of carrying the
@@ -1696,12 +1704,17 @@ fn main() -> anyhow::Result<()> {
     if args.ns_probe > 0 {
         // Fixed seed: every shard of an arm probes the identical map, so the
         // arm's readings are consistent across its shards.
+        // Armed before the probe so its fixed-point iteration serves through
+        // the same fold consumption will (see `Stance::probe`).
+        pons::bidding::set_probed_vacuous_reading(args.ns_probe_vacuous);
         let report = our_floor.probe(args.ns_probe, 0x9B0BE);
         eprintln!(
             "probed {} boards: {} keys, {} drifted",
             args.ns_probe, report.keys, report.drifted
         );
-        pons::bidding::set_probed_reading(true);
+        if !args.ns_probe_vacuous {
+            pons::bidding::set_probed_reading(true);
+        }
     }
     let our_floor = our_floor;
     // The deviation panel's opponent: a second pons book built under the

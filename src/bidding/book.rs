@@ -575,7 +575,15 @@ impl Stance {
         // A/B-scale probe is minutes once per arm; add an optional rayon
         // feature only if probe time ever dominates a harness.
         let harvest = |stance: &Self, probed_on: bool| -> HashMap<Vec<Call>, Observed> {
-            super::inference::set_probed_reading(probed_on);
+            // The second pass must serve the first pass's boxes through the
+            // fold consumption will use: arm `set_probed_vacuous_reading`
+            // *before* probing and the fixed point runs under the vacuous
+            // scope (the full-fold toggle stays off); otherwise the full fold
+            // serves, as before.  A re-probe of a stance with a stale map
+            // under an armed vacuous knob would serve that map in its first
+            // pass — probe fresh stances.
+            let vacuous = super::inference::probed_vacuous_reading();
+            super::inference::set_probed_reading(probed_on && !vacuous);
             let mut into: HashMap<Vec<Call>, Observed> = HashMap::new();
             for board in 0..boards {
                 let deal = contract_bridge::deck::full_deal(&mut {
@@ -712,7 +720,69 @@ mod tests {
         );
     }
 
+    /// The vacuous-scoped fold serves coverage and nothing else, on the
+    /// ledger's own hole (`1♦ (2♣) 2♠` read partner ♠ `0..13`,
+    /// docs/reading-drift-handoff.md): partner's contested free bid fills
+    /// exactly the axes the symbolic reading left fully open, an opponent's
+    /// probed box never folds (v1's refuted tightening was the opponents
+    /// read as limited), and a key through a still-constructive prefix never
+    /// folds (filling constructive axes was the 2026-07-31 smoke's −0.67
+    /// IMPs/board of net-OOD grand blasts).
+    #[test]
+    fn probed_vacuous_fills_only_open_axes_on_contested_own_calls() {
+        use contract_bridge::auction::RelativeVulnerability;
+
+        use crate::bidding::{Envelope, Range};
+
+        let mut stance = crate::bidding::american::american_book().against();
+        let boxed = |spades: Range, points: Range| {
+            let mut envelope = Envelope::unknown();
+            envelope.lengths[Suit::Spades as usize] = spades;
+            envelope.strength.points = points;
+            envelope
+        };
+        // Partner's free bid in a contested prefix — the served key.
+        stance.probed.insert(
+            vec![ONE_DIAMOND, TWO_CLUBS, TWO_SPADES],
+            boxed(Range::new(4, 8), Range::new(8, 16)),
+        );
+        // Their overcall — an opponent's key, never served.
+        stance.probed.insert(
+            vec![ONE_DIAMOND, TWO_CLUBS],
+            boxed(Range::new(0, 2), Range::new(6, 14)),
+        );
+        // Our opening — a key through a still-constructive prefix, never served.
+        stance.probed.insert(
+            vec![ONE_DIAMOND],
+            boxed(Range::new(0, 3), Range::new(10, 20)),
+        );
+
+        let auction = [ONE_DIAMOND, TWO_CLUBS, TWO_SPADES, P];
+        let off = stance.infer(RelativeVulnerability::NONE, &auction);
+        crate::bidding::set_probed_vacuous_reading(true);
+        let on = stance.infer(RelativeVulnerability::NONE, &auction);
+        crate::bidding::set_probed_vacuous_reading(false);
+
+        assert_eq!(on.rho(), off.rho(), "an opponent's probed box folded");
+        assert_eq!(on.me(), off.me(), "a constructive-prefix key folded");
+
+        let (off_p, on_p) = (off.partner(), on.partner());
+        // The hole this knob exists for: the free bid's suit reads nothing.
+        assert_eq!(off_p.length(Suit::Spades), Range::FULL_LENGTH);
+        assert_eq!(on_p.length(Suit::Spades), Range::new(4, 8));
+        // Already-read axes stay byte-identical; open ones take the box.
+        if off_p.strength.points == Range::FULL_POINTS {
+            assert_eq!(on_p.strength.points, Range::new(8, 16));
+        } else {
+            assert_eq!(on_p.strength.points, off_p.strength.points);
+        }
+        for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts] {
+            assert_eq!(on_p.length(suit), off_p.length(suit));
+        }
+    }
+
     const P: Call = Call::Pass;
+    const ONE_DIAMOND: Call = bid(1, Strain::Diamonds);
     const ONE_HEART: Call = bid(1, Strain::Hearts);
     const ONE_SPADE: Call = bid(1, Strain::Spades);
     const TWO_CLUBS: Call = bid(2, Strain::Clubs);
