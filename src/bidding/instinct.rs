@@ -1831,12 +1831,124 @@ fn keycard_answer(counts: &'static [usize], queen: Option<bool>) -> Cons<impl Co
     )
 }
 
-/// We asked 4NT two calls ago and partner answered 1430: decode the answer,
+/// The next bid up the auction's ladder — the "cheapest step" the DOPI
+/// answers count in
+fn bid_successor(bid: Bid) -> Option<Bid> {
+    let level = bid.level.get();
+    Some(match bid.strain {
+        Strain::Clubs => Bid::new(level, Strain::Diamonds),
+        Strain::Diamonds => Bid::new(level, Strain::Hearts),
+        Strain::Hearts => Bid::new(level, Strain::Spades),
+        Strain::Spades => Bid::new(level, Strain::Notrump),
+        Strain::Notrump => {
+            if level >= 7 {
+                return None;
+            }
+            Bid::new(level + 1, Strain::Clubs)
+        }
+    })
+}
+
+/// Partner's off-book 4NT was overcalled by RHO — the DOPI/DEPO window.
+/// Same recognizability gates as [`keycard_asked`]; returns the trump and
+/// their bid.  (Their *double* of the ask keeps the quiet window alive and
+/// is answered by the ROPI rungs through [`keycard_asked`] itself.)
+fn keycard_asked_over_bid(hand: Hand, context: &Context<'_>) -> Option<(Suit, Bid)> {
+    if !floor_rkcb_now() {
+        return None;
+    }
+    let auction = context.auction();
+    let n = auction.len();
+    if n < 2 || auction[n - 2] != Call::Bid(Bid::new(4, Strain::Notrump)) {
+        return None;
+    }
+    let Call::Bid(their) = auction[n - 1] else {
+        return None;
+    };
+    let (opening_index, _) = opening_bid(auction)?;
+    if opening_index == n - 2 {
+        return None;
+    }
+    if n >= 4 && matches!(auction[n - 4], Call::Bid(bid) if bid.strain == Strain::Notrump) {
+        return None;
+    }
+    let trump = answer_trump(hand, context, n - 2)?;
+    Some((trump, their))
+}
+
+/// The ROPI answer over their double of partner's 4NT ask — classic R0P1:
+/// redouble 0, pass 1, the cheapest bid (5♣) 2, each with the 1430-style
+/// wraparound the asker resolves arithmetically.  The queen dimension is
+/// traded away, the classic price of the convention.
+fn ropi_answer(counts: &'static [usize]) -> Cons<impl Constraint + Clone> {
+    use super::american::slam::count_keycards;
+    described(
+        "the ROPI answer over their double of the ask",
+        move |hand: Hand, context: &Context<'_>| {
+            context.auction().last() == Some(&Call::Double)
+                && keycard_asked(hand, context)
+                    .is_some_and(|trump| counts.contains(&count_keycards(hand, trump)))
+        },
+    )
+}
+
+/// The DOPI answer over their bid below five of trump — classic D0P1:
+/// double 0, pass 1 (both with the wraparound), the cheapest step 2
+fn dopi_answer(counts: &'static [usize]) -> Cons<impl Constraint + Clone> {
+    use super::american::slam::count_keycards;
+    described(
+        "the DOPI answer over their bid below five of trump",
+        move |hand: Hand, context: &Context<'_>| {
+            keycard_asked_over_bid(hand, context).is_some_and(|(trump, their)| {
+                their < Bid::new(5, Strain::from(trump))
+                    && counts.contains(&count_keycards(hand, trump))
+            })
+        },
+    )
+}
+
+/// The DOPI two-keycard step: the cheapest bid over their interference is
+/// exactly `bid`
+fn dopi_step(bid: Bid) -> Cons<impl Constraint + Clone> {
+    use super::american::slam::count_keycards;
+    described(
+        "the DOPI step answer over their bid below five of trump",
+        move |hand: Hand, context: &Context<'_>| {
+            keycard_asked_over_bid(hand, context).is_some_and(|(trump, their)| {
+                their < Bid::new(5, Strain::from(trump))
+                    && bid_successor(their) == Some(bid)
+                    && [2, 5].contains(&count_keycards(hand, trump))
+            })
+        },
+    )
+}
+
+/// The DEPO answer over their bid at or above five of trump — no room for
+/// steps, so parity alone: double even, pass odd
+fn depo_answer(even: bool) -> Cons<impl Constraint + Clone> {
+    use super::american::slam::count_keycards;
+    described(
+        "the DEPO answer over their bid at or above five of trump",
+        move |hand: Hand, context: &Context<'_>| {
+            keycard_asked_over_bid(hand, context).is_some_and(|(trump, their)| {
+                their >= Bid::new(5, Strain::from(trump))
+                    && count_keycards(hand, trump).is_multiple_of(2) == even
+            })
+        },
+    )
+}
+
+/// We asked 4NT two calls ago and partner answered: decode the answer,
 /// returning the trump and the partnership's combined keycard count
 ///
-/// The ambiguous 5♣/5♦ answers resolve arithmetically first (five keycards
-/// exist, so a high reading inconsistent with our own count means the low
-/// one) and optimistically otherwise — the book's policy.
+/// Their call over the *ask* picks the answering scheme — quiet keeps the
+/// 1430 ladder, their double answers in ROPI, their bid in DOPI (below five
+/// of trump) or DEPO (at or above).  Their bid over the *answer* stands the
+/// machinery down and judgement resumes.
+///
+/// The ambiguous answers resolve arithmetically first (five keycards exist,
+/// so a high reading inconsistent with our own count means the low one) and
+/// optimistically otherwise — the book's policy.
 fn keycard_answered(hand: Hand, context: &Context<'_>) -> Option<(Suit, usize)> {
     use super::american::slam::count_keycards;
     if !floor_rkcb_now() {
@@ -1847,16 +1959,9 @@ fn keycard_answered(hand: Hand, context: &Context<'_>) -> Option<(Suit, usize)> 
     if n < 4 || auction[n - 4] != Call::Bid(Bid::new(4, Strain::Notrump)) {
         return None;
     }
-    if !opponents_quiet_since(auction, n - 4) {
+    if matches!(auction[n - 1], Call::Bid(_)) {
         return None;
     }
-    let Some(&Call::Bid(answer)) = auction.get(n - 2) else {
-        return None;
-    };
-    if answer.level.get() != 5 {
-        return None;
-    }
-    let answer_suit = answer.strain.suit()?;
     // The same derivation ladder as the answerer's, its face rung keyed on
     // the same physical ask index — sharing the function is the guarantee
     // both seats land on the one trump.  The ladder's pre-answer discipline
@@ -1864,10 +1969,45 @@ fn keycard_answered(hand: Hand, context: &Context<'_>) -> Option<(Suit, usize)> 
     // are decoding must not mint the trump it is counted against.
     let trump = answer_trump(hand, context, n - 4)?;
     let mine = count_keycards(hand, trump);
-    let (low, high) = match answer_suit {
-        Suit::Clubs => (1, 4),
-        Suit::Diamonds => (0, 3),
-        Suit::Hearts | Suit::Spades => (2, 2),
+    let answer = auction[n - 2];
+    let (low, high) = match auction[n - 3] {
+        interference @ (Call::Pass | Call::Double) => {
+            let doubled = interference == Call::Double;
+            match answer {
+                // ROPI over their double of the ask: redouble 0, pass 1,
+                // the cheapest bid 2 — each with the 1430-style wraparound.
+                Call::Redouble if doubled => (0, 3),
+                Call::Pass if doubled => (1, 4),
+                Call::Bid(bid) if doubled && bid == Bid::new(5, Strain::Clubs) => (2, 5),
+                // The 1430 ladder (an off-scheme emission — the net's —
+                // decodes on the same table).
+                Call::Bid(bid) if bid.level.get() == 5 => match bid.strain.suit()? {
+                    Suit::Clubs => (1, 4),
+                    Suit::Diamonds => (0, 3),
+                    Suit::Hearts | Suit::Spades => (2, 2),
+                },
+                _ => return None,
+            }
+        }
+        // DOPI below five of trump: double 0, pass 1, the cheapest step 2.
+        Call::Bid(their) if their < Bid::new(5, Strain::from(trump)) => match answer {
+            Call::Double => (0, 3),
+            Call::Pass => (1, 4),
+            Call::Bid(bid) if bid_successor(their) == Some(bid) => (2, 5),
+            _ => return None,
+        },
+        // DEPO at or above: parity alone — the largest count our own hand
+        // leaves possible.
+        Call::Bid(_) => {
+            let parities = match answer {
+                Call::Double => [4, 2, 0],
+                Call::Pass => [5, 3, 1],
+                _ => return None,
+            };
+            let partners = parities.into_iter().find(|p| mine + p <= 5)?;
+            return Some((trump, mine + partners));
+        }
+        Call::Redouble => return None,
     };
     let partners = if mine + high > 5 { low } else { high };
     Some((trump, mine + partners))
@@ -2805,11 +2945,34 @@ pub(crate) fn keycard_conversation_now(context: &Context<'_>) -> bool {
         && auction[n - 2] == four_nt
         && opponents_quiet_since(auction, n - 2)
         && recognizable(n - 2);
+    // Their bid directly over partner's ask: the DOPI/DEPO window (their
+    // double keeps `asked` itself alive — the ROPI rungs answer it).
+    let asked_over_bid = n >= 2
+        && auction[n - 2] == four_nt
+        && matches!(auction[n - 1], Call::Bid(_))
+        && recognizable(n - 2);
     // We asked and partner answered at the five level: place the contract.
     let answered = n >= 4
         && auction[n - 4] == four_nt
         && five_level_suit(auction[n - 2])
         && opponents_quiet_since(auction, n - 4)
+        && recognizable(n - 4);
+    // We asked over their double and partner answered in ROPI's non-bid
+    // messages (the 5♣ step already matches `answered`): place.
+    let ropi_answered = n >= 4
+        && auction[n - 4] == four_nt
+        && auction[n - 3] == Call::Double
+        && matches!(auction[n - 2], Call::Redouble | Call::Pass)
+        && opponents_quiet_since(auction, n - 4)
+        && recognizable(n - 4);
+    // We asked over their bid and partner answered in DOPI/DEPO: place.
+    // Their bid over the answer stands the machinery down; the third round
+    // after a non-bid answer is left to judgement — filed.
+    let dopi_answered = n >= 4
+        && auction[n - 4] == four_nt
+        && matches!(auction[n - 3], Call::Bid(_))
+        && (matches!(auction[n - 2], Call::Double | Call::Pass) || five_level_suit(auction[n - 2]))
+        && !matches!(auction[n - 1], Call::Bid(_))
         && recognizable(n - 4);
     // We answered and partner placed: respect (or correct) the placement.
     let placed = n >= 6
@@ -2818,7 +2981,7 @@ pub(crate) fn keycard_conversation_now(context: &Context<'_>) -> bool {
         && matches!(auction[n - 2], Call::Bid(_))
         && opponents_quiet_since(auction, n - 6)
         && recognizable(n - 6);
-    asked || answered || placed
+    asked || asked_over_bid || answered || ropi_answered || dopi_answered || placed
 }
 
 /// The opponents opened a one-level suit `X`, and our side answered with a
@@ -3903,8 +4066,39 @@ pub fn instinct() -> Rules {
             keycard_answer(&[2], Some(true)),
         )
         .alert(RKCB_FLOOR)
+        // ROPI over their double of the ask — classic R0P1, outweighing the
+        // 1430 answers (whose quiet window tolerates the double) so the
+        // doubled ask answers in scheme: redouble 0, pass 1, 5♣ 2.
+        .rule(Call::Redouble, 1.92, ropi_answer(&[0, 3]))
+        .alert(RKCB_FLOOR)
+        .rule(Call::Pass, 1.92, ropi_answer(&[1, 4]))
+        .alert(RKCB_FLOOR)
+        .rule(Bid::new(5, Strain::Clubs), 1.92, ropi_answer(&[2, 5]))
+        .alert(RKCB_FLOOR)
+        // DOPI over their bid below five of trump — classic D0P1: double 0,
+        // pass 1, the cheapest step 2.  The machinery used to stand down on
+        // their bid over the ask (the card declared DOPI with nothing
+        // behind it); these rungs are that window's authored floor.
+        .rule(Call::Double, 1.9, dopi_answer(&[0, 3]))
+        .alert(RKCB_FLOOR)
+        .rule(Call::Pass, 1.9, dopi_answer(&[1, 4]))
+        .alert(RKCB_FLOOR)
+        // DEPO at or above five of trump: no room for steps — double even,
+        // pass odd.
+        .rule(Call::Double, 1.9, depo_answer(true))
+        .alert(RKCB_FLOOR)
+        .rule(Call::Pass, 1.9, depo_answer(false))
+        .alert(RKCB_FLOOR)
         // After our answer the asker holds the count: respect the placement.
         .rule(Call::Pass, 1.88, respect_keycard_signoff());
+    // The DOPI two-keycard step, per possible landing (their bid over the
+    // ask is a five-level suit below five of trump, so its successor stays
+    // a five-level suit above clubs).
+    for strain in [Strain::Diamonds, Strain::Hearts, Strain::Spades] {
+        rules = rules
+            .rule(Bid::new(5, strain), 1.9, dopi_step(Bid::new(5, strain)))
+            .alert(RKCB_FLOOR);
+    }
     // The asker's continuations, per possible trump.
     for trump in Suit::ASC {
         let strain = Strain::from(trump);
@@ -5469,6 +5663,90 @@ mod tests {
         );
     }
 
+    /// Their interference over our 4NT ask no longer stands the machinery
+    /// down: DOPI below five of trump, DEPO at or above, ROPI over their
+    /// double — the card's declared conventions, authored classic (D0P1 /
+    /// R0P1, the queen dimension traded away)
+    #[test]
+    fn keycard_interference_answers_dopi_ropi_depo() {
+        // DOPI: their 5♣ over 4NT sits below five of the agreed spades.
+        let dopi = [
+            call(1, Strain::Spades),
+            Call::Pass,
+            call(3, Strain::Spades),
+            Call::Pass,
+            call(4, Strain::Notrump),
+            call(5, Strain::Clubs),
+        ];
+        assert_eq!(
+            best(&dopi, "QJ98.KQJ4.QJ9.42"),
+            Call::Double,
+            "DOPI: double shows zero keycards"
+        );
+        assert_eq!(
+            best(&dopi, "QJ98.KQJ4.A92.42"),
+            Call::Pass,
+            "DOPI: pass shows one keycard"
+        );
+        assert_eq!(
+            best(&dopi, "QJ98.KQ4.A92.A42"),
+            call(5, Strain::Diamonds),
+            "DOPI: the cheapest step shows two keycards"
+        );
+        // The asker decodes the double (zero opposite three own keycards)
+        // and signs off in the still-available five of trump.
+        let dopi_placed = [dopi.as_slice(), &[Call::Double, Call::Pass]].concat();
+        assert_eq!(
+            best(&dopi_placed, "AKT32.A54.K3.987"),
+            call(5, Strain::Spades),
+            "the asker decodes DOPI's zero and signs off"
+        );
+        // DEPO: their 5♠ over a heart-fit 4NT leaves no stepping room.
+        let depo = [
+            call(1, Strain::Hearts),
+            Call::Pass,
+            call(3, Strain::Hearts),
+            Call::Pass,
+            call(4, Strain::Notrump),
+            call(5, Strain::Spades),
+        ];
+        assert_eq!(
+            best(&depo, "QJ98.QJ42.KQJ.92"),
+            Call::Double,
+            "DEPO: double shows an even count"
+        );
+        assert_eq!(
+            best(&depo, "QJ98.QJ42.AQJ.92"),
+            Call::Pass,
+            "DEPO: pass shows an odd count"
+        );
+        // ROPI: their double of the ask — the two-keycard hand answers 5♣
+        // (the cheapest bid, count two), not the 1430 5♥.
+        let ropi = [
+            call(1, Strain::Spades),
+            Call::Pass,
+            call(3, Strain::Spades),
+            Call::Pass,
+            call(4, Strain::Notrump),
+            Call::Double,
+        ];
+        assert_eq!(
+            best(&ropi, "QJ98.KQJ4.QJ9.42"),
+            Call::Redouble,
+            "ROPI: redouble shows zero keycards"
+        );
+        assert_eq!(
+            best(&ropi, "QJ98.KQJ4.A92.42"),
+            Call::Pass,
+            "ROPI: pass shows one keycard"
+        );
+        assert_eq!(
+            best(&ropi, "QJ98.KQ4.A92.A42"),
+            call(5, Strain::Clubs),
+            "ROPI: the cheapest bid shows two keycards"
+        );
+    }
+
     /// [`keycard_conversation_now`] marks the live window as forced-rail
     /// territory for the neural shell — and stands down the moment the
     /// opponents bid inside it or the ask is not decodable
@@ -5486,8 +5764,9 @@ mod tests {
             call(4, Strain::Notrump),
             Call::Pass,
         ]));
-        // Their bid over the 4NT takes the answer rooms away: judgement.
-        assert!(!live(&[
+        // Their bid directly over the 4NT is the DOPI/DEPO window now — the
+        // rungs answer in scheme, so the rail claims it.
+        assert!(live(&[
             call(1, Strain::Diamonds),
             call(2, Strain::Clubs),
             call(2, Strain::Spades),
@@ -5496,6 +5775,20 @@ mod tests {
             Call::Pass,
             call(4, Strain::Notrump),
             call(5, Strain::Clubs),
+        ]));
+        // But their bid over the *answer* still takes the machinery down:
+        // judgement resumes.
+        assert!(!live(&[
+            call(1, Strain::Diamonds),
+            call(2, Strain::Clubs),
+            call(2, Strain::Spades),
+            Call::Pass,
+            call(3, Strain::Spades),
+            Call::Pass,
+            call(4, Strain::Notrump),
+            Call::Pass,
+            call(5, Strain::Hearts),
+            call(6, Strain::Clubs),
         ]));
         // The side's last bid is a suit: 4NT over the 1♦ opening asks in
         // diamonds (face_trump rule 2 — all four suits qualify).

@@ -474,6 +474,10 @@ five-of-trump, escaping to six of the trump — or drifting to 5NT or
 another known fit — beats playing the answer suit doubled. Needs its
 own rung + A/B.
 
+*Resolved 2026-07-31 — and the forensics **inverted this narrative***:
+the fit rule did *not* key diamonds. See "The cramped doubled answer"
+section below (SHIPPED, 8f71f0e).
+
 ### Experiment: the floor authors the readings — vacuous-scoped probed serving (2026-07-31, LOSS — knob stays opt-in, retrain queued)
 
 jdh8's question, aimed at the vacuous-contested follow-up: *can the floor
@@ -641,3 +645,85 @@ joining the one batched A/B:
   `agreed_re_raise` (`2♦ 2♠ P 3♦ P 3♠`), and doubleton 2/1 power raises hit
   the raise-3 stamp on a known-**5** suit — deliberately not lifted (it would
   loosen raises of every overcall system-wide; own A/B if pursued).
+
+### The cramped doubled answer (2026-07-31, Part A SHIPPED 8f71f0e; Part B DOPI/ROPI/DEPO)
+
+**Forensics first, and they inverted the filed narrative.** Replaying the
+−20 board (`1♦ P 1♥ 1♠ P 3♠ 4♦ P 4NT P 5♥ X` passed out) through
+`probe-classify`: the fit rule did **not** key diamonds. The asker decodes
+the trump *after* the answer, and the natural walk reads the artificial 5♥
+answer as six real hearts — so `answer_trump`'s shown-5+ rung minted a
+**phantom heart trump**, the 1.80 sit rung (`answer_is_five_of`) matched
+"5♥ is five of trump", and the ladder *sat* the doubled artificial answer.
+`no_room_six` (0.3) was never the decision. The answerer, deriving
+pre-answer, keyed diamonds — the two seats disagreed on the trump across
+time. Lesson for the ledger: **the answer being decoded must not mint the
+trump it is counted against.**
+
+**Part A — pre-answer corroboration + the escape ladder (8f71f0e).**
+
+- `answer_trump` corroborates the answer's own suit against a *pre-answer*
+  reading (`Context::new` over `auction[..ask + 2]`, me/partner mapped by
+  seat parity): the suit survives only if a real fit or shown 5+ predates
+  the answer. Ceiling: a bare prefix context under-reads authored calls
+  (no stance keys) — the transfer/Jacoby lanes recover through the face
+  rung, which is why the corroboration filters rungs 1–2 only.
+- Over their double of a cramped answer the asker escapes rather than
+  sits — *we never play a suit we have no fit in* (jdh8's rule): hand-seen
+  six-of-trump @1.73, stopped 5NT @1.72, six of another *seen* fit @1.71
+  (gated `!answer_is_five_of(other)` — the phantom suit must not be the
+  refuge either), fallback six-of-trump @1.70. All below the 1.80–1.86
+  vetted rungs, above every retreat.
+- `respect_keycard_signoff` learns the 5NT escape in the doubled window
+  only (X at n−3), deriving trump through the shared `answer_trump` — the
+  undisturbed book's 5NT king ask is untouched.
+
+Verdict (A/B vs 69864ab, SEED_BASE 1785500157, 204,800 bd/arm/vul):
+**win in all four cells — default-on, knobless.**
+
+| vul | plain DD | perfect defense |
+| --- | --- | --- |
+| none | **+0.0007 [±0.0007]** | **+0.0012 [±0.0009]** |
+| both | **+0.0005 [±0.0007]** | **+0.0010 [±0.0009]** |
+
+Fired 0.04 % / 0.03 %, ~+1.8 plain (+3.2 to +3.7 PD) IMPs per fired
+board.
+
+**Part B — DOPI/ROPI below five-of-trump, DEPO at/above (classic
+D0P1/R0P1, user-confirmed).** Their *bid* over our 4NT stood the whole
+window machinery down (`opponents_quiet_since` tolerates only Pass/X)
+while the card declared DOPI/ROPI with no implementation — a machinery
+hole and a false disclosure at once. Authored on the floor: answerer
+ROPI over their X (XX=0, P=1, 5♣ up = 2, 3), DOPI over their bid below
+five-of-trump (X=0, P=1, cheapest bid=2, next=3), DEPO at/above (X=even,
+P=odd, optimistic decode); asker's `keycard_answered` decodes all three
+windows with 1430-style wraparound arithmetic and feeds the existing
+placement rungs including Part A's escapes; `keycard_conversation_now`
+rail gains the interfered shapes (one enemy bid, directly over the ask);
+card DEPO=1, goldens re-blessed. Filed, not pre-engineered: the third
+round after a non-bid DOPI answer is left to judgment, and the asker's
+1.82 signoff pulls what might be a fine penalty double after DOPI X=0.
+
+Verdict (A/B vs Part A 8f71f0e, SEED_BASE 1785500660, 204,800
+bd/arm/vul): **NULL in all four cells — ships default-on per the
+pre-registration** (a wash also repairs the false disclosure).
+
+| vul | plain DD | perfect defense |
+| --- | --- | --- |
+| none | +0.0000 [±0.0003] | +0.0001 [±0.0003] |
+| both | −0.0002 [±0.0003] | +0.0000 [±0.0004] |
+
+Fired 16 / 13 boards *total* per vul (0.01 % — BBA rarely bids over
+4NT, as expected). Worst-board trace of the both-plain −34 raw IMPs
+found no decode defect — three judgment mechanisms: the filed
+signoff-pulls-a-fine-penalty-X gap (−12), doubling channels on the same
+final contract (−11), and one new filed follow-up — **the own-shown-five
+5-2 trump**: `answer_trump`'s rung 2 takes `shown = max(partner, me)`,
+so the asker's *own* shown 5-card heart suit qualified hearts as trump
+with no fit evidence, the pre-answer corroboration accepted it (the
+shown-five criterion is satisfied by the asker's own hand), and the sit
+rung passed a DOPI 5♥ step answer out in a 5-2 (−13; the off arm's free
+judgment bid 6♠ making). Old rung-2 behavior newly exposed by the live
+window — repairing it (fit evidence, not one-hand length, as the
+shown-five bar) moves every keycard auction's trump derivation and
+needs its own A/B.

@@ -392,10 +392,11 @@ fn american_row(name: &str) -> i32 {
         // deliberate omission there — so this row is 0 whatever
         // `set_transfer_super_accept` says.
         "Extended acceptance after NT" => 0,
-        // Cue bids, DOPI/ROPI over their interference in a keycard auction, and
-        // the 5NT king ask.
-        "Cue bid" | "DOPI" | "ROPI" | "King ask by 5NT" => 1,
-        "DEPO" | "King ask by 5NT inviting" | "King ask by available bid" => 0,
+        // Cue bids, DOPI/ROPI/DEPO over their interference in a keycard
+        // auction (the floor's authored rungs in `instinct.rs` — DOPI below
+        // five of trump, DEPO at or above), and the 5NT king ask.
+        "Cue bid" | "DOPI" | "ROPI" | "DEPO" | "King ask by 5NT" => 1,
+        "King ask by 5NT inviting" | "King ask by available bid" => 0,
         // Michaels and Unusual 2NT we author outright; `set_unusual_notrump_defense`
         // gates only our *defense* to theirs, not our own two-suiter bids.
         "Michaels Cuebid" | "Unusual 2NT" => 1,

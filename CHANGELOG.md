@@ -30,6 +30,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **DOPI/ROPI below five-of-trump, DEPO at/above — the card's declaration
+  made honest.** Their *bid* over our 4NT stood the whole keycard window
+  down while the convention card declared DOPI/ROPI with no
+  implementation. The instinct floor now authors all three windows
+  (classic D0P1/R0P1): over their X the answerer bids ROPI (XX=0, P=1,
+  5♣ up = 2, 3), over their bid below five-of-trump DOPI (X=0, P=1,
+  cheapest bid=2, next=3), at/above DEPO (X=even, P=odd); the asker
+  decodes each with the 1430-style wraparound arithmetic and places
+  through the existing rungs, including the escape ladder; the
+  `keycard_conversation_now` rail delegates the interfered shapes (one
+  enemy bid, directly over the ask). Card gains `DEPO = 1`, goldens
+  re-blessed. A/B vs the escape-ladder commit (SEED_BASE 1785500660,
+  204,800 bd/arm/vul): **NULL in all four cells** — plain +0.0000
+  [±0.0003] / −0.0002 [±0.0003], PD +0.0001 [±0.0003] / +0.0000
+  [±0.0004] (none/both), 13–16 boards fired per vul (BBA rarely bids
+  over 4NT). Ships default-on per the pre-registered non-loss rule —
+  the wash also repairs the false disclosure. Filed follow-ups in
+  docs/reading-drift-handoff.md: the asker's signoff pulling a fine
+  penalty double after DOPI X=0, and rung 2's own-shown-five 5-2 trump.
+
 - **The floor authors readings — the vacuous-scoped probed serving, opt-in.**
   `set_probed_vacuous_reading` (`--ns-probe N --ns-probe-vacuous`, default
   **off**) serves `Stance::probe`'s behavioral boxes — "the hands the bidder
