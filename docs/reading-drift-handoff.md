@@ -428,6 +428,52 @@ the net redoubled the doubled answer. Stamping contested free bids
 (the coverage follow-up) would have put the ladder on this board —
 the rail's reach grows exactly as that hole closes.
 
+### Experiment: the face-trump rung (launched 2026-07-31, verdict pending)
+
+jdh8's design, from the round-3 XX board: the trump derivation gains a
+final **auction-face** rung, `face_trump(auction, ask)` — (1) the known
+fit, a suit both members of the asking side bid below the ask (their
+named suits excluded, most recent agreement wins; fit precedence keeps a
+control bid from masquerading — `1♠ P 3♠ P 4♣ P 4NT` asks in spades),
+else (2) **the side's last bid is a suit** → that suit (`… X 4♠ – 4NT`
+asks in spades, `1♦ P 4NT` in diamonds; a notrump last bid vetoes —
+quantitative — and a cue of their suit is no trump). Hand-independent
+and keyed on the physical ask index, so every seat and the rail derive
+identically; readings-independent, so it works exactly where the
+contested walk is vacuous (the XX board becomes rail territory with no
+coverage repair needed). The pre-experiment derivation stays above it
+(hand-seen fit, shown-five readings — the branches that see through
+transfers and splinters, where the face mislabels the artificial call),
+and the explicit opening/quantitative gates stay. It generalizes
+`raised_major` to all four suits and subsumes it; minors now qualify
+(the asker rungs were already built per suit). A/B in
+`ab-results/keycard-face-trump/`: base **3745c13** vs the rung,
+SEED_BASE **1785485168**, usual protocol. This widens the rail's reach
+(a bidding change, not a soundness correction), so the plain decision
+table applies.
+
+**Verdict (2026-07-31): WIN in all four cells — SHIPPED default-on.**
+
+| vul | plain DD | perfect defense |
+| --- | --- | --- |
+| none | **+0.0023 [±0.0017]** | **+0.0044 [±0.0020]** |
+| both | **+0.0037 [±0.0020]** | **+0.0050 [±0.0022]** |
+
+Fired 0.23 % / 0.19 % — only the trump-derivation delta diverges, but at
+**+1.0 to +2.6 IMPs per fired board** (keycard auctions are slam
+boards). Plain win + PD win, both vuls: the table's best case.
+
+Follow-up filed off the worst boards — **the cramped doubled answer**:
+`1♦ P 1♥ 1♠ P 3♠ 4♦ P 4NT P 5♥ X` passed out (−20). The fit rule
+correctly keys diamonds and the 1430 answer 5♥ is *right* (two
+keycards, no ♦Q), but with two keycards missing and the answer already
+past 5♦, the asker's `no_room_six` rung (weight 0.3) was outweighed and
+the ladder passed partner's doubled off-fit answer. jdh8's earlier
+observation is the candidate repair: after a doubled answer past
+five-of-trump, escaping to six of the trump — or drifting to 5NT or
+another known fit — beats playing the answer suit doubled. Needs its
+own rung + A/B.
+
 ### Repairs (step 3 — seven landed this pass)
 
 Per-family disposition, each pinned by a `readings_admit_the_bidder` row and

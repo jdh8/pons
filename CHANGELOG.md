@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **The face-trump rung: 4NT's trump read off the auction alone.** The
+  keycard trump derivation gains a final auction-face rung,
+  `face_trump(auction, ask)` — the known fit (a suit both members of the
+  asking side bid below the ask, the opponents' named suits excluded, most
+  recent agreement wins; fit precedence keeps a control bid from
+  masquerading), else *the side's last bid is a suit* → that suit (a
+  notrump last bid vetoes — quantitative; a cue of their suit is no
+  trump). Hand- and readings-independent and keyed on the physical ask
+  index, so every seat and the `forced()` rail provably derive the same
+  trump — and it works exactly where contested readings are vacuous (the
+  round-3 XX board, `2♥ X 3♥ X P 4♠ P 4NT`, becomes rail territory with
+  no coverage repair). The hand-seen-fit and shown-five rungs stay above
+  it (they see through transfers and splinters, where the face mislabels
+  the artificial call); `raised_major` is subsumed (the fit rule covers
+  all four suits — the continuation rungs were already per-suit). A/B vs
+  3745c13 (SEED_BASE 1785485168, 32×6400 bd/arm/vul): **win in all four
+  cells** — plain +0.0023 [±0.0017] none / +0.0037 [±0.0020] both, PD
+  +0.0044 [±0.0020] / +0.0050 [±0.0022] — fired 0.23 %/0.19 % at +1.0 to
+  +2.6 IMPs per fired board. Ships default-on. Follow-up filed: the
+  cramped doubled answer (two keycards missing, answer past five of
+  trump) can still be passed out — the escape-to-six/5NT rung is its own
+  campaign.
+
 ### Fixed
 
 - **The keycard-window rail: contested 4NT completes as RKCB.** Round 1 of

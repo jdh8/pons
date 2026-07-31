@@ -1641,51 +1641,66 @@ fn keycard_trump(hand: Hand, context: &Context<'_>) -> Option<Suit> {
         .map(|(_, suit)| suit)
 }
 
-/// The major our side has bid **and raised** — named as a bid by *both*
-/// members — derived from the auction shape alone, no hand, no readings
+/// The trump a 4NT at `ask` keys on, read from the auction's face alone —
+/// no hand, no readings, so every seat (and the [`forced`] rail) provably
+/// lands on the one trump by keying on the same physical ask index
 ///
-/// BWS's "an agreed suit makes 4NT keycard" in its most literal form, and
-/// the branch that keeps the machinery alive in competition: a contested
-/// lane whose walk readings are still vacuous (a free bid stamps no length
-/// yet) can never derive a trump from shown minima, but `1♦ (2♣) 2♠ P 3♠ P
-/// 4NT` has agreed spades on its face.  Majors only (the M6.4 doctrine —
-/// minor slams route through 6NT power-blasts), suits the opponents ever
-/// named excluded (both members bidding *their* suit is cue territory, not
-/// agreement), most recent agreement wins.  Artificial namings (a transfer,
-/// a cue of a lead-directing raise) can mislabel; the both-members bar
-/// keeps that rare, and the readings branch beside this one is the seat
-/// that sees through transfers.
-fn raised_major(auction: &[Call]) -> Option<Suit> {
-    let n = auction.len();
-    let mut ours = [[false; 2]; 2]; // [major][member]
-    let mut theirs = [false; 2];
+/// Two rules, in order:
+///
+/// 1. **The known fit** — a suit *both* members of the asking side bid
+///    below the ask, suits the opponents had named excluded (both members
+///    bidding *their* suit is cue territory, not agreement), most recent
+///    agreement wins.  Fit precedence is what keeps a cue or control bid
+///    on the way to 4NT from masquerading as trumps (`1♠ P 3♠ P 4♣ P 4NT`
+///    asks in spades, not clubs).
+/// 2. **The side's last bid is a suit** — then that suit is the trump:
+///    `2♥ X 3♥ X P 4♠ P 4NT` asks in spades, a completed transfer or
+///    Stayman answer asks in the found major, `1♦ P 4NT` asks in
+///    diamonds.  A last bid in *notrump* vetoes the rule — that 4NT is
+///    quantitative — and a cue of their suit is no trump either.
+///
+/// The final rung of [`answer_trump`]'s derivation ladder (the hand-seen
+/// fit and the shown-five readings sit above it and see through transfers,
+/// where the face mislabels the artificial call).  `None` (no bid below
+/// the ask, a notrump last bid, a bare cue) leaves the 4NT unrecognizable
+/// from the face alone.  All four suits qualify — the asker's continuation
+/// rungs are built per suit, and 1430 arithmetic is trump-agnostic.
+fn face_trump(auction: &[Call], ask: usize) -> Option<Suit> {
+    let mut ours = [[false; 2]; 4]; // [suit][member]
+    let mut theirs = [false; 4];
     let mut agreed = None;
-    for (index, call) in auction.iter().enumerate() {
+    let mut last = None; // the asking side's most recent bid below the ask
+    for (index, call) in auction.iter().enumerate().take(ask) {
         let Call::Bid(bid) = call else { continue };
-        let Some(suit @ (Suit::Hearts | Suit::Spades)) = bid.strain.suit() else {
+        if index % 2 != ask % 2 {
+            if let Some(suit) = bid.strain.suit() {
+                theirs[suit as usize] = true;
+            }
+            continue;
+        }
+        last = Some(bid.strain);
+        let Some(suit) = bid.strain.suit() else {
             continue;
         };
-        let major = usize::from(suit == Suit::Spades);
-        if index % 2 != n % 2 {
-            theirs[major] = true;
+        if theirs[suit as usize] {
             continue;
         }
-        let member = usize::from(index % 4 == n % 4);
-        if ours[major][1 - member] && !theirs[major] {
+        let member = usize::from(index % 4 == ask % 4);
+        if ours[suit as usize][1 - member] {
             agreed = Some(suit);
         }
-        ours[major][member] = true;
+        ours[suit as usize][member] = true;
     }
-    agreed
+    agreed.or_else(|| last?.suit().filter(|&suit| !theirs[suit as usize]))
 }
 
 /// The trump the 4NT *answerer* counts against: the known fit if our hand
 /// sees one, else the partnership's genuinely shown five-plus suit (either
-/// seat's — BWS's "the only shown suit") — the asker knew the fit from their
-/// side (a sixth card opposite our shown doubleton, or a fit for the six our
-/// own rebid showed) even when we cannot count to eight — else the major our
-/// side bid and raised on the auction's face ([`raised_major`])
-fn answer_trump(hand: Hand, context: &Context<'_>) -> Option<Suit> {
+/// seat's — BWS's "the only shown suit", and the branch that sees through
+/// transfers and splinters, where the face mislabels the artificial call),
+/// else the auction's face ([`face_trump`]: the raised suit, or the side's
+/// last bid a natural suit).
+fn answer_trump(hand: Hand, context: &Context<'_>, ask: usize) -> Option<Suit> {
     keycard_trump(hand, context)
         .or_else(|| {
             let inferences = Inferences::read(context);
@@ -1701,7 +1716,7 @@ fn answer_trump(hand: Hand, context: &Context<'_>) -> Option<Suit> {
                 .filter(|&suit| shown(suit) >= 5)
                 .max_by_key(|&suit| (shown(suit), suit as u8))
         })
-        .or_else(|| raised_major(context.auction()))
+        .or_else(|| face_trump(context.auction(), ask))
 }
 
 /// The opponents' calls since `index` (exclusive) are all passes or doubles
@@ -1728,8 +1743,9 @@ fn opponents_quiet_since(auction: &[Call], index: usize) -> bool {
 /// Partner's off-book 4NT asks keycards: a quiet window (opponents at most
 /// doubling since the ask), not an opening, not over our own notrump bid
 /// (that 4NT is quantitative — BWS reads keycard only with an agreed suit),
-/// and a fit is known from our seat.  Returns the agreed trump the 1430
-/// answer counts against.
+/// and a trump derivable ([`answer_trump`], whose final rung reads the
+/// auction's face).  Returns the agreed trump the 1430 answer counts
+/// against.
 fn keycard_asked(hand: Hand, context: &Context<'_>) -> Option<Suit> {
     if !floor_rkcb_now() {
         return None;
@@ -1749,7 +1765,7 @@ fn keycard_asked(hand: Hand, context: &Context<'_>) -> Option<Suit> {
     if n >= 4 && matches!(auction[n - 4], Call::Bid(bid) if bid.strain == Strain::Notrump) {
         return None;
     }
-    answer_trump(hand, context)
+    answer_trump(hand, context, n - 2)
 }
 
 /// A 1430 answer to partner's 4NT: our keycard count is one of `counts`, and
@@ -1794,10 +1810,10 @@ fn keycard_answered(hand: Hand, context: &Context<'_>) -> Option<(Suit, usize)> 
         return None;
     }
     let answer_suit = answer.strain.suit()?;
-    // The same derivation ladder as the answerer's — both seats must land on
-    // the one trump, and sharing the function is the only guarantee (the
-    // net's contested asks never derived one at all).
-    let trump = answer_trump(hand, context)?;
+    // The same derivation ladder as the answerer's, its face rung keyed on
+    // the same physical ask index — sharing the function is the guarantee
+    // both seats land on the one trump.
+    let trump = answer_trump(hand, context, n - 4)?;
     let mine = count_keycards(hand, trump);
     let (low, high) = match answer_suit {
         Suit::Clubs => (1, 4),
@@ -2688,18 +2704,19 @@ pub(crate) fn keycard_conversation_now(context: &Context<'_>) -> bool {
         |call: Call| matches!(call, Call::Bid(bid) if bid.level.get() == 5 && bid.strain.is_suit());
     // The window is only ours to police when the ask itself is recognizable:
     // not an opening, not over the asker's own side's notrump bid
-    // (quantitative), and decodable — a major our side bid and raised on the
-    // auction's face, or one genuinely shown five-plus by either seat
-    // (mirroring the ladder ask's own decodability gate).  Every shape needs
-    // this, not just `asked`: an unrecognizable 4NT (quantitative, or a
-    // minor-slam probe) is judgement all the way down — hijacking its
-    // five-level answer leaves the ladder with no continuation rung, and the
-    // round-2 A/B's worst boards were making minor slams passed out in 5♥.
+    // (quantitative), and trump-decodable — [`face_trump`] reads one off the
+    // auction alone (the known fit, or the side's last bid a natural suit),
+    // or a five-card major is genuinely shown (the readings branch that sees
+    // through transfers where the face mislabels).  Every shape needs this,
+    // not just `asked`: an unrecognizable 4NT (quantitative, or a minor-slam
+    // probe) is judgement all the way down — hijacking its five-level answer
+    // leaves the ladder with no continuation rung, and the round-2 A/B's
+    // worst boards were making minor slams passed out in 5♥.
     let recognizable = |ask: usize| {
         opening_bid(auction).is_some_and(|(index, _)| index != ask)
             && !(ask >= 2
                 && matches!(auction[ask - 2], Call::Bid(bid) if bid.strain == Strain::Notrump))
-            && (raised_major(auction).is_some() || {
+            && (face_trump(auction, ask).is_some() || {
                 let inferences = Inferences::read(context);
                 [Suit::Hearts, Suit::Spades].into_iter().any(|major| {
                     inferences
@@ -5274,18 +5291,18 @@ mod tests {
             call(4, Strain::Notrump),
             call(5, Strain::Clubs),
         ]));
-        // No shown five-card major: partner's direct 4NT is not a decodable
-        // keycard ask (minors or quantitative) — the net keeps the node.
-        assert!(!live(&[
+        // The side's last bid is a suit: 4NT over the 1♦ opening asks in
+        // diamonds (face_trump rule 2 — all four suits qualify).
+        assert!(live(&[
             call(1, Strain::Diamonds),
             Call::Pass,
             call(4, Strain::Notrump),
             Call::Pass,
         ]));
-        // The round-2 A/B's worst boards: an unrecognizable 4NT (over the
-        // asker's side's own 3NT, no major in sight) stays judgement even
-        // after a five-level answer — hijacking the asker here passed out
-        // making minor slams in 5♥.
+        // The round-2 A/B's worst boards: the side's last bid below the 4NT
+        // is its own 3NT — quantitative, no fit behind it — so the window
+        // stays judgement even after a five-level answer.  Hijacking the
+        // asker here passed out making minor slams in 5♥.
         assert!(!live(&[
             call(1, Strain::Diamonds),
             Call::Pass,
@@ -5296,6 +5313,22 @@ mod tests {
             call(4, Strain::Notrump),
             Call::Pass,
             call(5, Strain::Hearts),
+            Call::Pass,
+        ]));
+        // Round 3's worst board: partner doubles twice then jumps to 4♠ —
+        // no fit on the face and the contested reading is vacuous, but the
+        // side's last bid is a suit, so 4NT asks in spades and the answer
+        // window is rail territory (the bare net redoubled the doubled
+        // answer and played 5♥xx in a 4-1 fit, −23 IMPs).
+        assert!(live(&[
+            call(2, Strain::Hearts),
+            Call::Double,
+            call(3, Strain::Hearts),
+            Call::Double,
+            Call::Pass,
+            call(4, Strain::Spades),
+            Call::Pass,
+            call(4, Strain::Notrump),
             Call::Pass,
         ]));
     }
