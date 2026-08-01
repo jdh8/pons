@@ -46,6 +46,20 @@ pub struct Meta {
     /// distilled from the wrong card is silently the wrong net.
     #[serde(default)]
     pub card: String,
+    /// Single conventions forced on top of the card or the engine defaults
+    /// (`dump-teacher --conv "Kickback 1430=1"`).  A card pins every convention
+    /// at once and so cannot express "defaults, except this one"; without this
+    /// field a twin distilled from a kickback-playing teacher is
+    /// indistinguishable from the plain net, because the corpus that would say
+    /// so is deliberately never committed.
+    #[serde(default)]
+    pub conv: Vec<String>,
+    /// Whether *our* extractor read the auctions with kickback armed
+    /// (`dump-teacher --kickback`).  Forty of the eighty-eight v3 features come
+    /// from `Inferences::read`, so this belongs to the feature spec rather than
+    /// to the teacher: the same rows mean different things without it.
+    #[serde(default)]
+    pub our_kickback: bool,
 }
 
 /// A loaded teacher dataset, rows still in dump order (board-by-board).

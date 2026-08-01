@@ -1983,18 +1983,24 @@ fn face_trump(auction: &[Call], ask: usize) -> Option<Suit> {
 /// - the [`face_trump`] **veto** — when the face names no trump at all (the
 ///   notrump dichotomy: `1♦ P 3♦ P 3NT P` is quantitative), nothing relocates.
 ///
-/// Each set suit, in ascending rank, then claims the cheapest **unclaimed
-/// unguarded** suit strictly above it.  Whatever goes unclaimed still asks at
-/// 4NT, whose meaning is unchanged: kickback *adds* asks, it never removes
-/// one (jdh8), so no auction pons already bids changes.  Two fits can carry
-/// two relocated asks — after `1♣ P 2♣ P 2♥ P 3♥ P`, 4♦ asks in clubs and 4♠
-/// in hearts.
+/// Each set suit claims **four of the next suit up, and nothing else**.  If
+/// that one call is guarded or already claimed, the suit does not relocate at
+/// all and asks at 4NT, whose meaning is unchanged: kickback *adds* asks, it
+/// never removes one, so no auction pons already bids changes.  Two fits can
+/// still carry two relocated asks — after `1♣ P 2♣ P 2♥ P 3♥ P`, 4♦ asks in
+/// clubs and 4♠ in hearts.
 ///
-/// This is jdh8's ladder, not BBA's.  BBA reverts to 4NT the moment
-/// four-of-(T+1) is guarded (`docs/ai-bidder/bba-kickback.md` §1.1); walking
-/// on up to 4NT is never worse and keeps a relocated ask after `1♦ P 1♥ P 3♦`,
-/// where BBA loses it.  The price is the cheapest unbid-suit cue: 4♠ over
-/// agreed hearts stops being a control bid.
+/// This is BBA's rule (`docs/ai-bidder/bba-kickback.md` §1.1), adopted
+/// deliberately in place of jdh8's earlier **walk-up** ladder, which kept
+/// walking to the cheapest unguarded suit above the trump — so 4♠ could ask in
+/// diamonds after `1♦ P 1♥ P 3♦`, where BBA reverts to 4NT.  The walk-up is
+/// strictly cheaper when both sides read it, and that is the whole problem: a
+/// relocated ask two suits above the trump is unrecognisable to anything that
+/// has not built the same table, and one seat mistaking it for a natural bid or
+/// a cue costs a slam — while the prize for being right is one or two steps of
+/// room.  **The saving is always stormed by the misunderstanding** (jdh8,
+/// 2026-08-02).  Falling back to 4NT is never ambiguous, because 4NT asked
+/// keycards before kickback existed.
 ///
 /// Legality is the caller's business — the table says what a bid *would* mean,
 /// not that it is available over the auction so far.
@@ -2036,11 +2042,13 @@ fn kickback_ladder(auction: &[Call], ask: usize) -> [Option<Suit>; 4] {
         if bids(trump) < 2 {
             continue;
         }
-        let claim = Suit::ASC
-            .into_iter()
-            .find(|&suit| suit > trump && !guarded(suit) && ladder[suit as usize].is_none());
-        if let Some(suit) = claim {
-            ladder[suit as usize] = Some(trump);
+        // Four of the *next* suit up, or nothing: an occupied rung falls back
+        // to 4NT rather than walking on.  Walking was cheaper and unreadable.
+        let Some(claim) = Suit::ASC.into_iter().find(|&suit| suit > trump) else {
+            continue;
+        };
+        if !guarded(claim) && ladder[claim as usize].is_none() {
+            ladder[claim as usize] = Some(trump);
         }
     }
     ladder
@@ -7413,12 +7421,14 @@ mod tests {
         );
     }
 
-    /// jdh8's ladder walks past a *guarded* kickback suit instead of giving
-    /// up on the relocation: after `1♦ P 1♥ P 3♦`, 4♥ is natural (responder
-    /// showed four) and BBA reverts to 4NT — we ask 4♠ instead, one step
-    /// cheaper, and 4NT keeps its meaning beside it.
+    /// A guarded kickback suit ends the relocation instead of walking past it:
+    /// after `1♦ P 1♥ P 3♦`, 4♥ is natural (responder showed four), so the
+    /// diamond ask goes back to 4NT.  The earlier walk-up asked 4♠ here — one
+    /// step cheaper, and unrecognisable to a partner who has not built the same
+    /// table.  4NT has asked keycards since long before kickback, so the
+    /// fallback can never be misread.
     #[test]
-    fn kickback_walks_up_past_guarded_suits() {
+    fn a_guarded_rung_falls_back_to_notrump() {
         let jump_rebid = [
             call(1, Strain::Diamonds),
             Call::Pass,
@@ -7429,13 +7439,13 @@ mod tests {
         ];
         assert_eq!(
             kickback_ladder(&jump_rebid, 6),
-            [None, None, None, Some(Suit::Diamonds)],
-            "hearts are guarded, so the diamond ask walks up to 4♠"
+            [None; 4],
+            "hearts are guarded, so diamonds do not relocate at all"
         );
         assert_eq!(
             face_trump(&jump_rebid, 6),
             Some(Suit::Diamonds),
-            "and it asks in the suit 4NT would have asked in"
+            "and 4NT still asks in the suit it always asked in"
         );
     }
 
@@ -7509,8 +7519,9 @@ mod tests {
             [None, Some(Suit::Clubs), None, Some(Suit::Hearts)],
             "clubs claim 4♦, hearts claim 4♠"
         );
-        // Only one free suit above the lower fit: it goes to the lower fit
-        // (claiming is ascending), and the higher one falls back to 4NT.
+        // Two fits, but the lower one's only rung is the higher fit's suit.
+        // Diamonds want 4♥ and hearts are guarded, so diamonds fall back to
+        // 4NT; hearts still take 4♠, the suit directly above them.
         let one_free = [
             call(1, Strain::Hearts),
             Call::Pass,
@@ -7523,8 +7534,8 @@ mod tests {
         ];
         assert_eq!(
             kickback_ladder(&one_free, 8),
-            [None, None, None, Some(Suit::Diamonds)],
-            "the lower fit claims 4♠; hearts keep 4NT"
+            [None, None, None, Some(Suit::Hearts)],
+            "diamonds revert to 4NT; hearts keep 4♠"
         );
     }
 

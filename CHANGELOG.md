@@ -163,6 +163,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   bias instead of assuming it; it does not touch DD's perfect lead or its
   timing, so it is a partial correction, not a general one.
 
+### Changed
+
+- **Kickback falls back to 4NT instead of walking up** (`set_kickback`, still
+  opt-in). jdh8's ladder claimed the cheapest *unguarded* suit above the trump,
+  so 4♠ could ask in diamonds after `1♦ P 1♥ P 3♦` — one step cheaper than
+  BBA, which reverts to 4NT the moment four-of-(trump+1) is guarded. Each set
+  suit now claims four-of-the-next-suit-up **or nothing**.
+
+  The walk-up is strictly cheaper whenever both seats read it, and that is the
+  whole problem. A relocated ask two suits above the trump is unrecognisable to
+  anything that has not built the same table; one seat taking it for a natural
+  bid or a cue costs a slam, while being right buys a step or two of room. **The
+  saving is always stormed by the misunderstanding** (jdh8). 4NT cannot be
+  misread, because 4NT asked keycards before kickback existed.
+
+  Two lanes are unaffected — `1♣ P 2♣ P 2♥ P 3♥` still relocates both fits (4♦
+  clubs, 4♠ hearts), since each has its own next suit up free.
+
+  Adopting BBA's rule also makes the floor's retrain coherent: the distilled net
+  and our reader now implement the *same* convention, where the walk-up would
+  have taught the net BBA's ladder and served it ours
+  (docs/ai-bidder/bba-kickback.md §7.7).
+
 ### Fixed
 
 - **The kickback ladder no longer claims a call it cannot own.** With diamonds

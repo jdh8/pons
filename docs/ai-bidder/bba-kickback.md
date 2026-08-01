@@ -897,6 +897,62 @@ a measured cell — §7.7's arm, when someone writes it.
 
 Recorded, not built.  Each owes its own A/B.
 
+**The collision is in the bidder, not the ladder** (probed 2026-08-02).  The
+repaired ladder (§7.6's guard) still measured −0.76 PD / −0.80 DD per divergent
+board, and the residue localised sharply: 354 of 2090 divergent boards land in
+*different strains* in the two arms, hearts against diamonds in both directions,
+carrying ~58% of the loss.  Tracing them gives one auction:
+
+```
+1♦  P  1♠  P  2♦  P  4♥  P  P  P        ← passed out, 171 boards, −551 DD IMPs
+```
+
+Diamonds is set, hearts is unguarded, so the ladder claims 4♥ for the diamond
+ask — but the hand *bidding* 4♥ is 6-6 in the majors and **void in diamonds**
+(♠AQJT83 ♥QT9875 ♦— ♣6).  It means hearts.  The answerer reads an ask, the
+natural continuation is face-gated off, and on 171 boards nothing fires at all.
+
+The instinct was to blame the ladder — to stop a *simple* rebid from setting the
+suit, so `1♦ P 1♠ P 2♦` claims nothing.  **The probe refutes that.**  Three cases
+added to `probe-bba-kickback` (`collision A/B/C`) put both auctions to EPBot with
+`Kickback 1430` on:
+
+| face | BBA's label for 4♥ | BBA's answer |
+| --- | --- | --- |
+| `1♦ P 1♠ P 2♦ P 4♥` | `Kickback 1430, for !D` | 5♦ (`A=2/5 or 5/5, Q(D)=1`) |
+| `1♦ P 1♠ P 3♦ P 4♥` | `Kickback 1430, for !D` | 5♦ |
+
+BBA claims 4♥ after a simple rebid exactly as we do; narrowing the ladder would
+have diverged from BBA in both auctions to fix a defect that is not there.
+
+BBA escapes the collision **on the emitter side**.  Handed the 6-6 hand over
+`1♦ P 1♠ P 2♦`, EPBot bids **2♥** (`bidable suit`) — the second suit cheaply, at
+the two level.  It never jumps to 4♥, so 4♥ is never natural there and no
+conflict can arise.  BBA did not disambiguate the ambiguity; it structured the
+auction so the ambiguity has no instance.
+
+Our floor jumps instead, and the reason is in the artifact: `american_bba.json`
+records `card: engine defaults`, i.e. a teacher with kickback **off**, and
+`kickback` appears in no data-gen script.  The net has never seen a board where
+4♥ meant diamond keycards; every training row taught it that call is natural or
+a splinter.  No ladder rule, reader, or guard can repair that — the ladder fixes
+what a bid *means*, the net chooses what gets *bid*.  The next move is therefore
+a **retrained twin**, `dump-teacher --teacher bba --conv "Kickback 1430=1"`,
+selected inside `classify_bba` under `kickback_now()` exactly as
+`evaluator_v3_exclusion` is selected under `pass_exclusion_reading` — knob-off
+byte-identical.  Residual risk to watch: BBA reverts to 4NT precisely where
+jdh8's ladder *walks up* (after `1♦ P 1♥ P 3♦` we ask 4♠, BBA asks 4NT), so a
+BBA-taught net will call that 4♠ a cue while our reader calls it an ask — the
+same disease, in the lane the walk-up exists for.
+
+**Kickback is disclosed as OFF even when it is on.**  `card.rs` hardcodes
+`"Kickback 0123" | "Kickback 0314" | "Kickback 1430" => 0`, so
+`cards/American.bbsa` tells BBA we do not play it whatever `set_kickback` says.
+Against BBA that is an undisclosed convention: the opponents defend a system
+description in which our 4♥ is natural.  It does not touch the pons-vs-pons A/B
+(no BBA in that loop), but it invalidates any kickback-vs-BBA anchor and should
+ride the knob before one is run.
+
 **The relocation itself is unmeasured.**  Every kickback number on record —
 including the "wash" — was taken while the answer/ask collision of §7.6 was
 live, because the guard that prevents it sat entirely behind `set_queen_ask`.
