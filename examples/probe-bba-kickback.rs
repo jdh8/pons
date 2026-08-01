@@ -663,6 +663,22 @@ fn main() -> anyhow::Result<()> {
             expect_call: "",
             expect_label: None,
         },
+        // The matched control for the minor lane's available-bid arm: neither
+        // king-ask row.  If this equals the available-bid arm, the row is inert
+        // there too and not merely outvoted.
+        Case {
+            label: "minor kickback, NEITHER row: matched control",
+            actor: 0,
+            prefix: &[B1D, P, B3D, P, B4H, P, B4S, P, B5C, P, B5H, P],
+            hand: ("A2", "AQ2", "AKJ85", "KQ3"),
+            convs: &[
+                ("Kickback 1430", true),
+                ("King ask by available bid", false),
+                ("King ask by 5NT", false),
+            ],
+            expect_call: "",
+            expect_label: None,
+        },
         // --- the 5NT king ladder, enumerated ---------------------------
         // Same ask, same shape, only the side kings move.  §3 recorded a single
         // point (6♦ = K=1); these four read the whole ladder off the engine so

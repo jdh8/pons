@@ -163,10 +163,12 @@ king, counted for the suit stamped on the ask (`feature[424]`), answers in
   BBA prefers the notrump slam to six of a minor once the values are known,
   which is the same "pull to pick a slam" jdh8 arrived at independently.
 
-  Consequence for our own card: we disclose `King ask by available bid` only
-  when the relay **and** kickback are both on.  Over a plain 4NT ask our king
-  ask is the step above the queen reply, which *is* 5NT in most of those lanes,
-  so claiming the available-bid form there describes a call we never make.
+  Consequence for our own card: we disclose `King ask by available bid` as **0
+  always**, and carry our king ask on `King ask by 5NT` instead — even under
+  kickback, where ours *is* relocated to the second relay.  Setting an inert row
+  discloses nothing; setting the row BBA acts on at least tells it a king ask
+  exists.  The relocation stays undisclosed, because BBA's schema cannot express
+  a king ask derived from the ladder — its own is anchored at 5NT absolutely.
 
   **The king ask does not relocate under kickback**, and the flags cannot make
   it.  The hearts lane cannot tell — 5NT *is* the cheapest call above a 5♠
