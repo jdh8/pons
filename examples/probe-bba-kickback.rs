@@ -191,6 +191,7 @@ const B4N: c_int = 24;
 const B5C: c_int = 25;
 const B5D: c_int = 26;
 const B5H: c_int = 27;
+const B5S: c_int = 28;
 const B5N: c_int = 29;
 
 fn main() -> anyhow::Result<()> {
@@ -537,6 +538,88 @@ fn main() -> anyhow::Result<()> {
             convs: &[("Kickback 1430", true)],
             expect_call: "6♦",
             expect_label: Some((8, "King ask by 5NT")),
+        },
+        // --- `King ask by available bid` UNDER kickback ------------------
+        // Hearts agreed by 3♥, kickback ask 4♠, answer 4NT (1-or-4), queen ask
+        // 5♣, and partner's 5♠ shows the queen plus the ♠K.  The asker is on
+        // lead to explore seven.  Off the row the king ask must climb to 5NT;
+        // on it, the "2nd available bid" form is free to sit lower — the whole
+        // point of relocating the ask.  Same hand both ways, so the row bites
+        // or it does not.
+        Case {
+            label: "kickback + king-ask-by-5NT (control): asker explores seven",
+            actor: 0,
+            prefix: &[B1H, P, B3H, P, B4S, P, B4N, P, B5C, P, B5S, P],
+            hand: ("A2", "AKJ85", "AQ2", "KQ3"),
+            convs: &[("Kickback 1430", true)],
+            expect_call: "",
+            expect_label: None,
+        },
+        Case {
+            label: "kickback + King ask by available bid: asker explores seven",
+            actor: 0,
+            prefix: &[B1H, P, B3H, P, B4S, P, B4N, P, B5C, P, B5S, P],
+            hand: ("A2", "AKJ85", "AQ2", "KQ3"),
+            convs: &[
+                ("Kickback 1430", true),
+                ("King ask by available bid", true),
+                ("King ask by 5NT", false),
+            ],
+            expect_call: "",
+            expect_label: None,
+        },
+        Case {
+            label: "kickback + BOTH king-ask rows on: which one wins?",
+            actor: 0,
+            prefix: &[B1H, P, B3H, P, B4S, P, B4N, P, B5C, P, B5S, P],
+            hand: ("A2", "AKJ85", "AQ2", "KQ3"),
+            convs: &[
+                ("Kickback 1430", true),
+                ("King ask by available bid", true),
+                ("King ask by 5NT", true),
+            ],
+            expect_call: "",
+            expect_label: None,
+        },
+        Case {
+            label: "kickback + NEITHER king-ask row: the floor of the comparison",
+            actor: 0,
+            prefix: &[B1H, P, B3H, P, B4S, P, B4N, P, B5C, P, B5S, P],
+            hand: ("A2", "AKJ85", "AQ2", "KQ3"),
+            convs: &[
+                ("Kickback 1430", true),
+                ("King ask by available bid", false),
+                ("King ask by 5NT", false),
+            ],
+            expect_call: "",
+            expect_label: None,
+        },
+        // Diamonds agreed: kickback ask 4♥, answer 4♠ (1-or-4), queen ask
+        // 5♣, partner's 5♥ = queen plus the ♥K.  Here the "2nd available bid"
+        // king ask would be 5♠ — a full three steps under six of diamonds, the
+        // most room the row can ever have.  If it does not fire here it does
+        // not fire.
+        Case {
+            label: "minor kickback, 5NT row: asker explores seven",
+            actor: 0,
+            prefix: &[B1D, P, B3D, P, B4H, P, B4S, P, B5C, P, B5H, P],
+            hand: ("A2", "AQ2", "AKJ85", "KQ3"),
+            convs: &[("Kickback 1430", true), ("King ask by 5NT", true)],
+            expect_call: "",
+            expect_label: None,
+        },
+        Case {
+            label: "minor kickback, available-bid row: asker explores seven",
+            actor: 0,
+            prefix: &[B1D, P, B3D, P, B4H, P, B4S, P, B5C, P, B5H, P],
+            hand: ("A2", "AQ2", "AKJ85", "KQ3"),
+            convs: &[
+                ("Kickback 1430", true),
+                ("King ask by available bid", true),
+                ("King ask by 5NT", false),
+            ],
+            expect_call: "",
+            expect_label: None,
         },
         // --- the 5NT king ladder, enumerated ---------------------------
         // Same ask, same shape, only the side kings move.  §3 recorded a single
