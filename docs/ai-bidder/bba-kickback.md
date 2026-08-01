@@ -166,7 +166,23 @@ king, counted for the suit stamped on the ask (`feature[424]`), answers in
   Consequence for our own card: we disclose `King ask by available bid` only
   when the relay **and** kickback are both on.  Over a plain 4NT ask our king
   ask is the step above the queen reply, which *is* 5NT in most of those lanes,
-  so claiming the available-bid form there describes a call we never make;
+  so claiming the available-bid form there describes a call we never make.
+
+  **The king ask does not relocate under kickback**, and the flags cannot make
+  it.  The hearts lane cannot tell — 5NT *is* the cheapest call above a 5♠
+  reply — so the question was settled with diamonds agreed (ask 4♥, answer 4♠,
+  queen ask 5♣, reply 5♥ = queen + ♥K), where a relocated ask would be 5♠:
+
+  | lane | rows on | cheapest call above the reply | BBA's king ask |
+  | --- | --- | --- | --- |
+  | ♥ kickback | 5NT | 5NT | 5NT (indistinguishable) |
+  | ♥ kickback | both | 5NT | 5NT (indistinguishable) |
+  | ♦ kickback | 5NT | **5♠** | **5NT** — skips a step |
+  | ♦ kickback | both | **5♠** | **5NT** — skips a step |
+
+  So 5NT is an absolute anchor, not a rung derived from the ladder.  That fits
+  the available-bid row meaning the *2nd* available bid — a dearer ask, not a
+  relocated one — and explains why turning it on never buys anything;
 - the trump queen is "held" when the honor table says so **or
   `posiadane_karty[trump] ≥ 10`, computed as own actual length + partner's
   bilans-*reconstructed* length** (`MY_HAND.dlugosc + TMP_HAND.dlugosc`) —
