@@ -607,9 +607,9 @@ std::thread_local! {
     static KEYCARD_ANSWER_GATES: Cell<bool> = const { Cell::new(true) };
 
     /// Whether the keycard ladder carries a queen ask (and the grand-zone king
-    /// ask above it).  **Off by default** while it measures; see
+    /// ask above it).  **On by default** since 2026-08-02; see
     /// [`set_queen_ask`].
-    static QUEEN_ASK: Cell<bool> = const { Cell::new(false) };
+    static QUEEN_ASK: Cell<bool> = const { Cell::new(true) };
 
     /// The combined trump length at which the fit itself stands in for the
     /// trump queen.  Default 10; see [`set_queen_fit`].
@@ -803,7 +803,7 @@ fn keycard_answer_gates_now() -> bool {
 }
 
 /// Carry a queen ask on the keycard ladder, and a king ask above it
-/// (**off by default** while it measures)
+/// (**on by default** since 2026-08-02)
 ///
 /// Without it the trump queen is disclosed only by the two-keycard rungs
 /// (step 3 denies it, step 4 shows it), so after a 1-or-4 or a 0-or-3 answer —
@@ -817,14 +817,25 @@ fn keycard_answer_gates_now() -> bool {
 /// five of trump denies the queen and the extras, six of trump denies the queen
 /// with something partner cannot see, each side suit shows the queen plus that
 /// king and denies the cheaper ones, and 5NT shows the queen with no king at
-/// all.  It fits **13 of the 16** ask/answer lanes; where it does not, the
-/// asker bets the small slam on four keycards exactly as it does today.
+/// all.  It fits **11 of the 16** ask/answer lanes — the ask has to land
+/// strictly below five of trump, or the answerer cannot tell it from a signoff
+/// ([`queen_ask_room`]).  Where it does not fit, the asker bets the small slam
+/// on four keycards exactly as it does today.
 ///
 /// Above a king-showing reply a **second relay** ([`king_relay`]) asks for one
 /// more king — the rung that decides the grand, and the place kickback's
 /// lowered ladder pays for itself twice.  It rides the **grand-zone strength
 /// gate**, not the keycard count: RKCB is a slam veto, not a slam seeker, so a
 /// partnership without the values for seven never spends the round.
+///
+/// Measured (`examples/ab-kickback`, 10M boards a cell, seed 1785588007):
+/// against the shipped plain-4NT ladder a **wash** at both vulnerabilities
+/// (+0.25 and +0.12 IMPs/divergent PD, plain DD parity and positive in sign);
+/// against [`set_kickback`] a **win** — +0.76/divergent PD and +0.33/divergent
+/// plain DD not vulnerable, both CIs clear of zero, +0.30 PD vulnerable.  No
+/// cell loses on either scorer.  The one-round reply is what buys the
+/// vulnerable cells: an earlier two-round encoding measured −0.24/divergent
+/// plain DD vulnerable on the same seed, because it landed a round higher.
 ///
 /// **Read in two regimes, and a harness must arm both** — the same discipline
 /// [`set_kickback`] documents.  Rule *presence* is gated at [`instinct`] build
