@@ -6363,7 +6363,7 @@ mod tests {
             .collect();
         let blackwood = best(&plain, responder);
 
-        set_keycard_minors(false); // restore the defaults for the rest of the suite
+        set_keycard_minors(true); // restore the default (on since 2026-08-01)
         assert_eq!(
             redwood,
             call(5, Strain::Diamonds),
