@@ -47,7 +47,9 @@ use pons::gib;
 use rand::rngs::StdRng;
 use rand::{RngExt, SeedableRng};
 use std::collections::BTreeMap;
+use std::ffi::CString;
 use std::io::{BufWriter, Write};
+use std::os::raw::c_int;
 
 #[path = "../common/mod.rs"]
 #[allow(dead_code)]
@@ -91,6 +93,42 @@ struct Args {
     /// net is identified by its extractor *and* its teacher configuration.
     #[arg(long)]
     card: Option<String>,
+    /// `--teacher bba` only: force one named convention on/off (repeatable),
+    /// applied *after* the system's defaults and after `--card`, e.g.
+    /// `--conv "Kickback 1430=1"`.  A card pins everything at once, which makes
+    /// it useless for isolating a single toggle against a net trained on engine
+    /// defaults; this keeps every other convention exactly where it was so the
+    /// retrained twin differs from its baseline in one convention only.
+    /// Recorded in the JSON sidecar beside `card`.
+    #[arg(long = "conv", value_parser = parse_override, value_name = "NAME=0|1")]
+    conv: Vec<(CString, c_int)>,
+    /// Extract features with **our** kickback recognizer armed
+    /// ([`set_kickback`]).  Pair it with `--conv "Kickback 1430=1"`: the `conv`
+    /// flag makes the *teacher* play kickback, this one makes our extractor
+    /// read the resulting auctions the way serving will.
+    ///
+    /// It matters because 40 of `features_v3`'s 88 floats come from
+    /// `Inferences::read`, and the recognizer is what decides whether a
+    /// relocated 4♥ reads as a diamond ask or as natural hearts.  Distilling a
+    /// kickback teacher through a kickback-blind extractor trains the net on
+    /// readings it will never be served — the same out-of-distribution trap the
+    /// `evaluator_v3_exclusion` twin was regenerated to escape.
+    #[arg(long)]
+    kickback: bool,
+}
+
+/// `NAME=0|1`, as `bba-gen` spells it.
+fn parse_override(spec: &str) -> Result<(CString, c_int), String> {
+    let (name, value) = spec
+        .rsplit_once('=')
+        .ok_or("expected NAME=0|1 (e.g. \"Kickback 1430=1\")")?;
+    let on = match value.trim() {
+        "0" => 0,
+        "1" => 1,
+        other => return Err(format!("value must be 0 or 1, got `{other}`")),
+    };
+    let name = CString::new(name.trim()).map_err(|_| "name has an interior NUL".to_string())?;
+    Ok((name, on))
 }
 
 /// The four absolute vulnerabilities, sampled uniformly per board.
@@ -103,6 +141,11 @@ const VULS: [AbsoluteVulnerability; 4] = [
 
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
+    // Arm the recognizer before a single row is extracted: `features_v3` reads
+    // `Inferences`, so this decides what the corpus *says* a relocated ask is.
+    if args.kickback {
+        pons::bidding::instinct::set_kickback(true);
+    }
     let (feature_version, features_len) = (FEATURES_VERSION_V3, FEATURES_LEN_V3);
     // DD label only exists when deals come from a GIB file (cached, no solving).
     let dd_len = if args.deals.is_some() { 20 } else { 0 };
@@ -116,10 +159,12 @@ fn main() -> anyhow::Result<()> {
         "bba" => {
             let path = std::env::var("BBA_LIB").unwrap_or_else(|_| DEFAULT_LIB.into());
             let card = args.card.as_deref().map(load_bbsa).transpose()?;
-            let (system, toggles) = match card {
+            let (system, mut toggles) = match card {
                 Some(card) => (card.system, card.toggles),
                 None => (SYSTEM_2_OVER_1, Vec::new()),
             };
+            // Singles win over the card, exactly as `bba-gen` applies them.
+            toggles.extend(args.conv.iter().cloned());
             Box::new(BbaOracle::load(&path, system, toggles)?)
         }
         other => anyhow::bail!("--teacher must be american|bba, got {other:?}"),
@@ -231,6 +276,16 @@ fn main() -> anyhow::Result<()> {
         "tags": "sibling .tags file: one u8 per row, 1 = contested phase, 0 = constructive",
         "teacher": &args.teacher,
         "card": args.card.as_deref().unwrap_or("engine defaults"),
+        // A distilled net is identified by its extractor *and* its teacher
+        // configuration, so a forced toggle belongs beside the card.
+        "conv": args
+            .conv
+            .iter()
+            .map(|(name, on)| format!("{}={on}", name.to_string_lossy()))
+            .collect::<Vec<_>>(),
+        // The extractor's own regime, not the teacher's — a net is identified
+        // by both.
+        "our_kickback": args.kickback,
         "deals": args.deals.as_deref().unwrap_or("random"),
         "git_sha": git_sha,
         "seed": args.seed,

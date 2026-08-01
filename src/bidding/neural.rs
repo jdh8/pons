@@ -14,6 +14,7 @@
 
 use super::array::Logits;
 use super::features::FEATURES_LEN_V3;
+use super::instinct::kickback_now;
 use nalgebra::{SMatrixView, SVector, SVectorView};
 use std::sync::LazyLock;
 
@@ -109,6 +110,32 @@ const _: () = assert!(
 /// BBA weights decoded to `f32` once, on first use.
 static WEIGHTS_BBA: LazyLock<Vec<f32>> = LazyLock::new(|| decode(RAW_BBA));
 
+/// The kickback twin of the BBA artifact — same architecture, same recipe, same
+/// `data_seed`/`init_seed`, corpus regenerated from a teacher that *plays*
+/// kickback (`dump-teacher --conv "Kickback 1430=1" --kickback`).  Selected per
+/// call by [`kickback_now`]; knob-off never touches it.
+///
+/// It exists because kickback is not a rule the reader can hold on its own.  A
+/// ladder decides what a bid *means*; the net decides what gets *bid*, and a net
+/// distilled from a kickback-blind teacher keeps jumping to a natural 4♥ in the
+/// very auction where the ladder has claimed 4♥ as the diamond ask — the
+/// answerer reads a question, the natural continuation is face-gated off, and
+/// the auction is passed out in a 4-1 fit.  Retuning the ladder cannot reach
+/// that; only the net that chooses the call can
+/// (`docs/ai-bidder/bba-kickback.md` §7.7).
+///
+/// Both halves must move together, which is why one knob drives both: a
+/// convention this widespread redefines the system, so the net that serves it is
+/// part of the convention, not a variable beside it.
+static RAW_BBA_KICKBACK: &[u8] = include_bytes!("weights/american_bba_kickback.f32");
+const _: () = assert!(
+    RAW_BBA_KICKBACK.len() == total(IN_V3) * 4,
+    "kickback BBA weights artifact size mismatch"
+);
+
+/// [`RAW_BBA_KICKBACK`] decoded to `f32` once, on first use.
+static WEIGHTS_BBA_KICKBACK: LazyLock<Vec<f32>> = LazyLock::new(|| decode(RAW_BBA_KICKBACK));
+
 /// Evaluate the BBA-distilled floor: 88 disclosable features → 38 logits, in
 /// `Call`-index order. Distilled from the vendored EPBot 2/1 oracle (a hard
 /// clone of BBA's argmax call). Deterministic — fixed weights, no RNG.
@@ -122,7 +149,12 @@ static WEIGHTS_BBA: LazyLock<Vec<f32>> = LazyLock::new(|| decode(RAW_BBA));
 #[must_use]
 pub fn classify_bba(features: &[f32]) -> Logits {
     assert_eq!(features.len(), IN_V3, "expected {IN_V3} features");
-    forward::<IN_V3>(WEIGHTS_BBA.as_slice(), features)
+    let weights = if kickback_now() {
+        WEIGHTS_BBA_KICKBACK.as_slice()
+    } else {
+        WEIGHTS_BBA.as_slice()
+    };
+    forward::<IN_V3>(weights, features)
 }
 
 #[cfg(test)]
@@ -181,5 +213,20 @@ mod tests {
         check_fixture(include_str!("weights/american_bba.fixture.json"), |x| {
             classify_bba(x).iter().map(|(_, l)| *l).collect()
         });
+    }
+
+    /// The kickback twin clears the same parity bar — and because the twin is
+    /// reachable only through the knob, this pins the *selection* too: knob-off
+    /// serves the plain net, whose logits miss this fixture.  The knob is a
+    /// thread-local and the harness gives each test its own thread, so setting
+    /// it here cannot leak into a sibling.
+    #[test]
+    fn matches_candle_fixture_bba_kickback() {
+        crate::bidding::instinct::set_kickback(true);
+        check_fixture(
+            include_str!("weights/american_bba_kickback.fixture.json"),
+            |x| classify_bba(x).iter().map(|(_, l)| *l).collect(),
+        );
+        crate::bidding::instinct::set_kickback(false);
     }
 }

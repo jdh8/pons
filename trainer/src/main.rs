@@ -291,6 +291,8 @@ fn export(
         "dtype": "f32-le",
         "teacher": ds.meta.teacher,
         "card": ds.meta.card,
+        "conv": ds.meta.conv,
+        "our_kickback": ds.meta.our_kickback,
         "data_git_sha": ds.meta.git_sha,
         "data_seed": ds.meta.seed,
         "data_rows": ds.rows,

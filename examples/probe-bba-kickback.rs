@@ -314,6 +314,36 @@ fn main() -> anyhow::Result<()> {
             expect_call: "",
             expect_label: None,
         },
+        // jdh8's question: does BBA hit the same natural-4♥/kickback collision?
+        // Our walk-up ladder claims 4♥ for diamonds after a *simple* rebid, and
+        // responder's natural 6-6 4♥ was answered as an ask (or passed out).
+        Case {
+            label: "collision A: 6-6 majors over 1♦-1♠-2♦ — what does BBA bid?",
+            actor: 2,
+            prefix: &[B1D, P, B1S, P, B2D, P],
+            hand: ("AQJT83", "QT9875", "", "6"),
+            convs: &[("Kickback 1430", true)],
+            expect_call: "",
+            expect_label: None,
+        },
+        Case {
+            label: "collision B: 1♦-1♠-2♦-4♥ — ask or natural?",
+            actor: 0,
+            prefix: &[B1D, P, B1S, P, B2D, P, B4H, P],
+            hand: ("K5", "Q32", "AKQ632", "Q3"),
+            convs: &[("Kickback 1430", true)],
+            expect_call: "",
+            expect_label: None,
+        },
+        Case {
+            label: "collision C: 1♦-1♠-3♦-4♥ (jump rebid) — ask or natural?",
+            actor: 0,
+            prefix: &[B1D, P, B1S, P, B3D, P, B4H, P],
+            hand: ("K5", "Q3", "AKQJ63", "Q32"),
+            convs: &[("Kickback 1430", true)],
+            expect_call: "",
+            expect_label: None,
+        },
         Case {
             label: "♣ ask labeled; 1 kc → 4♥",
             actor: 2,
