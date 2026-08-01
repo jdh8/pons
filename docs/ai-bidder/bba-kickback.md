@@ -864,6 +864,31 @@ once again here.  Example: kickback ♦, reply 5♣ (queen + ♣K) → relay 5�
    *no-queen* reply, and an asker holding the queen never relays (consequence 1),
    so the position cannot arise.  It would return only if consequence 1 is built.
 
-Unmeasured.  Nothing in this section ships without its own A/B, and the arm
-that prices it is `queen` against the two-round relay's numbers on a matched
-seed, not against `gated`.
+**Measured 2026-08-02, and it ships default-on** (`ab-kickback`, 10M boards a
+cell, seed 1785588007 — deliberately the two-round run's seed, so both
+encodings meet the same baselines on identical deals).  Per divergent board:
+
+| cell | | two-round | merged |
+| --- | --- | --- | --- |
+| vs `gated`, NV | PD / DD | +0.52 / +0.08 | +0.25 / **+0.13** |
+| vs `gated`, vul | PD / DD | −0.15 / −0.24 | **+0.12 / +0.02** |
+| vs `kickback`, NV | PD / DD | +0.67 / +0.24 | **+0.76 / +0.33** |
+| vs `kickback`, vul | PD / DD | +0.03 / −0.05 | **+0.30 / +0.20** |
+
+Merging wins 7 of the 8 matched comparisons.  The `kickback` NV cell clears
+zero on **plain DD** unaided (+0.00024/board, CI [+0.00007, +0.00041]) — the
+decision table's strongest verdict — and the vulnerable cell is a plain wash
+with a PD win.  No cell loses on either scorer.
+
+The gain is concentrated exactly where the mechanism predicts: **the vulnerable
+cells**, which the two-round ladder lost outright on plain DD.  A round saved
+is a step lower, and a step lower is worth most at 100 a trick.  The lone
+regression — PD vs `gated` NV, +0.25 against +0.52 — is the lane with least
+room to save.
+
+Note the second-order result: the relay is worth about twice as much under
+kickback as under plain 4NT, so it is now an argument for the relocation
+itself.  Chaining the two experiments across their shared seed puts
+`kickback-queen` roughly +0.00015/board plain DD ahead of `gated-queen`, where
+kickback alone had re-measured a wash.  That is arithmetic across two A/Bs, not
+a measured cell — §7.7's arm, when someone writes it.

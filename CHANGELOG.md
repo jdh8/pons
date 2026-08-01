@@ -9,8 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **A queen ask for RKCB and kickback** (`set_queen_ask`, **default off** while
-  it measures). pons had no queen ask at all: the trump queen lived only in the
+- **A queen ask for RKCB and kickback** (`set_queen_ask`, **default on**).
+  pons had no queen ask at all: the trump queen lived only in the
   two-keycard rungs (step 3 denies it, step 4 shows it), so after a one-or-four
   or none-or-three answer — the common case — the asker bet six on four keycards
   without ever knowing whether the queen was there, and bet seven on combined
@@ -103,41 +103,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   what seven needs, and this table says the relay's two is the right one. That
   is a shipped path and owes its own A/B.
 
-  **Measured** (the two-round encoding this one replaces) (`ab-kickback`, 10M boards per cell, seed 1785588007, ~0.07%
+  **Measured** (`ab-kickback`, 10M boards per cell, seed 1785588007, ~0.07%
   divergent):
 
   | cell | PD/board | PD/divergent | plain DD/board | plain DD/divergent |
   | --- | --- | --- | --- | --- |
-  | `queen` vs `gated`, NV | **+0.00036** [+0.00019, +0.00053] | +0.52 | +0.00005 (wash) | +0.08 |
-  | `queen` vs `gated`, vul | −0.00010 (wash) | −0.15 | −0.00016 (wash) | −0.24 |
-  | `kickback-queen` vs `kickback`, NV | **+0.00048** [+0.00030, +0.00066] | **+0.67** | **+0.00017** [+0.00000, +0.00035] | +0.24 |
-  | `kickback-queen` vs `kickback`, vul | +0.00002 (wash) | +0.03 | −0.00003 (wash) | −0.05 |
+  | `queen` vs `gated`, NV | +0.00018 [+0.00000, +0.00036] | +0.25 | +0.00009 (wash) | +0.13 |
+  | `queen` vs `gated`, vul | +0.00008 (wash) | +0.12 | +0.00001 (wash) | +0.02 |
+  | `kickback-queen` vs `kickback`, NV | **+0.00055** [+0.00038, +0.00073] | **+0.76** | **+0.00024** [+0.00007, +0.00041] | **+0.33** |
+  | `kickback-queen` vs `kickback`, vul | **+0.00022** [+0.00001, +0.00042] | +0.30 | +0.00015 (wash) | +0.20 |
 
-  Not-vulnerable is a PD win in both lanes with plain DD a wash-to-win — the
-  shippable shape. Vulnerable is parity everywhere, both scorers, both lanes:
-  **the entire gain lives in the non-vulnerable half.** No cell is a plain-DD
-  loss, so nothing here argues against the relay; it simply does less when the
-  slam bonus is bigger.
+  Against the shipped plain-4NT ladder the relay is a **wash** — but a wash
+  positive in sign on all four numbers, at both vulnerabilities, on both
+  scorers. Against `kickback` it is a **win**: not vulnerable, plain DD clears
+  zero on its own, which is the strongest verdict the decision table has;
+  vulnerable is a plain wash with a PD win, the other shippable shape. **No cell
+  loses on either scorer.** The divergent set is slam-heavy, so
+  `docs/measurement.md`'s twenty-percent seven-level shave applies — it leaves
+  the strongest cell at +0.26/divergent plain DD, still positive.
 
-  The lanes rank as the geometry predicted. Relocating the ask lifts the relay
-  from +0.52 to **+0.67** IMPs per divergent board and moves plain DD from a
-  wash to positive, because kickback is what buys the ladder its room — the same
-  conclusion the lane enumeration reaches from pure geometry (kickback serves
-  8 lanes of 8, plain 4NT 5 of 8).
+  The lanes rank as the geometry predicted: the relay is worth roughly twice as
+  much under kickback, because relocating the ask is what buys the ladder its
+  room. Which also means the relay is now an argument for kickback itself —
+  chaining the two A/Bs across their shared seed puts `kickback-queen` about
+  +0.00015/board plain DD ahead of `gated-queen`, where kickback alone had
+  re-measured a wash. That is arithmetic across two experiments rather than a
+  measured cell, and it owes its own run before anything is claimed for it.
 
-  **Still opt-in, and deliberately.** The result earns a default-on flip, but
-  the two-round ladder it measures is superseded by the merged one-round answer
-  designed in `docs/ai-bidder/bba-kickback.md` §7.6 — which is wider (13 lanes
-  against 11), shorter, and BBA's own scheme. Flipping now and again in a week
-  is churn; the next arm is merged-against-this, and whichever survives ships.
+  **One round beats two, and the vulnerable half is why.** The superseded
+  two-round encoding on the same seed and the same baselines: PD +0.52/−0.15 per
+  divergent board against `gated`, +0.67/+0.03 against `kickback`, and plain DD
+  **−0.24/divergent vulnerable**. Merging wins 7 of the 8 matched comparisons,
+  and every one of the vulnerable cells it lost is now positive. The mechanism
+  is not subtle: one round fewer lands the auction a step lower, and a step
+  lower is worth most at 100 a trick. The single regression is PD against
+  `gated` not vulnerable, +0.25 against +0.52 — the lane where there was least
+  room to save in the first place.
 
-  **Unmeasured, and therefore off.** Fires ~10.7 boards per 10⁴, dense enough
-  for a random-deal A/B; `ab-kickback` grows `queen` and `kickback-queen` arms
-  so each pair moves exactly one knob. A 100k pilot of the *first* cut — flat
-  threshold, ask on any four-plus count — measured **−0.00251 IMPs/board plain
-  DD, CI [−0.00465, −0.00037]**, and tracing its worst boards is what produced
-  every rule above. Expect a grand-heavy divergent set and apply
-  `docs/measurement.md`'s slam-boundary shave before calling a thin win.
+  Fires ~7.1 boards per 10⁴. A 100k pilot of the *first* cut — flat threshold,
+  ask on any four-plus count — measured **−0.00251 IMPs/board plain DD, CI
+  [−0.00465, −0.00037]**, and tracing its worst boards is what produced every
+  rule above.
 
 - **`examples/probe-trump-queen`** — how often six makes without the trump
   queen, by combined fit length and keycard count, ignoring the bidder entirely.
