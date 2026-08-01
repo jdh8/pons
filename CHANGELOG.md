@@ -94,6 +94,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   of its own still bids seven over it. Concealment is invisible to double-dummy,
   so read a wash on this arm as the harness and not the idea.
 
+  **Measured** (`ab-kickback`, 10M boards per cell, seed 1785588007, ~0.07%
+  divergent):
+
+  | cell | PD/board | PD/divergent | plain DD/board | plain DD/divergent |
+  | --- | --- | --- | --- | --- |
+  | `queen` vs `gated`, NV | **+0.00036** [+0.00019, +0.00053] | +0.52 | +0.00005 (wash) | +0.08 |
+  | `queen` vs `gated`, vul | −0.00010 (wash) | −0.15 | −0.00016 (wash) | −0.24 |
+  | `kickback-queen` vs `kickback`, NV | **+0.00048** [+0.00030, +0.00066] | **+0.67** | **+0.00017** [+0.00000, +0.00035] | +0.24 |
+  | `kickback-queen` vs `kickback`, vul | +0.00002 (wash) | +0.03 | −0.00003 (wash) | −0.05 |
+
+  Not-vulnerable is a PD win in both lanes with plain DD a wash-to-win — the
+  shippable shape. Vulnerable is parity everywhere, both scorers, both lanes:
+  **the entire gain lives in the non-vulnerable half.** No cell is a plain-DD
+  loss, so nothing here argues against the relay; it simply does less when the
+  slam bonus is bigger.
+
+  The lanes rank as the geometry predicted. Relocating the ask lifts the relay
+  from +0.52 to **+0.67** IMPs per divergent board and moves plain DD from a
+  wash to positive, because kickback is what buys the ladder its room — the same
+  conclusion the lane enumeration reaches from pure geometry (kickback serves
+  8 lanes of 8, plain 4NT 5 of 8).
+
+  **Still opt-in, and deliberately.** The result earns a default-on flip, but
+  the two-round ladder it measures is superseded by the merged one-round answer
+  designed in `docs/ai-bidder/bba-kickback.md` §7.6 — which is wider (13 lanes
+  against 11), shorter, and BBA's own scheme. Flipping now and again in a week
+  is churn; the next arm is merged-against-this, and whichever survives ships.
+
   **Unmeasured, and therefore off.** Fires ~10.7 boards per 10⁴, dense enough
   for a random-deal A/B; `ab-kickback` grows `queen` and `kickback-queen` arms
   so each pair moves exactly one knob. A 100k pilot of the *first* cut — flat
