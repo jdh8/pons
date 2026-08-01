@@ -161,7 +161,12 @@ king, counted for the suit stamped on the ask (`feature[424]`), answers in
   row can ever have — and it still did not ask (it bid 6NT).  Whatever gates it
   is not satisfied by an ordinary kickback + queen-ask auction.  Note the 6NT:
   BBA prefers the notrump slam to six of a minor once the values are known,
-  which is the same "pull to pick a slam" jdh8 arrived at independently;
+  which is the same "pull to pick a slam" jdh8 arrived at independently.
+
+  Consequence for our own card: we disclose `King ask by available bid` only
+  when the relay **and** kickback are both on.  Over a plain 4NT ask our king
+  ask is the step above the queen reply, which *is* 5NT in most of those lanes,
+  so claiming the available-bid form there describes a call we never make;
 - the trump queen is "held" when the honor table says so **or
   `posiadane_karty[trump] ≥ 10`, computed as own actual length + partner's
   bilans-*reconstructed* length** (`MY_HAND.dlugosc + TMP_HAND.dlugosc`) —
