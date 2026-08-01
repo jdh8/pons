@@ -124,11 +124,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
   The lanes rank as the geometry predicted: the relay is worth roughly twice as
   much under kickback, because relocating the ask is what buys the ladder its
-  room. Which also means the relay is now an argument for kickback itself —
-  chaining the two A/Bs across their shared seed puts `kickback-queen` about
-  +0.00015/board plain DD ahead of `gated-queen`, where kickback alone had
-  re-measured a wash. That is arithmetic across two experiments rather than a
-  measured cell, and it owes its own run before anything is claimed for it.
+  room. Which also means the relay looked like an argument for kickback itself —
+  chaining the two A/Bs across their shared seed put `kickback-queen` about
+  +0.00015/board plain DD ahead of `gated-queen`. That was arithmetic across two
+  experiments rather than a measured cell, and it owed its own run.
+
+  **The run was made and it refuted the chain.** The measured cell came back at
+  −0.00033/board — the wrong sign, not a smaller version of the same thing.
+  Tracing the worst divergent boards found a real defect rather than a thin
+  edge, and the two `kickback-*` rows above were measured with that defect live
+  in **both** arms (see *Fixed*, below). They are therefore contaminated and owe
+  a re-measure on the repaired ladder; the re-measure is in flight. The `queen`
+  vs `gated` rows are unaffected — that lane asks at plain 4NT, the one branch
+  the old guard did cover — and the default-on decision rests on them.
 
   **One round beats two, and the vulnerable half is why.** The superseded
   two-round encoding on the same seed and the same baselines: PD +0.52/−0.15 per
@@ -179,6 +187,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   [−0.00049, +0.00011] (was −0.00029), divergence 246 → **216** boards. The flip
   gate is not met, so `set_kickback` stays opt-in; the guard ships anyway as a
   soundness repair.
+
+- **A relocated keycard answer is no longer re-read as a fresh ask.** Under
+  `set_kickback` the ladders overlap by construction: one lane's *answer* rungs
+  are another lane's *ask* bid. 4♥ asks for diamonds, and the 4♠ that answers it
+  is exactly the bid that asks for hearts. `keycard_ask_bid` held the guard that
+  settles this — no call inside a live conversation is a fresh ask — but
+  computed it **after** the relocated-ask branch had already returned, so the
+  guard only ever protected 4NT. Every relocated ask was returned as an ask
+  unconditionally, whatever else it was doing in the auction.
+
+  The damage is the phantom-suit disaster the architecture doc warns about: the
+  asker reads partner's answer as a question, answers its own question, and the
+  answer rule outbids its own signoff on weight — 5♣ at 1.90 over 5♦ at 1.82,
+  landing 5♣ doubled with a singleton ♣A opposite ♣987 for −1100. Per-suit
+  damage ranked ♣ −2.50, ♦ −2.01, ♥ −0.24 IMPs per divergent board, which is
+  precisely the collision count per lane: clubs have two poisoned rungs,
+  diamonds one, hearts none. A trump suit's loss being predicted by how many of
+  its rungs another lane claims is what identifies this as *the* defect and not
+  merely *a* defect.
+
+  The fix hoists the guard ahead of both branches and consolidates it into a
+  single `conversation_rung` — the one place that decides whether a call belongs
+  to a keycard conversation, whoever started it. The two arms are gated
+  differently on purpose: the answer arm is always live, because the 1430 answer
+  exists whenever the ask does, while the relay arms ride `set_queen_ask`. The
+  answer is purely positional — it derives no trump and does no arithmetic
+  beyond its own step — so the handler needs nothing but the auction face.
+
+  **Every kickback number on record predates this**, including the wash that
+  `set_kickback` re-measured, because the guard sat entirely behind
+  `set_queen_ask` and plain `set_kickback` therefore ran unprotected. Those runs
+  measured the relocation *plus* a phantom-suit generator. Nothing is claimed
+  for kickback until the repaired ladder is measured
+  (docs/ai-bidder/bba-kickback.md §7.7).
 
 - **Responder shows their longest suit over a weak two.** The forcing new-suit
   rules in `weak_twos::responses` all carried weight 1.5 with identical

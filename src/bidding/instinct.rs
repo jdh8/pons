@@ -2268,36 +2268,33 @@ fn kickback_trump(auction: &[Call], ask: usize) -> Option<Suit> {
 /// this one predicate so its five ask positions can never disagree.
 ///
 /// One exception, and it is the whole reason a relocated ask needs its own
-/// recognizer: **a 4NT that answers a relocated ask is an answer, not a new
-/// ask.**  With hearts agreed 4♠ asks and 4NT is its step 1, and without this
-/// the answerer's own partner reads that 4NT as a fresh ask and answers *it* —
-/// the asker's 1.9-weighted answer rung outbids their 1.82 signoff, and the
-/// keycard conversation walks off into a phantom minor (`1♥ P 2NT P 3NT P 4♥ P
-/// 4♠ P 4NT P 5♦` passed out, −15 IMPs on the first smoke run).  A plain 4NT
-/// ask can never collide this way: all four of its rungs are five-level.
+/// recognizer: **an answer is an answer, never a re-ask** — and neither is any
+/// later rung.  [`conversation_rung`] owns that judgement whole, so the ask
+/// recognizer and the conversation walker cannot disagree about whether RKCB is
+/// already talking.
 ///
-/// [`set_queen_ask`] widens that exception to its general form — **no call
-/// inside a conversation already in motion is an ask of its own**
-/// ([`relay_rung`]) — because the relay's own rungs reach the four level and
-/// 4NT from every trump suit.  Knob-off the widening is inert.
+/// It matters because the relocated ladders **overlap**.  With diamonds agreed
+/// 4♥ asks and 4♠ is its step 1 — but 4♠ is itself the ask bid one lane over,
+/// so without the guard the *asker* sees a live ask on partner's answer and
+/// answers its own question: the 1.9-weighted answer rung outbids its own 1.82
+/// signoff and the auction walks into a phantom suit (`1♦ P 3♦ P 4♥ P 4♠ P 5♣`
+/// doubled, singleton ♣A opposite ♣987, −1100).  The same shape one rung higher
+/// is 4NT over a 4♠ ask, §7.4's −15 IMP smoke-run failure.  A plain 4NT ask can
+/// never collide this way: all four of its rungs are five-level, which is why
+/// the kickback-off system is untouched by any of this.
 fn keycard_ask_bid(auction: &[Call], ask: usize) -> Option<Bid> {
     let &Call::Bid(bid) = auction.get(ask)? else {
         return None;
     };
-    if relay_rung(auction, ask) {
+    // An answer is an answer, never a re-ask — and neither is any later rung.
+    // [`conversation_rung`] owns that judgement whole.
+    if conversation_rung(auction, ask) {
         return None;
     }
     if kickback_trump(auction, ask).is_some() {
         return Some(bid);
     }
-    if bid != Bid::new(4, Strain::Notrump) {
-        return None;
-    }
-    let answers_relocated = ask.checked_sub(2).is_some_and(|prior| {
-        kickback_trump(auction, prior).is_some()
-            && matches!(auction[prior], Call::Bid(asked) if answer_step(asked, bid).is_some())
-    });
-    (!answers_relocated).then_some(bid)
+    (bid == Bid::new(4, Strain::Notrump)).then_some(bid)
 }
 
 /// Which 1430 rung `answer` sits on above `ask` — steps 1..=4 up the auction's
@@ -2475,32 +2472,54 @@ fn plausible_ask(auction: &[Call], index: usize) -> Option<Bid> {
     (bid == Bid::new(4, Strain::Notrump) || kickback_trump(auction, index).is_some()).then_some(bid)
 }
 
-/// The call at `index` is a rung of a conversation already in motion — a queen
-/// ask, a queen reply, a king ask or a king reply — and so is never an ask of
-/// its own
+/// The call at `index` belongs to a keycard conversation already in motion —
+/// the 1430 answer itself, or a queen ask, queen reply, king ask or king reply
+/// above it — and so is **never an ask of its own**
 ///
-/// The generalisation of [`keycard_ask_bid`]'s 4NT carve-out, and needed for
-/// the same reason: the relay's rungs land on 4♠/4NT/5♣–5NT/6♣–6♥, every one
-/// of which something else in the system wants to read as an ask, a cue or a
-/// contract.  Reading a queen ask as a fresh keycard ask sends partner off
-/// counting keycards in a phantom suit — §7.4's −15 IMP failure one round
-/// later.
+/// The single source of truth for "is RKCB already talking here".
+/// [`keycard_ask_bid`] consults it before reading any call as a fresh ask, and
+/// nothing else decides the question, so the two halves cannot drift apart.
+///
+/// Needed because every rung lands on a call something else wants to read as an
+/// ask, a cue or a contract — and worse, because the relocated ladders
+/// **overlap**: a diamond ask at 4♥ is answered on 4♠, which is itself an ask
+/// bid.  Reading a rung as a fresh ask sends the partnership off counting
+/// keycards in a phantom suit, §7.4's −15 IMP failure and the −2.50 IMPs/board
+/// the club lane bled before the answer arm below existed.
+///
+/// Two arms, and they are gated differently on purpose:
+///
+/// - **The answer**, two calls back.  Always live: the 1430 answer exists
+///   whenever the ask does, with or without the relay.  Positional and
+///   trump-free — the rungs are mechanical, [`answer_step`] applied to partner's
+///   ask, and carry no suit of their own; only the queen and king asks *above*
+///   them take our trump into account.  It does have to be one of those four
+///   rungs: vetoing every call after an ask, rather than the ladder's own, turns
+///   off answer windows that are legitimately live and shifts the readings that
+///   depend on them (four suite failures, 2026-08-02).
+/// - **The relay's rungs**, four or more calls back, which exist only while
+///   [`set_queen_ask`] is on.  Deliberately coarse: anything above the answer
+///   and at or below six of spades, the highest six of trump the relay reaches.
+///   It cannot be sharper — the trump is not derivable from the face alone —
+///   and need not be, since over-matching only refuses to read a call as a
+///   *fresh* ask, which nothing up there wanted anyway.
 ///
 /// Face-only and non-recursive: each arm walks *forward* from a candidate
 /// anchor and consults [`plausible_ask`] rather than [`keycard_ask_bid`].
-///
-/// The rung test is deliberately coarse — anything above the 1430 answer and at
-/// or below six of spades, the highest six of trump the relay can reach.  It
-/// cannot be sharper, because the trump is not derivable from the face alone,
-/// and it does not need to be: over-matching only refuses to read a call as a
-/// *fresh* keycard ask, which nothing at the six level wanted anyway.
-fn relay_rung(auction: &[Call], index: usize) -> bool {
-    if !queen_ask_now() {
-        return false;
-    }
+fn conversation_rung(auction: &[Call], index: usize) -> bool {
     let Some(&Call::Bid(made)) = auction.get(index) else {
         return false;
     };
+    let answers_partners_ask = index
+        .checked_sub(2)
+        .and_then(|anchor| plausible_ask(auction, anchor))
+        .is_some_and(|ask| answer_step(ask, made).is_some());
+    if answers_partners_ask {
+        return true;
+    }
+    if !queen_ask_now() {
+        return false;
+    }
     [4usize, 6, 8, 10].into_iter().any(|back| {
         index
             .checked_sub(back)
@@ -6911,11 +6930,20 @@ mod tests {
             call(5, Strain::Spades),
             "2 keycards + trump Q → 5♠"
         );
-        // 2 keycards without the queen → 5♥
+        // 2 keycards without the queen → 5♥.  Four trumps, not five: opposite a
+        // shown five that is a nine-card fit, and nine is not ten.  With five
+        // the side owns the **ten-card fit that stands in for the queen**
+        // (`set_queen_fit`, live since the relay went default-on), so the same
+        // hand one card longer correctly answers 5♠ instead.
         assert_eq!(
-            best(&auction, "A8732.A53.842.92"),
+            best(&auction, "A873.A532.842.92"),
             call(5, Strain::Hearts),
             "2 keycards, no trump Q → 5♥"
+        );
+        assert_eq!(
+            best(&auction, "A8732.A53.842.92"),
+            call(5, Strain::Spades),
+            "the ten-card fit answers the queen without the honour"
         );
         // All five keycards (four aces + trump K) → 5♣, the hole the book
         // ladder's {1,4} left open (round 3 passed a 4NT out on it)
@@ -7711,6 +7739,76 @@ mod tests {
             placement,
             call(6, Strain::Hearts),
             "the asker places the contract in the agreed trump"
+        );
+    }
+
+    /// The same collision one rung lower, and the one that actually cost IMPs:
+    /// the ladders **overlap**, so a relocated ask's own answer rungs are other
+    /// relocated asks.  With diamonds agreed 4♥ asks and 4♠ is its step 1 — but
+    /// 4♠ is also the *hearts* ask, and reading it as one puts a live ask on
+    /// partner's answer.  The asker then answers its own question: holding
+    /// ♠A ♥A ♣A it counts three keycards *for hearts* and bids 5♣, the 0-or-3
+    /// rung, whose 1.9 outbids its own 1.82 signoff.  Measured board 400 of the
+    /// kickback-vs-queen divergence audit: `5♣` doubled, singleton ♣A opposite
+    /// ♣987, −1100 against ♣KQT643 offside.
+    #[test]
+    fn a_suit_answering_the_relocation_is_not_a_new_ask() {
+        set_kickback(true);
+        let auction = [
+            call(1, Strain::Diamonds),
+            Call::Pass,
+            call(3, Strain::Diamonds),
+            Call::Pass,
+            call(4, Strain::Hearts),
+            Call::Pass,
+            call(4, Strain::Spades),
+            Call::Pass,
+        ];
+        assert_eq!(
+            keycard_ask_bid(&auction, 6),
+            None,
+            "4♠ is step 1 over the 4♥ ask, so it asks nothing"
+        );
+        assert_eq!(
+            keycard_ask_bid(&auction, 4),
+            Some(Bid::new(4, Strain::Hearts)),
+            "the ask is still the 4♥ two calls before it"
+        );
+        let placement = best(&auction, "AKQ3.AQ42.QT72.A");
+        set_kickback(false); // restore the default (off) for the rest of the suite
+        assert!(
+            matches!(placement, Call::Bid(bid) if bid.strain == Strain::Diamonds),
+            "the asker places the contract in the agreed trump, never a phantom club: {placement:?}"
+        );
+    }
+
+    /// The answer arm of [`conversation_rung`] is **not** gated on the queen
+    /// relay, and this is what that buys: plain `set_kickback`, queen ask off,
+    /// used to have no guard at all beyond the 4NT carve-out — so the earlier
+    /// "kickback is a wash" measurement was taken with the collision live.
+    #[test]
+    fn the_answer_is_not_an_ask_without_the_queen_relay() {
+        set_kickback(true);
+        set_queen_ask(false);
+        let auction = [
+            call(1, Strain::Diamonds),
+            Call::Pass,
+            call(3, Strain::Diamonds),
+            Call::Pass,
+            call(4, Strain::Hearts),
+            Call::Pass,
+            call(4, Strain::Spades),
+            Call::Pass,
+        ];
+        let answer = keycard_ask_bid(&auction, 6);
+        let ask = keycard_ask_bid(&auction, 4);
+        set_kickback(false); // restore the defaults for the rest of the suite
+        set_queen_ask(true);
+        assert_eq!(answer, None, "4♠ answers the 4♥ ask; it asks nothing");
+        assert_eq!(
+            ask,
+            Some(Bid::new(4, Strain::Hearts)),
+            "the ask itself still reads as one"
         );
     }
 

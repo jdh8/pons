@@ -24,7 +24,7 @@ opener-jump-shift 44
 opener-reverse 20
 puppet 80
 responsive-double 32
-rkcb 10656
+rkcb 17604
 shortness 24
 slam-try 80
 smolen 112
