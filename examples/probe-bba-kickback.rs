@@ -621,6 +621,29 @@ fn main() -> anyhow::Result<()> {
             expect_call: "",
             expect_label: None,
         },
+        // Does the king ask relocate under kickback?  Hearts agreed, ask 4♠,
+        // and partner's 5♦ is step 4 — two keycards *with* the queen — so the
+        // queen is already known and the next question is kings.  The cheapest
+        // call above the answer is 5♥ (trump) then 5♠; if BBA still says 5NT it
+        // is spending two steps it did not have to.
+        Case {
+            label: "kickback, queen shown by the ANSWER: where is the king ask?",
+            actor: 0,
+            prefix: &[B1H, P, B3H, P, B4S, P, B5H, P],
+            hand: ("A2", "AKJ85", "Q32", "KQ2"),
+            convs: &[("Kickback 1430", true), ("King ask by 5NT", true)],
+            expect_call: "",
+            expect_label: None,
+        },
+        Case {
+            label: "same, kickback OFF (plain 4NT) — the control for relocation",
+            actor: 0,
+            prefix: &[B1H, P, B3H, P, B4N, P, B5S, P],
+            hand: ("A2", "AKJ85", "Q32", "KQ2"),
+            convs: &[("Kickback 1430", false), ("King ask by 5NT", true)],
+            expect_call: "",
+            expect_label: None,
+        },
         // --- the 5NT king ladder, enumerated ---------------------------
         // Same ask, same shape, only the side kings move.  §3 recorded a single
         // point (6♦ = K=1); these four read the whole ladder off the engine so

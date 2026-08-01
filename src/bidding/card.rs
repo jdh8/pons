@@ -412,7 +412,15 @@ fn american_row(name: &str) -> i32 {
         // answers do split on the queen at steps 3/4 and we do own a king ask.
         // So the relay is under-disclosed only in its *shape*, not its
         // existence.  See `docs/ai-bidder/bba-kickback.md` §3.
-        "King ask by available bid" => i32::from(crate::bidding::instinct::queen_ask_now()),
+        // Only under kickback.  Over a plain 4NT ask our king ask is the step
+        // above the queen reply, which *is* 5NT in most of those lanes — so
+        // disclosing the available-bid form there describes a call we do not
+        // make.  BBA agrees by construction: probed, its own available-bid row
+        // never fires (`docs/ai-bidder/bba-kickback.md` §3), and its king ask
+        // stays literally 5NT even when the keycard ask is relocated.
+        "King ask by available bid" => i32::from(
+            crate::bidding::instinct::queen_ask_now() && crate::bidding::instinct::kickback_now(),
+        ),
         // Michaels and Unusual 2NT we author outright; `set_unusual_notrump_defense`
         // gates only our *defense* to theirs, not our own two-suiter bids.
         "Michaels Cuebid" | "Unusual 2NT" => 1,

@@ -771,7 +771,7 @@ pub fn set_kickback(enabled: bool) {
 }
 
 /// Kickback is enabled (see [`set_kickback`])
-fn kickback_now() -> bool {
+pub(in crate::bidding) fn kickback_now() -> bool {
     KICKBACK.with(Cell::get)
 }
 
