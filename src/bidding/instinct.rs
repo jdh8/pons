@@ -1950,6 +1950,19 @@ fn opponents_quiet_since(auction: &[Call], index: usize) -> bool {
 /// auction's face).  Returns the agreed trump the 1430 answer counts against
 /// and the asking bid its steps are measured from.
 fn keycard_asked(hand: Hand, context: &Context<'_>) -> Option<(Suit, Bid)> {
+    let ask = keycard_asked_face(context)?;
+    Some((
+        answer_trump(hand, context, context.auction().len() - 2)?,
+        ask,
+    ))
+}
+
+/// The face half of [`keycard_asked`]: every gate that reads the auction alone,
+/// no hand and no reading.  The [`Rules::face`] gate the kickback arm attaches
+/// to its answer rules, so bidder (`Rule::eval` consults the gate) and reader
+/// (the inference consult sites skip face-dead rules) share one predicate and
+/// cannot drift — the phase-5 fix for the §7.3.1 union poison.
+fn keycard_asked_face(context: &Context<'_>) -> Option<Bid> {
     if !floor_rkcb_now() {
         return None;
     }
@@ -1966,7 +1979,7 @@ fn keycard_asked(hand: Hand, context: &Context<'_>) -> Option<(Suit, Bid)> {
     if n >= 4 && matches!(auction[n - 4], Call::Bid(bid) if bid.strain == Strain::Notrump) {
         return None;
     }
-    Some((answer_trump(hand, context, n - 2)?, ask))
+    Some(ask)
 }
 
 /// The 1430 answer that lands on `bid`: the rung `bid` occupies above the ask
@@ -2016,14 +2029,6 @@ fn bid_successor(bid: Bid) -> Option<Bid> {
     })
 }
 
-/// The trump a relocated four-of-a-suit keycard ask at `ask` pins, if
-/// [`set_kickback`] is on and [`kickback_ladder`] claims that suit
-///
-/// Face-only by construction: the ladder is what made the call an ask, so the
-/// ask's own trump comes from the ladder and never from [`answer_trump`]'s
-/// hand-and-reading derivation.  A hand-derived trump for a hand-derived ask
-/// site is a phantom-trump generator — both members must land on one suit or
-/// the answer counts against a different one than the ask meant.
 /// The trump a relocated four-of-a-suit keycard ask at `ask` pins, if
 /// [`set_kickback`] is on and [`kickback_ladder`] claims that suit
 ///
@@ -2132,6 +2137,13 @@ const PLAIN_ANSWERS: [Bid; 4] = [
 /// their bid.  (Their *double* of the ask keeps the quiet window alive and
 /// is answered by the ROPI rungs through [`keycard_asked`] itself.)
 fn keycard_asked_over_bid(hand: Hand, context: &Context<'_>) -> Option<(Suit, Bid)> {
+    let their = keycard_asked_over_bid_face(context)?;
+    let trump = answer_trump(hand, context, context.auction().len() - 2)?;
+    Some((trump, their))
+}
+
+/// The face half of [`keycard_asked_over_bid`] — see [`keycard_asked_face`]
+fn keycard_asked_over_bid_face(context: &Context<'_>) -> Option<Bid> {
     if !floor_rkcb_now() {
         return None;
     }
@@ -2148,8 +2160,7 @@ fn keycard_asked_over_bid(hand: Hand, context: &Context<'_>) -> Option<(Suit, Bi
     if n >= 4 && matches!(auction[n - 4], Call::Bid(bid) if bid.strain == Strain::Notrump) {
         return None;
     }
-    let trump = answer_trump(hand, context, n - 2)?;
-    Some((trump, their))
+    Some(their)
 }
 
 /// The ROPI answer over their double of partner's ask — classic R0P1:
@@ -4375,28 +4386,48 @@ pub fn instinct() -> Rules {
     //
     // The knob gates rule *presence*, not just the constraint: the reading's
     // `alerted` test is structural — it asks whether any rule on the made call
-    // carries an alert and never evaluates it — so an always-present alerted
-    // rule on 4♥/4♠ would suppress the natural reading of every
+    // carries an alert (evaluating only the face gate) — so an always-present
+    // alerted rule on 4♥/4♠ would suppress the natural reading of every
     // floor-classified 4♥/4♠ even with kickback off.  Build one stance per arm.
-    let landings: &[Bid] = if kickback_now() {
-        &KICKBACK_ANSWERS
-    } else {
-        &PLAIN_ANSWERS
-    };
+    //
     // ROPI's two-keycard step and DOPI's ride the same landing set: both are
     // "the cheapest bid", one counted from the ask and one from their
     // interference, and their constraints reject every landing that is not the
     // right one.  Off the knob that leaves 5♣ ROPI and 5♦/5♥/5♠ DOPI — the
     // rules the floor has always carried, plus two that can never fire (a 5♣
     // DOPI step would need their bid to *be* the 4NT ask).
-    for &landing in landings {
-        rules = rules
-            .rule(landing, 1.9, keycard_answer(landing))
-            .alert(RKCB_FLOOR)
-            .rule(landing, 1.92, ropi_step(landing))
-            .alert(RKCB_FLOOR)
-            .rule(landing, 1.9, dopi_step(landing))
-            .alert(RKCB_FLOOR);
+    if kickback_now() {
+        // The kickback arm's landings include the 4-level, where the alert
+        // collides with natural games — so each rule is face-gated on its
+        // recognizer's face half: on faces where no ask window is live the
+        // rule is as-if-absent and the natural reading of 4♥/4♠/4NT stands
+        // (the §7.3.1 union poison).  The plain arm below stays ungated —
+        // byte-identical to the shipped default.
+        for &landing in &KICKBACK_ANSWERS {
+            rules = rules
+                .rule(landing, 1.9, keycard_answer(landing))
+                .alert(RKCB_FLOOR)
+                .face(|context: &Context<'_>| keycard_asked_face(context).is_some())
+                .rule(landing, 1.92, ropi_step(landing))
+                .alert(RKCB_FLOOR)
+                .face(|context: &Context<'_>| {
+                    context.auction().last() == Some(&Call::Double)
+                        && keycard_asked_face(context).is_some()
+                })
+                .rule(landing, 1.9, dopi_step(landing))
+                .alert(RKCB_FLOOR)
+                .face(|context: &Context<'_>| keycard_asked_over_bid_face(context).is_some());
+        }
+    } else {
+        for &landing in &PLAIN_ANSWERS {
+            rules = rules
+                .rule(landing, 1.9, keycard_answer(landing))
+                .alert(RKCB_FLOOR)
+                .rule(landing, 1.92, ropi_step(landing))
+                .alert(RKCB_FLOOR)
+                .rule(landing, 1.9, dopi_step(landing))
+                .alert(RKCB_FLOOR);
+        }
     }
     rules = rules
         // ROPI over their double of the ask — classic R0P1, outweighing the
@@ -4433,7 +4464,11 @@ pub fn instinct() -> Rules {
     // Rule *presence* is what the knob gates, not just the constraint: the
     // reading's `alerted` test is structural, so an always-present alerted
     // rule on 4♠ would suppress the natural reading of every floor-classified
-    // 4♠ even with the knob off.  Build one stance per arm.
+    // 4♠ even with the knob off.  Build one stance per arm.  Within the arm,
+    // the face-only conjuncts live in the `Rules::face` gate — `Rule::eval`
+    // consults it, so the bidder is unchanged, and the reader skips the rule
+    // on faces where the ladder claims nothing, so a natural 4♠ keeps its
+    // natural reading (the §7.3.1 union poison).
     if kickback_now() {
         for target in [Suit::Diamonds, Suit::Hearts, Suit::Spades] {
             let strain = Strain::from(target);
@@ -4443,21 +4478,15 @@ pub fn instinct() -> Rules {
                     1.69,
                     pred(move |hand: Hand, context: &Context<'_>| {
                         let auction = context.auction();
-                        floor_rkcb_now()
-                            && kickback_now()
-                            && context.undisturbed()
-                            && keycard_trump(hand, context).is_some_and(|trump| {
-                                let inferences = Inferences::read(context);
-                                let partner = inferences.partner().length(trump).min;
-                                let on_table = inferences.me().length(trump).min + partner;
-                                kickback_ladder(auction, auction.len())[target as usize]
-                                    == Some(trump)
-                                    && !bare_four_four_own_flat(hand, trump, usize::from(partner))
-                                    && (on_table >= 8
-                                        || face_trump(auction, auction.len()) == Some(trump))
-                            })
-                            && partner_last_call(auction)
-                                .is_none_or(|bid| bid.strain != Strain::Notrump)
+                        keycard_trump(hand, context).is_some_and(|trump| {
+                            let inferences = Inferences::read(context);
+                            let partner = inferences.partner().length(trump).min;
+                            let on_table = inferences.me().length(trump).min + partner;
+                            kickback_ladder(auction, auction.len())[target as usize] == Some(trump)
+                                && !bare_four_four_own_flat(hand, trump, usize::from(partner))
+                                && (on_table >= 8
+                                    || face_trump(auction, auction.len()) == Some(trump))
+                        })
                     }) & inference_aware()
                         & combined_points(29)
                         & announced(slam_entry_reached(), Cons(RkcbAgreement))
@@ -4465,7 +4494,16 @@ pub fn instinct() -> Rules {
                         & below_slam()
                         & level_available(4, strain),
                 )
-                .alert(RKCB_FLOOR);
+                .alert(RKCB_FLOOR)
+                .face(move |context: &Context<'_>| {
+                    let auction = context.auction();
+                    floor_rkcb_now()
+                        && kickback_now()
+                        && context.undisturbed()
+                        && kickback_ladder(auction, auction.len())[target as usize].is_some()
+                        && partner_last_call(auction)
+                            .is_none_or(|bid| bid.strain != Strain::Notrump)
+                });
         }
     }
     // The asker's continuations, per possible trump.

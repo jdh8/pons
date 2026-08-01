@@ -30,6 +30,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Face-conditional rule liveness** (`Rules::face`, kickback phase 5): a rule
+  may carry a face gate — a predicate over the auction alone — and where the
+  gate fails the rule is as-if-absent for **both** halves: `Rule::eval`
+  returns −∞ (the bidder cannot fire it) and the inference reader's three
+  consult sites (projection union, `alerted` bit, announce filter) skip it
+  under the bidder's at-the-time context, so exclusion is sound by
+  construction and the two cannot drift. This dissolves the §7.3.1 poison
+  that contaminated the kickback C − B arm: with `set_kickback` on, the
+  always-alerted ask/answer rules on 4♦/4♥/4♠ unioned a ⊤ projection into
+  every **natural** 4-major's box (partner's spade floor collapsed to 0 on
+  `1♦ P 1♠ P 2♦ P 4♠`, 105% of the measured −0.00222) and structurally
+  suppressed the natural walk. The kickback arm now gates its ask rules on
+  the ladder's face claim and its answer rules on the recognizers' face
+  halves (`keycard_asked_face` / `keycard_asked_over_bid_face`); the default
+  system is byte-identical (20k-board smoke: pre- and post-change binaries
+  produce identical A/B output). The re-measure with the gates (kickback vs
+  the shipped default, 1M boards, seed 1785558240, vul none) prices the
+  relocation cleanly at last: **−0.00029/board PD and plain DD alike, every
+  95% CI straddling zero** — a wash, not the old loss. Divergence collapsed
+  864 → 246 boards and the poison signature (four-major game vs same-suit
+  slam) is extinct; what remains is Redwood itself — grand-slam churn that
+  nets to noise plus the one structural price, the relocated ask eating the
+  natural four-major landing spot (`5♦` played where the baseline plays a
+  making `4♥`/`4♠`). `set_kickback` **stays an opt-in knob**; the named lever
+  for any revisit is the ladder declining to claim a call while a four-major
+  game is still live (docs/ai-bidder/bba-kickback.md §7.3.2).
+
 - **Kickback / Redwood on the floor** (`set_kickback`, **off by default**,
   default system byte-identical — `bba-card` diffs empty). The keycard ask
   relocates onto phase 1's face-only `kickback_ladder`:

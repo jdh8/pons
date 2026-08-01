@@ -345,7 +345,7 @@ minors. Four findings killed that order:
 | 1 | the ladder as a face-only resolver + unit tests | **done** (`f985e23`) — `kickback_ladder` beside `face_trump`. No bidding change. |
 | 2+3 | the floor, **all four suits**, and the carve lifted beside it | **measured 2026-08-01, 3×1M boards.** `set_keycard_minors` **WINS big** and ships; `set_kickback` measures negative but the measurement is *contaminated* — see §7.3. |
 | 4 | the authored book in `slam.rs`; competition + disclosure | not started |
-| 5 | face-conditional alerts, so the relocation can be priced at all | **the blocker** — §7.3.1 |
+| 5 | face-conditional alerts, so the relocation can be priced at all | **done 2026-08-01** — `Rules::face` gate, consulted by `Rule::eval` (−∞) and the three inference consult sites; see §7.3.1's resolution note. Re-measured clean: a **wash** (§7.3.2), knob stays opt-in. |
 
 ### 7.3 The three arms
 
@@ -434,8 +434,59 @@ disclosure predicate, and disclosure that depends only on the face is still
 disclosure. That is an inference-layer change (phase 5), not an instinct one,
 and it is the gate on every future Kickback number.
 
-Until then `set_kickback` stays **default off**, and its −0.0022 must not be
-cited as evidence against Redwood.
+**Resolution (2026-08-01, phase 5 built).** `Rule` carries an optional
+**face gate** (`Rules::face`, a `Fn(&Context) -> bool` over the auction alone).
+The gate is the single source of liveness for both halves: `Rule::eval`
+returns −∞ when it fails (the bidder cannot fire a face-dead rule), and the
+three inference consult sites — the projection union, the `alerted` bit, and
+the announce filter — skip face-dead rules under the bidder's at-the-time
+context, so exclusion is sound by construction. The kickback arm attaches the
+recognizers' face halves (`keycard_asked_face`, `keycard_asked_over_bid_face`,
+and the ladder claim for the three ask targets) to its ask and answer rules;
+the plain arm keeps ungated constructors and stays byte-identical (verified:
+20k-board smoke, `minors` vs `plain`, pre- and post-change binaries produce
+identical output). On the audit shape `1♦ P 1♠ P 2♦ P 4♠` the ladder is
+all-`None`, the rules are face-dead, and the natural spade floor survives —
+the regression test `kickback_face_gate_keeps_natural_four_spades_natural`
+pins it. The re-measure with the gates is §7.3.2: the poison class vanished
+outright and the relocation prices as a **wash**. The old −0.0022 must not be
+cited as evidence against Redwood — the clean number is −0.0003 with every CI
+straddling zero.
+
+#### 7.3.2 The clean price (phase 5 re-measure, 2026-08-01)
+
+**kickback vs minors (the shipped default), 1,000,000 boards, seed 1785558240,
+vul none, `--sd`.** IMPs per board, 95% CI in brackets:
+
+| scoring | Δ/board | CI | divergent |
+|---|---|---|---|
+| PD | −0.00029 | [−0.00062, +0.00004] | 246 (0.025%) |
+| plain DD | −0.00029 | [−0.00060, +0.00003] | 246 |
+| sd-declarer | −0.00030 | [−0.00061, +0.00001] | 246 |
+| sd + PD | −0.00029 | [−0.00062, +0.00004] | 246 |
+
+The build artifact is gone, by every sign at once:
+
+- **Divergence collapsed 864 → 246** — the phantom class was two thirds of the
+  old footprint.
+- **The poison signature is extinct**: zero boards pair a four-major game
+  against the same-suit slam (old audit: 4♠-vs-6♠ alone was 20 boards, −108
+  PD). The audit shape `1♦ P 1♠ P 2♦ P 4♠` no longer diverges at all.
+- What remains is Redwood *itself*, and it nets to noise: grand-slam churn in
+  both directions (6♦-vs-7♦ +66 against 7♦-vs-6♦ −47, 7♣-vs-6♣ +66 against
+  6♣-vs-7♣ +55 the other way), the ask's extra room spent going six-over-five
+  (6♣-vs-5♣ 21 boards −121, 6♥-vs-5♥ 20 boards −94, partly offset by
+  5♥-vs-6♥ +53) — and the one structural price: **the relocated ask eats the
+  natural four-major landing spot** (5♦-vs-4♥/4♠ pairs, ~45 boards ≈ −130 PD,
+  both directions). With diamonds agreed, 4♥ *is* the ask, and a side that
+  belonged in the heart game plays 5♦ instead.
+
+Verdict from the decision table: a wash on plain DD **and** PD — not
+shippable default-on, not refuted either. `set_kickback` stays an opt-in
+knob; the named lever if it is ever revisited is the four-major landing-spot
+class, which is a *ladder* question (when a four-major game is still live,
+should the ladder decline to claim the call?), not a reading one. No vul-both
+run: the flip gate ("both scorings clear zero") was not met.
 
 ### 7.4 What the build actually cost
 

@@ -35,6 +35,9 @@ use std::sync::Arc;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Alert(pub &'static str);
 
+/// A face-of-auction predicate gating a rule's liveness (see [`Rules::face`])
+type FaceGate = Arc<dyn Fn(&Context<'_>) -> bool + Send + Sync>;
+
 /// A single bidding rule: a call justified by a constraint
 #[derive(Clone)]
 pub struct Rule {
@@ -43,6 +46,7 @@ pub struct Rule {
     when: Arc<dyn Constraint>,
     label: &'static str,
     alert: Option<Alert>,
+    face: Option<FaceGate>,
 }
 
 impl Rule {
@@ -79,9 +83,23 @@ impl Rule {
         self.alert
     }
 
+    /// Whether this rule is live on the current face of the auction
+    ///
+    /// A rule with a [`Rules::face`] gate exists only on faces where the gate
+    /// holds — bidder ([`eval`][Self::eval]) and reader (the inference
+    /// consult sites) both check it, so the two cannot drift.  Ungated rules
+    /// are always live.
+    #[must_use]
+    pub fn face_live(&self, context: &Context<'_>) -> bool {
+        self.face.as_ref().is_none_or(|face| face(context))
+    }
+
     /// The logit this rule contributes for a hand
     #[must_use]
     pub fn eval(&self, hand: Hand, context: &Context<'_>) -> f32 {
+        if !self.face_live(context) {
+            return f32::NEG_INFINITY;
+        }
         self.weight + self.when.eval(hand, context)
     }
 
@@ -177,6 +195,7 @@ impl fmt::Debug for Rule {
             .field("weight", &self.weight)
             .field("label", &self.label)
             .field("alert", &self.alert)
+            .field("face", &self.face.is_some())
             .finish_non_exhaustive()
     }
 }
@@ -208,6 +227,7 @@ impl Rules {
             when: Arc::new(when),
             label: "",
             alert: None,
+            face: None,
         });
         self
     }
@@ -249,6 +269,27 @@ impl Rules {
             .last_mut()
             .expect("alert() requires a preceding rule()")
             .alert = Some(alert);
+        self
+    }
+
+    /// Gate the most recently added rule on a face-of-auction predicate
+    ///
+    /// Chains after [`rule`][Self::rule], mirroring [`alert`][Self::alert].
+    /// Where the gate fails, the rule is as-if-absent: [`Rule::eval`] returns
+    /// −∞ and the inference reader skips it, so a conditionally-artificial
+    /// call (e.g. a Kickback 4♠ that is only an ask when the ladder proves
+    /// one) never poisons the natural reading of the same call on other
+    /// faces.
+    ///
+    /// # Panics
+    ///
+    /// Panics if no rule has been added yet.
+    #[must_use]
+    pub fn face(mut self, face: impl Fn(&Context<'_>) -> bool + Send + Sync + 'static) -> Self {
+        self.rules
+            .last_mut()
+            .expect("face() requires a preceding rule()")
+            .face = Some(Arc::new(face));
         self
     }
 
@@ -412,6 +453,26 @@ mod tests {
         let european = rules.gated(|alert| alert == EUROPEAN);
         assert_eq!(european.rules().len(), 2);
         assert_eq!(european.rules()[1].alert(), Some(EUROPEAN));
+    }
+
+    #[test]
+    fn test_face_gate() {
+        let rules = Rules::new()
+            .rule(Bid::new(1, Strain::Notrump), 1.0, hcp(15..=17) & balanced())
+            .face(|context| !context.auction().is_empty());
+        let rule = &rules.rules()[0];
+        let hand = "AKQ2.K53.QJ4.T92".parse().expect("valid hand");
+
+        // Gate false (opening seat): as-if-absent.
+        let opening = Context::new(RelativeVulnerability::NONE, &[]);
+        assert!(!rule.face_live(&opening));
+        assert_eq!(rule.eval(hand, &opening), f32::NEG_INFINITY);
+
+        // Gate true: normal evaluation.  Ungated rules default to live.
+        let later = Context::new(RelativeVulnerability::NONE, &[Call::Pass]);
+        assert!(rule.face_live(&later));
+        assert!(rule.eval(hand, &later) > f32::NEG_INFINITY);
+        assert!(opening_rules().rules()[0].face_live(&opening));
     }
 
     #[test]

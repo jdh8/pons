@@ -2978,7 +2978,7 @@ fn project_authored(context: &Context<'_>) -> ([Dnf; 4], [Dnf; 4], u64) {
             rules
                 .rules()
                 .iter()
-                .filter(|rule| rule.call() == made)
+                .filter(|rule| rule.call() == made && rule.face_live(ctx))
                 .map(|rule| rule.project_dnf(ctx))
                 .reduce(Dnf::disjoin)
         };
@@ -2994,7 +2994,7 @@ fn project_authored(context: &Context<'_>) -> ([Dnf; 4], [Dnf; 4], u64) {
             && rules
                 .rules()
                 .iter()
-                .any(|rule| rule.call() == made && rule.alert().is_some());
+                .any(|rule| rule.call() == made && rule.alert().is_some() && rule.face_live(ctx));
         let decode = if is_pass {
             decode_pass
         } else {
@@ -3030,7 +3030,9 @@ fn project_authored(context: &Context<'_>) -> ([Dnf; 4], [Dnf; 4], u64) {
                 rules
                     .rules()
                     .iter()
-                    .filter(|rule| rule.call() == made && rule.alert().is_some())
+                    .filter(|rule| {
+                        rule.call() == made && rule.alert().is_some() && rule.face_live(ctx)
+                    })
                     .map(|rule| rule.announce_dnf(ctx))
                     .reduce(Dnf::disjoin)
                     .unwrap_or_else(|| projection.clone())
@@ -6344,6 +6346,57 @@ mod tests {
                 && inf.partner().length(Suit::Spades).min >= 5,
             "fallback projection pins both majors for contested Leaping Michaels"
         );
+    }
+
+    /// The §7.3.1 union poison (docs/ai-bidder/bba-kickback.md): with
+    /// `set_kickback` on, the relocated-ask and answer rules on 4♥/4♠ were
+    /// structurally alerted, so a **natural** 4♠'s box was unioned with the
+    /// ask's ⊤ projection — partner's `length(Spades).min` collapsed to 0 and
+    /// the natural walk's lane bookkeeping was suppressed on top.  The face
+    /// gate makes those rules as-if-absent on faces where `kickback_ladder`
+    /// claims nothing (here no suit is bid twice by one side, so the ladder is
+    /// all-`None`): the knob-on reading must equal the knob-off one.
+    #[test]
+    fn kickback_face_gate_keeps_natural_four_spades_natural() {
+        use crate::bidding::instinct::set_kickback;
+        // The audited C−B shape: 1♦ P 1♠ P 2♦ P 4♠ P — the reader is the
+        // opener, partner is the natural 4♠ bidder.
+        let auction = [
+            bid(1, Strain::Diamonds),
+            Call::Pass,
+            bid(1, Strain::Spades),
+            Call::Pass,
+            bid(2, Strain::Diamonds),
+            Call::Pass,
+            bid(4, Strain::Spades),
+            Call::Pass,
+        ];
+        let baseline = read_booked(&auction).partner().length(Suit::Spades).min;
+        set_kickback(true);
+        let gated = read_booked(&auction).partner().length(Suit::Spades).min;
+        set_kickback(false); // restore the default (off) for the rest of the suite
+        assert!(baseline >= 4, "the natural walk floors responder's spades");
+        assert_eq!(gated, baseline, "kickback must not erase the natural floor");
+    }
+
+    /// The face gate's positive control: where the ladder *does* claim the
+    /// call (hearts agreed, spades unguarded → 4♠ asks), the rule stays live —
+    /// alerted, so the ask is not read as a natural spade suit.
+    #[test]
+    fn kickback_relocated_ask_still_reads_as_the_convention() {
+        use crate::bidding::instinct::set_kickback;
+        let auction = [
+            bid(1, Strain::Hearts),
+            Call::Pass,
+            bid(3, Strain::Hearts),
+            Call::Pass,
+            bid(4, Strain::Spades),
+            Call::Pass,
+        ];
+        set_kickback(true);
+        let spades = read_booked(&auction).partner().length(Suit::Spades).min;
+        set_kickback(false); // restore the default (off) for the rest of the suite
+        assert!(spades < 4, "the relocated ask is not a natural spade suit");
     }
 
     #[test]
