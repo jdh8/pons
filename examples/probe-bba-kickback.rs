@@ -538,6 +538,46 @@ fn main() -> anyhow::Result<()> {
             expect_call: "6♦",
             expect_label: Some((8, "King ask by 5NT")),
         },
+        // --- the 5NT king ladder, enumerated ---------------------------
+        // Same ask, same shape, only the side kings move.  §3 recorded a single
+        // point (6♦ = K=1); these four read the whole ladder off the engine so
+        // the step rule is observed rather than extrapolated.
+        Case {
+            label: "king ladder: 0 side kings",
+            actor: 2,
+            prefix: &[B1H, P, B3H, P, B4S, P, B4N, P, B5N, P],
+            hand: ("Q76", "QJ85", "A54", "872"),
+            convs: &[("Kickback 1430", true)],
+            expect_call: "",
+            expect_label: None,
+        },
+        Case {
+            label: "king ladder: 1 side king (♠K)",
+            actor: 2,
+            prefix: &[B1H, P, B3H, P, B4S, P, B4N, P, B5N, P],
+            hand: ("K76", "QJ85", "A54", "872"),
+            convs: &[("Kickback 1430", true)],
+            expect_call: "",
+            expect_label: None,
+        },
+        Case {
+            label: "king ladder: 2 side kings (♠K ♦K)",
+            actor: 2,
+            prefix: &[B1H, P, B3H, P, B4S, P, B4N, P, B5N, P],
+            hand: ("K76", "QJ85", "K54", "872"),
+            convs: &[("Kickback 1430", true)],
+            expect_call: "",
+            expect_label: None,
+        },
+        Case {
+            label: "king ladder: 3 side kings (♠K ♦K ♣K)",
+            actor: 2,
+            prefix: &[B1H, P, B3H, P, B4S, P, B4N, P, B5N, P],
+            hand: ("K76", "QJ85", "K54", "K72"),
+            convs: &[("Kickback 1430", true)],
+            expect_call: "",
+            expect_label: None,
+        },
         Case {
             label: "queen ask, 3 trumps (own 3 + probable 6 < 10) → no Q, signoff",
             actor: 2,

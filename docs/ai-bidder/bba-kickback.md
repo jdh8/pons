@@ -150,8 +150,20 @@ king, counted for the suit stamped on the ask (`feature[424]`), answers in
 - queen answers: signoff in trump without it; with it, cheapest side-suit
   king below 6-of-trump (skipped steps *deny* that king), else an NT bid
   ("queen yes, no side king" — probe: 5NT);
-- king answers after 5NT: a count ladder (`"K=n"`; probe: 6♦ = K=1), or
-  per-king under `5NT inviting`;
+- king answers after 5NT: a **count** ladder (`"K=n"`), enumerated against the
+  engine with hearts agreed and only the side kings moved —
+
+  | side kings | 0 | 1 | 2 | 3 |
+  | --- | --- | --- | --- | --- |
+  | call | 6♣ | 6♦ | **6♥** | **6♠** |
+
+  so it is four strict steps above 5NT, and it **overshoots its own trump suit**
+  to keep three kings distinct from two (6♠ with hearts agreed).  Our
+  `king_answers` collapses 2-and-3 into a 6♥ catch-all for hearts and cannot
+  tell them apart — the distinction the grand actually needs, given
+  `probe-trump-queen` puts two side kings at 80.1% against a 56–58% break-even
+  while our classic path still demands three.  Per-king answers instead under
+  `5NT inviting` (off);
 - the alert label rides `ustaw_konwencje`: **`"Kickback 1430, for !D"`**,
   same shape as every ask family.
 
