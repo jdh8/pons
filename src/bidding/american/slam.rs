@@ -90,7 +90,7 @@ pub(super) fn minor_keycard() -> bool {
 
 use super::{insert_uncontested, uncontested};
 use crate::bidding::constraint::{described, hcp};
-use crate::bidding::instinct::{queen_ask_now, queen_ask_room, queen_fit, relay_ladder};
+use crate::bidding::instinct::{king_rung, queen_ask_now, queen_ask_room, queen_fit, relay_ladder};
 use crate::bidding::trie::Classifier;
 use contract_bridge::Hand;
 
@@ -461,26 +461,43 @@ fn asker_after_queen(trump: Suit, ladder: [Bid; 7]) -> Rules {
 
 /// Partner's replies to the relay's king ask: none, one, two-or-more side kings
 fn relay_king_replies(trump: Suit, ladder: [Bid; 7]) -> Rules {
-    Rules::new()
-        .rule(ladder[4], 1.0, kings_outside(trump, 0..=0))
+    let rungs = [ladder[4], ladder[5], ladder[6]];
+    let zero = king_rung(trump, rungs, 0);
+    let rules = Rules::new().rule(zero, 1.0, kings_outside(trump, 0..=0));
+    // Under [`set_king_zero_jump`] the zero-king answer is six of the agreed
+    // trump: a contract, not a code, so it carries no alert.
+    let rules = if zero == ladder[4] {
+        rules.alert(RKCB)
+    } else {
+        rules
+    };
+    rules
+        .rule(king_rung(trump, rungs, 1), 1.0, kings_outside(trump, 1..=1))
         .alert(RKCB)
-        .rule(ladder[5], 1.0, kings_outside(trump, 1..=1))
-        .alert(RKCB)
-        .rule(ladder[6], 0.5, hcp(0..))
+        .rule(king_rung(trump, rungs, 2), 0.5, hcp(0..))
         .alert(RKCB)
 }
 
 /// Asker's placement over a king reply showing `partners` side kings: seven on
 /// two of the three between the hands, six otherwise
-fn asker_after_relay_kings(trump: Suit, partners: usize) -> Rules {
+///
+/// `reply` is the call partner actually made, because [`set_king_zero_jump`]
+/// relocates the zero-king answer *to* six of trumps — and there the six-level
+/// catch-all is already the contract, so passing is how the asker takes it.
+/// Seven stays live either way: the jump is a placement, not a barrier.
+fn asker_after_relay_kings(trump: Suit, partners: usize, reply: Bid) -> Rules {
     let t = Strain::from(trump);
-    Rules::new()
-        .rule(
-            Bid::new(7, t),
-            1.0,
-            kings_outside(trump, 2usize.saturating_sub(partners)..),
-        )
-        .rule(Bid::new(6, t), 0.5, hcp(0..))
+    let six = Bid::new(6, t);
+    let rules = Rules::new().rule(
+        Bid::new(7, t),
+        1.0,
+        kings_outside(trump, 2usize.saturating_sub(partners)..),
+    );
+    if reply == six {
+        rules.rule(Call::Pass, 0.5, hcp(0..))
+    } else {
+        rules.rule(six, 0.5, hcp(0..))
+    }
 }
 
 /// Asker's continuation after a 5♥ response (2 keycards, no trump queen)
@@ -751,11 +768,13 @@ pub(super) fn install_rkcb(book: &mut Trie, our_calls: &[Call], trump: Suit) {
                 &extend(&[answer, relay, shown, king_ask]),
                 relay_king_replies(trump, ladder),
             );
-            for (partners, &reply) in ladder[4..].iter().enumerate() {
+            let rungs = [ladder[4], ladder[5], ladder[6]];
+            for partners in 0..3 {
+                let reply = king_rung(trump, rungs, partners);
                 insert_uncontested(
                     book,
                     &extend(&[answer, relay, shown, king_ask, Call::Bid(reply)]),
-                    asker_after_relay_kings(trump, partners),
+                    asker_after_relay_kings(trump, partners, reply),
                 );
             }
         }

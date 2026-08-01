@@ -72,6 +72,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   known nine-card fit skips the relay and bids six directly, saving the round.
   Both roads reach six; only the asker's is free.
 
+  **Two side kings, measured.** `probe-trump-queen`'s grand table (400k deals,
+  five keycards, 33-plus combined points) prices seven of trumps on a settled
+  trump suit at **66.2% ± 11.2** with one side king, **80.1% ± 2.5** with two,
+  and 92.3% ± 2.1 with three — against a grand break-even near 56–58%. Two
+  clears it with room for the slam-boundary shave; one does not survive it. An
+  unsettled trump suit tops out at 58–63% *before* the shave, which is why the
+  grand wants the queen. Noted and not acted on: the **classic 5NT king path**
+  still demands all three (`asker_after_6c`), so the two routes disagree about
+  what seven needs, and this table says the relay's two is the right one. That
+  is a shipped path and owes its own A/B.
+
+  **Also authored, also off: `set_king_zero_jump`.** The queen-shown answerer
+  holding no side king places the contract in six of trumps instead of answering
+  on a rung — the hand is good for six and bad for seven, and saying so in one
+  call conceals the side-king count from the defence. The ladder is **permuted,
+  not extended**: zero takes six of trumps and one and two-or-more slide down to
+  the two cheapest steps, because in most lanes the top rung already *is* six of
+  trump and appending would collide the zero answer with the two-or-more one.
+  The jump is a placement and not a barrier — the asker holding two side kings
+  of its own still bids seven over it. Concealment is invisible to double-dummy,
+  so read a wash on this arm as the harness and not the idea.
+
   **Unmeasured, and therefore off.** Fires ~10.7 boards per 10⁴, dense enough
   for a random-deal A/B; `ab-kickback` grows `queen` and `kickback-queen` arms
   so each pair moves exactly one knob. A 100k pilot of the *first* cut — flat

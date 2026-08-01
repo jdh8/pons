@@ -619,6 +619,11 @@ std::thread_local! {
     /// let partner pass five — the answerer jumps to six instead.  Default 9;
     /// see [`set_queen_buff_fit`].
     static BUFF_FIT: Cell<u8> = const { Cell::new(9) };
+
+    /// Whether the queen-shown answerer holding no side king places the
+    /// contract in six of trumps instead of answering on the bottom rung.
+    /// **Off by default** while it measures; see [`set_king_zero_jump`].
+    static KING_ZERO_JUMP: Cell<bool> = const { Cell::new(false) };
 }
 
 /// Enable or disable the floor's two-over-one game force (**on by default**)
@@ -903,6 +908,40 @@ pub fn set_queen_buff_fit(length: u8) {
 /// [`set_queen_buff_fit`])
 pub(in crate::bidding) fn queen_buff_fit() -> u8 {
     BUFF_FIT.with(Cell::get)
+}
+
+/// The queen-shown answerer with no side king places the contract in six of
+/// trumps, instead of answering the king ask on its bottom rung
+///
+/// **Off by default, and owes its own A/B.**  The hand is good for six and bad
+/// for seven, and saying so in one call rather than two has two arguments
+/// behind it that the step ladder does not:
+///
+/// - **Concealment.**  The rungs announce the side-king count to the *defence*
+///   before the opening lead; six of trumps announces nothing.  Double-dummy
+///   cannot see this (`docs/measurement.md`), so a wash here is the harness and
+///   not the idea — read the arm with that in mind.
+/// - **Robustness.**  An artificial rung that gets passed or played is this
+///   codebase's recurring disaster.  Six of the agreed trump is a contract; it
+///   cannot be misplayed as one.
+///
+/// Against it: the round was free anyway — the king ask only fires in the grand
+/// zone, so the partnership is already committed past six and nobody can pass
+/// the bottom rung.
+///
+/// The jump is a **placement, not a barrier**.  "No side king" is the
+/// answerer's count, and the asker holding two of its own still has the two the
+/// grand gate wants, so seven stays live over it: [`king_answered`] decodes six
+/// of trumps as zero from partner and the seven rule reads the total exactly as
+/// it does off a rung.
+#[doc(hidden)]
+pub fn set_king_zero_jump(enabled: bool) {
+    KING_ZERO_JUMP.with(|flag| flag.set(enabled));
+}
+
+/// The zero-king answerer jumps to six (see [`set_king_zero_jump`])
+pub(in crate::bidding) fn king_zero_jump() -> bool {
+    KING_ZERO_JUMP.with(Cell::get)
 }
 
 /// The queen ask is enabled (see [`set_queen_ask`])
@@ -2810,9 +2849,9 @@ fn king_answered(hand: Hand, context: &Context<'_>) -> Option<(Suit, usize)> {
     if auction[n - 6] != Call::Bid(ladder[2]) || auction[n - 4] != Call::Bid(ladder[3]) {
         return None;
     }
-    let partners = ladder[4..]
-        .iter()
-        .position(|&rung| auction[n - 2] == Call::Bid(rung))?;
+    let rungs = [ladder[4], ladder[5], ladder[6]];
+    let partners =
+        (0..3).find(|&count| auction[n - 2] == Call::Bid(king_rung(trump, rungs, count)))?;
     let mine = Suit::ASC
         .into_iter()
         .filter(|&suit| suit != trump && hand[suit].contains(Rank::K))
@@ -3020,6 +3059,26 @@ fn king_ask_here(bid: Bid) -> Cons<impl Constraint + Clone> {
 
 /// Our reply to partner's king ask lands on `bid`, showing `count` side kings
 /// (the top rung is "two or more")
+/// Where the answer showing `count` side kings lands
+///
+/// Off [`set_king_zero_jump`], the `count`-th step above the king ask.  On, the
+/// ladder is **permuted, not extended**: zero kings takes six of trumps and one
+/// and two-or-more slide down to the two cheapest steps.
+///
+/// Permuted because appending would collide.  In most lanes the *top* rung
+/// already is six of trump (spades after a none-or-three: ask 5♥, deny 5♠, show
+/// 5NT, king ask 6♣, answers 6♦/6♥/6♠), so relocating zero there would land it
+/// on the two-or-more answer — the two messages furthest apart in meaning.
+/// Sliding instead keeps all three distinct, and puts the hands with grand
+/// interest on the *cheap* rungs where the asker has room to use them.
+pub(in crate::bidding) fn king_rung(trump: Suit, rungs: [Bid; 3], count: usize) -> Bid {
+    match count {
+        _ if !king_zero_jump() => rungs[count],
+        0 => Bid::new(6, Strain::from(trump)),
+        _ => rungs[count - 1],
+    }
+}
+
 fn king_reply(bid: Bid, count: usize) -> Cons<impl Constraint + Clone> {
     pred(move |hand: Hand, context: &Context<'_>| {
         king_asked(hand, context).is_some_and(|(trump, rungs)| {
@@ -3027,7 +3086,8 @@ fn king_reply(bid: Bid, count: usize) -> Cons<impl Constraint + Clone> {
                 .into_iter()
                 .filter(|&suit| suit != trump && hand[suit].contains(Rank::K))
                 .count();
-            rungs[count] == bid && if count == 2 { mine >= 2 } else { mine == count }
+            king_rung(trump, rungs, count) == bid
+                && if count == 2 { mine >= 2 } else { mine == count }
         })
     })
 }
@@ -5191,10 +5251,14 @@ pub fn instinct() -> Rules {
                 .rule(landing, 1.91, queen_buff_reply(landing))
                 .face(|context: &Context<'_>| relay_window_face(context, 6));
             for count in 0..3 {
-                rules = rules
-                    .rule(landing, 1.9, king_reply(landing, count))
-                    .alert(RKCB_FLOOR)
-                    .face(|context: &Context<'_>| relay_window_face(context, 10));
+                rules = rules.rule(landing, 1.9, king_reply(landing, count));
+                // With [`set_king_zero_jump`] on, count 0 lands on six of the
+                // agreed trump for that trump alone — a contract, not a code,
+                // so no alert.  Every other rung stays artificial.
+                if !(count == 0 && king_zero_jump()) {
+                    rules = rules.alert(RKCB_FLOOR);
+                }
+                rules = rules.face(|context: &Context<'_>| relay_window_face(context, 10));
             }
             rules = rules
                 .rule(
