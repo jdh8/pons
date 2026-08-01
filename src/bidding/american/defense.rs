@@ -9,7 +9,7 @@
 
 use super::super::constraint::{
     Cons, Constraint, and, at_least_as_long, balanced, equal_length, hcp, len, length_box,
-    long_suit_box, longer_suit, min_level_is, or, passed_hand, points, shapes,
+    long_suit_box, longer_suit, longest_unbid, min_level_is, or, passed_hand, points, shapes,
     short_in_their_suits, stopper_in_their_suits, suit_hcp, takeout_double_shape_ok, top_honors,
     unbid_support, vulnerable,
 };
@@ -3717,35 +3717,6 @@ fn natural_advance(
     } else {
         rules.rule(bid, base, len(suit, min_len..))
     }
-}
-
-/// `suit` is the longest of the three unbid suits, an equal-length tie going to
-/// the higher rank
-///
-/// Crisp, and a partition: of the three unbid suits exactly one satisfies its
-/// instance — `suit` must strictly out-length a higher-ranking rival (which
-/// would win the tie) and at least equal a lower-ranking one.  Opener's suit
-/// never competes.  An exact [`shapes`] union, one box per own-length floor
-/// `k` (`suit` ≥ k, each rival capped at k or k−1 by rank; `k ≤ 7` suffices —
-/// two suits of eight don't fit in thirteen cards), so knob-on the reading
-/// pins the relative-length claim and knob-off it stays ⊤, leaving the
-/// companion `len` floor as the whole pre-DNF reading.
-fn longest_unbid(suit: Suit, theirs: Suit) -> Cons<impl Constraint + Clone> {
-    let boxes = (0..=7u8)
-        .filter_map(|k| {
-            let mut lengths = [Range::FULL_LENGTH; 4];
-            lengths[suit as usize] = Range::new(k, Range::FULL_LENGTH.max);
-            for rival in Suit::ASC {
-                if rival == suit || rival == theirs {
-                    continue;
-                }
-                let cap = if rival > suit { k.checked_sub(1)? } else { k };
-                lengths[rival as usize] = Range::new(0, cap);
-            }
-            Some(length_box(lengths))
-        })
-        .collect();
-    shapes(format!("{suit} the longest unbid suit"), boxes)
 }
 
 /// `suit` is the cheapest-to-bid 3-card suit of a hand with no 4-card suit

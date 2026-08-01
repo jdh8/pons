@@ -502,6 +502,32 @@ see the freak), or a face gate on the *natural* four-major rules when the
 ladder claims the call — the exact mirror of phase 5, and the only form that
 can see the collision coming.
 
+**One board of the class was not the ladder's fault at all.** Board 40
+(♠AKT862 ♥AKJ92 opposite a weak 2♦) responded **2♥**, suppressing the longer
+and higher major, which handed the walk-up a poisoned face: hearts guarded, so
+the ♦-ask landed on 4♠ and ate the natural spade game. Traced to the book, not
+the floor: [`weak_twos::responses`](../../src/bidding/american/weak_twos.rs)
+registered every new suit at weight **1.5** with identical constraints, so the
+winner was decided by `Table::next_call`'s tie-break — descending sort, first
+*legal* call, i.e. the **cheapest** bid. No length comparison existed in the
+node. Repaired 2026-08-01 with the advance side's `longest_unbid` partition
+(promoted to `constraint.rs`), shipped **default-on** as doctrine, so it is live
+in both arms of the coming re-measure; `set_weak_two_longest_first` ablates it.
+The collision needs two qualifying five-card suits opposite a weak two — ~3
+boards in 10⁴, hence the enriched probe rather than a random-deal A/B (see
+[measurement.md](../measurement.md#enriched-probing--when-the-trigger-is-too-rare-for-random-deals)),
+which prices the tie-break at **parity** (PD +0.019/accepted deal, CI
+[−0.061, +0.100]): free, as a doctrine repair should be.
+
+The probe's second accept mode found the same misbid **~10× more often** and
+not tied at all. Ogust 2NT sits at weight 2.0, above every new suit at 1.5, so
+the identical hand with *two* diamonds instead of one asks about diamond
+quality; board 40 escaped Ogust only on its singleton. Over 2♦ the major now
+outranks the ask (`set_weak_two_major_priority`, **default on**): **PD
++3.048/accepted deal, CI [+2.911, +3.184]; plain DD +1.668, CI [+1.563,
++1.773]**, ≈+0.0021 IMPs/board scaled by the 0.069% trigger density. Both
+repairs are live in both arms of the coming re-measure.
+
 #### 7.3.3 The gates reach the default system — and ship free (2026-08-01)
 
 §7.3.1's mechanism was never kickback-specific: the plain 1430 answers

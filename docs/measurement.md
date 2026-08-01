@@ -267,6 +267,60 @@ the stronger claim. On contested/filtered harnesses compare **IMPs/divergent**,
 not IMPs/board — `--filter` biases the per-board denominator, not the
 divergent set.
 
+## Enriched probing — when the trigger is too rare for random deals
+
+A random-deal A/B prices a change by burying it in a million boards it cannot
+touch. That is the right default when the trigger fires on a percent or more of
+boards. Below roughly **10 boards in 10⁴** it stops working: the divergent set is
+a few hundred boards, the CI swallows any real effect, and the run spends
+essentially all of its CPU bidding and solving deals that were never going to
+diverge.
+
+The route for those: **reject-sample to the trigger, then score conditionally.**
+Worked example, `examples/probe-weak-two-major` (responder's forcing new suit
+over a weak two — a 10⁻⁴ and a 6×10⁻⁴ window).
+
+**The accept test runs on the raw hands, before the bidder.** That is the whole
+saving, and it dictates the filter order, because the pipeline's costs are
+orders of magnitude apart:
+
+> dealing ≈ free  <  bidding  <  double dummy  ≪  single-dummy playout
+
+1. deal (microseconds) and test cheap hand predicates — shape, point count,
+   honors — on the two seats the change involves;
+2. bid **only** the survivors, both arms;
+3. confirm the auction actually reached the face (the hand predicate only
+   approximates the book — over half of the accepted deals may not open what you
+   expected);
+4. double-dummy **only** the boards whose contracts differ.
+
+**Conditioning costs the duplicate swap.** Accepting on a named seat means the
+table-A/table-B rotation no longer measures the same thing; the comparison
+becomes the same deal bid twice, our side feature vs baseline, opponents fixed
+on the baseline stance both times.
+
+**Reading the verdict.** The headline is IMPs per *accepted* deal, and the
+[decision table](#the-decision-table) applies to it unchanged — plain DD and PD
+both, same shapes, same traps. What does *not* transfer is comparability: a
+conditional +3 IMPs/deal is not a +3/board result. Publish the per-board
+equivalent alongside it,
+
+> per-board = conditional mean × trigger density,
+
+with the density measured by the probe itself (boards reaching the face ÷ draws)
+— scale the CI bounds the same way. Stack **that** number against the campaign
+ledger, never the conditional one.
+
+**Caveats.** The conditional population is exactly as good as the accept
+predicate: too narrow and the measurement answers a question nobody asked, too
+wide and the enrichment evaporates. State the predicate in the harness doc
+comment. And a conditional CI is tight enough to over-read — a significant
+conditional effect on a 10⁻⁴ trigger is still worth ~10⁻⁴ of it per board.
+
+Leave the single-dummy row out of the first pass. If the verdict lands on the
+plain-wash/PD-gain row, or anywhere ambiguous, re-run SD over a couple of
+thousand accepted deals — enrichment is what makes that affordable at all.
+
 ## Known biases
 
 These produced actual wrong conclusions; each has a memory/ledger trail.
@@ -400,6 +454,11 @@ now prints the SD pair** (plain and perfect-defense) from a single trick count �
 to another harness. `probe-sd-calibration` is the bracket's own calibration
 (per-level make-rates vs Pavlicek). The playout is sequential per board (no
 cross-board pooling), so reserve it for divergent sets.
+
+Enriched (rejection-sampled) probes score a *conditional* population — see
+[Enriched probing](#enriched-probing--when-the-trigger-is-too-rare-for-random-deals)
+for when to reach for one and how to read it. Worked example:
+`probe-weak-two-major`.
 
 New-harness rules (the Rayon pattern, commits `8f549ed`/`eadb654`):
 

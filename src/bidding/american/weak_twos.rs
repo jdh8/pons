@@ -24,11 +24,77 @@
 //! Ogust answer also omit pass (opener showed maximum values; game is
 //! obligatory).
 
+use std::cell::Cell;
+
 use super::{call, insert_uncontested};
-use crate::bidding::constraint::{hcp, len, points, suit_hcp, support, top_honors};
+use crate::bidding::constraint::{hcp, len, longest_unbid, points, suit_hcp, support, top_honors};
 use crate::bidding::{Rules, Trie};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Strain, Suit};
+
+thread_local! {
+    /// Whether a good five-card major outranks the Ogust ask over a weak 2♦.
+    /// Default `true` — off restores the pre-repair Ogust priority.
+    static WEAK_TWO_MAJOR_PRIORITY: Cell<bool> = const { Cell::new(true) };
+    /// Whether responder's forcing new suit must be their longest.  Default
+    /// `true` — off it is the pre-repair argmax race.
+    static WEAK_TWO_LONGEST_FIRST: Cell<bool> = const { Cell::new(true) };
+}
+
+/// Show the **longest** suit with responder's forcing new suit over a weak two
+/// (default `true`; off restores the pre-repair argmax race)
+///
+/// The new-suit rules all carry weight 1.5, so before the repair the winner was
+/// decided by `Table::next_call`'s tie-break — descending sort, first *legal*
+/// call — i.e. the **cheapest** bid.  ♠AKT862 ♥AKJ92 therefore responded 2♥ to
+/// a weak 2♦, suppressing the longer and higher suit.  On, each rule gains
+/// `longest_unbid`, making the choice a constraint: longest first, an
+/// equal-length tie to the higher rank.  Same doctrine as
+/// [`set_longest_first_advance`][super::set_longest_first_advance] on the
+/// advance side, and like it the condition is a `shapes` partition, so knob-on
+/// the *reading* also pins the relative length.
+///
+/// Default-on as a doctrine repair, not a measured win: the collision needs two
+/// qualifying five-card suits opposite a weak two, roughly one board in 10⁴, so
+/// a random-deal A/B cannot resolve it.  The knob exists to ablate it in the
+/// enriched probe (`examples/probe-weak-two-major --mode tie`).
+pub fn set_weak_two_longest_first(on: bool) {
+    WEAK_TWO_LONGEST_FIRST.with(|cell| cell.set(on));
+}
+
+fn weak_two_longest_first() -> bool {
+    WEAK_TWO_LONGEST_FIRST.with(Cell::get)
+}
+
+/// Bid a good five-card major over partner's weak 2♦ instead of asking Ogust
+/// (default `true`; off restores the pre-repair Ogust priority)
+///
+/// The old node ranked Ogust 2NT (weight 2.0) above every new suit (1.5), so
+/// a hand like ♠AKT862 ♥AKJ92 ♦xx asks about diamond quality rather than
+/// showing eleven cards in the majors — the major only escapes when responder
+/// is short enough in diamonds to fail Ogust's `support(2..)`.  Knob-on, the
+/// two major rules outrank Ogust **over 2♦ only**: there 2♥/2♠ is *cheaper*
+/// than 2NT and forcing, so the ask is deferred rather than lost.  Over 2♥/2♠
+/// a new suit costs 2♠ or the three level, so Ogust keeps priority.
+///
+/// Expressed as a weight, not as a gate on the Ogust rule: `top_honors` is part
+/// of the new-suit gate, so excluding "any five-card major" from Ogust would
+/// strand 14+ hands like ♠QJxxx ♦xx, which have no new-suit rule at all.  The
+/// cost is that 2NT's projected reading still promises only "14+, 2+♦" and does
+/// not deny a major.
+///
+/// Default-on on measurement: the enriched probe
+/// (`examples/probe-weak-two-major --mode ogust`, 20 000 accepted deals,
+/// 0.069% trigger density, 85% divergent) scored **+3.048 IMPs/accepted deal**
+/// under perfect defense, CI [+2.911, +3.184], and **+1.668** under plain DD,
+/// CI [+1.563, +1.773] — a gain under both scorings, so ≈+0.0021 IMPs/board.
+pub fn set_weak_two_major_priority(on: bool) {
+    WEAK_TWO_MAJOR_PRIORITY.with(|cell| cell.set(on));
+}
+
+fn weak_two_major_priority() -> bool {
+    WEAK_TWO_MAJOR_PRIORITY.with(Cell::get)
+}
 
 // ---------------------------------------------------------------------------
 // First response to 2M
@@ -43,9 +109,11 @@ use contract_bridge::{Bid, Strain, Suit};
 ///   five-rung ladder.
 /// - **Game raise** (weight 1.3): four-plus-card support, pre-emptive.  Uses
 ///   4♦ for M = ♦.
-/// - **Forcing new suit** (weight 1.5): five-card suit with two of the top
-///   three honors and opening values; one-round force.  Higher-ranking suits
-///   are bid at the two level; lower-ranking suits at the three level.
+/// - **Forcing new suit** (weight 1.5): the **longest** five-card-plus suit
+///   with two of the top three honors and opening values; one-round force.
+///   Higher-ranking suits are bid at the two level; lower-ranking suits at the
+///   three level.  Under [`set_weak_two_major_priority`] a major outranks Ogust
+///   over 2♦.
 /// - **Simple raise** (weight 1.2): three-plus-card support, preemptive.
 /// - **Pass** (weight 0.0): catch-all.
 #[must_use]
@@ -67,16 +135,35 @@ pub(super) fn responses(our: Suit) -> Rules {
 
     // Forcing new suits: each suit other than `our`, with a natural two-level
     // bid (if the suit ranks higher) or three-level bid (if lower).
+    //
+    // `longest_unbid` makes the choice among them a constraint rather than an
+    // argmax race: the rules all shared weight 1.5, so `Table::next_call` broke
+    // the tie by *cheapest* and 5-5 majors showed the lower one — ♠AKT862
+    // ♥AKJ92 responded 2♥ over 2♦.  Doctrine (shared with the advance side):
+    // longest first, an equal-length tie to the higher rank.
     for x in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
         if x == our {
             continue;
         }
         let level: u8 = if Strain::from(x) > trump { 2 } else { 3 };
-        rules = rules.rule(
-            Bid::new(level, Strain::from(x)),
-            1.5,
-            len(x, 5..) & top_honors(x, 2..) & points(14..),
-        );
+        // Over 2♦ only, and only for the majors, the knob lifts the new suit
+        // above the 2.0 Ogust ask.
+        let weight =
+            if weak_two_major_priority() && our == Suit::Diamonds && Strain::from(x) > trump {
+                2.1
+            } else {
+                1.5
+            };
+        let gate = len(x, 5..) & top_honors(x, 2..) & points(14..);
+        rules = if weak_two_longest_first() {
+            rules.rule(
+                Bid::new(level, Strain::from(x)),
+                weight,
+                gate & longest_unbid(x, our),
+            )
+        } else {
+            rules.rule(Bid::new(level, Strain::from(x)), weight, gate)
+        };
     }
     rules
 }
@@ -330,5 +417,104 @@ fn register_new_suit_replies(book: &mut Trie, our: Suit, open: Call) {
             &[open, new_suit_call],
             reply_to_new_suit(our, x, level),
         );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::bidding::Table;
+    use crate::bidding::american::american;
+    use contract_bridge::auction::Auction;
+    use contract_bridge::{AbsoluteVulnerability, Hand, Seat};
+
+    /// Responder's call over `open`–P, through the **production** tie-break
+    ///
+    /// `Table::next_call` sorts descending and takes the first legal call, so
+    /// equal-weight rules resolve to the *cheapest* bid — the opposite of the
+    /// `max_by` argmax the module tests elsewhere use.  The 2♥/2♠ collision is
+    /// only visible on this path.
+    fn responds(open: Call, hand: &str) -> Call {
+        let stance = american().against();
+        let table = Table::new(
+            stance.clone(),
+            stance,
+            Seat::North,
+            AbsoluteVulnerability::NONE,
+        );
+        let hand: Hand = hand.parse().expect("valid test hand");
+        let mut auction = Auction::new();
+        auction.push(open);
+        auction.push(Call::Pass);
+        table.next_call(hand, &auction)
+    }
+
+    /// Board [40] of the kickback phase-5 divergence audit: 6-5 in the majors
+    /// opposite a weak 2♦ shows **spades**, the longer and higher suit.  The
+    /// shipped node tied both majors at 1.5 and bid 2♥.
+    #[test]
+    fn five_five_majors_respond_in_the_longer_major() {
+        assert_eq!(
+            responds(call(2, Strain::Diamonds), "AKT862.AKJ92.4.3"),
+            call(2, Strain::Spades)
+        );
+        // Exactly 5-5: the tie goes to the higher rank.
+        assert_eq!(
+            responds(call(2, Strain::Diamonds), "AKT86.AKJ92.4.32"),
+            call(2, Strain::Spades)
+        );
+        // Longer hearts win over shorter spades.
+        assert_eq!(
+            responds(call(2, Strain::Diamonds), "AKT86.AKJ952.4.3"),
+            call(2, Strain::Hearts)
+        );
+    }
+
+    /// Ablating [`set_weak_two_longest_first`] restores the argmax race that
+    /// board [40] of the kickback audit was bid under — the probe's `tie` arm.
+    #[test]
+    fn longest_first_ablation_restores_the_cheaper_major() {
+        set_weak_two_longest_first(false);
+        let off = responds(call(2, Strain::Diamonds), "AKT862.AKJ92.4.3");
+        set_weak_two_longest_first(true);
+        assert_eq!(off, call(2, Strain::Hearts));
+    }
+
+    /// The tie-break is doctrine, not a diamond-specific patch: it holds over
+    /// 2♥ and 2♠ too, where the longer suit may be the *dearer* bid.
+    #[test]
+    fn longest_first_holds_over_the_major_weak_twos() {
+        // Over 2♠, six hearts beat five clubs even though 3♣ is cheaper.
+        assert_eq!(
+            responds(call(2, Strain::Spades), "3.AKJ942.4.AKQ82"),
+            call(3, Strain::Hearts)
+        );
+        // Six clubs beat five hearts.
+        assert_eq!(
+            responds(call(2, Strain::Spades), "3.AKJ92.4.AKQ842"),
+            call(3, Strain::Clubs)
+        );
+    }
+
+    /// [`set_weak_two_major_priority`] lifts a good five-card major above the
+    /// Ogust ask over 2♦ — and only there.  Knob-off restores Ogust priority.
+    #[test]
+    fn major_priority_outranks_ogust_over_two_diamonds() {
+        // 16 HCP, five good spades, two diamonds: the major by default.
+        let hand = "AKQ82.KQ2.43.J65";
+        assert_eq!(
+            responds(call(2, Strain::Diamonds), hand),
+            call(2, Strain::Spades)
+        );
+        // Over 2♠ the ask keeps priority: a new suit there costs the 3 level.
+        assert_eq!(
+            responds(call(2, Strain::Spades), "43.AKQ82.KQ2.J65"),
+            call(2, Strain::Notrump)
+        );
+
+        set_weak_two_major_priority(false);
+        let off = responds(call(2, Strain::Diamonds), hand);
+        set_weak_two_major_priority(true);
+        assert_eq!(off, call(2, Strain::Notrump));
     }
 }

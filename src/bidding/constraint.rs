@@ -2010,6 +2010,36 @@ pub(crate) fn at_least_as_long(a: Suit, b: Suit) -> Cons<impl Constraint + Clone
     shapes(format!("{a} at least as long as {b}"), staircase(a, b, 0))
 }
 
+/// `suit` is the longest suit outside `excluded`, an equal-length tie going to
+/// the higher rank
+///
+/// Crisp, and a partition: of the three suits outside `excluded` exactly one
+/// satisfies its instance — `suit` must strictly out-length a higher-ranking
+/// rival (which would win the tie) and at least equal a lower-ranking one.  The
+/// excluded suit — theirs when advancing a takeout double, partner's when
+/// responding to a weak two — never competes.  An exact [`shapes`] union, one
+/// box per own-length floor `k` (`suit` ≥ k, each rival capped at k or k−1 by
+/// rank; `k ≤ 7` suffices — two suits of eight don't fit in thirteen cards), so
+/// knob-on the reading pins the relative-length claim and knob-off it stays ⊤,
+/// leaving the companion `len` floor as the whole pre-DNF reading.
+pub(crate) fn longest_unbid(suit: Suit, excluded: Suit) -> Cons<impl Constraint + Clone> {
+    let boxes = (0..=7u8)
+        .filter_map(|k| {
+            let mut lengths = [Range::FULL_LENGTH; 4];
+            lengths[suit as usize] = Range::new(k, Range::FULL_LENGTH.max);
+            for rival in Suit::ASC {
+                if rival == suit || rival == excluded {
+                    continue;
+                }
+                let cap = if rival > suit { k.checked_sub(1)? } else { k };
+                lengths[rival as usize] = Range::new(0, cap);
+            }
+            Some(length_box(lengths))
+        })
+        .collect();
+    shapes(format!("{suit} the longest unbid suit"), boxes)
+}
+
 /// `a` and `b` of exactly equal length — the lattice diagonal, one thin box
 /// per feasible common length (at most six of each)
 ///

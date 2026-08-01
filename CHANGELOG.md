@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Responder shows their longest suit over a weak two.** The forcing new-suit
+  rules in `weak_twos::responses` all carried weight 1.5 with identical
+  constraints, so which suit got bid was decided by `Table::next_call`'s
+  tie-break — descending sort, first *legal* call, i.e. the **cheapest** bid.
+  ♠AKT862 ♥AKJ92 therefore answered a weak 2♦ with **2♥**, suppressing the
+  longer and higher major (board 40 of the kickback phase-5 divergence audit,
+  where the misbid also poisoned the ladder's face and cost the natural spade
+  game). Each rule now carries the advance side's `longest_unbid` partition —
+  longest first, an equal-length tie to the higher rank — promoted from
+  `american/defense.rs` to `constraint.rs` and shared by both call sites. It is a
+  `shapes` union, so the *reading* pins the relative length too: 2♥ over 2♦ now
+  denies longer spades. Applies to all three weak-two openings and, through
+  `weak_twos::responses`, to the contested variants. **Default on** as a doctrine
+  repair, not a measured win — the collision needs two qualifying five-card suits
+  opposite a weak two, ~3 boards in 10⁴, which no random-deal A/B can resolve.
+  The enriched probe (`probe-weak-two-major --mode tie`, 20 000 accepted deals
+  out of 36.4M draws, 0.029% trigger density, 25% divergent) measures it a
+  **parity**: +0.019 IMPs/accepted deal PD, CI [−0.061, +0.100]; +0.053 plain
+  DD, CI [−0.011, +0.117]. It ships on because it is right, and it is measurably
+  free. `set_weak_two_longest_first(false)` restores the argmax race.
+
 ### Changed
 
 - **The floor's keycard ask now reaches agreed minors** (`set_keycard_minors`,
@@ -29,6 +52,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   remains true, and no row distinguishes which trump suits the ask reaches.
 
 ### Added
+
+- **A good five-card major outranks the Ogust ask over a weak 2♦**
+  (`set_weak_two_major_priority`, **default on**). Ogust 2NT sat at weight 2.0
+  above every new suit at 1.5, so ♠AKT862 ♥AKJ92 ♦xx asked about diamond quality
+  instead of showing eleven cards in the majors — board 40 above escaped it only
+  by holding one diamond, which makes this the same defect ~10× more often. Over
+  2♦ *only*, the two major rules now outrank the ask: 2♥/2♠ is cheaper than 2NT
+  and forcing, so Ogust is deferred, not lost. Over 2♥/2♠ a new suit costs 2♠ or
+  the three level and the ask keeps priority. Expressed as a weight rather than a
+  gate on the Ogust rule, because `top_honors` is part of the new-suit gate and
+  excluding "any five-card major" from Ogust would strand 14+ hands like
+  ♠QJxxx ♦xx that have no new-suit rule at all. Measured by enriched probe
+  (`probe-weak-two-major --mode ogust`, 20 000 accepted deals out of 15.0M
+  draws, 0.069% trigger density, 85% divergent, seed 1785567999): **+3.048
+  IMPs/accepted deal under perfect defense**, CI [+2.911, +3.184], and **+1.668
+  plain DD**, CI [+1.563, +1.773] — a gain on both scorings, ≈+0.0021 IMPs/board
+  after scaling by trigger density. The BBA card is unchanged: `Ogust = 1` is a
+  boolean "we play it", still true. Known cost: 2NT's projected reading still
+  promises only "14+, 2+♦" and does not deny a major.
 
 - **The keycard answer rules are face-gated in every stance**
   (`set_keycard_answer_gates`, **default on**): §7.3.1's union poison was

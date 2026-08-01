@@ -147,6 +147,8 @@ pub use openings::{
     set_one_notrump_offshape, set_open_one_notrump, set_two_notrump_wide, set_weak_two_eval,
     set_weak_two_hcp, set_weak_two_wild,
 };
+pub use weak_twos::{set_weak_two_longest_first, set_weak_two_major_priority};
+
 pub(crate) use raises::major_game_tries;
 pub use raises::{set_limit_raise_acceptance, set_major_game_tries};
 pub(crate) use rebids::{fourth_suit_forcing, opener_extras_ladder, opener_major_jump_rebid};
