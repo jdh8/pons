@@ -30,6 +30,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The keycard answer rules are face-gated in every stance**
+  (`set_keycard_answer_gates`, **default on**): §7.3.1's union poison was
+  never kickback-specific — the plain 1430 answers (5♣–5♠) and the
+  ROPI/DOPI/DEPO rules on X/XX/Pass are alerted and present in every stance,
+  so the shipped default alerted every floor-classified five-level bid,
+  double and redouble on faces with no keycard ask anywhere and erased their
+  natural readings (on `1♦ P 1♠ P 2♦ P 5♦` partner's diamond floor read as
+  zero). The gates confine each rule to its recognizer's face window; the
+  gates are implied by the rules' own constraints, so what the floor bids is
+  untouched by construction. Measured (`ab-kickback --feature gated
+  --baseline minors`, 1M boards a cell, seed 1785560369, both
+  vulnerabilities, `--sd`): **zero divergent boards in either cell** — the
+  sounder reading and truthful alerting never flip a call in self-play, so
+  they ship free. Off recovers the pre-gate reading for A/B archaeology
+  (docs/ai-bidder/bba-kickback.md §7.3.3).
+
 - **Face-conditional rule liveness** (`Rules::face`, kickback phase 5): a rule
   may carry a face gate — a predicate over the auction alone — and where the
   gate fails the rule is as-if-absent for **both** halves: `Rule::eval`

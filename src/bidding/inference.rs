@@ -6399,6 +6399,58 @@ mod tests {
         assert!(spades < 4, "the relocated ask is not a natural spade suit");
     }
 
+    /// The default-system twin of the kickback poison: the plain 1430 answers
+    /// (5♣–5♠) and DOPI/ROPI/DEPO on X/XX are present in every stance and
+    /// always alerted, so a **natural** floor 5♦ — no ask anywhere on the
+    /// face — reads as a keycard answer: the union with the answer rules' ⊤
+    /// projection erases partner's diamond floor and the `alerted` bit
+    /// suppresses the natural walk.  `set_keycard_answer_gates` confines the
+    /// rules to a live ask window and the natural reading returns.
+    #[test]
+    fn answer_gates_restore_natural_five_diamonds() {
+        use crate::bidding::instinct::set_keycard_answer_gates;
+        let auction = [
+            bid(1, Strain::Diamonds),
+            Call::Pass,
+            bid(1, Strain::Spades),
+            Call::Pass,
+            bid(2, Strain::Diamonds),
+            Call::Pass,
+            bid(5, Strain::Diamonds),
+            Call::Pass,
+        ];
+        set_keycard_answer_gates(false);
+        let poisoned = read_booked(&auction).partner().length(Suit::Diamonds).min;
+        set_keycard_answer_gates(true); // restore the default (on since 2026-08-01)
+        let gated = read_booked(&auction).partner().length(Suit::Diamonds).min;
+        assert!(
+            gated > poisoned,
+            "the gate must restore the natural diamond floor ({gated} vs {poisoned})"
+        );
+    }
+
+    /// The gates' positive control: inside a live ask window the answer is
+    /// still alerted — a 5♦ answering 4NT is a keycard count, not diamonds.
+    #[test]
+    fn answer_gates_keep_the_live_window_alerted() {
+        let auction = [
+            bid(1, Strain::Hearts),
+            Call::Pass,
+            bid(3, Strain::Hearts),
+            Call::Pass,
+            bid(4, Strain::Notrump),
+            Call::Pass,
+            bid(5, Strain::Diamonds),
+            Call::Pass,
+        ];
+        // The gates are the default: the in-window answer must stay alerted.
+        let diamonds = read_booked(&auction).partner().length(Suit::Diamonds).min;
+        assert!(
+            diamonds < 4,
+            "the in-window answer is not a natural diamond suit"
+        );
+    }
+
     #[test]
     fn contested_transfer_lebensohl_direct_jacoby_over_2d() {
         // Over (2♦) the transfers are direct Jacoby: 3♦→♥.  [1NT, (2♦), 3♦, (X)].

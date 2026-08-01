@@ -600,6 +600,11 @@ std::thread_local! {
     /// Whether the keycard ask relocates onto the kickback ladder (**off by
     /// default**).  See [`set_kickback`].
     static KICKBACK: Cell<bool> = const { Cell::new(false) };
+
+    /// Whether the always-present 1430/ROPI/DOPI/DEPO answer rules are
+    /// face-gated to a live ask window (**on by default** since 2026-08-01).
+    /// See [`set_keycard_answer_gates`].
+    static KEYCARD_ANSWER_GATES: Cell<bool> = const { Cell::new(true) };
 }
 
 /// Enable or disable the floor's two-over-one game force (**on by default**)
@@ -749,6 +754,38 @@ pub fn set_kickback(enabled: bool) {
 /// Kickback is enabled (see [`set_kickback`])
 fn kickback_now() -> bool {
     KICKBACK.with(Cell::get)
+}
+
+/// Face-gate the always-present keycard answer rules (**on by default**
+/// since 2026-08-01)
+///
+/// The plain-4NT 1430 answers (5♣–5♠) and the ROPI/DOPI/DEPO rules on
+/// X/XX/Pass carry `.alert(RKCB_FLOOR)` and are present in **every** stance,
+/// so with the gates off the reading's `alerted` bit suppresses the natural
+/// reading of every floor-classified five-level bid, double and redouble
+/// even when no keycard ask is anywhere in sight — the same union-poison
+/// mechanism `docs/ai-bidder/bba-kickback.md` §7.3.1 documents for
+/// kickback's 4-level, on the default system's own calls.
+///
+/// On, each such rule is confined to its recognizer's face window
+/// ([`keycard_asked_face`] for the 1430 rungs and ROPI,
+/// [`keycard_asked_over_bid_face`] for DOPI/DEPO).  The gates are implied by
+/// the rules' own constraints, so what the floor *bids* is byte-identical
+/// either way; only the reading moves, which feeds back into bidding through
+/// partner's boxes.  Measured (`ab-kickback --feature gated --baseline
+/// minors`, 1M boards a cell, seed 1785560369): **zero divergent boards at
+/// either vulnerability** — the sounder reading and truthful alerting are
+/// free, so they ship.  Off recovers the pre-2026-08 reading for A/B
+/// archaeology.  Read inside the rules' face gates at classification time,
+/// per-thread.
+#[doc(hidden)]
+pub fn set_keycard_answer_gates(enabled: bool) {
+    KEYCARD_ANSWER_GATES.with(|flag| flag.set(enabled));
+}
+
+/// The answer-rule face gates are enabled (see [`set_keycard_answer_gates`])
+fn keycard_answer_gates_now() -> bool {
+    KEYCARD_ANSWER_GATES.with(Cell::get)
 }
 
 /// Set the HCP floor at which responder redoubles a doubled 1NT to play
@@ -2140,6 +2177,26 @@ fn keycard_asked_over_bid(hand: Hand, context: &Context<'_>) -> Option<(Suit, Bi
     let their = keycard_asked_over_bid_face(context)?;
     let trump = answer_trump(hand, context, context.auction().len() - 2)?;
     Some((trump, their))
+}
+
+/// The knob-conditioned face gate for the always-present 1430 answer rules
+/// (see [`set_keycard_answer_gates`]): knob off reproduces the pre-2026-08
+/// always-live rules, knob on confines the rule to its recognizer's face
+/// window
+fn answer_window_face(context: &Context<'_>) -> bool {
+    !keycard_answer_gates_now() || keycard_asked_face(context).is_some()
+}
+
+/// [`answer_window_face`] for the ROPI rungs — their double of the ask
+fn ropi_window_face(context: &Context<'_>) -> bool {
+    !keycard_answer_gates_now()
+        || (context.auction().last() == Some(&Call::Double)
+            && keycard_asked_face(context).is_some())
+}
+
+/// [`answer_window_face`] for the DOPI/DEPO rungs — their bid over the ask
+fn dopi_window_face(context: &Context<'_>) -> bool {
+    !keycard_answer_gates_now() || keycard_asked_over_bid_face(context).is_some()
 }
 
 /// The face half of [`keycard_asked_over_bid`] — see [`keycard_asked_face`]
@@ -4419,14 +4476,20 @@ pub fn instinct() -> Rules {
                 .face(|context: &Context<'_>| keycard_asked_over_bid_face(context).is_some());
         }
     } else {
+        // The plain arm's gates ride [`set_keycard_answer_gates`] (on by
+        // default): the same §7.3.1 cure reaches the default system's
+        // five-level answers; knob off recovers the old always-live reading.
         for &landing in &PLAIN_ANSWERS {
             rules = rules
                 .rule(landing, 1.9, keycard_answer(landing))
                 .alert(RKCB_FLOOR)
+                .face(answer_window_face)
                 .rule(landing, 1.92, ropi_step(landing))
                 .alert(RKCB_FLOOR)
+                .face(ropi_window_face)
                 .rule(landing, 1.9, dopi_step(landing))
-                .alert(RKCB_FLOOR);
+                .alert(RKCB_FLOOR)
+                .face(dopi_window_face);
         }
     }
     rules = rules
@@ -4435,22 +4498,28 @@ pub fn instinct() -> Rules {
         // doubled ask answers in scheme: redouble 0, pass 1, step 1 is 2.
         .rule(Call::Redouble, 1.92, ropi_answer(&[0, 3]))
         .alert(RKCB_FLOOR)
+        .face(ropi_window_face)
         .rule(Call::Pass, 1.92, ropi_answer(&[1, 4]))
         .alert(RKCB_FLOOR)
+        .face(ropi_window_face)
         // DOPI over their bid below five of trump — classic D0P1: double 0,
         // pass 1, the cheapest step 2.  The machinery used to stand down on
         // their bid over the ask (the card declared DOPI with nothing
         // behind it); these rungs are that window's authored floor.
         .rule(Call::Double, 1.9, dopi_answer(&[0, 3]))
         .alert(RKCB_FLOOR)
+        .face(dopi_window_face)
         .rule(Call::Pass, 1.9, dopi_answer(&[1, 4]))
         .alert(RKCB_FLOOR)
+        .face(dopi_window_face)
         // DEPO at or above five of trump: no room for steps — double even,
         // pass odd.
         .rule(Call::Double, 1.9, depo_answer(true))
         .alert(RKCB_FLOOR)
+        .face(dopi_window_face)
         .rule(Call::Pass, 1.9, depo_answer(false))
         .alert(RKCB_FLOOR)
+        .face(dopi_window_face)
         // After our answer the asker holds the count: respect the placement.
         .rule(Call::Pass, 1.88, respect_keycard_signoff());
     // The relocated ask (`set_kickback`): the cheapest unguarded suit above

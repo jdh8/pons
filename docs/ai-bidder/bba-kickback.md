@@ -483,10 +483,44 @@ The build artifact is gone, by every sign at once:
 
 Verdict from the decision table: a wash on plain DD **and** PD — not
 shippable default-on, not refuted either. `set_kickback` stays an opt-in
-knob; the named lever if it is ever revisited is the four-major landing-spot
-class, which is a *ladder* question (when a four-major game is still live,
-should the ladder decline to claim the call?), not a reading one. No vul-both
-run: the flip gate ("both scorings clear zero") was not met.
+knob. No vul-both run: the flip gate ("both scorings clear zero") was not
+met.
+
+**The landing-spot class, audited with hands** (the run replayed with a deal
+printer — the divergence is deterministic in the seed): every board in the
+class is a **bidder-side agreement collision**, not partner confusion. The
+natural-walk 4♥/4♠ rules do not know the ladder has claimed the call, so a
+major-freak hand bids it naturally — board 96: `1♦ P 1♠ P 2♦ P` and North,
+holding ♠AKQ8754 ♥AT9642 ♦— ♣—, bids 4♥ *meaning hearts* — and both seats'
+readings then follow the agreement: partner answers keycards (5♣), and the
+bidder's own decode machinery, which also consults the ladder, believes an
+ask happened and signs off in "the trump": **5♦ on a diamond void**, while
+the baseline table passes 4♥ out and makes it. The auction is internally
+consistent and wrong. The revisit lever therefore has two symmetric forms:
+the ladder yielding when a four-major game is still live (face-only, cannot
+see the freak), or a face gate on the *natural* four-major rules when the
+ladder claims the call — the exact mirror of phase 5, and the only form that
+can see the collision coming.
+
+#### 7.3.3 The gates reach the default system — and ship free (2026-08-01)
+
+§7.3.1's mechanism was never kickback-specific: the plain 1430 answers
+(5♣–5♠) and the ROPI/DOPI/DEPO rules on X/XX/Pass carry `.alert(RKCB_FLOOR)`
+and are present in **every** stance, so the shipped default alerted every
+floor-classified five-level bid, double and redouble on faces with no ask
+anywhere, erasing their natural readings (regression: on
+`1♦ P 1♠ P 2♦ P 5♦` partner's diamond floor read as erased, restored by the
+gates). `set_keycard_answer_gates` confines those rules to their
+recognizers' face windows — the same construction as phase 5, knob-guarded.
+
+Measured `gated` vs `minors` (the then-default), 1M boards a cell, seed
+1785560369, both vulnerabilities, `--sd`: **zero divergent boards in either
+cell.** The reading is provably tighter and the alerting truthful, and in
+self-play it never flips a single call — a perfect NULL, cheaper than SAT's
+(which diverged and washed; this does not even diverge). Shipped **on by
+default**: the soundness is free. The knob remains for A/B archaeology (off
+recovers the pre-2026-08 reading); the plain/minors/kickback arms of
+`ab-kickback` disarm it to preserve their originally-measured readings.
 
 ### 7.4 What the build actually cost
 

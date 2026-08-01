@@ -39,7 +39,7 @@ use ddss::{NonEmptyStrainFlags, Solver};
 use pons::Accumulator;
 use pons::american;
 use pons::bidding::Stance;
-use pons::bidding::instinct::{set_keycard_minors, set_kickback};
+use pons::bidding::instinct::{set_keycard_answer_gates, set_keycard_minors, set_kickback};
 use pons::scoring::{final_contract, imps, ns_score_contract, ns_score_pd};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -59,12 +59,18 @@ enum Arm {
     Minors,
     /// Full Kickback: minor asks relocated to 4♦/4♥ (Redwood), hearts to 4♠
     Kickback,
+    /// The shipped default since 2026-08-01: minors plus
+    /// `set_keycard_answer_gates` (the always-present 1430/ROPI/DOPI/DEPO
+    /// answer rules confined to a live ask window).  The plain/minors/
+    /// kickback arms disarm the gates, preserving the readings they were
+    /// originally measured under.
+    Gated,
 }
 
 impl Arm {
     /// Whether this arm lifts `keycard_trump`'s majors-only carve
     const fn minors(self) -> bool {
-        matches!(self, Self::Minors | Self::Kickback)
+        matches!(self, Self::Minors | Self::Kickback | Self::Gated)
     }
 
     /// Whether this arm relocates the ask onto the kickback ladder
@@ -72,11 +78,17 @@ impl Arm {
         matches!(self, Self::Kickback)
     }
 
+    /// Whether this arm face-gates the always-present answer rules
+    const fn gates(self) -> bool {
+        matches!(self, Self::Gated)
+    }
+
     const fn label(self) -> &'static str {
         match self {
             Self::Plain => "plain",
             Self::Minors => "minors",
             Self::Kickback => "kickback",
+            Self::Gated => "gated",
         }
     }
 }
@@ -121,10 +133,11 @@ struct Args {
     sd_seed: u64,
 }
 
-/// Arm the classify-time half of both knobs for `arm`
+/// Arm the classify-time half of the knobs for `arm`
 fn arm_knobs(arm: Arm) {
     set_keycard_minors(arm.minors());
     set_kickback(arm.kickback());
+    set_keycard_answer_gates(arm.gates());
 }
 
 /// Build one stance per arm.  `set_kickback` is read at `instinct()` build time
@@ -227,6 +240,11 @@ fn main() {
                 imps(points_pd),
                 imps(points_dd),
             );
+            let calls_b: Vec<Call> = board.table_b.iter().copied().collect();
+            println!("    B {calls_b:?}");
+            for seat in Seat::ALL {
+                println!("    {seat:?}: {}", board.deal[seat]);
+            }
         }
     }
 
