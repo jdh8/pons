@@ -61,6 +61,12 @@ struct Args {
     /// question (most 4-keycard sides have no business near a slam).
     #[arg(long, default_value = "30")]
     min_hcp: u8,
+
+    /// Combined-HCP floor for the *grand* table.  Seven is a different band
+    /// from six, and counting grands over the small-slam population answers a
+    /// question nobody asks at the table.
+    #[arg(long, default_value = "33")]
+    grand_hcp: u8,
 }
 
 /// High-card points of a hand, the standard 4/3/2/1
@@ -172,6 +178,14 @@ fn main() {
     // [length bucket][has queen][keycard bucket]
     let mut cells = [[[Cell::default(); 2]; 2]; 4];
 
+    // The grand table: five keycards only, split by whether the trump suit is
+    // *settled* (queen held, or a proven 10-card fit) and by how many side
+    // kings the partnership holds.  This is the one number the relay's grand
+    // gate rides on — `kings_outside(trump, N..)` — and N is what it answers.
+    // Only `seen` and `made` are used; the swap columns price a trump-queen
+    // guess, which a settled suit no longer has.
+    let mut grands = [[Cell::default(); 4]; 2];
+
     // Queen-missing sides that qualify get a second, queen-swapped solve; the
     // work list is collected on the first pass and solved in one batch.
     struct Swap {
@@ -220,6 +234,20 @@ fn main() {
                     let cell = &mut cells[len][queen][kc];
                     cell.seen += 1;
                     cell.made += u64::from(tricks >= 12);
+
+                    if keycards == 5 && hcp(a) + hcp(b) >= args.grand_hcp {
+                        let kings = Suit::ASC
+                            .into_iter()
+                            .filter(|&s| {
+                                s != trump && (a[s].contains(Rank::K) || b[s].contains(Rank::K))
+                            })
+                            .count();
+                        // "Settled" is the relay's own test: a real queen, or
+                        // ten trumps that make one unnecessary.
+                        let grand = &mut grands[usize::from(queen == 1 || len >= 2)][kings];
+                        grand.seen += 1;
+                        grand.made += u64::from(tricks >= 13);
+                    }
 
                     // Queen-missing: rebuild the deal with the trump queen in
                     // the *other* defender's hand, traded for their lowest
@@ -304,5 +332,26 @@ fn main() {
             );
         }
         println!();
+    }
+
+    println!(
+        "=== Seven of trumps, five keycards, {}+ combined HCP ===",
+        args.grand_hcp
+    );
+    println!("(Grand breaks even near 56-58% at IMPs; DD is an upper bound here too.)\n");
+    println!(
+        "{:>10}  {:>26}  {:>26}",
+        "side kings", "trump settled (Q or 10)", "trump unsettled"
+    );
+    for (kings, (&settled, &unsettled)) in grands[1].iter().zip(&grands[0]).enumerate() {
+        println!(
+            "{kings:>10}  {:>7.1}% ± {:>4.1} ({:>6})  {:>7.1}% ± {:>4.1} ({:>6})",
+            100.0 * settled.rate(),
+            100.0 * settled.ci(),
+            settled.seen,
+            100.0 * unsettled.rate(),
+            100.0 * unsettled.ci(),
+            unsettled.seen,
+        );
     }
 }

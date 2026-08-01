@@ -181,11 +181,15 @@ fn keycards(
 /// ten-card fit that stands in for it
 ///
 /// A fit long enough to draw trumps without the honour makes the honour not
-/// worth a round of bidding.  The threshold is [`set_queen_fit`] (default 9, a
-/// measured departure from BBA's 10); counted as our own length plus the sound
-/// floor of partner's shown length, so neither seat can claim a fit the auction
-/// has not shown.  The arm rides [`set_queen_ask`], so the knob-off answers keep
-/// their literal holding test and stay byte-identical.
+/// worth a round of bidding.  The threshold is [`set_queen_fit`] (default 10,
+/// BBA's bar, because this rung has to serve the grand); counted as our own
+/// length plus the sound floor of partner's shown length, so neither seat can
+/// claim a fit the auction has not shown.  A ninth trump is not a queen — it
+/// answers on the buff jump instead ([`set_queen_buff_fit`]).  The arm rides
+/// [`set_queen_ask`], so the knob-off answers keep their literal holding test
+/// and stay byte-identical.
+///
+/// [`set_queen_buff_fit`]: crate::bidding::instinct::set_queen_buff_fit
 ///
 /// [`set_queen_fit`]: crate::bidding::instinct::set_queen_fit
 ///
@@ -209,6 +213,60 @@ fn has_trump_queen(
                         + usize::from(Inferences::read(context).partner().length(trump).min)
                         >= threshold
                 })
+        },
+    )
+}
+
+/// The queen cannot change what the asker bids: we hold it, or the fit alone
+/// carries the small slam
+///
+/// The asker's test, and deliberately a rung below the answerer's
+/// [`has_trump_queen`]: a nine-card fit is not a queen, but hearing "no queen"
+/// over one changes nothing — six is bid anyway — so the round is not worth
+/// spending.  Threshold [`set_queen_buff_fit`].
+///
+/// [`set_queen_buff_fit`]: crate::bidding::instinct::set_queen_buff_fit
+fn queen_moot(
+    trump: Suit,
+) -> crate::bidding::constraint::Cons<impl crate::bidding::constraint::Constraint + Clone> {
+    use crate::bidding::inference::Inferences;
+    let threshold =
+        queen_ask_now().then(|| usize::from(crate::bidding::instinct::queen_buff_fit()));
+    described(
+        format!("the {trump} queen cannot change the call"),
+        move |hand: Hand, context: &crate::bidding::context::Context<'_>| {
+            hand[trump].contains(Rank::Q)
+                || threshold.is_some_and(|threshold| {
+                    hand[trump].len()
+                        + usize::from(Inferences::read(context).partner().length(trump).min)
+                        >= threshold
+                })
+        },
+    )
+}
+
+/// A ninth trump or a side-suit void — the values RKCB has no rung for
+///
+/// Paired with `!has_trump_queen` at the buff jump: partner asked for the queen
+/// holding four keycards and will pass five over a denial, never learning that
+/// the fit is a card longer than promised or that a suit is stopped by a void.
+/// The threshold is [`set_queen_buff_fit`], sampled at book construction like
+/// every other book knob.
+///
+/// [`set_queen_buff_fit`]: crate::bidding::instinct::set_queen_buff_fit
+fn trump_buff(
+    trump: Suit,
+) -> crate::bidding::constraint::Cons<impl crate::bidding::constraint::Constraint + Clone> {
+    use crate::bidding::inference::Inferences;
+    let threshold = usize::from(crate::bidding::instinct::queen_buff_fit());
+    described(
+        format!("a ninth {trump} or a void"),
+        move |hand: Hand, context: &crate::bidding::context::Context<'_>| {
+            hand[trump].len() + usize::from(Inferences::read(context).partner().length(trump).min)
+                >= threshold
+                || Suit::ASC
+                    .into_iter()
+                    .any(|suit| suit != trump && hand[suit].is_empty())
         },
     )
 }
@@ -342,7 +400,7 @@ fn relay_first(
     }
     match queen_ask_room(answer, trump) {
         Some(relay) => rules
-            .rule(relay, 1.6, interested & !has_trump_queen(trump))
+            .rule(relay, 1.6, interested & !queen_moot(trump))
             .alert(RKCB),
         None => rules,
     }
@@ -352,6 +410,14 @@ fn relay_first(
 /// denies it and is the table's finite catch-all
 fn queen_replies(trump: Suit, ladder: [Bid; 7]) -> Rules {
     Rules::new()
+        // Six of trumps is a contract, not a code, so it carries no alert: the
+        // jump outranks the denial because a buff hand satisfies both, and this
+        // is the more specific description of it.
+        .rule(
+            Bid::new(6, Strain::from(trump)),
+            1.5,
+            !has_trump_queen(trump) & trump_buff(trump),
+        )
         .rule(ladder[2], 1.0, has_trump_queen(trump))
         .alert(RKCB)
         .rule(ladder[1], 0.5, hcp(0..))
@@ -1227,11 +1293,34 @@ mod tests {
             Call::Bid(Bid::new(5, Strain::Spades)),
             "trump queen → the show rung"
         );
-        // A fifth trump makes it nine, and nine answers the question by itself.
+        // A fifth trump opposite the opener's shown five is ten, and ten runs
+        // the suit without the honour — the one length that may claim it.
         assert_eq!(
             best(&trie, &auction, "K7432.A65.843.92"),
             Call::Bid(Bid::new(5, Strain::Spades)),
-            "the ninth trump stands in for the queen"
+            "the tenth trump stands in for the queen"
+        );
+        // Nine is the in-between: not a queen, but far too good to let partner
+        // pass five over a denial.  Jump to six and say so.
+        assert_eq!(
+            best(&trie, &auction, "K743.A653.843.92"),
+            Call::Bid(Bid::new(6, Strain::Spades)),
+            "the ninth trump is a buff, not a queen: bid six"
+        );
+        // The same nine-card fit holding the honour still shows it — the buff
+        // jump is for hands that have nothing to show, not a substitute for
+        // the rung above.
+        assert_eq!(
+            best(&trie, &auction, "KQ43.A653.843.92"),
+            Call::Bid(Bid::new(5, Strain::Spades)),
+            "queen in hand: the show rung, not the jump"
+        );
+        // A void rides the same jump: worth a trick the ladder cannot show,
+        // and partner is about to pass five without ever hearing about it.
+        assert_eq!(
+            best(&trie, &auction, "K74.A6532.8432."),
+            Call::Bid(Bid::new(6, Strain::Spades)),
+            "an eight-card fit with a void: still worth six"
         );
 
         // The asker places it.  Three keycards is four combined: a denied
