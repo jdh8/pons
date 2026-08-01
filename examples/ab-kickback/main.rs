@@ -1,16 +1,33 @@
-//! Measure the relocated keycard ask — Kickback/Redwood — as a duplicate A/B match.
+//! Measure the keycard ladder's two capability adds — the relocated ask
+//! (Kickback/Redwood) and the queen relay — as duplicate A/B matches.
 //!
-//! Three arms, two knobs, so the coupled change stays attributable:
+//! Five arms, four knobs, so each coupled change stays attributable:
 //!
-//! | arm | `set_keycard_minors` | `set_kickback` | what it is |
-//! |---|---|---|---|
-//! | `plain` | off | off | today: majors-only trump, the ask is 4NT |
-//! | `minors` | on | off | minor asks at plain 4NT — round 4's losing arm, re-priced |
-//! | `kickback` | on | on | full Kickback: 4♦/4♥ Redwood, 4♠ over hearts |
+//! | arm | `set_keycard_minors` | `set_kickback` | `set_keycard_answer_gates` | `set_queen_ask` | what it is |
+//! |---|---|---|---|---|---|
+//! | `plain` | off | off | off | off | today: majors-only trump, the ask is 4NT |
+//! | `minors` | on | off | off | off | minor asks at plain 4NT — round 4's losing arm, re-priced |
+//! | `kickback` | on | on | off | off | full Kickback: 4♦/4♥ Redwood, 4♠ over hearts |
+//! | `gated` | on | off | on | off | the shipped default |
+//! | `queen` | on | off | on | **on** | the shipped default plus the queen relay |
+//! | `kickback-queen` | on | on | off | **on** | Kickback plus the queen relay |
 //!
-//! `kickback − plain` is the ship decision and runs first; `kickback − minors`
-//! prices the relocation on its own; `minors − plain` re-prices the majors-only
-//! carve, and is only worth machine time if the first pair is not a clean win.
+//! The relay's two cells are `queen − gated` (the ship decision for the default
+//! system) and `kickback-queen − kickback` (the relay where the relocated ask
+//! has already bought it room).  Each pair moves exactly one knob.
+//!
+//! Why the relay should pay, and where: the 1430 answers disclose the trump
+//! queen only on the two-keycard rungs, so after a one-or-four or none-or-three
+//! answer the asker has been betting six on four keycards blind.  §7.3.4's
+//! residual loss class — the relocated arm settling at five where the baseline's
+//! forced six makes — is the pre-registered target.  Expect a **grand-heavy**
+//! divergent set, so apply `docs/measurement.md`'s slam-boundary shave before
+//! calling a thin win.
+//!
+//! For the relocation: `kickback − plain` is its ship decision and runs first;
+//! `kickback − minors` prices the relocation on its own; `minors − plain`
+//! re-prices the majors-only carve, and is only worth machine time if the first
+//! pair is not a clean win.
 //!
 //! Why the relocation should pay: count the 1430 answers that overshoot five of
 //! trump under a plain 4NT ask — three of four in clubs (5♦/5♥/5♠), two of four
@@ -19,17 +36,20 @@
 //! ask*.  The interesting boards are therefore the ones where the answer used to
 //! land past the trump suit's own five level and the asker had nowhere to stop.
 //!
-//! **Both knob regimes must be armed.** `set_kickback` gates rule *presence* at
-//! `instinct()` build time — the reading's `alerted` test is structural, so an
-//! always-present alerted rule on 4♥/4♠ would suppress the natural reading of
-//! every floor-classified 4♥/4♠ even in the off arm — *and* the recognizer at
-//! classification time.  So: one stance built per arm, and the flags re-set per
-//! call by side inside the bidding loop (thread-locals do not cross into rayon
-//! workers on their own).
+//! **Both knob regimes must be armed.** `set_kickback` and `set_queen_ask` gate
+//! rule *presence* at build time — the reading's `alerted` test is structural,
+//! so an always-present alerted rule on 4♥/4♠ (or, for the relay, on 5♦/5♥/5NT)
+//! would suppress the natural reading of those calls even in the off arm — *and*
+//! the recognizers at classification time.  `set_queen_ask` is read at build
+//! time twice over, by `instinct()` and by the book's `install_rkcb`.  So: one
+//! stance built per arm, and the flags re-set per call by side inside the
+//! bidding loop (thread-locals do not cross into rayon workers on their own).
 //!
 //! ```text
 //! cargo run --release --example ab-kickback -- \
 //!     --feature kickback --baseline plain --count 10000000 --sd
+//! cargo run --release --example ab-kickback -- \
+//!     --feature queen --baseline gated --count 10000000 --sd
 //! ```
 
 use clap::{Parser, ValueEnum};
@@ -39,7 +59,9 @@ use ddss::{NonEmptyStrainFlags, Solver};
 use pons::Accumulator;
 use pons::american;
 use pons::bidding::Stance;
-use pons::bidding::instinct::{set_keycard_answer_gates, set_keycard_minors, set_kickback};
+use pons::bidding::instinct::{
+    set_keycard_answer_gates, set_keycard_minors, set_kickback, set_queen_ask,
+};
 use pons::scoring::{final_contract, imps, ns_score_contract, ns_score_pd};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -67,22 +89,39 @@ enum Arm {
     /// disarm the gates, preserving the readings they were originally
     /// measured under.
     Gated,
+    /// The shipped default plus the queen relay — the ship decision for the
+    /// default system, measured against `gated`
+    Queen,
+    /// Kickback plus the queen relay, measured against `kickback` — the
+    /// relocated ask is what buys the relay its room
+    KickbackQueen,
 }
 
 impl Arm {
     /// Whether this arm lifts `keycard_trump`'s majors-only carve
     const fn minors(self) -> bool {
-        matches!(self, Self::Minors | Self::Kickback | Self::Gated)
+        matches!(
+            self,
+            Self::Minors | Self::Kickback | Self::Gated | Self::Queen | Self::KickbackQueen
+        )
     }
 
     /// Whether this arm relocates the ask onto the kickback ladder
     const fn kickback(self) -> bool {
-        matches!(self, Self::Kickback)
+        matches!(self, Self::Kickback | Self::KickbackQueen)
     }
 
     /// Whether this arm face-gates the always-present answer rules
     const fn gates(self) -> bool {
-        matches!(self, Self::Gated | Self::Kickback)
+        matches!(
+            self,
+            Self::Gated | Self::Kickback | Self::Queen | Self::KickbackQueen
+        )
+    }
+
+    /// Whether this arm carries the queen relay (and the king ask above it)
+    const fn queen(self) -> bool {
+        matches!(self, Self::Queen | Self::KickbackQueen)
     }
 
     const fn label(self) -> &'static str {
@@ -91,6 +130,8 @@ impl Arm {
             Self::Minors => "minors",
             Self::Kickback => "kickback",
             Self::Gated => "gated",
+            Self::Queen => "queen",
+            Self::KickbackQueen => "kickback-queen",
         }
     }
 }
@@ -140,10 +181,12 @@ fn arm_knobs(arm: Arm) {
     set_keycard_minors(arm.minors());
     set_kickback(arm.kickback());
     set_keycard_answer_gates(arm.gates());
+    set_queen_ask(arm.queen());
 }
 
-/// Build one stance per arm.  `set_kickback` is read at `instinct()` build time
-/// for rule presence, so the arms cannot share a book.
+/// Build one stance per arm.  `set_kickback` and `set_queen_ask` are read at
+/// build time for rule presence — the latter by the book's `install_rkcb` too —
+/// so the arms cannot share a book.
 fn build(arm: Arm) -> Stance {
     arm_knobs(arm);
     let stance = american().against();
