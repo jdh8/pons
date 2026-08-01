@@ -619,11 +619,6 @@ std::thread_local! {
     /// let partner pass five — the answerer jumps to six instead.  Default 9;
     /// see [`set_queen_buff_fit`].
     static BUFF_FIT: Cell<u8> = const { Cell::new(9) };
-
-    /// Whether the queen-shown answerer holding no side king places the
-    /// contract in six of trumps instead of answering on the bottom rung.
-    /// **Off by default** while it measures; see [`set_king_zero_jump`].
-    static KING_ZERO_JUMP: Cell<bool> = const { Cell::new(false) };
 }
 
 /// Enable or disable the floor's two-over-one game force (**on by default**)
@@ -814,21 +809,22 @@ fn keycard_answer_gates_now() -> bool {
 /// (step 3 denies it, step 4 shows it), so after a 1-or-4 or a 0-or-3 answer —
 /// the common case — the asker bets six on four keycards without ever knowing
 /// whether the queen is there.  On, the asker relays one step
-/// ([`queen_ask_room`]) and partner answers on the next two rungs.
+/// ([`queen_ask_room`]) and partner answers in **one** round that carries the
+/// queen *and* a king ([`RelayMap`]).
 ///
-/// The ladder past the answer is the same [`bid_successor`] walk the 1430
-/// rungs use: queen ask, then no-queen and queen, then the king ask and its
-/// three count rungs.  The relocated ladder puts step 4 exactly at five of
-/// trump, so the relay costs nothing there; over a plain 4NT it fits wherever
-/// the *no-queen* rung still lands at or below five of trump, which is every
-/// major lane but hearts-after-a-0-or-3 and both plain-4NT minors.  Where it
-/// does not fit the asker bets the small slam on four keycards, exactly as it
-/// does today.
+/// The ask is one [`bid_successor`] step above the answer, and the space
+/// between it and six of trump is exactly big enough to hold the whole reply:
+/// five of trump denies the queen and the extras, six of trump denies the queen
+/// with something partner cannot see, each side suit shows the queen plus that
+/// king and denies the cheaper ones, and 5NT shows the queen with no king at
+/// all.  It fits **13 of the 16** ask/answer lanes; where it does not, the
+/// asker bets the small slam on four keycards exactly as it does today.
 ///
-/// The king ask rides the **grand-zone strength gate**, not the keycard count:
-/// RKCB is a slam veto, not a slam seeker, so a partnership without the values
-/// for seven never spends a round exploring it.  Seven is then bid on two of
-/// the three side kings.
+/// Above a king-showing reply a **second relay** ([`king_relay`]) asks for one
+/// more king — the rung that decides the grand, and the place kickback's
+/// lowered ladder pays for itself twice.  It rides the **grand-zone strength
+/// gate**, not the keycard count: RKCB is a slam veto, not a slam seeker, so a
+/// partnership without the values for seven never spends the round.
 ///
 /// **Read in two regimes, and a harness must arm both** — the same discipline
 /// [`set_kickback`] documents.  Rule *presence* is gated at [`instinct`] build
@@ -908,40 +904,6 @@ pub fn set_queen_buff_fit(length: u8) {
 /// [`set_queen_buff_fit`])
 pub(in crate::bidding) fn queen_buff_fit() -> u8 {
     BUFF_FIT.with(Cell::get)
-}
-
-/// The queen-shown answerer with no side king places the contract in six of
-/// trumps, instead of answering the king ask on its bottom rung
-///
-/// **Off by default, and owes its own A/B.**  The hand is good for six and bad
-/// for seven, and saying so in one call rather than two has two arguments
-/// behind it that the step ladder does not:
-///
-/// - **Concealment.**  The rungs announce the side-king count to the *defence*
-///   before the opening lead; six of trumps announces nothing.  Double-dummy
-///   cannot see this (`docs/measurement.md`), so a wash here is the harness and
-///   not the idea — read the arm with that in mind.
-/// - **Robustness.**  An artificial rung that gets passed or played is this
-///   codebase's recurring disaster.  Six of the agreed trump is a contract; it
-///   cannot be misplayed as one.
-///
-/// Against it: the round was free anyway — the king ask only fires in the grand
-/// zone, so the partnership is already committed past six and nobody can pass
-/// the bottom rung.
-///
-/// The jump is a **placement, not a barrier**.  "No side king" is the
-/// answerer's count, and the asker holding two of its own still has the two the
-/// grand gate wants, so seven stays live over it: [`king_answered`] decodes six
-/// of trumps as zero from partner and the seven rule reads the total exactly as
-/// it does off a rung.
-#[doc(hidden)]
-pub fn set_king_zero_jump(enabled: bool) {
-    KING_ZERO_JUMP.with(|flag| flag.set(enabled));
-}
-
-/// The zero-king answerer jumps to six (see [`set_king_zero_jump`])
-pub(in crate::bidding) fn king_zero_jump() -> bool {
-    KING_ZERO_JUMP.with(Cell::get)
 }
 
 /// The queen ask is enabled (see [`set_queen_ask`])
@@ -2350,9 +2312,10 @@ fn answer_step(ask: Bid, answer: Bid) -> Option<usize> {
 /// the queen *and* the kings, because the space between the ask and six of
 /// trump is exactly big enough to hold both.
 ///
-/// - `weak` — five of trump: no queen, and not worth six anyway.  `None` when
-///   the ask already sits at or above five of trump, where that contract is
-///   gone and the distinction with it.
+/// - `weak` — five of trump: no queen, and not worth six anyway.  Always
+///   present, because the ask has to sit strictly below it: the answerer reads
+///   the *face*, so an ask that landed on five of trump would be indis-
+///   tinguishable from the signoff and partner would raise a signoff to six.
 /// - `deny` — six of trump: no queen.  With `weak` present it means the
 ///   stronger half, "no queen but bid it anyway" (the ninth trump, a void).
 /// - `kings` — the three side suits, cheapest first: the queen, plus the king
@@ -2361,16 +2324,11 @@ fn answer_step(ask: Bid, answer: Bid) -> Option<usize> {
 ///   and worth strictly more than naming one king out of a count.
 /// - `no_king` — 5NT: the queen, and no side king at all.
 #[derive(Clone, Copy)]
-// ponytail: only `ask` is read while the two-round rungs are still wired; the
-// rest are read the moment `queen_reply`/`queen_answered` migrate to this map.
-// The geometry lands first, with its lane test, because both earlier cuts of
-// this ladder shipped a collision that no test would have caught.
-#[allow(dead_code)]
 pub(in crate::bidding) struct RelayMap {
     /// The queen ask itself
     pub ask: Bid,
-    /// Five of trump, when it is still available to sign off in
-    pub weak: Option<Bid>,
+    /// Five of trump — no queen, no buff, and the contract
+    pub weak: Bid,
     /// Six of trump — no queen
     pub deny: Bid,
     /// The three side suits, cheapest first, with the call showing that king
@@ -2381,21 +2339,13 @@ pub(in crate::bidding) struct RelayMap {
 
 /// The queen ask over `answer`, when the merged reply fits under six of trump
 ///
-/// The ask is one step up the auction's own ladder.  BBA instead skips trump
-/// and notrump to keep both as replies, but skipping burns a step: enumerated
-/// over every lane, the plain successor serves **13 of 16** against BBA's
-/// **10 of 16** (and 8 of 8 kickback lanes against 7).  Where the successor
-/// lands on trump we lose only the weak/strong split, and lose it for free —
-/// five of trump is unplayable in exactly those lanes.
+/// The ask is one step up the auction's own ladder, and it exists exactly when
+/// that step still lands **below** five of trump — 11 of the 16 ask/answer
+/// lanes, every one of them a relocated ask plus the two plain-4NT spade lanes
+/// and hearts after a one-or-four.  Room is the binding constraint, which is
+/// the whole argument for relocating the ask in the first place.
 pub(in crate::bidding) fn queen_ask_room(answer: Bid, trump: Suit) -> Option<Bid> {
-    let ask = relay_map(answer, trump)?.ask;
-    // ponytail: the merged reply fits thirteen lanes, the two-round ladder
-    // still wired below it only eleven — the extra two are exactly the lanes
-    // whose *denial rung* overshoots five of trump, which the merged reply does
-    // not have and the ladder cannot survive.  So the old test stays as a
-    // narrowing conjunct until the rungs migrate; then these two lines go.
-    let denial = bid_successor(ask)?;
-    (denial <= Bid::new(5, Strain::from(trump))).then_some(ask)
+    Some(relay_map(answer, trump)?.ask)
 }
 
 /// Assign every message of the merged reply to a call, or fail
@@ -2415,10 +2365,8 @@ pub(in crate::bidding) fn relay_map(answer: Bid, trump: Suit) -> Option<RelayMap
             call
         })
     };
-    let weak = (five > ask).then(|| take(five)).flatten();
-    if weak.is_none() && five > ask {
-        return None;
-    }
+    // Strictly below the signoff, or the answerer cannot tell the ask from it.
+    let weak = take(five)?;
     let deny = take(six)?;
     let mut kings = [(trump, six); 3];
     for (slot, side) in kings
@@ -2441,21 +2389,66 @@ pub(in crate::bidding) fn relay_map(answer: Bid, trump: Suit) -> Option<RelayMap
     })
 }
 
-/// The seven rungs a queen relay over `answer` occupies, in auction order:
-/// the queen ask, its no-queen and queen replies, the king ask, and the king
-/// ask's three count rungs
-///
-/// Deterministic from the answer alone, because the king ask sits above the
-/// *queen-shown* reply — a denied queen ends the conversation, so the denial
-/// branch never grows a king ask to collide with.
-pub(in crate::bidding) fn relay_ladder(answer: Bid) -> Option<[Bid; 7]> {
-    let mut rung = answer;
-    let mut rungs = [answer; 7];
-    for slot in &mut rungs {
-        rung = bid_successor(rung)?;
-        *slot = rung;
+/// What partner's merged reply said
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub(in crate::bidding) enum Reply {
+    /// Five of trump — no queen, and nothing to make up for it
+    Weak,
+    /// Six of trump — no queen, but a fit or a void partner cannot see.  Also
+    /// the plain no-queen reply in the lanes where five of trump is gone.
+    Buff,
+    /// The queen, plus the king of [`RelayMap::kings`]`[i]`, and no side king
+    /// on a cheaper rung
+    King(usize),
+    /// The queen, and no side king at all
+    NoKing,
+}
+
+/// Decode partner's reply to the queen ask
+pub(in crate::bidding) fn read_reply(map: &RelayMap, call: Call) -> Option<Reply> {
+    let Call::Bid(bid) = call else {
+        return None;
+    };
+    if bid == map.weak {
+        return Some(Reply::Weak);
     }
-    Some(rungs)
+    if bid == map.deny {
+        return Some(Reply::Buff);
+    }
+    if bid == map.no_king {
+        return Some(Reply::NoKing);
+    }
+    map.kings
+        .iter()
+        .position(|&(_, rung)| rung == bid)
+        .map(Reply::King)
+}
+
+/// The second relay: over a king-showing reply, ask whether partner holds one
+/// of the kings *dearer* than the one already named
+///
+/// Two rungs are all the grand gate needs — it counts kings, it does not name
+/// them — so the answer is "one more" on the cheap step and six of trump
+/// otherwise, which is a contract rather than a code.  The ask is the plain
+/// successor of the reply, so **kickback lowers this ask exactly as it lowers
+/// the first one**: relocating the keycard ask buys room twice, once for the
+/// queen and once again here.
+#[derive(Clone, Copy)]
+pub(in crate::bidding) struct KingRelay {
+    /// The relay itself
+    pub ask: Bid,
+    /// At least one more side king, dearer than the one already shown
+    pub more: Bid,
+    /// Six of trump — no more kings, and the contract with it
+    pub none: Bid,
+}
+
+/// The second relay over `reply`, when both its rungs fit under six of trump
+pub(in crate::bidding) fn king_relay(reply: Bid, trump: Suit) -> Option<KingRelay> {
+    let none = Bid::new(6, Strain::from(trump));
+    let ask = bid_successor(reply)?;
+    let more = bid_successor(ask)?;
+    (more < none).then_some(KingRelay { ask, more, none })
 }
 
 /// A call that could anchor a keycard conversation on its face alone: 4NT, or
@@ -2482,9 +2475,14 @@ fn plausible_ask(auction: &[Call], index: usize) -> Option<Bid> {
 /// counting keycards in a phantom suit — §7.4's −15 IMP failure one round
 /// later.
 ///
-/// Face-only and non-recursive: each arm reconstructs the ladder *forward*
-/// from a candidate anchor through [`relay_ladder`], and consults
-/// [`plausible_ask`] rather than [`keycard_ask_bid`].
+/// Face-only and non-recursive: each arm walks *forward* from a candidate
+/// anchor and consults [`plausible_ask`] rather than [`keycard_ask_bid`].
+///
+/// The rung test is deliberately coarse — anything above the 1430 answer and at
+/// or below six of spades, the highest six of trump the relay can reach.  It
+/// cannot be sharper, because the trump is not derivable from the face alone,
+/// and it does not need to be: over-matching only refuses to read a call as a
+/// *fresh* keycard ask, which nothing at the six level wanted anyway.
 fn relay_rung(auction: &[Call], index: usize) -> bool {
     if !queen_ask_now() {
         return false;
@@ -2502,7 +2500,7 @@ fn relay_rung(auction: &[Call], index: usize) -> bool {
                     return None;
                 };
                 answer_step(ask, answer)?;
-                Some(relay_ladder(answer)?.contains(&made))
+                Some(made > answer && made <= Bid::new(6, Strain::Spades))
             })
             .unwrap_or(false)
     })
@@ -2863,20 +2861,26 @@ fn relay_window_face(context: &Context<'_>, back: usize) -> bool {
     matches!(auction.get(anchor + 2), Some(&Call::Bid(answer)) if answer_step(ask, answer).is_some())
 }
 
-/// Partner's queen ask awaits our reply — the relay one round on from the 1430
-/// answer we just gave.  Returns the trump and the two reply rungs (deny,
-/// show).
-fn queen_asked(hand: Hand, context: &Context<'_>) -> Option<(Suit, Bid, Bid)> {
-    let (trump, answer, _) = relay_window(hand, context, 6)?;
-    let auction = context.auction();
-    let n = auction.len();
-    let ladder = relay_ladder(answer)?;
-    (auction[n - 2] == Call::Bid(ladder[0])).then_some((trump, ladder[1], ladder[2]))
+/// The side kings we hold ourselves
+fn side_kings(hand: Hand, trump: Suit) -> usize {
+    Suit::ASC
+        .into_iter()
+        .filter(|&suit| suit != trump && hand[suit].contains(Rank::K))
+        .count()
 }
 
-/// Partner answered our queen ask: the combined keycard count, and whether the
-/// trump queen is there
-fn queen_answered(hand: Hand, context: &Context<'_>) -> Option<(Suit, usize, bool)> {
+/// Partner's queen ask awaits our reply — the relay one round on from the 1430
+/// answer we just gave.  Returns the trump and the whole reply map.
+fn queen_asked(hand: Hand, context: &Context<'_>) -> Option<(Suit, RelayMap)> {
+    let (trump, answer, _) = relay_window(hand, context, 6)?;
+    let auction = context.auction();
+    let map = relay_map(answer, trump)?;
+    (auction[auction.len() - 2] == Call::Bid(map.ask)).then_some((trump, map))
+}
+
+/// Partner answered our queen ask: the trump, the combined keycard count, the
+/// map the reply was read off, and the reply itself
+fn queen_answered(hand: Hand, context: &Context<'_>) -> Option<(Suit, usize, RelayMap, Reply)> {
     use super::american::slam::count_keycards;
     let (trump, answer, step) = relay_window(hand, context, 8)?;
     let auction = context.auction();
@@ -2884,38 +2888,41 @@ fn queen_answered(hand: Hand, context: &Context<'_>) -> Option<(Suit, usize, boo
     if matches!(auction[n - 1], Call::Bid(_)) {
         return None;
     }
-    let ladder = relay_ladder(answer)?;
-    if auction[n - 4] != Call::Bid(ladder[0]) {
+    let map = relay_map(answer, trump)?;
+    if auction[n - 4] != Call::Bid(map.ask) {
         return None;
     }
-    let queen = match auction[n - 2] {
-        call if call == Call::Bid(ladder[1]) => false,
-        call if call == Call::Bid(ladder[2]) => true,
-        _ => return None,
-    };
+    let reply = read_reply(&map, auction[n - 2])?;
     let (low, high) = answer_band(step);
     Some((
         trump,
         resolve_total(count_keycards(hand, trump), low, high),
-        queen,
+        map,
+        reply,
     ))
 }
 
-/// Partner's king ask awaits our reply — we showed the queen, partner has the
-/// values for seven.  Returns the trump and the three count rungs (0, 1, 2+).
-fn king_asked(hand: Hand, context: &Context<'_>) -> Option<(Suit, [Bid; 3])> {
+/// Partner's second relay awaits our reply — we showed the queen and a king,
+/// partner has the values for seven and wants one more king.  Returns the
+/// trump, the index of the king we already named, and the two rungs.
+fn king_asked(hand: Hand, context: &Context<'_>) -> Option<(Suit, KingRelay)> {
     let (trump, answer, _) = relay_window(hand, context, 10)?;
     let auction = context.auction();
     let n = auction.len();
-    let ladder = relay_ladder(answer)?;
-    (auction[n - 6] == Call::Bid(ladder[0])
-        && auction[n - 4] == Call::Bid(ladder[2])
-        && auction[n - 2] == Call::Bid(ladder[3]))
-    .then_some((trump, [ladder[4], ladder[5], ladder[6]]))
+    let map = relay_map(answer, trump)?;
+    if auction[n - 6] != Call::Bid(map.ask) {
+        return None;
+    }
+    let Reply::King(shown) = read_reply(&map, auction[n - 4])? else {
+        return None;
+    };
+    let relay = king_relay(map.kings[shown].1, trump)?;
+    (auction[n - 2] == Call::Bid(relay.ask)).then_some((trump, relay))
 }
 
-/// Partner answered our king ask: the trump and the side kings the partnership
-/// holds (partner's top rung is "two or more", so the total is a sound floor)
+/// Partner answered our second relay: the trump and the side kings the
+/// partnership holds (partner's cheap rung is "one more", so the total is a
+/// sound floor)
 fn king_answered(hand: Hand, context: &Context<'_>) -> Option<(Suit, usize)> {
     let (trump, answer, _) = relay_window(hand, context, 12)?;
     let auction = context.auction();
@@ -2923,18 +2930,23 @@ fn king_answered(hand: Hand, context: &Context<'_>) -> Option<(Suit, usize)> {
     if matches!(auction[n - 1], Call::Bid(_)) {
         return None;
     }
-    let ladder = relay_ladder(answer)?;
-    if auction[n - 6] != Call::Bid(ladder[2]) || auction[n - 4] != Call::Bid(ladder[3]) {
+    let map = relay_map(answer, trump)?;
+    if auction[n - 8] != Call::Bid(map.ask) {
         return None;
     }
-    let rungs = [ladder[4], ladder[5], ladder[6]];
-    let partners =
-        (0..3).find(|&count| auction[n - 2] == Call::Bid(king_rung(trump, rungs, count)))?;
-    let mine = Suit::ASC
-        .into_iter()
-        .filter(|&suit| suit != trump && hand[suit].contains(Rank::K))
-        .count();
-    Some((trump, mine + partners))
+    let Reply::King(shown) = read_reply(&map, auction[n - 6])? else {
+        return None;
+    };
+    let relay = king_relay(map.kings[shown].1, trump)?;
+    if auction[n - 4] != Call::Bid(relay.ask) {
+        return None;
+    }
+    let partners = 1 + match auction[n - 2] {
+        call if call == Call::Bid(relay.more) => 1,
+        call if call == Call::Bid(relay.none) => 0,
+        _ => return None,
+    };
+    Some((trump, side_kings(hand, trump) + partners))
 }
 
 /// The combined keycard count after partner's 1430 answer is within `range`,
@@ -3065,12 +3077,48 @@ fn relay_pending(trump: Suit) -> Cons<impl Constraint + Clone> {
     pred(move |hand: Hand, context: &Context<'_>| relay_available(hand, context, trump))
 }
 
-/// Our reply to partner's queen ask lands on `bid`, and `shows` matches what we
-/// hold
-fn queen_reply(bid: Bid, shows: bool) -> Cons<impl Constraint + Clone> {
+/// The one reply our hand makes to partner's queen ask
+///
+/// Total by construction — every hand lands on exactly one message, which is
+/// what lets a single rule per landing call carry the whole ladder and what
+/// makes the "skipped steps deny" reading true rather than merely intended.
+fn our_reply(hand: Hand, context: &Context<'_>, trump: Suit, map: &RelayMap) -> Reply {
+    if !holds_queen(hand, context, trump) {
+        return if queen_buff(hand, context, trump) {
+            Reply::Buff
+        } else {
+            Reply::Weak
+        };
+    }
+    map.kings
+        .iter()
+        .position(|&(suit, _)| hand[suit].contains(Rank::K))
+        .map_or(Reply::NoKing, Reply::King)
+}
+
+/// Where a reply lands, or `None` for a message this lane cannot carry
+fn reply_call(map: &RelayMap, reply: Reply) -> Option<Bid> {
+    Some(match reply {
+        Reply::Weak => map.weak,
+        Reply::Buff => map.deny,
+        Reply::King(index) => map.kings.get(index)?.1,
+        Reply::NoKing => map.no_king,
+    })
+}
+
+/// Our reply to partner's queen ask lands on `bid`
+///
+/// Split in two by `artificial` so the alert can be: the two denials are five
+/// and six of the agreed trump — contracts, not codes — while the king rungs
+/// and 5NT are artificial and must be alerted and read.  One rule cannot decide
+/// that from its landing call alone, because 6♠ is the denial with spades
+/// agreed and a king rung with hearts.
+fn queen_reply(bid: Bid, artificial: bool) -> Cons<impl Constraint + Clone> {
     pred(move |hand: Hand, context: &Context<'_>| {
-        queen_asked(hand, context).is_some_and(|(trump, deny, show)| {
-            bid == if shows { show } else { deny } && holds_queen(hand, context, trump) == shows
+        queen_asked(hand, context).is_some_and(|(trump, map)| {
+            let reply = our_reply(hand, context, trump, &map);
+            matches!(reply, Reply::King(_) | Reply::NoKing) == artificial
+                && reply_call(&map, reply) == Some(bid)
         })
     })
 }
@@ -3086,25 +3134,6 @@ fn queen_buff(hand: Hand, context: &Context<'_>, trump: Suit) -> bool {
             .any(|suit| suit != trump && hand[suit].is_empty())
 }
 
-/// Our reply to partner's queen ask is the jump to six of trumps
-///
-/// The third answer, and the one that exists because the other two are not
-/// enough: partner asked holding four keycards, is about to hear "no queen",
-/// and will pass five without ever learning about the ninth trump or the void.
-/// Six never claims the honour and never gets passed.
-///
-/// Outweighs the denial rung ([`queen_reply`]) because a buff hand satisfies
-/// both — the jump is the *more* specific description of the same holding.
-fn queen_buff_reply(bid: Bid) -> Cons<impl Constraint + Clone> {
-    pred(move |hand: Hand, context: &Context<'_>| {
-        queen_asked(hand, context).is_some_and(|(trump, _, _)| {
-            bid == Bid::new(6, Strain::from(trump))
-                && !holds_queen(hand, context, trump)
-                && queen_buff(hand, context, trump)
-        })
-    })
-}
-
 /// After the relay: the combined keycard count is in `range`, the trump is
 /// `trump`, and the queen came back as `want` (or the count made it moot)
 fn relay_verdict(
@@ -3113,59 +3142,51 @@ fn relay_verdict(
     want: bool,
 ) -> Cons<impl Constraint + Clone> {
     pred(move |hand: Hand, context: &Context<'_>| {
-        queen_answered(hand, context).is_some_and(|(t, total, queen)| {
+        queen_answered(hand, context).is_some_and(|(t, total, _, reply)| {
+            let queen = matches!(reply, Reply::King(_) | Reply::NoKing);
             t == trump && range.contains(&total) && (queen || total >= 5) == want
         })
     })
 }
 
-/// Our king ask over partner's queen-shown reply lands on `bid`
-///
-/// The count gate only; the *strength* gate rides the rule site, because
-/// exploring seven is what the values have to earn.
-fn king_ask_here(bid: Bid) -> Cons<impl Constraint + Clone> {
+/// The side kings the partnership has shown by the queen reply alone are at
+/// least `want` — our own, plus the one partner named if it named one
+fn kings_so_far(trump: Suit, want: usize) -> Cons<impl Constraint + Clone> {
     pred(move |hand: Hand, context: &Context<'_>| {
-        queen_answered(hand, context).is_some_and(|(_, total, queen)| {
-            let auction = context.auction();
-            total >= 5
-                && queen
-                && matches!(auction[auction.len() - 6], Call::Bid(answer)
-                    if relay_ladder(answer).is_some_and(|ladder| ladder[3] == bid))
+        queen_answered(hand, context).is_some_and(|(t, _, _, reply)| {
+            t == trump
+                && side_kings(hand, trump) + usize::from(matches!(reply, Reply::King(_))) >= want
         })
     })
 }
 
-/// Our reply to partner's king ask lands on `bid`, showing `count` side kings
-/// (the top rung is "two or more")
-/// Where the answer showing `count` side kings lands
+/// Our second relay over partner's queen-and-king reply lands on `bid`
 ///
-/// Off [`set_king_zero_jump`], the `count`-th step above the king ask.  On, the
-/// ladder is **permuted, not extended**: zero kings takes six of trumps and one
-/// and two-or-more slide down to the two cheapest steps.
-///
-/// Permuted because appending would collide.  In most lanes the *top* rung
-/// already is six of trump (spades after a none-or-three: ask 5♥, deny 5♠, show
-/// 5NT, king ask 6♣, answers 6♦/6♥/6♠), so relocating zero there would land it
-/// on the two-or-more answer — the two messages furthest apart in meaning.
-/// Sliding instead keeps all three distinct, and puts the hands with grand
-/// interest on the *cheap* rungs where the asker has room to use them.
-pub(in crate::bidding) fn king_rung(trump: Suit, rungs: [Bid; 3], count: usize) -> Bid {
-    match count {
-        _ if !king_zero_jump() => rungs[count],
-        0 => Bid::new(6, Strain::from(trump)),
-        _ => rungs[count - 1],
-    }
+/// Fires only when it can change the call: partner named its cheapest king, so
+/// one king of our own already makes the two the grand gate wants.  With none,
+/// the second king is the whole question — and with the reply already at six of
+/// trump there is nowhere to put it, so [`king_relay`] declines and the asker
+/// places the small slam.  The *strength* gate rides the rule site.
+fn king_ask_here(bid: Bid) -> Cons<impl Constraint + Clone> {
+    pred(move |hand: Hand, context: &Context<'_>| {
+        queen_answered(hand, context).is_some_and(|(trump, total, map, reply)| {
+            let Reply::King(shown) = reply else {
+                return false;
+            };
+            total >= 5
+                && side_kings(hand, trump) == 0
+                && king_relay(map.kings[shown].1, trump).map(|relay| relay.ask) == Some(bid)
+        })
+    })
 }
 
-fn king_reply(bid: Bid, count: usize) -> Cons<impl Constraint + Clone> {
+/// Our reply to partner's second relay lands on `bid`; `more` is whether we hold
+/// a second side king (the first was named by the queen reply)
+fn king_reply(bid: Bid, more: bool) -> Cons<impl Constraint + Clone> {
     pred(move |hand: Hand, context: &Context<'_>| {
-        king_asked(hand, context).is_some_and(|(trump, rungs)| {
-            let mine = Suit::ASC
-                .into_iter()
-                .filter(|&suit| suit != trump && hand[suit].contains(Rank::K))
-                .count();
-            king_rung(trump, rungs, count) == bid
-                && if count == 2 { mine >= 2 } else { mine == count }
+        king_asked(hand, context).is_some_and(|(trump, relay)| {
+            (side_kings(hand, trump) >= 2) == more
+                && bid == if more { relay.more } else { relay.none }
         })
     })
 }
@@ -5306,9 +5327,9 @@ pub fn instinct() -> Rules {
         }
     }
     // The relay ([`set_queen_ask`]): the queen ask one step above partner's
-    // 1430 answer, its two replies, then the king ask and its three count
-    // rungs — all the same [`bid_successor`] walk the answers use, so one rule
-    // per landing call serves every trump and every ask position.
+    // 1430 answer, its merged reply, then the second relay and its two rungs —
+    // all derived from the answer by [`relay_map`] and [`king_relay`], so one
+    // rule per landing call serves every trump and every ask position.
     //
     // Rule *presence* is what the knob gates, for the reason `set_kickback`
     // documents: the `alerted` bit is structural, and these landings are the
@@ -5318,26 +5339,21 @@ pub fn instinct() -> Rules {
     if queen_ask_now() {
         for &landing in &RELAY_RUNGS {
             rules = rules
-                .rule(landing, 1.9, queen_reply(landing, false))
-                .alert(RKCB_FLOOR)
-                .face(|context: &Context<'_>| relay_window_face(context, 6))
+                // The artificial half of the merged reply — the king rungs and
+                // 5NT.  The denials are five and six of the agreed trump:
+                // contracts, not codes, so they carry no alert.
                 .rule(landing, 1.9, queen_reply(landing, true))
                 .alert(RKCB_FLOOR)
                 .face(|context: &Context<'_>| relay_window_face(context, 6))
-                // The buff jump, above the denial it overrides.  Not alerted:
-                // six of the agreed trump is a contract, not a code.
-                .rule(landing, 1.91, queen_buff_reply(landing))
-                .face(|context: &Context<'_>| relay_window_face(context, 6));
-            for count in 0..3 {
-                rules = rules.rule(landing, 1.9, king_reply(landing, count));
-                // With [`set_king_zero_jump`] on, count 0 lands on six of the
-                // agreed trump for that trump alone — a contract, not a code,
-                // so no alert.  Every other rung stays artificial.
-                if !(count == 0 && king_zero_jump()) {
-                    rules = rules.alert(RKCB_FLOOR);
-                }
-                rules = rules.face(|context: &Context<'_>| relay_window_face(context, 10));
-            }
+                .rule(landing, 1.9, queen_reply(landing, false))
+                .face(|context: &Context<'_>| relay_window_face(context, 6))
+                // The second relay's rungs: "one more king" is a code, "none"
+                // is six of the agreed trump and places the contract.
+                .rule(landing, 1.9, king_reply(landing, true))
+                .alert(RKCB_FLOOR)
+                .face(|context: &Context<'_>| relay_window_face(context, 10))
+                .rule(landing, 1.9, king_reply(landing, false))
+                .face(|context: &Context<'_>| relay_window_face(context, 10));
             rules = rules
                 .rule(
                     landing,
@@ -5556,23 +5572,34 @@ pub fn instinct() -> Rules {
             }
             rules = rules
                 // Two of the three side kings on top of all five keycards and
-                // the queen: bid seven.
+                // the queen: bid seven.  The merged reply can show them by
+                // itself — partner named its cheapest king and we hold one —
+                // which is the round the second relay no longer has to spend.
+                .rule(
+                    Bid::new(7, strain),
+                    1.86,
+                    relay_verdict(trump, 5.., true)
+                        & kings_so_far(trump, 2)
+                        & grand_zone(strain)
+                        & level_available(7, strain),
+                )
+                // ...or the second relay found the second one.
                 .rule(
                     Bid::new(7, strain),
                     1.86,
                     king_total(trump, 2..) & level_available(7, strain),
-                )
-                // The king ask answered short of that — six.
-                .rule(
-                    Bid::new(6, strain),
-                    1.84,
-                    king_total(trump, ..) & level_available(6, strain),
                 )
                 // The queen came back (or five keycards made it moot): six.
                 .rule(
                     Bid::new(6, strain),
                     1.84,
                     relay_verdict(trump, 4.., true) & level_available(6, strain),
+                )
+                // The second relay answered short of two kings — six.
+                .rule(
+                    Bid::new(6, strain),
+                    1.84,
+                    king_total(trump, ..) & level_available(6, strain),
                 )
                 // The queen came back denied on four keycards — one keycard
                 // *and* the queen missing.  Stop at five while we still can...
@@ -5581,20 +5608,14 @@ pub fn instinct() -> Rules {
                     1.82,
                     relay_verdict(trump, .., false) & level_available(5, strain),
                 )
-                // ...pass when the denial itself was five of the trump (the
-                // relocated lanes put it exactly there)...
-                .rule(
-                    Call::Pass,
-                    1.80,
-                    relay_verdict(trump, .., false) & answer_is_five_of(trump),
-                )
-                // ...and with nothing left below slam, accept six rather than
-                // strand the reply — the `no_room_six` policy, one round on.
-                .rule(
-                    Bid::new(6, strain),
-                    0.3,
-                    relay_verdict(trump, .., false) & level_available(6, strain),
-                );
+                // ...and pass when partner's reply already **is** the contract.
+                // The merged ladder puts both denials on the agreed trump — five
+                // of it flat, six of it with the fit or the void we could not see
+                // — and the second relay's "no more kings" on six as well, so
+                // every one of them is a place to play rather than a rung to
+                // rescue.
+                .rule(Call::Pass, 1.80, relay_verdict(trump, .., false))
+                .rule(Call::Pass, 1.80, king_total(trump, ..));
         }
         // Fleeing the face-derived trump to a fit we can actually see: the
         // face's agreement rule is both-bid-it, not eight cards, so a seen
@@ -6970,20 +6991,27 @@ mod tests {
         // eight, so only the honour itself can answer, and it is missing.
         assert_eq!(
             best(&auction, "K74.A653.8432.92"),
-            call(5, Strain::Hearts),
-            "no trump queen → the denial rung"
+            call(5, Strain::Spades),
+            "no trump queen and no buff → five of trump, which is the signoff too"
         );
-        // The same hand holding it → the rung above.
+        // The same hand holding it, and not one side king → 5NT.
         assert_eq!(
             best(&auction, "KQ4.A653.8432.92"),
-            call(5, Strain::Spades),
-            "trump queen → the show rung"
+            call(5, Strain::Notrump),
+            "trump queen, no side king → the top of the merged ladder"
+        );
+        // The queen with the cheapest side king on the ♥ rung — one round for
+        // both facts, which is what the merged reply buys.
+        assert_eq!(
+            best(&auction, "KQ4.K653.8432.92"),
+            call(5, Strain::Hearts),
+            "trump queen and the ♥ king → the cheapest king rung"
         );
         // Five trumps opposite the same shown five is ten, and ten trumps
         // answer "queen" without it — the honour drops or finesses either way.
         assert_eq!(
             best(&auction, "K7432.A65.843.92"),
-            call(5, Strain::Spades),
+            call(5, Strain::Notrump),
             "a proven ten-card fit stands in for the queen"
         );
         set_queen_ask(false);
@@ -7018,22 +7046,22 @@ mod tests {
         // combined — one keycard missing.
         let asker = "AKJ85.AK2.KJ2.42";
         assert_eq!(
-            best(&after(call(5, Strain::Hearts)), asker),
-            call(5, Strain::Spades),
-            "queen denied on four keycards: one keycard *and* the queen out — stop at five"
+            best(&after(call(5, Strain::Spades)), asker),
+            Call::Pass,
+            "queen denied on four keycards: five of trump is both the denial and the contract"
         );
         assert_eq!(
-            best(&after(call(5, Strain::Spades)), asker),
+            best(&after(call(5, Strain::Notrump)), asker),
             call(6, Strain::Spades),
             "queen shown on four keycards: bid the small slam"
         );
         // Four keycards of our own decodes to all five combined.  The queen is
         // there and nothing is missing, but ~26 combined points is nowhere near
-        // the grand zone, so the king ask is not worth a round: bid six.
+        // the grand zone, so the second relay is not worth a round: bid six.
         assert_eq!(
-            best(&after(call(5, Strain::Spades)), "AK985.A32.A42.32"),
+            best(&after(call(5, Strain::Hearts)), "AK985.A32.A42.32"),
             call(6, Strain::Spades),
-            "all five keycards and the queen, but no grand values: six, never the king ask"
+            "all five keycards, the queen and a king, but no grand values: six"
         );
         set_queen_ask(false);
     }
@@ -7050,7 +7078,7 @@ mod tests {
     /// collided the zero-king answer with two-or-more.  A collision is not a
     /// wrong contract, it is partner reading the opposite of what was said.
     #[test]
-    fn merged_relay_fits_thirteen_lanes_without_collision() {
+    fn merged_relay_fits_eleven_lanes_without_collision() {
         use std::collections::HashSet;
         let plain = Bid::new(4, Strain::Notrump);
         let kickback = |trump: Suit| match trump {
@@ -7073,8 +7101,7 @@ mod tests {
                     fitted += 1;
                     let six = Bid::new(6, Strain::from(trump));
                     let mut calls: Vec<Bid> = map.kings.iter().map(|&(_, call)| call).collect();
-                    calls.extend([map.deny, map.no_king]);
-                    calls.extend(map.weak);
+                    calls.extend([map.weak, map.deny, map.no_king]);
                     for &call in &calls {
                         assert!(call > map.ask, "{call:?} is not above the ask in {trump:?}");
                         assert!(call <= six, "{call:?} is above six of {trump:?}");
@@ -7093,7 +7120,7 @@ mod tests {
                 }
             }
         }
-        assert_eq!(fitted, 13, "the merged reply should serve thirteen lanes");
+        assert_eq!(fitted, 11, "the merged reply should serve eleven lanes");
     }
 
     #[test]
@@ -7117,6 +7144,9 @@ mod tests {
             Some(bid(5, Strain::Diamonds)),
             "♥ after one-or-four: 5♦ asks, 5♥ denies and is the signoff"
         );
+        // Hearts after a none-or-three has no room: the ask would *be* 5♥, and
+        // the answerer reads the face — it could not tell the ask from the
+        // signoff, and would raise a signoff to six.
         assert_eq!(
             queen_ask_room(bid(5, Strain::Diamonds), Suit::Hearts),
             None,
@@ -7148,19 +7178,23 @@ mod tests {
                 for _ in 0..step {
                     answer = bid_successor(answer).expect("the ladder stays legal");
                 }
-                let relay = queen_ask_room(answer, trump)
+                let map = relay_map(answer, trump)
                     .unwrap_or_else(|| panic!("{trump} after step {step} must have room"));
-                let ladder = relay_ladder(answer).expect("the ladder stays legal");
-                assert_eq!(ladder[0], relay, "the queen ask is the first rung");
-                assert!(
-                    ladder[1] <= bid(5, Strain::from(trump)),
-                    "{trump} step {step}: the denial must stay at or below the signoff"
+                assert_eq!(queen_ask_room(answer, trump), Some(map.ask));
+                assert_eq!(
+                    map.weak,
+                    bid(5, Strain::from(trump)),
+                    "{trump} step {step}: the relocated lanes keep the weak denial"
                 );
-                assert!(
-                    ladder[6] <= bid(6, Strain::from(trump)),
-                    "{trump} step {step}: the king rungs must stay at or below six"
-                );
-                for rung in ladder {
+                // Every rung of both rounds is a call the rule table carries.
+                let mut rungs = vec![map.ask, map.weak, map.deny, map.no_king];
+                for &(_, shown) in &map.kings {
+                    rungs.push(shown);
+                    if let Some(second) = king_relay(shown, trump) {
+                        rungs.extend([second.ask, second.more, second.none]);
+                    }
+                }
+                for rung in rungs {
                     assert!(
                         RELAY_RUNGS.contains(&rung),
                         "{rung:?} is a relay rung with no rule to land on"

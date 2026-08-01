@@ -13,7 +13,7 @@
 
 mod common;
 use common::*;
-use pons::bidding::instinct::{set_king_zero_jump, set_queen_ask};
+use pons::bidding::instinct::set_queen_ask;
 
 const P: Call = Call::Pass;
 
@@ -65,8 +65,9 @@ fn relay_fires_through_the_stance() {
     );
 }
 
-/// Partner answers the relay, and the asker places the contract on the reply:
-/// a denial leaves a keycard *and* the queen missing, so it stops at five.
+/// Partner answers the relay, and the asker places the contract on the reply.
+/// The merged ladder puts the flat denial on **five of trump itself**, so the
+/// answer and the signoff are the same call and the asker has nothing to add.
 #[test]
 fn relay_denial_stops_at_five() {
     let system = armed();
@@ -77,13 +78,14 @@ fn relay_denial_stops_at_five() {
     // only the honour itself can answer, and it is missing.
     assert_eq!(
         best_call(&system, &auction, "K74.A653.8432.92"),
-        call(5, Strain::Hearts),
+        call(5, Strain::Spades),
     );
 
-    auction.extend([call(5, Strain::Hearts), P]);
+    auction.extend([call(5, Strain::Spades), P]);
     assert_eq!(
         best_call(&system, &auction, QUEENLESS_ASKER),
-        call(5, Strain::Spades),
+        P,
+        "the denial is already the contract"
     );
 }
 
@@ -94,12 +96,13 @@ fn relay_queen_brings_the_slam() {
 
     let mut auction = after_the_answer();
     auction.extend([call(5, Strain::Diamonds), P]);
+    // The queen and not one side king — 5NT, the top of the merged ladder.
     assert_eq!(
         best_call(&system, &auction, "KQ4.A653.8432.92"),
-        call(5, Strain::Spades),
+        call(5, Strain::Notrump),
     );
 
-    auction.extend([call(5, Strain::Spades), P]);
+    auction.extend([call(5, Strain::Notrump), P]);
     assert_eq!(
         best_call(&system, &auction, QUEENLESS_ASKER),
         call(6, Strain::Spades),
@@ -117,7 +120,7 @@ fn ten_card_fit_answers_the_queen() {
     // Five trumps opposite partner's shown five, and no queen in sight.
     assert_eq!(
         best_call(&system, &auction, "K7432.A65.843.92"),
-        call(5, Strain::Spades),
+        call(5, Strain::Notrump),
     );
 }
 
@@ -159,67 +162,90 @@ fn a_void_jumps_to_six() {
     );
 }
 
-/// `set_king_zero_jump`: the queen-shown answerer with no side king places the
-/// contract in six of trumps rather than answering on the bottom rung — and the
-/// asker holding two side kings of its own still bids seven over it, because
-/// the jump is a placement and not a barrier.
+/// The merged reply names a king, so the asker holding one of its own has the
+/// two the grand gate wants without spending another round.
 #[test]
-fn zero_king_jump_still_leaves_seven_live() {
-    set_king_zero_jump(true);
+fn one_king_each_bids_the_grand_in_one_round() {
     let system = armed();
 
-    // 1♠ P 3♠ P 4NT P 5♠ P — 5♠ is two-or-five *with* the queen, so the relay
-    // is dead and the king ask is the asker's next move.
-    let mut auction = vec![
-        call(1, Strain::Spades),
-        P,
-        call(3, Strain::Spades),
-        P,
-        call(4, Strain::Notrump),
-        P,
-        call(5, Strain::Diamonds),
-        P,
-    ];
-    // Over a none-or-three the ladder is: 5♥ relays, 5♠ denies, 5NT shows,
-    // 6♣ asks for kings — and the zero-king answer is 6♠, the permuted top.
-    auction.extend([call(5, Strain::Hearts), P, call(5, Strain::Notrump), P]);
-    auction.extend([call(6, Strain::Clubs), P]);
-
-    // ♠KQ43 ♥8653 ♦843 ♣92 — the queen, and not one side king.
+    let mut auction = after_the_answer();
+    // 5♦ asks; 5♥ is the cheapest king rung — the queen plus the ♥K, and no
+    // side king cheaper than it (there is none).
+    auction.extend([call(5, Strain::Diamonds), P]);
+    // ♠Q43 ♥K653 ♦8432 ♣92 — the queen and exactly the ♥K.
     assert_eq!(
-        best_call(&system, &auction, "KQ43.8653.843.92"),
+        best_call(&system, &auction, "Q43.K653.8432.92"),
+        call(5, Strain::Hearts),
+    );
+
+    auction.extend([call(5, Strain::Hearts), P]);
+    // ♠AKJ85 ♥AK2 ♦A42 ♣32 — four keycards (all five between the hands), the
+    // ♥K of its own opposite partner's, and the values to want seven.
+    assert_eq!(
+        best_call(&system, &auction, "AKJ85.AK2.A42.32"),
+        call(7, Strain::Spades),
+        "two side kings shown in one round: bid it",
+    );
+}
+
+/// The second relay: with no side king of its own the asker cannot count two
+/// off the reply alone, so it asks once more — one step above partner's reply,
+/// which is the room a relocated ask buys twice.
+#[test]
+fn second_relay_finds_the_second_king() {
+    let system = armed();
+
+    let mut auction = after_the_answer();
+    auction.extend([call(5, Strain::Diamonds), P, call(5, Strain::Hearts), P]);
+    // ♠AKQJ8 ♥A32 ♦AQ2 ♣32 — four keycards, twenty points, and not one side
+    // king: the second king is the whole question.
+    assert_eq!(
+        best_call(&system, &auction, "AKQJ8.A32.AQ2.32"),
+        call(5, Strain::Spades),
+        "no side king of our own: relay again",
+    );
+
+    auction.extend([call(5, Strain::Spades), P]);
+    // ♠Q43 ♥K653 ♦K843 ♣92 — the ♥K it already showed, and the ♦K as well.
+    assert_eq!(
+        best_call(&system, &auction, "Q43.K653.K843.92"),
+        call(5, Strain::Notrump),
+        "a second side king: say so on the cheap rung",
+    );
+    // ♠Q43 ♥K653 ♦8432 ♣92 — only the king it showed; six of trumps ends it.
+    assert_eq!(
+        best_call(&system, &auction, "Q43.K653.8432.92"),
         call(6, Strain::Spades),
-        "queen and no side king: place it in six"
+    );
+
+    let mut grand = auction.clone();
+    grand.extend([call(5, Strain::Notrump), P]);
+    assert_eq!(
+        best_call(&system, &grand, "AKQJ8.A32.AQ2.32"),
+        call(7, Strain::Spades),
     );
 
     auction.extend([call(6, Strain::Spades), P]);
-    // ♠AJ85 ♥AK2 ♦AK2 ♣42 — five keycards between the hands, the queen shown,
-    // and two side kings in the asker's own hand: the grand gate is met.
     assert_eq!(
-        best_call(&system, &auction, "AJ85.AK2.AK2.42"),
-        call(7, Strain::Spades),
-        "two side kings opposite zero: seven is still live over the jump"
+        best_call(&system, &auction, "AKQJ8.A32.AQ2.32"),
+        P,
+        "one king short of the grand, and six is already the contract",
     );
-    set_king_zero_jump(false);
 }
 
 /// Seven is explored only when the values are already there: all five keycards
-/// and the queen on a 15-count still stops in six, because RKCB is a slam veto
+/// and the queen on a 17-count still stops in six, because RKCB is a slam veto
 /// and not a slam seeker.
 #[test]
 fn king_ask_needs_the_grand_values() {
     let system = armed();
 
     let mut auction = after_the_answer();
-    auction.extend([call(5, Strain::Diamonds), P, call(5, Strain::Spades), P]);
-    // ♠AK985 ♥A32 ♦A42 ♣32 — four keycards, so all five are on the table.
+    auction.extend([call(5, Strain::Diamonds), P, call(5, Strain::Hearts), P]);
+    // ♠AKQ85 ♥A32 ♦A42 ♣32 — four keycards and no side king, but seventeen
+    // points is not a grand.
     assert_eq!(
-        best_call(&system, &auction, "AK985.A32.A42.32"),
+        best_call(&system, &auction, "AKQ85.A32.A42.32"),
         call(6, Strain::Spades),
-    );
-    // The same shape at 21 HCP has the values to spend the round.
-    assert_eq!(
-        best_call(&system, &auction, "AK985.AK2.AK2.32"),
-        call(5, Strain::Notrump),
     );
 }

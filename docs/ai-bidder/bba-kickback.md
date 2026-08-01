@@ -760,7 +760,7 @@ ship. The motivating measurables are BBA's own: minor slams vetoed below 5m
 (the C3 probe — a 2+Q answer lands in 5♣ *as the contract*) and the hearts
 grand via the ♠K.
 
-### 7.6 The merged answer — one round, not two (design, not built)
+### 7.6 The merged answer — one round, not two (**built 2026-08-02**)
 
 The two-round relay shipped in `472e937`/`2687811` asks the queen, hears a
 reply, then asks kings.  jdh8's revision merges them: **the queen ask is also
@@ -772,9 +772,13 @@ the answerer has a full level to work with:
 - **a side suit** — queen, plus the king of that suit
 - **5NT** — queen, no side king
 
-Where the ask sits *at or above* five of trump the 5T rung is unplayable, so
-the weak/strong split collapses and 6T is flatly "no queen"; everything else is
-unchanged.
+The ask must land **strictly below** five of trump.  The first cut of this
+design allowed the ask to land *on* it, on the reasoning that the 5T rung was
+unplayable there anyway and only the weak/strong split was lost.  That is
+wrong, and the error is worth recording: the answerer reads the **face**, so a
+5♥ ask with hearts agreed is indistinguishable from a 5♥ signoff, and partner
+would raise a signoff to six.  The two lanes it appeared to buy are exactly the
+two it breaks.
 
 **This is BBA's scheme.**  §3 above, probe-verified: "queen answers: signoff in
 trump without it; with it, cheapest side-suit king below 6-of-trump (skipped
@@ -813,30 +817,53 @@ kickback  S  ask 4NT  ans 5C   Q# 5D    5H=Q + HK  5S=no Q, bad for 6  5NT=Q, no
 kickback  S  ask 4NT  ans 5D   Q# 5H    5S=no Q, bad for 6  5NT=Q, no side K  6C=Q + CK  6D=Q + DK  6H=Q + HK  6S=no Q, good for 6
 ```
 
-Coverage *rises* against the two-round ladder, which serves 11 lanes: the merged
-form picks up plain ♥ after a 0-or-3 and plain ♦ after a 1-or-4 — both excluded
-today because the denial rung overshoots five of trump — and loses none, since
-the three broken lanes were never served.  One round shorter, wider, and more
-informative.
+Coverage is **11 lanes**, the same set the two-round ladder served — the ask
+must clear five of trump either way, and `successor(ask) <= 5T` and `ask < 5T`
+are the same condition.  The two rows the table shows for plain ♥ after a 0-or-3
+and plain ♦ after a 1-or-4 are *not* served: their ask lands on five of trump
+(marked BROKEN in the generator's later pass).  What the merge buys is not
+width but **depth and length** — a king named in the same round the queen is,
+one round shorter, with "skipped steps deny" carrying strictly more than a
+count would.
 
 #### What it deletes
 
-`king_asked`, `king_answered`, `king_reply`, `king_ask_here`, `king_total`,
-`relay_king_replies`, `asker_after_relay_kings`, and `set_king_zero_jump`
+`relay_ladder`, `queen_buff_reply`, `king_rung` and `set_king_zero_jump`
 entirely — the zero-king jump answers a question the merged design no longer
-asks, because 5NT *is* "queen, no side king" and 6T means "no queen".
+asks, because 5NT *is* "queen, no side king" and 6T means "no queen".  The
+`king_*` decoders survive, repointed at the **second relay** below.
 
-#### Two consequences to build deliberately
+#### The second relay — where kickback pays twice
+
+Partner's reply names its *cheapest* king, so one king in the asker's own hand
+already makes the two the grand gate wants and seven is bid on the spot.  With
+none, the second king is the whole question, and the asker **relays again**:
+
+```text
+ask = successor(reply)   more = successor(ask)   none = 6T      (requires more < 6T)
+```
+
+Two rungs, because the gate counts kings and does not name them; "none" is six
+of trump, a contract rather than a code.  Being a *step* above the reply rather
+than an absolute 5NT is the point jdh8 made and the reason this is worth
+building: **relocating the keycard ask buys room twice**, once for the queen and
+once again here.  Example: kickback ♦, reply 5♣ (queen + ♣K) → relay 5♦, and
+5♥ says there is another king.
+
+#### Two consequences, and what became of them
 
 1. **An asker holding the queen still asks.**  The ask now buys king
-   information as well, so `queen_moot` — which today suppresses the relay
-   whenever the queen is settled — must narrow to "settled *and* not in the
-   grand zone".  Otherwise the strongest hands lose the king ladder.
-2. **`Q + 2K` pulls partner's 6T to 6NT.**  Over the "no queen, worth six"
-   reply, an asker holding the trump queen and two side kings has the grand
-   zone's requirements in its own hand; 6NT picks the slam and leaves seven
-   live.  Without this the merged reply is a barrier, and the two-round form's
-   own lesson (a placement is not a barrier) has to be re-learned here.
+   information as well, so `queen_moot` would have to narrow to "settled *and*
+   not in the grand zone".  **Deferred, deliberately.**  The grand gate is
+   `combined_points(37)` *and* the net's verdict; an asker holding the trump
+   queen inside that band is rare enough that the lane cannot be measured, and
+   opening it forces the asker to re-decide every "no queen" reply (which it
+   would otherwise pass) on hands where the queen is in its own hand.  A
+   `ponytail:` note, not a hole.
+2. **`Q + 2K` pulls partner's 6T to 6NT.**  **Dead as designed.**  6T is the
+   *no-queen* reply, and an asker holding the queen never relays (consequence 1),
+   so the position cannot arise.  It would return only if consequence 1 is built.
 
 Unmeasured.  Nothing in this section ships without its own A/B, and the arm
-that prices it is `queen` against the two-round relay, not against `gated`.
+that prices it is `queen` against the two-round relay's numbers on a matched
+seed, not against `gated`.
