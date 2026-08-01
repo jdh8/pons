@@ -892,3 +892,63 @@ itself.  Chaining the two experiments across their shared seed puts
 `kickback-queen` roughly +0.00015/board plain DD ahead of `gated-queen`, where
 kickback alone had re-measured a wash.  That is arithmetic across two A/Bs, not
 a measured cell — §7.7's arm, when someone writes it.
+
+### 7.7 Open follow-ups
+
+Recorded, not built.  Each owes its own A/B.
+
+**The relocation itself is unmeasured.**  Every kickback number on record —
+including the "wash" — was taken while the answer/ask collision of §7.6 was
+live, because the guard that prevents it sat entirely behind `set_queen_ask`.
+Plain `set_kickback` therefore ran with no protection at all beyond the 4NT
+carve-out.  Nothing measured before 2026-08-02 says anything about the
+relocation on its own; it all says something about the relocation plus a
+phantom-suit generator.  Re-measure before quoting any of it.
+
+**Nine HCP-axis reading leaks, recorded not resolved.**  Shipping the relay
+default-on moved `authored_calls_read_what_they_gate`'s HCP pin from 11/0 to
+20/9.  The nine are the same three calls in each book column: the asker's
+continuations over a 1430 answer, which **gate** on `19+ HCP` (the grand-zone
+strength bar) but **read** as keycard counts and "the queen cannot change the
+call".  The reading is the honest one — it says what the call shows.  The HCP
+conjunct is a strength floor the reading deliberately does not project, so the
+meter scores it a leak.  Closing it means either projecting the bar, which
+over-narrows partner's hand at every keycard answer, or dropping it, which lets
+the relay fire without the values.  Neither is obviously right; it wants its
+own decision, not a silent pin bump.
+
+**The two king asks disagree.**  The relay bids seven on **two** of the three
+side kings; the classic 5NT path (`asker_after_6c`) demands all **three**.
+`probe-trump-queen`'s grand table says two is right — 80.1% ± 2.5 against a
+grand break-even near 56–58%, where one king is 66.2% ± 11.2 and does not
+survive the slam-boundary shave.  The 5NT path is a shipped path, so it wants
+its own arm rather than a quiet edit.
+
+**All three side kings may be a 7NT signal, not a seven-of-trump signal**
+(jdh8, 2026-08-02).  The argument is not "notrump takes the same tricks" — it
+is that **notrump is the safer contract**, which is the opposite of the usual
+intuition and is why this is worth measuring.
+
+Holding AK in every suit, no opening lead can dislodge a stopper: we win trick
+one whatever they choose, and the risk of *not having enough tricks* is
+already priced out by the keycard, queen and king count.  What is left is the
+risk a suit contract carries and notrump does not — a **ruff**.  Cash the ace
+of a side suit into a defender who is void with a trump left and the grand
+dies on a hand where every high card was ours.  7NT cannot be beaten that way.
+So on the hands this trigger fires, the dominant failure mode is a ruff, not a
+missing trick, and notrump removes it outright.
+
+The gate is therefore the **fit shape**, for two reasons pointing the same way:
+a 4-4 fit earns a thirteenth trick notrump cannot (the 5-3 side suit gives
+discards), *and* a 4-4 fit is the shape least exposed to the ruff, because the
+side suits are shorter and a defender's void is less likely.  So 4-4 keeps
+playing in the suit; at 5-3 or longer both arguments flip toward notrump.
+
+Size it before building it: over a *major* grand the gain is ten points
+(1520 against 1510), which rounds to **zero IMPs**.  Over a *minor* grand it is
+eighty (1520/1440 non-vulnerable, 2220/2140 vulnerable) — **2 IMPs, both
+vulnerabilities**.  So this is a minor-suit treatment, which is precisely where
+the relocated ladder has the room to explore a grand at all, and it should be
+measured on minor lanes only.  Expect double-dummy to flatter notrump grands
+(DD never misguesses a two-way finesse); score with perfect defense and apply
+the slam-boundary shave before believing a thin win.

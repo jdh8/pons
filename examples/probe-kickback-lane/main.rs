@@ -1,0 +1,107 @@
+//! Walk one keycard auction under `set_kickback`, reporting at every seat what
+//! the bidder chose, what else it considered, and — the question a phantom
+//! contract always turns on — whether the position is **authored** or the floor.
+//!
+//! A book node with finite mass shadows the floor, so "which layer answered
+//! this call" is not a detail: it decides whether a `-∞` elsewhere in the
+//! logits means "this hand does not bid that" or merely "nobody had an
+//! opinion".  `--baseline` re-walks the same deal without the relocation, so
+//! the two ladders can be read side by side.
+
+use clap::Parser;
+use contract_bridge::auction::{Auction, Call};
+use contract_bridge::{AbsoluteVulnerability, Hand, Seat};
+use pons::bidding::context::relative;
+use pons::bidding::instinct::{
+    set_keycard_answer_gates, set_keycard_minors, set_kickback, set_queen_ask,
+};
+use pons::bidding::{Stance, System, american};
+use pons::scoring::final_contract;
+
+#[path = "../common/mod.rs"]
+#[allow(dead_code)]
+mod common;
+use common::{next_call, seat_to_act};
+
+#[derive(Parser)]
+struct Args {
+    /// The four hands, clockwise from North, in PBN holding order
+    #[arg(long, num_args = 4, required = true)]
+    hands: Vec<String>,
+    /// Dealer
+    #[arg(long, default_value = "West")]
+    dealer: String,
+    /// Walk the un-relocated ladder instead
+    #[arg(long)]
+    baseline: bool,
+    /// How many candidate calls to print per seat
+    #[arg(long, default_value = "6")]
+    top: usize,
+}
+
+fn knobs(kickback: bool) {
+    set_keycard_minors(true);
+    set_kickback(kickback);
+    set_keycard_answer_gates(!kickback);
+    set_queen_ask(true);
+}
+
+fn main() {
+    let args = Args::parse();
+    let kickback = !args.baseline;
+    let stance: Stance = {
+        knobs(kickback);
+        let built = american().against();
+        knobs(false);
+        built
+    };
+
+    let hands: Vec<Hand> = args
+        .hands
+        .iter()
+        .map(|h| h.parse().expect("a PBN holding like AKQ3.AQ42.QT72.A"))
+        .collect();
+    let dealer = match args.dealer.as_str() {
+        "North" => Seat::North,
+        "East" => Seat::East,
+        "South" => Seat::South,
+        _ => Seat::West,
+    };
+    let vul = AbsoluteVulnerability::empty();
+
+    println!(
+        "ladder: {}",
+        if kickback { "kickback" } else { "plain 4NT" }
+    );
+    let mut auction = Auction::new();
+    while !auction.has_ended() {
+        knobs(kickback);
+        let seat = seat_to_act(dealer, auction.len());
+        let hand = hands[seat as usize];
+        let authored = stance.authored_at(relative(vul, seat), &auction);
+        let call = next_call(&stance, hand, dealer, vul, &auction);
+
+        let mut top: Vec<(Call, f32)> = stance
+            .classify(hand, relative(vul, seat), &auction)
+            .map(|logits| {
+                logits
+                    .iter()
+                    .map(|(c, &l)| (c, l))
+                    .filter(|&(c, l)| l.is_finite() && auction.can_push(c).is_ok())
+                    .collect()
+            })
+            .unwrap_or_default();
+        top.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("logits are never NaN"));
+        top.truncate(args.top);
+        let shown: Vec<String> = top.iter().map(|(c, l)| format!("{c:?}@{l:.2}")).collect();
+
+        println!(
+            "  {seat:?} -> {call:?}   [{}]   {}",
+            if authored { "AUTHORED" } else { "floor" },
+            shown.join(" ")
+        );
+        auction.push(call);
+    }
+    println!("contract: {:?}", final_contract(&auction, dealer));
+    knobs(false);
+}

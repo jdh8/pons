@@ -1283,6 +1283,10 @@ mod tests {
     /// queenless asker bets the small slam as it always has.
     #[test]
     fn relay_absent_off_the_knob() {
+        // The knob defaults **on** since 2026-08-02, so the off arm has to say
+        // so — at construction *and* at classification, the two regimes
+        // `set_queen_ask` documents.
+        crate::bidding::instinct::set_queen_ask(false);
         let trie = rkcb_trie();
         let mut auction = ANS_AUCTION.to_vec();
         auction.extend([Call::Bid(Bid::new(5, Strain::Clubs)), Call::Pass]);
@@ -1295,9 +1299,10 @@ mod tests {
         );
         auction.extend([Call::Bid(Bid::new(5, Strain::Diamonds)), Call::Pass]);
         let hand: Hand = "KQ432.53.842.932".parse().unwrap();
+        let landed = trie.classify(hand, RelativeVulnerability::NONE, &auction);
+        crate::bidding::instinct::set_queen_ask(true); // restore the default
         assert!(
-            trie.classify(hand, RelativeVulnerability::NONE, &auction)
-                .is_none(),
+            landed.is_none(),
             "off the knob there is no relay node for 5♦ to land on"
         );
     }

@@ -7873,7 +7873,19 @@ mod tests {
         // legacy-`Or` leaks from HCP (17 → 11) to points (3 → 9); the knob-on
         // DNF box pins both axes exactly, so both knob-on columns stay 0.
         let pinned: [(&str, usize, usize); 6] = [
-            ("HCP", 11, 0),
+            // 11/0 → 20/9 when the queen relay went default-on (2026-08-02).
+            // The nine new leaks are the same three calls in each column —
+            // the asker's continuations over a 1430 answer, which *gate* on
+            // `19+ HCP` (the grand-zone strength bar) but *read* as keycard
+            // counts and "the queen cannot change the call".  The reading is
+            // the honest one; the HCP conjunct is a strength floor that the
+            // reading deliberately does not project, so the meter scores it a
+            // leak.  **Recorded, not resolved** — closing it means either
+            // projecting the strength bar (which would over-narrow partner's
+            // hand at every keycard answer) or dropping it (which would let
+            // the relay fire without the values).  See
+            // docs/ai-bidder/bba-kickback.md §7.7.
+            ("HCP", 20, 9),
             ("length", 59, 0),
             ("points", 9, 0),
             // 0/0 measured at birth (2026-07-25): every `suit_hcp` gate the
