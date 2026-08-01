@@ -141,7 +141,27 @@ king, counted for the suit stamped on the ask (`feature[424]`), answers in
   exists in code but is gated on `King ask by available bid` — **the
   system-0 default (and the 21GF card) has `King ask by 5NT = 1`, so the
   king ask stays 5NT** and e.g. 5♦ after a 4NT answer is *natural*
-  (probe-verified); Gerber forces 5♣;
+  (probe-verified); Gerber forces 5♣.
+
+  **`King ask by available bid` is inert under kickback** — probed, because it
+  looks like the natural default once the ask is relocated.  It is not.  Both
+  rows crossed on one grand-zone hand, hearts agreed (ask 4♠, answer 4NT, queen
+  ask 5♣, reply 5♠ = queen + ♠K):
+
+  | `King ask by 5NT` | `King ask by available bid` | asker |
+  | --- | --- | --- |
+  | on | off | **5NT** (asks) |
+  | off | on | 6♥ (places) |
+  | on | on | **5NT** (asks) |
+  | off | off | 6♥ (places) |
+
+  The available-bid arm equals the neither arm, so the row never fires; 5NT
+  wins when both are set.  Repeated with diamonds agreed, where the 2nd
+  available bid would be 5♠ — three steps under six of trump, the most room the
+  row can ever have — and it still did not ask (it bid 6NT).  Whatever gates it
+  is not satisfied by an ordinary kickback + queen-ask auction.  Note the 6NT:
+  BBA prefers the notrump slam to six of a minor once the values are known,
+  which is the same "pull to pick a slam" jdh8 arrived at independently;
 - the trump queen is "held" when the honor table says so **or
   `posiadane_karty[trump] ≥ 10`, computed as own actual length + partner's
   bilans-*reconstructed* length** (`MY_HAND.dlugosc + TMP_HAND.dlugosc`) —
