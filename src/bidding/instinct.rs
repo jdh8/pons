@@ -2344,23 +2344,101 @@ fn answer_step(ask: Bid, answer: Bid) -> Option<usize> {
     None
 }
 
-/// The queen ask over `answer`, when the relay fits under the signoff
+/// What partner's single reply to the queen ask can say
 ///
-/// The relay is one step up the auction's own ladder, and partner's two
-/// replies sit on the next two rungs.  It fits exactly when the **no-queen**
-/// rung — the one the asker has to be able to stop under — still lands at or
-/// below five of trump; whenever it does not, the asker bets the small slam on
-/// four keycards instead, which is what the floor does today.
+/// The merged answer (`docs/ai-bidder/bba-kickback.md` §7.6): one round carries
+/// the queen *and* the kings, because the space between the ask and six of
+/// trump is exactly big enough to hold both.
 ///
-/// The relocated ladder puts step 4 at five of trump, so every kickback lane
-/// has the room.  Over a plain 4NT it is the major lanes minus
-/// hearts-after-a-0-or-3 (whose no-queen rung would be 5♠, past the 5♥
-/// signoff), and neither minor (whose answers overshoot five of the minor
-/// before the relay even starts).
+/// - `weak` — five of trump: no queen, and not worth six anyway.  `None` when
+///   the ask already sits at or above five of trump, where that contract is
+///   gone and the distinction with it.
+/// - `deny` — six of trump: no queen.  With `weak` present it means the
+///   stronger half, "no queen but bid it anyway" (the ninth trump, a void).
+/// - `kings` — the three side suits, cheapest first: the queen, plus the king
+///   of that suit.  **Skipping a step denies that king**, so the reply reads
+///   "my cheapest king is this one and I hold none below it" — BBA's ladder,
+///   and worth strictly more than naming one king out of a count.
+/// - `no_king` — 5NT: the queen, and no side king at all.
+#[derive(Clone, Copy)]
+// ponytail: only `ask` is read while the two-round rungs are still wired; the
+// rest are read the moment `queen_reply`/`queen_answered` migrate to this map.
+// The geometry lands first, with its lane test, because both earlier cuts of
+// this ladder shipped a collision that no test would have caught.
+#[allow(dead_code)]
+pub(in crate::bidding) struct RelayMap {
+    /// The queen ask itself
+    pub ask: Bid,
+    /// Five of trump, when it is still available to sign off in
+    pub weak: Option<Bid>,
+    /// Six of trump — no queen
+    pub deny: Bid,
+    /// The three side suits, cheapest first, with the call showing that king
+    pub kings: [(Suit, Bid); 3],
+    /// 5NT — the queen, no side king
+    pub no_king: Bid,
+}
+
+/// The queen ask over `answer`, when the merged reply fits under six of trump
+///
+/// The ask is one step up the auction's own ladder.  BBA instead skips trump
+/// and notrump to keep both as replies, but skipping burns a step: enumerated
+/// over every lane, the plain successor serves **13 of 16** against BBA's
+/// **10 of 16** (and 8 of 8 kickback lanes against 7).  Where the successor
+/// lands on trump we lose only the weak/strong split, and lose it for free —
+/// five of trump is unplayable in exactly those lanes.
 pub(in crate::bidding) fn queen_ask_room(answer: Bid, trump: Suit) -> Option<Bid> {
-    let ask = bid_successor(answer)?;
+    let ask = relay_map(answer, trump)?.ask;
+    // ponytail: the merged reply fits thirteen lanes, the two-round ladder
+    // still wired below it only eleven — the extra two are exactly the lanes
+    // whose *denial rung* overshoots five of trump, which the merged reply does
+    // not have and the ladder cannot survive.  So the old test stays as a
+    // narrowing conjunct until the rungs migrate; then these two lines go.
     let denial = bid_successor(ask)?;
     (denial <= Bid::new(5, Strain::from(trump))).then_some(ask)
+}
+
+/// Assign every message of the merged reply to a call, or fail
+///
+/// Fails when a side suit's cheapest bid above the ask climbs past six of
+/// trump — the cramped plain-4NT minor lanes, which the relay has never
+/// served.  Every assignment is checked for collision, because that is where
+/// both earlier cuts of this ladder broke.
+pub(in crate::bidding) fn relay_map(answer: Bid, trump: Suit) -> Option<RelayMap> {
+    let ask = bid_successor(answer)?;
+    let strain = Strain::from(trump);
+    let (five, six) = (Bid::new(5, strain), Bid::new(6, strain));
+    let mut taken = Vec::with_capacity(6);
+    let mut take = |call: Bid| -> Option<Bid> {
+        (call > ask && call <= six && !taken.contains(&call)).then(|| {
+            taken.push(call);
+            call
+        })
+    };
+    let weak = (five > ask).then(|| take(five)).flatten();
+    if weak.is_none() && five > ask {
+        return None;
+    }
+    let deny = take(six)?;
+    let mut kings = [(trump, six); 3];
+    for (slot, side) in kings
+        .iter_mut()
+        .zip(Suit::ASC.into_iter().filter(|&suit| suit != trump))
+    {
+        let call = (5..=6)
+            .map(|level| Bid::new(level, Strain::from(side)))
+            .find(|&call| call > ask)?;
+        *slot = (side, take(call)?);
+    }
+    kings.sort_by_key(|&(_, call)| call);
+    let no_king = take(Bid::new(5, Strain::Notrump))?;
+    Some(RelayMap {
+        ask,
+        weak,
+        deny,
+        kings,
+        no_king,
+    })
 }
 
 /// The seven rungs a queen relay over `answer` occupies, in auction order:
@@ -6964,6 +7042,60 @@ mod tests {
     /// answer, and it exists exactly when the *no-queen* rung still lands at or
     /// below five of trump.  This is the table `set_queen_ask` documents; get a
     /// row wrong and a relay lands past the signoff it was meant to preserve.
+    /// Every relay lane, mechanically: which ones the merged reply fits in,
+    /// and that no lane ever assigns two messages to the same call.
+    ///
+    /// This is the test both earlier cuts of the ladder needed and did not
+    /// have.  The first collided the buff jump with the king rungs; the second
+    /// collided the zero-king answer with two-or-more.  A collision is not a
+    /// wrong contract, it is partner reading the opposite of what was said.
+    #[test]
+    fn merged_relay_fits_thirteen_lanes_without_collision() {
+        use std::collections::HashSet;
+        let plain = Bid::new(4, Strain::Notrump);
+        let kickback = |trump: Suit| match trump {
+            Suit::Clubs => Bid::new(4, Strain::Diamonds),
+            Suit::Diamonds => Bid::new(4, Strain::Hearts),
+            Suit::Hearts => Bid::new(4, Strain::Spades),
+            Suit::Spades => plain,
+        };
+        let mut fitted = 0;
+        for trump in Suit::ASC {
+            for ask in [plain, kickback(trump)] {
+                for step in 1..=2 {
+                    let mut answer = ask;
+                    for _ in 0..step {
+                        answer = bid_successor(answer).unwrap();
+                    }
+                    let Some(map) = relay_map(answer, trump) else {
+                        continue;
+                    };
+                    fitted += 1;
+                    let six = Bid::new(6, Strain::from(trump));
+                    let mut calls: Vec<Bid> = map.kings.iter().map(|&(_, call)| call).collect();
+                    calls.extend([map.deny, map.no_king]);
+                    calls.extend(map.weak);
+                    for &call in &calls {
+                        assert!(call > map.ask, "{call:?} is not above the ask in {trump:?}");
+                        assert!(call <= six, "{call:?} is above six of {trump:?}");
+                    }
+                    let unique: HashSet<Bid> = calls.iter().copied().collect();
+                    assert_eq!(
+                        unique.len(),
+                        calls.len(),
+                        "two messages share a call with {trump:?} trumps over {answer:?}"
+                    );
+                    // Cheapest-first, so "skipped steps deny" is well defined.
+                    assert!(
+                        map.kings.windows(2).all(|pair| pair[0].1 < pair[1].1),
+                        "king rungs out of order for {trump:?}"
+                    );
+                }
+            }
+        }
+        assert_eq!(fitted, 13, "the merged reply should serve thirteen lanes");
+    }
+
     #[test]
     fn relay_geometry_keeps_the_signoff_reachable() {
         let bid = |level, strain| Bid::new(level, strain);
