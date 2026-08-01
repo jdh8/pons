@@ -7,6 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **A queen ask for RKCB and kickback** (`set_queen_ask`, **default off** while
+  it measures). pons had no queen ask at all: the trump queen lived only in the
+  two-keycard rungs (step 3 denies it, step 4 shows it), so after a one-or-four
+  or none-or-three answer — the common case — the asker bet six on four keycards
+  without ever knowing whether the queen was there, and bet seven on combined
+  points alone. The relay is one step above the answer, partner's two replies
+  the next two rungs, and a king ask above the queen-shown reply. The asker's
+  decision table becomes: five keycards bid six whatever the queen does; four
+  keycards need the queen; a denial stops at five; and where the relay has no
+  room the asker bets six on four exactly as before. A **proven ten-card fit
+  counts as the queen** on both sides of the table (BBA's `posiadane_karty >=
+  10`) — with ten trumps the honour drops or finesses either way. Seven is bid
+  on two of the three side kings, and the king ask rides the **grand-zone
+  strength gate** rather than the keycard count: RKCB is a slam veto, not a slam
+  seeker, so a partnership short of the values never spends the round.
+
+  One geometry serves both ladders — the same `bid_successor` walk the 1430
+  rungs already use — so the book (`american/slam.rs`) and the floor
+  (`instinct.rs`, where kickback lives) cannot drift. The relay is installed
+  exactly where the *no-queen* rung still lands at or below five of trump, which
+  is every relocated lane and every plain-4NT major except hearts after a
+  none-or-three; both plain-4NT minors keep today's cramped behaviour. Because
+  the relocated ladder puts step 4 at five of trump, kickback gets the relay for
+  free — which is the point: §7.3.4 named the asker's continuation as the next
+  lever after the relocation measured a wash.
+
+  Every new rung carries `.alert(...)` and a `Rules::face` gate: they land on
+  4♠/4NT/5♣–5NT/6♣–6♥, and the `alerted` bit is structural, so an ungated rule
+  there would erase the natural reading of the most common contracts in bridge
+  (the §7.3.1 union poison). `keycard_ask_bid` grows the general form of its 4NT
+  carve-out — no call inside a conversation already in motion is an ask of its
+  own — and the forced rail reaches the relay's rounds so the neural shell does
+  not freewheel inside one.
+
+  **Unmeasured, and therefore off.** Fires ~10.7 boards per 10⁴, dense enough
+  for a random-deal A/B; `ab-kickback` grows `queen` and `kickback-queen` arms
+  so each pair moves exactly one knob. Expect a grand-heavy divergent set and
+  apply `docs/measurement.md`'s slam-boundary shave before calling a thin win.
+
 ### Fixed
 
 - **The kickback ladder no longer claims a call it cannot own.** With diamonds

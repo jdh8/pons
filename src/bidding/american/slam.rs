@@ -90,6 +90,7 @@ pub(super) fn minor_keycard() -> bool {
 
 use super::{insert_uncontested, uncontested};
 use crate::bidding::constraint::{described, hcp};
+use crate::bidding::instinct::{queen_ask_now, queen_ask_room, relay_ladder};
 use crate::bidding::trie::Classifier;
 use contract_bridge::Hand;
 
@@ -176,13 +177,36 @@ fn keycards(
     )
 }
 
-/// Whether the hand holds the queen of trumps
+/// Whether the hand holds the queen of trumps — or the side has shown the
+/// ten-card fit that stands in for it
+///
+/// With ten trumps between the hands the queen drops or finesses either way, so
+/// the honour stops being worth a round of bidding (BBA's `posiadane_karty >=
+/// 10`, `docs/ai-bidder/bba-kickback.md` §3).  Counted as our own length plus
+/// the sound floor of partner's shown length, so neither seat can claim a fit
+/// the auction has not shown.  The ten-card arm rides [`set_queen_ask`], so the
+/// knob-off answers keep their literal holding test and stay byte-identical.
+///
+/// The knob is sampled **here, at book construction**, not inside the closure —
+/// the regime every book knob lives in ([`set_minor_keycard`]).  Reading it at
+/// classification time instead would leave a book built with the relay on
+/// answering by the literal holding whenever a harness cleared the flag between
+/// building and bidding, which is exactly the split the two-regime discipline
+/// exists to prevent.
 fn has_trump_queen(
     trump: Suit,
 ) -> crate::bidding::constraint::Cons<impl crate::bidding::constraint::Constraint + Clone> {
+    use crate::bidding::inference::Inferences;
+    let ten_card_counts = queen_ask_now();
     described(
         format!("holds the {trump} queen"),
-        move |hand: Hand, _: &crate::bidding::context::Context<'_>| hand[trump].contains(Rank::Q),
+        move |hand: Hand, context: &crate::bidding::context::Context<'_>| {
+            hand[trump].contains(Rank::Q)
+                || (ten_card_counts
+                    && hand[trump].len()
+                        + usize::from(Inferences::read(context).partner().length(trump).min)
+                        >= 10)
+        },
     )
 }
 
@@ -242,7 +266,7 @@ fn rkcb_answers(trump: Suit) -> Rules {
 /// king ask); with 3+ asker knows partner has 1, signs off at 5T or bids 6T.
 fn asker_after_5c(trump: Suit) -> Rules {
     let t = Strain::from(trump);
-    Rules::new()
+    relay_first(trump, Bid::new(5, Strain::Clubs), keycards(trump, 3..))
         // 5NT: asker has 4 keycards + partner's 1 = all five → king ask
         .rule(Bid::new(5, Strain::Notrump), 1.4, keycards(trump, 4..=4))
         .alert(RKCB)
@@ -258,7 +282,11 @@ fn asker_after_5c(trump: Suit) -> Rules {
 /// keycards asker knows partner has 0 → sign off at 5T.
 fn asker_after_5d(trump: Suit) -> Rules {
     let t = Strain::from(trump);
-    Rules::new()
+    // Only the four-keycard asker needs the relay here: it knows partner has
+    // none, so the total is four and the queen is the whole difference between
+    // five and six.  Two keycards reads partner for three — five combined, and
+    // five keycards bid six whatever the queen does.
+    relay_first(trump, Bid::new(5, Strain::Diamonds), keycards(trump, 4..=4))
         // 6T: asker with ≤2 assumes partner has 3 (slam OK), or asker has 4+
         .rule(
             Bid::new(6, t),
@@ -267,6 +295,110 @@ fn asker_after_5d(trump: Suit) -> Rules {
         )
         // 5T: signoff (asker has ≥3 and knows partner has 0)
         .rule(Bid::new(5, t), 0.5, hcp(0..))
+}
+
+// ---------------------------------------------------------------------------
+// The queen relay (see `set_queen_ask`)
+// ---------------------------------------------------------------------------
+//
+// The book's 5♣ and 5♦ answers say nothing about the trump queen, so the asker
+// has been betting six on four keycards blind.  The relay is one step above the
+// answer, partner's two replies the next two rungs, and — on the queen-shown
+// branch only — a king ask above that.  Geometry is shared with the floor
+// ([`queen_ask_room`], [`relay_ladder`]) so the two ladders cannot drift.
+
+/// Open an asker table with the queen relay, when the knob is on, the lane has
+/// room, and `interested` says the queen is what the placement turns on
+///
+/// Weighted above every placement in the table it opens, so a queenless asker
+/// relays instead of guessing; holding the queen (or the ten-card fit) the rule
+/// is dead and the table below is exactly what shipped.
+fn relay_first(
+    trump: Suit,
+    answer: Bid,
+    interested: crate::bidding::constraint::Cons<
+        impl crate::bidding::constraint::Constraint + Clone + 'static,
+    >,
+) -> Rules {
+    let rules = Rules::new();
+    if !queen_ask_now() {
+        return rules;
+    }
+    match queen_ask_room(answer, trump) {
+        Some(relay) => rules
+            .rule(relay, 1.6, interested & !has_trump_queen(trump))
+            .alert(RKCB),
+        None => rules,
+    }
+}
+
+/// Partner's replies to the queen relay: the second rung shows it, the first
+/// denies it and is the table's finite catch-all
+fn queen_replies(trump: Suit, ladder: [Bid; 7]) -> Rules {
+    Rules::new()
+        .rule(ladder[2], 1.0, has_trump_queen(trump))
+        .alert(RKCB)
+        .rule(ladder[1], 0.5, hcp(0..))
+        .alert(RKCB)
+}
+
+/// Asker's placement over a denied queen: one keycard *and* the queen missing
+/// stops at five, all five keycards bid six anyway
+///
+/// The denial rung is five of trump in the lanes where the ladder lands it
+/// there (♥ after 5♣, ♠ after 5♦), and passing is then how the asker stops;
+/// elsewhere five of trump is still free.  Both shapes keep a finite call for
+/// every hand, so the table never hands a live node back to the floor.
+fn asker_after_denial(trump: Suit, denial: Bid) -> Rules {
+    let t = Strain::from(trump);
+    let rules = Rules::new().rule(Bid::new(6, t), 1.0, keycards(trump, 4..));
+    if denial == Bid::new(5, t) {
+        rules.rule(Call::Pass, 0.5, hcp(0..))
+    } else {
+        rules.rule(Bid::new(5, t), 0.5, hcp(0..))
+    }
+}
+
+/// Asker's placement over a shown queen: the king ask with the values for
+/// seven, the small slam otherwise
+///
+/// The king ask is gated on **strength**, not on the keycard count — RKCB is a
+/// slam veto, not a slam seeker, so a partnership short of the grand zone never
+/// spends the round.  `hcp(19..)` is the book's available proxy at this node.
+///
+/// ponytail: raw HCP, because the book carries no combined-point machinery
+/// here; the upgrade path is the floor's `points_and_net(combined_points(37))`
+/// once the book's asker tables can see partner's shown strength.
+fn asker_after_queen(trump: Suit, ladder: [Bid; 7]) -> Rules {
+    let t = Strain::from(trump);
+    Rules::new()
+        .rule(ladder[3], 1.4, keycards(trump, 4..=4) & hcp(19..))
+        .alert(RKCB)
+        .rule(Bid::new(6, t), 1.0, hcp(0..))
+}
+
+/// Partner's replies to the relay's king ask: none, one, two-or-more side kings
+fn relay_king_replies(trump: Suit, ladder: [Bid; 7]) -> Rules {
+    Rules::new()
+        .rule(ladder[4], 1.0, kings_outside(trump, 0..=0))
+        .alert(RKCB)
+        .rule(ladder[5], 1.0, kings_outside(trump, 1..=1))
+        .alert(RKCB)
+        .rule(ladder[6], 0.5, hcp(0..))
+        .alert(RKCB)
+}
+
+/// Asker's placement over a king reply showing `partners` side kings: seven on
+/// two of the three between the hands, six otherwise
+fn asker_after_relay_kings(trump: Suit, partners: usize) -> Rules {
+    let t = Strain::from(trump);
+    Rules::new()
+        .rule(
+            Bid::new(7, t),
+            1.0,
+            kings_outside(trump, 2usize.saturating_sub(partners)..),
+        )
+        .rule(Bid::new(6, t), 0.5, hcp(0..))
 }
 
 /// Asker's continuation after a 5♥ response (2 keycards, no trump queen)
@@ -491,6 +623,61 @@ pub(super) fn install_rkcb(book: &mut Trie, our_calls: &[Call], trump: Suit) {
     insert_arc_all_seats(book, &suffix_5d, 3, &after_5d);
     insert_arc_all_seats(book, &suffix_5h, 3, &after_5h);
     insert_arc_all_seats(book, &suffix_5s, 3, &after_5s);
+
+    // -----------------------------------------------------------------------
+    // 2b. The queen relay, where the lane has room for it
+    //     `our_calls + [4NT, ans, relay, reply…]`
+    // -----------------------------------------------------------------------
+    //
+    // Only the two ambiguous answers grow one — 5♥ and 5♠ already disclose the
+    // queen — and only where `queen_ask_room` says the no-queen rung still
+    // lands at or below five of trump, which excludes both plain-4NT minors and
+    // hearts after a 0-or-3.  Those lanes keep betting the small slam on four
+    // keycards, exactly as they do today.
+    if queen_ask_now() {
+        for &answer in &[ans_5c, ans_5d] {
+            let Call::Bid(answer_bid) = answer else {
+                continue;
+            };
+            let Some(ladder) =
+                queen_ask_room(answer_bid, trump).and_then(|_| relay_ladder(answer_bid))
+            else {
+                continue;
+            };
+            let relay = Call::Bid(ladder[0]);
+            let denial = Call::Bid(ladder[1]);
+            let shown = Call::Bid(ladder[2]);
+            let king_ask = Call::Bid(ladder[3]);
+
+            insert_uncontested(
+                book,
+                &extend(&[answer, relay]),
+                queen_replies(trump, ladder),
+            );
+            insert_uncontested(
+                book,
+                &extend(&[answer, relay, denial]),
+                asker_after_denial(trump, ladder[1]),
+            );
+            insert_uncontested(
+                book,
+                &extend(&[answer, relay, shown]),
+                asker_after_queen(trump, ladder),
+            );
+            insert_uncontested(
+                book,
+                &extend(&[answer, relay, shown, king_ask]),
+                relay_king_replies(trump, ladder),
+            );
+            for (partners, &reply) in ladder[4..].iter().enumerate() {
+                insert_uncontested(
+                    book,
+                    &extend(&[answer, relay, shown, king_ask, Call::Bid(reply)]),
+                    asker_after_relay_kings(trump, partners),
+                );
+            }
+        }
+    }
 
     // ponytail: no grand-slam king ask for minors — plain 4NT has no room for it
     // (5NT misreads as the ask; 6♣/6♦ king answers collide with the trump slam).
@@ -898,6 +1085,145 @@ mod tests {
             trie.classify(hand, RelativeVulnerability::NONE, &auction)
                 .is_none(),
             "no king-answer table should exist for a minor trump"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // The queen relay (`set_queen_ask`)
+    // -----------------------------------------------------------------------
+
+    /// A spade-trump book with the relay authored.  The knob is read at book
+    /// *construction*, so an arm has to build its own trie — the regime
+    /// [`set_minor_keycard`] already lives in.
+    fn relay_trie() -> Trie {
+        crate::bidding::instinct::set_queen_ask(true);
+        let trie = rkcb_trie();
+        crate::bidding::instinct::set_queen_ask(false);
+        trie
+    }
+
+    /// Knob off, the book is byte-identical: no relay node exists, and the
+    /// queenless asker bets the small slam as it always has.
+    #[test]
+    fn relay_absent_off_the_knob() {
+        let trie = rkcb_trie();
+        let mut auction = ANS_AUCTION.to_vec();
+        auction.extend([Call::Bid(Bid::new(5, Strain::Clubs)), Call::Pass]);
+        // Four spades (the Jacoby minimum, so no ten-card fit to stand in for
+        // the queen) and three keycards: ♠A, ♥A, ♠K.
+        assert_eq!(
+            best(&trie, &auction, "AKJ8.AK2.KJ32.42"),
+            Call::Bid(Bid::new(6, Strain::Spades)),
+            "off the knob: four combined keycards bets six without asking"
+        );
+        auction.extend([Call::Bid(Bid::new(5, Strain::Diamonds)), Call::Pass]);
+        let hand: Hand = "KQ432.53.842.932".parse().unwrap();
+        assert!(
+            trie.classify(hand, RelativeVulnerability::NONE, &auction)
+                .is_none(),
+            "off the knob there is no relay node for 5♦ to land on"
+        );
+    }
+
+    /// The relay itself: the queenless asker asks, partner answers on the two
+    /// rungs above, and the asker places the contract on the reply.
+    #[test]
+    fn relay_asks_answers_and_places() {
+        let trie = relay_trie();
+        let mut auction = ANS_AUCTION.to_vec();
+        auction.extend([Call::Bid(Bid::new(5, Strain::Clubs)), Call::Pass]);
+
+        // Three keycards, no trump queen → 5♦ relays instead of guessing.
+        assert_eq!(
+            best(&trie, &auction, "AKJ8.AK2.KJ32.42"),
+            Call::Bid(Bid::new(5, Strain::Diamonds)),
+            "queenless: ask the queen"
+        );
+        // The same count holding it → the relay is dead, bid the slam.
+        assert_eq!(
+            best(&trie, &auction, "AKQ8.AK2.KJ32.42"),
+            Call::Bid(Bid::new(6, Strain::Spades)),
+            "our own queen settles it: no relay"
+        );
+
+        // Partner replies: 5♥ denies, 5♠ shows.
+        auction.extend([Call::Bid(Bid::new(5, Strain::Diamonds)), Call::Pass]);
+        assert_eq!(
+            best(&trie, &auction, "K7432.653.842.92"),
+            Call::Bid(Bid::new(5, Strain::Hearts)),
+            "no trump queen → the denial rung"
+        );
+        assert_eq!(
+            best(&trie, &auction, "KQ432.653.842.92"),
+            Call::Bid(Bid::new(5, Strain::Spades)),
+            "trump queen → the show rung"
+        );
+
+        // The asker places it.  Three keycards is four combined: a denied
+        // queen leaves a keycard *and* the queen out, so stop at five.
+        let mut denied = auction.clone();
+        denied.extend([Call::Bid(Bid::new(5, Strain::Hearts)), Call::Pass]);
+        assert_eq!(
+            best(&trie, &denied, "AKJ8.AK2.KJ32.42"),
+            Call::Bid(Bid::new(5, Strain::Spades)),
+            "queen denied on four keycards: stop at five"
+        );
+        let mut shown = auction;
+        shown.extend([Call::Bid(Bid::new(5, Strain::Spades)), Call::Pass]);
+        assert_eq!(
+            best(&trie, &shown, "AKJ8.AK2.KJ32.42"),
+            Call::Bid(Bid::new(6, Strain::Spades)),
+            "queen shown on four keycards: bid the slam"
+        );
+    }
+
+    /// Seven is explored only when the values are there, and bid on two of the
+    /// three side kings — RKCB is a slam veto, not a slam seeker.
+    #[test]
+    fn relay_king_ask_needs_the_grand_values() {
+        let trie = relay_trie();
+        let mut shown = ANS_AUCTION.to_vec();
+        shown.extend([
+            Call::Bid(Bid::new(5, Strain::Clubs)),
+            Call::Pass,
+            Call::Bid(Bid::new(5, Strain::Diamonds)),
+            Call::Pass,
+            Call::Bid(Bid::new(5, Strain::Spades)),
+            Call::Pass,
+        ]);
+        // ♠AK98 ♥A32 ♦A432 ♣32 — four keycards, so all five are on the table
+        // and the queen is shown, but 15 HCP is not a grand-zone hand: six.
+        assert_eq!(
+            best(&trie, &shown, "AK98.A32.A432.32"),
+            Call::Bid(Bid::new(6, Strain::Spades)),
+            "all five keycards and the queen, no grand values: six, never the king ask"
+        );
+        // ♠AK98 ♥AK2 ♦AK32 ♣32 — the same four keycards with 21 HCP: ask.
+        assert_eq!(
+            best(&trie, &shown, "AK98.AK2.AK32.32"),
+            Call::Bid(Bid::new(5, Strain::Notrump)),
+            "grand-zone values: ask for kings"
+        );
+
+        // Partner shows one side king, and two between the hands bids seven.
+        let mut asked = shown;
+        asked.extend([Call::Bid(Bid::new(5, Strain::Notrump)), Call::Pass]);
+        assert_eq!(
+            best(&trie, &asked, "Q7432.653.K42.92"),
+            Call::Bid(Bid::new(6, Strain::Diamonds)),
+            "one side king → the one-king rung"
+        );
+        let mut answered = asked;
+        answered.extend([Call::Bid(Bid::new(6, Strain::Diamonds)), Call::Pass]);
+        assert_eq!(
+            best(&trie, &answered, "AK98.AK2.AK32.32"),
+            Call::Bid(Bid::new(7, Strain::Spades)),
+            "two of the three side kings between the hands: grand"
+        );
+        assert_eq!(
+            best(&trie, &answered, "AK98.AQ2.AQ32.32"),
+            Call::Bid(Bid::new(6, Strain::Spades)),
+            "only partner's king: stop in six"
         );
     }
 }

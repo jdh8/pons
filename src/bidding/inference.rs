@@ -7377,6 +7377,33 @@ mod tests {
         assert_all_alerted("american", worklist);
     }
 
+    /// The same invariant over the queen relay's own nodes
+    ///
+    /// [`set_queen_ask`] gates rule *presence* at book-construction time, so the
+    /// default build never sees the relay's rungs and the invariant above cannot
+    /// reach them.  A knob-on arm is what makes "every artificial call is
+    /// alerted" true of the treatment rather than only of the shipped default.
+    ///
+    /// [`set_queen_ask`]: crate::bidding::instinct::set_queen_ask
+    #[test]
+    fn queen_relay_calls_are_alerted() {
+        use crate::bidding::american::american;
+        use crate::bidding::instinct::set_queen_ask;
+
+        set_queen_ask(true);
+        let pair = american();
+        set_queen_ask(false);
+        let mut worklist = Vec::new();
+        for (phase, trie) in [
+            ("constructive", &pair.constructive.0),
+            ("competitive", &pair.competitive.0),
+            ("defensive", &pair.defensive.0),
+        ] {
+            worklist.extend(unalerted_artificial(phase, trie));
+        }
+        assert_all_alerted("american + queen relay", worklist);
+    }
+
     #[test]
     fn deviation_knobs_preserve_alert_invariant() {
         use crate::bidding::american::{

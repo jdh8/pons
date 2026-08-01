@@ -396,7 +396,19 @@ fn american_row(name: &str) -> i32 {
         // auction (the floor's authored rungs in `instinct.rs` — DOPI below
         // five of trump, DEPO at or above), and the 5NT king ask.
         "Cue bid" | "DOPI" | "ROPI" | "DEPO" | "King ask by 5NT" => 1,
-        "King ask by 5NT inviting" | "King ask by available bid" => 0,
+        "King ask by 5NT inviting" => 0,
+        // The king ask is 5NT off the knob, and the step above the queen reply
+        // on it — which *is* 5NT in most lanes but 6♣ where the reply itself
+        // landed on 5NT.  BBA's schema treats the two rows as exclusive, so
+        // neither value describes us honestly once the relay is on; we disclose
+        // the available-bid form because that is the one an opponent could be
+        // surprised by.
+        //
+        // BBA has no queen-ask row at all — it folds the queen into "Blackwood
+        // 1430" — so the relay itself is **under-disclosed**, the same gap
+        // `docs/ai-bidder/bba-kickback.md` §7.5 records for kickback.  Noted
+        // here rather than papered over with a row that does not fit.
+        "King ask by available bid" => i32::from(crate::bidding::instinct::queen_ask_now()),
         // Michaels and Unusual 2NT we author outright; `set_unusual_notrump_defense`
         // gates only our *defense* to theirs, not our own two-suiter bids.
         "Michaels Cuebid" | "Unusual 2NT" => 1,
