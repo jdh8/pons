@@ -404,10 +404,14 @@ fn american_row(name: &str) -> i32 {
         // the available-bid form because that is the one an opponent could be
         // surprised by.
         //
-        // BBA has no queen-ask row at all — it folds the queen into "Blackwood
-        // 1430" — so the relay itself is **under-disclosed**, the same gap
-        // `docs/ai-bidder/bba-kickback.md` §7.5 records for kickback.  Noted
-        // here rather than papered over with a row that does not fit.
+        // BBA has no queen-ask *toggle*, but it very much has the ask: it is
+        // unconditional inside Blackwood (`get_potencjalne_pytanie_o_dame_krole`,
+        // the first available non-trump non-NT bid above the answer), and the
+        // row that governs whether it exists at all is `Blackwood without K and
+        // Q` — which we already disclose as 0, correctly, because our 1430
+        // answers do split on the queen at steps 3/4 and we do own a king ask.
+        // So the relay is under-disclosed only in its *shape*, not its
+        // existence.  See `docs/ai-bidder/bba-kickback.md` §3.
         "King ask by available bid" => i32::from(crate::bidding::instinct::queen_ask_now()),
         // Michaels and Unusual 2NT we author outright; `set_unusual_notrump_defense`
         // gates only our *defense* to theirs, not our own two-suiter bids.
