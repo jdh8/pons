@@ -292,9 +292,11 @@ it never removes one (BBA's own posture, §1's "Kickback ON therefore *adds*
 asks"). That is what holds the blast radius at zero — no auction pons already
 bids changes meaning.
 
-**The price, named.** The relocated ask consumes the cheapest unbid-suit cue:
-4♠ over agreed hearts stops being a control bid. That is exactly what the
-phase-2 A/B prices.
+**The price, named — and it is currently zero.** The relocated ask consumes
+the cheapest unbid-suit cue: 4♠ over agreed hearts stops being a control bid.
+But the floor authors no control-bid *emission* at all (`partner_control_bid`
+only responds to partner's), and neither does the book, so today that price is
+not paid. It becomes real in the deferred control-bid session (§7.4).
 
 **Open — belongs to the control-bid session.** The rows marked † leave a 4NT
 that is redundant (rows 1 and 4) or entirely free (row 3). Additive keeps it
@@ -307,61 +309,194 @@ attribute its own result.
 
 ### 7.2 Phase ledger
 
+**Phases 2 and 3 were merged, and the order inverted, on 2026-08-01.** The
+original plan built hearts first (♥ agreed, ♠ unguarded → 4♠) and deferred
+minors. Four findings killed that order:
+
+1. **Hearts-only is not a convention.** Minors-only kickback is
+   [**Redwood**](http://www.keycardask.com/redwood.html) — 4♦ asks in ♣, 4♥ in
+   ♦, responses in steps above the ask. Kickback is the superset that adds
+   ♥→4♠. "Kickback hearts but not minors" is not an agreement anyone plays.
+2. **The payoff is a gradient, and hearts is its shallow end.** Count the 1430
+   answers that destroy the five-level landing spot in the agreed suit under a
+   plain 4NT ask:
+
+   | trump | answers that overshoot 5-of-trump | relocated ask | overshoots |
+   |---|---|---|---|
+   | ♣ | 5♦, 5♥, 5♠ — **3 of 4** | 4♦ → 4♥/4♠/4NT/5♣ | **0** |
+   | ♦ | 5♥, 5♠ — **2 of 4** | 4♥ → 4♠/4NT/5♣/5♦ | **0** |
+   | ♥ | 5♠ — **1 of 4** | 4♠ → 4NT/5♣/5♦/5♥ | **0** |
+   | ♠ | none — **0 of 4** | (nothing relocates) | — |
+
+   The old phase 2 was scoped to the 1-of-4 row.
+3. **The hearts row has no headroom.** [CHANGELOG.md](../../CHANGELOG.md)'s
+   M6.4 entry: the shipped majors ask *"ended a clean wash … final round 4
+   fired \_\_\_ / 204.8k, delta exactly zero, plain and perfect-defense
+   alike."* A hearts-only A/B relocates a call that already measures zero.
+   (The fired count is literally missing from that line — an open gap.)
+4. **Relocation alone may not rescue minors.** `keycard_trump`'s majors-only
+   carve is a measured decision whose stated cause is *strain, not space*:
+   "minor and thin 6-2 asks lost to the milestone 6NT power-blast
+   (double-dummy monetizes honors at 33-plus)." Kickback does not fix a strain
+   verdict — which is exactly why the experiment needs three arms.
+
 | phase | scope | state |
 |---|---|---|
-| 1 | the ladder as a face-only resolver + unit tests | **done** — `kickback_ladder` in [instinct.rs](../../src/bidding/instinct.rs), beside `face_trump`; `#[cfg(test)]` until phase 2 wires it. No bidding change. |
-| 2 | the floor, **majors only** (♥ agreed, ♠ unguarded → 4♠) | not started |
-| 3 | minors, and the authored book in `slam.rs` | not started |
-| 4 | competition + disclosure | not started |
+| 1 | the ladder as a face-only resolver + unit tests | **done** (`f985e23`) — `kickback_ladder` beside `face_trump`. No bidding change. |
+| 2+3 | the floor, **all four suits**, and the carve lifted beside it | **measured 2026-08-01, 3×1M boards.** `set_keycard_minors` **WINS big** and ships; `set_kickback` measures negative but the measurement is *contaminated* — see §7.3. |
+| 4 | the authored book in `slam.rs`; competition + disclosure | not started |
+| 5 | face-conditional alerts, so the relocation can be priced at all | **the blocker** — §7.3.1 |
 
-**Phase 2 — why majors only.** `keycard_trump` (`instinct.rs`) is majors-only
-*by measured decision* — round 4 of the M6.4 A/B lost 14 IMPs a board
-rerouting minor and thin 6-2 slams — so the floor's ask gate only ever
-proposes ♥ or ♠, and with ♠ nothing relocates. The whole phase-2 slice is
-therefore **"♥ agreed, ♠ unguarded → 4♠"**. That is BBA's dominant case in
-practice (♥ 158 of 224 labelled kickbacks in §5's census) and the ♠K-grand
-payoff of §3, and 4♠ over agreed hearts sits *above* game, so it can collide
-with no splinter and no natural bid. Work items:
+### 7.3 The three arms
 
-- knob `set_kickback` (classify-time thread-local beside `set_floor_rkcb`,
-  default off, off-state byte-identical);
-- ask emission at the "provable eight or the face" gate — propose 4♠ when the
-  ladder offers it;
-- the `Bid::new(4, Strain::Notrump)` literals in `keycard_asked`,
-  `keycard_asked_over_bid`, `keycard_answered`, `respect_keycard_signoff` and
-  `keycard_conversation_now` become "4NT **or** the ladder's ask";
-- answers as *steps above the ask* (`bid_successor` is the existing
-  primitive), and the asker's continuations with them;
-- `.alert(RKCB_FLOOR)` on the relocated ask and its answers — the alert is
-  what suppresses the natural reading; without it partner reads 4♠ as spades
-  and the sampler deals the phantom;
-- an arm in `keycard_conversation_now`, or the neural shell freewheels inside
-  a relocated window;
-- knob registration in all four places (crate re-export, `bba-gen` flag, the
-  web settings registry, [bidding-options.md](../bidding-options.md)), and
-  `tests/fixtures/alert-sites.txt` re-blessed.
+Two independent knobs, both default **off**, so the coupled change stays
+attributable:
 
-**Phase 3 — minors and the book.** Minors reopen the `keycard_trump`
-majors-only carve, so they need their own A/B, not a rider on phase 2. The
-book side means parameterizing `install_rkcb` by an `ask: Call` and making
-`rkcb_answers` / `asker_after_*` / `king_answers` step-relative across its 27
-install sites — mechanical but wide. Note that pons has **no queen ask at
-all**: the trump queen is folded into the 5♥/5♠ split, so BBA's relocated
-queen/king machinery (§3) is a fresh design, not a port.
+| arm | `set_keycard_minors` | `set_kickback` | what it is |
+|---|---|---|---|
+| **A** `plain` | off | off | today — byte-identical control |
+| **B** `minors` | on | off | minor asks at plain 4NT — round 4's losing arm, re-priced |
+| **C** `kickback` | on | on | full Kickback: 4♦/4♥ Redwood, 4♠ over hearts |
 
-**Phase 4 — competition and disclosure.** DOPI/ROPI/DEPO relative to the
-relocated ask. Disclosure is a known hole: BBA's `"Kickback 1430"` row means
-"ask = four-of-(T+1) under the shown-4+ guard", which our walk-up rule
-strictly *contains* — flipping the row to 1 in
-[card.rs](../../src/bidding/card.rs) still under-discloses 4♠-for-♦. Record
-the divergence in the constant arm rather than pretending the row fits.
+- **C − A** is the ship decision, and runs first (aggregate before mechanism).
+- **C − B** prices the relocation on its own.
+- **B − A** re-prices the carve. If B ≈ A the 2026-07-02 verdict has expired;
+  if B ≪ A the strain problem is still live and a 6NT exit off the low Redwood
+  answers is the named next lever.
 
-**Measurement**, from phase 2 on, per [measurement.md](../measurement.md) and
-the `measure-ab` skill: a new `examples/ab-kickback` modelled on
-`examples/ab-minor-keycard` (the shipped plain-4NT minor keycard is the
-incumbent arm), duplicate match, **both** plain DD and perfect defense, fresh
-`SEED_BASE` shared across arms. Slam gains are contract-boundary effects that
+(minors off, kickback on) is the abandoned hearts-only slice, reachable as an
+arm D if C − B ever needs hearts isolated.
+
+**The result — 3 × 1,000,000 boards, seed 1785546026 shared across arms, vul
+none, arms sequential.** IMPs per board, 95% CI in brackets:
+
+| pair | PD | plain DD | sd-declarer | sd + PD | divergent |
+|---|---|---|---|---|---|
+| **C − A** kickback vs plain | +0.00166 [+0.00069, +0.00262] | +0.00146 [+0.00055, +0.00236] | +0.00121 | +0.00150 | 2554 (0.26%) |
+| **B − A** minors vs plain | **+0.00394** [+0.00316, +0.00472] | **+0.00375** [+0.00304, +0.00446] | +0.00253 | +0.00279 | 1840 (0.18%) |
+| **C − B** relocation alone | −0.00222 [−0.00284, −0.00159] | −0.00223 [−0.00284, −0.00162] | −0.00175 | −0.00160 | 864 (0.09%) |
+
+Every cell's CI excludes zero. The arms are internally consistent:
+(B−A) + (C−B) = +0.00172 against a measured C−A of +0.00166.
+
+**The carve lift ships.** Lifting `keycard_trump`'s majors-only carve wins on
+plain DD *and* PD *and* both sd rows — not the PD-only shape that flags a
+doubling artifact. The audited boards are the mechanism exactly: `4NT P 5x P 6m`
+finding the minor slam (`1♣ P 1♠ P 2♣ P 4NT P 5♣ P 6♣`, +15) and — worth as
+much — the ask *declining* one, `5♦ vs 6♦` at **+44 over 4 boards** where arm A
+blasted six without the keycards. **The 2026-07-02 round-4 verdict has
+expired**: it concluded minors lost to the milestone 6NT power-blast, and on the
+2026-08 system the ask beats the blast by 2.04 IMPs per divergent board.
+
+#### 7.3.1 Why C − B does *not* price the relocation
+
+The −0.0022 is a build artifact, not Redwood's price. The 60 audited C − B
+boards are dominated by one shape that has nothing to do with keycards:
+
+| A vs B | n | PD |
+|---|---|---|
+| 4♠ vs 6♠ | 12 | −64 |
+| 6♠ vs 4♠ | 8 | −44 |
+| 4♥ vs 6♥ | 7 | +13 |
+| 6♥ vs 4♥ | 7 | −10 |
+
+```text
+1♦ P 1♠ P 2♦ P 4♠ P P P        → kickback plays 4♠, arm B reaches 6♠
+```
+
+No suit is bid twice by one side there, so `kickback_ladder` returns all-`None`
+and no relocated ask is even reachable. The 4♠ is a natural game — and partner
+passes it anyway.
+
+Cause: with the knob on, `KICKBACK_ANSWERS` and the three ask targets install
+`.alert(RKCB_FLOOR)` rules on **4♦, 4♥ and 4♠**, whose constraints are `pred`
+closures that project to ⊤. `inference.rs` unions the projections of *every*
+rule sharing a call, so the natural-4♠ box is unioned with a box promising no
+spades and partner's `length(Spades).min` collapses to 0; the structural
+`alerted` bit then suppresses the natural walk's lane bookkeeping on top.
+Gating rule presence at build time (§7.4) protects arm A and only arm A. **Arm
+C carries the poison, and it lands on the two most common contracts in bridge.**
+
+Splitting those 60 boards by whether a **4♥ or 4♠ contract is involved on
+either side** sizes it: 38 boards carry **−158 PD / −155 DD**, and the other 22
+carry **+7 / +10**. The poison class is *105% of the loss*, and auctions that
+never touch a four-major contract sit mildly positive — which is what Redwood is
+supposed to look like. (60 of 864 divergent boards, and the split is a proxy: a
+genuine relocated-ask auction landing in 4♥ counts in the poison bucket too. A
+strong hint, not a measurement.)
+
+There is no cheap patch. `Rule::alert` is a static `Option<Alert>` and the
+`alerted` test never evaluates the constraint, so *any* alerted rule on 4♥/4♠
+does this — dropping the answer rules would not help, because the ask rules
+alone suffice. Pricing the relocation needs a **face-conditional alert**: the
+auction is shared, so `keycard_ask_bid(auction, n−2).is_some()` is a legitimate
+disclosure predicate, and disclosure that depends only on the face is still
+disclosure. That is an inference-layer change (phase 5), not an instinct one,
+and it is the gate on every future Kickback number.
+
+Until then `set_kickback` stays **default off**, and its −0.0022 must not be
+cited as evidence against Redwood.
+
+### 7.4 What the build actually cost
+
+Four things the original work list did not know. The fourth — that gating rule
+presence protects the *off* arm only, and the on arm pays with the natural
+reading of every 4♦/4♥/4♠ — is §7.3.1, and it is the one that mattered.
+
+- **The alert check is structural, not evaluated.** `inference.rs` computes
+  `alerted = rules.iter().any(|r| r.call() == made && r.alert().is_some())`
+  without ever running the constraint. An always-present alerted rule on 4♥/4♠
+  would therefore suppress the natural reading of *every* floor-classified
+  4♥/4♠ even with the knob off. `set_kickback` consequently gates rule
+  **presence** at `instinct()` build time — the regime `set_minor_keycard`
+  already documents — *and* the recognizer at classification time. A harness
+  must arm both: build one stance per arm, and set the flag per call by side.
+- **A 4NT that answers a relocated ask is an answer, not a new ask.** With
+  hearts agreed 4♠ asks and 4NT is its step 1; unguarded, the asker's own
+  partner reads that 4NT as a fresh ask and answers *it*, and the 1.9-weighted
+  answer rung outbids the 1.82 signoff. The first smoke run passed
+  `1♥ P 2NT P 3NT P 4♥ P 4♠ P 4NT P 5♦` out for −15 IMPs. `keycard_ask_bid`
+  carries the carve-out; a plain 4NT ask can never collide this way because all
+  four of its rungs are five-level.
+- **The recognizer needs the emission's `undisturbed()` bar.** A four-level
+  suit bid in a contested auction is a cue or a contract; reading it as an ask
+  deals exactly the phantom the alert exists to prevent. 4NT's own recognizer
+  stays looser — it has no natural meaning to lose.
+
+Two items from the old work list dropped: `tests/fixtures/alert-sites.txt` does
+**not** move (it counts book tries only, never the floor's flat table), and §7.1's
+named price — "4♠ over agreed hearts stops being a control bid" — **costs zero
+today**, because the floor authors no control-bid emission at all
+(`partner_control_bid` only *responds* to partner's) and neither does the book.
+The price becomes real only in the deferred control-bid session.
+
+### 7.5 Phase 4 — the book, competition, disclosure
+
+**The book.** `install_rkcb` is absolute-bid across 27 sites; relocating there
+means parameterizing it by an `ask: Call` and making `rkcb_answers` /
+`asker_after_*` / `king_answers` step-relative — mechanical but wide. Until
+then a book node shadows the floor wherever one exists, so the relocation only
+reaches un-booked auctions. Note pons has **no queen ask at all** (the queen is
+folded into the step-3/step-4 split), so BBA's relocated queen/king machinery
+(§3) is a fresh design, not a port.
+
+**Competition.** DOPI/ROPI/DEPO already ride the relocated ask — both step
+answers are step-relative and their landing set widens with the ladder — but
+the DOPI step is measured from *their* bid, not from the ask, and a lower ask
+lets their interference sit at the four level. That arm is authored but
+unmeasured.
+
+**Disclosure** is a known hole: BBA's `"Kickback 1430"` row means "ask =
+four-of-(T+1) under the shown-4+ guard", which our walk-up rule strictly
+*contains* — flipping the row to 1 in [card.rs](../../src/bidding/card.rs)
+still under-discloses 4♠-for-♦. Record the divergence in the constant arm
+rather than pretending the row fits.
+
+**Measurement**, per [measurement.md](../measurement.md) and the `measure-ab`
+skill: `examples/ab-kickback`, duplicate match, **both** plain DD and perfect
+defense, fresh `SEED_BASE` shared across arms, `scripts/idle-run.sh`, arms
+sequential, no rebuilds in flight. Slam gains are contract-boundary effects
 plain DD can see, so a PD-only win here would be a doubling artifact, not a
-ship. The interesting measurables are BBA's own motivation cases: minor slams
-vetoed below 5m (the C3 probe — a 2+Q answer lands in 5♣ *as the contract*)
-and the hearts grand via the ♠K.
+ship. The motivating measurables are BBA's own: minor slams vetoed below 5m
+(the C3 probe — a 2+Q answer lands in 5♣ *as the contract*) and the hearts
+grand via the ♠K.

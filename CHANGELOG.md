@@ -7,8 +7,71 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **The floor's keycard ask now reaches agreed minors** (`set_keycard_minors`,
+  **default on**; `--no-ns-keycard-minors` restores the old behaviour).
+  `keycard_trump` was majors-only on round 4 of the M6.4 A/B — at combined 33
+  the milestone 6NT power-blast out-scored minor and thin 6-2 suit slams on
+  double-dummy — and **that verdict has expired.** Re-priced on the 2026-08
+  system as arm B of the three-arm kickback A/B (`ab-kickback`, 1M boards a
+  cell, seed 1785546026), the ask beats the blast on every scoring row at both
+  vulnerabilities: **+0.00394 IMPs/board PD and +0.00375 plain DD** vul none
+  (1840 divergent, +2.14/+2.04 per divergent board), **+0.00502 and +0.00471**
+  vul both (1753 divergent) — eight of eight cells with 95% CIs clear of zero,
+  and both sd-declarer rows agreeing. Not a doubling artifact: plain DD wins on
+  its own, and the gain grows vulnerable exactly as a slam-bonus mechanism
+  should. Roughly half of it is the ask **declining** a slam rather than
+  finding one — `5♦ vs 6♦` ran +44 IMPs over four audited boards where the
+  majors-only arm blasted six without the keycards, alongside the expected
+  `1♣ P 1♠ P 2♣ P 4NT P 5♣ P 6♣`. The BBA card is unchanged (`bba-card` diffs
+  byte-identical): the `Blackwood 1430` row means "we play 1430", which was and
+  remains true, and no row distinguishes which trump suits the ask reaches.
+
 ### Added
 
+- **Kickback / Redwood on the floor** (`set_kickback`, **off by default**,
+  default system byte-identical — `bba-card` diffs empty). The keycard ask
+  relocates onto phase 1's face-only `kickback_ladder`:
+  **4♦ asks in clubs and 4♥ in diamonds (*Redwood*), 4♠ in hearts (*Kickback*
+  proper)**, and the 1430 answers become *steps above the ask*, so every answer
+  lands at or below five of trump instead of blowing past it. Counting the
+  answers that destroy the five-level landing spot under a plain 4NT ask —
+  three of four in clubs (5♦/5♥/5♠), two of four in diamonds (5♥/5♠), one of
+  four in hearts (5♠), none in spades — is the whole case for the convention,
+  and it is why the campaign's original hearts-first phasing was **inverted and
+  merged**: hearts is the shallow end of that gradient, and the M6.4 majors ask
+  it would have relocated already measures delta exactly zero. Because the
+  answers over a plain 4NT *are* the absolute rungs the floor always used
+  (step 1 = 5♣ … step 4 = 5♠), the step-relative rewrite is off-state identical
+  by construction. Measured as three arms (`examples/ab-kickback
+  --feature/--baseline plain|minors|kickback`), 1M boards a cell, seed
+  1785546026: **C−A +0.00166 PD / +0.00146 DD, B−A +0.00394 / +0.00375, C−B
+  −0.00222 / −0.00223**, internally consistent — (B−A) + (C−B) = +0.00172
+  against a measured C−A of +0.00166. The carve lift shipped on that evidence
+  (above); **the relocation's negative is a build artifact and must not be
+  cited against Redwood.** With the knob on, the alerted ask and answer rules
+  land on 4♦/4♥/4♠; their `pred` closures project to ⊤, `inference.rs` unions
+  the projections of *every* rule sharing a call, and partner's major-suit
+  length floor collapses to zero — so natural 4♠ games get passed out
+  (`1♦ P 1♠ P 2♦ P 4♠` passed, where the other arm reaches 6♠, in an auction
+  where `kickback_ladder` returns all-`None` and no relocated ask is even
+  reachable). Splitting the audited C−B boards by whether a 4♥/4♠ contract is
+  involved: 38 boards carry −158 PD, the other 22 carry **+7** — the poison
+  class is 105% of the loss and the residue sits on the right side of zero.
+  There is no cheap patch: `Rule::alert` is a static `Option<Alert>` and the
+  `alerted` test never evaluates the constraint, so *any* alerted rule on
+  4♥/4♠ does this, and dropping the answer rules would not help because the ask
+  rules alone suffice. Pricing Redwood needs a **face-conditional alert** — the
+  auction is shared, so `keycard_ask_bid(auction, n−2).is_some()` is legitimate
+  disclosure — which is an inference-layer change and now the gate on the whole
+  convention (`docs/ai-bidder/bba-kickback.md` §7.3.1). Two further traps the
+  build paid for, in §7.4: the reading's `alerted` test being **structural** is
+  why `set_kickback` gates rule *presence* at `instinct()` build time as well
+  as the recognizer at classify time, which keeps the *off* arm clean; and **a
+  4NT that answers a relocated ask is an answer, not a new ask**, without which
+  the asker's partner answers their own partner's answer (`1♥ P 2NT P 3NT P 4♥
+  P 4♠ P 4NT P 5♦` passed out, −15 IMPs on the first smoke run).
 - **Kickback phase 1: jdh8's walk-up ladder, resolved and tested** (no
   bidding change; `kickback_ladder` is `#[cfg(test)]` until the floor wires
   it in phase 2). Where BBA *gives up* the relocation once four-of-(T+1) is

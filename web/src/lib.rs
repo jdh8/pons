@@ -1118,6 +1118,8 @@ static SETTINGS: &[Setting] = &[
     toggle("settle_floor", FLOOR, "", true, instinct::set_settle_floor),
     toggle("rubens_advances", FLOOR, "", true, instinct::set_rubens_advances),
     toggle("floor_rkcb", FLOOR, "", true, instinct::set_floor_rkcb),
+    toggle("keycard_minors", FLOOR, "Keycard minors too", true, instinct::set_keycard_minors),
+    toggle("kickback", FLOOR, "Kickback / Redwood asks", false, instinct::set_kickback),
     toggle("two_over_one_force", FLOOR, "2/1 forces game", true, instinct::set_two_over_one_force),
     toggle("penalize_escape_stack", FLOOR, "", true, instinct::set_penalize_escape_stack),
     toggle("penalize_escape_values", FLOOR, "", true, instinct::set_penalize_escape_values),

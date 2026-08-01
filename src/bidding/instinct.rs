@@ -592,6 +592,14 @@ std::thread_local! {
     /// gate.  **On by default** since 2026-07-20; see
     /// [`set_two_over_one_slam_strength`].
     static TWO_OVER_ONE_SLAM_STRENGTH: Cell<bool> = const { Cell::new(true) };
+
+    /// Whether the floor's keycard ask reaches agreed **minors** as well as
+    /// majors.  **On by default** since 2026-08-01; see [`set_keycard_minors`].
+    static KEYCARD_MINORS: Cell<bool> = const { Cell::new(true) };
+
+    /// Whether the keycard ask relocates onto the kickback ladder (**off by
+    /// default**).  See [`set_kickback`].
+    static KICKBACK: Cell<bool> = const { Cell::new(false) };
 }
 
 /// Enable or disable the floor's two-over-one game force (**on by default**)
@@ -687,6 +695,60 @@ pub fn set_floor_rkcb(enabled: bool) {
 /// The floor RKCB is enabled (see [`set_floor_rkcb`])
 fn floor_rkcb_now() -> bool {
     FLOOR_RKCB.with(Cell::get)
+}
+
+/// Let the floor's keycard ask reach agreed **minors** (**on by default**)
+///
+/// [`keycard_trump`] was majors-only by measured decision — round 4 of the M6.4
+/// A/B lost to the milestone 6NT power-blast on minor and thin 6-2 asks — and
+/// **that verdict expired on the 2026-08 system**.  Arm B of the three-arm
+/// kickback A/B (`ab-kickback`, 1M boards a cell, seed 1785546026) re-priced it
+/// and the ask now beats the blast on every scoring row at both vulnerabilities:
+/// **+0.00394 PD / +0.00375 plain DD** per board vul none (1840 divergent) and
+/// **+0.00502 / +0.00471** vul both (1753), every 95% CI clear of zero.  Half
+/// the gain is the ask *declining* a slam — `5♦ vs 6♦` ran +44 IMPs over four
+/// audited boards where the majors-only arm blasted six without the keycards.
+///
+/// Off, the ask reverts to majors-only.  The tie-break still prefers the higher
+/// suit either way, so a major fit of equal length keeps winning.  Read at
+/// classification time, per-thread.
+#[doc(hidden)]
+pub fn set_keycard_minors(enabled: bool) {
+    KEYCARD_MINORS.with(|flag| flag.set(enabled));
+}
+
+/// The keycard ask reaches minors (see [`set_keycard_minors`])
+fn keycard_minors_now() -> bool {
+    KEYCARD_MINORS.with(Cell::get)
+}
+
+/// Relocate the keycard ask onto the kickback ladder (**off by default**)
+///
+/// Kickback asks in the cheapest unguarded suit above the trump — 4♦ for clubs
+/// and 4♥ for diamonds (the minor half is *Redwood*), 4♠ for hearts — so every
+/// 1430 answer lands at or below five of trump instead of blowing past it.  The
+/// ladder is [`kickback_ladder`], face-only, so both members derive the same
+/// asking call with no reading at all.  4NT keeps its meaning throughout:
+/// kickback *adds* asks, it never removes one.
+///
+/// **Read in two regimes, and a harness must arm both.** Rule *presence* is
+/// gated at [`instinct`] build time, because the reading's `alerted` test is
+/// structural — it asks whether any rule on the made call carries an alert, and
+/// never evaluates the constraint — so an always-present alerted rule on 4♠
+/// would suppress the natural reading of *every* floor-classified 4♠ even with
+/// the knob off.  The recognizer ([`keycard_ask_bid`], and
+/// [`keycard_conversation_now`] outside the rules table) is read at
+/// classification time.  Build one stance per arm **and** set the flag per call
+/// by side; arming only one gives dead alert sites (rules present, recognizer
+/// off) or a phantom ask (recognizer on, rules absent).
+#[doc(hidden)]
+pub fn set_kickback(enabled: bool) {
+    KICKBACK.with(|flag| flag.set(enabled));
+}
+
+/// Kickback is enabled (see [`set_kickback`])
+fn kickback_now() -> bool {
+    KICKBACK.with(Cell::get)
 }
 
 /// Set the HCP floor at which responder redoubles a doubled 1NT to play
@@ -1620,21 +1682,28 @@ fn below_slam() -> Cons<impl Constraint + Clone> {
 // M6.4: slam machinery on the floor — RKCB 1430 and control-bid signoffs
 // ---------------------------------------------------------------------------
 
-/// The agreed keycard trump: the **major** maximizing our actual length plus
+/// The agreed keycard trump: the suit maximizing our actual length plus
 /// partner's shown floor, provided the total reaches an eight-card fit and we
 /// hold three-plus ourselves — BWS's "an agreed suit makes 4NT keycard",
-/// derived instead of installed.  Ties prefer spades.
+/// derived instead of installed.  Ties prefer the higher suit.
 ///
-/// Majors with a real (3+) holding only: at combined 33 the milestone 6NT
-/// power-blast out-scores minor and thin 6-2 suit slams on double-dummy
-/// (round 4 of the A/B lost 14 IMPs a board rerouting those), so the floor
-/// only asks where the suit slam is the right strain anyway.
+/// This was majors-only until 2026-08-01, on round 4 of the M6.4 A/B: at
+/// combined 33 the milestone 6NT power-blast out-scored minor and thin 6-2 suit
+/// slams on double-dummy.  Re-priced on the 2026-08 system, **the ask beats the
+/// blast** — see [`set_keycard_minors`], which now carves *back* to majors
+/// rather than lifting a carve.
 fn keycard_trump(hand: Hand, context: &Context<'_>) -> Option<Suit> {
     let inferences = Inferences::read(context);
     let partner = inferences.partner();
+    let candidates: &[Suit] = if keycard_minors_now() {
+        &Suit::ASC
+    } else {
+        &[Suit::Hearts, Suit::Spades]
+    };
     #[allow(clippy::cast_possible_truncation)]
-    [Suit::Hearts, Suit::Spades]
-        .into_iter()
+    candidates
+        .iter()
+        .copied()
         .map(|suit| (hand[suit].len() as u8 + partner.length(suit).min, suit))
         .filter(|&(total, suit)| total >= 8 && hand[suit].len() >= 3)
         .max_by_key(|&(total, suit)| (total, suit as u8))
@@ -1744,9 +1813,6 @@ fn face_trump(auction: &[Call], ask: usize) -> Option<Suit> {
 ///
 /// Legality is the caller's business — the table says what a bid *would* mean,
 /// not that it is available over the auction so far.
-// ponytail: phase 1 is the rule and its tests; the floor's relocated ask
-// (phase 2, `docs/ai-bidder/bba-kickback.md` §7) is what un-gates this.
-#[cfg(test)]
 fn kickback_ladder(auction: &[Call], ask: usize) -> [Option<Suit>; 4] {
     let mut ladder = [None; 4];
     if face_trump(auction, ask).is_none() {
@@ -1808,11 +1874,18 @@ fn kickback_ladder(auction: &[Call], ask: usize) -> [Option<Suit>; 4] {
 /// rung, whose completion or agreement evidence survives truncation.
 fn answer_trump(hand: Hand, context: &Context<'_>, ask: usize) -> Option<Suit> {
     let auction = context.auction();
+    // A relocated ask carries its own trump on the face ([`kickback_trump`]),
+    // so none of the derivation below runs: the ladder already pinned the suit
+    // for both members, and re-deriving it from a hand could only disagree.
+    if let Some(trump) = kickback_trump(auction, ask) {
+        return Some(trump);
+    }
     // The in-window answer, present once the auction extends past the
     // answerer's turn (the asker decoding it, or the answerer back on the
     // respect path).
+    let ask_bid = keycard_ask_bid(auction, ask);
     let answer = auction.get(ask + 2).and_then(|call| match *call {
-        Call::Bid(bid) if bid.level.get() == 5 => bid.strain.suit(),
+        Call::Bid(bid) if answer_step(ask_bid?, bid).is_some() => bid.strain.suit(),
         _ => None,
     });
     let pre = answer.map(|_| Inferences::read(&Context::new(context.vul(), &auction[..ask + 2])));
@@ -1869,21 +1942,20 @@ fn opponents_quiet_since(auction: &[Call], index: usize) -> bool {
         .all(|call| matches!(call, Call::Pass | Call::Double))
 }
 
-/// Partner's off-book 4NT asks keycards: a quiet window (opponents at most
+/// Partner's off-book ask — 4NT, or the kickback ladder's relocated call
+/// ([`keycard_ask_bid`]) — asks keycards: a quiet window (opponents at most
 /// doubling since the ask), not an opening, not over our own notrump bid
 /// (that 4NT is quantitative — BWS reads keycard only with an agreed suit),
 /// and a trump derivable ([`answer_trump`], whose final rung reads the
-/// auction's face).  Returns the agreed trump the 1430 answer counts
-/// against.
-fn keycard_asked(hand: Hand, context: &Context<'_>) -> Option<Suit> {
+/// auction's face).  Returns the agreed trump the 1430 answer counts against
+/// and the asking bid its steps are measured from.
+fn keycard_asked(hand: Hand, context: &Context<'_>) -> Option<(Suit, Bid)> {
     if !floor_rkcb_now() {
         return None;
     }
     let auction = context.auction();
     let n = auction.len();
-    if partner_last_call(auction) != Some(Bid::new(4, Strain::Notrump)) {
-        return None;
-    }
+    let ask = keycard_ask_bid(auction, n.checked_sub(2)?)?;
     if !opponents_quiet_since(auction, n - 2) {
         return None;
     }
@@ -1894,21 +1966,34 @@ fn keycard_asked(hand: Hand, context: &Context<'_>) -> Option<Suit> {
     if n >= 4 && matches!(auction[n - 4], Call::Bid(bid) if bid.strain == Strain::Notrump) {
         return None;
     }
-    answer_trump(hand, context, n - 2)
+    Some((answer_trump(hand, context, n - 2)?, ask))
 }
 
-/// A 1430 answer to partner's 4NT: our keycard count is one of `counts`, and
-/// — for the queen-splitting five-of-a-major answers — our trump-queen
-/// holding matches
-fn keycard_answer(counts: &'static [usize], queen: Option<bool>) -> Cons<impl Constraint + Clone> {
+/// The 1430 answer that lands on `bid`: the rung `bid` occupies above the ask
+/// ([`answer_step`]) matches our keycard count, and the queen-splitting rungs
+/// 3 and 4 match our trump-queen holding
+///
+/// One function for the whole ladder, because the rungs are the *steps* — over
+/// a 4NT ask those steps are 5♣/5♦/5♥/5♠, exactly the four rules the floor has
+/// always carried, so kickback-off behaviour is unchanged.  Step 1 also covers
+/// all five keycards (a 2♣ rock answering its raiser's ask; the book ladder's
+/// `{1,4}` left that hand with *no* answer and round 3 passed the ask out).
+fn keycard_answer(bid: Bid) -> Cons<impl Constraint + Clone> {
     use super::american::slam::count_keycards;
     described(
         "the matching 1430 keycard answer",
         move |hand: Hand, context: &Context<'_>| {
-            keycard_asked(hand, context).is_some_and(|trump| {
-                counts.contains(&count_keycards(hand, trump))
-                    && queen.is_none_or(|wanted| hand[trump].contains(Rank::Q) == wanted)
-            })
+            let Some((trump, ask)) = keycard_asked(hand, context) else {
+                return false;
+            };
+            let keycards = count_keycards(hand, trump);
+            match answer_step(ask, bid) {
+                Some(1) => [1, 4, 5].contains(&keycards),
+                Some(2) => [0, 3].contains(&keycards),
+                Some(3) => keycards == 2 && !hand[trump].contains(Rank::Q),
+                Some(4) => keycards == 2 && hand[trump].contains(Rank::Q),
+                _ => false,
+            }
         },
     )
 }
@@ -1931,7 +2016,118 @@ fn bid_successor(bid: Bid) -> Option<Bid> {
     })
 }
 
-/// Partner's off-book 4NT was overcalled by RHO — the DOPI/DEPO window.
+/// The trump a relocated four-of-a-suit keycard ask at `ask` pins, if
+/// [`set_kickback`] is on and [`kickback_ladder`] claims that suit
+///
+/// Face-only by construction: the ladder is what made the call an ask, so the
+/// ask's own trump comes from the ladder and never from [`answer_trump`]'s
+/// hand-and-reading derivation.  A hand-derived trump for a hand-derived ask
+/// site is a phantom-trump generator — both members must land on one suit or
+/// the answer counts against a different one than the ask meant.
+/// The trump a relocated four-of-a-suit keycard ask at `ask` pins, if
+/// [`set_kickback`] is on and [`kickback_ladder`] claims that suit
+///
+/// Face-only by construction: the ladder is what made the call an ask, so the
+/// ask's own trump comes from the ladder and never from [`answer_trump`]'s
+/// hand-and-reading derivation.  A hand-derived trump for a hand-derived ask
+/// site is a phantom-trump generator — both members must land on one suit or
+/// the answer counts against a different one than the ask meant.
+///
+/// The emission gate is `context.undisturbed()`, so the recognizer holds the
+/// same bar: a four-level suit bid in a contested auction is a cue or a
+/// contract, and reading it as an ask would deal exactly the phantom the
+/// alert exists to prevent.  (4NT's own recognizer is looser — a contested 4NT
+/// with an agreed suit is still keycard — but it has no natural meaning to
+/// lose.)
+fn kickback_trump(auction: &[Call], ask: usize) -> Option<Suit> {
+    if !kickback_now() {
+        return None;
+    }
+    let Some(&Call::Bid(bid)) = auction.get(ask) else {
+        return None;
+    };
+    if bid.level.get() != 4 {
+        return None;
+    }
+    if auction
+        .iter()
+        .take(ask)
+        .enumerate()
+        .any(|(index, call)| index % 2 != ask % 2 && *call != Call::Pass)
+    {
+        return None;
+    }
+    kickback_ladder(auction, ask)[bid.strain.suit()? as usize]
+}
+
+/// The keycard ask made at `ask`, if any: 4NT always, plus the kickback
+/// ladder's relocated four-of-a-suit call.  The whole M6.4 machinery anchors on
+/// this one predicate so its five ask positions can never disagree.
+///
+/// One exception, and it is the whole reason a relocated ask needs its own
+/// recognizer: **a 4NT that answers a relocated ask is an answer, not a new
+/// ask.**  With hearts agreed 4♠ asks and 4NT is its step 1, and without this
+/// the answerer's own partner reads that 4NT as a fresh ask and answers *it* —
+/// the asker's 1.9-weighted answer rung outbids their 1.82 signoff, and the
+/// keycard conversation walks off into a phantom minor (`1♥ P 2NT P 3NT P 4♥ P
+/// 4♠ P 4NT P 5♦` passed out, −15 IMPs on the first smoke run).  A plain 4NT
+/// ask can never collide this way: all four of its rungs are five-level.
+fn keycard_ask_bid(auction: &[Call], ask: usize) -> Option<Bid> {
+    let &Call::Bid(bid) = auction.get(ask)? else {
+        return None;
+    };
+    if kickback_trump(auction, ask).is_some() {
+        return Some(bid);
+    }
+    if bid != Bid::new(4, Strain::Notrump) {
+        return None;
+    }
+    let answers_relocated = ask.checked_sub(2).is_some_and(|prior| {
+        kickback_trump(auction, prior).is_some()
+            && matches!(auction[prior], Call::Bid(asked) if answer_step(asked, bid).is_some())
+    });
+    (!answers_relocated).then_some(bid)
+}
+
+/// Which 1430 rung `answer` sits on above `ask` — steps 1..=4 up the auction's
+/// own ladder, [`bid_successor`] applied that many times
+///
+/// Over a 4NT ask the steps *are* the absolute rungs the floor has always used
+/// (1 = 5♣, 2 = 5♦, 3 = 5♥, 4 = 5♠), so making the machinery step-relative
+/// leaves the kickback-off system byte-identical.
+fn answer_step(ask: Bid, answer: Bid) -> Option<usize> {
+    let mut rung = ask;
+    for step in 1..=4 {
+        rung = bid_successor(rung)?;
+        if rung == answer {
+            return Some(step);
+        }
+    }
+    None
+}
+
+/// The seven calls a 1430 answer can land on, over any ask the ladder can
+/// relocate to (4♦ → 4♥…5♣, 4♥ → 4♠…5♦, 4♠ → 4NT…5♥, 4NT → 5♣…5♠)
+const KICKBACK_ANSWERS: [Bid; 7] = [
+    Bid::new(4, Strain::Hearts),
+    Bid::new(4, Strain::Spades),
+    Bid::new(4, Strain::Notrump),
+    Bid::new(5, Strain::Clubs),
+    Bid::new(5, Strain::Diamonds),
+    Bid::new(5, Strain::Hearts),
+    Bid::new(5, Strain::Spades),
+];
+
+/// The four calls a 1430 answer to a plain 4NT ask can land on — the
+/// kickback-off answer set, and exactly the rules the floor has always carried
+const PLAIN_ANSWERS: [Bid; 4] = [
+    Bid::new(5, Strain::Clubs),
+    Bid::new(5, Strain::Diamonds),
+    Bid::new(5, Strain::Hearts),
+    Bid::new(5, Strain::Spades),
+];
+
+/// Partner's off-book ask was overcalled by RHO — the DOPI/DEPO window.
 /// Same recognizability gates as [`keycard_asked`]; returns the trump and
 /// their bid.  (Their *double* of the ask keeps the quiet window alive and
 /// is answered by the ROPI rungs through [`keycard_asked`] itself.)
@@ -1941,9 +2137,7 @@ fn keycard_asked_over_bid(hand: Hand, context: &Context<'_>) -> Option<(Suit, Bi
     }
     let auction = context.auction();
     let n = auction.len();
-    if n < 2 || auction[n - 2] != Call::Bid(Bid::new(4, Strain::Notrump)) {
-        return None;
-    }
+    keycard_ask_bid(auction, n.checked_sub(2)?)?;
     let Call::Bid(their) = auction[n - 1] else {
         return None;
     };
@@ -1958,8 +2152,8 @@ fn keycard_asked_over_bid(hand: Hand, context: &Context<'_>) -> Option<(Suit, Bi
     Some((trump, their))
 }
 
-/// The ROPI answer over their double of partner's 4NT ask — classic R0P1:
-/// redouble 0, pass 1, the cheapest bid (5♣) 2, each with the 1430-style
+/// The ROPI answer over their double of partner's ask — classic R0P1:
+/// redouble 0, pass 1, the cheapest bid (step 1) 2, each with the 1430-style
 /// wraparound the asker resolves arithmetically.  The queen dimension is
 /// traded away, the classic price of the convention.
 fn ropi_answer(counts: &'static [usize]) -> Cons<impl Constraint + Clone> {
@@ -1969,7 +2163,23 @@ fn ropi_answer(counts: &'static [usize]) -> Cons<impl Constraint + Clone> {
         move |hand: Hand, context: &Context<'_>| {
             context.auction().last() == Some(&Call::Double)
                 && keycard_asked(hand, context)
-                    .is_some_and(|trump| counts.contains(&count_keycards(hand, trump)))
+                    .is_some_and(|(trump, _)| counts.contains(&count_keycards(hand, trump)))
+        },
+    )
+}
+
+/// The ROPI two-keycard step: the cheapest bid over their double of the ask —
+/// step 1 up the ladder, `5♣` over a plain 4NT
+fn ropi_step(bid: Bid) -> Cons<impl Constraint + Clone> {
+    use super::american::slam::count_keycards;
+    described(
+        "the ROPI step answer over their double of the ask",
+        move |hand: Hand, context: &Context<'_>| {
+            context.auction().last() == Some(&Call::Double)
+                && keycard_asked(hand, context).is_some_and(|(trump, ask)| {
+                    answer_step(ask, bid) == Some(1)
+                        && [2, 5].contains(&count_keycards(hand, trump))
+                })
         },
     )
 }
@@ -2020,8 +2230,9 @@ fn depo_answer(even: bool) -> Cons<impl Constraint + Clone> {
     )
 }
 
-/// We asked 4NT two calls ago and partner answered: decode the answer,
-/// returning the trump and the partnership's combined keycard count
+/// We asked two calls ago — 4NT, or the ladder's relocated call — and partner
+/// answered: decode the answer, returning the trump and the partnership's
+/// combined keycard count
 ///
 /// Their call over the *ask* picks the answering scheme — quiet keeps the
 /// 1430 ladder, their double answers in ROPI, their bid in DOPI (below five
@@ -2044,9 +2255,7 @@ fn keycard_answered(hand: Hand, context: &Context<'_>) -> Option<(Suit, usize)> 
     }
     let auction = context.auction();
     let n = auction.len();
-    if n < 4 || auction[n - 4] != Call::Bid(Bid::new(4, Strain::Notrump)) {
-        return None;
-    }
+    let ask = keycard_ask_bid(auction, n.checked_sub(4)?)?;
     if matches!(auction[n - 1], Call::Bid(_)) {
         return None;
     }
@@ -2066,13 +2275,15 @@ fn keycard_answered(hand: Hand, context: &Context<'_>) -> Option<(Suit, usize)> 
                 // the cheapest bid 2 — each with the 1430-style wraparound.
                 Call::Redouble if doubled => (0, 3),
                 Call::Pass if doubled => (1, 4),
-                Call::Bid(bid) if doubled && bid == Bid::new(5, Strain::Clubs) => (2, 5),
-                // The 1430 ladder (an off-scheme emission — the net's —
-                // decodes on the same table).
-                Call::Bid(bid) if bid.level.get() == 5 => match bid.strain.suit()? {
-                    Suit::Clubs => (1, 4),
-                    Suit::Diamonds => (0, 3),
-                    Suit::Hearts | Suit::Spades => (2, 2),
+                Call::Bid(bid) if doubled && answer_step(ask, bid) == Some(1) => (2, 5),
+                // The 1430 ladder, counted in *steps above the ask* (an
+                // off-scheme emission — the net's — decodes on the same
+                // table).  Over a plain 4NT the steps are 5♣/5♦/5♥/5♠, the
+                // absolute rungs this table has always held.
+                Call::Bid(bid) => match answer_step(ask, bid)? {
+                    1 => (1, 4),
+                    2 => (0, 3),
+                    _ => (2, 2),
                 },
                 _ => return None,
             }
@@ -2130,7 +2341,7 @@ fn answer_doubled() -> Cons<impl Constraint + Clone> {
     pred(|_: Hand, context: &Context<'_>| context.auction().last() == Some(&Call::Double))
 }
 
-/// We answered partner's 4NT keycard ask and partner has since placed the
+/// We answered partner's keycard ask and partner has since placed the
 /// contract — respect the placement (the asker holds the count); never
 /// milestone past it
 ///
@@ -2150,16 +2361,20 @@ fn respect_keycard_signoff() -> Cons<impl Constraint + Clone> {
         }
         let auction = context.auction();
         let n = auction.len();
-        if n < 6 || auction[n - 6] != Call::Bid(Bid::new(4, Strain::Notrump)) {
+        let Some(ask) = n.checked_sub(6).and_then(|i| keycard_ask_bid(auction, i)) else {
             return false;
-        }
+        };
         if !opponents_quiet_since(auction, n - 6) {
             return false;
         }
         let (Call::Bid(answer), Call::Bid(signoff)) = (auction[n - 4], auction[n - 2]) else {
             return false;
         };
-        if answer.level.get() != 5 || !answer.strain.is_suit() {
+        // Landing on a rung is the whole test: over a plain 4NT ask the rungs
+        // are the four five-level suits, so the old `level 5 && is_suit` guard
+        // is exactly this one — but a relocated ask's step 1 can be 4NT itself
+        // (4♠ asking in hearts), which that guard would have thrown away.
+        if answer_step(ask, answer).is_none() {
             return false;
         }
         let trump = match signoff.strain.suit() {
@@ -2981,7 +3196,7 @@ pub(crate) fn forced(context: &Context<'_>) -> bool {
 }
 
 /// A live keycard conversation, judged from the auction alone: partner's
-/// 4NT awaits our answer, partner's 1430 answer awaits our placement, or
+/// ask awaits our answer, partner's 1430 answer awaits our placement, or
 /// partner has placed the contract over our answer.  Auction-determined like
 /// the other [`forced`] arms — the neural shell delegates these to the
 /// deterministic ladder, because a keycard window is a convention in motion,
@@ -2999,9 +3214,15 @@ pub(crate) fn keycard_conversation_now(context: &Context<'_>) -> bool {
     }
     let auction = context.auction();
     let n = auction.len();
-    let four_nt = Call::Bid(Bid::new(4, Strain::Notrump));
-    let five_level_suit =
-        |call: Call| matches!(call, Call::Bid(bid) if bid.level.get() == 5 && bid.strain.is_suit());
+    // The ask `k` calls back, and whether a call sits on one of its 1430 rungs.
+    // Over a plain 4NT ask the rungs are exactly the four five-level suits this
+    // rail has always matched, so kickback-off behaviour is unchanged.
+    let ask_at = |k: usize| {
+        n.checked_sub(k)
+            .and_then(|index| keycard_ask_bid(auction, index))
+    };
+    let rung =
+        |ask: Bid, call: Call| matches!(call, Call::Bid(bid) if answer_step(ask, bid).is_some());
     // The window is only ours to police when the ask itself is recognizable:
     // not an opening, not over the asker's own side's notrump bid
     // (quantitative), and trump-decodable — [`face_trump`] reads one off the
@@ -3029,46 +3250,45 @@ pub(crate) fn keycard_conversation_now(context: &Context<'_>) -> bool {
             })
     };
     // Partner just asked: answer.
-    let asked = n >= 2
-        && auction[n - 2] == four_nt
-        && opponents_quiet_since(auction, n - 2)
-        && recognizable(n - 2);
+    let asked = ask_at(2).is_some() && opponents_quiet_since(auction, n - 2) && recognizable(n - 2);
     // Their bid directly over partner's ask: the DOPI/DEPO window (their
     // double keeps `asked` itself alive — the ROPI rungs answer it).
-    let asked_over_bid = n >= 2
-        && auction[n - 2] == four_nt
-        && matches!(auction[n - 1], Call::Bid(_))
-        && recognizable(n - 2);
-    // We asked and partner answered at the five level: place the contract.
-    let answered = n >= 4
-        && auction[n - 4] == four_nt
-        && five_level_suit(auction[n - 2])
-        && opponents_quiet_since(auction, n - 4)
-        && recognizable(n - 4);
+    let asked_over_bid =
+        ask_at(2).is_some() && matches!(auction[n - 1], Call::Bid(_)) && recognizable(n - 2);
+    // We asked and partner answered on a 1430 rung: place the contract.
+    let answered = ask_at(4).is_some_and(|ask| {
+        rung(ask, auction[n - 2]) && opponents_quiet_since(auction, n - 4) && recognizable(n - 4)
+    });
     // We asked over their double and partner answered in ROPI's non-bid
-    // messages (the 5♣ step already matches `answered`): place.
-    let ropi_answered = n >= 4
-        && auction[n - 4] == four_nt
-        && auction[n - 3] == Call::Double
-        && matches!(auction[n - 2], Call::Redouble | Call::Pass)
-        && opponents_quiet_since(auction, n - 4)
-        && recognizable(n - 4);
+    // messages (the step-1 bid already matches `answered`): place.
+    let ropi_answered = ask_at(4).is_some_and(|_| {
+        auction[n - 3] == Call::Double
+            && matches!(auction[n - 2], Call::Redouble | Call::Pass)
+            && opponents_quiet_since(auction, n - 4)
+            && recognizable(n - 4)
+    });
     // We asked over their bid and partner answered in DOPI/DEPO: place.
     // Their bid over the answer stands the machinery down; the third round
-    // after a non-bid answer is left to judgement — filed.
-    let dopi_answered = n >= 4
-        && auction[n - 4] == four_nt
-        && matches!(auction[n - 3], Call::Bid(_))
-        && (matches!(auction[n - 2], Call::Double | Call::Pass) || five_level_suit(auction[n - 2]))
-        && !matches!(auction[n - 1], Call::Bid(_))
-        && recognizable(n - 4);
+    // after a non-bid answer is left to judgement — filed.  The DOPI step is
+    // measured from *their* bid, not from the ask, so it needs its own arm
+    // once a relocated ask lets their interference sit at the four level.
+    let dopi_answered = ask_at(4).is_some_and(|ask| {
+        let dopi_step_answer = matches!(auction[n - 2], Call::Bid(bid)
+            if matches!(auction[n - 3], Call::Bid(their) if bid_successor(their) == Some(bid)));
+        matches!(auction[n - 3], Call::Bid(_))
+            && (matches!(auction[n - 2], Call::Double | Call::Pass)
+                || rung(ask, auction[n - 2])
+                || dopi_step_answer)
+            && !matches!(auction[n - 1], Call::Bid(_))
+            && recognizable(n - 4)
+    });
     // We answered and partner placed: respect (or correct) the placement.
-    let placed = n >= 6
-        && auction[n - 6] == four_nt
-        && five_level_suit(auction[n - 4])
-        && matches!(auction[n - 2], Call::Bid(_))
-        && opponents_quiet_since(auction, n - 6)
-        && recognizable(n - 6);
+    let placed = ask_at(6).is_some_and(|ask| {
+        rung(ask, auction[n - 4])
+            && matches!(auction[n - 2], Call::Bid(_))
+            && opponents_quiet_since(auction, n - 6)
+            && recognizable(n - 6)
+    });
     asked || asked_over_bid || answered || ropi_answered || dopi_answered || placed
 }
 
@@ -4144,43 +4364,47 @@ pub fn instinct() -> Rules {
                 & below_slam()
                 & level_available(4, Strain::Notrump),
         )
-        .alert(RKCB_FLOOR)
-        // The 1430 answers — forcing, so they outweigh every milestone.  5♣
-        // also covers all five keycards (a 2♣ rock answering its raiser's
-        // ask; the book ladder's {1,4} left that hand with *no* answer and
-        // round 3 passed the 4NT out).
-        .rule(
-            Bid::new(5, Strain::Clubs),
-            1.9,
-            keycard_answer(&[1, 4, 5], None),
-        )
-        .alert(RKCB_FLOOR)
-        .rule(
-            Bid::new(5, Strain::Diamonds),
-            1.9,
-            keycard_answer(&[0, 3], None),
-        )
-        .alert(RKCB_FLOOR)
-        .rule(
-            Bid::new(5, Strain::Hearts),
-            1.9,
-            keycard_answer(&[2], Some(false)),
-        )
-        .alert(RKCB_FLOOR)
-        .rule(
-            Bid::new(5, Strain::Spades),
-            1.9,
-            keycard_answer(&[2], Some(true)),
-        )
-        .alert(RKCB_FLOOR)
+        .alert(RKCB_FLOOR);
+    // The 1430 answers — forcing, so they outweigh every milestone.  The rung
+    // is the *step above the ask*, so one rule per landing call serves every
+    // ask: over a plain 4NT the four steps are 5♣/5♦/5♥/5♠, exactly the rules
+    // the floor has always carried, in the order it carried them.  Step 1 also
+    // covers all five keycards (a 2♣ rock answering its raiser's ask; the book
+    // ladder's {1,4} left that hand with *no* answer and round 3 passed the
+    // ask out).
+    //
+    // The knob gates rule *presence*, not just the constraint: the reading's
+    // `alerted` test is structural — it asks whether any rule on the made call
+    // carries an alert and never evaluates it — so an always-present alerted
+    // rule on 4♥/4♠ would suppress the natural reading of every
+    // floor-classified 4♥/4♠ even with kickback off.  Build one stance per arm.
+    let landings: &[Bid] = if kickback_now() {
+        &KICKBACK_ANSWERS
+    } else {
+        &PLAIN_ANSWERS
+    };
+    // ROPI's two-keycard step and DOPI's ride the same landing set: both are
+    // "the cheapest bid", one counted from the ask and one from their
+    // interference, and their constraints reject every landing that is not the
+    // right one.  Off the knob that leaves 5♣ ROPI and 5♦/5♥/5♠ DOPI — the
+    // rules the floor has always carried, plus two that can never fire (a 5♣
+    // DOPI step would need their bid to *be* the 4NT ask).
+    for &landing in landings {
+        rules = rules
+            .rule(landing, 1.9, keycard_answer(landing))
+            .alert(RKCB_FLOOR)
+            .rule(landing, 1.92, ropi_step(landing))
+            .alert(RKCB_FLOOR)
+            .rule(landing, 1.9, dopi_step(landing))
+            .alert(RKCB_FLOOR);
+    }
+    rules = rules
         // ROPI over their double of the ask — classic R0P1, outweighing the
         // 1430 answers (whose quiet window tolerates the double) so the
-        // doubled ask answers in scheme: redouble 0, pass 1, 5♣ 2.
+        // doubled ask answers in scheme: redouble 0, pass 1, step 1 is 2.
         .rule(Call::Redouble, 1.92, ropi_answer(&[0, 3]))
         .alert(RKCB_FLOOR)
         .rule(Call::Pass, 1.92, ropi_answer(&[1, 4]))
-        .alert(RKCB_FLOOR)
-        .rule(Bid::new(5, Strain::Clubs), 1.92, ropi_answer(&[2, 5]))
         .alert(RKCB_FLOOR)
         // DOPI over their bid below five of trump — classic D0P1: double 0,
         // pass 1, the cheapest step 2.  The machinery used to stand down on
@@ -4198,13 +4422,51 @@ pub fn instinct() -> Rules {
         .alert(RKCB_FLOOR)
         // After our answer the asker holds the count: respect the placement.
         .rule(Call::Pass, 1.88, respect_keycard_signoff());
-    // The DOPI two-keycard step, per possible landing (their bid over the
-    // ask is a five-level suit below five of trump, so its successor stays
-    // a five-level suit above clubs).
-    for strain in [Strain::Diamonds, Strain::Hearts, Strain::Spades] {
-        rules = rules
-            .rule(Bid::new(5, strain), 1.9, dopi_step(Bid::new(5, strain)))
-            .alert(RKCB_FLOOR);
+    // The relocated ask (`set_kickback`): the cheapest unguarded suit above
+    // the trump, so every 1430 answer lands at or below five of trump instead
+    // of blowing past it — 4♦ and 4♥ over the minors are Redwood, 4♠ over
+    // hearts is the Kickback proper.  Same gate as the 4NT ask, keyed on the
+    // face-only [`kickback_ladder`] instead of a derived trump, and a notch
+    // heavier so the asker takes the cheaper ask where the ladder offers one.
+    // 4NT keeps its own meaning: kickback *adds* asks, it never removes one.
+    //
+    // Rule *presence* is what the knob gates, not just the constraint: the
+    // reading's `alerted` test is structural, so an always-present alerted
+    // rule on 4♠ would suppress the natural reading of every floor-classified
+    // 4♠ even with the knob off.  Build one stance per arm.
+    if kickback_now() {
+        for target in [Suit::Diamonds, Suit::Hearts, Suit::Spades] {
+            let strain = Strain::from(target);
+            rules = rules
+                .rule(
+                    Bid::new(4, strain),
+                    1.69,
+                    pred(move |hand: Hand, context: &Context<'_>| {
+                        let auction = context.auction();
+                        floor_rkcb_now()
+                            && kickback_now()
+                            && context.undisturbed()
+                            && keycard_trump(hand, context).is_some_and(|trump| {
+                                let inferences = Inferences::read(context);
+                                let partner = inferences.partner().length(trump).min;
+                                let on_table = inferences.me().length(trump).min + partner;
+                                kickback_ladder(auction, auction.len())[target as usize]
+                                    == Some(trump)
+                                    && !bare_four_four_own_flat(hand, trump, usize::from(partner))
+                                    && (on_table >= 8
+                                        || face_trump(auction, auction.len()) == Some(trump))
+                            })
+                            && partner_last_call(auction)
+                                .is_none_or(|bid| bid.strain != Strain::Notrump)
+                    }) & inference_aware()
+                        & combined_points(29)
+                        & announced(slam_entry_reached(), Cons(RkcbAgreement))
+                        & not_penalizing()
+                        & below_slam()
+                        & level_available(4, strain),
+                )
+                .alert(RKCB_FLOOR);
+        }
     }
     // The asker's continuations, per possible trump.
     for trump in Suit::ASC {
@@ -5868,6 +6130,211 @@ mod tests {
             kickback_ladder(&cued, 6),
             [None, None, None, Some(Suit::Hearts)],
             "their diamonds are guarded; the heart ask takes 4♠"
+        );
+    }
+
+    /// The 1430 rungs are *steps above the ask* — and over a plain 4NT those
+    /// steps are the absolute 5♣/5♦/5♥/5♠ the floor has always used, which is
+    /// why making the machinery relative leaves the kickback-off system
+    /// unchanged
+    #[test]
+    fn answer_steps_reproduce_the_absolute_rungs_over_four_notrump() {
+        let ladder = |ask: Bid| {
+            [
+                Bid::new(4, Strain::Hearts),
+                Bid::new(4, Strain::Spades),
+                Bid::new(4, Strain::Notrump),
+                Bid::new(5, Strain::Clubs),
+                Bid::new(5, Strain::Diamonds),
+                Bid::new(5, Strain::Hearts),
+                Bid::new(5, Strain::Spades),
+            ]
+            .into_iter()
+            .filter_map(|bid| Some((answer_step(ask, bid)?, bid)))
+            .collect::<Vec<_>>()
+        };
+        assert_eq!(
+            ladder(Bid::new(4, Strain::Notrump)),
+            vec![
+                (1, Bid::new(5, Strain::Clubs)),
+                (2, Bid::new(5, Strain::Diamonds)),
+                (3, Bid::new(5, Strain::Hearts)),
+                (4, Bid::new(5, Strain::Spades)),
+            ],
+            "the plain ask's steps are the rungs this table always held"
+        );
+        assert_eq!(
+            ladder(Bid::new(4, Strain::Spades)),
+            vec![
+                (1, Bid::new(4, Strain::Notrump)),
+                (2, Bid::new(5, Strain::Clubs)),
+                (3, Bid::new(5, Strain::Diamonds)),
+                (4, Bid::new(5, Strain::Hearts)),
+            ],
+            "4♠ asking in hearts: every answer lands at or below 5♥"
+        );
+        assert_eq!(
+            ladder(Bid::new(4, Strain::Hearts)),
+            vec![
+                (1, Bid::new(4, Strain::Spades)),
+                (2, Bid::new(4, Strain::Notrump)),
+                (3, Bid::new(5, Strain::Clubs)),
+                (4, Bid::new(5, Strain::Diamonds)),
+            ],
+            "Redwood 4♥ asking in diamonds: every answer lands at or below 5♦"
+        );
+    }
+
+    /// The asker takes the cheaper ask where the ladder offers one: the same
+    /// monster that bids 4NT over an agreed-spade raise bids **4♠** over an
+    /// agreed-heart one, because 4♠ is above game in the agreed suit and can
+    /// collide with nothing
+    #[test]
+    fn kickback_asker_prefers_the_relocated_call() {
+        let auction = [
+            call(1, Strain::Hearts),
+            Call::Pass,
+            call(3, Strain::Hearts),
+            Call::Pass,
+        ];
+        let monster = "A32.AKQJ7.AKQ.32";
+        assert_eq!(
+            best(&auction, monster),
+            call(4, Strain::Notrump),
+            "knob off: the ask stays 4NT"
+        );
+        set_kickback(true);
+        let relocated = best(&auction, monster);
+        set_kickback(false); // restore the default (off) for the rest of the suite
+        assert_eq!(
+            relocated,
+            call(4, Strain::Spades),
+            "knob on: 4♠ asks in hearts"
+        );
+    }
+
+    /// The answerer counts against the trump the *ladder* pinned, and answers
+    /// in steps above the relocated ask — the 4♠-for-hearts slice
+    #[test]
+    fn kickback_answers_climb_from_four_spades() {
+        set_kickback(true);
+        let auction = [
+            call(1, Strain::Hearts),
+            Call::Pass,
+            call(3, Strain::Hearts),
+            Call::Pass,
+            call(4, Strain::Spades),
+            Call::Pass,
+        ];
+        assert_eq!(
+            kickback_ladder(&auction, 4)[Suit::Spades as usize],
+            Some(Suit::Hearts),
+            "hearts are set and spades unguarded, so 4♠ asks in hearts"
+        );
+        for (hand, expected, why) in [
+            ("432.K765.5432.3", call(4, Strain::Notrump), "one keycard"),
+            ("432.Q765.5432.3", call(5, Strain::Clubs), "no keycard"),
+            (
+                "A32.K765.543.32",
+                call(5, Strain::Diamonds),
+                "two, no queen",
+            ),
+            (
+                "A32.KQ65.543.32",
+                call(5, Strain::Hearts),
+                "two with the queen",
+            ),
+        ] {
+            assert_eq!(best(&auction, hand), expected, "{why}");
+        }
+        set_kickback(false); // restore the default (off) for the rest of the suite
+    }
+
+    /// A 4NT that *answers* a relocated ask is an answer, not a new ask — the
+    /// bug the first smoke run found (`1♥ P 2NT P 3NT P 4♥ P 4♠ P 4NT P 5♦`
+    /// passed out, −15 IMPs: the asker read partner's step-1 answer as a fresh
+    /// keycard ask and answered it on the 1430 ladder, whose 1.9 outbids their
+    /// own 1.82 signoff).  The asker must place the contract in trumps instead.
+    #[test]
+    fn a_four_notrump_answering_the_relocation_is_not_a_new_ask() {
+        set_kickback(true);
+        let auction = [
+            call(1, Strain::Hearts),
+            Call::Pass,
+            call(3, Strain::Hearts),
+            Call::Pass,
+            call(4, Strain::Spades),
+            Call::Pass,
+            call(4, Strain::Notrump),
+            Call::Pass,
+        ];
+        assert_eq!(
+            keycard_ask_bid(&auction, 6),
+            None,
+            "4NT is step 1 over the 4♠ ask, so it asks nothing"
+        );
+        assert_eq!(
+            keycard_ask_bid(&auction, 4),
+            Some(Bid::new(4, Strain::Spades)),
+            "the ask is still the 4♠ two calls before it"
+        );
+        // Two keycards and the queen opposite a 1-or-4 answer: three combined,
+        // two missing — sign off in the agreed suit, never a fifth-strain bid.
+        let placement = best(&auction, "A32.AKQJ7.AKQ.32");
+        set_kickback(false); // restore the default (off) for the rest of the suite
+        assert_eq!(
+            placement,
+            call(6, Strain::Hearts),
+            "the asker places the contract in the agreed trump"
+        );
+    }
+
+    /// Redwood's whole point in one assertion: with diamonds agreed, the
+    /// two-keycards-plus-queen answer is `5♦` — the trump suit's own five
+    /// level, still a place to play — where the plain 4NT ask answers `5♠` and
+    /// the asker has nowhere left to stop
+    #[test]
+    fn redwood_keeps_the_trump_five_reachable() {
+        let responder = "A32.432.KQ432.32"; // ♠A + ♦K = two keycards, with ♦Q
+        let raise = [
+            call(1, Strain::Diamonds),
+            Call::Pass,
+            call(3, Strain::Diamonds),
+            Call::Pass,
+        ];
+        set_keycard_minors(true);
+
+        set_kickback(true);
+        let relocated: Vec<Call> = raise
+            .iter()
+            .copied()
+            .chain([call(4, Strain::Hearts), Call::Pass])
+            .collect();
+        assert_eq!(
+            kickback_ladder(&relocated, 4)[Suit::Hearts as usize],
+            Some(Suit::Diamonds),
+            "diamonds are set and hearts unguarded, so 4♥ asks in diamonds"
+        );
+        let redwood = best(&relocated, responder);
+        set_kickback(false);
+
+        let plain: Vec<Call> = raise
+            .iter()
+            .copied()
+            .chain([call(4, Strain::Notrump), Call::Pass])
+            .collect();
+        let blackwood = best(&plain, responder);
+
+        set_keycard_minors(false); // restore the defaults for the rest of the suite
+        assert_eq!(
+            redwood,
+            call(5, Strain::Diamonds),
+            "Redwood answers below 5♦"
+        );
+        assert_eq!(
+            blackwood,
+            call(5, Strain::Spades),
+            "the plain ask answers above it — 5♦ is gone"
         );
     }
 
