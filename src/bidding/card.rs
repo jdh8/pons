@@ -397,12 +397,10 @@ fn american_row(name: &str) -> i32 {
         // five of trump, DEPO at or above), and the 5NT king ask.
         "Cue bid" | "DOPI" | "ROPI" | "DEPO" | "King ask by 5NT" => 1,
         "King ask by 5NT inviting" => 0,
-        // The king ask is 5NT off the knob, and the step above the queen reply
-        // on it — which *is* 5NT in most lanes but 6♣ where the reply itself
-        // landed on 5NT.  BBA's schema treats the two rows as exclusive, so
-        // neither value describes us honestly once the relay is on; we disclose
-        // the available-bid form because that is the one an opponent could be
-        // surprised by.
+        // The king ask is 5NT off the knob.  On it, the relay carries its own:
+        // partner's queen reply already names a king, and the **second relay** —
+        // one step above that reply — asks for another, so kickback lowers this
+        // ask exactly as it lowers the first one.
         //
         // BBA has no queen-ask *toggle*, but it very much has the ask: it is
         // unconditional inside Blackwood (`get_potencjalne_pytanie_o_dame_krole`,

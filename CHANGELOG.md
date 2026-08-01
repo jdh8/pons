@@ -14,23 +14,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   two-keycard rungs (step 3 denies it, step 4 shows it), so after a one-or-four
   or none-or-three answer — the common case — the asker bet six on four keycards
   without ever knowing whether the queen was there, and bet seven on combined
-  points alone. The relay is one step above the answer, partner's two replies
-  the next two rungs, and a king ask above the queen-shown reply. The asker's
-  decision table becomes: five keycards bid six whatever the queen does; four
-  keycards need the queen; a denial stops at five; and where the relay has no
-  room the asker bets six on four exactly as before. A **proven ten-card fit
-  counts as the queen** on both sides of the table (BBA's `posiadane_karty >=
-  10`) — with ten trumps the honour drops or finesses either way. Seven is bid
-  on two of the three side kings, and the king ask rides the **grand-zone
-  strength gate** rather than the keycard count: RKCB is a slam veto, not a slam
-  seeker, so a partnership short of the values never spends the round.
+  points alone. The relay is one step above the answer, and partner answers in
+  **one round that carries the queen and a king both**. The asker's decision
+  table becomes: five keycards bid six whatever the queen does; four keycards
+  need the queen; a denial stops at five; and where the relay has no room the
+  asker bets six on four exactly as before. A **proven ten-card fit counts as
+  the queen** on both sides of the table (BBA's `posiadane_karty >= 10`) — with
+  ten trumps the honour drops or finesses either way. Seven is bid on two of the
+  three side kings, and every ask rides the **grand-zone strength gate** rather
+  than the keycard count: RKCB is a slam veto, not a slam seeker, so a
+  partnership short of the values never spends the round.
 
-  One geometry serves both ladders — the same `bid_successor` walk the 1430
-  rungs already use — so the book (`american/slam.rs`) and the floor
-  (`instinct.rs`, where kickback lives) cannot drift. The relay is installed
-  exactly where the *no-queen* rung still lands at or below five of trump, which
-  is every relocated lane and every plain-4NT major except hearts after a
-  none-or-three; both plain-4NT minors keep today's cramped behaviour. Because
+  **One round, five messages.** The space between the ask and six of trump is
+  exactly big enough to hold the whole reply, so it holds it: five of trump
+  denies the queen flat, six of trump denies it with a buff partner cannot see,
+  each side suit shows the queen *plus that king* and denies every king on a
+  cheaper rung, and 5NT shows the queen with no side king at all. Both denials
+  are the agreed trump — contracts, not codes, so neither is alerted and neither
+  can be misplayed as an artificial rung, this codebase's recurring disaster.
+  The scheme is BBA's own, live-verified against EPBot's disclosure labels
+  (`!H queen and !S king`).
+
+  **Kickback lowers the second ask too.** Where partner named a king and the
+  asker holds none of its own, one more king decides the grand, so the asker
+  relays **again** — one step above partner's reply, answered on the cheap rung
+  or by six of trump. Being a step rather than an absolute 5NT is what makes it
+  fit: relocating the keycard ask buys room twice, once for the queen and once
+  again here. Where the asker holds a king of its own the merged reply already
+  showed two and the round is not spent at all.
+
+  One geometry serves both ladders — `relay_map` and `king_relay` in
+  `instinct.rs` — so the book (`american/slam.rs`) and the floor cannot drift.
+  The relay exists exactly where the ask still lands **strictly below** five of
+  trump: **11 of the 16** ask/answer lanes, being every relocated lane, both
+  plain-4NT spade lanes, and hearts after a one-or-four. The bar is not
+  cosmetic — the answerer reads the *face*, so an ask that landed on five of
+  trump would be indistinguishable from the signoff, and partner would raise a
+  signoff to six. Both plain-4NT minors keep today's cramped behaviour. Because
   the relocated ladder puts step 4 at five of trump, kickback gets the relay for
   free — which is the point: §7.3.4 named the asker's continuation as the next
   lever after the relocation measured a wash.
@@ -83,18 +103,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   what seven needs, and this table says the relay's two is the right one. That
   is a shipped path and owes its own A/B.
 
-  **Also authored, also off: `set_king_zero_jump`.** The queen-shown answerer
-  holding no side king places the contract in six of trumps instead of answering
-  on a rung — the hand is good for six and bad for seven, and saying so in one
-  call conceals the side-king count from the defence. The ladder is **permuted,
-  not extended**: zero takes six of trumps and one and two-or-more slide down to
-  the two cheapest steps, because in most lanes the top rung already *is* six of
-  trump and appending would collide the zero answer with the two-or-more one.
-  The jump is a placement and not a barrier — the asker holding two side kings
-  of its own still bids seven over it. Concealment is invisible to double-dummy,
-  so read a wash on this arm as the harness and not the idea.
-
-  **Measured** (`ab-kickback`, 10M boards per cell, seed 1785588007, ~0.07%
+  **Measured** (the two-round encoding this one replaces) (`ab-kickback`, 10M boards per cell, seed 1785588007, ~0.07%
   divergent):
 
   | cell | PD/board | PD/divergent | plain DD/board | plain DD/divergent |

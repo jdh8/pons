@@ -90,7 +90,9 @@ pub(super) fn minor_keycard() -> bool {
 
 use super::{insert_uncontested, uncontested};
 use crate::bidding::constraint::{described, hcp};
-use crate::bidding::instinct::{king_rung, queen_ask_now, queen_ask_room, queen_fit, relay_ladder};
+use crate::bidding::instinct::{
+    KingRelay, RelayMap, king_relay, queen_ask_now, queen_ask_room, queen_fit, relay_map,
+};
 use crate::bidding::trie::Classifier;
 use contract_bridge::Hand;
 
@@ -406,97 +408,125 @@ fn relay_first(
     }
 }
 
-/// Partner's replies to the queen relay: the second rung shows it, the first
-/// denies it and is the table's finite catch-all
-fn queen_replies(trump: Suit, ladder: [Bid; 7]) -> Rules {
-    Rules::new()
-        // Six of trumps is a contract, not a code, so it carries no alert: the
-        // jump outranks the denial because a buff hand satisfies both, and this
-        // is the more specific description of it.
-        .rule(
-            Bid::new(6, Strain::from(trump)),
-            1.5,
-            !has_trump_queen(trump) & trump_buff(trump),
-        )
-        .rule(ladder[2], 1.0, has_trump_queen(trump))
-        .alert(RKCB)
-        .rule(ladder[1], 0.5, hcp(0..))
-        .alert(RKCB)
+/// Holds the king of `suit` and of none of the suits on `cheaper` rungs — the
+/// "skipped steps deny" half of a king rung
+fn cheapest_king(
+    suit: Suit,
+    cheaper: Vec<Suit>,
+) -> crate::bidding::constraint::Cons<impl crate::bidding::constraint::Constraint + Clone> {
+    described(
+        format!("holds the {suit} king and no cheaper side king"),
+        move |hand: Hand, _: &crate::bidding::context::Context<'_>| {
+            hand[suit].contains(Rank::K) && cheaper.iter().all(|&s| !hand[s].contains(Rank::K))
+        },
+    )
 }
 
-/// Asker's placement over a denied queen: one keycard *and* the queen missing
-/// stops at five, all five keycards bid six anyway
+/// Partner's merged reply to the queen relay
 ///
-/// The denial rung is five of trump in the lanes where the ladder lands it
-/// there (♥ after 5♣, ♠ after 5♦), and passing is then how the asker stops;
-/// elsewhere five of trump is still free.  Both shapes keep a finite call for
-/// every hand, so the table never hands a live node back to the floor.
+/// One round carries the queen and a king both: each side suit's rung shows the
+/// queen plus that king and denies every king on a cheaper rung, 5NT shows the
+/// queen with no side king at all, and the two denials are five and six of the
+/// agreed trump — contracts rather than codes, so neither is alerted.  Six is
+/// the *stronger* denial, the ninth trump or the void the ladder has no rung
+/// for; where five of trump is already gone it carries every no-queen hand.
+fn queen_replies(trump: Suit, map: &RelayMap) -> Rules {
+    let mut rules = Rules::new();
+    for (index, &(suit, call)) in map.kings.iter().enumerate() {
+        let cheaper = map.kings[..index].iter().map(|&(s, _)| s).collect();
+        rules = rules
+            .rule(
+                call,
+                1.0,
+                has_trump_queen(trump) & cheapest_king(suit, cheaper),
+            )
+            .alert(RKCB);
+    }
+    rules = rules
+        .rule(
+            map.no_king,
+            1.0,
+            has_trump_queen(trump) & kings_outside(trump, 0..=0),
+        )
+        .alert(RKCB)
+        .rule(map.deny, 0.6, !has_trump_queen(trump) & trump_buff(trump));
+    rules.rule(map.weak, 0.5, hcp(0..))
+}
+
+/// Asker's placement over a denied queen
+///
+/// Both denials are the agreed trump, so both are already a contract: five of
+/// it stops there unless all five keycards are on the table, and six of it —
+/// the ninth trump or the void — is passed.
 fn asker_after_denial(trump: Suit, denial: Bid) -> Rules {
     let t = Strain::from(trump);
-    let rules = Rules::new().rule(Bid::new(6, t), 1.0, keycards(trump, 4..));
-    if denial == Bid::new(5, t) {
-        rules.rule(Call::Pass, 0.5, hcp(0..))
-    } else {
-        rules.rule(Bid::new(5, t), 0.5, hcp(0..))
+    if denial == Bid::new(6, t) {
+        return Rules::new().rule(Call::Pass, 0.5, hcp(0..));
     }
+    Rules::new()
+        .rule(Bid::new(6, t), 1.0, keycards(trump, 4..))
+        .rule(Call::Pass, 0.5, hcp(0..))
 }
 
-/// Asker's placement over a shown queen: the king ask with the values for
-/// seven, the small slam otherwise
+/// Asker's placement over a queen-and-king reply
 ///
-/// The king ask is gated on **strength**, not on the keycard count — RKCB is a
-/// slam veto, not a slam seeker, so a partnership short of the grand zone never
+/// Seven needs two side kings between the hands.  Partner named its cheapest,
+/// so one of our own already makes two; with none, the **second relay** asks
+/// for one more — and that is where kickback pays a second time, because the
+/// relay is a step above partner's reply rather than an absolute 5NT.
+///
+/// Both are gated on **strength**, not on the keycard count — RKCB is a slam
+/// veto, not a slam seeker, so a partnership short of the grand zone never
 /// spends the round.  `hcp(19..)` is the book's available proxy at this node.
 ///
 /// ponytail: raw HCP, because the book carries no combined-point machinery
 /// here; the upgrade path is the floor's `points_and_net(combined_points(37))`
 /// once the book's asker tables can see partner's shown strength.
-fn asker_after_queen(trump: Suit, ladder: [Bid; 7]) -> Rules {
+fn asker_after_queen(trump: Suit, partner_king: bool, relay: Option<KingRelay>) -> Rules {
     let t = Strain::from(trump);
+    let mut rules = Rules::new();
+    if partner_king {
+        rules = rules.rule(
+            Bid::new(7, t),
+            1.5,
+            keycards(trump, 4..=4) & kings_outside(trump, 1..) & hcp(19..),
+        );
+        if let Some(relay) = relay {
+            rules = rules
+                .rule(
+                    relay.ask,
+                    1.4,
+                    keycards(trump, 4..=4) & kings_outside(trump, 0..=0) & hcp(19..),
+                )
+                .alert(RKCB);
+        }
+    } else {
+        rules = rules.rule(
+            Bid::new(7, t),
+            1.5,
+            keycards(trump, 4..=4) & kings_outside(trump, 2..) & hcp(19..),
+        );
+    }
+    rules.rule(Bid::new(6, t), 1.0, hcp(0..))
+}
+
+/// Partner's reply to the second relay: one more king, or six of trumps
+fn king_replies(trump: Suit, relay: KingRelay) -> Rules {
     Rules::new()
-        .rule(ladder[3], 1.4, keycards(trump, 4..=4) & hcp(19..))
+        .rule(relay.more, 1.0, kings_outside(trump, 2..))
         .alert(RKCB)
-        .rule(Bid::new(6, t), 1.0, hcp(0..))
+        // Six of the agreed trump is a contract, not a code.
+        .rule(relay.none, 0.5, hcp(0..))
 }
 
-/// Partner's replies to the relay's king ask: none, one, two-or-more side kings
-fn relay_king_replies(trump: Suit, ladder: [Bid; 7]) -> Rules {
-    let rungs = [ladder[4], ladder[5], ladder[6]];
-    let zero = king_rung(trump, rungs, 0);
-    let rules = Rules::new().rule(zero, 1.0, kings_outside(trump, 0..=0));
-    // Under [`set_king_zero_jump`] the zero-king answer is six of the agreed
-    // trump: a contract, not a code, so it carries no alert.
-    let rules = if zero == ladder[4] {
-        rules.alert(RKCB)
+/// Asker's placement over the second relay's reply: seven on the second king,
+/// and passing partner's six otherwise
+fn asker_after_relay_kings(trump: Suit, more: bool) -> Rules {
+    let rules = Rules::new();
+    if more {
+        rules.rule(Bid::new(7, Strain::from(trump)), 1.0, hcp(0..))
     } else {
-        rules
-    };
-    rules
-        .rule(king_rung(trump, rungs, 1), 1.0, kings_outside(trump, 1..=1))
-        .alert(RKCB)
-        .rule(king_rung(trump, rungs, 2), 0.5, hcp(0..))
-        .alert(RKCB)
-}
-
-/// Asker's placement over a king reply showing `partners` side kings: seven on
-/// two of the three between the hands, six otherwise
-///
-/// `reply` is the call partner actually made, because [`set_king_zero_jump`]
-/// relocates the zero-king answer *to* six of trumps — and there the six-level
-/// catch-all is already the contract, so passing is how the asker takes it.
-/// Seven stays live either way: the jump is a placement, not a barrier.
-fn asker_after_relay_kings(trump: Suit, partners: usize, reply: Bid) -> Rules {
-    let t = Strain::from(trump);
-    let six = Bid::new(6, t);
-    let rules = Rules::new().rule(
-        Bid::new(7, t),
-        1.0,
-        kings_outside(trump, 2usize.saturating_sub(partners)..),
-    );
-    if reply == six {
         rules.rule(Call::Pass, 0.5, hcp(0..))
-    } else {
-        rules.rule(six, 0.5, hcp(0..))
     }
 }
 
@@ -738,44 +768,47 @@ pub(super) fn install_rkcb(book: &mut Trie, our_calls: &[Call], trump: Suit) {
             let Call::Bid(answer_bid) = answer else {
                 continue;
             };
-            let Some(ladder) =
-                queen_ask_room(answer_bid, trump).and_then(|_| relay_ladder(answer_bid))
-            else {
+            let Some(map) = relay_map(answer_bid, trump) else {
                 continue;
             };
-            let relay = Call::Bid(ladder[0]);
-            let denial = Call::Bid(ladder[1]);
-            let shown = Call::Bid(ladder[2]);
-            let king_ask = Call::Bid(ladder[3]);
+            let relay = Call::Bid(map.ask);
 
-            insert_uncontested(
-                book,
-                &extend(&[answer, relay]),
-                queen_replies(trump, ladder),
-            );
-            insert_uncontested(
-                book,
-                &extend(&[answer, relay, denial]),
-                asker_after_denial(trump, ladder[1]),
-            );
-            insert_uncontested(
-                book,
-                &extend(&[answer, relay, shown]),
-                asker_after_queen(trump, ladder),
-            );
-            insert_uncontested(
-                book,
-                &extend(&[answer, relay, shown, king_ask]),
-                relay_king_replies(trump, ladder),
-            );
-            let rungs = [ladder[4], ladder[5], ladder[6]];
-            for partners in 0..3 {
-                let reply = king_rung(trump, rungs, partners);
+            insert_uncontested(book, &extend(&[answer, relay]), queen_replies(trump, &map));
+            for denial in [map.weak, map.deny] {
                 insert_uncontested(
                     book,
-                    &extend(&[answer, relay, shown, king_ask, Call::Bid(reply)]),
-                    asker_after_relay_kings(trump, partners, reply),
+                    &extend(&[answer, relay, Call::Bid(denial)]),
+                    asker_after_denial(trump, denial),
                 );
+            }
+            insert_uncontested(
+                book,
+                &extend(&[answer, relay, Call::Bid(map.no_king)]),
+                asker_after_queen(trump, false, None),
+            );
+            for &(_, shown) in &map.kings {
+                let second = king_relay(shown, trump);
+                insert_uncontested(
+                    book,
+                    &extend(&[answer, relay, Call::Bid(shown)]),
+                    asker_after_queen(trump, true, second),
+                );
+                let Some(second) = second else {
+                    continue;
+                };
+                let ask = Call::Bid(second.ask);
+                insert_uncontested(
+                    book,
+                    &extend(&[answer, relay, Call::Bid(shown), ask]),
+                    king_replies(trump, second),
+                );
+                for (reply, more) in [(second.more, true), (second.none, false)] {
+                    insert_uncontested(
+                        book,
+                        &extend(&[answer, relay, Call::Bid(shown), ask, Call::Bid(reply)]),
+                        asker_after_relay_kings(trump, more),
+                    );
+                }
             }
         }
     }
@@ -1298,25 +1331,36 @@ mod tests {
             "all five keycards, no grand values: no queen relay"
         );
 
-        // Partner replies: 5♥ denies, 5♠ shows.  Three trumps opposite the
-        // opener's shown five is eight, the one length where only the honour
-        // itself can answer.
+        // Partner replies in one round: 5♠ denies flat, 6♠ denies with a buff,
+        // 5♥/6♣/6♦ show the queen *and* the cheapest side king, 5NT shows the
+        // queen with none.  Three trumps opposite the opener's shown five is
+        // eight, the one length where only the honour itself can answer.
         auction.extend([Call::Bid(Bid::new(5, Strain::Diamonds)), Call::Pass]);
         assert_eq!(
             best(&trie, &auction, "K74.A653.8432.92"),
-            Call::Bid(Bid::new(5, Strain::Hearts)),
-            "no trump queen → the denial rung"
+            Call::Bid(Bid::new(5, Strain::Spades)),
+            "no trump queen → five of trump, which is the signoff too"
         );
         assert_eq!(
             best(&trie, &auction, "KQ4.A653.8432.92"),
-            Call::Bid(Bid::new(5, Strain::Spades)),
-            "trump queen → the show rung"
+            Call::Bid(Bid::new(5, Strain::Notrump)),
+            "trump queen, no side king → 5NT"
+        );
+        assert_eq!(
+            best(&trie, &auction, "KQ4.K653.8432.92"),
+            Call::Bid(Bid::new(5, Strain::Hearts)),
+            "trump queen and the ♥ king → the cheapest king rung"
+        );
+        assert_eq!(
+            best(&trie, &auction, "KQ4.6532.K843.92"),
+            Call::Bid(Bid::new(6, Strain::Diamonds)),
+            "the ♦ king with no cheaper one → the rung above, skipping denies"
         );
         // A fifth trump opposite the opener's shown five is ten, and ten runs
         // the suit without the honour — the one length that may claim it.
         assert_eq!(
             best(&trie, &auction, "K7432.A65.843.92"),
-            Call::Bid(Bid::new(5, Strain::Spades)),
+            Call::Bid(Bid::new(5, Strain::Notrump)),
             "the tenth trump stands in for the queen"
         );
         // Nine is the in-between: not a queen, but far too good to let partner
@@ -1331,8 +1375,8 @@ mod tests {
         // the rung above.
         assert_eq!(
             best(&trie, &auction, "KQ43.A653.843.92"),
-            Call::Bid(Bid::new(5, Strain::Spades)),
-            "queen in hand: the show rung, not the jump"
+            Call::Bid(Bid::new(5, Strain::Notrump)),
+            "queen in hand: a show rung, not the jump"
         );
         // A void rides the same jump: worth a trick the ladder cannot show,
         // and partner is about to pass five without ever hearing about it.
@@ -1345,14 +1389,14 @@ mod tests {
         // The asker places it.  Three keycards is four combined: a denied
         // queen leaves a keycard *and* the queen out, so stop at five.
         let mut denied = auction.clone();
-        denied.extend([Call::Bid(Bid::new(5, Strain::Hearts)), Call::Pass]);
+        denied.extend([Call::Bid(Bid::new(5, Strain::Spades)), Call::Pass]);
         assert_eq!(
             best(&trie, &denied, "AKJ8.AK2.KJ32.42"),
-            Call::Bid(Bid::new(5, Strain::Spades)),
-            "queen denied on four keycards: stop at five"
+            Call::Pass,
+            "queen denied on four keycards: the denial is already the contract"
         );
         let mut shown = auction;
-        shown.extend([Call::Bid(Bid::new(5, Strain::Spades)), Call::Pass]);
+        shown.extend([Call::Bid(Bid::new(5, Strain::Notrump)), Call::Pass]);
         assert_eq!(
             best(&trie, &shown, "AKJ8.AK2.KJ32.42"),
             Call::Bid(Bid::new(6, Strain::Spades)),
@@ -1361,17 +1405,20 @@ mod tests {
     }
 
     /// Seven is explored only when the values are there, and bid on two of the
-    /// three side kings — RKCB is a slam veto, not a slam seeker.
+    /// three side kings — RKCB is a slam veto, not a slam seeker.  The merged
+    /// reply names one of them, so the second relay is spent only when the
+    /// asker holds none of its own.
     #[test]
     fn relay_king_ask_needs_the_grand_values() {
         let trie = eight_card_relay_trie();
         let mut shown = LIMIT_ANS_AUCTION.to_vec();
+        // 5♥ shows the trump queen and the ♥ king, denying nothing cheaper.
         shown.extend([
             Call::Bid(Bid::new(5, Strain::Clubs)),
             Call::Pass,
             Call::Bid(Bid::new(5, Strain::Diamonds)),
             Call::Pass,
-            Call::Bid(Bid::new(5, Strain::Spades)),
+            Call::Bid(Bid::new(5, Strain::Hearts)),
             Call::Pass,
         ]);
         // ♠AK98 ♥A32 ♦A432 ♣32 — four keycards, so all five are on the table
@@ -1379,34 +1426,49 @@ mod tests {
         assert_eq!(
             best(&trie, &shown, "AK98.A32.A432.32"),
             Call::Bid(Bid::new(6, Strain::Spades)),
-            "all five keycards and the queen, no grand values: six, never the king ask"
+            "all five keycards and the queen, no grand values: six, never a second relay"
         );
-        // ♠AK98 ♥AK2 ♦AK32 ♣32 — the same four keycards with 21 HCP: ask.
+        // ♠AK98 ♥AK2 ♦AK32 ♣32 — 21 HCP and a side king of its own opposite
+        // partner's: two are already shown, so bid seven without asking again.
         assert_eq!(
             best(&trie, &shown, "AK98.AK2.AK32.32"),
-            Call::Bid(Bid::new(5, Strain::Notrump)),
-            "grand-zone values: ask for kings"
+            Call::Bid(Bid::new(7, Strain::Spades)),
+            "one king each, shown in a single round: grand"
+        );
+        // ♠AKQJ ♥A32 ♦AQ32 ♣32 — 20 HCP, four keycards, and not one side king:
+        // the second king is the whole question, so relay again at 5♠.
+        assert_eq!(
+            best(&trie, &shown, "AKQJ.A32.AQ32.32"),
+            Call::Bid(Bid::new(5, Strain::Spades)),
+            "grand values but no side king of our own: ask for a second"
         );
 
-        // Partner shows one side king, and two between the hands bids seven.
         let mut asked = shown;
-        asked.extend([Call::Bid(Bid::new(5, Strain::Notrump)), Call::Pass]);
+        asked.extend([Call::Bid(Bid::new(5, Strain::Spades)), Call::Pass]);
         assert_eq!(
-            best(&trie, &asked, "Q7432.653.K42.92"),
-            Call::Bid(Bid::new(6, Strain::Diamonds)),
-            "one side king → the one-king rung"
+            best(&trie, &asked, "Q743.K65.K42.92"),
+            Call::Bid(Bid::new(5, Strain::Notrump)),
+            "a second side king → the cheap rung"
         );
-        let mut answered = asked;
-        answered.extend([Call::Bid(Bid::new(6, Strain::Diamonds)), Call::Pass]);
         assert_eq!(
-            best(&trie, &answered, "AK98.AK2.AK32.32"),
+            best(&trie, &asked, "Q743.K65.842.92"),
+            Call::Bid(Bid::new(6, Strain::Spades)),
+            "only the king already shown → six of trumps ends it"
+        );
+
+        let mut answered = asked.clone();
+        answered.extend([Call::Bid(Bid::new(5, Strain::Notrump)), Call::Pass]);
+        assert_eq!(
+            best(&trie, &answered, "AKQJ.A32.AQ32.32"),
             Call::Bid(Bid::new(7, Strain::Spades)),
             "two of the three side kings between the hands: grand"
         );
+        let mut stopped = asked;
+        stopped.extend([Call::Bid(Bid::new(6, Strain::Spades)), Call::Pass]);
         assert_eq!(
-            best(&trie, &answered, "AK98.AQ2.AQ32.32"),
-            Call::Bid(Bid::new(6, Strain::Spades)),
-            "only partner's king: stop in six"
+            best(&trie, &stopped, "AKQJ.A32.AQ32.32"),
+            Call::Pass,
+            "only partner's king: six is already the contract"
         );
     }
 }
