@@ -43,10 +43,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   own — and the forced rail reaches the relay's rounds so the neural shell does
   not freewheel inside one.
 
+  **Ask only what changes the call.** The relay fires when exactly one keycard
+  is missing — the count where the queen decides five against six — and, on all
+  five keycards, only when the values put seven in range. Holding all five and
+  no grand ambitions the asker simply bids six: a question whose answer it will
+  not act on is a round spent for nothing, and spent at the five level where the
+  room is the signoff's.
+
+  **The fit substitutes on a measured, two-level threshold** (`set_queen_fit`,
+  default 9; `set_grand_queen_fit`, default 10) rather than BBA's flat 10.
+  Holding AK without the queen, the chance of no trump loser is the chance the
+  queen falls in two rounds: ~50% at eight cards (the finesse), 40.7% + 49.7%÷4
+  = **53.1%** at nine, and every 2-1 break = **78.0%** at ten. A small slam
+  breaks even at even money and a grand at ~56–58%, so nine trumps carry the six
+  and not the seven. `probe-trump-queen` confirms it on 150k deals conditioned to
+  30-plus combined points — six makes 46.3% ± 5.1 on eight trumps without the
+  queen, 68.8% ± 9.3 on nine — and double-dummy overstates both, which only
+  sharpens the conclusion.
+
+  That split leaves one ambiguity and the code names it: partner's "queen" reply
+  means the honour *or* the length, so at a nine-card fit the grand cannot tell
+  which it got and declines. Below nine the substitute cannot have applied, so
+  the reply is a real queen and AKQ runs on any 3-2 break.
+
   **Unmeasured, and therefore off.** Fires ~10.7 boards per 10⁴, dense enough
   for a random-deal A/B; `ab-kickback` grows `queen` and `kickback-queen` arms
-  so each pair moves exactly one knob. Expect a grand-heavy divergent set and
-  apply `docs/measurement.md`'s slam-boundary shave before calling a thin win.
+  so each pair moves exactly one knob. A 100k pilot of the *first* cut — flat
+  threshold, ask on any four-plus count — measured **−0.00251 IMPs/board plain
+  DD, CI [−0.00465, −0.00037]**, and tracing its worst boards is what produced
+  every rule above. Expect a grand-heavy divergent set and apply
+  `docs/measurement.md`'s slam-boundary shave before calling a thin win.
+
+- **`examples/probe-trump-queen`** — how often six makes without the trump
+  queen, by combined fit length and keycard count, ignoring the bidder entirely.
+  Also carries a targeted correction for double-dummy's slam optimism: for every
+  queen-missing side it re-solves the deal with the trump queen moved to the
+  other defender, splitting DD's makes into those that hold with the queen in
+  either hand and those a single defender's holding decided — the latter being a
+  real 50/50 at the table that DD scores as a certainty. It prices one known
+  bias instead of assuming it; it does not touch DD's perfect lead or its
+  timing, so it is a partial correction, not a general one.
 
 ### Fixed
 

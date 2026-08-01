@@ -90,7 +90,7 @@ pub(super) fn minor_keycard() -> bool {
 
 use super::{insert_uncontested, uncontested};
 use crate::bidding::constraint::{described, hcp};
-use crate::bidding::instinct::{queen_ask_now, queen_ask_room, relay_ladder};
+use crate::bidding::instinct::{queen_ask_now, queen_ask_room, queen_fit, relay_ladder};
 use crate::bidding::trie::Classifier;
 use contract_bridge::Hand;
 
@@ -180,12 +180,14 @@ fn keycards(
 /// Whether the hand holds the queen of trumps — or the side has shown the
 /// ten-card fit that stands in for it
 ///
-/// With ten trumps between the hands the queen drops or finesses either way, so
-/// the honour stops being worth a round of bidding (BBA's `posiadane_karty >=
-/// 10`, `docs/ai-bidder/bba-kickback.md` §3).  Counted as our own length plus
-/// the sound floor of partner's shown length, so neither seat can claim a fit
-/// the auction has not shown.  The ten-card arm rides [`set_queen_ask`], so the
-/// knob-off answers keep their literal holding test and stay byte-identical.
+/// A fit long enough to draw trumps without the honour makes the honour not
+/// worth a round of bidding.  The threshold is [`set_queen_fit`] (default 9, a
+/// measured departure from BBA's 10); counted as our own length plus the sound
+/// floor of partner's shown length, so neither seat can claim a fit the auction
+/// has not shown.  The arm rides [`set_queen_ask`], so the knob-off answers keep
+/// their literal holding test and stay byte-identical.
+///
+/// [`set_queen_fit`]: crate::bidding::instinct::set_queen_fit
 ///
 /// The knob is sampled **here, at book construction**, not inside the closure —
 /// the regime every book knob lives in ([`set_minor_keycard`]).  Reading it at
@@ -197,15 +199,16 @@ fn has_trump_queen(
     trump: Suit,
 ) -> crate::bidding::constraint::Cons<impl crate::bidding::constraint::Constraint + Clone> {
     use crate::bidding::inference::Inferences;
-    let ten_card_counts = queen_ask_now();
+    let long_fit_counts = queen_ask_now().then(|| usize::from(queen_fit()));
     described(
         format!("holds the {trump} queen"),
         move |hand: Hand, context: &crate::bidding::context::Context<'_>| {
             hand[trump].contains(Rank::Q)
-                || (ten_card_counts
-                    && hand[trump].len()
+                || long_fit_counts.is_some_and(|threshold| {
+                    hand[trump].len()
                         + usize::from(Inferences::read(context).partner().length(trump).min)
-                        >= 10)
+                        >= threshold
+                })
         },
     )
 }
@@ -266,14 +269,22 @@ fn rkcb_answers(trump: Suit) -> Rules {
 /// king ask); with 3+ asker knows partner has 1, signs off at 5T or bids 6T.
 fn asker_after_5c(trump: Suit) -> Rules {
     let t = Strain::from(trump);
-    relay_first(trump, Bid::new(5, Strain::Clubs), keycards(trump, 3..))
-        // 5NT: asker has 4 keycards + partner's 1 = all five → king ask
-        .rule(Bid::new(5, Strain::Notrump), 1.4, keycards(trump, 4..=4))
-        .alert(RKCB)
-        // 6T: asker has 3 keycards, assumes partner has 4 → interested in slam
-        .rule(Bid::new(6, t), 1.0, keycards(trump, 3..=3))
-        // 5T: signoff (asker doesn't want slam)
-        .rule(Bid::new(5, t), 0.5, hcp(0..))
+    // Ask only what we will act on.  Three keycards decodes to four combined —
+    // one missing, and the queen decides five against six, so the answer is
+    // worth a round.  Four keycards decodes to all five, where six is bid
+    // whatever comes back: only a hand exploring seven has a use for the reply.
+    relay_first(
+        trump,
+        Bid::new(5, Strain::Clubs),
+        keycards(trump, 3..=3) | (keycards(trump, 4..=4) & hcp(19..)),
+    )
+    // 5NT: asker has 4 keycards + partner's 1 = all five → king ask
+    .rule(Bid::new(5, Strain::Notrump), 1.4, keycards(trump, 4..=4))
+    .alert(RKCB)
+    // 6T: asker has 3 keycards, assumes partner has 4 → interested in slam
+    .rule(Bid::new(6, t), 1.0, keycards(trump, 3..=3))
+    // 5T: signoff (asker doesn't want slam)
+    .rule(Bid::new(5, t), 0.5, hcp(0..))
 }
 
 /// Asker's continuation after a 5♦ response
@@ -282,19 +293,24 @@ fn asker_after_5c(trump: Suit) -> Rules {
 /// keycards asker knows partner has 0 → sign off at 5T.
 fn asker_after_5d(trump: Suit) -> Rules {
     let t = Strain::from(trump);
-    // Only the four-keycard asker needs the relay here: it knows partner has
-    // none, so the total is four and the queen is the whole difference between
-    // five and six.  Two keycards reads partner for three — five combined, and
-    // five keycards bid six whatever the queen does.
-    relay_first(trump, Bid::new(5, Strain::Diamonds), keycards(trump, 4..=4))
-        // 6T: asker with ≤2 assumes partner has 3 (slam OK), or asker has 4+
-        .rule(
-            Bid::new(6, t),
-            1.0,
-            keycards(trump, 2..=2) | keycards(trump, 4..),
-        )
-        // 5T: signoff (asker has ≥3 and knows partner has 0)
-        .rule(Bid::new(5, t), 0.5, hcp(0..))
+    // Four keycards knows partner has none, so the total is four and the queen
+    // is the whole difference between five and six — worth a round.  Two
+    // keycards reads partner for three, and five keycards is all of them: both
+    // are bidding six whatever the queen does, so they ask only when the values
+    // put seven in range.
+    relay_first(
+        trump,
+        Bid::new(5, Strain::Diamonds),
+        keycards(trump, 4..=4) | ((keycards(trump, 2..=2) | keycards(trump, 5..)) & hcp(19..)),
+    )
+    // 6T: asker with ≤2 assumes partner has 3 (slam OK), or asker has 4+
+    .rule(
+        Bid::new(6, t),
+        1.0,
+        keycards(trump, 2..=2) | keycards(trump, 4..),
+    )
+    // 5T: signoff (asker has ≥3 and knows partner has 0)
+    .rule(Bid::new(5, t), 0.5, hcp(0..))
 }
 
 // ---------------------------------------------------------------------------
@@ -1102,6 +1118,49 @@ mod tests {
         trie
     }
 
+    /// A spade book reached through a **limit raise**, so partner is shown for
+    /// only three trumps and the fit is eight — the one length where the trump
+    /// queen still decides between five and six ([`set_queen_fit`], default 9).
+    /// The Jacoby-2NT book above promises four-plus opposite a five-card major,
+    /// so its fit is nine and the relay is correctly dead there.
+    ///
+    /// [`set_queen_fit`]: crate::bidding::instinct::set_queen_fit
+    fn eight_card_relay_trie() -> Trie {
+        crate::bidding::instinct::set_queen_ask(true);
+        let mut trie = Trie::new();
+        let our_calls = [
+            Call::Bid(Bid::new(1, Strain::Spades)),
+            Call::Bid(Bid::new(3, Strain::Spades)),
+        ];
+        install_rkcb(&mut trie, &our_calls, Suit::Spades);
+        crate::bidding::instinct::set_queen_ask(false);
+        trie
+    }
+
+    /// `[1♠, P, 3♠, P, 4NT, P]` — the limit-raise ask node
+    const LIMIT_ANS_AUCTION: &[Call] = &[
+        Call::Bid(Bid::new(1, Strain::Spades)),
+        Call::Pass,
+        Call::Bid(Bid::new(3, Strain::Spades)),
+        Call::Pass,
+        Call::Bid(Bid::new(4, Strain::Notrump)),
+        Call::Pass,
+    ];
+
+    /// A nine-card fit answers the queen question by itself, so the relay never
+    /// starts — Jacoby 2NT promises four-plus opposite five.
+    #[test]
+    fn nine_card_fit_needs_no_relay() {
+        let trie = relay_trie();
+        let mut auction = ANS_AUCTION.to_vec();
+        auction.extend([Call::Bid(Bid::new(5, Strain::Clubs)), Call::Pass]);
+        assert_eq!(
+            best(&trie, &auction, "AKJ8.AK2.KJ32.42"),
+            Call::Bid(Bid::new(6, Strain::Spades)),
+            "four trumps opposite a shown five is nine: bid six, do not ask"
+        );
+    }
+
     /// Knob off, the book is byte-identical: no relay node exists, and the
     /// queenless asker bets the small slam as it always has.
     #[test]
@@ -1129,8 +1188,8 @@ mod tests {
     /// rungs above, and the asker places the contract on the reply.
     #[test]
     fn relay_asks_answers_and_places() {
-        let trie = relay_trie();
-        let mut auction = ANS_AUCTION.to_vec();
+        let trie = eight_card_relay_trie();
+        let mut auction = LIMIT_ANS_AUCTION.to_vec();
         auction.extend([Call::Bid(Bid::new(5, Strain::Clubs)), Call::Pass]);
 
         // Three keycards, no trump queen → 5♦ relays instead of guessing.
@@ -1145,18 +1204,34 @@ mod tests {
             Call::Bid(Bid::new(6, Strain::Spades)),
             "our own queen settles it: no relay"
         );
+        // Four keycards decodes to all five combined, so six is bid whatever
+        // the queen does.  Without the values to look at seven the reply is
+        // worth nothing, so the book does not spend the round asking for it.
+        assert_eq!(
+            best(&trie, &auction, "AK98.A32.A432.32"),
+            Call::Bid(Bid::new(5, Strain::Notrump)),
+            "all five keycards, no grand values: no queen relay"
+        );
 
-        // Partner replies: 5♥ denies, 5♠ shows.
+        // Partner replies: 5♥ denies, 5♠ shows.  Three trumps opposite the
+        // opener's shown five is eight, the one length where only the honour
+        // itself can answer.
         auction.extend([Call::Bid(Bid::new(5, Strain::Diamonds)), Call::Pass]);
         assert_eq!(
-            best(&trie, &auction, "K7432.653.842.92"),
+            best(&trie, &auction, "K74.A653.8432.92"),
             Call::Bid(Bid::new(5, Strain::Hearts)),
             "no trump queen → the denial rung"
         );
         assert_eq!(
-            best(&trie, &auction, "KQ432.653.842.92"),
+            best(&trie, &auction, "KQ4.A653.8432.92"),
             Call::Bid(Bid::new(5, Strain::Spades)),
             "trump queen → the show rung"
+        );
+        // A fifth trump makes it nine, and nine answers the question by itself.
+        assert_eq!(
+            best(&trie, &auction, "K7432.A65.843.92"),
+            Call::Bid(Bid::new(5, Strain::Spades)),
+            "the ninth trump stands in for the queen"
         );
 
         // The asker places it.  Three keycards is four combined: a denied
@@ -1181,8 +1256,8 @@ mod tests {
     /// three side kings — RKCB is a slam veto, not a slam seeker.
     #[test]
     fn relay_king_ask_needs_the_grand_values() {
-        let trie = relay_trie();
-        let mut shown = ANS_AUCTION.to_vec();
+        let trie = eight_card_relay_trie();
+        let mut shown = LIMIT_ANS_AUCTION.to_vec();
         shown.extend([
             Call::Bid(Bid::new(5, Strain::Clubs)),
             Call::Pass,
