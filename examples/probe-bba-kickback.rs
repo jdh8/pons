@@ -644,6 +644,25 @@ fn main() -> anyhow::Result<()> {
             expect_call: "",
             expect_label: None,
         },
+        // The discriminating case for "does the king ask relocate?".  Diamonds
+        // agreed, kickback ask 4♥, answer 4♠, queen ask 5♣, reply 5♥ = queen +
+        // ♥K.  The cheapest call above the reply is 5♠, so a relocated king ask
+        // would be 5♠ and an unrelocated one 5NT — the two are distinguishable
+        // here, unlike the hearts lane where 5NT *is* the cheapest step.  Run
+        // with BOTH rows on, the configuration most likely to relocate.
+        Case {
+            label: "minor kickback, BOTH rows on: 5♠ (relocated) or 5NT (not)?",
+            actor: 0,
+            prefix: &[B1D, P, B3D, P, B4H, P, B4S, P, B5C, P, B5H, P],
+            hand: ("A2", "AQ2", "AKJ85", "KQ3"),
+            convs: &[
+                ("Kickback 1430", true),
+                ("King ask by available bid", true),
+                ("King ask by 5NT", true),
+            ],
+            expect_call: "",
+            expect_label: None,
+        },
         // --- the 5NT king ladder, enumerated ---------------------------
         // Same ask, same shape, only the side kings move.  §3 recorded a single
         // point (6♦ = K=1); these four read the whole ladder off the engine so
