@@ -704,3 +704,84 @@ plain DD can see, so a PD-only win here would be a doubling artifact, not a
 ship. The motivating measurables are BBA's own: minor slams vetoed below 5m
 (the C3 probe — a 2+Q answer lands in 5♣ *as the contract*) and the hearts
 grand via the ♠K.
+
+### 7.6 The merged answer — one round, not two (design, not built)
+
+The two-round relay shipped in `472e937`/`2687811` asks the queen, hears a
+reply, then asks kings.  jdh8's revision merges them: **the queen ask is also
+the king ask**, and partner's single reply carries both.  Below five of trump
+the answerer has a full level to work with:
+
+- **5T** — no queen, and not worth six anyway
+- **6T** — no queen, but worth six (the ninth trump, a void)
+- **a side suit** — queen, plus the king of that suit
+- **5NT** — queen, no side king
+
+Where the ask sits *at or above* five of trump the 5T rung is unplayable, so
+the weak/strong split collapses and 6T is flatly "no queen"; everything else is
+unchanged.
+
+**This is BBA's scheme.**  §3 above, probe-verified: "queen answers: signoff in
+trump without it; with it, cheapest side-suit king below 6-of-trump (skipped
+steps *deny* that king), else an NT bid".  The revision is therefore a port,
+not an invention — and it inherits BBA's refinement that the ladder is
+*cheapest-first with denial*, so the reply reads "my cheapest king is this one,
+and I hold none below it".  Only the dearer kings stay unknown, which is a
+strictly better trade than "one king, count unknown".
+
+The additions over BBA are the 6T buff rung (BBA signs off in trump and has no
+way to say "no queen but bid it anyway") and the asker's pull described below.
+
+#### Lane table
+
+Every relay lane, mechanically enumerated (`scripts`-free; the generator lives
+in the commit message of this section).  Kickback is **8 of 8**; plain 4NT is
+**5 of 8**, breaking exactly where a side suit's cheapest bid climbs above six
+of trump:
+
+```text
+plain 4NT C  ask 4NT  ans 5C   Q# 5D    BROKEN: Q + DK: 6D above 6C
+plain 4NT C  ask 4NT  ans 5D   Q# 5H    BROKEN: Q + DK: 6D above 6C; Q + HK: 6H above 6C
+plain 4NT D  ask 4NT  ans 5C   Q# 5D    5H=Q + HK  5S=Q + SK  5NT=Q, no side K  6C=Q + CK  6D=no Q
+plain 4NT D  ask 4NT  ans 5D   Q# 5H    BROKEN: Q + HK: 6H above 6D
+plain 4NT H  ask 4NT  ans 5C   Q# 5D    5H=no Q, bad for 6  5S=Q + SK  5NT=Q, no side K  6C=Q + CK  6D=Q + DK  6H=no Q, good for 6
+plain 4NT H  ask 4NT  ans 5D   Q# 5H    5S=Q + SK  5NT=Q, no side K  6C=Q + CK  6D=Q + DK  6H=no Q
+plain 4NT S  ask 4NT  ans 5C   Q# 5D    5H=Q + HK  5S=no Q, bad for 6  5NT=Q, no side K  6C=Q + CK  6D=Q + DK  6S=no Q, good for 6
+plain 4NT S  ask 4NT  ans 5D   Q# 5H    5S=no Q, bad for 6  5NT=Q, no side K  6C=Q + CK  6D=Q + DK  6H=Q + HK  6S=no Q, good for 6
+kickback  C  ask 4D   ans 4H   Q# 4S    5C=no Q, bad for 6  5D=Q + DK  5H=Q + HK  5S=Q + SK  5NT=Q, no side K  6C=no Q, good for 6
+kickback  C  ask 4D   ans 4S   Q# 4NT   5C=no Q, bad for 6  5D=Q + DK  5H=Q + HK  5S=Q + SK  5NT=Q, no side K  6C=no Q, good for 6
+kickback  D  ask 4H   ans 4S   Q# 4NT   5C=Q + CK  5D=no Q, bad for 6  5H=Q + HK  5S=Q + SK  5NT=Q, no side K  6D=no Q, good for 6
+kickback  D  ask 4H   ans 4NT  Q# 5C    5D=no Q, bad for 6  5H=Q + HK  5S=Q + SK  5NT=Q, no side K  6C=Q + CK  6D=no Q, good for 6
+kickback  H  ask 4S   ans 4NT  Q# 5C    5D=Q + DK  5H=no Q, bad for 6  5S=Q + SK  5NT=Q, no side K  6C=Q + CK  6H=no Q, good for 6
+kickback  H  ask 4S   ans 5C   Q# 5D    5H=no Q, bad for 6  5S=Q + SK  5NT=Q, no side K  6C=Q + CK  6D=Q + DK  6H=no Q, good for 6
+kickback  S  ask 4NT  ans 5C   Q# 5D    5H=Q + HK  5S=no Q, bad for 6  5NT=Q, no side K  6C=Q + CK  6D=Q + DK  6S=no Q, good for 6
+kickback  S  ask 4NT  ans 5D   Q# 5H    5S=no Q, bad for 6  5NT=Q, no side K  6C=Q + CK  6D=Q + DK  6H=Q + HK  6S=no Q, good for 6
+```
+
+Coverage *rises* against the two-round ladder, which serves 11 lanes: the merged
+form picks up plain ♥ after a 0-or-3 and plain ♦ after a 1-or-4 — both excluded
+today because the denial rung overshoots five of trump — and loses none, since
+the three broken lanes were never served.  One round shorter, wider, and more
+informative.
+
+#### What it deletes
+
+`king_asked`, `king_answered`, `king_reply`, `king_ask_here`, `king_total`,
+`relay_king_replies`, `asker_after_relay_kings`, and `set_king_zero_jump`
+entirely — the zero-king jump answers a question the merged design no longer
+asks, because 5NT *is* "queen, no side king" and 6T means "no queen".
+
+#### Two consequences to build deliberately
+
+1. **An asker holding the queen still asks.**  The ask now buys king
+   information as well, so `queen_moot` — which today suppresses the relay
+   whenever the queen is settled — must narrow to "settled *and* not in the
+   grand zone".  Otherwise the strongest hands lose the king ladder.
+2. **`Q + 2K` pulls partner's 6T to 6NT.**  Over the "no queen, worth six"
+   reply, an asker holding the trump queen and two side kings has the grand
+   zone's requirements in its own hand; 6NT picks the slam and leaves seven
+   live.  Without this the merged reply is a barrier, and the two-round form's
+   own lesson (a placement is not a barrier) has to be re-learned here.
+
+Unmeasured.  Nothing in this section ships without its own A/B, and the arm
+that prices it is `queen` against the two-round relay, not against `gated`.
