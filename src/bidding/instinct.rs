@@ -610,6 +610,15 @@ std::thread_local! {
     /// ask above it).  **Off by default** while it measures; see
     /// [`set_queen_ask`].
     static QUEEN_ASK: Cell<bool> = const { Cell::new(false) };
+
+    /// The combined trump length at which the fit itself stands in for the
+    /// trump queen.  Default 9; see [`set_queen_fit`].
+    static QUEEN_FIT: Cell<u8> = const { Cell::new(9) };
+
+    /// The combined trump length at which the fit stands in for the queen *for
+    /// a grand*.  Default 10 — a longer bar, because seven needs the suit to
+    /// run.  See [`set_grand_queen_fit`].
+    static GRAND_QUEEN_FIT: Cell<u8> = const { Cell::new(10) };
 }
 
 /// Enable or disable the floor's two-over-one game force (**on by default**)
@@ -826,6 +835,89 @@ fn keycard_answer_gates_now() -> bool {
 #[doc(hidden)]
 pub fn set_queen_ask(enabled: bool) {
     QUEEN_ASK.with(|flag| flag.set(enabled));
+}
+
+/// Set the combined trump length at which the fit stands in for the trump queen
+///
+/// Default **9**, which is where the answer stops changing the call.  BBA uses
+/// 10 (`posiadane_karty >= 10`, `docs/ai-bidder/bba-kickback.md` §3); this is a
+/// measured departure.  `probe-trump-queen`, over sides holding four keycards
+/// and 30-plus combined points — the band where a keycard ask actually fires —
+/// prices six of trumps *without* the queen at:
+///
+/// | fit | six makes (double-dummy) |
+/// | --- | --- |
+/// | 8 | 46.3% ± 5.1 |
+/// | 9 | 68.8% ± 9.3 |
+/// | 10 | 78.6% (thin) |
+///
+/// A small slam breaks even around 50% ([`break_even`]), so an eight-card fit
+/// missing the queen genuinely belongs in five and a nine-card fit belongs in
+/// six *whatever the answer is* — and a question whose answer cannot change the
+/// call is a round spent for nothing.  Double-dummy overstates every row (it
+/// never misguesses a two-way queen), which cuts the same way: the eight-card
+/// case is worse than 46% and the nine-card case would have to be overstated by
+/// nearly twenty points to reach the boundary.
+///
+/// Raise it past 13 to demand the literal honour always — the arm that isolates
+/// the relay from the fit rule.  For A/B measurement: a sweep, not a constant,
+/// and it only bites while [`set_queen_ask`] is on.  Read at book-construction
+/// time by [`install_rkcb`] and at classification time by the floor.
+///
+/// [`install_rkcb`]: super::american::slam::install_rkcb
+#[doc(hidden)]
+pub fn set_queen_fit(length: u8) {
+    QUEEN_FIT.with(|cell| cell.set(length));
+}
+
+/// The combined trump length that stands in for the queen (see [`set_queen_fit`])
+pub(in crate::bidding) fn queen_fit() -> u8 {
+    QUEEN_FIT.with(Cell::get)
+}
+
+/// Set the combined trump length that stands in for the queen **for a grand**
+///
+/// Default **10**, and deliberately one longer than [`set_queen_fit`], because
+/// the two decisions need different things from the trump suit.  Holding AK and
+/// not the queen, the chance of no trump loser at all is the chance the queen
+/// falls under two rounds:
+///
+/// | fit | they hold | no trump loser |
+/// | --- | --- | --- |
+/// | 8 | Qxxxx | ~50% (the finesse) |
+/// | 9 | Qxxx | 2-2 (40.7%) + the singleton queen (49.7% ÷ 4) = **53.1%** |
+/// | 10 | Qxx | every 2-1 break = **78.0%** |
+///
+/// A small slam breaks even at even money and a grand at ~56–58%
+/// ([`break_even`]), so nine trumps carry the six and not the seven — and that
+/// is before the rest of the hand, which only pushes the grand further down.
+/// Ten trumps carry both.
+#[doc(hidden)]
+pub fn set_grand_queen_fit(length: u8) {
+    GRAND_QUEEN_FIT.with(|cell| cell.set(length));
+}
+
+/// A trump suit solid enough to bid seven on, given partner showed the queen
+///
+/// The relay's one ambiguity, and it lands exactly here.  Partner's "queen"
+/// reply means the honour *or* a fit at [`queen_fit`], so:
+///
+/// - at or above [`set_grand_queen_fit`] the length alone runs the suit;
+/// - below [`queen_fit`] the substitute cannot have applied, so the reply is a
+///   real queen and AKQ runs the suit on any 3-2 break (67.8%);
+/// - in between — a nine-card fit — the reply is genuinely ambiguous, and a
+///   grand off the wrong reading of it is the most expensive contract in
+///   bridge.  Decline.
+///
+/// We never hold the queen ourselves at this node: holding it settles the
+/// question and the relay never starts.
+fn grand_trump_solid(trump: Suit) -> Cons<impl Constraint + Clone> {
+    pred(move |hand: Hand, context: &Context<'_>| {
+        let shown =
+            hand[trump].len() + usize::from(Inferences::read(context).partner().length(trump).min);
+        shown >= usize::from(GRAND_QUEEN_FIT.with(Cell::get))
+            || shown < usize::from(QUEEN_FIT.with(Cell::get))
+    })
 }
 
 /// The queen ask is enabled (see [`set_queen_ask`])
@@ -2581,16 +2673,24 @@ fn resolve_total(mine: usize, low: usize, high: usize) -> usize {
     mine + if mine + high > 5 { low } else { high }
 }
 
-/// A proven ten-card trump fit stands in for the trump queen
+/// A long enough proven trump fit stands in for the trump queen
 ///
-/// With ten trumps between the hands the queen drops or finesses either way, so
-/// the honour stops being the thing worth a round of bidding — BBA's
-/// `posiadane_karty >= 10` rule (`docs/ai-bidder/bba-kickback.md` §3).  Counted
-/// as our own length plus the *sound floor* of partner's shown length, the same
-/// bound [`known_eight_card_fit`] uses, so neither seat can claim a fit the
-/// auction has not shown.
-fn ten_card_fit(hand: Hand, context: &Context<'_>, trump: Suit) -> bool {
-    hand[trump].len() + usize::from(Inferences::read(context).partner().length(trump).min) >= 10
+/// Counted as our own length plus the *sound floor* of partner's shown length,
+/// the same bound [`known_eight_card_fit`] uses, so neither seat can claim a fit
+/// the auction has not shown.  The threshold is [`set_queen_fit`].
+///
+/// Why a threshold and not a constant: seeing four keycards already puts one
+/// loser on the table, so the slam turns on there not being a *second* one in
+/// trumps, and how likely that is depends entirely on the fit.  Measured over
+/// random deals at four keycards (`probe-trump-queen`), the queen is worth
+/// **+13.9pp** to a six with an eight-card fit, **+7.6pp** at nine and
+/// **+3.5pp** at ten: an eight-card fit needs the honour to have a finesse to
+/// take, a ten-card fit draws trumps in two rounds without it, and nine is in
+/// between — which is exactly where a sweep, not a constant, belongs.
+fn long_fit_for_queen(hand: Hand, context: &Context<'_>, trump: Suit) -> bool {
+    let shown =
+        hand[trump].len() + usize::from(Inferences::read(context).partner().length(trump).min);
+    shown >= usize::from(QUEEN_FIT.with(Cell::get))
 }
 
 /// We hold the trump queen, or the side has shown the ten-card fit that stands
@@ -2600,7 +2700,7 @@ fn ten_card_fit(hand: Hand, context: &Context<'_>, trump: Suit) -> bool {
 /// The ten-card arm rides [`set_queen_ask`] so the knob-off answer rungs keep
 /// their literal holding test and stay byte-identical.
 fn holds_queen(hand: Hand, context: &Context<'_>, trump: Suit) -> bool {
-    hand[trump].contains(Rank::Q) || (queen_ask_now() && ten_card_fit(hand, context, trump))
+    hand[trump].contains(Rank::Q) || (queen_ask_now() && long_fit_for_queen(hand, context, trump))
 }
 
 /// The keycard conversation whose ask sits `back` calls behind the end, with
@@ -2786,18 +2886,36 @@ fn relay_available(hand: Hand, context: &Context<'_>, trump: Suit) -> bool {
 
 /// Our queen ask at the direct-answer position lands on `bid`
 ///
+/// The *geometry* only — whether the queen is still open, whether the ladder has
+/// room, and whether `bid` is the rung.  Whether the answer is worth a round is
+/// the rule site's business ([`one_keycard_missing`] for the five-versus-six
+/// lane, [`grand_zone`] for the seven lane).
+///
 /// Trump-free: [`keycard_answered`] derives it, so one rule per landing call
 /// serves every trump — the same economy the 1430 rungs get from
 /// [`answer_step`].
 fn queen_ask_here(bid: Bid) -> Cons<impl Constraint + Clone> {
     pred(move |hand: Hand, context: &Context<'_>| {
-        keycard_answered(hand, context).is_some_and(|(trump, total)| {
+        keycard_answered(hand, context).is_some_and(|(trump, _)| {
             let auction = context.auction();
-            total >= 4
-                && relay_available(hand, context, trump)
+            relay_available(hand, context, trump)
                 && matches!(auction[auction.len() - 2], Call::Bid(answer)
                     if queen_ask_room(answer, trump) == Some(bid))
         })
+    })
+}
+
+/// Exactly one keycard missing — the count where the trump queen decides
+/// between five and six, and so the count where asking pays
+///
+/// **Ask only when the answer changes the call.**  With all five keycards six
+/// is bid whatever comes back, so unless the partnership is exploring seven the
+/// relay would spend a round to learn something it will not act on — and spend
+/// it at the five level, where the room it costs is the room the signoff needs.
+/// The grand lane gets its own rule, conjoined with [`grand_zone`].
+fn one_keycard_missing() -> Cons<impl Constraint + Clone> {
+    pred(|hand: Hand, context: &Context<'_>| {
+        keycard_answered(hand, context).is_some_and(|(_, total)| total == 4)
     })
 }
 
@@ -2875,6 +2993,22 @@ fn king_reply(bid: Bid, count: usize) -> Cons<impl Constraint + Clone> {
             rungs[count] == bid && if count == 2 { mine >= 2 } else { mine == count }
         })
     })
+}
+
+/// Grand-zone values: the authored point floor **and** the net's verdict
+///
+/// [`points_and_net`] alone is not that.  With [`set_bilans_floor`] on — the
+/// default — its authored arm is dead and the net's break-even test decides by
+/// itself, and the net calls a grand plausible on hands the point count puts
+/// nowhere near one: probing the `1♠–3♠–4NT–5♣` asker, *every* hand strong
+/// enough to reach six also cleared it.  A gate that never says no cannot veto
+/// anything, and RKCB is a slam veto.
+///
+/// Requiring both is what makes the relay's grand lane mean what it says: the
+/// points have to be there before a round is spent looking at seven, and the
+/// net still holds its veto over them.
+fn grand_zone(strain: Strain) -> Cons<impl Constraint + Clone> {
+    combined_points(37) & points_and_net(combined_points(37), strain, 13)
 }
 
 /// The side kings the partnership showed over our king ask are in `range`
@@ -5025,7 +5159,7 @@ pub fn instinct() -> Rules {
                 .rule(
                     landing,
                     1.85,
-                    queen_ask_here(landing) & slam_entry_reached(),
+                    queen_ask_here(landing) & one_keycard_missing() & slam_entry_reached(),
                 )
                 .alert(RKCB_FLOOR)
                 .face(|context: &Context<'_>| relay_window_face(context, 4));
@@ -5212,6 +5346,18 @@ pub fn instinct() -> Rules {
         if queen_ask_now() {
             for &landing in &RELAY_RUNGS {
                 rules = rules
+                    // All five keycards: six is already decided, so the queen
+                    // is only worth a round when seven is live — and seven is
+                    // live only on grand-zone values.  Without them this rule
+                    // is dead and the asker simply bids the slam, which is the
+                    // whole point of asking only what you will act on.
+                    .rule(
+                        landing,
+                        1.85,
+                        queen_ask_here(landing) & keycard_total(trump, 5..) & grand_zone(strain),
+                    )
+                    .alert(RKCB_FLOOR)
+                    .face(|context: &Context<'_>| relay_window_face(context, 4))
                     // Explore seven only when the values are already there:
                     // RKCB is a slam veto, not a slam seeker, so a partnership
                     // short of the grand zone never spends the round.
@@ -5220,7 +5366,8 @@ pub fn instinct() -> Rules {
                         1.85,
                         king_ask_here(landing)
                             & relay_verdict(trump, 5.., true)
-                            & points_and_net(combined_points(37), strain, 13),
+                            & grand_trump_solid(trump)
+                            & grand_zone(strain),
                     )
                     .alert(RKCB_FLOOR)
                     .face(|context: &Context<'_>| relay_window_face(context, 8));
@@ -6606,6 +6753,16 @@ mod tests {
             best(&auction, "AKQ85.AK2.KJ2.42"),
             call(6, Strain::Spades),
             "our own trump queen settles it: no relay, bid the slam"
+        );
+        // ♠AKJ85 ♥A32 ♦AK2 ♣32 — four keycards of our own, so the answer puts
+        // all five on the table and six is bid whatever the queen does.  Asking
+        // would spend a round on a reply we will not act on, and spend it at the
+        // five level: bid the slam.  (22 HCP clears the slam-entry gate and is
+        // nowhere near the grand zone — the cell where the rule bites.)
+        assert_eq!(
+            best(&auction, "AKJ85.A32.AK2.32"),
+            call(6, Strain::Spades),
+            "all five keycards and no grand values: nothing to learn, bid six"
         );
         set_queen_ask(false);
     }
