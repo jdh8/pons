@@ -266,7 +266,9 @@ both members provably build the same table (the same guarantee that makes a
 
 - **guarded** — a suit *either* member of our side named naturally, or the
   opponents named at all. A guarded suit keeps its natural meaning at the four
-  level; their suit there is a cue.
+  level; their suit there is a cue. **Hearts is guarded by a spade bid too**
+  (2026-08-01), unless the face disproves five of them — see "the undisprovable
+  major" below.
 - **set** — a suit our side named **twice**: both members (a formal raise), or
   one member twice (1♦–1♥–**3♦**). One bid is no agreement, or `1♦ P 4♥` would
   ask.
@@ -279,6 +281,8 @@ unguarded* suit strictly above it. Whatever goes unclaimed still asks at 4NT.
 
 ```text
 1♦ P 1♥ P 3♦ P     set {♦}    guarded {♦,♥}   → 4♠ = RKCB(♦)                  †
+1♦ P 1♠ P 2♦ P     set {♦}    guarded {♦,♥,♠} → 4NT only (♠ cannot deny ♥)
+1♠ P 2♦ P 3♦ P     set {♦}    guarded {♦,♠}   → 4♥ = RKCB(♦)  (5♠+4♦ = 9)
 1♥ P 2♦ P 3♦ P 3♥ P set {♦,♥} guarded {♦,♥}   → 4♠ = RKCB(♦), 4NT = RKCB(♥)
 1♣ P 2♣ P 2♥ P 3♥ P set {♣,♥} guarded {♣,♥}   → 4♦ = RKCB(♣), 4♠ = RKCB(♥)    †
 1♥ (3♦) 4♦ P 4♥ P  set {♥}    guarded {♥,♦}   → 4♠ = RKCB(♥); 4♦ stays a cue  †
@@ -286,6 +290,23 @@ unguarded* suit strictly above it. Whatever goes unclaimed still asks at 4NT.
 1♦ P               set {}                     → no relocation
 1♦ P 3♦ P 3NT P    face veto                  → no relocation
 ```
+
+**The undisprovable major (2026-08-01, jdh8).** The phase-5 wash's whole
+residual loss class was the ladder claiming a call it cannot own: with ♦ set and
+♠ bid, 4♥ *is* the ask, so a hand that belongs in the heart game bids 4♥
+naturally and both seats' readings then sign off in 5♦ (§7.3.2, board [96], off
+a literal void). The doctrine that fixes it is longest-first with ties to the
+higher rank: **a spade bid never denies hearts**, because 5-5 majors bid spades,
+so a later 4♥ stays plausibly natural and the claim must yield. The escape is
+arithmetic: a spade bidder who named a **second** suit has shown 5+4 = 9 cards
+and can hold at most four hearts, so `1♠ P 2♦ P 3♦` (opener bid ♠ *and* raised
+♦) keeps its relocation. The test is therefore "some member named ♠ and named
+no other suit" — still face-only, still reading-free, so both members derive it
+identically. No converse: 1♥ *does* deny five spades under the same doctrine.
+
+The price is named and real: on `1♦ P 1♠ P 2♦ P` — a common face — ♥ and ♠ are
+both guarded, so the ♦ ask reverts to plain 4NT rather than moving. Redwood is
+lost there, not relocated.
 
 **Additive.** 4NT keeps its existing meaning throughout: kickback *adds* asks,
 it never removes one (BBA's own posture, §1's "Kickback ON therefore *adds*
@@ -346,6 +367,7 @@ minors. Four findings killed that order:
 | 2+3 | the floor, **all four suits**, and the carve lifted beside it | **measured 2026-08-01, 3×1M boards.** `set_keycard_minors` **WINS big** and ships; `set_kickback` measures negative but the measurement is *contaminated* — see §7.3. |
 | 4 | the authored book in `slam.rs`; competition + disclosure | not started |
 | 5 | face-conditional alerts, so the relocation can be priced at all | **done 2026-08-01** — `Rules::face` gate, consulted by `Rule::eval` (−∞) and the three inference consult sites; see §7.3.1's resolution note. Re-measured clean: a **wash** (§7.3.2), knob stays opt-in. |
+| 6 | the undisprovable major: the ladder yields the 4♥ claim when a spade bid cannot deny hearts (§7.1) | **done 2026-08-01** — measured §7.3.4: the wash **shrinks but survives** (PD −0.00016, divergence 246 → 216). Shipped inside the opt-in knob as a soundness repair; `set_kickback` stays opt-in. |
 
 ### 7.3 The three arms
 
@@ -547,6 +569,77 @@ self-play it never flips a single call — a perfect NULL, cheaper than SAT's
 default**: the soundness is free. The knob remains for A/B archaeology (off
 recovers the pre-2026-08 reading); the plain/minors/kickback arms of
 `ab-kickback` disarm it to preserve their originally-measured readings.
+
+#### 7.3.4 The undisprovable major: the wash shrinks but survives (2026-08-01)
+
+§7.3.2's residual class was the ladder claiming 4♥ where a spade bid cannot deny
+hearts. Phase 6 makes hearts guarded on those faces (§7.1). Re-measured with the
+**kickback arm now carrying `set_keycard_answer_gates`**, so the two arms differ
+by exactly `set_kickback` and the verdict speaks directly to a default-on flip:
+`kickback` vs `gated` (the shipped default), 1,000,000 boards, seed 1785573096,
+vul none, `--sd`:
+
+| scoring | Δ/board | CI | §7.3.2 (un-guarded) |
+|---|---|---|---|
+| PD | −0.00016 | [−0.00047, +0.00014] | −0.00029 |
+| plain DD | −0.00019 | [−0.00049, +0.00011] | −0.00029 |
+| sd-declarer | −0.00028 | [−0.00057, +0.00000] | −0.00030 |
+| sd + PD | −0.00025 | [−0.00055, +0.00004] | −0.00029 |
+
+Divergence **246 → 216**. The two runs are comparable across the gates because
+§7.3.3 measured the gates a perfect NULL (zero divergent boards, both vuls), so
+no separate un-guarded arm was built.
+
+Reading: the guard removed about a third of the class it was aimed at and
+roughly halved the PD loss, and every CI still straddles zero. **Verdict: a
+wash.** The flip gate ("both scorings clear zero") is not met, so no vul-both
+run and `set_kickback` stays opt-in — but the guard ships inside the knob
+because it is a soundness repair: the ladder must not claim a call whose natural
+meaning is still live.
+
+**The residual, audited with hands** (`--show 250` replay of the same seed —
+`ab-results/kickback-undisprovable-major-hands.log`; each board mapped to the
+arm that *declared* it, since the feature sits N-S at table A and E-W at table
+B):
+
+| class | boards | PD |
+|---|---|---|
+| kickback in 5m, baseline in 4M | 24 | **+57** |
+| kickback in 4M, baseline in 5m | 0 | 0 |
+| slam churn (either side at 6+) | 190 | **−194** |
+| other | 2 | −26 |
+
+**The target class is not merely smaller, it has flipped sign** (§7.3.2: ~45
+boards, ≈−130), and the mirror direction is *empty* — no divergent board left
+shows a natural four-major colliding with the ask. Phase 6 closed the class it
+was aimed at.
+
+What is left is the **opposite** of the phase-5 story. Split the slam churn by
+direction: kickback lands **lower** than the baseline on 132 boards (−469 PD)
+and higher on 42 (+261). The relocation's own selling point — the answer fits
+under five-of-trump, so the pair can sign off — is what loses, because
+double-dummy pays for the thin slam the baseline was *forced* into:
+
+```text
+board [1]  1♣ P 1♦ P 3♣ P    kickback 4♥ ask → 4NT (0 or 3) → signs off 5♣
+                             baseline 4NT ask → 5♦, so clubs cannot be played
+                             at the five level → 6♣, which makes
+board [3]  1♦ P 1♥ P 3♦ P    kickback 4♠ → 5♣ → 6♦ ;  baseline 4NT → 5♦ → 7♦, making
+board [5]  1♥ … 3♥ P 4♥ P    kickback 4♠ → 5♣ → 5♥ ;  baseline 4NT → 5♦ → 6♥, making
+```
+
+By trump: hearts **−97** (83 boards, the 4♠ ask), clubs **−62** (75), spades
+−53 (4 boards), notrump +20 (12), **diamonds +29** (42) — and the diamond
+boards whose auction carried a 4♥ ask are **+10 over 30**. The suit phase 6
+repaired is the profitable one; the loss lives in the majors-and-clubs rungs.
+
+**The next lever is therefore not the ladder's claims but the asker's
+continuation**: why does it settle at five when the baseline's forced six
+makes? That is either a genuine under-bid in the relocated continuations or the
+known double-dummy slam bias (the same cause `keycard_trump`'s majors-only carve
+was measured against: DD monetizes honors at 33-plus). The sd-declarer row does
+not rescue it, which argues the first. Further *exemptions* are ruled out by the
+audit — they would cut into the one class that now measures positive.
 
 ### 7.4 What the build actually cost
 

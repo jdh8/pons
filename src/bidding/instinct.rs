@@ -1828,7 +1828,14 @@ fn face_trump(auction: &[Call], ask: usize) -> Option<Suit> {
 /// - **guarded** — a suit either member of our side named naturally, or the
 ///   opponents named at all.  A guarded suit keeps its natural meaning at the
 ///   four level (after `1♦ P 1♥ P 3♦`, responder's 4♥ is *hearts*), and their
-///   suit there is a cue.
+///   suit there is a cue.  Hearts is guarded by a **spade bid** too, unless the
+///   auction disproves five of them: longest first, ties to the higher rank,
+///   so 5-5 majors bid spades and the spade bid alone never denies hearts —
+///   after `1♦ P 1♠ P 2♦`, 4♥ is plausibly natural and the ladder must not
+///   claim it (the collision that made the phase-5 re-measure a wash: the
+///   natural walk bids 4♥ *meaning hearts* and both seats sign off in 5♦).
+///   A member who named a **second** suit has shown 5+4 = 9 cards and can no
+///   longer hold five hearts, so `1♠ P 2♦ P 3♦` keeps its relocation.
 /// - **set** — a suit our side named **twice**: both members (a formal raise)
 ///   or one member twice (`1♦ P 1♥ P 3♦`).  One bid is no agreement, or
 ///   `1♦ P 4♥` would ask.
@@ -1855,7 +1862,7 @@ fn kickback_ladder(auction: &[Call], ask: usize) -> [Option<Suit>; 4] {
     if face_trump(auction, ask).is_none() {
         return ladder;
     }
-    let mut ours = [0u8; 4]; // our side's natural bids, per suit
+    let mut ours = [[0u8; 2]; 4]; // our side's natural bids, per suit and member
     let mut theirs = [false; 4];
     for (index, call) in auction.iter().enumerate().take(ask) {
         let Call::Bid(bid) = call else { continue };
@@ -1867,12 +1874,25 @@ fn kickback_ladder(auction: &[Call], ask: usize) -> [Option<Suit>; 4] {
         } else if !theirs[suit as usize] {
             // A cue of a suit they have already named shows no length, exactly
             // as it stays transparent to [`face_trump`].
-            ours[suit as usize] += 1;
+            ours[suit as usize][usize::from(index % 4 == ask % 4)] += 1;
         }
     }
-    let guarded = |suit: Suit| ours[suit as usize] > 0 || theirs[suit as usize];
+    let bids = |suit: Suit| ours[suit as usize][0] + ours[suit as usize][1];
+    // A member whose only named suit is spades can still hold five hearts, so
+    // hearts is not disprovable and a later 4♥ stays plausibly natural.  A
+    // second named suit is 5+4 = 9 cards and closes the hole.
+    let lone_spades = |member: usize| {
+        ours[Suit::Spades as usize][member] > 0
+            && Suit::ASC
+                .into_iter()
+                .all(|suit| suit == Suit::Spades || ours[suit as usize][member] == 0)
+    };
+    let undisprovable_hearts = lone_spades(0) || lone_spades(1);
+    let guarded = |suit: Suit| {
+        bids(suit) > 0 || theirs[suit as usize] || (suit == Suit::Hearts && undisprovable_hearts)
+    };
     for trump in Suit::ASC {
-        if ours[trump as usize] < 2 {
+        if bids(trump) < 2 {
             continue;
         }
         let claim = Suit::ASC
@@ -6141,6 +6161,57 @@ mod tests {
             face_trump(&jump_rebid, 6),
             Some(Suit::Diamonds),
             "and it asks in the suit 4NT would have asked in"
+        );
+    }
+
+    /// A spade bid cannot disprove hearts (5-5 majors bid spades first), so the
+    /// ladder yields the 4♥ claim rather than collide with a natural heart
+    /// game — unless the spade bidder named a second suit, which is 5+4 = 9
+    /// cards and leaves no room for five hearts.
+    #[test]
+    fn kickback_yields_the_undisprovable_major() {
+        let response = [
+            call(1, Strain::Diamonds),
+            Call::Pass,
+            call(1, Strain::Spades),
+            Call::Pass,
+            call(2, Strain::Diamonds),
+            Call::Pass,
+        ];
+        assert_eq!(
+            kickback_ladder(&response, 6),
+            [None; 4],
+            "responder's spades leave 4♥ natural, so the diamond ask stays 4NT"
+        );
+        // The same face over a weak two, where responder shows the longest
+        // major first (`set_weak_two_longest_first`).
+        let weak_two = [
+            call(2, Strain::Diamonds),
+            Call::Pass,
+            call(2, Strain::Spades),
+            Call::Pass,
+            call(3, Strain::Diamonds),
+            Call::Pass,
+        ];
+        assert_eq!(
+            kickback_ladder(&weak_two, 6),
+            [None; 4],
+            "the weak-two face reads the same way"
+        );
+        // `1♠ P 2♦ P 3♦`: the spade bidder raised diamonds, so 5♠ + 4♦ leaves
+        // at most four hearts — 4♥ is not natural and the relocation stands.
+        let two_suited = [
+            call(1, Strain::Spades),
+            Call::Pass,
+            call(2, Strain::Diamonds),
+            Call::Pass,
+            call(3, Strain::Diamonds),
+            Call::Pass,
+        ];
+        assert_eq!(
+            kickback_ladder(&two_suited, 6),
+            [None, None, Some(Suit::Diamonds), None],
+            "a second named suit disproves five hearts, so 4♥ asks in diamonds"
         );
     }
 

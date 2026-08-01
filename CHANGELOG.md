@@ -9,6 +9,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **The kickback ladder no longer claims a call it cannot own.** With diamonds
+  set and spades bid — `1♦ P 1♠ P 2♦ P`, one of the commonest faces there is —
+  `kickback_ladder` claimed **4♥** as RKCB(♦). But longest-first with ties to the
+  higher rank means 5-5 majors bid **spades**, so a spade bid never denies
+  hearts: a hand with a big heart suit bids 4♥ *naturally*, both seats' readings
+  follow the agreement, and the machinery signs off in 5♦ — twice off a literal
+  void in the phase-5 audit (board 96, ♠AKQ8754 ♥AT9642 ♦— ♣—). Hearts is now
+  **guarded by a spade bid**, so the ask falls back to plain 4NT there. The
+  escape is arithmetic: a spade bidder who named a second suit has shown
+  5+4 = 9 cards and can hold at most four hearts, so `1♠ P 2♦ P 3♦ P` keeps its
+  relocation. The test — "some member named ♠ and named no other suit" — stays
+  face-only and reading-free, so both members still derive the same ladder. No
+  converse: 1♥ *does* deny five spades under the same doctrine, so
+  `1♦ P 1♥ P 3♦ P → 4♠ = RKCB(♦)` is unchanged. Entirely behind `set_kickback`,
+  which is opt-in, so the default system is byte-identical (cards unchanged).
+  Re-measured `kickback` (now carrying `set_keycard_answer_gates`, so the arms
+  differ by exactly `set_kickback`) vs the shipped `gated` default, 1M boards,
+  vul none, `--sd`, seed 1785573096: still a **wash**, but a smaller one —
+  PD −0.00016/board CI [−0.00047, +0.00014] (was −0.00029), plain DD −0.00019 CI
+  [−0.00049, +0.00011] (was −0.00029), divergence 246 → **216** boards. The flip
+  gate is not met, so `set_kickback` stays opt-in; the guard ships anyway as a
+  soundness repair.
+
 - **Responder shows their longest suit over a weak two.** The forcing new-suit
   rules in `weak_twos::responses` all carried weight 1.5 with identical
   constraints, so which suit got bid was decided by `Table::next_call`'s

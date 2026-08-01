@@ -57,13 +57,15 @@ enum Arm {
     Plain,
     /// Minor asks at plain 4NT — round 4's losing arm, re-priced
     Minors,
-    /// Full Kickback: minor asks relocated to 4♦/4♥ (Redwood), hearts to 4♠
+    /// Full Kickback: minor asks relocated to 4♦/4♥ (Redwood), hearts to 4♠.
+    /// Carries the gates too, so `kickback` vs `gated` differs by exactly
+    /// `set_kickback` and its verdict speaks to a default-on flip.
     Kickback,
     /// The shipped default since 2026-08-01: minors plus
     /// `set_keycard_answer_gates` (the always-present 1430/ROPI/DOPI/DEPO
-    /// answer rules confined to a live ask window).  The plain/minors/
-    /// kickback arms disarm the gates, preserving the readings they were
-    /// originally measured under.
+    /// answer rules confined to a live ask window).  The plain/minors arms
+    /// disarm the gates, preserving the readings they were originally
+    /// measured under.
     Gated,
 }
 
@@ -80,7 +82,7 @@ impl Arm {
 
     /// Whether this arm face-gates the always-present answer rules
     const fn gates(self) -> bool {
-        matches!(self, Self::Gated)
+        matches!(self, Self::Gated | Self::Kickback)
     }
 
     const fn label(self) -> &'static str {
