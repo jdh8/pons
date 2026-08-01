@@ -13,7 +13,7 @@
 
 mod common;
 use common::*;
-use pons::bidding::instinct::set_queen_ask;
+use pons::bidding::instinct::{set_king_zero_jump, set_queen_ask};
 
 const P: Call = Call::Pass;
 
@@ -157,6 +157,50 @@ fn a_void_jumps_to_six() {
         best_call(&system, &auction, "K74.A6532.8432."),
         call(6, Strain::Spades),
     );
+}
+
+/// `set_king_zero_jump`: the queen-shown answerer with no side king places the
+/// contract in six of trumps rather than answering on the bottom rung — and the
+/// asker holding two side kings of its own still bids seven over it, because
+/// the jump is a placement and not a barrier.
+#[test]
+fn zero_king_jump_still_leaves_seven_live() {
+    set_king_zero_jump(true);
+    let system = armed();
+
+    // 1♠ P 3♠ P 4NT P 5♠ P — 5♠ is two-or-five *with* the queen, so the relay
+    // is dead and the king ask is the asker's next move.
+    let mut auction = vec![
+        call(1, Strain::Spades),
+        P,
+        call(3, Strain::Spades),
+        P,
+        call(4, Strain::Notrump),
+        P,
+        call(5, Strain::Diamonds),
+        P,
+    ];
+    // Over a none-or-three the ladder is: 5♥ relays, 5♠ denies, 5NT shows,
+    // 6♣ asks for kings — and the zero-king answer is 6♠, the permuted top.
+    auction.extend([call(5, Strain::Hearts), P, call(5, Strain::Notrump), P]);
+    auction.extend([call(6, Strain::Clubs), P]);
+
+    // ♠KQ43 ♥8653 ♦843 ♣92 — the queen, and not one side king.
+    assert_eq!(
+        best_call(&system, &auction, "KQ43.8653.843.92"),
+        call(6, Strain::Spades),
+        "queen and no side king: place it in six"
+    );
+
+    auction.extend([call(6, Strain::Spades), P]);
+    // ♠AJ85 ♥AK2 ♦AK2 ♣42 — five keycards between the hands, the queen shown,
+    // and two side kings in the asker's own hand: the grand gate is met.
+    assert_eq!(
+        best_call(&system, &auction, "AJ85.AK2.AK2.42"),
+        call(7, Strain::Spades),
+        "two side kings opposite zero: seven is still live over the jump"
+    );
+    set_king_zero_jump(false);
 }
 
 /// Seven is explored only when the values are already there: all five keycards

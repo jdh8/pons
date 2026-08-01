@@ -60,7 +60,7 @@ use pons::Accumulator;
 use pons::american;
 use pons::bidding::Stance;
 use pons::bidding::instinct::{
-    set_keycard_answer_gates, set_keycard_minors, set_kickback, set_queen_ask,
+    set_keycard_answer_gates, set_keycard_minors, set_kickback, set_king_zero_jump, set_queen_ask,
 };
 use pons::scoring::{final_contract, imps, ns_score_contract, ns_score_pd};
 use rand::SeedableRng;
@@ -95,6 +95,12 @@ enum Arm {
     /// Kickback plus the queen relay, measured against `kickback` — the
     /// relocated ask is what buys the relay its room
     KickbackQueen,
+    /// The queen relay plus `set_king_zero_jump`: the queen-shown answerer with
+    /// no side king places the contract in six instead of answering on a rung.
+    /// Measured against `queen`, so the jump is the only thing that moves.
+    /// Conceals the side-king count from the defence, which double-dummy cannot
+    /// see — read a wash here as the harness, not the idea.
+    QueenZeroJump,
 }
 
 impl Arm {
@@ -102,7 +108,12 @@ impl Arm {
     const fn minors(self) -> bool {
         matches!(
             self,
-            Self::Minors | Self::Kickback | Self::Gated | Self::Queen | Self::KickbackQueen
+            Self::Minors
+                | Self::Kickback
+                | Self::Gated
+                | Self::Queen
+                | Self::KickbackQueen
+                | Self::QueenZeroJump
         )
     }
 
@@ -115,13 +126,21 @@ impl Arm {
     const fn gates(self) -> bool {
         matches!(
             self,
-            Self::Gated | Self::Kickback | Self::Queen | Self::KickbackQueen
+            Self::Gated | Self::Kickback | Self::Queen | Self::KickbackQueen | Self::QueenZeroJump
         )
     }
 
     /// Whether this arm carries the queen relay (and the king ask above it)
     const fn queen(self) -> bool {
-        matches!(self, Self::Queen | Self::KickbackQueen)
+        matches!(
+            self,
+            Self::Queen | Self::KickbackQueen | Self::QueenZeroJump
+        )
+    }
+
+    /// Whether the queen-shown answerer with no side king jumps to six
+    const fn zero_jump(self) -> bool {
+        matches!(self, Self::QueenZeroJump)
     }
 
     const fn label(self) -> &'static str {
@@ -132,6 +151,7 @@ impl Arm {
             Self::Gated => "gated",
             Self::Queen => "queen",
             Self::KickbackQueen => "kickback-queen",
+            Self::QueenZeroJump => "queen-zero-jump",
         }
     }
 }
@@ -182,6 +202,7 @@ fn arm_knobs(arm: Arm) {
     set_kickback(arm.kickback());
     set_keycard_answer_gates(arm.gates());
     set_queen_ask(arm.queen());
+    set_king_zero_jump(arm.zero_jump());
 }
 
 /// Build one stance per arm.  `set_kickback` and `set_queen_ask` are read at
