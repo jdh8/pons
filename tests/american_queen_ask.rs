@@ -121,6 +121,44 @@ fn ten_card_fit_answers_the_queen() {
     );
 }
 
+/// The buff jump: nine trumps is not a queen, but partner is about to pass five
+/// without ever learning the fit is a card longer than promised.  Six of trumps
+/// is the answer that neither claims the honour nor gets passed — and the asker
+/// leaves it alone.
+#[test]
+fn ninth_trump_jumps_to_six() {
+    let system = armed();
+
+    let mut auction = after_the_answer();
+    auction.extend([call(5, Strain::Diamonds), P]);
+    // ♠K743 ♥A653 ♦843 ♣92 — four trumps opposite a shown five is nine.
+    assert_eq!(
+        best_call(&system, &auction, "K743.A653.843.92"),
+        call(6, Strain::Spades),
+    );
+
+    auction.extend([call(6, Strain::Spades), P]);
+    assert_eq!(
+        best_call(&system, &auction, QUEENLESS_ASKER),
+        P,
+        "the jump places the contract: the asker has nothing left to say"
+    );
+}
+
+/// A side-suit void rides the same jump — a trick the ladder has no rung for.
+#[test]
+fn a_void_jumps_to_six() {
+    let system = armed();
+
+    let mut auction = after_the_answer();
+    auction.extend([call(5, Strain::Diamonds), P]);
+    // ♠K74 ♥A6532 ♦8432 ♣— — an eight-card fit, no queen, but a club void.
+    assert_eq!(
+        best_call(&system, &auction, "K74.A6532.8432."),
+        call(6, Strain::Spades),
+    );
+}
+
 /// Seven is explored only when the values are already there: all five keycards
 /// and the queen on a 15-count still stops in six, because RKCB is a slam veto
 /// and not a slam seeker.

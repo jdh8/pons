@@ -50,21 +50,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   not act on is a round spent for nothing, and spent at the five level where the
   room is the signoff's.
 
-  **The fit substitutes on a measured, two-level threshold** (`set_queen_fit`,
-  default 9; `set_grand_queen_fit`, default 10) rather than BBA's flat 10.
-  Holding AK without the queen, the chance of no trump loser is the chance the
-  queen falls in two rounds: ~50% at eight cards (the finesse), 40.7% + 49.7%÷4
-  = **53.1%** at nine, and every 2-1 break = **78.0%** at ten. A small slam
-  breaks even at even money and a grand at ~56–58%, so nine trumps carry the six
-  and not the seven. `probe-trump-queen` confirms it on 150k deals conditioned to
-  30-plus combined points — six makes 46.3% ± 5.1 on eight trumps without the
-  queen, 68.8% ± 9.3 on nine — and double-dummy overstates both, which only
-  sharpens the conclusion.
+  **The queen ask has three answers, not two.** Holding AK without the queen,
+  the chance of no trump loser is the chance the queen falls in two rounds: ~50%
+  at eight cards (the finesse), 40.7% + 49.7%÷4 = **53.1%** at nine, and every
+  2-1 break = **78.0%** at ten. A grand breaks even near 56–58%, so only ten
+  trumps may answer "queen" (`set_queen_fit`, default 10, BBA's bar) — letting
+  nine claim it would make the reply mean *honour or length* in the one place a
+  wrong reading costs a grand.
 
-  That split leaves one ambiguity and the code names it: partner's "queen" reply
-  means the honour *or* the length, so at a nine-card fit the grand cannot tell
-  which it got and declines. Below nine the substitute cannot have applied, so
-  the reply is a real queen and AKQ runs on any 3-2 break.
+  Nine takes the other road out. It is not a queen, but a denial there gets
+  passed in five and should not be: `probe-trump-queen` over 120k deals at
+  30-plus combined points prices six of trumps without the queen at **45.8%**
+  double-dummy (51.9% de-biased) on an eight-card fit and **76.0%** (82.9%) on a
+  nine-card fit. So the answerer jumps to **six of trumps** — no queen, but a
+  buff partner cannot see: the ninth trump, or a side-suit void
+  (`set_queen_buff_fit`, default 9). Six never claims the honour and never gets
+  passed.
+
+  The asker uses the shorter bar for a different question. "Can the reply change
+  my call?" is answered no at nine — six is bid over a denial anyway — so a
+  known nine-card fit skips the relay and bids six directly, saving the round.
+  Both roads reach six; only the asker's is free.
 
   **Unmeasured, and therefore off.** Fires ~10.7 boards per 10⁴, dense enough
   for a random-deal A/B; `ab-kickback` grows `queen` and `kickback-queen` arms
