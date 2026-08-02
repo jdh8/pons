@@ -66,6 +66,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   v3 net, which was trained bare and is served prefixed. `--bare-context`
   reproduces the old behaviour for comparison only.
 
+  `--cell OURS/THEIRS` (repeatable) interleaves table configurations, defaulting
+  to the six of `configured-net.md`. Each side gets its own card, reading stance
+  and teacher, dispatched by the acting seat — so a **mixed table emits both
+  asymmetric cells at once**, because a row is written from the acting seat's
+  view. Verified end to end: six table configs produce exactly **8 distinct
+  config vectors**, a third of rows have `ours != theirs`, and the only slot
+  varying inside all-American cells is 77 — `SCHEMA[72]`, `Kickback 1430`.
+
   `--system` selects the **teacher**, not merely the disclosed card. Wiring only
   the card would have written rows labelled Dutch while an American teacher bid
   them — caught in testing, where American and Dutch corpora came back with
@@ -381,6 +389,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   v3 net, which was trained bare and is served prefixed. `--bare-context`
   reproduces the old behaviour for comparison only.
 
+  `--cell OURS/THEIRS` (repeatable) interleaves table configurations, defaulting
+  to the six of `configured-net.md`. Each side gets its own card, reading stance
+  and teacher, dispatched by the acting seat — so a **mixed table emits both
+  asymmetric cells at once**, because a row is written from the acting seat's
+  view. Verified end to end: six table configs produce exactly **8 distinct
+  config vectors**, a third of rows have `ours != theirs`, and the only slot
+  varying inside all-American cells is 77 — `SCHEMA[72]`, `Kickback 1430`.
+
   `--system` selects the **teacher**, not merely the disclosed card. Wiring only
   the card would have written rows labelled Dutch while an American teacher bid
   them — caught in testing, where American and Dutch corpora came back with
@@ -669,6 +685,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   v3 net, which was trained bare and is served prefixed. `--bare-context`
   reproduces the old behaviour for comparison only.
 
+  `--cell OURS/THEIRS` (repeatable) interleaves table configurations, defaulting
+  to the six of `configured-net.md`. Each side gets its own card, reading stance
+  and teacher, dispatched by the acting seat — so a **mixed table emits both
+  asymmetric cells at once**, because a row is written from the acting seat's
+  view. Verified end to end: six table configs produce exactly **8 distinct
+  config vectors**, a third of rows have `ours != theirs`, and the only slot
+  varying inside all-American cells is 77 — `SCHEMA[72]`, `Kickback 1430`.
+
   `--system` selects the **teacher**, not merely the disclosed card. Wiring only
   the card would have written rows labelled Dutch while an American teacher bid
   them — caught in testing, where American and Dutch corpora came back with
@@ -865,6 +889,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   should not be quoted.) The skew is pre-existing and applies to every shipped
   v3 net, which was trained bare and is served prefixed. `--bare-context`
   reproduces the old behaviour for comparison only.
+
+  `--cell OURS/THEIRS` (repeatable) interleaves table configurations, defaulting
+  to the six of `configured-net.md`. Each side gets its own card, reading stance
+  and teacher, dispatched by the acting seat — so a **mixed table emits both
+  asymmetric cells at once**, because a row is written from the acting seat's
+  view. Verified end to end: six table configs produce exactly **8 distinct
+  config vectors**, a third of rows have `ours != theirs`, and the only slot
+  varying inside all-American cells is 77 — `SCHEMA[72]`, `Kickback 1430`.
 
   `--system` selects the **teacher**, not merely the disclosed card. Wiring only
   the card would have written rows labelled Dutch while an American teacher bid
@@ -1116,6 +1148,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   should not be quoted.) The skew is pre-existing and applies to every shipped
   v3 net, which was trained bare and is served prefixed. `--bare-context`
   reproduces the old behaviour for comparison only.
+
+  `--cell OURS/THEIRS` (repeatable) interleaves table configurations, defaulting
+  to the six of `configured-net.md`. Each side gets its own card, reading stance
+  and teacher, dispatched by the acting seat — so a **mixed table emits both
+  asymmetric cells at once**, because a row is written from the acting seat's
+  view. Verified end to end: six table configs produce exactly **8 distinct
+  config vectors**, a third of rows have `ours != theirs`, and the only slot
+  varying inside all-American cells is 77 — `SCHEMA[72]`, `Kickback 1430`.
 
   `--system` selects the **teacher**, not merely the disclosed card. Wiring only
   the card would have written rows labelled Dutch while an American teacher bid
@@ -2128,6 +2168,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   v3 net, which was trained bare and is served prefixed. `--bare-context`
   reproduces the old behaviour for comparison only.
 
+  `--cell OURS/THEIRS` (repeatable) interleaves table configurations, defaulting
+  to the six of `configured-net.md`. Each side gets its own card, reading stance
+  and teacher, dispatched by the acting seat — so a **mixed table emits both
+  asymmetric cells at once**, because a row is written from the acting seat's
+  view. Verified end to end: six table configs produce exactly **8 distinct
+  config vectors**, a third of rows have `ours != theirs`, and the only slot
+  varying inside all-American cells is 77 — `SCHEMA[72]`, `Kickback 1430`.
+
   `--system` selects the **teacher**, not merely the disclosed card. Wiring only
   the card would have written rows labelled Dutch while an American teacher bid
   them — caught in testing, where American and Dutch corpora came back with
@@ -2478,6 +2526,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   should not be quoted.) The skew is pre-existing and applies to every shipped
   v3 net, which was trained bare and is served prefixed. `--bare-context`
   reproduces the old behaviour for comparison only.
+
+  `--cell OURS/THEIRS` (repeatable) interleaves table configurations, defaulting
+  to the six of `configured-net.md`. Each side gets its own card, reading stance
+  and teacher, dispatched by the acting seat — so a **mixed table emits both
+  asymmetric cells at once**, because a row is written from the acting seat's
+  view. Verified end to end: six table configs produce exactly **8 distinct
+  config vectors**, a third of rows have `ours != theirs`, and the only slot
+  varying inside all-American cells is 77 — `SCHEMA[72]`, `Kickback 1430`.
 
   `--system` selects the **teacher**, not merely the disclosed card. Wiring only
   the card would have written rows labelled Dutch while an American teacher bid
@@ -2951,6 +3007,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   v3 net, which was trained bare and is served prefixed. `--bare-context`
   reproduces the old behaviour for comparison only.
 
+  `--cell OURS/THEIRS` (repeatable) interleaves table configurations, defaulting
+  to the six of `configured-net.md`. Each side gets its own card, reading stance
+  and teacher, dispatched by the acting seat — so a **mixed table emits both
+  asymmetric cells at once**, because a row is written from the acting seat's
+  view. Verified end to end: six table configs produce exactly **8 distinct
+  config vectors**, a third of rows have `ours != theirs`, and the only slot
+  varying inside all-American cells is 77 — `SCHEMA[72]`, `Kickback 1430`.
+
   `--system` selects the **teacher**, not merely the disclosed card. Wiring only
   the card would have written rows labelled Dutch while an American teacher bid
   them — caught in testing, where American and Dutch corpora came back with
@@ -3073,6 +3137,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   should not be quoted.) The skew is pre-existing and applies to every shipped
   v3 net, which was trained bare and is served prefixed. `--bare-context`
   reproduces the old behaviour for comparison only.
+
+  `--cell OURS/THEIRS` (repeatable) interleaves table configurations, defaulting
+  to the six of `configured-net.md`. Each side gets its own card, reading stance
+  and teacher, dispatched by the acting seat — so a **mixed table emits both
+  asymmetric cells at once**, because a row is written from the acting seat's
+  view. Verified end to end: six table configs produce exactly **8 distinct
+  config vectors**, a third of rows have `ours != theirs`, and the only slot
+  varying inside all-American cells is 77 — `SCHEMA[72]`, `Kickback 1430`.
 
   `--system` selects the **teacher**, not merely the disclosed card. Wiring only
   the card would have written rows labelled Dutch while an American teacher bid
@@ -3258,6 +3330,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   should not be quoted.) The skew is pre-existing and applies to every shipped
   v3 net, which was trained bare and is served prefixed. `--bare-context`
   reproduces the old behaviour for comparison only.
+
+  `--cell OURS/THEIRS` (repeatable) interleaves table configurations, defaulting
+  to the six of `configured-net.md`. Each side gets its own card, reading stance
+  and teacher, dispatched by the acting seat — so a **mixed table emits both
+  asymmetric cells at once**, because a row is written from the acting seat's
+  view. Verified end to end: six table configs produce exactly **8 distinct
+  config vectors**, a third of rows have `ours != theirs`, and the only slot
+  varying inside all-American cells is 77 — `SCHEMA[72]`, `Kickback 1430`.
 
   `--system` selects the **teacher**, not merely the disclosed card. Wiring only
   the card would have written rows labelled Dutch while an American teacher bid
@@ -3864,6 +3944,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   v3 net, which was trained bare and is served prefixed. `--bare-context`
   reproduces the old behaviour for comparison only.
 
+  `--cell OURS/THEIRS` (repeatable) interleaves table configurations, defaulting
+  to the six of `configured-net.md`. Each side gets its own card, reading stance
+  and teacher, dispatched by the acting seat — so a **mixed table emits both
+  asymmetric cells at once**, because a row is written from the acting seat's
+  view. Verified end to end: six table configs produce exactly **8 distinct
+  config vectors**, a third of rows have `ours != theirs`, and the only slot
+  varying inside all-American cells is 77 — `SCHEMA[72]`, `Kickback 1430`.
+
   `--system` selects the **teacher**, not merely the disclosed card. Wiring only
   the card would have written rows labelled Dutch while an American teacher bid
   them — caught in testing, where American and Dutch corpora came back with
@@ -4225,6 +4313,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   should not be quoted.) The skew is pre-existing and applies to every shipped
   v3 net, which was trained bare and is served prefixed. `--bare-context`
   reproduces the old behaviour for comparison only.
+
+  `--cell OURS/THEIRS` (repeatable) interleaves table configurations, defaulting
+  to the six of `configured-net.md`. Each side gets its own card, reading stance
+  and teacher, dispatched by the acting seat — so a **mixed table emits both
+  asymmetric cells at once**, because a row is written from the acting seat's
+  view. Verified end to end: six table configs produce exactly **8 distinct
+  config vectors**, a third of rows have `ours != theirs`, and the only slot
+  varying inside all-American cells is 77 — `SCHEMA[72]`, `Kickback 1430`.
 
   `--system` selects the **teacher**, not merely the disclosed card. Wiring only
   the card would have written rows labelled Dutch while an American teacher bid
@@ -4856,6 +4952,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   should not be quoted.) The skew is pre-existing and applies to every shipped
   v3 net, which was trained bare and is served prefixed. `--bare-context`
   reproduces the old behaviour for comparison only.
+
+  `--cell OURS/THEIRS` (repeatable) interleaves table configurations, defaulting
+  to the six of `configured-net.md`. Each side gets its own card, reading stance
+  and teacher, dispatched by the acting seat — so a **mixed table emits both
+  asymmetric cells at once**, because a row is written from the acting seat's
+  view. Verified end to end: six table configs produce exactly **8 distinct
+  config vectors**, a third of rows have `ours != theirs`, and the only slot
+  varying inside all-American cells is 77 — `SCHEMA[72]`, `Kickback 1430`.
 
   `--system` selects the **teacher**, not merely the disclosed card. Wiring only
   the card would have written rows labelled Dutch while an American teacher bid
@@ -6169,6 +6273,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   v3 net, which was trained bare and is served prefixed. `--bare-context`
   reproduces the old behaviour for comparison only.
 
+  `--cell OURS/THEIRS` (repeatable) interleaves table configurations, defaulting
+  to the six of `configured-net.md`. Each side gets its own card, reading stance
+  and teacher, dispatched by the acting seat — so a **mixed table emits both
+  asymmetric cells at once**, because a row is written from the acting seat's
+  view. Verified end to end: six table configs produce exactly **8 distinct
+  config vectors**, a third of rows have `ours != theirs`, and the only slot
+  varying inside all-American cells is 77 — `SCHEMA[72]`, `Kickback 1430`.
+
   `--system` selects the **teacher**, not merely the disclosed card. Wiring only
   the card would have written rows labelled Dutch while an American teacher bid
   them — caught in testing, where American and Dutch corpora came back with
@@ -6582,6 +6694,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   should not be quoted.) The skew is pre-existing and applies to every shipped
   v3 net, which was trained bare and is served prefixed. `--bare-context`
   reproduces the old behaviour for comparison only.
+
+  `--cell OURS/THEIRS` (repeatable) interleaves table configurations, defaulting
+  to the six of `configured-net.md`. Each side gets its own card, reading stance
+  and teacher, dispatched by the acting seat — so a **mixed table emits both
+  asymmetric cells at once**, because a row is written from the acting seat's
+  view. Verified end to end: six table configs produce exactly **8 distinct
+  config vectors**, a third of rows have `ours != theirs`, and the only slot
+  varying inside all-American cells is 77 — `SCHEMA[72]`, `Kickback 1430`.
 
   `--system` selects the **teacher**, not merely the disclosed card. Wiring only
   the card would have written rows labelled Dutch while an American teacher bid
@@ -7030,6 +7150,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   should not be quoted.) The skew is pre-existing and applies to every shipped
   v3 net, which was trained bare and is served prefixed. `--bare-context`
   reproduces the old behaviour for comparison only.
+
+  `--cell OURS/THEIRS` (repeatable) interleaves table configurations, defaulting
+  to the six of `configured-net.md`. Each side gets its own card, reading stance
+  and teacher, dispatched by the acting seat — so a **mixed table emits both
+  asymmetric cells at once**, because a row is written from the acting seat's
+  view. Verified end to end: six table configs produce exactly **8 distinct
+  config vectors**, a third of rows have `ours != theirs`, and the only slot
+  varying inside all-American cells is 77 — `SCHEMA[72]`, `Kickback 1430`.
 
   `--system` selects the **teacher**, not merely the disclosed card. Wiring only
   the card would have written rows labelled Dutch while an American teacher bid
@@ -8038,6 +8166,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   should not be quoted.) The skew is pre-existing and applies to every shipped
   v3 net, which was trained bare and is served prefixed. `--bare-context`
   reproduces the old behaviour for comparison only.
+
+  `--cell OURS/THEIRS` (repeatable) interleaves table configurations, defaulting
+  to the six of `configured-net.md`. Each side gets its own card, reading stance
+  and teacher, dispatched by the acting seat — so a **mixed table emits both
+  asymmetric cells at once**, because a row is written from the acting seat's
+  view. Verified end to end: six table configs produce exactly **8 distinct
+  config vectors**, a third of rows have `ours != theirs`, and the only slot
+  varying inside all-American cells is 77 — `SCHEMA[72]`, `Kickback 1430`.
 
   `--system` selects the **teacher**, not merely the disclosed card. Wiring only
   the card would have written rows labelled Dutch while an American teacher bid
@@ -11125,6 +11261,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   v3 net, which was trained bare and is served prefixed. `--bare-context`
   reproduces the old behaviour for comparison only.
 
+  `--cell OURS/THEIRS` (repeatable) interleaves table configurations, defaulting
+  to the six of `configured-net.md`. Each side gets its own card, reading stance
+  and teacher, dispatched by the acting seat — so a **mixed table emits both
+  asymmetric cells at once**, because a row is written from the acting seat's
+  view. Verified end to end: six table configs produce exactly **8 distinct
+  config vectors**, a third of rows have `ours != theirs`, and the only slot
+  varying inside all-American cells is 77 — `SCHEMA[72]`, `Kickback 1430`.
+
   `--system` selects the **teacher**, not merely the disclosed card. Wiring only
   the card would have written rows labelled Dutch while an American teacher bid
   them — caught in testing, where American and Dutch corpora came back with
@@ -11616,6 +11760,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   v3 net, which was trained bare and is served prefixed. `--bare-context`
   reproduces the old behaviour for comparison only.
 
+  `--cell OURS/THEIRS` (repeatable) interleaves table configurations, defaulting
+  to the six of `configured-net.md`. Each side gets its own card, reading stance
+  and teacher, dispatched by the acting seat — so a **mixed table emits both
+  asymmetric cells at once**, because a row is written from the acting seat's
+  view. Verified end to end: six table configs produce exactly **8 distinct
+  config vectors**, a third of rows have `ours != theirs`, and the only slot
+  varying inside all-American cells is 77 — `SCHEMA[72]`, `Kickback 1430`.
+
   `--system` selects the **teacher**, not merely the disclosed card. Wiring only
   the card would have written rows labelled Dutch while an American teacher bid
   them — caught in testing, where American and Dutch corpora came back with
@@ -11732,6 +11884,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   should not be quoted.) The skew is pre-existing and applies to every shipped
   v3 net, which was trained bare and is served prefixed. `--bare-context`
   reproduces the old behaviour for comparison only.
+
+  `--cell OURS/THEIRS` (repeatable) interleaves table configurations, defaulting
+  to the six of `configured-net.md`. Each side gets its own card, reading stance
+  and teacher, dispatched by the acting seat — so a **mixed table emits both
+  asymmetric cells at once**, because a row is written from the acting seat's
+  view. Verified end to end: six table configs produce exactly **8 distinct
+  config vectors**, a third of rows have `ours != theirs`, and the only slot
+  varying inside all-American cells is 77 — `SCHEMA[72]`, `Kickback 1430`.
 
   `--system` selects the **teacher**, not merely the disclosed card. Wiring only
   the card would have written rows labelled Dutch while an American teacher bid
@@ -11855,6 +12015,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   v3 net, which was trained bare and is served prefixed. `--bare-context`
   reproduces the old behaviour for comparison only.
 
+  `--cell OURS/THEIRS` (repeatable) interleaves table configurations, defaulting
+  to the six of `configured-net.md`. Each side gets its own card, reading stance
+  and teacher, dispatched by the acting seat — so a **mixed table emits both
+  asymmetric cells at once**, because a row is written from the acting seat's
+  view. Verified end to end: six table configs produce exactly **8 distinct
+  config vectors**, a third of rows have `ours != theirs`, and the only slot
+  varying inside all-American cells is 77 — `SCHEMA[72]`, `Kickback 1430`.
+
   `--system` selects the **teacher**, not merely the disclosed card. Wiring only
   the card would have written rows labelled Dutch while an American teacher bid
   them — caught in testing, where American and Dutch corpora came back with
@@ -11916,6 +12084,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   should not be quoted.) The skew is pre-existing and applies to every shipped
   v3 net, which was trained bare and is served prefixed. `--bare-context`
   reproduces the old behaviour for comparison only.
+
+  `--cell OURS/THEIRS` (repeatable) interleaves table configurations, defaulting
+  to the six of `configured-net.md`. Each side gets its own card, reading stance
+  and teacher, dispatched by the acting seat — so a **mixed table emits both
+  asymmetric cells at once**, because a row is written from the acting seat's
+  view. Verified end to end: six table configs produce exactly **8 distinct
+  config vectors**, a third of rows have `ours != theirs`, and the only slot
+  varying inside all-American cells is 77 — `SCHEMA[72]`, `Kickback 1430`.
 
   `--system` selects the **teacher**, not merely the disclosed card. Wiring only
   the card would have written rows labelled Dutch while an American teacher bid
