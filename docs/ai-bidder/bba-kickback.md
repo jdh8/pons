@@ -1041,7 +1041,8 @@ live, because the guard that prevents it sat entirely behind `set_queen_ask`.
 Plain `set_kickback` therefore ran with no protection at all beyond the 4NT
 carve-out.  Nothing measured before 2026-08-02 says anything about the
 relocation on its own; it all says something about the relocation plus a
-phantom-suit generator.  Re-measure before quoting any of it.
+phantom-suit generator.  Re-measure before quoting any of it.  **Done —
+§7.8 is that re-measure**, and §7.9 splits it per trump.
 
 **Nine HCP-axis reading leaks, recorded not resolved.**  Shipping the relay
 default-on moved `authored_calls_read_what_they_gate`'s HCP pin from 11/0 to
@@ -1148,3 +1149,45 @@ against plain DD −0.04/board.  That is not the usual doubling artifact —
 the artifact lives on boards where the arms disagree about doubling, and this
 slice has none — but the two scorers disagree in sign on the largest slice,
 so neither reading of the PD gain is corroborated.
+
+### 7.9 Per-trump attribution, and the ♠ control
+
+§7.8's aggregate hides the only breakdown that can separate the convention from
+the net. Kickback relocates ♣→4♦, ♦→4♥, ♥→4♠ and leaves **♠ on 4NT** — so the
+spade lane is a built-in control: the twin net serves it exactly as it serves
+every other lane, but no ask moves. Bucketed by the strain of the final
+contract, six-level and up (the only levels a relocated ask can reach):
+
+| trump | ask becomes | vul: boards / plain DD per board | NV: boards / plain DD per board |
+|---|---|---|---|
+| ♣ | 4♦ | 2034 / **+0.78** | 2001 / **+0.56** |
+| ♦ | 4♥ | 1672 / **−0.38** | 1697 / **−0.74** |
+| ♥ | 4♠ | 2586 / **−0.26** | 2806 / **−0.52** |
+| ♠ | *unchanged* | 2041 / +0.27 | 2147 / −0.02 |
+| NT | *n/a* | 1133 / +1.15 | 1139 / +0.67 |
+
+**Clubs carries the whole win; diamonds and hearts are losses, in both cells,
+with the same sign.** And the ♠ control sits at ~0 with inconsistent sign,
+which is what makes the rest readable: if the net swap were driving the
+slam-level numbers, the spade lane would move too. It does not, so the ♦ and ♥
+losses are plausibly the relocation itself rather than §7.8's confound. That is
+a stronger attribution than §7.8 could reach alone, and it comes free from a
+lane the design already held fixed.
+
+§7.2's gradient predicted this **ordering** — ♣ has 3 of 4 plain-4NT answers
+overshooting 5-of-trump, ♦ has 2, ♥ has 1, ♠ has 0 — but predicted a shrinking
+*gain*, and ♦/♥ measure negative. The space bought is real; on those two lanes
+something spends more than it buys.
+
+**Read this at the right precision.** ~2000 boards per lane per cell, where
+six-level IMP swings run around 13 SD, gives ±0.58 on a single cell; clubs
+pools to roughly +0.67 ± 0.41. Suggestive, not conclusive. The buckets are also
+*contract* strains, not the agreed trump at the moment of the ask, so a board
+where one arm plays 6♣ and the other 3NT is counted in both rows.
+
+**The next lever is a minors-only or clubs-only arm.** Kickback ♥→4♠ buys one
+step and appears to pay more than a step back, which is exactly the row §7.2
+called the shallow end. Note the naming: minors-only kickback is
+[Redwood](http://www.keycardask.com/redwood.html) and is a convention people
+actually play; clubs-only is not, and would want a reason beyond one bucket.
+
