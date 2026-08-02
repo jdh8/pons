@@ -202,17 +202,110 @@ auctions, and add an enriched slice accepting deals that reach a slam face with
 an agreed non-spade trump. Evaluation stays on freshly generated uniform deals,
 so the oversampling never reaches the verdict.
 
-Two things to settle before dumping millions of rows, in this order:
+#### Measured: the counterfactual pair rate, and what a filter buys
 
-1. **Measure the reach rate** — how often a random deal reaches a slam face with
-   an agreed non-spade trump. That, not the ask rate, sets the enriched slice's
-   yield and therefore its cost.
-2. **Pick the mixture ratio** against that number, and record it beside the
-   artifact: a net's behaviour is only interpretable next to the distribution it
-   was fitted on.
+Both owed numbers are now measured, and measuring them corrected the question.
 
-A cheaper fallback if enrichment proves expensive: accept that gate 2 is
-underpowered for kickback specifically, and read it only as a bound.
+The unit is not the board and not even the row — it is the **matched pair**: one
+deal replayed through `american-on/american-on` and `american-off/american-off`
+(`dump-teacher --replay`), giving two rows identical in all 366 non-card
+features and differing only at slot 77. `--replay` exists for exactly this.
+
+Over 20,000 uniform bank deals:
+
+| | count | rate |
+| --- | ---: | ---: |
+| rows | 399,816 | |
+| matched pairs (identical but slot 77) | 198,219 | |
+| …of which the **teacher's target moves** | **32** | **0.0161%** |
+| unmatched rows (auction or reading diverged) | 462 | 0.116% |
+
+The moving pairs are `4♦` against `4NT`: the relocated club ask, which is the
+whole convention. So the learnability problem, stated honestly: the net sees
+**about 6200 pairs saying "slot 77 changes nothing" for every one that says it
+changes the call.**
+
+Every moving pair moves the *argmax*, not merely the distribution — target-
+moving and argmax-moving counts are equal in both arms — so there is no softer
+population of "the target shifted a little" to fall back on.
+
+The board rate (0.054%) and this pair rate answer different questions and both
+are right: a relocated ask changes the row whether or not it changes the score,
+so row-level divergence is the larger population and the one to enrich.
+
+⚠ An earlier 400-deal version of this table reported 2 moving pairs, 0.051%.
+That was a high fluctuation on a two-event sample; the figure above supersedes
+it. Do not quote the 400-deal numbers.
+
+#### What the filter buys — `probe-kickback-yield`, 1M deals
+
+`--enrich HCP:FIT` accepts on raw hands before the bidder. `probe-kickback-yield`
+sweeps the thresholds directly, replaying each deal under both cards and asking
+whether the *bid* changed. Over 1,000,000 deals (seed 20260803):
+
+| filter | accept | diverge | lift | deals bid / hit | deals drawn / hit |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| (none) | 100% | 0.1389% | 1.0× | 720 | 720 |
+| 26 hcp 8+ | 21.7% | 0.612% | 4.4× | 163 | 752 |
+| 26 hcp 9+ | 11.0% | 0.954% | 6.9× | 105 | 954 |
+| **28 hcp 9+** | **4.92%** | **1.849%** | **13.3×** | **54** | **1100** |
+| 28 hcp 10+ | 1.40% | 2.795% | 20.1× | 36 | 2558 |
+| 30 hcp 9+ | 1.81% | 3.115% | 22.4× | 32 | 1770 |
+| 30 hcp 10+ | 0.49% | 4.399% | 31.7× | 23 | 4630 |
+
+The lift is real and keeps climbing — **13× at `28:9`, 32× at `30:10`** — so
+the earlier guess that a raw-hand filter would be nearly useless because it
+cannot see shape agreement was wrong. Strength alone concentrates the trigger
+well.
+
+Read the last two columns as the actual trade: enrichment converts **bidding
+time into bank rows.** Bidding is the binding cost, so tighter is better right
+up to the point where the bank stops being spare — `30:10` needs 4630 drawn
+deals per hit, which at any useful corpus size eats a double-digit fraction of
+`22.pdd`. `28:9` is the knee: 13× the signal per auction bid, at 1100 drawn per
+hit.
+
+The pair-level dump agrees independently, which matters because it measures a
+different thing (the *training target* moving, on bank deals) with a different
+tool:
+
+| | uniform | `--enrich 28:9` | lift |
+| --- | ---: | ---: | ---: |
+| deals kept | 100% | 4.84% | |
+| target-moving pairs | 0.0161% | 0.1773% | **11.0×** |
+| unmatched rows | 0.116% | 1.198% | **10.3×** |
+| target-moving *per deal* | 0.16% | 1.96% | **12.3×** |
+
+Three estimates of the same quantity — 13.3× (probe, random deals, bid changes),
+12.3× and 11.0× (dump, bank deals, target changes) — from 32 and 19 events
+respectively. Call it **an order of magnitude**, and note the acceptance rates
+agree to a tenth of a point (4.92% against 4.84%), which is the part with no
+sampling noise in it.
+
+#### The mixture ratio
+
+Recorded here so the artifact is interpretable beside it:
+
+- **uniform bulk — 250k deals**, single cell per board rotating through the six
+  of [the cell table](#the-cells). ~2.5M rows. This is what keeps the net
+  calibrated on ordinary auctions.
+- **enriched slice — 500k deals drawn, `--enrich 28:9 --replay`** across the two
+  all-American cells. ~24.6k accepted → ~49k auctions → **~540k rows and ~455
+  bid-divergent deals**, each supplying its counterfactual pair. A uniform draw
+  costing the same 49k auctions would yield ~34 of them.
+
+That is **~18% of the corpus enriched**, and ~750k bank rows total (2.4% of
+`22.pdd`). Scale the enriched draw, not the bulk, if the diagnostic below fails.
+
+#### The diagnostic that actually settles it
+
+Gate 2 is a poor instrument for "did the net learn the bit" — it measures IMPs,
+which the convention barely moves. Before running it, check the mechanism
+directly: hold out the target-moving pairs, feed the trained net both halves,
+and assert its output distribution *changes* when slot 77 flips. A net that
+answers identically has not learned to read the card, and no A/B on top of it
+means anything. That check is cheap, it is a fixture rather than a match, and
+it distinguishes the two hypotheses Gate 2 confounds.
 
 **Take ~250k deals, 500k to be generous** for the uniform bulk. Against `22.pdd`'s 31,404,048 rows
 that is **1.6% of the bank**, and it is a *training* draw, so it does not
@@ -239,6 +332,13 @@ only on the enriched slice.** Pairing the bulk buys mostly region-1 rows at N×
 the dump cost, and dump time is the binding constraint. The enriched slice
 accepts deals on a **raw-hand** criterion *before* the bidder (slam-ish values, a
 likely non-spade trump fit), which is the standing rule for a rare trigger.
+
+Both are now flags rather than plans: `--replay` bids every board at every
+`--cell`, and `--enrich HCP:FIT` applies the raw-hand test
+(`common::slam_ish`) before a single call is classified. The measurements they
+produced are [above](#measured-the-counterfactual-pair-rate-and-what-a-filter-buys),
+and they are what turned the region table from an argument into a number: 3934
+region-1 pairs to 2 region-2 pairs, uniform.
 
 ### A mixed table yields both asymmetric cells free
 

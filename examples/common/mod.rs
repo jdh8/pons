@@ -27,6 +27,36 @@ pub fn hand_hcp(hand: Hand) -> u8 {
     Suit::ASC.iter().map(|&s| holding_hcp::<u8>(hand[s])).sum()
 }
 
+/// The raw-hand statistic an enriched draw thresholds: over both partnerships,
+/// the best `(combined HCP, longest combined non-spade fit)` available.
+///
+/// Both components are maxed across the two partnerships independently — the
+/// question a filter asks is "does this deal contain a slam-ish non-spade fit
+/// anywhere", and either side reaching one makes the deal worth bidding.
+///
+/// Non-spade because that is where a relocated keycard ask can differ at all: a
+/// spade ask is 4NT under either card, so ♠ fits carry no configuration signal.
+/// It reads **raw hands only**, which is what lets an enriched corpus draw
+/// accept or reject a deal before the bidder ever sees it — the acceptance can
+/// then never depend on, and so never bias, what the bidder does with it.
+pub fn slam_ish(deal: &FullDeal) -> (u8, u8) {
+    [(Seat::North, Seat::South), (Seat::East, Seat::West)]
+        .into_iter()
+        .map(|(one, two)| {
+            let (a, b) = (deal[one], deal[two]);
+            let fit = [Suit::Clubs, Suit::Diamonds, Suit::Hearts]
+                .into_iter()
+                .map(|suit| a[suit].len() + b[suit].len())
+                .max()
+                .unwrap_or(0);
+            (
+                hand_hcp(a) + hand_hcp(b),
+                u8::try_from(fit).unwrap_or(u8::MAX),
+            )
+        })
+        .fold((0, 0), |acc, x| (acc.0.max(x.0), acc.1.max(x.1)))
+}
+
 /// One display key per decision: leading passes stripped, calls joined
 ///
 /// Stripping merges the four dealer rotations of one decision into one line —
