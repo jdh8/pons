@@ -1,6 +1,6 @@
 #!/bin/sh
 # two-over-one-ab.sh — self-play A/Bs for the 2/1 response-band ideas
-# (docs/point-count-threshold-campaign.md remnant; docs/measurement.md rules).
+# (docs/archive/point-count-threshold-campaign.md remnant; docs/measurement.md rules).
 #
 # Exp 1 (seed file seed-cog):  baseline vs the 1M-3NT choice of games
 #                              (`set_major_choice_of_games`).

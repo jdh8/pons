@@ -1,6 +1,6 @@
 #!/bin/sh
 # remnant-fixes-ab.sh — fix-vs-shipped A/Bs for the point-count remnant
-# families (docs/point-count-threshold-campaign.md).  Build-time gate
+# families (docs/archive/point-count-threshold-campaign.md).  Build-time gate
 # fixes, each measured through ab-point-count's two-book --fix path with both
 # arms on the shipped floored scale, so each A/B isolates its gate:
 #

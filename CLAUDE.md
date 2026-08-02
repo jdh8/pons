@@ -31,6 +31,7 @@ played a long time and read a lot. For 5-card major systems, see my
 | Competitive book (we open, they interfere) | [docs/competitive-book.md](docs/competitive-book.md) — wiring idiom, package designs, campaign ledger |
 | Kickback / Redwood (relocating the keycard ask below 4NT) | [docs/ai-bidder/bba-kickback.md](docs/ai-bidder/bba-kickback.md) §7 — jdh8's walk-up ladder (not BBA's), the three-arm A/B design, the two build traps (structural `alerted`, 4NT-as-answer), and the 4NT question deferred to control bids |
 | Long data-gen runs | [docs/shared-machine-data-gen.md](docs/shared-machine-data-gen.md) — this box is shared |
+| Training any net, or drawing a corpus | [docs/pdd-bank-ledger.md](docs/pdd-bank-ledger.md) — **corpus from `/nfs2/jdh8/pons/`, test on fresh deals**; slice ledger + remaining-rows warning |
 | Hand valuation, point counts, or "how uncertain is this hand?" | [docs/binky-points.md](docs/binky-points.md) — additive (μ, σ²) per holding; the gauge statement, and why an additive table sees only ~24% of the pair-level spread |
 | Raw bidding-theory notes | [docs/bidding-theorems.md](docs/bidding-theorems.md) |
 

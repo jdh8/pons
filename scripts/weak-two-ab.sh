@@ -2,12 +2,12 @@
 # weak-two-ab.sh — fix-vs-shipped A/B for the weak-two remnant (Root A):
 # gauge the weak-two opening (+ Ogust min/max) in raw HCP `hcp(5..=10)` instead
 # of the shipped rule-of-N+8 `points(5..=10)`.  Both arms stay on the floored
-# scale, so this isolates the gate (docs/point-count-threshold-campaign.md,
+# scale, so this isolates the gate (docs/archive/point-count-threshold-campaign.md,
 # docs/measurement.md).  A weak two is a preempt (competitive range) → sd-lead
 # is the honest arbiter; plain DD is the obstruction wall.
 #
 # Deals come from the pre-solved .pdd bank by --offset (the slice ledger lives
-# in docs/point-count-threshold-campaign.md — check it and pass OFF=<cursor>);
+# in docs/pdd-bank-ledger.md — check it and pass OFF=<cursor>);
 # plain+PD score its stored tables with no live solve, only --sd solves.  Arms
 # strictly sequential (one run saturates the box); do NOT rebuild the binary
 # while it runs.
