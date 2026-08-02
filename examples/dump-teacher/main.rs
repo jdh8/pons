@@ -60,6 +60,7 @@ use std::os::raw::c_int;
 #[allow(dead_code)]
 mod common;
 use common::oracle::{BbaOracle, ConventionCard, DEFAULT_LIB, SYSTEM_2_OVER_1, load_bbsa};
+use common::slam_ish;
 
 /// Number of calls in a `Logits` array (the softmax width).
 const SOFTMAX_LEN: usize = 38;
@@ -194,6 +195,45 @@ struct Args {
     /// `(ours=on, theirs=off)` and its mirror in one dump.
     #[arg(long = "cell", value_parser = parse_cell, value_name = "OURS/THEIRS")]
     cells: Vec<(SideConfig, SideConfig)>,
+    /// Bid every board in *every* `--cell` instead of rotating one per board
+    ///
+    /// The corpus unit is a row, and what the net has to learn is that a card
+    /// slot changes the target.  Rotating cells across boards leaves that to be
+    /// inferred across different deals; replaying one deal through both cells
+    /// puts the two rows side by side, identical in all 368 features but the
+    /// card slot, with different targets.  For a rare bit — `Kickback 1430`
+    /// decides about one board in 600 — that matched pair is the difference
+    /// between a learnable signal and noise.
+    ///
+    /// Costs one full auction per extra cell, so pair it with an enriched draw
+    /// rather than turning it on over the uniform bulk.
+    #[arg(long)]
+    replay: bool,
+    /// Keep only deals that pass a raw-hand slam-ish test, `HCP:FIT`
+    ///
+    /// `--enrich 28:9` keeps a deal only if some partnership holds 28+ combined
+    /// HCP and a 9+ card fit in a *non-spade* suit.  Both are read off the raw
+    /// hands ([`slam_ish`][common::slam_ish]), before the bidder, so acceptance
+    /// cannot depend on — and therefore cannot bias — what the bidder does.
+    ///
+    /// This is how the enriched slice of the mixture corpus is drawn.  Deals
+    /// are cheap and bidding is not, so a rejected deal costs a shuffle; see
+    /// `probe-kickback-yield` for the accept/lift/cost table the thresholds are
+    /// chosen from.  Evaluation must stay on unfiltered deals: an oversampled
+    /// slice trains, it never scores.
+    #[arg(long, value_parser = parse_enrich, value_name = "HCP:FIT")]
+    enrich: Option<(u8, u8)>,
+}
+
+/// `HCP:FIT`, the raw-hand acceptance thresholds of an enriched draw.
+fn parse_enrich(spec: &str) -> Result<(u8, u8), String> {
+    let (points, fit) = spec
+        .split_once(':')
+        .ok_or_else(|| format!("expected HCP:FIT, got {spec:?}"))?;
+    Ok((
+        points.parse().map_err(|_| format!("bad HCP {points:?}"))?,
+        fit.parse().map_err(|_| format!("bad fit {fit:?}"))?,
+    ))
 }
 
 /// What one partnership is declared to play: a base system and a convention
@@ -344,6 +384,12 @@ fn main() -> anyhow::Result<()> {
     if args.mix_kickback && args.conv.is_empty() {
         anyhow::bail!("--mix-kickback needs --conv to say what the ON regime is");
     }
+    // `--replay` says "bid every board at every table"; with no table list there
+    // is nothing to replay across, and silently dumping one copy would look like
+    // a matched-pair corpus without being one.
+    if args.replay && args.cells.is_empty() {
+        anyhow::bail!("--replay needs at least one --cell to replay across");
+    }
     // The regimes a board can be dumped under.  One entry normally; two when
     // mixing, selected by board parity so the corpus interleaves.
     let regimes: Vec<bool> = if args.mix_kickback {
@@ -455,6 +501,7 @@ fn main() -> anyhow::Result<()> {
     let mut rows = 0u64;
     let mut contested = 0u64;
     let mut forced_pass = 0u64; // decisions the teacher had no logits for
+    let mut rejected = 0u64; // deals `--enrich` turned away before the bidder
     let mut call_hist: BTreeMap<String, u64> = BTreeMap::new();
     let mut row = vec![0f32; row_len];
 
@@ -510,10 +557,17 @@ fn main() -> anyhow::Result<()> {
             })
             .transpose()?;
         let teacher = teachers[regime].as_ref();
-        // The table this board is played at.  The dealer's side plays `cell.0`,
-        // so a random dealer also randomises which physical side holds which
-        // configuration.
-        let cell = (!cells.is_empty()).then(|| cells[board % cells.len()]);
+        // The table(s) this board is played at.  The dealer's side plays
+        // `cell.0`, so a random dealer also randomises which physical side holds
+        // which configuration.  Under `--replay` the board is bid at every table
+        // instead of one, so the rows that differ are matched pairs.
+        let tables: Vec<Option<(SideConfig, SideConfig)>> = if cells.is_empty() {
+            vec![None]
+        } else if args.replay {
+            cells.iter().copied().map(Some).collect()
+        } else {
+            vec![Some(cells[board % cells.len()])]
+        };
 
         // File deals (with their DD table) when `--deals` is set, else a fresh
         // random board with no table.
@@ -524,90 +578,104 @@ fn main() -> anyhow::Result<()> {
         let dealer = rng.random_range(0..4usize);
         let vul = VULS[rng.random_range(0..4usize)];
 
-        let mut auction = Auction::new();
-        while !auction.has_ended() {
-            let seat = Seat::ALL[(dealer + auction.len()) % 4];
-            let hand = deal[seat];
-            let rel = relative(vul, seat);
-            // Which side is acting.  Sides are seat parity, and the dealer is
-            // side 0, so this is what decides whose card is "ours" on this row.
-            let acting = cell.map(|(dealers_side, others)| {
-                if auction.len().is_multiple_of(2) {
-                    (dealers_side, others)
+        // The enriched draw's acceptance test.  Raw hands only, and applied
+        // before a single call is classified, so a kept deal is bid exactly as
+        // an unfiltered one would be — the slice changes *which* deals reach
+        // the teacher, never what the teacher says about them.
+        if let Some((points, fit)) = args.enrich {
+            let (have_points, have_fit) = slam_ish(&deal);
+            if have_points < points || have_fit < fit {
+                rejected += 1;
+                continue;
+            }
+        }
+
+        for cell in tables {
+            let mut auction = Auction::new();
+            while !auction.has_ended() {
+                let seat = Seat::ALL[(dealer + auction.len()) % 4];
+                let hand = deal[seat];
+                let rel = relative(vul, seat);
+                // Which side is acting.  Sides are seat parity, and the dealer is
+                // side 0, so this is what decides whose card is "ours" on this row.
+                let acting = cell.map(|(dealers_side, others)| {
+                    if auction.len().is_multiple_of(2) {
+                        (dealers_side, others)
+                    } else {
+                        (others, dealers_side)
+                    }
+                });
+                // Arm the recognizer for the *acting* side before anything reads or
+                // classifies: in a mixed table the two sides disagree, and the row
+                // must be extracted under the configuration that produced it.
+                if let Some((ours, _)) = acting {
+                    pons::bidding::instinct::set_kickback(ours.kickback);
+                }
+                let cell_artifacts =
+                    acting.map(|(ours, theirs)| &per_pair[&(ours.label(), theirs.label())]);
+                let teacher = match cell_artifacts {
+                    Some((_, teacher)) => teacher.as_ref(),
+                    None => teacher,
+                };
+
+                let Some(mut logits) = teacher.classify(hand, rel, &auction) else {
+                    forced_pass += 1;
+                    auction.push(Call::Pass);
+                    continue;
+                };
+
+                // Mask illegal calls; the teacher target is over legal calls only.
+                for (call, slot) in logits.iter_mut() {
+                    if auction.can_push(call).is_err() {
+                        *slot = f32::NEG_INFINITY;
+                    }
+                }
+                let Some(softmax) = logits.softmax() else {
+                    forced_pass += 1;
+                    auction.push(Call::Pass);
+                    continue;
+                };
+
+                // Record the row: features ++ softmax (++ DD label when present).
+                // Prefixed when configured: the same context serving builds, so the
+                // authored-projection overlay is applied at dump time too.
+                let acting_reader = match acting {
+                    Some((ours, _)) if !args.bare_context => Some(&per_side[&ours.label()].1),
+                    _ => reader.as_ref(),
+                };
+                let mut context = match acting_reader {
+                    Some(stance) => stance.prefixed_context(rel, &auction),
+                    None => Context::new(rel, &auction),
+                };
+                if let Some(config) = cell_artifacts.map(|(config, _)| config).or(config.as_ref()) {
+                    context = context.with_config(config);
+                }
+                let feats = if args.configured {
+                    features_v4(hand, &context)
                 } else {
-                    (others, dealers_side)
+                    features_v3(hand, &context)
+                };
+                row[..features_len].copy_from_slice(&feats);
+                row[features_len..features_len + SOFTMAX_LEN].copy_from_slice(&softmax[..]);
+                if let Some(table) = &table {
+                    row[features_len + SOFTMAX_LEN..]
+                        .copy_from_slice(&gib::relativized_tricks(table, seat));
                 }
-            });
-            // Arm the recognizer for the *acting* side before anything reads or
-            // classifies: in a mixed table the two sides disagree, and the row
-            // must be extracted under the configuration that produced it.
-            if let Some((ours, _)) = acting {
-                pons::bidding::instinct::set_kickback(ours.kickback);
-            }
-            let cell_artifacts =
-                acting.map(|(ours, theirs)| &per_pair[&(ours.label(), theirs.label())]);
-            let teacher = match cell_artifacts {
-                Some((_, teacher)) => teacher.as_ref(),
-                None => teacher,
-            };
-
-            let Some(mut logits) = teacher.classify(hand, rel, &auction) else {
-                forced_pass += 1;
-                auction.push(Call::Pass);
-                continue;
-            };
-
-            // Mask illegal calls; the teacher target is over legal calls only.
-            for (call, slot) in logits.iter_mut() {
-                if auction.can_push(call).is_err() {
-                    *slot = f32::NEG_INFINITY;
+                for value in &row {
+                    writer.write_all(&value.to_le_bytes())?;
                 }
-            }
-            let Some(softmax) = logits.softmax() else {
-                forced_pass += 1;
-                auction.push(Call::Pass);
-                continue;
-            };
+                let contested_row = Phase::of(&auction) != Phase::Constructive;
+                tags_writer.write_all(&[u8::from(contested_row)])?;
+                rows += 1;
+                if contested_row {
+                    contested += 1;
+                }
 
-            // Record the row: features ++ softmax (++ DD label when present).
-            // Prefixed when configured: the same context serving builds, so the
-            // authored-projection overlay is applied at dump time too.
-            let acting_reader = match acting {
-                Some((ours, _)) if !args.bare_context => Some(&per_side[&ours.label()].1),
-                _ => reader.as_ref(),
-            };
-            let mut context = match acting_reader {
-                Some(stance) => stance.prefixed_context(rel, &auction),
-                None => Context::new(rel, &auction),
-            };
-            if let Some(config) = cell_artifacts.map(|(config, _)| config).or(config.as_ref()) {
-                context = context.with_config(config);
+                // Advance the auction by the teacher's legal argmax.
+                let next = argmax_legal(&logits);
+                *call_hist.entry(format!("{next}")).or_insert(0) += 1;
+                auction.push(next);
             }
-            let feats = if args.configured {
-                features_v4(hand, &context)
-            } else {
-                features_v3(hand, &context)
-            };
-            row[..features_len].copy_from_slice(&feats);
-            row[features_len..features_len + SOFTMAX_LEN].copy_from_slice(&softmax[..]);
-            if let Some(table) = &table {
-                row[features_len + SOFTMAX_LEN..]
-                    .copy_from_slice(&gib::relativized_tricks(table, seat));
-            }
-            for value in &row {
-                writer.write_all(&value.to_le_bytes())?;
-            }
-            let contested_row = Phase::of(&auction) != Phase::Constructive;
-            tags_writer.write_all(&[u8::from(contested_row)])?;
-            rows += 1;
-            if contested_row {
-                contested += 1;
-            }
-
-            // Advance the auction by the teacher's legal argmax.
-            let next = argmax_legal(&logits);
-            *call_hist.entry(format!("{next}")).or_insert(0) += 1;
-            auction.push(next);
         }
     }
     writer.flush()?;
@@ -643,6 +711,9 @@ fn main() -> anyhow::Result<()> {
         "our_kickback": args.kickback,
         "mix_kickback": args.mix_kickback,
         "configured": args.configured,
+        "replay": args.replay,
+        "enrich": args.enrich.map(|(points, fit)| format!("{points}:{fit}")),
+        "enrich_rejected": rejected,
         "cells": cells
             .iter()
             .map(|(a, b)| format!("{}/{}", a.label(), b.label()))
@@ -677,6 +748,14 @@ fn main() -> anyhow::Result<()> {
         (rows as usize * row_len * 4) as f64 / 1e6,
         pct(contested),
     );
+    if let Some((points, fit)) = args.enrich {
+        let kept = n_boards as u64 - rejected;
+        eprintln!(
+            "teacher-dump: --enrich {points}:{fit} kept {kept} of {n_boards} deals \
+             ({:.2}%); rejected deals never reached the bidder.",
+            100.0 * kept as f64 / n_boards.max(1) as f64,
+        );
+    }
     eprintln!("top advancing calls:");
     let mut hist: Vec<(String, u64)> = call_hist.into_iter().collect();
     hist.sort_by_key(|(_, count)| std::cmp::Reverse(*count));
@@ -734,4 +813,36 @@ fn git_sha() -> String {
         .filter(|o| o.status.success())
         .and_then(|o| String::from_utf8(o.stdout).ok())
         .map_or_else(|| "unknown".to_string(), |s| s.trim().to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use contract_bridge::{Seat, Suit};
+
+    #[test]
+    fn enrich_thresholds_parse_as_hcp_then_fit() {
+        assert_eq!(parse_enrich("28:9"), Ok((28, 9)));
+        assert!(parse_enrich("28").is_err(), "no separator");
+        assert!(parse_enrich("28:x").is_err(), "fit is not a number");
+    }
+
+    /// The raw-hand test must ignore spades: a spade ask is 4NT under either
+    /// card, so a spade fit carries no configuration signal and accepting on
+    /// one would spend the whole enriched slice on deals that cannot diverge.
+    #[test]
+    fn the_raw_hand_test_ignores_spades() {
+        // North holds all thirteen spades and all his side's points; the best
+        // *non*-spade fit at the table is E-W's nine (diamonds, and clubs).
+        let deal: FullDeal = "N:AKQJT98765432... .98765.T987.T987 \
+                              .AKQJT.AKQJ.AKQJ .432.65432.65432"
+            .parse()
+            .expect("a PBN deal, North first");
+        assert_eq!(deal[Seat::North][Suit::Spades].len(), 13, "a 13-card fit");
+        assert_eq!(
+            slam_ish(&deal),
+            (40, 9),
+            "all forty points to N-S, and the fit is E-W's nine — not the spade thirteen",
+        );
+    }
 }

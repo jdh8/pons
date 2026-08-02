@@ -41,6 +41,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   configuration the card can express, or two cells collide into identical
   vectors with contradictory targets.
 
+- **`dump-teacher --replay` and `--enrich`, and the number that made them
+  necessary.** `--replay` bids each board at *every* `--cell` instead of
+  rotating one per board, so a deal appears once per configuration: two rows
+  identical in all 366 non-card features, differing only at slot 77
+  (`Kickback 1430`). `--enrich HCP:FIT` keeps only deals whose raw hands hold
+  that many combined points and that long a **non-spade** fit somewhere —
+  applied before the bidder, so acceptance cannot bias what the teacher says.
+
+  Together they measure the learnability problem instead of assuming it. Over
+  20,000 uniform bank deals, 198,219 such matched pairs carry an identical
+  teacher target and **32 do not** — 0.0161%. The 32 are `4♦` against `4NT`,
+  the relocated club ask, which is the entire convention. So the net sees about
+  **6200 pairs saying the card slot changes nothing for every one saying it
+  changes the call**, and every one of the 32 moves the argmax, so there is no
+  softer "the distribution shifted" population to fall back on.
+
+  The new `probe-kickback-yield` prices the filter over a million deals:
+  `--enrich 28:9` accepts 4.9% of them and **multiplies the divergence rate
+  13.3×** (0.139% → 1.849%), `30:10` accepts 0.49% for **31.7×**. The pair-level
+  dump agrees independently at 11.0–12.3× on bank deals, and the two acceptance
+  rates agree to a tenth of a point (4.92% against 4.84%). Enrichment
+  converts bidding time — the binding cost — into bank rows, which are the
+  resource we have spare; `28:9` is the knee at 54 deals bid per divergent
+  board against 1100 drawn. Mixture ratio (250k uniform + 500k drawn enriched,
+  ~18% of the corpus) and the post-training diagnostic that actually settles
+  "did the net learn the bit" — flip slot 77 on held-out moving pairs and
+  require the output to change — are in
+  [docs/ai-bidder/configured-net.md](docs/ai-bidder/configured-net.md).
+
+  Building the probe caught a trap worth recording: measured against
+  `american()` the two arms diverge on **35%** of deals, because `set_kickback`
+  swaps the whole neural twin. The distillation teacher is `american_instinct()`
+  — deterministic, so the arms differ by the kickback rules alone — and against
+  it the rate is 0.139%. A configured-net measurement taken against the
+  net-floored system is measuring the twin, not the convention.
+
 ### Changed
 
 - **`dump-teacher` can draw from the banks without reading them whole.**
