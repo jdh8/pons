@@ -12,9 +12,7 @@ use clap::Parser;
 use contract_bridge::auction::{Auction, Call};
 use contract_bridge::{AbsoluteVulnerability, Hand, Seat};
 use pons::bidding::context::relative;
-use pons::bidding::instinct::{
-    set_keycard_answer_gates, set_keycard_minors, set_kickback, set_queen_ask,
-};
+use pons::bidding::instinct::{set_kickback, set_rkcb_minors};
 use pons::bidding::{Stance, System, american};
 use pons::scoring::final_contract;
 
@@ -40,10 +38,8 @@ struct Args {
 }
 
 fn knobs(kickback: bool) {
-    set_keycard_minors(true);
+    set_rkcb_minors(true);
     set_kickback(kickback);
-    set_keycard_answer_gates(!kickback);
-    set_queen_ask(true);
 }
 
 fn main() {

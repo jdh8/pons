@@ -311,16 +311,6 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_natural_reading: bool,
 
-    /// Drop the RKCB ask's agreement for our side
-    /// (`instinct::set_rkcb_announce`, crate default on but inert unless
-    /// `--ns-announced-reading` is also passed).  The attribution arm: the
-    /// agreement overlay's two halves are nested, so running
-    /// `--ns-announced-reading --no-ns-rkcb-announce` against
-    /// `--ns-announced-reading` isolates the pilot from the alerted-only union
-    /// it rides on.  Measured bid-inert at 5 boards in 60k.
-    #[arg(long, default_value_t = false)]
-    no_ns_rkcb_announce: bool,
-
     /// Blank every reading our nets see (`features::set_blind_inference`, crate
     /// default off — diagnostic, never ship it on).  The reading program's
     /// negative control: each generator of readings tightens a box and measures
@@ -448,12 +438,6 @@ struct Args {
     /// (restores the opener-decides direct `1NT–4♥/4♠` at 15-18); on by default.
     #[arg(long, default_value_t = false)]
     no_ns_texas_slam_drive: bool,
-
-    /// Disable the plain-4NT minor-suit keycard (strong-2♣ minor raise and
-    /// inverted-minor `1m–2m–3NT–4NT`; restores the pre-keycard blind 6m jump /
-    /// 3NT top-out); on by default.  Off-switch for the A7 re-measure.
-    #[arg(long, default_value_t = false)]
-    no_ns_minor_keycard: bool,
 
     /// Disable garbage (drop-dead) Stayman: a weak 2♣ to escape 1NT, passing
     /// opener's 2♦/2♥/2♠; on by default.  Off-switch for the A/B.
@@ -1045,11 +1029,14 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_floor_rkcb: bool,
 
-    /// Carve the floor's keycard ask back to agreed majors (default off, i.e.
-    /// the ask reaches minors too): the pre-2026-08 baseline, which arm B of
-    /// the kickback A/B beat by +0.0039/board vul none and +0.0050 vul both.
+    /// Carve RKCB back to agreed majors, in **both** layers (default off, i.e.
+    /// it reaches minors too): the floor's `keycard_trump` carve and the book's
+    /// two minor vehicles are one agreement and one knob.  The pre-2026-08
+    /// baseline, which arm B of the kickback A/B beat by +0.0039/board vul none
+    /// and +0.0050 vul both, and which the book half beat by +5.41/+7.05
+    /// IMPs/divergent.
     #[arg(long, default_value_t = false)]
-    no_ns_keycard_minors: bool,
+    no_ns_rkcb_minors: bool,
 
     /// Keep the keycard ask on 4NT (kickback is on by default): the relocated
     /// ask puts 4♦ in clubs, 4♥ in diamonds (Redwood) and 4♠ in hearts, so
@@ -1439,7 +1426,7 @@ fn main() -> anyhow::Result<()> {
     pons::bidding::instinct::set_rubens_advances(args.ns_rubens);
     pons::bidding::set_rubens_transfer_reading(!args.no_ns_rubens_reading);
     pons::bidding::instinct::set_floor_rkcb(!args.no_ns_floor_rkcb);
-    pons::bidding::instinct::set_keycard_minors(!args.no_ns_keycard_minors);
+    pons::bidding::instinct::set_rkcb_minors(!args.no_ns_rkcb_minors);
     pons::bidding::instinct::set_kickback(!args.no_ns_kickback);
     pons::bidding::set_control_bid_reading(!args.no_ns_control_bid_reading);
     pons::bidding::set_cue_reading(!args.no_ns_cue_reading);
@@ -1496,7 +1483,6 @@ fn main() -> anyhow::Result<()> {
     pons::bidding::inference::set_natural_reading(args.ns_natural_reading);
     pons::bidding::evaluator::set_eval_auction(!args.no_ns_eval_auction);
     pons::bidding::evaluator::set_eval_shape(args.ns_eval_shape);
-    pons::bidding::instinct::set_rkcb_announce(!args.no_ns_rkcb_announce);
     pons::bidding::features::set_blind_inference(args.ns_blind_inference);
     pons::bidding::set_sum_closure(args.ns_sum_closure);
     pons::bidding::set_upgrade_closure(args.ns_upgrade_closure);
@@ -1554,7 +1540,6 @@ fn main() -> anyhow::Result<()> {
     pons::bidding::american::set_transfer_super_accept(args.ns_transfer_super_accept);
     pons::bidding::american::set_transfer_slam_try(!args.no_ns_transfer_slam_try);
     pons::bidding::american::set_texas_slam_drive(!args.no_ns_texas_slam_drive);
-    pons::bidding::american::set_minor_keycard(!args.no_ns_minor_keycard);
     pons::bidding::american::set_transfer_gf_majors(!args.no_ns_transfer_gf_majors);
     pons::bidding::american::set_minor_min_to_3nt(args.ns_minor_min_to_3nt);
     pons::bidding::american::set_transfer_gf_hearts(!args.no_ns_transfer_gf_hearts);

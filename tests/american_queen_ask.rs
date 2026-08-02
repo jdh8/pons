@@ -1,4 +1,4 @@
-//! Integration tests for the queen relay (`set_queen_ask`): the whole
+//! Integration tests for the queen relay: the whole
 //! conversation played through the real [`Stance`], not a bare rule table.
 //!
 //! Per-node checks miss whole families, and a book node with finite mass
@@ -13,14 +13,12 @@
 
 mod common;
 use common::*;
-use pons::bidding::instinct::set_queen_ask;
 
 const P: Call = Call::Pass;
 
 /// A stance built with the relay authored, with the flag left set so the
 /// classification-time half is armed too.
 fn armed() -> impl System {
-    set_queen_ask(true);
     stance()
 }
 
@@ -43,19 +41,6 @@ fn after_the_answer() -> Vec<Call> {
 /// ♠AKJ85 ♥AK2 ♦KJ2 ♣42 — three keycards (♠A, ♥A, ♠K), no trump queen.
 const QUEENLESS_ASKER: &str = "AKJ85.AK2.KJ2.42";
 
-/// Off the knob the shipped auction is untouched: four combined keycards bet
-/// the small slam without ever asking about the queen.
-#[test]
-fn knob_off_bets_the_slam_blind() {
-    set_queen_ask(false);
-    let system = stance();
-    assert_eq!(
-        best_call(&system, &after_the_answer(), QUEENLESS_ASKER),
-        call(6, Strain::Spades),
-    );
-}
-
-/// On the knob the asker relays one step instead of guessing.
 #[test]
 fn relay_fires_through_the_stance() {
     let system = armed();

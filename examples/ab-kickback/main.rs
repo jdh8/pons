@@ -1,28 +1,19 @@
-//! Measure the keycard ladder's two capability adds — the relocated ask
-//! (Kickback/Redwood) and the queen relay — as duplicate A/B matches.
+//! Measure the keycard ladder's relocated ask (Kickback/Redwood) as a
+//! duplicate A/B match.
 //!
-//! Five arms, four knobs, so each coupled change stays attributable:
+//! Three arms, two knobs, so each coupled change stays attributable:
 //!
-//! | arm | `set_keycard_minors` | `set_kickback` | `set_keycard_answer_gates` | `set_queen_ask` | what it is |
-//! |---|---|---|---|---|---|
-//! | `plain` | off | off | off | off | today: majors-only trump, the ask is 4NT |
-//! | `minors` | on | off | off | off | minor asks at plain 4NT — round 4's losing arm, re-priced |
-//! | `kickback` | on | on | off | off | full Kickback: 4♦/4♥ Redwood, 4♠ over hearts |
-//! | `gated` | on | off | on | off | the shipped default |
-//! | `queen` | on | off | on | **on** | the shipped default plus the queen relay |
-//! | `kickback-queen` | on | on | off | **on** | Kickback plus the queen relay |
+//! | arm | `set_rkcb_minors` | `set_kickback` | what it is |
+//! |---|---|---|---|
+//! | `plain` | off | off | majors-only trump, the ask is 4NT |
+//! | `minors` | on | off | minor asks at plain 4NT — round 4's losing arm, re-priced |
+//! | `kickback` | on | on | the shipped default: 4♦/4♥ Redwood, 4♠ over hearts |
 //!
-//! The relay's two cells are `queen − gated` (the ship decision for the default
-//! system) and `kickback-queen − kickback` (the relay where the relocated ask
-//! has already bought it room).  Each pair moves exactly one knob.
-//!
-//! Why the relay should pay, and where: the 1430 answers disclose the trump
-//! queen only on the two-keycard rungs, so after a one-or-four or none-or-three
-//! answer the asker has been betting six on four keycards blind.  §7.3.4's
-//! residual loss class — the relocated arm settling at five where the baseline's
-//! forced six makes — is the pre-registered target.  Expect a **grand-heavy**
-//! divergent set, so apply `docs/measurement.md`'s slam-boundary shave before
-//! calling a thin win.
+//! The answer gates and the queen relay were arms here until 2026-08-02, when
+//! both stopped being knobs — the gates because "off" is a poisoned reading
+//! rather than a playable agreement, the relay because there is no partnership
+//! that hears a keycard answer and declines to find out about the queen.  Their
+//! arms are gone with them; the ledger keeps the cells they measured.
 //!
 //! For the relocation: `kickback − plain` is its ship decision and runs first;
 //! `kickback − minors` prices the relocation on its own; `minors − plain`
@@ -36,12 +27,10 @@
 //! ask*.  The interesting boards are therefore the ones where the answer used to
 //! land past the trump suit's own five level and the asker had nowhere to stop.
 //!
-//! **Both knob regimes must be armed.** `set_kickback` and `set_queen_ask` gate
-//! rule *presence* at build time — the reading's `alerted` test is structural,
-//! so an always-present alerted rule on 4♥/4♠ (or, for the relay, on 5♦/5♥/5NT)
-//! would suppress the natural reading of those calls even in the off arm — *and*
-//! the recognizers at classification time.  `set_queen_ask` is read at build
-//! time twice over, by `instinct()` and by the book's `install_rkcb`.  So: one
+//! **Both knob regimes must be armed.** `set_kickback` gates rule *presence* at
+//! build time — the reading's `alerted` test is structural, so an always-present
+//! alerted rule on 4♥/4♠ would suppress the natural reading of those calls even
+//! in the off arm — *and* the recognizers at classification time.  So: one
 //! stance built per arm, and the flags re-set per call by side inside the
 //! bidding loop (thread-locals do not cross into rayon workers on their own).
 //!
@@ -49,7 +38,7 @@
 //! cargo run --release --example ab-kickback -- \
 //!     --feature kickback --baseline plain --count 10000000 --sd
 //! cargo run --release --example ab-kickback -- \
-//!     --feature queen --baseline gated --count 10000000 --sd
+//!     --feature kickback --baseline minors --count 10000000 --sd
 //! ```
 
 use clap::{Parser, ValueEnum};
@@ -59,9 +48,7 @@ use ddss::{NonEmptyStrainFlags, Solver};
 use pons::Accumulator;
 use pons::american;
 use pons::bidding::Stance;
-use pons::bidding::instinct::{
-    keycard_ask_at, set_keycard_answer_gates, set_keycard_minors, set_kickback, set_queen_ask,
-};
+use pons::bidding::instinct::{keycard_ask_at, kickback_offered_at, set_kickback, set_rkcb_minors};
 use pons::scoring::{final_contract, imps, ns_score_contract, ns_score_pd};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -79,49 +66,19 @@ enum Arm {
     Plain,
     /// Minor asks at plain 4NT — round 4's losing arm, re-priced
     Minors,
-    /// Full Kickback: minor asks relocated to 4♦/4♥ (Redwood), hearts to 4♠.
-    /// Carries the gates too, so `kickback` vs `gated` differs by exactly
-    /// `set_kickback` and its verdict speaks to a default-on flip.
+    /// Full Kickback: minor asks relocated to 4♦/4♥ (Redwood), hearts to 4♠
     Kickback,
-    /// The shipped default since 2026-08-01: minors plus
-    /// `set_keycard_answer_gates` (the always-present 1430/ROPI/DOPI/DEPO
-    /// answer rules confined to a live ask window).  The plain/minors arms
-    /// disarm the gates, preserving the readings they were originally
-    /// measured under.
-    Gated,
-    /// The shipped default plus the queen relay — the ship decision for the
-    /// default system, measured against `gated`
-    Queen,
-    /// Kickback plus the queen relay, measured against `kickback` — the
-    /// relocated ask is what buys the relay its room
-    KickbackQueen,
 }
 
 impl Arm {
     /// Whether this arm lifts `keycard_trump`'s majors-only carve
     const fn minors(self) -> bool {
-        matches!(
-            self,
-            Self::Minors | Self::Kickback | Self::Gated | Self::Queen | Self::KickbackQueen
-        )
+        matches!(self, Self::Minors | Self::Kickback)
     }
 
     /// Whether this arm relocates the ask onto the kickback ladder
     const fn kickback(self) -> bool {
-        matches!(self, Self::Kickback | Self::KickbackQueen)
-    }
-
-    /// Whether this arm face-gates the always-present answer rules
-    const fn gates(self) -> bool {
-        matches!(
-            self,
-            Self::Gated | Self::Kickback | Self::Queen | Self::KickbackQueen
-        )
-    }
-
-    /// Whether this arm carries the queen relay (and the king ask above it)
-    const fn queen(self) -> bool {
-        matches!(self, Self::Queen | Self::KickbackQueen)
+        matches!(self, Self::Kickback)
     }
 
     const fn label(self) -> &'static str {
@@ -129,9 +86,6 @@ impl Arm {
             Self::Plain => "plain",
             Self::Minors => "minors",
             Self::Kickback => "kickback",
-            Self::Gated => "gated",
-            Self::Queen => "queen",
-            Self::KickbackQueen => "kickback-queen",
         }
     }
 }
@@ -178,10 +132,8 @@ struct Args {
 
 /// Arm the classify-time half of the knobs for `arm`
 fn arm_knobs(arm: Arm) {
-    set_keycard_minors(arm.minors());
+    set_rkcb_minors(arm.minors());
     set_kickback(arm.kickback());
-    set_keycard_answer_gates(arm.gates());
-    set_queen_ask(arm.queen());
 }
 
 /// The keycard ask `arm` made at one table, if any — the trump it asked in and
@@ -198,7 +150,12 @@ fn arm_knobs(arm: Arm) {
 /// conversation reached it.  The first one wins, because a second ask on the
 /// same auction is a later rung of the same conversation, which
 /// `keycard_ask_at` already declines to call an ask.
-fn table_ask(auction: &Auction, dealer: Seat, arm: Arm, arm_is_ns: bool) -> Option<(Suit, bool)> {
+fn table_ask(
+    auction: &Auction,
+    dealer: Seat,
+    arm: Arm,
+    arm_is_ns: bool,
+) -> Option<(Suit, bool, bool)> {
     arm_knobs(arm);
     let calls: Vec<Call> = auction.iter().copied().collect();
     (0..calls.len()).find_map(|index| {
@@ -207,12 +164,21 @@ fn table_ask(auction: &Auction, dealer: Seat, arm: Arm, arm_is_ns: bool) -> Opti
         if north_south != arm_is_ns {
             return None;
         }
-        keycard_ask_at(&calls, index).map(|(_bid, trump, relocated)| (trump, relocated))
+        keycard_ask_at(&calls, index).map(|(_bid, trump, relocated)| {
+            // A 4NT ask made while the ladder was offering a relocation is a
+            // seat the convention was available for and did not get: the
+            // authored book installs RKCB at absolute 4NT and has never been
+            // relocated (bba-kickback.md phase 4, still `not started`).
+            // Separating it from a lane where the ladder claims nothing is the
+            // point — the first is a missed relocation, the second is correct.
+            let offered = !relocated && kickback_offered_at(&calls, index).is_some();
+            (trump, relocated, offered)
+        })
     })
 }
 
 /// The keycard ask `arm` made on this board, at whichever table it made one.
-fn arm_ask(board: &Board, arm: Arm, is_feature: bool) -> Option<(Suit, bool)> {
+fn arm_ask(board: &Board, arm: Arm, is_feature: bool) -> Option<(Suit, bool, bool)> {
     // The feature is N-S at table A and E-W at table B; the baseline mirrors it.
     table_ask(&board.table_a, board.dealer, arm, is_feature)
         .or_else(|| table_ask(&board.table_b, board.dealer, arm, !is_feature))
@@ -258,10 +224,10 @@ fn per_trump_census(
         // the baseline's, so a board the feature *stopped* asking on is still
         // charged to that lane rather than hidden in the net bucket.
         let label = match (ask_a, ask_b) {
-            (Some((trump, relocated)), _) => {
-                format!("{trump:?} {}", if relocated { "relocated" } else { "4NT" })
-            }
-            (None, Some((trump, _))) => format!("{trump:?} ask only in baseline"),
+            (Some((trump, true, _)), _) => format!("{trump:?} relocated"),
+            (Some((trump, false, true)), _) => format!("{trump:?} 4NT *ladder offered*"),
+            (Some((trump, false, false)), _) => format!("{trump:?} 4NT (no claim)"),
+            (None, Some((trump, ..))) => format!("{trump:?} ask only in baseline"),
             (None, None) => "no keycard ask (net alone)".to_string(),
         };
         bump(label, swings_pd[index], swings_dd[index]);
@@ -286,9 +252,9 @@ fn per_trump_census(
     }
 }
 
-/// Build one stance per arm.  `set_kickback` and `set_queen_ask` are read at
-/// build time for rule presence — the latter by the book's `install_rkcb` too —
-/// so the arms cannot share a book.
+/// Build one stance per arm.  `set_kickback` is read at build time for rule
+/// presence, and `set_rkcb_minors` by the book's `install_rkcb`, so the arms
+/// cannot share a book.
 fn build(arm: Arm) -> Stance {
     arm_knobs(arm);
     let stance = american().against();

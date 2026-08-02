@@ -6395,7 +6395,7 @@ mod tests {
         ];
         set_kickback(true);
         let spades = read_booked(&auction).partner().length(Suit::Spades).min;
-        set_kickback(false); // restore the default (off) for the rest of the suite
+        set_kickback(true); // restore the default (on) for the rest of the suite
         assert!(spades < 4, "the relocated ask is not a natural spade suit");
     }
 
@@ -6404,16 +6404,20 @@ mod tests {
     /// always alerted, so a **natural** floor 5♦ — no ask anywhere on the
     /// face — reads as a keycard answer: the union with the answer rules' ⊤
     /// projection erases partner's diamond floor and the `alerted` bit
-    /// suppresses the natural walk.  `set_keycard_answer_gates` confines the
-    /// rules to a live ask window and the natural reading returns.
+    /// suppresses the natural walk.  The `Rules::face` gates confine the
+    /// rules to a live ask window, so the natural reading survives.
+    ///
+    /// This was a differential test against `set_keycard_answer_gates`.  That
+    /// knob is gone — its off arm was the poison itself, not an agreement any
+    /// partnership could play — so the guard is now absolute: partner's
+    /// diamond floor must not be erased.  Remove the gates and it goes to
+    /// nothing, which is exactly the regression being pinned.
     #[test]
-    fn answer_gates_restore_natural_five_diamonds() {
-        use crate::bidding::instinct::{set_keycard_answer_gates, set_kickback};
-        // The plain arm on purpose, now that kickback is the default.  The
-        // knob under test only *has* an off-position here: the kickback arm
-        // installs its answer rules with a bare `keycard_asked_face` gate and
-        // no `!keycard_answer_gates_now()` escape, so there the rules are
-        // always confined and both readings would agree trivially.
+    fn answer_gates_spare_a_natural_five_diamonds() {
+        use crate::bidding::instinct::set_kickback;
+        // The plain arm on purpose, now that kickback is the default: the
+        // poison this pins is the *default system's* five-level answers, not
+        // the relocated ladder's.
         set_kickback(false);
         let auction = [
             bid(1, Strain::Diamonds),
@@ -6425,13 +6429,12 @@ mod tests {
             bid(5, Strain::Diamonds),
             Call::Pass,
         ];
-        set_keycard_answer_gates(false);
-        let poisoned = read_booked(&auction).partner().length(Suit::Diamonds).min;
-        set_keycard_answer_gates(true); // restore the default (on since 2026-08-01)
-        let gated = read_booked(&auction).partner().length(Suit::Diamonds).min;
+        let diamonds = read_booked(&auction).partner().length(Suit::Diamonds).min;
+        set_kickback(true); // restore the default (on) for the rest of the suite
         assert!(
-            gated > poisoned,
-            "the gate must restore the natural diamond floor ({gated} vs {poisoned})"
+            diamonds >= 2,
+            "a natural 5♦ with no ask anywhere on the face must keep its \
+             diamond floor, got {diamonds}"
         );
     }
 
@@ -7385,20 +7388,14 @@ mod tests {
 
     /// The same invariant over the queen relay's own nodes
     ///
-    /// [`set_queen_ask`] gates rule *presence* at book-construction time, so the
-    /// default build never sees the relay's rungs and the invariant above cannot
-    /// reach them.  A knob-on arm is what makes "every artificial call is
-    /// alerted" true of the treatment rather than only of the shipped default.
-    ///
-    /// [`set_queen_ask`]: crate::bidding::instinct::set_queen_ask
+    /// The relay's rungs land on 5NT and 6♣–6♥ — ordinary contracts the
+    /// general sweep reaches by other routes — so this walks the relay's own
+    /// tables directly rather than trusting that sweep to have covered them.
     #[test]
     fn queen_relay_calls_are_alerted() {
         use crate::bidding::american::american;
-        use crate::bidding::instinct::set_queen_ask;
 
-        set_queen_ask(true);
         let pair = american();
-        set_queen_ask(false);
         let mut worklist = Vec::new();
         for (phase, trie) in [
             ("constructive", &pair.constructive.0),
@@ -7973,17 +7970,21 @@ mod tests {
         // double) already close knob-on.  Re-pins ride the
         // docs/dnf-migration.md ledger like the sibling's.
         //
-        // `points` went 2 → 8 when kickback shipped default-on (2026-08-02):
-        // the relocated asks on 4♦/4♥/4♠ join the 4NT one in each of the two
-        // constructive columns, and they gate on the `11+ points` slam-entry
-        // bar while reading as keycard asks.  Same class as the sibling's nine
-        // HCP-axis leaks — the strength floor is deliberately not projected,
-        // because projecting it would narrow partner at every ask.  Recorded,
-        // not resolved (docs/ai-bidder/bba-kickback.md §7.7).
+        // `points` went 2 → 8 → **0** over 2026-08-02.  All three numbers are
+        // one mechanism: the keycard ask carried
+        // `announced(slam_entry_reached(), points(11..))`, whose *agreement*
+        // half is pure disclosure — the judgment is the support-point entry
+        // bar, so the 11 was never a gate on anything.  Two leaks while only
+        // 4NT asked, eight once kickback added three more asks across the two
+        // constructive columns, and none at all once `set_rkcb_announce` was
+        // deleted for announcing a floor the ask does not honour.  Deleting a
+        // false announcement closed the leak outright rather than deferring
+        // it, which is why this row is not on the §7.7 worklist with the
+        // sibling's nine HCP-axis leaks.
         let pinned: [(&str, usize, usize); 6] = [
             ("HCP", 14, 14),
             ("length", 28, 19),
-            ("points", 8, 8),
+            ("points", 0, 0),
             ("suit HCP", 2, 0),
             ("support", 0, 0),
             ("support points", 0, 0),

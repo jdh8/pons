@@ -7,9 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+- **Four RKCB knobs deleted — they were never agreements.** A knob has to name
+  a stance a partnership could actually play; each of these named a broken
+  build, so the off arm was not a system but a bug with a flag on it.
+
+  - `set_keycard_answer_gates` — "off" is §7.3.1's union poison, a natural 5♦
+    read as a keycard answer. Bid-inert besides: **0 divergent boards over
+    1M×2**, 3 over 200k.
+  - `set_queen_ask` — "off" is unbuildable against the only opponent we measure
+    against. BBA relays for the queen unconditionally and has no toggle for it,
+    so no retrain could give us an off arm to play into; the knob only let our
+    book desynchronise from our floor. The measured cells stand in the ledger.
+  - `set_queen_fit` / `set_queen_buff_fit` — development tuning, settled at ten
+    and nine and now plain constants. Both bars keep their `probe-trump-queen`
+    evidence; only the ability to move them at runtime is gone.
+  - `set_rkcb_announce` — it announced "11+ points" with the ask while the ask
+    itself fires on less, which is a **false** disclosure rather than an inert
+    one. Its pilot had measured a wash. `examples/probe-announced-rkcb` goes
+    with it, along with the `RkcbAgreement` overlay it existed to price.
+
+- **`set_minor_keycard` and `set_keycard_minors` merged into `set_rkcb_minors`**
+  (`--no-ns-rkcb-minors`). One agreement was wearing two knobs — the book half
+  and the floor half — so two of the four stances were unplayable: a book that
+  asks on a minor over a floor that cannot answer it, and the reverse. The
+  single knob is read at book construction and at classification both.
+
+  `examples/ab-kickback` loses its `gated`, `queen` and `kickback-queen` arms
+  with the knobs behind them; six arms collapse to three (`plain`, `minors`,
+  `kickback`), and the mispairing that cost a measurement is now
+  unrepresentable.
+
 ### Added
 
-- **A queen ask for RKCB and kickback** (`set_queen_ask`, **default on**).
+- **A queen ask for RKCB and kickback** (unconditional).
   pons had no queen ask at all: the trump queen lived only in the
   two-keycard rungs (step 3 denies it, step 4 shows it), so after a one-or-four
   or none-or-three answer — the common case — the asker bet six on four keycards
@@ -74,7 +106,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the chance of no trump loser is the chance the queen falls in two rounds: ~50%
   at eight cards (the finesse), 40.7% + 49.7%÷4 = **53.1%** at nine, and every
   2-1 break = **78.0%** at ten. A grand breaks even near 56–58%, so only ten
-  trumps may answer "queen" (`set_queen_fit`, default 10, BBA's bar) — letting
+  trumps may answer "queen" (`QUEEN_FIT`, BBA's bar) — letting
   nine claim it would make the reply mean *honour or length* in the one place a
   wrong reading costs a grand.
 
@@ -84,7 +116,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   double-dummy (51.9% de-biased) on an eight-card fit and **76.0%** (82.9%) on a
   nine-card fit. So the answerer jumps to **six of trumps** — no queen, but a
   buff partner cannot see: the ninth trump, or a side-suit void
-  (`set_queen_buff_fit`, default 9). Six never claims the honour and never gets
+  (`QUEEN_BUFF_FIT`, nine). Six never claims the honour and never gets
   passed.
 
   The asker uses the shorter bar for a different question. "Can the reply change
@@ -294,13 +326,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   single `conversation_rung` — the one place that decides whether a call belongs
   to a keycard conversation, whoever started it. The two arms are gated
   differently on purpose: the answer arm is always live, because the 1430 answer
-  exists whenever the ask does, while the relay arms ride `set_queen_ask`. The
+  exists whenever the ask does, while the relay arms ride `relay_window_face`. The
   answer is purely positional — it derives no trump and does no arithmetic
   beyond its own step — so the handler needs nothing but the auction face.
 
   **Every kickback number on record predates this**, including the wash that
-  `set_kickback` re-measured, because the guard sat entirely behind
-  `set_queen_ask` and plain `set_kickback` therefore ran unprotected. Those runs
+  `set_kickback` re-measured, because the guard sat entirely behind the
+  then-knob-gated relay and plain `set_kickback` therefore ran unprotected. Those runs
   measured the relocation *plus* a phantom-suit generator. Nothing is claimed
   for kickback until the repaired ladder is measured
   (docs/ai-bidder/bba-kickback.md §7.7).
@@ -328,8 +360,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **The floor's keycard ask now reaches agreed minors** (`set_keycard_minors`,
-  **default on**; `--no-ns-keycard-minors` restores the old behaviour).
+- **The floor's keycard ask now reaches agreed minors** (`set_rkcb_minors`,
+  **default on**; `--no-ns-rkcb-minors` restores the old behaviour).
   `keycard_trump` was majors-only on round 4 of the M6.4 A/B — at combined 33
   the milestone 6NT power-blast out-scored minor and thin 6-2 suit slams on
   double-dummy — and **that verdict has expired.** Re-priced on the 2026-08
@@ -369,7 +401,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   promises only "14+, 2+♦" and does not deny a major.
 
 - **The keycard answer rules are face-gated in every stance**
-  (`set_keycard_answer_gates`, **default on**): §7.3.1's union poison was
+  (unconditional): §7.3.1's union poison was
   never kickback-specific — the plain 1430 answers (5♣–5♠) and the
   ROPI/DOPI/DEPO rules on X/XX/Pass are alerted and present in every stance,
   so the shipped default alerted every floor-classified five-level bid,
