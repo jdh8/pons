@@ -344,6 +344,38 @@ fn main() -> anyhow::Result<()> {
             expect_call: "",
             expect_label: None,
         },
+        // jdh8 proposes carrying pons-only conventions (South African Texas, the
+        // queen relay) on the card's spare `Not defined` rows, which BBA has no
+        // meaning for.  Free real estate only if writing one is genuinely inert:
+        // the rows all share a name, and `load_bbsa` sets conventions BY NAME, so
+        // a stray match would silently flip something of BBA's.  Control and
+        // test are the same deal; any difference in call or label refutes it.
+        //
+        // Both pass: `Not defined = 1` sticks (`get_conv` reads it back) and BBA
+        // bids identically, so the rows are genuinely spare.  Probing the other
+        // way, `South African Texas = 1` does *not* stick at all — an unknown
+        // name is a silent no-op, set does nothing and get returns 0 — which is
+        // what lets `card.rs`'s `PONS_SCHEMA` rename a slot instead of carrying
+        // meaning by row index.  Neither form can break an anchor run: `load_bbsa`
+        // passes rows verbatim and never checks that a toggle took.
+        Case {
+            label: "slot control: Not defined untouched",
+            actor: 2,
+            prefix: &[B1D, P, B3D, P, B4H, P],
+            hand: ("A54", "876", "QJ854", "K2"),
+            convs: &[("Kickback 1430", true)],
+            expect_call: "4♠",
+            expect_label: Some((4, "Kickback 1430, for !D")),
+        },
+        Case {
+            label: "slot test: Not defined = 1 — still inert?",
+            actor: 2,
+            prefix: &[B1D, P, B3D, P, B4H, P],
+            hand: ("A54", "876", "QJ854", "K2"),
+            convs: &[("Kickback 1430", true), ("Not defined", true)],
+            expect_call: "4♠",
+            expect_label: Some((4, "Kickback 1430, for !D")),
+        },
         Case {
             label: "♣ ask labeled; 1 kc → 4♥",
             actor: 2,

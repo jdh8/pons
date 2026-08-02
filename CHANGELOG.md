@@ -188,6 +188,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **The convention card discloses the keycard knobs instead of hardcoding
+  them.** `card.rs` pinned `Kickback 1430 = 0` unconditionally, so
+  `cards/American.bbsa` told BBA we play a natural 4♥ while `set_kickback` had
+  our own side treating it as the diamond ask — an undisclosed convention, and
+  disqualifying for any kickback-vs-BBA anchor (it never touched the
+  pons-vs-pons A/B, which has no BBA in the loop). The row now rides
+  `kickback_now()`; the knob is default-off, so the shipped cards are unchanged
+  by it. `King ask by available bid` likewise rides `queen_ask_now()` and, being
+  default-on, moves both golden cards `0 → 1` — the honest row for a king ask
+  that is the step above the queen answer rather than always 5NT, and a free one,
+  since that row is inert in BBA.
+
 - **The kickback ladder no longer claims a call it cannot own.** With diamonds
   set and spades bid — `1♦ P 1♠ P 2♦ P`, one of the commonest faces there is —
   `kickback_ladder` claimed **4♥** as RKCB(♦). But longest-first with ties to the

@@ -23,7 +23,10 @@
 //! * **constant** — a convention we do not author and no knob toggles
 //!   (`Ghestem`, `Benjamin 2D`, `Kickback`).  Written literally, with the
 //!   reason.
-//! * **filler** — the 123 `Not defined = 0` rows and the trailing
+//! * **pons-only** — a convention we play that EPBot's schema has no name for
+//!   (`South African Texas`), written on a filler slot under its own name.
+//!   Invisible to BBA either way; readable, unlike `Not defined`.
+//! * **filler** — the remaining `Not defined = 0` rows and the trailing
 //!   `Opponent type = 0`, emitted verbatim to keep the file's shape reviewable.
 //!
 //! # Limitation
@@ -39,6 +42,7 @@ use super::american::{
     major_support_double, new_minor_forcing, notrump_defense, notrump_minors,
     notrump_shape_setting, nt_splinter, responsive_takeout_enabled, transfer_super_accept, xyz,
 };
+use super::instinct::{kickback_now, queen_ask_now};
 use core::fmt;
 
 /// A generated `.bbsa` convention card
@@ -62,7 +66,7 @@ impl fmt::Display for Card {
         for (name, value) in &self.rows {
             writeln!(f, "{name} = {value}")?;
         }
-        for _ in 0..NOT_DEFINED {
+        for _ in 0..not_defined() {
             writeln!(f, "Not defined = 0")?;
         }
         writeln!(f, "Opponent type = 0")
@@ -74,7 +78,62 @@ impl fmt::Display for Card {
 /// BBA writes the card at a fixed length; the unused slots all carry the name
 /// `Not defined`.  They are inert (the loader passes them through by name) but
 /// preserved so a generated card diffs cleanly against one BBA exported.
+/// [`PONS_SCHEMA`] spends one apiece, so the rendered length never moves.
 const NOT_DEFINED: usize = 123;
+
+/// Filler rows left after [`PONS_SCHEMA`] has taken its slots.
+const fn not_defined() -> usize {
+    NOT_DEFINED - PONS_SCHEMA.len()
+}
+
+/// Conventions we play that EPBot's schema has **no name for**, carried on
+/// filler slots
+///
+/// A name EPBot does not know is a *silent no-op* in `epbot_set_conventions`:
+/// probed with `South African Texas = 1`, the set does nothing and the get reads
+/// back `0` — where a literal `Not defined = 1` does stick, and is merely
+/// behaviourally inert.  So these rows are exactly as invisible to BBA as the
+/// `Not defined = 0` they replace, while saying what they mean.
+///
+/// The name is not decoration; a spare slot cannot be documented any other way,
+/// and cannot be used *positionally* either.  The format has no comment syntax —
+/// `load_bbsa` rejects any non-empty line without ` = `, and BEN's own
+/// `BBA.py::load_ccs` unpacks `line.strip().split(' = ')` into exactly two under
+/// a bare `except` that calls `sys.exit(1)`, so a `#` line or a blank one kills
+/// the process rather than being skipped.  `load_ccs` also keys a **dict** by
+/// name, which collapses all 123 identically-named `Not defined` rows into one
+/// entry: meaning carried by row index would not survive the loader BBA's own
+/// side uses.
+///
+/// **A name here must not collide with one EPBot knows** — that row would then
+/// stick, and silently flip a real BBA convention.  [`SCHEMA`] is our
+/// transcription of EPBot's list, and `pons_rows_do_not_shadow_the_schema`
+/// enforces disjointness from it; there is no EPBot in `cargo test` to check
+/// against directly.
+const PONS_SCHEMA: &[&str] = &["South African Texas", "Queen ask by available bid"];
+
+/// The value of a [`PONS_SCHEMA`] row under the live knob state
+///
+/// # Panics
+///
+/// Panics if `name` is not in [`PONS_SCHEMA`].
+fn pons_row(name: &str) -> i32 {
+    match name {
+        // 1NT–4♣/4♦ transfers to the majors (`american/notrump.rs`), always on:
+        // the knobs beside it set the game-blast floor and the slam-drive
+        // reroute, not whether we play it.
+        "South African Texas" => 1,
+        // The queen relay, one step above the keycard answer.  BBA plays one
+        // too — `probe-bba-kickback` asserts its disclosure label, and reads
+        // back `hearts queen ask` / `no !H queen` — but the schema carries only
+        // *toggleable* conventions and BBA's relay is unconditional, so no row
+        // exists to express it.  Ours is knob-gated (`set_queen_ask`), and a
+        // card must be able to describe an A/B arm, so it needs the row that
+        // BBA does not.  Named beside the `King ask by available bid` it feeds.
+        "Queen ask by available bid" => i32::from(queen_ask_now()),
+        _ => panic!("`{name}` is in `PONS_SCHEMA` with no value in `pons_row`"),
+    }
+}
 
 /// Every convention row name, in the card's fixed schema order
 ///
@@ -238,6 +297,7 @@ pub fn american_card() -> Card {
         rows: SCHEMA
             .iter()
             .map(|name| (*name, american_row(name)))
+            .chain(PONS_SCHEMA.iter().map(|name| (*name, pons_row(name))))
             .collect(),
     }
 }
@@ -383,8 +443,13 @@ fn american_row(name: &str) -> i32 {
         | "Crosswood 1430"
         | "Kickback 0123"
         | "Kickback 0314"
-        | "Kickback 1430"
         | "Exclusion" => 0,
+        // We play 1430, and under `set_kickback` we play it **relocated** — so
+        // this row has to ride the knob.  Hardcoding it to 0 disclosed a system
+        // in which our 4♥ is natural while our own side treated it as a diamond
+        // ask: an undisclosed convention, which is a fairness problem before it
+        // is a measurement one.  It invalidates any kickback-vs-BBA anchor.
+        "Kickback 1430" => i32::from(kickback_now()),
         // EPBot's `conventions[58]` is the *side-suit* super-accept: after a
         // transfer, opener bids a feature above the completion (its gate wants
         // 4+ support with a doubleton or shorter somewhere).  `notrump.rs` only
@@ -419,7 +484,15 @@ fn american_row(name: &str) -> i32 {
         // ask across.  The relocation itself stays undisclosed — BBA's schema
         // cannot express a king ask derived from the ladder, since its own is
         // anchored at 5NT absolutely and does not move under kickback.
-        "King ask by available bid" => 0,
+        //
+        // Off the relay that stays true and this row is 0.  On it — the default
+        // since 2026-08-02 — our king ask *is* the next available bid, so 1 is
+        // simply the honest value, and it is free: BBA ignores the row, which is
+        // exactly what makes it usable as a slot that describes us rather than
+        // instructing them (jdh8).  `King ask by 5NT` stays 1 beside it, because
+        // that is the row BBA acts on and dropping it would tell them we have no
+        // king ask at all.
+        "King ask by available bid" => i32::from(queen_ask_now()),
         // Michaels and Unusual 2NT we author outright; `set_unusual_notrump_defense`
         // gates only our *defense* to theirs, not our own two-suiter bids.
         "Michaels Cuebid" | "Unusual 2NT" => 1,
@@ -560,11 +633,37 @@ mod tests {
         assert_eq!(names.len(), count, "duplicate row name in the .bbsa schema");
     }
 
+    /// A `PONS_SCHEMA` name EPBot recognises would *stick*, silently flipping a
+    /// real BBA convention instead of occupying a spare slot.  `SCHEMA` is the
+    /// transcription of EPBot's list, so disjointness from it is the check
+    /// available here (no EPBot in `cargo test`).
+    #[test]
+    fn pons_rows_do_not_shadow_the_schema() {
+        for name in PONS_SCHEMA {
+            assert!(
+                !SCHEMA.contains(name),
+                "`{name}` is a real EPBot row — a card that sets it would change BBA's bidding"
+            );
+        }
+        let mut names = PONS_SCHEMA.to_vec();
+        names.sort_unstable();
+        let count = names.len();
+        names.dedup();
+        assert_eq!(names.len(), count, "duplicate row name in `PONS_SCHEMA`");
+    }
+
     #[test]
     fn the_rendered_card_has_the_cards_full_length() {
-        // Header + named rows + filler + `Opponent type`, as BBA writes it.
+        // Header + named rows + filler + `Opponent type`, as BBA writes it.  The
+        // pons-only rows spend filler slots, so the total is unmoved.
         let text = american_card().to_string();
         assert_eq!(text.lines().count(), 1 + SCHEMA.len() + NOT_DEFINED + 1);
+        assert_eq!(
+            text.lines()
+                .filter(|line| *line == "Not defined = 0")
+                .count(),
+            NOT_DEFINED - PONS_SCHEMA.len()
+        );
         assert_eq!(text.lines().next(), Some("System type = 0"));
         assert_eq!(text.lines().next_back(), Some("Opponent type = 0"));
     }
