@@ -292,15 +292,22 @@ information. At serving, the readings carry it too. The net would be trained to
 attribute the whole regime signal to one place and then served inputs that split
 it across two.
 
-**Measured** by `bare_and_prefixed_contexts_disagree`: on `1♠ P 2NT P` (Jacoby,
-one authored artificial call) **3 of the 40 inference floats move**. Real but
-bounded — and this is the mildest case, a single projectable call; an auction
-carrying a relocated ask or a transfer chain has more to project.
+**Measured twice, and the first measurement badly understated it.**
 
-Conclusion: dump the large corpus through **prefixed** contexts. It is a
-`dump-teacher` change, not a retrain, and it is far cheaper to make before the
-run than to discover after it. The test stays as the tripwire: if a change ever
-makes the two agree, it fails and these warnings should come out.
+A single auction (`1♠ P 2NT P`, Jacoby — one projectable artificial call) moves
+**3 of 40** inference floats, which reads as "bounded". At corpus scale it is
+not: dumping the same 200 bank deals both ways moves **all 40 inference floats,
+on 75.1% of rows**. One mild auction is simply not representative, and the
+single-auction figure should not be quoted as the size of this effect.
+
+So the skew is large, and it is **pre-existing** — every shipped v3 net was
+trained on bare-context features and is served prefixed ones. That is its own
+open question (see `dnf-migration.md` F1's "standing train/serve skew"), beyond
+this document's scope but worth knowing when reading any v3 net's numbers.
+
+For the configured net the conclusion is settled: `--configured` builds the
+prefix-bearing context serving uses. `--bare-context` reproduces the old
+behaviour for comparison only, not for dumping a corpus.
 
 ## Acceptance — two gates
 

@@ -419,8 +419,14 @@ impl Stance {
     /// hands the otherwise-keyless reading paths the trie access the projection
     /// pass needs, so [`Inferences::read`][super::inference::Inferences::read]
     /// can project each artificial prior call straight off its authored rule.
+    ///
+    /// Public because a corpus dump has to build the *same* context serving
+    /// does. `dump-teacher` historically extracted from a bare `Context::new`,
+    /// which carries no prefixes, so `project_authored` silently skipped every
+    /// authored rule — a train/serve skew measured at 3 of 40 inference floats
+    /// by `bare_and_prefixed_contexts_disagree`.
     #[must_use]
-    pub(crate) fn prefixed_context<'a>(
+    pub fn prefixed_context<'a>(
         &'a self,
         vul: RelativeVulnerability,
         auction: &'a [Call],

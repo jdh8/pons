@@ -39,6 +39,7 @@ use contract_bridge::auction::{Auction, Call};
 use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Seat};
 use ddss::TrickCountTable;
+use pons::bidding::Stance;
 use pons::bidding::card::{american_card, dutch_card};
 use pons::bidding::context::{Context, relative};
 use pons::bidding::features::{
@@ -47,7 +48,7 @@ use pons::bidding::features::{
 };
 use pons::bidding::{Phase, System};
 use pons::gib;
-use pons::{american_instinct, dutch_instinct};
+use pons::{american, american_instinct, dutch, dutch_instinct};
 use rand::rngs::StdRng;
 use rand::{RngExt, SeedableRng};
 use std::collections::BTreeMap;
@@ -166,6 +167,14 @@ struct Args {
     /// `--configured` only: which system *we* are declared to play
     #[arg(long, default_value = "american", value_name = "american|dutch")]
     system: String,
+    /// `--configured` only: extract from a **bare** context, as v3 dumps do
+    ///
+    /// `--configured` otherwise builds the prefix-bearing context serving uses,
+    /// because a bare one skips `project_authored` entirely — a train/serve skew
+    /// measured at 3 of 40 inference floats.  This flag exists to reproduce the
+    /// old behaviour for comparison, not to dump a corpus with.
+    #[arg(long)]
+    bare_context: bool,
     /// `--configured` only: which system the **opponents** are declared to play
     ///
     /// Defaults to ours, mirroring how `BbaOracle` treats undeclared opponents
@@ -323,6 +332,16 @@ fn main() -> anyhow::Result<()> {
                 Ok(Config::new(&ours, &theirs))
             })
             .transpose()?;
+        // The stance that *reads* the auction.  Built after the knobs are armed,
+        // for the same reason the card is: rule presence is decided at build.
+        let reader: Option<Stance> = (args.configured && !args.bare_context)
+            .then(|| -> anyhow::Result<Stance> {
+                Ok(match args.system.as_str() {
+                    "dutch" => dutch().against(),
+                    _ => american().against(),
+                })
+            })
+            .transpose()?;
         let teacher = teachers[regime].as_ref();
 
         // File deals (with their DD table) when `--deals` is set, else a fresh
@@ -359,7 +378,12 @@ fn main() -> anyhow::Result<()> {
             };
 
             // Record the row: features ++ softmax (++ DD label when present).
-            let mut context = Context::new(rel, &auction);
+            // Prefixed when configured: the same context serving builds, so the
+            // authored-projection overlay is applied at dump time too.
+            let mut context = match &reader {
+                Some(stance) => stance.prefixed_context(rel, &auction),
+                None => Context::new(rel, &auction),
+            };
             if let Some(config) = &config {
                 context = context.with_config(config);
             }
@@ -423,6 +447,7 @@ fn main() -> anyhow::Result<()> {
         "our_kickback": args.kickback,
         "mix_kickback": args.mix_kickback,
         "configured": args.configured,
+        "context": if args.configured && !args.bare_context { "prefixed" } else { "bare" },
         "our_system": args.configured.then(|| args.system.clone()),
         "their_system": args
             .configured
