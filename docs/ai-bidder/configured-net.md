@@ -1,8 +1,11 @@
 # The configured net — one net that reads the convention card
 
-**Status: phases 0–1 landed** (the `set_conv` read-back guard; `features_v4` and
-`Context::with_config`). Nothing serves v4 yet. Supersedes the two-artifact twin
-scheme
+**Status: phases 0–2 landed** — the `set_conv` read-back guard; `features_v4`
+and `Context::with_config`; `dump-teacher --configured --cell` with sliced bank
+reads, per-side cards/stances/teachers and prefixed-context extraction. Still
+open in phase 2: the **enriched slice** (a uniform corpus cannot teach the
+kickback bit) and the foreign-`.bbsa` → `SCHEMA` mapping. Nothing serves v4 yet.
+Supersedes the two-artifact twin scheme
 (`american_bba.f32` + `american_bba_kickback.f32`) that
 [`bba-kickback.md`](bba-kickback.md) §7.7 introduced and §7.12 showed the cost
 of.
