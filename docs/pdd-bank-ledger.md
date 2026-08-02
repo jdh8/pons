@@ -71,8 +71,14 @@ scores a net on deals it was fitted to.
 | bank | rows | fitted models |
 | --- | --- | --- |
 | `22.pdd` | 0..1,000,000 | evaluator corpora — `evaluator_v2`, `v3`, `v4` and their `_dnf`/`_exclusion` variants (drawn `--count` from the front at `--seed 1`: 100k, 400k, 500k and 1M deals across campaigns) |
+| `22.pdd` | 2,000,000..2,220,000 | **no fit** — configured-net corpus instrumentation (`dump-teacher --replay`, the 400/20k/20k slices behind the pair-rate numbers in `docs/ai-bidder/configured-net.md`). Recorded so the same rows are not later mistaken for a training draw |
 
 `24.pdd` has no training draws recorded; its consumption is A/B slices only.
+
+**Reserved next:** the configured-net corpus will draw ~750k deals from `22.pdd`
+past row 2.5M — ~250k uniform bulk plus ~500k drawn for the `--enrich 28:9`
+slice, of which ~24k are kept. Log the exact window here when it is dumped; it
+is a training draw, so it advances no cursor but must never score that net.
 
 ## Slice ledger — `24.pdd`
 
