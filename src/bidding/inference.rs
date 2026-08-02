@@ -6408,7 +6408,13 @@ mod tests {
     /// rules to a live ask window and the natural reading returns.
     #[test]
     fn answer_gates_restore_natural_five_diamonds() {
-        use crate::bidding::instinct::set_keycard_answer_gates;
+        use crate::bidding::instinct::{set_keycard_answer_gates, set_kickback};
+        // The plain arm on purpose, now that kickback is the default.  The
+        // knob under test only *has* an off-position here: the kickback arm
+        // installs its answer rules with a bare `keycard_asked_face` gate and
+        // no `!keycard_answer_gates_now()` escape, so there the rules are
+        // always confined and both readings would agree trivially.
+        set_kickback(false);
         let auction = [
             bid(1, Strain::Diamonds),
             Call::Pass,
@@ -7966,10 +7972,18 @@ mod tests {
         // quantitative fallback; `suit HCP`'s two knob-off leaks (the UVU
         // double) already close knob-on.  Re-pins ride the
         // docs/dnf-migration.md ledger like the sibling's.
+        //
+        // `points` went 2 → 8 when kickback shipped default-on (2026-08-02):
+        // the relocated asks on 4♦/4♥/4♠ join the 4NT one in each of the two
+        // constructive columns, and they gate on the `11+ points` slam-entry
+        // bar while reading as keycard asks.  Same class as the sibling's nine
+        // HCP-axis leaks — the strength floor is deliberately not projected,
+        // because projecting it would narrow partner at every ask.  Recorded,
+        // not resolved (docs/ai-bidder/bba-kickback.md §7.7).
         let pinned: [(&str, usize, usize); 6] = [
             ("HCP", 14, 14),
             ("length", 28, 19),
-            ("points", 2, 2),
+            ("points", 8, 8),
             ("suit HCP", 2, 0),
             ("support", 0, 0),
             ("support points", 0, 0),

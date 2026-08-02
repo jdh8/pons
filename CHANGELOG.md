@@ -181,15 +181,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
   **Measured 2026-08-02, 2 × 10M boards**, arm A `kickback + twin` against the
   shipped default: non-vulnerable **+0.0723 PD / +0.0062 plain DD** per board,
-  vulnerable **+0.0438 PD / −0.0078 plain DD**. Plain DD flips sign across
-  vulnerability, so the knob stays opt-in. The cell prices the *package*, not
-  the relocation: at 28–32% divergence, **95% of the divergent boards never
-  reach the six-level**, where a relocated keycard ask cannot act at all. The
-  4.7% slam slice contributes +970 DD IMPs vulnerable and −413 non-vulnerable —
-  sign-inconsistent, i.e. nothing. Census and the owed attribution arm in
-  [docs/ai-bidder/bba-kickback.md](docs/ai-bidder/bba-kickback.md) §7.8.
+  vulnerable **+0.0438 PD / −0.0078 plain DD**. The cell prices the *package*,
+  not the relocation: at 28–32% divergence, **95% of the divergent boards never
+  reach the six-level**, where a relocated keycard ask cannot act at all.
+  Census, per-trump attribution and the owed attribution arm in
+  [docs/ai-bidder/bba-kickback.md](docs/ai-bidder/bba-kickback.md) §7.8–7.10.
 
 ### Changed
+
+- **Kickback is on by default** (`set_kickback`; the knob remains, for the
+  off-arm). It ships on the PD win above against a **vulnerable plain-DD loss**
+  of −0.0078/board — a judgement call rather than a decision-table pass, and
+  recorded as such. Two things move with it: the default floor becomes the
+  kickback twin, since `classify_bba` follows the same knob; and the convention
+  card now discloses the relocation (`Kickback 1430` `0 → 1` in both golden
+  cards), where it previously told BBA our 4♥ was natural.
+
+  **Per-trump, clubs carries the whole win.** Bucketed by contract strain at
+  the six-level and up — the only levels a relocated ask reaches — plain DD per
+  board runs ♣ **+0.78 / +0.56** (vulnerable / not), ♦ **−0.38 / −0.74**, ♥
+  **−0.26 / −0.52**. Spades is the control, because kickback leaves it on 4NT:
+  it measures +0.27 / −0.02, sign-inconsistent and ~0. That control is what
+  makes the rest readable — a net-driven effect would move the spade lane too,
+  so the ♦/♥ losses are plausibly the relocation itself. §7.2's space gradient
+  predicted this ordering but predicted a shrinking gain, not a sign change; a
+  minors-only (Redwood) arm is the next lever.
 
 - **Kickback falls back to 4NT instead of walking up** (`set_kickback`, still
   opt-in). jdh8's ladder claimed the cheapest *unguarded* suit above the trump,

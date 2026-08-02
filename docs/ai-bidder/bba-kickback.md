@@ -1191,3 +1191,22 @@ called the shallow end. Note the naming: minors-only kickback is
 [Redwood](http://www.keycardask.com/redwood.html) and is a convention people
 actually play; clubs-only is not, and would want a reason beyond one bucket.
 
+### 7.10 Shipped default-on (2026-08-02)
+
+`set_kickback` defaults to **on** at jdh8's call, and the knob remains for the
+off-arm. The measured basis is §7.8: a PD win in both cells (+0.0723 NV,
++0.0438 vulnerable per board) against a plain-DD split (+0.0062 NV, **−0.0078
+vulnerable**, both intervals excluding zero). That is a vulnerable plain-DD
+loss, which the decision table would normally hold opt-in; it ships anyway as a
+judgement call, and this paragraph is the record of the trade rather than a
+claim that the table was met.
+
+Two consequences worth stating outright:
+
+1. **The floor's weights move with it.** `classify_bba` serves the kickback
+   twin whenever the knob is on, so the default floor is now the twin — the
+   package §7.8 measured, not the relocation alone.
+2. **The convention card now discloses it.** `Kickback 1430` rides
+   `kickback_now()`, so both golden cards move `0 → 1`. Every future
+   BBA anchor therefore defends against a system description that names the
+   convention, where previously the row said we played a natural 4♥.

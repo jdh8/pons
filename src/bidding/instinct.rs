@@ -597,9 +597,9 @@ std::thread_local! {
     /// majors.  **On by default** since 2026-08-01; see [`set_keycard_minors`].
     static KEYCARD_MINORS: Cell<bool> = const { Cell::new(true) };
 
-    /// Whether the keycard ask relocates onto the kickback ladder (**off by
-    /// default**).  See [`set_kickback`].
-    static KICKBACK: Cell<bool> = const { Cell::new(false) };
+    /// Whether the keycard ask relocates onto the kickback ladder.  **On by
+    /// default** since 2026-08-02; see [`set_kickback`].
+    static KICKBACK: Cell<bool> = const { Cell::new(true) };
 
     /// Whether the always-present 1430/ROPI/DOPI/DEPO answer rules are
     /// face-gated to a live ask window (**on by default** since 2026-08-01).
@@ -741,12 +741,13 @@ fn keycard_minors_now() -> bool {
     KEYCARD_MINORS.with(Cell::get)
 }
 
-/// Relocate the keycard ask onto the kickback ladder (**off by default**)
+/// Relocate the keycard ask onto the kickback ladder (**on by default** since
+/// 2026-08-02)
 ///
 /// Kickback asks in the cheapest unguarded suit above the trump — 4♦ for clubs
 /// and 4♥ for diamonds (the minor half is *Redwood*), 4♠ for hearts — so every
 /// 1430 answer lands at or below five of trump instead of blowing past it.  The
-/// ladder is [`kickback_ladder`], face-only, so both members derive the same
+/// ladder is `kickback_ladder`, face-only, so both members derive the same
 /// asking call with no reading at all.  4NT keeps its meaning throughout:
 /// kickback *adds* asks, it never removes one.
 ///
@@ -755,12 +756,16 @@ fn keycard_minors_now() -> bool {
 /// structural — it asks whether any rule on the made call carries an alert, and
 /// never evaluates the constraint — so an always-present alerted rule on 4♠
 /// would suppress the natural reading of *every* floor-classified 4♠ even with
-/// the knob off.  The recognizer ([`keycard_ask_bid`], and
-/// [`keycard_conversation_now`] outside the rules table) is read at
+/// the knob off.  The recognizer (`keycard_ask_bid`, and
+/// `keycard_conversation_now` outside the rules table) is read at
 /// classification time.  Build one stance per arm **and** set the flag per call
 /// by side; arming only one gives dead alert sites (rules present, recognizer
 /// off) or a phantom ask (recognizer on, rules absent).
-#[doc(hidden)]
+///
+/// **The knob also selects the floor's weights.**  Kickback is not a rule the
+/// reader can hold alone: a net distilled from a kickback-blind teacher keeps
+/// bidding a natural 4♥ into the relocated ask, so `classify_bba` serves the
+/// kickback twin whenever this is on.  Turning it off restores both halves.
 pub fn set_kickback(enabled: bool) {
     KICKBACK.with(|flag| flag.set(enabled));
 }
@@ -7664,16 +7669,16 @@ mod tests {
         let monster = "A32.AKQJ7.AKQ.32";
         assert_eq!(
             best(&auction, monster),
+            call(4, Strain::Spades),
+            "knob on (the default): 4♠ asks in hearts"
+        );
+        set_kickback(false);
+        let plain = best(&auction, monster);
+        set_kickback(true); // restore the default (on) for the rest of the suite
+        assert_eq!(
+            plain,
             call(4, Strain::Notrump),
             "knob off: the ask stays 4NT"
-        );
-        set_kickback(true);
-        let relocated = best(&auction, monster);
-        set_kickback(false); // restore the default (off) for the rest of the suite
-        assert_eq!(
-            relocated,
-            call(4, Strain::Spades),
-            "knob on: 4♠ asks in hearts"
         );
     }
 
