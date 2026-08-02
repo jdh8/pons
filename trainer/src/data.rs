@@ -60,6 +60,13 @@ pub struct Meta {
     /// to the teacher: the same rows mean different things without it.
     #[serde(default)]
     pub our_kickback: bool,
+    /// The corpus alternates the kickback regime per board
+    /// (`dump-teacher --mix-kickback`), so one net covers both systems and
+    /// tells them apart from the readings rather than from a knob.  Without
+    /// this the mixed artifact is indistinguishable from the single-regime
+    /// twin — same `conv`, same everything but row count.
+    #[serde(default)]
+    pub mix_kickback: bool,
 }
 
 /// A loaded teacher dataset, rows still in dump order (board-by-board).

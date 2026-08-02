@@ -115,6 +115,23 @@ struct Args {
     /// `evaluator_v3_exclusion` twin was regenerated to escape.
     #[arg(long)]
     kickback: bool,
+    /// Alternate the kickback regime **per board**: even boards get the plain
+    /// teacher and a kickback-blind extractor, odd boards get `--conv` and an
+    /// armed one.  Requires `--conv`.
+    ///
+    /// One net then covers both systems instead of a knob choosing between two.
+    /// It can, because the regime is *in the features*: forty of the eighty-eight
+    /// come from `Inferences::read`, and the ranges a 4♥ carries differ between
+    /// "six-plus hearts" and "a keycard count", so the net reads which system it
+    /// is in off the auction rather than being told.
+    ///
+    /// Alternating **inside one dump** rather than concatenating two is what
+    /// keeps the trainer's validation split honest: it takes the tail
+    /// contiguously, so stitched corpora would validate entirely on whichever
+    /// regime landed last, while interleaving by board leaves the tail
+    /// board-disjoint *and* mixed.
+    #[arg(long)]
+    mix_kickback: bool,
 }
 
 /// `NAME=0|1`, as `bba-gen` spells it.
@@ -141,11 +158,6 @@ const VULS: [AbsoluteVulnerability; 4] = [
 
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
-    // Arm the recognizer before a single row is extracted: `features_v3` reads
-    // `Inferences`, so this decides what the corpus *says* a relocated ask is.
-    if args.kickback {
-        pons::bidding::instinct::set_kickback(true);
-    }
     let (feature_version, features_len) = (FEATURES_VERSION_V3, FEATURES_LEN_V3);
     // DD label only exists when deals come from a GIB file (cached, no solving).
     let dd_len = if args.deals.is_some() { 20 } else { 0 };
@@ -154,20 +166,41 @@ fn main() -> anyhow::Result<()> {
     // to act (vulnerability passed in relative). `american()` routes by phase
     // through a Stance; `bba` is the vendored EPBot 2/1 oracle — a fresh
     // single-threaded FFI bot per decision.
-    let teacher: Box<dyn System> = match args.teacher.as_str() {
-        "american" => Box::new(american_instinct().against()),
-        "bba" => {
-            let path = std::env::var("BBA_LIB").unwrap_or_else(|_| DEFAULT_LIB.into());
-            let card = args.card.as_deref().map(load_bbsa).transpose()?;
-            let (system, mut toggles) = match card {
-                Some(card) => (card.system, card.toggles),
-                None => (SYSTEM_2_OVER_1, Vec::new()),
-            };
-            // Singles win over the card, exactly as `bba-gen` applies them.
-            toggles.extend(args.conv.iter().cloned());
-            Box::new(BbaOracle::load(&path, system, toggles)?)
-        }
-        other => anyhow::bail!("--teacher must be american|bba, got {other:?}"),
+    if args.mix_kickback && args.conv.is_empty() {
+        anyhow::bail!("--mix-kickback needs --conv to say what the ON regime is");
+    }
+    // The regimes a board can be dumped under.  One entry normally; two when
+    // mixing, selected by board parity so the corpus interleaves.
+    let regimes: Vec<bool> = if args.mix_kickback {
+        vec![false, true]
+    } else {
+        vec![args.kickback]
+    };
+    let build_teacher = |with_conv: bool| -> anyhow::Result<Box<dyn System>> {
+        Ok(match args.teacher.as_str() {
+            "american" => Box::new(american_instinct().against()),
+            "bba" => {
+                let path = std::env::var("BBA_LIB").unwrap_or_else(|_| DEFAULT_LIB.into());
+                let card = args.card.as_deref().map(load_bbsa).transpose()?;
+                let (system, mut toggles) = match card {
+                    Some(card) => (card.system, card.toggles),
+                    None => (SYSTEM_2_OVER_1, Vec::new()),
+                };
+                // Singles win over the card, exactly as `bba-gen` applies them.
+                if with_conv {
+                    toggles.extend(args.conv.iter().cloned());
+                }
+                Box::new(BbaOracle::load(&path, system, toggles)?)
+            }
+            other => anyhow::bail!("--teacher must be american|bba, got {other:?}"),
+        })
+    };
+    // One teacher per regime: mixing needs the plain engine *and* the one
+    // playing the convention, because the target has to change with the reading.
+    let teachers: Vec<Box<dyn System>> = if args.mix_kickback {
+        vec![build_teacher(false)?, build_teacher(true)?]
+    } else {
+        vec![build_teacher(!args.conv.is_empty())?]
     };
     let mut rng = StdRng::seed_from_u64(args.seed);
 
@@ -197,7 +230,18 @@ fn main() -> anyhow::Result<()> {
     };
     let mut file_iter = file_deals.iter().copied();
 
-    for _ in 0..n_boards {
+    for board in 0..n_boards {
+        // Which regime this board is dumped under.  Constant unless mixing, in
+        // which case parity alternates so the corpus interleaves and the
+        // trainer's contiguous tail stays representative of both systems.
+        let regime = board % regimes.len();
+        // Arm the recognizer before a single row of this board is extracted:
+        // `features_v3` reads `Inferences`, so this decides what the corpus
+        // *says* a relocated ask is — and it must agree with the teacher that
+        // produced the target.
+        pons::bidding::instinct::set_kickback(regimes[regime]);
+        let teacher = teachers[regime].as_ref();
+
         // File deals (with their DD table) when `--deals` is set, else a fresh
         // random board with no table.
         let (deal, table) = match file_iter.next() {
@@ -284,8 +328,10 @@ fn main() -> anyhow::Result<()> {
             .map(|(name, on)| format!("{}={on}", name.to_string_lossy()))
             .collect::<Vec<_>>(),
         // The extractor's own regime, not the teacher's — a net is identified
-        // by both.
+        // by both.  Under `--mix-kickback` the corpus carries both, alternating
+        // by board, and the net learns to tell them apart from the readings.
         "our_kickback": args.kickback,
+        "mix_kickback": args.mix_kickback,
         "deals": args.deals.as_deref().unwrap_or("random"),
         "git_sha": git_sha,
         "seed": args.seed,
