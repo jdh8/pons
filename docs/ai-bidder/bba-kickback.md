@@ -984,13 +984,54 @@ a future knob flips an existing row instead of forcing another version bump.
 Constant inputs cost a bias term and one wider gemv (~34k extra first-layer
 weights), nothing measurable.
 
-**Kickback is disclosed as OFF even when it is on.**  `card.rs` hardcodes
-`"Kickback 0123" | "Kickback 0314" | "Kickback 1430" => 0`, so
-`cards/American.bbsa` tells BBA we do not play it whatever `set_kickback` says.
+Two things to design around.  **The card cannot express pons-only knobs** — there
+is no queen row in `American.bbsa` at all, and only 18 of the card's rows are
+driven by a live knob against 31 hardcoded constants — so the block needs a small
+pons-only extension beside the card-derived part.  The queen gap is not BBA
+lacking the convention: BBA relays for the queen and discloses it
+(`probe-bba-kickback` asserts the label, reading back `hearts queen ask` /
+`no !H queen`).  The schema carries only *toggleable* conventions, and BBA's
+relay is unconditional, so there is nothing to switch and no row.  Ours is
+knob-gated, and a card must describe an A/B arm, so it needs a row BBA does not.
+jdh8's proposal is to carry the gaps on the 123 pruned `Not defined` rows
+(South African Texas, the queen relay),
+and the probe says that is safe: `Not defined = 1` **sticks** — `get_conv` reads
+it back — and BBA bids the probe deal identically, so the rows are spare rather
+than aliases onto something real.
+
+The slot should then be *renamed*, not kept as `Not defined` and read
+positionally.  A name EPBot does not know is a silent no-op (`South African
+Texas = 1`: set does nothing, get returns 0), so an honestly-named row is exactly
+as invisible to BBA as the filler it replaces — and positional meaning would not
+survive anyway, because BEN's `BBA.py::load_ccs` keys a **dict** by name and
+collapses all 123 `Not defined` rows into a single entry.  Comments are not an
+option either: `load_ccs` unpacks `split(' = ')` into exactly two under a bare
+`except` that calls `sys.exit(1)`, so a `#` line kills the process.  Shipped as
+`PONS_SCHEMA` in `card.rs` (`South African Texas = 1`,
+`Queen ask by available bid = queen_ask_now()`), spending one filler slot apiece
+so the card holds its 258-line length.  The one hazard is a name EPBot *does*
+know — it would stick and flip a real convention — so a test asserts disjointness
+from `SCHEMA`.  And a bump means retraining
+the **default** floor, so shipping it needs an A/B proving the default has not
+regressed, which at these divergence rates is hours per cell.  Deferred until a
+*second* knob needs the same treatment, or until kickback ships and wants to be
+on without a knob; one net per knob is 2^n and does not scale, but n is 1 today.
+
+**Kickback was disclosed as OFF even when it was on** (fixed 2026-08-02).
+`card.rs` hardcoded `"Kickback 0123" | "Kickback 0314" | "Kickback 1430" => 0`,
+so `cards/American.bbsa` told BBA we do not play it whatever `set_kickback` said.
 Against BBA that is an undisclosed convention: the opponents defend a system
-description in which our 4♥ is natural.  It does not touch the pons-vs-pons A/B
-(no BBA in that loop), but it invalidates any kickback-vs-BBA anchor and should
-ride the knob before one is run.
+description in which our 4♥ is natural.  It did not touch the pons-vs-pons A/B
+(no BBA in that loop), but it invalidated any kickback-vs-BBA anchor.
+`"Kickback 1430"` now rides `kickback_now()`; the default stays `0` because the
+knob is default-off, so the golden cards are unchanged by it.
+
+`"King ask by available bid"` rides `queen_ask_now()` in the same change, which
+*does* move the goldens (`0 → 1` in both `American.bbsa` and `Dutch.bbsa`, the
+knob being default-on).  It is the honest row for the queen relay's king ask —
+the step above the queen answer rather than always 5NT — and it is free, because
+this row is inert in BBA: probed both ways and crossed against `King ask by 5NT`,
+turning it on is byte-identical to setting no king-ask row at all.
 
 **The relocation itself is unmeasured.**  Every kickback number on record —
 including the "wash" — was taken while the answer/ask collision of §7.6 was
