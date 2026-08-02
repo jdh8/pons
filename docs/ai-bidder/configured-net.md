@@ -101,6 +101,33 @@ retrain. Reserving saves plumbing churn, not the expensive part.
 - **Evaluation: freshly generated deals**, never bank rows. Both gates below
   run on a fresh `SEED_BASE`, so no held-out row was ever trained on.
 
+### How many deals
+
+The shipped nets are distilled from far less than one might guess — the
+sidecars record `data_rows` **422,914** (`american_bba`) and **432,033** (the
+twin), which at ~10.2 calls a board is **roughly 42,000 deals** apiece. One row
+per decision, forced passes skipped, so that is a lower bound on deals.
+
+Sizing v4 against that:
+
+| driver | factor |
+| --- | --- |
+| params 98,342 → 167,462 (input 88 → 358) | 1.70× |
+| config cells to cover — ours × theirs, at minimum 4 | 4× |
+
+| corpus | rows | ≈ deals |
+| --- | ---: | ---: |
+| old per-cell density × 4 cells | 1.69M | ~167k |
+| + width headroom | 2.54M | **~250k** |
+| comfortable | 3.38M | ~333k |
+
+**Take ~250k deals, 500k to be generous.** Against `22.pdd`'s 31,404,048 rows
+that is **1.6% of the bank**, and it is a *training* draw, so it does not
+advance the never-replay cursor. **The bank is not the constraint here** — the
+binding cost is dump time, ≈5M EPBot calls at 500k deals. Draw from `22.pdd`
+and leave what remains of `24.pdd` (~19.7M rows) for A/B slices that genuinely
+need pre-solved tables.
+
 ## Acceptance — two gates
 
 | gate | arms | question |
