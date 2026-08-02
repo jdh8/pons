@@ -2094,6 +2094,58 @@ mod tests {
         assert_eq!(plain.theirs, plain.ours, "symmetric config");
     }
 
+    /// The train/serve skew, measured rather than argued
+    ///
+    /// `dump-teacher` extracts from a bare [`Context::new`], which carries no
+    /// trie prefixes, so `Inferences::read` skips `project_authored` entirely.
+    /// Serving does not: `NeuralFloorBba::classify` gets the trie context. This
+    /// pins **how much** of the vector that costs, so a corpus is never dumped
+    /// through the wrong extractor by accident.
+    ///
+    /// Documented in `docs/ai-bidder/configured-net.md` and, as the original
+    /// finding, in `docs/dnf-migration.md` F1. If a change makes these agree,
+    /// this test fails and the skew note should come out of both docs.
+    #[test]
+    fn bare_and_prefixed_contexts_disagree() {
+        let stance = crate::bidding::american().against();
+        // An artificial call whose meaning lives in its authoring rule: the
+        // Jacoby 2NT game-forcing raise.  A bare context cannot project it.
+        let auction = [
+            bid(1, Strain::Spades),
+            Call::Pass,
+            bid(2, Strain::Notrump),
+            Call::Pass,
+        ];
+        let hand = hand("AQ32.K53.QJ4.A92");
+
+        let bare = features_v3(hand, &Context::new(RelativeVulnerability::NONE, &auction));
+        let served = features_v3(
+            hand,
+            &stance.prefixed_context(RelativeVulnerability::NONE, &auction),
+        );
+
+        let moved: Vec<usize> = (0..FEATURES_LEN_V3)
+            .filter(|index| bare[*index] != served[*index])
+            .collect();
+        eprintln!(
+            "bare-vs-prefixed: {} of {LEN_INFERENCES} inference floats move",
+            moved.len()
+        );
+        assert!(
+            !moved.is_empty(),
+            "if these now agree the skew is gone — delete the warnings in \
+             configured-net.md and dnf-migration.md rather than this test"
+        );
+        // The hand and vulnerability blocks describe the actor, not the reading,
+        // so only the inference block may move.
+        assert!(
+            moved.iter().all(
+                |index| (OFFSET_INFERENCES..OFFSET_INFERENCES + LEN_INFERENCES).contains(index)
+            ),
+            "only the inference block should differ, got {moved:?}"
+        );
+    }
+
     /// An unattached config encodes as zeros rather than panicking in release
     #[test]
     fn features_v4_without_a_config_is_zero_padded() {
