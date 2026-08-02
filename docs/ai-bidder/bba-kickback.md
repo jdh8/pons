@@ -421,6 +421,8 @@ minors. Four findings killed that order:
 | 1 | the ladder as a face-only resolver + unit tests | **done** (`f985e23`) — `kickback_ladder` beside `face_trump`. No bidding change. |
 | 2+3 | the floor, **all four suits**, and the carve lifted beside it | **measured 2026-08-01, 3×1M boards.** `set_keycard_minors` **WINS big** and ships; `set_kickback` measures negative but the measurement is *contaminated* — see §7.3. |
 | 4 | the authored book in `slam.rs`; competition + disclosure | not started |
+| 6 | the merged queen+king answer, and its collision guard | **done 2026-08-02**, default-on (§7.6). The guard that makes plain `set_kickback` measurable at all. |
+| 7 | the floor's kickback twin, and the first clean cell | **measured 2026-08-02, 2×10M boards.** Plain DD flips sign across vulnerability; 95% of the divergence is below slam, so the cell prices the *retrained net*, not the relocation — see §7.8. Knob stays opt-in. |
 | 5 | face-conditional alerts, so the relocation can be priced at all | **done 2026-08-01** — `Rules::face` gate, consulted by `Rule::eval` (−∞) and the three inference consult sites; see §7.3.1's resolution note. Re-measured clean: a **wash** (§7.3.2), knob stays opt-in. |
 | 6 | the undisprovable major: the ladder yields the 4♥ claim when a spade bid cannot deny hearts (§7.1) | **done 2026-08-01** — measured §7.3.4: the wash **shrinks but survives** (PD −0.00016, divergence 246 → 216). Shipped inside the opt-in knob as a soundness repair; `set_kickback` stays opt-in. |
 
@@ -1088,3 +1090,61 @@ the relocated ladder has the room to explore a grand at all, and it should be
 measured on minor lanes only.  Expect double-dummy to flatter notrump grands
 (DD never misguesses a two-way finesse); score with perfect defense and apply
 the slam-boundary shave before believing a thin win.
+
+### 7.8 The retrained-twin cell (measured 2026-08-02) — the package, not the convention
+
+The first clean measurement of the relocation *after* §7.6's collision guard
+shipped default-on, and the first with the floor's kickback twin
+(`american_bba_kickback`, §7.7) selected by the same knob.  Arm A is
+`kickback + queen relay + twin net`; arm B is the shipped default,
+`plain 4NT + queen relay + the old net`.  10M boards per cell, seed
+`1785623878`, arms sequential under `scripts/idle-run.sh`.
+
+| cell | divergent | `ns_score_pd` /board | `ns_score_cnt` (plain DD) /board |
+|---|---|---|---|
+| not vulnerable | 31.70% | **+0.0723** [+0.0695, +0.0750] | **+0.0062** [+0.0040, +0.0083] |
+| both vulnerable | 27.97% | **+0.0438** [+0.0406, +0.0470] | **−0.0078** [−0.0104, −0.0052] |
+
+Plain DD **changes sign across vulnerability**, both intervals excluding zero.
+Off the decision table that is not shippable default-on, and `set_kickback`
+stays opt-in.
+
+**The verdict that matters is not the number, it is the divergence rate.**  A
+census of the 100k sampled divergent boards per cell, bucketed by the higher of
+the two arms' contract levels:
+
+| level | share (vul / NV) | plain DD per board (vul) | (NV) |
+|---|---|---|---|
+| partscore 1–3 | 40.6% / 36.8% | −0.06 | −0.03 |
+| game 4–5 | 54.7% / 58.2% | +0.02 | +0.05 |
+| slam 6 | 4.6% / 4.8% | +0.21 | −0.09 |
+| grand 7 | 0.1% / 0.1% | +0.70 | −0.04 |
+
+**Ninety-five percent of the divergent boards never reach the six-level.**  A
+relocated keycard ask cannot act below slam, so it cannot be what produced a
+28–32% divergence; the twin net rewrote the whole system.  The largest movers
+are `S4↔S3`, `N3↔S4`, `H3↔H4` — ordinary partscore and game judgement with no
+keycard in the auction.  The 4.7% slice where kickback *can* act contributes
++970 DD IMPs vulnerable and −413 non-vulnerable over ~4700 boards each: sign
+inconsistent, i.e. nothing.
+
+So the cell measures the **package** — and the qualitative attribution is
+already settled by the census without a second experiment.  The ±0.008 is the
+retrained net, not the convention.  A dedicated attribution arm (a plain net
+retrained on the same recipe, same seeds, kickback-blind teacher, against the
+shipped old net) would put a number on the net's own contribution; it is worth
+running before any future kickback cell is quoted, because until it exists
+*every* twin-selecting arm carries the same confound.
+
+**Design note for whoever runs the next one.**  The confound is structural, not
+an oversight: one knob has to drive both halves, because a net distilled from a
+kickback-blind teacher keeps bidding a natural 4♥ into the relocated ask (§7.7).
+Kickback cannot be measured with the old net beside it.  The way out is to
+subtract the net's contribution separately, not to try to hold it fixed.
+
+**A PD/DD sign split on the undoubled majority.**  In the vulnerable cell the
+79.9% of divergent boards where *neither* arm doubles score PD +0.15/board
+against plain DD −0.04/board.  That is not the usual doubling artifact —
+the artifact lives on boards where the arms disagree about doubling, and this
+slice has none — but the two scorers disagree in sign on the largest slice,
+so neither reading of the PD gain is corroborated.
