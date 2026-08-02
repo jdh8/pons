@@ -197,15 +197,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   card now discloses the relocation (`Kickback 1430` `0 → 1` in both golden
   cards), where it previously told BBA our 4♥ was natural.
 
-  **Per-trump, clubs carries the whole win.** Bucketed by contract strain at
-  the six-level and up — the only levels a relocated ask reaches — plain DD per
-  board runs ♣ **+0.78 / +0.56** (vulnerable / not), ♦ **−0.38 / −0.74**, ♥
-  **−0.26 / −0.52**. Spades is the control, because kickback leaves it on 4NT:
-  it measures +0.27 / −0.02, sign-inconsistent and ~0. That control is what
-  makes the rest readable — a net-driven effect would move the spade lane too,
-  so the ♦/♥ losses are plausibly the relocation itself. §7.2's space gradient
-  predicted this ordering but predicted a shrinking gain, not a sign change; a
-  minors-only (Redwood) arm is the next lever.
+  **Per-trump attribution: retracted, and the retraction is the finding.** The
+  first cut bucketed divergent boards by final contract strain and read the
+  buckets as kickback lanes (clubs +0.78/+0.56 plain DD, ♦ and ♥ negative, ♠ a
+  control at ~0). Contract strain does not identify the lane an ask was made
+  in, so under a knob that also swaps the floor's weights it slices the *net's*
+  rewrite of the system by strain. `ab-kickback` now buckets by the ask itself
+  (`instinct::keycard_ask_at`, seat-filtered, over all divergent boards): a
+  relocated ask fires on **35 of 63,203 divergent boards — 0.055%** — moving
+  −16 PD and −23 plain-DD IMPs in a cell that moved +13,522 and −850, while
+  **93.7% of divergent boards saw no keycard ask from either side** and carry
+  89% of the PD gain. The phase-6 cell corroborates independently: `kickback`
+  against `gated` at 1M boards diverged on 216 boards, the same ~2-per-10,000
+  trigger rate by a different route. Kickback is close to inert at random-deal
+  density; §7.8's cell is the retrained twin, and a rare-trigger convention
+  wants enriched probing rather than another 10M random boards.
 
 - **Kickback falls back to 4NT instead of walking up** (`set_kickback`, still
   opt-in). jdh8's ladder claimed the cheapest *unguarded* suit above the trump,

@@ -1150,46 +1150,69 @@ the artifact lives on boards where the arms disagree about doubling, and this
 slice has none — but the two scorers disagree in sign on the largest slice,
 so neither reading of the PD gain is corroborated.
 
-### 7.9 Per-trump attribution, and the ♠ control
+### 7.9 Per-trump attribution — RETRACTED, and what replaced it
 
-§7.8's aggregate hides the only breakdown that can separate the convention from
-the net. Kickback relocates ♣→4♦, ♦→4♥, ♥→4♠ and leaves **♠ on 4NT** — so the
-spade lane is a built-in control: the twin net serves it exactly as it serves
-every other lane, but no ask moves. Bucketed by the strain of the final
-contract, six-level and up (the only levels a relocated ask can reach):
+**The first version of this section was wrong, and the way it was wrong is
+worth keeping.** It bucketed §7.8's divergent boards by the strain of the
+**final contract** and read the buckets as kickback lanes, reporting ♣ +0.78 /
++0.56 plain DD per board against ♦ −0.38 / −0.74 and ♥ −0.26 / −0.52, with ♠ —
+which kickback never relocates — as a control at ~0. It concluded that clubs
+carried the whole win. None of that is supported.
 
-| trump | ask becomes | vul: boards / plain DD per board | NV: boards / plain DD per board |
-|---|---|---|---|
-| ♣ | 4♦ | 2034 / **+0.78** | 2001 / **+0.56** |
-| ♦ | 4♥ | 1672 / **−0.38** | 1697 / **−0.74** |
-| ♥ | 4♠ | 2586 / **−0.26** | 2806 / **−0.52** |
-| ♠ | *unchanged* | 2041 / +0.27 | 2147 / −0.02 |
-| NT | *n/a* | 1133 / +1.15 | 1139 / +0.67 |
+Bucketing by final contract strain does not identify the lane a keycard ask was
+made in. It slices *every* divergent board by where the auction happened to
+land, so under a knob that also swaps the floor's weights it slices the **net's
+rewrite of the whole system** by strain. The ♠ row reading ~0 was not a control
+passing; ♠ is simply the strain where the net's changes happened to cancel.
 
-**Clubs carries the whole win; diamonds and hearts are losses, in both cells,
-with the same sign.** And the ♠ control sits at ~0 with inconsistent sign,
-which is what makes the rest readable: if the net swap were driving the
-slam-level numbers, the spade lane would move too. It does not, so the ♦ and ♥
-losses are plausibly the relocation itself rather than §7.8's confound. That is
-a stronger attribution than §7.8 could reach alone, and it comes free from a
-lane the design already held fixed.
+**The instrument that replaced it.** `examples/ab-kickback` now buckets by the
+ask itself, using `instinct::keycard_ask_at` — the trump a keycard ask was made
+in and whether it was relocated — over **all** divergent boards rather than a
+100k prefix. Two traps had to be cleared first:
 
-§7.2's gradient predicted this **ordering** — ♣ has 3 of 4 plain-4NT answers
-overshooting 5-of-trump, ♦ has 2, ♥ has 1, ♠ has 0 — but predicted a shrinking
-*gain*, and ♦/♥ measure negative. The space bought is real; on those two lanes
-something spends more than it buys.
+- `keycard_ask_at` reads the knob, so the arm that produced the auction must be
+  armed before the scan or a relocated ask reads as no ask at all.
+- **Both arms bid at every table.** The feature sits N-S at table A and E-W at
+  table B, so an auction is a conversation between the two arms; a scan that
+  ignores *who* called attributes the opponents' asks to whichever arm it
+  happened to arm. The census filters by the asking seat.
 
-**Read this at the right precision.** ~2000 boards per lane per cell, where
-six-level IMP swings run around 13 SD, gives ±0.58 on a single cell; clubs
-pools to roughly +0.67 ± 0.41. Suggestive, not conclusive. The buckets are also
-*contract* strains, not the agreed trump at the moment of the ask, so a board
-where one arm plays 6♣ and the other 3NT is counted in both rows.
+**The result, 200k boards, vulnerability none, seed 1785623878,
+`kickback-queen` against `queen`:**
 
-**The next lever is a minors-only or clubs-only arm.** Kickback ♥→4♠ buys one
-step and appears to pay more than a step back, which is exactly the row §7.2
-called the shallow end. Note the naming: minors-only kickback is
-[Redwood](http://www.keycardask.com/redwood.html) and is a convention people
-actually play; clubs-only is not, and would want a reason beyond one bucket.
+| bucket | boards | share | PD/board | plain DD/board |
+|---|---|---|---|---|
+| **no keycard ask by either arm** | 59240 | **93.7%** | +0.202 | −0.024 |
+| a 4NT ask, some lane | 1675 | 2.7% | −2.62 | −1.48 |
+| an ask the baseline made and the feature did not | 2253 | 3.6% | +2.63 | +1.37 |
+| **a relocated ask — every lane, ♣ ♦ ♥ together** | **35** | **0.055%** | −0.46 | −0.66 |
+
+**The relocated ask fires on 35 of 63,203 divergent boards, and moves −16 PD
+and −23 plain-DD IMPs in a cell that moved +13,522 and −850.** Kickback is not
+carrying this measurement in any lane, including clubs. The `no keycard ask`
+row alone holds 89% of the cell's PD gain: what §7.8 measured is the retrained
+twin, and §7.8's caution was if anything understated.
+
+**Independently corroborated.** §7.2's phase-6 cell measured `kickback` against
+`gated` — one knob, no net swap — at 1M boards and found **216 divergent
+boards**. That implies the relocation changes an auction on roughly 2 boards
+per 10,000, which is the same order as the 35-in-200,000 seen here by a
+completely different route. Two measurements built years of reasoning apart
+agree that the trigger is rare.
+
+**What this costs the campaign.** A random-deal A/B is the wrong instrument for
+a 0.02% trigger: 10M boards buys only ~1,750 relocated-ask boards, which is
+~440 per lane and around ±0.6 IMPs of resolution — enough for a pooled
+statement, not a per-lane one. `docs/measurement.md`'s enriched probing is the
+right tool for a trigger this rare (accept on raw hands *before* the bidder),
+and the minors-only arm §7.9's retracted version proposed should wait for it
+rather than consume another 13 machine-hours at this density.
+
+**The lesson, stated plainly so the next census inherits it.** A bucket keyed
+on an *outcome* (the contract) cannot attribute a *cause* (the convention) when
+something else in the arm moves every outcome. The fix is to key on the
+mechanism — here, the ask — and to include the bucket where the mechanism never
+fired, because that bucket is the size of everything the analysis cannot claim.
 
 ### 7.10 Shipped default-on (2026-08-02)
 
