@@ -36,6 +36,14 @@ Sites 2/3 throw (return −2, swallowed everywhere). `examples/common/oracle.rs`
 passes raw seats `[actor, (actor+2)%4]` — functionally correct only because
 the out-of-range half of each pair silently no-ops onto the same side.
 
+**Confirmed by measurement 2026-08-02, and it survived a wrong correction.**
+`docs/ai-bidder/configured-net.md` briefly claimed the opposite (seat + name,
+−2 blamed on passing a convention index). `examples/probe-set-conv` settles it:
+indices 2+ return −2 from the *getter* as well, so there are two slots, not
+four. `oracle.rs` now addresses the side directly. The same probe found the
+sharper point — an **unknown name returns 0** and reads back 0, so no return
+code can catch a mistyped row; only a read-back can.
+
 **Meaning ABI (new finding).** `epbot_get_info_meaning(bot, k, buf, bytes)`
 indexes per-seat interpretation records (`Item[k]`); slot `k` holds seat k's
 *latest* call's systemic label, refreshed by `set_bid` itself. Read it right

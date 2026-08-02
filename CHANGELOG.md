@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **A mistyped convention row can no longer be dumped as if it took effect.**
+  `epbot_set_conventions` answers `0` for a name EPBot has never heard of, and
+  the following read answers `0` too, so a renamed or misspelled row is
+  invisible from the setter — the corpus would record the configuration we
+  *intended* against a teacher playing the one we got, mislabeled in one
+  consistent direction. `BbaOracle::verify_card` now writes each card and reads
+  it back once, at card acceptance, and fails loudly naming every row that did
+  not stick; the per-decision path stays a bare write. Three rows are
+  allowlisted with reasons: our two `PONS_SCHEMA` filler names, which EPBot is
+  *supposed* to ignore, and BBA's own `Reverse Bergen`, which refuses to turn
+  off. No effect on any bid.
+
+- **EPBot's convention API addresses a side, not a seat.** It holds two
+  convention sets (`cc = new TYP_SYSTEM[2]`), one per partnership; indices 2 and
+  above return −2 from the setter *and* the getter. `examples/common/oracle.rs`
+  looped over seat pairs and was correct only by accident — exactly one index of
+  each pair is in range, and a side is a seat's parity, so it was always the
+  right one. It now names the side. `examples/probe-set-conv` is the instrument
+  that settled this, against two contradicting notes in `docs/`; it also
+  confirms the two slots hold independent systems, so asymmetric cards need no
+  new capability. No effect on any bid.
+
 ### Removed
 
 - **Four RKCB knobs deleted — they were never agreements.** A knob has to name

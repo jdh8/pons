@@ -36,8 +36,32 @@ type NewHandFn =
 // EPBot interprets each bid itself from the configured system.
 type SetBidFn = unsafe extern "C" fn(*mut c_void, c_int, c_int, *const c_char);
 type GetBidFn = unsafe extern "C" fn(*mut c_void) -> c_int;
-// `epbot_set_conventions(bot, seat, name, on)` — per-seat convention toggle.
+// `epbot_set_conventions(bot, side, name, on)` — per-SIDE convention toggle.
+//
+// The second argument indexes a two-element array (`cc = new TYP_SYSTEM[2]`), not
+// the four seats: `examples/probe-set-conv` measures −2 from both the setter and
+// the getter for every index above 1.  A partnership agreement is a property of a
+// side, so this is the natural ABI; only `new_hand`/`set_bid` are per-seat.
 type SetConvFn = unsafe extern "C" fn(*mut c_void, c_int, *const c_char, c_int) -> c_int;
+// `epbot_get_conventions(bot, side, name)` — the read side, used by the guard
+// below to catch rows that do not stick.
+type GetConvFn = unsafe extern "C" fn(*mut c_void, c_int, *const c_char) -> c_int;
+
+/// Rows that are known not to read back what was written, with the reason
+///
+/// The guard in [`BbaOracle::verify_card`] would otherwise reject every card we
+/// ship.  Two kinds appear here and they are not the same problem:
+///
+/// - **Ours by design.** `card.rs`'s `PONS_SCHEMA` names conventions EPBot has no
+///   row for, deliberately parked on filler slots.  EPBot ignoring them is the
+///   property that makes them safe to write down.
+/// - **BBA's own.** `Reverse Bergen` refuses to turn off (written 0, reads 1) —
+///   an engine coupling, not a typo of ours.
+const KNOWN_UNSTICKY: [&str; 3] = [
+    "South African Texas",
+    "Queen ask by available bid",
+    "Reverse Bergen",
+];
 
 // The bilans-engine surface (docs/ai-bidder/bba-floor.md §5-6).  Signatures are
 // confirmed twice over: the managed `EPBotFFI` shim's ECMA-335 metadata in
@@ -131,6 +155,7 @@ pub struct BbaOracle {
     set_bid: SetBidFn,
     get_bid: GetBidFn,
     set_conv: SetConvFn,
+    get_conv: GetConvFn,
     // The bilans surface, bound but only used by `probe`/`probe_with`.
     get_probable_levels: GetFlatArrFn,
     get_scoring: GetNoArgFn,
@@ -179,7 +204,7 @@ impl BbaOracle {
             }
             let get_info = get_info.try_into().expect("one getter per INFO_FIELD");
             let set_info = set_info.try_into().expect("one setter per INFO_FIELD");
-            Ok(Self {
+            let oracle = Self {
                 create: *lib.get::<CreateFn>(b"epbot_create\0")?,
                 destroy: *lib.get::<DestroyFn>(b"epbot_destroy\0")?,
                 set_system: *lib.get::<SetSystemFn>(b"epbot_set_system_type\0")?,
@@ -187,6 +212,7 @@ impl BbaOracle {
                 set_bid: *lib.get::<SetBidFn>(b"epbot_set_bid\0")?,
                 get_bid: *lib.get::<GetBidFn>(b"epbot_get_bid\0")?,
                 set_conv: *lib.get::<SetConvFn>(b"epbot_set_conventions\0")?,
+                get_conv: *lib.get::<GetConvFn>(b"epbot_get_conventions\0")?,
                 get_probable_levels: *lib.get::<GetFlatArrFn>(b"epbot_get_probable_levels\0")?,
                 get_scoring: *lib.get::<GetNoArgFn>(b"epbot_get_scoring\0")?,
                 set_scoring: *lib.get::<SetIntFn>(b"epbot_set_scoring\0")?,
@@ -198,8 +224,63 @@ impl BbaOracle {
                 overrides,
                 opponents: None,
                 scoring: None,
-            })
+            };
+            oracle.verify_card(oracle.system, &oracle.overrides)?;
+            Ok(oracle)
         }
+    }
+
+    /// Check that every row of a card actually takes effect, and say which did not
+    ///
+    /// **The return code cannot do this job.** `epbot_set_conventions` answers `0`
+    /// for a name it has never heard of, and the subsequent read answers `0` too,
+    /// so a misspelled or renamed row is invisible from the setter alone
+    /// (`examples/probe-set-conv` measures exactly this).  The only detector is to
+    /// write the card and read it back.
+    ///
+    /// That matters because a corpus records the configuration we *intended*.  A
+    /// row that silently does nothing yields rows labelled with a convention the
+    /// teacher was not playing — mislabeled in one consistent direction, which is
+    /// the one error no downstream check can see.  Pushing a whole 135-row card
+    /// per side, as the configured net does, is 135 chances for that.
+    ///
+    /// Runs once, on a scratch bot, at card-acceptance time; the per-decision path
+    /// in [`BbaOracle::with_bot`] stays a bare write.
+    fn verify_card(&self, system: c_int, toggles: &[(CString, c_int)]) -> anyhow::Result<()> {
+        // SAFETY: a scratch bot, used and destroyed here; side 0 is in range.
+        let bad: Vec<String> = unsafe {
+            let bot = (self.create)();
+            if bot.is_null() {
+                anyhow::bail!("EPBot failed to allocate a bot to verify the card against");
+            }
+            (self.set_system)(bot, 0, system);
+            let bad = toggles
+                .iter()
+                .filter(|(name, _)| !KNOWN_UNSTICKY.contains(&name.to_string_lossy().as_ref()))
+                .filter_map(|(name, want)| {
+                    let code = (self.set_conv)(bot, 0, name.as_ptr(), *want);
+                    let got = (self.get_conv)(bot, 0, name.as_ptr());
+                    (code != 0 || got != *want).then(|| {
+                        format!(
+                            "  {:<44} wrote {want}, read {got} (set returned {code})",
+                            name.to_string_lossy().as_ref()
+                        )
+                    })
+                })
+                .collect();
+            (self.destroy)(bot);
+            bad
+        };
+        anyhow::ensure!(
+            bad.is_empty(),
+            "{} convention row(s) did not take effect on EPBot under system {system}.\n{}\n\
+             A row EPBot does not know is a silent no-op, so the teacher would play \
+             something other than the card recorded beside the corpus.  Fix the name, \
+             or add it to `KNOWN_UNSTICKY` with the reason.",
+            bad.len(),
+            bad.join("\n"),
+        );
+        Ok(())
     }
 
     /// Force a scoring form on every fresh bot (see [`BbaState::scoring`])
@@ -223,9 +304,20 @@ impl BbaOracle {
     /// BBA's calls, and therefore the anchor.
     ///
     /// Pair with [`load_bbsa`] to declare a full card (`cards/American.bbsa`).
+    ///
+    /// # Panics
+    ///
+    /// If any row of the declared card fails to take effect on EPBot — see
+    /// [`BbaOracle::verify_card`] for why that cannot be left to a return code.
+    /// A card that does not stick is a startup misconfiguration, and every later
+    /// number would be quietly attributed to the wrong system.
     #[must_use]
     pub fn with_opponents(mut self, opponents: Option<ConventionCard>) -> Self {
-        self.opponents = opponents.map(|card| (card.system, card.toggles));
+        self.opponents = opponents.map(|card| {
+            self.verify_card(card.system, &card.toggles)
+                .expect("the opponents' declared card must take effect on EPBot");
+            (card.system, card.toggles)
+        });
         self
     }
 }
@@ -307,31 +399,32 @@ impl BbaOracle {
             if bot.is_null() {
                 return None;
             }
-            // Our side and theirs, with the dealer canonicalized to position 0.
-            // Undeclared opponents (the default) get our own configuration on
-            // every seat, which is what EPBot saw before `with_opponents`.
-            let ours = [actor, (actor + 2) % 4];
-            let theirs = [(actor + 1) % 4, (actor + 3) % 4];
+            // Our side and theirs.  System and conventions are per-SIDE — EPBot
+            // stores two, not four — and a side is a seat's parity, so with the
+            // dealer canonicalized to position 0 the actor's side is `actor % 2`.
+            //
+            // This used to loop over seat pairs `[actor, actor + 2]`, which landed
+            // correctly only because exactly one of each pair is in range and both
+            // share a parity; the other half returned −2 and did nothing.  Naming
+            // the side removes the accident.
+            //
+            // Undeclared opponents (the default) get our own configuration, which
+            // is what EPBot saw before `with_opponents`.
+            let ours = actor % 2;
+            let theirs = 1 - ours;
             let (their_system, their_overrides) = match &self.opponents {
                 Some((system, toggles)) => (*system, toggles.as_slice()),
                 None => (self.system, self.overrides.as_slice()),
             };
-            for seat in ours {
-                (self.set_system)(bot, seat, self.system);
-            }
-            for seat in theirs {
-                (self.set_system)(bot, seat, their_system);
-            }
+            (self.set_system)(bot, ours, self.system);
+            (self.set_system)(bot, theirs, their_system);
             // Force any isolated convention(s) AFTER set_system loads defaults.
+            // Unchecked here by design: the card was verified once, on acceptance.
             for (name, value) in &self.overrides {
-                for seat in ours {
-                    (self.set_conv)(bot, seat, name.as_ptr(), *value);
-                }
+                (self.set_conv)(bot, ours, name.as_ptr(), *value);
             }
             for (name, value) in their_overrides {
-                for seat in theirs {
-                    (self.set_conv)(bot, seat, name.as_ptr(), *value);
-                }
+                (self.set_conv)(bot, theirs, name.as_ptr(), *value);
             }
             if let Some(scoring) = self.scoring {
                 (self.set_scoring)(bot, scoring);
