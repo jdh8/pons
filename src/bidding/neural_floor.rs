@@ -115,6 +115,38 @@ mod tests {
             .expect("array is never empty")
     }
 
+    /// The board that priced the whole kickback campaign.  After `1♦ P 1♠ P 2♦`
+    /// the ladder claims 4♥ as the diamond keycard ask — and responder here is
+    /// 6-6 in the majors and **void in diamonds**, so a 4♥ from this hand can
+    /// only mean hearts.  The kickback-blind net jumped to 4♥ anyway (it had
+    /// never seen 4♥ mean keycards), partner answered the phantom ask, and the
+    /// auction was passed out in a 4-1 fit on 171 of 2090 divergent boards.
+    ///
+    /// BBA escapes by bidding the second suit cheaply instead, and the
+    /// mixed-regime net was distilled from a teacher that does exactly that.
+    /// The fix is not that 4♥ became legal-but-unattractive; it is that the net
+    /// stops offering it at all once the readings say the suit is spoken for.
+    #[test]
+    fn the_six_six_hand_stops_jumping_into_the_relocated_ask() {
+        let auction = [
+            call(1, Strain::Diamonds),
+            Call::Pass,
+            call(1, Strain::Spades),
+            Call::Pass,
+            call(2, Strain::Diamonds),
+            Call::Pass,
+        ];
+        let hand = "AQJT83.QT9875..6"; // ♠AQJT83 ♥QT9875 ♦— ♣6, board 229
+        crate::bidding::instinct::set_kickback(true);
+        let with_kickback = best(&auction, hand);
+        crate::bidding::instinct::set_kickback(false);
+        assert_ne!(
+            with_kickback,
+            call(4, Strain::Hearts),
+            "4♥ is the diamond ask on this face — the net must not bid it naturally"
+        );
+    }
+
     // The five §0.4 safety properties, enforced by the shell against the learned
     // net.  The four forced rails delegate to `instinct()`, so they reproduce
     // its tested calls exactly; the legality rail exercises the net + mask.
