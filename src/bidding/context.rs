@@ -10,6 +10,7 @@
 //! not live here — it belongs to classifiers, which know their system.
 
 use super::book::Stance;
+use super::features::Config;
 use super::trie::CommonPrefixes;
 use contract_bridge::auction::{AbsoluteVulnerability, Call, RelativeVulnerability};
 use contract_bridge::{Bid, Level, Penalty, Seat, Strain, Suit};
@@ -66,6 +67,7 @@ pub struct Context<'a> {
     opening_index: Option<usize>,
     prefixes: Option<CommonPrefixes<'a, 'a>>,
     their_system: Option<&'a Stance>,
+    config: Option<&'a Config>,
 }
 
 impl<'a> Context<'a> {
@@ -90,6 +92,7 @@ impl<'a> Context<'a> {
             opening_index: auction.iter().position(|&call| call != Call::Pass),
             prefixes: None,
             their_system: None,
+            config: None,
         };
 
         for (index, &call) in auction.iter().enumerate() {
@@ -152,6 +155,30 @@ impl<'a> Context<'a> {
     #[must_use]
     pub(crate) const fn their_system(&self) -> Option<&'a Stance> {
         self.their_system
+    }
+
+    /// Attach both partnerships' convention cards, for
+    /// [`features_v4`][super::features::features_v4]
+    ///
+    /// The sibling of the crate-internal `with_their_system`, and the same idea
+    /// one layer down: that one gives the *reader* a model of the opponents'
+    /// books, this one gives the *net* the agreements of both sides as inputs.
+    ///
+    /// Carried by reference and encoded once per configuration cell, so the
+    /// per-decision path neither allocates nor reads ambient knob state — the
+    /// point of putting this on the context rather than in a thread-local
+    /// beside the knobs, where it would silently change what a feature vector
+    /// means.
+    #[must_use]
+    pub const fn with_config(mut self, config: &'a Config) -> Self {
+        self.config = Some(config);
+        self
+    }
+
+    /// The attached configuration, if any ([`Self::with_config`])
+    #[must_use]
+    pub const fn config(&self) -> Option<&'a Config> {
+        self.config
     }
 
     /// Vulnerability relative to the side to act
