@@ -218,6 +218,85 @@ binding cost is dump time, ≈5M EPBot calls at 500k deals. Draw from `22.pdd`
 and leave what remains of `24.pdd` (~19.7M rows) for A/B slices that genuinely
 need pre-solved tables.
 
+## The corpus plan — which cells, and when to replay a deal
+
+### Pair only where a pair pays
+
+Playing one deal under two configs gives three regions, and only one of them is
+worth its cost:
+
+| region | what the net sees | worth replaying? |
+| --- | --- | --- |
+| before divergence | identical inputs but the config bit, **same** target | teaches "the bit is usually irrelevant" — true and needed, but expensive bought this way |
+| **at first divergence** | identical inputs but the config bit, **different** target | **yes — the only row that can teach what the bit means** |
+| after divergence | two different auctions | not a pair at all; this is how relocated-ask positions get seen, but it is not counterfactual |
+
+So: **independent single-cell sampling for the calibration bulk, paired replay
+only on the enriched slice.** Pairing the bulk buys mostly region-1 rows at N×
+the dump cost, and dump time is the binding constraint. The enriched slice
+accepts deals on a **raw-hand** criterion *before* the bidder (slam-ish values, a
+likely non-spade trump fit), which is the standing rule for a rare trigger.
+
+### A mixed table yields both asymmetric cells free
+
+`dump-teacher` writes one row per decision with the seat rotating through all
+four, and the config vector is written from the *acting* seat's view. So a table
+where N-S play kickback and E-W do not emits `(ours=on, theirs=off)` from N-S's
+seats and `(ours=off, theirs=on)` from E-W's. The unit of work is therefore an
+**unordered pair** of side-configs; the mirror never needs its own dump.
+
+### The cells
+
+Two axes exist today: `{American, Dutch} × {kickback off, on}`.
+
+| # | table config | ordered cells | why |
+| --- | --- | --- | --- |
+| 1 | A-off vs A-off | (A-off, A-off) | gate 1's baseline |
+| 2 | A-on vs A-on | (A-on, A-on) | gate 2's arm |
+| 3 | **A-on vs A-off** | both asymmetric | gate 2's real shape — the mixed table an A/B plays |
+| 4 | D-off vs D-off | (D-off, D-off) | gradient, and the Dutch campaign |
+| 5 | D-on vs D-on | (D-on, D-on) | gradient |
+| 6 | A-off vs D-off | both cross cells | teaches that the two blocks are independent |
+
+Six table configs, eight distinct ordered cells. **1–3 are mandatory**: they are
+exactly what the two gates need.
+
+**4–6 exist because kickback alone cannot train the config block.** One bit that
+decides ~0.05% of boards leaves its weight near initialisation. The base system
+moves nearly every auction, so the high-frequency axis teaches the net that *the
+card is an input* as a general mechanism, and the rare kickback bit rides a
+pathway that already exists rather than carving one out alone.
+
+Second payoff: this is the net the Dutch campaign needs. A configured net that
+reads `system = WJ` is an alternative to maintaining a separate WJ floor — and
+the WJ-floor A/B already lost once.
+
+**The risk, stated up front:** Dutch roughly doubles what the net must represent,
+and 98,342 → 170,022 params is a width increase that may not cover two systems.
+If gate 1 shows v4 is a *worse* American bidder than the shipped net, split
+capacity is the first suspect and the fallback is American-only cells with a
+widened hidden layer.
+
+### ⚠ Settle the bare/prefixed skew before dumping millions of rows
+
+`dump-teacher` builds features from a bare `Context::new`, which has **no trie
+prefixes**, so `Inferences::read` skips `project_authored` entirely. Serving
+does not: `NeuralFloorBba::classify` gets the trie context, so the authored
+projection overlay *is* applied. This is the standing train/serve skew already
+recorded in `dnf-migration.md` F1 — not something the configured net
+introduces, but something it makes newly consequential.
+
+Why it bites harder here: bare-context hulls are measurably **knob-invariant**,
+so in a v4 corpus the config block would be the *only* carrier of regime
+information. At serving, the readings carry it too. The net would be trained to
+attribute the whole regime signal to one place and then served inputs that split
+it across two.
+
+Cheap check before committing to a large dump: extract one auction both ways —
+bare, and through `Stance::prefixed_context` — and diff the 40 inference floats.
+If they move, the corpus wants prefixed contexts, and that is a `dump-teacher`
+change rather than a retrain.
+
 ## Acceptance — two gates
 
 | gate | arms | question |

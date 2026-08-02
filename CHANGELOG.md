@@ -41,6 +41,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   configuration the card can express, or two cells collide into identical
   vectors with contradictory targets.
 
+### Changed
+
+- **`dump-teacher` can draw from the banks without reading them whole.**
+  `--skip` plus a bounded `--boards` route through `pdd::load_slice`, so a
+  corpus draw off `24.pdd` (2 GB) no longer pulls the file into memory. A bare
+  `--deals` still means "every deal to the end", so existing recipes are
+  unchanged — verified: a v3 dump is byte-identical across this change.
+
+- **`dump-teacher --configured` emits `features_v4`.** 368 floats instead of 88,
+  with both partnerships' cards attached via `Context::with_config`, and
+  `--system` / `--their-system` naming what each side plays. The card is
+  rendered *after* the cell's knobs are armed, which is what keeps card, code
+  and net in sync — `american_card()` reads the same knobs the rules do. The
+  sidecar records both declared systems, so a corpus says what it was dumped
+  under.
+
+  `--system` selects the **teacher**, not merely the disclosed card. Wiring only
+  the card would have written rows labelled Dutch while an American teacher bid
+  them — caught in testing, where American and Dutch corpora came back with
+  byte-identical targets and differed in exactly the three card slots. That is
+  the same mislabeling `verify_card` guards against for BBA, one level up and
+  just as invisible downstream.
+
 ### Fixed
 
 - **A mistyped convention row can no longer be dumped as if it took effect.**
@@ -324,6 +347,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   have taught the net BBA's ladder and served it ours
   (docs/ai-bidder/bba-kickback.md §7.7).
 
+### Changed
+
+- **`dump-teacher` can draw from the banks without reading them whole.**
+  `--skip` plus a bounded `--boards` route through `pdd::load_slice`, so a
+  corpus draw off `24.pdd` (2 GB) no longer pulls the file into memory. A bare
+  `--deals` still means "every deal to the end", so existing recipes are
+  unchanged — verified: a v3 dump is byte-identical across this change.
+
+- **`dump-teacher --configured` emits `features_v4`.** 368 floats instead of 88,
+  with both partnerships' cards attached via `Context::with_config`, and
+  `--system` / `--their-system` naming what each side plays. The card is
+  rendered *after* the cell's knobs are armed, which is what keeps card, code
+  and net in sync — `american_card()` reads the same knobs the rules do. The
+  sidecar records both declared systems, so a corpus says what it was dumped
+  under.
+
+  `--system` selects the **teacher**, not merely the disclosed card. Wiring only
+  the card would have written rows labelled Dutch while an American teacher bid
+  them — caught in testing, where American and Dutch corpora came back with
+  byte-identical targets and differed in exactly the three card slots. That is
+  the same mislabeling `verify_card` guards against for BBA, one level up and
+  just as invisible downstream.
+
 ### Fixed
 
 - **The convention card discloses the keycard knobs instead of hardcoding
@@ -580,6 +626,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (refreshed by `set_bid`; `epbot_interpret_bid`'s argument is a bid code,
   not a position — the historical first-round-only caveat was that misuse).
 
+### Changed
+
+- **`dump-teacher` can draw from the banks without reading them whole.**
+  `--skip` plus a bounded `--boards` route through `pdd::load_slice`, so a
+  corpus draw off `24.pdd` (2 GB) no longer pulls the file into memory. A bare
+  `--deals` still means "every deal to the end", so existing recipes are
+  unchanged — verified: a v3 dump is byte-identical across this change.
+
+- **`dump-teacher --configured` emits `features_v4`.** 368 floats instead of 88,
+  with both partnerships' cards attached via `Context::with_config`, and
+  `--system` / `--their-system` naming what each side plays. The card is
+  rendered *after* the cell's knobs are armed, which is what keeps card, code
+  and net in sync — `american_card()` reads the same knobs the rules do. The
+  sidecar records both declared systems, so a corpus says what it was dumped
+  under.
+
+  `--system` selects the **teacher**, not merely the disclosed card. Wiring only
+  the card would have written rows labelled Dutch while an American teacher bid
+  them — caught in testing, where American and Dutch corpora came back with
+  byte-identical targets and differed in exactly the three card slots. That is
+  the same mislabeling `verify_card` guards against for BBA, one level up and
+  just as invisible downstream.
+
 ### Fixed
 
 - **The face steps back past cues and reads the notrump dichotomy.** Two
@@ -744,6 +813,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   cramped doubled answer (two keycards missing, answer past five of
   trump) can still be passed out — the escape-to-six/5NT rung is its own
   campaign.
+
+### Changed
+
+- **`dump-teacher` can draw from the banks without reading them whole.**
+  `--skip` plus a bounded `--boards` route through `pdd::load_slice`, so a
+  corpus draw off `24.pdd` (2 GB) no longer pulls the file into memory. A bare
+  `--deals` still means "every deal to the end", so existing recipes are
+  unchanged — verified: a v3 dump is byte-identical across this change.
+
+- **`dump-teacher --configured` emits `features_v4`.** 368 floats instead of 88,
+  with both partnerships' cards attached via `Context::with_config`, and
+  `--system` / `--their-system` naming what each side plays. The card is
+  rendered *after* the cell's knobs are armed, which is what keeps card, code
+  and net in sync — `american_card()` reads the same knobs the rules do. The
+  sidecar records both declared systems, so a corpus says what it was dumped
+  under.
+
+  `--system` selects the **teacher**, not merely the disclosed card. Wiring only
+  the card would have written rows labelled Dutch while an American teacher bid
+  them — caught in testing, where American and Dutch corpora came back with
+  byte-identical targets and differed in exactly the three card slots. That is
+  the same mislabeling `verify_card` guards against for BBA, one level up and
+  just as invisible downstream.
 
 ### Fixed
 
@@ -963,6 +1055,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   game opposite a limited hand" leaf. The floor answers all six correctly, and a
   bare `Pass` node there would shadow it — including its slam machinery — for no
   gain. Default byte-identical (knob-off, unreachable).
+
+### Changed
+
+- **`dump-teacher` can draw from the banks without reading them whole.**
+  `--skip` plus a bounded `--boards` route through `pdd::load_slice`, so a
+  corpus draw off `24.pdd` (2 GB) no longer pulls the file into memory. A bare
+  `--deals` still means "every deal to the end", so existing recipes are
+  unchanged — verified: a v3 dump is byte-identical across this change.
+
+- **`dump-teacher --configured` emits `features_v4`.** 368 floats instead of 88,
+  with both partnerships' cards attached via `Context::with_config`, and
+  `--system` / `--their-system` naming what each side plays. The card is
+  rendered *after* the cell's knobs are armed, which is what keeps card, code
+  and net in sync — `american_card()` reads the same knobs the rules do. The
+  sidecar records both declared systems, so a corpus says what it was dumped
+  under.
+
+  `--system` selects the **teacher**, not merely the disclosed card. Wiring only
+  the card would have written rows labelled Dutch while an American teacher bid
+  them — caught in testing, where American and Dutch corpora came back with
+  byte-identical targets and differed in exactly the three card slots. That is
+  the same mislabeling `verify_card` guards against for BBA, one level up and
+  just as invisible downstream.
 
 ### Fixed
 
@@ -1943,6 +2058,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   defense, dispatch belongs in reading-gated rules, not a label argument. No
   bidding change: every shipped pair was `Family::NATURAL`.
 
+### Changed
+
+- **`dump-teacher` can draw from the banks without reading them whole.**
+  `--skip` plus a bounded `--boards` route through `pdd::load_slice`, so a
+  corpus draw off `24.pdd` (2 GB) no longer pulls the file into memory. A bare
+  `--deals` still means "every deal to the end", so existing recipes are
+  unchanged — verified: a v3 dump is byte-identical across this change.
+
+- **`dump-teacher --configured` emits `features_v4`.** 368 floats instead of 88,
+  with both partnerships' cards attached via `Context::with_config`, and
+  `--system` / `--their-system` naming what each side plays. The card is
+  rendered *after* the cell's knobs are armed, which is what keeps card, code
+  and net in sync — `american_card()` reads the same knobs the rules do. The
+  sidecar records both declared systems, so a corpus says what it was dumped
+  under.
+
+  `--system` selects the **teacher**, not merely the disclosed card. Wiring only
+  the card would have written rows labelled Dutch while an American teacher bid
+  them — caught in testing, where American and Dutch corpora came back with
+  byte-identical targets and differed in exactly the three card slots. That is
+  the same mislabeling `verify_card` guards against for BBA, one level up and
+  just as invisible downstream.
+
 ### Fixed
 
 - **Fixed a stale doc link: `Stance::prefixed_context` referenced the retired
@@ -2261,6 +2399,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   before the gate existed. If one ever *should* pass, the fix is a shape guard on
   the double and the ceiling must come off in the same edit — complement and
   tier are one object.
+
+### Changed
+
+- **`dump-teacher` can draw from the banks without reading them whole.**
+  `--skip` plus a bounded `--boards` route through `pdd::load_slice`, so a
+  corpus draw off `24.pdd` (2 GB) no longer pulls the file into memory. A bare
+  `--deals` still means "every deal to the end", so existing recipes are
+  unchanged — verified: a v3 dump is byte-identical across this change.
+
+- **`dump-teacher --configured` emits `features_v4`.** 368 floats instead of 88,
+  with both partnerships' cards attached via `Context::with_config`, and
+  `--system` / `--their-system` naming what each side plays. The card is
+  rendered *after* the cell's knobs are armed, which is what keeps card, code
+  and net in sync — `american_card()` reads the same knobs the rules do. The
+  sidecar records both declared systems, so a corpus says what it was dumped
+  under.
+
+  `--system` selects the **teacher**, not merely the disclosed card. Wiring only
+  the card would have written rows labelled Dutch while an American teacher bid
+  them — caught in testing, where American and Dutch corpora came back with
+  byte-identical targets and differed in exactly the three card slots. That is
+  the same mislabeling `verify_card` guards against for BBA, one level up and
+  just as invisible downstream.
 
 ### Fixed
 
@@ -2702,6 +2863,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   encoding is not invariant to information-preserving re-representations, so a
   retrain fixes the instance, not the class.
 
+### Changed
+
+- **`dump-teacher` can draw from the banks without reading them whole.**
+  `--skip` plus a bounded `--boards` route through `pdd::load_slice`, so a
+  corpus draw off `24.pdd` (2 GB) no longer pulls the file into memory. A bare
+  `--deals` still means "every deal to the end", so existing recipes are
+  unchanged — verified: a v3 dump is byte-identical across this change.
+
+- **`dump-teacher --configured` emits `features_v4`.** 368 floats instead of 88,
+  with both partnerships' cards attached via `Context::with_config`, and
+  `--system` / `--their-system` naming what each side plays. The card is
+  rendered *after* the cell's knobs are armed, which is what keeps card, code
+  and net in sync — `american_card()` reads the same knobs the rules do. The
+  sidecar records both declared systems, so a corpus says what it was dumped
+  under.
+
+  `--system` selects the **teacher**, not merely the disclosed card. Wiring only
+  the card would have written rows labelled Dutch while an American teacher bid
+  them — caught in testing, where American and Dutch corpora came back with
+  byte-identical targets and differed in exactly the three card slots. That is
+  the same mislabeling `verify_card` guards against for BBA, one level up and
+  just as invisible downstream.
+
 ### Fixed
 
 - **`Strength`'s doc no longer promises a floor `canonicalize` does not
@@ -2792,6 +2976,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Measured spread 0.83–0.96 tricks (0.49–0.70 on the quiet-opponents
   replication) against a 0.3 threshold — the mean is flat where the spread
   nearly doubles.
+
+### Changed
+
+- **`dump-teacher` can draw from the banks without reading them whole.**
+  `--skip` plus a bounded `--boards` route through `pdd::load_slice`, so a
+  corpus draw off `24.pdd` (2 GB) no longer pulls the file into memory. A bare
+  `--deals` still means "every deal to the end", so existing recipes are
+  unchanged — verified: a v3 dump is byte-identical across this change.
+
+- **`dump-teacher --configured` emits `features_v4`.** 368 floats instead of 88,
+  with both partnerships' cards attached via `Context::with_config`, and
+  `--system` / `--their-system` naming what each side plays. The card is
+  rendered *after* the cell's knobs are armed, which is what keeps card, code
+  and net in sync — `american_card()` reads the same knobs the rules do. The
+  sidecar records both declared systems, so a corpus says what it was dumped
+  under.
+
+  `--system` selects the **teacher**, not merely the disclosed card. Wiring only
+  the card would have written rows labelled Dutch while an American teacher bid
+  them — caught in testing, where American and Dutch corpora came back with
+  byte-identical targets and differed in exactly the three card slots. That is
+  the same mislabeling `verify_card` guards against for BBA, one level up and
+  just as invisible downstream.
 
 ### Fixed
 
@@ -2945,6 +3152,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   there is nothing for a lead-scorer to arbitrate. Tag retired; default kept.
   Both are fresh measurements rather than rescores, and neither published
   figure reproduces at today's book.
+
+### Changed
+
+- **`dump-teacher` can draw from the banks without reading them whole.**
+  `--skip` plus a bounded `--boards` route through `pdd::load_slice`, so a
+  corpus draw off `24.pdd` (2 GB) no longer pulls the file into memory. A bare
+  `--deals` still means "every deal to the end", so existing recipes are
+  unchanged — verified: a v3 dump is byte-identical across this change.
+
+- **`dump-teacher --configured` emits `features_v4`.** 368 floats instead of 88,
+  with both partnerships' cards attached via `Context::with_config`, and
+  `--system` / `--their-system` naming what each side plays. The card is
+  rendered *after* the cell's knobs are armed, which is what keeps card, code
+  and net in sync — `american_card()` reads the same knobs the rules do. The
+  sidecar records both declared systems, so a corpus says what it was dumped
+  under.
+
+  `--system` selects the **teacher**, not merely the disclosed card. Wiring only
+  the card would have written rows labelled Dutch while an American teacher bid
+  them — caught in testing, where American and Dutch corpora came back with
+  byte-identical targets and differed in exactly the three card slots. That is
+  the same mislabeling `verify_card` guards against for BBA, one level up and
+  just as invisible downstream.
 
 ### Fixed
 
@@ -3519,6 +3749,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   reading aggregate `Inferences` (per-seat `Envelope`/`Dnf` + control-bid witness)
   and the `Dnf` union-of-boxes keep their names.
 
+### Changed
+
+- **`dump-teacher` can draw from the banks without reading them whole.**
+  `--skip` plus a bounded `--boards` route through `pdd::load_slice`, so a
+  corpus draw off `24.pdd` (2 GB) no longer pulls the file into memory. A bare
+  `--deals` still means "every deal to the end", so existing recipes are
+  unchanged — verified: a v3 dump is byte-identical across this change.
+
+- **`dump-teacher --configured` emits `features_v4`.** 368 floats instead of 88,
+  with both partnerships' cards attached via `Context::with_config`, and
+  `--system` / `--their-system` naming what each side plays. The card is
+  rendered *after* the cell's knobs are armed, which is what keeps card, code
+  and net in sync — `american_card()` reads the same knobs the rules do. The
+  sidecar records both declared systems, so a corpus says what it was dumped
+  under.
+
+  `--system` selects the **teacher**, not merely the disclosed card. Wiring only
+  the card would have written rows labelled Dutch while an American teacher bid
+  them — caught in testing, where American and Dutch corpora came back with
+  byte-identical targets and differed in exactly the three card slots. That is
+  the same mislabeling `verify_card` guards against for BBA, one level up and
+  just as invisible downstream.
+
 ### Fixed
 
 - **2/1 no-fit floor: forcing-1NT catch-all coverage gap for a stricter
@@ -3848,6 +4101,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   identity is pinned by `points_twelve_is_the_rule_of_20` (constraint.rs) and
   `sound_eleven_counts_open_one_of_a_suit` (american/openings.rs), which shows
   the sound 11-count still opens 1♠ and passes on the legacy opt-out scale.
+
+### Changed
+
+- **`dump-teacher` can draw from the banks without reading them whole.**
+  `--skip` plus a bounded `--boards` route through `pdd::load_slice`, so a
+  corpus draw off `24.pdd` (2 GB) no longer pulls the file into memory. A bare
+  `--deals` still means "every deal to the end", so existing recipes are
+  unchanged — verified: a v3 dump is byte-identical across this change.
+
+- **`dump-teacher --configured` emits `features_v4`.** 368 floats instead of 88,
+  with both partnerships' cards attached via `Context::with_config`, and
+  `--system` / `--their-system` naming what each side plays. The card is
+  rendered *after* the cell's knobs are armed, which is what keeps card, code
+  and net in sync — `american_card()` reads the same knobs the rules do. The
+  sidecar records both declared systems, so a corpus says what it was dumped
+  under.
+
+  `--system` selects the **teacher**, not merely the disclosed card. Wiring only
+  the card would have written rows labelled Dutch while an American teacher bid
+  them — caught in testing, where American and Dutch corpora came back with
+  byte-identical targets and differed in exactly the three card slots. That is
+  the same mislabeling `verify_card` guards against for BBA, one level up and
+  just as invisible downstream.
 
 ### Fixed
 
@@ -4447,6 +4723,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`dump-teacher --teacher american`), and the fixed baseline the integration
   tests pin and the BBA-gap campaign re-anchors against
   (`bba-gen --our-floor american-instinct`).
+
+### Changed
+
+- **`dump-teacher` can draw from the banks without reading them whole.**
+  `--skip` plus a bounded `--boards` route through `pdd::load_slice`, so a
+  corpus draw off `24.pdd` (2 GB) no longer pulls the file into memory. A bare
+  `--deals` still means "every deal to the end", so existing recipes are
+  unchanged — verified: a v3 dump is byte-identical across this change.
+
+- **`dump-teacher --configured` emits `features_v4`.** 368 floats instead of 88,
+  with both partnerships' cards attached via `Context::with_config`, and
+  `--system` / `--their-system` naming what each side plays. The card is
+  rendered *after* the cell's knobs are armed, which is what keeps card, code
+  and net in sync — `american_card()` reads the same knobs the rules do. The
+  sidecar records both declared systems, so a corpus says what it was dumped
+  under.
+
+  `--system` selects the **teacher**, not merely the disclosed card. Wiring only
+  the card would have written rows labelled Dutch while an American teacher bid
+  them — caught in testing, where American and Dutch corpora came back with
+  byte-identical targets and differed in exactly the three card slots. That is
+  the same mislabeling `verify_card` guards against for BBA, one level up and
+  just as invisible downstream.
 
 ### Fixed
 
@@ -5728,6 +6027,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   — whose trigger fires independent of `xyz()` and loses standalone — from ever
   being forced on without XYZ.
 
+### Changed
+
+- **`dump-teacher` can draw from the banks without reading them whole.**
+  `--skip` plus a bounded `--boards` route through `pdd::load_slice`, so a
+  corpus draw off `24.pdd` (2 GB) no longer pulls the file into memory. A bare
+  `--deals` still means "every deal to the end", so existing recipes are
+  unchanged — verified: a v3 dump is byte-identical across this change.
+
+- **`dump-teacher --configured` emits `features_v4`.** 368 floats instead of 88,
+  with both partnerships' cards attached via `Context::with_config`, and
+  `--system` / `--their-system` naming what each side plays. The card is
+  rendered *after* the cell's knobs are armed, which is what keeps card, code
+  and net in sync — `american_card()` reads the same knobs the rules do. The
+  sidecar records both declared systems, so a corpus says what it was dumped
+  under.
+
+  `--system` selects the **teacher**, not merely the disclosed card. Wiring only
+  the card would have written rows labelled Dutch while an American teacher bid
+  them — caught in testing, where American and Dutch corpora came back with
+  byte-identical targets and differed in exactly the three card slots. That is
+  the same mislabeling `verify_card` guards against for BBA, one level up and
+  just as invisible downstream.
+
 ### Fixed
 
 - **Eight stale `competition.rs` section comments stated the wrong default**
@@ -6109,6 +6431,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   dir-based `diffpair`/`sddiff` as explicit local overrides. Verified
   behavior-preserving (`sh -n` all, invocation lines byte-identical vs prior,
   stubbed end-to-end smoke of the sourcing/seed/path contract).
+
+### Changed
+
+- **`dump-teacher` can draw from the banks without reading them whole.**
+  `--skip` plus a bounded `--boards` route through `pdd::load_slice`, so a
+  corpus draw off `24.pdd` (2 GB) no longer pulls the file into memory. A bare
+  `--deals` still means "every deal to the end", so existing recipes are
+  unchanged — verified: a v3 dump is byte-identical across this change.
+
+- **`dump-teacher --configured` emits `features_v4`.** 368 floats instead of 88,
+  with both partnerships' cards attached via `Context::with_config`, and
+  `--system` / `--their-system` naming what each side plays. The card is
+  rendered *after* the cell's knobs are armed, which is what keeps card, code
+  and net in sync — `american_card()` reads the same knobs the rules do. The
+  sidecar records both declared systems, so a corpus says what it was dumped
+  under.
+
+  `--system` selects the **teacher**, not merely the disclosed card. Wiring only
+  the card would have written rows labelled Dutch while an American teacher bid
+  them — caught in testing, where American and Dutch corpora came back with
+  byte-identical targets and differed in exactly the three card slots. That is
+  the same mislabeling `verify_card` guards against for BBA, one level up and
+  just as invisible downstream.
 
 ### Fixed
 
@@ -6525,6 +6870,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   / `TrickCountTable`); the three `web/src/lib.rs` call sites moved to
   `table[strain].get(seat).get()`. No user-visible behavior change; the root
   `pons` crate (native `ddss`) is unaffected.
+
+### Changed
+
+- **`dump-teacher` can draw from the banks without reading them whole.**
+  `--skip` plus a bounded `--boards` route through `pdd::load_slice`, so a
+  corpus draw off `24.pdd` (2 GB) no longer pulls the file into memory. A bare
+  `--deals` still means "every deal to the end", so existing recipes are
+  unchanged — verified: a v3 dump is byte-identical across this change.
+
+- **`dump-teacher --configured` emits `features_v4`.** 368 floats instead of 88,
+  with both partnerships' cards attached via `Context::with_config`, and
+  `--system` / `--their-system` naming what each side plays. The card is
+  rendered *after* the cell's knobs are armed, which is what keeps card, code
+  and net in sync — `american_card()` reads the same knobs the rules do. The
+  sidecar records both declared systems, so a corpus says what it was dumped
+  under.
+
+  `--system` selects the **teacher**, not merely the disclosed card. Wiring only
+  the card would have written rows labelled Dutch while an American teacher bid
+  them — caught in testing, where American and Dutch corpora came back with
+  byte-identical targets and differed in exactly the three card slots. That is
+  the same mislabeling `verify_card` guards against for BBA, one level up and
+  just as invisible downstream.
 
 ### Fixed
 
@@ -7501,6 +7869,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   responders opposite a 15-17 1NT and reports opener's rebid by strength / support /
   shape (O — settling the flat-4333 question above) and the responder invite band by
   HCP (R).
+
+### Changed
+
+- **`dump-teacher` can draw from the banks without reading them whole.**
+  `--skip` plus a bounded `--boards` route through `pdd::load_slice`, so a
+  corpus draw off `24.pdd` (2 GB) no longer pulls the file into memory. A bare
+  `--deals` still means "every deal to the end", so existing recipes are
+  unchanged — verified: a v3 dump is byte-identical across this change.
+
+- **`dump-teacher --configured` emits `features_v4`.** 368 floats instead of 88,
+  with both partnerships' cards attached via `Context::with_config`, and
+  `--system` / `--their-system` naming what each side plays. The card is
+  rendered *after* the cell's knobs are armed, which is what keeps card, code
+  and net in sync — `american_card()` reads the same knobs the rules do. The
+  sidecar records both declared systems, so a corpus says what it was dumped
+  under.
+
+  `--system` selects the **teacher**, not merely the disclosed card. Wiring only
+  the card would have written rows labelled Dutch while an American teacher bid
+  them — caught in testing, where American and Dutch corpora came back with
+  byte-identical targets and differed in exactly the three card slots. That is
+  the same mislabeling `verify_card` guards against for BBA, one level up and
+  just as invisible downstream.
 
 ### Fixed
 
@@ -10556,6 +10947,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and `serde_with` is still pulled transitively by `contract-bridge`/`ddss` (for
   *their* serde impls) when `--features serde` is enabled.
 
+### Changed
+
+- **`dump-teacher` can draw from the banks without reading them whole.**
+  `--skip` plus a bounded `--boards` route through `pdd::load_slice`, so a
+  corpus draw off `24.pdd` (2 GB) no longer pulls the file into memory. A bare
+  `--deals` still means "every deal to the end", so existing recipes are
+  unchanged — verified: a v3 dump is byte-identical across this change.
+
+- **`dump-teacher --configured` emits `features_v4`.** 368 floats instead of 88,
+  with both partnerships' cards attached via `Context::with_config`, and
+  `--system` / `--their-system` naming what each side plays. The card is
+  rendered *after* the cell's knobs are armed, which is what keeps card, code
+  and net in sync — `american_card()` reads the same knobs the rules do. The
+  sidecar records both declared systems, so a corpus says what it was dumped
+  under.
+
+  `--system` selects the **teacher**, not merely the disclosed card. Wiring only
+  the card would have written rows labelled Dutch while an American teacher bid
+  them — caught in testing, where American and Dutch corpora came back with
+  byte-identical targets and differed in exactly the three card slots. That is
+  the same mislabeling `verify_card` guards against for BBA, one level up and
+  just as invisible downstream.
+
 ### Fixed
 
 - **A passed hand's both-majors double of an opponent's 1NT now escapes the
@@ -11015,6 +11429,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`[package.metadata.docs.rs]`), so the `serde` impls appear in the rendered
   docs.
 
+### Changed
+
+- **`dump-teacher` can draw from the banks without reading them whole.**
+  `--skip` plus a bounded `--boards` route through `pdd::load_slice`, so a
+  corpus draw off `24.pdd` (2 GB) no longer pulls the file into memory. A bare
+  `--deals` still means "every deal to the end", so existing recipes are
+  unchanged — verified: a v3 dump is byte-identical across this change.
+
+- **`dump-teacher --configured` emits `features_v4`.** 368 floats instead of 88,
+  with both partnerships' cards attached via `Context::with_config`, and
+  `--system` / `--their-system` naming what each side plays. The card is
+  rendered *after* the cell's knobs are armed, which is what keeps card, code
+  and net in sync — `american_card()` reads the same knobs the rules do. The
+  sidecar records both declared systems, so a corpus says what it was dumped
+  under.
+
+  `--system` selects the **teacher**, not merely the disclosed card. Wiring only
+  the card would have written rows labelled Dutch while an American teacher bid
+  them — caught in testing, where American and Dutch corpora came back with
+  byte-identical targets and differed in exactly the three card slots. That is
+  the same mislabeling `verify_card` guards against for BBA, one level up and
+  just as invisible downstream.
+
 ### Fixed
 
 - The defensive book's entry tables are now seat-fanned. `defense_to_suit`,
@@ -11099,6 +11536,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (with a [parallel
   copy](https://github.com/jdh8/dds-bridge/tree/main/examples/notrump-tricks)
   in `dds-bridge`).
+
+### Changed
+
+- **`dump-teacher` can draw from the banks without reading them whole.**
+  `--skip` plus a bounded `--boards` route through `pdd::load_slice`, so a
+  corpus draw off `24.pdd` (2 GB) no longer pulls the file into memory. A bare
+  `--deals` still means "every deal to the end", so existing recipes are
+  unchanged — verified: a v3 dump is byte-identical across this change.
+
+- **`dump-teacher --configured` emits `features_v4`.** 368 floats instead of 88,
+  with both partnerships' cards attached via `Context::with_config`, and
+  `--system` / `--their-system` naming what each side plays. The card is
+  rendered *after* the cell's knobs are armed, which is what keeps card, code
+  and net in sync — `american_card()` reads the same knobs the rules do. The
+  sidecar records both declared systems, so a corpus says what it was dumped
+  under.
+
+  `--system` selects the **teacher**, not merely the disclosed card. Wiring only
+  the card would have written rows labelled Dutch while an American teacher bid
+  them — caught in testing, where American and Dutch corpora came back with
+  byte-identical targets and differed in exactly the three card slots. That is
+  the same mislabeling `verify_card` guards against for BBA, one level up and
+  just as invisible downstream.
 
 ### Fixed
 
@@ -11190,6 +11650,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - MSRV pinned to 1.93
 - Updated `dds-bridge` dependency to 0.16
 
+### Changed
+
+- **`dump-teacher` can draw from the banks without reading them whole.**
+  `--skip` plus a bounded `--boards` route through `pdd::load_slice`, so a
+  corpus draw off `24.pdd` (2 GB) no longer pulls the file into memory. A bare
+  `--deals` still means "every deal to the end", so existing recipes are
+  unchanged — verified: a v3 dump is byte-identical across this change.
+
+- **`dump-teacher --configured` emits `features_v4`.** 368 floats instead of 88,
+  with both partnerships' cards attached via `Context::with_config`, and
+  `--system` / `--their-system` naming what each side plays. The card is
+  rendered *after* the cell's knobs are armed, which is what keeps card, code
+  and net in sync — `american_card()` reads the same knobs the rules do. The
+  sidecar records both declared systems, so a corpus says what it was dumped
+  under.
+
+  `--system` selects the **teacher**, not merely the disclosed card. Wiring only
+  the card would have written rows labelled Dutch while an American teacher bid
+  them — caught in testing, where American and Dutch corpora came back with
+  byte-identical targets and differed in exactly the three card slots. That is
+  the same mislabeling `verify_card` guards against for BBA, one level up and
+  just as invisible downstream.
+
 ### Fixed
 - Memory leak in `Array::try_map`
 - `hcp_plus` calculation
@@ -11219,6 +11702,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Magic number 38 replaced with a named constant
 
 ## [0.3.1] — 2025-05-31
+
+### Changed
+
+- **`dump-teacher` can draw from the banks without reading them whole.**
+  `--skip` plus a bounded `--boards` route through `pdd::load_slice`, so a
+  corpus draw off `24.pdd` (2 GB) no longer pulls the file into memory. A bare
+  `--deals` still means "every deal to the end", so existing recipes are
+  unchanged — verified: a v3 dump is byte-identical across this change.
+
+- **`dump-teacher --configured` emits `features_v4`.** 368 floats instead of 88,
+  with both partnerships' cards attached via `Context::with_config`, and
+  `--system` / `--their-system` naming what each side plays. The card is
+  rendered *after* the cell's knobs are armed, which is what keeps card, code
+  and net in sync — `american_card()` reads the same knobs the rules do. The
+  sidecar records both declared systems, so a corpus says what it was dumped
+  under.
+
+  `--system` selects the **teacher**, not merely the disclosed card. Wiring only
+  the card would have written rows labelled Dutch while an American teacher bid
+  them — caught in testing, where American and Dutch corpora came back with
+  byte-identical targets and differed in exactly the three card slots. That is
+  the same mislabeling `verify_card` guards against for BBA, one level up and
+  just as invisible downstream.
 
 ### Fixed
 - `Strategy` now requires `RefUnwindSafe` so `Trie` stays `UnwindSafe`
