@@ -54,13 +54,13 @@
 
 use clap::{Parser, ValueEnum};
 use contract_bridge::auction::{Auction, Call};
-use contract_bridge::{AbsoluteVulnerability, FullDeal, Seat};
+use contract_bridge::{AbsoluteVulnerability, FullDeal, Seat, Suit};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::Accumulator;
 use pons::american;
 use pons::bidding::Stance;
 use pons::bidding::instinct::{
-    set_keycard_answer_gates, set_keycard_minors, set_kickback, set_queen_ask,
+    keycard_ask_at, set_keycard_answer_gates, set_keycard_minors, set_kickback, set_queen_ask,
 };
 use pons::scoring::{final_contract, imps, ns_score_contract, ns_score_pd};
 use rand::SeedableRng;
@@ -182,6 +182,108 @@ fn arm_knobs(arm: Arm) {
     set_kickback(arm.kickback());
     set_keycard_answer_gates(arm.gates());
     set_queen_ask(arm.queen());
+}
+
+/// The keycard ask `arm` made at one table, if any — the trump it asked in and
+/// whether the ask was relocated.
+///
+/// **Both arms bid at every table.** The feature sits N-S at table A and E-W at
+/// table B, so an auction is a conversation between the two arms and a scan
+/// that ignores *who* called attributes the opponents' asks to whichever arm it
+/// happened to arm.  `arm_is_ns` says where this arm sits at this table, and
+/// only calls by that side are considered — with that arm's knobs set, since
+/// `keycard_ask_at` reads them to recognise a relocation.
+///
+/// Scans the whole auction rather than a fixed ply: the ask sits wherever the
+/// conversation reached it.  The first one wins, because a second ask on the
+/// same auction is a later rung of the same conversation, which
+/// `keycard_ask_at` already declines to call an ask.
+fn table_ask(auction: &Auction, dealer: Seat, arm: Arm, arm_is_ns: bool) -> Option<(Suit, bool)> {
+    arm_knobs(arm);
+    let calls: Vec<Call> = auction.iter().copied().collect();
+    (0..calls.len()).find_map(|index| {
+        let seat = seat_to_act(dealer, index);
+        let north_south = matches!(seat, Seat::North | Seat::South);
+        if north_south != arm_is_ns {
+            return None;
+        }
+        keycard_ask_at(&calls, index).map(|(_bid, trump, relocated)| (trump, relocated))
+    })
+}
+
+/// The keycard ask `arm` made on this board, at whichever table it made one.
+fn arm_ask(board: &Board, arm: Arm, is_feature: bool) -> Option<(Suit, bool)> {
+    // The feature is N-S at table A and E-W at table B; the baseline mirrors it.
+    table_ask(&board.table_a, board.dealer, arm, is_feature)
+        .or_else(|| table_ask(&board.table_b, board.dealer, arm, !is_feature))
+}
+
+/// Per-trump attribution over the divergent boards.
+///
+/// Bucketing by the strain of the *final contract* — the first cut of this
+/// analysis — conflates the lane the ask was made in with wherever the auction
+/// landed, and double-counts a board whose two arms landed in different
+/// strains.  Bucketing by the **ask** does neither, and it exposes the bucket
+/// that decides how much of a cell is even attributable: boards where neither
+/// arm asked for keycards at all, which under a knob that also swaps the
+/// floor's weights is the net's contribution and nothing else.
+fn per_trump_census(
+    boards: &[Board],
+    divergent: &[usize],
+    swings_pd: &[i64],
+    swings_dd: &[i64],
+    feature: Arm,
+    baseline: Arm,
+) {
+    // (count, pd, dd) per label, in a fixed order so cells are comparable.
+    let mut rows: Vec<(String, [i64; 3])> = Vec::new();
+    let mut bump = |label: String, pd: i64, dd: i64| {
+        let slot = match rows.iter_mut().find(|(name, _)| *name == label) {
+            Some((_, slot)) => slot,
+            None => {
+                rows.push((label, [0; 3]));
+                &mut rows.last_mut().expect("just pushed").1
+            }
+        };
+        slot[0] += 1;
+        slot[1] += pd;
+        slot[2] += dd;
+    };
+
+    for &index in divergent {
+        let board = &boards[index];
+        let ask_a = arm_ask(board, feature, true);
+        let ask_b = arm_ask(board, baseline, false);
+        // Attribute to the feature arm's ask where it made one; otherwise to
+        // the baseline's, so a board the feature *stopped* asking on is still
+        // charged to that lane rather than hidden in the net bucket.
+        let label = match (ask_a, ask_b) {
+            (Some((trump, relocated)), _) => {
+                format!("{trump:?} {}", if relocated { "relocated" } else { "4NT" })
+            }
+            (None, Some((trump, _))) => format!("{trump:?} ask only in baseline"),
+            (None, None) => "no keycard ask (net alone)".to_string(),
+        };
+        bump(label, swings_pd[index], swings_dd[index]);
+    }
+    arm_knobs(Arm::Plain);
+
+    rows.sort_by(|a, b| b.1[0].cmp(&a.1[0]));
+    let total = divergent.len().max(1) as f64;
+    println!("\n-- per-trump attribution, bucketed by the ask (all divergent boards) --");
+    println!(
+        "{:<28} {:>9} {:>7} {:>10} {:>8} {:>10} {:>8}",
+        "bucket", "boards", "share", "PD", "PD/bd", "DD", "DD/bd",
+    );
+    for (label, [count, pd, dd]) in &rows {
+        let n = *count as f64;
+        println!(
+            "{label:<28} {count:>9} {:>6.1}% {pd:>+10} {:>+8.3} {dd:>+10} {:>+8.3}",
+            100.0 * n / total,
+            *pd as f64 / n,
+            *dd as f64 / n,
+        );
+    }
 }
 
 /// Build one stance per arm.  `set_kickback` and `set_queen_ask` are read at
@@ -367,4 +469,12 @@ fn main() {
             "{label}: {total:+} IMPs, {mean:+.5}/board  95% CI [{lo:+.5}, {hi:+.5}]  {per_div:+.2}/divergent  ({verdict})",
         );
     }
+    per_trump_census(
+        &boards,
+        &divergent,
+        &swings_pd,
+        &swings_dd,
+        args.feature,
+        args.baseline,
+    );
 }

@@ -2310,6 +2310,30 @@ fn keycard_ask_bid(auction: &[Call], ask: usize) -> Option<Bid> {
     (bid == Bid::new(4, Strain::Notrump)).then_some(bid)
 }
 
+/// The keycard ask made at `index`, if the call there is one: the asking bid
+/// and the trump it asks in, plus whether the ask was **relocated** onto the
+/// kickback ladder rather than made at 4NT
+///
+/// For measurement harnesses.  An A/B that buckets its divergent boards by the
+/// strain of the *final contract* conflates two different things — the lane a
+/// keycard ask was made in, and where the auction happened to land — and it
+/// cannot see the boards where no ask was made at all.  That last bucket is
+/// the one that matters when the floor's weights move with the knob: it is the
+/// residue attributable to the net alone (`docs/ai-bidder/bba-kickback.md`
+/// §7.8).
+///
+/// **Reads the knob**, through [`kickback_trump`]: call it with the same arm
+/// armed that produced the auction, or a relocated ask reads as no ask.
+#[doc(hidden)]
+#[must_use]
+pub fn keycard_ask_at(auction: &[Call], index: usize) -> Option<(Bid, Suit, bool)> {
+    let ask = keycard_ask_bid(auction, index)?;
+    match kickback_trump(auction, index) {
+        Some(trump) => Some((ask, trump, true)),
+        None => Some((ask, face_trump(auction, index)?, false)),
+    }
+}
+
 /// Which 1430 rung `answer` sits on above `ask` — steps 1..=4 up the auction's
 /// own ladder, [`bid_successor`] applied that many times
 ///
