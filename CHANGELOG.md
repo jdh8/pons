@@ -9,10 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **`features_v4` — the net can read the convention card.** 358 inputs:
-  `features_v3`'s 88, then both partnerships' cards at 135 rows apiece
-  (`SCHEMA` 133 + `PONS_SCHEMA` 2), encoded `0.0`/`1.0` since every row is
-  boolean. Both sides, because an A/B's arms play each other: at every table one
+- **`features_v4` — the net can read the convention card.** 368 inputs:
+  `features_v3`'s 88, then both partnerships' cards at 140 apiece — a 5-wide
+  base-system one-hot plus 135 rows (`SCHEMA` 133 + `PONS_SCHEMA` 2), encoded
+  `0.0`/`1.0` since every row is boolean. The base system is not decoration:
+  `dutch_card` differs from `american_card` by its header (2/1 → WJ) and a
+  single row, and that header carries the whole wide non-forcing 1♣, so
+  encoding rows alone would leave a WJ opponent nearly indistinguishable from a
+  2/1 one. Both sides, because an A/B's arms play each other: at every table one
   side relocates its asks and the other does not, and a net blind to the
   opposition's card is out of distribution on exactly the boards the measurement
   is about.
@@ -28,6 +32,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   train to ≈0. Full width is still right, because pruning would make an
   artifact's meaning depend on the corpus that produced it. No effect on any
   bid: `smoke-default --count 50000` is byte-identical across the change.
+
+  Each side is encoded independently, because only one of them has knobs: ours
+  comes from live knob state via `american_card()`, theirs from a declared
+  `.bbsa` — the opponents may be ourselves, BBA, BEN or another engine. The
+  card is a *lossy* projection of the code (222 `set_*` knobs against roughly 26
+  knob-driven card rows), which sets a hard rule for any corpus: vary only
+  configuration the card can express, or two cells collide into identical
+  vectors with contradictory targets.
 
 ### Fixed
 
