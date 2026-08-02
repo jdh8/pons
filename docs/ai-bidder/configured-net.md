@@ -158,25 +158,22 @@ decision table, arms sequential, fresh seed shared across arms.
 | 4 | Artifact + candle-parity fixture, wire `classify_bba` to v4, retire the twin selection | the twin artifact can go once gate 1 passes |
 | 5 | Gate 1, then gate 2 | fresh deals |
 
-## Open: how the opponents' config reaches the features
+## Resolved: the opponents' config rides on `Context`
 
 Our own card falls out of live knob state, exactly as `card()` reads it today.
 The opponents' does not — nothing at a seat currently knows what the other
-partnership has agreed.
+partnership has agreed, so it has to be supplied.
 
-Recommendation: **a thread-local holding the opponents' card**, set by the
-harness beside the knobs it already arms per call. It matches the machinery
-that exists (knobs are thread-locals; `card()` reads them live), needs no
-signature change through `Classifier`/`Stance`, and the A/B loop is already
-re-arming per call by side, so there is one obvious place to set it.
+**Decision (jdh8): carry it on `Context`**, the tidy path, over a thread-local
+set beside the knobs. A thread-local would have been two lines in the harness
+and no signature changes, but in a codebase this size an ambient global that
+silently changes what a feature vector means is the wrong trade.
 
-The alternative — carrying both cards on `Context` — is cleaner in principle
-and touches every constructor in the bidding path. Not obviously worth it
-before the design has proven itself.
-
-`ponytail:` a thread-local is the cheap rung. If a second consumer ever needs
-the opponents' agreements (a reader that adapts to their system, say), promote
-it to `Context` then.
+`Context::new` keeps its signature. The cards become fields with defaults —
+**opponents default to our own card**, mirroring how `oracle.rs` already treats
+undeclared opponents — plus a `with_opponents` setter. So the 116 existing
+`Context::new` call sites are untouched, and only the A/B harness and
+`dump-teacher` say anything about the opposition.
 
 ## The teacher already configures per seat — the real hazard is elsewhere
 

@@ -39,8 +39,15 @@ Two different disciplines, often confused:
 | **training corpus** | yes — overlap between training runs is harmless | **no** |
 | **bank-backed A/B slice** (`--deals`/`--offset` scoring) | **no** — replaying deals across experiments correlates their results | **yes** |
 
-Only the second consumes the ledger below. A net trained on rows 0..5M and
+Only the second consumes the cursor below. A net trained on rows 0..5M and
 another on rows 0..8M is fine; two A/Bs sharing a slice is not.
+
+**But training draws are not free either — they are just constrained
+differently.** A slice used to *train* a net must never later be used to
+*score that net*: that is train-on-test, and it inflates the result silently.
+So training draws do not advance the cursor, but they do have to be recorded,
+which is what the register below is for. Evaluating on freshly generated deals
+sidesteps this entirely, which is the other reason the standing rule says to.
 
 ## Capacity
 
@@ -54,6 +61,18 @@ another on rows 0..8M is fine; two A/Bs sharing a slice is not.
 Row layout is 8-byte `MAGIC` + fixed 34-byte rows (`src/pdd.rs`), so
 `rows = (bytes − 8) / 34` — recompute rather than trusting this table if a file
 date changes.
+
+## Trained-on register — do not score these nets on these rows
+
+Not a cursor: these rows stay available for A/Bs of *other* nets, and for
+further training draws. They are recorded only so a bank-backed A/B never
+scores a net on deals it was fitted to.
+
+| bank | rows | fitted models |
+| --- | --- | --- |
+| `22.pdd` | 0..1,000,000 | evaluator corpora — `evaluator_v2`, `v3`, `v4` and their `_dnf`/`_exclusion` variants (drawn `--count` from the front at `--seed 1`: 100k, 400k, 500k and 1M deals across campaigns) |
+
+`24.pdd` has no training draws recorded; its consumption is A/B slices only.
 
 ## Slice ledger — `24.pdd`
 
@@ -79,7 +98,9 @@ bank-backed A/B runs**. Plan for it now rather than discovering it mid-campaign:
 - `22.pdd` is nearly untouched: evaluator corpora have drawn ≤1M deals from the
   front, and those were *training* draws, which do not advance a cursor. It is
   **31.4M rows of essentially unused A/B capacity** and is the natural next
-  bank when `24.pdd` runs dry.
+  bank when `24.pdd` runs dry. New training draws should start **past row
+  1,000,000**, not because the front is spent, but to keep the option of a
+  bank-backed A/B for the evaluator nets that were fitted there.
 - Generating more bank is possible (`scripts/gib-scavenge.sh`, and
   `docs/shared-machine-data-gen.md` for the fleet) but costs real solver hours.
 
