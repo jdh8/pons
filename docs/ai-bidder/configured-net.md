@@ -1,6 +1,8 @@
 # The configured net — one net that reads the convention card
 
-**Status: design, no code.** Supersedes the two-artifact twin scheme
+**Status: phases 0–1 landed** (the `set_conv` read-back guard; `features_v4` and
+`Context::with_config`). Nothing serves v4 yet. Supersedes the two-artifact twin
+scheme
 (`american_bba.f32` + `american_bba_kickback.f32`) that
 [`bba-kickback.md`](bba-kickback.md) §7.7 introduced and §7.12 showed the cost
 of.
@@ -63,9 +65,9 @@ construction, because the feature vector *is* the disclosure.
 | block | width | source |
 | --- | ---: | --- |
 | `features_v3` | 88 | unchanged |
-| our card | 135 | `SCHEMA` (133) + `PONS_SCHEMA` (2) |
-| their card | 135 | same encoding, opponents' knob state |
-| **`FEATURES_LEN_V4`** | **358** | |
+| our card | 140 | base system one-hot (5) + `SCHEMA` (133) + `PONS_SCHEMA` (2) |
+| their card | 140 | same encoding, from the opponents' declared card |
+| **`FEATURES_LEN_V4`** | **368** | |
 
 `PONS_SCHEMA` is the two conventions EPBot's schema has no name for (South
 African Texas, Queen ask by available bid). "King ask by available bid" is a
@@ -82,11 +84,66 @@ measurement is about.
 one corpus and will train to ≈0. Pruning to the varying rows would make the
 artifact's meaning depend on the corpus that produced it, and would re-open the
 width question every campaign. The cost is real and worth stating: input width
-**88 → 358**, roughly 4× on layer 1.
+**88 → 368**, roughly 4× on layer 1.
 
 Reserving spare slots was considered and rejected: a net learns weight ≈0 for
 an always-zero input, so populating a reserved slot later still needs a
 retrain. Reserving saves plumbing churn, not the expensive part.
+
+## The sync: knob → code, knob → card, card → net
+
+The three are synced, and the knob is the single source of truth. `set_kickback`
+drives the floor's rules, `american_row` reads the same knob to set
+`Kickback 1430`, and `encode_card` puts that row in the feature vector. Nothing
+re-states the agreement anywhere; each layer reads the one below.
+
+**But the card is a lossy projection of the code, and the loss is large.**
+`src/bidding` has **222 `set_*` knobs**; `SCHEMA` has 133 rows, of which only
+**24 match arms** in `american_row` read live state — roughly 26 expressible
+axes. The other ~196 knobs move the bidding and are invisible to the card.
+
+That yields one hard invariant for the corpus:
+
+> **Only vary configuration the card can express.** A corpus that varies a
+> knob with no card row reproduces the exact mixed-net failure — identical
+> feature vectors, contradictory targets — with no symptom but a worse net.
+
+Worth enforcing rather than remembering: a dump that samples config cells should
+assert the cells differ in the encoded vector, not merely in the knob state.
+
+The card also under-discloses in a second, milder way. Our king ask *is*
+relocated under kickback, but BBA's schema has no king-ask row, so `card.rs`
+pins it to 0 always. That is lossy but *consistent* — it moves with
+`Kickback 1430` rather than against it — so it costs resolution, not
+correctness.
+
+## Two sides, and only one of them has knobs
+
+Our card falls out of our own knob state. The opponents' does not: they are
+ourselves, BBA, BEN, or another engine entirely, and none of those has a pons
+knob to read. So the two blocks are built by different routes:
+
+| side | source |
+| --- | --- |
+| ours | live knobs → `american_card()` / `dutch_card()` |
+| theirs | a `.bbsa` file → `load_bbsa` → mapped onto `SCHEMA` order |
+
+`Config::new(ours, theirs)` takes them separately for exactly this reason, and
+`the_two_sides_are_independent` pins that they may disagree, base system
+included.
+
+**The base system is not optional.** `Card::system` is the only channel for
+facts no row expresses — `dutch_card` differs from `american_card` by its header
+(2/1 → WJ) plus a single row, and the header is carrying the whole wide
+non-forcing 1♣. An earlier draft of `encode_card` dropped it, which would have
+made a WJ opponent nearly indistinguishable from a 2/1 one. It is now a 5-wide
+one-hot at the front of each side's block, pinned by `the_base_system_is_encoded`.
+
+**Owed by phase 2:** a foreign `.bbsa` gives `name = value` pairs, not our
+schema order. Mapping one onto the 135 slots needs a decision for both gaps —
+rows they set that `SCHEMA` lacks (drop), and `SCHEMA` rows they never mention
+(their engine default for that system, *not* zero, since zero is a claim). Until
+that exists, only `Config::symmetric` is honest for a foreign opponent.
 
 ## Corpus and evaluation
 
@@ -112,7 +169,7 @@ Sizing v4 against that:
 
 | driver | factor |
 | --- | --- |
-| params 98,342 → 167,462 (input 88 → 358) | 1.70× |
+| params 98,342 → 170,022 (input 88 → 368) | 1.70× |
 | config cells to cover — ours × theirs, at minimum 4 | 4× |
 
 | corpus | rows | ≈ deals |
@@ -121,7 +178,40 @@ Sizing v4 against that:
 | + width headroom | 2.54M | **~250k** |
 | comfortable | 3.38M | ~333k |
 
-**Take ~250k deals, 500k to be generous.** Against `22.pdd`'s 31,404,048 rows
+### ⚠ A uniform corpus cannot teach the kickback bit
+
+Sizing by *rows* is not enough, because the rows that depend on the config are
+vanishingly rare. §7.12's census: **the relocated ask fires on 107 of 200,000
+boards, 0.054%.** At 250k deals that is ~135 boards and a few hundred deciding
+rows out of ~2.5M — and exactly **one row of the 270** differs between the arms
+(the king-ask relocation has no BBA row at all and is pinned to 0). The net is
+being asked to key a rare behaviour off a single input whose deciding rows are
+~0.01% of the corpus; that weight will barely leave its initialisation.
+
+**This turns gate 2 into a false negative generator.** It would report "no
+difference" without distinguishing *the convention is worth nothing* from *the
+net never learned to read the bit* — the same confound this document exists to
+kill, one level down.
+
+The fix is the repo's standing answer to a rare trigger: **a mixture corpus.**
+Keep the uniform draw as the bulk, so the net stays calibrated on ordinary
+auctions, and add an enriched slice accepting deals that reach a slam face with
+an agreed non-spade trump. Evaluation stays on freshly generated uniform deals,
+so the oversampling never reaches the verdict.
+
+Two things to settle before dumping millions of rows, in this order:
+
+1. **Measure the reach rate** — how often a random deal reaches a slam face with
+   an agreed non-spade trump. That, not the ask rate, sets the enriched slice's
+   yield and therefore its cost.
+2. **Pick the mixture ratio** against that number, and record it beside the
+   artifact: a net's behaviour is only interpretable next to the distribution it
+   was fitted on.
+
+A cheaper fallback if enrichment proves expensive: accept that gate 2 is
+underpowered for kickback specifically, and read it only as a bound.
+
+**Take ~250k deals, 500k to be generous** for the uniform bulk. Against `22.pdd`'s 31,404,048 rows
 that is **1.6% of the bank**, and it is a *training* draw, so it does not
 advance the never-replay cursor. **The bank is not the constraint here** — the
 binding cost is dump time, ≈5M EPBot calls at 500k deals. Draw from `22.pdd`

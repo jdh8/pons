@@ -60,8 +60,8 @@ pub use ev::ev_all;
 pub use features::{
     CALLS_EVAL_V3, Config, FEATURES_LEN_EVAL, FEATURES_LEN_EVAL_V3, FEATURES_LEN_V3,
     FEATURES_LEN_V4, FEATURES_VERSION_EVAL, FEATURES_VERSION_V3, FEATURES_VERSION_V4,
-    LEN_CALL_EVAL_V3, LEN_CARD, OFFSET_OUR_CARD, OFFSET_THEIR_CARD, features_eval,
-    features_eval_v3, features_v3, features_v4,
+    LEN_CALL_EVAL_V3, LEN_CARD, LEN_CARD_ROWS, LEN_SYSTEM, OFFSET_OUR_CARD, OFFSET_THEIR_CARD,
+    features_eval, features_eval_v3, features_v3, features_v4,
 };
 pub use inference::{
     Dnf, Envelope, Inferences, Range, Relative, blind_opponent_reading, set_alert_reading,

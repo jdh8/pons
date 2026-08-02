@@ -810,7 +810,20 @@ pub const FEATURES_VERSION_V4: u32 = 4;
 /// fails a test rather than silently shifting every feature after it — a
 /// mismatch here would misalign an artifact against its extractor with no
 /// symptom other than worse bidding.
-pub const LEN_CARD: usize = 135;
+pub const LEN_CARD_ROWS: usize = 135;
+
+/// EPBot's base systems, one-hot: 2/1 GF, SAYC, WJ, Precision, Acol
+///
+/// **Not decoration, and not derivable from the rows.** `Card::system` is the
+/// only channel for facts no row expresses — `dutch_card` differs from
+/// `american_card` by this header plus a single row, yet the header is carrying
+/// the entire wide non-forcing 1♣. Encoding the rows alone would have made a WJ
+/// opponent nearly indistinguishable from a 2/1 one, which is precisely the
+/// blindness this whole extractor exists to remove.
+pub const LEN_SYSTEM: usize = 5;
+
+/// One side's whole declared system: its base system, then its convention rows
+pub const LEN_CARD: usize = LEN_SYSTEM + LEN_CARD_ROWS;
 
 /// Number of `f32` values returned by [`features_v4`]: every value
 /// [`features_v3`] produces, then both partnerships' convention cards.
@@ -868,19 +881,28 @@ impl Config {
     }
 }
 
-/// One card's rows as `0.0`/`1.0`, in the card's fixed schema order
+/// One card as `0.0`/`1.0`: the base system one-hot, then the rows in schema order
 ///
 /// Every row is boolean (`american_row` returns only `0` or `1`), so the values
 /// are already in the `[0.0, 1.0]` the rest of the vector uses.
+///
+/// A system id outside `0..LEN_SYSTEM` leaves the one-hot all-zero rather than
+/// panicking: an unknown base system is genuinely "none of these five", and a
+/// foreign `.bbsa` is untrusted input.
 fn encode_card(card: &Card) -> [f32; LEN_CARD] {
     assert_eq!(
         card.rows.len(),
-        LEN_CARD,
-        "a card carries {LEN_CARD} rows; a schema change must move `LEN_CARD` \
-         and retrain, since every later feature shifts"
+        LEN_CARD_ROWS,
+        "a card carries {LEN_CARD_ROWS} rows; a schema change must move \
+         `LEN_CARD_ROWS` and retrain, since every later feature shifts"
     );
     let mut out = [0.0; LEN_CARD];
-    for (slot, (_, value)) in out.iter_mut().zip(&card.rows) {
+    if let Ok(system) = usize::try_from(card.system)
+        && system < LEN_SYSTEM
+    {
+        out[system] = 1.0;
+    }
+    for (slot, (_, value)) in out[LEN_SYSTEM..].iter_mut().zip(&card.rows) {
         *slot = if *value == 0 { 0.0 } else { 1.0 };
     }
     out
@@ -1961,10 +1983,57 @@ mod tests {
     /// other symptom.
     #[test]
     fn card_block_is_the_whole_card() {
-        assert_eq!(crate::bidding::card::american_card().rows.len(), LEN_CARD);
-        assert_eq!(crate::bidding::card::dutch_card().rows.len(), LEN_CARD);
+        assert_eq!(
+            crate::bidding::card::american_card().rows.len(),
+            LEN_CARD_ROWS
+        );
+        assert_eq!(crate::bidding::card::dutch_card().rows.len(), LEN_CARD_ROWS);
+        assert_eq!(LEN_CARD, LEN_SYSTEM + LEN_CARD_ROWS);
         assert_eq!(FEATURES_LEN_V4, FEATURES_LEN_V3 + 2 * LEN_CARD);
-        assert_eq!(FEATURES_LEN_V4, 358);
+        assert_eq!(FEATURES_LEN_V4, 368);
+    }
+
+    /// The base system must reach the vector, not just the rows
+    ///
+    /// `dutch_card` differs from `american_card` by its header (2/1 → WJ) plus a
+    /// single row, and the header is the only channel for the wide non-forcing
+    /// 1♣.  Encoding rows alone would leave a WJ opponent nearly
+    /// indistinguishable from a 2/1 one.
+    #[test]
+    fn the_base_system_is_encoded() {
+        let american = Config::symmetric(&crate::bidding::card::american_card());
+        let dutch = Config::symmetric(&crate::bidding::card::dutch_card());
+
+        assert_eq!(american.ours[..LEN_SYSTEM], [1.0, 0.0, 0.0, 0.0, 0.0]);
+        assert_eq!(dutch.ours[..LEN_SYSTEM], [0.0, 0.0, 1.0, 0.0, 0.0]);
+        assert_ne!(american, dutch);
+
+        // The header, plus the one row the two systems disagree on.
+        let differing = american
+            .ours
+            .iter()
+            .zip(&dutch.ours)
+            .filter(|(a, b)| a != b)
+            .count();
+        assert_eq!(
+            differing, 3,
+            "two one-hot slots plus `1D opening with 5 cards`"
+        );
+    }
+
+    /// Each side is encoded independently — the opponents may play anything
+    ///
+    /// The opposition is ourselves, BBA, BEN or another engine entirely, so the
+    /// two blocks must be able to disagree, including on the base system.
+    #[test]
+    fn the_two_sides_are_independent() {
+        let mixed = Config::new(
+            &crate::bidding::card::american_card(),
+            &crate::bidding::card::dutch_card(),
+        );
+        assert_eq!(mixed.ours[..LEN_SYSTEM], [1.0, 0.0, 0.0, 0.0, 0.0]);
+        assert_eq!(mixed.theirs[..LEN_SYSTEM], [0.0, 0.0, 1.0, 0.0, 0.0]);
+        assert_ne!(mixed.ours, mixed.theirs);
     }
 
     /// v4 is v3 with two card blocks appended — the v3 prefix is untouched
