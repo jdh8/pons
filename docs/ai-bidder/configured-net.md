@@ -151,7 +151,7 @@ decision table, arms sequential, fresh seed shared across arms.
 
 | phase | work | note |
 | --- | --- | --- |
-| 0 | **Guard `set_conv` against silent no-ops** | Not the blocker first assumed — see below.  We push 135 rows per side; check every return |
+| 0 | **Guard `set_conv` against silent no-ops** | **done** — `BbaOracle::verify_card`, a read-back at card acceptance; the return code cannot see a bogus row |
 | 1 | `features_v4` + config plumbing | the open design question below |
 | 2 | `dump-teacher`: `--skip`/`load_slice`, per-board config sampling, per-side teacher config, both config vectors per row | |
 | 3 | Train on GPU | off-crate, as always |
@@ -175,32 +175,50 @@ undeclared opponents — plus a `with_opponents` setter. So the 116 existing
 `Context::new` call sites are untouched, and only the A/B harness and
 `dump-teacher` say anything about the opposition.
 
-## The teacher already configures per seat — the real hazard is elsewhere
+## Measured: the teacher configures per SIDE, and the return code is blind
 
-An earlier draft named "fix `epbot_set_conventions` per side" as phase 0, on a
-note claiming it takes a side (0/1) and that seats 2/3 throw −2 swallowed.
-**That is wrong.** Addressing is **seat + name**, mirroring
-`set_system_type(bot, seat, system)`; the −2 comes from passing the convention
-*index* as the int argument instead of the name.  Ground truth: 240 of 258
-boolean toggles round-trip against `21GF.bbsa`, and a control — flipping
-`Texas`, giving `1NT-(P)-4♥` against `2♥` — shows `get_bid` genuinely consults
-the per-seat flag.
+Two drafts of this section disagreed, so it was settled by measurement rather
+than by reading decompiled code. `examples/probe-set-conv` is the instrument;
+run it against any card to reproduce. Findings, `libEPBot.so`, system 0:
 
-`oracle.rs` already does the right thing: `ours = [actor, actor + 2]`,
-`theirs = [(actor + 1) % 4, (actor + 3) % 4]`, each seat configured
-individually, with `with_opponents` carrying a wholly separate card for the
-opposition.  That is how BEN's declared `.bbsa` is loaded as the other side.
-**Asymmetric-config corpora need no new capability.**
+| question | answer |
+| --- | --- |
+| is argument 2 a seat or a side? | a **side** — 0 and 1 answer, **2 and above return −2** from the setter *and* the getter |
+| what does an unknown name return? | **0**, and it reads back **0** |
+| are the two slots independent? | **yes** — systems (0, 8) disagree on `Landy`/`Multi-Landy` |
+| rows of `cards/American.bbsa` that do not stick | **3** |
 
-The hazard that *is* real, and that this design makes much sharper: **the
-return value of `set_conv` is ignored**, and `card.rs` documents that a name
-EPBot does not know is a *silent no-op*.  Today a handful of overrides are
-pushed and each was checked by hand.  Under this design we push **135 rows per
-side** — 135 chances for a renamed or mistyped row to do nothing at all, with
-the corpus recording the config we *intended* against a teacher playing the
-config we actually got.  Every row wrong in the same direction is precisely the
-failure no downstream check can see.
+So the older `bba-kickback.md` §0 "FFI trap" note was **right** and the earlier
+draft of this section was wrong: EPBot holds `cc = new TYP_SYSTEM[2]`, one
+convention set per partnership, which is the natural ABI for an *agreement*.
+Only `new_hand`/`set_bid` are per-seat.
 
-Phase 0 is therefore a guard, not a fix: check `set_conv`'s return for every
-row, fail loudly on anything but success, and list the known
-non-round-tripping rows explicitly rather than ignoring returns wholesale.
+`oracle.rs` was nonetheless *functionally* correct, by the accident that note
+described: of each pair `[actor, actor + 2]` exactly one index is in range, and
+because a side is a seat's parity it is always the right one — the other half
+returned −2 and did nothing. It now names the side (`actor % 2`) instead, so
+the accident is gone. `with_opponents` carries a wholly separate card, which is
+how BEN's declared `.bbsa` is loaded as the other side, and the slots being
+independent means **asymmetric-config corpora need no new capability**.
+
+### Phase 0 is a read-back guard, not a return-code check
+
+The hazard is real and this design sharpens it: `card.rs` documents that a name
+EPBot does not know is a *silent no-op*. Under this design we push **135 rows
+per side** — 135 chances for a renamed row to do nothing while the corpus
+records the config we *intended* against a teacher playing the config we
+actually got. Every row wrong in the same direction is the one failure no
+downstream check can see.
+
+**But the return code cannot detect it** — an unknown name returns 0, exactly
+like a successful write. The guard has to write the card and *read it back*.
+That is now `BbaOracle::verify_card`, run once on a scratch bot when a card is
+accepted, leaving the per-decision path a bare write. Verified by construction:
+misspelling one row of `cards/American.bbsa` as `1N-3C Puppet Staymen` fails
+the load with `wrote 1, read 0 (set returned 0)`.
+
+Three rows are allowlisted in `KNOWN_UNSTICKY`, and they are two different
+problems. `South African Texas` and `Queen ask by available bid` are our own
+`PONS_SCHEMA` filler names — EPBot ignoring them is exactly the property that
+makes them safe to park on spare slots. `Reverse Bergen` is BBA's own: written
+0, it reads back 1, an engine coupling rather than a typo of ours.
