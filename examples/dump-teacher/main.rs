@@ -39,11 +39,15 @@ use contract_bridge::auction::{Auction, Call};
 use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Seat};
 use ddss::TrickCountTable;
-use pons::american_instinct;
+use pons::bidding::card::{american_card, dutch_card};
 use pons::bidding::context::{Context, relative};
-use pons::bidding::features::{FEATURES_LEN_V3, FEATURES_VERSION_V3, features_v3};
+use pons::bidding::features::{
+    Config, FEATURES_LEN_V3, FEATURES_LEN_V4, FEATURES_VERSION_V3, FEATURES_VERSION_V4,
+    features_v3, features_v4,
+};
 use pons::bidding::{Phase, System};
 use pons::gib;
+use pons::{american_instinct, dutch_instinct};
 use rand::rngs::StdRng;
 use rand::{RngExt, SeedableRng};
 use std::collections::BTreeMap;
@@ -62,9 +66,14 @@ const SOFTMAX_LEN: usize = 38;
 #[derive(Parser)]
 #[command(about = "Dump (features, teacher_softmax) training rows from american()")]
 struct Args {
-    /// Number of random boards to bid out (ignored when `--deals` is given)
-    #[arg(long, default_value_t = 5000)]
-    boards: usize,
+    /// Number of boards to bid out
+    ///
+    /// Without `--deals` this is how many random boards to draw (default 5000).
+    /// With `--deals` it caps the window read from the file; omit it to take
+    /// every deal from `--skip` to the end, which is what a bare `--deals` has
+    /// always meant.
+    #[arg(long)]
+    boards: Option<usize>,
     /// RNG seed (for reproducibility)
     #[arg(long, default_value_t = 0)]
     seed: u64,
@@ -75,6 +84,18 @@ struct Args {
     /// still drawn from the seeded RNG per board.
     #[arg(long)]
     deals: Option<String>,
+    /// Skip this many deals at the front of `--deals` before reading
+    ///
+    /// The banks at `/nfs2/jdh8/pons/` are read with `pdd::load_slice`, so a
+    /// corpus draw never pulls a 2 GB file into memory whole.  Pair with
+    /// `--boards` to bound the draw: `--skip 1000000 --boards 250000`.
+    ///
+    /// Training draws do **not** advance the never-replay cursor (they may
+    /// overlap each other), but they must be recorded — a slice used to train a
+    /// net must never later be used to score it.  See
+    /// [docs/pdd-bank-ledger.md](../../docs/pdd-bank-ledger.md).
+    #[arg(long, default_value_t = 0)]
+    skip: u64,
     /// Output path stem; writes `<out>.f32` and `<out>.json`
     #[arg(long, default_value = "target/teacher-data")]
     out: String,
@@ -132,6 +153,38 @@ struct Args {
     /// board-disjoint *and* mixed.
     #[arg(long)]
     mix_kickback: bool,
+    /// Emit the **configured** vector [`features_v4`] instead of `features_v3`
+    ///
+    /// 368 floats rather than 88: the v3 vector, then both partnerships'
+    /// convention cards.  The point is that an A/B arm can then differ by a card
+    /// row instead of by a separately trained artifact — see
+    /// [docs/ai-bidder/configured-net.md](../../docs/ai-bidder/configured-net.md).
+    ///
+    /// Opt-in, so every existing v3 corpus recipe keeps its exact meaning.
+    #[arg(long)]
+    configured: bool,
+    /// `--configured` only: which system *we* are declared to play
+    #[arg(long, default_value = "american", value_name = "american|dutch")]
+    system: String,
+    /// `--configured` only: which system the **opponents** are declared to play
+    ///
+    /// Defaults to ours, mirroring how `BbaOracle` treats undeclared opponents
+    /// and how `Context::their_system` models them.  Naming a different one
+    /// gives the cross-system cell.
+    #[arg(long, value_name = "american|dutch")]
+    their_system: Option<String>,
+}
+
+/// Our card for a named system, rendered off the **live** knob state
+///
+/// Must be called after the knobs for this cell are set: `american_card()` reads
+/// them, which is precisely what keeps the card, the code and the net in sync.
+fn card_for(system: &str) -> anyhow::Result<pons::bidding::card::Card> {
+    Ok(match system {
+        "american" => american_card(),
+        "dutch" => dutch_card(),
+        other => anyhow::bail!("--system must be american|dutch, got {other:?}"),
+    })
 }
 
 /// `NAME=0|1`, as `bba-gen` spells it.
@@ -158,7 +211,11 @@ const VULS: [AbsoluteVulnerability; 4] = [
 
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
-    let (feature_version, features_len) = (FEATURES_VERSION_V3, FEATURES_LEN_V3);
+    let (feature_version, features_len) = if args.configured {
+        (FEATURES_VERSION_V4, FEATURES_LEN_V4)
+    } else {
+        (FEATURES_VERSION_V3, FEATURES_LEN_V3)
+    };
     // DD label only exists when deals come from a GIB file (cached, no solving).
     let dd_len = if args.deals.is_some() { 20 } else { 0 };
     let row_len = features_len + SOFTMAX_LEN + dd_len;
@@ -178,12 +235,20 @@ fn main() -> anyhow::Result<()> {
     };
     let build_teacher = |with_conv: bool| -> anyhow::Result<Box<dyn System>> {
         Ok(match args.teacher.as_str() {
+            // `--system` selects the teacher, not merely the disclosed card.
+            // Letting them drift apart writes rows labelled with a system the
+            // teacher was not playing -- the mislabeling that `verify_card`
+            // guards against for BBA, one level up and just as invisible.
+            "american" if args.system == "dutch" => Box::new(dutch_instinct().against()),
             "american" => Box::new(american_instinct().against()),
             "bba" => {
                 let path = std::env::var("BBA_LIB").unwrap_or_else(|_| DEFAULT_LIB.into());
                 let card = args.card.as_deref().map(load_bbsa).transpose()?;
                 let (system, mut toggles) = match card {
                     Some(card) => (card.system, card.toggles),
+                    // `--configured --system dutch` means the teacher plays WJ;
+                    // without this the corpus would claim WJ over 2/1 bidding.
+                    None if args.configured => (card_for(&args.system)?.system, Vec::new()),
                     None => (SYSTEM_2_OVER_1, Vec::new()),
                 };
                 // Singles win over the card, exactly as `bba-gen` applies them.
@@ -220,13 +285,16 @@ fn main() -> anyhow::Result<()> {
     // file), else random boards (no DD). Dealer/vulnerability come from the
     // seeded RNG either way.
     let file_deals: Vec<(FullDeal, TrickCountTable)> = match &args.deals {
-        Some(path) => load_deals(path)?,
+        // `boards` unset means "to the end of the file", the historical meaning
+        // of a bare `--deals`; set, it bounds the window so a bank draw stays
+        // the size it says it is.
+        Some(path) => load_deals(path, args.skip, args.boards.unwrap_or(0))?,
         None => Vec::new(),
     };
     let n_boards = if args.deals.is_some() {
         file_deals.len()
     } else {
-        args.boards
+        args.boards.unwrap_or(5000)
     };
     let mut file_iter = file_deals.iter().copied();
 
@@ -240,6 +308,21 @@ fn main() -> anyhow::Result<()> {
         // *says* a relocated ask is — and it must agree with the teacher that
         // produced the target.
         pons::bidding::instinct::set_kickback(regimes[regime]);
+        // The card is rendered *after* the knobs are armed, which is what keeps
+        // card, code and net in sync: `american_card()` reads the same knobs the
+        // rules do.  Rebuilt per board only because `regime` can alternate; it is
+        // 140 floats a side, not a hot cost.
+        let config = args
+            .configured
+            .then(|| -> anyhow::Result<Config> {
+                let ours = card_for(&args.system)?;
+                let theirs = match &args.their_system {
+                    Some(system) => card_for(system)?,
+                    None => ours.clone(),
+                };
+                Ok(Config::new(&ours, &theirs))
+            })
+            .transpose()?;
         let teacher = teachers[regime].as_ref();
 
         // File deals (with their DD table) when `--deals` is set, else a fresh
@@ -276,8 +359,15 @@ fn main() -> anyhow::Result<()> {
             };
 
             // Record the row: features ++ softmax (++ DD label when present).
-            let context = Context::new(rel, &auction);
-            let feats = features_v3(hand, &context);
+            let mut context = Context::new(rel, &auction);
+            if let Some(config) = &config {
+                context = context.with_config(config);
+            }
+            let feats = if args.configured {
+                features_v4(hand, &context)
+            } else {
+                features_v3(hand, &context)
+            };
             row[..features_len].copy_from_slice(&feats);
             row[features_len..features_len + SOFTMAX_LEN].copy_from_slice(&softmax[..]);
             if let Some(table) = &table {
@@ -332,6 +422,12 @@ fn main() -> anyhow::Result<()> {
         // by board, and the net learns to tell them apart from the readings.
         "our_kickback": args.kickback,
         "mix_kickback": args.mix_kickback,
+        "configured": args.configured,
+        "our_system": args.configured.then(|| args.system.clone()),
+        "their_system": args
+            .configured
+            .then(|| args.their_system.clone().unwrap_or_else(|| args.system.clone())),
+        "skip": args.skip,
         "deals": args.deals.as_deref().unwrap_or("random"),
         "git_sha": git_sha,
         "seed": args.seed,
@@ -375,11 +471,32 @@ fn argmax_legal(logits: &pons::bidding::array::Logits) -> Call {
         .map_or(Call::Pass, |(call, _)| call)
 }
 
-/// Load every deal and its cached double-dummy table from a solution file in
+/// Load deals and their cached double-dummy tables from a solution file in
 /// either format (GIB text like `sol100000.txt`, or binary `.pdd`).
-fn load_deals(path: &str) -> std::io::Result<Vec<(FullDeal, TrickCountTable)>> {
-    let deals = pons::pdd::load(path)?;
-    eprintln!("teacher-dump: loaded {} deals from {path}", deals.len());
+///
+/// `skip`/`count` read a window rather than the whole file: `24.pdd` is 2 GB and
+/// the standing rule is to draw a corpus from the banks without pulling one into
+/// memory entire.  `count` of 0 means "the rest of the file", which is what a
+/// bare `--deals` on a small GIB file has always meant.
+fn load_deals(
+    path: &str,
+    skip: u64,
+    count: usize,
+) -> std::io::Result<Vec<(FullDeal, TrickCountTable)>> {
+    let deals = if skip == 0 && count == 0 {
+        pons::pdd::load(path)?
+    } else {
+        pons::pdd::load_slice(path, skip, count)?
+    };
+    eprintln!(
+        "teacher-dump: loaded {} deals from {path} (skip {skip}, asked {})",
+        deals.len(),
+        if count == 0 {
+            "all".to_owned()
+        } else {
+            count.to_string()
+        },
+    );
     Ok(deals)
 }
 
