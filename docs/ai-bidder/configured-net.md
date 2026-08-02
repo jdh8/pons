@@ -314,6 +314,73 @@ binding cost is dump time, ≈5M EPBot calls at 500k deals. Draw from `22.pdd`
 and leave what remains of `24.pdd` (~19.7M rows) for A/B slices that genuinely
 need pre-solved tables.
 
+## Phase 3, measured: the corpus, the net, and the diagnostic's verdict
+
+Dumped 2026-08-03 from `22.pdd` rows **2,500,000..3,250,000** (the window the
+ledger reserved), `--teacher bba --configured`, twelve shards.
+
+| slice | shards | deals | rows |
+| --- | ---: | ---: | ---: |
+| uniform bulk (six cells rotating) | 8 × 31,250 | 250,000 | 2,657,519 |
+| enriched (`--enrich 28:9 --replay`, both all-American cells) | 4 × 125,000 | 500,000 | 705,373 |
+| **total** | 12 | 750,000 | **3,362,892** |
+
+Enrichment accepted **24,864 of 500,000 (4.97%)**, shard to shard 4.87–5.07% —
+the predicted 4.9% to a tenth of a point. The enriched share came out **21%** of
+rows rather than the projected 18%, because EPBot's auctions run slightly longer
+than the estimate assumed.
+
+**Three traps this phase actually hit.** They cost a discarded corpus between
+them, and none is visible in the output of a run that has already gone wrong:
+
+1. **`--teacher` defaults to `american`**, which is `american_instinct()` — the
+   deterministic Rust floor, *not* EPBot. The shipped `WEIGHTS_BBA` records
+   `teacher: "bba"`, so a v4 net distilled from the default would have made gate
+   1 measure the teacher swap instead of the feature change. Always pass
+   `--teacher bba`. (Distinct from the `american()`-vs-`american_instinct()`
+   trap in §7.8, which is about *measuring divergence*, not about the target.)
+2. **`Multi` will not stick under system 2.** EPBot's WJ base bundles the Multi
+   2♦ opening and refuses to turn it off, so every Dutch cell trips
+   `verify_card`. Allowlisted in `KNOWN_UNSTICKY` beside `Reverse Bergen`: we
+   never *vary* Multi (0 in both our cards), so "Multi as EPBot plays it" is
+   exactly the Dutch indicator the base-system one-hot already carries, and a
+   constant-per-cell mislabel is absorbed by the system bit. **If Multi ever
+   becomes a knob this entry must go**, and the card be reconciled against
+   read-back instead.
+3. **Bank rows carry DD tables**, so `dd_len = 20` and the value head activates.
+   The shipped net trained with `dd_len: 0`. Pass **`--dd-weight 0`** or gate 1
+   varies the objective as well as the features.
+
+**The net.** `src/bidding/weights/american_bba_v4`, 170,022 floats — hidden 256,
+300 epochs, lr 1e-3, batch 4096, wd 0, `--init-seed 1`, all matching the shipped
+net so only the features and corpus differ.
+
+| | shipped `american_bba` (v3) | `american_bba_v4` |
+| --- | ---: | ---: |
+| val CE | 0.4518 | **0.3676** |
+| val top-1 overall | 85.91% | **87.03%** |
+| val top-1 constructive | 86.70% | 85.28% |
+| val top-1 contested | 85.46% | **88.06%** |
+
+Better overall and contested while covering *two* systems; constructive gives up
+1.4 points. Not comparable head-to-head — different corpus, different teacher
+configuration — which is what gate 1 exists to settle.
+
+**The diagnostic passes.** `scripts/pair-flip-diagnostic.py` over the held-out
+tails of all four enriched shards, 492 moving pairs:
+
+| | toy net (5 epochs, 6k rows) | `american_bba_v4` |
+| --- | ---: | ---: |
+| argmax moves when slot 77 flips | 0 / 4 | **223 / 492 (45.3%)** |
+| matches the teacher on both halves | 0 / 4 | 135 / 492 (27.4%) |
+| mean max \|logit\| shift | 0.23 | **6.98** |
+
+So the net is **not** blind to the card, and a null at gate 2 may now be read as
+"the relocation is worth little" rather than "the net never learned the bit" —
+which is the whole reason this check runs first. It does not claim the net reads
+the bit *well*: it moves on 45% of the pairs where the teacher moves, so there is
+headroom, and scaling the enriched draw is the lever if gate 2 disappoints.
+
 ## The corpus plan — which cells, and when to replay a deal
 
 ### Pair only where a pair pays
@@ -438,7 +505,7 @@ decision table, arms sequential, fresh seed shared across arms.
 | 0 | **Guard `set_conv` against silent no-ops** | **done** — `BbaOracle::verify_card`, a read-back at card acceptance; the return code cannot see a bogus row |
 | 1 | `features_v4` + config plumbing | the open design question below |
 | 2 | `dump-teacher`: `--skip`/`load_slice`, per-board config sampling, per-side teacher config, both config vectors per row | |
-| 3 | Train on GPU | off-crate, as always |
+| 3 | Train on GPU | **done** — corpus, net and the mechanism diagnostic [above](#phase-3-measured-the-corpus-the-net-and-the-diagnostics-verdict); `pons-trainer` takes repeated `--data` stems and mixes them ([`load_mixture`](../../trainer/src/data.rs)) |
 | 4 | Artifact + candle-parity fixture, wire `classify_bba` to v4, retire the twin selection | the twin artifact can go once gate 1 passes |
 | 5 | Gate 1, then gate 2 | fresh deals |
 

@@ -16,14 +16,15 @@ use std::path::Path;
 pub const SOFTMAX_LEN: usize = 38;
 /// Feature-spec versions this trainer understands
 /// (`pons::bidding::features`): v1 is the 160-float vector, v2 adds the tag
-/// block, v3 is the restrictive disclosable-only vector (88 floats). The actual
-/// `features_len` is read from the dump sidecar and the model input is sized
-/// from it, so every supported version trains unchanged.
-pub const SUPPORTED_FEATURE_VERSIONS: [u32; 3] = [1, 2, 3];
+/// block, v3 is the restrictive disclosable-only vector (88 floats), v4 appends
+/// the two 140-wide convention cards (368 floats). The actual `features_len` is
+/// read from the dump sidecar and the model input is sized from it, so every
+/// supported version trains unchanged.
+pub const SUPPORTED_FEATURE_VERSIONS: [u32; 4] = [1, 2, 3, 4];
 
 /// Fields of the teacher-dump JSON sidecar that we care about (serde ignores
 /// the rest).
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct Meta {
     pub feature_version: u32,
     pub features_len: usize,
@@ -147,8 +148,11 @@ impl Dataset {
         let mut dd = Vec::with_capacity(rows * dd_len);
         for row in bytes.chunks_exact(row_bytes) {
             let mut floats = row
-                .chunks_exact(4)
-                .map(|b| f32::from_le_bytes([b[0], b[1], b[2], b[3]]));
+                .as_chunks::<4>()
+                .0
+                .iter()
+                .copied()
+                .map(f32::from_le_bytes);
             features.extend((&mut floats).take(features_len));
             targets.extend((&mut floats).take(SOFTMAX_LEN));
             dd.extend(floats);
@@ -166,6 +170,125 @@ impl Dataset {
             dd_len,
             meta,
         })
+    }
+}
+
+/// Load one or more dumps as a single dataset, laid out `[train…][val…]`, and
+/// report where the split falls.
+///
+/// A mixture corpus is two dumps with deliberately different distributions — a
+/// uniform calibration bulk and an enriched slice
+/// (`docs/ai-bidder/configured-net.md`) — so neither the split nor the batch
+/// order may treat "dump 2" as "the end of the data":
+///
+/// - **Validation is each dump's own contiguous tail**, concatenated. Taking
+///   one tail off the concatenation would make the held-out set *entirely*
+///   enriched, which measures the wrong distribution; taking it at random would
+///   put rows from one board on both sides of the split, which measures nothing
+///   (the trainer's split is board-disjoint precisely because rows from a board
+///   are near-duplicates).
+/// - **Training heads are round-robined in `block`-row chunks**, proportionally,
+///   because the epoch loop walks contiguous minibatches and never shuffles.
+///   Concatenated, every epoch would run the bulk to exhaustion and then finish
+///   on a long tail of nothing but enriched slam auctions.
+///
+/// One dump round-robins with itself, i.e. is returned unchanged, so this is
+/// the single code path.
+pub fn load_mixture(stems: &[String], val_frac: f64, block: usize) -> Result<(Dataset, usize)> {
+    let [first, rest @ ..] = stems else {
+        bail!("no --data given");
+    };
+    let dumps = std::iter::once(first)
+        .chain(rest)
+        .map(|stem| Dataset::load(stem))
+        .collect::<Result<Vec<_>>>()?;
+
+    // A mixture is only a mixture if the rows are commensurable.
+    for (stem, d) in stems.iter().zip(&dumps).skip(1) {
+        let head = &dumps[0];
+        if (d.meta.feature_version, d.features_len, d.dd_len)
+            != (head.meta.feature_version, head.features_len, head.dd_len)
+        {
+            bail!(
+                "dump {stem} is feature v{} ({} features, dd {}) but {} is v{} ({} features, dd {})",
+                d.meta.feature_version,
+                d.features_len,
+                d.dd_len,
+                stems[0],
+                head.meta.feature_version,
+                head.features_len,
+                head.dd_len
+            );
+        }
+    }
+
+    // Each dump's own board-disjoint tail is its validation share.
+    let ntrain_each: Vec<usize> = dumps
+        .iter()
+        .map(|d| {
+            let nval =
+                ((d.rows as f64 * val_frac).round() as usize).clamp(1, d.rows.saturating_sub(1));
+            d.rows - nval
+        })
+        .collect();
+
+    let (features_len, dd_len) = (dumps[0].features_len, dumps[0].dd_len);
+    let rows: usize = dumps.iter().map(|d| d.rows).sum();
+    let ntrain: usize = ntrain_each.iter().sum();
+
+    let mut out = Dataset {
+        features: Vec::with_capacity(rows * features_len),
+        targets: Vec::with_capacity(rows * SOFTMAX_LEN),
+        dd: Vec::with_capacity(rows * dd_len),
+        tags: Vec::with_capacity(rows),
+        rows,
+        features_len,
+        dd_len,
+        meta: Meta {
+            rows: rows as u64,
+            contested_rows: dumps.iter().map(|d| d.meta.contested_rows).sum(),
+            ..dumps[0].meta.clone()
+        },
+    };
+
+    // Round-robin the heads by *progress*, so a dump 4× the size contributes 4×
+    // the blocks and the two run out together.
+    let mut cursor = vec![0usize; dumps.len()];
+    let block = block.max(1);
+    while cursor.iter().zip(&ntrain_each).any(|(&at, &n)| at < n) {
+        let pick = (0..dumps.len())
+            .filter(|&i| cursor[i] < ntrain_each[i])
+            .min_by(|&a, &b| {
+                let progress = |i: usize| cursor[i] as f64 / ntrain_each[i].max(1) as f64;
+                progress(a).total_cmp(&progress(b))
+            })
+            .expect("the while condition guarantees one dump still has rows");
+        let take = block.min(ntrain_each[pick] - cursor[pick]);
+        out.push_rows(&dumps[pick], cursor[pick], take);
+        cursor[pick] += take;
+    }
+    // Then every dump's held-out tail, in order.
+    for (d, &head) in dumps.iter().zip(&ntrain_each) {
+        out.push_rows(d, head, d.rows - head);
+    }
+
+    Ok((out, ntrain))
+}
+
+impl Dataset {
+    /// Append rows `[from, from + n)` of `src` — every parallel array at once, so
+    /// features, targets, DD and tags cannot drift out of correspondence.
+    fn push_rows(&mut self, src: &Dataset, from: usize, n: usize) {
+        let w = self.features_len;
+        self.features
+            .extend_from_slice(&src.features[from * w..(from + n) * w]);
+        self.targets
+            .extend_from_slice(&src.targets[from * SOFTMAX_LEN..(from + n) * SOFTMAX_LEN]);
+        if self.dd_len > 0 {
+            let d = self.dd_len;
+            self.dd.extend_from_slice(&src.dd[from * d..(from + n) * d]);
+        }
+        self.tags.extend_from_slice(&src.tags[from..from + n]);
     }
 }
 

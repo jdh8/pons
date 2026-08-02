@@ -9,6 +9,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The configured net is trained (phase 3), and it demonstrably reads the
+  card.** `src/bidding/weights/american_bba_v4` — 170,022 floats, distilled
+  from EPBot over 3,362,892 rows drawn from `22.pdd` rows 2.5M..3.25M: a 250k-deal
+  uniform bulk rotating through all six cells, plus 500k deals drawn at
+  `--enrich 28:9 --replay` across the two all-American cells (24,864 kept,
+  4.97%). Held-out top-1 **87.03%** against the shipped v3 net's 85.91%, and CE
+  0.368 against 0.452 — while covering two base systems.
+
+  **Nothing serves it yet**: wiring `classify_bba` to v4 and retiring the twin
+  is phase 4, and both acceptance gates are phase 5.
+
+  `scripts/pair-flip-diagnostic.py` is the check that had to come first. Gate 2
+  measures IMPs, which this convention barely moves, so a null there cannot
+  distinguish "the relocation is worth nothing" from "the net never learned to
+  read the bit". Flipping `Kickback 1430` on 492 held-out matched pairs moves
+  the net's argmax **223 times (45.3%)**, mean logit shift 6.98 — against 0/4
+  and 0.23 for an under-trained control. The bit is learned; a gate-2 null can
+  now be read at face value.
+
+  Three traps cost a discarded corpus, all recorded in
+  `docs/ai-bidder/configured-net.md`: `dump-teacher --teacher` defaults to
+  `american` (the deterministic floor, *not* EPBot — the shipped net is
+  `teacher: "bba"`, so the default would make gate 1 measure a teacher swap);
+  `Multi` will not turn off under EPBot's system 2, tripping `verify_card` on
+  every Dutch cell; and bank rows carry DD tables, so `--dd-weight 0` is needed
+  or the objective changes along with the features.
+
+- **`pons-trainer` takes a mixture corpus.** `--data` is now repeatable, and
+  `load_mixture` lays several dumps out as one dataset. Concatenating them
+  naively breaks the trainer twice over: validation is the contiguous tail, so
+  the entire held-out set would have been enriched slam auctions, and
+  minibatches are contiguous and never shuffled, so each epoch would run the
+  bulk to exhaustion and finish on a long tail of nothing but enriched rows.
+  Each dump now contributes its own board-disjoint tail, and the training heads
+  round-robin in batch-sized blocks proportionally. A single dump round-robins
+  with itself, so there is one code path. Feature version 4 is accepted.
+
+  This is also what makes sharding free: EPBot is a single-threaded FFI library,
+  so a dump uses one core, and the way to fill a box is disjoint `--skip`
+  windows in separate processes — twelve of which the trainer now consumes
+  directly, with no merge step.
+
 - **`features_v4` — the net can read the convention card.** 368 inputs:
   `features_v3`'s 88, then both partnerships' cards at 140 apiece — a 5-wide
   base-system one-hot plus 135 rows (`SCHEMA` 133 + `PONS_SCHEMA` 2), encoded
