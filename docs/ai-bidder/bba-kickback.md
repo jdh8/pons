@@ -945,6 +945,45 @@ jdh8's ladder *walks up* (after `1♦ P 1♥ P 3♦` we ask 4♠, BBA asks 4NT),
 BBA-taught net will call that 4♠ a cue while our reader calls it an ask — the
 same disease, in the lane the walk-up exists for.
 
+**A system-config block in the features** (designed 2026-08-02, not built).  The
+twin exists because one net cannot serve both systems, and the reason is sharper
+than "it needs more data".  A single net trained on both regimes
+(`dump-teacher --mix-kickback`, 866k rows alternating by board) is a **better
+net by every aggregate** — val CE 0.4004 against the twin's 0.4431 and the plain
+net's 0.4518 — and it *still* bids the phantom 4♥ (the
+`the_six_six_hand_stops_jumping_into_the_relocated_ask` acceptance test passes
+for the twin and fails for it).
+
+The regime is not in the features **at the moment the call is chosen**.
+`features_v3`'s forty `Inferences` floats describe the auction *so far*, and
+`1♦ P 1♠ P 2♦` is three natural bids in either system — so both regimes present
+that decision with byte-identical inputs and contradictory targets (2♥ from the
+kickback teacher, 4♥ from the plain one) and the net can only average them.  The
+readings *do* diverge, but one ply too late: only once a relocated ask has been
+made, which is the decision we needed right.  Separate weights are how a regime
+bit gets expressed without widening the pinned vector.
+
+The principled fix is a fifth block, **prior to the auction rather than derived
+from it**:
+
+| Block | Start | Len |
+| --- | --- | --- |
+| Disclosable hand | 0 | 10 |
+| Context | 10 | 36 |
+| Inferences | 46 | 40 |
+| Vulnerability | 86 | 2 |
+| **System config** | **88** | *N* |
+
+Encode it as the **`.bbsa` card rows** (jdh8): the card already *is* the
+configuration, it is the shared vocabulary with the teacher, and it is
+disclosable by construction — `Kickback 1430 = 1` is a row we hand BBA.  Pruning
+`cards/American.bbsa`'s 258 rows drops 123 `Not defined` and 2 meta rows, leaving
+**133**.  Take all 133 rather than the three that currently vary: the card
+enumerates every convention BBA knows, so the block never needs widening again —
+a future knob flips an existing row instead of forcing another version bump.
+Constant inputs cost a bias term and one wider gemv (~34k extra first-layer
+weights), nothing measurable.
+
 **Kickback is disclosed as OFF even when it is on.**  `card.rs` hardcodes
 `"Kickback 0123" | "Kickback 0314" | "Kickback 1430" => 0`, so
 `cards/American.bbsa` tells BBA we do not play it whatever `set_kickback` says.

@@ -124,9 +124,25 @@ static WEIGHTS_BBA: LazyLock<Vec<f32>> = LazyLock::new(|| decode(RAW_BBA));
 /// that; only the net that chooses the call can
 /// (`docs/ai-bidder/bba-kickback.md` §7.7).
 ///
-/// Both halves must move together, which is why one knob drives both: a
-/// convention this widespread redefines the system, so the net that serves it is
-/// part of the convention, not a variable beside it.
+/// **Why two nets and not one that reads the regime off the auction.**  The
+/// obvious economy is a single net trained on both systems, letting it infer
+/// which one it is in from the ranges the bids carry — forty of the
+/// eighty-eight features come from `Inferences::read`, and a 4♥ that asks for
+/// keycards reads nothing like a 4♥ that shows hearts.  It was built
+/// (`dump-teacher --mix-kickback`, 866k rows alternating by board) and it is a
+/// better *net* by every aggregate: val CE 0.4004 against this twin's 0.4431
+/// and the plain net's 0.4518.
+///
+/// It still bids the phantom 4♥.  The regime is not in the features **at the
+/// moment the call is chosen**: the readings describe the auction *so far*, and
+/// `1♦ P 1♠ P 2♦` is three natural bids in either system, so both regimes
+/// present that decision with byte-identical inputs and contradictory targets —
+/// 2♥ from the kickback teacher, 4♥ from the plain one.  The net can only
+/// average them.  The ranges do diverge, but one ply too late: only once a
+/// relocated ask has been *made*, which is the decision we needed it to get
+/// right.  Separate weights are how a regime bit gets expressed without
+/// widening the pinned v3 feature vector; carrying a disclosable "kickback on"
+/// input instead would make one net feasible, and owes a feature-version bump.
 static RAW_BBA_KICKBACK: &[u8] = include_bytes!("weights/american_bba_kickback.f32");
 const _: () = assert!(
     RAW_BBA_KICKBACK.len() == total(IN_V3) * 4,
