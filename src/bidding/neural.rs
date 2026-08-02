@@ -224,25 +224,26 @@ mod tests {
         );
     }
 
+    /// The plain net is now the *knob-off* artifact, so this arms the knob
+    /// explicitly rather than leaning on the default.  Together with its twin
+    /// below, the pair pins the **selection**: each fixture is missed by the
+    /// other net's logits, so a swapped branch fails both ways.  The knob is a
+    /// thread-local and the harness gives each test its own thread, so setting
+    /// it here cannot leak into a sibling.
     #[test]
     fn matches_candle_fixture_bba() {
+        crate::bidding::instinct::set_kickback(false);
         check_fixture(include_str!("weights/american_bba.fixture.json"), |x| {
             classify_bba(x).iter().map(|(_, l)| *l).collect()
         });
     }
 
-    /// The kickback twin clears the same parity bar — and because the twin is
-    /// reachable only through the knob, this pins the *selection* too: knob-off
-    /// serves the plain net, whose logits miss this fixture.  The knob is a
-    /// thread-local and the harness gives each test its own thread, so setting
-    /// it here cannot leak into a sibling.
+    /// The kickback twin clears the same parity bar, on the default stance.
     #[test]
     fn matches_candle_fixture_bba_kickback() {
-        crate::bidding::instinct::set_kickback(true);
         check_fixture(
             include_str!("weights/american_bba_kickback.fixture.json"),
             |x| classify_bba(x).iter().map(|(_, l)| *l).collect(),
         );
-        crate::bidding::instinct::set_kickback(false);
     }
 }
