@@ -2174,6 +2174,31 @@ fn keycard_ask_bid(auction: &[Call], ask: usize) -> Option<Bid> {
     (bid == Bid::new(4, Strain::Notrump)).then_some(bid)
 }
 
+/// Whether the kickback ladder was offering a relocated ask **in `trump`** at
+/// `index`
+///
+/// The companion to [`keycard_ask_at`] for measurement.  An ask that came out
+/// as 4NT while the ladder was offering a relocation *in that very trump* is a
+/// position where the convention was available and something else took the
+/// seat — the authored book, which installs RKCB at absolute 4NT and has not
+/// been relocated.  That difference is the size of the prize for relocating the
+/// book; without it a 4NT ask is indistinguishable from a lane where the ladder
+/// simply claims nothing, which is the common and entirely correct case.
+///
+/// Keyed to the ask's own trump on purpose.  Asking merely whether the ladder
+/// claimed *something* conflates the shadowed lanes with the ones where 4NT is
+/// already right: a spade ask belongs at 4NT, so a spade-trump 4NT alongside a
+/// club claim elsewhere on the face is not a missed relocation at all.  The
+/// same conflation — bucketing by a label that does not identify the lane — is
+/// what invalidated the per-trump-by-contract-strain cut (§7.9).
+///
+/// **Reads the knob**, like [`keycard_ask_at`].
+#[doc(hidden)]
+#[must_use]
+pub fn kickback_offered_at(auction: &[Call], index: usize, trump: Suit) -> bool {
+    kickback_now() && kickback_ladder(auction, index)[trump as usize].is_some()
+}
+
 /// The keycard ask made at `index`, if the call there is one: the asking bid
 /// and the trump it asks in, plus whether the ask was **relocated** onto the
 /// kickback ladder rather than made at 4NT
@@ -2188,29 +2213,6 @@ fn keycard_ask_bid(auction: &[Call], ask: usize) -> Option<Bid> {
 ///
 /// **Reads the knob**, through [`kickback_trump`]: call it with the same arm
 /// armed that produced the auction, or a relocated ask reads as no ask.
-/// Whether the kickback ladder was **offering** a relocated ask at `index` —
-/// the trump of the cheapest suit it claims there, if any
-///
-/// The companion to [`keycard_ask_at`] for measurement.  An ask that came out
-/// as 4NT while the ladder was offering a relocation is a position where the
-/// convention was available and something else took the seat — the authored
-/// book, which installs RKCB at absolute 4NT and has not been relocated.  That
-/// difference is the size of the prize for relocating the book; without it a
-/// 4NT ask is indistinguishable from a lane where the ladder simply claims
-/// nothing, which is the common and entirely correct case.
-///
-/// **Reads the knob**, like [`keycard_ask_at`].
-#[doc(hidden)]
-#[must_use]
-pub fn kickback_offered_at(auction: &[Call], index: usize) -> Option<Suit> {
-    if !kickback_now() {
-        return None;
-    }
-    Suit::ASC
-        .into_iter()
-        .find_map(|target| kickback_ladder(auction, index)[target as usize])
-}
-
 #[doc(hidden)]
 #[must_use]
 pub fn keycard_ask_at(auction: &[Call], index: usize) -> Option<(Bid, Suit, bool)> {
