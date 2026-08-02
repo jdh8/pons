@@ -293,6 +293,7 @@ fn export(
         "card": ds.meta.card,
         "conv": ds.meta.conv,
         "our_kickback": ds.meta.our_kickback,
+        "mix_kickback": ds.meta.mix_kickback,
         "data_git_sha": ds.meta.git_sha,
         "data_seed": ds.meta.seed,
         "data_rows": ds.rows,
