@@ -1265,3 +1265,78 @@ every deleted flag was already at its default value. The cull is a claim about
 the *option surface*, not a bidding change, so it carries no A/B of its own;
 the cells the deleted knobs measured stay in this ledger and in
 `docs/bidding-options.md` §A7.
+
+### 7.12 The census, run for real — and the bucket that turned out to be empty
+
+§7.9 retracted the per-trump cut and named its replacement. This is that
+replacement actually executed. The earlier figures quoted for it came from a
+**stale binary** — the build had failed and the exit code came from `tail` in a
+pipe, so the run silently used the previous binary and printed the previous
+labels. Both are re-run here.
+
+**200k boards, seed 1785623878, vul none, `kickback` vs `plain`.** Divergence
+63,411 of 200,000 (31.7%); PD **+0.0705/board** [+0.0511, +0.0899], plain DD
+**−0.0014/board** [−0.0169, +0.0140] — parity. Consistent with §7.8's 10M cell
+(+0.0723 PD NV) at this sample size.
+
+| bucket | boards | share | PD/bd | DD/bd |
+| --- | ---: | ---: | ---: | ---: |
+| no keycard ask (net alone) | 59,258 | 93.5% | +0.203 | −0.024 |
+| ♥ ask only in baseline | 1,033 | 1.6% | +3.094 | +1.854 |
+| ♠ 4NT (no claim) | 722 | 1.1% | −1.939 | −1.096 |
+| ♥ 4NT (no claim) | 504 | 0.8% | −3.512 | −2.200 |
+| ♠ ask only in baseline | 464 | 0.7% | +2.332 | +1.062 |
+| ♣ ask only in baseline | 408 | 0.6% | +3.515 | +1.958 |
+| ♣ 4NT (no claim) | 365 | 0.6% | −1.745 | −0.466 |
+| ♦ ask only in baseline | 338 | 0.5% | +1.074 | +0.012 |
+| ♦ 4NT (no claim) | 212 | 0.3% | −1.179 | −0.344 |
+| ♦ relocated | 46 | 0.1% | +0.870 | +0.826 |
+| ♣ relocated | 43 | 0.1% | +1.116 | +1.116 |
+| ♥ relocated | 18 | 0.0% | −2.278 | −2.278 |
+
+**The relocated ask fires on 107 boards of 63,411 divergent — 0.17%.** The
+0.055% quoted in §7.9 was the stale binary's figure; the order of magnitude
+survives, and so does the conclusion: kickback is near-inert at random-deal
+density, and 93.5% of divergent boards saw no ask from either side.
+
+**♠ is the control lane, by construction.** The ladder is ♣→4♦, ♦→4♥, ♥→4♠,
+♠→4NT — spades has nowhere to relocate to, so `kickback_ladder[Spades]` is
+never `Some` and every spade ask necessarily lands in "♠ 4NT (no claim)". There
+is no "♠ relocated" row and there cannot be. Which makes its **−1.939 PD/board
+over 722 boards** the sharpest statement of the confound in this campaign: a
+lane where the relocation provably cannot have moved a single call still posts
+a large number, because the knob swaps the floor's weights too. Any per-lane
+reading here is the twin net until proven otherwise.
+
+**The "ladder offered" bucket is empty — and the first version of it was
+wrong.** The bucket was meant to size phase 4: a 4NT ask made while the ladder
+was offering a relocation is a seat the convention was available for and did
+not get. The first implementation asked whether the ladder claimed *any* suit,
+not the ask's own trump, and duly reported 129 such boards at ≈−1.9 PD/board.
+That is the §7.9 error repeated — bucketing by a label that does not identify
+the lane. A spade ask belongs at 4NT, so a spade-trump 4NT beside an unrelated
+club claim is not a missed relocation at all. Keyed to the ask's own trump
+(`kickback_offered_at(auction, index, trump)`), the bucket **vanishes**, and the
+loose rows reconcile exactly into the "(no claim)" rows: ♠ 699+23=722,
+♥ 474+30=504, ♣ 316+49=365, ♦ 185+27=212.
+
+So: **wherever the ladder claims the ask's trump, the ask relocates — 107 of
+107.** The book does not override the ladder *at the ask*.
+
+**What this does not settle.** Book shadowing has a second form the census
+cannot see: the book bidding game directly and suppressing the ask altogether,
+which is what `probe-kickback-lane` showed (`4♥ [AUTHORED]`, no ask anywhere).
+That lands in the 93.5% "no keycard ask" bucket, indistinguishable from the
+overwhelming majority where not asking is correct. **Phase 4's prize therefore
+remains unmeasured**, and it needs a different instrument than a bucket: count
+the positions where the ladder claims a trump *and* slam entry is reached *and*
+no ask was made.
+
+**Byte-identity, as a method.** `examples/smoke-default` dumps the shipped
+default's auctions on seeded deals and takes no knobs. Built at two commits and
+diffed, it answers "did this refactor move a bid?" outright. The knob cull
+(§7.11) is identical over **200,000 boards** covering ~4,980 4NT asks, 6,757
+slam auctions and 329 grands. Rayon is safe there *because* it takes no knobs —
+the thread-locals are `const`-initialised to the shipped defaults, so a worker
+starts out holding the system under test; a harness arming a non-default knob
+cannot do this, which is why `ab-kickback` re-arms per call.

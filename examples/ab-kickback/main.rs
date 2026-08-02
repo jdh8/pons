@@ -171,7 +171,9 @@ fn table_ask(
             // relocated (bba-kickback.md phase 4, still `not started`).
             // Separating it from a lane where the ladder claims nothing is the
             // point — the first is a missed relocation, the second is correct.
-            let offered = !relocated && kickback_offered_at(&calls, index).is_some();
+            // Keyed to the ask's own trump: a spade ask belongs at 4NT, so a
+            // claim in some other suit on the same face is not a miss.
+            let offered = !relocated && kickback_offered_at(&calls, index, trump);
             (trump, relocated, offered)
         })
     })
