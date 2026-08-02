@@ -124,7 +124,7 @@ decision table, arms sequential, fresh seed shared across arms.
 
 | phase | work | note |
 | --- | --- | --- |
-| 0 | **Fix `epbot_set_conventions` per side** | **Prerequisite.** It takes a side (0/1), but seats 2/3 throw −2 and it is swallowed; `oracle.rs` works by a parity accident. Without this the teacher is silently symmetric and asymmetric rows are a lie |
+| 0 | **Guard `set_conv` against silent no-ops** | Not the blocker first assumed — see below.  We push 135 rows per side; check every return |
 | 1 | `features_v4` + config plumbing | the open design question below |
 | 2 | `dump-teacher`: `--skip`/`load_slice`, per-board config sampling, per-side teacher config, both config vectors per row | |
 | 3 | Train on GPU | off-crate, as always |
@@ -150,3 +150,33 @@ before the design has proven itself.
 `ponytail:` a thread-local is the cheap rung. If a second consumer ever needs
 the opponents' agreements (a reader that adapts to their system, say), promote
 it to `Context` then.
+
+## The teacher already configures per seat — the real hazard is elsewhere
+
+An earlier draft named "fix `epbot_set_conventions` per side" as phase 0, on a
+note claiming it takes a side (0/1) and that seats 2/3 throw −2 swallowed.
+**That is wrong.** Addressing is **seat + name**, mirroring
+`set_system_type(bot, seat, system)`; the −2 comes from passing the convention
+*index* as the int argument instead of the name.  Ground truth: 240 of 258
+boolean toggles round-trip against `21GF.bbsa`, and a control — flipping
+`Texas`, giving `1NT-(P)-4♥` against `2♥` — shows `get_bid` genuinely consults
+the per-seat flag.
+
+`oracle.rs` already does the right thing: `ours = [actor, actor + 2]`,
+`theirs = [(actor + 1) % 4, (actor + 3) % 4]`, each seat configured
+individually, with `with_opponents` carrying a wholly separate card for the
+opposition.  That is how BEN's declared `.bbsa` is loaded as the other side.
+**Asymmetric-config corpora need no new capability.**
+
+The hazard that *is* real, and that this design makes much sharper: **the
+return value of `set_conv` is ignored**, and `card.rs` documents that a name
+EPBot does not know is a *silent no-op*.  Today a handful of overrides are
+pushed and each was checked by hand.  Under this design we push **135 rows per
+side** — 135 chances for a renamed or mistyped row to do nothing at all, with
+the corpus recording the config we *intended* against a teacher playing the
+config we actually got.  Every row wrong in the same direction is precisely the
+failure no downstream check can see.
+
+Phase 0 is therefore a guard, not a fix: check `set_conv`'s return for every
+row, fail loudly on anything but success, and list the known
+non-round-tripping rows explicitly rather than ignoring returns wholesale.
