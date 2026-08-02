@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`features_v4` — the net can read the convention card.** 358 inputs:
+  `features_v3`'s 88, then both partnerships' cards at 135 rows apiece
+  (`SCHEMA` 133 + `PONS_SCHEMA` 2), encoded `0.0`/`1.0` since every row is
+  boolean. Both sides, because an A/B's arms play each other: at every table one
+  side relocates its asks and the other does not, and a net blind to the
+  opposition's card is out of distribution on exactly the boards the measurement
+  is about.
+
+  The cards ride on `Context` (`with_config`), the sibling of the existing
+  `with_their_system` — encoded once per configuration cell and held by
+  reference, so the per-decision path neither allocates nor consults ambient
+  knob state. `Context::new` keeps its signature and all 116 call sites are
+  untouched.
+
+  Nothing serves v4 yet; this is the plumbing. Note that a v4 net will only be
+  responsive along the axes its corpus actually varies — rows held constant
+  train to ≈0. Full width is still right, because pruning would make an
+  artifact's meaning depend on the corpus that produced it. No effect on any
+  bid: `smoke-default --count 50000` is byte-identical across the change.
+
 ### Fixed
 
 - **A mistyped convention row can no longer be dumped as if it took effect.**

@@ -16,6 +16,7 @@
 //! | Vulnerability        |    86 |   2 |
 //! | **Total**            |       | **88** |
 
+use super::card::Card;
 use super::context::Context;
 use super::inference::{Dnf, Envelope, Inferences, Range, Relative};
 use crate::bidding::constraint::{upgrade, upgrade_ceiling};
@@ -795,6 +796,132 @@ pub fn features_v3(hand: Hand, context: &Context<'_>) -> Vec<f32> {
     push_context(&mut out, context);
 
     debug_assert_eq!(out.len(), FEATURES_LEN_V3);
+    out
+}
+
+// ── The configured extractor (docs/ai-bidder/configured-net.md) ──────────────
+
+/// Layout version tag for the configured extractor [`features_v4`]
+pub const FEATURES_VERSION_V4: u32 = 4;
+
+/// Convention rows on one side's card: `SCHEMA` (133) plus `PONS_SCHEMA` (2)
+///
+/// Pinned by `card_block_is_the_whole_card`, so a row added to either schema
+/// fails a test rather than silently shifting every feature after it — a
+/// mismatch here would misalign an artifact against its extractor with no
+/// symptom other than worse bidding.
+pub const LEN_CARD: usize = 135;
+
+/// Number of `f32` values returned by [`features_v4`]: every value
+/// [`features_v3`] produces, then both partnerships' convention cards.
+pub const FEATURES_LEN_V4: usize = FEATURES_LEN_V3 + 2 * LEN_CARD;
+
+/// Offset of our own card block in [`features_v4`]
+pub const OFFSET_OUR_CARD: usize = FEATURES_LEN_V3;
+
+/// Offset of the opponents' card block in [`features_v4`]
+pub const OFFSET_THEIR_CARD: usize = OFFSET_OUR_CARD + LEN_CARD;
+
+/// Both partnerships' convention cards, encoded once per configuration cell
+///
+/// This is what makes a net *configured*: the system is an input, so one
+/// artifact serves every regime and an A/B arm differs by a row of this rather
+/// than by a separately trained net.  Without it, two arms differ by both the
+/// convention and the weights fitted to it, and nothing can separate them —
+/// `docs/ai-bidder/configured-net.md` has the measurement that motivated this.
+///
+/// **Both sides, because a mixed table is the normal case in an A/B.** The arms
+/// play each other, so at every table one side relocates its asks and the other
+/// does not; a net blind to the opposition's card is out of distribution on
+/// exactly the boards the measurement is about.
+///
+/// Encoded once per cell and attached to a [`Context`] by reference, so the
+/// per-decision path neither allocates nor consults ambient knob state.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Config {
+    ours: [f32; LEN_CARD],
+    theirs: [f32; LEN_CARD],
+}
+
+impl Config {
+    /// Encode what each side is declared to play
+    ///
+    /// # Panics
+    ///
+    /// If either card's row count is not [`LEN_CARD`].
+    #[must_use]
+    pub fn new(ours: &Card, theirs: &Card) -> Self {
+        Self {
+            ours: encode_card(ours),
+            theirs: encode_card(theirs),
+        }
+    }
+
+    /// Both sides declared to play the same card
+    ///
+    /// The default reading everywhere else in the crate: [`Context`]'s
+    /// `their_system` and `BbaOracle`'s undeclared opponents both model the
+    /// opposition as playing our own system.
+    #[must_use]
+    pub fn symmetric(card: &Card) -> Self {
+        Self::new(card, card)
+    }
+}
+
+/// One card's rows as `0.0`/`1.0`, in the card's fixed schema order
+///
+/// Every row is boolean (`american_row` returns only `0` or `1`), so the values
+/// are already in the `[0.0, 1.0]` the rest of the vector uses.
+fn encode_card(card: &Card) -> [f32; LEN_CARD] {
+    assert_eq!(
+        card.rows.len(),
+        LEN_CARD,
+        "a card carries {LEN_CARD} rows; a schema change must move `LEN_CARD` \
+         and retrain, since every later feature shifts"
+    );
+    let mut out = [0.0; LEN_CARD];
+    for (slot, (_, value)) in out.iter_mut().zip(&card.rows) {
+        *slot = if *value == 0 { 0.0 } else { 1.0 };
+    }
+    out
+}
+
+/// [`features_v3`] plus both partnerships' convention cards
+///
+/// Returns exactly [`FEATURES_LEN_V4`] finite values. The card blocks are
+/// verbatim `0.0`/`1.0` rows, so the feature vector *is* the disclosure — a
+/// configured net cannot learn from an agreement it would not show an opponent.
+///
+/// Most rows are constant within any one corpus and train to a weight of
+/// roughly zero. That is deliberate: pruning to the varying rows would make an
+/// artifact's meaning depend on the corpus that produced it, and would reopen
+/// the width question every campaign. **A v4 net is only responsive along the
+/// axes its corpus actually varied** — the generality is in the plumbing, not
+/// automatically in the weights.
+///
+/// With no [`Config`] attached the card blocks are zero, which is why
+/// [`Context::with_config`] belongs on every dump and serving path.
+#[must_use]
+pub fn features_v4(hand: Hand, context: &Context<'_>) -> Vec<f32> {
+    let mut out = features_v3(hand, context);
+    out.reserve_exact(2 * LEN_CARD);
+    // ponytail: an absent config encodes as zeros, which is indistinguishable
+    // from a side that genuinely plays no conventions.  Harmless while every
+    // caller attaches one (the assert below catches a miss in tests); if an
+    // undeclared side ever becomes a real state, give it its own flag column
+    // rather than overloading the all-zero card.
+    debug_assert!(
+        context.config().is_some(),
+        "features_v4 wants a Config attached; see Context::with_config"
+    );
+    match context.config() {
+        Some(config) => {
+            out.extend_from_slice(&config.ours);
+            out.extend_from_slice(&config.theirs);
+        }
+        None => out.resize(FEATURES_LEN_V4, 0.0),
+    }
+    debug_assert_eq!(out.len(), FEATURES_LEN_V4);
     out
 }
 
@@ -1822,5 +1949,93 @@ mod tests {
         assert_eq!(f2[penalty_offset], 0.0);
         assert_eq!(f2[penalty_offset + 1], 0.0);
         assert_eq!(f2[penalty_offset + 2], 1.0, "redoubled");
+    }
+
+    // ── The configured extractor ────────────────────────────────────────────
+
+    /// `LEN_CARD` must equal what a card actually renders
+    ///
+    /// A row added to `SCHEMA` or `PONS_SCHEMA` shifts every feature after the
+    /// card blocks, silently misaligning an artifact against its extractor.
+    /// This is the tripwire; the cost of ignoring it is a worse bidder with no
+    /// other symptom.
+    #[test]
+    fn card_block_is_the_whole_card() {
+        assert_eq!(crate::bidding::card::american_card().rows.len(), LEN_CARD);
+        assert_eq!(crate::bidding::card::dutch_card().rows.len(), LEN_CARD);
+        assert_eq!(FEATURES_LEN_V4, FEATURES_LEN_V3 + 2 * LEN_CARD);
+        assert_eq!(FEATURES_LEN_V4, 358);
+    }
+
+    /// v4 is v3 with two card blocks appended — the v3 prefix is untouched
+    #[test]
+    fn features_v4_extends_v3_in_place() {
+        let hand = hand("AQ32.K53.QJ4.A92");
+        let config = Config::symmetric(&crate::bidding::card::american_card());
+        let auction = [bid(1, Strain::Spades)];
+        let context = Context::new(RelativeVulnerability::NONE, &auction).with_config(&config);
+
+        let v3 = features_v3(hand, &context);
+        let v4 = features_v4(hand, &context);
+
+        assert_eq!(v4.len(), FEATURES_LEN_V4);
+        assert_eq!(v4[..FEATURES_LEN_V3], v3[..], "the v3 prefix must not move");
+        assert!(v4.iter().all(|value| value.is_finite()));
+        assert!(
+            v4[OFFSET_OUR_CARD..].iter().all(|v| *v == 0.0 || *v == 1.0),
+            "card rows are boolean"
+        );
+        // Symmetric config: the two blocks agree.
+        assert_eq!(
+            v4[OFFSET_OUR_CARD..OFFSET_THEIR_CARD],
+            v4[OFFSET_THEIR_CARD..]
+        );
+    }
+
+    /// The point of the whole design: a knob moves the features
+    ///
+    /// If flipping a convention left the vector unchanged, one net could never
+    /// serve both regimes and the arms would still differ by their weights —
+    /// which is the confound `docs/ai-bidder/configured-net.md` exists to kill.
+    #[test]
+    fn a_convention_knob_moves_the_card_block() {
+        use crate::bidding::instinct::set_kickback;
+
+        let plain = {
+            set_kickback(false);
+            Config::symmetric(&crate::bidding::card::american_card())
+        };
+        let relocated = {
+            set_kickback(true); // restore the shipped default (on)
+            Config::symmetric(&crate::bidding::card::american_card())
+        };
+        assert_ne!(
+            plain, relocated,
+            "`Kickback 1430` rides `set_kickback`, so the config block must differ"
+        );
+
+        // Exactly one row moves, and the two sides move together.
+        let differing = plain
+            .ours
+            .iter()
+            .zip(&relocated.ours)
+            .filter(|(a, b)| a != b)
+            .count();
+        assert_eq!(differing, 1, "only the kickback row should move");
+        assert_eq!(plain.theirs, plain.ours, "symmetric config");
+    }
+
+    /// An unattached config encodes as zeros rather than panicking in release
+    #[test]
+    fn features_v4_without_a_config_is_zero_padded() {
+        let hand = hand("AQ32.K53.QJ4.A92");
+        let context = empty_context();
+        // The debug assert in `features_v4` fires on a missing config, so reach
+        // past it: this pins the *release* shape, that the vector is still the
+        // right width rather than short.
+        let mut out = features_v3(hand, &context);
+        out.resize(FEATURES_LEN_V4, 0.0);
+        assert_eq!(out.len(), FEATURES_LEN_V4);
+        assert!(out[OFFSET_OUR_CARD..].iter().all(|value| *value == 0.0));
     }
 }

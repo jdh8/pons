@@ -433,7 +433,9 @@ fn american_row(name: &str) -> i32 {
         // Free bids are forcing (one round at the two level).
         "1X-(Y)-2Z forcing" => 1,
         "1X-(1Y)-2Z strong" | "1X-(1Y)-2Z weak" => 0,
-        // RKCB 1430 into the agreed suit; no Kickback, no Crosswood, no Exclusion.
+        // RKCB 1430 into the agreed suit; no Crosswood, no Exclusion, and none of
+        // the other two keycard orderings.  Whether the ask is *relocated* is a
+        // separate row that rides `set_kickback` — see "Kickback 1430" below.
         "Blackwood 1430" => 1,
         "Blackwood 0123"
         | "Blackwood 0314"
