@@ -292,10 +292,15 @@ information. At serving, the readings carry it too. The net would be trained to
 attribute the whole regime signal to one place and then served inputs that split
 it across two.
 
-Cheap check before committing to a large dump: extract one auction both ways —
-bare, and through `Stance::prefixed_context` — and diff the 40 inference floats.
-If they move, the corpus wants prefixed contexts, and that is a `dump-teacher`
-change rather than a retrain.
+**Measured** by `bare_and_prefixed_contexts_disagree`: on `1♠ P 2NT P` (Jacoby,
+one authored artificial call) **3 of the 40 inference floats move**. Real but
+bounded — and this is the mildest case, a single projectable call; an auction
+carrying a relocated ask or a transfer chain has more to project.
+
+Conclusion: dump the large corpus through **prefixed** contexts. It is a
+`dump-teacher` change, not a retrain, and it is far cheaper to make before the
+run than to discover after it. The test stays as the tripwire: if a change ever
+makes the two agree, it fails and these warnings should come out.
 
 ## Acceptance — two gates
 
