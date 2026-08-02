@@ -163,6 +163,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   bias instead of assuming it; it does not touch DD's perfect lead or its
   timing, so it is a partial correction, not a general one.
 
+- **A kickback twin of the distilled floor** (`weights/american_bba_kickback`,
+  served whenever `set_kickback` is on). Same architecture, same recipe, same
+  seeds; the corpus is regenerated from a teacher that *plays* kickback
+  (`dump-teacher --conv "Kickback 1430=1" --kickback`). It exists because
+  kickback is not a rule a reader can hold on its own: a ladder decides what a
+  bid *means*, the net decides what gets *bid*, and a net distilled from a
+  kickback-blind teacher keeps jumping to a natural 4♥ in the very auction where
+  the ladder has claimed 4♥ as the diamond ask — the answerer reads a question,
+  the natural continuation is face-gated off, and the auction is passed out in a
+  4-1 fit. A single net trained on both regimes was built and rejected: it is a
+  better net on every aggregate (val CE 0.4004 against the twin's 0.4431 and the
+  plain net's 0.4518) and it still bids the phantom 4♥, because the regime is
+  not in the features *at the moment the call is chosen* — `1♦ P 1♠ P 2♦` is
+  three natural bids in either system, so both regimes present that decision
+  with identical inputs and contradictory targets.
+
+  **Measured 2026-08-02, 2 × 10M boards**, arm A `kickback + twin` against the
+  shipped default: non-vulnerable **+0.0723 PD / +0.0062 plain DD** per board,
+  vulnerable **+0.0438 PD / −0.0078 plain DD**. Plain DD flips sign across
+  vulnerability, so the knob stays opt-in. The cell prices the *package*, not
+  the relocation: at 28–32% divergence, **95% of the divergent boards never
+  reach the six-level**, where a relocated keycard ask cannot act at all. The
+  4.7% slam slice contributes +970 DD IMPs vulnerable and −413 non-vulnerable —
+  sign-inconsistent, i.e. nothing. Census and the owed attribution arm in
+  [docs/ai-bidder/bba-kickback.md](docs/ai-bidder/bba-kickback.md) §7.8.
+
 ### Changed
 
 - **Kickback falls back to 4NT instead of walking up** (`set_kickback`, still
