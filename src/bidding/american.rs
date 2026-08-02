@@ -164,7 +164,6 @@ pub use responses::{
     set_two_over_one_heart_light, set_two_over_one_major_discount,
     set_two_over_one_natural_lengths, set_up_the_line,
 };
-pub use slam::set_minor_keycard;
 pub(crate) use xyz::xyz;
 pub use xyz::{set_xyz, set_xyz_invite_judgment};
 

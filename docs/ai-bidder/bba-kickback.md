@@ -1233,3 +1233,35 @@ Two consequences worth stating outright:
    `kickback_now()`, so both golden cards move `0 → 1`. Every future
    BBA anchor therefore defends against a system description that names the
    convention, where previously the row said we played a natural 4♥.
+
+### 7.11 The knob cull (2026-08-02)
+
+Six RKCB flags became four deletions and one merge. The rule that decided each
+one: **a knob has to name a stance a partnership could actually play.** A flag
+whose off arm is a broken build is not an agreement — it is a bug with a
+switch on it, and every arm it adds to a harness is an arm that can be
+mispaired.
+
+| flag | verdict | why |
+| --- | --- | --- |
+| `set_keycard_answer_gates` | **deleted** | "off" is §7.3.1's union poison — a natural 5♦ read as a keycard answer. Bid-inert: **0 divergent boards over 1M×2**, 3 over 200k |
+| `set_queen_ask` | **deleted** | "off" is unbuildable against the only opponent we measure against. `Kickback 1430=1` is a real EPBot toggle, but nothing makes EPBot ask kings at the available bid, and its queen relay is unconditional — no retrain produces an off arm to play into |
+| `set_queen_fit`, `set_queen_buff_fit` | **deleted → constants** | development tuning, settled at ten and nine. The `probe-trump-queen` evidence stands; only runtime mutability goes |
+| `set_rkcb_announce` | **deleted** | announced 11+ points with an ask that fires on less — a *false* disclosure, not an inert one. Pilot measured a wash |
+| `set_minor_keycard` + `set_keycard_minors` | **merged → `set_rkcb_minors`** | one agreement, two layers: two of the four stances were unplayable (a book asking on a minor over a floor that cannot answer, and the reverse) |
+
+`set_kickback` survives the cull, and it is worth saying why when four of its
+neighbours did not: its off arm is the ladder every 2/1 pair in the world
+actually plays, and it is the arm the BBA anchor is measured against.
+
+**What the harness lost.** `examples/ab-kickback` drops `gated`, `queen` and
+`kickback-queen` — with the gates and the relay unconditional, all three were
+byte-identical to arms that remain. Six arms collapse to three (`plain`,
+`minors`, `kickback`). The mispairing that corrupted a census earlier in this
+campaign is now structurally unrepresentable, which was the point.
+
+**What it did not touch.** Nothing here moves a bid in the shipped default —
+every deleted flag was already at its default value. The cull is a claim about
+the *option surface*, not a bidding change, so it carries no A/B of its own;
+the cells the deleted knobs measured stay in this ledger and in
+`docs/bidding-options.md` §A7.

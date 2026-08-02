@@ -50,14 +50,14 @@
 
 use super::Rules;
 use super::constraint::{
-    Cons, Constraint, Description, announced, balanced, described, hcp, len, min_level_is,
-    partner_shown_len, partner_suit_is, point_count, points, pred, short_in_their_suits,
-    stopper_in_their_suits, support, support_point_count, support_point_count_in,
-    takeout_double_shape_ok, they_bid, top_honors,
+    Cons, Constraint, balanced, described, hcp, len, min_level_is, partner_shown_len,
+    partner_suit_is, point_count, points, pred, short_in_their_suits, stopper_in_their_suits,
+    support, support_point_count, support_point_count_in, takeout_double_shape_ok, they_bid,
+    top_honors,
 };
 use super::context::Context;
 use super::evaluator::trick_estimates_with_auction;
-use super::inference::{Dnf, Inferences, Relative, relative_of};
+use super::inference::{Inferences, Relative, relative_of};
 use super::rules::Alert;
 use contract_bridge::auction::{Call, RelativeVulnerability};
 use contract_bridge::eval::hcp as holding_hcp;
@@ -594,31 +594,13 @@ std::thread_local! {
     static TWO_OVER_ONE_SLAM_STRENGTH: Cell<bool> = const { Cell::new(true) };
 
     /// Whether the floor's keycard ask reaches agreed **minors** as well as
-    /// majors.  **On by default** since 2026-08-01; see [`set_keycard_minors`].
+    /// majors.  **On by default** since 2026-08-01; see [`set_rkcb_minors`].
     static KEYCARD_MINORS: Cell<bool> = const { Cell::new(true) };
 
     /// Whether the keycard ask relocates onto the kickback ladder.  **On by
     /// default** since 2026-08-02; see [`set_kickback`].
     static KICKBACK: Cell<bool> = const { Cell::new(true) };
 
-    /// Whether the always-present 1430/ROPI/DOPI/DEPO answer rules are
-    /// face-gated to a live ask window (**on by default** since 2026-08-01).
-    /// See [`set_keycard_answer_gates`].
-    static KEYCARD_ANSWER_GATES: Cell<bool> = const { Cell::new(true) };
-
-    /// Whether the keycard ladder carries a queen ask (and the grand-zone king
-    /// ask above it).  **On by default** since 2026-08-02; see
-    /// [`set_queen_ask`].
-    static QUEEN_ASK: Cell<bool> = const { Cell::new(true) };
-
-    /// The combined trump length at which the fit itself stands in for the
-    /// trump queen.  Default 10; see [`set_queen_fit`].
-    static QUEEN_FIT: Cell<u8> = const { Cell::new(10) };
-
-    /// The combined trump length that is not a queen but is still too good to
-    /// let partner pass five — the answerer jumps to six instead.  Default 9;
-    /// see [`set_queen_buff_fit`].
-    static BUFF_FIT: Cell<u8> = const { Cell::new(9) };
 }
 
 /// Enable or disable the floor's two-over-one game force (**on by default**)
@@ -732,12 +714,12 @@ fn floor_rkcb_now() -> bool {
 /// suit either way, so a major fit of equal length keeps winning.  Read at
 /// classification time, per-thread.
 #[doc(hidden)]
-pub fn set_keycard_minors(enabled: bool) {
+pub fn set_rkcb_minors(enabled: bool) {
     KEYCARD_MINORS.with(|flag| flag.set(enabled));
 }
 
-/// The keycard ask reaches minors (see [`set_keycard_minors`])
-fn keycard_minors_now() -> bool {
+/// The keycard ask reaches minors (see [`set_rkcb_minors`])
+pub(in crate::bidding) fn rkcb_minors_now() -> bool {
     KEYCARD_MINORS.with(Cell::get)
 }
 
@@ -775,163 +757,45 @@ pub(in crate::bidding) fn kickback_now() -> bool {
     KICKBACK.with(Cell::get)
 }
 
-/// Face-gate the always-present keycard answer rules (**on by default**
-/// since 2026-08-01)
+/// The combined trump length at which the fit itself stands in for the trump
+/// queen, matching BBA's `posiadane_karty >= 10`
+/// (`docs/ai-bidder/bba-kickback.md` §3)
 ///
-/// The plain-4NT 1430 answers (5♣–5♠) and the ROPI/DOPI/DEPO rules on
-/// X/XX/Pass carry `.alert(RKCB_FLOOR)` and are present in **every** stance,
-/// so with the gates off the reading's `alerted` bit suppresses the natural
-/// reading of every floor-classified five-level bid, double and redouble
-/// even when no keycard ask is anywhere in sight — the same union-poison
-/// mechanism `docs/ai-bidder/bba-kickback.md` §7.3.1 documents for
-/// kickback's 4-level, on the default system's own calls.
+/// Ten trumps run the suit; nine do not, and a grand breaks even near 56–58%,
+/// so letting nine answer "queen" would make the reply mean *honour or length*
+/// — ambiguous exactly where a wrong reading is most expensive.  Nine takes the
+/// other road out, [`QUEEN_BUFF_FIT`].  Every reply on this rung is therefore a
+/// real queen or a suit that needs none.
 ///
-/// On, each such rule is confined to its recognizer's face window
-/// ([`keycard_asked_face`] for the 1430 rungs and ROPI,
-/// [`keycard_asked_over_bid_face`] for DOPI/DEPO).  The gates are implied by
-/// the rules' own constraints, so what the floor *bids* is byte-identical
-/// either way; only the reading moves, which feeds back into bidding through
-/// partner's boxes.  Measured (`ab-kickback --feature gated --baseline
-/// minors`, 1M boards a cell, seed 1785560369): **zero divergent boards at
-/// either vulnerability** — the sounder reading and truthful alerting are
-/// free, so they ship.  Off recovers the pre-2026-08 reading for A/B
-/// archaeology.  Read inside the rules' face gates at classification time,
-/// per-thread.
-#[doc(hidden)]
-pub fn set_keycard_answer_gates(enabled: bool) {
-    KEYCARD_ANSWER_GATES.with(|flag| flag.set(enabled));
-}
+/// Was a knob (`set_queen_fit`) while the relay was being tuned; the tuning is
+/// done, and a threshold nobody varies is a constant.
+pub(in crate::bidding) const QUEEN_FIT: u8 = 10;
 
-/// The answer-rule face gates are enabled (see [`set_keycard_answer_gates`])
-fn keycard_answer_gates_now() -> bool {
-    KEYCARD_ANSWER_GATES.with(Cell::get)
-}
+/// The combined trump length that is a *buff* rather than a queen — the
+/// answerer jumps to six of trumps instead of denying
+///
+/// The queen ask has three answers, not two, and this is the threshold for the
+/// third: no queen, but something RKCB has no rung for and partner cannot see.
+/// An asker who hears a denial holds four keycards and no queen and *will* pass
+/// five — right on an eight-card fit (six makes 45.8% double-dummy, 51.9%
+/// de-biased) and wrong on a nine-card fit (**76.0%** / **82.9%**,
+/// `probe-trump-queen` over 120k deals at 30-plus combined points).  Six is the
+/// honest bid: it never claims the honour and it never gets passed.  A
+/// side-suit void rides the same rung, being worth a trick the arithmetic
+/// cannot see and the ladder cannot show.
+///
+/// Was a knob (`set_queen_buff_fit`), retired with [`QUEEN_FIT`].
+pub(in crate::bidding) const QUEEN_BUFF_FIT: u8 = 9;
 
-/// Carry a queen ask on the keycard ladder, and a king ask above it
-/// (**on by default** since 2026-08-02)
-///
-/// Without it the trump queen is disclosed only by the two-keycard rungs
-/// (step 3 denies it, step 4 shows it), so after a 1-or-4 or a 0-or-3 answer —
-/// the common case — the asker bets six on four keycards without ever knowing
-/// whether the queen is there.  On, the asker relays one step
-/// ([`queen_ask_room`]) and partner answers in **one** round that carries the
-/// queen *and* a king ([`RelayMap`]).
-///
-/// The ask is one [`bid_successor`] step above the answer, and the space
-/// between it and six of trump is exactly big enough to hold the whole reply:
-/// five of trump denies the queen and the extras, six of trump denies the queen
-/// with something partner cannot see, each side suit shows the queen plus that
-/// king and denies the cheaper ones, and 5NT shows the queen with no king at
-/// all.  It fits **11 of the 16** ask/answer lanes — the ask has to land
-/// strictly below five of trump, or the answerer cannot tell it from a signoff
-/// ([`queen_ask_room`]).  Where it does not fit, the asker bets the small slam
-/// on four keycards exactly as it does today.
-///
-/// Above a king-showing reply a **second relay** ([`king_relay`]) asks for one
-/// more king — the rung that decides the grand, and the place kickback's
-/// lowered ladder pays for itself twice.  It rides the **grand-zone strength
-/// gate**, not the keycard count: RKCB is a slam veto, not a slam seeker, so a
-/// partnership without the values for seven never spends the round.
-///
-/// Measured (`examples/ab-kickback`, 10M boards a cell, seed 1785588007):
-/// against the shipped plain-4NT ladder a **wash** at both vulnerabilities
-/// (+0.25 and +0.12 IMPs/divergent PD, plain DD parity and positive in sign);
-/// against [`set_kickback`] a **win** — +0.76/divergent PD and +0.33/divergent
-/// plain DD not vulnerable, both CIs clear of zero, +0.30 PD vulnerable.  No
-/// cell loses on either scorer.  The one-round reply is what buys the
-/// vulnerable cells: an earlier two-round encoding measured −0.24/divergent
-/// plain DD vulnerable on the same seed, because it landed a round higher.
-///
-/// **Read in two regimes, and a harness must arm both** — the same discipline
-/// [`set_kickback`] documents.  Rule *presence* is gated at [`instinct`] build
-/// time, because the reading's `alerted` test is structural: the relay's rungs
-/// land on 4♠/4NT/5♣–5NT/6♣–6♥, and an always-present alerted rule there would
-/// suppress the natural reading of those calls on every face.  The recognizers
-/// ([`keycard_ask_bid`], [`keycard_conversation_now`]) are read at
-/// classification time.
-#[doc(hidden)]
-pub fn set_queen_ask(enabled: bool) {
-    QUEEN_ASK.with(|flag| flag.set(enabled));
-}
-
-/// Set the combined trump length at which the fit stands in for the trump queen
-///
-/// Default **10**, matching BBA's `posiadane_karty >= 10`
-/// (`docs/ai-bidder/bba-kickback.md` §3), and the reason is that this rung has
-/// to serve the *grand*.  Holding AK and not the queen, the chance of no trump
-/// loser at all is the chance the queen falls under two rounds:
-///
-/// | fit | they hold | no trump loser |
-/// | --- | --- | --- |
-/// | 8 | Qxxxx | ~50% (the finesse) |
-/// | 9 | Qxxx | 2-2 (40.7%) + the singleton queen (49.7% ÷ 4) = **53.1%** |
-/// | 10 | Qxx | every 2-1 break = **78.0%** |
-///
-/// A grand breaks even near 56–58% ([`break_even`]), so nine trumps do not run
-/// the suit and ten do.  Letting nine answer "queen" would make the reply mean
-/// *honour or length* — ambiguous in the one place a wrong reading is most
-/// expensive — so nine takes the other road out: [`set_queen_buff_fit`], the
-/// jump to six.  Every reply on this rung is therefore a real queen or a suit
-/// that needs none.
-///
-/// Raise it past 13 to demand the literal honour always — the arm that isolates
-/// the relay from the fit rule.  For A/B measurement: a sweep, not a constant,
-/// and it only bites while [`set_queen_ask`] is on.  Read at book-construction
-/// time by [`install_rkcb`] and at classification time by the floor.
-///
-/// [`install_rkcb`]: super::american::slam::install_rkcb
-#[doc(hidden)]
-pub fn set_queen_fit(length: u8) {
-    QUEEN_FIT.with(|cell| cell.set(length));
-}
-
-/// The combined trump length that stands in for the queen (see [`set_queen_fit`])
-pub(in crate::bidding) fn queen_fit() -> u8 {
-    QUEEN_FIT.with(Cell::get)
-}
-
-/// Set the combined trump length that is a *buff* rather than a queen
-///
-/// Default **9**.  The queen ask has three answers, not two, and this is the
-/// threshold for the third: no queen, but something RKCB has no rung for and
-/// partner cannot see — so instead of denying and hearing five passed out, the
-/// answerer bids six of trumps itself.
-///
-/// The asker who hears a denial holds four keycards and no queen, and *will*
-/// pass five; that is right on an eight-card fit (six makes 45.8% by
-/// double-dummy, 51.9% de-biased) and wrong on a nine-card fit (**76.0%** /
-/// **82.9%**, `probe-trump-queen` over 120k deals at 30-plus combined points).
-/// A nine-card fit is not enough to answer "queen" — see [`set_queen_fit`] for
-/// why the grand cannot afford that ambiguity — but it is far too much to let
-/// partner stop.  Six is the honest bid: it never claims the honour and it
-/// never gets passed.
-///
-/// A side-suit void rides the same rung, for the same reason: it is worth a
-/// trick the arithmetic cannot see and the ladder cannot show.
-///
-/// Raise it past 13 to keep the queen relay but delete the jump — the arm that
-/// prices the jump alone.  Only bites while [`set_queen_ask`] is on.
-#[doc(hidden)]
-pub fn set_queen_buff_fit(length: u8) {
-    BUFF_FIT.with(|cell| cell.set(length));
+/// The combined trump length that stands in for the queen (see [`QUEEN_FIT`])
+pub(in crate::bidding) const fn queen_fit() -> u8 {
+    QUEEN_FIT
 }
 
 /// The combined trump length that is a buff, not a queen (see
-/// [`set_queen_buff_fit`])
-pub(in crate::bidding) fn queen_buff_fit() -> u8 {
-    BUFF_FIT.with(Cell::get)
-}
-
-/// The queen ask is enabled (see [`set_queen_ask`])
-///
-/// Read in **both** regimes the knob spans: the floor's rules and recognizers
-/// read it at classification time, and the book's [`install_rkcb`] reads it at
-/// book-construction time, the regime [`set_minor_keycard`] already documents.
-///
-/// [`install_rkcb`]: super::american::slam::install_rkcb
-/// [`set_minor_keycard`]: super::american::slam::set_minor_keycard
-pub(in crate::bidding) fn queen_ask_now() -> bool {
-    QUEEN_ASK.with(Cell::get)
+/// [`QUEEN_BUFF_FIT`])
+pub(in crate::bidding) const fn queen_buff_fit() -> u8 {
+    QUEEN_BUFF_FIT
 }
 
 /// Set the HCP floor at which responder redoubles a doubled 1NT to play
@@ -1873,12 +1737,12 @@ fn below_slam() -> Cons<impl Constraint + Clone> {
 /// This was majors-only until 2026-08-01, on round 4 of the M6.4 A/B: at
 /// combined 33 the milestone 6NT power-blast out-scored minor and thin 6-2 suit
 /// slams on double-dummy.  Re-priced on the 2026-08 system, **the ask beats the
-/// blast** — see [`set_keycard_minors`], which now carves *back* to majors
+/// blast** — see [`set_rkcb_minors`], which now carves *back* to majors
 /// rather than lifting a carve.
 fn keycard_trump(hand: Hand, context: &Context<'_>) -> Option<Suit> {
     let inferences = Inferences::read(context);
     let partner = inferences.partner();
-    let candidates: &[Suit] = if keycard_minors_now() {
+    let candidates: &[Suit] = if rkcb_minors_now() {
         &Suit::ASC
     } else {
         &[Suit::Hearts, Suit::Spades]
@@ -2324,6 +2188,29 @@ fn keycard_ask_bid(auction: &[Call], ask: usize) -> Option<Bid> {
 ///
 /// **Reads the knob**, through [`kickback_trump`]: call it with the same arm
 /// armed that produced the auction, or a relocated ask reads as no ask.
+/// Whether the kickback ladder was **offering** a relocated ask at `index` —
+/// the trump of the cheapest suit it claims there, if any
+///
+/// The companion to [`keycard_ask_at`] for measurement.  An ask that came out
+/// as 4NT while the ladder was offering a relocation is a position where the
+/// convention was available and something else took the seat — the authored
+/// book, which installs RKCB at absolute 4NT and has not been relocated.  That
+/// difference is the size of the prize for relocating the book; without it a
+/// 4NT ask is indistinguishable from a lane where the ladder simply claims
+/// nothing, which is the common and entirely correct case.
+///
+/// **Reads the knob**, like [`keycard_ask_at`].
+#[doc(hidden)]
+#[must_use]
+pub fn kickback_offered_at(auction: &[Call], index: usize) -> Option<Suit> {
+    if !kickback_now() {
+        return None;
+    }
+    Suit::ASC
+        .into_iter()
+        .find_map(|target| kickback_ladder(auction, index)[target as usize])
+}
+
 #[doc(hidden)]
 #[must_use]
 pub fn keycard_ask_at(auction: &[Call], index: usize) -> Option<(Bid, Suit, bool)> {
@@ -2534,8 +2421,7 @@ fn plausible_ask(auction: &[Call], index: usize) -> Option<Bid> {
 ///   rungs: vetoing every call after an ask, rather than the ladder's own, turns
 ///   off answer windows that are legitimately live and shifts the readings that
 ///   depend on them (four suite failures, 2026-08-02).
-/// - **The relay's rungs**, four or more calls back, which exist only while
-///   [`set_queen_ask`] is on.  Deliberately coarse: anything above the answer
+/// - **The relay's rungs**, four or more calls back.  Deliberately coarse: anything above the answer
 ///   and at or below six of spades, the highest six of trump the relay reaches.
 ///   It cannot be sharper — the trump is not derivable from the face alone —
 ///   and need not be, since over-matching only refuses to read a call as a
@@ -2553,9 +2439,6 @@ fn conversation_rung(auction: &[Call], index: usize) -> bool {
         .is_some_and(|ask| answer_step(ask, made).is_some());
     if answers_partners_ask {
         return true;
-    }
-    if !queen_ask_now() {
-        return false;
     }
     [4usize, 6, 8, 10].into_iter().any(|back| {
         index
@@ -2624,24 +2507,34 @@ fn keycard_asked_over_bid(hand: Hand, context: &Context<'_>) -> Option<(Suit, Bi
     Some((trump, their))
 }
 
-/// The knob-conditioned face gate for the always-present 1430 answer rules
-/// (see [`set_keycard_answer_gates`]): knob off reproduces the pre-2026-08
-/// always-live rules, knob on confines the rule to its recognizer's face
+/// The face gate confining the always-present 1430 answer rules to a live ask
 /// window
+///
+/// The 1430 answers (5♣–5♠ over a plain 4NT) and the ROPI/DOPI/DEPO rules on
+/// X/XX/Pass are installed in **every** stance and every one is alerted, so
+/// without this an ordinary 5♦ with no ask anywhere on the auction reads as a
+/// keycard answer: the union over rules sharing the call picks up the answer
+/// rule's ⊤ projection and collapses partner's diamond floor, and the
+/// structural `alerted` bit suppresses the natural walk on top.
+///
+/// Was a knob (`set_keycard_answer_gates`) and is now unconditional.  It
+/// measured **zero divergent boards** over 1M × 2 vulnerabilities when it
+/// shipped, and three boards in 200k when re-checked on 2026-08-02: the
+/// off-position never changed a contract, it only broke readings.  A knob whose
+/// off-position is a bug rather than an agreement is a foot-gun, and this one
+/// cost an invalid A/B arm pairing before it was retired.
 fn answer_window_face(context: &Context<'_>) -> bool {
-    !keycard_answer_gates_now() || keycard_asked_face(context).is_some()
+    keycard_asked_face(context).is_some()
 }
 
 /// [`answer_window_face`] for the ROPI rungs — their double of the ask
 fn ropi_window_face(context: &Context<'_>) -> bool {
-    !keycard_answer_gates_now()
-        || (context.auction().last() == Some(&Call::Double)
-            && keycard_asked_face(context).is_some())
+    context.auction().last() == Some(&Call::Double) && keycard_asked_face(context).is_some()
 }
 
 /// [`answer_window_face`] for the DOPI/DEPO rungs — their bid over the ask
 fn dopi_window_face(context: &Context<'_>) -> bool {
-    !keycard_answer_gates_now() || keycard_asked_over_bid_face(context).is_some()
+    keycard_asked_over_bid_face(context).is_some()
 }
 
 /// The face half of [`keycard_asked_over_bid`] — see [`keycard_asked_face`]
@@ -2844,7 +2737,7 @@ fn resolve_total(mine: usize, low: usize, high: usize) -> usize {
 ///
 /// Counted as our own length plus the *sound floor* of partner's shown length,
 /// the same bound [`known_eight_card_fit`] uses, so neither seat can claim a fit
-/// the auction has not shown.  The threshold is [`set_queen_fit`].
+/// the auction has not shown.  The threshold is [`QUEEN_FIT`].
 ///
 /// Why a threshold and not a constant: seeing four keycards already puts one
 /// loser on the table, so the slam turns on there not being a *second* one in
@@ -2857,17 +2750,14 @@ fn resolve_total(mine: usize, low: usize, high: usize) -> usize {
 fn long_fit_for_queen(hand: Hand, context: &Context<'_>, trump: Suit) -> bool {
     let shown =
         hand[trump].len() + usize::from(Inferences::read(context).partner().length(trump).min);
-    shown >= usize::from(QUEEN_FIT.with(Cell::get))
+    shown >= usize::from(QUEEN_FIT)
 }
 
 /// We hold the trump queen, or the side has shown the ten-card fit that stands
 /// in for it — the answerer's queen bit, and the asker's when it can settle the
 /// question from its own hand
-///
-/// The ten-card arm rides [`set_queen_ask`] so the knob-off answer rungs keep
-/// their literal holding test and stay byte-identical.
 fn holds_queen(hand: Hand, context: &Context<'_>, trump: Suit) -> bool {
-    hand[trump].contains(Rank::Q) || (queen_ask_now() && long_fit_for_queen(hand, context, trump))
+    hand[trump].contains(Rank::Q) || long_fit_for_queen(hand, context, trump)
 }
 
 /// The keycard conversation whose ask sits `back` calls behind the end, with
@@ -2905,7 +2795,7 @@ fn relay_window(hand: Hand, context: &Context<'_>, back: usize) -> Option<(Suit,
 /// the constraint (it cannot derive the trump), which is the right direction:
 /// the gate must be *implied by* the constraint for exclusion to stay sound.
 fn relay_window_face(context: &Context<'_>, back: usize) -> bool {
-    if !queen_ask_now() || !floor_rkcb_now() {
+    if !floor_rkcb_now() {
         return false;
     }
     let auction = context.auction();
@@ -3053,9 +2943,9 @@ fn queen_settled(hand: Hand, context: &Context<'_>, trump: Suit) -> Option<bool>
 /// Two different questions share the trump suit and must not share a threshold:
 ///
 /// - the **answerer** asks "is my suit as good as the queen?", and that has to
-///   hold up for a grand, so it takes ten ([`set_queen_fit`]);
+///   hold up for a grand, so it takes ten ([`QUEEN_FIT`]);
 /// - the **asker** asks "can the reply change my call?", and at nine it cannot
-///   — six is bid over a denial anyway ([`set_queen_buff_fit`]), so the round
+///   — six is bid over a denial anyway (`QUEEN_BUFF_FIT`), so the round
 ///   is spent for nothing.
 ///
 /// Both roads end at six; only the asker's saves a round of bidding.
@@ -3063,7 +2953,7 @@ fn queen_moot(hand: Hand, context: &Context<'_>, trump: Suit) -> bool {
     holds_queen(hand, context, trump) || {
         let shown =
             hand[trump].len() + usize::from(Inferences::read(context).partner().length(trump).min);
-        shown >= usize::from(BUFF_FIT.with(Cell::get))
+        shown >= usize::from(QUEEN_BUFF_FIT)
     }
 }
 
@@ -3071,10 +2961,7 @@ fn queen_moot(hand: Hand, context: &Context<'_>, trump: Suit) -> bool {
 /// open and the ladder has room for the ask.  Its negation is the "no space to
 /// ask" case, where the asker bets the small slam on four keycards.
 fn relay_available(hand: Hand, context: &Context<'_>, trump: Suit) -> bool {
-    if !queen_ask_now()
-        || queen_settled(hand, context, trump).is_some()
-        || queen_moot(hand, context, trump)
-    {
+    if queen_settled(hand, context, trump).is_some() || queen_moot(hand, context, trump) {
         return false;
     }
     let auction = context.auction();
@@ -3191,11 +3078,11 @@ fn queen_reply(bid: Bid, artificial: bool) -> Cons<impl Constraint + Clone> {
 }
 
 /// No queen, but something the ladder has no rung for and partner cannot see:
-/// the fit itself at [`set_queen_buff_fit`], or a side-suit void
+/// the fit itself at `QUEEN_BUFF_FIT`, or a side-suit void
 fn queen_buff(hand: Hand, context: &Context<'_>, trump: Suit) -> bool {
     let shown =
         hand[trump].len() + usize::from(Inferences::read(context).partner().length(trump).min);
-    shown >= usize::from(BUFF_FIT.with(Cell::get))
+    shown >= usize::from(QUEEN_BUFF_FIT)
         || Suit::ASC
             .into_iter()
             .any(|suit| suit != trump && hand[suit].is_empty())
@@ -3523,88 +3410,6 @@ fn fit_sum_game(suit: Suit, slack: u8) -> Cons<impl Constraint + Clone> {
         u16::from(own) + u16::from(partner_pts) + fit
             >= u16::from(FIT_SUM_GAME.with(Cell::get).saturating_sub(slack))
     })
-}
-
-/// What the floor's 4NT RKCB ask **announces** — its agreement, not its gate
-///
-/// The ask is the one bilans-converted milestone that is not a final contract,
-/// and the worst reading in the tree: `.alert(RKCB_FLOOR)` suppresses the
-/// natural reading, and knob-on its gate is the evaluator net, whose sound
-/// projection is ⊤.  So the ask says *nothing* — and unlike the terminal
-/// milestones, partner and the opponents still have an auction to bid.
-///
-/// [`announced`] splits the two folds so the agreement can be tight without the
-/// sampler's containment contract having to hold it.  The number is measured,
-/// not inherited: `examples/probe-announced-rkcb` over 100k boards finds the ask
-/// firing on 2.23% of boards with the asker's own `point_count` at p5 = 11,
-/// p10 = 12, median 16.  **11 covers 95% of firings.**
-///
-/// Deliberately *not* [`FLOOR_SLAM_ENTRY`]'s 29 combined: partner's shown floor
-/// at these nodes is median 6, so the arithmetic would claim ~23 of our own
-/// while the net actually fires at 16 — it reaches some seven points below the
-/// sum it replaced, and announcing that sum would misdescribe the median hand.
-/// An agreement is calibrated to what the criterion *does*, not to the
-/// arithmetic it replaced.
-// ponytail: a static floor is the pilot's compromise — the auction-aware
-// version needs partner's shown minimum, which is follow-up A's two-pass fold.
-const RKCB_ASK_ANNOUNCE: u8 = 11;
-
-std::thread_local! {
-    /// Whether the RKCB ask announces [`RKCB_ASK_ANNOUNCE`] (see
-    /// [`set_rkcb_announce`]).  On by default, but inert unless
-    /// [`set_announced_reading`][super::inference::set_announced_reading] is
-    /// also on, which it is not.
-    static RKCB_ANNOUNCE: Cell<bool> = const { Cell::new(true) };
-}
-
-/// Toggle the RKCB ask's agreement — the `announced()` pilot, in isolation
-///
-/// Separated from
-/// [`set_announced_reading`][super::inference::set_announced_reading] so the two
-/// halves of the agreement overlay can be attributed apart.  They are nested,
-/// not independent: the overlay unions over *alerted* rules, and without that
-/// the unalerted weight-0.3 4NT catch-all sharing this bid would union the
-/// agreement back to ⊤.  So the isolation runs are
-///
-/// | arm | 60k boards diverging |
-/// | --- | --- |
-/// | agreement overlay, this off | 1400 (2.333%) |
-/// | agreement overlay, this on | 1405 (2.342%) |
-///
-/// — **the pilot is bid-inert**, five boards in sixty thousand. That is not a
-/// failure: after `4NT` the auction runs on keycard answers and `keycard_total`,
-/// neither of which reads partner's points, so nothing here *decides* on the
-/// reading. Its payoff is disclosure and lead/defence sampling, the same ground
-/// [`set_pass_reading`][super::set_pass_reading] and
-/// [`set_cue_reading`][super::set_cue_reading] shipped on.
-///
-/// Default on, read at reading time, per-thread.
-#[doc(hidden)]
-pub fn set_rkcb_announce(on: bool) {
-    RKCB_ANNOUNCE.with(|cell| cell.set(on));
-}
-
-/// See [`set_rkcb_announce`] — announces [`RKCB_ASK_ANNOUNCE`], or nothing.
-#[derive(Clone, Copy)]
-struct RkcbAgreement;
-
-impl Constraint for RkcbAgreement {
-    /// Never consulted: [`announced`] evaluates its judgment arm, not this one.
-    fn eval(&self, _: Hand, _: &Context<'_>) -> f32 {
-        0.0
-    }
-
-    fn describe(&self) -> Description {
-        points(RKCB_ASK_ANNOUNCE..).describe()
-    }
-
-    fn announce(&self, context: &Context<'_>) -> Dnf {
-        if RKCB_ANNOUNCE.with(Cell::get) {
-            points(RKCB_ASK_ANNOUNCE..).announce(context)
-        } else {
-            Dnf::unknown()
-        }
-    }
 }
 
 /// Make probability of the small slam at which the bilans floor's RKCB ask
@@ -4249,12 +4054,12 @@ pub(crate) fn keycard_conversation_now(context: &Context<'_>) -> bool {
             && opponents_quiet_since(auction, n - 6)
             && recognizable(n - 6)
     });
-    // The relay's own rounds ([`set_queen_ask`]): partner's queen or king ask
+    // The relay's own rounds: partner's queen or king ask
     // awaiting our reply, and our own ask awaiting partner's placement.  The
     // rail has to reach them for the same reason it reaches the 1430 rungs — a
     // relay is a convention in motion, and the net freewheeling inside one
     // passes the ask out or plays the artificial reply.  Every arm is
-    // `relay_window_face`, so it is inert with the knob off.
+    // `relay_window_face`, so it is inert off a live relay.
     let relaying = [4usize, 6, 8, 10, 12]
         .into_iter()
         .any(|back| relay_window_face(context, back));
@@ -5328,7 +5133,7 @@ pub fn instinct() -> Rules {
                 // raises, decoded high and six off two.  The bilans entry
                 // prices tricks; this floor prices the *conversation*.
                 & combined_points(29)
-                & announced(slam_entry_reached(), Cons(RkcbAgreement))
+                & slam_entry_reached()
                 & not_penalizing()
                 & below_slam()
                 & level_available(4, Strain::Notrump),
@@ -5377,9 +5182,8 @@ pub fn instinct() -> Rules {
                 .face(|context: &Context<'_>| keycard_asked_over_bid_face(context).is_some());
         }
     } else {
-        // The plain arm's gates ride [`set_keycard_answer_gates`] (on by
-        // default): the same §7.3.1 cure reaches the default system's
-        // five-level answers; knob off recovers the old always-live reading.
+        // The plain arm's gates: the same §7.3.1 cure reaches the default
+        // system's five-level answers, confining them to a live ask window.
         for &landing in &PLAIN_ANSWERS {
             rules = rules
                 .rule(landing, 1.9, keycard_answer(landing))
@@ -5393,17 +5197,18 @@ pub fn instinct() -> Rules {
                 .face(dopi_window_face);
         }
     }
-    // The relay ([`set_queen_ask`]): the queen ask one step above partner's
+    // The relay: the queen ask one step above partner's
     // 1430 answer, its merged reply, then the second relay and its two rungs —
     // all derived from the answer by [`relay_map`] and [`king_relay`], so one
     // rule per landing call serves every trump and every ask position.
     //
-    // Rule *presence* is what the knob gates, for the reason `set_kickback`
-    // documents: the `alerted` bit is structural, and these landings are the
-    // ordinary contracts of the game.  Within the arm each rule carries its
-    // window's face gate, so on faces with no relay in motion the rule is
-    // as-if-absent and 5♥ reads as hearts again.
-    if queen_ask_now() {
+    // These landings are the ordinary contracts of the game and the `alerted`
+    // bit is structural, so every rule here carries its window's face gate: on
+    // faces with no relay in motion the rule is as-if-absent and 5♥ reads as
+    // hearts again.  (Was `if queen_ask_now()`; the relay is unconditional now
+    // — BBA relays for the queen with no toggle, so a floor distilled from it
+    // asks whatever we do, and an off-arm would bid what it cannot read.)
+    {
         for &landing in &RELAY_RUNGS {
             rules = rules
                 // The artificial half of the merged reply — the king rungs and
@@ -5497,7 +5302,7 @@ pub fn instinct() -> Rules {
                         })
                     }) & inference_aware()
                         & combined_points(29)
-                        & announced(slam_entry_reached(), Cons(RkcbAgreement))
+                        & slam_entry_reached()
                         & not_penalizing()
                         & below_slam()
                         & level_available(4, strain),
@@ -5522,9 +5327,8 @@ pub fn instinct() -> Rules {
             // the relay is live, in which case the blast stands down and lets
             // the conversation find out.  Seven off a missing trump queen is
             // the loss the relay exists to prevent, and a round of bidding is
-            // cheap against it.  [`relay_pending`] is false whenever
-            // [`set_queen_ask`] is off, so the conjunct is inert there and the
-            // knob-off blast is byte-identical.
+            // cheap against it.  [`relay_pending`] is false wherever the
+            // relay has no room, so the blast is unchanged in those lanes.
             .rule(
                 Bid::new(7, strain),
                 1.86,
@@ -5543,7 +5347,7 @@ pub fn instinct() -> Rules {
             // [`queen_ok`] is what makes this "four keycards **and** the
             // queen": five keycards bid six whatever the queen does, a settled
             // queen bids it, and where the relay had no room the asker bets it
-            // on four exactly as before.  Inert with [`set_queen_ask`] off.
+            // on four exactly as before.
             .rule(
                 Bid::new(6, strain),
                 1.84,
@@ -5609,7 +5413,7 @@ pub fn instinct() -> Rules {
         // as the direct placements above, because the decision is the same
         // decision with one more fact in it.  All natural contracts, so no
         // alert and no face gate; the artificial rungs they answer carry both.
-        if queen_ask_now() {
+        {
             for &landing in &RELAY_RUNGS {
                 rules = rules
                     // All five keycards: six is already decided, so the queen
@@ -6757,92 +6561,6 @@ mod tests {
         assert_eq!(collared, Call::Pass);
     }
 
-    /// The `announced()` pilot: the floor's 4NT RKCB ask discloses slam values
-    /// even though the evaluator net decided it.
-    ///
-    /// The thesis in one assertion. The ask is `.alert(RKCB_FLOOR)`, so the
-    /// natural reading is suppressed and the projection is all partner gets —
-    /// and the projection is ⊤, because knob-on the gate is the net and a net
-    /// accepts hands no box contains. The *agreement* fold has no such ceiling:
-    /// it is what the partnership would say the call means, so it can name the
-    /// measured floor ([`RKCB_ASK_ANNOUNCE`]).
-    ///
-    /// Both sides are pinned deliberately. The projection must not move — that
-    /// is what keeps [`sample_layouts`][super::sampler::sample_layouts] dealing
-    /// the light hands the net actually asks on — while the agreement carries
-    /// the reading.
-    ///
-    /// This auction is the *modest* case: the asker opened `1♠`, so the natural
-    /// walk already floors it at 10 and the agreement adds one point. The probe
-    /// measures the asker's own seat reading nothing at all at p25 (median 10),
-    /// so `RKCB_ASK_ANNOUNCE` bites on 80.6% of firings for a mean +4.24.
-    #[test]
-    fn rkcb_ask_announces_slam_values_the_projection_cannot() {
-        use crate::bidding::american::american_instinct;
-        use crate::bidding::inference::set_announced_reading;
-
-        // `1♥ – P – 4♦ – P – 4♥ – P – 4NT – P`, from
-        // `examples/probe-announced-rkcb --count 60000`: responder splintered
-        // with a diamond void, opener signed off in game, responder asks. The
-        // book has no node here, so the *floor* authors the ask — the pilot only
-        // reaches floor-authored asks, 59.8% of them (a book node with finite
-        // mass shadows the floor). The reader is the `4♥` bidder, so the asker
-        // sits at `Relative::Partner`, and the walk floors that seat at nothing.
-        let after_ask = [
-            call(1, Strain::Hearts),
-            Call::Pass,
-            call(4, Strain::Diamonds),
-            Call::Pass,
-            call(4, Strain::Hearts),
-            Call::Pass,
-            call(4, Strain::Notrump),
-            Call::Pass,
-        ];
-        let stance = american_instinct().against();
-        let read = |on: bool| {
-            set_announced_reading(on);
-            let inferences = stance.infer(RelativeVulnerability::NONE, &after_ask);
-            set_announced_reading(false); // restore the default before any assert
-            inferences
-        };
-
-        // Knob off: the two folds are the same object, both vacuous.
-        let off = read(false);
-        assert_eq!(
-            off.announced(Relative::Partner).strength.points,
-            off.partner().strength.points,
-            "knob-off the agreement is the projection"
-        );
-
-        let on = read(true);
-        assert_eq!(
-            on.partner().strength.points,
-            off.partner().strength.points,
-            "the projection — and so the sampler — is untouched by the split"
-        );
-        assert_eq!(
-            on.announced(Relative::Partner).strength.points.min,
-            RKCB_ASK_ANNOUNCE,
-            "the ask announces the slam values the projection cannot"
-        );
-        assert!(
-            on.announced(Relative::Partner).strength.points.min > on.partner().strength.points.min,
-            "the agreement is strictly tighter than the projection — the split shows"
-        );
-
-        // The pilot's own knob, the other half of the attribution: with the
-        // overlay on but this off, the ask is back to announcing nothing, and
-        // what remains is the alerted-only union alone.
-        set_rkcb_announce(false);
-        let bare = read(true);
-        set_rkcb_announce(true); // restore the default before asserting
-        assert_eq!(
-            bare.announced(Relative::Partner).strength.points,
-            bare.partner().strength.points,
-            "without the pilot the ask announces nothing again"
-        );
-    }
-
     #[test]
     fn transfer_invite_reaches_the_floor_over_a_possible_five_two() {
         // 1NT–2♦–2♥–3♥: partner transferred to hearts and raised.  With the six-card
@@ -6970,7 +6688,7 @@ mod tests {
         // 2 keycards without the queen → 5♥.  Four trumps, not five: opposite a
         // shown five that is a nine-card fit, and nine is not ten.  With five
         // the side owns the **ten-card fit that stands in for the queen**
-        // (`set_queen_fit`, live since the relay went default-on), so the same
+        // (`QUEEN_FIT`, live since the relay went default-on), so the same
         // hand one card longer correctly answers 5♠ instead.
         assert_eq!(
             best(&auction, "A873.A532.842.92"),
@@ -6991,7 +6709,7 @@ mod tests {
         );
     }
 
-    /// The relay ([`set_queen_ask`]): after an ambiguous answer the asker asks
+    /// The relay: after an ambiguous answer the asker asks
     /// the queen rather than betting six on four keycards blind, and partner
     /// replies on the next two rungs.
     ///
@@ -7014,18 +6732,10 @@ mod tests {
         // ♠AKJ85 ♥AK2 ♦KJ2 ♣42 — three keycards (♠A, ♥A, ♠K), no trump queen.
         let queenless = "AKJ85.AK2.KJ2.42";
 
-        set_queen_ask(false);
-        assert_eq!(
-            best(&auction, queenless),
-            call(6, Strain::Spades),
-            "knob off: four keycards bets the small slam blind, as it always has"
-        );
-
-        set_queen_ask(true);
         assert_eq!(
             best(&auction, queenless),
             call(5, Strain::Diamonds),
-            "knob on: 5♦ is the step above the answer — ask the queen"
+            "5♦ is the step above the answer — ask the queen"
         );
         // Holding it ourselves settles the question, so the relay is skipped.
         assert_eq!(
@@ -7043,7 +6753,6 @@ mod tests {
             call(6, Strain::Spades),
             "all five keycards and no grand values: nothing to learn, bid six"
         );
-        set_queen_ask(false);
     }
 
     /// Partner answers the relay on the next two rungs, and the ten-card fit
@@ -7062,7 +6771,6 @@ mod tests {
             call(5, Strain::Diamonds),
             Call::Pass,
         ];
-        set_queen_ask(true);
         // ♠K74 ♥A653 ♦8432 ♣92 — three trumps opposite partner's shown five is
         // eight, so only the honour itself can answer, and it is missing.
         assert_eq!(
@@ -7090,7 +6798,6 @@ mod tests {
             call(5, Strain::Notrump),
             "a proven ten-card fit stands in for the queen"
         );
-        set_queen_ask(false);
     }
 
     /// The asker places the contract on the relay's answer: the queen brings
@@ -7117,7 +6824,6 @@ mod tests {
                 .chain([reply, Call::Pass])
                 .collect::<Vec<_>>()
         };
-        set_queen_ask(true);
         // Three keycards opposite a one-or-four answer decodes to four
         // combined — one keycard missing.
         let asker = "AKJ85.AK2.KJ2.42";
@@ -7139,12 +6845,11 @@ mod tests {
             call(6, Strain::Spades),
             "all five keycards, the queen and a king, but no grand values: six"
         );
-        set_queen_ask(false);
     }
 
     /// The relay's geometry, lane by lane — the queen ask is the step above the
     /// answer, and it exists exactly when the *no-queen* rung still lands at or
-    /// below five of trump.  This is the table `set_queen_ask` documents; get a
+    /// below five of trump.  This is the table `relay_map` documents; get a
     /// row wrong and a relay lands past the signoff it was meant to preserve.
     /// Every relay lane, mechanically: which ones the merged reply fits in,
     /// and that no lane ever assigns two messages to the same call.
@@ -7740,7 +7445,7 @@ mod tests {
         ] {
             assert_eq!(best(&auction, hand), expected, "{why}");
         }
-        set_kickback(false); // restore the default (off) for the rest of the suite
+        set_kickback(true); // restore the default (on) for the rest of the suite
     }
 
     /// A 4NT that *answers* a relocated ask is an answer, not a new ask — the
@@ -7774,7 +7479,7 @@ mod tests {
         // Two keycards and the queen opposite a 1-or-4 answer: three combined,
         // two missing — sign off in the agreed suit, never a fifth-strain bid.
         let placement = best(&auction, "A32.AKQJ7.AKQ.32");
-        set_kickback(false); // restore the default (off) for the rest of the suite
+        set_kickback(true); // restore the default (on) for the rest of the suite
         assert_eq!(
             placement,
             call(6, Strain::Hearts),
@@ -7815,21 +7520,23 @@ mod tests {
             "the ask is still the 4♥ two calls before it"
         );
         let placement = best(&auction, "AKQ3.AQ42.QT72.A");
-        set_kickback(false); // restore the default (off) for the rest of the suite
+        set_kickback(true); // restore the default (on) for the rest of the suite
         assert!(
             matches!(placement, Call::Bid(bid) if bid.strain == Strain::Diamonds),
             "the asker places the contract in the agreed trump, never a phantom club: {placement:?}"
         );
     }
 
-    /// The answer arm of [`conversation_rung`] is **not** gated on the queen
-    /// relay, and this is what that buys: plain `set_kickback`, queen ask off,
-    /// used to have no guard at all beyond the 4NT carve-out — so the earlier
-    /// "kickback is a wash" measurement was taken with the collision live.
+    /// The answer arm of [`conversation_rung`] stands on its own: a relocated
+    /// ask's answer is never read as a fresh ask.
+    ///
+    /// It used to be reachable only through the queen relay, so plain
+    /// `set_kickback` had no guard beyond the 4NT carve-out — which is why the
+    /// earlier "kickback is a wash" measurement was taken with the collision
+    /// live.  The guard is unconditional now, and so is the relay.
     #[test]
-    fn the_answer_is_not_an_ask_without_the_queen_relay() {
+    fn the_answer_is_not_an_ask() {
         set_kickback(true);
-        set_queen_ask(false);
         let auction = [
             call(1, Strain::Diamonds),
             Call::Pass,
@@ -7842,8 +7549,6 @@ mod tests {
         ];
         let answer = keycard_ask_bid(&auction, 6);
         let ask = keycard_ask_bid(&auction, 4);
-        set_kickback(false); // restore the defaults for the rest of the suite
-        set_queen_ask(true);
         assert_eq!(answer, None, "4♠ answers the 4♥ ask; it asks nothing");
         assert_eq!(
             ask,
@@ -7865,7 +7570,7 @@ mod tests {
             call(3, Strain::Diamonds),
             Call::Pass,
         ];
-        set_keycard_minors(true);
+        set_rkcb_minors(true);
 
         set_kickback(true);
         let relocated: Vec<Call> = raise
@@ -7888,7 +7593,7 @@ mod tests {
             .collect();
         let blackwood = best(&plain, responder);
 
-        set_keycard_minors(true); // restore the default (on since 2026-08-01)
+        set_rkcb_minors(true); // restore the default (on since 2026-08-01)
         assert_eq!(
             redwood,
             call(5, Strain::Diamonds),

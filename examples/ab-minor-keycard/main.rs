@@ -1,4 +1,4 @@
-//! Measure the plain-4NT minor keycard (`set_minor_keycard`): an A/B duplicate match.
+//! Measure the plain-4NT minor keycard (`set_rkcb_minors`): an A/B duplicate match.
 //!
 //! The feature side keycards agreed minors (strong-2♣ minor raise asks with
 //! 28+, inverted-minor responders ask over the 18–19 3NT on
@@ -23,7 +23,7 @@ use contract_bridge::{AbsoluteVulnerability, FullDeal, Seat};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::Accumulator;
 use pons::american;
-use pons::bidding::american::set_minor_keycard;
+use pons::bidding::instinct::set_rkcb_minors;
 use pons::scoring::{final_contract, imps, ns_score_contract, ns_score_pd};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -72,11 +72,11 @@ fn main() {
     // The knob gates node *insertion*, so it is read at book construction —
     // build one stance per arm (a per-call thread-local flip would be a
     // no-op on an already-built book).
-    set_minor_keycard(true);
+    set_rkcb_minors(true);
     let feature = american().against();
-    set_minor_keycard(false);
+    set_rkcb_minors(false);
     let baseline = american().against();
-    set_minor_keycard(true);
+    set_rkcb_minors(true);
 
     let deals: Vec<(Seat, FullDeal)> = seeded_deals(args.seed, args.count)
         .into_iter()

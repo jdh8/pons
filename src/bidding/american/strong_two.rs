@@ -216,8 +216,8 @@ fn opener_after_spades_raise() -> Rules {
 /// Opener after `2♣–(P)–2♦–(P)–3♣–(P)–4♣–(P)` (at `&[2♣, 2♦, 3♣, 4♣]`)
 ///
 /// With 28+ HCP, launch minor RKCB (4NT); otherwise sign off in 5♣.  With the
-/// minor keycard off ([`super::slam::set_minor_keycard`]), the pre-keycard
-/// blind jump to 6♣ on 27+ instead.
+/// minor keycard off ([`set_rkcb_minors`][crate::bidding::instinct::set_rkcb_minors]),
+/// the pre-keycard blind jump to 6♣ on 27+ instead.
 fn opener_after_clubs_raise() -> Rules {
     if !super::slam::minor_keycard() {
         return Rules::new()
@@ -233,8 +233,8 @@ fn opener_after_clubs_raise() -> Rules {
 /// Opener after `2♣–(P)–2♦–(P)–3♦–(P)–4♦–(P)` (at `&[2♣, 2♦, 3♦, 4♦]`)
 ///
 /// With 28+ HCP, launch minor RKCB (4NT); otherwise sign off in 5♦.  With the
-/// minor keycard off ([`super::slam::set_minor_keycard`]), the pre-keycard
-/// blind jump to 6♦ on 27+ instead.
+/// minor keycard off ([`set_rkcb_minors`][crate::bidding::instinct::set_rkcb_minors]),
+/// the pre-keycard blind jump to 6♦ on 27+ instead.
 fn opener_after_diamonds_raise() -> Rules {
     if !super::slam::minor_keycard() {
         return Rules::new()

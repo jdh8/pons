@@ -42,7 +42,7 @@ use super::american::{
     major_support_double, new_minor_forcing, notrump_defense, notrump_minors,
     notrump_shape_setting, nt_splinter, responsive_takeout_enabled, transfer_super_accept, xyz,
 };
-use super::instinct::{kickback_now, queen_ask_now};
+use super::instinct::kickback_now;
 use core::fmt;
 
 /// A generated `.bbsa` convention card
@@ -127,10 +127,10 @@ fn pons_row(name: &str) -> i32 {
         // too — `probe-bba-kickback` asserts its disclosure label, and reads
         // back `hearts queen ask` / `no !H queen` — but the schema carries only
         // *toggleable* conventions and BBA's relay is unconditional, so no row
-        // exists to express it.  Ours is knob-gated (`set_queen_ask`), and a
-        // card must be able to describe an A/B arm, so it needs the row that
-        // BBA does not.  Named beside the `King ask by available bid` it feeds.
-        "Queen ask by available bid" => i32::from(queen_ask_now()),
+        // exists to express it.  Ours needs a row all the same: the card has
+        // to disclose the relay to the opponents whether or not BBA can toggle
+        // it.  Named beside the `King ask by available bid` it feeds.
+        "Queen ask by available bid" => 1,
         _ => panic!("`{name}` is in `PONS_SCHEMA` with no value in `pons_row`"),
     }
 }
@@ -492,7 +492,7 @@ fn american_row(name: &str) -> i32 {
         // instructing them (jdh8).  `King ask by 5NT` stays 1 beside it, because
         // that is the row BBA acts on and dropping it would tell them we have no
         // king ask at all.
-        "King ask by available bid" => i32::from(queen_ask_now()),
+        "King ask by available bid" => 1,
         // Michaels and Unusual 2NT we author outright; `set_unusual_notrump_defense`
         // gates only our *defense* to theirs, not our own two-suiter bids.
         "Michaels Cuebid" | "Unusual 2NT" => 1,

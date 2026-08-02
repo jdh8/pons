@@ -51,47 +51,37 @@
 use crate::bidding::{Alert, Rules, Trie};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Rank, Strain, Suit};
-use core::cell::Cell;
 use core::ops::RangeBounds;
 use std::sync::Arc;
 
 /// Roman Keycard Blackwood — the artificial keycard ask, answers, and king ask
 pub(super) const RKCB: Alert = Alert("rkcb");
 
-thread_local! {
-    /// Plain-4NT keycard for agreed **minor** trumps; **on by default**.
-    /// See [`set_minor_keycard`].
-    static MINOR_KEYCARD: Cell<bool> = const { Cell::new(true) };
-}
-
-/// Author the plain-4NT minor-suit keycard for books built *after* this call
-/// (thread-local; **on by default**).
+/// Whether RKCB reaches agreed **minor** trumps — the book half of
+/// [`set_rkcb_minors`][crate::bidding::instinct::set_rkcb_minors]
 ///
-/// Extends RKCB 1430 to agreed minor trumps at its two vehicles: the strong-2♣
-/// minor raise (`2♣–2♦–3m–4m`, opener asks with 28+ HCP instead of
-/// blind-jumping `6m` on 27+) and the inverted minor raise (`1m–2m–3NT`,
-/// responder asks on `points(14..)` instead of resting in the 18–19 3NT).  The
-/// answers reuse the trump-generic 1430 table; the asker's signoff is cramped
-/// and the 5NT king ask skipped (module docs).  Off restores the pre-keycard
-/// book byte-identically — the A/B off arm, since the original baseline
-/// (reverting commit `99da1b3`) no longer applies to main.
+/// One agreement, two layers: the book authors the minor-suit plain-4NT
+/// keycard at its two vehicles — the strong-2♣ minor raise (`2♣–2♦–3m–4m`,
+/// opener asks with 28+ HCP instead of blind-jumping `6m` on 27+) and the
+/// inverted minor raise (`1m–2m–3NT`, responder asks on `points(14..)` instead
+/// of resting in the 18–19 3NT) — while the floor lifts `keycard_trump`'s
+/// majors-only carve.  They used to be *two* knobs, `set_minor_keycard` here
+/// and `set_keycard_minors` there, whose four combinations included two
+/// stances no partnership could play: a book that asks on a minor over a floor
+/// that cannot answer, and the reverse.  Now one knob drives both, read at book
+/// construction here and at classification there.
 ///
-/// Measured vs that floor: **+6.80/+8.76 IMPs/divergent** (none/both, 2M
-/// boards), PD re-measure **+5.41/+7.05 IMPs/divergent** (10M boards, 202
-/// divergent, ~1 in 49.5k) — rare but decisively positive per fire.
-pub fn set_minor_keycard(on: bool) {
-    MINOR_KEYCARD.with(|cell| cell.set(on));
-}
-
-/// Whether the minor-suit plain-4NT keycard is currently authored
+/// Measured against the pre-keycard book: **+6.80/+8.76 IMPs/divergent**
+/// (none/both, 2M boards), PD re-measure **+5.41/+7.05 IMPs/divergent** (10M
+/// boards, 202 divergent, ~1 in 49.5k) — rare but decisively positive per fire.
 pub(super) fn minor_keycard() -> bool {
-    MINOR_KEYCARD.with(Cell::get)
+    crate::bidding::instinct::rkcb_minors_now()
 }
 
 use super::{insert_uncontested, uncontested};
 use crate::bidding::constraint::{described, hcp};
 use crate::bidding::instinct::{
-    KingRelay, RelayMap, king_relay, queen_ask_now, queen_ask_room, queen_fit, relay_map,
+    KingRelay, RelayMap, king_relay, queen_ask_room, queen_fit, relay_map,
 };
 use crate::bidding::trie::Classifier;
 use contract_bridge::Hand;
@@ -183,20 +173,14 @@ fn keycards(
 /// ten-card fit that stands in for it
 ///
 /// A fit long enough to draw trumps without the honour makes the honour not
-/// worth a round of bidding.  The threshold is [`set_queen_fit`] (default 10,
+/// worth a round of bidding.  The threshold is `QUEEN_FIT` (ten,
 /// BBA's bar, because this rung has to serve the grand); counted as our own
 /// length plus the sound floor of partner's shown length, so neither seat can
 /// claim a fit the auction has not shown.  A ninth trump is not a queen — it
-/// answers on the buff jump instead ([`set_queen_buff_fit`]).  The arm rides
-/// [`set_queen_ask`], so the knob-off answers keep their literal holding test
-/// and stay byte-identical.
-///
-/// [`set_queen_buff_fit`]: crate::bidding::instinct::set_queen_buff_fit
-///
-/// [`set_queen_fit`]: crate::bidding::instinct::set_queen_fit
+/// answers on the buff jump instead (`QUEEN_BUFF_FIT`).
 ///
 /// The knob is sampled **here, at book construction**, not inside the closure —
-/// the regime every book knob lives in ([`set_minor_keycard`]).  Reading it at
+/// the regime every book knob lives in ([`set_rkcb_minors`]).  Reading it at
 /// classification time instead would leave a book built with the relay on
 /// answering by the literal holding whenever a harness cleared the flag between
 /// building and bidding, which is exactly the split the two-regime discipline
@@ -205,16 +189,14 @@ fn has_trump_queen(
     trump: Suit,
 ) -> crate::bidding::constraint::Cons<impl crate::bidding::constraint::Constraint + Clone> {
     use crate::bidding::inference::Inferences;
-    let long_fit_counts = queen_ask_now().then(|| usize::from(queen_fit()));
+    let long_fit_counts = usize::from(queen_fit());
     described(
         format!("holds the {trump} queen"),
         move |hand: Hand, context: &crate::bidding::context::Context<'_>| {
             hand[trump].contains(Rank::Q)
-                || long_fit_counts.is_some_and(|threshold| {
-                    hand[trump].len()
-                        + usize::from(Inferences::read(context).partner().length(trump).min)
-                        >= threshold
-                })
+                || hand[trump].len()
+                    + usize::from(Inferences::read(context).partner().length(trump).min)
+                    >= long_fit_counts
         },
     )
 }
@@ -225,24 +207,19 @@ fn has_trump_queen(
 /// The asker's test, and deliberately a rung below the answerer's
 /// [`has_trump_queen`]: a nine-card fit is not a queen, but hearing "no queen"
 /// over one changes nothing — six is bid anyway — so the round is not worth
-/// spending.  Threshold [`set_queen_buff_fit`].
-///
-/// [`set_queen_buff_fit`]: crate::bidding::instinct::set_queen_buff_fit
+/// spending.  Threshold `QUEEN_BUFF_FIT`.
 fn queen_moot(
     trump: Suit,
 ) -> crate::bidding::constraint::Cons<impl crate::bidding::constraint::Constraint + Clone> {
     use crate::bidding::inference::Inferences;
-    let threshold =
-        queen_ask_now().then(|| usize::from(crate::bidding::instinct::queen_buff_fit()));
+    let threshold = usize::from(crate::bidding::instinct::queen_buff_fit());
     described(
         format!("the {trump} queen cannot change the call"),
         move |hand: Hand, context: &crate::bidding::context::Context<'_>| {
             hand[trump].contains(Rank::Q)
-                || threshold.is_some_and(|threshold| {
-                    hand[trump].len()
-                        + usize::from(Inferences::read(context).partner().length(trump).min)
-                        >= threshold
-                })
+                || hand[trump].len()
+                    + usize::from(Inferences::read(context).partner().length(trump).min)
+                    >= threshold
         },
     )
 }
@@ -252,10 +229,7 @@ fn queen_moot(
 /// Paired with `!has_trump_queen` at the buff jump: partner asked for the queen
 /// holding four keycards and will pass five over a denial, never learning that
 /// the fit is a card longer than promised or that a suit is stopped by a void.
-/// The threshold is [`set_queen_buff_fit`], sampled at book construction like
-/// every other book knob.
-///
-/// [`set_queen_buff_fit`]: crate::bidding::instinct::set_queen_buff_fit
+/// The threshold is `QUEEN_BUFF_FIT`.
 fn trump_buff(
     trump: Suit,
 ) -> crate::bidding::constraint::Cons<impl crate::bidding::constraint::Constraint + Clone> {
@@ -374,7 +348,7 @@ fn asker_after_5d(trump: Suit) -> Rules {
 }
 
 // ---------------------------------------------------------------------------
-// The queen relay (see `set_queen_ask`)
+// The queen relay
 // ---------------------------------------------------------------------------
 //
 // The book's 5♣ and 5♦ answers say nothing about the trump queen, so the asker
@@ -397,9 +371,6 @@ fn relay_first(
     >,
 ) -> Rules {
     let rules = Rules::new();
-    if !queen_ask_now() {
-        return rules;
-    }
     match queen_ask_room(answer, trump) {
         Some(relay) => rules
             .rule(relay, 1.6, interested & !queen_moot(trump))
@@ -763,7 +734,7 @@ pub(super) fn install_rkcb(book: &mut Trie, our_calls: &[Call], trump: Suit) {
     // lands at or below five of trump, which excludes both plain-4NT minors and
     // hearts after a 0-or-3.  Those lanes keep betting the small slam on four
     // keycards, exactly as they do today.
-    if queen_ask_now() {
+    {
         for &answer in &[ans_5c, ans_5d] {
             let Call::Bid(answer_bid) = answer else {
                 continue;
@@ -1223,35 +1194,30 @@ mod tests {
     }
 
     // -----------------------------------------------------------------------
-    // The queen relay (`set_queen_ask`)
+    // The queen relay
     // -----------------------------------------------------------------------
 
-    /// A spade-trump book with the relay authored.  The knob is read at book
-    /// *construction*, so an arm has to build its own trie — the regime
-    /// [`set_minor_keycard`] already lives in.
+    /// A spade-trump book with the relay authored.  Named for what the tests
+    /// below are asking of it; the relay is unconditional, so it is the
+    /// ordinary RKCB trie.
     fn relay_trie() -> Trie {
-        crate::bidding::instinct::set_queen_ask(true);
-        let trie = rkcb_trie();
-        crate::bidding::instinct::set_queen_ask(false);
-        trie
+        rkcb_trie()
     }
 
     /// A spade book reached through a **limit raise**, so partner is shown for
     /// only three trumps and the fit is eight — the one length where the trump
-    /// queen still decides between five and six ([`set_queen_fit`], default 9).
-    /// The Jacoby-2NT book above promises four-plus opposite a five-card major,
-    /// so its fit is nine and the relay is correctly dead there.
+    /// queen still decides between five and six ([`QUEEN_FIT`] is ten).  The
+    /// Jacoby-2NT book above promises four-plus opposite a five-card major, so
+    /// its fit is nine and the relay is correctly dead there.
     ///
-    /// [`set_queen_fit`]: crate::bidding::instinct::set_queen_fit
+    /// [`QUEEN_FIT`]: crate::bidding::instinct::QUEEN_FIT
     fn eight_card_relay_trie() -> Trie {
-        crate::bidding::instinct::set_queen_ask(true);
         let mut trie = Trie::new();
         let our_calls = [
             Call::Bid(Bid::new(1, Strain::Spades)),
             Call::Bid(Bid::new(3, Strain::Spades)),
         ];
         install_rkcb(&mut trie, &our_calls, Suit::Spades);
-        crate::bidding::instinct::set_queen_ask(false);
         trie
     }
 
@@ -1276,34 +1242,6 @@ mod tests {
             best(&trie, &auction, "AKJ8.AK2.KJ32.42"),
             Call::Bid(Bid::new(6, Strain::Spades)),
             "four trumps opposite a shown five is nine: bid six, do not ask"
-        );
-    }
-
-    /// Knob off, the book is byte-identical: no relay node exists, and the
-    /// queenless asker bets the small slam as it always has.
-    #[test]
-    fn relay_absent_off_the_knob() {
-        // The knob defaults **on** since 2026-08-02, so the off arm has to say
-        // so — at construction *and* at classification, the two regimes
-        // `set_queen_ask` documents.
-        crate::bidding::instinct::set_queen_ask(false);
-        let trie = rkcb_trie();
-        let mut auction = ANS_AUCTION.to_vec();
-        auction.extend([Call::Bid(Bid::new(5, Strain::Clubs)), Call::Pass]);
-        // Four spades (the Jacoby minimum, so no ten-card fit to stand in for
-        // the queen) and three keycards: ♠A, ♥A, ♠K.
-        assert_eq!(
-            best(&trie, &auction, "AKJ8.AK2.KJ32.42"),
-            Call::Bid(Bid::new(6, Strain::Spades)),
-            "off the knob: four combined keycards bets six without asking"
-        );
-        auction.extend([Call::Bid(Bid::new(5, Strain::Diamonds)), Call::Pass]);
-        let hand: Hand = "KQ432.53.842.932".parse().unwrap();
-        let landed = trie.classify(hand, RelativeVulnerability::NONE, &auction);
-        crate::bidding::instinct::set_queen_ask(true); // restore the default
-        assert!(
-            landed.is_none(),
-            "off the knob there is no relay node for 5♦ to land on"
         );
     }
 
