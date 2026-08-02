@@ -72,13 +72,17 @@ scores a net on deals it was fitted to.
 | --- | --- | --- |
 | `22.pdd` | 0..1,000,000 | evaluator corpora — `evaluator_v2`, `v3`, `v4` and their `_dnf`/`_exclusion` variants (drawn `--count` from the front at `--seed 1`: 100k, 400k, 500k and 1M deals across campaigns) |
 | `22.pdd` | 2,000,000..2,220,000 | **no fit** — configured-net corpus instrumentation (`dump-teacher --replay`, the 400/20k/20k slices behind the pair-rate numbers in `docs/ai-bidder/configured-net.md`). Recorded so the same rows are not later mistaken for a training draw |
+| `22.pdd` | 2,500,000..3,250,000 | `american_bba_v4` — the configured net's mixture corpus (250k uniform + 500k drawn enriched, 3,362,892 rows). Its two gates score on freshly generated deals, never here |
 
 `24.pdd` has no training draws recorded; its consumption is A/B slices only.
 
-**Reserved next:** the configured-net corpus will draw ~750k deals from `22.pdd`
-past row 2.5M — ~250k uniform bulk plus ~500k drawn for the `--enrich 28:9`
-slice, of which ~24k are kept. Log the exact window here when it is dumped; it
-is a training draw, so it advances no cursor but must never score that net.
+**Drawn 2026-08-03** (was "reserved next"): the configured-net corpus took
+**rows 2,500,000..3,250,000** of `22.pdd`, 750k deals — 250k uniform bulk
+(8 shards of 31,250, rows 2.5M..2.75M) and 500k drawn for the `--enrich 28:9`
+slice (4 shards of 125,000, rows 2.75M..3.25M), of which 24,864 were kept.
+3,362,892 rows total. Recorded in the register above as a training draw for
+`american_bba_v4`: it advances no cursor, but that net must never be scored on
+these rows — both of its gates run on freshly generated deals.
 
 ## Slice ledger — `24.pdd`
 

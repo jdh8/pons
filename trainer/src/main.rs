@@ -23,9 +23,11 @@ use std::path::Path;
 #[derive(Parser)]
 #[command(about = "Distill american() into an MLP (AI-bidder M1.1)")]
 struct Args {
-    /// Teacher-dump path stem; reads `<stem>.f32`, `<stem>.json`, `<stem>.tags`
-    #[arg(long, default_value = "../target/teacher-data")]
-    data: String,
+    /// Teacher-dump path stem; reads `<stem>.f32`, `<stem>.json`, `<stem>.tags`.
+    /// Repeatable: several dumps train as one mixture corpus, each contributing
+    /// its own board-disjoint validation tail (see [`data::load_mixture`]).
+    #[arg(long, default_values_t = ["../target/teacher-data".to_string()])]
+    data: Vec<String>,
     /// Output stem for the artifact: `<stem>.f32` + `<stem>.json` + `<stem>.fixture.json`
     #[arg(long, default_value = "../src/bidding/weights/american_v1")]
     weights_out: String,
@@ -97,15 +99,17 @@ fn main() -> Result<()> {
     }
     eprintln!("device: {device:?}  init_seed: {:?}", args.init_seed);
 
-    let ds = data::Dataset::load(&args.data)?;
+    let (ds, ntrain) = data::load_mixture(&args.data, args.val_frac, args.batch)?;
     let features_len = ds.features_len;
-    let nval =
-        (((ds.rows as f64) * args.val_frac).round() as usize).clamp(1, ds.rows.saturating_sub(1));
-    let ntrain = ds.rows - nval;
+    let nval = ds.rows - ntrain;
     eprintln!(
-        "loaded {} rows (feature v{}, {features_len} features, seed {}, teacher {:?}); \
-         train {ntrain} / val {nval}",
-        ds.rows, ds.meta.feature_version, ds.meta.seed, ds.meta.teacher
+        "loaded {} rows from {} dump(s) (feature v{}, {features_len} features, seed {}, \
+         teacher {:?}); train {ntrain} / val {nval}",
+        ds.rows,
+        args.data.len(),
+        ds.meta.feature_version,
+        ds.meta.seed,
+        ds.meta.teacher
     );
 
     let slice = |v: &[f32], from: usize, n: usize, w: usize| -> Result<Tensor> {
@@ -296,6 +300,7 @@ fn export(
         "mix_kickback": ds.meta.mix_kickback,
         "data_git_sha": ds.meta.git_sha,
         "data_seed": ds.meta.seed,
+        "data_stems": &args.data,
         "data_rows": ds.rows,
         "data_contested_rows": ds.meta.contested_rows,
         "train_rows": ntrain,
