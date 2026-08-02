@@ -2102,6 +2102,10 @@ mod tests {
     /// pins **how much** of the vector that costs, so a corpus is never dumped
     /// through the wrong extractor by accident.
     ///
+    /// One auction is not the scale of the effect: this one moves 3 of the 40
+    /// inference floats, while dumping 200 bank deals both ways moves **all 40,
+    /// on 75% of rows**. Quote the corpus figure, not this one.
+    ///
     /// Documented in `docs/ai-bidder/configured-net.md` and, as the original
     /// finding, in `docs/dnf-migration.md` F1. If a change makes these agree,
     /// this test fails and the skew note should come out of both docs.

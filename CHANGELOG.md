@@ -57,6 +57,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   sidecar records both declared systems, so a corpus says what it was dumped
   under.
 
+  `--configured` builds the **prefix-bearing context serving uses**, rather than
+  the bare `Context::new` v3 dumps use. A bare context carries no trie prefixes,
+  so `Inferences::read` skips `project_authored` entirely; dumping 200 bank
+  deals both ways moves **all 40 inference floats on 75% of rows**. (A single
+  auction moves only 3 of 40 — that figure understates the effect badly and
+  should not be quoted.) The skew is pre-existing and applies to every shipped
+  v3 net, which was trained bare and is served prefixed. `--bare-context`
+  reproduces the old behaviour for comparison only.
+
   `--system` selects the **teacher**, not merely the disclosed card. Wiring only
   the card would have written rows labelled Dutch while an American teacher bid
   them — caught in testing, where American and Dutch corpora came back with
@@ -363,6 +372,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   sidecar records both declared systems, so a corpus says what it was dumped
   under.
 
+  `--configured` builds the **prefix-bearing context serving uses**, rather than
+  the bare `Context::new` v3 dumps use. A bare context carries no trie prefixes,
+  so `Inferences::read` skips `project_authored` entirely; dumping 200 bank
+  deals both ways moves **all 40 inference floats on 75% of rows**. (A single
+  auction moves only 3 of 40 — that figure understates the effect badly and
+  should not be quoted.) The skew is pre-existing and applies to every shipped
+  v3 net, which was trained bare and is served prefixed. `--bare-context`
+  reproduces the old behaviour for comparison only.
+
   `--system` selects the **teacher**, not merely the disclosed card. Wiring only
   the card would have written rows labelled Dutch while an American teacher bid
   them — caught in testing, where American and Dutch corpora came back with
@@ -642,6 +660,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   sidecar records both declared systems, so a corpus says what it was dumped
   under.
 
+  `--configured` builds the **prefix-bearing context serving uses**, rather than
+  the bare `Context::new` v3 dumps use. A bare context carries no trie prefixes,
+  so `Inferences::read` skips `project_authored` entirely; dumping 200 bank
+  deals both ways moves **all 40 inference floats on 75% of rows**. (A single
+  auction moves only 3 of 40 — that figure understates the effect badly and
+  should not be quoted.) The skew is pre-existing and applies to every shipped
+  v3 net, which was trained bare and is served prefixed. `--bare-context`
+  reproduces the old behaviour for comparison only.
+
   `--system` selects the **teacher**, not merely the disclosed card. Wiring only
   the card would have written rows labelled Dutch while an American teacher bid
   them — caught in testing, where American and Dutch corpora came back with
@@ -829,6 +856,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and net in sync — `american_card()` reads the same knobs the rules do. The
   sidecar records both declared systems, so a corpus says what it was dumped
   under.
+
+  `--configured` builds the **prefix-bearing context serving uses**, rather than
+  the bare `Context::new` v3 dumps use. A bare context carries no trie prefixes,
+  so `Inferences::read` skips `project_authored` entirely; dumping 200 bank
+  deals both ways moves **all 40 inference floats on 75% of rows**. (A single
+  auction moves only 3 of 40 — that figure understates the effect badly and
+  should not be quoted.) The skew is pre-existing and applies to every shipped
+  v3 net, which was trained bare and is served prefixed. `--bare-context`
+  reproduces the old behaviour for comparison only.
 
   `--system` selects the **teacher**, not merely the disclosed card. Wiring only
   the card would have written rows labelled Dutch while an American teacher bid
@@ -1071,6 +1107,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and net in sync — `american_card()` reads the same knobs the rules do. The
   sidecar records both declared systems, so a corpus says what it was dumped
   under.
+
+  `--configured` builds the **prefix-bearing context serving uses**, rather than
+  the bare `Context::new` v3 dumps use. A bare context carries no trie prefixes,
+  so `Inferences::read` skips `project_authored` entirely; dumping 200 bank
+  deals both ways moves **all 40 inference floats on 75% of rows**. (A single
+  auction moves only 3 of 40 — that figure understates the effect badly and
+  should not be quoted.) The skew is pre-existing and applies to every shipped
+  v3 net, which was trained bare and is served prefixed. `--bare-context`
+  reproduces the old behaviour for comparison only.
 
   `--system` selects the **teacher**, not merely the disclosed card. Wiring only
   the card would have written rows labelled Dutch while an American teacher bid
@@ -2074,6 +2119,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   sidecar records both declared systems, so a corpus says what it was dumped
   under.
 
+  `--configured` builds the **prefix-bearing context serving uses**, rather than
+  the bare `Context::new` v3 dumps use. A bare context carries no trie prefixes,
+  so `Inferences::read` skips `project_authored` entirely; dumping 200 bank
+  deals both ways moves **all 40 inference floats on 75% of rows**. (A single
+  auction moves only 3 of 40 — that figure understates the effect badly and
+  should not be quoted.) The skew is pre-existing and applies to every shipped
+  v3 net, which was trained bare and is served prefixed. `--bare-context`
+  reproduces the old behaviour for comparison only.
+
   `--system` selects the **teacher**, not merely the disclosed card. Wiring only
   the card would have written rows labelled Dutch while an American teacher bid
   them — caught in testing, where American and Dutch corpora came back with
@@ -2415,6 +2469,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and net in sync — `american_card()` reads the same knobs the rules do. The
   sidecar records both declared systems, so a corpus says what it was dumped
   under.
+
+  `--configured` builds the **prefix-bearing context serving uses**, rather than
+  the bare `Context::new` v3 dumps use. A bare context carries no trie prefixes,
+  so `Inferences::read` skips `project_authored` entirely; dumping 200 bank
+  deals both ways moves **all 40 inference floats on 75% of rows**. (A single
+  auction moves only 3 of 40 — that figure understates the effect badly and
+  should not be quoted.) The skew is pre-existing and applies to every shipped
+  v3 net, which was trained bare and is served prefixed. `--bare-context`
+  reproduces the old behaviour for comparison only.
 
   `--system` selects the **teacher**, not merely the disclosed card. Wiring only
   the card would have written rows labelled Dutch while an American teacher bid
@@ -2879,6 +2942,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   sidecar records both declared systems, so a corpus says what it was dumped
   under.
 
+  `--configured` builds the **prefix-bearing context serving uses**, rather than
+  the bare `Context::new` v3 dumps use. A bare context carries no trie prefixes,
+  so `Inferences::read` skips `project_authored` entirely; dumping 200 bank
+  deals both ways moves **all 40 inference floats on 75% of rows**. (A single
+  auction moves only 3 of 40 — that figure understates the effect badly and
+  should not be quoted.) The skew is pre-existing and applies to every shipped
+  v3 net, which was trained bare and is served prefixed. `--bare-context`
+  reproduces the old behaviour for comparison only.
+
   `--system` selects the **teacher**, not merely the disclosed card. Wiring only
   the card would have written rows labelled Dutch while an American teacher bid
   them — caught in testing, where American and Dutch corpora came back with
@@ -2992,6 +3064,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and net in sync — `american_card()` reads the same knobs the rules do. The
   sidecar records both declared systems, so a corpus says what it was dumped
   under.
+
+  `--configured` builds the **prefix-bearing context serving uses**, rather than
+  the bare `Context::new` v3 dumps use. A bare context carries no trie prefixes,
+  so `Inferences::read` skips `project_authored` entirely; dumping 200 bank
+  deals both ways moves **all 40 inference floats on 75% of rows**. (A single
+  auction moves only 3 of 40 — that figure understates the effect badly and
+  should not be quoted.) The skew is pre-existing and applies to every shipped
+  v3 net, which was trained bare and is served prefixed. `--bare-context`
+  reproduces the old behaviour for comparison only.
 
   `--system` selects the **teacher**, not merely the disclosed card. Wiring only
   the card would have written rows labelled Dutch while an American teacher bid
@@ -3168,6 +3249,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and net in sync — `american_card()` reads the same knobs the rules do. The
   sidecar records both declared systems, so a corpus says what it was dumped
   under.
+
+  `--configured` builds the **prefix-bearing context serving uses**, rather than
+  the bare `Context::new` v3 dumps use. A bare context carries no trie prefixes,
+  so `Inferences::read` skips `project_authored` entirely; dumping 200 bank
+  deals both ways moves **all 40 inference floats on 75% of rows**. (A single
+  auction moves only 3 of 40 — that figure understates the effect badly and
+  should not be quoted.) The skew is pre-existing and applies to every shipped
+  v3 net, which was trained bare and is served prefixed. `--bare-context`
+  reproduces the old behaviour for comparison only.
 
   `--system` selects the **teacher**, not merely the disclosed card. Wiring only
   the card would have written rows labelled Dutch while an American teacher bid
@@ -3765,6 +3855,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   sidecar records both declared systems, so a corpus says what it was dumped
   under.
 
+  `--configured` builds the **prefix-bearing context serving uses**, rather than
+  the bare `Context::new` v3 dumps use. A bare context carries no trie prefixes,
+  so `Inferences::read` skips `project_authored` entirely; dumping 200 bank
+  deals both ways moves **all 40 inference floats on 75% of rows**. (A single
+  auction moves only 3 of 40 — that figure understates the effect badly and
+  should not be quoted.) The skew is pre-existing and applies to every shipped
+  v3 net, which was trained bare and is served prefixed. `--bare-context`
+  reproduces the old behaviour for comparison only.
+
   `--system` selects the **teacher**, not merely the disclosed card. Wiring only
   the card would have written rows labelled Dutch while an American teacher bid
   them — caught in testing, where American and Dutch corpora came back with
@@ -4117,6 +4216,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and net in sync — `american_card()` reads the same knobs the rules do. The
   sidecar records both declared systems, so a corpus says what it was dumped
   under.
+
+  `--configured` builds the **prefix-bearing context serving uses**, rather than
+  the bare `Context::new` v3 dumps use. A bare context carries no trie prefixes,
+  so `Inferences::read` skips `project_authored` entirely; dumping 200 bank
+  deals both ways moves **all 40 inference floats on 75% of rows**. (A single
+  auction moves only 3 of 40 — that figure understates the effect badly and
+  should not be quoted.) The skew is pre-existing and applies to every shipped
+  v3 net, which was trained bare and is served prefixed. `--bare-context`
+  reproduces the old behaviour for comparison only.
 
   `--system` selects the **teacher**, not merely the disclosed card. Wiring only
   the card would have written rows labelled Dutch while an American teacher bid
@@ -4739,6 +4847,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and net in sync — `american_card()` reads the same knobs the rules do. The
   sidecar records both declared systems, so a corpus says what it was dumped
   under.
+
+  `--configured` builds the **prefix-bearing context serving uses**, rather than
+  the bare `Context::new` v3 dumps use. A bare context carries no trie prefixes,
+  so `Inferences::read` skips `project_authored` entirely; dumping 200 bank
+  deals both ways moves **all 40 inference floats on 75% of rows**. (A single
+  auction moves only 3 of 40 — that figure understates the effect badly and
+  should not be quoted.) The skew is pre-existing and applies to every shipped
+  v3 net, which was trained bare and is served prefixed. `--bare-context`
+  reproduces the old behaviour for comparison only.
 
   `--system` selects the **teacher**, not merely the disclosed card. Wiring only
   the card would have written rows labelled Dutch while an American teacher bid
@@ -6043,6 +6160,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   sidecar records both declared systems, so a corpus says what it was dumped
   under.
 
+  `--configured` builds the **prefix-bearing context serving uses**, rather than
+  the bare `Context::new` v3 dumps use. A bare context carries no trie prefixes,
+  so `Inferences::read` skips `project_authored` entirely; dumping 200 bank
+  deals both ways moves **all 40 inference floats on 75% of rows**. (A single
+  auction moves only 3 of 40 — that figure understates the effect badly and
+  should not be quoted.) The skew is pre-existing and applies to every shipped
+  v3 net, which was trained bare and is served prefixed. `--bare-context`
+  reproduces the old behaviour for comparison only.
+
   `--system` selects the **teacher**, not merely the disclosed card. Wiring only
   the card would have written rows labelled Dutch while an American teacher bid
   them — caught in testing, where American and Dutch corpora came back with
@@ -6447,6 +6573,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and net in sync — `american_card()` reads the same knobs the rules do. The
   sidecar records both declared systems, so a corpus says what it was dumped
   under.
+
+  `--configured` builds the **prefix-bearing context serving uses**, rather than
+  the bare `Context::new` v3 dumps use. A bare context carries no trie prefixes,
+  so `Inferences::read` skips `project_authored` entirely; dumping 200 bank
+  deals both ways moves **all 40 inference floats on 75% of rows**. (A single
+  auction moves only 3 of 40 — that figure understates the effect badly and
+  should not be quoted.) The skew is pre-existing and applies to every shipped
+  v3 net, which was trained bare and is served prefixed. `--bare-context`
+  reproduces the old behaviour for comparison only.
 
   `--system` selects the **teacher**, not merely the disclosed card. Wiring only
   the card would have written rows labelled Dutch while an American teacher bid
@@ -6886,6 +7021,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and net in sync — `american_card()` reads the same knobs the rules do. The
   sidecar records both declared systems, so a corpus says what it was dumped
   under.
+
+  `--configured` builds the **prefix-bearing context serving uses**, rather than
+  the bare `Context::new` v3 dumps use. A bare context carries no trie prefixes,
+  so `Inferences::read` skips `project_authored` entirely; dumping 200 bank
+  deals both ways moves **all 40 inference floats on 75% of rows**. (A single
+  auction moves only 3 of 40 — that figure understates the effect badly and
+  should not be quoted.) The skew is pre-existing and applies to every shipped
+  v3 net, which was trained bare and is served prefixed. `--bare-context`
+  reproduces the old behaviour for comparison only.
 
   `--system` selects the **teacher**, not merely the disclosed card. Wiring only
   the card would have written rows labelled Dutch while an American teacher bid
@@ -7885,6 +8029,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and net in sync — `american_card()` reads the same knobs the rules do. The
   sidecar records both declared systems, so a corpus says what it was dumped
   under.
+
+  `--configured` builds the **prefix-bearing context serving uses**, rather than
+  the bare `Context::new` v3 dumps use. A bare context carries no trie prefixes,
+  so `Inferences::read` skips `project_authored` entirely; dumping 200 bank
+  deals both ways moves **all 40 inference floats on 75% of rows**. (A single
+  auction moves only 3 of 40 — that figure understates the effect badly and
+  should not be quoted.) The skew is pre-existing and applies to every shipped
+  v3 net, which was trained bare and is served prefixed. `--bare-context`
+  reproduces the old behaviour for comparison only.
 
   `--system` selects the **teacher**, not merely the disclosed card. Wiring only
   the card would have written rows labelled Dutch while an American teacher bid
@@ -10963,6 +11116,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   sidecar records both declared systems, so a corpus says what it was dumped
   under.
 
+  `--configured` builds the **prefix-bearing context serving uses**, rather than
+  the bare `Context::new` v3 dumps use. A bare context carries no trie prefixes,
+  so `Inferences::read` skips `project_authored` entirely; dumping 200 bank
+  deals both ways moves **all 40 inference floats on 75% of rows**. (A single
+  auction moves only 3 of 40 — that figure understates the effect badly and
+  should not be quoted.) The skew is pre-existing and applies to every shipped
+  v3 net, which was trained bare and is served prefixed. `--bare-context`
+  reproduces the old behaviour for comparison only.
+
   `--system` selects the **teacher**, not merely the disclosed card. Wiring only
   the card would have written rows labelled Dutch while an American teacher bid
   them — caught in testing, where American and Dutch corpora came back with
@@ -11445,6 +11607,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   sidecar records both declared systems, so a corpus says what it was dumped
   under.
 
+  `--configured` builds the **prefix-bearing context serving uses**, rather than
+  the bare `Context::new` v3 dumps use. A bare context carries no trie prefixes,
+  so `Inferences::read` skips `project_authored` entirely; dumping 200 bank
+  deals both ways moves **all 40 inference floats on 75% of rows**. (A single
+  auction moves only 3 of 40 — that figure understates the effect badly and
+  should not be quoted.) The skew is pre-existing and applies to every shipped
+  v3 net, which was trained bare and is served prefixed. `--bare-context`
+  reproduces the old behaviour for comparison only.
+
   `--system` selects the **teacher**, not merely the disclosed card. Wiring only
   the card would have written rows labelled Dutch while an American teacher bid
   them — caught in testing, where American and Dutch corpora came back with
@@ -11552,6 +11723,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and net in sync — `american_card()` reads the same knobs the rules do. The
   sidecar records both declared systems, so a corpus says what it was dumped
   under.
+
+  `--configured` builds the **prefix-bearing context serving uses**, rather than
+  the bare `Context::new` v3 dumps use. A bare context carries no trie prefixes,
+  so `Inferences::read` skips `project_authored` entirely; dumping 200 bank
+  deals both ways moves **all 40 inference floats on 75% of rows**. (A single
+  auction moves only 3 of 40 — that figure understates the effect badly and
+  should not be quoted.) The skew is pre-existing and applies to every shipped
+  v3 net, which was trained bare and is served prefixed. `--bare-context`
+  reproduces the old behaviour for comparison only.
 
   `--system` selects the **teacher**, not merely the disclosed card. Wiring only
   the card would have written rows labelled Dutch while an American teacher bid
@@ -11666,6 +11846,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   sidecar records both declared systems, so a corpus says what it was dumped
   under.
 
+  `--configured` builds the **prefix-bearing context serving uses**, rather than
+  the bare `Context::new` v3 dumps use. A bare context carries no trie prefixes,
+  so `Inferences::read` skips `project_authored` entirely; dumping 200 bank
+  deals both ways moves **all 40 inference floats on 75% of rows**. (A single
+  auction moves only 3 of 40 — that figure understates the effect badly and
+  should not be quoted.) The skew is pre-existing and applies to every shipped
+  v3 net, which was trained bare and is served prefixed. `--bare-context`
+  reproduces the old behaviour for comparison only.
+
   `--system` selects the **teacher**, not merely the disclosed card. Wiring only
   the card would have written rows labelled Dutch while an American teacher bid
   them — caught in testing, where American and Dutch corpora came back with
@@ -11718,6 +11907,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and net in sync — `american_card()` reads the same knobs the rules do. The
   sidecar records both declared systems, so a corpus says what it was dumped
   under.
+
+  `--configured` builds the **prefix-bearing context serving uses**, rather than
+  the bare `Context::new` v3 dumps use. A bare context carries no trie prefixes,
+  so `Inferences::read` skips `project_authored` entirely; dumping 200 bank
+  deals both ways moves **all 40 inference floats on 75% of rows**. (A single
+  auction moves only 3 of 40 — that figure understates the effect badly and
+  should not be quoted.) The skew is pre-existing and applies to every shipped
+  v3 net, which was trained bare and is served prefixed. `--bare-context`
+  reproduces the old behaviour for comparison only.
 
   `--system` selects the **teacher**, not merely the disclosed card. Wiring only
   the card would have written rows labelled Dutch while an American teacher bid
