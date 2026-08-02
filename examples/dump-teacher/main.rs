@@ -59,7 +59,7 @@ use std::os::raw::c_int;
 #[path = "../common/mod.rs"]
 #[allow(dead_code)]
 mod common;
-use common::oracle::{BbaOracle, DEFAULT_LIB, SYSTEM_2_OVER_1, load_bbsa};
+use common::oracle::{BbaOracle, ConventionCard, DEFAULT_LIB, SYSTEM_2_OVER_1, load_bbsa};
 
 /// Number of calls in a `Logits` array (the softmax width).
 const SOFTMAX_LEN: usize = 38;
@@ -182,6 +182,115 @@ struct Args {
     /// gives the cross-system cell.
     #[arg(long, value_name = "american|dutch")]
     their_system: Option<String>,
+    /// `--configured` only: a table configuration to interleave, `OURS/THEIRS`
+    ///
+    /// Repeatable; boards rotate through the list so the trainer's contiguous
+    /// validation tail stays representative of every cell.  Omit for the six of
+    /// `docs/ai-bidder/configured-net.md`; `--system`/`--their-system` are
+    /// ignored once any `--cell` is given.
+    ///
+    /// A mixed table emits *both* asymmetric cells, because a row is written
+    /// from the acting seat's view — `--cell a-on/a-off` covers
+    /// `(ours=on, theirs=off)` and its mirror in one dump.
+    #[arg(long = "cell", value_parser = parse_cell, value_name = "OURS/THEIRS")]
+    cells: Vec<(SideConfig, SideConfig)>,
+}
+
+/// What one partnership is declared to play: a base system and a convention
+///
+/// The two axes that exist today.  `SCHEMA` can express roughly 26 of the 222
+/// `set_*` knobs, and a corpus may only vary configuration the card can express
+/// — otherwise two cells collide into identical vectors with contradictory
+/// targets, which is the mixed-net failure this whole design exists to fix.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+struct SideConfig {
+    dutch: bool,
+    kickback: bool,
+}
+
+impl SideConfig {
+    fn label(self) -> String {
+        format!(
+            "{}-{}",
+            if self.dutch { "dutch" } else { "american" },
+            if self.kickback { "on" } else { "off" }
+        )
+    }
+
+    fn system(self) -> &'static str {
+        if self.dutch { "dutch" } else { "american" }
+    }
+}
+
+/// `a-on`, `d-off`, `american-on`, `dutch-off` — a side's declared system
+fn parse_side(spec: &str) -> Result<SideConfig, String> {
+    let (system, kickback) = spec
+        .rsplit_once('-')
+        .ok_or("expected SYSTEM-on|off, e.g. `a-on` or `dutch-off`")?;
+    let dutch = match system {
+        "a" | "american" => false,
+        "d" | "dutch" => true,
+        other => return Err(format!("system must be a|american|d|dutch, got {other:?}")),
+    };
+    let kickback = match kickback {
+        "on" => true,
+        "off" => false,
+        other => return Err(format!("kickback must be on|off, got {other:?}")),
+    };
+    Ok(SideConfig { dutch, kickback })
+}
+
+/// `OURS/THEIRS`, one table's seating — e.g. `a-on/a-off` for the mixed table
+fn parse_cell(spec: &str) -> Result<(SideConfig, SideConfig), String> {
+    let (ours, theirs) = spec
+        .split_once('/')
+        .ok_or("expected OURS/THEIRS, e.g. `a-on/a-off`")?;
+    Ok((parse_side(ours)?, parse_side(theirs)?))
+}
+
+/// The six table configurations of `docs/ai-bidder/configured-net.md`
+///
+/// Eight distinct *ordered* cells, because a row is written from the acting
+/// seat's view and a mixed table therefore emits both asymmetric cells at once.
+/// 1–3 are what the two gates need; 4–6 exist because kickback alone decides
+/// ~0.05% of boards and cannot train the config block on its own, while the
+/// base system moves nearly every auction.
+const DEFAULT_CELLS: [(SideConfig, SideConfig); 6] = [
+    (A_OFF, A_OFF),
+    (A_ON, A_ON),
+    (A_ON, A_OFF),
+    (D_OFF, D_OFF),
+    (D_ON, D_ON),
+    (A_OFF, D_OFF),
+];
+const A_OFF: SideConfig = SideConfig {
+    dutch: false,
+    kickback: false,
+};
+const A_ON: SideConfig = SideConfig {
+    dutch: false,
+    kickback: true,
+};
+const D_OFF: SideConfig = SideConfig {
+    dutch: true,
+    kickback: false,
+};
+const D_ON: SideConfig = SideConfig {
+    dutch: true,
+    kickback: true,
+};
+
+/// A generated card as EPBot overrides, so a teacher plays what we disclose
+fn to_convention_card(card: &pons::bidding::card::Card) -> anyhow::Result<ConventionCard> {
+    let toggles = card
+        .rows
+        .iter()
+        .map(|(name, value)| Ok((CString::new(*name)?, c_int::from(*value != 0))))
+        .collect::<anyhow::Result<Vec<_>>>()?;
+    Ok(ConventionCard {
+        system: card.system,
+        toggles,
+    })
 }
 
 /// Our card for a named system, rendered off the **live** knob state
@@ -276,6 +385,65 @@ fn main() -> anyhow::Result<()> {
     } else {
         vec![build_teacher(!args.conv.is_empty())?]
     };
+
+    // ── Configured mode: the table configurations, and one set of artifacts
+    // per *ordered* side pair.  Built once here rather than per board: a Stance
+    // bakes in rule presence at construction, so each must be built with its own
+    // cell's knobs armed.
+    let cells: Vec<(SideConfig, SideConfig)> = if !args.cells.is_empty() {
+        args.cells.clone()
+    } else if args.configured {
+        DEFAULT_CELLS.to_vec()
+    } else {
+        Vec::new()
+    };
+    if !args.cells.is_empty() && !args.conv.is_empty() {
+        anyhow::bail!(
+            "--cell and --conv both configure the teacher; a cell's card already \
+             pins every row, so a single override would silently disagree with it"
+        );
+    }
+    let mut sides: Vec<SideConfig> = cells.iter().flat_map(|(a, b)| [*a, *b]).collect();
+    sides.sort_by_key(|side| (side.dutch, side.kickback));
+    sides.dedup();
+    // Per side: its card and the stance that reads its auctions.
+    let mut per_side: BTreeMap<String, (pons::bidding::card::Card, Stance)> = BTreeMap::new();
+    for side in &sides {
+        pons::bidding::instinct::set_kickback(side.kickback);
+        let card = card_for(side.system())?;
+        let stance = if side.dutch {
+            dutch().against()
+        } else {
+            american().against()
+        };
+        per_side.insert(side.label(), (card, stance));
+    }
+    // Per ordered pair: the feature-side config, and the teacher that plays it.
+    let mut per_pair: BTreeMap<(String, String), (Config, Box<dyn System>)> = BTreeMap::new();
+    for (a, b) in cells.iter().flat_map(|(a, b)| [(*a, *b), (*b, *a)]) {
+        let key = (a.label(), b.label());
+        if per_pair.contains_key(&key) {
+            continue;
+        }
+        let ours = per_side[&a.label()].0.clone();
+        let theirs = per_side[&b.label()].0.clone();
+        let config = Config::new(&ours, &theirs);
+        pons::bidding::instinct::set_kickback(a.kickback);
+        let teacher: Box<dyn System> = match args.teacher.as_str() {
+            "american" if a.dutch => Box::new(dutch_instinct().against()),
+            "american" => Box::new(american_instinct().against()),
+            "bba" => {
+                let path = std::env::var("BBA_LIB").unwrap_or_else(|_| DEFAULT_LIB.into());
+                let ours = to_convention_card(&ours)?;
+                let theirs = to_convention_card(&theirs)?;
+                Box::new(
+                    BbaOracle::load(&path, ours.system, ours.toggles)?.with_opponents(Some(theirs)),
+                )
+            }
+            other => anyhow::bail!("--teacher must be american|bba, got {other:?}"),
+        };
+        per_pair.insert(key, (config, teacher));
+    }
     let mut rng = StdRng::seed_from_u64(args.seed);
 
     let f32_path = format!("{}.f32", args.out);
@@ -321,8 +489,7 @@ fn main() -> anyhow::Result<()> {
         // card, code and net in sync: `american_card()` reads the same knobs the
         // rules do.  Rebuilt per board only because `regime` can alternate; it is
         // 140 floats a side, not a hot cost.
-        let config = args
-            .configured
+        let config = (args.configured && cells.is_empty())
             .then(|| -> anyhow::Result<Config> {
                 let ours = card_for(&args.system)?;
                 let theirs = match &args.their_system {
@@ -334,7 +501,7 @@ fn main() -> anyhow::Result<()> {
             .transpose()?;
         // The stance that *reads* the auction.  Built after the knobs are armed,
         // for the same reason the card is: rule presence is decided at build.
-        let reader: Option<Stance> = (args.configured && !args.bare_context)
+        let reader: Option<Stance> = (args.configured && cells.is_empty() && !args.bare_context)
             .then(|| -> anyhow::Result<Stance> {
                 Ok(match args.system.as_str() {
                     "dutch" => dutch().against(),
@@ -343,6 +510,10 @@ fn main() -> anyhow::Result<()> {
             })
             .transpose()?;
         let teacher = teachers[regime].as_ref();
+        // The table this board is played at.  The dealer's side plays `cell.0`,
+        // so a random dealer also randomises which physical side holds which
+        // configuration.
+        let cell = (!cells.is_empty()).then(|| cells[board % cells.len()]);
 
         // File deals (with their DD table) when `--deals` is set, else a fresh
         // random board with no table.
@@ -358,6 +529,27 @@ fn main() -> anyhow::Result<()> {
             let seat = Seat::ALL[(dealer + auction.len()) % 4];
             let hand = deal[seat];
             let rel = relative(vul, seat);
+            // Which side is acting.  Sides are seat parity, and the dealer is
+            // side 0, so this is what decides whose card is "ours" on this row.
+            let acting = cell.map(|(dealers_side, others)| {
+                if auction.len().is_multiple_of(2) {
+                    (dealers_side, others)
+                } else {
+                    (others, dealers_side)
+                }
+            });
+            // Arm the recognizer for the *acting* side before anything reads or
+            // classifies: in a mixed table the two sides disagree, and the row
+            // must be extracted under the configuration that produced it.
+            if let Some((ours, _)) = acting {
+                pons::bidding::instinct::set_kickback(ours.kickback);
+            }
+            let cell_artifacts =
+                acting.map(|(ours, theirs)| &per_pair[&(ours.label(), theirs.label())]);
+            let teacher = match cell_artifacts {
+                Some((_, teacher)) => teacher.as_ref(),
+                None => teacher,
+            };
 
             let Some(mut logits) = teacher.classify(hand, rel, &auction) else {
                 forced_pass += 1;
@@ -380,11 +572,15 @@ fn main() -> anyhow::Result<()> {
             // Record the row: features ++ softmax (++ DD label when present).
             // Prefixed when configured: the same context serving builds, so the
             // authored-projection overlay is applied at dump time too.
-            let mut context = match &reader {
+            let acting_reader = match acting {
+                Some((ours, _)) if !args.bare_context => Some(&per_side[&ours.label()].1),
+                _ => reader.as_ref(),
+            };
+            let mut context = match acting_reader {
                 Some(stance) => stance.prefixed_context(rel, &auction),
                 None => Context::new(rel, &auction),
             };
-            if let Some(config) = &config {
+            if let Some(config) = cell_artifacts.map(|(config, _)| config).or(config.as_ref()) {
                 context = context.with_config(config);
             }
             let feats = if args.configured {
@@ -447,6 +643,10 @@ fn main() -> anyhow::Result<()> {
         "our_kickback": args.kickback,
         "mix_kickback": args.mix_kickback,
         "configured": args.configured,
+        "cells": cells
+            .iter()
+            .map(|(a, b)| format!("{}/{}", a.label(), b.label()))
+            .collect::<Vec<_>>(),
         "context": if args.configured && !args.bare_context { "prefixed" } else { "bare" },
         "our_system": args.configured.then(|| args.system.clone()),
         "their_system": args
