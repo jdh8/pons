@@ -193,5 +193,12 @@ name = "probe-slam-battery"
 path = "examples/probe-slam-battery/main.rs"
 required-features = ["dd"]
 
+# Writes its divergent boards as a `common::Dump` (--dump) and re-prices a
+# dumped cell under every instrument (--rescore), hence the serde feature.
+[[example]]
+name = "ab-kickback"
+path = "examples/ab-kickback/main.rs"
+required-features = ["serde"]
+
 [profile.dev.package."*"]
 opt-level = 2

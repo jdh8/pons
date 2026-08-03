@@ -61,13 +61,28 @@
 //! stance built per arm, and the flags re-set per call by side inside the
 //! bidding loop (thread-locals do not cross into rayon workers on their own).
 //!
+//! `--dump DIR` writes the divergent boards as a `common::Dump` shard —
+//! identical contracts swing zero under **every** scorer, so divergence is
+//! the only thing worth disk, and one shard makes the whole existing rescore
+//! toolchain apply to a cell that used to evaporate with its stdout.
+//! `--rescore DIR` then re-prices a dumped cell without re-bidding: the
+//! ask-bucketed census rows under every instrument at once — plain DD,
+//! perfect defense, both single-dummy endpoints, their calibrated λ-blend
+//! (`common::sd_blend_imps`), and the analytic Pavlicek shave — which is the
+//! attribution §7.13's 400k *aggregate* sd row could not give (92% of gate
+//! 2's divergent boards saw no keycard ask; the aggregate mostly priced
+//! card-row perturbation of the net, not the relocation).
+//!
 //! ```text
-//! cargo run --release --example ab-kickback -- \
+//! cargo run --release --features serde --example ab-kickback -- \
 //!     --feature kickback --baseline plain --count 10000000 --sd
-//! cargo run --release --example ab-kickback -- \
+//! cargo run --release --features serde --example ab-kickback -- \
 //!     --feature v4 --baseline minors --count 2000000 --sd       # gate 1
-//! cargo run --release --example ab-kickback -- \
-//!     --feature v4-kickback --baseline v4 --count 2000000 --sd  # gate 2
+//! cargo run --release --features serde --example ab-kickback -- \
+//!     --feature v4-kickback --baseline v4 --count 2000000 \
+//!     --dump /mnt/hdd-data/jdh8/pons-ab-results/kickback-cell-nv  # gate 2
+//! cargo run --release --features serde --example ab-kickback -- \
+//!     --rescore /mnt/hdd-data/jdh8/pons-ab-results/kickback-cell-nv --show 999999
 //! ```
 
 use clap::{Parser, ValueEnum};
@@ -92,6 +107,7 @@ use rayon::prelude::*;
 #[allow(dead_code)]
 mod common;
 use common::{Board, next_call, seat_to_act, seeded_deals};
+use std::path::PathBuf;
 
 /// One arm of the experiment: which knobs it arms, and which floor it stands on
 #[derive(Clone, Copy, PartialEq, Eq, ValueEnum)]
@@ -180,6 +196,24 @@ struct Args {
     /// Seed for the sd world-sampling RNG (report it to reproduce a run)
     #[arg(long, default_value_t = 20_240_607)]
     sd_seed: u64,
+
+    /// Write the divergent boards (only — identical contracts swing zero
+    /// under every scorer) as a `common::Dump` shard under this directory
+    #[arg(long)]
+    dump: Option<PathBuf>,
+
+    /// Re-price a `--dump` directory instead of bidding: the ask-bucketed
+    /// census under every instrument (arms and vulnerability come from the
+    /// dump; --sd-worlds/--sd-seed/--show still apply)
+    #[arg(long, conflicts_with_all = ["dump", "feature", "baseline"])]
+    rescore: Option<String>,
+
+    /// With --rescore: price the sd endpoints only on boards where either
+    /// arm made a keycard ask.  A fair cell's no-ask bucket is ~92% of the
+    /// dump and pure twin noise, at ~0.5 s of playout per board; the DD-side
+    /// instruments still cover it, and --show then details ask boards only
+    #[arg(long, requires = "rescore", default_value_t = false)]
+    sd_ask_only: bool,
 }
 
 /// Arm the classify-time half of the knobs for `arm`
@@ -368,9 +402,303 @@ fn bid_out(
     auction
 }
 
+/// The analytic Pavlicek shave's phantom-win probability per contract level:
+/// the chance a slam that *makes double-dummy* would have failed at the
+/// table.  Pavlicek's full-deal table (rpbridge.net/8j45.htm): the 6-level
+/// makes 66.65% actual vs 67.99% DD, grands 64.28% vs 70.31% — the doctrine
+/// band is q ≈ 1–3% at six and 3–10% at seven (docs/measurement.md, the
+/// slam-boundary addendum); the midpoints are used here.  A board decided by
+/// a DD-making slam contributes `swing × (1 − 2q)` — with probability q the
+/// win was a phantom and the swing roughly negates.
+const fn shave_q(level: u8) -> f64 {
+    match level {
+        6 => 0.02,
+        7 => 0.06,
+        _ => 0.0,
+    }
+}
+
+/// The `(1 − 2q)` factor of one board: the largest shave among the tables
+/// whose contract is a slam that makes double-dummy (a grand outranks a small
+/// slam when both make — it is the shakier win).
+fn shave_factor(
+    contracts: (common::Reached, common::Reached),
+    table: &ddss::TrickCountTable,
+) -> f64 {
+    let q = [contracts.0, contracts.1]
+        .into_iter()
+        .flatten()
+        .filter_map(|(contract, declarer)| {
+            let level = contract.bid.level.get();
+            let makes = u8::from(table[contract.bid.strain].get(declarer)) >= 6 + level;
+            (level >= 6 && makes).then(|| shave_q(level))
+        })
+        .fold(0.0f64, f64::max);
+    1.0 - 2.0 * q
+}
+
+/// Re-price a `--dump` directory: every board in it is a divergent board of
+/// the original run, and every instrument prices the same reached contracts
+/// off the same solves — plain DD and perfect defense from one DD fan-out,
+/// the two single-dummy endpoints from one composed run per table, their
+/// λ-blend ([`common::sd_blend_imps`]), and the analytic Pavlicek shave.
+/// Buckets are the ask census of the original run ([`per_trump_census`]'s
+/// labels), which is the attribution the §7.13 aggregate rows could not give.
+#[allow(clippy::cast_precision_loss)]
+fn rescore(args: &Args, path: &str) {
+    let dump = common::load_dump(path);
+    let parse = |label: &str| -> Arm {
+        ValueEnum::from_str(label, true)
+            .unwrap_or_else(|e| panic!("dump label {label:?} is not an arm: {e}"))
+    };
+    let feature = parse(&dump.our_label);
+    let baseline = parse(&dump.their_label);
+    let vul = dump.vulnerability;
+    let count = dump
+        .gen_args
+        .iter()
+        .position(|a| a == "--count" || a == "-c")
+        .and_then(|i| dump.gen_args.get(i + 1))
+        .and_then(|v| v.parse::<usize>().ok());
+    println!(
+        "=== rescore: {} vs {}, {} divergent boards of {} bid, vulnerability {}, gen seed {:?} ===",
+        dump.our_label,
+        dump.their_label,
+        dump.boards.len(),
+        count.map_or_else(|| "?".to_owned(), |c| c.to_string()),
+        vul,
+        dump.seed,
+    );
+    println!("gen args: {:?}", dump.gen_args);
+
+    let contracts: Vec<_> = dump
+        .boards
+        .iter()
+        .map(|board| {
+            (
+                final_contract(&board.table_a, board.dealer),
+                final_contract(&board.table_b, board.dealer),
+            )
+        })
+        .collect();
+    let solve: Vec<FullDeal> = dump.boards.iter().map(|board| board.deal).collect();
+    let tables = Solver::lock(None).solve_deals(&solve, NonEmptyStrainFlags::ALL);
+
+    // Bucket labels first: under --sd-ask-only they decide which boards the
+    // sd pass prices.  `table_ask` arms each arm's own knobs itself.
+    let labels: Vec<String> = dump
+        .boards
+        .iter()
+        .map(|board| {
+            let ask_a = arm_ask(board, feature, true);
+            let ask_b = arm_ask(board, baseline, false);
+            match (ask_a, ask_b) {
+                (Some((trump, true, _)), _) => format!("{trump:?} relocated"),
+                (Some((trump, false, true)), _) => format!("{trump:?} 4NT *ladder offered*"),
+                (Some((trump, false, false)), _) => format!("{trump:?} 4NT (no claim)"),
+                (None, Some((trump, ..))) => format!("{trump:?} ask only in baseline"),
+                (None, None) => "no keycard ask (net alone)".to_string(),
+            }
+        })
+        .collect();
+    let priced: Vec<bool> = labels
+        .iter()
+        .map(|label| !args.sd_ask_only || label != "no keycard ask (net alone)")
+        .collect();
+
+    // The sd endpoints, sequential per board (the playout cannot pool); the
+    // feature stance reads for both tables, as in the live --sd row.
+    let stance = build(feature, baseline);
+    let mut rng = StdRng::seed_from_u64(args.sd_seed);
+    arm_knobs(feature);
+    let sd: Vec<Option<[common::SdScores; 2]>> = dump
+        .boards
+        .iter()
+        .enumerate()
+        .map(|(index, board)| {
+            priced[index].then(|| {
+                [&board.table_a, &board.table_b].map(|auction| {
+                    common::sd_declarer_ns_score(
+                        auction,
+                        board.dealer,
+                        &board.deal,
+                        &stance,
+                        vul,
+                        &mut rng,
+                        args.sd_worlds,
+                        args.sd_worlds,
+                    )
+                })
+            })
+        })
+        .collect();
+    arm_knobs(Arm::Plain);
+
+    // Per-board swings (feature − baseline, IMPs) under every instrument.
+    let n = dump.boards.len();
+    let mut swings: Vec<(&str, Vec<f64>)> = [
+        "plain DD",
+        "perfect defense",
+        "sd-lead",
+        "sd-lead + PD",
+        "sd-playout",
+        "sd-playout + PD",
+        "sd-blend",
+        "sd-blend + PD",
+        "DD shaved (q6 2%, q7 6%)",
+    ]
+    .into_iter()
+    .map(|label| (label, Vec::with_capacity(n)))
+    .collect();
+    for index in 0..n {
+        let (a, b) = contracts[index];
+        let table = &tables[index];
+        let dd = imps(ns_score_contract(a, table, vul) - ns_score_contract(b, table, vul));
+        let pd = imps(ns_score_pd(a, table, vul) - ns_score_pd(b, table, vul));
+        swings[0].1.push(dd as f64);
+        swings[1].1.push(pd as f64);
+        match &sd[index] {
+            Some([sd_a, sd_b]) => {
+                swings[2].1.push(imps(sd_a.lead[0] - sd_b.lead[0]) as f64);
+                swings[3].1.push(imps(sd_a.lead[1] - sd_b.lead[1]) as f64);
+                swings[4]
+                    .1
+                    .push(imps(sd_a.playout[0] - sd_b.playout[0]) as f64);
+                swings[5]
+                    .1
+                    .push(imps(sd_a.playout[1] - sd_b.playout[1]) as f64);
+                swings[6].1.push(common::sd_blend_imps(sd_a, sd_b, 0));
+                swings[7].1.push(common::sd_blend_imps(sd_a, sd_b, 1));
+            }
+            // An unpriced board carries NaN so every table stays
+            // board-parallel; the printers filter to finite values.
+            None => (2..=7).for_each(|k| swings[k].1.push(f64::NAN)),
+        }
+        swings[8]
+            .1
+            .push(dd as f64 * shave_factor(contracts[index], table));
+    }
+
+    println!(
+        "\n-- instruments over the dumped boards ({} worlds, sd seed {}{}) --",
+        args.sd_worlds,
+        args.sd_seed,
+        if args.sd_ask_only {
+            format!(
+                "; sd rows over the {} ask boards only",
+                priced.iter().filter(|&&p| p).count(),
+            )
+        } else {
+            String::new()
+        },
+    );
+    for (label, values) in &swings {
+        let finite: Vec<f64> = values.iter().copied().filter(|v| v.is_finite()).collect();
+        if finite.is_empty() {
+            println!("{label:<26} (no priced boards)");
+            continue;
+        }
+        let total: f64 = finite.iter().sum();
+        let (mean, ci) = common::mean_with_ci_f64(&finite);
+        let scope = if finite.len() == n {
+            count.map_or_else(String::new, |c| {
+                format!("  {:+.5}/board of {c}", total / c as f64)
+            })
+        } else {
+            format!("  (n={})", finite.len())
+        };
+        println!("{label:<26} {total:+9.1} IMPs  {mean:+.4} ± {ci:.4} /divergent{scope}",);
+    }
+
+    // The ask-bucketed census × every instrument: per-board means per bucket.
+    let mut buckets: Vec<(String, Vec<usize>)> = Vec::new();
+    for (index, label) in labels.iter().enumerate() {
+        match buckets.iter_mut().find(|(name, _)| name == label) {
+            Some((_, indices)) => indices.push(index),
+            None => buckets.push((label.clone(), vec![index])),
+        }
+    }
+    buckets.sort_by_key(|(_, indices)| std::cmp::Reverse(indices.len()));
+
+    println!("\n-- ask-bucketed census × instrument (per-divergent-board mean IMPs) --");
+    print!("{:<28} {:>7} {:>6}", "bucket", "boards", "share");
+    for (label, _) in &swings {
+        print!(
+            " {:>9}",
+            label
+                .replace("perfect defense", "PD")
+                .replace("DD shaved (q6 2%, q7 6%)", "DD shaved")
+                .replace(" + PD", "+PD")
+                .replace("sd-", "")
+        );
+    }
+    println!();
+    for (label, indices) in &buckets {
+        print!(
+            "{label:<28} {:>7} {:>5.1}%",
+            indices.len(),
+            100.0 * indices.len() as f64 / n.max(1) as f64,
+        );
+        for (_, values) in &swings {
+            let vals: Vec<f64> = indices
+                .iter()
+                .map(|&i| values[i])
+                .filter(|v| v.is_finite())
+                .collect();
+            if vals.is_empty() {
+                print!(" {:>9}", "-");
+            } else {
+                let mean = vals.iter().sum::<f64>() / vals.len() as f64;
+                print!(" {mean:>+9.3}");
+            }
+        }
+        println!();
+    }
+
+    // Full per-board detail for the classification pass: contracts, both
+    // endpoints' tricks, and every instrument's swing.  Only priced boards
+    // print — under --sd-ask-only that is exactly the classification set.
+    for (shown, index) in (0..n)
+        .filter(|&index| priced[index])
+        .take(args.show)
+        .enumerate()
+    {
+        let board = &dump.boards[index];
+        let (a, b) = contracts[index];
+        let Some([sd_a, sd_b]) = &sd[index] else {
+            unreachable!("priced boards carry sd scores");
+        };
+        let calls_a: Vec<Call> = board.table_a.iter().copied().collect();
+        let calls_b: Vec<Call> = board.table_b.iter().copied().collect();
+        println!(
+            "\n[{shown}] {}  dealer {:?}  A {calls_a:?} -> {a:?} sd {:?}t  vs  B {calls_b:?} -> {b:?} sd {:?}t",
+            labels[index], board.dealer, sd_a.tricks, sd_b.tricks,
+        );
+        for seat in Seat::ALL {
+            println!("    {seat:?}: {}", board.deal[seat]);
+        }
+        print!("   ");
+        for (label, values) in &swings {
+            print!(
+                " {}={:+.2}",
+                label
+                    .replace("perfect defense", "PD")
+                    .replace("DD shaved (q6 2%, q7 6%)", "shave")
+                    .replace(" + PD", "+PD"),
+                values[index],
+            );
+        }
+        println!();
+    }
+}
+
 #[allow(clippy::cast_precision_loss)]
 fn main() {
     let args = Args::parse();
+    if let Some(path) = &args.rescore {
+        rescore(&args, path);
+        return;
+    }
     let feature = build(args.feature, args.baseline);
     let baseline = build(args.baseline, args.feature);
 
@@ -401,6 +729,41 @@ fn main() {
     let divergent: Vec<usize> = (0..boards.len())
         .filter(|&index| contracts[index].0 != contracts[index].1)
         .collect();
+
+    if let Some(dir) = &args.dump {
+        std::fs::create_dir_all(dir).expect("create dump directory");
+        let shard = common::Dump {
+            our_label: args.feature.label().to_owned(),
+            their_label: args.baseline.label().to_owned(),
+            vulnerability: args.vulnerability,
+            seed: Some(args.seed),
+            gen_args: std::env::args().skip(1).collect(),
+            boards: divergent
+                .iter()
+                .map(|&index| {
+                    let board = &boards[index];
+                    Board {
+                        deal: board.deal,
+                        dealer: board.dealer,
+                        table_a: board.table_a.clone(),
+                        table_b: board.table_b.clone(),
+                    }
+                })
+                .collect(),
+        };
+        let path = dir.join("shard-000.json");
+        serde_json::to_writer(
+            std::io::BufWriter::new(std::fs::File::create(&path).expect("create dump shard")),
+            &shard,
+        )
+        .expect("write dump shard");
+        println!(
+            "dumped {} divergent boards to {}",
+            shard.boards.len(),
+            path.display(),
+        );
+    }
+
     let solve: Vec<FullDeal> = divergent.iter().map(|&index| boards[index].deal).collect();
     let tables = Solver::lock(None).solve_deals(&solve, NonEmptyStrainFlags::ALL);
 
@@ -453,6 +816,7 @@ fn main() {
                     args.sd_worlds,
                     args.sd_worlds,
                 )
+                .playout
             });
             for (k, swing) in swings.iter_mut().enumerate() {
                 swing[index] = imps(a[k] - b[k]);
