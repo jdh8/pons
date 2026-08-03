@@ -23,7 +23,7 @@ use contract_bridge::{AbsoluteVulnerability, FullDeal, Hand, Seat};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
 use pons::bidding::constraint::{
-    FifthsCompanion, set_fifths_companion, set_fuzzy_fifths, set_fuzzy_points,
+    FifthsCompanion, PointScale, set_fifths_companion, set_fuzzy_fifths, set_point_scale,
 };
 use pons::bidding::context::relative;
 use pons::bidding::{Stance, System};
@@ -92,7 +92,7 @@ fn bid_out(
     deal: &FullDeal,
 ) -> Auction {
     let mut auction = Auction::new();
-    set_fuzzy_points(true);
+    set_point_scale(PointScale::PointCount);
     set_fuzzy_fifths(true);
 
     while !auction.has_ended() {

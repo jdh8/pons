@@ -905,32 +905,6 @@ std::thread_local! {
     static STRENGTH_DIAL: Cell<u8> = const { Cell::new(0) };
 }
 
-/// Enable or disable fuzzy strength on the current thread
-///
-/// For A/B measurement only: with fuzzy strength disabled, [`points`] and
-/// [`fifths`] fall back to comparing raw HCP against the same bounds, so one
-/// set of books serves as both the baseline and the upgraded system.  The
-/// flags are read at classification time and are per-thread; classify on the
-/// thread that set them.
-#[doc(hidden)]
-pub fn set_fuzzy_strength(enabled: bool) {
-    set_fuzzy_points(enabled);
-    set_fuzzy_fifths(enabled);
-}
-
-/// Enable or disable the [`points`] upgrade alone (see [`set_fuzzy_strength`])
-///
-/// A thin wrapper over [`set_point_scale`] kept for the historical A/B
-/// runners: `false` is the raw-HCP arm.
-#[doc(hidden)]
-pub fn set_fuzzy_points(enabled: bool) {
-    set_point_scale(if enabled {
-        PointScale::PointCount
-    } else {
-        PointScale::Hcp
-    });
-}
-
 /// Select the global point-count scale on the current thread (see
 /// [`PointScale`])
 ///
@@ -943,7 +917,15 @@ pub fn set_point_scale(scale: PointScale) {
     POINT_SCALE.with(|cell| cell.set(scale));
 }
 
-/// Enable or disable [`fifths`] alone (see [`set_fuzzy_strength`])
+/// Enable or disable [`fifths`] alone
+///
+/// For A/B measurement only, read at classification time, per-thread; classify
+/// on the thread that set it.  The `points` half of the old "fuzzy strength"
+/// umbrella is [`set_point_scale`] — the umbrella and its bool `points` wrapper
+/// were deleted 2026-08-03: one wrote *two* sibling cells (so flipping it
+/// silently moved a knob the caller never named), and the other was a bool over
+/// a three-valued scale, unable to name [`PointScale::RuleOfNFloored`] and
+/// destroying it on write.
 #[doc(hidden)]
 pub fn set_fuzzy_fifths(enabled: bool) {
     FUZZY_FIFTHS.with(|flag| flag.set(enabled));
@@ -3288,16 +3270,17 @@ mod tests {
         let context = empty_context();
         let two_suiter = hand("KQ765.A8765.32.2");
 
-        // This toggle swings `points` between raw HCP and the legacy
+        // These toggles swing `points` between raw HCP and the legacy
         // raw-HCP-plus-upgrade scale (both historical arms now).
-        set_fuzzy_strength(false);
+        set_point_scale(PointScale::Hcp);
+        set_fuzzy_fifths(false);
         // Raw HCP: 9 points, and fifths degrades to raw HCP too.
         assert_pass(points(9..=9).eval(two_suiter, &context));
         assert_pass(fifths(15.0..18.0).eval(hand(BALANCED_15), &context));
         assert_reject(fifths(15.5..18.0).eval(hand(BALANCED_15), &context));
 
         // The legacy upgrade arm agrees with rule-of-N+8 on this clean 5-5.
-        set_fuzzy_points(true);
+        set_point_scale(PointScale::PointCount);
         assert_pass(points(11..=11).eval(two_suiter, &context));
 
         // Restore the shipped default for the rest of the suite.

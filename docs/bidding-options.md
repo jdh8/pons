@@ -433,7 +433,7 @@ ab-fuzzy-strength gained a `--sd` blind-lead arbitrator.)*
   set_transfer_super_accept, minor keycard (+6.80/+8.76; PD +5.41/+7.05 is the
   conservative re-measure). *(NotrumpShape shipped Wide6322 as default 2026-07-12 — fresh, see A1. set_alert_reading + set_settle_floor refreshed fresh in the A6 pass 2026-07-13.)*
 - `stale-pop` (measured before a book-population shift): set_open_one_notrump,
-  set_floor_rkcb, set_natural_defense, set_direct_dont, set_landy,
+  set_floor_rkcb, `NotrumpDefense::{Natural, DirectDont}`, set_landy,
   set_natural_double_shape, set_stayman_defense.
 
 ## Encoding audit — bool clusters (2026-08-03)
