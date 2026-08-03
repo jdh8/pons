@@ -14,7 +14,7 @@
 
 use super::array::Logits;
 use super::features::{FEATURES_LEN_V3, FEATURES_LEN_V4};
-use super::instinct::kickback_now;
+use super::instinct::relocating_now;
 use nalgebra::{SMatrixView, SVector, SVectorView};
 use std::sync::LazyLock;
 
@@ -113,7 +113,10 @@ static WEIGHTS_BBA: LazyLock<Vec<f32>> = LazyLock::new(|| decode(RAW_BBA));
 /// The kickback twin of the BBA artifact — same architecture, same recipe, same
 /// `data_seed`/`init_seed`, corpus regenerated from a teacher that *plays*
 /// kickback (`dump-teacher --conv "Kickback 1430=1" --kickback`).  Selected per
-/// call by [`kickback_now`]; knob-off never touches it.
+/// call by [`relocating_now`] — the full ladder or its Redwood minor half,
+/// which has no twin of its own and for which this one is the nearest regime
+/// (right about the relocated minor lanes, trained to expect a 4♠ ask the
+/// hearts lane no longer makes); both knobs off never touch it.
 ///
 /// It exists because kickback is not a rule the reader can hold on its own.  A
 /// ladder decides what a bid *means*; the net decides what gets *bid*, and a net
@@ -165,7 +168,7 @@ static WEIGHTS_BBA_KICKBACK: LazyLock<Vec<f32>> = LazyLock::new(|| decode(RAW_BB
 #[must_use]
 pub fn classify_bba(features: &[f32]) -> Logits {
     assert_eq!(features.len(), IN_V3, "expected {IN_V3} features");
-    let weights = if kickback_now() {
+    let weights = if relocating_now() {
         WEIGHTS_BBA_KICKBACK.as_slice()
     } else {
         WEIGHTS_BBA.as_slice()

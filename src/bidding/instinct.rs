@@ -601,6 +601,10 @@ std::thread_local! {
     /// default** — on 2026-08-02 to 2026-08-03 only; see [`set_kickback`].
     static KICKBACK: Cell<bool> = const { Cell::new(false) };
 
+    /// Whether the keycard ask relocates for **minor** trumps only — Redwood.
+    /// **Off by default**; see [`set_redwood`].
+    static REDWOOD: Cell<bool> = const { Cell::new(false) };
+
 }
 
 /// Enable or disable the floor's two-over-one game force (**on by default**)
@@ -710,7 +714,10 @@ fn floor_rkcb_now() -> bool {
 /// the gain is the ask *declining* a slam — `5♦ vs 6♦` ran +44 IMPs over four
 /// audited boards where the majors-only arm blasted six without the keycards.
 ///
-/// Off, the ask reverts to majors-only.  The tie-break still prefers the higher
+/// Off, the ask reverts to majors-only — the plain-4NT carve this knob owns.
+/// A live relocation implies the minors' reach regardless
+/// (`minor_asks_now`): [`set_redwood`] and [`set_kickback`] bring their own
+/// minor lanes.  The tie-break still prefers the higher
 /// suit either way, so a major fit of equal length keeps winning.  Read at
 /// classification time, per-thread.
 #[doc(hidden)]
@@ -744,11 +751,16 @@ pub(in crate::bidding) fn rkcb_minors_now() -> bool {
 /// defensive optimism.  Full ledger: `docs/ai-bidder/bba-kickback.md` §7.13.
 ///
 /// Kickback asks in the cheapest unguarded suit above the trump — 4♦ for clubs
-/// and 4♥ for diamonds (the minor half is *Redwood*), 4♠ for hearts — so every
-/// 1430 answer lands at or below five of trump instead of blowing past it.  The
+/// and 4♥ for diamonds (the minor half is *Redwood*, [`set_redwood`] on its
+/// own), 4♠ for hearts — so every 1430 answer lands at or below five of trump
+/// instead of blowing past it.  The
 /// ladder is `kickback_ladder`, face-only, so both members derive the same
 /// asking call with no reading at all.  4NT keeps its meaning throughout:
-/// kickback *adds* asks, it never removes one.
+/// kickback *adds* asks, it never removes one.  This knob is the superset
+/// stance: it implies [`set_redwood`]'s minor scope and, with it, the minors'
+/// reach (`minor_asks_now`) whatever [`set_rkcb_minors`] says — a ladder
+/// that relocated only hearts would relocate exactly one call, a stance
+/// nobody plays.
 ///
 /// **Read in two regimes, and a harness must arm both.** Rule *presence* is
 /// gated at [`instinct`] build time, because the reading's `alerted` test is
@@ -772,6 +784,63 @@ pub fn set_kickback(enabled: bool) {
 /// Kickback is enabled (see [`set_kickback`])
 pub(in crate::bidding) fn kickback_now() -> bool {
     KICKBACK.with(Cell::get)
+}
+
+/// Relocate the keycard ask for **minor trumps only** — Redwood (**off by
+/// default**)
+///
+/// The minors are where relocation pays: a plain 4NT ask over an agreed minor
+/// blows past five of trump on half its answers, while the majors barely move —
+/// spades asks at 4NT either way, so a ladder without the minors relocates
+/// exactly one call ("there is no point to kickback only hearts", jdh8
+/// 2026-08-03).  This knob names the stance partnerships actually play under
+/// the name Redwood: 4♦ asks in clubs and 4♥ in diamonds, the majors keep
+/// plain 4NT.  [`set_kickback`] is the superset — 4♠ asking in hearts on top —
+/// and implies this scope, so no combination of the knobs yields a hearts-only
+/// ladder, and either relocation implies the minors' reach whether or not
+/// [`set_rkcb_minors`] carved it in: a ladder whose payoff is the minor lanes
+/// needs a minor to ask in.
+///
+/// Unmeasured as its own arm.  The full-kickback A/B lost (see
+/// [`set_kickback`]) and its per-lane cut charged the minor lanes too, but a
+/// per-lane cut of one arm prices no stance — the routing moves with the
+/// ladder.  Opt-in until an arm of its own says otherwise.
+///
+/// The floor's weights approximate under this knob: Redwood has no distilled
+/// twin, so the v3 floor serves the kickback twin — which reads the relocated
+/// minor lanes correctly and is merely trained to expect a 4♠ ask the hearts
+/// lane no longer makes — and the generated card discloses "Kickback 1430",
+/// the nearest row BBA's card offers (it over-claims the hearts lane the same
+/// way).  Reading and weights stay consistent with each other either way; the
+/// approximation is to the *stance*, and a twin of its own is owed before this
+/// could ever ship default-on.
+///
+/// Read in two regimes like [`set_kickback`]: rule *presence* at [`instinct`]
+/// build time, the recognizers at classification time — so a harness builds
+/// one stance per arm **and** sets the flag per call by side.
+pub fn set_redwood(enabled: bool) {
+    REDWOOD.with(|flag| flag.set(enabled));
+}
+
+/// Redwood is enabled (see [`set_redwood`])
+pub(in crate::bidding) fn redwood_now() -> bool {
+    REDWOOD.with(Cell::get)
+}
+
+/// Some relocation is live — the full ladder ([`set_kickback`]) or its minor
+/// half ([`set_redwood`]).  The build-time gate for the relocated answer set
+/// and the relocated-ask rules; the *per-suit* scope is [`kickback_ladder`]'s
+/// claim loop, so every recognizer downstream of the ladder inherits it.
+pub(in crate::bidding) fn relocating_now() -> bool {
+    kickback_now() || redwood_now()
+}
+
+/// The keycard ask reaches agreed minors — carved in by [`set_rkcb_minors`],
+/// or implied by a live relocation ([`relocating_now`]): a ladder whose payoff
+/// is the minor lanes with no minor to ask in would be "kickback only hearts",
+/// a stance nobody plays.
+pub(in crate::bidding) fn minor_asks_now() -> bool {
+    rkcb_minors_now() || relocating_now()
 }
 
 /// The combined trump length at which the fit itself stands in for the trump
@@ -1755,11 +1824,12 @@ fn below_slam() -> Cons<impl Constraint + Clone> {
 /// combined 33 the milestone 6NT power-blast out-scored minor and thin 6-2 suit
 /// slams on double-dummy.  Re-priced on the 2026-08 system, **the ask beats the
 /// blast** — see [`set_rkcb_minors`], which now carves *back* to majors
-/// rather than lifting a carve.
+/// rather than lifting a carve; a live relocation lifts it too
+/// ([`minor_asks_now`]).
 fn keycard_trump(hand: Hand, context: &Context<'_>) -> Option<Suit> {
     let inferences = Inferences::read(context);
     let partner = inferences.partner();
-    let candidates: &[Suit] = if rkcb_minors_now() {
+    let candidates: &[Suit] = if minor_asks_now() {
         &Suit::ASC
     } else {
         &[Suit::Hearts, Suit::Spades]
@@ -1890,6 +1960,13 @@ fn face_trump(auction: &[Call], ask: usize) -> Option<Suit> {
 ///
 /// Legality is the caller's business — the table says what a bid *would* mean,
 /// not that it is available over the auction so far.
+///
+/// Stance-scoped since [`set_redwood`]: the claim loop consults the relocation
+/// knobs, claiming minor-trump lanes under either knob and the hearts lane
+/// under [`set_kickback`] alone.  Still no hand and no readings — the knobs
+/// are part of the system, set per side by any harness (see [`set_kickback`]'s
+/// two-regimes note) — and scoping *here* means every recognizer and rule
+/// downstream inherits one claim table instead of re-deriving the stance.
 fn kickback_ladder(auction: &[Call], ask: usize) -> [Option<Suit>; 4] {
     let mut ladder = [None; 4];
     if face_trump(auction, ask).is_none() {
@@ -1926,6 +2003,12 @@ fn kickback_ladder(auction: &[Call], ask: usize) -> [Option<Suit>; 4] {
     };
     for trump in Suit::ASC {
         if bids(trump) < 2 {
+            continue;
+        }
+        // The stance scopes the claim per trump: the full ladder relocates
+        // everything, Redwood only the minors, and no knob combination yields
+        // a hearts-only ladder.
+        if !(kickback_now() || (redwood_now() && trump < Suit::Hearts)) {
             continue;
         }
         // Four of the *next* suit up, or nothing: an occupied rung falls back
@@ -2137,7 +2220,7 @@ fn bid_successor(bid: Bid) -> Option<Bid> {
 /// with an agreed suit is still keycard — but it has no natural meaning to
 /// lose.)
 fn kickback_trump(auction: &[Call], ask: usize) -> Option<Suit> {
-    if !kickback_now() {
+    if !relocating_now() {
         return None;
     }
     let Some(&Call::Bid(bid)) = auction.get(ask) else {
@@ -2213,7 +2296,7 @@ fn keycard_ask_bid(auction: &[Call], ask: usize) -> Option<Bid> {
 #[doc(hidden)]
 #[must_use]
 pub fn kickback_offered_at(auction: &[Call], index: usize, trump: Suit) -> bool {
-    kickback_now() && kickback_ladder(auction, index)[trump as usize].is_some()
+    relocating_now() && kickback_ladder(auction, index)[trump as usize].is_some()
 }
 
 /// The keycard ask made at `index`, if the call there is one: the asking bid
@@ -5232,13 +5315,14 @@ pub fn instinct() -> Rules {
     // right one.  Off the knob that leaves 5♣ ROPI and 5♦/5♥/5♠ DOPI — the
     // rules the floor has always carried, plus two that can never fire (a 5♣
     // DOPI step would need their bid to *be* the 4NT ask).
-    if kickback_now() {
-        // The kickback arm's landings include the 4-level, where the alert
+    if relocating_now() {
+        // The relocated arms' landings include the 4-level, where the alert
         // collides with natural games — so each rule is face-gated on its
         // recognizer's face half: on faces where no ask window is live the
         // rule is as-if-absent and the natural reading of 4♥/4♠/4NT stands
-        // (the §7.3.1 union poison).  The plain arm below stays ungated —
-        // byte-identical to the shipped default.
+        // (the §7.3.1 union poison).  Redwood rides the same answer set; the
+        // ladder's claim scope is what narrows its lanes.  The plain arm
+        // below stays ungated — byte-identical to the shipped default.
         for &landing in &KICKBACK_ANSWERS {
             rules = rules
                 .rule(landing, 1.9, keycard_answer(landing))
@@ -5372,7 +5456,7 @@ pub fn instinct() -> Rules {
     // consults it, so the bidder is unchanged, and the reader skips the rule
     // on faces where the ladder claims nothing, so a natural 4♠ keeps its
     // natural reading (the §7.3.1 union poison).
-    if kickback_now() {
+    if relocating_now() {
         for target in [Suit::Diamonds, Suit::Hearts, Suit::Spades] {
             let strain = Strain::from(target);
             rules = rules
@@ -5401,7 +5485,7 @@ pub fn instinct() -> Rules {
                 .face(move |context: &Context<'_>| {
                     let auction = context.auction();
                     floor_rkcb_now()
-                        && kickback_now()
+                        && relocating_now()
                         && context.undisturbed()
                         && kickback_ladder(auction, auction.len())[target as usize].is_some()
                         && partner_last_call(auction)
@@ -7293,6 +7377,9 @@ mod tests {
     /// fallback can never be misread.
     #[test]
     fn a_guarded_rung_falls_back_to_notrump() {
+        // The stance is on, so the all-`None` is the guard's veto, not the
+        // knob's.
+        set_kickback(true);
         let jump_rebid = [
             call(1, Strain::Diamonds),
             Call::Pass,
@@ -7311,6 +7398,7 @@ mod tests {
             Some(Suit::Diamonds),
             "and 4NT still asks in the suit it always asked in"
         );
+        set_kickback(false);
     }
 
     /// A spade bid cannot disprove hearts (5-5 majors bid spades first), so the
@@ -7319,6 +7407,7 @@ mod tests {
     /// cards and leaves no room for five hearts.
     #[test]
     fn kickback_yields_the_undisprovable_major() {
+        set_kickback(true);
         let response = [
             call(1, Strain::Diamonds),
             Call::Pass,
@@ -7362,12 +7451,14 @@ mod tests {
             [None, None, Some(Suit::Diamonds), None],
             "a second named suit disproves five hearts, so 4♥ asks in diamonds"
         );
+        set_kickback(false);
     }
 
     /// Two set suits claim in ascending order, so both can carry a relocated
     /// ask — 4♦ asks in clubs, 4♠ in hearts, and 4NT is left over.
     #[test]
     fn kickback_serves_both_fits_when_it_can() {
+        set_kickback(true);
         let two_fits = [
             call(1, Strain::Clubs),
             Call::Pass,
@@ -7401,12 +7492,16 @@ mod tests {
             [None, None, None, Some(Suit::Hearts)],
             "diamonds revert to 4NT; hearts keep 4♠"
         );
+        set_kickback(false);
     }
 
     /// What must *not* relocate: an unagreed suit, the opponents' suit, a
     /// spade fit with nothing above it, and the notrump dichotomy's veto.
     #[test]
     fn kickback_refuses_without_a_set_trump() {
+        // The stance is on, so every all-`None` below is the geometry's own
+        // veto rather than the knob's.
+        set_kickback(true);
         let one_bid = [call(1, Strain::Diamonds), Call::Pass];
         assert_eq!(
             kickback_ladder(&one_bid, 2),
@@ -7439,6 +7534,7 @@ mod tests {
             [None; 4],
             "the notrump veto carries to the ladder"
         );
+        set_kickback(false);
     }
 
     /// A cue of their suit shows no length, so it never becomes the ask —
@@ -7446,6 +7542,7 @@ mod tests {
     /// cue it was.
     #[test]
     fn kickback_never_claims_the_opponents_suit() {
+        set_kickback(true);
         let cued = [
             call(1, Strain::Hearts),
             call(3, Strain::Diamonds),
@@ -7459,6 +7556,7 @@ mod tests {
             [None, None, None, Some(Suit::Hearts)],
             "their diamonds are guarded; the heart ask takes 4♠"
         );
+        set_kickback(false);
     }
 
     /// The 1430 rungs are *steps above the ask* — and over a plain 4NT those
@@ -7736,6 +7834,66 @@ mod tests {
             call(5, Strain::Spades),
             "the plain ask answers above it — 5♦ is gone"
         );
+    }
+
+    /// The stance matrix after [`set_redwood`]: Redwood claims the minor lanes
+    /// alone, kickback claims hearts on top and implies the minor scope, and
+    /// either relocation implies the minors' reach — no combination of the
+    /// knobs is "kickback only hearts"
+    #[test]
+    fn redwood_scopes_the_ladder_and_implies_the_minors() {
+        let diamonds = [
+            call(1, Strain::Diamonds),
+            Call::Pass,
+            call(3, Strain::Diamonds),
+            Call::Pass,
+        ];
+        let hearts = [
+            call(1, Strain::Hearts),
+            Call::Pass,
+            call(3, Strain::Hearts),
+            Call::Pass,
+        ];
+        let claims = |auction: &[Call]| kickback_ladder(auction, 4);
+
+        set_rkcb_minors(false);
+        set_redwood(true);
+        assert_eq!(
+            claims(&diamonds)[Suit::Hearts as usize],
+            Some(Suit::Diamonds),
+            "Redwood relocates the diamond ask to 4♥"
+        );
+        assert_eq!(
+            claims(&hearts)[Suit::Spades as usize],
+            None,
+            "Redwood alone never claims 4♠ — the hearts ask stays at 4NT"
+        );
+        assert!(
+            minor_asks_now(),
+            "a live minor relocation implies the minors' reach"
+        );
+
+        set_redwood(false);
+        set_kickback(true);
+        assert_eq!(
+            claims(&hearts)[Suit::Spades as usize],
+            Some(Suit::Hearts),
+            "the full ladder claims the hearts lane too"
+        );
+        assert_eq!(
+            claims(&diamonds)[Suit::Hearts as usize],
+            Some(Suit::Diamonds),
+            "kickback implies the Redwood scope — never a hearts-only ladder"
+        );
+        assert!(
+            minor_asks_now(),
+            "kickback implies the minors' reach as well"
+        );
+
+        set_kickback(false);
+        assert_eq!(claims(&diamonds)[Suit::Hearts as usize], None);
+        assert!(!minor_asks_now(), "no relocation, no carve: majors only");
+        set_rkcb_minors(true); // restore the default (on since 2026-08-01)
     }
 
     /// One hand's shown five never converts 4NT into an ask: opener's five

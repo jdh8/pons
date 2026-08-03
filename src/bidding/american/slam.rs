@@ -69,13 +69,17 @@ pub(super) const RKCB: Alert = Alert("rkcb");
 /// and `set_keycard_minors` there, whose four combinations included two
 /// stances no partnership could play: a book that asks on a minor over a floor
 /// that cannot answer, and the reverse.  Now one knob drives both, read at book
-/// construction here and at classification there.
+/// construction here and at classification there.  A live relocation
+/// ([`set_redwood`][crate::bidding::instinct::set_redwood],
+/// [`set_kickback`][crate::bidding::instinct::set_kickback]) implies the reach
+/// the same way — its whole payoff is the minor lanes, so a stance that
+/// relocates them cannot leave the book unable to ask there.
 ///
 /// Measured against the pre-keycard book: **+6.80/+8.76 IMPs/divergent**
 /// (none/both, 2M boards), PD re-measure **+5.41/+7.05 IMPs/divergent** (10M
 /// boards, 202 divergent, ~1 in 49.5k) — rare but decisively positive per fire.
 pub(super) fn minor_keycard() -> bool {
-    crate::bidding::instinct::rkcb_minors_now()
+    crate::bidding::instinct::minor_asks_now()
 }
 
 use super::{insert_uncontested, uncontested};

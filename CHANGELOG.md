@@ -62,7 +62,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **The configured net is wired in (phase 4).**
+- **`set_redwood`: the minor half of the kickback ladder as a stance of its
+  own.** 4♦ asks in clubs and 4♥ in diamonds; the majors keep plain 4NT — the
+  agreement partnerships actually play under the name Redwood. The knob
+  algebra is now honest (jdh8: "there is no point to kickback only hearts"):
+  `set_kickback` implies the Redwood scope, either relocation implies the
+  minors' reach whatever `set_rkcb_minors` says, and no combination of the
+  three knobs yields a hearts-only ladder — the scope lives in
+  `kickback_ladder`'s claim loop, so every recognizer and rule downstream
+  inherits it. Opt-in and unmeasured as its own arm (the full-kickback loss
+  charged the minor lanes per-lane, but a per-lane cut of one arm prices no
+  stance); while opt-in it rides the kickback twin's weights and the
+  `Kickback 1430` card row, both documented approximations. The default
+  system is byte-identical; `bba-gen` grows `--ns-redwood`.
   `classify_bba_v4` runs
   `american_bba_v4` at its 368-input width, `ConfiguredFloorBba` is the same
   safety shell over it, and `american_configured()` is the 2/1 pair standing on

@@ -42,7 +42,7 @@ use super::american::{
     major_support_double, new_minor_forcing, notrump_defense, notrump_minors,
     notrump_shape_setting, nt_splinter, responsive_takeout_enabled, transfer_super_accept, xyz,
 };
-use super::instinct::kickback_now;
+use super::instinct::relocating_now;
 use core::fmt;
 
 /// A generated `.bbsa` convention card
@@ -451,7 +451,10 @@ fn american_row(name: &str) -> i32 {
         // in which our 4♥ is natural while our own side treated it as a diamond
         // ask: an undisclosed convention, which is a fairness problem before it
         // is a measurement one.  It invalidates any kickback-vs-BBA anchor.
-        "Kickback 1430" => i32::from(kickback_now()),
+        // `set_redwood` rides the same row: BBA's card has no minors-only
+        // relocation, so the nearest disclosure over-claims the hearts lane —
+        // a lane where we then bid a plain 4NT it also reads.
+        "Kickback 1430" => i32::from(relocating_now()),
         // EPBot's `conventions[58]` is the *side-suit* super-accept: after a
         // transfer, opener bids a feature above the completion (its gate wants
         // 4+ support with a doubleton or shorter somewhere).  `notrump.rs` only
