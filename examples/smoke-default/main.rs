@@ -46,15 +46,19 @@ fn main() {
         .into_par_iter()
         .enumerate()
         .map(|(index, deal)| {
-            // Rotate the dealer and the vulnerability so the dump reaches
-            // every seat's view of the same book.
+            // Rotate the dealer and the vulnerability on decorrelated periods
+            // (4 × 4 = 16 boards per full cycle) so the dump reaches every
+            // dealer × vulnerability cell.  In lockstep the dealer's side was
+            // never vulnerable-against-not, and a default-path bid change
+            // confined to unfavorable first- or third-chair decisions would
+            // have escaped the byte-identity check.
             let dealer = Seat::ALL[index % 4];
             let vul = [
                 AbsoluteVulnerability::NONE,
                 AbsoluteVulnerability::NS,
                 AbsoluteVulnerability::EW,
                 AbsoluteVulnerability::ALL,
-            ][index % 4];
+            ][(index / 4) % 4];
             let mut auction = Auction::new();
             while !auction.has_ended() {
                 let seat = seat_to_act(dealer, auction.len());

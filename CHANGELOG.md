@@ -271,6 +271,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ordinary contracts return to the natural walk, and
   `relay_rules_install_only_on_reachable_rungs` pins the feasible sets.
 
+- **`web/` builds again.** The wasm toggle panel still called the deleted
+  `set_keycard_minors`; it now drives the merged `set_rkcb_minors`. The web
+  workspace is excluded from the crate's own `cargo test`, which is how the
+  break stayed green here.
+
+- **Harness repairs from review.** `dump-teacher --deals BANK --skip N`
+  without `--boards` silently loaded **zero** deals (the "rest of the file"
+  promise passed a literal 0-row cap through) and dumped an empty corpus while
+  printing "asked all" — the documented bank-cursor workflow; it now loads the
+  rest. Its two unit tests never ran (examples default `test = false`; a
+  `[[example]] test = true` entry now runs them). `--cell` without
+  `--configured` bails instead of rotating teacher cells over identical v3
+  features — the mixed-net corpus the cells exist to prevent. The `--enrich`
+  help now says what `slam_ish` measures: the HCP and fit axes are maxed per
+  partnership *independently*. And `smoke-default` rotates dealer and
+  vulnerability on decorrelated periods (4 × 4), covering all sixteen cells —
+  in lockstep the dealer's side was never vulnerable-against-not, so a
+  default-path bid change confined there escaped the byte-identity check.
+
 - **A mistyped convention row can no longer be dumped as if it took effect.**
   `epbot_set_conventions` answers `0` for a name EPBot has never heard of, and
   the following read answers `0` too, so a renamed or misspelled row is

@@ -312,14 +312,19 @@ interpretation dispatch; the classes above are the documented boundary.
 - **Retro-agreement** is a BBA-ism: a bare 4♥ over a 5+♦-shower retro-agrees
   diamonds. Human kickback needs explicit agreement first.
 
-## 7. The pons rule: jdh8's walk-up ladder
+## 7. The pons ladder: BBA's rule, adopted (the walk-up retired 2026-08-02)
 
-**We differ from BBA on §1.1.** BBA's natural-ambiguity guard *gives up* the
-relocation the moment four-of-(T+1) is guarded: after 1♦–1♥–3♦, 4♥ is hearts,
-so the ask reverts to 4NT. jdh8's rule instead **keeps walking up** to the
-first unguarded suit — 4♠ — and only falls to 4NT when nothing below it is
-free. Never worse than BBA, sometimes a step better, and the ask is never
-lost.
+**We no longer differ from BBA on §1.1.** jdh8's original rule kept **walking
+up** to the first unguarded suit — after 1♦–1♥–3♦ the ♦ ask sat at 4♠ — and
+only fell to 4NT when nothing below it was free: never worse than BBA on paper,
+sometimes a step better, and the ask never lost. It is retired, because a
+relocated ask two suits above the trump is unrecognisable to anything that has
+not built the same table, and one seat mistaking it for a natural bid or a cue
+costs a slam while the prize for being right is one or two steps of room —
+**the saving is always stormed by the misunderstanding** (jdh8, 2026-08-02).
+Each set suit now claims **four of the next suit up, and nothing else**; an
+occupied rung falls back to 4NT rather than walking on. The history below
+(§7.2–§7.3) predates the switch and reads in walk-up terms.
 
 ### 7.1 The ladder
 
@@ -339,14 +344,16 @@ both members provably build the same table (the same guarantee that makes a
   dichotomy: `1♦ P 3♦ P 3NT P` is a sign-off, so that 4NT is quantitative),
   nothing relocates.
 
-Each set suit, **in ascending rank**, then claims the cheapest *unclaimed
-unguarded* suit strictly above it. Whatever goes unclaimed still asks at 4NT.
+Each set suit, **in ascending rank**, then claims **four of the next suit up,
+and nothing else** — if that one call is guarded or already claimed, the suit
+does not relocate and asks at 4NT (BBA's §1.1 rule; the walk-up's "cheapest
+unguarded suit above" is retired, see the section head).
 
 ```text
-1♦ P 1♥ P 3♦ P     set {♦}    guarded {♦,♥}   → 4♠ = RKCB(♦)                  †
+1♦ P 1♥ P 3♦ P     set {♦}    guarded {♦,♥}   → 4NT only (♥ guarded, no walking)
 1♦ P 1♠ P 2♦ P     set {♦}    guarded {♦,♥,♠} → 4NT only (♠ cannot deny ♥)
 1♠ P 2♦ P 3♦ P     set {♦}    guarded {♦,♠}   → 4♥ = RKCB(♦)  (5♠+4♦ = 9)
-1♥ P 2♦ P 3♦ P 3♥ P set {♦,♥} guarded {♦,♥}   → 4♠ = RKCB(♦), 4NT = RKCB(♥)
+1♥ P 2♦ P 3♦ P 3♥ P set {♦,♥} guarded {♦,♥}   → 4♠ = RKCB(♥), 4NT = RKCB(♦)
 1♣ P 2♣ P 2♥ P 3♥ P set {♣,♥} guarded {♣,♥}   → 4♦ = RKCB(♣), 4♠ = RKCB(♥)    †
 1♥ (3♦) 4♦ P 4♥ P  set {♥}    guarded {♥,♦}   → 4♠ = RKCB(♥); 4♦ stays a cue  †
 1♠ P 3♠ P          set {♠}    guarded {♠}     → 4NT only (nothing above 4♠)
@@ -383,7 +390,8 @@ only responds to partner's), and neither does the book, so today that price is
 not paid. It becomes real in the deferred control-bid session (§7.4).
 
 **Open — belongs to the control-bid session.** The rows marked † leave a 4NT
-that is redundant (rows 1 and 4) or entirely free (row 3). Additive keeps it
+that is redundant (one set suit, its ask relocated) or entirely free (both
+asks relocated off it). Additive keeps it
 as RKCB *for now*, a scheduling choice and not a verdict; the real question —
 quantitative, last train, or a control bid — cannot be answered before pons
 has an authored control-bid structure to answer it against, and answering it

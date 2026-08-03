@@ -18,10 +18,11 @@
 #
 #   1. the union is over *alerted* rules only — an alerted call is disclosed as
 #      the convention, not as the unalerted catch-all sharing its bid;
-#   2. the floor's 4NT RKCB ask announces `points(11..)` (`set_rkcb_announce`).
+#   2. the floor's 4NT RKCB ask announces `points(11..)` (`set_rkcb_announce`,
+#      DELETED 2026-08-02 with its probe — a false disclosure; history below).
 #
 # (2) cannot bite without (1): the weight-0.3 catch-all on 4NT would union the
-# agreement back to ⊤.  Same-seed divergence over 60k boards, from
+# agreement back to ⊤.  Same-seed divergence over 60k boards, from the deleted
 # `examples/probe-announced-rkcb`:
 #
 #   (1) alone      1400 boards (2.333%)
@@ -41,8 +42,8 @@
 # `RKCB_ASK_ANNOUNCE = 11` covers 95% of firings; the rest of the tightening
 # comes from (1) and is exact.
 #
-# The attribution arm, if the aggregate is close and the pilot needs its own
-# verdict:  arm pilot "$vul" --ns-announced-reading --no-ns-rkcb-announce
+# (The attribution arm this comment used to suggest rode `--no-ns-rkcb-announce`,
+# which is gone with the knob; the live arms below are unaffected.)
 #
 #   setsid nohup scripts/idle-run.sh scripts/announced-reading-ab.sh \
 #       ab-results/announced-reading >ab-results/announced-reading.log 2>&1 &
