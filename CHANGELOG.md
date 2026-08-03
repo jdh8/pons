@@ -105,6 +105,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the knob on" downgraded the system. The web crate had already written its own
   toggle to route around it.
 
+- **Seven spent single-shot A/B runners are deleted.** Each measured one knob
+  that has since shipped, each was among the eight broken by the flag renames
+  above, and every verdict is already recorded in `docs/bidding-options.md` —
+  re-authoring one from `ab-lib.sh` is a few lines.
+
 - **The web Settings tab knows which knobs depend on which.** A `requires`
   field (`"key"`, or `"key=value"` for a radio family) now gates eleven rows
   whose engine knob reads nothing while its master is off — `advance_rubens`
