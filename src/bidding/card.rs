@@ -435,7 +435,7 @@ fn american_row(name: &str) -> i32 {
         "1X-(1Y)-2Z strong" | "1X-(1Y)-2Z weak" => 0,
         // RKCB 1430 into the agreed suit; no Crosswood, no Exclusion, and none of
         // the other two keycard orderings.  Whether the ask is *relocated* is a
-        // separate row that rides `set_kickback` — see "Kickback 1430" below.
+        // separate row that rides `set_rkcb_variant` — see "Kickback 1430" below.
         "Blackwood 1430" => 1,
         "Blackwood 0123"
         | "Blackwood 0314"
@@ -446,12 +446,12 @@ fn american_row(name: &str) -> i32 {
         | "Kickback 0123"
         | "Kickback 0314"
         | "Exclusion" => 0,
-        // We play 1430, and under `set_kickback` we play it **relocated** — so
-        // this row has to ride the knob.  Hardcoding it to 0 disclosed a system
-        // in which our 4♥ is natural while our own side treated it as a diamond
-        // ask: an undisclosed convention, which is a fairness problem before it
-        // is a measurement one.  It invalidates any kickback-vs-BBA anchor.
-        // `set_redwood` rides the same row: BBA's card has no minors-only
+        // We play 1430, and under the Kickback stance we play it **relocated**
+        // — so this row has to ride the knob.  Hardcoding it to 0 disclosed a
+        // system in which our 4♥ is natural while our own side treated it as a
+        // diamond ask: an undisclosed convention, which is a fairness problem
+        // before it is a measurement one.  It invalidates any kickback-vs-BBA
+        // anchor.  Redwood rides the same row: BBA's card has no minors-only
         // relocation, so the nearest disclosure over-claims the hearts lane —
         // a lane where we then bid a plain 4NT it also reads.
         "Kickback 1430" => i32::from(relocating_now()),

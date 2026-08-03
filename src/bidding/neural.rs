@@ -116,7 +116,7 @@ static WEIGHTS_BBA: LazyLock<Vec<f32>> = LazyLock::new(|| decode(RAW_BBA));
 /// call by [`relocating_now`] — the full ladder or its Redwood minor half,
 /// which has no twin of its own and for which this one is the nearest regime
 /// (right about the relocated minor lanes, trained to expect a 4♠ ask the
-/// hearts lane no longer makes); both knobs off never touch it.
+/// hearts lane no longer makes); the plain stance never touches it.
 ///
 /// It exists because kickback is not a rule the reader can hold on its own.  A
 /// ladder decides what a bid *means*; the net decides what gets *bid*, and a net
@@ -277,7 +277,7 @@ mod tests {
     /// it here cannot leak into a sibling.
     #[test]
     fn matches_candle_fixture_bba() {
-        crate::bidding::instinct::set_kickback(false);
+        crate::bidding::instinct::set_rkcb_variant(crate::bidding::instinct::RkcbVariant::Plain);
         check_fixture(include_str!("weights/american_bba.fixture.json"), |x| {
             classify_bba(x).iter().map(|(_, l)| *l).collect()
         });
@@ -286,7 +286,7 @@ mod tests {
     /// The kickback twin clears the same parity bar, on the opt-in stance.
     #[test]
     fn matches_candle_fixture_bba_kickback() {
-        crate::bidding::instinct::set_kickback(true);
+        crate::bidding::instinct::set_rkcb_variant(crate::bidding::instinct::RkcbVariant::Kickback);
         check_fixture(
             include_str!("weights/american_bba_kickback.fixture.json"),
             |x| classify_bba(x).iter().map(|(_, l)| *l).collect(),

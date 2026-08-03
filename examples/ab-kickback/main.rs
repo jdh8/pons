@@ -3,13 +3,13 @@
 //!
 //! Five arms over three axes, so each coupled change stays attributable:
 //!
-//! | arm | `set_rkcb_minors` | `set_kickback` | floor | what it is |
+//! | arm | `set_rkcb_minors` | `set_rkcb_variant` | floor | what it is |
 //! |---|---|---|---|---|
-//! | `plain` | off | off | v3 | majors-only trump, the ask is 4NT |
-//! | `minors` | on | off | v3 | minor asks at plain 4NT — round 4's losing arm, re-priced |
-//! | `kickback` | on | on | v3 twin | opt-in again since the gate-2 loss: 4♦/4♥ Redwood, 4♠ over hearts |
-//! | `v4` | on | off | **v4** | the configured net, playing `minors`' rules |
-//! | `v4-kickback` | on | on | **v4** | the configured net, playing `kickback`'s rules |
+//! | `plain` | off | plain | v3 | majors-only trump, the ask is 4NT |
+//! | `minors` | on | plain | v3 | minor asks at plain 4NT — round 4's losing arm, re-priced |
+//! | `kickback` | on | kickback | v3 twin | opt-in again since the gate-2 loss: 4♦/4♥ Redwood, 4♠ over hearts |
+//! | `v4` | on | plain | **v4** | the configured net, playing `minors`' rules |
+//! | `v4-kickback` | on | kickback | **v4** | the configured net, playing `kickback`'s rules |
 //!
 //! The last two are `docs/ai-bidder/configured-net.md`'s acceptance gates:
 //!
@@ -19,7 +19,7 @@
 //! | 2. convention | `--feature v4-kickback --baseline v4` | what is the relocation worth, alone? |
 //!
 //! Gate 2 is the fair comparison the first three arms cannot give.  Under the v3
-//! floor `set_kickback` swaps the weights as well as the rules, so `kickback −
+//! floor the kickback stance swaps the weights as well as the rules, so `kickback −
 //! minors` prices a convention *and* a differently-trained net — §7.12 measured
 //! 93.5% of its divergent boards with no keycard ask by either side.  The v4 arms
 //! share one artifact and differ by the `Kickback 1430` row of the card they are
@@ -54,7 +54,7 @@
 //! ask*.  The interesting boards are therefore the ones where the answer used to
 //! land past the trump suit's own five level and the asker had nowhere to stop.
 //!
-//! **Both knob regimes must be armed.** `set_kickback` gates rule *presence* at
+//! **Both knob regimes must be armed.** `set_rkcb_variant` gates rule *presence* at
 //! build time — the reading's `alerted` test is structural, so an always-present
 //! alerted rule on 4♥/4♠ would suppress the natural reading of those calls even
 //! in the off arm — *and* the recognizers at classification time.  So: one
@@ -80,7 +80,9 @@ use pons::bidding::Stance;
 use pons::bidding::american::american_configured_with;
 use pons::bidding::card::{Card, american_card};
 use pons::bidding::features::Config;
-use pons::bidding::instinct::{keycard_ask_at, kickback_offered_at, set_kickback, set_rkcb_minors};
+use pons::bidding::instinct::{
+    RkcbVariant, keycard_ask_at, kickback_offered_at, set_rkcb_minors, set_rkcb_variant,
+};
 use pons::scoring::{final_contract, imps, ns_score_contract, ns_score_pd};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -115,9 +117,12 @@ impl Arm {
         )
     }
 
-    /// Whether this arm relocates the ask onto the kickback ladder
-    const fn kickback(self) -> bool {
-        matches!(self, Self::Kickback | Self::V4Kickback)
+    /// The relocation stance this arm plays
+    const fn variant(self) -> RkcbVariant {
+        match self {
+            Self::Kickback | Self::V4Kickback => RkcbVariant::Kickback,
+            Self::Plain | Self::Minors | Self::V4 => RkcbVariant::Plain,
+        }
     }
 
     /// Whether this arm's floor reads its convention card (`american_bba_v4`)
@@ -180,7 +185,7 @@ struct Args {
 /// Arm the classify-time half of the knobs for `arm`
 fn arm_knobs(arm: Arm) {
     set_rkcb_minors(arm.minors());
-    set_kickback(arm.kickback());
+    set_rkcb_variant(arm.variant());
 }
 
 /// The keycard ask `arm` made at one table, if any — the trump it asked in and
@@ -309,7 +314,7 @@ fn card(arm: Arm) -> Card {
     card
 }
 
-/// Build one stance per arm.  `set_kickback` is read at build time for rule
+/// Build one stance per arm.  `set_rkcb_variant` is read at build time for rule
 /// presence, and `set_rkcb_minors` by the book's `install_rkcb`, so the arms
 /// cannot share a book.
 ///

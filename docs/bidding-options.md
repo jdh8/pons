@@ -294,8 +294,7 @@ default-on.
 | --- | --- | --- | --- | --- | --- | --- |
 | set_floor_rkcb | `--no-ns-floor-rkcb` | Engine/Artificial | ON | a7-run: plain +1.01/+1.03 per fired (320k×2, fires 0.15%, NV CI>0, vul borderline), PD +0.84/+0.77, sd-lead +2.36/+2.93 (the strongest bracket — right-siding + lead-proofing value). **SD-PD CONFIRMED 2026-07-25** (`sd-pd-dumps.sh` rescore; reproduction gate PASSES — published plain-SD +2.36/fired reprints as +2.414): plain SD +0.0037 ±0.0013 / +0.0044 ±0.0016 → **SD-PD +0.0035 ±0.0013 / +0.0041 ±0.0016**, essentially unmoved and CI-clear both vuls. The cleanest confirmation of the batch, and it makes sense: right-siding and lead-proofing value does not depend on whether failures get doubled; sd-declarer NV −0.22/fired (CI straddles 0, a wash not a loss), vul +0.12 | fresh | default-on ✓ (capability-add; the one playout flip of the pass, retained per the Pavlicek rule — a ±0.0013 CI around −0.0003 is noise) |
 | set_rkcb_minors | `--no-ns-rkcb-minors` | Artificial | **ON** | RKCB reaches agreed **minors** as well as majors, at both layers. **Book half** (was `set_minor_keycard`) — the strong-2♣ minor raise and the inverted minor raise ask instead of blind-jumping: a7-run self-play [10M×2, 847 div] plain **+5.23/+6.68 per div**, PD +5.22/+6.68, keeping ~75% under the deep-pessimist playout (+3.87/+5.04); keycard's value is *staying out* of slams off two aces, line-independent. **Floor half** (was `set_keycard_minors`) — lifts `keycard_trump`'s majors-only carve. Majors-only was round 4 of the M6.4 A/B, and **that verdict expired on the 2026-08 system**: arm B of `ab-kickback` at 1M boards a cell gives **+0.00394 PD / +0.00375 plain DD** vul none (1840 div), **+0.00502 / +0.00471** vul both (1753 div), all eight CIs clear of zero, both sd rows agreeing; half the gain is the ask *declining* a slam, not finding one. **Merged into one knob 2026-08-02** — as two knobs, two of the four stances were unplayable (a book that asks on a minor over a floor that cannot answer, and the reverse). Read at book construction *and* at classification | +0.0039 … +0.0050/bd | default-on ✓ |
-| set_kickback | `--ns-kickback` | Artificial | **OFF** | **Reverted to opt-in 2026-08-03: the relocation is a measured loss.** It shipped default-on 2026-08-02 on a PD win against a vulnerable plain-DD loss — jdh8's judgement call, taken under the *twin* nets, where the arms differed by a two-week-newer artifact as well as by the convention. The configured net (`features_v4`) made the fair cell possible — one net, arms one card row apart — and gate 2 read **plain DD −0.0105/−0.0092 (NV/vul), PD parity (+0.0006/+0.0026), sd-declarer −0.0088/−0.0073**, every relocated lane losing (♥ −1.09 PD/board over 391 boards, ♦ −3.76 over 230, ♣ −1.28 over 144). Gate 1 (`v4 − minors`, identical rules) simultaneously showed the +0.0705 PD/board kickback shipped on was **mostly the newer net**: +0.1933/+0.2469 plain DD, +0.5256/+0.5358 PD. The DD-blindness defence — a *stopping* convention is structurally charged by a scorer that never lets a thin slam fail — was tested with the sd-declarer row and **failed**; do not re-raise it without a scorer that fights DD's slam optimism the way sd fights its defensive optimism. The ladder's arithmetic is sound (every 1430 answer lands at or below five of trump); its faces are the cost, 4♦/4♥/4♠ being among the most common natural calls in bridge. Superseded numbers, not to be cited: the 2×10M twin cell (seed 1785623878) and the contaminated 1M of 2026-08-01. Full ledger: `docs/ai-bidder/bba-kickback.md` §7.13. Relocates the keycard ask onto the face-only `kickback_ladder`; 4NT keeps its own meaning. **Read at `instinct()` build time as well as classify time** — the reading's `alerted` test is structural, so the relocated rules must be absent, not merely inert, in the off arm. Build one stance per arm *and* set the flag per call by side. The knob also selects the floor's weights (`classify_bba` serves the kickback twin) and rides the convention card (`Kickback 1430`) | 2M×2 configured | opt-in, default byte-identical |
-| set_redwood | `--ns-redwood` | Artificial | **OFF** | The minor half of the ladder alone — Redwood: 4♦ asks in clubs and 4♥ in diamonds, the majors keep plain 4NT. Named 2026-08-03 (jdh8: "there is no point to kickback only hearts") to make the stance algebra honest: `set_kickback` implies this scope, either relocation implies the minors' reach whatever `set_rkcb_minors` says, and no knob combination yields a hearts-only ladder. **Unmeasured as its own arm** — the full-kickback loss charged the minor lanes per-lane (♦ −3.76, ♣ −1.28 PD/board), but a per-lane cut of one arm prices no stance. Approximations while opt-in: the v3 floor serves the *kickback* twin (right about the relocated minor lanes, expects a 4♠ ask the hearts lane no longer makes) and the card discloses `Kickback 1430`, BBA's nearest row. Same build-time-and-classify-time regime discipline as `set_kickback` | — | opt-in, default byte-identical |
+| set_rkcb_variant | `--ns-rkcb <plain\|redwood\|kickback>` | Artificial | **plain** | One enum knob (`RkcbVariant`), three stances; both relocations imply the minors' reach whatever `set_rkcb_minors` says. **`kickback` — reverted to opt-in 2026-08-03: the relocation is a measured loss.** It shipped default-on 2026-08-02 on a PD win against a vulnerable plain-DD loss — jdh8's judgement call, taken under the *twin* nets, where the arms differed by a two-week-newer artifact as well as by the convention. The configured net (`features_v4`) made the fair cell possible — one net, arms one card row apart — and gate 2 read **plain DD −0.0105/−0.0092 (NV/vul), PD parity (+0.0006/+0.0026), sd-declarer −0.0088/−0.0073**, every relocated lane losing (♥ −1.09 PD/board over 391 boards, ♦ −3.76 over 230, ♣ −1.28 over 144). Gate 1 (`v4 − minors`, identical rules) simultaneously showed the +0.0705 PD/board kickback shipped on was **mostly the newer net**: +0.1933/+0.2469 plain DD, +0.5256/+0.5358 PD. The DD-blindness defence — a *stopping* convention is structurally charged by a scorer that never lets a thin slam fail — was tested with the sd-declarer row and **failed**; do not re-raise it without a scorer that fights DD's slam optimism the way sd fights its defensive optimism. The ladder's arithmetic is sound (every 1430 answer lands at or below five of trump); its faces are the cost, 4♦/4♥/4♠ being among the most common natural calls in bridge. Superseded numbers, not to be cited: the 2×10M twin cell (seed 1785623878) and the contaminated 1M of 2026-08-01. Full ledger: `docs/ai-bidder/bba-kickback.md` §7.13. **`redwood` — the minor half of the ladder alone**: 4♦ asks in clubs and 4♥ in diamonds, the majors keep plain 4NT. Named 2026-08-03 (jdh8: "there is no point to kickback only hearts"). **Unmeasured as its own arm** — the full-kickback loss charged the minor lanes per-lane (♦ −3.76, ♣ −1.28 PD/board), but a per-lane cut of one arm prices no stance. Approximations while opt-in: the v3 floor serves the *kickback* twin (right about the relocated minor lanes, expects a 4♠ ask the hearts lane no longer makes) and the card discloses `Kickback 1430`, BBA's nearest row. Either relocation: relocates the keycard ask onto the face-only `kickback_ladder`; 4NT keeps its own meaning. **Read at `instinct()` build time as well as classify time** — the reading's `alerted` test is structural, so the relocated rules must be absent, not merely inert, in the plain arm. Build one stance per arm *and* set the variant per call by side. The stance also selects the floor's weights (`classify_bba` serves the kickback twin) and rides the convention card (`Kickback 1430`) | 2M×2 configured | opt-in stances, default byte-identical |
 
 **Four knobs deleted 2026-08-02 — they were never agreements.** A knob has to
 name a stance a partnership could actually play; these named a broken build.
@@ -317,6 +316,15 @@ name a stance a partnership could actually play; these named a broken build.
 - `set_rkcb_announce` — announced 11+ points with the ask while the ask itself
   fires on less. That is a *false* disclosure, not merely an inert one. Its
   pilot measured a wash (`docs/ai-bidder/evaluator-net.md`).
+
+**Two knobs folded into one enum 2026-08-03.** `set_kickback` + `set_redwood`
+→ `set_rkcb_variant(RkcbVariant)`. Kickback implies the Redwood scope, so the
+bool pair had four cells for three stances: `(true, true)` duplicated
+`(true, false)`, and hearts-only was unrepresentable by design. The enum makes
+the honest domain the type — the `NotrumpDefense` precedent — and the web UI's
+two checkboxes (which could show both checked, a state the engine cannot play)
+became one radio family. Default `Plain`, byte-identical; `bba-gen`'s
+`--ns-kickback`/`--ns-redwood` became `--ns-rkcb <plain|redwood|kickback>`.
 
 ### A-suppress — takeout-double discipline (natural)
 
@@ -427,3 +435,54 @@ ab-fuzzy-strength gained a `--sd` blind-lead arbitrator.)*
 - `stale-pop` (measured before a book-population shift): set_open_one_notrump,
   set_floor_rkcb, set_natural_defense, set_direct_dont, set_landy,
   set_natural_double_shape, set_stayman_defense.
+
+## Encoding audit — bool clusters (2026-08-03)
+
+A review of every place two-plus bool knobs encode one multi-way choice — the
+mis-encoding whose worst case is a knob cross-product with unplayable cells
+(the §7.11 rule: a knob has to name a stance a partnership could actually
+play). One conversion shipped; the rest are verdicts so the question is not
+re-litigated per cluster.
+
+**Converted.** `set_kickback` + `set_redwood` → `set_rkcb_variant(RkcbVariant)`
+(see A7). Third such conversion, after `NotrumpDefense` (five defense bools,
+[defense.rs](../src/bidding/american/defense.rs)) and `set_rkcb_minors` (the
+2026-08-02 book+floor merge).
+
+**Deliberate non-merges — keep as independent bools.** Their combinations are
+all playable, or the doc explicitly prices them apart:
+
+- `set_sum_closure` / `set_upgrade_closure` — "the two closures read different
+  axes and the A/B measures them apart before stacking" (inference.rs).
+- `set_pass_reading` / `set_pass_exclusion_reading`, `set_probed_reading` /
+  `set_probed_vacuous_reading` — refinement pairs; the narrow knob is simply
+  dormant while the broad one is off, and each names a real reading stance.
+- `set_penalize_escape_stack` / `set_penalize_escape_values` — two independent
+  grounds for the same double; any of the four cells is a playable style.
+- `set_responsive_takeout` / `set_responsive_overcall` — the same convention
+  after a double vs after an overcall; the seats are independent agreements
+  (and carry opposite measured defaults).
+- `set_weak_two_major_priority` / `set_weak_two_longest_first` — two
+  tie-break doctrines that compose (both measured, both default-on).
+
+**Tolerated master-gate + payload packages.** A bool gate whose payload knobs
+are dead while it is off (gambling-3NT-over-X, preempt-4M, penalty-latch +
+`LatchStyle` + no-pull, rich-advance + its three sub-knobs, 1NT-runout +
+`RUNOUT_XX_MIN`): dead-but-harmless payloads, every armed combination
+playable. Not worth an `Option<Config>`-shaped API churn; revisit only if a
+mispaired harness arm ever costs a measurement.
+
+**Future enum candidates** (each is one editorial decision spread over bools,
+but the conversion is bigger surgery than the RKCB trio and none has bitten):
+
+- The 1NT-defense family payload bools (`DIRECT_LANDY_*`, `MECKWELL_*`,
+  `WOOLSEY_*`, `DIRECT_DONT_*`) — dead unless `notrump_defense()` names their
+  family; folding them into variant payloads would need a non-`Copy` cell.
+- The four defenses to their artificial 1NT responses and their
+  `competition.rs` mirror (`COMPETITION_OVER_*`) — same shape, disagreeing
+  defaults, eight knobs for two editorial decisions.
+- The five `set_suppress_*` takeout bools (A-suppress) — a shape bitset, and
+  three are already "fold into base".
+- `NOTRUMP_MINORS` selects a variant by `Alert("puppet")` / `Alert("european")`
+  string tag — the one non-enum variant selector left; an enum would match the
+  house pattern.

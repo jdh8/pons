@@ -126,7 +126,7 @@ struct Args {
     #[arg(long = "conv", value_parser = parse_override, value_name = "NAME=0|1")]
     conv: Vec<(CString, c_int)>,
     /// Extract features with **our** kickback recognizer armed
-    /// ([`set_kickback`]).  Pair it with `--conv "Kickback 1430=1"`: the `conv`
+    /// (`set_rkcb_variant`).  Pair it with `--conv "Kickback 1430=1"`: the `conv`
     /// flag makes the *teacher* play kickback, this one makes our extractor
     /// read the resulting auctions the way serving will.
     ///
@@ -262,6 +262,17 @@ impl SideConfig {
     fn system(self) -> &'static str {
         if self.dutch { "dutch" } else { "american" }
     }
+}
+
+/// Arm the recognizer for a side's `kickback: bool` — this harness dumps the
+/// full-ladder or plain regimes only, never Redwood, so the bool CLI stays.
+fn arm_kickback(on: bool) {
+    use pons::bidding::instinct::{RkcbVariant, set_rkcb_variant};
+    set_rkcb_variant(if on {
+        RkcbVariant::Kickback
+    } else {
+        RkcbVariant::Plain
+    });
 }
 
 /// `a-on`, `d-off`, `american-on`, `dutch-off` — a side's declared system
@@ -465,7 +476,7 @@ fn main() -> anyhow::Result<()> {
     // Per side: its card and the stance that reads its auctions.
     let mut per_side: BTreeMap<String, (pons::bidding::card::Card, Stance)> = BTreeMap::new();
     for side in &sides {
-        pons::bidding::instinct::set_kickback(side.kickback);
+        arm_kickback(side.kickback);
         let card = card_for(side.system())?;
         let stance = if side.dutch {
             dutch().against()
@@ -484,7 +495,7 @@ fn main() -> anyhow::Result<()> {
         let ours = per_side[&a.label()].0.clone();
         let theirs = per_side[&b.label()].0.clone();
         let config = Config::new(&ours, &theirs);
-        pons::bidding::instinct::set_kickback(a.kickback);
+        arm_kickback(a.kickback);
         let teacher: Box<dyn System> = match args.teacher.as_str() {
             "american" if a.dutch => Box::new(dutch_instinct().against()),
             "american" => Box::new(american_instinct().against()),
@@ -541,7 +552,7 @@ fn main() -> anyhow::Result<()> {
         // `features_v3` reads `Inferences`, so this decides what the corpus
         // *says* a relocated ask is — and it must agree with the teacher that
         // produced the target.
-        pons::bidding::instinct::set_kickback(regimes[regime]);
+        arm_kickback(regimes[regime]);
         // The card is rendered *after* the knobs are armed, which is what keeps
         // card, code and net in sync: `american_card()` reads the same knobs the
         // rules do.  Rebuilt per board only because `regime` can alternate; it is
@@ -619,7 +630,7 @@ fn main() -> anyhow::Result<()> {
                 // classifies: in a mixed table the two sides disagree, and the row
                 // must be extracted under the configuration that produced it.
                 if let Some((ours, _)) = acting {
-                    pons::bidding::instinct::set_kickback(ours.kickback);
+                    arm_kickback(ours.kickback);
                 }
                 let cell_artifacts =
                     acting.map(|(ours, theirs)| &per_pair[&(ours.label(), theirs.label())]);

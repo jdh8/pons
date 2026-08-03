@@ -176,11 +176,11 @@ mod tests {
     fn the_configured_floor_reads_its_card() {
         let auction = [call(1, Strain::Spades), Call::Pass];
         let hand = "AQ32.K53.QJ4.A92";
-        crate::bidding::instinct::set_kickback(false);
+        crate::bidding::instinct::set_rkcb_variant(crate::bidding::instinct::RkcbVariant::Plain);
         let off = configured(&auction, hand);
-        crate::bidding::instinct::set_kickback(true);
+        crate::bidding::instinct::set_rkcb_variant(crate::bidding::instinct::RkcbVariant::Kickback);
         let on = configured(&auction, hand);
-        crate::bidding::instinct::set_kickback(false);
+        crate::bidding::instinct::set_rkcb_variant(crate::bidding::instinct::RkcbVariant::Plain);
         assert_ne!(off, on, "the kickback row must reach the feature vector");
     }
 
@@ -216,9 +216,9 @@ mod tests {
             Call::Pass,
         ];
         let hand = "AQJT83.QT9875..6"; // ♠AQJT83 ♥QT9875 ♦— ♣6, board 229
-        crate::bidding::instinct::set_kickback(true);
+        crate::bidding::instinct::set_rkcb_variant(crate::bidding::instinct::RkcbVariant::Kickback);
         let with_kickback = best(&auction, hand);
-        crate::bidding::instinct::set_kickback(false);
+        crate::bidding::instinct::set_rkcb_variant(crate::bidding::instinct::RkcbVariant::Plain);
         assert_ne!(
             with_kickback,
             call(4, Strain::Hearts),

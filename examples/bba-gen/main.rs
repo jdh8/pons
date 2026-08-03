@@ -1038,22 +1038,19 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_rkcb_minors: bool,
 
-    /// Relocate the keycard ask off 4NT (opt-in, as in the crate): 4♦ asks in
-    /// clubs, 4♥ in diamonds (Redwood) and 4♠ in hearts, so every 1430 answer
-    /// lands at or below five of trump.  Measured a loss under the configured
-    /// net — see `set_kickback` — so the default arm is plain 4NT.  Read at
-    /// *build* time as well as classify time, so the flag must be parsed
-    /// before the system is constructed.
-    #[arg(long, default_value_t = false)]
-    ns_kickback: bool,
-
-    /// Relocate the **minor** asks only — Redwood, `set_redwood` (opt-in,
-    /// unmeasured as its own arm): 4♦ asks in clubs and 4♥ in diamonds, the
-    /// majors keep plain 4NT.  Implied by `--ns-kickback`; implies the minors'
-    /// reach whatever `--no-ns-rkcb-minors` says.  Same build-time caveat as
-    /// kickback.
-    #[arg(long, default_value_t = false)]
-    ns_redwood: bool,
+    /// The keycard ask's relocation stance, `set_rkcb_variant` (opt-in, as in
+    /// the crate): `redwood` relocates the minor asks only — 4♦ asks in clubs
+    /// and 4♥ in diamonds, the majors keep plain 4NT — and `kickback` adds 4♠
+    /// asking in hearts, so every 1430 answer lands at or below five of trump.
+    /// The full ladder measured a loss under the configured net (see
+    /// `RkcbVariant::Kickback`), so the default arm is plain 4NT.  Either
+    /// relocation implies the minors' reach whatever `--no-ns-rkcb-minors`
+    /// says.  Read at *build* time as well as classify time, so the flag must
+    /// be parsed before the system is constructed.  (Replaces the old
+    /// `--ns-kickback`/`--ns-redwood` bool pair, which silently accepted both
+    /// at once.)
+    #[arg(long, value_enum, default_value = "plain")]
+    ns_rkcb: RkcbArg,
 
     /// Disable the longer-major transfer discipline (default on): the Jacoby
     /// transfer guards revert to the legacy tie (a 6♠5♥ hand could transfer to
@@ -1221,6 +1218,25 @@ struct Args {
 }
 
 /// Parse a `NAME=0|1` convention override for `--our-conv` / `--their-conv`
+/// CLI face of [`pons::bidding::instinct::RkcbVariant`] — clap's `ValueEnum`
+/// cannot be derived for the foreign type.
+#[derive(Clone, Copy, clap::ValueEnum)]
+enum RkcbArg {
+    Plain,
+    Redwood,
+    Kickback,
+}
+
+impl From<RkcbArg> for pons::bidding::instinct::RkcbVariant {
+    fn from(arg: RkcbArg) -> Self {
+        match arg {
+            RkcbArg::Plain => Self::Plain,
+            RkcbArg::Redwood => Self::Redwood,
+            RkcbArg::Kickback => Self::Kickback,
+        }
+    }
+}
+
 fn parse_override(spec: &str) -> Result<(CString, c_int), String> {
     let (name, value) = spec
         .rsplit_once('=')
@@ -1436,8 +1452,7 @@ fn main() -> anyhow::Result<()> {
     pons::bidding::set_rubens_transfer_reading(!args.no_ns_rubens_reading);
     pons::bidding::instinct::set_floor_rkcb(!args.no_ns_floor_rkcb);
     pons::bidding::instinct::set_rkcb_minors(!args.no_ns_rkcb_minors);
-    pons::bidding::instinct::set_kickback(args.ns_kickback);
-    pons::bidding::instinct::set_redwood(args.ns_redwood);
+    pons::bidding::instinct::set_rkcb_variant(args.ns_rkcb.into());
     pons::bidding::set_control_bid_reading(!args.no_ns_control_bid_reading);
     pons::bidding::set_cue_reading(!args.no_ns_cue_reading);
     pons::bidding::set_length_soundness(!args.no_ns_length_soundness);

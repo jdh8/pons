@@ -6358,7 +6358,7 @@ mod tests {
     /// all-`None`): the knob-on reading must equal the knob-off one.
     #[test]
     fn kickback_face_gate_keeps_natural_four_spades_natural() {
-        use crate::bidding::instinct::set_kickback;
+        use crate::bidding::instinct::{RkcbVariant, set_rkcb_variant};
         // The audited C−B shape: 1♦ P 1♠ P 2♦ P 4♠ P — the reader is the
         // opener, partner is the natural 4♠ bidder.
         let auction = [
@@ -6372,9 +6372,9 @@ mod tests {
             Call::Pass,
         ];
         let baseline = read_booked(&auction).partner().length(Suit::Spades).min;
-        set_kickback(true);
+        set_rkcb_variant(RkcbVariant::Kickback);
         let gated = read_booked(&auction).partner().length(Suit::Spades).min;
-        set_kickback(false); // restore the default (off) for the rest of the suite
+        set_rkcb_variant(RkcbVariant::Plain); // restore the default (off) for the rest of the suite
         assert!(baseline >= 4, "the natural walk floors responder's spades");
         assert_eq!(gated, baseline, "kickback must not erase the natural floor");
     }
@@ -6384,7 +6384,7 @@ mod tests {
     /// alerted, so the ask is not read as a natural spade suit.
     #[test]
     fn kickback_relocated_ask_still_reads_as_the_convention() {
-        use crate::bidding::instinct::set_kickback;
+        use crate::bidding::instinct::{RkcbVariant, set_rkcb_variant};
         let auction = [
             bid(1, Strain::Hearts),
             Call::Pass,
@@ -6393,9 +6393,9 @@ mod tests {
             bid(4, Strain::Spades),
             Call::Pass,
         ];
-        set_kickback(true);
+        set_rkcb_variant(RkcbVariant::Kickback);
         let spades = read_booked(&auction).partner().length(Suit::Spades).min;
-        set_kickback(false); // restore the default (off) for the rest of the suite
+        set_rkcb_variant(RkcbVariant::Plain); // restore the default (off) for the rest of the suite
         assert!(spades < 4, "the relocated ask is not a natural spade suit");
     }
 
@@ -6414,11 +6414,11 @@ mod tests {
     /// nothing, which is exactly the regression being pinned.
     #[test]
     fn answer_gates_spare_a_natural_five_diamonds() {
-        use crate::bidding::instinct::set_kickback;
+        use crate::bidding::instinct::{RkcbVariant, set_rkcb_variant};
         // The plain arm on purpose (also the default): the poison this pins is
         // the *default system's* five-level answers, not the relocated
         // ladder's.
-        set_kickback(false);
+        set_rkcb_variant(RkcbVariant::Plain);
         let auction = [
             bid(1, Strain::Diamonds),
             Call::Pass,
@@ -6430,7 +6430,7 @@ mod tests {
             Call::Pass,
         ];
         let diamonds = read_booked(&auction).partner().length(Suit::Diamonds).min;
-        set_kickback(false); // restore the default (off) for the rest of the suite
+        set_rkcb_variant(RkcbVariant::Plain); // restore the default (off) for the rest of the suite
         assert!(
             diamonds >= 2,
             "a natural 5♦ with no ask anywhere on the face must keep its \

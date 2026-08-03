@@ -39,8 +39,17 @@ use contract_bridge::auction::Auction;
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Seat, Suit};
 use pons::american_instinct;
 use pons::bidding::Stance;
-use pons::bidding::instinct::{keycard_ask_at, set_kickback};
+use pons::bidding::instinct::{RkcbVariant, keycard_ask_at, set_rkcb_variant};
 use rayon::prelude::*;
+
+/// Arm the probe's regime: the full ladder or plain 4NT, never Redwood.
+fn arm_kickback(on: bool) {
+    set_rkcb_variant(if on {
+        RkcbVariant::Kickback
+    } else {
+        RkcbVariant::Plain
+    });
+}
 
 #[path = "common/mod.rs"]
 #[allow(dead_code)]
@@ -127,7 +136,7 @@ fn bid_out(
     let mut auction = Auction::new();
     while !auction.has_ended() {
         let seat = common::seat_to_act(dealer, auction.len());
-        set_kickback(kickback);
+        arm_kickback(kickback);
         auction.push(next_call(stance, deal[seat], dealer, vul, &auction));
     }
     auction
@@ -155,9 +164,9 @@ fn main() {
     // One stance per arm: the knob gates rule presence, so an off-arm stance
     // built with it on would carry alerted rungs that erase natural readings.
     let arm = |kickback| {
-        set_kickback(kickback);
+        arm_kickback(kickback);
         let built = american_instinct().against();
-        set_kickback(true);
+        arm_kickback(true);
         built
     };
     let (on, off) = (arm(true), arm(false));
@@ -180,7 +189,7 @@ fn main() {
             let plain = bid_out(&off, false, deal, dealer, vul);
             let rows = divergent_rows(&auction, &plain);
 
-            set_kickback(true);
+            arm_kickback(true);
             let calls: Vec<_> = auction.iter().copied().collect();
             let non_spade = (0..calls.len())
                 .find_map(|at| keycard_ask_at(&calls, at))

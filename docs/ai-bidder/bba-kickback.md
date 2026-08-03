@@ -1424,3 +1424,12 @@ The two decisions were one package. The other half — making the configured net
 the default floor — is **not taken here**: reverting the knob restores a stance
 the shipped twins already serve correctly, so it stands alone. Gate 1's verdict
 keeps until that decision is made on its own.
+
+**Knob surface since 2026-08-03:** `set_kickback` and `set_redwood` were folded
+into one enum knob, `set_rkcb_variant(RkcbVariant)` with `Plain` (the shipped
+default) / `Redwood` / `Kickback` — the bool pair encoded four cells for three
+stances, since kickback implies the Redwood scope and hearts-only is
+unrepresentable by design. Every `set_kickback`/`set_redwood` mention above is
+history and reads as `set_rkcb_variant(Kickback)`/`(Redwood)` today; the
+regimes, weights selection, and card row are unchanged
+(`docs/bidding-options.md` §A7 and its encoding audit).

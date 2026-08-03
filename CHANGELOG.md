@@ -38,6 +38,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **`set_kickback` + `set_redwood` folded into one enum knob:
+  `set_rkcb_variant(RkcbVariant)`, with `Plain` / `Redwood` / `Kickback`.**
+  The bool pair was a 2-bit encoding of a 3-value choice: kickback implies the
+  Redwood scope, so `(true, true)` was byte-identical to `(true, false)` and
+  hearts-only was unrepresentable by design — four cells, three stances. The
+  enum makes the honest domain the type (the `NotrumpDefense` precedent, and
+  the third such fold after `set_rkcb_minors`); the per-suit scope is now a
+  three-arm `match` in `kickback_ladder`'s claim loop, and
+  `relocating_now()` / `minor_asks_now()` keep their meanings, so every
+  downstream consumer (rule presence, recognizers, `classify_bba`'s weight
+  selection, the `Kickback 1430` card row) is untouched. Zero bidding change:
+  the default system is byte-identical (seeded 20k-board `smoke-default`
+  diff), and the Kickback stance replays the fixed-deal keycard probes
+  byte-identically. Neither deleted setter ever appeared in a published
+  release. Surface renames: `bba-gen`'s `--ns-kickback`/`--ns-redwood` (which
+  silently accepted both at once) become one `--ns-rkcb
+  <plain|redwood|kickback>`, and the web settings tab's two checkboxes (which
+  could show both checked, a state the engine cannot play) become one radio
+  family, `rkcb_variant`. `docs/bidding-options.md` gains the encoding audit
+  this fold came out of — the remaining bool clusters and their keep/convert
+  verdicts.
+
 - **`set_kickback` is opt-in again: the shipped default is the plain-4NT arm.**
   It shipped default-on for one day, on a PD win
   against a vulnerable plain-DD loss, in a cell where the arms differed by a

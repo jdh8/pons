@@ -1,4 +1,4 @@
-//! Walk one keycard auction under `set_kickback`, reporting at every seat what
+//! Walk one keycard auction under the Kickback stance, reporting at every seat what
 //! the bidder chose, what else it considered, and — the question a phantom
 //! contract always turns on — whether the position is **authored** or the floor.
 //!
@@ -12,7 +12,7 @@ use clap::Parser;
 use contract_bridge::auction::{Auction, Call};
 use contract_bridge::{AbsoluteVulnerability, Hand, Seat};
 use pons::bidding::context::relative;
-use pons::bidding::instinct::{set_kickback, set_rkcb_minors};
+use pons::bidding::instinct::{RkcbVariant, set_rkcb_minors, set_rkcb_variant};
 use pons::bidding::{Stance, System, american};
 use pons::scoring::final_contract;
 
@@ -39,7 +39,11 @@ struct Args {
 
 fn knobs(kickback: bool) {
     set_rkcb_minors(true);
-    set_kickback(kickback);
+    set_rkcb_variant(if kickback {
+        RkcbVariant::Kickback
+    } else {
+        RkcbVariant::Plain
+    });
 }
 
 fn main() {

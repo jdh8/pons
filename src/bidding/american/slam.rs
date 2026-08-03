@@ -70,8 +70,7 @@ pub(super) const RKCB: Alert = Alert("rkcb");
 /// stances no partnership could play: a book that asks on a minor over a floor
 /// that cannot answer, and the reverse.  Now one knob drives both, read at book
 /// construction here and at classification there.  A live relocation
-/// ([`set_redwood`][crate::bidding::instinct::set_redwood],
-/// [`set_kickback`][crate::bidding::instinct::set_kickback]) implies the reach
+/// ([`RkcbVariant`][crate::bidding::instinct::RkcbVariant]) implies the reach
 /// the same way — its whole payoff is the minor lanes, so a stance that
 /// relocates them cannot leave the book unable to ask there.
 ///

@@ -2068,20 +2068,20 @@ mod tests {
     /// which is the confound `docs/ai-bidder/configured-net.md` exists to kill.
     #[test]
     fn a_convention_knob_moves_the_card_block() {
-        use crate::bidding::instinct::set_kickback;
+        use crate::bidding::instinct::{RkcbVariant, set_rkcb_variant};
 
         let plain = {
-            set_kickback(false);
+            set_rkcb_variant(RkcbVariant::Plain);
             Config::symmetric(&crate::bidding::card::american_card())
         };
         let relocated = {
-            set_kickback(true);
+            set_rkcb_variant(RkcbVariant::Kickback);
             Config::symmetric(&crate::bidding::card::american_card())
         };
-        set_kickback(false); // restore the shipped default (off)
+        set_rkcb_variant(RkcbVariant::Plain); // restore the shipped default (off)
         assert_ne!(
             plain, relocated,
-            "`Kickback 1430` rides `set_kickback`, so the config block must differ"
+            "`Kickback 1430` rides `set_rkcb_variant`, so the config block must differ"
         );
 
         // Exactly one row moves, and the two sides move together.

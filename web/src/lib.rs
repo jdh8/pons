@@ -22,8 +22,8 @@ use contract_bridge::{
     AbsoluteVulnerability, Bid, Builder, Contract, FullDeal, Hand, Seat, Strain,
 };
 use pons::bidding::american::american_book;
-use pons::bidding::fallback::Fallback;
 use pons::bidding::evaluator::trick_estimates;
+use pons::bidding::fallback::Fallback;
 use pons::bidding::{Relative, Stance, Table, american, constraint, inference, instinct};
 use pons::scoring::{final_contract, imps};
 use pons_dds::{Par, Solver, TrickCountTable, Vulnerability, calculate_par, solve_deal_on};
@@ -1001,6 +1001,34 @@ fn set_negative_double_choice(value: &str) {
     });
 }
 
+/// The keycard ask's relocation stance — variants map onto
+/// `instinct::RkcbVariant`.  Each widens the one before it: plain 4NT, then
+/// the minor asks relocate (Redwood), then hearts relocate to 4♠ as well.
+static RKCB_VARIANT_VARIANTS: &[Variant] = &[
+    Variant {
+        value: "plain",
+        label: "Plain 4NT",
+    },
+    Variant {
+        value: "redwood",
+        label: "Redwood (relocate minor asks)",
+    },
+    Variant {
+        value: "kickback",
+        label: "Kickback (relocate all asks)",
+    },
+];
+
+/// Select the keycard relocation stance from its registry `value`.
+fn set_rkcb_variant_choice(value: &str) {
+    use instinct::RkcbVariant;
+    instinct::set_rkcb_variant(match value {
+        "redwood" => RkcbVariant::Redwood,
+        "kickback" => RkcbVariant::Kickback,
+        _ => RkcbVariant::Plain,
+    });
+}
+
 /// Lebensohl as an on/off toggle: on = Transfer Lebensohl (the default package, not
 /// the `set_lebensohl` wrapper's lossy `Plain`), off = none.
 fn set_lebensohl_toggle(on: bool) {
@@ -1119,8 +1147,9 @@ static SETTINGS: &[Setting] = &[
     toggle("rubens_advances", FLOOR, "", true, instinct::set_rubens_advances),
     toggle("floor_rkcb", FLOOR, "", true, instinct::set_floor_rkcb),
     toggle("rkcb_minors", FLOOR, "RKCB minors too", true, instinct::set_rkcb_minors),
-    toggle("redwood", FLOOR, "Redwood: relocate minor asks", false, instinct::set_redwood),
-    toggle("kickback", FLOOR, "Kickback: relocate all asks", false, instinct::set_kickback),
+    // One radio family, not two checkboxes: the old redwood/kickback toggles let
+    // the UI show both checked, a state the engine cannot play.
+    Setting::Choice { key: "rkcb_variant", section: FLOOR, label: "Keycard ask relocation", variants: RKCB_VARIANT_VARIANTS, default: "plain", set: set_rkcb_variant_choice },
     toggle("two_over_one_force", FLOOR, "2/1 forces game", true, instinct::set_two_over_one_force),
     toggle("penalize_escape_stack", FLOOR, "", true, instinct::set_penalize_escape_stack),
     toggle("penalize_escape_values", FLOOR, "", true, instinct::set_penalize_escape_values),
@@ -1178,9 +1207,13 @@ impl Binky {
     pub fn create(north: &str, south: &str, notrump: bool, seed: &str) -> Option<Binky> {
         let north: Hand = north.parse().ok()?;
         let south: Hand = south.parse().ok()?;
-        let partial = set_seat(set_seat(Builder::new(), Seat::North, north), Seat::South, south)
-            .build_partial()
-            .ok()?;
+        let partial = set_seat(
+            set_seat(Builder::new(), Seat::North, north),
+            Seat::South,
+            south,
+        )
+        .build_partial()
+        .ok()?;
         // `build_partial` accepts short hands; the shuffle only means anything
         // when both are complete.
         if north.len() != 13 || south.len() != 13 {
@@ -1620,13 +1653,23 @@ mod tests {
 
         let counts: Vec<u32> = serde_json::from_value(again["histogram"].clone()).expect("counts");
         assert_eq!(counts.len(), 14);
-        assert_eq!(counts.iter().sum::<u32>(), 12, "every layout lands in a bin");
+        assert_eq!(
+            counts.iter().sum::<u32>(),
+            12,
+            "every layout lands in a bin"
+        );
 
         // The whole point is that this is *conditional*: N-S hold 25 HCP, so the
         // unconditional mean of ~6.5 tricks must not be what comes back.
         let mean = again["mean"].as_f64().expect("mean");
-        assert!((7.0..=11.0).contains(&mean), "25 HCP should take ~9 tricks, got {mean}");
-        assert!(again["sd"].as_f64().expect("sd") < 3.0, "a flat pair is not wild");
+        assert!(
+            (7.0..=11.0).contains(&mean),
+            "25 HCP should take ~9 tricks, got {mean}"
+        );
+        assert!(
+            again["sd"].as_f64().expect("sd") < 3.0,
+            "a flat pair is not wild"
+        );
     }
 
     /// Overlapping or short hands must be refused rather than solved as nonsense.
