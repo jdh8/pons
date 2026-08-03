@@ -92,7 +92,7 @@ these rows — both of its gates run on freshly generated deals.
 | --- | --- |
 | 0..12,300,000 | point-count threshold campaign, stage 1 (archived ledger) |
 | 12.3M..38.7M | remnant fixes, two-over-one gate rescale (23M..35M), sd legs 38.5M–38.7M |
-| 38.7M..40.8M | weak-two A/B (`scripts/weak-two-ab.sh`, `OFF` default 38,700,000) |
+| 38.7M..40.8M | weak-two A/B (`scripts/ab-weak-two.sh`, `OFF` default 38,700,000) |
 | ~40M..42M | `set_two_over_one_heart_light` (REFUTED 2026-07-25) |
 
 Individually recorded slices inside that range, for cross-reference:

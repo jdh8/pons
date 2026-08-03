@@ -161,7 +161,7 @@ So the reader's unsoundness is downstream of a convention the bidder mostly
 does not play, and `set_rubens_advances` has never been measured against the
 natural ladder it replaced — [bidding-options.md](bidding-options.md) files it
 as *"baseline default; knob is the A/B off-arm"*. **The layer A/B comes first**
-(`scripts/rubens-ab.sh`, `--no-ns-rubens` vs default, plain + PD, both vuls):
+(`scripts/ab-rubens.sh`, `--no-ns-rubens` vs default, plain + PD, both vuls):
 the knob silences `rubens_reading` too, so a wash or a loss retires the reader
 along with the convention and every leg above becomes moot. Only a win makes
 the leg repairs worth authoring.

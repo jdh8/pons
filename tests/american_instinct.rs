@@ -94,7 +94,7 @@ fn test_deep_contested_auction_is_covered() {
 
 // --- Rubens advances: the floor owns advancing a simple overcall ------------
 //
-// The layer is **opt-in** since it lost its A/B (`scripts/rubens-ab.sh`), so
+// The layer is **opt-in** since it lost its A/B (`scripts/ab-rubens.sh`), so
 // these three enable it explicitly; the knob-off default is pinned by
 // `rubens_disabled_reverts_to_natural_advances` in `instinct.rs`.
 

@@ -536,7 +536,7 @@ fn rein_advance_raise_enabled() -> bool {
 /// won its M6.3 A/B (2026-07-02, plain +0.0016 ±0.0015 with the CI excluding
 /// zero, PD −0.0009 wash, 1144 fired) once both sides' continuations were
 /// authored, and shipped default-on on that.  Re-measured on the current
-/// system (`scripts/rubens-ab.sh`, 204,800 bd/arm/vul, SEED_BASE 1785426828,
+/// system (`scripts/ab-rubens.sh`, 204,800 bd/arm/vul, SEED_BASE 1785426828,
 /// sha 4485555) it **loses in all four cells** — plain −0.0009 ±0.0009 NV / −0.0008 ±0.0011 vul, PD
 /// −0.0014 ±0.0011 / −0.0014 ±0.0013 (both PD CIs clear of zero), fired
 /// 0.11%/0.09%, −0.83/−0.85 plain and −1.29/−1.51 PD per fired board.  The

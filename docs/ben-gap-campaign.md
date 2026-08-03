@@ -213,7 +213,7 @@ passed hand at ~6.3 mean HCP.
   probe soundness (0 new violations, vagueness −60%) plus the surfaces that
   consume readings: sd-lead pricing, search-mode sampling, disclosure.
   Only **length-soundness** has a priceable bidding delta — its
-  dual-reference A/B (off arm shared, `scripts/reading-knobs-ab.sh length`)
+  dual-reference A/B (off arm shared, `scripts/ab-reading-knobs.sh length`)
   is the one that runs to a numeric verdict.
 - **Length-soundness A/B MEASURED + SHIPPED default-on 2026-07-18**
   (SEED_BASE 1784294370, sha 74d783d arms; a mid-experiment lib rebuild by a
@@ -580,7 +580,7 @@ support, else an unconditional 3NT) answering every game-forcing continuation
 the authored rounds miss. Deleting it, paired with the new
 `set_two_over_one_force`, measures **plain +0.0117/+0.0142, PD +0.0132/+0.0160**
 IMPs/board NV/vul vs BBA (409,600×2, all CI>0, fires 0.57%,
-`scripts/game-backstop-ab.sh`). One node, comparable to a headline engine knob.
+`scripts/ab-game-backstop.sh`). One node, comparable to a headline engine knob.
 
 **Two lessons for the sweep.**
 

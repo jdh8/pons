@@ -87,7 +87,7 @@ deviant member is confounded in the wrong direction: a member playing a weaker
 system hands us IMPs *while we misread it more*, so a rising score can hide a
 collapsing reading value.
 
-**Not comparable to `scripts/blind-inference-ab.sh`** (−0.65 … −1.27 IMPs/bd,
+**Not comparable to `scripts/ab-blind-inference.sh`** (−0.65 … −1.27 IMPs/bd,
 2026-07-26): that control blanked all four seats and only the nets' feature
 vectors. This one blanks the two opponent seats at the source, so the sampler
 and the floor go blind with them.

@@ -1027,7 +1027,7 @@ struct Args {
     no_ns_doubler_run: bool,
 
     /// Enable Rubens advances of partner's simple overcall (**default off**
-    /// since the layer lost its A/B, `scripts/rubens-ab.sh`): the natural
+    /// since the layer lost its A/B, `scripts/ab-rubens.sh`): the natural
     /// raises plus natural two-level new-suit advance become the transfer
     /// ladder and the two-level cue-raise.  Also un-silences `rubens_reading`.
     #[arg(long, default_value_t = false)]

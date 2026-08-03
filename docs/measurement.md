@@ -64,10 +64,10 @@ A long run is watched by **polling the runner process**, never by grepping the
 log for the script's own success line:
 
 ```sh
-setsid nohup scripts/idle-run.sh scripts/my-ab.sh ab-results/my-ab >ab-results/my-ab.log 2>&1 &
-PID=$(pgrep -f my-ab.sh | head -1)
+setsid nohup scripts/idle-run.sh scripts/ab-my.sh ab-results/my >ab-results/my.log 2>&1 &
+PID=$(pgrep -f ab-my.sh | head -1)
 while kill -0 "$PID" 2>/dev/null; do sleep 20; done
-tail -5 ab-results/my-ab.log        # then read the diff files in a *separate* command
+tail -5 ab-results/my.log           # then read the diff files in a *separate* command
 ```
 
 Two failure modes this avoids, both paid for on the Gladiator v6 run:

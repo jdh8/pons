@@ -357,7 +357,7 @@ replay-verified **100%**.
 landed between the snapshots — the v3 calls-tail evaluator (+0.018/+0.028
 measured), the 1NT 3♥/3♠ splinter, the vulnerable weak-two overcall gate, the
 card-generator fixes — so the batch confounds them with the flip.  Disclosure's
-isolated cost remains `disclose-ab.sh`'s −0.009/board, measured with the old
+isolated cost remains `ab-disclose.sh`'s −0.009/board, measured with the old
 static card; re-running it against the *generated* card is the outstanding
 question, and cheap now that a full anchor generates in 12 minutes.
 

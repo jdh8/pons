@@ -1561,7 +1561,7 @@ fn longest_first_advance_enabled() -> bool {
 /// (which may still land in a longer minor).  Strong sits (10+) stand
 /// regardless — restricting *them* is the refuted cap migration
 /// (`ab-results/advance-penalty-pass/`, −2 IMPs/fired on both scorers).  The
-/// A/B knob for `scripts/advance-pass-yield-ab.sh`.
+/// A/B knob for `scripts/ab-advance-pass-yield.sh`.
 pub fn set_advance_pass_yield_major(on: bool) {
     ADVANCE_PASS_YIELD_MAJOR.with(|cell| cell.set(on));
 }
@@ -1590,7 +1590,7 @@ fn advance_pass_yield_major_enabled() -> bool {
 ///
 /// Composes with [`set_advance_pass_yield_major`]: the yield wraps whichever
 /// sit gate is live (both default-off, so the default system is untouched).
-/// The sweep knob for `scripts/advance-sit-hcp-ab.sh`.
+/// The sweep knob for `scripts/ab-advance-sit-hcp.sh`.
 pub fn set_advance_sit_hcp_gate(gate: Option<u8>) {
     ADVANCE_SIT_HCP_GATE.with(|cell| cell.set(gate));
 }

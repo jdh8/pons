@@ -168,7 +168,7 @@ pooled **−1.99 → −1.89 plain, −2.36 → −2.11 PD** (replay-verified 10
 Constructive/book/round-1 −2.49.
 
 **Bucket #3 `Constructive / book / round-2` → opener extras ladder (2026-07-08,
-`set_opener_extras_ladder` default-on, `scripts/opener-extras-ladder-ab.sh`,
+`set_opener_extras_ladder` default-on, `scripts/ab-opener-extras-ladder.sh`,
 SEED_BASE 1783544590):** traced the −98k (plain ≈ PD, underbid-heavy: `other`
 −86k / missed-game −38k / missed-slam −23k) to opener's minimum natural suit
 rebid with **no upper strength bound** — the biggest sub-lever `5+ ♦` (−20k) is
@@ -182,7 +182,7 @@ plain-DD win both vuls → **shipped default-on**. The two major-opening nodes
 follow-up.
 
 **Bucket #3 residual → opener major jump-rebid (2026-07-08,
-`set_opener_major_jump_rebid` default-on, `scripts/opener-major-jump-rebid-ab.sh`,
+`set_opener_major_jump_rebid` default-on, `scripts/ab-opener-major-jump-rebid.sh`,
 SEED_BASE 1783549337):** re-anchor `c864bad` left the `6+ ♥` (−3.8k) / `6+ ♠`
 (−5.7k) major single-suiter underbids (`3♥ → 4♥`, `2♥ → 3♥`, `3♠ → 4♠`, plain ≈
 PD) in the major-opening rebid nodes. Added the jump-rebid `3M` (6+/16+, natural)

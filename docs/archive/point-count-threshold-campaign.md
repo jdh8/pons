@@ -389,7 +389,7 @@ both vuls, ~4× the −1.5k/−2.1k the remnant report priced for this family.
 The paired `hcp12`-vs-`hcp13` head-to-head kept 13 (hcp12's vul plain edge
 +0.0026 came with PD −0.0020/−0.0034 — the thin-game doubling signature; an
 sd-lead probe could still revisit vul-only). Details: CHANGELOG 2026-07-15,
-`scripts/two-over-one-ab.sh`.
+`scripts/ab-two-over-one.sh`.
 
 ### Weak-two band — REJECTED, the wall (2026-07-15)
 
@@ -397,7 +397,7 @@ The prescription (Root A, `hcp(5..=10)` for the six-card weak-two opening,
 `set_weak_two_hcp`; Ogust min/max deliberately left on `points`, the fit-known
 leg — responder's 2NT promised support, mirroring the 2/1 hcp/support-points
 split) is **sound bridge but does not ship**. Fix-vs-shipped
-(`ab-point-count --weak-two-hcp 5:10`, both arms floored, `scripts/weak-two-ab.sh`):
+(`ab-point-count --weak-two-hcp 5:10`, both arms floored, `scripts/ab-weak-two.sh`):
 
 | bracket | NV | Vul |
 | --- | --- | --- |
@@ -505,7 +505,7 @@ The two small families fixed alongside:
 All five fixes are build-time knobs, measured fix-vs-shipped through
 `ab-point-count --fix <spec>` (the `Arms::GateFix` two-book path generalizing
 `Arms::WeakTwoHcp`), both arms on the shipped floored scale
-(`scripts/remnant-fixes-ab.sh`, 1M boards/vul plain+PD each, 50k/vul sd-lead
+(`scripts/ab-remnant-fixes.sh`, 1M boards/vul plain+PD each, 50k/vul sd-lead
 for the two competitive ranges where sd is the arbiter):
 
 | fix | plain DD NV / vul | PD NV / vul | sd-lead NV / vul | verdict |
@@ -593,7 +593,7 @@ matched-fire-rate swap bands CCCC `5.25..11.55` (101%) and NLTC `8.0..=9.5`
 population — junk with in-band losers walks in); discipline cuts CCCC floor
 5.60/6.60 (≈10%/20% prune), NLTC ceil 9.5/9.0 (≈9%/25% prune).
 
-Sweep: plain+PD 1M boards/vul per config (`scripts/weak-two-ab.sh` with
+Sweep: plain+PD 1M boards/vul per config (`scripts/ab-weak-two.sh` with
 `EVAL=<fix-spec> SD=0`), sd-lead 50k/vul only for the finalists — a weak two
 is a preempt, sd-lead is the arbiter.  Plain+PD results (candidate − shipped,
 IMPs/board, `24.pdd` rows 24.5M–38.5M):
@@ -656,7 +656,7 @@ hands above 14 did not route into the double — they fell into the owning
 `Pass`. The question was both edges at once: whether to admit seven-point
 one-suiters and whether to remove the ceiling.
 
-`scripts/one-nt-defense-range-ab.sh` runs the paired protocol against BBA with
+`scripts/ab-one-nt-defense-range.sh` runs the paired protocol against BBA with
 `--isolate-defense --filter-1nt --advertise-natural`: identical deals in every
 arm, ordinary and perfect-defense DD first, then 16-world sd-lead for the
 competitive-range finalists. The screen used 76,800 paired boards per

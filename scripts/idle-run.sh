@@ -19,7 +19,7 @@
 #
 # Example (a full two-arm A/B against the BBA reference, hours on an idle box):
 #   PER_SHARD=6400 scripts/idle-run.sh \
-#     scripts/book-value-ab.sh ab-results/book-value
+#     scripts/ab-book-value.sh ab-results/book-value
 #
 # To survive an SSH disconnect, run it inside tmux/screen, or:
 #   setsid nohup scripts/idle-run.sh <command> >run.log 2>&1 < /dev/null &

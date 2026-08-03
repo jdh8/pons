@@ -27,7 +27,7 @@
 # system hands us IMPs while we misread it more — so read the paired column,
 # not the level.
 #
-# NOT comparable to scripts/blind-inference-ab.sh (-0.65 .. -1.27 IMPs/bd):
+# NOT comparable to scripts/ab-blind-inference.sh (-0.65 .. -1.27 IMPs/bd):
 # that control blinded all four seats and only the nets; this one blinds the
 # two opponent seats at the `Inferences` level, so the sampler and the floor go
 # blind with them.

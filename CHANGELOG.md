@@ -94,6 +94,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Every A/B script in `scripts/` now carries its category as a *prefix*, not a
+  suffix** — 51 `<topic>-ab.sh` files became `ab-<topic>.sh`, and the five
+  bidding-options audit-pass runners `a3-run.sh` … `a7-run.sh` became
+  `ab-a3.sh` … `ab-a7.sh`. `examples/` was already prefix-form (`ab-*`,
+  `probe-*`, `eval-*`, `bba-*`, `ben-*`, `dump-*`) and is unchanged, as are the
+  already-prefixed `ab-lib.sh`, `ab-aggregate.sh`, `sd-pd-*`, `bba-*`, `ben-*`
+  and `gib-scavenge.*`. Tab-completing `scripts/ab-` now lists every A/B in the
+  repo instead of two. References were rewritten across `docs/`, the scripts'
+  own headers and cross-references, and a handful of Rust doc comments; no
+  behaviour changed, so no measurement applies. Entries **above this line in
+  this file keep the names in use at the time** — the changelog is history, not
+  a path index. Live docs that still cite a *deleted* script
+  (`rule-of-20-ab.sh`, `splinter-doubled-ab.sh`, `nt-shape-ab.sh`,
+  `nt-shape-confirm-ab.sh`, `constructive-floor-ab.sh`, `dnf-flip-ab.sh`,
+  `two-over-one-slam-strength-ab.sh`, `longest-advance-ab.sh`) were left alone
+  for the same reason: those files never had the new name.
+
 - **The five per-system 1NT-defense bool shims are deleted** in favour of
   `set_notrump_defense` alone, completing the `NotrumpDefense` fold. Each shim's
   `false` arm reverted to Natural *only if that system was active*, so resetting

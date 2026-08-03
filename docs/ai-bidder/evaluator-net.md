@@ -1065,7 +1065,7 @@ fail.
 nine milestones split 4 accelerate (3NT, 5m, 4M, fitted 4M, collar
 `COLLAR_SLACK = 2` below the threshold) / 5 veto (6M, 7M, 6NT, 7NT, the RKCB
 grand). Knob `set_net_collar`, default **off**, harness `bba-gen
---ns-net-collar`, A/B `scripts/net-collar-ab.sh`.
+--ns-net-collar`, A/B `scripts/ab-net-collar.sh`.
 
 Byte-identity is *not* expressible as a unit test — the legacy expression no
 longer exists in the tree — so it was proven against a baseline worktree at the
@@ -1101,7 +1101,7 @@ to ignore. Pinned by `net_collar_vetoes_the_notrump_slam_below_thirty_three`.
 
 #### The A/B — all four cells lose
 
-`scripts/net-collar-ab.sh`, sha `6fe1a27`, `SEED_BASE=1785059133`, 204,800
+`scripts/ab-net-collar.sh`, sha `6fe1a27`, `SEED_BASE=1785059133`, 204,800
 boards per arm per vulnerability. Arms are knob-off (shipped: the net holds the
 whole criterion) vs `--ns-net-collar`. Positive = the collar wins.
 
@@ -1307,7 +1307,7 @@ an axis.
 ### The A/B — a wash in all four cells
 
 Since the pilot is inert, the measurement is of the alerted-only union.
-`scripts/announced-reading-ab.sh`, `SEED_BASE=1785070714`, 204,800 boards per
+`scripts/ab-announced-reading.sh`, `SEED_BASE=1785070714`, 204,800 boards per
 arm per vulnerability, arms `off` vs `--ns-announced-reading`. Positive = the
 agreement overlay wins.
 
@@ -1426,7 +1426,7 @@ rows): **−1.54856 / MAE 1.392 / slam-MAE 2.474**, against the shipped v3's
 
 ### The A/B — the mechanism confirmed, the roadmap closed
 
-`scripts/eval-shape-ab.sh`, 2026-07-27: four arms per vulnerability at 204.8k
+`scripts/ab-eval-shape.sh`, 2026-07-27: four arms per vulnerability at 204.8k
 bd/arm/vul vs BBA 2/1, SEED_BASE 1785154805, sha 580655f.  The 2×2 crosses
 `set_eval_shape` with `set_sum_closure`, so the closure pair under each encoding
 is measured on the same deals and their difference isolates the encoding.

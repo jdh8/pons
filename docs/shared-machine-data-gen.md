@@ -18,7 +18,7 @@ scheduling class (plus the idle I/O class) and set **no CPU quota**:
 
 ```sh
 PER_SHARD=6400 scripts/idle-run.sh \
-  scripts/book-value-ab.sh ab-results/book-value
+  scripts/ab-book-value.sh ab-results/book-value
 # expands to:  nice -n10  chrt --idle 0  ionice -c3  <command>
 ```
 

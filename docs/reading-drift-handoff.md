@@ -284,7 +284,7 @@ stamp's narrow excuse (`1♠ P 3NT P 4♠`), the cue-agreement-blind
 
 ### Batched A/B (launched 2026-07-31)
 
-`scripts/reading-drift-ab.sh` — two-binary protocol (the repairs are
+`scripts/ab-reading-drift.sh` — two-binary protocol (the repairs are
 knobless): `bba-gen-base` (HEAD 240a573) vs `bba-gen-fix` (all repairs),
 both prebuilt into `ab-results/reading-drift/` before launch so nothing
 rebuilds in flight. 32×6400 bd/arm/vul, SEED_BASE **1785449222**, arms
@@ -921,7 +921,7 @@ reads the cue-blocked lanes.  Five-case unit test
 doctrine table; `readings_admit_the_bidder` stays green.
 
 A/B in `ab-results/reading-drift-cue-face/`: two-binary
-`reading-drift-ab.sh` protocol, base **49f4837**, SEED_BASE
+`ab-reading-drift.sh` protocol, base **49f4837**, SEED_BASE
 **1785512396**, 32×6400 bd/arm/vul, arms sequential under
 `idle-run.sh`, plain + PD.  **Pre-registered bar: non-loss ships**
 (doctrine-pinning reading repair, the seven-repair-batch/DOPI class); a

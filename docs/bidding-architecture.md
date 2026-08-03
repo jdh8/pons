@@ -32,7 +32,7 @@ auction + hand
   `american_instinct()` the books over the deterministic ladder instead of the
   net. The private `with_floor` is where floors attach.
 - **What the authored book is worth**: `american` − `american_floor`, 204800
-  boards/vul vs the BBA reference (2026-07-20, `scripts/book-value-ab.sh`), is
+  boards/vul vs the BBA reference (2026-07-20, `scripts/ab-book-value.sh`), is
   **+0.29 plain / +0.23 PD** NV and **+0.37 plain / +0.27 PD** vul — real, all
   CIs clear of zero, but far short of the whole system. Auctions diverge on 53%
   of boards, so the book earns ≈+0.5 IMPs per board it actually touches. Read

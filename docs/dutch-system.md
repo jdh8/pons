@@ -90,7 +90,7 @@ swap `american()` got on 2026-07-19 — it ran `with_instinct_floor` everywhere,
 the claim "Dutch's majors are bit-identical to american" was false at the floor.
 `dutch()` now takes `NeuralFloorBba`; `dutch_instinct()` preserves the old body
 as the disclosable reference and A/B baseline. Runner
-`scripts/dutch-floor-ab.sh`, 204 800 bd/arm/vul, seed base 1784493655.
+`scripts/ab-dutch-floor.sh`, 204 800 bd/arm/vul, seed base 1784493655.
 
 | `dutch` − `dutch-instinct` | plain DD | perfect defense | fired |
 | --- | --- | --- | --- |
@@ -330,7 +330,7 @@ opposite meanings, the one spot the WJ net would be catastrophically wrong.
 
 ### Phase 2.1 A/B result — LOSS, as expected for a half-built system
 
-`scripts/dutch-ab.sh` (SEED_BASE 1784374548, sha 945c1ae bidding code plus
+`scripts/ab-dutch.sh` (SEED_BASE 1784374548, sha 945c1ae bidding code plus
 harness-only `--our-floor dutch` wiring, 204 800 bd/arm/vul vs the BBA
 reference opponent). `dutch − american`:
 

@@ -410,7 +410,7 @@ feature vectors: every seat reads `Envelope::unknown`, and the nets reason from
 the auction alone. Only the nets go blind — `within_ranges`, `admits` and the
 opening-lead sampling read the `Inferences` directly and are untouched, so the
 deals are identical and only the decisions taken on them move.
-`scripts/blind-inference-ab.sh`, `SEED_BASE=1785072635`, 204,800 bd/arm/vul:
+`scripts/ab-blind-inference.sh`, `SEED_BASE=1785072635`, 204,800 bd/arm/vul:
 
 | vul | scorer | IMPs/board | IMPs/fired | fired |
 | --- | --- | --- | --- | --- |
@@ -782,7 +782,7 @@ through the thread-local knob with no harness change; knob-off is
 structurally byte-identical (`exclusion_matches_candle_fixture`,
 `exclusion_knob_swaps_v3_weights`).
 
-**Re-measure DONE 2026-07-30**: `scripts/exclusion-retrain-ab.sh`
+**Re-measure DONE 2026-07-30**: `scripts/ab-exclusion-retrain.sh`
 (`ab-results/exclusion-retrain/`), base vs `--ns-pass-exclusion`, 204,800
 bd/arm/vul, SEED_BASE 1785354456, sha ad0983f plus this uncommitted tree.
 Pre-registered disposition: plain wash + PD win → the reading flips
