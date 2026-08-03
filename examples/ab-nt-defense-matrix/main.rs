@@ -53,10 +53,10 @@ use contract_bridge::{AbsoluteVulnerability, Bid, Contract, FullDeal, Hand, Seat
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
 use pons::bidding::american::{
-    DoubleStyle, set_always_pass_defense, set_direct_dont, set_direct_dont_one_suiter_min,
-    set_direct_dont_x_floor, set_direct_landy_double, set_double_style, set_landy, set_meckwell,
-    set_meckwell_minor_major_44, set_meckwell_x_floor, set_meckwell_x_four_four,
-    set_natural_defense, set_penalty_pass, set_trap_pass, set_unusual_notrump_defense, set_woolsey,
+    DoubleStyle, NotrumpDefense, set_direct_dont_one_suiter_min, set_direct_dont_x_floor,
+    set_direct_landy_double, set_double_style, set_landy, set_meckwell_minor_major_44,
+    set_meckwell_x_floor, set_meckwell_x_four_four, set_notrump_defense, set_penalty_pass,
+    set_trap_pass, set_unusual_notrump_defense,
 };
 use pons::bidding::context::relative;
 use pons::bidding::instinct::{set_one_nt_runout, set_one_nt_runout_universal};
@@ -127,17 +127,14 @@ struct Args {
 /// Reset every defense knob (row axis) and counter knob (column axis) to the
 /// shipped default, so a book build never inherits a previous build's setting.
 fn reset_knobs() {
-    // Row axis — our defense over their 1NT.
-    set_natural_defense(true);
-    set_always_pass_defense(false);
-    set_direct_dont(false);
+    // Row axis — our defense over their 1NT.  One cell holds the system, so one
+    // write resets the whole family; only the per-family payloads need their own.
+    set_notrump_defense(NotrumpDefense::Natural);
     set_direct_dont_one_suiter_min(5);
     set_direct_dont_x_floor(0);
-    set_meckwell(false);
     set_meckwell_minor_major_44(false);
     set_meckwell_x_four_four(true);
     set_meckwell_x_floor(0);
-    set_woolsey(false);
     set_landy(None);
     set_unusual_notrump_defense(Some((8, 13)));
     set_direct_landy_double(None);
@@ -157,14 +154,13 @@ fn build_books() -> (Vec<Stance>, Vec<Stance>) {
         american().against()
     };
     // The DONT parity config (docs/ai-bidder/1nt-defense-dont.md): 6+ one-suiter
-    // minimum; DONT owns 2♣/2NT, so the Landy/Unusual overlays are overridden.  The
+    // minimum; DONT owns 2♣/2NT, so it carries its own both-minors band.  The
     // `x_floor` variant raises only the one-suiter X floor (strong doubles only).
     let dont = |x_floor: u8| {
         move || {
-            set_direct_dont(true);
+            set_notrump_defense(NotrumpDefense::DirectDont);
             set_direct_dont_one_suiter_min(6);
             set_direct_dont_x_floor(x_floor);
-            set_landy(None);
             set_unusual_notrump_defense(Some((8, 14)));
         }
     };
@@ -173,9 +169,7 @@ fn build_books() -> (Vec<Stance>, Vec<Stance>) {
     // X); the `x_floor` variant raises only the broad two-way X floor.
     let meckwell = |x_floor: u8| {
         move || {
-            set_meckwell(true);
-            set_natural_defense(false);
-            set_landy(None);
+            set_notrump_defense(NotrumpDefense::Meckwell);
             set_unusual_notrump_defense(Some((8, 14)));
             set_meckwell_minor_major_44(false);
             set_meckwell_x_four_four(true);
@@ -183,14 +177,13 @@ fn build_books() -> (Vec<Stance>, Vec<Stance>) {
         }
     };
     let rows = vec![
-        build(&|| set_always_pass_defense(true)),
+        build(&|| set_notrump_defense(NotrumpDefense::AlwaysPass)),
         build(&|| ()),    // natural: the shipped default defense
         build(&dont(0)),  // DONT(6+): X floor inherits the natural 8
         build(&dont(12)), // DONT(6+,X12): strong one-suiter doubles only
         build(&|| {
             // Woolsey owns every direct call over their 1NT.
-            set_woolsey(true);
-            set_natural_defense(false);
+            set_notrump_defense(NotrumpDefense::Woolsey);
             set_unusual_notrump_defense(None);
         }),
         build(&meckwell(0)),  // Meckwell: X floor inherits the natural 8

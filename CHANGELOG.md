@@ -47,7 +47,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   now carries the `floor_rkcb` conjunct itself, so all seven consumers agree.
   The shipped default is unaffected (`floor_rkcb` is on) and byte-identical.
 
+- **Four statically dead disjuncts in `penalty_x_reading`** — one
+  `Cell<NotrumpDefense>` holds one value, so "Natural is active" already
+  subsumed the four "…but not DONT/Meckwell/direct-Landy/Woolsey" tests. They
+  were the pre-fold precedence cascade the enum was introduced to delete.
+
 ### Changed
+
+- **The five per-system 1NT-defense bool shims are deleted** in favour of
+  `set_notrump_defense` alone, completing the `NotrumpDefense` fold. Each shim's
+  `false` arm reverted to Natural *only if that system was active*, so resetting
+  by calling every `set_*(false)` was order-dependent — and keeping them let
+  `bba-gen` and `ab-landy` re-implement, in hand-written last-write-wins blocks,
+  the very precedence cascade the enum deleted (`--ns-dont --ns-meckwell
+  --ns-woolsey` was accepted silently, resolved by whichever call ran last).
+  `bba-gen` gains `--ns-notrump-defense <variant>`, `ab-landy` gains
+  `--ns-defense`/`--ew-defense`, and `--ns-landy` stays its own flag because
+  Landy is an overlay, not a variant. Byte-identical on the shipped default
+  (seeded 20k-board `smoke-default` diff).
 
 - **`set_kickback` + `set_redwood` folded into one enum knob:
   `set_rkcb_variant(RkcbVariant)`, with `Plain` / `Redwood` / `Kickback`.**

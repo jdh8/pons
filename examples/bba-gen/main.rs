@@ -46,7 +46,9 @@ use std::ffi::{CString, c_int};
 #[allow(dead_code)]
 mod common;
 use common::oracle::{BbaOracle, ConventionCard, DEFAULT_LIB, SYSTEM_2_OVER_1, bid_out, load_bbsa};
-use common::{Blinded, Board, Dump, deviant_floor, hand_hcp, seat_floor, seat_to_act};
+use common::{
+    Blinded, Board, Dump, NtDefenseArg, deviant_floor, hand_hcp, seat_floor, seat_to_act,
+};
 
 /// Bid our 2/1 floor against BBA's 2/1 and write the boards (the generation half
 /// of the A/B duplicate match; `bba-score` scores them)
@@ -310,6 +312,11 @@ struct Args {
     /// `docs/reading-drift-handoff.md`.
     #[arg(long, default_value_t = false)]
     ns_natural_reading: bool,
+
+    /// Disable reading per-call alerts as artificial (default on) to A/B the
+    /// alert-reading defense switch — how our floor reads alerted artificial calls.
+    #[arg(long, default_value_t = false)]
+    no_alert_reading: bool,
 
     /// Blank every reading our nets see (`features::set_blind_inference`, crate
     /// default off — diagnostic, never ship it on).  The reading program's
@@ -931,37 +938,43 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_balancing: bool,
 
-    /// Replace our natural 1NT defense with conventional DONT (default off):
-    /// one-suiter X, 2♣ = clubs + a higher major, 2♦ = diamonds + a major, 2♥ =
-    /// both majors, 2♠ natural, 2NT = both minors.
-    #[arg(long, default_value_t = false)]
-    ns_dont: bool,
+    /// Which mutually-exclusive defense our side plays over BBA's 1NT (default
+    /// `natural`).
+    ///
+    /// `natural` = penalty X + the four natural two-level overcalls; `direct-dont`
+    /// = one-suiter X, 2♣/2♦/2♥ two-suiters, 2♠ natural, 2NT both minors;
+    /// `meckwell` = two-way X, 2♣/2♦ minor+major, natural majors; `woolsey` =
+    /// Multi-Landy; `direct-landy` = both-majors takeout X; `always-pass` = we
+    /// never compete (the truest do-nothing baseline); `off` = author nothing
+    /// and let the bare instinct floor have the seat.
+    ///
+    /// One flag because the systems are one choice: the engine holds them in a
+    /// single `Cell<NotrumpDefense>`, and the bool-per-system CLI this replaced
+    /// accepted `--ns-dont --ns-meckwell --ns-woolsey` together and silently
+    /// resolved it by whichever `set_*` call ran last.  Run `meckwell`/`woolsey`
+    /// WITHOUT `--advertise-natural` (BBA reads them via its own DONT /
+    /// Multi-Landy rows).
+    #[arg(long, value_enum, default_value = "natural")]
+    ns_notrump_defense: NtDefenseArg,
 
     /// DONT one-suiter minimum length for the `X`/`2♠` (default 5; set 6 to insist
-    /// only with a six-card suit). Only with `--ns-dont`.
+    /// only with a six-card suit). Only with `--ns-notrump-defense direct-dont`.
     #[arg(long, default_value_t = 5)]
     ns_dont_one_suiter_min: u8,
 
     /// Let DONT two-suiters (`2♣`/`2♦`/`2♥`) accept a flat 4-4 (default off = 5-4+).
-    /// Only with `--ns-dont`.
+    /// Only with `--ns-notrump-defense direct-dont`.
     #[arg(long, default_value_t = false)]
     ns_dont_four_four: bool,
 
-    /// Replace our natural 1NT defense with Meckwell (default off): two-way X =
-    /// single 6+ minor OR both majors, 2♣ = clubs + a major, 2♦ = diamonds + a major,
-    /// 2♥/2♠ = natural single-suiters, 2NT = both minors.  Run WITHOUT
-    /// `--advertise-natural` (BBA reads it via its DONT convention).
-    #[arg(long, default_value_t = false)]
-    ns_meckwell: bool,
-
     /// Probe: let Meckwell's `2♣`/`2♦` accept a flat 4-4 (default off = 5-4+). Only
-    /// with `--ns-meckwell`.
+    /// with `--ns-notrump-defense meckwell`.
     #[arg(long, default_value_t = false)]
     ns_meckwell_minor_major_44: bool,
 
     /// Probe: let Meckwell's both-majors `X` accept a flat 4-4 (default on = 4-4; set
     /// false-ish by passing `--ns-meckwell-x-five-four` for 5-4+). Only with
-    /// `--ns-meckwell`.
+    /// `--ns-notrump-defense meckwell`.
     #[arg(long, default_value_t = false)]
     ns_meckwell_x_five_four: bool,
 
@@ -969,21 +982,21 @@ struct Args {
     /// (≥5-4), `2NT` = both minors, on the given `points` band `LO:HI`, replacing the
     /// natural `2♣` club overcall (penalty X + natural `2♦`/`2♥`/`2♠` stay).  Pair with
     /// `--advertise-landy` so BBA reads our `2♣` as both majors and the rest natural.
+    ///
+    /// An **overlay, not a system** — hence its own flag rather than a
+    /// `--ns-notrump-defense` variant.  The engine keeps it in a separate cell and
+    /// honours it only under `natural`/`off`, so pairing it with a conventional
+    /// family leaves it inert rather than fighting for `2♣`.
     #[arg(long)]
     ns_landy: Option<String>,
 
-    /// Replace our 1NT defense with our own Woolsey "Multi-Landy" (default off):
-    /// X = 4-card major + longer minor, 2♣ = both majors, 2♦ = Multi, 2♥/2♠ =
-    /// Muiderberg.  Run WITHOUT `--advertise-natural` (BBA reads it via Multi-Landy).
-    #[arg(long, default_value_t = false)]
-    ns_woolsey: bool,
-
     /// Woolsey suit-overcall (2♣/2♦/2♥/2♠) points band LO:HI (default 8:19). Only
-    /// with `--ns-woolsey`.
+    /// with `--ns-notrump-defense woolsey`.
     #[arg(long, default_value = "8:19")]
     ns_woolsey_range: String,
 
-    /// `points` floor for our Woolsey takeout X (default 12). Only with `--ns-woolsey`.
+    /// `points` floor for our Woolsey takeout X (default 12). Only with
+    /// `--ns-notrump-defense woolsey`.
     #[arg(long, default_value_t = 12)]
     ns_woolsey_x_floor: u8,
 
@@ -1141,11 +1154,6 @@ struct Args {
     #[arg(long, default_value = "10:16:10:16")]
     ns_weak_two_overcall: String,
 
-    /// Our side NEVER competes over BBA's 1NT (default off): authors only Pass at
-    /// every seat, the truest "do nothing" baseline.  Overrides every other defense knob.
-    #[arg(long, default_value_t = false)]
-    ns_always_pass: bool,
-
     /// Advertise that our defense to BBA's 1NT is natural.  At *our* table only the
     /// opponent bot's 1NT-defense conventions are disabled (`Multi-Landy`/
     /// `Cappelletti`/`Landy` off), so BBA reads our two-level overcalls as natural.
@@ -1165,11 +1173,6 @@ struct Args {
     /// default on) to A/B the floor change's effect on defense.
     #[arg(long, default_value_t = false)]
     no_settle_floor: bool,
-
-    /// Disable reading per-call alerts as artificial (default on) to A/B the
-    /// alert-reading defense switch — how our floor reads alerted artificial calls.
-    #[arg(long, default_value_t = false)]
-    no_alert_reading: bool,
 
     /// HCP floor at which a strong-1NT responder forces game off the floor in an
     /// undisturbed auction (default 9, closing the post-transfer seam where a
@@ -1431,6 +1434,7 @@ fn main() -> anyhow::Result<()> {
         pons::bidding::instinct::set_uvu_encircle(true);
     }
     pons::bidding::american::set_defense_to_2d_multi(args.defense_2d_multi);
+    pons::bidding::set_alert_reading(!args.no_alert_reading);
     pons::bidding::instinct::set_settle_floor(!args.no_settle_floor);
     pons::bidding::instinct::set_nt_responder_game_floor(args.ns_nt_responder_game_floor);
     pons::bidding::instinct::set_suppress_nt_game_force_over_double(
@@ -1443,7 +1447,6 @@ fn main() -> anyhow::Result<()> {
     pons::bidding::instinct::set_preempt_4m_top_honors(args.ns_preempt_4m_top_honors);
     pons::bidding::instinct::set_preempt_4m_require_ace(!args.no_ns_preempt_4m_ace);
     pons::bidding::instinct::set_correct_3nt_to_major(!args.no_ns_correct_3nt_to_major);
-    pons::bidding::set_alert_reading(!args.no_alert_reading);
     pons::bidding::instinct::set_penalty_latch(!args.no_ns_penalty_latch);
     pons::bidding::instinct::set_penalty_no_pull(!args.ns_allow_pull);
     pons::bidding::instinct::set_advancer_xx_runout(!args.no_ns_xx_runout);
@@ -1679,22 +1682,40 @@ fn main() -> anyhow::Result<()> {
             })?;
         pons::bidding::american::set_stayman_defense_overcall(lo, hi);
     }
-    pons::bidding::american::set_direct_dont(args.ns_dont);
-    if args.ns_dont {
-        pons::bidding::american::set_landy(None);
-        pons::bidding::american::set_unusual_notrump_defense(Some((8, 14)));
-        pons::bidding::american::set_direct_dont_one_suiter_min(args.ns_dont_one_suiter_min);
-        pons::bidding::american::set_direct_dont_four_four(args.ns_dont_four_four);
+    // One system, one write — the payloads then apply to whichever family owns
+    // them.  No forced-off block: the cell holds exactly one variant, so
+    // selecting a family already deselects the rest.
+    let ns_defense = pons::bidding::american::NotrumpDefense::from(args.ns_notrump_defense);
+    pons::bidding::american::set_notrump_defense(ns_defense);
+    match ns_defense {
+        pons::bidding::american::NotrumpDefense::DirectDont => {
+            pons::bidding::american::set_unusual_notrump_defense(Some((8, 14)));
+            pons::bidding::american::set_direct_dont_one_suiter_min(args.ns_dont_one_suiter_min);
+            pons::bidding::american::set_direct_dont_four_four(args.ns_dont_four_four);
+        }
+        pons::bidding::american::NotrumpDefense::Meckwell => {
+            pons::bidding::american::set_unusual_notrump_defense(Some((8, 14)));
+            pons::bidding::american::set_meckwell_minor_major_44(args.ns_meckwell_minor_major_44);
+            pons::bidding::american::set_meckwell_x_four_four(!args.ns_meckwell_x_five_four);
+        }
+        pons::bidding::american::NotrumpDefense::Woolsey => {
+            let (wlo, whi) = args
+                .ns_woolsey_range
+                .split_once(':')
+                .and_then(|(lo, hi)| Some((lo.parse::<u8>().ok()?, hi.parse::<u8>().ok()?)))
+                .ok_or_else(|| {
+                    anyhow::anyhow!(
+                        "--ns-woolsey-range must be LO:HI, got {:?}",
+                        args.ns_woolsey_range
+                    )
+                })?;
+            pons::bidding::american::set_woolsey_points(wlo, whi);
+            pons::bidding::american::set_woolsey_double_floor(args.ns_woolsey_x_floor);
+        }
+        _ => {}
     }
-    pons::bidding::american::set_meckwell(args.ns_meckwell);
-    if args.ns_meckwell {
-        pons::bidding::american::set_natural_defense(false);
-        pons::bidding::american::set_landy(None);
-        pons::bidding::american::set_direct_dont(false);
-        pons::bidding::american::set_unusual_notrump_defense(Some((8, 14)));
-        pons::bidding::american::set_meckwell_minor_major_44(args.ns_meckwell_minor_major_44);
-        pons::bidding::american::set_meckwell_x_four_four(!args.ns_meckwell_x_five_four);
-    }
+    // The Landy overlay rides its own cell and the engine honours it only under
+    // `natural`/`off`, so it needs no ordering against the family above.
     if let Some(spec) = &args.ns_landy {
         let (lo, hi) = spec
             .split_once(':')
@@ -1702,25 +1723,6 @@ fn main() -> anyhow::Result<()> {
             .ok_or_else(|| anyhow::anyhow!("--ns-landy must be LO:HI, got {spec:?}"))?;
         pons::bidding::american::set_landy(Some((lo, hi)));
     }
-    pons::bidding::american::set_woolsey(args.ns_woolsey);
-    if args.ns_woolsey {
-        let (wlo, whi) = args
-            .ns_woolsey_range
-            .split_once(':')
-            .and_then(|(lo, hi)| Some((lo.parse::<u8>().ok()?, hi.parse::<u8>().ok()?)))
-            .ok_or_else(|| {
-                anyhow::anyhow!(
-                    "--ns-woolsey-range must be LO:HI, got {:?}",
-                    args.ns_woolsey_range
-                )
-            })?;
-        pons::bidding::american::set_woolsey_points(wlo, whi);
-        pons::bidding::american::set_woolsey_double_floor(args.ns_woolsey_x_floor);
-        pons::bidding::american::set_natural_defense(false);
-        pons::bidding::american::set_landy(None);
-        pons::bidding::american::set_direct_dont(false);
-    }
-    pons::bidding::american::set_always_pass_defense(args.ns_always_pass);
     // Disclosure last: every `--ns-*` knob above moves the system, and a
     // generated card reads them.  Built here rather than beside the oracle so
     // the card cannot describe a system the run then reconfigures.

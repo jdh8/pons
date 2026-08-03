@@ -3762,12 +3762,11 @@ fn woolsey_x_reading(auction: &[Call]) -> Option<WoolseyXReading> {
 /// before the opening occupies a lane below `opening_index`).
 pub(super) fn penalty_x_reading(auction: &[Call]) -> Option<usize> {
     use crate::bidding::american as a;
-    if !a::natural_defense_enabled()
-        || a::direct_dont_enabled()
-        || a::meckwell_enabled()
-        || a::direct_landy_double().is_some()
-        || a::woolsey_enabled()
-    {
+    // One `Cell<NotrumpDefense>` holds one system, so "Natural is active" is the
+    // whole test: the four "…but not DONT/Meckwell/direct-Landy/Woolsey"
+    // disjuncts this used to carry were the pre-fold precedence cascade, and
+    // every one of them was unreachable once the enum landed.
+    if !a::natural_defense_enabled() {
         return None;
     }
     let opening_index = auction.iter().position(|&c| c != Call::Pass)?;
@@ -4861,12 +4860,13 @@ mod tests {
     #[test]
     fn woolsey_conditions_partner() {
         use crate::bidding::american::{
-            set_landy, set_unusual_notrump_defense, set_woolsey, set_woolsey_points,
+            NotrumpDefense, set_landy, set_notrump_defense, set_unusual_notrump_defense,
+            set_woolsey_points,
         };
         // Landy off, Woolsey on: the 2♣ must read through the Woolsey path.
         set_landy(None);
         set_unusual_notrump_defense(None);
-        set_woolsey(true);
+        set_notrump_defense(NotrumpDefense::Woolsey);
         set_woolsey_points(10, 19);
 
         // (1NT)–2♣–(P): Woolsey's 2♣ is both majors, 10+, never a natural club suit.
@@ -4918,7 +4918,7 @@ mod tests {
 
         // Off: the Multi 2♦ reads as a natural diamond one-suiter again (≥5) — the
         // convention must not leak when disabled.
-        set_woolsey(false);
+        set_notrump_defense(NotrumpDefense::Natural);
         let off = read(&[
             bid(1, Strain::Notrump),
             bid(2, Strain::Diamonds),
@@ -4986,12 +4986,12 @@ mod tests {
     #[test]
     fn woolsey_double_and_advances_read() {
         use crate::bidding::american::{
-            set_landy, set_unusual_notrump_defense, set_woolsey, set_woolsey_double_floor,
-            set_woolsey_points,
+            NotrumpDefense, set_landy, set_notrump_defense, set_unusual_notrump_defense,
+            set_woolsey_double_floor, set_woolsey_points,
         };
         set_landy(None);
         set_unusual_notrump_defense(None);
-        set_woolsey(true);
+        set_notrump_defense(NotrumpDefense::Woolsey);
         set_woolsey_points(10, 19);
         set_woolsey_double_floor(12);
 
@@ -5026,7 +5026,7 @@ mod tests {
 
         // Off: the Woolsey 12+ reading must not leak — the double now falls through to
         // the default-on natural penalty reading (15+), not Woolsey's 12+.
-        set_woolsey(false);
+        set_notrump_defense(NotrumpDefense::Natural);
         let off = read(&[bid(1, Strain::Notrump), Call::Double, Call::Pass]);
         assert_eq!(off.partner().strength.points, Range::new(15, 37));
 
@@ -5036,10 +5036,12 @@ mod tests {
 
     #[test]
     fn dont_overcalls_and_advances_read() {
-        use crate::bidding::american::{set_direct_dont, set_landy, set_unusual_notrump_defense};
+        use crate::bidding::american::{
+            NotrumpDefense, set_landy, set_notrump_defense, set_unusual_notrump_defense,
+        };
         set_landy(None);
         set_unusual_notrump_defense(None);
-        set_direct_dont(true);
+        set_notrump_defense(NotrumpDefense::DirectDont);
 
         // (1NT)–X–(P): a one-suiter in ♣/♦/♥ — spades short (≤3, the one sound fact),
         // strength recorded (the default 8+ overcall floor) where a bare double of 1NT
@@ -5082,17 +5084,19 @@ mod tests {
         assert_eq!(two_h.partner().length(Suit::Spades), Range::new(4, 13));
 
         // Off: the 2♣ reads as a natural club one-suiter again (≥5) — no leak.
-        set_direct_dont(false);
+        set_notrump_defense(NotrumpDefense::Natural);
         let off = read(&[bid(1, Strain::Notrump), bid(2, Strain::Clubs), Call::Pass]);
         assert_eq!(off.partner().length(Suit::Clubs), Range::new(5, 13));
     }
 
     #[test]
     fn meckwell_overcalls_and_advances_read() {
-        use crate::bidding::american::{set_landy, set_meckwell, set_unusual_notrump_defense};
+        use crate::bidding::american::{
+            NotrumpDefense, set_landy, set_notrump_defense, set_unusual_notrump_defense,
+        };
         set_landy(None);
         set_unusual_notrump_defense(None);
-        set_meckwell(true);
+        set_notrump_defense(NotrumpDefense::Meckwell);
 
         // (1NT)–X–(P): the two-way double (single 6+ minor OR both majors) shares no
         // sound per-suit fact, so ONLY the points floor is recorded — no length is
@@ -5137,7 +5141,7 @@ mod tests {
         );
 
         // Off: the 2♣ reads as a natural club one-suiter again (≥ 5) — no leak.
-        set_meckwell(false);
+        set_notrump_defense(NotrumpDefense::Natural);
         let off = read(&[bid(1, Strain::Notrump), bid(2, Strain::Clubs), Call::Pass]);
         assert_eq!(off.partner().length(Suit::Clubs), Range::new(5, 13));
 

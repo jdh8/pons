@@ -69,11 +69,11 @@ thread_local! {
 
 /// Select the 1NT minor-suit response scheme for books built *after* this call
 ///
-/// Thread-local, read at book-construction time (the [`set_woolsey`]-style knob).
+/// Thread-local, read at book-construction time (the
+/// [`set_notrump_defense`][super::set_notrump_defense]-style knob).
 /// Pass [`PUPPET`] (default) or [`EUROPEAN`]; both variants are authored, and only
 /// the selected one's `2♠`/`2NT`/`3♣` rules are gated into the trie.
 ///
-/// [`set_woolsey`]: super::set_woolsey
 pub fn set_notrump_minors(variant: Alert) {
     NOTRUMP_MINORS.with(|cell| cell.set(variant));
 }

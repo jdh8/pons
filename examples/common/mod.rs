@@ -530,3 +530,35 @@ impl System for Blinded<'_> {
         out
     }
 }
+
+/// CLI face of [`pons::bidding::american::NotrumpDefense`]
+///
+/// clap's `ValueEnum` cannot be derived for a foreign type, so every harness
+/// that lets the operator pick a 1NT defense needs one of these. Shared here
+/// rather than copied per binary: the engine holds the systems in a single
+/// `Cell<NotrumpDefense>`, and one CLI enum per binary is how a harness ends up
+/// re-inventing the read-time precedence cascade that cell exists to delete.
+#[derive(Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
+pub enum NtDefenseArg {
+    Natural,
+    DirectDont,
+    Meckwell,
+    Woolsey,
+    DirectLandy,
+    AlwaysPass,
+    Off,
+}
+
+impl From<NtDefenseArg> for pons::bidding::american::NotrumpDefense {
+    fn from(arg: NtDefenseArg) -> Self {
+        match arg {
+            NtDefenseArg::Natural => Self::Natural,
+            NtDefenseArg::DirectDont => Self::DirectDont,
+            NtDefenseArg::Meckwell => Self::Meckwell,
+            NtDefenseArg::Woolsey => Self::Woolsey,
+            NtDefenseArg::DirectLandy => Self::DirectLandy,
+            NtDefenseArg::AlwaysPass => Self::AlwaysPass,
+            NtDefenseArg::Off => Self::Off,
+        }
+    }
+}

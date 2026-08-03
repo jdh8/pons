@@ -35,10 +35,10 @@ use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, Bid, Contract, FullDeal, Hand, Seat, Strain, Suit};
 use pons::american;
 use pons::bidding::american::{
-    DoubleShape, set_always_pass_defense, set_direct_dont, set_direct_landy_double,
-    set_direct_landy_double_floor, set_direct_landy_penalty_pass, set_doubled_landy_escape,
-    set_landy, set_landy_hcp, set_natural_defense, set_natural_double_shape, set_penalty_pass,
-    set_unusual_notrump_defense, set_woolsey, set_woolsey_double_floor, set_woolsey_points,
+    DoubleShape, NotrumpDefense, set_direct_landy_double, set_direct_landy_double_floor,
+    set_direct_landy_penalty_pass, set_doubled_landy_escape, set_landy, set_landy_hcp,
+    set_natural_double_shape, set_notrump_defense, set_penalty_pass, set_unusual_notrump_defense,
+    set_woolsey_double_floor, set_woolsey_points,
 };
 use pons::bidding::instinct::{
     LatchStyle, set_doubler_xx_runout, set_latch_style, set_penalty_latch,
@@ -51,7 +51,7 @@ use rayon::prelude::*;
 #[path = "../common/mod.rs"]
 #[allow(dead_code)]
 mod common;
-use common::{bid_out, hand_hcp, seat_to_act};
+use common::{NtDefenseArg, bid_out, hand_hcp, seat_to_act};
 
 /// Contested Landy-vs-default A/B under plain-DD duplicate scoring
 #[derive(Parser)]
@@ -78,17 +78,25 @@ struct Args {
     #[arg(long, default_value = "points")]
     strength: String,
 
-    /// Natural one-suiter defense (penalty X + natural 2♣/♦/♥/♠) for the *measured*
-    /// pair: `on` (default) or `off`. Set the measured arm `on` and the baseline arm
-    /// `off` (with `--ns-majors "" --ns-minors ""`) to measure the natural defense
-    /// vs the bare instinct floor.
-    #[arg(long, default_value = "on")]
-    ns_natural: String,
+    /// The *measured* (NS) pair's mutually-exclusive defense over their 1NT
+    /// (default `natural`).
+    ///
+    /// `natural` = penalty X + the four natural two-level overcalls; `direct-dont`
+    /// = DONT; `meckwell` = Meckwell; `woolsey` = our Multi-Landy; `direct-landy`
+    /// = the both-majors takeout X (payload: `--ns-landy-x-four-four`);
+    /// `always-pass` = never compete; `off` = drop to the bare instinct floor.
+    ///
+    /// The Landy/Unusual overlays (`--ns-majors`/`--ns-minors`) ride the same cell
+    /// the engine already resolves, so a conventional family simply leaves them
+    /// inert — no forced-off arms, and no "whichever `set_*` ran last" cascade.
+    #[arg(long, value_enum, default_value = "natural")]
+    ns_defense: NtDefenseArg,
 
-    /// Natural one-suiter defense for the *baseline* pair: `on` (default) or `off`.
-    /// `off` drops the baseline pair to the floor over their 1NT.
-    #[arg(long, default_value = "on")]
-    ew_natural: String,
+    /// The *baseline* (EW) pair's defense over their 1NT (default `natural`).
+    /// `off` drops the baseline pair to the floor; `always-pass` makes it never
+    /// act at all — the truest "do nothing" baseline.
+    #[arg(long, value_enum, default_value = "natural")]
+    ew_defense: NtDefenseArg,
 
     /// Shape gate of the *measured* pair's penalty double (15+ HCP fixed):
     /// `balanced` (default, the shipped 4333/4432/5332), `semibal` (also 5422/6322/
@@ -109,18 +117,18 @@ struct Args {
     #[arg(long, default_value = "off")]
     ns_doubler_run: String,
 
-    /// Replace the *measured* pair's natural penalty-X over their 1NT with a
-    /// both-majors takeout double (X = both majors, at every seat): `off` (default),
-    /// `5-4` (≥5-4 in the majors), or `4-4` (a flat 4-4 accepted). Natural 2♣/♦/♥/♠
-    /// overcalls are kept; the penalty double is dropped. Baseline keeps the natural
-    /// penalty-X (`--ew-natural on`). Probes "replace the X with Landy" + 5-4 vs 4-4.
+    /// Whether the *measured* pair's both-majors X accepts a flat 4-4 (else 5-4+):
+    /// `on` or `off` (default). Only with `--ns-defense direct-landy`, which is what
+    /// replaces the natural penalty-X with the takeout double; the natural
+    /// 2♣/♦/♥/♠ overcalls are kept either way.
     #[arg(long, default_value = "off")]
-    ns_landy_x: String,
+    ns_landy_x_four_four: String,
 
     /// `points` floor for the *measured* pair's both-majors X (default 15, the
     /// shipped value — overcalls take 8–14, the X is reserved for the 15+ hands too
     /// strong to overcall). Lower it to compete lighter, raise it to compete less.
-    /// Only matters with `--ns-landy-x`; the advancer's invite/game thresholds track it.
+    /// Only with `--ns-defense direct-landy`; the advancer's invite/game thresholds
+    /// track it.
     #[arg(long, default_value = "15")]
     ns_landy_x_floor: u8,
 
@@ -129,22 +137,6 @@ struct Args {
     /// a higher `--ns-landy-x-floor` (stronger X → the penalty pass needs less).
     #[arg(long, default_value = "off")]
     ns_landy_x_penalty: String,
-
-    /// Replace the *measured* pair's natural 1NT defense with conventional DONT:
-    /// `on` or `off` (default). One-suiter X, 2♣ = clubs + a higher major, 2♦ =
-    /// diamonds + a major, 2♥ = both majors, 2♠ natural, 2NT = both minors. Forces
-    /// `--ns-majors`/`--ns-minors` off (DONT owns 2♣/2NT). Pair with `--ew-natural
-    /// on` for the head-to-head, or `--ew-always-pass on` for absolute worth.
-    #[arg(long, default_value = "off")]
-    ns_dont: String,
-
-    /// Silly always-pass defense for the *baseline* pair: `on` or `off` (default).
-    /// `on` makes the baseline never act over their 1NT — the truest "do nothing"
-    /// baseline (distinct from `--ew-natural off`, which drops to the floor). Pair
-    /// with `--ns-natural on --ns-majors "" --ns-minors ""` to measure the natural
-    /// defense vs always-passing.
-    #[arg(long, default_value = "off")]
-    ew_always_pass: String,
 
     /// Opener's penalty-pass over a `(2♣)` overcall for the *measured* (NS) pair:
     /// `off` (default), `LEN:HCP`, or `LEN:HCP:major`. After `1NT-(2♣)-X-(P)` opener
@@ -169,16 +161,9 @@ struct Args {
     #[arg(long, default_value = "6:2")]
     ns_doubled_escape: String,
 
-    /// Replace the *measured* (NS) pair's 1NT defense with our Woolsey "Multi-Landy":
-    /// `on` or `off` (default). X = 4-card major + longer minor, 2♣ = both majors,
-    /// 2♦ = Multi (single 6+ major), 2♥/2♠ = Muiderberg. Owns every direct call, so
-    /// it forces the measured natural / Landy / both-majors-X arms off. Baseline keeps
-    /// its natural defense (`--ew-natural on`) for the head-to-head.
-    #[arg(long, default_value = "off")]
-    ns_woolsey: String,
-
     /// Woolsey suit-overcall (2♣/2♦/2♥/2♠) points band for the *measured* pair:
-    /// `LO` (open-topped) or `LO:HI` (default `8:19`). Only matters with `--ns-woolsey`.
+    /// `LO` (open-topped) or `LO:HI` (default `8:19`). Only with
+    /// `--ns-defense woolsey`.
     /// Honest plain-DD self-play peaks at floor 8 (level with natural) and flattens
     /// below it; perfect-defense (`--score pd`) mildly prefers 10 but over-deters by
     /// assuming a perfect doubler. The conventions only rearrange which call shows a
@@ -187,7 +172,7 @@ struct Args {
     ns_woolsey_range: String,
 
     /// `points` floor for the *measured* pair's Woolsey takeout X (default 12). Only
-    /// matters with `--ns-woolsey`; the X advancer's game-ask threshold tracks it.
+    /// with `--ns-defense woolsey`; the X advancer's game-ask threshold tracks it.
     #[arg(long, default_value = "12")]
     ns_woolsey_x_floor: u8,
 
@@ -427,18 +412,14 @@ fn main() {
         "points" => false,
         other => panic!("unknown --strength {other:?} (use points or hcp)"),
     };
-    let ns_natural = parse_on_off(&args.ns_natural, "--ns-natural");
+    let ns_defense = NotrumpDefense::from(args.ns_defense);
+    let ew_defense = NotrumpDefense::from(args.ew_defense);
     let ns_doubler_run = parse_on_off(&args.ns_doubler_run, "--ns-doubler-run");
-    let ns_dont = parse_on_off(&args.ns_dont, "--ns-dont");
-    let ew_natural = parse_on_off(&args.ew_natural, "--ew-natural");
-    let ew_always_pass = parse_on_off(&args.ew_always_pass, "--ew-always-pass");
-    let ns_landy_x = match args.ns_landy_x.as_str() {
-        "off" => None,
-        "5-4" => Some(false),
-        "4-4" => Some(true),
-        other => panic!("unknown --ns-landy-x {other:?} (use off, 5-4, or 4-4)"),
-    };
-    let ns_woolsey = parse_on_off(&args.ns_woolsey, "--ns-woolsey");
+    // `Option<bool>` is the engine's shape for "DirectLandy, and does its X take a
+    // flat 4-4?" — `None` for every other system, since the payload has no meaning
+    // without the double it configures.
+    let ns_landy_x = (ns_defense == NotrumpDefense::DirectLandy)
+        .then(|| parse_on_off(&args.ns_landy_x_four_four, "--ns-landy-x-four-four"));
     let ns_penalty_latch = parse_on_off(&args.ns_penalty_latch, "--ns-penalty-latch");
     let ns_latch_style = match args.ns_latch_style.as_str() {
         "penalty" => LatchStyle::Penalty,
@@ -461,23 +442,28 @@ fn main() {
     set_landy(None);
     set_unusual_notrump_defense(None);
     set_landy_hcp(false);
-    set_natural_defense(ew_natural);
+    set_notrump_defense(ew_defense);
     set_natural_double_shape(ew_double_shape);
-    set_always_pass_defense(ew_always_pass);
-    set_direct_dont(false);
-    set_direct_landy_double(None);
     set_direct_landy_double_floor(15);
     set_direct_landy_penalty_pass(false);
-    set_woolsey(false);
     set_penalty_pass(ew_penalty_pass);
     set_doubler_xx_runout(false);
     let baseline = american().against();
+    // One write picks the measured system; the two forced-off blocks this
+    // replaced ("DONT owns 2♣/2NT", "Woolsey owns every direct call") were the
+    // read-time precedence cascade the `NotrumpDefense` cell exists to delete.
+    // The Landy/Unusual overlays stay set: the engine honours them only under
+    // `natural`/`off`, so a conventional family leaves them inert by itself.
+    set_notrump_defense(ns_defense);
     set_landy(majors);
-    set_unusual_notrump_defense(minors);
+    set_unusual_notrump_defense(if ns_defense == NotrumpDefense::DirectDont {
+        // DONT's own both-minors 2NT band, not the overlay's.
+        Some((8, 14))
+    } else {
+        minors
+    });
     set_landy_hcp(use_hcp);
-    set_natural_defense(ns_natural);
     set_natural_double_shape(double_shape);
-    set_always_pass_defense(false);
     set_direct_landy_double(ns_landy_x);
     set_direct_landy_double_floor(args.ns_landy_x_floor);
     set_direct_landy_penalty_pass(parse_on_off(
@@ -487,42 +473,18 @@ fn main() {
     set_penalty_pass(ns_penalty_pass);
     set_doubled_landy_escape(ns_doubled_escape);
     set_doubler_xx_runout(ns_doubler_run);
-    // DONT owns 2♣ (two-suiter) and 2NT (both minors), so override the natural
-    // Landy/Unusual overlays when it is on.
-    set_direct_dont(ns_dont);
-    if ns_dont {
-        set_landy(None);
-        set_unusual_notrump_defense(Some((8, 14)));
-    }
-    // Woolsey owns every direct call over their 1NT, so force the other measured
-    // arms off — else their advance wiring would overwrite the Woolsey continuations.
-    set_woolsey(ns_woolsey);
     set_woolsey_points(woolsey_range.0, woolsey_range.1);
     set_woolsey_double_floor(args.ns_woolsey_x_floor);
-    if ns_woolsey {
-        set_natural_defense(false);
-        set_landy(None);
-        set_direct_dont(false);
-        set_direct_landy_double(None);
-    }
     let measured = american().against();
 
     // Each board at both tables (Landy NS at A, EW at B), dealer rotating.
-    // The baseline never acts when always-pass is on, so NS's natural action
-    // diverges whenever it is enabled (no need to also differ from EW).
-    // The both-majors X (--ns-landy-x) replaces the baseline's penalty-X, so every
-    // hand the two arms call differently over their 1NT diverges; the broad
-    // `defender_has_natural_action` superset (5+ suit, or 14+ balanced) catches them.
-    // Woolsey replaces the measured pair's whole defense, so every hand it acts on
-    // (all hold a 5+ suit, the `defender_has_natural_action` superset) diverges from
-    // the baseline's natural defense.
-    let natural_diverges = ns_landy_x.is_some()
-        || ns_woolsey
-        || if ew_always_pass {
-            ns_natural
-        } else {
-            ns_natural != ew_natural
-        };
+    // Any system difference between the two pairs makes every hand with a
+    // natural action a divergence candidate: a conventional family replaces the
+    // baseline's penalty-X and natural overcalls wholesale, and always-pass
+    // removes the baseline's action entirely.  The broad
+    // `defender_has_natural_action` superset (5+ suit, or 14+ balanced) catches
+    // them all, so comparing the two systems is the whole test.
+    let natural_diverges = ns_defense != ew_defense;
     // The measured pair widens the double's shape gate above the baseline's
     // `Balanced`, so non-balanced 15+ hands are a fresh divergence source.
     let extended = (double_shape != DoubleShape::Balanced).then_some(double_shape);
@@ -663,26 +625,28 @@ fn main() {
         }
     }
 
-    let ew_label = if ew_always_pass {
-        "always-pass".to_string()
-    } else if ew_natural {
-        "on".to_string()
-    } else {
-        "off".to_string()
+    let defense_label = |d: NotrumpDefense| match d {
+        NotrumpDefense::Natural => "natural",
+        NotrumpDefense::DirectDont => "direct-dont",
+        NotrumpDefense::Meckwell => "meckwell",
+        NotrumpDefense::Woolsey => "woolsey",
+        NotrumpDefense::DirectLandy => "direct-landy",
+        NotrumpDefense::AlwaysPass => "always-pass",
+        NotrumpDefense::Off => "off",
     };
     let pp_label = |pp: Option<(usize, u8, bool)>| match pp {
         None => "off".to_string(),
         Some((len, hcp, major)) => format!("{len}:{hcp}{}", if major { ":major" } else { "" }),
     };
     let arms = format!(
-        "2♣ majors {}, 2NT minors {} [{}], natural NS {}/EW {}, X-shape {}, landy-X {}@{}+, pen-pass NS {}/EW {}, pen-latch {} ({})",
+        "2♣ majors {}, 2NT minors {} [{}], defense NS {}/EW {}, X-shape {}, landy-X 4-4 {}@{}+, pen-pass NS {}/EW {}, pen-latch {} ({})",
         label(majors),
         label(minors),
         args.strength,
-        if ns_natural { "on" } else { "off" },
-        ew_label,
+        defense_label(ns_defense),
+        defense_label(ew_defense),
         args.ns_double_shape,
-        args.ns_landy_x,
+        args.ns_landy_x_four_four,
         args.ns_landy_x_floor,
         pp_label(ns_penalty_pass),
         pp_label(ew_penalty_pass),
