@@ -179,12 +179,10 @@ fn keycards(
 /// claim a fit the auction has not shown.  A ninth trump is not a queen — it
 /// answers on the buff jump instead (`QUEEN_BUFF_FIT`).
 ///
-/// The knob is sampled **here, at book construction**, not inside the closure —
-/// the regime every book knob lives in ([`set_rkcb_minors`]).  Reading it at
-/// classification time instead would leave a book built with the relay on
-/// answering by the literal holding whenever a harness cleared the flag between
-/// building and bidding, which is exactly the split the two-regime discipline
-/// exists to prevent.
+/// The threshold is sampled **here, at book construction**, not inside the
+/// closure — the regime every book-level input lives in.  (It was a knob while
+/// the relay was tuned; the tuning settled on BBA's ten and the constant
+/// remains read at construction so book and closure can never disagree.)
 fn has_trump_queen(
     trump: Suit,
 ) -> crate::bidding::constraint::Cons<impl crate::bidding::constraint::Constraint + Clone> {
@@ -312,11 +310,18 @@ fn asker_after_5c(trump: Suit) -> Rules {
         Bid::new(5, Strain::Clubs),
         keycards(trump, 3..=3) | (keycards(trump, 4..=4) & hcp(19..)),
     )
-    // 5NT: asker has 4 keycards + partner's 1 = all five → king ask
-    .rule(Bid::new(5, Strain::Notrump), 1.4, keycards(trump, 4..=4))
+    // 5NT: asker has 4 keycards + partner's 1 = all five → king ask, spent
+    // only in the grand zone — the same veto-not-seeker gate the relay's own
+    // king asks ride
+    .rule(
+        Bid::new(5, Strain::Notrump),
+        1.4,
+        keycards(trump, 4..=4) & hcp(19..),
+    )
     .alert(RKCB)
-    // 6T: asker has 3 keycards, assumes partner has 4 → interested in slam
-    .rule(Bid::new(6, t), 1.0, keycards(trump, 3..=3))
+    // 6T: all five on the table without the grand values, or three of our own
+    // plus partner's one when the queen question is already settled
+    .rule(Bid::new(6, t), 1.0, keycards(trump, 3..=4))
     // 5T: signoff (asker doesn't want slam)
     .rule(Bid::new(5, t), 0.5, hcp(0..))
 }
@@ -355,10 +360,11 @@ fn asker_after_5d(trump: Suit) -> Rules {
 // has been betting six on four keycards blind.  The relay is one step above the
 // answer, partner's two replies the next two rungs, and — on the queen-shown
 // branch only — a king ask above that.  Geometry is shared with the floor
-// ([`queen_ask_room`], [`relay_ladder`]) so the two ladders cannot drift.
+// ([`queen_ask_room`], [`relay_map`], [`king_relay`]) so the two ladders
+// cannot drift.
 
-/// Open an asker table with the queen relay, when the knob is on, the lane has
-/// room, and `interested` says the queen is what the placement turns on
+/// Open an asker table with the queen relay, when the lane has room and
+/// `interested` says the queen is what the placement turns on
 ///
 /// Weighted above every placement in the table it opens, so a queenless asker
 /// relays instead of guessing; holding the queen (or the ten-card fit) the rule
@@ -400,7 +406,7 @@ fn cheapest_king(
 /// queen with no side king at all, and the two denials are five and six of the
 /// agreed trump — contracts rather than codes, so neither is alerted.  Six is
 /// the *stronger* denial, the ninth trump or the void the ladder has no rung
-/// for; where five of trump is already gone it carries every no-queen hand.
+/// for.
 fn queen_replies(trump: Suit, map: &RelayMap) -> Rules {
     let mut rules = Rules::new();
     for (index, &(suit, call)) in map.kings.iter().enumerate() {
@@ -429,13 +435,24 @@ fn queen_replies(trump: Suit, map: &RelayMap) -> Rules {
 /// Both denials are the agreed trump, so both are already a contract: five of
 /// it stops there unless all five keycards are on the table, and six of it —
 /// the ninth trump or the void — is passed.
-fn asker_after_denial(trump: Suit, denial: Bid) -> Rules {
+///
+/// `five` is the **combined**-count decode, which the answer lane owns: over a
+/// one-or-four answer four of our own is all five, while over a none-or-three
+/// answer four of our own is exactly four — the caller passes the right test
+/// because only it knows which answer was heard.
+fn asker_after_denial(
+    trump: Suit,
+    denial: Bid,
+    five: crate::bidding::constraint::Cons<
+        impl crate::bidding::constraint::Constraint + Clone + 'static,
+    >,
+) -> Rules {
     let t = Strain::from(trump);
     if denial == Bid::new(6, t) {
         return Rules::new().rule(Call::Pass, 0.5, hcp(0..));
     }
     Rules::new()
-        .rule(Bid::new(6, t), 1.0, keycards(trump, 4..))
+        .rule(Bid::new(6, t), 1.0, five)
         .rule(Call::Pass, 0.5, hcp(0..))
 }
 
@@ -446,28 +463,37 @@ fn asker_after_denial(trump: Suit, denial: Bid) -> Rules {
 /// for one more — and that is where kickback pays a second time, because the
 /// relay is a step above partner's reply rather than an absolute 5NT.
 ///
-/// Both are gated on **strength**, not on the keycard count — RKCB is a slam
-/// veto, not a slam seeker, so a partnership short of the grand zone never
-/// spends the round.  `hcp(19..)` is the book's available proxy at this node.
+/// Both ride the grand-zone **strength** gate on top of the combined count —
+/// RKCB is a slam veto, not a slam seeker, so a partnership short of the grand
+/// zone never spends the round.  `hcp(19..)` is the book's available proxy at
+/// this node, and `five` is the lane's combined-count decode (see
+/// [`asker_after_denial`]): a grand is never touched with a keycard out.
 ///
 /// ponytail: raw HCP, because the book carries no combined-point machinery
 /// here; the upgrade path is the floor's `points_and_net(combined_points(37))`
 /// once the book's asker tables can see partner's shown strength.
-fn asker_after_queen(trump: Suit, partner_king: bool, relay: Option<KingRelay>) -> Rules {
+fn asker_after_queen(
+    trump: Suit,
+    partner_king: bool,
+    relay: Option<KingRelay>,
+    five: crate::bidding::constraint::Cons<
+        impl crate::bidding::constraint::Constraint + Clone + 'static,
+    >,
+) -> Rules {
     let t = Strain::from(trump);
     let mut rules = Rules::new();
     if partner_king {
         rules = rules.rule(
             Bid::new(7, t),
             1.5,
-            keycards(trump, 4..=4) & kings_outside(trump, 1..) & hcp(19..),
+            five.clone() & kings_outside(trump, 1..) & hcp(19..),
         );
         if let Some(relay) = relay {
             rules = rules
                 .rule(
                     relay.ask,
                     1.4,
-                    keycards(trump, 4..=4) & kings_outside(trump, 0..=0) & hcp(19..),
+                    five & kings_outside(trump, 0..=0) & hcp(19..),
                 )
                 .alert(RKCB);
         }
@@ -475,7 +501,7 @@ fn asker_after_queen(trump: Suit, partner_king: bool, relay: Option<KingRelay>) 
         rules = rules.rule(
             Bid::new(7, t),
             1.5,
-            keycards(trump, 4..=4) & kings_outside(trump, 2..) & hcp(19..),
+            five & kings_outside(trump, 2..) & hcp(19..),
         );
     }
     rules.rule(Bid::new(6, t), 1.0, hcp(0..))
@@ -744,25 +770,33 @@ pub(super) fn install_rkcb(book: &mut Trie, our_calls: &[Call], trump: Suit) {
             };
             let relay = Call::Bid(map.ask);
 
+            // The answer lane owns the combined-count decode.  Over 5♣ partner
+            // showed one, so four of our own is all five; over 5♦ partner
+            // showed none or three, so two of our own (partner's three) or all
+            // five of our own is — and four of our own is exactly four, the
+            // hand the relay exists for and the hand a grand must never tempt.
+            let (exact, at_least) = if answer == ans_5c { (4, 4) } else { (2, 5) };
+            let five = || keycards(trump, exact..=exact) | keycards(trump, at_least..);
+
             insert_uncontested(book, &extend(&[answer, relay]), queen_replies(trump, &map));
             for denial in [map.weak, map.deny] {
                 insert_uncontested(
                     book,
                     &extend(&[answer, relay, Call::Bid(denial)]),
-                    asker_after_denial(trump, denial),
+                    asker_after_denial(trump, denial, five()),
                 );
             }
             insert_uncontested(
                 book,
                 &extend(&[answer, relay, Call::Bid(map.no_king)]),
-                asker_after_queen(trump, false, None),
+                asker_after_queen(trump, false, None, five()),
             );
             for &(_, shown) in &map.kings {
                 let second = king_relay(shown, trump);
                 insert_uncontested(
                     book,
                     &extend(&[answer, relay, Call::Bid(shown)]),
-                    asker_after_queen(trump, true, second),
+                    asker_after_queen(trump, true, second, five()),
                 );
                 let Some(second) = second else {
                     continue;
@@ -975,11 +1009,20 @@ mod tests {
             .chain([Call::Bid(Bid::new(5, Strain::Clubs)), Call::Pass])
             .collect();
 
-        // AQ52.A876.A72.A3 — 4 keycards (all 4 aces) → partner has 1 → 5NT king ask
+        // AQJ2.A876.A72.A3 — 4 keycards, 19 HCP → all five combined and the
+        // grand zone: 5NT king ask
+        assert_eq!(
+            best(&trie, &auction, "AQJ2.A876.A72.A3"),
+            Call::Bid(Bid::new(5, Strain::Notrump)),
+            "asker with 4 keycards and grand values after 5♣ → 5NT king ask"
+        );
+        // AQ52.A876.A72.A3 — the same four keycards on 18 HCP: short of the
+        // grand zone the round is not spent, six of trumps ends it (RKCB is a
+        // slam veto, not a slam seeker).
         assert_eq!(
             best(&trie, &auction, "AQ52.A876.A72.A3"),
-            Call::Bid(Bid::new(5, Strain::Notrump)),
-            "asker with 4 keycards after 5♣ → 5NT king ask"
+            Call::Bid(Bid::new(6, Strain::Spades)),
+            "asker with 4 keycards short of the grand zone → six, no king ask"
         );
     }
 
@@ -1266,12 +1309,12 @@ mod tests {
             "our own queen settles it: no relay"
         );
         // Four keycards decodes to all five combined, so six is bid whatever
-        // the queen does.  Without the values to look at seven the reply is
-        // worth nothing, so the book does not spend the round asking for it.
+        // the queen does.  Without the values to look at seven neither reply
+        // is worth a round — no queen relay, and no 5NT king ask either.
         assert_eq!(
             best(&trie, &auction, "AK98.A32.A432.32"),
-            Call::Bid(Bid::new(5, Strain::Notrump)),
-            "all five keycards, no grand values: no queen relay"
+            Call::Bid(Bid::new(6, Strain::Spades)),
+            "all five keycards, no grand values: bid the slam, ask nothing"
         );
 
         // Partner replies in one round: 5♠ denies flat, 6♠ denies with a buff,
@@ -1412,6 +1455,66 @@ mod tests {
             best(&trie, &stopped, "AKQJ.A32.AQ32.32"),
             Call::Pass,
             "only partner's king: six is already the contract"
+        );
+    }
+
+    /// The none-or-three lane decodes its own counts: four keycards of our own
+    /// is four **combined** — partner answered none — so a denial stops at
+    /// five and no grand is ever touched, while the grand explorer there holds
+    /// two (reading partner for three) and finds seven over a king-showing
+    /// reply.  The one-or-four lane's decode must not leak across.
+    #[test]
+    fn the_none_or_three_lane_decodes_the_total() {
+        let trie = eight_card_relay_trie();
+        let mut auction = LIMIT_ANS_AUCTION.to_vec();
+        auction.extend([Call::Bid(Bid::new(5, Strain::Diamonds)), Call::Pass]);
+
+        // ♠AKJ42 ♥A32 ♦AK5 ♣43 — four keycards, 19 HCP: partner showed none,
+        // so one is missing and the queen decides five against six — relay.
+        assert_eq!(
+            best(&trie, &auction, "AKJ42.A32.AK5.43"),
+            Call::Bid(Bid::new(5, Strain::Hearts)),
+            "four keycards over none-or-three: one is missing, ask the queen"
+        );
+
+        // Queen denied flat: a keycard *and* the queen are out, so the denial
+        // is already the contract.
+        let mut denied = auction.clone();
+        denied.extend([
+            Call::Bid(Bid::new(5, Strain::Hearts)),
+            Call::Pass,
+            Call::Bid(Bid::new(5, Strain::Spades)),
+            Call::Pass,
+        ]);
+        assert_eq!(
+            best(&trie, &denied, "AKJ42.A32.AK5.43"),
+            Call::Pass,
+            "queen denied on four combined: stop at five"
+        );
+
+        // Queen and the ♥ king shown (6♥ in this lane): still four combined,
+        // so 19 HCP and a side king of our own must not tempt a grand missing
+        // a keycard.
+        let mut shown = auction;
+        shown.extend([
+            Call::Bid(Bid::new(5, Strain::Hearts)),
+            Call::Pass,
+            Call::Bid(Bid::new(6, Strain::Hearts)),
+            Call::Pass,
+        ]);
+        assert_eq!(
+            best(&trie, &shown, "AKJ42.A32.AK5.43"),
+            Call::Bid(Bid::new(6, Strain::Spades)),
+            "one keycard out: six, never seven"
+        );
+
+        // ♠KJ942 ♥AQJ ♦KQJ ♣QJ — two keycards on twenty points reads partner
+        // for three: all five are on the table, and partner's ♥K opposite our
+        // ♦K is the second side king — seven.
+        assert_eq!(
+            best(&trie, &shown, "KJ942.AQJ.KQJ.QJ"),
+            Call::Bid(Bid::new(7, Strain::Spades)),
+            "two keycards reading three: the reply names the second king"
         );
     }
 }

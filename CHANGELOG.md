@@ -237,6 +237,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **The queen relay's asker decodes the combined keycard count per answer
+  lane.** The post-relay placement tables (`asker_after_denial`,
+  `asker_after_queen`) gated on the asker's *own* `keycards(4..)`, which means
+  "all five combined" only over a one-or-four answer; installed identically on
+  the none-or-three lane they bid a grand missing a keycard (`… 4NT P 5♦ P
+  5♥ P 6♥ P` → 7♠ off the ♣A on top, book-vs-book), bid six over a flat
+  denial with a keycard *and* the queen out, and could never reach the seven
+  their own relay explored on the two-keycard grand hands. Each lane now
+  passes its combined-count decode into the shared tables — over 5♣ four of
+  our own is five combined, over 5♦ it is two (partner's three) or five —
+  matching the floor, which was lane-correct all along via `keycard_answered`.
+  The one-or-four lane is bid-for-bid unchanged; every previous test exercised
+  only that lane, and the new `the_none_or_three_lane_decodes_the_total` pins
+  the other. **The queen relay's ship cell was measured with this defect in
+  it**, so its number understates the relay; the cell is worth a re-run.
+
+- **The classic 5NT king ask rides the same grand-zone gate as the relay's.**
+  After a 5♣ answer the book's own king ask fired on `keycards(4..=4)` alone,
+  so a 15-count with four keycards spent the grand round it could never use —
+  while the relay's king asks all gate on `hcp(19..)`. One doctrine now: short
+  of the grand zone the asker bids six and asks nothing.
+
 - **A mistyped convention row can no longer be dumped as if it took effect.**
   `epbot_set_conventions` answers `0` for a name EPBot has never heard of, and
   the following read answers `0` too, so a renamed or misspelled row is
@@ -567,10 +589,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   disqualifying for any kickback-vs-BBA anchor (it never touched the
   pons-vs-pons A/B, which has no BBA in the loop). The row now rides
   `kickback_now()`; the knob is default-off, so the shipped cards are unchanged
-  by it. `King ask by available bid` likewise rides `queen_ask_now()` and, being
-  default-on, moves both golden cards `0 → 1` — the honest row for a king ask
-  that is the step above the queen answer rather than always 5NT, and a free one,
-  since that row is inert in BBA.
+  by it. `King ask by available bid` is likewise honest now: the relay's second
+  ask is unconditionally the step above the queen answer rather than always 5NT
+  (the knob it briefly rode was culled), so the row is hardcoded `1`, moving
+  both golden cards `0 → 1` — a free disclosure, since that row is inert in
+  BBA.
 
 - **The kickback ladder no longer claims a call it cannot own.** With diamonds
   set and spades bid — `1♦ P 1♠ P 2♦ P`, one of the commonest faces there is —
