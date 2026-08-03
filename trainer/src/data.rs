@@ -203,9 +203,9 @@ pub fn load_mixture(stems: &[String], val_frac: f64, block: usize) -> Result<(Da
         .map(|stem| Dataset::load(stem))
         .collect::<Result<Vec<_>>>()?;
 
-    // A mixture is only a mixture if the rows are commensurable.
+    // A mixture is only a mixture if the rows are commensurable (same layout and meaning).
+    let head = &dumps[0];
     for (stem, d) in stems.iter().zip(&dumps).skip(1) {
-        let head = &dumps[0];
         if (d.meta.feature_version, d.features_len, d.dd_len)
             != (head.meta.feature_version, head.features_len, head.dd_len)
         {
@@ -218,6 +218,26 @@ pub fn load_mixture(stems: &[String], val_frac: f64, block: usize) -> Result<(Da
                 head.meta.feature_version,
                 head.features_len,
                 head.dd_len
+            );
+        }
+        if (
+            &d.meta.teacher,
+            &d.meta.card,
+            &d.meta.conv,
+            d.meta.our_kickback,
+            d.meta.mix_kickback,
+            &d.meta.git_sha,
+        ) != (
+            &head.meta.teacher,
+            &head.meta.card,
+            &head.meta.conv,
+            head.meta.our_kickback,
+            head.meta.mix_kickback,
+            &head.meta.git_sha,
+        ) {
+            bail!(
+                "dump {stem} metadata mismatch vs {} (teacher/card/conv/kickback/git_sha)",
+                stems[0]
             );
         }
     }
