@@ -1443,3 +1443,86 @@ unrepresentable by design. Every `set_kickback`/`set_redwood` mention above is
 history and reads as `set_rkcb_variant(Kickback)`/`(Redwood)` today; the
 regimes, weights selection, and card row are unchanged
 (`docs/bidding-options.md` §A7 and its encoding audit).
+
+> Superseded in part by §7.15: the scorer this section said did not exist was
+> built the next day, the cell was re-measured under it, and the verdict is
+> *not* rescue — the loss decomposes into two build defects no scorer can see
+> past. "Do not re-measure until a scorer exists" is discharged; the operative
+> guidance is §7.15's.
+
+### 7.15 The instrument arrived, and the diagnosis changed (2026-08-04)
+
+The calibrated slam scorer §7.14 demanded now exists — the **sd-blend**
+(`docs/measurement.md`, "the slam bracket"): a λ(level) logit-space mixture of
+the sd-lead optimist endpoint and the sd-playout pessimist endpoint, fitted to
+Pavlicek's after-lead table, validated by `probe-slam-battery`. The fair cell
+was re-run from seed 1785708870 (reproduction: NV −0.01041, vul −0.00905 per
+board plain DD, both inside §7.13's intervals), dumped
+(`ab-kickback --dump`), and every divergent board was re-priced under nine
+instruments with the ask-bucketed census (`--rescore --sd-ask-only`; sd rows
+priced on the ~8% of divergent boards where either arm asked).
+
+**The verdict is not rescue.** Per-divergent-board means, both cells:
+
+| lane (pooled NV+vul) | boards | plain DD | playout | blend | mechanism |
+| --- | ---: | ---: | ---: | ---: | --- |
+| no keycard ask | 164,210 | −0.19 | — | — | card-row perturbation of the net (PD **positive**) |
+| ♥ relocated | 391 | −1.13 | −0.35 | −0.53 | the only DD-optimism candidate; NV playout is a wash (+0.03), vul is not (−0.73) |
+| ♦ relocated | 113 | −2.04 | −2.60 | −1.94 | **eaten 4♥** — 103/113 boards |
+| ♣ relocated | 144 | −1.53 | −3.24 | −3.02 | **grand-blast continuation** in the freed room |
+
+Three mechanisms, none of them a scorer question:
+
+1. **The eaten 4♥ (♦ lane, and hiding in the no-ask bucket).** Exactly the
+   classical objection: the baseline bids 4♥ and *plays the heart game*; the
+   feature's 4♥ is the diamond keycard ask, partner answers, the pair lands in
+   5♦+. 90% of the ♦ lane's loss in both cells, negative under every
+   instrument including PD — game-made-versus-slam-try-wrecked is DD-fair, so
+   no clairvoyance correction can touch it. The same denial also operates
+   *without* an ask: on no-ask boards whose auctions are identical until the
+   exact ply where the baseline bids 4♥ and the feature deviates (with the
+   side having bid diamonds), the feature loses 2.19/bd NV and 3.32/bd vul —
+   against a mirror control (baseline deviates off the feature's 4♥) of only
+   1.39/1.65. The asymmetric excess, ~−650 IMPs NV and ~−1,130 vul, is the
+   silent half of the eaten-4♥ bill; combined with the asked lane it is
+   ~3.5% of the NV cell's loss and ~7% of the vul cell's, and it is
+   PD-negative — a genuine bidding leak masked in §7.13's aggregate by
+   PD-positive perturbation noise.
+2. **The grand-blast continuation (♣ lane).** The relocated answer decodes
+   correctly; what fails is the continuation in the very room the relocation
+   wins. Exhibit (top loser in both cells): `1♣–1♠–3♣–4♦–5♣ (2+Q)–7♣` down
+   one off the ♠K, while the baseline hears the *identical message* as
+   `4NT–5♠ (2+Q)` and signs off in 6♣ making. Below 6♣ the feature asker has
+   space its grand logic overbids into; the cramped baseline does the boring
+   right thing. Heavy-tailed — three grand blasts are a third of the lane.
+3. **The ♥ lane is the residue** — no eaten-4♠ signature (3/391 boards), and
+   the one lane where DD optimism is even arguable: NV flips to a wash under
+   the playout, vul does not, pooled playout −0.35 on thin n. If anything in
+   §7 deserves an enriched probe it is this lane alone — but see below.
+
+**What the instrument contributed** is separation, not absolution: it proved
+the ♦ and ♣ lanes lose for reasons that survive the pessimist bound, and
+identified the ♥ lane as the only place DD's slam optimism plausibly
+overcharges the relocation. §7.14's premise ("kickback keeps reading negative
+for reasons the harness cannot see past") is retired — the harness now sees
+past DD, and the relocation still loses, for *named* reasons.
+
+**The reopen path is a build change, not a measurement change:**
+
+- a **claim guard** on the ♦ ask: do not relocate onto 4♥ while hearts are a
+  live strain for the partnership (either side has shown hearts, or diamond
+  agreement is soft) — the guard's cost is re-admitting 4NT's overshooting
+  answers on exactly those faces, which §7.2 prices;
+- **grand discipline over relocated answers**: the asker's continuation in
+  the freed room must be authored (king-ask usage, a cap at small slam
+  without third-round-control confirmation), not left to the floor's grand
+  heuristics;
+- then re-run this cell. The enriched probe (`probe-kickback-relocation`,
+  §7.9's tool) is **held** until those fixes exist — probing the current
+  build would measure two defects this section already names.
+
+The no-ask bucket's −0.19/bd (PD-positive) remains the headline's bulk and is
+the card row perturbing the net — part of the knob's price under the
+configured-net design, but not evidence about relocation mechanics. Artifacts:
+dumps and rescore logs under `/mnt/hdd-data/jdh8/pons-ab-results/`
+(`kickback-fair-cell-{none,both}/`, `kickback-rescore-{none,both}.log`).

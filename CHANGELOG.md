@@ -9,6 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Measured
 
+- **The kickback fair cell, re-diagnosed under the slam bracket
+  (bba-kickback.md §7.15): the verdict is not rescue.** The cell reproduced
+  exactly from seed 1785708870 (NV −0.01041, vul −0.00905 plain DD per board),
+  was dumped, and every divergent board re-priced under nine instruments with
+  the ask-bucketed census. The loss decomposes into named mechanisms, none of
+  them DD's slam optimism: **the eaten 4♥** (the baseline plays the heart game
+  the feature's ♦ ask consumes — 90% of the ♦-relocated lane in both cells,
+  plus an asymmetric −2.19/−3.32 IMPs/bd on ~800 no-ask boards per cell
+  against a −1.39/−1.65 mirror control; PD-negative, so no scorer helps), and
+  **the grand-blast continuation** (♣ lane: `4♦–5♣–7♣` down one where the
+  baseline bids `4NT–5♠–6♣` making on identical information — the freed room
+  is where the floor's grand logic overbids). The ♥ lane is the only
+  DD-optimism candidate (NV playout is a wash, vul is not; thin n). §7.14's
+  "case closed until a scorer exists" is discharged: the scorer exists, the
+  relocation still loses, and the reopen path is a claim guard on the ♦ ask
+  plus authored grand discipline — build changes, then re-measure. The
+  enriched probe is held until those exist.
+
 - **The configured net's two gates (phase 5), on 2,000,000 fresh boards per
   cell.** Seed 1785708870 shared across every arm, arms sequential, no bank
   rows.
