@@ -36,6 +36,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Full tables in `docs/ai-bidder/configured-net.md`. The revert this bought is
   under *Changed* below; making v4 the default floor stands open.
 
+### Fixed
+
+- **`set_floor_rkcb` off with a relocated `set_rkcb_variant` disclosed a
+  convention we did not play.** The relocated ask's rules were `face`-gated on
+  both knobs, but the generated `.bbsa` card (`Kickback 1430`) and the
+  distilled-net selection (`classify_bba`) read the variant alone — so
+  `(floor_rkcb = off, variant = Kickback)` published Kickback and served the
+  kickback twin while the floor made no relocated ask at all. `relocating_now()`
+  now carries the `floor_rkcb` conjunct itself, so all seven consumers agree.
+  The shipped default is unaffected (`floor_rkcb` is on) and byte-identical.
+
 ### Changed
 
 - **`set_kickback` + `set_redwood` folded into one enum knob:

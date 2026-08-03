@@ -691,6 +691,11 @@ fn partner_slam_strength(context: &Context<'_>) -> u8 {
 /// keycard counting), so instinct decodes instinct on both sides.  Disable to
 /// recover the direct-milestone floor (the A/B off arm, `bba-gen
 /// --no-ns-floor-rkcb`); read at classification time, per-thread.
+///
+/// **The outer gate of the whole keycard package.**  Off, there is no ask to
+/// relocate, so [`relocating_now`] is false whatever [`set_rkcb_variant`] says
+/// and [`set_rkcb_minors`] has nothing to widen — the card discloses plain 4NT
+/// and the plain twin serves the floor.
 #[doc(hidden)]
 pub fn set_floor_rkcb(enabled: bool) {
     FLOOR_RKCB.with(|flag| flag.set(enabled));
@@ -834,11 +839,21 @@ pub(in crate::bidding) fn rkcb_variant_now() -> RkcbVariant {
 }
 
 /// Some relocation is live — the full ladder or its minor half
-/// ([`RkcbVariant`]).  The build-time gate for the relocated answer set and
-/// the relocated-ask rules; the *per-suit* scope is [`kickback_ladder`]'s
-/// claim loop, so every recognizer downstream of the ladder inherits it.
+/// ([`RkcbVariant`]), *and* the floor still has a keycard ask to relocate.
+/// The build-time gate for the relocated answer set and the relocated-ask
+/// rules; the *per-suit* scope is [`kickback_ladder`]'s claim loop, so every
+/// recognizer downstream of the ladder inherits it.
+///
+/// The [`set_floor_rkcb`] conjunct is what keeps the stance *consistent* across
+/// its three consumers.  The relocated rules' `face` gate always carried it, but
+/// the convention card ([`card.rs`](super::card)) and the distilled-net
+/// selection ([`classify_bba`](super::neural::classify_bba)) read the variant
+/// alone — so `(floor_rkcb = off, variant = Kickback)` published `Kickback 1430`
+/// on the generated card and served the kickback twin while the floor made no
+/// relocated ask at all.  A knob cross-product has to name a stance a
+/// partnership could play; that one disclosed a convention we did not.
 pub(in crate::bidding) fn relocating_now() -> bool {
-    rkcb_variant_now() != RkcbVariant::Plain
+    floor_rkcb_now() && rkcb_variant_now() != RkcbVariant::Plain
 }
 
 /// The keycard ask reaches agreed minors — carved in by [`set_rkcb_minors`],
@@ -5497,8 +5512,7 @@ pub fn instinct() -> Rules {
                 .alert(RKCB_FLOOR)
                 .face(move |context: &Context<'_>| {
                     let auction = context.auction();
-                    floor_rkcb_now()
-                        && relocating_now()
+                    relocating_now()
                         && context.undisturbed()
                         && kickback_ladder(auction, auction.len())[target as usize].is_some()
                         && partner_last_call(auction)

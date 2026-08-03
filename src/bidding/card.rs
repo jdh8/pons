@@ -621,6 +621,37 @@ mod tests {
         );
     }
 
+    /// The card never claims a relocation the floor cannot make
+    ///
+    /// `Kickback 1430` rides `relocating_now()`, which is `set_rkcb_variant` AND
+    /// `set_floor_rkcb`.  Before 2026-08-03 it read the variant alone, so
+    /// turning the floor's keycard machinery off while a relocation was selected
+    /// published a convention we then never bid — an undisclosed-system fault
+    /// before it is a measurement one, and it invalidates a kickback-vs-BBA
+    /// anchor.  `classify_bba`'s weight selection reads the same predicate, so
+    /// this pins that too.
+    #[test]
+    fn the_card_discloses_kickback_only_when_the_floor_can_ask() {
+        use crate::bidding::instinct::{RkcbVariant, set_floor_rkcb, set_rkcb_variant};
+
+        let row = |name: &str| american_card().to_string().lines().any(|l| l == name);
+        let claims_kickback = || row("Kickback 1430 = 1");
+        assert!(row("Kickback 1430 = 0"), "the shipped default is plain 4NT");
+
+        set_rkcb_variant(RkcbVariant::Kickback);
+        assert!(claims_kickback(), "a live relocation must be disclosed");
+
+        set_floor_rkcb(false);
+        assert!(
+            !claims_kickback(),
+            "with the floor's keycard ask off there is nothing to relocate, \
+             so the card must not claim Kickback"
+        );
+
+        set_floor_rkcb(true);
+        set_rkcb_variant(RkcbVariant::Plain);
+    }
+
     #[test]
     fn schema_has_no_duplicate_rows() {
         let mut names: Vec<_> = SCHEMA.to_vec();
