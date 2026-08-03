@@ -88,11 +88,10 @@ pub use competition::{
     set_cue_raise_answer, set_defense_to_2d_multi, set_delayed_cue, set_direct_3nt_stopper,
     set_double_override, set_double_style, set_free_1nt_floor, set_free_bid_floor,
     set_free_bid_quality, set_free_bid_style, set_free_bids, set_high_overcall_responses,
-    set_jordan_truscott, set_lebensohl, set_lebensohl_style, set_major_support_double,
-    set_natural_floor, set_negative_double_shape, set_penalty_double_leave_in, set_penalty_pass,
-    set_redouble_answer, set_splinter_doubled, set_strong_two_competition, set_trap_pass, set_uvu,
-    set_uvu_cue_floor, set_uvu_natural_floor, set_uvu_over_majors, set_uvu_x_floor,
-    set_weak_two_competition,
+    set_jordan_truscott, set_lebensohl_style, set_major_support_double, set_natural_floor,
+    set_negative_double_shape, set_penalty_double_leave_in, set_penalty_pass, set_redouble_answer,
+    set_splinter_doubled, set_strong_two_competition, set_trap_pass, set_uvu, set_uvu_cue_floor,
+    set_uvu_natural_floor, set_uvu_over_majors, set_uvu_x_floor, set_weak_two_competition,
 };
 // Knobs the inference walk reads at classify time.
 pub(crate) use competition::{jordan_truscott, lebensohl_style, major_support_double};

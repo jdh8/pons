@@ -79,6 +79,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   name `RuleOfNFloored` and destroying it on write. Callers use
   `set_point_scale` and `set_fuzzy_fifths` directly.
 
+- **`set_lebensohl` is deleted** — zero callers repo-wide, and `true` selected
+  the measured-*worse* `Plain` rather than the shipped `Transfer`, so "turning
+  the knob on" downgraded the system. The web crate had already written its own
+  toggle to route around it.
+
 - **`set_kickback` + `set_redwood` folded into one enum knob:
   `set_rkcb_variant(RkcbVariant)`, with `Plain` / `Redwood` / `Kickback`.**
   The bool pair was a 2-bit encoding of a 3-value choice: kickback implies the

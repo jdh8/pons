@@ -171,19 +171,6 @@ pub fn set_lebensohl_style(style: LebensohlStyle) {
     LEBENSOHL_STYLE.with(|cell| cell.set(style));
 }
 
-/// Enable plain Lebensohl (`true` → [`LebensohlStyle::Plain`]) or disable it
-/// (`false` → [`LebensohlStyle::Off`])
-///
-/// Back-compat shim over [`set_lebensohl_style`]; for Transfer Lebensohl call
-/// that directly with [`LebensohlStyle::Transfer`].
-pub fn set_lebensohl(on: bool) {
-    set_lebensohl_style(if on {
-        LebensohlStyle::Plain
-    } else {
-        LebensohlStyle::Off
-    });
-}
-
 /// The currently selected Lebensohl package
 pub(crate) fn lebensohl_style() -> LebensohlStyle {
     LEBENSOHL_STYLE.with(Cell::get)
