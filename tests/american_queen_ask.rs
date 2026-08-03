@@ -228,3 +228,44 @@ fn king_ask_needs_the_grand_values() {
         call(6, Strain::Spades),
     );
 }
+
+/// The none-or-three lane: four keycards of our own is four **combined** —
+/// partner answered none — so the denial stops at five and a king-showing
+/// reply stops at six.  The missing keycard vetoes both the six over a denial
+/// the one-or-four decode would bid and the seven its grand rule would try.
+#[test]
+fn none_or_three_decodes_the_total_through_the_stance() {
+    let system = armed();
+
+    let mut auction = vec![
+        call(1, Strain::Spades),
+        P,
+        call(3, Strain::Spades),
+        P,
+        call(4, Strain::Notrump),
+        P,
+        call(5, Strain::Diamonds),
+        P,
+    ];
+    // ♠AKJ42 ♥A32 ♦AK5 ♣43 — four keycards, 19 HCP, no trump queen.
+    assert_eq!(
+        best_call(&system, &auction, "AKJ42.A32.AK5.43"),
+        call(5, Strain::Hearts),
+        "partner showed none: one keycard is missing, ask the queen",
+    );
+
+    let mut denied = auction.clone();
+    denied.extend([call(5, Strain::Hearts), P, call(5, Strain::Spades), P]);
+    assert_eq!(
+        best_call(&system, &denied, "AKJ42.A32.AK5.43"),
+        P,
+        "queen denied on four combined: the denial is already the contract",
+    );
+
+    auction.extend([call(5, Strain::Hearts), P, call(6, Strain::Hearts), P]);
+    assert_eq!(
+        best_call(&system, &auction, "AKJ42.A32.AK5.43"),
+        call(6, Strain::Spades),
+        "one keycard is missing: six, never seven",
+    );
+}
