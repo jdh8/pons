@@ -188,5 +188,10 @@ name = "probe-1m-raise-ev"
 path = "examples/probe-1m-raise-ev/main.rs"
 required-features = ["dd"]
 
+[[example]]
+name = "probe-slam-battery"
+path = "examples/probe-slam-battery/main.rs"
+required-features = ["dd"]
+
 [profile.dev.package."*"]
 opt-level = 2
