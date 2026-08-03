@@ -92,29 +92,84 @@ fn rubens_transfer_reading() -> bool {
     RUBENS_TRANSFER_READING.with(Cell::get)
 }
 
-std::thread_local! {
-    /// Whether [`project_authored`] treats a call as artificial because its
-    /// authoring rule carries an [`Alert`][crate::bidding::Alert], on top of the
-    /// structural [`artificial`] test.  On by default; turning it off recovers the
-    /// pre-alert behaviour where a strength-showing artificial that floors no
-    /// foreign suit — the strong 2♣ opening, its 2♦ waiting / 2♥ double negative,
-    /// Puppet 3♣ — was misread as a natural suit.  The `ab-alert-reading` example
-    /// A/Bs the two.
-    static ALERT_READING: Cell<bool> = const { Cell::new(true) };
-}
-
-/// Toggle reading an alerted call as artificial (default on).
+/// How much of the authored book the projection pass decodes
 ///
-/// This is the per-call defense switch: with it on, the floor recognises every
-/// alerted convention — including the strength-showing artificials the structural
-/// detector misses — and reads it as the convention rather than as a natural suit,
-/// so a player switches its treatment the moment an opponent's alerted call lands.
-pub fn set_alert_reading(on: bool) {
-    ALERT_READING.with(|cell| cell.set(on));
+/// The three *playable* stances of what used to be two independent bools
+/// (`set_alert_reading` + `set_natural_reading`, folded 2026-08-03).  The read
+/// site was `(alerted && alert_reading()) || natural_reading()`, so the natural
+/// half short-circuited the alerted one: `(alert = off, natural = on)` and
+/// `(alert = on, natural = on)` were the same reading, four cells for three
+/// stances.  One `Cell` makes the honest domain the type, the
+/// [`NotrumpDefense`][super::american::NotrumpDefense] precedent.
+#[derive(Clone, Copy, PartialEq, Eq, Default, Debug)]
+pub enum ReadingScope {
+    /// Decode nothing off the authoring rules; every call falls to the natural
+    /// walk's guess from auction shape.  The pre-alert behaviour, in which a
+    /// strength-showing artificial that floors no foreign suit — the strong 2♣
+    /// opening, its 2♦ waiting / 2♥ double negative, Puppet 3♣ — was misread as
+    /// a natural suit.  The off arm of the `ab-alert-reading` A/B.
+    None,
+
+    /// Decode a call when its authoring rule carries an
+    /// [`Alert`][crate::bidding::Alert], on top of the structural
+    /// "points at a suit it did not name" test — the shipped default, and the
+    /// per-call defense
+    /// switch: the floor recognises every alerted convention and reads it as the
+    /// convention rather than as a natural suit, so a player switches its
+    /// treatment the moment an opponent's alerted call lands.
+    #[default]
+    Alerted,
+
+    /// Decode **every** authored call, unalerted ones too.
+    ///
+    /// The alert gate is correct as *disclosure* — an unalerted call is natural
+    /// and the natural walk reads it — but that leaves a whole regime unread: a
+    /// rule that is authored and natural (`gladiator_advances`'s game-forcing
+    /// `3♣`/`3♦`/`3O`, authored `len(suit, 5..) & points(game..)`) contributes
+    /// **nothing**, and the walk's guess from auction shape is an unverified
+    /// duplicate that can and does contradict it.  See
+    /// `docs/reading-drift-handoff.md`.
+    ///
+    /// Here an unalerted call's rules project the same sound union as an alerted
+    /// one's, and it is **intersected with** the walk's natural reading rather
+    /// than replacing it — the call keeps its suppression bit clear, so the
+    /// walk's bookkeeping (natural-suit lanes, agreed fits, later cue detection)
+    /// is untouched and only the rule's own claim is added.  Two consequences
+    /// follow from intersecting rather than substituting:
+    ///
+    /// - Where the walk is *right* the reading strictly tightens: the rule's
+    ///   strength band (which the walk usually has no way to know) lands on a
+    ///   call that previously published only a length floor.
+    /// - Where the walk is *wrong* the boxes can go **empty**, because a wrong
+    ///   walk claim intersected with a sound rule claim is still wrong.  That is
+    ///   a diagnostic, not a regression of this arm: it surfaces walk defects the
+    ///   alert gate had been hiding.  Sweep with the `admits` invariant before
+    ///   reading anything into an A/B.
+    ///
+    /// **Unmeasured**, hence not the default: it tightens thousands of readings
+    /// at once, and per `docs/dnf-migration.md`'s C1 finding a tightening that
+    /// moves *endpoints* without moving *mass* is close to pure feature
+    /// perturbation for the frozen nets.
+    All,
 }
 
-fn alert_reading() -> bool {
-    ALERT_READING.with(Cell::get)
+std::thread_local! {
+    /// How much of the authored book the projection decodes; **[`Alerted`] by
+    /// default**.
+    ///
+    /// [`Alerted`]: ReadingScope::Alerted
+    static READING_SCOPE: Cell<ReadingScope> = const { Cell::new(ReadingScope::Alerted) };
+}
+
+/// Select how much of the authored book the projection decodes (see
+/// [`ReadingScope`]); read at reading time, per-thread
+pub fn set_reading_scope(scope: ReadingScope) {
+    READING_SCOPE.with(|cell| cell.set(scope));
+}
+
+/// The projection's current decoding scope (see [`set_reading_scope`])
+fn reading_scope() -> ReadingScope {
+    READING_SCOPE.with(Cell::get)
 }
 
 std::thread_local! {
@@ -556,50 +611,6 @@ pub fn set_probed_vacuous_reading(on: bool) {
 
 pub(crate) fn probed_vacuous_reading() -> bool {
     PROBED_VACUOUS_READING.with(Cell::get)
-}
-
-std::thread_local! {
-    /// Whether [`project_authored`] also projects **unalerted** (natural) calls
-    /// into the overlay (see [`set_natural_reading`]).  Off by default.
-    static NATURAL_READING: Cell<bool> = const { Cell::new(false) };
-}
-
-/// Project every authored call, not only the alerted ones (default off)
-///
-/// The projection pass decodes a call when its authoring rule **alerts** it —
-/// correct as *disclosure*, since an unalerted call is natural and the natural
-/// walk reads it. But that leaves a whole regime unread: a rule that is authored
-/// and natural (`gladiator_advances`'s game-forcing `3♣`/`3♦`/`3O`, authored
-/// `len(suit, 5..) & points(game..)`) contributes **nothing** to the reading, and
-/// the walk's guess from auction shape is an unverified duplicate that can and
-/// does contradict it. See `docs/reading-drift-handoff.md`.
-///
-/// On, an unalerted call's rules project the same sound union as an alerted
-/// one's, and it is **intersected with** the walk's natural reading rather than
-/// replacing it — the call keeps its suppression bit clear, so the walk's
-/// bookkeeping (natural-suit lanes, agreed fits, later cue detection) is
-/// untouched and only the rule's own claim is added. Two consequences follow
-/// from intersecting rather than substituting:
-///
-/// - Where the walk is *right* the reading strictly tightens: the rule's
-///   strength band (which the walk usually has no way to know) lands on a call
-///   that previously published only a length floor.
-/// - Where the walk is *wrong* the boxes can go **empty**, because a wrong walk
-///   claim intersected with a sound rule claim is still wrong. That is a
-///   diagnostic, not a regression of this knob: it surfaces walk defects the
-///   alert gate had been hiding. Sweep with the `admits` invariant before
-///   reading anything into an A/B.
-///
-/// Default **off** pending that A/B: it tightens thousands of readings at once,
-/// and per `docs/dnf-migration.md`'s C1 finding a tightening that moves
-/// *endpoints* without moving *mass* is close to pure feature perturbation for
-/// the frozen nets. Read at reading time, per-thread.
-pub fn set_natural_reading(on: bool) {
-    NATURAL_READING.with(|cell| cell.set(on));
-}
-
-fn natural_reading() -> bool {
-    NATURAL_READING.with(Cell::get)
 }
 
 std::thread_local! {
@@ -3005,7 +3016,11 @@ fn project_authored(context: &Context<'_>) -> ([Dnf; 4], [Dnf; 4], u64) {
             // union is the same sound one, but the suppression bit below stays
             // clear, so the projection *adds to* the walk's natural reading
             // instead of replacing it.
-            (alerted && alert_reading()) || natural_reading()
+            match reading_scope() {
+                ReadingScope::None => false,
+                ReadingScope::Alerted => alerted,
+                ReadingScope::All => true,
+            }
         };
 
         if let Some(projection) = projection.filter(|_| decode) {
@@ -3024,7 +3039,7 @@ fn project_authored(context: &Context<'_>) -> ([Dnf; 4], [Dnf; 4], u64) {
             // catch-all, whose ⊤ would union the agreement away.  But disclosure
             // does not work like that: an alerted call is explained as *the
             // convention*, not as the residue sharing its bid.  An unalerted
-            // call reaching here on `natural_reading()` has nothing to announce
+            // call reaching here on `ReadingScope::All` has nothing to announce
             // beyond what it projects, and the `unwrap_or_else` catches it.
             let agreement = if announce_split && !is_pass {
                 rules
@@ -5630,7 +5645,11 @@ mod tests {
         // contradicts the rule empties the box instead of quietly overriding it
         // — the sweep is how `set_natural_reading` gets adjudicated per node.
         for natural in [false, true] {
-            set_natural_reading(natural);
+            set_reading_scope(if natural {
+                ReadingScope::All
+            } else {
+                ReadingScope::Alerted
+            });
             for &hand in &hands {
                 let made = chosen_call(&stance, hand, &node);
                 check(&mut failures, hand, &node, made);
@@ -5664,7 +5683,7 @@ mod tests {
                 check(&mut failures, hand, &doubled, made);
             }
         }
-        set_natural_reading(false);
+        set_reading_scope(ReadingScope::Alerted);
         crate::bidding::american::set_nt_overcall_gladiator(false);
 
         assert!(
@@ -5860,7 +5879,11 @@ mod tests {
 
         let mut failures: Vec<String> = Vec::new();
         for natural in [false, true] {
-            set_natural_reading(natural);
+            set_reading_scope(if natural {
+                ReadingScope::All
+            } else {
+                ReadingScope::Alerted
+            });
             for &(what, node) in nodes {
                 for &hand in &hands {
                     // Honest route only: the seat's earlier calls in the
@@ -5890,7 +5913,7 @@ mod tests {
                 }
             }
         }
-        set_natural_reading(false);
+        set_reading_scope(ReadingScope::Alerted);
 
         assert!(
             failures.is_empty(),
@@ -5968,11 +5991,11 @@ mod tests {
             Call::Pass,
         ];
 
-        set_natural_reading(false);
+        set_reading_scope(ReadingScope::Alerted);
         let off = read_booked(&auction);
-        set_natural_reading(true);
+        set_reading_scope(ReadingScope::All);
         let on = read_booked(&auction);
-        set_natural_reading(false);
+        set_reading_scope(ReadingScope::Alerted);
         crate::bidding::american::set_nt_overcall_gladiator(false);
 
         assert_eq!(

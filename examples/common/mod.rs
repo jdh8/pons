@@ -562,3 +562,24 @@ impl From<NtDefenseArg> for pons::bidding::american::NotrumpDefense {
         }
     }
 }
+
+/// CLI face of [`pons::bidding::ReadingScope`], same reason as [`NtDefenseArg`]
+#[derive(Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
+pub enum ReadingScopeArg {
+    /// Decode nothing authored — the natural walk alone
+    None,
+    /// Decode alerted calls only (the shipped default)
+    Alerted,
+    /// Decode every authored call, unalerted ones too
+    All,
+}
+
+impl From<ReadingScopeArg> for pons::bidding::ReadingScope {
+    fn from(arg: ReadingScopeArg) -> Self {
+        match arg {
+            ReadingScopeArg::None => Self::None,
+            ReadingScopeArg::Alerted => Self::Alerted,
+            ReadingScopeArg::All => Self::All,
+        }
+    }
+}

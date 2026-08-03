@@ -6,7 +6,7 @@
 //! its 2♦ waiting / 2♥ double negative, and Puppet 3♣.  Those were read as a
 //! natural suit, so partner (and the keyless floor behind it) thought opener held
 //! clubs.  Marking every artificial call with an [`Alert`] and reading the alert
-//! (`set_alert_reading`) lets the floor suppress the phantom-suit read and project
+//! (`set_reading_scope`) lets the floor suppress the phantom-suit read and project
 //! the convention instead.  Both arms run the same 2/1 system; the only difference
 //! is the toggle.
 //!
@@ -25,7 +25,7 @@ use clap::Parser;
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Seat};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
-use pons::bidding::set_alert_reading;
+use pons::bidding::{ReadingScope, set_reading_scope};
 use pons::scoring::final_contract;
 use rayon::prelude::*;
 
@@ -70,7 +70,11 @@ fn main() {
             .enumerate()
             .map(|(i, deal)| {
                 let dealer = Seat::ALL[i % 4];
-                set_alert_reading(on);
+                set_reading_scope(if on {
+                    ReadingScope::Alerted
+                } else {
+                    ReadingScope::None
+                });
                 final_contract(&bid_uncontested(&sys, dealer, vul, deal), dealer)
             })
             .collect::<Vec<_>>()

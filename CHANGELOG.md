@@ -66,6 +66,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Landy is an overlay, not a variant. Byte-identical on the shipped default
   (seeded 20k-board `smoke-default` diff).
 
+- **`set_alert_reading` + `set_natural_reading` folded into
+  `set_reading_scope(ReadingScope)`** — `None` / `Alerted` / `All`. The read site
+  was `(alerted && alert_reading()) || natural_reading()`, so the natural half
+  short-circuited the alerted one: four cells, three stances, the same
+  mis-encoding as the kickback pair. `bba-gen`'s two flags become one
+  `--ns-reading-scope`. Byte-identical on the shipped default.
+
 - **`set_kickback` + `set_redwood` folded into one enum knob:
   `set_rkcb_variant(RkcbVariant)`, with `Plain` / `Redwood` / `Kickback`.**
   The bool pair was a 2-bit encoding of a 3-value choice: kickback implies the

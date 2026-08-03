@@ -47,7 +47,8 @@ use std::ffi::{CString, c_int};
 mod common;
 use common::oracle::{BbaOracle, ConventionCard, DEFAULT_LIB, SYSTEM_2_OVER_1, bid_out, load_bbsa};
 use common::{
-    Blinded, Board, Dump, NtDefenseArg, deviant_floor, hand_hcp, seat_floor, seat_to_act,
+    Blinded, Board, Dump, NtDefenseArg, ReadingScopeArg, deviant_floor, hand_hcp, seat_floor,
+    seat_to_act,
 };
 
 /// Bid our 2/1 floor against BBA's 2/1 and write the boards (the generation half
@@ -301,22 +302,23 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_announced_reading: bool,
 
-    /// Project **unalerted** (natural) authored calls too
-    /// (`inference::set_natural_reading`, crate default off).  The projection
-    /// pass decodes a call when its rule alerts it, so an authored-but-natural
-    /// rule — `len(♦, 5..) & points(10..)` — contributes nothing and the natural
-    /// walk's guess from auction shape stands unchecked beside it.  On, the
-    /// rule's own union is intersected into the reading *without* suppressing
-    /// the walk.  Reading-only for the authored layer, but not bid-inert: the
-    /// nets eat inference features, so expect divergence.  See
-    /// `docs/reading-drift-handoff.md`.
-    #[arg(long, default_value_t = false)]
-    ns_natural_reading: bool,
-
-    /// Disable reading per-call alerts as artificial (default on) to A/B the
-    /// alert-reading defense switch — how our floor reads alerted artificial calls.
-    #[arg(long, default_value_t = false)]
-    no_alert_reading: bool,
+    /// How much of the authored book our projection decodes
+    /// (`inference::set_reading_scope`, crate default `alerted`).
+    ///
+    /// `alerted` decodes a call when its rule alerts it; `none` is the
+    /// pre-alert arm, where a strength-showing artificial reads as a natural
+    /// suit; `all` also projects **unalerted** authored calls, whose rules —
+    /// `len(♦, 5..) & points(10..)` — otherwise contribute nothing while the
+    /// natural walk's guess from auction shape stands unchecked beside them.
+    /// Under `all` the rule's own union is intersected into the reading
+    /// *without* suppressing the walk.  Reading-only for the authored layer,
+    /// but not bid-inert: the nets eat inference features, so expect
+    /// divergence.  See `docs/reading-drift-handoff.md`.
+    ///
+    /// One flag because the two bools this replaced had four cells for three
+    /// stances — the natural half short-circuited the alerted one.
+    #[arg(long, value_enum, default_value = "alerted")]
+    ns_reading_scope: ReadingScopeArg,
 
     /// Blank every reading our nets see (`features::set_blind_inference`, crate
     /// default off — diagnostic, never ship it on).  The reading program's
@@ -1434,7 +1436,6 @@ fn main() -> anyhow::Result<()> {
         pons::bidding::instinct::set_uvu_encircle(true);
     }
     pons::bidding::american::set_defense_to_2d_multi(args.defense_2d_multi);
-    pons::bidding::set_alert_reading(!args.no_alert_reading);
     pons::bidding::instinct::set_settle_floor(!args.no_settle_floor);
     pons::bidding::instinct::set_nt_responder_game_floor(args.ns_nt_responder_game_floor);
     pons::bidding::instinct::set_suppress_nt_game_force_over_double(
@@ -1508,7 +1509,7 @@ fn main() -> anyhow::Result<()> {
     pons::bidding::instinct::set_bilans_floor(!args.no_ns_bilans);
     pons::bidding::instinct::set_net_collar(args.ns_net_collar);
     pons::bidding::inference::set_announced_reading(args.ns_announced_reading);
-    pons::bidding::inference::set_natural_reading(args.ns_natural_reading);
+    pons::bidding::set_reading_scope(args.ns_reading_scope.into());
     pons::bidding::evaluator::set_eval_auction(!args.no_ns_eval_auction);
     pons::bidding::evaluator::set_eval_shape(args.ns_eval_shape);
     pons::bidding::features::set_blind_inference(args.ns_blind_inference);

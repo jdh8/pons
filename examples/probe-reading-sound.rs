@@ -120,7 +120,7 @@ struct Args {
     their_wild_weak_two: bool,
 
     /// Our seats read **every** authored call, not only the alerted ones
-    /// (`set_natural_reading` — the regime-2 diagnostic; see
+    /// (`set_reading_scope(ReadingScope::All)` — the regime-2 diagnostic; see
     /// `docs/reading-drift-handoff.md`)
     #[arg(long)]
     ns_natural_reading: bool,
@@ -227,7 +227,11 @@ fn main() -> anyhow::Result<()> {
     let args = Args::parse();
     let base = args.seed.unwrap_or_else(rand::random);
     let vul = AbsoluteVulnerability::NONE;
-    pons::bidding::inference::set_natural_reading(args.ns_natural_reading);
+    pons::bidding::set_reading_scope(if args.ns_natural_reading {
+        pons::bidding::ReadingScope::All
+    } else {
+        pons::bidding::ReadingScope::Alerted
+    });
     let stance = american().against();
 
     // The opponents: a perturbed pons book (deviation panel axes B/C) or, by
