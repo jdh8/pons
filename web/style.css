@@ -378,3 +378,7 @@ table.ddtable td.lose { color: var(--heart); }
 .hintrow { display: flex; flex-wrap: wrap; gap: 16px; }
 .hintrow > div { display: flex; align-items: baseline; gap: 6px; }
 .hintsd { opacity: 0.6; font-variant-numeric: tabular-nums; }
+
+/* A settings row whose master knob is off: the engine ignores it, so the UI says
+   so rather than offering a control that does nothing. */
+.opt.dimmed { opacity: .45; cursor: not-allowed; }

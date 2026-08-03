@@ -47,6 +47,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   now carries the `floor_rkcb` conjunct itself, so all seven consumers agree.
   The shipped default is unaffected (`floor_rkcb` is on) and byte-identical.
 
+- **Three `web` settings defaults contradicted the engine** —
+  `rich_advance_double` said off while the engine ships it on,
+  `rubens_advances` and `fuzzy_fifths` said on while both ship off. Since the
+  browser stores only *deviations* from the registry value and the Settings
+  reset button pushes that value into the bidder, a reset actively wrote three
+  wrong knobs. The registry had been unchanged since 2026-07-10 while all three
+  engine defaults moved after it. **`web/` is now in CI** — it is a separate
+  workspace, so `rust.yml` never built it and only the Pages deploy on `main`
+  compiled it; its 18 tests had never run anywhere, which is why the drift
+  survived.
+
 - **Four statically dead disjuncts in `penalty_x_reading`** — one
   `Cell<NotrumpDefense>` holds one value, so "Natural is active" already
   subsumed the four "…but not DONT/Meckwell/direct-Landy/Woolsey" tests. They
@@ -83,6 +94,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the measured-*worse* `Plain` rather than the shipped `Transfer`, so "turning
   the knob on" downgraded the system. The web crate had already written its own
   toggle to route around it.
+
+- **The web Settings tab knows which knobs depend on which.** A `requires`
+  field (`"key"`, or `"key=value"` for a radio family) now gates eleven rows
+  whose engine knob reads nothing while its master is off — `advance_rubens`
+  under `rich_advance_double`, `penalty_no_pull` under the latch,
+  `uvu_encircle` under `uvu` (which sits in a different tab section), and so on.
+  They render disabled and dimmed instead of as equal, independently clickable
+  peers, and a test asserts every `requires` names a row that exists in a form
+  that row can satisfy. Rows naming developer instruments were dropped, the
+  engine setters staying for A/B: the whole `Fuzzing` section, `inference_aware`,
+  `alert_reading`, and `rkcb_minors` — the last dominated by the `rkcb_variant`
+  radio directly below it, since either relocation implies the minors' reach.
 
 - **`set_kickback` + `set_redwood` folded into one enum knob:
   `set_rkcb_variant(RkcbVariant)`, with `Plain` / `Redwood` / `Kickback`.**

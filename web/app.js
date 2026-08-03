@@ -538,6 +538,19 @@ const labelOf = (opt) => opt.label || humanize(opt.key);
 // The effective current value of an option (stored override, else its default).
 const valueOf = (opt) => (opt.key in stored ? stored[opt.key] : opt.default);
 
+// Whether a row's master is armed. `requires` is either "key" (that toggle must
+// be on) or "key=value" (that choice must equal value); a row without one is
+// always live. The engine ignores a gated knob while its master is off, so the
+// UI greys it out instead of offering a checkbox that does nothing.
+function isLive(opt) {
+  if (!opt.requires) return true;
+  const [key, want] = opt.requires.split('=');
+  const master = OPTIONS.find((o) => o.key === key);
+  if (!master) return true;
+  const cur = valueOf(master);
+  return want === undefined ? cur === true : cur === want;
+}
+
 // Push one saved value to the wasm bidder — booleans are toggles, strings choices.
 function applyOption(key, value) {
   if (typeof value === 'boolean') set_option(key, value);
@@ -546,16 +559,20 @@ function applyOption(key, value) {
 
 // One option's HTML: a checkbox, or a radio set for a mutually-exclusive family.
 function optHTML(opt) {
+  const live = isLive(opt);
+  const dis = live ? '' : ' disabled';
+  const dim = live ? '' : ' dimmed';
+  const needs = live ? '' : ` title="needs ${escapeHTML(opt.requires.replace('=', ': '))}"`;
   if (opt.kind === 'choice') {
     const cur = valueOf(opt);
     const radios = opt.variants.map((v) =>
-      `<label class="opt"><input type="radio" name="${opt.key}" data-key="${opt.key}"` +
-      ` value="${v.value}"${v.value === cur ? ' checked' : ''}> ${escapeHTML(v.label)}</label>`,
+      `<label class="opt${dim}"${needs}><input type="radio" name="${opt.key}" data-key="${opt.key}"` +
+      ` value="${v.value}"${v.value === cur ? ' checked' : ''}${dis}> ${escapeHTML(v.label)}</label>`,
     ).join('');
     return `<div class="choice"><div class="choice-label">${escapeHTML(labelOf(opt))}</div>${radios}</div>`;
   }
-  return `<label class="opt"><input type="checkbox" data-key="${opt.key}"` +
-    `${valueOf(opt) ? ' checked' : ''}> ${escapeHTML(labelOf(opt))}</label>`;
+  return `<label class="opt${dim}"${needs}><input type="checkbox" data-key="${opt.key}"` +
+    `${valueOf(opt) ? ' checked' : ''}${dis}> ${escapeHTML(labelOf(opt))}</label>`;
 }
 
 let settingsBuilt = false;
@@ -579,6 +596,7 @@ function renderSettings() {
     if (!el) return;
     setOption(el.dataset.key, el.type === 'radio' ? el.value : el.checked);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
+    renderInputs(); // this row may be some other row's master
   });
 
   id('s-reset').onclick = () => {
@@ -594,11 +612,14 @@ function renderSettings() {
 function renderInputs() {
   for (const opt of OPTIONS) {
     const cur = valueOf(opt);
-    if (opt.kind === 'choice') {
-      for (const r of id('settings').querySelectorAll(`input[name="${opt.key}"]`)) r.checked = (r.value === cur);
-    } else {
-      const cb = id('settings').querySelector(`input[type=checkbox][data-key="${opt.key}"]`);
-      if (cb) cb.checked = cur;
+    const live = isLive(opt);
+    const inputs = opt.kind === 'choice'
+      ? id('settings').querySelectorAll(`input[name="${opt.key}"]`)
+      : id('settings').querySelectorAll(`input[type=checkbox][data-key="${opt.key}"]`);
+    for (const el of inputs) {
+      el.checked = opt.kind === 'choice' ? el.value === cur : cur;
+      el.disabled = !live;
+      el.closest('label')?.classList.toggle('dimmed', !live);
     }
   }
 }

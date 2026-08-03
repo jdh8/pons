@@ -24,7 +24,7 @@ use contract_bridge::{
 use pons::bidding::american::american_book;
 use pons::bidding::evaluator::trick_estimates;
 use pons::bidding::fallback::Fallback;
-use pons::bidding::{Relative, Stance, Table, american, constraint, inference, instinct};
+use pons::bidding::{Relative, Stance, Table, american, inference, instinct};
 use pons::scoring::{final_contract, imps};
 use pons_dds::{Par, Solver, TrickCountTable, Vulnerability, calculate_par, solve_deal_on};
 use rand::SeedableRng as _;
@@ -834,6 +834,18 @@ fn rule_json(rules: &pons::bidding::Rules) -> Vec<RuleJson> {
 /// old hand-synced JS `CURATED` / `MORE` arrays are gone.  Each `set_*` is a
 /// module-level thread-local flag read when a deal rebuilds `american()` in
 /// `deal_with`; wasm is single-threaded, so the thread-local is effectively a global.
+/// A row's `requires`: the master this control is dead without.
+///
+/// Two forms, both resolved in JS against the *current* state of the named row:
+/// `"key"` (that toggle must be on) and `"key=value"` (that choice must equal
+/// `value`).  The engine has plenty of knobs that read nothing while another is
+/// off — `set_advance_rubens` under `set_rich_advance_double`,
+/// `set_penalty_no_pull` under the latch, `set_uvu_encircle` under `set_uvu` —
+/// and rendering those as equal, independently clickable peers (often in a
+/// different section from their master) is a lie the UI tells about what the
+/// bidder will do.  A gated row renders disabled until its master is armed.
+type Requires = Option<&'static str>;
+
 #[derive(Serialize)]
 #[serde(tag = "kind", rename_all = "lowercase")]
 enum Setting {
@@ -844,6 +856,8 @@ enum Setting {
         /// Display label, or `""` to humanise the key in JS.
         label: &'static str,
         default: bool,
+        /// See [`Requires`].
+        requires: Requires,
         #[serde(skip)]
         set: fn(bool),
     },
@@ -858,6 +872,8 @@ enum Setting {
         variants: &'static [Variant],
         /// The `value` of the default variant.
         default: &'static str,
+        /// See [`Requires`].
+        requires: Requires,
         #[serde(skip)]
         set: fn(&str),
     },
@@ -876,9 +892,17 @@ impl Setting {
             Setting::Toggle { key, .. } | Setting::Choice { key, .. } => key,
         }
     }
+
+    /// Test-only: the row's gate. The UI reads the serialised field, not this.
+    #[cfg(test)]
+    const fn requires(&self) -> Requires {
+        match self {
+            Setting::Toggle { requires, .. } | Setting::Choice { requires, .. } => *requires,
+        }
+    }
 }
 
-/// Terser constructor for the common [`Setting::Toggle`] row.
+/// Terser constructor for the common ungated [`Setting::Toggle`] row.
 const fn toggle(
     key: &'static str,
     section: &'static str,
@@ -891,6 +915,27 @@ const fn toggle(
         section,
         label,
         default,
+        requires: None,
+        set,
+    }
+}
+
+/// A [`Setting::Toggle`] the engine ignores unless `requires` holds (see
+/// [`Requires`]).
+const fn gated(
+    key: &'static str,
+    section: &'static str,
+    label: &'static str,
+    default: bool,
+    set: fn(bool),
+    requires: &'static str,
+) -> Setting {
+    Setting::Toggle {
+        key,
+        section,
+        label,
+        default,
+        requires: Some(requires),
         set,
     }
 }
@@ -903,7 +948,6 @@ const DEFENSE: &str = "Defense to their 1NT";
 const REBIDS: &str = "Rebids & responses";
 const FLOOR: &str = "Floor (instinct)";
 const INFERENCE: &str = "Inference (auction reading)";
-const FUZZING: &str = "Fuzzing (hand evaluation)";
 
 /// The `[1NT]` defense family — variants map onto `american::NotrumpDefense`.
 static NOTRUMP_DEFENSE_VARIANTS: &[Variant] = &[
@@ -1029,8 +1073,9 @@ fn set_rkcb_variant_choice(value: &str) {
     });
 }
 
-/// Lebensohl as an on/off toggle: on = Transfer Lebensohl (the default package, not
-/// the `set_lebensohl` wrapper's lossy `Plain`), off = none.
+/// Lebensohl as an on/off toggle: on = Transfer Lebensohl (the shipped package),
+/// off = none.  `LebensohlStyle::Plain` is deliberately unreachable here — it is a
+/// measured-worse arm, kept for A/B only.
 fn set_lebensohl_toggle(on: bool) {
     use american::LebensohlStyle;
     american::set_lebensohl_style(if on {
@@ -1071,7 +1116,7 @@ fn set_puppet_stayman(on: bool) {
 static SETTINGS: &[Setting] = &[
     // Openings
     toggle("open_one_notrump", OPENINGS, "Open 1NT (15–17)", true, american::set_open_one_notrump),
-    Setting::Choice { key: "notrump_shape", section: OPENINGS, label: "1NT opening shape", variants: NOTRUMP_SHAPE_VARIANTS, default: "wide6322", set: set_notrump_shape_choice },
+    Setting::Choice { key: "notrump_shape", section: OPENINGS, label: "1NT opening shape", variants: NOTRUMP_SHAPE_VARIANTS, default: "wide6322", requires: None, set: set_notrump_shape_choice },
     // Notrump
     toggle("puppet_stayman", NOTRUMP, "Puppet Stayman (3♣)", true, set_puppet_stayman),
     toggle("garbage_stayman", NOTRUMP, "Garbage Stayman", true, american::set_garbage_stayman),
@@ -1079,7 +1124,7 @@ static SETTINGS: &[Setting] = &[
     toggle("transfer_slam_try", NOTRUMP, "", true, american::set_transfer_slam_try),
     toggle("texas_slam_drive", NOTRUMP, "", true, american::set_texas_slam_drive),
     toggle("transfer_gf_majors", NOTRUMP, "", true, american::set_transfer_gf_majors),
-    toggle("transfer_gf_hearts", NOTRUMP, "", true, american::set_transfer_gf_hearts),
+    gated("transfer_gf_hearts", NOTRUMP, "", true, american::set_transfer_gf_hearts, "transfer_gf_majors"),
     toggle("stayman_both_majors", NOTRUMP, "", true, american::set_stayman_both_majors),
     toggle("stayman_5card_max", NOTRUMP, "", true, american::set_stayman_5card_max),
     toggle("invitational_5card_majors", NOTRUMP, "", true, american::set_invitational_5card_majors),
@@ -1103,13 +1148,13 @@ static SETTINGS: &[Setting] = &[
     toggle("jordan_truscott", COMPETITION, "Jordan / Truscott 2NT", true, american::set_jordan_truscott),
     toggle("delayed_cue", COMPETITION, "", false, american::set_delayed_cue),
     toggle("competition_over_stayman", COMPETITION, "", true, american::set_competition_over_stayman),
-    toggle("competition_over_minor_transfer", COMPETITION, "", true, american::set_competition_over_minor_transfer),
-    toggle("competition_over_diamond_transfer", COMPETITION, "", true, american::set_competition_over_diamond_transfer),
+    gated("competition_over_minor_transfer", COMPETITION, "", true, american::set_competition_over_minor_transfer, "puppet_stayman"),
+    gated("competition_over_diamond_transfer", COMPETITION, "", true, american::set_competition_over_diamond_transfer, "puppet_stayman"),
     toggle("defense_to_2d_multi", COMPETITION, "", false, american::set_defense_to_2d_multi),
     toggle("leaping_michaels", COMPETITION, "Leaping Michaels", true, american::set_leaping_michaels),
     toggle("responsive_takeout", COMPETITION, "Responsive doubles", true, american::set_responsive_takeout),
-    toggle("rich_advance_double", COMPETITION, "", false, american::set_rich_advance_double),
-    toggle("advance_rubens", COMPETITION, "Rubens advances", false, american::set_advance_rubens),
+    toggle("rich_advance_double", COMPETITION, "", true, american::set_rich_advance_double),
+    gated("advance_rubens", COMPETITION, "Rubens advances", false, american::set_advance_rubens, "rich_advance_double"),
     toggle("nt_overcall_gladiator", COMPETITION, "Gladiator (1NT-overcall advance)", false, american::set_nt_overcall_gladiator),
     // Negative-double school over their overcall — the enum-backed radio family
     Setting::Choice {
@@ -1118,6 +1163,7 @@ static SETTINGS: &[Setting] = &[
         label: "Negative double (over their overcall)",
         variants: NEGATIVE_DOUBLE_VARIANTS,
         default: "modern",
+        requires: None,
         set: set_negative_double_choice,
     },
     // Defense to their 1NT — the radio family is the enum-backed choice
@@ -1127,9 +1173,10 @@ static SETTINGS: &[Setting] = &[
         label: "Defense system",
         variants: NOTRUMP_DEFENSE_VARIANTS,
         default: "natural",
+        requires: None,
         set: set_notrump_defense_choice,
     },
-    toggle("direct_dont_four_four", DEFENSE, "", true, american::set_direct_dont_four_four),
+    gated("direct_dont_four_four", DEFENSE, "", true, american::set_direct_dont_four_four, "notrump_defense=direct_dont"),
     toggle("stayman_defense", DEFENSE, "", false, american::set_stayman_defense),
     toggle("transfer_defense", DEFENSE, "", false, american::set_transfer_defense),
     toggle("minor_transfer_defense", DEFENSE, "", false, american::set_minor_transfer_defense),
@@ -1140,35 +1187,31 @@ static SETTINGS: &[Setting] = &[
     toggle("meckstroth_adjunct", REBIDS, "Meckstroth adjunct", true, american::set_meckstroth_adjunct),
     toggle("limit_raise_acceptance", REBIDS, "", true, american::set_limit_raise_acceptance),
     // Floor (instinct)
-    toggle("inference_aware", FLOOR, "", true, instinct::set_inference_aware),
     toggle("one_nt_runout", FLOOR, "", true, instinct::set_one_nt_runout),
-    toggle("one_nt_runout_universal", FLOOR, "", true, instinct::set_one_nt_runout_universal),
+    gated("one_nt_runout_universal", FLOOR, "", true, instinct::set_one_nt_runout_universal, "one_nt_runout"),
     toggle("settle_floor", FLOOR, "", true, instinct::set_settle_floor),
-    toggle("rubens_advances", FLOOR, "", true, instinct::set_rubens_advances),
+    toggle("rubens_advances", FLOOR, "", false, instinct::set_rubens_advances),
     toggle("floor_rkcb", FLOOR, "", true, instinct::set_floor_rkcb),
-    toggle("rkcb_minors", FLOOR, "RKCB minors too", true, instinct::set_rkcb_minors),
     // One radio family, not two checkboxes: the old redwood/kickback toggles let
-    // the UI show both checked, a state the engine cannot play.
-    Setting::Choice { key: "rkcb_variant", section: FLOOR, label: "Keycard ask relocation", variants: RKCB_VARIANT_VARIANTS, default: "plain", set: set_rkcb_variant_choice },
+    // the UI show both checked, a state the engine cannot play.  `rkcb_minors`
+    // used to sit here too and was dropped for the same reason — either
+    // relocation implies the minors' reach (`minor_asks_now`), so the checkbox
+    // was inert on two of its six cells.
+    Setting::Choice { key: "rkcb_variant", section: FLOOR, label: "Keycard ask relocation", variants: RKCB_VARIANT_VARIANTS, default: "plain", requires: Some("floor_rkcb"), set: set_rkcb_variant_choice },
     toggle("two_over_one_force", FLOOR, "2/1 forces game", true, instinct::set_two_over_one_force),
-    toggle("penalize_escape_stack", FLOOR, "", true, instinct::set_penalize_escape_stack),
-    toggle("penalize_escape_values", FLOOR, "", true, instinct::set_penalize_escape_values),
-    toggle("uvu_encircle", FLOOR, "UVU penalty procedure", true, instinct::set_uvu_encircle),
-    toggle("penalty_latch", FLOOR, "", true, instinct::set_penalty_latch),
-    toggle("penalty_no_pull", FLOOR, "", true, instinct::set_penalty_no_pull),
+    gated("penalize_escape_stack", FLOOR, "", true, instinct::set_penalize_escape_stack, "one_nt_runout"),
+    gated("penalize_escape_values", FLOOR, "", true, instinct::set_penalize_escape_values, "one_nt_runout"),
+    gated("uvu_encircle", FLOOR, "UVU penalty procedure", true, instinct::set_uvu_encircle, "uvu"),
+    gated("penalty_latch", FLOOR, "", true, instinct::set_penalty_latch, "notrump_defense=natural"),
+    gated("penalty_no_pull", FLOOR, "", true, instinct::set_penalty_no_pull, "penalty_latch"),
     toggle("advancer_xx_runout", FLOOR, "", true, instinct::set_advancer_xx_runout),
     toggle("doubler_xx_runout", FLOOR, "", true, instinct::set_doubler_xx_runout),
     // Inference (auction reading)
     toggle("nt_invite_inference", INFERENCE, "", true, inference::set_nt_invite_inference),
-    toggle("rubens_transfer_reading", INFERENCE, "", true, inference::set_rubens_transfer_reading),
-    toggle("alert_reading", INFERENCE, "", true, inference::set_alert_reading),
+    gated("rubens_transfer_reading", INFERENCE, "", true, inference::set_rubens_transfer_reading, "rubens_advances"),
     toggle("fallback_projection", INFERENCE, "", true, inference::set_fallback_projection),
     toggle("control_bid_reading", INFERENCE, "", true, inference::set_control_bid_reading),
     toggle("rule_accept", INFERENCE, "", true, inference::set_rule_accept),
-    // Fuzzing (hand evaluation)
-    toggle("fuzzy_strength", FUZZING, "Fuzzy hand strength", true, constraint::set_fuzzy_strength),
-    toggle("fuzzy_points", FUZZING, "", true, constraint::set_fuzzy_points),
-    toggle("fuzzy_fifths", FUZZING, "", true, constraint::set_fuzzy_fifths),
 ];
 
 /// The in-browser half of `examples/binky`'s benchmark: fix N-S, reshuffle E-W.
@@ -1514,6 +1557,33 @@ mod tests {
                     );
                 }
                 other => panic!("unknown kind {other}"),
+            }
+        }
+        // Every `requires` must name a row that exists, in the form that row can
+        // satisfy: a bare key must be a toggle, `key=value` a choice with that
+        // variant. A typo here renders a permanently-disabled control, which is
+        // worse than the ungated lie it replaced.
+        for setting in SETTINGS {
+            let Some(spec) = setting.requires() else {
+                continue;
+            };
+            let (key, want) = match spec.split_once('=') {
+                Some((key, value)) => (key, Some(value)),
+                None => (spec, None),
+            };
+            assert_ne!(key, setting.key(), "{} requires itself", setting.key());
+            let master = SETTINGS
+                .iter()
+                .find(|s| s.key() == key)
+                .unwrap_or_else(|| panic!("{} requires missing row {key}", setting.key()));
+            match (master, want) {
+                (Setting::Toggle { .. }, None) => {}
+                (Setting::Choice { variants, .. }, Some(value)) => assert!(
+                    variants.iter().any(|v| v.value == value),
+                    "{} requires {key}={value}, not a variant",
+                    setting.key()
+                ),
+                _ => panic!("{} requires {spec}, wrong form for that row", setting.key()),
             }
         }
     }
