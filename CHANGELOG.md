@@ -259,6 +259,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   while the relay's king asks all gate on `hcp(19..)`. One doctrine now: short
   of the grand zone the asker bids six and asks nothing.
 
+- **A relay rule is installed only on the rungs some lane can reach.** The
+  queen-ask/reply/king-ask rule classes were installed on all eleven
+  `RELAY_RUNGS`, but only five rungs can ever host a queen ask — on the other
+  six the alerted rule was constraint-dead yet face-live, and the reading's
+  structural `alerted` bit erased the natural walk for five and six of trump
+  at every in-window placement seat (the §7.3.1 union poison, fired from
+  inside the window). `relay_lanes()` now enumerates the shared geometry at
+  install time and each class installs only where it can land; no bid moves
+  (the culled rules were constraint-dead), the readings of the window's
+  ordinary contracts return to the natural walk, and
+  `relay_rules_install_only_on_reachable_rungs` pins the feasible sets.
+
 - **A mistyped convention row can no longer be dumped as if it took effect.**
   `epbot_set_conventions` answers `0` for a name EPBot has never heard of, and
   the following read answers `0` too, so a renamed or misspelled row is
