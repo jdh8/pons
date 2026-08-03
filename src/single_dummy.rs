@@ -257,7 +257,9 @@ fn score_of(plays: &[Play], card: Card) -> u64 {
 ///
 /// Two legal cards are equivalent iff they share a suit and every rank
 /// between them is in the mover's own remaining `hand` or already `seen`
-/// (played to this or an earlier trick) — DDS's "equals" rule.  Each
+/// (played to a **completed** trick — a rank sitting in the current trick
+/// still separates the cards above it from the cards below) — DDS's
+/// "equals" rule.  Each
 /// sequence's highest card represents it.  `led` is the suit led to the
 /// current trick, if any; a hand with that suit must follow.
 fn distinct_plays(hand: Hand, led: Option<Suit>, seen: Hand) -> Vec<Card> {
@@ -343,7 +345,15 @@ impl Playout<'_> {
     fn choose(&self, rng: &mut impl Rng, k: usize) -> Card {
         let mover = self.mover();
         let led = self.trick.first().map(|card| card.suit);
-        let candidates = distinct_plays(self.remaining[mover], led, self.seen);
+        // Cards in the current trick are committed but still contest THIS
+        // trick — holding 8-6 behind a led 7, the 8 wins and the 6 does not,
+        // so they are no sequence.  Collapse only across ranks gone in
+        // completed tricks.
+        let mut gone = self.seen;
+        for &card in &self.trick {
+            gone.remove(card);
+        }
+        let candidates = distinct_plays(self.remaining[mover], led, gone);
         match candidates[..] {
             // Forced (a single sequence): play it without solving.  Also
             // load-bearing: DDS mode-0 answers a single-choice position with
