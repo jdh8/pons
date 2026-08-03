@@ -563,7 +563,16 @@ pub fn single_dummy_playout(
 /// views differ (each knows their own hand and reads the other side's
 /// calls).
 ///
-/// Returns the chosen lead and declarer's tricks on `deal`.
+/// Returns the chosen lead and **both endpoints' tricks on `deal`**, in
+/// composition order: the lead endpoint (double-dummy play after the blind
+/// lead — the optimist at slam level, where Pavlicek's after-lead table says
+/// DD play overrates declarer by ≈7pp of make-rate) and the playout endpoint
+/// (the fallible declarer — the pessimist, its misguess haircut measured
+/// ≈1.5× the real one).  The table result is bracketed by the pair; a
+/// per-level λ-mixture of the two is the calibrated point estimate
+/// (`sd_blend` in the measurement harnesses).  Both come from the *same*
+/// composed run — the playout starts from the very lead the first endpoint
+/// priced — so the pair is coherent per board, not two independent draws.
 ///
 /// # Panics
 ///
@@ -580,10 +589,11 @@ pub fn single_dummy_declarer_tricks(
     rng: &mut impl Rng,
     n: usize,
     k: usize,
-) -> (Card, TrickCount) {
-    let (lead, _) = single_dummy_lead_tricks(deal, strain, declarer, leader_inferences, rng, n);
+) -> (Card, TrickCount, TrickCount) {
+    let (lead, lead_tricks) =
+        single_dummy_lead_tricks(deal, strain, declarer, leader_inferences, rng, n);
     let tricks = single_dummy_playout(deal, strain, declarer, lead, declarer_inferences, rng, k);
-    (lead, tricks)
+    (lead, lead_tricks, tricks)
 }
 
 #[cfg(test)]
@@ -694,7 +704,7 @@ mod tests {
         let deal = unbeatable_deal();
         let inferences = no_inferences();
         let mut rng = StdRng::seed_from_u64(5);
-        let (lead, tricks) = single_dummy_declarer_tricks(
+        let (lead, lead_tricks, tricks) = single_dummy_declarer_tricks(
             &deal,
             Strain::Spades,
             Seat::North,
@@ -705,6 +715,7 @@ mod tests {
             8,
         );
         assert!(deal[Seat::East][lead.suit].contains(lead.rank));
+        assert_eq!(u8::from(lead_tricks), 13);
         assert_eq!(u8::from(tricks), 13);
     }
 
@@ -736,7 +747,7 @@ mod tests {
         let results: Vec<u8> = (0..12)
             .map(|seed| {
                 let mut rng = StdRng::seed_from_u64(seed);
-                let (_, tricks) = single_dummy_declarer_tricks(
+                let (_, lead_tricks, tricks) = single_dummy_declarer_tricks(
                     &deal,
                     Strain::Spades,
                     Seat::North,
@@ -746,6 +757,10 @@ mod tests {
                     8,
                     8,
                 );
+                // The lead endpoint plays double-dummy after the lead, so it
+                // still picks up the queen every time — the whole gap between
+                // the two endpoints on this deal *is* the third-eye finesse.
+                assert_eq!(u8::from(lead_tricks), 13);
                 u8::from(tricks)
             })
             .collect();

@@ -253,27 +253,49 @@ pub fn mean_with_ci(values: &[i64]) -> (f64, f64) {
     (mean, 1.96 * (variance / n as f64).sqrt())
 }
 
-/// NS scores of an auction's reached contract under the **sd-declarer
-/// playout** ([`pons::single_dummy_declarer_tricks`]): blind opening lead,
-/// then a declarer who chooses every card over worlds consistent with the
-/// auction instead of peeking.  This is the pessimist bracket for slam
-/// aggression — plain DD is the optimist (a DD declarer never misguesses),
-/// and perfect defense only prices doubling, not guessing.  `stance` reads
-/// the auction for both modelled views (the leader's and declarer's); a
-/// pass-out scores 0.
+/// One table's contract priced at **both** single-dummy endpoints of a single
+/// composed run ([`pons::single_dummy_declarer_tricks`]): the lead endpoint
+/// (blind lead, then double-dummy play — the optimist at slam level) and the
+/// playout endpoint (the same lead, then a fallible declarer — the
+/// pessimist).  Each endpoint is a `[plain, perfect-defense]` pair as in
+/// [`ns_score_tricks`] / [`ns_score_pd_tricks`]; `level` selects the blend
+/// weight in [`sd_blend_imps`].  A pass-out is all zeros with `level` 0.
+#[derive(Clone, Copy, Default)]
+pub struct SdScores {
+    /// Contract level (1–7; 0 for a pass-out)
+    pub level: u8,
+    /// Declarer's tricks `[lead endpoint, playout endpoint]` — kept raw so a
+    /// caller can read make indicators (`tricks >= level + 6`) for the
+    /// blend's implied make%, which the signed NS scores obscure
+    pub tricks: [u8; 2],
+    /// `[plain, perfect-defense]` NS scores of the lead-endpoint tricks
+    pub lead: [i64; 2],
+    /// `[plain, perfect-defense]` NS scores of the playout tricks
+    pub playout: [i64; 2],
+}
+
+/// NS scores of an auction's reached contract under **both sd endpoints**:
+/// blind opening lead, then the deal priced once with double-dummy play after
+/// the lead (the optimist at slam level — Pavlicek's after-lead table has DD
+/// play +7pp of make-rate on slams) and once with a declarer who chooses
+/// every card over worlds consistent with the auction instead of peeking
+/// (the pessimist — its misguess haircut measures ≈1.5× the real one).
+/// `stance` reads the auction for both modelled views (the leader's and
+/// declarer's); a pass-out scores 0.
 ///
-/// Returns `[plain, perfect-defense]` — the one trick count priced both ways
-/// ([`ns_score_tricks`] and [`ns_score_pd_tricks`]).  Both come back from a
-/// single call because the playout is expensive *and* draws from `rng`:
-/// calling twice would run a second playout with different draws, pricing a
-/// *different* trick count rather than the same one twice.
+/// Each endpoint is priced `[plain, perfect-defense]` ([`ns_score_tricks`]
+/// and [`ns_score_pd_tricks`]).  Everything comes back from a single call
+/// because the playout is expensive *and* draws from `rng`: calling twice
+/// would run a second playout with different draws, pricing a *different*
+/// trick count rather than the same one twice.
 ///
-/// Read the perfect-defense entry as a pessimism stress-test, not an arbiter.
-/// The defenders here already play double-dummy after the lead
+/// Read the playout's perfect-defense entry as a pessimism stress-test, not
+/// an arbiter.  The defenders here already play double-dummy after the lead
 /// ([`pons::single_dummy_playout`]), so the PD entry layers perfect doubling
 /// on top of peeking defense and tracks the harness's existing DD-PD row; and
 /// doubling a failing contract is realistic at partscore and game but not at
-/// slam, where nobody doubles a voluntarily bid six.
+/// slam, where nobody doubles a voluntarily bid six.  The calibrated point
+/// estimate between the endpoints is [`sd_blend_imps`].
 // Each argument is a distinct fact of the board, as in `score_boards`.
 #[allow(clippy::too_many_arguments)]
 pub fn sd_declarer_ns_score(
@@ -285,9 +307,9 @@ pub fn sd_declarer_ns_score(
     rng: &mut StdRng,
     lead_worlds: usize,
     line_worlds: usize,
-) -> [i64; 2] {
+) -> SdScores {
     let Some((contract, declarer)) = final_contract(auction, dealer) else {
-        return [0; 2];
+        return SdScores::default();
     };
     // Align the read prefix so the viewing seat is the player to act: the
     // last non-pass call sits within the final four calls, so exactly one of
@@ -299,7 +321,7 @@ pub fn sd_declarer_ns_score(
             .expect("one of four consecutive lengths reaches every seat");
         stance.infer(relative(vul, seat), &auction[..cut])
     };
-    let (_, tricks) = pons::single_dummy_declarer_tricks(
+    let (_, lead_tricks, line_tricks) = pons::single_dummy_declarer_tricks(
         deal,
         contract.bid.strain,
         declarer,
@@ -309,11 +331,93 @@ pub fn sd_declarer_ns_score(
         lead_worlds,
         line_worlds,
     );
-    let tricks = u8::from(tricks);
-    [
-        ns_score_tricks(contract, declarer, tricks, vul),
-        ns_score_pd_tricks(contract, declarer, tricks, vul),
-    ]
+    let price = |tricks: u8| {
+        [
+            ns_score_tricks(contract, declarer, tricks, vul),
+            ns_score_pd_tricks(contract, declarer, tricks, vul),
+        ]
+    };
+    SdScores {
+        level: contract.bid.level.get(),
+        tricks: [u8::from(lead_tricks), u8::from(line_tricks)],
+        lead: price(u8::from(lead_tricks)),
+        playout: price(u8::from(line_tricks)),
+    }
+}
+
+/// Per-level weight of the playout endpoint in the **sd-blend**: with
+/// probability `λ(level)` the table result is the playout's (fallible
+/// declarer), else the lead endpoint's (double-dummy declarer after the same
+/// blind lead).  Index by contract level; index 0 (pass-out) is 0 and never
+/// matters (a pass-out's scores are 0 at both endpoints).
+///
+/// λ is fitted per level so the blend's make-rate shifts the lead endpoint's
+/// make-logit by Pavlicek's **after-lead** log-odds (actual play vs
+/// double-dummy play after the actual lead, rpbridge.net/8j45.htm — the exact
+/// bias position of the lead endpoint): `p_target = σ(logit(p_lead) +
+/// shift_L)`, `λ_L = (p_lead − p_target) / (p_lead − p_playout)`, from the
+/// per-level columns of `probe-sd-calibration`.  Both endpoints share the
+/// blind lead, so λ tunes exactly the declarer axis — at the 6-level the
+/// after-lead shift is −0.334 log-odds (DD play makes 73.67% of slams that
+/// actually made 66.70%), and the playout's own haircut is ≈1.5× that,
+/// hence λ ≈ 0.66 rather than 1.
+///
+/// Level 7 keeps level 6's weight by design: Pavlicek's after-lead shift is
+/// flat across the slam levels (−0.334 vs −0.339) and the grands' extra
+/// full-deal bias lives on the *lead* side, which the shared lead endpoint
+/// models itself; grands are additionally reported as a bracket, never a
+/// point estimate (decision anchors, bba-kickback.md §7.15).
+///
+/// Fitted 2026-08-04 by `probe-sd-calibration --per-level 1000
+/// --min-level-count 800` (seed 20260716, 16 worlds, 39,633 contracts), the
+/// first run on the playout with the current-trick sequence-collapse fix —
+/// pre-fix playout numbers are corrupted (CHANGELOG "Fixed").  The fit put
+/// λ(7) = 0.696 on only 54 grands; it inherits λ(6) by design (the shifts
+/// are flat, −0.334 vs −0.339, and n = 54 is noise).
+pub const SD_BLEND_LAMBDA: [f64; 8] = [0.0, 0.089, 0.242, 0.298, 0.539, 0.474, 0.664, 0.664];
+
+/// The **sd-blend** IMP swing of one divergent board, bracket `k` (0 plain,
+/// 1 perfect-defense): the expected IMPs of `a − b` when each table's result
+/// is independently the playout outcome with probability `λ(level)` and the
+/// lead-endpoint outcome otherwise.
+///
+/// The mixture is taken at the IMP level — four `imps` evaluations, one per
+/// endpoint pairing — because the IMP table is nonlinear: blending scores
+/// first would price an outcome no table ever produces.  Independence across
+/// the two tables is the honest default for divergent boards (different
+/// contracts, usually different declarers guessing different suits); the
+/// same-contract case never reaches here (zero swing by construction).
+#[allow(clippy::cast_precision_loss)]
+pub fn sd_blend_imps(a: &SdScores, b: &SdScores, k: usize) -> f64 {
+    let (la, lb) = (
+        SD_BLEND_LAMBDA[usize::from(a.level)],
+        SD_BLEND_LAMBDA[usize::from(b.level)],
+    );
+    let term = |x: i64, y: i64| imps(x - y) as f64;
+    la * lb * term(a.playout[k], b.playout[k])
+        + la * (1.0 - lb) * term(a.playout[k], b.lead[k])
+        + (1.0 - la) * lb * term(a.lead[k], b.playout[k])
+        + (1.0 - la) * (1.0 - lb) * term(a.lead[k], b.lead[k])
+}
+
+/// [`mean_with_ci`] for fractional per-board values (sd-blend swings are
+/// λ-mixtures, so they are not integers)
+#[allow(clippy::cast_precision_loss)]
+pub fn mean_with_ci_f64(values: &[f64]) -> (f64, f64) {
+    let n = values.len();
+    if n < 2 {
+        return (0.0, 0.0);
+    }
+    let mean = values.iter().sum::<f64>() / n as f64;
+    let variance = values
+        .iter()
+        .map(|&v| {
+            let d = v - mean;
+            d * d
+        })
+        .sum::<f64>()
+        / (n - 1) as f64;
+    (mean, 1.96 * (variance / n as f64).sqrt())
 }
 
 /// The outcome of scoring a board set against itself.

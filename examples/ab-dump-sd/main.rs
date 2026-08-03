@@ -231,7 +231,8 @@ fn main() {
                     &mut rng,
                     args.sd_worlds,
                     args.declarer_worlds,
-                );
+                )
+                .playout;
             }
         }
     } else {

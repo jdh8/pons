@@ -158,6 +158,7 @@ fn main() {
                     args.sd_worlds,
                     args.sd_worlds,
                 )
+                .playout
             });
             for (k, swing) in swings.iter_mut().enumerate() {
                 swing[index] = imps(a[k] - b[k]);

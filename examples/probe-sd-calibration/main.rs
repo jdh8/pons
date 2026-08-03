@@ -79,6 +79,38 @@ struct Row {
     sd_line: Option<u8>,
 }
 
+/// Pavlicek's **after-the-opening-lead** table (rpbridge.net/8j45.htm,
+/// 77,406 expert-vs-expert vugraph contracts, 1996–2014), per level:
+/// `(actual make %, double-dummy-after-the-actual-lead make %, n)`.
+///
+/// This is the exact bias position of the sd-lead endpoint — realistic lead,
+/// then clairvoyant play — so `logit(actual) − logit(DD after lead)` is the
+/// declarer-fallibility quantum the blend must apply on top of it.  At the
+/// two slam levels the shift is flat (−0.334 and −0.339 log-odds); below
+/// game it shrinks toward zero (real declarers barely trail DD play at the
+/// one level).  Index 0 is unused padding.
+const PAVLICEK_AFTER_LEAD: [(f64, f64, u32); 8] = [
+    (f64::NAN, f64::NAN, 0),
+    (67.97, 68.76, 5_573),
+    (65.59, 67.70, 11_391),
+    (63.85, 66.91, 25_091),
+    (66.66, 71.02, 23_547),
+    (49.84, 52.87, 6_087),
+    (66.70, 73.67, 4_949),
+    (64.84, 72.14, 768),
+];
+
+/// `ln(p / (1 − p))` with `p` in percent
+fn logit(percent: f64) -> f64 {
+    let p = percent / 100.0;
+    (p / (1.0 - p)).ln()
+}
+
+/// `σ(x)` back to percent
+fn sigmoid_pct(x: f64) -> f64 {
+    100.0 / (1.0 + (-x).exp())
+}
+
 fn main() {
     let args = Args::parse();
     let stance = american().against();
@@ -197,6 +229,7 @@ fn main() {
          Δguess = playout − sd-lead, the pure misguess haircut; Δtable = playout − DD, the \
          full table-proxy shift.)"
     );
+    let mut fit: Vec<(u8, usize, f64, f64)> = Vec::new();
     for level in 1..=7u8 {
         let at: Vec<&Row> = rows.iter().filter(|row| row.level == level).collect();
         if at.is_empty() {
@@ -232,6 +265,46 @@ fn main() {
             line_sub,
             line_sub - lead_sub,
             line_sub - dd_sub,
+        );
+        fit.push((level, lined.len(), lead_sub, line_sub));
+    }
+
+    // The λ fit: per level, the weight of the playout endpoint in the
+    // sd-blend (`common::SD_BLEND_LAMBDA`).  Both endpoints share the blind
+    // lead, so the blend must apply exactly the *after-lead* declarer
+    // quantum: shift the lead endpoint's make-logit by Pavlicek's
+    // `logit(actual) − logit(DD after lead)`, then solve the (linear-in-
+    // probability) mixture for λ.  A λ outside [0, 1] means the playout's
+    // haircut is on the wrong side of the target at that level; it is
+    // clamped, and the residual shows in the `blend%` column.
+    println!(
+        "\n-- λ fit vs Pavlicek after-lead (playout subsample; paste into common::SD_BLEND_LAMBDA) --",
+    );
+    println!(
+        "{:>5} {:>6} | {:>8} {:>8} {:>7} | {:>8} {:>8} {:>8} | {:>6}",
+        "level", "n", "lead mk%", "pav DDaL", "shift", "target%", "blend%", "pav act", "λ",
+    );
+    println!(
+        "(lead mk% should track `pav DDaL` — that is the model-alignment check; `blend%` \
+         vs `pav act` is the population check.  shift in log-odds.)"
+    );
+    for (level, n, lead, line) in fit {
+        let (actual, dd_after_lead, _) = PAVLICEK_AFTER_LEAD[usize::from(level)];
+        let shift = logit(actual) - logit(dd_after_lead);
+        if !(0.1..=99.9).contains(&lead) || (lead - line).abs() < f64::EPSILON {
+            println!(
+                "{level:>5} {n:>6} | {lead:>7.1}% {dd_after_lead:>7.2}% {shift:>+7.3} | \
+                 {:>8} {:>8} {actual:>7.2}% | degenerate (endpoints equal or saturated)",
+                "—", "—",
+            );
+            continue;
+        }
+        let target = sigmoid_pct(logit(lead) + shift);
+        let lambda = ((lead - target) / (lead - line)).clamp(0.0, 1.0);
+        let blend = lead + lambda * (line - lead);
+        println!(
+            "{level:>5} {n:>6} | {lead:>7.1}% {dd_after_lead:>7.2}% {shift:>+7.3} | \
+             {target:>7.2}% {blend:>7.2}% {actual:>7.2}% | {lambda:>6.3}",
         );
     }
 }
