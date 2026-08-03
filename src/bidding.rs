@@ -45,8 +45,8 @@ pub mod trie;
 pub mod verify;
 
 pub use american::{
-    american, american_book, american_floor, american_instinct, set_one_notrump_offshape,
-    set_overcall_four_card, set_weak_two_wild,
+    american, american_book, american_configured, american_configured_with, american_floor,
+    american_instinct, set_one_notrump_offshape, set_overcall_four_card, set_weak_two_wild,
 };
 pub use array::Array;
 pub use book::{

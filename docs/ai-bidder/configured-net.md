@@ -1,10 +1,18 @@
 # The configured net — one net that reads the convention card
 
-**Status: phases 0–2 landed** — the `set_conv` read-back guard; `features_v4`
+**Status: all five phases landed; two ship decisions open.** Gate 1 passed
+decisively (+0.19/+0.25 plain DD, +0.53/+0.54 PD) and gate 2 measured the
+relocation a **loss** under three scorers — see
+[phase 5](#phase-5-measured-gate-1-passes-gate-2-fails). What follows from that
+is jdh8's call, not this document's.
+
+**Phases 0–4** — the `set_conv` read-back guard; `features_v4`
 and `Context::with_config`; `dump-teacher --configured --cell` with sliced bank
-reads, per-side cards/stances/teachers and prefixed-context extraction. Still
-open in phase 2: the **enriched slice** (a uniform corpus cannot teach the
-kickback bit) and the foreign-`.bbsa` → `SCHEMA` mapping. Nothing serves v4 yet.
+reads, per-side cards/stances/teachers, prefixed-context extraction and the
+enriched slice; the trained artifact and its flip diagnostic; and the crate
+wiring, `american_configured()`. Still open: the foreign-`.bbsa` → `SCHEMA`
+mapping, so only `Config::symmetric` is honest for a foreign opponent.
+`american()` still stands on the v3 twins.
 Supersedes the two-artifact twin scheme
 (`american_bba.f32` + `american_bba_kickback.f32`) that
 [`bba-kickback.md`](bba-kickback.md) §7.7 introduced and §7.12 showed the cost
@@ -381,6 +389,53 @@ which is the whole reason this check runs first. It does not claim the net reads
 the bit *well*: it moves on 45% of the pairs where the teacher moves, so there is
 headroom, and scaling the enriched draw is the lever if gate 2 disappoints.
 
+## Phase 4: what serves it
+
+| piece | where |
+| --- | --- |
+| forward pass at 368 inputs | `neural::classify_bba_v4` |
+| the safety shell over it | `neural_floor::ConfiguredFloorBba` |
+| the 2/1 pair standing on it | `american_configured()`, and `american_configured_with(config)` for a mixed table |
+| the A/B arms | `ab-kickback`'s `v4` and `v4-kickback` |
+
+**The cell is captured when the floor is built, not per decision.** A card is an
+agreement, and a stance is already built per A/B arm with that arm's knobs
+armed — so the [`Config`] is read there, and the per-decision path reads no
+ambient state that could silently change what a feature vector means. The floor
+attaches its config to the trie's context on the way into the extractor.
+
+`classify_bba_v4` consults **no knob at all**, which is the whole point: the
+regime arrives in the feature vector. The twin selection in `classify_bba`
+survives untouched, because gate 1's baseline arm *is* the shipped v3 behaviour.
+It goes when gate 1 says v4 replaces it.
+
+### The two tests that pin the wiring
+
+The candle-parity fixture clears the same 1e-3 bar as the other artifacts. The
+second one matters more: `the_configured_floor_reads_its_card` flips
+`Kickback 1430` and asserts the logits move — the in-crate echo of
+`pair-flip-diagnostic.py`. **A v4 floor that never attached its config would
+look exactly like "the convention is worth nothing" at gate 2**, with no other
+symptom, which is the same class of silent failure as phase 0's read-back guard.
+
+It asserts the logits move, not that the *call* does: the row decides about one
+auction in 700, so a call-level assertion on an arbitrary hand would be
+asserting noise.
+
+### ⚠ One card row perturbs the net everywhere
+
+Flipping `Kickback 1430` changes the net's logits on **every** decision, not
+only on keycard auctions. The corpus teaches that the bit is usually
+irrelevant, which drives that weight toward zero without pinning it there.
+
+So gate 2's divergent set is *not* the relocation: at 50k boards it ran 4.85% of
+boards, with **92.8% of it in the "no keycard ask" bucket**. That is the honest
+cost of the configured design, and it is still a large improvement on the twin
+scheme it replaces (34% divergence between two separately trained nets — the v3
+`kickback − minors` comparison this document was written to retire). Read the
+aggregate for the ship decision and the ask-bucketed census for attribution;
+the no-ask bucket is the measurement's own error bar.
+
 ## The corpus plan — which cells, and when to replay a deal
 
 ### Pair only where a pair pays
@@ -498,6 +553,96 @@ by construction rather than corrected for.
 Both scored on plain DD **and** perfect-defense, read off `docs/measurement.md`'s
 decision table, arms sequential, fresh seed shared across arms.
 
+## Phase 5, measured: gate 1 passes, gate 2 fails
+
+Run 2026-08-03, `ab-kickback`, **2,000,000 freshly generated boards per cell**,
+seed 1785708870 shared across every arm, arms sequential under
+`scripts/idle-run.sh`. No bank rows, so v4's training draw cannot leak in.
+
+### Gate 1 — `v4 − minors`: the configured net is the better bidder
+
+| vul | divergent | plain DD | perfect defense |
+| --- | ---: | ---: | ---: |
+| none | 33.24% | **+0.1933 ± 0.0047** | **+0.5256 ± 0.0060** |
+| both | 29.89% | **+0.2469 ± 0.0057** | **+0.5358 ± 0.0070** |
+
+Plain-DD win *and* PD win, both vulnerabilities, intervals nowhere near zero.
+An unambiguous **pass** — and by the decision table, ship-default-on.
+
+Note what the arms share: identical rules (`set_rkcb_minors` on, `set_kickback`
+off), identical book, identical deals. The only difference is which artifact the
+contested floor evaluates and how wide its input is. So this is a clean read on
+the net, and it also settles the campaign's founding question — **the +0.0705
+PD/board kickback shipped on was mostly a two-week-newer net**, not a
+convention. The gap between the v3 twins is of the same order as this whole
+measurement.
+
+### Gate 2 — `v4-kickback − v4`: the relocation is a loss
+
+| vul | divergent | plain DD | perfect defense |
+| --- | ---: | ---: | ---: |
+| none | 4.78% | **−0.0105 ± 0.0018** | +0.0006 ± 0.0022 (parity) |
+| both | 4.15% | **−0.0092 ± 0.0021** | +0.0026 ± 0.0026 |
+
+A plain-DD loss with PD parity — **the inverse of the evidence the convention
+shipped on**. And the ask-bucketed census is sharper than the aggregate: on the
+boards where a relocated ask actually fires, every lane loses at both
+vulnerabilities.
+
+| lane | boards (both vuls) | PD/board |
+| --- | ---: | ---: |
+| ♥ relocated | 391 | −1.09 |
+| ♦ relocated | 230 | −3.76 |
+| ♣ relocated | 144 | −1.28 |
+| **all relocated** | **765** | **−1.93** |
+
+#### The sd row, and a prediction it refuted
+
+The obvious objection was methodological, and it deserved a measurement rather
+than an argument. Kickback exists to **stop** at five of trump when partner
+denies a keycard. Double dummy sees all 52 cards, so it never lets a thin slam
+fail: it charges the arm that stopped and credits the arm that punted. A
+stopping convention measuring DD-negative is close to a prediction of the
+harness — the same way preemption is (`docs/measurement.md`). PD sitting at
+parity looked consistent with that.
+
+So the documented robustness row was run: blind opening lead, fallible declarer,
+16 worlds each, 400,000 boards per vulnerability on the same seed.
+
+| vul | plain DD | perfect defense | **sd-declarer** |
+| --- | ---: | ---: | ---: |
+| none | −0.0123 ± 0.0040 | +0.0016 ± 0.0050 | **−0.0088 ± 0.0041** |
+| both | −0.0107 ± 0.0047 | +0.0020 ± 0.0058 | **−0.0073 ± 0.0049** |
+
+**The prediction was wrong.** Under the scorer that actually lets a thin slam go
+down, kickback still loses, at essentially the plain-DD magnitude, at both
+vulnerabilities, with both intervals excluding zero. Three scorers now agree:
+two say loss, one says parity, none says win. The DD-blindness defence is
+closed.
+
+### What follows
+
+Two shipped defaults are implicated, and they are one package rather than two
+independent calls — gate 2 is measured **under the v4 floor**, so its verdict
+only transfers if v4 is what ships.
+
+1. **v4 becomes the default floor, and the twin artifacts go.** This is exactly
+   the criterion phase 4 deferred to.
+2. **`set_kickback` reverts to opt-in, default byte-identical.** It shipped
+   default-on 2026-08-02 on a PD win with a vul plain-DD loss, over a
+   measurement §7.12 already showed was 93.5% not-the-convention. With the
+   confound gone by construction, the convention alone is a loss.
+
+Neither is done here: phase 5's scope was to measure, and both changes are
+jdh8's call — the second reverses one he made explicitly.
+
+**What is *not* in doubt** is the relocation's own arithmetic. The ladder is
+sound: a relocated ask genuinely brings the overshooting answers to zero, which
+is why it was built. What the measurement says is that the room it buys is worth
+less than the natural meaning it spends — the 4♦/4♥/4♠ faces it claims are
+common natural calls, and the net gives up more by not having them than the
+asker gains by stopping accurately.
+
 ## Sequence
 
 | phase | work | note |
@@ -506,8 +651,8 @@ decision table, arms sequential, fresh seed shared across arms.
 | 1 | `features_v4` + config plumbing | the open design question below |
 | 2 | `dump-teacher`: `--skip`/`load_slice`, per-board config sampling, per-side teacher config, both config vectors per row | |
 | 3 | Train on GPU | **done** — corpus, net and the mechanism diagnostic [above](#phase-3-measured-the-corpus-the-net-and-the-diagnostics-verdict); `pons-trainer` takes repeated `--data` stems and mixes them ([`load_mixture`](../../trainer/src/data.rs)) |
-| 4 | Artifact + candle-parity fixture, wire `classify_bba` to v4, retire the twin selection | the twin artifact can go once gate 1 passes |
-| 5 | Gate 1, then gate 2 | fresh deals |
+| 4 | Artifact + candle-parity fixture, wire `classify_bba` to v4, retire the twin selection | **done** — [above](#phase-4-what-serves-it); the twin selection stays until gate 1 passes, since it *is* gate 1's baseline |
+| 5 | Gate 1, then gate 2 | **done** — [above](#phase-5-measured-gate-1-passes-gate-2-fails); 2M fresh boards per cell, plus the sd row |
 
 ## Resolved: the opponents' config rides on `Context`
 
