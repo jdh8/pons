@@ -1,10 +1,11 @@
 # The configured net — one net that reads the convention card
 
-**Status: all five phases landed; two ship decisions open.** Gate 1 passed
-decisively (+0.19/+0.25 plain DD, +0.53/+0.54 PD) and gate 2 measured the
+**Status: all five phases landed; one ship decision taken, one open.** Gate 1
+passed decisively (+0.19/+0.25 plain DD, +0.53/+0.54 PD) and gate 2 measured the
 relocation a **loss** under three scorers — see
-[phase 5](#phase-5-measured-gate-1-passes-gate-2-fails). What follows from that
-is jdh8's call, not this document's.
+[phase 5](#phase-5-measured-gate-1-passes-gate-2-fails). On that verdict jdh8
+reverted `set_kickback` to opt-in (2026-08-03). Making v4 the default floor and
+deleting the twins remains open.
 
 **Phases 0–4** — the `set_conv` read-back guard; `features_v4`
 and `Context::with_config`; `dump-teacher --configured --cell` with sliced bank
@@ -633,8 +634,13 @@ only transfers if v4 is what ships.
    measurement §7.12 already showed was 93.5% not-the-convention. With the
    confound gone by construction, the convention alone is a loss.
 
-Neither is done here: phase 5's scope was to measure, and both changes are
-jdh8's call — the second reverses one he made explicitly.
+**Decision (jdh8, 2026-08-03): take 2, leave 1.** `set_kickback` is back to
+opt-in, so the shipped default is the plain-4NT arm again; the
+kickback case is closed until a scorer exists that fights DD's slam optimism the
+way sd-lead fights its defensive optimism. Reverting the knob restores a stance
+the shipped twins already serve correctly, so it did not have to wait on 1 after
+all. Decision 1 — v4 as the default floor, twins deleted — stands open on gate
+1's verdict, which keeps.
 
 **What is *not* in doubt** is the relocation's own arithmetic. The ladder is
 sound: a relocated ask genuinely brings the overshooting answers to zero, which

@@ -432,6 +432,7 @@ minors. Four findings killed that order:
 | 6 | the merged queen+king answer, and its collision guard | **done 2026-08-02**, default-on (§7.6). The guard that makes plain `set_kickback` measurable at all. |
 | 7 | the floor's kickback twin, and the first clean cell | **measured 2026-08-02, 2×10M boards.** Plain DD flips sign across vulnerability; 95% of the divergence is below slam, so the cell prices the *retrained net*, not the relocation — see §7.8. Knob stays opt-in. |
 | 8 | the **fair** cell — one net, the card as an input | **measured 2026-08-03, 2×2M boards.** The relocation alone is a **loss**: plain DD −0.0105/−0.0092, sd-declarer −0.0088/−0.0073, PD parity. Every relocated lane loses. See §7.13. |
+| 9 | the revert | **done 2026-08-03** — `set_kickback` back to opt-in, default byte-identical. The case is closed until a scorer can fight DD's slam optimism the way sd-lead fights its defensive optimism; see §7.14. |
 | 5 | face-conditional alerts, so the relocation can be priced at all | **done 2026-08-01** — `Rules::face` gate, consulted by `Rule::eval` (−∞) and the three inference consult sites; see §7.3.1's resolution note. Re-measured clean: a **wash** (§7.3.2), knob stays opt-in. |
 | 6 | the undisprovable major: the ladder yields the 4♥ claim when a spade bid cannot deny hearts (§7.1) | **done 2026-08-01** — measured §7.3.4: the wash **shrinks but survives** (PD −0.00016, divergence 246 → 216). Shipped inside the opt-in knob as a soundness repair; `set_kickback` stays opt-in. |
 
@@ -1223,7 +1224,7 @@ something else in the arm moves every outcome. The fix is to key on the
 mechanism — here, the ask — and to include the bucket where the mechanism never
 fired, because that bucket is the size of everything the analysis cannot claim.
 
-### 7.10 Shipped default-on (2026-08-02)
+### 7.10 Shipped default-on (2026-08-02) — **REVERTED 2026-08-03, see §7.14**
 
 `set_kickback` defaults to **on** at jdh8's call, and the knob remains for the
 off-arm. The measured basis is §7.8: a PD win in both cells (+0.0723 NV,
@@ -1388,8 +1389,30 @@ common natural calls in bridge, and the bidder gives up more by not having them
 than the asker gains by stopping accurately. That is a claim about *this*
 system's floor, not about kickback as bridge theory.
 
-**Standing recommendation, not yet executed:** `set_kickback` back to opt-in,
-default byte-identical, alongside making the configured net the default floor
-(gate 1, +0.19/+0.25 plain DD, passed decisively). The two are one package,
-because gate 2 was measured under the v4 floor. §7.10 shipped this default-on
-2026-08-02 on a PD win with a vul plain-DD loss; that evidence is now superseded.
+### 7.14 Reverted to opt-in, and the case closed (2026-08-03)
+
+`set_kickback` is **off by default** again, one day after §7.10 turned it on.
+The shipped default is the knob-off arm in every regime the knob reaches: rule
+presence is gated at `instinct()` build time, the recognizers read it at
+classification time, `classify_bba` serves the plain artifact again, and the
+card stops disclosing `Kickback 1430` (the only row that moved in either golden
+`.bbsa`).
+
+The evidence §7.10 shipped on is superseded, not merely outweighed. It was a
+*package* price — a two-week-newer net plus a convention — and gate 1 measured
+the net's share of it at +0.19/+0.25 plain DD, far more than the +0.0705 PD the
+package showed. What is left for the convention alone is §7.13's loss.
+
+**The case is closed until a scorer can fight DD's slam optimism.** The one
+argument that could reopen it is the DD-blindness defence, and it has been
+tested and failed on the only instrument currently available. What would change
+that is a *new instrument*, not a new argument: the sd-lead scorer exists
+because plain DD was too kind to declarer on opening lead, and slams want the
+same treatment — something that makes double dummy stop finding the winning line
+in a 6-2 fit off a keycard. Until such a scorer exists, do not re-measure
+kickback; it will keep reading negative for reasons the harness cannot see past.
+
+The two decisions were one package. The other half — making the configured net
+the default floor — is **not taken here**: reverting the knob restores a stance
+the shipped twins already serve correctly, so it stands alone. Gate 1's verdict
+keeps until that decision is made on its own.

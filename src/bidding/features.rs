@@ -2075,9 +2075,10 @@ mod tests {
             Config::symmetric(&crate::bidding::card::american_card())
         };
         let relocated = {
-            set_kickback(true); // restore the shipped default (on)
+            set_kickback(true);
             Config::symmetric(&crate::bidding::card::american_card())
         };
+        set_kickback(false); // restore the shipped default (off)
         assert_ne!(
             plain, relocated,
             "`Kickback 1430` rides `set_kickback`, so the config block must differ"

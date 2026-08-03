@@ -597,9 +597,9 @@ std::thread_local! {
     /// majors.  **On by default** since 2026-08-01; see [`set_rkcb_minors`].
     static KEYCARD_MINORS: Cell<bool> = const { Cell::new(true) };
 
-    /// Whether the keycard ask relocates onto the kickback ladder.  **On by
-    /// default** since 2026-08-02; see [`set_kickback`].
-    static KICKBACK: Cell<bool> = const { Cell::new(true) };
+    /// Whether the keycard ask relocates onto the kickback ladder.  **Off by
+    /// default** — on 2026-08-02 to 2026-08-03 only; see [`set_kickback`].
+    static KICKBACK: Cell<bool> = const { Cell::new(false) };
 
 }
 
@@ -723,8 +723,25 @@ pub(in crate::bidding) fn rkcb_minors_now() -> bool {
     KEYCARD_MINORS.with(Cell::get)
 }
 
-/// Relocate the keycard ask onto the kickback ladder (**on by default** since
-/// 2026-08-02)
+/// Relocate the keycard ask onto the kickback ladder (**off by default**)
+///
+/// **Measured a loss, and the loss survived the defence.**  It shipped
+/// default-on 2026-08-02 on a PD win under the *twin* nets, where the arms
+/// differed by a two-week-newer artifact as well as by the convention.  The
+/// configured net (`features_v4`) made the fair comparison possible — one net,
+/// arms one card row apart — and gate 2 read plain DD −0.0105/−0.0092 (NV/vul,
+/// 2M boards a cell, seed 1785708870), PD parity, **sd-declarer
+/// −0.0088/−0.0073** with both intervals clear of zero.  Every relocated lane
+/// loses: ♥ −1.09 PD/board over 391 boards, ♦ −3.76 over 230, ♣ −1.28 over 144.
+///
+/// The ladder's *arithmetic* is not in doubt — a relocated ask genuinely brings
+/// every 1430 answer to at or below five of trump.  What it costs is the faces:
+/// 4♦/4♥/4♠ are among the most common natural calls in bridge, and the room the
+/// relay buys does not pay for them back.  The obvious objection — double dummy
+/// never lets a thin slam fail, so it structurally charges the arm that *stops*
+/// — was tested with the sd-declarer row and failed.  Do not re-raise it
+/// without a scorer that fights DD's slam optimism the way sd fights its
+/// defensive optimism.  Full ledger: `docs/ai-bidder/bba-kickback.md` §7.13.
 ///
 /// Kickback asks in the cheapest unguarded suit above the trump — 4♦ for clubs
 /// and 4♥ for diamonds (the minor half is *Redwood*), 4♠ for hearts — so every
@@ -7398,14 +7415,15 @@ mod tests {
             Call::Pass,
         ];
         let monster = "A32.AKQJ7.AKQ.32";
+        set_kickback(true);
+        let relocated = best(&auction, monster);
+        set_kickback(false); // restore the default (off) for the rest of the suite
         assert_eq!(
-            best(&auction, monster),
+            relocated,
             call(4, Strain::Spades),
-            "knob on (the default): 4♠ asks in hearts"
+            "knob on: 4♠ asks in hearts"
         );
-        set_kickback(false);
         let plain = best(&auction, monster);
-        set_kickback(true); // restore the default (on) for the rest of the suite
         assert_eq!(
             plain,
             call(4, Strain::Notrump),
@@ -7447,7 +7465,7 @@ mod tests {
         ] {
             assert_eq!(best(&auction, hand), expected, "{why}");
         }
-        set_kickback(true); // restore the default (on) for the rest of the suite
+        set_kickback(false); // restore the default (off) for the rest of the suite
     }
 
     /// A 4NT that *answers* a relocated ask is an answer, not a new ask — the
@@ -7481,7 +7499,7 @@ mod tests {
         // Two keycards and the queen opposite a 1-or-4 answer: three combined,
         // two missing — sign off in the agreed suit, never a fifth-strain bid.
         let placement = best(&auction, "A32.AKQJ7.AKQ.32");
-        set_kickback(true); // restore the default (on) for the rest of the suite
+        set_kickback(false); // restore the default (off) for the rest of the suite
         assert_eq!(
             placement,
             call(6, Strain::Hearts),
@@ -7522,7 +7540,7 @@ mod tests {
             "the ask is still the 4♥ two calls before it"
         );
         let placement = best(&auction, "AKQ3.AQ42.QT72.A");
-        set_kickback(true); // restore the default (on) for the rest of the suite
+        set_kickback(false); // restore the default (off) for the rest of the suite
         assert!(
             matches!(placement, Call::Bid(bid) if bid.strain == Strain::Diamonds),
             "the asker places the contract in the agreed trump, never a phantom club: {placement:?}"
@@ -7551,6 +7569,7 @@ mod tests {
         ];
         let answer = keycard_ask_bid(&auction, 6);
         let ask = keycard_ask_bid(&auction, 4);
+        set_kickback(false); // restore the default (off) for the rest of the suite
         assert_eq!(answer, None, "4♠ answers the 4♥ ask; it asks nothing");
         assert_eq!(
             ask,

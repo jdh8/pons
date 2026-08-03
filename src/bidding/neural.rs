@@ -280,9 +280,10 @@ mod tests {
         });
     }
 
-    /// The kickback twin clears the same parity bar, on the default stance.
+    /// The kickback twin clears the same parity bar, on the opt-in stance.
     #[test]
     fn matches_candle_fixture_bba_kickback() {
+        crate::bidding::instinct::set_kickback(true);
         check_fixture(
             include_str!("weights/american_bba_kickback.fixture.json"),
             |x| classify_bba(x).iter().map(|(_, l)| *l).collect(),
