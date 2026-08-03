@@ -33,9 +33,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   vul) says otherwise: **−0.0088 ± 0.0041** (NV), **−0.0073 ± 0.0049** (vul).
   Three scorers, two losses and a parity, no win.
 
-  Nothing shipped on this yet: making v4 the default floor and reverting
-  `set_kickback` to opt-in are one package, and both are jdh8's call. Full
-  tables in `docs/ai-bidder/configured-net.md`.
+  Full tables in `docs/ai-bidder/configured-net.md`. The revert this bought is
+  under *Changed* below; making v4 the default floor stands open.
+
+### Changed
+
+- **`set_kickback` is opt-in again: the shipped default is the plain-4NT arm.**
+  It shipped default-on for one day, on a PD win
+  against a vulnerable plain-DD loss, in a cell where the arms differed by a
+  two-week-newer net as well as by the convention. Gate 2 above prices the
+  relocation alone and it loses on plain DD and on sd-declarer, with PD at
+  parity — and gate 1 shows the gain it shipped on was mostly the net. Off, the
+  keycard ask stays on 4NT, `classify_bba` serves the plain artifact, and the
+  convention card stops disclosing `Kickback 1430`.
+
+  **The case is closed until a better scorer exists.** The only argument that
+  could reopen it — double dummy never lets a thin slam fail, so it structurally
+  charges a convention whose purpose is to *stop* — was tested with the
+  sd-declarer row and failed. What would reopen it is a new instrument rather
+  than a new argument: the sd-lead scorer exists because plain DD was too kind
+  to declarer on opening lead, and slams want the same treatment.
+
+  The ladder's arithmetic was never in doubt: a relocated ask genuinely brings
+  every 1430 answer to at or below five of trump. Its faces are the cost —
+  4♦/4♥/4♠ are among the most common natural calls in bridge.
+
+  `bba-gen`'s flag follows the crate: `--no-ns-kickback` becomes `--ns-kickback`.
 
 ### Added
 

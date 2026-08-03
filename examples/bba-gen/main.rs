@@ -1038,13 +1038,14 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_rkcb_minors: bool,
 
-    /// Keep the keycard ask on 4NT (kickback is on by default): the relocated
-    /// ask puts 4♦ in clubs, 4♥ in diamonds (Redwood) and 4♠ in hearts, so
-    /// every 1430 answer lands at or below five of trump.  This is the off
-    /// arm.  Read at *build* time as well as classify time, so the flag must
-    /// be parsed before the system is constructed.
+    /// Relocate the keycard ask off 4NT (opt-in, as in the crate): 4♦ asks in
+    /// clubs, 4♥ in diamonds (Redwood) and 4♠ in hearts, so every 1430 answer
+    /// lands at or below five of trump.  Measured a loss under the configured
+    /// net — see `set_kickback` — so the default arm is plain 4NT.  Read at
+    /// *build* time as well as classify time, so the flag must be parsed
+    /// before the system is constructed.
     #[arg(long, default_value_t = false)]
-    no_ns_kickback: bool,
+    ns_kickback: bool,
 
     /// Disable the longer-major transfer discipline (default on): the Jacoby
     /// transfer guards revert to the legacy tie (a 6♠5♥ hand could transfer to
@@ -1427,7 +1428,7 @@ fn main() -> anyhow::Result<()> {
     pons::bidding::set_rubens_transfer_reading(!args.no_ns_rubens_reading);
     pons::bidding::instinct::set_floor_rkcb(!args.no_ns_floor_rkcb);
     pons::bidding::instinct::set_rkcb_minors(!args.no_ns_rkcb_minors);
-    pons::bidding::instinct::set_kickback(!args.no_ns_kickback);
+    pons::bidding::instinct::set_kickback(args.ns_kickback);
     pons::bidding::set_control_bid_reading(!args.no_ns_control_bid_reading);
     pons::bidding::set_cue_reading(!args.no_ns_cue_reading);
     pons::bidding::set_length_soundness(!args.no_ns_length_soundness);

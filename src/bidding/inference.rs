@@ -6395,7 +6395,7 @@ mod tests {
         ];
         set_kickback(true);
         let spades = read_booked(&auction).partner().length(Suit::Spades).min;
-        set_kickback(true); // restore the default (on) for the rest of the suite
+        set_kickback(false); // restore the default (off) for the rest of the suite
         assert!(spades < 4, "the relocated ask is not a natural spade suit");
     }
 
@@ -6415,9 +6415,9 @@ mod tests {
     #[test]
     fn answer_gates_spare_a_natural_five_diamonds() {
         use crate::bidding::instinct::set_kickback;
-        // The plain arm on purpose, now that kickback is the default: the
-        // poison this pins is the *default system's* five-level answers, not
-        // the relocated ladder's.
+        // The plain arm on purpose (also the default): the poison this pins is
+        // the *default system's* five-level answers, not the relocated
+        // ladder's.
         set_kickback(false);
         let auction = [
             bid(1, Strain::Diamonds),
@@ -6430,7 +6430,7 @@ mod tests {
             Call::Pass,
         ];
         let diamonds = read_booked(&auction).partner().length(Suit::Diamonds).min;
-        set_kickback(true); // restore the default (on) for the rest of the suite
+        set_kickback(false); // restore the default (off) for the rest of the suite
         assert!(
             diamonds >= 2,
             "a natural 5♦ with no ask anywhere on the face must keep its \
