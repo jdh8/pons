@@ -1,13 +1,40 @@
 //! Measure the keycard ladder's relocated ask (Kickback/Redwood) as a
 //! duplicate A/B match.
 //!
-//! Three arms, two knobs, so each coupled change stays attributable:
+//! Five arms over three axes, so each coupled change stays attributable:
 //!
-//! | arm | `set_rkcb_minors` | `set_kickback` | what it is |
-//! |---|---|---|---|
-//! | `plain` | off | off | majors-only trump, the ask is 4NT |
-//! | `minors` | on | off | minor asks at plain 4NT — round 4's losing arm, re-priced |
-//! | `kickback` | on | on | the shipped default: 4♦/4♥ Redwood, 4♠ over hearts |
+//! | arm | `set_rkcb_minors` | `set_kickback` | floor | what it is |
+//! |---|---|---|---|---|
+//! | `plain` | off | off | v3 | majors-only trump, the ask is 4NT |
+//! | `minors` | on | off | v3 | minor asks at plain 4NT — round 4's losing arm, re-priced |
+//! | `kickback` | on | on | v3 twin | the shipped default: 4♦/4♥ Redwood, 4♠ over hearts |
+//! | `v4` | on | off | **v4** | the configured net, playing `minors`' rules |
+//! | `v4-kickback` | on | on | **v4** | the configured net, playing `kickback`'s rules |
+//!
+//! The last two are `docs/ai-bidder/configured-net.md`'s acceptance gates:
+//!
+//! | gate | invocation | question |
+//! |---|---|---|
+//! | 1. quality | `--feature v4 --baseline minors` | is the configured net a better bidder at *fixed* rules? |
+//! | 2. convention | `--feature v4-kickback --baseline v4` | what is the relocation worth, alone? |
+//!
+//! Gate 2 is the fair comparison the first three arms cannot give.  Under the v3
+//! floor `set_kickback` swaps the weights as well as the rules, so `kickback −
+//! minors` prices a convention *and* a differently-trained net — §7.12 measured
+//! 93.5% of its divergent boards with no keycard ask by either side.  The v4 arms
+//! share one artifact and differ by the `Kickback 1430` row of the card they are
+//! handed, so the confound is gone by construction rather than corrected for.
+//!
+//! Both v4 arms are built for the **mixed table** they actually play: each side's
+//! floor is handed its own card *and its opponents'*, which is the asymmetric
+//! cell the v4 corpus was dumped to cover.
+//!
+//! ⚠ Expect divergence away from keycard auctions in gate 2. Flipping one card
+//! row perturbs the net's logits on *every* decision, not only on asks — the
+//! corpus teaches that the bit is usually irrelevant, which drives the weight
+//! toward zero without pinning it there. The census below is what separates
+//! that noise from the relocation; read the `no keycard ask` bucket as the
+//! measurement's own error bar.
 //!
 //! The answer gates and the queen relay were arms here until 2026-08-02, when
 //! both stopped being knobs — the gates because "off" is a poisoned reading
@@ -38,7 +65,9 @@
 //! cargo run --release --example ab-kickback -- \
 //!     --feature kickback --baseline plain --count 10000000 --sd
 //! cargo run --release --example ab-kickback -- \
-//!     --feature kickback --baseline minors --count 10000000 --sd
+//!     --feature v4 --baseline minors --count 2000000 --sd       # gate 1
+//! cargo run --release --example ab-kickback -- \
+//!     --feature v4-kickback --baseline v4 --count 2000000 --sd  # gate 2
 //! ```
 
 use clap::{Parser, ValueEnum};
@@ -48,6 +77,9 @@ use ddss::{NonEmptyStrainFlags, Solver};
 use pons::Accumulator;
 use pons::american;
 use pons::bidding::Stance;
+use pons::bidding::american::american_configured_with;
+use pons::bidding::card::{Card, american_card};
+use pons::bidding::features::Config;
 use pons::bidding::instinct::{keycard_ask_at, kickback_offered_at, set_kickback, set_rkcb_minors};
 use pons::scoring::{final_contract, imps, ns_score_contract, ns_score_pd};
 use rand::SeedableRng;
@@ -59,7 +91,7 @@ use rayon::prelude::*;
 mod common;
 use common::{Board, next_call, seat_to_act, seeded_deals};
 
-/// One arm of the experiment: which of the two knobs it arms
+/// One arm of the experiment: which knobs it arms, and which floor it stands on
 #[derive(Clone, Copy, PartialEq, Eq, ValueEnum)]
 enum Arm {
     /// Today's system: majors-only keycard trump, the ask is 4NT
@@ -68,17 +100,30 @@ enum Arm {
     Minors,
     /// Full Kickback: minor asks relocated to 4♦/4♥ (Redwood), hearts to 4♠
     Kickback,
+    /// `minors`' rules on the configured (v4) floor — gate 1's feature arm
+    V4,
+    /// `kickback`'s rules on the configured (v4) floor — gate 2's feature arm
+    V4Kickback,
 }
 
 impl Arm {
     /// Whether this arm lifts `keycard_trump`'s majors-only carve
     const fn minors(self) -> bool {
-        matches!(self, Self::Minors | Self::Kickback)
+        matches!(
+            self,
+            Self::Minors | Self::Kickback | Self::V4 | Self::V4Kickback
+        )
     }
 
     /// Whether this arm relocates the ask onto the kickback ladder
     const fn kickback(self) -> bool {
-        matches!(self, Self::Kickback)
+        matches!(self, Self::Kickback | Self::V4Kickback)
+    }
+
+    /// Whether this arm's floor reads its convention card (`american_bba_v4`)
+    /// rather than selecting one of the twin v3 artifacts by knob
+    const fn configured(self) -> bool {
+        matches!(self, Self::V4 | Self::V4Kickback)
     }
 
     const fn label(self) -> &'static str {
@@ -86,6 +131,8 @@ impl Arm {
             Self::Plain => "plain",
             Self::Minors => "minors",
             Self::Kickback => "kickback",
+            Self::V4 => "v4",
+            Self::V4Kickback => "v4-kickback",
         }
     }
 }
@@ -254,12 +301,31 @@ fn per_trump_census(
     }
 }
 
+/// The convention card `arm` discloses — its knobs, read through `card.rs`
+fn card(arm: Arm) -> Card {
+    arm_knobs(arm);
+    let card = american_card();
+    arm_knobs(Arm::Plain);
+    card
+}
+
 /// Build one stance per arm.  `set_kickback` is read at build time for rule
 /// presence, and `set_rkcb_minors` by the book's `install_rkcb`, so the arms
 /// cannot share a book.
-fn build(arm: Arm) -> Stance {
+///
+/// A configured arm additionally captures the cell at build time: its own card
+/// and `opponent`'s, which is the mixed table these two arms will play.  The
+/// cards are read *before* the knobs are armed for the build, because
+/// `american_card` reads the same knobs.
+fn build(arm: Arm, opponent: Arm) -> Stance {
+    let cell = arm
+        .configured()
+        .then(|| Config::new(&card(arm), &card(opponent)));
     arm_knobs(arm);
-    let stance = american().against();
+    let stance = match cell {
+        Some(config) => american_configured_with(config).against(),
+        None => american().against(),
+    };
     arm_knobs(Arm::Plain);
     stance
 }
@@ -300,8 +366,8 @@ fn bid_out(
 #[allow(clippy::cast_precision_loss)]
 fn main() {
     let args = Args::parse();
-    let feature = build(args.feature);
-    let baseline = build(args.baseline);
+    let feature = build(args.feature, args.baseline);
+    let baseline = build(args.baseline, args.feature);
 
     let deals: Vec<(Seat, FullDeal)> = seeded_deals(args.seed, args.count)
         .into_iter()

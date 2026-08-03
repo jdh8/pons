@@ -431,6 +431,7 @@ minors. Four findings killed that order:
 | 4 | the authored book in `slam.rs`; competition + disclosure | not started |
 | 6 | the merged queen+king answer, and its collision guard | **done 2026-08-02**, default-on (§7.6). The guard that makes plain `set_kickback` measurable at all. |
 | 7 | the floor's kickback twin, and the first clean cell | **measured 2026-08-02, 2×10M boards.** Plain DD flips sign across vulnerability; 95% of the divergence is below slam, so the cell prices the *retrained net*, not the relocation — see §7.8. Knob stays opt-in. |
+| 8 | the **fair** cell — one net, the card as an input | **measured 2026-08-03, 2×2M boards.** The relocation alone is a **loss**: plain DD −0.0105/−0.0092, sd-declarer −0.0088/−0.0073, PD parity. Every relocated lane loses. See §7.13. |
 | 5 | face-conditional alerts, so the relocation can be priced at all | **done 2026-08-01** — `Rules::face` gate, consulted by `Rule::eval` (−∞) and the three inference consult sites; see §7.3.1's resolution note. Re-measured clean: a **wash** (§7.3.2), knob stays opt-in. |
 | 6 | the undisprovable major: the ladder yields the 4♥ claim when a spade bid cannot deny hearts (§7.1) | **done 2026-08-01** — measured §7.3.4: the wash **shrinks but survives** (PD −0.00016, divergence 246 → 216). Shipped inside the opt-in knob as a soundness repair; `set_kickback` stays opt-in. |
 
@@ -1348,3 +1349,47 @@ slam auctions and 329 grands. Rayon is safe there *because* it takes no knobs �
 the thread-locals are `const`-initialised to the shipped defaults, so a worker
 starts out holding the system under test; a harness arming a non-default knob
 cannot do this, which is why `ab-kickback` re-arms per call.
+
+### 7.13 The fair cell, at last — and the relocation is a loss (2026-08-03)
+
+Everything above §7.12 prices *a package*: `set_kickback` moved the rules and
+swapped the floor's weights, so no arm could separate the two. The configured
+net closes that hole by construction — one artifact, the convention card as an
+*input*, so the arms differ by a card row and share every weight. The design and
+its acceptance gates are [`configured-net.md`](configured-net.md); this section
+records what gate 2 said about **this** convention.
+
+`ab-kickback --feature v4-kickback --baseline v4`, 2,000,000 fresh boards per
+vulnerability, seed 1785708870:
+
+| vul | divergent | plain DD | perfect defense | sd-declarer (400k) |
+| --- | ---: | ---: | ---: | ---: |
+| none | 4.78% | **−0.0105 ± 0.0018** | +0.0006 ± 0.0022 | **−0.0088 ± 0.0041** |
+| both | 4.15% | **−0.0092 ± 0.0021** | +0.0026 ± 0.0026 | **−0.0073 ± 0.0049** |
+
+Three scorers: two losses, one parity, no win. And the ask-bucketed census —
+§7.9's instrument, the one that survives — is sharper than the aggregate. On the
+boards where a relocated ask actually fires, **every lane loses at both
+vulnerabilities**: ♥ −1.09 over 391 boards, ♦ −3.76 over 230, ♣ −1.28 over 144.
+
+**The DD-blindness defence was tested and failed.** It is the strongest
+objection available, and it is a real effect elsewhere: kickback exists to
+*stop* at five of trump when partner denies a keycard, and double dummy sees all
+52 cards, so it never lets a thin slam go down — it charges the arm that stopped
+and credits the arm that punted. PD sitting at parity looked consistent with
+that. The sd row is the scorer that does let a thin slam fail, and it still
+reads negative at both vulnerabilities with both intervals excluding zero.
+
+**What is not in doubt is the ladder's arithmetic.** §7.2's table is correct: a
+relocated ask genuinely brings the overshooting answers to zero, in all three
+lanes, which is why this was built. The measurement says the room it buys costs
+more than it returns — the 4♦/4♥/4♠ faces the ladder claims are among the most
+common natural calls in bridge, and the bidder gives up more by not having them
+than the asker gains by stopping accurately. That is a claim about *this*
+system's floor, not about kickback as bridge theory.
+
+**Standing recommendation, not yet executed:** `set_kickback` back to opt-in,
+default byte-identical, alongside making the configured net the default floor
+(gate 1, +0.19/+0.25 plain DD, passed decisively). The two are one package,
+because gate 2 was measured under the v4 floor. §7.10 shipped this default-on
+2026-08-02 on a PD win with a vul plain-DD loss; that evidence is now superseded.

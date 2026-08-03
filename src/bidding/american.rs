@@ -200,6 +200,50 @@ pub fn american() -> Pair {
     with_floor(american_book(), super::neural_floor::NeuralFloorBba)
 }
 
+/// The 2/1 pair with the **configured** floor — the net reads the card
+///
+/// Exactly [`american`] but for the floor:
+/// [`NeuralFloorBba`][crate::bidding::neural_floor::NeuralFloorBba] gives way to
+/// [`ConfiguredFloorBba`][crate::bidding::neural_floor::ConfiguredFloorBba], one
+/// artifact that takes both partnerships' convention cards as inputs instead of
+/// one artifact per regime.
+///
+/// **The card is read here, at build time**, from whatever the `set_*` knobs say
+/// when this is called — so build a stance per A/B arm with that arm's knobs
+/// already armed, exactly as the arms already do for rule presence.  Opponents
+/// are modeled as playing our own card, matching every other
+/// undeclared-opposition default in the crate; a genuinely mixed table needs
+/// [`ConfiguredFloorBba::new`][crate::bidding::neural_floor::ConfiguredFloorBba::new]
+/// with a [`Config::new`][crate::bidding::features::Config::new].
+///
+/// Not yet the default: `docs/ai-bidder/configured-net.md`'s gate 1 is what
+/// decides whether this replaces [`american`], and gate 2 is what the
+/// separation buys.
+#[must_use]
+pub fn american_configured() -> Pair {
+    american_configured_with(super::features::Config::symmetric(
+        &super::card::american_card(),
+    ))
+}
+
+/// [`american_configured`] against a declared opponent — the mixed table
+///
+/// The two arms of an A/B *play each other*, so at every table one side
+/// relocates its asks and the other does not.  That asymmetric cell is in the
+/// v4 corpus, and this is how a harness reaches it: build each arm's card from
+/// its own knob state, then hand each side both.
+///
+/// `config` is taken verbatim and the **book still comes from the live knobs**,
+/// so set them to match — a card claiming an agreement the rules do not play is
+/// a misdisclosure to the net, and nothing checks it.
+#[must_use]
+pub fn american_configured_with(config: super::features::Config) -> Pair {
+    with_floor(
+        american_book(),
+        super::neural_floor::ConfiguredFloorBba::new(config),
+    )
+}
+
 /// The 2/1 pair with the deterministic **instinct** floor (the pre-BBA default)
 ///
 /// Exactly [`american`] but for the floor: the learned

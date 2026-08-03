@@ -7,7 +7,60 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Measured
+
+- **The configured net's two gates (phase 5), on 2,000,000 fresh boards per
+  cell.** Seed 1785708870 shared across every arm, arms sequential, no bank
+  rows.
+
+  **Gate 1 — `v4 − minors`, identical rules, only the floor differs: a decisive
+  pass.** Plain DD **+0.1933 ± 0.0047** (NV) and **+0.2469 ± 0.0057** (vul);
+  perfect defense **+0.5256 ± 0.0060** and **+0.5358 ± 0.0070**. A plain-DD win
+  *and* a PD win at both vulnerabilities. It also settles the question the
+  campaign was built on: the +0.0705 PD/board kickback shipped on was mostly a
+  two-week-newer net, not the convention.
+
+  **Gate 2 — `v4-kickback − v4`, same weights, one card row apart: a loss.**
+  Plain DD **−0.0105 ± 0.0018** (NV) and **−0.0092 ± 0.0021** (vul), with PD at
+  parity (+0.0006, +0.0026) — the inverse of the evidence the convention shipped
+  on. On the boards where a relocated ask actually fires, every lane loses:
+  ♥ −1.09, ♦ −3.76, ♣ −1.28 PD/board over 765 boards.
+
+  **The DD-blindness defence was measured, and it failed.** Kickback exists to
+  *stop* at five of trump, and double dummy never lets a thin slam go down — so
+  a stopping convention measuring DD-negative is nearly a prediction of the
+  harness. The sd-declarer row (blind lead, fallible declarer, 400k boards per
+  vul) says otherwise: **−0.0088 ± 0.0041** (NV), **−0.0073 ± 0.0049** (vul).
+  Three scorers, two losses and a parity, no win.
+
+  Nothing shipped on this yet: making v4 the default floor and reverting
+  `set_kickback` to opt-in are one package, and both are jdh8's call. Full
+  tables in `docs/ai-bidder/configured-net.md`.
+
 ### Added
+
+- **The configured net is wired in (phase 4).**
+  `classify_bba_v4` runs
+  `american_bba_v4` at its 368-input width, `ConfiguredFloorBba` is the same
+  safety shell over it, and `american_configured()` is the 2/1 pair standing on
+  it. The floor captures the cell — both partnerships' cards — **once at build
+  time**, so the per-decision path reads no ambient knob state and cannot
+  silently change what a feature vector means;
+  `american_configured_with(Config::new(ours, theirs))` reaches the asymmetric
+  cell an A/B actually plays.
+
+  It is **not** the default: `american()` still stands on the v3 twins, because
+  `docs/ai-bidder/configured-net.md`'s gate 1 is what decides whether v4
+  replaces them, and gate 2 is what the separation buys. `ab-kickback` grows
+  the two arms those gates need (`v4`, `v4-kickback`), each built for the mixed
+  table it plays.
+
+  Two tests pin the wiring. The candle-parity fixture clears the same 1e-3 bar
+  the other artifacts do. `the_configured_floor_reads_its_card` is the in-crate
+  echo of `scripts/pair-flip-diagnostic.py`: it flips `Kickback 1430` and
+  asserts the logits move. A v4 floor that never attached its config would look
+  exactly like "the convention is worth nothing" at gate 2, with no other
+  symptom.
 
 - **The configured net is trained (phase 3), and it demonstrably reads the
   card.** `src/bidding/weights/american_bba_v4` — 170,022 floats, distilled

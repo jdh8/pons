@@ -35,6 +35,7 @@
 use super::Rules;
 use super::array::Logits;
 use super::context::Context;
+use super::features::Config;
 use super::instinct::{forced, instinct};
 use super::trie::Classifier;
 use super::{features, neural};
@@ -65,6 +66,51 @@ impl Classifier for NeuralFloorBba {
             return LADDER.classify(hand, context);
         }
         let mut logits = neural::classify_bba(&features::features_v3(hand, context));
+        mask_illegal(&mut logits, context.auction());
+        logits
+    }
+}
+
+/// The **configured** BBA-distilled floor — the same shell over
+/// [`neural::classify_bba_v4`]
+///
+/// Identical to [`NeuralFloorBba`] in every respect but its inputs: it feeds the
+/// net [`features_v4`][super::features::features_v4], whose last 280 floats are
+/// both partnerships' convention cards.  So the regime is an *input* rather
+/// than a choice of artifact, and an A/B arm differs by a card row instead of
+/// by a separately trained net — the confound
+/// `docs/ai-bidder/configured-net.md` exists to remove.
+///
+/// The [`Config`] is captured **once, when the floor is built**, from whatever
+/// the knobs said at that moment (see
+/// [`american_configured`][super::american::american_configured]).  A stance is
+/// built per A/B arm and a card is an agreement, not a per-call decision, so
+/// this is the right granularity — and it keeps the per-decision path from
+/// reading ambient state that could silently change what a feature vector
+/// means.
+#[derive(Clone, Debug)]
+pub struct ConfiguredFloorBba(Config);
+
+impl ConfiguredFloorBba {
+    /// Attach the floor to one configuration cell — what each side is declared
+    /// to play
+    #[must_use]
+    pub const fn new(config: Config) -> Self {
+        Self(config)
+    }
+}
+
+impl Classifier for ConfiguredFloorBba {
+    fn classify(&self, hand: Hand, context: &Context<'_>) -> Logits {
+        if forced(context) {
+            // Rails: trust the deterministic floor, never the net.
+            return LADDER.classify(hand, context);
+        }
+        // The context arrives from the trie without a config — only this floor
+        // knows the cell — so attach ours for the extractor to read.  The clone
+        // copies scalars and borrows; the auction and prefixes are not copied.
+        let configured = context.clone().with_config(&self.0);
+        let mut logits = neural::classify_bba_v4(&features::features_v4(hand, &configured));
         mask_illegal(&mut logits, context.auction());
         logits
     }
@@ -103,6 +149,39 @@ mod tests {
         let hand: Hand = hand.parse().expect("valid test hand");
         let context = Context::new(RelativeVulnerability::NONE, auction);
         NeuralFloorBba.classify(hand, &context)
+    }
+
+    /// The configured shell's logits under the card the knobs currently describe
+    fn configured(auction: &[Call], hand: &str) -> Vec<f32> {
+        let hand: Hand = hand.parse().expect("valid test hand");
+        let floor =
+            ConfiguredFloorBba::new(Config::symmetric(&crate::bidding::card::american_card()));
+        let context = Context::new(RelativeVulnerability::NONE, auction);
+        floor
+            .classify(hand, &context)
+            .iter()
+            .map(|(_, logit)| *logit)
+            .collect()
+    }
+
+    /// The card block reaches the net: flipping one row moves the logits.
+    ///
+    /// The in-crate echo of `scripts/pair-flip-diagnostic.py`, and the check
+    /// that would have caught a v4 floor wired to a config it never attaches —
+    /// which would look exactly like "the convention is worth nothing" at gate
+    /// 2, with no other symptom.  It asserts the logits *move*, not that the
+    /// chosen call does: `Kickback 1430` decides about one auction in 700, so a
+    /// call-level assertion on an arbitrary hand would be asserting noise.
+    #[test]
+    fn the_configured_floor_reads_its_card() {
+        let auction = [call(1, Strain::Spades), Call::Pass];
+        let hand = "AQ32.K53.QJ4.A92";
+        crate::bidding::instinct::set_kickback(false);
+        let off = configured(&auction, hand);
+        crate::bidding::instinct::set_kickback(true);
+        let on = configured(&auction, hand);
+        crate::bidding::instinct::set_kickback(false);
+        assert_ne!(off, on, "the kickback row must reach the feature vector");
     }
 
     /// The shelled net's highest-logit call
