@@ -19,7 +19,7 @@ R=${1:?usage: dnf-flip2-ab.sh RESULTS_DIR}
 . "$(dirname "$0")/ab-lib.sh"
 SEED_BASE=$(seed_for)
 
-log "=== dnf flip2 start, sha=$SHA, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul (chop F2b: --ns-dnf + evaluator_v2_dnf vs default)"
+log "=== dnf flip2 start, sha=$SHA, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul (chop F2b: DNF-on + evaluator_v2_dnf vs --no-ns-dnf)"
 for vul in none both; do
     arm off "$vul" --no-ns-dnf
     arm dnf "$vul"

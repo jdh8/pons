@@ -233,7 +233,8 @@ struct Args {
     /// Also give the strength gauges membership teeth for our side
     /// (`set_gauge_membership`, crate default off): samplers reject hands
     /// outside the raw-HCP / support-points bands.  Measured WASH on sd-lead;
-    /// independent kill-switch, usually paired with `--ns-dnf`.
+    /// independent kill-switch.  It reads DNF boxes, so it wants the DNF
+    /// reading live — which is the default, i.e. pass no `--no-ns-dnf`.
     #[arg(long, default_value_t = false)]
     ns_gauge_membership: bool,
 

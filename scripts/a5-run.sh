@@ -59,7 +59,9 @@ bba_knob() {
 bba_knob nt-overcall-no-major    -  --ns-nt-overcall-no-major       ""
 # Semi-natural balancing / natural passed-seat overcall → DD-blind/negative, add sd.
 bba_knob notrump-balancing       sd --ns-balancing                  ""
-bba_knob passed-hand-overcall    sd --ns-passed-hand-overcall       ""
+# (passed-hand-overcall retired from this pass 2026-07-13: measured wash-positive
+# on all six cells and folded into base default-on, so there is no opt-in flag
+# left for `bba_knob` to arm — re-measuring it now means an off-arm runner.)
 # Artificial lead-directing defense of their 1NT (defended boards only); the
 # defended-board filter goes on BOTH arms; sd is a floor (ab-dump-sd cannot
 # disclose the transfer to the blind leader).

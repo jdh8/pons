@@ -58,6 +58,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   compiled it; its 18 tests had never run anywhere, which is why the drift
   survived.
 
+- **Eight A/B scripts aborted on startup**, passing ~15 `bba-gen` flags that no
+  longer exist — every one a knob that flipped from opt-in `--ns-x` to
+  shipped-default `--no-ns-x` without its callers being updated. The two
+  reusable campaign drivers are repaired; `reading-knobs-ab.sh` also had its
+  polarity flipped, since all four reading knobs now ship on. Fixed with them:
+  `ab-lib.sh`'s resume check tested for the arm's *directory*, which
+  `bba-gen-parallel.sh` creates before launching a worker — so an arm that died
+  on startup silently resumed as an empty arm and was scored against nothing.
+  It now tests for a shard.
+
 - **Four statically dead disjuncts in `penalty_x_reading`** — one
   `Cell<NotrumpDefense>` holds one value, so "Natural is active" already
   subsumed the four "…but not DONT/Meckwell/direct-Landy/Woolsey" tests. They

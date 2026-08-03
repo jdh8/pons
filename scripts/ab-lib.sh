@@ -31,10 +31,16 @@ cargo build --release --features serde --example bba-gen --example ab-dump-diff 
 log() { echo "$(date -u +%FT%TZ) $*" | tee -a "$R/log" >&2; }
 
 # arm NAME VUL [bba-gen flags...] — generate one arm unless already present
+#
+# The resume check tests for a SHARD, not for the directory: bba-gen-parallel
+# mkdirs before it launches a worker, so an arm that died on startup (a stale
+# flag, a bad card path) leaves an empty dir behind.  Skipping on `-d` would
+# then silently resume past an arm that was never generated, and diffpair would
+# score it against nothing.
 arm() {
     name=$1; vul=$2; shift 2
     dir="$R/$name-$vul"
-    [ -d "$dir" ] && { log "skip $dir (exists)"; return 0; }
+    [ -s "$dir/shard-0.json" ] && { log "skip $dir (exists)"; return 0; }
     log "generate $dir (SEED_BASE=$SEED_BASE, flags: $*)"
     SEED_BASE=$SEED_BASE scripts/bba-gen-parallel.sh "$dir" "$PER_SHARD" -v "$vul" "$@" \
         >>"$R/log" 2>&1

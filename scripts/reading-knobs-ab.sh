@@ -7,10 +7,16 @@
 #   setsid nohup scripts/idle-run.sh scripts/reading-knobs-ab.sh [KNOB] \
 #       >>ab-results/reading-knobs/run.log 2>&1 &
 #
-# KNOB picks the treatment arm: pass (default) | cue | length | table.  The
-# off arm is shared across knobs — one SEED_BASE (recorded in seed/note.txt)
-# for the whole experiment series, cells resume by skip-if-done, so re-runs
-# and later knobs only generate what's missing.  Probe fact 2026-07-17: cue,
+# KNOB picks the knob under test: pass (default) | cue | length | table.  All
+# four ship default-ON, so the *treatment* is the bare arm and the flagged arm
+# is the `--no-ns-*` off-switch; a positive diff still means "the knob helps".
+# (Before 2026-08-03 these were opt-in `--ns-*` flags and this script passed
+# them on the `on` arm.  They flipped to default-on and the flags were renamed,
+# which left every invocation dying on clap — hence the fresh EXP date: the
+# 2026-07-17 results below it were taken under the old polarity and must not be
+# pooled with new cells.)  The on arm is shared across knobs — one SEED_BASE
+# (recorded in seed/note.txt) for the whole experiment series, cells resume by
+# skip-if-done, so re-runs and later knobs only generate what's missing.  Probe fact 2026-07-17: cue,
 # table, and pass are bid-inert in the default system (0, 0, and 1 divergent
 # board per 211k — reading/instrument-side knobs); length is the one live
 # arm (23/6400 boards).  BEN cells run FIRST — the servers live on deleted
@@ -22,17 +28,17 @@ cd "$(dirname "$0")/.."
 
 KNOB=${1:-pass}
 case "$KNOB" in
-pass) TFLAG=--ns-pass-reading ;;
-cue) TFLAG=--ns-cue-reading ;;
-length) TFLAG=--ns-length-soundness ;;
-table) TFLAG=--ns-table-alert-reading ;;
+pass) OFFFLAG=--no-ns-pass-reading ;;
+cue) OFFFLAG=--no-ns-cue-reading ;;
+length) OFFFLAG=--no-ns-length-soundness ;;
+table) OFFFLAG=--no-ns-table-alert-reading ;;
 *)
 	echo "usage: $0 [pass|cue|length|table]" >&2
 	exit 2
 	;;
 esac
 
-EXP=ab-results/reading-knobs/2026-07-17
+EXP=ab-results/reading-knobs/2026-08-03
 mkdir -p "$EXP/scores"
 SHA=$(git rev-parse --short HEAD)
 if [ ! -s "$EXP/seed" ]; then date +%s >"$EXP/seed"; fi
@@ -55,9 +61,9 @@ check() {
 # Phase 1 — primary vs BEN Tier F (8 servers on 8085-8092, fragile: run first).
 # A failed cell (servers down) logs loudly and the chain moves on — the guard
 # phase must still run; re-running this script resumes the missing cells.
-for arm in off "$KNOB"; do
+for arm in on "$KNOB-off"; do
 	flags=()
-	[ "$arm" = "$KNOB" ] && flags=("$TFLAG")
+	[ "$arm" = on ] || flags=("$OFFFLAG")
 	for vul in none both; do
 		dir="$EXP/ben-$arm/$vul"
 		[ -s "$dir/shard-0.json" ] && { log "skip $dir (done)"; continue; }
@@ -69,9 +75,9 @@ for arm in off "$KNOB"; do
 done
 
 # Phase 2 — guard vs BBA (same SEED_BASE; anchor-style cells)
-for arm in off "$KNOB"; do
+for arm in on "$KNOB-off"; do
 	flags=()
-	[ "$arm" = "$KNOB" ] && flags=("$TFLAG")
+	[ "$arm" = on ] || flags=("$OFFFLAG")
 	for vul in none both; do
 		dir="$EXP/bba-$arm/$vul"
 		[ -s "$dir/shard-0.json" ] && { log "skip $dir (done)"; continue; }
@@ -85,7 +91,7 @@ done
 # Phase 3 — scoring: per-arm pooled IMPs/board + paired on-vs-off diffs,
 # both brackets (plain DD + PD), per vulnerability cell.
 for ref in ben bba; do
-	[ -s "$EXP/$ref-off/none/shard-0.json" ] || { log "no $ref data — skip scoring"; continue; }
+	[ -s "$EXP/$ref-on/none/shard-0.json" ] || { log "no $ref data — skip scoring"; continue; }
 	for arm in off "$KNOB"; do
 		for vul in none both; do
 			for score in plain pd; do
@@ -102,7 +108,7 @@ for ref in ben bba; do
 			out="$EXP/scores/diff-$ref-$KNOB-$vul-$score.txt"
 			[ -s "$out" ] && continue
 			log "diff $out"
-			target/release/examples/ab-dump-diff "$EXP/$ref-$KNOB/$vul" "$EXP/$ref-off/$vul" \
+			target/release/examples/ab-dump-diff "$EXP/$ref-on/$vul" "$EXP/$ref-$KNOB-off/$vul" \
 				--score "$score" >"$out" 2>&1 || log "!!! diff failed: $out"
 		done
 	done
