@@ -153,7 +153,11 @@ struct Args {
     /// contiguously, so stitched corpora would validate entirely on whichever
     /// regime landed last, while interleaving by board leaves the tail
     /// board-disjoint *and* mixed.
-    #[arg(long)]
+    ///
+    /// Conflicts with `--kickback`: mixing supplies *both* regimes, so a fixed
+    /// one would be ignored — and the sidecar's `our_kickback` would then
+    /// record a stance the corpus never used.
+    #[arg(long, conflicts_with = "kickback")]
     mix_kickback: bool,
     /// Emit the **configured** vector [`features_v4`] instead of `features_v3`
     ///

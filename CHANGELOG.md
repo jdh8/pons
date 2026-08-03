@@ -73,6 +73,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   subsumed the four "…but not DONT/Meckwell/direct-Landy/Woolsey" tests. They
   were the pre-fold precedence cascade the enum was introduced to delete.
 
+- **`dump-teacher --mix-kickback` recorded false provenance**: it ignores
+  `--kickback` but wrote `our_kickback` into the corpus sidecar anyway. The two
+  flags now conflict.
+
 ### Changed
 
 - **The five per-system 1NT-defense bool shims are deleted** in favour of
