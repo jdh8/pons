@@ -1047,6 +1047,14 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_kickback: bool,
 
+    /// Relocate the **minor** asks only — Redwood, `set_redwood` (opt-in,
+    /// unmeasured as its own arm): 4♦ asks in clubs and 4♥ in diamonds, the
+    /// majors keep plain 4NT.  Implied by `--ns-kickback`; implies the minors'
+    /// reach whatever `--no-ns-rkcb-minors` says.  Same build-time caveat as
+    /// kickback.
+    #[arg(long, default_value_t = false)]
+    ns_redwood: bool,
+
     /// Disable the longer-major transfer discipline (default on): the Jacoby
     /// transfer guards revert to the legacy tie (a 6♠5♥ hand could transfer to
     /// hearts; 3♦ fired on any 5-5+) — the A/B baseline arm.
@@ -1429,6 +1437,7 @@ fn main() -> anyhow::Result<()> {
     pons::bidding::instinct::set_floor_rkcb(!args.no_ns_floor_rkcb);
     pons::bidding::instinct::set_rkcb_minors(!args.no_ns_rkcb_minors);
     pons::bidding::instinct::set_kickback(args.ns_kickback);
+    pons::bidding::instinct::set_redwood(args.ns_redwood);
     pons::bidding::set_control_bid_reading(!args.no_ns_control_bid_reading);
     pons::bidding::set_cue_reading(!args.no_ns_cue_reading);
     pons::bidding::set_length_soundness(!args.no_ns_length_soundness);
