@@ -477,23 +477,15 @@ fn american_row(name: &str) -> i32 {
         // answers do split on the queen at steps 3/4 and we do own a king ask.
         // So the relay is under-disclosed only in its *shape*, not its
         // existence.  See `docs/ai-bidder/bba-kickback.md` §3.
-        // Always 0, even though our king ask *is* relocated under kickback —
-        // because this row is **inert in BBA**: probed both ways and crossed
-        // against `King ask by 5NT`, turning it on is byte-identical to setting
-        // no king-ask row at all (`docs/ai-bidder/bba-kickback.md` §3).  Setting
-        // it would therefore disclose nothing, while `King ask by 5NT` is the
-        // row BBA actually acts on, so that is the one that carries our king
-        // ask across.  The relocation itself stays undisclosed — BBA's schema
-        // cannot express a king ask derived from the ladder, since its own is
-        // anchored at 5NT absolutely and does not move under kickback.
-        //
-        // Off the relay that stays true and this row is 0.  On it — the default
-        // since 2026-08-02 — our king ask *is* the next available bid, so 1 is
-        // simply the honest value, and it is free: BBA ignores the row, which is
-        // exactly what makes it usable as a slot that describes us rather than
-        // instructing them (jdh8).  `King ask by 5NT` stays 1 beside it, because
-        // that is the row BBA acts on and dropping it would tell them we have no
-        // king ask at all.
+        // The relay's second ask is the step above the queen reply — the
+        // default since 2026-08-02 — so 1 is simply the honest value, and it
+        // is free: this row is **inert in BBA** (probed both ways and crossed
+        // against `King ask by 5NT`, turning it on is byte-identical to
+        // setting no king-ask row at all, `docs/ai-bidder/bba-kickback.md`
+        // §3), which is exactly what makes it usable as a slot that describes
+        // us rather than instructing them (jdh8).  `King ask by 5NT` stays 1
+        // beside it, because that is the row BBA acts on and dropping it
+        // would tell them we have no king ask at all.
         "King ask by available bid" => 1,
         // Michaels and Unusual 2NT we author outright; `set_unusual_notrump_defense`
         // gates only our *defense* to theirs, not our own two-suiter bids.

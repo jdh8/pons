@@ -211,10 +211,12 @@ struct Args {
     replay: bool,
     /// Keep only deals that pass a raw-hand slam-ish test, `HCP:FIT`
     ///
-    /// `--enrich 28:9` keeps a deal only if some partnership holds 28+ combined
-    /// HCP and a 9+ card fit in a *non-spade* suit.  Both are read off the raw
-    /// hands ([`slam_ish`][common::slam_ish]), before the bidder, so acceptance
-    /// cannot depend on — and therefore cannot bias — what the bidder does.
+    /// `--enrich 28:9` keeps a deal only if 28+ combined HCP and a 9+ card fit
+    /// in a *non-spade* suit both appear — each for **some** partnership,
+    /// measured independently, so the two axes may split across the table.
+    /// Both are read off the raw hands ([`slam_ish`][common::slam_ish]),
+    /// before the bidder, so acceptance cannot depend on — and therefore
+    /// cannot bias — what the bidder does.
     ///
     /// This is how the enriched slice of the mixture corpus is drawn.  Deals
     /// are cheap and bidding is not, so a rejected deal costs a shuffle; see
@@ -447,6 +449,14 @@ fn main() -> anyhow::Result<()> {
         anyhow::bail!(
             "--cell and --conv both configure the teacher; a cell's card already \
              pins every row, so a single override would silently disagree with it"
+        );
+    }
+    if !args.cells.is_empty() && !args.configured {
+        anyhow::bail!(
+            "--cell rotates table configurations, which only the configured (v4) \
+             extractor can tell apart; identical v3 features with per-cell targets \
+             are the mixed-net corpus this flag exists to prevent — pass \
+             --configured or drop --cell"
         );
     }
     let mut sides: Vec<SideConfig> = cells.iter().flat_map(|(a, b)| [*a, *b]).collect();
@@ -789,6 +799,12 @@ fn load_deals(
 ) -> std::io::Result<Vec<(FullDeal, TrickCountTable)>> {
     let deals = if skip == 0 && count == 0 {
         pons::pdd::load(path)?
+    } else if count == 0 {
+        // "The rest of the file": `load_slice` caps by rows, so ask for more
+        // rows than any bank can hold (2^40 rows ≈ 57 TB of `.pdd`).  Without
+        // this arm a `--skip` with no `--boards` passed the 0 through and
+        // silently loaded nothing — while printing "asked all".
+        pons::pdd::load_slice(path, skip, 1 << 40)?
     } else {
         pons::pdd::load_slice(path, skip, count)?
     };

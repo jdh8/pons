@@ -1266,7 +1266,8 @@ auction, which is the same write-only-axis trap the DNF ledger's C2 hit with
 `slam_entry_reached` at the 4NT RKCB ask — follow-up C's site, the one converted
 milestone that is not a final contract, and the worst reading in the tree
 (`.alert(RKCB_FLOOR)` suppresses the natural reading *and* the projection is ⊤,
-so it announces nothing at all). `examples/probe-announced-rkcb`, 100k boards:
+so it announces nothing at all). `examples/probe-announced-rkcb` (deleted
+2026-08-02 with `set_rkcb_announce`; numbers preserved here), 100k boards:
 
 | quantity | value |
 | --- | --- |

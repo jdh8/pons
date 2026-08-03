@@ -7,7 +7,7 @@
 //! |---|---|---|---|---|
 //! | `plain` | off | off | v3 | majors-only trump, the ask is 4NT |
 //! | `minors` | on | off | v3 | minor asks at plain 4NT — round 4's losing arm, re-priced |
-//! | `kickback` | on | on | v3 twin | the shipped default: 4♦/4♥ Redwood, 4♠ over hearts |
+//! | `kickback` | on | on | v3 twin | opt-in again since the gate-2 loss: 4♦/4♥ Redwood, 4♠ over hearts |
 //! | `v4` | on | off | **v4** | the configured net, playing `minors`' rules |
 //! | `v4-kickback` | on | on | **v4** | the configured net, playing `kickback`'s rules |
 //!

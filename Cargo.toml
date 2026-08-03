@@ -169,6 +169,15 @@ path = "examples/probe-keycard-reach.rs"
 required-features = ["dd"]
 test = true
 
+# Dumps the teacher corpus. Declared only so `test = true` sticks: its enrich
+# thresholds and raw-hand slice predicate are pinned by unit tests that would
+# otherwise never run (examples default `test = false`).
+[[example]]
+name = "dump-teacher"
+path = "examples/dump-teacher/main.rs"
+required-features = ["dd"]
+test = true
+
 [[example]]
 name = "probe-1m-slice"
 path = "examples/probe-1m-slice/main.rs"

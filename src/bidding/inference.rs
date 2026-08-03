@@ -7386,27 +7386,6 @@ mod tests {
         assert_all_alerted("american", worklist);
     }
 
-    /// The same invariant over the queen relay's own nodes
-    ///
-    /// The relay's rungs land on 5NT and 6♣–6♥ — ordinary contracts the
-    /// general sweep reaches by other routes — so this walks the relay's own
-    /// tables directly rather than trusting that sweep to have covered them.
-    #[test]
-    fn queen_relay_calls_are_alerted() {
-        use crate::bidding::american::american;
-
-        let pair = american();
-        let mut worklist = Vec::new();
-        for (phase, trie) in [
-            ("constructive", &pair.constructive.0),
-            ("competitive", &pair.competitive.0),
-            ("defensive", &pair.defensive.0),
-        ] {
-            worklist.extend(unalerted_artificial(phase, trie));
-        }
-        assert_all_alerted("american + queen relay", worklist);
-    }
-
     #[test]
     fn deviation_knobs_preserve_alert_invariant() {
         use crate::bidding::american::{
