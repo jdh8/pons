@@ -2345,8 +2345,7 @@ pub(in crate::bidding) fn relay_map(answer: Bid, trump: Suit) -> Option<RelayMap
 pub(in crate::bidding) enum Reply {
     /// Five of trump — no queen, and nothing to make up for it
     Weak,
-    /// Six of trump — no queen, but a fit or a void partner cannot see.  Also
-    /// the plain no-queen reply in the lanes where five of trump is gone.
+    /// Six of trump — no queen, but a fit or a void partner cannot see
     Buff,
     /// The queen, plus the king of [`RelayMap::kings`]`[i]`, and no side king
     /// on a cheaper rung
@@ -2489,10 +2488,11 @@ const KICKBACK_ANSWERS: [Bid; 7] = [
 
 /// Every call a relay rung can land on, over any ask the ladder can relocate to
 ///
-/// The union of [`relay_ladder`] over the five answers that leave a relay room
+/// The union of [`relay_map`] over the answers that leave a relay room
 /// ([`queen_ask_room`] rejects 5♥ and 5♠ answers outright — their no-queen rung
 /// would already be past five of trump).  Each rule's own constraint rejects
-/// the landings that are not its rung, exactly as the 1430 answers do.
+/// the landings that are not its rung, exactly as the 1430 answers do, and
+/// [`relay_lanes`] narrows each rule *class* to the rungs it can reach.
 const RELAY_RUNGS: [Bid; 11] = [
     Bid::new(4, Strain::Spades),
     Bid::new(4, Strain::Notrump),
@@ -2515,6 +2515,60 @@ const PLAIN_ANSWERS: [Bid; 4] = [
     Bid::new(5, Strain::Hearts),
     Bid::new(5, Strain::Spades),
 ];
+
+/// Every relay lane the shared geometry can build — each possible 1430 answer
+/// bid crossed with each trump — as `(trump, map)`
+///
+/// The install-time source of truth for which [`RELAY_RUNGS`] a rule class can
+/// actually land on.  An alerted rule installed on a rung no lane reaches is
+/// constraint-dead but face-live, and the reading's structural `alerted` bit
+/// would erase the natural walk for five and six of trump at every in-window
+/// placement seat — the §7.3.1 union poison, fired from *inside* the window.
+/// Each rule class below therefore installs only where some lane can put it.
+fn relay_lanes() -> impl Iterator<Item = (Suit, RelayMap)> {
+    KICKBACK_ANSWERS.into_iter().flat_map(|answer| {
+        Suit::ASC
+            .into_iter()
+            .filter_map(move |trump| relay_map(answer, trump).map(|map| (trump, map)))
+    })
+}
+
+/// Some lane's queen ask lands on `bid`
+fn queen_ask_can_land(bid: Bid) -> bool {
+    relay_lanes().any(|(_, map)| map.ask == bid)
+}
+
+/// Some lane's artificial queen reply — a king rung or 5NT — lands on `bid`
+fn artificial_reply_can_land(bid: Bid) -> bool {
+    relay_lanes()
+        .any(|(_, map)| map.no_king == bid || map.kings.iter().any(|&(_, rung)| rung == bid))
+}
+
+/// Some lane's natural queen denial — five or six of the agreed trump — lands
+/// on `bid`
+fn denial_can_land(bid: Bid) -> bool {
+    relay_lanes().any(|(_, map)| map.weak == bid || map.deny == bid)
+}
+
+/// Some lane's second relay (the king ask above a king-showing reply) lands on
+/// `bid`
+fn king_ask_can_land(bid: Bid) -> bool {
+    relay_lanes().any(|(trump, map)| {
+        map.kings
+            .iter()
+            .any(|&(_, rung)| king_relay(rung, trump).is_some_and(|relay| relay.ask == bid))
+    })
+}
+
+/// Some lane's second-relay reply lands on `bid`; `more` picks the rung
+fn king_reply_can_land(bid: Bid, more: bool) -> bool {
+    relay_lanes().any(|(trump, map)| {
+        map.kings.iter().any(|&(_, rung)| {
+            king_relay(rung, trump)
+                .is_some_and(|relay| bid == if more { relay.more } else { relay.none })
+        })
+    })
+}
 
 /// Partner's off-book ask was overcalled by RHO — the DOPI/DEPO window.
 /// Same recognizability gates as [`keycard_asked`]; returns the trump and
@@ -5229,30 +5283,47 @@ pub fn instinct() -> Rules {
     // asks whatever we do, and an off-arm would bid what it cannot read.)
     {
         for &landing in &RELAY_RUNGS {
-            rules = rules
-                // The artificial half of the merged reply — the king rungs and
-                // 5NT.  The denials are five and six of the agreed trump:
-                // contracts, not codes, so they carry no alert.
-                .rule(landing, 1.9, queen_reply(landing, true))
-                .alert(RKCB_FLOOR)
-                .face(|context: &Context<'_>| relay_window_face(context, 6))
-                .rule(landing, 1.9, queen_reply(landing, false))
-                .face(|context: &Context<'_>| relay_window_face(context, 6))
-                // The second relay's rungs: "one more king" is a code, "none"
-                // is six of the agreed trump and places the contract.
-                .rule(landing, 1.9, king_reply(landing, true))
-                .alert(RKCB_FLOOR)
-                .face(|context: &Context<'_>| relay_window_face(context, 10))
-                .rule(landing, 1.9, king_reply(landing, false))
-                .face(|context: &Context<'_>| relay_window_face(context, 10));
-            rules = rules
-                .rule(
-                    landing,
-                    1.85,
-                    queen_ask_here(landing) & one_keycard_missing() & slam_entry_reached(),
-                )
-                .alert(RKCB_FLOOR)
-                .face(|context: &Context<'_>| relay_window_face(context, 4));
+            // The artificial half of the merged reply — the king rungs and
+            // 5NT.  The denials are five and six of the agreed trump:
+            // contracts, not codes, so they carry no alert.  Every class is
+            // installed only where some lane's geometry can land it — a
+            // constraint-dead alerted rule would still be face-live, and its
+            // structural `alerted` bit would erase the natural reading of the
+            // most common placements in the window ([`relay_lanes`]).
+            if artificial_reply_can_land(landing) {
+                rules = rules
+                    .rule(landing, 1.9, queen_reply(landing, true))
+                    .alert(RKCB_FLOOR)
+                    .face(|context: &Context<'_>| relay_window_face(context, 6));
+            }
+            if denial_can_land(landing) {
+                rules = rules
+                    .rule(landing, 1.9, queen_reply(landing, false))
+                    .face(|context: &Context<'_>| relay_window_face(context, 6));
+            }
+            // The second relay's rungs: "one more king" is a code, "none"
+            // is six of the agreed trump and places the contract.
+            if king_reply_can_land(landing, true) {
+                rules = rules
+                    .rule(landing, 1.9, king_reply(landing, true))
+                    .alert(RKCB_FLOOR)
+                    .face(|context: &Context<'_>| relay_window_face(context, 10));
+            }
+            if king_reply_can_land(landing, false) {
+                rules = rules
+                    .rule(landing, 1.9, king_reply(landing, false))
+                    .face(|context: &Context<'_>| relay_window_face(context, 10));
+            }
+            if queen_ask_can_land(landing) {
+                rules = rules
+                    .rule(
+                        landing,
+                        1.85,
+                        queen_ask_here(landing) & one_keycard_missing() & slam_entry_reached(),
+                    )
+                    .alert(RKCB_FLOOR)
+                    .face(|context: &Context<'_>| relay_window_face(context, 4));
+            }
         }
     }
     rules = rules
@@ -5434,31 +5505,40 @@ pub fn instinct() -> Rules {
         // alert and no face gate; the artificial rungs they answer carry both.
         {
             for &landing in &RELAY_RUNGS {
-                rules = rules
-                    // All five keycards: six is already decided, so the queen
-                    // is only worth a round when seven is live — and seven is
-                    // live only on grand-zone values.  Without them this rule
-                    // is dead and the asker simply bids the slam, which is the
-                    // whole point of asking only what you will act on.
-                    .rule(
-                        landing,
-                        1.85,
-                        queen_ask_here(landing) & keycard_total(trump, 5..) & grand_zone(strain),
-                    )
-                    .alert(RKCB_FLOOR)
-                    .face(|context: &Context<'_>| relay_window_face(context, 4))
-                    // Explore seven only when the values are already there:
-                    // RKCB is a slam veto, not a slam seeker, so a partnership
-                    // short of the grand zone never spends the round.
-                    .rule(
-                        landing,
-                        1.85,
-                        king_ask_here(landing)
-                            & relay_verdict(trump, 5.., true)
-                            & grand_zone(strain),
-                    )
-                    .alert(RKCB_FLOOR)
-                    .face(|context: &Context<'_>| relay_window_face(context, 8));
+                // All five keycards: six is already decided, so the queen
+                // is only worth a round when seven is live — and seven is
+                // live only on grand-zone values.  Without them this rule
+                // is dead and the asker simply bids the slam, which is the
+                // whole point of asking only what you will act on.  Both
+                // classes install only on the rungs some lane can reach —
+                // a dead alerted rule erases readings ([`relay_lanes`]).
+                if queen_ask_can_land(landing) {
+                    rules = rules
+                        .rule(
+                            landing,
+                            1.85,
+                            queen_ask_here(landing)
+                                & keycard_total(trump, 5..)
+                                & grand_zone(strain),
+                        )
+                        .alert(RKCB_FLOOR)
+                        .face(|context: &Context<'_>| relay_window_face(context, 4));
+                }
+                // Explore seven only when the values are already there:
+                // RKCB is a slam veto, not a slam seeker, so a partnership
+                // short of the grand zone never spends the round.
+                if king_ask_can_land(landing) {
+                    rules = rules
+                        .rule(
+                            landing,
+                            1.85,
+                            king_ask_here(landing)
+                                & relay_verdict(trump, 5.., true)
+                                & grand_zone(strain),
+                        )
+                        .alert(RKCB_FLOOR)
+                        .face(|context: &Context<'_>| relay_window_face(context, 8));
+                }
             }
             rules = rules
                 // Two of the three side kings on top of all five keycards and
@@ -7002,6 +7082,37 @@ mod tests {
                 }
             }
         }
+    }
+
+    /// The converse discipline: a rule class installs only on the rungs some
+    /// lane can reach.  A constraint-dead alerted rule is still face-live, and
+    /// its structural `alerted` bit erases the natural walk for the window's
+    /// ordinary placements — five and six of trump above all.
+    #[test]
+    fn relay_rules_install_only_on_reachable_rungs() {
+        let bid = |level, strain| Bid::new(level, strain);
+        let feasible: Vec<Bid> = RELAY_RUNGS
+            .into_iter()
+            .filter(|&rung| queen_ask_can_land(rung))
+            .collect();
+        assert_eq!(
+            feasible,
+            [
+                bid(4, Strain::Spades),
+                bid(4, Strain::Notrump),
+                bid(5, Strain::Clubs),
+                bid(5, Strain::Diamonds),
+                bid(5, Strain::Hearts),
+            ],
+            "the queen ask has exactly five rungs; an ask rule anywhere else is dead"
+        );
+        // 6♠ is a lane's strong denial and nothing else — never an ask, never
+        // an artificial reply — so its natural reading survives the window.
+        let six_spades = bid(6, Strain::Spades);
+        assert!(!queen_ask_can_land(six_spades));
+        assert!(!artificial_reply_can_land(six_spades));
+        assert!(!king_ask_can_land(six_spades));
+        assert!(denial_can_land(six_spades));
     }
 
     /// The asker decodes the answer: two keycards missing signs off at five,
