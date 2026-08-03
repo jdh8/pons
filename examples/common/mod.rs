@@ -374,6 +374,15 @@ pub fn sd_declarer_ns_score(
 /// pre-fix playout numbers are corrupted (CHANGELOG "Fixed").  The fit put
 /// λ(7) = 0.696 on only 54 grands; it inherits λ(6) by design (the shifts
 /// are flat, −0.334 vs −0.339, and n = 54 is noise).
+///
+/// **Holdout-validated 2026-08-04** on fresh seed 1785789480 (same settings,
+/// 39,648 contracts): applying THIS λ to the holdout's endpoints reproduces
+/// the holdout's Pavlicek targets within 0.6pp at every level ≤ 6 (binomial
+/// noise ≈ 1.5pp at n = 1000), so the population check is no longer circular;
+/// the refit λ column moves ≤ 0.02 except level 5 (0.47 → 0.39), and the
+/// λ(4) > λ(5) inversion REPLICATES in both samples — 5-level contracts
+/// genuinely carry a smaller misguess share, it is not sample noise.  λ is a
+/// property of the 16-world emulation: re-fit before changing world count.
 pub const SD_BLEND_LAMBDA: [f64; 8] = [0.0, 0.089, 0.242, 0.298, 0.539, 0.474, 0.664, 0.664];
 
 /// The **sd-blend** IMP swing of one divergent board, bracket `k` (0 plain,

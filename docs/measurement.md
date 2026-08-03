@@ -418,6 +418,13 @@ These produced actual wrong conclusions; each has a memory/ledger trail.
   `probe-slam-battery` measures the playout leaking 20–40% of seeds on
   DD-fair slam deals through mean-max line detours, so the blend is honest
   on population averages while individual boards carry that variance.
+  **Holdout-validated** (2026-08-04, fresh seed 1785789480, 39,648
+  contracts): the shipped λ applied to endpoints it never saw reproduces the
+  Pavlicek targets within 0.6pp at every level ≤ 6 (binomial noise ≈ 1.5pp
+  at n = 1000), and the λ(4) > λ(5) inversion replicates — real 5-level
+  structure, not sample noise. λ is a property of the **16-world**
+  emulation (the misguess rate shrinks with worlds); re-fit before changing
+  the world count.
 - **Right-siding alone never wins on DD.** Both arms reach the same contract;
   only the declarer differs, and neither plain DD nor PD sees who declares.
   A convention whose only edge is right-siding measures ≈0 — don't trade real

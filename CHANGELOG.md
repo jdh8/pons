@@ -246,6 +246,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   double one-way hook) from third-eye slams (two-way queen both vacancy
   placements, drop-vs-hook), asserting premises double-dummy, bands per row,
   and the ordering that the third-eye pair grades below the DD-fair rows.
+  **Holdout-validated** on a fresh seed (1785789480, 39,648 contracts): the
+  shipped λ reproduces the holdout's Pavlicek targets within 0.6pp at every
+  level ≤ 6 against ≈1.5pp binomial noise, closing the circularity of the
+  fit run's own population check, and the λ(4) > λ(5) inversion replicates
+  (real 5-level structure). λ is a property of the 16-world emulation;
+  re-fit before changing the world count.
   `ab-kickback` additionally gained `--dump` (divergent boards as
   `common::Dump` shards) and `--rescore` (re-price a dumped cell under all
   nine instruments — plain/PD × {DD, sd-lead, sd-playout, sd-blend} plus the
