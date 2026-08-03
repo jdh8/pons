@@ -253,8 +253,8 @@ on the current plain-DD harness. Headline: `fuzzy_fifths` flipped **default-off*
 | --- | --- | --- | --- | --- | --- | --- |
 | set_inference_aware | `ab-inference-floor` (scripts/a6-run.sh) | Engine | ON | floor consults auction interpretation vs shape-blind fallback (foundational): **plain +0.0270/+0.0347, PD +0.0242/+0.0309** NV/vul (1M×2, all CI>0, fires 1.86%, +1.3-1.9 IMPs/div) | fresh | keep default-on ✓ (WIN/WIN) |
 | set_settle_floor | `ab-settle-floor` (seeded+dual) | Engine | ON | "pass = play top bid": **DD +0.047/+0.092, PD +0.062/+0.107** NV/vul (1M×2, all CI>0, PD≥DD, fires 6.2%). Refreshes the stale-PD +0.26/+0.37 | fresh | keep default-on ✓ (WIN/WIN) |
-| set_alert_reading | `ab-alert-reading` (seeded+dual) | Engine | ON | reads alerted call as artificial: **plain +0.0171/+0.0234, PD +0.0207/+0.0278** NV/vul (1M×2, all CI>0, PD≥plain, +2.0-3.3 IMPs/div). Refreshes the stale-PD +2.08/+1.59; contested defense-switch value is extra | fresh | keep default-on ✓ (WIN/WIN) |
-| set_natural_reading | `bba-gen --ns-natural-reading` | Engine | **OFF** | project **unalerted** (natural) authored calls too. `project_authored` decodes on the alert, so an authored-but-natural rule (`gladiator_advances`'s GF `3♦` = `len(♦,5..) & points(10..)`) contributes nothing and the natural walk's shape-guess stands unchecked beside it — the regime-2 class of [reading-drift-handoff.md](reading-drift-handoff.md). On, the rule's own union is intersected in **without** setting the suppression bit, so the walk's lane bookkeeping survives and only the rule's claim is added. Two known consequences: where the walk is right the reading strictly tightens (strength bands appear on calls that published only a length floor); where the walk is *wrong* the box can go **empty**, which is a diagnostic for a walk defect, not this knob's fault — sweep `admits` per node first. **Unmeasured**: it tightens thousands of readings at once, and dnf-migration.md's C1 warns a tightening that moves endpoints without mass is close to pure feature perturbation for the frozen nets. A/B owed before any default change | — | opt-in, unmeasured |
+| set_reading_scope = `Alerted` | `--ns-reading-scope alerted` (`ab-alert-reading`) | Engine | **default** | reads alerted call as artificial (vs `None`, the whole-projection off arm): **plain +0.0171/+0.0234, PD +0.0207/+0.0278** NV/vul (1M×2, all CI>0, PD≥plain, +2.0-3.3 IMPs/div). Refreshes the stale-PD +2.08/+1.59; contested defense-switch value is extra | fresh | keep default-on ✓ (WIN/WIN) |
+| set_reading_scope = `All` | `--ns-reading-scope all` | Engine | **opt-in** | project **unalerted** (natural) authored calls too. `project_authored` decodes on the alert, so an authored-but-natural rule (`gladiator_advances`'s GF `3♦` = `len(♦,5..) & points(10..)`) contributes nothing and the natural walk's shape-guess stands unchecked beside it — the regime-2 class of [reading-drift-handoff.md](reading-drift-handoff.md). On, the rule's own union is intersected in **without** setting the suppression bit, so the walk's lane bookkeeping survives and only the rule's claim is added. Two known consequences: where the walk is right the reading strictly tightens (strength bands appear on calls that published only a length floor); where the walk is *wrong* the box can go **empty**, which is a diagnostic for a walk defect, not this knob's fault — sweep `admits` per node first. **Unmeasured**: it tightens thousands of readings at once, and dnf-migration.md's C1 warns a tightening that moves endpoints without mass is close to pure feature perturbation for the frozen nets. A/B owed before any default change | — | opt-in, unmeasured |
 | set_fallback_projection | BBA A/B | Engine | ON | decodes contested/fallback conventions: plain +0.0006 (+1.03/fired), PD +0.0014 (+2.38/fired), CI>0 | fresh | keep default-on |
 | set_dnf_reading | `--no-ns-dnf` (`scripts/dnf-flip2-ab.sh`) + `ab-dnf-sd-lead` | Engine | **ON** | DNF union-of-boxes reading ([dnf-migration.md](dnf-migration.md)): disjunctions keep separate boxes instead of hulling to ⊤. **SHIPPED default-on 2026-07-23** (chop F2b′, 204800 bd/arm/vul, SEED 1784809754): the flip **wins all four cells, CIs clear** — plain **+0.0094 ±0.0046 / +0.0080 ±0.0056**, PD **+0.0118 ±0.0051 / +0.0085 ±0.0062** NV/vul, +0.45–0.65 IMPs per fired board (~1.8% fired). Two things had to land first: the **knob-matched evaluator twin** (F2b — see [evaluator.rs](../src/bidding/evaluator.rs), selected by `dnf_reading()`) and the **statically pinned `jacoby_box`** that closed the wrong-seat trap (F2b′). *The bare flip was REFUTED — LOSS all 4 cells (204800/arm/vul, SEED 1784784503, sha bb32624): plain −0.0038/−0.0054, PD −0.0039/−0.0053, all CI<0. F1's forensic put that loss on the **bilans evaluator** reading knob-shifted prefixed hulls it was never fit on, not the policy floor net — the standing warning that a* truer *reading can lose through a frozen net, and the reason the knob-matched twin exists at all.* sd-lead matrix (20k×2, seed 1784779888, pre-flip polarity): NV −0.0318 ±0.0267, vul +0.0121 ±0.0315, pooled wash | fresh | default-on ✓ (off = the legacy-hull kill-switch) |
 | set_gauge_membership | `--ns-gauge-membership` + `ab-dnf-sd-lead` | Engine | OFF | strength gauges get membership teeth (samplers reject outside raw-HCP/support-points bands — the one knob that can reject legal hands; eval⟹membership sweep is its soundness gate): **WASH every cell** on sd-lead (20k×2 — gauge vs off −0.0034/−0.0042; on top of dnf +0.0140/+0.0002, all CI⊇0), and **bidding-inert confirmed** — 0 fired in 409600 bba boards (both-vs-dnf). **The owed C2 × gauge re-measure is NO-GO** (probe C-P `--gauge`, 2026-07-26): C2's membership effect is *subsumed* by this knob — 249 rejections → 0/8576 — so stacking adds only a 0.09σ `pts max` endpoint move to a knob already WASH. The nonzero sd-lead delta beside 0 bidding divergence is the scorer, not the system: `single_dummy.rs:364` draws its defender worlds from the same `Inferences`. **Also not SD-PD re-adjudicated 2026-07-25**, twice ineligible: it is a *gauge election* rather than a bidding decision, and `ab-dnf-sd-lead`'s arms reach identical contracts, so both SD scorers are nondecreasing in one trick count and SD-PD cannot disagree with plain SD there. A knob that fires 0 times has no verdict to correct | fresh | keep default-off kill-switch; re-measure closed |
@@ -430,58 +430,192 @@ ab-fuzzy-strength gained a `--sd` blind-lead arbitrator.)*
 **Stale figures (re-measure before trusting the magnitude):**
 - `stale-PD` (pre-`a6f2206` PD-era, not comparable to plain-DD):
   set_transfer_super_accept, minor keycard (+6.80/+8.76; PD +5.41/+7.05 is the
-  conservative re-measure). *(NotrumpShape shipped Wide6322 as default 2026-07-12 — fresh, see A1. set_alert_reading + set_settle_floor refreshed fresh in the A6 pass 2026-07-13.)*
+  conservative re-measure). *(NotrumpShape shipped Wide6322 as default 2026-07-12 — fresh, see A1. set_reading_scope (then `set_alert_reading`) + set_settle_floor refreshed fresh in the A6 pass 2026-07-13.)*
 - `stale-pop` (measured before a book-population shift): set_open_one_notrump,
   set_floor_rkcb, `NotrumpDefense::{Natural, DirectDont}`, set_landy,
   set_natural_double_shape, set_stayman_defense.
-
-## Encoding audit — bool clusters (2026-08-03)
+## Encoding audit — bool clusters (2026-08-03, repo-wide)
 
 A review of every place two-plus bool knobs encode one multi-way choice — the
 mis-encoding whose worst case is a knob cross-product with unplayable cells
 (the §7.11 rule: a knob has to name a stance a partnership could actually
-play). One conversion shipped; the rest are verdicts so the question is not
-re-litigated per cluster.
+play). First pass swept `src/bidding` only; the **second pass swept the whole
+repo — `examples/`, `scripts/`, `web/` — and that is where the live defects
+were**. Verdicts are recorded so the question is not re-litigated per cluster.
 
-**Converted.** `set_kickback` + `set_redwood` → `set_rkcb_variant(RkcbVariant)`
-(see A7). Third such conversion, after `NotrumpDefense` (five defense bools,
-[defense.rs](../src/bidding/american/defense.rs)) and `set_rkcb_minors` (the
-2026-08-02 book+floor merge).
+Storage note that prices every fold below: knobs are uniformly
+`thread_local! { Cell<T> }`, **enums included** (`Cell<NotrumpDefense>`,
+`Cell<RkcbVariant>`, `Cell<PointScale>`, …). A bool→enum fold is therefore zero
+storage churn; the cost is always in the call sites.
 
-**Deliberate non-merges — keep as independent bools.** Their combinations are
-all playable, or the doc explicitly prices them apart:
+### Defects found and fixed
 
-- `set_sum_closure` / `set_upgrade_closure` — "the two closures read different
-  axes and the A/B measures them apart before stacking" (inference.rs).
-- `set_pass_reading` / `set_pass_exclusion_reading`, `set_probed_reading` /
-  `set_probed_vacuous_reading` — refinement pairs; the narrow knob is simply
-  dormant while the broad one is off, and each names a real reading stance.
+- **`set_floor_rkcb` × `set_rkcb_variant` disclosed a convention we do not
+  play.** The relocated ask's `face` gate carried both, but
+  [card.rs](../src/bidding/card.rs) (`"Kickback 1430"`) and
+  [neural.rs](../src/bidding/neural.rs) (`WEIGHTS_BBA_KICKBACK`) read the
+  variant alone — so `(floor_rkcb = off, variant = Kickback)` published Kickback
+  on the generated `.bbsa` card and served the kickback twin while the floor
+  made no relocated ask. Fixed by folding the conjunct into `relocating_now()`
+  itself, so all seven consumers agree; card.rs's own comment already called
+  this class of mismatch "a fairness problem before it is a measurement one …
+  invalidates any kickback-vs-BBA anchor". Default byte-identical.
+- **Four statically dead disjuncts** in `penalty_x_reading`
+  ([inference.rs](../src/bidding/inference.rs)): `!natural_defense_enabled() ||
+  direct_dont_enabled() || meckwell_enabled() || direct_landy_double().is_some()
+  || woolsey_enabled()`. One `Cell` holds one variant, so the first arm subsumes
+  the rest — the pre-fold cascade `NotrumpDefense` was introduced to delete.
+- **Three `web` registry defaults contradicted the engine** —
+  `rich_advance_double` (registry `false`, engine `true`), `rubens_advances`
+  (`true` / `false`), `fuzzy_fifths` (`true` / `false`) — untouched since the
+  registry was written 2026-07-10 while all three engine defaults moved after.
+  Not cosmetic: `app.js` stores only *deltas* against the registry value and the
+  Settings reset button pushes it into the engine.
+- **`web/` had never been in CI.** It is a separate workspace, `exclude`d from
+  the parent package, so `rust.yml` never built it and only the Pages deploy on
+  `main` compiled it; its 18 tests had never run anywhere. A `web` job now runs
+  them. That absence is *why* the defaults drifted.
+- **~15 stale `bba-gen` flags across 8 A/B scripts**, each aborting on clap —
+  all knobs that flipped from opt-in `--ns-x` to shipped-default `--no-ns-x`
+  without the callers being updated. Two reusable campaign drivers repaired
+  (`a5-run.sh`, `reading-knobs-ab.sh`, the latter also polarity-flipped); seven
+  spent single-shot scripts deleted, their verdicts already recorded above.
+  Amplifier fixed with them: `ab-lib.sh`'s `arm()` skipped on **directory
+  existence**, but `bba-gen-parallel.sh` mkdirs before launching a worker, so an
+  arm that died on startup silently resumed as an empty arm. It now tests for a
+  shard.
+- **`dump-teacher` wrote wrong corpus provenance**: `--mix-kickback` ignores
+  `--kickback` but the JSON sidecar still recorded `our_kickback`. Now
+  `conflicts_with`.
+
+### Converted
+
+| Cluster | Now | Why it was a mis-encoding |
+| --- | --- | --- |
+| `set_kickback` + `set_redwood` | `set_rkcb_variant(RkcbVariant)` | 4 cells, 3 stances (2026-08-03) |
+| 5 defense bools | `set_notrump_defense(NotrumpDefense)` | the original fold; **completed 2026-08-03** by deleting the five bool shims it left behind |
+| `set_minor_keycard` + `set_keycard_minors` | `set_rkcb_minors` | book+floor merge (2026-08-02) |
+| `set_alert_reading` + `set_natural_reading` | `set_reading_scope(ReadingScope)` | `(alerted && alert) \|\| natural` — the natural half short-circuits, so `(off, on)` ≡ `(on, on)`: 4 cells, 3 stances |
+| `set_fuzzy_strength`, `set_fuzzy_points` | **deleted** → `set_point_scale` + `set_fuzzy_fifths` | one wrote two sibling cells; the other was a bool over a 3-valued scale that destroyed `RuleOfNFloored` on write |
+| `set_lebensohl` | **deleted** | zero callers repo-wide, and `true` selected the measured-*worse* `Plain` rather than the shipped `Transfer` — the web crate had already written its own toggle to route around "the wrapper's lossy `Plain`" |
+
+The five deleted defense shims deserve their epitaph: each `false` arm reverted
+to Natural *only if that system was the active one*, so a harness resetting by
+calling every `set_*(false)` got an **order-dependent** result — and keeping
+them let `bba-gen` and `ab-landy` re-implement, in hand-written last-write-wins
+blocks, the very cascade the enum deleted. `--ns-dont --ns-meckwell
+--ns-woolsey` was accepted silently, resolved by whichever call ran last.
+`set_direct_landy_double` survives: the flat-4-4 flag has no meaning without the
+double it configures.
+
+### Deliberate non-merges — keep as independent bools
+
+Their combinations are all playable, or the doc explicitly prices them apart:
+
+- `set_sum_closure` / `set_upgrade_closure` — the two closures read different
+  axes and the A/B measures them apart before stacking. (Note the asymmetry the
+  first pass missed: `sum_closure` is *provably membership-inert*
+  (`closure-inertness.md`), so its arms bite only through `Dnf::hull` and hence
+  the evaluator's features — a different channel from `upgrade_closure`'s.)
+- `set_probed_reading` / `set_probed_vacuous_reading` — a genuine 4-cells-3-
+  stances *shape*, deliberately **not** folded: the duplicate cell is already
+  resolved in code, at [book.rs](../src/bidding/book.rs)'s
+  `set_probed_reading(probed_on && !vacuous)`, and the CLI carries the only
+  clap-level `requires` in `bba-gen`. Folding would churn live net-facing probe
+  plumbing to restate an invariant the code already enforces. Revisit if that
+  line ever moves.
 - `set_penalize_escape_stack` / `set_penalize_escape_values` — two independent
-  grounds for the same double; any of the four cells is a playable style.
+  grounds for the same double; any of the four cells is a playable style. (Both
+  are payloads of `set_one_nt_runout`, which the first pass did not say.)
 - `set_responsive_takeout` / `set_responsive_overcall` — the same convention
-  after a double vs after an overcall; the seats are independent agreements
-  (and carry opposite measured defaults).
-- `set_weak_two_major_priority` / `set_weak_two_longest_first` — two
-  tie-break doctrines that compose (both measured, both default-on).
+  after a double vs after an overcall; independent agreements with opposite
+  measured defaults.
+- `set_weak_two_major_priority` / `set_weak_two_longest_first` — two tie-break
+  doctrines that compose (both measured, both default-on).
+- `set_direct_3nt_stopper` / `set_trap_pass` — written as an explicit 2×2 match
+  on a tuple of two bools, all four arms authoring distinct constraints. The
+  honest form, and the only place in the codebase a bool cross-product is
+  spelled out.
 
-**Tolerated master-gate + payload packages.** A bool gate whose payload knobs
-are dead while it is off (gambling-3NT-over-X, preempt-4M, penalty-latch +
-`LatchStyle` + no-pull, rich-advance + its three sub-knobs, 1NT-runout +
-`RUNOUT_XX_MIN`): dead-but-harmless payloads, every armed combination
-playable. Not worth an `Option<Config>`-shaped API churn; revisit only if a
-mispaired harness arm ever costs a measurement.
+### Two first-pass verdicts corrected
 
-**Future enum candidates** (each is one editorial decision spread over bools,
-but the conversion is bigger surgery than the RKCB trio and none has bitten):
+- **`COMPETITION_OVER_*` and the four defenses to their artificial 1NT
+  responses are NOT a pick-a-family set.** They are four independent
+  node-scoped opt-ins per side — four different auction nodes, all sixteen cells
+  playable, and the two sides carry disagreeing defaults on purpose. Not an enum
+  candidate; if anything a bitset. The real coupling there is the one the first
+  pass missed: `notrump_minors() == PUPPET` gates two *default-on* knobs
+  (`set_competition_over_minor_transfer`, `…_diamond_transfer`), so flipping to
+  European silently kills them. Now gated in the web UI.
+- **The five `set_suppress_*` takeout bools are a shape bitset — so "enum
+  candidate" was wrong.** `suppress_5card_major` *overlaps* 5332 and 4432, so an
+  enum would be incorrect; `bitflags` is the only sound fold, and three of the
+  five are already "fold into base". The one genuine 3-way inside the cluster is
+  `suppress_4432_vs_major` / `_vs_minor`, joined by an if/else on `their_major`
+  — `{Never, VsMajor, VsMinor, Always}`, all four playable.
+
+Also mis-filed by the first pass: `set_woolsey_points` and `set_landy_hcp` are
+**not** family payloads. `landy_2c()` reads `woolsey_points()` and
+`unusual_2nt()` reads `landy_use_hcp()`, so each bites with its nominal owner
+off.
+
+### Master-gate + payload packages
+
+A gate whose payload knobs are dead while it is off. Harmless in the engine —
+every armed combination is playable — but they were **rendered as flat,
+independently clickable peers in the web UI**, often in a different section from
+their master, which is a lie about what the bidder will do. `Setting` now
+carries a `requires` field (`"key"`, or `"key=value"` for a choice) and
+`app.js` disables and dims a row whose master is off; a test asserts every
+`requires` names a row that exists in the form that row can satisfy.
+
+Gated: `rkcb_variant`→`floor_rkcb`, `transfer_gf_hearts`→`transfer_gf_majors`,
+`advance_rubens`→`rich_advance_double`, `penalty_latch`→`notrump_defense=natural`,
+`penalty_no_pull`→`penalty_latch`, `uvu_encircle`→`uvu` (cross-file *and*
+cross-tab), `one_nt_runout_universal` / `penalize_escape_stack` /
+`penalize_escape_values`→`one_nt_runout`, `direct_dont_four_four`→
+`notrump_defense=direct_dont`, `competition_over_{minor,diamond}_transfer`→
+`puppet_stayman`, `rubens_transfer_reading`→`rubens_advances`.
+
+Packages with no web row, recorded here for completeness:
+`set_meckstroth_adjunct`→`set_meckstroth_minor_jumps`; `set_open_one_notrump`→
+`set_one_notrump_fifths` / `set_one_notrump_offshape` / `set_notrump_shape`;
+`set_fuzzy_fifths`→`set_fifths_companion` (entirely dormant at shipped
+defaults); `set_nt_overcall_systems_on`→`set_nt_overcall_gladiator`;
+`dnf_reading()`→`sum_closure` / `upgrade_closure` / `eval_shape` /
+`eval_auction` / `pass_exclusion_reading`. Note `set_advancer_xx_runout` and
+`set_doubler_xx_runout` are *siblings* of the 1NT runout, not payloads — they
+survive `set_one_nt_runout(false)`.
+
+### The web registry is a player-facing system chooser
+
+Rows that named a developer instrument were dropped (the engine `set_*` stays
+for A/B, per the fold-into-base caveat): the whole `Fuzzing` section,
+`inference_aware` (`#[doc(hidden)]`, "for A/B measurement only"), `alert_reading`
+(now an arm of a three-way), and `rkcb_minors` — dominated by the
+`rkcb_variant` radio directly below it, since either relocation implies the
+minors' reach.
+
+### Future enum candidates
+
+Each is one editorial decision spread over bools; none has bitten yet.
 
 - The 1NT-defense family payload bools (`DIRECT_LANDY_*`, `MECKWELL_*`,
   `WOOLSEY_*`, `DIRECT_DONT_*`) — dead unless `notrump_defense()` names their
   family; folding them into variant payloads would need a non-`Copy` cell.
-- The four defenses to their artificial 1NT responses and their
-  `competition.rs` mirror (`COMPETITION_OVER_*`) — same shape, disagreeing
-  defaults, eight knobs for two editorial decisions.
-- The five `set_suppress_*` takeout bools (A-suppress) — a shape bitset, and
-  three are already "fold into base".
 - `NOTRUMP_MINORS` selects a variant by `Alert("puppet")` / `Alert("european")`
-  string tag — the one non-enum variant selector left; an enum would match the
-  house pattern.
+  string tag — the one non-enum variant selector left. Higher stakes than the
+  first pass implied: it also gates two default-on bool knobs and six card rows.
+- **The evaluator's artifact cascade** — four bools (`dnf_reading`,
+  `eval_shape`, `eval_auction`, `pass_exclusion_reading`) selecting one of five
+  weight blobs, i.e. 16 cells for 5 artifacts.  `eval_shape` *supersedes*
+  `eval_auction`, so `(shape on, auction off)` is a duplicate cell; and
+  `pass_exclusion_reading` selects weights **outside its own reading gate**, so
+  `(pass_reading off, pass_exclusion on)` serves the exclusion-trained evaluator
+  for a reading regime that is switched off. The largest remaining
+  mis-encoding, and the one that costs a retrain to fix — hence deferred, not
+  done.
+- Sentinel duplicates in the u8 payloads: `meckwell_x_floor(8)` ≡ `(0)` and
+  `direct_dont_x_floor(8)` ≡ `(0)`, because `0` means "inherit
+  `natural_overcall_points().0`", which is 8. Documented as byte-identical, but
+  it means a harness's off-arm and one on-arm are the same cell.

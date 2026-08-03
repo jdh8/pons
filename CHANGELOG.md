@@ -114,6 +114,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   above, and every verdict is already recorded in `docs/bidding-options.md` —
   re-authoring one from `ab-lib.sh` is a few lines.
 
+- **`docs/bidding-options.md`'s encoding audit now covers the whole repo** —
+  `examples/`, `scripts/` and `web/` as well as the engine — and two of its
+  first-pass verdicts are corrected: the `COMPETITION_OVER_*` octet is **not** a
+  pick-a-family set (four independent node-scoped opt-ins, all sixteen cells
+  playable), and the five `set_suppress_*` takeout bools are a shape *bitset*
+  whose members overlap, so an enum would be incorrect there.
+
 - **The web Settings tab knows which knobs depend on which.** A `requires`
   field (`"key"`, or `"key=value"` for a radio family) now gates eleven rows
   whose engine knob reads nothing while its master is off — `advance_rubens`
