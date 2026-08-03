@@ -38,6 +38,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **The single-dummy playout collapsed card sequences across the current
+  trick.** `distinct_plays` treated ranks already played *to the trick in
+  progress* as gone, so holding 8-6 behind a led 7 read as one "sequence" and
+  the forced-play shortcut picked a card without solving — defenders could be
+  forced to fly an honor into a waiting ace (letting the fallible declarer
+  *beat* the deal's DD-after-lead ceiling, which perfect defense makes
+  impossible), and declarer's side could be forced into crashing its own
+  tricks. Caught by `probe-slam-battery`'s impossible row: a one-way-finesse
+  deal whose king was offside scored twelve tricks on 20% of seeds against
+  an eleven-trick DD ceiling. Sequence collapsing now only spans ranks gone
+  in **completed** tricks. Every playout-priced number measured before this
+  fix carries the distortion — in particular the 2026-07-16 sd-calibration
+  table's playout column and §7.13's sd-declarer rows; the λ calibration was
+  relaunched on the fixed binary.
+
 - **`set_floor_rkcb` off with a relocated `set_rkcb_variant` disclosed a
   convention we did not play.** The relocated ask's rules were `face`-gated on
   both knobs, but the generated `.bbsa` card (`Kickback 1430`) and the
@@ -178,6 +193,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `bba-gen`'s flag follows the crate: `--no-ns-kickback` becomes `--ns-kickback`.
 
 ### Added
+
+- **The sd-blend: a calibrated point estimate inside the single-dummy slam
+  bracket.** `single_dummy_declarer_tricks` now returns *both* endpoints of
+  one composed run — the lead endpoint (blind lead, then DD play: the slam
+  optimist, Pavlicek's after-lead table has DD play +7pp of make-rate on
+  slams) and the playout endpoint (the fallible declarer: the pessimist,
+  haircut ≈1.5× real after the sequence-collapse fix) — and
+  `common::sd_blend_imps` prices divergent boards as a per-level λ-mixture
+  at the IMP level. λ is fitted in logit space so the blend shifts the lead
+  endpoint's make-logit by exactly Pavlicek's after-lead log-odds per level
+  (`probe-sd-calibration` types in the 8j45 table and prints the fit; run
+  of 2026-08-04, seed 20260716, 39,633 contracts): **0.089 / 0.242 / 0.298 /
+  0.539 / 0.474 / 0.664** for levels 1–6, λ(7) inheriting λ(6) by design.
+  Validated by the new `probe-slam-battery`: seven authored archetype rows
+  separating DD-fair slams (cold deck, one-way finesse both placements,
+  double one-way hook) from third-eye slams (two-way queen both vacancy
+  placements, drop-vs-hook), asserting premises double-dummy, bands per row,
+  and the ordering that the third-eye pair grades below the DD-fair rows.
+  `ab-kickback` additionally gained `--dump` (divergent boards as
+  `common::Dump` shards) and `--rescore` (re-price a dumped cell under all
+  nine instruments — plain/PD × {DD, sd-lead, sd-playout, sd-blend} plus the
+  analytic Pavlicek shave — with the ask-bucketed census), so §7.13-style
+  cells now leave rescorable artifacts. Scorer-side only: the default
+  system is unchanged (smoke-default byte-identical, 20k boards).
 
 - **`set_redwood`: the minor half of the kickback ladder as a stance of its
   own.** 4♦ asks in clubs and 4♥ in diamonds; the majors keep plain 4NT — the

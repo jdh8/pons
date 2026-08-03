@@ -1389,6 +1389,16 @@ and credits the arm that punted. PD sitting at parity looked consistent with
 that. The sd row is the scorer that does let a thin slam fail, and it still
 reads negative at both vulnerabilities with both intervals excluding zero.
 
+> **Caveat (added 2026-08-03, when §7.15 reopened the diagnosis):** the sd
+> row above is a 400k **aggregate** over a divergent set in which 92%+ of
+> boards saw no keycard ask at all — it mostly re-priced the card-row
+> perturbation of the net, not the relocation, and there is no sd-lead row in
+> this table at all (right-siding unpriced). "Tested and failed" is therefore
+> recorded stronger than its evidence. The ask-bucketed rescore under the
+> full instrument set — including the sd-blend, the calibrated slam scorer
+> §7.14 said did not exist — is §7.15's step 0; quote that, not this
+> aggregate, for or against the relocation.
+
 **What is not in doubt is the ladder's arithmetic.** §7.2's table is correct: a
 relocated ask genuinely brings the overshooting answers to zero, in all three
 lanes, which is why this was built. The measurement says the room it buys costs

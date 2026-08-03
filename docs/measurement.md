@@ -92,8 +92,9 @@ Two failure modes this avoids, both paid for on the Gladiator v6 run:
 | `ns_score_bid` | Perfect defense, takes a `Bid` (derives the penalty). | Evaluating a **call** (EV rollouts, contract-choice probes) — never for A/B results. |
 | `ns_score_tricks` | **Plain SD**: an explicit single-dummy trick count priced at the contract's *actual* penalty. | The pricing tail of the SD scorers. **Never a verdict on its own** — see below. |
 | `ns_score_pd_tricks` | **SD-PD**: the same trick count, but a contract that *fails on those tricks* is scored **doubled**. | The SD arbiter. Report it beside plain SD everywhere the SD bracket is quoted. |
-| `single_dummy_leads` (`src/single_dummy.rs`) | MC-DD with a *blind* opening lead chosen from the leader's sampled worlds. | The one known DD bias at 1NT level (DD defenders always find the killing lead, ~+0.3 tricks to 1NT declarers). Re-score close NT-defense verdicts with it — under **both** SD scorers. |
-| `single_dummy_playout` (`src/single_dummy.rs`) | The **sd-declarer playout**: blind lead, then declarer chooses every card MC-DD over auction-consistent worlds (show-outs remembered) while the defense plays DD on the actual deal. | The slam-side DD bias (see below): a DD declarer never misguesses, so every DD-play scorer is *optimistic* for the arm bidding more slams. Runners: `ab-dump-sd --sd-declarer`, `ab-slam-entry --sd`. Sequential per board — divergent sets only. |
+| `single_dummy_leads` (`src/single_dummy.rs`) | MC-DD with a *blind* opening lead chosen from the leader's sampled worlds. | The one known DD bias at 1NT level (DD defenders always find the killing lead, ~+0.3 tricks to 1NT declarers). Re-score close NT-defense verdicts with it — under **both** SD scorers. ⚠ **At slam level this is an UPPER bound** — it removes the lead pessimism and keeps all of DD's play optimism (Pavlicek after-lead: +7pp on slams). Never read it as slam insurance. |
+| `single_dummy_playout` (`src/single_dummy.rs`) | The **sd-declarer playout**: blind lead, then declarer chooses every card MC-DD over auction-consistent worlds (show-outs remembered) while the defense plays DD on the actual deal. | The slam-side DD bias (see below): a DD declarer never misguesses, so every DD-play scorer is *optimistic* for the arm bidding more slams. Runners: `ab-dump-sd --sd-declarer`, `ab-slam-entry --sd`. Sequential per board — divergent sets only. Its haircut is ≈1.5× the real one (see Known biases) — the LOWER bound. |
+| `sd_blend_imps` (`examples/common/mod.rs`) | The **sd-blend**: one composed run (`single_dummy_declarer_tricks`) returns both endpoints' trick counts, and the blend takes the playout outcome with probability λ(level), the lead-endpoint outcome otherwise, mixed at the IMP level (four `imps` terms — the IMP table is nonlinear). λ per level in `common::SD_BLEND_LAMBDA`, fitted by `probe-sd-calibration`'s λ block so the blend applies exactly Pavlicek's **after-lead** declarer-fallibility shift to the lead endpoint. | The calibrated **point estimate between the two sd endpoints** — built for slam stop-vs-bid buckets, where the decision band is 45–55% make at the 6-level. Grands: quote blend *and* analytic shave as a bracket, never a point (thin data, bigger bias). Validation: `probe-slam-battery` (DD-fair archetypes must not move; third-eye ones must grade). |
 
 **The principle** (jdh8, 2026-06-24): *the threat of a double is a legitimate
 deterrent, but a double that never appeared on the table must never enter the
@@ -261,6 +262,17 @@ robustness bound: a win that survives even the playout is extra-safe; a
 playout flip triggers the Pavlicek shave + a divergent-board trace, never an
 automatic demotion. See the slam-optimism wall under Known biases.
 
+**Since 2026-08-03 the slam bracket has a calibrated point estimate — the
+sd-blend** (`common::sd_blend_imps`; scorer table above). The verdict still
+comes from plain + PD; what the blend adds is attribution *inside* a
+slam-heavy divergent set: the stop-vs-bid boards DD scores as a coin flip get
+a graded make estimate (λ-mixture of the guess-blind and guess-aware
+endpoints), so a bucket's loss can be read as "genuine 45–55% judgment calls
+resolved against us" versus "accidents no scorer rescues". Small slams are
+where the estimate is trusted (the 50% bar under both IMPs and MPs
+concentrates the accuracy budget on the 45–55% band); grands are always
+reported as the [blend, shave] bracket.
+
 Sub-0.1 IMPs/board is noise unless the sample is large (hundreds of thousands
 of boards); a *fired-rate*-weighted per-fired figure with a CI excluding 0 is
 the stronger claim. On contested/filtered harnesses compare **IMPs/divergent**,
@@ -371,6 +383,41 @@ These produced actual wrong conclusions; each has a memory/ledger trail.
   automatic death sentence. The realistic arbiter is the analytic Pavlicek
   Δlogit shave in the slam-boundary addendum above; the playout is the
   lower bound.
+
+  **The two clairvoyances, decomposed** (Pavlicek's after-the-lead table,
+  fetched 2026-08-03 — the half of 8j45 the paragraph above could not use).
+  Full-deal DD nets a killing *lead* (pessimistic for declarer) against
+  clairvoyant *play* (optimistic), and at the 6-level they nearly cancel —
+  which is why "DD is almost calibrated at six" above is true but misleading.
+  Conditioned on the **actual** opening lead, the play-side bias stands alone:
+
+  | level | actual mk% | DD-after-lead mk% | shift (log-odds) |
+  | --- | --- | --- | --- |
+  | 4 | 66.66 | 71.02 | −0.203 |
+  | 5 | 49.84 | 52.87 | −0.121 |
+  | 6 | 66.70 | 73.67 | **−0.334** |
+  | 7 | 64.84 | 72.14 | **−0.339** (n = 768) |
+
+  (Full per-level table, with counts, typed into `probe-sd-calibration`.)
+  Three consequences. **sd-lead is an UPPER bound at slam level** — it is
+  exactly the "DD-after-lead" column's bias position: realistic lead,
+  clairvoyant play, +7pp / +0.21 tricks at the six level. It exists to fix
+  the 1NT seam and it does; it must never be quoted as slam insurance.
+  **The playout is the lower bound** — its measured haircut (−0.49 log-odds
+  at L6, fitted 2026-08-04 on the fixed playout; the pre-fix scorer measured
+  −0.71, ≈2.1×, most of the excess being the current-trick sequence-collapse
+  bug) is ≈1.5× the real after-lead quantum (−0.334). **The sd-blend
+  interpolates between them**: λ(level) is fitted so the blend shifts the
+  lead endpoint's make-logit by exactly the after-lead column
+  (`probe-sd-calibration` prints the fit; `common::SD_BLEND_LAMBDA` carries
+  it — fitted λ by level, 1–7: 0.089 / 0.242 / 0.298 / 0.539 / 0.474 /
+  0.664 / =λ(6)). The after-lead shift is flat across 6 and 7 (−0.334 vs
+  −0.339), so λ(7) inherits λ(6) by design — the fit's own 0.696 rests on 54
+  grands, and the grands' extra full-deal bias lives on the lead side, which
+  the shared lead endpoint models itself. A per-board caveat rides along:
+  `probe-slam-battery` measures the playout leaking 20–40% of seeds on
+  DD-fair slam deals through mean-max line detours, so the blend is honest
+  on population averages while individual boards carry that variance.
 - **Right-siding alone never wins on DD.** Both arms reach the same contract;
   only the declarer differs, and neither plain DD nor PD sees who declares.
   A convention whose only edge is right-siding measures ≈0 — don't trade real
