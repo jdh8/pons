@@ -57,6 +57,20 @@ jobs:
     - name: Check (all features, all targets)
       run: cargo check --all-features --all-targets
 
+  # `web/` is its own workspace (excluded from the parent package), so none of the
+  # jobs above reach it — until this job existed, its tests had never run in CI and
+  # only the Pages deploy on `main` compiled it at all. That is how three of its
+  # SETTINGS defaults silently drifted from the engine's.
+  # No submodules: the web crate builds pons with `default-features = false`, so
+  # there is no ddss C++ toolchain and no vendored BBA to fetch.
+  web:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v7
+    - name: Test the web crate
+      run: cargo test
+      working-directory: web
+
   test:
     strategy:
       fail-fast: false
