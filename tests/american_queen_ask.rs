@@ -3,21 +3,15 @@
 //!
 //! Per-node checks miss whole families, and a book node with finite mass
 //! shadows the floor completely — so the questions these answer are "does the
-//! relay survive the trie's fallback chain" and "does the knob's off state
-//! leave the shipped auction alone", neither of which a unit test can see.
-//!
-//! The knob spans two regimes, and a harness has to arm **both**: rule presence
-//! is gated at book-construction time, and the floor's recognizers read the
-//! flag at classification time.  [`armed`] sets it and leaves it set for the
-//! whole test body, which is what `set_kickback`'s docs ask of a harness.
+//! relay survive the trie's fallback chain" and "does the full system reach the
+//! relay rungs in practice", neither of which a unit test can see.
 
 mod common;
 use common::*;
 
 const P: Call = Call::Pass;
 
-/// A stance built with the relay authored, with the flag left set so the
-/// classification-time half is armed too.
+/// A stance built with the shipped default system (the queen relay is always on).
 fn armed() -> impl System {
     stance()
 }
